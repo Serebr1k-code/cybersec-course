@@ -1,0 +1,315 @@
+/* ============================================================
+   CTF Learning Tree — дизайн-система (тёмная тема)
+   ============================================================ */
+
+:root {
+  /* Фон и поверхности */
+  --bg: #070b11;
+  --bg-soft: #0b111a;
+  --panel: #0f1722;
+  --panel-2: #131e2b;
+  --panel-3: #182635;
+  --elevated: #1b2a3a;
+
+  /* Границы */
+  --border: #1e2c3c;
+  --border-soft: #16222f;
+  --border-strong: #2a3d52;
+
+  /* Текст */
+  --text: #e6edf3;
+  --text-soft: #b6c2cf;
+  --muted: #7d8b9c;
+  --faint: #4a5766;
+
+  /* Акценты */
+  --accent: #38bdf8;
+  --accent-2: #818cf8;
+  --green: #22c55e;
+  --green-soft: #16a34a;
+  --yellow: #eab308;
+  --orange: #f97316;
+  --red: #ef4444;
+  --pink: #f472b6;
+
+  /* Сложности */
+  --diff-beginner: #22c55e;
+  --diff-easy: #84cc16;
+  --diff-medium: #eab308;
+  --diff-hard: #f97316;
+  --diff-expert: #ef4444;
+
+  /* Тени — мягкие, минималистичные */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 12px 34px rgba(0, 0, 0, 0.5);
+  --glow: 0 0 0 1px rgba(56, 189, 248, 0.4);
+
+  /* Радиусы и размеры — умеренные, «не сильно» скруглённые */
+  --r-xs: 4px;
+  --r-sm: 5px;
+  --r: 8px;
+  --r-lg: 11px;
+  --r-xl: 14px;
+  --topbar-h: 58px;
+  /* Высота тонкой полосы чтения на странице урока (заменяет обычный топбар). */
+  --reading-bar-h: 46px;
+  --sidebar-w: 312px;
+
+  --mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #app {
+  height: 100%;
+  margin: 0;
+}
+
+/* Ничего не должно вызывать горизонтальный скролл страницы: длинные слова,
+   URL и предысточники переносим/обрезаем на уровне контейнера. */
+img, video, svg, canvas { max-width: 100%; }
+p, li, h1, h2, h3, h4, a, td, th { overflow-wrap: break-word; }
+
+body {
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(56, 189, 248, 0.08), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(129, 140, 248, 0.07), transparent 55%),
+    var(--bg);
+  /* Градиенты фиксированного размера НЕ должны тайлиться: иначе на длинной
+     странице видны горизонтальные швы. Рисуем один раз на весь вьюпорт. */
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+h1, h2, h3, h4 { line-height: 1.25; font-weight: 700; letter-spacing: -0.01em; }
+
+::selection { background: rgba(56, 189, 248, 0.3); }
+
+/* Скроллбар */
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--panel-3);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); background-clip: padding-box; }
+
+/* ---------- Кнопки ---------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease, transform .08s ease, box-shadow .15s ease;
+  white-space: nowrap;
+  user-select: none;
+}
+.btn:hover { background: var(--panel-3); border-color: var(--border-strong); }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn-primary {
+  background: linear-gradient(180deg, #3ec5fb, #1f9fd8);
+  border-color: transparent;
+  color: #04121b;
+}
+.btn-primary:hover { background: linear-gradient(180deg, #55cffd, #2aa9e2); }
+.btn-ghost { background: transparent; border-color: transparent; color: var(--text-soft); }
+.btn-ghost:hover { background: var(--panel-2); color: var(--text); }
+.btn-sm { padding: 6px 11px; font-size: 13px; }
+
+/* ---------- Чипы / бейджи ---------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--panel-3);
+  color: var(--text-soft);
+  border: 1px solid var(--border-soft);
+  line-height: 1.6;
+}
+.chip.tag { background: rgba(56,189,248,.08); border-color: rgba(56,189,248,.25); color: #9ad9f5; }
+
+.diff {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.diff::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.diff-beginner { color: var(--diff-beginner); background: rgba(34,197,94,.12); }
+.diff-easy     { color: var(--diff-easy);     background: rgba(132,204,22,.12); }
+.diff-medium   { color: var(--diff-medium);   background: rgba(234,179,8,.12); }
+.diff-hard     { color: var(--diff-hard);     background: rgba(249,115,22,.12); }
+.diff-expert   { color: var(--diff-expert);   background: rgba(239,68,68,.12); }
+
+/* ---------- Панели ---------- */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ---------- Прогресс-бар ---------- */
+.bar {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--panel-3);
+  overflow: hidden;
+}
+.bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--green-soft), var(--green));
+  transition: width .5s cubic-bezier(.2,.8,.2,1);
+}
+
+/* ---------- Утилиты ---------- */
+.row { display: flex; align-items: center; gap: 10px; }
+.spacer { flex: 1; }
+.muted { color: var(--muted); }
+.soft { color: var(--text-soft); }
+.center { display: flex; align-items: center; justify-content: center; }
+.mono { font-family: var(--mono); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+/* ---------- Анимации ---------- */
+@keyframes fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+.fade-up { animation: fade-up .35s ease both; }
+
+/* ---------- Markdown ---------- */
+.md { color: var(--text-soft); font-size: 15.5px; line-height: 1.75; }
+.md > *:first-child { margin-top: 0; }
+.md h2, .md h3, .md h4 { color: var(--text); margin: 1.6em 0 .6em; scroll-margin-top: calc(var(--reading-bar-h) + 14px); }
+.md h3 { font-size: 1.15rem; }
+.md p { margin: .85em 0; }
+.md ul, .md ol { padding-left: 1.4em; margin: .8em 0; }
+.md li { margin: .35em 0; }
+.md strong { color: var(--text); }
+.md code {
+  font-family: var(--mono);
+  font-size: .88em;
+  background: var(--panel-3);
+  border: 1px solid var(--border-soft);
+  border-radius: 5px;
+  padding: 1px 6px;
+  color: #a5e6ff;
+}
+.md pre {
+  background: #060a0f;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 15px 17px;
+  overflow-x: auto;
+  margin: 1em 0;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+.md pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #d7e3ee;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+.md blockquote {
+  border-left: 3px solid var(--accent);
+  background: rgba(56,189,248,.05);
+  margin: 1em 0;
+  padding: .6em 1em;
+  border-radius: 0 var(--r) var(--r) 0;
+  color: var(--text-soft);
+}
+/* Таблицы на узких экранах не должны растягивать страницу: display:block
+   превращает таблицу в блочный скролл-контейнер, сохраняя табличную раскладку
+   внутри (столбцы остаются выровненными). */
+.md table {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border-collapse: collapse;
+  margin: 1em 0;
+  font-size: 14px;
+}
+.md th, .md td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; }
+.md th { background: var(--panel-2); color: var(--text); }
+.md tr:nth-child(even) td { background: rgba(255,255,255,.015); }
+.md img { max-width: 100%; border-radius: var(--r); border: 1px solid var(--border); }
+.md hr { border: none; border-top: 1px solid var(--border); margin: 1.6em 0; }
+.md a { text-decoration: underline; text-underline-offset: 2px; }
+
+/* Умные кросс-ссылки между уроками (вставляются в DOM из JS, поэтому стиль
+   глобальный — scoped-атрибут на них не попадает). */
+.md .topic-link {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dashed rgba(56, 189, 248, .5);
+  cursor: pointer;
+}
+.md .topic-link:hover { color: #7dd3fc; border-bottom-style: solid; }
+
+/* ---------- Мобильная адаптация (глобально) ---------- */
+/* На тач-устройствах все интерактивные элементы — минимум 44px по высоте,
+   чтобы попадать пальцем (WCAG 2.5.5 / Apple HIG). */
+@media (pointer: coarse) {
+  .btn,
+  .nav-link,
+  .chip,
+  .toc-item,
+  .option,
+  .cat,
+  .item,
+  .refresh-btn,
+  button,
+  a.topic-link {
+    min-height: 44px;
+  }
+  .option, .btn, .cat, .item { align-items: center; }
+  /* Тонкие декоративные чипы не раздуваем — только «нажимаемые» элементы. */
+  .chip { min-height: 0; }
+}
+
+/* Не даём длинным строкам кода/ссылок вылезать за вьюпорт. */
+.md pre, .md table, .md img { max-width: 100%; }
+
+@media (max-width: 560px) {
+  .md { font-size: 16px; line-height: 1.7; }
+  .md pre { padding: 12px 13px; border-radius: var(--r-sm); }
+  .md pre code { font-size: 12.5px; }
+}
