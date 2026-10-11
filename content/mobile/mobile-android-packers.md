@@ -2,9 +2,9 @@
 id: mobile-android-packers
 title: "Упаковщики и анти-тампер: ProGuard/R8, DEX-пакеры, распаковка"
 category: mobile
-parent: mobile-obfuscation
+parent: mobile-dynamic-frida
 difficulty: expert
-order: 1
+order: 3
 tags: [android, packers, proguard, r8, obfuscation, anti-tamper, unpacking, frida]
 prerequisites: [mobile-obfuscation, mobile-static-analysis, mobile-dynamic-frida]
 useful_for:

@@ -2,7 +2,7 @@
 id: network-radius-8021x
 title: "802.1X и RADIUS: EAP-атаки, rogue AP и обход NAC"
 category: network
-parent: network-nmap-deep
+parent: network-arp
 difficulty: hard
 order: 4
 tags: [network, 802.1x, radius, eap, nac, wireless, enterprise]

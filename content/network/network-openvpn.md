@@ -4,7 +4,7 @@ title: "OpenVPN: анализ протокола, TLS-handshake и типовы�
 category: network
 parent: network-vpn
 difficulty: medium
-order: 3
+order: 2
 tags: [network, openvpn, vpn, tls, certificates]
 prerequisites: [network-tcpip, network-tls-inspection]
 useful_for:

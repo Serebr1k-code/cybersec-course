@@ -4,7 +4,7 @@ title: "LoRa и LoRaWAN"
 category: hardware
 parent: hardware-mod-rf-advanced
 difficulty: hard
-order: 2
+order: 1
 tags: [lora, lorawan, chirp, sdr]
 prerequisites: [hardware-subghz, hardware-rf-protocols]
 useful_for:

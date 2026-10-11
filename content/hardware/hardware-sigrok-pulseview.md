@@ -2,9 +2,9 @@
 id: hardware-sigrok-pulseview
 title: "sigrok и PulseView"
 category: hardware
-parent: hardware-mod-debug-advanced
+parent: hardware-logic-analysis
 difficulty: medium
-order: 1
+order: 3
 tags: [sigrok, pulseview, logic-analyzer, decoder]
 prerequisites: [hardware-jtag-boundary, hardware-logic-analysis]
 useful_for:

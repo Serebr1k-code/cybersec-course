@@ -4,7 +4,7 @@ title: "Эллиптические кривые: invalid-curve и малые п�
 category: crypto
 parent: crypto-diffie-hellman
 difficulty: hard
-order: 1
+order: 2
 tags: [crypto, ecc, elliptic-curve, ecdh, ecdsa, invalid-curve, small-subgroup, twist, nonce-reuse]
 prerequisites: [crypto-diffie-hellman, crypto-number-theory]
 useful_for:

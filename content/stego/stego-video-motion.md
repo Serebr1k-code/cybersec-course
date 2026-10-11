@@ -4,7 +4,7 @@ title: "Видеостеганография в движении: motion vectors
 category: stego
 parent: stego-video
 difficulty: hard
-order: 2
+order: 1
 tags: [stego, video, motion-vectors, h264, hevc, codec]
 prerequisites: [stego-video]
 useful_for:

@@ -2,9 +2,9 @@
 id: crypto-rsa-coppersmith-deep
 title: "Coppersmith глубоко: stereotyped, partial-key и малые корни"
 category: crypto
-parent: crypto-rsa-coppersmith-path
+parent: crypto-lattice
 difficulty: expert
-order: 1
+order: 2
 tags: [crypto, rsa, coppersmith, lll, small-roots, stereotyped, partial-key, howgrave-graham, sage]
 prerequisites: [crypto-rsa-advanced, crypto-lattice]
 useful_for:

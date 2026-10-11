@@ -4,7 +4,7 @@ title: "SDR и радиоэфир"
 category: hardware
 parent: hardware-rf
 difficulty: easy
-order: 1
+order: 2
 tags: [hardware, sdr, subghz, radio]
 prerequisites: [hardware-rf]
 useful_for:

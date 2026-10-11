@@ -4,7 +4,7 @@ title: "Поиск и подключение к интерфейсам"
 category: hardware
 parent: hardware-intro
 difficulty: easy
-order: 1
+order: 2
 tags: [hardware, uart, jtag, logic, discovery]
 prerequisites: [hardware-intro]
 useful_for:

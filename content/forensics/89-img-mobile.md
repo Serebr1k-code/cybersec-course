@@ -4,7 +4,7 @@ title: "Модуль: образы мобильных устройств"
 category: forensics
 parent: forensics-disk-images
 difficulty: medium
-order: 2
+order: 4
 tags: [mobile, android, ios, adb, itunes, roadmap]
 prerequisites: [forensics-img-captures]
 useful_for:

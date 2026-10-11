@@ -2,7 +2,7 @@
 id: mobile-deeplink-rce
 title: "Deep link → RCE: цепочки от ссылки до выполнения кода"
 category: mobile
-parent: mobile-exploit-chains
+parent: mobile-webview-deep
 difficulty: expert
 order: 2
 tags: [deeplink, rce, webview, file-provider, intent, chain, android, exploit]

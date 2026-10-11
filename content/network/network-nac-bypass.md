@@ -2,9 +2,9 @@
 id: network-nac-bypass
 title: "Обход NAC и 802.1X: MAB, hub-порты и подмена MAC"
 category: network
-parent: network-l2-attacks
+parent: network-layer2-attacks
 difficulty: hard
-order: 4
+order: 1
 tags: [network, nac, 802.1x, mab, radius, bypass, layer2]
 prerequisites: [network-mitm, network-layer2-attacks]
 useful_for:

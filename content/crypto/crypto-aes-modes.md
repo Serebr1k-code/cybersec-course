@@ -4,7 +4,7 @@ title: "AES и режимы: ECB, CBC, CTR, GCM"
 category: crypto
 parent: crypto-symmetric-core
 difficulty: medium
-order: 3
+order: 1
 tags: [crypto, aes, block-cipher, ecb, cbc, ctr, gcm, iv, nonce, mode]
 prerequisites: [crypto-intro, crypto-xor-otp]
 useful_for:

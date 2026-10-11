@@ -2,9 +2,9 @@
 id: mobile-bluetooth-le
 title: "Bluetooth LE в мобильных приложениях: GATT, спаривание и сниффинг"
 category: mobile
-parent: mobile-platform-integration
+parent: mobile-wearable-iot
 difficulty: hard
-order: 2
+order: 1
 tags: [mobile, bluetooth, ble, gatt, iot, sniffing]
 prerequisites: [mobile-wearable-iot]
 useful_for:

@@ -2,7 +2,7 @@
 id: mobile-crossplatform
 title: "Гибридные фреймворки: Cordova, Ionic, Xamarin, .NET MAUI"
 category: mobile
-parent: mobile-reverse-native
+parent: mobile-webview
 difficulty: medium
 order: 1
 tags: [cordova, ionic, xamarin, maui, hybrid, webview, ilspy, dotnet]

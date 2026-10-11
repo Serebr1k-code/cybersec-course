@@ -4,7 +4,7 @@ title: "CRT и формула Гарнера: продвинутое приме�
 category: crypto
 parent: crypto-number-theory
 difficulty: medium
-order: 3
+order: 4
 tags: [crypto, crt, garner, rsa-crt, fault-attack, bellcore, gauss, hensel]
 prerequisites: [crypto-number-theory, crypto-rsa-basics]
 useful_for:

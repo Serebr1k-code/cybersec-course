@@ -4,7 +4,7 @@ title: "ROP: базовые техники (GOT/PLT, поиск гаджетов
 category: pwn
 parent: pwn-rop
 difficulty: medium
-order: 1
+order: 2
 tags: [pwn, rop, got, plt, gadgets, ret2csu, stack-pivot]
 prerequisites: [pwn-rop]
 useful_for:

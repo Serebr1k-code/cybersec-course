@@ -4,7 +4,7 @@ title: "Franklin-Reiter: связанные сообщения в RSA"
 category: crypto
 parent: crypto-rsa-coppersmith-path
 difficulty: hard
-order: 3
+order: 1
 tags: [crypto, rsa, franklin-reiter, related-message, gcd-polynomial, small-e, sage]
 prerequisites: [crypto-rsa-advanced, crypto-rsa-small-e-hastad]
 useful_for:

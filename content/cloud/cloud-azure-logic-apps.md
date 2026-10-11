@@ -4,7 +4,7 @@ title: "Logic Apps: connector'ы, managed identity и инъекции"
 category: cloud
 parent: cloud-azure-platform-deep
 difficulty: hard
-order: 3
+order: 2
 tags: [cloud, azure, logic-apps, workflows, connectors, managed-identity, ssrf]
 prerequisites: [cloud-azure-platform-deep, cloud-azure-managed-identity]
 useful_for:

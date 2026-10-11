@@ -4,7 +4,7 @@ title: "Автоматический поиск секретов в репози
 category: osint
 parent: osint-github-recon
 difficulty: medium
-order: 2
+order: 1
 tags: [github, secrets, trufflehog, gitleaks, api-keys]
 prerequisites: [osint-github-recon]
 useful_for:

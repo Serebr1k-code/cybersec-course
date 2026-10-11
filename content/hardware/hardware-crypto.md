@@ -4,7 +4,7 @@ title: "Embedded-криптография: поиск ключей и атаки
 category: hardware
 parent: hardware-sidechannel
 difficulty: hard
-order: 3
+order: 1
 tags: [crypto, embedded, keys, secure-element, tpm, entropy, extraction]
 prerequisites: [hardware-firmware-extract, hardware-sidechannel]
 useful_for:

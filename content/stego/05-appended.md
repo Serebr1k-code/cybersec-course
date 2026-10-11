@@ -4,7 +4,7 @@ title: "Дописанные данные и скрытые контейнеры
 category: stego
 parent: stego-container-formats
 difficulty: easy
-order: 1
+order: 3
 tags: [stego, appended, carving, binwalk, zip, archives, tail]
 prerequisites: [stego-image-tools]
 useful_for:

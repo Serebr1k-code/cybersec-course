@@ -4,7 +4,7 @@ title: "Архитектура: протоколы и API"
 category: web
 parent: web-architecture
 difficulty: easy
-order: 2
+order: 3
 tags: [api, graphql, websocket, roadmap]
 prerequisites: [web-architecture]
 useful_for:

@@ -2,9 +2,9 @@
 id: osint-darkweb
 title: "Dark web и Tor: разведка в скрытых сервисах"
 category: osint
-parent: osint-paste-sites
+parent: osint-opsec
 difficulty: hard
-order: 3
+order: 4
 tags: [darkweb, tor, onion, marketplace, osint, opsec]
 prerequisites: [osint-paste-sites, osint-opsec]
 useful_for:

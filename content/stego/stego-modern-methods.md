@@ -4,7 +4,7 @@ title: "Модуль: Современные методы (нейросети, �
 category: stego
 parent: stego-analysis-advanced
 difficulty: medium
-order: 3
+order: 2
 tags: [stego, deep-learning, blockchain, roadmap]
 prerequisites: [stego-analysis-advanced]
 useful_for:

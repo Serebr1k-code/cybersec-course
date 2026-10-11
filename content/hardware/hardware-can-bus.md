@@ -2,7 +2,7 @@
 id: hardware-can-bus
 title: "CAN-шина и автомобильная безопасность (OBD-II, CAN-анализ)"
 category: hardware
-parent: hardware-iot-network
+parent: hardware-logic-analysis
 difficulty: medium
 order: 1
 tags: [can, obd2, automotive, socketcan, candump, canbus, ecu, vehicle]

@@ -4,7 +4,7 @@ title: "Решётки: LLL и применение в криптоанализ�
 category: crypto
 parent: crypto-rsa-implementation-attacks
 difficulty: expert
-order: 3
+order: 2
 tags: [crypto, lattice, lll, bkz, coppersmith, cvp, svp, ntru, knapsack, sage]
 prerequisites: [crypto-rsa-advanced, crypto-number-theory]
 useful_for:

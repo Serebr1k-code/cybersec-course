@@ -4,7 +4,7 @@ title: "Аудиостеганография: WAV, LSB в сэмплах и ба
 category: stego
 parent: stego-media-basics
 difficulty: easy
-order: 3
+order: 1
 tags: [stego, audio, wav, lsb, samples, sox]
 prerequisites: [stego-intro]
 useful_for:

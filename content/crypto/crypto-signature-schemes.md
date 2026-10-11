@@ -2,9 +2,9 @@
 id: crypto-signature-schemes
 title: "Схемы подписей: ElGamal, DSA и Schnorr"
 category: crypto
-parent: crypto-pki-signatures
+parent: crypto-ecdsa-nonce
 difficulty: hard
-order: 2
+order: 1
 tags: [crypto, elgamal, dsa, schnorr, signature, nonce, discrete-log, ecdsa]
 prerequisites: [crypto-number-theory, crypto-ecdsa-nonce]
 useful_for:

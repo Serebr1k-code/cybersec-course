@@ -4,7 +4,7 @@ title: "Rolling codes и KeeLoq"
 category: hardware
 parent: hardware-mod-rf-advanced
 difficulty: hard
-order: 3
+order: 2
 tags: [keeloq, rolling-code, replay, rf]
 prerequisites: [hardware-lora, hardware-rf]
 useful_for:

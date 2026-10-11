@@ -272,18 +272,20 @@ def main():
         for cat in cats:
             idx = reading_index(lessons, parent, ch, cat)
             for l in [x for x, f in lessons.items() if f.get("category") == cat]:
-                for p in lessons[l].get("prerequisites", []):
-                    if p not in lessons or lessons[p].get("category") != cat:
-                        continue
+                prereqs = [p for p in lessons[l].get("prerequisites", [])
+                           if p in lessons and lessons[p].get("category") == cat]
+                prereqs.sort(key=lambda q: -idx.get(q, -1))
+                placed = False
+                for p in prereqs:
                     if idx.get(p, 10 ** 9) < idx.get(l, -1):
-                        continue
+                        continue  # already satisfied
                     if not parent.get(l) or parent.get(l) == p:
                         continue
                     if p in ancestors(l) or l in ancestors(p):
                         continue
                     # walk up from p until we find a parent with room
                     cand = p
-                    for _ in range(8):
+                    for _ in range(10):
                         if not cand:
                             break
                         if cand == l or cand in ancestors(l) or l in ancestors(cand):
@@ -295,6 +297,9 @@ def main():
                         parent[l] = cand
                         moves.append((l, cand))
                         moved += 1
+                        placed = True
+                        break
+                    if placed:
                         break
             ch = rebuild()
         if moved == 0:

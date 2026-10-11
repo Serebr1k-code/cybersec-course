@@ -2,9 +2,9 @@
 id: mobile-deeplink-deep
 title: "Deep-link / intent-redirect: цепочки захвата аккаунта"
 category: mobile
-parent: mobile-intents-deeplinks
+parent: mobile-webview
 difficulty: hard
-order: 1
+order: 3
 tags: [deeplink, intent-redirect, app-links, ato, oauth, android, hijack]
 prerequisites: [mobile-intents-deeplinks, mobile-webview]
 useful_for:

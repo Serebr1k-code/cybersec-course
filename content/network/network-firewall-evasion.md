@@ -4,7 +4,7 @@ title: "Обход фильтров и IDS: фрагментация, тунне
 category: network
 parent: network-tunneling
 difficulty: medium
-order: 2
+order: 1
 tags: [network, evasion, firewall, ids, tunneling, ipv6]
 prerequisites: [network-covert, network-portscan]
 useful_for:

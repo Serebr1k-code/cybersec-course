@@ -4,7 +4,7 @@ title: "Инструментарий: OutGuess, steghide, stegseek, zsteg"
 category: stego
 parent: stego-image-tools
 difficulty: easy
-order: 2
+order: 3
 tags: [stego, roadmap, outguess, steghide, stegseek, zsteg]
 prerequisites: [stego-container-formats]
 useful_for:

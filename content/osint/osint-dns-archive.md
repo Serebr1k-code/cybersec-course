@@ -4,7 +4,7 @@ title: "Модуль: история DNS и зоны"
 category: osint
 parent: osint-dns-recon
 difficulty: medium
-order: 2
+order: 1
 tags: [osint, dns, passive, axfr]
 prerequisites: [osint-dns-recon]
 useful_for:

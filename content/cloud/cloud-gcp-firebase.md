@@ -2,9 +2,9 @@
 id: cloud-gcp-firebase
 title: "Firebase: security rules, открытые базы и кража данных"
 category: cloud
-parent: cloud-gcp-secrets-deep
+parent: cloud-gcp-storage
 difficulty: medium
-order: 2
+order: 1
 tags: [cloud, gcp, firebase, firestore, realtime-database, security-rules, storage]
 prerequisites: [cloud-gcp-secrets-deep, cloud-gcp-storage]
 useful_for:

@@ -4,7 +4,7 @@ title: "Обход SSL Pinning: перехват HTTPS-трафика мобил
 category: mobile
 parent: mobile-runtime-bypass
 difficulty: medium
-order: 1
+order: 2
 tags: [android, ssl-pinning, mitm, frida, objection, certificate]
 prerequisites: [mobile-dynamic-frida]
 useful_for:

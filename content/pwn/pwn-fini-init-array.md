@@ -4,7 +4,7 @@ title: ".fini_array/.init_array и exit-обработчики"
 category: pwn
 parent: pwn-got-plt
 difficulty: hard
-order: 1
+order: 2
 tags: [fini-array, init-array, atexit, exit-handlers, control-flow, partial-relro]
 prerequisites: [pwn-got-plt, pwn-rop, pwn-mitigations]
 useful_for:

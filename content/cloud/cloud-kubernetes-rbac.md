@@ -4,7 +4,7 @@ title: "Kubernetes: RBAC, service-account токены и побег из под
 category: cloud
 parent: cloud-containers-docker
 difficulty: hard
-order: 1
+order: 3
 tags: [cloud, kubernetes, k8s, rbac, serviceaccount, escape, secrets]
 prerequisites: [cloud-containers-docker, cloud-iam-basics]
 useful_for:

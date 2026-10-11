@@ -4,7 +4,7 @@ title: "SSRF → захват облака: сквозные цепочки AWS/
 category: cloud
 parent: cloud-metadata-ssrf
 difficulty: expert
-order: 3
+order: 2
 tags: [cloud, ssrf, metadata, imds, takeover, chain, aws, azure, gcp]
 prerequisites: [cloud-metadata-ssrf, cloud-azure-managed-identity]
 useful_for:

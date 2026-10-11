@@ -2,9 +2,9 @@
 id: pwn-browser
 title: "Browser/JIT exploitation: type confusion и JIT-баги"
 category: pwn
-parent: pwn-heap-uaf
+parent: pwn-arm64-basics
 difficulty: expert
-order: 3
+order: 4
 tags: [pwn, browser, jit, v8, type-confusion, uaf]
 prerequisites: [pwn-heap-uaf, pwn-heap-tcache, pwn-arm64-basics]
 useful_for:

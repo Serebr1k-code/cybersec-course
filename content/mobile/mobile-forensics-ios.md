@@ -2,9 +2,9 @@
 id: mobile-forensics-ios
 title: "iOS-форензика: дампы, checkm8 и iLEAPP-анализ"
 category: mobile
-parent: mobile-forensics
+parent: mobile-ios-backup
 difficulty: hard
-order: 3
+order: 1
 tags: [forensics, ios, checkm8, palera1n, ileapp, keychain, artifacts, extraction]
 prerequisites: [mobile-ios-basics, mobile-ios-backup]
 useful_for:

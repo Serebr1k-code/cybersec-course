@@ -4,7 +4,7 @@ title: "ret2libc и one_gadget"
 category: pwn
 parent: pwn-got-plt
 difficulty: hard
-order: 2
+order: 1
 tags: [ret2libc, libc, leak, one_gadget, system]
 prerequisites: [pwn-got-plt, pwn-rop]
 useful_for:

@@ -4,7 +4,7 @@ title: "Этап 2. Другие носители: текст, видео, се�
 category: stego
 parent: stego-intro
 difficulty: easy
-order: 2
+order: 3
 tags: [stego, roadmap, text, video, network]
 prerequisites: [stego-media-basics]
 useful_for:

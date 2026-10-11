@@ -4,7 +4,7 @@ title: "XSS: отражённый, хранимый и DOM-based"
 category: web
 parent: web-injection-basics
 difficulty: medium
-order: 1
+order: 2
 tags: [xss, reflected, stored, dom, csp, cookie]
 prerequisites: [web-sqli]
 useful_for:

@@ -2,7 +2,7 @@
 id: network-ntlm-relay
 title: "NTLM relay и коэрсия: перехват и релей аутентификации"
 category: network
-parent: network-mitm-wireless
+parent: network-arp-deep
 difficulty: hard
 order: 4
 tags: [network, ntlm, relay, coercion, smb, responder, mitm]

@@ -2,9 +2,9 @@
 id: stego-adaptive
 title: "Адаптивное встраивание: HUGO, WOW и edge-adaptive"
 category: stego
-parent: stego-module-embed
+parent: stego-lsb-matching
 difficulty: hard
-order: 2
+order: 1
 tags: [stego, adaptive, hugo, wow, cost-function, steganalysis]
 prerequisites: [stego-lsb-matching, stego-pvd]
 useful_for:

@@ -4,7 +4,7 @@ title: "Введение в Windows pwn: стек, SEH, DEP и ROP"
 category: pwn
 parent: pwn-rop
 difficulty: hard
-order: 3
+order: 4
 tags: [windows, seh, dep, aslr, rop, pwn]
 prerequisites: [pwn-rop, pwn-gadget-hunting]
 useful_for:

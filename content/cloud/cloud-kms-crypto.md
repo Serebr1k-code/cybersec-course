@@ -4,7 +4,7 @@ title: "KMS и CryptoKey: использование ключей и обход"
 category: cloud
 parent: cloud-privesc-iam
 difficulty: expert
-order: 2
+order: 1
 tags: [cloud, kms, crypto, key-policy, grants, encryption, decrypt]
 prerequisites: [cloud-privesc-iam, cloud-storage-s3]
 useful_for:

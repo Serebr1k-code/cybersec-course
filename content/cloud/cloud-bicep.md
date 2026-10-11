@@ -2,9 +2,9 @@
 id: cloud-bicep
 title: "Azure Bicep: компиляция в ARM и эскалация через deployments"
 category: cloud
-parent: cloud-iac-deep
+parent: cloud-azure-arm
 difficulty: hard
-order: 2
+order: 1
 tags: [cloud, azure, bicep, arm, deployments, privesc, runcommand, managed-identity]
 prerequisites: [cloud-iac-deep, cloud-azure-arm]
 useful_for:

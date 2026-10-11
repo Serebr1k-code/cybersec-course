@@ -2,9 +2,9 @@
 id: crypto-post-quantum
 title: "Пост-квантовая криптография: LWE, Kyber, Dilithium"
 category: crypto
-parent: crypto-lattice
+parent: crypto-shor-grover
 difficulty: expert
-order: 2
+order: 1
 tags: [crypto, post-quantum, lwe, mlwe, kyber, dilithium, lattice, nist]
 prerequisites: [crypto-lattice, crypto-lattice-bkz, crypto-shor-grover]
 useful_for:

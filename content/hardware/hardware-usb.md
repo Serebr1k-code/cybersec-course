@@ -4,7 +4,7 @@ title: "USB как поверхность атаки: шина, классы у�
 category: hardware
 parent: hardware-interface-discovery
 difficulty: medium
-order: 4
+order: 1
 tags: [usb, hid, badusb, usbmon, facedancer, dma, usb-attacks, дескрипторы]
 prerequisites: [hardware-intro, hardware-interface-discovery]
 useful_for:

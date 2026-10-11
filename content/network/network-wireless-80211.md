@@ -4,7 +4,7 @@ title: "802.11 Wi-Fi: WPA2/WPA3, handshake, PMKID и evil twin"
 category: network
 parent: network-mitm-wireless
 difficulty: hard
-order: 3
+order: 1
 tags: [network, wireless, wifi, wpa2, pmkid, handshake, aircrack]
 prerequisites: [network-mitm, network-arp-deep]
 useful_for:

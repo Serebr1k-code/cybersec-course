@@ -4,7 +4,7 @@ title: "Реестр Windows: SAM, SYSTEM, SECURITY и поиск следов"
 category: forensics
 parent: forensics-win-registry
 difficulty: hard
-order: 4
+order: 3
 tags: [registry, sam, system, security, ntuser, regripper, hives]
 prerequisites: [forensics-windows-artifacts]
 useful_for:

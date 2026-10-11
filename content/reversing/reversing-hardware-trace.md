@@ -2,9 +2,9 @@
 id: reversing-hardware-trace
 title: "Аппаратная трассировка: Intel PT и ARM ETM"
 category: reversing
-parent: reversing-advanced-debugging
+parent: reversing-pin-dbi
 difficulty: expert
-order: 2
+order: 1
 tags: [reversing, intel-pt, etm, hardware-trace, coverage, tracing]
 prerequisites: [reversing-advanced-debugging, reversing-pin-dbi]
 useful_for:

@@ -2,9 +2,9 @@
 id: web-mxss
 title: "mXSS и обход санитайзеров (DOMPurify)"
 category: web
-parent: web-xss-bypass-advanced
+parent: web-dom-clobbering
 difficulty: hard
-order: 4
+order: 2
 tags: [mxss, xss, dompurify, sanitizer, html-parsing, mutation]
 prerequisites: [web-xss, web-dom-clobbering]
 useful_for:

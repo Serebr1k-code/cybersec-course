@@ -2,7 +2,7 @@
 id: reversing-game-anticheat-advanced
 title: "Анти-чит advanced: kernel и hypervisor"
 category: reversing
-parent: reversing-game-anticheat
+parent: reversing-kernel-drivers
 difficulty: expert
 order: 2
 tags: [reversing, anticheat, kernel, hypervisor, games, bypass, detection]

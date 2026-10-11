@@ -4,7 +4,7 @@ title: "MQTT и CoAP: протоколы IoT и их атаки"
 category: hardware
 parent: hardware-iot-network
 difficulty: medium
-order: 3
+order: 2
 tags: [mqtt, coap, dtls, iot, udp, pubsub, broker, protocols]
 prerequisites: [hardware-iot-cloud]
 useful_for:

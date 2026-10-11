@@ -4,7 +4,7 @@ title: "SWIM и BDM: отладка NXP/ST"
 category: hardware
 parent: hardware-mod-debug-advanced
 difficulty: hard
-order: 2
+order: 1
 tags: [swim, bdm, nxp, st, debug]
 prerequisites: [hardware-embedded-debug, hardware-jtag]
 useful_for:

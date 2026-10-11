@@ -4,7 +4,7 @@ title: "Определение версии libc (libc-database)"
 category: pwn
 parent: pwn-ret2libc
 difficulty: medium
-order: 1
+order: 2
 tags: [libc, libc-database, offsets, ret2libc, leak, identification]
 prerequisites: [pwn-ret2libc, pwn-got-plt, pwn-pie-bypass]
 useful_for:

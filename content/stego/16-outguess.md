@@ -4,7 +4,7 @@ title: "OutGuess и steghide глубоко: алгоритмы, ключи и �
 category: stego
 parent: stego-tooling
 difficulty: medium
-order: 1
+order: 3
 tags: [stego, jpeg, outguess, steghide, key, extraction]
 prerequisites: [stego-image-tools, stego-jpeg-dct]
 useful_for:

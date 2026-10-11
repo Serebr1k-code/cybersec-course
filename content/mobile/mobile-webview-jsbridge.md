@@ -2,7 +2,7 @@
 id: mobile-webview-jsbridge
 title: "WebView JS-bridge abuse: вызов нативных методов из JS"
 category: mobile
-parent: mobile-exploit-chains
+parent: mobile-webview-deep
 difficulty: hard
 order: 1
 tags: [webview, javascriptinterface, jsbridge, android, rce, webviewclient, xss, bridge]

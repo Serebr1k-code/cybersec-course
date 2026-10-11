@@ -4,7 +4,7 @@ title: "Tracking ID и аналитика: Google Analytics, GTM и пиксел
 category: osint
 parent: osint-web-surface
 difficulty: medium
-order: 2
+order: 3
 tags: [osint, tracking, analytics, ga, gtm, adsense, pixel, pivot]
 prerequisites: [osint-tech-fingerprint]
 useful_for:

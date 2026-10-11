@@ -2,9 +2,9 @@
 id: network-tool-nc-socat-ssh
 title: "netcat, socat и SSH-туннели: соединения, релеи и pivoting"
 category: network
-parent: network-tools
+parent: network-ssh-tunnel
 difficulty: medium
-order: 4
+order: 1
 tags: [network, netcat, socat, ssh, tunnel, pivot, reference]
 prerequisites: [network-ssh-tunnel, network-tunneling]
 useful_for:

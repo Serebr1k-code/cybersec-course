@@ -4,7 +4,7 @@ title: "SBOM и подпись артефактов: Sigstore, cosign и обх�
 category: cloud
 parent: cloud-supply-chain
 difficulty: expert
-order: 2
+order: 3
 tags: [cloud, supply-chain, sbom, cosign, sigstore, slsa, signing, provenance]
 prerequisites: [cloud-supply-chain, cloud-artifact-registry]
 useful_for:

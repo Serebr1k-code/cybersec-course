@@ -2,9 +2,9 @@
 id: network-dhcpv6
 title: "DHCPv6 и SLAAC: назначение адресов, RA-атаки и rogue-сервер"
 category: network
-parent: network-module-ip
+parent: network-ipv6
 difficulty: medium
-order: 3
+order: 1
 tags: [network, dhcpv6, slaac, ipv6, ra, ndp, rogue]
 prerequisites: [network-ipv6, network-module-ip]
 useful_for:

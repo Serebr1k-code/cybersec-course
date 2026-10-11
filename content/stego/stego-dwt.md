@@ -2,7 +2,7 @@
 id: stego-dwt
 title: "Вейвлет-стеганография (DWT): встраивание в поддиапазоны"
 category: stego
-parent: stego-module-transform
+parent: stego-qim
 difficulty: hard
 order: 1
 tags: [stego, dwt, wavelet, transform, robust]

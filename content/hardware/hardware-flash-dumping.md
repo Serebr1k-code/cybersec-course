@@ -2,9 +2,9 @@
 id: hardware-flash-dumping
 title: "Дамп флеш-памяти: eMMC, NAND, NOR и обход bad-block"
 category: hardware
-parent: hardware-spi
+parent: hardware-logic-analysis
 difficulty: hard
-order: 3
+order: 4
 tags: [flash, emmc, nand, nor, dump, chip-off, isp, in-system, binwalk]
 prerequisites: [hardware-spi, hardware-logic-analysis]
 useful_for:

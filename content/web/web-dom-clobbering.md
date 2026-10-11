@@ -2,7 +2,7 @@
 id: web-dom-clobbering
 title: "DOM clobbering: подмена глобальных переменных через HTML"
 category: web
-parent: web-xss-client-side
+parent: web-same-origin-cors
 difficulty: hard
 order: 4
 tags: [dom-clobbering, xss, html, sanitizer, csp, client-side]

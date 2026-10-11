@@ -4,7 +4,7 @@ title: "Статический анализ: цели (прошивки, malware
 category: reversing
 parent: reversing-static-analysis
 difficulty: hard
-order: 4
+order: 3
 tags: [reversing, static-analysis, firmware, malware, shellcode]
 prerequisites: [reversing-static-analysis]
 useful_for:

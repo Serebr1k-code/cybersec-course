@@ -4,7 +4,7 @@ title: "VPN глубоко: IPsec, TLS-VPN и туннели удалённог�
 category: network
 parent: network-vpn
 difficulty: easy
-order: 1
+order: 3
 tags: [network, vpn, ipsec, ike, ssl-vpn, wireguard, openvpn]
 prerequisites: [network-vpn, network-openvpn]
 useful_for:

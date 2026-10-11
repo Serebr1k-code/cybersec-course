@@ -4,7 +4,7 @@ title: "Хранилища, ключи и криптография"
 category: mobile
 parent: mobile-insecure-storage
 difficulty: hard
-order: 2
+order: 3
 tags: [mobile, storage, keystore, crypto]
 prerequisites: [mobile-insecure-storage]
 useful_for:

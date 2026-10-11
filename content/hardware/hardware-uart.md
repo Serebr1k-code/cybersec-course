@@ -4,7 +4,7 @@ title: "UART: поиск консоли и доступ к отладочном�
 category: hardware
 parent: hardware-interface-discovery
 difficulty: easy
-order: 1
+order: 2
 tags: [uart, serial, console, usb-ttl, u-boot, baudrate]
 prerequisites: [hardware-intro]
 useful_for:

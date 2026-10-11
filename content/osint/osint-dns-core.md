@@ -4,7 +4,7 @@ title: "Модуль: домены, записи и поддомены"
 category: osint
 parent: osint-dns-recon
 difficulty: medium
-order: 1
+order: 2
 tags: [osint, dns, whois, subdomains]
 prerequisites: [osint-dns-recon]
 useful_for:

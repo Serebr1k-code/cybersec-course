@@ -4,7 +4,7 @@ title: "QR-коды и баркоды: структура, восстановл�
 category: stego
 parent: stego-container-formats
 difficulty: easy
-order: 2
+order: 1
 tags: [stego, qr, barcode, zbar, reconstruction, error-correction]
 prerequisites: [stego-image-tools]
 useful_for:

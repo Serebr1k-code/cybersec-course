@@ -4,7 +4,7 @@ title: "Unsorted bin attack: классический примитив запи�
 category: pwn
 parent: pwn-heap-bin-attacks
 difficulty: hard
-order: 2
+order: 1
 tags: [pwn, heap, glibc, unsortedbin, malloc]
 prerequisites: [pwn-heap-basics, pwn-heap-uaf]
 useful_for:

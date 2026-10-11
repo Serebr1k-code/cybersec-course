@@ -2,9 +2,9 @@
 id: stego-heic-avif
 title: "Стеганография в HEIF/AVIF: боксы ISOBMFF, тайлы и метаданные"
 category: stego
-parent: stego-image-formats
+parent: stego-exif-xmp
 difficulty: medium
-order: 3
+order: 2
 tags: [stego, heif, heic, avif, isobmff, boxes, metadata, tiles]
 prerequisites: [stego-webp, stego-exif-xmp]
 useful_for:

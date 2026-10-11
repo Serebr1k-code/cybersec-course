@@ -4,7 +4,7 @@ title: "Инструменты: StegSolve, stegdetect, jsteg/cloakify"
 category: stego
 parent: stego-tooling
 difficulty: easy
-order: 4
+order: 2
 tags: [stego, roadmap, stegsolve, stegdetect, jsteg, cloakify, stegohide]
 prerequisites: [stego-tooling]
 useful_for:

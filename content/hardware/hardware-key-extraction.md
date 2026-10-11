@@ -2,7 +2,7 @@
 id: hardware-key-extraction
 title: "Извлечение ключей из встраиваемых устройств: методы и обход защит"
 category: hardware
-parent: hardware-crypto
+parent: hardware-jtag-deep
 difficulty: hard
 order: 1
 tags: [key-extraction, secure-element, readout-protection, jtag, side-channel, crypto, keys]

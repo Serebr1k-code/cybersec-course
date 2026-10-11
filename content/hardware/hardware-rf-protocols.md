@@ -4,7 +4,7 @@ title: "Протоколы ближнего действия"
 category: hardware
 parent: hardware-rf
 difficulty: easy
-order: 2
+order: 1
 tags: [hardware, rfid, bluetooth, zigbee]
 prerequisites: [hardware-rf]
 useful_for:

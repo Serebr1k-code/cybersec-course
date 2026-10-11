@@ -2,9 +2,9 @@
 id: cloud-exfiltration
 title: "Эксфильтрация данных из облака и egress-контроль"
 category: cloud
-parent: cloud-defense-deep
+parent: cloud-storage-s3
 difficulty: hard
-order: 1
+order: 3
 tags: [cloud, exfiltration, egress, snapshot, s3, data, dlp]
 prerequisites: [cloud-defense-deep, cloud-storage-s3]
 useful_for:

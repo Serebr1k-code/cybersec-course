@@ -2,9 +2,9 @@
 id: stego-raw-photo
 title: "Стеганография в RAW-фото: CR2/NEF/DNG, превью и MakerNote"
 category: stego
-parent: stego-image-formats
+parent: stego-exif-xmp
 difficulty: medium
-order: 4
+order: 3
 tags: [stego, raw, cr2, nef, dng, tiff, makernote, preview]
 prerequisites: [stego-tiff, stego-exif-xmp]
 useful_for:

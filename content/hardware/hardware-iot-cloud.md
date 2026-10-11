@@ -4,7 +4,7 @@ title: "IoT-облако и MQTT: поверхность атаки умных �
 category: hardware
 parent: hardware-iot-network
 difficulty: medium
-order: 2
+order: 1
 tags: [iot, mqtt, cloud, aws-iot, tuya, smart-home, broker, topic]
 prerequisites: [hardware-iot-network]
 useful_for:

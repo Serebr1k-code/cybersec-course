@@ -2,7 +2,7 @@
 id: cloud-azure-sentinel
 title: "Microsoft Sentinel: SIEM/SOAR, правила и слепые зоны"
 category: cloud
-parent: cloud-azure-platform-deep
+parent: cloud-logging-detection
 difficulty: hard
 order: 2
 tags: [cloud, azure, sentinel, siem, soar, analytics-rules, detection]

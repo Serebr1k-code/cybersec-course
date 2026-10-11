@@ -4,7 +4,7 @@ title: "Tapjacking, task hijacking и UI-redressing"
 category: mobile
 parent: mobile-webview
 difficulty: medium
-order: 1
+order: 2
 tags: [tapjacking, task-hijacking, ui-redressing, overlay, android, strandhogg]
 prerequisites: [mobile-webview, mobile-exported-components]
 useful_for:

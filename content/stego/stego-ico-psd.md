@@ -4,7 +4,7 @@ title: "Стеганография в ICO и PSD: слои, каналы и не
 category: stego
 parent: stego-image-formats-exotic
 difficulty: medium
-order: 2
+order: 1
 tags: [stego, ico, psd, layers, channels, masks, photoshop]
 prerequisites: [stego-image-formats-exotic]
 useful_for:

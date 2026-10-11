@@ -4,7 +4,7 @@ title: "tcache poisoning: произвольная запись в modern glibc"
 category: pwn
 parent: pwn-heap-uaf
 difficulty: expert
-order: 2
+order: 3
 tags: [heap, tcache, poisoning, safe-linking, fsop, glibc]
 prerequisites: [pwn-heap-uaf]
 useful_for:

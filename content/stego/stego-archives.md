@@ -4,7 +4,7 @@ title: "Стеганография в архивах: ZIP-комментарии
 category: stego
 parent: stego-appended
 difficulty: medium
-order: 4
+order: 3
 tags: [stego, zip, 7z, rar, tar, gzip, polyglot, archives]
 prerequisites: [stego-appended, stego-polyglots]
 useful_for:

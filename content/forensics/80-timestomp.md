@@ -2,7 +2,7 @@
 id: forensics-timestomp
 title: "Timestomping и детект антифорензики"
 category: forensics
-parent: forensics-anti-forensics
+parent: forensics-ntfs-mft
 difficulty: hard
 order: 1
 tags: [timestomp, anti-forensics, timestamps, ntfs, mft, dfir]

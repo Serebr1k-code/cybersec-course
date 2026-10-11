@@ -4,7 +4,7 @@ title: "Модуль: Новые платформы и мобильные угр
 category: mobile
 parent: mobile-special-topics
 difficulty: medium
-order: 1
+order: 2
 tags: [android-auto, wear-os, banking-trojan, iot, automotive, malware, emerging]
 prerequisites: [mobile-intro]
 useful_for:

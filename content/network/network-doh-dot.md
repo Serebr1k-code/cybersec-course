@@ -2,9 +2,9 @@
 id: network-doh-dot
 title: "DoH, DoT и DoQ: шифрованный DNS, слепые зоны и скрытые каналы"
 category: network
-parent: network-tls-inspection
+parent: network-dns-attacks
 difficulty: medium
-order: 1
+order: 2
 tags: [network, dns, doh, dot, doq, tls, privacy, exfiltration]
 prerequisites: [network-tls-inspection, network-dns-attacks]
 useful_for:

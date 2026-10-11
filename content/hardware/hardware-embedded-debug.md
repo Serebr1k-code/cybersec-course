@@ -2,9 +2,9 @@
 id: hardware-embedded-debug
 title: "Встроенные отладочные интерфейсы: ETM, трассировка, BDM"
 category: hardware
-parent: hardware-jtag
+parent: hardware-jtag-deep
 difficulty: hard
-order: 4
+order: 3
 tags: [etm, trace, coresight, bdm, background-debug, dbg, embedded, swd]
 prerequisites: [hardware-swd-advanced, hardware-jtag-deep]
 useful_for:

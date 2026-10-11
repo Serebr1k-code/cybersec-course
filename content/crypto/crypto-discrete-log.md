@@ -4,7 +4,7 @@ title: "Дискретное логарифмирование: BSGS, Полла�
 category: crypto
 parent: crypto-diffie-hellman
 difficulty: hard
-order: 2
+order: 1
 tags: [crypto, discrete-log, dlog, bsgs, pollard-rho, pohlig-hellman, index-calculus, smooth-order, dh]
 prerequisites: [crypto-number-theory, crypto-diffie-hellman]
 useful_for:

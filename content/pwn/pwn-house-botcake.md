@@ -4,7 +4,7 @@ title: "House of Botcake: double-free под tcache"
 category: pwn
 parent: pwn-tcache-mechanics
 difficulty: expert
-order: 3
+order: 2
 tags: [pwn, heap, glibc, tcache, double-free]
 prerequisites: [pwn-heap-tcache, pwn-heap-uaf]
 useful_for:

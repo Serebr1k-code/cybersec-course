@@ -4,7 +4,7 @@ title: "Модуль: heap-примитивы (частичная перезап
 category: pwn
 parent: pwn-heap-uaf
 difficulty: hard
-order: 1
+order: 2
 tags: [heap, partial-overwrite, overlap, consolidation, roadmap]
 prerequisites: [pwn-heap-uaf]
 useful_for:

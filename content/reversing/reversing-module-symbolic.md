@@ -4,7 +4,7 @@ title: "Модуль: Символическое исполнение и нов�
 category: reversing
 parent: reversing-static-analysis
 difficulty: medium
-order: 2
+order: 4
 tags: [reversing, symbolic, dbi, emulation, managed, roadmap]
 prerequisites: [reversing-intro]
 useful_for:

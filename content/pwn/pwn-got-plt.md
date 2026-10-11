@@ -4,7 +4,7 @@ title: "GOT и PLT: динамическое связывание и утечк�
 category: pwn
 parent: pwn-rop-techniques
 difficulty: medium
-order: 2
+order: 1
 tags: [got, plt, dynamic-linking, leak, relro]
 prerequisites: [pwn-rop]
 useful_for:

@@ -4,7 +4,7 @@ title: "Модуль: Реверс нативного кода и кросс-п�
 category: mobile
 parent: mobile-reverse-native
 difficulty: hard
-order: 4
+order: 3
 tags: [android, native, so, arm64, jni, dart, flutter, react-native, hermes, reversing]
 prerequisites: [mobile-static-analysis]
 useful_for:

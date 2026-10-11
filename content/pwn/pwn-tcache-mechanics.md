@@ -4,7 +4,7 @@ title: "Tcache: механика и атаки (glibc-защиты, stashing, ca
 category: pwn
 parent: pwn-heap-tcache
 difficulty: expert
-order: 2
+order: 1
 tags: [pwn, heap, tcache, glibc, stashing, calloc, botcake]
 prerequisites: [pwn-heap-tcache]
 useful_for:

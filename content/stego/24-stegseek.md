@@ -4,7 +4,7 @@ title: "Брут парольной стеганографии: stegseek и steg
 category: stego
 parent: stego-tooling
 difficulty: easy
-order: 2
+order: 4
 tags: [stego, stegseek, stegcracker, wordlist, brute, steghide]
 prerequisites: [stego-image-tools, stego-outguess]
 useful_for:

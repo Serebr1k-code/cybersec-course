@@ -2,9 +2,9 @@
 id: pwn-format-string
 title: "Format string: утечки и произвольное чтение"
 category: pwn
-parent: pwn-buffer-overflow-core
+parent: pwn-pwntools
 difficulty: medium
-order: 1
+order: 3
 tags: [format-string, printf, leak, %p, %s]
 prerequisites: [pwn-buffer-overflow, pwn-pwntools]
 useful_for:

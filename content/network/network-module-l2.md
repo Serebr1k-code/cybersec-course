@@ -2,7 +2,7 @@
 id: network-module-l2
 title: "Канальный уровень глубоко: кадры, VLAN, STP и discovery"
 category: network
-parent: network-l2-attacks
+parent: network-vlan-hopping
 difficulty: easy
 order: 1
 tags: [network, l2, ethernet, vlan, stp, lldp, cdp, switching]

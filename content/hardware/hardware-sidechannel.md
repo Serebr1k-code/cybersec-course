@@ -2,9 +2,9 @@
 id: hardware-sidechannel
 title: "Side-channel и glitching: введение в аппаратные атаки"
 category: hardware
-parent: hardware-firmware-extract
+parent: hardware-jtag
 difficulty: hard
-order: 3
+order: 2
 tags: [side-channel, glitching, chipwhisperer, power-analysis, fault-injection, dpa]
 prerequisites: [hardware-firmware-extract, hardware-jtag]
 useful_for:

@@ -4,7 +4,7 @@ title: "Архитектура: глубокие классы уязвимост
 category: web
 parent: web-architecture
 difficulty: medium
-order: 3
+order: 1
 tags: [lfi, cve, framework, roadmap]
 prerequisites: [web-architecture]
 useful_for:

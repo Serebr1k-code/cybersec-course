@@ -4,7 +4,7 @@ title: "Беспроводные технологии глубоко: Wi-Fi, Zig
 category: network
 parent: network-mitm-wireless
 difficulty: easy
-order: 1
+order: 2
 tags: [network, wireless, wifi, wpa2, wpa3, zigbee, nfc, sdr]
 prerequisites: [network-wireless-80211, network-mitm-wireless]
 useful_for:

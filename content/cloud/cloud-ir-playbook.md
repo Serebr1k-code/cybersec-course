@@ -4,7 +4,7 @@ title: "Cloud IR: playbook расследования инцидента"
 category: cloud
 parent: cloud-defense-deep
 difficulty: expert
-order: 4
+order: 3
 tags: [cloud, ir, forensics, incident-response, containment, timeline]
 prerequisites: [cloud-defense-deep, cloud-log-pipeline]
 useful_for:

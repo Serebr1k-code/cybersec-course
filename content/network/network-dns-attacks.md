@@ -2,9 +2,9 @@
 id: network-dns-attacks
 title: "Атаки на DNS: спуфинг, отравление кэша, туннели и rebinding"
 category: network
-parent: network-arp
+parent: network-covert
 difficulty: hard
-order: 3
+order: 2
 tags: [network, dns, spoofing, cache-poisoning, rebinding, tunneling]
 prerequisites: [network-arp, network-arp-deep, network-covert]
 useful_for:

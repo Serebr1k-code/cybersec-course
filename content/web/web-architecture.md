@@ -4,7 +4,7 @@ title: "Архитектура веб-приложений: клиент, сер
 category: web
 parent: web-http-basics
 difficulty: beginner
-order: 1
+order: 2
 tags: [architecture, frontend, backend, api, reverse-proxy, database]
 prerequisites: [web-http-basics]
 useful_for:

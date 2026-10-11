@@ -4,7 +4,7 @@ title: "Nmap глубоко: NSE, тайминги, OS-фингерпринт и
 category: network
 parent: network-portscan
 difficulty: medium
-order: 2
+order: 1
 tags: [network, nmap, nse, fingerprint, timing, scanning]
 prerequisites: [network-portscan, network-tcpip]
 useful_for:

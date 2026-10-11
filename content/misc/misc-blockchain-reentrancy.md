@@ -4,7 +4,7 @@ title: "Reentrancy и DeFi-атаки"
 category: misc
 parent: misc-blockchain
 difficulty: hard
-order: 2
+order: 3
 tags: [reentrancy, defi, flashloan, solidity, exploit, ctf]
 prerequisites: [misc-blockchain-solidity]
 useful_for:

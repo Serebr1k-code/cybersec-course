@@ -4,7 +4,7 @@ title: "USB и device forensics: следы подключений устрой�
 category: forensics
 parent: forensics-win-registry
 difficulty: medium
-order: 2
+order: 4
 tags: [usb, usbstor, setupapi, lnk, devices, registry, dfir]
 prerequisites: [forensics-windows-artifacts]
 useful_for:

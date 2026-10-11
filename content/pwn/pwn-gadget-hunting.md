@@ -2,7 +2,7 @@
 id: pwn-gadget-hunting
 title: "Поиск гаджетов: ROPgadget, ropper и one_gadget"
 category: pwn
-parent: pwn-rop-techniques
+parent: pwn-rop
 difficulty: easy
 order: 1
 tags: [rop, gadgets, ropgadget, ropper, one_gadget]

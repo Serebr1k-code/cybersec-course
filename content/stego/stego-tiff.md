@@ -2,9 +2,9 @@
 id: stego-tiff
 title: "Стеганография в TIFF: теги, IFD, стрипы и ExtraSamples"
 category: stego
-parent: stego-image-formats
+parent: stego-exif-xmp
 difficulty: medium
-order: 2
+order: 1
 tags: [stego, tiff, ifd, tags, strips, extrasamples, geotiff]
 prerequisites: [stego-png-chunks, stego-exif-xmp]
 useful_for:

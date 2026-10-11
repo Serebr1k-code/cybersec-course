@@ -2,9 +2,9 @@
 id: stego-jpeg-dct
 title: "Стеганография в JPEG: DCT-коэффициенты, jsteg, F5 и outguess"
 category: stego
-parent: stego-image-techniques
+parent: stego-image-tools
 difficulty: medium
-order: 4
+order: 2
 tags: [stego, jpeg, dct, jsteg, f5, outguess, quantization]
 prerequisites: [stego-lsb, stego-image-tools]
 useful_for:

@@ -4,7 +4,7 @@ title: "Стеганография в MP3: mp3stego и фазовое кодир
 category: stego
 parent: stego-module-transform
 difficulty: hard
-order: 2
+order: 1
 tags: [stego, mp3, mp3stego, audio, phase-coding, mdct]
 prerequisites: [stego-audio, stego-audio-echo]
 useful_for:

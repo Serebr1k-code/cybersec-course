@@ -4,7 +4,7 @@ title: "Large bin attack: произвольная запись через бо�
 category: pwn
 parent: pwn-heap-bin-attacks
 difficulty: expert
-order: 3
+order: 2
 tags: [pwn, heap, glibc, largebin, malloc]
 prerequisites: [pwn-heap-basics, pwn-heap-uaf]
 useful_for:

@@ -2,7 +2,7 @@
 id: hardware-jtag-deep
 title: "JTAG/SWD глубоко: boundary scan, debug-lock bypass"
 category: hardware
-parent: hardware-jtag
+parent: hardware-logic-analysis
 difficulty: hard
 order: 2
 tags: [jtag, swd, boundary-scan, openocd, urjtag, debug-lock, bsdl, idcode]

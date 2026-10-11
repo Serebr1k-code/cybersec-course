@@ -4,7 +4,7 @@ title: "Модуль: атаки на идентичность"
 category: cloud
 parent: cloud-iam-basics
 difficulty: hard
-order: 2
+order: 1
 tags: [cloud, iam, ssrf, privesc, serverless]
 prerequisites: [cloud-iam-basics]
 useful_for:

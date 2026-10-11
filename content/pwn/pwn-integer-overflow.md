@@ -2,7 +2,7 @@
 id: pwn-integer-overflow
 title: "Целочисленные переполнения: signedness, truncation, underflow"
 category: pwn
-parent: pwn-buffer-overflow-core
+parent: pwn-calling-conventions
 difficulty: medium
 order: 2
 tags: [integer-overflow, signedness, truncation, underflow, cwe-190]

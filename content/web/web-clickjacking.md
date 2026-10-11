@@ -2,9 +2,9 @@
 id: web-clickjacking
 title: "Clickjacking и UI-redressing"
 category: web
-parent: web-csrf
+parent: web-same-origin-cors
 difficulty: medium
-order: 1
+order: 2
 tags: [clickjacking, ui-redressing, x-frame-options, frame-ancestors, iframe]
 prerequisites: [web-csrf, web-same-origin-cors]
 useful_for:

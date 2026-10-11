@@ -4,7 +4,7 @@ title: "Защиты: NX, ASLR, PIE, canary и их обход"
 category: pwn
 parent: pwn-ret2libc
 difficulty: medium
-order: 2
+order: 1
 tags: [nx, aslr, pie, canary, relro, bypass]
 prerequisites: [pwn-ret2libc]
 useful_for:

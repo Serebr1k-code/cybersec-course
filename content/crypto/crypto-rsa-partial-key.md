@@ -2,9 +2,9 @@
 id: crypto-rsa-partial-key
 title: "Partial key exposure: утечка битов p, q, d, dp"
 category: crypto
-parent: crypto-rsa-coppersmith-path
+parent: crypto-rsa-coppersmith-deep
 difficulty: hard
-order: 2
+order: 1
 tags: [crypto, rsa, partial-key, dp, dq, msb, lsb, coppersmith, side-channel]
 prerequisites: [crypto-rsa-advanced, crypto-rsa-coppersmith-deep, crypto-number-theory]
 useful_for:

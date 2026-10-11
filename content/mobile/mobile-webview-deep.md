@@ -4,7 +4,7 @@ title: "WebView deep: JS-мосты, доступ к файлам и спуфи�
 category: mobile
 parent: mobile-webview
 difficulty: hard
-order: 2
+order: 4
 tags: [webview, javascript-interface, file-access, url-spoofing, android, xss, ssrf]
 prerequisites: [mobile-webview, mobile-android-anatomy]
 useful_for:

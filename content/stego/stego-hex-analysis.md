@@ -2,9 +2,9 @@
 id: stego-hex-analysis
 title: "Ручной hex-анализ: диффы и поиск аномалий"
 category: stego
-parent: stego-tooling-advanced
+parent: stego-steganalysis
 difficulty: medium
-order: 4
+order: 2
 tags: [stego, hex, forensics, diff, xxd, analysis]
 prerequisites: [stego-tooling-advanced, stego-steganalysis]
 useful_for:

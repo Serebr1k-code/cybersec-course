@@ -4,7 +4,7 @@ title: "Модуль: детект, эксфильтрация и IR"
 category: cloud
 parent: cloud-logging-detection
 difficulty: expert
-order: 3
+order: 4
 tags: [cloud, detection, guardduty, exfiltration, ir, forensics, module]
 prerequisites: [cloud-logging-detection, cloud-cloudtrail-evasion]
 useful_for:

@@ -4,7 +4,7 @@ title: "Методология анализа: статика против ди�
 category: reversing
 parent: reversing-intro
 difficulty: easy
-order: 1
+order: 2
 tags: [reversing, methodology, triage, static, dynamic, workflow]
 prerequisites: [reversing-intro]
 useful_for:

@@ -2,9 +2,9 @@
 id: pwn-macos
 title: "macOS pwn: основы эксплуатации"
 category: pwn
-parent: pwn-windows-intro
+parent: pwn-calling-conventions
 difficulty: hard
-order: 1
+order: 3
 tags: [pwn, macos, mach, pac, arm64]
 prerequisites: [pwn-windows-intro, pwn-arm64-basics]
 useful_for:

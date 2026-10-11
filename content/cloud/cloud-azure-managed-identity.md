@@ -4,7 +4,7 @@ title: "Azure Managed Identity и IMDS: от SSRF до токена ресурс
 category: cloud
 parent: cloud-metadata-ssrf
 difficulty: expert
-order: 2
+order: 1
 tags: [cloud, azure, managed-identity, imds, ssrf, token, entra-id]
 prerequisites: [cloud-azure-basics, cloud-metadata-ssrf]
 useful_for:

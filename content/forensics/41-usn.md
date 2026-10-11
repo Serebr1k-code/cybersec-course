@@ -4,7 +4,7 @@ title: "Журнал USN ($UsnJrnl): хронология операций с ф
 category: forensics
 parent: forensics-ntfs-mft
 difficulty: hard
-order: 1
+order: 2
 tags: [usn, usnjrnl, ntfs, timeline, rename, delete, mftecmd]
 prerequisites: [forensics-ntfs-mft]
 useful_for:

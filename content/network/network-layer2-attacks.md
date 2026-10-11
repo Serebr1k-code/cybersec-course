@@ -2,7 +2,7 @@
 id: network-layer2-attacks
 title: "Атаки L2: STP, MAC-flooding, port security и их обход"
 category: network
-parent: network-l2-attacks
+parent: network-arp-deep
 difficulty: medium
 order: 2
 tags: [network, layer2, stp, mac-flooding, port-security, cam-table]

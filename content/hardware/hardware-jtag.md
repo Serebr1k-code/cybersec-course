@@ -4,7 +4,7 @@ title: "JTAG и SWD: аппаратная отладка, чтение памя�
 category: hardware
 parent: hardware-interface-discovery
 difficulty: medium
-order: 2
+order: 3
 tags: [jtag, swd, openocd, boundary-scan, debug, arm]
 prerequisites: [hardware-intro, hardware-uart]
 useful_for:

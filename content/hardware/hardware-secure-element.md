@@ -2,9 +2,9 @@
 id: hardware-secure-element
 title: "Secure element: аппаратный сейф для ключей"
 category: hardware
-parent: hardware-mod-trusted-compute
+parent: hardware-i2c
 difficulty: hard
-order: 3
+order: 2
 tags: [secure-element, atecc, se050, i2c, spi, crypto, key-storage]
 prerequisites: [hardware-secure-enclave, hardware-i2c]
 useful_for:

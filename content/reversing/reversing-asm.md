@@ -4,7 +4,7 @@ title: "Чтение ассемблера x86-64"
 category: reversing
 parent: reversing-intro
 difficulty: easy
-order: 2
+order: 1
 tags: [reversing, assembly, x86-64, registers, calling-convention]
 prerequisites: [reversing-intro]
 useful_for:

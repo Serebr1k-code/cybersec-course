@@ -4,7 +4,7 @@ title: "Keygen и обход лицензионных проверок"
 category: reversing
 parent: reversing-patching
 difficulty: hard
-order: 4
+order: 3
 tags: [reversing, keygen, license, crackme, serial, algorithm]
 prerequisites: [reversing-patching]
 useful_for:

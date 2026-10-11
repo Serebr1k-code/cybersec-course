@@ -4,7 +4,7 @@ title: "Разведка: поверхность атаки"
 category: web
 parent: web-recon-fuzzing
 difficulty: easy
-order: 1
+order: 2
 tags: [recon, fuzzing, surface, roadmap]
 prerequisites: [web-recon-fuzzing]
 useful_for:

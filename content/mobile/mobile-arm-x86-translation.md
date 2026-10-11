@@ -4,7 +4,7 @@ title: "Трансляция ARM↔x86: нативный код на эмуля�
 category: mobile
 parent: mobile-platform-integration
 difficulty: hard
-order: 4
+order: 3
 tags: [mobile, arm, x86, native, houdini, emulator, qemu]
 prerequisites: [mobile-android-native]
 useful_for:

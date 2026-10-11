@@ -2,7 +2,7 @@
 id: network-vlan-hopping
 title: "VLAN hopping: 802.1Q, DTP и выход за пределы сегмента"
 category: network
-parent: network-l2-attacks
+parent: network-arp-deep
 difficulty: hard
 order: 3
 tags: [network, vlan, 802.1q, dtp, layer2, hopping]

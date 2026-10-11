@@ -2,9 +2,9 @@
 id: stego-capacity-theory
 title: "Теория ёмкости: rate-distortion и выбор cover"
 category: stego
-parent: stego-module-transform
+parent: stego-steganalysis
 difficulty: expert
-order: 3
+order: 4
 tags: [stego, capacity, rate-distortion, cover-selection, information-theory]
 prerequisites: [stego-capacity, stego-steganalysis]
 useful_for:

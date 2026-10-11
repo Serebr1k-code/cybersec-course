@@ -2,9 +2,9 @@
 id: cloud-assume-role
 title: "Cross-account роли и confused deputy: цепочки доверия"
 category: cloud
-parent: cloud-privesc-iam
+parent: cloud-aws-organizations
 difficulty: expert
-order: 3
+order: 1
 tags: [cloud, aws, sts, assume-role, confused-deputy, cross-account, trust-policy]
 prerequisites: [cloud-privesc-iam, cloud-aws-organizations]
 useful_for:

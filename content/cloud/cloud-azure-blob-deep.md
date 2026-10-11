@@ -2,7 +2,7 @@
 id: cloud-azure-blob-deep
 title: "Azure Blob Storage глубоко: доступ, SAS, версии и soft-delete"
 category: cloud
-parent: cloud-azure-data-deep
+parent: cloud-azure-storage-sas
 difficulty: hard
 order: 1
 tags: [cloud, azure, blob, storage, sas, versioning, soft-delete, immutability]

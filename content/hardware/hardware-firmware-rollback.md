@@ -2,9 +2,9 @@
 id: hardware-firmware-rollback
 title: "Anti-rollback и verified boot: почему нельзя откатиться"
 category: hardware
-parent: hardware-mod-trusted-compute
+parent: hardware-efuse-otp
 difficulty: hard
-order: 2
+order: 1
 tags: [verified-boot, anti-rollback, avb, secure-boot, rollback, android]
 prerequisites: [hardware-secure-boot, hardware-efuse-otp]
 useful_for:

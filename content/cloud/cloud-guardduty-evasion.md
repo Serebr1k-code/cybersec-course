@@ -4,7 +4,7 @@ title: "GuardDuty, Defender for Cloud и SCC: evasion и слепые зоны"
 category: cloud
 parent: cloud-defense-deep
 difficulty: expert
-order: 2
+order: 1
 tags: [cloud, guardduty, defender, scc, detection, evasion, opsec]
 prerequisites: [cloud-defense-deep, cloud-cloudtrail-evasion]
 useful_for:

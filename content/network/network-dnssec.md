@@ -4,7 +4,7 @@ title: "DNSSEC: как работает подпись зон и почему в
 category: network
 parent: network-dns-attacks
 difficulty: hard
-order: 2
+order: 3
 tags: [network, dns, dnssec, crypto, validation, downgrade]
 prerequisites: [network-dns-attacks, crypto-hash-basics]
 useful_for:

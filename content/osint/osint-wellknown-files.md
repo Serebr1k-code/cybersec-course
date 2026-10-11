@@ -4,7 +4,7 @@ title: "robots.txt, sitemap.xml, security.txt и .well-known"
 category: osint
 parent: osint-web-surface
 difficulty: easy
-order: 3
+order: 2
 tags: [osint, robots, sitemap, securitytxt, wellknown, paths, recon]
 prerequisites: [osint-tech-fingerprint]
 useful_for:

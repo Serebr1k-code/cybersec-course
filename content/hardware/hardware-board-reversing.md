@@ -4,7 +4,7 @@ title: "Реверс платы и измерения"
 category: hardware
 parent: hardware-intro
 difficulty: easy
-order: 2
+order: 1
 tags: [hardware, pcb, multimeter, scope]
 prerequisites: [hardware-intro]
 useful_for:

@@ -4,7 +4,7 @@ title: "Модуль: реестр, файлы и съёмные носител�
 category: forensics
 parent: forensics-windows-artifacts
 difficulty: hard
-order: 2
+order: 1
 tags: [windows, registry, recyclebin, browser, usb, roadmap]
 prerequisites: [forensics-win-execution]
 useful_for:

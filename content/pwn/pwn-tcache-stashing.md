@@ -2,9 +2,9 @@
 id: pwn-tcache-stashing
 title: "Tcache stashing unlink attack"
 category: pwn
-parent: pwn-tcache-mechanics
+parent: pwn-house-lore
 difficulty: expert
-order: 4
+order: 1
 tags: [pwn, heap, glibc, tcache, smallbin, stashing]
 prerequisites: [pwn-heap-tcache, pwn-house-lore]
 useful_for:

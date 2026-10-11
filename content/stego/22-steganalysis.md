@@ -4,7 +4,7 @@ title: "Стегоанализ: хи-квадрат, RS-анализ и SPA"
 category: stego
 parent: stego-analysis-advanced
 difficulty: hard
-order: 4
+order: 3
 tags: [stego, steganalysis, chi-square, rs-analysis, spa, detection]
 prerequisites: [stego-lsb, stego-jpeg-dct, stego-bitplane]
 useful_for:

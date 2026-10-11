@@ -4,7 +4,7 @@ title: "Модуль: журналы, события и таймлайн"
 category: forensics
 parent: forensics-windows-artifacts
 difficulty: hard
-order: 3
+order: 2
 tags: [windows, evtx, logs, powershell, timeline, plaso, roadmap]
 prerequisites: [forensics-win-registry]
 useful_for:

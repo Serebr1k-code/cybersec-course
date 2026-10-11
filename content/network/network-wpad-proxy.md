@@ -2,9 +2,9 @@
 id: network-wpad-proxy
 title: "WPAD и прокси-атаки: захват трафика через автообнаружение прокси"
 category: network
-parent: network-mitm
+parent: network-dhcp
 difficulty: medium
-order: 4
+order: 1
 tags: [network, wpad, proxy, pac, mitm, dhcp, ipv6]
 prerequisites: [network-mitm, network-dhcp]
 useful_for:

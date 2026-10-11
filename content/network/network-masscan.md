@@ -4,7 +4,7 @@ title: "Masscan и крупномасштабное сканирование и�
 category: network
 parent: network-portscan
 difficulty: easy
-order: 1
+order: 2
 tags: [network, masscan, scanning, internet-scale, zmap]
 prerequisites: [network-portscan, network-nmap-deep]
 useful_for:

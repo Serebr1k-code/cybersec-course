@@ -2,9 +2,9 @@
 id: stego-video
 title: "Видеостеганография: кадры, аудиодорожка и контейнеры"
 category: stego
-parent: stego-media-carriers
+parent: stego-lsb
 difficulty: medium
-order: 2
+order: 3
 tags: [stego, video, mp4, ffmpeg, frames, container]
 prerequisites: [stego-audio, stego-lsb]
 useful_for:

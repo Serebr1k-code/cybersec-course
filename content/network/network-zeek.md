@@ -4,7 +4,7 @@ title: "Zeek: сетевая безопасность через логи, а н
 category: network
 parent: network-wireshark
 difficulty: medium
-order: 2
+order: 1
 tags: [network, zeek, bro, ids, logs, forensics, monitoring]
 prerequisites: [network-wireshark, network-tcpdump]
 useful_for:

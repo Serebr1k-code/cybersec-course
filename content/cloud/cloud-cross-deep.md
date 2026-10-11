@@ -4,7 +4,7 @@ title: "Модуль: кросс-облачные атаки — секреты,
 category: cloud
 parent: cloud-iam-basics
 difficulty: expert
-order: 4
+order: 3
 tags: [cloud, cross-account, secrets, ssrf, confused-deputy, module]
 prerequisites: [cloud-privesc-iam, cloud-ssrf-to-cloud]
 useful_for:

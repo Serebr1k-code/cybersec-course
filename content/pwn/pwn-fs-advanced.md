@@ -2,9 +2,9 @@
 id: pwn-fs-advanced
 title: "Format string advanced: произвольная запись и захват GOT"
 category: pwn
-parent: pwn-format-string
+parent: pwn-got-plt
 difficulty: hard
-order: 2
+order: 3
 tags: [format-string, %n, got-overwrite, arbitrary-write, pwntools-fmtstr]
 prerequisites: [pwn-format-string, pwn-got-plt]
 useful_for:

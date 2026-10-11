@@ -4,7 +4,7 @@ title: "EC2 и IMDSv2: обход, hop limit и защита metadata"
 category: cloud
 parent: cloud-metadata-ssrf
 difficulty: hard
-order: 1
+order: 3
 tags: [cloud, aws, ec2, imdsv2, ssrf, hop-limit, metadata]
 prerequisites: [cloud-metadata-ssrf, cloud-ssrf-to-cloud]
 useful_for:

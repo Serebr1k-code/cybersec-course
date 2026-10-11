@@ -2,7 +2,7 @@
 id: pwn-stack-clash
 title: "Stack Clash: конфликт стека и кучи через большой аллокатор"
 category: pwn
-parent: pwn-buffer-overflow-core
+parent: pwn-calling-conventions
 difficulty: hard
 order: 4
 tags: [stack-clash, guard-page, mmap, alloca, privilege-escalation]

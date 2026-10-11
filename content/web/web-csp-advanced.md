@@ -2,7 +2,7 @@
 id: web-csp-advanced
 title: "CSP advanced: nonce reuse, strict-dynamic, base-uri, script gadgets"
 category: web
-parent: web-csp-bypass
+parent: web-dom-clobbering
 difficulty: hard
 order: 1
 tags: [csp, xss, nonce, strict-dynamic, base-uri, script-gadget]

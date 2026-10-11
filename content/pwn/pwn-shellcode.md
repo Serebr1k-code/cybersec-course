@@ -2,9 +2,9 @@
 id: pwn-shellcode
 title: "Shellcode: написание и инъекция машинного кода"
 category: pwn
-parent: pwn-buffer-overflow-core
+parent: pwn-pwntools
 difficulty: medium
-order: 3
+order: 2
 tags: [shellcode, execve, syscall, encoder, nx]
 prerequisites: [pwn-buffer-overflow, pwn-pwntools]
 useful_for:

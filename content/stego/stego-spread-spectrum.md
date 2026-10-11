@@ -2,9 +2,9 @@
 id: stego-spread-spectrum
 title: "Spread-spectrum стеганография (SSIS): размазывание сигнала"
 category: stego
-parent: stego-module-embed
+parent: stego-steganalysis
 difficulty: hard
-order: 4
+order: 3
 tags: [stego, spread-spectrum, ssis, dsss, correlation, robust]
 prerequisites: [stego-qim, stego-steganalysis]
 useful_for:

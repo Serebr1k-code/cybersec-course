@@ -4,7 +4,7 @@ title: "SPF, DKIM и DMARC: поверхность подделки почты"
 category: osint
 parent: osint-email-headers
 difficulty: medium
-order: 3
+order: 2
 tags: [email, spf, dkim, dmarc, spoofing]
 prerequisites: [osint-email-headers]
 useful_for:

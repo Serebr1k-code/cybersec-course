@@ -4,7 +4,7 @@ title: "Fault injection: glitching по питанию и тактовому с�
 category: hardware
 parent: hardware-sidechannel
 difficulty: hard
-order: 1
+order: 2
 tags: [glitching, fault-injection, voltage-glitch, clock-glitch, crowbar, chipwhisperer, emfi]
 prerequisites: [hardware-sidechannel, hardware-multimeter-scope]
 useful_for:

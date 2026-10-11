@@ -4,7 +4,7 @@ title: "Образы дисков и восстановление удалённ
 category: forensics
 parent: forensics-filesystems
 difficulty: medium
-order: 2
+order: 3
 tags: [disk-image, dd, ewf, vmdk, mounting, recovery, testdisk]
 prerequisites: [forensics-filesystems]
 useful_for:

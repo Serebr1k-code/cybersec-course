@@ -4,7 +4,7 @@ title: "Обход root-детекта и anti-Frida/anti-debug защит"
 category: mobile
 parent: mobile-runtime-bypass
 difficulty: medium
-order: 2
+order: 1
 tags: [android, root-detection, anti-debug, frida, magisk, bypass]
 prerequisites: [mobile-dynamic-frida]
 useful_for:

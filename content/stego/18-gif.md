@@ -4,7 +4,7 @@ title: "Стеганография в GIF: кадры, тайминги и па�
 category: stego
 parent: stego-container-formats
 difficulty: easy
-order: 3
+order: 2
 tags: [stego, gif, frames, timing, palette, animation]
 prerequisites: [stego-image-tools, stego-palette]
 useful_for:

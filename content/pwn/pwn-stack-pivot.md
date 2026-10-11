@@ -4,7 +4,7 @@ title: "Stack pivot: подмена стека и xchg rsp"
 category: pwn
 parent: pwn-rop-techniques
 difficulty: hard
-order: 4
+order: 3
 tags: [stack-pivot, rsp, leave-ret, xchg, rop]
 prerequisites: [pwn-rop, pwn-gadget-hunting]
 useful_for:

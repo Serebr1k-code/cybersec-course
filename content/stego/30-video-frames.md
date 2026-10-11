@@ -2,9 +2,9 @@
 id: stego-video-frames
 title: "Видео-стеганография: манипуляция кадрами и DCT"
 category: stego
-parent: stego-video
+parent: stego-jpeg-dct
 difficulty: medium
-order: 1
+order: 2
 tags: [stego, video, frames, dct, mp4, ffmpeg, interframe]
 prerequisites: [stego-video, stego-jpeg-dct]
 useful_for:

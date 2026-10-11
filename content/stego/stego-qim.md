@@ -2,9 +2,9 @@
 id: stego-qim
 title: "Квантование (QIM): встраивание через индексацию квантов"
 category: stego
-parent: stego-module-embed
+parent: stego-lsb-matching
 difficulty: hard
-order: 3
+order: 2
 tags: [stego, qim, quantization, dither, robust]
 prerequisites: [stego-lsb-matching, stego-adaptive]
 useful_for:

@@ -4,7 +4,7 @@ title: "Инструменты для изображений: exiftool, steghide
 category: stego
 parent: stego-media-basics
 difficulty: easy
-order: 2
+order: 3
 tags: [stego, image, exiftool, steghide, outguess, stegseek, metadata]
 prerequisites: [stego-intro]
 useful_for:

@@ -4,7 +4,7 @@ title: "Вмешательство в лог-пайплайн: CloudTrail, Monit
 category: cloud
 parent: cloud-defense-deep
 difficulty: expert
-order: 3
+order: 2
 tags: [cloud, cloudtrail, logging, tampering, opsec, forensics, audit]
 prerequisites: [cloud-defense-deep, cloud-cloudtrail-evasion]
 useful_for:

@@ -4,7 +4,7 @@ title: "JTAG boundary scan"
 category: hardware
 parent: hardware-mod-debug-advanced
 difficulty: hard
-order: 3
+order: 2
 tags: [jtag, boundary-scan, bsdl, ieee1149]
 prerequisites: [hardware-swim-bdm, hardware-jtag-deep]
 useful_for:

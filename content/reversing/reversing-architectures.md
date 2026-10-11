@@ -4,7 +4,7 @@ title: "Реверс других архитектур: ARM, MIPS, RISC-V"
 category: reversing
 parent: reversing-asm
 difficulty: medium
-order: 3
+order: 2
 tags: [reversing, arm, mips, riscv, endianness, cross-arch, qemu]
 prerequisites: [reversing-asm]
 useful_for:

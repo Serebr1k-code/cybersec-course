@@ -4,7 +4,7 @@ title: "Модуль: Продвинутые контейнеры (мульти�
 category: stego
 parent: stego-appended
 difficulty: medium
-order: 2
+order: 4
 tags: [stego, container, gif, palette, roadmap]
 prerequisites: [stego-appended, stego-container-formats]
 useful_for:

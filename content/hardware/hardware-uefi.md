@@ -2,9 +2,9 @@
 id: hardware-uefi
 title: "UEFI/BIOS: поверхность атаки прошивки и Secure Boot"
 category: hardware
-parent: hardware-bootloader
+parent: hardware-secure-boot
 difficulty: hard
-order: 3
+order: 1
 tags: [uefi, bios, secure-boot, spi, me, firmware, uefi-shell, flash, bootkit]
 prerequisites: [hardware-firmware-extract, hardware-secure-boot]
 useful_for:

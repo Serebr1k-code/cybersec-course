@@ -4,7 +4,7 @@ title: "LSB в изображениях: как прячут данные в м�
 category: stego
 parent: stego-media-basics
 difficulty: easy
-order: 1
+order: 2
 tags: [stego, image, lsb, png, bmp, python]
 prerequisites: [stego-intro]
 useful_for:

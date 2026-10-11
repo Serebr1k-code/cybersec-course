@@ -4,7 +4,7 @@ title: "Инъекция команд ОС (Command Injection)"
 category: web
 parent: web-injection-basics
 difficulty: medium
-order: 2
+order: 1
 tags: [command-injection, rce, shell, blind, os]
 prerequisites: [web-sqli]
 useful_for:

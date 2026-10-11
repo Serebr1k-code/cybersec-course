@@ -2,7 +2,7 @@
 id: stego-lsb-matching
 title: "LSB matching и ±1-встраивание: обход хи-квадрата"
 category: stego
-parent: stego-module-embed
+parent: stego-steganalysis
 difficulty: medium
 order: 1
 tags: [stego, lsb-matching, embedding, steganalysis, chi-square]

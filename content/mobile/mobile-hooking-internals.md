@@ -4,7 +4,7 @@ title: "Внутренности хукинга: ART, JVMTI и RegisterNatives"
 category: mobile
 parent: mobile-app-protection
 difficulty: expert
-order: 4
+order: 2
 tags: [mobile, android, art, hooking, jvmti, native, frida]
 prerequisites: [mobile-dynamic-frida, mobile-android-native]
 useful_for:

@@ -4,7 +4,7 @@ title: "RSA fault attacks (Bellcore) и подписи с ошибками"
 category: crypto
 parent: crypto-rsa-implementation-attacks
 difficulty: hard
-order: 1
+order: 3
 tags: [crypto, rsa, fault-attack, bellcore, crt, faulty-signature, gcd, side-channel]
 prerequisites: [crypto-rsa-advanced, crypto-rsa-partial-key, crypto-number-theory]
 useful_for:

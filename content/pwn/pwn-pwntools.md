@@ -4,7 +4,7 @@ title: "pwntools: рабочий инструмент pwn-специалиста
 category: pwn
 parent: pwn-elf-basics
 difficulty: easy
-order: 3
+order: 2
 tags: [pwntools, tooling, elf, rop, remote, gdb]
 prerequisites: [pwn-elf-basics]
 useful_for:

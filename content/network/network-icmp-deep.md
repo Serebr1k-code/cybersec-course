@@ -2,7 +2,7 @@
 id: network-icmp-deep
 title: "ICMP глубоко: типы, redirect, TTL-трюки и сканирование"
 category: network
-parent: network-module-ip
+parent: network-icmp-tunnel
 difficulty: medium
 order: 1
 tags: [network, icmp, traceroute, redirect, ttl, ping, scanning]

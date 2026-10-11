@@ -2,9 +2,9 @@
 id: pwn-rop
 title: "ROP: цепочки гаджетов и обход NX"
 category: pwn
-parent: pwn-buffer-overflow
+parent: pwn-pwntools
 difficulty: medium
-order: 2
+order: 4
 tags: [rop, gadgets, nx, ret2win, pop-rdi]
 prerequisites: [pwn-buffer-overflow, pwn-pwntools]
 useful_for:

@@ -4,7 +4,7 @@ title: "Облачная и контейнерная форензика: сбо�
 category: cloud
 parent: cloud-logging-detection
 difficulty: hard
-order: 2
+order: 3
 tags: [cloud, forensics, incident-response, containers, snapshots, logs]
 prerequisites: [cloud-logging-detection, cloud-post-exploit]
 useful_for:

@@ -4,7 +4,7 @@ title: "MDM и MAM: корпоративное управление мобиль
 category: mobile
 parent: mobile-platform-integration
 difficulty: hard
-order: 3
+order: 2
 tags: [mobile, mdm, mam, enterprise, work-profile, byod]
 prerequisites: [mobile-android-components]
 useful_for:

@@ -4,7 +4,7 @@ title: "Браузер: утечки и сервис-воркеры"
 category: web
 parent: web-same-origin-cors
 difficulty: medium
-order: 2
+order: 3
 tags: [xs-leaks, service-worker, browser, roadmap]
 prerequisites: [web-same-origin-cors]
 useful_for:

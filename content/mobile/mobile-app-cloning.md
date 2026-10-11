@@ -2,7 +2,7 @@
 id: mobile-app-cloning
 title: "Клонирование приложений, параллельные копии и обход детекта клона"
 category: mobile
-parent: mobile-app-protection
+parent: mobile-insecure-storage
 difficulty: medium
 order: 2
 tags: [mobile, android, cloning, dual-app, isolation]

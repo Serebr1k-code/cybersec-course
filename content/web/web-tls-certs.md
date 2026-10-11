@@ -4,7 +4,7 @@ title: "TLS, сертификаты и HTTPS-ошибки"
 category: web
 parent: web-http-basics
 difficulty: easy
-order: 3
+order: 1
 tags: [tls, https, certificate, hsts, mitm, sni]
 prerequisites: [web-http-basics]
 useful_for:

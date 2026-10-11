@@ -2,9 +2,9 @@
 id: web-trusted-types-bypass
 title: "Trusted Types и обход клиентских защит"
 category: web
-parent: web-csp-bypass
+parent: web-csp-advanced
 difficulty: hard
-order: 2
+order: 1
 tags: [trusted-types, csp, xss, dom, bypass]
 prerequisites: [web-csp-advanced, web-xss]
 useful_for:

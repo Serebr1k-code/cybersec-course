@@ -2,7 +2,7 @@
 id: pwn-fastbin-dup
 title: "fastbin dup и fastbin attack"
 category: pwn
-parent: pwn-heap-bin-attacks
+parent: pwn-heap-uaf
 difficulty: hard
 order: 1
 tags: [heap, fastbin, double-free, fastbin-dup, malloc-hook]

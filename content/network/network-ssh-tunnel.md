@@ -4,7 +4,7 @@ title: "SSH-туннели: локальный, удалённый, динами
 category: network
 parent: network-tunneling
 difficulty: medium
-order: 3
+order: 2
 tags: [network, ssh, tunnel, port-forward, socks, pivot]
 prerequisites: [network-covert, network-firewall-piercing]
 useful_for:

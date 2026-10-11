@@ -4,7 +4,7 @@ title: "Git-история и утечки: секреты в коммитах �
 category: osint
 parent: osint-github-recon
 difficulty: medium
-order: 1
+order: 2
 tags: [osint, git, github, secrets, gitleaks, trufflehog]
 prerequisites: [osint-github-recon, osint-secret-scanning]
 useful_for:

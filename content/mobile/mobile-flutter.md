@@ -4,7 +4,7 @@ title: "Flutter и React Native: реверс кросс-платформенн�
 category: mobile
 parent: mobile-reverse-native
 difficulty: hard
-order: 3
+order: 2
 tags: [flutter, react-native, dart, hermes, index.android.bundle, reversing, blutter]
 prerequisites: [mobile-static-analysis]
 useful_for:

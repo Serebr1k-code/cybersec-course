@@ -2,7 +2,7 @@
 id: network-traffic-replay
 title: "Реплей и модификация трафика: tcpreplay, Scapy и MITM-прокси"
 category: network
-parent: network-wireshark
+parent: network-mitm
 difficulty: medium
 order: 3
 tags: [network, replay, tcpreplay, scapy, mitmproxy, tampering]

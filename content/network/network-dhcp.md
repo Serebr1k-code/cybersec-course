@@ -2,9 +2,9 @@
 id: network-dhcp
 title: "DHCP: устройство, rogue-сервер и атаки на конфигурацию"
 category: network
-parent: network-mitm-wireless
+parent: network-arp-deep
 difficulty: medium
-order: 2
+order: 1
 tags: [network, dhcp, rogue, starvation, mitm, layer2]
 prerequisites: [network-mitm, network-arp-deep]
 useful_for:

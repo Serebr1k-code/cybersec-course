@@ -4,7 +4,7 @@ title: "UDP глубоко: спуфинг, амплификация и UDP-ск
 category: network
 parent: network-module-ip
 difficulty: medium
-order: 2
+order: 1
 tags: [network, udp, amplification, spoofing, scanning, dns, ntp]
 prerequisites: [network-module-ip, network-portscan]
 useful_for:

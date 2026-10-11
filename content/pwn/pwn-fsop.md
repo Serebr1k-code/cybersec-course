@@ -4,7 +4,7 @@ title: "FSOP: перезапись _IO_FILE и vtable"
 category: pwn
 parent: pwn-heap-tcache
 difficulty: expert
-order: 1
+order: 2
 tags: [fsop, io-file, vtable, house-of-orange, stdout, glibc]
 prerequisites: [pwn-glibc-mitigations, pwn-heap-tcache]
 useful_for:

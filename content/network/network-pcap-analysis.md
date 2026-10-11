@@ -4,7 +4,7 @@ title: "Практический анализ PCAP: восстановление
 category: network
 parent: network-wireshark
 difficulty: medium
-order: 1
+order: 2
 tags: [network, pcap, forensics, exfiltration, ctf]
 prerequisites: [network-wireshark]
 useful_for:

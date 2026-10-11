@@ -4,7 +4,7 @@ title: "Diffie-Hellman: малые подгруппы, Logjam и дискрет�
 category: crypto
 parent: crypto-number-theory
 difficulty: medium
-order: 2
+order: 3
 tags: [crypto, diffie-hellman, dh, discrete-log, small-subgroup, logjam, pohlig-hellman, man-in-the-middle]
 prerequisites: [crypto-number-theory]
 useful_for:

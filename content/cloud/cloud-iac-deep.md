@@ -2,9 +2,9 @@
 id: cloud-iac-deep
 title: "Модуль: IaC глубоко — state, Bicep и шаблоны"
 category: cloud
-parent: cloud-iam-basics
+parent: cloud-cloudformation
 difficulty: hard
-order: 3
+order: 1
 tags: [cloud, terraform, state, bicep, iac, module]
 prerequisites: [cloud-terraform, cloud-cloudformation]
 useful_for:

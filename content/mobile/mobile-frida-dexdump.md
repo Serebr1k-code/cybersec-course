@@ -2,9 +2,9 @@
 id: mobile-frida-dexdump
 title: "Дамп DEX из памяти: frida-dexdump и распаковка упакованных APK"
 category: mobile
-parent: mobile-app-protection
+parent: mobile-dynamic-frida
 difficulty: hard
-order: 3
+order: 4
 tags: [mobile, android, frida, unpacking, dex, reverse]
 prerequisites: [mobile-android-packers, mobile-dynamic-frida]
 useful_for:

@@ -4,7 +4,7 @@ title: "Метаданные и водяные знаки: EXIF/XMP и watermark
 category: stego
 parent: stego-image-tools
 difficulty: easy
-order: 3
+order: 4
 tags: [stego, roadmap, exif, xmp, iptc, watermark, forensics]
 prerequisites: [stego-image-tools]
 useful_for:

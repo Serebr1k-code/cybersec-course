@@ -2,9 +2,9 @@
 id: hardware-swd-advanced
 title: "SWD продвинутый и CoreSight: трассировка, ETM, отладка без halt"
 category: hardware
-parent: hardware-jtag
+parent: hardware-jtag-deep
 difficulty: hard
-order: 3
+order: 2
 tags: [swd, coresight, etm, trace, swo, itm, arm, openocd, pyocd]
 prerequisites: [hardware-jtag-deep]
 useful_for:

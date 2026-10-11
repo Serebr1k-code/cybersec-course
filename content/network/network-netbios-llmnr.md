@@ -2,9 +2,9 @@
 id: network-netbios-llmnr
 title: "NetBIOS, LLMNR и NBT-NS: poisoning и захват учётных данных"
 category: network
-parent: network-mitm
+parent: network-ntlm-relay
 difficulty: medium
-order: 3
+order: 1
 tags: [network, netbios, llmnr, nbt-ns, mdns, responder, ntlm, smb]
 prerequisites: [network-mitm, network-ntlm-relay]
 useful_for:

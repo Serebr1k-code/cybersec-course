@@ -4,7 +4,7 @@ title: "Модуль: шифрование дисков и контейнеры"
 category: forensics
 parent: forensics-disk-images
 difficulty: hard
-order: 3
+order: 2
 tags: [encryption, veracrypt, luks, bitlocker, containers, roadmap]
 prerequisites: [forensics-img-acquisition]
 useful_for:

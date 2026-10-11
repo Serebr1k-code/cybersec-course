@@ -2,7 +2,7 @@
 id: pwn-house-modern
 title: "Современные House of: Kiwi, Emma, Apple, God"
 category: pwn
-parent: pwn-glibc-mitigations
+parent: pwn-tcache-stashing
 difficulty: expert
 order: 1
 tags: [pwn, heap, glibc, house-of, modern]

@@ -4,7 +4,7 @@ title: "Реверс гипервизоров и VMX"
 category: reversing
 parent: reversing-kernel-drivers
 difficulty: expert
-order: 2
+order: 3
 tags: [reversing, hypervisor, vmx, intel-vt, amd-svm, hyperjacking, ring-minus-1]
 prerequisites: [reversing-kernel-drivers, reversing-architectures]
 useful_for:

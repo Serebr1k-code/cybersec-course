@@ -4,7 +4,7 @@ title: "Инструменты Web3-CTF: Foundry, cast, Etherscan"
 category: misc
 parent: misc-blockchain
 difficulty: medium
-order: 3
+order: 2
 tags: [foundry, forge, anvil, cast, etherscan, rpc, ctf]
 prerequisites: [misc-blockchain-solidity]
 useful_for:

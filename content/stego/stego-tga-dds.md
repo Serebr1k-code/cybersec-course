@@ -4,7 +4,7 @@ title: "Стеганография в TGA и DDS: заголовки, RLE и DXT
 category: stego
 parent: stego-image-formats-exotic
 difficulty: medium
-order: 3
+order: 2
 tags: [stego, tga, dds, textures, rle, dxt, bc, gamedev]
 prerequisites: [stego-image-formats-exotic, stego-bitplane]
 useful_for:

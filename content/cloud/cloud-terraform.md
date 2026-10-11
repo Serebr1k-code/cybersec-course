@@ -2,9 +2,9 @@
 id: cloud-terraform
 title: "Terraform и IaC: state, провайдеры и злоупотребление инфраструктурой как кодом"
 category: cloud
-parent: cloud-iac-deep
+parent: cloud-supply-chain
 difficulty: hard
-order: 3
+order: 2
 tags: [cloud, terraform, iac, state, drift, supply-chain, secrets]
 prerequisites: [cloud-supply-chain, cloud-credential-hunting]
 useful_for:

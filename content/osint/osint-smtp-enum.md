@@ -4,7 +4,7 @@ title: "Перечисление почтовых ящиков через SMTP (
 category: osint
 parent: osint-email-headers
 difficulty: medium
-order: 4
+order: 3
 tags: [smtp, enum, vrfy, expn, rcpt, email]
 prerequisites: [osint-email-headers]
 useful_for:

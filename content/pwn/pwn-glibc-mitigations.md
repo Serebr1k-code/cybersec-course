@@ -4,7 +4,7 @@ title: "Митигации glibc 2.3x: safe-linking и удалённые хук
 category: pwn
 parent: pwn-tcache-mechanics
 difficulty: expert
-order: 2
+order: 3
 tags: [glibc, safe-linking, tcache, malloc-hook, mitigations, modern]
 prerequisites: [pwn-heap-tcache, pwn-fastbin-dup]
 useful_for:

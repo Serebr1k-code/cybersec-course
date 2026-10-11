@@ -2,7 +2,7 @@
 id: hardware-laser-fault
 title: "Лазерная инъекция ошибок: обход проверок светом"
 category: hardware
-parent: hardware-mod-physical-attacks
+parent: hardware-efuse-otp
 difficulty: expert
 order: 2
 tags: [laser, fault-injection, lfi, glitch, decapsulation, secure-boot]

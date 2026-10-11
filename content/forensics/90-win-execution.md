@@ -4,7 +4,7 @@ title: "Модуль: артефакты выполнения и активно�
 category: forensics
 parent: forensics-windows-artifacts
 difficulty: hard
-order: 1
+order: 3
 tags: [windows, execution, prefetch, shimcache, shellbags, lnk, wmi, roadmap]
 prerequisites: [forensics-windows-artifacts]
 useful_for:

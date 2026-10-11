@@ -4,7 +4,7 @@ title: "Модуль: Azure — хранилища и DevOps"
 category: cloud
 parent: cloud-storage-s3
 difficulty: hard
-order: 3
+order: 4
 tags: [cloud, azure, blob, storage, devops, pipelines, module]
 prerequisites: [cloud-azure-deep, cloud-storage-s3]
 useful_for:

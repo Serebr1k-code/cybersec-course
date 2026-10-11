@@ -2,7 +2,7 @@
 id: reversing-decompiler-plugin
 title: "Разработка плагинов декомпилятора (Ghidra/IDA)"
 category: reversing
-parent: reversing-ghidra-deep
+parent: reversing-binary-lifting
 difficulty: hard
 order: 1
 tags: [reversing, ghidra, ida, plugin, scripting, automation, pcode]

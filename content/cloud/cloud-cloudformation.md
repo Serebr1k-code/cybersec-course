@@ -2,7 +2,7 @@
 id: cloud-cloudformation
 title: "CloudFormation и ARM: злоупотребление шаблонами инфраструктуры"
 category: cloud
-parent: cloud-iac-deep
+parent: cloud-supply-chain
 difficulty: expert
 order: 4
 tags: [cloud, cloudformation, arm, iac, templates, passrole, supply-chain]

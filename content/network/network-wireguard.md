@@ -4,7 +4,7 @@ title: "WireGuard и IPsec: анализ современных VPN на уро�
 category: network
 parent: network-vpn
 difficulty: medium
-order: 2
+order: 1
 tags: [network, wireguard, ipsec, vpn, noise, cryptography]
 prerequisites: [network-tcpip, network-tls-inspection]
 useful_for:

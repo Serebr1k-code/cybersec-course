@@ -4,7 +4,7 @@ title: "Модуль: AWS глубоко"
 category: cloud
 parent: cloud-provider-deep
 difficulty: hard
-order: 2
+order: 1
 tags: [cloud, aws, cognito, ssm, ecs, vpc, module]
 prerequisites: [cloud-provider-deep, cloud-iam-basics]
 useful_for:

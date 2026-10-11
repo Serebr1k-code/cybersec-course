@@ -4,7 +4,7 @@ title: "SCADA/ICS: протоколы Modbus, DNP3, S7 и их атаки"
 category: hardware
 parent: hardware-iot-network
 difficulty: hard
-order: 4
+order: 3
 tags: [scada, ics, modbus, dnp3, s7, plc, ot, industrial, critical-infrastructure]
 prerequisites: [hardware-rs232-rs485, hardware-iot-network]
 useful_for:

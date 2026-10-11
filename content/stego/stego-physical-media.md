@@ -4,7 +4,7 @@ title: "Модуль: Физические носители и машинные 
 category: stego
 parent: stego-intro
 difficulty: easy
-order: 3
+order: 2
 tags: [stego, physical, printer, roadmap]
 prerequisites: [stego-intro]
 useful_for:

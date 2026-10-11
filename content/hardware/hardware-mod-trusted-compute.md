@@ -4,7 +4,7 @@ title: "Модуль: Доверенная загрузка и TEE"
 category: hardware
 parent: hardware-secure-boot
 difficulty: medium
-order: 1
+order: 3
 tags: [hardware, secure-boot, trustzone, tee, enclave, secure-element, module, roadmap]
 prerequisites: [hardware-secure-boot, hardware-tpm]
 useful_for:

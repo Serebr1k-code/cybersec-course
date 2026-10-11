@@ -4,7 +4,7 @@ title: "Entra ID app registrations: разрешения, consent и кража 
 category: cloud
 parent: cloud-azure-platform-deep
 difficulty: expert
-order: 4
+order: 3
 tags: [cloud, azure, entra-id, app-registration, service-principal, graph, consent]
 prerequisites: [cloud-azure-platform-deep, cloud-azure-iam]
 useful_for:

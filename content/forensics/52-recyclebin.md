@@ -4,7 +4,7 @@ title: "Корзина и Thumbcache: удалённые файлы и прев�
 category: forensics
 parent: forensics-win-registry
 difficulty: medium
-order: 3
+order: 2
 tags: [recyclebin, thumbcache, windows, dfir, deleted, thumbnails]
 prerequisites: [forensics-windows-artifacts]
 useful_for:

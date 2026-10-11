@@ -4,7 +4,7 @@ title: "ROP: экзотические векторы (BROP, ret2vdso)"
 category: pwn
 parent: pwn-rop
 difficulty: hard
-order: 2
+order: 3
 tags: [pwn, rop, brop, vdso, blind]
 prerequisites: [pwn-rop]
 useful_for:

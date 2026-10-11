@@ -2,9 +2,9 @@
 id: stego-svg
 title: "Стеганография в SVG: XML-комментарии, атрибуты и path-данные"
 category: stego
-parent: stego-image-formats-exotic
+parent: stego-media-carriers
 difficulty: easy
-order: 1
+order: 2
 tags: [stego, svg, xml, comments, path, css, metadata]
 prerequisites: [stego-image-formats-exotic, stego-text]
 useful_for:

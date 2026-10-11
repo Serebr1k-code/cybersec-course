@@ -4,7 +4,7 @@ title: "Android native/JNI: реверс .so и нативных проверо�
 category: mobile
 parent: mobile-reverse-native
 difficulty: hard
-order: 2
+order: 1
 tags: [android, jni, native, so, ghidra, ida, arm, reversing, frida]
 prerequisites: [mobile-static-analysis, mobile-android-anatomy]
 useful_for:

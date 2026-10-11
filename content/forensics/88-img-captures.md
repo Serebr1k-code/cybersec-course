@@ -4,7 +4,7 @@ title: "Модуль: дампы памяти и сетевые захваты"
 category: forensics
 parent: forensics-disk-images
 difficulty: hard
-order: 4
+order: 3
 tags: [memory, volatility, pcap, network, captures, roadmap]
 prerequisites: [forensics-img-acquisition]
 useful_for:

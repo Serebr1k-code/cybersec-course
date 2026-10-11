@@ -4,7 +4,7 @@ title: "Статический анализ: инструменты (radare2, д
 category: reversing
 parent: reversing-static-analysis
 difficulty: medium
-order: 3
+order: 2
 tags: [reversing, static-analysis, radare2, linking, binary-diffing, rust, go]
 prerequisites: [reversing-static-analysis]
 useful_for:

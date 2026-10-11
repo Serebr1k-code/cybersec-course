@@ -2,9 +2,9 @@
 id: network-mdns-ssdp
 title: "mDNS, SSDP и UPnP: discovery-протоколы как источник утечек и атак"
 category: network
-parent: network-tls-inspection
+parent: network-arp
 difficulty: medium
-order: 2
+order: 3
 tags: [network, mdns, ssdp, upnp, discovery, iot, ssrf]
 prerequisites: [network-basics, network-mitm]
 useful_for:

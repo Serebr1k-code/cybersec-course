@@ -4,7 +4,7 @@ title: "UDS-диагностика и реверс ECU (ISO 14229)"
 category: hardware
 parent: hardware-can-bus
 difficulty: hard
-order: 2
+order: 1
 tags: [uds, iso14229, ecu, diagnostic, obd2, seed-key, can, automotive]
 prerequisites: [hardware-can-bus]
 useful_for:

@@ -4,7 +4,7 @@ title: "PKI и схемы подписей: X.509, ElGamal/DSA и слепые �
 category: crypto
 parent: crypto-rsa-implementation-attacks
 difficulty: hard
-order: 2
+order: 1
 tags: [crypto, roadmap, x509, pki, dsa, elgamal, schnorr, blind-signature, signatures]
 prerequisites: [crypto-rsa-basics]
 useful_for:

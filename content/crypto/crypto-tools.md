@@ -4,7 +4,7 @@ title: "Этап 2.1. Инструменты: hashcat, john и онлайн-бр
 category: crypto
 parent: crypto-symmetric-core
 difficulty: easy
-order: 2
+order: 3
 tags: [crypto, tools, hashcat, john, hydra, medusa, patator, cracking, brute-force]
 prerequisites: [crypto-hashing]
 useful_for:

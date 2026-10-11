@@ -4,7 +4,7 @@ title: "Разведка: вход в классы уязвимостей"
 category: web
 parent: web-recon-fuzzing
 difficulty: easy
-order: 2
+order: 1
 tags: [auth, sqli, roadmap, injection]
 prerequisites: [web-recon-fuzzing]
 useful_for:

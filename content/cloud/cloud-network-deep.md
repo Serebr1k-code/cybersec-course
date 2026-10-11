@@ -4,7 +4,7 @@ title: "Модуль: облачная сеть и разведка"
 category: cloud
 parent: cloud-provider-deep
 difficulty: medium
-order: 1
+order: 2
 tags: [cloud, network, security-group, nacl, api-gateway, waf, recon, module]
 prerequisites: [cloud-provider-deep, cloud-fundamentals]
 useful_for:

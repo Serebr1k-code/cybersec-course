@@ -4,7 +4,7 @@ title: "Электромагнитные side-channel атаки: SPA и DPA"
 category: hardware
 parent: hardware-sidechannel
 difficulty: hard
-order: 2
+order: 3
 tags: [em, sidechannel, dpa, spa, cpa, emfi, chipwhisperer, aes, power-analysis]
 prerequisites: [hardware-sidechannel, hardware-crypto]
 useful_for:

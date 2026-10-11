@@ -4,7 +4,7 @@ title: "Статический анализ: Ghidra, IDA, radare2"
 category: reversing
 parent: reversing-asm
 difficulty: easy
-order: 2
+order: 3
 tags: [reversing, ghidra, ida, radare2, static-analysis, disassembler]
 prerequisites: [reversing-asm]
 useful_for:

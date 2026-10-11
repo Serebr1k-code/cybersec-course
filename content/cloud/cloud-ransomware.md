@@ -4,7 +4,7 @@ title: "Облачный ransomware: S3/Blob destructive и шифрование
 category: cloud
 parent: cloud-privesc-iam
 difficulty: expert
-order: 1
+order: 2
 tags: [cloud, ransomware, destructive, s3, backup, kms, recovery]
 prerequisites: [cloud-privesc-iam, cloud-kms-crypto]
 useful_for:

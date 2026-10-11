@@ -4,7 +4,7 @@ title: "Логический анализ и декодирование сигн
 category: hardware
 parent: hardware-interface-discovery
 difficulty: medium
-order: 3
+order: 4
 tags: [logic-analyzer, sigrok, saleae, pulseview, i2c, spi, uart, decoding]
 prerequisites: [hardware-intro, hardware-uart, hardware-spi, hardware-i2c]
 useful_for:

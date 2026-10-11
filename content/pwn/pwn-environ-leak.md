@@ -2,7 +2,7 @@
 id: pwn-environ-leak
 title: "Утечки через environ и argv"
 category: pwn
-parent: pwn-format-string
+parent: pwn-pie-bypass
 difficulty: medium
 order: 1
 tags: [environ, argv, stack-leak, format-string, aslr, info-leak]

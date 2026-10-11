@@ -4,7 +4,7 @@ title: "ret2csu: управление rdx/rsi через __libc_csu_init"
 category: pwn
 parent: pwn-rop-techniques
 difficulty: hard
-order: 3
+order: 2
 tags: [ret2csu, rop, gadgets, libc-csu, rdx]
 prerequisites: [pwn-rop, pwn-gadget-hunting]
 useful_for:

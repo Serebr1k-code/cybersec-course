@@ -4,7 +4,7 @@ title: "Модуль: идентичность в облаках"
 category: cloud
 parent: cloud-iam-basics
 difficulty: medium
-order: 1
+order: 2
 tags: [cloud, iam, aws, azure, gcp]
 prerequisites: [cloud-iam-basics]
 useful_for:

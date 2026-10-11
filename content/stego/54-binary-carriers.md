@@ -4,7 +4,7 @@ title: "Бинарные носители: диск и исполняемые ф
 category: stego
 parent: stego-appended
 difficulty: medium
-order: 3
+order: 2
 tags: [stego, roadmap, disk, slack-space, ads, executable, overlay]
 prerequisites: [stego-document-carriers]
 useful_for:

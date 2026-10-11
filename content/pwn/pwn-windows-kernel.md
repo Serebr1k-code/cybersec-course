@@ -4,7 +4,7 @@ title: "Windows kernel pwn (pool, SMEP bypass)"
 category: pwn
 parent: pwn-windows-intro
 difficulty: expert
-order: 3
+order: 2
 tags: [pwn, windows, kernel, driver, pool, token]
 prerequisites: [pwn-windows-intro, pwn-windows-heap]
 useful_for:

@@ -4,7 +4,7 @@ title: "Cookies, сессии и фиксация сессии"
 category: web
 parent: web-http-basics
 difficulty: easy
-order: 2
+order: 3
 tags: [cookie, session, session-fixation, samesite, httponly, secure]
 prerequisites: [web-http-basics]
 useful_for:

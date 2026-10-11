@@ -4,7 +4,7 @@ title: "zsteg и stegsolve: методология перебора канало
 category: stego
 parent: stego-tooling
 difficulty: easy
-order: 3
+order: 1
 tags: [stego, zsteg, stegsolve, channels, bit-planes, methodology]
 prerequisites: [stego-image-tools, stego-bitplane, stego-palette]
 useful_for:

@@ -4,7 +4,7 @@ title: "Архитектура: базовый фундамент"
 category: web
 parent: web-architecture
 difficulty: easy
-order: 1
+order: 2
 tags: [architecture, recon, misconfig, roadmap]
 prerequisites: [web-architecture]
 useful_for:

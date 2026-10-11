@@ -4,7 +4,7 @@ title: "Хэширование: MD5, SHA, bcrypt, argon2, length-extension, ко
 category: crypto
 parent: crypto-symmetric-core
 difficulty: medium
-order: 1
+order: 2
 tags: [crypto, hash, md5, sha1, sha256, bcrypt, argon2, length-extension, collision, merkle-damgard]
 prerequisites: [crypto-intro, crypto-encodings]
 useful_for:

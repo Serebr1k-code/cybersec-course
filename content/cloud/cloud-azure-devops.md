@@ -4,7 +4,7 @@ title: "Azure DevOps: pipelines, service connections и PAT"
 category: cloud
 parent: cloud-azure-data-deep
 difficulty: hard
-order: 2
+order: 1
 tags: [cloud, azure, devops, pipelines, service-connection, pat, agent]
 prerequisites: [cloud-azure-data-deep, cloud-cicd-secrets]
 useful_for:

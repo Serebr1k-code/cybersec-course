@@ -4,7 +4,7 @@ title: "Алгебра для криптоанализа: вычеты, симв
 category: crypto
 parent: crypto-number-theory
 difficulty: medium
-order: 4
+order: 2
 tags: [crypto, roadmap, number-theory, quadratic-residues, legendre, jacobi, finite-fields, gf, algebra]
 prerequisites: [crypto-number-theory]
 useful_for:

@@ -2,9 +2,9 @@
 id: reversing-elf-instrumentation
 title: "Инструментация ELF: e9patch и frida-gadget"
 category: reversing
-parent: reversing-patching
+parent: reversing-frida-advanced
 difficulty: hard
-order: 3
+order: 1
 tags: [reversing, elf, instrumentation, e9patch, frida-gadget, binary-rewriting]
 prerequisites: [reversing-patching, reversing-frida-advanced]
 useful_for:

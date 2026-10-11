@@ -4,7 +4,7 @@ title: "Windows heap exploitation (LFH и Segment Heap)"
 category: pwn
 parent: pwn-windows-intro
 difficulty: expert
-order: 2
+order: 1
 tags: [pwn, windows, heap, lfh, segment-heap]
 prerequisites: [pwn-windows-intro, pwn-heap-basics]
 useful_for:

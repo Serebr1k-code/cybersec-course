@@ -2,9 +2,9 @@
 id: network-ipv6-tunneling
 title: "IPv6-туннели: 6to4, Teredo, ISATAP и обход периметра"
 category: network
-parent: network-module-ip
+parent: network-ipv6
 difficulty: hard
-order: 4
+order: 2
 tags: [network, ipv6, tunneling, 6to4, teredo, isatap, transition]
 prerequisites: [network-ipv6, network-module-ip]
 useful_for:
