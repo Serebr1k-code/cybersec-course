@@ -918,7 +918,8 @@ describe('views/LessonView.vue — reading speed multiplier', () => {
       Promise.resolve({ read_seconds: seconds, read: seconds >= serverThreshold, completed: false, xp: 0 })
     )
 
-    // setTimeout/clearTimeout drive the ~700ms press-and-hold timer.
+    // setTimeout/clearTimeout are still faked (reading timers / scroll debounce),
+    // but the speed slider no longer uses a press-and-hold timer.
     vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'setTimeout', 'clearTimeout'] })
   })
 
@@ -929,7 +930,7 @@ describe('views/LessonView.vue — reading speed multiplier', () => {
     restoreRects()
   })
 
-  // Press-and-hold on a per-section ring: pointerdown starts a ~700ms timer.
+  // Press on a per-section ring: pointerdown opens the slider IMMEDIATELY.
   function holdRing(wrapper, i = 0) {
     const el = wrapper.findAll('.sec-ring')[i].element
     el.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }))
@@ -940,34 +941,38 @@ describe('views/LessonView.vue — reading speed multiplier', () => {
   const dragTo = (clientY) => window.dispatchEvent(new MouseEvent('pointermove', { clientY }))
   const release = () => window.dispatchEvent(new MouseEvent('pointerup'))
 
-  it('opens the vertical slider only after the ~700ms hold', async () => {
+  it('opens the vertical slider immediately on pointerdown (no hold delay)', async () => {
     const wrapper = mountView()
     await flushPromises()
     await flushPromises()
     expect(wrapper.find('.speed-overlay').exists()).toBe(false)
 
     holdRing(wrapper)
-    vi.advanceTimersByTime(699)
     await flushPromises()
-    expect(wrapper.find('.speed-overlay').exists()).toBe(false)
-
-    vi.advanceTimersByTime(1)
-    await flushPromises()
+    // No timer advance: the slider is already open on the very next tick.
     expect(wrapper.find('.speed-overlay').exists()).toBe(true)
     expect(wrapper.find('.speed-val').text()).toBe('x1.0') // default multiplier
 
     wrapper.unmount()
   })
 
-  it('a release before the hold elapses never opens the slider', async () => {
+  it('a plain tap (no drag) keeps the slider open; a backdrop tap closes it', async () => {
     const wrapper = mountView()
     await flushPromises()
     await flushPromises()
 
     holdRing(wrapper)
-    vi.advanceTimersByTime(300)
+    await flushPromises()
+    expect(wrapper.find('.speed-overlay').exists()).toBe(true)
+
+    // Release with no movement -> treated as a tap, slider stays open (no flash).
     release()
     vi.advanceTimersByTime(2000)
+    await flushPromises()
+    expect(wrapper.find('.speed-overlay').exists()).toBe(true)
+
+    // Tapping the backdrop closes it.
+    await wrapper.find('.speed-overlay').trigger('pointerdown')
     await flushPromises()
     expect(wrapper.find('.speed-overlay').exists()).toBe(false)
 
@@ -979,7 +984,6 @@ describe('views/LessonView.vue — reading speed multiplier', () => {
     await flushPromises()
     await flushPromises()
     holdRing(wrapper)
-    vi.advanceTimersByTime(700)
     await flushPromises()
 
     dragTo(trackTop()) // very top -> max
@@ -1005,11 +1009,10 @@ describe('views/LessonView.vue — reading speed multiplier', () => {
     await flushPromises()
 
     holdRing(wrapper)
-    vi.advanceTimersByTime(700)
     await flushPromises()
     dragTo(trackTop()) // x2.0
     await flushPromises()
-    release()
+    release() // releasing a drag closes the slider
     await flushPromises()
     expect(wrapper.find('.speed-overlay').exists()).toBe(false)
 
@@ -1026,7 +1029,6 @@ describe('views/LessonView.vue — reading speed multiplier', () => {
     await flushPromises()
 
     holdRing(wrapper)
-    vi.advanceTimersByTime(700)
     await flushPromises()
     dragTo(trackTop() + 220) // x0.5
     await flushPromises()
@@ -1045,7 +1047,6 @@ describe('views/LessonView.vue — reading speed multiplier', () => {
     await flushPromises()
     await flushPromises()
     holdRing(wrapper)
-    vi.advanceTimersByTime(700)
     await flushPromises()
     dragTo(trackTop()) // x2.0
     await flushPromises()
@@ -1058,7 +1059,6 @@ describe('views/LessonView.vue — reading speed multiplier', () => {
     await flushPromises()
     await flushPromises()
     holdRing(w2)
-    vi.advanceTimersByTime(700)
     await flushPromises()
     expect(w2.find('.speed-val').text()).toBe('x2.0')
     w2.unmount()

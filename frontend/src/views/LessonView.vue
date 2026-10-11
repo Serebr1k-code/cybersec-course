@@ -37,15 +37,18 @@ const autoPaused = computed(() => scrolling.value && !paused.value)
 let scrollStopTimer = null
 
 // --- глобальный множитель скорости чтения ---
-// Удержание кольца секции ~0.7с открывает вертикальный слайдер; перетаскивание
-// вверх/вниз задаёт множитель x0.5..x2.0, который масштабирует накопление
-// времени ЧТЕНИЯ (acc) для ВСЕХ секций сразу. Значение хранится в localStorage,
-// поэтому сохраняется между уроками. x1.0 — обычное поведение.
+// Кольцо секции: pointerdown СРАЗУ открывает вертикальный слайдер (раньше — лишь
+// после ~0.7с удержания). Перетаскивание вверх/вниз задаёт множитель x0.5..x2.0,
+// который масштабирует накопление времени ЧТЕНИЯ (acc) для ВСЕХ секций сразу.
+// Значение хранится в localStorage, поэтому сохраняется между уроками. x1.0 —
+// обычное поведение. Обычный тап (без движения) открывает слайдер и не мешает
+// навигации по ссылке-родителю (если она есть); закрыть можно тапом по фону.
 const SPEED_MIN = 0.5
 const SPEED_MAX = 2.0
 const SPEED_KEY = 'lt-reading-speed'
-const SPEED_HOLD_MS = 700
 const SPEED_TRACK_H = 220
+// Порог (px) между нажатием и перетаскиванием: меньше — считаем обычным тапом.
+const SPEED_DRAG_THRESHOLD = 6
 
 function clampSpeed(v) { return Math.min(SPEED_MAX, Math.max(SPEED_MIN, v)) }
 function loadSpeed() {
@@ -62,24 +65,19 @@ function saveSpeed(v) {
 const speed = ref(loadSpeed())
 const speedOpen = ref(false)
 const speedPct = computed(() => Math.round(((speed.value - SPEED_MIN) / (SPEED_MAX - SPEED_MIN)) * 100))
-let holdTimer = null
+// Стартовая Y указателя и флаг «идёт перетаскивание» — отличают обычный тап от drag.
+let pointerStartY = 0
+let speedDragging = false
 
 watch(speed, (v) => saveSpeed(v))
 
-function cancelHold() {
-  if (holdTimer) { clearTimeout(holdTimer); holdTimer = null }
-}
-
-// pointerdown на кольце запускает таймер удержания; отпускание раньше срока
-// (pointerup/pointerleave/cancel) отменяет его. По истечении — показываем слайдер.
+// pointerdown на кольце открывает слайдер МГНОВЕННО (без таймера удержания).
+// Запоминаем стартовую Y, чтобы отличить тап (навигация) от перетаскивания (скорость).
 function onRingPointerDown(e) {
   if (e.button != null && e.button !== 0) return
-  cancelHold()
-  holdTimer = setTimeout(() => { holdTimer = null; speedOpen.value = true }, SPEED_HOLD_MS)
-}
-function onRingPointerLeave() {
-  // Увели палец/курсор ДО открытия слайдера — отменяем удержание.
-  if (!speedOpen.value) cancelHold()
+  pointerStartY = e.clientY ?? 0
+  speedDragging = false
+  speedOpen.value = true
 }
 
 // Перетаскивание: Y-координата указателя отображается на диапазон x0.5..x2.0.
@@ -92,18 +90,28 @@ function applySpeedFromY(clientY) {
 }
 
 function closeSpeedSlider() {
-  cancelHold()
   speedOpen.value = false
+  speedDragging = false
 }
 
 // Глобальные обработчики: работают и для мыши, и для тача (pointer events).
 function onGlobalPointerMove(e) {
   if (!speedOpen.value) return
+  // Пока не сдвинулись дальше порога — это тап, а не перетаскивание: не меняем
+  // значение от случайного дрожания пальца/курсора.
+  if (!speedDragging) {
+    if (Math.abs((e.clientY ?? 0) - pointerStartY) < SPEED_DRAG_THRESHOLD) return
+    speedDragging = true
+  }
   applySpeedFromY(e.clientY)
 }
-function onGlobalPointerUp() {
-  cancelHold()
-  if (speedOpen.value) closeSpeedSlider()
+function onGlobalPointerUp(e) {
+  if (!speedOpen.value) return
+  // Отпускание ПОСЛЕ перетаскивания завершает настройку и закрывает слайдер.
+  // Обычный тап (без движения) оставляет слайдер открытым — так он не «мигает»
+  // на быстром нажатии, а навигация по ссылке-родителю срабатывает штатно;
+  // закрыть можно тапом по фону. Отмену жеста (pointercancel) всегда закрываем.
+  if (speedDragging || e?.type === 'pointercancel') closeSpeedSlider()
 }
 // Метка времени (мс), раньше которой СЛЕДУЮЩАЯ секция не накапливает время.
 // Ставится, когда предыдущая секция стала прочитанной: даёт паузу между секциями.
@@ -516,7 +524,6 @@ onBeforeUnmount(() => {
   window.removeEventListener('pointermove', onGlobalPointerMove)
   window.removeEventListener('pointerup', onGlobalPointerUp)
   window.removeEventListener('pointercancel', onGlobalPointerUp)
-  cancelHold()
   if (scrollStopTimer) clearTimeout(scrollStopTimer)
   if (io) io.disconnect()
   flush()
@@ -629,9 +636,8 @@ async function markComplete() {
                   class="sec-ring"
                   :class="{ paused: paused && !isRead[s.id] && s.id !== quizSid }"
                   :style="{ '--p': secPct(s.id) }"
-                  title="Удерживайте, чтобы задать скорость чтения"
+                  title="Зажмите/потяните, чтобы задать скорость чтения"
                   @pointerdown="onRingPointerDown"
-                  @pointerleave="onRingPointerLeave"
                   @contextmenu.prevent
                 >
                   <svg v-if="isRead[s.id]" class="sec-check" viewBox="0 0 24 24" width="10" height="10" aria-hidden="true">
@@ -712,9 +718,10 @@ async function markComplete() {
       </template>
     </div>
 
-    <!-- Глобальный множитель скорости чтения: появляется при удержании кольца
-         секции ~0.7с. Перетаскивание вверх/вниз задаёт x0.5..x2.0; отпускание
-         или тап по фону скрывает. Значение сохраняется в localStorage. -->
+    <!-- Глобальный множитель скорости чтения: появляется СРАЗУ при нажатии на
+         кольцо секции (без задержки удержания). Перетаскивание вверх/вниз задаёт
+         x0.5..x2.0; отпускание после перетаскивания или тап по фону скрывает.
+         Значение сохраняется в localStorage. -->
     <div v-if="speedOpen" class="speed-overlay" @pointerdown.self="closeSpeedSlider">
       <div
         class="speed-track"
@@ -830,7 +837,7 @@ async function markComplete() {
   width: 20px; height: 20px; border-radius: 50%;
   display: grid; place-items: center; position: relative;
   background: conic-gradient(var(--green) calc(var(--p) * 1%), var(--panel-3) 0);
-  /* Долгое нажатие на кольце открывает слайдер скорости чтения: гасим
+  /* Нажатие на кольце сразу открывает слайдер скорости чтения: гасим
      выделение/контекстное меню и не даём странице скроллиться под пальцем. */
   cursor: grab; touch-action: none; user-select: none;
   -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent;
