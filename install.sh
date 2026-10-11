@@ -5,7 +5,8 @@
 #      curl -fsSL https://raw.githubusercontent.com/Serebr1k-code/cybersec-course/main/install.sh | sudo bash
 #
 #  Что делает скрипт:
-#    1. Проверяет, что запущен от root, определяет ОС (Debian/Ubuntu).
+#    1. Проверяет, что запущен от root, определяет ОС (Debian/Ubuntu/Arch)
+#       и автоматически выбирает пакетный менеджер (apt или pacman) в PKG_MGR.
 #    2. Ставит недостающие зависимости: git, curl, Go (>=1.23), Node.js (>=18).
 #    3. Клонирует/обновляет проект в /opt/cybersec-course.
 #    4. Собирает бэкенд (bin/learningtree) и SPA (frontend/dist).
@@ -34,6 +35,8 @@ GO_VERSION="${GO_VERSION:-1.23.4}"
 GO_MIN_MAJOR=1
 GO_MIN_MINOR=23
 NODE_MIN_MAJOR=18
+NODE_FALLBACK_VERSION="${NODE_FALLBACK_VERSION:-20.18.1}"
+PKG_MGR=""   # выставляется в detect_os(): "apt" | "pacman"
 
 # ---------- Цветной вывод -----------------------------------------
 if [[ -t 1 ]]; then
@@ -69,15 +72,35 @@ detect_os() {
   fi
   ok "ОС: $OS_PRETTY (id=$OS_ID, like=${OS_LIKE:-none})"
 
-  if [[ "$OS_ID" != "debian" && "$OS_ID" != "ubuntu" && "$OS_LIKE" != *debian* && "$OS_LIKE" != *ubuntu* ]]; then
-    die "поддерживаются только Debian/Ubuntu-семейства (обнаружено: $OS_ID). Установите Go>=1.23 и Node>=18 вручную и запустите build."
+  # Выбираем пакетный менеджер: apt для Debian/Ubuntu, pacman для Arch.
+  if [[ "$OS_ID" == "arch" || "$OS_LIKE" == *arch* ]]; then
+    PKG_MGR="pacman"
+  elif [[ "$OS_ID" == "debian" || "$OS_ID" == "ubuntu" || "$OS_LIKE" == *debian* || "$OS_LIKE" == *ubuntu* ]]; then
+    PKG_MGR="apt"
+  else
+    die "поддерживаются только Debian/Ubuntu/Arch-семейства (обнаружено: $OS_ID). Установите Go>=1.23 и Node>=18 вручную и запустите build."
   fi
+  ok "Пакетный менеджер: $PKG_MGR"
 }
 
 apt_install() {
   # apt_install <pkg...> — тихая установка пакетов.
   apt-get update -qq
   apt-get install -y -qq --no-install-recommends "$@"
+}
+
+pacman_install() {
+  # pacman_install <pkg...> — установка пакетов через pacman (Arch).
+  pacman -Sy --noconfirm --needed "$@"
+}
+
+pkg_install() {
+  # pkg_install <pkg...> — роутинг через выбранный PKG_MGR.
+  if [[ "$PKG_MGR" == "pacman" ]]; then
+    pacman_install "$@"
+  else
+    apt_install "$@"
+  fi
 }
 
 # ---------- Сравнение версий (major.minor) ------------------------
@@ -109,6 +132,28 @@ node_installed_ok() {
   ver_ge "$v" "$NODE_MIN_MAJOR" 0
 }
 
+install_node_tarball() {
+  # Универсальный fallback: официальный тарбол Node (без NodeSource).
+  local ver="$NODE_FALLBACK_VERSION"
+  local arch
+  case "$(uname -m)" in
+    x86_64|amd64) arch="x64" ;;
+    aarch64|arm64) arch="arm64" ;;
+    *) die "неизвестная архитектура для Node: $(uname -m)" ;;
+  esac
+  local dir="/usr/local/node-v${ver}-linux-${arch}"
+  local tarball="/tmp/node-v${ver}-linux-${arch}.tar.gz"
+  curl -fsSL "https://nodejs.org/dist/v${ver}/node-v${ver}-linux-${arch}.tar.gz" -o "$tarball" \
+    || die "не удалось скачать Node ${ver}"
+  rm -rf "$dir"
+  tar -C /usr/local -xzf "$tarball"
+  rm -f "$tarball"
+  ln -sf "${dir}/bin/node" /usr/local/bin/node
+  ln -sf "${dir}/bin/npm"  /usr/local/bin/npm
+  ln -sf "${dir}/bin/npx"  /usr/local/bin/npx
+  hash -r || true
+}
+
 # ---------- Установка зависимостей --------------------------------
 install_prereqs() {
   step "Проверяю базовые утилиты (git, curl, ca-certificates, tar)"
@@ -116,10 +161,17 @@ install_prereqs() {
   command -v git >/dev/null 2>&1 || base_missing+=(git)
   command -v curl >/dev/null 2>&1 || base_missing+=(curl)
   command -v tar >/dev/null 2>&1 || base_missing+=(tar)
-  [[ -e /etc/ssl/certs/ca-certificates.crt ]] || base_missing+=(ca-certificates)
+  if [[ ! -e /etc/ssl/certs/ca-certificates.crt ]]; then
+    # Имя пакета сертификатов зависит от дистрибутива.
+    if [[ "$PKG_MGR" == "pacman" ]]; then
+      base_missing+=(ca-certificates-utils)
+    else
+      base_missing+=(ca-certificates)
+    fi
+  fi
   if (( ${#base_missing[@]} )); then
     ok "устанавливаю: ${base_missing[*]}"
-    apt_install "${base_missing[@]}"
+    pkg_install "${base_missing[@]}"
   else
     ok "базовые утилиты на месте"
   fi
@@ -129,12 +181,17 @@ install_prereqs() {
   if go_installed_ok; then
     ok "Go уже установлен: $(go version)"
   else
-    warn "Go не найден или слишком старый — пробую apt"
-    apt_install golang-go || true
-    if go_installed_ok; then
-      ok "Go установлен через apt: $(go version)"
+    if [[ "$PKG_MGR" == "pacman" ]]; then
+      warn "Go не найден или слишком старый — ставлю go через pacman"
+      pacman_install go || true
     else
-      warn "apt не дал Go>=${GO_MIN_MAJOR}.${GO_MIN_MINOR} — качаю официальный тарбол ${GO_VERSION}"
+      warn "Go не найден или слишком старый — пробую apt"
+      apt_install golang-go || true
+    fi
+    if go_installed_ok; then
+      ok "Go установлен через ${PKG_MGR}: $(go version)"
+    else
+      warn "${PKG_MGR} не дал Go>=${GO_MIN_MAJOR}.${GO_MIN_MINOR} — качаю официальный тарбол ${GO_VERSION}"
       local arch
       case "$(uname -m)" in
         x86_64|amd64) arch="amd64" ;;
@@ -159,15 +216,24 @@ install_prereqs() {
   if node_installed_ok && command -v npm >/dev/null 2>&1; then
     ok "Node уже установлен: $(node -v), npm $(npm -v)"
   else
-    warn "Node.js не найден или слишком старый — ставлю через apt"
-    apt_install nodejs npm || true
-    if ! (node_installed_ok && command -v npm >/dev/null 2>&1); then
-      warn "apt дал слишком старый Node — подключаю NodeSource (20.x)"
-      curl -fsSL https://deb.nodesource.com/setup_20.x -o /tmp/nodesource_setup.sh \
-        || die "не удалось скачать NodeSource setup"
-      bash /tmp/nodesource_setup.sh
-      rm -f /tmp/nodesource_setup.sh
-      apt_install nodejs
+    if [[ "$PKG_MGR" == "pacman" ]]; then
+      warn "Node.js не найден или слишком старый — ставлю nodejs+npm через pacman"
+      pacman_install nodejs npm || true
+      if ! (node_installed_ok && command -v npm >/dev/null 2>&1); then
+        warn "pacman дал слишком старый Node — качаю официальный тарбол Node ${NODE_FALLBACK_VERSION}"
+        install_node_tarball
+      fi
+    else
+      warn "Node.js не найден или слишком старый — ставлю через apt"
+      apt_install nodejs npm || true
+      if ! (node_installed_ok && command -v npm >/dev/null 2>&1); then
+        warn "apt дал слишком старый Node — подключаю NodeSource (20.x)"
+        curl -fsSL https://deb.nodesource.com/setup_20.x -o /tmp/nodesource_setup.sh \
+          || die "не удалось скачать NodeSource setup"
+        bash /tmp/nodesource_setup.sh
+        rm -f /tmp/nodesource_setup.sh
+        apt_install nodejs
+      fi
     fi
     node_installed_ok || die "Node.js >= ${NODE_MIN_MAJOR} не установился"
     command -v npm >/dev/null 2>&1 || die "npm не установился"
