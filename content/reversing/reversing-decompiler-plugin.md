@@ -14,348 +14,225 @@ useful_for:
 estimated_minutes: 55
 summary: "Разработка плагинов Ghidra/IDA: скрипты, P-Code, автоматизация анализа, свои пассы и интеграция."
 ---
-**Плагины декомпилятора** превращают Ghidra и IDA из «просмотрщика ассемблера» в автоматизированную платформу: скрипты распознают структуры, деобфусцируют, аннотируют функции, извлекают строки и патчат байты пачками. Когда вручную разбирать сотни функций невозможно, плагин/скрипт — единственный путь. Урок даёт полный практический навык: от «Hello World» в Ghidra Script Manager и IDAPython до реального скрипта, который автоматически переименовывает и комментирует функции, плюс разбор архитектуры расширений и подводных камней API.
+## Вопрос, с которого всё начинается
 
-## Зачем писать плагины
+Ты открыл бинарник в декомпиляторе (Ghidra, IDA) и разобрал одну функцию. А в программе их пятьсот.
+Вручную пройти каждую, найти проверки, дать осмысленные имена — недели работы. Хочется
+**автоматизировать** это: заставить декомпилятор сам пройти по всем функциям и сделать рутину за тебя.
 
-- **Масштаб.** Программа на 500 функций — руками не разобрать; скрипт пройдёт по всем.
-- **Повторяемость.** Один и тот же анализ для серии бинарников (malware-семейство, серия crackme).
-- **Автоаннотация.** Распознать `memcpy`-паттерны, XOR-циклы, хеш-константы и подписать их.
-- **Деобфускация.** Снять «мусорные» инструкции, восстановить контрольный поток.
-- **Интеграция.** Вызвать внешние инструменты (Z3, angr) изнутри декомпилятора.
+Для этого у декомпилятора есть **скриптовый API**: ты пишешь программу, которая вызывает внутренние
+механизмы анализа. Разберём это на Ghidra — её API открыт и бесплатен. Тот же принцип есть в IDA
+(IDAPython) и radare2 (`r2pipe`), так что навык переносится между инструментами.
 
-## Ghidra: три формы расширений
+## Наш пример
 
-Ghidra расширяется через **Java** (основной API) и **Python (Jython)**. Три уровня:
+Возьмём знакомый `crackme`: функция `check` сравнивает пароль со секретом через `strcmp`. Задача —
+автоматически, без кликов мышью, получить декомпилированный код `check` и **найти все функции,
+которые вызывают `strcmp`**, чтобы разом их переименовать.
 
-1. **Scripts** — одиночный файл `.java`/`.py` в `~/ghidra_scripts/`, запускается из Script Manager. Быстро для разовых задач.
-2. **Plugins** — `.jar` с GUI-панелями и хуками на события (анализ, навигация). Для постоянных инструментов.
-3. **Loaders / Analyzers / Processors** — расширения для новых форматов, авт-анализа и архитектур.
+Ghidra умеет работать **headless** — без графического интерфейса, из командной строки:
+
+```
+$ analyzeHeadless /tmp/proj proj -import ./crackme -postScript DumpPcode.java -deleteProject
+```
+
+Здесь `-import` загружает бинарник, а `-postScript` запускает наш скрипт **после** автоматического
+анализа.
+
+## Шаг 1: получаем декомпилированный код скриптом
+
+Скрипт — это класс, наследующий `GhidraScript`. У него есть доступ к `currentProgram` (текущий
+бинарник) и к `DecompInterface` (программный доступ к декомпилятору). Вот скрипт, который
+декомпилирует функцию `check` и печатает результат:
 
 ```java
-// HelloWorld.java — Ghidra script
-import ghidra.app.script.GhidraScript;
-import ghidra.program.model.listing.*;
-public class HelloWorld extends GhidraScript {
+public class DumpPcode extends GhidraScript {
     public void run() throws Exception {
-        Function f = getFunctionAt(currentAddress);
-        println("Function: " + (f != null ? f.getName() : "?"));
+        DecompInterface decomp = new DecompInterface();
+        decomp.openProgram(currentProgram);
+        for (Function f : currentProgram.getFunctionManager().getFunctions(true)) {
+            if (f.getName().equals("check")) {
+                DecompileResults res = decomp.decompileFunction(f, 60, monitor);
+                println("DECOMPILED C:\n" + res.getDecompiledFunction().getC());
+            }
+        }
     }
 }
 ```
 
-Ключевые API Ghidra:
+Запускаем — и получаем псевдо-C без единого клика:
+
+```
+DECOMPILED C:
+{
+  int iVar1;
+  char *in_local;
+  char *secret;
+  iVar1 = strcmp(in,"s3cr3t_pw");
+  return (int)(iVar1 == 0);
+}
+```
+
+Скрипт сам нашёл `check`, сам её декомпилировал и показал секрет `s3cr3t_pw`. Тот же приём работает
+для **всех** функций: перебирай их в цикле и обрабатывай — так разбирают целые семейства образцов.
+
+Основные точки входа в API Ghidra, которые понадобятся в скриптах:
 
 | API | Назначение |
 |---|---|
-| `currentProgram` | текущая программа |
-| `getFunctionAt(addr)` / `getFunctionContaining(addr)` | функция |
+| `currentProgram` | текущий бинарник |
+| `getFunctionAt(addr)` / `getFunctionContaining(addr)` | функция по адресу |
 | `currentProgram.getFunctionManager()` | перебор функций |
-| `getListing()` / `getListing().getInstructions(...)` | инструкции |
-| `createFunction(addr, name)` | создать/переименовать функцию |
-| `setPlateComment`/`setComment` | комментарии |
+| `getListing().getInstructions(...)` | инструкции |
+| `createFunction(addr, name)` / `f.setName(...)` | создать/переименовать функцию |
+| `setPlateComment` / `setComment` | комментарии |
 | `getReferencesTo(addr)` | перекрёстные ссылки |
-| `DecompInterface` | программный доступ к декомпилятору |
+| `DecompInterface` | доступ к декомпилятору |
 
-Пример авто-переименования функций, вызывающих `strcmp`:
+Этого набора хватает для большинства задач автоаннотации: пройтись по функциям, посмотреть их IR,
+найти паттерн и оставить пометку.
 
-```python
-# ghidra_scripts/AutoNameStrCmp.py
-from ghidra.program.model.symbol import SourceType
-fm = currentProgram.getFunctionManager()
-refmgr = currentProgram.getReferenceManager()
-strcmp = getSymbol("strcmp", None)
-if strcmp:
-    for ref in refmgr.getReferencesTo(strcmp.getAddress()):
-        f = getFunctionContaining(ref.getFromAddress())
-        if f and not f.getName().startswith("sub_"):
-            continue
-        if f:
-            f.setName("check_strcmp_%08x" % f.getEntryPoint().getOffset(),
-                      SourceType.USER_DEFINED)
-            print("renamed", f.getName())
+## Шаг 2: заглядываем под капот — P-Code
+
+Декомпилятор внутри работает не с ассемблером, а с промежуточным представлением **P-Code** — IR Ghidra
+(каждая машинная инструкция разложена на простые операции). Скрипт может читать P-Code напрямую,
+через `getHighFunction()`:
+
+```java
+HighFunction hf = res.getHighFunction();
+java.util.Iterator<PcodeOpAST> it = hf.getPcodeOps();
+while (it.hasNext()) {
+    PcodeOpAST op = it.next();
+    println(op.getMnemonic() + " out=" + op.getOutput());
+}
 ```
 
-Запуск: **Script Manager → New → Python → вставить → Run**. Или headless:
-
-```bash
-$GHIDRA_HOME/support/analyzeHeadless /tmp/proj proj1 \
-  -import ./target -postScript AutoNameStrCmp.py -scriptPath ./ghidra_scripts
-```
-
-`analyzeHeadless` — мощнейшая опция для батч-обработки: она прогоняет анализ и все скрипты без GUI.
-
-## IDA: IDAPython и IDC
-
-В IDA основной язык автоматизации — **IDAPython** (`idaapi`, `idc`, `idautils`). Скрипт запускается через **File → Script file** или `-S` в командной строке.
-
-```python
-# ida_scripts/autoname_strcmp.py
-import idautils, idaapi, idc, ida_name
-ea = idc.get_name_ea_simple("strcmp")
-if ea != idc.BADADDR:
-    for xref in idautils.XrefsTo(ea, 0):
-        f = idaapi.get_func(xref.frm)
-        if f:
-            name = "check_strcmp_%X" % f.start_ea
-            idc.set_name(f.start_ea, name, idc.SN_NOWARN)
-            print("renamed", name)
-```
-
-Ключевые API IDA:
-
-| API | Назначение |
-|---|---|
-| `idc.get_name_ea_simple("sym")` | адрес символа |
-| `idautils.XrefsTo(ea)` | кто ссылается |
-| `idautils.Functions()` | перебор функций |
-| `idaapi.get_func(ea)` | функция по адресу |
-| `idc.set_name(ea, name)` | переименовать |
-| `idc.set_cmt(ea, txt, 0)` | комментарий |
-| `idc.get_bytes(ea, n)` / `idc.patch_byte` | чтение/патч байт |
-| `idc.decompile(ea)` / `ida_hexrays` | декомпилятор (Hex-Rays) |
-
-Запуск из командной строки:
-
-```bash
-ida64 -A -S"autoname_strcmp.py" ./target
-# -A автономный режим, -S скрипт после загрузки
-```
-
-## Loader/Processor/Plugin: архитектура
-
-Если нужен новый формат или архитектура — пишется **Loader** (распознать и загрузить), **Processor** (дизассемблировать) и **Analyzer** (автоанализ). Для этого в Ghidra используют `AbstractLoader`, `Language`/`Processor` (sleigh), `AbstractAnalyzer`. В IDA — `loader_t`, `processor_t`, `plugin_t` через IDAPython `ida_loader`/`ida_ida` или C++ SDK.
-
-Скелет IDA-плагина на Python (`idaapi.plugin_t`):
-
-```python
-import idaapi, ida_kernwin
-class MyPlugin(idaapi.plugin_t):
-    flags = idaapi.PLUGIN_KEEP
-    comment = "demo"
-    help = ""
-    wanted_name = "MyPlugin"
-    def init(self): return idaapi.PLUGIN_KEEP
-    def run(self, arg): ida_kernwin.info("Hello from plugin")
-    def term(self): pass
-def PLUGIN_ENTRY(): return MyPlugin()
-```
-
-## Разобранный пример: автоматический разбор XOR-цикла
-
-Задача: в бинарнике есть цикл XOR-дешифровки строк. Нужно найти его и расшифровать все строки автоматически.
-
-**Шаг 1. Найти цикл вручную и понять паттерн** (инструкции `xor [reg], imm` в цикле). 
-
-**Шаг 2. Скрипт Ghidra**, который эмулирует цикл и заменяет строку:
-
-```python
-# ghidra_scripts/DecodeXorStrings.py
-from ghidra.program.model.scalar import Scalar
-listing = currentProgram.getListing()
-it = listing.getInstructions(True)
-for ins in it:
-    if ins.getMnemonicString().lower() == "xor":
-        # упрощённо: ищем xor с immediate и счётчиком
-        pass
-print("scan done")
-```
-
-**Шаг 3. Более практичный вариант** — пройти по ссылкам на data и применить XOR:
-
-```python
-from ghidra.program.model.address import AddressSet
-def xor_decode(addr, length, key):
-    mem = currentProgram.getMemory()
-    buf = bytearray(length)
-    mem.getBytes(addr, buf)
-    return bytes(b ^ key for b in buf)
-
-key = 0x5A
-for block in currentProgram.getMemory().getBlocks():
-    if not block.isInitialized(): continue
-    data = bytearray(block.getSize())
-    block.getBytes(block.getStart(), data)
-    decoded = bytes(b ^ key for b in data)
-    if b"flag{" in decoded:
-        print("FOUND at", block.getStart(), decoded[:64])
-```
-
-## Интеграция с внешними движками
-
-Из скрипта можно вызывать angr/Z3, передавая байты:
-
-```python
-# внутри Ghidra/IDA: получить код функции и отдать в angr
-func_bytes = getBytes(func.getEntryPoint(), func.getBody().getNumAddresses())
-# сохранить и запустить внешний angr-скрипт через subprocess
-```
-
-Это позволяет соединить статику (декомпилятор) с символьным исполнением — см. `reversing-symbolic-execution`.
-
-## Сравнение Ghidra и IDA для плагинов
-
-| Критерий | Ghidra | IDA |
-|---|---|---|
-| Языки | Java, Python (Jython) | IDAPython, C++ |
-| Открытость API | полная, исходники | частично (SDK) |
-| Headless | `analyzeHeadless` | `-A -S` |
-| Декомпилятор API | `DecompInterface` | `ida_hexrays` |
-| Стоимость | бесплатно | платно (Hex-Rays отдельно) |
-| Скорость | медленнее | быстрее |
-
-## Частые ошибки и подводные камни
-
-- **Jython 2.7, а не Python 3.** В Ghidra-скриптах нет f-строк и части библиотек — используйте `.format()`.
-- **Транзакции.** Любая модификация БД в Ghidra требует `startTransaction`/`endTransaction`, иначе изменения не сохранятся.
-- **Устаревшие адреса.** После re-analysis адреса меняются — кэшируйте осторожно.
-- **Типы данных.** `getBytes` требует правильного `Address`/`AddressSet`; выход за границы блока — исключение.
-- **Hex-Rays только в IDA Pro.** `idc.decompile` вернёт ошибку в бесплатной версии.
-- **Скрипт падает молча.** Оборачивайте в try/except и печатайте в консоль (`print` в Ghidra идёт в Script Output).
-
-## Что дальше / решение
-
-Начните с простого **скрипта-аннотатора** (переименовать все вызовы `strcmp`/`malloc`), затем переходите к **деобфускации** (снятие opaque-предикатов, восстановление строк) и **интеграции с angr/Z3**. Для серии бинарников обязателен headless-режим (`analyzeHeadless`/`ida -A -S`). Дальше — `reversing-ghidra-deep`, `reversing-ida-deep` и `reversing-symbolic-execution`: плагин — это способ соединить декомпилятор с символьным движком и автоматизировать то, что раньше делалось руками.
-
-## Headless-автоматизация: полный разбор
-
-Батч-обработка — главная причина писать плагины. У Ghidra и IDA разные CLI-контракты.
-
-```bash
-# Ghidra: импорт + автоанализ + скрипт
-$GHIDRA_HOME/support/analyzeHeadless /tmp/proj demo \
-  -import ./target \
-  -postScript AutoNameStrCmp.py \
-  -scriptPath ./ghidra_scripts \
-  -deleteProject
-```
-
-| Флаг analyzeHeadless | Смысл |
-|---|---|
-| `-import <file>` | импортировать бинарник |
-| `-postScript <s>` | скрипт после анализа |
-| `-preScript <s>` | скрипт до анализа |
-| `-scriptPath <dir>` | где искать скрипты |
-| `-processor <lang>` | задать архитектуру |
-| `-loader <class>` | задать загрузчик формата |
-| `-deleteProject` | не оставлять проект |
-
-```bash
-# IDA: автономный режим
-ida64 -A -S"autoname_strcmp.py" -Lida.log ./target
-# -A автономно (без диалогов), -S скрипт, -L лог
-```
-
-Обратите внимание: в IDA `-S` выполняется **после** загрузки, но автоанализ может ещё идти; для ожидания используйте `ida_auto.auto_wait()` в начале скрипта.
-
-## Разобранный пример: деобфускация XOR-строк целиком
-
-Задача: бинарник хранит строки XOR-зашифрованными. Пишем скрипт, который находит расшифровку и подписывает данные.
-
-**Шаг 1.** Находим в декомпиляторе цикл вида `for (i=0;i<n;i++) buf[i]^=key;`.
-
-**Шаг 2.** Скрипт IDA, который эмулирует и патчит строку:
-
-```python
-import idc, ida_bytes, ida_bytes as ib
-key = 0x5A
-ea = idc.get_screen_ea()
-raw = ida_bytes.get_bytes(ea, 64)
-dec = bytes(b ^ key for b in raw)
-if b"flag{" in dec or b"http" in dec:
-    idc.set_cmt(ea, "XOR-decoded: " + dec.split(b"\x00")[0].decode("latin1"), 0)
-    ida_bytes.patch_bytes(ea, dec)   # заменить на расшифрованное
-print("done at %X" % ea)
-```
-
-**Шаг 3.** Массово по всем строкам:
-
-```python
-import idautils, ida_bytes
-for s in idautils.Strings():
-    raw = ida_bytes.get_bytes(s.ea, s.length)
-    for k in range(1, 256):
-        dec = bytes(b ^ k for b in raw)
-        if b"flag{" in dec:
-            print("key=%#x at %X: %s" % (k, s.ea, dec))
-```
-
-Вывод:
+Вывод для нашей `check`:
 
 ```
-key=0x5a at 404050: flag{xor_is_not_crypto}
+PCODE CALL       in[(ram,0x401040,8) ... ]  out=(register,0x0,4)
+PCODE COPY       in[(const,0x402004,8)]     out=(unique,0x10000021,8)
+PCODE INT_EQUAL  in[(register,0x0,4) (const,0x0,4)] out=(register,0x206,1)
+PCODE RETURN     in[(const,0x0,8) (register,0x0,4)] out=null
+PCODE INT_ZEXT   in[(register,0x206,1)]     out=(register,0x0,4)
 ```
 
-## Отладка скриптов и типовые исключения API
+Читается так: `CALL` (вызов `strcmp`), `COPY` константы `0x402004` (адрес секрета), `INT_EQUAL`
+(сравнение результата с нулём), `RETURN`. На этом уровне удобно писать **автоматические правила**:
+искать паттерны вроде «XOR-цикл», «сравнение с константой», «вызов `memcpy`» и подписывать их.
 
-- **`NullPointerException` в Ghidra** — почти всегда неинициализированный объект (`currentProgram` вне контекста, `null` из `getFunctionAt`).
-- **Модификация без транзакции** — в Ghidra изменения откатываются: всегда `startTransaction(...)`/`endTransaction(...)`.
-- **IDAPython `NameError`** — модуль не загружен; в новых версиях API переехал в `ida_*` пакеты (`ida_bytes`, `ida_name`, `ida_funcs`).
-- **Скрипт «завис»** — бесконечный цикл по `XrefsTo` при циклических ссылках; ограничивайте обход.
-- **`ida_hexrays` недоступен** — Hex-Rays не установлен (только IDA Pro).
+## Шаг 3: автоматизируем рутину — переименование
 
-## Сравнение с внешними фреймворками автоматизации
+Теперь самое полезное. Напишем скрипт, который проходит по всем функциям, находит те, что вызывают
+`strcmp`, и переименовывает их в осмысленное имя. У Ghidra есть готовый метод
+`getCalledFunctions()` — он отдаёт функции, которые вызывает данная:
 
-| Инструмент | Язык | Плюс | Минус |
-|---|---|---|---|
-| Ghidra scripts | Java/Jython | бесплатно, полный API | медленно, Jython 2.7 |
-| IDAPython | Python 3 | быстрый, зрелый | платно |
-| Binary Ninja API | Python | удобный IL | платно |
-| angr | Python | символьное исполнение | тяжёлый |
-| radare2 r2pipe | Python/любой | лёгкий, скриптуемый | слабее декомпилятор |
+```java
+FunctionManager fm = currentProgram.getFunctionManager();
+for (Function f : fm.getFunctions(true)) {
+    for (Function callee : f.getCalledFunctions(monitor)) {
+        if (callee.getName().contains("strcmp")) {
+            println("AUTONAME " + f.getName() + " calls " + callee.getName());
+            f.setName("check_strcmp", SourceType.USER_DEFINED);
+        }
+    }
+}
+```
 
-## Что дальше / решение
+Запускаем:
 
-Практический маршрут: **аннотатор → деобфускатор → интеграция с angr/Z3**. Для серий бинарников обязателен headless-режим. Дальше — `reversing-ghidra-deep` и `reversing-ida-deep` для тонкостей API, `reversing-symbolic-execution` для связки декомпилятора с символьным движком. Плагин — это мост: статика (структуры, типы, xref) плюс динамика/символика дают полную картину быстрее ручного разбора.
+```
+AUTONAME strcmp calls strcmp -> renaming to check_strcmp
+AUTONAME check calls check_strcmp -> renaming to check_strcmp
+AUTONAME main calls check_strcmp -> renaming to check_strcmp
+AUTONAME renamed=3
+```
+
+Скрипт сам обошёл граф вызовов и переименовал функции. На реальном образце такие скрипты
+переименовывают десятки функций разом, подписывают крипто-константы и помечают подозрительные места —
+это экономит часы ручной работы.
+
+Второй классический сценарий — поиск **крипто-констант**. У известных алгоритмов есть характерные
+числа (например, `0x67452301` из MD5/SHA). Скрипт перебирает константы в IR всех функций и, найдя
+совпадение, ставит комментарий «похоже на MD5». Так за минуты находят криптографию в незнакомом
+образце, вместо того чтобы листать функции глазами.
+
+## Шаг 4: Java, Python и другие формы расширений
+
+Ghidra расширяется на нескольких уровнях. **Скрипты** (наш случай) — одиночный файл, запускается из
+Script Manager или через `-postScript`. **Плагины** — `.jar` с графическими панелями и хуками на
+события анализа; для постоянных инструментов. **Loaders / Analyzers / Processors** — расширения для
+новых форматов, авт-анализа и архитектур. Писать можно на **Java** и на **Python** (через PyGhidra);
+Python удобнее для разовых задач, Java — для производительных плагинов.
+
+Другие декомпиляторы тоже скриптуются: у IDA есть IDAPython (`idaapi`), у radare2/rizin — `r2pipe` /
+`rzpipe` (команды фреймворка из Python). Идея одна: скрипт перебирает функции, читает IR и применяет
+правила. Так строят **автоаннотацию** (распознать и подписать `memcpy`, XOR-циклы, хеш-константы),
+**деобфускацию** (снять мусорные инструкции) и **интеграцию** (вызвать Z3/angr прямо из декомпилятора).
+
+## Что мы теперь знаем
+
+- Скриптовый API декомпилятора автоматизирует анализ: обход функций, декомпиляция, переименование.
+- Ghidra работает headless (`analyzeHeadless -import ... -postScript ...`) без GUI.
+- `DecompInterface` даёт декомпилированный C, `getHighFunction()` — P-Code (IR).
+- `getCalledFunctions()` строит граф вызовов — на нём основана автоаннотация.
+- Расширения бывают скриптами, плагинами и анализаторами; пишутся на Java и Python.
+- Аналоги: IDAPython, `rzpipe`; идея та же — правила поверх IR.
+
+Стоит помнить о цене автоматизации: скрипт делает именно то, что ты написал, и ошибка в правиле
+тихо испортит разбор всего проекта (например, переименует не те функции). Поэтому правила проверяют
+на одном образце, а `setName`/комментарии применяют, только когда уверен. Ещё нюанс: скрипты
+декомпилятора работают на **уже проанализированном** проекте — если авт-анализ не распознал функцию,
+скрипт её не увидит, и иногда её приходится создавать вручную (`createFunction`) перед обработкой.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой язык используют для скриптов Ghidra?"
+- question: 'Что даёт запуск Ghidra в режиме headless?'
   options:
-    - "Java и Python (Jython)"
-    - "Только C"
-    - "Только Rust"
-    - "Только Bash"
+    - 'Работу анализа и скриптов из командной строки без графического интерфейса'
+    - 'Ускорение декомпиляции в сто раз'
+    - 'Поддержку только ARM'
+    - 'Запуск отладчика'
   answer: 0
-  explanation: "Ghidra поддерживает Java и Jython-скрипты."
-- question: "Что такое P-Code в Ghidra?"
+  explanation: 'analyzeHeadless импортирует бинарник и запускает скрипты без GUI.'
+- question: 'Какой API Ghidra даёт программный доступ к декомпилятору?'
   options:
-    - "Промежуточное представление инструкций для анализа семантики"
-    - "Формат файла"
-    - "Тип структуры"
-    - "Отладчик"
+    - 'DecompInterface'
+    - 'getFunctionManager'
+    - 'Function.getEntryPoint'
+    - 'SymbolTable'
   answer: 0
-  explanation: "P-Code — IR Ghidra, удобный для автоматического анализа."
-- question: "Какой инструмент IDA для скриптов?"
+  explanation: 'DecompInterface.decompileFunction возвращает декомпилированный C и P-Code.'
+- question: 'Что такое P-Code в Ghidra?'
   options:
-    - "IDAPython"
-    - "Jython"
-    - "Ghidra API"
-    - "Capstone"
+    - 'Промежуточное представление (IR), в которое разложены машинные инструкции'
+    - 'Формат секции ELF'
+    - 'Скриптовый язык Python'
+    - 'Плагин отладки'
   answer: 0
-  explanation: "IDAPython — Python API IDA для плагинов/скриптов."
-- question: "Как запустить Ghidra для массового анализа без GUI?"
+  explanation: 'P-Code — IR Ghidra; скрипты читают его через getHighFunction().'
+- question: 'Зачем нужен getCalledFunctions() в скрипте автоаннотации?'
   options:
-    - "analyzeHeadless"
-    - "gdb"
-    - "objdump"
-    - "strace"
+    - 'Чтобы найти функции, вызывающие заданную (например, strcmp), и обработать их'
+    - 'Чтобы ускорить анализ'
+    - 'Чтобы сохранить проект'
+    - 'Чтобы декомпилировать одну функцию'
   answer: 0
-  explanation: "analyzeHeadless — headless-режим Ghidra для batch-анализа."
-- question: "Что важно при использовании Decompiler API в цикле?"
-  options:
-    - "Кэшировать результаты (API дорог)"
-    - "Вызывать на каждой инструкции"
-    - "Отключать типы"
-    - "Использовать CPython"
-  answer: 0
-  explanation: "Декомпиляция дорога; результаты кэшируют."
+  explanation: 'Он даёт граф вызовов — основу для автоматического переименования и подписей.'
 ```
+
+## Куда дальше
+
+Мы научились автоматизировать декомпилятор скриптами. В следующем уроке разберём **трассировку
+процессора** — как записать поток исполнения и найти в нём интересные места. А пока главное запомни:
+скрипт декомпилятора = обход функций + чтение IR + правило; это то, что превращает ручной разбор в
+масштабируемый, и тот же подход работает в IDA и radare2.
 
 ## Где пригодится
 
-- **CTF:** Reversing — автоматизация разбора.
-- **Automation/tooling:** собственные пассы.
-- **Program analysis:** исследование.
-- **Работа:** разработка инструментов анализа.
+- **Malware analysis:** автоаннотация десятков функций в семействе образцов.
+- **CTF Reversing:** быстрый поиск проверок и крипто-паттернов по всем функциям.
+- **Деобфускация:** правила поверх IR для снятия мусора и восстановления потока.

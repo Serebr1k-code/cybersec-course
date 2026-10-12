@@ -15,264 +15,228 @@ estimated_minutes: 35
 summary: "Как устроен GCP: организация, папки, проекты, IAM-политики с наследованием, сервисные аккаунты и metadata-сервер. Первые команды разведки и карта поверхности атаки."
 ---
 
-## Зачем этот урок
+## Вопрос, с которого всё начинается
 
-Google Cloud Platform (GCP) устроен вокруг **проектов** и **IAM-политик**, которые наследуются вниз по иерархии. Аутентификация программируемого доступа почти всегда идёт через **сервисные аккаунты (service accounts)** — их JSON-ключи часто утекают в репозитории и CI. Понимание этой модели — обязательное условие для атаки на GCP.
+Ты нашёл в публичном репозитории JSON-файл — похоже, ключ сервисного аккаунта Google Cloud. Такой ключ не редкость: разработчики коммитят их «на минуту», а потом забывают. Что он даёт и как понять, к чему он открывает доступ?
 
-## Иерархия ресурсов
+В этом уроке мы разберём GCP на одном примере: активируем найденный ключ и пройдём по шагам разведки. Попутно поймём, чем модель Google отличается от Azure.
+
+## Наш пример: ключ сервисного аккаунта
+
+У нас есть файл `sa-key.json` — ключ сервисного аккаунта. Активируем его:
 
 ```
-Organization                     ← корень (если есть Google Workspace/Cloud Identity)
- └─ Folder                       ← группировка проектов
-     └─ Project                 ← основная единица (биллинг, ресурсы, IAM)
-         └─ Resource            ← VM, GCS bucket, Cloud SQL, ...
+$ gcloud auth activate-service-account --key-file=sa-key.json
+Activated service account credentials for: [deploy@my-project.iam.gserviceaccount.com]
 ```
 
-IAM-политика назначается на любой уровень и **наследуется вниз**. Роль на Organization действует на все проекты. Роль на Folder — на все проекты внутри. Это та же ловушка, что в Azure Management Group.
+Уже важный факт: сервисный аккаунт называется `deploy@my-project...` — то есть принадлежит проекту `my-project`. Термин: **service account** в GCP — это «робот-учётка», привязанная к проекту, у неё нет пароля, только ключ.
 
-Ключевые понятия:
+Следующий вопрос: **к каким проектам есть доступ?**
 
-| GCP | AWS | Комментарий |
-|-----|-----|-------------|
-| Project | Account | Основная единица |
-| IAM policy (allow) | IAM policy | Набор привязок role→member |
-| Service account | IAM User / Instance Profile | «Робот», имеет email |
-| Service account key (JSON) | Access key | Файл с private key |
-| Cloud Storage (GCS) | S3 | Объектное хранилище |
-| Metadata server | IMDS | `metadata.google.internal` |
-| Workload Identity | Instance profile | Привязка SA к ресурсу |
+## Шаг 1: кто мы и какие проекты видны
 
-## IAM: привязки роль → участник
+```
+$ gcloud config list
+[core]
+account = deploy@my-project.iam.gserviceaccount.com
+project = my-project
 
-Политика GCP — это список **bindings**: каждая связывает одну роль с набором **members**. Members бывают:
-
-- `user:alice@example.com`
-- `group:eng@example.com`
-- `serviceAccount:sa@project.iam.gserviceaccount.com`
-- `allAuthenticatedUsers`, `allUsers` — **публичный доступ** (тревожный признак).
-- `domain:example.com`, `principalSet://...` (для Workload Identity).
-
-Роли:
-
-- **Basic** (`roles/owner`, `roles/editor`, `roles/viewer`) — грубые, опасные. `owner` = полный контроль проекта.
-- **Predefined** (`roles/storage.objectViewer`, `roles/iam.serviceAccountTokenCreator`, `roles/compute.instanceAdmin`).
-- **Custom** — собственные.
-
-**Главный приём**: роль `roles/iam.serviceAccountTokenCreator` позволяет **выпустить токен от имени** любого сервисного аккаунта, к которому она применена. А `roles/iam.serviceAccountUser` — запускать ресурсы (например, Compute) под этим SA. Комбинация ведёт к полному захвату.
-
-## Сервисные аккаунты
-
-SA — это идентичность с email `<name>@<project>.iam.gserviceaccount.com`. Способы использования:
-
-1. **JSON-ключ** (долгоживущий, самый опасный при утечке).
-2. **Impersonation** через API (короткоживущий токен, требует прав).
-3. **Привязка к ресурсу** (Compute instance, Cloud Run, GKE) — аналог instance profile.
-
-Утёкший JSON-ключ аутентифицирует вас как SA:
-
-```bash
-gcloud auth activate-service-account --key-file=leaked-key.json
-gcloud config set project <PROJECT_ID>
+$ gcloud projects list
+PROJECT_ID    NAME         PROJECT_NUMBER
+my-project    My Project   123456789012
+prod-web      Prod Web     987654321098
 ```
 
-## Metadata-сервер GCP
+Видим два проекта. Ключ привязан к `my-project`, но список показал и `prod-web` — значит, у аккаунта есть права и там.
 
-Внутри GCP-ресурса доступен metadata-сервер, но у него **свой API**:
+Терминология GCP: **project** — контейнер ресурсов (аналог Azure-подписки), а проекты группируются в **папки** и **организацию**.
 
-```bash
-# Заголовок обязателен
-curl -s -H "Metadata-Flavor: Google" \
-  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
+## Шаг 2: IAM-политика и наследование
+
+Права в GCP описывает **IAM-политика**: список «роль → кто». Важная особенность — **наследование**: права, выданные на организацию или папку, действуют и во всех вложенных проектах.
+
+```
+$ gcloud projects get-iam-policy my-project \
+    --flatten="bindings[].members" \
+    --format="table(bindings.role, bindings.members)"
+ROLE                  MEMBERS
+--------------------  ----------------------------------------
+roles/editor          serviceAccount:deploy@my-project...
+roles/owner           user:admin@example.com
 ```
 
-Ответ — токен доступа для привязанного SA:
+Читаем: наш сервисный аккаунт имеет роль **editor** — очень широкие права (менять почти все ресурсы). Роль **owner** — у человека. Наследование означает: даже если в конкретном проекте роли нет, она могла прийти сверху.
 
-```json
-{"access_token":"ya29...","expires_in":3599,"token_type":"Bearer"}
+Следующий вопрос: **какие ещё сервисные аккаунты есть и что они умеют?**
+
+## Шаг 3: сервисные аккаунты
+
+```
+$ gcloud iam service-accounts list
+NAME                             EMAIL
+Compute default SA              1234-compute@developer.gserviceaccount.com
+deploy                           deploy@my-project.iam.gserviceaccount.com
 ```
 
-Важно: в GCP есть **legacy endpoint** `http://metadata.google.internal/computeMetadata/v1/...` и версия с `?recursive=true`, отдающая сразу всю структуру. Заголовок `Metadata-Flavor: Google` — обязателен (как `Metadata: true` в Azure).
+Сервисные аккаунты бывают и «дефолтные» (создаются автоматически для Compute). Они часто имеют лишние права. Захват такого аккаунта — типичная цель.
 
-## Инструменты и первые команды
+Следующий вопрос: **как получить доступ к аккаунту, не имея ключа?**
 
-```bash
-# gcloud CLI
-curl -sSL https://sdk.cloud.google.com | bash
-gcloud auth login
-gcloud auth activate-service-account --key-file=key.json
+## Шаг 4: metadata-сервер
 
-# Кто мы
-gcloud auth list
-gcloud config list
-gcloud projects list
+Внутри любой виртуальной машины GCP доступен **metadata-сервер** по адресу `169.254.169.254`. Это служебный сервис, который отдаёт информацию о ВМ — включая **токен сервисного аккаунта**, привязанного к этой ВМ.
 
-# Ресурсы
-gcloud compute instances list
-gcloud storage buckets list
-gcloud sql instances list
-gcloud secrets list
-
-# IAM
-gcloud projects get-iam-policy <PROJECT_ID>
-gcloud iam service-accounts list
-gcloud iam service-accounts keys list --iam-account <SA_EMAIL>
+```
+$ curl -H "Metadata-Flavor: Google" \
+    "http://169.254.169.254/computeMetadata/v1/instance/service-accounts/default/token"
+{
+  "access_token": "ya29.c...",
+  "expires_in": 3599,
+  "token_type": "Bearer"
+}
 ```
 
-Оффенсивные инструменты:
+Если злоумышленник может выполнить SSRF или RCE на такой ВМ, он получит токен и действует от имени сервисного аккаунта. Заголовок `Metadata-Flavor: Google` — обязательное требование, оно отсекает часть простых SSRF.
 
-- **gcloud + gcp_scanner** — инвентаризация ресурсов.
-- **ScoutSuite** — аудит мисконфигов GCP.
-- **gcpwn** (модульная атака) — enumeration, privesc, persistence.
-- **Hayat / GCP-IAM-Exploitation** — поиск путей эскалации по IAM.
+## Шаг 5: поверхность атаки GCP
 
-## Разобранный пример: утёкший ключ → полный проект
+Где искать проблемы:
 
-1. В публичном репозитории найден `sa-key.json`.
-2. Активируем и смотрим проект:
-   ```bash
-   gcloud auth activate-service-account --key-file=sa-key.json
-   gcloud config set project victim-project
-   ```
-3. Проверяем права SA:
-   ```bash
-   gcloud projects get-iam-policy victim-project \
-     --flatten="bindings[].members" \
-     --filter="bindings.members:$(gcloud config get-value account)" \
-     --format="table(bindings.role)"
-   ```
-4. Если есть `roles/iam.serviceAccountTokenCreator` — имперсонируем более привилегированный SA:
-   ```bash
-   gcloud auth print-access-token --impersonate-service-account=admin-sa@victim-project.iam.gserviceaccount.com
-   ```
-5. Читаем секреты:
-   ```bash
-   gcloud secrets versions access latest --secret=db-password --project=victim-project
-   ```
-6. Эскалация: если есть `roles/compute.instanceAdmin` — создаём VM с SA и выполняем код, либо через `roles/iam.serviceAccountUser` запускаем существующий ресурс под админским SA.
+- **Ключи сервисных аккаунтов** в репозиториях и пайплайнах.
+- **Роль editor/owner** у сервисных аккаунтов.
+- **Metadata-сервер** через SSRF/RCE на ВМ.
+- **Публичные бакеты** Cloud Storage.
+- **Наследование прав** сверху — роль на организацию действует везде.
 
-## Частые ошибки
+## Чем GCP отличается от AWS и Azure
 
-- **Путать `allUsers` и `allAuthenticatedUsers`.** Первый — вообще без аутентификации (публичный бакет), второй — любой Google-аккаунт.
-- **Не проверять наследование.** Роль на Organization/Folder не видна в `get-iam-policy` проекта — проверяйте уровень выше.
-- **Считать SA-ключ «просто ключом».** Долгоживущий ключ не истекает, пока его не отзовут; это идеальная персистентность.
-- **Забыть про impersonation.** Иногда прав на данные нет, но есть `TokenCreator` — и этого достаточно.
-- **Игнорировать Workload Identity Federation.** `principalSet://` привязки могут открывать доступ из внешних IdP.
+| Понятие | AWS | Azure | GCP |
+|---------|-----|-------|-----|
+| Каталог пользователей | IAM | Entra ID | Cloud Identity |
+| Контейнер ресурсов | Account | Subscription | Project |
+| Иерархия | OUs | Management Groups | Folders / Organization |
+| Робот-учётка | IAM Role | Service Principal | Service Account |
+| Секреты | Secrets Manager | Key Vault | Secret Manager |
+| Хранилище | S3 | Blob | Cloud Storage |
 
-## Metadata-сервер GCP
+Смысл один: идентичность + ресурсы + права. GCP особенно выделяет наследование через папки и организацию.
 
-```bash
-curl -s -H "Metadata-Flavor: Google" \
-  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
-curl -s -H "Metadata-Flavor: Google" \
-  "http://metadata.google.internal/computeMetadata/v1/project/project-id"
-curl -s -H "Metadata-Flavor: Google" \
-  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/"
+## Что такое Cloud Identity и организация
+
+**Cloud Identity** — каталог пользователей Google (аналог Entra ID). **Организация** — корневой узел, объединяющий все проекты компании. Права, выданные на уровне организации, действуют во всех проектах, поэтому в аудите в первую очередь смотрят именно организационные роли: одна лишняя привязка там стоит дороже сотни в проекте.
+
+## Как получить доступ в GCP
+
+Типичные пути:
+
+- **JSON-ключ сервисного аккаунта** в репозитории или CI.
+- **Токен** из metadata-сервера через SSRF/RCE.
+- **Учётные данные пользователя** из фишинга.
+- **OAuth-приложение** с широкими scope.
+
+## Работа с ключами сервисных аккаунтов
+
+Ключ сервисного аккаунта — JSON-файл с приватным ключом. Он долгоживущий (в отличие от токена metadata, который живёт час). Поэтому утёкший ключ опаснее: им можно пользоваться месяцами, пока его не отзовут.
+
+Если у вас есть роль на управление IAM, можно создать **новый** ключ и закрепиться:
+
+```
+$ gcloud iam service-accounts keys create new.json \
+    --iam-account=deploy@my-project.iam.gserviceaccount.com
 ```
 
-Заголовок `Metadata-Flavor: Google` обязателен — это базовая защита от SSRF (но обходится, если приложение передаёт заголовки).
+Это типичный шаг закрепления (persistence) в облаке.
 
-## Инструменты
+## Команды-шпаргалка
 
-```bash
-gcloud auth list
-gcloud projects list
-gcloud config get-value project
-gcloud iam service-accounts list
-gcloud projects get-iam-policy proj --format=json
-gcloud compute instances list
-gcloud storage buckets list
-```
+| Команда | Что делает |
+|---------|-----------|
+| `gcloud config list` | текущий контекст |
+| `gcloud projects list` | доступные проекты |
+| `gcloud projects get-iam-policy` | права проекта |
+| `gcloud iam service-accounts list` | сервисные аккаунты |
+| `gcloud storage ls` | бакеты |
+| `gcloud secrets list` | секреты |
 
-## Разобранный пример 2: утёкший ключ SA
+## Практический итог
 
-1. Находим JSON-ключ SA (в репо/бакете).
-2. `gcloud auth activate-service-account --key-file=key.json`.
-3. `gcloud auth list` → активен SA.
-4. `gcloud projects get-iam-policy` → определяем роли SA.
-5. Если editor/owner — создаём свой ключ или имперсонируем другие SA.
-6. Двигаемся к данным (GCS, BigQuery, Secret Manager).
+Из одного утёкшего JSON-ключа мы получили список проектов, роль editor и возможность создать новый ключ. Цепочка разведки повторяет Azure-урок: кто мы → что видно → какие роли → где секреты. Меняются команды, логика та же.
 
-## Практическое задание
+## Как не нашуметь в GCP
 
-Создайте SA с ролью `storage.objectViewer`, скачайте ключ, активируйте, прочитайте бакет. Затем выдайте SA `roles/editor` и покажите, как расширяются возможности. Это базовый цикл работы с утёкшим ключом GCP.
+Активность в GCP логируется в **Cloud Audit Logs**. Каждое чтение IAM-политики и создание ключа попадает в лог. Поэтому разведку ведут аккуратно: минимум команд, сначала пассивные источники. Создание нового ключа — заметное действие, к нему прибегают, только когда другие пути исчерпаны.
 
-## Иерархия и наследование
+## Итог по GCP
 
-Организация → папки → проекты → ресурсы. Права, выданные выше, наследуются вниз. Поэтому `roles/owner` на организации — контроль над всем, а `roles/editor` на проекте — почти owner. Проверяйте всю цепочку:
+GCP строится на проектах и наследовании прав; сервисный аккаунт — ключевая учётка; metadata-сервер — главный источник токенов. Запомните три команды для старта: `gcloud projects list`, `gcloud projects get-iam-policy`, `gcloud iam service-accounts list`.
 
-```bash
-gcloud projects get-ancestors proj
-gcloud organizations get-iam-policy ORG --format=json | jq '.bindings[]'
-```
+## Что мы теперь знаем
 
-Частая ошибка — смотреть только проект и не замечать права сверху.
+По-простому:
 
-## Итог
+1. GCP строится на организации, папках и проектах.
+2. Права описывает IAM-политика и наследуются сверху.
+3. Сервисный аккаунт — «робот-учётка» с ключом.
+4. Metadata-сервер отдаёт токен сервисного аккаунта ВМ.
+5. Широкие роли и утёкшие ключи — главные находки.
 
-GCP-поверхность: ключи сервисных аккаунтов, имперсонация, metadata-сервер и наследование прав по иерархии. Утёкший ключ или SSRF к metadata часто ведут к полному проекту. Аудируйте bindings на всех уровнях и заменяйте ключи на Workload Identity.
+## На что смотреть дальше
 
-## Первые команды разведки
-
-```bash
-gcloud auth list
-gcloud projects list
-gcloud iam service-accounts list
-gcloud compute instances list
-gcloud storage buckets list
-gcloud projects get-iam-policy $PROJECT --format=json
-```
-
-Начните с `auth list` (кто вы) и `get-iam-policy` (что можете). Затем — ресурсы. Так вы быстро строите карту доступа и находите избыточные права без лишнего шума.
+- **Начинайте с `gcloud projects list`.** Поймите, куда есть доступ.
+- **Ищите `editor`/`owner`.** Это почти полный контроль.
+- **Проверяйте наследование.** Роль на организацию действует везде.
+- **Помните про metadata.** Он отдаёт токен без ключей.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какая роль GCP позволяет выпустить токен от имени сервисного аккаунта?"
+- question: "Что такое сервисный аккаунт в GCP?"
+  options:
+    - "Виртуальная машина"
+    - "Робот-учётка, привязанная к проекту, с ключом"
+    - "Хранилище данных"
+    - "Сетевой балансировщик"
+  answer: 1
+- question: "Чем важна IAM-политика в GCP?"
+  options:
+    - "Описывает роли и наследуется сверху вниз"
+    - "Хранит пароли"
+    - "Ускоряет сеть"
+    - "Шифрует диски"
+  answer: 0
+- question: "Что отдаёт metadata-сервер по адресу 169.254.169.254?"
+  options:
+    - "Публичный IP"
+    - "Токен сервисного аккаунта виртуальной машины"
+    - "Логи"
+    - "Пароль root"
+  answer: 1
+- question: "Какая роль в GCP даёт широкие права на изменение ресурсов?"
   options:
     - "roles/viewer"
-    - "roles/iam.serviceAccountTokenCreator"
-    - "roles/storage.objectViewer"
     - "roles/editor"
+    - "roles/browser"
+    - "roles/logging.viewer"
   answer: 1
-  explanation: "TokenCreator разрешает имперсонацию сервисного аккаунта — выпуск токенов от его имени."
-- question: "Какой заголовок обязателен для запроса к metadata-серверу GCP?"
+- question: "Почему наследование прав важно для атакующего?"
   options:
-    - "Metadata: true"
-    - "Metadata-Flavor: Google"
-    - "Authorization: Bearer"
-    - "X-Google-Token"
-  answer: 1
-  explanation: "GCP требует Metadata-Flavor: Google (в отличие от Metadata: true в Azure)."
-- question: "Что означает member allUsers в IAM-политике GCP?"
-  options:
-    - "Любой аутентифицированный Google-аккаунт"
-    - "Полностью публичный доступ без аутентификации"
-    - "Только сотрудники организации"
-    - "Все сервисные аккаунты проекта"
-  answer: 1
-  explanation: "allUsers — публичный доступ; allAuthenticatedUsers — любой аутентифицированный аккаунт."
-- question: "Где назначается IAM-политика, если роль действует на все проекты организации?"
-  options:
-    - "На каждом проекте отдельно"
-    - "На уровне Organization или Folder, с наследованием вниз"
-    - "В GCS bucket"
-    - "В файле /etc/iam"
-  answer: 1
-  explanation: "Политики наследуются вниз по иерархии Organization → Folder → Project."
-- question: "Почему JSON-ключ сервисного аккаунта особенно опасен при утечке?"
-  options:
-    - "Он быстро истекает"
-    - "Он долгоживущий и не истекает, пока его не отзовут вручную"
-    - "Он даёт только чтение"
-    - "Он работает только из GCP"
-  answer: 1
-  explanation: "SA-ключи не имеют срока автоматического истечения — идеальная персистентность для атакующего."
+    - "Роль на организацию действует во всех вложенных проектах"
+    - "Права исчезают со временем"
+    - "Оно шифрует трафик"
+    - "Оно ускоряет запросы"
+  answer: 0
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **Route 53 и Cloud DNS**: подмену поддоменов, записи и атаки на DNS в облаке. А пока запомни главное: в GCP разведка начинается с `gcloud projects list`, а находки лежат в широких ролях, утёкших ключах и metadata-сервере.
 
 ## Где пригодится
 
-- **Пентест GCP** — базовая карта модели IAM и service accounts.
-- **Bug bounty** — программы Google и компаний на GCP.
-- **IR/Blue team** — детект аномальной имперсонации и чтения секретов.
-- **DevSecOps** — запрет долгоживущих SA-ключей, переход на Workload Identity.
-- **Сертификации** — Google Professional Cloud Security Engineer.
+- **CTF (Cloud):** задачи с утёкшими ключами и metadata.
+- **Bug bounty:** поиск открытых облачных ресурсов.
+- **Пентест:** аудит GCP и цепочек SSRF → токен.
+- **Blue team / SOC:** понимание, что видит атакующий с одним ключом.

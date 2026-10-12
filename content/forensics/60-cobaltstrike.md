@@ -14,171 +14,166 @@ useful_for:
 estimated_minutes: 50
 summary: "Как распознавать Cobalt Strike Beacon и другие C2 в трафике и памяти: JA3, named pipes, watermark, sleep-маскировка, конфиги malleable C2."
 ---
-Cobalt Strike (CS) — коммерческий C2-фреймворк, ставший стандартом и для red team, и для злоумышленников. Его Beacon живёт в памяти, общается с сервером и маскируется под обычный трафик через Malleable C2 профиль. Обнаружение требует анализа сети (JA3/JA3S, ритм), памяти (конфиг, строки) и хоста (named pipes, инъекции). Этот урок — про распознавание CS Beacon и других C2.
 
-## Как устроен Beacon
+## Вопрос, с которого всё начинается
 
-- **Beacon** — имплант в памяти, часто инжектится в `rundll32.exe`, `dllhost.exe`, `svchost.exe`, `explorer.exe`.
-- **Sleep** — периодичность связи (по умолчанию 60 с с jitter). Сеть видит «ровный» ритм.
-- **Malleable C2 профиль** — настраивает HTTP-заголовки, URI, кодировку, чтобы трафик выглядел как jQuery/Amazon/др.
-- **Stager/Stage** — маленькая первая стадия догружает полный stage.
-- **Named pipes** — IPC: дефолтные профили используют `msagent_*`, `mojo_*`, `postex_*`, `status_*`, `MSSE-*`.
+После инцидента у тебя два набора улик: `mem.raw` (дамп памяти) и `c2.pcap` (захват
+трафика). Есть подозрение, что в сети сидит «маячок» атакующего, который регулярно
+стучится на сервер управления. Как найти его и доказать, что это он?
 
-## Сетевые артефакты
+**C2** (Command and Control) — сервер, через который атакующий управляет заражённой
+машиной. **Cobalt Strike** (CS) — коммерческий фреймворк для такого управления,
+ставший стандартом и у «красных», и у злоумышленников. Его имплант **Beacon**
+(«маячок») живёт в памяти и маскируется под обычный трафик. Разберём, как его узнать.
+
+## Наш пример: загадочный dllhost.exe
+
+Начнём с памяти. Плагин `netscan` (сетевой скан) утилиты Volatility показывает
+процессы с сетевыми соединениями:
 
 ```bash
-# ритм и размеры в pcap
-$ tshark -r c2.pcap -Y 'http' -T fields -e ip.dst -e http.host -e http.request.uri | sort | uniq -c | sort -rn
-# JA3/JA3S (отпечаток TLS-клиента/сервера)
-$ grep -i ja3 zeek/ssl.log | sort | uniq -c | sort -rn | head
-# дефолтные URI (если профиль не изменён)
-$ tshark -r c2.pcap -Y 'http.request.uri contains "/submit.php" or http.request.uri contains "/__utm.gif"'
-# периодичность соединений (beacon check-in)
-$ tshark -r c2.pcap -Y 'ip.dst==185.220.101.7 && tcp.flags.syn==1' -T fields -e frame.time_relative
+$ vol -f mem.raw windows.netscan | grep ESTABLISHED
+dllhost.exe 4120 10.0.0.5:49152 185.220.101.7:443 ESTABLISHED
 ```
 
-Характерные признаки:
-- **Ровный период** соединений (check-in) с jitter.
-- **Несоответствие** User-Agent и реального TLS-отпечатка (curl UA + Java JA3).
-- **Малые POST** с base64/hex-телом и большим ответом (или наоборот).
-- **Domain Fronting**/CDN в `Host`, но реальный IP — C2.
+`dllhost.exe` — легитимный системный процесс Windows (COM Surrogate). Но держать
+постоянное соединение на внешний адрес по 443 — для него ненормально. Это первый
+красный флаг.
 
-## Хостовые артефакты
+## Шаг 1: ищем инъекцию
+
+Beacon редко работает как отдельный `.exe` — его **инжектируют** (внедряют) в
+память чужого процесса, чтобы выглядеть безобидно. Плагин `malfind` ищет
+исполняемые регионы памяти без файла-источника:
 
 ```bash
-# named pipes (Sysmon 17/18 или память)
-$ evtx_dump -o json Sysmon.evtx | jq -r 'select(.Event.System.EventID==17 or .Event.System.EventID==18) | .Event.EventData.PipeName' | grep -iE 'msagent|mojo|postex|status|MSSE'
-# mutex (имя фреймворка)
-$ vol -f mem.raw windows.mutantscan | grep -iE 'cobalt|msf|meterpreter'
-# инъекции (Sysmon 8/10)
-$ evtx_dump -o json Sysmon.evtx | jq 'select(.Event.System.EventID==8) | .Event.EventData | {SourceImage,TargetImage}'
+$ vol -f mem.raw windows.malfind --pid 4120
+PID    Process     Start        End          Protection
+4120   dllhost.exe 0x...        0x...        PAGE_EXECUTE_READWRITE
 ```
 
-**Watermark** — 4-байтовый маркер Beacon (у лицензионных копий связан с лицензией; у утёкших сборок может совпадать между кампаниями). Извлечение watermark связывает образцы.
-
-## Анализ конфига Beacon
-
-Конфиг (C2-адреса, sleep, jitter, профиль, public key) лежит в памяти зашифрованным, но извлекается.
+Регион с правами «читать-писать-исполнять», не привязанный к файлу, — почти всегда
+инъецированный код. Снимем его дамп:
 
 ```bash
-# 1. Снять дамп процесса
 $ vol -f mem.raw windows.malfind --pid 4120 --dump
-# 2. Извлечь конфиг
-$ python3 parse_beacon_config.py beacon.bin
-# -> C2: 185.220.101.7:443, port, sleep, jitter, UA, pipe name, watermark
-# 3. dissect.cobaltstrike
-$ pip install dissect.cobaltstrike
-$ cobaltstrike-beacon beacon.bin
-$ cobaltstrike-config-extractor beacon.bin
 ```
 
+## Шаг 2: извлекаем конфиг Beacon
+
+Внутри Beacon зашифрован **конфиг**: адреса C2, период связи, профиль маскировки,
+публичный ключ. Он лежит в памяти, но извлекается специальными парсерами:
+
 ```bash
-# Volatility: дамп подозрительного процесса и поиск Beacon
-$ vol -f mem.raw windows.memmap --pid 4120 --dump
-$ strings -el pid.4120.dmp | grep -iE 'beacon|msagent|jquery'
+$ python3 parse_beacon_config.py pid.4120.dmp
+BeaconType: HTTPS
+Port: 443
+SleepTime: 60000
+Jitter: 20
+C2Server: 185.220.101.7,/submit.php
+UserAgent: Mozilla/5.0 (compatible; MSIE 9.0)
+PipeName: msagent_1
 ```
 
-## Другие C2
+Расшифруем поля: `SleepTime` 60000 мс — Beacon **раз в 60 секунд** стучится на C2;
+`Jitter` 20 — случайный разброс ±20%, чтобы ритм не был идеально ровным.
+`PipeName: msagent_1` — имя **named pipe** (канал межпроцессного обмена), которое
+использует CS. `C2Server` совпадает с адресом из `netscan`. Инструменты
+`dissect.cobaltstrike`, `CobaltStrikeParser` делают то же самое.
 
-Тот же подход работает для **Sliver**, **Mythic**, **Metasploit Meterpreter**, **Brute Ratel**, **Havoc**:
+## Шаг 3: подтверждаем по сети
 
-- аномальный процесс с сетью и инъекцией;
-- ритмичный трафик к одному IP;
-- несоответствие TLS-отпечатка и заголовков;
-- named pipes/mutex фреймворка.
+Теперь сверим с `c2.pcap`. Beacon, несмотря на jitter, всё равно создаёт
+**периодический ритм** соединений. Посмотрим время SYN-пакетов к C2:
 
 ```bash
-# Meterpreter: mutex 'Msf', pipe 'meterpreter'
+$ tshark -r c2.pcap -Y 'ip.dst==185.220.101.7 && tcp.flags.syn==1' -T fields -e frame.time_relative | head
+0.000000
+60.213
+120.441
+180.118
+```
+
+Ровный ритм с шагом ~60 секунд и лёгким разбросом — «почерк» Beacon. Обычный браузер
+так не делает.
+
+## Шаг 4: сверяем отпечаток TLS
+
+Beacon часто выдаёт себя **несоответствием** заявленного клиента и реального.
+`UserAgent` в конфиге — старый IE, но TLS-отпечаток — совсем другой. Отпечаток
+клиента считают алгоритмом **JA3** (набор параметров TLS-рукопожатия, свёрнутый в
+хеш), сервера — **JA3S**. Их пишет инструмент **Zeek** (сетевой анализатор) в
+`ssl.log`:
+
+```bash
+$ grep -i ja3 zeek/ssl.log | grep 185.220.101.7 | head
+... 185.220.101.7 ... ja3=72a589da586844d7f0818ce684948eea ...
+```
+
+Если `UserAgent` говорит «Internet Explorer», а JA3 — от Python/Java/curl,
+значит заголовки **подделаны** (так делает профиль маскировки). Сам по себе
+подделанный заголовок ничего не доказывает, но в совокупности с ритмом и инъекцией
+картина складывается.
+
+## Шаг 5: named pipes и mutex
+
+Beacon создаёт **named pipe** с предсказуемым именем. Sysmon фиксирует их событиями
+**17** (создание) и **18** (подключение):
+
+```bash
+$ evtx_dump -o json Sysmon.evtx | jq -r 'select(.Event.System.EventID==17 or .Event.System.EventID==18) |
+    .["Event.EventData.PipeName"]' | grep -iE 'msagent|mojo|postex|status|MSSE'
+\msagent_1
+```
+
+`msagent_*`, `mojo_*`, `postex_*`, `status_*`, `MSSE-*` — дефолтные имена CS. А
+**mutex** (объект-«флажок», которым программа помечает, что уже запущена) ищут
+плагином `mutantscan`:
+
+```bash
+$ vol -f mem.raw windows.mutantscan | grep -iE 'cobalt|msf|meterpreter'
+```
+
+## Шаг 6: watermark — связь кампаний
+
+В конфиге Beacon есть **watermark** — 4-байтовый маркер. У лицензионных копий он
+связан с лицензией, а у утёкших сборок может совпадать между разными атаками. Один
+и тот же watermark в двух образцах означает, что их сделали одной сборкой CS — так
+связывают кампании. Его извлекают те же конфиг-парсеры.
+
+## Тот же подход для других C2
+
+Логика работает не только для CS. **Sliver**, **Mythic**, **Metasploit
+Meterpreter**, **Brute Ratel**, **Havoc** выдают себя тем же набором:
+
+```bash
 $ vol -f mem.raw windows.mutantscan | grep -i msf
 $ vol -f mem.raw windows.handles | grep -i meterpreter
 ```
 
-## Разобранный пример
+Аномальный процесс + ритмичный трафик + инъекция + named pipes/mutex фреймворка —
+это универсальный рецепт.
 
-Дан `mem.raw` и `c2.pcap`. Нужно атрибутировать C2.
+## Что мы теперь знаем
 
-```bash
-# 1. Подозрительный процесс с сетью
-$ vol -f mem.raw windows.netscan | grep ESTABLISHED
-dllhost.exe 4120 10.0.0.5:49152 185.220.101.7:443 ESTABLISHED
-# 2. Странный родитель
-$ vol -f mem.raw windows.pstree | grep -A2 dllhost
-# 3. Инъекция
-$ vol -f mem.raw windows.malfind --pid 4120
-# 4. Дамп и конфиг
-$ vol -f mem.raw windows.malfind --pid 4120 --dump
-$ python3 parse_beacon_config.py pid.4120.dmp
-# -> C2: 185.220.101.7:443, sleep 60, jitter 20, UA "Mozilla/5.0 (compatible; MSIE 9.0)", pipe msagent_1
-# 5. Сеть: ритм и JA3
-$ tshark -r c2.pcap -Y 'ip.addr==185.220.101.7 && tcp.port==443' -T fields -e frame.time_relative | head
-$ grep -i ja3 zeek/ssl.log | grep 185.220.101.7
-```
+- **Beacon** — имплант в памяти, который регулярно (с jitter) стучится на C2.
+- Его находят через `netscan`/`pstree` (процесс + сеть) и `malfind` (инъекция).
+- Конфиг Beacon извлекается из дампа парсерами: C2, sleep, jitter, pipe, watermark.
+- **JA3/JA3S** (Zeek) выявляют подделку TLS-отпечатка.
+- **Named pipes** (`msagent_*`, `mojo_*`) и **mutex** — хостовые «подписи» CS.
 
-Итог: `dllhost.exe` инжектирован Beacon, конфиг извлечён, ритм и JA3 подтверждают C2.
+## На что смотреть дальше
 
-## Справочная таблица
-
-| Задача | Инструмент |
-|--------|-----------|
-| Конфиг Beacon | `parse_beacon_config`, `dissect.cobaltstrike` |
-| JA3/JA3S | Zeek `ssl.log`, `tshark` |
-| Named pipes | Sysmon 17/18, `windows.handles` |
-| Mutex | `windows.mutantscan` |
-| Инъекции | `windows.malfind` |
-| Watermark | конфиг-парсеры |
-
-## Частые ошибки
-
-- **Искать только сигнатуры файлов** — Beacon в памяти, файла нет.
-- **Верить User-Agent** — Malleable C2 подделывает; сверяйте с JA3/JA3S.
-- **Игнорировать периодичность** — ровный ритм выдаёт beacon.
-- **Не дампить память** — конфиг исчезнет после перезагрузки.
-- **Путать named pipes ОС и фреймворка** — нужен список дефолтных имён.
+- **Искать сигнатуру файла** — Beacon в памяти, файла нет.
+- **Верить User-Agent** — профиль маскировки его подделывает; сверяй с JA3.
+- **Игнорировать периодичность** — ровный ритм выдаёт маячок.
+- **Не дампить память** — после перезагрузки конфиг исчезнет.
+- **Оценивать один признак** — строй корреляцию «сеть ↔ память ↔ хост».
 - **Забывать про watermark** — он связывает кампании.
 
-## Что дальше / решение
-
-Конвейер: `netscan`/`pstree` (процесс+сеть) → `malfind` (инъекция) → дамп → конфиг-парсер → JA3/Zeek (сеть) → named pipes/mutex (хост). Связка: `forensics-network-deep` (сеть), `forensics-malware-yara` (YARA), `forensics-memory-injection` (инъекции), `forensics-exfil` (эксфильтрация).
-
-## Malleable C2 профили и обход
-
-Malleable C2 — это язык описания профиля, который задаёт URI, заголовки, User-Agent, кодировку тела, jitter и даже «фейковый» контент. Профиль позволяет Beacon выглядеть как обычный сайт.
-
-```
-http-get {
-    set uri "/jquery-3.3.1.min.js";
-    client {
-        header "Host" "code.jquery.com";
-        metadata { base64url; prepend "session="; header "Cookie"; }
-    }
-    server { output { base64; print; } }
-}
-http-post {
-    set uri "/api/1.0/updates";
-    client { id { uri-append; } output { base64; print; } }
-    server { output { base64; print; } }
-}
-```
-
-Признаки: URI, похожие на CDN/API; заголовки, дублирующие реальные сервисы; домен в `Host`, не совпадающий с реальным IP. **Domain fronting** использует CDN: SNI — легитимный домен, `Host` — C2.
-
-## Сводный чек-лист атрибуции C2
-
-1. Найти аномальный процесс с исходящим соединением (`netscan`).
-2. Проверить родителя (`pstree`) — Word→dllhost и т. п.
-3. Обнаружить инъекцию (`malfind`, Sysmon 8/10).
-4. Снять дамп региона/процесса.
-5. Извлечь конфиг (`parse_beacon_config`, `dissect.cobaltstrike`).
-6. Проверить JA3/JA3S (`zeek ssl.log`).
-7. Искать named pipes (`msagent_*`, `mojo_*`) и mutex (`Msf`, `cobalt`).
-8. Извлечь watermark для связи кампаний.
-9. Свести IOC (C2-IP, домен, URI, UA, pipe, watermark).
-
-## Отличие легитимного трафика от C2
-
-Не всякий «странный» трафик — C2. Обращайте внимание на совокупность: регулярность + инъекция + named pipes + несоответствие TLS-отпечатка. Одиночный признак (например, необычный UA) может быть легитимным приложением. Стройте корреляцию «сеть ↔ память ↔ хост».
-
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что такое Beacon в Cobalt Strike?"
@@ -218,10 +213,18 @@ http-post {
   answer: 1
 ```
 
+## Куда дальше
+
+Мы научились атрибутировать C2-маячок по памяти и сети. В следующем уроке разберём
+атаку, ради которой C2 чаще всего и разворачивают, — **шифровальщика (ransomware)**:
+как определить семейство, найти слабость схемы шифрования и восстановить данные.
+А пока запомни: **C2 выдаёт себя ритмом, инъекцией и «подписями» фреймворка — их
+надо собрать вместе**.
+
 ## Где пригодится
 
-- **CTF:** задачи на сетевую/памятную атрибуцию C2.
-- **DFIR:** обнаружение активного Beacon и извлечение конфига.
-- **Threat Hunting:** охота на ритмичный трафик и инъекции.
-- **SOC:** правила на JA3, named pipes, цепочки процессов.
-- **Red team awareness:** понимание, какие индикаторы оставляет CS.
+- **CTF** — задачи на сетевую и памятную атрибуцию C2.
+- **DFIR** — обнаружение активного Beacon и извлечение конфига.
+- **Threat Hunting** — охота на ритмичный трафик и инъекции.
+- **SOC** — правила на JA3, named pipes, цепочки процессов.
+- **Red team awareness** — понимание, какие индикаторы оставляет CS.

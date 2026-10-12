@@ -14,127 +14,170 @@ useful_for:
 estimated_minutes: 35
 summary: "Разбор PDF в misc: структура файла, извлечение текста и изображений, работа с объектами и потоками, OCR отсканированных документов и поиск скрытых данных."
 ---
-## Структура PDF
+## Вопрос, с которого всё начинается
 
-PDF — не картинка, а контейнер объектов: словари, массивы, потоки (`stream ... endstream`), часто сжатые `FlateDecode`. Ключевые части: **xref** (таблица смещений объектов), **trailer** (корневой объект `/Root`), дерево страниц `Catalog → Pages → Page → Contents`, **XObject** (изображения/формы), шрифты. В CTF флаг прячут в метаданных, слоях, невидимом тексте, картинке (OCR) или внутри потока.
+Мы разобрали картинки и звук. Теперь дают **PDF-документ** `challenge.pdf`. На вид обычный файл, но где-то в нём спрятан флаг. С чего начать?
 
-Ментальная модель: PDF можно «распаковать» до объектов и потоков, и почти всегда секрет лежит в одном из них. Инструменты либо извлекают текст/картинки, либо дают доступ к сырым объектам.
+PDF — не «страница с текстом», а **контейнер объектов**: словари, массивы, потоки сжатых данных. Секрет может лежать в метаданных, в тексте, в картинке, во вложенном файле или в отдельном объекте. Значит, снова работает каскад — от простого к сложному. Разберём его на одном документе.
 
-## Базовые инструменты
+## Шаг 1: метаданные — за секунды
 
-| Инструмент | Назначение |
-|------------|-----------|
-| `pdftotext` | извлечение текста |
-| `pdfinfo` | метаданные |
-| `pdfimages` | извлечение картинок |
-| `qpdf` | разбор/дешифровка/распаковка потоков |
-| `mutool` | мощный разбор (MuPDF) |
-| `pdf-parser` | низкоуровневый разбор (Didier Stevens) |
-| `tesseract` | OCR |
-| `binwalk` | поиск встроенных файлов |
-| `exiftool` | метаданные |
-
-## Извлечение текста
+Служебные поля PDF смотрит `pdfinfo`:
 
 ```bash
-pdftotext doc.pdf -            # в stdout
-pdftotext -layout doc.pdf out.txt   # сохранить верстку
-# поиск флага
-pdftotext doc.pdf - | grep -oE "FLAG\{[^}]*\}"
-```
-
-Если текст не извлекается — он может быть в виде изображения (нужен OCR) или «нарисован» через шрифты/кривые.
-
-## Извлечение изображений
-
-```bash
-pdfimages -all doc.pdf img        # все изображения (png/jpg/...)
-pdfimages -list doc.pdf           # список без извлечения
-# затем смотрим картинки, zsteg/stegsolve/binwalk
-```
-
-В картинках бывает стего (LSB), скрытый текст, QR. Прогоните `zsteg`, `binwalk`, откройте в редакторе.
-
-## Работа с объектами и потоками
-
-```bash
-# qpdf: распаковать потоки и посмотреть структуру
-qpdf --qdf --object-streams=disable doc.pdf doc_qdf.pdf
-grep -a "stream" doc_qdf.pdf | head
-# mutool: показать объекты и текст
-mutool show doc.pdf trailer
-mutool show doc.pdf pages
-mutool draw -F txt doc.pdf
-# pdf-parser: детальный разбор
-pdf-parser.py -a doc.pdf
-pdf-parser.py -s "stream" doc.pdf
-```
-
-Распакованные потоки (`--qdf`) часто содержат скрытые объекты, JavaScript, вложения.
-
-## Невидимый текст и слои
-
-Флаг может быть текстом белого цвета на белом фоне, под другим слоем, или «спрятан» за картинкой. Решения:
-
-```bash
-# извлечь текст (в т.ч. белый)
-pdftotext doc.pdf - | cat -A | head
-# отрендерить и посмотреть
-mutool draw -o page-%d.png doc.pdf
-# изменить цвет фона/текста (редактор) или извлечь все строки
-pdftotext -raw doc.pdf -
-```
-
-Также проверяйте «слои» (OCG) и аннотации: текст может быть в аннотации/комментарии.
-
-## OCR отсканированных документов
-
-```bash
-# конвертировать страницы в изображения
-mutool draw -r 300 -o page-%d.png doc.pdf
-# OCR
-tesseract page-1.png - | grep -oE "FLAG\{[^}]*\}"
-# или напрямую OCR PDF
-ocrmypdf --sidecar out.txt doc.pdf out.pdf && grep FLAG out.txt
-```
-
-Для сканов качество важно: увеличьте DPI (`-r 300+`), при необходимости предобработайте (бинаризация, поворот).
-
-## Метаданные и вложения
-
-```bash
-pdfinfo doc.pdf | head -20        # Title, Author, Keywords, Custom
-exiftool doc.pdf | head
-# вложения
-pdfdetach -list doc.pdf
-pdfdetach -saveall doc.pdf
-```
-
-Часто флаг лежит в `Keywords`, `Author`, `Subject` или во вложенном файле.
-
-## Скрытые данные (binwalk, стего)
-
-```bash
-binwalk doc.pdf                   # встроенные zip/изображения
-binwalk -e doc.pdf
-# если в потоке base64/hex — декодировать
-strings doc_qdf.pdf | grep -iE "FLAG|base64|==" | head
-```
-
-Внутри PDF могут быть встроены ZIP (с паролем), изображения со стего, закодированные строки. Прогоняйте `binwalk`, `foremost`, `zsteg`.
-
-## Разобранный пример
-
-```bash
-$ pdfinfo challenge.pdf | grep -i keyword
+$ pdfinfo challenge.pdf
+Title:           Quarterly Report
+Author:          admin
 Keywords:        VGhlIGZsYWcgaXMgaGVyZQ==
+Pages:           1
+```
+
+Поле `Keywords` выглядит как **Base64** (помните `misc-encoding`?). Декодируем:
+
+```bash
 $ echo 'VGhlIGZsYWcgaXMgaGVyZQ==' | base64 -d
 The flag is here
-$ pdfimages -all challenge.pdf img && zsteg img-000.png
+```
+
+Это подсказка, а не флаг: «флаг здесь». Значит, ищем дальше. Урок: **всегда сначала `pdfinfo` и `exiftool`** — они бесплатны по времени.
+
+## Шаг 2: текст — и почему его может не быть
+
+Извлекаем текст из документа утилитой `pdftotext`:
+
+```bash
+$ pdftotext challenge.pdf - | grep -oE "FLAG\{[^}]*\}"
+$
+```
+
+Пусто. Причина ясна: если PDF — **скан** (отсканированные страницы), то «текста» в файле нет, есть только картинка. `pdftotext` читает текстовые объекты, а не распознаёт изображение. Для сканов нужен OCR — к нему вернёмся.
+
+## Шаг 3: картинки внутри PDF
+
+Даже обычный PDF часто содержит встроенные изображения. Извлекаем их `pdfimages`:
+
+```bash
+$ pdfimages -all challenge.pdf img
+$ ls img*
+img-000.png
+```
+
+`-all` сохраняет картинки в исходных форматах, `-list` только показал бы их список без извлечения. Полученную картинку прогоняем через знакомый по прошлым урокам каскад:
+
+```bash
+$ zsteg -a img-000.png
 b1,rgb,lsb,xy .. text: "FLAG{pdf_hides_everywhere}"
 ```
 
-Флаг нашёлся и в метаданных (подсказка), и в стего картинки.
+Флаг найден — он был в LSB картинки внутри PDF. Итог: метаданные дали подсказку, картинка — сам флаг.
+
+## Шаг 4: заглядываем в объекты и потоки
+
+Если картинок нет или они «пустые», PDF можно **распаковать до объектов**. Потоки в PDF часто сжаты (`FlateDecode`), и `qpdf --qdf` их разжимает, делая файл читаемым:
+
+```bash
+$ qpdf --qdf --object-streams=disable challenge.pdf out.pdf
+$ grep -a "stream" out.pdf | head
+stream
+stream
+```
+
+`--qdf` — «нормализовать в читаемый вид», `--object-streams=disable` — вынести объекты из сжатых контейнеров. После этого `strings out.pdf | grep -iE "FLAG|base64"` часто вытаскивает закодированные строки.
+
+Мощный разбор даёт `mutool`:
+
+```bash
+$ mutool show challenge.pdf trailer     # корневой объект
+$ mutool show challenge.pdf pages       # дерево страниц
+```
+
+А низкоуровневый разбор — `pdf-parser.py` (Didier Stevens): `pdf-parser.py -s "JavaScript" doc.pdf` находит встроенные скрипты.
+
+## Шаг 5: вложения и встроенные файлы
+
+PDF умеет носить внутри себя другие файлы. Их перечисляет `pdfdetach`:
+
+```bash
+$ pdfdetach -list challenge.pdf
+$ pdfdetach -saveall challenge.pdf
+```
+
+А `binwalk challenge.pdf` покажет вложенные ZIP/изображения, если они есть.
+
+## Шаг 6: OCR для сканов
+
+Если `pdftotext` пуст, а `pdfimages` дал «страницу», — это скан, и текст с него распознаёт **OCR** (`tesseract`). Сначала рендерим страницы в картинки с хорошим разрешением:
+
+```bash
+$ mutool draw -r 300 -o page-%d.png challenge.pdf
+$ tesseract page-1.png - | grep -oE "FLAG\{[^}]*\}"
+```
+
+`-r 300` — 300 dpi, стандарт качества для распознавания. Есть и сквозной вариант: `ocrmypdf --sidecar out.txt doc.pdf out.pdf`.
+
+## Шаг 7: JavaScript, формы и шифрование в PDF
+
+PDF умеет носить внутри **JavaScript** (`/JS`, `/JavaScript`), **формы** (`/AcroForm`) и **шифрование** (`/Encrypt`). В CTF скрипт внутри PDF бывает источником логики (проверка пароля), а в реальных атаках — вектором эксплойта в ридере.
+
+Найти скрипты:
+
+```bash
+$ pdf-parser.py -s "JavaScript" challenge.pdf
+$ pdf-parser.py -s "/JS" challenge.pdf
+```
+
+Если документ зашифрован, сначала попробуйте пустой пароль или пароль из подсказки:
+
+```bash
+$ qpdf --decrypt challenge.pdf out.pdf
+$ qpdf --password=PASS --decrypt challenge.pdf out.pdf
+```
+
+Не помогло — берите `pdfcrack` или `pdf2john`+`john` (превращает пароль PDF в хеш для `john`).
+
+Поля формы вытаскивает `pdftk doc.pdf dump_data_fields`. А быстрый способ увидеть «опасные» объекты — `pdfid.py`: он сразу показывает `/JS`, `/OpenAction`, `/EmbeddedFile`, что подсказывает, где искать.
+
+## Шаг 8: невидимый текст и слои
+
+Бывает, что текст в PDF есть, но `pdftotext` его «не видит» — потому что он белый на белом фоне, спрятан за картинкой или лежит в отдельном слое (OCG). Проверить просто: `pdftotext` извлекает **весь** текстовый слой, включая невидимый.
+
+```bash
+$ pdftotext -raw challenge.pdf - | grep -oE "FLAG\{[^}]*\}"
+```
+
+Флаг `-raw` сохраняет текст без попытки восстановить вёрстку — иногда так вылезает то, что `-layout` прячет. Ещё путь — отрендерить страницы в картинки и посмотреть глазами: `mutool draw -o page-%d.png challenge.pdf`. Текст может быть в аннотации или комментарии — их тоже стоит просмотреть.
+
+## Быстрый старт: шесть команд
+
+Если не хочется читать каскад целиком, вот он в шести строках:
+
+```bash
+pdfinfo challenge.pdf | head                                  # метаданные
+pdftotext challenge.pdf - | grep -oE "FLAG\{[^}]*\}"          # текст
+pdfimages -all challenge.pdf img && zsteg img-000.png         # картинки + стего
+qpdf --qdf --object-streams=disable challenge.pdf out.pdf     # распаковать потоки
+pdfdetach -list challenge.pdf                                 # вложения
+binwalk -e challenge.pdf                                      # встроенные файлы
+```
+
+Этого набора хватает для большинства PDF-задач. Текст пуст → OCR. Документ зашифрован → `qpdf --decrypt` или `pdf2john`+`john`.
+
+## Что мы теперь знаем
+
+- PDF — контейнер объектов; флаг прячут в метаданных, тексте, картинках, вложениях или потоках.
+- Каскад: `pdfinfo`/`exiftool` → `pdftotext` → `pdfimages`+`zsteg` → `qpdf --qdf`/`mutool` → `pdfdetach` → OCR → `binwalk`.
+- Пустой `pdftotext` не значит «пусто» — скорее всего, это скан (нужен OCR).
+- Потоки в PDF сжаты; `qpdf --qdf` их разжимает для анализа.
+- Вложения извлекает `pdfdetach`, встроенные файлы ищет `binwalk`.
+
+## На что смотреть дальше
+
+- **Только `pdftotext`** — если текст пуст, это скан (OCR) или картинка.
+- **Забыть про метаданные** — `pdfinfo`/`exiftool` за секунды дают подсказку или флаг.
+- **Не распаковать потоки** — `qpdf --qdf` вскрывает скрытые объекты и JavaScript.
+- **Игнорировать картинки** — стего/QR внутри PDF — частый путь.
+- **Не проверить вложения** — `pdfdetach` часто отдаёт нужный файл.
+- **Зашифрованный PDF** — попробуйте `qpdf --decrypt`, пустой пароль или `pdf2john`+`john`.
 
 ## Справочная таблица: что где искать
 
@@ -149,63 +192,9 @@ b1,rgb,lsb,xy .. text: "FLAG{pdf_hides_everywhere}"
 | Встроенные файлы | `binwalk`, `foremost` |
 | Стего в картинках | `zsteg`, `stegsolve` |
 
-## Типовые ошибки новичка
-
-- **Только `pdftotext`.** Если текст пуст — это скан (OCR) или картинка.
-- **Забыть про метаданные.** `pdfinfo`/`exiftool` — за секунды.
-- **Не распаковать потоки.** `qpdf --qdf` вскрывает скрытые объекты.
-- **Игнорировать картинки.** Стего/QR — частый путь.
-- **Не проверить вложения.** `pdfdetach` часто даёт нужный файл.
-
-## Практический чек-лист
-
-1. `pdfinfo`/`exiftool` — метаданные.
-2. `pdftotext` — текст; `grep FLAG`.
-3. `pdfimages` — картинки; `zsteg`/`binwalk`.
-4. `qpdf --qdf` + `mutool show` — объекты/потоки.
-5. `pdfdetach` — вложения.
-6. OCR, если текст не извлекается.
-7. `binwalk -e` — встроенные файлы.
-8. Зафиксировать найденный флаг/данные.
-
-## Что дальше / решение
-
-Порядок: метаданные → текст → картинки → объекты/потоки → вложения → OCR → binwalk. Связанные уроки: `misc-encoding` (кодировки/QR), `misc-image-misc` (стего), `forensics-*` (анализ документов). Решение — когда флаг найден.
-
-## Продвинутый разбор: JavaScript, формы и шифрование в PDF
-
-PDF может содержать **JavaScript** (`/JS`, `/JavaScript`), формы (`/AcroForm`), аннотации и **шифрование** (`/Encrypt`). JavaScript встречается в CTF как источник логики (проверка пароля, генерация данных) или как вектор в реальных атаках (эксплойты в ридерах). Разбор:
-
-```bash
-# найти JS-объекты
-pdf-parser.py -s "JavaScript" doc.pdf
-pdf-parser.py -s "/JS" doc.pdf
-mutool show doc.pdf grep | head
-# дешифровать (если пустой пароль или известен)
-qpdf --decrypt doc.pdf out.pdf
-qpdf --password=PASS --decrypt doc.pdf out.pdf
-```
-
-Если документ зашифрован, попробуйте пустой пароль, пароль из подсказки или брут (`pdfcrack`, `john` с `pdf2john`). Формы (`/AcroForm`) могут содержать значения полей — извлеките их (`pdftk doc.pdf dump_data_fields`). Аннотации (`/Annots`) иногда прячут текст/ссылки. Также проверяйте `/EmbeddedFile` (вложения) и `/OpenAction` (автодействие при открытии) — там бывает и полезная логика, и вредоносный JS.
-
-## Материалы и связанные техники
-
-Инструменты: Didier Stevens (`pdf-parser.py`, `pdfid.py`), `qpdf`, `mutool`, `pdftk`, `pdfcrack`, `john` (`pdf2john`). Полезно держать под рукой `pdfid.py` — он быстро показывает опасные объекты (`/JS`, `/JavaScript`, `/OpenAction`, `/AA`, `/Launch`, `/EmbeddedFile`), что сразу подсказывает, где искать. В CTF комбинируйте: `pdfinfo`/`exiftool` для метаданных, `pdftotext`/OCR для текста, `pdfimages`+`zsteg` для картинок, `qpdf --qdf`+`pdf-parser` для объектов. Связанные уроки: `misc-encoding`, `misc-image-misc`, `misc-binary-misc`, `forensics-*`.
-
-## Быстрый старт: первые команды
-
-```bash
-pdfinfo challenge.pdf | head            # метаданные (часто флаг/подсказка)
-pdftotext challenge.pdf - | grep -oE "FLAG\{[^}]*\}"   # текст
-pdfimages -all challenge.pdf img && zsteg img-000.png  # картинки + стего
-qpdf --qdf --object-streams=disable challenge.pdf out.pdf   # распаковать потоки
-pdfdetach -list challenge.pdf           # вложения
-binwalk -e challenge.pdf                # встроенные файлы
-```
-
-Этот набор из шести команд решает большинство PDF-задач. Если текст пуст — переходите к OCR (`mutool draw -r 300` + `tesseract`). Если документ зашифрован — `qpdf --decrypt` или `pdf2john`+`john`.
-
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какой инструмент извлекает изображения из PDF?"
@@ -239,7 +228,7 @@ binwalk -e challenge.pdf                # встроенные файлы
     - "В расширении"
     - "В имени пользователя"
   answer: 0
-  explanation: "Метаданные, скрытые слои, dangling-объекты."
+  explanation: "Метаданные, скрытые слои, вложенные объекты."
 - question: "Какой DPI рекомендуется для OCR PDF?"
   options:
     - "300 dpi"
@@ -249,6 +238,10 @@ binwalk -e challenge.pdf                # встроенные файлы
   answer: 0
   explanation: "300 dpi — стандарт качества для OCR."
 ```
+
+## Куда дальше
+
+В следующем уроке мы возьмём не документ, а **бинарный файл** и разберём байтовые головоломки — где данные спрятаны в самих байтах. А пока главное запомни: **PDF — это контейнер; иди по каскаду метаданные → текст → картинки → потоки → вложения → OCR, и пустой текст не значит «пусто».**
 
 ## Где пригодится
 

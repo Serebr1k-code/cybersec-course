@@ -14,270 +14,183 @@ useful_for:
 estimated_minutes: 45
 summary: "Ключевые артефакты macOS: FSEvents, Unified Log, quarantine (com.apple.quarantine), LaunchAgents/Daemons, Keychain, Time Machine — и как их извлекать."
 ---
-macOS оставляет специфичный набор артефактов, отличающийся от Windows. Ключевые источники — FSEvents (журнал изменений файлов), Unified Log (системные события), quarantine-атрибуты (источник загрузки), LaunchAgents/Daemons (автозапуск), Keychain (пароли) и Time Machine (версии). Этот урок — про их извлечение и анализ.
 
-## FSEvents
+## Вопрос, с которого всё начинается
 
-`/.fseventsd/` хранит журнал изменений файловой системы: создание, удаление, переименование файлов и папок, с флагами и временем. Даже если файл удалён, FSEvents покажет, что он существовал.
+На рабочем маке пользователь пожаловался: «что-то само открывает окна и просит пароль». Сняли образ диска. Вопрос: какой файл это делает, откуда он взялся и как закрепился в системе, чтобы запускаться после перезагрузки?
 
-```bash
-# инструменты: fseventsparse, FSEventsParser, mac_apt
-$ fseventsparse /path/to/.fseventsd/ > fsevents.csv
-$ python3 FSEventsParser.py -s /evidence -o out/
-```
+macOS оставляет свои, непохожие на Windows, следы. Мы знаем файловую систему APFS (`forensics-apfs`) и артефакты Windows (`forensics-windows-artifacts`) — теперь разберём один образ macOS по её собственным артефактам.
 
-FSEvents хранит записи в бинарных файлах (`0000000000000001` и т. д.); парсеры декодируют путь и флаги (Created/Removed/Renamed/Modified). Это мощный источник таймлайна.
+## Наш пример: образ с подозрительным `update.app`
 
-## Unified Log
+Начнём с самого файла, который подозреваем — `~/Downloads/update.app`. Расширение `.app` в macOS означает **бандл** — это каталог, который система показывает как одну программу.
 
-Современный macOS логирует всё в **Unified Log** (`/var/db/diagnostics/*.tracev3`). Это бинарный, сжатый, структурированный лог с тысячами подсистем (процессы, сеть, авторизация, приложения).
+Первым делом смотрим **расширенный атрибут** (xattr) `com.apple.quarantine`. Это метка, которую macOS вешает на любой скачанный файл: она говорит, откуда он пришёл.
 
 ```bash
-# инструменты: macos-unifiedlogs (Mandiant), UnifiedLogReader, log (на macOS)
-$ unifiedlog_parser /path/to/diagnostics/*.tracev3 > unified.csv
-$ python3 -m macos_unifiedlogs.cli /evidence
-# на живой macOS
-$ log show --last 1h --predicate 'process == "sshd"'
-$ log collect --output system.logarchive
-```
-
-Фильтруйте по процессу/подсистеме/сообщению: входы, запуски, сетевые соединения.
-
-## Quarantine и атрибуция загрузки
-
-Расширенный атрибут `com.apple.quarantine` показывает, откуда скачан файл (браузер, приложение, URL), — бесценно для атрибуции.
-
-```bash
-$ xattr -p com.apple.quarantine /path/file
-0083;5f8a1b2c;Safari;F0E5...
-# структура: flags;timestamp(hex);agent;UUID
-# расшифровать время (hex -> unix)
-$ python3 -c "print(int('5f8a1b2c',16))"
-# инструменты: mac_apt, mac_apt quarantine
-```
-
-Также полезны `com.apple.metadata:kMDItemWhereFroms` (URL загрузки) и `com.apple.metadata:kMDItemDownloadedDate`.
-
-```bash
-$ xattr -p com.apple.metadata:kMDItemWhereFroms /path/file | xxd
-```
-
-## LaunchAgents / LaunchDaemons
-
-Автозапуск в macOS — через `launchd` (plist-файлы):
-
-| Путь | Тип |
-|------|-----|
-| `/Library/LaunchAgents` | агент (все пользователи) |
-| `/Library/LaunchDaemons` | демон (система) |
-| `~/Library/LaunchAgents` | агент пользователя |
-| `/System/Library/...` | системные (SIP) |
-
-```bash
-$ find /evidence -path '*Launch*' -name '*.plist'
-$ plutil -p /path/com.evil.agent.plist
-{ "ProgramArguments" => [ "/Users/bob/Library/evil/run.sh" ], "RunAtLoad" => 1 }
-```
-
-Также `login items`, `cron`, `periodic`, `emond`, `StartupItems` (устарело).
-
-## Keychain и Time Machine
-
-**Keychain** (`~/Library/Keychains/login.keychain-db`) хранит пароли, сертификаты, ключи. Разбор — `chainbreaker`, `security` (на macOS).
-
-```bash
-$ python3 chainbreaker.py login.keychain-db -p password
-```
-
-**Time Machine** — локальные снапшоты APFS с версиями файлов (см. `forensics-apfs`): удалённое можно восстановить из снапшота.
-
-## Прочие артефакты
-
-| Артефакт | Путь | Что даёт |
-|----------|------|----------|
-| Unified Log | `/var/db/diagnostics` | события |
-| FSEvents | `/.fseventsd` | изменения файлов |
-| Quarantine | xattr | источник загрузки |
-| Spotlight | `.Spotlight-V100` | метаданные, история |
-| plist | `~/Library/Preferences` | настройки/история |
-| Safari | `~/Library/Safari/History.db` | история |
-| Messages | `~/Library/Messages/chat.db` | iMessage |
-| KnowledgeC | `~/Library/Application Support/Knowledge/knowledgeC.db` | активность приложений |
-
-```bash
-$ sqlite3 ~/Library/Messages/chat.db "SELECT text FROM message LIMIT 5;"
-$ sqlite3 ~/Library/Application\ Support/Knowledge/knowledgeC.db ".tables"
-```
-
-## Разобранный пример
-
-Дан образ macOS. Нужно найти загруженный и закреплённый файл.
-
-```bash
-# 1. Quarantine: откуда скачан
 $ xattr -p com.apple.quarantine /evidence/Users/bob/Downloads/update.app
-0083;5f8a1b2c;Safari;...
-# 2. LaunchAgent: закрепление
+0083;5f8a1b2c;Safari;F0E5A1B2-...
+```
+
+Строка кодирует четыре поля: флаги (`0083`), время скачивания в hex (`5f8a1b2c`), приложение-загрузчик (`Safari`) и UUID. Время легко перевести в Unix-формат:
+
+```bash
+$ python3 -c "import datetime;print(datetime.datetime.utcfromtimestamp(int('5f8a1b2c',16)))"
+2020-10-17 12:34:20
+```
+
+Это **атрибуция загрузки**: файл пришёл через Safari. Рядом лежит xattr `com.apple.metadata:kMDItemWhereFroms` — в нём бывает полный URL источника.
+
+## Шаг 1: как файл закрепился в системе
+
+Запуск программ «при входе» в macOS управляет служба `launchd`. Она читает конфиги-`plist` (XML-файлы свойств) из специальных каталогов. `LaunchAgent` работает в сессии пользователя, `LaunchDaemon` — на уровне системы (от root, без входа пользователя).
+
+Проверяем пользовательские агенты:
+
+```bash
+$ find /evidence/Users/bob/Library/LaunchAgents -name '*.plist'
+/evidence/Users/bob/Library/LaunchAgents/com.evil.updater.plist
+
 $ plutil -p /evidence/Users/bob/Library/LaunchAgents/com.evil.updater.plist
-{ ProgramArguments => [ "/Users/bob/Library/evil/run.sh" ] }
-# 3. FSEvents: когда появился
-$ fseventsparse /evidence/.fseventsd | grep -i evil | head
-# 4. Unified Log: запуск
-$ unifiedlog_parser /evidence/var/db/diagnostics/*.tracev3 | grep -i evil | head
+{
+  "ProgramArguments" => [ "/Users/bob/Library/evil/run.sh" ]
+  "RunAtLoad" => 1
+  "Label" => "com.evil.updater"
+}
 ```
 
-## Справочная таблица
+`plutil -p` печатает plist в читаемом виде. Видим `RunAtLoad = 1` — программа запускается сразу при загрузке агента, то есть при входе пользователя. Это **персистентность**: вредоносный скрипт `run.sh` из `~/Library/evil/` будет стартовать каждый раз.
 
-| Задача | Инструмент |
-|--------|-----------|
-| FSEvents | `fseventsparse`, `mac_apt` |
-| Unified Log | `macos-unifiedlogs`, `log` |
-| Quarantine | `xattr`, `mac_apt` |
-| LaunchAgents | `plutil`, `find` |
-| Keychain | `chainbreaker` |
-| Spotlight | `mdfind`/парсеры |
+## Шаг 2: когда файл появился (FSEvents)
 
-## Частые ошибки
+macOS ведёт журнал изменений файловой системы — **FSEvents**, в каталоге `/.fseventsd/`. Он записывает создание, удаление и переименование файлов с временем и флагами. Даже если файл удалили, запись о нём останется.
 
-- **Игнорировать FSEvents** — там история удалённых файлов.
-- **Не читать Unified Log** — основной источник событий.
-- **Забывать про xattr** — quarantine даёт атрибуцию.
-- **Не проверять LaunchAgents** — там персистентность.
-- **Путать агент и демон** — область действия разная.
-- **Анализировать живой macOS без образа** — меняет состояние.
-
-## Что дальше / решение
-
-Конвейер: `xattr` (quarantine) → `plutil`/`find` (LaunchAgents) → `fseventsparse` (изменения) → `unifiedlog_parser` (события) → SQLite (приложения). Связка: `forensics-apfs` (ФС), `forensics-macos-artifacts` (глубоко), `forensics-plaso` (таймлайн), `forensics-sqlite`.
-
-## Spotlight и knowledgeC
-
-**Spotlight** (`.Spotlight-V100`) индексирует метаданные файлов: путь, тип, даты, авторы. Даже после удаления файла индекс может хранить запись.
+Записи хранятся в бинарных файлах, поэтому нужен парсер:
 
 ```bash
-# извлечь индекс (mac_apt, spotlight_parser)
+$ fseventsparse /evidence/.fseventsd/ > fsevents.csv
+$ grep -i evil fsevents.csv | head -3
+1770890000, /Users/bob/Library/evil/run.sh, Created
+1770890000, /Users/bob/Library/evil, Created
+```
+
+Теперь мы знаем **точное время** появления вредоносного каталога — это событие можно сопоставить с другими артефактами.
+
+## Шаг 3: что записал Unified Log
+
+Современный macOS пишет почти все события в **Unified Log** — бинарный, сжатый, структурированный журнал в `/var/db/diagnostics/*.tracev3`. Это аналог Windows EVTX. На живой системе его читают командой `log`, а на образе — парсером.
+
+```bash
+$ unifiedlog_parser /evidence/var/db/diagnostics/*.tracev3 > unified.csv
+$ grep -i evil unified.csv | head -3
+2025-10-06 14:20:11  runningboardd  ... /Users/bob/Library/evil/run.sh
+2025-10-06 14:20:11  kernel         ... exec /Users/bob/Library/evil/run.sh
+```
+
+Здесь виден **факт запуска** скрипта и подсистема, которая это сделала (`runningboardd` — служба управления процессами). Unified Log — основной источник событий: входы, запуски, сетевые соединения.
+
+## Шаг 4: пароли и данные приложений
+
+Если задача — понять, что злоумышленник успел прочитать, смотрим **Keychain** — хранилище паролей, сертификатов и ключей macOS (`~/Library/Keychains/login.keychain-db`). Оно защищено паролем входа, но с ним разбирается инструментом `chainbreaker`.
+
+Приложения macOS хранят данные в своих SQLite-базах. Например, история Safari лежит в `~/Library/Safari/History.db`, а iMessage — в `~/Library/Messages/chat.db`:
+
+```bash
+$ sqlite3 /evidence/Users/bob/Library/Safari/History.db \
+  "SELECT url FROM history_visits JOIN history_items ON history_visits.history_item=history_items.id LIMIT 3;"
+http://evil.tld/download
+http://evil.tld/payload
+```
+
+Важная деталь: время в базах macOS часто хранится в секундах с 2001 года, а не с Unix-эпохи 1970-го. Разница — константа `978307200`; чтобы получить Unix-время, её прибавляют.
+
+## Шаг 5: индекс Spotlight и активность приложений
+
+Ещё два источника, о которых легко забыть. **Spotlight** — поисковый индекс macOS, лежит в `.Spotlight-V100`. Он хранит метаданные файлов (путь, тип, даты), причём запись может остаться даже после удаления самого файла:
+
+```bash
 $ python3 spotlight_parser.py /evidence/.Spotlight-V100/ > spotlight.csv
-$ grep -i evil spotlight.csv | head
-# на живой macOS
-$ mdfind -onlyin /Users 'kMDItemFSName == "*evil*"'
+$ grep -i evil spotlight.csv | head -3
 ```
 
-**knowledgeC.db** (`~/Library/Application Support/Knowledge/knowledgeC.db`) — база активности: какие приложения использовались, когда, с какими файлами/URL. Отличный источник таймлайна.
+Второй — **knowledgeC.db** (`~/Library/Application Support/Knowledge/`). Это база активности: какие приложения использовались, когда и с какими файлами или URL. Отличный источник таймлайна:
 
 ```bash
-$ sqlite3 knowledgeC.db "SELECT ZOBJECT.ZVALUESTRING, datetime(ZOBJECT.ZCREATIONDATE+978307200,'unixepoch') FROM ZOBJECT JOIN ZSTRUCTUREDMETADATA ON ZOBJECT.ZSTRUCTUREDMETADATA=ZSTRUCTUREDMETADATA.Z_PK WHERE ZSTRUCTUREDMETADATA.Z_DKAPPINTENTMETADATAKEY__SERIALIZEDINTERACTION IS NOT NULL LIMIT 5;"
+$ sqlite3 /evidence/Users/bob/Library/Application\ Support/Knowledge/knowledgeC.db ".tables"
 ```
 
-## Safari и браузеры macOS
+Обе базы читаются тем же `sqlite3`, что и любая другая SQLite-база.
 
-```bash
-$ sqlite3 ~/Library/Safari/History.db "SELECT url, datetime(visit_time+978307200,'unixepoch') FROM history_visits JOIN history_items ON history_visits.history_item=history_items.id ORDER BY visit_time DESC LIMIT 5;"
-$ sqlite3 ~/Library/Safari/Downloads.plist 2>/dev/null
-$ ls ~/Library/Caches/com.apple.Safari/
-```
+## Если задача — восстановить состояние до атаки
 
-Время Safari — секунды с 2001 (`978307200` смещение к Unix).
+На macOS есть то, чего часто нет на Windows: **Time Machine** — локальные APFS-снапшоты с версиями файлов. Если файл удалили или изменили, старую версию можно достать из снапшота (механизм снапшотов разбирали в `forensics-apfs`). Это позволяет увидеть систему до заражения и точно установить, что появилось после.
 
-## Сводный чек-лист
+Ещё стоит помнить об **ограничениях**: System Integrity Protection (SIP) закрывает системные файлы, Unified Log быстро ротируется и сжат, а если диск защищён FileVault — нужен ключ расшифровки. Поэтому образ всегда снимают **до** анализа, а не работают на живом маке (живая система меняет свои же артефакты).
 
-1. `xattr` — quarantine/WhereFroms (источник файлов).
-2. `plutil`/`find` — LaunchAgents/Daemons (персистентность).
-3. `fseventsparse` — история изменений файлов.
-4. `unifiedlog_parser` — системные события.
-5. Spotlight — индекс метаданных.
-6. knowledgeC.db — активность приложений.
-7. Safari/браузеры — история.
-8. SQLite-приложения (Messages и др.).
+## Что мы теперь знаем
 
-## Ограничения
-
-- **SIP** защищает системные файлы — часть артефактов недоступна.
-- **Unified Log** быстро ротируется и сжат.
-- **FSEvents** может быть отключён или обрезан.
-- **Зашифрованный диск** (FileVault) — нужен ключ.
-- **APFS COW** — старые версии в checkpoint, но разбор сложнее.
-
-## Сравнение с Windows
-
-| Артефакт | Windows | macOS |
-|----------|---------|-------|
-| Журнал событий | EVTX | Unified Log |
-| Изменения файлов | USN | FSEvents |
-| Автозапуск | Run/Services/Task | LaunchAgents/Daemons |
-| Ярлыки/недавние | LNK/Jump Lists | `.recently-used`, Recent Items |
-| Реестр | hives | plist |
-| Пароли | DPAPI/SAM | Keychain |
-| Браузер | History/Cookies | Safari History.db |
-
-Понимание соответствий помогает переносить методики: как USN↔FSEvents, так Run↔LaunchAgents.
-
-## Инструменты: сводка
-
-| Инструмент | Задача |
-|-----------|--------|
-| `mac_apt` | комплексный разбор |
-| `unifiedlog_parser` | Unified Log |
-| `fseventsparse` | FSEvents |
-| `plutil` | plist |
-| `xattr` | quarantine |
-| `chainbreaker` | Keychain |
-| `sqlite3` | app-базы |
-| `apfs-fuse` | монтирование APFS |
-
-## Практические приёмы
-
-- **Unified Log** — сначала `log show`/`unifiedlog_parser` по процессу.
-- **FSEvents** — восстанавливает историю удалённых файлов.
-- **Quarantine** — быстрая атрибуция загрузки.
-- **LaunchAgents** — обязательная проверка на персистентность.
-- **Safari History.db** — время в секундах с 2001.
-- **Time Machine** — удалённое из снапшотов.
-- **Фиксируйте хеши** артефактов; работайте с копией.
+- `com.apple.quarantine` (xattr) даёт **источник** файла: браузер, время, URL.
+- Автозапуск в macOS — `LaunchAgents`/`LaunchDaemons`; `RunAtLoad=1` = запуск при входе.
+- FSEvents хранит историю изменений файлов, включая удалённые, и время появления.
+- Unified Log (`*.tracev3`) — основной журнал событий, аналог EVTX.
+- Keychain хранит пароли, а приложения — SQLite-базы (Safari, Messages).
+- Время в базах macOS — секунды с 2001 (`+978307200` = Unix).
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Где хранится Unified Log в macOS?"
+- question: "Что означает атрибут com.apple.quarantine у файла?"
   options:
-    - "/var/log/syslog"
-    - "/var/db/diagnostics/ (.tracev3)"
-    - "/etc/logs"
-    - "~/log"
-  answer: 1
-- question: "Что хранит FSEvents?"
-  options:
-    - "пароли"
-    - "журнал изменений файловой системы (каталоги/время)"
-    - "сетевой трафик"
-    - "реестр"
-  answer: 1
-- question: "Что означает атрибут com.apple.quarantine?"
-  options:
-    - "шифрование"
-    - "метка загруженного файла с источником (URL, агент, время)"
+    - "шифрование файла"
+    - "метка скачанного файла с источником (агент, время, URL)"
     - "права доступа"
     - "сжатие"
   answer: 1
-- question: "Где persistence через автозапуск в macOS?"
+  explanation: "Quarantine фиксирует, откуда и когда файл скачан — это атрибуция загрузки."
+- question: "Где в macOS настраивается автозапуск программ?"
   options:
     - "реестр"
     - "LaunchAgents / LaunchDaemons"
     - "SAM"
     - "MFT"
   answer: 1
-- question: "Как восстановить состояние до атаки?"
+  explanation: "launchd читает plist-конфиги из LaunchAgents (пользователь) и LaunchDaemons (система)."
+- question: "Что хранит FSEvents?"
   options:
-    - "удалить логи"
-    - "Time Machine / APFS-снапшоты"
-    - "перезагрузить"
-    - "ничего"
+    - "пароли"
+    - "журнал изменений файловой системы с временем и флагами"
+    - "сетевой трафик"
+    - "ключи Keychain"
   answer: 1
+  explanation: "FSEvents фиксирует создание/удаление/переименование файлов, в том числе уже удалённых."
+- question: "Где хранится Unified Log macOS?"
+  options:
+    - "/var/log/syslog"
+    - "/var/db/diagnostics/*.tracev3"
+    - "/etc/logs"
+    - "~/log"
+  answer: 1
+  explanation: "Unified Log — бинарные сжатые файлы .tracev3 в /var/db/diagnostics."
+- question: "Какой xattr хранит полный URL источника загрузки?"
+  options:
+    - "com.apple.metadata:kMDItemWhereFroms"
+    - "com.apple.quarantine"
+    - "com.apple.ResourceFork"
+    - "com.apple.FinderInfo"
+  answer: 0
+  explanation: "kMDItemWhereFroms содержит URL/приложение, откуда скачан файл."
 ```
+
+## Куда дальше
+
+Мы разобрали образ macOS по её артефактам. В следующем уроке (`forensics-mobile-android`) мы перейдём к мобильным устройствам и разберём, как извлечь данные из Android через ADB и бэкапы. А пока главное запомни: **на macOS источник файла виден в `com.apple.quarantine`, персистентность живёт в `LaunchAgents`, а события — в Unified Log**.
 
 ## Где пригодится
 
-- **CTF Forensics** — задачи с образами macOS.
-- **DFIR** — расследование на маках.
-- **Анализ macOS** — корпоративные маки.
-- **SOC** — детекты на persistence.
-- **Пентест** — понимание следов.
+- **CTF Forensics:** задачи с образами macOS.
+- **DFIR:** расследование инцидентов на маках.
+- **Анализ macOS:** корпоративные ноутбуки Apple.
+- **SOC:** детекты на персистентность через LaunchAgents.
+- **Пентест:** понимание следов, которые оставляет атакующий.

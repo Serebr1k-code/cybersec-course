@@ -15,210 +15,233 @@ estimated_minutes: 55
 summary: "Полный арсенал Sleuth Kit: mmls/fsstat/fls/icat/istat/ifind/blkls/mactime/tsk_recover, построение bodyfile-таймлайна и работа в Autopsy с ingest-модулями."
 ---
 
-Sleuth Kit (TSK) — де-факто стандарт для офлайн-анализа образов дисков. Он работает на уровне файловой системы: не монтирует образ, а разбирает структуры ФС напрямую, поэтому не изменяет улики. Autopsy — графическая оболочка поверх TSK с ingest-модулями (хеши, keyword search, восстановление, EXIF и т. д.). Этот урок — про полный арсенал TSK: какие утилиты есть, что каждая делает и как из них собрать таймлайн.
+## Вопрос, с которого всё начинается
 
-## Модель работы TSK
+У тебя образ диска `image.img`, и ты хочешь найти в нём всё подозрительное, не
+монтируя его. Монтировать нельзя: любая запись испортит улики. Нужен набор
+инструментов, который читает образ как поток байтов и разбирает файловую систему
+напрямую.
 
-TSK не монтирует ФС — он читает образ (raw/E01) как байтовый поток и разбирает метаданные. Ключевое понятие — **offset раздела** (в секторах) и **inode/MFT-номер** файла.
+Это и есть **Sleuth Kit (TSK)** — де-факто стандарт офлайн-анализа. В этом уроке мы
+пройдём по нему сверху вниз: от таблицы разделов до единого таймлайна — на одном
+конкретном образе.
 
-Слои:
-- **Image layer** — образ (raw, E01, VMDK через libewf/libvmdk).
+## Шаг 1: слои образа и offset
+
+TSK работает послойно:
+
+- **Image layer** — сам образ (raw, E01).
 - **Volume system layer** — таблица разделов (`mmls`).
 - **File system layer** — ФС внутри раздела (`fsstat`, `fls`, `icat`).
 - **File layer** — конкретный файл (`istat`, `icat`).
 
-Утилиты (все принимают `-o <offset>` в **секторах**):
-
-| Утилита | Назначение |
-|---------|-----------|
-| `mmls` | таблица разделов (volume system) |
-| `fsstat` | параметры ФС раздела |
-| `fls` | список файлов/каталогов (в т. ч. удалённых) |
-| `istat` | метаданные inode/MFT-записи |
-| `icat` | извлечь содержимое по inode |
-| `ifind` | найти inode по имени/блоку |
-| `ils` | список inode (в т. ч. удалённых) |
-| `blkls` | дамп блоков (allocated/unallocated) |
-| `blkcat`/`blkcalc` | работа с отдельными блоками |
-| `ffind` | найти имя по inode |
-| `hfind` | поиск по хеш-базам (NSRL) |
-| `mactime` | построение таймлайна из bodyfile |
-| `tsk_recover` | массовое извлечение файлов |
-| `sorter` | сортировка/категоризация файлов |
+Начинаем с разделов:
 
 ```bash
-sudo apt install -y sleuthkit autopsy
+$ mmls image.img
+GUID Partition Table (EFI)
+01: -----  0000002048-0000409599  NTFS / exFAT
 ```
 
-## Разбор разделов и ФС
+Раздел начинается с сектора 2048. Запомним `OFF=2048`. Все утилиты TSK принимают
+`-o` именно в **секторах**, а не в байтах — это самая частая ошибка новичка.
+
+Смотрим параметры ФС:
 
 ```bash
-# 1. Таблица разделов -> offset
-mmls disk.img
-# 002:  000:00  0000204800  0000409599  0000204800  Linux (0x83)
-OFF=2048
-
-# 2. Параметры ФС
-fsstat -o $OFF disk.img | head -40
-# File System Type: NTFS / ext4 / FAT
-
-# 3. Если образ — E01, TSK читает напрямую
-mmls image.E01
-# или через ewfmount
-ewfmount image.E01 /mnt/ewf && mmls /mnt/ewf/ewf1
+$ fsstat -o 2048 image.img | head
+File System Type: NTFS
 ```
 
-## fls / icat / istat / ifind
+Если образ в формате E01 (EnCase), TSK читает его напрямую — не надо распаковывать
+посегментно (`.E01`, `.E02` — это один образ, а не несколько).
+
+## Шаг 2: список файлов — fls
+
+`fls` — «file list». Рекурсивный список с путями:
 
 ```bash
-# Рекурсивный список, полные пути, machine-readable
-fls -r -p -o $OFF disk.img
-fls -r -m "C:/" -o $OFF disk.img > bodyfile.txt     # для таймлайна
-
-# Только удалённые
-fls -r -d -o $OFF disk.img
-
-# Извлечение по inode
-icat -o $OFF disk.img 12 > secret.bin
-
-# Метаданные inode: времена MACB, размер, runlist
-istat -o $OFF disk.img 12
-
-# Найти inode по имени (если fls показывает путь)
-ifind -o $OFF -n "secret.txt" disk.img
-# Найти inode по имени в конкретном каталоге
-ifind -o $OFF -d 5 -n "flag.txt" disk.img
-
-# Найти файл, занимающий блок (по unallocated)
-blkcalc -o $OFF -u 12345 disk.img    # unallocated -> исходный блок
-ifind -o $OFF -d <inode> -p 12345 disk.img
+$ fls -r -p -o 2048 image.img | tee fls.txt
+r/r 4-128-1: $AttrDef
+...
+r/r 120-128-4: Users/bob/Documents/notes.txt
 ```
 
-`ffind` — обратный `ifind`: по inode даёт имя(имена), полезно для hard links и удалённых записей.
+Только удалённые (флаг `-d`):
 
 ```bash
-ffind -o $OFF disk.img 12
+$ fls -r -d -o 2048 image.img
+r/r * 121-128-1: Users/bob/secret.txt
 ```
 
-## ils / blkls: удалённые inode и свободное место
+Машиночитаемый формат для таймлайна (флаг `-m`):
 
 ```bash
-# Все inode, помеченные удалёнными
-ils -o $OFF disk.img
-ils -o $OFF -m disk.img        # в формате bodyfile
-
-# Дамп нераспределённых блоков
-blkls -o $OFF disk.img > unalloc.bin
-# Только allocated
-blkls -o $OFF -a disk.img > alloc.bin
-
-# Список блоков, назначенных файлу
-istat -o $OFF disk.img 12 | grep -A20 'Direct Blocks\|Runlist'
+$ fls -r -m "C:/" -o 2048 image.img > bodyfile.txt
 ```
 
-## tsk_recover: массовое извлечение
+## Шаг 3: метаданные и содержимое — istat и icat
+
+`istat` печатает метаданные записи (времена MACB, размер, runlist):
 
 ```bash
-# Все файлы (allocated) в out/
-tsk_recover -o $OFF disk.img out/
-
-# Включая удалённые
-tsk_recover -o $OFF -e disk.img out_deleted/
-
-# Ограничить конкретным каталогом по inode
-tsk_recover -o $OFF -d 5 disk.img out_root/
+$ istat -o 2048 image.img 120
+MFT Entry: 120  Sequence: 128
+$STANDARD_INFORMATION Attribute Values:
+  Modified:  2024-01-12 10:14:03
+  Created:   2024-01-12 10:13:50
 ```
 
-`-e` = extract unallocated (удалённые). После извлечения — `grep`/`binwalk`/`file` по дереву.
-
-## mactime: таймлайн из bodyfile
+`icat` вынимает содержимое по inode:
 
 ```bash
-# Собираем bodyfile (MFT/fls) со всех источников
-fls -r -m "C:/" -o $OFF disk.img > bodyfile.txt
-# Добавляем NTFS $MFT-строки из USN и др. источников (см. урок forensics-usn)
-
-# Строим человекочитаемый таймлайн
-mactime -b bodyfile.txt -d > timeline.csv
-mactime -b bodyfile.txt 2024-01-01..2024-01-02 > window.txt
-
-# Сортируем и ищем аномалии
-sort -t, -k1 timeline.csv | head -50
+$ icat -o 2048 image.img 121 > secret.bin
+$ strings secret.bin | grep -i flag
+CTF{sleuthkit_never_touches_evidence}
 ```
 
-Формат bodyfile: `MD5|name|inode|mode|uid|gid|size|atime|mtime|ctime|crtime`. `mactime` собирает из него единый таймлайн с сортировкой по времени.
+## Шаг 4: искать по имени и обратно — ifind и ffind
 
-## hfind и sorter: фильтрация шума
+`ifind` находит inode по имени; `ffind` — наоборот, имя по inode:
 
 ```bash
-# Индекс NSRL (known-good хеши) для отсева системных файлов
-hfind -i nsrl-md5 /usr/share/nsrl/NSRLFile.txt 2>/dev/null
-hfind nsrl-md5 <md5>          # проверка одного хеша
-hfind -f bodyfile.txt nsrl-md5  # пометить известные файлы
-
-# sorter: категоризация файлов (images, archives, ...)
-sorter -d out -o $OFF disk.img
+$ ifind -o 2048 -n "secret.txt" image.img
+121
+$ ffind -o 2048 image.img 121
+Users/bob/secret.txt
 ```
 
-## Autopsy: GUI и ingest-модули
+`ffind` особенно полезен для hard links: у одного inode может быть несколько имён, и
+он покажет все.
 
-Autopsy поверх TSK добавляет:
-- **Ingest modules**: Hash Lookup, File Type ID, Keyword Search, Email Parser, EXIF, Web Artifacts, Recent Activity, Timeline, Android, RegRipper.
-- **Views**: File Views, Data Artifacts, Timeline (построен на mactime/Plaso).
-- **Reports**: HTML/PDF/Excel.
-
-Типовой сценарий в Autopsy:
-1. New Case → Add Data Source → Disk Image → выбрать образ и offset.
-2. Выбрать ingest-модули (Hash Lookup, File Type ID, Keyword Search с regex `CTF\{`).
-3. Дождаться завершения → вкладки Data Artifacts / Timeline / Keyword Hits.
-4. Экспортировать файл: правый клик → Extract File(s).
+## Шаг 5: удалённые inode и свободное место — ils и blkls
 
 ```bash
-# Запуск Autopsy (Java)
-autopsy
-# или CLI-вариант анализа через TSK (см. выше)
+$ ils -o 2048 image.img | head
+class|host|device|start_time
+...
+$ blkls -o 2048 image.img > unalloc.bin
+$ strings -n 6 unalloc.bin | grep -iE 'CTF\{|flag\{'
 ```
 
-## Разобранный пример: CTF-образ целиком
+`ils` перечисляет inode, включая удалённые. `blkls` дампит **нераспределённые** блоки
+(без флага `-a`). Именно там живёт то, что удалено и ещё не перезаписано.
+
+## Шаг 6: массовое извлечение — tsk_recover
 
 ```bash
-# 1. Разделы
-mmls image.img
-OFF=$(mmls image.img | awk '/Linux|NTFS|FAT/{print $3; exit}')
+$ tsk_recover -o 2048 image.img out/            # только allocated
+$ tsk_recover -o 2048 -e image.img rec/         # включая удалённые
+$ grep -rai 'CTF{' rec/
+```
 
-# 2. Тип ФС и параметры
-fsstat -o $OFF image.img | head
+`-e` = extract unallocated. После извлечения удобно грепать и `binwalk`-ить всё
+дерево целиком.
+
+## Шаг 7: таймлайн — mactime
+
+`mactime` собирает единый таймлайн из **bodyfile**. Формат bodyfile такой:
+`MD5|name|inode|mode|uid|gid|size|atime|mtime|ctime|crtime`. Строим его через `fls -m`:
+
+```bash
+$ fls -r -m "C:/" -o 2048 image.img > bodyfile.txt
+$ mactime -b bodyfile.txt -d > timeline.csv
+$ grep -i secret timeline.csv
+2024-01-12 10:31:22, ... ,Users/bob/secret.txt
+```
+
+Получилась хронология: когда что создано, изменено, удалено. Сортируем и ищем
+аномалии — всплески активности, странные времена, ночные запуски.
+
+## Шаг 8: фильтрация шума — hfind и sorter
+
+В образе тысячи системных файлов, и они мешают. `hfind` отсеивает «известно-хорошие»
+по хеш-базе NSRL:
+
+```bash
+$ hfind -i nsrl-md5 /usr/share/nsrl/NSRLFile.txt
+$ hfind nsrl-md5 <md5>          # проверка одного хеша
+```
+
+`sorter` раскладывает файлы по категориям (изображения, архивы, документы):
+
+```bash
+$ sorter -d out -o 2048 image.img
+```
+
+## Шаг 9: Autopsy — графическая оболочка
+
+Autopsy — GUI поверх TSK. Он добавляет **ingest-модули** (автоматический разбор при
+добавлении образа): Hash Lookup, File Type ID, Keyword Search, EXIF, Web Artifacts,
+Timeline. Типовой сценарий:
+
+1. New Case → Add Data Source → Disk Image.
+2. Выбрать образ и offset.
+3. Отметить ingest-модули, задать keyword-поиск по regex `CTF\{`.
+4. Дождаться завершения → вкладки Data Artifacts / Timeline / Keyword Hits.
+5. Экспорт: правый клик → Extract File(s).
+
+```bash
+$ autopsy
+```
+
+Для командной строки всё то же самое делается утилитами TSK из шагов выше.
+
+## Шаг 10: полный прогон от начала до конца
+
+Соберём всё вместе — так выглядит типовой разбор CTF-образа целиком:
+
+```bash
+# 1. Разделы и offset
+$ mmls image.img
+$ OFF=2048
+
+# 2. Тип ФС
+$ fsstat -o $OFF image.img | head
 
 # 3. Список с удалёнными и путями
-fls -r -p -o $OFF image.img | tee fls.txt
+$ fls -r -p -o $OFF image.img | tee fls.txt
+$ grep -iE 'flag|secret|pass|key' fls.txt
+r/r * 121-128-1: Users/bob/secret.txt
 
-# 4. Интересные имена
-grep -iE 'flag|secret|pass|key' fls.txt
+# 4. Извлечь найденное
+$ icat -o $OFF image.img 121 > out.bin
+$ strings out.bin | grep -i flag
+CTF{sleuthkit_never_touches_evidence}
 
-# 5. Извлечь найденное
-icat -o $OFF image.img <inode> > out.bin
-strings out.bin | grep -i flag
+# 5. Если удалён и не читается — recover + grep
+$ tsk_recover -o $OFF -e image.img rec/
+$ grep -rai 'CTF{' rec/
 
-# 6. Если удалён — tsk_recover
-tsk_recover -o $OFF -e image.img rec/
-grep -rai 'CTF{' rec/
-
-# 7. Таймлайн
-fls -r -m "X:/" -o $OFF image.img > bf.txt
-mactime -b bf.txt > tl.csv
-grep -i flag tl.csv
+# 6. Таймлайн
+$ fls -r -m "C:/" -o $OFF image.img > bf.txt
+$ mactime -b bf.txt > tl.csv
+$ grep -i secret tl.csv
 ```
 
-## Частые ошибки
+Шесть команд — и мы прошли путь от сырого образа до строки с флагом и её места в
+хронологии. Именно поэтому TSK считают базовым инструментом: он не требует
+монтирования, не меняет образ и покрывает почти все задачи по разбору дисков.
 
-- **Путать `-o` в секторах и байтах** — все утилиты TSK (`fls`, `icat`, `istat`, `fsstat`) ждут **секторы**; `mount offset=` — **байты**.
-- **Не указывать `-o` при вложенных разделах** — ошибка «cannot determine file system type» или мусор.
-- **Смотреть только allocated** — забудьте `tsk_recover -e`/`blkls` и пропустите удалённое.
-- **Открывать E01 посегментно** (`.E01`, `.E02` отдельно) — это один образ; передавайте `.E01` или используйте `ewfmount`.
-- **Забывать `-m` в fls для bodyfile** — без него не построить таймлайн.
-- **Запускать Autopsy на живом диске** — только образ.
+## Что мы теперь знаем
+
+- TSK читает образ послойно и **не изменяет** улики.
+- `mmls` даёт offset раздела; `-o` у TSK — в **секторах**.
+- `fls` перечисляет файлы (`-d` — удалённые, `-m` — bodyfile).
+- `istat` — метаданные, `icat` — содержимое, `ifind`/`ffind` — поиск inode.
+- `blkls` + `tsk_recover -e` достают удалённое; `mactime` строит таймлайн.
+
+## На что смотреть дальше
+
+- **Путаница секторов и байтов** — самая частая ошибка; TSK ждёт секторы.
+- **Забыли `-o`** при вложенных разделах — получите «cannot determine file system type».
+- **Смотрите только allocated** — без `-e`/`blkls` пропустите удалённое.
+- **E01 нельзя открывать посегментно** — это один образ, передавайте `.E01`.
+- **Без `-m` в `fls`** не построить таймлайн.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "В каких единицах TSK принимает `-o` (offset раздела)?"
@@ -245,18 +268,24 @@ grep -i flag tl.csv
 - question: "Из чего `mactime` строит таймлайн?"
   options:
     - "из E01"
-    - "из bodyfile (формат fls -m)"
+    - "из bodyfile (формат `fls -m`)"
     - "из PCAP"
     - "из реестра"
   answer: 1
-- question: "Что делает `blkls` без `-a`?"
+- question: "Что делает `ffind`?"
   options:
-    - "дамп нераспределённых (unallocated) блоков"
-    - "дамп всех блоков"
+    - "находит имя по inode"
+    - "дамп блоков"
     - "список разделов"
-    - "поиск inode"
+    - "считает хеши"
   answer: 0
 ```
+
+## Куда дальше
+
+Мы освоили универсальный инструментарий TSK. Дальше посмотрим, как правильно снимать
+сами образы: `dd`, `dc3dd`, write blockers и хеширование — чтобы улики были
+допустимы. А пока запомни: **TSK не монтирует и не пишет — он разбирает и доказывает**.
 
 ## Где пригодится
 

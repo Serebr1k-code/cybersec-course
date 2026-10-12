@@ -14,165 +14,133 @@ useful_for:
 estimated_minutes: 50
 summary: "Продвинутый анализ трафика: реконструкция сессий, скрытые каналы (DNS/ICMP/HTTP), эксфильтрация, TLS/JA3, Zeek и статистические аномалии."
 ---
-Продвинутый анализ трафика — это не только просмотр пакетов, но и реконструкция сессий, поиск скрытых каналов, статистический анализ и работа с TLS. Атакующие прячут эксфильтрацию и C2 в DNS, ICMP, HTTP-заголовках и легитимных сервисах. Этот урок — про методы и инструменты (`tshark`, `Zeek`, `NetworkMiner`, `Scapy`) для глубокого разбора PCAP.
 
-## Подготовка и статистика
+## Вопрос, с которого всё начинается
 
-Начните с «карты» трафика: кто с кем говорил, сколько данных, какие протоколы.
+Тебе дали `exfil.pcap` — дамп трафика с машины, с которой, по словам админа, «украли
+данные». Внутри миллионы пакетов. Читать их по одному бессмысленно. Как найти **утечку**
+в этом объёме?
+
+В этом уроке мы пройдём дамп от общей статистики до конкретных украденных данных.
+Каждый инструмент вводим, когда он понадобился.
+
+## Наш пример: exfil.pcap
+
+Первым делом строим «карту» трафика — кто с кем говорил и какие протоколы использовались:
 
 ```bash
-# обзор протоколов
-$ tshark -r capture.pcap -q -z io,phs
-# топ разговоров по байтам
-$ tshark -r capture.pcap -q -z conv,ip | sort -k3 -rn | head
-# топ портов
-$ tshark -r capture.pcap -T fields -e tcp.dstport | sort | uniq -c | sort -rn | head
-# DNS-запросы
-$ tshark -r capture.pcap -Y dns -T fields -e dns.qry.name | sort | uniq -c | sort -rn | head
+$ tshark -r exfil.pcap -q -z io,phs
+===================================================================
+Protocol Hierarchy Statistics
+  eth  frames:15234 bytes:12000000
+    ip  frames:15200 bytes:11980000
+      tcp frames:12000 bytes:9000000
+      udp frames:3000 bytes:2800000
+        dns frames:2900 bytes:2700000
 ```
 
-`-z io,phs` даёт иерархию протоколов, `-z conv,ip` — матрицу разговоров, `-z endpoints,ip` — эндпоинты.
+`-z io,phs` показывает иерархию протоколов. Здесь бросается в глаза непропорционально
+большая доля **DNS** (протокол, который обычно занимает проценты, а тут — четверть
+трафика).
 
-## Реконструкция сессий
-
-```bash
-# извлечь HTTP-объекты (файлы)
-$ tshark -r capture.pcap --export-objects http,out/
-# извлечь SMB-файлы
-$ tshark -r capture.pcap --export-objects smb,out_smb/
-# собрать TCP-поток в текст
-$ tshark -r capture.pcap -q -z follow,tcp,ascii,0
-# диалоги (Wireshark: Follow → TCP Stream)
-$ tshark -r capture.pcap -Y 'http.request' -T fields -e http.host -e http.request.uri
-```
-
-`NetworkMiner` автоматически реконструирует файлы, изображения, учётные данные и хосты из PCAP — удобно для быстрого триажа.
-
-## Скрытые каналы: DNS
-
-DNS-туннели кодируют данные в поддоменах (часто base32/base64) и запросах типа TXT. Признаки: длинные имена, высокая энтропия, много запросов к одному домену, необычные типы (TXT, NULL, CNAME).
+## Шаг 1: топ разговоров
 
 ```bash
-# аномально длинные имена
-$ tshark -r capture.pcap -Y 'dns.qry.name' -T fields -e dns.qry.name | awk '{print length, $0}' | sort -rn | head
-# частотный анализ домена
-$ tshark -r capture.pcap -Y 'dns.qry.name contains "evil.com"' -T fields -e dns.qry.name | head
-# извлечь данные из поддоменов (после декодирования base32)
-$ tshark -r capture.pcap -Y dns -T fields -e dns.qry.name | cut -d. -f1 | base32 -d 2>/dev/null
-```
-
-`iodine`/`dnscat2` — типичные инструменты туннелей; их трафик узнаваем по паттерну.
-
-## Скрытые каналы: ICMP и HTTP
-
-**ICMP**: данные в payload эхо-запросов. Признаки — большой и постоянный размер payload, нестандартные типы.
-
-```bash
-$ tshark -r capture.pcap -Y 'icmp' -T fields -e data | head
-$ tshark -r capture.pcap -Y 'icmp.type==8' -T fields -e data.data | xxd -r -p
-```
-
-**HTTP**: данные в заголовках (Cookie, Referer, User-Agent), в теле POST, в нестандартных методах. Также domain fronting (Host ≠ SNI).
-
-```bash
-$ tshark -r capture.pcap -Y 'http.cookie' -T fields -e http.cookie | head
-$ tshark -r capture.pcap -Y 'http.request.method=="POST"' -T fields -e http.file_data | head
-```
-
-## Эксфильтрация
-
-Ищите аномалии объёмов и таймингов: клиент отправляет больше, чем получает; регулярные «пульсы» (beacon); сжатые/шифрованные блобы к внешним IP.
-
-```bash
-# исходящий объём по назначению
-$ tshark -r capture.pcap -q -z conv,ip | awk '{print $3, $1}' | sort -rn | head
-# регулярность соединений (beacon)
-$ tshark -r capture.pcap -Y 'ip.dst==203.0.113.9' -T fields -e frame.time_relative | head
-```
-
-## TLS и JA3
-
-TLS-трафик не читается без ключей, но метаданные (JA3/JA3S — отпечатки клиента/сервера, SNI, сертификаты) позволяют атрибутировать инструменты.
-
-```bash
-$ tshark -r capture.pcap -Y 'tls.handshake.type==1' -T fields -e tls.handshake.ja3
-$ tshark -r capture.pcap -Y 'tls.handshake.extensions_server_name' -T fields -e tls.handshake.extensions_server_name
-# Zeek: ssl.log с ja3/ja3s
-$ cat zeek/ssl.log | zeek-cut id.orig_h server_name ja3 ja3s | head
-```
-
-Cobalt Strike и другие C2 имеют характерные JA3 (см. `forensics-cobaltstrike`). Расшифровка — `forensics-tls-decrypt`.
-
-## Zeek
-
-`Zeek` превращает PCAP в структурированные логи: `conn.log`, `http.log`, `dns.log`, `ssl.log`, `files.log`, `notice.log`.
-
-```bash
-$ zeek -r capture.pcap
-$ cat conn.log | zeek-cut id.orig_h id.resp_h id.resp_p proto duration orig_bytes resp_bytes
-$ cat dns.log | zeek-cut query answers | head
-$ cat files.log | zeek-cut filename mime_type md5
-```
-
-`zeek-cut` извлекает нужные колонки — основа для статистики и детекта.
-
-## Разобранный пример
-
-Дан `exfil.pcap`. Ищем утечку.
-
-```bash
-# 1. Кто передал больше всех
 $ tshark -r exfil.pcap -q -z conv,ip | sort -k3 -rn | head -3
 10.0.0.5 <-> 203.0.113.9  4521000 bytes
-# 2. Что за протокол
+```
+
+`-z conv,ip` — матрица разговоров: пары адресов и объём. Пара `10.0.0.5 <-> 203.0.113.9`
+передала 4,5 МБ — это наш подозреваемый. Дальше смотрим только на него через фильтр `-Y`.
+
+## Шаг 2: что за протокол к подозреваемому
+
+```bash
 $ tshark -r exfil.pcap -Y 'ip.dst==203.0.113.9' -q -z io,phs
-dns  ...
-# 3. Длинные DNS-имена -> туннель
+dns  frames:2900 bytes:2700000
+```
+
+Фильтр `-Y 'ip.dst==203.0.113.9'` оставляет только пакеты к подозреваемому IP, и снова
+виден DNS. Данные уходят **в DNS-запросах** — это классический скрытый канал.
+
+## Шаг 3: ищем аномалию — длинные имена
+
+Обычные DNS-имена короткие (`google.com`). Туннель кодирует данные в поддоменах, поэтому
+имена становятся длинными:
+
+```bash
 $ tshark -r exfil.pcap -Y dns -T fields -e dns.qry.name | awk '{print length,$0}' | sort -rn | head -1
 62 dGhpcyBpcyB0aGUgc2VjcmV0...evil.com
-# 4. Декодировать
+```
+
+`awk '{print length,$0}'` добавляет длину к каждому имени, `sort -rn` ставит самые
+длинные сверху. Имя из 62 символов с «мусорными» буквами — явный туннель.
+
+## Шаг 4: декодируем данные
+
+Поддомен выглядит как base64 (кодировка печатными символами). Срезаем всё после первой
+точки и декодируем:
+
+```bash
 $ tshark -r exfil.pcap -Y dns -T fields -e dns.qry.name | cut -d. -f1 | base64 -d 2>/dev/null | strings | head
 secret document contents
 ```
 
-Итог: эксфильтрация через DNS-туннель (base64 в поддоменах).
+`cut -d. -f1` берёт только первую метку имени (то, что до первой точки), `base64 -d`
+декодирует. Данные восстановлены: с машины вытаскивали документ.
 
-## Частые ошибки
+## Шаг 5: другие скрытые каналы
 
-- **Смотреть только TCP/HTTP** — туннели живут в DNS/ICMP.
-- **Не строить статистику** — аномалии видны только в агрегатах.
-- **Забывать `--export-objects`** — файлы можно извлечь напрямую.
-- **Игнорировать тайминги** — регулярность выдаёт beacon.
-- **Путать JA3 клиента и сервера** (JA3/JA3S).
-- **Анализировать огромный PCAP без фильтра** — используйте `-Y` и `-z`.
+DNS — не единственный вариант. Данные прячут и в **ICMP** (payload эхо-запросов), и в
+HTTP-заголовках:
 
-## Что дальше / решение
-
-Конвейер: статистика (`-z io,phs`/`conv,ip`) → протоколы по интересу → реконструкция (`--export-objects`) → поиск аномалий (DNS/ICMP/тайминги) → атрибуция (JA3/SNI) → расшифровка (`forensics-tls-decrypt`). Связка: `forensics-pcap` (основы), `forensics-exfil` (эксфильтрация), `forensics-zeek`, `forensics-cobaltstrike`.
-
-## Scapy: разбор и генерация пакетов
-
-`Scapy` — Python-библиотека для чтения, разбора и генерации пакетов. Незаменима, когда нужно извлечь данные из нестандартного протокола или посчитать статистику, которую `tshark` не даёт.
-
-```python
-# извлечь payload всех ICMP echo-запросов
-from scapy.all import rdpcap, ICMP
-pkts = rdpcap('capture.pcap')
-data = b''.join(bytes(p[ICMP].payload) for p in pkts if ICMP in p and p[ICMP].type == 8)
-open('icmp_data.bin','wb').write(data)
+```bash
+$ tshark -r exfil.pcap -Y 'icmp.type==8' -T fields -e data.data | xxd -r -p
+$ tshark -r exfil.pcap -Y 'http.cookie' -T fields -e http.cookie | head
 ```
 
-```python
-# частотный анализ DNS-запросов
-from scapy.all import rdpcap, DNSQR
-from collections import Counter
-pkts = rdpcap('capture.pcap')
-names = [p[DNSQR].qname.decode() for p in pkts if p.haslayer(DNSQR)]
-for n, c in Counter(names).most_common(10):
-    print(c, n)
+Признак ICMP-туннеля — большой и постоянный размер payload; признак HTTP-канала —
+данные в `Cookie`, `Referer` или теле POST.
+
+## Шаг 6: TLS без ключей — что видно
+
+TLS-трафик не читается без ключей, но метаданные позволяют атрибутировать инструменты.
+**JA3** — это отпечаток TLS-клиента по набору его параметров:
+
+```bash
+$ tshark -r exfil.pcap -Y 'tls.handshake.type==1' -T fields -e tls.handshake.ja3
+$ tshark -r exfil.pcap -Y 'tls.handshake.extensions_server_name' -T fields -e tls.handshake.extensions_server_name
 ```
 
-`Scapy` также строит пакеты (`send`/`sr1`), что полезно для проверки гипотез о скрытом канале.
+У Cobalt Strike и других C2 — характерные JA3. Так находят вредоносный клиент даже в
+шифрованном трафике.
+
+## Шаг 7: Zeek — структурированные логи
+
+Когда пакетов слишком много, удобнее превратить PCAP в логи `Zeek`:
+
+```bash
+$ zeek -r exfil.pcap
+$ cat conn.log | zeek-cut id.orig_h id.resp_h id.resp_p proto orig_bytes resp_bytes | head
+$ cat dns.log | zeek-cut query answers | head
+```
+
+`conn.log`, `dns.log`, `ssl.log` — это таблицы, которые можно фильтровать и считать.
+
+## Реконструкция сессий и объектов
+
+Кроме скрытых каналов, из PCAP можно достать сами файлы. `--export-objects` вытаскивает
+объекты HTTP и SMB прямо из потока:
+
+```bash
+$ tshark -r exfil.pcap --export-objects http,out/
+$ ls out/
+$ file out/* | grep -iE 'executable|zip|pdf'
+$ tshark -r exfil.pcap -q -z follow,tcp,ascii,0
+```
+
+`follow,tcp,ascii,0` собирает TCP-поток №0 в читаемый текст. `NetworkMiner` делает то же
+в GUI и дополнительно восстанавливает учётные данные (HTTP Basic, FTP, POP).
 
 ## Инструменты и их назначение
 
@@ -181,57 +149,61 @@ for n, c in Counter(names).most_common(10):
 | `tshark` | фильтрация, статистика, экспорт объектов |
 | `Wireshark` | GUI, follow stream, расшифровка TLS |
 | `Zeek` | структурированные логи из PCAP |
-| `NetworkMiner` | реконструкция файлов/креденшелов |
-| `Scapy` | программный разбор/генерация |
+| `NetworkMiner` | реконструкция файлов и креденшелов |
+| `Scapy` | программный разбор и генерация |
 | `tcpflow` | реконструкция TCP-потоков в файлы |
-| `ngrep` | grep по сетевым данным в реальном времени |
-| `argus`/`SiLK` | потоковые (flow) данные, большие объёмы |
-| `bro/zeek-cut` | извлечение полей из логов Zeek |
-
-```bash
-# tcpflow: разложить потоки по файлам
-$ tcpflow -r capture.pcap -o flows/
-# ngrep: искать паттерн в данных
-$ ngrep -I capture.pcap -W byline 'password'
-# Zeek: логи
-$ zeek -r capture.pcap && ls *.log
-```
-
-## Реконструкция сессий и объектов в деталях
-
-`--export-objects` извлекает файлы из HTTP/SMB/DICOM и др.:
-
-```bash
-$ tshark -r capture.pcap --export-objects http,http_obj/
-$ ls http_obj/
-# по имени/типу
-$ file http_obj/* | grep -i 'executable\|zip\|pdf'
-# SMB
-$ tshark -r capture.pcap --export-objects smb,smb_obj/
-# TLS: без ключей не выйдет; с ключом — см. forensics-tls-decrypt
-```
-
-`NetworkMiner` делает то же через GUI и дополнительно восстанавливает учётные данные (HTTP Basic, FTP, POP) и хосты. Для больших PCAP предпочтительнее `Zeek` + `zeek-cut`, т.к. он обрабатывает потоково.
 
 ## Статистические аномалии
 
-Ищите отклонения от «нормального» профиля:
+Ищите отклонения от нормального профиля трафика:
 
-- **Объём**: клиент передал намного больше, чем получил (эксфильтрация).
-- **Регулярность**: соединения строго каждые N секунд (beacon/C2).
-- **Размер**: постоянный размер пакетов (туннель с фиксированным чанком).
-- **Порты**: нестандартные порты для «обычных» протоколов.
-- **Домены**: DGA-имена (случайные), длинные поддомены (DNS-туннель).
-- **User-Agent/SNI**: несоответствие (curl UA + Chrome JA3).
+- **Объём** — клиент передал намного больше, чем получил (эксфильтрация).
+- **Регулярность** — соединения строго каждые N секунд (beacon/C2).
+- **Размер** — постоянный размер пакетов (туннель с фиксированным чанком).
+- **Домены** — длинные поддомены (DNS-туннель) или случайные имена (DGA).
+- **User-Agent/SNI** — несоответствие (UA от curl, а JA3 от Chrome).
 
 ```bash
-# распределение размеров пакетов к подозрительному IP
-$ tshark -r capture.pcap -Y 'ip.dst==203.0.113.9' -T fields -e frame.len | sort | uniq -c | sort -rn | head
-# интервалы между соединениями (регулярность)
-$ tshark -r capture.pcap -Y 'tcp.flags.syn==1 && ip.dst==203.0.113.9' -T fields -e frame.time_relative | head -20
+$ tshark -r exfil.pcap -Y 'tcp.flags.syn==1 && ip.dst==203.0.113.9' -T fields -e frame.time_relative | head -20
 ```
 
+Ровные интервалы в этом выводе — признак автоматического beacon.
+
+## Как отличить DNS-туннель от обычного DNS
+
+Не каждый длинный домен — туннель. Смотрите на сочетание признаков:
+
+- **Длина и энтропия**: имя из случайных букв и цифр без читаемых слов.
+- **Частота**: сотни запросов к одному домену за короткое время.
+- **Типы запросов**: `TXT`, `NULL`, `CNAME` там, где обычно только `A`.
+- **Отсутствие ответов**: туннелю часто важнее отправить данные, чем получить ответ.
+
+```bash
+$ tshark -r exfil.pcap -Y 'dns.qry.type==16' -T fields -e dns.qry.name | head
+```
+
+Если видите всё это вместе — почти наверняка `iodine`/`dnscat2` или самописный канал.
+
+## Что мы теперь знаем
+
+- Начинать анализ PCAP надо со статистики (`-z io,phs`, `-z conv,ip`), а не с пакетов.
+- Аномальная доля протокола и «перевес» одного IP — первые зацепки.
+- DNS-туннель выдаёт себя длинными base64-подобными поддоменами.
+- `--export-objects` извлекает файлы из HTTP/SMB, `Zeek` даёт структурированные логи.
+- TLS читается по метаданным: JA3, SNI, сертификаты.
+
+## На что смотреть дальше
+
+- **Не смотреть только TCP/HTTP** — туннели живут в DNS и ICMP.
+- **Не забывать про тайминги** — регулярные соединения каждые N секунд выдают beacon.
+- **Не путать JA3 клиента и сервера** (JA3/JA3S).
+- **Не анализировать огромный PCAP без фильтра** — используйте `-Y` и `-z`.
+- **Проверяйте `--export-objects`** — искомый файл может быть прямо в дампе.
+- **Стройте базовый профиль** — сравнивайте подозрительный трафик с нормой.
+
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что такое JA3?"
@@ -270,6 +242,13 @@ $ tshark -r capture.pcap -Y 'tcp.flags.syn==1 && ip.dst==203.0.113.9' -T fields 
     - "ARP"
   answer: 1
 ```
+
+## Куда дальше
+
+Мы разобрали сетевой дамп. Но один из самых частых векторов атаки приходит по почте —
+фишинговое письмо с вложением. В следующем уроке мы разберём `.eml` и докажем подделку
+отправителя. А пока запомни: **сначала статистика, потом конкретика — и всегда
+нормализуй подозрительный протокол**.
 
 ## Где пригодится
 

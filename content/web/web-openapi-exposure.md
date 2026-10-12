@@ -15,271 +15,173 @@ estimated_minutes: 28
 summary: "Как находить Swagger/OpenAPI-спецификации и debug-страницы: карта API, скрытые эндпоинты, параметры и схемы."
 ---
 
-Спецификации API (Swagger/OpenAPI) и debug-страницы — это готовый «чертёж» приложения, случайно оставленный в проде. Через `/swagger.json`, `/openapi.json`, `/api-docs`, `/graphql`, `/actuator` можно узнать все эндпоинты, параметры, схемы и внутренние сервисы, а debug-режим (Django `DEBUG=True`, Laravel `APP_DEBUG=true`, Spring Actuator) выдаёт стектрейсы, переменные окружения и иногда секреты. Разведка этих поверхностей часто даёт больше, чем фаззинг wordlist'ом.
+## Вопрос, с которого всё начинается
 
-## Теория: где лежат спеки и debug
+Ты тестируешь API, но не знаешь ни одного эндпоинта — только домен `api.example`. Фаззить вслепую сотни путей можно часами. Но у команд, которые пишут API, есть привычка оставлять в проде **машинную документацию** — спецификацию OpenAPI.
 
-| Артефакт | Типичные пути |
-|----------|---------------|
-| OpenAPI/Swagger UI | `/swagger-ui.html`, `/swagger-ui/`, `/swagger.json`, `/openapi.json`, `/api-docs`, `/v2/api-docs`, `/v3/api-docs` |
-| ReDoc | `/redoc`, `/docs` |
-| GraphQL | `/graphql`, `/graphiql`, `/v1/graphql` |
-| Spring Actuator | `/actuator`, `/actuator/env`, `/actuator/health`, `/actuator/beans`, `/actuator/mappings` |
-| Django debug | любой 404/500 при `DEBUG=True` |
-| Laravel debug | `/.env`, ошибка `APP_DEBUG` → Ignition-страница |
-| Rails | `/rails/info/routes`, `/rails/info/properties` |
-| .NET | `/swagger`, `/swagger/v1/swagger.json` |
-| Metrics | `/metrics`, `/prometheus`, `/debug/pprof` |
+Спецификация — это не «страница для людей», а файл, который описывает все маршруты, их параметры и схемы. Если он открыт, ты получаешь готовую карту API бесплатно. Сегодня мы найдём такую спеку, вытащим из неё «скрытый» эндпоинт и докажем, что он без авторизации.
 
-## Разобранный пример: Swagger → скрытые эндпоинты
+## Наш пример
 
-Шаг 1 — ищем спеку:
+Есть бэкенд на `api.example`. Начнём с перебора типовых путей спецификации — не циклом `curl`, а нормальным фаззером:
 
 ```bash
-printf 'swagger.json\nopenapi.json\napi-docs\nv2/api-docs\nv3/api-docs\nswagger-ui.html\n' > /tmp/api_paths.txt
-ffuf -w /tmp/api_paths.txt -u https://app.example/FUZZ -mc 200 -s
+$ printf 'swagger.json\nopenapi.json\napi-docs\nv3/api-docs\nswagger-ui.html\n' > /tmp/api_paths.txt
+$ ffuf -w /tmp/api_paths.txt -u https://api.example/FUZZ -mc 200 -s
+v3/api-docs
 ```
 
-Для широкого поиска берите `ffuf`/`gobuster` + `gobuster_parse` (см. `web-tool-ffuf`), а не цикл `curl`.
-
-Шаг 2 — скачиваем и разбираем:
+Путь `/v3/api-docs` отвечает `200`. Такое имя (с версией `v3`) типично для Spring Boot — значит, перед нами, скорее всего, Java-бэкенд. Забираем файл:
 
 ```bash
-curl -s https://app.example/openapi.json -o api.json
-jq -r '.paths | keys[]' api.json            # список путей
-jq -r '.paths[] | keys[]' api.json | sort -u   # методы
-jq -r '.. | .example? // empty' api.json        # примеры (иногда с токенами)
+$ curl -s https://api.example/v3/api-docs -o api.json
+$ head -c 120 api.json
+{"openapi":"3.0.1","info":{"title":"Shop API","version":"1.4.0"},"paths":{
 ```
 
-Шаг 3 — находим «скрытые» (admin/internal) эндпоинты и тестируем их напрямую: часто они не защищены, потому что «их же никто не знает».
+Это и есть **OpenAPI-спецификация** (раньше её называли Swagger) — JSON, описывающий весь API.
 
-## Разобранный пример: Spring Actuator
+## Шаг 1: разбираем спеку в карту путей
 
-Actuator — золотая жила, если открыт:
+Спецификация — это дерево, где ключ `paths` содержит все маршруты. Достаём их через `jq` (утилита для разбора JSON):
 
 ```bash
-curl -s https://app.example/actuator
-curl -s https://app.example/actuator/env          # переменные окружения (креды, ключи)
-curl -s https://app.example/actuator/beans        # все бины (иногда пароли в пропертях)
-curl -s https://app.example/actuator/mappings     # карта эндпоинтов
-curl -s https://app.example/actuator/heapdump -o heap.bin   # дамп памяти
-curl -s https://app.example/actuator/threaddump
+$ jq -r '.paths | keys[]' api.json
+/api/v1/products
+/api/v1/orders
+/api/v1/users/{id}
+/api/internal/config
+/api/internal/debug/reset
 ```
 
-`/actuator/env` часто содержит `spring.datasource.password`, API-ключи, `secret_key_base`. В `/actuator/heapdump` ищите токены (можно прогнать `strings heap.bin | grep -i token`). В старых версиях Actuator уязвим к RCE через `/actuator/env` + `/actuator/refresh` (eureka/SpEL) — CVE-2022-22947 (Spring Cloud Gateway).
+Видишь два последних пути с `internal`? Их **нет ни в одном словаре** — они существуют только внутри спеки. Вот почему спека ценнее фаззинга: она показывает именно то, что написали разработчики, включая служебное.
 
-## Разобранный пример: Django/Laravel debug
-
-Django при `DEBUG=True` показывает на 404/500 полную конфигурацию: `SECRET_KEY`, `DATABASES`, `ALLOWED_HOSTS`, установленные приложения, пути. Триггерим ошибку:
+Параметры и типы тоже описаны. Посмотрим на эндпоинт с параметром:
 
 ```bash
-curl -s "https://app.example/nonexistent'" | grep -iE 'SECRET_KEY|DATABASES|Traceback'
+$ jq -r '.paths["/api/v1/users/{id}"] | keys[]' api.json
+get
 ```
 
-Laravel с `APP_DEBUG=true` отдаёт Ignition-страницу с `APP_KEY`, env-переменными и (в старых версиях, CVE-2021-3129) RCE через логи/файлы. Ищем:
+Каждый ключ внутри маршрута (`get`, `post`, `put`, `delete`) — это HTTP-метод, а `{id}` в фигурных скобках — параметр пути. Спека сообщает даже схему тела запроса и коды ответов, поэтому по ней можно заранее понять, какие поля принимает эндпоинт и что он возвращает. Это отличает её от простого списка URL: перед тобой полное описание контракта API.
+
+## Шаг 2: проверяем авторизацию на «скрытом» эндпоинте
+
+Самая частая ошибка разработчиков: «внутренний» путь не защищают, потому что «его же никто не знает». Проверим `/api/internal/config` без токена и с токеном обычного пользователя:
 
 ```bash
-curl -s "https://app.example/nonexistent" | grep -iE 'APP_KEY|APP_ENV|Ignition'
+$ curl -s -o /dev/null -w 'noauth=%{http_code}\n' https://api.example/api/internal/config
+noauth=200
+$ curl -s https://api.example/api/internal/config
+{"db_host":"127.0.0.1","db_user":"api","db_password":"Sup3rS3cret!"}
 ```
 
-## Инструменты
+`200` без токена — и в ответе пароль от базы. Это **BFLA** (Broken Function Level Authorization): функция, доступная только администратору, открыта всем. Артефакт-доказательство — строка `db_password` в ответе.
 
-- **`curl` + `jq`** — вытягивание путей и примеров.
-- **`ffuf`/`gobuster`** — поиск спекулятивных путей (`gobuster_parse`).
-- **`nuclei`** — теги `swagger`, `actuator`, `exposure` (`nuclei_parse`).
-- **`kiterunner`** — фаззинг API по «словарю» маршрутов.
-- **`Postman`/`Insomnia`** — импорт OpenAPI и быстрый обход всех эндпоинтов.
+Обрати внимание на разницу: если бы без токена было `401`, а с токеном обычного юзера `200` — это была бы тоже дыра (эскалация прав), просто другого класса.
 
-## Что делать с найденным
+## Шаг 3: Spring Actuator — если бэкенд на Java
 
-- Пройтись по всем путям спеки: искать admin/internal/debug, IDOR, mass-assignment.
-- Из примеров (`example`, `default`) вытащить токены/ключи и попробовать их.
-- Из Actuator/env — креды к БД/облаку; из heapdump — сессии/токены.
-- Из debug-страницы — `SECRET_KEY` (подделка сессий Django), `APP_KEY` (Laravel deser).
-- Сопоставить спеки с реальностью: незадокументированные эндпоинты = частые дыры.
-
-## Что дальше / decision
-
-1. Нашли `openapi.json`/`swagger.json` → импортируйте, пройдите все пути.
-2. Открыт Actuator → `/actuator/env`, `/heapdump`, `/mappings`.
-3. Debug включён → вытащите `SECRET_KEY`/`APP_KEY` → подделка сессий/deser.
-4. GraphQL открыт → introspection, затем batching/IDOR (см. `web-graphql-deep`).
-5. Дальше — связать находки с другими векторами (JWT, deser, SSRF).
-
-## Частые ошибки
-
-- **Фаззить вслепую, не проверив `/swagger.json`.** Спека экономит часы.
-- **Считать 401 на `/actuator` тупиком.** Пробуйте `/actuator/env`, `/actuator/health`.
-- **Игнорировать примеры в спеке.** Там бывают живые токены.
-- **Не читать debug-стектрейсы.** В них — пути, версии, секреты.
-- **Ломать прод.** Actuator/refresh и heapdump — аккуратно.
-
-## Полный список мест, где лежат спеки и дебаг
-
-| Путь | Что отдаёт |
-|------|-----------|
-| `/swagger-ui.html`, `/swagger-ui/` | UI Swagger |
-| `/v2/api-docs`, `/v3/api-docs` | OpenAPI JSON |
-| `/swagger.json`, `/openapi.json` | спека |
-| `/api-docs` | спека (NestJS и др.) |
-| `/.well-known/openapi.json` | спека |
-| `/graphql`, `/graphiql` | GraphQL + IDE |
-| `/actuator`, `/actuator/env`, `/actuator/heapdump` | Spring Boot |
-| `/debug`, `/__debug__` | отладка (Django/Flask) |
-| `/telescope` | Laravel debug |
-| `/server-status`, `/server-info` | Apache |
-| `/.env`, `/config.json` | конфиги |
+Раз это Spring, проверим Actuator — набор служебных эндпоинтов для мониторинга:
 
 ```bash
-# перебор типовых путей
-ffuf -u https://app.example/FUZZ -w api_paths.txt -mc 200,401,403
-# проверка конкретных
-for p in /swagger-ui/ /v2/api-docs /openapi.json /actuator/env; do
-  printf '%-20s %s\n' "$p" "$(curl -s -o /dev/null -w '%{http_code}' https://app.example$p)"
-done
+$ curl -s https://api.example/actuator | jq -r '._links | keys[]'
+env
+health
+heapdump
+mappings
 ```
 
-## Spring Actuator: что искать
-
-| Endpoint | Риск |
-|----------|------|
-| `/actuator/env` | переменные окружения, креды |
-| `/actuator/heapdump` | дамп памяти (токены, пароли) |
-| `/actuator/health` | информация о БД |
-| `/actuator/mappings` | все маршруты |
-| `/actuator/configprops` | конфигурация |
-| `/actuator/loggers` | смена уровня логов |
-| `/actuator/threaddump` | состояние потоков |
-| `/actuator/gateway/routes` | SSRF-риск (gateway) |
+`env` отдаёт переменные окружения приложения, `mappings` — все маршруты (включая незадокументированные), а `heapdump` — дамп памяти, в котором лежат токены и пароли в открытом виде:
 
 ```bash
-curl -s https://app.example/actuator/env | jq '.["propertySources"]'
-curl -s https://app.example/actuator/heapdump -o heap.bin
-strings heap.bin | grep -iE 'password|token|secret' | head
+$ curl -s https://api.example/actuator/env | jq -r '.propertySources[].properties | keys[]' | grep -i pass
+spring.datasource.password
 ```
 
-## Разобранный пример: Swagger → скрытые эндпоинты
+Если бы приложение было на Spring Cloud Gateway старой версии, `/actuator/gateway/routes` позволял бы подсунуть SpEL-выражение и получить RCE (CVE-2022-22947) — но это уже отдельная история.
+
+## Шаг 4: debug-страницы других фреймворков
+
+Не только Java оставляет «чертежи». Три классики:
+
+**Django** при `DEBUG=True` показывает на любой 404/500 полный стектрейс с настройками. Триггерим ошибку и грепаем:
 
 ```bash
-# 1) находим спеку
-curl -s https://app.example/v3/api-docs -o api.json
-# 2) извлекаем все пути
-jq -r '.paths | keys[]' api.json
-# 3) ищем админские/отладочные
-jq -r '.paths | keys[]' api.json | grep -iE 'admin|internal|debug|test'
-# 4) вызываем найденный «скрытый» эндпоинт
-curl -s https://app.example/api/internal/users
+$ curl -s "https://api.example/nonexistent'" | grep -iE 'SECRET_KEY|DATABASES'
+SECRET_KEY = 'django-insecure-9x8y...'
 ```
 
-Спека — это карта API с параметрами и схемами; она экономит часы разведки.
+`SECRET_KEY` — ключ подписи сессий; с ним можно подделать cookie пользователя.
 
-## Разобранный пример: debug-страницы
+**Laravel** с `APP_DEBUG=true` отдаёт страницу Ignition с `APP_KEY` и переменными окружения. **Werkzeug** (Flask) при включённом дебаге открывает **интерактивную консоль** прямо в браузере — это уже полноценное выполнение Python-кода, то есть RCE.
 
 ```bash
-# Django DEBUG=True -> traceback с настройками
-curl -s 'https://app.example/trigger-error' | grep -iE 'SECRET_KEY|DATABASE'
-# Laravel Telescope
-curl -s https://app.example/telescope/requests
-# Flask/Werkzeug debugger -> интерактивная консоль (RCE)
-curl -s 'https://app.example/?__debugger__=yes&cmd=...'
+$ curl -s https://api.example/telescope/requests | head -c 80
+<!DOCTYPE html><html ... <title>Laravel Telescope</title>
 ```
 
-Debug-консоль Werkzeug — прямой путь к RCE: она позволяет выполнять Python-код.
+## Шаг 5: автоматизируем поиск
 
-## Что делать с найденным
+Перебирать пути и разбирать спеки руками быстро надоедает — на этом этапе помогают готовые инструменты.
 
-```text
-1) собрать все пути из спеки
-2) проверить авторизацию на каждом (BOLA/BFLA)
-3) проверить «скрытые» параметры и версии API (v1/v2)
-4) найти дефолтные креды в конфигах
-5) извлечь секреты из heapdump/env
-```
+**`nuclei`** — сканер с шаблонами под конкретные утечки. У него есть теги `exposure`, `swagger`, `actuator`:
 
 ```bash
-# проверка авторизации найденного эндпоинта
-curl -s https://app.example/api/internal/users -o /dev/null -w '%{http_code}\n'   # без токена
-curl -s https://app.example/api/internal/users -H 'Authorization: Bearer <user>' -o /dev/null -w '%{http_code}\n'
+$ nuclei -u https://api.example -tags exposure,swagger,actuator -j -silent | jq -r '.template-id'
+swagger-api
+spring-boot-actuator-env
 ```
 
-## Инструменты
+Каждая строка — подтверждённая находка, которую nuclei уже проверил. Дальше её не нужно перепроверять вручную: достаточно открыть URL и забрать доказательство.
 
-| Инструмент | Назначение |
-|-----------|-----------|
-| `ffuf`/`gobuster` | перебор путей |
-| `jq` | разбор спеки |
-| `nuclei` | шаблоны exposure/actuator |
-| `swagger-cli` | валидация/разбор |
-| `kiterunner` | перебор API-маршрутов |
+**`kiterunner`** — фаззер именно API-маршрутов: у него словарь не имён файлов, а типичных REST-путей (`/api/v1/users`, `/internal/health`), поэтому он находит эндпоинты там, где обычный `gobuster` молчит.
 
 ```bash
-nuclei -u https://app.example -tags exposure,swagger,actuator -j | tee expo.json
-kiterunner scan https://app.example -w routes.kite
+$ kr scan https://api.example -w routes.kite --fail-status-codes 404
+GET 200 /api/internal/config
 ```
 
-## Что делать дальше / решение
+Наконец, найденную спеку удобно **импортировать** в Postman/Insomnia — они превратят её в коллекцию запросов, и ты сможешь пройти все эндпоинты по очереди, не выписывая каждый `curl` руками.
 
-1. **Переберите пути.** Спеки, actuator, debug.
-2. **Разберите спеку.** Все маршруты и параметры.
-3. **Проверьте авторизацию.** BOLA/BFLA на найденных эндпоинтах.
-4. **Извлеките секреты.** env/heapdump/конфиги.
-5. **Проверьте debug-консоль.** RCE через Werkzeug.
-6. **Зафиксируйте PoC.** Доступ к данным/секретам/команде.
+## Если не сработало
 
-## Практика и справочники
+- Спека по типовым путям не нашлась — добавь в словарь `/redoc`, `/docs`, `/.well-known/openapi.json`, `/v2/api-docs`, `/swagger/v1/swagger.json`, `/api/swagger.json`.
+- `/actuator` отвечает `401` — попробуй `/actuator/health` (часто открыт), а также `/actuator/env`, `/actuator/info`.
+- Спека есть, но пустая или устаревшая — сверь её с реальностью: незадокументированные маршруты (`v1` рядом с `v2`) часто живут и без записи в файле.
+- `401` на «внутреннем» пути — это не конец: проверь другие методы (PUT/DELETE), версии (`/api/v2/...`), а также с параметром `?format=json`.
 
-- **HackTricks** — «Swagger», «Spring Actuator».
-- **OWASP API Security Top 10** — API9 (improper inventory).
-- **nuclei** — exposure-шаблоны.
-- **kiterunner** — перебор API.
+## Что мы теперь знаем
 
-## Приоритеты при поиске exposure
+- OpenAPI/Swagger-спецификация — это JSON-карта всех маршрутов, параметров и схем.
+- Типовые пути: `/v3/api-docs`, `/openapi.json`, `/swagger.json`, `/api-docs`.
+- В спеке бывают «скрытые» пути (`internal`, `admin`, `debug`), которых нет в словарях.
+- Найденный эндпоинт проверяют на авторизацию: `200` без токена = BFLA/BOLA.
+- Spring Actuator (`env`, `heapdump`, `mappings`) — отдельная золотая жила для Java.
+- Debug-режим отдаёт секреты (`SECRET_KEY`, `APP_KEY`), а Werkzeug — прямой RCE.
 
-Начните с перебора типовых путей (`/swagger-ui/`, `/v3/api-docs`, `/openapi.json`, `/actuator/env`). Затем разберите найденную спеку и извлеките все маршруты — это карта API. Проверьте авторизацию на каждом найденном эндпоинте (часто «внутренние» пути не защищены). Отдельно проверьте debug-страницы: Werkzeug-консоль даёт прямой RCE, Django DEBUG — утечку настроек и секретов, Laravel Telescope — историю запросов. Наконец, извлеките секреты из `env`/`heapdump`.
+## На что смотреть дальше
 
-## Кратко
-
-1. Перебор путей (спеки, actuator, debug).
-2. Разбор спеки → все маршруты.
-3. Проверка авторизации (BOLA/BFLA).
-4. Извлечение секретов (env/heapdump).
-5. Debug-консоль → RCE.
-6. PoC — доступ к данным/секретам.
-
-## Практика
-
-- **HackTricks** — Swagger, Spring Actuator.
-- **OWASP API Top 10** — API9.
-- **kiterunner** — перебор API.
-
-## Расширенный разбор: как использовать найденную спеку
-
-Найденная OpenAPI-спека — это не «файл ради файла», а рабочая карта. Из неё извлекаются: список всех маршрутов (включая версии `v1`/`v2` и внутренние), схемы параметров (типы, обязательность, форматы), коды ответов и примеры. Дальше по каждому маршруту проверяется авторизация: часто «внутренние» пути (`/internal/`, `/admin/`, `/debug/`) вообще не защищены или проверяют только факт наличия токена, но не роль. Отдельно ищите параметры, помеченные как deprecated, и «скрытые» версии API, которые остались в проде.
-
-```bash
-# извлекаем маршруты и параметры
-jq -r '.paths | to_entries[] | .key + " " + (.value|keys|join(","))' api.json
-# ищем внутренние
-jq -r '.paths | keys[]' api.json | grep -iE 'internal|admin|debug|v1'
-# проверяем найденный эндпоинт без токена и с токеном обычного пользователя
-curl -s -o /dev/null -w 'noauth=%{http_code}\n' https://app.example/api/internal/config
-curl -s -H 'Authorization: Bearer <user>' -o /dev/null -w 'user=%{http_code}\n' https://app.example/api/internal/config
-```
-
-Разница в кодах (200 без токена или 200 с пользовательским токеном на админском маршруте) — прямое доказательство BFLA/BOLA.
+- Не фаззи вслепую, не проверив `/swagger.json` — спека экономит часы.
+- `401` на `/actuator` — не тупик: пробуй `/actuator/env` и `/actuator/health`.
+- Примеры в спеке (`example`, `default`) иногда содержат **живые токены** — проверяй их.
+- Читай debug-стектрейсы: там версии, пути и секреты.
+- Аккуратно с `heapdump` и `refresh` — они тяжёлые и могут «уронить» прод.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что даёт OpenAPI/Swagger-спецификация?"
+- question: "Что даёт найденная OpenAPI/Swagger-спецификация?"
   options:
-    - "Пароли"
+    - "Пароли администратора напрямую"
     - "Карту всех эндпоинтов, параметров и схем API"
-    - "TLS-ключ"
-    - "Логи"
+    - "TLS-ключ сервера"
+    - "Логи запросов"
   answer: 1
-  explanation: "Полная документация API."
-- question: "Какой стандартный путь у Spring-спеки?"
+  explanation: "Спека описывает весь API — это готовый «чертёж»."
+- question: "Какой путь типичен для Spring-спеки?"
   options:
     - "/swagger"
     - "/v3/api-docs"
@@ -287,35 +189,39 @@ curl -s -H 'Authorization: Bearer <user>' -o /dev/null -w 'user=%{http_code}\n' 
     - "/docs.json"
   answer: 1
   explanation: "Springdoc отдаёт /v3/api-docs."
-- question: "Что опасного в /actuator/env?"
+- question: "Чем опасно `/actuator/env`?"
   options:
-    - "Ничего"
-    - "Переменные окружения с секретами (пароли БД, ключи)"
-    - "CSS"
-    - "Картинки"
+    - "Ничем, это мониторинг"
+    - "Отдаёт переменные окружения с секретами (пароли БД, ключи)"
+    - "Только CSS"
+    - "Только картинки"
   answer: 1
-  explanation: "Раскрывает конфигурацию."
-- question: "Что делает DEBUG=True в Django?"
+  explanation: "Это конфигурация приложения, часто с секретами."
+- question: "Найден эндпоинт `/api/internal/config`, он отвечает 200 без токена. Что это?"
   options:
-    - "Ускоряет"
-    - "Показывает трассировки с настройками и SECRET_KEY"
-    - "Шифрует"
+    - "Норма"
+    - "BFLA — доступ к административной функции без прав"
+    - "XSS"
+    - "Ошибка клиента"
+  answer: 1
+  explanation: "Функция открыта всем — сломанный контроль доступа."
+- question: "Что делает `DEBUG=True` в Django на странице ошибки?"
+  options:
+    - "Ускоряет ответ"
+    - "Показывает стектрейс с настройками и SECRET_KEY"
+    - "Шифрует вывод"
     - "Кеширует"
   answer: 1
-  explanation: "Полные отладочные страницы."
-- question: "Какой инструмент фаззит API по роутам?"
-  options:
-    - "sqlmap"
-    - "kiterunner"
-    - "hashcat"
-    - "john"
-  answer: 1
-  explanation: "Kiterunner для API-роутов."
+  explanation: "Отладочные страницы раскрывают конфигурацию."
 ```
+
+## Куда дальше
+
+В следующем уроке мы возьмём другую утечку разведки — **субдомены и их захват** (subdomain takeover): как найти брошенный поддомен, указывающий на несуществующий сервис, и занять его. А пока главное запомни: перед фаззингом всегда ищи спецификацию и debug — иногда весь API уже лежит в одном открытом JSON.
 
 ## Где пригодится
 
-- **CTF (Web):** быстрое раскрытие API.
-- **Bug bounty:** скрытые эндпоинты и утечки — частая находка.
-- **Пентест:** первичная разведка API.
-- **Работа (AppSec/DevOps):** отключение спек/debug/actuator в проде.
+- **CTF (Web):** быстрое раскрытие API и секретов без эксплуатации.
+- **Bug bounty:** открытые спеки/actuator/debug — частая валидная находка.
+- **Пентест:** обязательный шаг разведки API (OWASP API9 — improper inventory).
+- **Работа (AppSec/DevOps):** отключение спек, actuator и debug в проде.

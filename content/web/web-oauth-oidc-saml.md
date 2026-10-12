@@ -14,284 +14,182 @@ estimated_minutes: 45
 summary: "Как ломают современный SSO: open redirect_uri, утечка кода, confusion, XSW в SAML и подмена subject."
 ---
 
-Почти весь «вход через Google/Яндекс/корпоративный SSO» построен на **OAuth2** (авторизация доступа), **OIDC** (аутентификация поверх OAuth2) и **SAML** (старый корпоративный XML-стандарт). Эти протоколы сложны, и ошибки в них дают захват аккаунта — от одного клика жертвы. Здесь мы разберём самые распространённые ошибки и то, как их эксплуатируют.
+Всё чаще ты не вводишь пароль на сайте, а жмёшь «Войти через Google». Это **SSO** (Single Sign-On, единый вход): приложение доверяет вход стороннему провайдеру. Работает это по протоколам **OAuth2** (авторизация) и **OIDC** (аутентификация поверх OAuth2); в корпоративной среде — **SAML**. Ошибки в этих протоколах означают вход под кем угодно, поэтому они очень ценятся в bug bounty.
 
-## Теория: OAuth2 / OIDC флоу
+Возьмём `shop.local`, где есть кнопка «Войти через AcmeID», и разберём типовые ошибки по шагам.
 
-Authorization Code flow (упрощённо):
+## Наш пример: как работает OAuth-вход
 
-1. Приложение (`client_id`) ведёт пользователя на провайдера:
-   `GET /authorize?response_type=code&client_id=APP&redirect_uri=https://app/cb&scope=openid&state=xyz`
-2. Пользователь логинится и **соглашается**.
-3. Провайдер редиректит обратно: `https://app/cb?code=AUTH_CODE&state=xyz`.
-4. Приложение на бэкенде меняет `code` на токены (`/token`, с `client_secret`).
-5. Токен/ID-token (JWT) используется для доступа и идентификации.
-
-Критичные элементы: `redirect_uri` (куда вернут код), `state` (защита от CSRF), `code` (одноразовый секрет), `scope`, `client_secret`.
-
-## Теория: топ ошибок OAuth/OIDC
-
-1. **Слабый/открытый `redirect_uri`.** Если провайдер разрешает подстановочные знаки или поддомены, атакующий уводит `code` на свой домен:
-   `redirect_uri=https://app.evil.com/cb` или `https://app/cb/../../evil` или `https://app/cb?next=//evil.com`.
-2. **Отсутствие проверки `state`** → OAuth CSRF: атакующий привязывает свой аккаунт к сессии жертвы (login CSRF), после чего жертва работает в чужом профиле (или наоборот).
-3. **Утечка `code` через Referer** — если `redirect_uri` — страница с внешними ресурсами/аналитикой, `code` попадает в заголовок `Referer` третьей стороны.
-4. **Implicit flow** (`response_type=token`) — токен в URL-фрагменте, утекает через историю/расширения; считается устаревшим.
-5. **PKCE не используется** для публичных клиентов → перехват `code` возможен.
-6. **Account takeover через `email_verified=false`** — провайдер отдаёт непроверенный email, и клиент доверяет ему как личности.
-7. **`id_token` alg confusion / нет проверки подписи** — см. `web-auth-jwt-idor`.
-8. **Смешение токенов (cross-client / audience confusion)** — токен, выданный для одного клиента, принимается другим сервисом.
-
-## Теория: SAML
-
-SAML передаёт утверждение (assertion) в XML, подписанное IdP, в SP (service provider) через POST/Redirect binding.
-
-Типовые ошибки:
-
-- **XML Signature Wrapping (XSW):** подпись валидна для одного узла, а SP читает другой (вставленный) узел `Assertion` → подмена `NameID` (пользователя).
-- **Комментарий в NameID** (`admin<!---->@x`) — расхождение парсеров.
-- **Отсутствие проверки подписи** или проверка только целостности, но не подписанта.
-- **XXE** в XML-парсере (см. `web-xxe`).
-- **Открытый ACS URL / RelayState** — open redirect после SSO.
-
-## Инструменты: декодирование, перехват, tampering
-
-Посмотреть параметры авторизации в браузере: DevTools → Network, фильтр `authorize`/`callback`. Скопировать запрос как cURL.
-
-Декодировать JWT ID-token:
-
-```bash
-echo 'eyJ...' | cut -d. -f2 | base64 -d 2>/dev/null | jq .
-```
-
-Проверить подпись/alg через инструмент (см. `web-auth-jwt-idor`):
-
-```bash
-python3 - <<'PY'
-import base64, json
-t="PASTE_ID_TOKEN"
-h,p,_=t.split(".")
-print(json.loads(base64.urlsafe_b64decode(h+"==")))
-print(json.loads(base64.urlsafe_b64decode(p+"==")))
-PY
-```
-
-Для SAML — **SAML Raider** (Burp): он умеет разбирать assertion, подменять подпись, делать XSW, удалять подпись.
-
-Для OAuth — **Burp** + ручное изменение `redirect_uri`, `state`, `scope`.
-
-## Разобранный пример: кража кода через redirect_uri
-
-Шаг 1. Заходим на приложение, инициируем логин. Перехватываем `/authorize`:
+Нажми «Войти через AcmeID» — приложение откроет ссылку на провайдера:
 
 ```
-https://idp.target.local/authorize?response_type=code&client_id=app123&
-redirect_uri=https://app.target.local/callback&scope=openid&state=abc
+https://acmeid.example/authorize
+  ?response_type=code
+  &client_id=shop
+  &redirect_uri=https://shop.local/oauth/callback
+  &scope=openid%20profile
+  &state=xyz123
 ```
 
-Шаг 2. Меняем `redirect_uri` на свой домен и смотрим ответ:
-
-```bash
-curl -s -i 'https://idp.target.local/authorize?response_type=code&client_id=app123&redirect_uri=https://evil.com/cb&scope=openid&state=abc'
-```
-
-Если ответ `302 Location: https://evil.com/cb?code=...` → redirect_uri не валидируется. Значит, можно увести код жертвы.
-
-Шаг 3. Обходим строгий whitelist подстановкой:
+Провайдер показывает страницу входа, а после успеха **перенаправляет** обратно на `redirect_uri`, добавив одноразовый **код**:
 
 ```
-redirect_uri=https://app.target.local.evil.com/cb
-redirect_uri=https://app.target.local/cb/../..//evil.com
-redirect_uri=https://app.target.local/cb%2f@evil.com
-redirect_uri=https://app.target.local/cb?next=https://evil.com
+https://shop.local/oauth/callback?code=SplxlOBeZQQYbYS6WxSbIA&state=xyz123
 ```
 
-Ищем вариант, где провайдер принимает, а браузер уходит на `evil.com`.
+Приложение меняет код на токены (back-channel) и логинит пользователя. Каждый параметр здесь — потенциальная уязвимость.
 
-Шаг 4. Если уводим `code`, обмениваем его на токены (у клиента может быть `client_secret` или PKCE, что усложняет, но при утечке кода и отсутствии PKCE — успех). В отчёте докажите утечку кода, не эксплуатируя чужой аккаунт: используйте свой.
+## Шаг 1: `redirect_uri` — главная цель
 
-## Разобранный пример: OAuth login CSRF (нет state)
+Код авторизации уходит на `redirect_uri`. Если провайдер не проверяет его строго, мы подставим **свой** адрес и получим код:
 
-Шаг 1. Атакующий инициирует логин на `app.target.local`, но не завершает — получает свой `code`.
-
-Шаг 2. Строит ссылку на callback: `https://app.target.local/callback?code=ATTACKER_CODE`.
-
-Шаг 3. Жертва открывает ссылку. Приложение меняет `code` на токены атакующего и логинит жертву в **аккаунт атакующего**. Теперь действия жертвы (ввод данных, привязка карты) идут в аккаунт атакующего. Это login CSRF — валидная находка.
-
-## Частые ошибки
-
-- **Путать OAuth и OIDC.** OAuth2 — про доступ, OIDC — про личность; «вход через OAuth2 без OIDC» часто самодельный и дырявый.
-- **Не проверять `state`.** Без проверки `state` — CSRF на логин.
-- **Считать HTTPS достаточным.** Код утекает через Referer, историю, логи даже по HTTPS.
-- **Игнорировать `email_verified`.** Доверие непроверенному email = захват аккаунта.
-- **Тестировать на чужом аккаунте.** Всегда используйте свои аккаунты и свои приложения-клиенты.
-- **Забывать про SAML.** Если видите `SAMLResponse` в POST — это отдельный мир с XSW и подписью.
-
-## Полный разбор: redirect_uri bypass (с выводом)
-
-Проверяем валидацию `redirect_uri` по всем известным обходам. Сначала baseline — легитимный редирект:
-
-```bash
-curl -s -i 'https://idp.target.local/authorize?response_type=code&client_id=app123&redirect_uri=https://app.target.local/callback&scope=openid&state=abc' \
-  | grep -i '^location:'
-# location: https://app.target.local/callback?code=AUTHCODE&state=abc
+```
+https://acmeid.example/authorize?...&redirect_uri=https://our-server.evil/callback
 ```
 
-Теперь обходы — смотрим, какой принимается (редирект на чужой хост):
+Провайдер пришлёт код на наш сервер — и мы войдём как жертва. Проверка часто бывает «слабой»:
 
-```bash
-for r in \
- 'https://evil.com/cb' \
- 'https://app.target.local.evil.com/cb' \
- 'https://app.target.local/cb/../..//evil.com' \
- 'https://app.target.local/cb%2f@evil.com' \
- 'https://app.target.local/cb?next=https://evil.com' \
- 'https://app.target.local/cb#@evil.com' \
- 'https://app.target.local@evil.com/cb' \
- 'https://app.target.local/cb/../../evil.com'; do
-  echo -n "$r -> "
-  curl -s -o /dev/null -w '%{redirect_url}\n' \
-    "https://idp.target.local/authorize?response_type=code&client_id=app123&redirect_uri=$r&scope=openid&state=abc"
-done
-# https://evil.com/cb                  -> (принято, редирект на evil) CRITICAL
-# https://app.target.local.evil.com/cb -> https://app.target.local.evil.com/cb?code=...
-# ... (остальные отброшены с invalid_request)
-```
+- **Prefix matching:** `https://shop.local.evil.com` (домен, начинающийся с разрешённого) проходит наивную проверку «начинается с».
+- **Path traversal:** `https://shop.local/oauth/callback/../../../evil` — если нормализуется иначе, чем проверяется.
+- **Открытый редирект** на `shop.local`: `redirect_uri=https://shop.local/redirect?to=https://evil.com` — проверка проходит (домен верный), а код утекает на наш сайт.
+- **Подмена поддомена/параметров:** `redirect_uri=https://shop.local@evil.com`.
 
-Приём, если валидатор строгий, но есть **open redirect на самом приложении**: ставьте `redirect_uri=https://app.target.local/redirect?to=https://evil.com` — провайдер разрешит (домен свой), а приложение уведёт код на ваш хост.
+## Шаг 2: отсутствие `state` → CSRF на вход
 
-## SAML XSW: как это выглядит в Burp
+Параметр `state` — это случайное значение, которое приложение запоминает и сверяет при возврате. Он защищает от **CSRF на OAuth**: атакующий привязывает свой аккаунт к сессии жертвы. Если `state` отсутствует или не проверяется, можно «подсунуть» жертве свой код:
 
-Полезная нагрузка — POST `SAMLResponse` (base64 + URL-encode). Декодируем и правим XML в **SAML Raider**:
+1. Атакующий начинает вход и получает код **своего** аккаунта.
+2. Не завершая вход, отправляет жертве ссылку на callback с этим кодом.
+3. Жертва открывает ссылку — приложение привязывает **аккаунт атакующего** к сессии жертвы (или логинит жертву как атакующего).
 
-1. Импортируем сертификат IdP, включаем автоматическую проверку подписи.
-2. Ищем `NameID` (наш пользователь). Меняем на `admin`.
-3. Если подпись стала невалидной — применяем XSW: копируем подписанный `<Assertion>` и **оборачиваем** его так, чтобы SP валидировал подпись оригинального узла, а читал подменённый:
+Так «нет state» превращается в захват сессии или привязку чужого аккаунта.
 
-```xml
-<samlp:Response>
-  <saml:Assertion ID="evil">           <!-- SP читает ЭТОТ -->
-    <saml:Subject><saml:NameID>admin</saml:NameID></saml:Subject>
-  </saml:Assertion>
-  <saml:Assertion ID="orig">           <!-- подпись валидна для ЭТОГО -->
-    <ds:Signature>...valid...</ds:Signature>
-    <saml:Subject><saml:NameID>user</saml:NameID></saml:Subject>
-  </saml:Assertion>
-</samlp:Response>
-```
+## Шаг 3: утечка кода и токенов
 
-4. Отправляем через Burp Repeater. Успех — вошли как `admin`.
+Код — одноразовый, но живёт несколько секунд. Утечки:
 
-Смежные атаки: удаление `<Signature>` (если SP не проверяет), подмена `Recipient`/`Audience`, comment injection (`admin<!---->@x`), XXE в парсере.
+- **Referer:** если на странице callback есть внешние ресурсы (картинки, аналитика), код может уйти в `Referer` внешнему серверу.
+- **История/логи:** код попадает в логи прокси и `Referer`.
+- **`response_mode=fragment`:** токен в URL-фрагменте — доступен через JS на странице.
+- **Открытый редирект** (см. Шаг 1) — код уходит к нам напрямую.
 
-## Reference-таблица: параметры OAuth/OIDC и их злоупотребление
+## Шаг 4: `client_secret` в открытом виде и PKCE
 
-| Параметр | Роль | Атака |
-|----------|------|-------|
-| `redirect_uri` | куда вернуть код | open/weak redirect → кража кода |
-| `state` | CSRF-защита | отсутствие → login CSRF |
-| `response_type` | code/token | `token` (implicit) → утечка токена |
-| `code_challenge`/`method` | PKCE | отсутствие/`plain` → перехват кода |
-| `scope` | права | эскалация scope (если не проверяется) |
-| `client_id` | клиент | cross-client confusion |
-| `nonce` (OIDC) | привязка id_token | отсутствие → replay id_token |
-| `prompt`/`login_hint` | UX | подмена аккаунта |
-| `aud`/`azp` (id_token) | аудитория | token confusion между сервисами |
-| `email_verified` | доверие email | ATO при `false` |
-| `RelayState` (SAML) | возврат | open redirect |
+Мобильные и SPA-приложения не могут хранить `client_secret` — его видно в коде. Для них придумали **PKCE** (Proof Key for Code Exchange): клиент генерирует случайный `code_verifier`, отправляет его хэш (`code_challenge`) при авторизации и предъявляет сам `code_verifier` при обмене кода. Если PKCE нет или он «понижается» (сервер принимает запрос и с, и без `code_verifier`), перехваченный код можно обменять. Детали downgrade-атак — в `web-sso-mixup`.
 
-## OIDC: id_token, nonce, at_hash, PKCE downgrade
+## Шаг 5: OIDC — проверка id_token
 
-- **`nonce`:** если клиент не проверяет `nonce` из `id_token`, можно **replay** чужой `id_token` (полученный, например, через Referer-утечку).
-- **`at_hash`/`c_hash`:** связывают токен с `access_code`; их отсутствие позволяет подменять код.
-- **PKCE downgrade:** если клиент поддерживает PKCE, но провайдер позволяет `code_challenge_method=plain` или вообще без него, перехваченный `code` обменивается без `code_verifier`.
-- **alg confusion в `id_token`:** проверьте `none`/RS256→HS256 (см. `web-jwt-advanced`).
-- **`iss`/`aud` не проверяются:** токен другого клиента того же провайдера принимается.
+OIDC добавляет **id_token** (JWT с данными о пользователе). Ошибки:
 
-Проверка: декодируйте `id_token`, убедитесь, что `aud` = ваш `client_id`, `iss` = ожидаемый, `nonce` совпадает, `exp` валиден.
+- **Подпись не проверяется** — тогда мы подделываем id_token (см. `web-jwt-advanced`).
+- **`iss`/`aud` не проверяются** — токен другого приложения/провайдера принимается.
+- **`alg:none`** — токен без подписи проходит.
+- **`nonce` не проверяется** — атака повторного входа (replay).
 
-## Что делать дальше / решение
+## Шаг 6: SAML и XSW
 
-1. **Перехватить `/authorize`** и все параметры (DevTools/Burp).
-2. **Проверить `redirect_uri`** всеми обходами (суффикс/префикс/@/path/redirect-chain).
-3. **Проверить `state`** — отсутствие = login CSRF.
-4. **Декодировать `id_token`** — `aud`, `iss`, `nonce`, `alg`, `email_verified`.
-5. **Проверить PKCE** — downgrade/absence.
-6. **SAML:** искать `SAMLResponse`, тестировать XSW/подпись/comment injection.
-7. Зафиксировать захват на **своём** аккаунте и оформить PoC.
+В корпоративном SSO используют **SAML**: провайдер шлёт XML с «утверждением» (assertion) о пользователе, подписанным его ключом. Классические атаки — **XSW** (XML Signature Wrapping): мы добавляем в документ **второе** утверждение (с `admin`) и так переставляем теги, что **подпись остаётся валидной** (подписан один узел, а приложение читает другой). Ещё: **comment injection** (`admin<!--x-->@evil.com` читается по-разному), **signature stripping** (убираем подпись, а сервер её не требует) и **replay** (повторное использование assertion). Подробно — в `web-saml-deep`.
 
-## OIDC в деталях: discovery, JWKS, userinfo
+## Шаг 7: почему SSO-баги так ценны
 
-OIDC-провайдер публикует конфигурацию и ключи — это точки разведки и атаки:
+Один баг в SSO — и ты входишь под **любым** пользователем, включая админов, во **все** приложения, которые доверяют этому провайдеру. Именно поэтому `redirect_uri` и подпись assertion считают критичными. И именно поэтому такие находки щедро оплачиваются: impact максимальный, а эксплуатируется одним запросом.
 
-```bash
-# конфигурация провайдера
-curl -s https://idp.target.local/.well-known/openid-configuration | jq '{issuer,authorization_endpoint,token_endpoint,jwks_uri}'
-# ключи подписи id_token
-curl -s https://idp.target.local/.well-known/jwks.json | jq '.keys[]|{kid,kty}'
-# userinfo (по access_token)
-curl -s -H "Authorization: Bearer $AT" https://idp.target.local/userinfo
-```
+## Шаг 8: чем OAuth отличается от OIDC и SAML
 
-Что проверять:
+Полезно не путаться в терминах, потому что атаки разные:
 
-- **`issuer`** совпадает с `iss` в токене? Если нет — клиент может принимать токены другого провайдера.
-- **`jwks_uri`** — оттуда берутся ключи; если клиент доверяет `jku`/`x5u` из токена, см. `web-jwt-advanced`.
-- **`userinfo`** — если он отдаёт данные по «чужому» токену, возможна подмена личности.
-- **`authorization_endpoint`** — тестируйте `redirect_uri`/`state`/`prompt`.
-- **`token_endpoint`** — проверьте, требует ли `client_secret`/PKCE; без них перехваченный `code` обменивается.
+- **OAuth2** — про **авторизацию**: «разреши приложению доступ к моим ресурсам». Он не говорит, кто ты, — только что приложение имеет право.
+- **OIDC** — надстройка над OAuth2 для **аутентификации**: добавляет `id_token` (JWT с данными о пользователе) и эндпоинт `userinfo`. Здесь ошибки — в проверке id_token (подпись, `iss`, `aud`, `nonce`).
+- **SAML** — отдельный XML-протокол корпоративного SSO: провайдер шлёт подписанный assertion. Здесь ошибки — в проверке подписи и структуры XML (XSW).
 
-Discovery-документ часто раскрывает дополнительные эндпоинты (device flow, revocation, introspection) — каждый стоит проверить отдельно.
+Понимание разницы помогает выбрать правильную атаку: в OAuth бьют по `redirect_uri` и `state`, в OIDC — по id_token, в SAML — по подписи assertion. Часто в одном приложении есть и OAuth2, и OIDC одновременно, и тогда проверять надо оба слоя.
+
+## Шаг 9: как строить тест SSO
+
+Практический порядок действий для любого SSO-входа:
+
+1. **Перехвати поток** в Burp и выпиши все параметры (`client_id`, `redirect_uri`, `state`, `nonce`, `code`).
+2. **Проверь `redirect_uri`** — слабый matching, открытые редиректы, `@`, поддомены.
+3. **Проверь `state`/`nonce`** — есть ли и сверяются ли.
+4. **Попробуй подменить код/токен** — свой аккаунт вместо чужого.
+5. **Проверь подпись** id_token/assertion — можно ли подделать.
+6. **Подтверди impact** — вход под другим пользователем, а не просто «параметр принят».
+
+Такой чек-лист покрывает и OAuth, и OIDC, и SAML, и экономит время на переборе идей.
+
+## Что мы теперь знаем
+
+- **OAuth2/OIDC/SAML** — SSO-протоколы; ошибки дают вход под кем угодно.
+- **`redirect_uri`** — главная цель: слабая проверка → код утекает нам.
+- **`state`** защищает от CSRF; без него — привязка чужого аккаунта.
+- **Код/токен** утекают через `Referer`, фрагменты, открытые редиректы.
+- **PKCE** защищает публичных клиентов; downgrade ломает защиту.
+- **SAML XSW** — перестановка тегов при валидной подписи.
+
+## На что смотреть дальше
+
+- **`redirect_uri`:** prefix matching, `@`, поддомены, path traversal, открытые редиректы.
+- **`state`/`nonce`:** есть ли и проверяются ли.
+- **Обмен кода:** требуется ли `client_secret`/`code_verifier`.
+- **id_token:** проверяется ли подпись, `iss`, `aud`.
+- **SAML:** подписан ли assertion и **какой именно** узел.
+- **`client_id`:** проверяется ли при обмене кода и при опросе токенов.
+- **`response_mode`:** не уходит ли токен во фрагмент URL, доступный JS.
 
 ## Квиз
 
-Выберите один вариант в каждом вопросе.
+Выбери один вариант в каждом вопросе.
 
 ```quiz
-- question: "Что защищает параметр `state` в OAuth2?"
+- question: "Почему `redirect_uri` — главная цель в OAuth?"
   options:
-    - "Шифрует токен"
-    - "От CSRF-атаки на логин"
-    - "Ускоряет обмен кода"
-    - "Проверяет подпись"
+    - "Он шифрует код"
+    - "Код авторизации уходит на этот адрес; слабая проверка отдаёт код атакующему"
+    - "Он задаёт пароль"
+    - "Он заменяет TLS"
   answer: 1
-  explanation: "`state` привязывает ответ к исходному запросу пользователя, предотвращая login CSRF."
-- question: "Какая ошибка в `redirect_uri` ведёт к краже кода авторизации?"
+  explanation: "Подменив redirect_uri, получаешь код жертвы на свой сервер."
+- question: "Зачем нужен параметр `state`?"
   options:
-    - "Слишком длинный `redirect_uri`"
-    - "Разрешены подстановочные знаки/поддомены, позволяющие увести код на домен атакующего"
-    - "`redirect_uri` использует HTTPS"
-    - "`redirect_uri` совпадает с зарегистрированным"
+    - "Ускорять вход"
+    - "Защищать от CSRF на OAuth (сверка при возврате)"
+    - "Шифровать токен"
+    - "Задавать роль"
   answer: 1
-  explanation: "Слабая валидация позволяет подменить получателя кода."
-- question: "Что такое XML Signature Wrapping (XSW)?"
+  explanation: "Без проверки state можно привязать чужой аккаунт к сессии жертвы."
+- question: "Какой приём обходит наивную проверку redirect_uri по префиксу?"
   options:
-    - "Шифрование всего XML"
-    - "Подмена читаемого узла assertion при валидной подписи другого узла"
-    - "Сжатие XML"
-    - "Преобразование XML в JSON"
+    - "Повторить запрос"
+    - "`https://shop.local.evil.com` (начинается с разрешённого домена)"
+    - "Сменить метод на POST"
+    - "Убрать scope"
   answer: 1
-  explanation: "SP проверяет подпись одного узла, а данные берёт из другого."
-- question: "Чем опасен implicit flow?"
+  explanation: "Prefix matching пропускает домен, который лишь начинается с разрешённого."
+- question: "Что защищает публичные клиенты (SPA/mobile) в OAuth?"
   options:
-    - "Токен передаётся в URL-фрагменте и утекает через историю/расширения"
-    - "Он медленнее"
-    - "Он требует client_secret"
-    - "Он не использует HTTPS"
-  answer: 0
-  explanation: "`response_type=token` кладёт токен в URL, что небезопасно."
-- question: "Почему доверие непроверенному email (`email_verified=false`) опасно?"
-  options:
-    - "Email не валиден синтаксически"
-    - "Атакующий может указать чужой email и войти в аккаунт жертвы"
-    - "Письма не доходят"
-    - "Это замедляет логин"
+    - "client_secret"
+    - "PKCE (`code_verifier`/`code_challenge`)"
+    - "Длинный пароль"
+    - "HttpOnly"
   answer: 1
-  explanation: "Приложение считает email идентификатором, а он не подтверждён."
+  explanation: "PKCE привязывает обмен кода к секрету, который клиент не раскрывает заранее."
+- question: "В чём суть SAML XSW?"
+  options:
+    - "Шифрование assertion"
+    - "Перестановка XML-тегов: подпись остаётся валидной, а приложение читает поддельный узел"
+    - "Отправка токена дважды"
+    - "Смена алгоритма"
+  answer: 1
+  explanation: "XML Signature Wrapping обманывает проверку: подписан один узел, используется другой."
 ```
+
+## Куда дальше
+
+Мы разобрали базовые ошибки SSO. Но есть целое семейство атак на **поток** авторизации: `device code flow`, `mix-up` между провайдерами, downgrade PKCE. Об этом — следующие уроки: `web-oauth-device-code` и `web-sso-mixup`.
 
 ## Где пригодится
 
-- **CTF (Web):** SSO-задачи строятся на redirect_uri, state, alg confusion и XSW.
-- **Bug bounty:** open redirect_uri, отсутствие state, утечка кода — частые высокие выплаты.
-- **Пентест:** тестирование SSO/OIDC/SAML — обязательный раздел для корпоративных приложений.
-- **Работа (AppSec/Dev):** корректная настройка OAuth-клиентов и проверка подписей — базовая гигиена интеграций.
+- **CTF (Web):** OAuth/SAML-задачи — `redirect_uri` и подпись assertion ведут к аккаунту админа.
+- **Bug bounty:** SSO-баги — critical; докажи вход под другим пользователем.
+- **Пентест:** проверка всего потока авторизации, а не только экрана логина.
+- **Работа (AppSec):** строгая валидация `redirect_uri`, `state`/`nonce`, PKCE, проверка подписи assertion.

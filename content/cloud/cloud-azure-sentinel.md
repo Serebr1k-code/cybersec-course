@@ -14,191 +14,216 @@ useful_for:
 estimated_minutes: 45
 summary: "Microsoft Sentinel: data connectors, analytics rules, workbooks и automation. Что реально детектируется, где слепые зоны и как атакующий минимизирует след."
 ---
+## Задача
 
-## Зачем этот урок
+Мы разбирали AWS-детект. Теперь — Azure. В Azure журналы собирает **Microsoft Sentinel** — облачный **SIEM** (Security Information and Event Management: система сбора и анализа событий безопасности) с элементами **SOAR** (автоматическое реагирование). Задача: понять, как Sentinel видит атакующего и где у него слепые зоны. Разберём на конкретном тенанте.
 
-Microsoft Sentinel — облачный SIEM/SOAR на базе Log Analytics. Он собирает логи из Entra ID, Azure, Office 365, сторонних источников, применяет аналитические правила и запускает автоматизации (playbooks). Для атакующего Sentinel важен по двум причинам: во-первых, он определяет, что защита реально видит (какие логи подключены, какие правила включены); во-вторых, сам Sentinel — ресурс Azure, и ошибки в его настройках могут создавать слепые зоны или, наоборот, давать атакующему данные о детекте.
+## Данные: что и откуда собирает Sentinel
 
-## Модель Sentinel
+Sentinel собирает данные через **data connectors** (коннекторы). Каждый коннектор подключает источник: Azure AD, Activity Log, Defender, firewall, сторонние системы. Смотрим подключённые:
 
-- **Workspace** — Log Analytics workspace, где хранятся логи.
-- **Data connector** — источник (Entra ID, Azure Activity, Defender, AWS, syslog). Если коннектор не настроен — событий нет.
-- **Analytics rule** — правило (Scheduled, NRT, Fusion, ML), которое ищет паттерны и создаёт инциденты.
-- **Incident** — сработавшее правило; может иметь severity и автоматизации.
-- **Workbook** — дашборд.
-- **Automation rule / Playbook** — SOAR-логика (Logic Apps), реагирующая на инцидент.
-- **Watchlist** — списки (IP, домены) для обогащения.
-
-Ключевой принцип: **если лог не подключён, Sentinel его не видит**. Типичные пробелы — Azure Activity (management) подключён, а диагностические логи сервисов (Key Vault, Storage, NSG flow) — нет.
-
-## Инструменты и команды
-
-```bash
-# Список workspace и коннекторов
-az monitor log-analytics workspace list --query '[].{Name:name,RG:resourceGroup}'
-az sentinel data-connector list --workspace-name sentinel-ws --resource-group rg
-
-# Аналитические правила и их состояние
-az sentinel alert-rule list --workspace-name sentinel-ws --resource-group rg \
-  --query '[].{Name:name,Enabled:enabled,Severity:severity}'
-
-# Инциденты
-az sentinel incident list --workspace-name sentinel-ws --resource-group rg \
-  --query '[].{Title:title,Severity:severity,Status:status}'
-
-# Запросы к Log Analytics (KQL)
-az monitor log-analytics query --workspace <workspace-id> \
-  --analytics-query "AzureActivity | where OperationNameValue contains 'roleAssignments' | take 10"
-
-# Что вообще приходит в workspace
-az monitor log-analytics query --workspace <workspace-id> \
-  --analytics-query "search * | summarize count() by Type | top 20 by count_"
+```
+$ az sentinel data-connector list --workspace-name acme-sentinel -g sec-rg \
+    --query '[].{name:name,kind:kind}' -o table
+Name                        Kind
+AzureActiveDirectory        AzureActiveDirectory
+AzureActivity               AzureActivity
+MicrosoftDefenderAdvancedThreatProtection  MicrosoftDefenderAdvancedThreatProtection
 ```
 
-## Разобранный пример: оценка слепых зон
+Три коннектора. Замечаем: **нет** коннектора на, скажем, Azure Key Vault или Storage. Значит, действия с секретами и блобами в Sentinel **не видны** — первая слепая зона.
 
-Сценарий: мы в подписке с Sentinel и хотим понять, что нас выдаст.
+## Пробуем в лоб: ищем правила, которые нас поймают
 
-```bash
-az sentinel data-connector list --workspace-name sentinel-ws --resource-group rg \
-  --query '[].{Name:name,Kind:kind}'
-# [{"Name":"AzureActiveDirectory","Kind":"AzureActiveDirectory"},
-#  {"Name":"AzureActivity","Kind":"AzureActiveDirectory"}]
+**Analytics rules** (аналитические правила) — это запросы на языке KQL, которые срабатывают на события. Смотрим, какие есть:
 
-az sentinel alert-rule list --workspace-name sentinel-ws --resource-group rg \
-  --query '[?enabled==`true`].name'
-# ["Suspicious sign-in","New role assignment","Mass file download"]
+```
+$ az sentinel alert-rule list --workspace-name acme-sentinel -g sec-rg \
+    --query '[].{name:name,severity:severity}' -o table
+Name                              Severity
+Suspicious sign-in                 Medium
+Mass secret read                   High
+New admin role assignment          High
 ```
 
-Вывод: подключены Entra ID и Azure Activity; аналитические правила ловят подозрительный вход, назначение ролей и массовое скачивание файлов. Но **диагностические логи Key Vault/Storage не подключены** — значит, чтение секретов и данных не попадёт в Sentinel (хотя может попасть в Azure Activity, если включить diagnostic settings). Проверяйте `az monitor diagnostic-settings list` для критичных ресурсов.
+Правило `Mass secret read` — High. Если оно использует Key Vault, а коннектора Key Vault нет, правило не сработает: **правило есть, данных нет**. Смотрим его запрос:
 
-## Что реально видит Sentinel
-
-| Действие | Источник логов | Ловится, если подключено |
-|---|---|---|
-| Назначение роли | Azure Activity | Да (правило) |
-| Подозрительный вход | Entra ID sign-in | Да |
-| Чтение секрета Key Vault | Key Vault diagnostic | Только если включено |
-| Скачивание Blob | Storage diagnostic | Только если включено |
-| NSG flow | Network Watcher | Только если включено |
-| Аномальный ARM-вызов | Azure Activity | Да |
-| Создание подозрительного ресурса | Azure Activity | Часто да |
-
-Атакующий, который знает эту таблицу, выбирает действия в наименее покрытых категориях и избегает «громких» операций (role assignment, создание ресурсов).
-
-## Обход защит и edge cases
-
-- **Diagnostic settings.** Чтение Key Vault/Storage логируется только при включённых диагностических логах. Если их нет — невидимо.
-- **Data retention.** Логи хранятся ограниченное время (30-90 дней); старые действия исчезают.
-- **Analytics rule tuning.** Правила могут быть отключены/настроены слишком узко. Проверяйте список enabled.
-- **Playbook (Logic App).** Автоматизация может блокировать действие; но её тоже можно изучить/отключить, если есть права.
-- **Workspace access.** Если у вас есть доступ к workspace, вы можете читать логи детекта и подстраиваться.
-- **Fusion.** Корреляционные правила могут связать разрозненные события; учитывайте.
-
-## Частые ошибки и подводные камни
-
-- Считать, что «Sentinel включён» = полный детект: без коннекторов он слеп.
-- Не проверить диагностические логи ресурсов.
-- Игнорировать retention: старые следы исчезают.
-- Путать Azure Activity (management) и resource logs (data).
-- Не проверить enabled-состояние правил.
-
-## Защита и детект
-
-- Подключить все критичные коннекторы, включая диагностические логи Key Vault/Storage/NSG.
-- Включить аналитические правила для назначения ролей, доступа к секретам, аномальных входов.
-- Настроить automation rules/playbooks для блокировки.
-- Ограничить доступ к workspace; включить RBAC.
-- Регулярно проверять покрытие коннекторов и включённость правил.
-
-## Модель угроз и типовые мисконфиги
-
-Типичный мисконфиг — Azure Activity подключён, а диагностические логи сервисов — нет. Второй — отключённые правила. Третий — короткий retention. Четвёртый — широкий доступ к workspace. Пятый — отсутствие playbooks. Все они создают слепые зоны для OPSEC.
-
-## Практическое задание
-
-1. Создайте Log Analytics workspace и подключите Azure Activity.
-2. Включите правило «New role assignment» и назначьте роль — убедитесь, что инцидент создан.
-3. Не подключайте Key Vault diagnostic и прочитайте секрет — убедитесь, что инцидента нет.
-4. Подключите diagnostic и повторите.
-
-## Что дальше / решение
-
-Понимание Sentinel — часть OPSEC в Azure. Определите, какие действия логируются, и выбирайте минимально покрытые. Зафиксируйте слепые зоны в графе. Если Sentinel настроен полно — действуйте быстро, через легитимные операции и в рамках существующих ресурсов.
-
-## Разобранный пример 2: проверка покрытия через KQL
-
-Лучший способ понять слепые зоны — посмотреть, какие типы таблиц вообще есть в workspace, и сверить их с тем, что вы планируете делать.
-
-```bash
-WS=$(az monitor log-analytics workspace list --query '[0].customerId' -o tsv)
-
-# Какие таблицы наполняются
-az monitor log-analytics query --workspace "$WS" \
-  --analytics-query "search * | summarize Count=count() by \$table | order by Count desc | take 25"
-
-# Есть ли Key Vault-логи
-az monitor log-analytics query --workspace "$WS" \
-  --analytics-query "AzureDiagnostics | where ResourceProvider == 'MICROSOFT.KEYVAULT' | count"
-
-# Есть ли Storage-логи
-az monitor log-analytics query --workspace "$WS" \
-  --analytics-query "StorageBlobLogs | count"
-
-# Проверяем, включены ли диагностические логи у ресурса
-az monitor diagnostic-settings list --resource <resource-id> \
-  --query '[].{Name:name,Logs:logs[].category}'
+```
+$ az sentinel alert-rule show --workspace-name acme-sentinel -g sec-rg \
+    --rule-id <id> --query 'query'
+AzureDiagnostics | where ResourceProvider == "MICROSOFT.KEYVAULT" | where OperationName == "SecretGet"
 ```
 
-Если `AzureDiagnostics` по Key Vault пуст, чтение секретов в Sentinel не видно. Если `StorageBlobLogs` отсутствует, скачивание файлов невидимо. Заполните таблицу покрытия и действуйте в наименее логируемых категориях. Помните: `AzureActivity` (management) обычно подключён и ловит изменения ресурсов, поэтому избегайте «громких» операций.
+Правило опирается на `AzureDiagnostics` от Key Vault. Если диагностические логи Key Vault не включены на самом хранилище — правило пустое.
 
-## Практическое задание
+## Приём: действуем в непокрытой зоне
 
-1. Включите Sentinel и подключите Azure Activity.
-2. Проверьте KQL-запросом, какие таблицы наполняются.
-3. Не подключайте Storage diagnostic и скачайте blob; проверьте, что события нет.
-4. Подключите Storage diagnostic и повторите.
+Ключевой вывод: Sentinel видит только то, что подключено **и** на источнике включено. Ищем ресурсы, чьи логи не текут в workspace.
+
+**1. Диагностические настройки не включены.** У Key Vault нет diagnostic settings:
+
+```
+$ az monitor diagnostic-settings list --resource $(az keyvault show -n acme-kv --query id -o tsv) \
+    --query 'value[].name'
+[]
+```
+
+Пусто — операции с секретами никуда не пишутся. Читаем секреты:
+
+```
+$ az keyvault secret show --vault-name acme-kv --name db-password --query value -o tsv
+Pr0d-DB-P@ss
+```
+
+В Sentinel — тишина.
+
+**2. Плоскость управления vs данные.** Azure Activity Log (management plane) пишет `Microsoft.KeyVault/vaults/write`, но **не** чтение секрета (data plane). Часто ловят создание хранилища, но не кражу из него.
+
+**3. Регионы и подписки вне коннектора.** Если коннектор настроен на одну подписку, действия в другой не попадут.
+
+## Полный прогон: от слепой зоны до тихой кражи
+
+1. **Смотрим коннекторы.** `data-connector list` → чего не хватает.
+2. **Смотрим правила.** `alert-rule list` → на каких данных они основаны.
+3. **Находим непокрытый ресурс.** Key Vault/Storage без diagnostic settings.
+4. **Проверяем.** `diagnostic-settings list` → пусто.
+5. **Действуем.** `keyvault secret show` / `az storage blob download`.
+6. **Не оставляем шума.** Management-plane вызовы (`az login`, `list`) неизбежны, но чтение данных — нет.
+
+## Что реально ловится
+
+Sentinel хорошо видит:
+
+- **Входы и рискованные sign-ins** (Entra ID connector).
+- **Изменения ролей** (`New admin role assignment`).
+- **Создание ресурсов** (Activity Log).
+- **Defender-алерты** (подозрительные процессы, malware).
+
+Плохо видит:
+
+- **Чтение данных** в сервисах без diagnostic settings.
+- **Действия внутри VM/контейнера** (нужен агент/Defender).
+- **Ресурсы в подписках без коннектора.**
+- **Тонкие аномалии** в паттерне «легитимного» сервисного принципала.
+
+## Защита и что ломает атаку (глазами защитника)
+
+- **Включить diagnostic settings на критичные ресурсы** (Key Vault, Storage, SQL) и направить в Sentinel.
+- **Коннекторы на все подписки и типы ресурсов.**
+- **Правила на data-plane операции** (`SecretGet`, `BlobGet`).
+- **Автоматизация (playbooks)** — изоляция учётки/ресурса по алерту.
+- **UEBA** — анализ поведения пользователей, а не только одиночных событий.
+
+## Если не сработало
+
+- **Все diagnostic settings включены** — data-plane виден.
+- **Правила покрывают Key Vault/Storage** — кража детектится.
+- **Playbooks авто-реагируют** — доступ отзывают мгновенно.
+- **Defender на VM** — действия внутри хоста видны.
+
+## Мини-сценарий: кража без алерта
+
+1. **Разведка коннекторов.** `az sentinel data-connector list` → подключены Entra ID, Activity Log, Defender. **Нет** Key Vault.
+2. **Проверка правил.** `alert-rule list` → есть `Mass secret read`, но её запрос опирается на `AzureDiagnostics` от Key Vault.
+3. **Проверка источника.** `az monitor diagnostic-settings list --resource <kv-id>` → пусто. Логи Key Vault никуда не идут.
+4. **Действие.** `az keyvault secret show --vault-name acme-kv --name db-password -o tsv` → `Pr0d-DB-P@ss`.
+5. **Результат.** В Sentinel — тишина: правило есть, данных нет. Activity Log фиксирует управление, но не чтение секрета.
+6. **Закрепление.** Тот же приём с Storage: `az storage blob download` без diagnostic settings.
+
+Вывод: наличие правила детекта ничего не значит без подключённого источника и включённых diagnostic settings. Это и есть слепая зона SIEM.
+
+## Разбор: детект начинается с данных
+
+Sentinel — это аналитика поверх данных, и без данных он бессилен. Правило `Mass secret read` звучит грозно, но если диагностические логи Key Vault не включены, запрос всегда возвращает пусто. Это фундаментальный урок про SIEM в облаке: **сначала поток данных, потом правило**. Многие команды пишут десятки правил и забывают включить `diagnostic settings` на критичных ресурсах — и получают ложное чувство защищённости. Аудит Sentinel начинается не со списка правил, а со списка **источников**: какие коннекторы подключены, на какие подписки, и включены ли diagnostic settings на ресурсах, которые нас интересуют (Key Vault, Storage, SQL).
+
+## Что мы теперь знаем
+
+1. Sentinel собирает данные через коннекторы; чего нет в коннекторе — не видно.
+2. Analytics rules — KQL-запросы; без данных они молчат.
+3. Diagnostic settings на ресурсе — условие видимости data-plane.
+4. Activity Log видит управление, но не чтение данных.
+5. Слепые зоны — непокрытые ресурсы, подписки и data-plane операции.
+
+## Частые ошибки
+
+- **Коннектор не покрывает все подписки** — часть ресурсов вне видимости.
+- **Правила без данных**: diagnostic settings выключены.
+- **Нет playbooks** — алерты не приводят к реакции.
+- **Только management-plane** — чтение данных не видно.
+- **Нет UEBA** — аномалии поведения принципалов не ловятся.
+
+## На что смотреть дальше
+
+- Список data connectors и чего в нём нет.
+- Analytics rules и их источник данных.
+- Diagnostic settings на Key Vault/Storage/SQL.
+- Покрытие подписок коннекторами.
+- Наличие playbooks (авто-реакции).
+
+## Быстрая проверка
+
+```bash
+az sentinel data-connector list --workspace-name acme-sentinel -g sec-rg -o table
+az sentinel alert-rule list --workspace-name acme-sentinel -g sec-rg -o table
+az monitor diagnostic-settings list --resource <resource-id>
+az keyvault secret show --vault-name acme-kv --name db-password --query value -o tsv
+```
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что определяет, видит ли Sentinel событие?"
+- question: "Что такое Microsoft Sentinel?"
   options:
-    - "Подключён ли соответствующий data connector/диагностический лог"
-    - "Размер workspace"
-    - "Регион"
-    - "Тип подписки"
+    - "Облачный SIEM/SOAR для сбора и анализа событий безопасности"
+    - "Реестр контейнеров"
+    - "Виртуальная машина"
+    - "Хранилище секретов"
   answer: 0
-  explanation: "Без коннектора события в workspace не попадают."
-- question: "Почему чтение Key Vault может быть невидимым?"
+  explanation: "Sentinel — SIEM с автоматизацией (SOAR)."
+- question: "Как Sentinel получает данные?"
   options:
-    - "Диагностические логи Key Vault не подключены к workspace"
-    - "Key Vault не логирует вообще"
-    - "Sentinel не поддерживает Key Vault"
-    - "Логи шифруются"
+    - "Через data connectors"
+    - "Через пароли"
+    - "Через DNS"
+    - "Через SSH"
   answer: 0
-  explanation: "Data-plane логи идут в диагностику, которую надо явно включить."
-- question: "Что создаёт analytics rule?"
+  explanation: "Коннекторы подключают источники данных."
+- question: "Почему analytics rule может не срабатывать при наличии правила?"
   options:
-    - "Инцидент при совпадении условия"
-    - "Ресурс Azure"
-    - "Managed identity"
-    - "VNet"
+    - "Нет данных: источник не подключён или diagnostic settings выключены"
+    - "Правило слишком быстрое"
+    - "KQL устарел"
+    - "Нет интернета"
   answer: 0
-  explanation: "Правило анализирует логи и создаёт инциденты."
-- question: "Что делает automation rule/playbook?"
+  explanation: "Без данных запрос возвращает пусто."
+- question: "Что видит Azure Activity Log, а что нет?"
   options:
-    - "Автоматически реагирует на инцидент (SOAR)"
-    - "Шифрует логи"
-    - "Меняет регион"
-    - "Удаляет подписку"
+    - "Видит управление ресурсами, но не чтение данных (data plane)"
+    - "Видит всё"
+    - "Не видит ничего"
+    - "Видит только DNS"
   answer: 0
-  explanation: "Playbooks — это Logic Apps, реагирующие на инциденты."
+  explanation: "Activity Log — management plane."
+- question: "Как закрыть слепую зону по чтению секретов?"
+  options:
+    - "Включить diagnostic settings Key Vault и направить в Sentinel"
+    - "Отключить Key Vault"
+    - "Сменить регион"
+    - "Убрать MFA"
+  answer: 0
+  explanation: "Без diagnostic settings data-plane не виден."
 ```
+
+## Куда дальше
+
+В следующем уроке (`cloud-container-forensics`) мы перейдём на сторону защитника и разберём, как собирают следы после инцидента в облаке и контейнерах. А пока главное: SIEM видит только подключённые источники — и это одновременно и защита, и слепая зона.
 
 ## Где пригодится
 
-- **Red team:** оценка детекта и OPSEC.
-- **Blue team:** настройка Sentinel.
-- **Пентест Azure:** понимание видимости действий.
-- **Сертификация:** SC-200.
+- **Red team:** OPSEC в Azure, обход слепых зон.
+- **Blue team:** покрытие коннекторов и правил.
+- **Пентест:** оценка видимости действий.
+- **Работа/DevSecOps:** diagnostic settings, правила, playbooks.
+- **Дальше по дереву:** `cloud-logging-detection`, `cloud-azure-keyvault`.

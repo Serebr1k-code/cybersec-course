@@ -14,196 +14,190 @@ useful_for:
 estimated_minutes: 35
 summary: "Формат LNK и автоматических/пользовательских Jump Lists: Shell Item ID Lists, MAC-времена, доказательство доступа к файлам на локальных и съёмных дисках."
 ---
-LNK-файлы (ярлыки Windows) и Jump Lists — одни из самых информативных артефактов. Они доказывают, что пользователь открывал файл, и содержат не только путь, но и серийный номер тома, размер, MAC-времена целевого объекта. Ярлык остаётся даже после удаления целевого файла, что делает его бесценным в расследовании. Этот урок — про формат LNK, Shell Item ID Lists, Jump Lists и их разбор.
 
-## Где лежат LNK
+## Вопрос, с которого всё начинается
+
+Пользователь клянётся, что не открывал документ `secret.docx`. Сам файл удалён.
+Осталось ли доказательство, что он его открывал?
+
+Осталось. Windows создаёт **ярлык** (LNK-файл) каждый раз, когда вы открываете файл —
+это запись в папке `Recent`. Ярлык хранит путь к файлу, его размер и времена, а
+главное — **остаётся даже после удаления самого файла**. В этом уроке мы разберём
+ярлык и докажем, что файл открывали.
+
+## Шаг 1: что такое LNK и где он лежит
+
+**LNK** (от англ. link — «ссылка») — файл ярлыка Windows, формат MS-SHLLINK. Когда
+вы дважды кликаете по файлу, Explorer записывает ярлык в папку «Недавние»:
 
 | Путь | Что содержит |
 |------|-------------|
-| `%APPDATA%\Microsoft\Windows\Recent\` | недавние файлы/папки |
-| `%APPDATA%\Microsoft\Windows\Recent\AutomaticDestinations\` | автоматические Jump Lists (по приложению) |
-| `%APPDATA%\Microsoft\Windows\Recent\CustomDestinations\` | пользовательские Jump Lists |
-| `%APPDATA%\Microsoft\Office\Recent\` | недавние документы Office |
-| Рабочий стол, меню «Пуск» | пользовательские ярлыки |
+| `%APPDATA%\Microsoft\Windows\Recent\` | ярлыки недавних файлов/папок |
+| `...\Recent\AutomaticDestinations\` | автоматические Jump Lists |
+| `...\Recent\CustomDestinations\` | пользовательские Jump Lists |
+| `%APPDATA%\Microsoft\Office\Recent\` | документы Office |
 
-`Recent` хранит `.lnk` для каждого открытого файла; имя ярлыка — это имя целевого файла, что удобно для быстрого поиска.
+Имя ярлыка совпадает с именем целевого файла (`secret.docx.lnk`) — удобно искать.
+Важно понимать: ярлык описывает **цель**, а не сам ярлык, поэтому в нём сохраняются
+свойства файла даже после его удаления или переноса.
 
-## Формат LNK
+## Шаг 2: что внутри LNK
 
-LNK — бинарный формат (MS-SHLLINK). Ключевые структуры:
-
-- **ShellLinkHeader** (76 байт): `HeaderSize`, `LinkCLSID` (`00021401-...`), флаги, атрибуты файла, времена (creation/access/write), размер целевого файла.
-- **LinkTargetIDList** — список Shell Item ID (путь), переменной длины.
-- **LinkInfo** — локальный путь, объём, серийный номер тома.
-- **StringData** — `NAME_STRING`, `RELATIVE_PATH`, `WORKING_DIR`, `COMMAND_LINE_ARGUMENTS`, `ICON_LOCATION`.
-- **ExtraData** — блоки, включая `TrackerDataBlock` (машина, где создан ярлык).
+LNK — бинарный формат. Первые байты выдают его структуру:
 
 ```bash
-$ xxd -l 32 file.lnk
+$ xxd -l 16 file.lnk
 00000000: 4c00 0000 0114 0200 0000 00c0 0000 0046  L..............F
 ```
 
-`4C 00 00 00` = HeaderSize (76), `01 14 02 00` — LinkCLSID начало.
+`4C 00 00 00` — размер заголовка (76 байт). Дальше идут блоки:
 
-## Разбор с LECmd
+- **LinkTargetIDList** — список элементов, задающий путь;
+- **LinkInfo** — локальный путь, объём тома и **серийный номер тома**;
+- **StringData** — имя, относительный путь, рабочая папка, **аргументы**;
+- **ExtraData** — служебные блоки, включая данные о машине-создателе.
 
-`LECmd` (Eric Zimmerman) — стандарт для LNK.
+Именно **серийный номер тома** позволяет связать файл с конкретным носителем.
+
+## Шаг 3: разбираем LNK парсером
+
+Читать вручную не нужно — есть `LECmd` (Eric Zimmerman):
 
 ```bash
 $ LECmd.exe -f file.lnk
-$ LECmd.exe -d "%APPDATA%\Microsoft\Windows\Recent" --csv out --csvf lnk.csv
-$ LECmd.exe -d Recent --csv out --csvf lnk.csv --html out --htmlf lnk.html
-```
-
-Пример вывода:
-
-```
 Source file: C:\Users\bob\AppData\Roaming\Microsoft\Windows\Recent\secret.docx.lnk
 Target: C:\Users\bob\Documents\secret.docx
-Target created: 2024-02-20 10:00:00
+Target created:  2024-02-20 10:00:00
 Target modified: 2024-02-25 14:30:00
 Target accessed: 2024-03-01 12:05:00
 Volume serial: 4C53-0001
 Volume label: BACKUP
 Drive type: Removable
-Relative path: ..\..\..\Users\bob\Documents\secret.docx
 ```
 
-Поле `Drive type: Removable` + `Volume serial` связывает файл со съёмным носителем.
+Читаем: ярлык указывает на `secret.docx`, у которого сохранены три времени
+(создан/изменён/открыт). Поле `Drive type: Removable` говорит, что файл был на
+**съёмном** носителе, а `Volume serial: 4C53-0001` — на каком именно.
 
-## Jump Lists
+## Шаг 4: Jump Lists — недавние файлы по программам
 
-Jump Lists — списки недавних файлов приложения (например, Word, Notepad, 7-Zip). Автоматические (`AutomaticDestinations`) — файлы `*.automaticDestinations-ms`, пользовательские (`CustomDestinations`) — `*.customDestinations-ms`. Формат — OLE-контейнер со встроенными LNK (streams).
+**Jump Lists** — списки недавних файлов, которые Windows показывает при правом клике
+по значку программы на панели задач. Автоматические (`AutomaticDestinations`) ведёт
+сама Windows, пользовательские (`CustomDestinations`) — программа. Внутри — тот же
+LNK, только упакованный в OLE-контейнер.
 
 ```bash
-$ JLECmd.exe -d "%APPDATA%\Microsoft\Windows\Recent\AutomaticDestinations" --csv out --csvf jl.csv
-$ JLECmd.exe -f 1b4dd67f29cb1962.automaticDestinations-ms
-```
-
-Пример:
-
-```
-AppId: 1b4dd67f29cb1962 (Word)
-Entry: secret.docx
-Path: C:\Users\bob\Documents\secret.docx
-Created: 2024-02-20 10:00:00
-Modified: 2024-02-25 14:30:00
-Accessed: 2024-03-01 12:05:00
-```
-
-AppId идентифицирует приложение; таблица AppId → приложение есть в документации (например, `1b4dd67f...` = Word).
-
-## Shell Item ID Lists и путь
-
-Путь в LNK/Jump List — это список Shell Items: элементы файловой системы, сетевые, MTP, «Корзина». Каждый элемент несёт тип и данные. Это позволяет восстанавливать путь даже для удалённых каталогов.
-
-```bash
-# LECmd показывает расшифрованный путь
-$ LECmd.exe -d Recent --csv out --csvf lnk.csv
-# в CSV: Relative Path, Working Directory, Arguments, Volume Serial
-```
-
-## Что доказывают LNK
-
-| Факт | Поле |
-|------|------|
-| Файл открывался | наличие `.lnk` |
-| Где лежал | `Relative Path`/`LinkInfo` |
-| На каком носителе | `Volume Serial`/`Drive type` |
-| Когда открыт | MAC целевого + время создания LNK |
-| С какой программой | Jump List AppId |
-| С какими аргументами | `COMMAND_LINE_ARGUMENTS` |
-
-## Разобранный пример
-
-Нужно доказать, что пользователь открывал файл с флешки.
-
-```bash
-# 1. LNK в Recent
-$ LECmd.exe -d Recent --csv out --csvf lnk.csv
-$ grep -i 'E:\\' out/lnk.csv
-secret.docx, E:\backup\secret.docx, Volume Serial: 4C53-0001, Drive: Removable
-# 2. Сопоставить с USB
-$ rip.pl -r SYSTEM -p usb | grep 4C53
-USBSTOR\Disk&Ven_SanDisk... S/N ...
-# 3. Jump List подтверждает программу
 $ JLECmd.exe -d AutomaticDestinations --csv out --csvf jl.csv
 $ grep -i secret out/jl.csv
 secret.docx (AppId 1b4dd67f29cb1962 = Word)
 ```
 
-## Справочная таблица
+`AppId` — идентификатор приложения. `1b4dd67f29cb1962` — это Microsoft Word. То есть
+мы знаем не только что файл открывали, но и **какой программой**.
 
-| Артефакт | Инструмент |
-|----------|-----------|
-| LNK | `LECmd`, `lnk-parser` |
-| Jump Lists | `JLECmd` |
-| OLE-структура | `oletools` |
-| Volume Serial | `MountedDevices` (реестр) |
-| Shell Item | `LECmd` (расшифровка) |
+Автоматические Jump Lists Windows ведёт сама для недавних документов и «частых»
+папок; пользовательские создаёт приложение, если разработчик добавил поддержку. Оба
+типа хранят внутри встроенные LNK — поэтому к ним применимы те же поля (путь, времена,
+серийник тома).
 
-## Частые ошибки
+## Шаг 5: что именно доказывают LNK
 
-- **Смотреть только `Recent`** — Jump Lists дают больше контекста.
-- **Игнорировать Volume Serial** — он связывает файл с носителем.
-- **Путать MAC LNK и MAC цели** — в LNK хранятся оба.
-- **Не проверять аргументы** — `COMMAND_LINE_ARGUMENTS` может содержать URL/пути.
-- **Считать LNK мусором** — это прямое доказательство доступа.
-- **Забывать про удалённые ярлыки** — искать в unallocated.
+| Факт | Откуда берётся |
+|------|----------------|
+| Файл открывался | наличие `.lnk` |
+| Где лежал | `Relative Path` / `LinkInfo` |
+| На каком носителе | `Volume Serial` / `Drive type` |
+| Когда открыт | времена цели + время создания LNK |
+| Какой программой | AppId из Jump List |
+| С какими аргументами | `COMMAND_LINE_ARGUMENTS` |
 
-## Что дальше / решение
+Аргументы командной строки особенно интересны: ярлык может хранить строку запуска,
+например URL или путь к скрипту.
 
-Конвейер: `LECmd` (LNK) → `JLECmd` (Jump Lists) → сопоставить Volume Serial с USB-артефактами → свести с Shellbags/UserAssist. Связка: `forensics-usb-devices` (USB), `forensics-shellbags` (папки), `forensics-windows-execution` (запуск), `forensics-timeline` (хронология).
+## Шаг 6: собираем доказательство
 
-## Парсеры и практика разбора
+Нужно доказать, что данные скопировали на флешку. Соединяем три источника:
+
+```bash
+# 1. LNK указывает на E:\ и съёмный носитель
+$ LECmd.exe -d Recent --csv out --csvf lnk.csv
+$ grep -i 'E:\\' out/lnk.csv
+secret.docx, E:\backup\secret.docx, Volume Serial: 4C53-0001, Drive: Removable
+# 2. Серийник совпадает с флешкой в USBSTOR
+$ rip.pl -r SYSTEM -p usb | grep 4C53
+USBSTOR\Disk&Ven_SanDisk... S/N ...
+# 3. Jump List подтверждает программу
+$ JLECmd.exe -d AutomaticDestinations --csv out --csvf jl.csv
+$ grep -i secret out/jl.csv
+```
+
+Три источника указывают на одно: файл `secret.docx` открывали с флешки `4C53-0001`
+программой Word. Это уже не «мнение», а согласованное доказательство.
+
+## Шаг 7: анти-форензика
+
+Ярлыки можно удалить, но они часто остаются в **unallocated** (свободных блоках) или
+в теневых копиях. Ещё один приём — проверка **несоответствия времён**: если ярлык
+создан **раньше** целевого файла, это аномалия (возможная подделка времени —
+timestomp):
+
+```bash
+$ LECmd.exe -f file.lnk | grep -iE 'Target (created|modified|accessed)|Source created'
+```
+
+Помните: времена в LNK хранятся в UTC, а времена целевого файла на FAT-носителе — в
+локальном времени. Учитывайте это при сведении.
+
+## Шаг 8: инструменты и ограничения
 
 | Инструмент | Назначение |
 |-----------|-----------|
 | `LECmd` | LNK → CSV/JSON/HTML |
 | `JLECmd` | Jump Lists |
 | `lnk-parser` (Python) | программный разбор |
-| `oletools` (`olevba`/`oleid`) | OLE-структура Jump Lists |
-| `WxTCmd` | Windows Timeline (ActivitiesCache.db) |
+| `WxTCmd` | Windows Timeline (`ActivitiesCache.db`) |
 
 ```bash
 # массовый разбор всех LNK в дереве
 $ LECmd.exe -d C:\Users --csv out --csvf all_lnk.csv --recurse
-# только удалённые цели
-$ awk -F, '$0 ~ /not exist/ {print}' out/all_lnk.csv | head
-# Jump Lists с HTML-отчётом
-$ JLECmd.exe -d AutomaticDestinations --csv out --html out_html
+# только ярлыки с уже несуществующей целью
+$ awk -F, '/not exist/ {print}' out/all_lnk.csv | head
 ```
 
-`WxTCmd` разбирает Windows Timeline (`ActivitiesCache.db`) — ещё один источник истории открытых файлов и приложений, связанный с LNK/Jump Lists.
+Ограничения: LNK доказывает **открытие** файла, но не обязательно его чтение целиком;
+времена могут быть подделаны (timestomp) — тогда помогает несоответствие времени
+ярлыка и цели; а путь в ярлыке описывает, где файл лежал, но не гарантирует, что он
+там сейчас.
 
-## Анти-форензика и целостность LNK
+## Что мы теперь знаем
 
-LNK-файлы можно удалить, но они часто остаются в unallocated или в теневых копиях. Также полезно проверять **несоответствие** MAC-времен целевого файла и времени создания ярлыка: если ярлык создан раньше целевого файла — это аномалия (возможный timestomp).
+- LNK-ярлык создаётся при открытии файла и живёт дольше самого файла.
+- Внутри — путь, времена, размер и **серийный номер тома** цели.
+- `LECmd` разбирает ярлыки, `JLECmd` — Jump Lists (с AppId программы).
+- Volume Serial связывает файл с конкретным съёмным носителем.
+- Удалённые ярлыки ищут в unallocated; несоответствие времён — признак подделки.
 
-```bash
-# восстановить удалённый LNK из unallocated
-$ blkls -o 2048 disk.img | grep -aboP 'L\x00\x00\x00\x01\x14\x02\x00'
-# проверка времен
-$ LECmd.exe -f file.lnk | grep -iE 'Target (created|modified|accessed)|Source created'
-```
+## На что смотреть дальше
 
-Помните, что LNK-времена хранятся в UTC, а FAT-времена целевого файла (если он на FAT-носителе) — в локальном времени; учитывайте это при сведении.
-
-## Итоговый практический конвейер
-
-Полный разбор LNK/Jump Lists: (1) `LECmd.exe -d Recent --csv` — все ярлыки с путями и серийниками; (2) `JLECmd.exe -d AutomaticDestinations --csv` — недавние файлы по приложениям; (3) `WxTCmd` — Windows Timeline; (4) сопоставление Volume Serial с `MountedDevices`/USBSTOR; (5) сведение с Shellbags и UserAssist. Так вы получаете доказуемую картину: какой файл, на каком носителе, какой программой и когда открывался.
+- **Смотреть только `Recent`** — Jump Lists дают больше контекста (программа, AppId).
+- **Игнорировать Volume Serial** — именно он привязывает файл к носителю.
+- **Путать времена LNK и цели** — в ярлыке хранятся оба набора.
+- **Не проверять аргументы** — `COMMAND_LINE_ARGUMENTS` может содержать URL/пути.
+- **Забывать про удалённые ярлыки** — ищите в unallocated.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой блок LNK хранит MAC-времена целевого файла?"
+- question: "Почему LNK-файл ценен, даже если целевой файл удалён?"
   options:
-    - "LinkInfo"
-    - "StringData"
-    - "Shell Item (тип 0x31/0x32)"
-    - "Header"
-  answer: 2
-- question: "Что означает DriveType: Removable в разборе LNK?"
+    - "он содержит содержимое файла"
+    - "он хранит путь, времена и серийник тома цели"
+    - "он шифрует файл"
+    - "он восстанавливает файл"
+  answer: 1
+- question: "Что означает `DriveType: Removable` в разборе LNK?"
   options:
     - "цель — сетевой диск"
     - "цель находилась на съёмном носителе (USB)"
@@ -214,17 +208,17 @@ $ LECmd.exe -f file.lnk | grep -iE 'Target (created|modified|accessed)|Source cr
   options:
     - "Recent\\*.lnk"
     - "Recent\\AutomaticDestinations\\*.automaticDestinations-ms"
-    - "Recent\\CustomDestinations"
     - "Prefetch"
+    - "SYSTEM"
   answer: 1
-- question: "Какой Shell Item тип указывает на сетевой путь вида \\\\host\\share?"
+- question: "Какой инструмент разбирает LNK?"
   options:
-    - "0x31"
-    - "0x2E / 0x2A"
-    - "0x74"
-    - "0x1F"
+    - "`mmls`"
+    - "`LECmd`"
+    - "`hashcat`"
+    - "`ewfmount`"
   answer: 1
-- question: "Почему одного DriveType недостаточно для привязки к конкретному USB?"
+- question: "Почему одного `DriveType` недостаточно для привязки к конкретному USB?"
   options:
     - "DriveType всегда пуст"
     - "нужен серийный номер тома, сверяемый с USBSTOR/MountedDevices"
@@ -232,6 +226,12 @@ $ LECmd.exe -f file.lnk | grep -iE 'Target (created|modified|accessed)|Source cr
     - "USB не логируется"
   answer: 1
 ```
+
+## Куда дальше
+
+Мы разобрали ярлыки — доказательство **открытия файлов**. Дальше заглянем в **Корзину**
+и кэш превью: там хранятся удалённые файлы, их оригинальные пути и даже миниатюры. А
+пока запомни: **LNK — это след доступа к файлу, который переживает сам файл**.
 
 ## Где пригодится
 

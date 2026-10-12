@@ -14,185 +14,208 @@ useful_for:
 estimated_minutes: 14
 summary: "Где Android-приложение хранит данные (SharedPreferences, SQLite, files, кэш, логи, внешняя память) и как найти там пароли, токены и флаги. Плюс как правильно — через Keystore и EncryptedSharedPreferences."
 ---
-## Что такое небезопасное хранение данных
 
-Мобильное приложение хранит данные на устройстве: настройки, сессии, кэш, иногда пароли и ключи. Если хранение небезопасно, любой, кто получит доступ к устройству (или другое приложение с правами), сможет прочитать секреты. В пентесте небезопасное хранение — один из главных классов уязвимостей (OWASP MASVS-STORAGE). Цель модуля — научиться находить, где приложение хранит данные, и извлекать их.
+## Вопрос, с которого всё начинается
 
-## Где Android хранит данные
+В прошлых уроках мы разобрали APK по слоям и научились читать манифест и код. Но код — это только половина истории. Приложение ещё и **хранит** данные на устройстве: сессии, токены, настройки, кэш. И очень часто хранит их так, что прочитать их может кто угодно с доступом к устройству.
 
-- **SharedPreferences** — `shared_prefs/*.xml` в приватной директории приложения. Часто хранит токены и флаги.
-- **SQLite** — `databases/*.db`. Может содержать пользователей, сессии, кэш.
-- **Файлы** — `files/`, `cache/`, `no_backup/`. Произвольные данные.
-- **Keystore** — системное хранилище ключей (защищённое, но иногда используется неверно).
-- **External storage** — `/sdcard/Android/data/<pkg>/`. Доступно другим приложениям.
+Как найти то, что приложение записало на диск, и понять, что из этого — секрет?
 
-## Доступ к приватным данным
+## Наш пример: uncrack1.apk
 
-На рутованном устройстве/эмуляторе:
+Возьмём реальный APK — `uncrack1.apk` (учебное приложение OWASP UnCrackable). Начнём с самого внешнего: посмотрим, из чего он состоит.
 
-```bash
-adb shell
-su
-cd /data/data/com.example.app
-ls -R
-cat shared_prefs/*.xml
-sqlite3 databases/app.db ".tables"
+```
+$ unzip -l uncrack1.apk
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+     1648  1980-00-00 00:00   AndroidManifest.xml
+     1319  1980-00-00 00:00   META-INF/CERT.RSA
+     5528  1980-00-00 00:00   classes.dex
+     1260  1980-00-00 00:00   res/layout/activity_main.xml
+     2748  1980-00-00 00:00   resources.arsc
 ```
 
-Или вытянуть всё на компьютер:
+APK — это ZIP. Внутри — манифест, код (`classes.dex`), ресурсы и подпись. Но нас сейчас интересует не содержимое архива, а то, **что приложение запишет на устройство при работе**.
 
-```bash
-adb shell "run-as com.example.app tar -cf - ." > app_data.tar
+## Шаг 1: читаем манифест — ищем разрешение на «болтливость»
+
+Декодируем манифест тем же `apktool`, что и раньше, и смотрим ключевые атрибуты `application`:
+
+```xml
+<manifest package="owasp.mstg.uncrackable1">
+  <application android:allowBackup="true"
+               android:icon="@mipmap/ic_launcher"
+               android:label="@string/app_name">
+    <activity android:name="sg.vantagepoint.uncrackable1.MainActivity">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN"/>
+        <category android:name="android.intent.category.LAUNCHER"/>
+      </intent-filter>
+    </activity>
+  </application>
+</manifest>
 ```
 
-`run-as` работает, если приложение `debuggable` или на рутованном устройстве.
+Обратите внимание на `android:allowBackup="true"`. Это флаг: система разрешает делать резервную копию данных приложения. Значит, даже без root часть данных можно вытащить через `adb backup`. Запомним это — вернёмся в шаг 4.
 
-## SharedPreferences
+## Шаг 2: где вообще лежат данные приложения
 
-```bash
-cat /data/data/com.example.app/shared_prefs/*.xml
+У каждого Android-приложения есть приватная директория `/data/data/<package>/`. Туда пишут все стандартные механизмы хранения:
+
+- **SharedPreferences** → `shared_prefs/*.xml` — мелкие пары «ключ-значение» (токены, флаги, настройки).
+- **SQLite** → `databases/*.db` — база данных (пользователи, сессии, кэш).
+- **Файлы** → `files/`, `cache/`, `no_backup/`.
+- **Внешняя память** → `/sdcard/Android/data/<package>/` — доступна другим приложениям.
+
+Доступ к `/data/data/<package>/` даёт либо root, либо `run-as`, либо отлаживаемая сборка (`debuggable`).
+
+## Шаг 3: смотрим код — а как приложение работает с секретом
+
+Декомпилируем `classes.dex` через `jadx` и открываем точку входа:
+
+```java
+public class MainActivity extends Activity {
+    protected void onCreate(Bundle bundle) {
+        if (c.a() || c.b() || c.c()) { a("Root detected!"); }
+        if (b.a(getApplicationContext())) { a("App is debuggable!"); }
+        super.onCreate(bundle);
+        setContentView(R.layout.activity_main);
+    }
+    public void verify(View view) {
+        String obj = ((EditText) findViewById(R.id.edit_text)).getText().toString();
+        if (a.a(obj)) { create.setTitle("Success!"); }
+    }
+}
 ```
 
-Флаги и токены часто лежат прямо здесь в открытом виде. Если значения зашифрованы (EncryptedSharedPreferences) — ищите ключ или обходите через Frida.
+Приложение хранит **сам секрет не на диске, а в коде** — функция `a.a()` расшифровывает эталон и сравнивает его с введённой строкой. Это тоже «небезопасное хранение», только вшитое в сборку. Но так делают не всегда: часто приложение сохраняет данные пользователя в SharedPreferences или SQLite, и тогда их видно прямо на диске.
 
-## SQLite
+## Шаг 4: читаем реальную базу приложения
 
-```bash
-sqlite3 /data/data/com.example.app/databases/app.db
-sqlite> .tables
-sqlite> .schema users
-sqlite> SELECT * FROM users;
+Чтобы увидеть, как выглядит база приложения на диске, возьмём реальный APK, который кладёт SQLite-файл внутрь себя — `lichess.apk`. Достанем его базу из архива и откроем:
+
+```
+$ unzip -o lichess.apk 'assets/flutter_assets/assets/chess_openings.db' -d lic
+  inflating: lic/assets/flutter_assets/assets/chess_openings.db
+
+$ sqlite3 lic/assets/flutter_assets/assets/chess_openings.db ".tables"
+Openings
+
+$ sqlite3 lic/assets/flutter_assets/assets/chess_openings.db ".schema Openings"
+CREATE TABLE Openings (
+  name TEXT, eco TEXT, fen TEXT, moves TEXT, ...
+);
+
+$ sqlite3 lic/assets/flutter_assets/assets/chess_openings.db \
+    "SELECT name,eco FROM Openings LIMIT 3;"
+Alekhine Defense|B02
+Alekhine Defense: Modern Variation|B04
+Alekhine Defense: Scandinavian Variation|B02
 ```
 
-Ищите таблицы с «говорящими» именами: `users`, `sessions`, `secrets`, `flags`. Если база зашифрована (SQLCipher) — ищите ключ в коде.
+Вот как выглядит работа с базой приложения: `sqlite3 <файл>` и дальше обычные SQL-команды. У рантайм-базы (`databases/app.db`) схема та же — `.tables`, `.schema`, `SELECT *`. Ищите таблицы с говорящими именами: `users`, `sessions`, `tokens`, `secrets`.
 
-## Логи
+## Шаг 5: логи, бэкап и внешняя память
 
-Приложение может писать чувствительные данные в лог:
+Три дополнительных места, где утекают данные:
 
-```bash
-adb logcat | grep -iE 'password|token|secret|flag'
+**Логи.** Приложение может писать чувствительное в `logcat`:
+
+```
+$ adb logcat | grep -iE 'password|token|secret|flag'
+D/CodeCheck( 4121): user_token=eyJhbGciOiJIUzI1NiJ9...
 ```
 
-Утечка через логи — частая и легко эксплуатируемая проблема.
+**Резервная копия.** Раз `allowBackup="true"`, пробуем `adb backup`:
 
-## Резервные копии
-
-Если `android:allowBackup="true"`, данные можно извлечь через `adb backup`:
-
-```bash
-adb backup -f backup.ab -apk com.example.app
-# распаковать
-java -jar abe.jar unpack backup.ab backup.tar
+```
+$ adb backup -f backup.ab -apk owasp.mstg.uncrackable1
+WARNING: adb backup is deprecated and may be removed in a future release
+Now unlock your device and confirm the backup operation.
 ```
 
-## Обход шифрования хранилища
+Получили `backup.ab` — распаковывается утилитой `abe.jar` в обычный tar.
 
-Если данные зашифрованы, перехватите ключ через Frida, хукая `Cipher.init` или `EncryptedSharedPreferences`:
+**Внешняя память.** Файлы в `/sdcard/Android/data/<package>/` доступны другим приложениям с разрешением на чтение внешней памяти — то есть секрет из приватной директории может «утечь» туда.
+
+## Полный прогон от начала до конца
+
+Соберём всё в один маршрут по нашему `uncrack1.apk`:
+
+1. **`unzip -l`** — видим слои APK, понимаем, что перед нами обычное приложение.
+2. **`apktool d`** — декодируем манифест, находим `allowBackup="true"`.
+3. **`jadx`** — открываем `MainActivity`, видим проверки root и `debuggable`.
+4. **Устройство** — заходим в `/data/data/owasp.mstg.uncrackable1/`, читаем `shared_prefs`, `databases`, `files`.
+5. **`adb backup`** — раз `allowBackup` включён, тянем копию и распаковываем.
+6. **`logcat`** — смотрим, не пишет ли приложение секрет в лог.
+
+Порядок именно такой: манифест и код дают подсказки ещё до того, как мы подключим устройство, а значит экономят время.
+
+## Если данные зашифрованы
+
+Современные приложения всё чаще пишут не в открытые SharedPreferences, а в `EncryptedSharedPreferences` или шифруют базу через SQLCipher. Данные на диске выглядят как случайный мусор — но ключ всё равно существует в памяти во время работы. Его перехватывают через Frida:
 
 ```javascript
-var Cipher = Java.use('javax.crypto.Cipher');
-Cipher.init.overload('int', 'java.security.Key').implementation = function (m, k) {
-    console.log('key =', k.getEncoded());
-    return this.init(m, k);
-};
+Java.perform(function () {
+  function hex(a) {
+    return Array.prototype.map.call(a, function (b) {
+      return ('0' + (b & 0xff).toString(16)).slice(-2);
+    }).join('');
+  }
+  var Cipher = Java.use('javax.crypto.Cipher');
+  Cipher.init.overload('int', 'java.security.Key').implementation = function (mode, key) {
+    console.log('key = ' + hex(key.getEncoded()));
+    return this.init(mode, key);
+  };
+});
 ```
 
-## Типичные ошибки и подводные камни
+Мы получим реальный ключ в консоли и сможем расшифровать файл на компьютере. Полный разбор Frida — в отдельном уроке, здесь важно запомнить идею: **шифрование на диске не спасает, если ключ доступен процессу**.
 
-- **Смотреть только SharedPreferences** — проверьте SQLite и файлы.
-- **Забыть про логи** — частая утечка.
-- **Не проверить external storage** — доступно другим.
-- **Игнорировать `allowBackup`** — лёгкий способ извлечь всё.
-- **Полагать, что Keystore защищает** — ключ можно достать из рантайма.
-- **Не обойти шифрование** — данные могут быть зашифрованы.
-- **Забыть про кэш** — токены бывают в `cache/`.
+## Что мы теперь знаем
 
-## Справочная таблица
+По-простому:
 
-| Хранилище | Путь |
-|-----------|------|
-| SharedPreferences | `shared_prefs/*.xml` |
-| SQLite | `databases/*.db` |
-| Файлы | `files/`, `cache/` |
-| External | `/sdcard/Android/data/<pkg>/` |
-| Логи | `adb logcat` |
-| Бэкап | `adb backup` |
+1. Приложение хранит данные в `/data/data/<package>/`: `shared_prefs`, `databases`, `files`, `cache`.
+2. Быстрый путь к секретам — SharedPreferences и SQLite; читаются обычным `cat` и `sqlite3`.
+3. Логи (`logcat`) — частая утечка токенов и паролей.
+4. `allowBackup="true"` открывает данные через `adb backup`.
+5. Секрет может быть и в самом коде — тогда его ищут `jadx`-ом, а не на диске.
+6. Шифрование хранилища не защищает, если ключ можно достать из памяти через Frida.
 
-## Что дальше / решение
+## На что смотреть дальше
 
-План: получите доступ к приватной директории (`run-as`/root), изучите SharedPreferences, SQLite и файлы, проверьте логи, external storage и бэкапы. Если данные зашифрованы — обходите через Frida. Небезопасное хранение — один из самых частых классов уязвимостей, и находить его нужно в первую очередь, начиная с `shared_prefs`.
-
-## Расширенный чек-лист по небезопасному хранению
-
-Действуйте по списку. Первое: получите доступ к `/data/data/<pkg>/` через `run-as` или root. Второе: изучите `shared_prefs/*.xml` — там чаще всего токены и флаги. Третье: откройте `databases/*.db` через `sqlite3`, посмотрите `.tables` и содержимое. Четвёртое: пройдите `files/`, `cache/`, `no_backup/` — там бывают ключи и конфиги. Пятое: проверьте `/sdcard/Android/data/<pkg>/`. Шестое: `adb logcat | grep -iE 'pass|token|secret|flag'`. Седьмое: если `allowBackup=true`, сделайте `adb backup` и распакуйте. Восьмое: если данные зашифрованы — хукайте `Cipher.init`/`EncryptedSharedPreferences` через Frida, чтобы получить ключ.
-
-## Как быстро найти секреты в данных
-
-```bash
-grep -rInE 'flag|token|secret|password|key' /data/data/com.example.app/
-sqlite3 databases/app.db ".dump" | grep -iE 'flag|token'
-```
-
-Часто секрет лежит в неочевидном месте: в кэше HTTP-ответов, в логах, в `files/` с рандомным именем. Поэтому важно пройти все директории, а не только очевидные.
-
-## Частые вопросы
-
-«`run-as` не работает?» — приложение не debuggable; нужен root. «База зашифрована?» — SQLCipher; ищите ключ в коде/Frida. «Не нахожу данные?» — проверьте external storage и кэш. «Как извлечь всё сразу?» — `run-as pkg tar -cf - .`. «Что если allowBackup=false?» — остаётся root/run-as.
-
-## Что дальше / решение
-
-Итог: проверьте все хранилища (SharedPreferences, SQLite, файлы, external, логи, бэкапы), при шифровании — обходите через Frida. Небезопасное хранение — один из самых частых классов уязвимостей Android, и часто самый быстрый путь к секретам. Начинайте с `shared_prefs` и `databases`.
-
-## Практический пример: флаг в SharedPreferences
-
-Разберём сквозной сценарий. Дано приложение, которое сохраняет «сессию». Шаг 1: на рутованном эмуляторе заходим в приватную директорию: `adb shell su -c 'cat /data/data/com.example.app/shared_prefs/*.xml'`. Шаг 2: видим XML с полями `token`, `user`, `secret` — и, возможно, `flag`. Часто флаг лежит прямо здесь. Шаг 3: если значения зашифрованы (EncryptedSharedPreferences), хукаем `Cipher.init` через Frida и получаем ключ, либо перехватываем запись/чтение SharedPreferences. Шаг 4: если данных нет, проверяем SQLite: `sqlite3 databases/app.db ".dump" | grep -i flag`. Шаг 5: проверяем логи: `adb logcat | grep -i flag`.
-
-Этот маршрут покрывает большинство задач на небезопасное хранение: shared_prefs → база → логи → файлы. Порядок именно такой, потому что shared_prefs — самое частое место для токенов и флагов.
-
-## Как не пропустить данные
-
-Пройдитесь по всем директориям рекурсивно: `ls -R /data/data/com.example.app`. Иногда секрет лежит в файле с рандомным именем в `cache/` или в `no_backup/`. Проверьте external storage: `/sdcard/Android/data/com.example.app/`. И не забудьте про HTTP-кэш — токены часто там.
-
-## Частые вопросы
-
-«`run-as` не работает?» — нужен root или debuggable APK. «Всё зашифровано?» — обходите через Frida. «Нет данных в shared_prefs?» — смотрите SQLite и файлы. «Как извлечь всё?» — `run-as pkg tar -cf - .` или `adb backup`. «Флаг в логах?» — `logcat`.
-
-## Что дальше / решение
-
-Итог: проверяйте все хранилища по каскаду — shared_prefs → databases → files/cache → external → logs → backup; при шифровании обходите через Frida. Небезопасное хранение — частый и легко эксплуатируемый класс уязвимостей, и часто самый короткий путь к секретам приложения.
-
-## Итог по небезопасному хранению
-
-Проверяйте хранилища по каскаду: shared_prefs → databases → files/cache → external → logs → backup. При шифровании обходите через Frida (хук `Cipher.init`). Небезопасное хранение — частый и легко эксплуатируемый класс уязвимостей, и часто самый короткий путь к секретам. Начинайте с `shared_prefs`, потому что именно там чаще всего лежат токены и флаги.
-
-## Итог по небезопасному хранению
-
-Проверяйте shared_prefs, databases, files/cache, external, logs, backup; при шифровании обходите через Frida. Начинайте с shared_prefs — там чаще всего токены и флаги.
+- **Начинайте с манифеста:** `allowBackup`, `debuggable` — два флага, которые сразу расширяют доступ.
+- **Проверяйте все хранилища по каскаду:** `shared_prefs` → `databases` → `files/cache` → external → logs.
+- **Не забывайте про кэш:** токены любят оседать в `cache/` и HTTP-кэше.
+- **Если база зашифрована** (SQLCipher) — ключ ищут в коде или перехватывают через Frida.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Где Android-приложение чаще всего хранит токены и пароли «на скорую руку»?"
   options:
     - "В SharedPreferences (`shared_prefs/*.xml`)"
     - "В AndroidManifest.xml"
-    - "В Gradle-файлах"
     - "В `res/values/strings.xml`"
+    - "В Gradle-файлах"
   answer: 0
-- question: "Что позволяет вытащить данные приложения без root?"
+- question: "Что означает `android:allowBackup='true'`?"
   options:
-    - "Только Magisk"
-    - "`adb backup` при `android:allowBackup="true"`"
-    - "Только Frida"
-    - "Ничего, без root данные недоступны"
-  answer: 1
-- question: "Какой механизм правильно использовать для хранения криптоключей в Android?"
+    - "Система разрешает резервную копию данных приложения (например, через `adb backup`)"
+    - "Приложение можно установить на любой телефон"
+    - "Приложение не использует интернет"
+    - "Приложение хранит данные в открытом виде"
+  answer: 0
+- question: "Какой командой открыть базу приложения на диске?"
   options:
-    - "Android Keystore"
-    - "SharedPreferences"
-    - "Внешняя память"
-    - "Буфер обмена"
+    - "`sqlite3 databases/app.db`"
+    - "`jadx databases/app.db`"
+    - "`apktool d databases/app.db`"
+    - "`strings databases/app.db`"
   answer: 0
 - question: "Приложение пишет токен в `logcat`. Какой это класс уязвимости?"
   options:
@@ -201,18 +224,22 @@ sqlite3 databases/app.db ".dump" | grep -iE 'flag|token'
     - "XSS"
     - "Переполнение буфера"
   answer: 0
-- question: "Клиентский флаг `is_premium=true` в SharedPreferences — это уязвимость, если…"
+- question: "Клиентский флаг `is_premium=true` в SharedPreferences — уязвимость, если…"
   options:
-    - "всегда"
     - "сервер доверяет этому флагу вместо проверки на своей стороне"
+    - "всегда"
     - "никогда"
     - "приложение не использует HTTPS"
-  answer: 1
+  answer: 0
 ```
+
+## Куда дальше
+
+Мы научились находить данные, которые приложение пишет на диск. В следующем уроке разберём **утечки через side-channels**: буфер обмена, скриншоты и системные интерфейсы, через которые секрет уходит, даже если на диске его нет. А пока запомни главное: сначала манифест (`allowBackup`, `debuggable`), потом каскад хранилищ — `shared_prefs` → базы → файлы → логи.
 
 ## Где пригодится
 
-- **CTF Mobile:** самый быстрый путь к флагу — заглянуть в `shared_prefs`, базы и логи.
-- **Bug bounty:** утечки токенов и PII в локальном хранилище — валидные находки, особенно с доказательством доступа к API.
-- **Пентест:** проверка OWASP MASVS-STORAGE — что приложение не хранит секреты в открытом виде.
+- **CTF Mobile:** самый быстрый путь к флагу — `shared_prefs`, базы и логи.
+- **Bug bounty:** утечки токенов и PII в локальном хранилище — валидные находки.
+- **Пентест:** проверка OWASP MASVS-STORAGE — приложение не хранит секреты в открытом виде.
 - **Работа:** рекомендации разработчикам (Keystore, EncryptedSharedPreferences, `allowBackup=false`).

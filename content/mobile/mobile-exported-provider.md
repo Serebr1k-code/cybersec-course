@@ -14,240 +14,198 @@ useful_for:
 estimated_minutes: 40
 summary: "Как экспортированные Content Providers раскрывают данные: path traversal в openFile, SQL-инъекции в query, обход проверок и извлечение файлов и БД."
 ---
-## Что такое Content Provider
 
-Content Provider — один из четырёх базовых компонентов Android. Это интерфейс к структурированным данным (обычно SQLite), доступный другим приложениям через `content://`-URI. Провайдер реализует методы `query`, `insert`, `update`, `delete`, `openFile`, `call`. Если он **экспортирован** (`android:exported="true"` или наличие `<grant-uri-permission>`), другое приложение может обращаться к его данным. Именно поэтому providers — классический источник path traversal, SQL-инъекций и утечек приватных данных (файлы, контакты, токены).
+## Вопрос, с которого всё начинается
 
-Ментальная модель: provider — это удалённый «API к базе», где вход — URI и аргументы (`selection`, `selectionArgs`, `projection`, `sortOrder`). Уязвимость возникает, когда провайдер **доверяет** этим аргументам и не проверяет ни вызывающего, ни путь к файлу, ни корректность SQL.
+Content Provider — единственный Android-компонент, который отдаёт **данные** по URI. Если он экспортирован, любое приложение может запросить у него строки из базы или файл. А если в обработке пути или SQL есть ошибка — можно вытащить всю базу целиком. Как это проверить?
 
-## Как найти exported provider
+## Наш пример: провайдеры в fdroid.apk
 
-```bash
-apktool d app.apk -o out
-grep -n -A6 "<provider" out/AndroidManifest.xml
+Возьмём `fdroid.apk`. Посмотрим, какие провайдеры объявлены в манифесте и экспортированы ли они:
+
+```
+$ grep -oE '<provider[^>]*authorities="[^"]*"[^>]*' fdroid_dec/AndroidManifest.xml | head
+<provider android:authorities="org.fdroid.fdroid.install.ApkFileProvider" android:exported="false" android:grantUriPermissions="true" android:name="org.fdroid.install.ApkFileProvider"/>
+<provider android:authorities="org.fdroid.fdroid.fileprovider" android:exported="false" android:grantUriPermissions="true" android:name="androidx.core.content.FileProvider"/>
+<provider android:authorities="org.fdroid.fdroid.resources.AndroidContextProvider" android:exported="false" android:name="org.jetbrains.compose.resources.AndroidContextProvider"/>
 ```
 
-```xml
-<provider android:name=".DataProvider"
-          android:authorities="com.target.provider"
-          android:exported="true"
-          android:grantUriPermissions="true">
-  <grant-uri-permission android:pathPrefix="/files/"/>
-</provider>
-```
+Все провайдеры здесь `exported="false"` — правильная настройка. Но `grantUriPermissions="true"` означает, что доступ можно **выдать точечно** через флаг в Intent. Разберём, как provider устроен и где ломается.
 
-Признаки: `exported=true` без `android:permission`, `grantUriPermissions=true`, `pathPrefix`/`pathPattern` в `<grant-uri-permission>`, `FileProvider` с широкими `paths`. Декомпилируйте класс провайдера (`jadx`) и смотрите методы `query`/`openFile`.
+## Шаг 1: что такое Content Provider
 
-```bash
-grep -rn "extends ContentProvider\|openFile\|openAssetFile\|getType\|query(" out_jadx | head
-```
-
-## Path traversal в openFile
-
-`ContentProvider.openFile` часто строит путь из URI-сегмента. Если он не нормализует путь — возможен выход за пределы разрешённой директории.
+Provider даёт данные по адресу вида `content://authority/path`. Приложение запрашивает его через `ContentResolver`:
 
 ```java
-// уязвимо: имя файла берётся из URI без нормализации
-String name = uri.getLastPathSegment();
-File f = new File(getContext().getFilesDir(), name);   // ../ читается!
-return ParcelFileDescriptor.open(f, MODE_READ_ONLY);
+Cursor c = getContentResolver().query(
+    Uri.parse("content://com.example.provider/users"),
+    null, null, null, null);
 ```
 
-Атака:
+`authority` — уникальное имя провайдера, `path` — что именно запрашивают. Внутри провайдер обычно обращается к SQLite-базе. Отсюда два класса уязвимостей: **обход пути** (path traversal) и **SQL-инъекция** в параметрах запроса.
 
-```bash
-adb shell content read --uri "content://com.target.provider/../../../../etc/hosts"
-adb shell content read --uri "content://com.target.provider/../../databases/app.db"
+## Шаг 2: как найти экспортированный provider
+
+Правила те же: `exported="true"` или `intent-filter` без явного `exported`. Дополнительно смотрим `grantUriPermissions` — он позволяет выдать доступ к конкретному URI другому приложению.
+
+Из adb можно обратиться к провайдеру напрямую:
+
+```
+$ adb shell content query --uri content://com.example.provider/users
+Row: 0 _id=1, name=admin, token=eyJhbGciOiJIUzI1NiJ9...
 ```
 
-Для `FileProvider` (AndroidX) ищите `res/xml/file_paths.xml`: слишком широкий `path="."` или `root-path` открывает доступ ко многим файлам.
+`content` — CLI-обёртка над `ContentResolver`. Если запрос вернул строки — провайдер доступен оболочке (экспортирован или ей выдан grant).
 
-## SQL-инъекция в query
+## Шаг 3: path traversal в openFile
 
-`selection` — это `WHERE`-фрагмент, а `selectionArgs` — параметры. Если провайдер склеивает `selection` без параметризации, инъекция возможна.
+Провайдеры, отдающие файлы, реализуют `openFile(uri, mode)`. Частая ошибка — склеивать путь без проверки:
 
 ```java
-// уязвимо: selection из недоверенного источника склеивается в SQL
-String where = uri.getQueryParameter("filter");
-Cursor c = db.rawQuery("SELECT * FROM items WHERE " + where, null);
-```
-
-```bash
-adb shell content query --uri content://com.target.provider/items \
-  --where "1=1) UNION SELECT _id,name,password FROM users--"
-```
-
-Инъекция может раскрыть другие таблицы (пароли, токены) или обойти фильтр. Аналогично проверяйте `sortOrder` (инъекция через `ORDER BY`) и `projection` (выборка чужих колонок).
-
-## Утечки через projection и openFile
-
-Даже без инъекции провайдер может отдавать больше, чем нужно: `projection` не ограничен белым списком, поэтому атакующий запрашивает все колонки. Через `openFile` можно вытащить произвольные файлы, если провайдер их отдаёт. Ищите провайдеры, отдающие `_data` (пути к файлам) — это прямая утечка структуры.
-
-```bash
-# забрать все колонки
-adb shell content query --uri content://com.target.provider/items
-# читать файл через provider
-adb shell content read --uri "content://com.target.provider/secret.txt"
-```
-
-## Грант URI-разрешений
-
-`FLAG_GRANT_READ_URI_PERMISSION`/`FLAG_GRANT_WRITE_URI_PERMISSION` временно дают доступ к конкретному URI, даже неэкспортированному провайдеру. Ошибки: грант выдаётся на широкий `pathPrefix`, или приложение принимает чужой URI и выдаёт на него грант (confused deputy). Если приложение по вашему Intent выдаёт грант на произвольный `content://`-URI — вы получаете доступ к чужим данным.
-
-```java
-// уязвимо: выдаём грант на URI, пришедший извне
-intent.setData(externalUri);
-intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-startActivity(intent);   // грант утекает
-```
-
-## Вызов через adb
-
-```bash
-# список провайдеров на устройстве
-adb shell content query --uri content://com.target.provider/ 2>&1 | head
-# запрос
-adb shell content query --uri content://com.target.provider/items --projection "*"
-# чтение файла
-adb shell content read --uri "content://com.target.provider/files/x.txt"
-# вставка/обновление/удаление (если разрешено)
-adb shell content insert --uri content://com.target.provider/items --bind name:s:evil
-adb shell content update --uri content://com.target.provider/items --bind name:s:pwned
-adb shell content delete --uri content://com.target.provider/items --where "1=1"
-```
-
-`content` — быстрый способ проверить поверхность без сборки клиента. Если provider защищён permission, получите `SecurityException`.
-
-## Атака из своего приложения
-
-Когда `adb content` недостаточно (нужны сложные URI, грант, `call`-метод), пишут клиент:
-
-```java
-ContentResolver cr = getContentResolver();
-Uri u = Uri.parse("content://com.target.provider/files/../../databases/app.db");
-try (InputStream in = cr.openInputStream(u)) {
-    // читаем утёкший файл
+public ParcelFileDescriptor openFile(Uri uri, String mode) {
+    File f = new File(getContext().getFilesDir(), uri.getLastPathSegment());
+    return ParcelFileDescriptor.open(f, MODE_READ_ONLY);
 }
 ```
 
-Аналогично можно вызывать `cr.call(uri, "method", args, null)` — provider-метод `call` часто реализует внутренние операции без проверок.
+Если `uri.getLastPathSegment()` не проверяется, запрос `content://.../../../databases/app.db` может вернуть чужой файл. Проверка:
 
-## Разобранный пример: path traversal → утечка БД
-
-```bash
-$ grep -n -A5 "<provider" out/AndroidManifest.xml
-<provider android:name=".FileProvider" android:authorities="com.target.fp"
-          android:exported="true" android:grantUriPermissions="true">
-  <grant-uri-permission android:pathPrefix="/"/>
-</provider>
-$ grep -rn "openFile" out_jadx/com/target/FileProvider.java
-File f = new File(getContext().getFilesDir(), uri.getLastPathSegment());
-$ adb shell content read --uri "content://com.target.fp/../../databases/app.db" > leak.db
-$ sqlite3 leak.db "SELECT name,token FROM sessions;"
-admin|eyJhbGciOiJIUzI1NiIsInR5cCI6...
+```
+$ adb shell content read --uri "content://com.example.provider/files/../../databases/app.db"
 ```
 
-Провайдер отдал БД с токенами из-за отсутствия нормализации пути и слишком широкого `pathPrefix`. Impact — утечка сессий.
+Если в ответ приходят байты базы — это утечка. Правильная защита — `File.getCanonicalPath()` и проверка, что путь остаётся внутри разрешённой директории.
 
-## Справочная таблица: векторы Content Provider
+## Шаг 4: SQL-инъекция в query
 
-| Вектор | Условие | Команда/метод |
-|--------|---------|---------------|
-| Path traversal | `openFile` без нормализации | `content read --uri .../../../...` |
-| SQL-инъекция | склейка `selection` | `--where "1=1) UNION SELECT ..."` |
-| Утечка колонок | нет белого списка `projection` | `--projection "*"` |
-| Файлы через provider | широкий `file_paths.xml` | `content read` |
-| Confused deputy | грант на внешний URI | `FLAG_GRANT_*` |
-| `call` без проверки | метод `call` | `cr.call(...)` |
-| Запись данных | нет permission на insert/update | `content insert/update` |
+Вторая ошибка — конкатенация аргументов в SQL:
 
-## Типовые ошибки новичка
+```java
+String sql = "SELECT * FROM users WHERE name='" + selectionArgs[0] + "'";
+db.rawQuery(sql, null);
+```
 
-- **Искать только `exported=true`.** Провайдер может быть доступен через грант или `call`.
-- **Не проверять `file_paths.xml`.** У FileProvider доступ определяется им, а не манифестом.
-- **Забыть про нормализацию.** `getCanonicalPath` + проверка префикса — правильная защита; её отсутствие = traversal.
-- **Пропустить `sortOrder`.** Инъекция бывает и в `ORDER BY`.
-- **Считать permission надёжным.** Проверьте `protectionLevel`; `normal` выдаётся автоматически.
+Тогда `selection`/`selectionArgs` из внешнего запроса позволяют дописать условие:
 
-## Что дальше / решение
+```
+$ adb shell content query --uri content://com.example.provider/users \
+    --where "1=1) OR (1=1"
+```
 
-Порядок: (1) собрать providers из манифеста; (2) проверить `exported`/permission/`file_paths.xml`; (3) декомпилировать `query`/`openFile`/`call`; (4) проверить traversal, SQLi, утечки через `adb content`; (5) при необходимости собрать клиент. Связанные уроки: `mobile-exported-components`, `mobile-android-anatomy`, `mobile-insecure-storage`. Решение — когда данные (файл/запись/токен) извлечены из чужого приложения или доказана инъекция.
+Правильно — использовать параметризованные запросы (`?` + `selectionArgs`), никогда не склеивать строки.
 
-## Практический чек-лист тестирования provider
+## Шаг 5: утечки через projection
 
-1. Выписать все `<provider>` и их `authorities`, `exported`, `permission`, `grantUriPermissions`.
-2. Для каждого — открыть класс (jadx) и прочитать `query`/`openFile`/`call`/`getType`.
-3. Проверить `res/xml/file_paths.xml` (для FileProvider): нет ли `path="."`/`root-path`.
-4. Проверить нормализацию пути в `openFile` (`getCanonicalPath` + префикс).
-5. Проверить параметризацию `selection`/`sortOrder` (SQLi).
-6. Проверить, ограничен ли `projection` белым списком.
-7. Проверить логику грантов (`FLAG_GRANT_*`, confused deputy).
-8. Прогнать `adb content query/read/insert/update/delete` и зафиксировать результат.
+Иногда инъекция не нужна: провайдер возвращает **все** колонки, включая те, что не должны быть видны. `projection` в `query(uri, projection, ...)` задаёт список колонок; если провайдер игнорирует ограничения, запрос `content://.../users` вернёт пароли и токены. Проверяйте, фильтрует ли провайдер колонки по правам вызывающего.
 
-## Справочная таблица: инструменты и команды
+## Шаг 6: грант URI-разрешений
 
-| Задача | Инструмент | Команда |
-|--------|-----------|---------|
-| Найти providers | apktool/манифест | `grep -A6 "<provider"` |
-| Прочитать логику | jadx | `grep -rn "openFile\|query("` |
-| Проверить пути | apktool | `cat res/xml/file_paths.xml` |
-| Запрос данных | adb | `content query --uri ...` |
-| Чтение файла | adb | `content read --uri ...` |
-| Инъекция | adb | `--where "1=1) UNION SELECT ..."` |
-| Свой клиент | Android Studio | `ContentResolver.openInputStream` |
+`grantUriPermissions="true"` сам по себе не уязвимость — это механизм выдачи доступа. Опасность в том, что флаг `FLAG_GRANT_READ_URI_PERMISSION` можно протащить через вложенный Intent и выдать доступ не тому получателю. Это связано с intent redirection (отдельный урок).
 
-## Материалы и связанные темы
+## Почему провайдер опаснее других компонентов
 
-Дополнительно: Android-документация по `ContentProvider` и `FileProvider` (какие пути разрешены и как работает `grantUriPermissions`); OWASP MASTG по тестированию platform-interaction. Для практики — прогоните `content`-команды на своих приложениях и на CTF-задачах, где флаг лежит в чужом provider. Связанные уроки: `mobile-exported-components` (Activity/Service/Receiver/Provider), `mobile-android-binder` (IPC через Binder), `mobile-insecure-storage` (что именно утекает из хранилища).
+Activity показывает экран, Service выполняет работу, Receiver реагирует на событие — но все они оперируют «действиями». Provider оперирует **данными**. А данные — это то, что чаще всего представляет ценность: токены, сообщения, записи о платежах, персональная информация. Поэтому экспортированный провайдер — это не «ещё одна открытая дверь», а хранилище, выставленное наружу.
+
+К тому же провайдер обычно напрямую связан с SQLite-базой приложения. Если в обработке URI или SQL есть ошибка, атакующий получает не один экран, а **всю базу**. Именно поэтому Content Provider — один из самых частых источников серьёзных находок в мобильных пентестах.
+
+## Разбор реального сценария
+
+Представим приложение-мессенджер с провайдером `content://com.example.chat/messages`. Провайдер экспортирован, чтобы виджет на рабочем столе мог показывать последние сообщения. Обработчик `query` строит SQL так:
+
+```java
+String sql = "SELECT * FROM messages WHERE thread='" + uri.getQueryParameter("thread") + "'";
+```
+
+Атакующее приложение запрашивает:
+
+```
+content://com.example.chat/messages?thread=' OR '1'='1
+```
+
+Склейка превращает условие в тавтологию, и возвращаются все сообщения всех потоков. Одна строка без параметризации — и приватная переписка утекает чужому приложению. Фикс тривиален (использовать `?` и `selectionArgs`), но без аудита его не делают.
+
+## Частые вопросы
+
+**«Провайдер экспортирован — это точно уязвимость?»** — нет, только если он отдаёт данные без проверки. **«Нужен ли root?»** — нет, достаточно `content query` или своего приложения. **«Как быстро проверить?»** — `content query --uri ...` и посмотреть, вернутся ли строки. **«Что важнее — path traversal или SQLi?»** — обе; первая отдаёт файлы, вторая — базу. **«Как защитить?»** — `exported="false"`, канонизация путей, параметризованный SQL, проверка вызывающего.
+
+## Практический совет
+
+Начинайте с вопроса: «какие данные отдаёт этот провайдер и кому?». Откройте его код и найдите `query`, `openFile`, `call`. Если путь или SQL собирается из внешних данных без параметризации — вы нашли уязвимость. Проверяйте не только экспортированные провайдеры: `grantUriPermissions` может выдать доступ к приватному провайдеру через вложенный Intent, и это отдельный вектор.
+
+## Полный прогон от начала до конца
+
+Соберём проверку провайдера в один сценарий. Сначала `grep '<provider'` по манифесту и список `authorities`. Затем для каждого провайдера — `exported` и `grantUriPermissions`. Дальше `adb shell content query --uri content://...` — если строки вернулись, провайдер доступен. Смотрим код `query`: есть ли склейка SQL. Смотрим `openFile`: канонизируется ли путь. Пробуем `content://.../../` и `--where` с инъекцией. Итог — подтверждённая утечка либо чистая конфигурация.
+
+## Ещё один вектор: `call()`
+
+Помимо `query` и `openFile`, у провайдера есть метод `call(method, arg, extras)` — произвольный вызов. Многие провайдеры реализуют через него свои операции («обновить», «синхронизировать»), не проверяя вызывающего. Экспортированный `call` без проверки — это тот же confused deputy, только через провайдер. Проверяйте, какие `method`-строки обрабатывает `call` и что они делают: иногда там оказывается выполнение действия с привилегиями приложения.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. Provider отдаёт данные по `content://authority/path`.
+2. Экспортированный provider доступен через `content query`.
+3. Path traversal в `openFile` отдаёт произвольные файлы.
+4. SQL-инъекция в `query` позволяет вытащить всю базу.
+5. Правильная защита: `exported="false"`, канонизация путей, параметризованный SQL.
+
+## На что смотреть дальше
+
+- **Найдите провайдеры** и проверьте `exported` и `grantUriPermissions`.
+- **Пробуйте `content query`** — быстрая проверка доступности.
+- **Ищите `openFile`** и склейку путей — path traversal.
+- **Ищите `rawQuery`/`execSQL`** с конкатенацией — SQL-инъекция.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какая уязвимость позволяет прочитать произвольный файл через Content Provider?"
+- question: "По какому адресу доступны данные Content Provider?"
   options:
-    - "Path traversal в openFile"
-    - "TLS downgrade"
-    - "Слабый пароль"
-    - "Отсутствие обфускации"
+    - "content://authority/path"
+    - "file://path"
+    - "http://authority/path"
+    - "intent://path"
   answer: 0
-  explanation: "Ненормализованный путь + ../../ даёт выход за пределы каталога."
-- question: "Каким adb-инструментом обращаться к provider?"
+- question: "Как проверить провайдер из adb?"
   options:
-    - "adb shell content"
-    - "adb shell am"
-    - "adb shell pm"
-    - "adb shell wm"
+    - "adb shell content query --uri content://..."
+    - "adb shell am start"
+    - "adb install app.apk"
+    - "adb shell logcat"
   answer: 0
-  explanation: "content query/read/insert работают с ContentProvider."
-- question: "Что указывает на потенциальную SQL-инъекцию в provider?"
+- question: "Какая ошибка в `openFile` ведёт к path traversal?"
   options:
-    - "Подстановка selection в SQL без параметризации"
-    - "Использование HTTPS"
-    - "Наличие exported=false"
-    - "Использование Kotlin"
+    - "Склейка пути без канонизации и проверки"
+    - "Использование `ParcelFileDescriptor.open`"
+    - "Проверка `getCanonicalPath`"
+    - "Белый список директорий"
   answer: 0
-  explanation: "Конкатенация selection/selectionArgs в SQL — классическая инъекция."
-- question: "Чем опасен protectionLevel=normal у permission provider-а?"
+- question: "Как защититься от SQL-инъекции в провайдере?"
   options:
-    - "Любое приложение может его запросить"
-    - "Он шифрует данные"
-    - "Он отключает provider"
-    - "Он требует root"
+    - "Параметризованными запросами с `selectionArgs`"
+    - "Склейкой строк"
+    - "Отключением базы"
+    - "Использованием HTTPS"
   answer: 0
-  explanation: "normal-permission не проверяет подпись запрашивающего."
-- question: "Какой флаг манифеста расширяет доступ к provider через Intent?"
+- question: "Что означает `grantUriPermissions='true'`?"
   options:
-    - "android:grantUriPermissions='true'"
-    - "android:exported='false'"
-    - "android:allowBackup"
-    - "android:debuggable"
+    - "Доступ к конкретному URI можно выдать другому приложению"
+    - "Провайдер экспортирован всем"
+    - "Провайдер зашифрован"
+    - "Провайдер только для чтения"
   answer: 0
-  explanation: "grantUriPermissions разрешает временный доступ к URI."
 ```
+
+## Куда дальше
+
+Мы разобрали Content Providers — самый «данные-ёмкий» компонент. В следующем уроке углубимся в **Binder и IPC**: как устроен низкоуровневый обмен между процессами и почему недоверенный `Parcel` — это отдельный класс атак. А пока запомни главное: provider — это база, выставленная в сеть приложений, и её надо проверять на обход пути и инъекции.
 
 ## Где пригодится
 
-- **CTF Mobile:** чтение флага/БД через provider.
-- **Bug bounty:** утечка данных через Content Provider — валидная находка.
-- **Пентест:** аудит IPC-поверхности приложения.
-- **Работа:** ревью провайдеров и permissions.
+- **CTF Mobile:** вытаскивание флага из базы через provider.
+- **Bug bounty:** экспортированный provider с path traversal — high/critical.
+- **Пентест:** проверка OWASP MASVS-PLATFORM.
+- **Работа:** ревью компонентов, отдающих данные.

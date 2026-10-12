@@ -14,207 +14,234 @@ useful_for:
 estimated_minutes: 45
 summary: "Terraform state: где лежит, что содержит, как читать и подменять. Backend S3/GCS/Azure, шифрование, блокировки и извлечение секретов через terraform show/state pull."
 ---
+## Задача
 
-## Зачем этот урок
+В `cloud-terraform` мы нашли открытый бакет со state. Но чаще бакет закрыт, а у нас есть лишь **частичные права** — например, `s3:GetObject` на один ключ. Задача: вытащить секреты из state, имея только чтение объекта, и понять, как устроен **backend** — место, где state физически хранится. Разберём на AWS S3-backend.
 
-Terraform state — это файл, в котором Terraform хранит соответствие между ресурсами и их атрибутами. Критично: **state содержит все атрибуты, включая пароли, ключи и токены**, часто в открытом виде. Backend (где лежит state) — S3/GCS/Azure Blob/Terraform Cloud. Если у вас есть доступ к backend, вы получаете и секреты, и возможность подменить инфраструктуру. Terraform — де-факто стандарт IaC, поэтому это одна из самых «доходных» целей в облачном пентесте.
+## Данные: backend и наши права
 
-## Модель Terraform state
+Смотрим конфиг Terraform, чтобы понять, куда пишется state:
 
-- **state** (`terraform.tfstate`) — JSON с ресурсами и их атрибутами.
-- **backend** — место хранения state (local, S3, GCS, AzureRM, Consul, Terraform Cloud).
-- **state locking** — DynamoDB (S3 backend), чтобы избежать одновременных изменений.
-- **encryption** — S3 SSE, GCS CMEK, Azure SSE.
-- **sensitive values** — Terraform помечает их как sensitive, но в state они **хранятся в открытом виде**.
-- **modules/providers** — код и версии; provider-креды из переменных среды.
-- **workspaces** — несколько state в одном backend.
-
-## Инструменты и команды
-
-```bash
-# Если есть доступ к репозиторию и backend
-terraform init
-terraform state list
-terraform show                     # все ресурсы и атрибуты
-terraform show -json | jq '.values.root_module.resources[] | {type:.type, values:.values}'
-terraform state pull > state.json  # выгрузить state
-terraform output -json             # outputs (часто секреты)
-
-# Backend S3: читаем напрямую
-aws s3 ls s3://company-tfstate/
-aws s3 cp s3://company-tfstate/prod/terraform.tfstate state.json
-jq '.. | objects | select(has("password") or has("secret") or has("key"))' state.json
-
-# Backend GCS
-gsutil cp gs://company-tfstate/prod/default.tfstate state.json
-
-# Backend Azure
-az storage blob download --account-name tfstate --container-name prod --name terraform.tfstate -f state.json
+```
+$ grep -A6 'backend "s3"' *.tf
+backend "s3" {
+  bucket         = "acme-tfstate-prod"
+  key            = "prod/terraform.tfstate"
+  region         = "us-east-1"
+  dynamodb_table = "acme-tf-lock"
+  encrypt        = true
+}
 ```
 
-## Разобранный пример: state → секреты
+Читаем так: state лежит в S3 (`bucket`/`key`), блокировка — в DynamoDB (`dynamodb_table`), шифрование включено (`encrypt`). `encrypt = true` — это шифрование **на диске** (SSE), а не шифрование полей: скачав объект, мы получим открытый JSON.
 
-Сценарий: бакет `company-tfstate` доступен (через IAM или публично).
+У нас есть узкие креды:
 
-```bash
-aws s3 ls s3://company-tfstate/ --recursive | head
-# prod/terraform.tfstate
-# prod/terraform.tfstate.backup
-
-aws s3 cp s3://company-tfstate/prod/terraform.tfstate /tmp/state.json
-python3 - <<'PY'
-import json
-d = json.load(open('/tmp/state.json'))
-def walk(o, path=''):
-    if isinstance(o, dict):
-        for k, v in o.items(): walk(v, f'{path}.{k}')
-    elif isinstance(o, list):
-        for i, v in enumerate(o): walk(v, f'{path}[{i}]')
-    else:
-        if any(s in path.lower() for s in ('password','secret','key','token','pass')):
-            print(path, '=', o)
-walk(d)
-PY
-# .root_module.resources[3].values.admin_password = S3cr3t-Pr0d
-# .root_module.resources[7].values.db_password = pg-pass-123
-# .root_module.resources[9].values.access_key = AKIA...
+```
+$ aws sts get-caller-identity
+{ "Arn": "arn:aws:iam::123456789012:user/readonly-auditor" }
+$ aws s3api get-object --bucket acme-tfstate-prod --key prod/terraform.tfstate state.json
+{ "ContentLength": 4096, "ServerSideEncryption": "aws:kms" }
 ```
 
-За один `s3 cp` получили пароли БД, admin-пароли и AWS-ключи. Если бакет был публичным или доступен широкой роли — секреты могли утечь давно.
+`get-object` сработал: нам хватило `s3:GetObject` на этот ключ. Листинг бакета нам недоступен, но он и не нужен — ключ известен из конфига.
 
-## Что содержит state
+## Пробуем в лоб: читаем JSON руками
 
-| Ресурс | Что в state |
-|---|---|
-| `aws_db_instance` | `password`, `username` |
-| `aws_iam_access_key` | `secret` (секретный ключ!) |
-| `aws_secretsmanager_secret_version` | `secret_string` |
-| `azurerm_key_vault_secret` | `value` |
-| `google_secret_manager_secret_version` | `secret_data` |
-| `tls_private_key` | `private_key_pem` |
-| `random_password` | `result` |
-| `kubernetes_secret` | `data` |
+State — это JSON. Смотрим outputs и ресурсы:
 
-Практически любой секрет, созданный Terraform, лежит в state.
-
-## Подмена инфраструктуры
-
-Если у вас есть **запись** в backend (или права применить план), вы можете подменить state или применить свои изменения. Подмена state позволяет Terraform «увидеть» ресурс подконтрольным или удалить/создать ресурс. Но будьте осторожны: `terraform apply` — разрушительная операция, может удалить прод-ресурсы. Для пентеста достаточно чтения; для персистентности — добавление своего ресурса через apply (например, IAM-пользователя).
-
-```bash
-# Осторожно: apply может изменить/удалить ресурсы
-terraform plan    # сначала посмотреть, что изменится
+```
+$ jq '.outputs' state.json
+{
+  "rds_password": { "value": "Pr0d-DB-P@ss", "type": "string" },
+  "admin_role_arn": { "value": "arn:aws:iam::123456789012:role/org-admin" }
+}
 ```
 
-## Чек-лист атаки
+Пароль БД и ARN админской роли. В самом state-файле лежат ещё и все атрибуты ресурсов. Но грепать JSON руками неудобно — есть штатный способ.
 
-1. Найти backend (по конфигам, `.terraform/`, CI-переменным).
-2. Проверить доступ к бакету/контейнеру с state.
-3. Скачать state и искать секреты.
-4. Проверить `.terraform.tfstate.backup` (часто забыт).
-5. Проверить outputs (могут содержать секреты).
-6. Проверить права на запись в backend (подмена).
-7. Проверить Terraform Cloud/Enterprise (workspaces, переменные).
+## Приём: terraform state pull
 
-## Обход защит и edge cases
+Команда `terraform state pull` скачивает текущий state из backend и печатает его в stdout, используя те же креды, что и провайдер. Это удобнее прямого `s3api`:
 
-- **Encryption.** S3 SSE/CMEK шифрует state, но если у вас есть права чтения через AWS/GCP/Azure, расшифровка происходит прозрачно. Шифрование не защищает от кражи, только от физического доступа.
-- **State locking.** DynamoDB-блокировка мешает параллельным изменениям, но не чтению.
-- **Backend credentials.** Terraform использует креды из окружения/CI; их утечка = доступ к backend.
-- **Terraform Cloud.** State в TFC; доступ через API-токен. Переменные workspace могут быть sensitive.
-- **Sensitive flag.** Не влияет на хранение — только на вывод в CLI.
-
-## Частые ошибки и подводные камни
-
-- Считать, что «state в приватном бакете» = безопасно: проверяйте IAM бакета.
-- Не скачать `.backup` — там может быть старая версия с другими секретами.
-- Игнорировать outputs.
-- Забыть про Terraform Cloud как отдельную цель.
-- Применять `terraform apply` без `plan` — риск разрушить прод.
-
-## Защита и детект
-
-- Шифровать state (SSE-KMS/CMEK) и ограничивать доступ к бакету строгим IAM.
-- Не хранить секреты в state: использовать `data` из Secret Manager или `ephemeral`-ресурсы (Terraform 1.6+).
-- Ограничить `terraform apply` и доступ к backend.
-- Включить версионирование бакета state и аудит доступа.
-- Использовать Terraform Cloud с RBAC и audit log.
-
-## Модель угроз и типовые мисконфиги
-
-Типичный мисконфиг — публичный бакет state. Второй — широкая роль с доступом к state. Третий — секреты в открытом виде в state. Четвёртый — незащищённый `.backup`. Пятый — outputs с секретами. Все ведут к краже кредов.
-
-## Практическое задание
-
-1. Создайте Terraform-конфиг с секретом, примените и найдите секрет в state.
-2. Выгрузите state через `terraform state pull` и `show -json`.
-3. Ограничьте доступ к бакету и проверьте, что чтение падает.
-4. Используйте `ephemeral`-ресурс и убедитесь, что секрет не пишется в state.
-
-## Что дальше / решение
-
-Из state достаём ключи и пароли. Дальше — использовать их. Зафиксируйте путь «backend → state → секреты» в графе. При шифровании с недоступным ключом — `blocked`. Если есть запись в backend — рассмотрите подмену, но осторожно.
-
-## Terraform Cloud и Enterprise
-
-Terraform Cloud (TFC) хранит state и переменные на стороне HashiCorp. Доступ — через API-токен (user/team/org). Это отдельная цель: утечка токена = доступ к state и возможность запускать runs.
-
-```bash
-# Проверяем токен и организации
-curl -s -H "Authorization: Bearer $TFC_TOKEN" https://app.terraform.io/api/v2/account/details | jq '.data.attributes.username'
-curl -s -H "Authorization: Bearer $TFC_TOKEN" https://app.terraform.io/api/v2/organizations | jq -r '.data[].id'
-
-# Workspaces и переменные
-curl -s -H "Authorization: Bearer $TFC_TOKEN" \
-  "https://app.terraform.io/api/v2/organizations/ORG/workspaces" | jq -r '.data[].attributes.name'
-
-# Sensitive-переменные не показываются, но state доступен
-curl -s -H "Authorization: Bearer $TFC_TOKEN" \
-  "https://app.terraform.io/api/v2/workspaces/WS/current-state-version" | jq -r '.data.attributes."hosted-state-download-url"'
+```
+$ terraform state pull > state.json
+$ terraform state list
+aws_db_instance.prod
+aws_iam_access_key.deployer
+module.app.tls_private_key.ssh
 ```
 
-TFC часто хранит облачные креды как sensitive-переменные (для provider'ов). Если у вас есть токен с правами на workspace, вы можете запустить run с изменённым кодом — то есть применить произвольную инфраструктуру. Проверяйте права токена (`account/details`, team access) и то, к каким workspaces он даёт доступ.
+`state list` показывает адреса ресурсов. Дальше — `terraform show` по конкретному адресу:
+
+```
+$ terraform show -json state.json | jq '..|.values?|select(.password?) | .password'
+"Pr0d-DB-P@ss"
+```
+
+Так мы достаём значения без ручного парсинга и без знания структуры.
+
+## Полный прогон: от чтения объекта до ключа деплоера
+
+1. **Находим backend.** `grep backend` в конфиге → bucket и key.
+2. **Качаем state.** `s3api get-object` или `terraform state pull`.
+3. **Перечисляем ресурсы.** `terraform state list` → видим `aws_iam_access_key.deployer`.
+4. **Достаём секрет.** `terraform show -json` → `secret_key` и `access_key_id`.
+5. **Проверяем.** Ключ деплоера может иметь широкие права:
+
+```
+$ aws sts get-caller-identity
+{ "Arn": "arn:aws:iam::123456789012:user/deployer" }
+$ aws iam list-attached-user-policies --user-name deployer
+{ "AttachedPolicies": [ { "PolicyName": "PowerUserAccess" } ] }
+```
+
+Одно чтение объекта дало ключ с `PowerUserAccess`.
+
+## Подмена state (когда есть запись)
+
+Если у нас не только чтение, но и `s3:PutObject` (или `terraform state push`), state можно изменить — и пайплайн применит наше значение. Классика: подменить атрибут ресурса, чтобы следующий `apply` сделал не то.
+
+```
+$ terraform state push modified.tfstate
+```
+
+Защита — **версионирование бакета** (старые версии остаются) и **DynamoDB-блокировка** (одновременная запись запрещена). Но версионирование лишь фиксирует факт, а блокировка мешает только параллельной записи.
+
+## GCS и Azure backend
+
+Тот же принцип у других провайдеров. GCS:
+
+```
+$ gsutil cp gs://acme-tfstate/prod/default.tfstate .
+```
+
+Azure (azurerm backend) — состояние в Blob-контейнере; читается `az storage blob download`. Проверяйте, нет ли на контейнер публичного доступа или лишних ролей.
+
+## Частые ошибки вокруг state
+
+- **Считать `encrypt = true` достаточной защитой.** Это шифрование диска, а не полей; кто прочитал объект — прочитал секреты.
+- **Держать state в том же бакете, что и статику.** Достаточно одной ошибки в политике бакета.
+- **Коммитить `terraform.tfstate` в git.** Секреты уходят в историю навсегда.
+- **Не ротировать после утечки.** Пароль из state продолжает работать.
+- **Давать `GetObject` на state «на всякий случай».** Чтение state = чтение всех секретов стека.
+
+## Защита и что ломает атаку
+
+- **Приватный backend** + доступ только сервисному аккаунту пайплайна.
+- **SSE-KMS** — но помните: это защита «на диске», не полей.
+- **Секреты по ссылке** (Secrets Manager) вместо значений в ресурсах.
+- **Ротация** любого секрета, попавшего в state.
+- **Версионирование + мониторинг** записи в бакет state.
+
+## Если не сработало
+
+- **Нет `s3:GetObject`** — читать нечего, ищем другой путь (роль, CI).
+- **Backend в Terraform Cloud** — нужен API-токен платформы.
+- **Секретов нет** — но остаются outputs и адреса ресурсов: это карта инфраструктуры.
+- **State зашифрован KMS без `kms:Decrypt`** — содержимое не читается.
+
+## Мини-сценарий: чтение state целиком
+
+1. **Находим backend.** `grep -A6 'backend "s3"' *.tf` → bucket `acme-tfstate-prod`, key `prod/terraform.tfstate`.
+2. **Проверяем права.** У нас `s3:GetObject` на этот ключ (листинг закрыт, но ключ известен).
+3. **Качаем.** `aws s3api get-object --bucket acme-tfstate-prod --key prod/terraform.tfstate state.json`.
+4. **Перечисляем.** `terraform state list` → `aws_db_instance.prod`, `aws_iam_access_key.deployer`.
+5. **Достаём секрет.** `terraform show -json state.json | jq '..|.values?|select(.secret_key?)'` → `secret_key` деплоера.
+6. **Проверяем.** `aws sts get-caller-identity` → `user/deployer` с `PowerUserAccess`.
+7. **Подмена (если есть запись).** `terraform state push modified.tfstate` — пайплайн применит наше значение.
+
+Одно право чтения объекта отдало ключ с широкими правами.
+
+## Разбор: state — это секреты по определению
+
+Многие считают state «служебным файлом» и не думают о нём как о хранилище секретов. Но Terraform записывает в state **значения** ресурсов — включая пароли, ключи и сертификаты, которые в конфиге были переменными. Поэтому доступ к state равен доступу к секретам всей инфраструктуры. Из этого следуют три правила. Первое: backend должен быть приватным, а `GetObject` на него — только у пайплайна. Второе: секреты не хранят в IaC значениями, а ссылаются на Secrets Manager. Третье: любой секрет, попавший в state, считается скомпрометированным и ротируется. `encrypt = true` защищает диск, но не отменяет первых трёх правил.
+
+## Что мы теперь знаем
+
+1. Backend определяет, где лежит state и как он блокируется.
+2. `terraform state pull`/`show -json` — штатный способ вытащить значения.
+3. `encrypt = true` шифрует диск, а не поля state.
+4. При наличии записи state можно подменить.
+5. Защита — приватный backend, секреты по ссылке, ротация.
+6. Версионирование и lock фиксируют изменение, но не мешают чтению.
+
+Проще говоря: state — это второй «файл конфигурации», только с реальными секретами вместо переменных.
+
+## На что смотреть дальше
+
+- `backend`-блок: bucket, key, таблица блокировки, `encrypt`.
+- `aws_iam_access_key` и `tls_private_key` в state.
+- Outputs с паролями и токенами.
+- Права на бакет state: кому разрешён `GetObject`/`PutObject`.
+- Версионирование и мониторинг записи.
+
+## Быстрая проверка
+
+Четыре команды покрывают весь вектор — от поиска backend до вытаскивания outputs:
+
+```bash
+grep -A6 'backend "' *.tf          # где лежит state
+terraform state pull > s.json      # скачать state
+terraform state list               # перечислить ресурсы
+jq '.outputs' s.json               # вытащить outputs (часто с кредами)
+```
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Почему Terraform state опасен?"
+- question: "Что делает terraform state pull?"
   options:
-    - "Он хранит все атрибуты, включая пароли и ключи, часто в открытом виде"
-    - "Он только список имён"
-    - "Он всегда зашифрован"
-    - "Он публичен по умолчанию"
-  answer: 0
-  explanation: "State сериализует атрибуты ресурсов, включая sensitive."
-- question: "Что даёт terraform state pull?"
-  options:
-    - "Выгружает текущий state в stdout"
+    - "Скачивает текущий state из backend и печатает его"
     - "Применяет изменения"
-    - "Удаляет state"
-    - "Шифрует state"
+    - "Форматирует конфиг"
+    - "Удаляет ресурсы"
   answer: 0
-  explanation: "state pull возвращает содержимое state."
-- question: "Зачем проверять .terraform.tfstate.backup?"
+  explanation: "state pull читает state из backend."
+- question: "Что означает encrypt = true в backend-блоке?"
   options:
-    - "Там может быть старая версия state с другими секретами"
-    - "Он зашифрован"
-    - "Он пустой"
-    - "Он публичен"
+    - "Шифрование state на диске, а не отдельных полей"
+    - "Шифрование всех полей state"
+    - "Блокировку записи"
+    - "Сжатие state"
   answer: 0
-  explanation: "Backup-файл часто забыт и содержит предыдущее состояние."
-- question: "Как избежать секретов в state?"
+  explanation: "SSE шифрует объект целиком; поля внутри открыты."
+- question: "Зачем в S3-backend нужна таблица DynamoDB?"
   options:
-    - "Использовать ephemeral-ресурсы и data из секрет-менеджера"
-    - "Пометить sensitive"
-    - "Использовать local backend"
-    - "Отключить шифрование"
+    - "Для блокировки state от одновременной записи"
+    - "Для шифрования"
+    - "Для хранения паролей"
+    - "Для логирования"
   answer: 0
-  explanation: "Sensitive не убирает значение из state; ephemeral — не пишет."
+  explanation: "DynamoDB обеспечивает lock."
+- question: "Какое право позволяет подменить state?"
+  options:
+    - "s3:PutObject (или terraform state push)"
+    - "s3:ListBucket"
+    - "sts:GetCallerIdentity"
+    - "iam:ListRoles"
+  answer: 0
+  explanation: "Запись в бакет state позволяет подменить содержимое."
+- question: "Что делать с ключом, найденным в state?"
+  options:
+    - "Ротировать: считать скомпрометированным"
+    - "Игнорировать"
+    - "Переименовать ресурс"
+    - "Включить версионирование"
+  answer: 0
+  explanation: "Секрет из state надо ротировать."
 ```
+
+## Куда дальше
+
+В следующем уроке (`cloud-cicd-github-actions`) мы вернёмся к CI и разберём инъекции в workflow — как текст из issue или PR превращается в команду на раннере. А пока главное: state — это полный слепок инфраструктуры, и даже права только на чтение одного объекта отдают ключи.
 
 ## Где пригодится
 
-- **Пентест IaC:** извлечение секретов из state.
-- **Red team:** доступ к инфраструктуре через backend.
-- **Blue team:** защита state и переход на ephemeral.
-- **DevSecOps:** аудит IaC.
+- **Bug bounty:** открытые бакеты и Blob-контейнеры со state.
+- **Red team:** от чтения state к ключам аккаунта.
+- **Пентест:** аудит IaC-backend.
+- **Работа/DevSecOps:** приватный backend, KMS, секреты по ссылке, ротация.
+- **Дальше по дереву:** `cloud-terraform`, `cloud-cloudformation`.

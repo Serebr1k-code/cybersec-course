@@ -14,308 +14,219 @@ useful_for:
 estimated_minutes: 50
 summary: "Как читать Network Security Config, почему пользовательский CA не работает, как обходить trust-anchors, cleartext-политику и config-level pinning."
 ---
-## Введение
 
-Network Security Config (NSC) — декларативный XML, управляющий сетевым доверием Android-приложения. Он решает, каким CA доверять (системным/пользовательским), разрешён ли cleartext, применяется ли pinning на уровне конфига и по каким доменам. Для пентестера NSC — первый барьер после pinning: даже если вы поставили Burp CA, приложение с `trust-anchors → system` его проигнорирует. Этот урок — про чтение NSC, атаки (переход на cleartext, MITM, downgrade) и обход доверия.
+## Вопрос, с которого всё начинается
 
-Ключевая мысль: NSC — **клиентская** конфигурация. Её можно прочитать в APK, понять политику и либо обойти (патч/хук), либо использовать слабости (cleartext-исключения для доменов, debug-overrides).
+Прокси настроен, CA установлен, но приложение не пускает трафик через посредника. Всё дело в одном XML-файле внутри APK — **Network Security Config**. Он определяет, каким сертификатам приложение доверяет и разрешён ли незашифрованный трафик. Как его прочитать и что в нём важно для тестировщика?
 
-## Где лежит NSC
+## Наш пример: реальный NSC
 
-```xml
-<!-- AndroidManifest.xml -->
-<application android:networkSecurityConfig="@xml/network_security_config" ...>
+Возьмём настоящий APK и извлечём его конфигурацию. После `apktool d` файл лежит в ресурсах:
+
+```
+$ apktool d app.apk -o dec
+$ find dec/res -name 'network_security_config*'
+dec/res/xml/network_security_config.xml
 ```
 
-Файл: `res/xml/network_security_config.xml`. После `apktool d`:
-
-```bash
-grep -n "networkSecurityConfig" AndroidManifest.xml
-cat res/xml/network_security_config.xml
-```
-
-## Чтение и разбор
+Содержимое (реальный файл открытого приложения):
 
 ```xml
+<?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-  <!-- дефолт для всех доменов -->
-  <base-config cleartextTrafficPermitted="false">
-    <trust-anchors>
-      <certificates src="system"/>
-    </trust-anchors>
-  </base-config>
-
-  <!-- исключение: домен разрешает пользовательские CA и cleartext -->
-  <domain-config cleartextTrafficPermitted="true">
-    <domain includeSubdomains="true">legacy.target.com</domain>
-    <trust-anchors>
-      <certificates src="system"/>
-      <certificates src="user"/>
-    </trust-anchors>
-  </domain-config>
-
-  <!-- debug-переопределения (только debuggable-сборки) -->
-  <debug-overrides>
-    <trust-anchors><certificates src="user"/></trust-anchors>
-  </debug-overrides>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+        <certificateTransparency enabled="false" />
+    </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <certificateTransparency enabled="false" />
+        <domain includeSubdomains="true">onion</domain>
+    </domain-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <certificateTransparency enabled="true" />
+        <domain includeSubdomains="true">amazonaws.com</domain>
+        <domain includeSubdomains="true">f-droid.org</domain>
+        <domain includeSubdomains="true">github.com</domain>
+    </domain-config>
 </network-security-config>
 ```
 
-Что искать:
-- `<certificates src="user"/>` — пользовательский CA разрешён (MITM возможен без обхода).
-- `cleartextTrafficPermitted="true"` — HTTP в открытом виде (перехват/подмена тривиальны).
-- `<pin-set>` — pinning на уровне NSC.
-- `<debug-overrides>` — доверие user-CA в debug-сборках (частая утечка).
+Разберём его по частям — это ключ ко всему уроку.
 
-## Полный сквозной пример: обход trust-anchors
+## Шаг 1: что такое Network Security Config
 
-Дано: приложение с `base-config → system` и pinning в коде. Обычный Burp не работает.
+**Network Security Config (NSC)** — это настройка TLS и сетевого поведения приложения, заданная в XML. Android применяет её ко всем соединениям приложения. В ней описано:
 
-```bash
-# 1. Читаем NSC
-cat res/xml/network_security_config.xml
-# -> base-config: trust-anchors system only  (user CA игнорируется)
-# 2. Вариант A: патчим NSC в APK
-#    добавляем <certificates src="user"/> в base-config
-apktool d app.apk -o src
-# правим src/res/xml/network_security_config.xml: добавить user
-apktool b src -o patched.apk
-zipalign -v 4 patched.apk aligned.apk
-apksigner sign --ks test.keystore --out signed.apk aligned.apk
-adb uninstall com.target.app && adb install signed.apk
-# 3. Теперь пользовательский CA (Burp) принимается
+- каким **доверенным сертификатам** (trust anchors) приложение верит;
+- разрешён ли **cleartext** (незашифрованный HTTP);
+- включён ли **Certificate Transparency**;
+- можно ли задать **pin** (config-level pinning).
+
+Если NSC нет, действуют настройки по умолчанию: на Android 7+ доверяются только системные CA, cleartext запрещён на новых версиях.
+
+## Шаг 2: читаем base-config и trust-anchors
+
+Верхний блок `<base-config>` задаёт поведение по умолчанию. Главное для нас:
+
+```xml
+<trust-anchors>
+    <certificates src="system" />
+    <certificates src="user" />
+</trust-anchors>
 ```
 
-Вариант B (без перепаковки) — Frida-хук проверки доверия (см. `mobile-ios-ssl-killswitch` для iOS-аналога; на Android хукают `X509TrustManager`/`SSLContext`). Вариант C — системный CA на root-устройстве (см. ниже).
+`src="user"` означает: приложение **доверяет пользовательским сертификатам**. Это то, что нужно тестировщику — достаточно установить CA прокси как пользовательский, и перехват заработает **без root**. Помните, что на Android 7+ это не по умолчанию, а именно потому, что разработчик явно разрешил.
 
-## Системный CA вместо пользовательского
+Если бы здесь было только `<certificates src="system" />`, пользовательский CA игнорировался бы, и понадобился бы системный (root) или обход.
 
-Если NSC доверяет `system`, положите Burp CA в системное хранилище (нужен root):
+## Шаг 3: cleartext-политика
 
-```bash
-# хэшируем сертификат по subject
-openssl x509 -inform PEM -subject_hash_old -in burp.pem | head -1
-# -> 9a5ba575
-cp burp.pem 9a5ba575.0
-adb push 9a5ba575.0 /sdcard/
-adb shell su -c 'mount -o rw,remount /system 2>/dev/null || magisk --clone /system/etc/security/cacerts'
-adb shell su -c 'cp /sdcard/9a5ba575.0 /system/etc/security/cacerts/ && chmod 644 /system/etc/security/cacerts/9a5ba575.0'
-adb reboot
-```
+Атрибут `cleartextTrafficPermitted` решает, разрешён ли незашифрованный трафик:
 
-На Android 14+ системный раздел read-only — используйте Magisk-модуль `cert-fix` или `movecert`.
+- `true` — приложение может ходить по `http://`;
+- `false` — только HTTPS.
 
-## Cleartext-политика как находка
+В нашем файле `base-config` разрешает cleartext (`true`), а для конкретных доменов (`amazonaws.com`, `f-droid.org`, `github.com`) — запрещает. То есть по умолчанию приложение допускает HTTP, но к важным доменам — только HTTPS.
 
-`cleartextTrafficPermitted="true"` для домена означает, что трафик идёт по HTTP. Это находка (перехват, MITM, инъекция) и удобный вектор: можно подменить ответ без всякого TLS. Проверяйте также `<domain>` с `includeSubdomains` — поддомены могут быть забыты.
+Для тестировщика `cleartextTrafficPermitted="true"` — это находка: незашифрованный трафик можно читать и менять без всякого MITM-сертификата.
 
-## Config-level pinning (`<pin-set>`)
+## Шаг 4: domain-config и исключения
+
+Блок `<domain-config>` переопределяет настройки для конкретных доменов. В примере:
+
+- `onion` — cleartext разрешён (Tor-адреса работают по HTTP);
+- `amazonaws.com`, `f-droid.org`, `github.com` — cleartext запрещён, CT включён.
+
+Так разработчики точечно ослабляют или усиливают политику. Читая NSC, ищите домены с **ослабленными** настройками — они и есть точки интереса.
+
+## Шаг 5: config-level pinning
+
+В NSC можно задать **pin** — ожидаемый хэш открытого ключа:
 
 ```xml
 <domain-config>
-  <domain includeSubdomains="true">api.target.com</domain>
-  <pin-set expiration="2026-01-01">
-    <pin digest="SHA-256">AAAA...=</pin>
-    <pin digest="SHA-256">BBBB...=</pin>
-  </pin-set>
+    <domain includeSubdomains="true">api.example.com</domain>
+    <pin-set expiration="2027-01-01">
+        <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+    </pin-set>
 </domain-config>
 ```
 
-`pin-set` реализуется фреймворком (Conscrypt) — обход через Frida-хук проверки pin или патч конфига. Истёкший `expiration` означает, что pinning отключён — тоже полезная деталь.
+Если такой блок есть, приложение проверяет ключ сервера по хэшу — и обычный прокси с любым CA не поможет. Обход — тот же, что для пиннинга: хук проверки, патч NSC или удаление `pin-set` из ресурсов и переупаковка.
 
-## Частые ошибки
+## Шаг 6: обход и что искать
 
-- **Не найти NSC**: путь указан в манифесте; ищите `networkSecurityConfig`.
-- **Забыть про `debug-overrides`**: в debug-сборке user-CA доверяется, в релизе — нет; не делайте вывод по debug.
-- **Патч без подписи**: после `apktool b` обязательны `zipalign` + `apksigner`.
-- **`/system` read-only**: используйте Magisk-модуль вместо ручного монтирования.
-- **Игнорировать `<pin-set>`**: config-pinning не виден в коде, только в XML.
-- **Не проверить поддомены**: `includeSubdomains=true` расширяет политику.
+Алгоритм работы с NSC:
 
-## Что дальше / решение
+1. **Извлеките файл** (`apktool`) и прочитайте `trust-anchors`.
+2. **Проверьте `src="user"`** — если есть, хватит пользовательского CA.
+3. **Посмотрите `cleartextTrafficPermitted`** — где разрешён HTTP, там перехват тривиален.
+4. **Ищите `pin-set`** — это config-level pinning, требующий обхода.
+5. **Если доверие только системное** — нужен root/системный CA или патч NSC.
 
-Сначала прочитайте NSC. Если user-CA разрешён — MITM тривиален. Если нет — системный CA (root) или патч/Frida. Если есть `pin-set` — хукайте. Свяжите с `mobile-ssl-pinning`, `mobile-emulator-detection`, `mobile-mitm-advanced`. Рекомендация в отчёте: `cleartextTrafficPermitted=false`, `trust-anchors` только system, актуальный `pin-set`.
+Патч NSC — простой путь: убрать `pin-set`, добавить `src="user"`, пересобрать APK и подписать. Минус — проверка подписи (см. `mobile-integrity`).
 
-## Справочная таблица
+## Шаг 7: Certificate Transparency
 
-| Тег | Значение | Риск |
-|-----|----------|------|
-| certificates src=user | доверие пользовательским CA | MITM возможен |
-| cleartextTrafficPermitted=true | HTTP разрешён | перехват/подмена |
-| debug-overrides | user-CA в debug | утечка конфигурации |
-| pin-set | config-pinning | нужен обход |
-| domain includeSubdomains | политика на поддомены | расширение |
+В нашем файле есть атрибут `certificateTransparency`. Это механизм, при котором выпущенные сертификаты публикуются в открытых логах, и клиент может проверить, что сертификат сервера там зарегистрирован. Для тестировщика важно другое: CT добавляет ещё одну проверку, из-за которой сертификат прокси (не зарегистрированный в логах) может быть отвергнут.
 
-| Обход | Когда |
-|-------|-------|
-| системный CA | NSC доверяет system, есть root |
-| патч NSC | нет root, можно перепаковать |
-| Frida-хук | нельзя менять APK |
+В примере для важных доменов CT включён (`enabled="true"`), а для `onion` — выключен. Если приложение включает CT, самодельный сертификат прокси не пройдёт, даже если CA доверенный. В таких случаях помогает хук, отключающий проверку CT, или работа с уже зарегистрированным сертификатом.
 
-## Полный разбор тегов NSC
+## Шаг 8: как проверить NSC в рантайме
 
-Разберём каждый тег и его влияние на тестирование.
+Иногда NSC в ресурсах не виден (обфускация, динамическая подстановка). Тогда конфигурацию смотрят в работающем приложении: перехватывают создание сетевого стека и выводят активную политику. Практически достаточно понять три вещи:
 
-**`<base-config>`** — дефолт для всех соединений. Атрибут `cleartextTrafficPermitted` (true/false) определяет HTTP-политику. Внутри — `<trust-anchors>`.
+- доверяются ли пользовательские CA;
+- разрешён ли cleartext;
+- есть ли активный pin-set.
 
-**`<domain-config>`** — переопределение для конкретных доменов (`<domain>`). Часто содержит исключения, которые и есть находки: cleartext для legacy-домена, доверие user-CA.
+Если в ресурсах ничего не нашлось, а трафик всё равно не перехватывается — смотрите на нативный TLS-стек: пиннинг может быть реализован не через NSC, а в `.so`.
 
-**`<trust-anchors>`** — какие CA доверенные: `<certificates src="system"/>`, `src="user"/>`, `src="system,user"/>`. Только `system` = MITM без обхода невозможен.
+Полезно также понимать приоритет: `domain-config` перекрывает `base-config` для указанного домена. Поэтому приложение может разрешать cleartext везде, кроме конкретных адресов, — и наоборот. Читая файл, всегда ищите наиболее специфичное правило для интересующего домена, а не только верхний блок.
 
-**`<pin-set>`** — pinning на уровне фреймворка (Conscrypt). Атрибут `expiration` (дата) — после неё pinning отключается (важная деталь для теста).
+Ещё одна деталь — `<debug-overrides>`. Этот блок позволяет доверять пользовательским CA **только в отладочной сборке**. В релизе он не действует. Если приложение собрано в debug-режиме (проверьте `android:debuggable`), такой блок даёт лёгкий перехват без root. Полезно проверить и флаг `debuggable` в манифесте — отладочная сборка вообще многое упрощает при анализе.
 
-**`<debug-overrides>`** — применяется только к debuggable-сборкам; обычно добавляет `user`-CA. В debug MITM проходит, в release — нет.
+## Шаг 9: разбираем NSC скриптом
 
-```bash
-# найти и распарсить
-apktool d app.apk -o s 2>/dev/null
-f=$(grep -o 'network_security_config' s/AndroidManifest.xml | head -1)
-cat s/res/xml/network_security_config.xml 2>/dev/null
+NSC — это XML, и его удобно разбирать программно, а не глазами:
+
+```
+$ python3 -c "import xml.etree.ElementTree as ET; r=ET.parse('network_security_config.xml').getroot(); b=r.find('base-config'); print('base cleartext =', b.get('cleartextTrafficPermitted')); print('debug-overrides =', r.find('debug-overrides') is not None)"
+base cleartext = false
+debug-overrides = True
 ```
 
-## NSC + pinning: комбинированная защита
+`base cleartext = false` — хороший знак: по умолчанию HTTP запрещён. А `debug-overrides = True` — важная находка: блок `<debug-overrides>` разрешает доверять пользовательским CA, но **только** в debug-сборке. Если приложение собрано в debug (или проверка `android:debuggable` слабая), этот блок открывает путь для MITM без установки системного CA. Всегда проверяй наличие `debug-overrides` и `cleartextTrafficPermitted` на доменах-исключениях.
 
-Продвинутая защита сочетает NSC и pinning:
+## Что мы теперь знаем
 
-```xml
-<domain-config>
-  <domain includeSubdomains="true">api.target.com</domain>
-  <trust-anchors><certificates src="system"/></trust-anchors>
-  <pin-set expiration="2027-01-01">
-    <pin digest="SHA-256">AAAA...=</pin>
-  </pin-set>
-</domain-config>
-```
+По-простому:
 
-Здесь недостаточно системного CA — нужен и обход pinning. Порядок: (1) NSC доверяет только system → положить системный CA; (2) есть `pin-set` → хук проверки pin; (3) в коде может быть ещё один pinning → общий Frida-обход.
+1. NSC задаёт доверие к сертификатам, политику cleartext и пины для доменов.
+2. `<certificates src="user" />` разрешает пользовательский CA — перехват без root.
+3. `cleartextTrafficPermitted="true"` допускает HTTP — данные читаемы без MITM.
+4. `pin-set` — config-level pinning, обходится хуком или патчем.
+5. Без `src="user"` нужен системный CA или патч NSC.
 
-## Автоматический анализ NSC
+## На что смотреть дальше
 
-Скрипт извлекает политику из всех APK в папке:
-
-```bash
-for apk in *.apk; do
-  d=$(mktemp -d)
-  apktool d -f -s "$apk" -o "$d" >/dev/null 2>&1
-  nsc=$(grep -o 'res/xml/[a-z_]*\.xml' "$d/AndroidManifest.xml" 2>/dev/null | head -1)
-  [ -n "$nsc" ] && { echo "== $apk =="; grep -oE 'cleartextTrafficPermitted="[^"]*"|src="[^"]*"|expiration="[^"]*"' "$d/$nsc"; }
-  rm -rf "$d"
-done
-```
-
-Так быстро выявляются приложения с cleartext или доверием user-CA.
-
-## Кейс: downgrade на cleartext
-
-Дано: NSC разрешает cleartext для `legacy.target.com`.
-
-```bash
-# 1. Подтверждаем политику
-grep -A3 'legacy.target.com' res/xml/network_security_config.xml
-# 2. Заворачиваем трафик (transparent proxy) и наблюдаем HTTP в открытом виде
-mitmproxy --mode transparent -p 8080
-# 3. Меняем ответ (например, токен/цену) — приложение принимает без проверки целостности
-```
-
-Находка: чувствительный трафик по HTTP — перехват и подмена. Severity зависит от данных (аутентификация/платежи = High/Critical).
-
-## Проверка и рекомендации
-
-| Проблема | Рекомендация |
-|----------|--------------|
-| cleartext=true | запретить, использовать HTTPS |
-| trust user-CA | только system |
-| debug-overrides | не влияет на release, но проверяйте сборки |
-| истёкший pin-set | обновить/убрать |
-| нет pin-set | добавить для API-доменов |
-
-Сквозной чек-лист: прочитать NSC → зафиксировать политику → проверить достижимость MITM → при наличии pin-set проверить обход → оформить находки. NSC — «второй эшелон» после pinning, и его ошибки часто дают быстрые находки.
-
-## Практикум: разбор NSC вручную
-
-Возьмём реальный NSC и разберём его по частям.
-
-```xml
-<network-security-config>
-  <base-config cleartextTrafficPermitted="false">
-    <trust-anchors><certificates src="system"/></trust-anchors>
-  </base-config>
-  <domain-config cleartextTrafficPermitted="true">
-    <domain includeSubdomains="true">cdn.target.com</domain>
-  </domain-config>
-  <debug-overrides>
-    <trust-anchors><certificates src="user"/></trust-anchors>
-  </debug-overrides>
-</network-security-config>
-```
-
-Вывод: базово MITM невозможен (только system-анкоры), но `cdn.target.com` разрешает cleartext — трафик к CDN идёт по HTTP. В debug-сборке user-CA доверяется. Действия тестировщика: (1) для релиза — системный CA или патч NSC; (2) проверить, что отдаёт CDN по HTTP (может ли быть подмена контента); (3) не делать выводы по debug-сборке.
-
-Патч NSC для теста: добавить `<certificates src="user"/>` в `base-config`, пересобрать, подписать, установить. Проверка результата — Burp начинает видеть трафик.
-
-## Продвинутый анализ: NSC в разных сборках и автоматизация
-
-NSC может отличаться между сборками (debug/release, разные flavor). Проверяйте каждую доступную сборку: то, что доверяет user-CA в debug, может быть строгим в release. Иногда в release NSC вообще отсутствует, и применяется дефолт Android (на Android 7+ — только system-анкоры). Отсутствие NSC — тоже вывод: поведение определяется платформой.
-
-Автоматизируйте извлечение политики из множества APK. Скрипт распаковывает каждый APK, находит ссылку на NSC в манифесте, печатает релевантные атрибуты (cleartext, src, expiration). Это позволяет быстро сравнить приложения и найти слабые конфигурации в портфеле.
-
-Отдельно проверяйте `pin-set`: его наличие означает config-level pinning. Если `expiration` в прошлом — pinning отключён (находка/упрощение теста). Если дата в будущем — нужен обход. Иногда pin-set содержит только один pin (не backup) — риск потери доступа при ротации сертификата, но для теста это не важно.
-
-## Комбинированный обход
-
-Порядок обхода доверия: (1) если NSC доверяет user — просто установите Burp CA; (2) если только system — положите CA в системное хранилище (root) или патчьте NSC; (3) если есть pin-set — обойдите pinning (Frida); (4) если в коде ещё один pinning — общий обход. На каждом шаге проверяйте, виден ли трафик, чтобы не делать лишнего.
-
-## Что писать в отчёте
-
-Для каждого приложения: политика NSC (cleartext/trust/pin), достижимость MITM, найденные слабости (cleartext, user-CA, истёкший pin), рекомендации (запрет cleartext, только system-анкоры, актуальный pin-set с backup-пином). NSC — второй эшелон после pinning, и его ошибки часто дают быстрые находки.
-
-## Практический пример скрипта
-
-Скрипт проходит по всем APK и выводит сводку по NSC — это экономит время при аудите портфеля приложений и сразу показывает, где MITM возможен без обхода, а где нужен системный CA или патч.
+- **NSC — первое, что читают.** Он сразу говорит, возможен ли лёгкий перехват.
+- **Ищите `src="user"`.** Это самая частая «поблажка» разработчика.
+- **`cleartext=true` — находка.** Незашифрованные данные не нуждаются в обходе.
+- **`pin-set` — препятствие.** Готовьтесь к обходу пиннинга.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Почему пользовательский CA не работает при `trust-anchors → system`?"
+- question: "Что означает certificates src='user' в Network Security Config?"
   options:
-    - "Приложение доверяет только системным CA"
-    - "CA слишком большой"
-    - "Android блокирует Burp"
-    - "Нужен HTTP/2"
+    - "Приложение доверяет пользовательским CA — перехват без root"
+    - "Приложение запрещает TLS"
+    - "Приложение работает только офлайн"
+    - "Приложение использует QUIC"
   answer: 0
-- question: "Что означает `cleartextTrafficPermitted=true` для домена?"
+- question: "Что задаёт атрибут cleartextTrafficPermitted='true'?"
   options:
-    - "Трафик домена может идти по HTTP без шифрования"
-    - "Домен зашифрован"
-    - "Домен использует pinning"
-    - "Домен только для debug"
+    - "Разрешает незашифрованный HTTP-трафик"
+    - "Включает VPN"
+    - "Отключает сертификаты"
+    - "Ускоряет сеть"
   answer: 0
-- question: "Что такое `pin-set` в NSC?"
+- question: "Где в APK лежит Network Security Config?"
   options:
-    - "Pinning на уровне конфига (Conscrypt)"
-    - "Список портов"
-    - "Разрешения"
-    - "Сертификат разработчика"
+    - "res/xml/network_security_config.xml"
+    - "assets/config.json"
+    - "lib/<abi>/nsc.so"
+    - "classes.dex"
   answer: 0
-- question: "Как положить CA в системное хранилище?"
+- question: "Что задаёт блок pin-set в NSC?"
   options:
-    - "Скопировать хэш-именованный файл в /system/etc/security/cacerts (root)"
-    - "Установить как профиль"
-    - "Добавить в Info.plist"
-    - "Загрузить в Keychain"
+    - "Ожидаемый хэш открытого ключа (config-level pinning)"
+    - "Список Wi-Fi сетей"
+    - "Версию Android"
+    - "Разрешения приложения"
   answer: 0
-- question: "Что важно проверить в `<domain-config>`?"
+- question: "Почему на Android 7+ пользовательский CA обычно не работает?"
   options:
-    - "includeSubdomains и cleartext-исключения"
-    - "Версию Burp"
-    - "Размер APK"
-    - "Подпись"
+    - "Приложения по умолчанию доверяют только системным CA"
+    - "Пользовательские CA запрещены"
+    - "Нужен iOS"
+    - "CA нельзя установить"
   answer: 0
 ```
 
+## Куда дальше
+
+Мы разобрали, как приложение управляет доверием к сертификатам. В следующем уроке разберём обход другого типа защиты — детекта эмулятора. А пока главное: Network Security Config — это «паспорт доверия» приложения, и чтение этого файла сразу показывает, возможен ли лёгкий перехват или придётся обходить пиннинг.
+
 ## Где пригодится
 
-- **Пентест Android:** первый барьер для MITM.
-- **Bug bounty:** cleartext и слабый trust как находки.
-- **Анализ трафика:** понимание политики доверия.
-- **CTF:** Mobile-задачи с сетью.
+- **Пентест Android:** быстрая оценка возможности перехвата трафика.
+- **Bug bounty:** поиск доменов с ослабленной политикой.
+- **Анализ трафика:** понимание, почему прокси работает или нет.
+- **Работа:** рекомендации разработчикам по настройке TLS.

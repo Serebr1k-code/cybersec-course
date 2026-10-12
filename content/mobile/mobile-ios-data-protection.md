@@ -14,263 +14,186 @@ useful_for:
 estimated_minutes: 50
 summary: "Классы Data Protection (NSFileProtectionComplete и др.), как они защищают файлы, как проверить их на устройстве и какие слабые классы создают утечки."
 ---
-## Введение
 
-Data Protection — механизм iOS, при котором каждый файл шифруется на диске ключом, привязанным к классу доступности (`NSFileProtection`). Класс определяет, **когда** файл расшифровывается: только при разблокированном устройстве, после первой разблокировки, всегда и т.д. Слабый класс (или `None`) означает, что данные доступны даже при заблокированном экране и попадают в бэкап — это классическая находка пентеста. Этот урок — про то, как классы работают, как их проверять и как это эксплуатируется (в т.ч. в форензике через keybag).
+## Вопрос, с которого всё начинается
 
-Data Protection отличается от Keychain: Keychain — отдельное хранилище секретов, Data Protection — защита файлов в песочнице. Часто путают.
+Приложение хранит на диске файл с токеном. Устройство украдено, но оно **заблокировано** паролем. Может ли злоумышленник прочитать этот файл? Ответ зависит от одного параметра — **класса защиты данных** файла. Как iOS защищает файлы и где эта защита ломается?
 
-## Классы защиты
+## Наш пример: файлы DemoApp и их защита
 
-| Класс | Когда доступен | В бэкап | Комментарий |
-|-------|----------------|---------|-------------|
-| `NSFileProtectionComplete` | только разблокировано | да | самый строгий (файл зашифрован и ключ выброшен при lock) |
-| `NSFileProtectionCompleteUnlessOpen` | разблокировано; открытый файл остаётся | да | для активных загрузок |
-| `NSFileProtectionCompleteUntilFirstUserAuthentication` | после первой разблокировки | да | дефолт многих файлов; доступен при lock |
-| `NSFileProtectionNone` | всегда | да | **небезопасно** |
+Вернёмся к `DemoApp` на jailbreak-устройстве. Данные приложения лежат в его песочнице:
 
-`Complete` выгружает ключ из памяти при блокировке — файл недоступен. `UntilFirstUserAuthentication` оставляет ключ после первой разблокировки до перезагрузки — данные читаемы при заблокированном экране. `None` — открытый текст (в смысле ключа, доступного всегда).
+```
+$ ls -la /var/mobile/Containers/Data/Application/<uuid>/Documents/
+-rw-r--r--  notes.db
+-rw-r--r--  session.json
+```
 
-## Как приложение задаёт класс
+Файлы выглядят обычными, но у каждого есть невидимый атрибут — **класс защиты** (Data Protection class). Посмотрим его:
 
-```objectivec
-// для одного файла
+```
+$ xattr -l session.json
+com.apple.protection: NSFileProtectionComplete
+```
+
+`xattr` показывает расширенные атрибуты файла. `com.apple.protection` — и есть класс защиты. Он определяет, **когда** система расшифрует файл.
+
+## Шаг 1: классы защиты
+
+iOS шифрует данные на диске ключом, привязанным к паролю устройства. Класс защиты говорит, в какой момент ключ становится доступен:
+
+| Класс | Когда доступен файл |
+|-------|---------------------|
+| `NSFileProtectionComplete` | только при разблокированном устройстве |
+| `NSFileProtectionCompleteUnlessOpen` | можно дописать после блокировки |
+| `NSFileProtectionCompleteUntilFirstUserAuthentication` | после первой разблокировки (доступен в фоне) |
+| `NSFileProtectionNone` | всегда (шифрование только «на бумаге») |
+
+Чем «слабее» класс, тем шире окно доступа. `None` означает, что файл фактически не защищён паролем. `UntilFirstUserAuthentication` — частый выбор для фоновой синхронизации, но он позволяет читать файл, даже когда экран заблокирован.
+
+## Шаг 2: защита по умолчанию
+
+Важно: iOS применяет `NSFileProtectionCompleteUntilFirstUserAuthentication` к файлам приложения **по умолчанию**. То есть «ничего не делать» — уже не худший вариант, но и не лучший. Приложение может усилить защиту, явно задав класс при создании файла:
+
+```objc
 [[NSFileManager defaultManager]
-   setAttributes:@{NSFileProtectionKey: NSFileProtectionComplete}
-   ofItemAtPath:path error:&err];
-
-// глобально для создаваемых файлов (в Info.plist: NSFileProtectionComplete)
+    createFileAtPath:path
+    contents:data
+    attributes:@{NSFileProtectionKey: NSFileProtectionComplete}];
 ```
 
-В `Info.plist` можно задать дефолт для всех файлов приложения. Отсутствие значения — файлы наследуют класс по умолчанию (`UntilFirstUserAuthentication`).
+Ключ `NSFileProtectionKey` задаёт класс. Если разработчик не указал его, действует значение по умолчанию.
 
-## Проверка на устройстве (jailbreak)
+## Шаг 3: что это даёт при разных сценариях
 
-```bash
-# класс защиты конкретного файла
-cycript -p TargetApp
-cycript> [NSFileManager defaultManager] attributesOfItemAtPath:@"/var/mobile/Containers/Data/Application/<uuid>/Library/secret.db" error:nil]
-# -> {"NSFileProtectionKey":"NSFileProtectionNone", ...}
+Разберём три ситуации.
+
+**Устройство разблокировано, есть jailbreak.** Мы читаем все файлы напрямую — класс защиты не мешает, потому что ключи уже доступны.
+
+**Устройство заблокировано, есть полный образ.** Здесь класс защиты решает всё. Файлы с `Complete` недоступны (их ключ выведен из памяти при блокировке), а с `UntilFirstUserAuthentication` и `None` — читаются.
+
+**Есть только бэкап.** В незашифрованном бэкапе Keychain нет, но файлы приложения есть; класс защиты при бэкапе не сохраняется как ограничение, поэтому токен в `session.json` может утечь.
+
+## Шаг 4: где ломается защита
+
+Data Protection сильна, но у неё есть слабые места:
+
+- **Файлы с `NSFileProtectionNone`** — читаются всегда, это прямая находка.
+- **Данные в `NSUserDefaults`** — plist в `Library/Preferences`; класс защиты часто слабый.
+- **Кэш и логи** — разработчики редко задумываются об их защите.
+- **Скриншоты и снапшоты** — iOS делает снимок экрана при сворачивании, и он может остаться в кэше.
+- **Данные в памяти** — если приложение не очищает буферы, секрет живёт в памяти после использования.
+
+Проверять стоит всё: `ls` по песочнице, `xattr` на подозрительных файлах, поиск по `NSUserDefaults`.
+
+## Шаг 5: как проверить класс защиты
+
+Практический порядок: найти файл с секретом, посмотреть его `xattr`, оценить класс. Затем проверить сценарий блокировки: если файл с `Complete` — он защищён; если с `None` — нет. Дополнительно ищем секреты в `Preferences`, `Caches`, `tmp`. Наконец, проверяем, не остаётся ли секрет в памяти после использования (например, в неизменяемом объекте, который долго живёт).
+
+## Шаг 6: связь с Keychain
+
+Data Protection и Keychain — родственные механизмы: оба используют аппаратное шифрование и класс защиты (`kSecAttrAccessible` в Keychain, `NSFileProtection` в файлах). Правильная архитектура такая: короткоживущие секреты — в Keychain с `WhenUnlocked`, а крупные данные — в файлах с `Complete`. Ошибка — хранить токен в файле с `None` и одновременно считать, что он защищён.
+
+## Шаг 7: что писать в отчёте
+
+Находка формулируется как «файл X с классом защиты Y содержит секрет Z и доступен при условии W». Указывай конкретный файл, его класс и сценарий, при котором он читается. Это делает находку воспроизводимой и понятной. Если класс защиты слабый, но секрет можно перевыпустить — понижай критичность; если это долгоживущий токен — повышай.
+
+## Шаг 8: сравнение с Android
+
+Полезно сопоставить с Android, чтобы понять общий принцип. На Android шифрование диска (FBE, file-based encryption) также привязано к разблокировке: файлы делятся на «credential encrypted» и «device encrypted» — примерно аналог `Complete` и `UntilFirstUserAuthentication`. Разница в деталях: Android управляет доступом через ключи в Keystore и SELinux, а iOS — через классы Data Protection и Secure Enclave. Общий вывод один: чем слабее привязка к разблокировке, тем шире окно атаки. Если ты понимаешь один механизм, второй читается легко.
+
+## Шаг 9: практический чек-лист
+
+Проверяя приложение, пройди по списку:
+
+| Что проверяем | Как |
+|---------------|-----|
+| Класс защиты файлов | `xattr -l` по песочнице |
+| Секреты в Preferences | `grep` по `Library/Preferences` |
+| Кэш и логи | `ls` по `Library/Caches`, `tmp` |
+| Данные в бэкапе | разобрать бэкап (см. `mobile-ios-backup`) |
+| Класс Keychain-записей | `kSecAttrAccessible` |
+
+Так ты за пару минут поймёшь, защищены ли данные приложения на диске, и найдёшь слабые места для отчёта. Особое внимание — файлам, созданным приложением вручную: именно там чаще всего забывают указать класс защиты. Библиотеки и системные каталоги обычно защищены по умолчанию, а вот собственные `Documents` и `Library` — зона ответственности разработчика.
+
+## Шаг 10: как читать класс защиты из дампа
+
+Класс защиты записи виден в базе keychain, где он записан колонкой `pdmn` (protection domain). Посмотрим на реальный дамп:
+
+```
+$ sqlite3 keychain-2.db "SELECT acct,svce,pdmn FROM genp;"
+user@demo.example|DemoAppToken|ak
+refresh|DemoAppRefresh|ck
+$ sqlite3 keychain-2.db "SELECT pdmn,count(*) FROM genp GROUP BY pdmn;"
+ak|1
+ck|1
 ```
 
-Или из shell на jailbreak-устройстве:
+`ak` — `kSecAttrAccessibleAfterFirstUnlock`: запись доступна после первой разблокировки, то есть фоновому процессу и — при физическом доступе — может быть прочитана без пароля. `ck` — `kSecAttrAccessibleWhenUnlocked`: только пока устройство разблокировано. Для токенов и паролей правильный выбор — `ck` или строже (`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`), иначе секрет переживёт блокировку и уйдёт в бэкап.
 
-```bash
-find /var/mobile/Containers/Data/Application/<uuid>/ -exec \
-  ls -lO {} \; | grep -v complete
-```
+## Что мы теперь знаем
 
-Атрибут `-O` (`ls -lO`) показывает protection-флаг. Файлы без `complete` — кандидаты на находку.
-
-## Полный сквозной пример: утечка БД с токенами
-
-Дано: приложение хранит сессию в SQLite без защиты.
-
-```bash
-# 1. Находим контейнер приложения
-cycript -p TargetApp
-cycript> [[NSBundle mainBundle] bundleIdentifier]           # com.target.app
-cycript> NSHomeDirectory()                                   # путь контейнера
-# 2. Проверяем класс защиты БД
-cycript> [NSFileManager defaultManager] attributesOfItemAtPath:@"/var/.../Library/Application Support/session.db" error:nil]
-# -> NSFileProtectionKey = NSFileProtectionNone   <-- НАХОДКА
-# 3. Читаем содержимое
-sqlite3 "/var/.../Library/Application Support/session.db" ".tables"
-sqlite3 "/var/.../Library/Application Support/session.db" "SELECT * FROM tokens;"
-```
-
-Результат: токены сессий читаются без разблокировки и попадут в незашифрованный бэкап. Это находка «Insecure Data Storage» уровня High.
-
-## Форензика: keybag и извлечение при заблокированном экране
-
-На уровне ОС ключи файлов хранятся в **keybag** (`/private/var/keybags/systembag.kb`). При извлечении дампа с заблокированного устройства восстановление возможно только для классов, чьи ключи доступны (`UntilFirstUserAuthentication` после первой разблокировки, `None`). Классы `Complete` без пароля не восстанавливаются. Инструменты форензики (Elcomsoft, Cellebrite, `iphone-dataprotection`) работают именно с keybag и классами:
-
-```bash
-# концептуально: перечислить классы и ключи в keybag
-# iphone-dataprotection: keybagdump
-python3 keybagdump.py systembag.kb | grep -i protection
-```
-
-Понимание классов критично для форензики: именно оно определяет, что реально можно извлечь.
-
-## Связь с бэкапом и Keychain
-
-Незашифрованный бэкап: файлы песочницы извлекаются, Keychain — нет. Зашифрованный: и то, и другое. Класс Data Protection определяет, попадут ли данные в бэкап (все классы, кроме `ThisDeviceOnly`-вариантов Keychain, в бэкап попадают). См. `mobile-ios-backup`.
-
-## Частые ошибки
-
-- **Проверка на симуляторе**: там Data Protection не enforced — находки невалидны.
-- **Путаница с Keychain**: файл в `Documents/` не защищён Keychain; это разные механизмы.
-- **`-O` не показывает флаг**: используйте `ls -lO` на jailbreak или `attributesOfItemAtPath`.
-- **Считаете `UntilFirstUserAuthentication` безопасным**: при блокировке экрана данные всё ещё читаемы.
-- **Игнор кэшей**: `Library/Caches`, `Library/Cookies` часто без защиты — тоже находки.
-- **Неверный путь контейнера**: UUID меняется при переустановке — получайте через `NSHomeDirectory()`.
-
-## Что дальше / решение
-
-Находка: файлы с классом `None`/`UntilFirstUserAuthentication`, содержащие секреты. Проверьте также Keychain-классы (`mobile-ios-keychain`) и бэкап (`mobile-ios-backup`). Для полного дампа — jailbreak + checkm8 (`mobile-forensics-ios`). Рекомендация в отчёте: использовать `NSFileProtectionComplete` для чувствительных файлов и Keychain для секретов.
-
-## Справочная таблица
-
-| Класс | Доступ при lock | В бэкап |
-|-------|-----------------|---------|
-| Complete | нет | да |
-| CompleteUnlessOpen | только открытый | да |
-| UntilFirstUserAuthentication | да | да |
-| None | да | да |
-
-| Проверка | Команда |
-|----------|---------|
-| Класс файла | `attributesOfItemAtPath` |
-| Все файлы | `ls -lO` (jailbreak) |
-| Keybag | `keybagdump.py` |
-| Секреты | `mobile-ios-keychain` |
-
-## Проверка классов на реальном устройстве (скрипт)
-
-Ручная проверка каждого файла утомительна. Скрипт рекурсивно проходит контейнер и печатает файлы с небезопасным классом:
-
-```bash
-#!/usr/bin/env bash
-# на jailbreak-устройстве
-CONTAINER="/var/mobile/Containers/Data/Application/<uuid>"
-find "$CONTAINER" -type f -print0 | while IFS= read -r -d '' f; do
-  cls=$(ls -lO "$f" 2>/dev/null | awk '{print $5}')
-  case "$cls" in
-    *complete*|*Complete*) : ;;          # защищено
-    *) echo "UNPROTECTED: $f ($cls)" ;;
-  esac
-done | head -50
-```
-
-Через Cycript для конкретного файла:
-
-```javascript
-[NSFileManager defaultManager] attributesOfItemAtPath:@"/path/to/file" error:nil]
-// смотрим NSFileProtectionKey
-```
-
-## Атаки: keybag и восстановление
-
-При блокировке экрана класс `Complete` выбрасывает ключ файла из памяти. Класс `UntilFirstUserAuthentication` оставляет ключ после первой разблокировки — файл читаем. Форензик-инструменты работают с keybag:
-
-```bash
-# концептуально: перечислить ключи классов
-python3 keybagdump.py systembag.kb | grep -iE 'protection|class'
-```
-
-Практический вывод: если чувствительный файл имеет класс `UntilFirstUserAuthentication`/`None`, его можно извлечь из дампа без разблокировки. Это меняет оценку серьёзности находки с «средне» на «высоко».
-
-## Взаимодействие с бэкапом и Keychain
-
-Data Protection определяет, попадут ли файлы в бэкап. Все классы (кроме Keychain-`ThisDeviceOnly`) в бэкап попадают — поэтому незашифрованный бэкап раскрывает файлы, но не Keychain. Зашифрованный раскрывает и Keychain. Проверяйте связку:
-
-```bash
-# файл приложения в бэкапе
-sqlite3 Manifest.db "SELECT relativePath FROM Files WHERE domain='AppDomain-com.target.app' AND relativePath LIKE '%session%';"
-# Keychain (при шифрованном бэкапе)
-sqlite3 KeychainDomain/keychain-2.db "SELECT svce,acct FROM genp;"
-```
-
-## Кейс: утечка через кэш
-
-Дано: приложение кэширует ответы API в `Library/Caches` с классом `None`.
-
-```bash
-# 1. Проверяем класс
-ls -lO "/var/.../Library/Caches/api_cache.db"
-# -> NSFileProtectionNone
-# 2. Читаем содержимое при заблокированном экране (или из дампа)
-sqlite3 api_cache.db "SELECT url,response FROM cache LIMIT 5;"
-# 3. Находим токены/персональные данные в кэше
-grep -a "eyJ" api_cache.db | head
-```
-
-Находка: кэш содержит токены/ПДн, доступные без разблокировки. Рекомендация — класс `Complete` для чувствительных кэшей.
-
-## Рекомендации в отчёте
-
-- Использовать `NSFileProtectionComplete` для секретов и кэшей с ПДн.
-- Секреты — в Keychain (с `ThisDeviceOnly`), а не в файлах.
-- Не хранить токены в `NSUserDefaults` (они не защищены классом файла так же строго).
-- Исключать чувствительные данные из бэкапа (`NSURLIsExcludedFromBackupKey`).
-- Проверять, что доступ при заблокированном экране невозможен для критичных данных.
-
-## Автоматизированный аудит классов защиты
-
-Ручная проверка классов Data Protection для десятков файлов утомительна. Напишем скрипт, который рекурсивно обходит контейнер и группирует файлы по классу. На jailbreak-устройстве используйте `ls -lO`; для удалённого анализа — заранее собранные атрибуты. Пример:
-
-```bash
-find "$CONTAINER" -type f | while read -r f; do
-  cls=$(ls -lO "$f" 2>/dev/null | awk '{print $5}')
-  echo "$cls|$f"
-done | sort | awk -F'|' '{c[$1]++} END{for(k in c) print k, c[k]}'
-```
-
-Так вы сразу видите, сколько файлов в каждом классе и какие не защищены. Файлы с классом `None`/`UntilFirstUserAuthentication`, содержащие чувствительные данные, — приоритет для находок.
-
-## Интеграция с мобильным тестовым фреймворком
-
-В рамках MASVS-аудита проверку классов можно включить в общий скрипт: собрать контейнер, прогнать проверку классов, отметить файлы с секретами (grep по `token`, `eyJ`, `password`), связать с находками. Это автоматизирует рутину и делает аудит воспроизводимым.
-
-## Что писать в отчёте
-
-Для каждой находки укажите: путь файла, класс защиты, тип данных (токен/ПДн), доступность при блокировке, рекомендацию. Группируйте однотипные находки. Ясно разделяйте «защищено» и «уязвимо» — не преувеличивайте.
-
-## Итоговый чек-лист аудита Data Protection
-
-1. Получите контейнер приложения (jailbreak/дамп).
-2. Определите класс защиты каждого чувствительного файла (`ls -lO` / `attributesOfItemAtPath`).
-3. Отметьте файлы с `None`/`UntilFirstUserAuthentication`, содержащие секреты/ПДн.
-4. Проверьте `Library/Caches`, `Library/Cookies`, `NSUserDefaults` — частые места утечек.
-5. Сопоставьте с Keychain (`mobile-ios-keychain`) и бэкапом (`mobile-ios-backup`).
-6. Оцените извлекаемость при заблокированном экране (keybag) — влияет на severity.
-
-Рекомендация по умолчанию: `NSFileProtectionComplete` для критичных файлов, секреты — в Keychain с `ThisDeviceOnly`, исключение чувствительных данных из бэкапа.
+- Каждый файл iOS имеет класс защиты (`NSFileProtection`).
+- Классы определяют, когда файл доступен: `Complete`, `UntilFirstUserAuthentication`, `None`.
+- По умолчанию приложение получает `UntilFirstUserAuthentication`.
+- `xattr -l` показывает класс защиты файла.
+- Слабые места: `None`, `NSUserDefaults`, кэш, логи, снапшоты, память.
+- Data Protection и Keychain используют общий принцип аппаратного шифрования.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой класс Data Protection самый строгий?"
+- question: Что определяет класс защиты файла на iOS?
+  options:
+    - "Размер файла"
+    - "Момент, когда система расшифровывает и делает файл доступным"
+    - "Формат файла"
+    - "Имя владельца"
+  answer: 1
+  explanation: "NSFileProtection задаёт условие доступа: при блокировке, после первой разблокировки и т.д."
+- question: Какой класс защиты делает файл доступным только при разблокированном устройстве?
   options:
     - "NSFileProtectionNone"
     - "NSFileProtectionComplete"
-    - "NSFileProtectionUntilFirstUserAuthentication"
-    - "NSFileProtectionCompleteUnlessOpen"
+    - "NSFileProtectionCompleteUntilFirstUserAuthentication"
+    - "NSFileProtectionUnlessOpen"
   answer: 1
-- question: "Что означает класс UntilFirstUserAuthentication?"
+  explanation: "Complete выводит ключ из памяти при блокировке, поэтому файл недоступен."
+- question: Какой класс защиты применяется по умолчанию к файлам приложения?
   options:
-    - "Файл доступен после первой разблокировки, даже при заблокированном экране"
-    - "Файл недоступен всегда"
-    - "Файл только для чтения"
-    - "Файл не попадает в бэкап"
+    - "NSFileProtectionComplete"
+    - "NSFileProtectionCompleteUntilFirstUserAuthentication"
+    - "NSFileProtectionNone"
+    - "Нет защиты"
+  answer: 1
+  explanation: "По умолчанию iOS использует UntilFirstUserAuthentication."
+- question: Какая команда показывает класс защиты файла?
+  options:
+    - "xattr -l"
+    - "chmod"
+    - "ls -l"
+    - "cat"
   answer: 0
-- question: "Почему проверка Data Protection на симуляторе невалидна?"
+  explanation: "xattr -l выводит расширенные атрибуты, включая com.apple.protection."
+- question: Какое место часто остаётся без защиты и утекает через бэкап?
   options:
-    - "На симуляторе механизм не enforced"
-    - "Симулятор быстрее"
-    - "На симуляторе нет файлов"
-    - "Симулятор использует Android"
+    - "NSUserDefaults (Preferences/*.plist)"
+    - "Keychain с WhenUnlocked"
+    - "Файлы с Complete"
+    - "Secure Enclave"
   answer: 0
-- question: "Какой атрибут ls показывает protection-флаг?"
-  options:
-    - "-l"
-    - "-a"
-    - "-O"
-    - "-Z"
-  answer: 2
-- question: "Что определяет, какие данные извлекаемы из дампа заблокированного устройства?"
-  options:
-    - "Классы Data Protection и keybag"
-    - "Размер бэкапа"
-    - "Версия Burp"
-    - "Bundle id"
-  answer: 0
+  explanation: "NSUserDefaults — обычный plist, класс защиты часто слабый, и он попадает в бэкап."
 ```
+
+## Куда дальше
+
+Мы разобрали, как iOS защищает данные на диске. Это завершает базовую ветвь iOS-анализа. Дальше можно переходить к автоматизации тестирования и работе с API — в следующих уроках `mobile-automation` и `mobile-api-testing`. А пока главное запомни: класс защиты файла определяет, когда секрет доступен, и `None` — это фактическое отсутствие защиты.
 
 ## Где пригодится
 
-- **Пентест iOS:** находки небезопасного хранения файлов.
-- **Форензика:** понимание извлекаемости данных и keybag.
-- **Bug bounty:** утечки секретов через файлы песочницы.
-- **CTF:** Mobile/iOS-задачи с защитой файлов.
+- **Пентест:** оценка защиты данных на устройстве.
+- **Bug bounty:** доказательство небезопасного хранения.
+- **Форензика:** понимание, что читается с заблокированного образа.
+- **Аудит:** проверка классов защиты и Keychain.

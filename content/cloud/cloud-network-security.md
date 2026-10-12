@@ -15,175 +15,130 @@ estimated_minutes: 45
 summary: "Как читать сетевую изоляцию в трёх облаках: security groups, NACL, firewall rules, подсети и маршруты. Как находить сервисы, доступные из интернета, и планировать внутреннее продвижение."
 ---
 
-## Зачем этот урок
+## Задача
 
-Облачная сеть определяет, что достижимо снаружи и что — изнутри. В AWS это VPC с security groups и NACL; в GCP — VPC с firewall rules и иерархией; в Azure — Virtual Network с Network Security Groups (NSG) и Azure Firewall. Хотя названия разные, задачи одинаковые: найти **сервисы, открытые в интернет**, и понять **внутреннюю топологию** для lateral movement. Этот урок — сквозной: он учит читать сетевую модель любого из трёх облаков и превращать её в карту атаки. Без этого вы будете угадывать, какие порты доступны, вместо того чтобы знать.
+У тебя есть read-only креды в AWS. Ты хочешь понять, что достижимо из интернета, а что — изнутри, чтобы спланировать продвижение. Облачная сеть и есть эта карта: в AWS — VPC с **security groups** и **NACL**, в GCP — firewall rules, в Azure — **NSG**. Задача урока — прочитать сетевую модель и превратить её в карту атаки, не угадывая порты, а зная их.
 
 ## Модель сети в трёх облаках
 
 | Облако | Сеть | Правила уровня ресурса | Правила уровня подсети | Периметр |
 |--------|------|------------------------|------------------------|----------|
 | AWS | VPC | Security Group (stateful) | NACL (stateless) | IGW/NAT/endpoints |
-| GCP | VPC (global) | (нет аналога SG на ресурсе) | Firewall rules (stateful, приоритеты) | Cloud NAT, LB |
+| GCP | VPC (global) | нет аналога SG на ресурсе | Firewall rules (stateful, приоритеты) | Cloud NAT, LB |
 | Azure | VNet | NSG на NIC (опц.) | NSG на подсети | Azure Firewall, LB |
 
-Ключевые различия, которые важны для атакующего:
+**Security group (SG)** — набор правил, привязанный к ресурсу; он **stateful** — если разрешён входящий, ответный трафик уходит автоматически. **NACL** — правила на подсети; он **stateless** — нужно разрешать обе стороны. В GCP firewall rules применяются к инстансам по тегам, а не к подсети. В Azure NSG может быть и на подсети, и на NIC.
 
-- **AWS:** SG на ресурсе и NACL на подсети; SG stateful, NACL stateless.
-- **GCP:** firewall rules применяются к инстансам по тегам/сервисным аккаунтам, а не к подсети; есть **иерархия** (org → folder → project) и приоритеты. `default-allow-*` правила в default-сети — классика.
-- **Azure:** NSG на подсети и/или NIC; правила с приоритетом; есть `AzureFirewallSubnet` и service tags.
+Во всех трёх облаках есть **правила по умолчанию**, и это источник находок: GCP default network создаёт `default-allow-internal`, `default-allow-ssh`, `default-allow-rdp` с `0.0.0.0/0`.
 
-Во всех трёх облаках есть **правила «по умолчанию»**: AWS default SG может разрешать трафик внутри группы; GCP default network создаёт `default-allow-internal`, `default-allow-ssh`, `default-allow-rdp`, `default-allow-icmp`; Azure создаёт базовые правила `AllowVnetInBound`/`AllowAzureLoadBalancerInBound`/`DenyAllInBound`. Эти дефолты — источник находок.
+## Данные, с которыми работаем
 
-## Инструменты и команды
-
-AWS:
+Ищем «широкие» правила — открытые на весь интернет:
 
 ```bash
-aws ec2 describe-security-groups --filters Name=ip-permission.cidr,Values=0.0.0.0/0
-aws ec2 describe-network-acls
-aws ec2 describe-route-tables
-aws ec2 describe-subnets --query 'Subnets[].{Id:SubnetId,Public:MapPublicIpOnLaunch}'
-```
-
-GCP:
-
-```bash
-gcloud compute firewall-rules list \
-  --format='table(name,direction,sourceRanges.list(),allowed[].map().firewall_rule().list(),targetTags.list())'
-gcloud compute networks subnets list --format='table(name,region,ipCidrRange)'
-gcloud compute instances list --format='table(name,networkInterfaces[].accessConfigs[].natIP)'
-```
-
-Azure:
-
-```bash
-az network nsg list --query '[].{Name:name,RG:resourceGroup}'
-az network nsg rule list -g myrg --nsg-name mynsg -o table
-az network vnet subnet list --vnet-name myvnet -g myrg --query '[].{Name:name,Prefix:addressPrefix,NSG:networkSecurityGroup.id}'
-az network public-ip list --query '[].{Name:name,IP:ipAddress}'
-```
-
-Поиск «широких» правил:
-
-```bash
-# AWS: SG с 0.0.0.0/0 на чувствительных портах
-aws ec2 describe-security-groups --filters Name=ip-permission.cidr,Values=0.0.0.0/0 \
-  --query 'SecurityGroups[].{Name:GroupName,Ports:IpPermissions[].FromPort}'
-
-# GCP: firewall с 0.0.0.0/0
-gcloud compute firewall-rules list --filter='sourceRanges:0.0.0.0/0' \
-  --format='table(name,allowed[].map().firewall_rule().list(),targetTags.list())'
-
-# Azure: NSG-правила Allow с source *
-az network nsg rule list -g myrg --nsg-name mynsg \
-  --query '[?access==`Allow` && (sourceAddressPrefix==`*` || sourceAddressPrefix==`0.0.0.0/0` || sourceAddressPrefix==`Internet`)].{Name:name,Port:destinationPortRange}'
-```
-
-## Разобранный пример: от периметра к внутренним сервисам
-
-Сценарий: read-only креды в AWS. Нужно понять периметр.
-
-Шаг 1 — находим SG с `0.0.0.0/0`:
-
-```bash
-aws ec2 describe-security-groups --filters Name=ip-permission.cidr,Values=0.0.0.0/0 \
-  --query 'SecurityGroups[].{Name:GroupName,Id:GroupId,Ports:IpPermissions[].FromPort}'
+$ aws ec2 describe-security-groups --filters Name=ip-permission.cidr,Values=0.0.0.0/0 \
+    --query 'SecurityGroups[].{Name:GroupName,Id:GroupId,Ports:IpPermissions[].FromPort}'
 [{"Name":"web","Id":"sg-1","Ports":[80,443]},
  {"Name":"bastion","Id":"sg-2","Ports":[22]},
  {"Name":"db","Id":"sg-3","Ports":[3306]}]
 ```
 
-Шаг 2 — находим ресурсы с этими SG и их публичные IP:
+Три группы открыты наружу: веб, бастион и — внимание — БД на 3306.
+
+## Шаг 1: находим ресурсы за этими SG
 
 ```bash
-aws ec2 describe-instances --filters Name=instance.group-id,Values=sg-3 \
-  --query 'Reservations[].Instances[].{Id:InstanceId,IP:PublicIpAddress,Az:Placement.AvailabilityZone}'
+$ aws ec2 describe-instances --filters Name=instance.group-id,Values=sg-3 \
+    --query 'Reservations[].Instances[].{Id:InstanceId,IP:PublicIpAddress}'
+[{"Id":"i-0abc","IP":"203.0.113.10"}]
 ```
 
-Шаг 3 — проверяем NACL для подсети (SG разрешает, но NACL может блокировать):
+БД `i-0abc` имеет публичный IP `203.0.113.10`. Проверим, реально ли она в публичной подсети.
+
+## Шаг 2: проверяем NACL и маршруты
+
+SG разрешает, но NACL может блокировать (он stateless):
 
 ```bash
-aws ec2 describe-network-acls --filters Name=association.subnet-id,Values=subnet-0db \
-  --query 'NetworkAcls[].Entries'
+$ aws ec2 describe-network-acls --filters Name=association.subnet-id,Values=subnet-0db \
+    --query 'NetworkAcls[].Entries[].{Rule:RuleNumber,Action:RuleAction,Cidr:CidrBlock}'
+[{"Rule":100,"Action":"allow","Cidr":"0.0.0.0/0"},
+ {"Rule":32767,"Action":"deny","Cidr":"0.0.0.0/0"}]
 ```
 
-Шаг 4 — строим маршруты, чтобы понять достижимость и выход в интернет:
+NACL разрешает. Проверяем маршрут — есть ли выход в интернет через IGW:
 
 ```bash
-aws ec2 describe-route-tables --query 'RouteTables[].{Id:RouteTableId,Routes:Routes[].{D:DestinationCidrBlock,G:GatewayId,N:NatGatewayId}}'
+$ aws ec2 describe-route-tables --query 'RouteTables[].Routes[].{D:DestinationCidrBlock,G:GatewayId,N:NatGatewayId}'
+[{"D":"0.0.0.0/0","G":"igw-0aa","N":null}]
 ```
 
-Шаг 5 — итог: список «открыто наружу» (`sg-1:80/443`, `sg-2:22`, `sg-3:3306`) и карта подсетей. Бастион на 22 — вход; БД на 3306 — цель, если она реально в public-подсети (часто нет, но SG это предполагает). Для GCP повторите с `firewall-rules`, для Azure — с NSG.
+Есть `igw` — подсеть публичная. БД реально достижима из интернета.
 
-## Варианты атак и обходы
+## Шаг 3: строим карту и приоритизируем
 
-- **`0.0.0.0/0` на чувствительных портах.** SSH/RDP/БД в интернете — прямые цели.
-- **Default network GCP.** `default-allow-ssh`/`default-allow-rdp` с `0.0.0.0/0` открывают доступ к любым инстансам с тегами.
-- **GCP target tags.** Правило применяется только к инстансам с тегом; если тег убран/добавлен, доступность меняется. Проверяйте, у каких инстансов есть «широкие» теги.
-- **Azure NSG приоритеты.** Правило `Allow` с меньшим номером перекрывает `Deny`; ищите `sourceAddressPrefix: *`.
-- **Service tags.** `Internet`/`VirtualNetwork`/`AzureLoadBalancer` — проверяйте, не открывают ли они лишнее.
-- **SGs chaining.** Правило `source: sg-x` открывает доступ ресурсам с этим SG; компромисс одного — путь к другому.
-- **IPv6.** `::/0` — та же открытость.
-- **Отсутствие egress-ограничений.** Если egress открыт, вы можете exfil-ить данные наружу (`cloud-exfiltration`).
-- **Flow logs выключены.** Отсутствие логов не мешает атаке, но снижает детект — полезно знать для OPSEC.
+Итог: `sg-1:80/443` (веб), `sg-2:22` (бастион), `sg-3:3306` (БД). Бастион на 22 — вход, БД на 3306 — цель. Для GCP повтори с `firewall-rules`, для Azure — с NSG.
 
-## Частые ошибки и подводные камни
+## Полный прогон от начала до конца
 
-- **Путать уровни.** В GCP нет SG на ресурсе; в Azure NSG может быть на подсети и на NIC одновременно.
-- **Считать, что «правило есть» = «порт открыт».** Нужны маршрут и отсутствие блокирующего правила.
-- **Забывать про приоритеты.** В GCP и Azure порядок/приоритет решает.
-- **Игнорировать default-сеть/правила.** В GCP default network часто оставлена включённой.
-- **Не проверять egress.** Открытый исходящий трафик = канал эксфильтрации.
-- **Пробовать сканировать без прав.** Без `describe`-прав ориентируйтесь на внешнее сканирование (nmap) и не тратьте время на API.
+1. `describe-security-groups` → SG с `0.0.0.0/0` на 80/443/22/3306.
+2. `describe-instances` → ресурсы с этими SG и их публичные IP.
+3. `describe-network-acls` → NACL не блокирует.
+4. `describe-route-tables` → есть IGW, подсеть публичная.
+5. Карта: веб/бастион/БД открыты наружу.
 
-## Защита и детект
+## Если не сработало
 
-- **Закрывайте 22/3389/БД от интернета.** SSM Session Manager (AWS), IAP (GCP), Bastion/Azure Firewall (Azure).
-- **Наименьшие правила.** Конкретные CIDR и SG/теги вместо `0.0.0.0/0`.
-- **Убирайте default-сеть и default-правила.** Явные сети с явными правилами.
-- **Egress-фильтрация.** Ограничивайте исходящий трафик; используйте private endpoints.
-- **Детект.** AWS VPC Flow Logs, GCP VPC Flow Logs, Azure NSG Flow Logs/Network Watcher. GuardDuty `Recon:EC2/Portscan`, `UnauthorizedAccess:EC2/SSHBruteForce`. Алерты на новые `0.0.0.0/0` правила, на изменения NSG/firewall.
-- **IaC-контроль.** Правила сети — в коде, с ревью; дрейф ловится через Config/Cloud Asset.
+- **Правило есть, но порт закрыт.** Нужны маршрут и отсутствие блокирующего правила — проверяй все слои.
+- **GCP target tags.** Правило применяется только к инстансам с тегом; проверь, у кого тег.
+- **Azure NSG приоритеты.** Правило `Allow` с меньшим номером перекрывает `Deny` — смотри порядок.
+- **Service tags.** `Internet`/`VirtualNetwork`/`AzureLoadBalancer` могут открывать лишнее.
+- **Нет `describe`-прав.** Работай внешним сканированием (nmap/masscan) — но осторожно, это шумно.
+- **IPv6.** `::/0` — та же открытость, что `0.0.0.0/0`.
 
 ## Разведка периметра без прав API
 
-Не всегда есть права `describe`-API. Тогда периметр изучается снаружи, и это тоже методичная работа:
+Не всегда есть права на `describe`. Тогда периметр изучают снаружи: внешнее сканирование (`nmap -Pn -sV -p- <cidr>`), DNS-разведка (CNAME на `*.elb.amazonaws.com`, `*.run.app` выдают облако и тип ресурса), TLS-сертификаты (SAN-имена из crt.sh), ASN провайдера, публичные бакеты. Даже без API получаешь список достижимых сервисов.
 
-- **Внешнее сканирование.** `nmap -Pn -sV -p- <cidr>` или masscan для широкого диапазона. Осторожно: агрессивное сканирование триггерит GuardDuty/Defender и может быть расценено как шум; согласуйте.
-- **DNS-разведка.** Публичные A/AAAA-записи сервисов; CNAME на `*.elb.amazonaws.com`, `*.cloudfront.net`, `*.azurewebsites.net`, `*.run.app` раскрывают облако и тип ресурса.
-- **TLS-сертификаты.** SAN-имена из сертификатов (crt.sh) дают список внутренних имён, иногда с указанием среды.
-- **ASN и IP-диапазоны.** По ASN провайдера можно понять, какие диапазоны принадлежат организации.
-- **Публичные бакеты.** Через перебор имён и `ListBucket`-поведение можно найти открытые хранилища (`cloud-storage-s3`).
+## Flow logs и OPSEC
 
-Даже без API вы получаете список достижимых сервисов. Сопоставьте его с известными уязвимостями сервисов и найдите вход.
+Flow logs (AWS VPC Flow Logs, GCP, Azure NSG Flow Logs) фиксируют метаданные соединений: source/dest IP, порты, протокол, объём, действие. Payload они не содержат, но позволяют восстановить картину сканирования и lateral movement. Для пентестера это важно с двух сторон: твои сканы оставят след, а если логи утекают в Storage, где у тебя есть доступ, ты прочитаешь чужую сетевую активность. Отсутствие flow logs — «слепая зона» детекта, но и признак незрелой защиты.
 
-## Практический чек-лист аудита облачной сети
+## Практический чек-лист аудита сети
 
-1. Определите провайдера и уровень доступа к API (есть ли `describe`/`list`).
-2. Выпишите все подсети/VPC/VNet и отметьте публичные.
-3. Найдите правила с `0.0.0.0/0` и `::/0` на чувствительных портах.
-4. Проверьте default-сеть и default-правила (GCP особенно).
-5. Постройте маршруты: где IGW/NAT/peering/TGW/VNet peering.
-6. Найдите ресурсы с публичными IP и их SG/NSG.
-7. Проверьте egress: открыт ли исходящий трафик (канал эксфильтрации).
-8. Отметьте, включены ли flow logs (детект и OPSEC).
+1. Определи провайдера и уровень доступа к API (есть ли `describe`/`list`).
+2. Выпиши все подсети/VPC/VNet, отметь публичные.
+3. Найди правила с `0.0.0.0/0` и `::/0` на чувствительных портах.
+4. Проверь default-сеть и default-правила (особенно GCP).
+5. Построй маршруты: где IGW/NAT/peering/TGW/VNet peering.
+6. Найди ресурсы с публичными IP и их SG/NSG.
+7. Проверь egress: открыт ли исходящий трафик.
+8. Отметь, включены ли flow logs.
 
 Этот чек-лист даёт полную картину периметра и внутренней топологии за один проход и служит основой для планирования.
 
-## Flow logs: что они говорят защите и что — вам
+## Практический вывод
 
-Flow logs (AWS VPC Flow Logs, GCP VPC Flow Logs, Azure NSG Flow Logs) фиксируют метаданные соединений: source/dest IP, порты, протокол, объём, действие (ACCEPT/REJECT). Они не содержат payload, но позволяют восстановить картину сканирования и lateral movement. Для пентестера это важно по двум причинам: (1) ваши сканы и подключения оставят след, и (2) если flow logs включены и утекают в S3/Storage, где у вас есть доступ, — вы можете читать чужую сетевую активность. Практические детали: AWS пишет flow logs в CloudWatch Logs или S3 (с определённым форматом полей); GCP — в Cloud Logging; Azure — в Storage/Log Analytics. Если flow logs не включены, детект сетевой активности слабый — это, с точки зрения атаки, «слепая зона», но и признак незрелой защиты. При пентесте отметьте в отчёте наличие/отсутствие flow logs: это влияет на обнаруживаемость и на возможность расследования.
+Сетевая изоляция — это не одна настройка, а комбинация слоёв: правила на ресурсе (SG/NSG), на подсети (NACL), маршруты (IGW/NAT/peering), периметры и egress-контроль. Ошибка в любом слое открывает путь, поэтому аудит идёт сверху вниз: от «что видно из интернета» до «что достижимо из точки опоры». Записывай результат как граф и сверяйся с ним при планировании следующих шагов.
 
-## Практический вывод по сетевой безопасности
+## Что мы теперь знаем
 
-Сетевая изоляция в облаке — это не одна настройка, а комбинация: правила на ресурсе (SG/NSG), правила на подсети (NACL), маршруты (IGW/NAT/peering), периметры (VPC-SC/PrivateLink) и egress-контроль. Ошибка в любом слое открывает путь. Поэтому аудит всегда идёт сверху вниз: от «что видно из интернета» до «что достижимо из точки опоры». Записывайте результат как граф и периодически сверяйтесь с ним при планировании следующих шагов — он меняется по мере получения новых доступов.
+- SG (stateful, на ресурсе) и NACL (stateless, на подсети) — разные слои в AWS.
+- GCP применяет firewall к инстансам по тегам, а не к подсети; default network открыта по умолчанию.
+- В Azure NSG решает приоритет правила.
+- «Правило есть» ≠ «порт открыт»: нужны маршрут и отсутствие блокировки.
+- Открытый egress — канал эксфильтрации.
+- Без API периметр изучают внешним сканированием и DNS/TLS-разведкой.
 
-## Что дальше / решение
+## На что смотреть дальше
 
-Сетевая модель — это карта. Сначала найдите открытое наружу, затем постройте внутреннюю топологию: подсети, маршруты, связи (peering, TGW, VNet peering). Сопоставьте открытые порты с сервисами и ищите слабые версии. Если у вас есть точка опоры внутри — используйте egress для выхода и внутренние правила для продвижения. Если прав на API нет — работайте внешним сканированием. Записывайте периметр и внутренние сегменты как находки; они объясняют, как связаны хосты.
+- **cloud-aws-vpc**: устройство VPC и подсетей.
+- **cloud-exfiltration**: как вывозить данные через открытый egress.
+- **cloud-enum-methodology**: методичная разведка облака.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Чем SG в AWS отличается от NACL?"
@@ -218,7 +173,19 @@ Flow logs (AWS VPC Flow Logs, GCP VPC Flow Logs, Azure NSG Flow Logs) фикси
     - "Шифрование"
   answer: 0
   explanation: "Без ограничения исходящего трафика данные можно вывести наружу."
+- question: "Что нужно проверить после того, как SG разрешает порт?"
+  options:
+    - "NACL и маршрут — иначе порт может быть недостижим"
+    - "Только биллинг"
+    - "Только DNS"
+    - "Ничего"
+  answer: 0
+  explanation: "Правило SG не гарантирует достижимость без маршрута и при блокирующем NACL."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **разведку облака** — cloudfox, enumerate-iam и pacu. А пока главное запомни: **сетевая изоляция — это комбинация слоёв (SG/NSG, NACL, маршруты, периметр), и ошибка в любом открывает путь.**
 
 ## Где пригодится
 

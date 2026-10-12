@@ -15,325 +15,202 @@ estimated_minutes: 48
 summary: "Продвинутые SAML-атаки: XML Signature Wrapping, инъекция комментариев, обход подписи и replay assertion."
 ---
 
-SAML — XML-based SSO, используемый в корпоративных приложениях. Уязвимости в обработке SAML Assertion дают **аутентификацию под любого пользователя**, включая админа. Базовый урок `web-oauth-oidc-saml` даёт введение; здесь — настоящие классы атак: XML Signature Wrapping (XSW), comment injection, signature stripping, XXE внутри assertion, replay и условия (`NotOnOrAfter`, `Recipient`, `Audience`).
+В корпоративной среде вход в приложения часто устроен через **SAML**: сотрудник логинится у провайдера (IdP), а тот шлёт приложению подписанный XML с «утверждением» (assertion) — кто пользователь и какие у него права. Приложение доверяет подписи. Значит, если мы научимся подделывать assertion **при валидной подписи** — войдём под кем угодно.
 
-## Теория: структура и точки атаки
+Возьмём корпоративный `shop.local` (SP) и IdP `corp.example` и разберём атаки на SAML.
 
-SAML Response — XML:
+## Наш пример: SAML-ответ
+
+После логина IdP отправляет приложению **SAML Response** — base64-XML, который браузер жертвы POST-ит на эндпоинт `shop.local/saml/acs`. Декодируем:
+
 ```xml
-<samlp:Response>
+<samlp:Response ...>
   <saml:Assertion ID="a1">
-    <saml:Subject><saml:NameID>user@corp</saml:NameID></saml:Subject>
-    <saml:Conditions NotOnOrAfter="..."/>
-    <saml:AttributeStatement>...roles...</saml:AttributeStatement>
-  </saml:Assertion>
-  <ds:Signature>...подпись...</ds:Signature>
-</samlp:Response>
-```
-
-SP (Service Provider) проверяет подпись и **извлекает** данные (Subject, роли). Баги возникают, когда:
-- подпись проверяется для **одного** узла, а данные берутся из **другого** (XSW);
-- XML-парсер обрабатывает комментарии/кодировки не так, как верификатор (comment injection);
-- подпись можно убрать/подменить, и SP не замечает;
-- не проверяются `Conditions`, `Audience`, `Recipient`, `InResponseTo`.
-
-## Атака 1: XML Signature Wrapping (XSW)
-
-Идея: подпись валидна (мы переиспользуем легитимную подпись из своего assertion), но добавляем **второй** assertion, из которого SP читает данные. Восемь канонических вариантов (XSW1–XSW8) — от перемещения подписи до вложенных обёрток. Инструмент: **SAML Raider** (Burp-плагин) и **`xsw`-генераторы**.
-
-Схема XSW (упрощённо): оригинальный подписанный assertion остаётся, а перед ним вставляется «злой» assertion с `admin`:
-
-```xml
-<samlp:Response>
-  <saml:Assertion ID="evil"><Subject>admin</Subject>...</saml:Assertion>
-  <saml:Assertion ID="a1"><Subject>user</Subject>
-     <ds:Signature>...валидная подпись от user...</ds:Signature>
+    <saml:Subject><saml:NameID>alice@corp.example</saml:NameID></saml:Subject>
+    <saml:AttributeStatement>
+      <saml:Attribute Name="role"><saml:AttributeValue>user</saml:AttributeValue></saml:Attribute>
+    </saml:AttributeStatement>
+    <ds:Signature>...подпись всего Assertion...</ds:Signature>
   </saml:Assertion>
 </samlp:Response>
 ```
 
-SP проверяет подпись (по `a1`), а данные берёт из первого (evil). Успех → вход как admin.
+Приложение проверяет подпись assertion и читает `NameID` и `role`. Цель атаки — подменить `role` на `admin` (или `NameID` на чужой), не ломая подпись.
 
-## Атака 2: comment injection
+## Шаг 1: XML Signature Wrapping (XSW)
 
-Некоторые XML-парсеры игнорируют комментарии, некоторые — нет. Если SP использует два разных парсера (один для подписи, другой для данных), вставим комментарий, меняющий видимое имя:
+Идея XSW: подпись остаётся валидной, но приложение читает **другой** узел, чем тот, что подписан. Мы делаем **два** assertion:
 
-```xml
-<NameID>admin<!---->@corp.example</NameID>
-```
+- **Подлинный** — с `role=user`, тот самый, что подписан IdP (подпись валидна).
+- **Наш** — с `role=admin`, без подписи.
 
-Один парсер видит `admin@corp.example`, другой — `admin` (или наоборот). Классика: `admin<!---->.attacker.com` → верификатор видит атакующего, а логика — админа. Работает при несовпадении парсеров.
-
-## Атака 3: signature stripping / подмена
-
-- **Удаление подписи** — если SP не проверяет её наличие для некоторых типов assertion.
-- **Подпись на Response вместо Assertion** — SP проверяет Response, а данные берёт из неподписанного Assertion.
-- **Подмена `Reference URI`** — `#a1` на `#a2`.
-- **Self-signed сертификат** — если SP не пиннит сертификат IdP, подписываем своим.
-
-## Атака 4: XXE внутри SAML
-
-SAML — XML. Если парсер не отключает внешние сущности:
+Затем так переставляем теги, чтобы проверка подписи нашла **подлинный** узел, а логика приложения прочитала **наш**:
 
 ```xml
-<!DOCTYPE Response [ <!ENTITY xxe SYSTEM "file:///etc/passwd"> ]>
-<saml:Assertion><Subject><NameID>&xxe;</NameID></Subject></saml:Assertion>
-```
-
-Даёт чтение файлов/SSRF на SP или IdP. См. `web-xxe-advanced`.
-
-## Разобранный пример: XSW через SAML Raider
-
-Шаг 1. Перехватываем легитимный SAML Response (свой аккаунт `user@corp`).
-
-Шаг 2. В Burp открываем SAML Raider → «Edit» → «Apply XSW» (варианты 1–8). Или вручную добавляем злой assertion.
-
-Шаг 3. Меняем Subject/роли на `admin@corp`, оставляя оригинальную подпись.
-
-Шаг 4. Отправляем POST на `/SAML/ACS`:
-
-```bash
-curl -s -X POST https://sp.example/SAML/ACS \
-  --data-urlencode "SAMLResponse=$(base64 -w0 evil.xml)" \
-  --data "RelayState=/"
-```
-
-Шаг 5. Если ответ 302 на `/admin` и мы видим админ-панель — XSW сработал.
-
-## Replay и условия
-
-Даже с валидным assertion:
-- **Replay** — переиспользование assertion до `NotOnOrAfter` (SP должен трекать `InResponseTo`/ID).
-- **`NotOnOrAfter` игнорируется** — assertion бессрочен.
-- **`Audience` не проверяется** — assertion для другого SP принимается.
-- **`Recipient` не проверяется** — принимается на другом ACS.
-- **`InResponseTo` не проверяется** — assertion можно подсунуть в чужую сессию.
-
-```bash
-# повторяем перехваченный assertion
-curl -s -X POST https://sp.example/SAML/ACS --data-urlencode "SAMLResponse=$STOLEN"
-```
-
-## Инструменты
-
-- **SAML Raider** (Burp) — XSW, редактор, сертификаты.
-- **`samltool`** / **`python-saml`** — парсинг и пересборка.
-- **`xxe`-пейлоады** для entity-инъекции.
-- **Burp Collaborator** — OOB XXE.
-
-## Частые ошибки
-
-- **Сдаваться после «redirect_uri».** SAML-баги в подписи и парсинге, не в редиректах.
-- **Не пробовать все XSW-варианты.** Их 8; какой сработает — зависит от парсера.
-- **Забыть про кодировки.** `base64`, `deflate`, `POST`/`Redirect` binding.
-- **Игнорировать XXE.** XML-парсер SAML — классическая цель.
-- **Не проверять replay.** Часто assertion можно переиспользовать.
-- **Путать IdP-initiated и SP-initiated.** Разные проверки (`InResponseTo`).
-- **Ломать прод.** Тестируйте на своём аккаунте, не подделывайте чужой.
-
-## Структура SAML и роли
-
-SAML-аутентификация связывает IdP (провайдера идентичности) и SP (сервис-провайдера) через XML-assertion.
-
-| Компонент | Роль |
-|-----------|------|
-| AuthnRequest | SP → IdP: запрос аутентификации |
-| SAMLResponse | IdP → SP: assertion с данными |
-| Assertion | утверждение (subject, атрибуты) |
-| Signature | XML-DSig подпись assertion/response |
-| RelayState | состояние для возврата |
-| NameID | идентификатор пользователя |
-
-```bash
-# декодируем SAMLResponse (base64 -> XML)
-echo "$SAML_RESPONSE" | base64 -d | xmllint --format - > resp.xml
-# смотрим подпись и subject
-grep -nE 'Signature|NameID|Attribute' resp.xml
-```
-
-## XSW: варианты обёртки подписи
-
-XML Signature Wrapping — обход проверки подписи: подписанный элемент остаётся валидным, а приложение читает **другой** (неподписанный) элемент.
-
-| Вариант | Идея |
-|---------|------|
-| XSW #1 | копия assertion с изменённым subject, оригинал с подписью |
-| XSW #2 | подпись относится к обёрнутому узлу |
-| XSW #3 | несколько assertion, подпись на первом |
-| XSW #4 | подпись на отдельном узле, данные в другом |
-| XSW #5 | namespace confusion |
-
-```xml
-<!-- упрощённо: два assertion, подпись на «оригинальном», данные — в «поддельном» -->
 <samlp:Response>
-  <Assertion ID="real"><Signature>...</Signature><Subject>attacker</Subject></Assertion>
-  <Assertion ID="evil"><Subject>admin@corp</Subject></Assertion>
+  <saml:Assertion ID="evil">           <!-- наш, с admin -->
+    <saml:Subject><saml:NameID>admin@corp.example</saml:NameID></saml:Subject>
+    <saml:AttributeStatement>...role=admin...</saml:AttributeStatement>
+    <saml:Assertion ID="a1">           <!-- подлинный, вложен внутрь -->
+      <ds:Signature>...валидная подпись...</ds:Signature>
+    </saml:Assertion>
+  </saml:Assertion>
 </samlp:Response>
 ```
 
-Проверяйте, **какой** узел приложение использует для аутентификации и на каком стоит подпись.
+Библиотека проверки подписи находит `Signature` (она внутри `a1`), убеждается, что подпись корректна — и всё «хорошо». А приложение берёт **первый** `Assertion` (наш, `evil`) и видит `admin`. Так подпись не сломана, а данные поддельные. Это и есть **XML Signature Wrapping** — самый известный класс SAML-багов.
 
-## Comment injection и другие обходы
+## Шаг 2: comment injection
 
-```xml
-<!-- comment injection: парсер/сравнение по-разному видят NameID -->
-<NameID>admin@corp.com<!-- x -->.attacker.com</NameID>
-```
-
-| Техника | Идея |
-|---------|------|
-| Comment injection | расхождение при разборе комментариев |
-| Signature stripping | подпись не проверяется вовсе |
-| Signature reuse | подпись от другого assertion |
-| Namespace confusion | подмена namespace |
-| XXE внутри SAML | внешние сущности |
-
-```bash
-# проверка: подпись вообще валидируется?
-# удаляем <Signature> и отправляем assertion — если вход прошёл -> критично
-```
-
-## Разобранный пример: XSW через SAML Raider
-
-```text
-1) перехватываем валидный SAMLResponse (Burp)
-2) загружаем в SAML Raider (расширение Burp)
-3) применяем «XSW» — инструмент генерирует обёрнутые варианты
-4) меняем NameID на admin@corp.com
-5) отправляем — если вход выполнен как admin -> XSW сработал
-```
-
-```bash
-# ручная проверка одного варианта
-# 1) декодируем, правим NameID в неподписанном узле, кодируем обратно
-python3 - <<'PY'
-import base64
-xml = open('resp.xml','rb').read().replace(b'attacker@x', b'admin@corp')
-print(base64.b64encode(xml).decode())
-PY
-# 2) отправляем на ACS-эндпоинт SP
-curl -s -X POST https://sp.example/saml/acs --data-urlencode "SAMLResponse=$B64"
-```
-
-## Replay и условия
-
-SAML assertion содержит `NotBefore`/`NotOnOrAfter` и `InResponseTo`. Если они не проверяются — возможен replay.
-
-```text
-- перехватить валидный assertion
-- отправить его повторно в пределах/вне срока
-- проверить, принимается ли (отсутствие проверки времени/ID)
-```
-
-## Инструменты
-
-| Инструмент | Назначение |
-|-----------|-----------|
-| `SAML Raider` (Burp) | XSW, подпись, декод |
-| `python3-saml` | валидация/дебаг |
-| `xmllint` | форматирование XML |
-| `Burp` | перехват/повтор |
-| `SAML-tool` | генерация тестов |
-
-## Что делать дальше / решение
-
-1. **Перехватите SAMLResponse.** Декодируйте и разберите.
-2. **Проверьте подпись.** Валидируется ли, на каком узле.
-3. **Попробуйте XSW.** SAML Raider генерирует варианты.
-4. **Проверьте NameID.** Comment injection, namespace.
-5. **Проверьте replay.** Время/`InResponseTo`.
-6. **Проверьте XXE.** DOCTYPE/entity в XML.
-7. **Зафиксируйте PoC.** Вход под чужой ролью.
-
-## Практика и справочники
-
-- **PortSwigger** — «SAML» research (XSW).
-- **HackTricks** — «SAML».
-- **SAML Raider** — расширение Burp.
-- **OWASP** — SAML Security Cheat Sheet.
-
-## Приоритеты при тестировании SAML
-
-Начните с перехвата `SAMLResponse` и его декодирования. Затем проверьте, валидируется ли подпись вообще (удалите `<Signature>` и отправьте assertion). Если подпись проверяется, но не на том узле — пробуйте XSW (SAML Raider генерирует варианты). Далее — comment injection и namespace confusion в `NameID`, проверка времени (`NotBefore`/`NotOnOrAfter`) и `InResponseTo` на replay, а также XXE внутри XML. Каждая из этих проверок может дать вход под чужой ролью.
-
-## Кратко
-
-1. Декодировать assertion.
-2. Проверить валидацию подписи.
-3. XSW (SAML Raider).
-4. Comment injection / namespace.
-5. Replay (время/InResponseTo).
-6. XXE.
-7. PoC — вход под чужой ролью.
-
-## Практика
-
-- **SAML Raider** (Burp).
-- **HackTricks** — SAML.
-- **OWASP** — SAML Security Cheat Sheet.
-
-## Расширенный разбор: почему SAML сложно тестировать
-
-SAML-атаки требуют понимания XML-DSig: важно не только «подпись валидна», но и **какой узел** она покрывает и **какой узел** приложение читает для аутентификации. Классическая ошибка реализации — валидация подписи на одном assertion, а извлечение `NameID` — из другого (это и есть XSW). Вторая частая ошибка — проверка подписи на `Response`, а данных — на вложенном `Assertion`. Отсюда практический совет: при тестировании всегда создавайте **два** похожих узла (подписанный «оригинал» и поддельный с нужным `NameID`) и смотрите, какой из них побеждает.
+Второй трюк играет на **разном** чтении XML разными парсерами. Вставь комментарий в середину значения:
 
 ```xml
-<!-- идея: подпись на подписанном узле, данные — в неподписанном -->
-<Response>
-  <Assertion ID="signed"><Signature>...</Signature></Assertion>
-  <Assertion ID="evil"><Subject><NameID>admin@corp</NameID></Subject></Assertion>
-</Response>
+<saml:NameID>admin@corp.example<!--x-->@attacker.example</saml:NameID>
 ```
 
-SAML Raider автоматизирует генерацию таких вариантов; вручную достаточно менять порядок и вложенность узлов, сохраняя подпись неизменной.
+Один парсер прочитает всё как `admin@corp.example@attacker.example`, другой — только `admin@corp.example` (игнорируя комментарий и хвост). Если проверка подписи и приложение используют **разные** парсеры, можно заставить приложение «увидеть» админский email, а подпись проверить на другом значении. Тот же приём работает с разными пространствами имён и дублированными атрибутами.
+
+## Шаг 3: signature stripping и непроверка
+
+Иногда приложение **не проверяет** подпись вовсе или проверяет её только при определённых условиях:
+
+- **Signature stripping:** убираем `<ds:Signature>` целиком; если приложение не требует подписи — принимает подделку.
+- **Проверка «на наличие»:** приложение смотрит, что подпись **есть**, но не проверяет её криптографически.
+- **Подпись только Response, не Assertion:** можно подменить assertion, подпись на Response останется валидной.
+
+Проверяется просто: удали подпись и посмотри, отклонит ли сервер assertion.
+
+## Шаг 4: XXE и SSRF внутри SAML
+
+SAML — это XML, значит, к нему применим **XXE** (см. `web-xxe`). Если IdP/SP-парсер не закрыт, в assertion можно вложить внешнюю сущность и прочитать файлы или сделать SSRF:
+
+```xml
+<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+<saml:NameID>&xxe;</saml:NameID>
+```
+
+Часто SAML-библиотеки разбирают XML «безопасно», но не всегда — это стоит проверить.
+
+## Шаг 5: replay assertion
+
+SAML-assertion имеет срок жизни (`NotOnOrAfter`) и идентификатор (`ID`). Если приложение **не** проверяет срок или не ведёт список использованных `ID`, assertion можно **повторить**:
+
+```bash
+# перехваченный валидный assertion отправляем повторно
+$ curl -s 'https://shop.local/saml/acs' --data-urlencode "SAMLResponse=$(cat assertion.b64)"
+```
+
+Если вход проходит спустя часы или повторно — уязвимость (replay). Правильная защита — проверять `NotOnOrAfter`, `Conditions` и запоминать использованные `ID`.
+
+## Шаг 6: как проверять на практике
+
+Порядок тестирования SAML:
+
+1. **Перехвати** SAML Response (Burp) и декодируй base64.
+2. **Найди, что подписано** — Response или Assertion, и **какой** узел.
+3. **Попробуй удалить подпись** (stripping) — принимает ли?
+4. **Построй XSW** — добавь второй assertion с `admin`, оставив валидную подпись.
+5. **Попробуй comment injection** и дублирование атрибутов.
+6. **Проверь XXE** — вложи внешнюю сущность.
+7. **Проверь replay** — отправь assertion повторно/позже.
+8. **Подтверди impact** — вход под админом или чужим пользователем.
+
+## Шаг 7: почему SAML-библиотеки так часто ошибаются
+
+SAML — сложный стандарт: подписывать можно Response **или** Assertion, вложенность узлов произвольная, пространства имён легко перепутать. Отсюда два класса ошибок, которые повторяются годами:
+
+- **Проверяют не тот узел.** Подпись на одном `Assertion`, а данные берут из другого (это и есть XSW).
+- **Читают не тем парсером.** Валидатор и приложение по-разному разбирают XML (comment injection, дубликаты атрибутов, разные namespace).
+
+Плюс поверх этого — непроверка `Conditions`/`NotOnOrAfter`/`ID`, открывающая replay. Поэтому при тестировании SAML недостаточно «посмотреть на подпись»: нужно понять, **какой узел** подписан, **какой** читает приложение и **чем** каждый из них парсит документ. Только это даёт полную картину.
+
+## Шаг 8: как строить XSW по шагам
+
+XSW кажется магией, но собирается методично:
+
+1. **Получи валидный SAML Response** (свой аккаунт) и декодируй base64.
+2. **Найди подписанный узел** — на что именно ссылается `Reference` в `Signature`.
+3. **Продублируй Assertion** — создай копию с `role=admin`/чужим `NameID`.
+4. **Переставь теги** так, чтобы подписанный узел остался внутри, а приложение читало первый — поддельный.
+5. **Перекодируй в base64** и отправь на `/saml/acs`.
+6. **Проверь доступ:** зашёл ли ты как admin.
+
+Вариантов перестановки много (XSW1–XSW8 в известной классификации), и разные библиотеки «клюют» на разные. Если первый не сработал — пробуй другую форму вложенности, не меняя подписанный узел.
+
+## Что мы теперь знаем
+
+- **SAML** — XML с подписанным assertion о пользователе.
+- **XSW** — два assertion; подпись валидна, а читается поддельный узел.
+- **Comment injection** — разные парсеры читают значение по-разному.
+- **Signature stripping** — приложение не требует/не проверяет подпись.
+- **XXE** внутри SAML — чтение файлов и SSRF.
+- **Replay** — повтор assertion без проверки срока и `ID`.
+
+## На что смотреть дальше
+
+- **Что подписано:** Response или Assertion, и какой именно узел.
+- **Требуется ли подпись:** удали её и проверь.
+- **Сколько assertion** ожидает приложение и какой читает первым.
+- **Срок и `ID`:** проверяются ли `NotOnOrAfter` и список использованных.
+- **Парсер XML:** закрыт ли от внешних сущностей.
+- **Дубликаты:** как обрабатываются повторяющиеся атрибуты и пространства имён.
+- **Подпись Response vs Assertion:** подмена assertion при валидной подписи на Response.
+- **`Conditions`/`Audience`:** сверяются ли ограничения получателя и срока.
 
 ## Квиз
 
+Выбери один вариант в каждом вопросе.
+
 ```quiz
-- question: "Что такое XML Signature Wrapping (XSW)?"
+- question: "В чём суть XML Signature Wrapping (XSW)?"
   options:
-    - "Подпись проверяется для одного узла, а данные берутся из другого"
-    - "Удаление подписи"
-    - "Шифрование assertion"
-    - "Смена алгоритма хеша"
+    - "Ломаем криптографию подписи"
+    - "Подпись остаётся валидной, но приложение читает другой (поддельный) узел"
+    - "Шифруем assertion"
+    - "Меняем алгоритм подписи"
+  answer: 1
+  explanation: "Проверка находит подписанный узел, а логика читает наш — подпись не тронута."
+- question: "Как работает comment injection?"
+  options:
+    - "Через SQL-комментарий"
+    - "Разные парсеры по-разному читают значение с `<!-- -->` внутри"
+    - "Через cookie"
+    - "Через заголовок Host"
+  answer: 1
+  explanation: "Один парсер видит admin@corp, другой — admin@corp@attacker; подпись проверяют на одном."
+- question: "Что такое signature stripping?"
+  options:
+    - "Удаление подписи и проверка, требует ли её сервер"
+    - "Шифрование подписи"
+    - "Подмена алгоритма"
+    - "Кража cookie"
   answer: 0
-  explanation: "Подпись валидна, но данные — из неподписанного узла."
-- question: "В чём суть comment injection в SAML?"
+  explanation: "Если приложение не требует подпись, поддельный assertion принимается."
+- question: "Почему SAML подвержен XXE?"
   options:
-    - "Вставка SQL-кода"
-    - "Разные парсеры по-разному видят комментарий в NameID"
-    - "Удаление комментариев"
-    - "Смена кодировки"
-  answer: 1
-  explanation: "Один парсер видит admin@corp, другой — admin."
-- question: "Какой инструмент удобен для XSW?"
-  options:
-    - "sqlmap"
-    - "SAML Raider"
-    - "nmap"
-    - "gobuster"
-  answer: 1
-  explanation: "Burp-плагин с готовыми XSW-вариантами."
-- question: "Почему SAML-парсер уязвим к XXE?"
-  options:
-    - "SAML — это XML"
+    - "SAML — это XML, и парсер может обрабатывать внешние сущности"
     - "SAML использует JSON"
-    - "SAML шифруется"
-    - "SAML не имеет DOCTYPE"
+    - "SAML не использует парсеры"
+    - "SAML всегда шифрован"
   answer: 0
-  explanation: "Внешние сущности работают, если парсер не отключил их."
-- question: "Какое условие assertion надо проверять против replay?"
+  explanation: "В assertion можно вложить внешнюю сущность и прочитать файл или сделать SSRF."
+- question: "Как защититься от replay assertion?"
   options:
-    - "Content-Type"
-    - "NotOnOrAfter и InResponseTo"
-    - "User-Agent"
-    - "Referer"
-  answer: 1
-  explanation: "Без проверки assertion переиспользуется."
+    - "Проверять `NotOnOrAfter`/`Conditions` и запоминать использованные `ID`"
+    - "Увеличить срок жизни"
+    - "Отключить подпись"
+    - "Использовать GET"
+  answer: 0
+  explanation: "Без проверки срока и списка ID один assertion можно предъявлять многократно."
 ```
+
+## Куда дальше
+
+Мы прошли всю ветвь аутентификации: сессии, JWT, refresh-токены, OAuth/OIDC, SAML. Дальше дерево ведёт в контроль доступа и бизнес-логику (`web-logic-core`, `web-race-conditions`) — там атакуют уже не «кто ты», а «что и в каком порядке можно делать». А пока запомни: **в SAML доверяй только тому узлу, который подписан, — и сверяй его одинаковым парсером.**
 
 ## Где пригодится
 
-- **CTF (Web):** SAML-задачи на обход аутентификации.
-- **Bug bounty:** XSW и обход подписи — критические отчёты.
-- **Пентест:** аудит корпоративного SSO (ADFS, Okta, Azure AD).
-- **Работа (AppSec):** корректная проверка подписи/условий, отключение DTD, пиннинг сертификата.
+- **CTF (Web):** SAML-задачи — XSW и stripping ведут к аккаунту админа.
+- **Bug bounty:** XSW в SAML — critical; докажи вход под другим пользователем.
+- **Пентест:** проверка корпоративного SSO на подпись, срок и replay.
+- **Работа (AppSec):** строгая проверка подписи одного узла, одинаковый парсер, проверка `Conditions`/`ID`.

@@ -14,193 +14,161 @@ useful_for:
 estimated_minutes: 50
 summary: "История, cookies, загрузки, кэш и сессии Chrome/Firefox/Edge: где лежат SQLite-базы, как их читать и что доказывать."
 ---
-Браузеры хранят огромный объём данных о пользователе: историю посещений, cookies, пароли, загрузки, кэш, сессии. Для расследования это золотая жила — от доказательства посещения сайта до извлечения украденных сессий. Этот урок — про структуру данных Chrome/Firefox/Edge, SQLite-базы и инструменты их разбора.
 
-## Где лежат данные
+## Вопрос, с которого всё начинается
 
-| Браузер | Профиль |
-|---------|---------|
-| Chrome | `%LOCALAPPDATA%\Google\Chrome\User Data\Default\` |
-| Edge | `%LOCALAPPDATA%\Microsoft\Edge\User Data\Default\` |
-| Firefox | `%APPDATA%\Mozilla\Firefox\Profiles\<profile>\` |
+Тебе дали профиль пользователя с рабочей машины. Подозрение: сотрудник перешёл по
+фишинговой ссылке и ввёл пароль. Нужно доказать **факт посещения сайта** и показать,
+что именно скачивалось.
 
-Ключевые файлы Chrome/Edge:
+Браузеры хранят огромный объём данных о своём пользователе: историю посещений,
+cookies, загрузки, кэш страниц. Для расследования это золотая жила — от
+доказательства визита до извлечения украденной сессии.
 
-| Файл | Содержимое |
-|------|-----------|
-| `History` | URL, заголовки, переходы, загрузки |
-| `Cookies` | cookies (зашифрованы) |
-| `Login Data` | пароли (DPAPI/AES) |
-| `Web Data` | автозаполнение, карты |
-| `Top Sites`, `Favicons` | топ-сайты, иконки |
-| `Cache/`, `Code Cache/` | кэш ресурсов |
-| `Sessions/`, `Current Session` | сессии/вкладки |
-| `Preferences` | настройки (JSON) |
+## Наш пример: профиль Chrome
 
-Firefox: `places.sqlite` (история+закладки), `cookies.sqlite`, `formhistory.sqlite`, `logins.json` (пароли), `downloads.sqlite`, `sessionstore-backups/`.
+Профиль Chrome по умолчанию лежит здесь:
 
-## История и переходы (Chrome)
-
-`History` — SQLite. Ключевые таблицы: `urls` (id, url, title, visit_count, last_visit_time), `visits` (переходы с временем), `downloads`, `downloads_url_chains`, `keyword_search_terms`.
-
-```bash
-$ sqlite3 History "SELECT url, title, visit_count, last_visit_time FROM urls ORDER BY last_visit_time DESC LIMIT 10;"
-$ sqlite3 History "SELECT urls.url, visits.visit_time FROM visits JOIN urls ON visits.url=urls.id ORDER BY visits.visit_time DESC LIMIT 10;"
-# время Chrome — microseconds since 1601 (WebKit/Windows epoch)
+```
+%LOCALAPPDATA%\Google\Chrome\User Data\Default\
 ```
 
-Время Chrome/WebKit — микросекунды с 1601-01-01. Конвертация:
+`%LOCALAPPDATA%` — это переменная окружения, путь вида
+`C:\Users\<имя>\AppData\Local`. Посмотрим, что внутри:
 
 ```bash
-$ python3 -c "print(__import__('datetime').datetime(1601,1,1)+__import__('datetime').timedelta(microseconds=13355000000000000))"
+$ ls "User Data/Default/"
+History  Cookies  'Login Data'  'Web Data'  'Top Sites'  Cache/  Preferences
 ```
 
-## Cookies и пароли
+Каждый файл — отдельное хранилище. Все ключевые (кроме `Preferences`) — это **SQLite**,
+встроенная база данных в одном файле. SQLite-базу читают утилитой `sqlite3`, выполняя
+SQL-запросы (язык запросов к базе). Начнём с истории.
 
-Cookies и пароли зашифрованы. Chrome (Windows) использует AES-GCM с ключом, защищённым DPAPI; ключ лежит в `Local State` (base64). На macOS/Linux — Keychain/`kwallet`/`gnome-keyring`.
+## Шаг 1: читаем историю
+
+`History` — это SQLite-база. Ключевые таблицы: `urls` (адрес, заголовок, число
+посещений), `visits` (каждый переход с временем), `downloads` (загрузки). Выведем
+последние посещения:
 
 ```bash
-# Linux: ключ в gnome-keyring или 'peanuts' по умолчанию
-$ sqlite3 Cookies "SELECT host_key, name, encrypted_value FROM cookies LIMIT 5;"
-# извлечение ключа из Local State
-$ python3 -c "import json,base64;d=json.load(open('Local State'));print(base64.b64decode(d['os_crypt']['encrypted_key'])[5:])"
-# инструменты: chrome_decrypt, browser_cookie3, pypykatz dpapi
+$ sqlite3 History "SELECT url, title, visit_count FROM urls ORDER BY last_visit_time DESC LIMIT 5;"
+https://secure-login.evil.tld/|Sign in|3
+https://mail.example.com/|Inbox|12
 ```
 
-Для офлайн-разбора паролей нужен master key (DPAPI) — он может быть в памяти (см. `forensics-memory-keys`) или в keychain.
-
-## Кэш и сессии
-
-Кэш хранит ресурсы (картинки, страницы); сессии — открытые вкладки. Полезно для восстановления содержимого посещённых страниц.
+Первая строка — то, что нам нужно: пользователь трижды открывал
+`secure-login.evil.tld`. Но время тут не показано. Проблема в том, что Chrome
+хранит время в **своём** формате: это **микросекунды с 1601-01-01** (эпоха
+Windows/WebKit), а не привычные секунды с 1970-го. Переведём его прямо в SQL:
 
 ```bash
-# кэш Chrome (в старых версиях — простой, в новых — сжатый)
-$ strings -n 8 Cache/* | grep -i 'password\|token' | head
-# Firefox sessionstore
-$ python3 -c "import json;d=json.load(open('sessionstore.jsonlz4'));..."   # или mozlz4
-# закладки Firefox
-$ sqlite3 places.sqlite "SELECT url,title FROM moz_bookmarks b JOIN moz_places p ON b.fk=p.id WHERE title IS NOT NULL;"
+$ sqlite3 History "SELECT url, datetime(last_visit_time/1000000-11644473600,'unixepoch') FROM urls WHERE url LIKE '%login%';"
+https://secure-login.evil.tld/|2024-03-01 12:10:00
 ```
 
-## Инструменты
+Теперь время читаемо: визит был 1 марта 2024 в 12:10. (Число `11644473600` —
+разница в секундах между 1601 и 1970 годами.)
 
-| Инструмент | Назначение |
-|-----------|-----------|
-| `Hindsight` | разбор Chrome/Edge (GUI/CLI) |
-| `BrowsingHistoryView` | история (Windows) |
-| `DB Browser for SQLite` | GUI для SQLite |
-| `browser_cookie3` | извлечение cookies |
-| `chrome_decrypt` | пароли Chrome |
-| `firefox_decrypt` | пароли Firefox |
-| `mozilla_history`/`hindsight` | Firefox |
+## Шаг 2: что скачивали
+
+Загрузки лежат в той же базе, в таблице `downloads`:
 
 ```bash
-$ hindsight.py -i "User Data" -o out/
-$ python3 firefox_decrypt.py <profile>
-```
-
-## Разобранный пример
-
-Дан профиль Chrome. Нужно доказать посещение фишингового сайта и кражу сессии.
-
-```bash
-# 1. История
-$ sqlite3 History "SELECT url, title, datetime(last_visit_time/1000000-11644473600,'unixepoch') FROM urls WHERE url LIKE '%login%' ORDER BY last_visit_time DESC LIMIT 5;"
-https://secure-login.evil.tld/|Sign in|2024-03-01 12:10:00
-# 2. Загрузки
 $ sqlite3 History "SELECT target_path, tab_url, datetime(start_time/1000000-11644473600,'unixepoch') FROM downloads ORDER BY start_time DESC LIMIT 5;"
 C:\Users\bob\Downloads\invoice.pdf|https://evil.tld/invoice.pdf|2024-03-01 12:11:00
-# 3. Cookies для сессии
+```
+
+Через минуту после входа пользователь скачал `invoice.pdf` с того же домена
+`evil.tld`. Связка «фишинг-логин → загрузка файла» уже вырисовывается.
+
+## Шаг 3: cookies и сессии
+
+`Cookies` — ещё одна SQLite-база. В таблице `cookies` есть `host_key` (для какого
+сайта), `name` и `encrypted_value`. Значения зашифрованы:
+
+```bash
 $ sqlite3 Cookies "SELECT host_key, name FROM cookies WHERE host_key LIKE '%evil%';"
-# 4. Автозаполнение (введённые данные)
+.evil.tld|sessionid
+```
+
+Cookie `sessionid` для `.evil.tld` — это то, что позволяет «оставаться в системе».
+Показать значение просто так нельзя: Chrome шифрует его **AES-GCM** (современный
+алгоритм шифрования), а ключ защищён **DPAPI** — механизмом Windows, который
+привязывает секрет к учётной записи пользователя. Ключ лежит в файле `Local State`
+в виде base64:
+
+```bash
+$ python3 -c "import json,base64; d=json.load(open('Local State')); print(base64.b64decode(d['os_crypt']['encrypted_key'])[5:])"
+b'...ключ...'
+```
+
+Чтобы расшифровать cookies/пароли офлайн, нужен этот ключ, а его, в свою очередь,
+защищает DPAPI-мастер-ключ — он может быть в памяти системы (см. урок про ключи в
+памяти) или в хранилище учётных данных. Инструменты `chrome_decrypt`,
+`browser_cookie3` делают расшифровку, если ключ доступен.
+
+## Шаг 4: `Web Data` — введённые данные
+
+Файл `Web Data` хранит то, что пользователь **сам вводил** в формы (автозаполнение):
+
+```bash
 $ sqlite3 'Web Data' "SELECT name, value FROM autofill LIMIT 5;"
+email|bob@example.com
 ```
 
-## Справочная таблица времени
+Если сотрудник вводил на фишинг-странице логин и пароль, эти данные часто остаются
+здесь — прямое доказательство ввода.
 
-| Браузер | Формат времени |
-|---------|----------------|
-| Chrome/WebKit | микросекунды с 1601 |
-| Firefox (places) | микросекунды с 1970 (Unix) |
-| Safari (macOS) | секунды с 2001 |
-| Windows FILETIME | 100-нс тики с 1601 |
+## Шаг 5: Firefox устроен похоже, но по-другому
 
-## Частые ошибки
-
-- **Читать базы на живой системе** — файлы заблокированы; работайте с копией (+ `-wal`/`-shm`).
-- **Путать эпохи времени** (Chrome 1601 vs Firefox 1970).
-- **Игнорировать `Web Data`** — там введённые пользователем данные (пароли в формах).
-- **Забывать про кэш** — восстановление содержимого страниц.
-- **Не извлекать ключ DPAPI** — пароли останутся зашифрованными.
-- **Смотреть один профиль** — их может быть несколько.
-
-## Что дальше / решение
-
-Конвейер: `Hindsight`/`sqlite3` (история/загрузки) → `Cookies`/`Login Data` (ключ DPAPI) → кэш/сессии → свести с таймлайном. Связка: `forensics-sqlite` (базы), `forensics-memory-keys` (DPAPI), `forensics-windows-artifacts` (обзор), `forensics-web-forensics` (веб).
-
-## Firefox: places.sqlite
-
-Firefox хранит историю и закладки в `places.sqlite`, cookies — в `cookies.sqlite`, формы — в `formhistory.sqlite`, пароли — в `logins.json` (зашифрованы через key4.db).
+Firefox хранит историю и закладки в `places.sqlite`, cookies — в `cookies.sqlite`:
 
 ```bash
-# история Firefox (время в микросекундах Unix)
-$ sqlite3 places.sqlite "SELECT url, title, datetime(last_visit_date/1000000,'unixepoch') FROM moz_places ORDER BY last_visit_date DESC LIMIT 10;"
-# переходы
-$ sqlite3 places.sqlite "SELECT p.url, datetime(v.visit_date/1000000,'unixepoch') FROM moz_historyvisits v JOIN moz_places p ON v.place_id=p.id ORDER BY v.visit_date DESC LIMIT 10;"
-# cookies
-$ sqlite3 cookies.sqlite "SELECT host, name, value FROM moz_cookies LIMIT 5;"
-# закладки
-$ sqlite3 places.sqlite "SELECT p.url, b.title FROM moz_bookmarks b JOIN moz_places p ON b.fk=p.id WHERE b.title IS NOT NULL;"
-# сессии (сжатый lz4)
-$ python3 -c "import mozlz4; print(mozlz4.open('sessionstore.jsonlz4'))" 2>/dev/null | head
+$ sqlite3 places.sqlite "SELECT url, title, datetime(last_visit_date/1000000,'unixepoch') FROM moz_places ORDER BY last_visit_date DESC LIMIT 3;"
+https://secure-login.evil.tld/|Sign in|2024-03-01 12:10:00
 ```
 
-Firefox-время (`last_visit_date`) — микросекунды с 1970 (Unix), в отличие от Chrome (с 1601).
+Обрати внимание: у Firefox время — **микросекунды с 1970** (Unix-эпоха), а у Chrome —
+с 1601. Перепутать эпохи — самая частая ошибка: дата уедет на 369 лет.
 
-## Восстановление и целостность
+## Шаг 6: не забыть свежие данные (WAL)
 
-SQLite-базы браузеров активно перезаписываются; свежие данные лежат в `-wal`/`-shm`. Для корректного чтения копируйте все три файла.
+SQLite активно перезаписывается, и самые свежие записи могут лежать не в основном
+файле, а в спутниковых `-wal` и `-shm`. Копируй их **вместе** с базой:
 
 ```bash
-# копировать базу вместе с WAL
 $ cp History History-wal History-shm /evidence/
-# восстановить удалённые записи (freelist)
-$ sqlite3 History ".recover" | grep -i 'evil' | head
-# удалённые cookies/история могут быть в freelist-страницах
 ```
+
+Иначе получишь старую картину. А ещё удалённые записи часто восстанавливаются из
+свободных страниц базы:
 
 ```bash
-$ sqlite3 History "PRAGMA integrity_check;"
-$ strings History | grep -iE 'http|password' | head
+$ sqlite3 History ".recover" | grep -i evil | head
 ```
 
-Для офлайн-анализа сессий и восстановления удалённых записей используйте `undark`/`.recover` (см. `forensics-sqlite`). Удалённая история и cookies часто восстанавливаются из свободных страниц.
+## Что мы теперь знаем
 
-## Профили и шифрование
+- История, cookies, загрузки браузеров лежат в **SQLite-базах** (Chrome — `History`,
+  `Cookies`; Firefox — `places.sqlite`).
+- Chrome хранит время как микросекунды с **1601**, Firefox — с **1970**.
+- Cookies и пароли зашифрованы AES, ключ защищён **DPAPI**; без ключа не прочитать.
+- `Web Data` хранит введённые в формы данные — прямое доказательство ввода.
+- Копируй базу вместе с `-wal`/`-shm`, иначе потеряешь свежие записи.
 
-- **Несколько профилей**: `Default`, `Profile 1`, и т. д. — проверяйте все.
-- **Incognito/Private**: история не пишется, но кэш/сеть могут остаться.
-- **Ключ DPAPI** привязан к пользователю; без него пароли не читаются.
-- **Синхронизация**: данные могут быть в облачном профиле (Google/Mozilla account).
+## На что смотреть дальше
 
-## Справочная таблица
-
-| Браузер | История | Cookies | Пароли |
-|---------|---------|---------|--------|
-| Chrome | `History` | `Cookies` | `Login Data` |
-| Edge | `History` | `Cookies` | `Login Data` |
-| Firefox | `places.sqlite` | `cookies.sqlite` | `logins.json` |
-
-## Частые ошибки (расширенно)
-
-- **Игнорировать `-wal`/`-shm`** — потеряете свежие записи.
-- **Путать эпохи** (Chrome 1601 vs Firefox 1970).
-- **Забывать про `.recover`** — удалённая история восстанавливается.
-- **Смотреть один профиль** — их может быть несколько.
-- **Не извлекать DPAPI-ключ** — пароли останутся нечитаемыми.
-- **Копировать на живую** без учёта блокировок — получите консистентную, но неполную базу.
+- **Читать базы на живой системе** — файлы заблокированы; работай с копией.
+- **Путать эпохи времени** (Chrome 1601 vs Firefox 1970).
+- **Игнорировать `-wal`/`-shm`** — потеряешь последние записи.
+- **Смотреть один профиль** — их может быть несколько (`Default`, `Profile 1`).
+- **Забывать про `Web Data`** — там введённые пользователем данные.
+- **Не искать `.recover`** — удалённая история восстанавливается.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "В каком формате хранится история Chrome/Firefox?"
@@ -224,26 +192,34 @@ $ strings History | grep -iE 'http|password' | head
     - "кэш"
     - "пароли"
   answer: 1
-- question: "Почему важно учитывать файл History-wal?"
+- question: "Почему важно копировать файл History-wal?"
   options:
     - "он содержит пароли"
     - "свежие записи могут быть ещё не перенесены в основную БД"
     - "он шифрует базу"
     - "он не нужен"
   answer: 1
-- question: "Чем ценен браузерный кэш для форензики?"
+- question: "Что защищает ключ расшифровки cookies Chrome на Windows?"
   options:
-    - "хранит тела ответов, включая контент уже изменённых/удалённых страниц"
-    - "хранит пароли"
-    - "хранит USB-историю"
-    - "хранит EVTX"
+    - "DPAPI (привязка к учётной записи)"
+    - "SMB"
+    - "Kerberos"
+    - "LDAP"
   answer: 0
 ```
 
+## Куда дальше
+
+Мы прочитали браузерные базы и восстановили активность пользователя. В следующем
+уроке заглянем **внутрь кустов реестра** — как устроены hbin/cell, зачем нужны
+транзакционные журналы `.LOG` и как достать ключи, которые атакующий удалил. А пока
+запомни: **браузер — это набор SQLite-баз; читай их в копии и следи за эпохой
+времени**.
+
 ## Где пригодится
 
-- **CTF:** задачи на историю браузера, поисковые запросы, скачанные файлы.
-- **DFIR:** реконструкция активности пользователя и загрузок.
-- **Threat Hunting:** поиск обращений к подозрительным доменам/URL.
-- **Судебная экспертиза:** доказательство посещения ресурсов и загрузок.
-- **Анализ инцидентов:** получение контента из кэша при отсутствии исходника.
+- **CTF** — задачи на историю браузера, поисковые запросы, скачанные файлы.
+- **DFIR** — реконструкция активности пользователя и загрузок.
+- **Threat Hunting** — поиск обращений к подозрительным доменам/URL.
+- **Судебная экспертиза** — доказательство посещения ресурсов и загрузок.
+- **Анализ инцидентов** — получение контента из кэша при отсутствии исходника.

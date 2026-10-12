@@ -14,209 +14,196 @@ useful_for:
 estimated_minutes: 55
 summary: "Поиск учётных данных в дампах памяти: хеши и пароли из LSASS, SAM/registry из памяти, LSA secrets, кэш браузеров, ключи шифрования и токены; инструменты Volatility 3, pypykatz, mimikatz."
 ---
-Дамп памяти — золотая жила для извлечения учётных данных: хеши, пароли, ключи шифрования и токены остаются в памяти в открытом виде. Извлекая их, аналитик понимает, какими учётными записями владел атакующий, и восстанавливает цепочку латерального движения. Этот урок — про LSASS, SAM/реестр из памяти, LSA secrets, кэш браузеров и ключи, с инструментами Volatility, pypykatz и mimikatz.
 
-## Откуда берутся секреты
+## Вопрос, с которого всё начинается
+
+У тебя есть дамп памяти `mem.raw` с компьютера, который был включён в момент снятия.
+Задача — понять, под какими учётными записями работал атакующий. На диске паролей
+нет, но в оперативной памяти они могут быть прямо сейчас: система хранит их, чтобы
+не спрашивать каждый раз заново.
+
+В этом уроке мы извлечём из дампа хеши, пароль службы и пароль пользователя — и
+поймём, почему память называют «золотой жилой» для учётных данных.
+
+## Шаг 1: где живут секреты
+
+Секреты хранятся в разных местах памяти, и каждое даёт свой тип данных:
 
 | Источник | Что содержит |
 |----------|-------------|
-| `lsass.exe` | хеши NTLM, Kerberos-тикеты, WDigest/SSP-пароли |
-| Реестр в памяти | SAM (локальные хеши), SECURITY (LSA secrets) |
+| `lsass.exe` | NTLM-хеши, Kerberos-билеты, пароли WDigest |
+| реестр в памяти | SAM (локальные хеши), SECURITY (LSA secrets) |
 | DPAPI | master keys для расшифровки сохранённых паролей |
-| Браузеры | пароли/куки в памяти |
-| Крипто-ключи | BitLocker, EFS, VPN |
-| Токены | access/refresh, сессионные |
+| браузеры | пароли и куки |
+| крипто-ключи | BitLocker, EFS, VPN |
 
-## LSASS и хеши
+Начнём с самого простого — реестра, который Volatility достаёт прямо из памяти.
 
-LSASS хранит материал аутентификации. Извлечение — ключевая задача.
+## Шаг 2: локальные хеши и LSA secrets
+
+**NTLM-хеш** — это не пароль, а его «отпечаток». Хеш нельзя «расшифровать» обратно,
+но по нему можно аутентифицироваться (об этом ниже) или подобрать пароль офлайн.
+Достаём локальные хеши из памяти:
 
 ```bash
-# Volatility: хеши и LSA
 $ vol -f mem.raw windows.hashdump
-$ vol -f mem.raw windows.lsadump
-$ vol -f mem.raw windows.cachedump
-# pypykatz по дампу LSASS
-$ vol -f mem.raw windows.memmap --pid <lsass_pid> --dump
-$ pypykatz lsa minidump lsass.dmp
+Administrator:500:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::
+bob:1001:aad3b435b51404eeaad3b435b51404ee:8846f7eaee8fb117ad06bdd830b7586c:::
 ```
 
-```bash
-# дамп LSASS (офлайн-анализ) — инструменты: procdump, comsvcs.dll
-$ procdump -ma lsass.exe lsass.dmp
-$ pypykatz lsa minidump lsass.dmp
-USERNAME: bob
-NT: 8846f7eaee8fb117ad06bdd830b7586c
-SHA1: ...
-WDigest: ...
-```
+Формат — `логин:RID:LM-хеш:NT-хеш`. Здесь видно пользователя `bob`.
 
-`mimikatz` — классика (на живой системе), `pypykatz` — Python-реализация для офлайн-дампов.
+**LSA secrets** — область, где Windows хранит пароли служб, авто-логина и других
+машинных секретов. Достаём их:
 
 ```bash
-$ mimikatz # sekurlsa::logonpasswords
-$ mimikatz # lsadump::sam
-$ mimikatz # lsadump::secrets
-```
-
-## SAM и SECURITY из памяти
-
-Volatility умеет достать кусты реестра прямо из памяти:
-
-```bash
-$ vol -f mem.raw windows.registry.hivelist
-$ vol -f mem.raw windows.registry.printkey --key 'SAM\Domains\Account\Users'
-$ vol -f mem.raw windows.hashdump        # локальные хеши из памяти
-$ vol -f mem.raw windows.lsadump         # LSA secrets (пароли служб, авто-логин)
-```
-
-Хеши NTLM ломаются `hashcat -m 1000`, кэш домена (DCC2) — `-m 2100`.
-
-## DPAPI
-
-DPAPI шифрует сохранённые пароли (браузеры, RDP, WiFi) master key, привязанным к SID/паролю пользователя. Найдя master key и хеш пользователя, можно расшифровать всё.
-
-```bash
-$ vol -f mem.raw windows.registry.printkey --key 'Protect\S-1-5-21-...\...'
-$ mimikatz # dpapi::masterkey /in:... /sid:... /password:...
-$ mimikatz # dpapi::cred /in:... /masterkey:...
-```
-
-## Браузеры и приложения
-
-Пароли/куки браузеров хранятся зашифрованными (DPAPI/AES), но ключи бывают в памяти.
-
-```bash
-# Chrome: ключ в Local State + база Login Data
-$ grep -a 'DPAPI' mem.raw | head          # грубый поиск
-$ pypykatz dpapi ...
-# инструменты: chrome_decrypt, pypykatz
-$ python3 chrome_decrypt.py --local_state LocalState --login_data 'Login Data'
-```
-
-## Ключи шифрования
-
-- **BitLocker**: recovery key / VMK могут быть в памяти.
-- **EFS**: приватные ключи в памяти.
-- **VPN/IPsec**: PSK, сертификаты.
-
-```bash
-# BitLocker key из памяти (Volatility 2: bitlocker)
-$ vol -f mem.raw windows.bitlocker
-$ grep -a 'BitLocker' mem.raw | head
-```
-
-## Разобранный пример
-
-Дан `mem.raw`. Нужно извлечь учётные данные.
-
-```bash
-# 1. Хеши из памяти
-$ vol -f mem.raw windows.hashdump
-Administrator:500:...:31d6cfe0d16ae931b73c59d7e0c089c0:::
-bob:1001:...:8846f7eaee8fb117ad06bdd830b7586c:::
-# 2. LSA secrets
 $ vol -f mem.raw windows.lsadump
 [*] DefaultPassword = P@ssw0rd123
-# 3. LSASS дамп -> pypykatz
-$ vol -f mem.raw windows.memmap --pid 636 --dump
-$ pypykatz lsa minidump pid.636.dmp | grep -iE 'username|nt|wdigest'
-USERNAME: bob
-NT: 8846...
-WDigest: Summer2024!
-# 4. Ломаем хеши
-$ hashcat -m 1000 '8846...' rockyou.txt
-8846...:Summer2024!
 ```
 
-Итог: хеш и WDigest-пароль из LSASS, пароль службы из LSA secrets.
+Пароль службы `P@ssw0rd123` найден в открытом виде — это уже готовая учётная запись.
 
-## Справочная таблица
+## Шаг 3: LSASS — главный источник
 
-| Задача | Инструмент |
-|--------|-----------|
-| Хеши из памяти | `vol ... windows.hashdump` |
-| LSA secrets | `vol ... windows.lsadump` |
-| Кэш домена | `vol ... windows.cachedump` |
-| LSASS-дамп | `procdump`, `comsvcs.dll`, `vol memmap` |
-| Парсинг LSASS | `pypykatz`, `mimikatz` |
-| DPAPI | `mimikatz dpapi::` |
-| Ломать NTLM | `hashcat -m 1000` |
+`lsass.exe` (Local Security Authority Subsystem Service) — процесс, который
+аутентифицирует пользователей, поэтому он держит в памяти **материал для входа**:
+хеши, Kerberos-билеты и, на некоторых системах, пароли в открытом виде.
 
-## Частые ошибки
-
-- **Дамп LSASS на живой системе без прав** — нужен SYSTEM/admin.
-- **Забывать про WDigest** — на старых ОС пароль в открытом виде.
-- **Не ломать хеши офлайн** — онлайн-брут недопустим.
-- **Игнорировать DPAPI** — без master key браузерные пароли не читаются.
-- **Считать, что память «устарела»** — секреты живут часами.
-- **Не фиксировать источник** каждого секрета.
-
-## Что дальше / решение
-
-Конвейер: `hashdump`/`lsadump` (реестр) → `memmap` LSASS → `pypykatz` → `hashcat` (офлайн) → DPAPI (браузеры). Связка: `forensics-memory` (основы), `forensics-volatility-deep` (плагины), `forensics-registry-hives` (кусты), `forensics-tls-decrypt` (ключи TLS).
-
-## Kerberos-тикеты и Pass-the-Hash
-
-Из памяти извлекаются не только хеши, но и **Kerberos-тикеты** (TGT/TGS), которые позволяют аутентифицироваться без пароля.
+Сначала находим его PID, затем выгружаем дамп:
 
 ```bash
-$ mimikatz # sekurlsa::tickets /export
-$ mimikatz # sekurlsa::ekeys
-# pypykatz: тикеты
+$ vol -f mem.raw windows.pslist | grep -i lsass
+636   lsass.exe
+$ vol -f mem.raw windows.memmap --pid 636 --dump
+```
+
+Разбираем дамп офлайн утилитой `pypykatz` (Python-версия mimikatz):
+
+```bash
+$ pypykatz lsa minidump pid.636.dmp
+USERNAME: bob
+NT: 8846f7eaee8fb117ad06bdd830b7586c
+WDigest: Summer2024!
+```
+
+`WDigest` — это механизм, который на старых системах (до Windows 8.1) хранил пароль
+в открытом виде. Если он включён, пароль достаётся сразу, без подбора. На современных
+системах WDigest по умолчанию выключен — там остаётся только хеш.
+
+## Шаг 4: кэш домена и Kerberos
+
+Помимо локальных хешей, LSASS хранит **кэш домена** — хеши пользователей, которые
+входили в систему (формат DCC2, «mscash2»):
+
+```bash
+$ vol -f mem.raw windows.cachedump
+bob:1001:1c2e9f...:a3f0...
+```
+
+И **Kerberos-билеты** (TGT/TGS) — пропуска, которые позволяют входить без пароля:
+
+```bash
 $ pypykatz lsa minidump lsass.dmp | grep -i -A5 'Kerberos'
 ```
 
-Тикеты можно конвертировать в `.kirbi`/`.ccache` и использовать с `Rubeus`/`impacket`. **Pass-the-Hash**: с NTLM-хешем можно аутентифицироваться без пароля (`pth` в mimikatz, `-H` в impacket/netexec). Это делает хеши из памяти критичными.
+Тикет можно сохранить в файл `.kirbi`/`.ccache` и использовать инструментами
+`impacket`/`Rubeus` — аутентифицироваться по «пропуску», не зная пароля.
+
+## Шаг 5: хеш как пропуск — Pass-the-Hash
+
+Ключевая идея: NTLM-хеш можно использовать для входа **без пароля**. Это называется
+**Pass-the-Hash (PTH)**. Поэтому хеши из памяти так опасны — их не обязательно
+ломать:
 
 ```bash
-# pth (теоретически, на целевой системе)
 $ impacket-psexec -hashes :8846f7eaee8fb117ad06bdd830b7586c admin@target
 ```
 
-## Инструменты и их назначение
+Символика `:8846...` означает «только NT-хеш, без LM». Тот же принцип у Kerberos —
+**Pass-the-Ticket**.
+
+## Шаг 6: DPAPI — пароли браузеров
+
+Браузеры и приложения шифруют сохранённые пароли через **DPAPI** (Data Protection
+API). Ключ к ним — **master key**, привязанный к пользователю. Если master key есть
+в памяти, можно расшифровать всё:
+
+```bash
+$ mimikatz # dpapi::masterkey /in:... /sid:S-1-5-21-... /password:...
+$ mimikatz # dpapi::cred /in:... /masterkey:...
+```
+
+Так достают пароли Wi-Fi, RDP и сайтов, сохранённые в браузере.
+
+## Шаг 7: ломаем хеши офлайн
+
+Если пароль нужен в открытом виде, хеш подбирают **офлайн** — на своей машине, без
+обращения к цели. Это и быстро, и незаметно:
+
+```bash
+$ hashcat -m 1000 '8846f7eaee8fb117ad06bdd830b7586c' rockyou.txt
+8846f7eaee8fb117ad06bdd830b7586c:Summer2024!
+```
+
+`-m 1000` — режим NTLM; для кэша домена DCC2 — `-m 2100`. Онлайн-брут по сети
+недопустим: медленно, шумно и легко блокируется.
+
+## Шаг 8: инструменты и порядок работы
 
 | Инструмент | Роль |
 |-----------|------|
 | `vol ... windows.hashdump` | NTLM-хеши из памяти |
-| `vol ... windows.lsadump` | LSA secrets |
-| `vol ... windows.cachedump` | DCC2-кэш домена |
-| `pypykatz` | парсинг LSASS-дампа (офлайн) |
-| `mimikatz` | живой дамп и расшифровка |
-| `hashcat` | офлайн-подбор |
-| `impacket` | использование тикетов/хешей |
+| `vol ... windows.lsadump` | LSA secrets (пароли служб) |
+| `vol ... windows.cachedump` | кэш домена (DCC2) |
+| `pypykatz` | разбор дампа LSASS (офлайн) |
+| `mimikatz` | живой дамп и расшифровка DPAPI |
+| `hashcat` | офлайн-подбор паролей |
+| `impacket` | использование хешей/билетов (PTH/PTT) |
 
-```bash
-# комбинированный офлайн-разбор
-$ vol -f mem.raw windows.memmap --pid <lsass> --dump
-$ pypykatz lsa minidump lsass.dmp > secrets.txt
-$ grep -iE 'username|NT:|SHA1:|WDigest' secrets.txt
-```
+Порядок работы простой: найти PID `lsass.exe` → выгрузить его дамп → разобрать
+`pypykatz` → добить реестром из памяти (`hashdump`/`lsadump`) → собрать DPAPI-ключи →
+при необходимости подобрать пароли офлайн. Каждый найденный секрет фиксируйте вместе
+с его источником — это часть доказательной цепочки.
 
-## Чек-лист извлечения секретов
+## Шаг 9: чек-лист и типичные ограничения
 
-1. Определить PID `lsass.exe` (`windows.pslist`).
-2. Дамп LSASS (`windows.memmap --dump` или `procdump`).
-3. `pypykatz lsa minidump` — хеши, тикеты, WDigest.
-4. `windows.hashdump`/`windows.lsadump` — локальные хеши и LSA secrets.
-5. Собрать DPAPI master keys и расшифровать браузерные пароли.
-6. Проверить наличие BitLocker/EFS/VPN-ключей.
-7. Ломать хеши офлайн (`hashcat -m 1000`/`-m 2100`).
-8. Зафиксировать IOC и источник каждого секрета.
+Чек-лист извлечения секретов из дампа:
 
-## Ограничения и нюансы
+1. Найти PID `lsass.exe` (`windows.pslist`).
+2. Выгрузить его дамп (`windows.memmap --dump`).
+3. Разобрать `pypykatz lsa minidump` — хеши, билеты, WDigest.
+4. Достать локальные хеши и LSA secrets (`hashdump`/`lsadump`).
+5. Собрать DPAPI master keys и открыть пароли браузеров.
+6. Проверить ключи BitLocker/EFS/VPN.
+7. Подобрать хеши офлайн (`hashcat -m 1000`/`-m 2100`).
+8. Зафиксировать источник каждого секрета.
 
-- **Windows 10/11 + Credential Guard** — LSASS защищён (LSAISO), хеши могут быть недоступны.
-- **WDigest** отключён по умолчанию в новых ОС — пароль в открытом виде есть только на старых/настроенных.
-- **Дамп памяти со временем деградирует** — чем позже снят, тем меньше секретов.
-- **Хеши ≠ пароли** — NTLM можно использовать для PTH, но не всегда восстановить пароль.
-- **Юридические ограничения** — секреты пользователей чувствительны; фиксируйте цепочку.
+Ограничения, которые стоит держать в голове: **Credential Guard** в Windows 10/11
+изолирует LSASS, и хеши могут быть недоступны; **WDigest** выключен по умолчанию,
+поэтому открытый пароль есть не всегда; **хеш — не пароль**, его можно использовать
+для входа, но не всегда восстановить в текст; а **память со временем деградирует** —
+чем позже снят дамп, тем меньше секретов в нём осталось.
 
-## Краткое резюме
+## Что мы теперь знаем
 
-Дамп памяти — богатейший источник учётных данных: NTLM-хеши и Kerberos-тикеты (LSASS), LSA secrets (пароли служб/авто-логин), кэш домена (DCC2), DPAPI master keys (браузерные пароли), ключи шифрования. Инструменты: `vol ... hashdump`/`lsadump`/`cachedump` (реестр из памяти), `pypykatz`/`mimikatz` (LSASS), `hashcat` (офлайн-подбор). Хеши и тикеты позволяют аутентифицироваться (PTH/PTT) без пароля. Учитывайте Credential Guard и то, что секреты со временем исчезают — снимайте память как можно раньше.
+- Память хранит учётные данные, пока система включена.
+- `hashdump` даёт NTLM-хеши, `lsadump` — пароли служб, `cachedump` — кэш домена.
+- `lsass.exe` содержит хеши, Kerberos-билеты и (на старых ОС) пароли WDigest.
+- Хеш можно использовать для входа (Pass-the-Hash) без подбора пароля.
+- DPAPI master key открывает пароли браузеров; хеши ломают офлайн (`hashcat`).
+
+## На что смотреть дальше
+
+- **Дамп LSASS на живой системе требует прав** SYSTEM/admin.
+- **WDigest по умолчанию выключен** в новых ОС — открытый пароль есть не всегда.
+- **Хеши ломайте офлайн**, никогда онлайн-брутом по сети.
+- **Без DPAPI master key** браузерные пароли не читаются.
+- **Credential Guard** (Win 10/11) изолирует LSASS — хеши могут быть недоступны.
+- **Память деградирует**: чем позже снят дамп, тем меньше в нём секретов.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какой процесс Windows хранит NTLM-хеши и Kerberos-билеты в памяти?"
@@ -233,13 +220,6 @@ $ grep -iE 'username|NT:|SHA1:|WDigest' secrets.txt
     - "`hashcat`"
     - "`ewfmount`"
   answer: 1
-- question: "Какой хайв нужен вместе с SAM для расшифровки хешей?"
-  options:
-    - "`NTUSER.DAT`"
-    - "`SYSTEM`"
-    - "`SOFTWARE`"
-    - "`USRCLASS.DAT`"
-  answer: 1
 - question: "Какой плагин Volatility даёт локальные хеши из памяти?"
   options:
     - "`windows.netscan`"
@@ -254,7 +234,21 @@ $ grep -iE 'username|NT:|SHA1:|WDigest' secrets.txt
     - "пишет их на диск"
     - "удаляет их"
   answer: 1
+- question: "Зачем хеш нужен, если его нельзя «расшифровать»?"
+  options:
+    - "его можно использовать для Pass-the-Hash без пароля"
+    - "он равен паролю"
+    - "он открывает BIOS"
+    - "он удаляет антивирус"
+  answer: 0
 ```
+
+## Куда дальше
+
+Мы вытащили учётные данные из памяти. Дальше в категории пойдём в артефакты Windows:
+реестр, корзину, журналы событий — то, что остаётся на диске после работы
+пользователя. А пока запомни: **пока система включена, её пароли — в оперативной
+памяти, и хеш — уже пропуск**.
 
 ## Где пригодится
 

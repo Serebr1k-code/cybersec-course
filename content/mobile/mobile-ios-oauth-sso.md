@@ -14,269 +14,209 @@ estimated_minutes: 48
 summary: "Как устроен OAuth 2.0/OIDC в мобильном приложении, роль PKCE, ASWebAuthenticationSession, Custom Tabs, типовые ошибки (implicit flow, слабый redirect_uri, отсутствие PKCE) и кража кода/токена."
 ---
 
-## Как мобильное приложение делает OAuth
+## Вопрос, с которого всё начинается
 
-Веб-OAuth предполагает браузер, который хранит сессию и cookie. Мобильное приложение — это отдельный клиент, и здесь есть два подхода: **встроенный WebView** (плохо) и **системный браузер / ASWebAuthenticationSession** (правильно). Разница принципиальна: во встроенном WebView приложение может читать вводимые пароли и токены, а cookie общие с приложением, что позволяет фишингу и перехвату.
+Пользователь нажимает «Войти через Google», приложение открывает браузер, происходит вход, и приложение получает **токен** — ключ к аккаунту. Но как именно токен попадает из браузера в приложение? И что мешает другому приложению перехватить его по пути?
 
-Правильный поток (Authorization Code + PKCE):
-1. Приложение генерирует `code_verifier` (случайная строка) и `code_challenge = BASE64URL(SHA256(code_verifier))`.
-2. Открывает системный браузер на `https://idp.example.com/authorize?client_id=...&redirect_uri=app://callback&response_type=code&code_challenge=...&code_challenge_method=S256`.
-3. Пользователь логинится, IdP редиректит на `redirect_uri` с `code`.
-4. Приложение обменивает `code` + `code_verifier` на токен на `/token` (back channel).
-5. Токен хранится в Keychain.
+## Наш пример: DemoApp и вход через SSO
 
-PKCE защищает от перехвата `code`: без `code_verifier` перехваченный код бесполезен.
+`DemoApp` использует вход через внешнего провайдера (SSO — Single Sign-On, «единый вход»). Схема типичная:
 
-## iOS: ASWebAuthenticationSession
+1. Приложение открывает системный браузер (или `ASWebAuthenticationSession`) на странице провайдера.
+2. Пользователь вводит логин и пароль.
+3. Провайдер редиректит обратно на **callback-URL** приложения с одноразовым кодом.
+4. Приложение меняет код на токен по API.
 
-```swift
-let session = ASWebAuthenticationSession(
-    url: authURL,
-    callbackURLScheme: "app",
-    completionHandler: { callbackURL, error in
-        guard let url = callbackURL,
-              let code = URLComponents(url: url, resolvingAgainstBaseURL: false)?
-                  .queryItems?.first(where: { $0.name == "code" })?.value
-        else { return }
-        self.exchange(code: code)
-    })
-session.prefersEphemeralWebBrowserSession = true
-session.presentationContextProvider = self
-session.start()
-```
-
-`prefersEphemeralWebBrowserSession = true` изолирует cookie — важно против session fixation. Если приложение вместо этого использует `WKWebView` с `loadRequest(authURL)` и перехватом навигации — это плохой признак: проверьте, не логирует ли оно URL с `code` и не читает ли формы.
-
-## Android: Custom Tabs и AppAuth
-
-```java
-AuthorizationRequest req = new AuthorizationRequest.Builder(
-        authConfig, "client_id", ResponseTypeValues.CODE, redirectUri)
-    .setCodeVerifier(codeVerifier, codeChallenge, "S256")
-    .build();
-AuthorizationService svc = new AuthorizationService(context);
-svc.startActivity(new AuthorizationIntent(req, context));
-```
-
-Проверка в `AndroidManifest`: `redirect_uri` — это custom scheme (`app://callback`) или App Link (`https://example.com/callback`). Первое перехватывается чужим приложением; второе — нет (если ассоциация настроена).
-
-## Типовые ошибки
-
-- **Implicit flow** (`response_type=token`) — токен приходит во fragment, утекает в историю/логи. Устарел, но встречается.
-- **Нет PKCE** — перехваченный `code` можно обменять.
-- **Слабый `redirect_uri`** — сервер принимает любой `redirect_uri` или подстановочные домены; код уводится на атакующего.
-- **Custom scheme `redirect_uri`** — перехват другим приложением.
-- **`client_secret` в приложении** — мобильный клиент публичный, секрет не защищён; если он используется, проверьте, не даёт ли это extra-доступ.
-- **WebView для логина** — приложение видит пароль.
-- **Токен в `NSUserDefaults`/логах** — утечка при бэкапе/логах.
-- **Нет проверки `state`** — CSRF на callback.
-
-## Практика: перехват и анализ потока
-
-Настройте прокси (Burp/mitmproxy) с CA и перехватите авторизацию:
-
-```bash
-# iOS: доверьте CA в Settings > General > About > Certificate Trust
-# Android: установите CA в системный store (root) для app-трафика
-```
-
-В Repeater смотрите:
-- `response_type` — `code` или `token`;
-- наличие `code_challenge` / `code_challenge_method=S256`;
-- `redirect_uri` — точный ли он;
-- заголовки `Referer`, логи.
-
-Попробуйте подменить `redirect_uri` на свой:
+Ключевое звено — шаг 3. Callback задаётся в настройках провайдера и в приложении. В нашем случае это custom URL scheme:
 
 ```
-GET /authorize?client_id=app&redirect_uri=https://evil.com/cb&response_type=code&...
+demosec://oauth/callback?code=SECRET
 ```
 
-Если сервер редиректит на `evil.com` — находка (open redirect / weak redirect).
+## Шаг 1: находим OAuth-конфигурацию
 
-Проверка обмена кода без PKCE:
+Первым делом ищем параметры OAuth в статике: `client_id`, `redirect_uri`, `scope`, эндпоинты. Они часто лежат в строках или plist:
 
-```bash
-curl -s -X POST https://idp.example.com/token \
-  -d "grant_type=authorization_code&code=STOLEN&redirect_uri=app://callback&client_id=app"
-# если возвращает access_token без code_verifier — PKCE не enforced
+```
+$ strings -a DemoApp | grep -iE 'oauth|redirect|client_id|authorize'
+demosec://oauth/callback
+https://provider.example/authorize
+https://provider.example/token
 ```
 
-## Кража кода через custom scheme
+Мы видим callback `demosec://oauth/callback` и эндпоинты. Теперь понятно, куда вернётся код.
 
-Если `redirect_uri=app://callback`, любое приложение может зарегистрировать схему `app` и получить `code`. Для этого достаточно приложения-ловушки с intent-filter/URL scheme и, если код не защищён PKCE, обменять его на токен. Это классическая критичная находка в баг-баунти мобильных приложений.
+## Шаг 2: почему custom scheme опасен
 
-Защита: использовать Universal Links/App Links для `redirect_uri` + обязательный PKCE + проверка `state`.
+Проблема в том, что custom scheme **не уникальна**: любое приложение на устройстве может зарегистрировать `demosec` и перехватить callback. Если провайдер разрешает `demosec://` как `redirect_uri`, злоумышленник регистрирует такую же схему и получает `code`, а затем меняет его на токен.
 
-## Динамический анализ токена
+Это называется **OAuth code interception**. Провайдеры борются с ним двумя способами:
 
-Frida-хук на Keychain (iOS) для перехвата токена:
+- требуют **PKCE** (Proof Key for Code Exchange) — одноразовый `code_verifier`, без которого код бесполезен;
+- запрещают custom scheme в пользу **Universal Links** (`https://`) — их нельзя перехватить чужим приложением.
 
-```javascript
-var SecItemAdd = Module.findExportByName("Security", "SecItemAdd");
-Interceptor.attach(SecItemAdd, {
-  onEnter: function (args) {
-    var attrs = new ObjC.Object(args[0]);
-    console.log("[Keychain add] " + attrs.toString());
-  }
-});
+## Шаг 3: проверяем PKCE и redirect_uri
+
+Что смотреть в запросе авторизации:
+
+- Есть ли `code_challenge` и `code_challenge_method=S256`? Если нет — PKCE не используется, и перехват кода реален.
+- Какой `redirect_uri` разрешён? Если провайдер допускает `http://localhost` или wildcard — возможен open redirect.
+- Проверяется ли `state`? Параметр `state` защищает от CSRF; без него возможна подмена.
+
+Перехватить запрос можно через прокси (см. `mobile-mitm-burp`): если pinning снят, мы увидим полный OAuth-обмен.
+
+## Шаг 4: практический тест перехвата
+
+Соберём цепочку на тестовом устройстве:
+
+1. Регистрируем «evil»-приложение с той же схемой `demosec`.
+2. Инициируем вход в `DemoApp`.
+3. Evil-приложение перехватывает callback и получает `code`.
+4. Меняем `code` на токен.
+
+Если провайдер не требует PKCE, шаг 4 срабатывает — это критическая находка. Проверку удобно автоматизировать через `simctl openurl`:
+
+```
+$ xcrun simctl openurl booted "demosec://oauth/callback?code=test123"
 ```
 
-Android — хук SharedPreferences/EncryptedSharedPreferences и OkHttp:
+Так проверяем, как приложение обрабатывает код: валидирует ли `state`, меняет ли код сразу.
 
-```javascript
-Java.perform(function () {
-  var SP = Java.use("android.app.SharedPreferencesImpl");
-  SP.getString.implementation = function (k, d) {
-    var v = this.getString(k, d);
-    console.log("[SP] " + k + " = " + v);
-    return v;
-  };
-});
+## Шаг 5: токены в WebView и ASWebAuthenticationSession
+
+Иногда приложение использует не системный браузер, а **WebView** — встроенный компонент для показа веб-страниц. Это хуже: WebView не изолирован от кода приложения, и если приложение внедряет в него JS-мост (`addJavascriptInterface`/`WKScriptMessageHandler`), возможен перехват. Современный правильный подход — `ASWebAuthenticationSession`, который использует системный браузер и изолирует сессию.
+
+Признак плохой практики: вход открывается внутри WebView с адресной строкой приложения. Проверить легко — залогиниться и посмотреть, появляется ли системный браузер.
+
+## Шаг 6: где утекают токены
+
+Даже при правильном OAuth токен может утечь:
+
+- **В логах** — `print`/`NSLog` токена.
+- **В Keychain без защиты** — см. `mobile-ios-keychain`.
+- **В `NSUserDefaults`** — незащищённый plist.
+- **В аналитике** — токен уходит в сторонний SDK.
+- **Через deep link** — приложение передаёт токен дальше по URL.
+
+Проверяем `objection`:
+
+```
+com.demo.secapp # ios keychain dump
+com.demo.secapp # ios nsuserdefaults get
 ```
 
-Так вы увидите, как хранится и передаётся токен.
+И ищем токен в логах:
 
-## Справочная таблица
-
-| Элемент | Правильно | Опасно |
-|---------|-----------|--------|
-| Браузер | ASWebAuthenticationSession / Custom Tabs | встроенный WebView |
-| Поток | Authorization Code + PKCE | implicit (`response_type=token`) |
-| redirect_uri | Universal/App Link, точный | custom scheme, wildcard |
-| state | обязателен | отсутствует |
-| client_secret | не нужен | зашит в приложение |
-| хранение токена | Keychain / Keystore | UserDefaults/SharedPreferences |
-
-## Что дальше / решение
-
-Проверьте: браузер (системный vs WebView), тип потока (code+PKCE vs implicit), `redirect_uri` (перехватываемость), `state`, хранение токена. Найденный перехват кода без PKCE — критично. Дальше — `mobile-cert-pinning-deep` (перехват трафика) и `mobile-storage-deep` (хранение токенов).
-
-## OIDC и ID token: что проверять
-
-Если приложение использует OpenID Connect, помимо `access_token` приходит `id_token` (JWT) с утверждениями о пользователе. Проверяйте:
-
-- **Подпись `id_token`** — верифицируется ли она на клиенте/сервере? Мобильное приложение часто доверяет `id_token` без проверки.
-- **`aud` (audience)** — совпадает ли с `client_id` приложения.
-- **`iss` (issuer)** — ожидаемый IdP.
-- **`nonce`** — привязан ли к сессии (защита от replay).
-- **`exp`** — не истёк ли.
-
-Разбор токена:
-
-```bash
-# декодировать payload JWT
-cut -d. -f2 <<< "$ID_TOKEN" | base64 -d 2>/dev/null | jq .
+```
+$ idevicesyslog | grep -iE 'token|access'
 ```
 
-Утилита `jwt_analyze` из вашего арсенала проверяет `alg=none`, слабые секреты и отсутствие claims — прогоните через неё найденный токен. Если приложение принимает `alg: none` или HS256 с публично известным секретом — критическая находка.
+## Шаг 7: что писать в отчёте
 
-## Разбор реального баг-баунти сценария
+OAuth-находка — это цепочка с чётким последствием: захват аккаунта (ATO). В отчёте покажи:
 
-Типовой отчёт о краже OAuth-кода выглядит так:
+- используемый `redirect_uri` и его тип (custom scheme / Universal Link);
+- наличие или отсутствие PKCE;
+- воспроизводимый сценарий перехвата;
+- куда попадает токен после получения.
 
-1. Приложение использует `redirect_uri=myapp://oauth/callback` (custom scheme).
-2. Второе приложение регистрирует ту же схему `myapp` и перехватывает редирект.
-3. Так как PKCE отсутствует, перехваченный `code` обменивается на `access_token` атакующего.
-4. Итог — полный захват аккаунта жертвы.
+Сильная находка — отсутствие PKCE при custom scheme: она позволяет украсть токен любого пользователя, кликнувшего по ссылке.
 
-Воспроизведение в лаборатории:
+## Шаг 8: ASWebAuthenticationSession и полный чек-лист
 
-```bash
-# приложение-ловушка с intent-filter на myapp:// (Android)
-adb install trap.apk
-# запустить жертву на авторизацию, перехватить callback
-adb logcat -s TrapApp:D
-# получить code и обменять его
-curl -X POST https://idp/token -d "grant_type=authorization_code&code=...&client_id=app&redirect_uri=myapp://oauth/callback"
+Отдельно разберём «правильный» механизм входа — `ASWebAuthenticationSession`. Это системный компонент, который открывает браузер в изолированной сессии: приложение не видит, что вводит пользователь, и не может перехватить пароль. Оно получает только callback-URL. Если приложение использует этот компонент с Universal Links и PKCE — поток защищён. Если же вход реализован через собственный WebView или `WKWebView` с внедрённым JS-мостом, риск перехвата резко растёт.
+
+Соберём чек-лист проверки SSO:
+
+| Что проверяем | Признак проблемы |
+|---------------|------------------|
+| Тип callback | custom scheme без PKCE |
+| PKCE | нет `code_challenge` |
+| `state` | не проверяется |
+| Компонент входа | собственный WebView |
+| Хранение токена | `NSUserDefaults`, логи |
+| Срок жизни токена | долгоживущий refresh без ротации |
+
+Пройди по списку — и ты быстро поймёшь, есть ли в SSO-потоке реальная уязвимость или он настроен правильно. Даже один пункт «custom scheme без PKCE» уже даёт полноценный захват аккаунта, поэтому начинай именно с него. Остальные пункты уточняют масштаб проблемы и помогают правильно оценить критичность в отчёте.
+
+## Шаг 9: PKCE руками — verifier и challenge
+
+PKCE не даёт перехватить код авторизации: клиент придумывает случайный `code_verifier`, отправляет на `/authorize` его хеш (`code_challenge`), а на `/token` предъявляет сам verifier. Сервер сверяет хеш. Воспроизведём:
+
+```
+$ VERIFIER=$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=')
+$ echo "$VERIFIER"
+hI5YfB2_ln8T-2wmbNU-iNUE77b2yo7UC3D5bfsuM2A
+$ printf '%s' "$VERIFIER" | openssl dgst -sha256 -binary | openssl base64 | tr '+/' '-_' | tr -d '='
+qeiHZSsJhsA_-PySKBxmxDq-9kxz-xC8TmheGZGwCU4
 ```
 
-Если обмен успешен без `code_verifier` — подтверждено. Аналогично на iOS, но перехват custom scheme сложнее: система отдаёт ссылку первому зарегистрированному приложению, и порядок непредсказуем.
+Verifier — 43–128 символов из набора `[A-Za-z0-9-._~]`, challenge — base64url от SHA-256 без паддинга. В трафике ищи две вещи: `code_challenge_method=plain` (verifier идёт открытым текстом) и фиксированный/переиспользуемый verifier — тогда перехваченный `code` можно обменять на токен у себя.
 
-## Защитные меры и что рекомендовать
+## Что мы теперь знаем
 
-Для отчёта сформируйте рекомендации:
-
-- Использовать **Authorization Code + PKCE** (S256) обязательно.
-- `redirect_uri` — **Universal Link / App Link**, не custom scheme.
-- Строгая **валидация `redirect_uri`** на сервере (точное совпадение, без wildcard).
-- Проверка **`state`** (CSRF) и **`nonce`** (replay).
-- **Системный браузер** (ASWebAuthenticationSession / Custom Tabs), не WebView.
-- Хранение токенов — **Keychain / Keystore**, не UserDefaults/SharedPreferences.
-- Короткое время жизни токенов + refresh с ротацией.
-- Не логировать токены и `code`.
-
-## Динамика: перехват ASWebAuthenticationSession и Custom Tabs
-
-Проверьте, действительно ли используется системный браузер, а не WebView:
-
-```javascript
-// iOS: подменить класс браузера
-Java.perform(function(){}); // n/a
-// вместо этого в Frida (ObjC):
-var ASWeb = ObjC.classes.ASWebAuthenticationSession;
-if (ASWeb) {
-  Interceptor.attach(ASWeb['- start'].implementation, {
-    onEnter: function () { console.log("[oauth] ASWebAuthenticationSession.start"); }
-  });
-}
-```
-
-Если видите `WKWebView.loadRequest` с URL авторизации — приложение логинит во встроенном WebView, и это отдельная находка.
-
-```javascript
-Java.perform(function () {
-  var WK = Java.use("android.webkit.WebView"); // Android
-  WK.loadUrl.overload('java.lang.String').implementation = function (u) {
-    if (u.indexOf("authorize") !== -1) console.log("[oauth] WebView: " + u);
-    return this.loadUrl(u);
-  };
-});
-```
-
-## Мониторинг и тестовые матрицы
-
-Составьте матрицу проверок для каждого способа авторизации (пароль, Google, Apple, корпоративный SSO) и зафиксируйте: поток, redirect_uri, наличие PKCE, хранение токена. Это делает отчёт системным и помогает не пропустить кейс, где один из методов входа реализован слабее остальных (частая ситуация: SSO через сторонний SDK ошибочно использует implicit flow).
-
-## Итог: модель угроз мобильного OAuth
-
-Сведите анализ к четырём вопросам. Кто видит `code` — перехватываем ли `redirect_uri`? Может ли атакующий обменять `code` — есть ли PKCE? Видит ли приложение пароль — используется ли системный браузер? Где живёт токен — Keychain/Keystore или незащищённое хранилище? Ответы на эти четыре вопроса покрывают подавляющее большинство реальных проблем мобильной авторизации. Дополнительно проверьте `state`/`nonce`, срок жизни токенов и логирование. Собранная матрица по каждому способу входа (пароль, соцсети, корпоративный SSO) делает отчёт полным и показывает, какой из потоков слабее остальных.
+- SSO-вход возвращает код на callback-URL приложения.
+- Custom scheme не уникальна — callback можно перехватить чужим приложением.
+- PKCE защищает код от перехвата; без него токен уязвим.
+- Universal Links надёжнее custom scheme для callback.
+- `state` защищает от CSRF; его нужно проверять.
+- WebView для входа хуже, чем `ASWebAuthenticationSession`.
+- Токен может утекать в логах, `NSUserDefaults`, аналитике и deep link.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Зачем нужен PKCE в мобильном OAuth?"
+- question: Что такое OAuth callback-URL?
   options:
-    - "Защищает от обмена перехваченного code без code_verifier"
-    - "Шифрует пароль пользователя"
-    - "Ускоряет логин"
-    - "Заменяет TLS"
+    - "Адрес, куда провайдер возвращает код после входа"
+    - "Пароль пользователя"
+    - "Ключ API"
+    - "Адрес Keychain"
   answer: 0
-- question: "Почему встроенный WebView для OAuth считается небезопасным?"
+  explanation: "После аутентификации провайдер редиректит на callback-URL с одноразовым кодом."
+- question: Почему custom URL scheme опасна для OAuth?
   options:
-    - "Приложение может читать пароль и токены, cookie общие с приложением"
-    - "Он медленный"
-    - "Он не поддерживает HTTPS"
-    - "Он требует джейлбрейка"
-  answer: 0
-- question: "Какая ошибка позволяет украсть OAuth-код чужим приложением?"
+    - "Она медленная"
+    - "Она не уникальна, поэтому callback может перехватить другое приложение"
+    - "Она не поддерживает HTTPS"
+    - "Она ломает приложение"
+  answer: 1
+  explanation: "Любое приложение может зарегистрировать ту же схему и получить код."
+- question: От чего защищает PKCE?
   options:
-    - "redirect_uri на custom scheme без PKCE"
-    - "Использование HTTPS"
-    - "Наличие state"
-    - "Хранение токена в Keychain"
+    - "От перехвата кода авторизации"
+    - "От утечки Keychain"
+    - "От jailbreak"
+    - "От MITM"
   answer: 0
-- question: "Что проверяет state в OAuth-потоке?"
+  explanation: "PKCE добавляет code_verifier, без которого перехваченный код бесполезен."
+- question: Какой компонент считается безопаснее для входа?
   options:
-    - "Защиту от CSRF на callback"
-    - "Скорость сети"
-    - "Версию TLS"
-    - "Размер ответа"
+    - "WebView"
+    - "ASWebAuthenticationSession (системный браузер)"
+    - "Собственный экран логина"
+    - "NSUserDefaults"
+  answer: 1
+  explanation: "Системный браузер изолирует сессию, в отличие от встроенного WebView."
+- question: Для чего нужен параметр state в OAuth?
+  options:
+    - "Для защиты от CSRF/подмены запроса"
+    - "Для шифрования трафика"
+    - "Для хранения пароля"
+    - "Для сжатия"
   answer: 0
+  explanation: "state связывает запрос и ответ, защищая от подмены."
 ```
+
+## Куда дальше
+
+Мы разобрали, как приложение получает токены. Но не менее важно, что остаётся на устройстве и в бэкапах. В следующем уроке `mobile-ios-backup` мы разберём, как извлекать данные из резервной копии iOS. А пока главное запомни: безопасность OAuth держится на PKCE и правильном `redirect_uri`, а custom scheme без PKCE — прямой путь к захвату аккаунта.
 
 ## Где пригодится
 
-- **Bug bounty:** кража OAuth-кода, слабый redirect_uri, отсутствие PKCE.
-- **Пентест:** аудит SSO и авторизации мобильного приложения.
-- **Работа:** безопасная реализация логина в мобильном клиенте.
+- **Пентест:** анализ SSO-потока и поиск перехвата токенов.
+- **Bug bounty:** отсутствие PKCE и слабый redirect_uri — популярные находки.
+- **CTF:** перехват OAuth-кода для получения доступа.
+- **Аудит:** проверка корректности OAuth-конфигурации.

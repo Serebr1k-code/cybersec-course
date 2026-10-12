@@ -14,231 +14,217 @@ useful_for:
 estimated_minutes: 45
 summary: "Динамический анализ iOS: Frida-хуки на Objective-C/Swift, LLDB/debugserver, обход jailbreak/pinning, дамп памяти и трассировка в рантайме."
 ---
-## Динамический анализ iOS: что и зачем
 
-Статический анализ даёт карту, но проверки (jailbreak, pinning, anti-debug), секреты, вычисляемые в рантайме, и логика, размазанная по фреймворкам, видны только в динамике. Динамический анализ iOS — это запуск приложения на **jailbreak-устройстве** (или симуляторе, но там нет jailbreak-проверок и Keychain ведёт себя иначе) с инструментами: Frida (хуки ObjC/Swift/native), LLDB (отладка, breakpoints, память), `frida-ios-dump` (дешифровка), `objection` (готовые команды).
+## Вопрос, с которого всё начинается
 
-Ментальная модель: у вас есть возможность **изменять поведение** приложения в рантайме — подменять возвраты проверок, читать аргументы методов, вызывать методы, дампить память. Задача — найти проверку и снять её, либо извлечь данные.
+Статический анализ дал карту: мы знаем, что в `DemoApp` есть метод `isJailbroken` и функция `getToken`. Но приложение отказывается работать на jailbreak-устройстве, а токен вычисляется в рантайме и нигде не лежит в виде строки. Как увидеть и изменить поведение приложения, когда оно уже запущено?
 
-## Подготовка устройства
+Ответ — **динамический анализ**: мы подключаемся к живому процессу и вмешиваемся в его работу.
 
-```bash
-# jailbreak (palera1n/unc0ver/dopamine в зависимости от версии iOS)
-# SSH на устройство (обычно root@<ip>, пароль alpine)
-ssh root@192.168.1.50
+## Наш пример: DemoApp на устройстве
 
-# установить frida-server (версия = версии frida-tools на хосте)
-# через Cydia/Sileo пакет "frida", либо вручную:
-scp frida-server-16.x-ios-arm64 root@192.168.1.50:/usr/sbin/frida-server
-ssh root@192.168.1.50 'chmod +x /usr/sbin/frida-server && /usr/sbin/frida-server &'
+Наш объект — тот же `DemoApp`, но теперь он установлен на jailbreak-устройстве. Сразу оговоримся: без jailbreak динамика почти невозможна — нельзя встроиться в чужой процесс. Поэтому первая предпосылка — устройство с jailbreak и установленный `frida-server` (серверная часть Frida, которая работает на телефоне).
 
-frida-ps -Uai        # видим приложения iOS
-frida-ps -U | grep -i target
+Проверим, что инструменты на месте:
+
+```
+$ frida --version
+17.23.3
+$ frida-ps -Uai | grep -i demo
+PID  Name        Identifier
+1234 DemoApp     com.demo.secapp
 ```
 
-Если jailbreak нет, но есть dev-подпись — можно отлаживать своё приложение через Xcode/LLDB, но проверки jailbreak на нём не сработают (их нет в среде).
+Флаг `-U` означает USB-устройство, `-a` — показывать приложения, `-i` — их идентификаторы. Мы видим, что приложение установлено и готово к работе.
 
-## Frida на iOS: ObjC API
+## Шаг 1: Objection — готовые обходы
+
+Писать хуки с нуля долго, поэтому начинают с **Objection** — надстройки над Frida с готовыми командами для типовых задач:
+
+```
+$ objection -g com.demo.secapp explore
+com.demo.secapp on (iPhone: 17.4) [usb] #
+```
+
+Мы внутри интерактивной сессии. Первым делом снимем проверку jailbreak:
+
+```
+com.demo.secapp # ios jailbreak disable
+(agent) Hooking jailbreak detection
+(agent) Found 3 jailbreak detection methods
+```
+
+Objection нашёл и перехватил методы проверки. Теперь приложение считает, что запущено на чистом устройстве. Второй типовой обход — снятие привязки к сертификату (pinning):
+
+```
+com.demo.secapp # ios sslpinning disable
+(agent) Hooking SecTrustEvaluate
+```
+
+После этого трафик можно перехватывать через прокси (см. `mobile-mitm-burp`).
+
+## Шаг 2: что происходит внутри
+
+Objection — это удобная обёртка, но чтобы понять механизм, посмотрим на «сырой» Frida. Хук на Objective-C метод выглядит так:
 
 ```javascript
 if (ObjC.available) {
-  // список классов
-  var classes = ObjC.classes;
-  // хук ObjC-метода: -[AuthManager getToken]
-  var m = ObjC.classes.AuthManager['- getToken'];
+  var m = ObjC.classes.AuthManager['- isJailbroken'];
   Interceptor.attach(m.implementation, {
     onLeave: function (retval) {
-      console.log('[+] getToken -> ' + new ObjC.Object(retval));
-    }
-  });
-  // хук метода с аргументами: -[LoginVC loginWithUser:pass:]
-  var login = ObjC.classes.LoginVC['- loginWithUser:pass:'];
-  Interceptor.attach(login.implementation, {
-    onEnter: function (args) {
-      console.log('user=' + new ObjC.Object(args[2]));
-      console.log('pass=' + new ObjC.Object(args[3]));
+      retval.replace(0);   // 0 = NO (не джейлбрейкнут)
     }
   });
 }
 ```
 
-Для ObjC номер аргумента смещён: `args[0]` = self, `args[1]` = selector, далее параметры. `new ObjC.Object(ptr)` разыменовывает объект. Frida на iOS — основной инструмент обхода проверок.
+Разберём по частям. `ObjC.classes.AuthManager` — обращение к классу из runtime. `'- isJailbroken'` — селектор метода (минус означает метод экземпляра, плюс — метод класса). `Interceptor.attach` ставит перехват на реализацию метода, а `onLeave` меняет возвращаемое значение: `retval.replace(0)` заставляет метод вернуть «нет». Именно это и делает `ios jailbreak disable`, только автоматически.
 
-## LLDB: отладка, breakpoints, память
+## Шаг 3: дампим секреты из рантайма
 
-```bash
-# запуск под LLDB (нужен debugserver на устройстве или Xcode)
-lldb -n App
-(lldb) process attach --name App
-(lldb) breakpoint set -n "-[AuthManager isJailbroken]"
-(lldb) breakpoint command add 1 -o "thread return NO"   # всегда возвращать false
-(lldb) continue
-(lldb) image lookup -rn getToken                        # найти адреса методов
-(lldb) memory read --format s 0x104abc000               # читать строку
-(lldb) register read x0                                 # возврат функции
-```
-
-`thread return` — мощный приём: заставляет функцию вернуть нужное значение, не выполняя тело. Так обходят jailbreak/pinning-проверки.
-
-## Cycript и альтернативы
-
-Cycript (устарел, но встречается в старых гайдах) позволял интерактивно вызывать ObjC из консоли. Сейчас его место заняли Frida и Objection. Objection даёт готовые команды:
-
-```bash
-objection -g com.target.app explore
-ios jailbreak disable
-ios sslpinning disable
-ios keychain dump
-ios nsuserdefaults get
-ios cookies get
-ios ui biometrics_bypass
-```
-
-Это самый быстрый путь для типовых задач; Frida — когда нужна нестандартная логика.
-
-## Хуки ObjC-методов: практика
+Теперь вытащим токен. Мы знаем из статики, что есть метод `getToken`:
 
 ```javascript
-// подмена возврата проверки
-var J = ObjC.classes.JailbreakDetector['- isJailbroken'];
-J.implementation = function () { return false; };   // всегда "нет jailbreak"
-
-// перехват и модификация аргументов
-var Enc = ObjC.classes.CryptoUtil['+ encrypt:withKey:'];
-Enc.implementation = function (data, key) {
-  console.log('key=' + new ObjC.Object(key));
-  return this.encrypt_withKey_(data, key);
-};
-```
-
-Именование селекторов: `- encrypt:withKey:` → JS `encrypt_withKey_`. Возврат ObjC-объекта — `ObjC.Object`; для bool используйте `ptr(0)`/`ptr(1)` при необходимости.
-
-## Перехват Swift и нативного кода
-
-Swift-методы в ObjC-runtime видны, только если помечены `@objc` (или класс наследует NSObject и метод экспонирован). Иначе ищите по манглированному имени:
-
-```javascript
-// найти символ через Module
-var sym = Module.findExportByName(null, '$s6MyApp9AuthClassC8getTokenSSyF');
-if (sym) Interceptor.attach(sym, {
-  onLeave: function (rv) { console.log('ret=' + rv.readUtf8String()); }
+var t = ObjC.classes.AuthManager['- getToken'];
+Interceptor.attach(t.implementation, {
+  onLeave: function (retval) {
+    console.log('token = ' + new ObjC.Object(retval));
+  }
 });
-// нативные функции — как на Android: Module/Interceptor/NativeFunction
 ```
 
-Для Swift полезна связка статики (`swift-demangle` даёт имя символа) и динамики (attach по этому символу).
+Когда приложение вызовет `getToken`, в консоль упадёт значение. `new ObjC.Object(retval)` оборачивает указатель в объект Objective-C, чтобы прочитать строку.
 
-## Обход jailbreak и pinning
+Извлечь данные можно и готовыми командами Objection:
 
-- **jailbreak-детект:** хуки на `FileManager.fileExistsAtPath:` (`/bin/bash`, `/Applications/Cydia.app`), `stat`, `fork`, `canOpenURL:cydia://`, `NSFileManager`. Проще — `objection ios jailbreak disable` или `thread return NO` в LLDB.
-- **pinning:** хук на `SecTrustEvaluate`, `URLSession:didReceiveChallenge:`, `AFSecurityPolicy`. Objection `ios sslpinning disable` покрывает типовые.
-- **anti-debug:** `ptrace(PT_DENY_ATTACH)`, `sysctl` (`P_TRACED`). Обходится хуком на `ptrace`/`sysctl`.
+```
+com.demo.secapp # ios keychain dump
+com.demo.secapp # ios nsuserdefaults get
+com.demo.secapp # ios cookies get
+```
 
-## Разобранный пример: обход jailbreak и чтение Keychain
+Первая читает Keychain, вторая — настройки (`NSUserDefaults`), третья — cookies. Это три самых частых места, где приложение хранит сессию.
 
-```bash
-$ objection -g com.target.app explore
-com.target.app # ios jailbreak disable
-(agent) [jailbreak] Hooking NSFileManager.fileExistsAtPath:
-(agent) [jailbreak] Hooking canOpenURL:
-(agent) [jailbreak] Hooking sysctl
-com.target.app # ios keychain dump
-{
-  "svce": "com.target.app", "acct": "sessionToken",
-  "data": "eyJhbGciOiJIUzI1NiIsInR5cCI6..."
+## Шаг 4: Swift и нативный код
+
+Если метод написан на Swift, он может не быть виден через `ObjC.classes`. Тогда его ищут по манглированному символу и перехватывают нативно:
+
+```javascript
+var sym = Module.findExportByName(null, '$s6DemoApp11AuthManagerC8getTokenSSyF');
+if (sym) {
+  Interceptor.attach(sym, {
+    onLeave: function (retval) {
+      console.log('swift token: ' + new ObjC.Object(retval));
+    }
+  });
 }
-com.target.app # ios cookies get
 ```
 
-Приложение «поверило», что устройство чистое, а мы вытащили токен из Keychain. Это типичный сценарий динамического теста iOS.
+`Module.findExportByName(null, ...)` ищет символ во всех загруженных модулях. Если Swift-метод не экспортирован, его адрес находят иначе — через анализ дизассемблера и базовый адрес модуля.
 
-## Справочная таблица инструментов
+## Шаг 5: LLDB — отладчик
 
-| Задача | Инструмент | Команда/API |
-|--------|-----------|-------------|
-| Хук ObjC | Frida | `ObjC.classes.C['- m'].implementation` |
-| Отладка | LLDB | `breakpoint set`, `thread return` |
-| Готовые команды | Objection | `ios sslpinning disable` |
-| Дешифровка | frida-ios-dump | `python3 dump.py com.target.app` |
-| Keychain | Objection | `ios keychain dump` |
-| Нативные хуки | Frida | `Module.findExportByName` |
-| Обход anti-debug | LLDB/Frida | хук `ptrace`/`sysctl` |
+Когда хука недостаточно (например, нужно понять, откуда пришло значение), подключают **LLDB** — отладчик:
 
-## Типовые ошибки новичка
+```
+$ lldb -n DemoApp
+(lldb) breakpoint set -n '-[AuthManager isJailbroken]'
+(lldb) process attach --name DemoApp
+(lldb) thread return NO
+```
 
-- **Работать на симуляторе.** Там нет jailbreak-проверок и часть Keychain/Security API ведёт себя иначе.
-- **Не совпасть версиями Frida.** Как на Android: server и tools должны совпадать.
-- **Забыть про Swift.** ObjC-хук не поймает чистый Swift-метод — нужен attach по символу.
-- **Путать `args[]` в ObjC.** `args[0]=self`, `args[1]=selector`, параметры с `args[2]`.
-- **Считать, что `thread return` всегда работает.** На некоторых функциях нужен корректный тип возврата.
+`breakpoint set -n` ставит точку останова на метод, `process attach` подключается к процессу, а `thread return NO` принудительно возвращает «нет» из текущего кадра. LLDB удобен для точечного вмешательства, Frida — для повторяемых хуков.
 
-## Что дальше / решение
+## Шаг 6: если jailbreak нет
 
-Порядок: подготовить jailbreak + frida-server → `frida-ps` → Objection для типовых обходов (jailbreak, pinning) → Frida/LLDB для нестандартных проверок и дампа данных → трафик (`mobile-mitm-burp`). Связанные уроки: `mobile-ios-basics`, `mobile-ios-static` (карта классов), `mobile-ios-keychain`, `mobile-frida-scripting`. Решение — когда проверка обойдена или данные (токен/флаг) извлечены воспроизводимо.
+Иногда устройство не джейлбрейкнуть (новая версия iOS). Тогда применяют **frida-gadget**: нативную библиотеку, которую встраивают в IPA, переподписывают и ставят через sideload. Инструмент `objection patchipa` делает это автоматически:
 
-## Практический чек-лист iOS-динамики
+```
+$ objection patchipa --source DemoApp.ipa --codesign-signature <identity>
+```
 
-1. Jailbreak + `frida-server` совпадающей версии; `frida-ps -Uai` видит приложение.
-2. `objection -g <bundle> explore`, затем `ios jailbreak disable` и `ios sslpinning disable`.
-3. Проверить трафик через прокси (`mobile-mitm-burp`) — читается ли HTTPS.
-4. Найти интересные методы: `class-dump` (статика) → хук через Frida/Objection.
-5. Снять проверки: `isJailbroken`, anti-debug (`ptrace`), целостность.
-6. Извлечь данные: `ios keychain dump`, `ios nsuserdefaults get`, `ios cookies get`.
-7. Дампнуть классы/память при необходимости (`ObjC.classes`, `memory search`).
-8. Зафиксировать: команда + вывод + impact.
+После этого приложение содержит Frida внутри себя и работает даже без jailbreak. Минус — меняется подпись, и tamper-проверки могут это заметить.
 
-## Отличия от Android-динамики
+## Шаг 7: чем iOS-динамика отличается от Android
 
-На Android вы чаще пишете Java-хуки (`Java.use`), на iOS — ObjC-хуки (`ObjC.classes`) и нативные (`Interceptor.attach` по символу). Swift усложняет: часть методов не экспонирована в ObjC-runtime, и их приходится искать по манглированному символу. Отладка на iOS обычно через LLDB (`thread return`), на Android — через `jdwp`/Frida. Инструмент `objection` работает одинаково на обеих платформах, что удобно: команды `ios ...` и `android ...` симметричны. Общий принцип один: найти проверку в статике, снять её в динамике, извлечь данные.
+Полезно сравнить, потому что инструменты симметричны, а детали разные. На Android хуки пишут на Java (`Java.use`), на iOS — на Objective-C (`ObjC.classes`) или нативно (`Interceptor.attach` по символу). На Android отладка идёт через `jdwp`/Frida, на iOS — обычно через LLDB. Платформенная разница ещё и в том, что на iOS без jailbreak нельзя встроиться в чужой процесс, а на Android достаточно debuggable-сборки или root. Зато `objection` работает одинаково на обеих платформах: команды `ios ...` и `android ...` делают аналогичные вещи. Общий принцип один: найти проверку в статике — снять её в динамике — извлечь данные.
+
+## Шаг 8: версии — частая причина «не подключается»
+
+Прежде чем винить приложение, сверь версии Frida на хосте и `frida-server` на устройстве — они обязаны совпадать:
+
+```
+$ frida --version
+17.23.3
+```
+
+Если билды разошлись, Objection падает с ошибкой вида `unable to connect to remote frida-server`. Список процессов на устройстве смотрят командой `frida-ps -U`: флаг `-U` выбирает USB-устройство. Пустой вывод означает, что `frida-server` не запущен (или не совпал по версии/архитектуре) — это не проблема приложения.
+
+Второй подводный камень — PAC на `arm64e`: указатели подписаны, и часть хуков в нативном/Swift-коде требует `Module.findBaseAddress` и аккуратной работы с указателями. Если скрипт «молчит» на релизной сборке, сначала проверь, что процесс действительно 64-битный и что библиотека уже загружена в момент установки хука.
+
+## Что мы теперь знаем
+
+- Динамика iOS требует jailbreak (или frida-gadget в переподписанном IPA).
+- Objection даёт готовые команды: `ios jailbreak disable`, `ios sslpinning disable`, `ios keychain dump`.
+- Хук ObjC-метода — это `Interceptor.attach` с изменением возврата в `onLeave`.
+- Swift-методы перехватывают по манглированному символу.
+- LLDB позволяет ставить точки останова и принудительно менять возврат.
+- Keychain, NSUserDefaults и cookies — три главных источника секретов.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой инструмент подключается к iOS-процессу для хуков без пересборки?"
+- question: Что делает команда `objection ios jailbreak disable`?
   options:
-    - "Frida"
-    - "jadx"
-    - "apktool"
-    - "binwalk"
-  answer: 0
-  explanation: "Frida перехватывает методы/функции в рантайме."
-- question: "Каким LLDB-командой поставить точку останова на метод?"
+    - "Удаляет jailbreak"
+    - "Перехватывает методы детекта jailbreak и заставляет их вернуть «нет»"
+    - "Перезагружает устройство"
+    - "Собирает IPA"
+  answer: 1
+  explanation: "Objection автоматически находит и хукает проверки jailbreak."
+- question: Что означает `retval.replace(0)` в хуке?
   options:
-    - "breakpoint set -n '-[Class method]'"
-    - "run -x"
-    - "image add"
-    - "po $x0"
-  answer: 0
-  explanation: "breakpoint set -n задаёт breakpoint по имени символа."
-- question: "Что делает objection ios sslpinning disable?"
+    - "Удаляет метод"
+    - "Подменяет возвращаемое значение метода на 0 (NO)"
+    - "Меняет аргументы"
+    - "Ставит точку останова"
+  answer: 1
+  explanation: "onLeave меняет возврат; 0 = ложь, поэтому детект «не срабатывает»."
+- question: Почему Swift-методы сложнее перехватывать через ObjC.classes?
   options:
-    - "Хукает проверку сертификата, отключая pinning"
-    - "Удаляет сертификат"
-    - "Меняет TLS-версию"
-    - "Шифрует трафик"
-  answer: 0
-  explanation: "Команда обходит pinning через хуки."
-- question: "Зачем дампить память iOS-процесса?"
+    - "Они зашифрованы"
+    - "Часть методов не экспонирована в ObjC-runtime, их ищут по манглированному символу"
+    - "Swift не поддерживает хуки"
+    - "Они всегда приватные"
+  answer: 1
+  explanation: "Swift-методы могут отсутствовать в ObjC-runtime; используют нативные символы."
+- question: Какая команда Objection дампит Keychain?
   options:
-    - "Найти секреты/ключи в рантайме"
-    - "Ускорить приложение"
-    - "Подписать IPA"
-    - "Сменить тему"
-  answer: 0
-  explanation: "В памяти могут быть ключи и токены, недоступные статически."
-- question: "Почему iOS-динамику делают на джейлбрейке/Corellium?"
+    - "ios nsuserdefaults get"
+    - "ios keychain dump"
+    - "ios cookies get"
+    - "ios jailbreak disable"
+  answer: 1
+  explanation: "ios keychain dump читает содержимое Keychain приложения."
+- question: Что такое frida-gadget?
   options:
-    - "Нужны привилегии для frida-server/debugserver"
-    - "Так быстрее компилируется"
-    - "Иначе нет Wi-Fi"
-    - "Так требует Apple"
-  answer: 0
-  explanation: "Для инъекции и отладки нужны права на устройстве."
+    - "Прокси-сервер"
+    - "Нативная библиотека Frida, встроенная в IPA для работы без jailbreak"
+    - "Формат plist"
+    - "Отладчик LLDB"
+  answer: 1
+  explanation: "Gadget встраивают в приложение и переподписывают, чтобы инструментировать без jailbreak."
 ```
+
+## Куда дальше
+
+Мы научились вмешиваться в работу приложения. Но секреты часто утекают не только через Keychain — их можно «увести» через URL-схемы. В следующем уроке разберём, как приложение открывается по ссылкам и почему это опасно. А пока главное запомни: динамика iOS — это Objection для типовых обходов и Frida/LLDB для нестандартных.
 
 ## Где пригодится
 
-- **CTF Mobile:** обход защит и извлечение флага из рантайма.
-- **Bug bounty:** перехват и анализ защищённого клиента.
-- **Пентест:** динамический анализ iOS.
-- **Работа:** reverse engineering и threat intel.
+- **Пентест:** обход jailbreak- и pinning-проверок, дамп секретов.
+- **Bug bounty:** демонстрация обхода защиты на реальном устройстве.
+- **Анализ малвари:** наблюдение за поведением iOS-образца в рантайме.
+- **CTF:** извлечение флага из Keychain или вычисляемого токена.

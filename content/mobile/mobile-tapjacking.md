@@ -14,234 +14,160 @@ useful_for:
 estimated_minutes: 30
 summary: "Как атаки на UI (overlay/tapjacking, task hijacking, StrandHogg) перехватывают нажатия и задачи приложения, и как это находить и тестировать."
 ---
-## Введение
 
-UI-redressing — это семейство атак, где вредоносное приложение или веб-страница накладывается поверх легитимного интерфейса либо перехватывает его «задачу» (task), чтобы пользователь нажал не туда или чтобы злоумышленник получил окно жертвы. На Android это tapjacking, StrandHogg и task hijacking; в веб-контексте — clickjacking. Для пентеста важно находить непокрытые экраны (без `filterTouchesWhenObscured`) и компоненты с опасными `launchMode`/`taskAffinity`.
+## Вопрос, с которого всё начинается
 
-## Как работает tapjacking
+Пользователь видит привычный экран и нажимает «Подтвердить». Но под кнопкой может оказаться совсем другое действие: злоумышленник нарисовал поверх приложения невидимый слой, и нажатие ушло в его код. Или другое приложение перехватило задачу (task) и подсунуло пользователю свой экран в нужный момент. Эти атаки называются tapjacking и task hijacking. Как их обнаружить?
 
-Поверх экрана банка рисуется прозрачное окно злоумышленника. Пользователь думает, что нажимает на своём экране, но касание попадает в скрытый оверлей, который выполняет действие — подтверждает перевод или выдаёт разрешение. Ключевой примитив — разрешение `SYSTEM_ALERT_WINDOW` (draw over other apps) или `TYPE_APPLICATION_OVERLAY`.
+## Наш пример: манифест fdroid.apk
 
-С Android 12 (API 31) наложенные окна блокируют касания автоматически, но приложения с настройками прозрачности остаются уязвимы на старых версиях и в комбинации с `FLAG_NOT_TOUCHABLE`.
+Tapjacking и task hijacking зависят от того, как объявлены Activity. Посмотрим на launchMode в манифесте `fdroid.apk`:
 
-## Overlay-атака: практика
-
-```java
-WindowManager.LayoutParams p = new WindowManager.LayoutParams(
-    MATCH_PARENT, MATCH_PARENT,
-    Build.VERSION.SDK_INT >= 26
-        ? TYPE_APPLICATION_OVERLAY : TYPE_PHONE,
-    FLAG_NOT_FOCUSABLE | FLAG_NOT_TOUCH_MODAL | FLAG_WATCH_OUTSIDE_TOUCH,
-    PixelFormat.TRANSLUCENT);
-p.gravity = Gravity.TOP | Gravity.LEFT;
-wm.addView(overlayView, p);   // overlayView прозрачная, но перехватывает касания
+```
+$ grep -oE 'android:launchMode="[^"]*"' fdroid_dec/AndroidManifest.xml | sort | uniq -c
+      3 android:launchMode="singleInstance"
+      2 android:launchMode="singleTask"
+      1 android:launchMode="singleTop"
 ```
 
-Если целевое приложение не вызывает `setFilterTouchesWhenObscured(true)`, касания доходят до оверлея.
+Разберём, что каждый режим означает и почему он важен для перехвата задач.
 
-```bash
-apktool d app.apk -o out
-grep -rn "filterTouchesWhenObscured\|FLAG_WINDOW_IS_OBSCURED\|isObscured" out/
-```
+## Шаг 1: что такое tapjacking
 
-Приложение, которое **не** проверяет `MotionEvent.FLAG_WINDOW_IS_OBSCURED` для критичных действий (платёж, ввод PIN, разрешение), — кандидат на tapjacking.
+Tapjacking (UI-redressing) — атака, при которой злоумышленник рисует своё окно **поверх** окна жертвы. Пользователь думает, что нажимает кнопку в банковском приложении, а на самом деле нажимает на прозрачный элемент своего окна, которое передаёт команду. Классика: полупрозрачный overlay с кнопкой «Разрешить» на месте, где у жертвы «Отмена».
 
-## StrandHogg и task hijacking
+Защита от tapjacking — фильтр касаний. Android поддерживает `android:filterTouchesWhenObscured="true"`, который не пропускает касания, если поверх окна что-то нарисовано. Если у чувствительной Activity этот атрибут не выставлен, overlay-атака возможна.
 
-StrandHogg (CVE-2019-2025) эксплуатирует `taskAffinity` и `allowTaskReparenting`: вредоносное Activity с той же `taskAffinity`, что и жертва, «встраивается» в задачу и подменяет экран. StrandHogg 2.0 — обход через `launchMode`.
+## Шаг 2: как устроена overlay-атака
 
-```xml
-<activity android:name=".LoginActivity"
-          android:taskAffinity=""
-          android:launchMode="singleTask"
-          android:exported="true"/>
-```
+Злоумышленник создаёт сервис, который рисует системное окно поверх других (`TYPE_APPLICATION_OVERLAY`). Затем ждёт, пока жертва откроет нужный экран, и показывает свой overlay. Пользователь нажимает — событие попадает в overlay.
 
-Правила: пустая `taskAffinity` (`android:taskAffinity=""`) или `singleTask`/`singleInstance` без защиты позволяют другому приложению «присосаться» к задаче. `allowTaskReparenting="true"` тоже расширяет поверхность.
+Обнаружить это можно так: посмотреть, есть ли у приложения чувствительные экраны без `filterTouchesWhenObscured`, и проверить, реагирует ли оно на нажатие, когда поверх есть overlay. В лаборатории overlay делают тестовым приложением.
 
-## Обнаружение и тестирование
+## Шаг 3: что такое task hijacking
 
-1. Декомпилировать APK и собрать список Activity с `taskAffinity`, `launchMode`, `exported`.
-2. Проверить разметки критичных экранов на `filterTouchesWhenObscured`.
-3. В динамике: `dumpsys activity activities` и `dumpsys window`.
-4. PoC-оверлей на тестовом устройстве.
-5. Для веб-части — `X-Frame-Options`/`frame-ancestors`.
+Task hijacking — перехват **задачи** (task). В Android задача — это стек Activity, связанных вместе. Когда пользователь открывает приложение, система создаёт задачу. Атака в том, что злоумышленник заранее создаёт задачу с тем же `taskAffinity` и нужным `launchMode`, и когда жертва запускает приложение, система может переиспользовать задачу атакующего. Пользователь видит свой экран, но задача принадлежит злоумышленнику — и он может перехватывать ввод.
 
-```bash
-adb shell dumpsys activity activities | grep -i "task\|affinity" | head -40
-adb shell am start -n com.target/.SensitiveActivity
-```
+Страдают приложения, которые не задают `taskAffinity` (тогда берётся имя пакета) и используют `launchMode="singleTask"` без защиты. Атакующее приложение объявляет `taskAffinity` равным пакету жертвы и `allowTaskReparenting`.
 
-## Разобранный пример
+## Шаг 4: StrandHogg
 
-Приложение кошелька: `TransferConfirmActivity` с `android:taskAffinity=""` и без `filterTouchesWhenObscured`. Пентестер находит Activity, пишет PoC-оверлей с кнопкой «Подтвердить», пользователь жмёт — касание уходит в реальное приложение, перевод уходит. Отчёт: tapjacking возможен на API < 31 и на API ≥ 31 из-за отсутствия защиты.
+StrandHogg — публичное семейство атак на task hijacking (2019–2020). StrandHogg 1.0 использовал `taskAffinity` для подмены Activity; StrandHogg 2.0 (CVE-2020-0096) позволял запускать Activity поверх любой другой без специальных разрешений. Обе атаки опирались на то, что пользователь видит легитимный экран, но взаимодействует с чужим.
 
-## Частые ошибки и подводные камни
+Проверка приложения: задан ли явно `taskAffinity`, стоит ли `allowTaskReparenting`, какие `launchMode` используются. В нашем `fdroid.apk` `taskAffinity` вообще не задан — значит, используется имя пакета; а `singleTask`/`singleInstance` есть. Само по себе это не уязвимость, но контекст для проверки.
 
-- Тестировать только современные Android: tapjacking «закрыт» с 12-й версии, но актуален для старых API и `FLAG_NOT_TOUCHABLE`.
-- Искать только `SYSTEM_ALERT_WINDOW` у жертвы: защита — `filterTouchesWhenObscured`.
-- Путать StrandHogg с обычным exported Activity: StrandHogg — про перехват *задачи*.
-- Забывать про веб-часть (WebView) и заголовки защиты от фрейминга.
+## Шаг 5: как тестировать
 
-## Справочная таблица
+План:
 
-| Атака | Примитив | Защита |
-|-------|----------|--------|
-| Tapjacking | overlay | `filterTouchesWhenObscured` |
-| StrandHogg | taskAffinity/launchMode | корректная affinity, не exported |
-| Clickjacking | iframe/WebView | X-Frame-Options/frame-ancestors |
-| Task hijacking | launchMode | явная affinity |
+1. Собрать все Activity с `launchMode` и `taskAffinity` из манифеста.
+2. Проверить, есть ли `filterTouchesWhenObscured` на чувствительных экранах.
+3. Собрать тестовое overlay-приложение и проверить реакцию.
+4. Проверить, можно ли перехватить задачу: создать приложение с `taskAffinity` жертвы.
+5. Зафиксировать, приводит ли перехват к выполнению действия.
 
-## Что дальше / решение
+## Шаг 6: связь с WebView и clickjacking
 
-- Нет `filterTouchesWhenObscured` на критичном экране → находка + PoC-оверлей.
-- Пустая `taskAffinity`/`singleTask` → task hijacking, опишите шаги.
-- Критичный экран в WebView без `X-Frame-Options` → clickjacking.
-- Android 12+ и защита стоит → отметьте зависимость от API.
+Tapjacking родственен веб-clickjacking: там тоже невидимый iframe ловит клики. Если WebView приложения грузит страницу без защиты `X-Frame-Options`, а поверх — overlay, возможна комбинированная атака. Поэтому проверяйте и настройки WebView, и фильтр касаний.
 
-## WebView и clickjacking
+## Разбор реального сценария
 
-Если критичный экран — это веб-страница внутри WebView, атакующий может попытаться загрузить её в своём фрейме/WebView и наложить UI. Защита — заголовки `X-Frame-Options: DENY/SAMEORIGIN` и CSP `frame-ancestors 'none'`. Проверка:
+Представим банковское приложение с экраном подтверждения перевода. Пользователь нажимает «Подтвердить», но поверх экрана злоумышленник нарисовал прозрачное окно с кнопкой на том же месте. Нажатие уходит в overlay, который эмулирует нажатие «Подтвердить» в реальном приложении, — перевод выполняется, а пользователь уверен, что нажимал в банк. Если бы у Activity был выставлен `filterTouchesWhenObscured`, система отбросила бы касание, потому что окно перекрыто. Отсутствие этого атрибута на экране подтверждения — серьёзная находка.
 
-```bash
-curl -sI https://app.example/transfer | grep -iE 'x-frame-options|content-security-policy'
-```
+## Полный прогон от начала до конца
 
-Дополнительно проверьте, загружает ли приложение произвольные URL в WebView (deep link → WebView) и есть ли JS-мост — тогда кликджекинг может вести к вызову нативных методов.
+Соберём проверку UI-атак в один сценарий. Сначала `grep` по манифесту: все `launchMode`, `taskAffinity`, `allowTaskReparenting`. Затем ищем чувствительные Activity (подтверждение, вход, платёж) и проверяем у них `filterTouchesWhenObscured`. Дальше собираем тестовое overlay-приложение и смотрим, проходит ли нажатие. Отдельно пробуем перехватить задачу: создаём приложение с `taskAffinity`, равным пакету жертвы, и `launchMode`, и смотрим, переиспользует ли система задачу. Итог — либо подтверждённый перехват, либо список замечаний по конфигурации.
 
-## Обнаружение tapjacking автоматически
+## Частые вопросы
 
-Соберите список критичных экранов и проверьте, вызывается ли `setFilterTouchesWhenObscured`/`setFilterTouchesWhenObscured(true)` в их коде:
+**«Tapjacking работает на новых Android?»** — да, но с ограничениями: система показывает предупреждение при overlay, если приложение не защищено. **«Нужен ли root?»** — нет. **«Как защитить?»** — `filterTouchesWhenObscured`, аккуратные `taskAffinity`/`launchMode`. **«StrandHogg ещё актуален?»** — на старых версиях Android; на новых исправлен. **«Что важнее проверить?»** — экраны подтверждения и входа.
 
-```bash
-grep -rn "setFilterTouchesWhenObscured\|filterTouchesWhenObscured" out/smali* | head
-grep -rln "TransferConfirm\|PaymentActivity\|PinActivity" out/smali* | head
-```
+## Практический совет
 
-Если критичный экран не устанавливает фильтр и не проверяет `FLAG_WINDOW_IS_OBSCURED` в `onTouchEvent` — зафиксируйте находку и подготовьте PoC-оверлей.
+Не пытайтесь «доказать» tapjacking скриншотом — доказывайте реакцией. Соберите минимальное overlay-приложение и покажите, что нажатие пользователя приводит к действию в чужом приложении. Для task hijacking покажите, что задача жертвы переиспользована вашей. Это переводит наблюдение в доказуемую находку с конкретным шагом воспроизведения.
 
-## Нюансы Android 12+ и FLAG_NOT_TOUCHABLE
+## Ещё один нюанс: частичный overlay
 
-С Android 12 непрозрачные оверлеи больше не пропускают касания, но:
+Не всякий overlay полностью перекрывает экран. Достаточно перекрыть **одну** кнопку — ту, нажатие на которую критично. Поэтому проверяйте не «виден ли overlay», а «можно ли перекрыть конкретный элемент». Для этого overlay делают полупрозрачным и позиционируют точно над целевой кнопкой. В отчёте важно показать, что именно пользователь нажимает и что происходит вместо ожидаемого действия.
 
-- полупрозрачные/частичные оверлеи по-прежнему могут создавать проблемы в отдельных сценариях;
-- на устройствах старее API 31 защита отсутствует;
-- `FLAG_NOT_TOUCHABLE` и кастомные окна могут обходить системные эвристики.
+## Связь с другими уроками
 
-Поэтому находку всегда указывайте с версией API: «воспроизводится на API < 31; на API ≥ 31 требует дополнительных условий».
+Tapjacking и task hijacking — это атаки на **пользовательский интерфейс**, а не на данные. Они дополняют экспортированные компоненты: даже если приложение закрыто снаружи, пользователя можно обмануть и заставить нажать нужное. Поэтому UI-защита проверяется отдельно от API-поверхности и часто остаётся без внимания.
 
-## Пошаговый PoC
+## Итог
 
-1. Определите критичный экран (подтверждение платежа/разрешение).
-2. Убедитесь, что `filterTouchesWhenObscured` не установлен.
-3. Соберите тестовое приложение с `SYSTEM_ALERT_WINDOW` и оверлеем, визуально совпадающим с кнопкой.
-4. Покажите, что касание попадает в реальное приложение (лог/эффект).
-5. Опишите impact и рекомендацию: установить фильтр, проверять `FLAG_WINDOW_IS_OBSCURED`, не полагаться на API-версию.
+UI-атаки редко ломают криптографию — они обманывают человека. Поэтому их ценность определяется контекстом: overlay на экране подтверждения платежа опасен, overlay на экране «О программе» — нет. Проверяйте чувствительные экраны и фиксируйте конкретное последствие, а не сам факт возможности overlay.
 
-## Оценка severity
+## Что мы теперь знаем
 
-- Подтверждение платежа/выдача разрешения без защиты — High (денежные/приватные последствия).
-- Некритичный экран — Low/Medium.
-- Task hijacking с подменой экрана входа — High/Critical.
+По-простому:
 
-## Что дальше
+1. Tapjacking — overlay поверх окна жертвы; защита — `filterTouchesWhenObscured`.
+2. Task hijacking — перехват задачи через `taskAffinity` и `launchMode`.
+3. StrandHogg — публичные атаки этого класса.
+4. `singleTask`/`singleInstance` и отсутствие `taskAffinity` — контекст для проверки.
+5. Комбинация с WebView даёт clickjacking.
 
-- Подтвердите PoC на реальном тестовом устройстве.
-- Проверьте зависимость от API-версии.
-- Оформите рекомендации по защите UI.
+## На что смотреть дальше
 
-## Task hijacking: детали эксплойта
+- **Соберите `launchMode` и `taskAffinity`** из манифеста.
+- **Проверьте `filterTouchesWhenObscured`** на чувствительных экранах.
+- **Сделайте тестовый overlay** и проверьте реакцию.
+- **Попробуйте перехватить задачу** своим приложением с `taskAffinity`.
 
-StrandHogg эксплуатирует то, как Android группирует Activity в задачи (tasks). Ключевые атрибуты жертвы:
+## Как обнаружить автоматически
 
-- `android:taskAffinity` — «семейство» задач; пустая строка означает «без привязки» и позволяет чужому Activity войти.
-- `android:launchMode="singleTask"/"singleInstance"` — экземпляр переиспользуется; вредоносный компонент может подменить верх задачи.
-- `android:allowTaskReparenting="true"` — Activity может «переехать» в задачу жертвы.
-- `android:exported="true"` — доступ извне.
-
-PoC: приложение-атакующий объявляет Activity с той же `taskAffinity`, что и жертва, и `exported`. Когда пользователь возвращается к приложению жертвы, Android может показать Activity атакующего вместо реального экрана — классический фишинг входа.
-
-```xml
-<activity android:name=".Evil"
-          android:taskAffinity="com.victim.app"
-          android:exported="true"
-          android:launchMode="singleTask"/>
-```
-
-Проверка в манифесте жертвы:
-
-```bash
-grep -n "taskAffinity\|launchMode\|allowTaskReparenting\|exported" out/AndroidManifest.xml | head -40
-```
-
-## Что дальше
-
-- Найдите критичные Activity и оцените их атрибуты.
-- Подтвердите перехват задачи PoC-приложением на тестовом устройстве.
-- Опишите шаги и рекомендации: явная `taskAffinity`, отказ от лишнего `exported`, защита экранов входа.
-
-## Итоговый чек-лист tapjacking/task-hijacking
-
-| Проверка | Команда/где смотреть |
-|----------|----------------------|
-| Фильтр касаний | `grep filterTouchesWhenObscured out/` |
-| Флаг перекрытия | `FLAG_WINDOW_IS_OBSCURED` в `onTouchEvent` |
-| taskAffinity | `grep taskAffinity out/AndroidManifest.xml` |
-| launchMode | `singleTask`/`singleInstance` без защиты |
-| exported Activity | `grep exported out/AndroidManifest.xml` |
-| Веб-фрейминг | `X-Frame-Options`, CSP `frame-ancestors` |
-| Версия API | зависимость от Android 12+ |
-
-Прогоняйте этот чек-лист для каждого критичного экрана (вход, платёж, выдача разрешений) — именно там последствия UI-атак максимальны.
+Автоматически tapjacking ищут по манифесту: собирают Activity без `filterTouchesWhenObscured` и сопоставляют с чувствительными экранами. Дополнительно можно проверить, использует ли приложение системные оверлеи и как реагирует на перекрытие. Инструменты не заменят ручного теста с overlay-приложением, но сузят список экранов, которые надо проверить вручную. Начните с экранов подтверждения и ввода секретов — там последствия наиболее серьёзные.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что защищает Android-приложение от tapjacking на критичных экранах?"
+- question: "Что такое tapjacking?"
   options:
-    - "setFilterTouchesWhenObscured(true)"
-    - "android:exported='false'"
-    - "Использование HTTPS"
-    - "Обфускация ProGuard"
+    - "Рисование окна поверх окна жертвы для перехвата нажатий"
+    - "Кража базы данных"
+    - "Перехват трафика"
+    - "Расшифровка ключей"
   answer: 0
-  explanation: "Фильтр отбрасывает касания, когда окно перекрыто другим (obscured)."
-- question: "Какой атрибут манифеста открывает путь к task hijacking?"
+- question: "Какой атрибут защищает от перехвата касаний через overlay?"
   options:
-    - "android:taskAffinity='' (пустая)"
-    - "android:debuggable='false'"
-    - "android:theme"
-    - "android:label"
+    - "android:filterTouchesWhenObscured"
+    - "android:exported"
+    - "android:debuggable"
+    - "android:allowBackup"
   answer: 0
-  explanation: "Пустая affinity позволяет вредоносному Activity встроиться в задачу жертвы."
-- question: "Какой флаг MotionEvent сигнализирует о перекрытии окна?"
+- question: "Что перехватывает task hijacking?"
   options:
-    - "FLAG_WINDOW_IS_OBSCURED"
-    - "FLAG_ACTIVITY_NEW_TASK"
-    - "FLAG_SECURE"
-    - "FLAG_KEEP_SCREEN_ON"
+    - "Задачу (task) приложения через taskAffinity и launchMode"
+    - "Сертификат TLS"
+    - "SharedPreferences"
+    - "Wi-Fi"
   answer: 0
-  explanation: "Приложение должно само проверять этот флаг на критичных действиях."
-- question: "С какой версии Android наложенные окна блокируют касания по умолчанию?"
+- question: "Как называется публичная атака на task hijacking?"
   options:
-    - "Android 12 (API 31)"
-    - "Android 6 (API 23)"
-    - "Android 8 (API 26)"
-    - "Android 10 (API 29)"
+    - "StrandHogg"
+    - "Heartbleed"
+    - "EternalBlue"
+    - "Dirty COW"
   answer: 0
-  explanation: "С Android 12 непрозрачные наложения больше не пропускают касания по умолчанию."
-- question: "StrandHogg — это в первую очередь атака на…"
+- question: "С чем родственен tapjacking в вебе?"
   options:
-    - "Перехват задачи (task) приложения"
-    - "Шифрование TLS"
-    - "SQLite"
-    - "Keychain"
+    - "С clickjacking (невидимый iframe)"
+    - "С SQL-инъекцией"
+    - "С XSS в нативном коде"
+    - "С CSRF"
   answer: 0
-  explanation: "StrandHogg эксплуатирует affinity/launchMode для подмены экрана внутри задачи."
 ```
+
+## Куда дальше
+
+Мы разобрали UI-атаки. В следующем уроке углубимся в **deep-link и intent-redirect цепочки**: как из одной ссылки собрать захват аккаунта. А пока запомни главное: tapjacking и task hijacking эксплуатируют доверие пользователя к экрану, и защита начинается с `filterTouchesWhenObscured` и аккуратных `taskAffinity`/`launchMode`.
 
 ## Где пригодится
 
-- **CTF Mobile:** задачи, где нужно перехватить нажатие или подменить экран для получения флага/токена.
-- **Bug bounty:** UI-redressing и перехват критичных действий — валидные находки в мобильных программах.
-- **Пентест:** проверка защищённости платежных и аутентификационных экранов.
-- **Работа:** ревью мобильного кода на предмет UI-защит перед релизом.
+- **CTF Mobile:** подмена экрана и перехват ввода.
+- **Bug bounty:** tapjacking на экране подтверждения — находка.
+- **Пентест:** проверка OWASP MASVS-PLATFORM.
+- **Работа:** ревью UI-защиты приложения.

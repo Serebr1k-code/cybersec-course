@@ -15,227 +15,205 @@ estimated_minutes: 35
 summary: "Как устроены AWS Organizations, Service Control Policies и мульти-аккаунт. Где проходят границы доверия, как их читать и как искать пути между аккаунтами."
 ---
 
-## Зачем этот урок
+## Вопрос, с которого всё начинается
 
-Крупные компании используют **AWS Organizations** — десятки и сотни аккаунтов под одной организацией. Права регулируются не только IAM-политиками, но и **SCP (Service Control Policies)**, которые задают **максимальную** границу возможного. Понять, что разрешено и где проходят границы между аккаунтами, — половина успеха в пентесте большой организации.
+Крупные компании редко живут в одном AWS-аккаунте: у них десятки аккаунтов — продакшен, разработка, безопасность, биллинг. Между ними настроены доверия, а сверху висит организация с ограничениями. Как в этой структуре искать путь «из своего аккаунта в чужой»? Разберём, как она устроена.
 
-## Иерархия AWS Organizations
+## Наш пример: организация из трёх аккаунтов
+
+Объект урока — организация `acme-org`, в которой есть аккаунты `production`, `development` и `security`. Мы уже сидим в `development` и хотим понять, куда можно двигаться дальше.
+
+## Шаг 1: что такое Organizations
+
+**AWS Organizations** — сервис, который объединяет несколько AWS-аккаунтов под одним управлением. Аккаунты группируются в **OU** (organizational units, «подразделения»), а на OU и на всю организацию накладываются **SCP** (Service Control Policies). Посмотрим структуру:
 
 ```
-Organization (management account)
- └─ Organizational Unit (OU)
-     └─ Account (member)
-         └─ IAM identities
+$ aws organizations list-accounts --query "Accounts[].[Name,Id,Status]" --output text
+production   111111111111   ACTIVE
+development  222222222222   ACTIVE
+security     333333333333   ACTIVE
 ```
 
-- **Management account** — корневой, управляет организацией, создаёт новые аккаунты. Компрометация management account = компрометация всей организации.
-- **OU** — группировка аккаунтов для применения SCP.
-- **Member account** — рабочий аккаунт.
+Три аккаунта, каждый со своим изолированным набором ресурсов и прав. Ключевое: **права не переходят между аккаунтами автоматически** — для этого нужно явное доверие.
 
-## SCP: граница, а не выдача прав
+## Шаг 2: что такое SCP
 
-Критично понимать модель:
+SCP — это политика-ограничитель. Она **не выдаёт** прав, а только **запрещает** их превышение. Пример: SCP, который разрешает работать только в европейских регионах:
 
-- **IAM policy** говорит, что **разрешено** конкретной идентичности.
-- **SCP** говорит, что **может быть разрешено** в аккаунте/OU вообще.
-
-Итоговое право = **пересечение** IAM и SCP. SCP **не даёт** прав — она только ограничивает. Даже если у вас `AdministratorAccess`, SCP может запретить, например, `organizations:LeaveOrganization` или `cloudtrail:StopLogging`.
-
-Часто встречаемые защитные SCP:
-
-- Запрет отключения CloudTrail/GuardDuty.
-- Запрет выхода из организации.
-- Запрет использования не одобренных регионов.
-- Запрет создания root-ключей.
-
-Обход этих SCP — цель атакующего.
-
-## Разведка мульти-аккаунт
-
-```bash
-# Список аккаунтов организации (нужны organizations:ListAccounts)
-aws organizations list-accounts --output table
-
-# Список OU и их структура
-aws organizations list-organizational-units-for-parent \
-  --parent-id <ROOT_OR_OU_ID>
-
-# Какие SCP применены к аккаунту/OU
-aws organizations list-policies-for-target --target-id <ACCOUNT_ID> --filter SERVICE_CONTROL_POLICY
-
-# Содержимое конкретной SCP
-aws organizations describe-policy --policy-id <POLICY_ID>
+```
+$ aws organizations list-policies --filter SERVICE_CONTROL_POLICY --query "Policies[].Name" --output text
+DenyRegionsOutsideEU
+FullAWSAccess
 ```
 
-## Роль OrganizationAccountAccessRole
+Содержимое `DenyRegionsOutsideEU`:
 
-Когда новый аккаунт создаётся через Organizations, AWS автоматически создаёт роль **`OrganizationAccountAccessRole`** в этом аккаунте с `AdministratorAccess`, которой доверяет management account. Это классический путь lateral movement:
-
-```bash
-# Из management account (или того, кто может AssumeRole)
-aws sts assume-role \
-  --role-arn arn:aws:iam::<MEMBER_ACCOUNT_ID>:role/OrganizationAccountAccessRole \
-  --role-session-name pivot
+```
+{
+  "Statement": [
+    { "Effect": "Deny", "Action": "*", "Resource": "*",
+      "Condition": { "StringNotEquals": { "aws:RequestedRegion": ["eu-west-1", "eu-central-1"] } } }
+  ]
+}
 ```
 
-Если management account скомпрометирован, вы заходите в **любой** член организации через эту роль.
+Читается так: запретить всё, кроме запросов в `eu-west-1` и `eu-central-1`. Даже админ аккаунта не сможет создать ресурс в США.
 
-## Разобранный пример: от member к организации
+## Шаг 3: где проходят границы доверия
 
-Исходные данные: есть ключ в member-аккаунте с правом `sts:AssumeRole`.
+Раз между аккаунтами нет неявных прав, путь в другой аккаунт возможен только через **явное доверие**:
 
-1. Проверяем, кто мы и в каком аккаунте:
-   ```bash
-   aws sts get-caller-identity
-   ```
-2. Ищем роли с доверием к другим аккаунтам:
-   ```bash
-   aws iam list-roles --query "Roles[?AssumeRolePolicyDocument.Statement[?Principal.AWS]]" \
-     --output json | jq '.[] | {RoleName, AssumeRolePolicyDocument}'
-   ```
-3. Находим роль с `Principal: arn:aws:iam::<OTHER_ACCT>:root` или `OrganizationAccountAccessRole`.
-4. Ассумируем её:
-   ```bash
-   aws sts assume-role --role-arn arn:aws:iam::<OTHER_ACCT>:role/OrganizationAccountAccessRole \
-     --role-session-name pivot
-   ```
-5. Экспортируем временные креды и повторяем разведку:
-   ```bash
-   export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_SESSION_TOKEN=...
-   aws organizations list-accounts    # если дошли до management account
-   ```
-6. Из management account создаём нового IAM-пользователя в любом member-аккаунте (персистентность):
-   ```bash
-   aws iam create-user --user-name backdoor --profile management
-   aws iam create-access-key --user-name backdoor --profile management
-   ```
+- **cross-account роль** — роль в аккаунте B, которая доверяет аккаунту A;
+- **resource policy** — например, бакет в B, разрешающий чтение аккаунту A;
+- **общие сервисы** — централизованные логи, KMS, Secrets Manager.
 
-## Обход SCP
+Именно эти точки — «мосты» между аккаунтами. Задача пентеста — найти их и понять, что они дают.
 
-- **Регион-локальные ресурсы**: SCP может ограничивать регионы, но некоторые сервисы (IAM, S3, Route53, CloudFront) **глобальны** и не подчиняются региональным ограничениям.
-- **`iam:CreateServiceLinkedRole`**: создание служебных ролей иногда обходит явные запреты на `iam:*`.
-- **Смена ролей через ресурсы**: если SCP запрещает создание пользователей, но разрешает `lambda:CreateFunction` + `iam:PassRole`, можно выполнить код под ролью с правами.
-- **Management account**: SCP **не применяются** к management account. Компрометация management = обход всех SCP.
+## Шаг 4: ищем мосты из нашего аккаунта
 
-## Частые ошибки
+Сначала — какие роли доверяют нам:
 
-- **Считать SCP «списком прав».** SCP не выдаёт права, только ограничивает.
-- **Забыть, что SCP не действует на management account.** Это ключ ко всему.
-- **Не искать `OrganizationAccountAccessRole`.** Самый частый путь между аккаунтами.
-- **Игнорировать trust policies.** Именно `AssumeRolePolicyDocument` определяет, кто может войти в роль.
-- **Не проверять глобальные сервисы.** Ограничение регионов не спасает от IAM/S3.
-
-## SCP: синтаксис, приоритет и типовые ошибки
-
-SCP — это JSON-политика, прикреплённая к корню, OU или аккаунту. Она НЕ выдаёт права: она только ограничивает максимум. Синтаксис такой же, как у IAM, но `Principal` не указывается, а `Resource` часто `*`. Пример запрета выхода за регион:
-
-```json
-{"Version":"2012-10-17","Statement":[{"Sid":"RegionLock","Effect":"Deny",
- "Action":"*","Resource":"*",
- "Condition":{"StringNotEquals":{"aws:RequestedRegion":["eu-central-1"]}}}]}
+```
+$ aws iam list-roles --query "Roles[?AssumeRolePolicyDocument.Statement[0].Principal.AWS != null].[RoleName,AssumeRolePolicyDocument]" --output text
+CrossAccountAuditRole
 ```
 
-Приоритет: чем глубже в иерархии, тем меньше прав; эффективные права = пересечение всех SCP по пути к аккаунту. Типовая ошибка администратора — написать `Allow` в SCP и ждать, что права появятся. Не появятся: SCP только режет. Другая ошибка — Deny, который случайно блокирует `sts:AssumeRole` в `OrganizationAccountAccessRole`, ломая управление аккаунтами.
+Роль `CrossAccountAuditRole` имеет trust policy, где `Principal` — не наш аккаунт. Посмотрим её:
 
-## Инструменты для мульти-аккаунт-разведки
-
-```bash
-aws organizations list-accounts --query 'Accounts[].{Id:Id,Name:Name,Status:Status}' --output table
-aws organizations list-organizational-units-for-parent --parent-id r-xxxx
-aws organizations list-policies --filter SERVICE_CONTROL_POLICY
-aws organizations describe-policy --policy-id p-xxxx
-# перебор всех аккаунтов на доступные роли
-for acct in $(aws organizations list-accounts --query 'Accounts[].Id' --output text); do
-  aws sts assume-role --role-arn arn:aws:iam::$acct:role/OrganizationAccountAccessRole \
-    --role-session-name s 2>/dev/null && echo "assumed $acct"
-done
+```
+$ aws iam get-role --role-name CrossAccountAuditRole --query "Role.AssumeRolePolicyDocument.Statement[0]"
+{ "Effect": "Allow",
+  "Principal": { "AWS": "arn:aws:iam::333333333333:root" },
+  "Action": "sts:AssumeRole" }
 ```
 
-`list-accounts` требует `organizations:ListAccounts`. Даже без него `OrganizationAccountAccessRole` часто доверяет management-аккаунту — и если вы в нём, вы входите в member-аккаунты.
+Роль доверяет аккаунту `333333333333` (`security`). Это мост из `security` в наш аккаунт — значит, из `security` можно занять эту роль и что-то делать. Дальше смотрим, что эта роль умеет, и не ведёт ли она дальше — в `production`.
 
-## Разобранный пример 2: выход из member-аккаунта
+## Шаг 5: планируем lateral movement
 
-1. В member-аккаунте вы нашли роль `AdminRole`.
-2. Её trust: `Principal: arn:aws:iam::<mgmt>:root`.
-3. Если у вас есть доступ в management-аккаунт (или вы в нём) — встаёте на роль:
-```bash
-aws sts assume-role --role-arn arn:aws:iam::111122223333:role/AdminRole --role-session-name x
-aws sts get-caller-identity
-# arn:aws:sts::111122223333:assumed-role/AdminRole/x
+Межаккаунтное движение строится по цепочке мостов: занимаем роль в чужом аккаунте → получаем временные креды → ищем в нём новые мосты → идём дальше. Схематично:
+
 ```
-4. Дальше — поиск других member-ролей и расширение на организацию.
+development  --(assume CrossAccountAuditRole)-->  security  --(assume ProdDeployRole)-->  production
+```
 
-## Таблица обходов SCP
+Каждый шаг требует доверия: роль в целевом аккаунте должна разрешать вход нашему аккаунту. Если где-то `Principal: "*"` или условие слишком слабое — цепочка продолжается.
 
-| Ограничение SCP | Обход |
-|-----------------|-------|
-| Region lock | использовать разрешённый регион |
-| Deny на сервис | другой сервис с той же функцией |
-| Deny на iam:* | уже выданные роли/ключи |
-| MFA-условие | украсть MFA-сессию |
-| Deny на AssumeRole | resource-based политика ресурса |
+## Шаг 6: как это читать в отчёте
 
-## Мониторинг и защита Organizations
+Для каждого моста фиксируй: кто кому доверяет, какую роль/ресурс это открывает и какие условия стоят. Опасные признаки — `Principal: "*"`, отсутствие `ExternalId`, доверие всему аккаунту (`:root`) без условий. Именно они превращают «изолированные» аккаунты в связную сеть.
 
-Включайте CloudTrail на уровне организации (organization trail) — тогда события member-аккаунтов попадают в общий лог. Настраивайте SCP по принципу «запретить всё, кроме необходимого»: блокируйте выход за регион, создание публичных ресурсов, отключение логирования. Используйте `aws organizations enable-policy-type` для включения типов политик (backup, tag). Для защиты от захвата управления — MFA на root management-аккаунта и ограничение `organizations:*`.
+## Шаг 7: как защищаться
 
-## Практическое задание
+- не доверять `:root` без необходимости, ограничивать конкретными ролями;
+- обязательно использовать `ExternalId` для сторонних доверий;
+- держать SCP-ограничители (регионы, запрет опасных сервисов);
+- изолировать продакшен и логировать cross-account-вызовы в отдельном аккаунте.
 
-В тестовой организации создайте два аккаунта: management и member. В member выдайте роль `OrganizationAccountAccessRole`. Из management встаньте на неё через `sts:AssumeRole`. Затем добавьте SCP с Deny на `s3:*` в member и убедитесь, что доступ пропал. Это отрабатывает и атаку, и защиту: вы увидите, как SCP реально ограничивает права, выданные в аккаунте.
+## Шаг 8: как это выглядит в реальной организации
 
-## Root-доступ и SCP на корень
+Типовая крупная организация выглядит так: корень `root`, под ним OU `security` (логи, KMS, аудит), `infrastructure` (сеть, DNS), `workloads` (продакшен и стейджинг), `sandbox` (эксперименты). На каждую OU навешаны SCP: `sandbox` запрещает дорогие сервисы, `workloads` ограничивает регионы, `security` защищён от изменений. Пентесту важно нарисовать эту карту — она подсказывает, где искать мосты и что вообще разрешено.
 
-Management-аккаунт имеет особые права. Если SCP не применяется к корню, member-аккаунты могут создавать ресурсы, которые вы потом используете. Проверьте `list-roots` и политики на корне. Отсутствие SCP на корне — частая ошибка: тогда аккаунты почти не ограничены.
+## Шаг 9: SCP — не панацея
+
+SCP не применяется к **management-аккаунту** организации (он управляет всеми остальными), а некоторые служебные действия и сервисные роли могут обходить ограничения. Значит, «мы всё запретили через SCP» — не гарантия. Кроме того, SCP защищает от превышения прав, но не от слабых доверий: если роль доверяет чужому аккаунту, SCP этого не исправит. Поэтому аудит доверий нужен отдельно от аудита SCP.
+
+## Шаг 10: чек-лист пентеста организации
+
+- какие аккаунты и OU есть и что в них интересного (продакшен, логи, KMS);
+- какие SCP ограничивают регионы и сервисы;
+- кто кому доверяет (cross-account роли, resource policies);
+- нет ли `Principal: "*"` или `:root` без условий;
+- есть ли централизованные логи и где они лежат (их можно читать?);
+- куда ведут мосты из нашего аккаунта и можно ли идти дальше.
+
+Такой чек-лист превращает «большую организацию» в понятный граф, по которому можно строить маршрут.
+
+## Шаг 11: как это помогает планировать
+
+Карта аккаунтов и доверий — это и есть план атаки. Дальше остаётся идти по ней: занимать роли, читать новые политики, искать следующие мосты. В крупной организации такой маршрут может быть длинным, и без карты его не построить. Именно поэтому в начале пентеста организации тратят время на инвентаризацию, а не на перебор.
+
+## Частые вопросы
+
+**«Даёт ли SCP права?»** Нет. SCP только ограничивает максимум; права всё равно приходят из IAM.
+
+**«Почему между аккаунтами нет доступа по умолчанию?»** Аккаунты изолированы. Доступ появляется только через явное доверие.
+
+**«Что такое мост между аккаунтами?»** Cross-account роль или resource policy, которая разрешает вход/доступ из другого аккаунта.
+
+**«Как планировать движение?»** Нарисовать карту аккаунтов и доверий, затем искать маршрут от менее защищённого к более ценному.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. Organizations объединяет аккаунты в OU с общими ограничениями.
+2. SCP — потолок прав, а не выдача; он только запрещает.
+3. Между аккаунтами нет неявных прав — только явное доверие.
+4. Мосты — это cross-account роли и resource policies.
+5. Lateral movement строится по цепочке таких мостов.
+
+## На что смотреть дальше
+
+- **Ищи trust policies.** Они показывают, кто кому доверяет.
+- **Проверяй `:root` и `*`.** Это самые слабые доверия.
+- **Смотри SCP.** Они объясняют, почему что-то не работает.
+- **Строй цепочку.** Движение между аккаунтами — это граф доверий.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что такое SCP в AWS Organizations?"
+- question: "Что делает SCP?"
   options:
-    - "Список разрешённых пользователей"
-    - "Политика, задающая максимальную границу возможного в аккаунте/OU, но не выдающая прав"
-    - "Сертификат для TLS"
-    - "Тип хранилища"
-  answer: 1
-  explanation: "SCP ограничивает максимум; итоговое право — пересечение IAM-политики и SCP."
-- question: "Какая роль автоматически создаётся в новом аккаунте Organizations и доверяет management account?"
+    - "Ограничивает максимум прав, но не выдаёт их"
+    - "Выдаёт админ-права"
+    - "Шифрует данные"
+    - "Создаёт роли"
+  answer: 0
+  explanation: "SCP — политика-ограничитель на уровне организации."
+- question: "Как возможен доступ из одного аккаунта в другой?"
   options:
-    - "AWSServiceRoleForOrganizations"
-    - "OrganizationAccountAccessRole"
-    - "PowerUserAccess"
-    - "AWSReservedSSO"
-  answer: 1
-  explanation: "OrganizationAccountAccessRole даёт AdministratorAccess и доверяет management account — классический pivot."
-- question: "Почему management account критичен для атакующего?"
+    - "Только через явное доверие: cross-account роль или resource policy"
+    - "Автоматически, если аккаунты в одной организации"
+    - "Через общий пароль"
+    - "Через один регион"
+  answer: 0
+  explanation: "Неявных прав между аккаунтами нет."
+- question: "Что такое OU?"
   options:
-    - "Он самый дешёвый"
-    - "SCP не применяются к management account, и он управляет всей организацией"
-    - "В нём нет IAM"
-    - "Он не имеет API"
-  answer: 1
-  explanation: "SCP не действуют на management account, и из него можно выдавать доступ в любой member-аккаунт."
-- question: "Что определяет, кто может войти в IAM-роль?"
+    - "Organizational unit — группа аккаунтов в организации"
+    - "Тип роли"
+    - "Формат ключа"
+    - "Регион"
+  answer: 0
+  explanation: "На OU накладываются SCP."
+- question: "Какой признак делает trust policy опасной?"
   options:
-    - "SCP"
-    - "Trust policy (AssumeRolePolicyDocument)"
-    - "Security group"
-    - "Route table"
-  answer: 1
-  explanation: "Trust policy роли описывает доверенных принципалов, которым разрешён AssumeRole."
-- question: "Почему ограничение SCP по регионам не всегда защищает?"
+    - "Principal: '*' или ':root' без условий"
+    - "Указан ExternalId"
+    - "Доверие конкретной роли"
+    - "Указан аккаунт"
+  answer: 0
+  explanation: "Слишком широкое доверие открывает доступ кому угодно."
+- question: "Как строится lateral movement между аккаунтами?"
   options:
-    - "Все сервисы региональны"
-    - "Глобальные сервисы (IAM, S3, Route53, CloudFront) не подчиняются региональным ограничениям"
-    - "SCP применяется только к EC2"
-    - "Регионы не важны"
-  answer: 1
-  explanation: "Глобальные сервисы живут вне регионов, поэтому региональные ограничения их не покрывают."
+    - "По цепочке мостов доверия"
+    - "Через смену пароля"
+    - "Через DNS"
+    - "Через один ключ"
+  answer: 0
+  explanation: "Каждый мост ведёт в следующий аккаунт."
 ```
+
+## Куда дальше
+
+Мы разобрали структуру мульти-аккаунта. Дальше — **cross-account роли и confused deputy**: как именно эксплуатировать слабые trust policies и цепочки AssumeRole. А пока запомни главное: аккаунты AWS изолированы, и путь между ними ищут по графу доверий.
 
 ## Где пригодится
 
-- **Пентест больших AWS-организаций** — карта границ доверия.
-- **Red team** — lateral movement между аккаунтами.
-- **IR/Blue team** — детект ассумирования ролей и создания пользователей.
-- **Cloud security architect** — проектирование SCP-политик.
-- **Сертификации** — AWS Security Specialty.
+- **Пентест:** планирование движения в крупных AWS-организациях.
+- **Red team:** цепочки между аккаунтами.
+- **Аудит:** проверка SCP и доверий.
+- **Blue team:** изоляция продакшена и логирование cross-account-вызовов.

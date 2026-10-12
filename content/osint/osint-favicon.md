@@ -14,198 +14,91 @@ estimated_minutes: 50
 summary: "Как хэшировать favicon (mmh3/MD5), искать по нему в Shodan/FOFA/Censys, определять технологии через Wappalyzer и whatweb, использовать фингерпринты для корреляции."
 ---
 
-Favicon — маленькая иконка сайта, но её хэш уникален для продукта или компании. Он остаётся тем же на всех серверах одной организации, даже за CDN и на разных доменах. Поэтому favicon-хэшинг — один из самых надёжных способов найти **origin-серверы** (настоящие IP за Cloudflare) и **связанные хосты**, о существовании которых вы не знали.
+## Вопрос, с которого всё начинается
 
-## Что такое favicon-хэш
+Сайт `shop.example.com` закрыт Cloudflare, и прямой IP скрыт. Обычные способы — исторический DNS, старые сертификаты — результата не дали. Что ещё может выдать настоящий сервер?
 
-Shodan и FOFA вычисляют отпечаток иконки `/favicon.ico` по алгоритму **mmh3** от base64-содержимого файла. Одинаковая иконка → одинаковый хэш → все серверы с ней находятся одним запросом. Это «отпечаток» инфраструктуры, устойчивый к смене IP и домена.
+Ответ неожиданно простой: **маленькая иконка сайта**. Файл `/favicon.ico` одинаков на всех серверах одной организации — и на origin, и за CDN, и на разных доменах. Если посчитать его отпечаток и поискать по нему, можно найти все хосты с той же иконкой, включая настоящий сервер.
 
-Важно: движки используют именно `mmh3(base64(content))`, а не MD5/SHA — MD5 годится лишь для ручного сравнения двух иконок между собой.
+## Наш пример: иконка shop.example.com
 
-```bash
-# локально посчитать mmh3-хэш favicon (как его видят Shodan/FOFA)
-pip install mmh3 requests
-python3 - <<'PY'
+Работаем с одним объектом — favicon сайта `shop.example.com`. Задача: найти origin за CDN и связанные хосты. Начнём с вычисления отпечатка.
+
+## Шаг 1: считаем favicon-хэш
+
+Поисковые движки Shodan и FOFA вычисляют отпечаток иконки по алгоритму **mmh3** — быстрой хэш-функции. Важная деталь: Shodan считает `mmh3` от **base64** содержимого файла, а FOFA — от «сырых» байтов, поэтому для одного файла эти хэши различаются.
+
+```python
 import mmh3, requests, base64, hashlib
-url = "https://example.com/favicon.ico"
-r = requests.get(url, timeout=10)
-print("status :", r.status_code, "bytes:", len(r.content))
-print("mmh3   :", mmh3.hash(base64.encodebytes(r.content)))   # для Shodan/FOFA
-print("mmh3(no-b64):", mmh3.hash(r.content))                  # для FOFA icon_hash
-print("md5    :", hashlib.md5(r.content).hexdigest())          # для сравнения иконок
-PY
+r = requests.get("https://shop.example.com/favicon.ico", timeout=10)
+print("mmh3 shodan:", mmh3.hash(base64.encodebytes(r.content)))
+print("mmh3 fofa  :", mmh3.hash(r.content))
+print("md5        :", hashlib.md5(r.content).hexdigest())
 ```
 
-Обратите внимание: **FOFA** использует `mmh3.hash(content)` без base64, а **Shodan** — `mmh3(base64(content))`. Поэтому для одного файла эти два хэша **различаются**; не путайте их между собой.
-
-## Поиск по хэшу в движках
-
-Полученное значение подставляйте напрямую:
-
-- **Shodan**: `http.favicon.hash:<значение>`
-- **FOFA**: `icon_hash="<значение>"`
-- **Censys**: поиск по `services.http.response.favicon.md5` (или через сторонние базы)
-- **ZoomEye**: `iconhash:"<значение>"`
-
-```bash
-# Shodan CLI
-shodan search 'http.favicon.hash:-123456789' --fields ip_str,port,hostnames
-
-# FOFA API
-curl -s "https://fofa.info/api/v1/search/all?key=$FOFA_KEY&qbase64=$(echo -n 'icon_hash=\"-123456789\"' | base64)"
+```
+mmh3 shodan: -305179312
+mmh3 fofa  : 116323821
+md5        : 3f2a9c...e1
 ```
 
-## Поиск origin за CDN
+Запомним правило: **MD5 не подойдёт для поиска** в Shodan — движки используют mmh3. MD5 годится только для ручного сравнения двух иконок между собой.
 
-Классический сценарий обхода Cloudflare/WAF:
+## Шаг 2: ищем хэш в движках
 
-1. Сайт за Cloudflare; прямой IP скрыт.
-2. Считайте favicon-хэш (см. скрипт выше).
-3. Ищите хэш в Shodan/FOFA.
-4. Среди результатов — IP **вне** диапазонов Cloudflare. Проверьте, отдаёт ли он тот же сайт:
-   ```bash
-   curl -sI http://<ip>/ -H 'Host: example.com' | head -5
-   curl -sk https://<ip>/ -H 'Host: example.com' | head -c 300
-   ```
-5. Если заголовки/тело совпадают — origin найден.
-
-Дополнительные признаки origin: нестандартные порты (8080/8443), прямой TLS-сертификат с именем `example.com` (а не `*.cloudflare`), отсутствие `cf-ray`/`server: cloudflare` в ответе.
-
-## Технологический фингерпринт
-
-Помимо favicon, технологии выдают заголовки, cookies, характерные пути и HTML-маркеры:
+Полученное значение подставляется в поиск напрямую.
 
 ```bash
-# whatweb: агрессивный режим, набор плагинов
+shodan search 'http.favicon.hash:-305179312' --fields ip_str,port,hostnames
+```
+
+```
+104.21.44.7    443  shop.example.com     ← это Cloudflare
+198.51.100.7   443  shop.example.com     ← а это «серый» IP
+198.51.100.9   8080 (no hostname)        ← похоже, dev-стенд
+```
+
+У FOFA синтаксис другой: `icon_hash="-305179312"` (без base64). ZoomEye использует `iconhash:`, а Censys ищет по `favicon.md5`.
+
+## Шаг 3: находим origin за CDN
+
+Среди результатов отбрасываем адреса, принадлежащие Cloudflare (по ASN), и проверяем оставшиеся запросом с заголовком `Host`.
+
+```bash
+curl -skI https://198.51.100.7/ -H 'Host: shop.example.com' | head -3
+```
+
+```
+HTTP/2 200
+server: nginx
+x-shop: v2
+```
+
+Ответ совпал с тем, что отдаёт домен, — **origin найден**. Дополнительные признаки настоящего сервера: нестандартные порты (8080, 8443), прямой TLS-сертификат с именем `example.com` (а не `*.cloudflare`), отсутствие заголовка `cf-ray` в ответе.
+
+## Шаг 4: технологический фингерпринт
+
+Иконка — не единственный отпечаток. Технологии выдают заголовки, cookies, характерные пути и HTML-маркеры.
+
+```bash
 whatweb -a 3 https://example.com
-whatweb -a 3 -v https://example.com | grep -iE 'wordpress|nginx|php|react'
-
-# wappalyzer (CLI, если установлен)
-wappalyzer https://example.com
-
-# заголовки и cookie
 curl -sI https://example.com
-curl -s https://example.com | grep -ioE 'wp-content|/static/|/_next/|react|vue|angular'
-
-# TLS-сертификат: issuer, SAN (часто выдаёт весь список хостов)
-echo | openssl s_client -connect example.com:443 -servername example.com 2>/dev/null \
-  | openssl x509 -noout -issuer -subject -ext subjectAltName
 ```
-
-Характерные маркеры:
 
 | Признак | Технология |
-|---|---|
+|---------|-----------|
 | `Set-Cookie: PHPSESSID` | PHP |
 | `Set-Cookie: JSESSIONID` | Java (JSP/Servlet) |
-| `Set-Cookie: laravel_session` | PHP Laravel |
 | `X-Powered-By: Express` | Node.js Express |
 | `Server: gunicorn` | Python (WSGI) |
-| `/wp-content/`, `/wp-json/` | WordPress |
 | `/_next/`, `__NEXT_DATA__` | Next.js |
-| `/_nuxt/`, `__NUXT__` | Nuxt (Vue) |
-| `X-AspNet-Version` | ASP.NET |
+| `/wp-content/`, `/wp-json/` | WordPress |
 
-## Корреляция по фингерпринтам
+Помни: заголовок `Server` легко подделать, поэтому один признак — не истина. Сверяй несколько сигналов.
 
-Один и тот же продукт (например, Grafana, Jenkins, GitLab) на сотнях хостов имеет общий favicon и заголовки. Это позволяет:
+## Шаг 5: корреляция — кластеры хостов
 
-- находить **все** инстансы продукта у организации (включая забытые dev/staging);
-- искать **устаревшие версии** (`Server: nginx/1.14`, `X-Jenkins: 2.204`) — кандидаты на CVE;
-- обнаруживать **dev/staging** по нестандартным портам, `title` («Dev», «Test») и self-signed сертификатам;
-- связывать хосты по **общему сертификату** (`SAN`-список, один `issuer`), **общему favicon** и **общему уникальному заголовку**.
-
-Комбинируйте сразу несколько сигналов: favicon + `Server` + TLS-сертификат + cookie. Совпадение нескольких признаков даёт высокую уверенность, что хосты принадлежат одной организации.
-
-## Разбор типового кейса
-
-Задача: найти origin `shop.example.com` за CDN.
-
-```bash
-# 1. Скачать иконку и посчитать хэши
-python3 - <<'PY'
-import mmh3, requests, base64
-c = requests.get("https://shop.example.com/favicon.ico", timeout=10).content
-print("shodan:", mmh3.hash(base64.encodebytes(c)))
-print("fofa  :", mmh3.hash(c))
-PY
-# 2. Найти все хосты с этим favicon
-shodan search 'http.favicon.hash:<shodan-hash>' --fields ip_str,port,hostnames
-# 3. Отфильтровать IP вне Cloudflare и проверить Host-заголовком
-for ip in 1.2.3.4 5.6.7.8; do
-  echo "== $ip"; curl -skI "https://$ip/" -H 'Host: shop.example.com' | head -3
-done
-```
-
-## Частые ошибки
-
-- **Считать обычный MD5** — движки используют mmh3; MD5 не совпадёт с поисковым запросом.
-- **Путать Shodan- и FOFA-хэш** — base64/без base64 дают разные значения.
-- **Забыть про редирект favicon** — иконка может отдаваться с `/favicon.ico?v=2` или с CDN; тогда хэш будет от другого файла.
-- **Один признак как истина** — `Server` легко подделать; сверяйте несколько сигналов.
-- **Игнорировать дефолтный favicon** — пустой/дефолтный favicon даёт тысячи ложных совпадений; проверяйте содержимое иконки.
-- **Не проверять дату** — устаревшие записи Shodan могут указывать на уже несуществующие хосты.
-
-## Массовый favicon-хэшинг
-
-Для многих хостов хэши считаются пакетно:
-
-```bash
-# скачать favicon и посчитать хэш для списка хостов
-for h in $(cat hosts.txt); do
-  c=$(curl -s -m 5 "https://$h/favicon.ico" | base64 | tr -d '\n')
-  [ -n "$c" ] && echo "$h $(python3 -c "import mmh3,sys;print(mmh3.hash(sys.stdin.read()))" <<< "$c")"
-done
-```
-
-Затем группируйте хосты по одинаковому хэшу — это «кластеры» одного продукта/организации.
-
-## Отпечатки помимо favicon
-
-Дополнительные устойчивые отпечатки:
-
-- **TLS/JARM**: отпечаток стека TLS (Cobalt Strike, Metasploit имеют узнаваемые JARM).
-- **HTTP-заголовки**: порядок и набор заголовков (server fingerprint).
-- **Robots.txt/sitemap**: характерные для конкретного ПО.
-- **Метатеги и пути**: `/wp-content/`, `/_next/`, `/assets/`.
-
-```bash
-# JARM через httpx
-echo example.com | httpx -jarm -silent
-```
-
-## Практический конвейер фингерпринта
-
-```text
-1. Собрать хосты (subfinder/amass)
-2. Проверить живость (httpx)
-3. Снять favicon-хэш + JARM + заголовки
-4. Сгруппировать по отпечаткам
-5. Найти «одиночек» и устаревшие версии
-6. Обогатить (CVE по версии)
-```
-
-## Практика: массовый favicon-хэшинг и кластеризация
-
-Считаем хэши для списка хостов и группируем их по совпадению:
-
-```bash
-pip install mmh3 requests
-cat > favhash.py <<'PY'
-import mmh3, base64, sys, requests
-for h in sys.stdin.read().split():
-    try:
-        c = requests.get(f"https://{h}/favicon.ico", timeout=5).content
-        print(h, mmh3.hash(base64.encodebytes(c)), mmh3.hash(c))
-    except Exception as e:
-        print(h, "ERR", e, file=sys.stderr)
-PY
-cat hosts.txt | python3 favhash.py | tee favhashes.txt
-# кластеризация по Shodan-хэшу (колонка 2)
-awk '{print $2}' favhashes.txt | sort | uniq -c | sort -rn | head
-```
-
-Пайплайн на инструментах ProjectDiscovery:
+Один и тот же продукт (Grafana, Jenkins, GitLab) на сотнях хостов имеет общий favicon и заголовки. Это позволяет группировать хосты по отпечатку.
 
 ```bash
 subfinder -d example.com -silent | httpx -silent -favicon -jarm | tee fp.jsonl
@@ -214,56 +107,89 @@ cat fp.jsonl | jq -r '[.host,.favicon,.jarm]|@tsv' | sort -k2
 
 Хосты с одинаковым favicon-хэшем образуют «кластер» одного продукта или организации — даже если домены и IP разные.
 
-## Практика: поиск по хэшу в движках
+## Шаг 6: что делать с кластером
+
+Кластеры по favicon — это вход в дальнейшую работу:
+
+- **Найти забытые стенды.** «Одиночки», выпадающие из кластера, — часто dev/staging с ослабленной защитой.
+- **Найти устаревшие версии.** `Server: nginx/1.14`, `X-Jenkins: 2.204` — кандидаты на CVE.
+- **Связать хосты.** Общий favicon плюс общий TLS-сертификат (совпадающие SAN) — высокая уверенность в одном владельце.
+
+Комбинируй сразу несколько сигналов: favicon + `Server` + сертификат + cookie. Совпадение нескольких признаков даёт надёжный вывод.
+
+## Массовый favicon-хэшинг
+
+Когда хостов много, хэши считают пакетно, а затем группируют по одинаковому значению.
 
 ```bash
-# Shodan
-shodan search 'http.favicon.hash:-305179312' --fields ip_str,port,hostnames,org
-# FOFA (icon_hash без base64)
-curl -s "https://fofa.info/api/v1/search/all?key=$FOFA_KEY&qbase64=$(printf 'icon_hash="-305179312"' | base64 -w0)&fields=host,ip,port" | jq -r '.results[]|@tsv'
-# ZoomEye
-curl -s "https://api.zoomeye.org/web/search?query=iconhash:-305179312" -H "API-KEY: $ZE_KEY" | jq '.matches[].ip'
-# Censys
-censys search 'services.http.response.favicon.md5: <md5hex>'
+cat hosts.txt | while read h; do
+  c=$(curl -s -m 5 "https://$h/favicon.ico" | base64 | tr -d '\n')
+  [ -n "$c" ] && echo "$h $(python3 -c 'import mmh3,sys;print(mmh3.hash(sys.stdin.read()))' <<< "$c")"
+done | tee favhashes.txt
+awk '{print $2}' favhashes.txt | sort | uniq -c | sort -rn | head
 ```
 
-## Дополнительные отпечатки помимо favicon
+Хосты с одинаковым favicon-хэшем образуют кластер одного продукта или организации — даже если домены и IP разные.
 
-- **JARM** — 30-символьный хэш TLS-стека; Cobalt Strike и Metasploit имеют узнаваемые значения.
+## Дополнительные отпечатки
+
+Помимо favicon, инфраструктуру выдают другие устойчивые признаки:
+
+- **JARM** — 30-символьный хэш TLS-стека; у Cobalt Strike и Metasploit узнаваемые значения.
 - **TLS fingerprint (JA3/JA4)** — отпечаток по параметрам рукопожатия.
-- **HTTP/2 fingerprint** — наборы настроек, характерные для конкретных прокси.
 - **Robots.txt и sitemap** — характерные для продукта пути.
 - **Точный матч файла** — размер и контрольная сумма самой иконки.
 
 ```bash
 echo example.com | httpx -jarm -favicon -silent
-nmap -p443 --script ssl-enum-ciphers example.com
 ```
 
-## Справочник: соответствие движков и алгоритмов
+## Практический конвейер фингерпринта
 
-| Движок | Поле запроса | Алгоритм |
-|---|---|---|
-| Shodan | `http.favicon.hash:` | mmh3(base64) |
-| FOFA | `icon_hash=` | mmh3(raw) |
-| ZoomEye | `iconhash:` | mmh3 |
-| Censys | `favicon.md5` | MD5 |
+Соберём всё в один маршрут:
 
-## Что дальше / решение
+```text
+1. Собрать хосты (subfinder/amass)
+2. Проверить живость (httpx)
+3. Снять favicon-хэш, JARM и заголовки
+4. Сгруппировать по отпечаткам
+5. Найти «одиночек» и устаревшие версии
+6. Обогатить (подобрать CVE по версии)
+```
 
-Кластеры по favicon — вход для поиска устаревших версий (`Server:`), подбора CVE по версии и обнаружения origin за CDN. Всегда сверяйте дату записи в индексе: устаревшие результаты Shodan часто указывают на уже несуществующие хосты. Для собственной инфраструктуры favicon-хэшинг — быстрый способ найти забытые dev-стенды, которые торчат наружу с той же иконкой.
+На выходе — не список разрозненных хостов, а карта инфраструктуры: какие сервисы где развёрнуты, какие версии устарели и какие стенды выпадают из общего паттерна. Именно она задаёт приоритеты при тестировании.
 
-## Разбор: кластеризация инфраструктуры по отпечаткам
+## Как не ошибиться с хэшем
 
-Собрав favicon-хэши, JARM и данные сертификатов для набора хостов, вы получаете несколько независимых осей для группировки. Сгруппируйте хосты по favicon-хэшу — это «продуктовые» кластеры. Затем внутри кластера разбейте их по JARM: одинаковый TLS-стек усиливает уверенность, что это один и тот же сервер под разными именами. Добавьте SAN сертификатов: если у нескольких IP в SAN перечислены одни и те же имена, они почти наверняка принадлежат одной организации. Одиночки, выпадающие из кластера, — самые интересные: это могут быть забытые dev/staging-стенды, тестовые инсталляции с ослабленной защитой или устаревшие версии продукта. Обогатите каждую находку версией ПО из заголовка `Server` и `X-Powered-By` и сопоставьте с известными CVE. На выходе — не список разрозненных хостов, а карта инфраструктуры, где видно, какие сервисы развёрнуты где, какие версии устарели и какие хосты выпадают из общего паттерна. Именно эта карта и служит основой для расстановки приоритетов при тестировании.
+Главная путаница — какой именно хэш где использовать. Держи соответствие под рукой: Shodan ищет по `mmh3(base64)`, FOFA — по `mmh3(raw)`, ZoomEye — тоже mmh3, а Censys — по `favicon.md5`. Перепутаешь алгоритм — поиск вернёт пусто, и ты решишь, что хостов нет.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. Favicon одинаков на всех серверах организации.
+2. Shodan/FOFA считают хэш через mmh3 (base64/без base64).
+3. По хэшу в Shodan/FOFA находят все хосты с той же иконкой.
+4. Среди них — origin за CDN; его проверяют заголовком `Host`.
+5. Технологии определяются по заголовкам, cookies и путям.
+
+## На что смотреть дальше
+
+- **Не считай обычный MD5.** Движки используют mmh3 — MD5 не совпадёт.
+- **Не путай Shodan- и FOFA-хэш.** Base64/без base64 дают разные значения.
+- **Проверяй дефолтный favicon.** Пустая иконка даёт тысячи ложных совпадений.
+- **Не опирайся на один признак.** `Server` легко подделать.
+- **Сверяй дату записи.** Устаревшие результаты Shodan указывают на уже мёртвые хосты.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой алгоритм используют Shodan/FOFA для favicon-хэша?"
+- question: "Какой алгоритм используют Shodan и FOFA для favicon-хэша?"
   options:
     - "MD5"
-    - "mmh3 от base64-содержимого"
+    - "mmh3 от содержимого (с base64 или без)"
     - "SHA-256"
     - "CRC32"
   answer: 1
@@ -274,7 +200,7 @@ nmap -p443 --script ssl-enum-ciphers example.com
     - "Он расшифровывает трафик"
     - "Он показывает DNS"
   answer: 1
-- question: "Какой заголовок выдаёт язык/платформу сервера?"
+- question: "Какой заголовок выдаёт язык или платформу сервера?"
   options:
     - "Content-Length"
     - "X-Powered-By"
@@ -296,6 +222,10 @@ nmap -p443 --script ssl-enum-ciphers example.com
     - "Он показывает только ОС"
   answer: 1
 ```
+
+## Куда дальше
+
+В следующем уроке мы возьмём **TLS-сертификаты** и научимся по логам Certificate Transparency находить все имена домена — даже те, что никогда не публиковались. А пока запомни главное: favicon — это устойчивый отпечаток, который связывает хосты и выдаёт origin за CDN.
 
 ## Где пригодится
 

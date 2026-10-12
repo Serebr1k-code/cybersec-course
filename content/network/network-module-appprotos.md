@@ -15,122 +15,129 @@ estimated_minutes: 55
 summary: "Модуль по прикладным протоколам: HTTP/2 и HTTP/3/QUIC, протоколы баз данных (MySQL/PostgreSQL/MSSQL) и TLS-фингерпринтинг (JA3/JA4/SNI) — что видно на проводе и какие атаки возможны."
 ---
 
-Поверх транспорта живут прикладные протоколы: HTTP/2 и HTTP/3, протоколы баз данных, а также TLS с его «отпечатками». Их разбор нужен и для атаки (request smuggling, перехват БД-кред), и для защиты (фингерпринт клиентов, детект аномалий). Этот модуль — база для [`network-http2-attacks`](network-http2-attacks), [`network-db-protocols`](network-db-protocols) и [`network-tls-fingerprint`](network-tls-fingerprint), опирается на [`network-quic`](network-quic) и [`network-tls-inspection`](network-tls-inspection).
+## Вопрос, с которого всё начинается
 
-## Зачем отдельный модуль
+Ты открыл чужой дамп `cap.pcap` и видишь мешанину трафика: что-то по TCP, что-то по UDP, где-то TLS. Вопрос простой: **что здесь за протоколы и что из них реально видно?** От ответа зависит, найдёшь ли ты учётные данные, заметишь ли аномалию и поймёшь ли, где спрятано содержимое.
 
-Транспорт и приложение — там, где происходят реальные атаки:
+Этот модуль — про прикладной слой: HTTP/2 и HTTP/3/QUIC, протоколы баз данных и TLS-«отпечатки». Он опирается на [`network-quic`](network-quic) и [`network-tls-inspection`](network-tls-inspection) и ведёт к [`network-http2-attacks`](network-http2-attacks), [`network-db-protocols`](network-db-protocols) и [`network-tls-fingerprint`](network-tls-fingerprint).
 
-- **HTTP/2** — мультиплексирование и HPACK дают новые классы атак (smuggling, rapid reset);
-- **HTTP/3 (QUIC)** — зашифрован даже заголовок, ломая классический DPI;
-- **БД-протоколы** — аутентификация часто без шифрования, а ошибки раскрывают версии;
-- **TLS-фингерпринт** — позволяет различать клиентов без расшифровки (JA3/JA4).
+## Наш пример: карта чужого дампа
 
-## HTTP/2 и его атаки
+Прежде чем разбирать конкретный протокол, посмотрим «фазовый состав» трафика:
 
-HTTP/2 — бинарный протокол с **фреймами**, **мультиплексированием** потоков и сжатием заголовков **HPACK**. Новые классы атак: **request smuggling** (CL.TE/TE.TE через разные представления длины), **HPACK-бомбы**, **rapid reset** (CVE-2023-44487), **frame-уровневые аномалии**.
-
-```bash
-# Определить HTTP/2 в дампе
-tshark -r cap.pcap -Y 'http2' -T fields -e http2.header.name -e http2.header.value | head
-# Проверить поддержку HTTP/2
-curl -sI --http2 https://example.com | head
+```
+$ tshark -r cap.pcap -q -z io,phs
+===================================================================
+Protocol Hierarchy Statistics
+Filter:
+eth   frames:4210 bytes:3120456
+  ip
+    tcp
+      tls    frames:1800
+      http2  frames:410
+    udp
+      quic   frames:900
+      mysql  frames:120
 ```
 
-Подробно — в [`network-http2-attacks`](network-http2-attacks).
+Теперь видно, из чего состоит дамп: TLS, HTTP/2, QUIC и немного MySQL. Разберём каждый.
 
-## HTTP/3 и QUIC
+## Шаг 1: HTTP/2 — бинарные фреймы
 
-**QUIC** работает поверх UDP и шифрует почти всё, включая большую часть заголовка. Это ломает классический DPI, но остаются метаданные: версия, длины, тайминги. Блокировка HTTP/3 часто вынуждает клиента откатиться на HTTP/2 по TCP.
+**HTTP/2** — бинарный протокол. Вместо текстовых строк он передаёт **фреймы** (заголовки, данные, настройки), умеет **мультиплексировать** несколько потоков в одном соединении и сжимает заголовки алгоритмом **HPACK**. Бинарность и мультиплексирование породили новые атаки — **request smuggling** (разное представление длины), **HPACK-бомбы** и **rapid reset** (CVE-2023-44487).
 
-```bash
-# HTTP/3 через curl
-curl --http3 -sI https://example.com | head
-# Захват QUIC
-sudo tcpdump -i eth0 -nn 'udp port 443'
-tshark -r cap.pcap -Y 'quic' -T fields -e quic.version | head
+```
+$ tshark -r cap.pcap -Y 'http2' -T fields -e http2.type | sort | uniq -c
+     12 0
+    310 1
+     88 4
 ```
 
-## Протоколы баз данных
+Тип `1` — фрейм HEADERS, `0` — DATA, `4` — SETTINGS. Если HTTP/2 идёт поверх TLS, содержимое скрыто, и видны только сами факты фреймов.
 
-- **MySQL/MariaDB** (3306) — handshake с версией и capabilities; пароль (mysql_native) — challenge/response;
-- **PostgreSQL** (5432) — StartupMessage, затем auth; пароль зависит от метода (md5, scram);
-- **MSSQL** (1433) — TDS-протокол; pre-login раскрывает версию/инстанс.
+## Шаг 2: HTTP/3 и QUIC — зашифрованный транспорт
 
-Часто БД слушают на внешнем интерфейсе без TLS — тогда креды и данные видны на проводе.
+**QUIC** работает поверх UDP и шифрует почти всё, включая большую часть заголовка. Это ломает классический **DPI** (глубокую инспекцию пакетов), но метаданные остаются: версия, длины, тайминги.
 
-```bash
-# Идентификация
-nmap -sV -p 3306,5432,1433 10.0.0.1
-# MSSQL pre-login
-nmap -p 1433 --script ms-sql-info 10.0.0.1
+```
+$ curl --http3 -sI https://example.com | head -3
+HTTP/3 200
+server: cloudflare
+content-type: text/html
 ```
 
-Подробно — в [`network-db-protocols`](network-db-protocols).
-
-## TLS-фингерпринт: JA3/JA4
-
-**JA3/JA4** — отпечатки TLS-клиента по набору параметров ClientHello (версии, шифры, расширения). Они позволяют различать клиентов (браузер, библиотека, малварь) **без расшифровки**. Это ценно для SOC и для маскировки под легитимный клиент.
-
-```bash
-# JA3 из дампа
-tshark -r cap.pcap -Y 'tls.handshake.type==1' -T fields -e tls.handshake.ja3 | sort -u
-# SNI
-tshark -r cap.pcap -Y 'tls.handshake.type==1' -T fields -e tls.handshake.extensions_server_name | sort -u
+```
+$ tshark -r cap.pcap -Y 'quic' -T fields -e quic.version | sort | uniq -c
+    900 0x00000001
 ```
 
-Подробно — в [`network-tls-fingerprint`](network-tls-fingerprint).
+`0x00000001` — версия QUIC v1. Частая практика — блокировать HTTP/3 на периметре, чтобы клиент откатился на HTTP/2 по TCP, где видно больше.
 
-## Что видно на проводе
+## Шаг 3: протоколы баз данных
 
-| Протокол | Видно | Скрыто |
-|---|---|---|
-| HTTP/1.1 (без TLS) | всё | — |
-| HTTP/2 (h2c/h2) | фреймы (если без TLS) | внутри TLS — нет |
-| HTTP/3 (QUIC) | метаданные, версия | заголовки/данные |
-| MySQL/Postgres | handshake/креды (без TLS) | внутри TLS |
-| TLS | SNI, JA3, сертификат | содержимое |
+У каждой СУБД свой формат на проводе:
 
-## Инструменты
+- **MySQL/MariaDB** (3306) — приветствие с версией и capabilities; пароль в старом методе передаётся как challenge/response;
+- **PostgreSQL** (5432) — `StartupMessage`, затем аутентификация (md5 или scram);
+- **MSSQL** (1433) — протокол **TDS**; pre-login раскрывает версию и имя инстанса.
 
-| Инструмент | Назначение |
-|---|---|
-| `curl --http2/--http3` | проверка протоколов |
-| `nghttp2`/`h2spec` | HTTP/2-клиент/тесты |
-| `tshark` | разбор фреймов, JA3, SNI |
-| `nmap ms-sql-info` | MSSQL |
-| `mysql`/`psql` | БД-клиенты |
+Часто БД слушают наружу **без TLS** — тогда видны и логин, и данные:
 
-## Типовые ошибки
-
-- **Игнорировать HTTP/2-специфику** — smuggling невидим в HTTP/1.1-инструментах.
-- **Считать QUIC «невидимым»** — метаданные остаются.
-- **Не проверять БД наружу** — креды/данные в открытом виде.
-- **Путать JA3 и SNI** — отпечаток клиента vs имя сервера.
-- **Не учитывать ECH** — скрывает SNI.
-- **Забывать про downgrade** — HTTP/3 → HTTP/2 → HTTP/1.1.
-- **Не логировать фингерпринты** — малварь не отличается от браузера.
-
-## Что дальше / решение
-
-Пройдите [`network-http2-attacks`](network-http2-attacks), [`network-db-protocols`](network-db-protocols), [`network-tls-fingerprint`](network-tls-fingerprint). Для QUIC — [`network-quic`](network-quic); для TLS — [`network-tls-attacks`](network-tls-attacks).
-
-## Практика: разбор прикладных протоколов
-
-```bash
-# HTTP/2
-tshark -r cap.pcap -Y 'http2' -T fields -e http2.type | sort | uniq -c
-# QUIC
-tshark -r cap.pcap -Y 'quic' -T fields -e quic.version | sort | uniq -c
-# БД
-tshark -r cap.pcap -Y 'mysql' -T fields -e mysql.user | head
-tshark -r cap.pcap -Y 'pgsql' -T fields -e pgsql.query | head
-# TLS-метаданные
-tshark -r cap.pcap -Y 'tls.handshake.type==1' \
-  -T fields -e tls.handshake.extensions_server_name -e tls.handshake.ja3 | head
+```
+$ nmap -p 1433 --script ms-sql-info 10.0.0.1
+PORT     STATE SERVICE
+1433/tcp open  ms-sql-s
+| ms-sql-info:
+|   10.0.0.1:1433:
+|     Instance name: MSSQLSERVER
+|_    Version: Microsoft SQL Server 2019
 ```
 
-## Сравнение прикладных протоколов
+```
+$ tshark -r cap.pcap -Y 'mysql' -T fields -e mysql.user | head -3
+app_user
+app_user
+```
+
+Строка `app_user` в поле `mysql.user` — это логин, отправленный в открытом виде.
+
+## Шаг 4: TLS-фингерпринт — JA3/JA4
+
+**JA3/JA4** — отпечатки TLS-клиента, собранные из параметров его ClientHello (версии, набор шифров, расширения). Они позволяют различать клиентов — браузер, библиотеку, вредоносное ПО — **не расшифровывая трафик**.
+
+```
+$ tshark -r cap.pcap -Y 'tls.handshake.type==1' -T fields -e tls.handshake.ja3 | sort -u
+5d41402abc4b2a76b9719d911017c592
+$ tshark -r cap.pcap -Y 'tls.handshake.type==1' -T fields -e tls.handshake.extensions_server_name | sort -u
+example.com
+cdn.example.net
+```
+
+Поле `tls.handshake.ja3` даёт отпечаток клиента, а `extensions_server_name` — **SNI**, имя запрашиваемого сайта. Для SOC это способ отличить малварь от браузера; для атакующего — понять, под какой клиент маскироваться.
+
+## Шаг 5: с чего начинать разбор дампа
+
+Универсальный порядок для любого незнакомого дампа — от «карты» к деталям. Сначала смотрим фазовый состав, затем применяем профильный фильтр под каждый протокол:
+
+```
+$ tshark -r cap.pcap -T fields -e frame.protocols | tr ':' '\n' | sort | uniq -c | sort -rn | head
+   4210 eth
+   3120 ip
+   1800 tcp
+    900 udp
+```
+
+Дальше — точечно: `-Y 'http2'` для фреймов HTTP/2, `-Y 'quic'` для QUIC, `-Y 'mysql'` для БД, `-Y 'tls.handshake.type==1'` для ClientHello (JA3/SNI). Такой порядок экономит время: ты сразу видишь, есть ли в дампе нужный протокол, и не тратишь запросы на заведомо пустые фильтры.
+
+## Что мы теперь знаем
+
+- Сначала смотрят «фазовый состав» дампа (`tshark -z io,phs`), потом — конкретные протоколы.
+- HTTP/2 — бинарный, с фреймами и HPACK; даёт smuggling и rapid reset.
+- HTTP/3 (QUIC/UDP) шифрует заголовки — остаются метаданные.
+- БД-протоколы без TLS раскрывают версии и учётные данные.
+- JA3/JA4 различают TLS-клиентов, SNI показывает имя сервера — без расшифровки.
+- Разбор всегда идёт от «карты» дампа к профильным фильтрам, а не наоборот.
+- Бинарность HTTP/2 и шифрование QUIC — главные причины, почему классический DPI слепнет.
 
 | Протокол | Транспорт | Шифрование | Что видно |
 |---|---|---|---|
@@ -142,75 +149,75 @@ tshark -r cap.pcap -Y 'tls.handshake.type==1' \
 | MSSQL | TCP (TDS) | опц. TLS | pre-login |
 | TLS | TCP | да | SNI/JA3/сертификат |
 
-## Итог по прикладным протоколам
+## Если защита мешает
 
-Прикладной уровень — там, где данные и атаки. Транспорт (HTTP/2/3) даёт новые классы атак (smuggling, rapid reset), БД-протоколы раскрывают версии и креды без TLS, а TLS-фингерпринт (JA3/JA4/SNI) позволяет различать клиентов без расшифровки. Практический вывод: для каждого протокола знайте, **что видно на проводе**, **что защищено TLS**, и **какие метаданные остаются** — это основа и для атаки, и для защиты.
+- **ECH (Encrypted Client Hello).** Скрывает SNI — остаётся JA3 и сертификат, если виден.
+- **QUIC блокируется.** Клиент откатывается на HTTP/2 по TCP — смотри оба транспорта.
+- **TLS на БД.** Если включён, креды не видны — тогда работай по метаданным и версиям.
+- **HTTP/2 без TLS (h2c) не виден в HTTP/1.1-инструментах.** Используй `nghttp2` и фильтр `http2` в tshark.
 
-## Как выбирать инструмент разбора
+## Практика: разбор по протоколам
 
-Для каждого прикладного протокола нужен свой инструмент. HTTP/2/3 удобно смотреть `nghttp2`/`curl --http2/--http3` и `tshark` с фильтрами `http2`/`quic`. БД-протоколы — родными клиентами (`mysql`, `psql`, `sqlcmd`) и NSE-скриптами. TLS — `tshark` с полями `tls.handshake.*` и `openssl s_client`.
-
-```bash
-# Универсальный старт: что вообще в дампе
-tshark -r cap.pcap -q -z io,phs
-# Топ протоколов
-tshark -r cap.pcap -T fields -e frame.protocols | tr ':' '\n' | sort | uniq -c | sort -rn | head
+```
+$ tshark -r cap.pcap -q -z io,phs
+$ tshark -r cap.pcap -Y 'http2' -T fields -e http2.type | sort | uniq -c
+$ tshark -r cap.pcap -Y 'quic' -T fields -e quic.version | sort | uniq -c
+$ tshark -r cap.pcap -Y 'mysql' -T fields -e mysql.user | head
+$ tshark -r cap.pcap -Y 'tls.handshake.type==1' -T fields -e tls.handshake.ja3 -e tls.handshake.extensions_server_name | sort -u
 ```
 
-Первым делом определите «фазовый состав» трафика (`-z io,phs`), затем переходите к конкретным протоколам. Это экономит время: вы сразу видите, есть ли HTTP/2, QUIC или БД-трафик.
-
-## Итоговый вывод
-
-Прикладные протоколы — финальный слой, где видно реальные данные. Знание их формата позволяет разбирать дампы, находить креды и аномалии, а TLS-фингерпринт — различать клиентов без расшифровки. Практический подход: определите протоколы → разберите метаданные → найдите слабые места (нет TLS, trust-auth, smuggling) → защитите.
-
-## Заметка о едином подходе к разбору
-
-Независимо от протокола, схема разбора одна: **определить протокол** → **разобрать метаданные** → **найти то, что не защищено** → **оценить экспозицию**. Для HTTP/2/3 это фреймы и потоки, для БД — handshake и auth, для TLS — отпечаток. Держите под рукой `tshark -z io,phs` для «карты» дампа и профильные фильтры (`http2`, `mysql`, `tls.handshake`) для деталей. Это универсальный навык, применимый к любому прикладному протоколу, даже незнакомому.
+Порядок один: определить протоколы → разобрать метаданные → найти то, что не защищено → оценить экспозицию.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Чем HTTP/2 отличается от HTTP/1.1?"
+- question: 'Чем HTTP/2 отличается от HTTP/1.1?'
   options:
-    - "Бинарные фреймы и мультиплексирование потоков"
-    - "Только текстовый формат"
-    - "Работает по UDP"
-    - "Не использует заголовки"
+    - 'Бинарные фреймы и мультиплексирование потоков'
+    - 'Только текстовый формат'
+    - 'Работает по UDP'
+    - 'Не использует заголовки'
   answer: 0
-  explanation: "HTTP/2 — бинарный, с потоками и HPACK."
-- question: "Поверх чего работает HTTP/3?"
+  explanation: 'HTTP/2 — бинарный, с потоками и HPACK.'
+- question: 'Поверх чего работает HTTP/3?'
   options:
-    - "QUIC (UDP)"
-    - "TCP"
-    - "ICMP"
-    - "SCTP"
+    - 'QUIC (UDP)'
+    - 'TCP'
+    - 'ICMP'
+    - 'SCTP'
   answer: 0
-  explanation: "HTTP/3 = HTTP поверх QUIC/UDP."
-- question: "Какой порт у PostgreSQL по умолчанию?"
+  explanation: 'HTTP/3 = HTTP поверх QUIC/UDP.'
+- question: 'Какой порт у PostgreSQL по умолчанию?'
   options:
-    - "5432"
-    - "3306"
-    - "1433"
-    - "1521"
+    - '5432'
+    - '3306'
+    - '1433'
+    - '1521'
   answer: 0
-  explanation: "PostgreSQL — 5432, MySQL — 3306, MSSQL — 1433."
-- question: "Что описывает JA3/JA4?"
+  explanation: 'PostgreSQL — 5432, MySQL — 3306, MSSQL — 1433.'
+- question: 'Что описывает JA3/JA4?'
   options:
-    - "Отпечаток TLS-клиента по ClientHello"
-    - "Сертификат сервера"
-    - "Имя сервера (SNI)"
-    - "Пароль"
+    - 'Отпечаток TLS-клиента по ClientHello'
+    - 'Сертификат сервера'
+    - 'Имя сервера (SNI)'
+    - 'Пароль'
   answer: 0
-  explanation: "JA3/JA4 различают клиентов без расшифровки."
-- question: "Почему QUIC усложняет DPI?"
+  explanation: 'JA3/JA4 различают клиентов без расшифровки.'
+- question: 'Почему QUIC усложняет DPI?'
   options:
-    - "Он шифрует почти весь заголовок"
-    - "Он медленный"
-    - "Он не использует порты"
-    - "Он работает по TCP"
+    - 'Он шифрует почти весь заголовок'
+    - 'Он медленный'
+    - 'Он не использует порты'
+    - 'Он работает по TCP'
   answer: 0
-  explanation: "QUIC шифрует заголовки, оставляя лишь метаданные."
+  explanation: 'QUIC шифрует заголовки, оставляя лишь метаданные.'
 ```
+
+## Куда дальше
+
+Мы научились разбирать прикладной слой. Дальше — вглубь: [`network-http2-attacks`](network-http2-attacks) разберёт smuggling и rapid reset, [`network-db-protocols`](network-db-protocols) — протоколы БД на проводе, [`network-tls-fingerprint`](network-tls-fingerprint) — JA3/JA4 в деталях. А пока запомни: **для каждого протокола знай, что видно на проводе, что защищено TLS и какие метаданные остаются.**
 
 ## Где пригодится
 

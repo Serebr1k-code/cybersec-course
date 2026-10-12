@@ -8,214 +8,270 @@ order: 1
 tags: [android, apk, manifest, dex, smali, apktool]
 prerequisites: [mobile-intro]
 useful_for:
-  - "CTF Mobile (реверс APK)"
-  - "Статический анализ Android-приложений"
-  - "Пентест мобильных приложений"
+  - "CTF: Mobile/Reversing"
+  - "Пентест: Android"
+  - "Работа: AppSec"
 estimated_minutes: 14
 summary: "Как устроен APK изнутри: контейнер zip, AndroidManifest.xml, DEX-байткод, smali, ресурсы и нативные библиотеки. Как быстро распаковать и что искать в каждом слое."
 ---
-## Что такое APK изнутри
 
-APK (Android Package) — это обычный zip-архив со строго определённой структурой. Понимание этой структуры — основа статического анализа. Внутри:
+## Вопрос, с которого всё начинается
 
-- `AndroidManifest.xml` — «паспорт» приложения: компоненты, permissions, версии, deep links. В APK он в бинарном (AXML) формате, `apktool`/`jadx` декодируют его в читаемый XML.
-- `classes.dex` — байткод Dalvik (может быть несколько: `classes2.dex`, `classes3.dex` при мультидексе).
-- `res/` — ресурсы: строки, разметка, картинки.
-- `resources.arsc` — скомпилированная таблица ресурсов.
-- `lib/` — нативные библиотеки `.so` под разные ABI (arm64-v8a, armeabi-v7a, x86_64).
-- `assets/` — произвольные файлы, часто с данными или конфигами.
-- `META-INF/` — подписи.
+В вводном уроке мы увидели, что APK — это ZIP-архив, и нашли секрет в коде через `jadx`. Но у APK внутри несколько слоёв, и в каждом можно найти своё: манифест, байткод, ресурсы, нативные библиотеки. Как разобрать APK системно и не пропустить зацепку?
 
-```bash
-unzip -l app.apk | head -30
+В этом уроке мы «вскроем» один APK послойно и посмотрим, что лежит в каждом слое и что в нём искать.
+
+## Наш пример: app.apk
+
+Наш объект — `app.apk`. Мы пройдём по слоям от внешнего к внутреннему: контейнер → манифест → код → ресурсы → нативные библиотеки. Каждый слой отвечает на свой вопрос.
+
+## Шаг 1: APK как ZIP-контейнер
+
+```
+$ unzip -l app.apk
+  Length      Name
+---------  ----
+     4320   AndroidManifest.xml
+  4821112   classes.dex
+    12044   resources.arsc
+   180233   res/layout/activity_main.xml
+   512     META-INF/CERT.RSA
+  9210044   lib/arm64-v8a/libnative.so
 ```
 
-## Распаковка: apktool против jadx
+Слои APK:
 
-`apktool` даёт smali (ассемблер Dalvik) и декодированные ресурсы — идеально, когда нужно пропатчить и пересобрать APK:
+- `AndroidManifest.xml` — описание приложения (бинарное).
+- `classes.dex` — скомпилированный байткод (может быть `classes2.dex`, `classes3.dex`).
+- `resources.arsc` — таблица ресурсов.
+- `res/` — картинки, разметка, строки.
+- `lib/` — нативные библиотеки `.so` под разные архитектуры.
+- `META-INF/` — подпись приложения.
 
-```bash
-apktool d -f app.apk -o app_smali
-apktool b app_smali -o patched.apk
+Уже здесь видно подсказку: есть `libnative.so` — значит, часть логики в нативном коде, и `jadx` её не покажет.
+
+## Шаг 2: декодируем манифест
+
+Бинарный манифест читается `apktool`:
+
+```
+$ apktool d app.apk -o app_decoded
+I: Loading resource table...
+I: Decoding AndroidManifest.xml with resources...
 ```
 
-`jadx` даёт Java-подобный код, удобный для чтения логики:
+Теперь открываем `app_decoded/AndroidManifest.xml`:
 
-```bash
-jadx -d app_java app.apk
-jadx-gui app.apk            # графический интерфейс с поиском
+```xml
+<manifest package="com.example.app">
+  <uses-permission android:name="android.permission.INTERNET"/>
+  <uses-permission android:name="android.permission.CAMERA"/>
+  <application android:debuggable="false">
+    <activity android:name=".MainActivity" android:exported="true"/>
+    <activity android:name=".AdminActivity" android:exported="false"/>
+    <receiver android:name=".BootReceiver" android:exported="true"/>
+    <service android:name=".SyncService" android:exported="false"/>
+  </application>
+</manifest>
 ```
 
-Практика: читайте логику в `jadx`, а патчите — в smali через `apktool`. Для простых задач достаточно `jadx`.
+Что важно:
 
-## AndroidManifest.xml: что искать
+- **`package`** — идентификатор приложения.
+- **`uses-permission`** — к чему есть доступ (интернет, камера).
+- **`exported="true"`** у `MainActivity` и `BootReceiver` — эти компоненты доступны другим приложениям. У `AdminActivity` стоит `false` — он закрыт.
+- **`debuggable="false"`** — отладка выключена (если `true`, приложение легко отлаживать).
 
-Манифест — первое, что нужно смотреть. Ключевые атрибуты:
+## Шаг 3: код — DEX и smali
 
-- `android:exported="true"` у Activity/Service/Receiver/Provider — компонент доступен другим приложениям.
-- `<intent-filter>` с `<data android:scheme=...>` — deep links.
-- `<uses-permission>` — какие права просит приложение.
-- `android:debuggable="true"` — можно отлаживать.
-- `android:allowBackup="true"` — данные можно извлечь через `adb backup`.
+`classes.dex` — байткод виртуальной машины Dalvik. Есть два способа его читать:
 
-```bash
-grep -nE 'exported|scheme|permission|debuggable|allowBackup' app_smali/AndroidManifest.xml
+- **`jadx`** — декомпилирует в Java (привычно и быстро).
+- **`baksmali`** — разбирает в **smali**, низкоуровневый ассемблер Dalvik (точнее, но менее читаемо).
+
+```
+$ baksmali d classes.dex -o smali_out
+$ ls smali_out/com/example/app | head
+AdminActivity.smali
+Api.smali
+MainActivity.smali
 ```
 
-## DEX и smali
+Фрагмент `Api.smali`:
 
-DEX — байткод, который исполняет виртуальная машина Dalvik/ART. `jadx` конвертирует его в Java, но иногда Java-вид «врёт» (обфускация, генерация), и тогда читают smali. Смali — читаемый ассемблер; в нём видно точные вызовы методов, регистры, строки.
-
-```smali
-const-string v0, "https://api.example.com"
-invoke-virtual {p0, v0}, Landroid/content/Context;->getSharedPreferences(...)
+```
+.method public static getApiKey()Ljava/lang/String;
+    .locals 1
+    const-string v0, "sk_live_51H..."
+    return-object v0
+.end method
 ```
 
-Поиск по smali: `grep -rn 'const-string' app_smali/smali | grep -i pass`.
+`const-string` — загрузка строковой константы. Так выглядят захардкоженные секреты на уровне smali. Иногда `jadx` не справляется (обфускация), а `smali` читается.
 
-## Ресурсы и строки
+## Шаг 4: ресурсы
 
-`res/values/strings.xml` — частый источник секретов и подсказок. Также смотрите `res/raw/`, `assets/`:
+`resources.arsc` и `res/` содержат строки, разметку и картинки. Строки часто хранят подсказки и URL:
 
-```bash
-grep -rInE 'flag|secret|key|token' app_smali/res app_smali/assets
+```
+$ grep -r "http" app_decoded/res/values/strings.xml
+<string name="api_base_url">https://api.example.com/v2</string>
 ```
 
-Строки могут быть зашифрованы; тогда ищите метод, который их расшифровывает (обычно Base64/XOR), и повторяйте его.
+Так же ищут ключи, эндпоинты и тексты, которые разработчики «спрятали» в ресурсы.
 
-## Нативные библиотеки
+## Шаг 5: нативные библиотеки
 
-Код в `lib/*/*.so` не декомпилируется `jadx`. Для него нужны Ghidra, IDA, radare2:
+Файлы `lib/*.so` — это машинный код (C/C++). Их не декомпилируют в Java; для них нужны `Ghidra`, `IDA` или `radare2`. Нативные библиотеки часто содержат проверки, которые не хотят показывать в Java: лицензирование, криптографию, античит.
 
-```bash
-file lib/arm64-v8a/libnative.so
-strings -n 6 lib/arm64-v8a/libnative.so | grep -i flag
+```
+$ file app_decoded/lib/arm64-v8a/libnative.so
+libnative.so: ELF 64-bit LSB shared object, ARM aarch64
 ```
 
-Нативный код часто содержит проверки флага или криптографию — это тема отдельного модуля.
+Если важная логика ушла в `.so` — это сигнал: смотреть нужно реверс-инжиниринг нативного кода (отдельный урок).
 
-## Подпись и пересборка
+## Шаг 6: где искать секреты
 
-После патча APK нужно подписать, иначе устройство его не установит:
+Соберём маршрут поиска:
 
-```bash
-apksigner sign --ks my.keystore patched.apk
-# или
-jarsigner -keystore my.keystore patched.apk alias
+1. **Манифест:** `exported`, разрешения, debuggable.
+2. **Smali/Java:** `const-string` с ключами, URL, паролями.
+3. **Ресурсы:** `strings.xml`, `res/raw/`.
+4. **Нативные:** строки в `.so` (`strings libnative.so | grep -i key`).
+5. **Ассеты:** `assets/` с конфигами и базами.
+
+## Мультидекс и структура DEX
+
+Крупные приложения не влезают в один DEX: у него лимит 65 536 методов (проблема «64K»). Поэтому APK содержит несколько файлов `classes.dex`, `classes2.dex` и так далее. При анализе проверяйте все — секрет может лежать во втором или третьем.
+
+## Подпись приложения
+
+Папка `META-INF/` содержит подпись: `CERT.RSA` и `CERT.SF`. Подпись гарантирует, что APK не изменяли после сборки. Для пентеста это важно: если пересобрать APK (например, добавить Frida-хуки), подпись сломается, и приложение может отказаться работать. Поэтому используют переподпись своим ключом (`apksigner`) или обход проверки.
+
+```
+$ apksigner verify --print-certs app.apk
+Signer #1 certificate DN: CN=Example, O=Example Corp
 ```
 
-Для генерации ключа: `keytool -genkey -v -keystore my.keystore -alias a -keyalg RSA -keysize 2048 -validity 10000`.
+## Обфускация и что с ней делать
 
-## Инструменты и практика
+Разработчики обфусцируют код (ProGuard/R8): имена классов и методов заменяются на `a`, `b`, `c`. Читать такой код тяжело, но:
 
-| Задача | Инструмент |
-|--------|-----------|
-| Распаковать | `apktool d`, `unzip` |
-| Декомпилировать | `jadx`, `jadx-gui` |
-| Пересобрать | `apktool b` |
-| Подписать | `apksigner` |
-| Нативный код | Ghidra, radare2 |
-| Секреты | `grep -r` |
+- Строковые константы часто остаются — ищите `const-string`.
+- Ресурсы и манифест не обфусцируются.
+- Логика, вынесенная в `.so`, обфусцируется отдельно.
 
-## Типичные ошибки и подводные камни
+Обфускация замедляет анализ, но не останавливает его.
 
-- **Смотреть только Java** — smali и `.so` содержат больше.
-- **Игнорировать манифест** — там экспортированные компоненты.
-- **Забыть про мультидекс** — логика бывает в `classes2.dex`.
-- **Не подписать после патча** — APK не установится.
-- **Полагать, что `jadx` — истина** — обфускация искажает код.
-- **Не проверить `assets/`** — там бывают ключи и конфиги.
-- **Забыть про ABI** — нужный `.so` может быть только под arm64.
+## Работа с ресурсами и ассетами вручную
 
-## Справочная таблица команд
+Если `apktool` не справился с ресурсами, их достают напрямую. Картинки и файлы из `res/` и `assets/` — обычные файлы внутри ZIP:
 
-```bash
-unzip -l app.apk                       # структура
-apktool d -f app.apk -o smali          # smali + ресурсы
-jadx -d java app.apk                   # Java
-grep -rIn 'flag\|secret\|key' java/    # поиск
-strings -n 6 lib/arm64-v8a/*.so        # нативные строки
-apktool b smali -o new.apk             # пересборка
-apksigner sign --ks k.jks new.apk      # подпись
+```
+$ unzip -o app.apk 'assets/*' -d extracted
+$ ls extracted/assets
+config.json  database.db
 ```
 
-## Что дальше / решение
+`database.db` — вшитая SQLite-база; её открывают `sqlite3` и ищут данные, которых не должно быть в клиенте.
 
-План: распакуйте APK (`apktool` + `jadx`), изучите манифест, найдите экспортированные компоненты и deep links, поищите секреты в ресурсах и коде, проверьте нативные библиотеки. Дальше переходите к динамическому анализу (Frida) и перехвату трафика. Освоив анатомию APK, вы сможете быстро ориентироваться в любом Android-приложении и понимать, где искать слабые места.
+## Быстрый старт: apkleaks
 
-## Практический пример: от APK до флага
+Для первого прохода есть `apkleaks` — он ищет в APK секреты и эндпоинты:
 
-Разберём сквозной сценарий. Дан файл `challenge.apk`. Первое: `unzip -l challenge.apk` — видим `classes.dex`, `lib/arm64-v8a/libnative.so`, `res/`. Второе: `jadx -d out challenge.apk` и поиск строк: `grep -rIn 'flag' out/`. Находим класс `MainActivity` с методом `checkFlag`, который сравнивает ввод с чем-то, загруженным из нативной библиотеки через `nativeCheck`. Третье: смотрим `libnative.so`: `strings -n 6 out/resources/lib/arm64-v8a/libnative.so | grep -i flag`. Четвёртое: если строки нет (зашифрована), открываем `.so` в Ghidra и анализируем `JNI_OnLoad`/`nativeCheck`. Пятое: собрав логику, воспроизводим проверку или патчим smali и пересобираем APK.
+```
+$ apkleaks -f app.apk
+[+] URL: https://api.example.com/v2
+[+] Secret: sk_live_51H...
+```
 
-Этот маршрут — типичный для CTF: статика в `jadx`, затем нативный код, затем патч. Ключ — не пытаться понять всё приложение, а идти по подсказкам: строка «flag», метод с «check» в имени, `System.loadLibrary`.
+Инструмент не заменяет ручной разбор, но экономит время.
 
-## Пересборка и подпись: частые грабли
+## Что такое smali и зачем он нужен
 
-После патча smali пересоберите APK: `apktool b smali -o patched.apk`. Не забудьте подписать — без подписи установка провалится. Если `apktool` ругается на ресурсы, попробуйте `--use-aapt2`. Если приложение проверяет подпись (signature check), патч подписи тоже придётся обходить — либо в коде, либо через Frida. Всегда тестируйте на эмуляторе с writable system.
+Smali — человекочитаемое представление байткода Dalvik: каждая инструкция соответствует одной операции виртуальной машины. Он нужен, когда `jadx` не смог восстановить Java (обфускация, нестандартный код) или когда нужно **изменить** поведение приложения: правки вносят в smali, а затем пересобирают APK через `apktool b`.
 
-## Частые вопросы
+```
+$ apktool b app_decoded -o app_patched.apk
+```
 
-«`jadx` показывает мусор?» — обфускация; используйте `--deobf` и читайте smali. «Логика в `.so`?» — Ghidra/radare2. «Секретов в ресурсах нет?» — ищите в нативном коде и в рантайме. «Как понять, какой ABI?» — `unzip -l`, смотрите `lib/`. «APK не ставится?» — подпишите и проверьте `minSdkVersion`.
+Так снимают проверки и добавляют свои хуки. Это основа патчинга Android-приложений.
 
-## Что дальше / решение
+## APK и Android App Bundle
 
-Итог: распакуйте APK, декомпилируйте, найдите точку проверки, проанализируйте нативный код при необходимости, воспроизведите или пропатчьте логику, пересоберите и подпишите. Держите `jadx-gui` и Ghidra под рукой. Освоив этот маршрут, вы будете решать большинство статических задач категории Mobile за считанные минуты.
+Современные приложения часто распространяются как **AAB** (Android App Bundle) — из него Google Play генерирует APK под конкретное устройство. Если у вас `.aab`, его распаковывают `bundletool`, получая APK. Логика та же: внутри ZIP, манифест, DEX.
 
-## Практический пример: от APK до флага
+## Быстрая проверка перед разбором
 
-Дан `challenge.apk`. Шаг 1: `unzip -l challenge.apk` — видим `classes.dex`, `lib/arm64-v8a/libnative.so`. Шаг 2: `jadx -d out challenge.apk`, затем `grep -rIn 'flag' out/` — находим `MainActivity.checkFlag`, вызывающий `nativeCheck`. Шаг 3: `strings -n 6 out/resources/lib/arm64-v8a/libnative.so | grep -i flag` — если строки нет, открываем `.so` в Ghidra. Шаг 4: восстанавливаем логику, при необходимости патчим smali. Шаг 5: `apktool b smali -o patched.apk` и `apksigner sign`. Это типовой маршрут: статика → нативный код → патч.
+Прежде чем углубляться, посмотрите на размер APK. Слишком маленький — возможно, код в нативной библиотеке. Слишком большой — много ресурсов, где тоже прячут данные. Размер подсказывает, куда смотреть в первую очередь.
 
-## Частые вопросы
+## Что мы теперь знаем
 
-«`jadx` показывает мусор?» — обфускация; `--deobf` и smali. «Логика в `.so`?» — Ghidra/radare2. «APK не ставится после патча?» — подпишите. «Несколько DEX?» — смотрите все. «Секретов нет?» — ищите в нативном коде. «Какой ABI нужен?» — `unzip -l`, смотрите `lib/`.
+По-простому:
 
-## Что дальше / решение
+1. APK — это ZIP из нескольких слоёв.
+2. Манифест показывает компоненты и разрешения.
+3. DEX — байткод; читается `jadx` или `baksmali` (smali).
+4. Ресурсы и ассеты хранят строки и конфиги.
+5. Нативные `.so` требуют отдельного реверса.
 
-Итог: распакуйте, декомпилируйте, найдите точку проверки, проанализируйте нативный код, воспроизведите или пропатчьте логику, пересоберите и подпишите. Держите `jadx-gui` и Ghidra под рукой — этого достаточно для большинства статических задач.
+## На что смотреть дальше
+
+- **Начинайте с манифеста.** `exported` и разрешения — быстрые находки.
+- **Ищите `const-string`.** Это строковые константы — там секреты.
+- **Не забывайте про `.so`.** Важная логика может быть в нативном коде.
+- **Проверяйте ассеты.** `assets/` часто хранит конфиги и базы.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что такое APK по своей сути?"
+- question: "Что содержит файл classes.dex?"
   options:
-    - "Исполняемый бинарник ELF"
-    - "Zip-архив с фиксированной внутренней структурой"
-    - "Образ диска"
-    - "База данных"
+    - "Картинки"
+    - "Скомпилированный байткод Dalvik"
+    - "Подпись приложения"
+    - "Сетевые настройки"
   answer: 1
-- question: "В каком файле лежит исполняемый байткод Android?"
+- question: "Что означает exported=true у компонента?"
   options:
-    - "resources.arsc"
-    - "classes.dex"
-    - "AndroidManifest.xml"
-    - "META-INF/CERT.RSA"
+    - "Компонент доступен другим приложениям"
+    - "Компонент выгружает данные в сеть"
+    - "Компонент зашифрован"
+    - "Компонент только для отладки"
+  answer: 0
+- question: "Какой инструмент разбирает DEX в smali?"
+  options:
+    - "jadx"
+    - "baksmali"
+    - "exiftool"
+    - "binwalk"
   answer: 1
-- question: "Какой флаг манифеста позволяет другим приложениям запускать Activity?"
+- question: "Что делать с файлами lib/*.so?"
   options:
-    - "android:allowBackup="true""
-    - "android:debuggable="true""
-    - "android:exported="true""
-    - "android:usesCleartextTraffic="true""
-  answer: 2
-- question: "Где чаще всего прячут нативную криптографию и проверки лицензии?"
-  options:
-    - "В resources.arsc"
-    - "В lib/<abi>/*.so"
-    - "В META-INF"
-    - "В res/drawable"
+    - "Читать jadx"
+    - "Реверсить в Ghidra/IDA/radare2"
+    - "Открывать в блокноте"
+    - "Игнорировать всегда"
   answer: 1
-- question: "Почему важен `classes2.dex`?"
+- question: "Где часто хранятся строки с URL и ключами?"
   options:
-    - "Это резервная копия"
-    - "При мультидексе часть кода/секретов может лежать там"
-    - "Он содержит только ресурсы"
-    - "Он всегда пустой"
-  answer: 1
+    - "В res/values/strings.xml"
+    - "В META-INF/CERT.RSA"
+    - "В AndroidManifest.xml"
+    - "В названии файла"
+  answer: 0
 ```
+
+## Куда дальше
+
+В следующем уроке мы перейдём к **анализу приложения**: статике и динамике, `jadx` и `Frida`, и научимся находить уязвимости в компонентах. А пока запомни главное: APK разбирается послойно — контейнер, манифест, код, ресурсы, натив.
 
 ## Где пригодится
 
-- **CTF:** Mobile/Reversing — разбор APK, поиск флагов в ресурсах, smali и нативных библиотеках.
-- **Bug bounty:** первичный триаж мобильного приложения, поиск экспортированных компонентов и секретов.
-- **Пентест:** этап «static analysis» по OWASP MASTG, составление карты поверхности атаки.
-- **Работа:** AppSec-ревью релизов, оценка конфигурации манифеста перед публикацией.
+- **CTF (Mobile):** разбор APK и поиск скрытых данных.
+- **Bug bounty:** анализ мобильных приложений и их API.
+- **Пентест:** аудит Android-приложений по OWASP MASTG.
+- **Реверс-инжиниринг:** понимание структуры Android-приложений.

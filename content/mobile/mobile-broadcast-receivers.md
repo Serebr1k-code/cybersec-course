@@ -14,229 +14,207 @@ useful_for:
 estimated_minutes: 30
 summary: "Как экспортированные Broadcast Receivers позволяют другим приложениям запускать логику, отправлять поддельные события и утекать данные, и как это тестировать через adb."
 ---
-## Что такое BroadcastReceiver
 
-BroadcastReceiver — компонент Android, принимающий широковещательные сообщения (broadcast). Через них система и приложения уведомляют друг друга о событиях (`BOOT_COMPLETED`, `SMS_RECEIVED`, кастомные события). Если receiver **экспортирован**, любое приложение (или `adb`) может отправить ему broadcast. Опасности: утечка данных (receiver отдаёт данные в ответ/логирует), подделка событий (приложение доверяет broadcast и выполняет действие), запуск внутренних операций. В связке с `PendingIntent` и `Intent`-редиректами это ведёт к серьёзным атакам.
+## Вопрос, с которого всё начинается
 
-Ментальная модель: broadcast — **недоверенный ввод**. Если приложение обрабатывает его без проверки отправителя/разрешения, вы управляете его поведением.
+Приложение должно реагировать на события системы: подключили зарядку, пришло уведомление, обновились данные. Для этого служат **Broadcast Receivers** — компоненты, принимающие broadcast-сообщения. Если receiver экспортирован, такое сообщение может послать кто угодно. Что из этого следует?
 
-## Как найти exported receivers
+## Наш пример: receivers в fdroid.apk
 
-```bash
-apktool d app.apk -o out
-grep -n -A5 "<receiver" out/AndroidManifest.xml
+Посмотрим, какие receivers объявлены в манифесте `fdroid.apk`:
+
+```
+$ grep -oE '<receiver[^>]*android:name="[^"]*"[^>]*' fdroid_dec/AndroidManifest.xml \
+    | sed -E 's/.*android:name="([^"]*)".*/\1/' | sort -u
+androidx.work.impl.background.systemalarm.RescheduleReceiver
+androidx.work.impl.diagnostics.DiagnosticsReceiver
+androidx.work.impl.utils.ForceStopRunnable$BroadcastReceiver
+org.fdroid.fdroid.nearby.UsbDeviceAttachedReceiver
+org.fdroid.fdroid.nearby.UsbDeviceDetachedReceiver
+org.fdroid.fdroid.nearby.UsbDeviceMediaMountedReceiver
+org.fdroid.install.UnarchivePackageReceiver
+org.fdroid.updates.SelfUpdateReceiver
 ```
 
-```xml
-<receiver android:name=".CommandReceiver" android:exported="true">
-  <intent-filter>
-    <action android:name="com.target.CMD"/>
-    <action android:name="android.intent.action.BOOT_COMPLETED"/>
-  </intent-filter>
-</receiver>
+Большинство из них `exported="false"` — только внутренние. Но один особенный:
+
+```
+$ grep -oE '<receiver[^>]*DiagnosticsReceiver[^>]*' fdroid_dec/AndroidManifest.xml
+<receiver android:exported="true" android:name="androidx.work.impl.diagnostics.DiagnosticsReceiver"
+          android:permission="android.permission.DUMP"/>
 ```
 
-Признаки: `exported=true` без `android:permission`; кастомные actions; `priority` в intent-filter. Декомпилируйте класс и смотрите `onReceive`.
+Разберём, что здесь важно.
 
-```bash
-grep -rn "extends BroadcastReceiver\|onReceive\|getStringExtra\|startService\|startActivity" out_jadx | head
+## Шаг 1: что такое BroadcastReceiver
+
+Receiver — это «обработчик событий». Приложение объявляет: «я слушаю такие-то broadcast-сообщения». Когда сообщение приходит, вызывается `onReceive()`. Broadcast бывают двух видов:
+
+- **Implicit** — без указания получателя; система доставляет всем, кто слушает действие (`action`).
+- **Explicit** — указан конкретный компонент.
+
+Именно implicit-сообщения позволяют чужим приложениям «пинать» чужой receiver.
+
+## Шаг 2: как понять, что receiver экспортирован
+
+Правила те же, что для компонентов вообще:
+
+- `exported="true"` — открыт всем.
+- Есть `intent-filter`, а `exported` не указан — считается экспортированным.
+
+У F-Droid `DiagnosticsReceiver` явно `exported="true"`. Но обратим внимание на вторую строку — `android:permission="android.permission.DUMP"`. Это **защита**: чтобы послать broadcast этому receiver, отправитель должен иметь разрешение `DUMP`, которое есть только у привилегированных процессов. То есть формально открытый receiver фактически закрыт.
+
+## Шаг 3: проверяем отправкой broadcast
+
+Убедиться, что receiver реагирует и как, можно из adb:
+
+```
+$ adb shell am broadcast -n org.fdroid.fdroid/androidx.work.impl.diagnostics.DiagnosticsReceiver
+Broadcasting: Intent { cmp=org.fdroid.fdroid/androidx.work.impl.diagnostics.DiagnosticsReceiver }
+java.lang.SecurityException: Permission Denial: ... requires android.permission.DUMP
 ```
 
-Обращайте внимание на receiver-ы, которые из `onReceive` вызывают `startActivity`/`startService` с данными из Intent — это потенциальный confused deputy.
+Отлично — система отказала: у оболочки нет `DUMP`. Если бы разрешения не было, команда прошла бы, и мы получили бы поведение receiver без всякой проверки.
 
-## Отправка broadcast через adb
+## Шаг 4: чем опасен экспортированный receiver
 
-```bash
-# кастомный action
-adb shell am broadcast -a com.target.CMD --es cmd "reset" --ez force true
-# с указанием компонента (если фильтра нет)
-adb shell am broadcast -n com.target.app/.CommandReceiver -a com.target.CMD --es cmd "evil"
-# sticky (устарело, но встречается)
-adb shell am broadcast -a com.target.EVENT --es data "x"
-```
+Типичные последствия:
 
-Если receiver защищён permission — получите `SecurityException`; это тоже результат (граница есть). Проверьте `protectionLevel` разрешения.
+- **Утечка данных.** Receiver отвечает на запрос данными (токен, статус, конфиг) и отправляет их обратно через broadcast или запись в файл.
+- **Выполнение действия.** Receiver запускает синхронизацию, удаление, установку — без проверки отправителя.
+- **Intent spoofing.** Чужое приложение шлёт поддельное сообщение, прикидываясь системой.
+- **Confused deputy.** Receiver сам имеет привилегии и выполняет действие от имени вызывающего.
 
-## Утечка данных через receiver
+## Шаг 5: ordered broadcast и priority
 
-Некоторые receiver-ы отправляют данные в ответ (`setResultData`, `setResultExtras`) или пишут в лог. Через ordered broadcast можно перехватить ответ.
+Broadcast бывают обычные и **ordered** (по очереди). В ordered-режиме получатели вызываются по приоритету (`android:priority`), и один может «съесть» сообщение, не дав дойти до остальных. Если receiver с высоким приоритетом экспортирован, чужое приложение может перехватить или подавить системные события — например, скрыть уведомление об обновлении.
 
-```bash
-# ordered broadcast с получением результата
-adb shell am broadcast -a com.target.QUERY --es q "secret" 2>&1
-# если receiver отвечает данными — увидим их
-```
+## Шаг 6: правильная защита
 
-Также ищите receiver-ы, которые `sendBroadcast` с чувствительными данными без permission — их перехватит любое приложение.
+Как делают безопасно:
 
-## Intent spoofing и подделка
+- `android:exported="false"` — по умолчанию для внутренних receivers.
+- `android:permission` — требуют у отправителя конкретное разрешение (как `DUMP` у F-Droid).
+- **Локальный broadcast** (`LocalBroadcastManager`) — вообще не покидает процесс.
+- **Проверка отправителя** в `onReceive()` по `getSendingUid()`.
 
-Если приложение доверяет broadcast (например, «сбросить пароль», «выйти», «открыть экран»), вы подделываете событие:
+Отсутствие любого из этих механизмов у чувствительного receiver — находка.
 
-```bash
-adb shell am broadcast -a com.target.LOGOUT
-adb shell am broadcast -a com.target.OPEN_URL --es url "https://evil.com"
-```
+## Полный прогон от начала до конца
 
-Это может привести к навигации на чужой URL, выполнению действия или даже захвату аккаунта. Особенно опасно, когда receiver вызывает `startActivity` с `intent`-extras.
+Соберём проверку receiver в один сценарий:
 
-## Ordered broadcast и priority
+1. **`grep <receiver>`** — собираем все receivers из манифеста.
+2. **Отмечаем экспортированные** (`exported="true"` или `intent-filter`).
+3. **Проверяем `android:permission`** — есть ли защита.
+4. **Пробуем `am broadcast -n`** — реакция или `Permission Denial`.
+5. **Читаем `onReceive()`** — какие действия и данные.
+6. **Пробуем подделать данные** broadcast, если receiver их принимает.
+7. **Фиксируем** результат и severity.
 
-`sendOrderedBroadcast` доставляет сообщение получателям по `priority`. Receiver с высоким `priority` может **поглотить** broadcast (`abortBroadcast()`) или изменить его extras. Если ваше приложение с высоким priority перехватывает чужой broadcast — это вектор атаки на другие приложения. И наоборот: ваш receiver с низким priority может не получить сообщение.
+Если receiver защищён разрешением — это не находка; если нет и он что-то делает — находка.
 
-## PendingIntent и его флаги
+## Если не сработало
 
-`PendingIntent` — «отложенный» Intent, который выполняет другое приложение. Опасность: если `PendingIntent` создан с неявным Intent и без `FLAG_IMMUTABLE`, получатель может его модифицировать (подменить extras/компонент). Ищите:
+- **`Permission Denial`.** Receiver защищён `android:permission`. Проверьте, нет ли у вашего приложения этого разрешения (обычно нет).
+- **Receiver не реагирует на explicit broadcast.** Возможно, он слушает implicit `action` — попробуйте `am broadcast -a <action>`.
+- **Действие требует авторизации.** Сначала войдите, потом повторяйте.
+- **Receiver работает только в foreground.** Некоторые события приходят, лишь когда приложение активно.
+- **Ничего не видно в логах.** Добавьте `logcat`-фильтр по имени receiver или хукайте `onReceive` через Frida.
 
-```bash
-grep -rn "PendingIntent.getActivity\|PendingIntent.getBroadcast\|FLAG_IMMUTABLE\|FLAG_MUTABLE" out_jadx | head
-```
+## Что фиксировать в отчёте
 
-Отсутствие `FLAG_IMMUTABLE` при `targetSdk` < 31 — частая находка. В связке с уведомлениями это даёт intent-redirect.
+- **Имя и тип receiver**, экспортирован ли.
+- **Есть ли `android:permission`** — корневой момент.
+- **Какое действие выполняется** и с какими данными.
+- **Рекомендации:** `exported="false"`, разрешение, `LocalBroadcastManager`, проверка `getSendingUid`.
 
-## Разобранный пример: подделка команды
+## Частые вопросы
 
-```bash
-$ grep -n -A4 "<receiver" out/AndroidManifest.xml
-<receiver android:name=".CmdReceiver" android:exported="true">
-  <intent-filter><action android:name="com.target.RESET"/></intent-filter>
-</receiver>
-$ grep -rn "class CmdReceiver" -A15 out_jadx | grep -i "onReceive\|reset"
-// onReceive: if ("com.target.RESET".equals(i.getAction())) resetAll();
-$ adb shell am broadcast -a com.target.RESET
-Broadcast completed: result=0
-$ # приложение выполнило сброс -> деструктивное действие без авторизации
-```
+**«Любой receiver опасен?»** — нет, только экспортированный и выполняющий действие. **«Что если есть intent-filter, а exported не указан?»** — компонент всё равно экспортирован. **«Как защитить?»** — `exported="false"`, `android:permission` или `LocalBroadcastManager`. **«Можно ли перехватить системный broadcast?»** — да, если ваш receiver имеет высокий приоритет в ordered-режиме. **«Как найти цель?»** — grep по `<receiver>` в манифесте и чтение `onReceive()`.
 
-Любое приложение на устройстве может сбросить состояние жертвы.
+## Практический совет
 
-## Справочная таблица: векторы через receiver
+Receiver — это «удалённый вызов метода» для чужого приложения. Поэтому смотрите на него как на API-эндпоинт: какие данные принимает, что с ними делает, кого проверяет. Если проверки вызывающего нет и действие значимо — фиксируйте. Разрешение `android:permission` — самый частый и самый надёжный барьер; его отсутствие сразу выделяет receiver из списка.
 
-| Вектор | Признак | Команда |
-|--------|---------|---------|
-| Подделка события | exported, кастомный action | `am broadcast -a ...` |
-| Утечка данных | `setResultData`/лог | `am broadcast` (ordered) |
-| Навигация | `startActivity` из onReceive | `--es url ...` |
-| Permission-обход | нет `android:permission` | прямой broadcast |
-| PendingIntent | нет `FLAG_IMMUTABLE` | подмена extras |
-| Ordered-перехват | высокий `priority` | свой receiver |
+## Confused deputy: почему это важно
 
-## Типовые ошибки новичка
+Самая интересная атака через receiver — **confused deputy** («сбитый с толку посредник»). Receiver принадлежит приложению с привилегиями: у него есть доступ к файлам, сети, другим компонентам. Если он принимает broadcast извне и выполняет действие, не проверяя, кто его послал, чужое приложение может использовать привилегии receiver в своих целях. Это как если бы у вас был сотрудник, который по любой записке от незнакомца открывает сейф.
 
-- **Искать только exported.** Receiver может быть доступен через `PendingIntent`.
-- **Не проверять permission.** Проверьте `protectionLevel` — `normal` выдаётся автоматически.
-- **Забыть про system actions.** `BOOT_COMPLETED`/`CONNECTIVITY_CHANGE` тоже могут запускать логику.
-- **Игнорировать `startActivity` из receiver.** Это путь к intent-redirect.
-- **Не смотреть `PendingIntent`.** Отсутствие `FLAG_IMMUTABLE` — реальная находка.
+Например, receiver, который по broadcast «обнови базу», запускает загрузку по URL из того же сообщения. Атакующий посылает свой URL — и приложение качает и устанавливает его содержимое. Формально у атакующего прав нет, но он действует руками привилегированного компонента.
 
-## Практический чек-лист
+Защита от confused deputy — всегда проверять источник: `getSendingUid()`, `android:permission` или `LocalBroadcastManager`. Если в `onReceive()` нет ни одной такой проверки, а действие значимо, — это уязвимость класса high.
 
-1. Собрать все `<receiver>` из манифеста; отметить `exported`/`permission`/actions.
-2. Декомпилировать `onReceive`; выписать, что делается с данными Intent.
-3. Проверить, вызывает ли receiver `startActivity`/`startService` с extras.
-4. Проверить `PendingIntent` (флаги immutable/mutable).
-5. Отправить broadcast через `adb` для каждого action.
-6. Проверить ordered/sticky и приоритеты.
-7. Зафиксировать PoC и impact.
+## Receiver против других компонентов
 
-## Что дальше / решение
+Сравним каналы: Activity требует явного запуска пользователем или `am start`; Service — привязки или запуска; Provider — запроса по URI. Receiver уникален тем, что срабатывает **сам**, по событию, и не требует ни пользователя, ни соединения. Именно поэтому он удобен для атак: атакующему достаточно один раз послать broadcast, а дальше компонент выполнит действие в своём контексте. Отсюда и правило: receiver — это удалённый вызов метода, доступный другим приложениям.
 
-Порядок: найти receivers → проверить exported/permission → разобрать `onReceive` → отправить broadcast → проверить `PendingIntent`/уведомления. Связанные уроки: `mobile-exported-components`, `mobile-notifications`, `mobile-intents-deeplinks`, `mobile-tapjacking`. Решение — когда подтверждено выполнение действия/утечка через broadcast с воспроизводимым PoC.
+## Что мы теперь знаем
 
-## Расширенный разбор: confused deputy и цепочки
+По-простому:
 
-Самая опасная разновидность — **confused deputy**: экспортированный receiver (или Activity) выполняет действие от имени приложения-жертвы, используя данные отправителя. Например, receiver с высоким привилегированным контекстом запускает `startService` с `intent` из extras. Вы контролируете `intent` → запускаете внутренний сервис жертвы.
+1. BroadcastReceiver принимает broadcast-сообщения от системы и приложений.
+2. Экспортированный receiver можно «пнуть» извне через `am broadcast`.
+3. `android:permission` защищает receiver, требуя разрешение у отправителя.
+4. Опасности: утечка данных, выполнение действия, spoofing, confused deputy.
+5. Правильная защита: `exported="false"`, разрешение, локальный broadcast, проверка отправителя.
 
-```java
-// в onReceive: доверяем extras и передаём дальше
-Intent i = (Intent) intent.getParcelableExtra("payload");
-i.setClass(this, PrivilegedService.class);   // класс жертвы
-startService(i);                             // confused deputy
-```
+## На что смотреть дальше
 
-Атака: `am broadcast -a com.target.CMD --es payload ...` (или через `PendingIntent`). Аналогично работает цепочка «broadcast → Activity → deep link → захват аккаунта». Проверяйте каждый receiver, который передаёт `intent`/`extras` дальше без валидации.
-
-## Сравнение с другими компонентами
-
-| Компонент | Точка входа | Типовой вектор |
-|-----------|-------------|----------------|
-| BroadcastReceiver | `onReceive` | подделка события, утечка |
-| Activity | `onCreate`/deep link | intent-redirect, ATO |
-| Service (bound) | `onBind`/AIDL | вызов методов |
-| ContentProvider | `query`/`openFile` | traversal, SQLi |
-| PendingIntent | отложенный Intent | подмена extras |
-
-Broadcast-receiver — самый «тихий» вход: не требует UI, запускается одной командой `adb`, часто не проверяет отправителя. Поэтому его стоит проверять в первую очередь после exported-компонентов.
-
-## Быстрый старт: первые команды
-
-```bash
-# найти receivers
-grep -n -A5 "<receiver" out/AndroidManifest.xml
-# декомпилировать и посмотреть onReceive
-grep -rn "extends BroadcastReceiver\|onReceive" out_jadx | head
-# отправить broadcast по action
-adb shell am broadcast -a com.target.CMD --es cmd "reset"
-# отправить конкретному компоненту
-adb shell am broadcast -n com.target.app/.CmdReceiver -a com.target.CMD --es cmd "evil"
-# проверить PendingIntent-флаги
-grep -rn "PendingIntent.get\|FLAG_IMMUTABLE\|FLAG_MUTABLE" out_jadx | head
-```
-
-Этого достаточно, чтобы найти незащищённые receiver-ы и подделать событие. Далее — проверьте `startActivity`/`startService` из `onReceive` (confused deputy) и цепочки через уведомления.
-
-## Материалы
-
-Документация Android по `BroadcastReceiver`, `PendingIntent` и флагам immutable/mutable (обязательны с `targetSdk` 31). OWASP MASTG: platform-interaction. Связанные уроки: `mobile-exported-components`, `mobile-intents-deeplinks`, `mobile-notifications`, `mobile-android-binder`.
+- **Соберите все receivers** из манифеста и отметьте экспортированные.
+- **Проверяйте `android:permission`** — есть ли защита.
+- **Смотрите, что делает `onReceive()`** — какие действия и данные.
+- **Помните про ordered broadcast** и приоритеты — перехват событий.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что позволяет экспортированный Broadcast Receiver?"
+- question: "Что такое BroadcastReceiver?"
   options:
-    - "Другим приложениям/ADB запускать его логику"
-    - "Шифровать трафик"
-    - "Менять разрешения ОС"
-    - "Ускорять запуск"
+    - "Компонент, принимающий broadcast-сообщения"
+    - "Экран приложения"
+    - "База данных"
+    - "Нативная библиотека"
   answer: 0
-  explanation: "Экспортированный receiver принимает внешние broadcast-Intent."
-- question: "Как отправить broadcast конкретному receiver через adb?"
+- question: "Как «пнуть» экспортированный receiver из adb?"
   options:
-    - "adb shell am broadcast -a ACTION -n pkg/.Receiver"
-    - "adb shell am start -a ACTION"
-    - "adb shell pm install"
-    - "adb shell dumpsys broadcast"
+    - "adb shell am broadcast -n pkg/.Receiver"
+    - "adb install app.apk"
+    - "adb shell pm list packages"
+    - "adb push file"
   answer: 0
-  explanation: "am broadcast с -a и -n вызывает указанный receiver."
-- question: "Когда receiver экспортирован по умолчанию до Android 12?"
+- question: "Какая защита делает экспортированный receiver фактически закрытым?"
   options:
-    - "Если у него есть intent-filter"
-    - "Всегда"
-    - "Никогда"
-    - "Только с root"
+    - "Атрибут android:permission с привилегированным разрешением"
+    - "Длинное имя класса"
+    - "Отсутствие кода"
+    - "Использование HTTPS"
   answer: 0
-  explanation: "Наличие intent-filter делало receiver экспортированным неявно."
-- question: "Чем опасен protectionLevel=normal у permission receiver-а?"
+- question: "Что может сделать чужое приложение с ordered broadcast высокого приоритета?"
   options:
-    - "Любое приложение может запросить это разрешение"
-    - "Оно шифрует данные"
-    - "Оно отключает receiver"
-    - "Оно требует root"
+    - "Перехватить или подавить событие"
+    - "Ускорить систему"
+    - "Расшифровать трафик"
+    - "Подписать APK"
   answer: 0
-  explanation: "normal-permission запрашивается без проверки подписи."
-- question: "Какой adb-командой эмулировать BOOT_COMPLETED для приложения?"
+- question: "Какой механизм broadcast не покидает процесс приложения?"
   options:
-    - "am broadcast -a android.intent.action.BOOT_COMPLETED -p pkg"
-    - "am start -a BOOT"
-    - "pm enable boot"
-    - "dumpsys boot"
+    - "LocalBroadcastManager"
+    - "Implicit broadcast"
+    - "Ordered broadcast"
+    - "Sticky broadcast"
   answer: 0
-  explanation: "Так можно заставить receiver обработать загрузочное событие."
 ```
+
+## Куда дальше
+
+Мы разобрали Broadcast Receivers. В следующем уроке углубимся в **Content Providers** — самый «данные-ёмкий» компонент, где ошибки в путях и SQL приводят к утечке всей базы. А пока запомни главное: экспортированный receiver без `android:permission` — это открытая дверь, которую проверяют командой `am broadcast`.
 
 ## Где пригодится
 
-- **CTF Mobile:** прямой запуск receiver для получения флага/токена.
-- **Bug bounty:** злоупотребление экспортированными receiver — валидная IPC-находка.
-- **Пентест:** аудит межпроцессного взаимодействия приложения.
-- **Работа:** ревью манифеста на предмет лишних экспортов.
+- **CTF Mobile:** вызов скрытой функциональности через broadcast.
+- **Bug bounty:** экспортированный receiver с действием — находка.
+- **Пентест:** проверка OWASP MASVS-PLATFORM.
+- **Работа:** ревью обработчиков событий в манифесте.

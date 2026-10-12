@@ -14,213 +14,225 @@ useful_for:
 estimated_minutes: 45
 summary: "IAM Identity Center (SSO): permission sets, assignments, SCIM-провижининг и федерация с внешним IdP. Как получить роли аккаунтов и где искать ошибки доверия."
 ---
+## Задача
 
-## Зачем этот урок
+Крупные организации входят в AWS не через IAM-пользователей с ключами, а через **SSO**. В AWS это **IAM Identity Center** (раньше — AWS SSO). Задача: понять, как устроен вход, что такое **permission sets** и где ошибки доверия дают широкие роли. Разберём на конкретной организации.
 
-В современной корпоративной AWS почти никто не входит долгоживущими ключами. Сотрудники заходят через **AWS IAM Identity Center** (бывший AWS SSO), который выдаёт временные креды для ролей в разных аккаунтах организации. Для атакующего это означает: компрометация одного SSO-пользователя (пароль + MFA или токен IdP) открывает не один аккаунт, а сразу десятки — в зависимости от назначенных permission sets. Понимание этой модели критично, потому что «мы не используем IAM-пользователей» ≠ «мы защищены».
+## Данные: как устроен вход через SSO
 
-## Модель IAM Identity Center
+**IAM Identity Center** — центральная точка входа: пользователь логинится один раз, получает список аккаунтов и ролей, выбирает нужную. Смотрим, что нам доступно:
 
-Identity Center стоит в management-аккаунте организации. Основные сущности:
-
-- **Identity source** — либо встроенное хранилище Identity Center, либо внешний IdP (Entra ID, Okta, Google Workspace) через SAML 2.0 + SCIM.
-- **Permission set** — шаблон набора прав, который Identity Center материализует в IAM-роль в каждом целевом аккаунте (имя вида `AWSReservedSSO_<Name>_<hash>`).
-- **Assignment** — связка «пользователь/группа ↔ permission set ↔ аккаунт». Именно assignment решает, куда вы можете войти.
-- **Account access** — точка входа `https://<alias>.awsapps.com/start`, откуда пользователь выбирает аккаунт и роль.
-
-При выборе роли Identity Center выдаёт краткоживущие креды (обычно 1–12 часов) через `sso:GetRoleCredentials`. Ключей на диске нет — есть кэш токена в `~/.aws/sso/cache`.
-
-## Инструменты и команды
-
-```bash
-# Локальная конфигурация SSO
-aws configure sso
-# SSO start URL [https://acme.awsapps.com/start]
-# SSO region [us-east-1]
-# -> браузер для входа, затем выбор аккаунта и роли
-
-# Список доступных аккаунтов и ролей
-aws sso list-accounts --access-token "$TOKEN" --query 'accountList[].{Id:accountId,Name:accountName}'
-aws sso list-account-roles --access-token "$TOKEN" --account-id 111122223333 \
-  --query 'roleList[].roleName'
-
-# Получить креды для роли (если есть право sso:GetRoleCredentials)
-aws sso get-role-credentials --access-token "$TOKEN" --account-id 111122223333 \
-  --role-name AdministratorAccess --region us-east-1
-
-# Админский обзор (management-аккаунт)
-aws sso-admin list-instances
-aws sso-admin list-permission-sets --instance-arn arn:aws:sso:::instance/ssoins-xxxx
-aws sso-admin list-account-assignments --instance-arn arn:aws:sso:::instance/ssoins-xxxx \
-  --account-id 111122223333 --permission-set-arn arn:aws:sso:::permissionSet/ssoins-xxxx/ps-xxxx
+```
+$ aws sso list-accounts --access-token $TOKEN \
+    --query 'accountList[].{id:accountId,name:accountName}'
+[ { "id": "123456789012", "name": "prod" },
+  { "id": "210987654321", "name": "dev" } ]
 ```
 
-Кэш токена можно найти и переиспользовать:
+Два аккаунта. Для каждого — набор ролей, которые нам разрешены:
 
-```bash
-ls -la ~/.aws/sso/cache/
-cat ~/.aws/sso/cache/<sha1>.json | jq '{startUrl, region, accessToken, expiresAt}'
+```
+$ aws sso list-account-roles --account-id 123456789012 --access-token $TOKEN \
+    --query 'roleList[].roleName'
+[ "ReadOnlyAccess", "PowerUserAccess", "AdministratorAccess" ]
 ```
 
-## Разобранный пример: от SSO-сессии к админским кредам
+Три роли, включая `AdministratorAccess`. Если она назначена нашему пользователю — мы админы аккаунта `prod`.
 
-Сценарий: на хосте инженера лежит кэш SSO с активным access-токеном.
+## Пробуем в лоб: получаем креды роли
 
-```bash
-# 1. Находим токен и регион
-TOKEN=$(jq -r .accessToken ~/.aws/sso/cache/*.json | head -1)
+SSO выдаёт **временные** креды под выбранную роль:
 
-# 2. Смотрим, в какие аккаунты есть доступ
-aws sso list-accounts --access-token "$TOKEN"
-# {"accountList":[{"accountId":"111122223333","accountName":"prod"},
-#                 {"accountId":"444455556666","accountName":"shared-services"}]}
-
-# 3. Смотрим роли в прод-аккаунте
-aws sso list-account-roles --access-token "$TOKEN" --account-id 111122223333
-# {"roleList":[{"roleName":"ReadOnly"},{"roleName":"PowerUser"},{"roleName":"AdministratorAccess"}]}
-
-# 4. Получаем креды админской роли
-aws sso get-role-credentials --access-token "$TOKEN" --account-id 111122223333 \
-  --role-name AdministratorAccess
-# {"roleCredentials":{"accessKeyId":"ASIA...","secretAccessKey":"...","sessionToken":"...","expiration":1710000000000}}
+```
+$ aws sso get-role-credentials --account-id 123456789012 --role-name AdministratorAccess \
+    --access-token $TOKEN --query 'roleCredentials.{k:accessKeyId,s:secretAccessKey}'
+{ "k": "ASIA...", "s": "..." }
 ```
 
-Экспортировав эти креды, вы — администратор прод-аккаунта, причём без единого пароля. Токен живёт ограниченное время, но `sso:GetRoleCredentials` можно повторять, пока активна SSO-сессия.
+Экспортируем их и проверяем:
 
-## Permission sets и злоупотребление
-
-Permission set с `AdministratorAccess` — прямая эскалация. Но даже «слабые» наборы опасны:
-
-- `PowerUserAccess` даёт всё, кроме IAM, — включая возможность создавать ресурсы и читать секреты.
-- Набор с `iam:PassRole` и `sts:AssumeRole` позволяет перейти в другие роли.
-- Набор с `sso:GetRoleCredentials` на широкий scope — войти в любую назначенную роль.
-- Кастомный набор может содержать `secretsmanager:GetSecretValue` на `*`.
-
-Проверяйте `aws sso-admin describe-permission-set` и `list-managed-policies-in-permission-set`, а также inline-политику (`get-inline-policy-for-permission-set`).
-
-## Внешний IdP и SAML/OIDC
-
-Если identity source — внешний IdP, то доверие строится на SAML-ассершенах. Ошибки здесь:
-
-- **Слабый SCIM-токен.** Утечка SCIM-токена позволяет создавать/менять пользователей и группы в Identity Center.
-- **SAML без подписи.** Если Identity Center принимает неподписанные ассершены (редко, но бывает в кастомных конфигурациях), можно подделать пользователя.
-- **Атрибут-маппинг.** Если роль выбирается по атрибуту из ассершена, инъекция атрибута может повысить права.
-
-## Обход защит и edge cases
-
-- **MFA.** Identity Center умеет требовать MFA. Обход — перехват сессии/токена, кража refresh-токена IdP, либо устройства с активной сессией.
-- **Срок жизни токена.** Access-токен SSO обычно ~8 часов; `get-role-credentials` — минуты. Планируйте цепочку заранее.
-- **Региональность.** Identity Center живёт в одном регионе; `sso-admin` вызывается только в нём.
-- **Delegated admin.** Часто Identity Center делегирован в отдельный аккаунт — там и лежат настройки.
-- **Trusted device / conditional access.** Внешний IdP может требовать managed-устройство; тогда украденный токен не сработает.
-
-## Частые ошибки и поддводные камни
-
-- Считать, что раз нет IAM-пользователей, то нечего и компрометировать: кэш SSO на хосте — полноценный билет.
-- Игнорировать кэш `~/.aws/sso/cache` при постэксплуатации хостов разработчиков.
-- Не проверить все аккаунты: SSO часто даёт доступ к «shared services» и CI-аккаунтам, откуда эскалация проще.
-- Забыть про SCIM-токен как отдельный секрет.
-- Путать permission set и реальную IAM-роль: права определяются набором, а имя роли — `AWSReservedSSO_*`.
-
-## Защита и детект
-
-- Требовать MFA и короткие сессии; включать trusted device для критичных permission sets.
-- Не назначать `AdministratorAccess` через SSO массово; использовать least privilege.
-- Ротировать SCIM-токены; ограничивать `sso:*` management-аккаунтом.
-- Алертить в CloudTrail на `sso:GetRoleCredentials` из необычных мест и на `sso-admin:*` изменения.
-- Ограничивать доступ к `~/.aws/sso/cache` на рабочих станциях.
-
-## Модель угроз и типовые мисконфиги
-
-Главный мисконфиг — избыточные permission sets (`AdministratorAccess`/`PowerUserAccess` на все аккаунты). Второй — отсутствие MFA или слабое condition. Третий — утёкший SCIM-токен. Четвёртый — кэш SSO, оставленный на общедоступном хосте/в бэкапе. Пятый — широкий `sso:GetRoleCredentials`. Все они ведут к одному: временные креды к нескольким аккаунтам.
-
-## Практическое задание
-
-1. Настройте Identity Center с двумя permission sets и двумя аккаунтами.
-2. Выполните `aws configure sso` и получите креды для роли.
-3. Найдите кэш токена и перечислите аккаунты/роли через `list-accounts`/`list-account-roles`.
-4. Добавьте MFA-требование и проверьте, что вход без MFA блокируется.
-
-## Что дальше / решение
-
-Из SSO получаем временные креды к нескольким аккаунтам. Дальше — перечислять права (`aws sts get-caller-identity`, `list-attached-role-policies`), искать секреты и эскалировать. Зафиксируйте в графе атаки путь «кэш SSO → роли → аккаунты». Если требуется MFA и токена нет — `blocked` с условием «нужен refresh-токен IdP/устройство».
-
-## Разобранный пример 2: SCIM-токен и создание пользователя
-
-Когда identity source — внешний IdP, Identity Center принимает SCIM-запросы на управление пользователями и группами. Токен SCIM выдаётся в настройках провижининга и часто лежит в конфигурации IdP или в бэкапах — его утечка приравнивается к админскому секрету.
-
-```bash
-# Идентификатор identity store и эндпоинт
-aws sso-admin list-instances --query 'Instances[0].{Arn:InstanceArn,Store:IdentityStoreId}'
-# {"Arn":"arn:aws:sso:::instance/ssoins-xxxx","Store":"d-1234567890"}
-
-# Создаём пользователя через identitystore (нужен SCIM-токен/права)
-aws identitystore create-user --identity-store-id d-1234567890 \
-  --user-name attacker --display-name 'Attacker' \
-  --emails '[{"Value":"attacker@evil.com","Type":"Work","Primary":true}]'
-# {"UserId":"9a1b2c3d-...","IdentityStoreId":"d-1234567890"}
-
-# Добавляем в группу, которой назначен permission set
-aws identitystore create-group-membership --identity-store-id d-1234567890 \
-  --group-id 5e6f... --member-id '{"UserId":"9a1b2c3d-..."}'
+```
+$ export AWS_ACCESS_KEY_ID=ASIA... AWS_SECRET_ACCESS_KEY=... AWS_SESSION_TOKEN=...
+$ aws sts get-caller-identity
+{ "Arn": "arn:aws:sts::123456789012:assumed-role/AWSReservedSSO_AdministratorAccess_.../ivan" }
 ```
 
-Создав пользователя и добавив его в группу с нужным permission set, атакующий получает вход в целевые аккаунты. SCIM-токен не покрывается MFA — это чистое «право управлять идентичностями».
+Мы — `AdministratorAccess` в проде. Но это **легитимно**: роль назначена нашему пользователю. Интереснее — ошибки конфигурации.
 
-## Федерация Entra ID ↔ AWS SSO
+## Приём: permission sets и ошибки назначений
 
-В гибридных средах Entra ID часто выступает IdP для AWS. Типичные ошибки: app registration с избыточными Graph-разрешениями, слабый signing certificate, отсутствие conditional access. Если у атакующего есть доступ к Entra ID, он может выпустить SAML-ассершен от имени любого пользователя и войти в AWS, не зная пароля.
+**Permission set** — это шаблон ролей и политик, который Identity Center выдаёт в аккаунты. Смотрим, какие есть и что в них:
 
-Проверяйте SAML-метаданные Identity Center и маппинг атрибутов: если конкретный permission set выбирается по значению claim (например, `role` из ассершена), то инъекция claim повышает права. Также смотрите, не отключена ли проверка подписи ассершена и не истёк ли signing certificate — просроченный сертификат иногда «принимается» из-за ошибок конфигурации.
+```
+$ aws sso-admin list-permission-sets --instance-arn $INSTANCE_ARN \
+    --query 'PermissionSets' --output text
+ps-0abc... ps-0def...
+$ aws sso-admin list-managed-policies-in-permission-set --instance-arn $INSTANCE_ARN \
+    --permission-set-arn arn:...:permissionSet/ps-0abc... --query 'AttachedManagedPolicies[].Name'
+[ "PowerUserAccess" ]
+```
 
-| Сценарий | Вектор | Что даёт |
-|---|---|---|
-| Кэш SSO на хосте | `~/.aws/sso/cache` | Роли во всех назначенных аккаунтах |
-| Утёкший SCIM-токен | Provisioning API | Создание/членство пользователей |
-| Доступ к IdP | Выпуск SAML-ассершена | Вход от имени любого пользователя |
-| Широкий permission set | `AdministratorAccess` | Админ в аккаунте |
-| `sso:GetRoleCredentials` | API SSO | Временные креды ролей |
+Типичные слабости:
+
+- **Слишком широкий permission set**, назначенный на всю группу. Например, `PowerUserAccess` на группу `all-developers` — любой разработчик почти админ.
+- **`AdministratorAccess` на широкую группу** — любой участник группы админ.
+- **Assignments** (привязки) — кому и в каком аккаунте какой permission set выдан:
+
+```
+$ aws sso-admin list-account-assignments --instance-arn $INSTANCE_ARN \
+    --account-id 123456789012 --permission-set-arn arn:...:ps-0abc... \
+    --query 'AccountAssignments[].{type:PrincipalType,id:PrincipalId}'
+[ { "type": "GROUP", "id": "0a1b2c..." } ]
+```
+
+Если permission set с широкими правами назначен на большую группу — это и есть дыра.
+
+## Полный прогон: от группы к админским кредам
+
+1. **Разведка.** `list-accounts` → аккаунты; `list-account-roles` → роли.
+2. **Поиск широких permission sets.** `list-permission-sets` + `list-managed-policies-in-permission-set`.
+3. **Assignments.** Кому назначен широкий set (группам? всем?).
+4. **Вход в группу.** Если мы можем попасть в группу (через IdP, SCIM, инвайт) — получаем её права.
+5. **Креды.** `get-role-credentials` → админские креды.
+6. **Эскалация.** Дальше — как обычно (см. `cloud-privesc-iam`).
+
+## SCIM и внешний IdP
+
+Identity Center почти всегда связан с **внешним IdP** (Okta, Entra ID, Google) через **SAML** (вход) и **SCIM** (провижининг пользователей/групп). Слабые места:
+
+- **SCIM-токен утёк** — атакующий создаёт пользователей/группы в Identity Center.
+- **Слишком широкая группа в IdP** — синхронизируется в Identity Center с широкими правами.
+- **SAML без проверки условий** — вход возможен от чужого IdP (см. `cloud-oidc-federation`).
+
+Проверка SCIM-токена (если есть доступ к IdP):
+
+```
+$ curl -s -H "Authorization: Bearer $SCIM_TOKEN" \
+    https://scim.us-east-1.amazonaws.com/$IDP_ID/Users | jq '.totalResults'
+```
+
+## Защита и что ломает атаку
+
+- **Минимум прав в permission sets** — не `AdministratorAccess` на группы.
+- **Узкие assignments** — только нужным группам и аккаунтам.
+- **MFA и conditional access** в IdP.
+- **Защита SCIM-токена**, ротация.
+- **Аудит** назначений и входов.
+
+## Если не сработало
+
+- **Узкие permission sets** — эскалации через SSO нет.
+- **MFA включён, группы маленькие** — сложно попасть в группу.
+- **SCIM-токен защищён** — новых сущностей не создать.
+- **Нет широких assignments** — идём через другие векторы (ключи, CI).
+
+## Мини-сценарий: вход и роль целиком
+
+1. **Вход.** Пользователь логинится в Identity Center (`aws sso login`), получает токен доступа.
+2. **Список.** `aws sso list-accounts` → `prod`, `dev`; `list-account-roles` → `ReadOnlyAccess`, `PowerUserAccess`, `AdministratorAccess`.
+3. **Выбор роли.** `get-role-credentials --role-name AdministratorAccess` → временные креды.
+4. **Проверка.** `sts get-caller-identity` → `AWSReservedSSO_AdministratorAccess_.../ivan`. Это легитимно — роль назначена пользователю.
+5. **Поиск слабости.** `list-permission-sets` + `list-managed-policies-in-permission-set` → у permission set `ps-0def` политика `PowerUserAccess`.
+6. **Assignments.** `list-account-assignments` → `ps-0def` выдан группе `all-developers`.
+7. **Эскалация.** Любой разработчик, попавший в группу (через IdP/SCIM), получает `PowerUserAccess` в проде — почти админ.
+
+Ошибка не в самом SSO, а в **широте** permission set и назначения. Одна привязка «широкие права → большая группа» обесценивает всю модель.
+
+## Разбор: проблема не в SSO, а в широте
+
+IAM Identity Center сам по себе безопаснее статических ключей: креды временные, вход централизованный, MFA возможен. Проблема появляется на уровне **конфигурации**. Permission set — это шаблон, и если в него положили `AdministratorAccess` или `PowerUserAccess`, то любой, кому он назначен, получает эти права. А назначение на **широкую группу** (`all-developers`) размножает админский доступ на десятки людей. SSO не защищает от «мы случайно выдали слишком много». Поэтому аудит начинается с вопросов: какие permission sets есть, какие в них политики, на какие группы они назначены. Минимум прав и узкие группы — вот что делает SSO реально безопасным.
+
+И проверяйте аудит: без логирования входов и назначений вы не узнаете, что кто-то получил широкую роль.
+
+## Что мы теперь знаем
+
+1. IAM Identity Center — централизованный вход в аккаунты AWS.
+2. Permission sets — шаблоны прав; assignments привязывают их к группам.
+3. `get-role-credentials` выдаёт временные креды под роль.
+4. Широкий permission set на большую группу — путь к админу.
+5. SCIM и внешний IdP — точки, где конфигурация ломает безопасность.
+
+## Частые ошибки
+
+- **`AdministratorAccess` на широкую группу.**
+- **SCIM-токен без ротации** — создание пользователей атакующим.
+- **MFA не обязателен** в IdP.
+- **Нет аудита assignments** — никто не видит, кому что выдано.
+- **SAML без проверки условий** — вход от чужого IdP.
+
+## На что смотреть дальше
+
+- Список permission sets и их политики.
+- Assignments: каким группам что выдано.
+- Наличие `AdministratorAccess`/`PowerUserAccess` на широкие группы.
+- SCIM-провижининг и его токен.
+- Условия SAML-федерации с IdP.
+
+## Быстрая проверка
+
+```bash
+aws sso list-accounts --access-token $TOKEN
+aws sso list-account-roles --account-id 123456789012 --access-token $TOKEN
+aws sso-admin list-permission-sets --instance-arn $INSTANCE_ARN
+aws sso-admin list-account-assignments --instance-arn $INSTANCE_ARN --account-id 123456789012 \
+  --permission-set-arn arn:...:permissionSet/ps-0abc...
+```
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что материализует permission set в целевом аккаунте?"
+- question: "Что такое IAM Identity Center?"
   options:
-    - "IAM-роль с именем AWSReservedSSO_<Name>_<hash>"
-    - "IAM-пользователя"
-    - "KMS-ключ"
-    - "S3-бакет"
+    - "Централизованный SSO-вход в аккаунты AWS"
+    - "Сервис снапшотов"
+    - "Балансировщик"
+    - "Хранилище секретов"
   answer: 0
-  explanation: "Identity Center создаёт роль в каждом аккаунте по шаблону permission set."
-- question: "Где на рабочей станции лежит SSO-токен?"
+  explanation: "Identity Center даёт единый вход и роли."
+- question: "Что такое permission set?"
   options:
-    - "~/.aws/sso/cache"
-    - "/etc/shadow"
-    - "~/.ssh/known_hosts"
-    - "/var/log/cloudtrail"
+    - "Шаблон ролей и политик, выдаваемый в аккаунты"
+    - "Снимок диска"
+    - "Тип инстанса"
+    - "Ключ KMS"
   answer: 0
-  explanation: "Кэш SSO хранит access-токен и метаданные сессии."
-- question: "Чем опасен утёкший SCIM-токен?"
+  explanation: "Permission set определяет права роли в аккаунте."
+- question: "Какая конфигурация опасна?"
   options:
-    - "Позволяет управлять пользователями и группами в Identity Center"
-    - "Даёт root в EC2"
-    - "Отключает KMS"
-    - "Меняет DNS"
+    - "AdministratorAccess, назначенный на широкую группу"
+    - "ReadOnly на группу аудита"
+    - "MFA в IdP"
+    - "Узкий permission set"
   answer: 0
-  explanation: "SCIM-провижининг создаёт/меняет пользователей и членство в группах."
-- question: "Какое право позволяет войти в назначенные роли через SSO?"
+  explanation: "Широкие права на большую группу = много админов."
+- question: "Что делает SCIM в Identity Center?"
   options:
-    - "sso:GetRoleCredentials"
-    - "ec2:DescribeInstances"
-    - "s3:ListBucket"
-    - "logs:FilterLogEvents"
+    - "Провижинит пользователей и группы из внешнего IdP"
+    - "Шифрует креды"
+    - "Создаёт снапшоты"
+    - "Балансирует трафик"
   answer: 0
-  explanation: "GetRoleCredentials выдаёт временные креды выбранной роли."
+  explanation: "SCIM синхронизирует пользователей/группы."
+- question: "Что выдаёт get-role-credentials?"
+  options:
+    - "Временные креды под выбранную роль"
+    - "Постоянные IAM-ключи"
+    - "Пароль root"
+    - "Сертификат TLS"
+  answer: 0
+  explanation: "SSO выдаёт временные креды роли."
 ```
+
+## Куда дальше
+
+В следующем уроке (`cloud-s3-deep`) мы углубимся в S3: ACL, bucket policies и presigned URL. А пока главное: SSO безопасен ровно настолько, насколько узки permission sets и assignments.
 
 ## Где пригодится
 
-- **Пентест AWS:** вход в организацию через SSO.
-- **Red team:** латеральное движение между аккаунтами.
-- **Cloud IR:** анализ сессий и permission sets.
-- **Архитектура:** проектирование least-privilege SSO.
+- **Red team:** эскалация через SSO и permission sets.
+- **Пентест:** аудит Identity Center и assignments.
+- **Blue team:** минимум прав, MFA, защита SCIM.
+- **Работа/DevSecOps:** узкие permission sets и группы.
+- **Дальше по дереву:** `cloud-iam-basics`, `cloud-privesc-iam`.

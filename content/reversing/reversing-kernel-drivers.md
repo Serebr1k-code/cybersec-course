@@ -14,222 +14,204 @@ useful_for:
 estimated_minutes: 70
 summary: "Анализ kernel-драйверов Windows и модулей Linux: точки входа, IOCTL, хуки, rootkit-техники и безопасный разбор."
 ---
-**Kernel-драйверы** — код, исполняемый в ring 0, с полным доступом к памяти, устройствам и системным структурам. Их реверс нужен для анализа rootkit'ов, анти-читов, эксплойтов и уязвимостей драйверов (частая точка входа в привилегированную эксплуатацию). Windows-драйверы (`.sys`, WDM/KMDF) и Linux-модули (`.ko`) имеют свои конвенции, точки входа и API. Этот урок — практический разбор kernel-драйверов от идентификации до поиска уязвимостей.
 
-## Точки входа
+## Задача
 
-| ОС | Точка входа | Примечание |
-|----|-------------|------------|
-| Windows (WDM) | `DriverEntry` | регистрирует `DriverObject->MajorFunction[]` |
-| Windows (KMDF) | `EvtDriverDeviceAdd` | фреймворк, WDF-объекты |
-| Linux (LKM) | `module_init`/`init_module` | `module_exit` для выгрузки |
-| macOS | `kmod_start` | kext |
+У тебя есть файл `vboxnetflt.ko` — **модуль ядра Linux**. Такой код исполняется в ring 0, с
+полным доступом к памяти и устройствам. Реверс драйверов нужен для анализа rootkit'ов,
+анти-читов и уязвимостей, через которые получают права ядра. Задача: понять, что модуль
+делает, какие интерфейсы предоставляет и где может быть опасно.
 
-Windows-драйвер получает `PDRIVER_OBJECT` и `PUNICODE_STRING` (путь реестра). В `DriverEntry` регистрируются обработчики IRP (`IRP_MJ_CREATE`, `IRP_MJ_DEVICE_CONTROL`, ...) — основной функционал живёт в них.
+**Важно:** драйвер может сломать всю систему. Работаем только статически или в изолированной
+VM. Никакой загрузки на рабочей машине.
 
-## Windows: реверс .sys
+## Данные: метаданные модуля
 
-```bash
-file driver.sys
-# Импорты — что драйвер умеет
-objdump -p driver.sys | grep -iE "DLL Name" -A2
-# или pefile
-python3 -c "import pefile; pe=pefile.PE('driver.sys'); [print(e.dll) for e in pe.DIRECTORY_ENTRY_IMPORT]"
-# Строки
-strings -a driver.sys | grep -iE "Device|\\\\Device\\\\|ioctl|Symbolic"
-```
-
-Ключевые API и их смысл:
-
-| API | Значение |
-|-----|----------|
-| `IoCreateDevice`/`IoCreateSymbolicLink` | создание устройства/симлинка (доступ из userland) |
-| `ObRegisterCallbacks` | перехват доступа к процессам (античит/защита) |
-| `PsSetCreateProcessNotifyRoutine` | уведомление о создании процессов |
-| `PsSetLoadImageNotifyRoutine` | уведомление о загрузке образов |
-| `MmCopyVirtualMemory` | копирование памяти между процессами |
-| `KeStackAttachProcess` | доступ к адресному пространству другого процесса |
-| `ZwOpenProcess`/`ZwProtectVirtualMemory` | операции с процессами/памятью |
-| `IoCreateDriver`/`ZwLoadDriver` | (динамическая) загрузка драйвера |
-
-## Linux: реверс .ko
+Первое — `file` и `modinfo`. Второй показывает «паспорт» модуля:
 
 ```bash
-file module.ko
-modinfo module.ko                       # метаданные (author, license, params)
-readelf -s module.ko | grep -iE "init|exit"
-# Символы (если не stripped)
-nm module.ko | grep -iE "init|exit|register"
-objdump -d -M intel module.ko | less
+$ file vboxnetflt.ko
+vboxnetflt.ko: ELF 64-bit LSB relocatable, x86-64, ...
+
+$ modinfo vboxnetflt.ko
+name:           vboxnetflt
+version:        7.2.16 r174877 ((0xA2CDe001U))
+license:        GPL
+description:    Oracle VirtualBox Network Filter Driver
+depends:        vboxdrv
+vermagic:       6.19.11-arch1-1 SMP preempt mod_unload
+sig_id:         PKCS#7
+signer:         DKMS module signing key
 ```
 
-Linux-модуль использует `module_init`/`module_exit`; регистрирует `file_operations` (для char/block device), `proc`/`sysfs`-интерфейсы, сетевые хуки. Ищите:
+Читаем: `name` — имя модуля, `depends: vboxdrv` — от какого модуля он зависит (грузится после
+него), `vermagic` — под какое ядро собран (с несовпадающим ядром не загрузится), `signer` —
+модуль **подписан**. Подпись важна: в современных системах неподписанные модули не грузятся
+(аналог DSE в Windows).
 
-- `register_chrdev`/`misc_register` — интерфейс из userland.
-- `copy_from_user`/`copy_to_user` — граница с пользователем (частая зона уязвимостей).
-- `kallsyms_lookup_name` — динамический резолвинг символов ядра (rootkit-техника).
-- Хуки syscall'ов / ftrace / kprobes — перехват.
-
-## Уязвимости драйверов
-
-Драйверы — популярная цель привилегированной эксплуатации:
-
-- **Невалидированный ввод IOCTL.** `IRP_MJ_DEVICE_CONTROL` получает буфер из userland; без проверки размера/типа — переполнение.
-- **Отсутствие проверки прав.** Устройство доступно любому пользователю (`GENERIC_WRITE`) — можно вызвать привилегированные операции.
-- **Arbitrary write/read.** Драйверы, дающие произвольное чтение/запись физической/виртуальной памяти (часто «читерские»), эксплуатируются для повышения привилегий.
-- **BYOVD.** Загрузка уязвимого, но подписанного драйвера для получения ring 0 в обход DSE.
-- **TOCTOU/гонки.** Обработка буфера с проверкой и последующим использованием без блокировки.
-
-## Инструменты
-
-| Инструмент | Роль |
-|------------|------|
-| Ghidra/IDA + kernel-типы | статический разбор |
-| WinDbg (kernel) | отладка Windows-драйвера |
-| `objdump`/`nm`/`readelf` | разбор ELF/PE |
-| `pefile`/`lief` | разбор из Python |
-| Volatility | анализ дампов памяти |
-| `modinfo`/`modprobe` | Linux-модули |
-| `chipsec` | платформенный аудит |
-
-## Разобранный пример: анализ .sys
-
-```text
-1) strings: найти \Device\ и IOCTL-коды.
-2) DriverEntry: регистрация MajorFunction (CREATE/DEVICE_CONTROL).
-3) Обработчик IRP_MJ_DEVICE_CONTROL: switch по IOCTL.
-4) Для каждого IOCTL: проверить валидацию буфера (размер, адрес).
-5) Найти arbitrary write (MmCopyVirtualMemory/KeStackAttachProcess).
-6) Оценить: уязвимость / rootkit-техника.
-```
+## Шаг 1: это не исполняемый файл
 
 ```bash
-strings -a driver.sys | grep -iE '\\\\Device\\\\|IOCTL'
-objdump -d driver.sys | grep -iE "IoCreateDevice|IoCreateSymbolicLink|MmCopyVirtualMemory"
+$ readelf -h vboxnetflt.ko | grep -E 'Type|Entry|Machine'
+  Type:                              REL (Relocatable file)
+  Machine:                           Advanced Micro Devices X86-64
+  Entry point address:               0x0
 ```
 
-## Rootkit-техники
+`Type: REL` (relocatable) и точка входа `0x0` — перед нами **не** готовая программа, а
+объектный файл. Ядро само размещает его в памяти и применяет релокации. Это принципиальное
+отличие `.ko` от обычного ELF: у него нет фиксированной точки входа, есть `init`/`exit`-функции.
 
-- **Сокрытие процессов/файлов** — перехват `ZwQuerySystemInformation`/`NtQueryDirectoryFile` или удаление из списков (`ActiveProcessLinks`).
-- **DKOM** — прямая модификация структур ядра (манипуляция списками).
-- **SSDT/inline-хуки** — перехват системных вызовов.
-- **Callback-сокрытие** — перехват уведомлений для фильтрации.
-- **Детект** — сравнение с эталоном (списки, таблицы), поиск несоответствий, проверка целостности.
+## Шаг 2: секции и точки входа
 
-## Пошаговый разбор Linux-модуля
+Смотрим секции — у модулей они говорящие:
 
 ```bash
-# 1) Метаданные и точка входа
-modinfo module.ko
-readelf -s module.ko | grep -iE "init_module|cleanup_module|init|exit"
-
-# 2) Дизасм инициализации
-objdump -d -M intel module.ko | sed -n '/init_module/,/ret/p' | head -60
-
-# 3) Какие интерфейсы регистрирует
-objdump -d module.ko | grep -iE "register_chrdev|misc_register|proc_create|kallsyms_lookup_name"
-
-# 4) Граница с пользователем
-objdump -d module.ko | grep -iE "copy_from_user|copy_to_user"
-
-# 5) Хуки (rootkit-признаки)
-objdump -d module.ko | grep -iE "kprobe|ftrace|sys_call_table|write_cr0"
+$ readelf -S vboxnetflt.ko | grep -E '\.text|\.init|\.exit|\.modinfo|__ksymtab'
+  [ 3] .text      PROGBITS  ...
+  [10] .init.text PROGBITS  ...      # код инициализации (выгружается после загрузки)
+  [14] .exit.text PROGBITS  ...      # код выгрузки
+  [18] .modinfo  PROGBITS  ...       # метаданные (то, что показал modinfo)
 ```
 
-В `file_operations` ищите `unlocked_ioctl`/`write`/`read` — там ввод из userland. Проверяйте, валидируется ли длина и копируется ли корректно (`copy_from_user` с проверкой возврата и размера). Классический баг — `copy_from_user` в фиксированный буфер без проверки `count` (переполнение ядерного стека/кучи).
+Символы дают реальные точки входа:
 
-Rootkit-признаки: `kallsyms_lookup_name` (резолвинг символов в обход экспортов), прямая запись в `sys_call_table` (снятие write-protection через `write_cr0`/CR0.WP), регистрация kprobe/ftrace-хуков. Их наличие — сильный индикатор вредоносности.
+```bash
+$ nm vboxnetflt.ko | grep -iE 'init_module|cleanup_module|LinuxInit'
+0000000000000010 t VBoxNetFltLinuxInit
+0000000000000000 T __pfx_init_module
+0000000000000000 T __pfx_cleanup_module
+```
 
-## Практика: разбор Windows DriverEntry
+`init_module` — что вызывается при загрузке (`module_init`), `cleanup_module` — при выгрузке
+(`module_exit`). В нашем случае инициализация реализована в `VBoxNetFltLinuxInit`. Всё, что
+делает модуль при старте (регистрация интерфейсов, хуков), — здесь.
+
+## Шаг 3: строки — карта функциональности
+
+```bash
+$ strings -n 6 vboxnetflt.ko | grep -iE 'VBox|netflt|device|failed' | head
+vboxNetFltLinuxStartXmitFilter
+vboxNetFltLinuxHookDev
+vboxNetFltLinuxUnhookDev
+vboxnetflt/VBoxNetFlt.c
+VBoxNetFlt: Successfully started.
+VBoxNetFlt: failed to initialize device extension (rc=%d)
+```
+
+Строки называют **источник** (`VBoxNetFlt.c`), функции (`HookDev`/`UnhookDev`) и сообщения.
+`Hook`/`Unhook` — намёк на перехват сетевых операций (это сетевой фильтр). Для rootkit'а здесь
+ты бы искал строки вида `kallsyms_lookup_name`, `sys_call_table`, `hide`, `hide_pid`.
+
+## Шаг 4: импорты — что модуль умеет
+
+`nm -u` показывает **неразрешённые** символы — то есть функции, которые модуль берёт у ядра
+или других модулей. Это «декларация возможностей»:
+
+```bash
+$ nm -u vboxnetflt.ko | head
+                 U SUPDrvLinuxIDC
+                 U VBoxHost_RTMemAllocTag
+                 U VBoxHost_RTMemFree
+                 U VBoxHost_RTNetIPv4FinalizeChecksum
+                 U VBoxHost_RTNetIPv6PseudoChecksumEx
+```
+
+Видно, что модуль работает с памятью (`RTMemAlloc`/`RTMemFree`) и сетевыми пакетами
+(`RTNetIPv4*Checksum`) — согласуется с «Network Filter Driver». Импорты сразу говорят, какие
+системные возможности задействованы.
+
+Для Linux-модуля особое внимание на **границу с пользователем**: `copy_from_user`/`copy_to_user`,
+`register_chrdev`/`misc_register`, `unlocked_ioctl`. Это места, где в модуль попадает ввод из
+userspace — и где чаще всего живут уязвимости.
+
+## Шаг 5: Windows-драйверы (.sys) — что иначе
+
+Windows-драйвер — это PE-файл, и точка входа у него называется `DriverEntry`:
 
 ```c
-// Псевдокод типичного DriverEntry
 NTSTATUS DriverEntry(PDRIVER_OBJECT drv, PUNICODE_STRING reg) {
-    drv->DriverUnload = DrvUnload;
     drv->MajorFunction[IRP_MJ_CREATE]         = DrvCreate;
-    drv->MajorFunction[IRP_MJ_CLOSE]          = DrvClose;
-    drv->MajorFunction[IRP_MJ_DEVICE_CONTROL] = DrvIoctl;
-    UNICODE_STRING dev = RTL_CONSTANT_STRING(L"\\Device\\MyDrv");
+    drv->MajorFunction[IRP_MJ_DEVICE_CONTROL] = DrvIoctl;   // сюда идут IOCTL
     IoCreateDevice(drv, 0, &dev, FILE_DEVICE_UNKNOWN, 0, FALSE, &g_Dev);
-    UNICODE_STRING sym = RTL_CONSTANT_STRING(L"\\DosDevices\\MyDrv");
-    IoCreateSymbolicLink(&sym, &dev);
+    IoCreateSymbolicLink(&sym, &dev);                       // доступ из userland
     return STATUS_SUCCESS;
 }
 ```
 
-Шаги разбора:
+Логика такая же, как у `.ko`: в `DriverEntry` регистрируются обработчики, а основной
+функционал — в **IRP-обработчиках**. Ключевое — `IRP_MJ_DEVICE_CONTROL`: через него
+пользовательский процесс шлёт драйверу команды **IOCTL** (I/O Control), несущие буфер с
+данными. `IoCreateSymbolicLink` создаёт симлинк `\DosDevices\...` — это и есть «вход» для
+атакующего.
 
-```text
-1) Найти DriverEntry (по ссылке в PE-заголовке/символам или по строкам \Device\).
-2) Выписать регистрацию MajorFunction — какие IRP обрабатываются.
-3) Найти обработчик IRP_MJ_DEVICE_CONTROL: switch по IoControlCode.
-4) Для каждого кода — проверить валидацию InputBufferLength/OutputBufferLength
-   и доступность устройства из userland (права на \DosDevices\...).
-5) Искать arbitrary write (MmCopyVirtualMemory, KeStackAttachProcess, запись по
-   user-controlled адресу).
-```
+## Шаг 6: где искать уязвимости
 
-Наличие симлинка `\DosDevices\...` означает доступ из userland — потенциальная точка атаки. Если IOCTL не проверяет длину буфера и пишет по адресу из ввода — это локальное повышение привилегий.
+Драйверы — популярная цель привилегированной эксплуатации:
 
-## Частые ошибки
+- **Невалидированный ввод IOCTL.** Обработчик получает буфер из userland; без проверки
+  размера/типа — переполнение.
+- **Отсутствие проверки прав.** Устройство доступно любому пользователю → привилегированные
+  операции вызываются из непривилегированного процесса.
+- **Arbitrary write/read.** Драйвер пишет/читает по адресу из ввода → локальное повышение прав.
+- **BYOVD.** Загрузка уязвимого, но **подписанного** драйвера для получения ring 0 в обход
+  защиты от неподписанных драйверов.
 
-- **Анализ без kernel-типов.** Без структур (`EPROCESS`, `DRIVER_OBJECT`) дизасм малопонятен — импортируйте типы.
-- **Пропуск IOCTL.** Основной функционал — в обработчике IOCTL, а не в DriverEntry.
-- **Не проверить подпись.** Неподписанные драйверы не грузятся (DSE); для теста — test-signing.
-- **Запуск драйвера на хосте.** Только изолированная VM (драйвер может всё сломать).
-- **Игнорирование версии ядра.** Смещения структур зависят от версии — сверяйте с PDB/BTF.
-- **Нет дампа памяти.** Для rootkit-анализа сравнение с эталоном критично.
+Для каждого IOCTL-кода проверяй, валидируются ли `InputBufferLength`/`OutputBufferLength` и
+права. Отсутствие проверок — классический путь к повышению привилегий.
 
-## Настройка исследовательского окружения
+## Шаг 7: rootkit-техники (по признакам)
 
-- **Windows**: изолированная VM со включённой kernel-отладкой (WinDbg через named pipe/network), test-signing для загрузки своих драйверов, снапшоты. Не работайте с драйверами на хосте.
-- **Linux**: модуль собирается под точную версию ядра (`uname -r`); загрузка в VM с тем же ядром; `dmesg` для логов; `rmmod` для выгрузки.
-- **Типы ядра**: для Ghidra/IDA импортируйте PDB (Windows) или BTF/`vmlinux` (Linux) — без них структуры непонятны.
-- **Изоляция**: драйвер в ring 0 может всё; никогда не тестируйте на рабочей системе.
+Если модуль вредоносный, он будет прятаться. Ищи в дизассемблере и строках:
 
-## Linux vs Windows: различия
+- `kallsyms_lookup_name` — резолвинг символов ядра в обход экспортов (rootkit-техника).
+- Прямая запись в `sys_call_table` со снятием write-protection (`write_cr0`, CR0.WP) — SSDT-хуки.
+- `kprobe`/`ftrace` — перехват функций ядра.
+- **DKOM** — прямая модификация структур ядра (удаление процесса из списка `ActiveProcessLinks`).
 
-| Аспект | Windows | Linux |
-|--------|---------|-------|
-| Формат | PE (.sys) | ELF (.ko) |
-| Точка входа | DriverEntry/EvtDriverDeviceAdd | module_init |
-| Интерфейс userland | Device + IOCTL | char device/ioctl, proc/sysfs |
-| Граница | `METHOD_BUFFERED`/`_IN_DIRECT` | `copy_from_user`/`copy_to_user` |
-| Загрузка | `sc create`/`ZwLoadDriver`, DSE | `insmod`/`modprobe` |
-| Типы | PDB | BTF/vmlinux |
+Наличие таких конструкций — сильный индикатор вредоносности. Детект строится на сравнении с
+эталоном: сверяют списки процессов/драйверов и таблицы системных вызовов с «чистой» системой
+и ищут расхождения (пропавшие записи, подменённые указатели).
 
-## Пример IOCTL-уязвимости
+## Если не сработало
 
-```c
-// уязвимый обработчик (псевдокод)
-NTSTATUS DrvIoctl(PDEVICE_OBJECT dev, PIRP irp) {
-    PIO_STACK_LOCATION st = IoGetCurrentIrpStackLocation(irp);
-    ULONG inlen  = st->Parameters.DeviceIoControl.InputBufferLength;
-    ULONG outlen = st->Parameters.DeviceIoControl.OutputBufferLength;
-    PVOID buf = irp->AssociatedIrp.SystemBuffer;
-    switch (st->Parameters.DeviceIoControl.IoControlCode) {
-    case 0x80002000:                       // без проверки длины!
-        memcpy(user_ptr, buf, *(ULONG*)buf); // переполнение / arbitrary write
-        break;
-    }
-    ...
-}
-```
+- **Дизасм непонятен** — нужны kernel-типы: импортируй `BTF`/`vmlinux` (Linux) или `PDB`
+  (Windows) в Ghidra/IDA; без структур смещения полей — «магия».
+- **Модуль не грузится** — `vermagic` не совпадает с ядром или подпись не принята.
+- **Смещения «плывут»** — структуры ядра зависят от версии; сверяй с точной версией (`uname -r`).
+- **Стриппленный модуль** — опирайся на `modinfo`, секции и строки; `init`/`exit` ищи по
+  секциям `.init.text`/`.exit.text`.
 
-Анализ: для каждого IOCTL-кода проверьте, валидируются ли `InputBufferLength`/`OutputBufferLength`, есть ли проверка адресов (`ProbeForRead`/`ProbeForWrite`) и прав доступа. Отсутствие проверок → переполнение/arbitrary write → локальное повышение привилегий.
+## Что мы теперь знаем
 
-## Что делать дальше / решение
-
-1. Идентифицируйте тип драйвера и точку входа.
-2. Снимите импорты/строки — карта возможностей.
-3. Разберите DriverEntry и обработчики IRP/файловых операций.
-4. Для каждого IOCTL/интерфейса проверьте валидацию буфера и права доступа.
-5. Ищите arbitrary read/write, хуки, DKOM-техники.
-6. Подтвердите на изолированной VM; оформите отчёт (уязвимость/техника, IOC).
+- `.ko` — это **relocatable** ELF без точки входа; ядро само размещает его и зовёт `init`/`exit`.
+- `modinfo` даёт паспорт модуля (имя, `depends`, `vermagic`, подпись) — первый шаг триажа.
+- Секции `.init.text`/`.exit.text` и символы `init_module`/`cleanup_module` — точки входа.
+- Неразрешённые символы (`nm -u`) — карта возможностей модуля.
+- Windows-драйвер: `DriverEntry` + обработчики IRP; IOCTL — главный канал ввода из userland.
+- Уязвимости драйверов — невалидированный IOCTL, отсутствие прав, arbitrary write/read, BYOVD.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
+- question: "Почему `.ko` имеет `Type: REL` и точку входа 0x0?"
+  options:
+    - "Это relocatable-объект: ядро само размещает его в памяти и применяет релокации"
+    - "Файл повреждён"
+    - "Это исполняемый ELF"
+    - "Так задумано для Windows"
+  answer: 0
+  explanation: "Модуль ядра — не готовая программа; точки входа — init/exit-функции."
+- question: "Что показывает `modinfo module.ko`?"
+  options:
+    - "Паспорт модуля: имя, license, depends, vermagic, подпись"
+    - "Дизассемблированный код"
+    - "Список IOCTL"
+    - "Дамп памяти"
+  answer: 0
+  explanation: "`modinfo` читает секцию `.modinfo` с метаданными."
 - question: "Какая точка входа у Windows-драйвера?"
   options:
     - "DriverEntry"
@@ -237,44 +219,36 @@ NTSTATUS DrvIoctl(PDEVICE_OBJECT dev, PIRP irp) {
     - "module_init"
     - "_start"
   answer: 0
-  explanation: "DriverEntry — аналог main для драйверов Windows."
+  explanation: "`DriverEntry` — аналог `main`; регистрирует IRP-обработчики."
 - question: "Что такое IOCTL?"
   options:
-    - "Код команды для драйвера через DeviceIoControl"
-    - "Формат файла"
+    - "Код команды, которую userland шлёт драйверу через DeviceIoControl"
+    - "Формат PE-файла"
     - "Тип шифрования"
     - "Сетевой пакет"
   answer: 0
-  explanation: "IOCTL кодирует функцию/устройство/метод/доступ."
-- question: "Что такое SSDT hook?"
-  options:
-    - "Подмена записей System Service Descriptor Table"
-    - "Сканирование портов"
-    - "Шифрование диска"
-    - "Сжатие памяти"
-  answer: 0
-  explanation: "SSDT-хук перехватывает системные сервисы."
+  explanation: "IOCTL кодирует функцию/устройство/метод/доступ и несёт буфер данных."
 - question: "Как безопасно анализировать драйвер?"
   options:
-    - "В изолированной VM с kernel-отладкой"
-    - "На рабочей системе"
-    - "Без изоляции"
-    - "Сразу загрузить"
+    - "Статически или в изолированной VM с kernel-отладкой"
+    - "Загрузить на рабочей системе"
+    - "Без изоляции и снапшотов"
+    - "Сразу выполнить"
   answer: 0
-  explanation: "Изоляция и снапшоты защищают от последствий."
-- question: "Какая точка входа у Linux-модуля?"
-  options:
-    - "module_init"
-    - "DriverEntry"
-    - "main"
-    - "DllMain"
-  answer: 0
-  explanation: "Linux-модули используют module_init/module_exit."
+  explanation: "Драйвер в ring 0 может всё сломать; изоляция и снапшоты обязательны."
 ```
+
+## Куда дальше
+
+Мы разобрали модуль ядра и его опасные места. Но многие современные вредоносы вообще не
+трогают ядро — они живут в **памяти процесса** и прячутся от статических инструментов. Дальше
+мы перейдём к символьному исполнению — технике, которая автоматически находит ввод,
+удовлетворяющий условиям проверки. А пока главное запомни: **у `.ko` нет точки входа —
+есть `init`/`exit`; уязвимости живут на границе с userland.**
 
 ## Где пригодится
 
-- **CTF:** Reversing (expert) — kernel-задачи.
-- **Malware analysis:** rootkits.
-- **Anti-cheat/kernel research:** анализ драйверов.
-- **Работа:** kernel security.
+- **CTF Reversing (expert):** kernel-задачи и разбор драйверов.
+- **Malware analysis:** rootkit'ы и DKOM-техники.
+- **Anti-cheat / kernel research:** анализ драйверов защиты.
+- **Работа (kernel security):** аудит драйверов, поиск LPE-уязвимостей.

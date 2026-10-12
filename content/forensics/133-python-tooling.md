@@ -15,35 +15,44 @@ estimated_minutes: 52
 summary: "Скриптование форензика на Python: доступ к файловым системам через pytsk3, использование API Volatility3, разбор PCAP через pyshark и построение собственных пайплайнов для нестандартных задач."
 ---
 
-Готовые инструменты покрывают большинство задач, но иногда нужен **свой пайплайн**: обработать тысячи файлов, извлечь нестандартное поле, связать артефакты. Python — язык форензика де-факто: библиотеки `pytsk3` (ФС), `volatility3` (память), `pyshark` (сеть), `python-registry`, `yara-python` дают программный доступ ко всему.
+## Вопрос, с которого всё начинается
 
-## pytsk3: доступ к файловым системам
+Готовые инструменты (`fls`, `vol`, `tshark`) покрывают большинство задач. Но иногда нужен **свой пайплайн**: обработать тысячи файлов, извлечь нестандартное поле, связать артефакты из разных источников. Тут на сцену выходит Python — язык форензика де-факто.
 
-`pytsk3` — привязка The Sleuth Kit к Python. Позволяет открыть образ и обойти ФС программно.
+## Наш пример: вытащить все PST-файлы из образа
+
+У нас есть образ `disk.img`, и задача конкретная: найти и извлечь **все** файлы почты `.pst`, не монтируя образ. Сделаем это скриптом на Python с библиотекой `pytsk3`.
+
+## Шаг 1: pytsk3 — доступ к файловой системе
+
+`pytsk3` — привязка The Sleuth Kit к Python. Открываем образ, смотрим разделы:
 
 ```python
 import pytsk3
 
 img = pytsk3.Img_Info("disk.img")
-# Список разделов
 vol = pytsk3.Volume_Info(img)
 for p in vol:
     print(p.addr, p.start, p.len, p.desc.decode())
-# Открыть конкретный раздел по offset
-fs = pytsk3.FS_Info(img, offset=2048*512)
-# Обход корня
-root = fs.open_dir(path="/")
-for e in root:
-    name = e.info.name.name.decode()
-    meta = e.info.meta
-    if meta:
-        print(name, meta.type, meta.size)
 ```
 
-Полезные приёмы: рекурсивный обход (`fs.open_dir`), чтение файла (`fs.open(path).read_random`), работа с удалёнными (проверка `meta.flags`), доступ к потокам ADS.
+Важная тонкость: `pytsk3.FS_Info` принимает **offset в байтах**, а не в секторах. Если раздел начинается с сектора 2048, offset = `2048 * 512`:
 
 ```python
-# Рекурсивный обход и поиск по расширению
+fs = pytsk3.FS_Info(img, offset=2048 * 512)
+root = fs.open_dir(path="/")
+for e in root:
+    name = e.info.name.name.decode(errors="ignore")
+    print(name)
+```
+
+Имена декодируем с `errors="ignore"` — в ФС встречаются не-UTF8 байты.
+
+## Шаг 2: рекурсивный обход
+
+Файловая система — дерево. Обходим его рекурсией, различая каталоги и файлы по `meta.type`:
+
+```python
 def walk(fs, path="/", depth=0):
     for e in fs.open_dir(path=path):
         name = e.info.name.name.decode(errors="ignore")
@@ -52,319 +61,39 @@ def walk(fs, path="/", depth=0):
         if e.info.meta and e.info.meta.type == pytsk3.TSK_FS_META_TYPE_DIR:
             walk(fs, path.rstrip("/") + "/" + name, depth+1)
         else:
-            if name.lower().endswith((".jpg", ".png")):
-                print(path + "/" + name)
+            print(path + "/" + name)
 ```
 
-## Volatility3 API
+## Шаг 3: извлекаем найденные файлы
 
-Volatility3 можно использовать как библиотеку:
-
-```python
-import volatility3
-from volatility3.framework import contexts, constants
-from volatility3.framework.layers import physical
-from volatility3.plugins.windows import pslist
-
-ctx = contexts.Context()
-# ... настройка слоёв и символов
-# Обычно проще вызывать через CLI и парсить JSON:
-```
-
-На практике чаще вызывают `vol` из скрипта и парсят JSON-вывод — это надёжнее, чем копаться в API:
+Дополняем обход условием: если файл заканчивается на `.pst`, читаем его содержимое через `read_random` и сохраняем:
 
 ```python
-import subprocess, json
-def run_vol(dump, plugin):
-    out = subprocess.run(["vol","-r","json","-f",dump,plugin],
-                         capture_output=True, text=True)
-    return [json.loads(l) for l in out.stdout.splitlines() if l.strip()]
-for rec in run_vol("mem.raw","windows.pslist"):
-    print(rec["PID"], rec["ImageFileName"])
-```
-
-## pyshark: разбор PCAP
-
-`pyshark` оборачивает tshark и даёт доступ к полям пакетов:
-
-```python
-import pyshark
-cap = pyshark.FileCapture("capture.pcap", display_filter="http.request")
-for pkt in cap:
-    try:
-        print(pkt.ip.src, pkt.http.host, pkt.http.request_uri)
-    except AttributeError:
-        pass
-cap.close()
-```
-
-Для больших PCAP используйте `only_summaries=True` (быстрее) и фильтры, чтобы не грузить всё в память.
-
-## YARA и реестр из Python
-
-```python
-# yara-python
-import yara
-rules = yara.compile(filepath="rules.yar")
-matches = rules.match("/evidence/suspect.bin")
-for m in matches:
-    print(m.rule, m.strings)
-
-# python-registry
-from Registry import Registry
-reg = Registry.Registry("SYSTEM")
-key = reg.open("ControlSet001\\Services\\bam\\State\\UserSettings")
-for sk in key.subkeys():
-    print(sk.name(), [v.name() for v in sk.values()])
-```
-
-## Разобранный пример
-
-```python
-# Найти все файлы с расширением .pst и вытащить их из образа
 import pytsk3, os
 img = pytsk3.Img_Info("disk.img")
 fs = pytsk3.FS_Info(img, offset=2048*512)
+
 def extract(fs, path, outdir):
     for e in fs.open_dir(path=path):
         name = e.info.name.name.decode(errors="ignore")
-        if name in (".",".."): continue
-        full = path.rstrip("/")+"/"+name
+        if name in (".", ".."):
+            continue
+        full = path.rstrip("/") + "/" + name
         if e.info.meta.type == pytsk3.TSK_FS_META_TYPE_DIR:
             extract(fs, full, outdir)
         elif name.lower().endswith(".pst"):
             data = e.read_random(0, e.info.meta.size)
             open(os.path.join(outdir, name), "wb").write(data)
             print("extracted", full, e.info.meta.size)
+
 extract(fs, "/", "/evidence/pst")
 ```
 
-Скрипт рекурсивно обходит ФС и вытаскивает все PST-файлы, не монтируя образ.
+Скрипт рекурсивно обходит ФС и вытаскивает все PST, не монтируя образ. Работаем **read-only** — оригинал не меняется.
 
-## Краевые случаи и подводные камни
+## Шаг 4: другие библиотеки
 
-- **Offset раздела.** pytsk3 ждёт offset в байтах, не секторах.
-- **Кодировки имён.** Декодируйте с `errors="ignore"`.
-- **Память.** Большие PCAP/образы в память не грузите — читайте потоково.
-- **Символы.** Volatility API требует корректных символов.
-- **Скорость.** Python медленнее CLI; для массовых операций оптимизируйте.
-- **Версии.** API библиотек меняется; фиксируйте зависимости.
-- **Целостность.** Открывайте образы read-only.
-- **Ошибки.** Оборачивайте доступ к полям пакетов в try/except (поля не всегда есть).
-
-## Построение собственного пайплайна
-
-Типовая задача: обработать образ, извлечь артефакты, построить отчёт. Пример пайплайна на Python:
-
-```python
-import pytsk3, os, csv, hashlib
-
-IMG = "disk.img"
-OFFSET = 2048 * 512
-OUT = "/evidence/extracted"
-os.makedirs(OUT, exist_ok=True)
-
-img = pytsk3.Img_Info(IMG)
-fs = pytsk3.FS_Info(img, offset=OFFSET)
-
-manifest = []
-def walk(fs, path="/"):
-    for e in fs.open_dir(path=path):
-        name = e.info.name.name.decode(errors="ignore")
-        if name in (".", ".."):
-            continue
-        full = path.rstrip("/") + "/" + name
-        meta = e.info.meta
-        if meta is None:
-            continue
-        if meta.type == pytsk3.TSK_FS_META_TYPE_DIR:
-            walk(fs, full)
-        else:
-            data = e.read_random(0, meta.size)
-            sha = hashlib.sha256(data).hexdigest()
-            manifest.append((full, meta.size, sha))
-
-walk(fs)
-with open(os.path.join(OUT, "manifest.csv"), "w", newline="") as f:
-    w = csv.writer(f)
-    w.writerow(["path", "size", "sha256"])
-    w.writerows(manifest)
-print("files:", len(manifest))
-```
-
-Такой скрипт даёт манифест всех файлов с хешами — основу для дальнейшего анализа и отчёта.
-
-## Парсинг вывода Volatility3
-
-```python
-import subprocess, json
-
-def vol(dump, plugin, **kwargs):
-    cmd = ["vol", "-r", "json", "-f", dump, plugin]
-    for k, v in kwargs.items():
-        cmd += [f"--{k}", str(v)]
-    r = subprocess.run(cmd, capture_output=True, text=True)
-    return [json.loads(l) for l in r.stdout.splitlines() if l.strip()]
-
-# Найти процессы с внешними соединениями
-procs = {p["PID"]: p["ImageFileName"] for p in vol("mem.raw", "windows.pslist")}
-for c in vol("mem.raw", "windows.netscan"):
-    if c.get("State") == "ESTABLISHED" and c.get("ForeignAddr", "").startswith(("10.", "192.")):
-        print(procs.get(c.get("PID")), c.get("ForeignAddr"), c.get("ForeignPort"))
-```
-
-Так вы программно связываете процессы и соединения — основа hunt-скриптов.
-
-## Работа с pyshark эффективно
-
-```python
-import pyshark
-
-# Только summary (быстро) — без разбора всех полей
-cap = pyshark.FileCapture("big.pcap", only_summaries=True)
-for p in cap:
-    print(p.protocol, p.length, p.info)
-
-# Фильтр на уровне tshark
-cap = pyshark.FileCapture("big.pcap", display_filter="dns.flags.response == 0")
-names = set()
-for p in cap:
-    try:
-        names.add(p.dns.qry_name)
-    except AttributeError:
-        pass
-cap.close()
-print(len(names), "unique domains")
-```
-
-`only_summaries=True` критично для больших захватов: не грузит все слои в память.
-
-## YARA и реестр
-
-```python
-import yara
-rules = yara.compile(filepaths={"beacon": "beacon.yar", "flag": "flag.yar"})
-for root, _, files in os.walk("/evidence"):
-    for fn in files:
-        path = os.path.join(root, fn)
-        for m in rules.match(path):
-            print(m.rule, path)
-
-from Registry import Registry
-reg = Registry.Registry("SOFTWARE")
-try:
-    key = reg.open("Microsoft\\Windows\\CurrentVersion\\Run")
-    for v in key.values():
-        print(v.name(), v.value())
-except Exception as e:
-    print("no key", e)
-```
-
-## Автоматизация и артефакты
-
-- Сохраняйте скрипты в репозиторий (`record_artifact`) — коллеги переиспользуют.
-- Пишите **потоково**, чтобы не съесть RAM.
-- Логируйте прогресс и ошибки (в отдельный файл).
-- Обрабатывайте исключения (отсутствующие поля/файлы).
-- Тестируйте на маленьких образцах.
-
-## Типичные ошибки
-
-- **Загрузка всего в память.** Большие PCAP/образы убьют процесс.
-- **Неверные единицы.** pytsk3 — байты, sleuthkit CLI — секторы.
-- **Кодировки.** Декодируйте имена с `errors="ignore"`.
-- **Отсутствие обработки ошибок.** pyshark-поля не всегда есть.
-- **Работа с оригиналом.** Только read-only.
-- **Нет версионирования.** Скрипт со временем «дрейфует».
-- **Хардкод путей.** Параметризуйте вход/выход.
-
-## Управление зависимостями и воспроизводимость
-
-Форензические скрипты должны запускаться воспроизводимо:
-
-```bash
-# Виртуальное окружение и фиксация версий
-python3 -m venv /opt/forensics-venv
-source /opt/forensics-venv/bin/activate
-pip install pytsk3 volatility3 pyshark yara-python python-registry
-pip freeze > requirements.txt
-# Позже — восстановить окружение
-pip install -r requirements.txt
-```
-
-Фиксируйте версии: обновление библиотеки может изменить поведение скрипта.
-
-## Логирование и обработка ошибок
-
-```python
-import logging
-logging.basicConfig(filename="/evidence/run.log", level=logging.INFO,
-                    format="%(asctime)s %(levelname)s %(message)s")
-try:
-    process(path)
-except Exception as e:
-    logging.error("failed on %s: %s", path, e)
-```
-
-Лог выполнения — часть доказательства: он показывает, что именно делал скрипт.
-
-## Производительность
-
-- Читайте **блоками**, не целиком.
-- Используйте **генераторы** вместо списков.
-- Ограничивайте параллелизм (диск/CPU).
-- Кэшируйте промежуточные результаты.
-- Для PCAP — `only_summaries`/фильтры.
-
-## Итоговый чек-лист
-
-1. Определить задачу и выбрать библиотеку.
-2. Написать скрипт с потоковой обработкой и логированием.
-3. Зафиксировать зависимости (`requirements.txt`).
-4. Протестировать на образце.
-5. Прогнать на полном датасете.
-6. Сохранить как артефакт для повторного использования.
-
-## Пример: связка всех библиотек
-
-```python
-# 1) Обойти ФС и найти базы
-import pytsk3, sqlite3, yara, os
-
-img = pytsk3.Img_Info("disk.img")
-fs = pytsk3.FS_Info(img, offset=2048*512)
-rules = yara.compile(filepath="flag.yar")
-
-def scan(fs, path="/"):
-    for e in fs.open_dir(path=path):
-        name = e.info.name.name.decode(errors="ignore")
-        if name in (".",".."): continue
-        full = path.rstrip("/")+"/"+name
-        if e.info.meta.type == pytsk3.TSK_FS_META_TYPE_DIR:
-            scan(fs, full)
-        else:
-            data = e.read_random(0, e.info.meta.size)
-            for m in rules.match(data=data):
-                print("HIT", m.rule, full)
-
-scan(fs)
-```
-
-Один скрипт объединяет доступ к ФС, YARA и обход — типовой шаблон для нестандартных задач.
-
-## Итог
-
-Python превращает набор утилит в автоматизированный пайплайн. pytsk3 даёт ФС, Volatility3 (через CLI+JSON) — память, pyshark — сеть, yara-python — детект. Фиксируйте зависимости, логируйте, читайте потоково и сохраняйте скрипты как артефакты.
-
-## Ключевые выводы
-
-- Python объединяет pytsk3, Volatility3 и pyshark в один пайплайн.
-- Читайте потоково и логируйте — большие датасеты не помещаются в память.
-- Фиксируйте зависимости (`requirements.txt`) для воспроизводимости.
-- Обрабатывайте исключения: поля/файлы не всегда есть.
-- Сохраняйте скрипты как артефакты для повторного использования.
-
-## Мини-таблица библиотек
+Python даёт доступ ко всем ключевым источникам:
 
 | Библиотека | Область |
 |------------|---------|
@@ -374,19 +103,72 @@ Python превращает набор утилит в автоматизиро�
 | yara-python | сигнатуры |
 | python-registry | реестр |
 
-Этого набора достаточно для большинства кастомных пайплайнов.
+Для памяти на практике удобнее вызывать `vol` через `subprocess` и парсить JSON, чем копаться в API:
 
-## Что дальше / решение
+```python
+import subprocess, json
+def run_vol(dump, plugin):
+    out = subprocess.run(["vol","-r","json","-f",dump,plugin],
+                         capture_output=True, text=True)
+    return [json.loads(l) for l in out.stdout.splitlines() if l.strip()]
+for rec in run_vol("mem.raw", "windows.pslist"):
+    print(rec["PID"], rec["ImageFileName"])
+```
 
-1. Выбрать библиотеку под задачу (pytsk3/volatility/pyshark).
-2. Написать скрипт с потоковой обработкой.
-3. Протестировать на маленьком образце.
-4. Прогнать на полном датасете, логировать прогресс.
-5. Сохранить скрипт как артефакт для повторного использования.
+Для сети `pyshark` оборачивает `tshark`. На больших PCAP используйте `only_summaries=True`, чтобы не грузить все слои в память:
 
-Дальше — `forensics-autopsy` и `forensics-yara-sigma` для готовых инструментов.
+```python
+import pyshark
+cap = pyshark.FileCapture("big.pcap", only_summaries=True)
+for p in cap:
+    print(p.protocol, p.length, p.info)
+```
+
+## Шаг 5: воспроизводимость и логирование
+
+Форензические скрипты должны запускаться воспроизводимо. Фиксируйте зависимости:
+
+```bash
+$ python3 -m venv /opt/forensics-venv
+$ source /opt/forensics-venv/bin/activate
+$ pip install pytsk3 volatility3 pyshark yara-python python-registry
+$ pip freeze > requirements.txt
+```
+
+Логируйте ход выполнения — это часть доказательства:
+
+```python
+import logging
+logging.basicConfig(filename="/evidence/run.log", level=logging.INFO,
+                    format="%(asctime)s %(levelname)s %(message)s")
+```
+
+Читайте данные **потоково** (не грузите образ целиком), оборачивайте доступ к полям в `try/except` (поля есть не всегда), параметризуйте вход/выход вместо хардкода путей.
+
+## Что мы теперь знаем
+
+- **pytsk3** даёт программный доступ к ФС; offset задаётся в **байтах**.
+- Рекурсивный обход ФС — основа собственных пайплайнов.
+- Volatility3 удобно вызывать через `subprocess` и парсить JSON.
+- `pyshark` оборачивает `tshark`; `only_summaries=True` критично для больших PCAP.
+- Фиксируйте зависимости (`requirements.txt`) для воспроизводимости.
+- Читайте потоково, логируйте, обрабатывайте исключения.
+
+## Если не сработало: производительность и ошибки
+
+Частые грабли в собственных скриптах:
+
+- **Загрузка всего в память.** Большие PCAP/образы убьют процесс — читайте потоково и используйте генераторы.
+- **Неверные единицы.** `pytsk3` — байты, sleuthkit CLI — секторы.
+- **Кодировки.** Декодируйте имена с `errors="ignore"`.
+- **Отсутствие обработки ошибок.** Поля `pyshark` есть не всегда — оборачивайте доступ в `try/except`.
+- **Работа с оригиналом.** Только read-only.
+
+Полезный приём — связать несколько библиотек в одном скрипте: обойти ФС через `pytsk3`, прогнать найденные файлы через `yara-python`, а результаты свести в CSV-манифест. Сохраняйте такие скрипты как артефакты — коллеги переиспользуют их, а вы не пишете одно и то же дважды.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какая библиотека даёт программный доступ к файловым системам в Python?"
@@ -421,7 +203,19 @@ Python превращает набор утилит в автоматизиро�
     - "Так быстрее"
   answer: 1
   explanation: "JSON-вывод CLI удобно парсить; это надёжнее прямого API."
+- question: "Зачем фиксировать requirements.txt?"
+  options:
+    - "для воспроизводимости окружения"
+    - "для шифрования образа"
+    - "для сжатия PCAP"
+    - "для сборки RAID"
+  answer: 0
+  explanation: "Фиксация версий гарантирует, что скрипт даст тот же результат позже."
 ```
+
+## Куда дальше
+
+Мы научились строить собственные пайплайны. Это последний урок блока про инструменты — дальше вы можете комбинировать всё изученное: ФС (`pytsk3`), память (`vol`), сеть (`pyshark`), детект (YARA) — в один скрипт под конкретную задачу. А пока главное запомни: **Python объединяет разрозненные утилиты в воспроизводимый пайплайн; читай потоково, логируй, фиксируй зависимости**.
 
 ## Где пригодится
 

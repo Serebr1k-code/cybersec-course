@@ -14,237 +14,268 @@ useful_for:
 estimated_minutes: 45
 summary: "Основы мобильной форензики: извлечение данных Android (ADB, образ, backup) и iOS, разбор приложений (APK/IPA), базы SQLite, артефакты мессенджеров и геолокации."
 ---
-Мобильная форензика — одна из самых востребованных областей: смартфон содержит переписку, геолокацию, пароли, фото и следы приложений. Android и iOS принципиально различаются по доступности данных: Android более открыт (ADB, образы), iOS жёстко защищён (шифрование, Secure Enclave). Этот урок — про извлечение данных Android и iOS, разбор приложений и типовые артефакты.
 
-## Методы извлечения
+## Вопрос, с которого всё начинается
 
-| Уровень | Android | iOS |
-|---------|---------|-----|
-| Логическое (backup) | `adb backup`, `bmgr` | iTunes/Finder backup |
-| Файловая система | root + `adb pull`, TWRP | jailbreak + AFC2 |
-| Физическое (образ) | `dd` по eMMC/UFS, ISP | почти невозможно (шифр) |
-| Облако | Google Takeout | iCloud (правовые запросы) |
+Вам принесли изъятый смартфон на Android. Нужно понять, кому и когда он писал
+человек в мессенджере и где он был в тот момент. Задача кажется простой: включить
+и посмотреть. Но включить нельзя — телефон уйдёт в сеть и синхронизирует
+облачную копию, а переписку могут удалить удалённо.
 
-Современные Android (шифрование по умолчанию, Android 10+) требуют разблокировки и часто root. iOS-бэкап (если не зашифрован) даёт много данных; зашифрованный бэкап — keychain.
+В этом уроке мы разберём **одно конкретное извлечение** — снимок Android-бэкапа
+`backup.ab` — и пройдём путь от сырого файла до строки переписки и GPS-координаты.
+Заодно поймём, чем Android отличается от iOS и почему это меняет всю тактику.
 
-## Android: ADB и backup
+## Наш пример: backup.ab
 
-```bash
-# подключение
-$ adb devices
-# логический бэкап (может требовать подтверждения на устройстве)
-$ adb backup -apk -shared -all -f backup.ab
-# конвертация .ab в tar
-$ java -jar abe.jar unpack backup.ab backup.tar
-$ tar -xf backup.tar -C extracted/
-# извлечь данные приложения (root)
-$ adb shell su -c 'tar czf /sdcard/app.tgz /data/data/com.app/.'
-$ adb pull /sdcard/app.tgz
-```
+У нас есть файл `backup.ab` — логический бэкап, снятый с разблокированного
+Android через `adb backup`. Это не образ диска: он содержит данные приложений и
+общую память, но не ядро и не системные разделы.
 
-`.ab`-бэкап содержит `apps/` и `shared/`; keychain (Android 9+) — только на разблокированном устройстве.
+Прежде чем что-то читать, телефон-источник нужно было изолировать. Ставим его в
+авиарежим или кладём в **Faraday-мешок** — экранированный конверт, который не
+пропускает радиосигнал. Это стандарт: пока устройство онлайн, облако может
+удалить данные, а новый вход — перезаписать журналы.
 
-## Android: структура и артефакты
-
-| Путь | Содержимое |
-|------|-----------|
-| `/data/data/<pkg>/` | данные приложения (базы, prefs) |
-| `/data/data/<pkg>/databases/*.db` | SQLite (сообщения, контакты) |
-| `/data/system/` | accounts, gestures, packages |
-| `/sdcard/` | медиа, загрузки |
-| `/data/misc/wifi/` | WiFi-конфиги |
-| `/data/system/dropbox/` | системные события |
+Смотрим, что за файл перед нами:
 
 ```bash
-# базы мессенджеров
-$ sqlite3 msgstore.db "SELECT name FROM sqlite_master WHERE type='table';"
-$ sqlite3 msgstore.db "SELECT key_remote_jid, data FROM messages LIMIT 5;"
-# WhatsApp
-$ sqlite3 /data/data/com.whatsapp/databases/msgstore.db
-# геолокация
-$ sqlite3 location.db "SELECT * FROM locations LIMIT 5;"
+$ file backup.ab
+backup.ab: Android Backup, version 1, compressed, non-encrypted
 ```
 
-Android-приложения используют SQLite почти повсеместно — читайте их (см. `forensics-sqlite`).
+`file` уже подсказывает ключевое: бэкап **не зашифрован**. Если бы он был
+зашифрован паролем, пришлось бы сначала восстановить пароль — иначе данные
+не читаются. Формат `.ab` — это, по сути, архив с небольшим заголовком.
 
-## iOS: бэкап
+## Шаг 1: что вообще можно извлечь
 
-```bash
-# структура iTunes/Finder-бэкапа
-$ ls ~/Library/Application\ Support/MobileSync/Backup/<UDID>/
-Info.plist  Manifest.db  Manifest.plist  <40-char hash files>
-# Manifest.db — карта файлов
-$ sqlite3 Manifest.db "SELECT fileID, domain, relativePath FROM Files;"
-# извлечь файл по его хешу
-$ cp <hash> out/AppDomain-com.app-...-file.db
-```
+Прежде чем распаковывать, полезно понять, какой уровень доступа у нас есть — от
+него зависит, что мы вообще увидим.
 
-`Manifest.db` сопоставляет `fileID` (имя файла = SHA1 пути) с доменом и путём. Зашифрованный бэкап требует пароля (`backup password`), но содержит keychain.
+| Уровень | Android | iOS | Что даёт |
+|---------|---------|-----|----------|
+| Логический (бэкап) | `adb backup`, `bmgr` | iTunes/Finder | данные приложений, медиа |
+| Файловая система | root + `adb pull`, TWRP | jailbreak + AFC2 | всё, кроме ядра |
+| Физический (образ) | `dd` по eMMC/UFS, ISP | почти невозможно | побайтовый образ |
+| Облако | Google Takeout | iCloud | синхронизированное |
 
-```bash
-# расшифровать бэкап
-$ python3 iphone_backup_decrypt.py <backup_dir> <password> -o decrypted/
-# инструменты: iLEAPP, ALEAPP, libimobiledevice
-$ ileapp -i <backup> -o out/
-```
+Логический бэкап — самый простой и самый частый случай в CTF. Он не требует root и
+снимается штатной командой, но **не содержит** системных разделов и части защищённых
+данных. Физический образ (`dd` по чипу памяти) полнее, но требует разборки и часто
+недоступен из-за шифрования. Выбор уровня — первое решение в любой мобильной
+экспертизе.
 
-## Разбор приложений (APK/IPA)
+## Шаг 2: превращаем .ab в обычный tar
 
-```bash
-# APK: распаковка
-$ apktool d app.apk -o app_src/
-$ unzip -o app.apk -d app_unz/
-# декомпиляция DEX
-$ jadx -d app_java/ app.apk
-# нативный код
-$ jadx --show-bad-code app.apk
-# IPA: это ZIP
-$ unzip -o app.ipa -d app_ipa/
-$ ls app_ipa/Payload/*.app/
-```
-
-Для iOS IPA содержит `Payload/App.app/` с бинарём (Mach-O) и `Info.plist`. Анализ строк и ключей API — `strings`, `class-dump`.
-
-## Артефакты мессенджеров и геолокации
-
-- **WhatsApp/Telegram/Signal**: SQLite-базы (`msgstore.db`, `cache4.db`).
-- **Геолокация**: Google Maps history, `location.db`, снимки с GPS-EXIF.
-- **Фото/медиа**: EXIF (дата, GPS, модель).
-- **Аккаунты/пароли**: keychain (iOS), `accounts.db` (Android).
-
-```bash
-# EXIF из фото
-$ exiftool -a -gps:all IMG_0001.jpg
-$ exiftool -d '%Y-%m-%d %H:%M:%S' -DateTimeOriginal -GPSLatitude -GPSLongitude IMG*.jpg
-```
-
-## Разобранный пример
-
-Дан Android-бэкап `backup.ab`. Нужно найти переписку и локацию.
+`.ab` — не tar, но внутри лежит tar-поток. Снимаем обёртку утилитой `abe`
+(Android Backup Extractor):
 
 ```bash
 $ java -jar abe.jar unpack backup.ab backup.tar
+0 bytes read: 100.0%  ...
+$ tar -tf backup.tar | head
+apps/
+apps/com.whatsapp/db/msgstore.db
+apps/com.android.providers.contacts/db/contacts2.db
+shared/DCIM/Camera/IMG_20240112_101133.jpg
+```
+
+Теперь у нас честный tar. Видно три вещи: `apps/` (данные приложений),
+`shared/` (общая память: фото, загрузки) и внутри — база `msgstore.db` мессенджера.
+
+Распаковываем в каталог `ext/`:
+
+```bash
 $ tar -xf backup.tar -C ext/
-# найти базы
+```
+
+## Шаг 3: почему приложения хранят всё в SQLite
+
+Почти каждое Android-приложение хранит данные в **SQLite** — это встроенная
+файловая база данных: один файл `.db`, внутри таблицы, как в Excel, только
+запросами. Переписка, контакты, звонки, настройки — всё это SQLite-файлы.
+Поэтому ключ к мобильной форензике — уметь читать `.db`.
+
+Находим все базы в бэкапе:
+
+```bash
 $ find ext/ -name '*.db' | head
 ext/apps/com.whatsapp/db/msgstore.db
-# прочитать сообщения
-$ sqlite3 ext/apps/com.whatsapp/db/msgstore.db \
-    "SELECT key_remote_jid, substr(data,1,40) FROM messages ORDER BY timestamp DESC LIMIT 5;"
-# геолокация из фото
-$ exiftool -a -gps:all ext/shared/DCIM/Camera/*.jpg | head
+ext/apps/com.android.providers.contacts/db/contacts2.db
+ext/apps/com.android.providers.telephony/db/mmssms.db
 ```
 
-## Справочная таблица
+## Шаг 4: читаем переписку
 
-| Задача | Инструмент |
-|--------|-----------|
-| ADB | `adb devices`, `adb backup`, `adb pull` |
-| .ab → tar | `abe.jar` |
-| iOS backup | `Manifest.db`, `iphone_backup_decrypt` |
-| Парсинг артефактов | ALEAPP (Android), iLEAPP (iOS) |
-| APK | `apktool`, `jadx` |
-| SQLite | `sqlite3` |
-| EXIF | `exiftool` |
-
-## Частые ошибки
-
-- **Извлекать без блокировки сети** — облако может удалить/синхронизировать данные; включите авиарежим.
-- **Игнорировать шифрование** — современный Android/iOS шифрует по умолчанию.
-- **Разблокировать устройство «как обычно»** — меняет артефакты; фиксируйте состояние.
-- **Читать SQLite без учёта WAL** — свежие записи в `-wal`/`-shm`.
-- **Забывать про облачные копии** — часть данных только там.
-- **Не считать хеши образа** — для цепочки улик.
-
-## Что дальше / решение
-
-Определите платформу и метод извлечения (backup/FS/образ) → разберите артефакты (SQLite, Manifest.db, EXIF) → для приложений — `jadx`/`apktool`. Связка: `forensics-mobile-android`, `forensics-mobile-ios` (глубоко), `forensics-sqlite` (базы), `forensics-img-mobile` (образы).
-
-## Инструменты и автоматизация
-
-| Инструмент | Платформа | Назначение |
-|-----------|-----------|-----------|
-| `adb` | Android | связь, backup, pull |
-| `abe.jar` | любая | распаковка `.ab` |
-| `Magnet AXIOM`/`Cellebrite` | коммерческие | полный разбор |
-| ALEAPP | Android | парсинг артефактов |
-| iLEAPP | iOS | парсинг артефактов |
-| `libimobiledevice` | iOS | доступ к устройству |
-| `jadx`/`apktool` | любая | разбор APK |
-| `sqlite3` | любая | базы |
+Открываем базу WhatsApp и смотрим список таблиц:
 
 ```bash
-# ALEAPP: разбор извлечённых данных Android
-$ python3 aleapp.py -t tar -i extracted.tar -o out/
-# iLEAPP: разбор iOS-бэкапа
-$ python3 ileapp.py -t itunes -i <backup_dir> -o out/
+$ sqlite3 ext/apps/com.whatsapp/db/msgstore.db ".tables"
+android_metadata   message_media   messages   chat_list
 ```
 
-Автоматические парсеры строят таймлайны, извлекают сообщения, звонки, локации и пароли — это ускоряет первичный разбор в разы.
+Таблица `messages` — сама переписка. Достаём последние строки:
 
-## Шифрование и доступность
+```bash
+$ sqlite3 ext/apps/com.whatsapp/db/msgstore.db \
+  "SELECT key_remote_jid, substr(data,1,40) FROM messages ORDER BY timestamp DESC LIMIT 3;"
+4915123456789@s.whatsapp.net|Привет, я на месте
+4915123456789@s.whatsapp.net|встретимся у входа в 10:30
+group-1203630@g.us|скинул координаты
+```
 
-Современные устройства шифруют данные по умолчанию. Ключи привязаны к экрану блокировки и Secure Enclave/StrongBox. Что это значит:
+`key_remote_jid` — идентификатор собеседника, `data` — текст. Мы только что
+восстановили переписку прямо из файла, без включения телефона.
 
-- **Android 7+**: file-based encryption; без экрана — часть данных недоступна.
-- **iOS**: Data Protection; после блокировки многие файлы недоступны даже с джейлбрейком.
-- **Облако**: часть данных синхронизируется (Google/iCloud) — отдельный источник.
-- **Full FS access**: требует root (Android) или джейлбрейка (iOS), что меняет систему.
+Важная тонкость: свежие сообщения могут лежать не в самом `.db`, а в **WAL-файле**
+(`msgstore.db-wal`). WAL (write-ahead log) — журнал, куда SQLite сначала пишет
+изменения. Если открыть только `.db`, последние сообщения не увидите. Копируйте
+рядом `.db`, `-wal` и `-shm` и открывайте их вместе.
 
-## Правовые и этические аспекты
+## Шаг 5: где был человек — GPS из фото
 
-Мобильная форензика затрагивает приватность: переписка, геолокация, биометрия. Работайте строго в рамках авторизации, фиксируйте согласие/ордер, минимизируйте копирование персональных данных и соблюдайте цепочку хранения. Перед разбором ставьте устройство в авиарежим (или изолируйте в Faraday-мешок), чтобы предотвратить удалённую очистку и синхронизацию.
+Геолокация часто прячется не в базе, а в **EXIF** фотографий — метаданных,
+которые камера пишет в файл: модель, дата, а если включён геотег — широта и
+долгота.
 
-## Чек-лист извлечения
+```bash
+$ exiftool -a -gps:all ext/shared/DCIM/Camera/IMG_20240112_101133.jpg
+GPS Latitude  : 55 deg 45' 21.00" N
+GPS Longitude : 37 deg 37' 4.00" E
+GPS Position  : 55 deg 45' 21.00" N, 37 deg 37' 4.00" E
+```
 
-1. Задокументировать устройство (модель, IMEI, ОС, состояние экрана).
-2. Изолировать сеть (авиарежим/Faraday).
-3. Получить метод извлечения (backup/FS/образ) в рамках авторизации.
-4. Зафиксировать хеши.
-5. Разобрать артефакты (SQLite, Manifest.db, EXIF).
-6. Для приложений — `jadx`/`apktool`.
-7. Свести таймлайн.
-8. Зафиксировать IOC и отчёт.
+Координаты 55.7558, 37.6177 — это центр Москвы. Сопоставив время съёмки из EXIF
+с временем сообщения из SQLite, мы связываем переписку с местом. Так строится
+таймлайн: два источника, одно событие.
+
+## Шаг 6: iOS — та же идея, другой доступ
+
+С iPhone так просто не выйдет. iOS жёстко шифрует данные, а бэкап хранится не
+папками, а плоским набором файлов с хеш-именами. Карту «какой хеш = какой путь»
+держит `Manifest.db`:
+
+```bash
+$ ls ~/Library/Application\ Support/MobileSync/Backup/<UDID>/
+Info.plist   Manifest.db   Manifest.plist   3d0a...9f
+$ sqlite3 Manifest.db "SELECT fileID, domain, relativePath FROM Files LIMIT 2;"
+3d0a...9f|AppDomain-com.apple.MobileSMS|Library/SMS/sms.db
+a91c...02|HomeDomain|Library/SMS/sms.db
+```
+
+`fileID` — это SHA-1 от пути, и он же имя файла на диске. Нашли строку в
+`Manifest.db` — скопировали файл с этим именем и получили нужную базу.
+
+Если бэкап зашифрован, данные недоступны, но зато внутри лежит **keychain** — связка
+ключей с сохранёнными паролями и токенами. Его расшифровывают паролем бэкапа:
+
+```bash
+$ python3 iphone_backup_decrypt.py <backup_dir> <password> -o decrypted/
+$ ls decrypted/ | head
+Manifest.db   keychain-backup.plist   ...
+```
+
+Зашифрованный бэкап без пароля почти бесполезен, зато с паролем он ценнее обычного:
+пароль бэкапа — это тот же код-пароль, который многие ставят одинаковым везде.
+
+Для iOS, как и для Android, есть готовые парсеры артефактов, которые сами строят
+таймлайн из бэкапа:
+
+```bash
+$ ileapp -i <backup_dir> -o out/     # iOS
+$ aleapp -t tar -i extracted.tar -o out/   # Android
+```
+
+Они разбирают сообщения, звонки, геолокацию, историю браузера и учётные записи за
+минуты — это экономит часы ручных запросов к SQLite.
+
+## Шаг 7: приложения (APK/IPA)
+
+Если нужно понять, что приложение делает и не прячет ли оно секреты (API-ключи,
+URL серверов), APK распаковывают и декомпилируют:
+
+```bash
+$ apktool d app.apk -o app_src/
+$ jadx -d app_java/ app.apk
+$ grep -rE 'api[_-]?key|secret|https?://' app_java/ | head
+app_java/com/example/Config.java: API_KEY = "sk-live-4f9c...";
+```
+
+APK — это ZIP: внутри `classes.dex` (байткод Dalvik), ресурсы и `AndroidManifest.xml`.
+`jadx` превращает байткод обратно в читаемый Java. IPA для iOS — тоже ZIP, внутри
+`Payload/App.app/` с бинарём Mach-O и `Info.plist`.
+
+Зачем это в мобильной форензике? Чтобы понять, **куда** приложение отправляет данные:
+адрес сервера, ключ API, формат протокола. Часто в APK находят «бэкдор»-URL,
+оставленный разработчиком для отладки, или зашитый токен, дающий доступ к бэкенду.
+Это превращает анализ телефона из «посмотреть переписку» в «понять всю систему».
+
+## Что мы теперь знаем
+
+- Телефон сначала изолируют (авиарежим/Faraday), потом извлекают данные.
+- Android отдаёт логический бэкап (`.ab`), iOS — плоский бэкап с `Manifest.db`.
+- Приложения хранят данные в SQLite (`.db`) — переписку читают запросами.
+- Свежие записи могут быть в WAL; копируйте `.db` вместе с `-wal`/`-shm`.
+- GPS и время берут из EXIF фото, связывая переписку с местом.
+
+## На что смотреть дальше
+
+- **Современные Android (10+) шифруют по умолчанию** — бэкап может не содержать
+  данных приложений без root или разблокировки экрана.
+- **Учитывайте часовой пояс** — SQLite хранит время в миллисекундах UTC, а EXIF —
+  в локальном; иначе сдвинете таймлайн на несколько часов.
+- **Читайте `shared_prefs/*.xml`** — токены и настройки приложения часто там, а не
+  в базе.
+- **Облако — отдельный источник** — часть переписки есть только в Google/iCloud.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что даёт `adb backup`?"
   options:
-    - "физический образ"
-    - "логический бэкап приложений"
-    - "память"
-    - "ядро"
+    - "физический образ всего диска"
+    - "логический бэкап приложений и общей памяти"
+    - "дамп оперативной памяти"
+    - "образ ядра"
   answer: 1
-- question: "Где Android хранит настройки и токены приложения?"
+- question: "В каком формате приложения Android чаще всего хранят переписку и контакты?"
   options:
-    - "в `/system`"
-    - "в `shared_prefs/*.xml`"
-    - "в ядре"
-    - "в `boot.img`"
+    - "JSON-файлы"
+    - "SQLite-базы (`.db`)"
+    - "бинарные дампы"
+    - "CSV"
   answer: 1
-- question: "Как восстановить удалённые записи SQLite?"
+- question: "Почему копируют `.db` вместе с `-wal` и `-shm`?"
   options:
-    - "`sqlite3 app.db ".recover"` / free pages"
-    - "`unzip`"
-    - "`binwalk`"
-    - "`dd`"
-  answer: 0
-- question: "Как связать файлы в iOS-бэкапе с путями?"
+    - "для красоты"
+    - "свежие изменения могут лежать в WAL-журнале, а не в основной базе"
+    - "иначе база не откроется вовсе"
+    - "это требование лицензии"
+  answer: 1
+- question: "Как связать файлы в iOS-бэкапе с их путями?"
   options:
-    - "по имени"
-    - "через `Manifest.db` (SHA-1 от пути)"
     - "по расширению"
+    - "через `Manifest.db` (fileID = SHA-1 от пути)"
+    - "по дате создания"
     - "никак"
   answer: 1
-- question: "Где в APK искать hardcoded-секреты?"
+- question: "Где искать GPS-координаты в снимке бэкапа?"
   options:
-    - "в `classes.dex` и ресурсах"
-    - "в ядре"
-    - "в MFT"
-    - "в EVTX"
-  answer: 0
+    - "в `AndroidManifest.xml`"
+    - "в EXIF фотографий (`exiftool -gps:all`)"
+    - "в `boot.img`"
+    - "в `$MFT`"
+  answer: 1
 ```
+
+## Куда дальше
+
+Дальше в категории мы спустимся с телефона на диск и разберём файловые системы
+на уровне байтов — NTFS, ext4, Btrfs. А пока главное запомни: **изолируй →
+извлеки → читай SQLite → сверь время с EXIF**.
 
 ## Где пригодится
 

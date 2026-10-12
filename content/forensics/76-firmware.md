@@ -14,254 +14,118 @@ useful_for:
 estimated_minutes: 55
 summary: "Разбор прошивок и IoT-устройств: извлечение из flash, распаковка образов (squashfs/UBI/cramfs/JFFS2), анализ скриптов запуска, конфигов, ключей и секретов."
 ---
-Прошивка (firmware) — это ПО устройства, хранящееся во flash-памяти: ядро, файловая система, конфиги, ключи, скрипты. Форензика прошивок и IoT отвечает на вопросы: что за устройство, какие секреты в нём, как оно может быть скомпрометировано. Этот урок — про извлечение прошивки, распаковку образов (squashfs/UBI/cramfs/JFFS2) и анализ содержимого.
 
-## Получение прошивки
+## Вопрос, с которого всё начинается
 
-| Источник | Метод |
-|----------|-------|
-| Файл обновления | скачать с сайта вендора |
-| Flash-чип (SPI) | `flashrom`, программатор (CH341A) |
-| UART/JTAG | доступ к консоли/памяти |
-| Обновление по сети | перехват/скачивание |
-| Образ устройства | извлечение из дампа |
+Из сети пропал домашний роутер — его могли скомпрометировать. Чтобы понять, что в нём за ПО и нет ли закладок, нужен образ **прошивки** (firmware) — программы устройства, записанной во flash-память. Задача: вытащить эту прошивку и разобрать её содержимое — какие сервисы запускаются, где пароли, нет ли ключей.
 
-```bash
-# чтение SPI-flash программатором
-$ flashrom -p ch341a_spi -r firmware.bin
-# определить тип и энтропию
-$ binwalk firmware.bin
-$ file firmware.bin
-```
+Прошивка — это не один файл, а упаковка: загрузчик, ядро и файловая система. Разберём образ роутера `firmware.bin` по слоям.
 
-## binwalk: разведка и распаковка
+## Наш пример: образ `firmware.bin`
+
+Начинаем с разведки — понять, что внутри. Инструмент `binwalk` сканирует файл, ищет известные «магические» сигнатуры и печатает, где они начинаются:
 
 ```bash
 $ binwalk firmware.bin
 DECIMAL       HEXADECIMAL     DESCRIPTION
-0             0x0             uImage header
+0             0x0             uImage header, header size: 64
 64            0x40            LZMA compressed data
 1048576       0x100000        Squashfs filesystem, little endian, version 4.0
 6291456       0x600000        JFFS2 filesystem
-# извлечь всё рекурсивно
+```
+
+Читаем вывод. По смещению `0x0` — **uImage header**: 64-байтовый заголовок формата U-Boot (загрузчик встраиваемых устройств). Сразу за ним (`0x40`) — сжатые данные **LZMA** (алгоритм сжатия). С `0x100000` начинается **SquashFS** — файловая система, которая по умолчанию только для чтения (в прошивках это норма). Дальше — **JFFS2**, журналируемая ФС для NAND-flash, где обычно лежат настройки.
+
+То есть образ = загрузчик + сжатое ядро + файловая система + раздел настроек. Наша цель — распаковать SquashFS и посмотреть содержимое.
+
+## Шаг 1: извлекаем всё рекурсивно
+
+`binwalk` умеет сразу распаковывать найденное. Ключи: `-e` — extract, `-M` — рекурсивно (лезть внутрь найденных образов), `-C` — куда сложить:
+
+```bash
 $ binwalk -e -M firmware.bin -C out/
-# только энтропия (найти сжатое/шифрованное)
-$ binwalk -E firmware.bin
+$ ls out/_firmware.bin.extracted/
+100000.sqsh  600000.jffs2  ...
 ```
 
-## Форматы ФС прошивок
-
-| ФС | Тип | Инструмент |
-|----|-----|-----------|
-| SquashFS | read-only, сжатие | `unsquashfs` |
-| UBI/UBIFS | NAND-flash | `ubireader`, `ubidump` |
-| CramFS | read-only | `cramfsck`, `cramfs-tools` |
-| JFFS2 | журналируемая NAND | `jefferson` |
-| YAFFS | NAND | `unyaffs` |
-| ext2/3/4 | обычная | `debugfs`, `mount` |
+SquashFS достаётся отдельной утилитой `unsquashfs`:
 
 ```bash
-# SquashFS
-$ unsquashfs -d out_sqsh part.sqsh
-$ unsquashfs -l part.sqsh        # список
-# JFFS2
-$ jefferson -d out_jffs2 part.jffs2
-# UBI/UBIFS
-$ ubireader_extract_images firmware.bin -o out_ubi
-$ ubireader_extract_files ubi.img -o out_ubifs
-$ ubidump.py -l ubi.img
-# CramFS
-$ cramfsck -x out_cram part.cramfs
+$ unsquashfs -d rootfs out/_firmware.bin.extracted/100000.sqsh
+$ ls rootfs/
+bin  etc  lib  sbin  usr  www
 ```
 
-Для UBI: сначала извлечь образы томов (`ubireader_extract_images`), затем ФС (`ubireader_extract_files`).
+Перед нами обычная структура Linux. Разные прошивки используют разные ФС, и для каждой — свой инструмент: SquashFS → `unsquashfs`, JFFS2 → `jefferson`, UBI/UBIFS (NAND) → `ubireader`, CramFS → `cramfsck`. Для UBI важно сначала извлечь образы томов, потом уже файловую систему.
 
-## Анализ содержимого
+## Шаг 2: смотрим, что запускается
+
+Ключевое место — скрипты инициализации. При загрузке устройство выполняет `/etc/init.d/rcS` и родственные скрипты — там видно, какие **сервисы** поднимаются:
 
 ```bash
-# структура
-$ ls out_sqsh/
-bin/  etc/  lib/  sbin/  usr/  www/
-# скрипты запуска и конфиги
-$ cat out_sqsh/etc/init.d/rcS
-$ cat out_sqsh/etc/passwd out_sqsh/etc/shadow
-# ключи и сертификаты
-$ find out_sqsh -name '*.pem' -o -name '*.key' -o -name '*.crt'
-# секреты в конфигах
-$ grep -riE 'password|passwd|secret|api_key|token' out_sqsh/etc/ out_sqsh/www/ | head
-# прошивка/версия
-$ grep -riE 'version|firmware' out_sqsh/etc/ | head
-# бинарные ключи/строки
-$ strings -n 8 out_sqsh/bin/busybox | grep -iE 'telnetd|httpd|password'
+$ cat rootfs/etc/init.d/rcS
+telnetd -l /bin/sh &
+httpd -p 80 &
 ```
 
-Типичные находки: hardcoded root-пароль, приватные ключи SSH/TLS, бэкдоры, уязвимые сервисы (telnetd, httpd), API-ключи.
+Первая строка — красный флаг: `telnetd -l /bin/sh` поднимает **telnet** (незашифрованный удалённый доступ) и сразу даёт **шелл** без запроса пароля. Это бэкдор: любой, кто дотянется до порта, получит командную строку root. Вторая строка — веб-сервер на 80-м порту.
 
-## Файловая система и устройство
+## Шаг 3: ищем креды
 
-```bash
-# смонтировать squashfs
-$ sudo mount -t squashfs -o loop,ro part.sqsh /mnt/fw
-# определить архитектуру бинарей
-$ file out_sqsh/bin/busybox
-$ readelf -h out_sqsh/bin/httpd | grep Machine
-# найти setuid-бинари
-$ find out_sqsh -perm -4000 -type f
-```
-
-## Разобранный пример
-
-Дан образ прошивки роутера. Нужно найти креды и сервисы.
+Теперь пароли. В Linux они лежат в `/etc/passwd` (имена) и `/etc/shadow` (хеши паролей):
 
 ```bash
-# 1. Разведка
-$ binwalk firmware.bin | head
-0    0x0     uImage header
-64   0x40    LZMA compressed data
-1M   0x100000 Squashfs filesystem
-# 2. Извлечь
-$ binwalk -e -M firmware.bin -C out/
-$ unsquashfs -d rootfs out/_firmware.bin.extracted/*.sqsh 2>/dev/null || unsquashfs -d rootfs out/_firmware.bin.extracted/100000.sqsh
-# 3. Креды
 $ cat rootfs/etc/shadow
-root:$1$abcd$...:0:0:...
-$ grep -ri 'password' rootfs/etc/config/ rootfs/www/
-# 4. Сервисы
-$ grep -riE 'telnetd|httpd|dropbear' rootfs/etc/init.d/
-# 5. Ключи
-$ find rootfs -name '*.pem' -o -name 'id_rsa'
+root:$1$abcd$Xk2...:0:0:root:/root:/bin/sh
 ```
 
-Итог: найден hardcoded root-хеш, telnetd включён, приватный ключ в прошивке — потенциальная компрометация.
-
-## Справочная таблица
-
-| Задача | Инструмент |
-|--------|-----------|
-| Разведка | `binwalk` |
-| SquashFS | `unsquashfs` |
-| JFFS2 | `jefferson` |
-| UBI/UBIFS | `ubireader` |
-| CramFS | `cramfsck` |
-| SPI-flash | `flashrom` |
-| Ключи | `find`/`grep`/`openssl` |
-
-## Частые ошибки
-
-- **Пропустить вложенные слои** — нужен `binwalk -e -M`.
-- **Путать UBI-образ и UBIFS** — сначала образы томов, потом ФС.
-- **Не смотреть скрипты запуска** — там запускаемые сервисы.
-- **Игнорировать `shadow`/конфиги** — там креды.
-- **Забывать про ключи** — приватные ключи в прошивке = компрометация всех устройств.
-- **Не определять архитектуру** — важно для дальнейшего анализа бинарей.
-
-## Что дальше / решение
-
-Конвейер: `binwalk` (разведка) → `unsquashfs`/`jefferson`/`ubireader` (распаковка) → `find`/`grep` (секреты) → `strings`/`readelf` (бинари). Связка: `forensics-file-magic` (сигнатуры), `forensics-carving` (извлечение), `forensics-containers` (вложенность), `forensics-malware-yara` (YARA по прошивке).
-
-## Анализ бинарей и эмуляция
-
-После распаковки прошивки анализируйте исполняемые файлы (обычно ARM/MIPS):
+Хеш root здесь **hardcoded** — «зашит» в прошивку. Его можно попробовать взломать офлайн (например, `hashcat`), но даже без взлома ясно: пароль у всех устройств этой модели одинаковый. Часто пароли пишут и в открытом виде в конфигах:
 
 ```bash
-# архитектура
-$ readelf -h rootfs/bin/httpd | grep -E 'Machine|Class'
-$ file rootfs/bin/* | sort | uniq -c | sort -rn | head
-# строки: версии, пути, креды
-$ strings -n 6 rootfs/bin/httpd | grep -iE 'password|/cgi|version'
-# зависимости
-$ readelf -d rootfs/bin/httpd | grep NEEDED
-# декомпиляция
-$ r2 -A rootfs/bin/httpd   # radare2
-$ ghidraRun                # Ghidra (GUI)
-# эмуляция отдельного бинаря (QEMU user-mode)
-$ sudo apt install qemu-user-static
-$ qemu-arm -L rootfs rootfs/bin/httpd
+$ grep -riE 'password|passwd|secret|api_key|token' rootfs/etc/ rootfs/www/
+rootfs/etc/config/system: password='admin123'
 ```
 
-**QEMU user-mode** позволяет запускать бинари прошивки на хосте (с `-L` на корень прошивки) для динамического анализа. **Firmadyne/FirmAE** автоматизируют эмуляцию всей прошивки — запускают устройство в эмуляторе и дают сетевой доступ.
+## Шаг 4: ищем ключи
+
+Отдельная опасность — **приватные ключи**, случайно оставшиеся в прошивке. Если в образе лежит закрытый SSH- или TLS-ключ, он есть у **всех** устройств этой серии, и зная его, можно выдать себя за устройство или расшифровать его трафик:
 
 ```bash
-# FirmAE: автоматическая эмуляция прошивки
-$ sudo ./run.sh -r router firmware.bin
+$ find rootfs -name '*.pem' -o -name '*.key' -o -name 'id_rsa'
+$ grep -rl 'BEGIN .* PRIVATE KEY' rootfs/
 ```
 
-## YARA по прошивке
+## Шаг 5: определяем архитектуру и разбираем бинари
+
+Прошивки работают на ARM, MIPS или PowerPC — не на x86, как обычный компьютер. Чтобы анализировать бинарники, надо знать архитектуру:
 
 ```bash
-$ yara -r rules/ rootfs/ | head
-# поиск встроенных бэкдоров/ключей
-$ grep -rE 'BEGIN (RSA|EC|OPENSSH) PRIVATE KEY' rootfs/
-$ find rootfs -name '*.pem' -o -name 'id_*' | head
+$ file rootfs/bin/busybox
+rootfs/bin/busybox: ELF 32-bit LSB executable, MIPS, MIPS32
+$ readelf -h rootfs/bin/httpd | grep Machine
+Machine: MIPS R3000
 ```
 
-## Сводный чек-лист
-
-1. `binwalk` — определить структуру и ФС.
-2. `unsquashfs`/`jefferson`/`ubireader` — распаковать.
-3. Скрипты запуска (`/etc/init.d`, `/etc/rc`) — какие сервисы.
-4. `passwd`/`shadow`/конфиги — креды.
-5. `find`/`grep` — ключи и секреты.
-6. `readelf`/`r2`/`Ghidra` — анализ бинарей.
-7. QEMU/FirmAE — динамическая эмуляция.
-8. YARA — сигнатуры бэкдоров.
-
-## Ограничения
-
-- **Шифрованная/подписанная прошивка** — распаковка затруднена.
-- **Проприетарные форматы** — могут требовать вендорских инструментов.
-- **NAND/UBI** — сложнее, чем squashfs.
-- **Эмуляция не всегда удаётся** (периферия, драйверы).
-- **Архитектуры** (ARM/MIPS/PPC) — нужен соответствующий QEMU.
-
-## Типы прошивок и загрузчики
-
-Прошивка обычно состоит из загрузчика и образа ОС. Типы:
-
-| Загрузчик | Признак |
-|-----------|---------|
-| U-Boot | `uImage`, `U-Boot` строки |
-| CFE/Broadcom | `CFE` |
-| Bootloader | `U-Boot SPL` |
-| UEFI | `FV` (firmware volume) |
+`busybox` — это «швейцарский нож» встраиваемых систем: один бинарник, заменяющий сотни Unix-утилит. Дальше бинари декомпилируют (`radare2`, `Ghidra`) или запускают в **эмуляторе** `qemu-arm`/`qemu-mips` прямо на хосте:
 
 ```bash
-# определить загрузчик
-$ binwalk firmware.bin | head
-$ strings firmware.bin | grep -iE 'u-boot|U-Boot|cfe|linux version'
-# uImage-заголовок: magic 0x27051956
-$ xxd -l 64 firmware.bin
+$ qemu-mips -L rootfs rootfs/bin/httpd
 ```
 
-U-Boot uImage имеет 64-байтовый заголовок с типом, архитектурой, размером; после него — сжатое ядро/ФС.
+Флаг `-L rootfs` указывает эмулятору, где искать библиотеки прошивки. Для полной эмуляции устройства целиком используют `FirmAE`, который поднимает прошивку и даёт к ней сетевой доступ.
 
-## Инструменты: сводка
+## Что мы теперь знаем
 
-| Инструмент | Задача |
-|-----------|--------|
-| `binwalk` | разведка/распаковка |
-| `unsquashfs` | SquashFS |
-| `jefferson` | JFFS2 |
-| `ubireader` | UBI/UBIFS |
-| `flashrom` | чтение SPI |
-| `r2`/`Ghidra` | бинари |
-| `qemu-arm`/FirmAE | эмуляция |
-
-## Практические приёмы
-
-- **`binwalk -e -M`** — рекурсивно, не пропустите вложенное.
-- **Скрипты `/etc/init.d`** — какие сервисы запускаются.
-- **`shadow`/конфиги** — креды и API-ключи.
-- **Приватные ключи** — компрометация всех устройств серии.
-- **Эмуляция** (FirmAE) — для динамического анализа.
-- **Сравнение версий** — `diff` двух прошивок покажет изменения.
-- **Фиксируйте хеш** прошивки; не прошивайте своё устройство без нужды.
-
-## Отчёт по прошивке
-
-Укажите: модель/версию, как получена прошивка, структуру (ФС, загрузчик), найденные секреты (креды/ключи), запускаемые сервисы, потенциальные уязвимости. Для IoT-расследования добавьте сетевые сервисы (telnetd/httpd) и их риски.
+- Прошивка — упаковка из загрузчика, ядра и файловых систем; `binwalk` показывает структуру по сигнатурам.
+- SquashFS распаковывается `unsquashfs`, JFFS2 — `jefferson`, UBI — `ubireader`.
+- Скрипты `/etc/init.d` показывают, какие сервисы (и бэкдоры) запускаются.
+- `passwd`/`shadow`/конфиги содержат hardcoded-пароли; приватные ключи в образе опасны для всей серии устройств.
+- Архитектура (ARM/MIPS) определяется через `file`/`readelf`; бинари запускают под `qemu`.
+- `binwalk -e -M` извлекает вложенные слои рекурсивно — без `-M` их легко пропустить.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какая утилита распаковывает SquashFS?"
@@ -271,13 +135,15 @@ U-Boot uImage имеет 64-байтовый заголовок с типом, �
     - "jefferson"
     - "ubireader"
   answer: 0
-- question: "Какой магией обладает UBI-раздел?"
+  explanation: "SquashFS — read-only ФС прошивок; распаковывается unsquashfs."
+- question: "Какой сигнатурой обладает UBI-раздел?"
   options:
     - "hsqs"
     - "UBI#"
     - "0x1985"
     - "PK"
   answer: 1
+  explanation: "UBI-образ начинается с магии UBI#; разбирается ubireader."
 - question: "Где часто спрятан бэкдор в прошивке роутера?"
   options:
     - "в скриптах запуска (init.d/rcS)"
@@ -285,26 +151,33 @@ U-Boot uImage имеет 64-байтовый заголовок с типом, �
     - "в шрифтах"
     - "в binwalk"
   answer: 0
-- question: "Что нужно для запуска бинаря MIPS/ARM с хоста?"
+  explanation: "Скрипты инициализации показывают, какие сервисы поднимаются, включая telnetd -l /bin/sh."
+- question: "Что нужно для запуска бинаря MIPS/ARM на хосте?"
   options:
     - "binwalk"
     - "QEMU (user-mode или полная эмуляция)"
     - "dd"
     - "exiftool"
   answer: 1
-- question: "Что такое NVRAM в контексте роутеров?"
+  explanation: "qemu-mips/qemu-arm выполняют чужой код; FirmAE эмулирует устройство целиком."
+- question: "Почему приватный ключ в прошивке — серьёзная находка?"
   options:
-    - "файловая система"
-    - "раздел/область с параметрами (в т.ч. паролями)"
-    - "тип шифрования"
-    - "протокол"
+    - "он занимает место"
+    - "он одинаков у всех устройств серии и позволяет выдать себя за устройство"
+    - "он ускоряет загрузку"
+    - "он шифрует пароль"
   answer: 1
+  explanation: "Ключ, зашитый в образ, тиражируется на все устройства модели."
 ```
+
+## Куда дальше
+
+Мы распаковали прошивку и нашли в ней бэкдор, пароли и ключи. В следующем уроке (`forensics-cloud-trail`) мы поднимемся на уровень выше — к облачным журналам, где расследуют действия в AWS/GCP/Azure. А пока главное запомни: **прошивка — это упаковка, `binwalk` показывает её слои, `unsquashfs` распаковывает файловую систему, а в `init.d` и `shadow` часто лежат бэкдоры и пароли**.
 
 ## Где пригодится
 
 - **CTF:** задачи с прошивками и IoT-устройствами.
 - **IoT DFIR:** анализ скомпрометированных устройств.
 - **Анализ малвари:** разбор встроенных бэкдоров.
-- **Реверс-инжиниринг:** подготовка образов для динамики.
+- **Реверс-инжиниринг:** подготовка образов для динамического анализа.
 - **Судебная экспертиза:** извлечение конфигов и секретов.

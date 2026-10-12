@@ -14,270 +14,216 @@ useful_for:
 estimated_minutes: 55
 summary: "Практическое получение root: разблокировка загрузчика, патч boot.img через Magisk, KernelSU/APatch, установка Xposed/LSPosed и проверка результата."
 ---
-## Введение
 
-Этот урок — практическая часть ветви `mobile-android-root`: как из обычного устройства сделать root-полигон для динамического анализа. Мы разберём полный цикл: проверка состояния → разблокировка загрузчика → патч `boot.img` в Magisk → прошивка → установка Xposed/LSPosed → проверка. Отдельно рассмотрим KernelSU/APatch (kernel-based root) и почему они скрытнее. Все команды выполняются с ПК, где установлены `adb` и `fastboot` (platform-tools).
+## Вопрос, с которого всё начинается
 
-Ключевой риск: неверный `boot.img` (от другой сборки) ломает загрузку — сначала всегда бекапьте оригинал и держите под рукой сток-прошивку. Разблокировка загрузчика **стирает все данные**, поэтому делайте её на чистом тестовом устройстве.
+Ты запускаешь тестовое приложение на своём телефоне — и оно сразу пишет «Root detected!» и закрывается. Ему не нравится, что устройство модифицировано. А тебе, наоборот, root нужен: без него не прочитать чужую песочницу, не установить системный CA, не прицепить Frida к защищённому процессу.
 
-## Проверка окружения и состояния устройства
+Как получить root на своём устройстве — и почему приложение вообще об этом узнаёт?
 
-```bash
-adb version && fastboot --version
-adb devices -l                      # список устройств
-adb shell getprop ro.product.model
-adb shell getprop ro.build.version.release   # версия Android
-adb shell getprop ro.boot.verifiedbootstate  # green = locked
-adb shell getprop ro.boot.flash.locked       # 1 = locked
-adb shell getprop ro.boot.veritymode
-adb shell getprop ro.build.tags              # test-keys = признак root/инженерки
-```
+## Наш пример: uncrack1.apk и его детект
 
-`ro.build.tags` со значением `test-keys` (вместо `release-keys`) — классический признак нестандартной прошивки, который проверяют приложения. `ro.boot.verifiedbootstate` должен быть `orange` после unlock.
-
-## Разблокировка загрузчика
-
-Pixel (fastboot-протокол):
-
-```bash
-adb reboot bootloader
-fastboot flashing unlock
-# на экране устройства подтвердить (Volume + Power)
-fastboot reboot
-```
-
-Xiaomi/Redmi: `Developer Options → Mi Unlock Status` (привязка аккаунта, ожидание до 168 ч), затем `fastboot oem unlock`. Samsung: `Developer Options → OEM unlocking`, далее Odin в Download mode. Проверка:
-
-```bash
-fastboot getvar unlocked
-adb shell getprop ro.boot.verifiedbootstate
-```
-
-## Патч boot.img через Magisk (systemless root)
-
-1. Скачайте сток-`boot.img` (или `init_boot.img` на Android 13+) строго под вашу сборку.
-2. Установите приложение Magisk, откройте `Install → Select and Patch a File`, выберите `boot.img`.
-3. Заберите пропатченный образ и прошейте:
-
-```bash
-adb pull /sdcard/Download/magisk_patched-27000_xxxxx.img
-adb reboot bootloader
-fastboot flash boot magisk_patched-27000_xxxxx.img
-fastboot reboot
-adb shell su -c id          # uid=0(root) gid=0(root) — root есть
-```
-
-Для Android 13+ с раздельным `init_boot`:
-
-```bash
-fastboot flash init_boot magisk_patched.img
-```
-
-После загрузки в приложении Magisk должен быть статус **Installed** и версия Zygisk. Проверка из шелла:
-
-```bash
-adb shell su -c 'magisk -V'
-adb shell su -c 'ls /data/adb/modules'
-```
-
-## KernelSU и APatch (kernel-based root)
-
-KernelSU патчит ядро (GKI) и предоставляет `su` через модуль ядра — это скрытнее, потому что нет пользовательского `su`-бинаря в привычном месте и меньше видимых следов. Установка зависит от устройства (патч `boot.img` с KSU-ядром либо через `fastboot`). Проверка:
-
-```bash
-adb shell su -c id
-adb shell ls /data/adb/ksu
-```
-
-APatch использует KPM (Kernel Patch Module) и также работает на уровне ядра. Минус обоих — нужен совместимый kernel, и они детектирутся иначе (по версии ядра, по `/proc/kallsyms`, по монтированиям). Выбор: Magisk — универсальнее; KernelSU/APatch — когда нужно пройти продвинутый root-детект.
-
-## Xposed и LSPosed
-
-LSPosed ставится как Magisk-модуль (Zygisk). После установки и перезагрузки в менеджере LSPosed включайте модули и задавайте scope (какие пакеты хукать). Пример простого Xposed-модуля (Java) для подмены root-детекта:
+Снова возьмём `uncrack1.apk`. Декомпилируем его через `jadx` и посмотрим на точку входа:
 
 ```java
-public class Bypass implements IXposedHookLoadPackage {
-  public void handleLoadPackage(LoadPackageParam lpp) {
-    XposedHelpers.findAndHookMethod("com.target.RootChecker", lpp.classLoader,
-        "isRooted", new XC_MethodReplacement() {
-          @Override protected Object replaceHookedMethod(MethodHookParam p) {
-            return Boolean.FALSE;
-          }
-        });
-  }
+protected void onCreate(Bundle bundle) {
+    if (c.a() || c.b() || c.c()) {
+        a("Root detected!");
+    }
+    if (b.a(getApplicationContext())) {
+        a("App is debuggable!");
+    }
+    super.onCreate(bundle);
+    setContentView(R.layout.activity_main);
 }
 ```
 
-LSPosed-модули не пересобирают APK цели и работают во всех процессах, где включён scope. Для пентеста это удобно, когда пересборка/перепаковка приложения нежелательна (детект целостности APK).
+Здесь `c.a()`, `c.b()`, `c.c()` — три проверки root, а `b.a(...)` — проверка debuggable. Найдём класс `c` и посмотрим, что именно он проверяет:
 
-## Полный сквозной пример
-
-Цель: обойти `isRooted()` в тестовом APK на эмуляторе.
-
-```bash
-# 1. Проверяем, что приложение падает/блокируется на root
-adb install app-debug.apk
-adb shell am start -n com.target/.MainActivity
-
-# 2. Ставим Magisk (эмулятор Google APIs позволяет root через adb root)
-adb root && adb remount
-# на AVD: Settings → System → Developer options → включить root (adb only / apps+adb)
-
-# 3. Устанавливаем LSPosed-модуль, включаем scope com.target, перезагружаем
-adb reboot
-adb shell am start -n com.target/.MainActivity   # экран больше не блокируется
+```java
+public static boolean a() {
+    for (String str : System.getenv("PATH").split(":")) {
+        if (new File(str, "su").exists()) return true;
+    }
+    return false;
+}
+public static boolean b() {
+    return new File("/system/app/Superuser.apk").exists();
+}
+public static boolean c() {
+    return new File("/system/xbin/daemonsu").exists() ||
+           new File("/system/xbin/su").exists();
+}
 ```
 
-Альтернатива без Xposed — Frida (см. `mobile-dynamic-frida`), но Xposed/LSPosed выигрывает в случаях, когда Frida-сервер детектится.
+Вот и ответ: приложение ищет бинарь `su` в `PATH`, файл Superuser и `su` в системных каталогах. Всё это — **следы root**. Чтобы понять, откуда они берутся, нужно разобраться, как root вообще устроен.
 
-## Частые ошибки
+## Шаг 1: что именно ломает root
 
-- **Неверный boot.img** → bootloop. Всегда бекап оригинала: `adb pull` не поможет (нужен образ из прошивки), держите сток-rom.
-- **Android 13+**: патчить не `boot.img`, а `init_boot.img` — иначе root не появится.
-- **Пропущен OEM unlock**: `fastboot flashing unlock` вернёт `not allowed` — включите `OEM unlocking` в Developer Options.
-- **Magisk «Installed» но `su` нет**: не выдан доступ в приложении (Superuser-запрос) или DenyList случайно скрыл `su`.
-- **Zygisk не включён**: LSPosed не запустится; проверьте переключатель Zygisk в настройках Magisk.
-- **OTA-обновление**: после обновления прошивки root слетает — патчить boot заново.
+Android — это «слоёный пирог» защиты. Root пробивает каждый слой аккуратно, не ломая загрузку системы.
 
-## Что дальше / решение
+| Слой | Назначение | Что даёт root |
+|------|-----------|----------------|
+| Sandbox (UID) | изоляция данных | чтение `/data/data/*` |
+| SELinux | мандатный контроль | политики `su` |
+| dm-verity | целостность system | обход через overlay |
+| Verified Boot | подпись загрузки | разблокировка загрузчика |
+| Keystore/TEE | аппаратные ключи | частично |
 
-После получения root переходите к `mobile-magisk-modules` (свои модули и Zygisk-инъекции) и `mobile-adb-fastboot` (ADB/fastboot как атакующий интерфейс). Если цель — пройти аттестацию, смотрите `mobile-integrity` и `mobile-frida-detection`. Решение по умолчанию: Magisk + Zygisk + LSPosed + PIF-модуль на выделенном устройстве.
+Важно различать три вещи: **bootloader unlock** (разрешение прошивать неофициальные образы), **root** (UID 0 и бинарь `su`) и **systemless-модификации** (Magisk). Unlock — это предпосылка: без него нельзя прошить patched boot.
 
-## Справочная таблица команд
+## Шаг 2: разблокируем загрузчик
 
-| Действие | Команда |
-|----------|---------|
-| Список устройств | `adb devices -l` |
-| В bootloader | `adb reboot bootloader` |
-| Unlock | `fastboot flashing unlock` |
-| Проверка unlock | `fastboot getvar unlocked` |
-| Прошивка boot | `fastboot flash boot magisk_patched.img` |
-| Проверка root | `adb shell su -c id` |
-| Версия Magisk | `magisk -V` |
-| Модули | `ls /data/adb/modules` |
-| KernelSU | `ls /data/adb/ksu` |
+Загрузчик (`bootloader`) проверяет подпись загрузочных образов по Verified Boot. Чтобы прошить свой образ, его сначала разблокируют. У Pixel это делается через `fastboot`:
 
-## Root на разных вендорах (OEM-специфика)
-
-Процедура root сильно зависит от вендора. Ниже — практические отличия.
-
-**Google Pixel.** Самый дружелюбный вариант: `fastboot flashing unlock` без ожидания, `boot.img`/`init_boot.img` доступны в factory image, установка Magisk тривиальна. Проверка: `adb shell getprop ro.boot.flash.locked` (1/0).
-
-**Xiaomi/Redmi/POCO.** Требуется привязка Mi-аккаунта и ожидание 168 часов в Mi Unlock Tool, затем `fastboot oem unlock`. `boot.img` извлекается из recovery-образа (payload.bin) через `payload-dumper-go`:
-
-```bash
-payload-dumper-go -o out mi_recovery.img
-ls out | grep -E 'boot|init_boot'
+```
+$ adb reboot bootloader
+$ fastboot flashing unlock
+OKAY [ 12.345s]
+Finished. Total time: 12.345s
 ```
 
-**Samsung.** Root через патч `AP`-образа (magisk_patched) и прошивку Odin в Download mode; обязательно `OEM unlocking`. KNOX при этом срабатывает необратимо (0x1) — Samsung Pay/Pass навсегда отключаются. Это важно учитывать на тестовом устройстве.
+Внимание: эта команда **стирает все данные** (wipe) — это часть защиты. Проверяем состояние:
 
-**OnePlus/Oppo/Realme.** `fastboot flashing unlock` (у части моделей `fastboot oem unlock`), возможна потеря Widevine L1. Проверка widevine: приложение DRM может перестать работать — тоже детектируемый признак.
-
-**Huawei.** Современные модели не имеют официального unlock; root практически невозможен без аппаратных методов. Для пентеста берите другое устройство.
-
-## Проверка, откат и удаление root
-
-Иногда root нужно временно снять, чтобы вернуть «чистое» состояние (например, перед тестом детекта). Порядок отката Magisk:
-
-```bash
-# 1. В приложении Magisk: Uninstall -> Complete Uninstall
-# 2. Либо вернуть сток-boot вручную
-adb reboot bootloader
-fastboot flash boot stock_boot.img
-fastboot reboot
-# 3. Проверить
-adb shell getprop ro.boot.verifiedbootstate   # green
-adb shell su -c id                            # su не найден
+```
+$ adb shell getprop ro.boot.verifiedbootstate
+orange
+$ adb shell getprop ro.boot.flash.locked
+0
 ```
 
-Полный возврат к стоку — перепрошивка factory image (Pixel: `flash-all.sh`, Xiaomi: MiFlash). Для Pixel это надёжнее всего: стирает все следы root и возвращает загрузчик (при `fastboot flashing lock`) в зелёное состояние.
+`orange` — разблокированный загрузчик. Многие банковские приложения детектят именно это (см. `mobile-root-detection`). У Samsung разблокировка — через `OEM unlock` в Developer Options и режим Download, у Xiaomi — с привязкой аккаунта и ожиданием.
 
-```bash
-# Pixel: lock загрузчик обратно (стирает данные!)
-fastboot flashing lock
+## Шаг 3: systemless root через Magisk
+
+Раньше root писали прямо в `/system` (SuperSU). Это ломало dm-verity и мешало обновлениям. Современный стандарт — **Magisk**: он не трогает `/system` физически, а патчит **boot-образ** и подмешивает изменения на этапе загрузки через ramdisk. Поэтому dm-verity остаётся валидным.
+
+Установка выглядит так:
+
+```
+# 1. вытаскиваем boot.img своей сборки (или берём из OTA)
+$ adb shell su -c "dd if=/dev/block/by-name/boot of=/sdcard/boot.img"   # если root уже есть
+# 2. в приложении Magisk: Install -> Patch a file -> выбираем boot.img
+# 3. возвращаем патченный образ
+$ adb pull /sdcard/Download/magisk_patched-XXXX.img
+$ adb reboot bootloader
+$ fastboot flash boot magisk_patched-XXXX.img
+$ fastboot reboot
 ```
 
-## Диагностика bootloop и восстановление
+После перезагрузки проверяем:
 
-Самая частая проблема — неверный `boot.img` или несовместимый модуль. Признаки: устройство циклически перезагружается, логотип виснет. Что делать:
-
-```bash
-# 1. Зайти в bootloader (Vol Down + Power)
-adb reboot bootloader
-# 2. Вернуть стоковый boot
-fastboot flash boot stock_boot.img
-# 3. Если модуль ломает загрузку — Magisk safe mode:
-#    зажать Vol Down при загрузке -> все модули отключаются
+```
+$ adb shell su -c id
+uid=0(root) gid=0(root) context=u:r:magisk:s0
 ```
 
-Magisk safe mode автоматически отключает модули, если предыдущая загрузка не завершилась дважды. После входа в систему отключите проблемный модуль в приложении. Всегда держите `stock_boot.img` и factory image под рукой — это спасает от «кирпича».
+`uid=0(root)` — root есть. Внутри `/data/adb/magisk` живут файлы Magisk, а `/data/adb/modules/` — модули.
 
-## Сравнение решений по рискам и скрытности
+## Шаг 4: почему детект срабатывает
 
-| Решение | Скрытность | Риск «кирпича» | OTA-совместимость | Сложность |
-|---------|-----------|----------------|-------------------|-----------|
-| Magisk (boot) | средняя | низкий | есть (после перепатча) | низкая |
-| KernelSU | высокая | средний | зависит от ядра | средняя |
-| APatch | высокая | средний | зависит | высокая |
-| SuperSU (legacy) | низкая | средний | нет | низкая |
+Теперь вернёмся к `uncrack1`. Проверки ищут `su` в `PATH` и файлы Superuser. Magisk умеет **скрывать** эти следы: у него есть **DenyList** (список приложений, которым не видно root) и модули вроде Play Integrity Fix. Но `su` как таковой нужен — поэтому просто «спрятать всё» не всегда выходит.
 
-Для пентеста оптимален Magisk + Zygisk + DenyList + PIF: он даёт максимум инструментов при минимальном риске. KernelSU/APatch выбирайте, когда приложение проходит Magisk-детект. Если приложение использует аппаратную аттестацию (Strong Integrity), ни один программный root не поможет — нужен «чистый» телефон или серверная подмена.
+Есть и более скрытные решения:
 
-## Сводный чек-лист получения root
+| Решение | Принцип | Скрытность |
+|---------|---------|-----------|
+| Magisk | ramdisk + overlay | средняя |
+| KernelSU | патч ядра (GKI) | высокая |
+| APatch | ядро + KPM | очень высокая |
 
-1. Проверить `ro.boot.verifiedbootstate`, `ro.debuggable`, `ro.build.tags`.
-2. Включить Developer Options → OEM unlocking.
-3. Разблокировать загрузчик (с потерей данных).
-4. Скачать сток-образ, извлечь `boot.img`/`init_boot.img`.
-5. Патчить в Magisk, прошить, проверить `su -c id`.
-6. Установить Zygisk + LSPosed + PIF.
-7. Зафиксировать состояние (версии, свойства) для воспроизводимости.
+**KernelSU** работает на уровне ядра, поэтому его сложнее заметить из userspace. **APatch** — ещё более скрытный. Для пентеста обычно достаточно Magisk.
+
+## Шаг 5: альтернатива — эмулятор
+
+Не всегда хочется рисковать личным телефоном. **Эмулятор** (`AVD`, Android Virtual Device) — это виртуальное устройство, где root включается без разблокировки загрузчика. Образы Google APIs (`google_apis`) дают `adb root` из коробки:
+
+```
+$ adb root
+restarting adbd as root
+$ adb shell id
+uid=0(root)
+```
+
+Плюсы эмулятора: воспроизводимость, снапшоты, изоляция от личных данных. Минусы: некоторые приложения детектят эмулятор (см. `mobile-emulator-detection`). Для большинства задач тестирования эмулятор — решение по умолчанию.
+
+## Шаг 6: риски
+
+Root снижает защиту устройства: вредоносное приложение, запросившее `su`, получит полный доступ, если пользователь подтвердит. Поэтому для работы используют отдельное устройство или эмулятор, не хранят там личные токены и делают снапшоты. Также важно согласовывать версию прошивки и патча Magisk — иначе можно получить «кирпич».
+
+## Шаг 7: проверка состояния загрузчика
+
+Прежде чем шить что-либо, посмотри, разблокирован ли загрузчик и цел ли system. Это системные свойства, и приложение видит ровно те же значения через `getprop`. Ключевых три:
+
+- `ro.boot.verifiedbootstate` — `green` при подписанной штатной загрузке, `orange` при разблокированном загрузчике, `yellow`/`red` — нестандартная или кастомная загрузка;
+- `ro.boot.flash.locked` — `1`, если загрузчик заблокирован;
+- `ro.boot.veritymode` — `enforcing`, если dm-verity включён, `disabled` — если выключен.
+
+Именно по этим свойствам банковские приложения вычисляют root-устройство: `orange` или `flash.locked=0` уже выдаёт разблокированный загрузчик ещё до установки Magisk, а `veritymode=disabled` — побочный эффект старых методов root. Запомни эту тройку: проверять их проще и надёжнее, чем искать бинарь `su`.
+
+## Что мы теперь знаем
+
+- Root — это UID 0 и бинарь `su`; он пробивает песочницу, SELinux и dm-verity.
+- Bootloader unlock — предпосылка; он стирает данные и меняет verified boot state на `orange`.
+- Magisk патчит boot-образ и работает systemless, не трогая `/system`.
+- KernelSU/APatch скрытнее, потому что работают на уровне ядра.
+- Детект root ищет `su` в `PATH` и системные файлы; Magisk умеет это скрывать.
+- Эмулятор — безопасная альтернатива с root «из коробки».
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "На каком разделе патчится boot.img при установке Magisk на Android 13+?"
+- question: Что ищет типовая проверка root вроде `new File(str, 'su').exists()`?
   options:
-    - "boot"
-    - "init_boot"
-    - "system"
-    - "vendor"
+    - "Файл с паролем"
+    - "Бинарь `su` в каталогах из PATH"
+    - "Настройки Wi-Fi"
+    - "Ключ API"
   answer: 1
-  explanation: "Начиная с Android 13 generic ramdisk вынесен в init_boot, поэтому патчится именно он."
-- question: "Что произойдёт при прошивке boot.img от другой сборки?"
+  explanation: "Наличие `su` в PATH — классический маркер установленного root."
+- question: Чем systemless root (Magisk) лучше записи в `/system`?
   options:
-    - "Ничего, образ универсален"
-    - "Устройство уйдёт в bootloop"
-    - "Появится второй root"
-    - "Сработает SELinux"
+    - "Он быстрее"
+    - "Не ломает dm-verity и OTA-обновления, подменяя /system на этапе загрузки"
+    - "Не требует загрузчика"
+    - "Работает без устройства"
   answer: 1
-- question: "Чем KernelSU принципиально отличается от Magisk?"
+  explanation: "Magisk патчит boot-образ и подмешивает overlay, оставляя раздел system нетронутым."
+- question: Что произойдёт при `fastboot flashing unlock`?
   options:
-    - "Работает на уровне ядра, а не через ramdisk-патч"
-    - "Требует iOS"
-    - "Не даёт root"
-    - "Это графический анализатор"
-  answer: 0
-- question: "Для чего нужен LSPosed при обходе root-детекта?"
-  options:
-    - "Хукать методы Java в целевых процессах без пересборки APK"
-    - "Сканировать порты"
-    - "Расшифровывать TLS"
-    - "Делать бэкап"
-  answer: 0
-- question: "Как проверить, что root действительно получен?"
-  options:
-    - "getprop ro.build.tags"
-    - "adb shell su -c id и увидеть uid=0"
-    - "adb devices"
-    - "fastboot getvar unlocked"
+    - "Ничего"
+    - "Все пользовательские данные будут стёрты (wipe)"
+    - "Установится root"
+    - "Удалится bootloader"
   answer: 1
+  explanation: "Wipe — часть защиты при разблокировке загрузчика."
+- question: Какой prop указывает на разблокированный загрузчик?
+  options:
+    - "ro.debuggable"
+    - "ro.boot.verifiedbootstate=orange"
+    - "ro.secure"
+    - "ro.product.model"
+  answer: 1
+  explanation: "orange — разблокированный загрузчик; green — штатная подпись."
+- question: Почему KernelSU сложнее заметить из приложения?
+  options:
+    - "Он не требует root"
+    - "Работает на уровне ядра, а не через userspace-бинарь"
+    - "Он скрывает манифест"
+    - "Он отключает SELinux"
+  answer: 1
+  explanation: "KernelSU — патч ядра (GKI), поэтому следы в userspace минимальны."
 ```
+
+## Куда дальше
+
+Root получен. Дальше логично разобраться с **модулями Magisk и Zygisk** — именно они позволяют прятать root от конкретных приложений, подменять системные свойства и запускать код внутри Zygote. Об этом — следующий урок. А пока главное запомни: root — это не «взлом телефона», а легальная модификация собственного устройства, которая открывает доступ к данным и инструментам.
 
 ## Где пригодится
 
-- **Пентест:** подготовка root-устройства для Frida, MITM, чтения приватных данных.
-- **Bug bounty:** обход клиентских root-проверок на устройстве.
-- **Анализ малвари:** контролируемая среда для наблюдения за образцом.
-- **CTF:** Mobile-задачи, требующие доступа к защищённому хранилищу.
+- **Пентест:** подготовка устройства для динамического анализа и MITM.
+- **Bug bounty:** обход root- и integrity-детекта для доступа к функционалу.
+- **Анализ малвари:** изоляция образца и перехват его поведения.
+- **CTF:** Mobile-задачи, где нужен доступ к закрытым данным приложения.

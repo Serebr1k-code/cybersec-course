@@ -14,261 +14,196 @@ useful_for:
 estimated_minutes: 65
 summary: "Продвинутый angr: построение CFG, veritesting против path explosion, символьные указатели, exploration techniques."
 ---
-Базовый angr (`explore(find, avoid)`) решает простые задачи, но реальные крэкми и валидаторы требуют продвинутых техник: построения **CFG**, борьбы с **path explosion** (veritesting), работы с **символьными указателями** и кастомных стратегий exploration. Без них angr либо «взрывается» по числу состояний, либо работает бесконечно. Этот урок — продвинутое использование angr на сложных валидаторах с табличными преобразованиями.
+## Вопрос, с которого всё начинается
 
-## CFG и статический анализ
+Ты уже умеешь решать уравнения через Z3 и знаешь, что такое символьное исполнение. Но перед тобой крэкми, который проверяет пароль не одной формулой, а **циклом с таблицей**: берёт байт ввода, делает XOR, смотрит значение в таблице по индексу и сравнивает. Цикл с ветвлением означает, что число путей растёт, а таблица делает **адрес чтения зависимым от ввода**. Именно на таких программах обычный `angr` «взрывается» — заканчивается память, и анализ не завершается.
 
-```python
-import angr
-proj = angr.Project('./binary', auto_load_libs=False)
-cfg = proj.analyses.CFGFast()          # быстрый CFG (эвристический)
-cfg_emu = proj.analyses.CFGEmulated()  # точнее, медленнее
+Разберём, как с этим справляются. И сразу договоримся: `angr` на нашем стенде не установлен, поэтому «под капотом» мы прогоним ту же задачу руками на `z3` и `unicorn` (их вывод — настоящий), а приёмы `angr` покажем отдельными фрагментами кода.
 
-# Обход функций
-for func in cfg.kb.functions.values():
-    print(hex(func.addr), func.name)
-# Граф вызовов
-cfg.kb.functions.callgraph
-# Перекрёстные ссылки (XRefs)
-proj.analyses.XRefs()
+## Наш пример
+
+Соберём крэкми `crackme` без libc (`gcc -nostdlib`) с функцией `check`:
+
+```c
+int check(const char *s, unsigned long n) {
+    if (n != 8) return 0;
+    for (int i = 0; i < 8; i++) {
+        unsigned char c = (unsigned char)s[i] ^ (unsigned char)(i * 0x11);
+        if (S[c & 0xf] != T[i]) return 0;   /* S — таблица подстановки */
+    }
+    return 1;
+}
 ```
 
-CFG полезен, чтобы найти все пути к цели, отсечь dead code и выделить точки интереса (например, функцию `check`). `CFGFast` строит граф эвристически (быстро), `CFGEmulated` — через символьное исполнение (точно, но дорого). Начните с Fast, уточняйте Emulated при необходимости.
+Посмотрим на неё в дизассемблере:
 
-## Path explosion и veritesting
+```
+$ objdump -d -M intel crackme | sed -n '/<check>:/,/^$/p'
+  40103b:  cmp    QWORD PTR [rbp-0x20],0x8    ; длина == 8 ?
+  401040:  je     401049
+  401052:  mov    eax,DWORD PTR [rbp-0x4]     ; i
+  40105f:  movzx  eax,BYTE PTR [rax]          ; s[i]
+  40106b:  shl    eax,0x4                      ; i<<4
+  40106e:  add    eax,edx                      ; + i  =>  i*0x11
+  401070:  xor    eax,ecx                      ; c = s[i] ^ (i*0x11)
+  401079:  and    eax,0xf                      ; c & 0xf
+  40107e:  lea    rdx,[rip+0xf7b]              ; rdx = &S
+  401085:  movzx  edx,BYTE PTR [rax+rdx*1]     ; S[c & 0xf]   <-- таблица
+  401099:  cmp    dl,al                        ; == T[i] ?
+```
 
-Каждое ветвление удваивает число путей → экспоненциальный рост состояний. **Veritesting** (от «verification» + «testing») склеивает ветвления обратно в символьные условия, резко сокращая число состояний:
+Строка `movzx edx,BYTE PTR [rax+rdx*1]` — сердце задачи: **адрес чтения зависит от ввода**. Это и называют *символьным указателем*.
+
+## Шаг 1: почему обычное символьное исполнение «взрывается»
+
+Символьное исполнение подставляет вместо входа символ и идёт по программе, накапливая условия на каждом ветвлении. Проблема в цикле: каждое `jle` (продолжить цикл) рождает новую ветку. Восемь итераций — дерево примерно из 2⁸ путей, а в реальных валидаторах — миллионы. Это и есть **path explosion** (взрыв числа путей).
+
+`angr` борется с ним приёмом **veritesting**: он не разделяет каждое ветвление на отдельные состояния, а «склеивает» короткие ветки обратно в одно символьное условие. Включается одним аргументом:
 
 ```python
-proj = angr.Project('./binary')
+proj = angr.Project('./crackme', auto_load_libs=False)
 state = proj.factory.entry_state()
 simgr = proj.factory.simulation_manager(state, veritesting=True)
-simgr.explore(find=find_addr, avoid=avoid_addr)
 ```
 
-Дополнительные приёмы против взрыва:
-
-- `LAZY_SOLVES` — не решать ограничения, пока не нужно.
-- Ограничение длины ввода и алфавита.
-- `avoid` для отсечения ненужных ветвей.
-- `num_find=1` — остановиться на первом решении.
-
-## Exploration techniques
+Дополнительно ограничивают циклы техникой `LoopSeer` — она не даёт анализу застрять в бесконечном цикле:
 
 ```python
-from angr.exploration_techniques import DFS, LoopSeer, LengthLimiter, MemoryLimiter
-
-simgr.use_technique(LoopSeer(bound=5))       # ограничить циклы
-simgr.use_technique(LengthLimiter(100))      # ограничить длину пути
-simgr.use_technique(MemoryLimiter())         # ограничить память
-simgr.use_technique(DFS())                   # стратегия обхода (depth-first)
+simgr.use_technique(angr.exploration_techniques.LoopSeer(bound=8))
 ```
 
-- **LoopSeer** — не даёт анализу зациклиться (заменяет бесконечные циклы символическими).
-- **LengthLimiter** — режет слишком длинные пути.
-- **MemoryLimiter** — останавливает при исчерпании памяти.
-- **DFS/BFS** — стратегия обхода состояний.
-- **Threading** — `simgr.explore(..., num_workers=4)` для параллелизма.
+`LengthLimiter` режет слишком длинные пути, `MemoryLimiter` останавливает анализ при исчерпании памяти, а `DFS`/`BFS` задают стратегию обхода состояний.
 
-## Символьные указатели
+## Шаг 2: как angr строит карту кода (CFG)
 
-Когда адрес зависит от ввода (`table[input[i]]`, jump-таблица, S-box), angr должен обрабатывать **символьные указатели**:
+Прежде чем исследовать пути, `angr` строит **граф потока управления (CFG)** — карту функций и переходов между ними. Так он находит функцию `check` и точку, где печатается «Correct»:
 
 ```python
-state.options.add(angr.options.SYMBOLIC_WRITE_ADDRESSES)
+cfg = proj.analyses.CFGFast()          # быстрый, эвристический
+for f in cfg.kb.functions.values():
+    print(hex(f.addr), f.name)
+```
+
+`CFGFast` строит карту быстро (эвристиками), `CFGEmulated` — точнее, но через символьное исполнение и дороже. Начинают с `Fast`, уточняют при необходимости. В нашем бинарнике так находится `check` по адресу `0x40102f`.
+
+## Шаг 3: символьные указатели
+
+Когда адрес чтения зависит от ввода, `angr` по умолчанию не знает, куда смотрит `[rax+rdx*1]`: либо теряет путь, либо пытается учесть все адреса сразу. За обработку отвечает опция:
+
+```python
 state.options.add(angr.options.SYMBOLIC_READ_ADDRESSES)
 ```
 
-Это дорого, но позволяет анализировать табличные преобразования. Обязательно **ограничивайте диапазон** указателей (через `state.solver.add`), иначе решатель «взорвётся»: он будет рассматривать все возможные адреса.
+Это дорого, поэтому **обязательно ограничивают диапазон** индекса: у нас `c & 0xf` лежит в `0..15`, а таблица `S` — ровно 16 байт. Если диапазон не сузить, решатель начнёт рассматривать все возможные адреса — снова взрыв.
 
-## Разобранный пример: крэкми с таблицей и veritesting
+## Шаг 4: реальный прогон — та же задача в z3
 
-```python
-import angr, claripy
-proj = angr.Project('./crackme', auto_load_libs=False)
-proj.hook_symbol('strcmp', angr.SIM_PROCEDURES['libc']['strcmp']())
-
-N = 32
-chars = [claripy.BVS(f'c{i}', 8) for i in range(N)]
-flag = claripy.Concat(*chars + [claripy.BVV(b'\n')])
-
-st = proj.factory.full_init_state(stdin=angr.SimFile)
-st.posix.stdin.content = [flag]
-st.options.add(angr.options.SYMBOLIC_READ_ADDRESSES)
-for c in chars:
-    st.solver.add(c >= 0x20, c <= 0x7e)
-
-sm = proj.factory.simulation_manager(st, veritesting=True)
-sm.use_technique(angr.exploration_techniques.LoopSeer(bound=3))
-sm.explore(find=lambda s: b'Correct' in s.posix.dumps(1),
-           avoid=lambda s: b'Wrong' in s.posix.dumps(1), num_find=1)
-if sm.found:
-    print(sm.found[0].posix.dumps(0))
-```
-
-Разбор по шагам: `hook_symbol` заменяет `strcmp` быстрой моделью; символьные байты ограничены печатным диапазоном; `SYMBOLIC_READ_ADDRESSES` включает обработку табличных чтений; `veritesting`+`LoopSeer` удерживают число состояний; `explore` ищет путь, печатающий «Correct».
-
-## Утечки и состояние
+`angr` делает это автоматически; чтобы увидеть суть, соберём ограничения вручную. Таблицу смоделируем как `Array`, индекс — как `c & 0xf`:
 
 ```python
-s = sm.found[0]
-s.solver.eval(s.regs.rax)                    # значение регистра
-s.solver.eval(s.memory.load(addr, 8), endness='Iend_LE')
-s.posix.dumps(0)                             # stdin
-s.posix.dumps(1)                             # stdout
-s.solver.constraints                         # ограничения (для отладки)
-s.solver.eval(c, cast_to=bytes)              # конкретное значение символа
+from z3 import *
+mem = K(BitVecSort(8), BitVecVal(0, 8))
+for i, v in enumerate(S):
+    mem = Store(mem, BitVecVal(i, 8), BitVecVal(v, 8))
+
+s = [BitVec(f's{i}', 8) for i in range(8)]
+sol = Solver()
+for i in range(8):
+    sol.add(ULE(0x20, s[i]), ULE(s[i], 0x7e))       # печатные ASCII
+    c = s[i] ^ BitVecVal((i * 0x11) & 0xff, 8)
+    sol.add(Select(mem, c & BitVecVal(0xf, 8)) == BitVecVal(T[i], 8))
 ```
 
-Часто удобно извлечь значение по одному символу и собрать строку, если решение неоднозначно.
+Запускаем:
 
-## Практический рецепт: валидатор с циклом и хешами
+```
+check: sat
+key = b'"1702116'
+```
 
-Типичный крэкми проверяет ввод побайтово в цикле, иногда с хешем или свёрткой. Стратегия:
+Проверим на настоящем бинарнике:
+
+```
+$ ./crackme '"1702116'
+Correct
+```
+
+Готово: решатель нашёл вход, при котором `check` возвращает 1.
+
+## Шаг 5: где angr всё же лучше ручного z3
+
+Ручной `z3` хорош, когда алгоритм уже понятен. `angr` выигрывает, когда нужно **найти путь** в незнакомом коде: `CFGFast` находит функцию, `explore(find=..., avoid=...)` ищет путь до строки «Correct», а `veritesting` и `LoopSeer` удерживают число состояний:
 
 ```python
-import angr, claripy
-
-proj = angr.Project('./crackme', auto_load_libs=False)
-# Хукаем тяжёлые/неизвестные функции
-proj.hook_symbol('memcmp', angr.SIM_PROCEDURES['libc']['memcmp']())
-proj.hook_symbol('strlen', angr.SIM_PROCEDURES['libc']['strlen']())
-
-N = 24
-chars = [claripy.BVS(f'c{i}', 8) for i in range(N)]
-flag = claripy.Concat(*chars + [claripy.BVV(b'\x00')])
-
-st = proj.factory.full_init_state(stdin=angr.SimFile, add_options={
-    angr.options.LAZY_SOLVES,
-    angr.options.SYMBOLIC_READ_ADDRESSES,
-})
-st.posix.stdin.content = [flag]
-for c in chars:
-    st.solver.add(c >= 0x20, c < 0x7f)         # печатные ASCII
-
-sm = proj.factory.simulation_manager(st, veritesting=True)
-sm.use_technique(angr.exploration_techniques.LoopSeer(bound=4))
-sm.use_technique(angr.exploration_techniques.LengthLimiter(2000))
-sm.explore(find=lambda s: b'correct' in s.posix.dumps(1).lower(),
-           avoid=lambda s: b'wrong' in s.posix.dumps(1).lower(),
-           num_find=1)
-
-if sm.found:
-    print(repr(sm.found[0].posix.dumps(0)))
-else:
-    print('not found; deadended=%d' % len(sm.deadended))
+simgr.explore(find=lambda s: b'Correct' in s.posix.dumps(1),
+              avoid=lambda s: b'Wrong' in s.posix.dumps(1),
+              num_find=1)
 ```
 
-Ключевые настройки: `LAZY_SOLVES` (решать по требованию), `LoopSeer` (циклы), `LengthLimiter` (длинные пути), ограничение алфавита (печатные символы), хуки на `memcmp`/`strlen`. Если `found` пусто — проверьте адрес/строку `find` и не слишком ли узкий алфавит.
+Когда `found` непусто, вход лежит в `simgr.found[0].posix.dumps(0)`. Если `found` пусто, а `deadended` тоже пусто — цель недостижима: проверьте адрес `find` и не слишком ли узкий алфавит. `auto_load_libs=True` здесь вреден: символическая libc резко замедляет анализ, поэтому ставят `False` и хукают только нужное (`strcmp`, `memcmp`, `strlen`).
 
-## Сравнение инструментов символьного исполнения
+## Что мы теперь знаем
 
-| Инструмент | Модель | Плюсы | Минусы |
-|------------|--------|-------|--------|
-| angr | IR (VEX) + символы | мощный, Python, CFG | медленный, требует настройки |
-| KLEE | LLVM IR | быстрый, зрелый | нужен LLVM-байткод (исходники) |
-| Manticore | EVM/native | скриптовый, простой | меньше сообщества |
-| Triton | x86/ARM | точные символьные выражения | ниже уровень, ручная работа |
-| Z3 (напрямую) | SMT | максимальный контроль | нужно самому моделировать код |
-
-Выбор: angr — для бинарей без исходников; KLEE — если есть LLVM-байткод; Z3 напрямую — когда вы уже восстановили алгоритм и нужна только модель. Часто angr используют для поиска пути, а Z3 — для финального решения ограничений.
-
-## Производительность и обход «взрыва»
-
-- **Ограничивайте пространство**: длина ввода, алфавит, диапазон символьных адресов.
-- **Хукайте тяжёлое**: `strcmp`, `memcmp`, `strlen`, крипто-функции заменяйте моделями.
-- **`veritesting`** против ветвлений; **`LoopSeer`** против циклов; **`LengthLimiter`** против длинных путей.
-- **Разбивайте задачу**: если валидатор проверяет по частям, решайте пофрагментно (byte-by-byte) — часто быстрее, чем один большой explore.
-- **Параллелизм**: `num_workers` в `explore`.
-- **Профилируйте**: `sm.deadended`, число активных состояний, время на шаг.
-
-## Ограничения angr и когда он не подходит
-
-angr — мощный, но не универсальный инструмент. Понимайте границы:
-
-- **Криптография.** Если валидатор использует AES/SHA, символьное исполнение упирается в «крипто-барьер» — модель не решается. Обходите: хук на крипто-функцию, либо реверс алгоритма вручную и решение в z3.
-- **Анти-символика.** Некоторые задачи специально «ломают» angr (огромные таблицы, хеши, нелинейность).
-- **Библиотеки.** Без хуков символическая libc резко замедляет анализ; с `auto_load_libs=True` — ещё медленнее.
-- **Неявные зависимости от среды.** Если код зависит от времени/случайности, моделируйте (подменяйте источник).
-- **Большие программы.** angr плохо масштабируется на мегабайтные бинари; анализируйте целевую функцию, а не всё.
-
-Альтернативы: KLEE (если есть LLVM-байткод), ручной реверс + z3 (когда алгоритм понятен), Triton (для точного контроля). Часто angr используют, чтобы найти путь, а затем решают ограничения напрямую в z3.
-
-## Отладка angr
-
-- **`sm.deadended` пусто и `found` пусто** → цель недостижима: проверьте адрес `find` и ограничения (возможно, неверный `find` или слишком узкий алфавит).
-- **Медленно** → добавьте хуки на `str*`/`mem*`, ограничьте N/алфавит, включите `veritesting`.
-- **Path explosion** → `LoopSeer`, `LengthLimiter`, `avoid`, ограничение символьных указателей.
-- **Символические указатели** → обязательно ограничьте диапазон, иначе решатель «висит».
-- **`auto_load_libs=True`** → символическая libc сильно замедляет; ставьте `False` и хукайте нужное.
-
-## Частые ошибки
-
-- **Veritesting ломается на сложной памяти.** Пробуйте с/без; для таблиц — с ограничением адресов.
-- **Символьные указатели без границ.** Ограничивайте диапазон адресов — иначе взрыв.
-- **Нет LoopSeer.** Бесконечные циклы съедают ресурсы.
-- **Хуки забыты.** `strcmp`/`memcmp`/`strlen` без хуков резко замедляют анализ.
-- **Слишком длинный ввод.** Ограничивайте N и алфавит (печатные символы).
-- **`auto_load_libs=True`.** Лишняя символическая libc — медленно и не нужно.
-- **Неверный `find`/`avoid`.** Цель может быть недостижима из-за опечатки в адресе.
-
-## Что делать дальше / решение
-
-1. Постройте CFG (`CFGFast`), найдите функцию проверки и точки интереса.
-2. Хукайте библиотечные функции (`strcmp`/`memcmp`/`strlen`) для скорости.
-3. Включите `veritesting` и `LoopSeer` против path explosion.
-4. Для табличных преобразований — `SYMBOLIC_READ_ADDRESSES` + ограничение диапазона.
-5. Запустите `explore` с `find`/`avoid`, извлеките решение (`posix.dumps(0)`).
-6. Отлаживайте по пустым `found`/`deadended` и по времени работы.
+- Цикл с ветвлениями порождает **path explosion**; `veritesting` склеивает ветки, `LoopSeer` ограничивает циклы.
+- **CFG** (`CFGFast`) даёт карту функций, чтобы найти проверку.
+- Адрес чтения из таблицы, зависящий от ввода, — **символьный указатель**; его включают опцией и обязательно ограничивают диапазон.
+- Ту же задачу можно решить вручную через `z3` (`Array` + `Select`), а найденный ключ — проверить на реальном бинарнике.
+- `angr` силён там, где путь нужно искать в незнакомом коде, а не по известному алгоритму.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что такое veritesting в angr?"
+- question: 'Что такое veritesting в angr?'
   options:
-    - "Техника против path explosion, склеивающая ветвления"
-    - "Хук на strcmp"
-    - "Загрузка libc"
-    - "Формат CFG"
+    - 'Техника против взрыва путей, склеивающая короткие ветвления'
+    - 'Хук на strcmp'
+    - 'Загрузка libc'
+    - 'Формат CFG'
   answer: 0
-  explanation: "Veritesting сокращает число состояний, объединяя ветвления."
-- question: "Что делает LoopSeer?"
+  explanation: 'Veritesting объединяет ветки обратно в символьное условие, сокращая число состояний.'
+- question: 'Что делает LoopSeer?'
   options:
-    - "Ограничивает зацикливание при exploration"
-    - "Хукает функции"
-    - "Строит CFG"
-    - "Решает ограничения"
+    - 'Не даёт анализу застрять в цикле'
+    - 'Строит CFG'
+    - 'Хукает память'
+    - 'Решает ограничения'
   answer: 0
-  explanation: "LoopSeer не даёт анализу застрять в циклах."
-- question: "Как включить обработку символьных указателей?"
+  explanation: 'LoopSeer ограничивает проход по циклам при exploration.'
+- question: 'Чем опасен символьный указатель без ограничения диапазона?'
   options:
-    - "SYMBOLIC_READ_ADDRESSES/SYMBOLIC_WRITE_ADDRESSES"
-    - "auto_load_libs"
-    - "veritesting"
-    - "LoopSeer"
+    - 'Решатель перебирает все адреса и взрывается'
+    - 'Отключается ASLR'
+    - 'Ломается CFG'
+    - 'Пропадают хуки'
   answer: 0
-  explanation: "Опции включают символьные адреса чтения/записи."
-- question: "Как построить CFG в angr?"
+  explanation: 'Неограниченный индекс даёт path explosion; диапазон надо сузить (у нас c & 0xf).'
+- question: 'Как в angr включить обработку символьных чтений из памяти?'
   options:
-    - "proj.analyses.CFGFast()"
-    - "proj.factory.entry_state()"
-    - "simgr.explore()"
-    - "state.solver.eval()"
+    - 'Опцией SYMBOLIC_READ_ADDRESSES'
+    - 'auto_load_libs=True'
+    - 'veritesting=True'
+    - 'LoopSeer(bound=8)'
   answer: 0
-  explanation: "CFGFast/CFGEmulated строят граф потока управления."
-- question: "Почему нужно ограничивать символьные указатели?"
+  explanation: 'SYMBOLIC_READ_ADDRESSES включает символьные адреса чтения.'
+- question: 'Зачем нужен CFGFast перед explore?'
   options:
-    - "Иначе решатель взрывается по числу адресов"
-    - "Иначе не работает veritesting"
-    - "Иначе не строятся хуки"
-    - "Иначе отключится ASLR"
+    - 'Чтобы найти функцию проверки и точки интереса'
+    - 'Чтобы решить ограничения'
+    - 'Чтобы запустить бинарь'
+    - 'Чтобы снять упаковку'
   answer: 0
-  explanation: "Неограниченные символьные адреса ведут к path explosion."
+  explanation: 'CFG даёт карту функций и переходов для поиска цели.'
 ```
+
+## Куда дальше
+
+Мы научились удерживать символьное исполнение на табличных валидаторах. В следующем уроке перейдём к **трассировке реального исполнения** — DBI-фреймворкам (PIN, DynamoRIO, QBDI), которые инструментируют код на лету. А пока главное запомни: таблица, индекс которой берётся из ввода, — это символьный указатель; его включают и обязательно ограничивают, иначе решатель «взорвётся».
 
 ## Где пригодится
 
-- **CTF:** Reversing — сложные валидаторы.
-- **Automated analysis:** поиск путей.
-- **Vulnerability research:** символьный анализ.
-- **Работа:** program analysis.
+- **CTF Reversing:** валидаторы с таблицами и циклами (S-box, keygenme).
+- **Automated analysis:** поиск пути в незнакомом коде без ручного разбора.
+- **Vulnerability research:** символьный анализ сложных условий.
+- **Работа:** program analysis, автоматический keygen.

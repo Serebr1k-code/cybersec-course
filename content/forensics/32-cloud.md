@@ -15,224 +15,215 @@ estimated_minutes: 45
 summary: "Форензика облачных сред: CloudTrail/Activity/audit-логи, метаданные объектов, снапшоты дисков, IAM-события и восстановление действий атакующего без доступа к железу."
 ---
 
-## Специфика облачной форензики
+## Вопрос, с которого всё начинается
 
-В облаке нет «диска» и «железа» — есть API-вызовы, логи, снапшоты. Главный принцип: **всё, что делает пользователь, проходит через API**, и эти вызовы логируются. Задача — восстановить действия атакующего по аудит-логам и артефактам: созданные ресурсы, доступ к данным, персистентность (новые ключи, роли), эксфильтрация.
+Аккаунт AWS скомпрометирован: кто-то получил доступ к ключам. Диска и железа у нас нет —
+есть только **CloudTrail**, аудит-лог всех API-вызовов. Можно ли по нему восстановить,
+что делал атакующий?
 
-## AWS: CloudTrail
+Да. В облаке всё, что делает пользователь, проходит через **API**, и эти вызовы
+логируются. В этом уроке мы восстановим действия злоумышленника по одному логу.
 
-**CloudTrail** — главный аудит-лог AWS: все API-вызовы (кто, когда, откуда, что). Хранится в S3 (JSON.gz) и/или CloudWatch.
+## Наш пример: cloudtrail.json
 
-```bash
-# Скачать и разобрать
-aws s3 cp s3://bucket/AWSLogs/.../CloudTrail/ . --recursive
-gunzip -c *.json.gz | jq -c 'select(.eventName=="CreateAccessKey")'
-# Ключевые события
-jq -r '.eventName' *.json | sort | uniq -c | sort -rn | head
-```
-
-Что искать:
-
-- **`CreateAccessKey`, `CreateUser`, `AttachUserPolicy`** — персистентность/эскалация.
-- **`AssumeRole`, `GetCallerIdentity`** — разведка.
-- **`GetSecretValue`** (Secrets Manager) — кража секретов.
-- **`PutBucketPolicy`, `PutBucketAcl`** — открытие S3.
-- **`RunInstances`** — запуск майнеров/атакующих инстансов.
-- **`DeleteTrail`, `StopLogging`** — anti-forensics.
-- **`ConsoleLogin`** с новыми IP.
+Сначала — общая картина. Каких событий больше всего:
 
 ```bash
-jq -c 'select(.eventName|test("Create|Delete|Put|Attach|Assume")) | {t:.eventTime,u:.userIdentity.arn,e:.eventName,s:.sourceIPAddress}' cloudtrail.json
+$ jq -r '.eventName' cloudtrail.json | sort | uniq -c | sort -rn | head
+    312 DescribeInstances
+    118 ListBuckets
+     24 CreateAccessKey
+      6 AssumeRole
 ```
 
-## AWS: другие источники
+`jq -r '.eventName'` вытаскивает имя события из каждого JSON-объекта, `uniq -c` считает
+частоту. Много `DescribeInstances` и `ListBuckets` — это **разведка**. А `CreateAccessKey`
+и `AssumeRole` — уже действия.
 
-- **S3 access logs** и **CloudTrail data events** — доступ к объектам.
-- **VPC Flow Logs** — сетевой трафик.
-- **GuardDuty** — детекты.
-- **Config** — история конфигураций.
-- **IAM Access Analyzer**, **Security Hub**.
+## Шаг 1: персистентность через CreateAccessKey
 
 ```bash
-# S3 data events (если включены)
-jq -c 'select(.eventName|test("GetObject|PutObject"))' cloudtrail-data.json
+$ jq -c 'select(.eventName=="CreateAccessKey") | {t:.eventTime,u:.userIdentity.arn,s:.sourceIPAddress}' cloudtrail.json | head
+{"t":"2024-03-01T10:05:00Z","u":"arn:aws:iam::123:user/bob","s":"203.0.113.9"}
 ```
 
-## Azure
+**Access key** — постоянный ключ доступа. Злоумышленник создаёт себе новый ключ, чтобы
+сохранить доступ, даже если исходный отзовут. Смотрим, с какого IP и от чьего имени —
+это наша зацепка.
 
-- **Activity Log** — операции на ресурсах (портал/API).
-- **Azure AD Sign-in logs** — входы.
-- **Azure AD Audit logs** — изменения в AD (создание пользователей, роли).
-- **NSG Flow Logs** — сеть.
-- **Defender for Cloud** — детекты.
+## Шаг 2: эскалация через AssumeRole
 
 ```bash
-az monitor activity-log list --start-time 2024-01-01 --output json > activity.json
-az ad sign-in list > signin.json
+$ jq -c 'select(.eventName=="AssumeRole") | {t:.eventTime,role:.requestParameters.roleArn,s:.sourceIPAddress}' cloudtrail.json
 ```
 
-## GCP
+**AssumeRole** — это получение временных прав другой роли. Часто именно так эскалируют
+привилегии: из слабой роли «примерить» сильную. Необычный IP или время — красный флаг.
 
-- **Cloud Audit Logs:** Admin Activity (изменения), Data Access (доступ к данным), System Events.
-- **VPC Flow Logs**, **Cloud IDS**.
-- **Security Command Center**.
+## Шаг 3: кража секретов
 
 ```bash
-gcloud logging read 'logName:"cloudaudit.googleapis.com"' --format json > audit.json
-gcloud logging read 'protoPayload.methodName:"SetIamPolicy"' --format json
+$ jq -c 'select(.eventName=="GetSecretValue") | {t:.eventTime,id:.requestParameters.secretId}' cloudtrail.json
 ```
 
-## Артефакты и снапшоты
+`GetSecretValue` — чтение секрета из Secrets Manager. Если секретов читают много и подряд,
+данные уводят. Сопоставьте это с последующим доступом к S3.
 
-- **Снапшоты дисков** — снять снапшот EC2/EBS (не трогая инстанс), затем смонтировать.
-- **Снимок памяти** — сложнее (нужен агент/SSM).
-- **Образы ВМ**, **AMI**.
-- **Метаданные объектов S3** (версии, лог).
-- **Секреты** — Secrets Manager, Parameter Store.
+## Шаг 4: открытие данных наружу
 
 ```bash
-# Снапшот EBS
-aws ec2 create-snapshot --volume-id vol-xxxx
-# Потом: создать volume из снапшота, примонтировать к аналитической машине
+$ jq -c 'select(.eventName|test("PutBucketPolicy|PutBucketAcl")) | {b:.requestParameters.bucketName,s:.sourceIPAddress}' cloudtrail.json
 ```
 
-## Практический пример: расследование AWS
+`PutBucketPolicy`/`PutBucketAcl` делают бакет публичным — способ вынести данные или
+открыть их всему миру. Это уже прямая эксфильтрация.
 
-1. **CloudTrail** — все API за окно.
-2. **Найдите `CreateAccessKey`/`AssumeRole`** от подозрительного субъекта.
-3. **Проследите `GetSecretValue`** и куда ушли данные.
-4. **Проверьте S3** (PutBucketPolicy, GetObject).
-5. **Снапшот затронутых инстансов.**
-6. **Отзовите ключи, ротация.**
-7. **Таймлайн и отчёт.**
-
-## Инструменты и команды
+## Шаг 5: anti-forensics
 
 ```bash
-# AWS
-aws cloudtrail lookup-events
-aws s3, aws ec2 create-snapshot
-# Анализ
-jq, grep, Athena (SQL по CloudTrail)
-# Azure/GCP
-az monitor, gcloud logging
-# Специализированные: CloudTrail-Parser, Stratus Red Team (для тестов)
+$ jq -c 'select(.eventName|test("StopLogging|DeleteTrail|UpdateTrail"))' cloudtrail.json
 ```
 
-## Анализ через Athena/SQL
+Злоумышленник может попытаться **отключить логирование** (`StopLogging`) или удалить
+trail. Но даже если он это сделал, копия логов уже могла уйти в S3 — их стоит искать там.
 
-CloudTrail-логи в S3 удобно анализировать SQL-ом (AWS Athena) или локально через `jq`/DuckDB.
+## Шаг 6: снапшоты вместо живого диска
+
+Артефакты файловой системы снимают через снапшот тома, не трогая инстанс:
+
+```bash
+$ aws ec2 create-snapshot --volume-id vol-xxxx
+```
+
+Из снапшота создают новый том и монтируют его к аналитической машине — так получают
+образ диска без остановки сервера.
+
+## Шаг 7: Azure и GCP
+
+Те же идеи в других облаках:
+
+```bash
+$ az monitor activity-log list --start-time 2024-01-01 -o json > activity.json
+$ gcloud logging read 'logName:"cloudaudit.googleapis.com"' --format json > audit.json
+```
+
+В Azure это **Activity Log** (операции на ресурсах) и **Azure AD Sign-in/Audit logs**, в
+GCP — **Cloud Audit Logs** (Admin Activity, Data Access).
+
+## Анализ через SQL и hunting
+
+CloudTrail-логи в S3 удобно анализировать SQL-ом (AWS Athena) или локально через DuckDB:
 
 ```sql
--- Athena: все создания ключей доступа
 SELECT eventtime, useridentity.arn, sourceipaddress
 FROM cloudtrail_logs
 WHERE eventname = 'CreateAccessKey';
--- Подозрительные IP
-SELECT sourceipaddress, COUNT(*) c
-FROM cloudtrail_logs
-GROUP BY sourceipaddress ORDER BY c DESC LIMIT 20;
 ```
 
 ```bash
-# Локально через DuckDB
-duckdb -c "SELECT eventName, COUNT(*) FROM read_json_auto('cloudtrail/*.json') GROUP BY 1 ORDER BY 2 DESC"
+$ duckdb -c "SELECT eventName, COUNT(*) FROM read_json_auto('cloudtrail/*.json') GROUP BY 1 ORDER BY 2 DESC"
 ```
 
-## Детекты и hunting
-
-Ключевые индикаторы в облаке:
+Ключевые индикаторы для охоты:
 
 - **Новые access keys** для существующих пользователей.
 - **Изменения IAM-политик** (расширение прав).
 - **AssumeRole с необычного IP/UA.**
-- **Массовое чтение S3/секретов.**
+- **Массовое чтение S3 или секретов.**
 - **Запуск инстансов** в необычных регионах (криптомайнинг).
-- **Отключение логирования** (StopLogging, DeleteTrail, UpdateTrail).
-- **Публичные бакеты** (PutBucketAcl public).
-- **Создание пользователей** вне обычных процессов.
+- **Отключение логирования** (`StopLogging`, `DeleteTrail`).
 
 ## Хронология инцидента
 
-1. **Начальное проникновение** (скомпрометированный ключ, SSRF к metadata, фишинг).
-2. **Разведка** (ListBuckets, DescribeInstances, GetCallerIdentity).
-3. **Эскалация** (AttachUserPolicy, AssumeRole, CreateLoginProfile).
-4. **Эксфильтрация** (GetObject, GetSecretValue).
-5. **Персистентность** (CreateAccessKey, CreateUser, backdoor role).
-6. **Anti-forensics** (StopLogging, удаление ресурсов).
+1. **Проникновение** — скомпрометированный ключ, SSRF к metadata, фишинг.
+2. **Разведка** — `ListBuckets`, `DescribeInstances`, `GetCallerIdentity`.
+3. **Эскалация** — `AttachUserPolicy`, `AssumeRole`, `CreateLoginProfile`.
+4. **Эксфильтрация** — `GetObject`, `GetSecretValue`.
+5. **Персистентность** — `CreateAccessKey`, `CreateUser`.
+6. **Anti-forensics** — `StopLogging`, удаление ресурсов.
 
-## Инструменты и команды
+## Порядок ответа на инцидент
+
+1. **Изоляция** — отозвать ключи и сессии.
+2. **Сохранение улик** — снапшоты дисков, копии логов в защищённый аккаунт.
+3. **Анализ** — CloudTrail/Activity/Audit → восстановить цепочку.
+4. **Устранение** — удалить backdoor-пользователей, ключи, роли; закрыть бакеты.
+5. **Усиление** — MFA, least privilege, GuardDuty/Defender.
+
+Порядок важен: сначала сохранить улики, и только потом чистить ресурсы.
+
+## Azure и GCP подробнее
+
+В Azure ключевые источники — Activity Log, Sign-in и Audit logs:
 
 ```bash
-# AWS
-aws cloudtrail lookup-events --start-time 2024-01-01 --max-items 100
-aws s3 cp s3://trail-bucket/ . --recursive
-aws ec2 create-snapshot --volume-id vol-xxx
-aws iam list-access-keys --user-name suspect
-
-# Анализ
-gunzip -c *.json.gz | jq -c 'select(.eventName|test("Create|Attach|Assume|GetSecret"))'
-duckdb -c "SELECT eventName, COUNT(*) FROM read_json_auto('*.json') GROUP BY 1 ORDER BY 2 DESC"
-
-# Azure
-az monitor activity-log list --start-time 2024-01-01 -o json
-az ad sign-in list -o json
-az ad audit list -o json
-
-# GCP
-gcloud logging read 'logName:"cloudaudit.googleapis.com"' --format json
-gcloud logging read 'protoPayload.methodName:"SetIamPolicy"'
+$ az monitor activity-log list --start-time 2024-01-01 -o json
+$ az ad sign-in list -o json
+$ az ad audit list -o json
 ```
 
-## Облачная форензика: сложности
+В GCP — Cloud Audit Logs с разделением на Admin Activity (изменения конфигурации) и Data
+Access (доступ к данным):
 
-- **Эфемерность:** контейнеры/инстансы исчезают; нужны снапшоты и логи.
-- **Распределённость:** ресурсы в разных регионах/аккаунтах.
-- **Общая ответственность:** часть логов у провайдера (недоступна).
-- **API-центричность:** всё через API; логи — единственный «след».
-- **Масштаб:** миллионы событий; нужны Athena/SQL/hunting.
-- **Шифрование:** снапшоты/тома могут быть зашифрованы KMS (нужен доступ к ключу).
+```bash
+$ gcloud logging read 'protoPayload.methodName:"SetIamPolicy"' --format json
+$ gcloud logging read 'logName:"cloudaudit.googleapis.com"' --format json
+```
 
-Порядок: **собрать логи** (CloudTrail/Activity/Audit), **снапшоты** (EBS/диски), **отозвать креды**, **ротировать ключи**, **восстановить таймлайн**.
+## Ключевые события, которые надо знать
 
-## Ответ на инцидент в облаке
+| Событие | Что значит |
+|---------|-----------|
+| `CreateAccessKey` | новый постоянный ключ (персистентность) |
+| `AttachUserPolicy` | расширение прав |
+| `AssumeRole` | получение прав другой роли |
+| `GetSecretValue` | чтение секрета |
+| `PutBucketPolicy` | открытие бакета |
+| `StopLogging` | отключение аудита |
 
-1. **Изоляция:** отозвать скомпрометированные ключи/сессии, ограничить роль.
-2. **Сохранение улик:** снапшоты дисков, копии логов в защищённый аккаунт/бакет.
-3. **Анализ:** CloudTrail/Activity/Audit → восстановить цепочку.
-4. **Устранение:** удалить backdoor-пользователей/ключи/роли, закрыть публичные бакеты.
-5. **Восстановление:** из снапшотов/бэкапов.
-6. **Усиление:** MFA, least privilege, включение логов, GuardDuty/Defender.
+Запомнив этот короткий список, вы быстро отфильтруете из тысяч событий именно те, что
+относятся к атаке.
 
-Ключевое отличие от on-prem: нет физического доступа, всё через API, и **улики могут исчезнуть** при удалении ресурсов — сохраняйте логи в отдельный аккаунт с immutable retention (S3 Object Lock).
+## Сложности облачной форензики
 
-## Итог
+- **Эфемерность** — контейнеры и инстансы исчезают; нужны снапшоты и логи.
+- **Распределённость** — ресурсы в разных регионах и аккаунтах.
+- **Общая ответственность** — часть логов у провайдера и недоступна.
+- **API-центричность** — логи единственный «след».
+- **Масштаб** — миллионы событий; нужны Athena/SQL/hunting.
+- **Шифрование** — снапшоты могут быть зашифрованы KMS (нужен доступ к ключу).
 
-Облачная форензика — это логи + снапшоты. CloudTrail/Activity/Audit восстанавливают действия API (персистентность, эксфильтрация, эскалация), снапшоты дают артефакты ФС. Сохраняйте логи в отдельный аккаунт (immutable retention), отзывайте креды, проверяйте все регионы. Ключевые индикаторы: Create*/Attach*/Assume*/GetSecret/StopLogging.
+Главное отличие от on-prem: нет физического доступа, и **улики могут исчезнуть** при
+удалении ресурсов. Поэтому логи заранее выгружают в отдельный аккаунт с immutable
+retention.
 
-## Резюме
+## Проникновение через metadata endpoint
 
-Логи (CloudTrail/Activity/Audit) + снапшоты. Индикаторы: Create/Attach/Assume/GetSecret/StopLogging. Сохраняйте логи в отдельный аккаунт с immutable retention, отзывайте креды, проверяйте все регионы и сопоставляйте API-события в единый таймлайн. Без логов расследование облачного инцидента практически невозможно, поэтому включайте аудит заранее.
+Частый путь в облако — **SSRF к metadata endpoint** (`169.254.169.254`). Через него
+приложение может отдать временные креды роли инстанса, и дальше атакующий действует от
+её имени. В CloudTrail это видно как первый вызов `GetCallerIdentity` с того же IP, что
+и у уязвимого сервиса.
 
-## Частые ошибки
+## Что мы теперь знаем
 
-- **CloudTrail не включён** на всех регионах/сервисах.
-- **Data events выключены** — нет доступа к объектам.
-- **Игнорировать `AssumeRole`.** Часто путь эскалации.
-- **Не снять снапшот** до удаления.
-- **Забыть про CloudTrail в S3** (могут удалить trail, но лог в S3 остаётся).
-- **Смотреть один регион.** Атаки идут в нескольких.
+- В облаке всё проходит через API, и вызовы логируются (CloudTrail/Activity/Audit).
+- Персистентность выдаёт `CreateAccessKey`/`CreateUser`/`AttachUserPolicy`.
+- Эскалацию — `AssumeRole`; кражу секретов — `GetSecretValue`.
+- Открытие данных — `PutBucketPolicy`/`PutBucketAcl`; anti-forensics — `StopLogging`.
+- Артефакты ФС получают через снапшоты EBS, не трогая инстанс.
 
-## Как не застрять
+## На что смотреть дальше
 
-- **CloudTrail/Activity/Audit — основа.**
-- **Ищите Create/Attach/Assume/GetSecret.**
-- **Снапшоты дисков** для артефактов.
-- **Отзовите и ротируйте** ключи.
-- **Проверьте все регионы.**
-- **Таймлайн и отчёт.**
+- **CloudTrail может быть не включён** во всех регионах и сервисах.
+- **Data events выключены** — тогда нет доступа к объектам.
+- **Не игнорировать `AssumeRole`** — часто путь эскалации.
+- **Проверять все регионы** — атаки идут в нескольких.
+- **Сохранять логи в отдельный аккаунт** с immutable retention (S3 Object Lock).
+- **Включать аудит заранее** — без логов облачное расследование почти невозможно.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Главный аудит-лог AWS:"
@@ -271,6 +262,12 @@ gcloud logging read 'protoPayload.methodName:"SetIamPolicy"'
     - "DescribeRegions"
   answer: 0
 ```
+
+## Куда дальше
+
+Мы разобрали облако. Но всё чаще сервисы запускают в **контейнерах** — и там свои
+артефакты: слои образов, логи контейнера, монтирования. Об этом — в следующем уроке. А
+пока запомни: **в облаке нет диска — есть API-логи и снапшоты**.
 
 ## Где пригодится
 

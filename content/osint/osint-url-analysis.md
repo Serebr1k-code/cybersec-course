@@ -14,204 +14,172 @@ estimated_minutes: 45
 summary: "Анализ URL без перехода по нему: urlscan.io, VirusTotal, MalwareBazaar, AbuseIPDB, WHOIS-корреляция и построение вердикта по домену."
 ---
 
-Подозрительную ссылку не нужно открывать самому — это и опасно, и неинформативно. Вместо этого URL прогоняют через сервисы-«песочницы»: они сами заходят на страницу, рендерят её в изолированном браузере и отдают скриншот, DOM, список сетевых запросов, редиректы и вердикт антивирусов. Навык анализировать ссылку **не открывая её** — базовый для threat intel, SOC и triage фишинга.
+## Вопрос, с которого всё начинается
 
-## Анатомия подозрительного URL
+В письме или чате приходит ссылка: «подтвердите вход». Открывать её в своём браузере нельзя — это и опасно (можно подцепить вредонос или отдать пароль), и бессмысленно (мы всё равно не увидим, что происходит внутри). Правильный путь — разобрать ссылку, не переходя по ней, и собрать вердикт по внешним сервисам. Этим навыком пользуются в threat intel, SOC и при разборе фишинга.
 
-Прежде чем что-то отправлять, разберите ссылку руками. Опасность часто видна ещё до сервисов:
+Читателю уже знакомы индикаторы и обогащение. Здесь мы применим их к одному конкретному URL и доведём дело до вердикта.
 
-- **Схема и юзер-инфо**: `http://user@evil.com` — часть до `@` может маскировать реальный хост; `http://example.com@evil.com/` ведёт на `evil.com`.
-- **Омоглифы**: `аpple.com` (кириллическая `а`) ≠ `apple.com`. Проверяйте punycode (`xn--...`).
-- **Поддомены-обманки**: `login.microsoft.com.evil.example` — реальный домен `evil.example`.
-- **Длинные пути и параметры**: base64 в query, вложенные редиректы `?url=`, `?next=`, `?continue=`.
-- **Расширения-двойники**: `invoice.pdf.exe`, `doc.docx.html`.
-- **Нестандартные порты**: `https://example.com:8443/` — часто C2 или админка.
+## Наш пример: одна подозрительная ссылка
 
-Быстрый разбор без запросов:
+Возьмём URL из фишингового письма:
 
-```bash
-# структура URL, хост, схема, параметры
-python3 - <<'PY'
+```
+http://user@example.com.evil.example:8443/login?next=http://evil.example
+```
+
+Она уже выглядит странно, но давайте не доверять глазу, а разобрать формально.
+
+## Шаг 1: разбор URL руками
+
+Прежде чем что-то куда-то отправлять, разберём структуру ссылки локально. В Python есть готовый разборщик `urlsplit`:
+
+```python
 from urllib.parse import urlsplit, parse_qs
-u = "http://user@example.com.evil.example:8443/login?next=http%3A%2F%2Fevil.example"
+u = "http://user@example.com.evil.example:8443/login?next=http://evil.example"
 p = urlsplit(u)
 print("scheme:", p.scheme)
 print("host  :", p.hostname)
 print("port  :", p.port)
 print("params:", parse_qs(p.query))
-PY
 ```
 
-## urlscan.io
-
-urlscan запускает реальный браузер в песочнице и возвращает **скриншот**, **DOM**, **все сетевые запросы** (HTML/JS/CSS/шрифты/редиректы), связанные домены и IP, а также собственный вердикт по спискам.
-
-```bash
-# отправить URL на скан (нужен API-ключ, бесплатный тариф есть)
-curl -s "https://urlscan.io/api/v1/scan/" -H "API-Key: $URLSCAN_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"url":"http://suspicious.example","visibility":"public"}'
-# → {"message":"Submission successful","uuid":"...","api":"https://urlscan.io/api/v1/result/<uuid>/",...}
-
-# получить результат по UUID (дайте 5–15 секунд)
-curl -s "https://urlscan.io/api/v1/result/<uuid>/" | python3 -m json.tool
-
-# вытащить только интересное: домены, IP, скриншот
-curl -s "https://urlscan.io/api/v1/result/<uuid>/" \
-  | python3 -c 'import sys,json; d=json.load(sys.stdin); print("verdicts:",d.get("verdicts")); print("screenshot:",d.get("task",{}).get("screenshotURL")); print("domains:",[r["domain"] for r in d.get("data",{}).get("requests",[])])'
-
-# поиск уже сделанных сканов по домену (без ключа)
-curl -s "https://urlscan.io/api/v1/search/?q=domain%3Aexample.com&size=100" \
-  | python3 -c 'import sys,json;[print(r["page"]["url"]) for r in json.load(sys.stdin)["results"]]'
+```
+scheme: http
+host  : example.com.evil.example
+port  : 8443
+params: {'next': ['http://evil.example']}
 ```
 
-Что искать в результате: цепочку **редиректов** (куда реально ведёт ссылка), какие **сторонние скрипты** грузятся (фишинг-киты часто тянут JS с захваченных доменов), **favicon-хэш** и **TLS-сертификат** (совпадение с известным набором — сильный признак кампании).
+Три красных флага сразу:
 
-## VirusTotal
+- **Часть до `@`** (`user@`) маскирует реальный хост. Настоящий хост — `example.com.evil.example`, а вовсе не `example.com`: домен-обманка приклеен как поддомен к `evil.example`.
+- **Порт 8443** — нестандартный, часто используется для админок и C2.
+- **Параметр `next`** содержит ещё один URL — это заготовка для редиректа на `evil.example`.
 
-Мультиантивирусный вердикт по URL, домену, IP, файлу и хэшу. Плюс passive DNS, история WHOIS, коммуникации (граф связей), сигнатуры и поведенческие отчёты.
+Другие типовые приёмы: **омоглифы** (`аpple.com` с кириллической `а` ≠ `apple.com`; проверяйте punycode `xn--…`), **двойные расширения** (`invoice.pdf.exe`), base64 в параметрах.
 
-```bash
-# вердикт по URL: сначала получаем id (base64url без паддинга)
-curl -s "https://www.virustotal.com/api/v3/urls" -H "x-apikey: $VT_KEY" \
-  --data-urlencode "url=http://suspicious.example" | python3 -m json.tool
+## Шаг 2: urlscan.io — песочница
 
-# вердикт по домену: детекты, WHOIS, DNS, связанные файлы
-curl -s "https://www.virustotal.com/api/v3/domains/example.com" -H "x-apikey: $VT_KEY" \
-  | python3 -c 'import sys,json;d=json.load(sys.stdin)["data"]["attributes"];print("stats:",d["last_analysis_stats"]);print("whois:",d.get("whois","")[:400])'
+**urlscan.io** запускает реальный браузер в изолированной песочнице и отдаёт скриншот, DOM, все сетевые запросы и цепочку редиректов. Мы отправляем ссылку и читаем результат:
 
-# по хэшу файла — что это за малварь
-curl -s "https://www.virustotal.com/api/v3/files/<sha256>" -H "x-apikey: $VT_KEY" \
-  | python3 -c 'import sys,json;d=json.load(sys.stdin)["data"]["attributes"];print(d["last_analysis_stats"]);print(d.get("popular_threat_classification"))'
-
-# passive DNS: какие IP исторически были у домена
-curl -s "https://www.virustotal.com/api/v3/domains/example.com/resolutions?limit=40" \
-  -H "x-apikey: $VT_KEY" | python3 -c 'import sys,json;[print(r["attributes"]["ip_address"], r["attributes"]["date"]) for r in json.load(sys.stdin)["data"]]'
+```
+$ curl -s "https://urlscan.io/api/v1/scan/" -H "API-Key: $URLSCAN_KEY" \
+    -H "Content-Type: application/json" \
+    -d '{"url":"http://example.com.evil.example","visibility":"public"}'
+{"message":"Submission successful","uuid":"...","api":"https://urlscan.io/api/v1/result/<uuid>/"}
 ```
 
-VT-«граф» (relationships: `communicating_files`, `referrer_files`, `resolutions`, `siblings`) — главный инструмент **пивотинга**: от одного URL к целой инфраструктуре кампании.
+Что искать в результате: куда ведёт цепочка **редиректов**, какие сторонние скрипты грузятся (фишинг-киты часто тянут JS с захваченных доменов), а также **favicon-хэш** и **TLS-сертификат** — их совпадение с известным набором сильно указывает на кампанию. Важно про приватность: `visibility:"public"` публикует скан; для внутренних ссылок ставьте `unlisted`.
 
-## MalwareBazaar, URLhaus и ThreatFox
+## Шаг 3: VirusTotal
 
-Экосистема abuse.ch — бесплатные базы без ключей:
+**VirusTotal (VT)** даёт мультиантивирусный вердикт по URL, домену, IP и файлу, плюс историю. По URL VT требует не саму ссылку, а её идентификатор — base64url без выравнивающих `=`:
 
-- **MalwareBazaar** (`bazaar.abuse.ch`) — образцы malware: семейство, теги, подписи, imphash, ssdeep.
-- **URLhaus** — база вредоносных URL, привязанных к распространению малвари.
-- **ThreatFox** — обмен IOC (IP/домен/URL/хэш) с контекстом кампании.
-- **YARA**-правила (`yara.rules`) для детекта.
-
-```bash
-# MalwareBazaar: инфо по хэшу
-curl -s "https://mb-api.abuse.ch/api/v1/" -d "query=get_info&hash=<sha256>" | python3 -m json.tool
-
-# MalwareBazaar: образцы по тегу семейства
-curl -s "https://mb-api.abuse.ch/api/v1/" -d "query=get_taginfo&tag=Emotet&limit=10"
-
-# URLhaus: статус URL
-curl -s "https://urlhaus-api.abuse.ch/v1/url/" -d "url=http://suspicious.example/payload"
+```python
+import base64
+u = "http://secure-login.example/verify?token=abc123"
+print(base64.urlsafe_b64encode(u.encode()).decode().rstrip("="))
 ```
 
-## AbuseIPDB и репутация IP
-
-Когда из urlscan/VT вы достали IP хостинга, проверьте его репутацию и «соседей»:
-
-```bash
-# AbuseIPDB: репутация IP (жалобы, счётчик abuse)
-curl -s "https://api.abuseipdb.com/api/v2/check?ipAddress=1.2.3.4&maxAgeInDays=90" \
-  -H "Key: $ABUSE_KEY" -H "Accept: application/json" | python3 -m json.tool
-
-# ASN и префикс IP — понять хостера (bulletproof hosting?)
-curl -s "https://api.bgpview.io/ip/1.2.3.4" | python3 -m json.tool
-
-# reverse IP: какие ещё домены на этом IP (пассивно, через VT)
-curl -s "https://www.virustotal.com/api/v3/ip_addresses/1.2.3.4/resolutions" -H "x-apikey: $VT_KEY" | head -c 2000
+```
+aHR0cDovL3NlY3VyZS1sb2dpbi5leGFtcGxlL3ZlcmlmeT90b2tlbj1hYmMxMjM
 ```
 
-## WHOIS-корреляция и свежесть
+Отчёт по домену разбираем через `jq`:
 
-Возраст домена — ключевой признак фишинга: свежая регистрация (дни/недели) + приватный WHOIS = сильное подозрение.
-
-```bash
-whois example.com | grep -iE 'creation|created|registrar|expiry|updated'
-# Registrar Abuse Contact Email / Registrant Organization — ищите общий регистрант между доменами
+```
+$ jq -r '.data.attributes | "malicious=\(.last_analysis_stats.malicious) suspicious=\(.last_analysis_stats.suspicious)"' vt_domain.json
+malicious=7 suspicious=2
 ```
 
-Свяжите домены по **общему регистранту**, **общему email в WHOIS**, **общему TLS-сертификату**, **общему favicon-хэшу** — это выводит на всю кампанию.
+Семь движков пометили домен как вредоносный. Через «связи» VT (`resolutions`, `communicating_files`) делается **пивотинг** — от одного URL к целой инфраструктуре кампании.
 
-## Автоматизация: скрипт построения вердикта
+## Шаг 4: abuse.ch — базы без ключей
 
-Соберите всё в один пайплайн, чтобы не бегать по веб-интерфейсам:
+Экосистема abuse.ch бесплатна и не требует ключей:
 
-```bash
-#!/usr/bin/env bash
-# triage_url.sh — быстрый вердикт по домену
-set -euo pipefail
-D="$1"
-echo "== DNS =="; dig +short "$D" A; dig +short "$D" NS; dig +short "$D" MX
-echo "== WHOIS age =="; whois "$D" | grep -iE 'creation|created' | head -2
-echo "== VT =="; curl -s "https://www.virustotal.com/api/v3/domains/$D" -H "x-apikey: $VT_KEY" \
-  | python3 -c 'import sys,json;a=json.load(sys.stdin)["data"]["attributes"];print(a["last_analysis_stats"])'
-echo "== urlscan =="; curl -s "https://urlscan.io/api/v1/search/?q=domain%3A$D" | python3 -c 'import sys,json;print(len(json.load(sys.stdin)["results"]),"scans")'
+- **MalwareBazaar** (`bazaar.abuse.ch`) — образцы malware: семейство, теги, imphash.
+- **URLhaus** — база вредоносных URL.
+- **ThreatFox** — обмен индикаторами с контекстом кампании.
+
+```
+$ curl -s "https://mb-api.abuse.ch/api/v1/" -d "query=get_info&hash=<sha256>" | python3 -m json.tool
+$ curl -s "https://urlhaus-api.abuse.ch/v1/url/" -d "url=http://example.com.evil.example/payload"
 ```
 
-## Построение вердикта
+Если urlscan показывает скачанный файл — переходите к образцу по хэшу: MalwareBazaar отдаст семейство и поведение.
 
-Не полагайтесь на один источник — сводите сигналы в шкалу:
+## Шаг 5: репутация IP хостинга
 
-1. **urlscan** → скриншот, редиректы, загружаемые ресурсы.
-2. **VirusTotal** → детекты URL/домена/файла + passive DNS.
-3. **MalwareBazaar/URLhaus** → привязка к семейству малвари.
-4. **AbuseIPDB** → репутация IP хостинга.
+Из urlscan/VT мы достаём IP сервера. Проверяем его репутацию и владельца:
+
+```
+$ curl -s "https://api.abuseipdb.com/api/v2/check?ipAddress=45.61.136.7&maxAgeInDays=90" \
+    -H "Key: $ABUSE_KEY" -H "Accept: application/json" | jq '.data.abuseConfidenceScore'
+68
+```
+
+Скор 68 из 100 — высокий. Дополнительно смотрим ASN (номер автономной системы, то есть сеть провайдера): если это дешёвый **bulletproof hosting** с массой жалоб, это само по себе сильный сигнал вредоносности.
+
+## Шаг 6: возраст домена
+
+Возраст регистрации — ключевой признак фишинга. Свежий домен (дни или недели) плюс приватный WHOIS — почти приговор:
+
+```
+$ whois example.com | grep -iE 'creation|created|registrar'
+Creation Date: 2026-09-28T00:00:00Z
+```
+
+Две недели с момента регистрации. Дальше связываем домены по **общему регистранту**, **общему email в WHOIS**, **общему TLS-сертификату** или **общему favicon-хэшу** — так выходят на всю кампанию. Обратный поиск по регистранту (reverse WHOIS) по одному адресу из WHOIS нередко выдаёт десяток доменов, зарегистрированных одной рукой, — это и есть скелет фишинговой кампании.
+
+## Шаг 7: строим вердикт
+
+Не полагайтесь на один сервис — сводите сигналы в шкалу:
+
+1. **urlscan** → скриншот, редиректы, ресурсы.
+2. **VirusTotal** → детекты и passive DNS.
+3. **MalwareBazaar/URLhaus** → привязка к семейству.
+4. **AbuseIPDB** → репутация IP.
 5. **WHOIS** → возраст и регистрант.
-6. Итог: **malicious / phishing / suspicious / clean** — с перечислением доказательств и уровнем уверенности.
+6. Итог: **malicious / phishing / suspicious / clean** — с доказательствами и уровнем уверенности.
+
+Осторожность: **ноль детектов не означает «чисто»** — свежий вредонос ещё не попал в базы, поэтому смотрите поведение в urlscan. И помните, что чистый первый URL может вести на малварь через JS-редирект, которого `curl` не выполнит.
+
+## Продвинутый анализ редиректов
+
+Чистый первый домен может вести на малварь через цепочку переходов. Отслеживайте всю цепочку, не выполняя JS:
+
+```
+$ curl -sIL "http://example.com.evil.example" -o /dev/null -w '%{url_effective}\n'
+https://evil.example/payload
+$ curl -sI "http://example.com.evil.example" | grep -iE 'location|server'
+location: https://evil.example/payload
+server: nginx
+```
+
+Различайте два типа редиректов: HTTP (`Location`-заголовок — его видит `curl`) и JS-редиректы (`window.location`, мета-обновление — их выполнит только браузер, поэтому видно в urlscan/DOM). Проверяйте оба.
 
 ## Частые ошибки
 
-- **Открывать ссылку в своём браузере** — риск компрометации; только песочница сервиса.
-- **Доверять одному сервису** — детекты различаются; сверяйте VT + urlscan + AbuseIPDB.
-- **Игнорировать дату вердикта** — старый отчёт не отражает текущее состояние домена (домен мог сменить владельца или «очиститься»).
-- **Считать 0 детектов чистотой** — свежий вредонос ещё не попал в базы; смотрите поведение в urlscan.
-- **Не смотреть редиректы** — чистый первый URL может вести на малварь через JS/мета-редирект.
-- **Забыть про приватность скана** — `visibility:"public"` публикует ваш скан; для внутренних ссылок используйте `unlisted`/`private`.
+- **Открывать ссылку локально.** Только песочница сервиса.
+- **Доверять одному сервису.** Сверяйте VT + urlscan + AbuseIPDB.
+- **Игнорировать дату вердикта.** Старый отчёт не отражает текущее состояние домена.
+- **Считать ноль детектов чистотой.** Смотрите поведение, а не только счётчик.
+- **Не смотреть редиректы.** Первый URL может быть безобидным прикрытием.
+- **Забыть про приватность скана.** `public` публикует ваш скан; для внутренних ссылок — `unlisted`.
 
-## Продвинутый анализ редиректов и цепочек
+## Что мы теперь знаем
 
-Ссылка может вести на чистый первый домен, а малварь — за цепочкой редиректов. Отслеживайте **всю** цепочку:
-
-```bash
-# цепочка редиректов без выполнения JS
-curl -sIL "http://suspicious.example" -o /dev/null -w '%{url_effective}\n'
-
-# заголовки и Location каждого шага
-curl -sI "http://suspicious.example" | grep -iE 'location|server|content-type'
-```
-
-JS-редиректы (`window.location`, мета-обновление) curl не выполнит — их видно в urlscan/DOM. Проверяйте **оба** типа.
-
-## Хостинг, ASN и репутация инфраструктуры
-
-```bash
-# ASN и владелец хостинга
-curl -s "https://api.bgpview.io/ip/1.2.3.4" | jq '.data.prefixes[0].asn'
-# репутация IP
-curl -s "https://api.abuseipdb.com/api/v2/check?ipAddress=1.2.3.4" -H "Key: $ABUSE_KEY" | jq '.data.abuseConfidenceScore'
-```
-
-**Bulletproof hosting** (ASN с массой жалоб) — сильный сигнал вредоносности. Сверяйте ASN с известными «плохими» провайдерами.
-
-## Хэши файлов и pivot на образцы
-
-Если urlscan/VT показывают скачанный файл — переходите к образцу:
-
-```bash
-# по хэшу: семейство, поведение, IOCs
-curl -s "https://www.virustotal.com/api/v3/files/<sha256>" -H "x-apikey: $VT_KEY" \
-  | jq '.data.attributes | {last_analysis_stats, popular_threat_classification, type_description}'
-# MalwareBazaar: скачать образец (осторожно, в изолированной среде)
-curl -s "https://mb-api.abuse.ch/api/v1/" -d "query=get_file&sha256_hash=<sha256>" -o sample.zip
-```
+- Ссылку разбирают формально (`urlsplit`), не открывая: хост, порт, параметры-редиректы.
+- urlscan показывает поведение страницы в песочнице: редиректы, ресурсы, скриншот.
+- VirusTotal даёт детекты; идентификатор URL — base64url без `=`.
+- abuse.ch (MalwareBazaar/URLhaus) связывает URL с семейством malware.
+- Вердикт складывается из нескольких сигналов; возраст домена — важный признак.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что даёт urlscan.io?"
@@ -221,27 +189,31 @@ curl -s "https://mb-api.abuse.ch/api/v1/" -d "query=get_file&sha256_hash=<sha256
     - "Пароли сайта"
     - "Спутниковые снимки"
   answer: 1
-- question: "Почему нельзя открывать подозрительную ссылку локально?"
+  explanation: "urlscan рендерит страницу в песочнице и отдаёт её поведение."
+- question: "Почему нельзя открывать подозрительную ссылку в своём браузере?"
   options:
     - "Это медленно"
     - "Риск компрометации — используйте песочницу сервиса"
     - "Ссылка не откроется"
     - "Так требует API"
   answer: 1
-- question: "Что такое AbuseIPDB?"
+  explanation: "Открытие в своём браузере может заразить рабочую станцию."
+- question: "Что скрывает часть URL до символа @?"
   options:
-    - "База malware-образцов"
-    - "Репутация IP по жалобам"
-    - "Реестр доменов"
-    - "Сервис спутников"
-  answer: 1
-- question: "Почему 0 детектов не означает чистоту?"
+    - "Реальный хост — он идёт после @"
+    - "Порт"
+    - "Схему"
+    - "Фрагмент"
+  answer: 0
+  explanation: "Всё до @ — обманка; реальный хост после @."
+- question: "Почему ноль детектов не означает чистоту?"
   options:
     - "VirusTotal всегда врёт"
     - "Свежий вредонос может ещё не попасть в базы"
     - "Детекты не важны"
     - "Нужно заплатить"
   answer: 1
+  explanation: "Новые образцы появляются в базах с задержкой."
 - question: "Какой признак домена усиливает подозрение?"
   options:
     - "Старая дата регистрации"
@@ -249,11 +221,16 @@ curl -s "https://mb-api.abuse.ch/api/v1/" -d "query=get_file&sha256_hash=<sha256
     - "Наличие MX-записи"
     - "Высокий TTL"
   answer: 1
+  explanation: "Свежий домен с приватным WHOIS — типичный фишинг."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём верификацию — как проверить подлинность уже не ссылки, а изображения или видео, когда противник действует через медиа. А пока главное запомни: подозрительную ссылку не открывают, а разбирают по частям и собирают вердикт из нескольких независимых источников.
 
 ## Где пригодится
 
-- **CTF:** анализ подозрительных ссылок в задачах threat intel.
-- **Blue team:** triage фишинга и IOC без риска для рабочей станции.
+- **Blue team:** triage фишинга и анализ IOC без риска для рабочей станции.
+- **Threat intel:** анализ подозрительных ссылок и кампаний.
 - **Bug bounty:** оценка связанных доменов, зеркал и «теневой» инфраструктуры.
-- **Работа SOC:** быстрое построение вердикта по URL и приоритизация алертов.
+- **CTF (OSINT):** разбор подозрительного URL в задаче.

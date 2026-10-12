@@ -14,274 +14,164 @@ useful_for:
 estimated_minutes: 50
 summary: "Безопасность Wear OS: структура приложений для часов, Data Layer API, каналы Bluetooth/Wi-Fi, утечки синхронизируемых данных и методика тестирования."
 ---
-## Введение
+## Вопрос, с которого всё начинается
 
-Wear OS — Android для носимых устройств (часы). Приложения — обычные APK, но с ограничениями (маленький экран, батарея, сенсоры) и особыми механизмами синхронизации с телефоном. Поскольку часы часто содержат данные, синхронизируемые с телефоном (токены, сообщения, здоровье), ошибки в каналах связи и в обработке данных на часах дают находки. Этот урок — про структуру, коммуникацию и тестирование Wear OS.
+Смарт-часы на Wear OS синхронизируются с телефоном: сообщения, токены, данные о здоровье, настройки. Часто часы — это «уменьшенная копия» телефонного приложения, и то, что на телефоне спрятано за несколькими слоями защиты, на часах лежит проще. Где именно хранятся и передаются эти данные и как найти утечку? Чтобы ответить, надо понять, чем Wear-приложение отличается от обычного Android-приложения.
 
-Ментальная модель: Wear OS-приложение — «спутник» телефонного приложения. Они обмениваются данными через Data Layer API (Bluetooth/Wi-Fi), и граница доверия между устройствами — ключевая поверхность атаки.
+## Наш пример: учебный Wear-APK
 
-## Структура Wear OS-приложения
+Возьмём небольшой APK и превратим его в Wear-приложение, чтобы разобрать, из чего складывается «прописка» на часах. Итоговый файл — `wear.apk`. Сначала посмотрим, что вообще лежит внутри архива:
 
-```bash
-# APK для часов объявляет feature
-aapt dump xmltree wear.apk AndroidManifest.xml | grep -i "type.watch"
-# uses-feature android.hardware.type.watch
-# uses-library com.google.android.wearable
+```
+$ unzip -l wear.apk
+Archive:  wear.apk
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+    22801  2026-10-12 16:17   res/mipmap-xxxhdpi/ic_launcher.png
+     3044  2026-10-12 16:17   AndroidManifest.xml
+     2836  2026-10-12 16:17   resources.arsc
+     5488  2026-10-12 16:17   classes.dex
+      500  2026-10-12 16:17   assets/google-services.json
+---------                     -------
+    65157                     11 files
 ```
 
-Особенности:
-- `com.google.android.wearable` библиотека.
-- Сервисы `WearableListenerService`, `MessageApi`, `DataClient`.
-- Companion-приложение на телефоне (отдельный APK) с общим application id или связанный.
+Это обычный APK: манифест, ресурсы, код в `classes.dex` и файлы в `assets`. **Wear OS — это Android**, а не отдельная ОС, поэтому приложение для часов — такой же APK. Отличают его несколько записей в манифесте и способ общения с телефоном. Обрати внимание на `assets/google-services.json` — конфиг, который часто содержит ключи; он попадает на часы вместе с приложением.
 
-```bash
-adb devices -l
-adb shell pm list packages | grep -iE 'wear|watch'
-adb shell dumpsys package com.target.wear | grep -iE 'permission|service'
+## Шаг 1: что делает APK «приложением для часов»
+
+Декодируем манифест:
+
+```
+$ java -jar apktool.jar d -f wear.apk -o wear
+$ cat wear/AndroidManifest.xml
+<?xml version="1.0" encoding="utf-8" standalone="no"?><manifest xmlns:android="http://schemas.android.com/apk/res/android" package="owasp.mstg.uncrackable1">
+    <application android:allowBackup="true" android:icon="@mipmap/ic_launcher" android:label="@string/app_name" android:theme="@style/AppTheme">
+        <activity android:label="@string/app_name" android:name="sg.vantagepoint.uncrackable1.MainActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+        </activity>
+        <meta-data android:name="com.google.android.wearable.standalone" android:value="true"/>
+        <service android:exported="true" android:name="com.example.uncrackable1.DataLayerListenerService">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.DATA_CHANGED"/>
+                <data android:host="*" android:pathPrefix="/sync" android:scheme="wear"/>
+            </intent-filter>
+        </service>
+    </application>
+    <uses-feature android:name="android.hardware.type.watch" android:required="false"/>
+    <uses-library android:name="com.google.android.wearable" android:required="false"/>
+</manifest>
 ```
 
-## Data Layer API
+Разберём по строчкам:
 
-Механизм синхронизации телефон↔часы:
+- `<uses-feature android:name="android.hardware.type.watch"/>` — приложение рассчитано на **часы**. Это первый признак Wear-приложения.
+- `<uses-library android:name="com.google.android.wearable"/>` — приложение использует библиотеку Wear, то есть механизмы связи с телефоном.
+- `<meta-data android:name="com.google.android.wearable.standalone" android:value="true"/>` — приложение работает **самостоятельно**, без телефона.
 
-- **DataClient** — синхронизируемые `DataItem` (ключ-значение).
-- **MessageClient** — сообщения (одноразовые).
-- **ChannelClient** — потоки (файлы).
-- **CapabilityClient** — обнаружение узлов.
+Заметь: `android:required="false"` означает «не обязательно», поэтому такой APK может поставиться и на телефон. Именно поэтому нельзя определять Wear-приложение только по имени файла — надо читать манифест.
 
-Данные хранятся в `Data Layer` и доступны приложениям с тем же application id/подписью. Уязвимость: если приложение пишет в Data Layer секреты (токены, ключи), их может прочитать любое приложение на часах с тем же id — либо перехватить на канале.
+## Шаг 2: сервис, который слушает данные с телефона
 
-```bash
-# посмотреть data items (на устройстве с инструментами)
-adb shell dumpsys activity service com.google.android.gms/.wearable.service.WearableService
+Самое важное для безопасности — `<service ... name="...DataLayerListenerService">`. Это сервис, который принимает данные, приходящие с телефона, и объявлен **экспортированным** (`android:exported="true"`).
+
+Экспортированный компонент — тот, к которому может обратиться другое приложение на том же устройстве. А `intent-filter` с action `com.google.android.gms.wearable.DATA_CHANGED` означает: сервис подписан на события изменения данных в **Data Layer** (о нём ниже). Схема `scheme="wear"` и `pathPrefix="/sync"` показывают, какой именно путь данных его интересует.
+
+Ключевой вопрос тестировщика: проверяет ли сервис, *кто* прислал данные? Если сервис доверяет любому сообщению, пришедшему по этому пути, злоумышленник может подделать данные.
+
+## Шаг 3: Data Layer API
+
+**Data Layer API** — механизм синхронизации между телефоном и часами через сервисы Google Play. Он состоит из нескольких частей:
+
+- **DataClient** — синхронизируемые пары «ключ → значение» (`DataItem`).
+- **MessageClient** — одноразовые сообщения.
+- **ChannelClient** — потоки и файлы.
+- **CapabilityClient** — обнаружение узлов (какие устройства доступны).
+
+Данные Data Layer хранятся в аккаунте Google и доступны приложениям с тем же **application id** (именем пакета) и подписью. Отсюда типичная утечка: приложение кладёт в Data Layer токен или ключ, а его же модуль на часах (или скомпрометированное приложение с тем же id) читает эти данные. На часах защита слабее, чем на телефоне, — и секрет «протекает» туда.
+
+Как посмотреть, что синхронизируется:
+
+```
+$ adb shell dumpsys activity service com.google.android.gms/.wearable.service.WearableService | head -50
 ```
 
-## Каналы связи и перехват
+Эта команда выводит состояние службы Wear в Google Play Services. В выводе ищут ключи, которые приложение записывает: `token`, `session`, `config`. Если там секреты — это находка.
 
-Связь телефон↔часы идёт по Bluetooth (часто BLE) или Wi-Fi. Тестирование:
-
-- перехват BLE (см. `mobile-wearable-iot`), если данные не шифруются на уровне приложения;
-- логирование Data Layer (Frida-хуки на `DataClient`/`MessageClient`);
-- проверка, что секреты не передаются в открытом виде.
-
-```javascript
-// Frida: логировать putDataItem
-Java.perform(function() {
-  var DataClient = Java.use("com.google.android.gms.wearable.DataClient");
-  // хуки зависят от версии GMS; логируем ключи/значения
-});
-```
-
-## Полный сквозной пример: утечка токена через Data Layer
-
-```bash
-# 1. Ставим wear-приложение и companion на телефон
-adb install wear.apk
-# 2. Логируем синхронизацию
-adb logcat | grep -iE 'wearable|datalayer|DataItem'
-# 3. Находим запись токена в Data Layer
-#    putDataItem /Token -> "eyJ..."
-# 4. Проверяем, доступен ли он другим приложениям (capability/scope)
-adb shell dumpsys activity service com.google.android.gms/.wearable.service.WearableService | grep -i token
-```
-
-Если токен пишется в Data Layer и доступен другим приложениям — находка (утечка через синхронизацию).
-
-## Частые ошибки
-
-- **Искать отдельную ОС**: Wear OS — это Android; те же техники.
-- **Забыть companion-приложение**: уязвимость может быть на телефоне, а не на часах.
-- **Не проверять Data Layer**: там часто лежат секреты.
-- **Игнорировать Bluetooth**: BLE-перехват может вскрыть незашифрованный канал.
-- **Тестировать без часов**: нужен эмулятор Wear или реальные часы.
-- **Не проверять подпись/scope**: Data Layer ограничен подписью/id.
-
-## Что дальше / решение
-
-Проверяйте: что синхронизируется, шифруется ли канал, доступны ли данные другим приложениям. Свяжите с `mobile-wearable-iot` (IoT/Bluetooth), `mobile-insecure-storage`. Дальше — `mobile-banking-trojan`. Рекомендация: Wear OS-эмулятор + Frida-хуки на Data Layer.
-
-## Справочная таблица
-
-| API | Назначение |
-|-----|-----------|
-| DataClient | синхронизация ключ-значение |
-| MessageClient | сообщения |
-| ChannelClient | потоки/файлы |
-| CapabilityClient | обнаружение узлов |
-
-| Проверка | Команда |
-|----------|---------|
-| Wear-пакеты | `pm list packages \| grep wear` |
-| Feature | `aapt dump xmltree` |
-| Сервис | `dumpsys ... WearableService` |
-
-## Полный разбор Wear OS-приложения
-
-Разберём типовое приложение «часы + телефон» и его данные.
-
-**Шаг 1. Идентификация.**
-
-```bash
-aapt dump xmltree wear.apk AndroidManifest.xml | grep -iE 'uses-feature|wearable|package'
-# package="com.target.wear", uses-feature android.hardware.type.watch
-adb install wear.apk
-adb shell pm list packages | grep -i wear
-```
-
-**Шаг 2. Компоненты и сервисы.**
-
-```bash
-adb shell dumpsys package com.target.wear | grep -iE 'service|permission|exported'
-# ищем WearableListenerService
-grep -rn "WearableListenerService\|MessageClient\|DataClient" out/ | head
-```
-
-**Шаг 3. Data Layer — что синхронизируется.**
-
-```bash
-adb logcat | grep -iE 'wearable|DataItem|putDataItem|MessageClient'
-# на телефонной стороне
-adb shell dumpsys activity service com.google.android.gms/.wearable.service.WearableService | head -50
-```
-
-Ищем ключи, которые приложение пишет: `token`, `session`, `config`. Если там секреты — находка.
-
-**Шаг 4. Перехват через Frida.**
+Динамически то же самое удобнее ловить через Frida — это инструмент, который внедряется в процесс приложения и перехватывает вызовы. Хукаем отправку данных и логирование:
 
 ```javascript
 Java.perform(function() {
-  try {
-    var DataClient = Java.use("com.google.android.gms.wearable.DataClient");
-    // методы зависят от версии GMS; логируем putDataItem/putDataItemAsync
-  } catch (e) {}
   var Log = Java.use("android.util.Log");
-  Log.d.overload("java.lang.String","java.lang.String").implementation = function(t,m){
-    if (/token|session|secret/i.test(m)) console.log("[log] "+t+": "+m);
-    return this.d(t,m);
+  Log.d.overload("java.lang.String", "java.lang.String").implementation = function(t, m) {
+    if (/token|session|secret/i.test(m)) console.log("[sync] " + t + ": " + m);
+    return this.d(t, m);
   };
 });
 ```
 
-**Шаг 5. Проверка канала.** Если синхронизация идёт по BLE и данные не шифруются на уровне приложения, перехват возможен (см. `mobile-wearable-iot`). Проверьте, использует ли приложение шифрование поверх Data Layer.
+Если в лог приложения попадает токен, он же может попасть и в Data Layer — а оттуда на часы.
 
-## Companion-приложение и общий application id
+## Шаг 4: companion-приложение
 
-Часто уязвимость на телефонной стороне. Проверьте:
+Wear-приложение почти всегда идёт в паре с **companion-приложением** на телефоне: часы — это «спутник», основная логика на телефоне. Уязвимость может быть именно на телефонной стороне. Проверяем оба пакета:
 
-```bash
-adb shell pm list packages | grep -i target
-adb shell dumpsys package com.target.phone | grep -iE 'permission|exported|provider'
+```
+$ adb shell pm list packages | grep -i target
+$ adb shell dumpsys package com.target.phone | grep -iE 'permission|exported|provider'
 ```
 
-Если companion экспортирует provider/service и обменивается данными с часами без проверки — это вход. Общий application id/подпись означает, что Data Layer доступен обоим; проверьте, не читает ли часовое приложение данные, которые не должно.
+Если companion экспортирует провайдер или сервис и обменивается данными с часами без проверки — это вход. Общий application id/подпись означает, что Data Layer доступен обоим; проверь, не читает ли часовое приложение то, что не должно.
 
-## Типичные находки Wear OS
+## Шаг 5: проверяем, на чём тестировать
 
-| Находка | Severity | Почему |
-|---------|----------|--------|
-| Секреты в Data Layer | High | доступны другим приложениям с тем же id |
-| Незашифрованный BLE | Medium | перехват канала |
-| Экспортированный companion-компонент | High | вход в приложение |
-| Токены в логах | Medium | утечка |
-| Отсутствие проверки подписи Data Layer | Medium | подмена данных |
+Прежде чем идти дальше, убедимся, что есть устройство:
 
-## Методический чек-лист
+```
+$ adb devices -l
+List of devices attached
 
-1. Определить wear-приложение и companion.
-2. Перечислить компоненты и сервисы обоих.
-3. Зафиксировать, что синхронизируется через Data Layer.
-4. Проверить шифрование канала и доступность данных.
-5. Построить PoC утечки/подмены.
-6. Оформить рекомендации.
-
-## Рекомендации в отчёте
-
-- Не синхронизировать секреты через Data Layer; хранить их в защищённом хранилище на устройстве.
-- Проверять подпись/application id при обмене данными.
-- Шифровать чувствительные данные поверх канала.
-- Минимизировать экспорт компонентов companion-приложения.
-- Не логировать токены и ПДн.
-
-## Тестирование канала Wear OS
-
-Связь телефон↔часы идёт по Bluetooth (часто BLE) или Wi-Fi. Если приложение передаёт данные в открытом виде, канал можно перехватить. Для BLE используйте аппаратный сниффер (nRF Sniffer, Ubertooth) или встроенный HCI snoop log Android:
-
-```bash
-# включить Bluetooth HCI snoop log в developer options
-adb bugreport ./bugreport.zip
-# внутри — btsnoop_hci.log, открывается в Wireshark
-unzip bugreport.zip
-tshark -r btsnoop_hci.log | head
 ```
 
-Так вы видите BLE-трафик. Если данные шифруются на уровне приложения (что правильно), перехват даст шифротекст — тогда переходите к хукам на стороне приложения.
+Пусто. Значит, нужно поднять эмулятор Wear OS (в Android Studio) или подключить реальные часы. Без устройства динамика недоступна, и остаётся статика.
 
-## Data Layer: детальный анализ
+Когда устройство есть, смотрят логи синхронизации и канал:
 
-Data Layer хранит данные в аккаунте Google и синхронизирует их между устройствами с тем же application id. Это значит, что любое приложение на часах с тем же id (или скомпрометированное) может читать данные. Проверяйте, что именно пишется: `DataMap` с ключами, `Asset` с файлами. Если там токены — находка. Хукайте `DataClient.putDataItem` и логируйте содержимое.
-
-## Companion и общие ресурсы
-
-Wear-приложение и телефонное часто делят общий модуль (shared). Уязвимость в общем модуле влияет на оба. Проверяйте оба APK. Общие ресурсы (строки, конфиги) могут содержать секреты, которые попадают на часы, где защита слабее.
-
-## Рекомендации
-
-Не синхронизировать секреты, шифровать чувствительные данные поверх канала, проверять подпись/application id, минимизировать данные на часах. Wear OS — расширение поверхности: данные, доступные на телефоне, могут быть менее защищены на часах.
-
-## Практикум: перехват Data Layer
-
-Разберём, как увидеть, что синхронизируется между телефоном и часами.
-
-Шаг 1. Устанавливаем wear-приложение и companion. Подключаем часы (эмулятор Wear или реальные).
-
-Шаг 2. Логируем:
-
-```bash
-adb logcat | grep -iE 'wearable|DataItem|putDataItem|MessageClient|DataMap'
+```
+$ adb logcat | grep -iE 'wearable|DataItem|putDataItem|MessageClient|token'
 ```
 
-Шаг 3. Ищем секреты в синхронизации:
+Если синхронизация идёт по Bluetooth, включи HCI snoop log, сними bugreport и открой `btsnoop_hci.log` в Wireshark (подробнее — в уроке про Bluetooth LE). Незашифрованный канал — находка.
 
-```bash
-adb logcat | grep -iE 'token|session|secret|password' | head
-```
+## Если не сработало
 
-Если приложение пишет токен в Data Layer, он будет в логах (при debug) или в хуке.
+Если в Data Layer ничего подозрительного не видно, не делай вывод «всё чисто» сразу. Возможны три причины. Первая: приложение синхронизирует не Data Layer, а собственный канал — например, шифрует данные и гоняет их по BLE или через облако производителя; тогда смотри сетевой трафик и Bluetooth. Вторая: данные лежат в защищённом хранилище на устройстве, а на часы передаётся только ссылка на них. Третья: ты смотришь на телефон, а интересное — на часах; проверь оба APK. И помни: если приложение использует `android:required="false"`, тот же APK ставится и на телефон, поэтому «часовой» код может выполняться и там.
 
-Шаг 4. Хук через Frida на стороне GMS:
+## Что мы теперь знаем
 
-```javascript
-Java.perform(function() {
-  try {
-    var Log = Java.use("android.util.Log");
-    Log.d.overload("java.lang.String","java.lang.String").implementation = function(t,m){
-      if (/token|session/i.test(m)) console.log("[sync] "+t+": "+m);
-      return this.d(t,m);
-    };
-  } catch(e) {}
-});
-```
-
-Шаг 5. Проверяем доступность данных. Data Layer ограничен application id/подписью; если данные чувствительные и синхронизируются, это риск при компрометации любого приложения с тем же id.
-
-## BLE-канал
-
-Если данные идут по BLE, включите HCI snoop log, снимите bugreport, откройте `btsnoop_hci.log` в Wireshark. Незашифрованный канал — находка.
-
-## Что писать в отчёте
-
-Какие данные синхронизируются, шифруется ли канал, доступны ли секреты другим приложениям. Рекомендация: не синхронизировать секреты, шифровать поверх канала, проверять подпись.
+1. Wear OS — это Android; приложение для часов — обычный APK, а не отдельный формат.
+2. Wear-приложение выдаёт `uses-feature android.hardware.type.watch` и `uses-library com.google.android.wearable`.
+3. Связь с телефоном идёт через Data Layer API: DataClient, MessageClient, ChannelClient, CapabilityClient.
+4. Данные Data Layer доступны приложениям с тем же application id и подписью — здесь и утекают секреты.
+5. Уязвимость часто не на часах, а в companion-приложении на телефоне.
+6. Без устройства (эмулятор Wear или часы) динамический анализ недоступен.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какой API синхронизирует данные между Wear OS и телефоном?"
   options:
-    - "Data Layer API (DataClient)"
+    - "Data Layer API (DataClient/MessageClient)"
     - "Keychain API"
-    - "NSC API"
+    - "Network Security Config"
     - "CarPropertyManager"
   answer: 0
+  explanation: "Data Layer связывает часы и телефон через сервисы Google Play."
 - question: "Какая uses-feature указывает на приложение для часов?"
   options:
     - "android.hardware.type.watch"
@@ -289,32 +179,40 @@ Java.perform(function() {
     - "android.software.leanback"
     - "android.hardware.bluetooth"
   answer: 0
+  explanation: "Этот признак отличает Wear-приложение от обычного."
 - question: "Чем ограничен доступ к Data Layer?"
   options:
-    - "Application id/подписью"
+    - "Application id и подписью приложения"
     - "IP-адресом"
-    - "Паролем"
-    - "Root"
+    - "Паролем пользователя"
+    - "Root-правами"
   answer: 0
-- question: "Где может быть уязвимость помимо часов?"
+  explanation: "Данные видны приложениям с тем же пакетом и подписью."
+- question: "Где помимо часов часто находится уязвимость?"
   options:
     - "В companion-приложении на телефоне"
     - "В head unit"
     - "В Keychain"
     - "В Manifest.db"
   answer: 0
-- question: "Какая находка типична для Wear OS?"
+  explanation: "Основная логика обычно на телефоне, там и вход."
+- question: "Что означает android:exported=true у сервиса?"
   options:
-    - "Секреты в Data Layer, доступные другим приложениям"
-    - "Открытый SSH"
-    - "Cleartext в NSC"
-    - "Отсутствие подписи APK"
+    - "К сервису может обратиться другое приложение на устройстве"
+    - "Сервис работает только на часах"
+    - "Сервис зашифрован"
+    - "Сервис не имеет разрешений"
   answer: 0
+  explanation: "Экспортированный компонент доступен снаружи своего приложения."
 ```
+
+## Куда дальше
+
+В следующем уроке мы расширим картину до всей экосистемы **wearable**: часы, телефон и облако производителя — и посмотрим, где в этой цепочке теряется привязка к устройству. А пока запомни главное: Wear-приложение — это обычный APK с признаками часов, а секреты утекают через Data Layer и companion-приложение.
 
 ## Где пригодится
 
-- **Пентест носимых устройств:** новая поверхность.
-- **Анализ платформ:** экосистема Android.
-- **Bug bounty:** синхронизация секретов.
-- **CTF:** Mobile/wearable-задачи.
+- **Пентест носимых устройств:** новая поверхность с малым числом исследователей.
+- **Анализ платформ:** понимание экосистемы Android.
+- **Bug bounty:** синхронизация секретов через Data Layer.
+- **CTF Mobile:** задачи про часы и companion-канал.

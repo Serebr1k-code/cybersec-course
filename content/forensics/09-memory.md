@@ -5,282 +5,262 @@ category: forensics
 parent: forensics-img-captures
 difficulty: hard
 order: 2
-tags: [memory, volatility, ram-dump, processes, ctf]
+tags: [memory, volatility, ram, malware, processes]
 prerequisites: [forensics-disk-images]
 useful_for:
   - "CTF Forensics категория"
-  - "Incident Response"
-  - "Malware analysis"
+  - "Incident Response / malware analysis"
+  - "Поиск следов атаки в RAM"
 estimated_minutes: 45
-summary: "Анализ дампов оперативной памяти: профили, процессы, сеть, инъекции, пароли и извлечение артефактов через Volatility 3."
+summary: "Анализ дампа оперативной памяти через Volatility: процессы, соединения, командные строки, поиск строк и артефактов."
 ---
 
-## Зачем память
+## Вопрос, с которого всё начинается
 
-Дамп оперативной памяти содержит то, чего нет на диске: запущенные процессы, сетевые соединения, расшифрованные данные, ключи шифрования, пароли, инжектированный код, командные строки. Для расследования malware (особенно fileless) память — **главный** источник. Формат дампа: raw (`.mem`, `.raw`), Windows crash dump, VMware `.vmem`, `lime`, `avml`.
+Мы разобрали диск и сеть. Но есть ещё один источник, который исчезает при
+выключении машины, — **оперативная память**. В ней живут запущенные программы,
+открытые соединения, расшифрованные данные и пароли. Злоумышленники часто работают
+только в памяти: ничего не пишут на диск, чтобы их не нашли.
 
-## Volatility 3
+Тебе дали `memory.raw` — дамп RAM скомпрометированной Windows-машины. Как понять,
+что там происходило? В этом уроке пройдём анализ шаг за шагом.
 
-Volatility 3 (Python) — стандарт. Отличие от V2: **не требует профилей** — символы (ISF) подгружаются автоматически из интернета или локального кэша.
+## Наш пример: memory.raw
 
 ```bash
-pip install volatility3
-vol -f memory.dmp windows.info
-vol -f memory.dmp windows.pslist
-vol -f memory.dmp windows.pstree
-vol -f memory.dmp windows.netscan
-vol -f memory.dmp windows.cmdline
+$ file memory.raw
+memory.raw: data
 ```
 
-## Ключевые плагины
+`data` — потому что дамп памяти это просто сырые байты без сигнатуры. Смотреть в них
+глазами бессмысленно. Для этого есть **Volatility** — платформа анализа дампов памяти.
 
-| Плагин | Назначение |
-|---|---|
-| `windows.info` | версия ОС, время |
+Прежде чем запускать её, полезно понять размер: дамп RAM обычно во много раз больше
+всех остальных артефактов (гигабайты). Именно поэтому с ним работают специализированным
+инструментом, который умеет находить структуры ОС внутри «сырых» байтов, а не читает
+файл целиком в память анализатора.
+
+```bash
+$ vol -f memory.raw windows.info
+Volatility 3 Framework 2.5.0
+Variable        Value
+Kernel Base     0xf8007c000000
+OS Version      10.0.19045.0 (Windows 10)
+```
+
+Volatility 3 сам определяет систему и её версию — вручную указывать профиль, как
+в старых версиях, больше не нужно.
+
+## Процессы: кто работал
+
+Первое, что смотрят в любом дампе, — список процессов:
+
+```bash
+$ vol -f memory.raw windows.pslist
+PID    PPID   ImageFileName   CreateTime
+4      0      System          N/A
+380    4      smss.exe        2024-06-14 08:00:12
+...
+4120   1220   winword.exe     2024-06-14 09:41:03
+5392   4120   powershell.exe  2024-06-14 09:41:22
+```
+
+Читаем: `winword.exe` (Word) запустил `powershell.exe` (PowerShell). Это
+**красный флаг**: Word не должен запускать командную строку. Так выглядит типовой
+макрос-загрузчик из документа.
+
+Колонка `PID` — идентификатор процесса, `PPID` — идентификатор родителя. По ним
+видно дерево: 5392 порождён процессом 4120.
+
+## Скрытые процессы
+
+Опытный вредонос может спрятать процесс от системы. Тогда он не попадёт в обычный
+список, но его структура останется в памяти. Команда `psscan` сканирует память
+напрямую, а не по списку:
+
+```bash
+$ vol -f memory.raw windows.psscan
+PID    PPID   ImageFileName   Offset(V)
+5392   4120   powershell.exe  0x...
+6116   5392   rundll32.exe    0x...
+```
+
+`rundll32.exe`, порождённый `powershell.exe`, — ещё один признак инъекции: этим
+процессом часто прикрывают вредоносный код. Если процесс есть в `psscan`, но нет в
+`pslist` — он прятался.
+
+## Сетевые соединения: куда ходил
+
+```bash
+$ vol -f memory.raw windows.netscan
+Offset   Proto  LocalAddr       LocalPort  ForeignAddr      ForeignPort  State       PID
+0x...    TCPv4  10.10.10.50     49812      185.220.101.44   443          ESTABLISHED 6116
+```
+
+Процесс 6116 (`rundll32.exe`) держит соединение с внешним IP `185.220.101.44` на
+порт 443. Это кандидат в **C2** (command-and-control, сервер управления). Сопоставив
+PID из `netscan` с процессами, мы связали активность с конкретным процессом.
+
+## Командные строки: что именно запускали
+
+```bash
+$ vol -f memory.raw windows.cmdline
+PID    Process        Args
+5392   powershell.exe  powershell -enc SQBFAFgAKABOAGUAdwAtAE8AYgBqAGUAYwB0ACA...
+```
+
+Аргументы запуска — `powershell -enc ...`, base64-кодированная команда. Декодируем
+её (см. урок про кодировки и PCAP) и видим, что загружалось из сети. Командная
+строка часто выдаёт весь замысел атакующего.
+
+## Достаём строки и файлы из дампа
+
+Дамп памяти — это, по сути, огромный текстовый склад. Простейший, но действенный
+приём — искать в нём строки:
+
+```bash
+$ strings -n 8 memory.raw | grep -iE 'flag\{|CTF\{|password|http://'
+CTF{m3m0ry_n3v3r_f0rg3ts}
+http://185.220.101.44/update.ps1
+```
+
+Если нужен конкретный процесс или файл, его можно выгрузить:
+
+```bash
+$ vol -f memory.raw -o dump/ windows.dumpfiles --pid 6116
+$ ls dump/
+... rundll32.exe.0x...dll
+```
+
+Выгруженный модуль можно прогнать через `strings`, `yara` или отдать в
+дизассемблер. Так из памяти достают вредоносные библиотеки, которых уже нет на диске.
+
+## Порядок анализа дампа
+
+1. `windows.info` — что за система.
+2. `windows.pslist` / `psscan` — процессы и скрытые процессы.
+3. `windows.netscan` — соединения (кандидаты в C2).
+4. `windows.cmdline` — командные строки и аргументы.
+5. `strings` + `grep` — быстрый поиск флагов, паролей, URL.
+6. `windows.dumpfiles` — выгрузка конкретных файлов для глубокого разбора.
+
+## Что вообще лежит в дампе памяти
+
+Дамп RAM — это снимок всего, что было в оперативной памяти. Там можно найти:
+
+- **процессы и их модули** — включая загруженные в чужой процесс библиотеки;
+- **сетевые соединения** — активные и недавно закрытые;
+- **командные строки** — с аргументами запуска;
+- **содержимое буферов** — тексты, пароли, ключи шифрования в открытом виде;
+- **артефакты ОС** — открытые файлы, историю, загруженные драйверы.
+
+Именно поэтому память — первый объект по правилу порядка изменчивости: после
+выключения машины ничего из этого не останется.
+
+## Ещё несколько полезных плагинов
+
+| Плагин | Что показывает |
+|--------|----------------|
 | `windows.pslist` | список процессов |
-| `windows.psscan` | процессы (включая скрытые/завершённые) |
-| `windows.pstree` | дерево процессов |
-| `windows.cmdline` | командные строки |
+| `windows.psscan` | процессы, найденные прямым сканированием (в т.ч. скрытые) |
 | `windows.netscan` | сетевые соединения |
-| `windows.dlllist` | загруженные DLL |
-| `windows.malfind` | инъекции/шеллкоды |
-| `windows.handles` | открытые handles |
-| `windows.filescan` | файлы в кэше |
-| `windows.registry.*` | реестр из памяти |
-| `windows.hashdump` | хэши из SAM |
-| `windows.lsadump` | LSA secrets |
-| `windows.yarascan` | YARA-скан |
+| `windows.cmdline` | аргументы запуска процессов |
+| `windows.dlllist` | загруженные в процесс DLL |
+| `windows.handles` | открытые файлы и объекты |
+| `windows.dumpfiles` | выгрузка файлов из памяти |
 
-```bash
-# Процессы и командные строки
-vol -f mem.dmp windows.pstree
-vol -f mem.dmp windows.cmdline | grep -iE 'powershell|cmd|wmic'
-# Сеть
-vol -f mem.dmp windows.netscan | grep -iE 'ESTABLISHED|LISTEN'
-```
+Порядок почти всегда такой: процессы → сеть → командные строки → выгрузка
+подозрительного. Так ты быстро сужаешь круг до конкретного PID, а дальше копаешь
+только его.
 
-## Обнаружение инъекций
+## Если дамп не распознаётся
 
-```bash
-# malfind — ищет RWX-регионы, не привязанные к файлу (инъекции)
-vol -f mem.dmp windows.malfind
-# Дамп подозрительного процесса
-vol -f mem.dmp windows.memmap --pid <pid> --dump
-# YARA-скан памяти
-vol -f mem.dmp windows.yarascan --yara-file rules.yar
-```
+Иногда `vol windows.info` не находит систему. Причины:
 
-`malfind` показывает VAD-регионы с `PAGE_EXECUTE_READWRITE` и подозрительным содержимым (MZ/шеллкод) — признак process injection/hollowing.
+- **Не Windows, а Linux/macOS** — тогда используй `linux.*`/`mac.*` плагины
+  (Volatility 3 поддерживает и их).
+- **Дамп снят некорректно** — например, частичный или сжат. Проверь размер и
+  способ снятия.
+- **Образ в другом формате** — `E01`/`vmem` сначала конвертируют в raw.
 
-## Извлечение credentials
+Если ни один плагин не работает, отчаянный, но действенный вариант — `strings` по
+сырому дампу: пароли, URL и флаги часто лежат просто текстом.
 
-```bash
-# Хэши из SAM (в памяти)
-vol -f mem.dmp windows.hashdump
-# LSA secrets
-vol -f mem.dmp windows.lsadump
-# Кэш (кэшированные доменные учётки)
-vol -f mem.dmp windows.cachedump
-# Поиск паролей в памяти (строки)
-strings mem.dmp | grep -iE 'password|passwd|pwd=' | head
-# pypykatz для LSASS
-pypykatz lsa minidump lsass.dmp
-```
+## Как правильно снять дамп памяти
 
-## Извлечение артефактов
+Чтобы дамп вообще был пригоден, его снимают аккуратно. Два главных требования:
 
-```bash
-# Список файлов в кэше
-vol -f mem.dmp windows.filescan | grep -i flag
-# Дамп файла по offset
-vol -f mem.dmp windows.dumpfiles --virtaddr <addr>
-# Реестр
-vol -f mem.dmp windows.registry.hivelist
-vol -f mem.dmp windows.registry.printkey --key "Software\Microsoft\Windows\CurrentVersion\Run"
-# Скриншоты (V2: screenshots)
-vol -f mem.dmp windows.screenshot   # если есть
-```
+1. **Сначала память, потом всё остальное.** По правилу порядка изменчивости RAM
+   исчезает при выключении, поэтому её копируют до работы с диском.
+2. **Не «трогай» систему больше, чем нужно.** Запуск тяжёлых программ может вытеснить
+   из памяти то, что ты ищешь.
 
-## Практический пример: CTF-разбор
+Снять дамп можно штатными средствами Windows, гипервизором или «морозильником»
+(вроде `winpmem`/`DumpIt`). Важное следствие: если задача даёт и `memory.raw`, и
+образ диска — **начинай с памяти**. Диск никуда не денется, а вот ключи и соединения
+из RAM после перезагрузки пропадут.
 
-```bash
-# 1. Идентификация
-vol -f mem.dmp windows.info
-# 2. Процессы
-vol -f mem.dmp windows.pstree
-# 3. Подозрительные (malfind)
-vol -f mem.dmp windows.malfind
-# 4. Командные строки
-vol -f mem.dmp windows.cmdline
-# 5. Поиск флага
-vol -f mem.dmp windows.filescan | grep -i flag
-vol -f mem.dmp windows.dumpfiles --virtaddr <addr>
-strings -a mem.dmp | grep -iE 'flag\{|CTF\{'
-# 6. Сеть
-vol -f mem.dmp windows.netscan
-```
+Память — самый быстро исчезающий источник, поэтому её снимают первой.
 
-## Инструменты и команды
+## Что мы теперь знаем
 
-```bash
-pip install volatility3
-# Символы: автоматически (кэш ~/.cache/volatility3)
-# Альтернативы: Rekall, MemProcFS, winpmem (снятие)
-# pypykatz — LSASS
-```
-
-## Дополнительные плагины и таймлайн
-
-Volatility 3 предоставляет десятки плагинов. Полезные помимо базовых:
-
-| Плагин | Назначение |
-|---|---|
-| `windows.modules` | загруженные драйверы (rootkit?) |
-| `windows.driverscan` | драйверы (включая скрытые) |
-| `windows.ssdt` | таблица системных вызовов (хуки) |
-| `windows.callbacks` | kernel callbacks (persistence) |
-| `windows.mutantscan` | мьютексы (признак malware) |
-| `windows.svcscan` | службы |
-| `windows.scheduled_tasks` | задачи |
-| `windows.registry.userassist` | UserAssist |
-| `windows.timeliner` | таймлайн событий |
-
-```bash
-vol -f mem.dmp windows.modules | grep -v "\\Windows\\System32"
-vol -f mem.dmp windows.callbacks
-vol -f mem.dmp windows.svcscan | grep -iE 'temp|tmp|appdata'
-vol -f mem.dmp timeliner.Timeliner > timeline.csv
-```
-
-## Снятие дампа памяти
-
-- **Windows:** `winpmem`, `DumpIt`, `Magnet RAM Capture` (пишут в файл).
-- **Linux:** `lime`, `avml`, `dd if=/dev/mem` (осторожно).
-- **VMware/Hyper-V:** снапшот + `.vmem`/`.vmss`.
-- **Облако:** через агент/SSM.
-
-Важно: снимать **до** выключения; учитывать, что память меняется (лучше — на замороженной ВМ).
-
-## Инструменты и команды
-
-```bash
-pip install volatility3
-vol -f memory.dmp windows.info
-vol -f memory.dmp windows.pslist
-vol -f memory.dmp windows.pstree
-vol -f memory.dmp windows.psscan
-vol -f memory.dmp windows.cmdline
-vol -f memory.dmp windows.netscan
-vol -f memory.dmp windows.malfind
-vol -f memory.dmp windows.hashdump
-vol -f memory.dmp windows.lsadump
-vol -f memory.dmp windows.filescan | grep -i flag
-vol -f memory.dmp windows.dumpfiles --virtaddr <addr>
-vol -f memory.dmp windows.yarascan --yara-file rules.yar
-vol -f memory.dmp timeliner.Timeliner > timeline.csv
-strings -a memory.dmp | grep -iE 'flag\{|CTF\{'
-pypykatz lsa minidump lsass.dmp
-```
-
-## Практический пример: разбор malware
-
-```bash
-# 1. Подозрительный процесс
-vol -f mem.dmp windows.pstree | grep -iE 'temp|appdata|svchost'
-# 2. Инъекции
-vol -f mem.dmp windows.malfind --pid <pid>
-# 3. Дамп процесса
-vol -f mem.dmp windows.memmap --pid <pid> --dump
-# 4. Анализ дампа (strings/YARA/Disassembly)
-strings pid.<pid>.dmp | grep -iE 'http|cmd|powershell'
-yara rules.yar pid.<pid>.dmp
-# 5. Сеть
-vol -f mem.dmp windows.netscan | grep <pid>
-# 6. Persistence
-vol -f mem.dmp windows.registry.printkey --key "Software\Microsoft\Windows\CurrentVersion\Run"
-```
-
-## Типы дампов и их особенности
-
-- **Raw (`.raw`, `.mem`)** — прямой дамп физической памяти; самый распространённый.
-- **Windows crash dump** (`.dmp`) — может быть полным или малым.
-- **Hibernation** (`hiberfil.sys`) — сжатый дамп памяти (Volatility умеет).
-- **VMware** (`.vmem`, `.vmss`), **Hyper-V** (`.bin`), **QEMU** (`.el`).
-- **LiME** (Linux), **AVML** (Microsoft, Linux).
-- **Pagefile/swap** — фрагменты памяти на диске.
-
-Разные форматы требуют разных параметров; `file`/`capinfos` помогают определить. Для hiberfil нужно указать `--profile`/адрес в V2 или просто подать в V3.
-
-## Итог
-
-Дамп памяти — ключ к fileless-малвари, инъекциям и credential. Volatility 3 (без профилей) + `pstree`/`cmdline`/`netscan`/`malfind`/`hashdump`/`filescan` покрывают 90% задач. Снимайте память до выключения; дампьте подозрительные процессы; используйте YARA и strings. Комбинируйте с дисковыми артефактами.
-
-## Резюме
-
-Volatility 3 без профилей: `info` → `pstree` → `malfind` → `cmdline` → `netscan` → `hashdump` → `filescan`/`dumpfiles` → YARA/strings. Память — ключ к fileless и credential.
-
-## Частые ошибки
-
-- **Неверный формат дампа.** Volatility не распознает — проверьте `file`.
-- **Пропустить `psscan`.** `pslist` не видит скрытые процессы.
-- **Игнорировать `malfind`.** Инъекции — ключ к malware.
-- **Не дампить подозрительные процессы.**
-- **Искать флаг только `strings`.** Используйте filescan/dumpfiles.
-- **Не проверить credentials.** hashdump/lsadump.
-
-## Как не застрять
-
-- **`windows.info`** — версия.
-- **`pstree` + `cmdline`** — что запущено.
-- **`malfind`** — инъекции.
-- **`netscan`** — C2.
-- **`filescan`/`dumpfiles`** — файлы.
-- **`strings` + YARA** — флаг/malware.
+- Дамп памяти — сырые байты; анализируется через Volatility (`vol`).
+- `pslist`/`psscan` показывают процессы, в том числе скрытые.
+- `netscan` находит соединения; `cmdline` — аргументы запуска (часто с payload).
+- `strings | grep` даёт быстрый результат по флагам, паролям и URL.
+- `dumpfiles` выгружает файлы и модули из памяти для дальнейшего анализа.
 
 ## Квиз
 
 ```quiz
-- question: "Что делает плагин malfind?"
+- question: "Почему `file memory.raw` отвечает `data`?"
   options:
-    - "ищет инъекции (RWX-регионы, не привязанные к файлу)"
-    - "снимает дамп памяти"
-    - "строит таймлайн"
-    - "декодирует base64"
-  answer: 0
-- question: "Чем psscan отличается от pslist?"
+    - "файл повреждён"
+    - "дамп памяти — сырые байты без сигнатуры формата"
+    - "нужен root"
+    - "это архив"
+  answer: 1
+- question: "Чем `psscan` отличается от `pslist`?"
   options:
     - "ничем"
-    - "psscan находит скрытые/завершённые процессы"
-    - "psscan медленнее"
-    - "pslist — для Linux"
+    - "`psscan` сканирует память напрямую и находит скрытые процессы"
+    - "`psscan` быстрее"
+    - "`pslist` только для Linux"
   answer: 1
-- question: "Где взять хэши паролей из памяти?"
+- question: "Word запустил PowerShell. Что это обычно значит?"
   options:
-    - "hashdump"
-    - "netscan"
-    - "malfind"
-    - "filescan"
+    - "нормальное поведение"
+    - "признак макрос-загрузчика вредоносного документа"
+    - "обновление Office"
+    - "ошибка дампа"
+  answer: 1
+- question: "Какая команда покажет сетевые соединения процессов?"
+  options:
+    - "windows.netscan"
+    - "windows.info"
+    - "windows.pslist"
+    - "windows.dumpfiles"
   answer: 0
-- question: "Как извлечь файл из кэша памяти?"
+- question: "Как быстро найти флаг или пароль в дампе?"
   options:
-    - "filescan + dumpfiles"
-    - "pstree"
-    - "netscan"
-    - "cmdline"
-  answer: 0
-- question: "Volatility 3 в отличие от V2:"
-  options:
-    - "требует профиль"
-    - "не требует профилей (авто-символы)"
-    - "только Linux"
-    - "без плагинов"
+    - "открыть в hex-редакторе целиком"
+    - "strings memory.raw | grep -iE 'flag|password'"
+    - "file memory.raw"
+    - "смонтировать дамп"
   answer: 1
 ```
 
+## Куда дальше
+
+Память показала процессы и сеть, но много следов остаётся в **артефактах Windows**
+на диске: реестр, журналы событий, Prefetch. В следующем уроке разберём, как по этим
+файлам восстановить, какие программы запускались и что подключалось к машине. А пока
+запомни: **память хранит то, чего уже нет на диске, — начинай с процессов и соединений**.
+
 ## Где пригодится
 
-- **CTF Forensics** — задачи с дампами RAM.
-- **Incident Response** — анализ malware в памяти.
-- **Malware analysis** — fileless, инъекции.
-- **Credential access** — хэши/пароли.
-- **Threat Hunting** — поиск следов в памяти.
+- **CTF:** задачи с дампами памяти и поиском артефактов.
+- **Incident Response:** определение вредоносных процессов и C2.
+- **Malware analysis:** извлечение нагрузок прямо из RAM.
+- **SOC / Threat Hunting:** проверка гипотез об атаке в памяти.
+- **Криминалистика:** фиксация летучих данных до выключения машины.

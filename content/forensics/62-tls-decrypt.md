@@ -14,194 +14,158 @@ useful_for:
 estimated_minutes: 40
 summary: "Как расшифровать TLS-трафик в Wireshark: SSLKEYLOGFILE, извлечение сессионных ключей из памяти/дампа, RSA-ключ, и почему forward secrecy усложняет задачу."
 ---
-Современный трафик почти весь зашифрован TLS, что делает анализ PCAP без ключей малоинформативным. Однако TLS можно расшифровать, если получить сессионные ключи (SSLKEYLOGFILE), приватный RSA-ключ или ключи из памяти. Этот урок — про методы расшифровки, почему forward secrecy усложняет задачу, и как настроить Wireshark.
 
-## Основы TLS и ключи
+## Вопрос, с которого всё начинается
 
-TLS-сессия устанавливает симметричный ключ через рукопожатие:
-- **RSA key exchange** (устаревший): сессионный ключ шифруется публичным RSA-ключом сервера → зная приватный RSA-ключ, можно расшифровать.
-- **ECDHE/DHE (forward secrecy)**: эфемерные ключи; приватный RSA-ключ НЕ поможет. Нужны сами сессионные ключи (из `SSLKEYLOGFILE` или памяти).
+У тебя есть `https.pcap` — захват трафика с машины после инцидента. Но почти всё
+внутри — «шифрованный шум»: современные сайты работают по **TLS** (Transport Layer
+Security), протоколу шифрования. Открыв файл в Wireshark, ты увидишь только
+рукопожатия и случайные байты.
 
-Поэтому стратегия: (1) RSA-ключ, если нет FS; (2) keylog-файл, если он есть; (3) извлечение ключей из памяти.
+Хорошая новость: TLS можно расшифровать, **если получить ключи**. Вопрос — какие
+именно ключи и где их взять. В этом уроке мы это и разберём.
 
-## SSLKEYLOGFILE
+## Наш пример: HTTPS-сессия к подозрительному серверу
 
-Браузеры и некоторые приложения по переменной окружения `SSLKEYLOGFILE` пишут сессионные ключи в файл (формат NSS Key Log).
+Откроем захват и посмотрим, что вообще видно без ключей:
 
 ```bash
-# Linux: запустить браузер с keylog
+$ tshark -r https.pcap -Y 'tls.handshake.type==1' -T fields -e ip.dst -e tls.handshake.extensions_server_name | head
+185.220.101.7	evil.tld
+```
+
+Даже без ключей виден **SNI** (Server Name Indication) — имя сайта, которое клиент
+передаёт открыто при рукопожатии. Значит, соединение шло к `evil.tld`. Но **что
+именно** передавалось, пока скрыто.
+
+## Шаг 1: как TLS договаривается о ключе
+
+При соединении клиент и сервер проводят **рукопожатие** и договариваются о
+**сессионном ключе** — симметричном ключе, которым потом шифруют данные. Способов
+договориться два:
+
+- **RSA key exchange** (устаревший): клиент шифрует сессионный ключ **публичным
+  RSA-ключом** сервера. Если у тебя есть **приватный** RSA-ключ сервера — расшифруешь.
+- **ECDHE/DHE** (современный, *forward secrecy*): ключ вычисляется из эфемерных
+  («одноразовых») значений, которые нигде не сохраняются. Приватный RSA-ключ сервера
+  **не поможет** — нужны сами сессионные ключи.
+
+**Forward secrecy** («прямая секретность») — свойство, при котором компрометация
+долгосрочного ключа не раскрывает прошлые сессии. Именно поэтому старый трюк «взять
+ключ сервера и расшифровать» больше не работает на современных сайтах.
+
+## Шаг 2: самый простой путь — SSLKEYLOGFILE
+
+Если на машине, чей трафик мы анализируем, есть **keylog-файл**, всё решается в одну
+команду. Браузеры и многие приложения по переменной окружения `SSLKEYLOGFILE`
+записывают сессионные ключи в файл формата **NSS Key Log**:
+
+```bash
 $ SSLKEYLOGFILE=/tmp/keys.log firefox &
-$ SSLKEYLOGFILE=/tmp/keys.log chromium &
-# Windows: переменная окружения через setx
-# затем Wireshark: Preferences -> Protocols -> TLS -> (Pre)-Master-Secret log filename
 ```
 
-Формат файла:
+Файл выглядит так:
 
 ```
-CLIENT_RANDOM <32-байтный client_random> <48-байтный master_secret>
-CLIENT_HANDSHAKE_TRAFFIC_SECRET ...
-SERVER_HANDSHAKE_TRAFFIC_SECRET ...
+CLIENT_RANDOM <client_random> <master_secret>
+CLIENT_HANDSHAKE_TRAFFIC_SECRET <client_random> <secret>
 ```
 
-Wireshark подхватывает его и расшифровывает трафик. В командной строке:
+Подаём его Wireshark (или `tshark`) через опцию `tls.keylog_file`:
 
 ```bash
-$ tshark -r capture.pcap -o tls.keylog_file:/tmp/keys.log -Y 'http' -T fields -e http.request.uri | head
-```
-
-## RSA-ключ
-
-Если используется RSA key exchange (без FS), достаточно приватного ключа сервера.
-
-```bash
-# извлечь ключ из .pfx/.p12
-$ openssl pkcs12 -in server.p12 -nocerts -nodes -out server.key
-# Wireshark: TLS -> RSA keys list -> добавить IP:port + key
-$ tshark -r capture.pcap -o tls.keys_list:"10.0.0.5,443,http,server.key" -Y http
-```
-
-Проверить, поддерживает ли сервер FS:
-
-```bash
-$ openssl s_client -connect host:443 -cipher 'DEFAULT' </dev/null 2>/dev/null | grep -i 'Cipher is'
-# если ECDHE — FS включён, RSA-ключ не поможет
-```
-
-## Извлечение ключей из памяти
-
-Для FS-сессий ключи живут только в памяти. Их извлекают из дампа.
-
-```bash
-# Volatility: извлечь TLS/SSL ключи (Windows)
-$ vol -f mem.raw windows.ssl_keyscan
-# Linux: ключи в процессах (OpenSSL), извлекаются через Volatility linux
-$ vol -f mem.raw linux.pslist
-# инструменты: tls_key_extract, ssldump (для старых), openssl-дампы
-```
-
-Формат найденных ключей конвертируют в NSS keylog и подают в Wireshark.
-
-```bash
-# пример: найти master secrets в дампе
-$ strings -a mem.raw | grep -E '^CLIENT_RANDOM'
-```
-
-## Настройка Wireshark
-
-1. **Preferences → Protocols → TLS**:
-   - `(Pre)-Master-Secret log filename` — путь к keylog.
-   - `RSA keys list` — приватные ключи (для не-FS).
-2. После — фильтры `http`, `http2`, `tls` покажут расшифрованное содержимое.
-3. Экспорт объектов: `File → Export Objects → HTTP`.
-
-```bash
-$ tshark -r capture.pcap -o tls.keylog_file:keys.log -Y 'http.request' -T fields -e http.host -e http.request.uri
-```
-
-## Практический разбор
-
-```bash
-# 1. Определить, есть ли FS
-$ openssl s_client -connect evil.tld:443 -cipher DEFAULT </dev/null 2>/dev/null | grep -i cipher
-# 2. Если FS — искать keylog
-$ find / -name 'sslkeylog*' 2>/dev/null
-$ grep -a 'SSLKEYLOGFILE' /proc/*/environ 2>/dev/null
-# 3. Расшифровать
-$ tshark -r capture.pcap -o tls.keylog_file:keys.log -Y 'http' -T fields -e http.request.full_uri | head
-# 4. Извлечь объекты
-$ tshark -r capture.pcap -o tls.keylog_file:keys.log --export-objects http,out/
-```
-
-## Разобранный пример
-
-Дан PCAP с HTTPS-сессией и keylog-файл.
-
-```bash
-# 1. Расшифровать
 $ tshark -r https.pcap -o tls.keylog_file:keys.log -Y 'http.request' -T fields -e http.host -e http.request.uri
-evil.tld /gate.php
-# 2. Тело запроса (данные эксфильтрации)
+evil.tld	/gate.php
+```
+
+Содержимое расшифровано. Мы видим обращение к `evil.tld/gate.php` — типичный
+адрес C2-«шлюза».
+
+## Шаг 3: если keylog нет — ищем RSA-ключ или ключи в памяти
+
+Проверим, использует ли сервер forward secrecy. Утилита `openssl s_client` подключается
+к серверу и показывает выбранный шифр:
+
+```bash
+$ openssl s_client -connect evil.tld:443 -cipher DEFAULT </dev/null 2>/dev/null | grep -i 'Cipher is'
+Cipher is ECDHE-RSA-AES256-GCM-SHA384
+```
+
+`ECDHE` в названии шифра означает forward secrecy. Значит, RSA-ключ не поможет —
+ищем сессионные ключи в **дампе памяти**. Плагин Volatility извлекает их оттуда:
+
+```bash
+$ vol -f mem.raw windows.ssl_keyscan
+```
+
+Найденные ключи конвертируют в тот же NSS-keylog и подают в Wireshark. Если сервер
+был бы **без** forward secrecy (шифр с `RSA` без `E`), хватило бы приватного ключа:
+
+```bash
+$ tshark -r https.pcap -o tls.keys_list:"10.0.0.5,443,http,server.key" -Y http
+```
+
+## Шаг 4: извлекаем данные
+
+Теперь, когда трафик читается, извлечём то, что передавалось. Тело POST-запроса —
+это данные, которые клиент отправил на сервер:
+
+```bash
 $ tshark -r https.pcap -o tls.keylog_file:keys.log -Y 'http.request.method=="POST"' -T fields -e http.file_data | head
-# 3. Извлечь файлы
+dXNlcj1ib2ImcGFzcz0uLi4=
+```
+
+А все переданные файлы можно вытащить одной командой:
+
+```bash
 $ tshark -r https.pcap -o tls.keylog_file:keys.log --export-objects http,http_obj/
 $ file http_obj/*
+http_obj/1: PNG image data
 ```
 
-Итог: расшифрованный трафик показал C2-запросы и тело эксфильтрации.
+## Шаг 5: TLS 1.3 и QUIC
 
-## Справочная таблица
-
-| Метод | Когда работает |
-|-------|----------------|
-| SSLKEYLOGFILE | есть keylog |
-| RSA private key | нет forward secrecy |
-| Ключи из памяти | FS, есть дамп |
-| MITM-прокси | контроль над клиентом |
-| Session hijack | украденные ключи |
-
-## Частые ошибки
-
-- **Пытаться расшифровать FS-трафик RSA-ключом** — не выйдет.
-- **Не проверить наличие FS** перед попыткой.
-- **Игнорировать keylog** — самый простой путь.
-- **Забывать про TLS 1.3** — использует разные секреты (`*_TRAFFIC_SECRET`).
-- **Не дампить память** — ключи исчезнут.
-- **Путать ключ сервера и клиента** — в `keys_list` указывается нужный.
-
-## Что дальше / решение
-
-Конвейер: `openssl s_client` (FS?) → поиск keylog/RSA-ключа → извлечение ключей из памяти → `tshark -o tls.keylog_file`/Wireshark → анализ расшифрованного. Связка: `forensics-network-deep` (сеть), `forensics-pcap` (основы), `forensics-memory-keys` (память), `forensics-exfil` (данные).
-
-## TLS 1.3 и QUIC
-
-TLS 1.3 усилил forward secrecy: даже RSA-ключ сервера бесполезен, нужны `*_TRAFFIC_SECRET` из keylog. Формат NSS keylog для TLS 1.3:
+В **TLS 1.3** forward secrecy обязательна, поэтому RSA-ключ сервера бесполезен
+всегда — работают только `*_TRAFFIC_SECRET` из keylog. Формат keylog чуть другой:
 
 ```
-CLIENT_HANDSHAKE_TRAFFIC_SECRET <client_random> <secret>
-SERVER_HANDSHAKE_TRAFFIC_SECRET <client_random> <secret>
 CLIENT_TRAFFIC_SECRET_0 <client_random> <secret>
 SERVER_TRAFFIC_SECRET_0 <client_random> <secret>
 ```
 
-Wireshark (≥3.0) понимает TLS 1.3 в keylog. **QUIC** (HTTP/3) — TLS поверх UDP; Wireshark расшифровывает его тем же keylog (`QUIC` dissector, начиная с определённых версий).
+Wireshark версии 3.0+ понимает TLS 1.3. **QUIC** (HTTP/3) — это TLS поверх UDP;
+он расшифровывается тем же keylog.
 
-```bash
-# определить версию TLS
-$ openssl s_client -connect host:443 -tls1_3 </dev/null 2>/dev/null | grep -i 'Protocol'
-# keylog для TLS 1.3 всё равно работает
-$ tshark -r capture.pcap -o tls.keylog_file:keys.log -Y http
-```
+## Когда ключей нет вообще
 
-## Прокси-перехват и MITM
+Если нет ни keylog, ни дампа памяти, ни RSA-ключа, а forward secrecy включён —
+пассивно расшифровать нельзя. Остаются:
 
-Если контролируете клиента (корпоративная сеть, тестовый стенд), можно перехватить TLS через MITM-прокси (`mitmproxy`, `Burp`, `Charles`), который выдаёт собственный сертификат. Это не «расшифровка задним числом», а активный перехват — применимо для расследования в реальном времени и для анализа мобильных приложений.
+- **метаданные**: SNI, сертификаты, JA3-отпечатки, тайминги и объёмы (часто и этого
+  хватает, чтобы доказать факт связи с C2);
+- **активный перехват** (MITM-прокси) — но это меняет трафик и требует установки
+  своего сертификата на клиента, то есть применимо только при контроле над ним.
 
-```bash
-# mitmproxy
-$ mitmproxy --mode transparent --showhost
-# установить корневой сертификат на клиента, направить трафик
-```
+## Что мы теперь знаем
 
-Помните: MITM меняет трафик и требует установки корневого сертификата на целевой системе — это изменяет её состояние.
+- Современный трафик зашифрован TLS; без ключей видно только метаданные (SNI, JA3).
+- **SSLKEYLOGFILE** — файл с сессионными ключами; самый простой путь расшифровки.
+- **Forward secrecy** (ECDHE/DHE, TLS 1.3) делает приватный RSA-ключ бесполезным.
+- Если keylog нет — сессионные ключи достают из **дампа памяти**.
+- `tshark -o tls.keylog_file` расшифровывает, а `--export-objects` вынимает файлы.
 
-## Целостность и фиксация
+## На что смотреть дальше
 
-Ключи — чувствительные данные; фиксируйте их источник (файл keylog, дамп памяти, экспорт) и хеши. Для отчёта: как получены ключи, какая сессия расшифрована, что извлечено. Храните оригинальный PCAP и ключи отдельно, документируйте цепочку.
-
-## Ограничения
-
-- **Нет ключей и есть FS** — расшифровка невозможна без активного перехвата.
-- **TLS 1.3 keylog** требует, чтобы клиент его писал (не все приложения поддерживают).
-- **QUIC/HTTP3** может не расшифроваться в старых версиях Wireshark.
-- **Пиннинг сертификатов** (mobile) ломает MITM.
-- **Клиентские сертификаты** (mTLS) усложняют перехват.
-
-## Краткое резюме
-
-Расшифровка TLS в форензике зависит от того, какой обмен ключами использовался. При RSA key exchange достаточно приватного ключа сервера; при forward secrecy (ECDHE/DHE, TLS 1.3) нужны сессионные ключи — из `SSLKEYLOGFILE` или из памяти. Wireshark/`tshark` принимают NSS keylog (`tls.keylog_file`) и RSA-ключи (`tls.keys_list`). Если ключей нет и FS включён, пассивная расшифровка невозможна — остаётся активный MITM-перехват. Всегда проверяйте наличие FS перед попыткой и фиксируйте источник ключей.
+- **Расшифровывать FS-трафик RSA-ключом** — не выйдет; проверь шифр заранее.
+- **Не проверить forward secrecy** перед попыткой.
+- **Игнорировать keylog** — это самый быстрый путь, ищи его первым.
+- **Путать ключи клиента и сервера** в `keys_list`.
+- **Забывать про TLS 1.3** — там другие имена секретов.
+- **Не снять дамп памяти** — ключи исчезнут после перезагрузки.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что содержит SSLKEYLOGFILE?"
@@ -241,10 +205,18 @@ $ mitmproxy --mode transparent --showhost
   answer: 0
 ```
 
+## Куда дальше
+
+Мы научились расшифровывать TLS. В следующем уроке поднимемся на уровень выше и
+разберём **Zeek** — анализатор, который превращает весь захваченный трафик в
+структурированные логи, по которым удобно строить картину атаки. А пока запомни:
+**для расшифровки TLS нужны ключи; сначала ищи keylog, потом — дамп памяти, и
+всегда проверяй forward secrecy**.
+
 ## Где пригодится
 
-- **CTF:** задачи, где флаг передаётся по HTTPS и есть keylog/дамп.
-- **DFIR:** анализ C2 и утечек по зашифрованному каналу.
-- **Анализ малвари:** расшифровка TLS-трафика бота (при наличии дампа).
-- **Red team awareness:** понимание, что forward secrecy защищает прошлый трафик.
-- **Сетевая форензика:** метаданные TLS как источник при невозможности расшифровки.
+- **CTF** — задачи, где флаг передаётся по HTTPS и есть keylog/дамп.
+- **DFIR** — анализ C2 и утечек по зашифрованному каналу.
+- **Анализ малвари** — расшифровка TLS-трафика бота (при наличии дампа).
+- **Red team awareness** — понимание, что forward secrecy защищает прошлый трафик.
+- **Сетевая форензика** — метаданные TLS как источник при невозможности расшифровки.

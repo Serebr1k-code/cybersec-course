@@ -14,263 +14,185 @@ estimated_minutes: 42
 summary: "Как работают MDM и MAM, управляемые конфигурации, work profile и изоляция данных, что видит администратор, какие есть границы доверия и типовые ошибки корпоративной мобильной безопасности."
 ---
 
-## Что такое MDM и MAM
+## Вопрос, с которого всё начинается
 
-**MDM (Mobile Device Management)** — управление устройствами целиком: администратор может навязывать пароль, шифрование, запрещать камеру, устанавливать приложения, удалённо стирать данные. **MAM (Mobile Application Management)** — управление конкретными приложениями без управления устройством: политики применяются к приложению (запрет копирования в личные приложения, требование PIN, шифрование данных приложения). В модели BYOD («принеси своё устройство») чаще используют MAM, чтобы не трогать личные данные сотрудника.
+Компания выдаёт сотрудникам телефоны с корпоративными приложениями. Ими кто-то управляет: запрещает камеру, стирает данные при утере, пушит настройки. Это **MDM** — Mobile Device Management. А есть ещё **MAM** — управление самими приложениями, без контроля над всем устройством. Как это устроено и что важно для безопасности?
 
-Технически на Android это реализуется через **DevicePolicyManager** и **work profile** (управляемый профиль). На iOS — через **MDM-протокол** (APNs-команды) и **managed app configuration** / **per-app VPN**. Приложение, получившее статус managed, читает конфигурацию из `RestrictionsManager` (Android) или `UserDefaults` с ключом `com.apple.configuration.managed` (iOS).
+## Наш пример: MDM-профиль
 
-## Android: work profile и DPM
+MDM-профиль на iOS — это **mobileconfig**: XML-plist с описанием того, что можно и нельзя на устройстве. Разберём реальный профиль:
 
-Work profile — это отдельный пользователь (`user 10`) с флагом managed. Приложения в нём изолированы: личные и рабочие данные разделены. Администратор (profile owner) управляет только рабочим профилем.
-
-Проверка на устройстве:
-
-```bash
-adb shell dumpsys user | grep -i "UserInfo\|Managed"
-adb shell dumpsys device_policy | head -50
-adb shell pm list users
+```
+$ python3 -c "import plistlib;d=plistlib.load(open('mdm.mobileconfig','rb'));print(d['PayloadType'], d['PayloadRemovalDisallowed'])"
+Configuration True
 ```
 
-Что видит profile owner:
-- список managed-приложений;
-- политики пароля/шифрования;
-- возможность `wipeData` только рабочего профиля;
-- запрет камеры, скриншотов, Bluetooth, USB.
+`PayloadRemovalDisallowed: True` означает, что пользователь **не может** сам удалить профиль. Дальше — содержимое:
 
-Что **не** видит: содержимое личных приложений и личных файлов (в норме).
+```
+$ python3 -c "import plistlib;d=plistlib.load(open('mdm.mobileconfig','rb'));[print(p['PayloadType'], {k:v for k,v in p.items() if k!='PayloadType'}) for p in d['PayloadContent']]"
+com.apple.applicationaccess {'allowCamera': False, 'allowAppInstallation': False, 'forceEncryptedBackup': True}
+com.apple.ManagedAppDomains {}
+```
 
-## Android: managed configurations
+Профиль запрещает камеру и установку приложений, требует шифрованный бэкап. `com.apple.applicationaccess` — это **restrictions payload**, набор ограничений.
 
-Приложение получает конфигурацию от MDM:
+## Шаг 1: что такое payload
+
+Профиль состоит из **payload-ов** — блоков, каждый со своим `PayloadType`. Типов много:
+
+| PayloadType | Что настраивает |
+|-------------|-----------------|
+| `com.apple.applicationaccess` | ограничения (камера, установка приложений) |
+| `com.apple.ManagedAppDomains` | домены управляемых приложений |
+| `com.apple.vpn.managed` | VPN, в том числе per-app |
+| `com.apple.security.pkcs12` | сертификаты |
+| `com.apple.wifi.managed` | Wi-Fi-конфигурация |
+
+Каждый payload — отдельный «кубик», из которых собирается политика.
+
+## Шаг 2: MDM vs MAM
+
+**MDM** управляет всем устройством: может стереть его, поставить профиль, запретить функции. Это подходит для корпоративных (company-owned) телефонов.
+
+**MAM** (или AppConfig) управляет только приложением: задаёт настройки конкретного приложения, не трогая остальное устройство. Это модель BYOD (bring your own device), когда сотрудник использует свой телефон. Приложение получает **managed configuration** — словарь параметров, заданный администратором.
+
+## Шаг 3: managed configuration в приложении
+
+На iOS приложение читает управляемую конфигурацию так:
+
+```objc
+NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+NSDictionary *config = [defaults objectForKey:@"com.apple.configuration.managed"];
+```
+
+Этот словарь заполняется администратором через MDM. На Android аналог — `RestrictionsManager`:
 
 ```java
-RestrictionsManager rm = (RestrictionsManager) getSystemService(Context.RESTRICTIONS_SERVICE);
-Bundle appRestrictions = rm.getApplicationRestrictions();
-String server = appRestrictions.getString("server_url");
-boolean allowPaste = appRestrictions.getBoolean("allow_clipboard", true);
+Bundle config = restrictionsManager.getApplicationRestrictions();
 ```
 
-Проверить можно через `dumpsys` или установив `TestDPC` (Google) — референсный DPC для теста политик.
+Так администратор может задать сервер, отключить функции или включить режим «только для чтения» — без выпуска новой версии приложения.
 
-```bash
-# посмотреть restrictions для приложения
-adb shell dumpsys package com.example.corp | grep -A5 "Restrictions"
+## Шаг 4: как приложение узнаёт, что оно управляемое
+
+Приложение может проверять, что работает в managed-режиме. На iOS это флаг в `NSUserDefaults` (managed configuration), на Android — `UserManager.isManagedProfile()` или наличие restrictions. Зачем это приложению? Чтобы применять политику (например, запретить копирование данных) только в корпоративном режиме.
+
+Обратная сторона: managed-флаг можно подделать на jailbreak/root-устройстве, и тогда приложение решит, что политика не нужна. Поэтому критичные проверки дублируют на сервере.
+
+## Шаг 5: риски MDM/MAM
+
+Разберём типичные проблемы:
+
+- **Профиль с `PayloadRemovalDisallowed`** — пользователь не может его убрать; но и злоумышленник с доступом к устройству получает контроль над политикой.
+- **MDM-сервер** — если он скомпрометирован, атакующий может пушить профили и стирать устройства.
+- **Managed configuration с секретами** — токены, заданные в конфиге, могут утекать в логи.
+- **Per-app VPN** — если настроен неверно, трафик может не туннелироваться, обходя корпоративную защиту.
+- **Managed app open-in** — данные между управляемыми приложениями передаются; ошибка в политике открывает утечку.
+
+## Шаг 6: проверка на стенде
+
+Что смотреть при тестировании:
+
+1. Есть ли managed configuration и какие параметры она задаёт.
+2. Проверяет ли приложение managed-флаг и что делает без него.
+3. Утекают ли секреты из конфига в логи.
+4. Как ведёт себя приложение при снятом профиле.
+5. Не подделывается ли managed-флаг на тестовом устройстве.
+
+## Шаг 7: MDM-команды
+
+MDM-сервер общается с устройством по протоколу: устройство периодически опрашивает сервер (check-in) и получает команды. Команды бывают разные: `DeviceInformation`, `InstallProfile`, `EraseDevice`, `Restrictions`. Самая опасная — `EraseDevice`: полное стирание. Если MDM-токен устройства утёк, атакующий может отправить такую команду. Поэтому токены MDM хранят строго и проверяют.
+
+## Шаг 8: managed app open-in
+
+Отдельная тема — обмен данными между управляемыми приложениями. На iOS есть механизм **open-in** (передача файла в другое приложение), на Android — intents и content-URI. Администратор задаёт политику: каким приложениям можно передавать данные. Ошибка в политике открывает утечку — например, корпоративный документ можно «открыть в» личном приложении. При тестировании проверяют: можно ли вынести данные за пределы управляемого контура, разрешён ли copy/paste, работает ли скриншот.
+
+Ещё один нюанс — **managed pasteboard**: на iOS можно запретить копирование между управляемым и личным приложением. Если флаг не выставлен, данные утекают через буфер обмена.
+
+## Шаг 9: что проверять в отчёте
+
+По MDM/MAM в отчёте фиксируют: какие политики заданы профилем, проверяет ли приложение managed-режим, можно ли обойти managed-проверки на root/jailbreak, утекают ли данные через open-in и буфер обмена, и как защищён MDM-токен устройства. Каждый пункт — потенциальная находка в корпоративном пентесте.
+
+## Шаг 10: MDM в облаке
+
+Современные MDM часто работают как облачные сервисы (Intune, Jamf, Workspace ONE). Это добавляет вектор: если скомпрометирован тенант MDM, атакующий получает контроль над всеми устройствами организации. Поэтому в аудите смотрят и на сам сервис: кто имеет административный доступ, как выдаются токены, есть ли MFA. Утечка учётной записи администратора MDM равносильна компрометации парка устройств. Поэтому доступ к консоли MDM защищают сильнее всего: MFA, ограничение по IP, отдельные роли, аудит действий. Проверь эти настройки в первую очередь при аудите корпоративной инфраструктуры. Если MFA на консоли MDM нет, это критическая находка сама по себе.
+
+## Шаг 11: разбираем MDM-профиль программно
+
+`.mobileconfig` — это обычный XML-plist. Разберём его, чтобы увидеть состав полезной нагрузки:
+
+```
+$ python3 -c "import plistlib; p=plistlib.load(open('mdm.mobileconfig','rb')); print('PayloadIdentifier =', p['PayloadIdentifier']); print('payload types =', [c['PayloadType'] for c in p['PayloadContent']])"
+PayloadIdentifier = com.demo.mdm
+payload types = ['com.apple.security.pkcs1']
 ```
 
-Ошибки: приложение игнорирует политику (`allow_clipboard=false`, но копирование работает) — находка, потому что конфиденциальные данные утекают в личные приложения.
+Здесь профиль несёт один сертификат (`com.apple.security.pkcs1`) — типичная корпоративная root CA. В реальном MDM-профиле ты увидишь и `com.apple.mdm` (адрес сервера управления и топик APNs), и Wi-Fi/VPN payloads, и ограничения. На пентесте смотри, что именно подписал администратор: сертификат CA позволяет MDM перехватывать TLS корпоративных приложений, а `com.apple.mdm` — удалённо стирать устройство. Неподписанный профиль на iOS поставить нельзя, поэтому для атаки ищут уже доверенный профиль на устройстве.
 
-## iOS: MDM-профиль и managed app config
+## Что мы теперь знаем
 
-MDM-профиль — это подписанный `.mobileconfig` (plist), который ставит политики. Для приложения важна секция `com.apple.configuration.managed`:
-
-```xml
-<key>com.apple.configuration.managed</key>
-<dict>
-  <key>server_url</key><string>https://corp.example.com</string>
-  <key>require_pin</key><true/>
-</dict>
-```
-
-Приложение читает:
-
-```swift
-let config = UserDefaults.standard.dictionary(forKey: "com.apple.configuration.managed")
-```
-
-Проверка managed-статуса:
-
-```swift
-if #available(iOS 13.0, *) {
-    let managed = FileManager.default.ubiquityIdentityToken // не то
-}
-// правильнее — через MDM-флаг в UserDefaults или MCProfile
-```
-
-## Границы доверия и атаки
-
-Корпоративный контур интересен тем, что приложение доверяет конфигурации от MDM, а MDM доверяет устройству. Точки атаки:
-
-- **Подделка managed config** — если приложение читает конфиг из незащищённого места, можно подсунуть свои значения (например, `server_url` на атакующий сервер).
-- **Побег из work profile** — данные рабочего приложения утекают в личное через общий storage, буфер обмена, intent'ы.
-- **Обход политики копирования** — приложение не проверяет `allow_clipboard`.
-- **Root/jailbreak на managed устройстве** — ломает всю модель (MDM может детектить, но не всегда).
-- **Перехват MDM-коммуникации** — если канал к серверу MDM слабо защищён.
-
-## Проверка изоляции work profile
-
-Практические тесты:
-
-```bash
-# 1) может ли рабочее приложение читать личные файлы? (должно быть нет)
-adb shell run-as com.example.corp ls /sdcard/   # доступ к внешнему хранилищу
-# 2) общий буфер обмена между профилями
-# скопировать в рабочем, вставить в личном приложении — должно быть запрещено
-# 3) shared intent между профилями
-adb shell am start --user 0 -a android.intent.action.SEND ...
-```
-
-На Android 11+ есть **cross-profile** ограничения: приложения из разных профилей не видят друг друга напрямую. Проверяйте, не выставлены ли у корпоративного приложения избыточные разрешения (`MANAGE_EXTERNAL_STORAGE`, `QUERY_ALL_PACKAGES`).
-
-## DPC и Device Owner
-
-Кроме profile owner есть **device owner** — управляет всем устройством (обычно корпоративные «выданные» телефоны). Он может: запретить factory reset, навязать Wi-Fi, установить системные сертификаты. Для теста:
-
-```bash
-# установить TestDPC как device owner (на чистом устройстве)
-adb shell dpm set-device-owner com.afwsamples.testdpc/.DeviceAdminReceiver
-adb shell dpm set-profile-owner --user 10 com.afwsamples.testdpc/.DeviceAdminReceiver
-```
-
-С device owner вы можете воспроизвести корпоративные политики и проверить, как приложение на них реагирует.
-
-## Частые ошибки и подводные камни
-
-- **Тест на личном профиле** — многие проверки работают только в managed-профиле; настраивайте TestDPC.
-- **`dumpsys` без прав** — часть данных требует root или DPC.
-- **Профиль не создаётся** — на устройстве уже есть managed profile; удалите старый.
-- **Политики не применяются** — приложение кеширует конфиг при первом запуске.
-- **Ложные срабатывания** — некоторые OEM по-своему реализуют изоляцию.
-
-## Справочная таблица
-
-| Понятие | Android | iOS |
-|---------|---------|-----|
-| Управление устройством | device owner / DPM | MDM-профиль |
-| Управление приложением | managed config (RestrictionsManager) | managed app config |
-| Изоляция | work profile | managed apps + per-app VPN |
-| Стирание | wipeData (профиль/устройство) | remote wipe |
-| Политики | Password, Camera, Clipboard | restrictions payload |
-
-## Что дальше / решение
-
-Настройте тестовую среду с TestDPC, создайте work profile, задайте managed config и проверьте, как приложение читает и соблюдает политики. Ищите: подделку конфига, обход clipboard/camera-политики, утечки между профилями. Дальше — `mobile-app-cloning` (изоляция данных) и `mobile-data-leakage`.
-
-## Практическая настройка TestDPC
-
-TestDPC — референсный DPC от Google, который позволяет воспроизвести любую корпоративную политику. Установка:
-
-```bash
-# скачать TestDPC (com.afwsamples.testdpc) из Play или APK
-adb install TestDPC.apk
-# назначить как profile owner для нового пользователя
-adb shell pm create-user CorpUser
-adb shell dpm set-profile-owner --user 10 com.afwsamples.testdpc/.DeviceAdminReceiver
-# или как device owner на чистом устройстве (до добавления аккаунтов!)
-adb shell dpm set-device-owner com.afwsamples.testdpc/.DeviceAdminReceiver
-```
-
-После этого в TestDPC доступны все политики: пароль, шифрование, камера, буфер обмена, managed configurations. Задайте `allow_clipboard=false` и проверьте, соблюдает ли целевое приложение это ограничение. Если копирование всё равно работает — приложение игнорирует политику, и конфиденциальные данные могут утечь в личные приложения.
-
-## Managed configurations: end-to-end проверка
-
-Чтобы приложение получило конфигурацию, её нужно задать через DPC:
-
-```bash
-# TestDPC: Manage app restrictions -> выбрать приложение -> задать ключи
-# либо через am (не всегда работает для restrictions)
-adb shell dumpsys restrictions | grep -A10 com.example.corp
-```
-
-В приложении конфигурация читается через `RestrictionsManager`. Проверьте в Frida, какие значения реально пришли:
-
-```javascript
-Java.perform(function () {
-  var RM = Java.use("android.content.RestrictionsManager");
-  RM.getApplicationRestrictions.implementation = function () {
-    var b = this.getApplicationRestrictions();
-    console.log("[restrictions] " + b.toString());
-    return b;
-  };
-});
-```
-
-Если приложение читает `server_url` из restrictions и ходит на него — попробуйте подменить значение на свой сервер. Если приложение не проверяет источник конфига или доверяет любому URL без pinning — возможен перехват трафика корпоративных данных.
-
-## iOS: установка MDM-профиля и проверка
-
-`.mobileconfig` можно поставить вручную на устройство (Settings > Profile Downloaded) или через MDM. Для теста удобно подготовить профиль с managed app config:
-
-```bash
-# подписать профиль (для реальной установки требуется подпись/шифрование)
-openssl smime -sign -signer cert.pem -inkey key.pem \
-  -nodetach -outform der -in profile.mobileconfig -out profile-signed.mobileconfig
-# установить на устройство
-# Settings -> General -> VPN & Device Management -> Install
-```
-
-Приложение читает config так:
-
-```swift
-if let managed = UserDefaults.standard.dictionary(forKey: "com.apple.configuration.managed") {
-    let server = managed["server_url"] as? String
-}
-```
-
-Проверьте, что приложение не принимает конфиг извне (например, через URL scheme или файл), иначе атакующий подменит `server_url`.
-
-## Изоляция данных: что реально проверять
-
-Модель MDM/MAM обещает изоляцию, но реализация зависит от ОС и приложения. Тестируйте:
-
-- **Буфер обмена:** скопировать в рабочем приложении, вставить в личном — должно блокироваться.
-- **Общий storage:** пишет ли рабочее приложение в `/sdcard/` (виден личным).
-- **Intent/sharing:** можно ли поделиться рабочим файлом в личное приложение.
-- **Скриншоты:** запрещены ли на рабочих экранах.
-- **Backup:** попадают ли рабочие данные в adb backup/iCloud.
-- **Логи:** не пишет ли приложение корпоративные данные в logcat.
-
-```bash
-adb logcat | grep -i "com.example.corp" | grep -iE "token|password|http"
-```
-
-Утечка токена в логи на managed-устройстве — серьёзная находка, потому что логи может читать другое приложение или сборщик диагностики.
-
-## Корпоративные сертификаты и Wi-Fi
-
-MDM часто разворачивает корпоративный Wi-Fi с сертификатом и per-app VPN. Проверьте:
-
-- Корректно ли валидируется сертификат сервера (нет ли отключённой проверки).
-- Изолирован ли VPN-туннель (не утекает ли трафик вне туннеля — VPN leak).
-- Доступны ли корпоративные ресурсы без аутентификации внутри периметра.
-
-Эти проверки выходят за рамки APK, но именно они определяют реальную защищённость корпоративного мобильного контура.
+- MDM-профиль на iOS — это mobileconfig (plist) из payload-ов.
+- Payload-ы настраивают ограничения, VPN, сертификаты, домены.
+- MDM управляет устройством, MAM — только приложением.
+- Managed configuration читается приложением из словаря; на Android — через `RestrictionsManager`.
+- Приложение может проверять managed-режим, но флаг подделывается на root/jailbreak.
+- Риски: компрометация MDM-сервера, утечки конфига, ошибки per-app VPN.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Чем MAM отличается от MDM?"
+- question: Что такое MDM?
   options:
-    - "MAM управляет приложениями, MDM — устройством целиком"
-    - "MAM работает только на iOS"
-    - "MDM не требует интернета"
-    - "MAM шифрует диск"
-  answer: 0
-- question: "Как на Android изолируются рабочие данные?"
+    - "Формат APK"
+    - "Mobile Device Management — управление устройствами организации"
+    - "Инструмент реверса"
+    - "Протокол TLS"
+  answer: 1
+  explanation: "MDM управляет устройством: профили, ограничения, удалённое стирание."
+- question: Чем MAM отличается от MDM?
   options:
-    - "Через work profile — отдельный пользователь с управляемым профилем"
-    - "Через отдельный APK"
-    - "Через VPN"
-    - "Через SharedPreferences"
+    - "MAM управляет только приложением, MDM — всем устройством"
+    - "MAM быстрее"
+    - "MDM только для Android"
+    - "Они одинаковы"
   answer: 0
-- question: "Откуда Android-приложение читает managed-конфигурацию?"
+  explanation: "MAM/AppConfig задаёт настройки конкретного приложения, не трогая устройство."
+- question: Из чего состоит iOS MDM-профиль?
   options:
-    - "RestrictionsManager.getApplicationRestrictions()"
-    - "BuildConfig"
-    - "AndroidManifest.xml"
-    - "/proc/self/environ"
-  answer: 0
-- question: "Какой инструмент позволяет воспроизвести корпоративные политики для теста?"
+    - "Из одного файла"
+    - "Из payload-ов, каждый со своим PayloadType"
+    - "Из классов Objective-C"
+    - "Из сертификатов"
+  answer: 1
+  explanation: "Профиль собирается из payload-блоков: ограничения, VPN, сертификаты и т.д."
+- question: Что означает PayloadRemovalDisallowed?
   options:
-    - "TestDPC (dpm set-profile-owner/device-owner)"
-    - "sqlmap"
-    - "nmap"
-    - "apktool"
+    - "Профиль нельзя удалить пользователю"
+    - "Профиль не работает"
+    - "Профиль только для Android"
+    - "Профиль шифрует данные"
   answer: 0
+  explanation: "Флаг запрещает пользователю самостоятельно убрать профиль."
+- question: Почему проверка managed-флага на клиенте ненадёжна?
+  options:
+    - "Он медленный"
+    - "Его можно подделать на root/jailbreak-устройстве"
+    - "Он не поддерживается"
+    - "Он зашифрован"
+  answer: 1
+  explanation: "Клиентские флаги обходятся; критичные проверки дублируют на сервере."
 ```
+
+## Куда дальше
+
+Мы разобрали управление устройствами. Дальше — технический вопрос: как приложения работают на разных архитектурах. В следующем уроке `mobile-arm-x86-translation` разберём нативные библиотеки под arm и x86. А пока главное запомни: MDM управляет устройством, MAM — приложением, и оба держатся на доверии к серверу и конфигурации.
 
 ## Где пригодится
 
-- **Пентест:** аудит корпоративных приложений и BYOD-контура.
-- **Работа:** настройка и проверка MDM/MAM-политик.
-- **Bug bounty:** обход политик копирования и утечки между профилями.
+- **Пентест:** анализ корпоративных приложений и managed-конфигурации.
+- **Bug bounty:** обход managed-проверок.
+- **Аудит:** оценка политик MDM/MAM.
+- **CTF:** задачи с managed-окружением.

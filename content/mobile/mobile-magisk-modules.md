@@ -14,332 +14,238 @@ useful_for:
 estimated_minutes: 50
 summary: "Как устроены Magisk-модули, что такое Zygisk, как писать свой модуль (system.prop, service.sh, zygisk-код) и как скрывать root от приложений."
 ---
-## Введение
 
-Magisk-модуль — это каталог со скриптами и файлами, который подмешивается в систему на этапе загрузки, не изменяя физически `/system`. Модули дают пентестеру огромную власть: подмена системных свойств, монтирование файлов поверх, запуск демонов, инъекция кода в Zygote через Zygisk. Этот урок — про то, как читать и писать модули, и как использовать их для обхода root-детекта (DenyList, Play Integrity Fix).
+## Вопрос, с которого всё начинается
 
-Понимание модулей критично: многие «магические» обходы детекта, которые вы найдёте в интернете, — это именно Magisk-модули. Уметь разобрать их по частям = уметь адаптировать под конкретное приложение.
+Root на телефоне есть, но приложение его видит и отказывается работать. Или наоборот: нужно, чтобы тестовое приложение **доверяло** твоему Burp-сертификату, не пересобирая систему. В обоих случаях в дело вступают **модули Magisk** — маленькие пакеты, которые подмешивают файлы и код в систему на этапе загрузки.
 
-## Структура модуля
+Как устроен модуль изнутри и как собрать свой?
 
-Минимальный модуль:
+## Наш пример: модуль «доверенный CA»
 
-```
-/data/adb/modules/<name>/
-├── module.prop          # метаданные
-├── post-fs-data.sh      # скрипт ранней загрузки
-├── service.sh           # скрипт позднего запуска (демон)
-├── system.prop          # свойства, подмешиваемые в build.prop
-├── system/              # файлы, монтируемые поверх /system
-└── zygisk/              # нативная .so для Zygisk
-```
+Соберём реальный модуль, который добавляет пользовательский CA-сертификат в системное хранилище. Это нужно, чтобы Android 7+ принимал сертификат Burp без пересборки. Наш объект — каталог модуля. Разберём его послойно.
 
-`module.prop`:
+## Шаг 1: структура модуля
+
+Модуль Magisk — это ZIP с фиксированной структурой. Создадим каталог:
 
 ```
-id=pif
-name=PlayIntegrityFix
-version=v15.9
-versionCode=15900
-author=chiteroman
-description=Fixes Play Integrity verdicts
+$ mkdir -p demo_magisk/META-INF/com/google/android
+$ mkdir -p demo_magisk/system/etc/security/cacerts
+$ ls -R demo_magisk
+demo_magisk:
+META-INF
+module.prop
+system
+demo_magisk/META-INF/com/google/android:
+demo_magisk/system:
 ```
 
-Скрипты выполняются от root в контексте Magisk; `system.prop` парсится и применяется через `resetprop`.
+`META-INF/com/google/android/` — стандартный путь для установочного скрипта (историческое наследие Android-рекавери). `system/` — файлы, которые модуль «накладывает» поверх системы. `module.prop` — паспорт модуля.
 
-## Zygisk: инъекция в каждый процесс
+## Шаг 2: паспорт модуля (module.prop)
 
-Zygisk — это встроенная в Magisk возможность загружать нативную библиотеку в Zygote, а значит — в каждый процесс приложения. Из неё делаются хуки на уровне нативного кода (аналог Xposed, но на C++/Rust). Точка входа:
+Заполним `module.prop` — это простой набор пар «ключ=значение», который Magisk показывает в списке модулей:
 
-```cpp
-#include "zygisk.hpp"
-class MyModule : public zygisk::ModuleBase {
- public:
-  void onLoad(zygisk::Api *api, JNIEnv *env) override { api->setOption(zygisk::Option::DLCLOSE_MODULE_LIBRARY); }
-  void preAppSpecialize(zygisk::AppSpecializeArgs *args) override {
-    // подмена свойств до специализации процесса
-  }
-};
-REGISTER_ZYGISK_MODULE(MyModule)
 ```
-
-Проверка, что Zygisk включён:
-
-```bash
-adb shell su -c 'magisk --sqlite "SELECT * FROM settings"' | grep zygisk
-adb shell ls /data/adb/modules/*/zygisk 2>/dev/null
-```
-
-## Обход root-детекта: DenyList и PIF
-
-Два основных подхода:
-
-1. **Zygisk DenyList (Enforce DenyList)** — Magisk скрывает root-следы (монтирования, `su`, `magisk`) от выбранных пакетов. Включается в настройках Magisk; в DenyList добавляются `com.bank.app`, `com.google.android.gms` и т.п.
-2. **Play Integrity Fix (PIF)** — модуль, подменяющий свойства устройства и fingerprint на «чистые», чтобы пройти `MEETS_DEVICE_INTEGRITY`/`MEETS_STRONG_INTEGRITY`.
-
-```bash
-# проверить, что свойства подменены
-adb shell getprop ro.build.fingerprint
-adb shell getprop ro.product.model
-```
-
-PIF использует `system.prop` и `service.sh` для `resetprop`:
-
-```bash
-# фрагмент service.sh модуля PIF
-resetprop -n ro.build.fingerprint "google/husky/husky:14/UQ1A.240205.004/..."
-resetprop -n ro.product.model "Pixel 8 Pro"
-```
-
-## Полный сквозной пример: свой модуль скрытия root
-
-Сделаем модуль, который (а) подменяет свойство, (б) скрывает `su` от конкретного пакета.
-
-```bash
-adb shell su -c 'mkdir -p /data/adb/modules/hide-root'
-adb shell su -c 'cat > /data/adb/modules/hide-root/module.prop <<EOF
-id=hide-root
-name=HideRoot
-version=1.0
+$ cat demo_magisk/module.prop
+id=demo_pinning_bypass
+name=Demo Pinning Bypass
+version=v1.0
 versionCode=1
 author=pentester
-description=Hide root traces from target
-EOF'
-adb shell su -c 'cat > /data/adb/modules/hide-root/system.prop <<EOF
-ro.build.tags=release-keys
-ro.debuggable=0
-EOF'
-adb shell su -c 'cat > /data/adb/modules/hide-root/service.sh <<EOF
+description=Adds a user CA to the system trust store for MITM testing
+```
+
+`id` — уникальный идентификатор (латиница, без пробелов), `name` — отображаемое имя, `version`/`versionCode` — версии. Magisk отказывается ставить два модуля с одинаковым `id`.
+
+## Шаг 3: что модуль подмешивает
+
+Файлы внутри `system/` Magisk «накладывает» поверх реального `/system` через **overlay** (наложение). Физически раздел не меняется — поэтому dm-verity остаётся валидным. Положим наш сертификат:
+
+```
+$ cp burp_ca.pem demo_magisk/system/etc/security/cacerts/9a5ba575.0
+```
+
+Имя файла в `cacerts` — не произвольное: Android требует, чтобы имя было **subject hash** сертификата в формате OpenSSL. Получаем его так:
+
+```
+$ openssl x509 -inform PEM -subject_hash_old -in burp_ca.pem | head -1
+9a5ba575
+```
+
+Флаг `-subject_hash_old` даёт именно тот старый хеш, который понимает Android. Ошибёшься с именем — сертификат молча не подхватится.
+
+## Шаг 4: скрипты установки и загрузки
+
+Кроме файлов, модуль может содержать скрипты:
+
+- `customize.sh` — выполняется при установке (проверки, подсказки).
+- `post-fs-data.sh` — выполняется очень рано при загрузке, до монтирования данных.
+- `service.sh` — запускается позже, как обычный сервис.
+
+Наш простой модуль может обойтись без них: Magisk сам наложит `system/`. Но если нужно что-то сделать в рантайме, добавим `service.sh`:
+
+```
+$ cat demo_magisk/service.sh
 #!/system/bin/sh
-resetprop -n ro.boot.verifiedbootstate green
-EOF'
-adb shell su -c 'chmod 755 /data/adb/modules/hide-root/service.sh'
-adb reboot
-adb shell getprop ro.build.tags   # release-keys
+# перезапускаем приложение, чтобы оно подхватило новый CA
+am force-stop com.demo.secapp
 ```
 
-Обратите внимание: подмена `ro.build.tags`/`verifiedbootstate` — лишь первый слой. Продвинутый детект проверяет `/proc/self/mountinfo` на Magisk-монтирования, наличие `zygote`-инъекций, версии ядра. Поэтому PIF + DenyList + LSPosed обычно комбинируют.
+Не забудь про права: скрипты должны быть исполняемыми (`chmod 755`).
 
-## Частые ошибки
+## Шаг 5: Zygisk — код внутри Zygote
 
-- **Модуль не появился в списке**: `module.prop` с опечаткой в обязательных полях (`id`, `version`, `versionCode`).
-- **service.sh не выполняется**: забыли `chmod 755` или shebang.
-- **`resetprop` не работает для read-only**: некоторые свойства применяются только до `post-fs-data`; используйте `resetprop -n` и правильную фазу.
-- **DenyList без «Enforce»**: список добавлен, но скрытие не включено.
-- **Детект по Zygisk-следам**: часть приложений ищет `zygisk`/`lsposed` в карте памяти — помогает `ZygiskNext`/скрытие.
-- **Конфликт модулей**: два модуля патчат одно свойство — выигрывает порядок загрузки.
+Иногда файлов недостаточно — нужно **вмешаться в код** приложения. Для этого в Magisk есть **Zygisk**: он запускает нативный код внутри **Zygote** — родительского процесса, от которого Android форкает все приложения. Такой код видит каждый процесс приложения и может хукать методы.
 
-## Что дальше / решение
-
-Комбинируйте: Magisk (root) + Zygisk (инъекция) + LSPosed (Java-хуки) + PIF (attestation) + DenyList (скрытие). Если приложение детектит Zygisk, переходите на KernelSU/APatch или на Frida с `frida-gadget`. Следующий урок — `mobile-adb-fastboot`: как использовать ADB/fastboot для атак и утечек. Для аттестации см. `mobile-integrity`.
-
-## Справочная таблица
-
-| Файл/скрипт | Назначение | Фаза |
-|-------------|-----------|------|
-| `module.prop` | метаданные | — |
-| `post-fs-data.sh` | ранняя инициализация | post-fs-data |
-| `service.sh` | запуск демона | late_start |
-| `system.prop` | свойства build.prop | resetprop |
-| `system/` | overlay поверх /system | mount |
-| `zygisk/` | нативный хук | Zygote |
-
-| Проблема | Решение |
-|----------|---------|
-| root виден приложению | DenyList Enforce + PIF |
-| Play Integrity red | PIF, свежий fingerprint |
-| Zygisk детектится | ZygiskNext / скрытие |
-| su не найден | проверить Superuser-запрос |
-
-## Продвинутый Zygisk-модуль на C++
-
-Zygisk-модуль — это нативная `.so`, которую Magisk загружает в Zygote. Минимальный проект собирается через CMake с заголовком `zygisk.hpp`. Пример, который хукает нативную функцию во всех процессах:
-
-```cpp
-#include "zygisk.hpp"
-#include <android/log.h>
-#define LOG(...) __android_log_print(ANDROID_LOG_INFO, "MyMod", __VA_ARGS__)
-
-class MyModule : public zygisk::ModuleBase {
- public:
-  void onLoad(zygisk::Api *api, JNIEnv *env) override {
-    this->api = api;
-    this->env = env;
-    api->setOption(zygisk::Option::DLCLOSE_MODULE_LIBRARY);
-  }
-  void preAppSpecialize(zygisk::AppSpecializeArgs *args) override {
-    LOG("specializing %s", (*env)->GetStringUTFChars(env, args->nice_name, 0));
-  }
- private:
-  zygisk::Api *api; JNIEnv *env;
-};
-REGISTER_ZYGISK_MODULE(MyModule)
-```
-
-Сборка (Android NDK):
-
-```bash
-$ANDROID_NDK/ndk-build NDK_PROJECT_PATH=. APP_BUILD_SCRIPT=Android.mk
-# кладём libzygisk-module.so в modules/<id>/zygisk/arm64-v8a.so
-```
-
-Такой модуль может перехватывать нативные вызовы (например, `fopen` на строки `su`, `frida`) во всех процессах, что делает его мощнее Java-хуков.
-
-## DenyList против ZygiskNext и HideMyApplist
-
-- **DenyList (Enforce)** — встроенный механизм Magisk: скрывает монтирования и `su` от выбранных пакетов. Работает на уровне `zygote`, но часть детектов (по maps, по `__system_property`) проходит.
-- **ZygiskNext** — альтернативная реализация Zygisk (часто нужна на KernelSU/APatch), совместима с LSPosed и PIF, скрытнее штатного.
-- **HideMyApplist (HMA)** — модуль LSPosed, который скрывает от приложения список установленных пакетов (обход детекта по наличию `com.topjohnwu.magisk`, `de.robv.android.xposed`).
-
-Комбинация: ZygiskNext + HMA + PIF + DenyList даёт максимальное сокрытие. Проверка, что скрытие работает:
-
-```bash
-adb shell su -c 'magisk --denylist ls'    # список пакетов в DenyList
-adb shell dumpsys package | grep -c magisk
-```
-
-## Отладка и логирование модулей
-
-Модули молча падают при ошибках. Диагностика:
-
-```bash
-adb shell su -c 'cat /cache/magisk.log | tail -50'
-adb logcat -s Magisk:* Zygisk:*
-adb shell su -c 'ls -l /data/adb/modules/<id>/'
-```
-
-Частые причины: неверный `module.prop` (нет `versionCode`), `service.sh` без `chmod 755`, несовместимая ABI `.so` (нужна `arm64-v8a`), конфликт с другим модулем. Всегда проверяйте `magisk.log` после перезагрузки.
-
-## Кейс: обход Play Integrity шаг за шагом
-
-```bash
-# 1. Проверяем текущий вердикт
-#    (используйте тестовое приложение Integrity Checker)
-#    -> MEETS_BASIC_INTEGRITY: fail
-# 2. Включаем DenyList и добавляем com.google.android.gms + com.google.android.gms.unstable
-adb shell su -c 'magisk --denylist add com.google.android.gms'
-adb shell su -c 'magisk --denylist add com.google.android.gms.unstable'
-# 3. Устанавливаем PlayIntegrityFix (PIF) как модуль
-#    (свежий fingerprint внутри system.prop)
-# 4. Перезагружаем
-adb reboot
-# 5. Проверяем вердикт
-#    -> MEETS_DEVICE_INTEGRITY: pass
-```
-
-Strong Integrity (аппаратный) программно не обходится — только подменой на сервере или «чистым» устройством. Это важно донести в отчёте: клиентская аттестация сильна ровно настолько, насколько сервер ей доверяет.
-
-## Чек-лист безопасной работы с модулями
-
-1. Ставьте модули только из доверенных источников (модуль = root-код).
-2. Перед установкой нового модуля делайте бекап boot/модулей.
-3. После каждого модуля — перезагрузка и проверка `magisk.log`.
-4. Держите Magisk safe mode под рукой (Vol Down при загрузке).
-5. Не совмещайте конфликтующие модули (два патча одного свойства).
-
-## Практикум: разработка и установка своего модуля
-
-Разберём создание Magisk-модуля шаг за шагом.
-
-Шаг 1. Создайте структуру:
-
-```bash
-mkdir -p mod/system/etc mod/zygisk
-```
-
-Шаг 2. `module.prop`:
+Модуль с Zygisk содержит нативную библиотеку и признак в `module.prop`:
 
 ```
-id=hideprops
-name=HideProps
-version=1.0
+zygisk=1
+```
+
+Пример задачи: спрятать от приложения наличие `su`. Zygisk-модуль перехватывает `open`/`access` и подменяет ответ для нужных путей. Это то же, что делает **DenyList** (встроенный механизм Magisk), но гибче.
+
+## Шаг 6: устанавливаем и проверяем
+
+Собираем ZIP и ставим через приложение Magisk (Modules → Install from storage) или через `magisk --install-module`:
+
+```
+$ cd demo_magisk && zip -r ../demo_magisk.zip . && cd ..
+$ adb push demo_magisk.zip /sdcard/
+$ adb shell su -c "magisk --install-module /sdcard/demo_magisk.zip"
+```
+
+После перезагрузки проверяем, что модуль активен:
+
+```
+$ adb shell su -c ls /data/adb/modules/
+demo_pinning_bypass
+$ adb shell su -c cat /data/adb/modules/demo_pinning_bypass/module.prop
+id=demo_pinning_bypass
+name=Demo Pinning Bypass
+```
+
+Каталог `/data/adb/modules/<id>/` — это и есть установленный модуль. Если в нём появится файл `disable`, модуль отключится.
+
+## Шаг 7: Zygisk и LSPosed
+
+Zygisk — не единственный способ хукать Java-код. Исторический **Xposed** перехватывал вызовы методов через Zygote; его современный наследник — **LSPosed**, который работает поверх Magisk/Zygisk и изолирует модули по scope (каким приложениям виден хук). Для пентеста LSPosed полезен, чтобы:
+
+- подменять возвращаемые значения («устройство не рутнуто»);
+- обходить root/jailbreak-детект без патча APK;
+- логировать вызовы конкретных API.
+
+Проверить активные модули можно так:
+
+```
+$ adb shell su -c ls /data/adb/modules/ | grep -i lsposed
+```
+
+## Шаг 8: если модуль не сработал
+
+Модули ведут себя «тихо»: если что-то не так, система просто загрузится без него, и ты не увидишь ошибку. Разберём частые причины.
+
+**Модуль не появился в `/data/adb/modules/`.** Значит, ZIP собран неправильно: `module.prop` должен лежать в корне архива, а не внутри вложенной папки. Проверить содержимое архива можно так:
+
+```
+$ unzip -l demo_magisk.zip
+  module.prop
+  system/etc/security/cacerts/9a5ba575.0
+  service.sh
+```
+
+Если видишь `demo_magisk/module.prop` — архив собран с лишним уровнем, пересобери изнутри каталога.
+
+**Файлы на месте, но эффекта нет.** Смотри логи Magisk: `adb shell su -c magisk --log` или файл `/cache/magisk.log`. Ошибка в `service.sh` (например, забыл shebang `#!/system/bin/sh`) не даст модулю выполнить свой код.
+
+**Конфликт двух модулей.** Если два модуля накладывают один и тот же файл, побеждает тот, что загрузился позже, — и результат непредсказуем. Держи `id` уникальными и не дублируй пути.
+
+**Zygisk не активен.** В настройках Magisk должен быть включён переключатель Zygisk, а в `module.prop` — строка `zygisk=1`. Без этого нативная библиотека модуля просто не загрузится.
+
+Наконец, помни про обратимость: если модуль сломал загрузку, устройство можно загрузить в **safe mode** (зажав кнопку громкости при старте) — Magisk отключит все модули, и ты получишь систему в исходном виде. Это твоя страховка от «кирпича».
+
+## Шаг 9: минимум для рабочего модуля
+
+Проверить модуль можно по его паспорту — файлу `module.prop`:
+
+```
+$ cat module.prop
+id=trustedca
+name=Trusted CA
+version=v1.0
 versionCode=1
-author=pentester
-description=Hide device props from target
+author=lab
+description=Install Burp CA as system trusted
 ```
 
-Шаг 3. `system.prop` (подмена свойств через resetprop):
+`id` — уникальное имя папки модуля (`/data/adb/modules/trustedca/`), `versionCode` нужен Magisk для сравнения версий при обновлении, а `description` виден в приложении. Без корректного `module.prop` модуль не появится в списке и не установится. Дальше в ту же папку кладут `system/etc/security/cacerts/<hash>.0` (файл подмешивается поверх системы) — и после перезагрузки CA становится доверенным. Это самый простой способ поставить системный сертификат без правки `boot.img`.
 
-```
-ro.build.tags=release-keys
-ro.debuggable=0
-```
+## Что мы теперь знаем
 
-Шаг 4. `service.sh` (поздний запуск):
-
-```bash
-#!/system/bin/sh
-resetprop -n ro.boot.verifiedbootstate green
-```
-
-Шаг 5. Упаковка и установка:
-
-```bash
-chmod 755 mod/service.sh
-cd mod && zip -r ../hideprops.zip .
-adb push ../hideprops.zip /sdcard/
-# в Magisk: Modules -> Install from storage
-adb reboot
-```
-
-Шаг 6. Проверка:
-
-```bash
-adb shell getprop ro.build.tags   # release-keys
-adb shell su -c 'ls /data/adb/modules/hideprops'
-```
-
-## Отладка
-
-Если модуль не работает — смотрите `magisk.log` (`adb shell su -c 'cat /cache/magisk.log'`). Частые ошибки: нет `versionCode`, `service.sh` без chmod, неверная структура. Помните: модуль — root-код, ставьте только из доверенных источников.
-
-## Что писать в отчёте
-
-Модули — механизм обхода детекта. Рекомендация: не полагаться только на клиентский детект, дублировать серверными проверками (Play Integrity).
+- Модуль Magisk — это ZIP с `module.prop` и каталогом `system/`.
+- Файлы из `system/` накладываются overlay-ом — раздел физически не меняется.
+- Имя CA-файла в `cacerts` должно быть subject hash (`openssl -subject_hash_old`).
+- Скрипты `post-fs-data.sh`/`service.sh` позволяют выполнять код при загрузке.
+- Zygisk запускает нативный код внутри Zygote и может хукать любой процесс.
+- LSPosed — современная замена Xposed для хукинга Java-методов.
+- Установленные модули живут в `/data/adb/modules/<id>/`.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой файл модуля содержит метаданные (id, version)?"
+- question: Что такое `module.prop` в модуле Magisk?
   options:
-    - "service.sh"
-    - "module.prop"
-    - "system.prop"
-    - "zygisk.so"
+    - "Скрипт установки"
+    - "Паспорт модуля с id, name и version"
+    - "Системный файл"
+    - "Подпись модуля"
   answer: 1
-- question: "Что делает Zygisk?"
+  explanation: "module.prop описывает модуль: идентификатор, имя, версию и описание."
+- question: Почему модуль Magisk не ломает dm-verity?
   options:
-    - "Загружает нативную библиотеку в Zygote, инжектя код в процессы приложений"
-    - "Сканирует порты"
-    - "Расшифровывает диск"
-    - "Делает бэкап данных"
-  answer: 0
-- question: "Для чего нужен модуль Play Integrity Fix?"
-  options:
-    - "Ускоряет приложение"
-    - "Подменяет fingerprint/свойства для прохождения attestation"
-    - "Скрывает su"
-    - "Отключает SELinux"
+    - "Он не трогает систему"
+    - "Файлы накладываются overlay-ом, раздел /system физически не меняется"
+    - "Он отключает проверку"
+    - "Он работает только на эмуляторе"
   answer: 1
-- question: "Где Magisk-модули хранятся на устройстве?"
+  explanation: "Systemless-подход: overlay поверх системы, сам раздел нетронут."
+- question: Как получить правильное имя файла сертификата для `cacerts`?
+  options:
+    - "Взять CN сертификата"
+    - "Взять subject hash: `openssl x509 -subject_hash_old`"
+    - "Использовать случайную строку"
+    - "Использовать MD5 файла"
+  answer: 1
+  explanation: "Android ищет CA по старому subject hash в имени файла."
+- question: Что делает Zygisk?
+  options:
+    - "Монтирует system"
+    - "Запускает код внутри Zygote, позволяя хукать процессы приложений"
+    - "Подписывает APK"
+    - "Создаёт резервную копию"
+  answer: 1
+  explanation: "Zygote — родитель всех процессов приложений; код в нём видит каждый процесс."
+- question: Где живут установленные модули?
   options:
     - "/system/modules"
-    - "/data/adb/modules"
-    - "/sdcard/modules"
-    - "/vendor/modules"
+    - "/data/adb/modules/<id>"
+    - "/sdcard/magisk"
+    - "/data/local/tmp"
   answer: 1
-- question: "Чем `system.prop` модуля отличается от правки /system/build.prop?"
-  options:
-    - "Ничем"
-    - "Подмешивается systemless через resetprop, не меняя раздел физически"
-    - "Работает только на iOS"
-    - "Требует пересборки ядра"
-  answer: 1
+  explanation: "Установленные модули Magisk хранятся в /data/adb/modules."
 ```
+
+## Куда дальше
+
+Модули и Zygisk дают контроль над системой и процессами. Но самая частая задача пентеста — увидеть, что приложение отправляет на сервер. Для этого нужно доверие к твоему CA и снятие pinning. Этим мы займёмся в ветви про сетевую защиту (`mobile-ssl-pinning`, `mobile-mitm-burp`). А пока главное запомни: модуль Magisk — это ZIP с `module.prop` и overlay-каталогом `system/`, а Zygisk добавляет возможность исполнять код внутри каждого приложения.
 
 ## Где пригодится
 
-- **Пентест:** скрытие root и обход клиентских проверок для доступа к функционалу.
-- **Bug bounty:** воспроизведение сценариев, требующих «чистого» устройства.
-- **Анализ малвари:** изоляция и подмена окружения при наблюдении за образцом.
-- **CTF:** Mobile-задачи с root/integrity-детектом.
+- **Пентест:** системный CA для MITM, скрытие root, рантайм-хуки.
+- **Bug bounty:** обход root/integrity-детекта без перепаковки приложения.
+- **Анализ малвари:** перехват поведения образца в изолированной среде.
+- **Разработка:** собственные модули для тестовых стендов и эмуляторов.

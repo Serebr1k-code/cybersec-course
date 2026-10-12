@@ -15,256 +15,184 @@ estimated_minutes: 30
 summary: "Почему приложение отказывается работать на root-устройстве или падает при Frida, и как обойти проверки root, отладчика, целостности и anti-Frida."
 ---
 
-Многие приложения (банки, платёжные, DRM, антифрод) отказываются работать на **root-устройстве** или при наличии **Frida/отладчика**. Это не баг, а защита: разработчик предполагает, что root = враждебная среда, где клиент можно подменить. Ваша задача в пентесте — обойти эти проверки, чтобы добраться до реальной логики.
+## Вопрос, с которого всё начинается
 
-Этот урок — продолжение `mobile-dynamic-frida`. Обход root/anti-Frida почти всегда предшествует `mobile-ssl-pinning` и динамическому анализу упакованных приложений. Пока вы не «прикинетесь чистым устройством», Frida будет падать, а приложение — крашиться.
+Запускаешь приложение на рутованном устройстве или эмуляторе — а оно показывает «Root detected» и закрывается. Подключаешь Frida — падает ещё раньше. Анализировать невозможно. Что именно проверяет приложение и как обойти эти проверки?
 
-## Что именно проверяет приложение
+## Наш пример: UnCrackable Level 1
 
-Прежде чем обходить, классифицируйте проверки:
+Возьмём учебное приложение **UnCrackable Level 1** (OWASP MSTG). При запуске оно проверяет root и завершается, если устройство рутовано. Разберём код проверки и научимся её обходить.
 
-| Проверка | Как реализована | Признак |
-|----------|-----------------|---------|
-| Root-детект | Наличие `su`, `busybox`, тестовых ключей, `Magisk`, RW-система | Отказ запуска, «root detected» |
-| Anti-Frida | Поиск порта 27042, именованных потоков `gum-js-loop`, `frida-server` в `/proc` | Краш при подключении Frida |
-| Anti-debug | `ptrace(PTRACE_TRACEME)`, `Debug.isDebuggerConnected()`, `/proc/self/status` | Краш/отказ при отладчике |
-| Integrity | Проверка подписи APK, хэша DEX | Краш после патча/переподписи |
-| Emulator-детект | `Build.FINGERPRINT`, `ro.hardware`, сенсоры | Отказ работать в эмуляторе |
+## Шаг 1: как приложение проверяет root
 
-Ключевой принцип: **все эти проверки выполняются в клиенте**, а значит, поддаются перехвату. Вопрос лишь в том, где именно они находятся.
+Декомпилируем и смотрим класс проверки. В `MainActivity` вызывается `c.a() || c.b() || c.c()` — три независимые проверки:
 
-## Root-детект: обход
+```java
+public class c {
+    public static boolean a() {                 // 1) есть ли su в PATH
+        for (String str : System.getenv("PATH").split(":"))
+            if (new File(str, "su").exists()) return true;
+        return false;
+    }
+    public static boolean b() {                 // 2) тестовый билд
+        String str = Build.TAGS;
+        return str != null && str.contains("test-keys");
+    }
+    public static boolean c() {                 // 3) файлы root-менеджеров
+        for (String str : new String[]{
+            "/system/app/Superuser.apk", "/system/xbin/daemonsu",
+            "/system/etc/init.d/99SuperSUDaemon", "/system/bin/.ext/.su",
+            "/system/etc/.has_su_daemon", "/dev/com.koushikdutta.superuser.daemon/" })
+            if (new File(str).exists()) return true;
+        return false;
+    }
+}
+```
 
-### Уровень 1: Frida-хуки на Java-проверки
+Разберём каждый приём:
 
-Стандартные методы root-детекта в Java: `Runtime.exec("su")`, проверка `File.exists("/system/xbin/su")`, `Build.TAGS` на `test-keys`. Перехват:
+1. **`su` в `PATH`** — классический признак root: бинарник `su` появляется в системных путях после рутования.
+2. **`Build.TAGS` с `test-keys`** — сборки для разработки подписаны тестовыми ключами; на «настоящем» телефоне там `release-keys`.
+3. **Файлы root-менеджеров** — SuperSU, daemonsu и подобные оставляют следы в системе.
+
+Итого: приложение смотрит на файлы и свойства системы. Всё это можно подделать.
+
+## Шаг 2: проверка отладчика и debuggable
+
+Кроме root, проверяют, не отлаживают ли приложение. В том же семействе приложений есть проверка `debuggable`:
+
+```java
+public static boolean a(Context context) {
+    return (context.getApplicationContext()
+                  .getApplicationInfo().flags & 2) != 0;
+}
+```
+
+Флаг `2` (`FLAG_DEBUGGABLE`) стоит у отладочных сборок. Если он выставлен, приложение считает, что его собираются анализировать.
+
+Более серьёзные проверки отладчика — нативные: вызов `ptrace(PTRACE_TRACEME)` (если процесс уже под отладчиком, вернёт ошибку) и чтение `TracerPid` из `/proc/self/status` (ненулевое значение = кто-то трассирует).
+
+## Шаг 3: обход через Frida
+
+Самый прямой путь — перехватить сами методы проверки и заставить их возвращать «чисто». Для Java-проверок:
 
 ```javascript
 Java.perform(function () {
-  // 1. Блокируем Runtime.exec для su/which
-  var Runtime = Java.use('java.lang.Runtime');
-  Runtime.exec.overload('java.lang.String').implementation = function (cmd) {
-    if (cmd.indexOf('su') !== -1 || cmd.indexOf('which') !== -1) {
-      console.log('[+] Заблокирован exec: ' + cmd);
-      throw Java.use('java.io.IOException').$new('not found');
-    }
-    return this.exec(cmd);
-  };
+  var c = Java.use("sg.vantagepoint.a.c");
+  c.a.implementation = function () { return false; };
+  c.b.implementation = function () { return false; };
+  c.c.implementation = function () { return false; };
 
-  // 2. Подменяем File.exists для путей root
-  var File = Java.use('java.io.File');
-  File.exists.implementation = function () {
-    var p = this.getAbsolutePath();
-    if (/su|magisk|busybox|xbin|superuser/i.test(p)) {
-      console.log('[+] Скрыт путь: ' + p);
-      return false;
-    }
-    return this.exists();
-  };
-
-  // 3. Build.TAGS -> release-keys
-  var Build = Java.use('android.os.Build');
-  Build.TAGS.value = 'release-keys';
+  var b = Java.use("sg.vantagepoint.a.b");
+  b.a.implementation = function (ctx) { return false; };
 });
 ```
 
-Objection делает это одной командой:
+Теперь любая проверка отвечает «не root / не отладчик», и приложение запускается. Обрати внимание: мы не удаляем root и не меняем систему — просто подменяем **результат** проверки. Это и есть суть обхода.
 
-```bash
-objection -g com.target.app explore
-> android root disable
-```
+Если проверка в нативном коде, используют `Interceptor.attach` по имени или смещению в `.so` и `retval.replace(0)`, как мы разбирали в уроке про нативный реверс.
 
-### Уровень 2: Magisk + DenyList / Zygisk
+## Шаг 4: обход без Frida — Magisk и DenyList
 
-Frida-хуки на Java не помогут против **нативных** проверок (JNI). Тогда используется сокрытие root на уровне системы:
+Frida сама может быть обнаружена (см. следующий урок), поэтому иногда обходят иначе — на уровне системы. **Magisk** даёт root, но умеет **скрывать** его от приложений: в его настройках есть список DenyList, куда добавляют целевое приложение. Для него Magisk маскирует следы root: подменяет `su`, убирает свои файлы из полей зрения.
 
-- **Magisk DenyList** (или старый MagiskHide): добавляете приложение в список — Magisk скрывает от него следы root, `su`, `Magisk`-монтирования.
-- **Zygisk + Shamiko**: модуль, который делает DenyList ещё эффективнее, скрывая Zygisk-инъекции.
-- **Смена имени пакета Magisk** (restore/rename): `com.topjohnwu.magisk` → случайное имя, чтобы не детектилось по пакету.
+Есть и **Zygisk**-модули (например, Shamiko), которые делают сокрытие ещё тоньше. Смысл один: приложение проверяет файлы и свойства — а система отвечает так, будто root нет. Это надёжнее Frida-хуков, потому что не оставляет следов инструментации в процессе.
 
-```bash
-# Проверка, что root скрыт от целевого приложения
-adb shell su -c 'ls /system/xbin/su'   # есть для shell, но скрыто для app через DenyList
-```
+## Шаг 5: anti-Frida
 
-### Уровень 3: нативный root-детект
+Отдельная категория — проверки на присутствие Frida. Типовые приёмы:
 
-Если проверка в `.so`, ищите её и хукайте нативно:
+- **Строки в памяти.** Приложение читает `/proc/self/maps` и ищет `frida`, `frida-agent`, `gum-js-loop`.
+- **Открытые порты.** Frida-сервер слушает порт (обычно 27042) — приложение проверяет его доступность.
+- **Именованные каналы и потоки.** Ищутся характерные имена потоков (`gmain`, `gdbus`).
+- **Проверка времени.** Инструментация замедляет выполнение, и по таймингам можно заподозрить хук.
 
-```bash
-# Символы, связанные с проверками
-nm -D lib/arm64-v8a/libnative.so | grep -iE 'root|detect|check|jailbreak'
-strings lib/arm64-v8a/libnative.so | grep -iE 'su|magisk|xbin'
-```
+Обход: хук ставится **до** проверки (spawn), либо искажаются результаты — перехватывают чтение `/proc/self/maps` и вырезают из вывода строки Frida, подменяют ответы на проверку портов. Часто проще переименовать агент, чем обходить каждую проверку. Подробно — в уроке `mobile-frida-detection`.
 
-```javascript
-// Хук нативного open() — прячем доступ к root-файлам
-var openPtr = Module.findExportByName(null, 'open');
-Interceptor.attach(openPtr, {
-  onEnter: function (args) {
-    this.path = args[0].readCString();
-  },
-  onLeave: function (retval) {
-    if (this.path && /su|magisk|xbin/.test(this.path)) {
-      console.log('[*] Скрыт нативный open: ' + this.path);
-      retval.replace(ptr(-1)); // ошибка
-    }
-  }
-});
-```
+## Шаг 6: как найти все проверки
 
-## Anti-Frida и anti-debug: обход
+Главная ошибка — обойти одну проверку и решить, что дело сделано. Их обычно несколько, и они спрятаны в разных местах. Систематический поиск:
 
-### Anti-Frida
+1. **Статически.** В jadx ищем характерные строки и вызовы: `su`, `Superuser`, `test-keys`, `frida`, `ptrace`, `TracerPid`, `/proc/self/status`, `isDebuggerConnected`. Каждое совпадение — кандидат в проверки.
+2. **Динамически.** Если приложение всё равно падает, ставим `Java.perform` и перечисляем классы (`Java.enumerateLoadedClasses`), ищем подозрительные. Полезно также логировать исключения и выход процесса.
+3. **По реакции.** Отключаем проверки по одной и смотрим, что изменилось. Если приложение перестало закрываться — нашли нужную.
 
-Frida легко обнаружить по нескольким признакам. Обход:
+Помните про нативные проверки: часть детекта может быть в `.so` (например, `ptrace`), и тогда Java-хуки не помогут — нужен `Interceptor.attach`.
 
-1. **Переименовать frida-server.** Frida-сервер по умолчанию — процесс `frida-server`, слушает порт `27042`. Переименуйте бинарник и запустите на нестандартном порту:
+## Шаг 7: типичные ошибки при обходе
 
-```bash
-adb push frida-server-16.x-android-arm64 /data/local/tmp/fs
-adb shell "su -c '/data/local/tmp/fs -l 0.0.0.0:1234 &'"
-frida -H 127.0.0.1:1234 -f com.target.app
-```
+- **Обойти только одну проверку.** Приложение вызывает `checkRoot1() || checkRoot2() || checkRoot3()` — нужно обнулить все.
+- **Хук поставлен поздно.** Если проверка в `onCreate` или в конструкторе, `attach` опоздает — нужен `spawn`.
+- **Проверка в нативном коде.** Java-хук молчит; ищите вызовы в `.so`.
+- **Приложение проверяет сам факт хука.** Инструментация оставляет следы — тогда идут через сокрытие (DenyList), а не через Frida.
+- **Забыть про целостность.** Даже без root приложение может проверять подпись APK и среду (SafetyNet/Play Integrity) — это отдельный слой, см. урок `mobile-integrity`.
 
-2. **Патчить frida-gadget / использовать frida-gadget в обфусцированном виде.** Gadget внедряется в APK как библиотека — сложнее детектится, чем сервер.
+## Что мы теперь знаем
 
-3. **Скрыть потоки и память Frida.** Anti-Frida часто сканирует `/proc/self/maps` на `frida`/`gum` и потоки `gum-js-loop`. Хук на чтение этих файлов:
+По-простому:
 
-```javascript
-// Прячем следы Frida при чтении /proc/self/maps
-var fopen = Module.findExportByName(null, 'fopen');
-Interceptor.attach(fopen, {
-  onEnter: function (args) { this.path = args[0].readCString(); },
-  onLeave: function (retval) { /* сложно фильтровать содержимое; чаще патчат сам детект */ }
-});
-```
+1. Root-детект смотрит на файлы (`su`, Superuser), свойства (`Build.TAGS`) и флаги (`FLAG_DEBUGGABLE`).
+2. Обход через Frida — подмена результата методов проверки на `false`.
+3. Magisk DenyList скрывает root на уровне системы, не оставляя следов инструментации.
+4. Anti-Frida ищет строки агента в памяти, порты и тайминги.
+5. Проверки в нативном коде обходятся нативными хуками.
 
-На практике эффективнее **найти саму функцию детекта** и её отключить: ищите строки `frida`, `gum-js-loop`, `27042`, `REJECTED` и перекрестные ссылки на них.
+## На что смотреть дальше
 
-### Anti-debug
-
-```javascript
-Java.perform(function () {
-  // Отключаем Java-проверку отладчика
-  var Debug = Java.use('android.os.Debug');
-  Debug.isDebuggerConnected.implementation = function () { return false; };
-  Debug.waitingForDebugger.implementation = function () { return false; };
-});
-```
-
-Нативный `ptrace(PTRACE_TRACEME)` (защита от подключения отладчика) обходится патчем или хуком на `ptrace`:
-
-```javascript
-var ptracePtr = Module.findExportByName(null, 'ptrace');
-Interceptor.replace(ptracePtr, new NativeCallback(function (req) {
-  return 0; // притворяемся, что всё ок
-}, 'long', ['int', 'int', 'pointer', 'pointer']));
-```
-
-## Integrity-проверки
-
-Проверка подписи APK ломает патч+переподпись. Обход:
-
-- **Хук `PackageManager.getPackageInfo`** — подменить `signatures` на оригинальные.
-- **Хук вычисления хэша DEX** — вернуть ожидаемое значение.
-- **Отключить проверку целиком**, найдя её по строкам.
-
-```javascript
-Java.perform(function () {
-  var PM = Java.use('android.app.ApplicationPackageManager');
-  PM.getPackageInfo.overload('java.lang.String', 'int').implementation = function (pkg, flags) {
-    var info = this.getPackageInfo(pkg, flags);
-    if (pkg === 'com.target.app') {
-      console.log('[*] Подмена подписи в getPackageInfo');
-      // подменяем info.signatures на заранее сохранённые оригинальные
-    }
-    return info;
-  };
-});
-```
-
-## Разобранный пример: приложение падает при Frida
-
-```bash
-# 1. Подключаем Frida -> приложение мгновенно крашится (anti-Frida)
-frida -U -f com.bank.app -l unpin.js
-# -> "Process terminated"
-
-# 2. Ищем строки anti-Frida
-jadx -d src app.apk
-grep -rniE 'frida|27042|gum-js-loop|ptrace|isDebuggerConnected' src/sources | head
-# -> класс com.bank.app.RootChecker с методами checkFrida/checkDebug
-
-# 3. Хукаем сами методы детекта (проще всего — вернуть false)
-cat > bypass.js <<'EOF'
-Java.perform(function () {
-  var RC = Java.use('com.bank.app.RootChecker');
-  RC.checkFrida.implementation = function () { console.log('[+] checkFrida->false'); return false; };
-  RC.checkDebug.implementation = function () { console.log('[+] checkDebug->false'); return false; };
-  RC.isRooted.implementation = function () { console.log('[+] isRooted->false'); return false; };
-});
-EOF
-
-# 4. Запускаем с обходом
-frida -U -f com.bank.app -l bypass.js --no-pause
-# -> приложение работает, теперь можно снимать pinning
-```
-
-Ключ: **найти конкретную функцию детекта и обезвредить её**, а не пытаться спрятать Frida «в общем». Ищите по строкам-маркерам, по именам классов (`RootChecker`, `SecurityCheck`, `AntiTamper`) и по вызовам API.
-
-## Частые ошибки
-
-- **Хукать только Java, когда проверка нативная.** JNI-детект (`ptrace`, `open("su")`) требует нативных хуков или сокрытия root на уровне системы.
-- **Пытаться спрятать Frida вместо отключения детекта.** Гораздо проще вернуть `false` из найденной функции проверки.
-- **Забыть про integrity-проверку после патча APK.** Переподписанный APK падает — нужен хук на проверку подписи.
-- **Игнорировать эмулятор-детект.** Некоторые приложения проверяют `ro.hardware`/сенсоры — работайте на реальном устройстве или патчьте проперти.
-- **Не перезапускать приложение после смены DenyList.** Нужен полный рестарт (иногда перезагрузка).
+- **Найдите все проверки.** Их обычно несколько; обойти одну — мало.
+- **Подменяйте результат, а не систему.** Это быстрее и безопаснее.
+- **Anti-Frida требует spawn.** Успейте до проверки.
+- **DenyList надёжнее хуков.** Если Frida обнаруживается — используйте сокрытие.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Почему приложение может крашиться сразу при подключении Frida?"
+- question: "Какой из признаков root проверяет наличие бинарника su в PATH?"
   options:
-    - "В нём есть anti-Frida/anti-debug проверки, которые его останавливают"
-    - "Frida несовместима с Android"
-    - "Приложение не поддерживает HTTPS"
-    - "Закончилась память"
+    - "Классическая проверка через System.getenv(PATH) и File(su)"
+    - "Чтение Build.TAGS"
+    - "Проверка порта 27042"
+    - "Чтение /proc/self/status"
   answer: 0
-- question: "Что из перечисленного НЕ является признаком root-детекта?"
+- question: "Что означает test-keys в Build.TAGS?"
   options:
-    - "Проверка наличия `/system/xbin/su`"
-    - "Проверка `Build.TAGS` на `test-keys`"
-    - "Проверка `Content-Type` в HTTP-запросе"
-    - "Проверка пакета `com.topjohnwu.magisk`"
-  answer: 2
-- question: "Какой инструмент скрывает root от приложения на уровне системы?"
-  options:
-    - "Magisk DenyList (Zygisk + Shamiko)"
-    - "apktool"
-    - "exiftool"
-    - "jadx"
+    - "Сборка подписана тестовыми (отладочными) ключами"
+    - "Приложение взломано"
+    - "Есть root"
+    - "Устройство в сети"
   answer: 0
-- question: "Самый надёжный способ обезвредить проверку `RootChecker.isRooted()` — это…"
+- question: "Как обойти Java-проверку root через Frida?"
   options:
-    - "переустановить приложение"
-    - "найти функцию и через Frida заставить её возвращать `false`"
-    - "выключить Wi-Fi"
-    - "запустить эмулятор"
-  answer: 1
-- question: "Если Java-хуки не помогают против root-детекта, где искать проверку?"
+    - "Подменить implementation метода проверки, чтобы он возвращал false"
+    - "Переустановить APK"
+    - "Отключить Wi-Fi"
+    - "Сменить пароль"
+  answer: 0
+- question: "Чем Magisk DenyList помогает при root-детекте?"
   options:
-    - "В AndroidManifest.xml"
-    - "В ресурсах `res/`"
-    - "В нативном коде (`.so`), например через `open`/`ptrace`"
-    - "В настройках Gradle"
-  answer: 2
+    - "Скрывает следы root от выбранных приложений на уровне системы"
+    - "Ускоряет приложение"
+    - "Шифрует трафик"
+    - "Меняет подпись APK"
+  answer: 0
+- question: "Почему anti-Frida проверку обходят через spawn?"
+  options:
+    - "Хук нужно поставить раньше, чем приложение выполнит проверку"
+    - "attach не работает на Android"
+    - "spawn скрывает root"
+    - "Иначе APK не установится"
+  answer: 0
 ```
+
+## Куда дальше
+
+Мы научились запускать защищённые приложения, обходя root-детект. В следующем уроке разберём зеркальную задачу — как приложение обнаруживает именно Frida и отладчик, и какие есть тонкости обхода. А пока главное: root-детект — это набор проверок файлов и свойств, а не защита данных; подмена их результата открывает приложение для анализа.
 
 ## Где пригодится
 
-- **CTF Mobile:** запуск защищённых приложений, которые иначе отказываются работать на тестовом устройстве.
-- **Bug bounty:** анализ банковских/платёжных приложений с антифродом и anti-tamper.
-- **Пентест:** оценка реальной стойкости клиентских защит и их обходимости.
-- **Работа:** консультирование по усилению анти-реверс защит (что реально работает, а что нет).
+- **CTF Mobile:** запуск приложений с защитой от root и отладки.
+- **Bug bounty:** анализ приложений, которые «не работают» на рутованном устройстве.
+- **Пентест:** оценка качества клиентских защит.
+- **Работа:** понимание, что root-детект — барьер, а не гарантия безопасности.

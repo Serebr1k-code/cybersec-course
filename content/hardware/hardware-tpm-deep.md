@@ -15,11 +15,19 @@ estimated_minutes: 55
 summary: "Глубокое погружение в TPM 2.0: иерархии, primary keys, NV-индексы, политики, sealed objects, attestation и полный набор команд tpm2-tools."
 ---
 
-TPM 2.0 — сложная криптосистема с собственной объектной моделью. Чтобы уверенно атаковать и защищать доверенную платформу, нужно понимать иерархии, типы ключей, NV-индексы и политики (policy). Этот урок — практическое погружение через `tpm2-tools`: от `tpm2_getcap` до запечатывания объектов с политикой и подписи attestation.
+## Вопрос, с которого всё начинается
 
-## Иерархии TPM 2.0
+В прошлом уроке мы поняли, зачем нужен TPM. Но чтобы реально им пользоваться — запечатать секрет, прочитать сертификат, подписать измерения — нужно понимать его **объектную модель**: где живут ключи, что такое иерархии и как задаются условия доступа.
 
-TPM 2.0 имеет четыре иерархии, каждая со своим seed:
+Вопрос урока: как на практике работать с TPM 2.0 через `tpm2-tools` — от первичного ключа до запечатанного секрета с политикой?
+
+## Наш пример: Linux-машина с TPM 2.0
+
+У нас есть ноутбук с Linux и встроенным TPM 2.0 (в системе он виден как `/dev/tpm0`). Мы хотим запечатать секрет так, чтобы он открывался только при «правильном» состоянии загрузки, и попутно разобраться в устройстве модуля.
+
+## Шаг 1: иерархии — четыре «корня» TPM
+
+У TPM 2.0 есть четыре иерархии, каждая со своим **seed** (первичным зерном):
 
 | Иерархия | Назначение | Активируется |
 |----------|-----------|--------------|
@@ -28,187 +36,158 @@ TPM 2.0 имеет четыре иерархии, каждая со своим s
 | Platform | firmware/измерения | platform auth |
 | Null | эфемерные ключи | без auth |
 
-Каждая иерархия порождает **primary key** из seed + шаблона. Смена иерархии (например, `clear`) уничтожает все ключи, выведенные из неё. Понимание этого критично: запечатанный под owner объект не восстановить после `clear`.
+Каждая иерархия детерминированно порождает **primary key** из seed и шаблона. Важное следствие: команда `clear` уничтожает все ключи, выведенные из иерархии. Значит, запечатанный под owner объект после `clear` не восстановить.
+
+Посмотрим, что умеет наш TPM:
 
 ```bash
-# Возможности и алгоритмы TPM
-tpm2_getcap algorithms
-tpm2_getcap properties-fixed
-tpm2_getcap handles-persistent
-tpm2_getcap pcrs
+$ tpm2_getcap properties-fixed | head
+TPM2_PT_FAMILY_INDICATOR:
+  raw: 0x322E3000
+  value: "2.0"
+$ tpm2_getcap handles-persistent
+$ tpm2_getcap pcrs
 ```
 
-## Primary keys и шаблоны
+## Шаг 2: создаём первичный и дочерний ключ
 
-Primary key создаётся детерминированно из seed иерархии и шаблона. Одинаковый seed + шаблон → одинаковый primary. Это позволяет «восстанавливать» primary без сохранения, если известен шаблон.
+**Primary key** создаётся детерминированно: одинаковый seed + шаблон → одинаковый ключ. Это позволяет «восстанавливать» его без сохранения. Создаём primary в owner-иерархии:
 
 ```bash
-# Создать primary в owner-иерархии (RSA2048, restricted decrypt)
-tpm2_createprimary -C o -G rsa2048 -g sha256 -c primary.ctx
-# Создать дочерний ключ (шифрование данных)
-tpm2_create -C primary.ctx -G aes256 -u child.pub -r child.priv
-tpm2_load -C primary.ctx -u child.pub -r child.priv -c child.ctx
-# Сохранить контекст для переиспользования
-tpm2_flushcontext -t
+$ tpm2_createprimary -C o -G rsa2048 -g sha256 -c primary.ctx
 ```
 
-Флаги `-G` (алгоритм ключа), `-g` (хэш), `-a` (атрибуты: fixedtpm, fixedparent, sensitivedataorigin) определяют, где может жить ключ и что с ним можно делать.
-
-## NV-индексы
-
-**NV (non-volatile) storage** — небольшие области во флеше TPM для сертификатов, счётчиков, конфигурации. NV-индекс имеет атрибуты (read/write, ownerread, policy, counter, bits) и размер.
+Флаги: `-C o` — иерархия owner, `-G rsa2048` — алгоритм ключа, `-g sha256` — хэш, `-c primary.ctx` — файл контекста. Теперь создаём дочерний ключ для шифрования данных:
 
 ```bash
-# Определить NV-индекс (например, сертификат EK)
-tpm2_nvdefine 0x1500000 -C o -s 32 -a "ownerread|ownerwrite"
-echo -n "0123456789abcdef0123456789abcdef" | tpm2_nvwrite 0x1500000 -C o -i-
-tpm2_nvread 0x1500000 -C o
-# Список NV-индексов
-tpm2_getcap handles-nv-index
+$ tpm2_create -C primary.ctx -G aes256 -u child.pub -r child.priv
+$ tpm2_load -C primary.ctx -u child.pub -r child.priv -c child.ctx
 ```
 
-NV-индексы часто хранят **сертификат EK** (Endorsement Key) и настройки BitLocker. Атакующий может читать их, если политика позволяет, или искать там чувствительные данные.
-
-## Политики (policy) и авторизация
-
-TPM 2.0 поддерживает сложные политики: `policyPCR`, `policyCommandCode`, `policyAuthValue`, `policyOR`, `policyNV`, `policySigned`. Политика — это условие, при выполнении которого объект доступен.
+`-u` и `-r` — публичная и приватная части. Когда работа закончена, транзитные объекты стоит сбрасывать:
 
 ```bash
-# Политика: доступ только при определённых PCR
-tpm2_startauthsession -S session.ctx
-tpm2_policypcr -S session.ctx -l sha256:0,7 -L pcr.policy
-tpm2_flushcontext session.ctx
-
-# Создать объект с этой политикой
-tpm2_create -C primary.ctx -G aes256 -u key.pub -r key.priv -L pcr.policy -i secret.bin
-tpm2_load -C primary.ctx -u key.pub -r key.priv -c key.ctx
-
-# Использовать: сначала восстановить сессию политики
-tpm2_startauthsession -S session.ctx --policy-session
-tpm2_policypcr -S session.ctx -l sha256:0,7
-tpm2_unseal -c key.ctx -p session:session.ctx
+$ tpm2_flushcontext -t
 ```
 
-Если PCR не совпадают — политика не выполняется, unseal отклонён. Так работает защита секретов в измеряемой загрузке.
+## Шаг 3: NV-индексы — флеш внутри TPM
 
-## Attestation: quote и certify
-
-**Quote** — подпись набора PCR ключом AK; **certify** — подпись публичной части ключа. Это ядро remote attestation.
+**NV (non-volatile) storage** — небольшие области во флеше TPM: сертификаты, счётчики, конфигурация. NV-индекс имеет атрибуты (`ownerread`, `ownerwrite`, `counter`, `bits`) и размер. Определим свой:
 
 ```bash
-# Создать AK (restricted signing key)
-tpm2_createprimary -C e -G rsa2048 -c ek.ctx
-tpm2_create -C ek.ctx -G rsa2048 -u ak.pub -r ak.priv -a "sign|restricted" -c ak.ctx
-# Получить quote по PCR
-tpm2_quote -c ak.ctx -l sha256:0,1,2,3,4,7 -q nonce.bin -m quote.msg -s quote.sig -o pcr.bin
-# Проверить подпись (openssl/tsd)
+$ tpm2_nvdefine 0x1500000 -C o -s 32 -a "ownerread|ownerwrite"
+$ echo -n "0123456789abcdef0123456789abcdef" | tpm2_nvwrite 0x1500000 -C o -i-
+$ tpm2_nvread 0x1500000 -C o
 ```
 
-Проверяющая сторона сверяет nonce (защита от replay), подпись AK и значения PCR с эталоном. Подделка требует компрометации AK или самого TPM.
-
-## Разобранный пример: восстановление доступа к запечатанному секрету
+Часто в NV лежит **сертификат EK** — «паспорт» платформы от вендора. Его индекс обычно `0x01C00002`:
 
 ```bash
-# 1. Осмотреть иерархии и persistent handles
-tpm2_getcap handles-persistent
-tpm2_getcap properties-variable | grep -i hierarchy
-# 2. Проверить, не создан ли ключ с пустым/слабым auth
-tpm2_getcap handles-transient
-# 3. Если объект привязан к PCR и PCR изменились — unseal не сработает:
-tpm2_unseal -c 0x81010001 -p pcr:sha256:7
-# ERROR: tpm:session(1):the policy digest is not correct
-# 4. Варианты: восстановить PCR (перезагрузка в нормальном состоянии),
-#    либо атаковать TPM (fault injection/cold-boot), либо искать recovery.
+$ tpm2_getcap handles-nv-index
+$ tpm2_nvread 0x01c00002 -C 0x01c0000a | openssl x509 -inform der -text -noout
 ```
 
-## Безопасность и атаки на уровень TPM 2.0
+## Шаг 4: политики — условия доступа
 
-- **Weak authorization**: пустой или дефолтный auth у NV/ключей.
-- **Policy bypass**: `policyOR` с выполнимым всегда условием (например, `policyCommandCode` без ограничений).
-- **dictionary attack protection**: TPM блокируется после N неверных auth (lockout). Это ограничивает брутфорс.
-- **Fault injection**: glitch при проверке auth/policy.
-- **Firmware bugs**: уязвимости в fTPM (например, ошибки в AMD fTPM, Intel PTT).
-- **Interposer**: MITM между CPU и TPM для replay/подмены (сложно, но известно).
+TPM 2.0 поддерживает сложные условия (**policy**): `policyPCR`, `policyCommandCode`, `policyAuthValue`, `policyOR`, `policyNV`. Политика — это набор условий, при выполнении которых объект доступен. Соберём политику «доступ только при определённых PCR»:
 
-## Таблица команд tpm2-tools
+```bash
+$ tpm2_startauthsession -S session.ctx
+$ tpm2_policypcr -S session.ctx -l sha256:0,7 -L pcr.policy
+$ tpm2_flushcontext session.ctx
+```
 
-| Команда | Назначение |
-|---------|-----------|
-| `tpm2_getcap` | возможности/алгоритмы/handles |
-| `tpm2_createprimary` | создать primary |
-| `tpm2_create` / `tpm2_load` | дочерний ключ |
-| `tpm2_nvdefine`/`read`/`write` | NV-индекс |
-| `tpm2_policypcr` | политика по PCR |
-| `tpm2_unseal` | распечатать объект |
-| `tpm2_quote` | attestation |
-| `tpm2_pcrread`/`extend` | PCR |
-| `tpm2_clear` | сброс иерархий |
+Теперь создадим объект с этой политикой и запечатаем в него секрет:
 
-## Частые ошибки и подводные камни
+```bash
+$ tpm2_create -C primary.ctx -G aes256 -u key.pub -r key.priv -L pcr.policy -i secret.bin
+$ tpm2_load -C primary.ctx -u key.pub -r key.priv -c key.ctx
+```
 
-- **Забыли flushcontext**: сессии/транзитные handles исчерпываются, команды падают.
-- **Неверная иерархия**: ключ под endorsement не загрузится под owner.
-- **Auth string vs policy**: `-p` (пароль) и `-p session:` (политика) — разные вещи.
-- **NV-индекс read-only**: определить с `ownerwrite` заранее, иначе запись отклонена.
-- **PCR меняются при обновлении**: запечатанные секреты «отвязываются» после прошивки.
+Чтобы распечатать, нужно **восстановить** ту же сессию политики:
 
-## Атрибуты объектов: где живёт ключ
+```bash
+$ tpm2_startauthsession -S session.ctx --policy-session
+$ tpm2_policypcr -S session.ctx -l sha256:0,7
+$ tpm2_unseal -c key.ctx -p session:session.ctx
+```
 
-Каждый объект TPM имеет атрибуты, определяющие его поведение. Ключевые:
+Если PCR не совпадут, `unseal` вернёт ошибку вида `the policy digest is not correct`. Так работают секреты измеряемой загрузки.
+
+## Шаг 5: аттестация — quote
+
+**Quote** — подпись набора PCR ключом **AK** (Attestation Key); это ядро remote attestation. Создадим AK и получим quote:
+
+```bash
+$ tpm2_createprimary -C e -G rsa2048 -c ek.ctx
+$ tpm2_create -C ek.ctx -G rsa2048 -u ak.pub -r ak.priv -a "sign|restricted" -c ak.ctx
+$ tpm2_quote -c ak.ctx -l sha256:0,1,2,3,4,7 -q nonce.bin -m quote.msg -s quote.sig -o pcr.bin
+```
+
+Проверяющая сторона сверяет **nonce** (защита от повтора), подпись AK и значения PCR с эталоном. Подделать quote можно только скомпрометировав AK или сам TPM.
+
+## Шаг 6: атрибуты объектов — где живёт ключ
+
+Каждый объект имеет атрибуты, определяющие его поведение:
 
 | Атрибут | Значение |
 |---------|----------|
 | `fixedtpm` | ключ нельзя продублировать (не покидает TPM) |
 | `fixedparent` | привязан к родителю |
 | `sensitivedataorigin` | sensitive-часть создана внутри TPM |
-| `userwithauth` | доступ по auth value |
-| `adminwithpolicy` | доступ по policy |
-| `restricted` | ограничен (только подпись/расшифрование хэшей) |
+| `restricted` | только подпись/расшифрование хэшей |
 | `decrypt` / `sign` | назначение ключа |
 
-Если у ключа нет `fixedtpm`, его можно **duplicate** (выгрузить в зашифрованном виде) на другой TPM. Это используется для миграции, но и для атак: если удалось получить дубликат, ключ можно перенести и использовать офлайн. Атрибут `sensitivedataorigin` показывает, что sensitive-часть не «импортирована» извне — импортированные ключи (`tpm2_import`) не имеют этого флага, и это нормально для загрузки внешних ключей.
+Если у ключа нет `fixedtpm`, его можно **duplicate** (выгрузить в зашифрованном виде) на другой TPM. Это нужно для миграции — но и для атак: получив дубликат, ключ можно перенести и использовать офлайн.
 
-## Dictionary attack и lockout на практике
+## Шаг 7: dictionary attack и lockout
 
-TPM защищает от подбора auth: после нескольких неверных попыток (обычно 3) наступает **lockout** — TPM отказывается принимать auth до сброса (перезагрузка или ожидание recovery-таймаута). Это важно при брутфорсе:
-
-```bash
-# Посмотреть счётчик неудач и параметры lockout
-tpm2_getcap properties-variable | grep -iA2 lockout
-# Пример:
-#   TPM2_PT_LOCKOUT_COUNTER: 0
-#   TPM2_PT_MAX_AUTH_FAIL: 3
-#   TPM2_PT_LOCKOUT_INTERVAL: 7200
-#   TPM2_PT_LOCKOUT_RECOVERY: 86400
-```
-
-`LOCKOUT_INTERVAL` — окно, в котором считаются неудачи; `LOCKOUT_RECOVERY` — сколько ждать после блокировки. Поэтому онлайн-брутфорс TPM практически невыгоден, и атакующие предпочитают обход (fault injection) или кражу ключей. Защитнику же эти значения показывают, насколько устойчива конфигурация к подбору.
-
-## Провижининг: EK, сертификаты и идентичность
-
-У каждой платформы есть **Endorsement Key (EK)** — уникальная пара, вшитая производителем, и **сертификат EK**, подписанный вендором. Он хранится в NV-индексе (обычно `0x01C00002`) и позволяет доказать, что перед нами «настоящий» TPM конкретной модели. Это основа device identity: сервер доверяет платформе, потому что верит цепочке сертификатов вендора.
+TPM защищает auth от подбора. После нескольких неудач (обычно 3) наступает **lockout**. Посмотрим параметры:
 
 ```bash
-# Найти и прочитать сертификат EK
-tpm2_getcap handles-nv-index
-tpm2_nvread 0x01c00002 -C 0x01c0000a | openssl x509 -inform der -text -noout
+$ tpm2_getcap properties-variable | grep -iA2 lockout
+TPM2_PT_LOCKOUT_COUNTER: 0
+TPM2_PT_MAX_AUTH_FAIL: 3
+TPM2_PT_LOCKOUT_INTERVAL: 7200
+TPM2_PT_LOCKOUT_RECOVERY: 86400
 ```
 
-Практические аспекты:
+`LOCKOUT_RECOVERY: 86400` — сутки ожидания после блокировки. Поэтому онлайн-брутфорс TPM невыгоден: атакующие предпочитают fault injection или кражу ключей.
 
-- **EK нельзя дублировать** (нет `fixedtpm`-снятия) — это якорь идентичности.
-- **AK создаётся на базе EK** и подписывает attestation; привязка AK↔EK доказывается `tpm2_certify`.
-- **Provisioning** — процесс разворачивания EK/AK на устройстве; ошибки здесь (например, общий EK для партии) ломают идентичность.
-- **Атака**: если вендорский сертификат EK скомпрометирован или ключ вендора утёк, доверие ко всей партии устройств рушится.
+## Шаг 8: разбор ошибки на реальном примере
 
-## Что дальше / решение
+Попробуем распечатать объект, привязанный к PCR, когда PCR изменились:
 
-- Нужна измеряемая загрузка целиком → `hardware-measured-boot`.
-- Нужен обход Secure Boot → `hardware-secure-boot`.
-- Нужны glitch-атаки → `hardware-fault-injection`.
-- Нужен базовый обзор → `hardware-tpm`.
+```bash
+$ tpm2_unseal -c 0x81010001 -p pcr:sha256:7
+ERROR: tpm:session(1):the policy digest is not correct
+```
+
+Что делать:
+1. Проверить persistent handles: `tpm2_getcap handles-persistent`.
+2. Проверить транзитные: `tpm2_getcap handles-transient`.
+3. Варианты: перезагрузиться в «нормальном» состоянии (восстановить PCR), атаковать TPM (fault injection/cold-boot) или искать recovery.
+
+## Что мы теперь знаем
+
+1. У TPM 2.0 четыре иерархии; `clear` уничтожает выведенные из них ключи.
+2. Primary key детерминирован (seed + шаблон); дочерние создаются через `tpm2_create`/`load`.
+3. NV-индексы хранят сертификаты и конфигурацию; EK лежит по индексу `0x01C00002`.
+4. Политики (`policyPCR` и др.) задают условия доступа; несовпадение PCR блокирует `unseal`.
+5. `tpm2_quote` подписывает PCR ключом AK — это основа attestation.
+6. `lockout` делает онлайн-брутфорс auth невыгодным.
+
+## На что смотреть дальше
+
+- **Забыли `flushcontext`** — сессии и транзитные handles исчерпываются, команды падают.
+- **Неверная иерархия** — ключ под endorsement не загрузится под owner.
+- **Auth string vs policy** — `-p` (пароль) и `-p session:` (политика) — разные вещи.
+- **NV-индекс read-only** — определяйте с `ownerwrite` заранее, иначе запись отклонена.
+- **PCR меняются при обновлении прошивки** — запечатанные секреты «отвязываются».
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Сколько иерархий у TPM 2.0?"
@@ -253,10 +232,14 @@ tpm2_nvread 0x01c00002 -C 0x01c0000a | openssl x509 -inform der -text -noout
   explanation: "После N неудач TPM блокирует попытки."
 ```
 
+## Куда дальше
+
+Мы освоили инструмент. В следующем уроке применим его к полной картине — измеряемой загрузке: как PCR заполняются по шагам от прошивки до ядра, чем отличается от Secure Boot и как читать журнал измерений. А пока главное: **TPM 2.0 — это маленькая криптосистема с иерархиями и политиками, и `tpm2-tools` даёт к ней полный доступ.**
+
 ## Где пригодится
 
 - **CTF:** Hardware-задачи на TPM и secure element.
 - **Аудит:** проверка политик, NV и конфигурации TPM.
 - **Пентест:** анализ привязки BitLocker и измеряемой загрузки.
 - **Реверс:** понимание firmware-TPM и его уязвимостей.
-- **Дальше по дереву:** `hardware-tpm`, `hardware-measured-boot`.
+- **Дальше по дереву:** `hardware-measured-boot`, `hardware-tpm`.

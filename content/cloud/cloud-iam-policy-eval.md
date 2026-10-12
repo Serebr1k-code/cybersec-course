@@ -15,215 +15,215 @@ estimated_minutes: 50
 summary: "Как облако оценивает права: explicit deny, SCP, permission boundaries, session policies, resource policies и conditions. Как читать логику и находить обходы через conditions и confused deputy."
 ---
 
-## Зачем этот урок
+## Вопрос, с которого всё начинается
 
-Облачная авторизация — это не просто список разрешений. Это **многослойная логика оценки**: identity-based политики, resource-based политики, permission boundaries, SCP/org policies, session policies и условия (conditions). Непонимание этой логики ведёт к двум ошибкам: вы либо считаете себя ограниченным, когда есть обход, либо уверены в доступе, которого нет. Этот урок — про точную модель оценки IAM, порядок deny/allow, роль условий и типовой класс «confused deputy», который эксплуатирует доверие между сервисами.
+Ты видишь политику с `Action: "*"` и думаешь: «отлично, админ». Но вызов всё равно падает с `AccessDenied`. Почему? Потому что облако оценивает права **не по одной политике**, а по целому набору правил, и любое из них может запретить действие. Разберём, как это устроено.
 
-## Как облако оценивает права
+## Наш пример: политика с «широкими» правами
 
-Базовое правило (AWS и аналоги): **явный Deny > Allow > неявный Deny**. Если действие не разрешено явно — оно запрещено. Поверх identity-политик действуют дополнительные слои:
+Объект урока — политика `WildAdmin`, которая разрешает всё:
 
-- **Identity-based policy** — что разрешено принципалу (пользователь, роль).
-- **Resource-based policy** — что разрешено на ресурсе (S3 bucket policy, KMS key policy, Lambda resource policy). Может разрешить доступ даже без identity-политики.
-- **Permission boundary** — максимум прав identity; пересечение с identity-политикой.
-- **SCP / org policy** — граница на уровне организации/OU; не выдаёт прав, только ограничивает.
-- **Session policy** — ограничение для конкретной сессии (AssumeRole).
-- **Conditions** — уточняют, когда правило действует (`aws:SourceIp`, `aws:PrincipalArn`, `aws:RequestedRegion`, `aws:MultiFactorAuthPresent`, `aws:SourceArn`, `aws:SourceAccount`).
-
-Итоговое право = allow из identity или resource, **пересечённое** со всеми границами (boundary, SCP), минус явные deny, с учётом условий. Ошибка в любом слое меняет результат.
-
-**Confused deputy** — класс проблем, где сервис с привилегиями действует по запросу от менее привилегированного. Защита — условия `aws:SourceArn`/`aws:SourceAccount` (или `ExternalId`) в trust policy. Если их нет, чужой сервис/аккаунт может использовать доверие.
-
-## Инструменты и команды
-
-Симуляция:
-
-```bash
-# Что я могу по identity-политике
-aws iam simulate-principal-policy --policy-source-arn arn:aws:iam::123:role/myrole \
-  --action-names s3:GetObject iam:PassRole kms:Decrypt
-
-# Симуляция по контексту (IP, MFA)
-aws iam simulate-principal-policy --policy-source-arn <arn> \
-  --action-names s3:GetObject \
-  --context-entries ContextKeyName=aws:SourceIp,ContextKeyValues=1.2.3.4,ContextKeyType=ip
-
-# Симуляция произвольной политики
-aws iam simulate-custom-policy --policy-input-list file://policy.json \
-  --action-names s3:GetObject
+```
+$ aws iam get-policy-version --policy-arn arn:aws:iam::123456789012:policy/WildAdmin --version-id v1 \
+    --query "PolicyVersion.Document.Statement"
+[
+  { "Effect": "Allow", "Action": "*", "Resource": "*" }
+]
 ```
 
-Чтение политик и границ:
+Пользователь с такой политикой должен уметь всё. Но при вызове `aws s3 rm s3://protected/secret.txt` приходит отказ. Значит, где-то есть ограничение. Найдём его.
 
-```bash
-aws iam get-role --role-name myrole --query 'Role.{Trust:AssumeRolePolicyDocument,PermissionsBoundary:PermissionsBoundary}'
-aws iam get-account-authorization-details > authz.json
-aws iam get-policy-version --policy-arn <arn> --version-id v1 --query 'PolicyVersion.Document'
+## Шаг 1: явный запрет (explicit deny)
 
-# Key policy KMS
-aws kms get-key-policy --key-id <id> --policy-name default
-# Bucket policy
-aws s3api get-bucket-policy --bucket mybucket
+Главное правило оценки: **любой явный `Deny` побеждает любой `Allow`**. Ищем запреты:
+
+```
+$ aws iam list-attached-user-policies --user-name test-user
+{ "AttachedPolicies": [ { "PolicyName": "WildAdmin", ... }, { "PolicyName": "NoDelete", ... } ] }
+$ aws iam get-policy-version --policy-arn arn:aws:iam::123456789012:policy/NoDelete --version-id v1 \
+    --query "PolicyVersion.Document.Statement"
+[
+  { "Effect": "Deny", "Action": "s3:DeleteObject", "Resource": "arn:aws:s3:::protected/*" }
+]
 ```
 
-Поиск обходов conditions:
+Вот причина: политика `NoDelete` явно запрещает удаление объектов в `protected`. Значит, `WildAdmin` бесполезен против этого запрета. Правило простое: **Deny > Allow**.
 
-```bash
-# Ищем условия, которые можно выполнить
-aws iam get-account-authorization-details --query 'Policies[].PolicyVersionList[].Document' | \
-  grep -iE 'Condition|aws:SourceIp|aws:PrincipalArn|aws:SourceArn'
+## Шаг 2: SCP — границы организации
+
+Даже без явного Deny в политиках пользователя действие может блокировать **SCP** (Service Control Policy) — политика на уровне организации или OU. SCP не даёт прав, она только **ограничивает** максимум возможного:
+
+```
+$ aws organizations list-policies --filter SERVICE_CONTROL_POLICY
+{ "Policies": [ { "Name": "DenyRegionsOutsideEU", ... } ] }
 ```
 
-## Разобранный пример: обход условия и confused deputy
+Если SCP запрещает работать в `us-east-1`, то никакие пользовательские Allow не помогут. Смысл: SCP — это «потолок» для всего, что ниже.
 
-Сценарий: роль `deploy-role` доверяет `codebuild.amazonaws.com`, но без условия `aws:SourceArn`. Политика разрешает `s3:*` при условии `aws:SourceIp` = офисный CIDR.
+## Шаг 3: permission boundary — личный потолок
 
-Шаг 1 — читаем trust policy:
+**Permission boundary** — это политика-граница на конкретного пользователя или роль. Она говорит: «что бы ни разрешали другие политики, выйти за эту рамку нельзя». В отличие от SCP, boundary применяется к отдельной сущности:
 
-```bash
-aws iam get-role --role-name deploy-role --query 'Role.AssumeRolePolicyDocument'
-# {"Statement":[{"Effect":"Allow","Principal":{"Service":"codebuild.amazonaws.com"},"Action":"sts:AssumeRole"}]}
+```
+$ aws iam get-user --user-name test-user --query "User.PermissionsBoundary"
+"arn:aws:iam::123456789012:policy/OnlyS3Boundary"
 ```
 
-Условия `aws:SourceArn` нет — это **confused deputy**: любой CodeBuild-проект (в том числе в другом аккаунте, если он может вызвать сервис) может ассумировать роль. Если у вас есть CodeBuild-проект, который может использовать эту роль, вы получаете её права.
+Права пользователя = **пересечение** всех Allow и границы. Если boundary разрешает только S3, то `Action: "*"` превращается в «только S3».
 
-Шаг 2 — читаем condition в permissions-политике:
+## Шаг 4: session policy — потолок для сессии
 
-```bash
-aws iam get-policy-version --policy-arn <arn> --version-id v1 --query 'PolicyVersion.Document'
-# {"Statement":[{"Effect":"Allow","Action":"s3:*","Resource":"*",
-#   "Condition":{"IpAddress":{"aws:SourceIp":"203.0.113.0/24"}}}]}
+При входе в роль можно передать **session policy** — она дополнительно сужает права текущей сессии:
+
+```
+$ aws sts assume-role --role-arn arn:aws:iam::123456789012:role/DeployRole \
+    --role-session-name test --policy file://narrow.json
 ```
 
-Условие — по IP. Обходы: (1) если запрос идёт через VPC endpoint/NAT, `aws:SourceIp` может быть внутренним; (2) некоторые сервисы (например, S3 через VPC endpoint) могут подставлять свой IP; (3) если вы можете запустить ресурс в доверенном CIDR, условие выполняется.
+Так выдаётся роль, но с урезанными на время сессии правами. Для атакующего это значит: даже заняв роль, ты можешь не получить весь её набор.
 
-Шаг 3 — проверяем boundary и SCP:
+## Шаг 5: resource policy — правило на самом объекте
 
-```bash
-aws iam get-role --role-name deploy-role --query 'Role.PermissionsBoundary'
-aws organizations list-policies --filter SERVICE_CONTROL_POLICY
+Есть и обратная сторона: **resource policy** прикреплена к ресурсу (например, к бакету) и разрешает доступ тем, у кого нет прав в IAM. Классический пример — публичный бакет: в его policy стоит `Principal: "*"`, и тогда читать может кто угодно:
+
+```
+$ aws s3api get-bucket-policy --bucket mycompany-public
+{ "Statement": [ { "Effect": "Allow", "Principal": "*", "Action": "s3:GetObject", "Resource": "arn:aws:s3:::mycompany-public/*" } ] }
 ```
 
-Если boundary ограничивает `s3:*` до конкретных бакетов, а SCP — до регионов, итоговое право уже.
+Так «доступ» может появиться не из твоих прав, а из настройки ресурса.
 
-Шаг 4 — симулируем:
+## Шаг 6: conditions и confused deputy
 
-```bash
-aws iam simulate-principal-policy --policy-source-arn arn:aws:iam::123:role/deploy-role \
-  --action-names s3:GetObject --resource-arns arn:aws:s3:::target/config
+Политики часто сужаются блоком `Condition`. Например, роль доверяет сервису, только если запрос пришёл от конкретного аккаунта:
+
+```
+"Condition": { "StringEquals": { "aws:SourceAccount": "123456789012" } }
 ```
 
-Шаг 5 — эксплуатация. Если условие выполнимо (вы в CIDR или через endpoint), получаете доступ. Если confused deputy подтверждён — используйте сервис-триггер.
+Если такого условия нет, получается **confused deputy** («сбитый с толку посредник»): сервис-посредник может быть обманут и выполнить действие от чужого имени. Классика — сервис, которому доверяет роль, позволяет другому клиенту заставить его сделать запрос. Поэтому условия `ExternalId` и `SourceAccount` обязательны в доверии сервисам.
 
-## Варианты атак и обходы
+## Шаг 7: как проверить итоговые права
 
-- **Отсутствие `aws:SourceArn`/`SourceAccount`.** Confused deputy: любой сервис-триггер.
-- **Условие по `aws:SourceIp`.** Обходится через VPC endpoints, NAT, запуск ресурса в CIDR, прокси.
-- **Условие по `aws:PrincipalArn`.** Проверьте, можно ли создать принципала с подходящим ARN (например, роль с тем же именем в другом пути).
-- **Условие по `aws:MultiFactorAuthPresent`.** Иногда обходится через long-term ключи или сервисные сессии.
-- **Resource policy поверх identity.** S3 bucket policy может разрешить доступ без identity-allow.
-- **Boundary-дыры.** Boundary задаёт максимум, но если он широкий — не помогает.
-- **SCP-исключения.** Проекты/аккаунты вне SCP — слабое звено.
-- **`iam:PassRole` без условий.** Позволяет передать роль сервису.
-- **Wildcard в Resource.** `Resource: "*"` с allow на действие — широкий доступ.
+AWS умеет симулировать решение об авторизации:
 
-## Частые ошибки и подводные камни
+```
+$ aws iam simulate-principal-policy --policy-source-arn arn:aws:iam::123456789012:user/test-user \
+    --action-names s3:DeleteObject --resource-arns arn:aws:s3:::protected/secret.txt
+{
+  "EvaluationResults": [ { "EvalDecision": "implicitDeny", "MatchedStatements": [] } ]
+}
+```
 
-- **Считать simulate истиной.** Он не учитывает SCP, resource policies и часть условий — это оценка, не гарантия.
-- **Забывать про resource policies.** Они могут дать доступ вопреки identity-политике.
-- **Путать boundary и SCP.** Boundary — на identity; SCP — на аккаунт/OU.
-- **Игнорировать условия.** Условие может как ограничивать, так и быть выполнимым.
-- **Не проверять deny.** Явный deny перебивает всё; `Deny` в boundary часто останавливает эскалацию.
-- **Ошибка в контексте.** `--context-entries` нужны для условий; без них симуляция даст неверный результат.
+`implicitDeny` значит: явного разрешения нет — и это уже отказ. Так можно точно понять, почему действие не проходит, не перебирая вслепую.
 
-## Защита и детект
+## Шаг 8: порядок оценки целиком
 
-- **Явные условия доверия.** `aws:SourceArn`/`aws:SourceAccount` в trust policies; `ExternalId` для третьих сторон.
-- **Permission boundaries** на все роли, создаваемые не-админами.
-- **SCP как граница** и deny policies.
-- **Минимизируйте wildcard.** Конкретные действия и ресурсы.
-- **Регулярный аудит.** `Cloudsplaining`, `PMapper`, `get-account-authorization-details`.
-- **Детект.** CloudTrail на `AssumeRole` из неожиданных сервисов, `PutRolePolicy`, `CreatePolicyVersion`, изменения trust policy. GuardDuty `Persistence:IAMUser/*`, `PrivilegeEscalation:IAMUser/*`.
-- **Мониторинг confused deputy.** Алерты на AssumeRole сервисными principal из чужих аккаунтов.
+Упрощённо: **explicit Deny** (в любой политике) → **SCP** → **resource policy** → **boundary** → **session policy** → **identity policy**. Если хотя бы на одном шаге стоит запрет или нет разрешения — доступ закрыт. Именно поэтому «политика с `*`» не гарантирует админа.
 
-## Практические классы ошибок в политиках
+## Шаг 9: как это влияет на планирование атаки
 
-Опыт пентеста облака показывает, что большинство обходов IAM сводится к нескольким повторяющимся классам:
+Поскольку Deny и границы побеждают, **перед** действием полезно проверить, нет ли ограничений. Быстро узнать потолок для роли можно, посмотрев её boundary и SCP:
 
-1. **Wildcard в Action/Resource.** `"Action":"*"` или `"Resource":"*"` — либо слишком широко, либо позволяет неожиданные действия (`iam:*`, `s3:*`). Даже если кажется, что wildcard «только для чтения», проверяйте, какие действия он покрывает.
-2. **Confused deputy.** Trust policy без `aws:SourceArn`/`aws:SourceAccount`/`ExternalId` позволяет другому сервису/аккаунту использовать роль.
-3. **Условие, которое легко выполнить.** `aws:SourceIp` (обход через инфраструктуру), `aws:RequestedRegion` (смена региона), `aws:PrincipalTag` (если теги можно ставить).
-4. **PassRole без условий.** Позволяет передать роль сервису, который создаёт ресурс от её имени.
-5. **Boundary, который ничего не ограничивает.** Широкий boundary = отсутствие boundary.
-6. **Resource policy поверх identity.** S3/KMS/Secrets resource policy может дать доступ в обход ожиданий.
-7. **Cross-account доверие.** Доверие внешнему аккаунту без условий — путь в чужой аккаунт.
-8. **Deny, который не покрывает.** Deny на одно действие при наличии соседнего, дающего тот же эффект (`iam:PutRolePolicy` vs `iam:AttachRolePolicy`).
+```
+$ aws iam get-role --role-name test-role --query "Role.PermissionsBoundary"
+"arn:aws:iam::123456789012:policy/OnlyS3Boundary"
+$ aws iam get-policy-version --policy-arn arn:aws:iam::123456789012:policy/OnlyS3Boundary --version-id v1 \
+    --query "PolicyVersion.Document.Statement[].Action"
+[["s3:GetObject","s3:ListBucket"]]
+```
 
-Зная эти классы, вы быстро сканируете политику и находите слабое место. `Cloudsplaining` и `PMapper` автоматизируют часть, но ручное чтение всё ещё необходимо для условий и контекста.
+Теперь ясно: какую бы широкую политику ни имела роль, реально доступен только S3. Такой анализ экономит время и объясняет «непонятные» отказы.
 
-## Как отличить реальную эскалацию от ложной
+## Шаг 10: защита через границы
 
-Не всякое «широкое» право ведёт к эскалации. Проверяйте три вопроса: (1) **достижимо ли действие** — есть ли у вас ресурс/цель, к которой применимо право; (2) **не блокирует ли граница** — SCP/boundary/deny могут отсечь; (3) **даёт ли результат рост привилегий** — например, `s3:GetObject` на публичный бакет не эскалация, а `iam:CreatePolicyVersion` на свою политику — да. Ложные срабатывания типичны при автоматическом анализе: инструмент помечает «потенциальную эскалацию», но условия или границы делают её невозможной. Поэтому всегда подтверждайте симуляцией и, где безопасно, реальным вызовом на тестовом ресурсе. Это отличает качественный отчёт от «списка от инструмента».
+Правильная архитектура использует границы намеренно: boundary не даёт скомпрометированной роли выйти за очерченный круг даже при ошибке в политиках; SCP держит регионы и опасные сервисы; условия `ExternalId` и `SourceAccount` закрывают confused deputy. То есть всё, что мы изучали как «ограничители», — это и есть инструменты защиты.
 
-## Типовые ключи условий и их слабости
+## Шаг 11: практический порядок проверки
 
-Условия — самая частая точка обхода. Разберём ключевые:
+Когда непонятно, почему действие не проходит, иди по списку: (1) есть ли явный Deny в любой из политик; (2) не блокирует ли SCP; (3) нет ли ограничивающей resource policy; (4) какой у сущности permission boundary; (5) нет ли session policy; (6) есть ли вообще Allow в identity policy. Пройдя эти шесть пунктов, ты почти всегда находишь причину. И наоборот — при планировании атаки проверяй те же шесть мест, чтобы не тратить время на заведомо закрытые действия.
 
-- **`aws:SourceIp`** — фильтр по IP. Обход: VPC endpoints, NAT, запуск ресурса в доверенном CIDR, прокси. Плюс, если запрос идёт от сервиса AWS, SourceIp может быть внутренним.
-- **`aws:PrincipalArn`** — по ARN принципала. Обход: создание принципала с подходящим ARN (например, роли с тем же именем в другом пути) при наличии `iam:CreateRole`.
-- **`aws:RequestedRegion`** — ограничение региона. Обход: глобальные сервисы (IAM, S3, Route 53) вне региональных ограничений.
-- **`aws:MultiFactorAuthPresent`** — требует MFA. Обход: long-term креды, сервисные сессии, `sts:GetSessionToken` без MFA.
-- **`aws:SourceArn`/`aws:SourceAccount`** — защита от confused deputy. Отсутствие этих условий — уязвимость.
-- **`aws:PrincipalTag`/`aws:ResourceTag`** — по тегам. Обход: если вы можете ставить теги (`iam:TagRole`, `ec2:CreateTags`).
-- **`aws:SecureTransport`** — только HTTPS. Слабое условие, редко помогает.
-- **`aws:CurrentTime`/`aws:EpochTime`** — временные окна. Обход: выждать окно.
+## Частые вопросы
 
-При анализе политики выписывайте каждое условие и спрашивайте: «могу ли я сделать так, чтобы оно выполнилось?». Часто ответ «да» — и это и есть обход. Если условий нет вовсе — действие доступно всем, кому выдан allow.
+**«Почему Allow не сработал?»** Скорее всего, где-то есть Deny, граница или SCP. Явный запрет всегда побеждает разрешение.
 
-## Что дальше / решение
+**«Чем boundary отличается от SCP?»** SCP ограничивает целые аккаунты/OU, boundary — конкретную сущность.
 
-Оценка IAM — это чтение многослойной логики, а не одного списка. Для каждого пути к цели выясните: identity-политики, resource policies, boundary, SCP, session policy и условия. Проверьте условия на выполнимость и ищите confused deputy (отсутствие `SourceArn`). Симуляция — быстрый фильтр, но не финал. Найденный обход эксплуатируйте и документируйте: укажите, какой слой не сработал и почему. Это делает находку убедительной и объясняет, как её закрыть.
+**«Может ли ресурс дать доступ, которого нет в IAM?»** Да: resource policy (например, публичный бакет) разрешает доступ независимо от твоих прав.
+
+**«Как точно узнать причину отказа?»** `simulate-principal-policy` вернёт решение (`allowed`/`implicitDeny`) без слепого перебора.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. Любой явный Deny побеждает любой Allow.
+2. SCP ограничивает организацию, boundary — отдельную сущность.
+3. Session policy сужает права на время сессии.
+4. Resource policy даёт доступ к самому ресурсу.
+5. Conditions и ExternalId защищают от confused deputy.
+
+## На что смотреть дальше
+
+- **Ищи Deny и границы.** `Action: "*"` может быть обрезан.
+- **Проверяй SCP и boundary.** Они задают потолок.
+- **Смотри resource policies.** Публичный ресурс = доступ без прав.
+- **Симулируй.** `simulate-principal-policy` отвечает точнее догадок.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Каков приоритет в оценке IAM?"
+- question: "Что побеждает при конфликте Allow и Deny?"
   options:
-    - "Явный Deny > Allow > неявный Deny"
-    - "Allow > Deny"
-    - "Неявный Deny > Allow"
-    - "Нет приоритета"
+    - "Deny"
+    - "Allow"
+    - "Побеждает более новый"
+    - "Зависит от региона"
   answer: 0
-  explanation: "Explicit deny всегда побеждает; без allow — неявный запрет."
+  explanation: "Явный запрет сильнее любого разрешения."
+- question: "Что такое SCP?"
+  options:
+    - "Политика-ограничитель на уровне организации/OU"
+    - "Пароль администратора"
+    - "Тип ключа"
+    - "Правило DNS"
+  answer: 0
+  explanation: "SCP задаёт максимум прав для аккаунтов."
+- question: "Что делает permission boundary?"
+  options:
+    - "Задаёт потолок прав для конкретной сущности"
+    - "Даёт админ-права"
+    - "Отключает логи"
+    - "Меняет регион"
+  answer: 0
+  explanation: "Права = пересечение Allow и границы."
 - question: "Что такое confused deputy?"
   options:
-    - "Привилегированный сервис действует по запросу менее привилегированного принципала"
-    - "Ошибка в пароле"
-    - "Потеря ключа"
-    - "Смена региона"
+    - "Обман сервиса-посредника, который выполняет действие от чужого имени"
+    - "Ошибка в DNS"
+    - "Сбой KMS"
+    - "Утечка бакета"
   answer: 0
-  explanation: "Защита — условия aws:SourceArn/SourceAccount или ExternalId."
-- question: "Чем permission boundary отличается от SCP?"
+  explanation: "Защита — условия ExternalId и SourceAccount."
+- question: "Какая команда покажет, почему действие отклонено?"
   options:
-    - "Boundary ограничивает identity, SCP — аккаунт/OU"
-    - "Это одно и то же"
-    - "Boundary выдаёт права"
-    - "SCP только для S3"
+    - "aws iam simulate-principal-policy"
+    - "aws s3 ls"
+    - "dig"
+    - "curl"
   answer: 0
-  explanation: "Boundary — максимум прав конкретного принципала; SCP — граница организации."
-- question: "Почему условие по aws:SourceIp можно обойти?"
-  options:
-    - "Через VPC endpoints, NAT или запуск ресурса в доверенном CIDR"
-    - "Оно не работает"
-    - "Оно шифруется"
-    - "Оно требует root"
-  answer: 0
-  explanation: "Источник запроса можно изменить через инфраструктуру."
+  explanation: "Она симулирует решение об авторизации."
 ```
+
+## Куда дальше
+
+Мы разобрали логику оценки. Дальше — **AWS Organizations**: как устроены мульти-аккаунт среды, SCP и границы доверия между аккаунтами, и как между ними искать пути. А пока запомни главное: права — это не одна политика, а пересечение множества правил, и Deny всегда сильнее.
 
 ## Где пригодится
 
-- **Пентест:** точное понимание доступов.
-- **Red team:** обход conditions и confused deputy.
-- **Blue team:** аудит политик и границ.
-- **Сертификация:** AWS Security Specialty.
+- **Пентест:** точно понимать, что реально разрешено.
+- **Bug bounty:** находить обходы условий и границ.
+- **Аудит:** выявлять слишком широкие boundary и SCP.
+- **Blue team:** проектировать защиту через Deny и границы.

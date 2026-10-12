@@ -14,286 +14,192 @@ useful_for:
 estimated_minutes: 40
 summary: "Чем Flutter (Dart/AOT) и React Native (JS/Hermes) отличаются от нативного Android, как извлекать и анализировать их код, находить секреты и хукать логику."
 ---
-## Введение
 
-Всё больше приложений пишут на кросс-платформенных фреймворках: **Flutter** (Dart) и **React Native** (JavaScript). Внутри APK нет привычного Java-кода с бизнес-логикой — она упакована в AOT-скомпилированный Dart (`libapp.so`) или в JS-бандл (`index.android.bundle`, часто Hermes bytecode). Обычные jadx-подходы дают лишь «обвязку». Этот урок — про то, как реверсить такие приложения и находить в них секреты и логику.
+## Вопрос, с которого всё начинается
 
-Продолжение `mobile-static-analysis` (общий разбор APK) и `mobile-obfuscation`.
+Открываешь APK в jadx — а там почти нет кода: пара классов-обёрток, и всё. Основная логика где-то в другом месте. Приложение собрано на кроссплатформенном фреймворке — Flutter или React Native. Обычные мобильные инструменты (jadx, apktool) здесь показывают почти пустую картину. Как понять, что перед тобой, и с чего начать реверс?
 
-## Как отличить Flutter/RN от нативного приложения
+## Наш пример: шахматный клиент на Flutter
 
-```bash
-unzip app.apk -d apk
+Возьмём реальное открытое приложение — **Lichess** для Android (клиент шахмат). Оно собрано на Flutter. Проследим, как от APK дойти до Dart-кода, и что вообще доступно для анализа.
 
-# Flutter-маркеры:
-ls apk/lib/arm64-v8a/
-# -> libflutter.so, libapp.so   (libapp.so = AOT-скомпилированный Dart)
+## Шаг 1: как распознать Flutter
 
-# React Native-маркеры:
-ls apk/assets/
-# -> index.android.bundle        (JS-бандл, иногда Hermes bytecode)
-ls apk/lib/arm64-v8a/
-# -> libhermes.so, libjsc.so, libreactnativejni.so
+Flutter-приложения узнаются по содержимому `lib/`. Посмотрим список файлов внутри APK:
+
+```
+$ unzip -l lichess.apk | grep -E 'libapp|libflutter'
+ 18744200  lib/arm64-v8a/libapp.so
+ 11747864  lib/arm64-v8a/libflutter.so
+ 20824648  lib/armeabi-v7a/libapp.so
+  8615900  lib/armeabi-v7a/libflutter.so
+ 19006344  lib/x86_64/libapp.so
+ 13051424  lib/x86_64/libflutter.so
 ```
 
-| Фреймворк | Ключевой артефакт | Язык логики |
-|-----------|-------------------|-------------|
-| Flutter | `libapp.so` (+`libflutter.so`) | Dart (AOT) |
-| React Native | `assets/index.android.bundle` | JavaScript / Hermes |
-| Cordova/Ionic | `assets/www/*.js` | JavaScript |
-| Xamarin | `assemblies/*.dll` | .NET (IL) |
-| Unity | `assets/bin/Data/Managed/*.dll` | C# (IL) |
+Два имени выдают фреймворк:
 
-## Flutter: анализ Dart AOT
+- **`libflutter.so`** — движок Flutter (сам рантайм);
+- **`libapp.so`** — скомпилированный код *твоего* приложения на языке Dart.
 
-`libapp.so` содержит снапшот Dart VM с AOT-кодом. Строки есть, но структуры классов Dart не читаются стандартными инструментами.
+Если видишь эту пару — приложение на Flutter. У React Native было бы иначе: JS-бандл `index.android.bundle` в `assets/` и библиотеки `libhermes.so`/`libjsc.so`.
 
-```bash
-# 1. Строки — быстрый первый шаг
-strings -a apk/lib/arm64-v8a/libapp.so | grep -iE 'http|api|key|secret|flag|token'
+## Шаг 2: почему jadx здесь бессилен
 
-# 2. Blutter — восстановление структур Dart-объектов и функций
-python3 blutter.py apk/lib/arm64-v8a/ libapp_out/
-ls libapp_out/
-# -> asm/ (дизассемблер функций), pp.txt (структуры объектов Dart)
+Java/Kotlin-код Flutter-приложения — тонкая обёртка: `MainActivity` просто запускает движок. Вся бизнес-логика написана на Dart и скомпилирована **AOT** (ahead-of-time, заранее) в машинный код внутри `libapp.so`. В `classes.dex` её нет — потому jadx и показывает пустоту.
 
-# 3. reFlutter — патч libflutter.so для перехвата трафика
-reFlutter app.apk
+Посмотрим, что за файл `libapp.so`:
+
+```
+$ file lib/x86_64/libapp.so
+libapp.so: ELF 64-bit LSB shared object, x86-64, version 1 (SYSV),
+    dynamically linked, BuildID[md5/uuid]=ec7cbe18..., stripped
 ```
 
-Важный факт: **Flutter по умолчанию не использует системный proxy и не доверяет пользовательским CA**. Перехват HTTPS требует reFlutter либо Frida-хуков на `libflutter.so`.
+`ELF`, `x86-64`, `stripped`. Как и обычная нативная библиотека, но это не C/C++ — внутри машинный код, порождённый Dart-компилятором.
 
-```javascript
-var base = Module.findBaseAddress('libflutter.so');
-Interceptor.attach(Module.findExportByName('libflutter.so', 'ssl_verify_result'), {
-  onLeave: function (retval) { retval.replace(0); }
-});
+## Шаг 3: что можно вытащить без специальных инструментов
+
+Первое, что даёт `strings` — имена пакетов и файлов Dart. Они остаются в снапшоте, потому что используются для отладки и трассировок:
+
+```
+$ strings -n 6 libapp.so | grep -E 'dart|package:|\.dart' | head
+_kDartSnapshotText
+_kDartSnapshotData
+package:flutter_local_notifications/src/callback_dispatcher.dart
+package:material_symbols_icons/symbols.dart
+file:///home/runner/work/mobile/mobile/.dart_tool/flutter_build/dart_plugin_registrant.dart
+dart:convert
+package:lichess_mobile/src/model/notifications/notification_service.dart
 ```
 
-## React Native: анализ JS-бандла
+Разберём, что мы видим:
 
-`index.android.bundle` — либо обычный JS (текст), либо Hermes bytecode (бинарный).
+- **`_kDartSnapshotText`**, **`_kDartSnapshotData`** — маркеры того, что это Dart-снапшот (отдельно текст программы и данные);
+- **`package:.../notification_service.dart`** — имена исходных файлов приложения. По ним восстанавливается карта: какие модули есть и что они делают;
+- **`file:///home/runner/work/mobile/mobile/...`** — путь сборки на CI-сервере сборщика. Мелочь, но выдаёт пайплайн.
 
-```bash
-file apk/assets/index.android.bundle
-# -> "JavaScript source" ИЛИ "Hermes JavaScript bytecode"
+Попробуем получить символы функций:
 
-# обычный JS — читаем и форматируем
-grep -niE 'api|key|secret|http' apk/assets/index.android.bundle | head
-npx prettier apk/assets/index.android.bundle > bundle.pretty.js
-
-# Hermes bytecode — декомпилируем
-hermes-dec apk/assets/index.android.bundle > bundle.js
-hbctool disasm apk/assets/index.android.bundle hermes_out
+```
+$ nm libapp.so
+nm: libapp.so: no symbols
 ```
 
-Логика RN — это JS: ищите endpoint-ы, схемы авторизации, «секретные» проверки и токены.
+Символов нет — Dart-компилятор их не сохраняет. То есть привычный путь «`nm -D` → найти функцию → дизассемблировать» здесь не работает: имён функций Dart в бинарнике нет.
 
-## Динамический анализ RN/Flutter
+## Шаг 4: как всё-таки реверсить Dart
 
-- **RN:** хук на `Java.use('com.facebook.react.bridge.*')` для перехвата вызовов из JS в native; либо включить Hermes debugger и поставить брейкпоинты в JS.
-- **Flutter:** Frida по адресам из Blutter-вывода; либо `reFlutter` для MITM.
-- **Общее:** ищите строки в нативных библиотеках — там часто лежат API-ключи и URL.
+Поскольку символьной информации нет, для Flutter применяют специальные инструменты, понимающие формат Dart-снапшота:
 
-## Разобранный пример
+- **`blutter`** — восстанавливает из `libapp.so` список Dart-классов, функций и даже пересобирает псевдо-исходники на C. Работает с конкретной версией Dart, поэтому сначала определяют версию снапшота (по строке-маркеру или по `libflutter.so`).
+- **`reFlutter`** — пропатчивает `libflutter.so`, чтобы включить отладочные возможности движка, и позволяет подключаться к приложению как к отлаживаемому.
+- **Frida** — работает поверх всего: можно перехватывать нативные функции движка и сетевой слой, не понимая структуру Dart-кода.
 
-```bash
-# Flutter
-unzip challenge.apk -d apk
-strings -a apk/lib/arm64-v8a/libapp.so | grep -iE 'flag|secret'
-# -> 'FLAG{flutter_hardcoded}'
+Ключевая мысль: реверс Flutter — это не «открыть Ghidra и читать», а сначала восстановить имена (blutter), а потом уже смотреть логику.
 
-# React Native
-file apk/assets/index.android.bundle
-# -> Hermes JavaScript bytecode
-hbctool disasm apk/assets/index.android.bundle rn_out
-grep -rniE 'flag|secret|api[_-]?key' rn_out/ | head
-# -> функция validateFlag сравнивает с константой в бандле
+Важная деталь: `blutter` жёстко привязан к версии Dart, которой собран снапшот. Версию определяют по строке-маркеру в `libapp.so` или по хэшу `libflutter.so` — у каждой сборки Flutter он свой. Если взять blutter от другой версии Dart, он не разберёт снапшот и упадёт с ошибкой формата. Поэтому первым делом фиксируют версию движка, и уже под неё берут инструмент.
+
+## Шаг 5: чем React Native отличается на практике
+
+React Native устроен иначе: логика на JavaScript, которая либо компилируется в **Hermes bytecode** (файл `index.android.bundle`), либо исполняется через JavaScriptCore. В нашем разборе APK Mattermost видно характерные имена:
+
+```
+lib/arm64-v8a/libhermesvm.so
+lib/arm64-v8a/libhermestooling.so
 ```
 
-Если логика — не константа, а проверка: в RN читаем JS и находим алгоритм; в Flutter используем Blutter, чтобы найти функцию и её ASM, либо хукаем по адресу.
+Наличие `libhermesvm.so` говорит: это React Native на движке Hermes. Бандл извлекается из `assets/index.android.bundle`:
 
-## Частые ошибки и подводные камни
-
-- **Искать Java-логику в Flutter/RN** — в jadx видна только обвязка.
-- **Перехватывать Flutter-трафик обычным proxy** — Flutter игнорирует системный прокси/CA.
-- **Читать Hermes-бандл как текст** — он бинарный, нужна декомпиляция.
-- **Забывать про секреты в строках нативной библиотеки** — `strings libapp.so` самый быстрый шаг.
-- **Не проверить `assets/` у RN** — бандл может быть не в `lib/`.
-- **Игнорировать split ABI** — `libapp.so` может лежать в `split_config.arm64_v8a.apk` (Android App Bundle).
-
-## Справочная таблица
-
-| Артефакт | Инструмент |
-|----------|-----------|
-| `libapp.so` | strings, Blutter |
-| `libflutter.so` | reFlutter, Frida |
-| `index.android.bundle` (JS) | prettier, grep |
-| `index.android.bundle` (Hermes) | hermes-dec, hbctool |
-| `assets/www` | grep |
-| `assemblies/*.dll` | dnSpy/ILSpy |
-
-## Что дальше / решение
-
-- **Секрет в строках** → фиксируйте находку.
-- **Логика-проверка** → реверс алгоритма (Blutter/JS) или хук.
-- **Нужен трафик** → reFlutter / Frida-хук на `libflutter.so`.
-- **Обфускация Dart** → сложнее; ищите символы и строки, стройте граф вызовов.
-
-## Flutter: работа с split APK и ABI
-
-Современные приложения поставляются как Android App Bundle и на устройстве распаковываются в split APK. `libapp.so` может лежать не в базовом APK:
-
-```bash
-# получить все split-ы
-adb shell pm path com.target.app
-# -> base.apk, split_config.arm64_v8a.apk, split_config.xxhdpi.apk ...
-adb pull /data/app/.../split_config.arm64_v8a.apk
-unzip split_config.arm64_v8a.apk -d split
-ls split/lib/arm64-v8a/   # libapp.so здесь
+```
+$ unzip -o mattermost.apk assets/index.android.bundle -d mm
+$ strings -n 8 mm/assets/index.android.bundle | grep -E '\.tsx' | head
+/(authenticated)/code.tsx
+/(authenticated)/(home)/index.tsx
+/(authenticated)/channel.tsx
+/(modals)/(settings)/settings_display_theme.tsx
 ```
 
-Если анализируете из магазина — скачивайте через `bundletool`/`apkeep` с учётом нужного ABI.
+Это реальный вывод из бандла: пути исходных экранов приложения сохранились как строки. То есть для RN `strings` по бандлу сразу даёт карту приложения — гораздо больше, чем для Flutter. По этим путям видно структуру навигации: экраны аутентификации, домашний, каналы, модальные окна.
 
-## Hermes bytecode: версии и инструменты
+Разница по сути: **Flutter → машинный код Dart (нужен blutter), React Native → байткод JS (читается инструментами для Hermes)**.
 
-Hermes меняет формат между версиями, поэтому подбирайте инструмент под байткод:
+## Шаг 6: динамика поверх обоих фреймворков
 
-```bash
-head -c 8 apk/assets/index.android.bundle | xxd
-# -f0000000 (Hermes magic)
-hermes-dec --version
-hbctool disasm apk/assets/index.android.bundle out
-# при несовпадении версии — hermes-dec или hbctool соответствующих релизов
-```
+Что делать, если статика упирается? Frida работает на уровне нативных вызовов, а значит, подходит и для Flutter, и для React Native. Для RN можно перехватывать методы Java-мостов (`Java.use("com.facebook.react.bridge.CatalystInstanceImpl")`) и смотреть, какие данные ходят между JS и нативным кодом. Для Flutter — перехватывать нативные функции движка и сетевой слой: Dart-код в итоге упирается в вызовы `libc` и `libflutter.so`, которые Frida видит.
 
-После дизассемблирования ищите строки и функции: `validate`, `verify`, `secret`, `apiKey`, `token`. Многие RN-приложения держат «секретную» логику прямо в JS.
+Практический порядок такой: сначала статически определить фреймворк и вытащить строки (`strings` по `libapp.so` или бандлу), затем, если логика неясна, переходить к динамике — там уже не важно, Dart это или JS, потому что хуки ставятся на нативном уровне.
 
-## Обфускация Dart и JS
+## Шаг 7: разделённые APK и выбор ABI
 
-- **Dart:** имена классов могут быть переименованы; ориентируйтесь на строки и структуру (Blutter даёт `pp.txt` с объектами).
-- **JS:** минификация + `react-native-obfuscating-transformer`; помогает beautify и поиск по строкам.
-- **Общее:** ищите криптопримитивы (`AES`, `CryptoJS`), сравнения хэшей, константы.
+Современные приложения часто распространяются как **split APK** (App Bundle): базовый APK плюс отдельные файлы под каждую архитектуру. Тогда `libapp.so` может отсутствовать в основном APK — его надо взять из `split_config.arm64_v8a.apk`. При анализе берите ту архитектуру, на которой будете запускать: `arm64-v8a` для телефона, `x86_64` для эмулятора. Если взять не ту, приложение просто не запустится, а дизассемблер покажет чужой код.
 
-## Практический чек-лист
+## Что мы теперь знаем
 
-| Шаг | Команда/инструмент |
-|-----|--------------------|
-| Определить фреймворк | `ls lib/ assets/` |
-| Flutter строки | `strings libapp.so` |
-| Flutter структуры | Blutter |
-| Flutter MITM | reFlutter / Frida |
-| RN определить тип | `file index.android.bundle` |
-| RN текст | `prettier` + grep |
-| RN Hermes | `hermes-dec` / `hbctool` |
-| Динамика RN | Hermes debugger / Frida |
+По-простому:
 
-## Что делать дальше
+1. Пара `libflutter.so` + `libapp.so` в APK = приложение на Flutter.
+2. Логика Flutter — Dart-код, скомпилированный AOT в `libapp.so`; в jadx его нет.
+3. `strings` по `libapp.so` даёт имена Dart-пакетов и файлов, но не имена функций.
+4. Для реверса Dart нужен `blutter`; для динамики — `reFlutter` и Frida.
+5. React Native узнаётся по `libhermes.so`/`libjsc.so` и бандлу `index.android.bundle`.
 
-- Секрет в строках — фиксируйте сразу.
-- Проверка-алгоритм — реверс (Blutter/JS) или хук.
-- Трафик Flutter — reFlutter, затем обычный анализ API.
-- Не забывайте про split APK — иначе не найдёте нужную библиотеку.
+## На что смотреть дальше
 
-## React Native: динамический анализ Hermes
-
-Если бандл в Hermes bytecode, включите встроенный debugger Hermes:
-
-```bash
-# на устройстве: включить Hermes debugging
-adb shell am broadcast -a com.facebook.react.devsupport.RELOAD
-# либо через Metro: адрес debugger по умолчанию localhost:8081
-```
-
-Затем можно ставить брейкпоинты в JS-коде, инспектировать переменные и переопределять функции проверки. Дополнительно Frida-хук на мост React Native:
-
-```javascript
-Java.perform(function () {
-  var B = Java.use('com.facebook.react.bridge.ReactContext');
-  // либо хук на JavaModuleWrapper для перехвата вызовов из JS
-});
-```
-
-## Flutter: патч проверки по смещению
-
-Если Blutter показал функцию проверки, её можно пропатчить в памяти:
-
-```javascript
-var base = Module.findBaseAddress('libapp.so');
-var addr = base.add(0x<offset>);        // смещение из дизассемблера Blutter
-Memory.protect(addr, 4, 'rwx');
-addr.writeByteArray([0x00, 0x00, 0x80, 0xD2]);  // mov x0,#0 / ret-подобная заглушка
-```
-
-Либо, если функция возвращает bool, захукать её и заменить возврат:
-
-```javascript
-Interceptor.attach(base.add(0x<offset>), {
-  onLeave: function (ret) { ret.replace(ptr(1)); }
-});
-```
-
-## Таблица «фреймворк → артефакт → инструмент → что искать»
-
-| Фреймворк | Артефакт | Инструмент | Ищем |
-|-----------|----------|-----------|------|
-| Flutter | libapp.so | Blutter, strings | секреты, URL, проверки |
-| Flutter | libflutter.so | reFlutter, Frida | TLS, MITM |
-| RN (JS) | index.android.bundle | prettier | ключи, логика |
-| RN (Hermes) | index.android.bundle | hermes-dec/hbctool | строки, функции |
-| Xamarin | assemblies/*.dll | dnSpy/ILSpy | C#-логика |
-| Unity | Managed/*.dll | dnSpy | C#-логика |
-
-## Что делать дальше
-
-- Секреты — в строки нативной библиотеки/бандла в первую очередь.
-- Алгоритмы проверок — реверс или рантайм-хук.
-- Трафик Flutter — reFlutter, затем обычный анализ API.
-- Учитывайте split APK: нужный `libapp.so` может быть в отдельном split-е.
+- **Сначала определите фреймворк.** От этого зависит весь инструментарий.
+- **Версия Dart критична.** `blutter` работает не со всеми версиями — сверяйтесь с `libflutter.so`.
+- **`strings` не выбрасывайте.** Имена файлов и пакетов часто прямо указывают, где искать секрет.
+- **Сравните с RN.** Если есть `index.android.bundle` — вы в React Native, и путь другой.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой файл содержит скомпилированный Dart-код Flutter-приложения?"
+- question: "По какому признаку в APK опознают Flutter-приложение?"
   options:
+    - "Наличие пары libflutter.so и libapp.so"
+    - "Наличие classes.dex"
+    - "Наличие AndroidManifest.xml"
+    - "Наличие resources.arsc"
+  answer: 0
+- question: "Что такое libapp.so во Flutter-приложении?"
+  options:
+    - "Скомпилированный AOT-код приложения на Dart"
+    - "Движок Flutter"
+    - "Библиотека шрифтов"
+    - "Кэш ресурсов"
+  answer: 0
+- question: "Почему jadx почти не показывает код Flutter-приложения?"
+  options:
+    - "Логика вынесена в Dart AOT внутри libapp.so, а не в DEX"
+    - "Приложение зашифровано"
+    - "jadx не поддерживает APK"
+    - "DEX удалён"
+  answer: 0
+- question: "Зачем нужен blutter?"
+  options:
+    - "Восстанавливает классы и функции Dart из libapp.so"
+    - "Подписывает APK"
+    - "Перехватывает сеть"
+    - "Читает SharedPreferences"
+  answer: 0
+- question: "Что указывает на React Native, а не Flutter?"
+  options:
+    - "libhermesvm.so и бандл index.android.bundle"
     - "libapp.so"
-    - "index.android.bundle"
-    - "classes.dex"
-    - "libhermes.so"
-  answer: 0
-- question: "Почему перехват HTTPS у Flutter сложнее, чем у нативных Android-приложений?"
-  options:
-    - "Flutter не использует системный прокси и не доверяет пользовательским CA"
-    - "Flutter не поддерживает HTTPS"
-    - "Flutter шифрует весь трафик своим ключом"
-    - "Flutter работает только офлайн"
-  answer: 0
-- question: "Как определить, что index.android.bundle — это Hermes bytecode, а не текст?"
-  options:
-    - "Командой file / по бинарному виду, затем декомпилировать hermes-dec или hbctool"
-    - "Открыть в блокноте"
-    - "Он всегда текстовый"
-    - "По расширению .so"
-  answer: 0
-- question: "Какой инструмент восстанавливает структуры Dart-объектов из libapp.so?"
-  options:
-    - "Blutter"
-    - "jadx"
-    - "apktool"
-    - "sqlmap"
-  answer: 0
-- question: "Где у React Native-приложения лежит основной JS-бандл?"
-  options:
-    - "assets/index.android.bundle"
-    - "lib/arm64-v8a/libapp.so"
+    - "libflutter.so"
     - "res/values/strings.xml"
-    - "AndroidManifest.xml"
   answer: 0
 ```
 
+## Куда дальше
+
+В следующем уроке мы возьмём `libapp.so` и разберём реверс Dart-снапшота подробно: как определить версию, что именно восстанавливает `blutter` и как из Dart-проверки достать секрет. А пока главное: увидел `libflutter.so` + `libapp.so` — значит, перед тобой Dart AOT, и обычные инструменты Android тут не помогут.
+
 ## Где пригодится
 
-- **CTF Mobile:** флаг/секрет в Dart-снапшоте или JS-бандле, реверс алгоритма проверки.
-- **Bug bounty:** анализ логики и секретов кросс-платформенных клиентов, перехват Flutter-трафика.
-- **Пентест:** оценка MASVS для Flutter/RN, обход клиентских проверок.
-- **Работа:** понимание, где реально живёт логика гибридных приложений.
+- **CTF Mobile:** Flutter-приложения как отдельный класс задач с проверкой внутри Dart.
+- **Bug bounty:** анализ кроссплатформенных приложений, где секреты лежат в Dart/JS.
+- **Пентест:** оценка защиты (обфускация Dart, анти-анализ) в мобильных клиентах.
+- **Работа:** понимание архитектуры кроссплатформенных приложений при разборе инцидентов.

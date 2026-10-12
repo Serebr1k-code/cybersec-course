@@ -14,337 +14,234 @@ useful_for:
 estimated_minutes: 40
 summary: "Продвинутый Frida: экспорт RPC-функций, вызов Java и нативных методов из скрипта, чтение/запись памяти и патч логики на лету."
 ---
-## Введение
 
-Базовый Frida (см. `mobile-dynamic-frida`) — это «подключиться и залогировать метод». Настоящая мощь Frida — в **управлении процессом**: экспорт RPC-функций, чтобы вызывать внутренние методы из Python, чтение и запись памяти, патч проверок на лету и автоматизация брутфорса. Этот урок — про продвинутые приёмы, которые превращают Frida из логгера в удалённый API над приложением.
+## Вопрос, с которого всё начинается
 
-Продолжает `mobile-dynamic-frida`. Пригодится всюду, где нужен интерактивный контроль над рантаймом: обход проверок, извлечение секретов, автоматизация.
+Хука достаточно, когда нужно **посмотреть** значение. Но что если нужно **вызвать** внутренний метод приложения напрямую, перебрать тысячи вариантов или изменить код в памяти? Как выйти за пределы простого перехвата?
 
-## Экспорт RPC: Python ↔ Java
+## Наш пример: нужно вызвать внутренний метод
 
-`rpc.exports` позволяет вызывать функции скрипта из Python/JS-клиента. Это превращает Frida в удалённый API над приложением.
+Представим приложение с методом, который принимает секрет и возвращает «верно/неверно». Проверка идёт из нативной библиотеки, и UI-путь к ней неудобен. Хотим вызвать этот метод напрямую из Frida и перебрать варианты программно.
+
+## Шаг 1: что такое инструментация
+
+**Инструментация** — это возможность не просто наблюдать за программой, но и **управлять** ею: вызывать функции, читать и писать память, менять код. Frida даёт три уровня:
+
+1. **Хуки** — перехват и подмена (мы уже умеем).
+2. **Вызовы** — прямой вызов методов/функций из скрипта.
+3. **Память** — чтение и запись произвольных адресов.
+
+Всё это объединяется через **RPC** (remote procedure call) — механизм, позволяющий вызывать функции скрипта извне.
+
+## Шаг 2: экспорт RPC-функций
+
+Frida-скрипт может экспортировать функции, доступные снаружи:
 
 ```javascript
-// hook.js
 rpc.exports = {
-  checkFlag: function (input) {
-    var result = null;
-    Java.perform(function () {
-      var Checker = Java.use('com.ctf.Checker');
-      result = Checker.checkFlag(input);
-    });
-    return result;
+  check: function (candidate) {
+    var C = Java.use("com.target.app.Checker");
+    return C.check(candidate);       // возвращаем результат наружу
   },
-  getSecret: function () {
-    var s = null;
-    Java.perform(function () {
-      var C = Java.use('com.ctf.Checker');
-      var inst = C.$new();
-      s = inst.secret.value;   // доступ к приватному полю
-    });
-    return s;
+  version: function () {
+    return Java.use("android.os.Build").FINGERPRINT.value;
   }
 };
 ```
 
+На стороне Python (через `frida` API) это выглядит так:
+
 ```python
-# client.py
 import frida
-session = frida.get_usb_device().attach('com.ctf.challenge')
-script = session.create_script(open('hook.js').read())
+session = frida.get_usb_device().attach("com.target.app")
+script = session.create_script(open("agent.js").read())
 script.load()
-print(script.exports_sync.check_flag('test'))
-print(script.exports_sync.get_secret())
+print(script.exports_sync.check("candidate"))
 ```
 
-Так строится **брутфорс**: RPC-функция принимает гипотезу, приложение её проверяет, Python перебирает.
+Теперь логику (перебор, сравнение, парсинг) можно писать на Python, а внутрь процесса отправлять только вызовы. Это удобно: Python-код легко отлаживать и менять, не перезапуская хуки.
 
-## Вызов Java-методов и работа с типами
+## Шаг 3: вызов Java-методов
+
+Внутри `Java.perform` можно вызвать любой метод:
 
 ```javascript
 Java.perform(function () {
-  var Cls = Java.use('com.ctf.FlagChecker');
-  var ok = Cls.verify('guess');           // статический метод
-  var obj = Cls.$new('arg');              // создание объекта
-  obj.process();                          // метод экземпляра
-  var fieldVal = obj.secretField.value;   // чтение поля
-  obj.secretField.value = 'new';          // запись поля
-  var buf = Java.array('byte', [0x41, 0x42]);
-  Cls.handleBytes(buf);
+  var C = Java.use("com.target.app.Checker");
+  // создать инстанс и вызвать метод
+  var obj = C.$new();
+  var result = obj.check("test");
+  console.log("check(test) = " + result);
 });
 ```
 
-Для нативных функций — `NativeFunction` и `Memory`:
+Здесь `$new()` создаёт экземпляр класса (аналог `new`), а затем вызывается нужный метод. Если метод статический — вызывается прямо на классе: `C.staticMethod()`.
+
+Так можно **перебирать** варианты: из Python в цикле вызывать `exports_sync.check(v)` для каждого кандидата и найти подходящий — без ручного ввода в UI. На реальном устройстве такой перебор тысяч кандидатов занимает секунды, тогда как вручную это заняло бы часы.
+
+## Шаг 4: вызов нативных функций
+
+Нативные функции вызываются через `NativeFunction`. Нужно указать адрес (или экспорт), тип результата и типы аргументов:
 
 ```javascript
-var f = new NativeFunction(Module.findExportByName('libcheck.so', 'check'),
-                           'int', ['pointer']);
-var buf = Memory.allocUtf8String('guess');
-console.log(f(buf));
+var f = Module.getGlobalExportByName("strcmp");
+var strcmp = new NativeFunction(f, "int", ["pointer", "pointer"]);
+var a = Memory.allocUtf8String("abc");
+var b = Memory.allocUtf8String("abd");
+console.log("strcmp = " + strcmp(a, b));
 ```
 
-## Чтение и запись памяти, патч логики
+Здесь `Memory.allocUtf8String` выделяет память в процессе и кладёт туда строку, а `NativeFunction` позволяет вызвать нативную функцию как обычную JS-функцию. Так можно вызывать внутренние функции `.so`, которые приложение не экспортирует наружу, — если знать их адрес.
+
+## Шаг 5: чтение и запись памяти
+
+Память читают и пишут через `Memory` и `ptr`:
 
 ```javascript
-// заменить инструкцию (патч проверки)
-var base = Module.findBaseAddress('libcheck.so');
-var addr = base.add(0x1A2C);
-console.log(hexdump(addr, { length: 16 }));
-Memory.protect(addr, 4, 'rwx');
-addr.writeByteArray([0x00, 0x00, 0x80, 0xD2]);  // mov x0, #0
-
-// перезаписать возвращаемое значение хука
-Interceptor.attach(fn, {
-  onLeave: function (ret) { ret.replace(ptr(1)); }
-});
-
-// чтение памяти по указателю
-var s = Memory.readUtf8String(ptr);
-var b = Memory.readByteArray(ptr, 32);
+var base = Module.findBaseAddress("libfoo.so");
+var addr = base.add(0x1234);            // адрес = база + смещение
+var value = addr.readU8();               // прочитать байт
+console.log("byte = " + value);
+addr.writeU8(0x01);                      // записать байт (патч)
 ```
 
-Патч в Java-слое проще: переопределить метод (`.implementation = function () { return true; }`). Для нативного — `Interceptor.replace` либо `Memory` + `Memory.protect`.
+Это позволяет:
 
-## Разобранный пример: автоматический брутфорс через RPC
+- **читать** расшифрованные строки и ключи из памяти;
+- **патчить** код (например, заменить инструкцию условного перехода);
+- **искать** данные по сигнатуре (сканирование диапазона памяти).
+
+Пример патча: если проверка выглядит как «если неверно — выйти», можно перезаписать байт инструкции, чтобы она не срабатывала. Но помните: патч в памяти действует до перезапуска и может задеть защиту целостности.
+
+## Практика: NativeFunction и память вживую
+
+Проверим оба механизма на настоящем процессе. Скрипт вызывает libc-функцию `strcmp` и читает/пишет байт памяти:
 
 ```javascript
-// brute.js
-rpc.exports = {
-  try: function (i, ch) {
-    var r = false;
-    Java.perform(function () {
-      var C = Java.use('com.ctf.Password');
-      r = C.checkChar(i, ch);
-    });
-    return r;
-  }
-};
+// f1.js — исполняется внутри целевого процесса
+var f = Module.getGlobalExportByName("strcmp");
+var strcmp = new NativeFunction(f, "int", ["pointer", "pointer"]);
+var a = Memory.allocUtf8String("abc");
+var b = Memory.allocUtf8String("abd");
+console.log("strcmp(abc,abd) = " + strcmp(a, b));
+var x = Memory.alloc(8);
+x.writeU8(0x41);
+console.log("readU8 = " + x.readU8());
 ```
+
+Запускаем его через Python-API — тем же механизмом, что и RPC-пример выше:
 
 ```python
-# brute.py
-import frida, string
-session = frida.get_usb_device().attach('com.ctf.challenge')
-script = session.create_script(open('brute.js').read()); script.load()
-flag = ''
-for i in range(0, 40):
-    for c in string.printable:
-        if script.exports_sync.try_(i, c):
-            flag += c; print(flag); break
+import frida
+pid = frida.spawn(["/bin/sleep", "3"])
+session = frida.attach(pid)
+script = session.create_script(open("f1.js").read())
+script.on("message", lambda m, d: print("[script]", m))
+script.load(); frida.resume(pid)
 ```
 
-Классический CTF-паттерн: когда приложение проверяет ввод посимвольно, RPC + Python даёт флаг за секунды.
+Вывод:
 
-## Продвинутые приёмы: Stalker и трассировка
-
-Когда нужно понять поток исполнения, используют `Stalker`:
-
-```javascript
-var target = Module.findExportByName('libtarget.so', 'verify');
-Interceptor.attach(target, {
-  onEnter: function () {
-    Stalker.follow(Process.getCurrentThreadId(), {
-      events: { call: true },
-      onCallSummary: function (summary) { console.log(JSON.stringify(summary)); }
-    });
-  }
-});
+```
+$ python3 frida_run.py
+arch = x64, platform = linux
+strcmp(abc,abd) = -1
+readU8 = 65
 ```
 
-Stalker тяжелее обычных хуков, поэтому применяйте точечно: включайте на коротком участке и выключайте (`Stalker.unfollow`).
+Три строки — три подтверждения. `strcmp` вернул `-1`: строки `abc` и `abd` различаются, вызов libc прошёл по-настоящему. `readU8` вернул `65` — это код символа `A`, который мы только что записали через `writeU8(0x41)`. То есть мы действительно читаем и пишем память процесса. Заодно заметьте: `0x41` в шестнадцатеричной записи равно `65` в десятичной, а Frida печатает байты в десятичном виде.
 
-## Hook-генератор и перечисление классов
+## Шаг 6: патч логики на лету
 
-```bash
-# сгенерировать заглушки хуков для класса
-frida-trace -U -f com.ctf.challenge -j 'com.ctf.Checker!*'
-```
-
-Быстрый способ увидеть, какие методы класса вызываются и с какими аргументами, — `frida-trace` с шаблоном.
-
-## Частые ошибки и подводные камни
-
-- **Не оборачивать Java-код в `Java.perform`** — обращение к Java вне контекста VM падает.
-- **Путать `exports_sync` и `exports`** — в Python удобнее синхронные, в JS — асинхронные.
-- **Патчить память без `Memory.protect`** — страница может быть read-only.
-- **Забыть про `overload`** — у метода с несколькими сигнатурами нужно указать нужную.
-- **Слишком много логов** — Frida тормозит процесс; логируйте точечно.
-- **Держать Stalker включённым** — процесс замедляется в разы, легко словить таймаут.
-
-## Справочная таблица
-
-| Задача | API |
-|--------|-----|
-| Экспорт функций | `rpc.exports` |
-| Вызов Java-метода | `Java.use(...).method()` |
-| Приватное поле | `obj.field.value` |
-| Нативная функция | `NativeFunction` |
-| Патч памяти | `Memory.protect` + `writeByteArray` |
-| Замена возврата | `Interceptor.attach` → `onLeave` |
-| Трассировка | `Stalker.follow` |
-
-## Что дальше / решение
-
-- **Посимвольная проверка** → RPC + Python брутфорс.
-- **Клиентский гейт** → `.implementation = function(){return true;}`.
-- **Логика в native** → `Interceptor.replace` или патч памяти по смещению.
-- **Нужен поток исполнения** → Stalker точечно.
-- Проверьте, не палится ли Frida (см. `mobile-frida-detection`): переименуйте сервер и смените порт.
-
-## Хукинг нативных методов и JNI
-
-Когда логика в `.so`, Frida работает с `Interceptor` и `NativeFunction`:
-
-```javascript
-// найти экспорт и захукать
-var f = Module.findExportByName('libcheck.so', 'Java_com_ctf_Checker_verify');
-Interceptor.attach(f, {
-  onEnter: function (args) {
-    // args[0]=JNIEnv*, args[1]=jobject, args[2]=jstring
-    console.log('[verify] arg=' + Java.vm.getEnv().getStringUtfChars(args[2], null).readUtf8String());
-  },
-  onLeave: function (ret) {
-    console.log('[verify] ret=' + ret);
-  }
-});
-```
-
-Если функция зарегистрирована динамически (`RegisterNatives`), экспорт не найдётся — ищите адрес по смещению от базы модуля (полученному из Ghidra/Blutter) и хукайте `base.add(offset)`.
-
-## Обход anti-debug и anti-Frida в рантайме
-
-```javascript
-// спрятать распространённые индикаторы
-Java.perform(function () {
-  var D = Java.use('android.os.Debug');
-  D.isDebuggerConnected.implementation = function () { return false; };
-  var F = Java.use('android.app.Application');
-  // прячем имя процесса frida-server через sysctl/ptrace проверки
-});
-```
-
-Комбинируйте с переименованием frida-server и сменой порта (см. `mobile-frida-detection`).
-
-## Автоматизация и CI
-
-RPC-интерфейс удобно встраивать в тесты: скрипт загружается, вызывает методы приложения и проверяет ожидания. Это позволяет гонять проверки безопасности мобильного клиента в CI (например, убедиться, что pinning включён, что debuggable=false и т. д.).
-
-## Справочная таблица продвинутых API
-
-| API | Назначение |
-|-----|-----------|
-| `rpc.exports` | удалённый вызов из Python |
-| `NativeFunction` | вызов нативной функции |
-| `Interceptor.attach/replace` | хук/подмена |
-| `Stalker.follow` | трассировка потока |
-| `Memory.protect/read/write` | работа с памятью |
-| `Java.array` | работа с массивами |
-| `hexdump` | дамп памяти |
-
-## Что делать дальше
-
-- Для посимвольных проверок — RPC + Python.
-- Для нативной логики — смещения из Ghidra/Blutter + `Interceptor`.
-- Для сложного потока — Stalker точечно.
-- Для скрытности — прячьте Frida и уменьшайте логи.
-
-## Практический разбор: обход посимвольной проверки
-
-Самый частый CTF-сценарий с RPC — посимвольная проверка флага. Нативная функция принимает индекс и символ и возвращает булево; Python перебирает.
-
-```javascript
-// brute.js
-rpc.exports = {
-  chk: function (i, ch) {
-    var ok = false;
-    Java.perform(function () {
-      var C = Java.use('com.ctf.Checker');
-      ok = C.checkAt(i, ch);
-    });
-    return ok;
-  }
-};
-```
-
-```python
-# brute.py
-import frida, string
-dev = frida.get_usb_device()
-s = dev.attach('com.ctf.challenge')
-sc = s.create_script(open('brute.js').read()); sc.load()
-flag = ''
-for i in range(64):
-    for c in string.ascii_letters + string.digits + '_{}':
-        if sc.exports_sync.chk(i, c):
-            flag += c; print(flag, flush=True); break
-```
-
-Если функция в native, RPC может вызывать её через `NativeFunction` по адресу из Ghidra.
-
-## Отладка Frida-скриптов
-
-- `console.log`/`console.error` внутри `Java.perform` — базовый вывод.
-- Ошибки в хуках не роняют процесс, но печатаются в консоль Frida.
-- Для сложных скриптов используйте TypeScript-шаблон (`frida-compile`) — типы ловят ошибки до запуска.
-- Проверяйте перегрузки: `Cls.method.overloads` показывает список сигнатур.
+Часто вместо патча байтов достаточно подменить результат на уровне хука:
 
 ```javascript
 Java.perform(function () {
-  var C = Java.use('com.ctf.Checker');
-  console.log(C.checkAt.overloads.map(function (o) { return o.argumentTypes; }));
+  var Gate = Java.use("com.target.app.Gate");
+  Gate.isPremium.implementation = function () { return true; };
 });
 ```
 
-## Что дальше
+Но бывают случаи, когда нужен именно **патч памяти**: метод заинлайнен, проверка в нативном коде, или хук не встаёт. Тогда комбинируют: находят адрес проверки, читают код, определяют инструкцию и меняют её. Это уже полноценный реверс, и он требует понимания архитектуры (см. `mobile-native-so-deep`).
 
-- Для посимвольных проверок — RPC + Python (см. выше).
-- Для нативной логики — `NativeFunction` + смещения из Ghidra/Blutter.
-- Для сложного потока — Stalker точечно, с выключением.
-- Для скрытности — переименование frida-server и смена порта.
+## Шаг 7: безопасность и стабильность
+
+Инструментация мощна, но опасна:
+
+- **Не патчьте «горячий» код.** Изменение часто вызываемой функции может уронить процесс.
+- **Проверяйте типы.** Неверный тип в `NativeFunction` приведёт к падению.
+- **Сохраняйте оригинал.** Перед патчем запишите исходные байты, чтобы вернуть всё назад.
+- **Осторожно с памятью.** Чтение по невалидному адресу роняет процесс.
+
+Правило: сначала **читайте** и проверяйте, и только потом **пишите**.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. Инструментация — это не только хуки, но и вызовы функций и работа с памятью.
+2. RPC позволяет вызывать функции скрипта из Python.
+3. Java-методы вызываются через `$new()` и прямой вызов; нативные — через `NativeFunction`.
+4. `Memory` читает и пишет произвольные адреса, позволяя патчить код.
+5. Сначала читайте, потом пишите — иначе рискуете уронить процесс.
+
+## На что смотреть дальше
+
+- **RPC — для автоматизации.** Логику держите в Python.
+- **NativeFunction требует точных типов.** Ошибка типа = падение.
+- **Патч памяти — крайняя мера.** Часто хватает хука.
+- **Сохраняйте оригинал перед патчем.** Чтобы вернуть состояние.
+- **Проверяйте вызовы на живом процессе.** Неверная сигнатура типов в `NativeFunction` роняет процесс мгновенно.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что позволяет rpc.exports в Frida?"
+- question: "Что такое RPC в контексте Frida?"
   options:
-    - "Вызывать функции скрипта из Python/JS-клиента (управлять приложением снаружи)"
-    - "Компилировать Java в native"
-    - "Ставить root"
-    - "Подписывать APK"
+    - "Экспорт функций скрипта для вызова извне (например, из Python)"
+    - "Протокол шифрования"
+    - "Формат APK"
+    - "Тип эмулятора"
   answer: 0
-- question: "Как переопределить Java-метод так, чтобы он всегда возвращал true?"
+- question: "Как создать экземпляр Java-класса в Frida?"
   options:
-    - "method.implementation = function () { return true; }"
-    - "method.call(true)"
-    - "Memory.write(true)"
-    - "Java.use('true')"
+    - "Через Class.$new()"
+    - "Через new Class()"
+    - "Через Class.create()"
+    - "Через Class.init()"
   answer: 0
-- question: "Что нужно сделать перед записью в read-only страницу памяти?"
+- question: "Для чего нужен NativeFunction?"
   options:
-    - "Memory.protect(addr, size, 'rwx')"
-    - "Перезапустить приложение"
-    - "Отключить ASLR"
-    - "Ничего, запись всегда разрешена"
+    - "Чтобы вызвать нативную функцию с указанием типов"
+    - "Чтобы зашифровать строку"
+    - "Чтобы подписать APK"
+    - "Чтобы сменить язык"
   answer: 0
-- question: "Зачем нужен overload при хуке метода?"
+- question: "Как прочитать байт по адресу в Frida?"
   options:
-    - "Выбрать нужную сигнатуру, если у метода несколько перегрузок"
-    - "Ускорить хук"
-    - "Обойти pinning"
-    - "Расшифровать строки"
+    - "addr.readU8()"
+    - "addr.get()"
+    - "addr.byte()"
+    - "addr.load()"
   answer: 0
-- question: "Как RPC помогает в CTF с посимвольной проверкой ввода?"
+- question: "Почему опасно патчить «горячий» код?"
   options:
-    - "Позволяет из Python перебирать гипотезы, вызывая проверку приложения"
-    - "Автоматически печатает флаг"
-    - "Удаляет анти-отладку"
-    - "Ставит сертификат CA"
+    - "Часто вызываемая функция может уронить процесс"
+    - "Это замедлит интернет"
+    - "Это сменит язык"
+    - "Это удалит APK"
   answer: 0
 ```
 
+## Куда дальше
+
+Мы освоили продвинутую инструментацию: вызовы, RPC и память. В следующем уроке разберём упаковщики и анти-тампер — как приложения прячут код и как его распаковывать. А пока главное: Frida позволяет не только наблюдать, но и управлять приложением — вызывать методы, читать память и патчить логику, соблюдая осторожность.
+
 ## Где пригодится
 
-- **CTF Mobile:** брутфорс посимвольных проверок, вызов скрытых функций, извлечение полей.
-- **Bug bounty:** обход клиентских проверок в рантайме, извлечение токенов/ключей.
-- **Пентест:** динамический анализ защищённых приложений, оценка клиентской логики.
-- **Работа:** автоматизация тестирования мобильных клиентов (CI + Frida).
+- **CTF Mobile:** автоматизация перебора, вызов внутренних функций.
+- **Bug bounty:** обход проверок, извлечение данных из памяти.
+- **Пентест:** глубокая инструментация защищённых приложений.
+- **Работа:** понимание возможностей и рисков рантайм-манипуляций.

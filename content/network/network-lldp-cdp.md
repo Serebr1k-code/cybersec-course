@@ -15,100 +15,105 @@ estimated_minutes: 50
 summary: "LLDP (802.1AB) и CDP: какие поля раскрывают устройство, порт, VLAN и версию ПО; как пассивно собрать топологию из дампа и почему discovery-протоколы — утечка и вектор атаки."
 ---
 
-Пока одни сканируют порты, другие просто **слушают**. Коммутаторы и маршрутизаторы сами объявляют о себе через **LLDP** и **CDP**: имя устройства, модель, версию ОС, порт, VLAN. Это готовая карта сети без единого активного пакета. Урок продолжает модуль [`network-module-l2`](network-module-l2) и опирается на [`network-ethernet`](network-ethernet).
+## Вопрос, с которого всё начинается
 
-## Что такое LLDP и CDP
+Тебя подключили к сети, и вокруг — сплошная неизвестность: какие тут коммутаторы, куда ведут порты, какие VLAN. Можно запустить `nmap` и сканировать — но это шумно и заметно. А можно просто **послушать**: коммутаторы и маршрутизаторы сами объявляют о себе служебными кадрами. Эти кадры несут имя устройства, модель, версию ОС, номер порта и даже IP управления.
 
-- **LLDP** (Link Layer Discovery Protocol, IEEE 802.1AB) — вендоронезависимый. Отправляет кадры с EtherType `0x88CC` на multicast `01:80:c2:00:00:0e` раз в 30 секунд.
-- **CDP** (Cisco Discovery Protocol) — проприетарный Cisco. EtherType `0x2000`, multicast `01:00:0c:cc:cc:cc`, раз в 60 секунд. Болтливее: несёт native VLAN, management IP, IOS-версию.
+Два таких протокола — **LLDP** и **CDP**. Разберём, что из них можно вытащить и почему это утечка.
 
-Оба протокола **не маршрутизируются** — работают только между соседями по L2.
+Этот урок продолжает модуль [`network-module-l2`](network-module-l2) и опирается на [`network-ethernet`](network-ethernet).
 
-## Какие поля раскрывают LLDP
+## Наш пример: слушаем 60 секунд
 
-LLDP — это TLV (Type-Length-Value) блоки. Основные:
+Мы только что подключились к порту. Запускаем захват только discovery-трафика (по EtherType, который мы уже знаем):
+
+```
+$ sudo tcpdump -i eth0 -nn -w disc.pcap 'ether proto 0x88cc or ether proto 0x2000'
+^C
+12 packets captured
+```
+
+За минуту набралось 12 кадров — даже ничего не делая. Теперь разберём, что в них. Но сначала — что это за протоколы.
+
+## Шаг 1: LLDP и CDP — кто это
+
+- **LLDP** (Link Layer Discovery Protocol, стандарт IEEE 802.1AB) — вендоронезависимый. Отправляет кадры с EtherType `0x88CC` на multicast-адрес `01:80:c2:00:00:0e` раз в 30 секунд.
+- **CDP** (Cisco Discovery Protocol) — проприетарный, только у Cisco. EtherType `0x2000`, multicast `01:00:0c:cc:cc:cc`, раз в 60 секунд. Болтливее: несёт native VLAN, IP управления, версию IOS.
+
+Оба **не маршрутизируются** — работают только между соседями по каналу L2. Именно поэтому их надо слушать с того порта, где ты физически сидишь.
+
+## Шаг 2: что раскрывает LLDP
+
+LLDP состоит из блоков **TLV** (Type-Length-Value — тип, длина, значение). Главные:
 
 | TLV | Содержимое |
 |---|---|
-| Chassis ID | MAC или имя шасси устройства |
+| Chassis ID | MAC или имя устройства |
 | Port ID | имя/номер порта |
-| TTL | время жизни записи |
 | System Name | hostname |
 | System Description | модель + версия ОС |
-| Port Description | описание порта |
 | Management Address | IP управления |
 | VLAN / PVID | VLAN порта |
-| Capabilities | switch/router/AP |
 
-```bash
-# Захватить LLDP
-sudo tcpdump -i eth0 -nn -v -c 3 'ether proto 0x88cc'
-# Разобрать TLVs
-tshark -r lldp.pcap -V | grep -A1 "System Name\|Port ID\|Management Address"
+Вытащим имена устройств и порты из нашего дампа:
+
+```
+$ tshark -r disc.pcap -Y 'lldp' -T fields -e lldp.tlv.system.name -e lldp.tlv.port.id
+core-sw-01    Gi1/0/24
 ```
 
-## Какие поля раскрывает CDP
+Уже знаем: мы подключены к порту `Gi1/0/24` коммутатора `core-sw-01`. Смотрим описание системы — там модель и версия:
 
-CDP-кадр содержит: Device ID, Addresses (IP), Port ID, Capabilities, Version (модель + IOS), Platform, VTP Domain, Native VLAN, Duplex. Именно **Version** и **Native VLAN** делают CDP находкой для пентестера.
-
-```bash
-# Захватить CDP
-sudo tcpdump -i eth0 -nn -v -c 3 'ether proto 0x2000'
-# Ключевые поля
-tshark -r cdp.pcap -V | grep -E "Device ID|Platform|Version|Native VLAN"
+```
+$ tshark -r disc.pcap -Y 'lldp' -T fields -e lldp.tlv.system.desc
+Cisco IOS Software, C2960X Software, Version 15.2(4)E7, RELEASE SOFTWARE
 ```
 
-## Пассивная разведка: собрать топологию из дампа
+Версия ПО — `15.2(4)E7`. Это конкретная версия, по которой можно искать известные уязвимости. Вот почему discovery-протоколы — подарок для атакующего.
 
-```bash
-# 1. Захватить discovery-трафик за 60 секунд
-sudo tcpdump -i eth0 -nn -w disc.pcap 'ether proto 0x88cc or ether proto 0x2000'
-# 2. Вытащить имена устройств
-tshark -r disc.pcap -Y 'lldp' -T fields -e lldp.tlv.system.name | sort -u
-# 3. Вытащить порты и VLAN
-tshark -r disc.pcap -Y 'lldp' -T fields -e lldp.tlv.port.id -e lldp.tlv.port.vlan.id | sort -u
-# 4. CDP-соседи
-tshark -r disc.pcap -Y 'cdp' -T fields -e cdp.device.id -e cdp.platform | sort -u
+## Шаг 3: что раскрывает CDP
+
+Если рядом Cisco, слушаем ещё и CDP. Его поля: Device ID, Platform, Version, Native VLAN, Duplex:
+
+```
+$ tshark -r disc.pcap -Y 'cdp' -T fields -e cdp.device.id -e cdp.platform -e cdp.native.vlan
+core-sw-01    cisco WS-C2960X-24TS    1
 ```
 
-За минуту пассивного слушания вы получаете карту соседей — без единого пакета от себя.
+Здесь видно **native VLAN = 1**. Это прямая подсказка для double tagging ([`network-vlan-hopping`](network-vlan-hopping)): атака работает как раз когда native VLAN равен 1.
 
-## Активная разведка: LLDP на своём интерфейсе
+## Шаг 4: собираем карту сети из дампа
 
-Можно и самому «представиться» и посмотреть, что ответят соседи:
+Из одного окна захвата получаем инвентарь — «устройство → модель → порт → IP управления → VLAN»:
 
-```bash
-# ladvd — отправка LLDP от имени своего хоста
-sudo ladvd -e eth0 -f
-# Или открытый инструмент lldpd
-sudo lldpd -d -I eth0
-# Посмотреть, что узнали соседи
-lldpcli show neighbors
+```
+$ tshark -r disc.pcap -Y 'lldp' -T fields \
+  -e lldp.tlv.chassis.id -e lldp.tlv.system.name -e lldp.tlv.mgmt.addr | sort -u
+00:1b:0d:aa:bb:cc   core-sw-01   10.0.0.1
+$ tshark -r disc.pcap -Y 'lldp' -T fields -e lldp.tlv.port.vlan.id | sort -u
+10
 ```
 
-## Почему это утечка
+Мы узнали: коммутатор `core-sw-01`, IP управления `10.0.0.1`, наш порт в VLAN 10. Всё это — **без единого пакета от себя**. Такая разведка неотличима от обычного подключения и не шумит, как сканирование.
 
-Discovery-протоколы раскрывают:
+Можно и «представиться» самому и посмотреть на ответы соседей:
 
-- **модели и версии ПО** — можно подобрать CVE;
-- **hostname и домен** — полезно для целевой атаки;
-- **management IP** — точка входа в устройство;
-- **VLAN** — карта сегментации;
-- **тип порта** — access/trunk/hybrid.
+```
+$ sudo lldpd -d -I eth0 &
+$ lldpcli show neighbors
+-------------------------------------------------------------------------------
+LLDP neighbors:
+  Interface: eth0, via: LLDP
+    Chassis: core-sw-01
+    Port: Gi1/0/24
+```
 
-Для атакующего это «бесплатная» разведка; для обороны — обязательная к фильтрации на внешних портах.
+## Шаг 5: rogue LLDP/CDP — атака от нашего имени
 
-## Атака: rogue LLDP/CDP
+Discovery можно и **подделать**: отправить LLDP/CDP-кадр с чужим именем, чтобы выдать свой хост за легитимный коммутатор, «подружиться» с портом или засорить инвентаризацию ложными данными:
 
-Можно и обмануть: отправлять поддельные LLDP/CDP-кадры с чужим именем, чтобы:
-
-- выдать свой хост за легитимный коммутатор;
-- «подружиться» с портом и получить доверие;
-- засорить инвентаризацию ложными данными.
-
-```bash
-# Отправить поддельный LLDP с чужим system name (лаборатория)
-python3 - <<'PY'
+```
+$ python3 - <<'PY'
 from scapy.contrib.lldp import *
 from scapy.all import sendp, Ether
 pkt = Ether(dst="01:80:c2:00:00:0e")/LLDP()/LLDPChassisID(subtype=4, id=b"\xaa\xbb\xcc\xdd\xee\xff")/LLDPPortID(subtype=5, id=b"Gi0/1")/LLDPTTL(ttl=120)
@@ -116,155 +121,98 @@ sendp(pkt, iface="eth0")
 PY
 ```
 
-## Защита
+## Шаг 6: защита
 
-| Мера | Против чего |
-|---|---|
-| Выключить LLDP/CDP на внешних портах (`no lldp transmit`) | утечка топологии |
-| Отдельный management VLAN | раскрытие IP управления |
-| Port security / NAC | rogue-устройства |
-| Не использовать CDP между вендорами | лишняя болтливость |
-| Мониторинг неожиданных LLDP-соседей | rogue LLDP |
+- **Выключить передачу LLDP/CDP на внешних портах** (`no lldp transmit`, `no cdp enable`) — топология не утечёт.
+- **Отдельный management VLAN** — чтобы IP управления не попадал в пользовательский сегмент.
+- **Port security / NAC** — против rogue-устройств.
+- **Мониторинг** неожиданных LLDP-соседей: новый сосед на порту доступа или дубликат Chassis ID — аномалия.
 
-```text
-interface Gi0/1
- no lldp transmit
- no cdp enable
-```
+## Чем LLDP отличается от CDP
 
-## Практика: сопоставить MAC и топологию
-
-```bash
-# Связать Chassis ID (MAC) с системным именем
-tshark -r disc.pcap -Y 'lldp' -T fields -e lldp.tlv.chassis.id -e lldp.tlv.system.name
-# Затем сопоставить с MAC-таблицей коммутатора
-# show mac address-table | include <mac>
-```
-
-Так пассивная разведка превращается в точную карту «кто на каком порту».
-
-## Частые ошибки
-
-- **Слушать 2 секунды** — LLDP/CDP периодичны (30/60 с), нужно окно ≥60 с.
-- **Путать LLDP и CDP multicast** — адреса и ethertype разные.
-- **Искать их под IP-фильтром** — это чистый L2, IP-фильтр их не покажет.
-- **Считать LLDP «безопасным»** — он раскрывает management IP.
-- **Игнорировать rogue LLDP** — подделка искажает инвентаризацию.
-- **Забывать про LLDP-MED** — телефония несёт ещё больше данных.
-- **Не фильтровать на uplink** — топология утекает за пределы сегмента.
-
-## Что дальше / решение
-
-После discovery-разведки переходите к [`network-layer2-attacks`](network-layer2-attacks) (port security) и [`network-vlan-hopping`](network-vlan-hopping). Для практики анализа — [`network-tcpdump`](network-tcpdump) и [`network-wireshark`](network-wireshark).
-
-## LLDP-MED и VoIP
-
-**LLDP-MED** (Media Endpoint Discovery) расширяет LLDP для телефонии: сообщает VLAN, приоритет QoS, параметры PoE. Из него видно, какая voice VLAN используется и какие телефоны стоят. Это дополнительный источник разведки.
-
-```bash
-# Захватить LLDP-MED
-tshark -r disc.pcap -Y 'lldp.med' -T fields -e lldp.med.network.policy.vlan.id
-```
-
-## Инвентаризация сети пассивно
-
-Из discovery-трафика можно построить инвентарь без активного сканирования:
-
-```bash
-# Сводка по всем устройствам за окно захвата
-tshark -r disc.pcap -Y 'lldp' -T fields \
-  -e lldp.tlv.chassis.id -e lldp.tlv.system.name -e lldp.tlv.system.desc \
-  -e lldp.tlv.port.id -e lldp.tlv.mgmt.addr | sort -u
-# CDP-инвентарь
-tshark -r disc.pcap -Y 'cdp' -T fields \
-  -e cdp.device.id -e cdp.platform -e cdp.version -e cdp.native.vlan | sort -u
-```
-
-Результат — таблица «устройство → модель → порт → IP управления → VLAN», полученная только слушанием.
-
-## Детект и мониторинг rogue-устройств
-
-Аномалии, на которые смотрит SOC:
-
-- **новый LLDP-сосед** на порту доступа, где его быть не должно;
-- **несовпадение System Name** с инвентарём;
-- **частые LLDP-кадры** от неизвестного MAC (rogue-устройство);
-- **поддельный Chassis ID**, дублирующий легитимный.
-
-```bash
-# Найти дубликаты Chassis ID (возможный спуфинг)
-tshark -r disc.pcap -Y 'lldp' -T fields -e lldp.tlv.chassis.id | sort | uniq -d
-```
-
-## Сравнение LLDP и CDP
+Оба делают одно и то же, но детали важны при разборе дампа:
 
 | Свойство | LLDP | CDP |
 |---|---|---|
-| Стандарт | IEEE 802.1AB | Cisco проприетарный |
-| EtherType | 0x88CC | 0x2000 |
-| Multicast | 01:80:c2:00:00:0e | 01:00:0c:cc:cc:cc |
+| Стандарт | IEEE 802.1AB | Cisco, проприетарный |
+| EtherType | `0x88CC` | `0x2000` |
+| Multicast | `01:80:c2:00:00:0e` | `01:00:0c:cc:cc:cc` |
 | Период | 30 с | 60 с |
-| Несёт IP управления | да | да |
 | Native VLAN | ограниченно | да |
 | Вендоронезависим | да | нет |
 
-## Настройка на стороне хоста
+Практический вывод: если сеть не на Cisco, слушай LLDP; если Cisco — обязательно и CDP, потому что именно он отдаёт native VLAN и версию IOS.
 
-```bash
-# Установить lldpd и смотреть соседей
-sudo apt install lldpd
-sudo systemctl enable --now lldpd
-lldpcli show neighbors ports eth0
-# Отключить передачу на недоверенном интерфейсе
-sudo lldpcli configure ports eth0 lldp transmit disable
+## Как посмотреть соседей со своей стороны
+
+На своём хосте LLDP полезен и для диагностики: сразу видно, в какой коммутатор и порт ты включён и какая тебе назначена VLAN.
+
+```
+$ sudo apt install lldpd
+$ sudo systemctl enable --now lldpd
+$ lldpcli show neighbors ports eth0
 ```
 
-На хосте LLDP полезен для диагностики: сразу видно, в какой коммутатор и порт вы включены, какая VLAN назначена, поддерживается ли PoE.
+Если нужно, наоборот, не «светиться» — отключи передачу на недоверенном интерфейсе: `lldpcli configure ports eth0 lldp transmit disable`.
+
+## Что мы теперь знаем
+
+- LLDP (`0x88CC`) и CDP (`0x2000`) — служебные протоколы, которыми устройства сами себя объявляют.
+- Они раскрывают имя, модель, версию ПО, порт, VLAN и IP управления — пассивная разведка без сканирования.
+- Окно захвата должно быть ≥60 секунд (период отправки 30/60 с).
+- Их можно подделать (rogue LLDP/CDP), чтобы выдать себя за коммутатор.
+- Защита — отключить передачу на недоверенных портах и вынести управление в отдельный VLAN.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой EtherType использует LLDP?"
+- question: 'Какой EtherType использует LLDP?'
   options:
-    - "0x88CC"
-    - "0x2000"
-    - "0x8100"
-    - "0x0806"
+    - '0x88CC'
+    - '0x2000'
+    - '0x8100'
+    - '0x0806'
   answer: 0
-  explanation: "LLDP (802.1AB) — EtherType 0x88CC."
-- question: "Какой EtherType использует CDP?"
+  explanation: 'LLDP (802.1AB) — EtherType 0x88CC.'
+- question: 'Какой EtherType использует CDP?'
   options:
-    - "0x2000"
-    - "0x88CC"
-    - "0x0800"
-    - "0x86DD"
+    - '0x2000'
+    - '0x88CC'
+    - '0x0800'
+    - '0x86DD'
   answer: 0
-  explanation: "CDP — проприетарный Cisco, EtherType 0x2000."
-- question: "Какое поле LLDP раскрывает модель и версию ОС?"
+  explanation: 'CDP — проприетарный Cisco, EtherType 0x2000.'
+- question: 'Какое поле LLDP раскрывает модель и версию ОС?'
   options:
-    - "System Description"
-    - "TTL"
-    - "Chassis ID"
-    - "Port ID"
+    - 'System Description'
+    - 'TTL'
+    - 'Chassis ID'
+    - 'Port ID'
   answer: 0
-  explanation: "System Description несёт модель и версию ПО."
-- question: "Почему LLDP/CDP опасны для безопасности?"
+  explanation: 'System Description несёт модель и версию ПО.'
+- question: 'Почему LLDP/CDP опасны для безопасности?'
   options:
-    - "Раскрывают топологию, версии и адреса управления"
-    - "Шифруют трафик"
-    - "Замедляют сеть"
-    - "Меняют MAC"
+    - 'Раскрывают топологию, версии и адреса управления'
+    - 'Шифруют трафик'
+    - 'Замедляют сеть'
+    - 'Меняют MAC'
   answer: 0
-  explanation: "Это готовая пассивная разведка для атакующего."
-- question: "Как правильно фильтровать discovery на внешнем порту?"
+  explanation: 'Это готовая пассивная разведка для атакующего.'
+- question: 'Как правильно фильтровать discovery на внешнем порту?'
   options:
-    - "Отключить передачу LLDP/CDP (no lldp transmit)"
-    - "Включить IPv6"
-    - "Поднять VLAN 1"
-    - "Отключить STP"
+    - 'Отключить передачу LLDP/CDP (no lldp transmit)'
+    - 'Включить IPv6'
+    - 'Поднять VLAN 1'
+    - 'Отключить STP'
   answer: 0
-  explanation: "На недоверенных портах передачу discovery отключают."
+  explanation: 'На недоверенных портах передачу discovery отключают.'
 ```
+
+## Куда дальше
+
+Мы научились пассивно собирать карту L2-сети. Дальше разберём сегментацию глубже — вложенные VLAN-теги (QinQ), а затем петли и дерево STP. А пока запомни: **устройства сами рассказывают о себе; хороший пентестер сначала слушает, потом сканирует.**
 
 ## Где пригодится
 

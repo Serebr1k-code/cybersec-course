@@ -14,228 +14,230 @@ useful_for:
 estimated_minutes: 40
 summary: "Глубокий статический анализ iOS: структура Mach-O, извлечение Objective-C/Swift, дешифровка App Store-сборок, работа в Hopper/Ghidra и поиск секретов/логики."
 ---
-## Что анализировать в iOS-приложении
 
-iOS-приложение — это `.app`-bundle внутри `.ipa` (zip). В отличие от Android, где код в DEX, здесь **нативные Mach-O бинарники** (arm64), плюс ресурсы, `Info.plist`, `entitlements`, фреймворки. Статический анализ даёт: список классов и методов (ObjC runtime), строки, встроенные секреты, конфигурацию (plist), список URL-схем и прав (entitlements), а также точки проверки jailbreak/pinning. Сложность: бинарники из App Store **зашифрованы** (FairPlay) и требуют дешифровки перед анализом.
+## Вопрос, с которого всё начинается
 
-Ментальная модель: у iOS нет «декомпиляции в исходники», как с Java. Вы работаете с дизассемблером (Hopper/IDA/Ghidra) + метаданными ObjC/Swift. Поэтому важна точность: сначала дешифровка, потом `class-dump`/`nm`/`strings`, и лишь затем чтение логики в дизассемблере.
+Ты распаковал IPA и увидел, что код — это нативный Mach-O, а не DEX. На Android ты бы запустил `jadx` и получил почти исходник. Здесь так не выйдет: Objective-C и Swift компилируются в машинный код. Как тогда понять, что делает приложение, и найти в нём секреты или проверки?
 
-## Получение IPA и распаковка
+Ответ — **статический анализ**: работаем не с исходником, а с метаданными и строками бинарника.
 
-```bash
-# IPA: из iTunes/Apple Configurator, из .ipa-бэкапа, или через frida-ios-dump с устройства
-unzip app.ipa -d app_ipa
-ls app_ipa/Payload/AppName.app/
-# ключевые файлы:
-#   AppName          — Mach-O бинарник (main)
-#   Info.plist       — конфигурация
-#   embedded.mobileprovision — профиль подписи
-#   Frameworks/      — встроенные фреймворки (часто с логикой)
+## Наш пример: DemoApp.ipa
+
+Возьмём тот же `DemoApp.ipa`. Распакуем и перейдём в бандл:
+
+```
+$ unzip -q DemoApp.ipa -d app_ipa
+$ cd app_ipa/Payload/DemoApp.app
+$ ls
+DemoApp  DemoApp.dylib  Info.plist
 ```
 
-```bash
-# дешифровка main-бинарника прямо с устройства (нужен jailbreak + frida)
-pip install frida-tools
-git clone https://github.com/AloneMonkey/frida-ios-dump
-python3 dump.py com.target.app      # создаёт decrypted .ipa
+Статический анализ — это последовательность слоёв: сначала убедиться, что бинарник не зашифрован, затем снять «карту» классов, потом искать секреты в строках и конфигурации, и лишь в конце — читать логику в дизассемблере.
+
+## Шаг 1: проверяем шифрование
+
+Первое, что нужно сделать, — проверить `cryptid`. Если бинарник из App Store зашифрован, весь дальнейший анализ бесполезен:
+
+```
+$ python3 macho_lc.py DemoApp.dylib | grep -i encryption
+  LC_ENCRYPTION_INFO_64
 ```
 
-Без дешифровки бинарник содержит только «loader»-часть, а код лежит в зашифрованном сегменте `__TEXT` — `class-dump` покажет пустые методы.
+Наша сборка — локальная, шифрования нет. Если бы `cryptid` был равен `1`, пришлось бы сначала дешифровать бинарник прямо с устройства:
 
-## class-dump и ObjC runtime
-
-ObjC-классы хранят метаданные (имена классов, методов, типов) в бинарнике — их можно извлечь даже без дешифровки кода, если сегмент не зашифрован (после дешифровки — точно).
-
-```bash
-class-dump -H AppName -o headers/     # сгенерировать .h для каждого класса
-ls headers/ | head
-# в заголовках видно интерфейсы:
-# @interface AuthManager : NSObject
-# - (NSString *)getToken;
-# - (BOOL)isJailbroken;
+```
+$ python3 dump.py com.demo.secapp      # frida-ios-dump -> decrypted.ipa
 ```
 
-Так вы получаете карту классов и методов — основу для динамики (что хукать) и для чтения логики. Аналоги: `nm -U AppName` (символы), `otool -L` (зависимости), `strings -a AppName | grep -i secret`.
+Инструмент `frida-ios-dump` работает через Frida на jailbreak-устройстве: он запускает приложение, выгружает расшифрованные сегменты памяти и собирает из них «чистый» IPA.
 
-## Swift: деманглинг и метаданные
+## Шаг 2: карта классов Objective-C
 
-Swift-символы манглируются (`_$s...`). Их читают через `swift-demangle` или инструменты дизассемблера.
+Objective-C хранит метаданные о классах и методах внутри бинарника. Утилита `class-dump` извлекает их и генерирует заголовки:
 
-```bash
-nm -U AppName | swift-demangle | grep -i "Auth\|Token\|Key"
-# $s6MyApp11AuthManagerC8getTokenSSyF -> MyApp.AuthManager.getToken() -> Swift.String
+```
+$ class-dump -H DemoApp -o headers/
+$ ls headers/
+AuthManager.h  CryptoUtil.h  DemoApp.h  NetworkClient.h
 ```
 
-Swift-логика в дизассемблере читается сложнее ObjC: много встроенных проверок, значение-типы. Помогают: восстановление типов в Hopper/IDA (плагины), поиск строк-констант и вызовов крипто/сетевых API. Для SwiftUI логика в основном в коде, а не в storyboard.
+Теперь мы видим структуру приложения. `AuthManager` — логика входа, `CryptoUtil` — шифрование, `NetworkClient` — сеть. Посмотрим на один заголовок:
 
-## Дизассемблеры: Hopper, IDA, Ghidra
-
-```bash
-# Ghidra (бесплатно, headless)
-analyzeHeadless /tmp/proj MyProj -import AppName -postScript DumpStrings.java
-# Hopper: GUI, удобен для ObjC; IDA: лучший для сложных бинарников
+```
+$ head -20 headers/AuthManager.h
+@interface AuthManager : NSObject
+- (BOOL)isJailbroken;
+- (NSString *)getToken;
+- (void)loginWithUser:(NSString *)user password:(NSString *)pass;
+@end
 ```
 
-Что искать: вызовы `SecKeyChain*` (Keychain), `NSURLSession` (сеть), `CCCrypt`/`SecKeyEncrypt` (крипта), `fork`/`stat("/bin/bash")` (jailbreak-детект), `SSL_pin`/`SecTrustEvaluate` (pinning). Строки и кросс-ссылки — быстрый путь к интересным функциям.
+Метод `isJailbroken` — проверка jailbreak, которую в динамике мы будем обходить. `getToken` — цель для дампа. Это и есть «карта», по которой дальше работают и статически, и динамически.
 
-## Дешифровка App Store бинарников
+## Шаг 3: Swift-символы и деманглинг
 
-FairPlay-шифрование: сегмент `__TEXT` зашифрован, ключ выдаётся только на устройстве при запуске. Инструменты дешифровки работают на jailbreak-устройстве, снимая расшифрованный образ из памяти:
+Swift-классы часто не видны в ObjC-runtime, поэтому `class-dump` их пропускает. Их имена закодированы в **манглированных** символах — длинных строках вида `$s6MyApp...`. Утилита `swift-demangle` превращает их в читаемый вид:
 
-```bash
-# frida-ios-dump (см. выше), Clutch, bfdecrypt
-Clutch -i                       # список приложений
-Clutch -d com.target.app        # дешифровать
-# проверить, зашифрован ли бинарник
-otool -l AppName | grep -A4 LC_ENCRYPTION_INFO
-# cryptid 1 = зашифрован, 0 = расшифрован
+```
+$ nm -U DemoApp | swift-demangle | grep -i 'Auth\|Token\|Key'
+DemoApp.AuthManager.getToken() -> Swift.String
+DemoApp.SecureStore.apiKey.getter
 ```
 
-Без этого шага статический анализ кода невозможен — вы увидите только строки/метаданные.
+Теперь видно, что есть `SecureStore.apiKey` — потенциально место хранения ключа. Манглирование — это схема, по которой компилятор кодирует типы и имена в символ; деманглер возвращает их обратно.
 
-## Info.plist и entitlements
+## Шаг 4: поиск секретов в строках
 
-```bash
-plutil -p Info.plist | head -40        # конфигурация: URL-схемы, ATS, ключи
-plutil -p Info.plist | grep -i -A3 "CFBundleURLSchemes\|NSAppTransportSecurity"
-codesign -d --entitlements - AppName   # права: keychain-access-groups, app groups
+Самое быстрое, что даёт результат, — `strings` по бинарнику. В нативном коде остаются URL, ключи, сообщения об ошибках:
+
+```
+$ strings -a DemoApp | grep -iE 'api[_-]?key|secret|token|password'
+s3cr3t
+https://api.demo.example/v2
 ```
 
-Смотрите: `NSAppTransportSecurity` (разрешён ли HTTP — `NSAllowsArbitraryLoads`), URL-схемы (deep links), `get-task-allow` (разрешена ли отладка), Keychain-группы. `NSAllowsArbitraryLoads=true` — разрешён незашифрованный HTTP.
+А ещё стоит поискать характерные шаблоны облачных ключей по всему бандлу:
 
-## Поиск секретов
-
-```bash
-strings -a AppName | grep -iE "api[_-]?key|secret|token|password" | head
-grep -rInE "AIza|AKIA|firebaseio|sk_live" app_ipa/ | head
-# встроенные сертификаты/pinning
-ls AppName.app/*.cer AppName.app/*.crt 2>/dev/null
+```
+$ grep -rInE 'AIza|AKIA|firebaseio|sk_live' app_ipa/
 ```
 
-Часто в бандл встроены `.cer`/`.der` (публичные ключи для pinning) — их наличие указывает на pinning, а не на секрет. Настоящие секреты (ключи API) ищите теми же регулярками, что и на Android.
+`AIza` — префикс ключей Google API, `AKIA` — AWS, `sk_live` — Stripe. Такие «отпечатки» ловят случайно захардкоженные ключи быстрее, чем чтение кода.
 
-## Разобранный пример: карта приложения за 10 минут
+## Шаг 5: конфигурация и права
 
-```bash
-$ unzip -q app.ipa -d app_ipa
-$ cd app_ipa/Payload/App.app
-$ otool -l App | grep -A4 LC_ENCRYPTION_INFO   # cryptid 1 -> нужна дешифровка
-$ python3 ~/frida-ios-dump/dump.py com.target.app   # -> decrypted ipa
-$ class-dump -H App -o headers/
-$ grep -rn "isJailbroken\|SecTrustEvaluate\|SecItemCopyMatching" headers/ | head
-AuthManager.h: - (BOOL)isJailbroken;
-NetworkManager.h: - (void)URLSession:(...)didReceiveChallenge:...;
-$ strings -a App | grep -iE "FLAG|secret|api_key" | head
+`Info.plist` уже смотрели; углубимся в две вещи — ATS и entitlements:
+
+```
+$ python3 -c "import plistlib;d=plistlib.load(open('Info.plist','rb'));print(d['NSAppTransportSecurity'])"
+{'NSAllowsArbitraryLoads': True}
 ```
 
-За 10 минут получены: список классов, методы jailbreak-детекта, кастомный `didReceiveChallenge` (признак pinning) и строки-кандидаты. Дальше — динамика (`mobile-ios-dynamic`) для обхода проверок.
+`NSAllowsArbitraryLoads` разрешает HTTP — значит, трафик можно перехватить без проблем с TLS. Дальше — entitlements, права приложения:
 
-## Справочная таблица инструментов
+```
+$ codesign -d --entitlements - DemoApp
+[Keychain Access Groups] com.demo.secapp
+[App Groups] group.com.demo.shared
+```
 
-| Задача | Инструмент | Команда |
-|--------|-----------|---------|
-| Распаковка IPA | unzip | `unzip app.ipa -d out` |
-| Дешифровка | frida-ios-dump | `python3 dump.py com.target.app` |
-| Заголовки ObjC | class-dump | `class-dump -H App -o headers/` |
-| Swift-символы | swift-demangle | `nm -U App \| swift-demangle` |
-| Дизассемблер | Hopper/IDA/Ghidra | GUI / `analyzeHeadless` |
-| Плист | plutil | `plutil -p Info.plist` |
-| Права | codesign | `codesign -d --entitlements - App` |
-| Строки | strings | `strings -a App \| grep -i key` |
+`Keychain Access Groups` показывает, в какой группе лежат секреты Keychain, а `App Groups` — что данные могут быть доступны другим приложениям группы. Это прямо указывает, где искать токены.
 
-## Типовые ошибки новичка
+## Шаг 6: зависимости
 
-- **Анализировать зашифрованный бинарник.** `cryptid 1` = сначала дешифровка, иначе `class-dump` бесполезен.
-- **Искать «исходники».** На iOS нет декомпиляции в код; работайте с метаданными + дизассемблером.
-- **Забыть про фреймворки.** Логика часто в `Frameworks/*.framework`, а не только в main-бинарнике.
-- **Путать встроенный сертификат pinning с секретом.** `.cer` — публичный ключ, не утечка.
-- **Игнорировать `Info.plist`.** Там URL-схемы, ATS и ключи — быстрые находки.
+Посмотрим, какие библиотеки тянет бинарник:
 
-## Что дальше / решение
+```
+$ otool -L DemoApp
+DemoApp:
+    @rpath/DemoApp.dylib
+    /usr/lib/libSystem.B.dylib
+```
 
-Порядок: получить IPA → дешифровать (`cryptid 0`) → `class-dump`/`swift-demangle` для карты → `strings`/`plutil`/`codesign` для конфигурации и секретов → чтение логики в Hopper/IDA → динамика (`mobile-ios-dynamic`) для обхода проверок. Связанные уроки: `mobile-ios-basics`, `mobile-ios-keychain`, `mobile-ios-urlscheme`, `mobile-ssl-pinning`. Решение — когда у вас есть карта классов, найденные секреты/проверки и понимание, что хукать дальше.
+Сторонние SDK (Firebase, аналитика, реклама) часто содержат собственные ключи и «болтливые» логи. Каждый встроенный фреймворк стоит проверить отдельно тем же `strings`.
 
-## Что искать в дизассемблере: чек-лист
+## Шаг 7: чтение логики в дизассемблере
 
-Ищите кросс-ссылки на строки и вызовы системных API — это самые «горячие» точки:
+Только теперь, когда есть карта (`isJailbroken`, `getToken`), можно открыть бинарник в **Hopper**, **IDA** или бесплатном **Ghidra** и найти нужный метод по имени. Логика проверки пароля, сравнение хешей, алгоритм подписи — всё это читается в дизассемблере. Но идти туда «вслепую» бессмысленно: карта классов и строки уже сузили поиск до нескольких методов.
 
-- **Крипта:** `CCCrypt`, `CCCryptorCreate`, `SecKeyEncrypt`, `SecKeyRawSign`, `CCHmac`, `CC_MD5` — ищите захардкоженные ключи/IV рядом.
-- **Keychain:** `SecItemAdd`, `SecItemCopyMatching`, `kSecAttrAccessible` — какой уровень защиты (`WhenUnlocked`, `Always`, `ThisDeviceOnly`).
-- **Сеть:** `NSURLSession`, `NSURLConnection`, `CFStream`, `nw_connection` — где формируются запросы и токены.
-- **TLS/pinning:** `SecTrustEvaluate`, `SecTrustEvaluateWithError`, `SSL_set_verify`, `AFSecurityPolicy` — признак pinning.
-- **Jailbreak:** `stat`, `access`, `fork`, `canOpenURL:`, `fileExistsAtPath:` со строками `/bin/bash`, `/Applications/Cydia.app`, `cydia://`.
-- **Anti-debug:** `ptrace`, `sysctl`, `task_get_exception_ports`, строка `PT_DENY_ATTACH`.
-- **Deep links:** обработчики `application:openURL:options:`, `application:continueUserActivity:` и строки URL-схем.
+## Шаг 8: что искать
 
-Практика: в Ghidra/Hopper найдите строку (`FLAG`, `https://`, `key`), посмотрите References — оттуда переходите к функциям. Это быстрее, чем читать бинарник линейно.
+Чек-лист для статики iOS:
 
-## Справочная таблица: артефакты iOS-бандла
+- проверки jailbreak (`isJailbroken`, `fileExistsAtPath:` с `/bin/bash`, `/Applications/Cydia.app`);
+- проверки pinning (`SecTrustEvaluate`, `SecTrustSetPolicies`, встроенные `.cer`);
+- секреты в строках и plist;
+- опасные URL-схемы и обработчики `openURL`;
+- entitlements и App Groups.
 
-| Файл | Что содержит | Как читать |
-|------|--------------|------------|
-| `AppName` (Mach-O) | код, строки, символы | `otool`, `nm`, Hopper/IDA |
-| `Info.plist` | конфиг, URL-схемы, ATS | `plutil -p` |
-| `embedded.mobileprovision` | профиль подписи, entitlements | `security cms -D -i` |
-| `Frameworks/*` | встроенные фреймворки | `class-dump`, дизассемблер |
-| `Assets.car` | ассеты, строки | `acextract`, `AssetCatalogTinkerer` |
-| `*.cer`/`*.der` | ключи pinning | `openssl x509 -inform der -text` |
-| `*.strings` | локализация (строки) | `plutil -p`/`grep` |
+Каждая находка — это гипотеза для динамики: найденную проверку мы будем снимать хуком.
 
-## Типовые ошибки (продолжение)
+## Шаг 9: частые ошибки
 
-- **Пропустить `Assets.car`.** Ассеты и строки могут быть там, а не в `Info.plist`.
-- **Не проверить entitlements.** `keychain-access-groups` и App Groups показывают, куда пишутся секреты.
-- **Считать, что Swift «нечитаем».** `swift-demangle` + кросс-ссылки дают много; не отказывайтесь от Swift-логики.
-- **Забыть про фреймворки.** Пользовательский код часто в отдельном `.framework`, а не в main-бинарнике.
+Три ошибки съедают больше всего времени у новичка.
+
+**Анализ зашифрованного бинарника.** Если `cryptid=1`, а дешифровку не сделали, `class-dump` вернёт пустые интерфейсы, а `strings` — почти ничего. Всегда проверяй `LC_ENCRYPTION_INFO_64` первым делом.
+
+**Поиск только по бинарнику.** Секреты часто лежат не в главном `AppName`, а в ресурсах, plist, встроенных фреймворках или ассетах. Прогоняй `grep` по всему каталогу `Payload/`, а не только по бинарнику.
+
+**Игнорирование Swift.** Если приложение написано на Swift, `class-dump` покажет мало: имена методов нужно деманглировать через `swift-demangle`, иначе ты просто не увидишь логику.
+
+## Шаг 10: разбираем entitlements программно
+
+Entitlements — XML-plist, вшитый в подпись. Их удобнее разбирать скриптом:
+
+```
+$ python3 -c "import plistlib; e=plistlib.load(open('entitlements.plist','rb')); print('application-identifier =', e.get('application-identifier')); print('get-task-allow =', e.get('get-task-allow')); print('associated-domains =', e.get('com.apple.developer.associated-domains'))"
+application-identifier = ABCDE12345.com.demo.sec
+get-task-allow = True
+associated-domains = ['applinks:demo.example']
+```
+
+`get-task-allow=True` — красный флаг: это debug-сборка, её можно отлаживать и снимать дампы памяти без jailbreak; в релизе обязано быть `false`. Рядом смотри `keychain-access-groups` (какие приложения делят общий keychain) и `com.apple.developer.associated-domains` (какие домены отдают приложению Universal Links). Debug-entitlements в проде — серьёзная находка: атакующий с физическим доступом снимет дамп и вытащит секреты.
+
+## Что мы теперь знаем
+
+- iOS-статику начинают с проверки `cryptid`; зашифрованный бинарник сначала дешифруют.
+- `class-dump` строит карту ObjC-классов и методов.
+- Swift-имена получают через `swift-demangle`.
+- `strings` и grep по «отпечаткам» быстро находят секреты.
+- `Info.plist` и `codesign --entitlements` показывают конфигурацию и права.
+- Логику читают в Hopper/IDA/Ghidra, но только после того, как карта сузила поиск.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Как понять, зашифрован ли App Store-бинарник?"
+- question: Почему нельзя получить исходник iOS-приложения так же, как Java на Android?
   options:
-    - "LC_ENCRYPTION_INFO с cryptid=1"
-    - "Отсутствие Info.plist"
-    - "Наличие libSystem"
-    - "Размер > 10 МБ"
-  answer: 0
-  explanation: "cryptid=1 означает FairPlay-шифрование, символы недоступны."
-- question: "Какой инструмент восстанавливает объявления Objective-C-классов?"
+    - "Бинарники зашифрованы"
+    - "Objective-C и Swift компилируются в машинный код, а не в байткод с метаданными"
+    - "iOS не использует бинарники"
+    - "Исходники удаляются при сборке"
+  answer: 1
+  explanation: "Нативный машинный код не восстанавливается в исходник; работают дизассемблеры и метаданные."
+- question: Что делает `class-dump`?
   options:
-    - "class-dump"
-    - "jadx"
-    - "apktool"
-    - "binwalk"
-  answer: 0
-  explanation: "class-dump извлекает @interface из runtime-метаданных."
-- question: "Чем расшифровать App Store-сборку на джейлбрейке?"
+    - "Дешифрует бинарник"
+    - "Извлекает метаданные ObjC-runtime в заголовочные файлы"
+    - "Собирает IPA"
+    - "Снимает pinning"
+  answer: 1
+  explanation: "class-dump читает runtime-метаданные и генерирует .h с классами и методами."
+- question: Зачем нужен `swift-demangle`?
   options:
-    - "frida-ios-dump / bagbak"
-    - "apktool"
-    - "upx"
-    - "ghidra"
-  answer: 0
-  explanation: "Они снимают расшифрованный образ из памяти процесса."
-- question: "Что такое Swift-mangling и зачем demangle?"
+    - "Шифровать строки"
+    - "Превращать манглированные Swift-символы в читаемые имена"
+    - "Собирать проект"
+    - "Проверять подпись"
+  answer: 1
+  explanation: "Swift кодирует имена в манглированные символы; деманглер их расшифровывает."
+- question: Что показывает `codesign -d --entitlements -`?
   options:
-    - "Кодировка имён Swift; demangle делает их читаемыми"
-    - "Способ шифрования"
-    - "Формат Mach-O"
-    - "Тип подписи"
-  answer: 0
-  explanation: "Swift искажает имена; demangle восстанавливает читаемый вид."
-- question: "Где посмотреть entitlements iOS-приложения?"
+    - "Строки бинарника"
+    - "Права приложения: Keychain Access Groups, App Groups"
+    - "Версию iOS"
+    - "Список классов"
+  answer: 1
+  explanation: "Entitlements описывают, к каким группам Keychain и App Groups приложение имеет доступ."
+- question: Почему `NSAllowsArbitraryLoads: True` важно для атакующего?
   options:
-    - "codesign -d --entitlements :-"
-    - "plutil -p Info.plist"
-    - "otool -L"
-    - "nm -U"
-  answer: 0
-  explanation: "codesign показывает entitlements (keychain-access-groups и др.)."
+    - "Ускоряет приложение"
+    - "Разрешает незашифрованный HTTP, упрощая перехват трафика"
+    - "Отключает jailbreak-детект"
+    - "Открывает Keychain"
+  answer: 1
+  explanation: "ATS ослаблен, поэтому часть трафика идёт по HTTP и легко перехватывается."
 ```
+
+## Куда дальше
+
+Статика дала нам карту: мы знаем, что есть `isJailbroken` и `getToken`, и где хранятся секреты. Но увидеть, как они работают в реальном времени, статика не может. В следующем уроке мы запустим приложение на jailbreak-устройстве и снимем эти проверки через Frida и Objection. А пока главное запомни: статический анализ iOS — это «сначала карта, потом дизассемблер», и начинается он с проверки шифрования.
 
 ## Где пригодится
 
-- **CTF Mobile/Reversing:** реверс iOS-бинарников и извлечение флага.
-- **Bug bounty:** анализ клиента на секреты и слабые проверки.
-- **Пентест:** подготовка к динамике (какие методы хукать).
-- **Работа:** reverse engineering в anti-fraud и threat intel.
+- **Пентест:** построение карты приложения перед динамикой.
+- **Bug bounty:** быстрый поиск секретов и опасных проверок в IPA.
+- **CTF:** поиск флага в строках и метаданных iOS-бинарника.
+- **Аудит:** проверка ATS и entitlements релизной сборки.

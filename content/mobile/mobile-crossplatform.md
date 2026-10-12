@@ -14,203 +14,199 @@ useful_for:
 estimated_minutes: 30
 summary: "Как устроены Cordova/Ionic (HTML/JS в WebView) и Xamarin/.NET MAUI (C#/IL), где искать их код и секреты и как реверсить .NET-сборки."
 ---
-## Что такое кросс-платформенные приложения
 
-Значительная часть мобильных приложений написана не на «нативных» Java/Kotlin или Swift, а на кросс-платформенных фреймворках: Cordova/PhoneGap, Ionic, Capacitor, React Native, Flutter, Xamarin/.NET MAUI, Unity. Они позволяют писать один код и собирать под Android и iOS. Для пентеста это важно, потому что **структура пакета и точки анализа отличаются** от обычного APK: вместо чистого DEX вы часто видите веб-ассеты (`www/`), JavaScript-бандл, Hermes-байткод, Dart-snapshot или .NET-сборки.
+## Вопрос, с которого всё начинается
 
-Общее правило: чем больше логики в JS/Dart/.NET, тем проще её читать (часто без полной декомпиляции), но тем важнее проверить **мосты между «скриптовым» миром и нативным** — именно там исторически возникают уязвимости.
+Открываешь APK — а там нет привычных `classes.dex` с логикой. Вместо Java-кода — огромный `libapp.so` или `libreactnative.so`. Значит, приложение написано на **кросс-платформенном фреймворке**: один код собирается и под Android, и под iOS. Как это определить и где искать логику и секреты?
 
-## Cordova / PhoneGap / Ionic
+## Наш пример: три реальных APK
 
-Cordova-приложение — это WebView, загружающий локальные веб-ассеты из `assets/www/`, плюс набор нативных плагинов.
+Возьмём три приложения и посмотрим, чем они отличаются изнутри.
 
-```bash
-unzip app.apk -d apk
-ls apk/assets/www/            # HTML/JS/CSS приложения
-cat apk/assets/www/cordova.js | head
-ls apk/assets/www/plugins/    # нативные плагины
+**Flutter** (lichess, fluffychat) — логика в нативной библиотеке:
+
+```
+$ unzip -l fluffychat.apk | grep -E 'libflutter|libapp.so'
+25887624  lib/arm64-v8a/libapp.so
+11747864  lib/arm64-v8a/libflutter.so
 ```
 
-Ключевые места: `config.xml` (список плагинов, разрешённые домены в `<access origin>`), `whitelist`-плагин (какие URL можно грузить), JS-мост `cordova.exec`. Опасности: слишком широкий whitelist (`<access origin="*">`), кастомные плагины с небезопасными нативными методами, `InAppBrowser` с `_system`/`_blank`. Ищите `grep -rn "exec\|addJavascriptInterface" apk/assets/www`.
+**React Native** (mattermost) — движок Hermes и нативный рантайм:
 
-## React Native
-
-React Native-приложение содержит JS-бандл и нативную обвязку. В старых версиях бандл лежит как `assets/index.android.bundle` (читаемый JS), в новых — компилируется в **Hermes bytecode** (`*.hbc`), который нужно дизассемблировать.
-
-```bash
-unzip app.apk -d apk
-ls apk/assets/ | grep -i bundle
-file apk/assets/index.android.bundle          # JS или Hermes?
-# для Hermes: hbctool / hermes-dec
-pip install hermes-dec
-hermes-dec apk/assets/index.android.bundle > bundle.js
-grep -nE "api[_-]?key|secret|token|https?://" bundle.js | head
+```
+$ unzip -l mattermost.apk | grep -iE 'hermes|reactnative'
+2141744  lib/arm64-v8a/libhermesvm.so
+6314224  lib/arm64-v8a/libreactnative.so
 ```
 
-Бизнес-логика (валидация, проверки ролей) часто в JS — её можно прочитать и найти обходы. Секреты тоже нередко «зашиты» прямо в бандл.
+**Классический нативный Android** — обычные `classes.dex` и Java-код (как `uncrack1.apk`).
 
-## Xamarin / .NET MAUI
+По этим признакам фреймворк определяется за секунды.
 
-Xamarin-приложения компилируются в .NET-сборки (`assemblies/` или `assemblies.blob`), а код — в IL, который легко декомпилируется.
+## Шаг 1: почему фреймворки меняют анализ
 
-```bash
-unzip app.apk -d apk
-ls apk/assemblies/            # .dll или assemblies.blob
-# инструменты: ILSpy, dnSpy, dotPeek; для blob — xamarin-assembly-unpacker
-ilspycmd app.dll -o out_src
-grep -rn "ApiKey\|Password\|Secret" out_src | head
+В классическом APK логика — в DEX, и `jadx` показывает её как Java. В кросс-платформенных приложениях бизнес-логика уезжает:
+
+- **Flutter** компилирует Dart в **AOT-машинный код** (`libapp.so`). `jadx` покажет только обёртку; логику надо реверсить в Ghidra/IDA, а строки — искать `strings`.
+- **React Native** держит JS в бандле (`index.android.bundle`) или компилирует в Hermes-байткод. Его декомпилируют обратно в JS (`hbctool`, `hermes-dec`).
+- **Cordova/Ionic** кладут HTML/JS в `assets/www/` — их читают как обычный веб.
+
+## Шаг 2: Cordova / Ionic
+
+Самый простой случай: приложение — это WebView, который грузит локальную веб-страницу. В APK видно:
+
+```
+$ unzip -l app.apk | grep 'assets/www'
+   12345  assets/www/index.html
+   45678  assets/www/js/app.js
 ```
 
-Плюс: получаете почти исходный C#. Минус: часть кода может быть AOT-скомпилирована в native — тогда смотрите `.so` (`mobile-android-native`).
+Читаем `app.js` как обычный JavaScript: там и API-эндпоинты, и ключи, и логика. Дополнительно смотрим `config.xml` — в нём настройки WebView и белые списки.
 
-## Flutter
+## Шаг 3: React Native
 
-Flutter-приложение содержит `libflutter.so` (движок) и `libapp.so` (ваш Dart-код, скомпилированный AOT в snapshot). Строки и логика в `libapp.so` зашифрованы/скомпилированы.
+Логика в JS-бандле. Если бандл не скомпилирован в Hermes:
 
-```bash
-unzip app.apk -d apk
-ls apk/lib/arm64-v8a/         # libapp.so, libflutter.so
-# инструменты: reFlutter (патч движка для дампа), blutter (декомпилятор Dart AOT)
-git clone https://github.com/worawit/blutter
-python blutter.py apk/lib/arm64-v8a out_dir
-# в out_dir — дизассемблированный Dart, строки, список классов
-grep -rn "FLAG\|secret\|https://" out_dir/ | head
+```
+$ unzip -o app.apk 'assets/index.android.bundle' -d rn
+$ grep -nE 'api|token|secret' rn/assets/index.android.bundle | head
 ```
 
-`reFlutter` патчит `libflutter.so` так, чтобы движок дампил трафик и объекты — удобно для динамики и обхода pinning во Flutter.
+Если скомпилирован в Hermes (признак — `libhermesvm.so`), нужен `hbctool disasm` для обратного разбора в байткод и ассемблер. Строки при этом всё равно видны:
 
-## Общие слабости кросс-платформенных приложений
-
-| Слабость | Cordova/Ionic | React Native | Flutter | Xamarin |
-|----------|---------------|--------------|---------|---------|
-| Логика в открытом виде | JS в `www/` | JS/Hermes | Dart snapshot | IL |
-| Секреты в бандле | часто | часто | в `libapp.so` | в .dll |
-| Мост к нативу | `cordova.exec` | NativeModules | MethodChannel | JNI |
-| Обход pinning | правка whitelist | Frida | reFlutter | Frida |
-| Где искать секреты | `www/`, `config.xml` | `bundle`/`hbc` | `libapp.so` | `assemblies/` |
-
-Ключевое: **проверяйте мосты** (NativeModules, MethodChannel, JNI) — там приложение вызывает нативный код с параметрами из скриптового мира, и именно там ищут инъекции.
-
-## Разобранный пример: секрет в React Native
-
-```bash
-$ unzip app.apk -d apk
-$ ls apk/assets/
-index.android.bundle
-$ file apk/assets/index.android.bundle
-... Hermes JavaScript bytecode ...
-$ hermes-dec apk/assets/index.android.bundle > bundle.js
-$ grep -nE "apiKey|Bearer|secret" bundle.js | head
-41203: const API_KEY = "sk_live_51H...";   // Stripe live key
-41204: const BASE = "https://api.target.example/v1";
+```
+$ strings rn/assets/index.android.bundle | grep -iE 'https://|token' | head
 ```
 
-Секрет извлечён без запуска приложения. Дальше — проверить, что ключ валиден и что он позволяет (часто это прямой доступ к платёжному/облачному API).
+## Шаг 4: Flutter
 
-## Разобранный пример: реверс Flutter
+Flutter-приложение содержит `libflutter.so` (движок) и `libapp.so` (ваш код). Реверс `libapp.so` — задача для Ghidra с плагином `reFlutter`, но часто хватает `strings`:
 
-```bash
-$ python blutter.py apk/lib/arm64-v8a out
-[*] Dart version: 3.x
-[*] Dumping objects, strings, classes...
-$ grep -rn "FLAG{" out/strings.txt
-FLAG{flutter_snapshot_is_readable}
-$ grep -rn "checkLicense\|isPremium" out/asm/ | head
+```
+$ strings libapp.so | grep -iE 'https://|api_key|secret' | head
 ```
 
-Логика проверки лицензии видна в дизассемблированном Dart — можно найти обход или понять, что проверка клиентская.
+Важно: Dart-код компилируется AOT, поэтому «декомпилировать в исходники» нельзя — только анализировать машинный код и строки. `flutter_assets/` при этом лежит в APK и содержит ресурсы:
 
-## Справочная таблица инструментов
-
-| Фреймворк | Артефакт | Инструмент | Команда |
-|-----------|----------|-----------|---------|
-| Cordova/Ionic | `www/` JS | grep, beautifier | `grep -rn secret apk/assets/www` |
-| React Native | `bundle`/`.hbc` | hermes-dec | `hermes-dec bundle > bundle.js` |
-| Flutter | `libapp.so` | blutter | `python blutter.py lib/arm64-v8a out` |
-| Flutter (dyn) | `libflutter.so` | reFlutter | `reflutter app.apk` |
-| Xamarin | `.dll`/blob | ILSpy, dnSpy | `ilspycmd app.dll -o out` |
-| Unity | `assets/bin/Data` | Il2CppDumper | `Il2CppDumper libil2cpp.so global-metadata.dat` |
-
-## Типовые ошибки новичка
-
-- **Искать только Java.** В RN/Flutter/Xamarin основной код не в DEX — `jadx` покажет лишь обвязку.
-- **Не дизассемблировать Hermes/Dart.** «Нечитаемый» бандл всё равно дизассемблируется; не сдавайтесь на `file`.
-- **Игнорировать мосты.** NativeModules/MethodChannel — главный источник уязвимостей.
-- **Забыть про iOS-сборку.** Логика та же, но артефакты другие (`.app`, `Frameworks/`).
-- **Пропустить whitelist.** В Cordova широкий whitelist = загрузка чужого контента в WebView.
-
-## Что дальше / решение
-
-Определите фреймворк по структуре APK (`assets/www` → Cordova; `index.android.bundle` → RN; `libapp.so` → Flutter; `assemblies/` → Xamarin), извлеките код подходящим инструментом, ищите секреты и логику. Затем проверьте мосты к нативу и переходите к динамике (`mobile-dynamic-frida`) и трафику (`mobile-mitm-burp`). Связанные уроки: `mobile-flutter` (углублённо), `mobile-static-analysis`, `mobile-hardcoded-secrets`, `mobile-android-native`. Решение — когда вы прочитали логику и/или извлекли секреты, недоступные через «обычный» Java-анализ.
-
-## Как быстро определить фреймворк
-
-Прежде чем выбирать инструмент, определите фреймворк по «отпечатку» пакета:
-
-```bash
-unzip app.apk -d apk
-# Cordova/Ionic/Capacitor
-ls apk/assets/www 2>/dev/null && echo "CORDOVA/IONIC"
-# React Native
-ls apk/assets/index.android.bundle 2>/dev/null && echo "REACT NATIVE"
-# Flutter
-ls apk/lib/*/libapp.so 2>/dev/null && echo "FLUTTER"
-# Xamarin/.NET MAUI
-ls apk/assemblies* 2>/dev/null && echo "XAMARIN"
-# Unity
-ls apk/assets/bin/Data/Managed 2>/dev/null && echo "UNITY"
+```
+$ unzip -l lichess.apk | grep flutter_assets | head
+   217223  assets/flutter_assets/AssetManifest.bin
+   143124  assets/flutter_assets/NOTICES.Z
 ```
 
-Дальше по таблице выбираете инструмент и читаете код. Если в пакете несколько признаков (например, RN + нативные модули), анализируйте оба слоя. На iOS те же фреймворки дают `.app/Frameworks/` (Flutter → `Flutter.framework`, RN → `main.jsbundle`, Cordova → `www/`), а логика извлекается теми же инструментами (hermes-dec, blutter, ILSpy работают с файлами, не с платформой).
+## Шаг 5: Xamarin / .NET MAUI
+
+Здесь код — .NET-сборки. В APK лежат:
+
+```
+$ unzip -l app.apk | grep -E 'assemblies|\.dll'
+  1234567  assemblies/MyApp.dll
+   234567  assemblies/Mono.Android.dll
+```
+
+Их разбирают `dnSpy`/`ilspycmd` — это уже не Java, а CIL-байткод.
+
+## Шаг 6: где искать секреты
+
+Общее правило для всех фреймворков:
+
+- **Строки.** `strings` по `.so` и бандлам — ключи, URL, токены.
+- **Ресурсы.** `assets/` и `flutter_assets/` хранят конфиги.
+- **Нативный код.** Реверс `libapp.so`/`libreactnative.so`.
+- **Обфускация.** Часто бандл/сборку обфусцируют (Flutter — строки, RN — JS-обфускация).
+
+## Почему фреймворки усложняют аудит
+
+Кросс-платформенные приложения экономят разработчикам время, но ломают привычный план анализа. В классическом APK `jadx` показывает логику как Java, и вы читаете её почти как исходники. Во Flutter и React Native логика уезжает в нативный код или бандл, и стандартные инструменты бессильны: `jadx` покажет лишь обёртку, а настоящая работа спрятана глубже.
+
+Хуже того, многие проверки безопасности (pinning, root-детект, обфускация) реализуются на уровне фреймворка и потому лежат в `.so` или в бандле. Это значит, что «обычные» хуки на Java-методы не сработают — придётся работать с нативным кодом. Поэтому первый шаг любого аудита — определить фреймворк, и уже от этого строить план.
+
+## Разбор реального сценария
+
+Дано приложение-мессенджер на Flutter (`fluffychat.apk`). В APK — `libapp.so` на 25 МБ и `libflutter.so` на 11 МБ, а `classes.dex` почти пуст. Логика, включая обращение к API и шифрование сообщений, — в Dart-коде, скомпилированном AOT. `jadx` бесполезен: он покажет только загрузчик. План меняется: `strings libapp.so` для URL и ключей, Ghidra с `reFlutter` для функций, анализ `flutter_assets` для конфигов. Тот же APK, но методика — совсем другая.
+
+## Частые вопросы
+
+**«Можно ли декомпилировать Flutter в Dart?»** — нет, Dart компилируется AOT в машинный код. **«React Native проще?»** — да, если бандл не в Hermes: тогда это читаемый JS. **«Как определить фреймворк?»** — по наличию `libapp.so`, `libhermesvm.so`, `assets/www`, `assemblies/`. **«Где искать секреты?»** — `strings` по `.so` и бандлам, `assets/`. **«Обфускация мешает?»** — да, но строки часто остаются.
+
+## Практический совет
+
+Не начинайте с `jadx`, не определив фреймворк, — потеряете время. Сначала `unzip -l` и взгляд на `lib/` и `assets/`. Если видите `libapp.so` — это Flutter, готовьтесь к нативному реверсу. Если `libhermesvm.so` или `index.android.bundle` — React Native, работайте с бандлом. Если `assets/www` — Cordova, читайте как веб. Правильный выбор инструмента в самом начале экономит часы.
+
+## Полный прогон от начала до конца
+
+Соберём анализ кросс-платформенного приложения в один сценарий. Сначала `unzip -l app.apk` и взгляд на `lib/` и `assets/`. По признакам определяем фреймворк: `libapp.so` — Flutter, `libhermesvm.so`/`index.android.bundle` — React Native, `assets/www` — Cordova, `assemblies/` — Xamarin. Затем выбираем инструмент: для Flutter — `strings` и Ghidra, для RN — разбор бандла, для Cordova — чтение JS, для Xamarin — `dnSpy`. Ищем URL, ключи и логику. Итог — либо найденные секреты, либо карта того, где искать дальше.
+
+## Ещё один нюанс: общие библиотеки
+
+Кросс-платформенные приложения тянут за собой большие общие библиотеки (`libflutter.so`, `libreactnative.so`). Их размер может вводить в заблуждение: 11 МБ `libflutter.so` — это движок, а не ваш код. Не тратьте время на его реверс: логика приложения лежит в `libapp.so` или в бандле. Отличайте «движок» от «кода приложения» — это экономит дни работы.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. Фреймворк определяется по содержимому APK (`libapp.so`, `libhermesvm.so`, `assets/www`).
+2. Flutter: логика в AOT-нативном `libapp.so`; строки через `strings`.
+3. React Native: JS-бандл или Hermes-байткод; строки доступны.
+4. Cordova/Ionic: HTML/JS в `assets/www`, читается как веб.
+5. Xamarin: .NET-сборки в `assemblies/`, разбираются `dnSpy`.
+
+## На что смотреть дальше
+
+- **Сначала определите фреймворк** — от этого зависит весь план анализа.
+- **Flutter и RN** требуют нативного реверса и работы со строками.
+- **Cordova** — самый простой: логика как веб.
+- **Не забывайте про `assets/`** — там конфиги и базы.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Где лежит логика Cordova/Ionic приложения в APK?"
+- question: "Как определить, что APK написан на Flutter?"
   options:
-    - "В assets/www/ (HTML/JS)"
-    - "В classes.dex"
-    - "В AndroidManifest.xml"
-    - "В libapp.so"
+    - "Наличием `libflutter.so` и `libapp.so`"
+    - "Наличием `classes.dex`"
+    - "Наличием `assets/www`"
+    - "Наличием `assemblies/`"
   answer: 0
-  explanation: "Cordova/Capacitor хранят веб-приложение в assets."
-- question: "Во что компилируется Xamarin-приложение?"
+- question: "Где логика в React Native-приложении?"
   options:
-    - ".NET-сборки (IL) в assemblies/"
-    - "Только DEX"
-    - "libapp.so (Dart)"
-    - "WASM"
+    - "В JS-бандле (`index.android.bundle`) или Hermes-байткоде"
+    - "В `res/values/strings.xml`"
+    - "В `AndroidManifest.xml`"
+    - "В META-INF"
   answer: 0
-  explanation: "Xamarin кладёт .NET-сборки, которые декомпилируются в C#."
-- question: "Каким инструментом декомпилировать .NET-сборку?"
+- question: "Как читать Cordova-приложение?"
   options:
-    - "ILSpy / dnSpy / ilspycmd"
-    - "jadx"
-    - "apktool"
-    - "binwalk"
+    - "Как обычный веб: HTML/JS в `assets/www`"
+    - "Через Ghidra"
+    - "Через dnSpy"
+    - "Через `service call`"
   answer: 0
-  explanation: "ILSpy/dnSpy восстанавливают C# из IL."
-- question: "Где объявлены Cordova-плагины?"
+- question: "Как разбирают Xamarin-приложения?"
   options:
-    - "В res/xml/config.xml"
-    - "В build.gradle"
-    - "В strings.xml"
-    - "В Info.plist"
+    - "`dnSpy`/`ilspycmd` по .NET-сборкам в `assemblies/`"
+    - "`jadx` по DEX"
+    - "`strings` по `.so`"
+    - "`content query`"
   answer: 0
-  explanation: "config.xml перечисляет feature/plugin и их доступ."
-- question: "Почему гибридные приложения часто проще анализировать?"
+- question: "Что даёт `strings libapp.so` в Flutter-приложении?"
   options:
-    - "Логика в читаемых JS или декомпилируемом IL"
-    - "В них нет кода"
-    - "Они не используют API"
-    - "Они не компилируются"
+    - "Строки: URL, ключи, подсказки"
+    - "Исходный Dart-код"
+    - "Java-классы"
+    - "XML-ресурсы"
   answer: 0
-  explanation: "Исходная логика восстанавливается легче, чем нативный код."
 ```
+
+## Куда дальше
+
+Мы научились определять фреймворк и адаптировать анализ. В следующем уроке разберём **tapjacking и task hijacking** — атаки, где злоумышленник перекрывает интерфейс или перехватывает задачу. А пока запомни главное: сначала пойми, на чём написано приложение, — от этого зависит, где искать логику.
 
 ## Где пригодится
 
-- **CTF Mobile:** быстрый реверс, секреты в JS/IL.
-- **Bug bounty:** зашитые ключи и слабые WebView-мосты.
-- **Пентест:** аудит гибридных приложений.
-- **Работа:** ревью кросс-платформенных клиентов.
+- **CTF Mobile:** анализ Flutter/RN-приложений.
+- **Bug bounty:** поиск секретов в бандлах и `.so`.
+- **Пентест:** адаптация методики под фреймворк.
+- **Работа:** ревью кросс-платформенных сборок.

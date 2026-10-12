@@ -14,229 +14,273 @@ useful_for:
 estimated_minutes: 55
 summary: "LLDB: базовые и продвинутые команды, точки останова и watchpoints, Python-скриптинг, отладка Mach-O и iOS, практические сценарии и сравнение с gdb."
 ---
+## Вопрос, с которого всё начинается
 
-LLDB — отладчик из проекта LLVM, штатный инструмент для macOS и Xcode. Он заменил GDB в экосистеме
-Apple и активно используется для отладки C/C++/Rust/Swift, а также для анализа Mach-O и iOS-
-приложений. Синтаксис команд отличается от GDB, но возможности те же: точки останова, просмотр
-памяти, пошаговое исполнение, скрипты. Если вы работаете с macOS или iOS, LLDB — обязательный
-навык; на Linux он тоже доступен и иногда удобнее gdb (особенно с Python 3).
+Тебе дали бинарник. Рядом — Linux или macOS, а вместо gdb хочется взять **LLDB**:
+это штатный отладчик Apple, который одинаково работает и с Mach-O (формат файлов
+macOS/iOS), и с ELF (формат Linux). Как с его помощью найти в программе место, где
+она сравнивает введённый ключ с правильным, и вытащить этот ключ?
 
-## Почему LLDB, а не gdb
+В этом уроке мы откроем в LLDB один конкретный бинарник и пройдём путь до ответа.
 
-На macOS `gdb` официально не поддерживается (проблемы с подписью и `task_for_pid`); `lldb` —
-штатный отладчик. Он интегрирован в Xcode, поддерживает Swift-выражения и современный DWARF.
-На Linux LLDB также работает и предоставляет удобный Python-API (`SBFrame`, `SBValue`,
-`SBProcess`). Главное отличие в синтаксисе: вместо `b` — `breakpoint set`, вместо `p` — `expression`
-(сокращённо `expr`/`p`), вместо `info registers` — `register read`.
+## Наш пример
 
-## Запуск и базовые команды
-
-Запуск: `lldb ./crackme`, затем `run` (или `r`). Аргументы передаются через `settings set
-target.run-args` или прямо в `run arg1 arg2`. Базовые команды:
-
-| Команда LLDB | Аналог gdb | Действие |
-|---|---|---|
-| `run` / `r` | `run` | запустить |
-| `breakpoint set -n main` | `break main` | точка останова по имени |
-| `breakpoint set -a 0x1140` | `break *0x1140` | по адресу |
-| `continue` / `c` | `continue` | продолжить |
-| `next` / `n` | `next` | шаг через вызов |
-| `step` / `s` | `step` | шаг внутрь |
-| `finish` | `finish` | до конца функции |
-| `register read` / `reg r` | `info registers` | регистры |
-| `memory read` / `x` | `x` | чтение памяти |
-| `expression` / `p` | `print` | вычислить выражение |
-| `bt` | `bt` | стек вызовов |
-| `disassemble` / `dis` | `disas` | дизассемблировать |
-
-Проверка состояния: `frame variable` (`fr v`) показывает локальные переменные текущего кадра;
-`thread backtrace all` — стек всех потоков.
-
-## Точки останова
-
-LLDB гибко настраивает breakpoints. `breakpoint set -n <symbol>` ставит по имени,
-`breakpoint set -a <addr>` — по адресу, `breakpoint set -r <regex>` — по регулярному выражению
-имени, `breakpoint set -s <lib> -n <func>` — в конкретной библиотеке. Условные: `breakpoint set -n
-verify -c '(int)$rdi > 0'`. После установки можно добавлять команды, исполняемые при срабатывании:
-`breakpoint command add 1 -o 'register read rax' -o 'continue'`.
-
-Watchpoints: `watchpoint set expression -w write -- 0x1000` следит за записью по адресу,
-`-w read` — за чтением. Это аппаратные точки (DR-регистры), их доступно 4. Они незаменимы, когда
-надо поймать момент, когда программа расшифровывает или перезаписывает данные, а программный
-breakpoint поставить негде.
-
-## Просмотр памяти и регистров
-
-`memory read` (`x`) читает память с форматом: `x/16xb 0x1000` — 16 байт hex, `x/s 0x2000` — строку,
-`x/8gx $rsp` — 8 64-битных слов со стека. `register read rax` (`reg r rax`) читает регистр;
-`register write rax 0x10` — пишет. `expression` умеет вызывать функции в контексте процесса:
-`expr (int)puts("hi")` напечатает строку прямо из отладчика — полезно для проверки гипотез. Также
-`image lookup -a 0x1140` скажет, в какой функции и по какому смещению находится адрес.
-
-## Python-скриптинг
-
-LLDB имеет полноценный Python-API. Скрипт может автоматизировать анализ:
-
-```python
-import lldb
-def run(debugger, command, result, internal_dict):
-    target = debugger.GetSelectedTarget()
-    process = target.GetProcess()
-    frame = process.GetSelectedThread().GetSelectedFrame()
-    # пройтись по аргументам strcmp
-    rdi = frame.FindRegister("rdi").GetValueAsUnsigned()
-    rsi = frame.FindRegister("rsi").GetValueAsUnsigned()
-    s1 = process.ReadCStringFromMemory(rdi, 256, lldb.SBError())
-    s2 = process.ReadCStringFromMemory(rsi, 256, lldb.SBError())
-    print("strcmp(%r, %r)" % (s1, s2))
-lldb.debugger.HandleCommand('command script add -f hook.run mystrcmp')
-```
-
-Загрузив скрипт (`command script import hook.py`), вы получаете команду `mystrcmp`. Типовой приём:
-поставить breakpoint на `strcmp` с командой, которая печатает оба аргумента и продолжает — так
-собираются все сравнения, которые делает crackme. На macOS аргументы передаются в `rdi`/`rsi`
-(x86-64) или `x0`/`x1` (arm64).
-
-## Отладка Mach-O и iOS
-
-LLDB — основной инструмент для iOS. Отладка приложения на устройстве: запуск через `debugserver`
-на устройстве и подключение с хоста (`process connect connect://device:port`). На симуляторе проще:
-`lldb` + `run`. Для iOS-приложений из App Store бинарник зашифрован (FairPlay), поэтому сначала
-нужно снять шифрование (например, `frida-ios-dump`), а затем отлаживать. Для перехвата методов
-Objective-C удобно ставить breakpoint на `objc_msgSend` и смотреть селектор.
-
-Особенность Mach-O: адреса начинаются с `0x100000000` (база `__TEXT`), и при ASLR реальная база
-сдвигается. `image list` показывает загруженные образы и их базы; `image lookup -n <func>` находит
-символ с учётом слайдов.
-
-## Практический разбор
-
-Разберём crackme, где пароль проверяется через `strcmp`:
+Возьмём крошечную программу `keygen`. Первое, что нужно узнать о любом файле, —
+что это вообще такое:
 
 ```
-$ lldb ./crackme
-(lldb) target create "./crackme"
-(lldb) breakpoint set -n strcmp
-Breakpoint 1: where = crackme`strcmp, address = 0x...
-(lldb) run
-Process launched
-Process stopped
-* thread #1, stop reason = breakpoint 1.1
-    frame #0: libsystem_c.dylib`strcmp
-(lldb) register read rdi rsi
-     rdi = 0x0000000100002004  "secret"
-     rsi = 0x00007ffeefbff8a0  "hunter2"
-(lldb) memory read --format c --size 1 --count 20 $rsi
-0x7ffeefbff8a0: hunter2
-(lldb) continue
+$ file keygen
+keygen: ELF 64-bit LSB executable, x86-64, version 1 (SYSV),
+statically linked, BuildID[sha1]=c39b57c3..., not stripped
 ```
 
-Здесь сразу видно, что ожидаемый пароль — `secret`, а введён — `hunter2`. Точка останова на
-`strcmp` — универсальный приём: она показывает все сравнения строк.
+Разберём по словам, потому что каждое важно для отладки:
 
-## Инструменты и флаги
+- **ELF** — формат исполняемых файлов в Linux. (У macOS аналог — Mach-O.)
+- **statically linked** — библиотеки вшиты внутрь, программа не подгружает libc.
+  Значит, весь её код наш, и мы не будем проваливаться в чужие функции.
+- **not stripped** — имена функций и меток сохранены. Это подарок: в отладчике
+  мы увидим не «sub_401000», а осмысленное `loop`.
+- **EXEC**, а не **PIE** — адреса в памяти фиксированы (0x401000 и т.д.), не
+  «плывут» от запуска к запуску. Удобно ставить точки по точному адресу.
 
-| Задача | Команда LLDB |
-|---|---|
-| Точка по имени | `br s -n func` |
-| Точка по адресу | `br s -a 0x...` |
-| Условная | `br s -n f -c 'cond'` |
-| Команды на bp | `br command add <id>` |
-| Watchpoint | `watch s e -w write -- addr` |
-| Память | `x/16xb addr`, `x/s addr` |
-| Регистры | `reg r`, `reg w rax 0x10` |
-| Выражение | `expr ...` |
-| Образ | `image lookup -n func` |
-| Скрипт | `command script import x.py` |
-
-## Swift и Objective-C в LLDB
-
-LLDB — единственный отладчик с первоклассной поддержкой Swift. Выражения `expression` понимают
-синтаксис Swift, умеют работать с `String`, `Array`, опциональными типами и протоколами. Для
-реверса Swift-приложений это бесценно: вместо ручного разбора mangled-имён (`$s...`) вы пишете
-`expression someSwiftFunction()` и видите результат. Деманглинг имён — команда `image lookup -n`
-или `swift demangle`.
-
-Для Objective-C ключевой инструмент — перехват `objc_msgSend`, через который проходят все вызовы
-методов. Поставив breakpoint на `objc_msgSend`, можно логировать селекторы и объекты-получатели:
+Запустим её с заведомо неверным и верным ключом:
 
 ```
-(lldb) br s -n objc_msgSend
-(lldb) br command add 1
-> po $rdi           # объект-получатель
-> p (char*)$rsi     # селектор (SEL)
-> c
-> DONE
+$ printf 'AAAAAAAA' | ./keygen
+Access denied
+$ printf '2;917?{{' | ./keygen
+Access granted
 ```
 
-Так вы видите последовательность вызовов методов и быстро локализуете проверку. Для Swift-классов
-аналогично работают breakpoints по символам после деманглинга.
+Итак, где-то внутри есть сравнение введённых байтов с секретом. Наша задача —
+найти это место и понять, что именно мы ввели правильного.
 
-## Удалённая отладка и ядро
+## Шаг 1: открываем бинарник в LLDB
 
-LLDB поддерживает удалённую отладку: `platform select remote-ios`, затем `process connect
-connect://<device>:<port>` после запуска `debugserver` на устройстве. Это штатный способ отладки
-iOS-приложений и драйверов. На Linux можно подключаться к `gdbserver` или `lldb-server`:
-`lldb-server gdbserver :1234 ./bin` на целевой машине и `gdb-remote 1234` на хосте.
+LLDB запускается как `lldb`, а внутрь файла его заводят командой `target create`
+(синоним — `file`):
 
-Отладка ядра macOS (`kernel debugging`) также выполняется через LLDB с `kdp-remote`. Для
-большинства CTF и malware-задач это избыточно, но знание о существовании этих возможностей полезно:
-если цель — драйвер или системный компонент, LLDB остаётся основным инструментом под Apple.
+```
+(lldb) target create keygen
+Current executable set to '/tmp/rev/keygen' (x86_64).
+```
 
-## Подводные камни
+Строка «Current executable set» — это подтверждение: LLDB разобрал заголовок,
+увидел архитектуру `x86_64` и готов работать. Теперь попросим список функций —
+в LLDB это `image lookup -rn` (поиск по регулярному имени) или, для быстрого
+обзора символов, `image dump symtab`. Нам достаточно знать, что метка `loop`
+есть и живёт по фиксированному адресу.
 
-Первое: синтаксис команд отличается от gdb — `p` в LLDB это `expression`, а не `print` в смысле
-gdb; будьте внимательны при переносе скриптов. Второе: `breakpoint set -n main` не сработает, если
-символ mangled или stripped. Третье: на macOS для отладки нужны права (подпись отладчика, `DevTools
-Security`). Четвёртое: watchpoints ограничены 4 аппаратными регистрами. Пятое: Python-API требует
-Python 3 и правильной загрузки модуля (`command script import`). Шестое: при ASLR адреса меняются
-между запусками — используйте `image lookup`, а не «жёсткие» адреса. Седьмое: на Apple Silicon
-arm64 аргументы функций передаются в регистрах `x0`–`x7`, а не `rdi`/`rsi` — учитывайте
-архитектуру при написании скриптов. Восьмое: символы Swift могут быть очень длинными и mangled —
-используйте встроенный деманглер, а не читайте их вручную.
+## Шаг 2: ставим точку останова
 
-## Что дальше / решение
+**Точка останова** (breakpoint) — это приказ «останови выполнение здесь». Ставим
+её по имени символа:
 
-Практика: соберите crackme с `strcmp`, отладьте в LLDB, поставьте breakpoint на `strcmp`, соберите
-оба аргумента. Напишите Python-скрипт, который автоматически печатает аргументы `strcmp`. На macOS
-попробуйте `image lookup -n main` и `watchpoint set expression`. Далее — `reversing-windows-debuggers`
-для Windows и `reversing-watchpoints-hwbp` для глубокого разбора аппаратных точек.
+```
+(lldb) breakpoint set -n loop
+Breakpoint 1: where = keygen`loop, address = 0x0000000000401026
+```
+
+LLDB сам перевёл имя `loop` в адрес `0x401026` — потому что бинарник не
+«зачищен». Ключ `-n` означает «по имени» (name), есть ещё `-a` по адресу и
+`-f` по файлу:строке, если есть отладочная информация.
+
+## Шаг 3: запускаем и попадаем на остановку
+
+Наша программа читает ключ из стандартного ввода. Чтобы отдать ей ключ прямо в
+командной строке отладчика, положим его в файл и укажем `process launch -i`:
+
+```
+(lldb) process launch -i key.txt
+Process 546304 launched: '/tmp/rev/keygen' (x86_64)
+Process 546304 stopped
+* thread #1, name = 'keygen', stop reason = breakpoint 1.1
+    frame #0: 0x0000000000401026 keygen`loop
+keygen`loop:
+->  0x401026 <+0>:  cmpq   $0x8, %r8
+    0x40102a <+4>:  jge    0x40103d                  ; done
+    0x40102c <+6>:  movb   (%rbx,%r8), %al
+    0x401030 <+10>: xorb   $0x5a, %al
+```
+
+Что мы видим? Выполнение остановилось на адресе `0x401026`, в кадре `frame #0`
+(текущая функция). Стрелочка `->` отмечает инструкцию, которую процесс ещё не
+выполнил. Инструкции:
+
+- `cmpq $0x8, %r8` — сравнить `r8` с 8;
+- `jge` — перейти, если больше-или-равно (условие выхода из цикла);
+- `movb (%rbx,%r8), %al` — прочитать байт из памяти по адресу `rbx + r8` в
+  регистр `al` (младший байт `rax`);
+- `xorb $0x5a, %al` — сложить `al` по XOR с числом 0x5a.
+
+**Регистр** — это сверхбыстрая ячейка внутри процессора. `r8` — счётчик цикла,
+`rbx` — адрес нашей строки, `r9` — адрес секрета. Видно, что программа бежит по
+вводу, каждый байт портит XOR-ом и с чем-то сравнивает.
+
+## Шаг 4: смотрим регистры и память
+
+Спросим значения регистров:
+
+```
+(lldb) register read r8 rbx r9
+      r8 = 0x0000000000000000
+     rbx = 0x00007fffffffe270
+      r9 = 0x0000000000401087  keygen`secret
+```
+
+`r8 = 0` — цикл только начался. `rbx` — адрес на стеке (там лежит наш ввод).
+`r9` — адрес `0x401087`, и LLDB даже подписал его: `keygen`secret`. Это адрес
+секретной строки, с которой сравнивают.
+
+Прочитаем по 8 байт по обоим адресам:
+
+```
+(lldb) memory read -c 8 $rbx
+0x7fffffffe270: 32 3b 39 31 37 3f 7b 7b                          2;917?{{
+(lldb) memory read -c 8 $r9
+0x00401087: 68 61 63 6b 6d 65 21 21                          hackme!!
+```
+
+Команда `memory read` (коротко `x`) с ключом `-c 8` печатает 8 байт. Справа —
+ASCII-декодирование. Мы видим сразу два важных факта:
+
+1. Секрет в бинарнике — это строка `hackme!!`.
+2. Наш ввод `2;917?{{` лежит рядом, и именно он после XOR с 0x5a превращается в
+   `hackme!!`: `0x32 ^ 0x5a = 0x68` ('h'), `0x3b ^ 0x5a = 0x61` ('a') и так далее.
+
+То есть проверка тривиальная: `input[i] XOR 0x5a == secret[i]`. Отсюда и
+правильный ключ.
+
+## Шаг 5: идём по шагам и ставим watchpoint
+
+Чтобы увидеть проверку в динамике, шагнём по одной инструкции. В LLDB это:
+
+- `next` (`n`) — выполнить строку целиком;
+- `step` (`s`) — войти внутрь вызова;
+- `finish` — доработать функцию до выхода;
+- `continue` (`c`) — бежать до следующей точки останова.
+
+Есть и более мощный инструмент — **watchpoint**, точка наблюдения за памятью.
+Она срабатывает не на инструкцию, а на изменение значения по адресу. В LLDB:
+
+```
+(lldb) watchpoint set expression -- &secret
+Watchpoint created: Watchpoint 1: addr = 0x401087 size = 8 state = enabled type = w
+```
+
+Такой watchpoint поймает любой код, который прочитает или запишет секрет, — это
+незаменимо, когда непонятно, какая из сотни функций трогает нужную переменную.
+
+## Шаг 6: скриптуем на Python
+
+Самая сильная сторона LLDB — встроенный Python. Команда `script` открывает
+интерпретатор прямо внутри отладчика, а `command script import` подгружает файл
+с расширениями. Например, вот так можно распечатать значение регистра из
+скрипта:
+
+```
+(lldb) script
+Python Interactive Interpreter. To exit, type 'quit()', 'exit()'.
+>>> print(lldb.frame.FindRegister('r8').GetValue())
+0
+```
+
+Через Python-API (`lldb.frame`, `lldb.target`, `lldb.process`) пишут кастомные
+команды: автоматический перебор ключей, логирование всех вызовов `strcmp`,
+раскраску дизассемблера. В CTF это экономит часы ручной работы.
+
+## Шаг 7: чем LLDB отличается от gdb
+
+Если ты знаешь gdb, вот карта команд — смысл тот же, синтаксис другой:
+
+| Задача | gdb | LLDB |
+|--------|-----|------|
+| открыть файл | `file a.out` | `target create a.out` |
+| точка по имени | `break loop` | `breakpoint set -n loop` |
+| точка по адресу | `break *0x401026` | `breakpoint set -a 0x401026` |
+| запуск | `run` | `process launch` |
+| аргументы | `run a b` | `process launch -- a b` |
+| регистры | `info registers` | `register read` |
+| память | `x/8xb $rbx` | `memory read -c 8 $rbx` |
+| дизасм | `disas` | `disassemble` |
+| стек вызовов | `bt` | `bt` |
+| шаг внутрь | `stepi` | `thread step-inst` |
+
+На macOS LLDB умеет то, чего нет у gdb: отладку Mach-O, работу с
+Objective-C-объектами, разбор `dyld` (динамический загрузчик Apple). Именно
+поэтому для iOS-реверса (взлом мобильных приложений) берут LLDB.
+
+## Что мы теперь знаем
+
+- LLDB открывает и ELF, и Mach-O; `target create` заводит файл, `breakpoint set`
+  ставит точку останова по имени или адресу.
+- `register read` показывает регистры, `memory read -c N` — N байт памяти с
+  ASCII-подсказкой справа.
+- В нашем бинарнике секрет `hackme!!`, а ввод XOR-ится с 0x5a; отсюда ключ
+  `2;917?{{`.
+- `watchpoint set` следит за изменением памяти, а встроенный Python превращает
+  отладчик в инструмент автоматизации.
+- Синтаксис отличается от gdb, но логика та же; на macOS LLDB — отладчик №1.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Как поставить точку останова по имени функции в LLDB?"
+- question: Какая команда LLDB открывает бинарник для анализа?
   options:
-    - "breakpoint set -n func"
-    - "break func"
-    - "b func"
-    - "stop at func"
+    - "target create keygen"
+    - "break keygen"
+    - "run keygen"
+    - "memory read keygen"
   answer: 0
-- question: "Сколько аппаратных watchpoints обычно доступно?"
+  explanation: "target create (синоним file) загружает файл в отладчик."
+- question: Что делает команда `memory read -c 8 $rbx`?
   options:
-    - "4"
-    - "1"
-    - "8"
-    - "Неограниченно"
+    - "читает 8 байт по адресу в регистре rbx"
+    - "записывает 8 байт в rbx"
+    - "ставит точку останова на rbx"
+    - "печатает значение регистра rbx"
   answer: 0
-- question: "Что делает image lookup -a 0x1140?"
+  explanation: "memory read с ключом -c N печатает N байт по указанному адресу."
+- question: Зачем нужен watchpoint?
   options:
-    - "Находит, какой образ и функция содержат адрес"
-    - "Загружает образ"
-    - "Удаляет образ"
-    - "Печатает регистры"
+    - "чтобы остановиться при изменении значения в памяти"
+    - "чтобы ускорить запуск программы"
+    - "чтобы пересобрать бинарник"
+    - "чтобы отключить ASLR"
   answer: 0
-- question: "Какой отладчик штатный для macOS?"
+  explanation: "watchpoint срабатывает на доступ/запись к конкретному адресу памяти."
+- question: Что означает `not stripped` в выводе file?
   options:
-    - "LLDB"
-    - "WinDbg"
-    - "x64dbg"
-    - "OllyDbg"
+    - "имена функций и меток сохранены"
+    - "бинарник зашифрован"
+    - "бинарник упакован UPX"
+    - "нет секции .text"
   answer: 0
+  explanation: "not stripped — символы на месте, отладка проще."
+- question: Какая команда в LLDB соответствует gdb-шной `info registers`?
+  options:
+    - "register read"
+    - "info reg"
+    - "print regs"
+    - "show registers"
+  answer: 0
+  explanation: "register read печатает регистры; в gdb это info registers."
 ```
+
+## Куда дальше
+
+В следующем уроке мы возьмём тот же самый `keygen` и разберём его в rizin — это
+отладчик и дизассемблер в одном, где можно и дизассемблировать, и эмулировать
+код без запуска. А пока главное запомни: **в LLDB ты открываешь файл, ставишь
+точку, запускаешь, читаешь регистры и память — и секрет оказывается прямо на
+экране**.
 
 ## Где пригодится
 
-- **CTF Reversing:** отладка Mach-O/ELF, перехват сравнений.
-- **Mobile:** отладка iOS-приложений, Objective-C/Swift.
-- **Malware analysis:** динамический анализ под macOS.
+- **CTF Reversing:** отладка Mach-O/ELF, разбор crackme.
+- **Mobile:** отладка iOS-приложений (там LLDB — основной отладчик).
+- **Malware analysis:** отладка образцов под macOS.
+- **Работа:** анализ нативных расширений и драйверов на Apple-платформах.

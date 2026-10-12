@@ -14,253 +14,211 @@ useful_for:
 estimated_minutes: 40
 summary: "Как работают cross-account роли, цепочки AssumeRole, ExternalId и confused deputy. Практические приёмы поиска и эксплуатации слабых trust policies."
 ---
-## Зачем этот урок
 
-AssumeRole — центральный механизм доверия в AWS. Роль не имеет постоянных ключей: чтобы ей воспользоваться, нужно «встать» на неё через `sts:AssumeRole`. Если trust policy роли слишком широка или допускает confused deputy — вы получаете её права. Понимание цепочек AssumeRole критично для lateral movement и cross-account атак.
+## Вопрос, с которого всё начинается
 
-## Механика AssumeRole
+В чужом AWS-аккаунте есть роль, которая явно доверяет нашему аккаунту. Можно ли ей воспользоваться и получить доступ к чужому аккаунту? Ответ зависит от того, что написано в её **trust policy**. Разберём одну такую роль и заодно поймём, где здесь прячется ошибка «confused deputy».
 
-```bash
-aws sts assume-role --role-arn arn:aws:iam::111122223333:role/Admin \
-  --role-session-name pentest --duration-seconds 3600
+## Наш пример: роль CrossAccountDeploy
+
+Объект урока — роль `CrossAccountDeploy` в аккаунте `production` (`111111111111`). Мы сидим в аккаунте `development` (`222222222222`). Посмотрим, кому роль доверяет.
+
+## Шаг 1: что такое trust policy
+
+**Trust policy** — это отдельный документ роли, который отвечает на вопрос «кто может её надеть». В отличие от обычной policy (что роль **может**), trust policy описывает, **кому разрешено** войти в роль через `sts:AssumeRole`. Посмотрим её:
+
+```
+$ aws iam get-role --role-name CrossAccountDeploy \
+    --query "Role.AssumeRolePolicyDocument"
+{
+  "Statement": [
+    { "Effect": "Allow",
+      "Principal": { "AWS": "arn:aws:iam::222222222222:root" },
+      "Action": "sts:AssumeRole" }
+  ]
+}
 ```
 
-Ответ содержит `AccessKeyId`, `SecretAccessKey`, `SessionToken`, `Expiration`. Их подставляют в переменные окружения:
+Читаем: роль доверяет аккаунту `222222222222` — это наш аккаунт. Причём доверие выдано **всему аккаунту** (`:root`), а не конкретному пользователю. Значит, любой пользователь в нашем аккаунте, у которого есть право `sts:AssumeRole`, может войти в эту роль.
 
-```bash
-export AWS_ACCESS_KEY_ID=ASIA...
-export AWS_SECRET_ACCESS_KEY=...
-export AWS_SESSION_TOKEN=...
-aws sts get-caller-identity
+## Шаг 2: пробуем войти
+
+Входим в роль:
+
+```
+$ aws sts assume-role --role-arn arn:aws:iam::111111111111:role/CrossAccountDeploy \
+    --role-session-name pentest
+{
+  "Credentials": {
+    "AccessKeyId": "ASIA...",
+    "SecretAccessKey": "...",
+    "SessionToken": "...",
+    "Expiration": "2024-05-01T18:00:00Z"
+  }
+}
 ```
 
-`get-caller-identity` — первый шаг: он показывает, кто вы теперь. Полезно сохранить креды в профиль:
+Сработало. Теперь экспортируем креды и проверяем, кем стали:
 
-```bash
-aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID --profile assumed
-aws configure set aws_session_token $AWS_SESSION_TOKEN --profile assumed
+```
+$ export AWS_ACCESS_KEY_ID=ASIA... AWS_SECRET_ACCESS_KEY=... AWS_SESSION_TOKEN=...
+$ aws sts get-caller-identity
+{"Arn": "arn:aws:sts::111111111111:assumed-role/CrossAccountDeploy/pentest",
+ "Account": "111111111111"}
 ```
 
-## Что искать
+Мы в аккаунте `production`. Дальше смотрим, что роль может делать (её обычные политики) — возможно, она ведёт ещё дальше.
 
-- Роли с `"Principal":"*"` или `"Principal":{"AWS":"*"}`.
-- Отсутствие `sts:ExternalId`.
-- Доверие к целым аккаунтам (`arn:aws:iam::123456789012:root`) — любой в том аккаунте может встать.
-- Trust к сервисам с SSRF-поверхностью (lambda, ec2, ecs-tasks).
-- Доверие к GitHub Actions OIDC без ограничения repo/branch.
+## Шаг 3: confused deputy и ExternalId
 
-```bash
-aws iam list-roles --query 'Roles[].{Name:RoleName,Trust:AssumeRolePolicyDocument}' \
-  --output json | jq '.[] | select(.Trust.Statement[].Principal=="*")'
+Почему доверие «всему аккаунту» опасно? Представь, что роль доверяет не только нам, но и **стороннему сервису**, которому клиент дал доступ. Тогда возникает **confused deputy** («сбитый с толку посредник»): посредник может быть обманут и выполнить действие от чужого имени. Защита — условие `ExternalId`:
+
+```
+"Condition": { "StringEquals": { "sts:ExternalId": "a1b2c3d4" } }
 ```
 
-## Confused deputy
+`ExternalId` — секретное значение, которое знает только владелец и его сервис. Без него чужой клиент не займёт роль. Если в trust policy условия нет — это находка.
 
-Классика: SaaS-сервис получает роль для доступа к вашему аккаунту. Если trust не требует ExternalId, другой клиент сервиса может заставить его обратиться к вашей роли. Решение — ExternalId. Атакующий ищет роли с `Condition` без ExternalId или с предсказуемым ExternalId (например, ID аккаунта клиента).
+## Шаг 4: цепочки AssumeRole
 
-## Разобранный пример: GitHub Actions → AWS-роль
+Роли часто образуют цепочки: одна роль даёт право занять другую. Это удобно для управления, но и для атакующего — путь вглубь:
 
-Trust policy с `token.actions.githubusercontent.com:sub` = `repo:org/*:*`. Тогда любой репозиторий организации (включая форк/PR) может встать на роль. Атакующий создаёт PR, модифицирует workflow и получает креды через `aws-actions/configure-aws-credentials`. Проверка:
-
-```bash
-aws iam get-role --role-name GitHubDeployRole \
-  --query 'Role.AssumeRolePolicyDocument' --output json
+```
+development  --(assume CrossAccountDeploy)-->  production  --(assume AdminRole)-->  админ
 ```
 
-Если `sub` содержит wildcard — уязвимо. Корректно: `repo:org/repo:ref:refs/heads/main`.
+На каждом шаге мы проверяем trust policy следующей роли и смотрим, разрешён ли вход нашим текущим аккаунтом. Если да — цепочка продолжается. На практике для автоматического перебора таких цепочек используют инструменты вроде `aws-escalate` или собственные скрипты по графу доверий.
 
-## Цепочки AssumeRole
+## Шаг 5: как искать слабые доверия
 
-A → B → C: роль A доверяет вам, B доверяет A, C доверяет B. Пройдя цепочку, вы получаете C. Инструмент pmapper строит граф:
+Ищем trust policies, где `Principal` слишком широк:
 
-```bash
-pmapper --profile default graph create --include-all
-pmapper --profile default query 'who can do sts:AssumeRole with arn:aws:iam::*:role/Admin'
-pmapper --profile default query 'preset privesc *'
+- `"AWS": "*"` — роль может занять кто угодно (почти всегда ошибка);
+- `:root` без условий — доверие целому аккаунту;
+- отсутствие `ExternalId` для сторонних сервисов;
+- доверие по `PrincipalOrgID`, которое не проверяет конкретную роль.
+
+Для быстрого просмотра всех ролей с нестандартным доверием:
+
+```
+$ aws iam list-roles --query "Roles[?contains(to_string(AssumeRolePolicyDocument), '222222222222')].[RoleName]" --output text
+CrossAccountDeploy
+DeployPipelineRole
 ```
 
-Также `cloudmapper`, `pacu` (модуль `iam__privesc_scan`), `weirdAAL`.
+Так за один запрос видны все роли, доверяющие нашему аккаунту.
 
-## Внешние принципалы
+## Шаг 6: OIDC-доверие
 
-- Другой AWS-аккаунт (номер).
-- SAML/OIDC-провайдер.
-- Service principal (`ec2.amazonaws.com`, `lambda.amazonaws.com`).
-- Anonymous (`"Principal":"*"` без Condition) — прямой публичный доступ.
-- Federated principal с condition `:aud`/`:sub`.
+Современный вариант — доверие к **OIDC-провайдеру** (например, GitHub Actions). Роль доверяет токену от GitHub, если он выдан нужному репозиторию:
 
-## Частые ошибки
-
-- Считать, что роль «недоступна», потому что нет ключей — ключи выдаются через AssumeRole.
-- Забывать про `DurationSeconds` (максимум зависит от роли, до 12ч).
-- Не проверять MFA-условия в trust.
-- Игнорировать cross-account доверие к `root` — оно означает весь аккаунт.
-- Путать identity-based и resource-based trust.
-- Не перепроверять, что новая сессия реально имеет права (`get-caller-identity` + тестовый вызов).
-
-## Что дальше / решение
-
-Найдя роль с широким trust, встаньте на неё, вызовите `get-caller-identity`, перечислите права (`enumerate-iam`), ищите новые роли и цепочки. Для защиты — ExternalId, ограничение `sub` в OIDC, MFA, аудит trust-политик и запрет `Principal: *`.
-
-## Виды STS-вызовов
-
-| API | Назначение | Атакующий сценарий |
-|-----|------------|--------------------|
-| AssumeRole | встать на роль | lateral movement, privesc |
-| AssumeRoleWithSAML | федерация SSO | обход MFA при слабом IdP |
-| AssumeRoleWithWebIdentity | OIDC (GitHub, Google) | подмена sub/aud |
-| GetFederationToken | временные креды | расширение сессии |
-| GetSessionToken | MFA-сессия | обход MFA-условий |
-| AssumeRoleWithWebIdentity | EKS IRSA | кража SA-токена |
-
-## Разобранный пример: цепочка из трёх ролей
-
-```bash
-# 1. исходная роль
-aws sts get-caller-identity
-# {"Arn":"arn:aws:sts::111122223333:assumed-role/DevRole/user"}
-# 2. DevRole доверяет BuildRole
-aws sts assume-role --role-arn arn:aws:iam::111122223333:role/BuildRole \
-  --role-session-name s1 --query 'Credentials' --output json > c1.json
-export AWS_ACCESS_KEY_ID=$(jq -r .AccessKeyId c1.json)
-export AWS_SECRET_ACCESS_KEY=$(jq -r .SecretAccessKey c1.json)
-export AWS_SESSION_TOKEN=$(jq -r .SessionToken c1.json)
-# 3. BuildRole доверяет AdminRole
-aws sts assume-role --role-arn arn:aws:iam::111122223333:role/AdminRole \
-  --role-session-name s2 --query 'Credentials' --output json > c2.json
-# ...подставляем и проверяем
-aws sts get-caller-identity
-# {"Arn":"arn:aws:sts::111122223333:assumed-role/AdminRole/s2"}
+```
+"Principal": { "Federated": "arn:aws:iam::111111111111:oidc-provider/token.actions.githubusercontent.com" },
+"Condition": { "StringLike": { "token.actions.githubusercontent.com:sub": "repo:acme-corp/*:*" } }
 ```
 
-## Аудит через CloudTrail
+Опасность — в слишком широком условии `sub`. Если оно допускает любой репозиторий или любую ветку, злоумышленник может создать подходящий репозиторий и получить доступ. Проверяй условие `sub` так же внимательно, как `ExternalId`.
 
-События `AssumeRole` содержат `requestParameters.roleArn`, `roleSessionName`, `sourceIPAddress`, `userIdentity`. Защитник ищет аномалии: сессии с подозрительных IP, роли, на которые «встают» из нетипичных мест.
+## Шаг 7: как защищаться
 
-```bash
-aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=AssumeRole \
-  --max-results 20 --query 'Events[].CloudTrailEvent' --output text | jq -r '.requestParameters.roleArn'
-```
+- ограничивать `Principal` конкретной ролью, а не `:root`;
+- всегда использовать `ExternalId` для сторонних доверий;
+- сужать OIDC-условие до конкретного репозитория и ветки;
+- логировать и алертить на `AssumeRole` из незнакомых аккаунтов.
 
-## Инструменты
+## Шаг 8: пример из CTF
 
-```bash
-# pmapper — граф доверия и запросы
-pmapper --profile default graph create --include-all
-pmapper --profile default query 'who can do sts:AssumeRole with *'
-# pacu — интерактивный фреймворк
-pacu
-> import_keys default
-> run iam__enum_roles
-> run iam__privesc_scan
-# aws sts один-лайнер: перебрать роли и встать
-aws iam list-roles --query 'Roles[].Arn' --output text | tr '\t' '\n' | while read r; do
-  aws sts assume-role --role-arn "$r" --role-session-name t 2>/dev/null && echo "OK $r"; done
-```
+В учебной задаче сюжет часто такой: дан ключ пользователя в аккаунте-«песочнице». У ключа есть `sts:AssumeRole` на `*`. В том же аккаунте лежит роль с trust policy, доверяющей `*`. Ты занимаешь эту роль, а её политики разрешают `sts:AssumeRole` на роль в «продакшен»-аккаунте, которая уже имеет доступ к бакету с флагом. Цепочка из трёх AssumeRole — и ты добрался. Ключевой навык здесь не «взлом», а **чтение trust policies**: без анализа доверий ты просто не поймёшь, какая роль ведёт куда. Поэтому в CTF и в реальном пентесте первым делом выписывают все роли и их `Principal`, а потом строят маршрут.
 
-## OPSEC
+## Шаг 9: доверие важнее ключей
 
-- `role-session-name` виден в CloudTrail — не используйте «pentest»/«hack».
-- `DurationSeconds` > 3600 требует `MaxSessionDuration` роли.
-- Множественные AssumeRole подряд с одного IP — аномалия для GuardDuty.
-- Ограничивайте регион и сервис для уменьшения шума.
+Пользователь не «надевается» — у него есть ключ. Роль же существует, чтобы её занимали по доверию. Поэтому при пентесте ищи не ключи, а **доверия**: даже если все ключи отозваны, misconfigured trust policy позволит снова занять роль. И наоборот: без доверия никакой ключ в чужой аккаунт не пустит. Этот сдвиг мышления — ключевой для работы с облаками.
 
-## Практика: проверка OIDC-доверия
+## Шаг 10: как проверить собственные доверия
 
-1. Найти OIDC-провайдер: `aws iam list-open-id-connect-providers`.
-2. Посмотреть роли с `AssumeRoleWithWebIdentity` в trust.
-3. Проверить условие `sub`/`aud` на wildcard.
-4. Если wildcard — сформировать JWT от имени разрешённого провайдера (в рамках пентеста) и встать на роль.
+Прежде чем искать чужие слабости, полезно оценить свой аккаунт теми же глазами: какие роли доверяют вашему аккаунту `:root`, где отсутствует `ExternalId`, какие OIDC-условия слишком широки. Это ровно те находки, которые искал бы противник, — и их лучше закрыть заранее. Такой «аудит доверий» стоит проводить регулярно, потому что роли и условия меняются вместе с инфраструктурой.
 
-## Частые ошибки (продолжение)
+## Частые вопросы
 
-- Не проверять `MaxSessionDuration` — попытка 12ч сессии упадёт на роли с 1ч.
-- Игнорировать `SourceIdentity` в CloudTrail.
-- Забывать, что trust к `root` аккаунта = любой principal аккаунта с `sts:AssumeRole`.
-- Не сбрасывать переменные окружения между сессиями (путаница в identity).
+**«Почему роль доверяет всему аккаунту?»** Так пишут по умолчанию (`:root`). Это значит, что любой пользователь аккаунта может занять роль.
 
-## Смежные техники
+**«Что защищает от confused deputy?»** Условие `sts:ExternalId` — секретное значение, которое знает только владелец и его сервис.
 
-- **GetFederationToken**: если у вас есть `sts:GetFederationToken`, можно выпустить временные креды с subset прав — полезно для ограничения и для OPSEC.
-- **AssumeRoleWithWebIdentity**: подмена `sub` при слабой проверке OIDC.
-- **Instance profile hijack**: изменение роли инстанса через `iam:ReplaceIamInstanceProfileAssociation`.
-- **UpdateAssumeRolePolicy**: если есть право менять trust роли — добавьте себя и встаньте.
+**«Как искать слабые доверия?»** Ищи `Principal: "*"`, `:root` без условий и слишком широкие OIDC-условия `sub`.
 
-```bash
-aws iam update-assume-role-policy --role-name TargetRole \
-  --policy-document file://new-trust.json
-```
+**«Зачем нужны цепочки?»** Они позволяют из слабого аккаунта дойти до сильного: одна роль даёт право занять следующую.
 
-## Сопоставление с GCP/Azure
+## Что мы теперь знаем
 
-| AWS | GCP | Azure |
-|-----|-----|-------|
-| AssumeRole | impersonate service account | managed identity / OAuth |
-| Trust policy | IAM binding + conditions | RBAC + federated credential |
-| ExternalId | condition | federated credential subject |
-| OIDC federation | Workload Identity | federated identity credential |
+По-простому:
 
-В GCP имперсонация требует `roles/iam.serviceAccountTokenCreator` или `serviceAccountUser`; в Azure — право на managed identity или federated credential.
+1. Trust policy решает, кто может войти в роль.
+2. Доверие `:root` открывает роль всему аккаунту.
+3. `ExternalId` защищает от confused deputy.
+4. Роли образуют цепочки, по которым можно двигаться.
+5. OIDC-доверие требует внимательного условия `sub`.
 
-## Чек-лист охоты за AssumeRole
+## На что смотреть дальше
 
-1. Перечислить все роли: `aws iam list-roles`.
-2. Для каждой выгрузить trust: `get-role --query Role.AssumeRolePolicyDocument`.
-3. Найти `Principal: *`, отсутствие ExternalId, wildcard в OIDC `sub`.
-4. Найти роли с cross-account доверием к `root`.
-5. Проверить `sts:AssumeRole` в собственных правах.
-6. Построить граф (pmapper) и найти путь к админ-роли.
-7. Встать на роль, зафиксировать `get-caller-identity`.
+- **Читай trust policy первой.** От неё зависит всё.
+- **Ищи `*` и `:root`.** Самые слабые доверия.
+- **Проверяй ExternalId.** Его отсутствие — находка.
+- **Строй цепочку.** Одна роль часто ведёт к следующей.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что означает Principal arn:aws:iam::111122223333:root в trust policy?"
+- question: "Что описывает trust policy роли?"
   options:
-    - "Только root-пользователь аккаунта 111122223333"
-    - "Любой принципал аккаунта 111122223333, чья IAM-политика разрешает sts:AssumeRole"
-    - "Все аккаунты AWS"
-    - "Сервис EC2"
-  answer: 1
-  explanation: ":root в Principal означает аккаунт целиком, а не конкретного root-пользователя."
-- question: "Чем опасна trust policy с Principal равным звездочке?"
+    - "Кому разрешено войти в роль через AssumeRole"
+    - "Что роль может делать"
+    - "Размер роли"
+    - "Её теги"
+  answer: 0
+  explanation: "Trust policy — про вход, а не про права роли."
+- question: "Чем опасно доверие к ':root' без условий?"
   options:
-    - "Ничем"
-    - "Любой принципал может ассумировать роль"
-    - "Она даёт только чтение"
-    - "Она требует MFA"
-  answer: 1
-  explanation: "Principal * означает, что роль может ассумировать кто угодно (с учётом условий)."
-- question: "Что такое confused deputy в контексте OIDC-доверия GitHub Actions?"
+    - "Любой пользователь аккаунта может занять роль"
+    - "Роль исчезает"
+    - "Пропадают логи"
+    - "Ключ шифруется"
+  answer: 0
+  explanation: "Доверие выдано всему аккаунту."
+- question: "Что защищает от confused deputy?"
   options:
-    - "Ошибка в TLS"
-    - "Роль проверяет только aud, но не sub, поэтому любой репозиторий получает доступ"
-    - "Слишком короткий пароль"
-    - "Отсутствие шифрования"
-  answer: 1
-  explanation: "Без проверки sub любое совпадающее по aud/OIDC приложение получает роль."
-- question: "Какой инструмент строит граф путей AssumeRole в AWS?"
+    - "Условие sts:ExternalId"
+    - "Смена региона"
+    - "Длинный пароль"
+    - "MFA"
+  answer: 0
+  explanation: "ExternalId знает только владелец и его сервис."
+- question: "Что такое цепочка AssumeRole?"
   options:
-    - "TruffleHog"
-    - "PMapper (principalmapper)"
-    - "sqlmap"
-    - "Wireshark"
-  answer: 1
-  explanation: "PMapper анализирует IAM-политики и находит пути эскалации/ассумирования."
-- question: "Почему право iam:PassRole может вести к выполнению кода под другой ролью?"
+    - "Последовательность ролей, где одна даёт занять другую"
+    - "Список бакетов"
+    - "Набор ключей"
+    - "Правило DNS"
+  answer: 0
+  explanation: "По цепочке можно двигаться вглубь."
+- question: "На что смотреть в OIDC-доверии?"
   options:
-    - "Оно даёт root"
-    - "Оно позволяет передать роль сервису (Lambda/EC2/Glue), который исполнит код от её имени"
-    - "Оно шифрует данные"
-    - "Оно не связано с ролями"
-  answer: 1
-  explanation: "PassRole передаёт существующую роль сервису, который затем действует с её правами."
+    - "Условие sub — оно должно ограничивать репозиторий и ветку"
+    - "Цвет иконки"
+    - "Размер токена"
+    - "Регион"
+  answer: 0
+  explanation: "Слишком широкий sub позволяет подделать контекст."
 ```
+
+## Куда дальше
+
+Мы разобрали доверия между AWS-аккаунтами. Дальше — **Azure**: Entra ID и Azure RBAC, где роли назначаются на scope, а приложения получают права через API permissions. А пока запомни главное: cross-account доступ существует ровно там, где есть явное доверие, и trust policy — его единственный источник.
 
 ## Где пригодится
 
-- **Пентест AWS** — межаккаунтная эскалация.
-- **Red team** — построение цепочек доверия.
-- **Bug bounty** — облачные приложения с OIDC-интеграциями.
-- **IR/Blue team** — детект аномальных AssumeRole/AssumeRoleWithWebIdentity.
-- **DevSecOps** — ужесточение trust policies и ExternalId.
+- **Пентест:** движение между AWS-аккаунтами.
+- **Red team:** построение цепочек доверия.
+- **Аудит:** поиск слабых trust policies и отсутствующих ExternalId.
+- **Blue team:** контроль cross-account-доверий и OIDC-условий.

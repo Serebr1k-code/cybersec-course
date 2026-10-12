@@ -14,203 +14,219 @@ useful_for:
 estimated_minutes: 35
 summary: "Как Android Keystore хранит ключи, чем hardware-backed (TEE/StrongBox) отличается от software, как их инспектировать и какие ошибки конфигурации делают ключи извлекаемыми."
 ---
-## Что такое Android Keystore
 
-Android Keystore — системный сервис для хранения криптографических ключей. Ключи генерируются внутри «хранилища» и **не покидают его**: приложение получает лишь дескриптор и может выполнять операции (шифрование, подпись, HMAC) через него. На устройствах с TEE/StrongBox ключи хранятся в аппаратно-защищённой среде и не извлекаются даже при root. Это правильный способ защитить секреты — и одновременно интересная цель пентеста: неправильное использование Keystore даёт обходы.
+## Вопрос, с которого всё начинается
 
-Ментальная модель: если ключ в Keystore — вы не можете его «украсть» (в идеале). Но вы можете: (1) вызвать операции с ключом из-под приложения, (2) обойти аутентификацию пользователя, привязанную к ключу, (3) найти ошибки конфигурации, снижающие защиту, (4) атаковать слабые устройства без TEE.
+В уроке про небезопасное хранение мы видели, как приложение `uncrack1.apk` хранит AES-ключ **прямо в коде**:
 
-## Как приложение использует Keystore
+```java
+bArr = sg.vantagepoint.a.a.a(b("8d127684cbc37c17616d806cf50473cc"), ...);
+```
+
+Ключ `8d12...` лежит в байткоде — его видит любой, кто декомпилирует APK. Так делать нельзя. Но где приложение **должно** хранить ключи? Ответ — Android Keystore. Как он устроен и почему даже его можно использовать неправильно?
+
+## Наш пример: как выглядит защищённое хранилище ключей
+
+Начнём с демонстрации того, как выглядит хранилище ключей вообще. Создадим ключ в keystore и посмотрим, что там лежит:
+
+```
+$ keytool -genkeypair -keystore demo.keystore -storepass password \
+    -alias demo -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=Demo"
+Generating 2,048 bit RSA key pair and self-signed certificate (SHA256withRSA)
+with a validity of 3,650 days
+	for: CN=Demo
+
+$ keytool -list -keystore demo.keystore -storepass password
+Keystore type: PKCS12
+Your keystore contains 1 entry
+
+demo, Oct 12, 2026, PrivateKeyEntry,
+Certificate fingerprint (SHA-256): 9B:F8:DA:60:...:84:C4:50:19
+```
+
+Ключевое здесь — **`PrivateKeyEntry`**. Приватный ключ не лежит в открытом виде как строка: он хранится внутри защищённого хранилища. Именно на этой идее строится Android Keystore.
+
+## Шаг 1: что такое Android Keystore
+
+Android Keystore — системный сервис, который хранит криптографические ключи **вне песочницы приложения**. Приложение просит: «сгенерируй мне ключ с именем `mykey`», а сам ключевой материал наружу не получает. Вместо этого оно просит: «подпиши/расшифруй этим ключом вот эти данные».
+
+Зачем это нужно:
+
+- Ключ нельзя украсть из файлов приложения — его там нет.
+- На устройствах с TEE (Trusted Execution Environment) или StrongBox ключ вообще не покидает чип.
+- Можно привязать использование ключа к аутентификации пользователя.
+
+## Шаг 2: как приложение создаёт ключ
+
+Типичный код генерации:
 
 ```java
 KeyGenerator kg = KeyGenerator.getInstance("AES", "AndroidKeyStore");
-kg.init(new KeyGenParameterSpec.Builder("myKey", PURPOSE_ENCRYPT | PURPOSE_DECRYPT)
-    .setBlockModes(BLOCK_MODE_GCM)
-    .setEncryptionPaddings(ENCRYPTION_PADDING_NONE)
-    .setUserAuthenticationRequired(true)          // ключ требует аутентификации
-    .setUserAuthenticationValidityDurationSeconds(30)
+kg.init(new KeyGenParameterSpec.Builder("mykey",
+        KeyProperties.PURPOSE_ENCRYPT | KeyProperties.PURPOSE_DECRYPT)
+    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
+    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
+    .setUserAuthenticationRequired(true)
     .build());
-kg.generateKey();
+SecretKey key = kg.generateKey();
 ```
 
-```bash
-grep -rn "AndroidKeyStore\|KeyGenParameterSpec\|setUserAuthenticationRequired\|setIsStrongBoxBacked\|setInvalidatedByBiometricEnrollment" out_jadx | head
+Обратите внимание на две строки: `BLOCK_MODE_GCM` (правильный режим вместо ECB из `uncrack1`) и `setUserAuthenticationRequired(true)` — ключ нельзя использовать без разблокировки устройства.
+
+## Шаг 3: где ошибаются
+
+Даже с Keystore есть типичные ошибки:
+
+- **`setUserAuthenticationRequired(false)`** (или отсутствие вызова) — ключ доступен без биометрии/PIN, и приложение, получившее код на устройстве, может им пользоваться.
+- **Импорт чужого ключа** через `setKeyEntry`/`importKey` — тогда материал всё же приходил извне (например, из кода) и хранится в Keystore лишь «на бумаге».
+- **Слабые параметры**: `BLOCK_MODE_ECB`, отсутствие `setRandomizedEncryptionRequired`.
+- **Ключ из пароля** без KDF — восстановимый по словарю.
+
+## Шаг 4: что происходит без TEE
+
+Keystore бывает аппаратный (ключ в TEE/StrongBox) и программный (ключ в файле, зашифрованном мастер-ключом устройства). Если TEE нет:
+
+```
+$ adb shell dumpsys keystore 2>/dev/null | head
 ```
 
-Что смотреть: `setUserAuthenticationRequired`, `setUserAuthenticationValidityDurationSeconds`, `setUnlockedDeviceRequired`, `setIsStrongBoxBacked`, `setInvalidatedByBiometricEnrollment`, `setKeyValidityForOriginationEnd`. Слабые настройки (`userAuthenticationRequired=false` при чувствительных данных) снижают защиту.
+На устройстве без аппаратной защиты ключевой материал при наличии root потенциально извлекаем. Поэтому проверяют `KeyInfo.isInsideSecureHardware()`:
 
-## Типы ключей и их защита
-
-| Тип | Ключ в Keystore | TEE/StrongBox | Извлекаем? |
-|-----|-----------------|---------------|-----------|
-| Symmetric AES | да | да | нет (в идеале) |
-| HMAC | да | да | нет |
-| RSA/EC (подпись) | да | да | нет |
-| Ключ из пароля (PBKDF) | может быть вне | — | возможно |
-| «Сырой» ключ (импортированный) | нет | — | да |
-
-Ключи, **импортированные** в Keystore (`setKeyEntry`), менее защищены, чем сгенерированные внутри. Также ищите ключи, которые приложение хранит вне Keystore (в файле/SharedPreferences) — это уже находка (`mobile-insecure-storage`).
-
-## Аутентификация пользователя и её обход
-
-`setUserAuthenticationRequired(true)` требует, чтобы пользователь аутентифицировался (PIN/биометрия) перед использованием ключа. `setUserAuthenticationValidityDurationSeconds(N)` даёт «окно» на N секунд. Атаки:
-
-- **Биометрический обход:** если проверка только через `BiometricPrompt`, её можно подменить (Frida/Objection) — но если ключ реально требует auth, операция упадёт. Различайте «UI-проверка» и «криптографическая привязка к auth».
-- **Окно валидности:** в течение N секунд ключ доступен без повторной аутентификации — если злоумышленник получил устройство в этот момент, он может выполнить операцию.
-- **Обход через подмену результата биометрии** (`onAuthenticationSucceeded`) — работает, только если приложение не привязало ключ к auth криптографически.
-
-```javascript
-// проверить, требуется ли auth для ключа
-Java.perform(function () {
-  var K = Java.use('android.security.keystore.KeyGenParameterSpec');
-  // смотреть флаги при генерации в коде
-});
+```java
+KeyFactory f = KeyFactory.getInstance("AES", "AndroidKeyStore");
+SecretKeyFactory sf = (SecretKeyFactory) f;
+KeyInfo info = sf.getKeySpec(key, KeyInfo.class);
+boolean hw = info.isInsideSecureHardware();
 ```
 
-## Ошибки конфигурации
+Если `false` — ключ программный, и его стойкость зависит только от устройства.
 
-- **`setUserAuthenticationRequired(false)`** для чувствительных ключей.
-- **Отсутствие `setInvalidatedByBiometricEnrollment(true)`** — ключ остаётся валиден после добавления нового отпечатка (злоумышленник добавляет свой палец).
-- **Использование Keystore для ключа, который потом выгружается** (обёртка снаружи) — теряется смысл.
-- **Хранение ключа рядом с данными** (пароль в SharedPreferences + ключ там же).
-- **`setIsStrongBoxBacked(true)` без fallback** — на устройствах без StrongBox генерация падает (функциональный баг, не безопасность).
+## Шаг 5: как тестировать
 
-## Атака: извлечение ключа на устройстве без TEE
+План проверки:
 
-На старых/дешёвых устройствах или эмуляторах Keystore может не иметь аппаратной защиты. Тогда ключи хранятся в файле (`/data/misc/keystore/`) и извлекаются при root:
+1. Найти в декомпилированном коде обращения к `AndroidKeyStore` (`grep -rn "AndroidKeyStore" jadx_out/`).
+2. Посмотреть параметры `KeyGenParameterSpec` (режим, padding, auth-привязка).
+3. Проверить, импортируется ли ключ извне (плохой признак).
+4. Проверить `isInsideSecureHardware`.
+5. Если auth-привязки нет — попробовать использовать ключ из Frida-хука без аутентификации.
 
-```bash
-adb shell su -c "ls -la /data/misc/keystore/user_0/"
-# файлы .key/.mst содержат материал; на устройствах без TEE он может быть восстановлен
-```
+## Полный прогон от начала до конца
 
-Также на эмуляторах `AndroidKeyStore` иногда «программный» — ключи извлекаются. Проверяйте, есть ли `Keymaster`/`StrongBox` (`adb shell getprop | grep -i keymaster`).
+Соберём проверку Keystore в один сценарий:
 
-## Разобранный пример: обход auth-привязки
+1. **`jadx`** — декомпилируем APK и ищем `AndroidKeyStore`.
+2. **Читаем `KeyGenParameterSpec`** — режим, padding, auth-привязку.
+3. **Проверяем импорт** — вызывается ли `setKeyEntry`/`importKey`.
+4. **Смотрим `isInsideSecureHardware`** — аппаратный ключ или программный.
+5. **Если auth-привязки нет** — хукаем использование ключа и пробуем операцию без аутентификации.
+6. **Фиксируем результат**: что защищено, что нет, какая severity.
 
-```bash
-$ grep -rn "setUserAuthenticationRequired" out_jadx
-Vault.java: .setUserAuthenticationRequired(true)
-            .setUserAuthenticationValidityDurationSeconds(3600)   // окно 1 час!
-$ # приложение считает, что ключ защищён, но окно 1 час позволяет операцию без повторного auth
-$ objection -g com.target.app explore
-com.target.app # android hooking watch class_method com.target.Vault.decrypt --dump-args --dump-return
-(agent) [watch] decrypt("...") -> "FLAG{keystore_with_long_window}"
-```
+Для контраста рядом держим плохой пример — захардкоженный AES-ключ из `uncrack1`, который вообще не требует никаких проверок.
 
-Длинное окно валидности + отсутствие `InvalidatedByBiometricEnrollment` ослабляют защиту; в связке с доступом к устройству это даёт расшифровку.
+## Если auth-привязка мешает
 
-## Справочная таблица: настройки и риски
+- **Ключ привязан к биометрии.** `setUserAuthenticationRequired(true)` не даст использовать ключ без аутентификации. Ищите обход на root или device-credential fallback.
+- **`isInsideSecureHardware() == true`.** Ключ в TEE; извлечь материал нельзя. Тогда атакуйте логику вокруг ключа, а не сам ключ.
+- **`KeyPermanentlyInvalidatedException`.** Ключ инвалидируется при смене биометрии — это ожидаемое поведение, не баг.
+- **Keystore недоступен.** На эмуляторе может не быть TEE; тестируйте на реальном устройстве.
 
-| Настройка | Значение | Риск, если неверно |
-|-----------|----------|--------------------|
-| `setUserAuthenticationRequired` | true/false | false = ключ без auth |
-| `setUserAuthenticationValidityDurationSeconds` | N сек | большое окно = обход |
-| `setInvalidatedByBiometricEnrollment` | true | false = новый отпечаток не инвалидирует |
-| `setUnlockedDeviceRequired` | true | false = доступ на заблокированном |
-| `setIsStrongBoxBacked` | true | без fallback = падение |
-| `setKeyEntry` (импорт) | — | импортированный ключ слабее |
+## Захардкоженный ключ против Keystore
 
-## Типовые ошибки новичка
+Сравним два подхода на конкретных примерах:
 
-- **Искать «извлечение» ключа.** В TEE ключ не извлекается — цель в другом: обход auth, ошибки конфигурации, слабые устройства.
-- **Путать UI-биометрию и крипто-привязку.** Первую обойти легко, вторую — нет.
-- **Игнорировать окно валидности.** Большое окно = реальный обход.
-- **Не проверять, импортирован ли ключ.** Импортированные ключи слабее.
-- **Тестировать только на эмуляторе.** На реальном устройстве с TEE поведение иное.
+- **Плохо:** `uncrack1` держит AES-ключ `8d127684cbc37c17616d806cf50473cc` в байткоде. Любой, кто декомпилирует APK, получает ключ и расшифровывает данные.
+- **Хорошо:** приложение генерирует ключ в Keystore с именем `mykey`; материал не покидает хранилище, а расшифровка доступна только через API на этом устройстве.
 
-## Что дальше / решение
+Разница принципиальная: в первом случае секрет **копируется** к атакующему, во втором — остаётся на устройстве и может быть привязан к аутентификации. Проверяя приложение, всегда задавайте вопрос: «а материал ключа вообще достижим?»
 
-Порядок: найти использование Keystore (`AndroidKeyStore`), проверить флаги защиты, оценить окно auth и инвалидацию биометрии, проверить наличие TEE/StrongBox, при слабом устройстве — попробовать извлечь материал. Связанные уроки: `mobile-insecure-storage`, `mobile-biometric`, `mobile-crypto-misuse`, `mobile-ios-keychain` (аналог на iOS). Решение — когда вы обошли auth-привязку или нашли конфигурацию, снижающую защиту, и подтвердили impact.
+## Чек-лист тестирования Keystore
 
-## Аппаратная привязка: TEE, StrongBox и что они значат
+- Найти обращения к `AndroidKeyStore` в коде.
+- Проверить режим (GCM, не ECB) и padding.
+- Проверить `setUserAuthenticationRequired`.
+- Проверить, не импортируется ли ключ извне.
+- Проверить `isInsideSecureHardware`.
+- Зафиксировать, что защищено, а что нет.
 
-Android Keystore опирается на Keymaster/KeyMint в TEE (Trusted Execution Environment) или в StrongBox (отдельный чип). Ключ, созданный с `setIsStrongBoxBacked(true)`, никогда не покидает чип, а операции выполняются внутри. Что это значит для пентеста:
+## Частые вопросы
 
-- **С TEE/StrongBox** извлечь ключ нельзя; но можно обойти **условия его использования** (auth, окно валидности) или заставить приложение выполнить операцию.
-- **Без TEE** (эмулятор, старые устройства) Keystore программный: материал ключа лежит в файлах и может быть извлечён при root.
+**«Keystore можно вытащить?»** — материал ключа при аппаратной защите нет; логику вокруг — да. **«Что важнее всего?»** — `setUserAuthenticationRequired(true)` и режим GCM. **«Как понять, что ключ аппаратный?»** — `isInsideSecureHardware()`. **«Плохо ли импортировать ключ?»** — да, материал уже был в коде. **«Что если ключ в коде?»** — это не Keystore вовсе, а захардкоженный секрет, как в `uncrack1`.
 
-```bash
-# проверить наличие аппаратной поддержки
-adb shell getprop | grep -iE "keymaster|strongbox|keystore"
-adb shell dumpsys android.hardware.security.keymint 2>/dev/null | head
-# на эмуляторе часто keymaster=software
-```
+## Что мы теперь знаем
 
-Если поддержки нет — считайте Keystore «мягким» и ищите файлы ключей. Если есть — смещайте фокус на обход условий использования.
+По-простому:
 
-## Практический чек-лист тестирования Keystore
+1. Keystore хранит ключи вне приложения; наружу отдаётся только результат операций.
+2. `PrivateKeyEntry` — ключ внутри защищённого хранилища, а не строка в коде.
+3. `setUserAuthenticationRequired(true)` привязывает ключ к аутентификации.
+4. `isInsideSecureHardware()` показывает, защищён ли ключ аппаратно.
+5. Ошибки: слабый режим (ECB), импорт ключа извне, отсутствие auth-привязки.
 
-1. Найти использование (`AndroidKeyStore`, `KeyGenParameterSpec`, `KeyStore.getEntry`).
-2. Выписать флаги: `userAuthenticationRequired`, окно валидности, `InvalidatedByBiometricEnrollment`, `UnlockedDeviceRequired`, `IsStrongBoxBacked`.
-3. Оценить, привязан ли ключ к аутентификации **криптографически** (тогда UI-обход бесполезен) или только UI.
-4. Проверить, не импортирован ли ключ (`setKeyEntry`) — это слабее.
-5. Проверить, нет ли рядом с ключом его «обёртки»/пароля в файлах.
-6. Определить наличие TEE/StrongBox.
-7. При слабом устройстве — попробовать извлечь материал (`/data/misc/keystore`).
-8. Зафиксировать: обход (если есть) или подтверждение стойкости.
+## Практический совет
 
-## Справочная таблица: API Keystore и риск
+Оценивая Keystore, не ограничивайтесь фактом его использования. Приложение может «использовать Keystore» и при этом импортировать захардкоженный ключ или не требовать аутентификации — тогда защита фиктивная. Всегда проверяйте три вещи: откуда взялся ключ, какой режим выбран и привязан ли он к пользователю. Только сочетание этих условий даёт реальную защиту.
 
-| API | Назначение | Слабый случай |
-|-----|-----------|---------------|
-| `KeyGenerator` + `AndroidKeyStore` | генерация ключа в хранилище | ключ извлекаем вне TEE |
-| `setUserAuthenticationRequired` | требовать auth | false при секретах |
-| `setUserAuthenticationValidityDurationSeconds` | окно | большое окно |
-| `setInvalidatedByBiometricEnrollment` | инвалидация | false |
-| `setUnlockedDeviceRequired` | только разблокированное | false |
-| `setIsStrongBoxBacked` | чип | без fallback |
-| `KeyStore.setKeyEntry` | импорт ключа | импортированный слабее |
-| `KeyInfo` | проверка возможностей | — |
+## На что смотреть дальше
+
+- **Ищите `AndroidKeyStore`** в коде и читайте параметры генерации.
+- **Проверяйте auth-привязку** — её отсутствие делает биометрию декорацией.
+- **Смотрите `isInsideSecureHardware`** — программный ключ слабее.
+- **Сравните с плохим примером:** захардкоженный ключ (`uncrack1`) — антипаттерн.
+
+## StrongBox и уровни защиты
+
+Помимо TEE, существует **StrongBox** — отдельный чип безопасности, который хранит ключи ещё изолированнее. Приложение может запросить `setIsStrongBoxBacked(true)`, но не на всех устройствах это доступно. Проверяя Keystore, уточните, какой уровень защиты реально используется: программный, TEE или StrongBox. Чем выше уровень, тем меньше шансов извлечь ключ даже на рутованном устройстве.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Чем hardware-backed ключ лучше software?"
+- question: "Где приложение должно хранить криптоключи?"
   options:
-    - "Материал не покидает TEE/StrongBox"
-    - "Он быстрее"
-    - "Он не требует аутентификации"
-    - "Он переносится в бэкап"
+    - "В Android Keystore"
+    - "В SharedPreferences"
+    - "В коде (const-string)"
+    - "На внешней SD-карте"
   answer: 0
-  explanation: "Аппаратная защита не даёт извлечь ключевой материал."
-- question: "Какой флаг привязывает ключ к аутентификации пользователя?"
+- question: "Что даёт `setUserAuthenticationRequired(true)`?"
   options:
-    - "setUserAuthenticationRequired(true)"
-    - "setBlockModes"
-    - "setKeySize"
-    - "setIsStrongBoxBacked"
+    - "Ключ нельзя использовать без аутентификации пользователя"
+    - "Ключ автоматически удаляется"
+    - "Ключ становится публичным"
+    - "Ключ синхронизируется в облако"
   answer: 0
-  explanation: "Ключ нельзя использовать без успешной аутентификации."
-- question: "Чем опажен setUserAuthenticationValidityDurationSeconds?"
+- question: "Какой режим шифрования показан как правильный вместо ECB?"
   options:
-    - "Создаёт окно, в котором ключ доступен без повторной проверки"
-    - "Замедляет шифрование"
-    - "Требует root"
-    - "Удаляет ключ"
+    - "GCM"
+    - "ECB"
+    - "RAW"
+    - "NULL"
   answer: 0
-  explanation: "В течение окна аутентификация не перепроверяется."
-- question: "Как обойти логику, доверяющую Keystore, без извлечения ключа?"
+- question: "Что означает `isInsideSecureHardware() == false`?"
   options:
-    - "Хукать операции Cipher/Signature"
-    - "Переустановить приложение"
-    - "Сменить устройство"
-    - "Отключить Wi-Fi"
+    - "Ключ программный, не защищён аппаратно"
+    - "Ключ слишком длинный"
+    - "Ключ уже скомпрометирован"
+    - "Ключ в облаке"
   answer: 0
-  explanation: "Перехват операций позволяет влиять на результат."
-- question: "Что такое StrongBox?"
+- question: "Почему импорт ключа из кода в Keystore — плохой признак?"
   options:
-    - "Отдельный защищённый чип для ключей"
-    - "Формат APK"
-    - "Тип сети"
-    - "Режим шифрования"
+    - "Материал ключа уже был в коде и потому доступен"
+    - "Keystore это запрещает"
+    - "Ключ станет публичным"
+    - "Приложение не запустится"
   answer: 0
-  explanation: "StrongBox — аппаратный модуль хранения ключей."
 ```
+
+## Куда дальше
+
+Мы разобрали, где приложение должно хранить ключи. В следующем уроке — **типичные ошибки криптографии** целиком: ECB, фиксированный IV, самодельные схемы и как их эксплуатируют на практике. А пока запомни главное: ключ не должен лежать в коде; Keystore отдаёт операции, а не материал, и его обязательно привязывают к аутентификации.
 
 ## Где пригодится
 
-- **CTF Mobile:** работа с Keystore и обход доверия к нему.
-- **Bug bounty:** слабая конфигурация ключей — валидная находка.
-- **Пентест:** аудит хранения и использования ключей.
-- **Работа:** ревью крипто-хранилищ Android.
+- **CTF Mobile:** анализ хранения ключей и обход auth-привязки.
+- **Пентест:** проверка OWASP MASVS-CRYPTO.
+- **Bug bounty:** извлечение ключа из клиента — валидная находка.
+- **Работа:** ревью криптографического дизайна приложения.

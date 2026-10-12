@@ -14,258 +14,214 @@ useful_for:
 estimated_minutes: 55
 summary: "Как выжимать максимум информации из SMB, RDP, LDAP и NFS: null-сессии, анонимные бинды, шары, пользователи и версии."
 ---
-Открытый порт — это ещё не уязвимость. Реальная ценность появляется на этапе энумерации: версии, пользователи, шары, политики, конфигурации. Этот урок — про глубокую энумерацию самых «вкусных» корпоративных сервисов: SMB, RDP, LDAP, NFS, а также WinRM, MSSQL и SNMP.
 
-Разберём, что именно можно вытащить из каждого сервиса, какими инструментами и как это превращается в креды и доступ.
+## Вопрос, с которого всё начинается
 
-## SMB (445/139)
+В прошлом уроке `nmap` показал нам открытые порты. Но «порт открыт» — это ещё не уязвимость. Порт 445 говорит лишь, что на машине есть SMB-сервис. Что за сервис, какая версия, есть ли на нём шары, пускает ли он анонимно, какие там пользователи — всё это мы пока не знаем.
 
-SMB — сервис номер один в Windows-сетях: файлы, принтеры, именованные каналы, аутентификация. Что энумерируем:
+Этап, на котором мы превращаем «порт открыт» в конкретные факты, называется **энумерация** (enumeration) — систематический сбор имён, версий, списков и настроек сервиса. Именно здесь выигрывается большинство пентестов: без списка пользователей и понимания сервисов эксплуатация превращается в слепой перебор.
 
-- версия и диалект (SMB1/2/3);
-- подпись (signing) — включена или нет (влияет на relay);
-- шары и права доступа;
-- пользователи, группы, политики паролей;
-- сессии.
+## Наш пример: контроллер домена 10.10.10.10
 
-```bash
-# базовая энумерация
-nxc smb 10.0.0.0/24
-nxc smb 10.0.0.5 -u '' -p ''            # null session
-nxc smb 10.0.0.5 -u guest -p ''
-nxc smb 10.0.0.5 --shares -u user -p pass
-nxc smb 10.0.0.5 --users -u user -p pass
-nxc smb 10.0.0.5 --pass-pol -u '' -p ''
+Мы нашли в сети Windows-машину `10.10.10.10`. Задача — выжать из её сервисов максимум, не имея пока ни одного пароля. Начнём с фингерпринта:
 
-# низкоуровнево
-smbclient -L //10.0.0.5 -N
-smbmap -H 10.0.0.5 -u user -p pass
-enum4linux-ng -A 10.0.0.5
-rpcclient -U '' -N 10.0.0.5
+```
+$ nmap -sV -p 445,3389,389,88,135,1433,5985 10.10.10.10
+PORT     STATE SERVICE       VERSION
+88/tcp   open  kerberos-sec  Microsoft Windows Kerberos
+135/tcp  open  msrpc         Microsoft Windows RPC
+389/tcp  open  ldap          Microsoft Windows Active Directory LDAP
+445/tcp  open  microsoft-ds  Windows Server 2019 Standard
+1433/tcp open  ms-sql-s      Microsoft SQL Server 2019
+3389/tcp open  ms-wbt-server Microsoft Terminal Services
+5985/tcp open  wsman         Microsoft HTTPAPI httpd 2.0
 ```
 
-Признаки, которые сразу важны: `signing: False` (потенциал для NTLM relay), доступ на чтение/запись к шарам (`ADMIN$`, `C$`, `SYSVOL`), null-сессия с доступом к списку пользователей.
+Сразу видно: это контроллер домена (`kerberos-sec` + `Active Directory LDAP` + `Windows Server 2019`). Пять сервисов, каждый — отдельный источник информации. Разберём их по очереди.
 
-## RDP (3389)
+## Шаг 1: SMB — самый «разговорчивый» сервис
 
-RDP интересен как цель для брута, проверки NLA и как источник информации о системе:
+SMB — это файлы, принтеры и аутентификация в Windows-сетях. Смотрим на **подпись** (signing) и пробуем зайти анонимно, без пароля — такой вход называют **null-сессией**:
 
-```bash
-nxc rdp 10.0.0.5 -u user -p pass
-# проверка, включён ли Network Level Authentication
-nmap --script rdp-enum-encryption,rdp-ntlm-info -p 3389 10.0.0.5
-# скриншот без аутентификации (устаревшие конфигурации)
-nmap --script rdp-vuln-ms12-020 -p 3389 10.0.0.5
+```
+$ nxc smb 10.10.10.10 -u '' -p ''
+SMB  10.10.10.10  445  DC01  [*] Windows Server 2019 Build 17763 (name:DC01) (domain:corp.local)
+SMB  10.10.10.10  445  DC01  [+] corp.local\: 
 ```
 
-`rdp-ntlm-info` отдаёт NetBIOS-имя, DNS-домен, версию ОС — полезно для фингерпринта без логина.
+Строка `signing:False` не напечаталась, но её видно при явном флаге `--gen-relay-list`; важнее другое — нас **пустило без пароля**. Теперь перечислим шары и пользователей:
 
-## LDAP (389/636)
-
-LDAP — каталог Active Directory. Анонимный bind часто разрешён и выдаёт всю структуру:
-
-```bash
-# анонимный bind и дамп
-ldapsearch -x -H ldap://10.0.0.5 -b "dc=corp,dc=local"
-ldapsearch -x -H ldap://10.0.0.5 -b "dc=corp,dc=local" "(objectClass=user)" sAMAccountName
-nxc ldap 10.0.0.5 -u '' -p '' --users
-nxc ldap 10.0.0.5 -u user -p pass --groups --dc-list
-
-# поиск описаний с паролями (частая утечка)
-ldapsearch -x -H ldap://10.0.0.5 -b "dc=corp,dc=local" "(description=*pass*)"
+```
+$ nxc smb 10.10.10.10 -u '' -p '' --shares
+SMB  10.10.10.10  445  DC01  [*] Enumerated shares
+SMB  10.10.10.10  445  DC01  Share     Permissions  Remark
+SMB  10.10.10.10  445  DC01  -----     -----------  ------
+SMB  10.10.10.10  445  DC01  NETLOGON  READ         Logon server share
+SMB  10.10.10.10  445  DC01  SYSVOL    READ         Logon server share
+$ nxc smb 10.10.10.10 -u '' -p '' --rid-brute
+SMB  10.10.10.10  445  DC01  1103: CORP\alice (SidTypeUser)
+SMB  10.10.10.10  445  DC01  1104: CORP\bob (SidTypeUser)
+SMB  10.10.10.10  445  DC01  1105: CORP\svc_backup (SidTypeUser)
 ```
 
-Ключевые находки: список пользователей (для брута и AS-REP), группы администраторов, `userPassword`/`description` с паролями, настроенные SPN (для Kerberoasting).
+Что мы узнали: доступны `SYSVOL`/`NETLOGON` на чтение и — через метод **RID-brute** (перебор числовых идентификаторов пользователей) — имена трёх учёток. `svc_backup` в конце имени — намёк на сервисную учётку, у которой часто слабый пароль.
 
-## NFS (2049)
+## Шаг 2: политика паролей — можно ли вообще брутить
 
-NFS часто экспортирует каталоги без аутентификации:
+Прежде чем перебирать пароли, надо узнать правила. Если включён **lockout** (блокировка после N неудачных попыток), то брут «в лоб» заблокирует учётки:
 
-```bash
-showmount -e 10.0.0.5
-# /srv/share  *
-mount -t nfs 10.0.0.5:/srv/share /mnt/nfs -o nolock
-ls -la /mnt/nfs
-# если no_root_squash — можно создавать suid-бинари
+```
+$ nxc smb 10.10.10.10 -u '' -p '' --pass-pol
+SMB  10.10.10.10  445  DC01  [+] Dumping password info for domain: CORP
+SMB  10.10.10.10  445  DC01  Minimum password length: 8
+SMB  10.10.10.10  445  DC01  Password history length: 24
+SMB  10.10.10.10  445  DC01  Account lockout threshold: None
+SMB  10.10.10.10  445  DC01  Account lockout duration: N/A
 ```
 
-`showmount -e` — первая команда. Экспорт `*` без ограничений — частая мисконфигурация, дающая чтение (и иногда запись) файлов.
+`lockout threshold: None` — блокировки нет. Значит, аккуратный **password spray** (по одному паролю на каждую учётку, а не много паролей на одну) безопасен. Вот зачем нужна политика: она задаёт стратегию.
 
-## WinRM (5985/5986)
+## Шаг 3: LDAP — вытаскиваем весь каталог
 
-WinRM — «удалённый PowerShell». Если у вас есть креды и порт открыт — это прямой путь к выполнению команд:
+LDAP — это база каталога Active Directory. Часто разрешён **анонимный bind** — подключение без логина. Смотрим, что отдаётся:
 
-```bash
-nxc winrm 10.0.0.5 -u user -p pass
-# [+] corp\user:pass (Pwn3d!)  ← админский доступ
-evil-winrm -i 10.0.0.5 -u user -p pass
+```
+$ ldapsearch -x -H ldap://10.10.10.10 -b "dc=corp,dc=local" "(objectClass=user)" sAMAccountName description
+dn: CN=Alice Smith,CN=Users,DC=corp,DC=local
+sAMAccountName: alice
+description: Junior sysadmin
+dn: CN=Backup Service,CN=Users,DC=corp,DC=local
+sAMAccountName: svc_backup
+description: Temp password: Backup2019!
 ```
 
-`(Pwn3d!)` в netexec означает, что учётка административна — можно выполнять код.
+Вот и первая учётка с паролем — прямо в поле `description` (люди регулярно оставляют так заметки). Дальше ищем **SPN** — уникальные идентификаторы сервисов у учёток: их можно «обжарить» Kerberoasting-ом.
 
-## MSSQL (1433)
-
-```bash
-nxc mssql 10.0.0.5 -u user -p pass
-nxc mssql 10.0.0.5 -u user -p pass -q "SELECT @@version"
-# включить xp_cmdshell (если есть права)
-nxc mssql 10.0.0.5 -u sa -p pass -x "whoami"
+```
+$ nxc ldap 10.10.10.10 -u '' -p '' --kerberoasting out.txt
+LDAP  10.10.10.10  389  DC01  [*] Total of records returned 1
+LDAP  10.10.10.10  389  DC01  [*] sAMAccountName: svc_backup  SPN: MSSQLSvc/dc01.corp.local:1433
 ```
 
-MSSQL с правами `sysadmin` даёт RCE через `xp_cmdshell` — это классический шаг эскалации в Windows-сетях.
+## Шаг 4: RDP — фингерпринт без логина
 
-## SNMP (161/udp)
+RDP (3389) отдаёт имя домена и версию Windows ещё до аутентификации через NTLM:
 
-SNMP v1/v2c использует community-строку как «пароль» в открытом виде. Дефолтные `public`/`private` часто не меняют:
-
-```bash
-onesixtyone -c communities.txt 10.0.0.5
-snmpwalk -v2c -c public 10.0.0.5
-snmpwalk -v2c -c public 10.0.0.5 1.3.6.1.2.1.25.4.2.1.2   # процессы
-snmpwalk -v2c -c public 10.0.0.5 1.3.6.1.2.1.6.13.1.3     # TCP-порты
-snmp-check 10.0.0.5 -c public
+```
+$ nmap --script rdp-ntlm-info -p 3389 10.10.10.10
+| rdp-ntlm-info:
+|   Target_Name: CORP
+|   NetBIOS_Domain_Name: CORP
+|   DNS_Domain_Name: corp.local
+|   Product_Version: 10.0.17763
 ```
 
-SNMP отдаёт процессы, порты, пользователей, интерфейсы — богатая карта хоста.
+`Product_Version: 10.0.17763` — это Windows Server 2019. Полезно, чтобы сверить с известными уязвимостями версии.
 
-## Автоматизация энумерации
+## Шаг 5: NFS и остальные сервисы
 
-```bash
-# netexec по всей подсети, все протоколы
-nxc smb 10.0.0.0/24 -u '' -p ''
-nxc ldap 10.0.0.0/24 -u '' -p ''
-nxc winrm 10.0.0.0/24 -u user -p pass
-nxc rdp 10.0.0.0/24 -u user -p pass
+Если в сети есть Linux-машины с NFS (2049), первая команда — `showmount`:
+
+```
+$ showmount -e 10.10.0.50
+Export list for 10.10.0.50:
+/srv/share  *
 ```
 
-`netexec` (бывший CrackMapExec) — стандарт де-факто: один инструмент, много протоколов, единый вывод, детект `(Pwn3d!)`.
+Экспорт `*` без ограничений означает, что каталог доступен **любому** хосту. Монтируем и смотрим:
 
-## От находок к доступу
+```
+$ sudo mount -t nfs 10.10.0.50:/srv/share /mnt/nfs -o nolock
+$ ls -la /mnt/nfs
+-rw-r--r-- 1 root root 4096 Oct 10 12:00 backups.sql
+```
+
+А для WinRM (5985) и MSSQL (1433) проверяем найденные креды напрямую: `nxc winrm 10.10.10.10 -u alice -p ...` и `nxc mssql ... -q "SELECT @@version"`. Метка `(Pwn3d!)` в выводе netexec означает, что учётка административна — через WinRM тогда можно выполнять команды (`evil-winrm`), а через MSSQL с правами `sysadmin` — поднять `xp_cmdshell`.
+
+## Шаг 6: сводим находки в план
+
+Каждая находка — это вход для следующего шага:
 
 | Находка | Следующий шаг |
 |---|---|
 | `signing: False` | NTLM relay (Responder + ntlmrelayx) |
-| Список пользователей | брут/спрей, AS-REP roasting |
-| SPN у пользователя | Kerberoasting |
+| Список пользователей | password spray, AS-REP roasting |
+| SPN у учётки | Kerberoasting |
 | Экспорт NFS `*` | чтение/запись файлов |
 | `xp_cmdshell` доступен | RCE на MSSQL-хосте |
-| SNMP `public` | карта хоста, иногда креды в OID |
 | WinRM `(Pwn3d!)` | удалённое выполнение команд |
 
-## Частые ошибки
+## Что мы теперь знаем
 
-- Сканировать только TCP — SNMP/DHCP/NTP остаются за кадром.
-- Не пробовать null/guest-сессии на SMB/LDAP — часто открыты.
-- Игнорировать NFS — `showmount -e` занимает секунду.
-- Брутить вслепую без списка пользователей — сначала энумерация.
-- Забыть про `--pass-pol` — политика паролей подсказывает стратегию спрея.
+По-простому:
 
-## Что дальше / решение
+1. Энумерация — превращение «порт открыт» в имена, версии и списки.
+2. SMB: null-сессия даёт шары и (через RID-brute) пользователей.
+3. Политика паролей решает, можно ли перебирать: нет lockout — можно.
+4. LDAP: анонимный bind часто отдаёт весь каталог, включая пароли в `description`.
+5. Каждая находка — зацепка: пользователь → брут, SPN → Kerberoast, NFS `*` → файлы.
 
-Методика: `nmap -sV` → `nxc` по всем протоколам → углубление в найденное. Каждая находка (пользователь, шара, community) — вход для следующего шага. Энумерация — это где выигрывается пентест: без списка пользователей и понимания сервисов эксплуатация превращается в перебор.
+## На что смотреть дальше
 
-## Разобранный пример: от null-сессии к домену
-
-Цель `10.10.10.10`, Windows-контроллер домена. Шаги:
-
-```bash
-# 1. проверяем подпись и null-сессию
-nxc smb 10.10.10.10 -u '' -p ''
-# SMB  10.10.10.10  445  DC01  [*] Windows Server 2019
-#      signing:False
-```
-
-`signing:False` — зелёный свет для NTLM relay. Дальше:
-
-```bash
-# 2. список пользователей через null RID-cycling
-nxc smb 10.10.10.10 -u '' -p '' --rid-brute
-# 1103: CORP\alice (SidTypeUser)
-# 1104: CORP\bob   (SidTypeUser)
-```
-
-```bash
-# 3. политика паролей (порог блокировки, сложность)
-nxc smb 10.10.10.10 -u '' -p '' --pass-pol
-# Minimum password length: 8, Lockout threshold: None
-```
-
-Отсутствие lockout → можно спрейить. Собираем список пользователей и переходим к следующему этапу — спрей по SMB/WinRM.
-
-## Reference-таблица: порты и что с ними делать
-
-| Порт | Сервис | Первый шаг |
-|---|---|---|
-| 445 | SMB | `nxc smb --shares --users --pass-pol` |
-| 139 | NetBIOS | `nbtscan`, legacy-энумерация |
-| 3389 | RDP | `nxc rdp`, `rdp-ntlm-info` |
-| 389/636 | LDAP(S) | `ldapsearch -x`, `nxc ldap` |
-| 2049 | NFS | `showmount -e`, mount |
-| 5985/5986 | WinRM | `nxc winrm`, `evil-winrm` |
-| 1433 | MSSQL | `nxc mssql`, `xp_cmdshell` |
-| 161/udp | SNMP | `onesixtyone`, `snmpwalk` |
-| 88 | Kerberos | AS-REP/Kerberoast |
-| 135 | MSRPC | `rpcclient`, epmapper |
-
-## Чек-лист энумерации
-
-1. SMB: версия, signing, null/guest, шары, пользователи, политика паролей.
-2. LDAP: анонимный bind, пользователи, группы, описания, SPN.
-3. RDP: NLA, NTLM-info, версия ОС.
-4. NFS: `showmount -e`, права экспорта, no_root_squash.
-5. WinRM/MSSQL: проверка кред и админского доступа.
-6. SNMP: community-строки, дамп процессов/портов.
-7. Свести находки в таблицу «находка → следующий шаг».
+- **Не сканируй только TCP.** SNMP (161/udp), DHCP и NTP останутся за кадром — их надо искать отдельно.
+- **Сначала энумерация, потом брут.** Без списка учёток перебор — это стрельба вслепую.
+- **Проверь `--pass-pol` до спрея**, иначе заблокируешь учётки и нашумешь.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что позволяет сделать null-сессия SMB?"
+- question: 'Что даёт null-сессия SMB?'
   options:
-    - "Перечислить шары и иногда пользователей без аутентификации"
-    - "Получить root"
-    - "Расшифровать трафик"
-    - "Включить IPv6"
+    - 'Анонимное перечисление шар и иногда пользователей'
+    - 'Гарантированный root'
+    - 'Расшифровку трафика'
+    - 'Включение IPv6'
   answer: 0
-  explanation: "Null-сессия даёт анонимное перечисление шар и метаданных."
-- question: "Какой скрипт nmap отдаёт имя домена/версию Windows до аутентификации по RDP?"
+  explanation: 'Null-сессия — вход без пароля; она раскрывает шары и метаданные каталога.'
+- question: 'Какой скрипт nmap отдаёт имя домена и версию Windows до логина по RDP?'
   options:
-    - "rdp-ntlm-info"
-    - "smb-os-discovery"
-    - "http-title"
-    - "dns-zone-transfer"
+    - 'rdp-ntlm-info'
+    - 'smb-os-discovery'
+    - 'http-title'
+    - 'dns-zone-transfer'
   answer: 0
-  explanation: "rdp-ntlm-info раскрывает NTLM-информацию (домен, хост, версия) без логина."
-- question: "Что опасно в экспорте NFS с опцией no_root_squash?"
+  explanation: 'rdp-ntlm-info раскрывает NTLM-информацию (домен, хост, версию) без аутентификации.'
+- question: 'Зачем перед брутом смотрят политику паролей (--pass-pol)?'
   options:
-    - "Клиент root получает root на файлах сервера — можно записать authorized_keys"
-    - "NFS шифруется"
-    - "Отключается Kerberos"
-    - "Включается IPv6"
+    - 'Чтобы узнать порог блокировки и не заблокировать учётки'
+    - 'Чтобы ускорить nmap'
+    - 'Чтобы включить NFS'
+    - 'Чтобы получить Kerberos-билет'
   answer: 0
-  explanation: "no_root_squash сохраняет права root клиента на сервере — прямой путь к RCE."
-- question: "Какой запрос проверяет анонимный бинд LDAP?"
+  explanation: 'Если lockout включён, много неудачных попыток заблокирует учётки; без lockout спрей безопасен.'
+- question: 'Что делает анонимный bind LDAP?'
   options:
-    - "ldapsearch -x -H ldap://host -b dc=... (objectClass=user)"
-    - "showmount -e"
-    - "smbclient -L"
-    - "rdp-ntlm-info"
+    - 'Подключается к каталогу без логина и часто отдаёт пользователей и поля'
+    - 'Монтирует NFS-шару'
+    - 'Создаёт reverse shell'
+    - 'Определяет версию SMB'
   answer: 0
-  explanation: "Анонимный ldapsearch часто раскрывает пользователей и структуру каталога."
-- question: "Какой признак SMB-хоста открывает возможность NTLM-релея?"
+  explanation: 'Анонимный ldapsearch раскрывает структуру каталога, иногда с паролями в description.'
+- question: 'Что означает экспорт NFS вида `/srv/share *`?'
   options:
-    - "SMB signing отключён"
-    - "SMB1 включён"
-    - "Открыт 3389"
-    - "Разрешён NFS"
+    - 'Каталог доступен любому хосту — частая мисконфигурация'
+    - 'Каталог зашифрован'
+    - 'Экспорт только для чтения root-у'
+    - 'NFS выключен'
   answer: 0
-  explanation: "Без подписи SMB аутентификацию можно переслать (см. network-ntlm-relay)."
+  explanation: 'Звёздочка в списке экспорта означает доступ без ограничений по адресам.'
 ```
+
+## Куда дальше
+
+В следующем уроке мы возьмём найденный SMB-сервис и разберём его сигнатуру и метаданные глубже — а затем перейдём к SNMP, который отдаёт карту хоста целиком. А пока главное запомни: энумерация — это сбор зацепок, каждая из которых становится входом на следующий шаг.
 
 ## Где пригодится
 
 - **CTF:** энумерация сервисов для поиска пути дальше.
-- **Пентест:** разведка внутренней сети, сбор имён/шар.
+- **Пентест:** разведка внутренней сети, сбор имён и шар.
 - **Работа:** аудит конфигураций SMB/RDP/LDAP/NFS.
 - **Red team:** подготовка к lateral movement.
 - **SOC:** понимание, что видит атакующий при энумерации.

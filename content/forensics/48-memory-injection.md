@@ -14,196 +14,189 @@ useful_for:
 estimated_minutes: 60
 summary: "Обнаружение инъекций в память: process hollowing, DLL injection, reflective loading, shellcode; анализ VAD, malfind, скрытых потоков, руткитов и kernel-модификаций в Volatility 3."
 ---
-Инъекция в память — продвинутая техника, позволяющая исполнять код без файла на диске. Атакующий «вживляет» payload в чужой процесс (process hollowing, DLL injection, reflective loading), и обнаружить это можно только анализом памяти. Этот урок — про механизмы инъекций, их артефакты в VAD и `malfind`, скрытые потоки и модификации ядра.
 
-## Механизмы инъекций
+## Вопрос, с которого всё начинается
 
-| Техника | Суть | Артефакт |
-|---------|------|----------|
-| Process hollowing | запуск легитимного процесса, замена его образа на payload | пустой/подменённый образ, RWX-регион |
-| DLL injection | `CreateRemoteThread` + `LoadLibrary` | необычная DLL, поток в чужом процессе |
-| Reflective loading | ручной маппинг PE без загрузчика | регион с PE-заголовком, нет записи в списке модулей |
-| Process doppelgänging | транзакция NTFS + создание процесса | нет файла, аномальные handles |
-| AtomBombing | инъекция через таблицу атомов | аномальные атомы |
-| Thread hijacking | перехват существующего потока | изменённый контекст потока |
+Вредоносного файла на диске нет. Антивирус чист. Но машина явно что-то делает:
+идёт трафик на незнакомый адрес. Как такое возможно?
 
-Общий признак — **исполняемый регион с содержимым, не привязанным к файлу на диске**.
+Возможно, если код вообще **не лежит на диске**, а живёт только в оперативной памяти.
+Атакующий «вживляет» свою полезную нагрузку в чужой легитимный процесс — например,
+в `explorer.exe` — и оттуда исполняет. Такой подход называется **инъекцией в память**.
 
-## Обнаружение: VAD и malfind
+В этом уроке мы разберём дамп памяти `mem.raw`, найдём в нём инъекцию и поймём, как
+она выглядит.
 
-VAD описывает регионы памяти. Инъекции видны как регионы `PAGE_EXECUTE_READWRITE` (RWX) с «бесхозным» содержимым.
+## Шаг 1: как код попадает в чужой процесс
+
+Есть несколько техник. Все они сводятся к одному: в адресном пространстве
+легитимного процесса появляется **исполняемая область с кодом, которого нет на
+диске**.
+
+| Техника | Суть |
+|---------|------|
+| Process hollowing | запускают легитимный процесс, выгружают его код и подменяют payload-ом |
+| DLL injection | заставляют процесс загрузить чужую DLL через удалённый поток |
+| Reflective loading | вручную «маппят» PE-файл в память без загрузчика Windows |
+| Process doppelgänging | создают процесс из NTFS-транзакции, минуя файл |
+
+## Шаг 2: VAD — карта памяти процесса
+
+Windows описывает регионы памяти процесса структурой **VAD** (Virtual Address
+Descriptor). Каждый регион имеет **protection** — права доступа. Нормальный код
+обычно лежит в `PAGE_EXECUTE_READ` (читать и исполнять). Подозрительно, когда регион
+имеет `PAGE_EXECUTE_READWRITE` (RWX) — то есть и читать, и писать, и исполнять. Такой
+набор нужен, чтобы код мог себя модифицировать, и в легитимных программах он редок.
+
+Смотрим карту памяти подозрительного процесса через Volatility:
+
+```bash
+$ vol -f mem.raw windows.vadinfo --pid 4120
+PID    Process   Start       End         Protection           Tag
+4120   rundll32  0x400000    0x460000    PAGE_EXECUTE_READWRITE VadS
+```
+
+`rundll32.exe` — легитимная системная утилита, но RWX-регион размером 384 КиБ у неё
+подозрителен. Проверим содержимое.
+
+## Шаг 3: malfind — ищем инъекции
+
+Плагин `malfind` автоматически ищет комбинацию RWX-защиты и признаков PE-файла или
+shellcode:
 
 ```bash
 $ vol -f mem.raw windows.malfind
-PID    Process   Start       End         Tag  Protection           Type
-4120   rundll32  0x400000    0x460000    VadS PAGE_EXECUTE_READWRITE Mapped
-$ vol -f mem.raw windows.malfind --pid 4120
-$ vol -f mem.raw windows.vadinfo --pid 4120
-$ vol -f mem.raw windows.vadwalk
+PID    Process   Start       End         Protection            Type
+4120   rundll32  0x400000    0x460000    PAGE_EXECUTE_READWRITE Mapped
 ```
 
-`malfind` ищет комбинацию RWX-защиты и признаков PE/shellcode. Ложные срабатывания бывают (JIT-движки), поэтому проверяйте содержимое.
+`malfind` — это первый фильтр, а не приговор: JIT-движки (например, .NET или
+JavaScript) тоже создают RWX-регионы. Поэтому подозрительный регион **дампят** и
+смотрят на содержимое:
 
 ```bash
-# дамп подозрительного региона
 $ vol -f mem.raw windows.malfind --pid 4120 --dump
 $ file pid.4120.dmp
-$ xxd -l 64 pid.4120.dmp        # проверка MZ-заголовка
+pid.4120.dmp: PE32+ executable (DLL)
+$ xxd -l 64 pid.4120.dmp
+00000000: 4d5a 9000 ...              MZ......
 ```
 
-## Reflective loading
+`MZ` в начале — заголовок PE-файла. То есть в памяти `rundll32.exe` лежит
+исполняемый PE, которого нет среди загруженных модулей.
 
-Reflective DLL загружается вручную: в памяти есть PE-структура, но модуля нет в списке (`windows.dlllist` не покажет). Признаки: PE-заголовок (`MZ`/`PE\0\0`) в heap/anon-регионе, отсутствие записи в PEB.
+## Шаг 4: reflective loading — модуль, которого «нет»
+
+При **reflective loading** DLL загружается вручную, и Windows не знает о ней: её нет
+в списке модулей процесса. Сравниваем список загруженных DLL с тем, что реально лежит
+в памяти:
 
 ```bash
 $ vol -f mem.raw windows.dlllist --pid 4120 | head
-$ vol -f mem.raw windows.malfind --pid 4120 | grep -i 'MZ'
-# найти PE-заголовки в анонимных регионах
-$ vol -f mem.raw windows.yarascan --yara-rules 'rule mz { strings: $a={4D 5A} condition: uint16(0)==0x5A4D }'
+# в списке нет подозрительной DLL
+$ vol -f mem.raw windows.ldrmodules --pid 4120
+# у аномальной DLL все три флага (InLoad/InInit/InMem) = False/True вразнобой
 ```
 
-## Process hollowing
+Если PE есть в памяти, но отсутствует в списке загрузчика, — это reflective load.
 
-При hollowing легитимный процесс запущен в suspended-состоянии, его образ выгружен (`NtUnmapViewOfSection`), а вместо него записан payload и возобновлён поток. Артефакты: базовый образ процесса не соответствует файлу на диске, несовпадение размера, RWX-регион по ImageBase.
+## Шаг 5: process hollowing
+
+При **hollowing** процесс запускают приостановленным, выгружают его настоящий код и
+записывают вместо него payload. Признак: базовый образ процесса не совпадает с
+файлом на диске. Сравниваем:
 
 ```bash
-# сравнить образ процесса с файлом на диске
-$ vol -f mem.raw windows.pslist --pid 4120
-$ vol -f mem.raw windows.dumpfiles --pid 4120
-$ vol -f mem.raw windows.memmap --pid 4120 --dump
-# несоответствие: путь exe, но содержимое другое
+$ vol -f mem.raw windows.pslist --pid 2048
+$ vol -f mem.raw windows.memmap --pid 2048 --dump
+$ file pid.2048.dmp
+pid.2048.dmp: PE32+ executable (GUI)
 ```
 
-## Скрытые потоки и руткиты
+Если процесс называется `explorer.exe`, а по адресу его образа лежит совсем другой
+PE — это hollowing.
+
+## Шаг 6: руткиты — скрытые потоки и драйверы
+
+Руткит прячет не файлы, а **объекты**: процессы, потоки, драйверы. Против него
+работает приём **cross-view** — сравнение двух способов перечисления одного и того же:
 
 ```bash
-$ vol -f mem.raw windows.threads --pid 4120
-$ vol -f mem.raw windows.threads --pid 4120 | grep -i 'start'
-# сравнить потоки через cross-view
-$ vol -f mem.raw windows.threads > a.txt
-$ vol -f mem.raw windows.threads --pid 4120 > b.txt
+# скрытые процессы: список (pslist) vs сканирование памяти (psscan)
+$ vol -f mem.raw windows.pslist > a.txt
+$ vol -f mem.raw windows.psscan > b.txt
+$ comm -13 <(sort a.txt) <(sort b.txt)      # есть в памяти, но не в списке
+
+# скрытые драйверы: modules vs modscan
+$ vol -f mem.raw windows.modules > m1.txt
+$ vol -f mem.raw windows.modscan > m2.txt
+$ comm -13 <(sort m1.txt) <(sort m2.txt)
 ```
 
-Kernel-модификации: `windows.ssdt` (таблица системных вызовов), `windows.callbacks` (уведомления ядра), `windows.driverirp`, `windows.modules` vs `windows.modscan` (скрытые драйверы).
+Ещё руткит может править **SSDT** (таблицу системных вызовов) и уведомления ядра:
 
 ```bash
 $ vol -f mem.raw windows.ssdt
 $ vol -f mem.raw windows.callbacks
-$ vol -f mem.raw windows.modules > m1.txt
-$ vol -f mem.raw windows.modscan > m2.txt
-$ comm -13 <(sort m1.txt) <(sort m2.txt)      # скрытые драйверы
 ```
 
-## Shellcode и YARA
+## Шаг 7: кто в памяти — сигнатуры инструментов
 
-```bash
-# YARA по памяти (искать сигнатуры C2/shellcode)
-$ vol -f mem.raw windows.yarascan --yara-file=shellcode.yar
-# эвристика shellcode: последовательности с call/pop
-$ vol -f mem.raw windows.malfind | grep -iE 'PAGE_EXECUTE'
-```
-
-## Разобранный пример
-
-Дан `mem.raw`. Подозрение на hollowing `explorer.exe`.
-
-```bash
-# 1. Инъекция
-$ vol -f mem.raw windows.malfind --pid 2048
-PID  Process   Start      End        Protection
-2048 explorer  0x400000   0x4a0000   PAGE_EXECUTE_READWRITE
-# 2. Скрытый поток?
-$ vol -f mem.raw windows.threads --pid 2048 | tail
-# 3. Дамп и тип
-$ vol -f mem.raw windows.malfind --pid 2048 --dump
-$ file pid.2048.dmp
-pid.2048.dmp: PE32+ executable (DLL)
-# 4. YARA
-$ yara beacon.yar pid.2048.dmp
-beacon pid.2048.dmp
-# 5. Сеть
-$ vol -f mem.raw windows.netscan | grep 2048
-```
-
-Итог: `explorer.exe` содержит RWX-регион с PE, совпадающий с сигнатурой beacon — reflective loading.
-
-## Справочная таблица
-
-| Задача | Плагин |
-|--------|--------|
-| Инъекции | `windows.malfind` |
-| Регионы памяти | `windows.vadinfo`, `windows.vadwalk` |
-| Дамп региона | `windows.memmap --dump` |
-| Потоки | `windows.threads` |
-| Скрытые драйверы | `windows.modscan` vs `windows.modules` |
-| SSDT | `windows.ssdt` |
-| Колбэки | `windows.callbacks` |
-| YARA | `windows.yarascan` |
-
-## Частые ошибки
-
-- **Верить RWX = инъекция** — JIT/легитимные регионы дают ложные срабатывания.
-- **Не дампить регион** — нельзя проверить содержимое.
-- **Игнорировать `modscan`** — скрытые драйверы не в `modules`.
-- **Смотреть только `malfind`** — hollowing виден и по несоответствию образа.
-- **Забывать про cross-view** (список vs скан).
-- **Анализировать без символов** — часть плагинов не отработает.
-
-## Что дальше / решение
-
-Конвейер: `malfind`/`vadinfo` (инъекции) → дамп региона → `file`/YARA (payload) → `threads`/`ssdt`/`modscan` (руткиты) → `netscan` (C2). Связка: `forensics-volatility-deep` (плагины), `forensics-memory` (основы), `forensics-malware-yara` (сигнатуры), `forensics-fileless` (in-memory).
-
-## Инструменты атакующего (для понимания артефактов)
-
-Знание инструментов помогает предсказывать следы:
-
-| Инструмент | Техника | Артефакт |
-|-----------|---------|----------|
-| Cobalt Strike | Beacon reflective DLL | RWX-регион, named pipes |
-| Metasploit | `migrate` (injection) | поток в чужом процессе |
-| `Invoke-ReflectivePEInjection` | reflective load | PE в anon-регионе |
-| `ProcessHacker` | hollowing | несоответствие образа |
-| `psexec` | service + injection | служба `PSEXESVC` |
-| `dllinject`/`injector` | `CreateRemoteThread` | необычная DLL |
-
-Cobalt Strike оставляет характерные **named pipes** (`msagent_*`, `mojo_*`, `postex_*`) и watermark; Metasploit — mutex `Msf`/`meterpreter`. Проверяйте `windows.handles`/`windows.mutantscan`.
+Зная инструменты атакующего, легче узнавать следы. Cobalt Strike оставляет
+характерные именованные каналы (named pipes) `msagent_*`, `mojo_*`; Metasploit —
+мьютексы `Msf`/`meterpreter`:
 
 ```bash
 $ vol -f mem.raw windows.mutantscan | grep -iE 'Msf|meterpreter|cobalt|mojo'
-$ vol -f mem.raw windows.handles --pid 4120 | grep -i 'pipe'
+$ vol -f mem.raw windows.handles --pid 4120 | grep -i pipe
 ```
 
-## Автоматизация детекта
+Найденный мьютекс сразу выдаёт семейство.
 
-Для повторяющегося анализа инъекций автоматизируйте проверки:
+## Шаг 8: автоматизируем детект
+
+При повторяющемся анализе удобно автоматизировать проверки. Соберём список процессов
+с RWX-регионами и пересечём его с процессами, у которых есть сетевые соединения, —
+такое сочетание самый сильный признак компрометации:
 
 ```bash
-# сводка по всем подозрительным регионам
 $ vol -f mem.raw windows.malfind > malfind.txt
-$ awk '/PAGE_EXECUTE_READWRITE/{print $1,$2}' malfind.txt | sort -u
-# процессы с RWX и сетью
+$ awk '/PAGE_EXECUTE_READWRITE/{print $1}' malfind.txt | sort -u > rwx_pids.txt
 $ vol -f mem.raw windows.netscan | awk '$6=="ESTABLISHED"{print $2}' | sort -u > net_pids.txt
-$ awk '{print $1}' malfind.txt | sort -u > rwx_pids.txt
-$ comm -12 net_pids.txt rwx_pids.txt        # пересечение = приоритет
+$ comm -12 rwx_pids.txt net_pids.txt      # пересечение = приоритет
 ```
 
-Сочетание «RWX-регион + исходящее соединение + подозрительный родитель» — сильный индикатор компрометации. Сохраняйте вывод для отчёта и повторного анализа.
+Процесс, который и держит исполняемый код «ниоткуда», и стучится наружу, — почти
+наверняка инъекция. Сохраняйте вывод: он пригодится в отчёте и при повторном разборе.
 
-## Сравнение источников (cross-view)
+## Шаг 9: ограничения
 
-Единый принцип: любая техника сокрытия ломается при сравнении двух представлений.
+Не всякий RWX-регион — инъекция. JIT-компиляторы, .NET и упакованные приложения тоже
+создают исполняемую память. Поэтому всегда проверяйте содержимое (PE-заголовок,
+shellcode-паттерны) и коррелируйте с сетью и поведением. На 64-битных системах и
+Windows 10/11 структуры памяти отличаются — используйте правильные **символы**
+(symbol tables), иначе часть плагинов не отработает.
 
-- `pslist` vs `psscan` — скрытые процессы.
-- `modules` vs `modscan` — скрытые драйверы.
-- `threads` vs скан — скрытые потоки.
-- Список DLL vs PE-регионы — reflective loading.
-- `ssdt`/`callbacks` — перехваты в ядре.
+## Что мы теперь знаем
 
-## Ограничения
+- Инъекция — исполняемый код в чужом процессе, которого нет на диске.
+- VAD-регион с защитой `PAGE_EXECUTE_READWRITE` — первый признак инъекции.
+- `malfind` ищет RWX + PE/shellcode; ложные срабатывания проверяют дампом.
+- Reflective DLL есть в памяти, но нет в списке модулей.
+- Руткиты ловят cross-view: `pslist` vs `psscan`, `modules` vs `modscan`.
 
-Не всякий RWX-регион — инъекция (JIT, .NET, упакованные приложения). Проверяйте содержимое (PE-заголовок, shellcode-паттерны), коррелируйте с сетью и поведением. На 64-битных системах и Windows 10/11 структуры отличаются — используйте правильные символы.
+## На что смотреть дальше
+
+- **Верить, что RWX = инъекция** — JIT и .NET тоже создают RWX-регионы.
+- **Не дампить регион** — нельзя проверить содержимое.
+- **Игнорировать `modscan`** — скрытые драйверы не видны в `modules`.
+- **Смотреть только `malfind`** — hollowing виден и по несоответствию образа.
+- **Забывать про cross-view** — именно сравнение ломает сокрытие.
+- **Анализировать без символов** — часть плагинов не отработает.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что ищет `windows.malfind`?"
@@ -212,13 +205,6 @@ $ comm -12 net_pids.txt rwx_pids.txt        # пересечение = прио�
     - "PE-заголовки в исполняемых регионах, которых нет в списке модулей"
     - "открытые сокеты"
     - "записи реестра"
-  answer: 1
-- question: "Какой набор флагов `ldrmodules` указывает на рефлективную загрузку DLL?"
-  options:
-    - "True True True"
-    - "False False True (или все False)"
-    - "True False True"
-    - "False True True"
   answer: 1
 - question: "Какая защита VAD-региона наиболее подозрительна?"
   options:
@@ -241,7 +227,21 @@ $ comm -12 net_pids.txt rwx_pids.txt        # пересечение = прио�
     - "сетевые соединения"
     - "реестр"
   answer: 1
+- question: "Почему `malfind` — не приговор, а фильтр?"
+  options:
+    - "он не работает на Windows"
+    - "легитимные JIT-движки тоже создают RWX-регионы"
+    - "он видит только процессы SYSTEM"
+    - "он требует пароль"
+  answer: 1
 ```
+
+## Куда дальше
+
+Мы научились находить в памяти спрятанный код. Дальше посмотрим на самую ценную
+добычу — учётные данные: хеши, пароли и ключи, которые остаются в дампе
+разблокированной системы. А пока запомни: **чего нет на диске — то ищи в памяти,
+и лови это сравнением двух представлений**.
 
 ## Где пригодится
 

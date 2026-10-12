@@ -15,278 +15,184 @@ estimated_minutes: 44
 summary: "Как использовать Shodan/Censys/FOFA/ZoomEye для поиска открытых сервисов, фильтры и API, а также продвинутый анализ TLS-сертификатов."
 ---
 
-Сканеры интернета — это постоянно обновляемые базы данных о том, что открыто на портах по всему миру. Вместо того чтобы сканировать цель напрямую (шумно и заметно), вы можете **посмотреть уже собранные данные**. Для разведки это бесценно: вы видите сервисы, версии, сертификаты и иногда даже содержимое без единого пакета в сторону цели. Certificate Transparency — отдельный, но тесно связанный источник: каталог всех выпущенных TLS-сертификатов, из которого можно вытащить поддомены и связи между доменами.
+## Вопрос, с которого всё начинается
 
-## Теория: как работают сканеры интернета
+У тебя есть IP-адрес `93.158.134.210` и задача — понять, что на нём работает. Новичок запускает `nmap` по этому адресу — и это уже заметно со стороны цели.
 
-Shodan, Censys и подобные сервисы непрерывно сканируют весь IPv4-пространство (а иногда и IPv6), собирают баннеры сервисов, TLS-сертификаты, HTTP-заголовки и складывают в поисковый индекс. Когда вы делаете запрос, вы ищете по этому индексу, а не по живой сети.
+Есть способ лучше: **сканеры интернета** вроде Shodan и Censys годами сканируют всё пространство IPv4 и складывают результаты в поисковый индекс. Вы читаете чужую работу, не касаясь цели. Разберём это на одном IP.
 
-Что можно найти:
+## Наш пример: IP 93.158.134.210
 
-- Открытые базы данных (Elasticsearch, MongoDB, Redis без пароля).
-- Панели управления (Kibana, Grafana, Jenkins, RDP).
-- IoT-устройства с дефолтными паролями.
-- Версии ПО → известные CVE.
-- TLS-сертификаты → поддомены и внутренние имена.
+У нас один объект — IP `93.158.134.210`. Введём термин: **баннер** — это ответ сервиса на подключение (например, версия nginx или заголовок HTTP). Сканеры интернета собирают именно баннеры.
 
-## Практика: Shodan
-
-### Базовые фильтры
-
-| Фильтр | Значение | Пример |
-|--------|----------|--------|
-| `hostname:` | Обратный DNS/имя | `hostname:example.com` |
-| `net:` | CIDR-диапазон | `net:93.158.134.0/24` |
-| `org:` | Организация | `org:"Yandex"` |
-| `asn:` | Номер AS | `asn:AS200350` |
-| `port:` | Порт | `port:27017` |
-| `product:` | Продукт | `product:MongoDB` |
-| `version:` | Версия | `version:2.4.1` |
-| `country:` | Страна | `country:RU` |
-| `city:` | Город | `city:Moscow` |
-| `os:` | ОС | `os:"Windows Server 2019"` |
-| `ssl:` | Содержимое сертификата | `ssl:"example.com"` |
-| `http.title:` | Заголовок страницы | `http.title:"Kibana"` |
-| `http.favicon.hash:` | Хеш favicon | `http.favicon.hash:-305179312` |
-| `vuln:` | Известная уязвимость | `vuln:CVE-2021-44228` |
-
-Примеры запросов:
-
-```
-hostname:example.com
-net:93.158.134.0/24 port:22
-ssl.cert.subject.cn:"*.example.com"
-http.title:"Index of /"
-product:MongoDB -authentication
-```
-
-### CLI и API
-
-```bash
-pipx install shodan
-shodan init <YOUR_API_KEY>
-shodan host 93.158.134.210
-shodan search 'hostname:example.com'
-shodan count 'net:93.158.134.0/24'
-shodan download results.json.gz 'ssl.cert.subject.cn:"example.com"'
-shodan parse --fields ip_str,port,hostnames results.json.gz
-```
-
-Бесплатный аккаунт даёт ограниченное число запросов; API-ключ — больше. Для разведки в CTF хватит веб-поиска.
-
-## Практика: Censys
-
-Censys (search.censys.io) похож на Shodan, но сильнее в TLS и сертификатах.
-
-```
-services.service_name: HTTP
-services.tls.certificates.leaf_data.subject.common_name: example.com
-services.http.response.html_title: "Grafana"
-services.port: 27017
-```
-
-Через API:
-
-```bash
-curl -s "https://search.censys.io/api/v2/hosts/93.158.134.210" \
-  -u "$CENSYS_API_ID:$CENSYS_API_SECRET" | jq '.result.services[].port'
-```
-
-## Практика: FOFA и ZoomEye
-
-- **FOFA** (`fofa.info`) — популярен в Китае, хорош по IoT и панелям. Синтаксис: `domain="example.com"`, `ip="93.158.134.210"`, `title="admin"`, `body="password"`.
-- **ZoomEye** (`zoomeye.org`) — аналог, есть поиск по `site:`, `title:`, `app:`.
-- **BinaryEdge**, **Netlas**, **GreyNoise** — дополнительные источники.
-
-Используйте их **вместе**: один сервис пропускает то, что видит другой.
-
-## Certificate Transparency: глубокое погружение
-
-CT — публичный лог всех сертификатов. Каждый выпущенный для домена сертификат попадает в логи (RFC 6962), и их можно читать.
-
-### crt.sh
-
-```bash
-# все сертификаты для домена и поддоменов
-curl -s "https://crt.sh/?q=%25.example.com&output=json" \
-  | jq -r '.[] | [.name_value, .issuer_name, .not_before] | @tsv' | sort -u
-
-# только уникальные имена
-curl -s "https://crt.sh/?q=%25.example.com&output=json" \
-  | jq -r '.[].name_value' | sort -u
-```
-
-### Что искать в сертификатах
-
-- **SAN (Subject Alternative Names)** — все домены в одном сертификате. Wildcard-сертификат `*.example.com` выдаёт паттерн; сертификат с 50 SAN — карту поддоменов.
-- **Issuer** — Let's Encrypt vs DigiCert vs внутренний CA (внутренний CA = признак корпоративной PKI).
-- **Даты** — когда появился новый сервис.
-- **Serial/CT logs** — новые сертификаты появляются в реальном времени → можно мониторить новые сервисы.
-
-### Мониторинг новых сертификатов
-
-Сервисы вроде `certstream` (Telegram/веб) уведомляют о новых сертификатах. Полезно для отслеживания, когда цель поднимает новый поддомен.
-
-## Разобранный пример: от IP к полной картине
-
-Дано: IP `93.158.134.210`.
-
-Шаг 1 — Shodan host:
+Первое, что мы делаем, — спрашиваем индекс Shodan про наш IP:
 
 ```bash
 shodan host 93.158.134.210
 ```
 
-Видим порты 80/443, сертификат на `*.example.com`, версию nginx.
-
-Шаг 2 — Censys для деталей TLS:
-
 ```
-services.ip: 93.158.134.210
+93.158.134.210
+Organization:   Example LLC
+Operating System: Linux
+Ports: 80, 443
+  443/tcp
+    nginx 1.24.0
+    SSL: *.example.com (Let's Encrypt)
 ```
 
-Смотрим SAN-список → новые поддомены.
+Из одного запроса мы узнали: организацию, ОС, открытые порты, версию веб-сервера и домен из сертификата. Ни одного пакета в сторону цели.
 
-Шаг 3 — CT по найденному домену:
+## Шаг 1: разбираемся с фильтрами Shodan
+
+Чтобы искать не по одному IP, а по признаку, нужны **фильтры**. Основные:
+
+| Фильтр | Что означает |
+|---|---|
+| `hostname:` | имя по обратному DNS |
+| `net:` | диапазон CIDR |
+| `org:` | организация |
+| `port:` | номер порта |
+| `product:` | продукт (nginx, MongoDB) |
+| `ssl:` | содержимое TLS-сертификата |
+| `http.title:` | заголовок страницы |
+
+Например, поищем все хосты нашей организации:
 
 ```bash
-curl -s "https://crt.sh/?q=%25.example.com&output=json" | jq -r '.[].name_value' | sort -u
+shodan search 'org:"Example LLC"' --fields ip_str,port,product | head
 ```
 
-Шаг 4 — корреляция: поддомены → резолв → новые IP → снова Shodan. Получаем граф.
-
-Шаг 5 — поиск «интересного»: открытые Elasticsearch (`port:9200 product:Elastic`), Grafana (`http.title:Grafana`), Jenkins. Это уже потенциальные цели.
-
-## Автоматизация и агрегаторы
-
-- **`shodan` CLI** + скрипты для массовой выгрузки.
-- **`uncover`** (ProjectDiscovery) — единый интерфейс к Shodan/Censys/FOFA/Quake:
-  ```bash
-  uncover -q 'ssl:"example.com"' -e shodan,censys,fofa -silent
-  ```
-- **`asnmap`** — получить CIDR по ASN для дальнейшего поиска.
-- **Attack Surface Management (ASM)** платформы автоматизируют всё это, но для CTF достаточно CLI.
-
-## Частые ошибки
-
-- **Вера, что индекс свежий.** Shodan/Censys обновляют хосты не мгновенно — данные могут быть месячной давности.
-- **Путать `ssl:` и `hostname:`.** `hostname:` — обратный DNS, `ssl:` — содержимое сертификата; результаты различаются.
-- **Игнорирование фильтров исключения.** `product:MongoDB -authentication` найдёт открытые базы; без `-` — все.
-- **Превышение лимитов API.** Бесплатные ключи строго ограничены; кэшируйте результаты.
-- **Забыть про CT-мониторинг.** Новые поддомены появляются в реальном времени — это живые цели.
-- **Считать CDN-сертификат origin-ом.** Сертификат Cloudflare не указывает на ваш сервер.
-
-## Практика: Shodan CLI — полный справочник
-
-Установка и инициализация:
-
-```bash
-pipx install shodan
-shodan init <API_KEY>
-shodan info                     # лимиты аккаунта
-shodan myip                     # ваш внешний IP
+```
+93.158.134.210 443 nginx
+93.158.134.211 22  OpenSSH
 ```
 
-Ключевые команды и их флаги:
+А теперь — самое ценное: поиск по сертификату. Фильтр `ssl.cert.subject.cn` ищет хосты, у которых в сертификате указано конкретное имя:
 
-```bash
-shodan host 93.158.134.210                       # всё о хосте
-shodan host --history 93.158.134.210             # история баннеров
-shodan search 'hostname:example.com' --fields ip_str,port,org,product
-shodan search --limit 100 'net:93.158.134.0/24'
-shodan count 'product:nginx country:RU'
-shodan download results.json.gz 'ssl.cert.subject.cn:"example.com"'
-shodan parse --fields ip_str,port,hostnames results.json.gz
-shodan stats --facets port 'org:"Example"'
-shodan alert create example 93.158.134.0/24      # мониторинг сети
-shodan stream --ports 22 --limit 5               # live-поток баннеров
+```
+ssl.cert.subject.cn:"example.com"
 ```
 
-Модификаторы фильтров: `-` (исключение), `+` (обязательное включение), кавычки для строк с пробелами. Примеры: `product:MongoDB -authentication`, `http.title:"Index of /" -http.title:"400"`. Фасетный анализ `shodan stats --facets org,country,port 'product:Apache'` отдаёт агрегированную статистику вместо длинного списка.
+Так находятся серверы, о существовании которых мы не знали.
 
-## Практика: Censys CLI и API v2
+## Шаг 2: Censys добавляет детали TLS
 
-```bash
-pipx install censys
-censys config                                     # задать API ID/Secret
-censys search 'services.service_name: HTTP' --index-type hosts
-censys view 93.158.134.210 --index-type hosts
-censys search 'services.tls.certificates.leaf_data.subject.common_name: example.com'
-```
-
-Через REST API v2:
+**Censys** устроен похоже, но сильнее в разборе TLS. Смотрим наш IP через API:
 
 ```bash
 curl -s "https://search.censys.io/api/v2/hosts/93.158.134.210" \
   -u "$CENSYS_API_ID:$CENSYS_API_SECRET" \
-  | jq '{ip:.result.ip, ports:[.result.services[].port], certs:[.result.services[].tls.certificates.leaf_data.names[]?]}'
+  | jq '{ip:.result.ip, ports:[.result.services[].port], names:[.result.services[].tls.certificates.leaf_data.names[]?]}'
 ```
 
-Censys силён в TLS: поля `leaf_data.names`, `issuer_dn` и `fingerprint_sha256` позволяют найти все хосты с сертификатом одной и той же CA или с одинаковым набором SAN.
-
-## Практика: FOFA API и синтаксис
-
-FOFA использует собственные операторы `domain=`, `host=`, `ip=`, `title=`, `body=`, `header=`, `cert=`, `icon_hash=`:
-
-```bash
-FOFA_Q='domain="example.com" && title="admin"'
-curl -s "https://fofa.info/api/v1/search/all?email=$FOFA_EMAIL&key=$FOFA_KEY&qbase64=$(printf '%s' "$FOFA_Q" | base64 -w0)&fields=host,ip,port,title&size=100" \
-  | jq -r '.results[] | @tsv'
+```
+{
+  "ip": "93.158.134.210",
+  "ports": [80, 443],
+  "names": ["*.example.com", "example.com", "api.example.com"]
+}
 ```
 
-`size` — до 10000 строк на платном тарифе, `page` — пагинация. FOFA особенно силён в азиатском сегменте: панели, IoT-устройства и самописные админки, которых нет в Shodan.
+Вот главная находка — поле **SAN** (Subject Alternative Names): список всех доменов, на которые выдан сертификат. Здесь уже виден `api.example.com`, которого не было в DNS.
 
-## Certificate Transparency: автоматизация
+## Шаг 3: Certificate Transparency даёт поддомены
 
-certstream слушает поток новых сертификатов в реальном времени:
-
-```bash
-pipx install certstream
-python3 -c "import certstream; certstream.listen_for_events(lambda m,c: print(m['data']['leaf_cert']['all_domains']))"
-```
-
-crtsh с фильтром по дате — мониторинг свежих поддоменов:
+**Certificate Transparency** (CT) — это публичный лог **всех** выпущенных TLS-сертификатов (по стандарту RFC 6962). Поскольку каждый сертификат обязан туда попасть, CT — богатейший источник имён. Сервис `crt.sh` отдаёт лог по домену:
 
 ```bash
 curl -s "https://crt.sh/?q=%25.example.com&output=json" \
-  | jq -r '.[] | select(.not_before > "2024-01-01") | .name_value' | sort -u
+  | jq -r '.[].name_value' | sort -u
 ```
 
-## Справочник: интересные порты и сервисы
+```
+api.example.com
+dev.example.com
+example.com
+mail.example.com
+staging.example.com
+www.example.com
+```
 
-| Порт | Сервис | Что искать |
+Символ `%25` — закодированный `%`, а `%.example.com` означает «любое имя в домене». Из CT мы вытащили сразу пять поддоменов, включая `dev` и `staging`.
+
+## Шаг 4: корреляция — цикл разведки
+
+Теперь замыкаем цикл. Каждое новое имя резолвим в IP и снова спрашиваем сканеры:
+
+```bash
+dig +short dev.example.com
+```
+
+```
+93.158.134.240
+```
+
+Новый IP — новый `shodan host`, и, возможно, новые порты и сертификаты. Так из одного адреса вырастает граф всей инфраструктуры.
+
+## Шаг 5: ищем «интересное»
+
+Отдельно проверим, нет ли на периметре сервисов, которые не должны быть открыты. У каждого — свой фильтр:
+
+| Порт | Сервис | Запрос |
 |---|---|---|
-| 9200 | Elasticsearch | `product:Elastic` без аутентификации |
+| 9200 | Elasticsearch | `product:Elastic` |
 | 27017 | MongoDB | `product:MongoDB -authentication` |
-| 6379 | Redis | `product:Redis` без пароля |
-| 2375 | Docker API | `port:2375` — управление контейнерами |
+| 6379 | Redis | `product:Redis` |
+| 2375 | Docker API | `port:2375` |
 | 6443 | Kubernetes API | `port:6443` |
-| 3389 | RDP | `port:3389 os:Windows` |
 
-## Что дальше / решение
+Знак `-` перед словом — это **исключение**. Запрос `product:MongoDB -authentication` ищет базы MongoDB, у которых в баннере **нет** слова authentication, то есть, скорее всего, открытые без пароля.
 
-Индекс сканеров устаревает: всегда проверяйте, жив ли хост (`httpx -sc -title`) и не переехал ли сервис. Объединяйте источники — то, что не видит Shodan, покажет Censys, и наоборот. Найденные открытые базы и панели без аутентификации — это уже кандидаты в цели, их стоит сразу обогатить версией ПО для поиска CVE.
+## Шаг 6: автоматизируем по всем движкам
 
-## Практика: выбор движка под задачу
-
-Не существует «лучшего» сканера — у каждого своя сильная сторона. Shodan исторически лучший по глобальному охвату и нестандартным сервисам (промышленные протоколы, IoT, старые баннеры). Censys точнее в TLS-сертификатах и структурированных полях, поэтому незаменим при пивотинге по сертификату. FOFA и ZoomEye заметно полнее покрывают азиатский сегмент и панели, которые не попадают в другие индексы. GreyNoise, наоборот, не про поиск хостов, а про отделение целевых атак от массового интернет-шума. Практический приём — прогонять один и тот же запрос через два-три движка и брать объединение результатов: то, что пропустил один, найдёт другой. ProjectDiscovery `uncover` делает это одной командой:
+У каждого сканера своя сильная сторона: Shodan — охват, Censys — TLS, FOFA — азиатский сегмент. Один движок пропускает то, что видит другой. `uncover` из ProjectDiscovery опрашивает несколько сразу:
 
 ```bash
 uncover -q 'ssl:"example.com"' -e shodan,censys,fofa,quake -silent | httpx -silent -sc -title
 ```
 
-Помните про лимиты: бесплатные ключи жёстко ограничены, поэтому кэшируйте выгрузки и не повторяйте один и тот же запрос дважды. `asnmap` превращает ASN организации в CIDR-диапазоны, которые затем можно прогнать по всем движкам для полного покрытия периметра.
+```
+https://api.example.com [200] [Example API]
+https://dev.example.com [401] [Dev Portal]
+```
+
+Команда `httpx` здесь проверяет, жив ли хост, и забирает код ответа и заголовок — индекс сканеров устаревает, поэтому результат всегда перепроверяют.
+
+## Частые ошибки
+
+- **Вера, что индекс свежий.** Shodan и Censys обновляют хосты не мгновенно — данные могут быть месячной давности, поэтому результат перепроверяют через `httpx`.
+- **Путать `ssl:` и `hostname:`.** `hostname:` ищет по обратному DNS, `ssl:` — по содержимому сертификата; результаты различаются.
+- **Забыть про знак исключения.** `product:MongoDB` найдёт все базы, а `product:MongoDB -authentication` — только открытые.
+- **Превысить лимит API.** Бесплатные ключи строго ограничены — кэшируйте выгрузки.
+- **Считать CDN-сертификат origin-ом.** Сертификат Cloudflare указывает на CDN, а не на ваш сервер.
+
+## Что мы теперь знаем
+
+- Сканеры интернета — пассивная разведка: вы читаете готовый индекс, не трогая цель.
+- `shodan host` по IP даёт организацию, порты, версии и сертификат.
+- Censys силён в TLS: поле SAN раскрывает домены из сертификата.
+- Certificate Transparency (`crt.sh`) — богатейший источник поддоменов.
+- Корреляция «IP → сертификат → имя → IP» вырастает в граф инфраструктуры.
+- Фильтры `product:` и знак исключения `-` находят открытые базы и панели.
+
+## На что смотреть дальше
+
+Разберись с **favicon-хэшингом** — поиском по отпечатку иконки, который связывает однотипные хосты и находит origin за CDN. Изучи **FOFA** и **ZoomEye** для азиатского сегмента и **certstream** для мониторинга новых сертификатов в реальном времени. Дальше это пригодится для attack surface management.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что ищет фильтр Shodan `ssl.cert.subject.cn:"example.com"`?"
+- question: "Что ищет фильтр Shodan `ssl.cert.subject.cn`?"
   options:
     - "Сайты с паролем example.com"
-    - "Хосты с TLS-сертификатом, у которого CN содержит example.com"
-    - "DNS-запись example.com"
-    - "Файлы с именем example.com"
+    - "Хосты с TLS-сертификатом, у которого CN содержит заданное имя"
+    - "DNS-запись домена"
+    - "Файлы с именем домена"
   answer: 1
+  explanation: "Фильтр смотрит в поле Common Name сертификата и находит серверы по имени."
 - question: "Почему сканеры интернета считаются пассивной разведкой?"
   options:
     - "Потому что они не работают"
@@ -294,6 +200,7 @@ uncover -q 'ssl:"example.com"' -e shodan,censys,fofa,quake -silent | httpx -sile
     - "Потому что они медленные"
     - "Потому что они запрещены"
   answer: 1
+  explanation: "Сканеры сами обходят интернет, а вы лишь ищете по их базе."
 - question: "Что такое Certificate Transparency?"
   options:
     - "Шифрование трафика"
@@ -301,6 +208,7 @@ uncover -q 'ssl:"example.com"' -e shodan,censys,fofa,quake -silent | httpx -sile
     - "Протокол DNS"
     - "Вид WAF"
   answer: 1
+  explanation: "Каждый сертификат обязан попасть в CT-лог, поэтому оттуда достаются имена."
 - question: "Какой фильтр Shodan найдёт открытые базы MongoDB?"
   options:
     - "`port:80`"
@@ -308,6 +216,7 @@ uncover -q 'ssl:"example.com"' -e shodan,censys,fofa,quake -silent | httpx -sile
     - "`hostname:mongodb`"
     - "`title:MongoDB`"
   answer: 1
+  explanation: "Знак минус исключает баннеры со словом authentication — остаются открытые базы."
 - question: "Что полезно извлекать из TLS-сертификата?"
   options:
     - "Приватный ключ"
@@ -315,12 +224,17 @@ uncover -q 'ssl:"example.com"' -e shodan,censys,fofa,quake -silent | httpx -sile
     - "Пароль администратора"
     - "Исходный код"
   answer: 1
+  explanation: "SAN перечисляет домены одного сертификата, issuer показывает удостоверяющий центр."
 ```
+
+## Куда дальше
+
+Мы научились читать инфраструктуру по индексам сканеров. В следующем уроке — **Shodan-дорки**: возьмём конкретный продукт и соберём продвинутые запросы по заголовкам, портам и favicon, чтобы находить панели и открытые сервисы. А пока главное запомни: сначала спроси индекс — и только потом трогай цель.
 
 ## Где пригодится
 
-- **CTF (OSINT):** найти сервис/панель по IP/домену и вытащить подсказку.
+- **CTF (OSINT):** найти сервис или панель по IP и вытащить подсказку.
 - **Bug bounty:** обнаружение открытых сервисов и dev-инстансов без активного скана.
-- **Пентест:** составление инвентаря внешней инфраструктуры и версий ПО.
-- **ASM/Blue team:** понять, что о вашей организации видно извне, и закрыть лишнее.
-- **Threat intel:** отслеживание инфраструктуры и новых сертификатов атакующих.
+- **Пентест:** инвентарь внешней инфраструктуры и версий ПО.
+- **ASM/Blue team:** понять, что о вашей организации видно извне.
+- **Threat intel:** отслеживание инфраструктуры и новых сертификатов.

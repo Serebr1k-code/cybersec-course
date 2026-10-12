@@ -15,260 +15,169 @@ estimated_minutes: 40
 summary: "gRPC/protobuf: реверс .proto, gRPC reflection, вызов методов без схемы, grpc-web, атаки на HTTP/2-транспорт."
 ---
 
-gRPC — современный RPC-фреймворк на HTTP/2 и protobuf. Он не отдаёт человекочитаемый REST, поэтому при пентесте приходится сначала восстановить схему (`.proto`), а затем работать с методами напрямую. Атаки — те же, что и в REST (IDOR/BOLA, инъекции, отсутствие authz), но обнаружить их сложнее из-за бинарного формата. Reflection и `grpcurl` сильно упрощают жизнь.
+## Вопрос, с которого всё начинается
 
-## Теория: как выглядит gRPC
+Ты нашёл порт `50051` — на нём крутится сервис, который общается не JSON-ом, а каким-то бинарным форматом. Открываешь в браузере — пусто. Это gRPC: современный RPC-фреймворк поверх HTTP/2, где тело запроса — не читаемый JSON, а **protobuf** (двоичный формат).
 
-- Транспорт — HTTP/2, `Content-Type: application/grpc`.
-- Тело — length-prefixed protobuf-сообщения (не JSON).
-- Метод кодируется в пути: `/package.Service/Method`.
-- Статус — в HTTP/2-трейлерах (`grpc-status`, `grpc-message`).
-- Часто есть **server reflection** — сервис сам отдаёт свои `.proto`.
+Вопрос: как вообще атаковать то, что нельзя прочитать глазами? Ответ — восстановить схему. И тут есть хорошая новость: у gRPC часто включён механизм, который отдаёт схему сам. Сегодня пройдём от опознания gRPC до IDOR на его методе.
 
-Определить gRPC:
+## Наш пример: gRPC-эндпоинт
+
+Наш сервис — `app.example:50051`. Первым делом убедимся, что это gRPC. Обычный HTTP-запрос покажет заголовки, а `grpcurl` — список сервисов:
 
 ```bash
-curl -s -I https://app.example/ | grep -i 'content-type\|grpc'
-grpcurl -plaintext app.example:443 list        # если reflection включён
+$ curl -s -I https://app.example:50051/ | grep -i 'content-type'
+content-type: application/grpc
+$ grpcurl -plaintext app.example:50051 list
+myapp.UserService
+myapp.AdminService
 ```
 
-## Реверс: восстановление .proto
+`Content-Type: application/grpc` подтверждает: это gRPC. А команда `grpcurl ... list` вернула **имена сервисов** — значит, на сервере включён **server reflection** (сервис сам отдаёт свои `.proto`-дескрипторы). Это как интроспекция в GraphQL: разведка становится делом пяти секунд.
 
-Если reflection выключен, схему достают из клиента:
+## Шаг 1: reflection — получаем схему
 
-- **Мобильное/десктоп-приложение** — распаковать и найти `.proto` или строки с именами методов.
-- **`strings`/`binwalk`** по бинарю.
-- **Из сообщений:** protobuf-поля нумеруются; по форме можно частично восстановить схему (`protobuf-inspector`, `blackboxprotobuf`).
-- **`grpcurl` с `-proto`** — если схема найдена, можно вызывать методы.
-
-## Атаки
-
-- **BOLA/IDOR:** вызвать метод с чужим ID/токеном.
-- **Отсутствие authz:** методы admin/internal без проверки.
-- **Инъекции:** значения protobuf уходят в SQL/команды/шаблоны.
-- **DoS:** большие/рекурсивные сообщения.
-- **Reflection** как «карта» эндпоинтов.
-
-## Разобранный пример: reflection → вызов без схемы
-
-Шаг 1 — перечисляем сервисы:
+Смотрим, какие методы есть у сервисов:
 
 ```bash
-grpcurl -plaintext app.example:50051 list
-grpcurl -plaintext app.example:50051 list myapp.UserService
+$ grpcurl -plaintext app.example:50051 list myapp.AdminService
+myapp.AdminService.DeleteUser
+myapp.AdminService.Impersonate
+$ grpcurl -plaintext app.example:50051 describe myapp.UserService.GetUser
+myapp.UserService.GetUser is a method:
+rpc GetUser ( .myapp.GetUserRequest ) returns ( .myapp.User );
 ```
 
-Шаг 2 — описываем метод:
+`describe` показал контракт: метод `GetUser` принимает `GetUserRequest` и возвращает `User`. Обрати внимание на `AdminService` с методами `DeleteUser` и `Impersonate` — админские сервисы часто защищены слабее пользовательских.
+
+## Шаг 2: вызываем метод и ищем IDOR
+
+Теперь зовём метод напрямую. Сначала со своим токеном, потом с чужим ID:
 
 ```bash
-grpcurl -plaintext app.example:50051 describe myapp.UserService.GetUser
+$ grpcurl -plaintext -rpc-header 'authorization: Bearer '$TOKEN \
+>   -d '{"id":"1001"}' app.example:50051 myapp.UserService/GetUser
+{
+  "id": "1001",
+  "email": "me@x.com"
+}
 ```
 
-Шаг 3 — вызываем:
+Меняем `id` на соседний:
 
 ```bash
-grpcurl -plaintext -d '{"id":"123"}' app.example:50051 myapp.UserService/GetUser
+$ grpcurl -plaintext -rpc-header 'authorization: Bearer '$TOKEN \
+>   -d '{"id":"1002"}' app.example:50051 myapp.UserService/GetUser
+{
+  "id": "1002",
+  "email": "victim@corp.com"
+}
 ```
 
-Шаг 4 — перебираем ID/токены (IDOR).
+Вернулся чужой пользователь — **IDOR/BOLA**. gRPC часто не проверяет владельца объекта на уровне метода, потому что «клиент и так свой». Артефакт — чужие данные в ответе.
 
-## Разобранный пример: реверс без reflection
+## Шаг 3: если reflection выключен — реверс `.proto`
 
-Шаг 1 — находим `.proto`/строки в приложении:
+Бывает, что `list` возвращает ошибку `Unimplemented` — reflection закрыт. Тогда схему достают из клиента: `.proto`-файлы или имена методов часто зашиты в приложение:
 
 ```bash
-unzip -o app.apk -d app && grep -rl "\.proto" app | head
-strings libapp.so | grep -iE 'Service|/Method|protobuf'
+$ unzip -o app.apk -d app && grep -rl "\.proto" app | head
+app/assets/user.proto
+$ strings libapp.so | grep -iE 'Service|/Method'
+myapp.UserService/GetUser
 ```
 
-Шаг 2 — если нашли `.proto`, вызываем:
+Нашли `user.proto` — теперь можно вызывать методы, указав схему вручную:
 
 ```bash
-grpcurl -plaintext -import-path . -proto user.proto \
-  -d '{"id":"123"}' app.example:50051 myapp.UserService/GetUser
+$ grpcurl -plaintext -import-path app/assets -proto user.proto \
+>   -d '{"id":"1001"}' app.example:50051 myapp.UserService/GetUser
 ```
 
-Шаг 3 — если схемы нет, используем `blackboxprotobuf` для разбора/сборки сообщений по номерам полей.
+Если схемы нет вовсе, помогает `protoc --decode_raw` или `blackboxprotobuf`: protobuf-поля пронумерованы, и по форме сообщения схему восстанавливают частично.
 
-## gRPC-web
+## Шаг 4: metadata и авторизация
 
-Веб-клиенты используют gRPC-web (HTTP/1.1 или HTTP/2, base64 или binary). Заголовки: `Content-Type: application/grpc-web+proto`, `application/grpc-web-text`. Перехват в браузере → разбор через `grpc-web`-десериализатор; атаки те же.
-
-## Инструменты
-
-- **`grpcurl`** — вызовы/reflection.
-- **`grpcui`** — веб-UI для gRPC.
-- **`protobuf-inspector`/`blackboxprotobuf`** — разбор без схемы.
-- **Burp** — перехват (gRPC-web читаем, gRPC-HTTP2 — через плагины).
-- **`ghz`** — нагрузочное/фаззинг gRPC.
-
-## Что дальше / decision
-
-1. Есть gRPC → проверьте reflection (`grpcurl list`).
-2. Reflection есть → перечислите методы, вызовите, ищите IDOR/authz.
-3. Reflection нет → реверсните `.proto` из клиента.
-4. Схемы нет вовсе → `blackboxprotobuf` по номерам полей.
-5. Дальше — инъекции в значениях и BOLA на методах.
-
-## Разобранный пример: IDOR/BOLA в gRPC
-
-Шаг 1 — перечисляем методы через reflection.
-Шаг 2 — вызываем метод с чужим ID:
+gRPC передаёт данные аутентификации и тенанта в **metadata** — это аналог HTTP-заголовков. Часто сервер доверяет полю вроде `x-tenant` или `x-user-id` без проверки:
 
 ```bash
-grpcurl -plaintext -d '{"user_id":"1002"}' app.example:50051 myapp.UserService/GetUser
+$ grpcurl -plaintext -rpc-header 'x-tenant: 2' \
+>   -d '{"id":"1"}' app.example:50051 myapp.UserService/GetUser
+{
+  "id": "1",
+  "email": "other-tenant@corp.com"
+}
 ```
 
-Шаг 3 — если вернулся чужой пользователь — IDOR/BOLA. gRPC часто не проверяет авторизацию на уровне метода, доверяя клиенту.
+Подменили `x-tenant` — получили данные другого тенанта. Проверяй все metadata-поля: отсутствие токена, чужой токен, подмену идентификатора.
 
-## Метаданные и аутентификация
+## Шаг 5: статус-коды как оракул
 
-gRPC передаёт auth/tenant в **metadata** (аналог заголовков):
-
-```bash
-grpcurl -plaintext -H 'authorization: Bearer <token>' -H 'x-tenant: 2' \
-  -d '{"id":"1"}' app.example:50051 myapp.UserService/GetUser
-```
-
-Тестируйте: подмена `x-tenant`/`x-user-id` (мультитенантность), отсутствие токена, чужой токен. Иногда metadata-поля уходят в запрос без проверки.
-
-## Частые ошибки
-
-- **Игнорировать gRPC, считая его «закрытым».** Это HTTP/2 — всё тестируемо.
-- **Ждать JSON.** Тело — protobuf; нужен десериализатор.
-- **Не проверить reflection.** Часто включён и отдаёт всю схему.
-- **Забыть про gRPC-web.** В браузере другой Content-Type.
-- **Ломать прод.** Только с согласия.
-
-## Полный арсенал grpcurl: флаги и режимы
-
-`grpcurl` — основной инструмент для ручного общения с gRPC. Держите под рукой полный набор флагов.
-
-| Флаг | Значение |
-|------|----------|
-| `-plaintext` | без TLS (h2c, порт 50051) |
-| `-insecure` | TLS без проверки сертификата |
-| `-import-path DIR` | каталог с `.proto` |
-| `-proto file.proto` | использовать конкретный proto |
-| `-rpc-header 'k: v'` | метаданные (аналог заголовка) |
-| `-H 'k: v'` | HTTP/2-заголовки |
-| `-d '{...}'` | JSON-тело запроса |
-| `-d @` | читать тело из stdin |
-| `-format-error` | печатать status-код |
-| `-max-time N` | таймаут в секундах |
-| `-emit-defaults` | выводить поля со значением по умолчанию |
-
-```bash
-# список сервисов (reflection)
-grpcurl -plaintext localhost:50051 list
-# методы сервиса
-grpcurl -plaintext localhost:50051 list my.pkg.UserService
-# описание сообщения
-grpcurl -plaintext localhost:50051 describe my.pkg.User
-# вызов метода
-grpcurl -plaintext -d '{"id":1}' localhost:50051 my.pkg.UserService/GetUser
-# с авторизацией через метаданные
-grpcurl -plaintext -rpc-header 'authorization: Bearer TOKEN' \
-  -d '{"id":1}' localhost:50051 my.pkg.UserService/GetUser
-```
-
-Если reflection выключен, обязательно указывайте `-proto` и `-import-path`.
-
-## Статус-коды gRPC и что они означают для атакующего
-
-gRPC использует свои коды, и они прямо подсказывают состояние проверки прав.
+gRPC использует свои коды, и они прямо подсказывают состояние проверки прав. Ключевое сравнение:
 
 | Код | Число | Значение для теста |
 |-----|-------|--------------------|
-| OK | 0 | запрос прошёл |
-| PERMISSION_DENIED | 7 | права проверены — ищите обход |
-| UNAUTHENTICATED | 16 | нужен токен |
-| NOT_FOUND | 5 | объект есть, но не виден (часто IDOR!) |
-| INVALID_ARGUMENT | 3 | парсер принял, валидация отклонила |
-| UNIMPLEMENTED | 12 | метод есть в схеме, но не реализован |
-| RESOURCE_EXHAUSTED | 8 | rate-limit/DoS-точка |
+| `OK` | 0 | запрос прошёл |
+| `PERMISSION_DENIED` | 7 | права проверены |
+| `UNAUTHENTICATED` | 16 | нужен токен |
+| `NOT_FOUND` | 5 | объект не найден (часто IDOR!) |
+| `RESOURCE_EXHAUSTED` | 8 | rate-limit / DoS-точка |
 
-Разница между `PERMISSION_DENIED` и `NOT_FOUND` — ключевой оракул: если при подмене `id` возвращается `NOT_FOUND` вместо `PERMISSION_DENIED`, авторизация, скорее всего, не проверяется, и объект просто не существует.
+Если при подмене `id` возвращается `NOT_FOUND`, а не `PERMISSION_DENIED`, — авторизация, скорее всего, не проверяется: сервер просто ищет объект и не находит. Это сигнал копать глубже.
 
-## Потоковые вызовы и их абуз
+## Если не сработало
 
-gRPC поддерживает четыре режима: unary, server-streaming, client-streaming, bidirectional. Потоки часто лишены тех же проверок, что и unary.
+- `list` возвращает `Unimplemented` — reflection закрыт; реверсь `.proto` из клиента или используй `protoc --decode_raw`.
+- Метод защищён, но вернул `PERMISSION_DENIED` — ищи `AdminService`/`Debug`/`Internal` сервисы: они часто защищены слабее.
+- Тело непонятно — перехвати легитимный трафик в Burp (с gRPC-расширением) и повтори запрос, меняя поля.
+- Браузерный клиент использует **gRPC-web** (`Content-Type: application/grpc-web+proto`) — там другой формат, но те же атаки; проверяй CORS и доступность нативных методов через прокси.
 
-```bash
-# server-streaming: читаем всё, что отдаёт сервер
-grpcurl -plaintext -d '{}' localhost:50051 my.pkg.Feed/Subscribe
+## Чем gRPC отличается от REST
 
-# client-streaming: отправляем много сообщений из файла
-grpcurl -plaintext -d @ localhost:50051 my.pkg.Upload/Send < lines.json
-
-# bidirectional: интерактивно, удобно для fuzzing
-grpcurl -plaintext -d @ localhost:50051 my.pkg.Chat/Stream
-```
-
-Типичные баги: сервер отдаёт подписки на чужие топики, не ограничивает число сообщений (RESOURCE_EXHAUSTED не наступает), client-streaming принимает бесконечный поток и падает по памяти.
-
-## gRPC-web и прокси-трансляция
-
-Браузерные приложения общаются с gRPC через **gRPC-web** и прокси (Envoy `grpc_web`, `grpc-web` filter). Это добавляет слой, который может ослабить аутентификацию.
-
-```bash
-# gRPC-web использует POST /pkg.Service/Method с телом length-prefixed
-curl -s -X POST https://api.example/pkg.UserService/GetUser \
-  -H 'Content-Type: application/grpc-web+proto' \
-  -H 'X-Grpc-Web: 1' --data-binary @req.bin --output resp.bin
-```
-
-Проверяйте: (а) прокси не требует `X-Grpc-Web`; (б) CORS настроен слишком широко (`Access-Control-Allow-Origin: *` с credentials); (в) через тот же прокси доступны нативные gRPC-методы.
-
-## Что делать дальше / решение
-
-1. **Определите транспорт.** Порт 50051/443, h2c или TLS, есть ли gRPC-web-путь.
-2. **Проверьте reflection.** Если включён — получите схему через `list`/`describe`.
-3. **Восстановите .proto.** Нет reflection — реверс бинаря или proto из клиента.
-4. **Перечислите методы.** Ищите админские, отладочные, `Delete*`, `Admin*`.
-5. **Тестируйте авторизацию.** Подмена `id`, отсутствие метаданных, чужой токен.
-6. **Проверьте потоки и лимиты.** RESOURCE_EXHAUSTED, бесконечные подписки.
-7. **Зафиксируйте PoC.** `grpcurl`-команда + ответ с чужими данными/обходом.
-
-## Практика и справочники
-
-- **grpcui / grpcurl** — интерактивный и CLI-клиент.
-- **Burp + gRPC-расширения** (например, «gRPC»/«Protobuf») — перехват и повтор.
-- **HackTricks** — «gRPC» (реверс proto, reflection).
-- **grpc-js / grpcio** — написать свой клиент, когда нужно нестандартное поведение.
-
-## Health checking и reflection как точки входа
-
-Два стандартных механизма gRPC часто остаются включёнными и дают атакующему больше, чем нужно.
-
-```bash
-# 1) health checking — стандартный сервис grpc.health.v1.Health
-grpcurl -plaintext localhost:50051 grpc.health.v1.Health/Check
-# {"status":"SERVING"}
-# 2) reflection — отдаёт всю схему
-grpcurl -plaintext localhost:50051 list
-# my.pkg.UserService
-# my.pkg.AdminService      <- интересно!
-grpcurl -plaintext localhost:50051 list my.pkg.AdminService
-```
-
-Признаки, на которые стоит смотреть: наличие сервисов `Admin`, `Debug`, `Internal`, `Test`; методы `Delete*`, `Reset*`, `Impersonate*`. Reflection сам по себе — не уязвимость, но он превращает разведку в пятисекундное дело, а админские сервисы часто защищены слабее пользовательских.
-
-## Сводка: gRPC vs REST — что меняется для тестировщика
+Полезно держать разницу в голове, чтобы не искать привычные артефакты:
 
 | Аспект | REST | gRPC |
 |--------|------|------|
 | Транспорт | HTTP/1.1 | HTTP/2 (h2c/h2) |
-| Формат | JSON | protobuf (binary) |
+| Формат тела | JSON | protobuf (binary) |
 | Схема | OpenAPI (часто) | `.proto` (не всегда доступна) |
-| Reflection | нет | есть (если включён) |
+| Reflection | нет | есть, если включён |
 | Ошибки | HTTP-коды | status-коды gRPC |
 | Метаданные | заголовки | metadata |
 | Стриминг | SSE/WS | встроенный |
 
-Практический вывод: инструменты для REST (Burp в стандартной настройке) «не видят» бинарный protobuf — нужны gRPC-расширения или `grpcurl`, а авторизацию проверяют в metadata, а не в заголовках в привычном виде.
+Практический вывод: Burp в стандартной настройке «не видит» бинарный protobuf — нужны gRPC-расширения или `grpcurl`, а авторизацию проверяют в metadata, а не в заголовках.
+
+## Потоковые вызовы
+
+У gRPC четыре режима: unary, server-streaming, client-streaming и bidirectional. Потоки часто лишены тех же проверок, что и обычные вызовы:
+
+```bash
+$ grpcurl -plaintext -d '{}' app.example:50051 myapp.Feed/Subscribe
+```
+
+Server-streaming отдаёт всё, что сервер решит прислать; типичный баг — подписка на чужой топик. Client-streaming может принять бесконечный поток и упасть по памяти. Проверяй каждый поток на авторизацию и лимиты (`RESOURCE_EXHAUSTED` не должен наступать слишком поздно).
+
+## Что мы теперь знаем
+
+- gRPC — RPC поверх HTTP/2, тело — бинарный protobuf, метод в пути `/package.Service/Method`.
+- **Reflection** отдаёт схему сервисов; без неё схему реверсят из клиента.
+- `grpcurl` позволяет перечислить сервисы, описать метод и вызвать его.
+- Авторизацию проверяют в **metadata** (`authorization`, `x-tenant`), а не в привычных заголовках.
+- IDOR/BOLA живут и здесь: подмена `id` возвращает чужой объект.
+- Статус-коды gRPC (`NOT_FOUND` vs `PERMISSION_DENIED`) — оракул на наличие проверки прав.
+
+## На что смотреть дальше
+
+- Не считай gRPC «закрытым» — это HTTP/2, всё тестируемо.
+- Не жди JSON: для тела нужен десериализатор или `grpcurl`.
+- Всегда проверь reflection — часто он включён и отдаёт всю схему.
+- Не забудь про gRPC-web: в браузере другой `Content-Type` и другой прокси.
+- Осторожно с нагрузочными тестами (`ghz`) — DoS на прод только с разрешения.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Как выглядит путь gRPC-метода?"
@@ -286,13 +195,13 @@ grpcurl -plaintext localhost:50051 list my.pkg.AdminService
     - "nmap"
     - "ffuf"
   answer: 1
-  explanation: "grpcurl поддерживает reflection."
+  explanation: "grpcurl поддерживает reflection и вызовы методов."
 - question: "Что даёт gRPC reflection?"
   options:
     - "Пароли"
     - "Схему сервисов и методов"
     - "TLS-ключ"
-    - "Логи"
+    - "Логи сервера"
   answer: 1
   explanation: "Сервер отдаёт .proto-дескрипторы."
 - question: "Как декодировать protobuf без схемы?"
@@ -302,7 +211,7 @@ grpcurl -plaintext localhost:50051 list my.pkg.AdminService
     - "openssl"
     - "jq"
   answer: 1
-  explanation: "Показывает поля/значения по номерам."
+  explanation: "Показывает поля и значения по номерам."
 - question: "Какая топ-угроза в gRPC-методах?"
   options:
     - "XSS"
@@ -310,12 +219,16 @@ grpcurl -plaintext localhost:50051 list my.pkg.AdminService
     - "CSRF"
     - "Clickjacking"
   answer: 1
-  explanation: "Как и в REST API."
+  explanation: "Как и в REST API — нет проверки владельца."
 ```
+
+## Куда дальше
+
+В следующем уроке мы посмотрим на **WebSocket** (`web-websocket`) — ещё один протокол реального времени, где после рукопожатия приложение само отвечает за авторизацию, и где живут cross-site hijacking и IDOR в сообщениях. А пока главное запомни: бинарный формат — не защита; восстанови схему, и gRPC станет таким же тестируемым, как REST.
 
 ## Где пригодится
 
-- **CTF (Web):** задачи на gRPC.
+- **CTF (Web):** задачи на gRPC и реверс `.proto`.
 - **Bug bounty:** внутренние gRPC-API, IDOR.
-- **Пентест:** реверс и аудит RPC.
-- **Работа (AppSec):** отключение reflection в проде, authz на методах, mTLS.
+- **Пентест:** реверс и аудит RPC-сервисов.
+- **Работа (AppSec):** отключение reflection в проде, авторизация на методах, mTLS.

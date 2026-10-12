@@ -15,198 +15,205 @@ estimated_minutes: 60
 summary: "Форензика шифрованных дисков: определение типа шифрования, заголовки LUKS/BitLocker/VeraCrypt/FileVault, извлечение ключей из памяти и TPM, монтирование и восстановление."
 ---
 
-Полнодисковое шифрование (FDE) — стандарт для ноутбуков и серверов, и в задачах forensics всё чаще попадаются шифрованные образы. «Просто смонтировать» их нельзя: нужен **ключ** или **пароль**. Этот урок — про определение типа шифрования, понимание заголовков, поиск ключей в памяти/TPM и корректное монтирование.
+## Вопрос, с которого всё начинается
 
-## Определение типа шифрования
+У тебя образ `disk.img`, но при монтировании система говорит «unknown filesystem».
+Ты заглядываешь в начало файла и видишь не таблицу разделов, а случайные байты.
+Это не повреждение — это **полнодисковое шифрование (FDE)**. Данные целы, но
+закрыты ключом.
 
-Первым делом — понять, чем зашифрован том.
+Чтобы их прочитать, нужен **ключ** или **пароль**. В этом уроке мы определим тип
+шифрования и найдём ключ там, где его чаще всего теряют, — в дампе памяти.
 
-```bash
-file disk.img
-# -> LUKS encrypted file, ver 1 [aes, xts-plain64, sha256]
-# -> BitLocker ... / VeraCrypt ...
-# -> "PC encrypted volume" (FileVault / APFS encrypted)
+## Шаг 1: определяем тип шифрования
 
-blkid disk.img
-# TYPE="crypto_LUKS" | "BitLocker" | "crypto_TCRYPT"(VeraCrypt)
-
-# LUKS
-cryptsetup luksDump disk.img | head -30
-# BitLocker (Linux: cryptsetup умеет bitlk)
-cryptsetup bitlkDump disk.img | head -30
-# VeraCrypt
-cryptsetup tcryptDump disk.img 2>/dev/null | head -30
-```
-
-Признаки:
-- **LUKS**: magic `LUKS\xba\xbe` (0x4C554B53BABE) в начале; заголовок с keyslot-ами.
-- **BitLocker**: signature `-FVE-FS-` (0x2D4656452D46532D) в boot-секторе.
-- **VeraCrypt/TrueCrypt**: нет сигнатуры (стелс), определяется по энтропии/`cryptsetup tcryptDump` с паролем.
-- **FileVault (APFS)**: контейнер APFS с зашифрованными томами; ключи в keychain.
-
-## LUKS
-
-LUKS-заголовок хранит:
-- **magic**, версию (LUKS1/LUKS2);
-- **cipher/mode/hash** (обычно `aes-xts-plain64`, sha256);
-- **master key** (зашифрован) — он и расшифровывает данные;
-- **keyslots** (обычно 8) — каждый содержит зашифрованный master key; для открытия нужен пароль/ключевой файл keyslot-а;
-- **PBKDF** (Argon2/PBKDF2) — медленный вывод ключа.
+Первым делом — понять, чем зашифрован том. Инструмент `file` смотрит на сигнатуру:
 
 ```bash
-cryptsetup luksDump disk.img
-#  Version: 2
-#  Cipher: aes-xts-plain64
-#  PBKDF: argon2id
-#  Keyslots: 0,1  (по паролям)
-
-# Открыть с паролем
-sudo cryptsetup open disk.img dec
-sudo mount -o ro /dev/mapper/dec /mnt/dec
-
-# С ключевым файлом
-sudo cryptsetup open --key-file key.bin disk.img dec
-
-# LUKS2: добавить/убрать keyslot, узнать, какие есть
-cryptsetup luksDump --dump-master-key disk.img   # если пароль keyslot известен
+$ file disk.img
+disk.img: LUKS encrypted file, ver 2 [aes, xts-plain64, sha256]
 ```
 
-Восстановление заголовка (если повреждён): `cryptsetup luksHeaderBackup`/`luksHeaderRestore`, либо поиск **резервной копии заголовка** — LUKS2 хранит её отдельно (`--header-backup-file`). Если заголовок уничтожен, а данных много — master key иногда можно найти в памяти.
+Строка `LUKS` сразу называет систему. `blkid` уточняет метку:
 
 ```bash
-# Дамп заголовка (до повреждения — для резерва)
-sudo cryptsetup luksHeaderBackup disk.img --header-backup-file luks.header
-# Восстановление
-sudo cryptsetup luksHeaderRestore disk.img --header-backup-file luks.header
+$ blkid disk.img
+disk.img: TYPE="crypto_LUKS"
 ```
 
-## BitLocker
+У разных систем свои сигнатуры:
 
-BitLocker использует AES (CBC/128 или XTS/256) и **VMK** (Volume Master Key), защищённый:
-- паролем (recovery password, 48 цифр);
-- TPM (авторазблокировка без ввода);
-- ключевым файлом на USB (`.BEK`);
-- recovery key.
+- **LUKS** — magic `LUKS\xba\xbe` в начале файла;
+- **BitLocker** — подпись `-FVE-FS-` в загрузочном секторе;
+- **VeraCrypt/TrueCrypt** — сигнатуры **нет** (это часть замысла: том выглядит как
+  случайные данные);
+- **FileVault (macOS)** — контейнер APFS с зашифрованными томами.
 
-`cryptsetup` (≥2.0) умеет открывать BitLocker через `bitlk`:
+## Шаг 2: разбираем заголовок LUKS
+
+Заголовок LUKS — служебная область в начале тома. Он хранит алгоритм, режим и, самое
+важное, **master key** (главный ключ) — тот, которым реально зашифрованы данные.
+Master key не хранится открыто: он зашифрован в одном из **keyslot**-ов, и чтобы его
+достать, нужен пароль (или ключевой файл) от этого keyslot.
 
 ```bash
-cryptsetup bitlkDump disk.img
-#  Version: 2
-#  Cipher: aes-xts
-#  Key: ... 
-#  Created: ...
-#  Protection: Password / Recovery / TPM
-
-# Открыть recovery-паролем (48 цифр)
-sudo cryptsetup bitlkOpen disk.img bl
-sudo mount -o ro /dev/mapper/bl /mnt/bl
-
-# Открыть .BEK-файлом (нужен для того же тома)
-sudo cryptsetup bitlkOpen --key-file startup.bek disk.img bl
+$ cryptsetup luksDump disk.img
+Version:        2
+Cipher:         aes-xts-plain64
+PBKDF:          argon2id
+Keyslots:       0, 1
 ```
 
-Recovery-ключ часто находится в:
-- `$MFT`/реестре как `BitLocker` metadata;
-- файле `.BEK` на USB;
-- **AD DS** (если том в домене) — `msFVE-RecoveryInformation`;
-- памяти (`windows.bitlocker` в Volatility — если том был разблокирован).
+Читаем: версия 2, алгоритм AES в режиме XTS, для вывода ключа из пароля используется
+**Argon2id** (специально медленная функция — чтобы перебор был дорогим), и открыть
+том можно двумя паролями (keyslot 0 и 1).
+
+## Шаг 3: открываем том паролем
+
+Если пароль известен (или найден), открываем:
 
 ```bash
-# Volatility 3: поиск ключей BitLocker в дампе памяти
-vol -f mem.raw windows.bitlocker 2>/dev/null || vol -f mem.raw windows.registry.printkey --key "BitLocker"
+$ sudo cryptsetup open disk.img dec
+Enter passphrase for disk.img:
+$ sudo mount -o ro /dev/mapper/dec /mnt/dec
+$ cat /mnt/dec/flag.txt
+CTF{luks_header_holds_the_key}
 ```
 
-## VeraCrypt / TrueCrypt
-
-VeraCrypt (форк TrueCrypt) использует **отрицаемые** тома и **скрытые** тома. Заголовок не имеет сигнатуры, поэтому `file`/`blkid` могут показать «data». Определяется по энтропии и через `cryptsetup tcryptDump`.
+`cryptsetup open` расшифровывает master key паролем и создаёт виртуальное устройство
+`/dev/mapper/dec`, которое монтируется как обычный диск. Можно передать и ключевой
+файл:
 
 ```bash
-# VeraCrypt-том (обычный)
-cryptsetup tcryptDump --veracrypt disk.img
-sudo cryptsetup open --type tcrypt --veracrypt disk.img vc
-# Параметры (алгоритм/режим/хеш) должны совпадать с созданными
-sudo cryptsetup open --type tcrypt --veracrypt \
-  --hash=sha512 --cipher=aes-xts-plain64 disk.img vc
-
-# Скрытый том: сначала открыть внешний, потом внутренний с offset
-# (скрытый том лежит внутри внешнего в конце)
+$ sudo cryptsetup open --key-file key.bin disk.img dec
 ```
 
-Ключевой момент: для открытия нужно знать **алгоритм, режим, хеш и длину ключа** — они не всегда стандартные. В CTF подсказка обычно есть в тексте задачи.
+## Шаг 4: где искать ключ, если пароля нет
 
-## FileVault (macOS)
+Ключи часто лежат **рядом** с шифрованным томом. Основные места:
 
-FileVault 2 использует CoreStorage/APFS + ключи в **keychain** и Secure Enclave. Заголовок — APFS-контейнер с зашифрованными томами.
+- **Дамп памяти**: если система была разблокирована, master key остаётся в
+  оперативной памяти. Это самый частый путь в CTF.
+- **Дамп гибернации** (`hiberfil.sys`) — по сути, содержимое памяти на момент сна.
+- **Файлы**: ключевые файлы, `.BEK` (BitLocker), заметки, `crypttab`.
+- **TPM**: если включена авторазблокировка, ключ «отдаётся» без пароля — эмулируйте
+  TPM или ищите ключ в памяти.
 
 ```bash
-# Определить APFS
-apfsutil list disk.img          # или через apfs-fuse
-# Ключ часто в keychain из бэкапа/образа пользователя
-# Инструменты: apfs-fuse, libfvde (fvdeinfo/fvdemount)
-sudo apt install -y libfvde-utils
-fvdeinfo disk.img | head
-sudo fvdemount disk.img /mnt/fv -p <password>
+$ vol -f mem.raw linux.luks 2>/dev/null
+$ strings -n 6 mem.raw | grep -iE 'luks|password|crypt' | head
 ```
 
-`libfvde` (Digital Forensics Framework) — основной инструмент для FileVault.
+Volatility-плагин `linux.luks` умеет находить master key разблокированного LUKS прямо
+в дампе. Если пароль подбирается, восстановленный ключ сохраняют и открывают им том.
 
-## Поиск ключей и паролей
+## Шаг 5: BitLocker
 
-Ключи часто «лежат рядом» с шифрованным томом:
-- **Память**: если система была разблокирована, master key в RAM. Volatility: `windows.bitlocker`, `linux.luks` (Volatility 3 `linux` плагины), `strings` по дампу.
-- **Дамп hibernation** (`hiberfil.sys`) — содержит содержимое RAM на момент сна.
-- **Файлы**: `.BEK`, keyfile, заметки, скрипты, `crypttab`.
-- **TPM**: если включён автозапуск — ключ «отдаётся» без пароля; эмулируйте TPM или ищите plaintext-ключ в памяти.
+BitLocker использует AES и **VMK** (Volume Master Key), который защищён одним из
+способов: паролем (recovery password из 48 цифр), TPM (авторазблокировка), ключевым
+файлом на USB (`.BEK`) или recovery key.
 
 ```bash
-# LUKS master key из памяти (если том разблокирован)
-# AES-ключевые расписания выглядят как высокоэнтропийные блоки
-strings -n 16 mem.raw | grep -iE 'luks|master'    # грубо, для подсказки
-
-# hiberfil.sys -> RAM
-vol -f hiberfil.sys windows.info
+$ cryptsetup bitlkDump disk.img
+Version:      2
+Cipher:       aes-xts
+Protection:   Password / Recovery / TPM
+$ sudo cryptsetup bitlkOpen disk.img bl
+$ sudo mount -o ro /dev/mapper/bl /mnt/bl
 ```
 
-## Разобранный пример: CTF «LUKS с ключом в памяти»
+Где искать recovery-ключ:
+
+- в реестре/`$MFT` как метаданные BitLocker;
+- в файле `.BEK` на флешке;
+- в **Active Directory** (если том в домене) — атрибут `msFVE-RecoveryInformation`;
+- в памяти — если том был разблокирован:
 
 ```bash
-# Даны: disk.img (LUKS2) и mem.raw (дамп памяти разблокированной системы)
-
-# 1. Тип шифрования
-file disk.img
-cryptsetup luksDump disk.img | head
-
-# 2. Пароль в задаче/файле подсказки?
-strings disk.img | grep -iE 'pass|key' | head
-
-# 3. Если нет — ключ в памяти
-vol -f mem.raw linux.luks 2>/dev/null
-# или strings по дампу в поисках пароля
-strings -n 6 mem.raw | grep -iE 'luks|password|crypt' | head
-
-# 4. Открыть
-sudo cryptsetup open --key-file recovered.key disk.img dec
-sudo mount -o ro /dev/mapper/dec /mnt/dec
-cat /mnt/dec/flag.txt
-
-# --- BitLocker-вариант ---
-cryptsetup bitlkDump disk.img | head
-sudo cryptsetup bitlkOpen disk.img bl     # ввести 48-цифр recovery
-sudo mount -o ro /dev/mapper/bl /mnt/bl
+$ vol -f mem.raw windows.bitlocker
 ```
 
-## Частые ошибки
+## Шаг 6: VeraCrypt и FileVault
 
-- **Путать LUKS1 и LUKS2** — разный формат заголовка и PBKDF (Argon2 vs PBKDF2).
-- **Забывать про keyslot** — пароль от одного keyslot не открывает другой.
-- **Открывать VeraCrypt без указания алгоритма/хеша** — параметры должны совпадать.
-- **Считать стелс-VeraCrypt «пустым диском»** — энтропия и `tcryptDump` выдают.
-- **Не искать recovery key в AD/`$MFT`** — для BitLocker это самый частый путь.
-- **Монтировать расшифрованный том read-write** — испортит улики.
-- **Игнорировать hiberfil.sys** — там часто ключи.
+**VeraCrypt** (форк TrueCrypt) умеет **скрытые** тома и не имеет сигнатуры — том
+выглядит как случайные данные. Определяется по высокой энтропии и через
+`cryptsetup tcryptDump`. Для открытия нужно знать **алгоритм, режим и хеш** — они
+должны совпадать с созданными:
+
+```bash
+$ cryptsetup tcryptDump --veracrypt disk.img
+$ sudo cryptsetup open --type tcrypt --veracrypt \
+    --hash=sha512 --cipher=aes-xts-plain64 disk.img vc
+```
+
+**FileVault** (macOS) использует APFS и ключи в keychain. Основной инструмент —
+`libfvde`:
+
+```bash
+$ fvdeinfo disk.img | head
+$ sudo fvdemount disk.img /mnt/fv -p <password>
+```
+
+## Шаг 7: резервная копия заголовка
+
+Заголовок LUKS — самое уязвимое место: если его повредить, том открыть нельзя, даже
+зная пароль. Поэтому заголовок заранее копируют, а при потере восстанавливают:
+
+```bash
+$ sudo cryptsetup luksHeaderBackup disk.img --header-backup-file luks.header
+$ sudo cryptsetup luksHeaderRestore disk.img --header-backup-file luks.header
+```
+
+В CTF часто поступают наоборот: **сохраняют найденный заголовок**, чтобы можно было
+экспериментировать с паролями, не портя оригинал. А если заголовок уничтожен, но
+данных много — master key иногда удаётся найти в памяти (см. Шаг 4), потому что
+именно он, а не пароль, расшифровывает данные.
+
+## Шаг 8: сводка по системам
+
+| Система | Сигнатура | Ключ ищут | Инструмент |
+|---------|-----------|-----------|-----------|
+| LUKS | `LUKS\xba\xbe` | пароль/keyslot, память | `cryptsetup` |
+| BitLocker | `-FVE-FS-` | recovery, `.BEK`, AD, TPM | `cryptsetup bitlk*` |
+| VeraCrypt | нет (стелс) | пароль + точные параметры | `cryptsetup tcrypt` |
+| FileVault | APFS-контейнер | keychain | `libfvde` |
+
+## Шаг 9: если ключа нет совсем
+
+Бывает, что ни пароля, ни ключа в памяти, ни recovery-записи нет. Тогда остаётся
+несколько путей, и все они ограничены:
+
+- **Перебор пароля** — `cryptsetup open` в цикле с небольшим словарём; медленно из-за
+  Argon2, поэтому большие словари бессмысленны. В CTF пароль почти всегда подсказан
+  в тексте задачи.
+- **Поиск ключа в других дампах** — гибернация, swap-файл, дампы виртуальной машины.
+- **Аппаратные атаки** (Cold Boot, DMA) — за рамками офлайн-форензики и часто
+  невозможны из-за TPM.
+
+Главный вывод: без ключа FDE не «взламывают» — ключ **ищут**. Поэтому при снятии
+данных с включённой системы память сохраняют в первую очередь.
+
+## Что мы теперь знаем
+
+- Тип шифрования определяется по сигнатуре (`file`, `blkid`).
+- LUKS хранит master key зашифрованным в keyslot; пароль его разблокирует.
+- `cryptsetup open` создаёт устройство `/dev/mapper/...` для монтирования.
+- Ключи часто в памяти, гибернации, файлах `.BEK` или в AD.
+- BitLocker открывается recovery-паролем или `.BEK`; VeraCrypt требует точных
+  параметров; FileVault — через `libfvde`.
+
+## На что смотреть дальше
+
+- **Путать LUKS1 и LUKS2** — разный формат заголовка и разная функция вывода ключа.
+- **Забывать про keyslot** — пароль от одного не открывает другой.
+- **Открывать VeraCrypt без алгоритма/хеша** — параметры должны совпадать.
+- **Считать стелс-VeraCrypt «пустым диском»** — выдаёт высокая энтропия.
+- **Монтировать расшифрованный том read-write** — испортите улики.
+- **Не искать recovery key в AD** — для BitLocker это самый частый путь.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какой magic у заголовка LUKS?"
@@ -245,6 +252,13 @@ sudo mount -o ro /dev/mapper/bl /mnt/bl
     - "`ewfmount`"
   answer: 1
 ```
+
+## Куда дальше
+
+Мы разобрали, как открыть зашифрованный диск. Дальше займёмся памятью всерьёз:
+научимся находить в дампах инъекции кода и руткиты — то, чего нет ни на одном диске.
+А пока запомни: **шифрованный том бесполезен без ключа, а ключ чаще всего живёт в
+памяти**.
 
 ## Где пригодится
 

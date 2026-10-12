@@ -15,106 +15,52 @@ estimated_minutes: 55
 summary: "Глубокий разбор пакетов: фильтры захвата и отображения, статистика (-z), экспорт полей, извлечение объектов и реконструкция потоков через tshark и Wireshark."
 ---
 
-`tshark` — консольная версия Wireshark, и для форензика это основной инструмент пакетного анализа. Он позволяет искать по байтам, извлекать поля, строить статистику и вытаскивать объекты (файлы, сертификаты, credentials) без ручного просмотра. Wireshark добавляет визуализацию и follow-stream. Здесь — приёмы, которые чаще всего решают CTF-задачи и реальные инциденты.
+## Вопрос, с которого всё начинается
 
-## Фильтры: два разных языка
+В прошлых уроках мы смотрели на трафик «сверху»: через сигнатуры (Suricata) и потоки (NetFlow). Но часто нужно спуститься на уровень отдельных пакетов: найти конкретный запрос, вытащить переданный файл, восстановить сессию. Для этого есть **`tshark`** — консольная версия Wireshark.
 
-Ключевое различие:
+## Наш пример: attack.pcap
 
-- **Capture filter (BPF)** — применяется ДО захвата, синтаксис `tcp port 80`. Используется в `-f`.
-- **Display filter** — применяется ПОСЛЕ, синтаксис `http.request.method == "GET"`. Используется в `-Y` (или в поле Wireshark).
+Есть захват `attack.pcap`. Начнём с общего обзора — кто с кем и сколько. Флаг `-q` отключает построчный вывод пакетов, `-z` включает готовые отчёты:
+
+```bash
+$ tshark -r attack.pcap -q -z conv,tcp | head
+TCP Conversations
+10.0.0.5:51234 <-> 203.0.113.9:443   | 1200 | 90 kB | 3 | 400 B | 1203 | 90 kB |
+```
+
+Читаем: клиент `10.0.0.5` отправил на `203.0.113.9:443` заметно больше, чем получил (90 kB против 400 B). Для HTTPS это нетипично — обычно скачивают, а не отдают. Гипотеза: выгрузка данных.
+
+## Шаг 1: два разных языка фильтров
+
+Ключевое различие, на котором спотыкаются новички:
+
+- **Capture filter (BPF)** — применяется **до** захвата, синтаксис `tcp port 80`, задаётся флагом `-f`.
+- **Display filter** — применяется **после**, синтаксис `http.request.method == "GET"`, задаётся флагом `-Y`.
 
 ```bash
 # Захват только нужного (BPF)
 tshark -i eth0 -f "tcp port 443"
 # Чтение PCAP с display-фильтром
-tshark -r capture.pcap -Y 'http.request.method == "POST"'
-# Комбинированные условия
-tshark -r capture.pcap -Y 'ip.src==10.0.0.5 && tcp.flags.syn==1 && tcp.flags.ack==0'
+tshark -r attack.pcap -Y 'http.request.method == "POST"'
 ```
 
-## Полезные display-фильтры
+## Шаг 2: ищем подозрительный запрос
 
-| Цель | Фильтр |
-|------|--------|
-| HTTP POST | `http.request.method == "POST"` |
-| DNS-запросы | `dns.flags.response == 0` |
-| TLS SNI | `tls.handshake.extensions_server_name` |
-| Ретрансмиссии | `tcp.analysis.retransmission` |
-| Сбросы | `tcp.flags.reset == 1` |
-| Credentials HTTP | `http.authorization` |
-| FTP-логин | `ftp.request.command == "USER"` |
-| ICMP-туннель | `icmp && data.len > 64` |
-| Файлы | `http.content_type contains "application"` |
+Применим display-фильтр к HTTP-запросам и выведем нужные поля через `-T fields`:
 
 ```bash
-tshark -r capture.pcap -Y 'http.authorization' -T fields -e http.authorization
-tshark -r capture.pcap -Y 'ftp.request.command=="PASS"' -T fields -e ftp.request.arg
-tshark -r capture.pcap -Y 'tls.handshake.extensions_server_name' -T fields -e tls.handshake.extensions_server_name | sort -u
-```
-
-## Извлечение полей и объектов
-
-```bash
-# Экспорт полей в CSV-подобный вид
-tshark -r capture.pcap -T fields -E header=y -E separator=, \
-  -e frame.time -e ip.src -e ip.dst -e http.host -e http.request.uri
-
-# Извлечь HTTP-объекты в каталог
-tshark -r capture.pcap --export-objects http,./http_objs
-ls ./http_objs
-
-# Извлечь SMB-файлы
-tshark -r capture.pcap --export-objects smb,./smb_objs
-# DICOM, TFTP, IMF — по аналогии
-
-# Выгрузить сертификаты X.509
-tshark -r capture.pcap -Y 'tls.handshake.type==11' -T fields -e tls.handshake.certificate
-```
-
-## Статистика -z
-
-Флаг `-z` включает встроенные отчёты; это самый быстрый способ получить обзор:
-
-```bash
-tshark -r capture.pcap -q -z io,phs        # иерархия протоколов
-tshark -r capture.pcap -q -z conv,ip       # разговоры по IP
-tshark -r capture.pcap -q -z endpoints,ip  # эндпоинты
-tshark -r capture.pcap -q -z expert        # аномалии/ошибки
-tshark -r capture.pcap -q -z http,tree     # статистика HTTP
-tshark -r capture.pcap -q -z dns,tree
-```
-
-`-z io,phs` показывает, какие протоколы вообще есть в захвате; `-z conv,ip` — кто с кем и сколько; `-z expert` — на что Wireshark «ругается».
-
-## Реконструкция потоков
-
-```bash
-# Follow TCP stream (вывод в ASCII)
-tshark -r capture.pcap -q -z follow,tcp,ascii,0
-# Follow HTTP/2
-tshark -r capture.pcap -q -z follow,http2,ascii,0
-# Список потоков
-tshark -r capture.pcap -q -z follow,tcp,ascii
-```
-
-В Wireshark: правый клик по пакету → Follow → TCP/HTTP Stream. `tcpflow` даёт альтернативу на диске:
-
-```bash
-tcpflow -r capture.pcap -o ./flows
-ls ./flows
-```
-
-## Разобранный пример
-
-```bash
-$ tshark -r attack.pcap -q -z conv,tcp | head
-TCP Conversations
-Filter:<No Filter>
-                                               |       <-      | |       ->      | |     Total     |
-10.0.0.5:51234 <-> 203.0.113.9:443              |  1200 | 90 kB | 3 | 400 B | 1203 | 90 kB |
 $ tshark -r attack.pcap -Y 'http.request.method=="POST"' -T fields -e http.host -e http.request.uri -e http.user_agent
 evil.example  /upload  Mozilla/5.0 (compatible; MSIE 9.0)
+```
+
+Странность: хост `evil.example` (необычное имя), путь `/upload`, а User-Agent притворяется старым Internet Explorer 9 — типичная маскировка под легитимный браузер. Куда и что именно загружают — смотрим дальше.
+
+## Шаг 3: извлекаем объекты
+
+`tshark` умеет вытаскивать переданные по протоколам файлы. Это делается директивой `--export-objects`:
+
+```bash
 $ tshark -r attack.pcap --export-objects http,./objs
 $ ls ./objs
 %2Fupload  index.html
@@ -122,144 +68,71 @@ $ file './objs/%2Fupload'
 ./objs/%2Fupload: Zip archive data, at least v2.0 to extract
 ```
 
-Вывод: атакующий отправил ZIP через POST на `evil.example/upload`; объект извлечён и распознан.
+Мы получили ZIP-архив, который атакующий отправил методом POST на `evil.example/upload`. Имя `%2Fupload` — URL-кодированное (`/upload`), это нормально: `tshark` санитизирует имена. Теперь содержимое можно распаковать и проанализировать.
 
-## Краевые случаи и подводные камни
+## Шаг 4: полезные display-фильтры
 
-- **BPF vs display filter.** Синтаксис разный; `-f` — до, `-Y` — после. Частая ошибка новичков.
-- **Большие PCAP.** Читайте потоково, задайте `-c N` (первые N пакетов) или разбейте `editcap -c`.
-- **Обрезанные пакеты (snaplen).** Если захват с малым snaplen, payload может отсутствовать — объекты не извлекутся.
-- **Фрагментация.** tshark обычно собирает фрагменты; при `--no-reassembly` картина меняется.
-- **TLS.** Без ключей — только метаданные; для расшифровки нужен `SSLKEYLOGFILE` или приватный ключ.
-- **Экспорт объектов.** Имена файлов санитизируются; коллизии переименовываются.
-- **Порядок пакетов.** Многопоточный захват может дать переупорядочивание; Wireshark сортирует, но `-T fields` — нет.
-- **`-z expert`.** Это не «все ошибки», а эвристика Wireshark — не единственный источник.
-
-## Продвинутые display-фильтры
-
-Display-фильтры — сердце анализа. Ниже набор приёмов, которые экономят часы:
+Display-фильтры — сердце анализа. Набор, который экономит часы:
 
 | Задача | Фильтр |
 |--------|--------|
 | Только новые соединения | `tcp.flags.syn==1 && tcp.flags.ack==0` |
-| RST-флуд | `tcp.flags.reset==1` |
-| Повторные передачи | `tcp.analysis.retransmission` |
-| Нулевое окно | `tcp.analysis.zero_window` |
+| Ретрансмиссии | `tcp.analysis.retransmission` |
 | HTTP 4xx/5xx | `http.response.code >= 400` |
-| Загрузка файлов | `http.request.method=="GET" && http.content_type contains "application"` |
-| Большие DNS-ответы | `dns.flags.response==1 && dns.resp.len > 200` |
-| Kerberos | `kerberos` |
-| SMB-операции | `smb2.cmd == 5` |
+| DNS-запросы | `dns.flags.response == 0` |
+| TLS SNI | `tls.handshake.extensions_server_name` |
+| Credentials HTTP | `http.authorization` |
+| FTP-логин | `ftp.request.command == "USER"` |
 | Скрытый ICMP | `icmp.type==8 && data.len > 100` |
 
 ```bash
-# Все RST с указанием сторон
-tshark -r capture.pcap -Y 'tcp.flags.reset==1' -T fields -e ip.src -e ip.dst -e tcp.srcport -e tcp.dstport
-# HTTP-ответы с кодами
-tshark -r capture.pcap -Y 'http.response' -T fields -e http.response.code | sort | uniq -c
+# Креды в открытых протоколах
+$ tshark -r attack.pcap -Y 'ftp.request.command=="USER" || ftp.request.command=="PASS"' -T fields -e ftp.request.command -e ftp.request.arg
 ```
 
-## Экспорт и конвертация
+## Шаг 5: реконструкция сессии
+
+Иногда нужен весь диалог целиком, а не отдельные поля. Функция **follow** собирает поток в читаемый вид:
 
 ```bash
-# Разбить большой PCAP на части по 100000 пакетов
-editcap -c 100000 big.pcap part.pcap
-# Извлечь диапазон времени
-editcap -A "2024-03-01 22:00:00" -B "2024-03-01 23:00:00" big.pcap window.pcap
-# Конвертировать формат
-editcap -F pcapng capture.pcap capture.pcapng
-# Убрать дубликаты
-editcap -d -w 1 capture.pcap nodup.pcap
-# Слить несколько файлов
-mergecap -w merged.pcap a.pcap b.pcap c.pcap
+$ tshark -r attack.pcap -q -z follow,tcp,ascii,0
 ```
 
-`editcap`/`mergecap` входят в тот же пакет, что и Wireshark/tshark, и незаменимы для подготовки больших захватов.
-
-## Реконструкция TLS при наличии ключей
-
-Если есть `SSLKEYLOGFILE` (из браузера) или приватный RSA-ключ сервера, tshark расшифрует трафик:
+В Wireshark то же самое — правый клик по пакету → Follow → TCP Stream. Альтернатива на диске — `tcpflow`, который раскладывает каждый поток в отдельный файл:
 
 ```bash
-# Через SSLKEYLOGFILE
-tshark -r tls.pcap -o tls.keylog_file:sslkeys.log -Y 'http2' -T fields -e http2.headers.path
-# Через приватный ключ (RSA, устаревшие шифры)
-tshark -r tls.pcap -o tls.keys_list:"0.0.0.0,443,http,server.key" -Y 'http'
+$ tcpflow -r attack.pcap -o ./flows
+$ ls ./flows
 ```
 
-Без ключей доступны только SNI/сертификаты/JA3. Подробнее — в `forensics-tls-decrypt`.
+## Что мы теперь знаем
 
-## Извлечение по протоколам
+- **Capture filter (BPF, `-f`)** работает до захвата; **display filter (`-Y`)** — после.
+- `-z conv,ip` / `conv,tcp` дают разговоры; `-z io,phs` — иерархию протоколов; `-z expert` — аномалии.
+- `-T fields` выгружает нужные поля, `--export-objects http,DIR` — переданные файлы.
+- `follow`/`tcpflow` реконструируют сессию целиком.
+- При малом **snaplen** payload обрезан — объекты не извлекутся.
+- Без ключей TLS доступны только метаданные (SNI, сертификаты).
+
+## Если не сработало: частые сложности
+
+Несколько ситуаций, которые ставят в тупик:
+
+- **Путаница BPF и display.** `-f "http.request"` не сработает (это не BPF), а `-Y "tcp port 80"` тоже неверно. Правило простое: `-f` — только BPF (`tcp port 80`), `-Y` — только display (`http.request.method=="GET"`).
+- **Обрезанный payload.** Если захват шёл с малым snaplen, файлы не извлекутся: `--export-objects` сохранит «огрызки».
+- **TLS.** Без `SSLKEYLOGFILE` или приватного ключа содержимое не читается — остаются SNI и сертификаты.
+- **Фрагментация.** Атакующие дробят пакеты, чтобы обойти IDS: `-Y 'ip.flags.mf==1 || ip.frag_offset>0'` покажет фрагменты.
 
 ```bash
-# Объекты разных протоколов
-tshark -r cap.pcap --export-objects http,./o_http
-tshark -r cap.pcap --export-objects smb,./o_smb
-tshark -r cap.pcap --export-objects tftp,./o_tftp
-tshark -r cap.pcap --export-objects imf,./o_mail    # почта
-tshark -r cap.pcap --export-objects dicom,./o_dicom
-# Сертификаты
-tshark -r cap.pcap -Y 'tls.handshake.type==11' -T fields -e tls.handshake.certificate | head
-# Credentials в открытых протоколах
-tshark -r cap.pcap -Y 'ftp.request.command=="USER" || ftp.request.command=="PASS"' -T fields -e ftp.request.command -e ftp.request.arg
+# IP ID и TTL как возможный скрытый канал
+$ tshark -r cap.pcap -T fields -e ip.src -e ip.id -e ip.ttl | head
 ```
 
-## Статистика для быстрого обзора
-
-```bash
-# Иерархия протоколов — что вообще есть в захвате
-tshark -r cap.pcap -q -z io,phs
-# Экспертные сообщения (аномалии)
-tshark -r cap.pcap -q -z expert
-# HTTP-статистика
-tshark -r cap.pcap -q -z http,tree
-# Время ответа
-tshark -r cap.pcap -q -z io,stat,1,"COUNT(frame)frame"
-```
-
-`-z expert` — хорошая отправная точка: Wireshark сам указывает на подозрительные места (checksum errors, retransmissions, malformed).
-
-## Чек-лист пакетного анализа
-
-1. `-z io,phs` и `-z conv,ip` — обзор.
-2. `-z expert` — аномалии.
-3. `-Y` — сузить по протоколу/адресу/методу.
-4. `-T fields` — выгрузить нужные поля.
-5. `--export-objects` — вытащить файлы.
-6. `follow`/`tcpflow` — восстановить сессию.
-7. При наличии ключей — расшифровать TLS.
-
-## Сложные случаи: фрагментация, туннели, обфускация
-
-- **IP-фрагментация.** `tshark -Y 'ip.flags.mf==1 || ip.frag_offset>0'` покажет фрагменты; атакующие дробят пакеты, чтобы обойти IDS.
-- **Перекрывающиеся фрагменты.** `tshark -o ip.defragment:FALSE` отключает сборку — иногда нужно, чтобы увидеть манипуляцию.
-- **TCP-переупорядочивание.** Атакующие шлют сегменты в неверном порядке, чтобы разные ОС собрали разное; смотрите `tcp.options` и sequence numbers.
-- **Covert-каналы.** Данные в TCP ISN, опциях, TTL или IP ID: `tshark -T fields -e ip.id -e tcp.options`.
-
-```bash
-# Посмотреть IP ID и TTL как возможный канал
-tshark -r cap.pcap -T fields -e ip.src -e ip.id -e ip.ttl | head -30
-# Фрагменты
-tshark -r cap.pcap -Y 'ip.frag_offset>0' -T fields -e ip.id -e ip.frag_offset -e ip.len
-```
-
-Это редко нужно в обычных задачах, но в CTF с «необычным» трафиком такие приёмы решают.
-
-## Итог
-
-Пакетный анализ — фундамент сетевой форензики: `-z` даёт обзор, `-Y` сужает, `--export-objects` вытаскивает файлы, а `follow`/`tcpflow` восстанавливают сессии. Освоив эти приёмы, вы разберёте любой PCAP — от CTF-задачи до реального инцидента.
-
-## Что дальше / решение
-
-1. `-z io,phs` — обзор протоколов.
-2. `-z conv,ip` — подозрительные пары.
-3. `-Y` — сузить до протокола/хоста.
-4. `--export-objects` — вытащить файлы; `-T fields` — нужные поля.
-5. `follow`/`tcpflow` — реконструировать сессию.
-
-Дальше — `forensics-tls-decrypt` (расшифровка), `forensics-suricata` (сигнатуры) и `forensics-exfil` (поиск утечки).
+Держите под рукой `editcap`/`mergecap`: первый режет и фильтрует захват по времени (`editcap -A "…" -B "…"`), второй склеивает несколько PCAP в один.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Чем capture filter отличается от display filter?"
@@ -278,7 +151,7 @@ tshark -r cap.pcap -Y 'ip.frag_offset>0' -T fields -e ip.id -e ip.frag_offset -e
     - "-w out.pcap"
   answer: 1
   explanation: "--export-objects http,DIR сохраняет переданные по HTTP файлы."
-- question: "Что показывает `tshark -z conv,ip`?"
+- question: "Что показывает tshark -z conv,ip?"
   options:
     - "иерархию протоколов"
     - "разговоры между IP-адресами (пакеты/байты)"
@@ -294,7 +167,19 @@ tshark -r cap.pcap -Y 'ip.frag_offset>0' -T fields -e ip.id -e ip.frag_offset -e
     - "нужен Wireshark GUI"
   answer: 1
   explanation: "snaplen ограничивает длину сохраняемых байт; без payload файл не собрать."
+- question: "Какой флаг задаёт capture-фильтр (BPF) при съёме трафика?"
+  options:
+    - "-Y"
+    - "-f"
+    - "-z"
+    - "-T"
+  answer: 1
+  explanation: "-f задаёт BPF-фильтр на входе; -Y — display-фильтр на выходе."
 ```
+
+## Куда дальше
+
+Мы научились вытаскивать файлы и восстанавливать сессии из PCAP. В следующем уроке (`forensics-azure-forensics`) перейдём в облако и разберём логи Azure/Entra ID. А пока главное запомни: **`-z` даёт обзор, `-Y` сужает, `--export-objects` вытаскивает файлы, а `follow`/`tcpflow` собирают сессию**.
 
 ## Где пригодится
 

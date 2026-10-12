@@ -14,174 +14,164 @@ useful_for:
 estimated_minutes: 14
 summary: "Как находить Firebase-конфиг в APK/IPA и проверять, открыты ли Firestore, Realtime Database и Storage без аутентификации; типовые мисконфиги правил безопасности."
 ---
-## Что такое Firebase-мисконфиги
 
-Firebase — платформа Google для бэкенда мобильных приложений: Realtime Database, Cloud Firestore, Cloud Storage, Authentication. Многие приложения используют её и оставляют правила безопасности (security rules) открытыми — «read/write: true». Тогда любой, у кого есть конфиг Firebase (а он зашит в приложение), может читать и писать данные напрямую, минуя приложение. Это частая находка в баг-баунти и CTF. Цель модуля — научиться находить Firebase-конфиги в приложении и проверять их на мисконфиги.
+## Вопрос, с которого всё начинается
 
-## Где искать Firebase-конфиг
+Многие мобильные приложения не имеют своего сервера — их бэкендом служит **Firebase**, платформа Google. Она даёт готовые базы данных (Realtime Database, Cloud Firestore), файловое хранилище (Cloud Storage) и аутентификацию. Доступ к данным регулируют **правила безопасности** (security rules). Если разработчик оставил их открытыми (`read: true`), любой, кто знает конфиг Firebase, читает данные напрямую — минуя приложение.
 
-- `google-services.json` (Android) — содержит `project_id`, `api_key`, `database_url`, `storage_bucket`.
-- `GoogleService-Info.plist` (iOS).
-- В `strings.xml` и в коде — `firebaseio.com`, `firebasestorage.googleapis.com`.
-- В `assets/`.
+И вот ключевой факт: **этот конфиг зашит в само приложение**. Значит, вопрос урока звучит так: как достать конфиг из APK и проверить, не открыт ли доступ?
 
-```bash
-unzip -l app.apk | grep -iE 'google-services|firebase'
-grep -rhoE '[a-z0-9-]+\.firebaseio\.com' app_java app_smali/assets | sort -u
-grep -rhoE '[a-z0-9-]+\.appspot\.com' app_java | sort -u
+## Наш пример: shopdemo.apk
+
+Возьмём APK `shopdemo.apk` — учебное приложение магазина. Первым делом смотрим, нет ли внутри файла конфигурации `google-services.json` (именно он генерируется Google и кладётся в APK):
+
+```
+$ unzip -l shopdemo.apk | grep -i google-services
+      500  2026-10-12 15:55   assets/google-services.json
 ```
 
-`api_key` Firebase — публичный по дизайну, но без правил безопасности он открывает доступ к данным.
+Файл найден в `assets/`. **APK — это обычный ZIP**, поэтому его содержимое достаётся командой `unzip`. Извлекаем конфиг и разбираем JSON:
 
-## Проверка Realtime Database
-
-Формат URL: `https://<project>.firebaseio.com/.json`. Попробуйте прочитать корень:
-
-```bash
-curl -s "https://<project>.firebaseio.com/.json"
-curl -s "https://<project>-default-rtdb.firebaseio.com/.json"
+```
+$ unzip -o -q shopdemo.apk 'assets/google-services.json' -d fb_x
+$ python3 - <<'EOF'
+import json
+d = json.load(open('fb_x/assets/google-services.json'))
+pi = d['project_info']
+print("project_id     =", pi['project_id'])
+print("project_number =", pi['project_number'])
+print("firebase_url   =", pi['firebase_url'])
+print("storage_bucket =", pi['storage_bucket'])
+print("api_key        =", d['client'][0]['api_key'][0]['current_key'])
+EOF
+project_id     = shopdemo-9f1a2
+project_number = 918273645012
+firebase_url   = https://shopdemo-9f1a2.firebaseio.com
+storage_bucket = shopdemo-9f1a2.appspot.com
+api_key        = AIzaSyD-DEMO-EXAMPLE-KEY-1234567890
 ```
 
-Если возвращается JSON с данными — правила открыты. Перебирайте пути: `/users`, `/flags`, `/config`, `/secret`.
+Вот и всё, что нужно: имя проекта, адрес базы (`firebase_url`), бакет хранилища и `api_key`.
 
-```bash
-curl -s "https://<project>.firebaseio.com/users.json"
+## Шаг 1: `api_key` — это не секрет
+
+Важно понять сразу: **`api_key` Firebase — публичный по дизайну**. Он не «ключ доступа», а идентификатор проекта; его безопасно вшивать в клиент. Секретность доступа обеспечивают именно **правила безопасности**, а не этот ключ. Поэтому вопрос «утек ли `api_key`» бессмысленен — важнее «открыты ли rules».
+
+Если `google-services.json` в APK нет, конфиг ищут в других местах:
+
+```
+$ unzip -l app.apk | grep -iE 'google-services|firebase'
+$ strings app.apk | grep -iE 'firebaseio\.com|appspot\.com|firebaseapp\.com'
 ```
 
-Проверьте и запись (осторожно): `curl -X PUT "https://<project>.firebaseio.com/test.json" -d '"x"'`.
+## Шаг 2: проверяем Realtime Database
 
-## Проверка Firestore
+**Realtime Database** — это JSON-дерево. К любому узлу обращаются по URL, добавив `.json`. Наш `firebase_url` указывает на локальный демо-сервер, поэтому запрашиваем корень:
 
-```bash
-curl -s "https://firestore.googleapis.com/v1/projects/<project>/databases/(default)/documents/<collection>?key=<api_key>"
+```
+$ curl -s "http://127.0.0.1:18081/.json"
+{"users": {"1001": {"email": "alice@example.com"}, "1002": {"email": "bob@example.com"}}, "config": {"support_email": "help@example.com"}, "flags": {"admin_panel": "FLAG{r34lt1m3_db_1s_0p3n}"}}
 ```
 
-Если правило `allow read: if true`, данные отдаются без аутентификации. Перебирайте коллекции.
+Данные отдались **без токена** — правила открыты. Часто корень большой, поэтому берут только имена узлов первого уровня через параметр `shallow=true`:
 
-## Проверка Cloud Storage
-
-```bash
-curl -s "https://firebasestorage.googleapis.com/v0/b/<bucket>.appspot.com/o"
+```
+$ curl -s "http://127.0.0.1:18081/.json?shallow=true"
+{"users": true, "config": true, "flags": true}
 ```
 
-Открытый листинг бакета выдаёт список файлов. Скачивайте подозрительные:
+Теперь видно структуру, и можно идти в конкретный узел:
 
-```bash
-curl -s "https://firebasestorage.googleapis.com/v0/b/<bucket>.appspot.com/o/<path>?alt=media"
+```
+$ curl -s "http://127.0.0.1:18081/users.json"
+{"1001": {"email": "alice@example.com"}, "1002": {"email": "bob@example.com"}}
 ```
 
-## Автоматизация
+## Шаг 3: не всё открыто — и это тоже сигнал
 
-- **`FirebaseEnum`**, **`firebase-tools`** — перечисление.
-- **`firepwn`**, **`Firesploit`** — эксплуатация открытых правил.
-- Ручной перебор путей через `curl` + словарь.
+Правила могут быть выставлены по-разному. Узел `flags` у нас закрыт:
 
-## Типичные ошибки и подводные камни
-
-- **Считать `api_key` секретом** — он публичен; важны rules.
-- **Проверять только корень** — данные могут быть на путях.
-- **Забыть про Firestore/Storage** — не только Realtime DB.
-- **Не проверить запись** — открытая запись опаснее чтения.
-- **Путать project_id и database_url** — иногда различаются.
-- **Игнорировать регион** — URL может быть `<project>-default-rtdb.<region>.firebasedatabase.app`.
-- **Не заметить правила «auth-only»** — иногда достаточно анонимной аутентификации.
-
-## Справочная таблица
-
-| Ресурс | URL |
-|--------|-----|
-| Realtime DB | `https://<p>.firebaseio.com/.json` |
-| Firestore | `.../projects/<p>/databases/(default)/documents/<c>` |
-| Storage | `firebasestorage.googleapis.com/v0/b/<b>/o` |
-| Конфиг | `google-services.json` |
-
-## Что дальше / решение
-
-План: найдите Firebase-конфиг в APK (`google-services.json`, строки), извлеките `project_id`, `api_key`, `database_url`, `storage_bucket`. Затем проверьте каждый ресурс: Realtime DB (`.json`), Firestore, Storage. Перебирайте пути и коллекции. Если правила открыты — вы получите данные напрямую. Firebase-мисконфиги — частая и легко эксплуатируемая уязвимость, часто ведущая прямо к флагу.
-
-## Практический пример: открытая Realtime Database
-
-Разберём сквозной сценарий. В APK находим `google-services.json` с полями `project_id: example-app` и `api_key: AIza...`. Шаг 1: формируем URL базы: `https://example-app.firebaseio.com/.json`. Шаг 2: `curl -s "https://example-app.firebaseio.com/.json"` — если возвращается JSON с данными, правила открыты. Шаг 3: перебираем пути: `/users.json`, `/flags.json`, `/config.json`, `/secret.json`. Шаг 4: если корень закрыт, но какая-то коллекция открыта — найдём её перебором. Шаг 5: проверяем запись: `curl -X PUT ".../test.json" -d '"x"'` — если прошло, правила `write: true`.
-
-Это типичный путь к флагу в задачах категории Mobile: конфиг в APK → открытая база → данные. Иногда база не в `firebaseio.com`, а в региональном домене `<project>-default-rtdb.<region>.firebasedatabase.app` — проверяйте оба.
-
-## Firestore и Storage
-
-Firestore проверяется через REST API с `api_key`. Storage — через листинг бакета. Открытый листинг Storage часто содержит бэкапы, конфиги и флаги. Скачивайте подозрительные файлы через `?alt=media`.
-
-## Частые вопросы
-
-«Корень закрыт — тупик?» — нет, перебирайте пути. «Не знаю project_id?» — `google-services.json` или строки в APK. «База в другом регионе?» — проверьте региональный домен. «api_key не работает?» — возможно, нужно ограничение по приложению; проверяйте rules. «Как автоматизировать?» — `FirebaseEnum`, `firepwn`.
-
-## Что дальше / решение
-
-Итог: извлеките Firebase-конфиг из APK, проверьте Realtime DB, Firestore и Storage на открытые правила, перебирайте пути и коллекции. Firebase-мисконфиги — частая и легко эксплуатируемая уязвимость, часто ведущая прямо к флагу. Держите под рукой `curl` и инструменты перечисления.
-
-## Расширенный чек-лист по Firebase
-
-Действуйте методично. Первое: извлеките конфиг — `unzip -l app.apk | grep -i google-services`, затем читайте `google-services.json` или `GoogleService-Info.plist`; если их нет, ищите строки `firebaseio.com`, `appspot.com` в коде и ресурсах. Второе: соберите все значения — `project_id`, `api_key`, `database_url`, `storage_bucket`, `mobilesdk_app_id`. Третье: для Realtime DB попробуйте `.json` на корне и на типовых путях (`users`, `config`, `flags`, `secret`, `messages`). Четвёртое: для Firestore сформируйте REST-запрос с `api_key` и перебирайте коллекции. Пятое: для Storage запросите листинг бакета (`/o`) и скачивайте подозрительные файлы через `?alt=media`. Шестое: проверьте правила записи (`PUT`/`POST`). Седьмое: проверьте Authentication — иногда открыта анонимная регистрация, дающая доступ к «auth-only» правилам.
-
-## Проекты и регионы
-
-Firebase-база может быть в региональном домене: `<project>-default-rtdb.<region>.firebasedatabase.app` или `<project>.<region>.firebasedatabase.app`. Проверяйте оба варианта и разные регионы (`us-central1`, `europe-west1`, `asia-southeast1`). Иногда `project_id` из конфига отличается от имени базы — пробуйте комбинации.
-
-## Инструменты перечисления
-
-`FirebaseEnum` автоматизирует перебор путей; `firepwn` и `Firesploit` проверяют правила; `firebase-tools` (`firebase`) — официальный CLI. Для ручной работы достаточно `curl` и словаря путей. Всегда фиксируйте найденные рабочие URL — они пригодятся для дальнейшего анализа.
-
-## Частые вопросы
-
-«Корень `.json` отдаёт `null`?» — база пуста или путь неверен. «403/401?» — правила требуют аутентификации; попробуйте анонимный вход. «Нет `google-services.json`?» — ищите строки в коде. «Storage не листится?» — пробуйте прямые пути файлов. «Как понять, что правила открыты?» — успешное чтение без токена.
-
-## Что дальше / решение
-
-Итог: извлеките Firebase-конфиг, проверьте Realtime DB, Firestore и Storage, перебирайте пути и коллекции, проверяйте запись и аутентификацию. Firebase-мисконфиги — одна из самых частых находок в мобильном пентесте и часто кратчайший путь к данным и флагу. Держите под рукой `curl` и `FirebaseEnum`.
-
-## Примеры команд для проверки Firebase
-
-Ниже — набор команд, который покрывает большинство проверок. Держите его под рукой.
-
-```bash
-# извлечь конфиг
-unzip -o app.apk google-services.json -d /tmp/fb
-python3 -c "import json;d=json.load(open('/tmp/fb/google-services.json'))['project_info'];print(d)"
-
-# Realtime DB
-curl -s "https://<project>.firebaseio.com/.json"
-curl -s "https://<project>.firebaseio.com/users.json"
-curl -s "https://<project>-default-rtdb.<region>.firebasedatabase.app/.json"
-
-# Firestore
-curl -s "https://firestore.googleapis.com/v1/projects/<project>/databases/(default)/documents/users?key=<api_key>"
-
-# Storage
-curl -s "https://firebasestorage.googleapis.com/v0/b/<bucket>.appspot.com/o"
-curl -s "https://firebasestorage.googleapis.com/v0/b/<bucket>.appspot.com/o/<path>?alt=media"
+```
+$ curl -s -i "http://127.0.0.1:18081/flags.json"
+HTTP/1.0 401 Unauthorized
+{"error": "Permission denied"}
 ```
 
-Заменяйте `<project>`, `<region>`, `<api_key>`, `<bucket>` на значения из конфига. Если запрос возвращает данные без токена — правила открыты.
+Это важное различие: `null` или пустой ответ означает «узел пуст или не существует», а `Permission denied` / `Missing or insufficient permissions` — «правило есть, но оно не пускает». Не путайте закрытую базу с пустой. Иногда правило требует лишь **анонимной аутентификации** — тогда достаточно войти анонимно (Firebase Auth) и повторить запрос.
 
-## Анализ ответов
+## Шаг 4: Firestore и Cloud Storage
 
-`null` означает, что путь пуст или закрыт. JSON с данными — открытое чтение. `Permission denied` — правила требуют аутентификации. `Missing or insufficient permissions` — правило есть, но не пропускает анонимного пользователя. Учитывайте эти различия, чтобы не принять закрытую базу за пустую.
+Realtime Database — не единственный продукт. **Cloud Firestore** (более новая база) проверяется через REST с `api_key`:
 
-## Что ещё проверить
+```
+$ curl -s "https://firestore.googleapis.com/v1/projects/<project_id>/databases/(default)/documents/users?key=<api_key>"
+```
 
-Помимо данных, проверьте: правила записи (можно ли подменить данные), Firebase Authentication (открыта ли анонимная регистрация), Cloud Functions (есть ли публичные HTTP-триггеры), Remote Config (не утекают ли значения). Иногда флаг лежит не в базе, а в публичной Cloud Function или в Remote Config.
+**Cloud Storage** отдаёт файлы; если листинг открыт, виден список объектов:
 
-## Частые вопросы
+```
+$ curl -s "https://firebasestorage.googleapis.com/v0/b/<bucket>/o"
+$ curl -s "https://firebasestorage.googleapis.com/v0/b/<bucket>/o/<path>?alt=media"
+```
 
-«`null` на всех путях?» — возможно, нужен регион или другой домен. «`Permission denied`?» — попробуйте анонимную аутентификацию. «Storage пустой?» — пробуйте прямые пути. «Как найти bucket?» — `storage_bucket` в конфиге или строка `appspot.com` в коде.
+Открытый Storage часто хранит бэкапы, конфиги и те самые флаги. Для Firestore и Storage `api_key` уже нужен — он передаётся в URL.
 
-## Что дальше / решение
+## Шаг 5: что ещё проверять в Firebase
 
-Итог: извлеките конфиг, проверьте Realtime DB, Firestore, Storage и дополнительные сервисы (Functions, Remote Config). Перебирайте пути и регионы, проверяйте запись. Firebase-мисконфиги — частая и легко эксплуатируемая уязвимость; набор команд выше позволяет проверить всё за минуты.
+Помимо данных, у Firebase есть ещё несколько поверхностей, которые стоит перебрать:
 
-## Итог по Firebase
+- **Remote Config** — набор параметров, который приложение тянет при старте. Иногда там лежат фича-флаги и ссылки на внутренние сервисы.
+- **Cloud Functions** — публичные HTTP-триггеры (`https://<region>-<project>.cloudfunctions.net/<name>`). Неаутентифицированная функция может выполнять действия от имени проекта.
+- **Authentication** — если открыта анонимная регистрация, то правила «auth-only» обходятся одним запросом на вход.
+- **FCM** — ключ для отправки push (разберём в следующем уроке).
 
-Проверяйте Realtime DB, Firestore и Storage на открытые правила, перебирайте пути и регионы, проверяйте запись и аутентификацию. Firebase-мисконфиги — частая находка и кратчайший путь к данным и флагу. Держите набор `curl`-команд под рукой.
+Порядок такой: сначала данные (Realtime DB → Firestore → Storage), потом функции и конфиг. Автоматизировать перебор помогает `FirebaseEnum` (перебор путей) и `firepwn` (проверка правил). Для ручной работы достаточно `curl` и словаря путей вроде `users`, `config`, `flags`, `secret`, `messages`.
+
+## Справочная таблица: что и куда
+
+| Ресурс | Как обратиться |
+|--------|----------------|
+| Конфиг | `assets/google-services.json` внутри APK |
+| Realtime DB | `https://<project>.firebaseio.com/<path>.json` |
+| Firestore | `firestore.googleapis.com/v1/projects/<p>/databases/(default)/documents/<c>?key=<k>` |
+| Storage | `firebasestorage.googleapis.com/v0/b/<bucket>/o` |
+| Регион RTDB | `https://<project>-default-rtdb.<region>.firebasedatabase.app/.json` |
+
+## Типовые ошибки новичка
+
+- Считать `api_key` секретом — он публичен, смотрите правила.
+- Проверять только корень `.json` — данные часто лежат на конкретных путях.
+- Забыть про Firestore и Storage — это отдельные продукты со своими правилами.
+- Не проверять запись — открытая запись опаснее чтения.
+- Путать `project_id` и имя базы — иногда они различаются, а база живёт в региональном домене.
+- Не заметить правила «auth-only» — иногда достаточно анонимного входа.
+
+## Полный прогон от начала до конца
+
+1. **`unzip -l`** — находим `assets/google-services.json` в APK.
+2. **`python3 json`** — извлекаем `project_id`, `firebase_url`, `storage_bucket`, `api_key`.
+3. **`curl .../.json`** — корень базы без токена отдаёт данные → правила открыты.
+4. **`?shallow=true`** — получаем список узлов, не выкачивая всё дерево.
+5. **`/users.json`, `/config.json`** — читаем конкретные узлы.
+6. **Firestore/Storage** — проверяем остальные продукты по тем же ключам.
+7. **Запись** (осторожно) — минимальный неразрушающий `PUT` во временный ключ подтверждает `write: true`.
+
+## Если не сработало
+
+`null` на корне — база пуста или адрес неверен. База может жить в **региональном** домене `<project>-default-rtdb.<region>.firebasedatabase.app` — проверьте и его. `Permission denied` — попробуйте анонимную аутентификацию. Нет `google-services.json` — ищите строки `firebaseio.com` / `appspot.com` в коде и ресурсах. Пусто в Storage — пробуйте прямые пути файлов, а не листинг. И помните про запись: открытая запись опаснее чтения — она позволяет подменить данные других пользователей.
+
+## Что мы теперь знаем
+
+1. Firebase-конфиг лежит в APK (`google-services.json`) или в строках кода.
+2. `api_key` публичен — доступ регулируют security rules.
+3. Realtime Database читается через `.json`; `?shallow=true` даёт только имена узлов.
+4. Firestore и Storage проверяются по REST с `api_key`.
+5. `null` ≠ `Permission denied`: первое — пусто, второе — правило не пускает.
+6. Проверять надо и чтение, и запись; региональные домены — тоже.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что в Firebase-конфиге НЕ является секретом по дизайну?"
@@ -200,14 +190,14 @@ curl -s "https://firebasestorage.googleapis.com/v0/b/<bucket>.appspot.com/o/<pat
     - "curl https://<project>.firebaseio.com/?dump=1"
   answer: 0
   explanation: "Параметр shallow=true отдаёт только ключи первого уровня."
-- question: "Правила Firestore и Realtime Database — это…"
+- question: "Ответ `Permission denied` на узел означает, что…"
   options:
-    - "Разные наборы правил для разных продуктов"
-    - "Один и тот же файл правил"
-    - "Настройки только на клиенте"
-    - "Только для iOS"
+    - "Правило существует, но не пропускает этот запрос"
+    - "Узел пустой"
+    - "APK повреждён"
+    - "Нужно переустановить приложение"
   answer: 0
-  explanation: "Это отдельные продукты со своими Security Rules."
+  explanation: "Это отличается от `null` (пусто/нет узла) — правило есть, но не пускает."
 - question: "Как безопасно подтвердить открытую запись в Realtime DB?"
   options:
     - "PUT во временный ключ, не трогая реальные данные"
@@ -215,20 +205,24 @@ curl -s "https://firebasestorage.googleapis.com/v0/b/<bucket>.appspot.com/o/<pat
     - "Перезаписать /users"
     - "Отправить DELETE /*"
   answer: 0
-  explanation: "Минимальный неразрушающий PUT доказывает доступ и не вредит."
+  explanation: "Минимальный неразрушающий PUT доказывает доступ и не вредит данным."
 - question: "Где искать Firebase-конфиг в APK?"
   options:
-    - "В строках DEX и ресурсах (google-services.json)"
-    - "В AndroidManifest.xml permissions"
+    - "В assets (google-services.json) и в строковых константах DEX"
+    - "В списке permissions манифеста"
     - "В подписи APK"
     - "В libc.so"
   answer: 0
-  explanation: "Конфиг и ключи утекают в строковых константах и ресурсах."
+  explanation: "Конфиг и ключи утекают в ресурсах и строковых константах кода."
 ```
+
+## Куда дальше
+
+Мы научились читать открытые Firebase-базы. В следующем уроке `mobile-push-security` разберём другой продукт Firebase — FCM: как устроены push-уведомления, где хранится токен устройства и почему подмена payload может привести к фишингу или утечке. А пока запомни главное: конфиг — в APK, а доступ определяют правила, а не ключ.
 
 ## Где пригодится
 
-- **CTF Mobile:** задачи, где в APK спрятан конфиг открытой Firebase, а флаг — в узле БД.
-- **Bug bounty:** открытые Firestore/Realtime DB/Storage — частый critical с выплатами за утечку PII.
-- **Пентест:** проверка клиент-серверных мисконфигов, когда backend — managed (Firebase), а не свой.
+- **CTF Mobile:** конфиг в APK + открытая база = быстрый путь к флагу.
+- **Bug bounty:** открытые Firestore/Realtime DB/Storage — частый critical за утечку PII.
+- **Пентест:** проверка клиент-серверных мисконфигов, когда бэкенд managed (Firebase).
 - **Работа:** аудит правил безопасности перед релизом мобильного приложения.

@@ -14,278 +14,250 @@ useful_for:
 estimated_minutes: 30
 summary: "Практический Frida-скриптинг: структура скрипта, перехват аргументов и возвратов, трассировка вызовов, перечисление классов и подготовка скриптов для переиспользования."
 ---
-## Архитектура Frida: сервер, агент, клиент
 
-Frida работает по трёхзвенной схеме. **frida-server** запускается на устройстве (с root) и внедряется в процесс. **Агент** — это JavaScript, который исполняется внутри целевого процесса (через QuickJS/V8), имея доступ к его памяти и классам. **Клиент** — ваш инструмент на хосте (`frida`, `frida-trace`, Python-скрипт), который загружает агент и обменивается с ним сообщениями.
+## Вопрос, с которого всё начинается
 
-```bash
-# версии frida-tools (хост) и frida-server (устройство) должны совпадать
-pip install frida-tools
-frida --version
-adb push frida-server-16.x-android-arm64 /data/local/tmp/frida-server
-adb shell "su -c 'chmod 755 /data/local/tmp/frida-server && /data/local/tmp/frida-server &'"
-frida-ps -U                    # список процессов
-frida-ps -Uai                  # только приложения (установленные)
-frida -U -f com.target.app -l hook.js --no-pause
-```
+Готовые команды Objection решают типовые задачи, но рано или поздно нужен **свой** хук: перехватить конкретный метод, вывести аргументы, изменить результат. Как писать Frida-скрипты так, чтобы они работали с первого раза и не переписывались каждый раз?
 
-`-f` запускает приложение заново (spawn) и инжектит агент до старта — важно, когда проверки выполняются при запуске. `-n`/`-p` — attach к уже запущенному.
+## Наш пример: скрипт, перехватывающий сравнение
 
-## Базовый API: Java.perform, use, overload, implementation
+Вернёмся к маленькой программе, которая сверяет ввод с секретом, и построим скрипт постепенно — от простейшего перехвата к переиспользуемому инструменту. Тот же подход применяется к Android.
+
+## Шаг 1: структура скрипта
+
+Frida-скрипт — это JavaScript, который выполняется **внутри** целевого процесса. Минимальный скрипт для нативного хука:
 
 ```javascript
-Java.perform(function () {                       // дождаться загрузки ART
-  var Session = Java.use('com.target.auth.Session');
-  Session.getToken.overload().implementation = function () {
-    var ret = this.getToken();                   // вызвать оригинал
-    console.log('[+] getToken -> ' + ret);
-    return ret;
-  };
+const f = Module.getGlobalExportByName("strcmp");
+Interceptor.attach(f, {
+  onEnter(args) {
+    console.log("[strcmp] " + args[0].readUtf8String()
+                       + " vs " + args[1].readUtf8String());
+  }
 });
 ```
 
-Ключевые моменты: `Java.perform` обязателен для работы с Java-классами; `Java.use('a.b.C')` даёт обёртку класса; `.overload(...)` выбирает перегрузку (иначе «ambiguous»); `.implementation` заменяет тело метода. `this` — экземпляр; для статических методов `this` — сам класс. Чтобы сохранить оригинал: `var orig = Session.getToken.overload(); ... orig.call(this)`.
+Здесь `Module.getGlobalExportByName` находит функцию по имени, `Interceptor.attach` ставит хук, а `onEnter` получает доступ к аргументам. Запуск: `frida -f ./crackme -l hook.js`.
 
-## Хуки: аргументы, возврат, изменение поведения
+Для Java-хуков структура иная — весь код оборачивается в `Java.perform`, который дожидается инициализации виртуальной машины:
 
 ```javascript
 Java.perform(function () {
-  var Cipher = Java.use('javax.crypto.Cipher');
-  Cipher.doFinal.overload('[B').implementation = function (input) {
-    console.log('[cipher] in=' + bytesToHex(input));
-    var out = this.doFinal(input);
-    console.log('[cipher] out=' + bytesToHex(out));
-    return out;
-  };
-
-  var Sp = Java.use('android.content.SharedPreferencesImpl');
-  Sp.getString.overload('java.lang.String','java.lang.String').implementation = function (k, d) {
-    var v = this.getString(k, d);
-    console.log('[prefs] ' + k + ' = ' + v);
-    return v;
+  var C = Java.use("com.target.app.Checker");
+  C.check.implementation = function (s) {
+    console.log("check(" + s + ")");
+    return this.check(s);
   };
 });
-
-function bytesToHex(b) {
-  var s = ''; for (var i = 0; i < b.length; i++)
-    s += ('0' + (b[i] & 0xff).toString(16)).slice(-2);
-  return s;
-}
 ```
 
-Хук на `Cipher.doFinal` дампит ключи/данные; на `SharedPreferences.getString` — секреты хранилища; на `MessageDigest.update` — вход хэширования. Меняя возврат (`return true`), обходят проверки (`isRooted`, `isEmulator`, `checkSignature`).
+## Шаг 2: аргументы и возврат
 
-## Перехват нативного кода
-
-```javascript
-// адрес функции в библиотеке
-var base = Module.findBaseAddress('libnative-lib.so');
-var check = base.add(0x1234);                    // смещение из реверса
-Interceptor.attach(check, {
-  onEnter: function (args) { console.log('arg0=' + args[0]); },
-  onLeave: function (retval) { console.log('ret=' + retval); retval.replace(1); }
-});
-
-// вызвать нативную функцию из JS
-var f = new NativeFunction(Module.getExportByName('libc.so','system'), 'int', ['pointer']);
-f(Memory.allocUtf8String('id'));
-```
-
-`Interceptor.attach` — база для нативных хуков (anti-debug, pinning в `.so`). `retval.replace(1)` подменяет возврат. `NativeFunction` позволяет вызывать функции напрямую. `Memory.allocUtf8String` создаёт строку в памяти процесса.
-
-## Трассировка: Stalker и backtrace
+У нативного хука две точки: `onEnter` (до вызова) и `onLeave` (после). Аргументы — в `args[]`, результат — в `retval`:
 
 ```javascript
-// трассировка всех вызовов метода и откуда он вызван
-Java.perform(function () {
-  var Thread = Java.use('java.lang.Thread');
-  var Log = Java.use('android.util.Log');
-  var m = Log.d.overload('java.lang.String','java.lang.String');
-  m.implementation = function (t, msg) {
-    console.log(Thread.currentThread().getStackTrace().join('\n'));
-    return m.call(this, t, msg);
-  };
-});
-
-// нативная трассировка потока (осторожно: медленно)
-var t = Process.getCurrentThreadId();
-Stalker.follow(t, { events: { call: true }, onReceive: function (e) {} });
-```
-
-Стек вызовов — быстрый способ понять, «кто вызывает» метод (полезно для нахождения точек входа проверок). `Stalker` даёт низкоуровневую трассировку, но сильно замедляет процесс — применяйте точечно.
-
-## RPC: обмен данными с Python
-
-```javascript
-// агент
-rpc.exports = {
-  decrypt: function (hex) {
-    var C = Java.use('com.target.crypto.CipherUtil');
-    return C.decrypt(hex);
+Interceptor.attach(f, {
+  onEnter(args) {
+    this.arg0 = args[0].readUtf8String();   // сохраняем для onLeave
   },
-  scan: function () {
-    return Java.available;
+  onLeave(retval) {
+    console.log(this.arg0 + " -> " + retval);
+    retval.replace(ptr(1));                  // подменяем результат
+  }
+});
+```
+
+Важная деталь: в `onEnter` мы **сохраняем** аргумент в `this`, чтобы использовать его в `onLeave` — после вызова указатель может быть уже невалиден.
+
+В Java-хуке всё проще: `this.method(...)` вызывает оригинал, и можно вернуть что угодно:
+
+```javascript
+C.check.implementation = function (s) {
+  var original = this.check(s);      // оригинальный результат
+  console.log("was " + original + ", returning true");
+  return true;                        // подмена
+};
+```
+
+## Шаг 3: трассировка вызовов
+
+Иногда нужно не подменить, а **увидеть поток** — какие методы вызываются. Полезный приём — логировать вход/выход:
+
+```javascript
+Java.perform(function () {
+  var Target = Java.use("com.target.app.Target");
+  var methods = Target.class.getDeclaredMethods();
+  methods.forEach(function (m) {
+    var name = m.getName();
+    try {
+      Target[name].overload.apply(Target[name], m.getParameterTypes())
+        .implementation = function () {
+          console.log("[call] " + name);
+          return this[name].apply(this, arguments);
+        };
+    } catch (e) { /* перегрузки/сигнатуры */ }
+  });
+});
+```
+
+Такая автоматическая трассировка показывает, какие методы класса реально вызываются, — это быстро сужает область поиска.
+
+## Шаг 4: перечисление классов и методов
+
+Чтобы понять, что вообще есть в приложении:
+
+```javascript
+Java.perform(function () {
+  Java.enumerateLoadedClasses({
+    onMatch: function (name) {
+      if (name.indexOf("target") !== -1) console.log(name);
+    },
+    onComplete: function () { console.log("done"); }
+  });
+});
+```
+
+Фильтр по подстроке (`target`) отсекает системные классы и оставляет классы приложения. Дальше по найденным именам ставят хуки. Для обфусцированного приложения имена будут короткими (`a`, `b`), и тогда фильтруют по **используемым строкам** — их видно в трассировке.
+
+## Шаг 5: переиспользование скриптов
+
+Чтобы не писать одно и то же, скрипты делают **параметризуемыми**. Простой приём — принимать имя класса и метода из аргументов:
+
+```
+$ frida -U -f com.target.app -l hook.js -e "CLASS=com.target.app.Checker METHOD=check"
+```
+
+В самом скрипте читаем параметры через `Process`/`global`. Более мощный вариант — **RPC**: скрипт экспортирует функции, которые можно вызывать снаружи (см. `mobile-android-instrumentation`). Тогда один скрипт обслуживает много задач: перехват, вызов методов, чтение памяти.
+
+Ещё полезно складывать рабочие скрипты в репозиторий и давать им осмысленные имена — при повторном пентесте они экономят часы.
+
+Пример экспорта RPC-функции, которую можно вызывать из Python:
+
+```javascript
+rpc.exports = {
+  decrypt: function (input) {
+    var C = Java.use("com.target.app.Crypto");
+    return C.decrypt(input);          // возвращаем результат наружу
+  },
+  listmethods: function (cls) {
+    var out = [];
+    Java.use(cls).class.getDeclaredMethods().forEach(function (m) {
+      out.push(m.getName());
+    });
+    return out;
   }
 };
 ```
 
-```python
-# хост
-import frida
-session = frida.get_usb_device().attach('com.target.app')
-script = session.create_script(open('agent.js').read())
-script.load()
-print(script.exports_sync.decrypt('Q0VF...'))
-```
+Из Python эти функции вызываются как обычные методы объекта `script.exports_sync.decrypt("...")`. Это позволяет писать логику (перебор, парсинг, сравнение) на удобном языке, а внутрь процесса отправлять только сами хуки.
 
-RPC превращает Frida из «смотреть» в «вызывать»: вы можете из Python дёргать методы приложения, автоматизировать перебор и собирать данные в удобном формате. `script.exports_sync` — синхронный вызов; для асинхронности используйте `script.exports`.
+## Шаг 6: отладка скрипта
 
-## Автоматизация: frida-trace и frida-tools
+Типичные проблемы и решения:
 
-```bash
-# трассировать все методы класса
-frida-trace -U -f com.target.app -j '*!*getToken*'
-# трассировать нативные экспорты
-frida-trace -U -f com.target.app -i "open" -i "strcmp"
-# прицепить свой скрипт
-frida -U -f com.target.app -l hook.js --no-pause -o out.log
-```
+- **Скрипт молчит.** Проверьте, что функция/класс найдены: выведите адрес (`console.log(f)`) или используйте `try/catch` с сообщением.
+- **Ошибка сигнатуры.** У Java-метода несколько перегрузок — укажите `overload(...)` точно.
+- **`Java.perform` не выполняется.** Класс ещё не загружен — используйте `Java.performNow` или хук на `ClassLoader`.
+- **Хук встал поздно.** Применяйте spawn (`-f`), а не attach.
+- **`console.log` не виден.** Запускайте с `-o log.txt` и смотрите вывод.
 
-`frida-trace` генерирует заготовки хендлеров, которые можно править. Для массовых задач удобнее свой агент с RPC.
+Правило: **всегда проверяйте, что хук встал**. «Ничего не выводится» чаще всего означает «функция не найдена», а не «не вызывается».
 
-## Анти-детект и стабильность
+## Шаг 7: практический пример — находим проверку трассировкой
 
-- **Имя процесса:** Frida видна по строкам `frida`, `gum-js-loop`, портам 27042/27043. Меняйте имена (`frida-server -l 0.0.0.0:1234`, кастомный gadget).
-- **frida-gadget:** встраивается в APK (`objection patchapk`), не требует отдельного сервера — сложнее детектится.
-- **Тайминг:** spawn (`-f`) нужен, если проверка выполняется до загрузки вашего скрипта.
-- **Краши:** хук на несуществующий метод/перегрузку роняет процесс; всегда проверяйте `Java.available` и оборачивайте в try/catch.
+Покажем типичный рабочий цикл. Задача — найти метод, который решает, показать ли «секретный» экран. Сначала включаем трассировку по строкам: перехватываем методы, возвращающие `boolean`, и логируем их имена и результат. В логе появляется поток вызовов; ищем тот, после которого поведение меняется.
 
-## Разобранный пример: дамп ключа AES
+Затем сужаем: ставим хук только на подозрительный метод и проверяем, что подмена результата меняет поведение:
 
 ```javascript
 Java.perform(function () {
-  var SecretKeySpec = Java.use('javax.crypto.spec.SecretKeySpec');
-  SecretKeySpec.$init.overload('[B','java.lang.String').implementation = function (key, alg) {
-    console.log('[+] key=' + bytesToHex(key) + ' alg=' + alg);
-    return this.$init(key, alg);
-  };
-  var IvParameterSpec = Java.use('javax.crypto.spec.IvParameterSpec');
-  IvParameterSpec.$init.overload('[B').implementation = function (iv) {
-    console.log('[+] iv=' + bytesToHex(iv));
-    return this.$init(iv);
+  var G = Java.use("com.target.app.Gate");
+  G.isUnlocked.implementation = function () {
+    console.log("[*] isUnlocked forced true");
+    return true;                      // было false
   };
 });
 ```
 
-Запуск: `frida -U -f com.target.app -l keydump.js --no-pause`. При первом же шифровании видим ключ и IV — дальше расшифровываем локально (`mobile-crypto-misuse`).
+Если экран открылся — метод найден. Такой цикл «трассировка → сужение → подмена» универсален: он не требует понимать весь код, достаточно найти точку, которая меняет решение. Это и есть сила Frida-скриптинга — работать от поведения, а не от полного реверса.
 
-## Справочная таблица API
+## Шаг 8: сверка версий перед запуском
 
-| Задача | API |
-|--------|-----|
-| Работа с Java | `Java.perform`, `Java.use`, `Java.choose` |
-| Выбрать перегрузку | `.overload('sig')` |
-| Заменить метод | `.implementation = function(){}` |
-| Вызвать оригинал | `orig.call(this, args)` |
-| Нативный хук | `Interceptor.attach(ptr, {onEnter,onLeave})` |
-| Найти экспорт | `Module.getExportByName(lib, sym)` |
-| Вызвать функцию | `new NativeFunction(addr,'int',['pointer'])` |
-| Память | `Memory.allocUtf8String`, `Memory.readByteArray` |
-| Стек | `Thread.currentThread().getStackTrace()` |
-| RPC | `rpc.exports = {...}` / `script.exports_sync` |
+Перед запуском скрипта убедись, что хостовая Frida и `frida-server` на устройстве совпадают — иначе подключение падает до выполнения кода:
 
-## Типовые ошибки новичка
-
-- **Забыть `Java.perform`.** Хуки «не срабатывают», потому что ART ещё не готов.
-- **Не указать `overload`.** Frida кидает «ambiguous» на перегруженных методах.
-- **Ломать процесс.** Хук на несуществующий класс/метод = краш; проверяйте доступность.
-- **Детект по таймингу.** Если приложение проверяет окружение на старте, attach после запуска не поможет — нужен spawn.
-- **Считать, что Frida «невидима».** Anti-Frida (`mobile-frida-detection`) реально ловит стандартную установку.
-
-## Что дальше / решение
-
-Базовый цикл: найти метод/функцию в статике → написать хук (Java или нативный) → снять проверку или дампнуть данные → автоматизировать через RPC/`frida-trace`. Если приложение детектит Frida — переходите к `mobile-frida-detection` (обход детекта) и `mobile-cert-pinning-deep`. Связанные уроки: `mobile-dynamic-frida` (обзор), `mobile-objection` (готовые команды), `mobile-android-native` (реверс `.so` под хуки). Решение — когда проверка обойдена или данные извлечены воспроизводимым скриптом.
-
-## Frida и анти-детект: продвинутые приёмы
-
-Стандартная Frida детектится: по именам потоков (`gum-js-loop`, `gmain`), по открытому порту 27042/27043, по строкам в памяти, по `frida-agent` в `/proc/self/maps`. Приёмы противодействия:
-
-```bash
-# 1. переименовать сервер и сменить порт
-frida-server -l 0.0.0.0:1234
-# 2. переименовать бинарник frida-server -> something else
-mv frida-server /data/local/tmp/fsd && /data/local/tmp/fsd -l 0.0.0.0:1234 &
-# 3. подключаться к нестандартному порту
-frida -H 192.168.1.50:1234 -f com.target.app -l hook.js
+```
+$ frida --version
+17.23.3
 ```
 
-```javascript
-// спрятать следы в /proc/self/maps и потоках
-var open = Module.getExportByName('libc.so', 'open');
-Interceptor.attach(open, { onEnter: function (a) {
-  var p = a[0].readUtf8String();
-  if (p && p.indexOf('frida') !== -1) this.hide = true;
-}, onLeave: function (r) { if (this.hide) r.replace(ptr(-1)); }});
-```
+Разные билды дают ошибку `unable to connect to remote frida-server`; лечится установкой `frida-server` той же версии и архитектуры. Ещё один частый стоп — не тот момент: если хук ставится по имени класса, класс должен быть уже загружен; для ранних хуков используют `Java.perform` (Android) или ожидание загрузки модуля в нативном коде. И держи скрипт идемпотентным: повторный запуск не должен навешивать второй хук поверх первого.
 
-Для обхода детекта по строкам (`grep -i frida`) помогает переименование модулей и патч `frida-gadget` с нестандартным именем. Если приложение использует несколько независимых проверок, глушите их по очереди, наблюдая в логе, какая срабатывает. Связанный урок — `mobile-frida-detection`.
+## Что мы теперь знаем
 
-## Отладка собственных скриптов
+По-простому:
 
-- **`console.log` не виден?** Используйте `send({...})` и `script.on('message', ...)` в клиенте — надёжнее.
-- **Краши при attach:** оберните в `try { ... } catch (e) { console.log(e); }`; проверяйте `Java.available`.
-- **`overload` не найден:** выведите сигнатуры через `Class.method.overloads.forEach(o => console.log(o.argumentTypes))`.
-- **Медленно:** минимизируйте число хуков и не используйте `Stalker` без нужды.
-- **`Java.choose`:** для перебора живых экземпляров класса (`Java.choose('com.a.B', {onMatch, onComplete})`) — удобно, чтобы найти объект с нужным состоянием.
+1. Frida-скрипт — это JS внутри процесса; нативные хуки через `Interceptor`, Java — через `Java.perform`.
+2. `onEnter`/`onLeave` дают аргументы и результат; в Java — `this.method(...)`.
+3. Трассировка и `enumerateLoadedClasses` показывают, что есть в приложении.
+4. Скрипты параметризуют и переиспользуют, вплоть до RPC.
+5. Отладка начинается с проверки, что хук вообще встал.
+
+## На что смотреть дальше
+
+- **Проверяйте адрес/класс.** Нет адреса — нет хука.
+- **Указывайте overload.** Иначе хук не встанет.
+- **Spawn для ранних проверок.** Иначе опоздаете.
+- **Складывайте скрипты.** Переиспользование экономит время.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что нужно обернуть Android-хуки в Frida?"
+- question: "Чем onEnter отличается от onLeave в нативном хуке?"
   options:
-    - "Java.perform(function () { ... })"
-    - "setTimeout"
-    - "document.ready"
-    - "console.log"
+    - "onEnter вызывается до функции, onLeave — после"
+    - "Это одно и то же"
+    - "onEnter только для Java"
+    - "onLeave только для iOS"
   answer: 0
-  explanation: "Java.perform гарантирует, что VM Android готова."
-- question: "Как подменить возврат метода на Android?"
+- question: "Зачем в onEnter сохраняют аргумент в this?"
   options:
-    - "Cls.method.implementation = function () { return false; }"
-    - "delete Cls.method"
-    - "Cls.method = null"
-    - "throw new Error()"
+    - "Чтобы использовать его в onLeave после вызова"
+    - "Чтобы ускорить скрипт"
+    - "Чтобы сменить язык"
+    - "Чтобы включить сеть"
   answer: 0
-  explanation: "Переопределение implementation возвращает своё значение."
-- question: "Как перехватить нативную функцию по имени?"
+- question: "Что делает Java.enumerateLoadedClasses?"
   options:
-    - "Module.findExportByName + Interceptor.attach"
-    - "Java.use"
-    - "ObjC.classes"
-    - "Process.enumerateModules"
+    - "Перечисляет загруженные классы"
+    - "Удаляет классы"
+    - "Компилирует APK"
+    - "Меняет подпись"
   answer: 0
-  explanation: "Для нативных функций используется Interceptor."
-- question: "Зачем вызывать оригинальный метод внутри хука?"
+- question: "Почему Java-хук может требовать указания overload?"
   options:
-    - "Чтобы сохранить логику и получить реальный результат"
-    - "Чтобы ускорить"
-    - "Чтобы скрыть хук"
-    - "Чтобы удалить метод"
+    - "У метода несколько вариантов с разными типами аргументов"
+    - "Frida не поддерживает методы"
+    - "Нужен root"
+    - "Метод приватный"
   answer: 0
-  explanation: "Иначе поведение приложения ломается."
-- question: "Как перечислить загруженные классы?"
+- question: "Что чаще всего означает «скрипт молчит»?"
   options:
-    - "Java.enumerateLoadedClasses"
-    - "Java.use"
-    - "Module.enumerateSymbols"
-    - "Process.enumerateThreads"
+    - "Функция или класс не найдены, хук не встал"
+    - "Приложение быстрое"
+    - "Нет интернета"
+    - "Скрипт устарел"
   answer: 0
-  explanation: "enumerateLoadedClasses обходит все классы в VM."
 ```
+
+## Куда дальше
+
+Теперь ты умеешь писать Frida-скрипты. В следующем уроке разберём Objection — инструмент, который даёт готовые команды поверх Frida и избавляет от рутины. А пока главное: Frida-скрипт начинается с проверки, что хук встал, и строится от простого перехвата к параметризованным, переиспользуемым инструментам.
 
 ## Где пригодится
 
-- **CTF Mobile:** быстрый хук нужного метода.
-- **Bug bounty:** трассировка логики и перехват аргументов.
-- **Пентест:** динамический анализ.
-- **Работа:** автоматизация reverse engineering.
+- **CTF Mobile:** быстрый хук нужного метода, автоматизация перебора.
+- **Bug bounty:** трассировка логики, перехват аргументов.
+- **Пентест:** инструментация защищённых приложений.
+- **Работа:** понимание, как устроены готовые Frida-скрипты сообщества.

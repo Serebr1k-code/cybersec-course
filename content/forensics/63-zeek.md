@@ -15,208 +15,144 @@ estimated_minutes: 40
 summary: "Сетевая форензика через Zeek: conn/dns/http/ssl/files логи, извлечение файлов, NetFlow-анализ объёмов и артефакты IDS (Suricata) для восстановления картины атаки."
 ---
 
-## Зачем Zeek, если есть PCAP
+## Вопрос, с которого всё начинается
 
-PCAP содержит всё, но для больших объёмов трафика он неудобен: его нельзя «просуммировать» одним запросом. **Zeek** (бывший Bro) — сетевой анализатор, который превращает трафик в **структурированные логи** (TSV/JSON): соединения, DNS, HTTP, TLS, файлы, SSL-сертификаты. Это позволяет отвечать на вопросы «кто с кем говорил», «какие домены запрашивались», «какие файлы передавались» — быстро и по всей сети.
+У тебя есть `capture.pcap` на несколько гигабайт. Открывать его в Wireshark
+бессмысленно: миллионы пакетов, и «прочитать» их глазами невозможно. Нужно быстро
+ответить на вопросы: **кто с кем говорил, какие домены запрашивались, какие файлы
+передавались**.
 
-## Логи Zeek
+Сам PCAP (файл-захват пакетов) на такие вопросы отвечает плохо — его нельзя
+«просуммировать» одним запросом. Для этого есть **Zeek** — сетевой анализатор,
+который превращает поток пакетов в **структурированные логи**: отдельные таблицы
+соединений, DNS, HTTP, TLS. Разберём его на нашем примере.
 
-| Лог | Содержимое |
-|---|---|
-| `conn.log` | все соединения (5-tuple, длительность, байты, состояние) |
-| `dns.log` | DNS-запросы и ответы |
-| `http.log` | HTTP-запросы (метод, URI, User-Agent, коды) |
-| `ssl.log` | TLS-сессии (SNI, версия, JA3, сертификат) |
-| `files.log` | переданные файлы (тип, хэш, источник) |
-| `notice.log` | срабатывания политик |
-| `weird.log` | аномалии протоколов |
-| `x509.log` | сертификаты |
+## Наш пример: запускаем Zeek на PCAP
 
-```bash
-# Запуск на PCAP
-zeek -r capture.pcap
-# JSON-вывод
-zeek -r capture.pcap LogAscii::use_json=T
-```
-
-## Анализ conn.log
+Запустим анализатор на захвате:
 
 ```bash
-# Топ по объёму (эксфильтрация?)
-cat conn.log | zeek-cut id.orig_h id.resp_h id.resp_p orig_bytes resp_bytes | sort -k5 -n | tail
-# Долгие соединения (C2 beacon?)
-zeek-cut duration id.orig_h id.resp_h < conn.log | sort -rn | head
-# Периодичность (beaconing): группировка по парам
-zeek-cut ts id.orig_h id.resp_h < conn.log | awk '{print $2,$3}' | sort | uniq -c | sort -rn | head
+$ zeek -r capture.pcap
+$ ls *.log
+conn.log  dns.log  http.log  ssl.log  files.log  ...
 ```
 
-**Beaconing** — регулярные соединения к одному адресу с примерно одинаковым интервалом — признак C2. Ищите по постоянству интервалов.
+Zeek создал набор `.log`-файлов, каждый — таблица с колонками (разделитель —
+табуляция). Вместо миллионов пакетов у нас несколько удобных таблиц. Утилита
+`zeek-cut` выбирает нужные колонки по имени.
 
-## Анализ DNS
+## Шаг 1: `conn.log` — кто с кем говорил
+
+`conn.log` содержит все соединения: адрес источника, назначения, порт, объём
+переданных байт, длительность. Найдём **самые большие** соединения (кандидаты на
+утечку данных):
 
 ```bash
-# Топ доменов
-zeek-cut query < dns.log | sort | uniq -c | sort -rn | head
-# Подозрительные (длинные, энтропийные — DNS-туннели)
-zeek-cut query < dns.log | awk '{ if (length($1) > 30) print }'
-# TXT-запросы (часто используются для туннелей)
-zeek-cut qtype_name query < dns.log | grep TXT
+$ cat conn.log | zeek-cut id.orig_h id.resp_h id.resp_p orig_bytes resp_bytes | sort -k4 -n | tail -3
+10.0.0.5	203.0.113.9	443	4521000	12000
 ```
 
-## Извлечение файлов
+Клиент `10.0.0.5` отправил 4,5 МБ на внешний адрес, а получил всего 12 КБ. Такая
+**асимметрия** (клиент отправил много, получил мало) — признак **эксфильтрации**
+(выноса данных наружу).
+
+## Шаг 2: ищем ритм — beaconing
+
+**Beaconing** («маячкование») — регулярные соединения к одному адресу с примерно
+одинаковым интервалом. Так ведёт себя вредоносный имплант, который раз в минуту
+«отчитывается» серверу управления. Сгруппируем соединения по парам адресов:
 
 ```bash
-# Zeek сохраняет файлы в extract_files (если настроено)
-zeek -r capture.pcap 'Files::add_analyzer(Files::ANALYZER_EXTRACT)'
-# или
-zeek -r capture.pcap /usr/share/zeek/policy/frameworks/files/extract-all-files.zeek
-# Файлы будут в ./extract_files/
-ls extract_files/ | head
-# Хэши в files.log
-zeek-cut mime_type filename md5 < files.log | head
+$ zeek-cut ts id.orig_h id.resp_h < conn.log | awk '{print $2,$3}' | sort | uniq -c | sort -rn | head
+   47 10.0.0.5 203.0.113.9
 ```
 
-Извлечённые файлы — для статического анализа (malware, документы, архивы).
+47 соединений к одному адресу — стоит проверить интервалы между ними. Регулярность
+подтвердит C2.
 
-## NetFlow
+## Шаг 3: `dns.log` — куда обращались
 
-NetFlow (или IPFIX) — агрегированные данные о потоках: 5-tuple, время, байты, пакеты. Меньше деталей, чем PCAP, но масштабируется на гигабиты.
+DNS-запросы (преобразование имени в IP) — отличный источник: видно, какие домены
+резолвились. Найдём топ доменов и подозрительно длинные имена:
 
 ```bash
-# Анализ NetFlow (nfdump)
-nfdump -r nfcapd.20240101 -s srcip/bytes -n 20
-nfdump -r nfcapd.20240101 'src ip 10.0.0.5 and dst port 443' -s record/bytes
+$ zeek-cut query < dns.log | sort | uniq -c | sort -rn | head
+$ zeek-cut query < dns.log | awk '{ if (length($1) > 30) print }'
+dGhpcyBpc 3RoZSBzZWNyZXQ...evil.com
 ```
 
-NetFlow помогает найти аномалии объёмов (эксфильтрация) и топ-разговаривающих.
+Очень длинное имя с непонятным набором символов — признак **DNS-туннеля**: данные
+кодируют в поддомены и передают через DNS (его почти всегда разрешают через
+firewall). Тип запроса `TXT` тоже часто используют для туннелей.
 
-## Suricata и IDS-артефакты
+## Шаг 4: `ssl.log` и отпечатки JA3
 
-Suricata — IDS/IPS, генерирующий `eve.json` (JSON-события) с alerts, flows, DNS, HTTP, TLS. Это богаче Zeek по части детектов.
+`ssl.log` описывает TLS-сессии. Помимо уже знакомого SNI, тут есть **JA3** —
+отпечаток TLS-клиента (набор параметров рукопожатия, свёрнутый в хеш). Один и тот
+же JA3 у множества хостов означает **одно и то же ПО**:
 
 ```bash
-suricata -r capture.pcap -l out/
-jq -c 'select(.event_type=="alert") | {ts, src_ip, dest_ip, alert}' out/eve.json
-jq -c 'select(.event_type=="http") | .http.host' out/eve.json | sort | uniq -c
+$ zeek-cut ja3 ja3s server_name < ssl.log | sort | uniq -c | sort -rn | head
+   47 72a589da586844d7f0818ce684948eea ... evil.tld
 ```
 
-Алерты содержат `signature`, `severity`, `category` — готовые индикаторы.
+Если `User-Agent` говорит «браузер», а JA3 не похож на браузерный — заголовки
+подделаны. Так выявляют C2.
 
-## Практический пример: картина атаки
+## Шаг 5: извлекаем файлы из трафика
 
-1. **Найдите внешние соединения** из внутренней сети (`conn.log`).
-2. **Топ доменов** (`dns.log`) — C2/эксфильтрация.
-3. **HTTP User-Agent** (`http.log`) — подозрительные клиенты.
-4. **TLS SNI + JA3** (`ssl.log`) — нестандартные отпечатки.
-5. **Извлеките файлы** (`files.log`) — malware.
-6. **Сведите таймлайн** и сопоставьте с host-артефактами.
-
-## Инструменты и команды
+`files.log` описывает файлы, переданные по сети. А сам Zeek умеет их **сохранять**:
 
 ```bash
-sudo apt install zeek suricata
-zeek -r capture.pcap
-suricata -r capture.pcap -l out/
-# zeek-cut входит в поставку Zeek
-cat conn.log | zeek-cut id.orig_h id.resp_h id.resp_p orig_bytes
+$ zeek -r capture.pcap /usr/share/zeek/policy/frameworks/files/extract-all-files.zeek
+$ ls extract_files/ | head
+$ zeek-cut mime_type filename md5 < files.log | head
+application/x-dosexec  update.exe  a1b2c3...
+$ file extract_files/*
 ```
 
-## JA3/JA3S: отпечатки TLS
+Мы вытащили из трафика исполняемый файл `update.exe` — образец малвари для
+статического анализа. Это делается без ручного «follow stream».
 
-**JA3** — отпечаток TLS-клиента (набор версий, шифров, расширений, эллиптических кривых). **JA3S** — отпечаток сервера. Одинаковый JA3 у множества хостов выдаёт **одно и то же malware/инструмент** (Cobalt Strike, Metasploit, curl). Это мощный способ кластеризации C2.
+## Шаг 6: NetFlow и Suricata
+
+Для очень больших объёмов, когда PCAP не хранят, используют **NetFlow** — агрегированные
+данные о потоках (только метаданные, без содержимого). Их смотрят утилитой `nfdump`:
 
 ```bash
-# Zeek генерирует ja3/ja3s в ssl.log
-zeek-cut ja3 ja3s server_name < ssl.log | sort | uniq -c | sort -rn
-# Известные JA3: база ja3er.com, abuse.ch/ja3
+$ nfdump -r nfcapd.20240101 -s srcip/bytes -n 5
 ```
 
-Если видите **нестандартный** JA3 (например, PowerShell/.NET-клиент, Go-клиент) на необычном порту — это C2.
-
-## Извлечение и hunting по логам
+А **Suricata** — система обнаружения вторжений (IDS): она генерирует события-алерты
+в файл `eve.json`:
 
 ```bash
-# Файлы с хэшами
-zeek-cut filename md5 sha256 < files.log | grep -v '^$'
-# HTTP-методы и User-Agent
-zeek-cut method user_agent < http.log | sort | uniq -c | sort -rn | head
-# Подозрительные UA
-zeek-cut user_agent < http.log | grep -iE 'powershell|curl|wget|python-requests'
-# Долгие/большие соединения (эксфильтрация)
-zeek-cut id.orig_h id.resp_h orig_bytes resp_bytes duration < conn.log | sort -k4 -n | tail -20
-# Порт-скан (много соединений с одного IP на разные порты)
-zeek-cut id.orig_h id.resp_p < conn.log | sort | uniq -c | sort -rn | head
+$ suricata -r capture.pcap -l out/
+$ jq -c 'select(.event_type=="alert") | {ts, src_ip, dest_ip, alert}' out/eve.json
 ```
 
-## Корреляция с host-артефактами
+Алерт содержит готовую сигнатуру и severity — не нужно самому искать паттерн.
 
-Сетевые логи отвечают на «куда», host-логи — на «что». Совмещайте: Zeek `conn.log` (внешний IP C2) + Sysmon 3 (процесс, установивший соединение) + 4104 (скрипт) → полная картина. Таймлайн из Zeek (`ts`) и EVTX (timestamps) сводится в единую хронологию.
+## Что мы теперь знаем
 
-## Настройка и кастомизация Zeek
+- **Zeek** превращает PCAP в структурированные логи (`conn`, `dns`, `http`, `ssl`, `files`).
+- `conn.log` отвечает «кто с кем и сколько», `dns.log` — «какие домены».
+- **Beaconing** (регулярные соединения) и **асимметрия** объёмов выдают C2 и утечку.
+- **JA3** кластеризует TLS-клиенты по ПО; `files.log` + extract сохраняет файлы.
+- **NetFlow** — агрегаты для больших объёмов; **Suricata** даёт готовые алерты.
 
-```bash
-# Кастомный скрипт: логировать нестандартные порты
-cat > local.zeek <<'EOF'
-redef Site::local_nets = { 10.0.0.0/8, 192.168.0.0/16 };
-event http_request(c: connection, method: string, uri: string) {
-    if (|uri| > 200) print fmt("long URI from %s: %s", c$id$orig_h, uri);
-}
-EOF
-zeek -r capture.pcap local.zeek
-```
+## На что смотреть дальше
 
-```bash
-# Готовые политики
-zeek -r cap.pcap /usr/share/zeek/policy/frameworks/files/extract-all-files.zeek
-zeek -r cap.pcap /usr/share/zeek/policy/protocols/ssl/validate-certs.zeek
-```
-
-## Инструменты и команды
-
-```bash
-sudo apt install zeek suricata
-zeek -r capture.pcap LogAscii::use_json=T
-cat conn.log | zeek-cut id.orig_h id.resp_h id.resp_p orig_bytes resp_bytes
-cat ssl.log | zeek-cut server_name ja3 ja3s
-suricata -r capture.pcap -l out/ && jq -c 'select(.event_type=="alert")' out/eve.json
-nfdump -r nfcapd.20240101 -s srcip/bytes -n 20
-```
-
-## Разбор: восстановление файла из трафика
-
-```bash
-# 1. Запуск Zeek с извлечением файлов
-zeek -r capture.pcap /usr/share/zeek/policy/frameworks/files/extract-all-files.zeek
-# 2. Файлы в ./extract_files/
-ls -la extract_files/
-# 3. Тип и хэши
-file extract_files/*
-zeek-cut mime_type filename md5 sha1 < files.log
-# 4. Анализ
-strings extract_files/FILE | head
-```
-
-Так извлекаются malware, документы, архивы, картинки — без ручного follow stream.
-
-## Частые ошибки
-
-- **Игнорировать Zeek, работая с огромным PCAP.** Логи быстрее.
-- **Не извлекать файлы.** Упустите malware.
-- **Забыть про beaconing.** Регулярность — ключевой признак C2.
-- **Смотреть только alerts.** flows/dns/http дают контекст.
-- **Путать NetFlow и PCAP.** NetFlow — агрегаты без содержимого.
-- **Не проверять DNS-туннели.** Длинные/энтропийные запросы.
-
-## Как не застрять
-
-- **Zeek-логи** — основа сетевой форензики.
-- **conn.log** — топ объёмов и beaconing.
-- **dns.log** — туннели и C2.
-- **files.log** — извлечение образцов.
-- **Suricata** — готовые алерты.
-- **NetFlow** — масштаб и аномалии.
+- **Работать с огромным PCAP напрямую** — логи Zeek быстрее.
+- **Не извлекать файлы** — упустишь образец малвари.
+- **Забыть про beaconing** — регулярность выдаёт C2.
+- **Смотреть только алерты** — `conn`/`dns`/`http` дают контекст.
+- **Путать NetFlow и PCAP** — NetFlow без содержимого.
+- **Не проверять DNS-туннели** — длинные/энтропийные имена и TXT.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что делает Zeek с PCAP?"
@@ -256,10 +192,18 @@ strings extract_files/FILE | head
   answer: 1
 ```
 
+## Куда дальше
+
+Мы научились строить картину сети из логов Zeek. В следующем уроке сфокусируемся на
+одной задаче — **обнаружении эксфильтрации**: как находить скрытые каналы выноса
+данных (DNS/ICMP/HTTP-туннели) и восстанавливать украденное. А пока запомни:
+**PCAP превращают в логи, а логи — в ответы на вопросы; регулярность и асимметрия —
+два главных признака атаки**.
+
 ## Где пригодится
 
 - **CTF Forensics** — задачи с сетевыми логами.
 - **DFIR** — восстановление картины сетевой атаки.
-- **SOC/Threat Hunting** — детекты и hunting.
+- **SOC/Threat Hunting** — детекты и hunting по логам.
 - **Network security monitoring** — постоянный мониторинг.
 - **Malware analysis** — извлечение образцов из трафика.

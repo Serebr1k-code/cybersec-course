@@ -15,203 +15,118 @@ estimated_minutes: 45
 summary: "Каждое облачное действие логируется. Разбираем CloudTrail, Cloud Logging, Azure Activity Log, что искать при детекте, как защищается организация (GuardDuty, Security Hub) и как атакующему минимизировать шум."
 ---
 
-В облаке нет «тихих» действий: почти каждый вызов API попадает в аудит-лог. Для атакующего это риск, для защищающегося — сокровищница. Этот урок про то, **что именно логируется**, **как читать логи** при расследовании и **как атакующему снижать шум**. Без понимания аудита любая облачная атака — это заявка о себе в службу безопасности.
+## Вопрос, с которого всё начинается
 
-## Модель аудита: control plane vs data plane
+В прошлом уроке мы нашли ключ `ci-deploy` и сделали пару вызовов: `sts get-caller-identity` и `aws s3 ls`. На первый взгляд — безобидно. Но в облаке нет «тихих» действий: почти каждый вызов API попадает в журнал аудита. Значит, кто-то из службы безопасности уже видит эти строки.
 
-Ключевое разделение, которое надо усвоить с самого начала:
+Вопрос урока: **что именно записывается**, как это прочитать и — если ты атакующий — как сделать так, чтобы твой след был как можно тише?
 
-| Плоскость | Что это | Логируется по умолчанию? | Примеры |
-|-----------|---------|---------------------------|---------|
-| **Control plane** (management) | Изменение ресурсов, IAM, сеть | Да (почти всегда) | `CreateUser`, `RunInstances`, `PutBucketPolicy` |
-| **Data plane** | Операции с данными внутри ресурса | Часто НЕТ, включается отдельно | `GetObject`, `Invoke` на Lambda, чтение из RDS |
+## Наш пример: след, который оставил наш ключ
 
-Практический вывод: `CreateAccessKey` (control plane) почти всегда в логе, а массовое скачивание объектов из S3 (data plane) — только если включён **S3 data events**. Поэтому атакующий любит «чтение данных» (тише), а защита в первую очередь строит детект на control plane.
+Пойдём тем же путём, что и защита. В AWS журнал аудита называется **CloudTrail**. Посмотрим на последние события в аккаунте:
 
-## AWS CloudTrail: структура и где лежит
-
-CloudTrail — основной аудит-сервис AWS. Каждое событие — JSON с полями:
-
-- `eventTime`, `eventName` (напр. `AssumeRole`), `eventSource` (`sts.amazonaws.com`);
-- `userIdentity` — тип (`IAMUser`, `AssumedRole`, `Root`), ARN, `accessKeyId`, `sessionContext`;
-- `sourceIPAddress`, `userAgent`, `requestParameters`, `responseElements`;
-- `errorCode` / `errorMessage` — если вызов провалился (важно для детекта брута!).
-
-Типы трейлов:
-- **Management events** — включены по умолчанию, 90 дней в Event history.
-- **Data events** — S3 object-level, Lambda Invoke; платно, выключены по умолчанию.
-- **Insight events** — аномалии (всплеск IAM-изменений и т.п.).
-- **Organization trail** — общий трейл на все аккаунты организации (обойти сложнее).
-
-```bash
-# Последние события (Event history, 90 дней)
-aws cloudtrail lookup-events --max-results 20 \
+```
+$ aws cloudtrail lookup-events --max-results 5 \
   --query 'Events[].{t:EventTime,name:EventName,user:Username}'
-
-# Фильтр по имени события
-aws cloudtrail lookup-events \
-  --lookup-attributes AttributeKey=EventName,AttributeValue=AssumeRole \
-  --max-results 50
-
-# Список трейлов и их статус
-aws cloudtrail describe-trails --include-shadow-trails
-aws cloudtrail get-trail-status --name <trail-name>
-
-# Куда пишутся логи (S3 bucket + CloudWatch Logs group)
-aws cloudtrail get-event-selectors --trail-name <trail-name>
+[
+  {"t":"2026-10-11T09:14:02Z","name":"GetCallerIdentity","user":"ci-deploy"},
+  {"t":"2026-10-11T09:14:07Z","name":"ListBuckets","user":"ci-deploy"},
+  {"t":"2026-10-11T09:13:40Z","name":"ConsoleLogin","user":"admin"}
+]
 ```
 
-## Чтение CloudTrail: Athena, jq, CloudWatch
+Вот и мы: два наших вызова лежат в открытом виде — с временем, именем события и тем, кто его сделал. Каждое событие в CloudTrail — это JSON с полями `eventTime`, `eventName`, `eventSource`, `userIdentity` (кто), `sourceIPAddress` (откуда) и `userAgent` (каким инструментом). Для защиты это готовая картина атаки.
 
-Логи лежат в S3 (gzip JSON) и/или в CloudWatch Logs. Быстрые способы разбора:
+## Шаг 1: control plane и data plane — почему видно не всё
 
-```bash
-# Прямо из S3, без Athena (для одного-двух файлов)
-aws s3 cp s3://<trail-bucket>/AWSLogs/<acct>/CloudTrail/<region>/2026/10/11/ ./logs/ --recursive
-zcat logs/*.json.gz | jq -c 'select(.eventName=="CreateAccessKey")
-  | {t:.eventTime, u:.userIdentity.arn, ip:.sourceIPAddress}'
+Ключевое разделение, которое надо усвоить сразу:
 
-# Полноценные запросы — Athena поверх таблицы CloudTrail
-# (в консоли: Athena -> CloudTrail table -> SQL)
+- **Control plane** («плоскость управления») — действия, меняющие ресурсы: создать пользователя, изменить политику, поднять сервер. Логируется почти всегда.
+- **Data plane** («плоскость данных») — операции с содержимым: прочитать файл из S3, вызвать Lambda. Часто **не** логируется, пока не включат отдельно.
+
+Практический вывод: `CreateAccessKey` (создание ключа) виден всегда, а массовое скачивание файлов из S3 — только если включены *data events* (объектные события S3, платная опция). Поэтому атакующий предпочитает читать данные — это тише, а защита в первую очередь следит за control plane.
+
+## Шаг 2: читаем свой след целиком
+
+Посмотрим на все наши действия за последний час — так же, как это сделает аналитик:
+
+```
+$ aws cloudtrail lookup-events \
+  --lookup-attributes AttributeKey=AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE \
+  --max-results 50 | jq -r '.Events[].CloudTrailEvent | fromjson |
+    [.eventTime,.eventName,.sourceIPAddress,.userAgent] | @tsv'
+2026-10-11T09:14:02Z  GetCallerIdentity  203.0.113.7  aws-cli/2.15.0
+2026-10-11T09:14:07Z  ListBuckets        203.0.113.7  aws-cli/2.15.0
 ```
 
-```sql
--- Пример Athena: кто создавал ключи за сутки
-SELECT eventtime, useridentity.arn, sourceipaddress, requestparameters
-FROM cloudtrail_logs
-WHERE eventname = 'CreateAccessKey'
-  AND eventtime >= '2026-10-10T00:00:00Z'
-ORDER BY eventtime DESC;
+Видно всё: время, IP `203.0.113.7`, стандартный `userAgent` от `aws` CLI. Это важный сигнал для нас: пока мы выглядим как обычный пользователь CLI. Но если запустить кастомный скрипт, `userAgent` станет нетипичным — и это первый «красный флаг» для GuardDuty.
+
+## Шаг 3: что именно ловит защита
+
+Логи бесполезны без детекта. В AWS за это отвечает **GuardDuty** — сервис, который смотрит на CloudTrail, сетевой трафик и DNS и ищет аномалии. Рядом стоит **Security Hub**, агрегирующий находки.
+
+Что чаще всего поднимает тревогу:
+
+| Действие атакующего | Что срабатывает |
+|---------------------|-----------------|
+| `StopLogging`, `DeleteTrail` | GuardDuty: `Stealth:IAMUser/CloudTrailLoggingDisabled` |
+| Серия отказов `AccessDenied` | признак перебора прав |
+| `GetSecretValue` из чужого IP | `UnauthorizedAccess:IAMUser/...` |
+| Много `GetObject` за минуту | S3 data events + Macie |
+
+Отдельно про отказы: поле `errorCode` в событии показывает неуспешные вызовы. Массовые `AccessDenied` — классический признак того, что кто-то «нащупывает» права ключа.
+
+## Шаг 4: OPSEC атакующего — как снижать шум
+
+Это раздел про то, как защита видит нас. Знать его нужно и red, и blue.
+
+1. **Не отключай логирование.** `StopLogging`/`DeleteTrail` сами пишут событие и почти всегда триггерят алерт. Тихо не выйдет.
+2. **Используй существующие роли** (`AssumeRole` в легитимную роль) вместо создания новых сущностей.
+3. **Работай из ожидаемого региона и сети.** Аномальный `sourceIPAddress` — топ-сигнал; лучше действовать через тот же EC2/NAT, что и легитимный трафик.
+4. **Читай, а не меняй.** Чтение данных часто не логируется (если не включены data events).
+5. **Следи за `userAgent`.** `aws` CLI и SDK выглядят обычно; кастомные скрипты и инструменты вроде Pacu — нет.
+6. **Не создавай access keys.** `CreateAccessKey` — один из самых отслеживаемых вызовов.
+7. **Помни про Organization trail** — общий журнал на все аккаунты организации, который из дочернего аккаунта не отключить.
+
+Самопроверка OPSEC выглядит так — ты смотришь на себя глазами защиты:
+
+```
+$ aws cloudtrail lookup-events --lookup-attributes \
+  AttributeKey=AccessKeyId,AttributeValue=AKIAIOSFODNN7EXAMPLE --max-results 50
 ```
 
-В CloudWatch Logs удобно ловить всплески:
+## Шаг 5: то же самое у Azure и GCP
 
-```bash
-aws logs filter-log-events --log-group-name <trail-group> \
-  --filter-pattern '{ $.eventName = "StopLogging" }'
+Модель одна, названия разные.
+
+- **Azure:** control plane пишется в **Activity Log** (`az monitor activity-log list`), входы и MFA — в **Sign-in logs** Entra ID, изменения пользователей — в Entra audit logs. По умолчанию Entra audit хранится 30 дней, Activity Log — 90.
+- **GCP:** **Admin Activity** включён всегда и хранится 400 дней; **Data Access** по умолчанию выключен. Читается через `gcloud logging read`.
+
 ```
-
-## Azure: Activity Log, Entra audit, Diagnostic settings
-
-В Azure аудит разложен по нескольким источникам:
-
-| Источник | Что пишет | Где смотреть |
-|----------|-----------|--------------|
-| **Activity Log** | Control plane подписки (создание VM, роли) | `az monitor activity-log list` |
-| **Entra ID audit logs** | Входы, изменения пользователей/ролей | `az rest` / Graph API |
-| **Sign-in logs** | Успешные/неудачные входы, MFA, риск | Entra -> Sign-in logs |
-| **Diagnostic settings** | Экспорт логов в Log Analytics/Storage | настраивается вручную |
-
-```bash
-# Последние операции подписки
-az monitor activity-log list --max-events 20 \
+$ az monitor activity-log list --max-events 5 \
   --query '[].{t:eventTimestamp,op:operationName.localizedValue,who:caller}'
-
-# Неудачные входы в Entra (требует прав на Graph)
-az rest --method get \
-  --url 'https://graph.microsoft.com/v1.0/auditLogs/signIns?$top=20'
 ```
 
-Важно: **Entra audit logs хранятся 30 дней** по умолчанию (Premium — дольше), а Activity Log — 90 дней. Без Diagnostic settings логи не уходят наружу, и после истечения окна их не восстановить.
+Обрати внимание на окна хранения: в AWS CloudTrail Event history держит 90 дней, и если нет трейла в S3, старые события пропадут.
 
-## GCP: Cloud Audit Logs
+## Что мы теперь знаем
 
-GCP делит аудит на четыре потока:
+1. Почти каждое облачное действие попадает в аудит — control plane почти всегда, data plane часто нет.
+2. CloudTrail показывает кто/что/когда/откуда; `errorCode` выдаёт перебор.
+3. Отключение логов — само по себе событие и детектится.
+4. Для атакующего главные сигналы — чужой IP, нетипичный `userAgent`, создание ключей.
+5. Читать данные тише, чем менять конфигурацию.
 
-- **Admin Activity** — включён всегда, хранится 400 дней. Изменения конфигурации/IAM.
-- **Data Access** — чтение данных; по умолчанию выключен (кроме BigQuery).
-- **System Event** — действия Google.
-- **Policy Denied** — отказы по org policy/VPC-SC.
+## На что смотреть дальше
 
-```bash
-# Читать Admin Activity через gcloud logging
-gcloud logging read 'logName:"cloudaudit.googleapis.com%2Factivity"
-  AND protoPayload.methodName:"SetIamPolicy"' \
-  --limit 20 --format json | jq -r \
-  '.[] | [.timestamp, .protoPayload.authenticationInfo.principalEmail,
-          .protoPayload.methodName] | @tsv'
-
-# Проверить, включён ли Data Access audit
-gcloud projects get-iam-policy <project> --format json | \
-  jq '.auditConfigs'
-```
-
-## Что детектит защита: GuardDuty, Security Hub, Sentinel, Defender
-
-Аудит-логи бесполезны без детекта. Типовые сервисы:
-
-- **AWS GuardDuty** — ML + threat intel: аномальные API-вызовы, `CredentialsUnusualBehavior`, майнинг, обращения к известным C2.
-- **AWS Security Hub** — агрегирует findings по стандартам (CIS, AWS FSBP).
-- **Azure Defender for Cloud** + **Microsoft Sentinel** — SIEM/SOAR, корреляции.
-- **GCP Security Command Center** — findings по Event Threat Detection.
-
-Что чаще всего триггерит алерт:
-
-| Действие атакующего | Детект |
-|---------------------|--------|
-| `DisableSecurityHub`, `DeleteTrail` | GuardDuty: `Stealth:IAMUser/CloudTrailLoggingDisabled` |
-| Брут `AssumeRole` с одного IP | `CredentialAccess:IAMUser/AnomalousBehavior` |
-| Обращение к metadata извне | VPC Flow + GuardDuty |
-| Много `GetObject` в короткий срок | S3 data events + Macie |
-
-## OPSEC атакующего: как снижать шум
-
-Это раздел «как защита видит атакующего» — знать его нужно и red, и blue.
-
-1. **Отключать логирование — громко и почти всегда детектится.** `StopLogging`/`DeleteTrail` сами пишут событие и триггерят GuardDuty. Не делать, если цель — тихо.
-2. **Использовать уже существующие роли** (`AssumeRole` в легіт-роль) вместо создания новых сущностей.
-3. **Работать из ожидаемого региона/IP.** Аномальный `sourceIPAddress` — топ-сигнал.
-4. **Читать, а не менять.** Data plane чтения часто не логируется (если не включены data events).
-5. **Быть аккуратным с `userAgent`.** Кастомные инструменты (Pacu, скрипты) дают нетипичный UA. `aws` CLI и SDK выглядят обычно.
-6. **Не создавать access keys** — `CreateAccessKey` один из самых отслеживаемых вызовов.
-7. **Учитывать Organization trail** — его нельзя отключить из дочернего аккаунта.
-
-```bash
-# Показать свои последние действия (самопроверка OPSEC)
-aws cloudtrail lookup-events --lookup-attributes \
-  AttributeKey=AccessKeyId,AttributeValue=<AKIA...> --max-results 50
-```
-
-## Разобранный пример: расследование и заметание следов
-
-**Сценарий (IR).** Пришёл алерт GuardDuty `UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration`. Задача — восстановить цепочку.
-
-Шаг 1. Смотрим события вокруг времени алерта:
-
-```bash
-aws cloudtrail lookup-events --start-time 2026-10-11T02:00:00Z \
-  --end-time 2026-10-11T02:30:00Z --max-results 200 | \
-  jq -r '.Events[].CloudTrailEvent | fromjson |
-    [.eventTime,.eventName,.userIdentity.arn,.sourceIPAddress] | @tsv' | sort
-```
-
-Шаг 2. Ищем эксфильтрацию роли: `AssumeRole`, `GetCallerIdentity`, `GetSecretValue`, `ListBuckets`.
-
-Шаг 3. Проверяем, не отключали ли логи: `StopLogging`, `DeleteTrail`, `UpdateTrail`.
-
-Шаг 4. Строим timeline: IP → какие ключи/роли → какие ресурсы.
-
-Шаг 5. **Атакующий side.** На этом же примере видно, что `GetSecretValue` из чужого IP сразу дал алерт. Урок: красть роль — мало, надо ещё действовать из «правильной» сети (например, через тот же EC2/NAT).
-
-## Частые ошибки
-
-- **Считать, что data plane логируется.** S3 object-level и Lambda Invoke по умолчанию НЕ пишутся.
-- **Игнорировать 90-дневное окно.** Event history хранит 90 дней; дальше только если есть трейл в S3.
-- **Путать Activity Log и Entra audit.** Это разные источники, разные сроки хранения.
-- **Думать, что отключение трейла скроет следы.** Само отключение логируется и алертит.
-- **Не смотреть `errorCode`.** Массовые `AccessDenied` = брут/enumeration, часто первый сигнал.
-- **Забывать про мульти-аккаунт.** Organization trail виден в management-аккаунте — из дочернего не спрятать.
-
-## Что дальше / решение
-
-Дальше по дереву логично идти в:
-- `cloud-credential-hunting` — где вообще искать креды, за которыми охотится детект;
-- `cloud-cloudtrail-evasion` — конкретные техники обхода/снижения шума;
-- `cloud-iam-basics` — чтобы понимать, чьи действия вы видите в `userIdentity`.
-
-Если вы blue teamer — стройте детект в первую очередь на control plane: `CreateAccessKey`, `AssumeRole`, `PutBucketPolicy`, `StopLogging`. Если red — минимизируйте именно эти вызовы.
+- **Не считай data plane логируемым.** S3 object-level и Lambda Invoke по умолчанию не пишутся.
+- **Следи за окном хранения.** Без трейла в S3 события живут 90 дней.
+- **Различай источники в Azure.** Activity Log и Entra audit — разные логи и сроки.
+- **Строй детект на control plane:** `CreateAccessKey`, `AssumeRole`, `PutBucketPolicy`, `StopLogging`.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какое утверждение о CloudTrail верно по умолчанию?"
@@ -238,14 +153,6 @@ aws cloudtrail lookup-events --start-time 2026-10-11T02:00:00Z \
     - "Оно блокирует IAM"
   answer: 0
   explanation: "StopLogging/DeleteTrail — сами по себе детектируемые события."
-- question: "Где в Azure хранятся неудачные попытки входа?"
-  options:
-    - "В Activity Log"
-    - "В Sign-in logs Entra ID"
-    - "В S3"
-    - "В CloudTrail"
-  answer: 1
-  explanation: "Входы и MFA-события — в Entra sign-in logs."
 - question: "Какой признак в логах чаще всего указывает на брут/enumeration?"
   options:
     - "Массовые errorCode AccessDenied"
@@ -254,7 +161,19 @@ aws cloudtrail lookup-events --start-time 2026-10-11T02:00:00Z \
     - "Ротация сертификата"
   answer: 0
   explanation: "Серии отказов — классический сигнал перебора прав."
+- question: "Что из перечисленного для атакующего «тише»?"
+  options:
+    - "Чтение объектов из S3"
+    - "CreateAccessKey"
+    - "DeleteTrail"
+    - "PutBucketPolicy"
+  answer: 0
+  explanation: "Чтение данных часто не логируется, если data events выключены."
 ```
+
+## Куда дальше
+
+В следующем уроке (`cloud-storage-s3`) мы возьмём конкретный бакет и разберём, как его мисконфигурации открывают данные наружу. А пока главное: любое изменение конфигурации в облаке видно защите, и самый тихий путь — читать, а не менять.
 
 ## Где пригодится
 

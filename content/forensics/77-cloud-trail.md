@@ -14,194 +14,127 @@ useful_for:
 estimated_minutes: 55
 summary: "Расследование инцидентов в облаке по аудит-логам: AWS CloudTrail, Azure Activity/Sign-in, GCP Audit Logs — атрибуция, персистентность, эксфильтрация."
 ---
-Облачные аудит-логи — основной источник для расследования инцидентов в AWS/Azure/GCP: кто, что, когда и откуда делал. В отличие от локальных систем, в облаке нет «диска», но есть подробный журнал API-вызовов. Этот урок — про CloudTrail, Azure Activity/Sign-in и GCP Audit Logs, атрибуцию и обнаружение персистентности/эксфильтрации.
 
-## AWS CloudTrail
+## Вопрос, с которого всё начинается
 
-CloudTrail пишет каждый API-вызов: `eventName`, `userIdentity`, `sourceIPAddress`, `eventTime`, `requestParameters`, `responseElements`, `errorCode`. Хранится в S3 (JSON.gz), часто с журналом событий управления и данными.
+Компания заметила странный счёт за облако и подозревает взлом аккаунта AWS. Но в облаке **нет диска**, который можно снять и разобрать: серверы — это чужие виртуальные машины, а следы живут только в журналах. Как понять, кто входил, что создавал и что выкачивал?
 
-```bash
-# скачать и разобрать
-$ aws s3 cp s3://bucket/AWSLogs/.../CloudTrail/... . --recursive
-$ gunzip -c trail.json.gz | jq -r '.Records[] | [.eventTime,.eventName,.userIdentity.arn,.sourceIPAddress,.awsRegion] | @tsv' | head
-# фильтр по подозрительному событию
-$ gunzip -c trail.json.gz | jq '.Records[] | select(.eventName=="CreateUser" or .eventName=="CreateAccessKey")'
-# кто создавал ключи/пользователей
-$ jq -r '.Records[] | select(.eventName|test("CreateUser|CreateAccessKey|AttachUserPolicy")) | [.eventTime,.userIdentity.arn,.requestParameters] | @tsv' *.json
-```
+Ответ — в **аудит-логах**. Облако пишет **каждый** вызов своего API. Это и есть замена «диску». Разберём один инцидент по логу AWS CloudTrail.
 
-Ключевые события для расследования:
+## Наш пример: файл `trail.json`
 
-| Событие | Значение |
-|---------|----------|
-| `ConsoleLogin` | вход в консоль |
-| `CreateUser`/`CreateAccessKey` | создание доступа |
-| `AttachUserPolicy`/`PutUserPolicy` | повышение прав |
-| `AssumeRole` | смена роли |
-| `CreateBucket`/`PutBucketPolicy` | данные |
-| `GetSecretValue` | чтение секретов |
-| `StopLogging`/`DeleteTrail` | анти-форензика |
-| `RunInstances` | новые ресурсы |
-
-## Azure: Activity и Sign-in
-
-- **Azure Activity Log** — операции с ресурсами (control plane).
-- **Azure AD Sign-in Logs** — входы пользователей (успешные/неудачные, MFA, риск).
-- **Azure AD Audit Logs** — изменения каталога (роли, приложения).
+**CloudTrail** — служба AWS, которая записывает все вызовы API. Логи складываются в S3 в виде сжатых JSON-файлов (по одному объекту на событие). Скачиваем и смотрим одну запись:
 
 ```bash
-# Azure CLI
-$ az monitor activity-log list --start-time 2024-03-01 --output json | jq -r '.[] | [.eventTimestamp,.operationName,.caller,.resourceId] | @tsv' | head
-$ az rest --url 'https://graph.microsoft.com/v1.0/auditLogs/signIns' | jq -r '.value[] | [.createdDateTime,.userPrincipalName,.ipAddress,.status.errorCode] | @tsv'
-# экспорт в SIEM: Azure Monitor, Microsoft Sentinel
+$ aws s3 cp s3://bucket/AWSLogs/.../CloudTrail/ . --recursive
+$ gunzip -c trail.json.gz | jq '.Records[0]'
+{
+  "eventTime": "2025-10-06T14:20:11Z",
+  "eventName": "ConsoleLogin",
+  "userIdentity": { "arn": "arn:aws:iam::123:user/bob" },
+  "sourceIPAddress": "203.0.113.7",
+  "responseElements": { "ConsoleLogin": "Success" }
+}
 ```
 
-Признаки: вход из необычной страны/IP, успех после множества неудач, регистрация нового приложения, добавление секрета к приложению (persistence), изменение ролей.
+Разбираем поля. `eventName` — имя вызванного API-действия. `ConsoleLogin` означает **вход в веб-консоль** AWS. `userIdentity.arn` — кто вошёл (`bob`). `sourceIPAddress` — с какого адреса. `responseElements` показывает, что вход **удался**.
 
-## GCP Audit Logs
+Обратите внимание: `jq` здесь — это утилита для выборки из JSON (формата, где данные хранятся как `ключ: значение`). Все дальнейшие шаги — это фильтры `jq` по нужным событиям.
 
-- **Admin Activity** — изменения конфигурации (всегда включён).
-- **Data Access** — доступ к данным (нужно включить).
-- **System Event**, **Policy Denied**.
+## Шаг 1: находим подозрительный вход
+
+Первый вопрос: вход был обычный или аномальный? Смотрим все входы и адреса:
 
 ```bash
-$ gcloud logging read 'logName:"cloudaudit.googleapis.com"' --format=json --limit=100 | jq -r '.[] | [.timestamp,.protoPayload.methodName,.protoPayload.authenticationInfo.principalEmail,.protoPayload.requestMetadata.callerIp] | @tsv'
+$ gunzip -c trail.json.gz | jq -r '.Records[] | select(.eventName=="ConsoleLogin") | [.eventTime,.userIdentity.arn,.sourceIPAddress] | @tsv'
+2025-10-06T14:20:11Z  arn:aws:iam::123:user/bob  203.0.113.7
 ```
 
-## Атрибуция и персистентность
+Адрес `203.0.113.7` не похож на офисный диапазон компании. Это первая зацепка — **атрибуция**: атакующий вошёл извне.
+
+## Шаг 2: ищем персистентность
+
+Войдя, атакующий обычно создаёт себе долговременный доступ, чтобы не зависеть от пароля. В AWS для этого служит **access key** — постоянный программный ключ:
 
 ```bash
-# откуда действовал атакующий
-$ jq -r '.Records[].sourceIPAddress' trail.json | sort | uniq -c | sort -rn | head
-# какой ключ использовался
-$ jq -r '.Records[].userIdentity.accessKeyId' trail.json | sort | uniq -c | sort -rn | head
-# временная шкала создания доступа
-$ jq -r '.Records[] | select(.eventName|test("Create|Attach|Put")) | [.eventTime,.eventName,.userIdentity.arn] | @tsv' trail.json | sort
+$ gunzip -c trail.json.gz | jq -r '.Records[] | select(.eventName=="CreateAccessKey") | [.eventTime,.userIdentity.arn,.responseElements.accessKey.accessKeyId] | @tsv'
+2025-10-06T14:22:03Z  arn:aws:iam::123:user/bob  AKIAEXAMPLE123
 ```
 
-Механизмы персистентности в облаке: новые IAM-пользователи/ключи, роли с доверием, лямбды/функции, EC2 user-data, обновление SSO, приложения с секретами, снапшоты и AMI.
+Через две минуты после входа создан новый ключ `AKIAEXAMPLE123`. Это **персистентность**: даже если сменят пароль `bob`, ключ продолжит работать.
 
-## Эксфильтрация
+## Шаг 3: повышение прав
 
-Признаки: `GetObject`/`ListBucket` на чувствительные бакеты, массовые `CopyObject`, `CreateSnapshot`, публичные политики бакетов, выгрузка в сторонние аккаунты.
+Дальше атакующий расширяет права. В AWS права задают **политики** — документы, описывающие, что разрешено. Прикрепление к пользователю широкой политики — эскалация:
 
 ```bash
-$ jq -r '.Records[] | select(.eventName|test("GetObject|ListBucket|PutBucketPolicy|CreateSnapshot")) | [.eventTime,.eventName,.requestParameters.bucketName,.sourceIPAddress] | @tsv' trail.json | head
+$ gunzip -c trail.json.gz | jq -r '.Records[] | select(.eventName|test("AttachUserPolicy|PutUserPolicy")) | [.eventTime,.eventName,.requestParameters.policyArn] | @tsv'
+2025-10-06T14:24:40Z  AttachUserPolicy  arn:aws:iam::aws:policy/AdministratorAccess
 ```
 
-## Разобранный пример
+`AdministratorAccess` — политика полного администратора. Теперь у атакующего есть всё.
 
-Дан CloudTrail. Нужно найти компрометацию.
+## Шаг 4: анти-форензика
+
+Действие, которое часто выдаёт злоумышленника: попытка **отключить логирование**, чтобы скрыть следы. Само это событие — улика:
 
 ```bash
-# 1. Подозрительный вход
-$ jq -r '.Records[] | select(.eventName=="ConsoleLogin") | [.eventTime,.userIdentity.arn,.sourceIPAddress] | @tsv' trail.json | tail
-# 2. Создание ключа после входа
-$ jq -r '.Records[] | select(.eventName=="CreateAccessKey") | [.eventTime,.userIdentity.arn,.responseElements.accessKey.accessKeyId] | @tsv' trail.json
-# 3. Повышение прав
-$ jq -r '.Records[] | select(.eventName=="AttachUserPolicy") | .requestParameters' trail.json
-# 4. Анти-форензика
-$ jq -r '.Records[] | select(.eventName|test("StopLogging|DeleteTrail")) | [.eventTime,.userIdentity.arn] | @tsv' trail.json
-# 5. Эксфильтрация
-$ jq -r '.Records[] | select(.eventName|test("GetObject|PutBucketPolicy")) | [.eventTime,.requestParameters.bucketName,.sourceIPAddress] | @tsv' trail.json | head
+$ gunzip -c trail.json.gz | jq -r '.Records[] | select(.eventName|test("StopLogging|DeleteTrail")) | [.eventTime,.userIdentity.arn] | @tsv'
+2025-10-06T14:26:11Z  arn:aws:iam::123:user/bob
 ```
 
-Итог: вход из необычного IP → создание ключа → повышение прав → попытка отключить логирование → выгрузка данных.
+`StopLogging` остановил бы запись новых событий. Это **анти-форензика** — попытка уничтожить доказательства. В расследовании такие события всегда проверяют в первую очередь.
 
-## Справочная таблица
+## Шаг 5: эксфильтрация
 
-| Облако | Лог | Инструмент |
-|--------|-----|-----------|
-| AWS | CloudTrail | `aws s3`, `jq` |
-| Azure | Activity/Sign-in | `az`, Sentinel |
-| GCP | Audit Logs | `gcloud logging` |
-| Общий | SIEM | Splunk/Sentinel |
-
-## Частые ошибки
-
-- **Смотреть только события данных** — control plane важнее.
-- **Игнорировать `sourceIPAddress`** — атрибуция атакующего.
-- **Не проверять `AssumeRole`** — смена роли скрывает источник.
-- **Забывать про анти-форензику** (`StopLogging`) — сама она улика.
-- **Пропустить data-access логи** — их надо включать заранее.
-- **Не сохранять экспорт** — логи имеют retention.
-
-## Что дальше / решение
-
-Конвейер: экспорт (S3/az/gcloud) → `jq` (фильтры) → атрибуция (IP/ключ/ARN) → персистентность (IAM) → эксфильтрация (S3/snapshot). Связка: `forensics-cloud` (облако), `forensics-exfil` (утечка), `forensics-timeline` (хронология), `forensics-attack-mapping` (ATT&CK).
-
-## Сравнение облаков и общие IOC
-
-| Облако | Control plane | Sign-in | Data access |
-|--------|---------------|---------|-------------|
-| AWS | CloudTrail (management) | CloudTrail ConsoleLogin | CloudTrail (data events) |
-| Azure | Activity Log | AD Sign-in Logs | Storage diagnostics |
-| GCP | Admin Activity | — | Data Access Logs |
-
-Общие IOC облачных атак: вход из необычной страны, создание нового доступа (ключ/пользователь/приложение), изменение IAM-политик, доступ к секретам (`GetSecretValue`/`Key Vault`), отключение логирования, массовая выгрузка из хранилищ, создание снапшотов, новые ресурсы (инстансы/функции).
+Последний вопрос — что унесли. Данные в AWS лежат в **S3-бакетах** (облачное хранилище). Чтение объекта — `GetObject`, изменение политики бакета на публичную — `PutBucketPolicy`:
 
 ```bash
-# общий поиск по всем облачным логам (после экспорта в JSON)
-$ jq -r '.Records[]? | select(.eventName|test("CreateUser|CreateAccessKey|AttachUserPolicy|GetSecretValue|StopLogging")) | [.eventTime,.eventName,.userIdentity.arn] | @tsv' *.json
+$ gunzip -c trail.json.gz | jq -r '.Records[] | select(.eventName|test("GetObject|PutBucketPolicy")) | [.eventTime,.eventName,.requestParameters.bucketName] | @tsv' | head
+2025-10-06T14:30:02Z  PutBucketPolicy  corp-backups
+2025-10-06T14:31:15Z  GetObject        corp-backups
 ```
 
-## Сводный чек-лист
+Сначала бакет `corp-backups` сделали публичным, затем начали скачивать из него данные. Это **эксфильтрация** — вывод данных наружу.
 
-1. Экспортировать логи (CloudTrail/Activity/Audit).
-2. Найти вход (`ConsoleLogin`/Sign-in) с необычного IP.
-3. Проверить создание доступа (ключи/пользователи/приложения).
-4. Проверить повышение прав (политики/роли).
-5. Проверить доступ к секретам.
-6. Проверить анти-форензику (`StopLogging`/`DeleteTrail`).
-7. Проверить эксфильтрацию (бакеты/снапшоты).
-8. Зафиксировать IOC и цепочку.
+## Шаг 6: собираем таймлайн
 
-## Ограничения
-
-- **Data access логи** нужно включать заранее; по умолчанию их нет.
-- **Retention** ограничен — экспортируйте вовремя.
-- **AssumeRole** скрывает исходного пользователя (смотрите цепочку).
-- **Сторонние сервисы** (SaaS) могут не логировать в облако.
-- **Логи можно отключить** — тогда их отсутствие само улика.
-
-## Атрибуция по ключам и ролям
-
-Каждый API-вызов несёт `userIdentity`: `type` (IAMUser, AssumedRole, Root), `arn`, `accessKeyId`, `sessionContext`. По `accessKeyId` находят, какой ключ использовался; по `arn` — кто. При `AssumeRole` в `sessionContext` виден исходный пользователь.
+Отсортировав все подозрительные события по времени, получаем цельную картину:
 
 ```bash
-# типы identity
-$ jq -r '.Records[].userIdentity.type' trail.json | sort | uniq -c
-# ARN действующих лиц
-$ jq -r '.Records[].userIdentity.arn' trail.json | sort | uniq -c | sort -rn | head
-# цепочка AssumeRole
-$ jq -r '.Records[] | select(.eventName=="AssumeRole") | [.userIdentity.arn, .requestParameters.roleArn] | @tsv' trail.json
+$ gunzip -c trail.json.gz | jq -r '.Records[] | select(.eventName|test("ConsoleLogin|CreateAccessKey|AttachUserPolicy|StopLogging|PutBucketPolicy")) | [.eventTime,.eventName] | @tsv' | sort
+2025-10-06T14:20:11Z  ConsoleLogin
+2025-10-06T14:22:03Z  CreateAccessKey
+2025-10-06T14:24:40Z  AttachUserPolicy
+2025-10-06T14:26:11Z  StopLogging
+2025-10-06T14:30:02Z  PutBucketPolicy
 ```
 
-## Инструменты: сводка
+Цепочка: вход из необычного IP → создание ключа → повышение прав → попытка отключить логи → выгрузка данных. Такая последовательность — типовой сценарий компрометации облачного аккаунта.
 
-| Инструмент | Задача |
-|-----------|--------|
-| `aws s3 cp` | скачать CloudTrail |
-| `jq` | фильтрация JSON |
-| `az monitor` | Azure Activity |
-| `gcloud logging` | GCP Audit |
-| `pacu` | AWS-эксплуатация (для контекста) |
-| SIEM (Sentinel/Splunk) | корреляция |
+## Если логи выглядят пустыми
 
-## Практические приёмы
+Иногда цепочка обрывается. Три частые причины и что с ними делать:
 
-- **Экспортируйте логи сразу** — retention ограничен.
-- **`jq`-поток** для больших файлов.
-- **Стройте таймлайн** (плазо не парсит CloudTrail — используйте jq+sort).
-- **Сравнивайте baseline** — что «обычно» делает пользователь.
-- **Проверяйте region** — атаки часто из неожиданных регионов.
-- **Фиксируйте хеши** экспортированных логов.
+- **Data access логи не включены.** CloudTrail по умолчанию пишет только события управления (создание, изменение). Чтение объектов S3 (`GetObject`) попадает в **data events**, которые надо включать заранее — задним числом их не появятся.
+- **Retention истёк.** Логи хранятся ограниченное время; экспортировать их надо сразу, пока они есть.
+- **`AssumeRole` скрывает источник.** Если атакующий действовал через смену роли, в `userIdentity` будет роль, а не исходный пользователь. Но в поле `sessionContext` виден, кто эту роль «взял», — по нему и восстанавливают цепочку.
 
-## Отчёт по облачному инциденту
+И отдельно: **отсутствие записей — тоже улика**. Если `StopLogging` был выполнен, в логе просто зияет пропуск, и сам факт остановки фиксируется событием. В расследовании это первое, что проверяют.
 
-Укажите: время входа, действующее лицо (ARN/ключ), источник (IP/UA), созданные сущности (пользователи/ключи/роли), доступ к данным, анти-форензику, эксфильтрацию, IOC. Облачные инциденты быстро развиваются — раннее обнаружение критично.
+## Что мы теперь знаем
+
+- CloudTrail пишет каждый вызов API: `eventName`, `userIdentity`, `sourceIPAddress`, `eventTime`.
+- `ConsoleLogin` — вход; необычный IP даёт атрибуцию атакующего.
+- `CreateAccessKey`/`CreateUser` — персистентность (постоянный доступ).
+- `AttachUserPolicy`/`PutUserPolicy` — повышение прав.
+- `StopLogging`/`DeleteTrail` — анти-форензика (и сама по себе улика).
+- `GetObject`/`PutBucketPolicy` — эксфильтрация данных из S3.
+- В Azure аналоги — Activity/Sign-in Logs, в GCP — Audit Logs.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какой лог AWS фиксирует все API-вызовы control plane?"
@@ -211,6 +144,7 @@ $ jq -r '.Records[] | select(.eventName=="AssumeRole") | [.userIdentity.arn, .re
     - "S3 access log"
     - "CloudWatch metrics"
   answer: 1
+  explanation: "CloudTrail записывает каждый вызов API управления в JSON."
 - question: "Какое событие CloudTrail указывает на персистентность?"
   options:
     - "ConsoleLogin"
@@ -218,6 +152,7 @@ $ jq -r '.Records[] | select(.eventName=="AssumeRole") | [.userIdentity.arn, .re
     - "GetObject"
     - "DescribeInstances"
   answer: 1
+  explanation: "Создание ключа или пользователя даёт долговременный доступ."
 - question: "Что означает событие StopLogging/DeleteTrail?"
   options:
     - "нормальная работа"
@@ -225,6 +160,7 @@ $ jq -r '.Records[] | select(.eventName=="AssumeRole") | [.userIdentity.arn, .re
     - "эксфильтрация"
     - "вход в консоль"
   answer: 1
+  explanation: "Попытка остановить логирование скрывает следы; само событие — улика."
 - question: "Какой лог Azure фиксирует входы и MFA?"
   options:
     - "Activity Log"
@@ -232,6 +168,7 @@ $ jq -r '.Records[] | select(.eventName=="AssumeRole") | [.userIdentity.arn, .re
     - "VNet Flow"
     - "Storage log"
   answer: 1
+  explanation: "Azure AD (Entra ID) Sign-in Logs хранят входы, MFA и риск."
 - question: "Что в GCP указывает на эскалацию прав?"
   options:
     - "SetIamPolicy с roles/owner"
@@ -239,12 +176,17 @@ $ jq -r '.Records[] | select(.eventName=="AssumeRole") | [.userIdentity.arn, .re
     - "compute.instances.get"
     - "logging.read"
   answer: 0
+  explanation: "Назначение роли owner через SetIamPolicy — повышение прав."
 ```
+
+## Куда дальше
+
+Мы восстановили облачный инцидент по логам. В следующем уроке (`forensics-chain-custody`) мы займёмся тем, что делает расследование юридически значимым — цепочкой хранения улик. А пока главное запомни: **в облаке вместо диска — аудит-логи API, и цепочка «вход → создание ключа → повышение прав → StopLogging → выгрузка» восстанавливается фильтрами `jq` по CloudTrail**.
 
 ## Где пригодится
 
 - **CTF:** задачи с облачными аудит-логами.
-- **Cloud DFIR:** расследование компрометации аккаунта/клауда.
+- **Cloud DFIR:** расследование компрометации аккаунта.
 - **Threat Hunting:** охота на создание ключей, эскалацию, эксфильтрацию.
-- **SOC:** правила на CloudTrail/Entra ID события.
+- **SOC:** правила на события CloudTrail/Entra ID.
 - **Судебная экспертиза:** атрибуция действий в облаке.

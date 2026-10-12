@@ -14,290 +14,217 @@ useful_for:
 estimated_minutes: 55
 summary: "Извлечение и анализ прошивок: binwalk, файловые системы, u-boot, эмуляция, поиск секретов."
 ---
-**Реверс прошивок (firmware)** — это анализ встроенного ПО роутеров, IP-камер, IoT-устройств, NAS и другой embedded-техники. Прошивка — это образ флеш-памяти, содержащий загрузчик, ядро, корневую ФС и приложения. Задачи: найти веб-интерфейс и его уязвимости, извлечь секреты (ключи, пароли), понять логику протоколов, обнаружить бэкдоры. Урок даёт полный практический workflow: от получения образа до распаковки, определения архитектуры, эмуляции и анализа с разобранными примерами.
 
-## Что такое прошивка и зачем её реверсить
+## Задача
 
-Прошивка обычно содержит:
+Тебе дали файл `firmware.bin` — образ прошивки роутера или IoT-устройства. Нужно найти
+внутри секреты (пароли, токены), понять, какие сервисы там крутятся, и где могут быть
+уязвимости. Проблема: это **не один** файл, а конкатенация загрузчика, ядра, файловой
+системы и конфигов. Прежде чем что-то анализировать, образ надо **разобрать на части**.
 
-- **Bootloader** (U-Boot, CFE) и **ядро** (Linux, RTOS).
-- **Корневую ФС** — BusyBox, веб-сервер (lighttpd/boa/goahead), CGI-скрипты.
-- **Приложения** — проприетарные бинарники, реализующие функции устройства.
-- **Конфиги и ключи** — сертификаты, пароли, API-токены.
-
-Цели реверса: аудит безопасности (CVE в веб-интерфейсе), извлечение секретов, поиск бэкдоров, подготовка эксплойта, понимание протокола.
-
-## Получение прошивки
-
-- **OTA-обновление.** Скачать с сайта вендора (часто `.bin`/`.img`/`.trx`); проверить подпись/шифрование.
-- **Дамп флеша.** Выпаять SPI-флеш и снять через `flashrom`, либо через UART/JTAG.
-- **UART-консоль.** Часто даёт shell/uboot с доступом к памяти (`md`/`dump`).
-- **Из сети.** Некоторые устройства отдают образ по TFTP/HTTP.
-- **Vendor CDN.** Поиск по `sha256`/модели на сайтах обновлений.
+## Данные: что это за файл
 
 ```bash
-# определение типа образа
-file firmware.bin
-binwalk firmware.bin
-# поиск строк о версии/модели
-strings -a firmware.bin | grep -iE 'version|model|build|openwrt|linux'
+$ file firmware.bin
+firmware.bin: data
+$ ls -la firmware.bin
+-rw-r--r-- 1 ... 4160 ... firmware.bin
 ```
 
-## binwalk: распаковка
-
-`binwalk` — основной инструмент. Сигнатуры: squashfs, cramfs, jffs2, ubifs, gzip, lzma, uImage.
+`file` говорит «data» — формат не распознан. Это типично: прошивка — сырой образ
+флеш-памяти. Смотрим на байты:
 
 ```bash
-# сканирование
-binwalk firmware.bin
-# рекурсивное извлечение
-binwalk -e firmware.bin
-# принудительно по сигнатурам + Matryoshka (рекурсия)
-binwalk -Me firmware.bin
-# извлечь конкретный тип
-binwalk -D 'squashfs:raw:0' firmware.bin
+$ xxd firmware.bin | head -4
+00000000: 3f0a 8e1c ... (случайные байты заголовка)
+00000040: 6873 7173 ... 
 ```
 
-Ключевые флаги:
+На смещении `0x40` видно `hsqs` — это **сигнатура SquashFS**, популярной сжатой файловой
+системы embedded-устройств (байты `hsqs` = «sqsh» наоборот). Значит, начиная с этого места
+лежит ФС, а первые 64 байта — заголовок (часто u-boot/uImage).
 
-| Флаг | Смысл |
-|---|---|
-| `-e` | извлечь известные типы |
-| `-M` | Matryoshka (рекурсивно) |
-| `-D <type:ext:cmd>` | извлечь конкретный тип |
-| `-A` | только «опознать», без ложных срабатываний |
-| `-E` | энтропийный анализ (найти сжатие/шифр) |
-| `--run-as=root` | извлечь с сохранением прав |
+## Шаг 1: находим и вырезаем разделы
 
-## Файловые системы embedded
-
-| ФС | Признак | Инструмент распаковки |
-|---|---|---|
-| SquashFS | `hsqs`/`sqsh` | `unsquashfs` |
-| CramFS | `0x28cd3d45` | `cramfsck -x` |
-| JFFS2 | `0x1985` (big/little endian) | `jefferson` |
-| UBIFS | UBI-заголовок | `ubireader_extract_images` |
-| ext2/3/4 | `0x53ef` | `mount -o loop` |
-| initramfs/cpio | `070701` | `cpio -idmv` |
+Штатный инструмент для этого — **`binwalk`**: он сканирует образ по сигнатурам и извлекает
+найденные компоненты (`binwalk -Me firmware.bin` — рекурсивно). Но полезно уметь сделать то
+же вручную, когда сигнатуры нестандартные. Найдём смещение магии:
 
 ```bash
-unsquashfs -d rootfs squashfs-root.squashfs
-ubireader_extract_images firmware.ubi
-jefferson -d out jffs2.img
-# cpio (initramfs), часто gzip сжат
-zcat initramfs.cpio.gz | cpio -idmv
+$ grep -abo 'hsqs' firmware.bin
+64:hsqs
 ```
 
-## Определение архитектуры
-
-Embedded — это часто MIPS, ARM, ARM64, PowerPC, а не x86.
+`grep -abo` печатает смещение (64) совпадения. Вырезаем ФС с этого смещения:
 
 ```bash
-file rootfs/usr/sbin/httpd
-# ELF 32-bit LSB executable, MIPS, MIPS32, dynamically linked
-readelf -h rootfs/usr/sbin/httpd | grep -E 'Machine|Class|Endian'
+$ dd if=firmware.bin of=fw_sqfs.img bs=1 skip=64
+4096+0 records in
+4096+0 records out
 ```
 
-Типовые архитектуры: `MIPS` (big/little endian), `ARM` (EABI, hard-float), `AArch64`, `PowerPC`. От этого зависит эмуляция и декомпиляция.
-
-## Эмуляция: QEMU и firmadyne
-
-Запустить прошивку целиком или отдельный бинарник.
+## Шаг 2: распаковываем SquashFS
 
 ```bash
-# QEMU user-mode: запустить один бинарник
-qemu-mips -L rootfs rootfs/usr/sbin/httpd
-# QEMU system-mode: запустить ядро+ФС
-qemu-system-mips -M malta -kernel vmlinux -hda rootfs.ext2 -nographic
-# firmadyne: автоматизация (распаковка+эмуляция)
-sudo ./sources/extractor/extractor.py -b brand -sql db -np -nk firmware.bin images
-./scripts/run.sh
+$ unsquashfs -d fw_extract fw_sqfs.img
+Parallel unsquashfs: Using 8 processors
+6 inodes (1.05K blocks) to write
+created 6 files
+$ find fw_extract -type f
+fw_extract/etc/config.ini
+fw_extract/etc/passwd
+fw_extract/usr/bin/gatekeeper
 ```
 
-`firmadyne`/`FirmAE` автоматизируют: распаковка → определение NVRAM → запуск под QEMU → доступ к веб-интерфейсу. Для анализа веб-уязвимостей это экономит часы.
+Файловая система распакована. Для других ФС инструменты свои: CramFS — `cramfsck -x`,
+JFFS2 — `jefferson`, UBI/UBIFS — `ubireader_extract_images`, initramfs (cpio+gzip) —
+`zcat initramfs.cpio.gz | cpio -idmv`.
 
-## Анализ бинарников и веб-интерфейса
+## Шаг 3: ищем секреты
+
+Вот почему важно распаковать ФС: SquashFS **сжат**, поэтому `strings` по сырому образу
+почти ничего не даёт.
 
 ```bash
-# найти веб-сервер и CGI
-find rootfs -name '*httpd*' -o -name '*.cgi' -o -name 'lighttpd*'
-# посмотреть конфиг и точки входа
-cat rootfs/etc/lighttpd.conf 2>/dev/null
-cat rootfs/etc/init.d/rcS 2>/dev/null
-# секреты и ключи
-grep -rniE 'password|passwd|secret|token|api_key' rootfs/etc rootfs/www 2>/dev/null
-find rootfs -name '*.pem' -o -name '*.key' -o -name 'shadow' -o -name 'passwd'
+$ strings -a firmware.bin | grep -iE 'token|passwd|flag'
+(пусто)
 ```
 
-Особое внимание: **CGI-скрипты** (shell/C), которые вызывают `system()`/`popen()` с пользовательским вводом — классический command injection в IoT.
-
-## Поиск секретов и бэкдоров
-
-- **Хардкод паролей**: `admin:admin`, строки в бинарниках.
-- **Приватные ключи** SSH/TLS.
-- **Бэкдор-аккаунты**: нестандартные записи в `passwd`/`shadow`.
-- **Скрытые вызовы**: `system`, `popen`, `execve` с фиксированными строками.
-- **Отладочные интерфейсы**: telnet/ssh с фиксированным паролем.
+А внутри извлечённой ФС секреты лежат открыто:
 
 ```bash
-strings -a rootfs/usr/sbin/* | grep -iE 'telnet|backdoor|debug|root:'
-grep -rniE 'system\(|popen\(' rootfs/www/cgi-bin/
+$ grep -rniE 'password|secret|token|api_key' fw_extract
+fw_extract/etc/config.ini:1:BACKDOOR_TOKEN=sup3rs3cr3t_flag{fw_1}
+$ cat fw_extract/etc/passwd
+root:x:0:0:root:/root:/bin/sh
+admin:$1$S4lt$deadbeefdeadbeefdeadbeef:1000:1000::/home/admin:/bin/sh
 ```
 
-## Разобранный пример: от образа до command injection
+Два вывода: **бэкдор-токен** в `config.ini` и учётка `admin` с хешем пароля в `passwd`.
+Типичные находки: хардкод-пароли (`admin:admin`), приватные ключи, лишние аккаунты.
 
-**Шаг 1. Распаковать.**
+## Шаг 4: определяем архитектуру и анализируем бинарники
+
+Embedded — это часто MIPS/ARM, а не x86. Смотрим целевой бинарник:
 
 ```bash
-binwalk -Me firmware.bin
-ls _firmware.bin.extracted/
+$ file fw_extract/usr/bin/gatekeeper
+...: ELF 64-bit LSB executable, x86-64, ... not stripped
 ```
 
-**Шаг 2. Определить arch и найти веб-сервер.**
+Здесь x86-64 (в реальных роутерах ты увидишь `MIPS`, `ARM`, `AArch64`). Архитектура важна:
+она определяет, как эмулировать и как декомпилировать. Дальше — обычный статический анализ
+(строки, дизассемблер), плюс поиск веб-сервера и CGI:
 
 ```bash
-file _firmware.bin.extracted/squashfs-root/usr/sbin/httpd
-# ELF 32-bit LSB, MIPS, MIPS32
+$ find fw_extract -name '*httpd*' -o -name '*.cgi' -o -name 'lighttpd*'
+$ grep -rn 'system(' fw_extract/www 2>/dev/null
 ```
 
-**Шаг 3. Найти CGI и уязвимость.**
+**CGI-скрипты** — главный источник command injection в IoT: они часто вызывают
+`system()`/`popen()` с пользовательским вводом без фильтрации.
+
+## Шаг 5: эмуляция и динамика
+
+Чтобы проверить уязвимость живьём, прошивку (или отдельный бинарник) запускают под QEMU:
 
 ```bash
-grep -rn 'system(' _firmware.bin.extracted/squashfs-root/www/
-# www/cgi-bin/diag.cgi: system("ping " + user_input);
+# один бинарник: qemu-user с указанием sysroot
+$ qemu-mips -L fw_extract fw_extract/usr/sbin/httpd
+# ядро + ФС целиком: qemu-system
+$ qemu-system-mips -M malta -kernel vmlinux -hda rootfs.ext2 -nographic
 ```
 
-**Шаг 4. Эмуляция и проверка.**
+Обрати внимание на endianness: `qemu-mips` — big-endian, `qemu-mipel` — little-endian; ошибка
+здесь — самая частая причина «не запускается». Для отладки QEMU отдаёт **GDB stub**:
 
 ```bash
-qemu-mips -L squashfs-root squashfs-root/usr/sbin/httpd &
-curl 'http://127.0.0.1/cgi-bin/diag.cgi?host=127.0.0.1;id'
+$ qemu-mips -g 1234 -L fw_extract fw_extract/usr/sbin/httpd
+$ gdb-multiarch fw_extract/usr/sbin/httpd -ex 'target remote :1234'
+(gdb) b *0x400abc
+(gdb) c
 ```
 
-**Шаг 5. Вывод.** Параметр `host` не фильтруется → RCE на устройстве.
+Так ставят точки останова в прошивочном коде без физического устройства.
 
-## Инструменты (таблица)
+## Инструменты
 
 | Инструмент | Назначение | Пример |
 |---|---|---|
-| `binwalk` | распаковка/сканирование | `binwalk -Me fw.bin` |
+| `binwalk` | сканирование/извлечение по сигнатурам | `binwalk -Me fw.bin` |
 | `unsquashfs` | SquashFS | `unsquashfs -d rootfs fs.sqsh` |
 | `jefferson` | JFFS2 | `jefferson -d out img` |
 | `ubireader_extract_images` | UBI/UBIFS | `ubireader_extract_images ubi` |
-| `firmadyne`/`FirmAE` | авто-эмуляция | `./run.sh` |
-| `qemu-*` | user/system эмуляция | `qemu-mips -L rootfs bin` |
-| `flashrom` | дамп флеша | `flashrom -r dump.bin` |
+| `qemu-*` | user/system-эмуляция | `qemu-mips -L rootfs bin` |
+| `firmadyne`/`FirmAE` | авто-распаковка+эмуляция | `./run.sh` |
 
-## Частые ошибки и подводные камни
+`firmadyne`/`FirmAE` автоматизируют весь конвейер: распаковка → определение NVRAM → запуск
+под QEMU → доступ к веб-интерфейсу. Это экономит часы при анализе веб-уязвимостей.
 
-- **Шифрование/подпись образа.** Часть прошивок шифрована — нужен ключ или дамп с устройства.
-- **Не та архитектура QEMU.** MIPS big-endian vs little-endian — частая путаница; смотрите `readelf`.
-- **Пропуск initramfs.** Корневая ФС может быть внутри `initramfs.cpio.gz`, а не в squashfs.
-- **Отсутствие NVRAM.** firmadyne-эмуляция падает без корректного NVRAM — заполняйте вручную.
-- **Игнорирование CGI.** Именно shell-CGI чаще всего содержат RCE.
-- **Только финальная ФС.** В `-Me` Matryoshka вложенные образы распаковываются рекурсивно — не пропустите их.
+## Разделы MTD и зашифрованные образы
 
-## Что дальше / решение
-
-Маршрут: **получить образ → binwalk -Me → определить arch → распаковать ФС → найти веб/CGI и секреты → эмуляция (QEMU/firmadyne) → анализ уязвимостей**. Для CTF — ищите флаг в секретах/бэкдорах; для аудита — CGI/веб-интерфейс. Дальше — `reversing-firmware-emulation` (глубокая эмуляция), `reversing-embedded-rtos` (RTOS) и `reversing-hardware-debug` (UART/JTAG/SWD).
-
-## UART/JTAG: доступ к консоли устройства
-
-Физический доступ часто даёт shell, что радикально упрощает анализ.
+Большинство прошивок — это конкатенация разделов с таблицей **MTD** (Memory Technology
+Device). Раскладку часто можно увидеть прямо в строках ядра/загрузчика:
 
 ```bash
-# найти UART-пины (TX/RX/GND), подключить USB-UART
-picocom -b 115200 /dev/ttyUSB0
-# или screen
-screen /dev/ttyUSB0 115200
-```
-
-Если видите U-Boot — можно дампить флеш прямо из памяти:
-
-```
-# в U-Boot
-md.b 0x80000000 0x100000      # дамп 1MB из RAM
-# или через tftp загрузку образа
-```
-
-JTAG/SWD даёт доступ к отладке CPU: с `openocd` можно читать/писать память, ставить точки останова в прошивке, снять дамп флеша при включённой защите. Это уровень `reversing-hardware-debug`.
-
-## Расшифровка зашифрованных прошивок
-
-Часть вендоров шифрует OTA-образы. Признаки: высокая энтропия (`binwalk -E`), отсутствие сигнатур.
-
-- **Ключ в загрузчике.** Иногда ключ расшифровки лежит в U-Boot/CFE открытым.
-- **Общий ключ у семейства.** Ключ повторяется между моделями — ищите по другим прошивкам.
-- **Дамп с устройства.** Дамп флеша уже расшифрован (расшифровка на лету) — самый надёжный путь.
-- **Анализ процедуры загрузки.** Точка расшифровки в bootloader подскажет алгоритм/ключ.
-
-## Практика: анализ NVRAM и конфигов
-
-NVRAM хранит настройки устройства (пароли Wi-Fi, учётки, ключи). В эмуляции её нужно воссоздать.
-
-```bash
-# найти NVRAM-разделы
-binwalk firmware.bin | grep -i nvram
-# часто это отдельный раздел с парами key=value
-strings -a firmware.bin | grep -E '^[a-z_]+=' | head
-# конфиги в ФС
-find rootfs -name '*.conf' -o -name '*.cfg' | xargs grep -liE 'passwd|key'
-```
-
-Для firmadyne создаётся файл NVRAM (`libnvram`-совместимый), иначе веб-сервер падает.
-
-## Ключевые выводы по реверсу прошивок
-
-Итог: **binwalk -Me** — точка входа; далее определяйте архитектуру (`readelf`) и распаковывайте ФС (`unsquashfs`/`ubireader`). Ищите секреты и CGI с `system()`. Эмуляция (QEMU/firmadyne) позволяет проверить уязвимость живьём. UART/JTAG — когда образ зашифрован или нужен рантайм. Дальше — `reversing-firmware-emulation` и `reversing-hardware-debug`.
-
-## Разделение образа на разделы и таблица MTD
-
-Большинство прошивок — это конкатенация разделов с таблицей MTD (Memory Technology Device). Понимание раскладки помогает извлечь каждый компонент.
-
-```bash
-# сигнатура таблицы разделов встречается в строках ядра/bootloader
-strings -a firmware.bin | grep -iE 'mtd|partition|kernel|rootfs|nvram'
-# пример раскладки:
+$ strings -a firmware.bin | grep -iE 'mtd|partition|kernel|rootfs|nvram'
+# типичная раскладка:
 # 0x000000 bootloader
 # 0x040000 kernel
 # 0x200000 rootfs (squashfs)
 # 0x700000 nvram
 ```
 
-Извлечь конкретный раздел можно `dd` по смещению:
+Тогда раздел вырезается по смещению через `dd` (`dd if=fw.bin of=rootfs.sqsh bs=1 skip=$((0x200000))`).
+Это спасает, когда `binwalk` даёт «мусор» из-за нестандартных заголовков.
+
+Если образ **зашифрован** (высокая энтропия, нет сигнатур), вариантов несколько: ключ
+расшифровки иногда лежит в загрузчике (U-Boot/CFE) открытым текстом; у семейства устройств
+ключ может повторяться между моделями; а самый надёжный путь — снять дамп с живого
+устройства (расшифровка идёт на лету, дамп уже «чистый»).
+
+## UART/JTAG: доступ к устройству
+
+Когда образ зашифрован или нужен рантайм, помогает физический доступ. UART-консоль часто
+даёт shell прямо на устройстве:
 
 ```bash
-dd if=firmware.bin of=rootfs.sqsh bs=1 skip=$((0x200000)) count=$((0x500000))
-unsquashfs -d rootfs rootfs.sqsh
+$ picocom -b 115200 /dev/ttyUSB0
 ```
 
-Это особенно полезно, когда `binwalk -Me` даёт «мусор» из-за нестандартных заголовков — вы режете по известным смещениям вручную.
+Если видишь U-Boot — можно дампить флеш из памяти (`md.b 0x80000000 0x100000`). JTAG/SWD даёт
+доступ к отладке CPU через `openocd`: чтение/запись памяти и точки останова в прошивке даже
+при включённой защите. Это уже уровень `reversing-hardware-debug`.
 
-## Динамическая отладка embedded через GDB stub
+## Если не сработало
 
-QEMU умеет отдавать GDB stub, что позволяет отлаживать прошивочный бинарник почти как обычный ELF.
+- **`file` не распознаёт образ / `binwalk` даёт мусор** — режьте по известным смещениям
+  вручную (`dd` + `grep -abo`), как мы и сделали.
+- **ФС не распаковывается** — возможно, корневая ФС внутри `initramfs.cpio.gz`, а не в squashfs.
+- **Бинарник не запускается под QEMU** — проверь `readelf -h`: не тот endianness или нужен `-L sysroot`.
+- **Образ зашифрован** — высокая энтропия (`binwalk -E`), нет сигнатур. Тогда ключ ищут в
+  загрузчике (U-Boot/CFE) или снимают дамп с устройства (UART/JTAG) — он уже расшифрован.
 
-```bash
-# запустить бинарник с GDB stub на порту 1234
-qemu-mips -g 1234 -L rootfs rootfs/usr/sbin/httpd
-# подключиться мультиархитектурным gdb
-gdb-multiarch rootfs/usr/sbin/httpd -ex 'target remote :1234'
-(gdb) b *0x400abc
-(gdb) c
-```
+## Что мы теперь знаем
 
-Для system-mode — `-s -S` у `qemu-system-*`. Это даёт точки останова, стек, память — то, что нужно для разбора уязвимого CGI в рантайме, без физического устройства.
+- Прошивка — конкатенация разделов; ФС ищут по сигнатуре (`hsqs` для SquashFS) и вырезают по смещению.
+- SquashFS сжат — `strings` по сырому образу бесполезен, нужна распаковка (`unsquashfs`).
+- Секреты (токены, пароли, ключи) обычно лежат в `/etc` извлечённой ФС.
+- Архитектура embedded (MIPS/ARM) определяет эмуляцию; `qemu-*` + GDB stub дают динамический анализ.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какая сигнатура соответствует squashfs?"
+- question: "Какая сигнатура соответствует SquashFS?"
   options:
-    - "`\x1f\x8b`"
+    - "`\\x1f\\x8b`"
     - "`hsqs`"
     - "`UBI#`"
     - "`cramfs`"
   answer: 1
+  explanation: "SquashFS начинается с магии `hsqs`."
 - question: "Что делает `binwalk -Me firmware.bin`?"
   options:
     - "Рекурсивно извлекает все распознанные слои"
@@ -305,33 +232,45 @@ gdb-multiarch rootfs/usr/sbin/httpd -ex 'target remote :1234'
     - "Прошивает устройство"
     - "Эмулирует образ"
   answer: 0
-- question: "Почему для MIPS BE нужен именно `qemu-mips`, а не `qemu-mipsel`?"
+  explanation: "`-M` (Matryoshka) — рекурсия, `-e` — извлечение."
+- question: "Почему `strings` по сырому образу почти ничего не нашёл?"
   options:
-    - "Endianness различается: `mips` — big-endian, `mipsel` — little-endian"
+    - "В образе нет строк"
+    - "Файловая система (SquashFS) сжата — содержимое нужно сначала распаковать"
+    - "`strings` не поддерживает firmware"
+    - "Строки зашифрованы паролем"
+  answer: 1
+  explanation: "Сжатие прячет содержимое; секреты видны только после `unsquashfs`."
+- question: "Где чаще всего лежат hardcoded-пароли в прошивке?"
+  options:
+    - "В ядре Linux"
+    - "В `/etc/shadow`, `/etc/passwd`, конфигах и бинарниках веб-приложения"
+    - "В заголовке SquashFS"
+    - "В загрузчике u-boot всегда"
+  answer: 1
+  explanation: "Учётные записи и токены — в конфигах/`passwd` извлечённой ФС."
+- question: "Чем `qemu-mips` отличается от `qemu-mipsel`?"
+  options:
+    - "Endianness: `mips` — big-endian, `mipsel` — little-endian"
     - "`qemu-mipsel` устарел"
     - "`qemu-mips` быстрее"
     - "Разницы нет"
   answer: 0
-- question: "Где чаще всего лежат hardcoded-пароли в прошивке?"
-  options:
-    - "В ядре Linux"
-    - "В `/etc/shadow`, конфигах и бинарниках веб-приложения"
-    - "В загрузчике u-boot всегда"
-    - "В squashfs-заголовке"
-  answer: 1
-- question: "Что нужно указать `qemu-user` для запуска бинарника из rootfs?"
-  options:
-    - "`-cpu`"
-    - "`-L rootfs/` (sysroot)"
-    - "`-kernel`"
-    - "`-net`"
-  answer: 1
+  explanation: "Буква `el` = little-endian; перепутать — типичная ошибка."
 ```
+
+## Куда дальше
+
+Мы разобрали прошивку и нашли секреты. Но что делать, если внутри образа лежит **не обычный
+бинарник**, а зашифрованный blob или загрузчик, который что-то расшифровывает в памяти?
+Следующий шаг — динамический анализ: эмуляция и отладка прошивочного кода. Об этом — в уроке
+про эмуляцию firmware. А пока главное запомни: **прошивка — это разделы; сначала вырежи ФС,
+потом ищи внутри.**
 
 ## Где пригодится
 
-- **CTF Reversing/IoT:** задачи с образами прошивок, извлечение флага из ФС или бинарника.
+- **CTF Reversing/IoT:** задачи с образами прошивок, флаг в ФС или бинарнике.
 - **Пентест IoT:** анализ роутеров/камер/NAS, поиск бэкдоров и command injection.
 - **Malware analysis:** разбор IoT-ботнетов, встроенных в прошивки.
 - **Работа (embedded security):** аудит firmware, supply chain, поиск уязвимых библиотек.
-- **Собес:** вопросы про squashfs, binwalk, u-boot — типичны для embedded/security-позиций.
+- **Собес:** вопросы про squashfs, binwalk, u-boot — типичны для embedded-позиций.

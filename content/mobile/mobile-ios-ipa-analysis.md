@@ -14,287 +14,216 @@ estimated_minutes: 45
 summary: "Структура IPA и Mach-O, работа с otool/nm/class-dump/codesign, entitlements, fat-бинарники, встроенные фреймворки и извлечение секретов из iOS-приложения."
 ---
 
-## Что такое IPA и как он устроен
+## Вопрос, с которого всё начинается
 
-IPA (iOS App Store Package) — это zip-архив, внутри которого лежит каталог `Payload/<AppName>.app/`. В нём находится скомпилированный бинарник (Mach-O), ресурсы, `Info.plist`, `embedded.mobileprovision`, а также встроенные фреймворки и динамические библиотеки. В отличие от Android, где код — байткод DEX, здесь код — машинный (ARM64), а значит, для анализа нужен дизассемблер, а не декомпилятор.
+Ты получил IPA, но при запуске `strings` по бинарнику — почти ничего. `class-dump` выдаёт пустые интерфейсы. Значит, приложение из App Store **зашифровано**. Как получить «рабочий» бинарник для анализа и, если нужно, собрать из него модифицированную сборку обратно?
+
+## Наш пример: DemoApp.ipa
+
+Наш объект — `DemoApp.ipa`. Начнём с распаковки и проверки состояния бинарника. IPA — это ZIP:
 
 ```
-Payload/MyApp.app/
-├── MyApp                      # Mach-O бинарник
-├── Info.plist                 # метаданные, URL-схемы, разрешения
-├── embedded.mobileprovision   # provisioning profile
-├── Frameworks/
-│   ├── Alamofire.framework/
-│   └── MySDK.framework/
-├── Assets.car                 # сжатые ресурсы
-└── en.lproj/                  # локализации
+$ unzip -q DemoApp.ipa -d ipa_extracted
+$ ls ipa_extracted/Payload/DemoApp.app/
+DemoApp  DemoApp.dylib  Info.plist  _CodeSignature  embedded.mobileprovision
 ```
 
-IPA можно получить из App Store (`Apple Configurator` + дамп), из тестовой сборки (TestFlight/Ad-Hoc) или из файловой системы джейлбрейкнутого устройства. Для анализа он не требует джейлбрейка — статика полностью возможна на компьютере.
+Кроме кода, в бандле есть `_CodeSignature` (подпись) и `embedded.mobileprovision` (профиль распространения). Последний — важный артефакт: в нём записано, на каких устройствах приложение имеет право запускаться.
 
-## Распаковка и первичный осмотр
+## Шаг 1: определяем шифрование
 
-```bash
-unzip -o MyApp.ipa -d /tmp/ipa
-cd /tmp/ipa/Payload/MyApp.app
-file MyApp
-# MyApp: Mach-O 64-bit executable arm64
+Смотрим load-команду шифрования в главном бинарнике:
+
+```
+$ python3 macho_lc.py ipa_extracted/Payload/DemoApp.app/DemoApp | grep -i encryption
+  LC_ENCRYPTION_INFO_64
 ```
 
-`file` сразу показывает, тонкий это бинарник (одна архитектура) или fat (несколько). Fat-бинарник содержит слайсы для armv7/arm64/x86_64 (последний — для симулятора). Разделить слайсы:
+Наш `DemoApp` — локальная сборка, поэтому `cryptid=0` и код читается сразу. Если бы приложение было из App Store, `cryptid` был бы `1`, а сегмент `__TEXT` — зашифрован. Проверить точнее можно так:
 
-```bash
-lipo -info MyApp
-# Architectures in the fat file: MyApp are: armv7 arm64
-lipo -thin arm64 MyApp -output MyApp_arm64
+```
+$ python3 macho_lc.py ipa_extracted/Payload/DemoApp.app/DemoApp
+Mach-O 64-bit  cputype=16777228  filetype=2  ncmds=16
 ```
 
-Для анализа берите arm64: это актуальная архитектура реальных устройств. x86_64-слайс полезен, если хотите запустить приложение в симуляторе.
+`filetype=2` — исполняемый файл (`MH_EXECUTE`), `filetype=6` — динамическая библиотека (`MH_DYLIB`). Наш `DemoApp.dylib` — как раз `6`.
 
-## Mach-O: заголовок, сегменты, секции
+## Шаг 2: дешифровка через frida-ios-dump
 
-```bash
-otool -h MyApp           # заголовок Mach-O
-otool -l MyApp           # все load commands (сегменты, dylib, rpath)
-otool -L MyApp           # слинкованные библиотеки
-otool -hv MyApp          # заголовок + флаги
+Зашифрованный бинарник нужно расшифровать прямо на устройстве. Для этого запускают приложение, и Frida выгружает из памяти уже расшифрованные сегменты:
+
+```
+$ git clone https://github.com/AloneMonkey/frida-ios-dump
+$ python3 frida-ios-dump/dump.py com.demo.secapp
 ```
 
-Ключевые load commands:
-- **`LC_SEGMENT_64`** — сегменты `__TEXT` (код, read-only), `__DATA` (данные), `__LINKEDIT` (символы, подписи).
-- **`LC_LOAD_DYLIB`** — какие библиотеки грузятся при старте.
-- **`LC_RPATH`** — пути поиска dylib.
-- **`LC_CODE_SIGNATURE`** — подпись.
-- **`LC_ENCRYPTION_INFO`** — флаг шифрования App Store (cryptid).
+Утилита запускает приложение, находит зашифрованный сегмент, снимает его из памяти (там он уже расшифрован процессором) и собирает новый IPA. Аналоги — `bagbak`, `Clutch`. После дешифровки `cryptid=0`, и можно работать с кодом.
 
-Флаг шифрования критичен: если `cryptid = 1`, код зашифрован, и дизассемблирование даст мусор. Расшифровка возможна только на устройстве (дамп из памяти) — этим занимаются инструменты вроде `frida-ios-dump` или `Clutch`.
+## Шаг 3: что извлекаем из IPA
 
-```bash
-otool -l MyApp | grep -A4 LC_ENCRYPTION_INFO
-# cryptoff 16384
-# cryptsize 8192
-# cryptid 1        <- зашифрован
+После распаковки (и, если нужно, дешифровки) доступны все слои бандла:
+
+```
+$ file ipa_extracted/Payload/DemoApp.app/DemoApp
+DemoApp: Mach-O 64-bit arm64 executable, flags:<NOUNDEFS|DYLDLINK|TWOLEVEL|PIE>
+$ strings -a ipa_extracted/Payload/DemoApp.app/DemoApp | grep -iE 'api|secret'
+s3cr3t
+https://api.demo.example/v2
 ```
 
-## Символы и классы
+Мы видим секрет и URL. Дальше — `class-dump` для карты классов, `plutil`/plistlib для `Info.plist`, `codesign -d --entitlements` для прав. Это стандартный конвейер статики (см. `mobile-ios-static`).
 
-```bash
-nm -a MyApp | head            # все символы
-nm -u MyApp                   # неопределённые (импорты)
-strings -a MyApp | grep -i "http\|api\|key\|token" | head
+## Шаг 4: профиль распространения
+
+`embedded.mobileprovision` — это CMS-подпись, внутри которой лежит plist с entitlements и списком устройств. Посмотреть его содержимое:
+
+```
+$ security cms -D -i embedded.mobileprovision > provision.plist   # на macOS
 ```
 
-Для Objective-C приложений мощный инструмент — `class-dump` (или `dsc_extractor`/`class-dump-z`): он восстанавливает объявления классов и методов из рантайм-метаданных:
+На Linux можно разобрать по маркерам `<?xml ... </plist>` внутри файла. Внутри — `Entitlements`, `ProvisionedDevices` (UDID), `ExpirationDate`. Если приложение — корпоративная (enterprise) сборка, её можно ставить без App Store, но только на устройства из списка.
 
-```bash
-class-dump -H MyApp -o /tmp/headers
-ls /tmp/headers | head
-# MyApp.h  AppDelegate.h  NetworkClient.h ...
+## Шаг 5: переподпись IPA
+
+Иногда нужно изменить IPA и поставить его снова: добавить инструмент, пропатчить проверку, встроить Frida. Любое изменение ломает подпись, поэтому IPA **переподписывают** своим сертификатом:
+
+```
+$ codesign -f -s "Apple Development: You (TEAMID)" --entitlements ent.plist \
+    ipa_extracted/Payload/DemoApp.app
+$ zip -qr DemoApp-resigned.ipa Payload
 ```
 
-Заголовки показывают методы классов, что даёт карту приложения. Для Swift `class-dump` бесполезен (другая ABI) — там помогают `swift-demangle` и Ghidra с плагинами.
+`codesign -f` принудительно переподписывает, `--entitlements` задаёт права. Установить переподписанную сборку можно через `ios-deploy`, Xcode или AltStore. Важно: переподпись меняет идентичность приложения, поэтому сервер может отличить сборку (по аттестации).
 
-## Info.plist и entitlements
+## Шаг 6: что можно и что нельзя менять
 
-```bash
-plutil -convert xml1 -o - Info.plist | less
-# или
-python3 -c "import plistlib;print(plistlib.load(open('Info.plist','rb')))"
+Переподпись ограничена:
+
+- **Нельзя** поставить приложение на устройство, если UDID не в профиле (для development/ad-hoc).
+- **Нельзя** выдать entitlements, которых нет в твоём сертификате (например, `keychain-access-groups` другого разработчика).
+- **Можно** менять код, ресурсы, `Info.plist` — в пределах подписи.
+
+Отсюда практический вывод: переподписанная сборка запускается как «другой разработчик», и её Keychain/App Groups отличаются от оригинала.
+
+## Шаг 7: автоматизация
+
+Ручной цикл «распаковать → поправить → переподписать → установить» долгий. Его автоматизирует `objection patchipa`:
+
+```
+$ objection patchipa --source DemoApp.ipa --codesign-signature "Apple Development: You"
 ```
 
-В `Info.plist` ищите:
-- `CFBundleURLTypes` — custom URL-схемы (вход для deep links).
-- `UIBackgroundModes`, `NSAppTransportSecurity` (`NSAllowsArbitraryLoads` — отключённый ATS!).
-- `NS*UsageDescription` — какие разрешения запрашивает.
+Он встраивает `frida-gadget`, переподписывает и выдаёт готовый IPA. Для анализа малвари это основной способ инструментировать образец без jailbreak.
 
-Entitlements — права приложения (push, keychain sharing, app groups):
+## Шаг 8: сравнение сборок и полный прогон
 
-```bash
-codesign -d --entitlements :- MyApp
-# <key>application-identifier</key><string>TEAMID.com.example.app</string>
-# <key>keychain-access-groups</key>
-# <key>aps-environment</key><string>production</string>
+Полезный приём — сравнить официальную сборку с переподписанной. Различия покажут, что именно проверяет приложение. Сравним отпечатки подписей:
+
+```
+$ codesign -dv ipa_extracted/Payload/DemoApp.app 2>&1 | grep -i identifier
+Identifier=com.demo.secapp
+$ codesign -dv DemoApp-resigned/Payload/DemoApp.app 2>&1 | grep -i identifier
+Identifier=com.demo.secapp
 ```
 
-`app groups` и `keychain-access-groups` особенно интересны: они описывают общие хранилища между приложениями одного разработчика.
+Идентификаторы совпадают, но подписант другой — значит, `TeamID` в entitlement изменился, и Keychain-группа оригинала недоступна. Приложение, которое сверяет `TeamID` или группу Keychain, заметит подмену.
 
-## Подпись и валидация
+Соберём весь цикл в одну последовательность. Сначала распаковываем и проверяем шифрование, затем дешифруем, если нужно, собираем карту через `class-dump`, ищем секреты, проверяем entitlements. Если требуется модификация — правим, переподписываем и ставим на устройство. На каждом шаге фиксируем вывод, чтобы в отчёте были воспроизводимые команды. Такой конвейер экономит время: ты не возвращаешься к началу, если что-то не сработало. Сохраняй промежуточные артефакты — распакованный бандл, дешифрованный бинарник, дампы классов — чтобы повторный прогон занимал минуты, а не часы. Если после переподписи приложение падает сразу при запуске, чаще всего виноваты несовпадающие entitlements: профиль не выдаёт нужную группу Keychain или App Group. В таком случае возьми entitlements из оригинального профиля и передай их в `codesign --entitlements` явно.
 
-```bash
-codesign -dvvv MyApp              # детали подписи
-codesign --verify --deep --strict MyApp
-security cms -D -i embedded.mobileprovision > /tmp/prov.plist
-plutil -p /tmp/prov.plist | head
+## Шаг 9: entitlements подробнее
+
+Entitlements — это не просто «права», а контракт между приложением и системой. Их стоит выписать в отчёт отдельно:
+
+```
+$ codesign -d --entitlements - ipa_extracted/Payload/DemoApp.app 2>/dev/null
+[Keychain Access Groups] com.demo.secapp
+[App Groups] group.com.demo.shared
+[get-task-allow] true
 ```
 
-Provisioning profile показывает, на какие устройства ставится сборка, какой сертификат использован и какие entitlements разрешены. При re-sign (для инъекции dylib) именно профиль определяет, что можно.
+`get-task-allow` — признак debug-сборки: он разрешает отладчик и потому опасен в релизе. `App Groups` показывают, какие данные приложение делит с другими приложениями. Каждый пункт — потенциальный вектор: чем больше групп и разрешений, тем шире поверхность. Проверяй entitlements у релизной сборки и сравнивай с dev-версией: лишние права в релизе — находка.
 
-## Извлечение секретов из ресурсов
+## Шаг 10: структура IPA через unzip
 
-```bash
-# .car — сжатые ассеты, распаковываются acextract/AssetCatalogTinkerer
-# но секреты чаще в коде и plist:
-grep -rIl "api_key\|secret\|password" . 2>/dev/null
-strings -a MyApp | grep -Ei "sk_live|AIza|-----BEGIN" | head
+IPA — это ZIP с фиксированной раскладкой. Прежде чем что-то делать, посмотрим состав:
+
+```
+$ unzip -l DemoApp.ipa
+Archive:  DemoApp.ipa
+  Length      Date    Time    Name
+---------  ---------- -----   ----
+      452  2026-10-12 18:10   Payload/DemoApp.app/Info.plist
+     4096  2026-10-12 18:10   Payload/DemoApp.app/DemoApp
+       18  2026-10-12 18:10   Payload/DemoApp.app/DemoApp.dylib
+---------                     -------
+     4566                     3 files
 ```
 
-Часто ключи зашиты в бинарник как строки или в `Info.plist`. Если бинарник зашифрован (`cryptid=1`), сначала нужно снять дамп с устройства, иначе `strings` покажет только метаданные.
+Главное — папка `Payload/`, внутри неё `DemoApp.app`. Исполняемый файл называется так же, как `.app`, и его имя задаёт `CFBundleExecutable` в `Info.plist`. Рядом лежат ресурсы, фреймворки, `embedded.mobileprovision` (профиль подписи) и библиотеки. Если увидишь `.dylib`, которого не ждёшь, — это может быть след инъекции. Распаковав IPA, ты получаешь и бинарник для статики, и `Info.plist` для разбора конфигурации.
 
-## Встроенные фреймворки и SDK
+## Что мы теперь знаем
 
-Приложения часто содержат десятки `.framework` — аналитика, реклама, платежи. Каждый — отдельный Mach-O:
-
-```bash
-for fw in Frameworks/*.framework; do
-  bin="$fw/$(basename "$fw" .framework)"
-  [ -f "$bin" ] && echo "== $bin" && otool -L "$bin" | head -3
-done
-```
-
-Это важно для поиска уязвимостей в сторонних SDK (например, старых версий с известными CVE) и для понимания, какие данные уходят в аналитику.
-
-## Частые ошибки и подводные камни
-
-- **Дизассемблер показывает мусор** — бинарник зашифрован (`cryptid=1`); нужен дамп с устройства.
-- **`class-dump` пусто** — приложение на Swift; используйте `swift-demangle`/Ghidra.
-- **`lipo -thin` падает** — бинарник уже тонкий; проверьте `lipo -info`.
-- **`codesign` не находит подпись** — бинарник из jailbroken-дампа уже пропатчен.
-- **`Info.plist` бинарный** — конвертируйте через `plutil -convert xml1`.
-
-## Справочная таблица инструментов
-
-| Инструмент | Назначение |
-|------------|-----------|
-| `unzip` | распаковка IPA |
-| `file`/`lipo` | определение и разделение архитектур |
-| `otool -l/-L/-h` | заголовок, сегменты, зависимости |
-| `nm`/`strings` | символы и строки |
-| `class-dump` | заголовки Objective-C классов |
-| `codesign` | подпись и entitlements |
-| `plutil` | работа с plist |
-| Ghidra/Hopper/IDA | дизассемблирование Mach-O |
-
-## Что дальше / решение
-
-Статический анализ IPA даёт карту приложения: классы, URL-схемы, entitlements, встроенные SDK. Дальше: проверьте custom URL scheme и Universal Links (`mobile-universal-links`), найдите OAuth-редиректы (`mobile-ios-oauth-sso`) и, если нужно заглянуть в рантайм, инжектируйте dylib (`mobile-ios-dylib-injection`). Для динамики — Frida на джейлбрейкнутом устройстве (`mobile-ios-dynamic`).
-
-## Работа с зашифрованным бинарником (cryptid=1)
-
-Если `LC_ENCRYPTION_INFO` показывает `cryptid=1`, статический дизассемблер бесполезен: страницы кода зашифрованы и расшифровываются только в памяти на устройстве. Есть два пути снять дамп.
-
-Первый — **frida-ios-dump**: подключается к запущенному приложению и выгружает расшифрованные страницы:
-
-```bash
-# на джейлбрейкнутом устройстве, frida-server запущен
-pip install frida-tools
-python3 dump.py -o /tmp/decrypted com.example.app
-# появится Payload/MyApp.app с расшифрованным бинарником
-```
-
-Второй — **Clutch** (старый, но иногда работает) или **bagbak** (современный). После дампа проверьте, что `cryptid` стал 0:
-
-```bash
-otool -l /tmp/decrypted/Payload/MyApp.app/MyApp | grep -A4 LC_ENCRYPTION_INFO
-# cryptid 0   <- расшифрован
-```
-
-Теперь можно грузить бинарник в Ghidra/Hopper и дизассемблировать. Помните: дамп снимается с конкретной версии приложения; при обновлении процедуру повторяют.
-
-## Swift и приватные API
-
-Swift-приложения не поддаются `class-dump`, потому что Swift использует манглинг имён и собственную ABI. Полезные приёмы:
-
-```bash
-# демагглинг Swift-символов
-nm MyApp | grep -i ' _T' | swift-demangle | head
-# извлечение строк Swift
-strings -a MyApp | grep -E '\$s[A-Za-z0-9]+' | swift-demangle | head
-```
-
-В Ghidra установите плагин `Swift` (или используйте `swiftd`), чтобы имена методов читались. Для приватных API ищите вызовы `NSClassFromString` с динамическими именами: они часто скрывают использование непубличных классов, что важно и для security-аудита (App Store запрещает, но приложения иногда хитрят).
-
-## Автоматизация статического анализа
-
-Для большого объёма приложений соберите конвейер:
-
-```bash
-#!/usr/bin/env bash
-IPA="$1"
-D="/tmp/ipa_analysis"
-rm -rf "$D"; mkdir -p "$D"
-unzip -q "$IPA" -d "$D"
-APP="$D/Payload/"*.app
-BIN="$APP/$(basename "$APP" .app)"
-
-# артефакты
-lipo -info "$BIN"                 > "$D/arch.txt"
-otool -L "$BIN"                   > "$D/libs.txt"
-otool -l "$BIN" | grep -A4 ENCRYPT > "$D/encrypt.txt"
-codesign -dvvv "$BIN"             > "$D/codesign.txt" 2>&1
-codesign -d --entitlements :- "$BIN" > "$D/entitlements.plist" 2>&1
-strings -a "$BIN" | grep -Ei 'http|token|key|secret' > "$D/secrets.txt"
-class-dump -H "$BIN" -o "$D/headers" 2>/dev/null
-
-echo "done: $D"
-```
-
-Такой прогон за минуты даёт: архитектуры, зависимости, статус шифрования, entitlements, заголовки классов и подозрительные строки. Дальше — ручной разбор в Ghidra.
-
-## Извлечение ассетов и локализаций
-
-Ресурсы в `Assets.car` распаковываются `acextract`:
-
-```bash
-acextract -i Assets.car -o /tmp/assets
-```
-
-Локализации лежат в `<lang>.lproj/Localizable.strings`; иногда там встречаются внутренние сообщения об ошибках с деталями серверной логики. Ищите строки вида `error`, `debug`, `internal`:
-
-```bash
-grep -rIi "debug\|internal\|stack" *.lproj/*.strings | head
-```
-
-Часто в ресурсах остаются тестовые endpoint'ы (`staging.example.com`), которые открывают доступ к небоевой среде.
-
-## Чек-лист статического анализа IPA
-
-Итоговая последовательность действий, которой удобно придерживаться при каждом новом IPA: распаковать архив; определить архитектуры через `lipo`; проверить `cryptid` и при необходимости снять дамп; собрать зависимости через `otool -L`; извлечь entitlements и provisioning profile; получить заголовки классов через `class-dump` (или `swift-demangle` для Swift); прогнать `strings` по ключевым словам; разобрать `Info.plist` на URL-схемы и ATS; перечислить встроенные фреймворки и их версии. Каждый пункт даёт артефакт, который пригодится на следующих этапах — от поиска секретов до анализа OAuth.
+- IPA — ZIP с `Payload/<App>.app/`, подписью `_CodeSignature` и профилем `embedded.mobileprovision`.
+- App Store-бинарники зашифрованы (`cryptid=1`); их дешифруют `frida-ios-dump`/`bagbak`.
+- `filetype=2` — исполняемый файл, `6` — dylib.
+- Профиль распространения содержит entitlements и список устройств.
+- Переподпись делается `codesign`; изменить можно только то, что покрыто твоим сертификатом.
+- `objection patchipa` автоматизирует встраивание Frida и переподпись.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что означает cryptid=1 в LC_ENCRYPTION_INFO?"
+- question: Что нужно сделать перед анализом бинарника из App Store?
   options:
-    - "Бинарник зашифрован (App Store), дизассемблирование даст мусор"
-    - "Приложение подписано разработчиком"
-    - "Бинарник собран для симулятора"
-    - "Код на Swift"
-  answer: 0
-- question: "Каким инструментом восстановить заголовки Objective-C классов?"
+    - "Сжать его"
+    - "Дешифровать (снять cryptid), иначе код недоступен"
+    - "Переименовать"
+    - "Подписать заново"
+  answer: 1
+  explanation: "App Store-бинарники зашифрованы FairPlay; без дешифровки class-dump/strings бесполезны."
+- question: Что такое embedded.mobileprovision?
   options:
-    - "class-dump"
-    - "apktool"
+    - "Файл подписи кода"
+    - "Профиль распространения с entitlements и списком устройств"
+    - "Динамическая библиотека"
+    - "Файл ресурсов"
+  answer: 1
+  explanation: "В профиле записаны права и UDID устройств, где приложение может запускаться."
+- question: Что означает filetype=6 в Mach-O?
+  options:
+    - "Исполняемый файл"
+    - "Динамическая библиотека (dylib)"
+    - "Объектный файл"
+    - "Архив"
+  answer: 1
+  explanation: "MH_DYLIB (6) — динамическая библиотека; MH_EXECUTE (2) — исполняемый файл."
+- question: Какой инструмент автоматизирует встраивание Frida и переподпись IPA?
+  options:
     - "jadx"
-    - "frida-dexdump"
-  answer: 0
-- question: "Где в IPA описаны custom URL-схемы приложения?"
+    - "objection patchipa"
+    - "apktool"
+    - "nm"
+  answer: 1
+  explanation: "objection patchipa встраивает frida-gadget и переподписывает IPA."
+- question: Почему переподписанная сборка ведёт себя как «другое приложение»?
   options:
-    - "В Info.plist (CFBundleURLTypes)"
-    - "В embedded.mobileprovision"
-    - "В Assets.car"
-    - "В InfoPlist.strings"
-  answer: 0
-- question: "Что показывает codesign -d --entitlements :- ?"
-  options:
-    - "Права приложения: push, keychain groups, app groups"
-    - "Список классов"
-    - "Исходный код Swift"
-    - "Адрес сервера"
-  answer: 0
+    - "Она быстрее"
+    - "Меняется идентичность подписи, а значит и Keychain/App Groups"
+    - "Она не запускается"
+    - "У неё другой Mach-O"
+  answer: 1
+  explanation: "Entitlements и группы привязаны к сертификату; после переподписи они другие."
 ```
+
+## Куда дальше
+
+Мы научились получать и пересобирать IPA. Дальше — встраивание собственного кода в приложение: `mobile-ios-dylib-injection` покажет, как подгрузить свою библиотеку через `insert_dylib` и `DYLD_INSERT_LIBRARIES`. А пока главное запомни: цикл анализа iOS — распаковать → дешифровать → разобрать → при необходимости переподписать.
 
 ## Где пригодится
 
-- **CTF:** iOS-задачи, где нужно найти ключ или логику в бинарнике.
-- **Пентест:** статический аудит iOS-приложения до динамики.
-- **Bug bounty:** поиск отключённого ATS, утечек ключей, уязвимых SDK.
+- **Пентест:** подготовка IPA к динамическому анализу и инструментированию.
+- **Bug bounty:** переподпись и установка сборок на тестовые устройства.
+- **Анализ малвари:** инструментирование iOS-образца через patchipa.
+- **CTF:** распаковка и дешифровка IPA для поиска флага.

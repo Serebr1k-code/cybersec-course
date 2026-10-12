@@ -14,290 +14,188 @@ useful_for:
 estimated_minutes: 50
 summary: "Как обходить certificate pinning на iOS: SSL Kill Switch 2, Frida-хуки Security.framework, TrustKit, libcurl и нативный pinning; настройка MITM через Burp/mitmproxy."
 ---
-## Введение
 
-На iOS certificate pinning реализуется в нескольких местах: `Security.framework` (`SecTrustEvaluate`, `SecTrustEvaluateWithError`), `NSURLSession` delegate (`URLSession:didReceiveChallenge:`), сторонние библиотеки (TrustKit, AFNetworking), `libcurl` и нативный код. SSL Kill Switch — это твик/библиотека, которая патчит доверие к сертификатам в рантайме, заставляя приложение принимать любой сертификат. Вместе с Frida-хуками это основной способ перехватить iOS-трафик для анализа API.
+## Вопрос, с которого всё начинается
 
-Пентест-задача: настроить MITM-прокси (Burp/mitmproxy), заставить приложение ему доверять (установить CA и включить доверие), затем обойти pinning. Без jailbreak — только в своём процессе (Frida-gadget в перепакованном IPA) или через per-app proxy.
+Ты настроил прокси, установил на устройство свой CA-сертификат — а приложение всё равно рвёт соединение и пишет «network error». Причина почти всегда одна: **certificate pinning** — приложение проверяет, что сервер предъявляет именно ожидаемый сертификат, и не доверяет твоему прокси. Как это обойти на iOS?
 
-## Настройка MITM на iOS
+## Наш пример: DemoApp и его pinning
 
-```bash
-# 1. Прокси в Wi-Fi настройках устройства -> IP:8080 (Burp)
-# 2. Скачать CA: http://burp  (или http://mitm.it для mitmproxy)
-# 3. Settings -> General -> VPN & Device Management -> установить профиль
-# 4. Settings -> General -> About -> Certificate Trust Settings -> включить доверие
+Вернёмся к `DemoApp`. В статике мы нашли строки и классы, связанные с сетью. Посмотрим на проверку сертификата:
+
+```
+$ strings -a DemoApp | grep -iE 'SecTrust|pin|cer'
+SecTrustEvaluate
+api.demo.example
 ```
 
-После этого обычные HTTPS-запросы видны в Burp. Если приложение использует pinning — соединение падает (`NSURLErrorServerCertificateUntrusted`, `-1202`).
+Метод `SecTrustEvaluate` — это сердце проверки доверия на iOS. Когда приложение получает TLS-сертификат от сервера, система вызывает цепочку проверок, и `SecTrustEvaluate` выносит вердикт: доверять или нет. **Pinning** — это когда приложение не довольствуется системным вердиктом, а дополнительно сравнивает сертификат (или его хеш) с зашитым в приложении.
 
-## SSL Kill Switch 2
+## Шаг 1: почему pinning мешает MITM
 
-На jailbreak-устройстве твик `SSL Kill Switch 2` (Cydia) отключает pinning глобально: патчит `SecTrustEvaluate`/`SecTrustEvaluateWithError` и challenge-обработчики. Активируется в Settings → SSL Kill Switch 2 → «Disable Certificate Pinning».
+Обычный MITM (Man-in-the-Middle, «человек посередине») работает так: ты ставишь прокси (Burp/mitmproxy), устройство доверяет твоему CA, прокси подменяет сертификат сервера на свой, и трафик виден. Pinning ломает это звено: приложение видит, что сертификат подписан не ожидаемым ключом, и отклоняет соединение. Твой CA здесь ни при чём — приложению важен **конкретный** сертификат сервера.
 
-Без jailbreak — встраиваем аналог через Frida. Скрипт хукает `SecTrustEvaluateWithError`:
+## Шаг 2: SSL Kill Switch — готовый обход
+
+Самый известный инструмент — **SSL Kill Switch 2**, твик для jailbreak-устройств. Он перехватывает проверки доверия на системном уровне и заставляет их всегда проходить. Устанавливается через Cydia/Sileo, включается в настройках. После включения приложения перестают замечать подмену сертификата.
+
+Аналог для Objection:
+
+```
+$ objection -g com.demo.secapp explore
+com.demo.secapp # ios sslpinning disable
+(agent) Hooking SecTrustEvaluate
+(agent) Hooking SecTrustEvaluateWithError
+```
+
+Objection хукает `SecTrustEvaluate` и связанные функции, подменяя вердикт на «доверять». Это быстрый путь: одна команда — и pinning снят.
+
+## Шаг 3: Frida-хук на SecTrustEvaluate
+
+Если Objection не сработал (кастомная проверка), пишем хук сами. Ключевая функция — `SecTrustEvaluate`, возвращает код `errSecSuccess` (0), если доверять:
 
 ```javascript
-// frida-ios-pinning-bypass.js
-if (ObjC.available) {
-  var SecTrustEvaluateWithError = Module.findExportByName("Security", "SecTrustEvaluateWithError");
-  Interceptor.replace(SecTrustEvaluateWithError, new NativeCallback(function(trust, error) {
-    return 1; // always trusted
-  }, 'bool', ['pointer', 'pointer']));
-
-  var SecTrustEvaluate = Module.findExportByName("Security", "SecTrustEvaluate");
-  Interceptor.replace(SecTrustEvaluate, new NativeCallback(function(trust, result) {
-    if (result !== null) Memory.writeU32(result, 1); // kSecTrustResultProceed
-    return 0; // errSecSuccess
-  }, 'int', ['pointer', 'pointer']));
+var SecTrustEvaluate = Module.findExportByName(null, 'SecTrustEvaluate');
+if (SecTrustEvaluate) {
+  Interceptor.attach(SecTrustEvaluate, {
+    onLeave: function (retval) {
+      retval.replace(0);   // errSecSuccess
+    }
+  });
 }
 ```
 
-Запуск:
+Здесь `Module.findExportByName(null, ...)` ищет функцию во всех загруженных модулях (это C-функция из `Security.framework`), а `onLeave` меняет её возврат на `0` — «доверять». Тот же приём применяют к `SecTrustEvaluateWithError` и `SecTrustSetPolicies`.
 
-```bash
-frida -U -f com.target.app -l frida-ios-pinning-bypass.js --no-pause
-```
+## Шаг 4: если pinning реализован иначе
 
-## Обход TrustKit и challenge-делегатов
-
-TrustKit хукает на уровне `SecTrustEvaluateWithError` и хранит pinning-политику; обычно достаточно глобального хука выше. Для `NSURLSession` challenge-делегатов хукают метод класса:
+Иногда приложение не вызывает `SecTrustEvaluate` напрямую, а сравнивает хеш сертификата через `SecCertificateCopyData` и `CC_SHA256`. Тогда хукать нужно сравнение:
 
 ```javascript
-var cls = ObjC.classes.NSURLSession;
-// перехват didReceiveChallenge на делегате приложения
-```
-
-Практичнее — использовать готовый скрипт `frida-ios-ssl-bypass` или Objection:
-
-```bash
-objection -g com.target.app explore
-ios sslpinning disable
-```
-
-Objection патчит несколько точек (Security.framework, NSURLSession, TrustKit, libcurl) одной командой.
-
-## Нативный pinning и libcurl
-
-Если приложение пиннит нативно (сравнение хэшей сертификата в C++), Frida-хук `SecTrustEvaluate` не поможет. Тогда:
-
-- ищут функции `SSL_CTX_set_verify`/`X509_verify_cert` (libcurl/OpenSSL) и хукают их;
-- ищут сравнение `memcmp`/`CC_SHA256` с зашитым хэшем и подменяют результат;
-- перехватывают `SSL_get_verify_result` (возврат `X509_V_OK`).
-
-```bash
-# найти символы pinning в бинарнике
-nm -m AppBinary | grep -iE 'verify|pinn|ssl|trust'
-strings AppBinary | grep -iE 'sha256/|pin'
-```
-
-## Полный сквозной пример
-
-Цель: перехватить API-трафик приложения с pinning.
-
-```bash
-# 1. Настроить Burp и установить CA (см. выше)
-# 2. Запустить приложение под Frida с обходом
-frida -U -f com.target.app -l frida-ios-pinning-bypass.js --no-pause
-# 3. В приложении выполнить действие (login)
-# 4. В Burp видим POST /api/login с телом
-# 5. Меняем параметр, повторяем — проверяем BOLA/IDOR (см. mobile-api-bola)
-```
-
-Если соединение всё ещё падает — проверьте, что приложение не использует нативный pinning и не проверяет proxy (некоторые детектят `CFNetworkCopySystemProxySettings`).
-
-## Частые ошибки
-
-- **CA не доверенный**: сертификат установлен, но `Certificate Trust Settings` не включён — Burp показывает ошибку доверия.
-- **Хук не сработал**: символ называется `SecTrustEvaluateWithError` (iOS 12+) — хукать нужно его, а не только старый `SecTrustEvaluate`.
-- **TrustKit с зашитым хэшем**: глобальный хук обычно проходит, но если нет — хукайте `TSKPinningValidator`.
-- **Нативный pinning**: Frida по `Security` бесполезен — ищите SSL/OpenSSL-символы.
-- **Proxy detection**: приложение проверяет настройки прокси и блокируется — обходите `CFNetworkCopySystemProxySettings`.
-- **Без jailbreak**: системный Frida недоступен — перепакуйте IPA с frida-gadget (`objection patchipa`).
-
-## Что дальше / решение
-
-Порядок обхода: установить CA → попробовать Burp → при падении запустить Objection `ios sslpinning disable` → при неудаче Frida-хуки Security → при нативном pinning хукать OpenSSL/libcurl. Свяжите с `mobile-cert-pinning-deep` (Android-аналогия) и `mobile-api-testing`. Дальше — `mobile-ios-cycript` для runtime-интроспекции.
-
-## Справочная таблица
-
-| Точка pinning | Что хукать |
-|---------------|-----------|
-| Security.framework | `SecTrustEvaluate(WithError)` |
-| NSURLSession | challenge delegate |
-| TrustKit | `TSKPinningValidator` |
-| AFNetworking | `AFSecurityPolicy` |
-| libcurl/OpenSSL | `SSL_get_verify_result`, `X509_verify_cert` |
-
-| Инструмент | Команда |
-|-----------|---------|
-| Objection | `ios sslpinning disable` |
-| Frida | `frida -U -f pkg -l bypass.js` |
-| Patch IPA | `objection patchipa --source app.ipa` |
-
-## Обход pinning в Swift и Alamofire
-
-Swift-приложения пиннят по-разному. `URLSession` с делегатом требует перехвата `urlSession(_:didReceive:completionHandler:)`; Alamofire использует `ServerTrustManager` и `PinnedCertificatesTrustEvaluator`. Хук на уровне `Security.framework` обычно покрывает всё, но если pinning реализован в Swift-обёртке, хукайте сам делегат:
-
-```javascript
-// перехват challenge в NSURLSession
-var NSURLSession = ObjC.classes.NSURLSession;
-var hook = ObjC.classes.NSURLSession["- URLSession:didReceiveChallenge:completionHandler:"];
-Interceptor.attach(hook.implementation, {
-  onEnter: function(args) {
-    // args[2] = challenge, args[3] = completionHandler block
-    var completion = new ObjC.Block(args[3]);
-    completion.implementation = function(disposition, credential) {
-      // 0 = NSURLSessionAuthChallengeUseCredential с нашим доверием
-      completion(0, credential);
-    };
+var CC_SHA256 = Module.findExportByName(null, 'CC_SHA256');
+Interceptor.attach(CC_SHA256, {
+  onEnter: function (args) {
+    this.out = args[1];   // буфер с результатом хеша
+  },
+  onLeave: function () {
+    // подменяем вычисленный хеш на ожидаемый приложением
   }
 });
 ```
 
-Для Alamofire проще заменить `ServerTrustManager.evaluator` или доверие в `PinnedCertificatesTrustEvaluator`.
+Это сложнее: нужно знать ожидаемый хеш (он зашит в приложении) и подставить его. Часто проще найти саму функцию сравнения и вернуть «совпадает».
 
-## Продвинутые скрипты Frida
+## Шаг 5: ATS и его обход
 
-Комплексный скрипт обходит несколько слоёв сразу:
+Отдельный слой — **ATS** (App Transport Security), политика iOS, запрещающая незашифрованный HTTP и слабые шифры. Мы уже видели в `Info.plist` нашего `DemoApp`:
 
-```javascript
-if (ObjC.available) {
-  ["SecTrustEvaluateWithError","SecTrustEvaluate"].forEach(function(n){
-    var f = Module.findExportByName("Security", n);
-    if (!f) return;
-    Interceptor.replace(f, new NativeCallback(function(){ return 1; }, 'int', ['pointer','pointer']));
-  });
-  // libcurl / OpenSSL
-  var verify = Module.findExportByName(null, "SSL_get_verify_result");
-  if (verify) Interceptor.replace(verify, new NativeCallback(function(){ return 0; }, 'int', ['pointer']));
-  // TrustKit
-  if (ObjC.classes.TSKPinningValidator) {
-    var cls = ObjC.classes.TSKPinningValidator;
-    Interceptor.attach(cls["- evaluateTrust:forHostname:"].implementation, {
-      onLeave: function(ret){ ret.replace(ptr(1)); }
-    });
-  }
-}
+```
+$ python3 -c "import plistlib;d=plistlib.load(open('Info.plist','rb'));print(d['NSAppTransportSecurity'])"
+{'NSAllowsArbitraryLoads': True}
 ```
 
-Такой скрипт покрывает Security.framework, OpenSSL/libcurl и TrustKit одним запуском.
+`NSAllowsArbitraryLoads: True` означает, что ATS ослаблен и часть трафика может идти по HTTP. Это упрощает перехват: не нужен даже CA для таких запросов. Если ATS строгий, а pinning нет — достаточно установить CA; если есть pinning — обходим его хуком.
 
-## Диагностика: почему MITM не работает
+## Шаг 6: настройка перехвата
 
-| Симптом | Причина | Действие |
-|---------|---------|----------|
-| TLS error -1202 | pinning | запустить обход |
-| Пустой трафик | proxy не применён | проверить Wi-Fi-настройку |
-| Только часть запросов | нативный стек | хукать libcurl/OpenSSL |
-| Запросы к IP, не домену | pinning по IP/сертификату | хук verify |
-| Приложение падает | proxy detection | хук CFNetworkCopySystemProxySettings |
+Полный порядок: включить прокси на устройстве (Wi-Fi → HTTP Proxy), установить и **доверить** CA-сертификат (Settings → General → About → Certificate Trust Settings), поставить Objection, выполнить `ios sslpinning disable`, запустить приложение и смотреть трафик в Burp. Если соединение всё равно рвётся — писать кастомный Frida-хук на конкретную проверку.
 
-```javascript
-// обход proxy detection
-var f = Module.findExportByName("CFNetwork", "CFNetworkCopySystemProxySettings");
-if (f) Interceptor.replace(f, new NativeCallback(function(){ return NULL; }, 'pointer', []));
+## Шаг 7: что смотреть в трафике
+
+Когда pinning снят, приложение отдаёт всё: токены в заголовках `Authorization`, API-ключи, данные в теле запросов. Ищи:
+
+- заголовки авторизации и их слабую защиту;
+- параметры, передаваемые в открытом виде;
+- эндпоинты, доступные без токена;
+- ошибки сервера с внутренними деталями.
+
+Это уже переход к тестированию API (см. `mobile-api-testing`).
+
+## Шаг 8: если хук не сработал
+
+Иногда после `ios sslpinning disable` соединение всё равно рвётся. Причины бывают разные. Во-первых, приложение может использовать **собственный** TLS-стек (например, BoringSSL внутри фреймворка), который не вызывает системный `SecTrustEvaluate`. Во-вторых, проверка может быть реализована в нативном коде и вызывать функции напрямую. В-третьих, приложение может проверять, что к нему не подключён отладчик, и отключаться.
+
+Что делать: найти в статике, какая именно функция отвечает за проверку (по строкам и символам), и хукать её. Если это нативный код без экспорта, находят адрес в дизассемблере, вычисляют базовый адрес модуля и ставят хук по смещению. Это уже не «одна команда», а точечная работа, зато надёжная.
+
+## Шаг 9: проверка результата
+
+Как понять, что pinning действительно снят? Простейший признак — запросы в прокси появились, и приложение работает штатно. Дополнительно проверь, что сертификат сервера в цепочке — твой прокси-сертификат (Burp показывает свой issuer). Если видишь только CONNECT и `TLS handshake failed` — хук не сработал. Ещё один признак: приложение может «тихо» переключиться на резервный эндпоинт, поэтому стоит смотреть не только на появление трафика, но и на то, что функционал не деградировал. Если приложение продолжает работать, а в прокси видны расшифрованные запросы — цель достигнута. Если же трафик виден, но приложение через несколько секунд закрывается — значит, есть ещё одна проверка, которую нужно снять.
+
+## Шаг 10: считаем pin, который надо обойти
+
+Чтобы понять, что именно проверяет приложение, посчитай pin для своего MITM-сертификата. Самый распространённый вариант — SPKI-пиннинг (хеш публичного ключа, а не всего сертификата):
+
+```
+$ openssl x509 -in ca.pem -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl base64
+iLCSHnfZIMcQRfUoyTymSkyR25E4SrIzm/FW3VYMLsk=
 ```
 
-## Сравнение инструментов обхода
+Это значение — SHA-256 от DER-кодированного SubjectPublicKeyInfo. Именно его сравнивает приложение с захардкоженным (или полученным по pinning-заголовку) значением. Если хеш всего сертификата (`openssl x509 -outform der | openssl dgst -sha256`) отличается, значит pinning делается по сертификату, а не по ключу, — и подмена сертификата не поможет, нужен обход хуком или патч проверки. Зная формат pin, ты понимаешь, какой именно хук писать.
 
-| Инструмент | Плюсы | Минусы |
-|-----------|-------|--------|
-| Objection | одна команда, много точек | нужен Frida/jailbreak |
-| Frida-скрипт | гибкость, покрытие | нужен свой скрипт |
-| SSL Kill Switch 2 | глобально, просто | только jailbreak |
-| reFlutter | для Flutter | только Flutter |
+## Что мы теперь знаем
 
-## Кейс: перехват API банковского приложения
-
-```bash
-# 1. CA установлен, доверие включено
-# 2. Запуск под Frida с комплексным обходом
-frida -U -f com.bank.app -l ios-bypass.js --no-pause
-# 3. Выполняем логин в приложении
-# 4. В Burp видим POST /api/v1/auth/login с телом
-# 5. Меняем deviceId/accountId, повторяем -> проверяем BOLA
-# 6. Если трафик не появился — проверяем нативный pinning (nm | grep ssl)
-```
-
-Итог: перехваченный API-трафик даёт доступ к тестированию бизнес-логики (см. `mobile-api-bola`). Без обхода pinning банковские приложения практически «непрозрачны» для прокси.
-
-## Рекомендации в отчёте
-
-Pinning на iOS — эффективная защита, но обходится в рантайме на jailbreak-устройстве. Рекомендация: комбинировать pinning с серверной валидацией, certificate transparency, короткоживущими токенами и аттестацией (App Attest). Только pinning недостаточно против инструментированного клиента.
-
-## Практикум: пошаговый обход pinning
-
-Разберём полный цикл на примере банковского iOS-приложения.
-
-Шаг 1. Подготовка MITM. В Wi-Fi-настройках устройства укажите прокси на ПК (Burp/mitmproxy). Скачайте CA (`http://burp` или `http://mitm.it`). Установите профиль и включите доверие в `Certificate Trust Settings`.
-
-Шаг 2. Проверка. Запустите приложение, выполните вход. Если в прокси пусто и приложение показывает сетевую ошибку — pinning.
-
-Шаг 3. Обход. Запустите под Frida комплексный скрипт (Security.framework + TrustKit + OpenSSL). Или Objection:
-
-```bash
-objection -g com.bank.app explore
-ios sslpinning disable
-```
-
-Шаг 4. Повторная проверка. Выполните вход снова. В прокси должен появиться поток. Если нет — проверьте нативный pinning (`nm -D AppBinary | grep -i ssl`) и хукните `SSL_get_verify_result`/`X509_verify_cert`.
-
-Шаг 5. Диагностика proxy detection. Если приложение падает при активном прокси, хукните `CFNetworkCopySystemProxySettings` (вернуть NULL).
-
-Шаг 6. Анализ API. С перехваченным трафиком тестируйте бизнес-логику (см. `mobile-api-bola`).
-
-## Без jailbreak
-
-Системный Frida недоступен. Перепакуйте IPA с frida-gadget (`objection patchipa --source app.ipa`), подпишите и установите. Либо используйте VPN-режим mitmproxy.
-
-## Что писать в отчёте
-
-Pinning обходится инструментированным клиентом. Рекомендация — комбинировать pinning с App Attest, серверной валидацией и короткоживущими токенами.
+- Pinning заставляет приложение доверять только ожидаемому сертификату сервера.
+- `SecTrustEvaluate` — центральная функция проверки доверия на iOS.
+- SSL Kill Switch и `objection ios sslpinning disable` снимают pinning автоматически.
+- Кастомный Frida-хук на `SecTrustEvaluate` возвращает `errSecSuccess` (0).
+- Если pinning через сравнение хешей — хукают `CC_SHA256` или функцию сравнения.
+- ATS (`NSAllowsArbitraryLoads`) — отдельный слой, облегчающий перехват.
+- После снятия pinning трафик виден полностью.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой символ Security.framework хукать для обхода pinning на iOS 12+?"
+- question: Что такое certificate pinning?
   options:
-    - "SecTrustEvaluateWithError"
-    - "CFNetworkCopySystemProxySettings"
-    - "SSL_CTX_set_verify"
-    - "NSLog"
-  answer: 0
-- question: "Что делает команда `ios sslpinning disable` в Objection?"
-  options:
-    - "Отключает pinning, патча несколько точек (Security, NSURLSession, TrustKit)"
-    - "Сканирует порты"
-    - "Делает бэкап"
-    - "Дамп Keychain"
-  answer: 0
-- question: "Что нужно включить после установки CA-профиля на iOS?"
-  options:
-    - "Ничего"
-    - "Certificate Trust Settings → доверие корню"
-    - "Developer Mode"
-    - "VPN"
+    - "Шифрование трафика"
+    - "Проверка приложением, что сервер предъявляет ожидаемый сертификат"
+    - "Тип CA"
+    - "Формат HTTP"
   answer: 1
-- question: "Где искать нативный pinning?"
+  explanation: "Pinning не доверяет системному вердикту, а сверяет конкретный сертификат/его хеш."
+- question: Какая функция iOS выносит вердикт о доверии сертификату?
   options:
-    - "В Info.plist"
-    - "В символах бинарника (SSL/OpenSSL/verify) и строках sha256/"
-    - "В Manifest.db"
-    - "В Keychain"
-  answer: 1
-- question: "Почему Burp может не видеть трафик даже с CA?"
-  options:
-    - "Приложение использует pinning или детектит proxy"
-    - "Burp не работает с iOS"
-    - "Нужен jailbreak для любого трафика"
-    - "Нужно отключить Wi-Fi"
+    - "SecTrustEvaluate"
+    - "CC_SHA256"
+    - "NSUserDefaults"
+    - "openURL"
   answer: 0
+  explanation: "SecTrustEvaluate (и SecTrustEvaluateWithError) проверяет цепочку доверия."
+- question: Какое значение возвращает SecTrustEvaluate при успехе?
+  options:
+    - "1"
+    - "0 (errSecSuccess)"
+    - "-1"
+    - "true"
+  answer: 1
+  explanation: "errSecSuccess равен 0; хук подменяет возврат на 0, чтобы «доверять»."
+- question: Что делает `objection ios sslpinning disable`?
+  options:
+    - "Отключает Wi-Fi"
+    - "Хукает SecTrustEvaluate и снимает pinning"
+    - "Удаляет сертификаты"
+    - "Ставит jailbreak"
+  answer: 1
+  explanation: "Objection перехватывает проверки доверия и заставляет их проходить."
+- question: Что означает NSAllowsArbitraryLoads в Info.plist?
+  options:
+    - "Запрет HTTP"
+    - "Ослабленный ATS: разрешён незашифрованный HTTP"
+    - "Включён pinning"
+    - "Удалён Keychain"
+  answer: 1
+  explanation: "Это ослабление App Transport Security, упрощающее перехват трафика."
 ```
+
+## Куда дальше
+
+Pinning снят, трафик виден. Дальше — анализ API: какие эндпоинты, какие токены, где broken object level authorization (см. `mobile-api-testing`, `mobile-api-bola`). А пока главное запомни: pinning ломается хуком на `SecTrustEvaluate`, а `objection ios sslpinning disable` делает это одной командой.
 
 ## Где пригодится
 
-- **Пентест iOS:** обязательный шаг для анализа API-трафика.
-- **Bug bounty:** проверка API и логики через перехват.
-- **Анализ:** разбор работы приложения.
-- **CTF:** Mobile-задачи с pinning.
+- **Пентест:** перехват трафика защищённого приложения.
+- **Bug bounty:** доказательство утечек в API.
+- **CTF:** расшифровка трафика для получения флага.
+- **Аудит:** проверка корректности pinning и ATS.

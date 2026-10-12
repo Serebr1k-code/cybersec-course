@@ -14,263 +14,211 @@ useful_for:
 estimated_minutes: 45
 summary: "Как устроен pinning на разных уровнях (network-security-config, OkHttp CertificatePinner, TrustKit, нативный OpenSSL/BoringSSL) и как обходить каждый слой."
 ---
-## Введение
 
-SSL pinning — это привязка доверия к конкретному сертификату или публичному ключу, а не к любому системному CA. Введение к pinning — в `mobile-ssl-pinning`; здесь разбираем **продвинутые** реализации и то, как обходить каждую. Это часто узкое место динамического анализа: без снятия pinning вы не увидите трафик приложения и не сможете тестировать API.
+## Вопрос, с которого всё начинается
 
-Pinning бывает на нескольких уровнях одновременно, и обход требует покрыть все. Если после Java-хуков трафик всё ещё не идёт — почти всегда виноват нативный слой или config-уровень.
+Ты уже знаешь, что такое pinning и как в общем случае его снять. Но приложение использует нестандартный клиент: где-то проверка в конфиге, где-то в библиотеке, а где-то вообще в нативном коде. Как определить уровень и подобрать обход?
 
-## Уровни pinning
+## Наш пример: приложение с pinning в трёх слоях
 
-| Уровень | Реализация | Обход |
-|---------|-----------|-------|
-| Config | `network_security_config.xml` `<pin-set>` | патч/удаление конфига |
-| Java-библиотека | OkHttp `CertificatePinner`, TrustKit, `HostnameVerifier` | Frida-хук |
-| Кастомный | своя проверка цепочки/`TrustManager` | Frida-хук на конкретный метод |
-| Нативный | OpenSSL/BoringSSL `X509_verify_cert`, `SSL_CTX_set_verify` | хук нативной функции |
-| Double-pinning | Java + native вместе | обход обоих слоёв |
+Возьмём защищённый клиент, в котором pinning реализован сразу на нескольких уровнях: конфигурация, HTTP-библиотека и нативный TLS-стек. Разберём каждый слой по отдельности — и поймём, почему «универсальный хук» иногда не помогает.
 
-```bash
-apktool d app.apk -o app
-cat app/res/xml/network_security_config.xml 2>/dev/null
-grep -rn 'networkSecurityConfig' app/AndroidManifest.xml
-grep -rniE 'CertificatePinner|TrustKit|sha256/|pin-set|HostnameVerifier' app/smali app/res 2>/dev/null | head
+## Шаг 1: уровни pinning
+
+Pinning встречается на четырёх уровнях, от простого к сложному:
+
+1. **Network Security Config** — XML в ресурсах, `pin-set`.
+2. **HTTP-библиотека** — `OkHttp CertificatePinner`, `Conscrypt`.
+3. **Сторонняя библиотека** — TrustKit.
+4. **Нативный TLS-стек** — OpenSSL/BoringSSL в `.so`.
+
+Чем ниже уровень, тем сложнее обход: Java-хуки не видят нативный код. Поэтому первый шаг — **определить уровень**.
+
+## Шаг 2: NSC pin-set
+
+Простейший случай — pinning в конфиге. Файл `res/xml/network_security_config.xml` содержит:
+
+```xml
+<domain-config>
+    <domain includeSubdomains="true">api.example.com</domain>
+    <pin-set expiration="2027-01-01">
+        <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+    </pin-set>
+</domain-config>
 ```
 
-## Java-уровень: OkHttp, TrustKit, HostnameVerifier
+Здесь приложение сравнивает хэш (SHA-256) открытого ключа сервера с ожидаемым. Обход — удалить блок `<pin-set>` из ресурсов и пересобрать APK. Либо хукнуть проверку в рантайме (Android реализует её на уровне сетевого стека, и она видна Java-хукам).
+
+### Откуда берётся значение pin
+
+Строка `AAAA...` — не случайный набор: это **хэш открытого ключа** сервера. Понимать, как его считают, полезно — иногда проще сравнить ожидаемый pin с реальным сертификатом, чем перехватывать проверку. Хэш берут не от всего сертификата, а от открытого ключа в формате DER (SPKI). Посчитаем сами:
+
+```
+$ openssl x509 -in c.pem -pubkey -noout \
+    | openssl pkey -pubin -outform der \
+    | openssl dgst -sha256 -binary | openssl base64
+EHK6rV0yqXTV+lrqqhrxMBA75pHqsSsEF3upIftoAa4=
+```
+
+Полученная строка — ровно то, что кладут в `<pin digest="SHA-256">` или в `CertificatePinner.add(host, "sha256/...")`. Если снять с сервера реальный ключ и посчитать такую же строку, её можно сравнить с зашитой в приложении: совпадение подтверждает, что pinning привязан именно к этому ключу.
+
+Заодно проверим, какие TLS-библиотеки вообще есть в APK:
+
+```
+$ unzip -l app.apk | grep -iE '\.so' | grep -iE 'ssl|crypto|okhttp|trust'
+```
+
+Пустой список (типичная картина при системном Conscrypt) означает, что pinning — на Java-уровне, и хватает хука. Появление `libssl.so`/`libcrypto.so` — сигнал смотреть нативный уровень.
+
+## Шаг 3: OkHttp CertificatePinner
+
+Популярная библиотека **OkHttp** имеет собственный механизм pinning:
+
+```java
+CertificatePinner pinner = new CertificatePinner.Builder()
+    .add("api.example.com", "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
+    .build();
+OkHttpClient client = new OkHttpClient.Builder()
+    .certificatePinner(pinner)
+    .build();
+```
+
+Проверка происходит в методе `CertificatePinner.check(host, peerCertificates)`. Обход — перехватить его и ничего не делать:
 
 ```javascript
 Java.perform(function () {
-  try {
-    var CP = Java.use('okhttp3.CertificatePinner');
-    CP.check.overload('java.lang.String', 'java.util.List').implementation = function (h, p) { return; };
-    CP.check$okhttp.overload('java.lang.String', 'kotlin.jvm.functions.Function0').implementation = function (h, f) { return; };
-  } catch (e) { console.log('okhttp3 not found: ' + e); }
-
-  try {
-    var TK = Java.use('com.datatheorem.android.trustkit.pinning.OkHostnameVerifier');
-    TK.verify.overload('java.lang.String', 'javax.net.ssl.SSLSession').implementation = function (a, b) { return true; };
-  } catch (e) {}
-
-  var X509TM = Java.use('javax.net.ssl.X509TrustManager');
-  // хук на конкретной реализации — ищем класс в jadx
+  var Pinner = Java.use("okhttp3.CertificatePinner");
+  Pinner.check.overload("java.lang.String", "java.util.List")
+    .implementation = function (host, certs) {
+      console.log("[*] OkHttp pinner bypassed for " + host);
+    };
 });
 ```
 
-Objection делает это одной командой: `android sslpinning disable` (и `ios sslpinning disable`).
+Обратите внимание на `overload`: в разных версиях OkHttp сигнатура метода может отличаться (например, второй аргумент другого типа). Если хук не встаёт, Frida сообщит об ошибке — это подсказка уточнить сигнатуру.
 
-## Нативный уровень: OpenSSL/BoringSSL
+## Шаг 4: TrustKit
 
-Если pinning реализован в `.so` через OpenSSL, Java-хуки не помогут.
+**TrustKit** — библиотека, которая упрощает pinning. Она хранит конфигурацию (в т.ч. хэши) и проверяет сертификаты через свой `TrustManager`. Обход — найти методы TrustKit и перехватить их, либо (проще) перехватить стандартный `X509TrustManager`, если TrustKit делегирует проверку ему. Конфигурацию TrustKit можно также найти в ресурсах — там лежат ожидаемые хэши, и их наличие подсказывает, что pinning активен.
 
-```javascript
-var symbols = ['X509_verify_cert', 'SSL_CTX_set_verify', 'X509_check_issued', 'SSL_get_verify_result'];
-symbols.forEach(function (name) {
-  var f = Module.findExportByName(null, name);
-  if (f) {
-    Interceptor.attach(f, { onLeave: function (ret) { ret.replace(ptr(1)); } });
-  }
-});
-Module.enumerateExportsSync('libssl.so').forEach(function (e) {
-  if (e.name.indexOf('verify') >= 0) console.log(e.name + ' @ ' + e.address);
-});
+## Шаг 5: нативный pinning
+
+Самый сложный слой — проверка в `.so` (OpenSSL/BoringSSL или собственный код). Признаки:
+
+- приложение использует `libssl.so`/`libcrypto.so` или собственный `.so` с TLS;
+- в jadx нет ни NSC `pin-set`, ни `CertificatePinner`, а трафик всё равно не перехватывается;
+- в нативной библиотеке есть строки с хэшами или доменами.
+
+Обход:
+
+- **Хук нативной функции проверки** по имени или смещению (`Interceptor.attach`).
+- **Подмена ожидаемого хэша** в памяти.
+- **Перехват сравнения** — если проверка сводится к `memcmp`/`strcmp`, перехватить и вернуть «совпало».
+
+Здесь пригодится всё, что мы разбирали про нативный реверс: `nm -D`, `strings`, Ghidra и `Interceptor`.
+
+## Шаг 6: универсальный обход
+
+На практике применяют комбинированный скрипт: он перехватывает `TrustManager`, OkHttp и Conscrypt сразу, а если не помогает — переходят к нативному уровню. Порядок действий:
+
+1. **Определите уровень.** NSC → OkHttp → TrustKit → нативный.
+2. **Начните с Objection** (`android sslpinning disable`) — он покрывает Java-уровни.
+3. **Добавьте хук OkHttp**, если приложение его использует.
+4. **Для нативного pinning** — хук `.so`.
+5. **Проверьте трафик** в прокси после каждого шага.
+
+Так вы не пишете всё сразу, а последовательно закрываете уровни, видя, где именно «застряло» соединение.
+
+## Шаг 7: как определить уровень на практике
+
+Полезные команды для разведки. Сначала смотрим, какие TLS-библиотеки вообще есть в APK:
+
+```
+$ unzip -l app.apk | grep -iE '\.so' | grep -iE 'ssl|crypto|okhttp|trust'
 ```
 
-Иногда pinning — сравнение хэшей сертификата в кастомной функции. Тогда хукайте `memcmp`/`strcmp`/`SSL_get_peer_certificate` и подменяйте результат.
+Если видите `libokhttp.so` или `libconscrypt` — Java-уровень; если `libssl.so`/`libcrypto.so` — вероятен нативный TLS. Дальше ищем конфигурацию и классы:
 
-## Config-уровень и double-pinning
-
-```bash
-# патч network security config: убрать <pin-set>, добавить системные CA
-apktool b app -o app_patched.apk
-apksigner sign --ks my.keystore app_patched.apk
+```
+$ grep -rn 'pin-set\|CertificatePinner\|TrustKit' dec/ 2>/dev/null | head
 ```
 
-Для **double-pinning** нужно снять оба слоя: сначала Java-хуки, затем нативные. Готовые скрипты: `frida-multiple-unpinning`, `disable-flutter-tls`, `frida-ios-dump` (iOS).
+Наличие `pin-set` в NSC, `CertificatePinner` в smali или строк TrustKit сразу указывает уровень. Если ничего не нашлось, а трафик не перехватывается — смотрите нативный код: `strings libfoo.so | grep -iE 'sha256|pin|sha/'`.
 
-## iOS-уровень
+Такой триаж занимает минуты и избавляет от слепого перебора хуков.
 
-На iOS pinning реализуют через `NSURLSession` делегаты (`didReceiveChallenge`), TrustKit, Alamofire `ServerTrustPolicy`, либо нативно (Security.framework). Обход:
+## Шаг 8: почему в pin-set есть expiration
 
-```javascript
-// хук проверки доверия
-var C = ObjC.classes.NSURLSession;
-// обычно хук на метод делегата urlSession:didReceiveChallenge:completionHandler:
-// и принудительная отдача NSURLSessionAuthChallengeUseCredential
-```
+Обратите внимание на атрибут `expiration` в блоке `<pin-set>`. Он не случаен: pinning создаёт проблему — если сервер сменит сертификат, а приложение жёстко привязано к старому, оно перестанет работать. Поэтому задают срок: после `expiration` проверка отключается сама, и приложение может принять новый сертификат.
 
-Либо Frida-скрипт `ios-ssl-bypass`, либо Objection `ios sslpinning disable`.
+Для тестировщика это практический факт: посмотрите дату `expiration` — если она уже прошла, pinning, возможно, **неактивен**, и обход не нужен. А если дата близкая, разработчики готовятся к ротации ключей, и в конфиге могут быть сразу несколько `<pin>` (текущий и будущий) — тогда удалять нужно все.
 
-## Разобранный пример
+## Что мы теперь знаем
 
-```bash
-# 1. Прокси настроен, CA установлен, но соединения нет -> pinning
-grep -rniE 'CertificatePinner|X509_verify|pin-set' app/ | head
-# 2. Комбинированный скрипт: OkHttp + TrustKit + OpenSSL
-frida -U -f com.target.app -l unpin_all.js
-# 3. Проверяем трафик в mitmproxy/Burp — теперь видно HTTPS
-```
+По-простому:
 
-## Частые ошибки и подводные камни
+1. Pinning бывает на четырёх уровнях: NSC, HTTP-библиотека, TrustKit, нативный TLS.
+2. Java-хуки покрывают первые три; нативный уровень требует хука `.so`.
+3. `CertificatePinner.check` — точка обхода для OkHttp; важна точная сигнатура.
+4. Нативный pinning обходится перехватом функции или сравнения хэшей.
+5. Сначала определяют уровень, потом подбирают обход.
 
-- **Хукать только Java** — нативный pinning останется и оборвёт соединение.
-- **Забыть про `network_security_config`** — иногда pinning задан только там.
-- **Не искать double-pinning** — если после Java-хука трафик не идёт, смотрите нативку.
-- **Ломать сигнатуру OkHttp-метода** — версии разные, проверяйте `overloads`.
-- **Патчить APK без переподписи** — пересобранный APK не установится без `apksigner`.
-- **Игнорировать Flutter/RN** — у них свой TLS-стек, нужен reFlutter/специальные хуки.
+## На что смотреть дальше
 
-## Справочная таблица
-
-| Инструмент | Назначение |
-|-----------|-----------|
-| Objection | `android/ios sslpinning disable` |
-| frida-multiple-unpinning | комплексный скрипт |
-| reFlutter | Flutter TLS |
-| apk-mitm | автоматический патч APK |
-| mitmproxy/Burp | просмотр трафика |
-
-## Что дальше / решение
-
-- Трафик не идёт после Java-хуков → ищите нативный pinning.
-- Pinning только в config → патч + переподпись.
-- Flutter/RN → специфичные инструменты.
-- Сняли pinning → переходите к анализу API (IDOR/BOLA, логика).
-
-## iOS pinning: реализации и обход
-
-На iOS pinning встречается в нескольких формах:
-
-- **NSURLSession delegate** `urlSession:didReceiveChallenge:completionHandler:` — кастомная проверка `serverTrust`. Обход — подмена completion на `NSURLSessionAuthChallengeUseCredential` с `serverTrust`.
-- **TrustKit** — тот же делегат, но конфигурируемый.
-- **Alamofire `ServerTrustPolicy`/`PinnedCertificatesTrustEvaluator`** — проверка внутри библиотеки.
-- **Нативный Security.framework** — `SecTrustEvaluate`/`SecTrustEvaluateWithError`.
-
-```javascript
-// обход проверки доверия на уровне Security.framework
-var SecTrustEvaluate = Module.findExportByName(null, 'SecTrustEvaluate');
-if (SecTrustEvaluate) {
-  Interceptor.replace(SecTrustEvaluate, new NativeCallback(function (trust, result) {
-    return 0; // errSecSuccess
-  }, 'int', ['pointer', 'pointer']));
-}
-```
-
-Быстрый путь — Objection: `ios sslpinning disable`.
-
-## Flutter и React Native: свой TLS-стек
-
-Flutter использует BoringSSL внутри `libflutter.so` и по умолчанию **не доверяет** пользовательским CA и не использует системный прокси. Поэтому обычный MITM не работает. Решения:
-
-```bash
-# патч libflutter.so для доверия вашему CA
-reFlutter app.apk
-# либо хук на verify-функции внутри libflutter.so
-```
-
-React Native обычно использует OkHttp (Android) / NSURLSession (iOS) — тогда применимы стандартные Java/ObjC-хуки. Но если включён кастомный TLS (например, `react-native-ssl-pinning`), нужно хукать его мост.
-
-## Автоматизация снятия pinning
-
-- **apk-mitm** — автоматически патчит APK (network security config + smali), пересобирает и подписывает.
-- **frida-multiple-unpinning** — один скрипт покрывает OkHttp, TrustKit, Conscrypt, нативку.
-- **objection** — `android sslpinning disable` / `ios sslpinning disable`.
-- **medusa / house** — фреймворки с готовыми модулями.
-
-```bash
-apk-mitm app.apk           # на выходе app-patched.apk
-objection -g com.target.app explore -c "android sslpinning disable"
-```
-
-## Расширенный разобранный пример
-
-Дано: банковское приложение, MITM не работает, в коде найден `CertificatePinner` и нативная проверка.
-
-```javascript
-// unpin_all.js
-Java.perform(function () {
-  try {
-    var CP = Java.use('okhttp3.CertificatePinner');
-    CP.check.overload('java.lang.String', 'java.util.List').implementation = function () {};
-  } catch (e) {}
-  try {
-    var TM = Java.use('com.target.security.PinningTrustManager');
-    TM.checkServerTrusted.overload('[Ljava.security.cert.X509Certificate;', 'java.lang.String')
-      .implementation = function () {};
-  } catch (e) {}
-});
-['X509_verify_cert', 'SSL_get_verify_result', 'X509_check_issued'].forEach(function (n) {
-  var f = Module.findExportByName(null, n);
-  if (f) Interceptor.attach(f, { onLeave: function (r) { r.replace(ptr(1)); } });
-});
-```
-
-```bash
-frida -U -f com.target.app -l unpin_all.js
-mitmproxy -p 8080   # теперь трафик виден
-```
-
-## Что делать дальше
-
-- Если Java-хуки не помогли — ищите нативный слой и config.
-- Для Flutter/RN — специфичные инструменты (reFlutter).
-- После снятия pinning переходите к анализу API: IDOR/BOLA, логика, утечки.
-
-## Проверка результата
-
-После снятия pinning убедитесь, что трафик действительно виден и не оборван на середине:
-
-```bash
-mitmproxy -p 8080 --set confdir=~/.mitmproxy
-# в приложении выполните действие, которое ходит в сеть
-# в mitmproxy ищите запросы к api.* — они должны появляться
-```
-
-Если часть запросов видна, а часть нет — вероятно, остался второй слой pinning (нативный) или запрос идёт по другому стеку (WebView, Flutter). Зафиксируйте, какой именно канал защищён.
+- **Определите уровень до хука.** Это половина успеха.
+- **Смотрите ресурсы.** Хэши в NSC или TrustKit-конфиге — подсказка.
+- **Проверяйте сигнатуры.** `overload` в Frida обязателен.
+- **Нативный TLS — отдельная задача.** Java-хук здесь не поможет.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Где может быть задан pinning помимо кода?"
+- question: "Какой метод OkHttp отвечает за проверку pinning?"
   options:
-    - "В network_security_config.xml (<pin-set>)"
-    - "В AndroidManifest.xml"
+    - "CertificatePinner.check"
+    - "OkHttpClient.newCall"
+    - "Request.Builder.get"
+    - "Response.body"
+  answer: 0
+- question: "Где задаётся pinning в Network Security Config?"
+  options:
+    - "В блоке pin-set с хэшем ключа"
+    - "В теге uses-permission"
+    - "В теге activity"
     - "В strings.xml"
-    - "В build.gradle"
   answer: 0
-- question: "Какой класс OkHttp отвечает за pinning?"
+- question: "Что такое TrustKit?"
   options:
-    - "okhttp3.CertificatePinner"
-    - "okhttp3.OkHttpClient"
-    - "javax.net.ssl.SSLContext"
-    - "android.webkit.WebView"
+    - "Библиотека для pinning, проверяющая сертификаты"
+    - "Прокси-сервер"
+    - "Формат APK"
+    - "Тип эмулятора"
   answer: 0
-- question: "Как обходить нативный pinning на OpenSSL/BoringSSL?"
+- question: "Почему нативный pinning нельзя обойти Java-хуком?"
   options:
-    - "Хуками на X509_verify_cert / SSL_get_verify_result с подменой возврата"
-    - "Java.use('CertificatePinner')"
-    - "Переустановкой приложения"
-    - "Отключением Wi-Fi"
+    - "Проверка выполняется в .so, вне Java-машины"
+    - "Frida не поддерживает Android"
+    - "Нужен Wi-Fi"
+    - "Хук работает только на iOS"
   answer: 0
-- question: "Что такое double-pinning?"
+- question: "Зачем в Frida указывают overload?"
   options:
-    - "Pinning одновременно на Java- и нативном уровне — нужен обход обоих"
-    - "Двойной сертификат"
-    - "Два прокси"
-    - "Pinning только на iOS"
-  answer: 0
-- question: "Что нужно после патча network security config в декодированном APK?"
-  options:
-    - "Пересобрать (apktool b) и подписать (apksigner)"
-    - "Просто установить"
-    - "Запустить на симуляторе"
-    - "Удалить META-INF"
+    - "Чтобы выбрать нужную сигнатуру метода среди нескольких"
+    - "Чтобы ускорить скрипт"
+    - "Чтобы сменить язык"
+    - "Чтобы включить сеть"
   answer: 0
 ```
 
+## Куда дальше
+
+Мы разобрали pinning на всех уровнях. Дальше перейдём к инструментам Frida-скриптинга: как писать переиспользуемые скрипты, трассировать вызовы и автоматизировать рутину. А пока главное: pinning обходится по уровню, и умение определить уровень (конфиг, библиотека, нативный код) отличает быстрый обход от долгих переборов.
+
 ## Где пригодится
 
-- **CTF Mobile:** снятие нестандартного pinning для получения трафика/флага.
-- **Bug bounty:** MITM защищённых клиентов банков/платежей.
-- **Пентест:** оценка MASVS-NETWORK, проверка стойкости pinning.
-- **Работа:** понимание слоёв pinning при code review клиентов.
+- **CTF Mobile:** обход нестандартного pinning для получения трафика.
+- **Bug bounty:** MITM защищённых клиентов.
+- **Пентест:** оценка стойкости pinning на разных уровнях.
+- **Работа:** понимание, как разные библиотеки реализуют защиту транспорта.

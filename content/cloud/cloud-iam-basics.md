@@ -14,256 +14,258 @@ useful_for:
 estimated_minutes: 30
 summary: "IAM — сердце облачной безопасности. Разбираем сущности (пользователи, группы, роли), структуру JSON-политики, как быстро находить over-permissive права и как работает AssumeRole — фундамент для всей эксплуатации."
 ---
-## Что такое IAM
 
-IAM (Identity and Access Management) — слой авторизации облака: кто (principal) может делать что (action) с каким ресурсом и при каких условиях. В AWS это users, groups, roles, policies; в GCP — IAM members + roles + bindings; в Azure — Entra ID (объекты) + RBAC (роли) + scopes. Понимание IAM — фундамент: почти любая эскалация в облаке есть комбинация прав, приводящая к новым правам.
+## Вопрос, с которого всё начинается
 
-## Сущности IAM
+Ты нашёл ключ доступа AWS. Прежде чем что-то делать, надо понять: **что этому ключу вообще разрешено?** В облаке ответ на этот вопрос записан в виде JSON-документов, которые называются политиками. Умение читать политику — это умение читать права. Разберём это на одном ключе.
 
-- **User** — постоянная сущность с ключами/паролем.
-- **Group** — набор пользователей, политики наследуются.
-- **Role** — сущность без долговременных креденшелов, на которую «встают» через AssumeRole; используется сервисами, кросс-аккаунтом, федерацией.
-- **Policy** — документ прав (identity-based или resource-based).
-- **Trust policy** — кто может «встать» на роль.
-- **Permission boundary** — верхняя граница прав сущности.
-- **SCP** — политика Organization, ограничивающая целые аккаунты.
+IAM (Identity and Access Management) — это система управления правами в AWS. Всё, что «можно» и «нельзя», описано здесь.
 
-## Структура JSON-политики
+## Наш пример: ключ пользователя deploy-bot
 
-```json
+Наш объект — уже знакомый ключ пользователя `deploy-bot`. Настроим его, как в первом уроке:
+
+```
+$ export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+$ export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+$ aws sts get-caller-identity
 {
-  "Version": "2012-10-17",
-  "Statement": [
-    {"Sid":"AllowS3","Effect":"Allow",
-     "Action":["s3:GetObject","s3:ListBucket"],
-     "Resource":["arn:aws:s3:::mybucket","arn:aws:s3:::mybucket/*"],
-     "Condition":{"IpAddress":{"aws:SourceIp":"10.0.0.0/8"}}}
-  ]
+    "UserId": "AIDAEXAMPLEUSERID",
+    "Account": "123456789012",
+    "Arn": "arn:aws:iam::123456789012:user/deploy-bot"
 }
 ```
 
-Ключевые поля: Effect (Allow/Deny), Action (с wildcard `*`), Resource (ARN), Principal (в resource-based), Condition (ограничения). **Deny всегда побеждает Allow**, а SCP и boundary сужают то, что разрешено identity-политикой.
+Мы — пользователь `deploy-bot`. Теперь вопрос: **какие политики к нему привязаны?**
 
-## Как читать политику и находить over-permissive
+## Шаг 1: находим привязанные политики
 
-Красные флаги:
+У сущности (пользователя, группы, роли) права приходят из политик. Смотрим, что прикреплено напрямую к пользователю:
 
-- `"Action":"*"` или `"Resource":"*"`.
-- `iam:*`, `sts:*`, `s3:*`.
-- Principal `*` в resource-based политике без Condition.
-- `NotAction`/`NotResource` — легко ошибиться.
-- Отсутствие условий MFA/IP.
-
-```bash
-aws iam get-policy-version --policy-arn <arn> --version-id v3
-aws iam list-attached-user-policies --user-name alice
-aws iam list-role-policies --role-name MyRole
-aws iam list-user-policies --user-name alice
-enumerate-iam --access-key AKIA... --secret-key ...
-cloudsplaining scan-policy-file --input-file policy.json
+```
+$ aws iam list-attached-user-policies --user-name deploy-bot
+{
+    "AttachedPolicies": [
+        {
+            "PolicyName": "DeployAccess",
+            "PolicyArn": "arn:aws:iam::123456789012:policy/DeployAccess"
+        }
+    ]
+}
 ```
 
-## AssumeRole и цепочки ролей
+Одна политика с именем `DeployAccess`. Права приходят и через **группы** — проверим и их:
 
-Роль нельзя «использовать» напрямую — на неё встают через `sts:AssumeRole`, получая временные креденшелы. Trust policy определяет, кто может это сделать:
-
-```json
-{"Effect":"Allow","Principal":{"AWS":"arn:aws:iam::111122223333:root"},
- "Action":"sts:AssumeRole","Condition":{"StringEquals":{"sts:ExternalId":"secret123"}}}
+```
+$ aws iam list-groups-for-user --user-name deploy-bot
+{
+    "Groups": [
+        { "GroupName": "deployers", "Arn": "arn:aws:iam::123456789012:group/deployers" }
+    ]
+}
 ```
 
-Если trust-политика слишком широка (Principal `*`, нет ExternalId) — это **confused deputy**: сторонний сервис может «попросить» роль от вашего имени.
+Итого у пользователя может быть «свой» набор политик плюс всё, что даёт группа. Дальше смотрим содержимое политики.
 
-## Роли для сервисов (service roles)
+## Шаг 2: читаем JSON-политику
 
-EC2-инстансы, Lambda, ECS-таски получают роль через metadata/endpoint. Если вы получили RCE на инстансе — вы наследуете права его роли. Это мост из «сети» в «облако». Проверка:
+Политика — это документ. Заберём его текущую версию:
 
-```bash
-curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/
-curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/MyEC2Role
-# IMDSv2 требует токен:
-TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
-curl -s -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/iam/security-credentials/
+```
+$ aws iam get-policy-version --policy-arn arn:aws:iam::123456789012:policy/DeployAccess --version-id v1
+{
+    "PolicyVersion": {
+        "Document": {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Effect": "Allow",
+                    "Action": ["s3:*"],
+                    "Resource": ["arn:aws:s3:::mycompany-*", "arn:aws:s3:::mycompany-*/*"]
+                },
+                {
+                    "Effect": "Allow",
+                    "Action": ["iam:PassRole"],
+                    "Resource": "*"
+                }
+            ]
+        }
+    }
+}
 ```
 
-## Практика: анализ политики
+Разберём структуру. Каждый блок `Statement` — правило из трёх частей:
 
-Дана политика с `"Action":["iam:CreatePolicyVersion","iam:PassRole","ec2:RunInstances"]`. Вывод: можно создать новую версию политики с `*` (CreatePolicyVersion), привязать роль с широкими правами к инстансу (PassRole + RunInstances) и получить её креденшелы через metadata. Это типовой путь privesc — разберём его в `cloud-privesc-iam`.
+- `Effect` — `Allow` (разрешить) или `Deny` (запретить). Запрет всегда сильнее.
+- `Action` — какие операции разрешены, например `s3:*` (все действия S3) или `iam:PassRole`.
+- `Resource` — к каким объектам: `arn:aws:s3:::mycompany-*` значит «все бакеты, начинающиеся на `mycompany-`».
 
-## Условия (Condition) и их обход
+Итак, `deploy-bot` может делать **всё** с бакетами `mycompany-*` и передавать роли (`iam:PassRole`) кому угодно. Второе право — уже заявка на эскалацию, которую мы разберём в уроке `cloud-privesc-iam`.
 
-- `aws:SourceIp` — обходится при SSRF/прокси из разрешённого диапазона.
-- `aws:PrincipalArn` — если совпадает с ролью, которую можно «примерить».
-- `aws:MultiFactorAuthPresent` — обходится при краже MFA-токена.
-- `aws:RequestedRegion` — ограничивает регион, но не сервис.
-- `aws:ResourceTag` / `aws:PrincipalTag` — обходится изменением тегов при наличии прав.
+## Шаг 3: где искать «слишком широкие» права
 
-Понимание условий отличает «есть право» от «есть право, которым можно воспользоваться».
+Читая политику, в первую очередь ищи опасные признаки:
 
-## Защита
+| Признак в политике | Что значит |
+|--------------------|------------|
+| `"Action": "*"` | Разрешено всё (по сути админ) |
+| `"Resource": "*"` | На любые объекты |
+| `iam:PassRole` | Можно передать роль сервису и повысить права |
+| `iam:CreatePolicyVersion` | Можно переписать политику на более широкую |
+| `sts:AssumeRole` на `*` | Можно войти в другие роли |
 
-Least privilege, permission boundaries, SCP на уровне Organization, регулярный аудит (IAM Access Analyzer, Prowler), MFA для чувствительных действий, ротация ключей, запрет `*`.
+Проверим, нет ли у пользователя «звёздочек» через удобный инструмент перебора прав — `enumerate-iam`:
 
-## Частые ошибки
-
-- Читать только attached-политики, забыв inline и boundaries.
-- Не учитывать наследование через группы.
-- Игнорировать resource-based политики (S3, KMS, SQS) — они дают доступ в обход identity-based.
-- Считать `Deny` из SCP «просто текстом» — SCP реально ограничивает.
-- Путать `iam:PassRole` (передать роль сервису) и `sts:AssumeRole` (встать самому).
-
-## Что дальше / решение
-
-Освоив чтение политик, переходите к `cloud-privesc-iam`: там каталог «прав-мостов» (CreatePolicyVersion, PassRole, UpdateAssumeRolePolicy, AttachUserPolicy и др.) и полный путь эскалации. Для защиты — периодически прогоняйте pmapper/cloudsplaining и закрывайте избыточные права.
-
-## Политики vs Permission Boundary vs SCP
-
-| Механизм | Область | Кто задаёт | Эффект |
-|----------|---------|------------|--------|
-| Identity policy | сущность (user/role) | админ аккаунта | разрешает |
-| Resource policy | ресурс (S3, KMS, SQS) | владелец ресурса | разрешает/доверяет |
-| Permission boundary | максимум для сущности | админ | ограничивает |
-| SCP | аккаунт/OU | организация | ограничивает |
-| ACL | ресурс | владелец | legacy |
-
-Итоговые права = (identity ∪ resource) ∩ boundary ∩ SCP − explicit Deny. Если вы видите `Action:*`, но права не работают — ищите boundary или SCP.
-
-## Разбор реальной политики
-
-Дана policy:
-```json
-{"Statement":[
- {"Effect":"Allow","Action":["s3:GetObject","s3:PutObject"],"Resource":"arn:aws:s3:::logs/*"},
- {"Effect":"Allow","Action":["iam:PassRole"],"Resource":"*"},
- {"Effect":"Allow","Action":["ec2:RunInstances"],"Resource":"*"}]}
 ```
-Анализ: `s3:PutObject` на `logs/*` → запись логов (подделка/подмена). `iam:PassRole:*` + `ec2:RunInstances:*` → классическая эскалация: запустить EC2 с ролью, имеющей больше прав, и забрать её креденшелы через metadata. Вывод — это не «ограниченный» доступ, а путь к админу.
-
-## GCP и Azure: аналоги
-
-| AWS | GCP | Azure |
-|-----|-----|-------|
-| User | member (user:...) | Entra ID user |
-| Role | role binding | RBAC role assignment |
-| Policy | IAM policy (allow) | role definition + scope |
-| AssumeRole | serviceAccountTokenCreator / impersonate | managed identity |
-| SCP | Organization Policy | Azure Policy |
-| Permission boundary | deny policy | not directly |
-
-В GCP нет `Deny`-политик в классической модели (есть IAM Deny policies в preview), а имперсонация сервис-аккаунтов — через `roles/iam.serviceAccountTokenCreator`.
-
-## Инструменты аудита
-
-```bash
-prowler aws --profile default -M json-ocsf -o prowler-out
-scoutsuite aws --profile default --report-dir scout
-pmapper --profile default graph create --include-all
-pmapper --profile default query 'who can do iam:CreatePolicyVersion'
-cloudsplaining scan-policy-file --input-file policy.json
-enumerate-iam --access-key AKIA... --secret-key ... --session-token ...
+$ python3 enumerate-iam.py --access-key AKIAIOSFODNN7EXAMPLE --secret-key wJalrXUtn...
+2024-05-01 10:00:00,001 - Checking permissions (1/50)
+2024-05-01 10:00:01,220 - [SUCCESS] s3:ListAllMyBuckets
+2024-05-01 10:00:01,540 - [SUCCESS] iam:PassRole
+2024-05-01 10:00:02,110 - [SUCCESS] sts:GetCallerIdentity
 ```
 
-`prowler -M` — формат вывода, `-o` — директория, `-c` — чек. `scoutsuite` собирает инвентарь и находит мисконфиги.
+Инструмент по очереди пробует безопасные вызовы и помечает удавшиеся — так за минуту видно реальный набор прав, даже если политик много.
 
-## Разобранный пример: от read-only к админу
+## Шаг 4: роли и AssumeRole
 
-1. `aws sts get-caller-identity` — кто вы.
-2. `enumerate-iam` — какие вызовы разрешены.
-3. Находим `iam:CreatePolicyVersion` → создаём версию своей политики с `*`.
-4. `aws iam set-default-policy-version` — активируем.
-5. Повторяем `enumerate-iam` → теперь `iam:*`. Админ получен.
-Подробный каталог таких «мостов» — в `cloud-privesc-iam`.
+Кроме пользователей, в IAM есть **роли** — «шляпы», которые надевает сервис или пользователь. Пользователь может «войти» в роль командой `sts assume-role` и получить **временные** креды:
 
-## OPSEC и минимизация шума
-
-`enumerate-iam` делает десятки API-вызовов, которые видны в CloudTrail. Используйте `--brute-force` только при необходимости, ограничивайте `--region`, и учитывайте, что GuardDuty может помечать аномалии (`Recon:IAMUser`). При возможности работайте из уже «шумного» сервиса (SSRF через приложение).
-
-## Частые ошибки (продолжение)
-
-- Забывать, что resource-based политика может разрешить доступ без identity-прав.
-- Не проверять `iam:UpdateAssumeRolePolicy` — изменение trust даёт доступ к роли.
-- Игнорировать inline-политики в отчётах.
-- Не сопоставлять `NotAction`-политики с реальными действиями.
-
-## Как строится итоговое решение о доступе
-
-Разберём пошагово запрос `s3:GetObject` к `arn:aws:s3:::mybucket/secret`:
-
-1. **SCP**: если есть Deny на `s3:*` — отказ.
-2. **Permission boundary**: если объект вне разрешённого набора — отказ.
-3. **Identity policy**: есть ли Allow на этот ресурс?
-4. **Resource policy**: есть ли Allow/Deny на бакете?
-5. **ACL**: legacy-проверка.
-
-Если хотя бы один explicit Deny сработал — доступ запрещён, независимо от Allow. Это объясняет «нелогичные» отказы: право есть, но boundary/SCP режет.
-
-## Мини-лаборатория: читаем политику
-
-```bash
-aws iam get-user --user-name alice
-aws iam list-groups-for-user --user-name alice
-aws iam list-attached-user-policies --user-name alice
-aws iam list-user-policies --user-name alice
-# собрать эффективные права
-pmapper --profile alice query 'show all'
+```
+$ aws sts assume-role --role-arn arn:aws:iam::123456789012:role/DeployRole --role-session-name test
+{
+    "Credentials": {
+        "AccessKeyId": "ASIA...",
+        "SecretAccessKey": "...",
+        "SessionToken": "...",
+        "Expiration": "2024-05-01T18:00:00Z"
+    }
+}
 ```
 
-Сопоставляя действия из всех источников, вы строите карту «что могу» и находите лишние права.
+Обрати внимание: у временных кредов есть `SessionToken` и срок `Expiration`. Это ключевое отличие ролей от пользователей. Полученные креды можно экспортировать и работать уже от имени роли — часто с другими (иногда большими) правами.
 
-## Триаж находок
+Войти в роль можно, только если её **trust policy** (политика доверия) разрешает это нашему пользователю. Это мы разберём в `cloud-assume-role`.
 
-- `Action:*` — критично.
-- `iam:CreatePolicyVersion`, `iam:AttachUserPolicy`, `iam:PutUserPolicy` — privesc.
-- `iam:PassRole` + вычислительные сервисы — privesc.
-- `sts:AssumeRole` на широкий trust — lateral.
-- `s3:*` на `*` — эксфильтрация.
-- Отсутствие MFA-условий — усиление риска.
+## Шаг 5: условия и границы
 
-## Что дальше (расширение)
+Политики не всегда выдают права «вообще» — часто есть блок `Condition`, который сужает действие:
 
-После чтения политик переходите к практике: `cloud-privesc-iam` (каталог путей), `cloud-assume-role` (цепочки доверия), `cloud-aws-organizations` (SCP и кросс-аккаунт). Для защиты — регулярный аудит и устранение избыточных прав.
+```
+{
+  "Effect": "Allow",
+  "Action": "s3:GetObject",
+  "Resource": "arn:aws:s3:::mycompany-public/*",
+  "Condition": { "StringEquals": { "aws:PrincipalTag/team": "frontend" } }
+}
+```
+
+Читается так: объект можно читать, только если у запрашивающего есть тег `team=frontend`. Условия проверяют теги, IP, время, наличие MFA и другие признаки. Для атакующего важно: условие иногда можно «удовлетворить» (добавить себе тег, прийти с нужного IP), а иногда оно делает право бесполезным.
+
+Ещё один ограничитель — **permission boundary** (граница прав). Это отдельная политика, которая говорит: «что бы ни разрешали другие политики, выйти за эти рамки нельзя». Если у пользователя `Action: "*"`, но boundary разрешает только `s3:*`, реально доступен лишь S3. Поэтому, читая права, всегда проверяй, есть ли boundary и что он ограничивает.
+
+## Шаг 6: роли сервисов и trust policy
+
+Пользователи входят в систему ключами. А сервисы (EC2, Lambda) получают права через **роль**, которую им назначили. Роль описывается двумя документами:
+
+- **trust policy** — кто вообще может её «надеть» (например, сервис `ec2.amazonaws.com`);
+- **policy** — что этой роли разрешено делать.
+
+Посмотреть trust policy можно так:
+
+```
+$ aws iam get-role --role-name deploy-role --query "Role.AssumeRolePolicyDocument"
+{
+  "Statement": [{
+    "Effect": "Allow",
+    "Principal": { "Service": "ec2.amazonaws.com" },
+    "Action": "sts:AssumeRole"
+  }]
+}
+```
+
+Здесь роль доверяет только сервису EC2. Но если в `Principal` окажется `"AWS": "*"` или чужой аккаунт — это уже дыра, через которую роль может надеть кто угодно. Такие доверия мы разберём в `cloud-assume-role`.
+
+## Частые вопросы
+
+**«Пользователь и роль — в чём разница?»** Пользователь — постоянная учётка с ключами. Роль — «шляпа», которую занимают на время; её креды временные.
+
+**«Что важнее — политика пользователя или группы?»** Они складываются. Права — это объединение всех разрешений, но любой явный запрет побеждает.
+
+**«Как быстро понять, что ключ опасен?»** Смотри на `Action` и `Resource`: `*` в любом из них — признак широких прав, а `PassRole`/`CreatePolicyVersion` — заготовка эскалации.
+
+**«Почему у роли есть SessionToken?»** Потому что роли дают временные креды: токен подтверждает, что ты вошёл именно через AssumeRole.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. IAM описывает права в JSON-политиках с блоками `Effect`, `Action`, `Resource`.
+2. Права приходят из политик пользователя и его групп.
+3. `"*"` в `Action`/`Resource` — признак слишком широких прав.
+4. `iam:PassRole` и `iam:CreatePolicyVersion` — частые шаги эскалации.
+5. Роли дают временные креды через `sts assume-role`, если разрешает trust policy.
+
+## На что смотреть дальше
+
+- **Сначала читай политику, потом действуй.** Не запускай слепых переборов, пока не понял права.
+- **Ищи `PassRole` и `AssumeRole`.** Это заготовки для повышения привилегий.
+- **Проверяй и группы.** Часто права «спрятаны» в группе, а не на пользователе.
+- **Помни про временные креды.** У ролей есть `SessionToken`, и он обязателен в запросах.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "В чём ключевое отличие IAM User от IAM Role?"
+- question: "Какие три части обязательны в блоке Statement IAM-политики?"
   options:
-    - "Роль нельзя привязать к политике"
-    - "User имеет долговременные креды, Role выдаёт временные токены через AssumeRole"
-    - "Роль работает только в Azure"
-    - "User всегда мощнее роли"
-  answer: 1
-  explanation: "User — постоянные access key; Role — временная идентичность, которую принимают."
-- question: "Что делает `Effect: Deny` при конфликте с `Allow`?"
+    - "Effect, Action, Resource"
+    - "Name, User, Group"
+    - "Allow, Deny, Block"
+    - "Key, Value, Tag"
+  answer: 0
+  explanation: "Statement описывает, что (Action) разрешено (Effect) к чему (Resource)."
+- question: "Что означает Action: '*' в политике?"
   options:
-    - "Ничего, Allow приоритетнее"
-    - "Deny всегда побеждает"
-    - "Зависит от порядка statement"
-    - "Вызывает ошибку API"
+    - "Только чтение"
+    - "Разрешены все действия — фактически админ"
+    - "Запрет на всё"
+    - "Доступ только из консоли"
   answer: 1
-  explanation: "Явный Deny всегда перекрывает Allow."
-- question: "Какая комбинация в политике — классический красный флаг эскалации?"
+  explanation: "Звёздочка покрывает все операции сервисов."
+- question: "Какой инструмент быстро перебирает реально разрешённые вызовы?"
   options:
-    - "`s3:GetObject` на конкретный бакет"
-    - "`iam:CreateAccessKey` на `Resource: *`"
-    - "`ec2:DescribeInstances` с Condition на IP"
-    - "`logs:CreateLogGroup` на конкретный лог"
+    - "subjack"
+    - "enumerate-iam"
+    - "openssl"
+    - "dig"
   answer: 1
-  explanation: "Создание access key для любого пользователя = возможность зайти под админом."
-- question: "Кто может принять роль `target-role`?"
+  explanation: "enumerate-iam пробует безопасные API-вызовы и отмечает успешные."
+- question: "Чем креды роли отличаются от кредов пользователя?"
   options:
-    - "Любой, у кого есть пароль"
-    - "Только тот, кого разрешает trust policy роли"
-    - "Все пользователи аккаунта без исключения"
-    - "Только root-аккаунт"
-  answer: 1
-  explanation: "Trust policy (AssumeRolePolicyDocument) определяет principals."
+    - "У роли они временные и включают SessionToken"
+    - "У роли нет секретного ключа"
+    - "Роль работает только из консоли"
+    - "Они не имеют срока действия"
+  answer: 0
+  explanation: "Роль выдаёт временные креды с токеном и датой истечения."
+- question: "Что определяет, может ли пользователь войти в роль?"
+  options:
+    - "trust policy роли"
+    - "её тег"
+    - "длина ARN"
+    - "регион роли"
+  answer: 0
+  explanation: "Trust policy описывает, кому разрешён assume-role."
 ```
+
+## Куда дальше
+
+Теперь ты умеешь читать права. В следующем уроке мы посмотрим, как из приложения **получить сами креды роли** без ключей — через metadata-сервис по адресу `169.254.169.254`. А пока запомни главное: политика — это и есть карта прав, и её читают до того, как что-то делать.
 
 ## Где пригодится
 
-- **Любой облачный пентест** — первым делом вы читаете IAM, чтобы понять свои возможности.
-- **Bug bounty** — over-permissive IAM и confused-deputy в cross-account ролях.
-- **CTF** — задачи почти всегда дают «слабый» ключ и требуют найти путь к админу.
-- **Аудит и compliance** — поиск нарушений least-privilege, избыточных `*`.
-- **Дальше по дереву** — `cloud-privesc-iam` (что делать с найденными правами) и `cloud-metadata-ssrf` (как получить роль из инстанса).
+- **CTF (Cloud):** понять, что разрешено найденному ключу, и спланировать путь к флагу.
+- **Bug bounty:** оценить риск утёкшего ключа.
+- **Пентест:** первый шаг аудита — прочитать политики.
+- **Blue team:** находить over-permissive политики до инцидента.

@@ -5,273 +5,278 @@ category: forensics
 parent: forensics-img-captures
 difficulty: medium
 order: 1
-tags: [pcap, tshark, wireshark, network, streams, ctf]
+tags: [pcap, tshark, wireshark, http, network-forensics]
 prerequisites: [forensics-disk-images]
 useful_for:
   - "CTF Forensics категория"
-  - "Network Security Monitoring"
-  - "Incident Response"
+  - "Network forensics / IR"
+  - "Анализ инцидентов"
 estimated_minutes: 40
-summary: "Как читать захваты трафика: tshark, фильтры, follow stream, извлечение файлов, анализ протоколов и credentials."
+summary: "Как открыть и прочитать сетевой дамп: фильтры tshark, реконструкция HTTP-сессии, извлечение объектов."
 ---
 
-## Что такое PCAP
+## Вопрос, с которого всё начинается
 
-PCAP (packet capture) — файл с записанными сетевыми пакетами. Формат: `libpcap` (`.pcap`, `.cap`) или `pcapng` (`.pcapng`). Используется для отладки, мониторинга и форензики. Внутри — кадры с timestamp, длина и сырые байты (Ethernet → IP → TCP/UDP → приложение).
+Пока мы копались в файлах и дисках, мимо шёл трафик. Иногда его успели записать —
+и тогда у нас на руках **PCAP** (packet capture): файл, в котором лежат все сетевые
+пакеты за промежуток времени. Там могут быть пароли, загруженные файлы, целые сессии.
 
-## Инструменты
+Задача: дан `capture.pcap` с подозрительной активностью. Найти, куда ходил клиент,
+с какими данными, и вытащить то, что передавалось. В этом уроке пройдём это шаг за
+шагом.
 
-- **Wireshark** — GUI, мощные фильтры, follow stream, извлечение объектов.
-- **tshark** — CLI-версия Wireshark (для скриптов).
-- **tcpdump** — захват и быстрый просмотр.
-- **tcpflow/ngrep** — реконструкция потоков.
-- **NetworkMiner** — извлечение файлов/credentials.
-- **Zeek** — структурированные логи (см. `forensics-zeek`).
+Начнём с общего принципа: в сетевом дампе мы всегда идём от «кто с кем говорил»
+к «что именно передали». Сначала протоколы, потом потоки, потом конкретные поля и
+файлы. Такой порядок не даёт утонуть в тысячах пакетов.
 
-```bash
-tshark -r capture.pcap                     # сводка пакетов
-tshark -r capture.pcap -q -z io,phs        # статистика протоколов
-capinfos capture.pcap                      # информация о дампе
-```
-
-## Фильтры tshark/Wireshark
-
-**Display filters** (Wireshark-синтаксис):
-
-```
-ip.addr == 10.0.0.5
-tcp.port == 443
-http.request.method == "POST"
-dns.qry.name contains "evil"
-tls.handshake.extensions_server_name == "example.com"
-frame contains "password"
-```
+## Наш пример: capture.pcap
 
 ```bash
-# Примеры tshark
-tshark -r cap.pcap -Y 'http.request' -T fields -e http.host -e http.request.uri
-tshark -r cap.pcap -Y 'dns' -T fields -e dns.qry.name | sort -u
-tshark -r cap.pcap -Y 'tcp.flags.syn==1 && tcp.flags.ack==0' -T fields -e ip.dst
+$ file capture.pcap
+capture.pcap: pcap capture file, microsecond ts (little-endian) - version 2.4
+(Ethernet, capture length 65535)
 ```
 
-**BPF-фильтры** (для tcpdump): `tcp port 80`, `host 10.0.0.5`, `not arp`.
+Классический дамп, записанный `tcpdump` или Wireshark. Открывать графический
+Wireshark необязательно — для разбора и автоматизации удобнее консольный `tshark`.
 
-## Follow stream
+## Первый взгляд: что вообще внутри
 
-Реконструкция TCP-сессии — ключевой приём.
+Прежде чем искать иголку, посмотрим на стог. Протокольная статистика:
 
 ```bash
-# tshark: follow TCP stream (номер потока)
-tshark -r cap.pcap -q -z follow,tcp,ascii,0
-# список потоков
-tshark -r cap.pcap -T fields -e tcp.stream | sort -un
+$ tshark -r capture.pcap -q -z io,phs
+Protocol Hierarchy Statistics
+frame                                    frames:10 bytes:774
+  eth                                    frames:10 bytes:774
+    ip                                   frames:10 bytes:774
+      tcp                                frames:10 bytes:774
+        http                             frames:2 bytes:342
+          data-text-lines                frames:1 bytes:160
 ```
 
-В Wireshark: правый клик → Follow → TCP Stream.
+`-r` — читать файл, `-q` — не печатать каждый пакет, `-z io,phs` — показать
+**иерархию протоколов**. Видно: десять пакетов, внутри TCP и HTTP. Никакого TLS —
+значит, содержимое не зашифровано и читается напрямую.
 
-## Извлечение файлов
+## Фильтруем нужное
+
+Смотреть все пакеты подряд бессмысленно — нужны **фильтры отображения**. Найдём
+HTTP-запросы:
 
 ```bash
-# Экспорт объектов HTTP (Wireshark: File -> Export Objects -> HTTP)
-tshark -r cap.pcap --export-objects http,./exported
-# Извлечь все потоки как данные
-tshark -r cap.pcap -Y 'http' -T fields -e http.file_data | xxd -r -p
-# tcpflow
-tcpflow -r cap.pcap -o out/
-# NetworkMiner (GUI)
+$ tshark -r capture.pcap -Y http.request
+    4   0.030000  10.10.10.50 → 10.10.10.80  HTTP 182 GET /admin/secret.txt HTTP/1.1
 ```
 
-Полезно: HTTP-объекты (файлы), SMB-файлы, FTP-передачи, TLS (если ключи).
-
-## Credentials в трафике
-
-Многие протоколы передают учётные данные **в открытом виде**:
-
-- **HTTP Basic Auth** (`Authorization: Basic base64`).
-- **FTP** (`USER`/`PASS`).
-- **Telnet.**
-- **SMTP/POP3/IMAP.**
-- **SNMP community.**
-- **NTLM/Kerberos** (хэши, для Kerberoast/relay).
+`-Y` — фильтр (например `http.request`), в отличие от `-f` (фильтр захвата, работает
+по BPF). Видим: клиент `10.10.10.50` обратился к `10.10.10.80` по адресу
+`/admin/secret.txt`. Достанем сразу конкретные поля:
 
 ```bash
-# HTTP Basic
-tshark -r cap.pcap -Y 'http.authorization' -T fields -e http.authorization | \
-  cut -d' ' -f2 | base64 -d
-# FTP
-tshark -r cap.pcap -Y 'ftp.request.command=="USER" || ftp.request.command=="PASS"' \
-  -T fields -e ftp.request.arg
-# Kerberos (для извлечения хэшей)
-tshark -r cap.pcap -Y 'kerberos' -T fields -e kerberos.CNameString
+$ tshark -r capture.pcap -T fields -e http.request.method -e http.host \
+  -e http.request.uri -e http.authorization -Y http.request
+GET	files.local	/admin/secret.txt	Basic YWRtaW46U3VwZXJTZWNyZXQxMjM=
 ```
 
-## Практический пример: CTF-разбор
+`-T fields` печатает только выбранные поля — идеально для скриптов и `grep`. Здесь
+нас интересует `Authorization: Basic ...` — заголовок с логином и паролем.
+
+## Реконструируем сессию целиком
+
+Пакеты в дампе — это отдельные куски разговора. Собрать их обратно в текст можно
+командой `follow`:
 
 ```bash
-# 1. Обзор
-capinfos capture.pcap
-# 2. Протоколы
-tshark -r capture.pcap -q -z io,phs
-# 3. HTTP-объекты
-tshark -r capture.pcap --export-objects http,./files
-ls files/
-# 4. Credentials
-tshark -r capture.pcap -Y 'http.authorization || ftp || telnet'
-# 5. Follow интересного потока
-tshark -r capture.pcap -q -z follow,tcp,ascii,3
+$ tshark -r capture.pcap -q -z follow,tcp,ascii,0
+===================================================================
+Follow: tcp,ascii
+Filter: tcp.stream eq 0
+Node 0: 10.10.10.50:49152
+Node 1: 10.10.10.80:80
+128
+GET /admin/secret.txt HTTP/1.1
+Host: files.local
+Authorization: Basic YWRtaW46U3VwZXJTZWNyZXQxMjM=
+User-Agent: curl/8.5.0
+
+	106
+HTTP/1.1 200 OK
+Server: nginx/1.24.0
+Content-Type: text/plain
+Content-Length: 19
+
+CTF{pl41nt3xt_h77p}
+===================================================================
 ```
 
-## TLS-трафик: что можно и что нельзя
+Вот и весь разговор: запрос, заголовки, ответ сервера и тело. Номер в конце
+`follow,...,0` — это **номер TCP-потока** (`tcp.stream`); нулевой — первый поток
+в дампе. Числа `128` и `106` — длины сторон.
 
-TLS-трафик зашифрован, но метаданные видны: **SNI** (имя сервера), **сертификаты**, **JA3/JA3S**, размеры/тайминги. Расшифровка возможна при наличии:
+## Расшифровываем Basic-авторизацию
 
-- **SSLKEYLOGFILE** (клиентский лог ключей) — Wireshark: Preferences → Protocols → TLS → (Pre)-Master-Secret log.
-- **Приватный RSA-ключ сервера** (если не ECDHE — forward secrecy мешает).
-- **Извлечённые сессионные ключи** из памяти.
+HTTP Basic передаёт логин и пароль в **base64** — это не шифрование, а просто
+кодирование, любой может декодировать:
 
 ```bash
-tshark -r cap.pcap -o tls.keylog_file:keys.log -Y 'http2' -T fields -e http2.header.value
-tshark -r cap.pcap -Y 'tls.handshake.extensions_server_name' -T fields -e tls.handshake.extensions_server_name
+$ echo 'YWRtaW46U3VwZXJTZWNyZXQxMjM=' | base64 -d
+admin:SuperSecret123
 ```
 
-## SMB, FTP, SMB2 и передача файлов
+Формат — `логин:пароль`. Мы добыли учётные данные прямо из трафика. Именно поэтому
+HTTP без TLS опасен: всё видно.
+
+## Вытаскиваем файлы из дампа
+
+Если по сети передавали файл, `tshark` умеет «экспортировать объекты»:
 
 ```bash
-# SMB-файлы (Wireshark: Export Objects -> SMB)
-tshark -r cap.pcap --export-objects smb,./smb_files
-# SMB-операции
-tshark -r cap.pcap -Y 'smb2.cmd' -T fields -e smb2.filename
-# FTP data
-tshark -r cap.pcap -Y 'ftp-data' -T fields -e ftp-data
+$ tshark -r capture.pcap --export-objects http,out/ -q
+$ ls -la out/
+-rw-r--r-- 1 user user 19 secret.txt
+$ cat out/secret.txt
+CTF{pl41nt3xt_h77p}
 ```
 
-SMB часто содержит передачу malware/ransomware, доступ к шарам, NTLM-аутентификацию (для relay/кражи хэшей).
+`--export-objects http,out/` собрал все HTTP-ответы в файлы в каталоге `out/`. Так же
+работает для `smb`, `tftp`, `imf` (почта). Если бы это был TLS — объекты не собрались
+бы без ключей (об этом в уроке про расшифровку TLS).
 
-## Статистика и аномалии
+## Полезные фильтры
+
+| Задача | Фильтр `-Y` |
+|--------|-------------|
+| Только HTTP-запросы | `http.request` |
+| Логины/пароли Basic | `http.authorization` |
+| DNS-запросы | `dns.qry.name` |
+| Пакеты по IP | `ip.addr == 10.10.10.80` |
+| Конкретный поток | `tcp.stream eq 0` |
+| POST-данные | `http.request.method == "POST"` |
+| Скачанные файлы | `http.response` + `--export-objects` |
+
+## Как посмотреть один пакет целиком
+
+Иногда нужно разобрать конкретный пакет по полям. Флаг `-V` («verbose») показывает
+весь разбор кадра:
 
 ```bash
-# Топ-разговаривающие (по объёму)
-tshark -r cap.pcap -q -z conv,ip | sort -k3 -n | tail
-# Экспертные сообщения (аномалии)
-tshark -r cap.pcap -q -z expert
-# Протокольная иерархия
-tshark -r cap.pcap -q -z io,phs
+$ tshark -r capture.pcap -Y http.request -V | head -25
+Frame 4: 182 bytes on wire
+Ethernet II, Src: ..., Dst: ...
+Internet Protocol Version 4, Src: 10.10.10.50, Dst: 10.10.10.80
+Transmission Control Protocol, Src Port: 49152, Dst Port: 80
+Hypertext Transfer Protocol
+    GET /admin/secret.txt HTTP/1.1\r\n
+    Host: files.local\r\n
+    Authorization: Basic YWRtaW46U3VwZXJTZWNyZXQxMjM=\r\n
 ```
 
-## Инструменты и команды
+Здесь видно весь путь данных сверху вниз: кадр → IP → TCP → HTTP. Такой разбор
+помогает, когда «обычные» поля не отвечают на вопрос.
+
+## Если трафик большой
+
+На больших дампах смотреть всё подряд нельзя. Приёмы:
+
+- **Фильтруй как можно раньше.** `-Y` применяется после чтения, но при огромных
+  файлах сначала сузь по BPF: `-f "tcp port 80"`.
+- **Выгружай поля, а не пакеты.** `-T fields -e ...` даёт таблицу, которую легко
+  разобрать `sort`/`uniq`:
 
 ```bash
-capinfos capture.pcap
-tshark -r capture.pcap -q -z io,phs
-tshark -r capture.pcap -Y 'http.request' -T fields -e http.host -e http.request.uri
-tshark -r capture.pcap --export-objects http,./exported
-tshark -r capture.pcap -q -z follow,tcp,ascii,0
-tshark -r capture.pcap -Y 'http.authorization' -T fields -e http.authorization
-tshark -r capture.pcap -o tls.keylog_file:keys.log -Y 'tls'
-tcpdump -r capture.pcap -nn 'tcp port 80'
-tcpflow -r capture.pcap -o out/
-# Wireshark: Statistics -> Protocol Hierarchy, Conversations, Expert Info
+$ tshark -r big.pcap -T fields -e http.host -Y http.request | sort | uniq -c | sort -rn
+     84 files.local
+     12 updates.example.com
 ```
 
-## Захват трафика
+- **Ищи строки напрямую.** Если протокол нестандартный, работает старый добрый `grep`:
 
 ```bash
-# tcpdump
-tcpdump -i eth0 -w capture.pcap -s 0
-tcpdump -i eth0 -nn 'tcp port 443 or udp port 53'
-# С ротацией
-tcpdump -i eth0 -w cap-%Y%m%d-%H%M.pcap -G 3600 -s 0
-# dumpcap (Wireshark)
-dumpcap -i eth0 -w out.pcapng -b filesize:100000 -b files:10
-# Снятие с удалённого хоста
-ssh user@host 'tcpdump -U -w - -s 0' > capture.pcap
+$ strings capture.pcap | grep -iE 'flag|passw|user='
 ```
 
-Для больших объёмов используйте **ring buffer** (ротация) и фильтры BPF, чтобы не переполнить диск. Для TLS — добавьте `SSLKEYLOGFILE` в клиент.
+## Работаем с трафиком, который не HTTP
 
-## Протоколы, оставляющие следы
+Не всё в дампах — HTTP. Быстрые зацепки для других протоколов:
 
-- **DNS** — домены (C2, DGA).
-- **HTTP** — URI, User-Agent, тела, загруженные файлы.
-- **SMB** — файлы, NTLM, имена шар.
-- **Kerberos** — аутентификация, SPN (Kerberoast).
-- **LDAP** — запросы к каталогу.
-- **FTP/Telnet** — credentials в открытом виде.
-- **SMTP/IMAP** — почта.
-- **SMB2/NetBIOS** — латеральное движение.
+- **DNS** — куда резолвились имена (часто выдаёт домены C2):
 
-Для каждого — свой фильтр tshark; combine с Zeek-логами для масштаба.
+```bash
+$ tshark -r capture.pcap -T fields -e dns.qry.name -Y dns 2>/dev/null | sort -u
+files.local
+update.evil.example
+```
 
-## Итог
+- **TLS** — видно только имя сервера (SNI) и размеры, но не содержимое; для
+  расшифровки нужен ключ (см. урок про TLS).
+- **Нестандартные порты** — данные могут идти «сырым» TCP; собирай поток через
+  `follow,tcp,ascii,N` и читай глазами.
+- **Файлы по SMB/TFTP** — `--export-objects smb,out/` или `tftp,out/`.
 
-PCAP-анализ: начните с `capinfos` и статистики протоколов, затем фильтруйте, реконструируйте потоки (follow stream), извлекайте файлы (export objects), ищите credentials. TLS зашифрован, но метаданные (SNI, JA3) видны; расшифровка возможна с SSLKEYLOGFILE. Zeek дополняет масштабом. Credentials в HTTP Basic/FTP/Telnet — быстрый выигрыш.
+Общее правило: если содержимое не читается, сначала определи протокол (`-z io,phs`),
+потом реши, чем его разбирать.
 
-## Резюме
+## Что мы теперь знаем
 
-`capinfos` → статистика → фильтры → follow stream → export objects → credentials → TLS (SSLKEYLOGFILE). Zeek дополняет масштабом, а NetworkMiner удобен для быстрого извлечения файлов и кредов. Начинайте с обзора и протокольной иерархии, затем сужайте фильтрами и всегда извлекайте переданные файлы — флаг часто именно в них.
-
-## Частые ошибки
-
-- **Смотреть пакеты вместо потоков.** Follow stream эффективнее.
-- **Забыть извлечь файлы.** Флаг часто в переданном файле.
-- **Игнорировать DNS.** Указывает на C2/домены.
-- **Не проверить credentials.** Часто в открытом виде.
-- **Не фильтровать.** Большой дамп без фильтров нечитаем.
-- **Путать display и capture фильтры.**
-
-## Как не застрять
-
-- **`capinfos`** — обзор.
-- **`-z io,phs`** — протоколы.
-- **Follow stream** — сессии.
-- **Export objects** — файлы.
-- **Фильтр по credentials.**
-- **DNS** — домены/C2.
+- PCAP — запись сетевых пакетов; читается консольно через `tshark`.
+- `-z io,phs` даёт общую картину протоколов, `-Y` — точечный фильтр.
+- `follow,tcp,ascii,N` собирает поток обратно в читаемый диалог.
+- Basic-авторизация — просто base64, декодируется одной командой.
+- `--export-objects` вытаскивает переданные по HTTP/SMB файлы.
 
 ## Квиз
 
 ```quiz
-- question: "Какая утилита — CLI-версия Wireshark?"
+- question: "Чем фильтр `-Y` отличается от `-f` в tshark?"
   options:
-    - "tshark"
-    - "nmap"
-    - "john"
-    - "zeek"
-  answer: 0
-- question: "Как реконструировать TCP-сессию в tshark?"
-  options:
-    - "follow stream (-z follow,tcp)"
-    - "nmap -sV"
-    - "sqlmap"
-    - "hashcat"
-  answer: 0
-- question: "Как извлечь переданные по HTTP файлы?"
-  options:
-    - "export-objects http"
-    - "rm -rf"
-    - "mount"
-    - "cat"
-  answer: 0
-- question: "Где чаще всего видны credentials в PCAP?"
-  options:
-    - "в TLS"
-    - "в HTTP Basic / FTP / Telnet"
-    - "в ICMP"
-    - "в ARP"
+    - "ничем"
+    - "`-Y` — фильтр отображения, `-f` — фильтр захвата (BPF)"
+    - "`-Y` быстрее"
+    - "`-f` показывает только HTTP"
   answer: 1
-- question: "Что показывает `-z io,phs`?"
+- question: "Что делает `-z follow,tcp,ascii,0`?"
   options:
-    - "статистику протоколов"
-    - "пароли"
-    - "файлы"
-    - "ничего"
+    - "считает пакеты"
+    - "собирает TCP-поток 0 в читаемый текст"
+    - "экспортирует файлы"
+    - "фильтрует по IP"
+  answer: 1
+- question: "Заголовок `Authorization: Basic ...` — это…"
+  options:
+    - "зашифрованные логин и пароль"
+    - "логин и пароль в base64 (не шифрование)"
+    - "токен сессии"
+    - "хеш пароля"
+  answer: 1
+- question: "Как вытащить переданные по HTTP файлы из дампа?"
+  options:
+    - "tshark --export-objects http,out/"
+    - "file capture.pcap"
+    - "unzip capture.pcap"
+    - "strings capture.pcap"
   answer: 0
+- question: "Почему в нашем дампе всё читается без ключей?"
+  options:
+    - "использован слабый пароль"
+    - "трафик по HTTP, без TLS-шифрования"
+    - "файл не защищён паролем"
+    - "так работает pcap"
+  answer: 1
 ```
+
+## Куда дальше
+
+Мы разобрали сеть. Следующий источник — **память**: дамп RAM содержит то, чего уже
+нет на диске, — запущенные процессы, открытые соединения и даже ключи шифрования
+в открытом виде. В следующем уроке возьмём `memory.raw` и разберём его через
+Volatility. А пока запомни: **`tshark -Y` фильтрует, `follow` собирает поток,
+`--export-objects` достаёт файлы**.
 
 ## Где пригодится
 
-- **CTF Forensics** — задачи с PCAP.
-- **NSM** — мониторинг сети.
-- **DFIR** — восстановление сетевой картины.
-- **Пентест** — анализ перехваченного трафика.
-- **Malware analysis** — C2-трафик.
+- **CTF:** задачи с дампами трафика и извлечением файлов.
+- **Network forensics:** восстановление сессий и эксфильтрации.
+- **Incident Response:** определение C2-каналов и утечек.
+- **SOC / Threat Hunting:** разбор подозрительной сетевой активности.
+- **Пентест:** анализ перехваченного трафика для поиска учётных данных.

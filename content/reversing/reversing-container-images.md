@@ -14,261 +14,249 @@ useful_for:
 estimated_minutes: 55
 summary: "Разбор образов контейнеров: слои OCI, извлечение бинарников, serverless-артефакты и анализ cloud-кода."
 ---
-Современное ПО всё чаще поставляется как **образы контейнеров** (Docker/OCI), serverless-артефакты и WASM-модули. Чтобы реверсить такое приложение, его сначала нужно **извлечь** из слоёв, понять структуру образа и локализовать целевые бинарники. Этот урок — полный практический workflow: от `docker pull`/`skopeo copy` до анализа распакованного rootfs, включая whiteouts, утечки в multi-stage сборке, кросс-архитектурный запуск и разбор serverless/WASM-артефактов.
 
-## Анатомия OCI-образа
+## Вопрос, с которого всё начинается
 
-Образ по стандарту OCI (Open Container Initiative) — это не один файл, а **набор**: манифест, конфиг и **слои**. Понимание каждого элемента критично, потому что именно в них прячется то, что вы ищете.
+Тебе дали не бинарник, а **Docker-образ**: `docker save revtarget:1 -o revtarget.tar`. Файл
+`revtarget.tar` — это архив, внутри которого спрятана программа, но где именно и что она
+делает — непонятно. Запускать образ целиком нельзя (нет реестра, да и запускать чужое
+небезопасно). Как достать бинарник из образа и проанализировать его?
 
-- **`manifest.json`** — список слоёв (digest + размер) и ссылка на config. Порядок слоёв важен: они применяются снизу вверх, каждый следующий перекрывает предыдущий.
-- **`config.json`** (image config) — метаданные: `Entrypoint`, `Cmd`, `Env`, `WorkingDir`, `User`, `Labels`, `History`. В `history` видно, какие команды выполнялись при сборке (`RUN ...`), а иногда — и сами секреты, если они были в аргументах.
-- **Слои (`layer.tar`, обычно gzip/zstd)** — дельты файловой системы: только добавленные/изменённые файлы относительно нижнего слоя.
-- **Whiteouts** — специальные файлы (`.wh.<name>` и `.wh..wh..opq`), означающие удаление файла или полное затенение каталога из нижнего слоя. Файл **не исчезает** из слоя — он лишь скрыт в смонтированной ФС. Именно поэтому «удалённый» секрет часто остаётся в более раннем слое.
-- **Multi-stage build** — в финальный образ копируются только артефакты (`COPY --from=builder`), но исходники, компиляторы, `.git`, кэш пакетов остаются в промежуточных слоях и доступны при прямом разборе.
+Образ — это не один файл, а **набор слоёв**. Понимание этой структуры и есть ключ: только
+разобрав слои по отдельности, ты найдёшь то, что нужно.
 
-Ключевой практический вывод: **всегда анализируйте образ по слоям, а не только смонтированную ФС** — иначе потеряете всё, что было удалено.
+## Наш пример
 
-## Метаданные: что читать в первую очередь
-
-Начните с конфига — он определяет точку входа и окружение.
+У нас есть сохранённый образ `revtarget.tar`. Посмотрим, что внутри — обычным `tar`:
 
 ```bash
-# Плоский экспорт образа в каталог
-skopeo copy docker://target/app:latest dir:./appimg
-cd appimg
-# manifest ссылается на config по digest
-cat manifest.json | jq '.[0] | {Config, Layers: (.Layers|length)}'
-cat config.json | jq '.config | {Entrypoint, Cmd, Env, WorkingDir, User}'
-cat config.json | jq '.history[] | {created_by, comment}'
+$ tar tf revtarget.tar | head
+blobs/
+blobs/sha256/
+blobs/sha256/24944075e64c5eab63ad4e631e062eb02a76bf8ebd2ee43981b449f0a9df3bc7
+blobs/sha256/2e2e6448b76eb19a3a94285b0dcbfaa041ec6c618916c7c1c8bcf67f23b70271
+blobs/sha256/fdbc1ef60b69c2e6dd824b719e48c2a47004e147677edecf781672e1c1a43b6b
+index.json
+manifest.json
+oci-layout
 ```
 
-Типичный вывод:
+Это формат **OCI** (Open Container Initiative) — открытый стандарт контейнерных образов.
+Файлы с длинными hex-именами в `blobs/sha256/` — это содержимое, а имя файла = его
+SHA-256-хеш (так гарантируется целостность). `manifest.json` связывает всё вместе.
 
-```json
+Распакуем архив и прочитаем манифест:
+
+```bash
+$ mkdir oci && tar xf revtarget.tar -C oci && cd oci
+$ cat manifest.json
+[{"Config":"blobs/sha256/2e2e6448...","RepoTags":["revtarget:1"],
+  "Layers":["blobs/sha256/fdbc1ef6..."]}]
+```
+
+Манифест говорит: конфиг — один blob, слой — другой. Слой (layer) — это дельта файловой
+системы, то есть архив с файлами, которые добавили поверх базового образа.
+
+## Шаг 1: читаем конфиг — что запускается
+
+Конфиг — это метаданные образа. Смотрим самое важное: `Cmd`, `Env`, `history`.
+
+```bash
+$ python3 -m json.tool blobs/sha256/2e2e6448b76eb19a3a94285b0dcbfaa041ec6c618916c7c1c8bcf67f23b70271
 {
-  "Entrypoint": ["/app/server"],
-  "Cmd": ["--config", "/etc/app.yml"],
-  "Env": ["PATH=/usr/local/bin", "APP_TOKEN=prod_secret_token_123"],
-  "WorkingDir": "/app",
-  "User": "app"
+    "architecture": "amd64",
+    "config": {
+        "Env": ["PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"],
+        "Cmd": ["/xorcheck"],
+        "WorkingDir": "/"
+    },
+    "history": [
+        {"created_by": "COPY xorcheck /xorcheck # buildkit", ...},
+        {"created_by": "CMD [\"/xorcheck\"]", "empty_layer": true, ...}
+    ]
 }
 ```
 
-Здесь `Env` уже содержит секрет — это частая утечка. А `history` нередко раскрывает полный `Dockerfile` (какие пакеты ставились, какие файлы копировались).
+Два вывода сразу:
 
-## Инструменты извлечения и их флаги
+- **`Cmd: ["/xorcheck"]`** — контейнер запускает `/xorcheck`. Вот наш целевой бинарник.
+- **`history`** — фактически восстановленный `Dockerfile`. Здесь видно команду `COPY xorcheck /xorcheck`.
+  В реальных образах в `history` часто утекают пароли, если секрет передавали аргументом в `RUN`.
 
-| Инструмент | Назначение | Пример |
+`Env` в нашем образе чистый, но это **первое место, где проверяют секреты**: токены в
+переменных окружения — типовая утечка.
+
+## Шаг 2: распаковываем слой и достаём бинарник
+
+Слой — это gzip-архив. Проверим тип и распакуем его:
+
+```bash
+$ file blobs/sha256/fdbc1ef60b69c2e6dd824b719e48c2a47004e147677edecf781672e1c1a43b6b
+...: gzip compressed data, original size modulo 2^32 17920
+
+$ tar tvf blobs/sha256/fdbc1ef60b69c2e6dd824b719e48c2a47004e147677edecf781672e1c1a43b6b
+-rwxr-xr-x 0/0  16160  2026-10-12 09:08 xorcheck
+
+$ mkdir -p rootfs
+$ tar xf blobs/sha256/fdbc1ef6... -C rootfs
+$ ls -la rootfs
+-rwxr-xr-x 1 ... 16160 ... xorcheck
+```
+
+Готово: бинарник `xorcheck` извлечён из слоя. Дальше с ним работаем как с обычным ELF —
+`file`, `strings`, `nm`, дизассемблер:
+
+```bash
+$ file rootfs/xorcheck
+rootfs/xorcheck: ELF 64-bit LSB executable, x86-64, ... not stripped
+```
+
+## Шаг 3: почему порядок слоёв и whiteouts важны
+
+В реальном образе слоёв много, и они применяются **строго снизу вверх**: каждый следующий
+перекрывает файлы предыдущего. Распаковывать их «как получится» нельзя — получишь неверную ФС.
+
+Особый случай — **whiteouts**: файлы с именем `.wh.<имя>` или `.wh..wh..opq`. Это метки
+«удалить файл из нижнего слоя». Файл при этом **физически остаётся** в старом слое — whiteout
+лишь скрывает его в собранной ФС. Именно поэтому секрет, «удалённый» в финальном образе,
+часто продолжает лежать в нижнем слое и находится при разборе по слоям:
+
+```bash
+$ for d in blobs/sha256/*; do
+>   tar tf "$d" 2>/dev/null | grep -iE '\.env$|secret|\.key$|\.pem$|token|id_rsa'
+> done
+```
+
+Плоский экспорт (`docker export`) уже учитывает whiteouts и даёт готовую ФС, но **теряет
+удалённые файлы** — а вместе с ними и возможные секреты. Поэтому при реверсе образ всегда
+разбирают по слоям, а не только по смонтированной ФС.
+
+То же с **multi-stage build**: в финальный образ попадают только артефакты (`COPY --from=builder`),
+а исходники, `.git`, компиляторы и кэш пакетов остаются в промежуточных слоях — если реестр
+их хранит, они доступны при прямом разборе.
+
+## Шаг 4: что искать в rootfs
+
+Когда ФС извлечена, обходим её целенаправленно:
+
+- **Entrypoint/Cmd** из конфига — какая программа реально стартует.
+- **Бинарники** в `/app`, `/usr/local/bin`, `/opt`, `/srv` — `file`, `strings`, `checksec`.
+- **Скрипты** `*.sh`, `*.py`, `*.rb` — вся бизнес-логика часто именно там, а не в скомпилированном коде.
+- **Секреты**: `.env`, `*.pem`, `id_rsa`, `credentials`, токены в `Env`.
+- **Артефакты сборки**: `.git/`, `Dockerfile`, `go.mod`, `package-lock.json`.
+
+```bash
+$ find rootfs -type f \( -name '*.pem' -o -name '*.key' -o -name '.env' -o -name 'id_rsa' \)
+$ strings -a -n 6 rootfs/xorcheck | grep -iE "flag|secret|token|/etc/"
+```
+
+## Шаг 5: serverless и WASM — та же логика
+
+- **AWS Lambda / GCP Functions**: артефакт — zip или container image. Внутри handler
+  (`lambda_function.py`/`main.py`/`index.js`) и зависимости. Распаковать и декомпилировать;
+  env-переменные и IAM-роль читаются из конфигурации функции.
+- **Cloudflare Workers / WASM**: `.wasm` разбирают своими инструментами (`wasm2wat`, `wasm2c`) —
+  подробнее в уроке про WASM.
+
+```bash
+$ unzip -o function.zip -d fn/ && file fn/*
+```
+
+## Шаг 6: инструменты и кросс-архитектурный запуск
+
+Мы разбирали образ вручную через `docker save` + `tar` — это работает всегда. В реальной
+работе удобнее специализированные утилиты:
+
+| Инструмент | Что делает | Пример |
 |---|---|---|
-| `skopeo` | копирование между реестрами/форматами | `skopeo copy docker://img:tag dir:./d` |
-| `crane` | лёгкая работа с реестром | `crane export img:tag rootfs.tar` |
-| `dive` | интерактивный просмотр слоёв | `dive img:tag --ci` |
-| `umoci` | разбор OCI-layout | `umoci unpack --image ./img bundle` |
-| `docker save/export` | сохранение/плоский экспорт | `docker save img:tag -o i.tar` |
-| `ctr`/`nerdctl` | containerd-образы | `nerdctl image export img i.tar` |
-| `regctl` | работа с реестром | `regctl image export img out.tar` |
+| `skopeo` | копирование образа из реестра в каталог без демона Docker | `skopeo copy docker://app:1 dir:./d` |
+| `crane` | лёгкая работа с реестром | `crane export app:1 rootfs.tar` |
+| `dive` | интерактивный просмотр слоёв | `dive app:1 --ci` |
+| `umoci` | корректная распаковка OCI-layout | `umoci unpack --image ./d bundle` |
+
+`skopeo inspect` заодно показывает архитектуру образа:
 
 ```bash
-# 1) через skopeo — самый надёжный способ без демона docker
-skopeo copy docker://repo/image:tag dir:./imgdir
-# 2) crane — если есть только реестр и креды
-crane export repo/image:tag rootfs.tar
-# 3) dive — интерактивно понять, что в каком слое
-dive repo/image:tag
-# 4) umoci — корректная распаковка OCI-layout
-umoci unpack --image ./imgdir bundle
+$ skopeo inspect docker://app:1 | jq '.Architecture, .Os'
+"arm64"
+"linux"
 ```
 
-`dive --ci` удобен для автоматизации: он возвращает код возврата и печатает «wasted space» — какие слои занимают больше всего, что косвенно указывает на интересные артефакты.
-
-## Распаковка слоёв и whiteouts
-
-Слои нужно применять **строго по порядку** из манифеста, иначе получите неверную ФС.
+Если образ собран под ARM64, а ты на x86_64, бинарник **напрямую не запустится** — нужен
+эмулятор `qemu-user`:
 
 ```bash
-mkdir -p rootfs && cd appimg
-# порядок слоёв — из manifest.json
-jq -r '.[0].Layers[]' manifest.json | while read -r layer; do
-  echo "== applying $layer"
-  tar xf "$layer" -C ../rootfs
-done
+$ qemu-aarch64-static -L /usr/aarch64-linux-gnu rootfs/app/server --help
 ```
 
-Whiteout-файлы при этом просто распакуются как обычные `.wh.*`. Если хотите получить **истинную** финальную ФС, whiteouts нужно обработать:
+Для **статического** анализа архитектура не мешает: `objdump`/Ghidra/r2 разберут ARM64. А вот
+для динамического запуска qemu (или нативная ARM-машина) обязателен.
 
-```bash
-# удалить файлы, помеченные whiteout
-find rootfs -name '.wh.*' | while read -r w; do
-  base=$(dirname "$w"); name=$(basename "$w")
-  [ "$name" = ".wh..wh..opq" ] && continue
-  rm -rf "$base/${name#.wh.}"
-done
-```
+## Что мы теперь знаем
 
-Альтернатива — сразу плоская ФС через `docker export`, которая уже учитывает whiteouts, но **теряет удалённые файлы** (и вместе с ними возможные секреты):
-
-```bash
-docker export "$(docker create repo/image:tag)" | tar xf - -C rootfs
-```
-
-## Что искать внутри rootfs
-
-- **Entrypoint/Cmd** из `config.json` — какая программа реально запускается.
-- **Бинарники** в `/app`, `/usr/local/bin`, `/opt`, `/srv` — `file`, `checksec`, `strings`.
-- **Скрипты** (`*.sh`, `*.py`, `*.rb`) — часто вся бизнес-логика именно там, а не в скомпилированном коде.
-- **Секреты**: `.env`, `*.pem`, `id_rsa`, `credentials`, `*.key`, токены в `config.json`/`Env`. Даже если файл «удалён» — он остался в нижнем слое.
-- **Артефакты сборки**: `.git/`, `Dockerfile`, `Makefile`, `go.mod`, `package-lock.json` — раскрывают структуру и зависимости.
-- **Языковые артефакты**: `.pyc`/`.pyo` (Python — декомпилируются `uncompyle6`/`decompyle3`), `node_modules`, `*.jar` (Java — `jd-cli`/`cfr`), `.wasm`.
-
-```bash
-file rootfs/app/server
-checksec --file=rootfs/app/server
-strings -a -n 6 rootfs/app/server | grep -iE "flag|secret|token|version|/etc/"
-find rootfs -type f \( -name '*.pem' -o -name '*.key' -o -name '.env' -o -name 'id_rsa' \)
-```
-
-## Скрипт «всё сразу»: автопоиск секретов по слоям
-
-Самый ценный приём — проверить **каждый слой отдельно**, не распаковывая ФС целиком:
-
-```bash
-cd appimg
-for d in */; do
-  echo "== $d"
-  tar tf "$d"* 2>/dev/null | grep -iE '\.env$|secret|\.key$|\.pem$|token|credential|id_rsa'
-done
-```
-
-Часто секрет лежит в слое, которого нет в финальной ФС, — этот цикл его находит.
-
-## Кросс-архитектурный запуск
-
-Образ может быть собран под ARM64 (Apple Silicon, ARM-серверы), а вы на x86_64. Запустить бинарник напрямую не выйдет — нужен эмулятор.
-
-```bash
-# посмотреть архитектуру
-skopeo inspect docker://target/app:latest | jq '.Architecture, .Os'
-# запуск ARM-бинарника через qemu-user
-sudo apt-get install -y qemu-user-static binfmt-support
-qemu-aarch64-static -L /usr/aarch64-linux-gnu rootfs/app/server --help
-# либо через полноценную эмуляцию контейнера
-docker run --rm --platform linux/arm64 -v "$PWD/rootfs:/r" arm64v8/ubuntu /r/app/server
-```
-
-Для статического анализа архитектура не мешает (Ghidra/IDA/r2 разберут ARM64), но для **динамического** — нужен qemu или нативная ARM-машина.
-
-## Serverless-артефакты
-
-- **AWS Lambda**: артефакт — zip (или container image). Внутри — handler (например `lambda_function.py`) и `requirements`. Распаковать и декомпилировать; env-переменные и IAM-роль читаются из конфигурации функции.
-- **Google Cloud Functions**: тот же zip/container-паттерн; `main.py`/`index.js` + `package.json`/`requirements.txt`.
-- **Azure Functions**: `host.json`, `function.json`, бинарники в `bin/`.
-- **Cloudflare Workers / WASM**: `.wasm` — отдельная история (см. `reversing-wasm`), конвертировать в WAT через `wasm2wat`, либо в C через `wasm2c`.
-
-```bash
-unzip -o function.zip -d fn/
-file fn/*
-python3 -m dis fn/*.pyc 2>/dev/null | head
-```
-
-## Разобранный пример end-to-end
-
-**Шаг 1. Скачать и распаковать.**
-
-```bash
-skopeo copy docker://ctf.registry/chal:latest dir:./chal
-cd chal && jq -r '.[0].Layers[]' manifest.json | while read l; do tar xf "$l" -C ../rootfs; done
-```
-
-**Шаг 2. Определить точку входа.**
-
-```bash
-jq '.config | {Entrypoint, Cmd, Env}' config.json
-# {"Entrypoint":["/chal/verify"], "Cmd":null, "Env":["FLAG_PATH=/flag"]}
-```
-
-**Шаг 3. Проанализировать бинарник.**
-
-```bash
-file ../rootfs/chal/verify
-checksec --file=../rootfs/chal/verify
-strings -a ../rootfs/chal/verify | grep -iE 'flag|wrong|correct|/flag'
-```
-
-**Шаг 4. Запустить/отладить.**
-
-```bash
-../rootfs/chal/verify    # если не хватает libs — chroot или qemu
-ldd ../rootfs/chal/verify | grep 'not found'
-```
-
-**Шаг 5. Проверить секреты в слоях, которых нет в финальной ФС.**
-
-```bash
-for d in */; do tar tf "$d"* 2>/dev/null | grep -iE 'flag|\.env|secret'; done
-```
-
-## Частые ошибки и подводные камни
-
-- **Анализ только смонтированной ФС.** Удалённые whiteout'ом файлы (в т.ч. секреты) остаются в нижних слоях — их нужно смотреть отдельно.
-- **Игнорирование порядка слоёв.** Распаковка «как получится» даёт неверную ФС и путает выводы.
-- **Забыть про `config.json`.** Entrypoint/Env определяют, что запускать; секрет в `Env` — типовая находка.
-- **Не смотреть `history`.** Там может быть весь Dockerfile с паролями в `RUN`-аргументах.
-- **Игнорирование архитектуры.** ARM64-бинарник не запустится на x86 без qemu; статический анализ всё равно работает.
-- **Пренебрежение `dive`/`crane`.** Без них трудно понять, в каком слое что лежит, и легко пропустить «пустые» слои.
-- **Только финальный образ.** В multi-stage полезное (исходники, `.git`) остаётся в промежуточных стадиях — если реестр хранит их, разбирайте все.
-
-## Что дальше / решение
-
-Если задача — **CTF Reversing/Cloud** с образом: примените `skopeo copy → распаковка слоёв по порядку → анализ entrypoint-бинарника → проверка секретов во всех слоях`. В 80% случаев флаг либо в `Env`/`.env` в нижнем слое, либо в логике бинарника, который вы извлекли. Для **container security аудита** — тот же поток плюс `dive` для поиска «мусорных» слоёв и утёкших секретов. Для **serverless** — распакуйте zip/container-артефакт и декомпилируйте handler. Освоив этот workflow, вы закрываете целый класс «облачных» таргетов, которые не видны обычному статическому анализу ELF.
+- Контейнерный образ — это **набор слоёв**, а не один файл; `manifest.json` связывает их.
+- Конфиг образа (`Cmd`, `Env`, `history`) первым делом говорит, что запускается и где искать секреты.
+- Слой — это gzip-архив с файлами; бинарник извлекается обычным `tar xf`.
+- Whiteouts и multi-stage **не удаляют** старые файлы — секреты остаются в нижних слоях.
+- Serverless/WASM-артефакты разбираются по той же схеме «распакуй → найди точку входа».
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что такое слой OCI-образа?"
+- question: "Что такое слой (layer) OCI-образа?"
   options:
-    - "Дельта файловой системы (tarball)"
-    - "Бинарник"
-    - "Манифест"
+    - "Дельта файловой системы в виде архива"
+    - "Скомпилированный бинарник"
+    - "Манифест образа"
     - "Конфиг ядра"
   answer: 0
-  explanation: "Образ состоит из слоёв — диффов ФС."
-- question: "Как извлечь полную ФС образа?"
+  explanation: "Слой — это дифф ФС; финальная ФС получается применением слоёв по порядку."
+- question: "Что в нашем примере сразу показало, какой бинарник запускается?"
   options:
-    - "docker export или распаковка слоёв по порядку"
-    - "docker run"
-    - "nm"
-    - "strings"
+    - "Поле `Cmd` в конфиге образа"
+    - "Вывод `nm`"
+    - "Манифест"
+    - "`docker info`"
   answer: 0
-  explanation: "docker export даёт плоскую ФС; либо распаковка layer.tar по порядку."
-- question: "Почему секрет может остаться в образе, даже если удалён?"
+  explanation: '`Cmd: ["/xorcheck"]` в конфиге задаёт команду запуска.'
+- question: "Почему секрет может остаться в образе после 'удаления' файла?"
   options:
-    - "Он остаётся в предыдущем слое"
-    - "Он в ядре"
-    - "Он в RAM"
-    - "Он в манифесте"
+    - "Файл остаётся в нижнем слое, whiteout лишь скрывает его"
+    - "Секрет копируется в ядро"
+    - "Он хранится в манифесте"
+    - "Он попадает в RAM"
   answer: 0
-  explanation: "Слои не удаляются; белый список лишь скрывает файл в финальной ФС."
-- question: "Какой инструмент показывает содержимое по слоям?"
+  explanation: "Слои неизменяемы: whiteout скрывает файл в собранной ФС, но не удаляет из слоя."
+- question: "Какой порядок применения слоёв правильный?"
   options:
-    - "dive"
-    - "gdb"
-    - "nm"
-    - "ldd"
+    - "Строго снизу вверх, как в манифесте"
+    - "В случайном порядке"
+    - "Сверху вниз"
+    - "Только верхний слой"
   answer: 0
-  explanation: "dive визуализирует слои и их содержимое."
-- question: "Что делать с .wasm-артефактом?"
+  explanation: "Каждый следующий слой перекрывает предыдущий — порядок из манифеста обязателен."
+- question: "Что делать с `.wasm`-артефактом из образа?"
   options:
-    - "Разбирать как WASM (WAT/wasm2c)"
+    - "Разбирать инструментами WASM (wasm2wat/wasm2c)"
     - "Запускать как ELF"
     - "Игнорировать"
     - "Открывать в IDA как PE"
   answer: 0
-  explanation: "WASM требует своих инструментов (см. reversing-wasm)."
+  explanation: "WASM — отдельный формат; ему нужны свои инструменты."
 ```
+
+## Куда дальше
+
+Мы извлекли бинарник из образа и снова упёрлись в дизассемблер. Но часто нужно не разобрать
+**один** бинарник, а понять, что изменилось между **двумя** версиями — именно так находят
+исправленную уязвимость по патчу. В следующем уроке мы возьмём два бинарника и сравним их
+код. А пока главное запомни: **образ — это слои; секреты живут в нижних.**
 
 ## Где пригодится
 
-- **CTF:** Reversing/Cloud — задачи с образами.
-- **Container security:** аудит образов.
-- **Cloud-native:** анализ serverless/WASM.
-- **Работа:** supply-chain анализ.
+- **CTF Reversing / Cloud:** задачи с образами и serverless-артефактами.
+- **Container security:** аудит образов, поиск утёкших секретов по слоям.
+- **Cloud-native analysis:** разбор Lambda/Functions/Workers.
+- **Supply-chain:** анализ того, что реально попало в образ.

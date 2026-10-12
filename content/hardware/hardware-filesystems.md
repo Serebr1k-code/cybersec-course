@@ -15,175 +15,121 @@ estimated_minutes: 45
 summary: "Как распознать и распаковать файловые системы внутри прошивки: squashfs, JFFS2, UBIFS/UBI, CRAMFS — инструменты, команды и разобранный пример."
 ---
 
-Когда вы получили дамп флеш-памяти (SPI-NOR, NAND, eMMC) или скачали прошивку с сайта производителя, следующий шаг — вытащить из неё файловую систему. Именно в ФС лежат `/etc/passwd`, приватные ключи, скрипты инициализации, бинарники веб-интерфейса и бэкдоры. Промышленные встраиваемые системы используют несколько «нестандартных» ФС, которые не монтируются командой `mount` на обычном десктопе: **squashfs**, **JFFS2**, **UBIFS** и **CRAMFS**. Этот урок — про то, как каждую из них распознать и распаковать, и это этап-навигатор ветки: под ним лежат уроки по каждой ФС отдельно.
+## Вопрос, с которого всё начинается
 
-## Зачем разбирать файловую систему прошивки
+Мы распаковали прошивку и вытащили из неё файловую систему. Но во встраиваемых устройствах файловых систем не одна, а несколько типов — и не каждая распаковывается «в лоб». Дамп роутера из прошлых уроков содержал сразу две: Squashfs и JFFS2. Почему их две и почему для каждой нужен свой инструмент?
 
-Прошивка — это не монолитный бинарник, а контейнер: загрузчик + ядро + rootfs + разделы данных. Прикладная логика и секреты живут в rootfs:
+Разберём это — и научимся определять тип ФС по сигнатуре и распаковывать любой из четырёх основных.
 
-- **Учётные данные**: `/etc/passwd`, `/etc/shadow`, хэши в `/etc/config`, базы sqlite с токенами.
-- **Ключи**: SSH-хосты, приватные ключи TLS в `/etc/ssl/private`, сертификаты подписи обновлений.
-- **Скрипты**: `init.d`, `rcS`, cron — показывают, какие сервисы стартуют и под каким пользователем.
-- **Веб-приложение**: CGI-бинарники, шаблоны, JS — часто с уязвимостями (command injection в CGI).
-- **Бэкдоры и отладочные учётки**: захардкоженные пароли, «сервисные» аккаунты, telnet-демоны.
+## Наш пример: две файловые системы в одном дампе
 
-Поэтому разбор ФС — центральный навык hardware-пентеста: он превращает «кусок флешки» в читаемый исходник устройства.
+У нас по-прежнему `dump1.bin` — образ SPI-флеша роутера. `binwalk` показал в нём два раздела с файловыми системами: **Squashfs** в начале и **JFFS2** ближе к концу. Это типичная картина, и она объясняется устройством памяти.
 
-## Как ФС оказались внутри прошивки
+## Шаг 1: почему файловых систем несколько
 
-Производитель собирает образ так: ядро (zImage/uImage) + rootfs. Для rootfs выбирают ФС под тип памяти:
+Память во встраиваемых устройствах бывает двух основных типов, и от неё зависит выбор ФС:
 
-| Тип памяти | Особенности | Типичная ФС |
-|------------|-------------|-------------|
-| SPI-NOR | Малый объём, байтовая запись, износ | squashfs (ro), JFFS2 (rw), CRAMFS |
-| NAND | Большие блоки, bad-block, wear-leveling | UBIFS поверх UBI |
-| eMMC/SD | Блочное устройство, контроллер | ext4, squashfs, F2FS |
-| RAM | initramfs | cpio.gz |
+| Память | Особенность | Типичная ФС |
+|--------|-------------|-------------|
+| SPI-NOR | небольшой объём, запись побайтно | Squashfs, JFFS2, Cramfs |
+| NAND | крупные блоки, «плохие» ячейки | UBIFS поверх UBI |
+| eMMC/SD | блочное устройство с контроллером | ext4, Squashfs |
 
-Важно: **JFFS2 и UBIFS «сырые»** — их нельзя просто вырезать и смонтировать, потому что это журналируемые ФС для raw-flash, зависящие от геометрии чипа (erase size, page size, bad-block). Их надо разбирать специализированными инструментами, умеющими эмулировать NAND-контроллер.
+Логика такая: заводские файлы не меняются, поэтому их кладут в **сжатую read-only** ФС (Squashfs) — она экономит место. А настройки, которые устройство пишет при работе, должны меняться — под них отводят **журналируемую** ФС (JFFS2 или UBIFS). Отсюда две системы в одном дампе.
 
-## squashfs: самая частая rootfs
+## Шаг 2: определяем тип по сигнатуре
 
-**SquashFS** — сжатая read-only ФС, доминирует в OpenWrt, роутерах, камерах, IoT. Сигнатура в hex: `hsqs` (`68 73 71 73`), в конце образа — `sqsh`. Внутри — блоки, сжатые gzip/xz/lzo/lz4/zstd.
+Каждая ФС начинается с характерных байтов — **сигнатуры** (магии). По ней тип и определяют:
 
-```bash
-# Найти смещение squashfs в дампе
-binwalk firmware.bin | grep -i squashfs
-# Пример вывода:
-# 131072   0x20000   Squashfs filesystem, little endian, version 4.0, size: 6291456 bytes
+| ФС | Сигнатура | Свойство |
+|----|-----------|----------|
+| Squashfs | `hsqs` | сжатая, только чтение |
+| JFFS2 | `0x1985` | журнальная, для NOR |
+| UBIFS | `UBI#` | для NAND, через слой UBI |
+| Cramfs | `0x28cd3d45` | старая сжатая, только чтение |
 
-# Вырезать по смещению и распаковать
-dd if=firmware.bin of=rootfs.squashfs bs=1 skip=131072 count=6291456
-unsquashfs -d rootfs/ rootfs.squashfs
-# Если не указать size, binwalk -e сделает это сам:
-binwalk -eM firmware.bin
+`binwalk` сам ищет эти сигнатуры, поэтому его вывод и есть готовая карта разделов.
+
+## Шаг 3: распаковываем Squashfs
+
+Squashfs — самая частая. Вырезаем её по смещению и распаковываем утилитой `unsquashfs`:
+
+```
+$ dd if=dump1.bin of=rootfs.squashfs bs=1 skip=$((0x20000)) count=6291456
+$ unsquashfs -d rootfs rootfs.squashfs
+created 1432 files, 289 directories
 ```
 
-`unsquashfs` из пакета `squashfs-tools` поддерживает все сжатия; для старых образов с LZMA нужен `unsquashfs-lzma` или патченая версия. Флаг `-stat` покажет список inode без распаковки.
+Внутри — заводские файлы: бинарники, скрипты инициализации, конфиги по умолчанию. Если `unsquashfs` не справляется (нестандартное сжатие LZMA), берут патченый `sasquatch` или `unblob`.
 
-## JFFS2: журналируемая ФС для NOR
+## Шаг 4: распаковываем JFFS2
 
-**JFFS2** (Journalling Flash File System v2) — ФС для raw NOR/NAND без блочного слоя. Сигнатура: магическое число `0x1985` в каждом узле (`85 19` little-endian). Из-за журнала и сжатия по узлам JFFS2 нельзя просто смонтировать как образ — нужен `jefferson` или `mtd-utils`.
+JFFS2 устроена иначе: это **журнальная** ФС — она пишет данные не поверх, а рядом, отмечая старые записи устаревшими. Из-за этого её нельзя просто «примонтировать как образ» — нужно прочитать журнал. Инструмент `jefferson` умеет это делать на обычном компьютере:
 
-```bash
-# Демонтировать JFFS2-образ
-pip3 install jefferson
-jefferson -d jffs2_out/ partition.jffs2
-
-# Альтернатива через mtd-utils (нужен loop + mtdram)
-sudo modprobe mtdram total_size=65536 erase_size=256
-sudo modprobe mtdblock
-sudo dd if=partition.jffs2 of=/dev/mtdblock0 bs=1
-sudo mount -t jffs2 /dev/mtdblock0 /mnt/jffs2
+```
+$ pip3 install jefferson
+$ jefferson -d jffs2_out partition.jffs2
 ```
 
-`jefferson` сам определяет endianness и разбирает узлы; при ошибке «unknown compression» помогает `--no-clean` или обновление zlib/lzo.
+Здесь лежат данные, появившиеся при работе устройства: пользовательские настройки, изменённые конфиги, иногда логи. Именно поэтому важно извлекать **обе** ФС, а не только Squashfs.
 
-## UBIFS и UBI-тома
+## Шаг 5: UBIFS — когда память NAND
 
-**UBI** (Unsorted Block Images) — слой управления износом поверх NAND; **UBIFS** — ФС поверх UBI-томов. Сигнатура UBI: `UBI#` (`55 42 49 23`). Разбирается через `ubireader` (ubi_reader).
+На NAND-памяти картина ещё на уровень сложнее. Там работает слой управления износом **UBI** (Unsorted Block Images — «несортированные блоки»), а уже поверх него — файловая система **UBIFS**. Сначала разбирают контейнер UBI, потом вложенный в него UBIFS:
 
-```bash
-pip3 install ubi_reader
-# Показать тома
-ubireader_list_volumes image.ubi
-# Извлечь все тома
-ubireader_extract_images image.ubi
-ubireader_extract_files image.ubi   # распакует UBIFS внутри томов
-# Ручной путь: ubinize-конфиг и mount
-sudo modprobe nandsim first_id_byte=0x2c second_id_byte=0xda third_id_byte=0x90 fourth_id_byte=0x95
-sudo flash_erase /dev/mtd0 0 0
-sudo ubiformat /dev/mtd0 -f image.ubi
-sudo ubiattach -m 0
-sudo mount -t ubifs /dev/ubi0_0 /mnt/ubifs
+```
+$ pip3 install ubi_reader
+$ ubireader_list_volumes image.ubi
+$ ubireader_extract_files image.ubi
 ```
 
-NAND-геометрия критична: неверные `nandsim` ID дают «bad magic». `ubireader` умеет автоподбор и `-e` для извлечения.
+Ручной путь требует эмуляции NAND-чипа через модуль `nandsim`, но `ubireader` делает это автоматически. Главная сложность — угадать геометрию чипа (размер страниц и блоков); при ошибке вы увидите «bad magic».
 
-## CRAMFS и другие read-only образы
+## Шаг 6: Cramfs и другие простые случаи
 
-**CRAMFS** — маленькая read-only ФС для NOR, сигнатура `0x28cd3d45` (`45 3d cd 28` в LE). Максимальный размер файла — 16 МБ, сжатие zlib. Монтируется нативно в Linux:
+**Cramfs** — маленькая read-only ФС, ограничение на размер файла — 16 МБ. Определяется командой `file`:
 
-```bash
-file rootfs.cramfs        # -> "Linux Compressed ROM File System data, little endian"
-mkdir mnt && sudo mount -o loop,ro rootfs.cramfs mnt
-# или извлечение без root:
-cramfsck -x out/ rootfs.cramfs   # из пакета cramfs-tools
+```
+$ file rootfs.cramfs
+rootfs.cramfs: Linux Compressed ROM File System data, little endian
+$ cramfsck -x out/ rootfs.cramfs
 ```
 
-Прочие: **romfs** (устаревшая, сигнатура `-rom1fs-`), **ext2/ext4** (монтируются напрямую `mount -o loop`), **initramfs** (gzip+cpio — `binwalk -e` или `dd` + `zcat | cpio -idmv`).
+Ещё встречаются: **ext2/ext4** (монтируются обычным `mount -o loop`), **initramfs** (архив cpio, сжатый gzip — распаковывается `dd` + `zcat | cpio -idmv`), старая **romfs**. Все они разбираются штатными средствами Linux.
 
-## Инструменты и команды: шпаргалка
+## Что мы теперь знаем
 
-| Инструмент | ФС | Установка | Ключевые флаги |
-|-----------|----|-----------|----------------|
-| `binwalk` | все (детект+extract) | apt/pip | `-e` extract, `-M` recursive, `-A` signature scan |
-| `unblob` | все | pip/docker | `unblob firmware.bin -o out/` (авто-каскад) |
-| `unsquashfs` | squashfs | squashfs-tools | `-d dir`, `-stat`, `-l` |
-| `jefferson` | JFFS2 | pip | `-d dir`, `-e` endian |
-| `ubireader` | UBI/UBIFS | pip | `ubireader_extract_files` |
-| `cramfsck` | CRAMFS | cramfs-tools | `-x dir` |
-| `7z`/`unar` | cpio, tar | p7zip | `7z x image` |
-| `firmware-mod-kit` | сборка/распаковка | git | `extract-firmware.sh` |
+По-простому:
 
-Для автоматизации каскада (binwalk пропускает вложенные образы) удобен **unblob** — он рекурсивно распаковывает и ведёт отчёт.
+1. В прошивке обычно две ФС: сжатая read-only (заводские файлы) и журнальная (настройки).
+2. Тип ФС определяют по сигнатуре; `binwalk` делает это за нас.
+3. Squashfs распаковывается `unsquashfs`, JFFS2 — `jefferson`, UBI/UBIFS — `ubireader`.
+4. JFFS2 и UBIFS — «сырые» ФС, их нельзя смонтировать без эмуляции flash-контроллера.
+5. Извлекать нужно обе ФС: в overlay лежат изменённые данные.
 
-## Разобранный пример: от дампа до /etc/shadow
+## На что смотреть дальше
 
-```bash
-# 1. Получили дамп SPI-NOR
-ls -l dump.bin
-# -rw-r--r-- 1 user user 16777216 dump.bin   (16 МБ)
+- **Неверное смещение.** Берите `skip`/`count` из вывода `binwalk`, а не на глаз.
+- **Обрезанный Squashfs.** `count` больше реального размера — `unsquashfs` падает.
+- **JFFS2/UBIFS «в лоб».** Без `mtdram`/`nandsim` ядро не смонтирует их: «wrong magic».
+- **Эндианность.** Big-endian даёт перевёрнутую сигнатуру (`sqsh` вместо `hsqs`); у `jefferson` и `ubireader` есть флаг endian.
+- **Симлинки наружу.** Не распаковывайте Squashfs в `/`: ссылки могут указывать на абсолютные пути.
 
-# 2. Автодетект разделов
-binwalk dump.bin
-# DECIMAL   HEXADECIMAL  DESCRIPTION
-# 0         0x0          uImage header, ... Linux kernel
-# 131072    0x20000      Squashfs filesystem, ... size: 15073280 bytes
-# 15204352  0xE80000     JFFS2 filesystem, little endian
+## Как это выглядит целиком
 
-# 3. Извлекаем всё рекурсивно
-binwalk -eM dump.bin
-# Создаст _dump.bin.extracted/ с squashfs-root/
+Маршрут в одну историю: `binwalk dump1.bin` даёт карту — Squashfs по `0x20000`, JFFS2 по `0x820000`. Вырезаем `dd skip=0x20000 count=6291456` и `unsquashfs -d rootfs` — заводские файлы на месте. Затем `jefferson -d jffs2_out/ partition.jffs2` достаёт overlay: изменённые конфиги и пользовательские настройки. Если бы память была NAND, `ubireader_extract_files image.ubi` разобрал бы UBI и вытащил тома `rootfs`/`data`. От сигнатур к двум деревьям файлов.
 
-# 4. Ищем секреты
-grep -rE 'root:|admin:' _dump.bin.extracted/squashfs-root/etc/passwd
-# root:x:0:0:root:/root:/bin/sh
-# admin:$1$xyz...:0:0:...          <-- хэш MD5crypt
-cat _dump.bin.extracted/squashfs-root/etc/shadow 2>/dev/null
+## Если не сработало
 
-# 5. Смотрим сервисы и отладку
-ls _dump.bin.extracted/squashfs-root/etc/init.d/
-cat _dump.bin.extracted/squashfs-root/etc/rc.d/S50telnetd   # бэкдор-telnet?
-
-# 6. Проверяем приватные ключи
-find _dump.bin.extracted/squashfs-root -name '*.pem' -o -name '*key*'
-```
-
-Дальше хэш `$1$...` уходит в `hashcat -m 500` (md5crypt), а найденный ключ — на расшифровку трафика или подпись обновлений.
-
-## Частые ошибки и подводные камни
-
-- **Неверное смещение**: `dd` с `bs=1 skip=` медленный; используйте `bs=1M` с точным смещением или доверьте `binwalk -e`.
-- **Обрезанный squashfs**: если взять `count` больше реального размера, `unsquashfs` падает; берите размер из `binwalk`.
-- **JFFS2/UBIFS монтируют напрямую**: без `mtdram`/`nandsim` ядро не смонтирует raw-flash ФС — «wrong magic».
-- **Endianness**: big-endian MIPS/ARM дают перевёрнутые сигнатуры (`sqsh` → `hsqs`); `jefferson` и `ubireader` принимают флаг endian.
-- **Сжатие LZMA/LZO**: старый `unsquashfs` не понимает — обновите `squashfs-tools` или возьмите статический бинарь.
-- **Симлинки наружу**: при распаковке squashfs не делайте `-d` в `/` — символические ссылки могут указывать на абсолютные пути.
-
-## Что дальше / решение
-
-Разобранная ФС — это не финиш, а новая точка старта:
-
-1. **Учётки** → офлайн-взлом хэшей (`hashcat`, `john`) или прямое использование пароля.
-2. **Сервисы** → сопоставить с сетевыми портами устройства, искать CGI/HTTP-демоны.
-3. **Скрипты инициализации** → найти вызовы `telnetd`, `dropbear`, `nc -l`, «сервисные» учётки.
-4. **Приватные ключи** → расшифровка прошивок/обновлений, MITM.
-5. **Эмуляция** → запустить бинарники в QEMU (см. `hardware-firmware-emulation`) для динамического анализа.
-
-Если ФС не распаковывается — проверьте, не шифрован ли rootfs (часто squashfs завёрнут в собственный формат производителя), и вернитесь к анализу заголовков/загрузчика.
+- **`unsquashfs` падает.** Неверный `count` — берите размер из `binwalk`.
+- **JFFS2/UBIFS «wrong magic».** Нужна эмуляция MTD/NAND или флаг endian (`-e big`).
+- **`ubireader` не находит тома.** Проверьте геометрию NAND и эндианность образа.
+- **Нет инструмента.** `jefferson` и `ubireader` ставятся через `pip3`, а `unsquashfs` входит в пакет `squashfs-tools`.
+- **Squashfs с нестандартным сжатием.** Обычный `unsquashfs` не возьмёт LZMA — нужен `sasquatch` или `unblob`.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какая сигнатура у squashfs в hex?"
@@ -201,7 +147,7 @@ find _dump.bin.extracted/squashfs-root -name '*.pem' -o -name '*key*'
     - "Они больше 4 ГБ"
     - "Они используют только zstd"
   answer: 1
-  explanation: "JFFS2/UBIFS работают поверх raw NAND/NOR и требуют эмуляции контроллера (mtdram/nandsim)."
+  explanation: "JFFS2/UBIFS работают поверх raw NAND/NOR и требуют эмуляции контроллера."
 - question: "Какая ФС read-only и имеет ограничение размера файла 16 МБ?"
   options:
     - "ext4"
@@ -217,7 +163,7 @@ find _dump.bin.extracted/squashfs-root -name '*.pem' -o -name '*key*'
     - "jefferson"
     - "nandsim"
   answer: 1
-  explanation: "binwalk с -e (extract) и -M (matryoshka, рекурсивно) идёт вглубь вложенных образов."
+  explanation: "binwalk с -e (extract) и -M (рекурсивно) идёт вглубь вложенных образов."
 - question: "Где в прошивке чаще всего лежат хэши паролей?"
   options:
     - "В ядре zImage"
@@ -228,10 +174,14 @@ find _dump.bin.extracted/squashfs-root -name '*.pem' -o -name '*key*'
   explanation: "Учётные записи живут в rootfs, обычно в /etc/passwd и /etc/shadow."
 ```
 
+## Куда дальше
+
+Теперь мы умеем вскрывать любую из основных ФС. В следующем уроке займёмся самой частой из них — Squashfs — плотно: разберём её устройство, сжатие и нестандартные варианты. А пока запомни главное: тип ФС определяют по сигнатуре, и у каждой — свой инструмент распаковки.
+
 ## Где пригодится
 
 - **CTF:** Hardware/Forensics-задачи, где дают образ прошивки и просят найти флаг в rootfs.
 - **Пентест IoT:** извлечение учёток, ключей и скрытых сервисов из прошивки роутера/камеры.
 - **Реверс:** понимание, какие ФС и как собирает производитель, для поиска бэкдоров.
 - **Работа:** анализ обновлений прошивок в SOC/IR, проверка цепочки поставок.
-- **Дальше по дереву:** `hardware-squashfs`, `hardware-jffs2-ubifs`, `hardware-cramfs`, `hardware-firmware-emulation`.
+- **Дальше по дереву:** `hardware-squashfs`, `hardware-jffs2-ubifs`, `hardware-cramfs`.

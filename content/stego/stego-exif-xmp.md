@@ -15,109 +15,146 @@ estimated_minutes: 50
 summary: "Полный разбор метаданных: EXIF-теги и MakerNote, XMP и IPTC, GPS, комментарии и стеганография во встроенном EXIF-превью — со всеми флагами exiftool."
 ---
 
-Метаданные — самый быстрый источник данных в CTF и форензике: `exiftool` одной командой показывает десятки полей, среди которых часто прячется флаг. Но метаданные — это не один блок: JPEG/HEIF используют **EXIF** (теги TIFF/IFD + MakerNote), **XMP** (XML-пакет RDF) и **IPTC** (IMM, для прессы). Плюс почти в каждом JPEG лежит **встроенное EXIF-превью** — отдельная JPEG-картинка, которую тоже можно использовать как носитель. Здесь важно уметь вычитывать всё и не остановиться на первом экране вывода.
+## Вопрос, с которого всё начинается
 
-## EXIF: где живёт и как читать
+В задаче дан `vacation.jpg` — обычная фотография гор. Ты открываешь её, смотришь на пиксели — ничего. `zsteg` пусто. Но у любой фотографии с телефона есть **метаданные**: модель камеры, дата, координаты. Может, флаг прямо там?
 
-EXIF в JPEG — это APP1-маркер (`FFE1`) с заголовком `Exif\0\0`, затем TIFF-структура (IFD). Отсюда и связь с уроком по TIFF: теги те же.
+Ответ: часто да. Метаданные — самый быстрый источник данных в CTF: одна команда `exiftool` показывает десятки полей. Разберём это на нашей фотографии.
 
-```bash
-# всё, включая неизвестные теги, сгруппировано
-exiftool -a -u -g1 image.jpg
-# только EXIF
-exiftool -EXIF:all image.jpg
-# конкретные поля
-exiftool -Comment -ImageDescription -UserComment -Artist -Copyright image.jpg
-# показать теги, которые exiftool не знает (часто там данные)
-exiftool -a -u image.jpg | grep -iE "unknown|undef"
-```
+## Наш пример: vacation.jpg
 
-## XMP и IPTC
+**Метаданные** — служебная информация о файле, которая не является частью изображения. У фотографий это несколько пакетов: **EXIF** (теги камеры, TIFF/IFD + MakerNote), **XMP** (XML-пакет), **IPTC** (для прессы). Плюс почти в каждом JPEG лежит **встроенное превью** — отдельная маленькая картинка.
 
-XMP — XML-пакет (RDF), может лежать и в JPEG APP1, и в HEIF, и в sidecar-файле `.xmp`. IPTC — бинарный IMM-блок для прессы (автор, заголовок, ключевые слова).
+## Шаг 1: читаем всё сразу
 
-```bash
-# весь XMP
-exiftool -xmp -b image.jpg
-# структурированно
-exiftool -XMP:all -g1 image.jpg
-# IPTC
-exiftool -IPTC:all -g1 image.jpg
-# извлечь XMP в файл и посмотреть
-exiftool -xmp -b image.jpg > out.xmp && xmllint --format out.xmp
-```
-
-## GPS и геолокация
-
-GPS-теги (lat/lon) — прямой путь к геолокации, классика OSINT.
-
-```bash
-exiftool -GPS:all image.jpg
-# десятичные координаты
-exiftool -n -GPSLatitude -GPSLongitude image.jpg
-# все GPS-теги в читаемом виде
-exiftool -a -u -g1 -GPS:all image.jpg
-```
-
-## Стеганография во встроенном превью
-
-Это ключевой «скрытый» слой: EXIF-превью — полноценный JPEG, и в нём можно спрятать сообщение LSB-методом, которое не видно на основном изображении.
-
-```bash
-# извлечь встроенное превью
-exiftool -b -ThumbnailImage image.jpg > thumb.jpg
-exiftool -b -PreviewImage image.jpg > preview.jpg
-# проверить его как отдельный файл
-zsteg thumb.jpg
-steghide info thumb.jpg
-```
-
-## MakerNote и «мусорные» теги
-
-MakerNote — приватный блок производителя. Он может содержать вложенные IFD, неиспользуемые поля и просто свободное место.
-
-```bash
-# вытащить MakerNote целиком
-exiftool -b -MakerNoteCanon image.jpg > mn.bin
-strings -n 6 mn.bin | head
-# все бинарные теги
-exiftool -a -u -b image.jpg | strings -n 6 | grep -i flag
-```
-
-## Разобранный пример
-
-CTF: `vacation.jpg`.
+Первое правило — не останавливаться на первом экране вывода. Флаг может быть в «неизвестном» теге:
 
 ```bash
 $ exiftool -a -u -g1 vacation.jpg | grep -iE "comment|description|unknown|gps"
 [EXIF] ImageDescription : "Mountain trip"
 [EXIF] UserComment      : "flag{exif_usercomment}"
-[GPS]  GPSPosition      : 48 deg 51' 24.00\" N, 2 deg 17' 40.00\" E
-
-$ exiftool -b -ThumbnailImage vacation.jpg > t.jpg
-$ zsteg t.jpg
-b1,rgb,lsb,xy .. text: "flag{exif_thumbnail}"
+[GPS]  GPSPosition      : 48 deg 51' 24.00" N, 2 deg 17' 40.00" E
 ```
 
-Два флага: один в `UserComment`, второй — в LSB встроенного превью. Такой «двойной» приём типичен: беглый `exiftool` находит первый, внимательный анализ — второй.
+Флаги `exiftool`: `-a` показывает **все** теги (включая дубли), `-u` включает **неизвестные**, `-g1` группирует по таблице. Уже нашли флаг в `UserComment`.
+
+## Шаг 2: XMP и IPTC
+
+**XMP** — XML-пакет (RDF), **IPTC** — бинарный блок для прессы:
 
 ```bash
-# сводный пайплайн поиска строк в метаданных
-exiftool -a -u -b image.jpg 2>/dev/null | strings -n 5 | grep -iE 'flag|ctf|secret|pass'
-exiftool -xmp -b image.jpg | grep -iE 'flag|secret'
+$ exiftool -xmp -b vacation.jpg > out.xmp && xmllint --format out.xmp
+$ exiftool -IPTC:all -g1 vacation.jpg
 ```
 
-## Краевые случаи и подводные камни
+XMP — это XML, поэтому его удобно читать и `grep`-ать:
 
-- **Дублирование тегов:** JPEG может содержать несколько APP1-блоков (EXIF и XMP) — читай все.
-- **`-b` (binary):** нужен для значений, которые exiftool не печатает как текст (MakerNote, Unknown).
-- **Обрезанные метаданные:** соцсети вырезают EXIF — если файл «чистый», возможно, его прогнали через re-encode.
-- **Кодировки:** `UserComment` может быть UTF-16 — `strings` не всё покажет, используй `-charset`.
-- **Встроенное превью vs основное:** превью может остаться от старой версии картинки — это тоже сигнал.
+```bash
+$ exiftool -xmp -b vacation.jpg | grep -iE 'flag|secret|hidden'
+```
 
-## Что дальше / решение
+## Шаг 3: GPS и геолокация
 
-Пайплайн: `exiftool -a -u -g1` (всё) → `-b -TAG` для бинарных (MakerNote, Unknown, Thumbnail) → `-xmp -b` и `-IPTC:all` → `-GPS:all -n` → извлечь и прогнать **все** встроенные превью через `zsteg`/`steghide` → `strings` по бинарным тегам. Метаданные — обязательный первый шаг: одна команда, а иногда и флаг.
+GPS-теги — прямой путь к геолокации, классика OSINT:
+
+```bash
+$ exiftool -n -GPSLatitude -GPSLongitude vacation.jpg
+GPS Latitude  : 48.856
+GPS Longitude : 2.297
+```
+
+Флаг `-n` выводит координаты числами (десятичные градусы), а не в формате «градусы-минуты-секунды».
+
+## Шаг 4: стеганография во встроенном превью
+
+Ключевой «скрытый» слой: **EXIF-превью** — полноценный JPEG, и в нём можно спрятать сообщение LSB-методом, которое не видно на основном изображении.
+
+```bash
+$ exiftool -b -ThumbnailImage vacation.jpg > t.jpg
+$ zsteg t.jpg
+[+] b1,rgb,lsb,xy .. text: "flag{exif_thumbnail}"
+```
+
+`-b` выводит **бинарное** значение тега. Извлекли превью, прогнали `zsteg` — второй флаг. Такой «двойной» приём типичен: беглый `exiftool` находит первый, внимательный анализ — второй.
+
+## Шаг 5: MakerNote и бинарные теги
+
+**MakerNote** — приватный блок производителя с вложенными IFD и свободным местом. Его надо извлекать через `-b` и смотреть `strings`:
+
+```bash
+$ exiftool -b -MakerNoteCanon vacation.jpg > mn.bin
+$ strings -n 6 mn.bin | head
+$ exiftool -a -u -b vacation.jpg | strings -n 6 | grep -i flag
+```
+
+## Шаг 6: EXIF в PNG, WebP и HEIC
+
+EXIF-структура есть не только в JPEG:
+
+| Формат | Где EXIF | Где XMP |
+|---|---|---|
+| JPEG | APP1 (`FFE1`) | APP1 |
+| PNG | чанк `eXIf` | чанк `iTXt` |
+| WebP | чанк `EXIF` | чанк `XMP ` |
+| HEIC | item в meta | item в meta |
+
+```bash
+$ pngcheck -v image.png | grep -i exif
+$ exiftool -a -u -g1 image.png
+```
+
+Практический вывод: прогоняй `exiftool` по **любому** формату, метаданные есть почти везде.
+
+## Полный прогон на vacation.jpg
+
+Соберём всё в один воспроизводимый прогон. Возьмём `vacation.jpg`, впишем в него теги и посмотрим, что вернёт `exiftool`:
+
+```bash
+$ exiftool -overwrite_original \
+    -EXIF:UserComment="flag{exif_usercomment}" \
+    -ImageDescription="Mountain trip" \
+    -GPSLatitude=48.856 -GPSLatitudeRef=N \
+    -GPSLongitude=2.297 -GPSLongitudeRef=E \
+    -ThumbnailImage'<='thumb.jpg vacation.jpg
+
+$ exiftool -a -u -g1 vacation.jpg | grep -iE "comment|description|gps|thumbnail"
+Image Description               : Mountain trip
+User Comment                    : flag{exif_usercomment}
+GPS Latitude                    : 48 deg 51' 21.60" N
+GPS Position                    : 48 deg 51' 21.60" N, 2 deg 17' 49.20" E
+Thumbnail Offset                : 450
+Thumbnail Length                : 633
+Thumbnail Image                 : (Binary data 633 bytes, use -b option to extract)
+```
+
+Обрати внимание на две вещи. Во-первых, `User Comment` — это тот самый «неизвестный» тег, который пропускают, если читать только первый экран вывода. Во-вторых, строка `Thumbnail Image` — не картинка, а *ссылка*: чтобы получить сами байты, нужен `-b`.
+
+Вытащим превью и прогоним по нему отдельный анализ — это самостоятельный носитель:
+
+```bash
+$ exiftool -b -ThumbnailImage vacation.jpg > t.jpg && ls -l t.jpg
+-rw-r--r-- 1 user user 633 ... t.jpg
+```
+
+Теперь XMP. Он же XML, поэтому его видно глазами и удобно `grep`-ать:
+
+```bash
+$ exiftool -xmp -b vacation.jpg | head -3
+<?xpacket begin='' id='W5M0MpCehiHzreSzNTczkc9d'?>
+<x:xmpmeta xmlns:x='adobe:ns:meta/' x:xmptk='Image::ExifTool 13.55'>
+<rdf:RDF xmlns:rdf='http://www.w3.org/1999/02/22-rdf-syntax-ns#'>
+```
+
+Порядок действий в задаче получается такой: `exiftool -a -u -g1` (все теги) → `-b` по подозрительным (превью, MakerNote, Unknown) → прогон вытащенного файла через `zsteg`/`strings`. Три шага покрывают почти все CTF-задачи на метаданные.
+
+## Если не сработало
+
+- **Остановился на первом экране** — без `-a -u` не увидишь неизвестные теги и дубликаты.
+- **Не использовал `-b`** — бинарные значения (MakerNote, Unknown, Thumbnail) не печатаются как текст.
+- **Игнорировал встроенное превью** — это отдельный носитель.
+- **Проблемы с кодировкой** — `UserComment` бывает UTF-16; используй `-charset utf8`.
+- **Вера в «очистку»** — `-all=` не убирает «дыры» и старые превью.
+- **Один формат** — метаданные есть в PNG/WebP/HEIC/TIFF.
 
 ## Справочные таблицы
 
@@ -128,9 +165,7 @@ exiftool -xmp -b image.jpg | grep -iE 'flag|secret'
 | `-g1` | сгруппировать по таблице |
 | `-b` | вывести бинарное значение |
 | `-n` | числовые значения (GPS в градусах) |
-| `-EXIF:all` | только EXIF |
 | `-xmp -b` | весь XMP-пакет |
-| `-charset utf8` | корректная кодировка |
 
 | Пакет | Формат | Типичные поля |
 |---|---|---|
@@ -139,103 +174,66 @@ exiftool -xmp -b image.jpg | grep -iE 'flag|secret'
 | IPTC | бинарный IMM | By-line, Caption, Keywords |
 | MakerNote | приватный | серийники, счётчик затвора |
 
-## EXIF в PNG, WebP и HEIC
-
-EXIF-структура (TIFF/IFD) встречается не только в JPEG. PNG хранит его в чанке `eXIf` (или в `tEXt`/`zTXt` как текст), WebP — в чанке `EXIF`, HEIC — как отдельный item. Инструмент `exiftool` читает всё, но пути разные, и это важно для скриптов.
-
-| Формат | Где EXIF | Где XMP |
-|---|---|---|
-| JPEG | APP1 (`FFE1`) | APP1 |
-| PNG | чанк `eXIf` | чанк `iTXt` |
-| WebP | чанк `EXIF` | чанк `XMP ` |
-| HEIC | item в meta | item в meta |
-| TIFF | IFD | тег 700 |
-
-```bash
-# PNG: список чанков и EXIF-чанк
-pngcheck -v image.png | grep -i exif
-exiftool -a -u -g1 image.png
-# WebP
-exiftool -EXIF:all image.webp
-```
-
-Практический вывод: не ограничивайтесь JPEG — прогоняйте `exiftool` по любому формату, метаданные есть почти везде.
-
 ## Анонимизация и что она не удаляет
 
-Типовая «очистка» метаданных (`exiftool -all=`) не всегда полна: остаются миниатюры, MakerNote, комментарии в нестандартных чанках, XMP-дубликаты и «мусор» после перепаковки. В CTF это как раз то, что ищут.
+Типовая «очистка» (`exiftool -all=`) не всегда полна: остаются миниатюры, MakerNote, комментарии в нестандартных чанках и XMP-дубликаты. В CTF это как раз то, что ищут.
 
 ```bash
-# полная очистка (для понимания, что исчезнет)
-cp image.jpg clean.jpg && exiftool -all= clean.jpg
-# сравнить до/после
-exiftool -a -u -g1 image.jpg > before.txt
-exiftool -a -u -g1 clean.jpg > after.txt
-diff before.txt after.txt
-# принудительно сохранить группу
-exiftool -all= -tagsfromfile image.jpg -EXIF:all clean.jpg
+$ cp image.jpg clean.jpg && exiftool -all= clean.jpg
+$ exiftool -a -u -g1 image.jpg > before.txt
+$ exiftool -a -u -g1 clean.jpg > after.txt
+$ diff before.txt after.txt
 ```
 
-Обратите внимание: `-all=` убирает теги, но не «дыры» в файле и не встроенные превью, оставшиеся от старой версии. Проверяйте и их.
+Обрати внимание: `-all=` убирает теги, но не «дыры» в файле и не встроенные превью, оставшиеся от старой версии.
 
-## Автоматический пайплайн метаданных
-
-Скрипт собирает все текстовые метаданные и ищет подозрительные строки — экономит время на больших наборах файлов.
+## Автоматический пайплайн
 
 ```python
 import subprocess, re
 def scan(path):
-    out=subprocess.run(['exiftool','-a','-u','-g1','-charset','utf8',path],
-                       capture_output=True,text=True).stdout
-    hits=[l for l in out.splitlines()
-          if re.search(r'flag|ctf|secret|pass|key|hidden', l, re.I)]
-    # бинарные теги
-    raw=subprocess.run(['exiftool','-a','-u','-b',path],capture_output=True).stdout
-    strs=re.findall(rb'[ -~]{6,}', raw)
-    return hits, [s.decode() for s in strs if re.search(rb'flag|ctf|secret', s, re.I)]
-for f in ['a.jpg','b.png','c.webp']:
-    print(f, scan(f))
+    out = subprocess.run(['exiftool','-a','-u','-g1','-charset','utf8',path],
+                         capture_output=True, text=True).stdout
+    hits = [l for l in out.splitlines()
+            if re.search(r'flag|ctf|secret|pass|key', l, re.I)]
+    raw = subprocess.run(['exiftool','-a','-u','-b',path], capture_output=True).stdout
+    strs = re.findall(rb'[ -~]{6,}', raw)
+    return hits, [s.decode() for s in strs if re.search(rb'flag|ctf', s, re.I)]
 ```
 
 Скрипт закрывает и обычные теги, и бинарные значения (MakerNote, Unknown), которые `exiftool` не печатает как текст.
 
-## Ловушки метаданных
+## Практика: пишем и читаем EXIF сами
 
-- **Несколько APP1:** JPEG может содержать и EXIF, и XMP; `-a` покажет оба, а обычный `exiftool` — только первый.
-- **Кодировки:** `UserComment` бывает UTF-16 — используйте `-charset`.
-- **«Пустые» теги:** тег присутствует, но значение пустое; проверяйте `-b` для бинарных.
-- **Метаданные в миниатюре:** у встроенного превью свои метаданные — читайте и его тоже.
-
-## Разобранный пример 2: GPS и XMP
-
-Задача: `city.jpg`, найти скрытую информацию.
+Проверим метаданные на живом файле. Сделаем обычный JPEG и впишем в него теги через exiftool — ровно так, как это делают, когда прячут данные:
 
 ```bash
-$ exiftool -GPS:all -n city.jpg
-GPS Latitude  : 55.755826
-GPS Longitude : 37.617300
-
-$ exiftool -xmp -b city.jpg > out.xmp
-$ grep -iE 'flag|secret|hidden' out.xmp
-<rdf:li>flag{xmp_packet_stego}</rdf:li>
+$ exiftool -overwrite_original -UserComment='flag{exif_usercomment}' \
+    -ImageDescription='Mountain trip' -XMP-dc:Description='flag{xmp_hidden}' \
+    -GPSLatitude=48.856 -GPSLatitudeRef=N -GPSLongitude=2.297 -GPSLongitudeRef=E vacation.jpg
+$ exiftool -a -u -g1 vacation.jpg | grep -iE "comment|description|gps"
+[EXIF] Image Description             : Mountain trip
+[EXIF] User Comment                  : flag{exif_usercomment}
+---- GPS ----
+[GPS]  GPS Latitude Ref              : North
+[GPS]  GPS Latitude                  : 48 deg 51' 21.60"
+[GPS]  GPS Longitude                 : 2 deg 17' 49.20"
+[XMP]  Description                   : flag{xmp_hidden}
 ```
 
-Первый слой — GPS-координаты (в CTF это может быть подсказкой «место»), второй — XMP-пакет, в котором лежит флаг. XMP — это XML, поэтому его удобно читать и `grep`-ать. Если XMP «пуст», проверьте `-IPTC:all` и `UserComment`; если и там пусто — извлеките встроенное превью и прогоните `zsteg`.
+Здесь видно ключевое: один и тот же `exiftool` отдаёт данные из **разных пакетов** — `User Comment` живёт в EXIF, а `Description` в XMP, и это два разных тега с похожими именами. Если запустить просто `exiftool vacation.jpg` без `-a -u -g1`, второй тег может перекрыть первый и остаться незамеченным. Отсюда правило: сначала `-a -u -g1`, потом `grep`.
 
-Обратите внимание: `exiftool` по умолчанию показывает только один XMP-блок. Используйте `-a` (все) и `-g1` (группировка), чтобы увидеть дубликаты: злоумышленник мог записать данные во второй XMP-блок, который обычный просмотр не покажет. Разница между блоками — сама по себе сигнал.
+## Что мы теперь знаем
 
-## Частые ошибки и как их избежать
-
-- **Остановиться на первом экране `exiftool`:** без `-a -u` вы не увидите неизвестные теги и дубликаты, а данные часто именно там.
-- **Не использовать `-b`:** бинарные значения (MakerNote, Unknown, Thumbnail) не печатаются как текст; без `-b` вы их пропустите.
-- **Игнорировать встроенное превью:** это отдельный носитель; прогоняйте его через `zsteg`/`steghide`.
-- **Проблемы с кодировкой:** `UserComment` бывает UTF-16; используйте `-charset utf8` и `strings` с `-e l`.
-- **Вера в «очистку»:** `-all=` не убирает «дыры» и старые превью; проверяйте их отдельно.
-- **Один формат:** метаданные есть в PNG/WebP/HEIC/TIFF, не только в JPEG; применяйте `exiftool` ко всему.
-
-Практический порядок: `exiftool -a -u -g1` → `-b -TAG` для бинарных → `-xmp -b`, `-IPTC:all`, `-GPS:all -n` → извлечь и проверить **все** встроенные превью → `strings` по бинарным тегам. Такой проход закрывает подавляющее большинство метаданных-задач за один цикл.
+1. Метаданные — **быстрый первый шаг** любой стего-задачи.
+2. `exiftool -a -u -g1` показывает всё, включая неизвестные теги.
+3. **XMP** (XML) и **IPTC** — отдельные пакеты, читаются `-xmp -b`/`-IPTC:all`.
+4. **GPS** даёт геолокацию; `-n` — числовые координаты.
+5. **Встроенное превью** — отдельный носитель для LSB-стего.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "В каком маркере JPEG обычно лежит EXIF?"
@@ -245,6 +243,7 @@ $ grep -iE 'flag|secret|hidden' out.xmp
     - "SOI (FFD8)"
     - "EOI (FFD9)"
   answer: 0
+  explanation: "EXIF хранится в APP1-сегменте с заголовком Exif."
 - question: "Зачем нужен флаг exiftool -b?"
   options:
     - "Вывести бинарное/сырое значение тега"
@@ -252,6 +251,7 @@ $ grep -iE 'flag|secret|hidden' out.xmp
     - "Удалить метаданные"
     - "Сжать файл"
   answer: 0
+  explanation: "Без -b бинарные теги (MakerNote, Thumbnail) не печатаются как текст."
 - question: "Что такое EXIF-превью и почему оно важно?"
   options:
     - "Встроенная JPEG-картинка, которая сама может быть носителем"
@@ -259,6 +259,7 @@ $ grep -iE 'flag|secret|hidden' out.xmp
     - "CRC-сумма"
     - "Аудиодорожка"
   answer: 0
+  explanation: "Превью — отдельный JPEG, в нём можно спрятать LSB-данные."
 - question: "Каким форматом чаще всего является XMP?"
   options:
     - "XML/RDF"
@@ -266,7 +267,20 @@ $ grep -iE 'flag|secret|hidden' out.xmp
     - "RIFF"
     - "ISOBMFF"
   answer: 0
+  explanation: "XMP — это XML-пакет, удобно читать и grep-ать."
+- question: "Что выводит флаг exiftool -n для GPS?"
+  options:
+    - "Числовые (десятичные) координаты"
+    - "Название места"
+    - "Часовой пояс"
+    - "Высоту над уровнем моря"
+  answer: 0
+  explanation: "-n переводит координаты в десятичные градусы."
 ```
+
+## Куда дальше
+
+Мы разобрали метаданные. Дальше — **файловые системы** и служебные области, где данные прячут в «пустом» месте диска. А пока запомни: перед любым анализом прогони `exiftool -a -u -g1`.
 
 ## Где пригодится
 

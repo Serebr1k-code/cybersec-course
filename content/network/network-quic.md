@@ -14,265 +14,231 @@ useful_for:
 estimated_minutes: 50
 summary: "Как устроен QUIC поверх UDP, что видно без расшифровки и как инспектировать и блокировать его в корпоративной сети."
 ---
-QUIC — транспорт поверх **UDP**, несущий HTTP/3. Он объединяет TLS 1.3 в сам протокол, убирает head-of-line blocking и шифрует почти всё, включая часть транспортных метаданных. Для анализа это вызов: классические TCP-инструменты и middlebox'ы «слепы». Урок опирается на [`network-tls-inspection`](network-tls-inspection).
 
-## Почему QUIC — вызов для анализа
+## Вопрос, с которого всё начинается
 
-- Работает по **UDP/443**, который часто разрешён и плохо инспектируется.
-- **TLS 1.3 встроен**: handshake и данные в одном потоке.
-- Шифруются не только данные, но и заголовки (защита от ossification).
-- Соединение живёт по **connection ID**, а не по 5-tuple — сложно отслеживать при смене сети.
-- Ретрай/версия-негоциация добавляют неочевидные ветки поведения.
+В прошлом уроке мы расшифровывали HTTPS — TLS поверх TCP. Но замечал ли ты, что современные браузеры иногда не ходят по TCP/443 вовсе? Они используют **QUIC** — новый транспорт, несущий **HTTP/3**. Проблема для анализа в том, что QUIC работает поверх **UDP** и шифрует почти всё, включая часть служебных заголовков. Классические TCP-инструменты и сетевые посредники (middlebox) его «не видят».
 
-## Что видно на проводе
+Разберёмся, что всё-таки удаётся вытащить из QUIC-трафика и как он устроен — на нашем дампе.
 
-- **Initial-пакет** несёт **ClientHello открыто**: SNI, ALPN (`h3`), поддерживаемые версии, иногда ClientHello-фрагменты.
-- После handshake всё зашифровано; видны лишь размеры/тайминги пакетов.
-- **Version Negotiation**, **Retry**-пакеты — тоже частично открыты.
-- **SNI** можно использовать для фильтрации/логирования (если не ECH).
+## Наш пример: дамп q.pcap
 
-```bash
-# Захват
-tcpdump -i eth0 -n udp port 443 -w quic.pcap
-# Разбор в Wireshark (поддерживает QUIC/TLS 1.3)
-tshark -r quic.pcap -Y quic -V | head -80
-# Только ClientHello/SNI
-tshark -r quic.pcap -Y 'quic.tls.handshake.type==1' -T fields -e quic.tls.server_name -e quic.tls.alpn
-# Статистика по протоколам
-tshark -r quic.pcap -q -z io,phs
-# Версии
-tshark -r quic.pcap -Y 'quic.version' -T fields -e quic.version | sort | uniq -c
+Мы открыли в браузере сайт, и на интерфейсе появился UDP-трафик на порт 443. Снимем его:
+
+```
+$ sudo tcpdump -i any -n udp port 443 -c 200 -w q.pcap
+200 packets captured
 ```
 
-## Handshake QUIC по шагам
+Теперь посмотрим, что вообще внутри, через `tshark`:
 
-1. **Initial (client)** — ClientHello в открытом виде, ключи выведены из фиксированной соли.
-2. **Initial (server)** — ServerHello + ключи; дальше заголовки защищены.
-3. **Handshake** — сертификат сервера, проверка, Finished (зашифровано).
-4. **1-RTT / 0-RTT** — данные приложения.
-5. **Retry** — если сервер хочет проверить адрес клиента (anti-amplification), шлёт Retry с новым token.
-
-```bash
-# Посмотреть типы пакетов и стадии
-tshark -r quic.pcap -Y 'quic' -T fields -e quic.packet_type | sort | uniq -c
-# Retry-пакеты
-tshark -r quic.pcap -Y 'quic.retry' -V | head -40
+```
+$ tshark -r q.pcap -q -z io,phs | head -20
+===================================================================
+Protocol Hierarchy Statistics
+Filter:
+frame                      frames:200 bytes:145320
+  eth                      frames:200 bytes:145320
+    ip                     frames:200 bytes:145320
+      udp                  frames:200 bytes:145320
+        quic               frames:198 bytes:144900
 ```
 
-## Version Negotiation и совместимость
+Почти весь трафик — `quic`. Вот первое отличие от HTTPS: транспорт здесь UDP, а не TCP.
 
-- **QUIC v1** (RFC 9000) — стандарт; **v2** (RFC 9369) — новая соль, обратная совместимость не гарантирована.
-- **Version Negotiation** — сервер сообщает поддерживаемые версии; клиент выбирает.
-- **Greasing** — зарезервированные значения версий/фреймов, чтобы middlebox'ы не «затвердевали».
+## Шаг 1: почему QUIC — вызов для анализа
 
-```bash
-tshark -r quic.pcap -Y 'quic.version' -T fields -e quic.version | sort | uniq -c
-tshark -r quic.pcap -Y 'quic.connection.id' -T fields -e quic.connection.id | head
+Несколько свойств делают QUIC неудобным для перехвата:
+
+- Работает по **UDP/443** — порт, который почти везде разрешён и плохо инспектируется.
+- **TLS 1.3 встроен прямо в протокол** — handshake и данные идут в одном потоке.
+- Шифруются не только данные, но и заголовки (защита от «окостенения» посредников).
+- Соединение живёт по **connection ID**, а не по паре адрес-порт — его сложно отследить при смене сети.
+- Есть **Retry** и **Version Negotiation** — неочевидные ветки поведения.
+
+Но не всё потеряно: первый пакет соединения, **Initial**, несёт **ClientHello** в открытом виде.
+
+## Шаг 2: вытаскиваем SNI и ALPN из Initial
+
+Ключевая зацепка — то же, что и в TLS: `Initial`-пакет открыт, и в нём видно, к какому домену идёт клиент:
+
+```
+$ tshark -r q.pcap -Y 'quic.tls.handshake.type==1' -T fields -e ip.dst -e quic.tls.server_name -e quic.tls.alpn
+93.184.216.34	example.com	h3
 ```
 
-## 0-RTT и replay
+Три факта: адрес сервера, домен `example.com` (**SNI**) и **ALPN** — согласование протокола прикладного уровня. Здесь `h3` означает HTTP/3. Не путай: `h2` — это HTTP/2 поверх TCP, а `h3` — HTTP/3 поверх QUIC.
 
-QUIC поддерживает **0-RTT** (early data): клиент отправляет данные до завершения handshake, используя сохранённый ticket. Это создаёт риск **replay** для неидемпотентных запросов. Сервер должен ограничивать 0-RTT по методу/пути.
+Проверим версии QUIC:
 
-```bash
-tshark -r quic.pcap -Y 'quic.tls.early_data' -T fields -e frame.number
+```
+$ tshark -r q.pcap -Y 'quic.version' -T fields -e quic.version | sort | uniq -c
+     96 1
+     94 1
 ```
 
-Для анализа: если видите 0-RTT и сервер не ограничивает — потенциальный вектор replay-атак.
+Версия `1` — это QUIC v1 (RFC 9000). Есть и v2 (RFC 9369) с другой солью для вывода ключей.
 
-## ECH и потеря видимости
+## Шаг 3: разбираем handshake по шагам
 
-**Encrypted ClientHello (ECH)** шифрует SNI, поэтому фильтрация/логирование по имени сайта перестаёт работать. Признак: в Initial нет читаемого `server_name`. Тогда остаются только IP, размеры и тайминги.
+Посмотрим, какие типы пакетов прошли:
 
-```bash
-# Есть ли SNI?
-tshark -r quic.pcap -Y 'quic.tls.handshake.type==1' -T fields -e quic.tls.server_name
-# Пусто + ALPN h3 => возможно ECH
+```
+$ tshark -r q.pcap -Y 'quic' -T fields -e quic.packet_type | sort | uniq -c
+     2 initial
+     4 handshake
+    192 1-RTT
 ```
 
-## Расшифровка QUIC
+Расшифровка стадий:
 
-QUIC использует TLS 1.3, поэтому ключи можно получить через **SSLKEYLOGFILE** (как и для TLS):
+1. **Initial** — клиент шлёт ClientHello открыто; ключи выведены из фиксированной соли.
+2. **Handshake** — здесь сертификат сервера, проверка, Finished; всё уже зашифровано.
+3. **1-RTT** — данные приложения (это и есть наши 192 пакета).
 
-```bash
-export SSLKEYLOGFILE=/tmp/keys.log
-# запустить браузер/curl с этой переменной
-tshark -r quic.pcap -o tls.keylog_file:/tmp/keys.log -Y http3 -T fields -e http3.headers
+Есть ещё **Retry** — если сервер хочет подтвердить адрес клиента (защита от amplification, когда на маленький запрос нельзя ответить втрое большим объёмом):
+
+```
+$ tshark -r q.pcap -Y 'quic.retry' -V | head -10
 ```
 
-Без ключей расшифровка невозможна — только метаданные (SNI, размеры, тайминги). Для `curl`/`nghttp3` можно также писать **qlog** и разбирать его.
+## Шаг 4: что осталось видимым без ключей
 
-## Разобранный пример: разбор QUIC-handshake
+После handshake всё зашифровано, но метаданные никуда не делись:
 
-```bash
-# 1. Захват трафика браузера к сайту
-sudo tcpdump -i any -n udp port 443 -c 200 -w q.pcap
-# 2. SNI/ALPN из Initial
-tshark -r q.pcap -Y 'quic.tls.handshake.type==1' -T fields -e ip.dst -e quic.tls.server_name -e quic.tls.alpn
-# -> 93.184.216.34  example.com  h3
-# 3. Проверяем версии
-tshark -r q.pcap -Y quic -T fields -e quic.version | sort | uniq -c
-# 4. Если есть ключи — расшифровка
-tshark -r q.pcap -o tls.keylog_file:/tmp/keys.log -Y http3 -T fields -e http3.headers | head
-# 5. Проверить поддержку h3 у сервиса
-curl --http3-only -sI https://cloudflare-quic.com/
+- **Connection ID** — идентификатор соединения, который переживает смену IP/порта:
+
+```
+$ tshark -r q.pcap -Y 'quic.connection.id' -T fields -e quic.connection.id | sort -u | head
+5c8a3f1e2b4d
 ```
 
-## Connection migration и балансировка
+- **Spin bit** — открытый бит для измерения задержки:
 
-- **Connection ID (CID)**: длинный/короткий; по нему отслеживают соединение при смене IP/порта.
-- **Connection migration**: клиент меняет сеть (Wi-Fi→LTE) без разрыва — 5-tuple меняется, CID остаётся.
-- **Load balancer** маршрутизирует по CID, а не по 5-tuple.
-- **Spin bit** — открытый бит для измерения RTT.
-
-```bash
-tshark -r q.pcap -Y 'quic.spin_bit' -T fields -e quic.spin_bit | head
-tshark -r q.pcap -Y 'quic.connection.id' -T fields -e quic.connection.id | sort -u | head
+```
+$ tshark -r q.pcap -Y 'quic.spin_bit' -T fields -e quic.spin_bit | head -5
+0
+0
+1
 ```
 
-## Корпоративная инспекция и защита
+- **Размеры и тайминги** пакетов.
 
-- **Блокировка UDP/443** заставляет браузеры откатиться на **TCP/HTTP2** (инспектируемо).
-- **Firewall-правила** по SNI (`example.com`) в Initial.
-- **DNS-фильтрация** + блокировка `Alt-Svc` (браузер узнаёт о QUIC из заголовка `Alt-Svc: h3=...`).
-- **Прокси** с поддержкой HTTP/3 (или отключение QUIC на клиентах через политику).
+Смысл connection ID: при **connection migration** клиент переходит с Wi-Fi на LTE, и пары адрес-порт меняются, но соединение не рвётся — балансировщик маршрутизирует по ID.
 
-```bash
-# Клиентский fallback: Alt-Svc
-curl -sI https://example.com/ | grep -i alt-svc
-# Блокировка QUIC -> браузер пойдёт по TCP
-iptables -A FORWARD -p udp --dport 443 -j DROP
+## Шаг 5: расшифровка через SSLKEYLOGFILE
+
+QUIC использует TLS 1.3, поэтому ключи берутся тем же способом, что и в прошлом уроке, — из файла клиента:
+
+```
+$ export SSLKEYLOGFILE=/tmp/keys.log
+$ curl --http3 https://example.com/ -o /dev/null
+$ tshark -r q.pcap -o tls.keylog_file:/tmp/keys.log -Y http3 -T fields -e http3.headers | head
+:method: GET
+:authority: example.com
+:path: /
 ```
 
-## Частые ошибки
+Так зашифрованный `1-RTT` раскрывается в обычный HTTP/3. Без ключей расшифровка невозможна — остаются только SNI, размеры и тайминги.
 
-- **Сканировать QUIC как TCP** — QUIC только UDP.
-- **Ожидать полный HTTP-запрос без ключей** — виден только ClientHello.
-- **Путать ALPN `h3` и `h2`** — `h2` = HTTP/2 (TCP), `h3` = HTTP/3 (QUIC).
-- **Забывать про ECH** — тогда фильтрация по SNI не работает.
-- **Не учитывать connection ID** — при смене сети 5-tuple меняется.
-- **Блокировать UDP целиком** — сломаете DNS/другие сервисы; блокируйте именно UDP/443.
-- **Игнорировать 0-RTT** — риск replay.
+## Шаг 6: ECH — когда и SNI пропадает
 
-## Сравнение TCP+TLS и QUIC
+**Encrypted ClientHello (ECH)** шифрует SNI. Признак простой: в Initial нет читаемого имени:
 
-| Свойство | TCP + TLS 1.3 | QUIC |
-|----------|---------------|------|
-| Транспорт | TCP | UDP |
-| Handshake | отдельно от TCP | встроен, 1-RTT/0-RTT |
-| HoL blocking | на уровне TCP | устранён (per-stream) |
-| Шифрование заголовков | нет | да (частично) |
-| Идентификация соединения | 5-tuple | connection ID |
-| Инспектируемость | выше (TCP/443) | ниже |
+```
+$ tshark -r q.pcap -Y 'quic.tls.handshake.type==1' -T fields -e quic.tls.server_name
 
-## Что дальше / решение
-
-- Нужен **разбор метаданных** без ключей → SNI/ALPN/версии через `tshark` (Initial).
-- Нужна **полная расшифровка** → SSLKEYLOGFILE (браузер/curl) + `tshark -o tls.keylog_file`.
-- Нужна **корпоративная видимость** → блокировка/ограничение UDP/443 + DNS/Alt-Svc политика, TLS-инспекция → `network-tls-inspection`.
-- Смежные темы → `network-tls-attacks` (атаки на TLS), `network-doh-dot` (шифрованный DNS), `network-pcap-analysis`.
-
-Решение (алгоритм): 1) захватить UDP/443; 2) вытащить Initial (SNI/ALPN/версия); 3) проверить ECH (пусто = скрыто); 4) при необходимости получить ключи и расшифровать; 5) для защиты — управлять fallback (Alt-Svc, блокировка UDP/443).
-
-## qlog и отладка клиентов
-
-Многие QUIC-клиенты (Chromium, `curl`/`ngtcp2`, `quiche`) умеют писать **qlog** — структурированный JSON-лог событий соединения (пакеты, фреймы, тайминги). Это удобнее PCAP, когда нужны детали состояния.
-
-```bash
-# curl с qlog (сборка с ngtcp2/quiche)
-curl --http3 --qlog-file qlog.json https://example.com/
-# Chromium: --quic-log=/tmp/quiclog
-# Разбор: qvis / quicvis (веб-визуализация qlog)
 ```
 
-События qlog показывают, какие фреймы (STREAM, ACK, CRYPTO, RETRY) и когда отправлены — полезно при отладке падений handshake и при анализе 0-RTT.
+Пусто, но ALPN `h3` есть — вероятно, включён ECH. Тогда фильтрация по имени сайта перестаёт работать, и остаются только IP, размеры и тайминги.
 
-## Retry, amplification и антиспуфинг
+## Шаг 7: как это используют на практике
 
-QUIC-сервер, получив большой Initial, не может сразу ответить больше, чем втрое (защита от **amplification**). Если адрес клиента не подтверждён, сервер шлёт **Retry** с token. Это важный признак при анализе:
+Для защиты периметра у инженера есть рычаг — заставить клиента отказаться от QUIC:
 
-```bash
-# Retry-пакеты в захвате
-tshark -r q.pcap -Y 'quic.retry' -V | head -40
-# Сравнить размеры Initial и ответа (amplification)
-tshark -r q.pcap -Y 'quic' -T fields -e quic.packet_length | head
+```
+$ curl -sI https://example.com/ | grep -i alt-svc
+alt-svc: h3=":443"; ma=86400
 ```
 
-Отсутствие Retry при подозрительном трафике может говорить о том, что сервер уже доверяет клиенту (сохранённый ticket).
+Заголовок **Alt-Svc** сообщает браузеру, что сервис умеет `h3`. Если заблокировать UDP/443, браузер откатится на инспектируемый TCP/HTTP2:
 
-## HTTP/3 в библиотеках и прокси
-
-- **nginx** с `listen 443 quic` — терминирует HTTP/3, требует `Alt-Svc`.
-- **HAProxy** — QUIC-фронтенд с маршрутизацией по CID.
-- **Cloudflare/edge** — поддержка h3 из коробки.
-- **curl/nghttp3/quiche** — клиентские реализации для тестов.
-
-```bash
-# Проверить, отдаёт ли сервис h3
-curl --http3-only -sI https://cloudflare-quic.com/
-# Alt-Svc сообщает клиенту о поддержке h3
-curl -sI https://example.com/ | grep -i alt-svc
+```
+$ iptables -A FORWARD -p udp --dport 443 -j DROP
 ```
 
-## Что дальше по QUIC
+Так SOC возвращает себе видимость. Для пентестера обратный вывод: блокировка UDP/443 — это шумное, но эффективное решение, а его отсутствие оставляет канал «слепым».
 
-- Нужна **глубокая отладка** соединения → qlog + qvis.
-- Нужна **расшифровка** → SSLKEYLOGFILE (см. выше).
-- Нужна **защита периметра** → блокировка/ограничение UDP/443 и политика Alt-Svc, а также TLS-инспекция (`network-tls-inspection`).
-- Смежные темы → `network-tls-attacks`, `network-doh-dot` (шифрованный DNS/DoH), `network-pcap-analysis`.
+## Что мы теперь знаем
 
-## Ключевые выводы
+По-простому:
 
-QUIC совмещает транспорт и криптографию, поэтому «классический» per-protocol анализ работает лишь частично: без ключей вы видите Initial (SNI/ALPN/версия) и метаданные (размеры/тайминги/спин-бит). Всё остальное — зашифровано. Для SOC это означает: политику строят на **Initial** и **Alt-Svc/DNS**, а не на содержимом. Для пентеста — помните, что блокировка UDP/443 переводит клиентов на инспектируемый TCP/HTTP2.
+1. QUIC — транспорт поверх UDP (обычно 443), несущий HTTP/3.
+2. Первый пакет (Initial) открыт: из него видно SNI и ALPN (`h3`).
+3. Дальше всё шифруется — видны только connection ID, spin bit, размеры и тайминги.
+4. Расшифровка — через `SSLKEYLOGFILE` (TLS 1.3), а не ключом сервера.
+5. ECH прячет SNI; защита периметра строится на блокировке UDP/443 и политике Alt-Svc.
+
+## На что смотреть дальше
+
+- **Не сканируй QUIC как TCP.** Он только UDP — `nmap -sU -p 443`.
+- **Не жди HTTP-запроса без ключей.** Виден только Initial.
+- **Проверь ECH.** Пустой SNI при ALPN `h3` — сигнал, что имя скрыто.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Поверх какого транспорта работает QUIC?"
+- question: 'Поверх какого транспорта работает QUIC?'
   options:
-    - "UDP"
-    - "TCP"
-    - "SCTP"
-    - "ICMP"
+    - 'UDP'
+    - 'TCP'
+    - 'SCTP'
+    - 'ICMP'
   answer: 0
-  explanation: "QUIC работает поверх UDP (обычно 443) и включает TLS 1.3 внутри."
-- question: "Что можно увидеть в QUIC Initial-пакете без расшифровки?"
+  explanation: 'QUIC работает поверх UDP (обычно 443) и включает TLS 1.3 внутрь.'
+- question: 'Что видно в QUIC Initial-пакете без расшифровки?'
   options:
-    - "ClientHello: SNI и ALPN (например, h3)"
-    - "Полный HTTP-запрос"
-    - "Пароли"
-    - "Содержимое ответа"
+    - 'ClientHello: SNI и ALPN (например, h3)'
+    - 'Полный HTTP-запрос'
+    - 'Пароли'
+    - 'Содержимое ответа'
   answer: 0
-  explanation: "Initial несёт ClientHello открыто; дальше всё зашифровано."
-- question: "Как чаще всего заставляют клиента отказаться от QUIC в корпоративной сети?"
+  explanation: 'Initial несёт ClientHello открыто; дальше всё зашифровано.'
+- question: 'Как чаще всего заставляют клиента отказаться от QUIC в корпоративной сети?'
   options:
-    - "Заблокировать UDP/443, чтобы браузер откатился на TCP/HTTP2"
-    - "Отключить DNS"
-    - "Включить IPv6"
-    - "Сменить MAC"
+    - 'Заблокировать UDP/443, чтобы браузер откатился на TCP/HTTP2'
+    - 'Отключить DNS'
+    - 'Включить IPv6'
+    - 'Сменить MAC-адрес'
   answer: 0
-  explanation: "Блокировка UDP/443 вынуждает fallback на инспектируемый TCP."
-- question: "Какой ALPN-идентификатор означает HTTP/3?"
+  explanation: 'Блокировка UDP/443 вынуждает fallback на инспектируемый TCP.'
+- question: 'Какой ALPN-идентификатор означает HTTP/3?'
   options:
-    - "h3"
-    - "h2"
-    - "http/1.1"
-    - "spdy/3"
+    - 'h3'
+    - 'h2'
+    - 'http/1.1'
+    - 'spdy/3'
   answer: 0
-  explanation: "HTTP/3 использует ALPN h3."
-- question: "Что нужно для расшифровки QUIC в Wireshark?"
+  explanation: 'HTTP/3 использует ALPN h3; h2 — это HTTP/2 поверх TCP.'
+- question: 'Что нужно для расшифровки QUIC в Wireshark?'
   options:
-    - "Файл ключей TLS (SSLKEYLOGFILE)"
-    - "Пароль Wi-Fi"
-    - "MAC-адрес"
-    - "Сертификат сервера"
+    - 'Файл ключей TLS (SSLKEYLOGFILE)'
+    - 'Пароль Wi-Fi'
+    - 'MAC-адрес'
+    - 'Сертификат сервера'
   answer: 0
-  explanation: "QUIC использует TLS 1.3, поэтому ключи берутся из SSLKEYLOGFILE."
+  explanation: 'QUIC использует TLS 1.3, поэтому ключи берутся из SSLKEYLOGFILE.'
 ```
+
+## Куда дальше
+
+Дальше мы вернёмся к прикладным протоколам поверх TLS и TCP: разберём, как устроены базы данных «по проводу», и какие из них отдают данные без шифрования. А пока главное запомни: QUIC прячет содержимое, но Initial и метаданные всё ещё рассказывают, кто и куда ходит.
 
 ## Где пригодится
 
-- **CTF:** разбор QUIC-трафика, поиск SNI/метаданных.
+- **CTF:** разбор QUIC-трафика, поиск SNI и метаданных.
 - **Пентест:** анализ современного шифрованного транспорта.
 - **SOC:** видимость и инспекция QUIC, политика блокировки.
 - **Работа:** настройка firewall/прокси для HTTP/3.

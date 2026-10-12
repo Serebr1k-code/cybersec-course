@@ -15,194 +15,141 @@ estimated_minutes: 34
 summary: "recon-ng: workspaces, marketplace, модули recon/import/reporting, база SQLite, API-ключи, скрипты и типичные ошибки при recon."
 ---
 
-recon-ng — это Metasploit-подобный фреймворк для веб-разведки, работающий в CLI и хранящий результаты в **SQLite**. Он построен вокруг **модулей**: одни собирают данные из источников, другие импортируют из файлов, третьи генерируют отчёты. Для OSINT это удобная альтернатива SpiderFoot, когда вы предпочитаете контроль в терминале и воспроизводимые скрипты.
+## Вопрос, с которого всё начинается
 
-## Что такое recon-ng
+Разведку по домену удобно автоматизировать, но каждый инструмент хранит результат по-своему: один пишет в файл, другой просто печатает в консоль, третий требует свой формат. Хочется одну среду, где результаты копятся в одном месте, а источники подключаются модулями. Именно такую среду предоставляет recon-ng — консольный фреймворк разведки.
 
-Фреймворк на Python: интерактивная оболочка (`recon-ng`), внутри — рабочая область (**workspace**), база данных, набор модулей из **marketplace** и команды для работы с ними. Каждый модуль имеет входные/выходные «таблицы» (например, `domains`, `hosts`, `contacts`, `credentials`). Данные накапливаются в БД, а модули читают их и дополняют.
+Читателю уже знакомы CT-логи, DNS и идея конвейера. Здесь мы разберём, как recon-ng организует данные и как те же шаги выполнить вручную, чтобы понять, что лежит внутри.
 
-## Установка
+## Наш пример: workspace для домена
 
-```bash
-git clone https://github.com/lanmaster53/recon-ng
-cd recon-ng && pip install -r REQUIREMENTS
-./recon-ng
-# внутри:
-[recon-ng][default] > marketplace refresh
-[recon-ng][default] > marketplace search
+recon-ng построен вокруг **рабочей области (workspace)** — изолированного набора данных под одну цель. Внутри всё хранится в **SQLite** — встроенной базе данных (та же, что мы использовали для конвейера). Источники подключаются **модулями**: одни собирают данные, другие импортируют из файлов, третьи генерируют отчёты.
+
+Проведём один типовой сценарий — от домена к списку хостов. Я покажу команды recon-ng и рядом — что происходит в базе, воспроизведя её через `sqlite3` (так видно устройство, а не только «магия» фреймворка).
+
+## Шаг 1: создаём workspace и вставляем цель
+
+В интерактивной оболочке recon-ng создание области и вставка домена выглядят так:
+
+```
+[recon-ng] > workspaces create acme
+[recon-ng][acme] > db insert domains
+[recon-ng][acme] > show domains
 ```
 
-## Workspaces и marketplace
+Первая команда создаёт базу `acme`, вторая вставляет домен (фреймворк спросит его значение), третья показывает таблицу `domains`. Под капотом это обычная SQLite-таблица. Воспроизведём её:
 
-```bash
-[recon-ng] > workspaces create target
-[recon-ng] > db insert domains
-# marketplace: список модулей
-[recon-ng] > marketplace search
-[recon-ng] > marketplace install recon/domains-hosts/hackertarget
-[recon-ng] > modules load recon/domains-hosts/hackertarget
+```
+$ sqlite3 recon.db "CREATE TABLE domains(domain TEXT PRIMARY KEY);"
+$ sqlite3 recon.db "INSERT OR IGNORE INTO domains VALUES('example.com');"
+$ sqlite3 -header -column recon.db "SELECT domain FROM domains;"
+  domain
+-----------
+example.com
 ```
 
-Workspace изолирует данные разных целей — не смешивайте их.
+Вот и вся «магия»: `workspaces` — это отдельный файл базы, `show domains` — это `SELECT` по таблице. Понимание этого снимает половину загадочности.
 
-## Модули: recon / import / reporting
+## Шаг 2: собираем хосты модулем
 
-| Категория | Пример | Назначение |
-|---|---|---|
-| recon | `hackertarget`, `bing_domain_web` | Сбор поддоменов/hosts |
-| recon | `whois_pocs`, `brute_hosts` | WHOIS-контакты, брут |
-| recon | `profiler`, `namechk` | Профили и username |
-| import | `csv`, `list` | Импорт из файлов |
-| reporting | `report/html`, `report/json` | Отчёты |
+Теперь подключаем модуль сбора поддоменов. У recon-ng модули лежат в **marketplace** — каталоге, откуда их ставят:
 
-```bash
-[recon-ng] > modules load recon/domains-hosts/hackertarget
-[recon-ng][target][hackertarget] > options set SOURCE target.com
-[recon-ng][target][hackertarget] > run
-[recon-ng] > show hosts
+```
+[recon-ng][acme] > marketplace install recon/domains-hosts/hackertarget
+[recon-ng][acme] > modules load recon/domains-hosts/hackertarget
+[recon-ng][acme][hackertarget] > run
+[recon-ng][acme] > show hosts
 ```
 
-## Разобранный пример: от домена к отчёту
+Модуль `hackertarget` читает таблицу `domains` и дописывает найденные хосты в таблицу `hosts`. Результат — та же таблица, что мы заполним руками:
 
-1. Создаём workspace и вставляем домен:
-   ```bash
-   [recon-ng] > workspaces create acme
-   [recon-ng][acme] > db insert domains
-   [recon-ng][acme] > show domains
-   ```
-2. Ставим модуль сбора поддоменов и запускаем:
-   ```bash
-   [recon-ng][acme] > marketplace install recon/domains-hosts/hackertarget
-   [recon-ng][acme] > modules load recon/domains-hosts/hackertarget
-   [recon-ng][acme][hackertarget] > run
-   [recon-ng][acme] > show hosts
-   ```
-3. Добавляем `recon/domains-contacts/whois_pocs` — получаем контакты.
-4. Для найденных email — модуль утечек (если есть ключ).
-5. Экспортируем:
-   ```bash
-   [recon-ng][acme] > modules load reporting/html
-   [recon-ng][acme][html] > options set FILENAME /tmp/report.html
-   [recon-ng][acme][html] > run
-   ```
+```
+$ sqlite3 -header -column recon.db "SELECT host,ip FROM hosts;"
+      host            ip
+----------------  -----------
+www.example.com   198.18.0.17
+api.example.com   198.18.0.18
+mail.example.com  198.18.0.19
+```
 
-## База данных и ключи
+Три хоста с адресами. Ключевая идея recon-ng — **поток данных между таблицами**: модуль читает таблицу A, пишет в таблицу B, следующий модуль читает B. Никаких файлов вразнобой — всё в одной базе.
 
-Данные живут в SQLite; их можно смотреть через `show <table>` и экспортировать (`db query`). Многие модули требуют **API-ключи**:
+## Шаг 3: цепочка модулей
 
-```bash
+Один модуль редко даёт полную картину, поэтому их выстраивают в цепочку. Для домена типично:
+
+- `recon/domains-hosts/hackertarget` — поддомены через внешний сервис;
+- `recon/domains-hosts/bing_domain_web` — поддомены через поисковик;
+- `recon/hosts-hosts/resolve` — резолв хостов в IP;
+- `recon/hosts-hosts/reverse_resolve` — PTR по IP (соседи по хостингу);
+- `recon/domains-contacts/whois_pocs` — контакты из WHOIS.
+
+Для человека: `recon/profiles-profiles/namechk` (проверка username на площадках), `recon/contacts-credentials/hibp` (утечки email). Результаты накапливаются: hosts → IP → netblocks → contacts, образуя связную базу. Это тот же принцип «сбор → нормализация → хранение», что и в самодельном конвейере, только источники уже написаны за вас.
+
+## Шаг 4: API-ключи
+
+Многие модули ходят в сервисы, которым нужен ключ. recon-ng хранит их отдельно от модулей:
+
+```
 [recon-ng] > keys add shodan_api <KEY>
 [recon-ng] > keys add virustotal_api <KEY>
 [recon-ng] > keys list
 ```
 
-Без ключей модули либо не работают, либо ограничены.
+Без ключей такие модули либо не запускаются, либо отдают урезанный результат. Как и в собственном конвейере, ключи не должны попадать в публичный репозиторий.
 
-## Скрипты и автоматизация
+## Шаг 5: отчёт
 
-recon-ng можно запускать неинтерактивно, подавая команды через файл:
+Когда данные собраны, их выгружают. Категория модулей `reporting` формирует HTML/JSON-отчёт:
 
-```bash
-cat > /tmp/recon.rc <<'EOF'
+```
+[recon-ng][acme] > modules load reporting/html
+[recon-ng][acme][html] > options set FILENAME /tmp/report.html
+[recon-ng][acme][html] > run
+```
+
+На выходе — файл с таблицами хостов и контактов. Данные в базе можно и просто выгрузить запросом, что удобно для внешней обработки:
+
+```
+$ sqlite3 recon.db "SELECT host,ip FROM hosts;"
+www.example.com|198.18.0.17
+api.example.com|198.18.0.18
+mail.example.com|198.18.0.19
+```
+
+## Шаг 6: автоматизация через .rc-скрипты
+
+Главное преимущество CLI — воспроизводимость. Сценарий можно записать в файл и повторять одной командой. Файл команд называется **.rc-скриптом**:
+
+```
 workspaces create acme
 db insert domains
 modules load recon/domains-hosts/hackertarget
 run
+modules load reporting/html
+run
 exit
-EOF
-./recon-ng -w acme -r /tmp/recon.rc
 ```
 
-Так строятся воспроизводимые пайплайны recon. Также поддерживаются `spool` (лог) и экспорт БД для внешней обработки.
+Запуск:
 
-## Подводные камни
-
-- **Устаревшие модули.** Часть источников меняет API; marketplace не всегда обновляется.
-- **Отсутствие ключей.** Как и в SpiderFoot, половина модулей не работает.
-- **Смешивание workspace.** Данные разных целей перемешаются.
-- **Шумные модули.** Brute-модули могут быть заметны и медленны.
-- **Активные действия.** Некоторые модули шлют запросы к цели — проверяйте авторизацию.
-- **Отсутствие верификации.** Данные из БД нужно подтверждать вручную.
-
-## Что дальше / решение
-
-recon-ng — CLI-альтернатива SpiderFoot; свяжите с `osint-spiderfoot`, `osint-maltego` и `osint-collection`. Дальше — верификация и отчёт. Для CTF/пентеста постройте `.rc`-скрипт под типовой сценарий домена.
-
-## Справочная таблица
-
-| Команда | Назначение |
-|---|---|
-| workspaces create | Новая область |
-| db insert domains | Вставить цель |
-| marketplace install | Установить модуль |
-| modules load | Загрузить модуль |
-| show hosts | Показать результаты |
-| keys add | Добавить API-ключ |
-
-| Категория | Пример |
-|---|---|
-| recon/domains-hosts | hackertarget |
-| recon/domains-contacts | whois_pocs |
-| reporting | html, json |
-
-## Полезные сценарии и модули
-
-recon-ng раскрывается в типовых цепочках. Для домена:
-
-- `recon/domains-hosts/hackertarget` — поддомены через HackerTarget;
-- `recon/domains-hosts/bing_domain_web` — поддомены через Bing;
-- `recon/domains-hosts/brute_hosts` — перебор словарём;
-- `recon/hosts-hosts/resolve` — резолв hosts в IP;
-- `recon/hosts-hosts/reverse_resolve` — PTR по IP (соседи);
-- `recon/domains-contacts/whois_pocs` — контакты WHOIS;
-- `recon/domains-credentials/pwnedlist` — утечки (нужен ключ);
-- `recon/profiles-profiles/profiler` — профили по username.
-
-Для человека: `recon/profiles-profiles/namechk` (проверка username на площадках), `recon/contacts-credentials/hibp` (утечки). Результаты накапливаются: hosts → IP → netblocks → contacts, образуя связную базу. Важно понимать **поток данных**: модуль читает таблицу A, пишет в таблицу B; следующий модуль читает B.
-
-## Сравнение с SpiderFoot и Maltego
-
-| Критерий | recon-ng | SpiderFoot | Maltego |
-|---|---|---|---|
-| Интерфейс | CLI | Веб/CLI | GUI |
-| Хранение | SQLite | SQLite/файлы | Граф |
-| Автоматизация | rc-скрипты | Модули/API | Machines |
-| Визуализация | Нет | Граф/отчёт | Лучшая |
-| Гибкость | Высокая | Средняя | Средняя |
-
-recon-ng выбирают, когда нужен скриптуемый CLI-пайплайн и полный контроль над данными.
-
-## Лаборатория
-
-1. Создайте workspace для тестового домена.
-2. Прогоните цепочку: hackertarget → resolve → reverse_resolve.
-3. Добавьте whois_pocs и посмотрите контакты.
-4. Импортируйте свой список поддоменов модулем `import/list` и резолвните.
-5. Сгенерируйте HTML-отчёт.
-6. Напишите `.rc`-файл, повторяющий весь сценарий одной командой.
-
-## Автоматизация через Python API
-
-recon-ng можно использовать как библиотеку: модуль `recon.core` даёт доступ к базе, workspace и запуску модулей из Python. Это удобно для встраивания в собственный пайплайн и для генерации отчётов на лету.
-
-```python
-from recon.core import base
-r = base.Recon()
-r.init_workspace("acme")
-r.add_domains("target.com")
-# запуск модуля
-r.run_module("recon/domains-hosts/hackertarget")
-# чтение результатов
-for row in r.query("SELECT host FROM hosts"):
-    print(row)
-r.close()
+```
+$ ./recon-ng -w acme -r /tmp/recon.rc
 ```
 
-Помимо API, есть готовые «reporting»-модули и возможность писать свои: модуль — это Python-класс с метаданными, `repository` и `run()`. Свои модули позволяют добавить нишевый источник (региональный реестр, форум) в общий конвейер. Для командной работы храните `.rc`-скрипты и модули в git, чтобы recon был воспроизводимым.
+Так строятся пайплайны: один файл описывает всю разведку, и его можно хранить в git, передавать коллеге и запускать по расписанию. Есть и Python API — `from recon.core import base` — для встраивания в собственные инструменты.
 
-## Расширение: свои модули
+## Шаг 7: подводные камни
 
-Свой модуль — это Python-класс с метаданными и методом `run()`. Скелет:
+- **Устаревшие модули.** Источники меняют API, и часть модулей перестаёт работать — marketplace обновляется не всегда.
+- **Отсутствие ключей.** Без них половина модулей молчит.
+- **Смешивание workspace.** Данные разных целей в одной области перемешаются; для каждой цели — своя область.
+- **Активные модули.** Некоторые шлют запросы прямо к цели — проверяйте авторизацию.
+- **Нет верификации.** Данные из базы всё равно подтверждают вручную: источник мог ошибиться.
+
+## Свои модули
+
+Штатных модулей много, но иногда нужен нишевый источник — региональный реестр, внутренний форум, локальный API. Тогда пишут свой модуль: это обычный Python-класс с метаданными и методом `run`:
 
 ```python
 from recon.core.module import BaseModule
@@ -216,30 +163,33 @@ class Module(BaseModule):
     }
     def module_run(self, domains):
         for domain in domains:
-            # ... ваш сбор ...
             self.insert_hosts(host="sub." + domain)
 ```
 
-`meta["query"]` определяет, какие данные модуль читает; `module_run` получает строки и вызывает `insert_*` для записи. Так можно подключить внутренний реестр, локальный форум или нишевый API. Модули кладутся в `~/.recon-ng/modules/`, после чего появляются в marketplace.
+Поле `meta["query"]` определяет, какую таблицу модуль читает; `module_run` получает строки и вызывает `insert_*` для записи. Модуль кладут в `~/.recon-ng/modules/`, после чего он появляется в marketplace наравне со штатными. Так нишевый источник встраивается в общий конвейер, а не живёт отдельным скриптом.
 
-## Лаборатория
+## recon-ng, SpiderFoot и Maltego
 
-1. Создайте workspace, вставьте домен.
-2. Прогоните цепочку hackertarget → resolve → reverse_resolve.
-3. Добавьте whois_pocs, посмотрите контакты.
-4. Импортируйте свой список поддоменов (`import/list`) и резолвните.
-5. Сгенерируйте HTML-отчёт.
-6. Напишите `.rc`-файл, повторяющий сценарий.
-7. Напишите простой кастомный модуль и подключите его.
+Три инструмента решают похожую задачу, но по-разному. **SpiderFoot** — автоматический широкий скан с веб-интерфейсом: запустил цель и получил набор находок, но гибкость ниже. **Maltego** — GUI и лучшая визуализация графа, сильна в анализе связей. **recon-ng** — CLI с SQLite и полным контролем над данными: выбирают, когда нужен скриптуемый пайплайн, воспроизводимость и возможность дописать свой модуль. На практике их комбинируют: recon-ng собирает и хранит, Maltego визуализирует, SpiderFoot даёт быстрый широкий охват.
+
+## Что мы теперь знаем
+
+- recon-ng хранит данные в SQLite, изолируя их по workspace.
+- Модули читают одну таблицу и пишут в другую — так работает поток данных.
+- Источники ставятся из marketplace; часть требует API-ключей.
+- Отчёты генерируются модулями `reporting`, а данные выгружаются SQL-запросом.
+- .rc-скрипты делают разведку воспроизводимой и автоматизируемой.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Где recon-ng хранит результаты?"
   options:
-    - "В облаке"
+    - "В облаке вендора"
     - "В локальной SQLite-базе по workspace"
-    - "В JSON-файле"
+    - "В JSON-файле на рабочем столе"
     - "В Redis"
   answer: 1
   explanation: "recon-ng использует SQLite и изолирует данные по workspace."
@@ -251,23 +201,23 @@ class Module(BaseModule):
     - "load"
   answer: 1
   explanation: "marketplace install <path> ставит модуль."
-- question: "Зачем нужны API-ключи в recon-ng?"
+- question: "Как модули обмениваются данными?"
   options:
-    - "Для запуска оболочки"
-    - "Многие модули без них не работают или ограничены"
-    - "Для шифрования БД"
-    - "Для отчётов"
+    - "Через файлы вразнобой"
+    - "Один читает таблицу A и пишет в таблицу B, следующий читает B"
+    - "Через электронную почту"
+    - "Никак"
   answer: 1
-  explanation: "Модули Shodan/VirusTotal и др. требуют ключей."
+  explanation: "Поток данных идёт через таблицы базы."
 - question: "Как запустить recon-ng неинтерактивно?"
   options:
     - "С флагом -r и rc-файлом"
     - "Только через GUI"
-    - "Через API"
+    - "Только через API"
     - "Никак"
   answer: 0
   explanation: "-r <file> подаёт команды из файла для автоматизации."
-- question: "Какая категория модулей генерирует отчёт?"
+- question: "Какая категория модулей формирует отчёт?"
   options:
     - "recon"
     - "import"
@@ -277,9 +227,13 @@ class Module(BaseModule):
   explanation: "reporting-модули формируют HTML/JSON-отчёты."
 ```
 
+## Куда дальше
+
+В следующем уроке мы возьмём собранные находки и превратим их в отчёт, который сможет проверить сторонний человек. А пока главное запомни: recon-ng — это та же база данных и цепочка модулей, и понимание её устройства важнее заучивания команд.
+
 ## Где пригодится
 
-- **Recon/пентест:** автоматический сбор поддоменов/контактов.
+- **Recon/пентест:** автоматический сбор поддоменов и контактов.
 - **Bug bounty:** воспроизводимые recon-скрипты.
 - **OSINT:** структурированное хранение находок.
 - **CTF:** быстрый сбор данных о цели.

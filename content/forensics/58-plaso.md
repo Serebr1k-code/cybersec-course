@@ -14,197 +14,165 @@ useful_for:
 estimated_minutes: 55
 summary: "Построение super-timeline из разнородных артефактов через plaso: сбор, нормализация, фильтрация по времени и визуализация в Timesketch."
 ---
-Plaso (ранее log2timeline) — движок построения **супер-таймлайна**: он собирает события из десятков источников (EVTX, реестр, MFT, Prefetch, LNK, browser, syslog, файлы, PCAP-метаданные) и нормализует их в единую модель. Это основной инструмент хронологического анализа в DFIR. Этот урок — про `log2timeline.py`, `psort.py`, хранилище, фильтры и визуализацию в Timesketch.
 
-## Архитектура
+## Вопрос, с которого всё начинается
 
-Plaso работает в два шага:
-1. **Сбор** (`log2timeline.py`) — парсит источники и сохраняет события в хранилище (`.plaso`).
-2. **Вывод** (`psort.py`) — фильтрует, сортирует и экспортирует в нужный формат.
+Ты разобрал образ Windows: нашёл запуск процесса в EVTX, создание файла в `$MFT`,
+запись в реестре, загрузку в Prefetch. Но каждое событие — в своём формате и со
+своим временем. Как свести их в **одну хронологию**, чтобы увидеть атаку по порядку?
 
-Событие в plaso — это кортеж: `timestamp`, `timestamp_desc`, `data_type`, `message`, `source`, `parser`, `display_name`, `user`, `hostname`, `inode` и др.
+Здесь нужен **super-timeline** («супер-таймлайн») — объединённая лента событий из
+всех источников. Собирают её инструментом **plaso** (раньше назывался log2timeline).
+Он умеет читать десятки форматов и приводить их к единой модели.
 
-## Сбор: log2timeline
+## Наш пример: образ disk.img
+
+У нас есть образ `disk.img`. Построим вокруг инцидента таймлайн от сбора до
+результата. Сначала поймём, что такое «парсер»: это модуль, который знает, как
+читать **один конкретный тип** артефакта (журнал, реестр, `$MFT` и т.д.). Посмотрим
+список доступных парсеров:
 
 ```bash
-# собрать все события из каталога
-$ log2timeline.py --parsers 'winreg,evtx,mft,prefetch,lnk,amcache' \
-    --storage-file timeline.plaso /evidence
-# список парсеров
 $ log2timeline.py --parsers list
-# что внутри парсера winreg
-$ log2timeline.py --parsers list:winreg
-# хеширование во время сбора
-$ log2timeline.py --hashers all --storage-file timeline.plaso /evidence
-# фильтр по дате при сборе
-$ log2timeline.py --parsers 'evtx' --storage-file t.plaso --yara-rules rule.yar /evidence
+...
+winreg, evtx, mft, prefetch, lnk, amcache, sqlite, filestat, syslog ...
 ```
 
-Полезные флаги: `--parsers` (какие), `--hashers` (sha256/md5), `--filter-file` (фильтр по расширениям), `--file-filter` (включить только нужные), `--workers` (параллелизм), `--vss-stores` (обработка теневых копий), `--yara-rules`.
+## Шаг 1: сбор событий
+
+Первый шаг plaso — **сбор**: `log2timeline.py` парсит источники и складывает
+события в хранилище (файл `.plaso`). Укажем, какие парсеры нужны:
 
 ```bash
-# обработка теневых копий
-$ log2timeline.py --vss-stores all --storage-file t.plaso disk.img
-# ограничить файлы по пути
-$ log2timeline.py --file-filter '/Users/*' --storage-file t.plaso /evidence
-```
-
-## Вывод: psort
-
-```bash
-# вывести в CSV с фильтром по времени
-$ psort.py -o l2tcsv -w timeline.csv timeline.plaso "date > '2024-03-01' and date < '2024-03-02'"
-# JSON lines
-$ psort.py -o json_line -w timeline.jsonl timeline.plaso
-# динамические колонки (авто)
-$ psort.py -o dynamic -w dynamic.csv timeline.plaso
-# в Timesketch
-$ psort.py -o timesketch timeline.plaso
-# анализ (топ-значения)
-$ psort.py -a timeline.plaso
-```
-
-Флаги `psort.py`: `-o` (формат: `l2tcsv`, `json_line`, `dynamic`, `timesketch`, `opensearch`, `elastic`), `-w` (файл), `-a` (анализ), `--slice` (диапазон), `--output-time-zone` (TZ), `-q` (тихий).
-
-## Язык фильтров
-
-Plaso принимает выражения:
-
-```
-date > '2024-03-01 09:00:00' and date < '2024-03-01 10:00:00'
-username == 'bob'
-source == 'MFT' and timestamp_desc contains 'Creation'
-parser contains 'evtx'
-message contains 'mimikatz'
-```
-
-```bash
-$ psort.py timeline.plaso "username == 'bob' and source == 'WinEvt'" -o l2tcsv -w bob.csv
-$ psort.py timeline.plaso "message contains 'powershell'" -o dynamic -w ps.csv
-```
-
-## Timesketch
-
-Timesketch — веб-платформа для совместного анализа: импорт плазо-хранилища, фильтры, графики частоты, аннотации, поиск по всем событиям. В облачных расследованиях часто связана с `sigma`.
-
-```bash
-$ psort.py -o timesketch timeline.plaso     # создаёт ZIP
-# загрузить ZIP в веб-интерфейс Timesketch
-```
-
-## Разобранный пример
-
-Дан образ `disk.img`. Нужно построить таймлайн вокруг инцидента.
-
-```bash
-# 1. Собрать
 $ log2timeline.py --parsers 'winreg,evtx,mft,prefetch,lnk' --storage-file t.plaso disk.img
-# 2. Обзор типов событий
-$ psort.py -a t.plaso | head -40
-# 3. Окно инцидента
-$ psort.py -o l2tcsv -w win.csv t.plaso "date > '2024-03-01 12:00:00' and date < '2024-03-01 12:30:00'"
-# 4. Найти подозрительное
-$ grep -iE 'evil|mimikatz|powershell' win.csv | head
-# 5. По пользователю
-$ psort.py -o l2tcsv -w bob.csv t.plaso "username == 'bob' and message contains 'cmd'"
+[INFO] Processing started
+[INFO] Source path: disk.img
+[INFO] Processing completed
 ```
 
-## Справочная таблица парсеров
+`.plaso` — это ZIP-контейнер с базой SQLite внутри; в нём лежат все нормализованные
+события. Ключевая идея: каким бы ни был исходный формат, каждое событие
+превращается в один и тот же набор полей.
 
-| Парсер | Источник |
-|--------|----------|
-| `winreg` | кусты реестра |
-| `evtx` | журналы событий |
-| `mft` | $MFT |
-| `usnjrnl` | USN-журнал |
-| `prefetch` | Prefetch |
-| `lnk` | LNK |
-| `amcache` | Amcache |
-| `sqlite` | SQLite (browser и др.) |
-| `syslog` | syslog |
-| `filestat` | метаданные файлов |
+## Шаг 2: что такое событие plaso
 
-## Частые ошибки
+Каждое событие — это кортеж полей. Главные:
 
-- **Собирать «всё»** без фильтров — гигантское хранилище; используйте `--parsers`/`--file-filter`.
-- **Не нормализовать TZ** — `--output-time-zone UTC`.
-- **Забывать про теневые копии** — `--vss-stores all`.
-- **Выводить без фильтра** — миллионы строк; используйте `psort`-выражения.
-- **Не сохранять команды** — воспроизводимость важна.
-- **Путать `log2timeline` и `psort`** — первый собирает, второй выводит.
+- `timestamp` — когда (время события);
+- `timestamp_desc` — **какое именно** это время (`Creation`, `Modification`,
+  `Access` и т.п.). Один файл даёт несколько событий с разными `timestamp_desc` —
+  это нормально;
+- `data_type`, `parser` — откуда пришло событие;
+- `message` — человекочитаемое описание;
+- `username`, `hostname` — кто и где.
 
-## Что дальше / решение
+Именно `timestamp_desc` не даёт запутаться: «создан» и «изменён» — разные события.
 
-Конвейер: `log2timeline.py --parsers ...` (сбор) → `psort.py -a` (обзор) → `psort.py "фильтр"` (окно) → Timesketch (визуализация). Связка: `forensics-timeline` (основы), `forensics-windows-artifacts` (что собирать), `forensics-evtx-deep` (EVTX), `forensics-attack-mapping` (ATT&CK).
+## Шаг 3: обзор — что вообще собралось
 
-## Кастомные парсеры и расширения
-
-Plaso расширяется парсерами на Python: класс наследует `FileSystemParser`/`WindowsRegistryParser` и регистрируется. Это нужно для нестандартных артефактов.
-
-```python
-from plaso.parsers import interface, manager
-from plaso.lib import definitions
-
-class MyParser(interface.FileObjectParser):
-    NAME = 'myparser'
-    DATA_FORMAT = 'My custom artifact'
-    def ParseFileObject(self, parser_mediator, file_object):
-        # читать file_object, создавать EventObject
-        ...
-```
-
-Также plaso поддерживает **плагины анализа** (`--analysis_plugins`), которые постобрабатывают события (например, `tagging`, `browser_search`, `windows_eventlog`). Они позволяют автоматически помечать интересные события.
+Прежде чем фильтровать, посмотрим статистику: `psort.py` — второй инструмент plaso,
+который **выводит** события из хранилища. Флаг `-a` (analysis) показывает сводку:
 
 ```bash
-$ psort.py --analysis_plugins tagging -w tagged.csv timeline.plaso
-$ log2timeline.py --parsers 'filestat' --file-filter '/etc/*' --storage-file etc.plaso /
+$ psort.py -a t.plaso | head -20
+Source: EVTX
+Events: 12043
+...
+Top data types:
+  windows:evtx:record ... 12043
 ```
 
-## Производительность и масштаб
+Мы видим, сколько событий дал каждый источник. Так становится понятно, где искать.
 
-Plaso на больших образах может работать часами и потреблять много памяти.
+## Шаг 4: фильтруем окно инцидента
+
+Миллионы событий бесполезны без фильтра. У plaso свой **язык выражений**. Сузим
+до окна вокруг атаки (по времени) и экспортируем в CSV:
+
+```bash
+$ psort.py -o l2tcsv -w win.csv t.plaso "date > '2024-03-01 12:00:00' and date < '2024-03-01 12:30:00'"
+```
+
+`-o l2tcsv` — формат вывода (CSV, совместимый с Excel), `-w` — файл. Теперь
+поищем в окне подозрительное:
+
+```bash
+$ grep -iE 'evil|mimikatz|powershell' win.csv | head
+```
+
+Вместо всего образа у нас — тридцать минут вокруг инцидента. А можно фильтровать
+по пользователю и источнику:
+
+```bash
+$ psort.py t.plaso "username == 'bob' and source == 'WinEvt'" -o l2tcsv -w bob.csv
+$ psort.py t.plaso "message contains 'powershell'" -o dynamic -w ps.csv
+```
+
+## Шаг 5: собираем картину
+
+Разложим события окна по времени и получим цепочку:
+
+```bash
+$ sort -t, -k1 win.csv | grep -iE 'winword|powershell|run.exe' | head
+2024-03-01 12:10:00,WinEvt,EVTX,4688,...winword.exe...
+2024-03-01 12:10:05,WinEvt,EVTX,4688,...powershell.exe -enc...
+2024-03-01 12:10:09,MFT,...File Created,...C:\ProgramData\evil\run.exe
+```
+
+Три события из **трёх разных источников** встали в один ряд по времени: Word →
+PowerShell → создание файла. Это и есть сила super-timeline — он убирает границы
+между форматами.
+
+## Шаг 6: визуализация в Timesketch
+
+Для командной работы есть **Timesketch** — веб-платформа, куда загружают
+плазо-хранилище и исследуют таймлайн графически (фильтры, частота событий,
+аннотации). Экспорт:
+
+```bash
+$ psort.py -o timesketch t.plaso
+```
+
+На выходе — ZIP, который импортируется в веб-интерфейс Timesketch. В облачных
+расследованиях Timesketch часто связывают с Sigma-правилами.
+
+## Советы по производительности
+
+Plaso на больших образах работает часами. Несколько приёмов:
 
 ```bash
 # параллелизм
 $ log2timeline.py --workers 4 --storage-file t.plaso /evidence
-# ограничить объём: только нужные каталоги
+# ограничить файлы по пути
 $ log2timeline.py --file-filter '/Users/*,/Windows/System32/config/*' --storage-file t.plaso disk.img
-# исключить шум
-$ log2timeline.py --filter-file '*.log' --storage-file t.plaso /evidence
-# оценка размера
-$ psort.py -a t.plaso
+# обработать теневые копии
+$ log2timeline.py --vss-stores all --storage-file t.plaso disk.img
 ```
 
-Советы: собирайте сначала **узкий** набор парсеров (evtx, mft, prefetch, winreg), расширяйте по необходимости; используйте `--file-filter` для ограничения файлов; храните `.plaso` на быстром диске; для огромных наборов применяйте Timesketch/OpenSearch.
+Собирайте сначала **узкий** набор парсеров (`evtx, mft, prefetch, winreg`) и
+расширяйте по необходимости. Нормализуйте часовой пояс через `--output-time-zone UTC`,
+иначе события сместятся.
 
-## Разобранный пример с анализом
+## Что мы теперь знаем
 
-```bash
-# 1. Сбор
-$ log2timeline.py --parsers 'winreg,evtx,mft,prefetch,lnk,amcache,sqlite' --storage-file case.plaso /evidence
-# 2. Топ источников и типов событий
-$ psort.py -a case.plaso | sed -n '1,40p'
-# 3. Авто-тегирование интересного
-$ psort.py --analysis_plugins tagging -o l2tcsv -w tagged.csv case.plaso
-# 4. Окно инцидента
-$ psort.py -o l2tcsv -w win.csv case.plaso "date > '2024-03-01 12:00:00' and date < '2024-03-01 12:30:00'"
-# 5. В Timesketch
-$ psort.py -o timesketch case.plaso
-```
+- **super-timeline** объединяет события из разных форматов в одну ленту.
+- `log2timeline.py` **собирает** события в хранилище `.plaso`; `psort.py` **выводит**.
+- Каждое событие имеет `timestamp`, `timestamp_desc` и источник (`parser`).
+- Язык фильтров `psort` сужает миллионы событий до окна инцидента.
+- **Timesketch** — веб-визуализация и совместный анализ таймлайна.
 
-## Ограничения и подводные камни
+## На что смотреть дальше
 
-- **Неподдерживаемый артефакт** — плазо его пропустит; проверяйте `--parsers list`.
-- **Неверная TZ** — все события сместятся; задавайте `--output-time-zone`.
-- **Слишком широкий сбор** — гигабайты `.plaso`; используйте фильтры.
-- **Версии парсеров** — обновляйте plaso; старые версии могут не разбирать новые форматы.
-- **Дубликаты событий** — один артефакт может дать несколько записей (нормально).
-
-## Краткое резюме
-
-Plaso — движок супер-таймлайна: `log2timeline.py` собирает события из десятков источников в хранилище `.plaso`, `psort.py` фильтрует и выводит их в CSV/JSON/Timesketch. Это стандартный инструмент хронологического анализа: он нормализует артефакты в единую модель и позволяет сузить миллионы событий до окна инцидента языком фильтров. Для эффективности собирайте узкий набор парсеров, нормализуйте часовой пояс и визуализируйте результат в Timesketch.
+- **Собирать «всё» без фильтров** — получишь гигабайты `.plaso`; задавай парсеры.
+- **Путать `log2timeline` и `psort`** — первый собирает, второй выводит.
+- **Не нормализовать TZ** — все события сместятся.
+- **Выводить без фильтра** — миллионы строк; используй выражения `psort`.
+- **Забывать про теневые копии** — `--vss-stores all` добавляет историю.
+- **Не сохранять команды** — воспроизводимость важна для отчёта.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какой файл создаёт log2timeline.py?"
@@ -244,10 +212,18 @@ Plaso — движок супер-таймлайна: `log2timeline.py` соби
   answer: 1
 ```
 
+## Куда дальше
+
+Мы построили единую хронологию из разнородных артефактов. В следующем уроке
+разберём целый класс атак, которые оставляют минимум следов на диске, —
+**fileless-малварь и LOLBins**, и посмотрим, какие артефакты всё же выдают их.
+А пока запомни: **super-timeline превращает разрозненные артефакты в одну
+историю — но только если сузить её до окна инцидента**.
+
 ## Где пригодится
 
-- **CTF:** задачи на восстановление хронологии сложной атаки.
-- **DFIR:** построение единой картины инцидента из разнородных артефактов.
-- **Threat Hunting:** поиск аномалий во времени и связей событий.
-- **Командная работа:** Timesketch для совместного расследования.
-- **Отчётность:** готовые таймлайны для отчёта и суда.
+- **CTF** — задачи на восстановление хронологии сложной атаки.
+- **DFIR** — построение единой картины инцидента из разнородных артефактов.
+- **Threat Hunting** — поиск аномалий во времени и связей событий.
+- **Командная работа** — Timesketch для совместного расследования.
+- **Отчётность** — готовые таймлайны для отчёта и суда.

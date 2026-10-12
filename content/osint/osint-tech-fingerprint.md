@@ -14,272 +14,202 @@ useful_for:
 estimated_minutes: 30
 summary: "Как определить технологии сайта пассивно: HTTP-заголовки, WhatWeb, Wappalyzer, BuiltWith, фингерпринт по статике, CMS и версии, WAF."
 ---
-Технологический фингерпринт — это определение того, **на чём построен сайт**: веб-сервер, язык, фреймворк, CMS, CDN, аналитика, WAF. Это первый шаг любой разведки веб-поверхности: зная стек, вы знаете, какие уязвимости искать, какие файлы проверять и как не выдать себя при сканировании. Всё в этом уроке можно делать пассивно — из заголовков, публичных баз и статики, не отправляя на цель ни одного «атакующего» запроса.
 
-## Теория: из чего складывается фингерпринт
+## Вопрос, с которого всё начинается
 
-Фингерпринт собирается из нескольких слоёв, от самого надёжного к самому шумному:
+Перед тобой сайт `shop.example.com`. Чтобы понять, какие уязвимости искать, нужно знать, **на чём он построен**: веб-сервер, язык, фреймворк, CMS. Как определить стек, не отправляя на цель ни одного агрессивного запроса?
 
-| Слой | Источник | Надёжность |
-|------|----------|-----------|
-| Заголовки HTTP | `Server`, `X-Powered-By`, `Set-Cookie` | высокая |
-| Тело ответа | мета-теги, комментарии, генератор | средняя |
-| Статика | пути JS/CSS, шрифты, хэши | средняя |
-| Cookies | имена и префиксы | высокая |
-| DNS/CDN | CNAME, IP, ASN | высокая |
-| Публичные базы | BuiltWith, Wappalyzer, Shodan | зависит от давности |
+Ответ — в **технологическом фингерпринте**: пассивном определении технологий по заголовкам, статике и публичным базам. Разберём его на одном домене.
 
-Правило: **совпадающие сигналы из двух независимых источников** дают уверенный вывод. Один сигнал — гипотеза.
+## Наш пример: домен shop.example.com
 
-## Заголовки HTTP: первый источник
+Работаем с одним объектом — `shop.example.com`. Задача: определить стек и составить список конкретных векторов (CVE, пути, файлы). Всё делаем пассивно — только GET и HEAD.
 
-Самый быстрый и надёжный способ — посмотреть ответ сервера. Один запрос:
+## Шаг 1: заголовки HTTP — первый источник
+
+Самый быстрый способ — посмотреть ответ сервера. Один запрос отдаёт массу информации.
 
 ```bash
-curl -sSI https://example.com
+curl -sSI https://shop.example.com
 ```
-
-Вывод:
 
 ```
 HTTP/2 200
 server: nginx/1.24.0
-date: Sun, 11 Oct 2026 12:00:00 GMT
-content-type: text/html; charset=UTF-8
-x-powered-by: PHP/8.2.12
-set-cookie: PHPSESSID=abc123; path=/
-x-generator: WordPress 6.4
-link: <https://example.com/wp-json/>; rel="https://api.w.org/"
+x-powered-by: PHP/8.1.0
+set-cookie: laravel_session=...; path=/
+link: <https://shop.example.com/wp-json/>; rel="https://api.w.org/"
 ```
 
-Здесь сразу читается: nginx 1.24, PHP 8.2, WordPress 6.4. Заголовок `link` с `wp-json` — характерный признак WordPress. `x-generator` — распространённый маркер CMS.
+Читаем сразу: сервер nginx 1.24, бэкенд на PHP 8.1, cookie `laravel_session` — это фреймворк Laravel. Заголовок `link` с `wp-json` — характерный маркер WordPress (возможно, на другом хосте).
 
-Полезные заголовки и их смысл:
+Полезные заголовки:
 
 | Заголовок | Что выдаёт |
 |-----------|-----------|
 | `Server` | веб-сервер и версия |
-| `X-Powered-By` | язык/фреймворк (PHP, ASP.NET, Express) |
-| `X-AspNet-Version` | версия ASP.NET |
-| `Set-Cookie` | `PHPSESSID`→PHP, `JSESSIONID`→Java, `ASP.NET_SessionId`→.NET, `csrftoken`→Django |
+| `X-Powered-By` | язык или фреймворк |
+| `Set-Cookie` | `PHPSESSID`→PHP, `JSESSIONID`→Java, `laravel_session`→Laravel |
 | `X-Generator` | CMS (WordPress, Drupal, Joomla) |
-| `Via` / `X-Cache` | CDN (Cloudflare, Fastly, Varnish) |
-| `X-Drupal-Cache` | Drupal |
+| `Via` / `X-Cache` | CDN |
+
+## Шаг 2: WhatWeb — сигнатуры
+
+`whatweb` — консольный инструмент с базой из тысяч сигнатур. Он сопоставляет ответ сайта с ними и выводит найденное.
 
 ```bash
-curl -sSI https://target.example | grep -iE 'server|x-powered-by|set-cookie|x-generator|via|x-cache'
+whatweb -v https://shop.example.com
 ```
 
-## WhatWeb: сигнатуры и уровни агрессии
+```
+https://shop.example.com [200 OK] Cookies[laravel_session],
+  HTTPServer[nginx/1.24.0], IP[93.184.216.34], PHP[8.1.0],
+  PoweredBy[PHP], Country[UNITED STATES][US]
+```
 
-`whatweb` — CLI-инструмент с базой из тысяч сигнатур. Базовый прогон:
+Флаг `-v` показывает, какие сигнатуры сработали. Уровни агрессии (`-a`): `1` — пассивно, один запрос; `3` — по умолчанию; `4` — агрессивно и шумно. Для OSINT всегда начинай с `-a 1`.
+
+## Шаг 3: фингерпринт по статике
+
+Заголовки легко подменить, поэтому смотрим на **статику** — пути к скриптам, стилям и шрифтам. Открываем исходный код страницы.
 
 ```bash
-whatweb -v https://example.com
+curl -s https://shop.example.com | grep -oiE '(wp-content|/build/assets/|/_next/|react|vue|bootstrap)[^"'\'' ]*' | sort -u
 ```
 
-`-v` показывает, какие именно сигнатуры сработали:
-
 ```
-http://example.com [200 OK] Country[UNITED STATES][US],
-  Cookies[PHPSESSID], HTML5, HTTPServer[nginx/1.24.0],
-  IP[93.184.216.34], PHP[8.2.12], PoweredBy[PHP],
-  WordPress[6.4]
+/build/assets/app-3f9a2c.js
+/build/assets/app-3f9a2c.css
 ```
 
-Уровни агрессии (`-a`):
-
-| Уровень | Поведение |
-|---------|-----------|
-| `-a 1` | пассивно, один запрос |
-| `-a 3` | несколько запросов (по умолчанию) |
-| `-a 4` | агрессивно, много запросов, шумно |
-
-Для OSINT всегда начинайте с `-a 1` (пассивно), повышайте только при явном разрешении. Полезные флаги:
-
-```bash
-whatweb -a 1 --no-errors --color=never -i targets.txt   # батч из файла
-whatweb --user-agent "Mozilla/5.0 ..." https://example.com  # подмена UA
-whatweb --cookie "session=abc" https://example.com      # с сессией
-```
-
-## Wappalyzer и BuiltWith
-
-**Wappalyzer** — браузерное расширение и CLI. Расширение показывает стек прямо в тулбаре, кликом по иконке. CLI (через npm):
-
-```bash
-npx wappalyzer-cli https://example.com
-```
-
-**BuiltWith** — крупнейшая коммерческая база технологий. Публичная страница `builtwith.com/example.com` показывает историю стека и «соседей» (домены с теми же tracking ID). Её ценность в **исторических данных**: видно, что сайт раньше был на другой CMS.
-
-Что искать в BuiltWith:
-- раздел **Analytics & Tracking** — Google Analytics, GTM, пиксели (pivot-идентификаторы);
-- раздел **Hosting** — провайдер и CDN;
-- раздел **Relationship** — аффилированные домены.
-
-## Фингерпринт по статике: JS, CSS, шрифты, фреймворки
-
-Заголовки врут (их легко подменить), поэтому смотрим на статику. Откройте исходный код страницы (`curl -s https://example.com`) и ищите:
-
-```bash
-curl -s https://example.com | grep -oiE '(wp-content|wp-includes|/static/|/assets/|react|vue|angular|jquery|bootstrap)[^"'\'' ]*' | sort -u
-```
-
-Маркеры:
+Маркеры по артефактам:
 
 | Артефакт | Технология |
 |----------|-----------|
 | `/wp-content/`, `/wp-includes/` | WordPress |
 | `/sites/default/files/` | Drupal |
-| `/media/jui/` | Joomla |
-| `/static/js/main.<hash>.js` | React (CRA) |
+| `/build/assets/<hash>.js` | Vite (часто с Laravel) |
 | `__NEXT_DATA__`, `/_next/` | Next.js |
 | `data-v-` атрибуты | Vue |
-| `ng-version` | Angular |
-| `wp-emoji-release.min.js` | WordPress |
+
+`/build/assets/` с хэшем — типичный Vite-фронт, что согласуется с Laravel-бэкендом.
+
+## Шаг 4: определяем CMS и версии
+
+Версия важна: она определяет, какие CVE применимы. Для WordPress версию выдают служебные файлы.
 
 ```bash
-curl -s https://example.com | grep -oE 'meta name="generator"[^>]*'
-# <meta name="generator" content="WordPress 6.4" />
+curl -s https://shop.example.com/wp-json/ | python3 -m json.tool | grep -i version
+curl -s https://shop.example.com/readme.html | grep -i "Version"
 ```
 
-## Определение CMS и версий
+Для Drupal смотрят `CHANGELOG.txt`, для Joomla — `administrator/manifests/files/joomla.xml`. Эти файлы часто забывают закрыть, и они дают точную версию. Помни: устаревшая версия — это **гипотеза**, а не доказательство уязвимости.
 
-Версия важна: она определяет, какие CVE применимы. Для WordPress:
-
-```bash
-curl -s https://example.com/wp-json/ | python3 -m json.tool | grep -i version
-curl -s https://example.com/readme.html | grep -i "Version"
-curl -s https://example.com/wp-links-opml.php | grep -i generator
-```
-
-Для Drupal — `CHANGELOG.txt`; для Joomla — `administrator/manifests/files/joomla.xml`. Эти файлы часто забывают закрыть, и они дают точную версию.
-
-## Разобранный пример: пассивный фингерпринт домена
-
-Цель: определить стек `shop.example.com`, ничего не ломая.
-
-Шаг 1 — заголовки:
-
-```bash
-curl -sSI https://shop.example.com | grep -iE 'server|x-powered-by|set-cookie|x-generator'
-# server: cloudflare
-# set-cookie: laravel_session=...; path=/
-# x-powered-by: PHP/8.1.0
-```
-
-Вывод: за Cloudflare, бэкенд — PHP + Laravel (`laravel_session`).
-
-Шаг 2 — статика:
-
-```bash
-curl -s https://shop.example.com | grep -oiE '/build/assets/[^"]+' | sort -u | head
-# /build/assets/app-3f9a2c.js
-# /build/assets/app-3f9a2c.css
-```
-
-`/build/assets/` с хэшем — типичный Vite/Laravel-микс. Гипотеза подтверждена.
-
-Шаг 3 — WAF/CDN и версии:
-
-```bash
-whatweb -a 1 https://shop.example.com
-# Cloudflare, Laravel, PHP 8.1, Bootstrap, jQuery 3.6
-```
-
-Итог: Cloudflare → PHP 8.1 / Laravel / Vite-фронт / Bootstrap. Дальше ищем известные CVE Laravel для 8.1 и публичные пути (`/storage/logs/laravel.log`, `/.env`).
-
-## WAF и защитные технологии
+## Шаг 5: WAF и защитные технологии
 
 Наличие WAF меняет тактику: сканирование будет блокироваться. Признаки:
 
-| Признак | WAF/CDN |
-|---------|---------|
+| Признак | WAF или CDN |
+|---------|-------------|
 | `Server: cloudflare` | Cloudflare |
 | `X-Sucuri-ID` | Sucuri |
 | `Server: AkamaiGHost` | Akamai |
 | `X-CDN: Imperva` | Imperva |
-| Ответ 403 на `?id=1'` | есть фильтрация |
 
 ```bash
-curl -sSI "https://example.com/?q=<script>alert(1)</script>" | grep -iE 'server|cf-ray|x-sucuri'
+curl -sSI "https://shop.example.com/?q=<script>alert(1)</script>" | grep -iE 'server|cf-ray|x-sucuri'
 ```
 
-## Таблица артефактов и выводов
+Ответ `403` на явно вредоносный параметр — признак активной фильтрации.
+
+## Шаг 6: сводим в карту и приоритизируем
+
+Собираем наблюдения в таблицу «наблюдение → вывод → следующий шаг».
 
 | Наблюдение | Вывод | Дальнейший шаг |
 |-----------|-------|----------------|
-| `X-Powered-By: PHP` | PHP-бэкенд | искать `.php`, `.env`, phpinfo |
-| `laravel_session` | Laravel | проверить `/.env`, `storage/logs` |
-| `wp-json`, `/wp-content/` | WordPress | `wpscan`, версии плагинов |
-| `X-Nextjs-Cache` | Next.js | проверить `/_next/data/` |
-| `cf-ray` | Cloudflare | искать origin (см. CDN-модуль) |
-| `JSESSIONID` | Java | Tomcat/Spring-пути, `/actuator` |
+| `X-Powered-By: PHP` | PHP-бэкенд | искать `.env`, phpinfo |
+| `laravel_session` | Laravel | проверить `/storage/logs/laravel.log` |
+| `wp-json` | WordPress | `wpscan`, версии плагинов |
+| `cf-ray` | Cloudflare | искать origin (см. CDN-урок) |
 
-## Ошибки и подводные камни
+Итог: Cloudflare → PHP 8.1 / Laravel / Vite-фронт. Дальше ищем известные CVE Laravel и публичные пути. Так из пары запросов получается список конкретных векторов.
 
-- **Доверять только заголовкам.** Их подменяют (`Server: nginx` на Apache) и скрывают. Всегда перепроверяйте статикой.
-- **Игнорировать CDN.** Если видите Cloudflare, версия `Server` — это версия CDN, а не бэкенда. Не делайте вывод о бэкенде по ней.
-- **Завышать агрессию.** `whatweb -a 4` шумит и может активировать WAF/бан. Начинайте с `-a 1`.
-- **Путать технологии по одному `Set-Cookie`.** `csrf`-cookies есть у многих фреймворков; нужен второй сигнал.
-- **Забывать про поддомены.** Стек может отличаться на `api.`, `admin.`, `dev.`. Фингерпринтите каждый хост.
-- **Считать устаревшую версию уязвимой без CVE.** Версия — это гипотеза, а не доказательство.
+## Wappalyzer и BuiltWith
 
-## Что дальше / решение
-
-Фингерпринт — основа для приоритизации. Дальше: **tracking-идентификаторы** (`osint-tracking-ids`) для поиска «соседних» доменов владельца, **`.well-known`-файлы** (`osint-wellknown-files`) за структурой приложения и **TLS-фингерпринт** (`osint-tls-fingerprint`) для корреляции хостов. Итог: из заголовков + статики + публичных баз вы получаете уверенный стек цели и список конкретных векторов (CVE, пути, файлы), не сделав ни одного агрессивного запроса.
-
-## Автоматизация: батч-фингерпринт списка хостов
-
-Когда поддоменов десятки, ручной `curl` не масштабируется. Собираем пассивный батч-скрипт, который по списку хостов снимает заголовки и статику и сводит результат в таблицу. Он не делает ничего агрессивного — только GET и HEAD.
+**Wappalyzer** — расширение для браузера и CLI. Расширение показывает стек прямо в тулбаре, CLI запускается из npm:
 
 ```bash
-#!/usr/bin/env bash
-# passive-fingerprint.sh — пассивный фингерпринт списка хостов
-OUT=fingerprint.tsv
-printf 'host\tserver\tpowered_by\tcookie\tgenerator\n' > "$OUT"
-while read -r h; do
-  [ -z "$h" ] && continue
-  HDR=$(curl -sS -m 10 -A 'Mozilla/5.0' -D - -o /dev/null "https://$h" 2>/dev/null)
-  SRV=$(printf '%s' "$HDR" | grep -i '^server:' | head -1 | cut -d: -f2- | xargs)
-  PWR=$(printf '%s' "$HDR" | grep -i '^x-powered-by:' | cut -d: -f2- | xargs)
-  COO=$(printf '%s' "$HDR" | grep -i '^set-cookie:' | grep -oiE 'PHPSESSID|JSESSIONID|ASP.NET_SessionId|laravel_session|csrftoken|_rails' | head -1)
-  GEN=$(curl -sS -m 10 "https://$h" 2>/dev/null | grep -oiE '<meta name="generator"[^>]*>' | head -1)
-  printf '%s\t%s\t%s\t%s\t%s\n' "$h" "$SRV" "$PWR" "$COO" "$GEN" >> "$OUT"
-done < hosts.txt
-column -t -s $'\t' "$OUT"
+npx wappalyzer-cli https://example.com
 ```
 
-Запуск:
+**BuiltWith** — крупная коммерческая база технологий. Публичная страница `builtwith.com/example.com` ценна **историческими данными**: видно, что сайт раньше был на другой CMS. Смотри разделы Analytics & Tracking (пиксели — это pivot-идентификаторы), Hosting (провайдер и CDN) и Relationship (аффилированные домены).
+
+## Автоматизация: батч-фингерпринт
+
+Когда поддоменов десятки, ручной `curl` не масштабируется. Собираем пассивный скрипт, который снимает заголовки и сводит результат в таблицу.
 
 ```bash
-chmod +x passive-fingerprint.sh
-./passive-fingerprint.sh
+while read -r h; do
+  HDR=$(curl -sS -m 10 -D - -o /dev/null "https://$h" 2>/dev/null)
+  SRV=$(printf '%s' "$HDR" | grep -i '^server:' | cut -d: -f2- | xargs)
+  PWR=$(printf '%s' "$HDR" | grep -i '^x-powered-by:' | cut -d: -f2- | xargs)
+  printf '%s\t%s\t%s\n' "$h" "$SRV" "$PWR"
+done < hosts.txt | column -t -s $'\t'
 ```
 
 Фрагмент вывода:
 
 ```
-host                    server        powered_by   cookie            generator
-shop.example.com        cloudflare    PHP/8.1.0    laravel_session   -
-blog.example.com        nginx/1.24.0  -            PHPSESSID         WordPress 6.4
-app.example.com         gunicorn      -            csrftoken         -
+shop.example.com    cloudflare    PHP/8.1.0
+blog.example.com    nginx/1.24.0  -
+app.example.com     gunicorn      -
 ```
 
-Из одной таблицы уже видно три разных стека на трёх поддоменах — и три разных набора векторов. Такой скрипт удобно складывать в пайплайн: результат `fingerprint.tsv` потом фильтруется (`grep wordpress`, `grep laravel`) и передаётся в соответствующие инструменты (`wpscan`, поиск `.env`).
+Из одной таблицы видно три разных стека на трёх поддоменах — и три разных набора векторов.
+
+## Определение CMS и версий
+
+Версия важна, потому что определяет применимые CVE. Для WordPress:
+
+```bash
+curl -s https://example.com/readme.html | grep -i "Version"
+curl -s https://example.com/wp-links-opml.php | grep -i generator
+```
+
+Для Drupal смотрят `CHANGELOG.txt`, для Joomla — `administrator/manifests/files/joomla.xml`. Эти файлы часто забывают закрыть, и они дают точную версию — но помни: версия это гипотеза, а не доказательство уязвимости.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. Заголовки HTTP — самый быстрый источник стека.
+2. WhatWeb сопоставляет ответ с базой сигнатур.
+3. Статика (пути JS/CSS) подтверждает заголовки.
+4. Версии CMS определяются по служебным файлам.
+5. WAF определяется по заголовкам и реакции на полезную нагрузку.
+
+## На что смотреть дальше
+
+- **Не доверяй только заголовкам.** Их подменяют — перепроверяй статикой.
+- **Не суди о бэкенде по `Server` за CDN.** Это версия CDN-прослойки.
+- **Не завышай агрессию.** `whatweb -a 4` шумит и может активировать WAF.
+- **Не путай технологии по одному cookie.** Нужен второй сигнал.
+- **Не забывай про поддомены.** Стек `api.`, `admin.`, `dev.` может отличаться.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой заголовок НАИБОЛЕЕ надёжно выдаёт бэкенд-язык, даже если `Server` подменён?"
+- question: "Какой заголовок надёжнее всего выдаёт бэкенд-язык, даже если Server подменён?"
   options:
     - "`Date`"
     - "`Set-Cookie` (например, `laravel_session`, `PHPSESSID`, `JSESSIONID`)"
     - "`Content-Length`"
     - "`Accept-Ranges`"
   answer: 1
-- question: "Почему при виде `Server: cloudflare` нельзя судить о версии бэкенда по этому заголовку?"
+- question: "Почему при виде Server: cloudflare нельзя судить о версии бэкенда по этому заголовку?"
   options:
     - "Cloudflare всегда врёт"
     - "Это версия CDN-прослойки, а не приложения за ней"
@@ -300,7 +230,7 @@ app.example.com         gunicorn      -            csrftoken         -
     - "`__NEXT_DATA__`"
     - "`data-v-` атрибуты"
   answer: 1
-- question: "Зачем определять ТОЧНУЮ версию CMS?"
+- question: "Зачем определять точную версию CMS?"
   options:
     - "Чтобы выбрать цвет интерфейса"
     - "Чтобы сопоставить её с известными CVE"
@@ -309,10 +239,13 @@ app.example.com         gunicorn      -            csrftoken         -
   answer: 1
 ```
 
+## Куда дальше
+
+В следующем уроке мы возьмём **файлы `.well-known`** и разберём, что они раскрывают о структуре приложения — от `security.txt` до `openid-configuration`. А пока запомни главное: фингерпринт собирается из нескольких слоёв, и уверенный вывод даёт только совпадение сигналов из независимых источников.
+
 ## Где пригодится
 
-- **CTF (OSINT):** определить стек сайта-приложения и найти версию с известной уязвимостью.
+- **CTF (OSINT):** определить стек сайта и найти версию с известной уязвимостью.
 - **Bug bounty:** приоритизировать цели по стеку (WordPress-плагины, Laravel-пути).
 - **Пентест:** пассивно составить карту технологий до активного сканирования.
 - **Blue team:** понять, что выдаёт ваш собственный периметр наружу.
-- **Разведка поверхности атаки:** свести стек всех поддоменов в единую карту.

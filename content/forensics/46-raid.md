@@ -15,205 +15,202 @@ estimated_minutes: 60
 summary: "Реконструкция RAID-массивов (0/1/5/6) и LVM из образов: определение layout, порядок дисков, размер stripe, сборка через mdadm, работа с missing-дисками."
 ---
 
-Серверные образы часто представляют собой **набор** отдельных дисков, объединённых в RAID-массив и/или LVM. Если анализировать один такой образ как обычный диск, вы увидите «мусор»: ни таблицы разделов, ни ФС. Чтобы добраться до данных, нужно **реконструировать массив** — определить тип RAID, порядок дисков, размер stripe и собрать виртуальное устройство. Этот урок — про это.
+## Вопрос, с которого всё начинается
 
-## Как понять, что перед вами RAID/LVM
+У тебя три файла: `disk0.img`, `disk1.img`, `disk2.img`. Ты открываешь первый и
+видишь мусор — ни таблицы разделов, ни файловой системы. Кажется, что образ битый.
+На самом деле данные **размазаны** по всем трём дискам: это **RAID-массив**.
 
-Признаки:
-- Диск не имеет таблицы разделов (`mmls` даёт пусто/мусор), но содержит сигнатуру RAID.
-- Есть подозрительные метки: `mdadm` superblock, `LVM2_member`, `Linux RAID`, `isw_raid` (Intel).
-- `blkid` показывает `TYPE="linux_raid_member"` или `TYPE="LVM2_member"`.
+Обычная файловая система пишет файл в подряд идущие блоки одного диска. RAID
+чередует блоки между несколькими дисками. Чтобы увидеть данные, надо снова собрать
+диски в один виртуальный. В этом уроке мы сделаем это на массиве RAID5, у которого
+один диск потерян.
 
-```bash
-# Быстрая диагностика каждого образа
-blkid disk0.img disk1.img disk2.img
-# disk0.img: TYPE="linux_raid_member" ...
-# disk1.img: TYPE="linux_raid_member" ...
+## Шаг 1: понимаем, что перед нами RAID
 
-# Сигнатуры
-xxd -s 0 -l 512 disk0.img | grep -i 'md\|raid\|LVM'
-
-# Найти суперблок mdadm (offset 0 для 1.x, 64K для 0.90)
-strings -a disk0.img | grep -iE 'linux_raid|mdadm|LVM2'
-```
-
-## Суперблок mdadm
-
-Linux software RAID (mdadm) хранит **superblock**:
-- **version 0.90** — в конце устройства (для 1.x) или offset 0 (для старых), magic `0xa92b4efc`.
-- **version 1.x** — offset 0 (1.1), 8 KiB (1.0), или 4 KiB от конца (1.2). Хранит: уровень RAID, размер chunk (stripe), layout, порядок устройства, UUID, роль.
+Признаки массива: у диска нет таблицы разделов, но есть сигнатура RAID.
 
 ```bash
-# Показать метаданные mdadm-суперблока
-sudo mdadm --examine disk0.img
-#  Magic : a92b4efc
-#  Version : 1.2
-#  Raid Level : raid5
-#  Chunk Size : 512K
-#  Device Role : Active device 0
-#  Array UUID : ...
-#  Data Offset : ...
-
-# Все диски
-for d in disk*.img; do echo "== $d =="; sudo mdadm --examine $d | grep -iE 'level|chunk|role|uuid|offset'; done
+$ blkid disk0.img disk1.img disk2.img
+disk0.img: TYPE="linux_raid_member"
+disk1.img: TYPE="linux_raid_member"
+disk2.img: TYPE="linux_raid_member"
 ```
 
-Ключевые поля: **Raid Level**, **Chunk Size** (stripe), **Device Role** (порядок диска в массиве), **Array UUID** (все диски одного массива), **Data Offset** (где начинаются данные).
-
-## Типы RAID и восстановление
-
-| RAID | Как работает | Нужно дисков | Восстановление |
-|------|--------------|-------------:|----------------|
-| 0 | stripe без чётности | ≥2 | все диски обязательны |
-| 1 | mirror | ≥2 | достаточно одного |
-| 5 | stripe + parity | ≥3 | допускает 1 missing |
-| 6 | двойная parity | ≥4 | допускает 2 missing |
-| 10 | mirror+stripe | ≥4 | по парам |
-
-### RAID 0 (stripe)
-
-Данные чередуются блоками по `chunk` между дисками. Нужны **все** диски и правильный порядок.
+`linux_raid_member` — метка программного RAID Linux. Если бы это был LVM, было бы
+`LVM2_member`. Убедимся, что данные не читаются по отдельности:
 
 ```bash
-# Сборка через mdadm (если суперблок цел)
-sudo mdadm --assemble --scan --uuid <uuid>
-# или вручную
-sudo mdadm --assemble /dev/md0 disk0.img disk1.img
-sudo cat /proc/mdstat
+$ mmls disk0.img
+(пусто — таблицы разделов нет)
 ```
 
-### RAID 1 (mirror)
+## Шаг 2: читаем суперблок массива
 
-Достаточно одного диска — данные идентичны.
+Каждый диск массива несёт **superblock** — служебную запись с параметрами. Читаем
+её утилитой `mdadm --examine`:
 
 ```bash
-# Каждый диск — самостоятельная копия
-mmls disk0.img
-sudo mount -o ro,loop,offset=$((2048*512)) disk0.img /mnt/mirror
+$ sudo mdadm --examine disk0.img
+          Magic : a92b4efc
+        Version : 1.2
+    Raid Level : raid5
+     Chunk Size : 512K
+    Device Role : Active device 0
+     Array UUID : 1c2e9f...:8a3b
+    Data Offset : 2048 sectors
 ```
 
-### RAID 5/6 (parity)
+Что здесь важно:
 
-Данные + чётность (XOR для 5, Reed-Solomon для 6). При отсутствии одного диска (RAID5) данные восстанавливаются из чётности.
+- **Raid Level** = `raid5` — тип массива;
+- **Chunk Size** = `512K` — размер блока, которым данные чередуются между дисками;
+- **Device Role** = `Active device 0` — **порядок** этого диска в массиве;
+- **Array UUID** — общий идентификатор: по нему видно, какие диски из одного массива;
+- **Data Offset** — с какого места начинаются данные (не с нуля!).
+
+Повторим для всех дисков и соберём картину:
 
 ```bash
-# Сборка с missing-диском (RAID5)
-sudo mdadm --assemble /dev/md0 --level=5 --raid-devices=3 \
-  disk0.img disk1.img missing
-cat /proc/mdstat
-sudo mount -o ro /dev/md0 /mnt/raid
-
-# Или с «failed» устройством (создать пустой файл-заглушку)
-truncate -s 100G missing.img
-sudo mdadm --assemble /dev/md0 --level=5 --raid-devices=3 \
-  disk0.img disk1.img missing.img
+$ for d in disk*.img; do echo "== $d =="; sudo mdadm --examine $d | grep -iE 'level|chunk|role|uuid'; done
+== disk0.img ==  level=raid5 chunk=512K role=0 uuid=1c2e...
+== disk1.img ==  level=raid5 chunk=512K role=1 uuid=1c2e...
 ```
 
-Если суперблок повреждён — используйте `--build`/`--create` с явными параметрами (уровень, число дисков, chunk, layout):
+## Шаг 3: что такое RAID 5 и почему одного диска достаточно
+
+Типы массивов различаются тем, как раскладываются данные и «избыточность»:
+
+| RAID | Как работает | Мин. дисков | Восстановление |
+|------|--------------|------------:|----------------|
+| 0 | чередование без избыточности | 2 | нужны все диски |
+| 1 | зеркало | 2 | хватит одного |
+| 5 | чередование + чётность | 3 | допускает 1 потерянный |
+| 6 | двойная чётность | 4 | допускает 2 потерянных |
+| 10 | зеркало + чередование | 4 | по парам |
+
+В **RAID5** данные и **чётность** (parity) чередуются между дисками. Чётность — это
+дополнительный блок, посчитанный операцией XOR из остальных. Если один диск потерян,
+его данные можно **вычислить** из чётности и остальных дисков.
+
+У нас два диска из трёх — значит, третий можно обозначить как «потерянный» (`missing`),
+и `mdadm` восстановит данные на лету.
+
+## Шаг 4: собираем массив
+
+Собираем виртуальное устройство `/dev/md0` из двух образов и одного отсутствующего
+диска:
 
 ```bash
-# Ручная сборка без метаданных (осторожно: read-only!)
-sudo mdadm --build /dev/md0 --level=5 --raid-devices=3 --chunk=512 \
-  --layout=left-symmetric disk0.img disk1.img disk2.img
+$ sudo mdadm --assemble /dev/md0 --level=5 --raid-devices=3 \
+    disk0.img disk1.img missing
+$ cat /proc/mdstat
+md0 : active raid5 disk0.img[0] disk1.img[1]
+      3 devices, 2 active
 ```
 
-Порядок дисков и layout критичны: при неверном порядке RAID5 не соберётся или даст «мусор». Пробуйте все перестановки (для 3 дисков — 6 вариантов) и проверяйте результат (`file`, `mmls`).
-
-## LVM: поверх RAID или напрямую
-
-LVM-раздел (`LVM2_member`) содержит **PV** (physical volume) с метаданными: **VG** (volume group) и **LV** (logical volumes).
+`--raid-devices=3` говорит, что в массиве было три диска; `missing` — что третий
+недоступен. Массив собран. Теперь на нём должна появиться файловая система:
 
 ```bash
-# Прямая активация LVM из образа
-sudo losetup -Pf --show disk.img         # /dev/loop0
-sudo pvscan; sudo vgscan
-sudo vgchange -ay
-ls /dev/mapper/                          # vg-root, vg-swap, ...
-sudo mount -o ro /dev/mapper/vg-root /mnt/lvm
-
-# Если автоскан не видит (образ без таблицы разделов):
-sudo losetup -f --show --offset 1048576 --sizelimit ... disk.img
+$ mmls /dev/md0
+01: -----  0000002048-...  NTFS / exFAT
+$ sudo mount -o ro /dev/md0 /mnt/raid
+$ cat /mnt/raid/flag.txt
+CTF{raid5_parity_recovers_missing}
 ```
 
-Ручной разбор через `pvck`/`pvs -v`:
+## Шаг 5: если суперблок повреждён
+
+Иногда метаданные массива испорчены, и `mdadm --assemble` отказывается работать.
+Тогда массив собирают вручную, задавая параметры явно, — командой `--build`:
 
 ```bash
-sudo pvck --dump headers disk.img 2>/dev/null | head
-# Метаданные LVM лежат в начале PV; можно извлечь текстовый дамп
-sudo vgcfgrestore --list <vg> 2>/dev/null
+$ sudo mdadm --build /dev/md0 --level=5 --raid-devices=3 --chunk=512 \
+    --layout=left-symmetric disk0.img disk1.img disk2.img
 ```
 
-Если VG «размазана» по нескольким образам (RAID), сначала соберите массив, потом активируйте LVM поверх `/dev/md0`.
+Здесь критичны три вещи: **порядок дисков**, **chunk** и **layout** (схема, как
+чётность смещается по дискам). Если порядок неверный — массив либо не соберётся,
+либо даст «мусор». Для трёх дисков существует 6 перестановок: перебирайте их и
+проверяйте результат (`file`, `mmls`), пока не появится файловая система.
 
-## dmraid / fake RAID (Intel RST, isw)
+## Шаг 6: LVM — ещё один слой
 
-Аппаратно-программный (fakeraid) массив (Intel Rapid Storage `isw_raid_member`, dmraid) хранит метаданные в конце диска. `dmraid` активирует его как `/dev/mapper/isw_*`.
+Часто поверх RAID лежит **LVM** — менеджер логических томов. Он абстрагирует
+физические диски в **PV** (physical volume), объединяет их в **VG** (volume group)
+и нарезает **LV** (logical volume) — что-то вроде «разделов», которые можно
+растягивать.
 
 ```bash
-sudo dmraid -r              # список обнаруженных наборов
-sudo dmraid -ay             # активировать
-ls /dev/mapper/isw_*
-sudo mount -o ro /dev/mapper/isw_xxx /mnt
+$ sudo losetup -Pf --show disk.img       # /dev/loop0
+$ sudo pvscan; sudo vgscan
+$ sudo vgchange -ay
+$ ls /dev/mapper/
+vg-root  vg-swap
+$ sudo mount -o ro /dev/mapper/vg-root /mnt/lvm
 ```
 
-## Реконструкция вручную (когда автоматика не справляется)
+Порядок важен: сначала собираем RAID (если он есть), а потом активируем LVM поверх
+`/dev/md0`. Иначе LVM не увидит свои физические тома.
 
-Если ни mdadm, ни dmraid не работают (разрушены суперблоки), массив собирают вручную скриптом/через `dd` по формуле stripe. Идея RAID0/5:
-- данные разбиты на **chunks** (например 512K);
-- chunk с индексом `i` лежит на диске `i mod N` (RAID0) или с учётом parity-ротации (RAID5);
-- для RAID5 parity-блок смещается по диагонали (left/right, symmetric/asymmetric).
+## Шаг 7: fakeraid и ручная сборка
 
-```python
-# Скелет сборки RAID0 из N дисков
-N = 3; CHUNK = 512*1024
-disks = [open(f'disk{i}.img','rb') for i in range(N)]
-out = open('raid0.img','wb')
-# читаем chunk по очереди с дисков
-i = 0
-while True:
-    d = disks[i % N]
-    data = d.read(CHUNK)
-    if not data: break
-    out.write(data)
-    i += 1
-```
-
-Для RAID5 нужно знать **layout** и **chunk**, а missing-диск восстанавливать XOR-ом соответствующих chunk-ов. Инструменты: `raidextract`, `raidreconstructor`, `ReclaiMe`, скрипты на Python.
-
-## Разобранный пример: CTF «RAID5 с потерянным диском»
+Бывает **fakeraid** — «псевдоаппаратный» RAID от Intel (Intel RST). Его метка —
+`isw_raid_member`, и `mdadm` его не понимает. Для него есть `dmraid`:
 
 ```bash
-# Даны disk0.img disk1.img (3-й диск утерян)
-for d in disk0.img disk1.img; do sudo mdadm --examine $d | grep -iE 'level|chunk|role|uuid'; done
-# level=raid5, chunk=512K, raid-devices=3, uuid=<X>
-
-# Собираем с missing
-sudo mdadm --assemble /dev/md0 --level=5 --raid-devices=3 disk0.img disk1.img missing
-cat /proc/mdstat
-
-# Монтируем
-mmls /dev/md0
-sudo mount -o ro /dev/md0 /mnt/raid
-ls -la /mnt/raid
-cat /mnt/raid/flag.txt
-
-# Если не собралось — пробуем перестановки/--build
-sudo mdadm --stop /dev/md0 2>/dev/null
-sudo mdadm --build /dev/md0 --level=5 --raid-devices=3 --chunk=512 \
-  --layout=left-symmetric disk1.img disk0.img missing
+$ sudo dmraid -r        # найти наборы
+$ sudo dmraid -ay       # активировать
+$ ls /dev/mapper/isw_*
 ```
 
-## Частые ошибки
+А если и это не работает, массив собирают скриптом: читают по chunk с дисков по
+очереди (RAID0) или с учётом чётности (RAID5). Инструменты: `raidreconstructor`,
+`raidextract`, скрипты на Python.
 
-- **Анализировать один диск массива как целый** — нет ФС, потому что данные разбиты по stripe.
-- **Забыть порядок дисков (Device Role)** — неверный порядок = «мусор»; пробуйте перестановки.
-- **Игнорировать `chunk size`/`layout`** — критичны для RAID5/6.
-- **Собирать массив read-write** — mdadm по умолчанию может инициализировать/перестроить; используйте `--readonly` и `--assume-clean`.
-- **Путать LVM и RAID** — LVM может лежать поверх RAID; сначала массив, потом LVM.
-- **Не проверять `Data Offset`** — данные начинаются не с 0, а после суперблока.
-- **Забывать про fakeraid** — Intel RST требует dmraid, а не mdadm.
+## Шаг 8: как найти параметры, если метаданных нет
+
+Иногда суперблок уничтожен полностью, и параметры (chunk, порядок, layout)
+приходится определять «на глаз». Работает это так:
+
+- **Порядок дисков** — перебором перестановок: собрали, проверили `mmls`/`file`.
+  Правильный порядок даёт читаемую файловую систему, неправильный — «мусор».
+- **Размер chunk** — по границам: chunk часто равен 64K, 128K, 512K или 1M. Смотрим,
+  на каких смещениях данные «склеиваются» в осмысленные структуры.
+- **Layout** — для RAID5 есть несколько схем (`left-symmetric`, `left-asymmetric`,
+  `right-symmetric`); перебираем, пока не появится ФС.
+
+Удобно делать это циклом: собрать массив, попробовать `mmls`, при неудаче — разобрать
+и взять следующую комбинацию. Признак успеха — узнаваемая сигнатура файловой системы
+(NTFS, ext4) вместо случайных байтов.
+
+```bash
+# проверить результат сборки
+$ mmls /dev/md0 2>/dev/null | head
+# при успехе увидим таблицу разделов
+```
+
+## Что мы теперь знаем
+
+- RAID размазывает данные по дискам; один диск без массива бесполезен.
+- `mdadm --examine` читает суперблок: уровень, chunk, роль, UUID, offset.
+- RAID5 переживает потерю одного диска — данные восстанавливаются из чётности.
+- Порядок дисков и layout критичны; при повреждении суперблока собирают `--build`.
+- Поверх RAID может лежать LVM: сначала массив, потом `vgchange -ay`.
+
+## На что смотреть дальше
+
+- **Анализировать один диск как целый** — увидите мусор, потому что данные разбиты.
+- **Забыть `Device Role`** — неверный порядок = «мусор»; перебирайте перестановки.
+- **Игнорировать `chunk`/`layout`** — для RAID5/6 они критичны.
+- **Собирать массив read-write** — mdadm может перестроить; используйте `--readonly`.
+- **Не проверять `Data Offset`** — данные начинаются не с нуля, а после суперблока.
+- **Забыть про fakeraid** — Intel RST требует `dmraid`, а не `mdadm`.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Сколько дисков RAID5 может выйти из строя без потери данных?"
@@ -244,14 +241,20 @@ sudo mdadm --build /dev/md0 --level=5 --raid-devices=3 --chunk=512 \
     - "RAID5"
     - "RAID6"
   answer: 1
-- question: "Как активировать LVM из образа?"
+- question: "Что делать, если суперблок mdadm повреждён?"
   options:
-    - "`mmls` + `icat`"
-    - "`losetup -Pf` + `pvscan`/`vgchange -ay`"
-    - "`mdadm --assemble`"
-    - "`ewfmount`"
-  answer: 1
+    - "собирать через `--build` с явными уровнем/chunk/layout"
+    - "монтировать диск напрямую"
+    - "использовать `ewfmount`"
+    - "форматировать"
+  answer: 0
 ```
+
+## Куда дальше
+
+Мы научились собирать массивы и тома. Дальше — самый упрямый случай: когда данные
+зашифрованы целиком (LUKS, BitLocker, VeraCrypt). Там нужен не layout, а ключ. А
+пока запомни: **RAID — это не один диск, а набор; собери его, прежде чем искать ФС**.
 
 ## Где пригодится
 

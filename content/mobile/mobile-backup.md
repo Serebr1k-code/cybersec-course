@@ -14,257 +14,224 @@ useful_for:
 estimated_minutes: 30
 summary: "Как извлекать данные приложения через adb backup и авто-бэкап, почему allowBackup=true опасен и как искать секреты в бэкапе."
 ---
-## Введение
 
-Android предоставляет штатный механизм резервного копирования приложения — и это отличный путь к его приватным данным. Если в манифесте стоит `android:allowBackup="true"` (значение по умолчанию до Android 12!), пользователь или злоумышленник с включённой отладкой может снять `adb backup` и получить SharedPreferences, SQLite, файлы, кэш. На Android 12+ ручной `adb backup` сильно ограничен, авто-бэкап идёт в облако Google по правилам `dataExtractionRules`; но старые и неправильно настроенные приложения остаются уязвимы.
+## Вопрос, с которого всё начинается
 
-## allowBackup и что он даёт
+В уроке про небезопасное хранение мы выяснили, что данные приложения лежат в `/data/data/<package>/`, куда обычному пользователю доступа нет. Но есть механизм, который отдаёт эти данные **штатно, без root** — резервное копирование. Как им воспользоваться и почему это опасно?
+
+## Наш пример: fdroid.apk и его флаг allowBackup
+
+Возьмём реальный APK `fdroid.apk`. Декодируем манифест и посмотрим на атрибуты `application`:
+
+```
+$ apktool d -f -o fdroid_dec fdroid.apk
+$ grep -oE 'android:(allowBackup|debuggable|usesCleartextTraffic)="[^"]*"' fdroid_dec/AndroidManifest.xml
+android:allowBackup="true"
+android:usesCleartextTraffic="true"
+```
+
+Строка `android:allowBackup="true"` — ключевая. Она разрешает системе делать резервную копию данных приложения. Именно на ней строится весь этот урок.
+
+## Шаг 1: что даёт allowBackup
+
+`allowBackup` управляет двумя каналами:
+
+- **Локальный `adb backup`** — по команде с компьютера (нужна разблокировка и подтверждение на экране устройства).
+- **Облачный авто-бэкап** — Android периодически сам отправляет данные в Google Drive.
+
+Если флаг `false` — приложение исключено из бэкапа. Если `true` (или атрибут не указан — по умолчанию тоже `true`) — данные попадают в копию.
+
+## Шаг 2: adb backup пошагово
+
+Команда выглядит так:
+
+```
+$ adb backup -f backup.ab -apk org.fdroid.fdroid
+WARNING: adb backup is deprecated and may be removed in a future release
+Now unlock your device and confirm the backup operation.
+```
+
+Что здесь происходит: `-f backup.ab` — имя файла, `-apk` — включить в копию и сам APK, последний аргумент — имя пакета. На устройстве появится диалог подтверждения; без него копия не создастся.
+
+Полученный `backup.ab` — это не tar, а свой контейнер. Распаковывается утилитой `abe.jar` (Android Backup Extractor):
+
+```
+$ java -jar abe.jar unpack backup.ab backup.tar
+$ tar xf backup.tar
+$ ls
+apps/  shared/  ...
+```
+
+Внутри — файлы приложения: `shared_prefs`, базы, `files`. Дальше читаем их как обычно:
+
+```
+$ cat apps/org.fdroid.fdroid/sp/shared_prefs/*.xml
+$ sqlite3 apps/org.fdroid.fdroid/db/*.db ".tables"
+```
+
+## Шаг 3: извлечение без root через run-as
+
+Если приложение `debuggable` (или устройство рутовано), работает `run-as` — он запускает команду от имени приложения:
+
+```
+$ adb shell "run-as org.fdroid.fdroid tar -cf - ." > app_data.tar
+$ tar tf app_data.tar | head
+./shared_prefs/org.fdroid.fdroid_preferences.xml
+./databases/
+./files/
+```
+
+Одной командой вытаскиваем всю приватную директорию. Без `debuggable` и без root `run-as` вернёт `package not debuggable`.
+
+## Шаг 4: доступ к Content Provider
+
+Ещё один штатный канал — `content` через `adb`. Если провайдер экспортирован, данные можно запросить без кода:
+
+```
+$ adb shell content query --uri content://org.fdroid.fdroid/...
+```
+
+`content` — CLI-обёртка над `ContentResolver`. Она работает, только если у оболочки есть доступ к URI (экспортированный провайдер или выданный grant). Подробно — в уроке про Content Providers.
+
+## Шаг 5: облачный авто-бэкап
+
+Даже без `adb backup` данные могут уйти в облако. Управляется это `android:fullBackupContent` и настройками Google. Проверить, что именно бэкапится, можно через конфиг:
 
 ```xml
-<application android:allowBackup="true" ... />
+<full-backup-content>
+  <include domain="sharedpref" path="."/>
+  <exclude domain="sharedpref" path="secret.xml"/>
+</full-backup-content>
 ```
 
-- `true` (и отсутствие атрибута) → данные попадают в backup.
-- `false` → backup запрещён (правильно для приложений с секретами).
-- `android:fullBackupContent` / `android:dataExtractionRules` → что именно бэкапить.
-- `android:backupAgent` → кастомный агент (может расширять/ограничивать набор).
+Если разработчик забыл исключить файл с токеном — он уезжает в облако. Форензика облачных копий — отдельный урок.
 
-Ищите в декомпилированном манифесте:
+## Шаг 6: iOS — iTunes/Finder-бэкап
 
-```bash
-apktool d app.apk -o out
-grep -i "allowBackup\|fullBackupContent\|dataExtractionRules\|backupAgent" out/AndroidManifest.xml
+На iOS аналог — локальная копия через `idevicebackup2` (libimobiledevice) или Finder. Копия — набор файлов с хэшированными именами и база `Manifest.db`. Разбор:
+
+```
+$ idevicebackup2 backup --full ./ios_backup
+$ sqlite3 ios_backup/Manifest.db "SELECT fileID,domain,relativePath FROM Files LIMIT 5;"
 ```
 
-## adb backup: пошагово
+Если бэкап не зашифрован, многие файлы читаются напрямую; зашифрованный бэкап защищён паролем, который можно подобрать офлайн.
 
-```bash
-# включить отладку, подключить устройство
-adb devices
-# снять бэкап (-apk включает APK, -noshared без общих данных)
-adb backup -f app.ab -apk -noshared com.target.app
-# если приложение требует пароль на бэкап — появится диалог (можно пустой)
-```
+## Полный прогон от начала до конца
 
-`app.ab` — контейнер (magic `ANDROID BACKUP`, может быть сжатый/зашифрованный). Разбираем через `abe` (Android Backup Extractor):
+Соберём извлечение данных в один сценарий для нашего `fdroid.apk`:
 
-```bash
-java -jar abe.jar unpack app.ab app.tar
-tar -tf app.tar | head
-tar -xf app.tar -C extracted/
-ls extracted/apps/com.target.app/
-```
+1. **`apktool d`** — декодируем манифест, убеждаемся, что `allowBackup="true"`.
+2. **`adb backup -f backup.ab -apk org.fdroid.fdroid`** — подтверждаем операцию на экране устройства.
+3. **`java -jar abe.jar unpack backup.ab backup.tar`** — распаковываем контейнер.
+4. **`tar xf backup.tar`** — получаем дерево `apps/org.fdroid.fdroid/`.
+5. **`sqlite3 .../*.db ".tables"`** — смотрим базы приложения.
+6. **`grep -rInE 'token|secret' .`** — ищем секреты.
+7. **Если `allowBackup=false`** — пробуем `run-as` (для `debuggable`) или `content query`.
 
-Дальше ищем в `sp/` (SharedPreferences), `db/` (SQLite), `f/` (файлы), `r/` (кэш):
+Так мы получаем данные приложения, не имея root, — только за счёт конфигурации, которую разработчик оставил открытой.
 
-```bash
-grep -rniE "password|token|secret|api[_-]?key|flag" extracted/ | head
-sqlite3 extracted/apps/com.target.app/db/*.db ".tables"
-```
+## Если не сработало
 
-## Авто-бэкап и облако
-
-С Android 6 авто-бэкап (Auto Backup) включён по умолчанию для `allowBackup=true`, данные шифруются ключом устройства и лежат в Google Drive пользователя. Достать их без устройства сложно, но можно:
-
-- через `bmgr` (backup manager) на устройстве/эмуляторе с adb root;
-- через физический доступ и пароль устройства.
-
-```bash
-adb shell bmgr list transports
-adb shell bmgr backupnow com.target.app
-adb shell bmgr restore <token> com.target.app
-```
-
-`bmgr` особенно полезен в CTF на root-эмуляторе.
-
-## iOS: бэкап через iTunes/Finder
-
-Локальный бэкап iOS (`~/Library/Application Support/MobileSync/Backup/<UDID>/`) содержит данные приложений в каталогах с хэш-именами. Инструменты: `idevicebackup2` (libimobiledevice), `iMazing`, `iphone-dataprotection` (для расшифровки Keychain при известном пароле).
-
-```bash
-idevicebackup2 backup --full ~/iosbackup
-sqlite3 ~/iosbackup/Manifest.db "select fileID,relativePath,domain from Files"
-```
-
-Файлы достаются по `fileID` (SHA1-имя); для расшифровки самого бэкапа нужен пароль.
-
-## Разобранный пример
-
-CTF: приложение с флагом в SharedPreferences и `allowBackup=true`. Решение:
-
-1. `apktool d` → манифест показывает `allowBackup=true`.
-2. `adb backup -f app.ab -apk com.target.app`.
-3. `abe unpack app.ab app.tar` → `tar -xf`.
-4. `grep -r flag extracted/` → флаг в `sp/settings.xml`.
-
-## Частые ошибки и подводные камни
-
-- Пытаться `adb backup` на Android 12+ без учёта ограничений — команда может вернуть пустой бэкап.
-- Забыть пароль на бэкап: пустой пароль — тоже пароль, `abe` его примет.
-- Искать только в `db/`, пропуская `sp/`, `f/`, `r/` (секреты часто в SharedPreferences).
-- Не проверять `dataExtractionRules` — даже при `allowBackup=true` чувствительные пути можно исключить.
-- Забывать про `adb restore` для проверки, что данные восстанавливаются в другое устройство.
-
-## Справочная таблица
-
-| Артефакт | Путь в бэкапе | Что искать |
-|----------|---------------|------------|
-| SharedPreferences | `sp/` | токены, настройки, флаги |
-| SQLite | `db/` | PII, сессии |
-| Файлы | `f/` | конфиги, ключи |
-| Кэш | `r/` | временные секреты |
-| iOS данные | `Manifest.db` | mapping fileID↔path |
-| Keychain (iOS) | backup + пароль | пароли, ключи |
-
-## Что дальше / решение
-
-- **allowBackup=true и данные достаются** → оформите утечку (PII, токены).
-- **Бэкап зашифрован паролем** → попробуйте пустой пароль/словарь через `abe`.
-- **Backup закрыт** → переходите к root-доступу (`/data/data/<pkg>/`) или `run-as` для debuggable-сборок.
-- **iOS** → снимайте локальный бэкап и разбирайте `Manifest.db`.
-- Severity: секреты/PII в доступном бэкапе — High; отсутствие `allowBackup=false` при чувствительных данных — Medium/High.
-
-## Извлечение данных без root: run-as и content
-
-Если снять полный `adb backup` не удаётся (Android 12+, `allowBackup=false`), но сборка `debuggable`, данные достаются напрямую через `run-as`:
-
-```bash
-adb shell run-as com.target.app ls -la /data/data/com.target.app/
-adb shell run-as com.target.app cat /data/data/com.target.app/shared_prefs/auth.xml
-adb shell run-as com.target.app tar -c /data/data/com.target.app/ > dump.tar
-```
-
-Дополнительно проверяйте экспортированные content-провайдеры — они дают доступ к тем же данным без root:
-
-```bash
-adb shell content query --uri content://com.target.app.provider/users
-adb shell content read --uri content://com.target.app.provider/files/../databases/app.db
-```
-
-## Облачный авто-бэкап: разбор и ограничения
-
-Auto Backup кладёт данные в Google Drive пользователя, зашифрованные ключом устройства. Разбор возможен в трёх случаях: (1) есть root на устройстве и доступ к `/data/backup`; (2) есть пароль аккаунта и эмуляция восстановления через `bmgr`; (3) приложение хранит секреты, которые восстанавливаются на втором устройстве при том же аккаунте. Последнее — реальный вектор: если `dataExtractionRules` не исключает чувствительные файлы, данные «переезжают» на любой другой девайс под тем же Google-аккаунтом.
-
-```bash
-adb shell bmgr list transports
-adb shell dumpsys backup | head -40
-```
-
-## Скрипт автоматизации извлечения
-
-```bash
-#!/usr/bin/env bash
-PKG="$1"; OUT="dump_$PKG"; mkdir -p "$OUT"
-adb backup -f "$OUT/app.ab" -apk -noshared "$PKG" </dev/null
-java -jar abe.jar unpack "$OUT/app.ab" "$OUT/app.tar"
-mkdir -p "$OUT/x" && tar -xf "$OUT/app.tar" -C "$OUT/x"
-echo "== secrets =="
-grep -rniE 'password|token|secret|api[_-]?key|flag|jwt' "$OUT/x" | head -50
-echo "== sqlite =="
-find "$OUT/x" -name '*.db' -exec sqlite3 {} '.tables' \;
-```
-
-Такой конвейер за один запуск отдаёт список секретов и таблиц — удобно для CTF и быстрого аудита.
-
-## Правовые рамки
-
-Резервное копирование чужих данных без разрешения — нарушение приватности и закона. В пентесте работайте только с тестовыми аккаунтами и устройствами в рамках scope; в bug bounty доказывайте утечку на собственных данных, не выгружая PII реальных пользователей.
-
-## Восстановление бэкапа на другое устройство
-
-Извлечение — это лишь половина дела. Вторая половина — показать, что данные переносимы, то есть восстановимы на другом устройстве под тем же аккаунтом. Это доказывает реальную утечку (не просто «файл лежит»), а переносимость секретов.
-
-```bash
-# восстановить бэкап на чистое устройство/эмулятор
-adb restore app.ab
-# либо через bmgr для облачного бэкапа
-adb shell bmgr restore <dataset> com.target.app
-```
-
-Если токен сессии восстанавливается и работает на новом устройстве — это серьёзная находка: сессия переносима, и компрометация бэкапа равна компрометации аккаунта.
-
-## Анализ iOS-бэкапа: Keychain и защищённые файлы
-
-В локальном бэкапе iOS ключевые артефакты:
-
-- `Manifest.db` — соответствие `fileID` (SHA1) реальным путям и доменам.
-- `Keychain-backup.plist` — зашифрованные элементы Keychain; для расшифровки нужен пароль бэкапа.
-- SQLite баз данных приложений (`Library/`, `Documents/`).
-- `.plist` настроек.
-
-```bash
-# найти конкретный файл приложения
-sqlite3 ~/iosbackup/Manifest.db \
-  "select fileID,relativePath from Files where domain='AppDomain-com.example.app'"
-# извлечь содержимое по fileID
-cp ~/iosbackup/<first2chars>/<fileID> ./extracted
-```
-
-Если бэкап не зашифрован, Keychain-элементы с классом `kSecAttrAccessibleAlways` доступны напрямую — частая находка. Рекомендация — включать шифрование бэкапа и использовать защищённые классы доступности.
+- **`adb backup` возвращает пустой файл.** Пользователь не подтвердил операцию, либо приложение исключено из бэкапа (`allowBackup="false"` или `fullBackupContent`).
+- **`run-as` пишет `package not debuggable`.** Нужна `debuggable`-сборка или root. Проверьте флаг `android:debuggable` в манифесте.
+- **`content query` возвращает `Permission Denial`.** Провайдер не экспортирован или нет grant. Тогда нужен другой канал (root, `run-as`).
+- **Данные зашифрованы.** В копии окажутся зашифрованные базы; ключ ищут в коде или перехватывают через Frida.
+- **На iOS бэкап зашифрован.** Пароль подбирают офлайн (`hashcat`) или берут у владельца.
 
 ## Сравнение методов извлечения
 
-| Метод | Условие | Что даёт | Сложность |
-|-------|---------|----------|-----------|
-| `adb backup` | allowBackup=true, <Android 12 | sp/db/f/r | низкая |
-| `run-as` | debuggable | вся песочница | низкая |
-| content-провайдер | exported | данные провайдера | низкая |
-| root / `/data/data` | root | всё | средняя |
-| iOS-бэкап | доступ к устройству | данные+Keychain | средняя |
-| облачный авто-бэкап | аккаунт+устройство | набор по rules | высокая |
+| Метод | Нужен root | Нужен debuggable | Что даёт |
+|-------|-----------|------------------|----------|
+| `adb backup` | нет | нет | данные при `allowBackup=true` |
+| `run-as` | нет | да | вся приватная директория |
+| root-дамп | да | нет | полный образ `/data` |
+| `content query` | нет | нет | данные экспортированного провайдера |
+| iOS `idevicebackup2` | нет (jailbreak) | — | файлы бэкапа iOS |
 
-## Оценка и рекомендации
+Выбор метода диктуется условиями: если `allowBackup` включён — самый дешёвый путь; если сборка `debuggable` — `run-as`; если ничего — нужен root.
 
-Приоритизируйте находки по чувствительности: приватные ключи и seed — Critical; токены сессий и PII — High; настройки без секретов — Low. В рекомендациях: `allowBackup=false` для приложений с секретами, явные `dataExtractionRules`, отказ от хранения секретов в SharedPreferences/plain-SQLite, использование Keystore/Keychain и шифрование локальных данных.
+## Что фиксировать в отчёте
+
+- **Какой флаг был в манифесте** (`allowBackup`, `debuggable`) — это корневая причина.
+- **Каким методом извлечены данные** и что именно попало в руки.
+- **Какие секреты найдены** (с доказательством — строкой из файла).
+- **Рекомендации:** `allowBackup="false"`, `dataExtractionRules`, исключение секретов из бэкапа.
+
+## Частые вопросы
+
+**«`adb backup` не создаёт файл?»** — не подтвердили операцию на экране или `allowBackup=false`. **«`backup.ab` пустой?»** — приложение исключено из бэкапа. **«Хочу всё сразу?»** — `run-as pkg tar -cf - .` на debuggable-сборке. **«Нужен ли root?»** — для `adb backup`, `run-as` и `content` не нужен. **«А если приложение в облаке?»** — смотрите `fullBackupContent` и отдельный урок по облачной форензике.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. `allowBackup="true"` открывает данные приложения для резервного копирования.
+2. `adb backup` + `abe.jar` отдают содержимое `/data/data/<pkg>/` без root.
+3. `run-as` работает для `debuggable`-сборок и рутованных устройств.
+4. `content query` обращается к экспортированным провайдерам.
+5. iOS-бэкап (iTunes/Finder) разбирается через `Manifest.db`.
+
+## На что смотреть дальше
+
+- **Первый вопрос — `allowBackup`.** Он в манифесте, смотреть его надо раньше всего.
+- **Не забывайте про авто-бэкап.** Данные уходят в облако даже без `adb backup`.
+- **`run-as` дешевле бэкапа**, но требует `debuggable`.
+- **На iOS** бэкап — основной канал без jailbreak.
+
+## Ограничения метода
+
+`adb backup` не универсален: на новых версиях Android он помечен deprecated, а некоторые производители ограничивают его работу. Приложение может исключить себя из бэкапа через `allowBackup="false"` или `fullBackupContent`. Поэтому в отчёте важно указать, какой именно метод сработал и почему: это показывает, что вы не просто «предположили» утечку, а извлекли данные конкретным способом на конкретном устройстве.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой атрибут манифеста разрешает извлечение данных через adb backup?"
+- question: "Что разрешает `android:allowBackup='true'`?"
   options:
-    - "android:allowBackup='true'"
-    - "android:debuggable='true'"
-    - "android:exported='true'"
-    - "android:usesCleartextTraffic='true'"
+    - "Резервное копирование данных приложения (adb backup и облако)"
+    - "Установку на любые устройства"
+    - "Использование интернета"
+    - "Хранение данных в открытом виде"
   answer: 0
-  explanation: "allowBackup=true позволяет снять бэкап приватных данных приложения."
-- question: "Каким инструментом распаковать файл .ab (adb backup)?"
+- question: "Чем распаковать файл backup.ab?"
   options:
-    - "abe (Android Backup Extractor)"
+    - "abe.jar (Android Backup Extractor)"
     - "jadx"
     - "apktool"
-    - "frida"
+    - "zipalign"
   answer: 0
-  explanation: "abe.jar превращает .ab в tar, который затем распаковывается."
-- question: "Где в бэкапе чаще всего лежат токены и настройки?"
+- question: "Что нужно, чтобы `run-as` сработал?"
   options:
-    - "В sp/ (SharedPreferences)"
-    - "В AndroidManifest.xml"
-    - "В classes.dex"
-    - "В resources.arsc"
+    - "Сборка debuggable или root"
+    - "Только Wi-Fi"
+    - "Сторонняя клавиатура"
+    - "Сертификат Let's Encrypt"
   answer: 0
-  explanation: "SharedPreferences (sp/) хранит настройки и часто секреты."
-- question: "Что изменилось в adb backup на Android 12+?"
-  options:
-    - "Ручной adb backup сильно ограничен"
-    - "Он удалён полностью"
-    - "Он требует root"
-    - "Он шифруется автоматически без пароля"
-  answer: 0
-  explanation: "С Android 12 штатный adb backup ограничен; авто-бэкап идёт в облако."
-- question: "Какой файл iOS-бэкапа сопоставляет хэш-имена реальным путям?"
+- question: "Какой файл в iOS-бэкапе описывает, где лежат данные?"
   options:
     - "Manifest.db"
     - "Info.plist"
-    - "payload.bin"
-    - "backup.ab"
+    - "classes.dex"
+    - "resources.arsc"
   answer: 0
-  explanation: "Manifest.db хранит соответствие fileID ↔ relativePath."
+- question: "Что делать, если в fullBackupContent файл с токеном не исключён?"
+  options:
+    - "Токен уезжает в облачный авто-бэкап — это утечка"
+    - "Ничего, файл не попадёт в копию"
+    - "Приложение перестанет работать"
+    - "Токен зашифруется автоматически"
+  answer: 0
 ```
+
+## Куда дальше
+
+Мы научились извлекать данные приложения штатными механизмами. В следующем уроке — **Android-форензика**: как из добытых данных собрать цельную картину (артефакты, таймлайн, инструменты вроде ALEAPP). А пока запомни главное: `allowBackup`, `run-as` и `content query` — три дешёвых способа добраться до данных без root.
 
 ## Где пригодится
 
-- **CTF Mobile:** самый быстрый способ достать флаг из SharedPreferences/SQLite.
-- **Bug bounty:** утечка PII через доступный backup — валидная находка.
-- **Пентест:** проверка настроек резервного копирования перед релизом.
-- **Forensics:** разбор локальных и облачных бэкапов при расследовании.
+- **CTF Mobile:** извлечение флага из бэкапа или приватной директории.
+- **Bug bounty:** демонстрация утечки данных через `allowBackup`.
+- **Пентест:** проверка OWASP MASVS-STORAGE и конфигурации бэкапа.
+- **Форензика:** получение данных для последующего анализа.

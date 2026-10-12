@@ -14,298 +14,196 @@ estimated_minutes: 50
 summary: "Как внедрить свою динамическую библиотеку в iOS-приложение: LC_LOAD_DYLIB, DYLD_INSERT_LIBRARIES, сборка dylib, re-sign через codesign, запуск на устройстве и симуляторе, обход проверок подписи."
 ---
 
-## Зачем инжектить dylib
+## Вопрос, с которого всё начинается
 
-Frida на iOS требует джейлбрейка (или специальной сборки приложения с FridaGadget). Инъекция собственной dylib — более «природный» способ инструментации: вы добавляете библиотеку прямо в IPA, пересобираете и подписываете его своим сертификатом. Приложение загружает ваш код как обычную зависимость, и он выполняется в том же процессе с теми же правами. Это то, чем пользуются `objection` (через `patchipa`), `frida-ios-dump` и коммерческие инструменты.
+Ты хочешь инструментировать iOS-приложение, но jailbreak нет, а `frida-gadget` встраивать умеет не каждый. Как заставить приложение загрузить **твой** код — например, свою библиотеку с хуками — прямо при старте?
 
-Плюсы: работает без джейлбрейка (на устройстве разработчика или симуляторе), код грузится до `main`, можно перехватывать всё. Минусы: приложение надо переустановить, подпись меняется (приложение может это детектить), часть защит (биометрическая привязка, App Attest) ломается.
+Ответ — **инъекция dylib**: динамическая библиотека (dylib, аналог `.so` на Linux) подгружается в процесс приложения, и её код исполняется вместе с приложением.
 
-## Три способа загрузки библиотеки
+## Наш пример: DemoApp и DemoApp.dylib
 
-1. **`LC_LOAD_DYLIB`** — добавляем запись в load commands бинарника, чтобы dyld грузил нашу dylib при старте. Используется `insert_dylib` или `optool`.
-2. **`DYLD_INSERT_LIBRARIES`** — переменная окружения; работает, если бинарник не имеет `LC_MAIN`-специфичных ограничений и не hardened. На iOS переменную можно задать через `get-task-allow`-профиль или в отладочной сборке.
-3. **Перепаковка через `objection patchipa`** — objection сам добавляет gadget-dylib и подписывает.
+Вернёмся к нашему `DemoApp.ipa`. В бандле уже есть библиотека:
 
-Первый способ самый надёжный для re-sign, потому что не зависит от окружения запуска.
+```
+$ unzip -l DemoApp.ipa
+    32888   Payload/DemoApp.app/DemoApp.dylib
+```
 
-## Сборка своей dylib
+Это пример того, как приложение может состоять из главного бинарника и отдельной библиотеки. Наша задача — добавить **свою** библиотеку и заставить приложение её загрузить.
 
-Пример dylib на Objective-C, которая хукает метод и логирует вызов:
+## Шаг 1: как Mach-O загружает библиотеки
 
-```objc
-// Inject.m
-#import <Foundation/Foundation.h>
-#import <objc/runtime.h>
+Мы уже видели load-команды Mach-O. Среди них есть `LC_LOAD_DYLIB` — «загрузи эту библиотеку»:
 
+```
+$ python3 macho_lc.py DemoApp | grep -i dylib
+  LC_LOAD_DYLIB            /usr/lib/libSystem.B.dylib
+```
+
+При старте процесса **dyld** (динамический загрузчик) читает все `LC_LOAD_DYLIB` и подгружает перечисленные библиотеки. Значит, чтобы внедрить свой код, нужно либо добавить такую команду в бинарник, либо использовать переменную окружения `DYLD_INSERT_LIBRARIES`.
+
+## Шаг 2: DYLD_INSERT_LIBRARIES
+
+Самый простой способ — переменная окружения. Запустим приложение с ней:
+
+```
+$ DYLD_INSERT_LIBRARIES=/path/to/hook.dylib ./DemoApp
+```
+
+dyld увидит переменную и подгрузит `hook.dylib` до основного кода. На iOS этот трюк работает только для приложений с определёнными правами (get-task-allow) и **не работает** для App Store-приложений из-за подписи и hardened runtime. Но на тестовой сборке или в симуляторе — вполне.
+
+## Шаг 3: insert_dylib — правка бинарника
+
+Надёжнее не полагаться на переменную, а «вшить» команду загрузки в сам бинарник. Это делает утилита `insert_dylib`:
+
+```
+$ insert_dylib --strip-codesig --inplace @executable_path/hook.dylib DemoApp
+Added LC_LOAD_DYLIB to DemoApp
+```
+
+`--strip-codesig` убирает старую подпись (её всё равно придётся обновить), `--inplace` правит бинарник на месте. После этого в Mach-O появится `LC_LOAD_DYLIB` с путём `@executable_path/hook.dylib` — относительным путём к библиотеке внутри бандла. `@executable_path` — это переменная dyld, означающая каталог главного бинарника.
+
+## Шаг 4: собираем и кладём библиотеку
+
+Напишем простую библиотеку-хук. Например, она логирует запуск:
+
+```c
+#include <stdio.h>
 __attribute__((constructor))
-static void init(void) {
-    NSLog(@"[Inject] dylib loaded into %@", [[NSBundle mainBundle] bundleIdentifier]);
-    Class cls = objc_getClass("LoginManager");
-    SEL sel = sel_registerName("validatePassword:");
-    Method m = class_getInstanceMethod(cls, sel);
-    IMP orig = method_getImplementation(m);
-    IMP hook = imp_implementationWithBlock(^BOOL(id self, NSString *pw){
-        NSLog(@"[Inject] validatePassword: %@", pw);
-        return ((BOOL(*)(id,SEL,NSString*))orig)(self, sel, pw);
-    });
-    method_setImplementation(m, hook);
+void on_load(void) {
+    printf("[hook] dylib loaded into process\n");
 }
 ```
 
-Компиляция под arm64 для устройства:
+Атрибут `constructor` заставляет функцию `on_load` выполниться автоматически при загрузке библиотеки. Компилируем под arm64 и кладём в бандл:
 
-```bash
-xcrun -sdk iphoneos clang -arch arm64 -shared -o inject.dylib Inject.m \
-  -framework Foundation -fobjc-arc
-# проверить
-lipo -info inject.dylib
+```
+$ clang -target arm64-apple-ios13.0 -dynamiclib -o hook.dylib hook.c
+$ cp hook.dylib ipa_extracted/Payload/DemoApp.app/
 ```
 
-## Внедрение через insert_dylib
+## Шаг 5: переподписываем и ставим
 
-```bash
-git clone https://github.com/Tyilo/insert_dylib && cd insert_dylib && make
-cp Payload/MyApp.app/MyApp MyApp.orig
-./insert_dylib --strip-codesig --inplace @executable_path/inject.dylib MyApp
-# в бинарнике появится LC_LOAD_DYLIB
-otool -L MyApp | grep inject
+После правки бинарника подпись недействительна. Переподписываем библиотеку и приложение:
+
+```
+$ codesign -f -s "Apple Development: You (TEAMID)" ipa_extracted/Payload/DemoApp.app/hook.dylib
+$ codesign -f -s "Apple Development: You (TEAMID)" ipa_extracted/Payload/DemoApp.app
+$ zip -qr DemoApp-injected.ipa Payload
 ```
 
-Копируем dylib в `.app/`:
+Устанавливаем через `ios-deploy` или AltStore. При запуске в логах появится `[hook] dylib loaded into process` — инъекция сработала.
 
-```bash
-cp inject.dylib Payload/MyApp.app/
+## Шаг 6: инъекция без правки бинарника
+
+Существует ещё один путь — использовать уже загруженную библиотеку как «носитель». Если приложение само грузит dylib из своего бандла (как наш `DemoApp.dylib`), можно заменить её содержимое, не трогая главный бинарник. Плюс: не нужно править `LC_LOAD_DYLIB`. Минус: приложение может проверять целостность библиотеки.
+
+Третий путь — **LC_DYLD_ENVIRONMENT** и `@rpath`, но они сложнее и чаще ломаются на подписи, поэтому на практике их применяют редко.
+
+## Шаг 7: что даёт инъекция
+
+Зачем это нужно в пентесте:
+
+- **Инструментирование** — подгрузить `frida-gadget` и получить Frida без jailbreak.
+- **Хуки** — перехватывать методы на старте, до того как приложение включит защиту.
+- **Дамп** — читать данные в памяти, недоступные статически.
+- **Анализ малвари** — наблюдать поведение образца в контролируемой среде.
+
+Обратная сторона: инъекция меняет подпись, поэтому tamper-проверки и серверная аттестация могут это заметить. В отчёте это указывают как ограничение. Ещё один практический нюанс: библиотека должна быть собрана под ту же архитектуру и минимальную версию iOS, что и приложение, иначе dyld откажется её загружать и приложение просто упадёт при старте.
+
+## Шаг 8: инъекция Frida Gadget на практике
+
+Самый частый случай инъекции — `frida-gadget`. Это готовая библиотека Frida, которая при загрузке поднимает агент и ждёт подключения. Цикл такой. Скачиваем `FridaGadget.dylib` под нужную версию Frida и архитектуру (arm64), копируем в бандл под именем, которое будет грузить приложение, и добавляем load-команду:
+
+```
+$ cp FridaGadget.dylib ipa_extracted/Payload/DemoApp.app/FridaGadget.dylib
+$ insert_dylib --strip-codesig --inplace @executable_path/FridaGadget.dylib \
+    ipa_extracted/Payload/DemoApp.app/DemoApp
 ```
 
-Для fat-бинарников внедряйте в каждый слайс или тонкий arm64 (устройства).
+Затем переподписываем библиотеку и приложение (шаг 5) и ставим. После запуска Frida-gadget открывает локальный порт, и мы подключаемся:
 
-## Re-sign: подпись своим сертификатом
-
-После модификации подпись недействительна. Переподписываем:
-
-```bash
-# 1) убрать старую подпись и entitlements (для теста — можно без них)
-codesign --remove-signature Payload/MyApp.app/Frameworks/* 2>/dev/null
-# 2) подписать вложенные бинарники
-for f in Payload/MyApp.app/Frameworks/*; do
-  codesign -f -s "iPhone Developer: Your Name (TEAMID)" "$f"
-done
-# 3) подписать основной бинарник
-codesign -f -s "iPhone Developer: Your Name (TEAMID)" Payload/MyApp.app/MyApp
-# 4) подписать бандл
-codesign -f -s "iPhone Developer: Your Name (TEAMID)" --entitlements ent.plist Payload/MyApp.app
-# 5) упаковать
-zip -qr MyApp-injected.ipa Payload
+```
+$ frida-ps -U | grep -i demo
+$ frida -U -n DemoApp -l hook.js
 ```
 
-Если приложение использует entitlements (push, keychain groups), их нужно пересоздать под свой профиль, иначе подпись не пройдёт. Часто проще использовать `ldid` для ad-hoc подписи на джейлбрейкнутом устройстве:
+`-l hook.js` подгружает наш скрипт хуков. Так мы получаем полноценное инструментирование без jailbreak. Важно следить за версией: gadget и `frida` на хосте должны совпадать, иначе подключение упадёт с ошибкой протокола. Проверить версию можно командой `frida --version`, а версию gadget — по имени скачанного файла.
 
-```bash
-ldid -S Inject.entitlements Payload/MyApp.app/MyApp
-```
+## Шаг 9: почему инъекция «видна»
 
-## Установка и запуск
+Любая инъекция меняет бинарник, а значит — подпись. Приложение может проверить свою целостность несколькими способами: сверить хеш сегмента `__TEXT`, проверить, что все загруженные библиотеки подписаны ожидаемым сертификатом, или запросить у сервера аттестацию (App Attest). Тогда инъекция обнаружится либо локально (приложение откажется работать), либо на сервере (запрос помечается как «подозрительный»). Поэтому инъекцию применяют, когда защиты от модификации нет, либо комбинируют с хуками на саму проверку целостности. В отчёте всегда указывай, что инъекция требует переподписи и может быть замечена аттестацией.
 
-```bash
-# на устройство через ideviceinstaller (нужен профиль разработчика)
-ideviceinstaller -i MyApp-injected.ipa
-# или через ios-deploy
-ios-deploy --bundle Payload/MyApp.app
-# на симулятор
-xcrun simctl install booted Payload/MyApp.app
-xcrun simctl launch --console booted com.example.app
-```
+## Шаг 10: что именно меняется в бинарнике
 
-В логах (`Console.app` или `simctl launch --console`) увидите `[Inject] dylib loaded`. Если приложение падает — dyld не нашёл dylib: проверьте путь в `LC_LOAD_DYLIB` (`@executable_path` — относительно бинарника).
+`insert_dylib` не «клеит» код в конец файла — он добавляет в Mach-O новую **load command** типа `LC_LOAD_DYLIB` с путём к библиотеке. Команды загрузки лежат сразу после заголовка, а их количество в заголовке (`ncmds`) увеличивается на единицу. Текущий список зависимостей (без правки) показывает `otool -L DemoApp`: рядом с системными фреймворками появится строка вида `@executable_path/DemoApp.dylib` — это и есть точка инъекции.
 
-## DYLD_INSERT_LIBRARIES (когда работает)
+Ключевой нюанс — архитектуры. У `arm64` и `arm64e` отдельные «срезы» (slices) в fat-бинарнике, и `insert_dylib` правит только один. Если приложение универсальное, библиотеку придётся добавить в каждый срез, иначе на части устройств инъекция не сработает. И помни про подпись: правка load commands ломает `codesign`, поэтому без шага 5 (переподписи) dyld откажется грузить бинарник.
 
-На macOS/симуляторе переменная работает напрямую:
+## Что мы теперь знаем
 
-```bash
-DYLD_INSERT_LIBRARIES=/path/inject.dylib \
-  /Applications/MyApp.app/Contents/MacOS/MyApp
-```
-
-На iOS-устройстве `DYLD_INSERT_LIBRARIES` игнорируется для подписанных приложений (кроме отладочных с `get-task-allow`), поэтому основной путь — `LC_LOAD_DYLIB`.
-
-## Обход проверок целостности
-
-Приложение может детектить re-sign:
-- **Проверка `_CodeSignature`** — хеш бинарника не совпадает. Обход: хук `SecStaticCodeCheckValidity`/`SecCodeCheckValidity`.
-- **Проверка teamID** — не ваш. Хук `SecCodeCopySigningInformation`.
-- **Jailbreak/root detection** — перехват `stat("/Applications/Cydia.app")` и т.п.
-- **Frida detection** — если используете gadget, переименуйте порт/имя.
-
-```objc
-// хук проверки подписи
-#import <Security/Security.h>
-static OSStatus (*orig_Check)(SecStaticCodeRef, SecCSFlags);
-OSStatus my_Check(SecStaticCodeRef code, SecCSFlags flags) {
-    return errSecSuccess;   // всегда «валидно»
-}
-__attribute__((constructor))
-static void hook(void) {
-    MSHookFunction((void*)SecStaticCodeCheckValidity, (void*)my_Check, (void**)&orig_Check);
-}
-```
-
-(Используется `substrate.h` / `fishhook` для хука C-функций.)
-
-## Инъекция через FridaGadget
-
-Альтернатива — добавить `FridaGadget.dylib` и заставить приложение её загрузить, положив конфиг `FridaGadget.config`:
-
-```json
-{ "interaction": { "type": "script", "path": "/private/var/mobile/script.js" } }
-```
-
-или `"type": "listen", "address": "127.0.0.1", "port": 27042`. Это стандартный способ `objection patchipa`:
-
-```bash
-objection patchipa --source MyApp.ipa --codesign-signature "iPhone Developer: You (TEAMID)"
-```
-
-## Частые ошибки и подводные камни
-
-- **Приложение сразу падает** — неверный путь dylib или не подписан вложенный фреймворк.
-- **`codesign` ругается на entitlements** — используйте профиль с теми же правами.
-- **dylib не грузится** — проверьте `otool -L`, что запись есть; для fat нужен arm64-слайс.
-- **Frida не подключается** — порт занят/заблокирован; смените в конфиге.
-- **На iOS 14+ `DYLD_*` не работает** — используйте `LC_LOAD_DYLIB`.
-
-## Справочная таблица
-
-| Метод | Требует | Когда применять |
-|-------|---------|-----------------|
-| LC_LOAD_DYLIB | re-sign | основной путь на устройстве |
-| DYLD_INSERT_LIBRARIES | debug/get-task-allow | симулятор, отладка |
-| FridaGadget | re-sign + config | готовый инструментарий |
-| objection patchipa | сертификат | быстрый старт |
-
-## Что дальше / решение
-
-Соберите dylib с логикой перехвата, внедрите через `insert_dylib`, переподпишите своим сертификатом и запустите. Если приложение детектит re-sign — добавьте хуки проверок подписи. Дальше — `mobile-ios-dynamic` (Frida/Cycript) и `mobile-ios-data-protection`.
-
-## Практический сценарий: перехват сетевого слоя
-
-Частая задача — перехватить и модифицировать сетевые запросы, не настраивая прокси (например, при certificate pinning). Инъекция dylib позволяет перехватить методы сетевого клиента напрямую.
-
-Пример для Objective-C `NSURLSession`:
-
-```objc
-#import <Foundation/Foundation.h>
-#import <objc/runtime.h>
-
-static IMP orig_dataTask;
-
-__attribute__((constructor))
-static void init(void) {
-    Class cls = objc_getClass("NSURLSession");
-    SEL sel = @selector(dataTaskWithRequest:completionHandler:);
-    Method m = class_getInstanceMethod(cls, sel);
-    orig_dataTask = method_getImplementation(m);
-
-    IMP hook = imp_implementationWithBlock(^id(id self, NSURLRequest *req, id handler){
-        NSLog(@"[net] %@ %@", req.HTTPMethod, req.URL.absoluteString);
-        NSLog(@"[net] headers: %@", req.allHTTPHeaderFields);
-        // можно модифицировать req или ответ в handler
-        return ((id(*)(id,SEL,NSURLRequest*,id))orig_dataTask)(self, sel, req, handler);
-    });
-    method_setImplementation(m, hook);
-}
-```
-
-Для Swift-приложений сетевой слой может быть не в `NSURLSession`, а в сторонней библиотеке (Alamofire на `URLSession`, gRPC на `NIO`). Тогда перехватывайте на уровне C-функций:
-
-```objc
-// fishhook для перехвата C-функций
-#import "fishhook.h"
-static int (*orig_connect)(int, const struct sockaddr*, socklen_t);
-static int my_connect(int fd, const struct sockaddr *addr, socklen_t len) {
-    NSLog(@"[net] connect fd=%d", fd);
-    return orig_connect(fd, addr, len);
-}
-__attribute__((constructor))
-static void hook_connect(void) {
-    struct rebinding rb = {"connect", my_connect, (void**)&orig_connect};
-    rebind_symbols(&rb, 1);
-}
-```
-
-## Hooking без re-sign: варианты
-
-Инъекция dylib — не единственный путь. Альтернативы:
-
-- **FridaGadget** — та же инъекция, но вы получаете полноценную Frida-сессию; удобно для интерактивной работы.
-- **Cydia Substrate / Substitute** — на джейлбрейкнутом устройстве хукает любой процесс без модификации IPA; `MSHookFunction`.
-- **LLDB attach** — отладчик может вызывать функции и читать память, но не подменять реализации надолго.
-- **Пассивный дамп** — если нужен только дамп памяти, хватит `frida-ios-dump` без своей dylib.
-
-Выбор зависит от наличия джейлбрейка и требований к скрытности. На джейлбрейке Substrate обычно предпочтительнее: не меняется подпись, приложение не детектит re-sign.
-
-## Диагностика загрузки dyld
-
-Если dylib не грузится, проверьте по шагам:
-
-```bash
-# 1) запись присутствует?
-otool -L Payload/MyApp.app/MyApp | grep -i inject
-# 2) путь корректен?
-otool -l Payload/MyApp.app/MyApp | grep -A2 LC_LOAD_DYLIB | grep inject
-# 3) dylib на месте и нужной архитектуры?
-lipo -info Payload/MyApp.app/inject.dylib
-# 4) подпись dylib валидна?
-codesign -v Payload/MyApp.app/inject.dylib
-# 5) запуск с логом dyld
-DYLD_PRINT_LIBRARIES=1 xcrun simctl launch --console booted com.example.app 2>&1 | grep -i inject
-```
-
-`DYLD_PRINT_LIBRARIES` покажет, что dyld реально загрузил. Если библиотека не в списке — проблема в load command или пути.
-
-## Ограничения и риски
-
-- **App Attest / DeviceCheck** — привязка к подписи и устройству; re-sign ломает.
-- **Биометрическая привязка** — некоторые приложения привязывают ключ Keychain к подписи; после re-sign ключ недоступен.
-- **Push-уведомления** — entitlements `aps-environment` нужно пересоздать, иначе push не придут.
-- **Обновления** — инъекция делается заново для каждой версии.
-- **Правовые рамки** — модификация чужого приложения допустима только в рамках авторизованного теста.
+- dylib — динамическая библиотека iOS; dyld подгружает её по `LC_LOAD_DYLIB`.
+- `DYLD_INSERT_LIBRARIES` подгружает библиотеку через переменную окружения.
+- `insert_dylib` добавляет load-команду прямо в бинарник.
+- `@executable_path` — относительный путь dyld к каталогу бинарника.
+- Функция с атрибутом `constructor` исполняется при загрузке библиотеки.
+- После правки бинарника нужна переподпись (`codesign`).
+- Инъекция даёт инструментирование, но меняет подпись.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой load command заставляет dyld загрузить вашу dylib при старте?"
+- question: Какая load-команда Mach-O заставляет dyld загрузить библиотеку?
   options:
-    - "LC_LOAD_DYLIB"
-    - "LC_CODE_SIGNATURE"
-    - "LC_ENCRYPTION_INFO"
     - "LC_UUID"
-  answer: 0
-- question: "Почему после инъекции dylib нужно переподписывать приложение?"
+    - "LC_LOAD_DYLIB"
+    - "LC_MAIN"
+    - "LC_SYMTAB"
+  answer: 1
+  explanation: "dyld читает LC_LOAD_DYLIB и подгружает перечисленные библиотеки при старте."
+- question: Что делает переменная DYLD_INSERT_LIBRARIES?
   options:
-    - "Модификация бинарника ломает исходную подпись"
-    - "Иначе не сработает Wi-Fi"
-    - "Иначе изменится размер APK"
-    - "Иначе приложение станет на русском"
-  answer: 0
-- question: "Почему DYLD_INSERT_LIBRARIES не работает на iOS-устройстве для подписанного приложения?"
+    - "Шифрует бинарник"
+    - "Заставляет dyld подгрузить указанную библиотеку до основного кода"
+    - "Подписывает приложение"
+    - "Удаляет подпись"
+  answer: 1
+  explanation: "dyld видит переменную и внедряет библиотеку в процесс."
+- question: Зачем нужен флаг --strip-codesig у insert_dylib?
   options:
-    - "Переменная игнорируется, кроме отладочных сборок с get-task-allow"
-    - "Она работает только на Android"
-    - "Её удалили из dyld"
-    - "Она шифрует dylib"
-  answer: 0
-- question: "Какая функция проверяет валидность подписи и часто хукается?"
+    - "Ускорить запуск"
+    - "Убрать старую подпись, которая станет недействительной после правки"
+    - "Сжать библиотеку"
+    - "Изменить архитектуру"
+  answer: 1
+  explanation: "После изменения бинарника подпись невалидна, её снимают и обновляют позже."
+- question: Что означает @executable_path в пути библиотеки?
   options:
-    - "SecStaticCodeCheckValidity"
-    - "NSLog"
-    - "objc_msgSend"
-    - "UIApplicationMain"
-  answer: 0
+    - "Корень файловой системы"
+    - "Каталог главного бинарника приложения"
+    - "Домашний каталог"
+    - "Каталог Keychain"
+  answer: 1
+  explanation: "@executable_path — переменная dyld, указывающая на каталог исполняемого файла."
+- question: Что выполняется в dylib автоматически при загрузке?
+  options:
+    - "Функция main"
+    - "Функция с атрибутом constructor"
+    - "Ничего"
+    - "Только классы ObjC"
+  answer: 1
+  explanation: "Атрибут __attribute__((constructor)) запускает функцию при загрузке библиотеки."
 ```
+
+## Куда дальше
+
+Инъекция даёт нам инструментирование. Но самая частая задача — перехватить трафик и OAuth-токены. В следующем уроке `mobile-ios-oauth-sso` разберём, как приложение получает токены через SSO и где они утекают. А пока главное запомни: dylib подгружается через `LC_LOAD_DYLIB`, и после любой правки бинарника нужна переподпись.
 
 ## Где пригодится
 
-- **CTF:** инструментация iOS-приложения без джейлбрейка.
-- **Пентест:** перехват методов и обход защит.
-- **Bug bounty:** воспроизведение находки на модифицированной сборке.
+- **Пентест:** инструментирование приложения без jailbreak.
+- **Bug bounty:** хуки на старте для обхода защиты.
+- **Анализ малвари:** наблюдение за iOS-образцом.
+- **CTF:** внедрение кода для доступа к внутренней логике.

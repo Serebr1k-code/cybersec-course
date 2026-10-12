@@ -14,235 +14,192 @@ useful_for:
 estimated_minutes: 50
 summary: "Работа в Wireshark: разница capture/display-фильтров, follow stream, цветовые правила, статистика и tshark для автоматизации."
 ---
+## Вопрос, с которого всё начинается
 
-Wireshark — главный инструмент анализа трафика. Он открывает `.pcap`/`.pcapng`, разбирает сотни протоколов и позволяет фильтровать как при захвате, так и при отображении. `tshark` — его консольный близнец, незаменимый для скриптов.
+Тебе принесли файл `http.pcap` — запись сетевого обмена. Нужно понять, что в ней происходило: кто с кем говорил, что скачивал, не утекли ли пароли. Открыть дамп блокнотом бессмысленно — это двоичный формат. Нужен инструмент, который разберёт пакеты по протоколам и даст по ним фильтровать и искать.
 
-## Capture-фильтры против Display-фильтров
+Такой инструмент — **Wireshark** (графический) и его консольный близнец **tshark**. В этом уроке мы разберём один реальный дамп и по ходу ответим на все вопросы, которые из него родятся.
 
-Это главная путаница новичков. Это **два разных синтаксиса**:
+## Наш пример: дамп http.pcap
 
-| | Capture filter | Display filter |
-|---|---|---|
-| Синтаксис | BPF (`tcp port 80`) | Wireshark (`tcp.port == 80`) |
-| Когда работает | во время захвата | после захвата, на отображение |
-| Можно менять | только до старта | в любой момент |
-| Возможности | ограниченные | очень богатые |
-
-Capture-фильтр пишется в поле на экране захвата. Display-фильтр — в верхней строке: `http`, `dns`, `ip.addr == 10.0.0.5`, `tcp.port == 443 && tls.handshake.type == 1`.
-
-Основные операторы display-фильтра: `==`, `!=`, `contains`, `matches` (regex), `&&`, `||`, `!`.
-
-## Ключевые display-фильтры
+Сначала посмотрим, что вообще лежит в файле. `tshark -r` читает дамп (`-r` — read), а без фильтра печатает по одной строке на пакет:
 
 ```
-http                                  # весь HTTP
-http.request.method == "POST"         # только POST
-dns.qry.name contains "flag"          # DNS-запросы со словом flag
-tcp.flags.syn == 1 && tcp.flags.ack == 0   # только SYN
-tls.handshake.type == 2               # TLS ServerHello
-ftp || telnet || pop                  # незашифрованные протоколы
-ip.addr == 192.168.1.10 && frame contains "password"
-frame.len > 1000                      # крупные кадры
-tcp.stream eq 3                       # конкретный поток
+$ tshark -r http.pcap
+    1 0.000000  10.0.0.5 → 93.184.216.34 TCP 40 51234 → 80 [SYN] Seq=0 Win=8192 Len=0
+    2 0.000323 93.184.216.34 → 10.0.0.5  TCP 40 80 → 51234 [SYN, ACK] Seq=0 Ack=1 Win=8192 Len=0
+    3 0.000460  10.0.0.5 → 93.184.216.34 TCP 40 51234 → 80 [ACK] Seq=1 Ack=1 Win=8192 Len=0
+    4 0.000583  10.0.0.5 → 93.184.216.34 HTTP 117 GET /secret.zip HTTP/1.1
+    5 0.000866 93.184.216.34 → 10.0.0.5  HTTP 906 HTTP/1.1 200 OK  (application/zip)
+    6 0.001036  10.0.0.5 → 93.184.216.34 TCP 40 51234 → 80 [ACK] Seq=78 Ack=867 Win=8192 Len=0
+    7 0.001123  10.0.0.5 → 93.184.216.34 HTTP 136 POST /login HTTP/1.1
 ```
 
-`frame contains "..."` — один из самых полезных: ищет подстроку в сырых байтах кадра.
+Термины, которые тут встретились:
 
-## Follow Stream
+- **pcap** — формат файла с записанными пакетами (сокращение от packet capture). `tshark` открывает `.pcap`/`.pcapng`.
+- **SYN / SYN,ACK / ACK** — флаги TCP. Клиент шлёт SYN («хочу соединиться»), сервер отвечает SYN,ACK («согласен»), клиент подтверждает ACK. Первые три пакета — это **рукопожатие** TCP, установление соединения.
+- **HTTP** — прикладной протокол веба. Строки `GET /secret.zip` и `POST /login` — это уже HTTP-запросы внутри установленного соединения.
 
-Правый клик по пакету → **Follow → TCP/UDP/HTTP Stream**. Wireshark собирает всю сессию в читаемый вид. Это стандартный способ:
+Уже из списка видно сюжет: клиент `10.0.0.5` скачал `/secret.zip` с сервера и сделал `POST /login`. Но содержимое скрыто. Дальше разберёмся, как его достать.
 
-- прочитать переписку по HTTP (в т.ч. заголовки авторизации);
-- восстановить переданный по TCP файл;
-- увидеть диалог кастомного протокола.
+## Шаг 1: display-фильтры
 
-Соответствующий display-фильтр потока: `tcp.stream eq N`. Номер потока виден в дереве разбора.
+Печатать все пакеты — шумно. У `tshark` и Wireshark есть **display-фильтр** — выражение, которое скрывает ненужные пакеты уже после захвата. Синтаксис у него свой: поля разделяются точками, сравнение через `==`.
 
-## Статистика и Expert Information
-
-Меню **Statistics** даёт быстрый обзор:
-
-- **Conversations** — кто с кем и сколько трафика (быстро находит «интересный» хост).
-- **Protocol Hierarchy** — какие протоколы присутствуют (замечаешь необычные).
-- **Endpoints** — список адресов.
-- **HTTP → Requests** — все HTTP-запросы списком (экспорт в CSV).
-- **Analyze → Expert Information** — автоматические предупреждения об аномалиях (retransmission, malformed).
-
-## Профили и цветовые правила
-
-Для повторяющихся задач настройте окружение:
-
-- **Profiles** (Edit → Configuration Profiles) — разные наборы колонок и фильтров для разных типов дампов (web, ICS, wireless).
-- **Coloring Rules** — подсветка по фильтру (например, красным — `tcp.analysis.flags` для проблем).
-- **Custom columns** — добавьте `tcp.stream`, `http.host`, `tls.handshake.extensions_server_name` в колонки для быстрого обзора.
-- **Decode As** — если протокол определён неверно, принудительно задайте разбор (Analyze → Decode As).
-
-## Извлечение файлов и объектов
-
-```bash
-# все файлы из HTTP
-tshark -r cap.pcap --export-objects http,./out
-# объекты SMB/TFTP/IMF
-tshark -r cap.pcap --export-objects smb,./out
+```
+$ tshark -r http.pcap -Y 'http.request' -T fields -e http.host -e http.request.uri
+files.example.com	/secret.zip
 ```
 
-`--export-objects` — «магический» приём: вытаскивает переданные файлы в каталог. В GUI — **File → Export Objects → HTTP**. Дополнительно: `File → Export Specified Packets` для вырезания подмножества, `File → Export Packet Dissections` для текста.
+Разбор: `-Y '<фильтр>'` задаёт display-фильтр (только HTTP-запросы), `-T fields` говорит печатать не строки пакетов, а выбранные поля, `-e` называет поле. Мы получили хост и путь запроса.
 
-## tshark: автоматизация
+Частая путаница: **display-фильтр — не то же самое, что capture-фильтр**. Capture-фильтр (синтаксис BPF, вида `tcp port 80`) работает во время захвата и решает, что вообще записывать. Display-фильтр (`tcp.port == 80`) применяется к уже записанному и решает, что показать. Это два разных языка, и `tshark` различает их флагами: `-f` — capture (BPF), `-Y` — display.
 
-```bash
-# список HTTP-запросов
-tshark -r cap.pcap -Y 'http.request' -T fields -e http.host -e http.request.uri
+## Шаг 2: follow stream — читаем диалог целиком
 
-# извлечь DNS-запросы
-tshark -r cap.pcap -Y dns -T fields -e dns.qry.name
+Пакеты разбиты по строкам, а хочется увидеть всю переписку. Для этого есть **follow stream** — сборка всех пакетов одного соединения в единый текст. В GUI это правый клик по пакету → Follow → TCP Stream; в консоли — `-z follow`:
 
-# все пароли, переданные по незашифрованным протоколам
-tshark -r cap.pcap -Y 'ftp.request.command=="PASS" || http.authorization' \
-  -T fields -e ftp.request.arg -e http.authorization
+```
+$ tshark -r http.pcap -q -z follow,tcp,ascii,0
+Follow: tcp,ascii
+Filter: tcp.stream eq 0
+Node 0: 10.0.0.5:51234
+Node 1: 93.184.216.34:80
+GET /secret.zip HTTP/1.1
+Host: files.example.com
+User-Agent: curl/8.4.0
 
-# экспорт объектов HTTP (файлов)
-tshark -r cap.pcap --export-objects http,./out
+HTTP/1.1 200 OK
+Content-Type: application/zip
+Content-Length: 795
+
+PK....<двоичное тело архива>....FLAG{http_export_works}
+POST /login HTTP/1.1
+Host: files.example.com
+Content-Length: 30
+
+user=admin&password=S3cr3t!
 ```
 
-`-T fields -e <поле>` — сердце автоматизации: вы получаете машиночитаемый вывод, который легко фильтровать `sort`/`uniq`/`grep`.
+**Stream** (поток) — это одно TCP-соединение; Wireshark нумерует их, и `tcp.stream eq 0` — фильтр по первому потоку. Мы сразу видим и запрос, и ответ, и — что важно — пароль `S3cr3t!`, ушедший открытым текстом. Вот почему HTTP без TLS опасен: любой на пути видит креды.
 
-## tshark для больших дампов
+## Шаг 3: извлекаем файлы (Export Objects)
 
-Большие PCAP не открыть в GUI — используйте потоковую обработку:
+Видеть архив в тексте — мало, нужен сам файл. Wireshark умеет **File → Export Objects → HTTP** — собрать переданные файлы из дампа. В консоли то же делает `tshark --export-objects`:
 
-```bash
-# топ-адреса по числу пакетов
-tshark -r big.pcap -q -z conv,ip | head -20
-# топ-портов
-tshark -r big.pcap -q -z io,phs | head
-# фильтровать и писать подмножество
-tshark -r big.pcap -Y 'http.request' -w http_only.pcap
+```
+$ tshark -r http.pcap --export-objects http,./out
+$ ls out
+secret.zip
 ```
 
-`-z` даёт готовую статистику без выгрузки всех пакетов; `-w` — запись отфильтрованного подмножества для дальнейшего разбора в GUI.
+`--export-objects http,./out` — «извлеки все объекты протокола http в каталог `./out`». Мы получили реальный `secret.zip`, который дальше распакуем обычным `unzip`. Это стандартный приём в CTF и форензике: не собирать файл из сегментов руками, а отдать это инструменту.
 
-## Полезные фильтры по протоколам
+## Шаг 4: статистика — обзор без чтения пакетов
 
-| Задача | Display-фильтр |
-|---|---|
-| HTTP-логины | `http.request.method=="POST" && frame contains "password"` |
-| DNS-туннель | `dns && frame.len > 200` |
-| NTLM-аутентификация | `ntlmssp` |
-| Kerberos | `kerberos` |
-| Подозрительные TLS SNI | `tls.handshake.extensions_server_name` |
-| FTP-пароли | `ftp.request.command=="PASS"` |
-| ARP-спуфинг | `arp.duplicate-address-detected` |
+Когда пакетов тысячи, читать их подряд нельзя. Wireshark даёт сводки в меню **Statistics**, а `tshark` — через `-z`. Например, «кто с кем говорил»:
 
-## Разбор кейса CTF
-
-Задача: найти флаг в дампе.
-
-1. `Statistics → Protocol Hierarchy` — какие протоколы есть.
-2. `frame contains "flag"` — прямой поиск.
-3. `Statistics → Conversations` — найти «интересный» хост/порт.
-4. `Follow → TCP Stream` по этому потоку — прочитать диалог.
-5. `File → Export Objects → HTTP` — вытащить файлы.
-6. Для кастомного протокола — выгрузить payload и разбирать структуру (см. `network-protocol-reversing`).
-
-## Инструменты и флаги
-
-| Инструмент | Команда | Назначение |
-|---|---|---|
-| tshark | `-r f -Y '<df>' -T fields -e <field>` | фильтр + поля |
-| tshark | `--export-objects http,./out` | извлечь файлы |
-| tshark | `-q -z conv,ip` | статистика разговоров |
-| tshark | `-w out.pcap` | записать подмножество |
-| Wireshark GUI | Follow Stream / Export Objects | ручной разбор |
-| `editcap` | `-r a-b` | вырезать диапазон пакетов |
-
-## Частые ошибки
-
-- **Путать capture- и display-фильтры.** `tcp.port==80` — синтаксис display (Wireshark). В `tshark -f` (BPF) нужен `tcp port 80`, иначе фильтр не применится.
-- **Скроллить пакеты вручную вместо Follow Stream.** Диалог удобнее собрать через `Follow → TCP/HTTP Stream` — там же видны запросы и ответы целиком.
-- **Забыть про Export Objects.** Файл из HTTP удобнее достать через `File → Export Objects → HTTP`, а не собирать вручную из отдельных пакетов.
-- **Открывать гигабайтные PCAP в GUI.** Используйте `tshark -z`/`editcap`.
-
-## Что делать дальше / решение
-
-- **Нужен обзор** → Statistics (Hierarchy/Conversations).
-- **Нужен диалог** → Follow Stream.
-- **Нужны файлы** → Export Objects.
-- **Нужна автоматизация** → `tshark -T fields`.
-- **Нужен кастомный протокол** → `network-protocol-reversing`.
-
-## Быстрая шпаргалка
-
-```bash
-# фильтр + поля (автоматизация)
-tshark -r cap.pcap -Y 'http.request' -T fields -e http.host -e http.request.uri
-# поиск подстроки в сырых байтах
-tshark -r cap.pcap -Y 'frame contains "flag"' -T fields -e frame.number
-# извлечь файлы
-tshark -r cap.pcap --export-objects http,./out
-# статистика
-tshark -r cap.pcap -q -z conv,ip | head
+```
+$ tshark -r http.pcap -q -z conv,ip
+IPv4 Conversations
+10.0.0.5             <-> 93.184.216.34              2 946 bytes       5 373 bytes       7 1319 bytes
 ```
 
-## Разбор кейса: DNS-туннель
+**Conversations** (разговоры) показывает пары адресов и объём трафика — сразу видно «интересного» собеседника. Другая полезная сводка — **Protocol Hierarchy** (`-z io,phs`), распределение протоколов в дампе: замечаешь необычные, которых «не должно быть».
 
-Частая CTF-задача — эксфильтрация через DNS. Признаки: длинные поддомены, много запросов к одному домену, редкие типы записей (TXT).
+## Шаг 5: поиск по сырым байтам
 
-```bash
-# все запросы к подозрительному домену
-tshark -r cap.pcap -Y 'dns.qry.name contains "evil.example"' -T fields -e dns.qry.name
-# крупные DNS-ответы (данные в TXT)
-tshark -r cap.pcap -Y 'dns && frame.len > 200' -T fields -e dns.qry.name -e dns.txt
+Когда не знаешь, в каком протоколе спрятано, помогает поиск подстроки по всему кадру:
+
+```
+$ tshark -r http.pcap -Y 'frame contains "FLAG"' -T fields -e frame.number
+5
 ```
 
-Собрав поддомены в порядке времени, часто получаешь base32/base64-строку — декодируй и получишь флаг. Так один display-фильтр превращает шумный дамп в понятную эксфильтрацию.
+`frame contains "..."` ищет байтовую подстроку в любом месте кадра — грубо, но находит всё сразу. Пакет №5 — тот самый ответ с архивом.
+
+## Шаг 6: Wireshark или tshark
+
+Оба инструмента — один и тот же движок разбора протоколов, разница в интерфейсе:
+
+- **Wireshark** — графический. Удобен для ручного разбора: видно дерево полей пакета, есть Follow Stream и Export Objects мышкой, Statistics открываются в меню.
+- **tshark** — консольный. Незаменим на сервере без графики, в SSH-сессии и в скриптах: `-T fields -e ...` даёт машиночитаемый вывод.
+
+Практическое правило: **первичный разбор и исследование — в Wireshark, автоматизацию и работу на серверах — через tshark**. Оба понимают один и тот же синтаксис display-фильтров, так что фильтр, найденный в GUI, переносится в `-Y` один в один.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. `tshark -r file` открывает дамп; GUI-версия — Wireshark.
+2. Display-фильтр (`-Y`) скрывает лишнее после захвата, capture-фильтр (`-f`) — во время него.
+3. Follow Stream собирает TCP-соединение в читаемый диалог.
+4. Export Objects достаёт переданные файлы на диск.
+5. Statistics/`-z` дают обзор, когда пакетов слишком много.
+6. `frame contains` ищет подстроку по сырым байтам.
+
+## На что смотреть дальше
+
+- **Начни со сводки.** Protocol Hierarchy → Conversations → и только потом пакеты.
+- **Проверь незашифрованные протоколы.** HTTP, FTP, telnet отдают креды открытым текстом.
+- **Не открывай гигабайтные дампы в GUI.** Для них есть `tshark -z` и `editcap`.
+- **Помни про `tcp.stream`.** Номер потока — ключ к конкретному диалогу.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Чем display-фильтр отличается от capture-фильтра?"
+- question: 'Чем display-фильтр отличается от capture-фильтра?'
   options:
-    - "Они идентичны"
-    - "Display-фильтр применяется после захвата и использует синтаксис Wireshark; capture-фильтр — BPF во время захвата"
-    - "Capture-фильтр работает только для UDP"
-    - "Display-фильтр замедляет сеть"
+    - 'Они полностью идентичны'
+    - 'Display-фильтр применяется к уже записанному дампу и использует синтаксис Wireshark, capture-фильтр — BPF во время захвата'
+    - 'Capture-фильтр работает только для UDP'
+    - 'Display-фильтр ускоряет сеть'
   answer: 1
-  explanation: "Capture-фильтр (BPF) отбирает пакеты при записи; display-фильтр скрывает ненужное при просмотре."
-- question: "Какой фильтр найдёт подстроку 'password' в сырых байтах кадров?"
+  explanation: 'Capture-фильтр (BPF, флаг -f) отбирает пакеты при записи; display-фильтр (флаг -Y) скрывает ненужное при просмотре.'
+- question: 'Что делает tshark --export-objects http,./out?'
   options:
-    - "tcp contains password"
-    - 'frame contains "password"'
-    - "http == password"
-    - "ip.addr == password"
+    - 'Печатает HTTP-заголовки в CSV'
+    - 'Извлекает переданные по HTTP файлы в каталог ./out'
+    - 'Удаляет HTTP-трафик из дампа'
+    - 'Строит график трафика'
   answer: 1
-  explanation: "frame contains ищет байтовую подстроку в любом месте кадра."
-- question: "Что делает tshark --export-objects http,./out?"
+  explanation: 'export-objects восстанавливает файлы, переданные по протоколу, и кладёт их на диск.'
+- question: 'Какая функция собирает всё TCP-соединение в один читаемый текст?'
   options:
-    - "Экспортирует HTTP-заголовки в CSV"
-    - "Извлекает переданные по HTTP файлы в каталог ./out"
-    - "Удаляет HTTP-трафик"
-    - "Строит график"
-  answer: 1
-  explanation: "export-objects восстанавливает файлы, переданные по протоколу, на диск."
-- question: "Какая функция собирает всю TCP-сессию в читаемый вид?"
-  options:
-    - "Expert Information"
-    - "Protocol Hierarchy"
-    - "Follow → TCP Stream"
-    - "Capture Options"
+    - 'Expert Information'
+    - 'Protocol Hierarchy'
+    - 'Follow Stream'
+    - 'Capture Options'
   answer: 2
-  explanation: "Follow Stream собирает все пакеты одного потока в единый диалог."
-- question: "Какой раздел Statistics помогает понять, какие протоколы есть в дампе?"
+  explanation: 'Follow Stream склеивает все пакеты одного потока (tcp.stream) в единый диалог.'
+- question: 'Что ищет фильтр frame contains "FLAG"?'
   options:
-    - "Protocol Hierarchy"
-    - "Follow Stream"
-    - "Display Filter"
-    - "Coloring Rules"
-  answer: 0
-  explanation: "Protocol Hierarchy показывает распределение протоколов в дампе."
+    - 'пакеты, где поле FLAG равно строке'
+    - 'подстроку FLAG в сырых байтах любого кадра'
+    - 'HTTP-запросы к /FLAG'
+    - 'DNS-запросы с FLAG'
+  answer: 1
+  explanation: 'frame содержит все байты кадра; contains ищет подстроку в любом месте.'
+- question: 'Какой флаг tshark задаёт display-фильтр?'
+  options:
+    - '-f'
+    - '-Y'
+    - '-r'
+    - '-w'
+  answer: 1
+  explanation: '-Y — display-фильтр, -f — capture-фильтр (BPF).'
 ```
+
+## Куда дальше
+
+В следующем уроке мы возьмём **Zeek** — инструмент, который превращает трафик не в пакеты, а в готовые логи, и научимся искать инциденты по этим логам. А пока запомни главное: Wireshark/tshark разбирает дамп по протоколам, follow stream читает диалог, а export objects достаёт файлы.
 
 ## Где пригодится
 
-- Ежедневный инструмент анализа любых PCAP — от CTF до реальных инцидентов.
-- `tshark` встраивается в скрипты обработки больших дампов.
+- **CTF (Network / Forensics):** разбор дампов, поиск флагов и файлов.
+- **Пентест:** перехват учёток и данных в незашифрованных протоколах.
+- **Blue team / SOC:** расследование сетевых инцидентов по pcap.
+- **Администрирование:** диагностика проблем с соединениями.

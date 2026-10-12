@@ -15,165 +15,107 @@ estimated_minutes: 35
 summary: "Как прячут данные в PE/ELF: overlay после конца образа, ресурсы, неиспользуемые/пустые секции, дописанные архивы, иконы и строковые ресурсы; практическое извлечение."
 ---
 
-Исполняемые файлы (PE для Windows, ELF для Linux) — удобный контейнер: у них есть «официальные» секции (код, данные, ресурсы) и «пустоты» (overlay после конца образа, неиспользуемые байты, padding). Данные можно спрятать в overlay, в ресурсах, в пустых/дополнительных секциях, в иконах и строковых ресурсах, а также дописать архив/картинку после конца файла.
+## Вопрос, с которого всё начинается
 
-## PE (Windows)
+Тебе дали `challenge.exe` — программу. Она запускается и что-то делает. Флаг спрятан внутри. Но это не картинка и не архив — это **исполняемый файл**, у которого есть код, данные и ресурсы.
 
-```bash
-file suspect.exe
-# overlay: данные после последней секции
-python3 -c "import pefile; pe=pefile.PE('suspect.exe'); print(hex(pe.get_overlay_data_start_offset()))"
-pefile suspect.exe | grep -i "sections\|overlay"   # или
-# извлечь overlay
-python3 -c "import pefile; pe=pefile.PE('suspect.exe'); open('overlay.bin','wb').write(pe.get_overlay_data())"
-# ресурсы
-wrestool -l suspect.exe
-wrestool -x -t 10 -o icons suspect.exe     # иконки (RCDATA/тип 10)
-strings -a suspect.exe | grep -iE "flag|http|key" | head
+Хорошая новость: у исполняемых файлов есть «пустоты», которые загрузчик в память не берёт, — там и прячут данные. Разберём на конкретном PE.
+
+## Наш пример: challenge.exe
+
+Начнём с определения формата.
+
+```
+$ file challenge.exe
+challenge.exe: PE32+ executable (GUI) x86-64, for MS Windows
 ```
 
-Инструменты: `pe-bear`, `CFF Explorer`, `Resource Hacker`, `pestudio`.
+PE — формат Windows-исполняемых файлов. У него есть «официальные» секции (код `.text`, данные `.data`, ресурсы `.rsrc`) и то, что лежит **за** ними — **overlay**.
 
-## ELF (Linux)
+## Шаг 1: overlay — данные после конца образа
 
-```bash
-readelf -S suspect.elf          # секции
-readelf -l suspect.elf          # сегменты
-# секции с подозрительными именами/нулевым размером
-objdump -h suspect.elf
-strings -a suspect.elf | tail -50
-# дописанные данные
-binwalk suspect.elf
+**Overlay** — это данные после последней секции. Загрузчик их игнорирует, но они физически есть в файле. Это самый частый канал в executable-задачах.
+
+Извлечём overlay через `pefile` (Python):
+
+```
+$ python3 -c "import pefile; pe=pefile.PE('challenge.exe'); print(hex(pe.get_overlay_data_start_offset()))"
+0x4200
+$ python3 -c "import pefile; pe=pefile.PE('challenge.exe'); open('overlay.bin','wb').write(pe.get_overlay_data())"
+$ file overlay.bin
+overlay.bin: PNG image data, 64 x 64
 ```
 
-Каналы: overlay после последнего сегмента, `.comment`, неиспользуемые байты в `.text`/`.data`, дополнительные секции, дописанные архивы.
+Overlay оказался PNG-картинкой. Дальше — обычный стего-пайплайн:
 
-## Общие приёмы
-
-- **Overlay:** данные после конца образа (часто ZIP/PNG/флаг).
-- **Ресурсы/иконки:** в PE `wrestool -x`; в ELF — `.rodata`/встроенные файлы.
-- **Пустые секции:** секция с нулевым/аномальным размером может нести данные.
-- **DLL/соседние файлы:** нагрузка в рядом лежащем файле.
-- **Appended archive:** `binwalk -e`.
-
-## Разобранный пример
-
-CTF: `challenge.exe`. Пентестер:
-1. `python3 -c "...get_overlay_data()"` → извлекает overlay.
-2. `file overlay.bin` → PNG.
-3. В PNG — zsteg → флаг. Или overlay — ZIP с флагом.
-
-## Частые ошибки
-
-- Не проверять overlay (данные после конца образа).
-- Игнорировать ресурсы (иконки, RCDATA, диалоги).
-- Не смотреть секции с аномальными именами/размерами.
-- Забывать про `binwalk` (дописанные форматы).
-
-## Что делать дальше
-
-- **Overlay найден** → определите тип (`file`) и разберите.
-- **Ресурсы** → `wrestool -x`, смотрите все типы.
-- **Подозрительная секция** → дампните её и проверьте.
-- **Пусто** → строки, метаданные, debug-инфо.
-
-## Форматы и где лежат данные (карта)
-
-| Формат | Структура | Каналы сокрытия |
-|--------|-----------|-----------------|
-| PE (Windows) | MZ-заголовок + секции | overlay, ресурсы, пустые секции, `.reloc`, debug |
-| ELF (Linux) | заголовок + секции/сегменты | overlay, `.comment`, доп. секции, `.rodata` |
-| Mach-O (macOS) | заголовок + load commands | load commands, доп. сегменты, resources |
-| .NET | PE + CLI-метаданные | resources, embedded assembly, user strings |
-| APK/JAR | ZIP-архив | лишние файлы, classes.dex, resources |
-
-Общий принцип: ищите данные **за пределами** того, что загружается в память — overlay, ресурсы, «мусорные» секции.
-
-## PE: overlay и ресурсы по шагам
-
-```bash
-file suspect.exe
-# Overlay = данные после конца образа (последней секции)
-python3 -c "import pefile; pe=pefile.PE('suspect.exe'); print(hex(pe.get_overlay_data_start_offset()))"
-python3 -c "import pefile; pe=pefile.PE('suspect.exe'); open('overlay.bin','wb').write(pe.get_overlay_data())"
-file overlay.bin && binwalk overlay.bin
-# Секции: имена, размеры, энтропия (высокая энтропия = упаковано/зашифровано)
-python3 -c "import pefile; pe=pefile.PE('suspect.exe'); [print(s.Name.rstrip(b'\\x00').decode(errors='replace'), hex(s.SizeOfRawData), round(s.get_entropy(),2)) for s in pe.sections]"
-# Ресурсы (иконки, RCDATA, диалоги, строки)
-wrestool -l suspect.exe
-wrestool -x -t 10 -o icons/ suspect.exe      # RCDATA/иконки
-strings -a suspect.exe | grep -iE 'flag|http|key|pass' | head
+```
+$ zsteg overlay.bin | grep -i flag
+b1,rgb,lsb,xy .. text: "flag{overlay_png}"
 ```
 
-GUI: `pe-bear`, `CFF Explorer`, `Resource Hacker`, `pestudio` (энтропия, overlay, ресурсы).
+Флаг найден. Маршрут: overlay → PNG → `zsteg`.
 
-## ELF: секции, сегменты, хвост
+## Шаг 2: ресурсы PE
 
-```bash
-file suspect.elf
-readelf -S suspect.elf            # таблица секций
-readelf -l suspect.elf            # сегменты (PT_LOAD)
-objdump -h suspect.elf            # заголовки секций
-# секции с аномальными именами/размерами/энтропией
-readelf -x .comment suspect.elf   # дамп конкретной секции
-strings -a suspect.elf | tail -50
-# overlay: смещение после последнего PT_LOAD-сегмента
-readelf -l suspect.elf | grep LOAD
-binwalk suspect.elf               # дописанные форматы
+В PE есть **ресурсы**: иконки, диалоги, строки, RCDATA. Их перечисляет и извлекает `wrestool`:
+
+```
+$ wrestool -l challenge.exe
+--type=10 [type=icon offset=0 size=1234]
+--type=10 [type=icon offset=1234 size=567]
+$ wrestool -x -t 10 -o icons/ challenge.exe
+$ file icons/*
 ```
 
-Каналы ELF: overlay после последнего сегмента, `.comment`/`.note`, неиспользуемые байты в `.text`/`.data`, дополнительные секции, appended ZIP/PNG.
+Иконки — частый носитель: в пикселях картинки может быть QR или текст. Также проверь строки:
 
-## Общие приёмы (таблица)
+```
+$ strings -a challenge.exe | grep -iE 'flag|http|key|pass' | head
+```
+
+## Шаг 3: ELF — секции и хвост
+
+Для Linux-бинарников (`ELF`) логика та же, но инструменты другие. Посмотрим секции:
+
+```
+$ file suspect.elf
+suspect.elf: ELF 64-bit LSB pie executable, x86-64
+$ readelf -S suspect.elf          # таблица секций
+$ readelf -l suspect.elf | grep LOAD   # сегменты
+$ objdump -h suspect.elf
+```
+
+Каналы ELF: overlay после последнего `PT_LOAD`-сегмента, `.comment`/`.note`, неиспользуемые байты в `.text`/`.data`, дополнительные секции. Хвост и вложенное ищет `binwalk`:
+
+```
+$ binwalk suspect.elf
+```
+
+## Шаг 4: пустые и аномальные секции
+
+Секция с нулевым или аномальным размером может нести данные. Смотрим имена и энтропию:
+
+```
+$ python3 -c "import pefile; pe=pefile.PE('challenge.exe'); [print(s.Name.rstrip(b'\x00').decode(errors='replace'), hex(s.SizeOfRawData), round(s.get_entropy(),2)) for s in pe.sections]"
+.text 0x1000 6.2
+.rdata 0x800 5.1
+.rsrc 0x400 7.9
+```
+
+Высокая энтропия (~7.9) у `.rsrc` — признак, что там упакованные или сжатые данные. Если энтропия всей программы высока — вероятно, она упакована (UPX), и нужен `upx -d challenge.exe`.
+
+## Шаг 5: общие приёмы
 
 | Приём | Что делает | Команда |
-|-------|-----------|---------|
+|---|---|---|
 | Overlay | данные после конца образа | `pefile.get_overlay_data()` / `readelf -l` |
 | Ресурсы | иконки/RCDATA/строки (PE) | `wrestool -x` |
 | Пустые секции | секция с аномальным размером | `readelf -S`/`pefile` |
 | Энтропия | упаковка/шифрование | `pefile`/`binwalk -E` |
 | Appended | дописанный архив/картинка | `binwalk -e` |
-| Соседние файлы | нагрузка в DLL/.so | листинг каталога |
 | Debug-инфо | PDB/DWARF пути, имена | `readelf --debug-dump` |
 
-## Инструменты (полный набор)
-
-| Инструмент | Назначение | Пример |
-|------------|-----------|--------|
-| `pefile` (pip) | разбор PE, overlay | см. выше |
-| `wrestool`/`icotool` | ресурсы PE | `wrestool -l x.exe` |
-| `readelf`/`objdump` | секции ELF | `readelf -S x.elf` |
-| `binwalk` | встроенные форматы | `binwalk x.exe` |
-| `strings` | текст | `strings -a x` |
-| `pe-bear`/`CFF Explorer`/`Resource Hacker` | GUI-разбор PE | — |
-| `pestudio` | энтропия/overlay/импорты | — |
-| `upx -d` | распаковка UPX | `upx -d x.exe` |
-
-## Разобранные примеры
-
-**1. Overlay.** `get_overlay_data()` → `file overlay.bin` → PNG → `zsteg` → флаг.
-
-**2. Ресурсы.** `wrestool -x -t 10` извлекает иконку, в её пикселях — QR/текст.
-
-**3. Пустая секция.** `readelf -S` показывает секцию с размером 0 и странным именем; дамп по смещению даёт флаг.
-
-## Частые ошибки и отладка
-
-- **Не проверять overlay** — самый частый канал.
-- **Игнорировать ресурсы** (иконки/RCDATA/диалоги).
-- **Не смотреть энтропию** — высокая = упаковано, нужен `upx -d`.
-- **Забывать про `binwalk`** (дописанные форматы).
-- **Отладка:** если overlay пуст — проверьте все секции, ресурсы, debug-инфо; если энтропия высока — распакуйте.
-
-## Что делать дальше / дерево решений
-
-1. `file` → формат. Overlay? → извлеките и `file`/`binwalk`.
-2. Ресурсы (PE)? → `wrestool -x` по всем типам.
-3. Секции/энтропия аномальны? → дамп секции / `upx -d`.
-4. Ничего → `strings`, debug-инфо, соседние файлы.
-5. Всё чисто → `binwalk -e` на хвост.
-
-## Шпаргалка: конвейер по бинарнику
+## Шаг 6: конвейер по бинарнику
 
 ```bash
 file x                                   # PE/ELF/Mach-O
@@ -187,13 +129,62 @@ strings -a x | tail -40
 binwalk x
 ```
 
-Рабочий процесс: определите формат (`file`), затем проверьте overlay (данные за концом образа) — это самый частый канал; далее ресурсы (PE) и аномальные/пустые секции (энтропия). Если энтропия высокой секции близка к 8 — вероятно упаковано, попробуйте `upx -d` или дамп в рантайме. Не забывайте про debug-инфо (пути PDB/DWARF) и соседние файлы (DLL/.so). В отчёте фиксируйте: формат, канал (overlay/ресурсы/секция), смещение и результат.
+## Если не сработало
 
-## Что проверять в отчёте
+- Не проверяй overlay — самая частая ошибка (данные за концом образа).
+- Не игнорируй ресурсы (иконки/RCDATA/диалоги).
+- Смотри энтропию: высокая = упаковано, нужен `upx -d`.
+- Не забудь `binwalk` (дописанные форматы).
+- Отладка: overlay пуст — проверь все секции, ресурсы, debug-инфо; энтропия высока — распакуй.
 
-Для воспроизводимости фиксируйте: формат (PE/ELF/Mach-O), точный канал (overlay после секции N, ресурс типа RCDATA, секция `.name` по смещению X, хвост после PT_LOAD), извлечённый артефакт (имя/тип/размер) и цепочку дальнейшего разбора (например, overlay → PNG → zsteg). Укажите, была ли секция упакована (энтропия) и потребовалась ли распаковка (`upx -d`). Это позволит другому аналитику повторить извлечение и подтвердить находку.
+## Что мы теперь знаем
+
+1. Overlay — данные после последней секции, не загружаются в память.
+2. Ресурсы PE (иконки, RCDATA) извлекает `wrestool`.
+3. ELF: секции/сегменты, `.comment`, доп. секции, хвост.
+4. Энтропия секции подсказывает упаковку/шифрование.
+5. `binwalk` находит встроенные форматы и в хвосте.
+
+## Шаг 7: полный набор инструментов
+
+| Инструмент | Назначение | Пример |
+|---|---|---|
+| `pefile` (pip) | разбор PE, overlay | `pefile.PE('x.exe')` |
+| `wrestool`/`icotool` | ресурсы PE | `wrestool -l x.exe` |
+| `readelf`/`objdump` | секции ELF | `readelf -S x.elf` |
+| `binwalk` | встроенные форматы | `binwalk x.exe` |
+| `strings` | текст | `strings -a x` |
+| `pe-bear`/`CFF Explorer`/`Resource Hacker` | GUI-разбор PE | — |
+| `pestudio` | энтропия/overlay/импорты | — |
+| `upx -d` | распаковка UPX | `upx -d x.exe` |
+
+## Шаг 8: разобранные сценарии
+
+**1. Overlay.** `get_overlay_data()` → `file overlay.bin` → PNG → `zsteg` → флаг.
+
+**2. Ресурсы.** `wrestool -x -t 10` извлекает иконку, в её пикселях — QR/текст.
+
+**3. Пустая секция.** `readelf -S` показывает секцию с размером 0 и странным именем; дамп по смещению даёт флаг.
+
+## Шаг 9: что фиксировать в отчёте
+
+Для воспроизводимости укажи: формат (PE/ELF/Mach-O), точный канал (overlay после секции N, ресурс типа RCDATA, секция `.name` по смещению X, хвост после `PT_LOAD`), извлечённый артефакт (имя/тип/размер), цепочку дальнейшего разбора и потребовалась ли распаковка (`upx -d`). Это позволит другому аналитику повторить извлечение.
+
+## Шаг 10: карта форматов и каналов
+
+| Формат | Структура | Каналы сокрытия |
+|---|---|---|
+| PE (Windows) | MZ-заголовок + секции | overlay, ресурсы, пустые секции, `.reloc`, debug |
+| ELF (Linux) | заголовок + секции/сегменты | overlay, `.comment`, доп. секции, `.rodata` |
+| Mach-O (macOS) | заголовок + load commands | load commands, доп. сегменты, resources |
+| .NET | PE + CLI-метаданные | resources, embedded assembly, user strings |
+| APK/JAR | ZIP-архив | лишние файлы, classes.dex, resources |
+
+Общий принцип: ищи данные **за пределами** того, что загружается в память — overlay, ресурсы, «мусорные» секции. Если энтропия секции близка к 8 — вероятно упаковано, попробуй `upx -d` или дамп в рантайме.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что такое overlay в исполняемом файле?"
@@ -206,18 +197,18 @@ binwalk x
   explanation: "Overlay лежит за пределами описанных секций/сегментов."
 - question: "Каким инструментом извлечь ресурсы PE?"
   options:
-    - "wrestool"
-    - "zsteg"
-    - "mutool"
-    - "jadx"
+    - "`wrestool`"
+    - "`zsteg`"
+    - "`mutool`"
+    - "`jadx`"
   answer: 0
   explanation: "wrestool перечисляет и извлекает ресурсы PE."
 - question: "Чем посмотреть секции ELF?"
   options:
-    - "readelf -S / objdump -h"
-    - "exiftool"
-    - "strings"
-    - "file"
+    - "`readelf -S` / `objdump -h`"
+    - "`exiftool`"
+    - "`strings`"
+    - "`file`"
   answer: 0
   explanation: "readelf/objdump показывают таблицу секций."
 - question: "Где ещё прячут данные в бинарнике?"
@@ -230,17 +221,21 @@ binwalk x
   explanation: "Ресурсы и аномальные секции — частые каналы."
 - question: "Какая команда находит дописанные форматы?"
   options:
-    - "binwalk"
-    - "nm"
-    - "ldd"
-    - "chmod"
+    - "`binwalk`"
+    - "`nm`"
+    - "`ldd`"
+    - "`chmod`"
   answer: 0
   explanation: "binwalk сканирует сигнатуры внутри файла."
 ```
 
+## Куда дальше
+
+Дальше — **тайминговые covert-каналы**: данные прячут не в файле, а во времени между сетевыми пакетами. А пока запомни: в исполняемом файле первым делом проверь overlay за последней секцией.
+
 ## Где пригодится
 
-- **CTF Stego/Reversing:** PE/ELF-носители.
-- **Malware analysis:** скрытые нагрузки.
+- **CTF (Stego/Reversing):** PE/ELF-носители.
+- **Malware-анализ:** скрытые полезные нагрузки.
 - **Forensics:** данные в бинарниках.
 - **Работа:** анализ подозрительных исполняемых файлов.

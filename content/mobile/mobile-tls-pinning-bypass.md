@@ -14,246 +14,217 @@ useful_for:
 estimated_minutes: 35
 summary: "Два практических подхода к снятию TLS pinning: статический патч APK (Frida Gadget, правка конфига) и динамические Frida-скрипты; плюс настройка сертификата."
 ---
-## Что такое certificate pinning и зачем обходить
 
-Certificate pinning — механизм, при котором приложение доверяет **не любому** сертификату, подписанному системным CA, а только конкретному («закреплённому»): своему сертификату, публичному ключу или CA сервера. Это защита от MITM с пользовательским/подменённым CA. Для пентеста pinning — препятствие: без его обхода вы не увидите HTTPS-трафик и не найдёте уязвимости API. Обход обязателен на большинстве современных приложений.
+## Вопрос, с которого всё начинается
 
-Ментальная модель: pinning проверяет цепочку/ключ **в коде приложения**. Если код исполняется под вашим контролем (Frida, патч APK), проверку можно снять. Наиболее устойчив **нативный** pinning (в `.so`), но и он обходится.
+Приложение использует pinning: системный CA установлен, прокси настроен, а соединение всё равно не проходит. Ты знаешь, что нужно «снять пиннинг», но как именно это делается на практике — от начала до конца?
 
-## Типы pinning
+## Наш пример: приложение с пиннингом, которое нужно перехватить
 
-| Тип | Что закреплено | Где искать |
-|-----|----------------|-----------|
-| Leaf pin | сам сертификат сервера | `network_security_config.xml` `<pin>` |
-| CA pin | промежуточный/корневой CA | код + конфиг |
-| Public-key pin (SPKI) | хэш публичного ключа | код (`sha256/...`) |
-| TrustManager | кастомный `X509TrustManager` | `checkServerTrusted` |
-| Нативный pin | проверка в `.so` | BoringSSL/Conscrypt, JNI |
-| iOS | `SecTrustEvaluate`, AFNetworking | `Info.plist`/код |
+Возьмём защищённый клиент, который проверяет сертификат и не пропускает прокси. Разберём два подхода: быстрый динамический (Frida) и статический (патч APK). Первый применяют, когда приложение не детектит Frida; второй — когда детектит.
 
-```bash
-grep -rn "CertificatePinner\|sha256/\|X509TrustManager\|checkServerTrusted\|setSSLSocketFactory" out_jadx | head
-grep -rn "<pin" out/res/xml/network_security_config.xml
-```
+## Шаг 1: два подхода
 
-## Обход через Frida
+Снятие pinning — это всегда **отключение проверки сертификата**. Способов два:
 
-Универсальные скрипты (напр. `frida-multiple-unpinning`, `frida-android-unpinning`) перехватывают типовые механизмы.
+1. **Динамический** — перехватить проверку в рантайме через Frida/Objection. Быстро, не требует пересборки, но Frida можно обнаружить.
+2. **Статический** — изменить приложение (убрать проверку или встроить агент). Надёжнее против детекта, но требует пересборки и переподписи.
+
+Выбор зависит от того, детектит ли приложение инструментацию.
+
+## Шаг 2: динамический обход — Frida
+
+Универсальный скрипт перехватывает стандартные точки проверки. Минимальный вариант — `TrustManager`:
 
 ```javascript
 Java.perform(function () {
-  // OkHttp3 CertificatePinner
-  try {
-    var CP = Java.use('okhttp3.CertificatePinner');
-    CP.check.overload('java.lang.String','java.util.List').implementation = function (h, p) {
-      console.log('[+] bypass OkHttp pin ' + h); return;
-    };
-  } catch (e) {}
-
-  // TrustManagerImpl (Conscrypt)
-  try {
-    var TM = Java.use('com.android.org.conscrypt.TrustManagerImpl');
-    TM.verifyChain.implementation = function () { return arguments[0]; };
-  } catch (e) {}
-
-  // TrustManager
-  try {
-    var X = Java.use('javax.net.ssl.X509TrustManager');
-    var TrustAll = Java.registerClass({
-      name: 'com.x.TrustAll', implements: [X],
-      methods: {
-        checkClientTrusted: function () {},
-        checkServerTrusted: function () {},
-        getAcceptedIssuers: function () { return []; }
-      }
-    });
-  } catch (e) {}
+  var X509TrustManager = Java.use("javax.net.ssl.X509TrustManager");
+  X509TrustManager.checkServerTrusted.implementation = function (chain, authType) {
+    console.log("[*] checkServerTrusted bypassed");
+  };
 });
 ```
 
-```bash
-frida -U -f com.target.app -l unpin.js --no-pause
+Дальше добавляют перехват популярных библиотек: **OkHttp** (`CertificatePinner.check`) и **Conscrypt** (`Platform.checkServerTrusted`). Objection делает всё это одной командой:
+
+```
+$ objection -g com.target.app explore
+com.target.app on (android: 14) [usb] # android sslpinning disable
 ```
 
-Быстрый старт — `objection ... android sslpinning disable`.
+После этого запускаем mitmproxy и смотрим поток. Если трафик появился — пиннинг снят. Если приложение всё равно не соединяется — проверка не в этих классах (нативный TLS) или приложение детектит Frida.
 
-## Обход через патч APK
+## Шаг 3: статический обход — Frida Gadget
 
-Когда Frida недоступна (или детектится), патчат `network_security_config.xml` и smali.
+Когда Frida-сервер обнаруживается, агент **встраивают прямо в APK**. Это делается через **Frida Gadget** — библиотеку, которую добавляют в приложение:
 
-```bash
-apktool d app.apk -o out
-# 1. убрать пины из конфига
-sed -i '/<pin-set/,/<\/pin-set>/d' out/res/xml/network_security_config.xml
-# 2. заставить доверять user CA
-# в <base-config> добавить:
-#   <trust-anchors><certificates src="system"/><certificates src="user"/></trust-anchors>
-# 3. пересобрать и подписать
-apktool b out -o patched.apk
-keytool -genkey -keystore k.keystore -alias k -keyalg RSA -keysize 2048 -validity 10000 -storepass pass -dname CN=x
-zipalign -p 4 patched.apk patched-aligned.apk
-apksigner sign --ks k.keystore --ks-pass pass patched-aligned.apk
-adb install -r patched-aligned.apk
+1. `apktool d app.apk` — распаковать.
+2. Положить `libfrida-gadget.so` в `lib/<abi>/`.
+3. Добавить в smali `MainActivity` загрузку `System.loadLibrary("frida-gadget")`.
+4. `apktool b` — собрать, подписать (`apksigner`), установить.
+
+Gadget запускается вместе с приложением и подключается к нашему скрипту. Приложение «думает», что это обычная нативная библиотека, а не внешний сервер Frida, — поэтому часть анти-Frida проверок (порт, отдельный процесс) не срабатывает.
+
+## Шаг 4: правка конфига вместо хука
+
+Если пиннинг задан через **Network Security Config** (см. `mobile-network-security-config`), его можно убрать прямо в ресурсах:
+
+```xml
+<domain-config>
+    <domain includeSubdomains="true">api.example.com</domain>
+    <pin-set expiration="2027-01-01">
+        <pin digest="SHA-256">AAAA...=</pin>
+    </pin-set>
+</domain-config>
 ```
 
-Минусы: ломается подпись (нужна переустановка, потеря данных), возможен anti-tamper, не работает для split APK без пересборки всех частей.
+Удаляем блок `<pin-set>`, собираем APK, подписываем. Пиннинга больше нет — но приложение может проверять свою подпись (см. `mobile-integrity`), и тогда патч обнаружат. В таком случае добавляют и обход проверки подписи.
 
-## Обход нативного pinning
+## Шаг 5: сертификат прокси
 
-Нативный pin (в `libssl.so`/кастомной `.so`) не ловится Java-хуками. Подходы:
+Снятие пиннинга не заменяет настройку доверия. Параллельно нужно:
 
-- **Хук нативные функции:** `SSL_CTX_set_custom_verify`, `SSL_get_verify_result`, `X509_verify_cert`, `SSL_CTX_set_verify`.
-- **Патч библиотеки:** найти проверку в дизассемблере и заменить (`NOP`/переход).
-- **Frida Interceptor по символам:**
+- установить CA прокси (пользовательский, если NSC разрешает; иначе системный через root);
+- направить трафик на прокси;
+- убедиться, что приложение не ходит по QUIC.
+
+То есть снятие пиннинга — это **дополнение** к базовому MITM, а не замена. Порядок: сначала настроить прокси и CA, потом снять пиннинг, потом анализировать поток.
+
+## Шаг 6: проверка результата
+
+Успех подтверждается просто: в прокси появились запросы приложения. Если нет — по шагам:
+
+- **Приложение детектит Frida** → переходим на Gadget или патч.
+- **Проверка в нативном коде** → хукаем `.so` (см. `mobile-cert-pinning-deep`).
+- **Трафик по QUIC** → отключаем QUIC.
+- **Прокси не виден** → transparent/VPN (см. `mobile-mitm-advanced`).
+
+## Шаг 7: полный скрипт для типового приложения
+
+На практике один хук `TrustManager` помогает не всегда: приложение может проверять сертификат и в OkHttp, и в Conscrypt. Поэтому рабочий скрипт объединяет несколько перехватов:
 
 ```javascript
-var m = Process.getModuleByName('libssl.so');
-['SSL_get_verify_result','X509_verify_cert','SSL_CTX_set_custom_verify'].forEach(function (n) {
-  var p = Module.findExportByName('libssl.so', n);
-  if (p) Interceptor.attach(p, { onLeave: function (r) { r.replace(ptr(0)); } });
+Java.perform(function () {
+  // 1) стандартный TrustManager
+  var X509 = Java.use("javax.net.ssl.X509TrustManager");
+  X509.checkServerTrusted.implementation = function (c, a) { };
+
+  // 2) OkHttp CertificatePinner
+  try {
+    var Pinner = Java.use("okhttp3.CertificatePinner");
+    Pinner.check.overload("java.lang.String", "java.util.List").implementation =
+      function (host, peerCertificates) { };
+  } catch (e) { console.log("no OkHttp"); }
+
+  // 3) Conscrypt
+  try {
+    var Platform = Java.use("com.android.org.conscrypt.Platform");
+    Platform.checkServerTrusted.overload(
+      "com.android.org.conscrypt.TrustManagerImpl",
+      "java.util.List", "java.lang.String", "com.android.org.conscrypt.AbstractConscryptSocket"
+    ).implementation = function () { };
+  } catch (e) { console.log("no Conscrypt"); }
 });
 ```
 
-Если символы скрыты (stripped), ищите по смещениям из реверса (`mobile-android-native`).
+Обратите внимание на `overload(...)`: у метода может быть несколько вариантов с разными типами аргументов, и хук нужно ставить на конкретный. Если указать не тот — Frida сообщит об ошибке (что полезно: значит, сигнатура отличается, и её надо уточнить).
 
-## iOS pinning bypass
+## Шаг 8: сквозной прогон
 
-```bash
-objection -g com.target.app explore
-ios sslpinning disable
+Соберём полный сценарий перехвата защищённого приложения:
+
+1. **Извлекаем NSC** — смотрим, разрешён ли пользовательский CA.
+2. **Ставим CA** — пользовательский или системный (root).
+3. **Запускаем приложение** под Frida с объединённым скриптом (`frida -U -f com.target.app -l bypass.js`).
+4. **Смотрим прокси** — появился ли поток.
+5. **Если тишина** — проверяем QUIC, детект Frida, нативный пиннинг.
+6. **Если трафик есть** — анализируем API: параметры, токены, чувствительные данные.
+
+Такой порядок экономит время: вы последовательно исключаете причины, а не перебираете случайные хуки.
+
+Отдельно стоит сказать про отладочные сборки: если приложение собрано с `android:debuggable="true"`, часть защит (в том числе проверка подписи) может не работать, и перехват сильно упрощается. Всегда проверяйте флаг `debuggable` в манифесте — это быстрый выигрыш, если он выставлен. В релизных сборках его нет, и приходится идти полным путём: CA, обход пиннинга, защита от детекта.
+
+## Шаг 9: из чего состоит pin
+
+Чтобы выбрать способ обхода, надо понять, что именно приложение пинит. Посчитаем оба распространённых значения для нашего прокси-сертификата:
+
+```
+$ openssl x509 -in ca.pem -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl base64
+iLCSHnfZIMcQRfUoyTymSkyR25E4SrIzm/FW3VYMLsk=
+$ openssl x509 -in ca.pem -outform der | openssl dgst -sha256
+SHA2-256(stdin)= 666d2607d19d204f4c6c08d69f0f5610df7c72476249580110b66897a46253b3
 ```
 
-Под капотом — хуки на `SecTrustEvaluate`, `SecTrustEvaluateWithError`, `URLSession:didReceiveChallenge:`, `AFSecurityPolicy`/`Alamofire`. Для Swift/нативного pinning может понадобиться ручной хук по символу (`mobile-ios-dynamic`).
+Первое — **SPKI pin** (хеш публичного ключа), второе — хеш всего сертификата. Большинство приложений и сетевых библиотек (OkHttp, TrustKit) используют SPKI. Разница важна: при SPKI-пиннинге подмена leaf-сертификата не помогает, а Frida-хук на `checkServerTrusted`/`SecTrustEvaluate` снимает проверку целиком. Смотри в дизассемблере, где строка base64 сравнивается, — формат сравнения подскажет тип pin.
 
-## Проверка успеха обхода
+## Что мы теперь знаем
 
-Обход считается успешным, если:
+По-простому:
 
-1. Приложение продолжает работать (нет ошибок соединения).
-2. В прокси (`mobile-mitm-burp`) виден расшифрованный HTTPS-трафик.
-3. Повторяется стабильно после перезапуска.
+1. Снятие pinning — это отключение проверки сертификата.
+2. Динамический путь: Frida/Objection, хук `TrustManager`/OkHttp/Conscrypt.
+3. Статический путь: Frida Gadget внутри APK или удаление `pin-set` из NSC.
+4. Патч APK требует переподписи и может задеть проверку подписи.
+5. Снятие пиннинга дополняет MITM, а не заменяет настройку CA.
 
-Не ориентируйтесь только на вывод «bypass applied» — проверяйте реальный трафик.
+## На что смотреть дальше
 
-## Разобранный пример: снять OkHttp pinning
-
-```bash
-$ grep -rn "CertificatePinner" out_jadx | head
-NetworkModule.java: builder.certificatePinner(new CertificatePinner.Builder()
-    .add("api.target.example","sha256/AAAA...=").build());
-$ objection -g com.target.app explore --startup-command "android sslpinning disable"
-(agent) [ssl] Hooking OkHttp3 CertificatePinner.check
-(agent) [ssl] Hooking TrustManagerImpl.verifyChain
-$ # в mitmproxy видим:
-GET https://api.target.example/v1/me HTTP/1.1
-Authorization: Bearer eyJ...   # трафик расшифрован
-```
-
-Pinning снят, трафик виден — можно тестировать API.
-
-## Справочная таблица: методы обхода
-
-| Механизм | Java-хук | Патч APK | Нативный хук |
-|----------|----------|----------|--------------|
-| OkHttp CertificatePinner | да | да (конфиг) | — |
-| network_security_config pin | — | да | — |
-| кастомный TrustManager | да | да | — |
-| Conscrypt verifyChain | да | — | — |
-| нативный pin (libssl) | нет | патч `.so` | да |
-| iOS SecTrust | — | — | да (ObjC) |
-
-## Типовые ошибки новичка
-
-- **Только один метод.** Пиннинг бывает «многослойным» (OkHttp + нативный) — снимайте все.
-- **Не проверять трафик.** «Bypass applied» ≠ «работает».
-- **Забыть про user CA.** Без доверия CA прокси (system/Magisk) даже снятый pinning не даст расшифровки.
-- **Игнорировать anti-tamper.** После патча APK приложение может отказаться работать.
-- **Пропустить iOS.** Там другие API — нужны ObjC-хуки.
-
-## Что дальше / решение
-
-Порядок: определить тип pinning (конфиг/код/натив) → попробовать `objection`/Frida → при неудаче патч APK → при нативном — хук `.so`. После обхода — перейти к тестированию API (`mobile-api-testing`, `mobile-api-bola`). Связанные уроки: `mobile-ssl-pinning`, `mobile-cert-pinning-deep`, `mobile-mitm-burp`, `mobile-android-native`. Решение — когда HTTPS-трафик стабильно читается в прокси.
-
-## Готовые скрипты и их адаптация
-
-Наиболее известные публичные наборы: `frida-multiple-unpinning` (HTTP Toolkit), `frida-android-unpinning`, `universal-android-ssl-pinning-bypass`. Они хукают сразу десяток механизмов (OkHttp, Conscrypt, TrustManager, Appmattus, Netty, Squareup, нативные `SSL_get_verify_result`). Подключаются как обычный скрипт:
-
-```bash
-git clone https://github.com/httptoolkit/frida-android-unpinning
-frida -U -f com.target.app -l frida-android-unpinning.js --no-pause
-```
-
-Проблемы: скрипт может конфликтовать с anti-Frida (детект) или ломать приложение при ошибке в хуке. Адаптируйте: уберите лишние хуки, оставьте только нужный, добавьте `try/catch`. Если приложение проверяет целостность перед запросом, одного unpinning недостаточно — снимайте и проверки целостности (`mobile-integrity`).
-
-## Практический чек-лист обхода pinning
-
-1. Определить, где pinning: `network_security_config.xml`, код (`CertificatePinner`, `X509TrustManager`), натив.
-2. Убедиться, что прокси-CA доверен (system/Magisk на Android, профиль+Trust на iOS).
-3. Попробовать `objection android sslpinning disable` / `ios sslpinning disable`.
-4. Проверить трафик в прокси; если нет — применить Frida-скрипт.
-5. При нативном pinning — хуки на `libssl`/`X509_verify_cert` или патч `.so`.
-6. При детекте Frida — обойти детект (`mobile-frida-detection`) и повторить.
-7. Зафиксировать: команда, скрипт, факт расшифровки трафика.
-
-## Справочная таблица: диагностика «почему не работает»
-
-| Симптом | Вероятная причина | Решение |
-|---------|-------------------|---------|
-| Пусто в прокси, приложение живо | pinning не снят | unpinning-скрипт |
-| Ошибка сертификата в приложении | CA не доверен | system CA/Magisk |
-| Приложение падает при инъекции | хук на отсутствующий класс | try/catch, точечный хук |
-| Работает, но не для части домена | нативный pin | хук `.so` |
-| Детект и выход | anti-Frida | переименовать/`gadget` |
-| Только iOS не читается | не включён Trust | Certificate Trust Settings |
+- **Сначала попробуйте Objection.** Одна команда часто решает задачу.
+- **Если Frida детектится — Gadget.** Встроенный агент незаметнее.
+- **Проверьте NSC.** Иногда пиннинг убирается правкой ресурса.
+- **Не забудьте про QUIC и прокси.** Пиннинг — не единственная причина «тишины».
+- **Указывайте overload явно.** У методов бывают разные сигнатуры — хук на неверную не встанет.
+- **Проверяйте, что хук встал.** Сообщение об ошибке Frida подсказывает, что сигнатура другая.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что делает TLS pinning?"
+- question: "Какой метод перехватывают, чтобы обойти стандартную проверку сертификата?"
   options:
-    - "Заставляет доверять только конкретному сертификату сервера"
-    - "Ускоряет HTTPS"
-    - "Шифрует пароли"
-    - "Отключает Wi-Fi"
+    - "X509TrustManager.checkServerTrusted"
+    - "Bitmap.compress"
+    - "Socket.close"
+    - "Camera.open"
   answer: 0
-  explanation: "Pinning мешает MITM, принимая лишь заданный ключ/сертификат."
-- question: "Какая команда Objection снимает pinning на Android?"
+- question: "Что такое Frida Gadget?"
   options:
-    - "android sslpinning disable"
-    - "android root disable"
-    - "ios keychain dump"
-    - "env"
+    - "Библиотека-агент, встроенная в APK вместо внешнего Frida-сервера"
+    - "Прокси-сервер"
+    - "Формат сертификата"
+    - "Тип pinning"
   answer: 0
-  explanation: "Команда ставит хуки на типовые реализации pinning."
-- question: "Почему пользовательский CA не работает на Android 7+?"
+- question: "Что нужно сделать после патча APK перед установкой?"
   options:
-    - "Приложения доверяют только системным CA по умолчанию"
-    - "CA нельзя установить"
-    - "TLS отключён"
-    - "Нужен iOS"
+    - "Переподписать APK (apksigner)"
+    - "Перезагрузить телефон"
+    - "Сменить язык"
+    - "Отключить Wi-Fi"
   answer: 0
-  explanation: "С Android 7 user-CA не учитывается для приложений без явной настройки."
-- question: "Зачем переподписывать патченный APK?"
+- question: "Почему патч APK может быть обнаружен приложением?"
   options:
-    - "Иначе система откажется установить/запустить"
-    - "Чтобы ускорить"
-    - "Чтобы сменить тему"
-    - "Чтобы удалить pinning"
+    - "Изменяется подпись APK, а приложение её проверяет"
+    - "Меняется цвет интерфейса"
+    - "Уменьшается размер"
+    - "Меняется язык"
   answer: 0
-  explanation: "Изменённый APK теряет исходную подпись."
-- question: "Что позволяет Frida Gadget в APK без root?"
+- question: "Заменяет ли снятие pinning настройку CA прокси?"
   options:
-    - "Загружать Frida-скрипты в приложение"
-    - "Удалять сертификаты"
-    - "Сменить аккаунт"
-    - "Разблокировать устройство"
+    - "Нет, CA и прокси всё равно нужны — это дополнение к MITM"
+    - "Да, полностью"
+    - "Только на iOS"
+    - "Да, если есть root"
   answer: 0
-  explanation: "Gadget встраивается в APK и даёт Frida без root."
 ```
+
+## Куда дальше
+
+Мы разобрали практические способы снять пиннинг. В следующем уроке углубимся в нестандартные случаи: OkHttp `CertificatePinner`, TrustKit и нативный pinning в OpenSSL/BoringSSL. А пока главное: снятие пиннинга — это отключение проверки сертификата, и делается оно либо динамически (Frida/Objection), либо статически (Gadget/патч NSC).
 
 ## Где пригодится
 
-- **CTF Mobile:** перехват трафика/флага через MITM.
-- **Bug bounty:** анализ защищённого клиента.
-- **Пентест:** снятие клиентских защит.
-- **Работа:** оценка устойчивости pinning.
+- **CTF Mobile:** получение трафика через MITM защищённого клиента.
+- **Bug bounty:** перехват HTTPS там, где обычный прокси не работает.
+- **Пентест:** проверка стойкости пиннинга и его обхода.
+- **Работа:** понимание, как приложения защищают транспорт.

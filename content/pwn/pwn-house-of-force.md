@@ -14,191 +14,187 @@ useful_for:
 estimated_minutes: 70
 summary: "Разбираем три классические heap-техники: House of Force (перезапись top chunk), House of Spirit (поддельный fastbin) и House of Orange (unsorted bin -> FSOP) с полным разбором каждой."
 ---
-House of Force — это техника эксплуатации переполнения top-чанка, позволяющая получить аллокацию по произвольному адресу. Идея: top chunk (вершина кучи) имеет поле `size`, описывающее, сколько памяти осталось. Если переполнить это поле огромным значением (например, `0xffffffffffffffff`), то при следующей аллокации glibc решит, что доступно «бесконечно» много памяти, и выдаст указатель по адресу `top + запрошенный_размер`. Управляя размером запроса, вы получаете аллокацию в произвольной точке памяти. Техника работает на glibc без проверки размера top (примерно до 2.29 включительно) и требует переполнения в чанк, смежный с top. В этом уроке — House of Force, а также родственные House of Spirit и House of Orange.
 
-## Устройство top chunk
+## Вопрос, с которого всё начинается
 
-Top chunk — последний чанк в куче, его `size` равен оставшемуся пространству (по умолчанию около 0x20000 при первом расширении). При `malloc`, если ни один бин не подходит, glibc «отрезает» от top нужный размер. Проверка в `_int_malloc`:
+До сих пор мы атаковали чанки в списках свободных. Но есть ещё один особый чанк — **top chunk**, «вершина» кучи, из которой `malloc` отрезает память, когда списки пусты. Если переполнить поле `size` этого чанка, можно заставить `malloc` выдать память в любой точке адресного пространства. Сегодня разберём три классические «домашние» техники: House of Force, House of Spirit и House of Orange.
+
+## Наш пример: чанк рядом с top
+
+Возьмём программу, которая аллоцирует один чанк и перезаписывает размер следующего за ним top-чанка:
 
 ```c
-if ((unsigned long)(size) >= (unsigned long)(nb + MINSIZE)) {
-    remainder_size = size - nb;
-    remainder = chunk_at_offset(victim, nb);
-    ...
-    set_head(victim, nb | PREV_INUSE);
-    ...
+#include "common.h"
+int main(void){
+    char *a = malloc(0x18);                        /* чанк 0x20 */
+    unsigned long *top = (unsigned long*)(a + 0x10);/* сразу за a лежит top */
+    printf("a=%p  top size=0x%lx\n", a, top[1]);
+    puts("пишем в top size мусор 0xdeadbeef ...");
+    top[1] = 0xdeadbeef;
+    puts("malloc(0x100) -> sysmalloc проверяет top ...");
+    char *b = malloc(0x100);
+    printf("b=%p\n", b);
+    return 0;
 }
 ```
 
-Если `size` подделать на `SIZE_MAX` (0xffffffffffffffff), проверка всегда проходит, и `remainder` вычисляется за пределами кучи.
+Адрес top вычисляется просто: чанк `a` занимает `0x20` байт, поэтому top начинается сразу после него, а его поле `size` — на `a + 0x10 + 8 = a + 0x18`.
 
-## Механика атаки
+## Шаг 1. Что такое top chunk
 
-```text
-1) Переполнить чанк, смежный с top, записав в top->size значение 0xffffffffffffffff.
-2) Вычислить target_addr — куда хотите получить аллокацию (например, __malloc_hook
-   или .bss).
-3) Запросить malloc(offset), где offset = target_addr - top_addr - 0x10.
-4) glibc выдаст чанк по адресу target_addr.
-5) Следующим malloc записать туда полезные данные.
+Top chunk — последний чанк в куче. Его `size` показывает, сколько свободной памяти осталось. Когда `malloc` не находит подходящий чанк в бинах, он «отрезает» нужный кусок от top. Проверка в `_int_malloc` примерно такая:
+
+```c
+if ((unsigned long)(size) >= (unsigned long)(nb + MINSIZE)) {
+    remainder = chunk_at_offset(victim, nb);
+    set_head(victim, nb | PREV_INUSE);
+}
 ```
 
-Формула критична: `target = top + 0x10 (заголовок) + запрошенный_размер`. Отсюда `запрошенный_размер = target - top - 0x10`. Если запросить слишком много (больше `SIZE_MAX`), будет ошибка — поэтому target должен быть **выше** top (или используйте вычитание через отрицательные значения при переполнении знакового поля).
+`nb` — запрошенный размер. Если `size` top больше `nb`, отрезаем. Подделав `size` на огромное значение, можно «разрешить» любую аллокацию.
 
-## Разобранный пример
+## Шаг 2. Что происходит на современной glibc
 
-```python
-from pwn import *
-context.binary = elf = ELF('./chall')
-p = process('./chall')
+Запускаем:
 
-def alloc(sz, data=b''):
-    p.sendlineafter(b'> ', b'1'); p.sendline(str(sz).encode()); p.sendafter(b'data: ', data)
-
-# 1) выделить чанк, смежный с top, и переполнить top->size
-alloc(0x18, b'A'*0x18 + p64(0) + p64(0xffffffffffffffff))
-
-# 2) вычислить target (например, __malloc_hook)
-libc.address = leak - libc.sym['...']
-target = libc.address + libc.sym['__malloc_hook']
-
-# 3) узнать адрес top (из утечки heap)
-top = heap_base + 0x...   # адрес top-чанка
-distance = target - top - 0x10
-alloc(distance)           # «прыжок» к target
-
-# 4) теперь следующий alloc вернёт target
-alloc(0x18, p64(system))  # запись system в __malloc_hook
+```
+$ gcc -fno-pie -no-pie -O0 -o force force.c
+$ ./force
+== House of Force: перезапись top chunk ==
+a=0x341d3020  top size=0x20fd1
+пишем в top size мусор 0xdeadbeef ...
+malloc(0x100) -> sysmalloc проверяет top ...
+malloc(): corrupted top size
+Aborted (core dumped)
 ```
 
-Точный адрес top получают из heap-утечки; distance должен быть положительным и корректным.
+Атака **не проходит**: glibc падает с `malloc(): corrupted top size`. Это проверка, добавленная в версии 2.29: `if (size > av->system_mem) malloc_printerr("malloc(): corrupted top size")`. Размер top сверяется с общим размером арены, и «мусор» вроде `0xdeadbeef` не проходит.
 
-## House of Spirit
+## Шаг 3. Как работал House of Force
 
-House of Spirit — атака через подделку чанка в контролируемой памяти (например, на стеке) и последующий `free` этого «чанка». glibc проверит `size` и (при определённых условиях) поместит поддельный чанк в fastbin/tcache. Затем аллокация вернёт указатель в контролируемую область. Условия: корректный `size` (в пределах fastbin), выровненный адрес, а также (для fastbin) проверка `next`-чанка. Полезно, когда есть `free` указателя, который вы контролируете.
+На glibc до 2.29 такой проверки не было. Тогда атака выглядела так:
 
-## House of Orange
+1. Переполнить чанк, смежный с top, записав в `top->size` значение `0xffffffffffffffff` (SIZE_MAX).
+2. Вычислить цель: `target` (например, `__malloc_hook` или `.bss`).
+3. Запросить `malloc(target − top − 0x10)` — «прыжок» к цели.
+4. Следующий `malloc` вернёт память по адресу `target`.
 
-House of Orange использует переполнение top-чанка, чтобы заставить glibc «освободить» top в unsortedbin (подделав `prev_inuse` и размер), получить утечку libc и затем перейти к FSOP. Техника нужна, когда в программе нет функции `free` — освобождение эмулируется через переполнение top. Подробнее — в `pwn-fsop`.
+Формула критична: `target = top + 0x10 + запрошенный_размер`. Отсюда `запрошенный_размер = target − top − 0x10`. `target` должен быть **выше** top, иначе размер получится отрицательным.
 
-## Условия применимости и митигации
+## Шаг 4. House of Spirit: поддельный чанк
 
-House of Force работает на glibc, где нет проверки `size` top-чанка на «разумность». Начиная с glibc 2.29 добавлена проверка `if (__glibc_unlikely (size > av->system_mem)) malloc_printerr("malloc(): corrupted top size")`, что закрывает технику. Поэтому:
+Другая техника — когда у нас есть `free` указателя, который мы контролируем. Сделаем «чанк» прямо на стеке и освободим его:
 
-| Версия glibc | House of Force |
-|---|---|
-| < 2.29 | работает |
-| ≥ 2.29 | заблокирована проверкой top size |
-
-Проверяйте версию перед применением; на новых glibc используйте другие техники (largebin, FSOP).
-
-## Проверка в gdb
-
-```bash
-gdb ./chall
-(gdb) heap
-(gdb) p main_arena.top
-(gdb) x/4gx main_arena.top
-(gdb) p/x main_arena.system_mem
+```c
+unsigned long fake[32];
+char *p = (char*)&fake[2];              /* «данные» фейка */
+unsigned long *h = (unsigned long*)(p - 0x10);
+h[0] = 0;                               /* fake prev_size */
+h[1] = 0x71;                            /* fake size (диапазон fastbin/tcache) */
+*(unsigned long*)(p + 0x60) = 0x71;     /* size следующего чанка (проверка) */
+free(p);                                /* glibc принимает фейк в список свободных */
+char *q = malloc(0x68);
+printf("malloc(0x68) вернул %p (p=%p, совпало=%d)\n", q, p, q == p);
 ```
 
-Смотрите `top` и его `size` до и после переполнения. Убедитесь, что `size` действительно стал огромным и что `malloc` не выдаёт ошибку.
+Запускаем:
 
-## Частые ошибки
+```
+== House of Spirit: поддельный чанк на стеке ==
+фейковый чанк: p=0x7ffe4405a630  size=0x71
+malloc(0x68) вернул 0x7ffe4405a630  (p=0x7ffe4405a630, совпало=1)
+```
 
-- **Неверный target.** target должен быть выше top; иначе distance отрицательный.
-- **Переполнение не доходит до top.** Нужен чанк, смежный с top, и достаточная длина записи.
-- **Проверка top size (≥2.29).** Техника не сработает — проверьте версию.
-- **Неверный адрес top.** Требуется heap-утечка; без неё distance не посчитать.
-- **Слишком большой запрос.** Приводит к abort.
+Сработало: `malloc` вернул указатель на **стек**. Условия — корректный `size` в диапазоне fastbin/tcache, выровненный адрес и валидный размер следующего чанка.
 
-## Справочные таблицы
+## Шаг 5. House of Orange
 
-| Техника | Идея | Версия |
+House of Orange нужна, когда в программе **нет функции `free`**. Переполнением top-чанка эмулируют освобождение: подделывают `prev_inuse` и размер так, чтобы glibc «освободила» top в unsorted bin. Это даёт утечку libc, а затем через unsorted bin attack адрес `main_arena` записывается в `_IO_list_all` — и запускается FSOP-цепочка до `system`. Техника — классический мост от heap к выполнению кода.
+
+Разберём идею подробнее. Обычно House of Orange требует двух примитивов: возможности переполнить top-чанк и возможности аллоцировать память с контролируемым размером. Сначала переполнением ставим у top маленький `size` (например, `0xc01` при `PREV_INUSE=1`) и правим `prev_size`. При следующем `malloc`, если запрошенный размер больше «оставшегося» top, glibc решает расширить кучу через `sysmalloc`. Но при определённых условиях (подделанный top) она вместо расширения **освобождает** старый top, помещая его в unsorted bin. Теперь у нас есть чанк в unsorted bin: читаем его `fd`/`bk` — это утечка libc. Далее unsorted bin attack записывает адрес `main_arena` в `_IO_list_all`, мы подделываем `_IO_FILE` и при `exit`/`fflush` получаем вызов `system("/bin/sh")`. Это уже полноценная FSOP-цепочка (см. `pwn-fsop`).
+
+Сводка применимости по версиям:
+
+| Техника | Работает | Закрыта проверкой |
 |---|---|---|
-| House of Force | переполнение top size | < 2.29 |
-| House of Spirit | поддельный чанк + free | любая |
-| House of Orange | top → unsortedbin → FSOP | любая |
-| House of Einherjar | off-by-null | любая |
+| House of Force | glibc < 2.29 | `corrupted top size` (2.29) |
+| House of Spirit | широко | усиленные проверки free |
+| House of Orange | старые glibc | проверки unsorted bin (2.29+) |
 
-| Символ | Роль |
-|---|---|
-| `main_arena.top` | указатель на top |
-| `main_arena.system_mem` | размер арены |
-| `MINSIZE` | минимальный размер чанка |
+## Если не сработало
 
-## Что дальше / решение
+- **`malloc(): corrupted top size`.** Проверка top на glibc 2.29+. House of Force закрыта — используйте large bin attack.
+- **`free(): invalid pointer`.** У фейкового чанка неверный `size` или выравнивание.
+- **`free(): invalid next size`.** Не задан корректный размер следующего чанка.
+- **Фейк не в fastbin.** Размер вне диапазона fastbin/tcache.
+- **Версия glibc.** Проверки менялись; сверяйтесь с версией.
 
-Дальше: `pwn-house-modern`, `pwn-house-lore`, `pwn-house-einherjar`, `pwn-fsop`, `pwn-largebin-attack`, `pwn-glibc-mitigations`. Практический алгоритм: (1) проверьте версию glibc (< 2.29 для Force); (2) найдите чанк, смежный с top, и переполните `top->size`; (3) вычислите `distance = target - top - 0x10`; (4) запросите `malloc(distance)`; (5) следующей аллокацией запишите полезные данные. House of Force — элегантный пример того, как одна переполненная метаданная превращается в аллокацию по произвольному адресу; но помните, что современные glibc её закрыли.
-## Сквозной разбор House of Force на glibc 2.23
+## Что мы теперь знаем
 
-Разберём классическую задачу: 64-битный бинарь, glibc 2.23, есть переполнение в чанк, смежный с top, нет проверки top size. Цель — перезаписать `__malloc_hook` на one-gadget. Шаги: (1) выделяем чанк A, смежный с top, и переполняем его, записывая в `top->size` значение `0xffffffffffffffff`; (2) получаем heap-утечку, чтобы узнать адрес top; (3) вычисляем `distance = (__malloc_hook - 0x10) - top` (с учётом заголовка); (4) запрашиваем `malloc(distance)` — glibc «отрезает» кусок от поддельного top и возвращает указатель рядом с `__malloc_hook`; (5) следующей аллокацией записываем адрес one-gadget в `__malloc_hook`; (6) вызываем `malloc` — срабатывает хук. Формула расстояния критична: `target = top + 0x10 + requested`, поэтому `requested = target - top - 0x10`. Если `requested` получается отрицательным, используйте другой target выше top.
+- top chunk — вершина кучи; `malloc` отрезает от него память.
+- Перезапись `size` top даёт аллокацию по произвольному адресу (House of Force).
+- С glibc 2.29 проверка `size > system_mem` закрывает House of Force.
+- House of Spirit: поддельный чанк в контролируемой памяти + `free` → аллокация там.
+- House of Orange: переполнение top эмулирует `free` и ведёт к FSOP.
 
-## Формулы и вычисления
+## На что смотреть дальше
 
-Разберём аккуратно. `top` — это адрес заголовка top-чанка (первые 8 байт — `prev_size`, следующие 8 — `size`). Полезная нагрузка top начинается с `top + 0x10`. При `malloc(n)` glibc отдаёт `chunk = top`, а новый top становится `top + n + 0x10` (с учётом округления до 0x10). Значит, чтобы получить чанк, чьи данные начинаются в `target`, нужно `n = target - (top + 0x10)`, и `n` должно быть кратно 0x10 (иначе выравнивание сдвинет адрес). Если `target < top`, `n` отрицателен, что при передаче в `malloc` как `size_t` даст огромное число и abort — поэтому выбирайте target выше top либо переполняйте top так, чтобы поддельный top «съехал» ниже. Всегда проверяйте выравнивание: `(target - top - 0x10) % 0x10 == 0`.
-
-## House of Spirit подробно
-
-House of Spirit обходит необходимость переполнения top: вы подделываете чанк в контролируемой памяти и освобождаете его. Условия для fastbin: `size` должен попадать в диапазон fastbin (0x20–0x80 на 64-бит), адрес выровнен на 0x10, а `prev_size`/следующий чанк должны «проходить» проверки. Схема: (1) в контролируемой области (стек/`bss`) размещаем `size`; (2) вызываем `free` на указателе, указывающем на наш поддельный чанк; (3) glibc помещает его в fastbin; (4) следующая `malloc` возвращает указатель в контролируемую область. Это даёт запись по адресам, которые вы выбрали. Уязвимость возникает, когда программа позволяет `free` произвольный указатель (например, введённый пользователем).
-
-## Сравнение и когда что применять
-
-House of Force нужен, когда есть переполнение в чанк у top и старая glibc. House of Spirit — когда есть `free` произвольного указателя и контролируемая память. House of Orange — когда есть переполнение top, но нет `free`, и цель — FSOP. House of Einherjar — когда есть off-by-null. Выбор определяется доступным примитивом и версией glibc. Все четыре — «классика» heap-эксплуатации, которую стоит знать, даже если современные версии закрыли часть из них: понимание их устройства помогает адаптироваться к новым митигациям и находить свежие варианты.
-
-## Чек-лист
-
-1. Определите версию glibc и митигации.
-2. Проверьте, есть ли переполнение в чанк у top / `free` произвольного указателя.
-3. Для Force: подделайте `top->size`, вычислите `distance`, запросите `malloc`.
-4. Для Spirit: разместите поддельный чанк, вызовите `free`, затем `malloc`.
-5. Для Orange: переполните top, получите unsortedbin-утечку, перейдите к FSOP.
-6. Проверьте в gdb (`heap`, `bins`, `p main_arena.top`).
+- **Версия glibc.** От неё зависит, какая из трёх техник применима.
+- **Адрес top.** Его берут из heap-утечки.
+- **Формула House of Force.** `target − top − 0x10`.
+- **Условия House of Spirit.** `size`, выравнивание, следующий чанк.
+- **Отладка.** `heap` и `top_chunk` в pwndbg показывают top и его размер.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что перезаписывает House of Force?"
+- question: "Что даёт перезапись поля size у top chunk (House of Force)?"
   options:
-    - "Размер top chunk (для смещения top)"
-    - "Canary"
-    - "GOT"
-    - "tcache"
+    - "Аллокацию по произвольному адресу через «прыжок» от top"
+    - "Утечку стека"
+    - "Снятие canary"
+    - "Отключение ASLR"
   answer: 0
-  explanation: "House of Force меняет size top chunk, чтобы malloc вернул нужный адрес."
-- question: "Что использует House of Spirit?"
+  explanation: "Огромный size top позволяет malloc выдать память в выбранной точке."
+- question: "Какая проверка закрыла House of Force в glibc 2.29?"
   options:
-    - "Поддельный fastbin-чанк, освобождаемый через free"
-    - "Unsorted bin"
-    - "GOT"
-    - "vtable"
+    - "size > av->system_mem -> malloc(): corrupted top size"
+    - "safe-linking"
+    - "canary"
+    - "tcache key"
   answer: 0
-  explanation: "Spirit заставляет free освободить поддельный чанк в контролируемой памяти."
-- question: "Что делает House of Orange?"
+  explanation: "Размер top сверяется с размером арены."
+- question: "В чём суть House of Spirit?"
   options:
-    - "Через unsorted bin и переполнение top добирается до FSOP"
-    - "Перезаписывает GOT"
-    - "Снимает canary"
-    - "Обходит ASLR"
+    - "Подделать чанк в контролируемой памяти и free его, чтобы malloc вернул тот адрес"
+    - "Утечь libc"
+    - "Переполнить стек"
+    - "Расширить GOT"
   answer: 0
-  explanation: "Orange создаёт unsorted-чанк без free и перекрывает _IO_list_all."
-- question: "С какой версии glibc House of Force в основном заблокирован?"
+  explanation: "Фейковый чанк с валидным size попадает в список свободных, и malloc возвращает его."
+- question: "Когда нужна House of Orange?"
   options:
-    - "2.29 (проверка top->size)"
-    - "2.23"
-    - "2.40"
-    - "1.0"
+    - "Когда в программе нет функции free"
+    - "Когда нет ASLR"
+    - "Когда есть canary"
+    - "Когда Full RELRO"
   answer: 0
-  explanation: "Проверка размера top добавлена в 2.29, ломая классическую Force."
-- question: "Какой триггер нужен для FSOP в House of Orange?"
+  explanation: "Освобождение top эмулируется переполнением, чтобы получить unsorted bin и FSOP."
+- question: "Какой формулой вычисляется «прыжок» в House of Force?"
   options:
-    - "exit/return (вызывает _IO_flush_all_lockp)"
-    - "malloc"
-    - "free"
-    - "read"
+    - "запрошенный размер = target − top − 0x10"
+    - "target = top + size"
+    - "target = fd + 0x18"
+    - "size = nb + MINSIZE"
   answer: 0
-  explanation: "FSOP срабатывает при обходе _IO_list_all на exit/flush."
+  explanation: "malloc вернёт target, если запросить target − top − 0x10 байт."
 ```
+
+## Куда дальше
+
+В `pwn-custom-allocator` мы выйдем за пределы glibc: разберём самописный аллокатор из CTF-задачи и покажем, как находить в нём свои баги. А пока главное: **top chunk — тоже цель; его `size` управляет тем, куда `malloc` выдаст память.**
 
 ## Где пригодится
 

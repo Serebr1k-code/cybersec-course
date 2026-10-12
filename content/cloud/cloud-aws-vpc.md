@@ -15,173 +15,141 @@ estimated_minutes: 45
 summary: "Как читать VPC: подсети, маршруты, security groups, NACL, VPC endpoints и peering. Как находить открытые наружу сервисы и понимать, что достижимо изнутри."
 ---
 
-## Зачем этот урок
+## Задача
 
-В AWS почти вся сетевая изоляция — это **VPC**: виртуальная сеть с подсетями, таблицами маршрутизации, security groups и NACL. Для пентестера VPC — это карта: она отвечает на два вопроса. Первый — **что открыто из интернета** (то есть куда можно постучаться снаружи). Второй — **что достижимо изнутри** (то есть куда можно пойти, получив первую точку опоры). Без чтения VPC вы будете угадывать, какие порты открыты и куда ведёт lateral movement. Этот урок — про то, как читать VPC-конфигурацию и превращать её в план атаки.
+В AWS почти вся сетевая изоляция — это **VPC**: виртуальная сеть с подсетями, маршрутами, security groups и NACL. Для пентестера VPC — это **карта**: она отвечает на два вопроса. Что открыто из интернета (куда постучаться снаружи)? Что достижимо изнутри (куда идти после первой точки опоры)?
 
-## Как устроена VPC
+Цель урока: имея только read-only креды, построить эту карту и найти реальный вход.
 
-Иерархия:
+## Данные, с которыми работаем
 
-- **VPC** — сеть с CIDR-блоком (например, `10.0.0.0/16`).
-- **Subnet** — подсеть в одной зоне доступности; бывает public (есть маршрут в Internet Gateway) и private.
-- **Route table** — правила маршрутизации: `0.0.0.0/0 → igw` (интернет), `0.0.0.0/0 → nat` (исходящий через NAT), `10.1.0.0/16 → pcx` (peering), `pl-xxxx → vpce` (endpoint).
-- **Internet Gateway (IGW)** — вход/выход в интернет для public-подсетей.
-- **NAT Gateway** — исходящий интернет для private-подсетей (входящий трафик не проходит).
-- **Security Group (SG)** — stateful-фаервол на уровне ENI (инстанса/сервиса). Только allow-правила.
-- **Network ACL (NACL)** — stateless-фаервол на уровне подсети. Есть allow и deny, обрабатывается по номерам правил.
-- **VPC Endpoint** — приватный доступ к сервисам AWS (S3, DynamoDB, SSM) без выхода в интернет. Бывает Gateway и Interface.
-- **Peering / Transit Gateway** — связи между VPC и аккаунтами.
+Разберём иерархию:
+- **VPC** — сеть с CIDR (`10.0.0.0/16`);
+- **Subnet** — подсеть в одной зоне; public (есть маршрут в Internet Gateway) или private;
+- **Route table** — правила: `0.0.0.0/0 → igw` (интернет), `0.0.0.0/0 → nat` (исходящий);
+- **Security Group (SG)** — stateful-фаервол на уровне ресурса, только allow;
+- **Network ACL (NACL)** — stateless-фаервол на уровне подсети, есть allow и deny.
 
-Ключевое отличие SG от NACL: SG **stateful** (ответный трафик разрешён автоматически) и применяется к ресурсу; NACL **stateless** (нужны правила в обе стороны) и применяется к подсети. Эта разница — источник мисконфигов: например, SG разрешает, но NACL блокирует ответ, и соединение не устанавливается.
-
-## Инструменты и команды
-
-Разведка сети:
+Наш инструмент — read-only креды и AWS CLI. Начинаем с подсетей:
 
 ```bash
-# VPC и подсети
-aws ec2 describe-vpcs --query 'Vpcs[].{Id:VpcId,Cidr:CidrBlock,Default:IsDefault}'
-aws ec2 describe-subnets --query 'Subnets[].{Id:SubnetId,Cidr:CidrBlock,Az:AvailabilityZone,Public:MapPublicIpOnLaunch}'
-
-# Таблицы маршрутов
-aws ec2 describe-route-tables \
-  --query 'RouteTables[].{Id:RouteTableId,Routes:Routes[].{Dest:DestinationCidrBlock,GW:GatewayId,Target:TransitGatewayId}}'
-
-# Security groups с их правилами
-aws ec2 describe-security-groups \
-  --query 'SecurityGroups[].{Name:GroupName,Id:GroupId,Ingress:IpPermissions,Egress:IpPermissionsEgress}'
-
-# NACL
-aws ec2 describe-network-acls \
-  --query 'NetworkAcls[].{Id:NetworkAclId,Subnet:Associations[].SubnetId,Entries:Entries}'
-
-# Endpoints
-aws ec2 describe-vpc-endpoints --query 'VpcEndpoints[].{Id:VpcEndpointId,Service:ServiceName,Type:VpcEndpointType}'
-
-# Peering
-aws ec2 describe-vpc-peering-connections
-```
-
-Поиск открытых из интернета SG:
-
-```bash
-aws ec2 describe-security-groups \
-  --filters Name=ip-permission.cidr,Values=0.0.0.0/0 \
-  --query 'SecurityGroups[].{Name:GroupName,Ports:IpPermissions[].FromPort}'
-```
-
-Поиск инстансов с публичным IP:
-
-```bash
-aws ec2 describe-instances \
-  --query 'Reservations[].Instances[].{Id:InstanceId,IP:PublicIpAddress,SG:SecurityGroups[].GroupId,Subnet:SubnetId}' \
-  --output table
-```
-
-## Разобранный пример: чтение изоляции аккаунта
-
-Сценарий: у вас есть read-only креды (например, из Cognito). Нужно понять, куда можно постучаться.
-
-Шаг 1 — находим public-подсети и их маршруты:
-
-```bash
-aws ec2 describe-subnets --query 'Subnets[?MapPublicIpOnLaunch==`true`].{Id:SubnetId,Cidr:CidrBlock}'
+$ aws ec2 describe-subnets --query 'Subnets[?MapPublicIpOnLaunch==`true`].{Id:SubnetId,Cidr:CidrBlock}'
 [{"Id":"subnet-0aa","Cidr":"10.0.1.0/24"},{"Id":"subnet-0bb","Cidr":"10.0.2.0/24"}]
 ```
 
-Шаг 2 — смотрим SG, открытые на `0.0.0.0/0`:
+Две public-подсети: их инстансы автоматически получают публичный IP.
+
+## Шаг 1: ищем SG, открытые в интернет
+
+Ключевой запрос — фильтр по правилу `0.0.0.0/0` (весь интернет):
 
 ```bash
-aws ec2 describe-security-groups --filters Name=ip-permission.cidr,Values=0.0.0.0/0 \
-  --query 'SecurityGroups[].{Name:GroupName,Id:GroupId,Ports:IpPermissions[].FromPort}'
-# [{"Name":"web-sg","Id":"sg-111","Ports":[80,443]},
-#  {"Name":"legacy-ssh","Id":"sg-222","Ports":[22]}]
+$ aws ec2 describe-security-groups --filters Name=ip-permission.cidr,Values=0.0.0.0/0 \
+    --query 'SecurityGroups[].{Name:GroupName,Id:GroupId,Ports:IpPermissions[].FromPort}'
+[{"Name":"web-sg","Id":"sg-111","Ports":[80,443]},
+ {"Name":"legacy-ssh","Id":"sg-222","Ports":[22]}]
 ```
 
-Шаг 3 — находим инстансы с этими SG и публичными IP:
+`web-sg` с 80/443 — нормально. А `legacy-ssh` с портом **22**, открытым всему интернету, — потенциальный вход.
+
+## Шаг 2: находим инстансы с этими SG
 
 ```bash
-aws ec2 describe-instances \
-  --filters Name=instance.group-id,Values=sg-222 \
-  --query 'Reservations[].Instances[].{Id:InstanceId,IP:PublicIpAddress,State:State.Name}'
+$ aws ec2 describe-instances --filters Name=instance.group-id,Values=sg-222 \
+    --query 'Reservations[].Instances[].{Id:InstanceId,IP:PublicIpAddress,State:State.Name}'
+[{"Id":"i-0abc123","IP":"203.0.113.44","State":"running"}]
 ```
 
-Шаг 4 — смотрим NACL для подсети инстанса. Даже если SG разрешает 22, NACL может блокировать — тогда порт недостижим:
+Инстанс `i-0abc123` работает и имеет публичный IP `203.0.113.44`. Проверяем снаружи:
 
 ```bash
-aws ec2 describe-network-acls \
-  --filters Name=association.subnet-id,Values=subnet-0bb \
-  --query 'NetworkAcls[].Entries'
+$ nc -vz 203.0.113.44 22
+Connection to 203.0.113.44 22 port [tcp/ssh] succeeded!
 ```
 
-Шаг 5 — понимаем внутреннюю достижимость. Private-подсети идут в интернет через NAT, значит исходящий трафик возможен, но входящий — нет. Endpoints для S3/SSM означают, что сервисы внутри обращаются к AWS без интернета. Peering-связи показывают, куда можно двигаться после получения точки опоры.
+Порт действительно открыт. SG разрешает — но это ещё не всё.
 
-Итог: карта «открыто наружу» + «достижимо изнутри». Это и есть основа для планирования — например, `sg-222` с 22/tcp на legacy-инстансе может быть входом.
+## Шаг 3: проверяем NACL и маршрут
 
-## Варианты атак и обходы
+SG **stateful** (ответный трафик разрешён автоматически), а NACL **stateless** — правила нужны в обе стороны. Даже если SG пускает 22, NACL может блокировать:
 
-- **`0.0.0.0/0` на чувствительных портах.** SSH/RDP/БД, открытые в интернет, — прямые цели.
-- **`MapPublicIpOnLaunch` + public SG.** Автоматически даёт публичный IP новым инстансам — риск для команд, которые «на минутку» поднимают отладку.
-- **Security group chaining.** SG может разрешать трафик от другого SG (`source: sg-xxx`); компромисс инстанса с этим SG открывает следующий сегмент.
-- **VPC peering как путь.** Если VPC соединены peering, а SG разрешает CIDR соседней VPC, из одного аккаунта можно дойти до другого.
-- **NAT instance (не gateway).** Устаревший NAT-инстанс с широким SG может стать точкой входа и pivot.
-- **Endpoint policies.** VPC endpoint без policy-ограничения позволяет обратиться к S3/DynamoDB от имени роли; атакующий может использовать его как канал эксфильтрации, даже без интернета.
-- **SSH через SSM вместо открытых портов.** Отсутствие 22 в SG не значит «нет доступа» — `ssm:StartSession` даёт shell (`cloud-aws-ssm`).
+```bash
+$ aws ec2 describe-network-acls --filters Name=association.subnet-id,Values=subnet-0bb \
+    --query 'NetworkAcls[].Entries[].{Num:RuleNumber,Cidr:CidrBlock,Action:RuleAction,Egress:Egress}'
+[{"Num":100,"Cidr":"0.0.0.0/0","Action":"allow","Egress":false},
+ {"Num":100,"Cidr":"0.0.0.0/0","Action":"allow","Egress":true}]
+```
+
+NACL разрешает и входящий, и исходящий — не мешает. Вход подтверждён на всех уровнях: маршрут → SG → NACL.
+
+## Полный прогон от начала до конца
+
+1. Нашли public-подсети (`MapPublicIpOnLaunch=true`).
+2. Отфильтровали SG с `0.0.0.0/0` → `legacy-ssh` на 22.
+3. Нашли инстанс `i-0abc123` с публичным IP.
+4. Проверили NACL — не блокирует.
+5. Подтвердили открытый SSH снаружи → потенциальный вход.
+
+## Шаг 4: внутренняя достижимость — маршруты и endpoints
+
+Теперь смотрим, что доступно **изнутри** после получения точки опоры. Private-подсети обычно идут в интернет через **NAT Gateway**:
+
+```bash
+$ aws ec2 describe-route-tables \
+    --query 'RouteTables[].Routes[?DestinationCidrBlock==`0.0.0.0/0`].{Dest:DestinationCidrBlock,GW:GatewayId,NAT:NatGatewayId}'
+[{"Dest":"0.0.0.0/0","GW":"igw-0aa"},{"Dest":"0.0.0.0/0","NAT":"nat-0bb"}]
+```
+
+Одна подсеть имеет прямой интернет (IGW), другая — только исходящий через NAT (входящий не проходит). Плюс **VPC endpoints** — приватный доступ к сервисам AWS без интернета:
+
+```bash
+$ aws ec2 describe-vpc-endpoints --query 'VpcEndpoints[].{Id:VpcEndpointId,Service:ServiceName}'
+[{"Id":"vpce-0cc","Service":"com.amazonaws.us-east-1.s3"}]
+```
+
+Endpoint на S3 означает: из изолированной подсети можно обращаться к S3. Если его **policy** не ограничивает действия, это и удобно для атаки (нет нужды в интернете), и опасно (канал эксфильтрации).
+
+## Если не сработало: скрытая открытость
+
+- **IPv6.** Если у подсети есть IPv6 CIDR, маршрут `::/0 → igw` и SG разрешает `::/0` — ресурс **открыт в интернет по IPv6**, даже если IPv4-правила строгие. Многие сканеры проверяют только IPv4. Всегда смотри `Ipv6Ranges`:
+
+```bash
+$ aws ec2 describe-security-groups --filters Name=ip-permission.ipv6-cidr,Values=::/0 \
+    --query 'SecurityGroups[].GroupName'
+["ipv6-open-sg"]
+```
+
+- **Default VPC.** В новом аккаунте AWS создаёт default VPC с public-подсетями в каждой зоне. Если default SG не настроен строго, любой запущенный «на пробу» инстанс получает публичный IP.
+- **Security group chaining.** SG может разрешать трафик от **другого SG** (`source: sg-xxx`) — компромисс инстанса с этим SG открывает следующий сегмент.
+- **SSH через SSM вместо открытых портов.** Отсутствие 22 в SG не значит «нет доступа» — `ssm:StartSession` даёт shell без сетевого порта.
+- **VPC peering / Transit Gateway.** Peering соединяет VPC напрямую; TGW — центральный маршрутизатор между множеством VPC и on-premises. Если твоя VPC подключена к TGW, ты можешь достигать остальных участников — вплоть до корпоративной сети.
 
 ## Частые ошибки и подводные камни
 
-- **Путать SG и NACL.** SG stateful и на ресурсе; NACL stateless и на подсети. Неверная интерпретация ведёт к ложным выводам.
-- **Считать private-подсеть полностью изолированной.** NAT даёт исходящий интернет, а endpoints — доступ к AWS.
-- **Забывать про IPv6.** SG с `::/0` — та же открытость, что `0.0.0.0/0`.
-- **Игнорировать default VPC.** В default VPC подсети часто public, а default SG может быть настроен нестрого.
-- **Не проверять `Describe*`-права.** Без них вы не прочитаете VPC; тогда ориентируйтесь на внешнее сканирование.
-- **Ложные «открытые порты».** SG разрешает, но NACL/маршрут блокирует; всегда проверяйте связку.
+- **Путать SG и NACL.** SG stateful и на ресурсе, NACL stateless и на подсети — неверная трактовка ведёт к ложным выводам.
+- **Считать private-подсеть изолированной.** NAT даёт исходящий интернет, а endpoints — доступ к AWS.
+- **Забывать про IPv6.** Правило `::/0` — та же открытость, что `0.0.0.0/0`, и её часто не замечают.
+- **Игнорировать default VPC.** В ней подсети часто public, а default SG настроен нестрого.
+- **Верить списку портов без проверки маршрута.** SG разрешает, но NACL или route table может блокировать — всегда проверяйте связку.
 
-## Защита и детект
+## Что мы теперь знаем
 
-- **Не открывайте 22/3389/3306 в интернет.** Используйте SSM Session Manager или VPN/bastion.
-- **Наименьшие SG.** Правило `source: sg-xxx` вместо широких CIDR; отдельные SG на роль сервиса.
-- **NACL как второй барьер.** Особенно для БД-подсетей.
-- **VPC endpoints с policy.** Ограничивайте endpoint policy конкретными бакетами/таблицами и ролями.
-- **Flow Logs.** VPC Flow Logs в CloudWatch/S3 фиксируют принятый и отклонённый трафик — основа для детекта и IR. GuardDuty findings `Recon:EC2/Portscan`, `UnauthorizedAccess:EC2/SSHBruteForce`.
-- **AWS Config.** Правила на «SG с 0.0.0.0/0» и «public subnet с чувствительным сервисом».
+- SG stateful и на ресурсе; NACL stateless и на подсети — их надо читать **вместе**.
+- Маршрут `0.0.0.0/0 → igw` = интернет; `→ nat` = только исходящий.
+- SG-фильтр `ip-permission.cidr=0.0.0.0/0` находит открытые в интернет порты.
+- IPv6 `::/0` — такая же открытость, которую часто пропускают.
+- VPC endpoints дают доступ к AWS без интернета — потенциальный канал эксфильтрации.
+- `ssm:StartSession` даёт shell без открытых портов; peering/TGW расширяют достижимость.
 
-## IPv6, default VPC и «скрытая» открытость
+## На что смотреть дальше
 
-Две темы, которые чаще всего упускают при чтении сети:
-
-- **IPv6.** Если у подсети есть IPv6 CIDR и маршрут `::/0 → igw`, а SG разрешает `::/0`, то ресурс **открыт в интернет по IPv6**, даже если IPv4-правила строгие. Многие сканеры по умолчанию проверяют только IPv4 и пропускают такие цели. Всегда запрашивайте `Ipv6CidrBlock` и правила с `Ipv6Ranges`.
-- **Default VPC.** В новом аккаунте AWS создаёт default VPC с public-подсетями в каждой зоне и default SG. Если default SG не настроен строго, любой запущенный «на пробу» инстанс получает публичный IP и может быть доступен. Default VPC — частый источник находок при оценке свежих/заброшенных аккаунтов.
-
-Проверка:
-
-```bash
-# IPv6 у подсетей и SG
-aws ec2 describe-subnets --query 'Subnets[].{Id:SubnetId,V6:Ipv6CidrBlockAssociationSet}'
-aws ec2 describe-security-groups --filters Name=ip-permission.ipv6-cidr,Values=::/0 \
-  --query 'SecurityGroups[].{Name:GroupName,Id:GroupId}'
-
-# Default VPC и её подсети
-aws ec2 describe-vpcs --filters Name=isDefault,Values=true --query 'Vpcs[].VpcId'
-```
-
-## Продвинутые пути: peering, Transit Gateway, endpoints
-
-После получения точки опоры внутренняя топология определяет, куда двигаться:
-
-- **VPC Peering.** Прямая связь двух VPC. Если SG разрешает CIDR соседа, вы можете обратиться к его ресурсам. Peering не транзитивен: A↔B и B↔C не дают A↔C автоматически, но B становится хабом.
-- **Transit Gateway (TGW).** Центральный маршрутизатор между множеством VPC и on-premises. Если ваша VPC подключена к TGW, вы можете достигать всех остальных участников — при условии, что маршруты и SG разрешают. TGW часто соединяет облако с корпоративной сетью, что делает его мостом в ДЦ.
-- **VPC Endpoints.** Interface-endpoint создаёт ENI в вашей подсети с приватным IP сервиса AWS. Если endpoint policy не ограничивает действия, вы можете обращаться к S3/DynamoDB/SSM от имени своей роли из изолированной подсети. Это и удобно для атаки (нет нужды в интернете), и опасно (канал эксфильтрации).
-- **Route 53 Resolver / Private Hosted Zones.** Внутренние DNS-имена раскрывают структуру: имена сервисов, окружения (`prod`, `staging`), иногда регионы. `describe-hosted-zones` при наличии прав даёт карту внутренних имён.
-
-Практический подход: после чтения VPC постройте граф «подсеть → SG → ресурс → маршрут → другая подсеть/VPC/on-prem». Именно этот граф, а не список портов, показывает реальные пути lateral movement.
-
-## Что дальше / решение
-
-VPC — это карта, а не цель. После её чтения у вас есть список открытых наружу сервисов (потенциальные входы) и понимание внутренней топологии (пути lateral movement). Дальше: сопоставьте открытые порты с версиями сервисов, проверьте default VPC и legacy-инстансы, поищите peering-связи в другие аккаунты. Если у вас есть RCE на инстансе в private-подсети — используйте NAT для исходящих соединений и VPC endpoints для доступа к AWS. Если есть `ssm:StartSession` — забудьте про открытые порты: SSM даёт доступ внутрь без них. Записывайте карту как network segment и pivot-пути.
+- **aws-cognito**: как из identity pool получить read-only креды для такой разведки.
+- **aws-ssm**: Session Manager как путь внутрь без открытых портов.
+- **cloud-network-security**: сетевые барьеры других облаков и их обход.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Чем security group отличается от NACL?"
@@ -189,7 +157,7 @@ VPC — это карта, а не цель. После её чтения у в�
     - "SG stateful и на уровне ресурса, NACL stateless и на уровне подсети"
     - "Это одно и то же"
     - "SG работает только для IPv6"
-    - "NACL нельзя менять"
+    - "NACL нельзя изменять"
   answer: 0
   explanation: "SG отслеживает соединения и привязан к ENI; NACL stateless и привязан к подсети."
 - question: "Что означает маршрут 0.0.0.0/0 → NAT Gateway?"
@@ -216,7 +184,19 @@ VPC — это карта, а не цель. После её чтения у в�
     - "Он меняет регион"
   answer: 0
   explanation: "Endpoint без ограничений даёт доступ к S3/DynamoDB из изолированной подсети."
+- question: "Почему IPv6-правило ::/0 часто упускают?"
+  options:
+    - "Сканеры по умолчанию проверяют только IPv4, а ресурс может быть открыт по IPv6"
+    - "IPv6 не используется в AWS"
+    - "Оно всегда закрыто"
+    - "Оно относится к NACL"
+  answer: 0
+  explanation: "Ресурс открыт по IPv6, даже если IPv4-правила строгие; это легко пропустить."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **Cognito** — как из identity pool получить временные креды, которыми и делается такая разведка VPC. А пока главное запомни: **VPC — это карта**, и настоящий вход находится там, где сходятся маршрут, SG и NACL, а не там, где просто «открыт порт».
 
 ## Где пригодится
 

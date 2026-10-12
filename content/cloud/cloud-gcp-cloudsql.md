@@ -15,178 +15,150 @@ estimated_minutes: 45
 summary: "Cloud SQL: публичные инстансы, SSL-настройки, IAM database authentication, чтение пароля из Secret Manager и восстановление из бэкапов."
 ---
 
-## Зачем этот урок
+## Задача
 
-Cloud SQL — управляемые MySQL/PostgreSQL/SQL Server в GCP. Как и RDS, это «база без ОС», но с несколькими способами добраться до данных: публичный IP без firewall, слабые пароли, IAM database authentication, пароль в Secret Manager и бэкапы/реплики. Атакующего интересуют данные, а также секреты, которые приложения хранят в БД. Отдельная особенность GCP — тесная интеграция с IAM: иногда вход возможен токеном, без пароля.
+**Cloud SQL** — управляемые MySQL/PostgreSQL/SQL Server в GCP. Как и RDS, это «база без ОС», но с несколькими входами: публичный IP без firewall, слабые пароли, IAM database authentication, пароль в Secret Manager, бэкапы и реплики. Отдельная особенность GCP — тесная интеграция с IAM: иногда вход возможен **токеном, без пароля**.
 
-## Модель Cloud SQL
+Цель урока: войти в продовую базу Cloud SQL, не зная пароля.
 
-- **Instance** — сам сервер; имеет public IP (опционально) и private IP (через VPC).
-- **Authorized networks** — список CIDR, которым разрешён доступ по public IP.
-- **SSL/TLS** — может быть обязательным или опциональным; клиентские сертификаты.
-- **IAM database authentication** — вход токеном через Cloud SQL Auth Proxy; пользователь должен существовать как IAM-аккаунт или как DB-пользователь с флагом `cloudsql.iam_authentication`.
-- **Backups / on-demand backups** — снимки, которые можно восстановить в новый инстанс.
-- **Replicas** — read replicas, часто с более слабыми настройками.
-- **Connector / Auth Proxy** — рекомендованный способ подключения с IAM.
+## Данные, с которыми работаем
 
-## Инструменты и команды
+Разберём модель:
+- **Instance** — сервер с public IP (опционально) и private IP (через VPC);
+- **Authorized networks** — список CIDR, которым разрешён доступ по public IP;
+- **IAM database authentication** — вход токеном через Cloud SQL Auth Proxy;
+- **Backups / replicas** — снимки и копии, часто с более слабыми настройками.
 
-```bash
-# Инвентаризация
-gcloud sql instances list
-gcloud sql instances describe prod-db --format=json | jq '{ip:ipAddresses,settings:{ipConfiguration:.settings.ipConfiguration,dbFlags:.settings.databaseFlags}}'
-
-# Публичный IP и authorized networks
-gcloud sql instances describe prod-db \
-  --format='value(ipAddresses[].ipAddress,settings.ipConfiguration.authorizedNetworks)'
-
-# Пользователи и флаги
-gcloud sql users list --instance=prod-db
-gcloud sql instances describe prod-db --format='value(settings.databaseFlags)'
-
-# Подключение через Auth Proxy с IAM
-gcloud sql connect prod-db --user=appuser
-
-# Пароль в Secret Manager
-gcloud secrets versions access latest --secret=cloudsql-db-password
-
-# Бэкапы
-gcloud sql backups list --instance=prod-db
-gcloud sql backups describe BACKUP_ID --instance=prod-db
-```
-
-Через Auth Proxy:
+Начинаем с инвентаризации:
 
 ```bash
-# Запускаем прокси (нужен IAM-токен)
-cloud-sql-proxy --auto-iam-authn PROJECT_ID:us-central1:prod-db &
-psql -h 127.0.0.1 -U appuser -d app
+$ gcloud sql instances list
+NAME     DATABASE_VERSION  LOCATION       TIER
+prod-db  POSTGRES_15       us-central1    db-custom-2-7680
 ```
 
-## Разобранный пример: IAM database auth без пароля
-
-Сценарий: у нас есть право `cloudsql.instances.connect` и `roles/cloudsql.client`, а на инстансе включена IAM database authentication.
+Смотрим сеть и флаги:
 
 ```bash
-# 1. Проверяем флаг
-gcloud sql instances describe prod-db --format='value(settings.databaseFlags)'
-# [{'name': 'cloudsql.iam_authentication', 'value': 'on'}]
-
-# 2. Список пользователей — есть ли IAM-пользователи
-gcloud sql users list --instance=prod-db
-# NAME          HOST  TYPE
-# appuser             CLOUD_IAM_USER
-# postgres            BUILT_IN
-
-# 3. Подключаемся через Auth Proxy с auto-iam-authn (пароль не нужен)
-cloud-sql-proxy --auto-iam-authn PROJECT_ID:us-central1:prod-db &
-PGPASSWORD=$(gcloud auth print-access-token) \
-  psql -h 127.0.0.1 -U appuser -d app
-# app=>
+$ gcloud sql instances describe prod-db --format='value(settings.ipConfiguration.authorizedNetworks[].value)'
+0.0.0.0/0
+$ gcloud sql instances describe prod-db --format='value(settings.databaseFlags)'
+[{'name': 'cloudsql.iam_authentication', 'value': 'on'}]
 ```
 
-IAM database authentication выдаёт токен как пароль (короткоживущий, ~1 час). Это значит: утечка роли с `cloudsql.instances.connect` = вход в БД без пароля. Проверьте, какие IAM-пользователи существуют и какие роли у вашего аккаунта.
+Две важные находки: в authorized networks стоит **`0.0.0.0/0`** (доступ из интернета), и включён флаг **`cloudsql.iam_authentication`**. Значит, можно попробовать вход по токену.
 
-## Публичный доступ и authorized networks
-
-Классическая ошибка — `0.0.0.0/0` в authorized networks.
+## Шаг 1: проверяем пользователей
 
 ```bash
-gcloud sql instances describe prod-db \
-  --format='value(settings.ipConfiguration.authorizedNetworks[].value)'
-# 0.0.0.0/0
+$ gcloud sql users list --instance=prod-db
+NAME      HOST  TYPE
+appuser         CLOUD_IAM_USER
+postgres        BUILT_IN
 ```
 
-Тогда инстанс доступен из интернета, и остаётся только подобрать креды (или использовать IAM auth). Проверяйте также `requireSsl`:
+Пользователь `appuser` имеет тип **`CLOUD_IAM_USER`** — он аутентифицируется через IAM, а не по паролю.
+
+## Шаг 2: подключаемся без пароля
+
+Запускаем **Cloud SQL Auth Proxy** в режиме `--auto-iam-authn` — он сам подставит наш IAM-токен:
 
 ```bash
-gcloud sql instances describe prod-db --format='value(settings.ipConfiguration.requireSsl)'
-# False   -> трафик может идти без шифрования
+$ cloud-sql-proxy --auto-iam-authn acme-prod:us-central1:prod-db &
+$ PGPASSWORD=$(gcloud auth print-access-token) psql -h 127.0.0.1 -U appuser -d app
+app=>
 ```
 
-## Бэкапы, реплики и восстановление
+Паролем здесь служит **короткоживущий access token** (около часа). Никакого пароля мы не знали. Если у роли есть `cloudsql.instances.connect`, вход в базу доступен по одной лишь идентичности IAM.
 
+Читаем данные:
+
+```bash
+app=> SELECT email, role FROM users LIMIT 3;
+        email         | role
+----------------------+-------
+ admin@acme.com       | admin
+ billing@acme.com     | finance
+```
+
+## Полный прогон от начала до конца
+
+1. `instances list` → нашли `prod-db`.
+2. Описали сеть → `0.0.0.0/0`; флаги → IAM auth включён.
+3. `users list` → есть `CLOUD_IAM_USER`.
+4. Запустили Auth Proxy с `--auto-iam-authn` → вошли без пароля.
+
+## Если IAM auth нет: пароль из Secret Manager
+
+Когда IAM-аутентификация выключена, пароль часто лежит в **Secret Manager** (хранилище секретов GCP) или в переменных среды приложения:
+
+```bash
+$ gcloud secrets list --format='value(name)' | grep -iE 'sql|db|database'
+cloudsql-prod-password
+$ gcloud secrets versions access latest --secret=cloudsql-prod-password
+S3cr3t-Pr0d-!
+$ psql "host=34.1.2.3 port=5432 dbname=app user=postgres password=S3cr3t-Pr0d-! sslmode=require"
+app=#
+```
+
+`versions access latest` отдаёт текущее значение секрета. Если `requireSsl=false`, можно и без TLS. Часто пароль лежит не в Secret Manager, а в переменной среды Cloud Run/Functions или в `.env` внутри контейнера — тогда путь такой: получить RCE/SSRF в сервисе → прочитать переменные → подключиться к БД.
+
+## Если не сработало: клоны, реплики, бэкапы
+
+Даже без пароля и IAM можно добраться до данных через копии:
+
+```bash
+$ gcloud sql instances clone prod-db prod-clone
+$ gcloud sql users set-password postgres --instance=prod-clone --password='Pwn3d!'
+```
+
+Клон — быстрая копия, **не влияющая на прод**. Меняем на нём пароль и читаем данные. Аналогично:
+- **Read replica** — отдельный инстанс с копией, часто с собственным (публичным) IP и слабыми настройками.
 - **On-demand backup** — `gcloud sql backups create`; восстановление создаёт новый инстанс.
-- **PITR (point-in-time recovery)** — бинарные логи; восстановление на момент времени.
-- **Read replica** — отдельный инстанс с копией; часто имеет свой IP и более слабые настройки (в т.ч. публичный).
-- **Clone** — `gcloud sql instances clone` создаёт копию без влияния на прод (быстро и удобно для атакующего).
+- **PITR** (point-in-time recovery) — восстановление на момент времени по бинарным логам.
 
-```bash
-# Клонируем инстанс (если есть права)
-gcloud sql instances clone prod-db prod-clone
-# Затем меняем пароль и читаем данные
-gcloud sql users set-password postgres --instance=prod-clone --password='Pwn3d!'
-```
+## Обходы и edge cases
 
-## Обход защит и edge cases
-
-- **Private IP only.** Если публичного IP нет, нужен доступ в VPC (пивот). Auth Proxy изнутри VPC работает.
-- **SSL required.** При `requireSsl=true` клиент должен предъявить сертификат; с IAM auth это делается через proxy.
-- **CMEK.** Данные шифруются ключом KMS; чтение требует прав на ключ (обычно через сервисный аккаунт инстанса).
-- **VPC-SC.** Периметр блокирует доступ извне; нужен пивот.
-- **Connector.** Serverless (Cloud Run/Functions) подключаются через Serverless VPC Connector — проверяйте его сеть.
+- **Private IP only.** Если публичного IP нет — нужен доступ в VPC (пивот); Auth Proxy изнутри VPC работает.
+- **SSL required.** При `requireSsl=true` клиент предъявляет сертификат; с IAM auth это делает proxy.
+- **CMEK.** Данные шифруются ключом KMS — чтение требует прав на ключ (обычно через сервисный аккаунт инстанса).
+- **VPC-SC.** Периметр блокирует доступ извне — нужен пивот.
+- **Serverless connector.** Cloud Run/Functions подключаются через Serverless VPC Connector — проверяй его сеть.
 
 ## Частые ошибки и подводные камни
 
-- Считать, что «нет публичного IP» = нет доступа: реплики и клоны часто публичны.
-- Игнорировать IAM database auth: пароль не нужен, нужен токен.
-- Не проверить authorized networks `0.0.0.0/0`.
-- Забыть про Secret Manager как источник пароля.
-- Путать `cloudsql.client` (подключение) и `cloudsql.admin` (управление).
+- **Считать, что «нет публичного IP» = «нет доступа».** Реплики и клоны часто публичны.
+- **Игнорировать IAM database auth.** Пароль не нужен — нужен короткоживущий токен.
+- **Не проверить authorized networks.** `0.0.0.0/0` открывает инстанс всему интернету.
+- **Забывать про Secret Manager.** Пароль к БД часто лежит там (`versions access latest`).
+- **Путать `cloudsql.client` и `cloudsql.admin`.** Первое — подключение, второе — управление инстансом.
 
-## Защита и детект
+- **Не проверять `requireSsl`.** При `false` трафик может идти без шифрования.
+- **Забывать про read replicas.** У них часто свой публичный IP и более слабые настройки.
+- **Игнорировать Serverless VPC Connector.** Cloud Run/Functions подключаются к базе через него — проверяйте его сеть.
 
-- Не использовать `0.0.0.0/0`; ограничить authorized networks конкретными CIDR.
-- Требовать SSL и использовать IAM database auth с минимальными ролями.
-- Хранить пароли в Secret Manager с ограниченным доступом.
-- Ограничить `cloudsql.instances.connect`/`clone`; алертить на клонирование и изменение пользователей.
-- Включить audit logs и мониторинг аномальных подключений.
+- **Не проверять бэкапы.** `gcloud sql backups list` показывает снимки, из которых можно восстановить новый инстанс.
+- **Забывать про PITR.** Point-in-time recovery позволяет вернуть состояние на нужный момент по бинарным логам.
+- **Считать CMEK препятствием навсегда.** Иногда доступ к ключу есть у сервисного аккаунта инстанса — проверяйте.
 
-## Модель угроз и типовые мисконфиги
+## Что мы теперь знаем
 
-Типичный мисконфиг — `0.0.0.0/0` в authorized networks. Второй — `requireSsl=false`. Третий — IAM database auth с широкими ролями. Четвёртый — пароль в открытом Secret. Пятый — публичная read replica. Все они дают доступ к данным.
+- `0.0.0.0/0` в authorized networks = база доступна из интернета.
+- IAM database auth позволяет войти **токеном вместо пароля** (`CLOUD_IAM_USER`).
+- `cloud-sql-proxy --auto-iam-authn` подставляет IAM-токен как пароль.
+- Пароль часто лежит в Secret Manager (`versions access latest`) или в env сервиса.
+- `instances clone` даёт копию без влияния на прод; реплики и бэкапы — тоже пути.
+- `cloudsql.instances.connect` — вход, `cloudsql.admin` — управление.
 
-## Практическое задание
+## На что смотреть дальше
 
-1. Создайте Cloud SQL с публичным IP и ограничьте доступ своим CIDR.
-2. Включите IAM database authentication и подключитесь через `cloud-sql-proxy --auto-iam-authn`.
-3. Сделайте бэкап и восстановите из него новый инстанс.
-4. Создайте read replica и проверьте её сетевые настройки.
-
-## Что дальше / решение
-
-Из Cloud SQL достаём данные и секреты. Дальше — использовать их. Зафиксируйте путь «IAM auth/публичный инстанс → данные» в графе. При private-only без пивота — `blocked`. Для бэкапов ищите возможность клонирования.
-
-## Разобранный пример 2: пароль из Secret Manager
-
-Если IAM auth не включён, пароль часто лежит в Secret Manager или в переменных среды приложения.
-
-```bash
-# Ищем секрет с паролем БД
-gcloud secrets list --format='value(name)' | grep -iE 'sql|db|database'
-# cloudsql-prod-password
-
-gcloud secrets versions access latest --secret=cloudsql-prod-password
-# S3cr3t-Pr0d-!
-
-# Подключаемся по публичному IP (если authorized networks разрешает)
-psql "host=34.1.2.3 port=5432 dbname=app user=postgres password=S3cr3t-Pr0d-! sslmode=require"
-# app=#
-
-# Или без SSL, если requireSsl=false
-mysql -h 34.1.2.3 -u root -p'S3cr3t-Pr0d-!' app
-```
-
-Часто пароль к БД лежит не в Secret Manager, а в переменной среды Cloud Run/Functions или в файле `.env` внутри контейнера. Тогда путь такой: получить RCE/SSRF в сервисе → прочитать переменные → подключиться к БД. Проверяйте оба варианта.
-
-## Практическое задание
-
-1. Создайте Cloud SQL с паролем в Secret Manager и публичным IP.
-2. Выдайте роль `secretmanager.secretAccessor` на секрет и прочитайте пароль.
-3. Подключитесь к БД и убедитесь, что доступ есть.
-4. Отключите публичный IP и проверьте, что подключение извне падает.
+- **cloud-network-security**: сетевые барьеры GCP и как их обходить.
+- **api-gateway**: публичные API-шлюзы и их мисконфиги.
+- **cloud-enum-methodology**: инструменты разведки облака.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что нужно для входа через IAM database authentication?"
@@ -217,11 +189,23 @@ mysql -h 34.1.2.3 -u root -p'S3cr3t-Pr0d-!' app
   options:
     - "В Secret Manager"
     - "В CloudTrail"
-    - "В VPC"
+    - "В объекте VPC"
     - "В KMS"
   answer: 0
   explanation: "Приложения хранят пароль в Secret Manager или переменных среды."
+- question: "Почему тип пользователя CLOUD_IAM_USER важен?"
+  options:
+    - "Он аутентифицируется через IAM, а не по паролю"
+    - "Он всегда администратор"
+    - "Он не может подключаться"
+    - "Он хранит пароль в открытом виде"
+  answer: 0
+  explanation: "Такой пользователь входит токеном, сгенерированным из IAM-идентичности."
 ```
+
+## Куда дальше
+
+В следующем уроке мы займёмся **сетевой безопасностью облака** — security groups, NACL и firewall, — и разберём, как обходить сетевые барьеры. А пока главное запомни: **в Cloud SQL пароль часто не нужен вовсе** — IAM-токен и правильная роль дают вход, а клоны и реплики открывают данные в обход прода.
 
 ## Где пригодится
 

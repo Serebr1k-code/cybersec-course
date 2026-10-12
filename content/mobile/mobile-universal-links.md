@@ -14,297 +14,195 @@ estimated_minutes: 42
 summary: "Как работают Universal Links (iOS) и App Links (Android), проверка ассоциации домена, типовые ошибки конфигурации, перехват и подмена ссылок, кража OAuth-кода через редирект."
 ---
 
-## Чем Universal Links отличаются от custom scheme
+## Вопрос, с которого всё начинается
 
-Custom URL scheme (`myapp://path`) — это произвольная схема, которую приложение регистрирует. Проблема: схему может зарегистрировать **любое** приложение, и система не знает, какое настоящее. Universal Links (iOS) и App Links (Android) решают это: они привязывают обычные `https://` ссылки к приложению через файл ассоциации на домене. Если ссылка `https://example.com/product/42` открывается — система сначала проверит, ассоциировано ли приложение с `example.com`, и только потом откроет приложение, иначе — браузер.
+Приложение хочет, чтобы ссылка `https://demo.example/app/open?id=1` открывалась именно в нём, а не в Safari. Для этого Apple придумала **Universal Links** — механизм, который привязывает обычный `https`-домен к приложению. Но если привязка настроена неправильно, ссылка либо не сработает, либо откроет то, что не должна.
 
-Это важное отличие для безопасности: Universal Links нельзя перехватить чужим приложением, если ассоциация настроена корректно. Но ассоциация настраивается на **сервере** (домене), и ошибки там приводят к тому, что защита не работает.
+Как проверить, что Universal Links настроены корректно и безопасно?
 
-## iOS: apple-app-site-association (AASA)
+## Наш пример: DemoApp и домен demo.example
 
-iOS забирает файл `https://example.com/.well-known/apple-app-site-association` (без расширения, `Content-Type: application/json`). Формат:
+В `Info.plist` нашего `DemoApp` есть права на Universal Links (в реальном приложении они задаются через entitlement `associated-domains`). Логика такая: iOS открывает `https://demo.example/...` в приложении только если домен подтвердил связь через специальный файл **AASA** (`apple-app-site-association`).
 
-```json
+## Шаг 1: что такое AASA
+
+AASA — это JSON-файл, который домен отдаёт по строгому пути:
+
+```
+https://<domain>/.well-known/apple-app-site-association
+```
+
+Важные требования: отдаётся по **HTTPS**, **без редиректов**, с `Content-Type: application/json`, и **без** расширения `.json` в имени. Посмотрим содержимое:
+
+```
+$ curl -s https://demo.example/.well-known/apple-app-site-association | jq .
 {
   "applinks": {
-    "apps": [],
     "details": [
-      {
-        "appIDs": ["TEAMID.com.example.app"],
-        "components": [
-          { "/": "/product/*", "comment": "product pages" },
-          { "/": "/oauth/*" }
-        ]
-      }
+      { "appID": "TEAMID.com.demo.secapp",
+        "paths": ["/app/*", "/pay/*"] }
     ]
   }
 }
 ```
 
-Проверка на стороне iOS:
-1. При установке приложения iOS скачивает AASA (по HTTPS, без редиректов).
-2. Сопоставляет `appIDs` с entitlements приложения (`associated-domains`).
-3. Регистрирует соответствие домен↔приложение.
-4. При открытии ссылки — отдаёт её приложению, если домен ассоциирован.
+`appID` — это `TeamID.BundleID`, идентификатор приложения. `paths` — список путей домена, которые открывают приложение. Проверять заголовки тоже нужно:
 
-Entitlements приложения:
-
-```xml
-<key>com.apple.developer.associated-domains</key>
-<array>
-  <string>applinks:example.com</string>
-</array>
+```
+$ curl -sI https://demo.example/.well-known/apple-app-site-association
+HTTP/2 200
+content-type: application/json
 ```
 
-Проверяем: `codesign -d --entitlements :- MyApp`.
+Если видишь `301`/`302` или `text/html` — iOS проигнорирует файл, и Universal Links не заработают.
 
-## Android: App Links и assetlinks.json
+## Шаг 2: как проверить связь
 
-Android использует `https://example.com/.well-known/assetlinks.json`:
+Проверка связи (association) кэшируется устройством, поэтому после изменений AASA её иногда нужно сбрасывать. Быстрый способ проверить поведение — открыть ссылку в симуляторе:
 
-```json
-[{
-  "relation": ["delegate_permission/common.handle_all_urls"],
-  "target": {
-    "namespace": "android_app",
-    "package_name": "com.example.app",
-    "sha256_cert_fingerprints": [
-      "AA:BB:CC:...:FF"
-    ]
-  }
-}]
+```
+$ xcrun simctl openurl booted "https://demo.example/app/open?id=1"
 ```
 
-В `AndroidManifest.xml` intent-filter должен иметь `android:autoVerify="true"`:
+Если приложение открылось и показало нужный экран — связь работает. Если открылся Safari — привязка не прошла (проверь AASA и entitlement).
 
-```xml
+## Шаг 3: сравнение с Android App Links
+
+Android-аналог Universal Links называется **App Links** и настраивается файлом `assetlinks.json`:
+
+```
+$ curl -s https://demo.example/.well-known/assetlinks.json | jq .
+[
+  { "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": { "namespace": "android_app",
+                "package_name": "com.demo.secapp",
+                "sha256_cert_fingerprints": ["AB:CD:..."] } }
+]
+```
+
+Ключевое отличие: App Links привязывают домен к **отпечатку сертификата** приложения (`sha256_cert_fingerprints`). Если приложение переподписано другим ключом (например, для теста), привязка ломается. В манифесте Android это включается флагом `android:autoVerify="true"` в intent-filter:
+
+```
 <intent-filter android:autoVerify="true">
-  <action android:name="android.intent.action.VIEW"/>
-  <category android:name="android.intent.category.DEFAULT"/>
-  <category android:name="android.intent.category.BROWSABLE"/>
-  <data android:scheme="https" android:host="example.com" android:pathPrefix="/product"/>
+  <data android:scheme="https" android:host="demo.example" android:pathPrefix="/app"/>
 </intent-filter>
 ```
 
-Проверка ассоциации на устройстве:
+## Шаг 4: типичные ошибки настройки
 
-```bash
-adb shell pm get-app-links com.example.app
-# com.example.app:
-#   User 0:
-#     https://example.com: verified
+Разберём, что ломает Universal Links и что при этом создаёт риск:
+
+- **AASA недоступен или за редиректом** — привязка не проходит, ссылки открываются в Safari.
+- **Слишком широкий `paths`** (например, `"*"`) — приложение перехватывает все ссылки домена, включая те, что должны вести на сайт.
+- **`appID` с опечаткой** — неверный TeamID/BundleID, связь не подтверждается.
+- **Отсутствие entitlement `associated-domains`** — приложение не заявляет домен, iOS его не открывает.
+- **Обработка без валидации** — даже получив ссылку, приложение должно проверить параметры.
+
+Широкий `paths` — это находка: он расширяет поверхность атаки, позволяя открывать в приложении неожиданные URL.
+
+## Шаг 5: отладка привязки
+
+Если Universal Links не работают, привязку нужно отладить. iOS кэширует AASA, поэтому после правок файла на устройстве может остаться старая копия. Сбросить привязку можно, переустановив приложение или изменив версию сборки. Проверить, видит ли устройство ассоциацию, помогает консоль: в системном логе появляются записи о скачивании AASA и об ошибках парсинга. На Linux вместо консоли используют `idevicesyslog`, отфильтровав по имени домена.
+
+Практический порядок отладки такой. Сначала проверяем AASA через `curl` — доступен, 200, JSON. Затем сверяем `appID` с реальным `TeamID.BundleID` приложения. Потом убеждаемся, что в приложении есть entitlement `associated-domains` с доменом вида `applinks:demo.example`. И только затем тестируем `simctl openurl`. Если всё верно, но ссылка открывается в Safari — сбрасываем кэш ассоциации. Не забывай проверять и то, что ссылка открывается именно с нужным действием: привязка может работать, а обработчик — игнорировать параметры.
+
+## Шаг 6: таблица тест-кейсов
+
+Соберём короткий чек-лист проверки Universal Links:
+
+| Что проверяем | Как |
+|---------------|-----|
+| AASA доступен | `curl -sI .../apple-app-site-association` |
+| Без редиректа | код ответа 200, не 3xx |
+| `Content-Type` JSON | заголовок ответа |
+| `appID` корректен | сравнить с BundleID |
+| `paths` не слишком широки | анализ шаблонов |
+| Открытие работает | `simctl openurl booted` |
+| Android-аналог | `curl .../assetlinks.json` |
+
+## Шаг 7: что делать с находками
+
+Если Universal Links настроены с широким `paths` или приложение обрабатывает ссылки без проверки — это цепочка: внешняя ссылка → приложение → опасное действие. Свяжи находку с `mobile-ios-urlscheme` (open redirect) и `mobile-ios-oauth-sso` (перехват OAuth-колбэка). В отчёте покажи конкретный URL и последствие.
+
+## Шаг 8: безопасность на стороне домена
+
+Universal Links — это ещё и вопрос инфраструктуры. Если злоумышленник получит контроль над доменом (например, через поддомен-приложение с ошибкой или устаревший DNS-запись), он сможет отдавать свой AASA и перехватывать ссылки. Поэтому в аудите проверяют: кто владеет доменом, нет ли «висящих» CNAME, отдаётся ли AASA с того же хоста, что и приложение. Отдельно смотрят на CDN: если AASA кэшируется слишком долго, изменения политики безопасности не вступят в силу вовремя. Всё это — часть общей модели: связка домена и приложения держится на доверии к домену.
+
+## Шаг 9: проверяем AASA перед публикацией
+
+Файл `apple-app-site-association` должен лежать в корне домена по HTTPS, **без** расширения `.json`, с `Content-Type: application/json`. Перед публикацией его полезно распарсить локально — ошибки в `appID` и в исключениях `NOT` встречаются постоянно:
+
+```
+$ python3 -c "import json; d=json.load(open('apple-app-site-association')); det=d['applinks']['details'][0]; print('appID =', det['appID']); print('paths =', det['paths'])"
+appID = ABCDE12345.com.demo.sec
+paths = ['/open/*', 'NOT /admin/*']
 ```
 
-## Типовые ошибки конфигурации
+`appID` — это Team ID (`ABCDE12345`) и bundle id через точку; если Team ID чужой, система не свяжет домен с приложением, и ссылки уйдут в Safari. `NOT /admin/*` исключает чувствительные пути — их приложению отдавать не нужно. Помни, что AASA кешируется: после правки проверяй привязку на реальном устройстве, а не только в браузере.
 
-- **AASA отдаётся с редиректом** — iOS не следует редиректам при скачивании, ассоциация не встанет.
-- **Неверный Content-Type** — файл должен быть `application/json`.
-- **Пропущены `components`** — старая форма `paths` работает, но менее гибкая.
-- **assetlinks с устаревшим отпечатком** — после смены ключа подписи ассоциация ломается.
-- **`autoVerify` отсутствует** — ссылка открывается в диалоге выбора, а не сразу.
-- **Домен в `associated-domains` не совпадает** с доменом в AASA.
-- **Ссылка ведёт на чужой домен** — приложение обрабатывает URL без проверки хоста.
+## Что мы теперь знаем
 
-## Перехват и подмена
-
-Даже корректная ассоциация не спасает, если приложение доверяет параметрам ссылки. Основные векторы:
-
-1. **Open redirect на ассоциированном домене.** Если `https://example.com/r?url=https://evil.com` делает редирект, злоумышленник может провести пользователя через доверенный домен.
-2. **Обработка произвольного URL.** Приложение берёт `target` из ссылки и грузит его в WebView — классический путь к XSS/краже токена.
-3. **Подмена custom scheme fallback.** Если приложение поддерживает и `myapp://`, и Universal Link, а custom scheme перехватывается, fallback открывает дыру.
-4. **Path traversal в маршрутизации.** `/product/../../admin` может обойти проверки путей.
-
-Проверка на устройстве:
-
-```bash
-# iOS Simulator: открыть ссылку
-xcrun simctl openurl booted "https://example.com/product/../../admin"
-# Android
-adb shell am start -a android.intent.action.VIEW \
-  -d "https://example.com/product/../../admin" com.example.app
-```
-
-## Кража OAuth-кода через редирект
-
-Самый ценный сценарий. OAuth-поток на мобильном использует `redirect_uri`. Если это custom scheme (`myapp://oauth`) — его может перехватить другое приложение. Если Universal Link (`https://example.com/oauth`) — перехват сложнее, но:
-
-- Если `redirect_uri` **не проверяется** на сервере строго, можно подставить свой.
-- Если приложение открывает `redirect_uri` из ответа без валидации хоста — код утечёт.
-- Если используется **implicit flow** (токен в fragment), он утекает в WebView/логи.
-
-Проверьте:
-
-```bash
-# перехватить редирект через прокси и посмотреть redirect_uri
-# убедиться, что code привязан к PKCE code_verifier
-```
-
-PKCE обязателен: без него перехваченный `code` можно обменять на токен. Проверяйте, что приложение отправляет `code_challenge` и `code_verifier`.
-
-## Динамический анализ ссылок
-
-Frida-хук на обработку открытия URL (iOS):
-
-```javascript
-// AppDelegate: application:openURL:options:
-var AppDelegate = ObjC.classes.AppDelegate;
-if (AppDelegate && AppDelegate['- application:openURL:options:']) {
-  Interceptor.attach(AppDelegate['- application:openURL:options:'].implementation, {
-    onEnter: function (args) {
-      var url = new ObjC.Object(args[2]);
-      console.log("[openURL] " + url.absoluteString().toString());
-    }
-  });
-}
-```
-
-Android — хук `onNewIntent`/`getIntent().getData()`:
-
-```javascript
-Java.perform(function () {
-  var Activity = Java.use("android.app.Activity");
-  Activity.onNewIntent.implementation = function (intent) {
-    console.log("[onNewIntent] data=" + intent.getData());
-    return this.onNewIntent(intent);
-  };
-});
-```
-
-Так вы видите, какие ссылки реально приходят и как парсятся.
-
-## Частые ошибки и подводные камни
-
-- **AASA не кешируется сразу** — после правки может пройти время или нужна переустановка.
-- **Симулятор iOS не проверяет ассоциацию строго** — тестируйте на устройстве.
-- **Android может показать диалог выбора** — если несколько приложений претендуют на домен.
-- **`assetlinks` по http** — не сработает, только https.
-- **Ссылка без `pathPrefix`** перехватывает весь домен — риск.
-
-## Справочная таблица
-
-| Платформа | Файл ассоциации | Проверка | Manifest/entitlement |
-|-----------|-----------------|----------|----------------------|
-| iOS | /.well-known/apple-app-site-association | codesign entitlements | associated-domains |
-| Android | /.well-known/assetlinks.json | pm get-app-links | intent-filter autoVerify |
-
-## Что дальше / решение
-
-Проверьте ассоциацию (AASA/assetlinks), затем — обработку параметров ссылки: open redirect, загрузку URL в WebView, path traversal, OAuth redirect_uri. Любая обработка URL без валидации хоста — находка. Дальше — `mobile-ios-oauth-sso` (OAuth/SSO) и `mobile-deeplink-rce` (RCE через deep link).
-
-## Глубокая проверка ассоциации домена
-
-Проверку ассоциации стоит делать по шагам, потому что ошибка может быть на любом из них.
-
-Шаг 1 — доступность и формат файла:
-
-```bash
-curl -sI https://example.com/.well-known/apple-app-site-association
-# HTTP/2 200, content-type: application/json
-curl -s  https://example.com/.well-known/assetlinks.json | jq .
-```
-
-Шаг 2 — соответствие teamID/package:
-
-```bash
-# iOS: appID в AASA = TEAMID.bundle_id из entitlements
-codesign -d --entitlements :- MyApp | grep -A2 application-identifier
-# Android: fingerprint в assetlinks = SHA-256 подписи APK
-keytool -printcert -jarfile app.apk | grep SHA256
-```
-
-Если отпечаток в `assetlinks.json` не совпадает с подписью установленного APK — ассоциация не встанет, и ссылки будут открываться в браузере (а значит, deep link не работает как задумано — иногда это находка сама по себе).
-
-Шаг 3 — проверка на устройстве:
-
-```bash
-adb shell pm get-app-links --user 0 com.example.app
-# если "verified" — ассоциация есть; если "none"/"disabled" — нет
-```
-
-## Атаки на маршрутизацию ссылок
-
-Universal Links ведут на маршрутизатор приложения, который разбирает путь и решает, какой экран открыть. Ошибки в маршрутизации — главный источник уязвимостей.
-
-- **Path traversal:** `https://example.com/product/../../admin` — если роутер нормализует не полностью, можно открыть привилегированный экран.
-- **Подмена параметра:** `?url=https://evil.com` — если приложение грузит URL из параметра, получаем open redirect и потенциальный XSS в WebView.
-- **Утечка токена в path:** `https://example.com/reset/TOKEN` — токен попадает в логи прокси, Referer, историю.
-- **Case-sensitivity:** `/Admin` может не совпасть с проверкой `/admin`, но сервер обработает.
-
-Пример проверки через adb:
-
-```bash
-for p in "product/../../admin" "product/%2e%2e%2fadmin" "product/..%2fadmin"; do
-  echo "== $p"
-  adb shell am start -a android.intent.action.VIEW \
-    -d "https://example.com/$p" com.example.app
-done
-```
-
-## Логирование, Referer и утечки
-
-Universal Links — это ещё и канал утечки: URL может содержать токен или PII, а система логирует открытие. Проверяйте:
-
-```bash
-# iOS: смотреть логи открытия ссылок
-xcrun simctl spawn booted log stream --predicate 'eventMessage CONTAINS "openURL"'
-# Android: logcat по ActivityManager
-adb logcat -s ActivityManager:I | grep -i "VIEW"
-```
-
-Если в логи попадает полный URL с токеном — это утечка. Также проверяйте, что `Referer` при переходе на внешние ресурсы не содержит чувствительный путь.
-
-## Сравнение iOS и Android поведения
-
-| Аспект | iOS (Universal Links) | Android (App Links) |
-|--------|----------------------|---------------------|
-| Файл | apple-app-site-association | assetlinks.json |
-| Content-Type | application/json | application/json |
-| Редиректы | не следуют | не следуют |
-| Проверка | при установке | при установке / периодически |
-| Отпечаток | teamID | SHA-256 сертификата |
-| Fallback | браузер Safari | браузер / диалог |
-
-Знание различий важно при кроссплатформенных приложениях: одна и та же ссылка может вести себя по-разному на двух платформах, и ошибка конфигурации на одной из них остаётся незамеченной.
-
-## Итоговый чек-лист проверки ссылок
-
-Практическая последовательность: получить файл ассоциации и убедиться в корректном Content-Type и отсутствии редиректов; сверить teamID или отпечаток сертификата с подписью приложения; проверить `autoVerify`/`associated-domains`; на устройстве подтвердить статус ассоциации; перебрать маршруты на path traversal и подмену параметров; проверить `redirect_uri` в OAuth-потоке; посмотреть логи и `Referer` на предмет утечки токенов. Любой шаг, который ломается, — кандидат в находку: либо нарушенная ассоциация (ссылка уходит в браузер), либо обработка URL без валидации хоста.
+- Universal Links привязывают `https`-домен к приложению через AASA.
+- AASA отдаётся по `/.well-known/apple-app-site-association` по HTTPS, без редиректов.
+- `appID` — это `TeamID.BundleID`, а `paths` — список путей.
+- Android-аналог — App Links (`assetlinks.json`), привязка по отпечатку сертификата.
+- Широкий `paths` и отсутствие валидации — типичные уязвимости.
+- Проверять связь удобно через `simctl openurl`.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Почему Universal Links безопаснее custom URL scheme?"
+- question: По какому пути домен отдаёт AASA?
   options:
-    - "Домен ассоциируется с приложением через файл на сервере, схему нельзя перехватить чужим приложением"
-    - "Они шифруют трафик"
-    - "Они работают без интернета"
-    - "Они хранят пароли в Keychain"
-  answer: 0
-- question: "Какой файл проверяет iOS для ассоциации домена?"
-  options:
+    - "/apple-app-site-association.json"
     - "/.well-known/apple-app-site-association"
-    - "/.well-known/assetlinks.json"
-    - "/robots.txt"
-    - "/manifest.json"
-  answer: 0
-- question: "Что делает атрибут autoVerify в Android intent-filter?"
+    - "/applinks.json"
+    - "/aasa.xml"
+  answer: 1
+  explanation: "Файл должен лежать в /.well-known/ и без расширения .json."
+- question: Что означает поле appID в AASA?
   options:
-    - "Заставляет Android проверить ассоциацию домена с приложением"
-    - "Шифрует intent"
-    - "Включает Bluetooth"
-    - "Подписывает APK"
-  answer: 0
-- question: "Что критично для защиты OAuth-кода при мобильном редиректе?"
+    - "Имя приложения"
+    - "TeamID.BundleID приложения"
+    - "Версию iOS"
+    - "Пароль"
+  answer: 1
+  explanation: "appID связывает домен с конкретным приложением по Team ID и Bundle ID."
+- question: Почему редирект на AASA ломает Universal Links?
   options:
-    - "PKCE (code_challenge/code_verifier) и строгая проверка redirect_uri"
-    - "Публичный client_secret в APK"
-    - "Отключение TLS"
-    - "Длинный User-Agent"
+    - "Файл становится больше"
+    - "iOS ожидает прямой ответ 200 без редиректов"
+    - "Меняется Content-Type"
+    - "Он не ломает"
+  answer: 1
+  explanation: "Apple требует отдавать AASA напрямую, без 3xx-редиректов."
+- question: Чем Android App Links отличается от Universal Links?
+  options:
+    - "Он использует assetlinks.json и привязку по отпечатку сертификата"
+    - "Он не использует HTTPS"
+    - "Он не проверяет домен"
+    - "Он работает только на iOS"
   answer: 0
+  explanation: "App Links проверяют sha256_cert_fingerprints приложения через assetlinks.json."
+- question: Чем опасен слишком широкий paths в AASA?
+  options:
+    - "Замедляет приложение"
+    - "Приложение перехватывает больше ссылок, чем нужно, расширяя поверхность атаки"
+    - "Ломает HTTPS"
+    - "Ничем"
+  answer: 1
+  explanation: "Шаблон вроде '*' открывает в приложении все ссылки домена, включая неожиданные."
 ```
+
+## Куда дальше
+
+Universal Links — это «вход» в приложение. Дальше разберём, как в приложение внедрить собственный код: в следующем уроке `mobile-ios-dylib-injection` мы подгрузим свою библиотеку через `insert_dylib`. А пока главное запомни: Universal Links держатся на AASA, и любая ошибка в нём либо ломает ссылки, либо создаёт уязвимость.
 
 ## Где пригодится
 
-- **CTF:** задачи с перехватом ссылок и OAuth.
-- **Bug bounty:** open redirect, кража токена через custom scheme.
-- **Пентест:** аудит deep link / Universal Links конфигурации.
+- **Пентест:** анализ deep link-поверхности и привязки доменов.
+- **Bug bounty:** широкий paths и отсутствие валидации — частые находки.
+- **CTF:** задачи, где флаг приходит через Universal Link.
+- **Аудит:** проверка корректности AASA и App Links.

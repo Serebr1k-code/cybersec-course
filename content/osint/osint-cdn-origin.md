@@ -14,242 +14,204 @@ estimated_minutes: 62
 summary: "Как определить CDN/WAF, найти настоящий origin через исторический DNS, CT, favicon, поддомены, прямые порты и утечки; проверка через Host-заголовок и риски."
 ---
 
-CDN (Cloudflare, Akamai, Fastly, CloudFront) прячет реальный сервер и защищает WAF. Для пентеста/баг-баунти важно найти **origin** — настоящий IP, на котором крутится приложение, потому что WAF можно обойти, обратившись напрямую. Разведка origin — отдельный навык, который часто определяет успех всего тестирования.
+## Вопрос, с которого всё начинается
 
-## Как определить CDN/WAF
+Домен `api.example.com` отвечает, но за ним стоит Cloudflare. CDN прячет настоящий сервер и фильтрует атаки через WAF. Как найти **origin** — реальный IP, на котором крутится приложение?
 
-- **CNAME**: `dig +short www.example.com` → `*.cloudflare.net`, `*.akamaiedge.net`, `*.cloudfront.net`, `*.fastly.net`.
-- **Заголовки ответа**: `Server: cloudflare`, `cf-ray`, `x-akamai-transformed`, `x-amz-cf-id`, `x-served-by: cache-...`.
-- **ASN**: IP принадлежит AS13335 (Cloudflare), AS20940 (Akamai), AS16509 (Amazon), AS54113 (Fastly).
-- **Cookie**: `__cfduid`/`__cf_bm` (Cloudflare), `ak_bmsc` (Akamai), `visid_incap` (Imperva).
-- **Поведение**: при прямом запросе по IP без Host сайт не отдаётся (CDN-узлы отдают 403/redirect).
+Это важно, потому что WAF можно обойти, обратившись к origin напрямую. Поиск origin — отдельный навык, который часто определяет успех всего тестирования. Разберём его на одном домене.
+
+## Наш пример: api.example.com за Cloudflare
+
+Работаем с одним объектом — `api.example.com`. Задача: определить, что это действительно CDN, и найти настоящий сервер. Не трогаем инфраструктуру провайдера — CDN-узлы нам не принадлежат и вне scope.
+
+## Шаг 1: определяем, что это CDN/WAF
+
+Сначала убеждаемся, что за доменом стоит именно CDN. Смотрим DNS и заголовки ответа.
 
 ```bash
 dig +short www.example.com
-curl -sI https://www.example.com | grep -iE 'server|cf-ray|x-akamai|x-amz-cf|x-served-by|set-cookie'
-whois $(dig +short www.example.com | head -1) | grep -iE 'netname|orgname|origin'
+curl -sI https://api.example.com | grep -iE 'server|cf-ray|x-akamai|x-amz-cf|x-served-by'
 ```
 
-## Источники origin-IP
+```
+104.16.132.229
+server: cloudflare
+cf-ray: 8f3a2b1c9d7e-LHR
+```
 
-1. **Исторический DNS** (SecurityTrails, RiskIQ, ViewDNS DNS History): IP до переезда в CDN.
-2. **Certificate Transparency** (crt.sh, Censys): сертификат мог быть выдан на прямой IP или внутреннее имя.
-3. **Favicon-хэш**: поиск в Shodan/FOFA находит тот же сервер вне CDN (см. урок про favicon).
-4. **Скан по сертификату**: Censys по имени в TLS-сертификате.
-5. **Поддомены**: `dev`, `staging`, `mail`, `ftp`, `direct`, `origin`, `cpanel` часто **не** за CDN и указывают на тот же origin.
-6. **SPF/MX**: почтовые серверы часто на том же хостинге, что и origin.
-7. **Утечки**: конфиги, `.git`, CI-логи, paste-сайты с внутренним IP.
-8. **Сторонние сервисы**: favicon через `shodan`, JARM-фингерпринт, анализ TLS-параметров.
+Заголовок `cf-ray` однозначно указывает на Cloudflare. Другие признаки по провайдерам:
+
+| Заголовок или признак | Провайдер |
+|-----------------------|-----------|
+| `server: cloudflare`, `cf-ray` | Cloudflare |
+| `server: AkamaiGHost`, `x-akamai-transformed` | Akamai |
+| `x-amz-cf-id`, `via: ...cloudfront.net` | CloudFront |
+| `x-served-by: cache-*`, `x-fastly-request-id` | Fastly |
+| `x-iinfo`, `visid_incap` | Imperva |
+
+Дополнительно проверяем ASN: Cloudflare — AS13335, Akamai — AS20940, CloudFront — AS16509, Fastly — AS54113.
+
+## Шаг 2: исторический DNS — первый источник origin
+
+Раньше домен мог резолвиться напрямую, до переезда под CDN. Эти адреса остались в истории.
 
 ```bash
-# исторический DNS (SecurityTrails API)
-curl -s "https://api.securitytrails.com/v1/history/www.example.com/dns/a" \
-  -H "APIKEY: $ST_KEY" | python3 -m json.tool
+curl -s "https://api.securitytrails.com/v1/history/api.example.com/dns/a" \
+  -H "APIKEY: $ST_KEY" | jq -r '.records[].values[].ip'
+```
 
-# crt.sh: все имена с этим доменом (часто выдаёт внутренние хосты)
+```
+203.0.113.10
+104.16.132.229
+```
+
+Отбрасываем адрес Cloudflare (`104.16.x.x`) и получаем кандидата `203.0.113.10` — адрес вне сети CDN.
+
+## Шаг 3: CT-логи и поддомены — второй источник
+
+Certificate Transparency хранит все имена, на которые выдавались сертификаты, включая внутренние.
+
+```bash
 curl -s "https://crt.sh/?q=%25.example.com&output=json" \
-  | python3 -c 'import sys,json;print(sorted({n for r in json.load(sys.stdin) for n in r["name_value"].split("\n")}))'
+  | jq -r '.[].name_value' | tr '[:upper:]' '[:lower:]' | sort -u
 ```
 
-## Проверка origin
+```
+dev.api.example.com
+origin.api.example.com
+api.example.com
+```
 
-Найденный IP не обязательно origin. Проверяйте через Host-заголовок:
+Имя `origin.api.example.com` — почти прямая подсказка. Резолвим его:
 
 ```bash
-# прямой запрос к IP с Host целевого домена
-curl -skI https://<ip>/ -H 'Host: www.example.com'
-
-# сравните с ответом через CDN
-curl -skI https://www.example.com/
-
-# если контент/заголовки совпадают — вероятный origin
+dig +short origin.api.example.com
 ```
 
-Иногда origin отвечает только по HTTP или требует SNI — используйте `openssl s_client -servername`:
+```
+203.0.113.10
+```
+
+Совпало с историческим DNS — уверенность растёт. Поддомены `dev`, `staging`, `mail`, `direct`, `origin` часто **не** за CDN.
+
+## Шаг 4: проверяем кандидата через заголовок Host
+
+Найденный IP ещё не гарантированно origin. Проверяем, отвечает ли он на целевой домен: делаем запрос к IP, но в заголовке `Host` указываем имя.
 
 ```bash
-openssl s_client -connect <ip>:443 -servername www.example.com </dev/null 2>/dev/null \
-  | openssl x509 -noout -subject -ext subjectAltName
+curl -skI "https://203.0.113.10/" -H 'Host: api.example.com' | head -5
 ```
 
-Некоторые origin настроены требовать **секретный заголовок** от CDN (Cloudflare Authenticated Origin Pulls, `X-Forwarded-For` проверка). Тогда прямой запрос вернёт 403 — это тоже сигнал, что вы нашли origin.
+```
+HTTP/2 200
+server: nginx
+x-api-version: v3
+```
 
-## Обход WAF и риски
-
-- Прямой доступ к origin обходит WAF → инъекции/SQLi, которые «резал» WAF, могут сработать.
-- Проверяйте, не блокирует ли origin запросы без Host/CDN-заголовка.
-- **Юридически и этически**: доступ к origin в рамках scope разрешён; вне scope — нет. Не атакуйте инфраструктуру провайдера (CDN-узлы — собственность Cloudflare/Akamai).
-- Если origin в другом ASN/у другого хостера, убедитесь, что он всё ещё в scope программы.
-
-## Инструменты
-
-- **CloudFlair** (`cloudflair.py`) — поиск origin через Shodan/Censys по сертификатам.
-- **CloudPeler / CrimeFlare** — поиск по историческому DNS и сертификатам.
-- **bypass-firewalls-by-DNS-history** — исторический DNS в один прогон.
-- **SecurityTrails / ViewDNS** — история DNS.
-- **Shodan/FOFA** — favicon и cert-поиск.
+Ответ совпал с тем, что отдаёт домен через CDN, — origin найден. Проверить можно и по телу ответа:
 
 ```bash
-# пример: CloudFlair по домену
-python3 cloudflair.py example.com
-# пример: DNS history
-python3 bypass-firewalls-by-DNS-history.py -d example.com
+curl -sk "https://203.0.113.10/" -H 'Host: api.example.com' | sha256sum
+curl -sk "https://api.example.com/" | sha256sum
 ```
 
-## Разбор кейса
+Иногда origin настроен требовать секретный заголовок от CDN (Authenticated Origin Pulls) — тогда прямой запрос вернёт `403`. Это тоже сигнал, что сервер найден.
 
-Задача: обойти Cloudflare у `api.example.com`.
+## Шаг 5: другие источники origin
 
-1. `dig` → CNAME на Cloudflare, AS13335.
-2. crt.sh → находим `dev.api.example.com`, `origin.api.example.com`.
-3. `dig origin.api.example.com` → IP `203.0.113.10` вне Cloudflare.
-4. `curl -sk https://203.0.113.10/ -H 'Host: api.example.com'` → отдаёт API-ответ.
-5. Проверяем исторический DNS → подтверждение. Origin найден.
-6. Тестируем уязвимость (в рамках scope) напрямую, минуя WAF.
+Если первые два не сработали, подключаем остальные:
 
-## Частые ошибки
+- **Favicon-хэш:** поиск иконки в Shodan/FOFA находит сервер вне CDN.
+- **SPF/MX:** `dig TXT example.com | grep ip4:` — почтовый сервер часто на том же хостинге.
+- **Утечки:** `.git/config`, CI-логи, JS-бандлы с `sourceMappingURL`, paste-сайты.
+- **Сторонние сервисы:** CloudFlair, CloudFail — автоматизируют поиск по сертификатам и истории.
 
-- **Путать CDN-IP с origin**: сначала проверьте ASN и заголовки.
-- **Останавливаться на одном источнике**: origin может быть найден только комбинацией.
-- **Игнорировать поддомены**: `direct.example.com` — классика.
-- **Слепо сканировать найденный IP**: убедитесь, что он в scope и принадлежит цели.
-- **Забыть про IPv6**: origin может быть доступен только по IPv6.
-- **Не проверять старые IP**: домен мог переехать; исторический IP может больше не быть origin.
+```bash
+dig +short TXT example.com | grep -oE 'ip4:[0-9./]+'
+dig +short MX example.com
+```
+
+## Шаг 6: обход WAF и границы
+
+Прямой доступ к origin обходит WAF, поэтому инъекции, которые «резал» фильтр, могут сработать. Но здесь важно держать рамки:
+
+- **origin в scope — можно; вне scope — нет.**
+- **CDN-узлы — собственность провайдера**, их не трогаем.
+- Если origin в другом ASN, убедись, что он всё ещё в scope программы.
+
+И задокументируй метод, IP и дату: при повторном тестировании CDN может переехать, и старый origin перестанет отвечать.
+
+## Источники origin — углублённо
+
+Если исторический DNS и CT молчат, подключаем остальные каналы:
+
+- **Исторический DNS:** SecurityTrails, ViewDNS, RiskIQ. Ищи A-записи, сделанные до появления CNAME на CDN.
+- **Favicon-хэш:** поиск иконки в Shodan/FOFA находит тот же сервер вне CDN.
+- **SPF/MX:** директивы `ip4:` в SPF часто указывают на хостинг почты, а он нередко совпадает с origin.
+- **Утечки:** `.git/config`, CI-логи, JS-бандлы с `sourceMappingURL`, paste-сайты.
+- **Сторонние сервисы:** JARM-фингерпринт и Censys по сертификату.
+
+```bash
+dig +short TXT example.com | grep -oE 'ip4:[0-9./]+'
+dig +short MX example.com
+```
 
 ## Инструменты автоматизации
 
 - **CloudFlair** — поиск origin через Shodan/Censys по сертификатам.
-- **CloudPeler/CrimeFlare** — исторический DNS + сертификаты.
-- **bypass-firewalls-by-DNS-history** — история A-записей.
-- **SecurityTrails/ViewDNS** — история DNS.
-- **Shodan/FOFA** — favicon и cert-поиск.
+- **CloudFail** — origin через исторические DNS и CT.
+- **bypass-firewalls-by-DNS-history** — история A-записей в один прогон.
 
 ```bash
-python3 cloudflair.py example.com
+python3 cloudflair.py example.com -o out.txt
 python3 bypass-firewalls-by-DNS-history.py -d example.com
 ```
 
-## Проверка и подтверждение origin
+## Определение CDN: подробный разбор
 
-```bash
-# прямой запрос к найденному IP с Host целевого домена
-curl -skI "https://203.0.113.10/" -H 'Host: www.example.com'
-# сравнить с ответом через CDN
-curl -skI "https://www.example.com/"
-# SNI-проверка сертификата
-openssl s_client -connect 203.0.113.10:443 -servername www.example.com </dev/null 2>/dev/null | openssl x509 -noout -subject
-```
-
-Совпадение заголовков/контента → вероятный origin. Некоторые origin требуют секретный заголовок от CDN (Authenticated Origin Pulls) — тогда 403 тоже сигнал, что вы нашли сервер.
-
-## Обход WAF и риски
-
-- Прямой origin обходит WAF → инъекции, которые «резал» WAF, могут сработать.
-- **Юридически**: origin в scope — можно; вне scope — нет; CDN-узлы — собственность провайдера, их не трогаем.
-- Проверяйте, что найденный IP принадлежит цели (ASN, сертификат), а не случайному хосту.
-
-## Определение CDN/WAF: подробный разбор
-
-Заголовки и cookie, однозначно указывающие на провайдера:
-
-| Заголовок или признак | Провайдер |
-|---|---|
-| `server: cloudflare`, `cf-ray`, `cf-cache-status` | Cloudflare |
-| `server: AkamaiGHost`, `x-akamai-transformed` | Akamai |
-| `x-amz-cf-id`, `x-amz-cf-pop`, `via: ...cloudfront.net` | CloudFront |
-| `x-served-by: cache-*`, `x-fastly-request-id` | Fastly |
-| `x-sucuri-id`, `server: Sucuri/Cloudproxy` | Sucuri |
-| `x-iinfo`, `visid_incap`, `incap_ses` | Imperva |
-| `x-azure-ref`, `x-msedge-ref` | Azure Front Door |
-
-Определение по ASN и владельцу сети:
-
-```bash
-dig +short www.example.com
-whois 104.16.x.x | grep -iE 'netname|orgname|origin|descr'
-curl -s "https://api.bgpview.io/ip/104.16.x.x" | jq '.data.prefixes[].asn'
-```
-
-Соответствие ASN: Cloudflare — AS13335, Akamai — AS20940 и AS16625, CloudFront — AS16509, Fastly — AS54113, Imperva — AS19551.
-
-## Источники origin — углублённо
-
-- **Исторический DNS**: SecurityTrails, ViewDNS, DNSdumpster, RiskIQ. Ищите A-записи, сделанные до появления CNAME на CDN.
-- **CT-логи**: сертификат мог быть выпущен на прямой IP или на внутреннее имя вида `internal.example.com`.
-- **Favicon-хэш** (отдельный урок): поиск в Shodan и FOFA находит тот же сервер вне CDN.
-- **SPF/MX/TXT**: `dig TXT example.com` — директивы `ip4:` в SPF часто указывают на хостинг почты, а он нередко совпадает с origin.
-- **Поддомены**: `dev`, `staging`, `mail`, `ftp`, `direct`, `origin`, `cpanel`, `webmail` часто вне CDN.
-- **Утечки**: `.git/config`, CI-логи, JS-бандлы с `sourceMappingURL`, paste-сайты с внутренними IP.
-- **Сторонние сервисы**: JARM-фингерпринт, Censys по сертификату, Shodan `ssl:`.
-
-```bash
-# SPF с IP-диапазонами
-dig +short TXT example.com | grep -oE 'ip4:[0-9./]+'
-# MX-хосты
-dig +short MX example.com
-# исторический DNS (SecurityTrails)
-curl -s "https://api.securitytrails.com/v1/history/example.com/dns/a" -H "APIKEY: $ST_KEY" \
-  | jq -r '.records[].values[].ip'
-```
-
-## Практика: инструменты origin discovery
-
-```bash
-# CloudFail — origin через исторические DNS и CT
-git clone https://github.com/m0rtem/CloudFail
-python3 cloudfail.py --target example.com
-
-# CloudFlair — origin через Censys/Shodan по сертификатам
-python3 cloudflair.py example.com -o out.txt
-
-# bypass-firewalls-by-DNS-history
-python3 bypass-firewalls-by-DNS-history.py -d example.com -o results.txt
-```
-
-## Валидация origin
-
-Найденный IP не обязательно origin. Проверяйте его ответ с целевым Host:
-
-```bash
-# 1. прямой запрос с Host
-curl -skI "https://203.0.113.10/" -H 'Host: www.example.com' | head -5
-# 2. SNI-проверка сертификата
-openssl s_client -connect 203.0.113.10:443 -servername www.example.com </dev/null 2>/dev/null \
-  | openssl x509 -noout -subject -ext subjectAltName
-# 3. сравнение тела ответа с CDN-версией
-curl -sk "https://203.0.113.10/" -H 'Host: www.example.com' | sha256sum
-curl -sk "https://www.example.com/" | sha256sum
-```
-
-Совпадение заголовков и тела ответа — вероятный origin. Ответ 403 при прямом запросе тоже сигнал: значит, сервер настроен требовать секретный заголовок от CDN (Authenticated Origin Pulls).
-
-## Справочник: провайдеры и диапазоны
+Провайдера можно определить не только по `cf-ray`. Сводная таблица признаков:
 
 | Провайдер | ASN | Типовой заголовок |
-|---|---|---|
+|-----------|-----|-------------------|
 | Cloudflare | 13335 | `cf-ray` |
 | Akamai | 20940 | `x-akamai-*` |
 | CloudFront | 16509 | `x-amz-cf-id` |
 | Fastly | 54113 | `x-served-by` |
 | Imperva | 19551 | `x-iinfo` |
 
-## Что дальше / решение
-
-Найденный origin — это вход для прямого тестирования в рамках scope, но перед атакой убедитесь, что IP принадлежит цели (ASN, сертификат), а не случайному хосту на том же хостинге. Задокументируйте метод, IP и дату: при повторном тестировании CDN может переехать, и старый origin перестанет отвечать.
-
-## Практика: origin через SSRF и утечки конфигурации
-
-Когда пассивные источники молчат, origin иногда выдают сами приложения. Уязвимость SSRF в веб-приложении позволяет заставить сервер обратиться по внутреннему адресу и раскрыть IP, скрытый за CDN. Ещё один источник — метаданные облака: если на хосте есть SSRF, `http://169.254.169.254/latest/meta-data/` отдаёт внутренние данные инстанса. Ищите также утечки в статике: `sourceMappingURL` в JS-бандлах часто указывает на внутренние домены, `.git/config` раскрывает remote с IP или внутренним хостом, а `sitemap.xml` и `robots.txt` перечисляют пути, которые не проходят через CDN. Полезно просмотреть JS на предмет захардкоженных адресов бэкенда:
-
 ```bash
-curl -s https://www.example.com/ | grep -oE 'src="[^"]+\.js"' | while read -r s; do
-  url=$(echo "$s" | sed 's/src="//;s/"//'); curl -s "https://www.example.com/$url"
-done | grep -oE 'https?://[a-z0-9.-]+' | sort -u
+dig +short www.example.com
+whois 104.16.x.x | grep -iE 'netname|orgname'
+curl -s "https://api.bgpview.io/ip/104.16.x.x" | jq '.data.prefixes[].asn'
 ```
 
-Так вы получаете список доменов и IP, которые приложение реально использует, — среди них часто и есть origin. Дальше каждый кандидат проверяется запросом с целевым Host-заголовком.
+Если при прямом запросе по IP без Host сайт не отдаётся (403 или редирект) — это тоже признак CDN-узла.
+
+## Почему это важный навык
+
+Origin discovery часто определяет успех всего тестирования: пока ты бьёшь в CDN, WAF режет атаки, а прямой сервер остаётся нетронутым. Найденный origin меняет картину — ты видишь приложение без фильтра. Именно поэтому этот навык стоит отрабатывать отдельно и комбинировать источники, а не полагаться на один.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. CDN определяется по заголовкам и ASN.
+2. Исторический DNS даёт IP до переезда в CDN.
+3. CT и поддомены (`origin`, `dev`) выдают настоящие хосты.
+4. Кандидата проверяют запросом с заголовком `Host`.
+5. `403` при прямом запросе — тоже сигнал, что origin найден.
+
+## На что смотреть дальше
+
+- **Не путай CDN-IP с origin.** Сначала проверь ASN и заголовки.
+- **Не останавливайся на одном источнике.** Origin часто находится комбинацией.
+- **Не игнорируй поддомены.** `direct.example.com` — классика.
+- **Не сканируй слепо.** Убедись, что IP в scope и принадлежит цели.
+- **Не забудь про IPv6.** Origin может быть доступен только по нему.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какой заголовок однозначно указывает на Cloudflare?"
@@ -288,6 +250,10 @@ done | grep -oE 'https?://[a-z0-9.-]+' | sort -u
     - "Он блокирует CDN"
   answer: 1
 ```
+
+## Куда дальше
+
+В следующем уроке мы займёмся **технологическим фингерпринтом** — определением стека сайта по заголовкам, статике и публичным базам. А пока запомни главное: origin ищут комбинацией источников, а найденный IP обязательно проверяют заголовком `Host`, прежде чем считать его настоящим сервером.
 
 ## Где пригодится
 

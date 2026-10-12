@@ -14,345 +14,186 @@ useful_for:
 estimated_minutes: 50
 summary: "Runtime-интроспекция iOS через Cycript (объекты, методы, вызовы) и отладку LLDB/debugserver: точки останова, чтение регистров, вызов ObjC-методов."
 ---
-## Введение
 
-Cycript — интерактивная среда для исследования запущенного iOS-приложения: вы подключаетесь к процессу и вызываете ObjC-методы «на живую», читаете объекты, ищете инстансы классов, меняете состояние. LLDB — полноценный отладчик, который цепляется к приложению через `debugserver` и даёт точки останова, регистры, память. Вместе они заменяют Frida в части интроспекции и позволяют быстро понять логику без статики.
+## Вопрос, с которого всё начинается
 
-Это «хирургия» по рантайму: вместо долгого реверса вы спрашиваете у приложения, что оно делает прямо сейчас. Требуется jailbreak (для системного Cycript/debugserver) либо подписанный debug-билд на устройстве.
+Ты хочешь прямо на запущенном приложении посмотреть значения переменных, вызвать метод класса или изменить объект — без остановки и без пересборки. На Android для этого есть `jadx` и Frida-консоль. Что есть на iOS, чтобы «залезть внутрь» процесса и поговорить с Objective-C в реальном времени?
 
-## Cycript: основы
+Ответ — **Cycript** и **LLDB**. Это инструменты runtime-интроспекции: они позволяют исполнять Objective-C прямо в процессе.
 
-```bash
-# подключиться к процессу по имени или PID
-cycript -p TargetApp
-# или
-cycript -p 1234
+## Наш пример: DemoApp и его класс AuthManager
+
+Из статики мы знаем, что в `DemoApp` есть класс `AuthManager` с методом `getToken`. Запустим приложение на jailbreak-устройстве и посмотрим на него изнутри.
+
+## Шаг 1: что такое runtime Objective-C
+
+Objective-C — динамический язык. Классы и методы не «зашиты» жёстко, а живут в **runtime** — структуре, которую можно опрашивать во время работы. Это то, что позволяет `class-dump` строить карту, а Cycript — вызывать методы по имени. Метод в Objective-C адресуется **селектором** — строкой вида `getToken` или `application:openURL:options:`.
+
+## Шаг 2: Cycript — интерактивная консоль
+
+Cycript подключается к процессу и даёт консоль, где можно писать смесь Objective-C и JavaScript:
+
+```
+$ cycript -p DemoApp
+cy# var app = UIApplication.sharedApplication()
+cy# app.delegate
+#"<AppDelegate: 0x104a12c30>"
+cy# var a = AuthManager.new()
+cy# [a getToken]
+@"eyJhbGciOiJIUzI1NiJ9.demo"
 ```
 
-Внутри сессии:
+Мы обратились к классу, создали объект и вызвали метод — и получили токен. Никакой пересборки: всё происходит в живом процессе. Cycript работает только на jailbreak-устройствах и стареет (поддерживается не всеми версиями iOS), но принцип важен: runtime можно опрашивать.
+
+## Шаг 3: LLDB — мощнее и универсальнее
+
+**LLDB** — это отладчик. Он умеет не только вызывать методы, но и останавливать процесс, смотреть память и менять поток исполнения:
+
+```
+$ lldb -n DemoApp
+(lldb) process attach --name DemoApp
+(lldb) expr -l objc -O -- [AuthManager new]
+<AuthManager: 0x104a12c30>
+(lldb) expr -l objc -O -- [[AuthManager new] getToken]
+eyJhbGciOiJIUzI1NiJ9.demo
+```
+
+Команда `expr -l objc -O` исполняет выражение Objective-C и печатает объект. Этим же способом можно вызывать приватные методы, которых нет в документации, — их имена подсказывает `class-dump` из статического анализа. Если метод принимает аргументы, их передают прямо в выражении: `expr -l objc -O -- [AuthManager loginWithUser:@"a" password:@"b"]`.
+
+## Шаг 4: breakpoints и изменение поведения
+
+Отладчик позволяет остановиться на методе и вмешаться:
+
+```
+(lldb) breakpoint set -n '-[AuthManager isJailbroken]'
+(lldb) continue
+(lldb) thread return NO
+```
+
+`breakpoint set -n` ставит точку останова на селектор, `thread return NO` принудительно возвращает «нет» из текущего кадра. Так обходят проверки без Frida. А ещё можно прочитать аргументы:
+
+```
+(lldb) po $x0        # первый аргумент (self)
+(lldb) po $x2        # третий (первый пользовательский)
+```
+
+Регистры `$x0`–`$x7` на arm64 хранят первые аргументы вызова; `$x0` — `self`, `$x1` — селектор, дальше — параметры.
+
+## Шаг 5: Objection как надстройка
+
+Полноценно писать LLDB-команды долго, поэтому чаще используют Objection, который даёт готовые действия поверх Frida:
+
+```
+$ objection -g com.demo.secapp explore
+com.demo.secapp # ios hooking list classes
+com.demo.secapp # ios hooking watch method "-[AuthManager getToken]"
+```
+
+Первая команда перечисляет классы приложения, вторая — «наблюдает» за вызовом метода и печатает аргументы и возврат. Это заменяет ручные breakpoints и удобно для разведки.
+
+## Шаг 6: когда Cycript не работает
+
+Cycript устаревает и не поддерживает свежие версии iOS. Если он не запускается, есть замена — **Frida** с ObjC-API (см. `mobile-ios-dynamic`) и **LLDB**. По сути Frida делает то же, что Cycript, но современнее и кроссплатформенно. Поэтому Cycript сегодня — скорее исторический инструмент: знать его полезно, но в работе чаще берут Frida.
+
+## Шаг 7: что смотреть в runtime
+
+Runtime-интроспекция особенно полезна, чтобы:
+
+- прочитать секреты, вычисляемые в рантайме (токены, ключи);
+- проверить, какие методы реально вызываются;
+- обойти проверки (jailbreak, pinning, integrity);
+- понять структуру объектов приложения.
+
+Всё это — разведка перед более глубоким анализом и эксплуатацией. Особенно удобна интроспекция, когда нужно быстро проверить гипотезу: «а что вернёт этот метод?» — не разбирая весь бинарник в дизассемблере.
+
+## Шаг 8: Frida как современная замена
+
+Раз уж Cycript стареет, стоит показать, как то же самое делается через Frida. Скрипт-разведка, который печатает результат метода при вызове:
 
 ```javascript
-// все классы, содержащие 'Login'
-Object.keys(ObjectiveC.classes).filter(n => n.indexOf('Login') >= 0)
-
-// найти живые инстансы класса
-var arr = []; for (var i in *); if ([i isKindOfClass:NSClassFromString('LoginViewController')]) arr.push(i); arr
-
-// вызвать метод
-[LoginViewController sharedInstance]
-[[UIApplication sharedApplication] keyWindow]
-[[NSUserDefaults standardUserDefaults] dictionaryRepresentation]
-
-// прочитать/записать свойство
-[*LoginViewController sharedInstance].username
-[*LoginViewController sharedInstance].setUsername_("admin")
+var m = ObjC.classes.AuthManager['- getToken'];
+Interceptor.attach(m.implementation, {
+  onLeave: function (retval) {
+    console.log('[getToken] -> ' + new ObjC.Object(retval));
+  }
+});
 ```
 
-Cycript выполняет JavaScript с ObjC-мостом — можно читать приватные ivar, вызывать методы, менять UI.
+`ObjC.classes` даёт доступ к классам, `Interceptor.attach` ставит хук на реализацию, `new ObjC.Object(retval)` читает возвращённый объект. По сути это те же возможности, что у Cycript, но с сохранением в скрипт и повторным использованием. Objection, в свою очередь, оборачивает эти хуки в готовые команды.
 
-## Поиск и вызов методов
+## Шаг 9: осторожность
 
-```javascript
-// список методов класса
-Object.keys(NSClassFromString('LoginViewController').prototype)
+Runtime-интроспекция вмешивается в живой процесс, поэтому работай аккуратно. Не изменяй объекты без необходимости — это может привести приложение в неконсистентное состояние и «уронить» его. Сохраняй оригинальные реализации, если ставишь хук на замену. И помни, что некоторые методы имеют побочные эффекты: вызвав `getToken`, ты можешь запустить обновление сессии или логирование, что изменит поведение приложения. Для разведки лучше предпочитать «наблюдение» (watch) вместо активных вызовов. Если всё же нужно вызвать метод, делай это на копии объекта или в тестовой сборке, чтобы не испортить реальную сессию. И фиксируй каждый шаг: в runtime легко «уйти в сторону», и без заметок потом трудно воспроизвести находку.
 
-// вызов метода с аргументами (селектор: двоеточия -> подчёркивания)
-var vc = [LoginViewController alloc].init
-[vc loginWithUser_password_("admin", "admin123")]
+## Шаг 10: как это выглядит в консоли
 
-// чтение Keychain через класс приложения
-[KeychainWrapper load:@"sessionToken"]
-```
+Cycript подключается к живому процессу и позволяет писать выражения прямо в терминале. Типовая сессия: `cycript -p DemoApp` выбирает приложение, после чего выражение вроде `[AuthManager sharedInstance]` печатает адрес живого объекта, а `#0x105a1c200` даёт доступ к его полям. Так находят экземпляр класса и читают его состояние без пересборки.
 
-Так находят методы валидации, обходят проверки (вызвать успешный путь) и извлекают секреты в рантайме.
+Разница инструментов важна для выбора: Cycript быстро читает Objective-C рантайм, но устаревает и на свежих iOS не запускается; LLDB даёт полный контроль и работает с нативным кодом; Objection/Frida — современная замена с готовыми обходами. Практический порядок: сначала Objection (быстро), затем Frida (точечно), и лишь при отладке нативного кода — LLDB. Не завязывайся на один инструмент: умей повторить то же самое на Frida.
 
-## LLDB + debugserver
+## Что мы теперь знаем
 
-```bash
-# на устройстве запустить debugserver и прикрепить к приложению
-# на ПК:
-lldb
-(lldb) platform select remote-ios
-(lldb) process connect connect://<device-ip>:1234
-```
-
-Основные команды:
-
-```
-(lldb) image list                     # список загруженных образов
-(lldb) br set -n "-[LoginViewController login]"   # точка останова по символу
-(lldb) br set -a 0x100003f20          # по адресу
-(lldb) c                              # continue
-(lldb) po $x0                         # печать ObjC-объекта (arg0)
-(lldb) expr -l objc -O -- [self username]
-(lldb) memory read $x0                # чтение памяти
-(lldb) register read                  # все регистры (arm64: x0..x7 args)
-(lldb) thread backtrace               # стек
-```
-
-Arm64 ABI: первые 8 аргументов — в `x0..x7`, `x0` — `self`, `x1` — `_cmd` (селектор). Для ObjC-метода `po $x0` покажет объект, а имя метода — `po (char*)$x1`.
-
-## Полный сквозной пример: перехват проверки пароля
-
-Цель: найти метод проверки логина и заставить вернуть `true`.
-
-```bash
-cycript -p TargetApp
-cycript> Object.keys(ObjectiveC.classes).filter(n=>/Auth/.test(n))
-# -> ["AuthManager"]
-cycript> Object.keys(NSClassFromString('AuthManager').prototype)
-# -> ["validateUser:password:", ...]
-```
-
-Ставим точку останова в LLDB:
-
-```
-(lldb) br set -n "-[AuthManager validateUser:password:]"
-(lldb) c
-# вводим неверный пароль в UI -> срабатывает брейк
-(lldb) po $x2        # username
-(lldb) po $x3        # password
-(lldb) thread return 1   # принудительно вернуть YES (bool)
-(lldb) c
-# UI пускает дальше с неверным паролем
-```
-
-`thread return` — мощный приём: пропускает выполнение метода и возвращает заданное значение. Для обхода проверок это быстрее, чем патч бинарника.
-
-## Чтение памяти и секретов
-
-```
-(lldb) expr -l objc -O -- [[NSUserDefaults standardUserDefaults] dictionaryRepresentation]
-(lldb) expr -l objc -O -- [KeychainWrapper load:@"apiToken"]
-(lldb) memory read -f x -c 32 $x0
-```
-
-LLDB может вызывать ObjC-выражения прямо в процессе, включая доступ к Keychain от имени приложения.
-
-## Частые ошибки
-
-- **`cycript` не видит процесс**: нужен jailbreak или отладочный билд; проверьте `get-task-allow`.
-- **Точка останова не срабатывает**: символ обфусцирован/Swift-mangled — ставьте по адресу из `image lookup -rn`.
-- **Не тот регистр**: забыли, что `x0` — self, `x1` — селектор; аргументы начинаются с `x2`.
-- **`thread return` не работает**: метод возвращает сложный тип — используйте `expr` с явным типом.
-- **debugserver не подключается**: порт/USB-туннель, проверьте `iproxy`.
-- **Cycript устарел для Swift**: Swift-классы видны хуже; используйте Frida/LLDB с `po`.
-
-## Что дальше / решение
-
-Cycript/LLDB — быстрый способ обойти клиентские проверки и понять логику. Для скриптуемых и воспроизводимых обходов переходите на Frida (`mobile-ios-dynamic`). Свяжите с `mobile-ios-ssl-killswitch` (обход pinning) и `mobile-ios-keychain` (секреты). Дальше — `mobile-ios-data-protection`.
-
-## Справочная таблица
-
-| Задача | Cycript | LLDB |
-|--------|---------|------|
-| Список классов | `Object.keys(ObjectiveC.classes)` | `image lookup -rn` |
-| Инстансы | цикл по `*` | `po` в точке останова |
-| Вызвать метод | `[obj method]` | `expr -l objc --` |
-| Точка останова | — | `br set -n` |
-| Вернуть значение | — | `thread return` |
-| Аргументы | — | `x0..x7` |
-
-## Cycript: продвинутые приёмы
-
-Помимо чтения объектов, Cycript умеет искать по иерархии и вызывать приватные методы:
-
-```javascript
-// найти все UIViewController в иерархии окна
-function allVCs(vc, out) { out.push(vc); [vc.childViewControllers] && [vc.childViewControllers].forEach(function(c){ allVCs(c,out); }); return out; }
-allVCs([[UIApplication sharedApplication] keyWindow].rootViewController, [])
-
-// перебрать методы класса по префиксу
-Object.keys(NSClassFromString('Crypto').prototype).filter(function(m){ return /encrypt|decrypt|key/.test(m); })
-
-// прочитать приватные ivar
-var inst = [Crypto sharedInstance];
-inst->__cstring__  // пример ivar (зависит от класса)
-```
-
-Через `choose()` (встроенная функция) можно найти инстансы:
-
-```javascript
-choose(LoginViewController)     // массив живых инстансов
-choose(NSURLSession)
-```
-
-## LLDB: условные точки останова и скрипты
-
-```text
-(lldb) br set -n "-[AuthManager validate:]" -c '($x2 != 0)'
-(lldb) br command add 1
-> po $x0
-> po $x2
-> thread return 1
-> DONE
-```
-
-`br command add` позволяет на точке останова автоматически печатать аргументы и возвращать нужное значение — это «скриптовый» обход проверок без правки бинарника. Для Swift-функций ищите mangled-имя:
-
-```text
-(lldb) image lookup -rn "validate"
-(lldb) br set -a 0x100004f20
-```
-
-## Автоматизация через Frida вместо Cycript
-
-Cycript интерактивен, но не скриптуется в CI. Frida даёт то же, но воспроизводимо:
-
-```javascript
-Java.perform(function(){});  // на iOS не нужен
-if (ObjC.available) {
-  var inst = ObjC.chooseSync(ObjC.classes.AuthManager)[0];
-  console.log(inst.username().toString());
-  inst.validate_("admin");   // вызвать метод
-}
-```
-
-Комбинация: разведка в Cycript (быстро), затем перенос находок в Frida-скрипт (воспроизводимо).
-
-## Кейс: обход проверки лицензии
-
-```bash
-# 1. Разведка
-cycript -p TargetApp
-cycript> choose(LicenseManager)
-cycript> Object.keys(NSClassFromString('LicenseManager').prototype)
-# -> ["isValid", "checkReceipt:", ...]
-cycript> [[LicenseManager sharedInstance] isValid]
-# -> false
-```
-
-В LLDB:
-
-```text
-(lldb) br set -n "-[LicenseManager isValid]"
-(lldb) c
-(lldb) thread return YES
-(lldb) c
-# приложение считает лицензию валидной
-```
-
-В Frida (для отчёта):
-
-```javascript
-var m = ObjC.classes.LicenseManager["- isValid"];
-Interceptor.attach(m.implementation, { onLeave: function(r){ r.replace(ptr(1)); } });
-```
-
-## Ограничения инструментов
-
-- **Cycript устарел** для новых iOS/Swift; часть классов не видна. Используйте Frida/LLDB.
-- **Swift name mangling** усложняет поиск по символам — ищите по адресу или demangle.
-- **Anti-debug** (`PT_DENY_ATTACH`, `ptrace`) может блокировать LLDB — обходите хуком `ptrace`.
-- **`thread return`** не работает для методов, возвращающих структуры — используйте `expr`.
-- **Jailbreak-требование**: без него ни Cycript, ни системный debugserver недоступны.
-- **Скорость**: LLDB-брейки замедляют приложение — используйте условные точки.
-
-## Сводная таблица приёмов
-
-| Задача | Cycript | LLDB | Frida |
-|--------|---------|------|-------|
-| Найти класс | `choose()` | `image lookup` | `ObjC.classes` |
-| Прочитать ivar | `inst->ivar` | `po` | `.value` |
-| Вызвать метод | `[obj m]` | `expr` | `obj.m()` |
-| Обойти проверку | вызвать успешный путь | `thread return` | `onLeave replace` |
-| Скриптуемость | нет | частично | да |
-
-## Практикум: обход проверки через LLDB
-
-Разберём конкретный обход лицензии/проверки.
-
-```bash
-# подключение
-lldb
-(lldb) platform select remote-ios
-(lldb) process connect connect://<ip>:1234
-# находим метод
-(lldb) image lookup -rn "isValid"
-# ставим точку останова
-(lldb) br set -n "-[LicenseManager isValid]"
-(lldb) c
-```
-
-Когда брейк срабатывает (при запуске/проверке):
-
-```text
-(lldb) po $x0          # self
-(lldb) po (char*)$x1   # selector
-(lldb) thread return YES
-(lldb) c
-```
-
-Приложение считает лицензию валидной. Для воспроизводимости переносим в Frida:
-
-```javascript
-var m = ObjC.classes.LicenseManager["- isValid"];
-Interceptor.attach(m.implementation, { onLeave: function(r){ r.replace(ptr(1)); } });
-```
-
-Так обход становится скриптуемым и документируемым. Фиксируйте метод, аргументы и результат в отчёте.
-
-## Продвинутая отладка Swift и работа с блоками
-
-Современные iOS-приложения на Swift усложняют отладку: имена функций mangled, структуры передаются иначе. В LLDB ищите по demangled-имени (`image lookup -rn "validate"`), ставьте брейки по адресу, используйте `expr` с явными типами. Для Swift-методов соглашение вызова отличается от ObjC: `self` может быть в `x20`/`x22` (в зависимости от контекста), а не в `x0`. Практично ставить брейк и смотреть регистры через `register read`.
-
-Блоки (closures) — важная часть iOS. В ObjC-блоках `completion` из challenge-обработчика можно перехватить и вызвать со своими аргументами (см. обход pinning). В Frida используйте `ObjC.Block` для работы с блоками. Это ключ к обходу асинхронных проверок.
-
-## Работа с Swift-строками и типами
-
-Swift-строки не C-строки; чтение через `po` в LLDB работает, но в Frida нужно знать layout. Для простых случаев хватает `ObjC`-моста (Swift-классы, наследующие NSObject, видны). Для чистого Swift — сложнее, используйте LLDB.
-
-## Практический сценарий
-
-Проверка лицензии в Swift: находим mangled-символ, ставим брейк, смотрим возврат, меняем через `thread return`. Для воспроизводимости — Frida-хук, если метод доступен через ObjC runtime, иначе патч бинарника (сложнее из-за подписи). Часто проще найти точку вызова и обойти её.
-
-## Что писать в отчёте
-
-Для каждой обойдённой проверки: метод, аргументы, способ обхода (LLDB/Frida/патч), влияние. Рекомендации: дублировать проверки на сервере, не полагаться на клиентскую логику, использовать App Attest.
+- Objective-C динамичен: классы и методы доступны через runtime по селекторам.
+- Cycript даёт консоль для вызова методов в живом процессе.
+- LLDB — отладчик: `expr`, breakpoints, `thread return`, чтение регистров.
+- `$x0`–`$x7` на arm64 — первые аргументы вызова (`$x0` = self).
+- Objection даёт готовые команды (`ios hooking list classes`, `watch method`).
+- Cycript устаревает; современная замена — Frida.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Что делает `thread return 1` в LLDB?"
+- question: Что такое селектор в Objective-C?
   options:
-    - "Прерывает метод и возвращает 1, пропуская тело"
-    - "Завершает процесс"
-    - "Печатает стек"
+    - "Тип данных"
+    - "Имя метода, по которому он адресуется в runtime"
+    - "Переменная"
+    - "Файл ресурсов"
+  answer: 1
+  explanation: "Методы вызываются по селектору — строке с именем, например getToken."
+- question: Что делает команда LLDB `thread return NO`?
+  options:
+    - "Перезапускает процесс"
+    - "Принудительно возвращает NO из текущего кадра"
+    - "Ставит точку останова"
     - "Читает память"
-  answer: 0
-- question: "Какой регистр содержит self в ObjC-методе на arm64?"
-  options:
-    - "x1"
-    - "x0"
-    - "x2"
-    - "sp"
   answer: 1
-- question: "Для чего нужен Cycript?"
+  explanation: "Это позволяет обойти проверку, вернув из неё ложь."
+- question: Что хранится в регистре $x0 на arm64 при вызове метода?
   options:
-    - "Runtime-интроспекция ObjC-объектов в запущенном приложении"
-    - "Статическая декомпиляция"
-    - "Сетевой анализ"
-    - "Создание бэкапа"
-  answer: 0
-- question: "Как преобразуется селектор `loginWithUser:password:` при вызове в Cycript?"
-  options:
-    - "loginWithUser:password:"
-    - "loginWithUser_password_"
-    - "loginWithUserPassword"
-    - "loginWithUser->password"
+    - "Селектор"
+    - "Первый аргумент, то есть self"
+    - "Возврат"
+    - "Счётчик"
   answer: 1
-- question: "Что нужно для подключения LLDB к приложению на устройстве?"
+  explanation: "$x0 — self, $x1 — селектор, $x2 и далее — параметры."
+- question: Какая команда Objection перечисляет классы приложения?
   options:
-    - "debugserver и (jailbreak/отладочная подпись)"
-    - "Только Wi-Fi"
-    - "Только Burp"
-    - "Keychain"
+    - "ios hooking list classes"
+    - "ios keychain dump"
+    - "ios sslpinning disable"
+    - "ios jailbreak disable"
   answer: 0
+  explanation: "ios hooking list classes выводит классы из runtime."
+- question: Почему Cycript сегодня используют реже?
+  options:
+    - "Он платный"
+    - "Он устаревает и не поддерживает свежие iOS; его заменяет Frida"
+    - "Он только для Android"
+    - "Он не умеет читать runtime"
+  answer: 1
+  explanation: "Frida современнее и кроссплатформеннее, поэтому вытесняет Cycript."
 ```
+
+## Куда дальше
+
+Runtime даёт доступ к живым данным. Дальше разберём, как iOS защищает файлы на диске: в следующем уроке `mobile-ios-data-protection` — классы защиты данных и их слабости. А пока главное запомни: Cycript и LLDB позволяют «поговорить» с Objective-C в живом процессе, а современная замена — Frida.
 
 ## Где пригодится
 
-- **Пентест iOS:** быстрый обход клиентских проверок.
-- **Bug bounty:** демонстрация обхода логина/лицензии.
-- **Реверс:** понимание рантайм-логики без полного реверса.
-- **CTF:** Mobile/iOS-задачи с runtime-проверками.
+- **Пентест:** интроспекция рантайма и обход проверок.
+- **Bug bounty:** чтение вычисляемых секретов.
+- **Анализ малвари:** понимание поведения образца.
+- **CTF:** извлечение флага из живого процесса.

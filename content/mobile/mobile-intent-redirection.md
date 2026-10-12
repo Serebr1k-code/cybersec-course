@@ -14,234 +14,189 @@ useful_for:
 estimated_minutes: 50
 summary: "Intent redirection: как приложение переиспользует вложенный Intent и это позволяет атакующему запустить приватный компонент, украсть данные или выполнить операцию от имени жертвы."
 ---
-## Введение
 
-Intent redirection — уязвимость, при которой экспортированный компонент принимает от атакующего `Intent` (обычно как `Parcelable` extra) и затем запускает его внутри себя (`startActivity`, `startService`, `sendBroadcast`) **от имени своего процесса**. Поскольку у целевого приложения могут быть привилегии (собственные разрешения, доступ к провайдерам, доверенные учётные данные), атакующий «одалживает» эти привилегии, чтобы дотянуться до компонентов, которые сам напрямую вызвать не может.
+## Вопрос, с которого всё начинается
 
-Классический паттерн: приложение-«прокси» с экспортированной activity, которая читает `Intent next = getIntent().getParcelableExtra("next")` и вызывает `startActivity(next)`. Атакующий кладёт в `next` явный Intent на **приватный** (`exported=false`) компонент жертвы — и он запускается, потому что вызов идёт из процесса жертвы.
+Приложение принимает Intent от другого приложения и передаёт его дальше — чтобы, например, запустить браузер или показать экран. Если оно не проверяет, **что именно** ему передали, атакующий может подсунуть вложенный Intent и запустить приватный компонент жертвы. Это intent redirection. Как это работает?
 
-## Механика
+## Наш пример: приложение, пробрасывающее Intent
 
-```java
-// УЯЗВИМЫЙ код в экспортированной Activity
-Intent next = getIntent().getParcelableExtra("next");
-if (next != null) {
-    startActivity(next);          // запускает что угодно от имени жертвы
-}
-// ещё опаснее — с флагами, поднимающими привилегии
-next.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-```
-
-Дополнительные векторы:
-- `startService(nested)` — запуск приватного сервиса.
-- `sendBroadcast(nested)` — отправка приватного broadcast.
-- `setResult`/`startActivityForResult` — редирект результата.
-- `PendingIntent` — переиспользование чужого PendingIntent (отдельный класс).
-
-## Разведка
-
-```bash
-# ищем getParcelableExtra и запуск Intent
-grep -rn "getParcelableExtra\|getIntent().*Extra\|startActivity(" src/ | grep -i "extra\|next\|intent"
-# jadx: искать по строкам
-jadx -d out app.apk && grep -rn "getParcelableExtra" out/sources/ | head
-# drozer: перечислить activity
-dz> run app.activity.info -a com.target.app
-```
-
-## Полный сквозной пример: запуск приватной Activity
-
-Дано: `com.target.app/.ProxyActivity` экспортирована и редиректит `next`. Приватная `com.target.app/.SecretActivity` (exported=false) показывает токен.
-
-```bash
-# 1. Прямой запуск приватной activity — запрещён
-adb shell am start -n com.target.app/.SecretActivity
-# SecurityException: not exported
-
-# 2. Запуск через прокси с вложенным Intent
-adb shell am start -n com.target.app/.ProxyActivity \
-  --es next 'intent:#Intent;component=com.target.app/.SecretActivity;end'
-# -> SecretActivity запускается от имени жертвы
-```
-
-`am` умеет парсить строковую сериализацию Intent (`intent:#Intent;...;end`) и положить её как Parcelable-extra. Альтернатива — написать маленькое PoC-приложение:
+Представим приложение-обёртку, которое принимает запрос «открой ссылку» и передаёт его дальше:
 
 ```java
-Intent nested = new Intent();
-nested.setComponent(new ComponentName("com.target.app", "com.target.app.SecretActivity"));
-Intent wrapper = new Intent();
-wrapper.setComponent(new ComponentName("com.target.app", "com.target.app.ProxyActivity"));
-wrapper.putExtra("next", nested);
-startActivity(wrapper);
+Intent forward = getIntent().getParcelableExtra("android.intent.extra.INTENT");
+startActivity(forward);
 ```
 
-Если `SecretActivity` появилась на экране — redirection подтверждён.
+Внешний вызывающий кладёт в extra **свой** Intent — с указанием компонента, который ему недоступен напрямую. Приложение-жертва запускает его от своего имени, обходя защиту экспорта. Разберём, почему это опасно.
 
-## Цепочка до кражи данных / ATO
+## Шаг 1: механика
 
-Redirection становится критичным, когда приватный компонент возвращает данные или выполняет действие:
+Android позволяет вкладывать Intent в Intent (через `putExtra`). Если приложение извлекает вложенный Intent и запускает его, не проверяя целевой компонент, оно становится «посредником» (deputy). Атакующий указывает цель — приватную Activity — и жертва открывает её своими правами.
 
-- Приватный provider: `next` с `content://com.target.app.private/...` + `FLAG_GRANT_READ_URI_PERMISSION` → атакующий получает доступ к данным.
-- Приватная activity логина с авто-входом (trusted device) → захват сессии.
-- Приватный сервис с операцией записи → изменение данных.
+Ключевой вопрос: **доверяет ли приложение вложенному Intent**. Если да — атакующий выбирает, что запустится.
 
-Иногда redirection комбинируют с **PendingIntent hijacking**: если приложение кладёт в extra чужой `PendingIntent` и вызывает `send`, атакующий подменяет его содержимое.
+## Шаг 2: разведка
 
-## Связанный класс: unsafe getIntent data
+Ищем в коде извлечение вложенных Intent:
 
-Не только `next`: любое доверенное использование данных из Intent от недоверенного источника опасно — `getStringExtra("url")` → `loadUrl` (WebView), `getStringExtra("file")` → открытие файла (path traversal), `getSerializableExtra` → deserialization (см. ниже). Правило: **данные из внешнего Intent — недоверенные**.
+```
+$ grep -rn 'android.intent.extra.INTENT\|getParcelableExtra\|Intent.parseUri' out/
+```
 
-## Частые ошибки
+Также смотрим:
 
-- **Считать, что `exported=false` защищает**: при redirection вызов идёт из процесса жертвы, где компонент доступен.
-- **Забыть про `FLAG_GRANT_*_URI_PERMISSION`**: без флага доступ к provider не дадут.
-- **Тест только прямым `am start`**: нужен вложенный Intent через `--es next 'intent:#Intent;...'`.
-- **Не проверить `sendBroadcast`/`startService`**: redirection не только про activity.
-- **Игнорировать PendingIntent**: переиспользование — отдельный вектор.
-- **Путать с deep link**: deep link — вход снаружи, redirection — переиспользование внутри.
+- `startActivity(getIntent().getParcelableExtra(...))`
+- `startActivityForResult` с внешним Intent
+- `setResult` с вложенным Intent
+- `PendingIntent.getActivity` с непроверенным Intent
 
-## Что дальше / решение
+Каждое такое место — кандидат.
 
-Найдя `getParcelableExtra` + `startActivity/startService/sendBroadcast`, проверьте достижимость приватных компонентов. Свяжите с `mobile-deeplink-deep` (цепочки ATO), `mobile-exported-provider` (grant URI), `mobile-android-binder`. Дальше: `mobile-ipc-fuzzing`. Рекомендация: валидировать вложенный Intent (проверять пакет/компонент), запрещать внешние `Parcelable`, не давать `FLAG_GRANT_*`.
+## Шаг 3: полный сценарий
 
-## Справочная таблица
+Соберём атаку:
 
-| Sink | Опасность |
-|------|-----------|
-| startActivity(nested) | запуск приватной activity |
-| startService(nested) | запуск приватного сервиса |
-| sendBroadcast(nested) | подделка события |
-| startActivityForResult(nested) | редирект результата |
-| getSerializableExtra | deserialization |
-| getStringExtra("url") | WebView/SSRF |
+1. Приложение-жертва экспортирует Activity `ShareActivity`, принимающую Intent.
+2. В extra `android.intent.extra.INTENT` она ожидает Intent для «поделиться».
+3. Атакующий кладёт туда Intent, указывающий на **приватную** `AdminActivity` жертвы.
+4. `ShareActivity` вызывает `startActivity(forward)`.
+5. Приватная `AdminActivity` запускается с правами жертвы.
 
-| adb-строка Intent | Синтаксис |
-|-------------------|-----------|
-| Явный компонент | `intent:#Intent;component=pkg/.Cls;end` |
-| Action | `intent:#Intent;action=android.intent.action.VIEW;end` |
-| Extra | `...;S.key=value;end` |
+Так обходится `exported="false"` у приватного компонента.
 
-## Сквозной кейс: цепочка redirection до приватного провайдера
+## Шаг 4: цепочка до захвата данных
 
-Рассмотрим полный сценарий. Приложение имеет экспортированную activity `ProxyActivity`, которая берёт вложенный Intent из extra и запускает его. Цель — добраться до приватного Content Provider, читающего токены.
+Intent redirection часто ведёт не к одному экрану, а к цепочке:
 
-Сначала разведка. В декомпилированном коде находим обработку extra: `Intent next = getIntent().getParcelableExtra("next")`, затем `startActivity(next)`. Значит, мы контролируем запускаемый компонент. Дальше смотрим манифест: есть приватный provider `TokenProvider` с `android:exported="false"` — напрямую недоступен.
+- Приватная Activity читает данные и возвращает результат.
+- Через `setResult` атакующий получает данные обратно.
+- Или приватная Activity открывает Content Provider, к которому у жертвы есть grant.
+- Комбинация даёт доступ к файлам и базе.
 
-Идея атаки: запустить из процесса жертвы activity, которая читает provider. Но нам нужна не activity, а сам provider. Здесь помогает `FLAG_GRANT_READ_URI_PERMISSION` в переданном Intent: если жертва запускает activity, которой мы дали URI, и та запрашивает grant, мы получаем доступ. Либо используем redirection в activity, которая отображает данные provider.
+Поэтому intent redirection — это «ключ» к приватной поверхности приложения.
 
-Собираем PoC-приложение: создаём Intent на приватный компонент, оборачиваем его во внешний Intent на `ProxyActivity`, запускаем. Наблюдаем запуск приватного компонента — это подтверждение. Если приватная activity возвращает данные (например, через `setResult`), мы их получаем.
+## Шаг 5: связанный класс — unsafe getIntent data
 
-Другой вариант: redirection в `startService`. Если жертва имеет приватный сервис с операцией чтения/записи, запускаем его через прокси. Ещё вариант — `sendBroadcast`: приватный receiver принимает наши данные.
+Родственная проблема — доверие данным из `getIntent()` вообще. Если Activity читает `getStringExtra("url")` и грузит его в WebView, атакующий, запустивший Activity (если она экспортирована или достижима через redirection), контролирует URL. Это тот же принцип: данные из Intent недоверенны.
 
-## Обработка результата и PendingIntent
+## Шаг 6: обработка результата и PendingIntent
 
-Продвинутый сценарий — PendingIntent hijacking. Если приложение кладёт в extra чужой PendingIntent и вызывает `send`, атакующий может подменить его содержимое, если PendingIntent не immutable и создан с `FLAG_MUTABLE`. Проверяйте флаги: `FLAG_IMMUTABLE` обязателен с Android 12. Отсутствие флага — находка.
+`PendingIntent` — это отложенный Intent, передаваемый другому приложению. Если он `mutable` (или без `FLAG_IMMUTABLE`), получатель может дописать свои поля: сменить компонент, добавить данные. Тогда приложение-жертва запускает не то, что планировало. Проверяйте флаги PendingIntent и то, не попадает ли mutable PendingIntent в чужие руки.
 
-## Защита: как должен выглядеть безопасный код
+## Шаг 7: как защититься
 
-Безопасная реализация проверяет источник вложенного Intent: сверяет package/component с whitelist, запрещает внешние Parcelable, не добавляет `FLAG_GRANT_*`. Также приложение не должно запускать компоненты, переданные извне, без валидации. Если нужен редирект, используйте явный список разрешённых целей.
+Правильный код:
 
-## Чек-лист тестирования
+- Не запускать вложенные Intent вслепую; проверять целевой компонент.
+- Использовать `Intent.parseUri` и проверять, что компонент принадлежит ожидаемому.
+- Всегда `FLAG_IMMUTABLE` для PendingIntent.
+- Не доверять данным из `getIntent()` без валидации.
 
-Найти все места `getParcelableExtra` + `startActivity/startService/sendBroadcast`. Для каждого проверить достижимость приватных компонентов. Проверить флаги PendingIntent. Построить PoC с вложенным Intent. Оформить находку с указанием достигнутого компонента и влияния.
+## Разбор реального сценария
 
-## Рекомендации в отчёте
+Приложение-агрегатор принимает Intent «поделиться» и пробрасывает вложенный Intent дальше. Атакующее приложение отправляет ему Intent, в extra которого лежит Intent на **приватную** `SettingsActivity` жертвы, доступную только изнутри. Агрегатор вызывает `startActivity(forward)` — и приватная Activity открывается с его правами. Пользователь видит экран настроек, но запущен он был чужим приложением. Так обходится `exported="false"` без единого эксплойта в бинарнике.
 
-Не доверять вложенным Intent из внешних источников, валидировать компонент, не давать grant-флаги, использовать `FLAG_IMMUTABLE` для PendingIntent. Redirection — типичная находка на стыке компонентов, часто недооценённая, но ведущая к утечке или эскалации.
+## Полный прогон от начала до конца
 
-## Практические советы по redirection
+Соберём проверку в один сценарий. Сначала `grep` по коду: `android.intent.extra.INTENT`, `Intent.parseUri`, `startActivity` с внешними данными. Для каждого места смотрим, проверяется ли целевой компонент. Если нет — формируем Intent с указанием приватной Activity жертвы и отправляем через `am start` или своё приложение. Смотрим, открылась ли приватная Activity. Если да — фиксируем цепочку и оцениваем, что она позволяет (чтение данных, действие). Отдельно проверяем флаги PendingIntent.
 
-Начинайте с поиска `getParcelableExtra` и вызовов `startActivity`/`startService`/`sendBroadcast` с полученным Intent. Каждое такое место — кандидат. Проверяйте, есть ли валидация компонента (проверка package/component по whitelist). Если нет — строьте PoC.
+## Частые вопросы
 
-Для adb-демонстрации используйте строковую сериализацию Intent (`intent:#Intent;component=...;end`), переданную как extra. Для более сложных сценариев (grant URI, результат) пишите маленькое PoC-приложение.
+**«Intent redirection всегда даёт доступ?»** — нет, только если жертва запускает вложенный Intent без проверки. **«Нужен ли root?»** — нет. **«Что если Activity не экспортирована?»** — именно в этом смысл: redirection обходит экспорт. **«Как защитить?»** — проверять целевой компонент, `FLAG_IMMUTABLE`, валидировать `getIntent()`. **«Связано ли с PendingIntent?»** — да, mutable PendingIntent — тот же класс проблемы.
 
-## Связь с другими векторами
+## Практический совет
 
-Redirection часто комбинируется с захватом provider (`FLAG_GRANT_READ_URI_PERMISSION`), с WebView (загрузка приватного контента) и с PendingIntent hijacking. Проверяйте флаги PendingIntent: отсутствие `FLAG_IMMUTABLE` — отдельная находка.
+Ищите не «уязвимую Activity», а **посредника**: компонент, который принимает чужой Intent и передаёт его дальше. Именно посредник обходит защиту. Начинайте с экспортированных Activity, принимающих `extra.INTENT`, и проверяйте, можно ли через них дотянуться до приватной поверхности. Это часто открывает доступ к тому, что казалось закрытым.
+
+## Ещё один нюанс: `startActivityForResult` и `setResult`
+
+Особенно опасен intent redirection в связке с `startActivityForResult`: посредник запускает вашу Activity и **возвращает вам результат**. Если приватная Activity отдаёт данные через `setResult`, вы получаете их обратно. Это превращает «просто запуск экрана» в полноценное чтение данных. Поэтому, найдя проброс Intent, сразу проверяйте, возвращается ли результат и что в нём. Это часто повышает severity находки.
 
 ## Итог
 
-Intent redirection — недооценённый, но частый вектор на стыке компонентов. Ключ — найти пару «вложенный Intent + sink» и доказать достижимость приватного компонента. Рекомендация: валидировать компонент, не доверять внешним Parcelable, не давать grant-флаги.
+Intent redirection — это злоупотребление доверием: приложение доверяет вложенному Intent, а его контролирует атакующий. Найдя проброс, проверьте, куда он может привести и что вернётся в результате. Часто это открывает доступ к приватной поверхности, которая казалась недоступной. В отчёте показывайте конкретную цепочку: какой компонент-посредник, какой целевой компонент, какой эффект. Это делает находку убедительной и воспроизводимой.
 
-## Разбор через Frida и логирование
+## Связь с другими уроками
 
-Статический поиск `getParcelableExtra` полезен, но динамика надёжнее. Хук на `Intent.getParcelableExtra` покажет, какие вложенные Intent-ы реально принимаются:
+Intent redirection — это «мост» к приватной поверхности: он превращает открытый компонент в ключ к закрытому. Он опирается на всё, что мы разбирали раньше, — экспортированные компоненты, deep links, обработку `getIntent()`. Дальше эти приёмы объединяются в автоматизированный аудит IPC, где redirection — один из проверяемых векторов.
 
-```javascript
-Java.perform(function() {
-  var Intent = Java.use("android.content.Intent");
-  Intent.getParcelableExtra.overload("java.lang.String").implementation = function(k) {
-    var v = this.getParcelableExtra(k);
-    console.log("[extra] " + k + " = " + v);
-    return v;
-  };
-});
-```
+## Ещё один нюанс: `Intent` как строка
 
-Запустите приложение под этим скриптом, выполните действия, и увидите поток вложенных Intent-ов. Дополнительно хукайте `startActivity`/`startService`/`sendBroadcast`, чтобы видеть, что именно запускается.
+Иногда вложенный Intent передают не объектом, а строкой (`intent.toUri()`) и разбирают через `Intent.parseUri`. Это не меняет сути: данные всё равно контролирует атакующий. Более того, `parseUri` по умолчанию может выставить компонент и флаги, которые вы не ожидали, — например, `FLAG_GRANT_READ_URI_PERMISSION`. Поэтому проверка `parseUri`-результата обязательна, а не опциональна.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. Intent redirection — запуск вложенного Intent от имени жертвы.
+2. Атакующий указывает цель, обходя `exported="false"`.
+3. Цепочка может вести к чтению данных через `setResult`.
+4. Данные из `getIntent()` недоверенны по определению.
+5. Защита: проверка целевого компонента и `FLAG_IMMUTABLE`.
+
+## На что смотреть дальше
+
+- **Ищите извлечение вложенных Intent** (`extra.INTENT`, `parseUri`).
+- **Проверяйте `startActivity`** с внешними данными.
+- **Смотрите флаги PendingIntent** — mutable опасен.
+- **Валидируйте данные из `getIntent()`**.
 
 ## Автоматический поиск
 
-Скрипт обходит все activity из drozer-списка и пытается передать вложенный Intent на приватный компонент. Результат (запустился/не запустился) фиксируется. Это системный способ найти redirection. Для каждой находки стройте PoC с реальным приватным компонентом и показывайте влияние.
+Ищите пробросы Intent полуавтоматически: grep по `extra.INTENT`, `parseUri`, `startActivity` и `startActivityForResult` с внешними данными, затем проверяйте каждый кандидат руками. Дополнительно можно логировать через Frida, какой Intent приходит в компонент и куда он передаётся дальше. Так вы быстро находите посредников среди десятков компонентов. Не забывайте проверять и менее очевидные места: `PendingIntent`, `setResult` и обработку `getIntent()` — там тоже может скрываться проброс, который ведёт к приватной поверхности.
 
-## Итог
-
-Redirection — цепочка «вход → вложенный Intent → sink». Динамика (Frida) даёт точную картину, статика — карту кандидатов. Комбинируйте. В отчёте указывайте полный путь и рекомендации по валидации.
-
-## Итоговый чек-лист intent redirection
-
-1. Найдите все места `getParcelableExtra` + `startActivity`/`startService`/`sendBroadcast`.
-2. Проверьте, валидируется ли компонент вложенного Intent.
-3. Определите достижимые приватные компоненты (activity/provider/service).
-4. Проверьте флаги `FLAG_GRANT_*` и PendingIntent (`FLAG_IMMUTABLE`).
-5. Постройте PoC с вложенным Intent (adb-строка или PoC-приложение).
-6. Оформите с указанием достигнутого компонента и влияния.
-
-Ключ: redirection обходит `exported=false`, потому что вызов идёт из процесса жертвы. Рекомендация — валидировать компонент, не доверять внешним Parcelable, не давать grant-флаги, использовать immutable PendingIntent.
+Главное — помнить, что посредник обходит любую защиту экспорта: то, что закрыто напрямую, может быть достижимо через чужой Intent. Поэтому проброс Intent проверяется наравне с самими приватными компонентами.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Почему redirection обходит `exported=false`?"
+- question: "Что такое intent redirection?"
   options:
-    - "Вызов идёт из процесса жертвы, где компонент доступен"
-    - "Android игнорирует exported"
-    - "Redirection меняет манифест"
-    - "Он использует root"
+    - "Запуск вложенного Intent от имени приложения-жертвы"
+    - "Перехват TLS"
+    - "Кража базы данных"
+    - "Расшифровка ключей"
   answer: 0
-- question: "Какая строка Intent запускает приватную activity через adb?"
+- question: "Как атакующий обходит `exported='false'` через redirection?"
   options:
-    - "--ez next true"
-    - "--es next 'intent:#Intent;component=pkg/.Secret;end'"
-    - "--activity-clear-top"
-    - "--user 0"
-  answer: 1
-- question: "Какой флаг нужен для доступа к provider через redirection?"
-  options:
-    - "FLAG_GRANT_READ_URI_PERMISSION"
-    - "FLAG_ACTIVITY_NEW_TASK"
-    - "FLAG_DEBUGGABLE"
-    - "FLAG_KEEP_SCREEN_ON"
+    - "Указывает приватный компонент во вложенном Intent, который запускает жертва"
+    - "Пересобирает APK"
+    - "Использует root"
+    - "Меняет сертификат"
   answer: 0
-- question: "Какой sink опасен помимо startActivity?"
+- question: "Где искать уязвимость в коде?"
   options:
-    - "sendBroadcast/startService"
-    - "setContentView"
-    - "findViewById"
-    - "getSystemService"
+    - "В извлечении `android.intent.extra.INTENT` и `startActivity`"
+    - "В `loadUrl`"
+    - "В `Cipher.getInstance`"
+    - "В `sqlite3`"
   answer: 0
-- question: "Какой принцип защиты от redirection?"
+- question: "Какой флаг делает PendingIntent неизменяемым?"
   options:
-    - "Считать данные внешнего Intent недоверенными и валидировать компонент"
-    - "Обфусцировать строки"
-    - "Отключить R8"
-    - "Включить ProGuard"
+    - "FLAG_IMMUTABLE"
+    - "FLAG_MUTABLE"
+    - "FLAG_NEW_TASK"
+    - "FLAG_SECURE"
+  answer: 0
+- question: "Почему данные из `getIntent()` нельзя доверять?"
+  options:
+    - "Их контролирует вызывающее приложение"
+    - "Они всегда зашифрованы"
+    - "Они хранятся на диске"
+    - "Их проверяет система"
   answer: 0
 ```
 
+## Куда дальше
+
+Мы разобрали intent redirection. В следующем уроке соберём всё вместе и займёмся **автоматизацией**: Drozer, фаззинг Intent и поиск IPC-уязвимостей в масштабе. А пока запомни главное: вложенный Intent — это непроверенный ввод, и запускать его вслепую нельзя.
+
 ## Где пригодится
 
-- **Пентест Android:** серьёзные находки на стыке компонентов.
-- **Bug bounty:** redirection → кража данных/ATO.
-- **Анализ малвари:** понимание межпакетных атак.
-- **CTF:** Mobile-задачи с вложенными Intent-ами.
+- **CTF Mobile:** запуск приватной Activity.
+- **Bug bounty:** intent redirection — находка высокого уровня.
+- **Пентест:** аудит обработки Intent.
+- **Работа:** ревью межкомпонентного взаимодействия.

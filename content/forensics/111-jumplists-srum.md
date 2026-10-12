@@ -15,230 +15,105 @@ estimated_minutes: 52
 summary: "Артефакты пользовательской активности Windows: JumpLists (недавние файлы и задачи), SRUM (сетевая/процессная активность по приложениям), BAM/DAM (доступ к исполняемым файлам) — инструменты JLECmd, SrumECmd, разбор баз ESE."
 ---
 
-Если Prefetch/ShimCache/AmCache отвечают на вопрос «что запускалось», то JumpLists, SRUM и BAM/DAM показывают **что делал пользователь**: какие документы открывал, сколько тратил сети, к каким EXE обращался. Эти артефакты особенно ценны, когда prefetch очищен, а действия нужно доказать.
+## Вопрос, с которого всё начинается
 
-## JumpLists
+В прошлом уроке мы доказали по Prefetch, ShimCache и AmCache, **что запускалось** на Windows-машине. Но есть другой, не менее важный вопрос: **что делал сам человек** — какие документы открывал, сколько данных передал в сеть, к каким программам обращался. Особенно если Prefetch очистили антифорензикой, а действия пользователя всё равно надо доказать.
 
-JumpLists — списки недавних и закреплённых элементов, которые Windows показывает при правом клике на иконку в панели задач. Хранятся в:
-`C:\Users\<user>\AppData\Roaming\Microsoft\Windows\Recent\AutomaticDestinations\*.automaticDestinations-ms`
-и `CustomDestinations\*.customDestinations-ms`.
+## Наш пример: образ с «вытертым» Prefetch
 
-Automatic-файлы — это **OLE-контейнеры с embedded LNK-потоками**: каждый поток — LNK-запись о файле/задаче. Имя файла кодирует AppID (какое приложение). Custom — конкатенация LNK без OLE-обёртки.
+Нам достали образ рабочей станции. Папка `C:\Windows\Prefetch` почти пуста — следов запуска нет. Зато целы каталоги пользователя и системная база `SRUDB.dat`. Разберём их по очереди и восстановим картину.
 
-```bash
-# JLECmd (Eric Zimmerman)
-JLECmd.exe -d "C:\Users\bob\AppData\Roaming\Microsoft\Windows\Recent\AutomaticDestinations" --csv out --csvf jl.csv
-JLECmd.exe -f 1b4dd67f29cb1962.automaticDestinations-ms
+Начнём с **JumpLists** (списки переходов). Это те списки, что Windows показывает при правом клике на иконку в панели задач — «недавние» и «закреплённые» документы. Хранятся они в двух папках:
 
-# Linux: jlecmd / python
-pip install jlecmd 2>/dev/null || true
-python3 -m jlecmd /path/to/AutomaticDestinations 2>/dev/null || true
-```
+- `...\Recent\AutomaticDestinations\*.automaticDestinations-ms`
+- `...\Recent\CustomDestinations\*.customDestinations-ms`
 
-Столбцы: `AppId`, `AppIdDescription`, `TargetPath`, `TargetCreated`, `TargetModified`, `TargetAccessed`, `VolumeSerialNumber`, `DriveType`. AppID указывает приложение (напр. `1b4dd67f29cb1962` — Windows Explorer).
-
-## SRUM (System Resource Usage Monitor)
-
-SRUM — база `C:\Windows\System32\sru\SRUDB.dat` (формат **ESE**, extensible storage engine). Она хранит по приложениям: **сетевую активность** (байты sent/received по интерфейсам), время CPU, работу с энергией. Ключевая ценность: SRUM может показать, **какое приложение сколько данных передало** — идеально для поиска эксфильтрации.
-
-SRUM требует **мягких таблиц** (SruDbIdMapTable) для сопоставления ID приложения с именем. Данные хранятся по 60-минутным интервалам.
-
-```bash
-# SrumECmd (Eric Zimmerman)
-SrumECmd.exe -f SRUDB.dat --csv out --csvf srum.csv
-SrumECmd.exe -d "C:\Windows\System32\sru" --csv out
-
-# Извлечь таблицы как ESE (esentutl / libesedb)
-esedbexport -t sru_export SRUDB.dat
-# таблица {D10CA2FE-...} = Network Usage
-```
-
-Типичный вывод: `ExeName`, `Timestamp`, `BytesSent`, `BytesReceived`, `InterfaceLuid`. Аномалия — процесс, который внезапно передал сотни мегабайт.
-
-## BAM/DAM
-
-BAM (Background Activity Moderator) и DAM (Desktop Activity Moderator) — ветки реестра:
-`HKLM\SYSTEM\CurrentControlSet\Services\bam\State\UserSettings\<SID>` (и `dam`).
-
-Они хранят время последнего запуска исполняемых файлов **по пользователю**, с полным путём. Это ещё один независимый источник «что запускалось», устойчивый к очистке prefetch.
-
-```bash
-# Разбор через реестр
-regipy-dump SYSTEM --path 'ControlSet001\Services\bam\State\UserSettings' -o bam.json
-# или RECmd (Kroll)
-RECmd.exe -f SYSTEM --bn BatchExamples\Kroll_Batch.reb --csv out
-```
-
-Формат значения: путь в UTF-16 + 8-байтный FILETIME последнего запуска.
-
-## Сводная таблица
-
-| Артефакт | Источник | Что даёт | Инструмент |
-|----------|----------|----------|------------|
-| JumpLists | Automatic/CustomDestinations | недавние/закреплённые файлы и задачи | JLECmd |
-| SRUM | SRUDB.dat (ESE) | сеть и CPU по приложениям | SrumECmd |
-| BAM | SYSTEM hive (bam) | последний запуск EXE по пользователю | RECmd/regipy |
-| DAM | SYSTEM hive (dam) | активность desktop-приложений | RECmd/regipy |
-
-## Разобранный пример
+Разбирает их инструмент `JLECmd` (Eric Zimmerman):
 
 ```bash
 $ JLECmd.exe -d ./AutomaticDestinations --csv ./out --csvf jl.csv
 Processed 12 files, 240 entries.
 $ grep -i secret ./out/jl.csv | head
-...\AutomaticDestinations\1b4dd67f29cb1962...,Explorer,...\Downloads\secret.docx,...
+...\AutomaticDestinations\1b4dd67f29cb1962...,Explorer,...,\Downloads\secret.docx,...
+```
+
+Первое, что видим: пользователь открывал файл `secret.docx` из папки `Downloads`. Это уже конкретный факт, а не догадка.
+
+## Шаг 1: какое приложение оставило запись
+
+Имя файла JumpList — это **AppID**: 16 шестнадцатеричных символов, кодирующих приложение. `1b4dd67f29cb1962` — Windows Explorer. Полные таблицы AppID ведут в справочниках; неизвестный AppID — сам по себе сигнал (редкое или стороннее приложение).
+
+Внутри файла `*.automaticDestinations-ms` лежит **OLE Compound File** — контейнер, как в старых `.doc`, внутри которого несколько потоков. Каждый поток — отдельная запись **LNK** (ссылка на файл или задачу) со своим `TargetPath`, временами создания/изменения/доступа цели и серийным номером тома.
+
+```bash
+$ JLECmd.exe -f 1b4dd67f29cb1962.automaticDestinations-ms --dumpTo dumped
+$ ls dumped/
+1.lnk  2.lnk  ...
+```
+
+Выгруженные LNK можно разобрать отдельно (`LECmd.exe`). Так связывают «пользователь открывал файл X» с «файл X лежал на съёмном носителе с таким-то серийником» — сильная связка при расследовании утечки.
+
+## Шаг 2: сколько данных ушло в сеть — SRUM
+
+Открытие документа само по себе безобидно. Следующий артефакт отвечает на вопрос «сколько трафика». **SRUM** (System Resource Usage Monitor) — системная база `C:\Windows\System32\sru\SRUDB.dat`. Формат — **ESE** (Extensible Storage Engine), тот же движок, что у баз Exchange/AD, а не текст и не SQLite.
+
+SRUM ведёт учёт **по приложениям**: отправленные и полученные байты, время CPU, энергопотребление — с шагом примерно в час.
+
+```bash
 $ SrumECmd.exe -f SRUDB.dat --csv ./out --csvf srum.csv
 $ sort -t, -k5 -nr ./out/srum.csv | head -3
 ExeName,Timestamp,BytesSent,BytesReceived,...
 chrome.exe,2024-03-01 22:30:00,524288000,12000000,...
 ```
 
-Вывод: пользователь открывал `secret.docx`, а chrome передал ~500 МБ — гипотеза об эксфильтрации; проверяем сетевые артефакты и PCAP.
+Читаем: `chrome.exe` в 22:30 отправил **~500 МБ** (524288000 байт). Для браузера, обычно передающего килобайты, это аномалия — гипотеза об эксфильтрации. SRUM не хранит содержимое, но счётчиков достаточно, чтобы понять масштаб.
 
-## Краевые случаи и подводные камни
+Тонкость: имена приложений подставляются из **soft-таблицы** `SruDbIdMapTable` — без неё вы увидите числовые ID, а не `chrome.exe`. Ключевые таблицы: `{D10CA2FE-...}` (Network Usage), `{973F5D5C-...}` (Network Connections).
 
-- **SRUM требует ESE.** `SRUDB.dat` нельзя читать как текст; нужен `esedbexport`/`SrumECmd`.
-- **SRUM не хранит содержимое.** Только счётчики; но их достаточно, чтобы заподозрить эксфильтрацию.
-- **JumpLists бывают повреждены.** При некорректном завершении OLE-потоки могут не читаться; попробуйте `--recover` в JLECmd.
-- **AppID неизвестен.** Сопоставляйте с таблицей AppID; неизвестные ID — тоже сигнал.
-- **BAM/DAM привязаны к SID.** Нужно сопоставить SID с именем пользователя (`ProfileList`).
-- **SRUM сбрасывается.** Данные старше ~30–60 дней могут отсутствовать.
-- **Часовые пояса.** JumpLists/SRUM — UTC; BAM — FILETIME (UTC).
-- **SRUM можно подделать.** Считайте артефакт вспомогательным, а не единственным доказательством.
+## Шаг 3: последний запуск EXE — BAM/DAM
 
-## JumpLists: структура файлов
+Третий независимый источник — **BAM** (Background Activity Moderator) и **DAM** (Desktop Activity Moderator). Это ветки реестра:
 
-Automatic Destinations — это **OLE Compound File** (как старые `.doc`). Внутри — несколько потоков, каждый обычно содержит одну LNK-запись плюс «destList»-поток с порядком и метаданными.
+`HKLM\SYSTEM\CurrentControlSet\Services\bam\State\UserSettings\<SID>`
 
-- Имя файла: `<AppID>.automaticDestinations-ms`.
-- AppID — 16 hex-символов; сопоставляется с приложением через таблицу AppID (напр. `1b4dd67f29cb1962` — Explorer, `5f7b5f1e01b83767` — Notepad).
-- Внутри — потоки с именами вроде `1`, `2`, … и `DestList`.
-- Каждый поток — embedded LNK с полем `TargetPath`, временами, volume serial.
-
-Custom Destinations — конкатенация LNK без OLE-обёртки; читаются как последовательность записей с сигнатурой `4C 00 00 00`.
+(и аналогично `dam`). Они хранят время последнего запуска исполняемых файлов **по каждому пользователю**, с полным путём.
 
 ```bash
-# JLECmd рекурсивно
-JLECmd.exe -d "C:\...\AutomaticDestinations" --csv out --csvf auto.csv
-JLECmd.exe -d "C:\...\CustomDestinations" --csv out --csvf custom.csv
-# Извлечь embedded LNK для отдельного анализа
-JLECmd.exe -f 1b4dd67f29cb1962.automaticDestinations-ms --dumpTo dumped
-```
-
-Поле `DestList` хранит счётчик обращений и время последнего доступа — по нему видно, какие документы открывали чаще всего.
-
-## SRUM: таблицы и интервалы
-
-SRUDB.dat содержит несколько таблиц; для форензика важнейшие:
-
-- `{D10CA2FE-6FCF-4F6D-848E-B2E99266FA89}` — Network Usage (по приложениям и интерфейсам).
-- `{973F5D5C-1D90-4944-BE8E-24B94231A174}` — Network Connections.
-- `{DD6636C4-8929-4683-974E-22C046A43763}` — Energy Usage.
-- `{FEE4E14F-02A9-4550-B5CE-5FA2DA202E37}` — Application Resource Usage.
-
-Данные хранятся по 60-минутным «ведрам»; ключ включает ID приложения, ID пользователя и время. `SruDbIdMapTable` связывает числовые ID с именем процесса/пользователя.
-
-```bash
-# Экспорт таблиц
-esedbexport -t sru_out SRUDB.dat
-ls sru_out/
-# Разбор через SrumECmd
-SrumECmd.exe -f SRUDB.dat --csv out --csvf srum.csv
-```
-
-## BAM/DAM: детали
-
-BAM хранится в `HKLM\SYSTEM\CurrentControlSet\Services\bam\State\UserSettings\<SID>` (на старых системах — `...\bam\UserSettings`). Каждое значение — имя в UTF-16 (путь к EXE) + 8-байтный FILETIME последнего запуска. DAM аналогичен, но для desktop-приложений.
-
-```bash
-# RECmd с batch-файлом Kroll
-RECmd.exe -f SYSTEM --bn BatchExamples\Kroll_Batch.reb --csv out --csvf reg.csv
-# Вручную через python-registry
-python3 - <<'PY'
+$ python3 - <<'PY'
 from Registry import Registry
 r = Registry.Registry("SYSTEM")
 k = r.open("ControlSet001\\Services\\bam\\State\\UserSettings")
 for sk in k.subkeys():
     print("SID:", sk.name())
     for v in sk.values():
-        print(" ", v.name(), v.value()[:60])
+        print("  ", v.name(), v.value()[:60])
 PY
 ```
 
-SID сопоставляется с пользователем через `SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList`.
+Значение — путь к EXE в UTF-16 плюс 8-байтный **FILETIME** (число 100-наносекундных интервалов с 1601 года UTC). BAM/DAM полезны именно тогда, когда Prefetch пуст: они от него не зависят. SID сопоставляется с именем пользователя через `SOFTWARE\...\ProfileList`.
 
-## Сценарии использования
+## Шаг 4: сводим три источника в таймлайн
 
-- **Доказать открытие документа.** JumpLists показывают `TargetPath` и время; этого достаточно, чтобы связать пользователя с файлом.
-- **Оценить объём утечки.** SRUM `BytesSent` по приложению — количественная оценка.
-- **Установить последний запуск EXE.** BAM/DAM дают время без зависимости от Prefetch.
-- **Сопоставить с внешними событиями.** JumpLists + SRUM + EVTX образуют связный таймлайн.
+| Артефакт | Отвечает на вопрос | Формат |
+|----------|--------------------|--------|
+| JumpLists | что открывал пользователь | OLE + LNK |
+| SRUM | сколько трафика у приложения | ESE-база |
+| BAM/DAM | когда запускался EXE | реестр + FILETIME |
 
-## Типичные ошибки
+Для нашего образа картина складывается: в 22:15 открыт `secret.docx` (JumpLists), в 22:30 `chrome.exe` отправил 500 МБ (SRUM), запуск подозрительного EXE подтверждает BAM. По отдельности каждый факт — крупица; вместе они дают связную историю. И помните о сроках: JumpLists живут, пока их не очистят; SRUM — 30–60 дней (циклический буфер); BAM/DAM — до ~30 дней.
 
-- **Читать SRUDB.dat как текст.** Только ESE-парсер.
-- **Игнорировать DestList.** Без него теряется порядок и счётчик обращений.
-- **Путать AppID и имя приложения.** Нужна таблица сопоставления.
-- **Не сопоставлять SID с пользователем.** Иначе BAM/DAM «безымянные».
-- **Забывать про сброс SRUM.** Данные старше периода могут отсутствовать.
-- **Считать один артефакт доказательством.** Всегда подтверждайте вторым источником.
+## Что мы теперь знаем
 
-## Разбор LNK внутри JumpLists
-
-Каждый поток automaticDestinations — это полноценный LNK-файл, который можно выгрузить и проанализировать отдельно. Полезные поля LNK:
-
-- `TargetPath` — путь к цели.
-- `LocalBasePath`/`CommonPathSuffix` — для локальных файлов.
-- `VolumeSerialNumber` и `DriveType` — на каком носителе был файл.
-- Creation/Modified/Access times цели.
-- `NetName`/`DeviceName` — для сетевых/съёмных путей.
-
-```bash
-# Выгрузить embedded LNK
-JLECmd.exe -f 1b4dd67f29cb1962.automaticDestinations-ms --dumpTo dumped
-ls dumped/
-# Разобрать конкретный LNK
-LECmd.exe -f dumped\1.lnk --csv out --csvf lnk.csv
-```
-
-Так вы связываете «пользователь открывал файл X» с «файл X лежал на съёмном носителе с таким-то serial» — сильная связка при расследовании утечки.
-
-## Сводная таблица артефактов активности
-
-| Артефакт | Путь | Ключевые поля |
-|----------|------|---------------|
-| JumpLists (auto) | `...\Recent\AutomaticDestinations` | AppID, TargetPath, DestList |
-| JumpLists (custom) | `...\Recent\CustomDestinations` | TargetPath |
-| SRUM | `System32\sru\SRUDB.dat` | ExeName, BytesSent/Received, Timestamp |
-| BAM | `SYSTEM\...\bam\State\UserSettings\<SID>` | путь EXE, FILETIME |
-| DAM | `SYSTEM\...\dam\State\UserSettings\<SID>` | путь EXE, FILETIME |
-
-Используйте все источники вместе: JumpLists показывают документы, SRUM — трафик, BAM/DAM — запуски. Только совпадение нескольких артефактов даёт уверенный вывод.
-
-## Почему эти артефакты важны в паре
-
-Ни один из трёх артефактов не даёт полной картины сам по себе. JumpLists знают, **что открывали**, но не знают сетевого контекста. SRUM знает трафик, но не имена файлов. BAM/DAM знают запуски, но не содержание работы. Комбинируя их, аналитик восстанавливает цепочку: пользователь открыл документ (JumpLists), приложение передало данные (SRUM), а вредоносный EXE был запущен (BAM/DAM). Именно корреляция по времени превращает разрозненные записи в доказательство.
-
-## Периоды хранения
-
-Полезно помнить, как долго живут данные:
-
-- **JumpLists** — пока пользователь их не очистит или не превысит лимит элементов (обычно 10 на приложение); переживают удаление файлов.
-- **SRUM** — около 30–60 дней (циклический буфер).
-- **BAM/DAM** — до 30 дней (историчность ограничена), но фиксирует последний запуск.
-
-Поэтому на «старом» образе JumpLists могут быть самым богатым источником, а SRUM — уже пустым.
-
-## Что дальше / решение
-
-1. Собрать `AutomaticDestinations`, `SRUDB.dat`, `SYSTEM` hive.
-2. Прогнать `JLECmd`, `SrumECmd`, `RECmd` (все с `--csv`).
-3. Сопоставить по времени: открытые файлы ↔ сетевой трафик ↔ запуски.
-4. Аномалии проверить другими артефактами (Prefetch, EVTX, PCAP).
-
-Дальше — `forensics-ads` и `forensics-evtx-deep`.
+- **JumpLists** хранят недавние и закреплённые документы/задачи; AppID кодирует приложение.
+- Файлы `*.automaticDestinations-ms` — это OLE-контейнеры с embedded LNK-потоками.
+- **SRUM** (`SRUDB.dat`, формат ESE) даёт сетевую активность и CPU по приложениям — идеален для поиска утечки.
+- **BAM/DAM** в реестре фиксируют последний запуск EXE по пользователю.
+- SRUM читается только ESE-парсером, имена процессов — из soft-таблицы.
+- Один артефакт не доказательство: подтверждайте вторым источником.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "В каком формате хранится база SRUM (SRUDB.dat)?"
@@ -273,7 +148,19 @@ LECmd.exe -f dumped\1.lnk --csv out --csvf lnk.csv
     - "номер SID"
   answer: 0
   explanation: "Аномально большой объём отправленных байт у процесса — сигнал утечки."
+- question: "Что такое AppID в имени файла JumpList?"
+  options:
+    - "серийный номер диска"
+    - "16 hex-символов, кодирующих приложение"
+    - "пароль пользователя"
+    - "номер раздела"
+  answer: 1
+  explanation: "AppID сопоставляется с приложением по справочной таблице."
 ```
+
+## Куда дальше
+
+Мы научились восстанавливать активность пользователя по JumpLists, SRUM и BAM/DAM. В следующем уроке (`forensics-ads`) разберём, как злоумышленники прячут данные в **Alternate Data Streams** NTFS — и как их найти. А пока главное запомни: **JumpLists показывают документы, SRUM — трафик, BAM/DAM — запуски; вместе они дают таймлайн активности**.
 
 ## Где пригодится
 

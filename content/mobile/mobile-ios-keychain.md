@@ -14,203 +14,186 @@ useful_for:
 estimated_minutes: 35
 summary: "Как iOS хранит секреты (Keychain, Data Protection, NSUserDefaults), какие accessibility-опции делают их уязвимыми и как извлекать/анализировать Keychain на устройстве."
 ---
-## Что такое iOS Keychain
 
-Keychain — системное защищённое хранилище секретов в iOS (пароли, токены, ключи, сертификаты). Приложение пишет туда через Security API (`SecItemAdd`, `SecItemCopyMatching`, `SecItemUpdate`, `SecItemDelete`), а система шифрует данные и защищает их классом доступности (`kSecAttrAccessible`). В отличие от `NSUserDefaults`/файлов (которые лежат в песочнице открыто), Keychain — правильное место для секретов. Пентест здесь ищет: секреты, которые **не** в Keychain (утечки), слабые классы доступности, доступ из других приложений (access groups), и извлечение при jailbreak.
+## Вопрос, с которого всё начинается
 
-Ментальная модель: Keychain шифруется системным ключом, привязанным к классу доступности и к устройству/паролю. Класс определяет, **когда** данные доступны (разблокировано, всегда, только это устройство) и переносятся ли они в бэкап.
+В статике мы нашли, что `DemoApp` хранит токен через какой-то `SecureStore`, а в entitlements увидели `Keychain Access Groups: com.demo.secapp`. Значит, секреты лежат в **Keychain** — защищённом хранилище iOS. Но что это за хранилище физически и как из него достать токен?
 
-## Классы доступности (kSecAttrAccessible)
+## Наш пример: keychain-2.db
 
-| Класс | Доступность | В бэкапе | Рекомендация |
-|-------|-------------|----------|--------------|
-| `WhenUnlocked` | только разблокированное | да | базовый |
-| `WhenUnlockedThisDeviceOnly` | разблокировано, только устройство | нет | секреты |
-| `AfterFirstUnlock` | после первой разблокировки | да | фоновые задачи |
-| `AfterFirstUnlockThisDeviceOnly` | то же, только устройство | нет | фоновые секреты |
-| `Always` | всегда (устарело) | да | не использовать |
-| `AlwaysThisDeviceOnly` | всегда, только устройство | нет | не использовать |
-| `WhenPasscodeSetThisDeviceOnly` | разблокировано + есть код | нет | самый строгий |
+Keychain на iOS — это не папка с файлами, а **SQLite-база** `keychain-2.db`, которой управляет системный демон `securityd`. Возьмём реальную базу и разберём её структуру. Сначала посмотрим таблицы:
 
-Слабые варианты: `kSecAttrAccessibleAlways` и `AfterFirstUnlock` для чувствительных секретов (доступны без разблокировки). `...ThisDeviceOnly` исключает перенос в бэкап — важно для токенов.
-
-## Как приложение пишет в Keychain
-
-```objectivec
-NSDictionary *q = @{
-  (__bridge id)kSecClass:       (__bridge id)kSecClassGenericPassword,
-  (__bridge id)kSecAttrService: @"com.target.app",
-  (__bridge id)kSecAttrAccount: @"sessionToken",
-  (__bridge id)kSecValueData:   [token dataUsingEncoding:NSUTF8StringEncoding],
-  (__bridge id)kSecAttrAccessible: (__bridge id)kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
-};
-SecItemAdd((__bridge CFDictionaryRef)q, NULL);
+```
+$ sqlite3 keychain-2.db ".tables"
+cert     genp     inet     keys
 ```
 
-```bash
-grep -rn "SecItemAdd\|SecItemCopyMatching\|kSecAttrAccessible\|kSecClass" out/ | head
+Четыре таблицы — по типу хранимых данных:
+
+| Таблица | Что хранит |
+|---------|-----------|
+| `genp` | общие пароли (generic passwords) |
+| `inet` | пароли интернет-аккаунтов (логины/пароли к сайтам) |
+| `cert` | сертификаты |
+| `keys` | криптографические ключи |
+
+Это и есть карта хранилища. Теперь заглянем внутрь `genp`:
+
+```
+$ sqlite3 -header -column keychain-2.db "SELECT rowid, CAST(acct AS TEXT) acct, CAST(svce AS TEXT) svce, CAST(data AS TEXT) data FROM genp;"
+rowid  acct                svce          data
+1      alice@demo.example  demo.session  {"token":"eyJhbGciOiJIUzI1NiJ9"}
+2      alice@demo.example  demo.pin      1234
 ```
 
-Проверяйте `kSecAttrAccessible`: если это `Always`/`AfterFirstUnlock` для токена — находка. Проверяйте также `kSecAttrAccessGroup` (общий доступ между приложениями одного разработчика).
+Вот и токен сессии — прямо в открытом виде (в этой учебной базе). `acct` — аккаунт, `svce` — сервис (по нему приложение находит запись), `data` — само значение. В реальности `data` обычно зашифрован ключом, привязанным к устройству и классу защиты.
 
-## Извлечение при jailbreak
+## Шаг 1: классы защиты (kSecAttrAccessible)
 
-На jailbreak-устройстве Keychain читается инструментами:
+Записи Keychain бывают с разным уровнем доступности. Этот параметр называется **Accessibility** и задаётся при сохранении. Основные значения:
 
-```bash
-objection -g com.target.app explore
-ios keychain dump
-ios keychain dump --json    # структурированный вывод
+| Значение | Когда доступно |
+|----------|----------------|
+| `kSecAttrAccessibleWhenUnlocked` | только при разблокированном устройстве |
+| `kSecAttrAccessibleAfterFirstUnlock` | после первой разблокировки (доступно в фоне) |
+| `kSecAttrAccessibleAlways` | всегда (устарело, небезопасно) |
+| `...ThisDeviceOnly` | не попадает в бэкап |
+
+Чем «слабее» значение, тем проще извлечь данные. `AfterFirstUnlock` — частый выбор для токенов синхронизации, и он позволяет читать секреты, даже когда экран заблокирован. Это стоит проверять в отчёте.
+
+## Шаг 2: дамп через Objection
+
+На jailbreak-устройстве проще всего дампить Keychain через Objection:
+
+```
+$ objection -g com.demo.secapp explore
+com.demo.secapp # ios keychain dump
 ```
 
-Под капотом — чтение `keychain-2.db` (SQLite) из `/private/var/Keychains/` или вызов Security API от имени приложения. При отсутствии jailbreak — только через динамическую инъекцию в само приложение (Frida/Objection), если приложение имеет доступ к своей группе.
+Команда выведет все записи, доступные приложению, с аккаунтом, сервисом и значением. Это самый быстрый способ получить токены. Аналогично работает дамп через Frida-скрипты (`frida-ios-dump` для IPA, `keychain_dumper` для базы).
 
-## Data Protection (защита файлов)
+## Шаг 3: что доступно приложению
 
-Отдельно от Keychain, файлы в песочнице защищены классом `NSFileProtection`:
+Важный момент: приложение видит только **свои** записи и записи своей группы (`Keychain Access Groups` из entitlements). Мы уже видели группу `com.demo.secapp`. Если приложение состоит в нескольких группах, ключи из них тоже доступны — а значит, уязвимость в одном приложении группы компрометирует секреты другого. Именно поэтому App Groups и Keychain Groups проверяют в аудите.
 
-```bash
-grep -rn "NSFileProtection\|setAttributes\|kSecAttrAccessible" out/ | head
+## Шаг 4: бэкап как источник
+
+Даже без jailbreak Keychain частично извлекается из **резервной копии**. Если бэкап сделан в Finder/iTunes и **не зашифрован**, ключи Keychain в него не попадают (они защищены). Но если пользователь включил «шифрованный бэкап», Keychain-записи сохраняются, и при знании пароля бэкапа их можно извлечь. Об этом подробно — в `mobile-ios-backup`.
+
+Проверить, зашифрован ли бэкап, можно по его структуре: в шифрованном есть `Manifest.db` в защищённом виде, а `Manifest.plist` содержит флаг `IsEncrypted`.
+
+## Шаг 5: типичные ошибки хранения
+
+Что ищем в Keychain с точки зрения безопасности:
+
+- **Токены с `AfterFirstUnlock`** — доступны в фоне, риск выше.
+- **Пароли в `NSUserDefaults` вместо Keychain** — `NSUserDefaults` это обычный plist, он не защищён.
+- **Секреты в файлах** (`Documents/`, `Library/`) — читаются через бэкап или jailbreak.
+- **Один общий ключ на всё приложение** — компрометация одной записи = компрометация всех.
+
+Сравнить легко: если после `ios keychain dump` токен найден в Keychain с сильным классом защиты — это хорошо; если он же лежит в `NSUserDefaults` (`ios nsuserdefaults get`) — это находка.
+
+## Шаг 6: проверка через симулятор и device
+
+На симуляторе Keychain ведёт себя иначе (он не привязан к реальному Secure Enclave), поэтому проверять классы защиты нужно на устройстве. Порядок:
+
+1. Установить приложение на устройство.
+2. Войти в аккаунт, чтобы появились записи.
+3. `objection -g com.demo.secapp explore` → `ios keychain dump`.
+4. Сравнить найденное с тем, что приложение могло бы хранить безопаснее.
+
+## Шаг 7: если дампа нет
+
+Иногда `ios keychain dump` ничего не показывает: приложение использует свою обёртку над `SecItem` с нестандартными атрибутами, либо данные лежат в общем доступе (App Group), к которому у нашего процесса нет прав. Тогда:
+
+- хукаем `SecItemCopyMatching` через Frida и логируем результат;
+- проверяем entitlements: возможно, нужна другая группа;
+- смотрим `keychain-2.db` напрямую с root (jailbreak), фильтруя по `agrp` (access group).
+
+Каждую находку проверяй дважды: сначала посмотри, есть ли запись в Keychain, затем — не дублируется ли то же значение в незащищённых местах. Дублирование в `NSUserDefaults` сводит на нет всю защиту Keychain: секрет, который «правильно» лежит в базе, но ещё и продублирован в plist, утекает через бэкап.
+
+## Шаг 8: как правильно хранить
+
+Если ты на стороне защиты, правил немного, но они важны. Токены — только в Keychain, никогда в `NSUserDefaults` или файлах. Для короткоживущих токенов выбирай `kSecAttrAccessibleWhenUnlocked` (а не `AfterFirstUnlock`), а для привязанных к устройству — вариант `...ThisDeviceOnly`, чтобы запись не попала в бэкап. Включай шифрованный бэкап и не клади в Keychain данные, которые можно перевыпустить. И помни про группы: чем больше приложений делят группу Keychain, тем шире поверхность атаки.
+
+## Шаг 9: читаем keychain-2.db запросом
+
+После дампа базы keychain удобнее смотреть её запросами. Класс защиты лежит в колонке `pdmn`:
+
+```
+$ sqlite3 keychain-2.db ".tables"
+genp     inet
+$ sqlite3 keychain-2.db "SELECT acct,svce,pdmn FROM genp;"
+user@demo.example|DemoAppToken|ak
+refresh|DemoAppRefresh|ck
 ```
 
-| Класс файла | Доступность |
-|-------------|-------------|
-| `NSFileProtectionComplete` | только разблокировано |
-| `NSFileProtectionCompleteUnlessOpen` | до закрытия файла |
-| `NSFileProtectionCompleteUntilFirstUserAuthentication` | после первой разблокировки (дефолт) |
-| `NSFileProtectionNone` | всегда |
+`genp` — общие пароли/токены, `inet` — сетевые (логины к серверам). `pdmn` расшифровывается как protection domain: `ak` — `AfterFirstUnlock` (доступно после первой разблокировки), `ck` — `WhenUnlocked` (только на разблокированном). Токен с `ak` — находка: он доступен фоновым процессам и при физическом доступе может быть извлечён без пароля. Именно поэтому правильная рекомендация — хранить секреты с `ck`/`ThisDeviceOnly`.
 
-Если приложение пишет токены в файл с `NSFileProtectionNone` — секрет доступен даже на заблокированном устройстве (и в бэкапе). Это находка.
+## Что мы теперь знаем
 
-## Частые ошибки
-
-- **Секреты в `NSUserDefaults`.** Не шифруются, лежат в `.plist` в песочнице — читаются при jailbreak/бэкапе.
-- **`kSecAttrAccessibleAlways`.** Доступно без разблокировки; часто на старом коде.
-- **Нет `ThisDeviceOnly`.** Токен переносится в бэкап (утечка при восстановлении).
-- **Широкий access group.** Другие приложения разработчика читают ваш Keychain.
-- **Логирование секретов.** `NSLog(token)` — утечка в syslog.
-
-## Разобранный пример: дамп Keychain
-
-```bash
-$ objection -g com.target.app explore
-com.target.app # ios keychain dump --json
-[
-  { "svce": "com.target.app", "acct": "refreshToken",
-    "accessibility": "kSecAttrAccessibleAfterFirstUnlock",
-    "data": "eyJhbGciOiJIUzI1NiIsInR5cCI6..." }
-]
-```
-
-Найден `refreshToken` с классом `AfterFirstUnlock` (доступен после первой разблокировки, попадает в бэкап). Impact: при извлечении бэкапа или на разблокированном устройстве токен утекает. Рекомендация — `WhenUnlockedThisDeviceOnly`.
-
-## Справочная таблица: API и риски
-
-| API / атрибут | Назначение | Риск |
-|---------------|-----------|------|
-| `SecItemAdd` | добавить секрет | слабый `Accessible` |
-| `SecItemCopyMatching` | прочитать | доступ из чужой группы |
-| `kSecAttrAccessibleAlways` | всегда доступно | утечка на локскрине |
-| `kSecAttrAccessibleAfterFirstUnlock` | после разблокировки | в бэкапе |
-| `kSecAttrAccessGroup` | общий доступ | cross-app |
-| `kSecAttrSynchronizable` | iCloud-синхронизация | утечка в iCloud |
-| `NSFileProtectionNone` | файл всегда доступен | утечка |
-
-## Типовые ошибки новичка
-
-- **Считать Keychain «неприступным».** При jailbreak он читается; ошибки классов/групп ослабляют защиту.
-- **Путать Keychain и файлы.** Проверяйте оба: `NSUserDefaults`, файлы, БД.
-- **Игнорировать бэкап.** `AfterFirstUnlock`/без `ThisDeviceOnly` → утечка через бэкап.
-- **Не смотреть access group.** Общий доступ — частый кросс-app вектор.
-- **Забыть про синхронизацию.** `kSecAttrSynchronizable` отправляет секрет в iCloud.
-
-## Практический чек-лист
-
-1. Найти обращения к Security API (`SecItemAdd/CopyMatching`).
-2. Выписать `kSecAttrAccessible` для каждого секрета.
-3. Проверить `kSecAttrAccessGroup` и `kSecAttrSynchronizable`.
-4. Проверить, не лежат ли секреты в `NSUserDefaults`/файлах.
-5. Проверить классы `NSFileProtection` для файлов с секретами.
-6. Дампнуть Keychain (`objection ios keychain dump`).
-7. Оценить impact: утечка через бэкап, cross-app, локскрин.
-
-## Что дальше / решение
-
-Порядок: найти Security API → проверить классы доступности и группы → проверить файлы/`NSUserDefaults` на секреты → дампнуть Keychain → оценить impact. Связанные уроки: `mobile-ios-basics`, `mobile-ios-dynamic`, `mobile-insecure-storage`, `mobile-keystore` (Android-аналог). Решение — когда секреты извлечены или подтверждена слабая конфигурация с impact.
-
-## Расширенный разбор: цепочки атак через Keychain
-
-Слабый Keychain почти никогда не бывает изолированной находкой — он звено в цепочке. Типовые сценарии:
-
-- **Утечка через бэкап:** секрет с `AfterFirstUnlock` (без `ThisDeviceOnly`) попадает в незашифрованный/слабозашифрованный бэкап (iTunes/Finder). Злоумышленник с бэкапом читает токен → **захват аккаунта** (`mobile-account-takeover`).
-- **Утечка через iCloud:** `kSecAttrSynchronizable=true` синхронизирует секрет в iCloud Keychain; при компрометации Apple ID он утекает.
-- **Cross-app через access group:** приложения одного разработчика (или с общей группой) читают секрет друг друга; вредоносное приложение той же группы (или с entitlement) получает доступ.
-- **Локскрин:** `Always`/`AlwaysThisDeviceOnly` доступны на заблокированном устройстве — секрет читается без разблокировки.
-- **Компромисс устройства:** при jailbreak читается весь Keychain, включая чужие группы (на старых iOS — с известными багами).
-
-Для каждой находки формулируйте impact через цепочку: «токен с классом AfterFirstUnlock → попадает в бэкап → восстанавливается на другом устройстве → захват сессии». Именно цепочка делает находку «high/critical», а не «low».
-
-## Сравнение Keychain и Android Keystore
-
-| Аспект | iOS Keychain | Android Keystore |
-|--------|--------------|------------------|
-| Что хранит | произвольные секреты (пароли/токены) | криптоключи (операции) |
-| Шифрование | системным ключом по классу | TEE/StrongBox |
-| Извлечение | дамп при jailbreak | ключ не извлекается (TEE) |
-| Классы | `kSecAttrAccessible` | `setUserAuthenticationRequired` |
-| Общий доступ | access groups | — (нет аналога) |
-| Аналог «бэкапа» | iCloud/локальный бэкап | — |
-
-Практический вывод: на Android вы чаще боретесь с **условиями использования** ключа, на iOS — с **классом доступности и бэкапом**. Оба урока стоит держать рядом.
+- Keychain — это SQLite-база `keychain-2.db`, управляемая `securityd`.
+- Записи делятся по таблицам: `genp` (общие пароли), `inet` (интернет), `cert`, `keys`.
+- `acct`/`svce`/`data` — аккаунт, сервис и значение записи.
+- Класс защиты (`kSecAttrAccessible`) определяет, когда запись доступна.
+- Дамп делается через `objection ios keychain dump` или Frida-хук `SecItemCopyMatching`.
+- Шифрованный бэкап сохраняет Keychain; незашифрованный — нет.
+- Приложение видит только свои записи и записи своих групп.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Какой kSecAttrAccessible правильнее для секретов?"
+- question: Что физически представляет Keychain на iOS?
   options:
-    - "kSecAttrAccessibleWhenUnlockedThisDeviceOnly"
-    - "kSecAttrAccessibleAlways"
-    - "kSecAttrAccessibleAfterFirstUnlock"
-    - "kSecAttrAccessibleAlwaysThisDeviceOnly"
-  answer: 0
-  explanation: "Только это устройство + после разблокировки — максимум защиты и без бэкапа."
-- question: "Что делает суффикс ThisDeviceOnly?"
+    - "Папку с файлами"
+    - "SQLite-базу keychain-2.db под управлением securityd"
+    - "Отдельный процесс"
+    - "Файл plist"
+  answer: 1
+  explanation: "Keychain — это база данных, доступ к которой контролирует securityd."
+- question: Какая таблица хранит общие пароли приложения?
   options:
-    - "Запрещает перенос элемента в бэкап/на другое устройство"
-    - "Ускоряет доступ"
-    - "Шифрует TLS"
-    - "Отключает Keychain"
-  answer: 0
-  explanation: "Элемент не мигрирует через бэкап и iCloud."
-- question: "Где НЕ следует хранить токены?"
+    - "inet"
+    - "genp"
+    - "cert"
+    - "keys"
+  answer: 1
+  explanation: "genp — generic passwords, то есть общие записи приложения."
+- question: Какое поле записи определяет, когда она доступна?
   options:
-    - "В NSUserDefaults"
-    - "В Keychain"
-    - "В Secure Enclave"
-    - "В Keychain с ThisDeviceOnly"
-  answer: 0
-  explanation: "NSUserDefaults — обычный plist без защиты секретов."
-- question: "Чем опасна опция kSecAttrAccessibleAlways?"
+    - "acct"
+    - "svce"
+    - "kSecAttrAccessible (класс защиты)"
+    - "agrp"
+  answer: 2
+  explanation: "Accessibility задаёт условия доступа, например WhenUnlocked или AfterFirstUnlock."
+- question: Какая команда Objection дампит Keychain?
   options:
-    - "Секрет доступен даже при заблокированном устройстве и попадает в бэкап"
-    - "Она замедляет приложение"
-    - "Она требует jailbreak"
-    - "Она удаляет элемент"
-  answer: 0
-  explanation: "Always снимает привязку к разблокировке и переносится в бэкап."
-- question: "Что показывает keychain-access-groups?"
+    - "ios cookies get"
+    - "ios keychain dump"
+    - "ios nsuserdefaults get"
+    - "ios jailbreak disable"
+  answer: 1
+  explanation: "ios keychain dump выводит доступные приложению записи Keychain."
+- question: Попадает ли Keychain в незашифрованный бэкап?
   options:
-    - "Группы доступа к общим элементам Keychain"
-    - "Список файлов приложения"
-    - "Версию iOS"
-    - "Размер бинарника"
-  answer: 0
-  explanation: "Общая группа позволяет другому приложению читать те же элементы."
+    - "Да, всегда"
+    - "Нет, ключи защищены; они сохраняются только в шифрованном бэкапе"
+    - "Только на Android"
+    - "Только при root"
+  answer: 1
+  explanation: "В незашифрованном бэкапе Keychain не сохраняется; нужен шифрованный бэкап."
 ```
+
+## Куда дальше
+
+Keychain мы разобрали. Но на пути к секретам стоит защита: приложение отказывается работать на jailbreak-устройстве, а трафик прикрыт pinning. В следующем уроке мы разберём, как устроен jailbreak-детект и как его обходить. А пока главное запомни: Keychain — это SQLite-база, и самый быстрый путь к токену — `objection ios keychain dump` на устройстве.
 
 ## Где пригодится
 
-- **CTF Mobile:** извлечение токена/флага из Keychain.
-- **Bug bounty:** утечка секретов из-за неверного accessibility-класса.
-- **Пентест:** аудит хранения секретов в iOS.
-- **Работа:** ревью криптохранилищ приложения.
+- **Пентест:** извлечение токенов и паролей приложения.
+- **Bug bounty:** доказательство небезопасного хранения секретов.
+- **CTF:** флаг, спрятанный в Keychain.
+- **Аудит:** проверка классов защиты записей и групп Keychain.

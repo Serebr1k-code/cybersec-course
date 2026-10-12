@@ -14,309 +14,215 @@ useful_for:
 estimated_minutes: 25
 summary: "Стандартные файлы сайта как источник структуры: robots.txt, sitemap.xml, security.txt, .well-known, ads.txt и другие — что искать и как читать."
 ---
-На любом сайте есть набор «служебных» файлов, которые владельцы создают не для посетителей, а для роботов и сервисов: `robots.txt`, `sitemap.xml`, `security.txt`, `ads.txt`, каталог `.well-known`. Для OSINT это маленькая золотая жила: они **намеренно раскрывают структуру** — какие пути есть, какие закрыты от индексации, кто отвечает за безопасность, какие вендоры используются. Эти файлы отдают почти все сайты, а читать их безопасно и быстро.
 
-## Теория: зачем существуют эти файлы
+## Вопрос, с которого всё начинается
 
-Каждый служебный файл появился для решения конкретной задачи, и каждая задача раскрывает что-то полезное:
+Ты смотришь на сайт `app.example.com` и хочешь понять его структуру: какие есть разделы, что скрыто, с кем связаться. Сканировать пути вслепую долго и шумно.
 
-| Файл | Назначение | Что даёт разведке |
-|------|-----------|-------------------|
-| `robots.txt` | правила для поисковых ботов | список путей, в т.ч. «запретных» |
-| `sitemap.xml` | карта сайта для индексации | все страницы и разделы |
-| `security.txt` | контакты по безопасности | email, срок действия, политика |
-| `ads.txt` | авторизованные рекламные системы | партнёры, monetization |
-| `humans.txt` | команда сайта | имена, роли |
-| `.well-known/` | стандартные сервисные данные | ACME, OIDC, MTA-STS и др. |
+Но есть набор «служебных» файлов, которые сайт **отдаёт сам** — они созданы для роботов и сервисов, а не для людей. Это `robots.txt`, `sitemap.xml`, `security.txt` и каталог `.well-known`. Разберём, что каждый из них раскрывает, на одном домене.
 
-Парадокс: `robots.txt` с директивой `Disallow: /admin/` не защищает `/admin/` — он **сообщает всему миру**, что там что-то есть. Это классический источник находок.
+## Наш пример: домен app.example.com
 
-## robots.txt: карта скрытого
+Работаем с одним объектом — `app.example.com`. Задача: собрать карту путей и контактов, не делая ни одного агрессивного запроса. Все эти файлы публичны, и их чтение безопасно.
 
-Запрос:
+## Шаг 1: robots.txt — карта скрытого
+
+`robots.txt` — файл с правилами для поисковых роботов. Он говорит, какие пути индексировать не нужно.
 
 ```bash
-curl -s https://example.com/robots.txt
+curl -s https://app.example.com/robots.txt
 ```
-
-Пример ответа:
 
 ```
 User-agent: *
 Disallow: /admin/
+Disallow: /api/internal/
 Disallow: /backup/
-Disallow: /private/
-Disallow: /wp-admin/
-Disallow: /*.pdf$
 Allow: /public/
 
-Sitemap: https://example.com/sitemap.xml
+Sitemap: https://app.example.com/sitemap.xml
 ```
 
-Читаем: есть `/admin/`, `/backup/`, `/private/`. Это прямые кандидаты для проверки (в рамках авторизации!). `Allow` и `Disallow` с wildcard (`/*.pdf$`) показывают паттерны.
-
-Полезные запросы:
+Вот главный парадокс: `Disallow: /admin/` **не защищает** `/admin/` — он публично сообщает всему миру, что такой путь существует. Это классический источник находок. Здесь мы видим `/admin/`, `/api/internal/`, `/backup/` — прямые кандидаты для проверки (в рамках авторизации).
 
 ```bash
-# все директивы Disallow/Allow
-curl -s https://example.com/robots.txt | grep -iE '^(Disallow|Allow):'
-# все Sitemap-ссылки
-curl -s https://example.com/robots.txt | grep -i '^Sitemap:'
-# user-agent-специфичные блоки (иногда раскрывают разных ботов)
-curl -s https://example.com/robots.txt | grep -iA5 'User-agent'
+curl -s https://app.example.com/robots.txt | grep -iE '^(Disallow|Allow):'
 ```
 
-Часто в `robots.txt` светят **staging/dev-поддомены** и **нестандартные порты**.
+## Шаг 2: sitemap.xml — полная структура
 
-## sitemap.xml: полная структура
-
-`Sitemap` указывает на XML-карту. Забираем:
+Строка `Sitemap:` указывает на XML-карту сайта со всеми страницами.
 
 ```bash
-curl -s https://example.com/sitemap.xml | head -40
+curl -s https://app.example.com/sitemap.xml | grep -oE '<loc>[^<]+' | sed 's/<loc>//'
 ```
 
-Пример:
-
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url><loc>https://example.com/</loc></url>
-  <url><loc>https://example.com/products/</loc></url>
-  <url><loc>https://example.com/blog/2026/10/release/</loc></url>
-  <url><loc>https://example.com/downloads/manual-v3.pdf</loc></url>
-</urlset>
+```
+https://app.example.com/
+https://app.example.com/products/
+https://app.example.com/blog/2026/10/release/
+https://app.example.com/downloads/manual-v3.pdf
 ```
 
-Извлекаем все URL:
+Sitemap часто **вложенный**: `sitemap_index.xml` ссылается на подкарты (`sitemap-posts.xml`, `sitemap-products.xml`). Их обходят рекурсивно — так собирается полный список страниц, включая забытые разделы и документы.
+
+## Шаг 3: security.txt — контакты и политика
+
+Стандарт RFC 9116 определяет файл `security.txt` с контактами службы безопасности. Он лежит в двух местах — проверяй оба.
 
 ```bash
-curl -s https://example.com/sitemap.xml | grep -oE '<loc>[^<]+' | sed 's/<loc>//'
+curl -s https://app.example.com/.well-known/security.txt
+curl -s https://app.example.com/security.txt
 ```
 
-Sitemap часто вложенный: `sitemap_index.xml` ссылается на подкарты (`sitemap-posts.xml`, `sitemap-products.xml`). Рекурсивно обходим их — так собирается полный список страниц, включая забытые разделы и документы.
-
-## security.txt: контакты и политика
-
-Стандарт RFC 9116. Живёт в двух местах:
-
-```bash
-curl -s https://example.com/.well-known/security.txt
-curl -s https://example.com/security.txt
+```
+Contact: mailto:soc@example.com
+Expires: 2027-03-01T00:00:00Z
+Policy: https://app.example.com/security/policy
 ```
 
-Пример:
+Что это даёт: email службы безопасности (для ответственного раскрытия), PGP-ключ и ссылку на политику. А иногда — на «доску благодарности» (hall of fame), где перечислены прошлые исследователи; там встречаются имена и описания найденных уязвимостей.
 
-```
-Contact: mailto:security@example.com
-Contact: https://example.com/security/report
-Expires: 2027-01-01T00:00:00.000Z
-Encryption: https://example.com/pgp-key.txt
-Acknowledgments: https://example.com/security/hall-of-fame
-Policy: https://example.com/security/policy
-Preferred-Languages: en, ru
-Canonical: https://example.com/.well-known/security.txt
-```
+## Шаг 4: .well-known — стандартные сервисы
 
-Что даёт: email службы безопасности (для ответственного раскрытия), PGP-ключ, ссылку на политику и «доску благодарности» (там перечислены прошлые исследователи — иногда с описанием уязвимостей).
-
-## .well-known: стандартные сервисы
-
-Каталог `/.well-known/` содержит стандартизованные файлы:
+Каталог `/.well-known/` содержит стандартизованные файлы разных сервисов.
 
 | Путь | Что раскрывает |
 |------|----------------|
 | `/.well-known/security.txt` | контакты безопасности |
-| `/.well-known/acme-challenge/` | домен на Let's Encrypt |
 | `/.well-known/openid-configuration` | OIDC-эндпоинты, issuer |
 | `/.well-known/mta-sts.txt` | почтовая политика |
-| `/.well-known/change-password` | поддержка смены пароля |
 | `/.well-known/assetlinks.json` | привязка Android-приложений |
-| `/.well-known/apple-app-site-association` | deep links iOS |
-| `/.well-known/webfinger` | федерация (Mastodon и др.) |
+| `/.well-known/change-password` | поддержка смены пароля |
 
-Пример проверки OIDC:
+Особенно ценен OIDC-файл: он раскрывает внутренний провайдер входа.
 
 ```bash
-curl -s https://example.com/.well-known/openid-configuration | python3 -m json.tool
+curl -s https://app.example.com/.well-known/openid-configuration | python3 -m json.tool
 ```
 
-Вывод:
-
-```json
+```
 {
   "issuer": "https://login.example.com/",
   "authorization_endpoint": "https://login.example.com/oauth2/authorize",
-  "token_endpoint": "https://login.example.com/oauth2/token",
   "jwks_uri": "https://login.example.com/.well-known/jwks.json"
 }
 ```
 
-Это раскрывает внутренний IdP (`login.example.com`) — отдельный актив для разведки.
+Теперь мы знаем про `login.example.com` — отдельный актив для разведки.
 
-## Разобранный пример: полный сбор служебных файлов
+## Шаг 5: humans.txt и другие файлы
 
-Цель: `app.example.com`.
+Кроме стандартных, есть менее известные файлы. `humans.txt` часто содержит команду сайта.
 
 ```bash
-BASE=https://app.example.com
-for p in /robots.txt /sitemap.xml /sitemap_index.xml /.well-known/security.txt \
-         /security.txt /.well-known/openid-configuration /.well-known/assetlinks.json \
-         /humans.txt /ads.txt; do
-  code=$(curl -s -o /tmp/f -w '%{http_code}' -m 8 "$BASE$p")
-  [ "$code" = 200 ] && echo "== $p ==" && head -5 /tmp/f
-done
+curl -s https://app.example.com/humans.txt
 ```
 
-Фрагмент вывода:
-
 ```
-== /robots.txt ==
-User-agent: *
-Disallow: /admin/
-Disallow: /api/internal/
-
-== /.well-known/security.txt ==
-Contact: mailto:soc@example.com
-Expires: 2027-03-01T00:00:00Z
-
-== /humans.txt ==
 /* TEAM */
 Developer: Ivan Petrov
 Contact: ivan@example.com
 ```
 
-Итог: обнаружены `/api/internal/` (кандидат), SOC-почта и имя разработчика с личным email — два новых pivot-идентификатора (email → см. ветку email-разведки).
+Имя и личный email разработчика — два новых pivot-идентификатора. Дальше `ads.txt` раскроет рекламных партнёров, а `sitemap` — документы и разделы.
 
-## Таблица: быстрый чек-лист
+## Шаг 6: собираем карту и приоритизируем
 
-| Файл | Проверять | Что искать |
-|------|-----------|-----------|
-| `robots.txt` | всегда | Disallow-пути, Sitemap, dev-поддомены |
-| `sitemap.xml` | всегда | полный список URL, документы |
-| `security.txt` | всегда | контакты, PGP, политика |
-| `humans.txt` | часто | имена, email команды |
-| `ads.txt` | для рекламных сайтов | партнёры, publisher ID |
-| `openid-configuration` | если есть логин | IdP, эндпоинты |
-| `assetlinks.json` | мобильные | package name, отпечатки |
-| `mta-sts.txt` | почта | режим, MX-политика |
+Прогоняем список файлов одной командой и собираем результат.
 
-## Ошибки и подводные камни
+```bash
+BASE=https://app.example.com
+for p in /robots.txt /sitemap.xml /.well-known/security.txt /security.txt \
+         /.well-known/openid-configuration /humans.txt /ads.txt; do
+  code=$(curl -s -o /tmp/f -w '%{http_code}' -m 8 "$BASE$p")
+  [ "$code" = 200 ] && echo "== $p ==" && head -3 /tmp/f
+done
+```
 
-- **Считать `Disallow` защитой.** Это публичный файл; запрет в нём — не контроль доступа.
-- **Не проверять оба пути security.txt.** Он может лежать в корне или в `.well-known/`.
-- **Игнорировать вложенные sitemap.** `sitemap_index.xml` ведёт на подкарты — обходите рекурсивно.
-- **Ходить на найденные пути без авторизации.** `robots.txt` даёт гипотезы, а не разрешение; проверять их можно только в рамках scope.
-- **Забывать про регистр и слеши.** `.well-known` (не `.well_known`), `/security.txt` (не `/Security.txt`).
-- **Не сохранять ответы.** Служебные файлы меняются — фиксируйте снимки для истории.
-
-## Что дальше / решение
-
-Служебные файлы — быстрый способ получить структуру и контакты. Дальше: **TLS-фингерпринт** (`osint-tls-fingerprint`) для корреляции хостов, **email-разведка** (`osint-email-enum`) по найденным адресам, и **картирование поверхности атаки** (`osint-attack-surface`). Итог: за пару минут вы получаете карту путей, контакты команды и кандидатов на проверку — всё легально и без шума.
+Из найденных путей не все равнозначны. Приоритет простой: `/admin`, `/internal`, `/api`, `/backup`, `/.env` — высокий; `/staging`, `/dev` — средний; `/public`, `/assets` — низкий. Список путей — это гипотезы, а не разрешение на их обход.
 
 ## Продвинутые .well-known-файлы
 
-Помимо security.txt и OIDC, каталог `.well-known/` содержит много полезного:
+Каталог `.well-known/` содержит много полезного помимо security.txt и OIDC:
 
 | Путь | Что раскрывает |
 |------|----------------|
-| `/.well-known/webfinger?resource=acct:user@host` | федеративные профили |
 | `/.well-known/nodeinfo` | Fediverse-инстанс |
-| `/.well-known/host-meta` | метаданные хоста |
-| `/.well-known/security.txt` | контакты |
 | `/.well-known/matrix/client` | Matrix-сервер |
+| `/.well-known/host-meta` | метаданные хоста |
 | `/.well-known/did.json` | децентрализованные идентификаторы |
-| `/.well-known/gpc.json` | Global Privacy Control |
-| `/.well-known/est/` | PKI-регистрация |
-
-Проверка набора:
+| `/.well-known/webfinger` | федеративные профили |
 
 ```bash
-BASE=https://example.com
-for p in webfinger?resource=acct:test@example.com nodeinfo host-meta \
-         matrix/client did.json gpc.json openid-configuration; do
+BASE=https://app.example.com
+for p in nodeinfo host-meta matrix/client did.json openid-configuration; do
   code=$(curl -s -o /dev/null -w '%{http_code}' -m 6 "$BASE/.well-known/$p")
   echo "$code  $p"
 done
 ```
 
-Каждый `200` — новый факт об инфраструктуре.
+Каждый ответ `200` — новый факт об инфраструктуре.
 
-## security.txt: разбор и «hall of fame»
+## Поиск через поисковики и архивы
 
-В `security.txt` кроме контактов бывает ссылка на страницу благодарностей (Acknowledgment). Она перечисляет исследователей и иногда — суть находок:
+Иногда файлы лежат не в корне, а в подкаталогах. Тогда помогают дорки:
 
-```bash
-curl -s https://example.com/.well-known/security.txt
-curl -s https://example.com/security/hall-of-fame | grep -iE 'cve|vulnerability|by '
-```
-
-Это раскрывает: зрелость программы безопасности, типы найденных уязвимостей и активных исследователей (имена → pivot).
-
-## Автоматизация массовой проверки
-
-По списку хостов проверяем все служебные файлы и собираем сводку:
-
-```bash
-#!/usr/bin/env bash
-# wellknown-scan.sh — сбор служебных файлов по списку хостов
-PATHS="/robots.txt /sitemap.xml /.well-known/security.txt /security.txt \
-       /.well-known/openid-configuration /.well-known/assetlinks.json /humans.txt /ads.txt"
-while read -r h; do
-  for p in $PATHS; do
-    out=$(curl -s -m 8 -w '%{http_code}' -o /tmp/wk "$h$p")
-    if [ "$out" = "200" ]; then
-      echo "=== $h$p ==="
-      head -3 /tmp/wk
-    fi
-  done
-done < hosts.txt
-```
-
-Результат — сводка служебных файлов по всем поддоменам, готовая к анализу.
-
-## Правовые и этические границы
-
-- Служебные файлы **публичны** — их чтение легально.
-- Но найденные в `robots.txt` пути **не разрешение** на их обход/эксплуатацию.
-- Не используйте найденные email для спама/соц. инженерии.
-- В CTF данные вымышлены — этика проще; в реальности — строго в рамках scope.
-
-## Поиск служебных файлов через поисковики
-
-Иногда файлы не в корне, а в подкаталогах. Дорки:
-
-```
+```text
 site:example.com ext:txt inurl:robots
 site:example.com inurl:security.txt
-site:example.com intitle:"index of" sitemap
 site:example.com ext:xml sitemap
 ```
 
-Также ищем утёкшие служебные файлы в архивах:
+А исторические версии ищутся в Wayback — там часто остаются пути, которых уже нет на живом сайте:
 
 ```bash
-curl -s "http://web.archive.org/cdx/search/cdx?url=example.com/robots.txt&output=text&limit=5"
-curl -s "http://web.archive.org/cdx/search/cdx?url=example.com/sitemap.xml&output=text&limit=5"
+curl -s "http://web.archive.org/cdx/search/cdx?url=app.example.com/robots.txt&output=text&limit=5"
 ```
 
-Исторические версии часто содержат пути, которых уже нет на живом сайте.
+## Правовые и этические границы
 
-## Приоритизация находок из служебных файлов
+Служебные файлы **публичны**, и их чтение легально. Но найденные в `robots.txt` пути — **не разрешение** на их обход или эксплуатацию. Не используй найденные email для спама или социальной инженерии. В CTF данные вымышлены и этика проще; в реальности — строго в рамках scope.
 
-Не все найденные пути равнозначны. Приоритет:
+## Приоритизация находок
 
-| Путь из robots/sitemap | Приоритет |
-|------------------------|-----------|
+Не все найденные пути равнозначны. Составь список и проверяй по приоритету:
+
+| Путь из robots или sitemap | Приоритет |
+|---------------------------|-----------|
 | `/admin`, `/internal`, `/api` | высокий |
 | `/backup`, `/old`, `/.git`, `/.env` | высокий |
 | `/staging`, `/dev`, `/test` | средний |
 | `/private`, `/tmp` | средний |
 | `/public`, `/assets` | низкий |
 
-Составьте список и проверяйте по приоритету — в рамках авторизации.
+Помни: это гипотезы, а не разрешение. Обход найденных путей — только в рамках авторизации.
+
+## Почему это быстрый выигрыш
+
+Служебные файлы отдают почти все сайты, читаются без авторизации и не оставляют подозрительного следа — один GET. За пару минут ты получаешь карту путей, контакты команды и кандидатов на проверку. Это самый дешёвый способ начать разведку веб-поверхности, прежде чем переходить к более шумным методам.
+
+## Что мы теперь знаем
+
+По-простому:
+
+1. `robots.txt` публично раскрывает пути, которые «прячут».
+2. `sitemap.xml` даёт полный список страниц, включая документы.
+3. `security.txt` отдаёт контакты службы безопасности.
+4. `.well-known` раскрывает OIDC, MTA-STS и мобильные привязки.
+5. Найденные пути — гипотезы, проверять их можно только в scope.
+
+## На что смотреть дальше
+
+- **Не считай `Disallow` защитой.** Это публичный файл, а не контроль доступа.
+- **Проверяй оба пути security.txt.** Он бывает в корне и в `.well-known/`.
+- **Обходи вложенные sitemap.** `sitemap_index.xml` ведёт на подкарты.
+- **Не ходи по найденным путям без авторизации.** Это выход за scope.
+- **Сохраняй ответы.** Служебные файлы меняются — фиксируй снимки.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Что означает `Disallow: /admin/` в robots.txt с точки зрения безопасности?"
@@ -329,7 +235,7 @@ curl -s "http://web.archive.org/cdx/search/cdx?url=example.com/sitemap.xml&outpu
 - question: "Где по стандарту RFC 9116 лежит security.txt?"
   options:
     - "Только в корне"
-    - "В `/.well-known/security.txt` (и, для совместимости, в корне)"
+    - "В `/.well-known/security.txt` и, для совместимости, в корне"
     - "В `robots.txt`"
     - "В `sitemap.xml`"
   answer: 1
@@ -347,7 +253,7 @@ curl -s "http://web.archive.org/cdx/search/cdx?url=example.com/sitemap.xml&outpu
     - "Скачать один раз и остановиться"
     - "Только через Shodan"
   answer: 1
-- question: "Что можно извлечь из `humans.txt`?"
+- question: "Что можно извлечь из humans.txt?"
   options:
     - "Список CVE"
     - "Имена и контакты команды сайта"
@@ -356,10 +262,13 @@ curl -s "http://web.archive.org/cdx/search/cdx?url=example.com/sitemap.xml&outpu
   answer: 1
 ```
 
+## Куда дальше
+
+В следующем уроке мы возьмём **TLS-сертификат** и разберём, как его параметры помогают коррелировать хосты и находить связанные сервисы. А пока запомни главное: служебные файлы — самый дешёвый способ получить структуру и контакты сайта, но найденные в них пути — это гипотезы, а не разрешение.
+
 ## Где пригодится
 
-- **CTF (OSINT):** в robots.txt/sitemap спрятан путь к флагу.
+- **CTF (OSINT):** в robots.txt или sitemap спрятан путь к флагу.
 - **Bug bounty:** быстрый список эндпоинтов и контактов для отчёта.
 - **Пентест:** стартовая карта структуры приложения без агрессивного сканирования.
-- **Расследования:** найти контакты SOC/разработчиков и связать с личностями.
 - **Blue team:** проверить, что ваш собственный robots.txt не раскрывает лишнего.

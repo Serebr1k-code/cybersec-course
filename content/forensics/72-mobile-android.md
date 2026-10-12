@@ -15,281 +15,204 @@ estimated_minutes: 45
 summary: "Извлечение и анализ данных Android: ADB, backup, root-доступ, app data, SQLite-базы приложений, логи и артефакты системы."
 ---
 
-## Уровни извлечения Android
+## Вопрос, с которого всё начинается
 
-1. **Логическое** (без root): ADB pull доступных файлов, `adb backup`, контакты/SMS через API.
-2. **Файловая система** (root): прямой доступ к `/data/data/<package>/`.
-3. **Физическое** (полный образ): через EDL/ISP/JTAG или с root (`dd`).
-4. **Облако:** Google Drive/Takeout, WhatsApp/Telegram cloud.
+Изъят Android-телефон. Нужно понять, какое приложение установлено, с кем человек переписывался и не «сливал» ли он данные. Но просто скопировать папку с телефона нельзя: Android изолирует данные приложений друг от друга.
 
-Чем выше уровень, тем больше данных. Для CTF часто достаточно логического или дампа `/data`.
+Мы уже разбирали мобильные артефакты в общем виде (`forensics-mobile`). Теперь пройдём полный путь на конкретном устройстве: от подключения по USB до чтения базы переписки. По ходу разберёмся, почему доступ к данным зависит от **уровня извлечения**.
 
-## ADB: базовые команды
+## Наш пример: телефон с приложением `com.example.app`
 
-```bash
-adb devices
-adb shell
-adb pull /sdcard/ /evidence/sdcard/        # внешнее хранилище
-adb shell pm list packages                  # список приложений
-adb shell pm path com.example.app           # путь APK
-adb pull /data/data/com.example.app/        # только с root
-adb shell dumpsys                          # системная информация
-adb shell dumpsys battery
-adb shell dumpsys package com.example.app
-```
-
-## adb backup
+Подключаем устройство по USB и запускаем отладочный мост. **ADB** (Android Debug Bridge) — это инструмент, через который компьютер общается с телефоном.
 
 ```bash
-# Полный бэкап (если разрешён приложением)
-adb backup -apk -shared -all -f backup.ab
-# Извлечение .ab (нужен abe.jar или Android Backup Extractor)
-java -jar abe.jar unpack backup.ab backup.tar
-tar xf backup.tar
+$ adb devices
+List of devices attached
+4A8B1C2D	device
 ```
 
-Современный Android ограничивает `adb backup` (нужно подтверждение на устройстве), но для старых устройств/CTF работает.
+`device` в выводе означает, что телефон авторизован (на экране подтвердили отладку). Если бы стояло `unauthorized`, нужно было бы подтвердить запрос на самом телефоне.
 
-## App data и SQLite
+## Шаг 1: выбираем уровень извлечения
 
-Приложения хранят данные в `/data/data/<package>/`:
+Прежде чем что-то тянуть, важно понять, что нам доступно. Есть четыре уровня, и каждый даёт больше данных, чем предыдущий:
 
-- `databases/` — SQLite-базы (`*.db`, `*.sqlite`).
-- `shared_prefs/` — XML-настройки.
+- **Логический** (без root) — только то, что видно через ADB: общее хранилище `/sdcard`, бэкапы, выгрузки через API.
+- **Файловая система** (root) — прямой доступ к `/data/data/<пакет>/`, где лежат базы приложений.
+- **Физический** — полный образ флеш-памяти (через EDL/JTAG или `dd` с root).
+- **Облако** — бэкапы в Google Drive/Takeout.
+
+Без root папка `/data/data/` недоступна — это защита песочницы Android. Поэтому начинаем с того, что можно.
+
+## Шаг 2: собираем общее хранилище
+
+`/sdcard` — это «внутренняя память» для пользователя: фото, загрузки, документы. Она доступна без root:
+
+```bash
+$ adb pull /sdcard/ /evidence/sdcard/
+/sdcard/: 2312 files pulled. 8.1 GB/s
+$ adb shell pm list packages > packages.txt
+$ grep example packages.txt
+package:com.example.app
+```
+
+`pm list packages` перечисляет установленные приложения (это их **пакеты** — уникальные имена вида `com.example.app`). Так мы находим интересующее приложение. Узнаём путь к его APK:
+
+```bash
+$ adb shell pm path com.example.app
+package:/data/app/com.example.app-1/base.apk
+```
+
+## Шаг 3: пробуем `adb backup`
+
+Если у приложения не отключён бэкап, `adb backup` может выгрузить его данные **без root**:
+
+```bash
+$ adb backup -apk -shared -all -f backup.ab
+```
+
+Современные телефоны спросят подтверждение на экране. Файл `.ab` — это **Android Backup**: заголовок плюс tar-архив, иногда зашифрованный. Распаковывается утилитой `abe` (Android Backup Extractor):
+
+```bash
+$ java -jar abe.jar unpack backup.ab backup.tar
+$ tar xf backup.tar
+$ ls apps/com.example.app/
+f databases/  sp/  f/
+```
+
+Вот и данные приложения: `databases/` (SQLite-базы), `sp/` (shared_prefs). Если приложение объявлено `android:allowBackup="false"`, оно сюда не попадёт — тогда нужен root или облако.
+
+## Шаг 4: читаем базы приложений (SQLite)
+
+С root путь к данным приложения — `/data/data/com.example.app/`. Внутри:
+
+- `databases/` — базы **SQLite** (файлы `.db`);
+- `shared_prefs/` — XML-настройки;
 - `files/`, `cache/` — файлы и кэш.
-- `lib/` — библиотеки.
+
+SQLite — это встроенная база данных в одном файле; открывается консольным клиентом `sqlite3`:
 
 ```bash
-# Извлечение (root)
-adb pull /data/data/com.whatsapp/databases/msgstore.db
-# Анализ
-sqlite3 msgstore.db
+$ adb pull /data/data/com.example.app/databases/app.db
+$ sqlite3 app.db
 sqlite> .tables
-sqlite> SELECT * FROM message LIMIT 5;
+users    messages    sessions
+sqlite> SELECT username, password FROM users;
+alice|5f4dcc3b5aa765d61d8327deb882cf99
 ```
 
-Мессенджеры: WhatsApp (`msgstore.db`), Telegram (зашифрованы, ключ в `shared_prefs`), Signal (зашифрованы). Браузеры: Chrome (`/data/data/com.android.chrome/app_chrome/Default/History`).
+`.tables` показывает список таблиц, `SELECT` — сами записи. Здесь мы нашли хеш пароля. Мессенджеры хранят переписку аналогично: у WhatsApp это `msgstore.db`, у браузера Chrome — `app_chrome/Default/History`.
 
-## APK и его разбор
+## Шаг 5: ищем секреты в shared_prefs
+
+Часто токены и пароли лежат не в базе, а в **shared_prefs** — простых XML-файлах настроек. Их удобно грепать:
 
 ```bash
-# Скачать APK
-adb pull $(adb shell pm path com.example.app | cut -d: -f2) app.apk
-# Декомпиляция
-apktool d app.apk -o app_src
-# Или jadx
-jadx -d app_src app.apk
-# Манифест
-cat app_src/AndroidManifest.xml
+$ grep -riE 'token|password|api[_-]?key' /evidence/appdata/*/shared_prefs/
+<string name="auth_token">eyJhbGciOiJIUzI1NiJ9...</string>
 ```
 
-Манифест даёт разрешения, компоненты, точки входа — важно для понимания, что приложение делало.
+Найденный `auth_token` — ключ доступа к сервису приложения; с ним можно запросить данные от имени пользователя.
 
-## Системные артефакты
+## Шаг 6: разбираем APK
 
-- **`/data/system/`:** `packages.xml`, `usagestats/`, `batterystats/`, `accounts.db`.
-- **`/data/misc/`:** `wifi/WifiConfigStore.xml`, `keystore/`, `bluetooth/`.
-- **`/data/local/tmp/`:** часто dropzone атакующего.
-- **`/system/etc/`:** системные конфиги.
-- **`dmesg`, `logcat`:** системные/приложенческие логи.
-- **`/sdcard/DCIM/`:** фото (с EXIF/GPS).
+Чтобы понять, **что приложение умеет**, декомпилируем его APK. Инструмент `jadx` превращает байткод обратно в читаемый Java:
 
 ```bash
-adb shell dumpsys usagestats        # статистика использования
-adb shell dumpsys wifi
-adb logcat -d > logcat.txt
+$ adb pull /data/app/com.example.app-1/base.apk app.apk
+$ jadx -d src app.apk
+$ grep -rE 'http://|https://' src/ | head -3
 ```
 
-## Практический пример: разбор устройства
+А `apktool` дополнительно достаёт ресурсы и `AndroidManifest.xml` — манифест с разрешениями (`uses-permission`) и точками входа. По нему видно, к чему приложение имело доступ (GPS, контакты, интернет) и какие компоненты открыты наружу.
+
+## Шаг 7: системные артефакты и геолокация
+
+Данные приложения — не всё. Устройство хранит системные артефакты, которые дают контекст: где человек был и чем пользовался.
 
 ```bash
-# 1. Подключение и базовый сбор
-adb devices
-adb pull /sdcard/ /evidence/sdcard/
-# 2. Список приложений
-adb shell pm list packages > packages.txt
-# 3. (root) выгрузка app data
-adb pull /data/data/ /evidence/appdata/
-# 4. Анализ SQLite
-for db in $(find /evidence/appdata -name "*.db"); do sqlite3 "$db" ".tables"; done
-# 5. shared_prefs
-grep -riE 'password|token|key' /evidence/appdata/*/shared_prefs/
-# 6. APK
-adb pull /data/app/.../base.apk app.apk && jadx -d src app.apk
+$ adb pull /data/misc/wifi/WifiConfigStore.xml
+$ adb shell dumpsys usagestats > usagestats.txt
+$ adb logcat -d > logcat.txt
 ```
 
-## Инструменты и команды
+`WifiConfigStore.xml` — сохранённые Wi-Fi-сети (по их MAC-адресам можно установить геолокацию, если известны точки доступа). `dumpsys usagestats` — статистика запусков приложений, `logcat` — системный лог. А фото в `/sdcard/DCIM/` часто несут **EXIF** с GPS-координатами — это прямой след перемещений.
 
-```bash
-# ADB, abe (Android Backup Extractor), apktool, jadx
-# Autopsy/Magnet AXIOM для автоматизации
-# adb backup / adb pull / sqlite3
-# MobSF для анализа APK
-```
+Комбинация Wi-Fi-сетей, статистики использования и GPS из фото восстанавливает маршрут человека по дням.
 
-## adb backup детально и обход ограничений
+## Если данных нет
 
-`adb backup` создаёт `.ab` (Android Backup) — файл с заголовком и tar-архивом, опционально зашифрованный. Извлечение:
+Не всегда всё гладко. Три частые причины пустоты:
 
-```bash
-java -jar abe.jar unpack backup.ab backup.tar
-tar xf backup.tar
-```
+- **`allowBackup="false"`** — приложение запретило бэкап; без root его данные не достать.
+- **Шифрованные базы** — Telegram и Signal шифруют свои базы; нужен ключ из app data (root) или пароль.
+- **Android всё сильнее закрывается** — file-based encryption включено по умолчанию, и на новых версиях `adb backup` работает всё реже.
 
-Ограничения современного Android: приложения с `android:allowBackup="false"` не бэкапятся; требуется подтверждение на устройстве. Для старых устройств работает почти всегда. Альтернатива — **облачные бэкапы** (Google Takeout) и **root**-доступ.
+Обходной путь без root — **облачные бэкапы** (Google Takeout): часть данных приложений уходит туда, и их можно получить правовым запросом.
 
-## Root: Magisk и извлечение
+## Что мы теперь знаем
 
-С root доступны `/data/data`, `/data/system`, все базы. Получение root: разблокировка bootloader + Magisk (patch boot image). Для форензики лучше **не модифицировать** устройство (нарушает целостность) — но для CTF/лаборатории допустимо.
-
-```bash
-# Полный дамп /data (с root)
-adb shell su -c "dd if=/dev/block/by-name/userdata of=/sdcard/userdata.img"
-adb pull /sdcard/userdata.img
-```
-
-Физическое извлечение (без root): через EDL (Qualcomm), ISP, JTAG, или инструменты (Cellebrite, Oxygen) — вне CTF-контекста.
-
-## Зашифрованные базы мессенджеров
-
-- **WhatsApp:** `msgstore.db` (SQLite) + `msgstore.db.crypt14` (зашифрованный бэкап); ключ на устройстве.
-- **Telegram:** базы зашифрованы (`cache4.db`); ключ в `shared_prefs`/`files`.
-- **Signal:** SQLite + шифрование, ключ в `shared_prefs`.
-- **Browsers:** Chrome History (SQLite), cookies (шифрованы).
-
-Для расшифровки нужен ключ из app data (root) или passphrase.
-
-## Инструменты и команды
-
-```bash
-# ADB
-adb devices
-adb shell pm list packages
-adb shell pm path com.example.app
-adb pull /sdcard/ /evidence/sdcard/
-adb shell dumpsys usagestats > usagestats.txt
-adb shell dumpsys wifi > wifi.txt
-adb logcat -d > logcat.txt
-
-# Backup
-adb backup -apk -shared -all -f backup.ab
-java -jar abe.jar unpack backup.ab backup.tar && tar xf backup.tar
-
-# APK
-adb pull $(adb shell pm path com.example.app | cut -d: -f2) app.apk
-apktool d app.apk -o src
-jadx -d src app.apk
-
-# SQLite
-sqlite3 /evidence/appdata/com.example/databases/app.db ".tables"
-sqlite3 app.db "SELECT * FROM users;"
-
-# Инструменты
-# MobSF (APK), Autopsy, Magnet AXIOM, Andriller
-```
-
-## Геолокация и системные артефакты
-
-- **GPS:** `/data/data/com.google.android.gms/` (Google Location History), приложения карт.
-- **Wi-Fi сети:** `/data/misc/wifi/WifiConfigStore.xml` — сохранённые сети (геолокация по BSSID).
-- **Bluetooth:** `/data/misc/bluetooth/`.
-- **Аккаунты:** `/data/system/accounts.db`.
-- **Использование приложений:** `/data/system/usagestats/`.
-- **Фото с EXIF GPS:** `/sdcard/DCIM/`.
-
-```bash
-adb pull /data/misc/wifi/WifiConfigStore.xml
-adb pull /data/system/usagestats/
-adb pull /sdcard/DCIM/ /evidence/dcim/
-```
-
-Комбинация Wi-Fi-сетей + GPS + фото даёт полную картину перемещений.
-
-## APK: статический анализ
-
-```bash
-# Декомпиляция
-apktool d app.apk -o app_src        # ресурсы + smali
-jadx -d app_src app.apk             # Java-исходники
-# Манифест: разрешения, компоненты, точки входа
-cat app_src/AndroidManifest.xml
-# Поиск секретов в ресурсах
-grep -rE 'api[_-]?key|secret|token|http' app_src/ | head
-# Анализ через MobSF (веб-интерфейс)
-```
-
-Манифест показывает `uses-permission` (доступ к GPS, контактам, интернету), `exported`-компоненты (векторы атаки), `network_security_config`. Секреты часто «зашиты» в строки/ресурсы.
-
-## Итог
-
-Android-форензика: определите уровень доступа (root/нет), соберите `/sdcard` и app data, разберите SQLite и shared_prefs, декомпилируйте APK. Системные артефакты (Wi-Fi, usagestats, accounts) дают контекст, логи — события. Облачные бэкапы — fallback при отсутствии root. `adb`/`apktool`/`jadx`/MobSF — базовый набор.
-
-## Резюме
-
-Уровень доступа → `/sdcard` + app data → SQLite/shared_prefs → APK → системные артефакты → логи. Облако как fallback, если нет root. adb/apktool/jadx/MobSF — базовый набор для извлечения и разбора данных Android-устройства. Помните: большинство секретов (токены, ключи, пароли) лежат в shared_prefs и базах приложений.
-
-## Частые ошибки
-
-- **Нет root — нет `/data/data`.** Используйте backup или облако.
-- **Забыть про `/sdcard`** (внешнее хранилище).
-- **Игнорировать `shared_prefs`.** Там токены/пароли.
-- **Не проверить логи** (`logcat`, `dmesg`).
-- **Не разобрать APK.** Манифест важен.
-- **Зашифрованные базы** (Telegram/Signal) требуют ключа.
-
-## Как не застрять
-
-- **Определите уровень доступа** (root/нет).
-- **Соберите `/sdcard` и app data.**
-- **SQLite + shared_prefs** — главные источники.
-- **Разберите APK** (jadx/apktool).
-- **Логи** — `logcat`/`dmesg`.
-- **Облако** как fallback.
+- Уровень извлечения определяет доступ: без root `/data/data` закрыта, помогает `adb backup` или облако.
+- `/sdcard` доступна всегда; `pm list packages`/`pm path` находят приложение и его APK.
+- `.ab`-бэкап распаковывается `abe.jar` → tar с `databases/` и `sp/`.
+- Базы приложений — это SQLite; читаются `sqlite3`, секреты часто в `shared_prefs`.
+- APK декомпилируется `jadx`/`apktool`; манифест показывает разрешения и компоненты.
 
 ## Квиз
 
+Проверь себя.
+
 ```quiz
-- question: "Где приложения Android хранят SQLite-базы?"
+- question: "Где Android-приложения хранят SQLite-базы?"
   options:
     - "/sdcard"
     - "/data/data/<package>/databases/"
     - "/system"
     - "/proc"
   answer: 1
-- question: "Что делает `adb backup`?"
+  explanation: "Данные приложения изолированы в его песочнице /data/data/<пакет>/databases."
+- question: "Что создаёт команда adb backup?"
   options:
     - "удаляет данные"
-    - "создаёт резервную копию приложений/данных (.ab)"
-    - "шифрует"
+    - "резервную копию приложений и данных в файл .ab"
+    - "шифрует диск"
     - "ничего"
   answer: 1
-- question: "Чем разобрать APK в Java-исходники?"
+  explanation: ".ab — Android Backup (заголовок + tar), распаковывается abe.jar."
+- question: "Чем декомпилировать APK в Java-исходники?"
   options:
     - "jadx"
     - "nmap"
     - "hashcat"
     - "zeek"
   answer: 0
-- question: "Где часто хранятся токены/пароли приложения?"
+  explanation: "jadx превращает байткод APK обратно в читаемый Java-код."
+- question: "Где часто лежат токены и пароли приложения?"
   options:
     - "/system"
     - "shared_prefs/"
     - "/proc"
     - "/etc"
   answer: 1
-- question: "Что нужно для доступа к /data/data без root?"
+  explanation: "shared_prefs — XML-настройки приложения, там нередко хранятся токены."
+- question: "Почему без root не прочитать /data/data?"
   options:
-    - "ничего"
-    - "обычно невозможно (нужен root или backup)"
-    - "перезагрузка"
-    - "ADB"
+    - "папка пустая"
+    - "это песочница приложения, доступ закрыт правами"
+    - "файлы зашифрованы"
+    - "нужен Wi-Fi"
   answer: 1
+  explanation: "Android изолирует данные приложений; без root доступен лишь adb backup или облако."
 ```
+
+## Куда дальше
+
+Мы разобрали Android-устройство от подключения до чтения баз и APK. В следующем уроке (`forensics-mobile-ios`) мы пройдём тот же путь для iPhone: посмотрим, как устроен бэкап iOS и где искать данные приложений. А пока главное запомни: **на Android данные приложения живут в `/data/data/<пакет>/`, туда ведёт либо root, либо `adb backup`, а базы читаются `sqlite3`**.
 
 ## Где пригодится
 
-- **CTF Forensics** — задачи с Android-дампами.
-- **Мобильная форензика** — реальные расследования.
-- **DFIR** — инциденты с мобильными устройствами.
-- **Malware analysis** — разбор Android-малвари (APK).
-- **OSINT** — данные из приложений.
+- **CTF Forensics:** задачи с Android-дампами.
+- **Мобильная форензика:** реальные расследования.
+- **DFIR:** инциденты с мобильными устройствами.
+- **Malware analysis:** разбор Android-малвари (APK).
+- **OSINT:** данные из приложений и геолокация.

