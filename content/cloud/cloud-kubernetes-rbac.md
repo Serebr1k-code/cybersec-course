@@ -166,6 +166,60 @@ $ kubectl get --raw "/api/v1/nodes/node-prod-01/proxy/pods"
 - **k8s-admission**: admission-контроллеры, которые могут блокировать создание привилегированных подов.
 - **Pod Security Admission**: уровни restricted и как их обходить.
 
+## Глазами защитника
+
+RBAC защищают принципом наименьших привилегий: избегать `cluster-admin`, `*` в verbs и resources, wildcard в groups. Опасные права — `create pods`, `pods/exec`, `create clusterrolebindings`, `escalate`, `bind`, чтение secrets. Включают audit-логи, ревьюят ClusterRoleBindings, используют инструменты (rbac-tool, kubectl-who-can). Помнят, что право менять SA и роли — путь к эскалации.
+
+## Частые вопросы
+
+**Что такое RBAC в Kubernetes?**
+
+Role и ClusterRole (что можно) и RoleBinding и ClusterRoleBinding (кому). Права на действия над ресурсами в namespace или кластере.
+
+**Какие права самые опасные?**
+
+`create pods`, `pods/exec`, `create serviceaccounts`, `escalate`, `bind`, `impersonate`, чтение secrets, `create clusterrolebindings`.
+
+**Как понять свои права?**
+
+`kubectl auth can-i --list`, затем перебор важных действий; инструменты вроде `rbac-tool` строят карту.
+
+**Как из `create pods` получить root?**
+
+Создать под с привилегиями или монтированием хоста; либо под, читающий секреты или использующий мощную SA.
+
+**Что даёт чтение чужого токена?**
+
+Права SA, которой он принадлежит. Если это мощная SA — прямая эскалация.
+
+**Что такое `impersonate`?**
+
+Право действовать от имени другого пользователя или группы. Фактически даёт его права без кражи токена.
+
+**Как защититься?**
+
+Минимальные роли, ревью bindings, запрет wildcard, audit, инструменты контроля RBAC.
+
+**Помогает ли namespace-изоляция?**
+
+Частично: ClusterRoleBindings действуют на весь кластер, поэтому проверяй и их, а не только namespace-роли.
+
+## Разбор: от токена к cluster-admin
+
+В поде атакующий читает service-account токен и проверяет права: `kubectl auth can-i --list`. Видит `create pods` и `get secrets`. Он создаёт под с привилегированной SA, монтирует корень хоста и захватывает узел, откуда читает kubelet-креды и становится cluster-admin. Даже без побега чтение secrets даёт ценные данные. Защита — не выдавать `create pods` и `get secrets` вместе и ревьюить bindings.
+
+## Что чаще всего упускают
+
+ClusterRoleBindings: они действуют на весь кластер, и namespace-изоляция их не ограничивает. Второе — неочевидные опасные права (`escalate`, `bind`, `impersonate`), которые не выглядят как доступ к данным. Третье — сервисные аккаунты по умолчанию: у них могут быть лишние роли. Вывод: ревьюй bindings целиком и проверяй косвенные права, а не только `get secrets`.
+
+**Как проверить права другого SA?**
+
+`kubectl auth can-i --as=system:serviceaccount:ns:name ...` при наличии `impersonate`, иначе — по bindings.
+
+**Что такое default SA?**
+
+Автоматически создаваемый service account namespace; у него могут быть лишние права, если их выдали по ошибке.
+
 ## Квиз
 
 Проверь себя.

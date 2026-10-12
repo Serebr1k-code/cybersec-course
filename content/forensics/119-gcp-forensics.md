@@ -113,6 +113,59 @@ gcloud compute disks snapshot vm1-disk --snapshot-names=snap-vm1 --zone=us-centr
 
 Дополнительно: `gcloud scc findings list` (Security Command Center) даёт указатели на аномалии, но findings — не доказательство, их подтверждают первичными логами. Все метки времени — UTC.
 
+## Полный разбор: собираем таймлайн инцидента
+
+Отдельные события ничего не говорят, пока не выстроены в цепочку. Продолжим наш пример и сведём всё в одну таблицу по времени (UTC).
+
+```bash
+$ gcloud logging read \
+  'protoPayload.authenticationInfo.principalEmail="attacker@example.com"' \
+  --freshness=7d --format='value(timestamp, protoPayload.methodName, protoPayload.requestMetadata.callerIp)'
+```
+
+| Время (UTC) | Метод | IP | Что это значит |
+|-------------|-------|----|----------------|
+| 22:08 | `google.login.LoginService.Login` | 203.0.113.7 | первый вход |
+| 22:10 | `CreateServiceAccountKey` | 203.0.113.7 | создан долгоживущий ключ |
+| 22:12 | `SetIamPolicy` | 203.0.113.7 | повышение прав |
+| 22:15 | `compute.instances.insert` | 203.0.113.7 | новая ВМ (криптомайнинг?) |
+| 22:20 | `storage.objects.get` | 198.51.100.9 | выкачка данных с другого IP |
+
+Обратите внимание на смену IP между созданием доступа и выкачкой данных: атакующий разделил «эскалацию» и «эксплуатацию» по разным сетям. Именно поэтому важен `callerIp`, а не только `principalEmail`.
+
+## Если не сработало
+
+- **Пусто в результатах.** Admin Activity не пишет чтение данных. Проверьте, включён ли Data Access: `gcloud projects describe PROJECT_ID` → раздел auditConfigs. Если он выключен, включить «задним числом» нельзя — события уже не восстановить.
+- **Логи старше срока хранения.** `_Default` хранит Admin Activity 400 дней; всё старше — только через настроенный заранее sink в Storage/BigQuery. Если sink не было, данных нет.
+- **Слишком много строк.** Сузьте фильтр: добавьте `resourceName`, `methodName` или временное окно `timestamp>="2024-03-01T22:00:00Z"`.
+- **Не видно действий от имени service account.** Фильтруйте по `protoPayload.authenticationInfo.serviceAccountDelegationInfo` и по `principalEmail`, равному email SA — не только по человеку.
+- **В проекте нет org-level sink.** Логи соседних проектов придётся собирать по одному; проверьте `gcloud logging sinks list --organization=ORG_ID`.
+
+## Полезные фильтры gcloud
+
+| Задача | Фильтр |
+|--------|--------|
+| Все IAM-изменения | `protoPayload.methodName:"SetIamPolicy"` |
+| Создание ключей SA | `protoPayload.methodName:"CreateServiceAccountKey"` |
+| Доступ к секретам | `protoPayload.methodName:"AccessSecretVersion"` |
+| Создание ВМ | `protoPayload.methodName:"compute.instances.insert"` |
+| Изменение firewall | `protoPayload.methodName:"compute.firewalls"` |
+| Только ошибки | `severity>=ERROR` |
+| По конкретному IP | `protoPayload.requestMetadata.callerIp="203.0.113.7"` |
+
+Фильтр можно комбинировать: `protoPayload.methodName:"SetIamPolicy" AND severity>=WARNING`.
+
+## Защита: что настроить заранее
+
+Расследование начинается не в момент инцидента, а в момент настройки. Минимальный набор:
+
+- **Включить Data Access logs** для критичных сервисов (Storage, Secret Manager, BigQuery) — иначе чтение данных невидимо.
+- **Org-level sink** в защищённый бакет с object-lock (WORM) — чтобы атакующий не удалил логи.
+- **Разделение обязанностей:** ключи service account создаются редко и по заявке; лучше — Workload Identity вместо долгоживущих ключей.
+- **Оповещения** на `CreateServiceAccountKey`, `SetIamPolicy`, изменение org policy.
+
+Если эти меры есть, у вас будет и след, и время. Если нет — придётся восстанавливать картину по косвенным признакам (SCC findings, метрики, сетевые логи).
+
 ## Что мы теперь знаем
 
 - **Admin Activity** всегда включён — это база расследования; **Data Access** по умолчанию выключен, и чтения данных могут быть невидимы.

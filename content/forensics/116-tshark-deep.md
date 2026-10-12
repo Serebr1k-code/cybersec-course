@@ -105,6 +105,53 @@ $ tcpflow -r attack.pcap -o ./flows
 $ ls ./flows
 ```
 
+## Полный разбор: от PCAP к извлечённому файлу
+
+Соберём работу с `attack.pcap` в один сценарий.
+
+1. **Обзор протоколов.** Что вообще в трафике:
+   ```bash
+   $ tshark -r attack.pcap -q -z io,phs
+   ```
+2. **Топ разговоров.** Кто с кем и сколько:
+   ```bash
+   $ tshark -r attack.pcap -q -z conv,tcp
+   ```
+3. **Сужаем до подозрительного потока** (например, HTTP-загрузки):
+   ```bash
+   $ tshark -r attack.pcap -Y 'http.request.method=="GET"' -T fields -e ip.dst -e http.host -e http.request.uri
+   ```
+4. **Извлекаем объекты.** Файлы, переданные по HTTP:
+   ```bash
+   $ tshark -r attack.pcap --export-objects http,/evidence/http
+   ```
+5. **Проверяем содержимое.** Хешируем извлечённое и пробиваем по базе.
+
+Ключ: `-Y` (display filter) отбирает пакеты, `-T fields` печатает только нужные поля, `--export-objects` собирает файлы. Так из гигабайтного PCAP получается конкретный артефакт.
+
+## Шпаргалка -z статистик
+
+| Задача | Ключ `-z` |
+|--------|-----------|
+| Иерархия протоколов | `io,phs` |
+| Разговоры TCP/IP | `conv,tcp` / `conv,ip` |
+| Объём по протоколу | `io,stat,1` |
+| HTTP-запросы | `http,tree` |
+| DNS-ответы | `dns,tree` |
+| Экспертные ошибки | `expert` |
+
+Полезные поля для `-T fields`: `frame.time`, `ip.src`, `ip.dst`, `tcp.stream`, `http.request.uri`, `tls.handshake.extensions_server_name` (SNI). Поле `tcp.stream` позволяет «достать» все пакеты одного соединения: `-Y 'tcp.stream==3'`.
+
+## Частые вопросы
+
+**Чем `-Y` отличается от `-R`?** `-Y` — display-фильтр (по разобранным полям), `-R` — read-фильтр (более узкий, по BPF-подобному синтаксису). В `tshark` чаще используют `-Y`.
+
+**Как следить за потоком в реальном времени?** `-i <iface>` вместо `-r file` и `Follow → TCP Stream` в Wireshark, либо `-z follow,tcp,ascii,<stream>`.
+
+**PCAP большой, команда тормозит.** Ограничьте окно (`-Y 'frame.time < "..."'`), используйте `-2` для двухпроходных статистик и `-q`, чтобы не печатать пакеты.
+
+**TLS зашифрован.** Без ключей видно только SNI и метаданные; расшифровка требует `SSLKEYLOGFILE` или приватного ключа сервера.
+
 ## Что мы теперь знаем
 
 - **Capture filter (BPF, `-f`)** работает до захвата; **display filter (`-Y`)** — после.

@@ -98,6 +98,44 @@ AWS_SECRET_ACCESS_KEY=wJalr...
 
 Частая цепочка: unauth-роль читает S3, где лежит `.env` со **статическими** ключами сервисного пользователя. А у того уже больше прав — вплоть до `iam:CreatePolicyVersion`, то есть полной эскалации.
 
+## Шаг 4: что именно искать в бандле
+
+Идентификатор identity pool почти всегда лежит в клиентском JS — он не секрет по замыслу AWS, но
+именно он открывает guest-доступ. Типичные места и паттерны:
+
+```bash
+# общий поиск формата us-east-1:uuid
+$ curl -s https://app.example.com/static/js/main.js \
+  | grep -Eo '[a-z]{2}-[a-z]+-[0-9]:[0-9a-f-]{36}' | sort -u
+us-east-1:12345678-1234-1234-1234-1234567890ab
+
+# конфиг Amplify (частый шаблон)
+$ curl -s https://app.example.com/static/js/main.js \
+  | grep -A6 -i 'aws_cognito_identity_pool_id\|identityPoolId\|identity_pool_id'
+```
+
+Помимо identity pool, в бандле часто лежат:
+
+- **`aws_cognito_user_pool_id`** (`us-east-1_ABC123`) и **`aws_user_pools_web_client_id`** — для user pool;
+- **`aws_appsync_graphqlEndpoint`** и **`aws_appsync_apiKey`** — AppSync-ключ, тоже дающий доступ к API;
+- **регион** — обязателен для корректных вызовов.
+
+Собрав эти значения, ты получаешь полную картину клиентской конфигурации AWS. Это типичный старт
+пентеста SPA/мобильного приложения: **клиентская конфигурация = поверхность атаки**.
+
+## Шаг 5: цепочка от guest до более широких прав
+
+Получив unauth-роль, не останавливайся на `s3 ls`. Типовая эскалация:
+
+1. **`enumerate-iam`** — карта разрешённых API (быстро и тихо).
+2. **Чтение S3/SSM/Secrets Manager** — часто там лежат статические ключи, `.env`, конфиги.
+3. **Статические ключи** → уже не ограничены unauth-ролью: `sts get-caller-identity` покажет нового
+   пользователя, а его права могут включать `iam:CreatePolicyVersion` (полная эскалация).
+4. **`sts:AssumeRole`** — если роль может переключаться на другие, иди по цепочке к админской.
+
+Так одна включённая галочка `AllowUnauthenticatedIdentities` превращается в полный доступ к аккаунту —
+через промежуточное хранилище секретов.
+
 ## Полный прогон от начала до конца
 
 1. Извлекли `IdentityPoolId` из JS-бандла.
@@ -127,6 +165,20 @@ $ aws cognito-idp describe-user-pool-client --user-pool-id us-east-1_ABC --clien
 - **Weak password policy.** User pool без политики сложности → перебор через `InitiateAuth` (это онлайн-перебор, ограничивай набор дефолтами).
 - **Attribute injection.** Пользовательские атрибуты, попадающие в IAM-условия, можно подделать, если они writable.
 
+## Как это видят защитники
+
+Cognito-мисконфиг виден и в логах, и в конфигурации:
+
+- **`get-id`/`get-credentials-for-identity` без аутентификации** — в CloudTrail как
+  `GetId`/`GetCredentialsForIdentity` с `identityPoolId`; всплеск таких вызовов — признак abuse;
+- **`AssumeRoleWithWebIdentity` от Cognito** — в CloudTrail видно, кто и когда получил креды;
+- **`enumerate-iam`-подобный перебор** — серия `AccessDenied` по многим API от одной роли;
+- **чтение S3/SSM** с unauth-роли — аномалия, если приложение этим не занимается.
+
+Защита: выключить `AllowUnauthenticatedIdentities`, если гости не нужны; в trust policy роли добавить
+условие на **`amr`**; выдать unauth-роли минимум прав; не хранить статические ключи в доступных
+бакетах; включить CloudTrail-мониторинг на `GetCredentialsForIdentity`.
+
 ## Частые ошибки и подводные камни
 
 - **Путать user pool и identity pool.** JWT из user pool сам по себе AWS-прав не даёт; нужен обмен через identity pool.
@@ -148,12 +200,31 @@ $ aws cognito-idp describe-user-pool-client --user-pool-id us-east-1_ABC --clien
 - `get-caller-identity` показывает assumed-роль (`Cognito_...Unauth_Role`).
 - Креды временные (~1 час) — их надо периодически обновлять.
 - Self-registration в user pool даёт путь к authenticated-роли без чужих паролей.
+- Идентификатор identity pool лежит в клиентском JS — это не секрет, но он открывает guest-доступ.
+- В бандле ищите также user pool id, web client id и AppSync api key — вся клиентская конфигурация AWS.
 
 ## На что смотреть дальше
 
 - **aws-ssm**: Session Manager как путь внутрь без открытых портов.
 - **cloud-privesc-iam**: что делать с ролью, полученной из Cognito.
 - **cloud-assume-role**: цепочки `sts:AssumeRole` к более широким ролям.
+
+## Чеклист пентеста Cognito
+
+Соберём всё в короткий список — так проверка приложения занимает минуты:
+
+1. **Найди конфиг.** Ищи в JS/мобильном бандле `identityPoolId`, `user_pool_id`, `client_id`,
+   `apiKey`, регион.
+2. **Проверь guest.** `aws cognito-identity get-id` — если вернулся `IdentityId`, guest включён.
+3. **Забери креды.** `get-credentials-for-identity` → временные ключи.
+4. **Определи роль.** `aws sts get-caller-identity` → `Cognito_...Unauth_Role`.
+5. **Разведай права.** `enumerate-iam` (не слепой перебор).
+6. **Проверь trust policy.** Нет условия на `amr` → попробуй guest→authenticated.
+7. **Проверь user pool.** Self-registration включена? Клиент без секрета (`GenerateSecret: false`)?
+8. **Ищи секреты.** S3/SSM/Secrets Manager от полученной роли.
+9. **Обновляй креды.** Они живут ~час — держи refresh-цепочку.
+
+Пункты 1–5 дают первые креды за минуты; пункты 6–9 превращают их в более широкий доступ.
 
 ## Квиз
 

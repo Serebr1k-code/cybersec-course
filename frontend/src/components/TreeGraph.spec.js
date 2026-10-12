@@ -4,7 +4,7 @@ import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import TreeGraph from './TreeGraph.vue'
 import { useProgressStore } from '../stores/progress'
-import { CARD_W, RING_STEP, radialLayout, radialCardHeight } from '../utils/radialLayout'
+import { NODE_D, RING_STEP, radialLayout } from '../utils/radialLayout'
 
 vi.mock('../api/client', () => ({
   api: { complete: vi.fn().mockResolvedValue({ completed: true, xp: 0 }) }
@@ -54,8 +54,8 @@ function slots(w) {
   return w.findAll('.node-slot').map((s) => {
     const m = s.attributes('style').match(/translate\(([-\d.eE+]+)px,\s*([-\d.eE+]+)px\)/)
     const rn = s.find('.rnode')
-    const hm = rn.attributes('style').match(/min-height:\s*([\d.]+)px/)
-    return { x: +m[1], y: +m[2], h: hm ? +hm[1] : 0, title: s.find('.title').text(), el: s }
+    const dm = rn.attributes('style').match(/--d:\s*([\d.]+)px/)
+    return { x: +m[1], y: +m[2], size: dm ? +dm[1] : 0, title: s.find('.tip-title').text(), el: s }
   })
 }
 function slotByTitle(w, title) {
@@ -76,13 +76,13 @@ async function clickControl(w, i) {
 }
 
 describe('components/TreeGraph.vue — radial layout', () => {
-  it('renders one compact card per visible node', async () => {
+  it('renders one circle per visible node', async () => {
     const w = await factory()
     expect(slots(w).length).toBe(3)
     expect(w.findAll('.rnode').length).toBe(3)
   })
 
-  it('sizes each card from its own title (longer title -> taller card)', async () => {
+  it('renders every node as a fixed-size circle (same size regardless of title)', async () => {
     const LONG = 'Request Smuggling advanced: TE.TE, TE.CL, CL.0, response-queue poisoning'
     const nodes = [
       { id: 'a', title: 'Root', parent: null, order: 1, sections: 1 },
@@ -90,10 +90,10 @@ describe('components/TreeGraph.vue — radial layout', () => {
       { id: 'c', title: LONG, parent: 'a', order: 2, sections: 1 }
     ]
     const { w } = await factoryWithProgress({ nodes })
-    const hs = Object.fromEntries(slots(w).map((s) => [s.title, s.h]))
-    expect(hs['XSS']).toBe(40)
-    expect(hs[LONG]).toBeGreaterThan(hs['XSS'])
-    expect(hs[LONG]).toBe(radialCardHeight({ title: LONG }))
+    expect(slots(w).every((s) => s.size === NODE_D)).toBe(true)
+    // the long title no longer inflates the node — it only shows in the tooltip
+    expect(slotByTitle(w, LONG)).toBeDefined()
+    expect(w.findAll('.title').length).toBe(0)
   })
 
   it('places the category root at the centre and children on the first ring', async () => {
@@ -101,12 +101,12 @@ describe('components/TreeGraph.vue — radial layout', () => {
     const L = radialLayout(NODES)
     const root = slotByTitle(w, 'Root')
     const b = slotByTitle(w, 'Bee')
-    // the slot's translate equals the layout card's top-left corner
+    // the slot's translate equals the layout circle's top-left corner
     expect(root.x).toBeCloseTo(L.pos.a.left, 3)
     expect(root.y).toBeCloseTo(L.pos.a.top, 3)
     // b sits RING_STEP away from the layout centre
-    const bcx = b.x + CARD_W / 2
-    const bcy = b.y + L.pos.b.h / 2
+    const bcx = b.x + NODE_D / 2
+    const bcy = b.y + NODE_D / 2
     expect(Math.hypot(bcx - L.cx, bcy - L.cy)).toBeCloseTo(RING_STEP, 3)
     const c = slotByTitle(w, 'Cee')
     expect(c.x).not.toBeCloseTo(b.x, 1)
@@ -116,7 +116,10 @@ describe('components/TreeGraph.vue — radial layout', () => {
     const w = await factory()
     const v = view(w)
     const L = radialLayout(NODES)
-    expect(v.scale).toBeCloseTo(Math.min(800 / L.w, 600 / L.h) * 0.95, 4)
+    // fit scale is clamped to the [0.05, 4] zoom range (the compact circle
+    // layout packs small trees above the cap)
+    const fit = Math.max(0.05, Math.min(4, Math.min(800 / L.w, 600 / L.h) * 0.95))
+    expect(v.scale).toBeCloseTo(fit, 4)
     expect(v.tx).toBeCloseTo((800 - v.scale * L.w) / 2, 3)
     expect(v.ty).toBeCloseTo((600 - v.scale * L.h) / 2, 3)
     // content lies fully inside the canvas
@@ -128,6 +131,9 @@ describe('components/TreeGraph.vue — radial layout', () => {
 
   it('anchors wheel zoom at the cursor', async () => {
     const w = await factory()
+    // the whole (tiny) tree fits above the 4x cap, so zoom out once to give the
+    // wheel headroom to actually change the scale
+    await clickControl(w, 1) // −
     const before = view(w)
     const p = { x: (200 - before.tx) / before.scale, y: (200 - before.ty) / before.scale }
     await wheel(w)
@@ -151,7 +157,8 @@ describe('components/TreeGraph.vue — radial layout', () => {
     await clickControl(w, 2) // ⤢ Сброс
     const v = view(w)
     const L = radialLayout(NODES)
-    expect(v.scale).toBeCloseTo(Math.min(800 / L.w, 600 / L.h) * 0.95, 4)
+    const fit = Math.max(0.05, Math.min(4, Math.min(800 / L.w, 600 / L.h) * 0.95))
+    expect(v.scale).toBeCloseTo(fit, 4)
     expect(v.tx).toBeCloseTo((800 - v.scale * L.w) / 2, 3)
   })
 })
@@ -163,8 +170,8 @@ describe('components/TreeGraph.vue — focus, collapse and highlight', () => {
     await nextTick()
     const v = view(w)
     const b = slotByTitle(w, 'Bee')
-    expect(v.tx + v.scale * (b.x + CARD_W / 2)).toBeCloseTo(400, 3)
-    expect(v.ty + v.scale * (b.y + b.h / 2)).toBeCloseTo(300, 3)
+    expect(v.tx + v.scale * (b.x + NODE_D / 2)).toBeCloseTo(400, 3)
+    expect(v.ty + v.scale * (b.y + NODE_D / 2)).toBeCloseTo(300, 3)
   })
 
   it('does nothing when the focus id is not in this category', async () => {
@@ -212,7 +219,8 @@ describe('components/TreeGraph.vue — focus, collapse and highlight', () => {
     const v = view(w)
     // NODES are only 2 levels deep, so nothing collapses: the whole tree fits.
     const L = radialLayout(NODES)
-    expect(v.scale).toBeCloseTo(Math.min(800 / L.w, 600 / L.h) * 0.95, 4)
+    const fit = Math.max(0.05, Math.min(4, Math.min(800 / L.w, 600 / L.h) * 0.95))
+    expect(v.scale).toBeCloseTo(fit, 4)
     // the last-opened lesson stays visible (camera), but is NOT highlighted
     const b = slotByTitle(w, 'Bee')
     expect(b).toBeDefined()
@@ -314,14 +322,14 @@ describe('components/TreeGraph.vue — right-click completion toggle', () => {
 })
 
 describe('components/TreeGraph.vue — progressive reveal (fog of war)', () => {
-  // Every rendered card must fit inside the 800x600 canvas after the transform.
+  // Every rendered circle must fit inside the 800x600 canvas after the transform.
   function allInside(w) {
     const v = view(w)
     return slots(w).every((s) => {
       const x = v.tx + v.scale * s.x
       const y = v.ty + v.scale * s.y
       return x >= -1 && y >= -1 &&
-        x + v.scale * CARD_W <= 801 && y + v.scale * s.h <= 601
+        x + v.scale * NODE_D <= 801 && y + v.scale * NODE_D <= 601
     })
   }
   // Root -> L1 -> L2 -> L3 -> L4 plus a sibling branch L1b (6 nodes, 4 levels).
@@ -413,6 +421,7 @@ describe('components/TreeGraph.vue — progressive reveal (fog of war)', () => {
     await clickControl(w, 3) // ⊟ Свернуть всё -> depth-2 default (4 nodes)
     const v = view(w)
     const L = radialLayout(TREE, { visible: new Set(['a', 'b', 'e', 'c']) })
-    expect(v.scale).toBeCloseTo(Math.min(800 / L.w, 600 / L.h) * 0.95, 4)
+    const fit = Math.max(0.05, Math.min(4, Math.min(800 / L.w, 600 / L.h) * 0.95))
+    expect(v.scale).toBeCloseTo(fit, 4)
   })
 })

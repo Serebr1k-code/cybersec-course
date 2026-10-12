@@ -159,6 +159,42 @@ $ kubectl -n kube-system get configmap aws-auth -o yaml | grep -A3 mapUsers
 - **runc-escape-deep**: побег на уровне рантайма, мимо admission и RBAC.
 - **cloud-privesc-iam**: что делать с полученной облачной ролью дальше.
 
+## Глазами защитника
+
+Ключ к защите — минимальные облачные права у каждой идентичности. Node role держат узкой, потому что её креды доступны всем подам узла через metadata; прикладные права выдают через IRSA/Workload Identity конкретным SA. RBAC на `create/update serviceaccounts` ограничивают: право менять аннотацию роли — это фактически право выдать себе любую облачную роль.
+
+Audit-логи Kubernetes включают, а обращения к metadata-серверу ограничивают (в GKE — Workload Identity Federation, в EKS — IMDS hop-limit и блокировка node-роли для подов). Регулярно проверяют аннотации `eks.amazonaws.com/role-arn` и привязки Workload Identity на неожиданные SA. В CloudTrail/GCP Audit Logs ищут `AssumeRoleWithWebIdentity` с незнакомых субъектов и имперсонации, которых не было в плане.
+
+## Частые вопросы
+
+**Как облачный managed-кластер связан с облачными правами?**
+
+Кластеру выдаётся облачная идентичность: в EKS — через IRSA (OIDC), в AKS — managed identity, в GKE — Workload Identity. Под, захвативший эту идентичность, получает облачные права без единого облачного ключа на диске. Поэтому в managed-Kubernetes цель атакующего — не только сам кластер, но и его облачная привязка.
+
+**Что такое IRSA и где её слабое место?**
+
+IAM Roles for Service Accounts: под получает проецируемый service-account токен, Kubernetes обменивает его через OIDC на временные AWS-креды роли, указанной в аннотации `eks.amazonaws.com/role-arn`. Слабое место — право создавать или изменять service accounts: привязав к себе аннотацию с более мощной ролью, ты эскалируешь.
+
+**Откуда в поде взять облачный токен?**
+
+В GKE — metadata-сервер с Workload Identity (`http://metadata.google.internal/.../token`). В EKS — переменные `AWS_ROLE_ARN` и `AWS_WEB_IDENTITY_TOKEN_FILE` плюс вызов `sts:AssumeRoleWithWebIdentity`. В AKS — endpoint managed identity на `169.254.169.254`. Везде временный токен лежит рядом с приложением и доступен через SSRF или RCE.
+
+**Как не перебирать права вслепую?**
+
+Использовать `aws sts get-caller-identity`, затем `enumerate-iam` или `cloudfox` для AWS; в GCP — `gcloud auth list` и тест прав; в Azure — `az account get-access-token`. Быстрее понять роль из аннотации/identity, чем угадывать API-вызовы.
+
+**Как ограничить этот риск?**
+
+Ограничивать RBAC на `create serviceaccounts` и `update`, аудировать аннотации ролей на подах, выдавать узкие IAM-политики через IRSA/Workload Identity вместо широких node-ролей. Node SA должна иметь минимум прав: если она широкая, любой под на узле получает её через metadata.
+
+**Можно ли обойтись без создания service account?**
+
+Да: если под уже имеет облачную идентичность (IRSA/Workload Identity), захвати её напрямую через metadata-эндпоинт или `AWS_WEB_IDENTITY_TOKEN_FILE`. Создание SA — лишь один из путей, когда нужна чужая, более широкая роль.
+
+**Почему node SA опаснее прикладной?**
+
+Она доступна всем подам узла через metadata, поэтому любая SSRF на узле вытягивает именно её права. Обычно node SA имеет доступ к ECR, логам и иногда к другим сервисам — это «общий» мост, который сложнее заметить, чем целевую эскалацию.
+
 ## Квиз
 
 Проверь себя.

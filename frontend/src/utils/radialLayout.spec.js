@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { radialLayout, CARD_W, CARD_H, RING_STEP, MIN_SHARE, radialCardHeight } from './radialLayout'
+import { radialLayout, NODE_D, NODE_R, RING_STEP, GAP_X, GAP_Y, MIN_SHARE } from './radialLayout'
 
 const NODES = [
   { id: 'r', title: 'Root', parent: null, order: 1 },
@@ -11,14 +11,17 @@ const NODES = [
   { id: 'b1', title: 'B1', parent: 'b', order: 1 }
 ]
 
+// Circles overlap when the distance between their centres is smaller than the
+// sum of their radii (both are NODE_D wide).
 function overlapping(L) {
   const ids = Object.keys(L.pos)
   const bad = []
   for (let i = 0; i < ids.length; i++) {
     for (let j = i + 1; j < ids.length; j++) {
       const a = L.pos[ids[i]], b = L.pos[ids[j]]
-      if (a.left < b.left + b.w && b.left < a.left + a.w &&
-          a.top < b.top + b.h && b.top < a.top + a.h) bad.push([ids[i], ids[j]])
+      const dx = a.x - b.x, dy = a.y - b.y
+      const minDist = (a.w + b.w) / 2
+      if (Math.hypot(dx, dy) < minDist - 1e-6) bad.push([ids[i], ids[j]])
     }
   }
   return bad
@@ -44,12 +47,21 @@ function bigTree() {
   return out
 }
 
-describe('utils/radialLayout.js — sunburst geometry', () => {
+describe('utils/radialLayout.js — sunburst geometry of circle nodes', () => {
   it('places the single root at the centre of the stage', () => {
     const L = radialLayout(NODES)
     expect(L.pos.r.x).toBeCloseTo(L.cx, 6)
     expect(L.pos.r.y).toBeCloseTo(L.cy, 6)
     expect(L.pos.r.r).toBe(0)
+  })
+
+  it('sizes every node as a fixed circle (no content-driven card height)', () => {
+    const L = radialLayout(NODES)
+    for (const id in L.pos) {
+      expect(L.pos[id].w).toBe(NODE_D)
+      expect(L.pos[id].h).toBe(NODE_D)
+    }
+    expect(NODE_R).toBe(NODE_D / 2)
   })
 
   it('puts every depth on its own ring, radius growing with depth', () => {
@@ -58,6 +70,29 @@ describe('utils/radialLayout.js — sunburst geometry', () => {
     expect(L.pos.a1.depth).toBe(2)
     expect(L.pos.a.r).toBeCloseTo(RING_STEP, 6)
     expect(L.pos.a1.r).toBeGreaterThan(L.pos.a.r)
+  })
+
+  it('packs rings tightly: RING_STEP is one diameter plus the ring gap', () => {
+    expect(RING_STEP).toBe(NODE_D + GAP_Y)
+    // a sparse ring needs no extra room, so its radius is exactly RING_STEP
+    const L = radialLayout(NODES)
+    expect(L.pos.a.r).toBeCloseTo(RING_STEP, 6)
+  })
+
+  it('grows the radius of a dense ring so its circles never collide', () => {
+    const wide = [{ id: 'r', title: 'R', parent: null, order: 0 }]
+    for (let i = 0; i < 40; i++) wide.push({ id: 'c' + i, title: 'C' + i, parent: 'r', order: i })
+    const L = radialLayout(wide)
+    // 40 circles on one ring need a radius well beyond the base step
+    expect(L.pos.c0.r).toBeGreaterThan(RING_STEP)
+    // adjacent circles clear the required centre distance (diameter + gap)
+    const ids = Object.keys(L.pos).filter((id) => id !== 'r')
+    const angs = ids.map((id) => ({ id, a: L.pos[id].angle })).sort((x, y) => x.a - y.a)
+    for (let i = 0; i < angs.length; i++) {
+      const p = L.pos[angs[i].id], q = L.pos[angs[(i + 1) % angs.length].id]
+      expect(Math.hypot(p.x - q.x, p.y - q.y)).toBeGreaterThanOrEqual(NODE_D + GAP_X - 1e-6)
+    }
+    expect(overlapping(L)).toEqual([])
   })
 
   it('keeps every node fully inside the reported stage box', () => {
@@ -71,11 +106,11 @@ describe('utils/radialLayout.js — sunburst geometry', () => {
     }
   })
 
-  it('never overlaps two cards (small tree)', () => {
+  it('never overlaps two circles (small tree)', () => {
     expect(overlapping(radialLayout(NODES))).toEqual([])
   })
 
-  it('never overlaps two cards on a wide, deep tree', () => {
+  it('never overlaps two circles on a wide, deep tree', () => {
     const L = radialLayout(bigTree())
     expect(Object.keys(L.pos).length).toBeGreaterThan(60)
     expect(overlapping(L)).toEqual([])
@@ -143,56 +178,7 @@ describe('utils/radialLayout.js — sunburst geometry', () => {
     const L = radialLayout([])
     expect(L.edges).toEqual([])
     expect(Object.keys(L.pos)).toEqual([])
-    expect(L.w).toBe(CARD_W)
-    expect(L.h).toBe(CARD_H)
-  })
-
-  it('sizes each card from its own title height (content-driven, per node)', () => {
-    const LONG = 'Request Smuggling advanced: TE.TE, TE.CL, CL.0, response-queue poisoning'
-    const mixed = [
-      { id: 'r', title: 'Root', parent: null, order: 1 },
-      { id: 'short', title: 'XSS', parent: 'r', order: 1 },
-      { id: 'long', title: LONG, parent: 'r', order: 2 }
-    ]
-    const L = radialLayout(mixed)
-    expect(L.pos.short.h).toBe(40)                       // 1 line (compact floor)
-    expect(L.pos.long.h).toBe(radialCardHeight({ title: LONG }))
-    expect(L.pos.long.h).toBeGreaterThan(L.pos.short.h)
-    // the stage box must contain the taller card
-    expect(L.pos.long.top + L.pos.long.h).toBeLessThanOrEqual(L.h + 1e-6)
-  })
-
-  it('keeps the card compact: title capped at 3 lines (max height ~62px)', () => {
-    const HUGE = 'Request Smuggling advanced: TE.TE, TE.CL, CL.0, response-queue poisoning and HTTP/2 downgrade'
-    const h = radialCardHeight({ title: HUGE })
-    expect(h).toBeLessThanOrEqual(62)
-    expect(h).toBeGreaterThanOrEqual(40)
-    // 1-line title uses the compact floor, not the old 65px
-    expect(radialCardHeight({ title: 'XSS' })).toBe(40)
-  })
-
-  it('never overlaps cards when every title is long (tall cards)', () => {
-    const out = [{ id: 'n0', title: 'Корень всего дерева с очень длинным названием', parent: null, order: 0 }]
-    let seed = 987654
-    const rnd = () => ((seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff)
-    let n = 0
-    const queue = ['n0']
-    while (n < 90 && queue.length) {
-      const p = queue.shift()
-      const kids = 1 + Math.floor(rnd() * 4)
-      for (let i = 0; i < kids && n < 90; i++) {
-        const id = 'n' + (++n)
-        out.push({
-          id,
-          title: 'Очень длинное название урока номер ' + n + ' с подробным описанием темы и подтемы занятия',
-          parent: p,
-          order: i
-        })
-        if (rnd() > 0.25) queue.push(id)
-      }
-    }
-    const L = radialLayout(out)
-    expect(Object.keys(L.pos).length).toBeGreaterThan(40)
-    expect(overlapping(L)).toEqual([])
+    expect(L.w).toBe(NODE_D)
+    expect(L.h).toBe(NODE_D)
   })
 })

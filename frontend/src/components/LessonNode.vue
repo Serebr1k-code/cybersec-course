@@ -1,16 +1,20 @@
 <script setup>
 import { computed } from 'vue'
-import { CARD_W, radialCardHeight } from '../utils/radialLayout'
+import { NODE_D } from '../utils/radialLayout'
 
 const props = defineProps({
   node: { type: Object, required: true },
   ratio: { type: Number, default: 0 },
   completed: { type: Boolean, default: false },
+  // Category accent colour — used for the hover/path glow (the circle FILL is
+  // driven by difficulty, see DIFF_COLORS).
   color: { type: String, default: '#38bdf8' },
-  width: { type: Number, default: CARD_W },
-  // 0 = derive the height from the title (nodeLayout.js) so long titles are
-  // never clipped; a positive value overrides it (used by tests / callers).
-  height: { type: Number, default: 0 },
+  // Circle diameter in px (fixed by the layout so rings pack tightly).
+  size: { type: Number, default: NODE_D },
+  // Canvas zoom scale — the tooltip counter-scales with it so the title stays
+  // readable at every zoom level (circles grow with zoom, the label does not
+  // shrink).
+  zoom: { type: Number, default: 1 },
   // radial interaction state
   collapsed: { type: Boolean, default: false },
   hasChildren: { type: Boolean, default: false },
@@ -19,21 +23,19 @@ const props = defineProps({
 })
 const emit = defineEmits(['toggle'])
 
-const pct = computed(() => Math.round(Math.max(0, Math.min(1, props.ratio)) * 100))
-// Content-driven height: taller cards for longer titles, but the title is
-// capped at 3 lines (radialLayout.js) so cards stay compact (~40–60px).
-// `min-height` lets the card grow to its content while the radial layout
-// reserves the same value, so nothing overlaps and nothing is clipped.
-const cardH = computed(() => props.height > 0 ? props.height : radialCardHeight(props.node))
+// Difficulty drives the circle colour (same palette as the rest of the app).
+const DIFF_COLORS = {
+  beginner: '#22c55e', easy: '#84cc16', medium: '#eab308', hard: '#f97316', expert: '#ef4444'
+}
 const diffLabel = {
   beginner: 'Новичок', easy: 'Легко', medium: 'Средне', hard: 'Сложно', expert: 'Эксперт'
 }
-// Minimalist star rating (1–5) instead of a textual chip. Unknown/empty -> 1.
-const DIFF_STARS = { beginner: 1, easy: 2, medium: 3, hard: 4, expert: 5 }
-const diffStars = computed(() => DIFF_STARS[props.node.difficulty] || 1)
-const starsText = computed(() => '★'.repeat(diffStars.value))
-// Full difficulty name kept for the node tooltip / accessibility only.
+const diffColor = computed(() => DIFF_COLORS[props.node.difficulty] || DIFF_COLORS.beginner)
 const diffName = computed(() => diffLabel[props.node.difficulty] || 'Новичок')
+
+// Reading progress as a 0..1 fraction. A completed lesson is always full.
+const frac = computed(() => props.completed ? 1 : Math.max(0, Math.min(1, props.ratio)))
+const pct = computed(() => Math.round(frac.value * 100) + '%')
 
 // Compact human duration from the lesson's estimated minutes:
 // 25 -> '25м', 60 -> '1ч', 90 -> '1ч 30м', 140 -> '2ч 20м'. Hidden when 0/absent.
@@ -49,6 +51,14 @@ function fmtDuration(minutes) {
 const durText = computed(() => fmtDuration(
   props.node.estimated_minutes || props.node.estMinutes || 0
 ))
+
+// Counter-scale the tooltip by 1/zoom so the label keeps a roughly CONSTANT
+// on-screen size at every zoom level (circles grow/shrink with zoom, the title
+// does not). Clamped so extreme zoom can't produce an absurd popover.
+const tipScale = computed(() => {
+  const z = Number(props.zoom) || 1
+  return Math.min(8, Math.max(0.1, 1 / z))
+})
 </script>
 
 <template>
@@ -56,25 +66,15 @@ const durText = computed(() => fmtDuration(
     :to="'/lesson/' + node.id"
     class="rnode"
     :class="{ done: completed, dim: dimmed, on: onpath, folded: collapsed, 'has-chev': hasChildren }"
-    :style="{ '--cat': color, width: width + 'px', minHeight: cardH + 'px' }"
-    :title="node.title + ' — ' + diffName"
+    :style="{ '--cat': color, '--diff': diffColor, '--pct': pct, '--d': size + 'px', '--tip-scale': tipScale }"
+    :aria-label="node.title + ' — ' + diffName"
   >
-    <span class="fill" :style="{ width: pct + '%' }"></span>
-
-    <span class="title">{{ node.title }}</span>
-
-    <span class="meta">
-      <span
-        class="stars"
-        :class="'d-' + node.difficulty"
-        role="img"
-        :aria-label="diffName"
-        :title="diffName"
-      >{{ starsText }}</span>
-      <span v-if="durText" class="dur">{{ durText }}</span>
-    </span>
-
-    <span class="badge" v-if="completed">✓</span>
+    <!-- progress ring: green arc (read fraction) over a faint neutral track -->
+    <span class="arc" aria-hidden="true"></span>
+    <!-- difficulty-coloured disc with a subtle dark ring -->
+    <span class="disc" aria-hidden="true"></span>
+    <!-- completion: solid green check on top of the (full green) ring -->
+    <span v-if="completed" class="check" aria-hidden="true">✓</span>
 
     <button
       v-if="hasChildren"
@@ -84,95 +84,110 @@ const durText = computed(() => fmtDuration(
       :title="collapsed ? 'Развернуть' : 'Свернуть'"
       @click.stop.prevent="emit('toggle', node.id)"
     >{{ collapsed ? '▸' : '▾' }}</button>
+
+    <!-- hover tooltip: title + difficulty + duration (no text on the node face) -->
+    <span class="tip" role="tooltip">
+      <span class="tip-title">{{ node.title }}</span>
+      <span class="tip-meta">
+        <span class="tip-diff" :class="'td-' + (node.difficulty || 'beginner')">{{ diffName }}</span>
+        <span v-if="durText" class="tip-dur">· {{ durText }}</span>
+      </span>
+    </span>
   </RouterLink>
 </template>
 
 <style scoped>
+/* ---- the circle node ---------------------------------------------------- */
 .rnode {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  padding: 4px 8px;
-  border-radius: 8px;
-  background: var(--panel-2);
-  border: 1px solid var(--border-strong);
-  border-left: 3px solid var(--cat);
-  color: var(--text);
-  text-decoration: none;
-  overflow: hidden;
+  display: block;
+  width: var(--d, 22px);
+  height: var(--d, 22px);
+  border-radius: 50%;
   box-sizing: border-box;
-  box-shadow: var(--shadow-sm);
-  transition: opacity .16s ease, box-shadow .16s ease, border-color .16s ease, transform .12s ease;
+  text-decoration: none;
+  --diff: #22c55e;
+  --pct: 0%;
+  --cat: #38bdf8;
+  --tip-scale: 1;
+  transition: opacity .16s ease, transform .12s ease, filter .16s ease;
 }
 .rnode:hover {
   text-decoration: none;
-  transform: translateY(-1px);
-  box-shadow: var(--shadow), 0 0 0 1px var(--cat);
-  border-color: var(--cat);
+  transform: scale(1.18);
+  z-index: 4;
 }
-.rnode.done { border-color: var(--cat); }
-.rnode.on { box-shadow: var(--shadow), 0 0 0 2px var(--cat); z-index: 3; }
+.rnode.done { z-index: 2; }
+.rnode.on { z-index: 3; filter: drop-shadow(0 0 6px var(--cat)); }
 .rnode.dim { opacity: .16; }
 
-/* Лёгкая зелёная заливка слева-направо по мере чтения */
-.fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  background: linear-gradient(90deg, rgba(22,163,74,.45), rgba(34,197,94,.26));
-  transition: width .55s cubic-bezier(.2,.8,.2,1);
+/* Progress ring (conic gradient): read fraction green, rest a faint track. */
+.arc {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(var(--green, #22c55e) var(--pct), rgba(120, 150, 180, .22) 0);
   pointer-events: none;
 }
-.rnode.done .fill { background: linear-gradient(90deg, rgba(22,163,74,.66), rgba(34,197,94,.42)); }
-
-.title {
-  position: relative;
-  font-weight: 650; font-size: 11px; line-height: 1.15;
-  display: -webkit-box; -webkit-box-orient: vertical;
-  /* compact: at most 3 lines (matches RADIAL_MAX_LINES / radialCardHeight) */
-  -webkit-line-clamp: 3; line-clamp: 3;
-  overflow: hidden;
-  overflow-wrap: anywhere;
+/* Difficulty-coloured disc with a subtle dark ring, inset to reveal the arc. */
+.disc {
+  position: absolute; inset: calc(var(--d, 22px) * 0.14); border-radius: 50%;
+  background: var(--diff);
+  border: 1px solid rgba(0, 0, 0, .6);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .14), 0 1px 3px rgba(0, 0, 0, .55);
+  pointer-events: none;
 }
 
-.meta { position: relative; display: flex; align-items: center; gap: 4px; min-height: 11px; }
-/* leave room for the collapse chevron pinned to the bottom-right corner */
-.rnode.has-chev .meta { padding-right: 15px; }
-
-/* Minimalist star rating — 1–5 ★, coloured by difficulty (no text label). */
-.stars {
-  flex: none;
-  font-size: 9.5px; line-height: 1; letter-spacing: .5px;
-  color: #4ade80; /* beginner default, also used for unknown difficulty */
-  white-space: nowrap;
-  text-shadow: 0 1px 2px rgba(0,0,0,.45);
-}
-.d-beginner { color: #4ade80; }
-.d-easy { color: #38bdf8; }
-.d-medium { color: #facc15; }
-.d-hard { color: #fb923c; }
-.d-expert { color: #f87171; }
-
-.dur { flex: none; font-size: 9px; line-height: 1; color: var(--muted); white-space: nowrap; }
-
-.badge {
-  position: absolute; top: 2px; right: 3px;
-  width: 13px; height: 13px; border-radius: 50%;
+/* Completion badge (solid green check). */
+.check {
+  position: absolute; top: -3px; right: -3px;
+  width: 12px; height: 12px; border-radius: 50%;
   display: grid; place-items: center;
-  background: var(--green); color: #05210f; font-size: 8px; font-weight: 900;
-  box-shadow: 0 0 8px rgba(34,197,94,.6);
+  background: var(--green, #22c55e); color: #05210f;
+  font-size: 8px; font-weight: 900; line-height: 1;
+  box-shadow: 0 0 0 1.5px rgba(7, 11, 17, .9), 0 0 6px rgba(34, 197, 94, .7);
+  pointer-events: none;
 }
 
+/* Collapse chevron — tucked at the bottom-right, revealed on hover/fold. */
 .chev {
-  position: absolute; bottom: 2px; right: 2px;
-  width: 14px; height: 14px; padding: 0;
+  position: absolute; bottom: -6px; right: -6px;
+  width: 13px; height: 13px; padding: 0;
   display: grid; place-items: center;
-  border-radius: 4px; cursor: pointer;
-  background: rgba(10,16,24,.82); color: var(--muted);
+  border-radius: 50%; cursor: pointer;
+  background: rgba(10, 16, 24, .92); color: var(--muted);
   border: 1px solid var(--border-strong);
-  font-size: 9px; line-height: 1;
+  font-size: 8px; line-height: 1;
+  opacity: 0; transition: opacity .14s ease;
 }
+.rnode:hover .chev, .rnode.folded .chev { opacity: 1; }
 .chev:hover { color: var(--text); border-color: var(--cat); }
 .chev.closed { color: var(--cat); }
+
+/* ---- hover tooltip (title + difficulty + duration) ---------------------- */
+.tip {
+  position: absolute;
+  left: 50%; bottom: calc(100% + 10px);
+  transform: translate(-50%, 4px) scale(var(--tip-scale));
+  transform-origin: bottom center;
+  display: flex; flex-direction: column; gap: 2px;
+  max-width: 240px; padding: 6px 9px;
+  background: rgba(15, 23, 34, .97);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-lg);
+  color: var(--text);
+  font-size: 12px; line-height: 1.3;
+  white-space: normal; text-align: left;
+  opacity: 0; pointer-events: none;
+  transition: opacity .12s ease, transform .12s ease;
+  z-index: 6;
+}
+.rnode:hover .tip { opacity: 1; transform: translate(-50%, 0) scale(var(--tip-scale)); }
+.tip-title { font-weight: 650; font-size: 12px; overflow-wrap: anywhere; }
+.tip-meta { display: flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--muted); }
+.tip-diff { font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.td-beginner { color: #22c55e; }
+.td-easy { color: #84cc16; }
+.td-medium { color: #eab308; }
+.td-hard { color: #f97316; }
+.td-expert { color: #ef4444; }
 </style>

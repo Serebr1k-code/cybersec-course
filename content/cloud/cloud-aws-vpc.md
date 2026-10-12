@@ -11,7 +11,7 @@ useful_for:
   - "Оценка сетевой изоляции AWS-аккаунта"
   - "Поиск открытых из интернета сервисов"
   - "Планирование lateral movement в VPC"
-estimated_minutes: 45
+estimated_minutes: 55
 summary: "Как читать VPC: подсети, маршруты, security groups, NACL, VPC endpoints и peering. Как находить открытые наружу сервисы и понимать, что достижимо изнутри."
 ---
 
@@ -146,6 +146,54 @@ $ aws ec2 describe-security-groups --filters Name=ip-permission.ipv6-cidr,Values
 - **aws-cognito**: как из identity pool получить read-only креды для такой разведки.
 - **aws-ssm**: Session Manager как путь внутрь без открытых портов.
 - **cloud-network-security**: сетевые барьеры других облаков и их обход.
+
+## Шаг 5: SG-to-SG — путь к внутреннему сегменту
+
+Открытый порт в интернет — не единственная находка. Security group может разрешать трафик
+**от другого SG** (`source: sg-xxx`) — тогда инстанс закрыт снаружи, но доступен любому
+ресурсу с этим SG. Это ступенька lateral movement: скомпрометировав один узел, ты идёшь к
+следующему, который снаружи вообще не виден.
+
+Ищем такие правила:
+
+```bash
+$ aws ec2 describe-security-groups \
+    --query 'SecurityGroups[?length(IpPermissions[?UserIdGroupPairs[0].GroupId!=null])>`0`].{Name:GroupName,From:IpPermissions[].UserIdGroupPairs[].GroupId}'
+[{"Name":"db-sg","From":["sg-111"]}]
+```
+
+Здесь `db-sg` (база) пускает только `sg-111` (веб-сервер). Веб-сервер доступен из интернета —
+значит, путь такой: интернет → `sg-111` → `db-sg`. Прямого «открытого порта в базу» нет, но
+цепочка его заменяет. Чтобы понять, куда идти, читай `IpPermissions` каждого SG целиком, а не
+только фильтр `0.0.0.0/0`.
+
+## Таблица: где искать открытость (шпаргалка)
+
+| Что проверяем | Запрос AWS CLI |
+|---|---|
+| Public-подсети | `describe-subnets --filters Name=MapPublicIpOnLaunch,Values=true` |
+| SG, открытые наружу (IPv4) | `describe-security-groups --filters Name=ip-permission.cidr,Values=0.0.0.0/0` |
+| SG, открытые наружу (IPv6) | `describe-security-groups --filters Name=ip-permission.ipv6-cidr,Values=::/0` |
+| SG-to-SG цепочки | `describe-security-groups` → смотри `UserIdGroupPairs` |
+| Маршруты в интернет | `describe-route-tables` → `DestinationCidrBlock=0.0.0.0/0` |
+| NACL-блокировки | `describe-network-acls` → `Entries[].RuleAction=deny` |
+| Endpoints к AWS | `describe-vpc-endpoints` |
+| Peering / Transit Gateway | `describe-vpc-peering-connections`, `describe-transit-gateway-attachments` |
+
+Держи эту таблицу под рукой: это базовый набор команд для построения карты VPC за пару минут.
+
+## Защита: чек-лист сетевой гигиены
+
+- **Не открывать 22/3389 в `0.0.0.0/0`.** Для админ-доступа использовать SSM Session Manager.
+- **Закрывать IPv6-правила так же строго, как IPv4.** `::/0` — такая же открытость.
+- **Правила «SG → SG» делать узкими:** конкретный порт, а не «всё».
+- **Default SG менять:** запрещать весь трафик, кроме явно нужного.
+- **VPC endpoints ограничивать policy:** привязывать к конкретному бакету/таблице и роли.
+- **Включить Flow Logs** (логи сетевого трафика) — они покажут, что реально ходило, а не только что разрешено.
+- **Аудит peering/TGW:** каждое подключение расширяет достижимость, его нужно осознанно одобрять.
+
+Правило простое: сеть в AWS безопасна не тогда, когда «SG настроен», а когда **каждый уровень
+— маршрут, SG, NACL, endpoint — согласованно закрыт**, и ты это проверил, а не предположил.
 
 ## Квиз
 

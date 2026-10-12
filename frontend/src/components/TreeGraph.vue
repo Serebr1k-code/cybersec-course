@@ -2,7 +2,7 @@
 import { computed, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import LessonNode from './LessonNode.vue'
 import { useProgressStore } from '../stores/progress'
-import { radialLayout, CARD_W } from '../utils/radialLayout'
+import { radialLayout, NODE_D } from '../utils/radialLayout'
 
 const props = defineProps({
   nodes: { type: Array, default: () => [] },   // узлы одной категории
@@ -15,6 +15,16 @@ const progress = useProgressStore()
 
 const MIN_SCALE = 0.05
 const MAX_SCALE = 4
+
+// Difficulty palette — the circle FILL (mirrors LessonNode.vue / main.css).
+// A compact legend keeps the colour-only nodes understandable.
+const DIFF_LEGEND = [
+  { k: 'beginner', label: 'Новичок', c: '#22c55e' },
+  { k: 'easy', label: 'Легко', c: '#84cc16' },
+  { k: 'medium', label: 'Средне', c: '#eab308' },
+  { k: 'hard', label: 'Сложно', c: '#f97316' },
+  { k: 'expert', label: 'Эксперт', c: '#ef4444' }
+]
 
 // id свёрнутых узлов (шеврон): их поддеревья скрыты и не участвуют в раскладке.
 const collapsed = ref(new Set())
@@ -392,6 +402,12 @@ onBeforeUnmount(() => {
       Показываются первые 2 уровня + пройденные и связанные с ними уроки
     </div>
 
+    <div class="legend" aria-hidden="true">
+      <span class="lg" v-for="d in DIFF_LEGEND" :key="d.k">
+        <i :style="{ background: d.c }"></i>{{ d.label }}
+      </span>
+    </div>
+
     <div
       ref="wrap"
       class="canvas"
@@ -439,8 +455,8 @@ onBeforeUnmount(() => {
             :color="color"
             :ratio="progress.lessonRatio(n.id, n.sections)"
             :completed="progress.isCompleted(n.id)"
-            :width="CARD_W"
-            :height="layout.pos[n.id].h"
+            :size="NODE_D"
+            :zoom="view.scale"
             :has-children="layout.hasChildren[n.id]"
             :collapsed="nodeCollapsed(n.id)"
             :dimmed="!!activeId && !pathSet.has(n.id)"
@@ -500,6 +516,19 @@ onBeforeUnmount(() => {
 }
 .hint-ico { font-size: 12px; }
 
+/* Легенда сложностей — узлы-кружки окрашены по сложности (без текста). */
+.legend {
+  position: absolute; bottom: 12px; left: 14px; z-index: 10;
+  display: flex; flex-wrap: wrap; gap: 10px;
+  padding: 5px 10px; border-radius: var(--r);
+  background: rgba(15, 23, 34, .82); backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  font-size: 11px; color: var(--muted);
+  pointer-events: none;
+}
+.lg { display: inline-flex; align-items: center; gap: 4px; }
+.lg i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+
 /* Контекстное меню узла (правый клик): отметить/снять «пройден» */
 .ctx-menu {
   position: absolute; z-index: 30; min-width: 196px;
@@ -528,6 +557,8 @@ onBeforeUnmount(() => {
     top: auto; bottom: 10px; left: 10px; max-width: 74%;
     font-size: 10.5px; padding: 4px 8px;
   }
+  /* Легенда делит нижний левый угол с подсказкой — на планшете/телефоне скрываем. */
+  .legend { display: none; }
   .ctx-menu { min-width: 170px; }
 }
 
@@ -540,6 +571,7 @@ onBeforeUnmount(() => {
    подсказка видны как прежде. */
 @media (max-width: 700px) {
   .controls,
+  .legend,
   .hint { display: none; }
 }
 </style>

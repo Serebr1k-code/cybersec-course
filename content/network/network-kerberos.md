@@ -133,6 +133,52 @@ alice   krbtgt
 - Обе атаки дают материал для **оффлайн**-подбора, а не онлайн-брута.
 - Лечение — pre-auth, сложные пароли/gMSA, мониторинг событий.
 
+## Разбор AS-REP hash: от байтов до hashcat
+
+Вернёмся к учётке без pre-auth. Когда мы шлём AS-REQ и получаем AS-REP, зашифрованная часть — это не «пароль» и не «хэш пароля» в привычном смысле. Это **блоб**, зашифрованный ключом, который выведен из пароля (для AES — PBKDF2, для RC4 — сам NT-хэш). Именно поэтому подбор идёт оффлайн: мы перебираем кандидатов, шифруем каждый тем же алгоритмом и сравниваем с блобом.
+
+Инструмент `GetNPUsers.py` из набора Impacket делает всё за нас — сам находит AS-REP roastable учётки и печатает строку в формате, который понимает hashcat:
+
+```
+$ GetNPUsers.py EXAMPLE.LOCAL/ -usersfile users.txt -dc-ip 10.0.0.1 -format hashcat -outputfile asrep.txt
+$ cat asrep.txt
+$krb5asrep$23$svc_backup@EXAMPLE.LOCAL:8f3c1e...:a1b2c3...
+```
+
+Читается строка так: `$krb5asrep$` — тип, `23` — тип шифрования RC4-HMAC, далее имя учётки, затем два шестнадцатеричных поля (зашифрованный блоб и соль/вектор). Дальше — hashcat:
+
+```
+$ hashcat -m 18200 asrep.txt /usr/share/wordlists/rockyou.txt
+$krb5asrep$23$svc_backup@EXAMPLE.LOCAL:8f3c1e...:Summer2019
+```
+
+Обрати внимание: пароль найден **оффлайн**, на своей GPU. В сети домена при этом не появилось ни одного лишнего запроса после исходного AS-REQ — в логах останется одна строка.
+
+## Kerberoasting руками: смотрим на SPN
+
+Теперь второй вектор. Любой аутентифицированный пользователь может перечислить учётки со SPN и запросить на них билеты. `GetUserSPNs.py`:
+
+```
+$ GetUserSPNs.py EXAMPLE.LOCAL/alice:Password1 -dc-ip 10.0.0.1 -request
+ServicePrincipalName            Name        MemberOf        PasswordLastSet
+----------------------------    ----------  --------------  -------------------
+MSSQLSvc/db.example.local:1433  svc_sql     Domain Admins   2020-03-11 09:14
+$krb5tgs$23$*svc_sql$EXAMPLE.LOCAL$MSSQLSvc/db.example.local:1433*$9e2a...
+```
+
+Ключевая деталь — колонка `MemberOf`: сервисный аккаунт состоит в `Domain Admins`. Если пароль такого аккаунта слабый, его оффлайн-подбор (hashcat `-m 13100`) отдаёт нам фактически администратора домена. Именно поэтому Kerberoasting так ценят: запрос билета — легитимная операция, а входной точки почти не требуется.
+
+## Что искать в трафике: быстрый чек-лист
+
+| Признак в дампе | Что это значит |
+|---|---|
+| `msg_type 10` от многих клиентов к `krbtgt` | массовые AS-REQ — вход в домен или перечисление |
+| `msg_type 11` без предшествующего pre-auth | возможный AS-REP roast |
+| Серия `msg_type 12` к разным SPN от одного клиента | похоже на Kerberoasting |
+| Один клиент перебирает `CNameString` | user enumeration (kerbrute) |
+
+Практический вывод: сетевой анализ Kerberos почти всегда начинается с `tshark -r krb.pcap -Y kerberos -T fields -e kerberos.msg_type -e kerberos.CNameString -e kerberos.SNameString`. Уже по этому распределению видно, был ли в сети brute-force, массовый запрос билетов или разведка.
+
 ## Квиз
 
 Проверь себя.

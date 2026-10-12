@@ -149,6 +149,60 @@ $ for d in $(az deployment group list -g myrg --query '[].name' -o tsv); do
 - **cloud-azure-managed-identity**: как использовать захваченный токен.
 - **cloud-azure-keyvault**: где искать секреты после эскалации.
 
+## Глазами защитника
+
+ARM deployments выполняются с правами пользователя или managed identity и могут назначать роли. Защита: ограничить `Microsoft.Authorization/roleAssignments/write` и не давать Contributor вместе с возможностью деплоить шаблоны. Использовать `what-if` и approvals для деплоев, аудит истории deployments. Custom Script Extension и runCommand — чувствительные: они дают выполнение кода на VM. Managed identity деплоя должна быть узкой.
+
+## Частые вопросы
+
+**Что такое ARM-шаблон?**
+
+JSON-описание ресурсов Azure для декларативного развёртывания. В нём можно создавать ресурсы, назначать роли и запускать скрипты.
+
+**Как Contributor превращается в Owner?**
+
+Через `roleAssignments/write`: имея Contributor и право назначать роли (или деплой, который его выполняет), назначаешь себе Owner.
+
+**Что даёт runCommand на VM?**
+
+Выполнение команды от имени VM и доступ к её managed identity. Это прямой путь к кред-хентингу.
+
+**Что такое Custom Script Extension?**
+
+Расширение, скачивающее и запускающее скрипт на VM. Требует прав на изменение VM и даёт RCE.
+
+**Где смотреть историю deployments?**
+
+`az deployment group list` и `az deployment operation list` показывают, что и кем разворачивалось.
+
+**Как защититься?**
+
+Ограничить `roleAssignments/write`, давать узкие managed identity, использовать approvals и what-if, аудит deployments.
+
+**Помогает ли Contributor без `roleAssignments`?**
+
+Да, без права назначать роли Contributor не эскалирует напрямую, но `runCommand` на VM всё равно даёт креды.
+
+**Что если есть только Reader?**
+
+Reader не даёт изменений, но раскрывает конфигурацию и подсказки для дальнейшего доступа.
+
+## Разбор: Contributor → runCommand → Owner
+
+Атакующий получил Contributor на подписку. Он вызывает `az vm run-command invoke` с командой, читающей managed identity VM через IMDS, и получает токен. Токен позволяет вызвать ARM API. Затем он проверяет `roleAssignments/write`: если право есть, назначает себе Owner на подписку и получает полный контроль. Даже без этого шага он собирает секреты с VM и движется дальше. Защита — ограничить `runCommand` и `roleAssignments`, давать узкие MI.
+
+## Что чаще всего упускают
+
+То, что Contributor без явного `roleAssignments/write` всё равно опасен: `runCommand` и Custom Script Extension дают код на VM, а её managed identity — креды. Второе упущение — права деплоя: шаблон может сам назначать роли, если identity деплоя имеет на это право. Третье — история deployments: в ней видны шаблоны, которые атакующий может повторить. Вывод: проверяй не только прямые права, но и косвенные пути через деплой и `runCommand`.
+
+**Можно ли эскалировать только через `runCommand`?**
+
+Да: он даёт выполнение кода на VM, а её managed identity — креды. Даже без `roleAssignments` этого часто достаточно для движения вперёд.
+
+**Что если нет прав на VM?**
+
+Проверь деплой-историю и шаблоны: иногда можно запустить deployment с правами на другой ресурс.
+
 ## Квиз
 
 Проверь себя.

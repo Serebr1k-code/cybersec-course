@@ -122,6 +122,47 @@ $ gunzip -c trail.json.gz | jq -r '.Records[] | select(.eventName|test("ConsoleL
 
 И отдельно: **отсутствие записей — тоже улика**. Если `StopLogging` был выполнен, в логе просто зияет пропуск, и сам факт остановки фиксируется событием. В расследовании это первое, что проверяют.
 
+## Полный разбор: от записи к цепочке атаки
+
+Соберём расследование по `trail.json` в один сценарий.
+
+| Время (UTC) | Событие | Трактовка |
+|-------------|---------|-----------|
+| 22:01 | `ConsoleLogin` (новый IP) | доступ |
+| 22:05 | `CreateAccessKey` | персистентность |
+| 22:07 | `AttachUserPolicy` (AdministratorAccess) | эскалация |
+| 22:09 | `StopLogging` / `DeleteTrail` | антифорензика |
+| 22:12 | `GetObject` (много, s3) | эксфильтрация |
+
+1. **Находим вход.** `ConsoleLogin`/`AssumeRole` с аномального IP.
+2. **Персистентность.** `CreateAccessKey`, `CreateLoginProfile`, новый пользователь/роль.
+3. **Эскалация.** `AttachUserPolicy`, `PutRolePolicy`, изменение trust.
+4. **Антифорензика.** `StopLogging`, `DeleteTrail`, `DeleteFlowLogs` — сами по себе тревожный сигнал.
+5. **Эксфильтрация.** Массовые `GetObject`, снапшоты, `ModifySnapshotAttribute`.
+6. **Таймлайн.** Сводим по `eventTime` и `sourceIPAddress`.
+
+Ключ: даже когда ресурса уже нет, CloudTrail хранит «кто, что, когда».
+
+## Шпаргалка по API-событиям
+
+| Действие атакующего | API-события |
+|---------------------|-------------|
+| Персистентность | `CreateAccessKey`, `CreateLoginProfile` |
+| Эскалация | `AttachUserPolicy`, `PutRolePolicy` |
+| Антифорензика | `StopLogging`, `DeleteTrail` |
+| Эксфильтрация | `GetObject`, `ModifySnapshotAttribute` |
+| Криптомайнинг | `RunInstances` (крупные инстансы) |
+
+## Частые вопросы
+
+**Логи «пустые».** Возможно, trail выключен или пишет в другой регион/аккаунт — проверяйте все регионы и `CloudTrail` в каждом.
+
+**Данные-события (S3 GetObject) не видны.** По умолчанию CloudTrail пишет только management events; data events нужно включать отдельно.
+
+**Как найти атакующего по IP?** `sourceIPAddress` + user-agent; сопоставьте с историей входов.
+
+**Логи удалены.** Если trail удалён, часть истории останется в S3-бакете с логами (если он с object-lock).
+
 ## Что мы теперь знаем
 
 - CloudTrail пишет каждый вызов API: `eventName`, `userIdentity`, `sourceIPAddress`, `eventTime`.

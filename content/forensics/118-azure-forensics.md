@@ -112,6 +112,62 @@ $ az snapshot create -g rg-forensics -n snap-disk1 --source /subscriptions/.../d
 
 Для облачных доказательств действует та же дисциплина, что и для дисков: фиксируйте время выгрузки, считайте хеши, анализируйте копии, документируйте запросы. Все метки — в **UTC**.
 
+## Полный разбор: восстанавливаем цепочку
+
+Сведём события нашего инцидента в один таймлайн — так видно не отдельные факты, а сценарий.
+
+| Время (UTC) | Источник | Событие | Трактовка |
+|-------------|----------|---------|-----------|
+| 21:58 | SigninLogs | 40 неудач по 12 аккаунтам с IP 203.0.113.7 | password spray |
+| 22:02 | SigninLogs | успешный вход `bob@` с того же IP | пароль подобран |
+| 22:05 | SigninLogs | вход без MFA (`ClientAppUsed: IMAP`) | legacy-auth в обход MFA |
+| 22:10 | AuditLogs | `Add service principal` | создан app-sp-abc |
+| 22:11 | AuditLogs | `Add service principal credentials` | добавлен секрет (персистентность) |
+| 22:14 | ActivityLog | `roleAssignments/write` | выдана роль в rg-prod |
+| 22:20 | AzureActivity | `Microsoft.Compute/virtualMachines/start` | запуск ВМ атакующим |
+
+Обратите внимание: каждый шаг логируется в **своём** источнике. Если смотреть только Activity Log, мы увидим «кто-то выдал роль» — но не увидим, что за четыре минуты до этого был подобран пароль. Смысл появляется только при корреляции.
+
+## Если не сработало
+
+- **Нет старых данных.** Activity Log по умолчанию 90 дней, часть Entra-логов — 30 дней. Без Diagnostic settings история теряется; зафиксируйте сам факт отсутствия экспорта.
+- **Логи не подключены к Log Analytics.** KQL не работает, если логи не перенаправлены. Проверьте `Diagnostic settings` у подписки и у Entra.
+- **Не видно действий service principal.** В `AuditLogs` фильтруйте по `InitiatedBy` и по `TargetResources`, а не только по человеку.
+- **Подозрение на legacy-auth, но записей нет.** Проверьте, включены ли sign-in logs для всех клиентов (некоторые отключены по умолчанию).
+- **Слишком много строк.** Добавьте фильтр по времени `where TimeGenerated > ago(24h)` и по `ResultType`.
+
+## Справочник KQL-таблиц
+
+| Таблица | Что содержит |
+|---------|--------------|
+| `SigninLogs` | входы: пользователь, IP, приложение, риск, статус |
+| `AADNonInteractiveUserSignInLogs` | неинтерактивные входы (токены) |
+| `AuditLogs` | изменения объектов Entra (роли, приложения) |
+| `AzureActivity` | операции ARM с ресурсами |
+| `AADServicePrincipalSignInLogs` | входы service principal |
+
+Типовые запросы:
+
+```kusto
+// Impossible travel: входы одного пользователя из разных стран за короткое время
+SigninLogs
+| summarize Countries = make_set(Location), Times = make_set(TimeGenerated) by UserPrincipalName
+| where array_length(Countries) > 1
+
+// Новые секреты у приложений (персистентность)
+AuditLogs
+| where OperationName has "credential"
+| project TimeGenerated, InitiatedBy, TargetResources
+```
+
+## Защита: что настроить заранее
+
+- **Экспорт логов** (Diagnostic settings) в Storage/Log Analytics — без него расследование «слепо».
+- **Conditional Access + MFA** и блокировка legacy-аутентификации — рушат самый частый вектор.
+- **Оповещения** на создание app registration, добавление credentials, назначение Owner.
+- **Least privilege**: не выдавать Owner/Contributor без нужды; использовать managed identity вместо секретов.
+- **Единая точка корреляции** (Microsoft Sentinel) — сводит Entra и ARM в один таймлайн автоматически.
+
 ## Что мы теперь знаем
 
 - У Azure два control plane: **ARM** (ресурсы) и **Entra ID** (идентичность); инцидент затрагивает оба.

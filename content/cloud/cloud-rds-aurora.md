@@ -11,7 +11,7 @@ useful_for:
   - "Пентест управляемых баз AWS"
   - "Извлечение данных из снапшотов"
   - "Использование IAM-аутентификации в БД"
-estimated_minutes: 45
+estimated_minutes: 55
 summary: "RDS/Aurora: публичная доступность, снапшоты как канал утечки, IAM database authentication и чтение мастер-паролей из Secrets Manager/SSM."
 ---
 
@@ -166,6 +166,52 @@ app=>
 - **aws-devops**: CodeBuild/CodePipeline как RCE и источник кредов к базам.
 - **rds/Secrets Manager** → **cloud-privesc-iam**: что делать с найденными паролями и ключами.
 - **database-exposure**: открытые управляемые БД вне AWS (Cosmos DB, Cloud SQL).
+
+## Шаг 4: Aurora clone — клон без копирования данных
+
+Если снапшота нет, но есть Aurora-кластер, есть более быстрый путь — **clone**. Клон разделяет
+storage с источником (copy-on-write): копирование данных не занимает часы, клон виден почти сразу.
+Нужны права `rds:RestoreDBClusterToPointInTime` и доступ к KMS-ключу, если кластер зашифрован:
+
+```bash
+$ aws rds restore-db-cluster-to-point-in-time \
+    --db-cluster-identifier prod-clone \
+    --source-db-cluster-identifier prod-cluster \
+    --restore-type copy-on-write --use-latest-restorable-time
+{"DBCluster": {"DBClusterIdentifier": "prod-clone", "Status": "creating"}}
+```
+
+Затем добавляем инстанс-читатель к клону:
+
+```bash
+$ aws rds create-db-instance --db-instance-identifier prod-clone-writer \
+    --db-cluster-identifier prod-clone --engine aurora-mysql \
+    --db-instance-class db.t3.medium --publicly-accessible
+```
+
+Клон отделён от прод-кластера: изменения в нём не влияют на источник, но данные — те же на
+момент клонирования. Меняем мастер-пароль (как в шаге 3) и дампим.
+
+## Таблица: пять путей к данным RDS
+
+| Путь | Нужные права | Шум для прода | Когда применять |
+|---|---|---|---|
+| Расшаренный снапшот → copy → restore | `rds:CopyDBSnapshot`, `rds:RestoreDBInstanceFromDBSnapshot` | нет (прод не тронут) | снапшот shared и не зашифрован |
+| IAM database auth | `rds-db:connect` + SigV4-токен | нет (обычный вход в БД) | IAM-auth включена |
+| Aurora clone | `rds:RestoreDBClusterToPointInTime` | минимальный | есть Aurora-кластер |
+| Экспорт снапшота в S3 | `rds:StartExportTask` + `s3:PutObject` | нет | нужен Parquet / Athena |
+| Мастер-пароль из Secrets Manager | `secretsmanager:GetSecretValue` | нет | секрет `rds!db-*` доступен |
+
+Выбирай путь по **правам**, а не по привычке: самый быстрый почти никогда не «стучаться в порт».
+
+## Защита: как закрыть эти каналы
+
+- **Шифровать снапшоты** ключом KMS, к которому нет доступа у недоверенных ролей — тогда `copy-db-snapshot` провалится.
+- **Не расшаривать снапшоты** на внешние аккаунты (`describe-db-snapshots --snapshot-type shared` должен быть пустым).
+- **Ограничить `rds:Restore*`** — восстановление под своим контролем и есть основной вектор.
+- **Не хранить мастер-пароль в открытом Secrets Manager** с широким `GetSecretValue`.
+- **IAM database auth — только с узкой `rds-db:connect`** по конкретному `dbuser:...`.
+- **Включить `DeletionProtection`** и аудит CloudTrail на `CopyDBSnapshot` / `Restore*`.
 
 ## Квиз
 

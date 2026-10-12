@@ -1,53 +1,29 @@
-import { nodeHeight } from './nodeLayout'
-
 // Radial ("sunburst") layout for one category of the learning tree.
 //
 // Design goals
 //   * the ROOT of the category sits at the CENTRE; every depth is a concentric
 //     RING (radius grows with depth);
 //   * a node's angular slot is proportional to its subtree size (leaf count),
-//     but with a floor so that every node keeps enough arc for its card — this
+//     but with a floor so that every node keeps enough arc for its circle — this
 //     is what makes branches spread evenly and never overlap;
+//   * every node is a small fixed-size CIRCLE (NODE_D px, no text), so the ring
+//     radius only has to clear the circle footprint along the tangent — the
+//     layout therefore packs MUCH tighter than the old text cards;
 //   * the ring radius grows with depth AND with the number of nodes on that
-//     ring, so a dense ring is pushed out until its cards fit;
-//   * text stays HORIZONTAL (cards are never rotated), so the ring radius must
-//     be large enough for the card WIDTH along the tangent.
+//     ring, so a dense ring is pushed out until its circles fit.
 //
 // The output is a pure data structure (positions + edges) so it is trivially
 // unit-testable and free of DOM/canvas concerns.
 
-export const CARD_W = 150          // node card width (fixed — keeps layout deterministic)
-export const CARD_H = 44           // fallback card height (empty tree / missing title)
-// Compact radial card metrics. The card is deliberately SMALL and NEAT: the
-// title is capped at 3 lines and the reserved height is ~40–60px (was up to
-// ~150px when the cap was 6 lines). These values MUST match the rendered card
-// (LessonNode.vue) so the layout reserves exactly what the card needs — never
-// clipping, never overlapping.
-export const RADIAL_CONTENT_W = 126   // inner text width (150px card − 2×8px padding − 2px border, minus a little)
-export const RADIAL_MAX_LINES = 3     // cap the title at 3 lines -> compact cards
-export const RADIAL_FONT_SCALE = 11 / 13.5   // radial card title font (11px) vs the 224px node font
-export const RADIAL_LINE_H = 13       // per-line title height (11px × 1.15 ≈ 12.65 → round up)
-export const RADIAL_PAD = 10          // vertical padding (4px×2) + border (1px×2)
-export const RADIAL_META_H = 13       // meta row: 2px gap + 11px difficulty chip / bar row
-export const RADIAL_MIN_H = 40        // compact floor for a one-line card
-
-// Content-driven card height for the radial card (shared by the layout and the
-// node component so the reserved height always matches the rendered card).
-// 1 line -> 40px, 2 -> 49px, 3 -> 62px (rendered 36/48/61 — always ≥, never clips).
-export function radialCardHeight(node) {
-  return nodeHeight(node, {
-    contentWidth: RADIAL_CONTENT_W,
-    maxLines: RADIAL_MAX_LINES,
-    scale: RADIAL_FONT_SCALE,
-    pad: RADIAL_PAD,
-    lineHeight: RADIAL_LINE_H,
-    metaHeight: RADIAL_META_H,
-    minHeight: RADIAL_MIN_H
-  })
-}
-export const GAP_X = 16            // minimum horizontal gap between neighbouring cards
-export const GAP_Y = 14            // minimum vertical gap between rings
-export const RING_STEP = CARD_W + GAP_Y   // radial distance between consecutive rings
+// ---- node geometry --------------------------------------------------------
+// Nodes are MINIMAL COLORED CIRCLES (LessonNode.vue): no title text on the
+// face, so the layout reserves a single fixed square per node. Keeping the size
+// constant is what lets the rings pack tightly.
+export const NODE_D = 22           // circle diameter (px) — fixed, keeps layout deterministic
+export const NODE_R = NODE_D / 2   // circle radius (px)
+export const GAP_X = 14            // minimum EDGE gap between neighbouring circles on a ring
+export const GAP_Y = 16            // minimum EDGE gap between consecutive rings
+export const RING_STEP = NODE_D + GAP_Y   // radial distance between consecutive rings
 export const MIN_SHARE = 0.9       // floor = MIN_SHARE * (even share) for the water-fill
 export const START_ANGLE = -Math.PI / 2   // first DFS slot starts at the top
 const VROOT = '__vroot__'          // key for "no parent" (multiple roots case)
@@ -147,7 +123,7 @@ export function radialLayout(nodes, opts = {}) {
   }
 
   // Angular allocation per depth: share proportional to leaf weight, floored
-  // with a water-fill so no node gets a slot too small for its card.
+  // with a water-fill so no node gets a slot too small for its circle.
   const angle = {}
   const span = {}
   for (const [, ids] of byDepth) {
@@ -179,26 +155,14 @@ export function radialLayout(nodes, opts = {}) {
     for (const id of ids) { angle[id] = cur + span[id] / 2; cur += span[id] }
   }
 
-  // Per-node card height: grows with the title (nodeLayout.js), so long titles
-  // are never clipped. `maxH[d]` is the tallest card on ring d and drives the
-  // radial spacing between consecutive rings.
-  const cardH = {}
-  for (const n of list) cardH[n.id] = radialCardHeight(n)
-  const maxH = {}
-  for (const id of order) {
-    const d = depth[id]
-    maxH[d] = Math.max(maxH[d] ?? 0, cardH[id] ?? CARD_H)
-  }
-
   // Ring radii: grow with depth (RING_STEP) and, on dense rings, until the
-  // closest pair of cards on that ring clears the card footprint. The footprint
-  // is the card DIAGONAL (width + the pair's half-heights) so two tall cards
-  // can never overlap diagonally. Between consecutive rings the minimum centre
-  // distance is the radial step, so it too must clear the card diagonal of the
-  // tallest cards involved (hypot(width, half-height sum)) — otherwise a tall
-  // card can overlap its neighbour on the next ring at a diagonal angle.
+  // closest pair of circles on that ring clears the required centre distance
+  // (diameter + edge gap). Between consecutive rings the minimum centre distance
+  // is the radial step, which already exceeds the diameter, so rings never
+  // collide radially.
   const depths = [...byDepth.keys()].sort((a, b) => a - b)
   const radius = { 0: 0 }
+  const pairDist = NODE_D + GAP_X   // required centre distance between ring neighbours
   for (const d of depths) {
     if (d === 0) { radius[0] = 0; continue }
     const ids = byDepth.get(d)
@@ -209,31 +173,26 @@ export function radialLayout(nodes, opts = {}) {
         const b = ids[(i + 1) % ids.length]
         const gap = (span[a] + span[b]) / 2
         if (gap > EPS) {
-          const half = ((cardH[a] ?? CARD_H) + (cardH[b] ?? CARD_H)) / 2
-          const footprint = Math.hypot(CARD_W, half) + GAP_X
-          // chord = 2r*sin(gap/2) must clear the footprint
+          // chord = 2r*sin(gap/2) must clear pairDist
           const chordGap = 2 * Math.sin(Math.min(Math.PI, gap) / 2)
-          need = Math.max(need, footprint / chordGap)
+          need = Math.max(need, pairDist / chordGap)
         }
       }
     }
-    const halfSum = ((maxH[d - 1] ?? CARD_H) + (maxH[d] ?? CARD_H)) / 2
-    const radialGap = Math.hypot(CARD_W, halfSum)
-    radius[d] = Math.max((radius[d - 1] ?? 0) + Math.max(RING_STEP, radialGap), need)
+    radius[d] = Math.max((radius[d - 1] ?? 0) + RING_STEP, need)
   }
 
   const maxR = depths.length ? Math.max(...depths.map((d) => radius[d])) : 0
 
-  // Place cards around the origin, then shift everything so the stage box starts
-  // at (0,0). The box is derived from the real card rectangles (per-node height),
-  // not a uniform CARD_H, so no card can fall outside it.
+  // Place circles around the origin (x,y = circle CENTRE), then shift everything
+  // so the stage box starts at (0,0). Every node is NODE_D x NODE_D.
   const raw = {}
   let minL = Infinity, minT = Infinity, maxRt = -Infinity, maxBt = -Infinity
   for (const id of order) {
     const r = radius[depth[id]] ?? 0
     const a = angle[id] ?? START_ANGLE
-    const w = CARD_W
-    const hh = cardH[id] ?? CARD_H
+    const w = NODE_D
+    const hh = NODE_D
     const x0 = r * Math.cos(a)
     const y0 = r * Math.sin(a)
     const left = x0 - w / 2
@@ -244,7 +203,7 @@ export function radialLayout(nodes, opts = {}) {
     if (left + w > maxRt) maxRt = left + w
     if (top + hh > maxBt) maxBt = top + hh
   }
-  if (!order.length) { minL = minT = 0; maxRt = CARD_W; maxBt = CARD_H }
+  if (!order.length) { minL = minT = 0; maxRt = NODE_D; maxBt = NODE_D }
   const boxW = maxRt - minL
   const boxH = maxBt - minT
   const cx = -minL

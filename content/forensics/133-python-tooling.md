@@ -145,6 +145,85 @@ logging.basicConfig(filename="/evidence/run.log", level=logging.INFO,
 
 Читайте данные **потоково** (не грузите образ целиком), оборачивайте доступ к полям в `try/except` (поля есть не всегда), параметризуйте вход/выход вместо хардкода путей.
 
+## Полный прогон: от образа до манифеста
+
+Соберём всё вместе в один рабочий скрипт. Задача — не просто вытащить PST, а оставить **манифест** (список файлов с путями, размерами и хешами), который потом приложим к отчёту.
+
+```python
+import pytsk3, hashlib, csv, logging, os
+
+logging.basicConfig(filename="/evidence/run.log", level=logging.INFO,
+                    format="%(asctime)s %(levelname)s %(message)s")
+
+img = pytsk3.Img_Info("disk.img")
+fs  = pytsk3.FS_Info(img, offset=2048 * 512)   # offset в БАЙТАХ
+out = "/evidence/pst"
+os.makedirs(out, exist_ok=True)
+rows = []
+
+def walk(path="/"):
+    for e in fs.open_dir(path=path):
+        name = e.info.name.name.decode(errors="ignore")
+        if name in (".", ".."):
+            continue
+        full = path.rstrip("/") + "/" + name
+        meta = e.info.meta
+        if meta is None:
+            continue
+        if meta.type == pytsk3.TSK_FS_META_TYPE_DIR:
+            walk(full)
+        elif name.lower().endswith(".pst"):
+            data = e.read_random(0, meta.size)
+            sha = hashlib.sha256(data).hexdigest()
+            open(os.path.join(out, name), "wb").write(data)
+            rows.append({"path": full, "size": meta.size, "sha256": sha})
+            logging.info("extracted %s (%d bytes)", full, meta.size)
+
+walk()
+with open("/evidence/pst-manifest.csv", "w", newline="") as f:
+    w = csv.DictWriter(f, fieldnames=["path", "size", "sha256"])
+    w.writeheader(); w.writerows(rows)
+print("done:", len(rows), "files")
+```
+
+Запуск:
+
+```bash
+$ python3 extract_pst.py
+done: 3 files
+$ cat /evidence/pst-manifest.csv
+path,size,sha256
+/Users/bob/AppData/Local/Microsoft/Outlook/outlook.pst,52428800,9f2c...
+/Documents/archive.pst,10485760,3a7e...
+/Downloads/backup.pst,2097152,77bd...
+```
+
+Теперь у нас не «какие-то файлы», а проверяемый набор: любой коллега повторит скрипт и получит те же хеши. Это и есть воспроизводимость, о которой мы говорили в уроке про доказательства.
+
+## Обработка ошибок: почему без неё нельзя
+
+В реальном образе поля отсутствуют, а байты «битые». Скрипт без защиты падает на первом же странном файле и теряет всю работу:
+
+```python
+try:
+    data = e.read_random(0, meta.size)
+except (IOError, OSError) as err:
+    logging.warning("read failed %s: %s", full, err)
+    continue
+```
+
+Правила простые: оборачивайте доступ к полям и чтение в `try/except`, декодируйте имена с `errors="ignore"`, читайте большие файлы **порциями** (`read_random(off, chunk)`) и логируйте каждое исключение. Тогда падение одного файла не убивает прогон.
+
+## Частые вопросы
+
+**Чем pytsk3 отличается от вызова `fls`?** Результат тот же, но в Python вы получаете структуры, а не текст, — можно фильтровать, агрегировать и связывать с другими данными программно.
+
+**Можно ли так же читать удалённые файлы?** Да: у удалённого файла `meta.flags` содержит признак `UNALLOC`, но inode и содержимое часто ещё целы — читайте так же, как обычный файл.
+
+**Как быть с зашифрованным образом?** Сначала расшифруйте контейнер (LUKS/BitLocker) на копии, затем подавайте расшифрованный образ в `pytsk3`.
+
+**Нужен ли GUI?** Нет. Для пакетной обработки скрипт быстрее и воспроизводимее, а GUI (Autopsy) удобен для первого прохода.
+
 ## Что мы теперь знаем
 
 - **pytsk3** даёт программный доступ к ФС; offset задаётся в **байтах**.
