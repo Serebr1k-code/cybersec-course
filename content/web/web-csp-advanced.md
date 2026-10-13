@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как обходят современный CSP: переиспользование nonce, обход strict-dynamic через script gadgets, base-uri и доверие к CDN."
+lab:
+  kind: shell
+  title: "Практика: CSP advanced — nonce reuse"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - 'Сними заголовки: curl -sI https://shop.local/ — увидишь script-src с nonce.'
+    - 'С nonce и strict-dynamic инлайн-скрипт с ЭТИМ nonce разрешён.'
+    - 'Nonce переиспользуется в отражённом параметре q.'
+    - 'Вставь <script nonce=abc123> и fetch /admin/flag — сохрани результат в found.txt.'
 ---
 
 ## Задача

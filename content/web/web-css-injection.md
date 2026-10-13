@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 32
 summary: "Как через инъекцию CSS украсть значения атрибутов и токенов без JavaScript, используя селекторы и загрузку ресурсов."
+lab:
+  kind: shell
+  title: "Практика: CSS-инъекция — эксфильтрация токена"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - 'Параметр theme отражается внутри <style>.'
+    - 'CSS-селектор атрибута: input[value^="nto{"].'
+    - 'url() в background заставляет браузер сделать запрос к слушателю.'
+    - 'Запросы прилетают на attacker.local/log — сохрани их в found.txt.'
 ---
 
 ## Вопрос, с которого всё начинается

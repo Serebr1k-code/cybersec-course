@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Второй этап: от карты поверхности переходим к двум главным семействам багов — контролю доступа и инъекциям."
+lab:
+  kind: shell
+  title: "Практика: разведка — вход в SQLi и IDOR"
+  toolset: [core, curl, sqlmap]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - 'sqlmap -u ... --data=... --batch проверит POST-параметры формы входа.'
+    - 'После SQLi переходи к контролю доступа: у REST API нет проверки владельца.'
+    - 'IDOR: перебери /api/users/<id>.'
+    - 'Запись админа (id=1) содержит секрет — сохрани в found.txt.'
 ---
 
 ## Задача

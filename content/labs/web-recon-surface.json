@@ -1,0 +1,29 @@
+{
+  "id": "web-recon-surface",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{r3c0n_subd0m41n_d3v_st4g1ng}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: разведка поверхности — поддомены и живые хосты\n\nЦель — `target.local`. Найди живой staging-поддомен и его секреты.\n\n1. Резолвим поддомен:\n\n   dig A dev.target.local\n\n2. Живой хост и его стек:\n\n   curl -sI https://dev.target.local/\n\n3. Ищем .env стажинга:\n\n   curl -s https://dev.target.local/.env > found.txt\n\n4. Набери `check`.\n" }
+  ],
+  "tools": {
+    "dig": {
+      "help": "dig <тип> <имя> — DNS-запрос (эмуляция зоны target.local)",
+      "cases": [
+        { "match": "dev\\.target\\.local", "example": "A dev.target.local", "output": "; <<>> DiG <<>> A dev.target.local\n;; ANSWER SECTION:\ndev.target.local.\t300\tIN\tA\t10.20.30.40\n" },
+        { "match": "target\\.local", "example": "A target.local", "output": "; <<>> DiG <<>> A target.local\n;; ANSWER SECTION:\ntarget.local.\t300\tIN\tA\t10.20.30.10\n" }
+      ],
+      "fallback": "dig: в этой лабе эмулируется зона target.local.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция target.local)",
+      "cases": [
+        { "match": "\\.env", "example": "-s https://dev.target.local/.env", "output": "APP_ENV=staging\nDB_HOST=db.internal\nSECRET_KEY=nto{r3c0n_subd0m41n_d3v_st4g1ng}\n" },
+        { "match": "dev\\.target\\.local", "example": "-sI https://dev.target.local/", "output": "HTTP/1.1 200 OK\nServer: nginx\nX-Environment: staging\nX-Powered-By: Express\n" },
+        { "match": "target\\.local", "example": "-s https://target.local/", "output": "<!doctype html><title>target</title>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется target.local.\n"
+    }
+  }
+}

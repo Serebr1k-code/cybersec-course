@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Первый этап разведки: находим скрытые пути, конфиги, API-спеки и поддомены до поиска уязвимостей."
+lab:
+  kind: shell
+  title: "Практика: разведка поверхности — поддомены и живые хосты"
+  toolset: [core, curl, dig]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - 'Резолви поддомены: dig A dev.target.local.'
+    - 'Живой staging выдаёт себя заголовком X-Environment: staging.'
+    - 'На staging часто остаётся .env с секретами.'
+    - 'Забери /.env и сохрани в found.txt.'
 ---
 
 ## Задача

