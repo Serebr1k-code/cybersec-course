@@ -13,6 +13,18 @@ useful_for:
   - "Incident Response"
 estimated_minutes: 52
 summary: "Уровни извлечения данных (логическое, файловое, физическое), инструменты (ADB, AFU, Cellebrite, JTAG, ISP, chip-off), учёт шифрования и блокировки, а также что каждый метод даёт на практике."
+lab:
+  kind: shell
+  title: "Практика: логическое извлечение Android-бэкапа"
+  toolset: [core, adb, sqlite]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, backup.ab, apps/org.thoughtcrime.securesms/databases/msgstore.db]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Убедись, что устройство видно: `adb devices -l`."
+    - "Найди пакет мессенджера: `adb shell pm list packages`."
+    - "Открой базу: `sqlite3 apps/org.thoughtcrime.securesms/databases/msgstore.db \".tables\"`."
+    - "Прочитай сообщения: `sqlite3 ... \"SELECT body FROM message\" | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

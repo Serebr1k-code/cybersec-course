@@ -1,0 +1,61 @@
+{
+ "id": "forensics-vm",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "expect": {
+  "file": "/home/student/task/found.txt",
+  "contains": "nto{d3lt4_ch41n_r3v34ls_pr10r_st4t3}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: разобрать набор файлов виртуальной машины\n\nДана папка с ВМ: `web.vmx`, `web.vmdk`, `web-000001.vmdk`, `web.vmsd`.\nУ машины был снапшот — актуальное состояние лежит в дельте. Определи\nцепочку дисков и найди флаг в метаданных снапшота.\n\nШаги:\n1. `file web.vmdk` и `qemu-img info web.vmdk` — формат и размер.\n2. `qemu-img info web-000001.vmdk` — увидишь `backing file: web.vmdk` (это дельта).\n3. `cat web.vmsd` — дерево снапшотов; активный снапшот содержит флаг.\n4. `grep nto web.vmsd > found.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/notes.txt",
+   "text": "Заметки:\n- Снапшот в виртуализации — дельта поверх «родителя», а не полная копия.\n- Цепочку дельт схлопывает `qemu-img convert -O raw <дельта> web_full.raw`.\n- Какой снапшот активен, описано в .vmsd/.vmx (VMware) или .vbox (VBox).\n"
+  },
+  {
+   "path": "/home/student/task/web.vmx",
+   "text": "#!/usr/bin/vmware\n.encoding = \"UTF-8\"\nconfig.version = \"8\"\nvirtualHW.version = \"19\"\ndisplayName = \"web\"\nguestOS = \"ubuntu-64\"\nmemsize = \"4096\"\nscsi0:0.present = \"TRUE\"\nscsi0:0.fileName = \"web.vmdk\"\nscsi0:0.mode = \"independent-persistent\"\nsnapshot.action = \"autoCommit\"\n"
+  },
+  {
+   "path": "/home/student/task/web.vmdk",
+   "text": "# Disk DescriptorFile\nversion=1\nencoding=\"UTF-8\"\nCID=fffffffe\nparentCID=ffffffff\ncreateType=\"monolithicSparse\"\n\n# Extent description\nRW 83886080 SPARSE \"web.vmdk\"\n\n# The Disk Data Base\n#DDB\nddb.virtualHWVersion = \"19\"\nddb.geometry.cylinders = \"5221\"\nddb.geometry.heads = \"255\"\nddb.geometry.sectors = \"63\"\n"
+  },
+  {
+   "path": "/home/student/task/web-000001.vmdk",
+   "text": "# Disk DescriptorFile\nversion=1\nencoding=\"UTF-8\"\nCID=1a2b3c4d\nparentCID=fffffffe\ncreateType=\"monolithicSparse\"\nparentFileNameHint=\"web.vmdk\"\n\n# Extent description\nRW 83886080 SPARSE \"web-000001.vmdk\"\n\n# The Disk Data Base\n#DDB\nddb.virtualHWVersion = \"19\"\n"
+  },
+  {
+   "path": "/home/student/task/web.vmsd",
+   "text": "<?xml version=\"1.0\"?>\n<snapshotList>\n  <snapshot>\n    <name>clean-install</name>\n    <description>base image before hardening</description>\n    <createTime>2024-01-01T10:00:00</createTime>\n    <state>poweredOff</state>\n    <fileName>web-Snapshot1.vmsn</fileName>\n  </snapshot>\n  <snapshot>\n    <name>active</name>\n    <description>nto{d3lt4_ch41n_r3v34ls_pr10r_st4t3}</description>\n    <createTime>2024-02-14T03:12:00</createTime>\n    <state>poweredOn</state>\n    <fileName>web-000001.vmdk</fileName>\n  </snapshot>\n</snapshotList>\n"
+  }
+ ],
+ "tools": {
+  "qemu-img": {
+   "help": "qemu-img <info|convert|snapshot|check> <образ> [...] — эмуляция qemu-img",
+   "cases": [
+    {
+     "match": "info\\s+web\\.vmdk",
+     "example": "info web.vmdk",
+     "output": "image: web.vmdk\nfile format: vmdk\nvirtual size: 40G (42949672960 bytes)\ndisk size: 2.4G\n"
+    },
+    {
+     "match": "info\\s+web\\-000001\\.vmdk",
+     "example": "info web-000001.vmdk",
+     "output": "image: web-000001.vmdk\nfile format: vmdk\nvirtual size: 40G (42949672960 bytes)\ndisk size: 180M\nbacking file: web.vmdk\nbacking file format: vmdk\n"
+    },
+    {
+     "match": "convert",
+     "example": "convert -O raw web-000001.vmdk web_full.raw",
+     "output": "(chain applied: web-000001.vmdk -> web.vmdk)\nwrote raw image: web_full.raw\n"
+    }
+   ]
+  }
+ }
+}

@@ -29,6 +29,13 @@ const LABS = [
   { id: 'forensics-btrfs-zfs', flag: 'nto{c0w_sn4psh0t_k33ps_d3l3t3d_f1l3s}', hints: 4,
     solution: ['xxd -s 0x10000 -l 16 disk.img', 'btrfs restore -l disk.img',
       'strings disk.img | grep nto > found.txt'] },
+  { id: 'forensics-vm', flag: 'nto{d3lt4_ch41n_r3v34ls_pr10r_st4t3}', hints: 4,
+    solution: ['file web.vmdk', 'qemu-img info web-000001.vmdk', 'cat web.vmsd',
+      'grep nto web.vmsd > found.txt'] },
+  { id: 'forensics-mobile-extraction', flag: 'nto{andr01d_b4ckup_l34ks_msgst0r3}', hints: 4,
+    solution: ['adb devices -l', 'adb shell pm list packages',
+      'sqlite3 apps/org.thoughtcrime.securesms/databases/msgstore.db ".tables"',
+      'sqlite3 apps/org.thoughtcrime.securesms/databases/msgstore.db "SELECT body FROM message" | grep nto > found.txt'] },
 ]
 
 describe.each(LABS)('forensics/crypto lab: $id', ({ id, flag, hints, solution }) => {
