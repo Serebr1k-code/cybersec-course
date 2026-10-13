@@ -13,6 +13,18 @@ useful_for:
   - "Работа: разбор проблем VPN-доступа"
 estimated_minutes: 35
 summary: "Как устроены PPPoE, PPTP и родственные VPN-протоколы, чем опасна слабая аутентификация и как анализировать их трафик."
+lab:
+  kind: shell
+  title: "Практика: PPPoE/PAP — креды на проводе"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, pppoe.pcap]
+  check: "grep -q 'S3cretPPP' answer.txt"
+  hints:
+    - "PPPoE инкапсулирует PPP; аутентификация PAP идёт открытым текстом."
+    - "В сводке `-nn` пароль уже виден в строке PAP."
+    - "Полный разбор: `tshark -r pppoe.pcap -V`."
+    - "Ищи поле `Password` в PAP Authenticate-Request."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,46 @@
+{
+  "id": "network-tor",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "TorRelayFrankfurt"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Tor: определить guard-релей по трафику\n\nХост `10.0.0.5` установил соединение с узлом сети **Tor** (в `tor.pcap` видно TCP-рукопожатие и зашифрованные данные на ORPort). В файле `relays.txt` — выписка из списка релеев (IP → никнейм → флаги).\n\n1. Найди назначение: `tshark -r tor.pcap -T fields -e ip.dst -e tcp.dstport`\n2. Найди этот IP в `relays.txt` (например, `grep 185.220.101 relays.txt`).\n\nЗапиши **никнейм (Nickname)** релея, к которому подключился хост, в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/tor.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAzVDOahx3DAA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABlHtCgAABbncZQGcQCMpAAAAZAAAAABQAiAApzIAAM1QzmoyeAwANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAZR7bncZQEKAAAFIymcQAAAAMgAAABlUBIgAKZZAADNUM5qL3kMAFsAAABbAAAA////////aHpklYCjCABFAABNAAEAAEAGUcgKAAAFudxlAZxAIykAAABlAAAAyVAQIABbIQAAFwMDACAREREREREREREREREREREREREREREREREREREREREREQ==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/relays.txt",
+      "text": "# Tor relay list (excerpt; поля как в onionoo/consensus)\n# IP                ORPort  Nickname              Flags                 Fingerprint\n185.220.101.1       9001    TorRelayFrankfurt     Exit,Guard,Stable     7B2C4E9A1F3D5B6C8A0E2F4D6B8A0C2E4F6A8B0C\n185.220.101.2       443     TorRelayAmsterdam     Exit,Stable           3F1A2B4C5D6E7F8091A2B3C4D5E6F708192A3B4C\n185.220.101.3       9001    TorRelayStockholm     Guard,Stable          A1B2C3D4E5F60718293A4B5C6D7E8F9012345678\n"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "ip\\.dst|tcp\\.dstport",
+          "example": "-r tor.pcap -T fields -e ip.dst -e tcp.dstport",
+          "output": "185.220.101.1\t9001\n10.0.0.5\t40000\n185.220.101.1\t9001\n"
+        },
+        {
+          "match": "tor\\.pcap",
+          "example": "-r tor.pcap -nn",
+          "output": "    1   0.000000     10.0.0.5 → 185.220.101.1 TCP 54 40000 → 9001 [SYN] Seq=0 Win=8192 Len=0\n    2   0.000278 185.220.101.1 → 10.0.0.5     TCP 54 9001 → 40000 [SYN, ACK] Seq=0 Ack=1 Win=8192 Len=0\n    3   0.000531     10.0.0.5 → 185.220.101.1 TLSv1.2 91 Application Data\n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.5 → 185.220.101.1 TCP 54 40000 → 9001 [SYN] Seq=0 Win=8192 Len=0\n    2   0.000278 185.220.101.1 → 10.0.0.5     TCP 54 9001 → 40000 [SYN, ACK] Seq=0 Ack=1 Win=8192 Len=0\n    3   0.000531     10.0.0.5 → 185.220.101.1 TLSv1.2 91 Application Data\n"
+    }
+  }
+}

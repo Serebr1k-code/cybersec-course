@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): детект слабых VPN"
 estimated_minutes: 55
 summary: "L2TP, SSTP и PPTP: как PPP инкапсулируется в разные транспорты, чем опасен MS-CHAPv2, что видно на проводе и почему PPTP/L2TP без IPsec считаются устаревшими."
+lab:
+  kind: shell
+  title: "Практика: L2TP SCCRQ — имя узла"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, l2tp.pcap]
+  check: "grep -q 'branch-office-01' answer.txt"
+  hints:
+    - "Это L2TPv2 control-сообщение (SCCRQ) поверх UDP/1701."
+    - "Данные лежат в AVP-атрибутах."
+    - "Поле `l2tp.avp.host_name` содержит имя узла."
+    - "Имя клиента — `branch-office-01`."
 ---
 
 ## Вопрос, с которого всё начинается

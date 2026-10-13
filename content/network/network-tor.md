@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): детект и политика Tor"
 estimated_minutes: 50
 summary: "Как Tor обеспечивает анонимность (цепи, onion-сервисы), что видно в трафике и как с ним работать в пентесте и защите."
+lab:
+  kind: shell
+  title: "Практика: определение Tor-релея"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, tor.pcap, relays.txt]
+  check: "grep -q 'TorRelayFrankfurt' answer.txt"
+  hints:
+    - "Tor-клиент подключается к guard-релею на ORPort (9001)."
+    - "Найди назначение: `tshark -r tor.pcap -T fields -e ip.dst -e tcp.dstport`."
+    - "Сопоставь IP с файлом `relays.txt`."
+    - "Нужный релей — `TorRelayFrankfurt`."
 ---
 
 ## Вопрос, с которого всё начинается

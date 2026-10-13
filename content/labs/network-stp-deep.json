@@ -1,0 +1,42 @@
+{
+  "id": "network-stp-deep",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "02:00:00:de:ad:01"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: STP: захват root bridge поддельным BPDU\n\nВ дампе `stp.pcap` два коммутатора шлют configuration BPDU. Атакующий послал BPDU с **нулевым приоритетом**, чтобы стать корневым мостом и перехватить трафик.\n\n1. Сводка: `tshark -r stp.pcap -nn`\n2. Поля: `tshark -r stp.pcap -T fields -e stp.root.prio -e stp.root.hw`\n\nЗапиши **MAC-адрес поддельного root bridge** (у которого приоритет 0) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/stp.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAzVDOavd0DAA0AAAANAAAAAGAwgAAAAIAAAAACgAmQkIDAAAAAACAAAIAAAAACgAAAACAAAIAAAAACoABAAAH0ADIBdzNUM5qenUMADQAAAA0AAAAAYDCAAAAAgAA3q0BACZCQgMAAAAAAAAAAgAA3q0BAAAAAAAAAgAA3q0BgAEAAAfQAMgF3A==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "stp\\.root|stp\\.bridge",
+          "example": "-r stp.pcap -T fields -e stp.root.prio -e stp.root.hw",
+          "output": "32768\t02:00:00:00:00:0a\t02:00:00:00:00:0a\n0\t02:00:00:de:ad:01\t02:00:00:de:ad:01\n"
+        },
+        {
+          "match": "stp\\.pcap",
+          "example": "-r stp.pcap -nn",
+          "output": "    1   0.000000 02:00:00:00:00:0a → 01:80:c2:00:00:00 STP 52 Conf. Root = 32768/0/02:00:00:00:00:0a  Cost = 0  Port = 0x8001\n    2   0.000131 02:00:00:de:ad:01 → 01:80:c2:00:00:00 STP 52 Conf. Root = 0/0/02:00:00:de:ad:01  Cost = 0  Port = 0x8001\n"
+        }
+      ],
+      "fallback": "    1   0.000000 02:00:00:00:00:0a → 01:80:c2:00:00:00 STP 52 Conf. Root = 32768/0/02:00:00:00:00:0a  Cost = 0  Port = 0x8001\n    2   0.000131 02:00:00:de:ad:01 → 01:80:c2:00:00:00 STP 52 Conf. Root = 0/0/02:00:00:de:ad:01  Cost = 0  Port = 0x8001\n"
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "id": "network-pppoe",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "S3cretPPP"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: PPPoE: креды провайдера на проводе\n\nПровайдер поднимает сессию **PPPoE**, а внутри PPP проходит аутентификация **PAP** — пароль передаётся открытым текстом. В дампе `pppoe.pcap` виден Discovery (PADO) и запрос аутентификации.\n\n1. Сводка: `tshark -r pppoe.pcap -nn`\n2. Подробно: `tshark -r pppoe.pcap -V`\n\nЗапиши **пароль** (Password) из PAP-запроса в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/pppoe.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAzVDOarhoDAAYAAAAGAAAAP///////wIAAAAABYhjEQcAAAAEAQEAAM1QzmrVaQwALgAAAC4AAAACAAAAAAECAAAAAAWIZBEAEjQAGsAjAQEAGAlhbGljZUBpc3AJUzNjcmV0UFBQ",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "\\b-V\\b",
+          "example": "-r pppoe.pcap -V",
+          "output": "PPP-over-Ethernet Discovery\n    Code: Active Discovery Offer (PADO) (0x07)\n    Session ID: 0x0000\nPPP-over-Ethernet Session\n    Code: Session Data (0x00)\n    Session ID: 0x1234\n    Protocol: Password Authentication Protocol (0xc023)\nPPP Password Authentication Protocol\n    Code: Authenticate-Request (1)\n        Peer-ID-Length: 9\n        Peer-ID: alice@isp\n        Password-Length: 9\n        Password: S3cretPPP\n"
+        },
+        {
+          "match": "pppoe\\.pcap",
+          "example": "-r pppoe.pcap -nn",
+          "output": "    1   0.000000 02:00:00:00:00:05 → ff:ff:ff:ff:ff:ff PPPoED 24 Active Discovery Offer (PADO)\n    2   0.000285 02:00:00:00:00:05 → 02:00:00:00:00:01 PPP PAP 46 Authenticate-Request (Peer-ID='alice@isp', Password='S3cretPPP')\n"
+        }
+      ],
+      "fallback": "    1   0.000000 02:00:00:00:00:05 → ff:ff:ff:ff:ff:ff PPPoED 24 Active Discovery Offer (PADO)\n    2   0.000285 02:00:00:00:00:05 → 02:00:00:00:00:01 PPP PAP 46 Authenticate-Request (Peer-ID='alice@isp', Password='S3cretPPP')\n"
+    }
+  }
+}

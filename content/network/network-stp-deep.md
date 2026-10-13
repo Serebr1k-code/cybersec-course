@@ -13,6 +13,18 @@ useful_for:
   - "Работа (инженер/SOC): защита от петель и поддельных BPDU"
 estimated_minutes: 65
 summary: "Как STP/RSTP/MSTP строят дерево без петель, как атакующий становится корневым мостом и перехватывает трафик, и какие защитные механизмы (BPDU guard, root guard, loop guard) это ломают."
+lab:
+  kind: shell
+  title: "Практика: захват root bridge поддельным BPDU"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, stp.pcap]
+  check: "grep -q '02:00:00:de:ad:01' answer.txt"
+  hints:
+    - "STP BPDU шлются на multicast `01:80:c2:00:00:00`."
+    - "Атакующий стал корнем — значит, у него минимальный приоритет."
+    - "Поля: `stp.root.prio` и `stp.root.hw`."
+    - "Ищи строку с приоритетом `0`; её MAC — ответ."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,42 @@
+{
+  "id": "network-sstp-l2tp",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "branch-office-01"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: L2TP: разбор control-сообщения SCCRQ\n\nВ дампе `l2tp.pcap` зафиксировано начало PPP-based VPN: клиент отправляет L2TP **SCCRQ** (Start-Control-Connection-Request). В AVP-атрибутах видно имя удалённого узла (Host Name).\n\n1. Сводка: `tshark -r l2tp.pcap -nn`\n2. Поля: `tshark -r l2tp.pcap -T fields -e l2tp.tunnel -e l2tp.avp.host_name`\n\nЗапиши **Host Name** (имя клиента) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/l2tp.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAzVDOarNtDABmAAAAZgAAAP///////2h6ZJWAowgARQAAWAABAABAEQKNywBxBcsAcQEGpQalAETlgcgCADwSNAAAAAAAAIAIAAAAAAABgBYAAAAHYnJhbmNoLW9mZmljZS0wMYAIAAAAAgAAgAoAAAADAAAAAA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "l2tp\\.avp|l2tp\\.tunnel|host_name",
+          "example": "-r l2tp.pcap -T fields -e l2tp.tunnel -e l2tp.avp.host_name",
+          "output": "4660\tbranch-office-01\t1\n"
+        },
+        {
+          "match": "l2tp\\.pcap",
+          "example": "-r l2tp.pcap -nn",
+          "output": "    1   0.000000  203.0.113.5 → 203.0.113.1  L2TP 102 Control Message - SCCRQ (tunnel id=4660, session id=0)\n"
+        }
+      ],
+      "fallback": "    1   0.000000  203.0.113.5 → 203.0.113.1  L2TP 102 Control Message - SCCRQ (tunnel id=4660, session id=0)\n"
+    }
+  }
+}
