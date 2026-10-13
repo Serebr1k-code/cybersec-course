@@ -1,0 +1,19 @@
+{
+ "id": "pwn-race-conditions",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "pattern=access-open"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: локализовать TOCTOU\n\n`toctou.c` содержит классическую гонку «проверка-и-использование». Атакующий\nподменяет объект между проверкой и использованием.\n\n1. `cat toctou.c` — прочитай код целиком.\n2. Найди два последовательных вызова: один **проверяет** доступ, второй его\n   **использует**. Между ними объект может быть подменён (например, симлинком).\n3. Назови пару функций `check-use`.\n\nЗапиши в `answer.txt` строку `pattern=<проверка>-<использование>` и набери `check`.\n"
+  },
+  {
+   "path": "/home/student/task/toctou.c",
+   "text": "extern int access(const char *, int);\nextern int open(const char *, int, ...);\nextern long write(int, const void *, unsigned long);\nextern void _exit(int);\nint main(void){\n  const char *path = \"/tmp/target\";\n  if (access(path, 2) == 0) {      /* W_OK: проверка (check) */\n    int fd = open(path, 1);        /* O_WRONLY: использование (use) */\n    write(fd, \"x\", 1);\n  }\n  _exit(0);\n}\n"
+  }
+ ]
+}

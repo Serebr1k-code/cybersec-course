@@ -1,0 +1,23 @@
+{
+ "id": "pwn-heap-primitives",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "merged=0x861"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: размер консолидированного чанка\n\nПримитив «консолидация»: два соседних свободных чанка сливаются в один.\n`consol.c` выделяет два чанка `0x428`, освобождает их в порядке `B`, затем `A`,\nи в этот момент A поглощает B.\n\n1. `cat consol.c` — порядок `free`.\n2. `cat consol.gdb.txt` — реальный дамп заголовка чанка A после слияния.\n3. `merged = size(A) + size(B)` (заголовок B — внутри A).\n\nЗапиши в `answer.txt` строку `merged=0x<size>` и набери `check`.\n"
+  },
+  {
+   "path": "/home/student/task/consol.c",
+   "text": "extern void *malloc(unsigned long);\nextern void free(void*);\nvoid *A; void *B;\nvoid trigger(void){}\nint main(void){\n  void *c;\n  A = malloc(0x428);\n  B = malloc(0x428);\n  c = malloc(0x18);\n  (void)c;\n  free(B); free(A);\n  trigger();\n  return 0;\n}\n"
+  },
+  {
+   "path": "/home/student/task/consol.gdb.txt",
+   "text": "Breakpoint 1 at 0x40113a: file consol.c, line 4.\n\nThis GDB supports auto-downloading debuginfo from the following URLs:\n  <https://debuginfod.archlinux.org>\nEnable debuginfod for this session? (y or [n]) [answered N; input not from terminal]\nDebuginfod has been disabled.\nTo make this setting permanent, add 'set debuginfod enabled off' to .gdbinit.\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/usr/lib/libthread_db.so.1\".\n\nBreakpoint 1, trigger () at consol.c:4\n4\tvoid trigger(void){}\n$1 = 0x405010\n$2 = 0x405440\n0x405000:\t0x0000000000000000\t0x0000000000000861\n0x405010:\t0x00007ffff7f7cac8\t0x00007ffff7f7cac8\n"
+  }
+ ]
+}

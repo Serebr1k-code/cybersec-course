@@ -12,6 +12,18 @@ useful_for:
   - "Обход современных митигаций"
 estimated_minutes: 10
 summary: "Модуль обхода защит: ret2dlresolve, обход canary, PIE и аппаратного CET/CFI."
+lab:
+  kind: shell
+  title: "Практика: триаж защит (RELRO/PIE/canary)"
+  toolset: [core, readelf]
+  workdir: /home/student/task
+  files: [task.md, a, b, c]
+  check: "grep -q 'fullrelro=a' answer.txt"
+  hints:
+    - "FULL RELRO = сегмент GNU_RELRO + `BIND_NOW` в `FLAGS`."
+    - "PIE = `Type: DYN` в ELF-заголовке."
+    - "Сравни `readelf -d a`, `readelf -d b`, `readelf -d c`."
+    - "`BIND_NOW` в `FLAGS` есть только у одного бинаря — это и есть FULL RELRO."
 ---
 Этот модуль собирает техники обхода четырёх защит, которые чаще всего стоят на пути эксплуататора: отсутствия символов, стека-канарейки, рандомизации адресов и аппаратной защиты потока управления.
 

@@ -1,0 +1,23 @@
+{
+ "id": "pwn-heap-corruption",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "top=0x4141414141414141"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: переполнение в заголовок top chunk\n\n`corrupt.c` выделяет чанк `malloc(0x18)` и пишет `0x28` байт `0x41` — на 1 байт\nбольше, чем можно. Это затирает `prev_size` и `size` следующего (top) чанка.\n\n1. `cat corrupt.c` — пойми, сколько байт пишется и куда.\n2. `cat corrupt.gdb.txt` — реальный дамп памяти в момент вызова `malloc()`.\n3. Найди строку `0x405020` — это заголовок top-чанка; второе qword — его size.\n\nЗапиши в `answer.txt` строку `top=<значение size top-чанка>` в hex с `0x` и набери `check`.\n"
+  },
+  {
+   "path": "/home/student/task/corrupt.c",
+   "text": "extern void *malloc(unsigned long);\nchar *g;\nvoid trigger(void){ malloc(0x18); }\nint main(void){ g = malloc(0x18); for(int i=0;i<0x28;i++) g[i]=0x41; trigger(); return 0; }\n"
+  },
+  {
+   "path": "/home/student/task/corrupt.gdb.txt",
+   "text": "Breakpoint 1 at 0x40112a: file corrupt.c, line 3.\n\nThis GDB supports auto-downloading debuginfo from the following URLs:\n  <https://debuginfod.archlinux.org>\nEnable debuginfod for this session? (y or [n]) [answered N; input not from terminal]\nDebuginfod has been disabled.\nTo make this setting permanent, add 'set debuginfod enabled off' to .gdbinit.\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/usr/lib/libthread_db.so.1\".\n\nBreakpoint 1, trigger () at corrupt.c:3\n3\tvoid trigger(void){ malloc(0x18); }\n$1 = 0x405010\n0x405000:\t0x0000000000000000\t0x0000000000000021\n0x405010:\t0x4141414141414141\t0x4141414141414141\n0x405020:\t0x4141414141414141\t0x4141414141414141\nmalloc(): corrupted top size\n\nProgram received signal SIGABRT, Aborted.\n0x00007ffff7e2da2c in ?? () from /usr/lib/libc.so.6\n"
+  }
+ ]
+}

@@ -12,6 +12,18 @@ useful_for:
   - "Эксплуатация use-after-free в реальном ПО"
 estimated_minutes: 10
 summary: "Первый этап heap-эксплуатации: use-after-free, off-by-one, unsafe unlink и heap feng shui — базовые примитивы порчи памяти."
+lab:
+  kind: shell
+  title: "Практика: порча top chunk"
+  toolset: [core, gdb]
+  workdir: /home/student/task
+  files: [task.md, corrupt.c, corrupt.gdb.txt]
+  check: "grep -q 'top=0x4141414141414141' answer.txt"
+  hints:
+    - "Чанк `0x18` имеет размер `0x21` (0x18 округляется до 0x20 + PREV_INUSE)."
+    - "Заголовок следующего (top) чанка начинается сразу за пользовательскими данными."
+    - "`corrupt.gdb.txt` показывает память уже после переполнения `for`-циклом с `0x41`."
+    - "Поле size top-чанка лежит по адресу `0x405028` — это и есть ответ."
 ---
 Этот модуль открывает практическую часть heap-эксплуатации. Разобравшись со структурой кучи glibc (chunk, bin, tcache) в pwn-heap-basics, вы переходите к конкретным примитивам порчи памяти, из которых собираются реальные эксплойты. Здесь четыре темы, которые встречаются почти в каждой heap-задаче CTF и в реальных CVE на аллокаторы.
 

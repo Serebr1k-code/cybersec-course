@@ -12,6 +12,18 @@ useful_for:
   - "Аудит C/C++ кода"
 estimated_minutes: 10
 summary: "Модуль классического переполнения буфера: format string, shellcode, integer overflow и stack clash."
+lab:
+  kind: shell
+  title: "Практика: смещение format string"
+  toolset: [core, objdump, readelf]
+  workdir: /home/student/task
+  files: [task.md, fmt.c, fmt, out.txt]
+  check: "grep -q 'offset=6' answer.txt"
+  hints:
+    - "`out.txt` — реальный вывод `printf(buf)`; аргументы идут через `.`."
+    - "Позиция — это номер `%p` по порядку (первый `%p` = позиция 1)."
+    - "Найди `%p`, который напечатал `0x4242424241414141` (это байты `AAAABBBB`)."
+    - "Это шестой `%p`, значит буфер начинается с 6-го аргумента."
 ---
 Этот модуль собирает классические разновидности переполнения буфера и связанных с ними уязвимостей стека — от format string до integer overflow и stack clash. Вместе они покрывают основу CTF-задач начального и среднего уровня.
 
