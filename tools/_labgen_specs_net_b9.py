@@ -366,7 +366,7 @@ SPECS.append(_lab(
     'network-tls-fingerprint', 'Практика: сопоставление JA3 с threat-intel',
     ['task.md', 'tls.pcap', 'ja3-intel.txt'],
     ['В дампе `tls.pcap` два клиента устанавливают TLS. Посмотри сводку: `tshark -r tls.pcap`.',
-     'Вытащи SNI и отпечаток JA3 каждого ClientHello:\n`tshark -r tls.pcap -Y tls.handshake.extensions_server_name -T fields -e ip.src -e tls.handshake.extensions_server_name -e tls.handshake.ja3`.',
+     'Вытащи SNI и отпечаток JA3 каждого ClientHello: `tshark -r tls.pcap -Y tls.handshake.extensions_server_name -T fields -e ip.src -e tls.handshake.extensions_server_name -e tls.handshake.ja3`.',
      'Один SNI (`cdn.malware-c2.example`) и его JA3 подозрительны.',
      'Сопоставь JA3 с `ja3-intel.txt` (`grep 5d24a8 ja3-intel.txt`) — там имя малвари и флаг.'],
     "grep -q 'nto{' answer.txt",
