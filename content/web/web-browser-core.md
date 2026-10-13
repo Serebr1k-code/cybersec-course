@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Базовый уровень браузерной безопасности: модель безопасности, JSONP/XSSI, CORS и postMessage."
+lab:
+  kind: shell
+  title: "Практика: модель браузера — SOP и CORS"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - 'Без Origin API требует сессию (401).'
+    - 'Добавь заголовок Origin: https://evil.local.'
+    - 'Смотри на Access-Control-Allow-Origin / -Credentials в ответе.'
+    - 'Если Origin отражается вместе с credentials — данные утекают; сохрани ответ в found.txt.'
 ---
 
 ## Задача

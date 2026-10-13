@@ -1,0 +1,20 @@
+{
+  "id": "web-same-origin-cors",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{c0rs_w1ldc4rd_0r1g1n}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: same-origin и CORS — отражение Origin\n\n`api.shop.local` отражает произвольный `Origin` в\n`Access-Control-Allow-Origin`. Любой сайт прочитает ответ. Проверь и забери\nданные.\n\n1. Проверяем отражение Origin:\n\n   curl -s https://api.shop.local/data -H 'Origin: https://evil.local'\n\n2. Читаем данные (они уже утекли в ответ):\n\n   curl -s https://api.shop.local/data -H 'Origin: https://evil.local' > found.txt\n\n3. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция api.shop.local)",
+      "cases": [
+        { "match": "Origin.*evil|evil.*Origin|Origin:", "example": "-s https://api.shop.local/data -H 'Origin: https://evil.local'", "output": "Access-Control-Allow-Origin: https://evil.local\nAccess-Control-Allow-Credentials: true\n\n{\"secret\":\"nto{c0rs_w1ldc4rd_0r1g1n}\"}\n" },
+        { "match": "api\\.shop\\.local", "example": "-s https://api.shop.local/data", "output": "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{\"secret\":null}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется api.shop.local.\n"
+    }
+  }
+}

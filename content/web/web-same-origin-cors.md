@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Почему браузер не даёт читать чужой домен, как CORS это разрешает и какие конфигурации открывают доступ злоумышленнику."
+lab:
+  kind: shell
+  title: "Практика: CORS — отражение Origin"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - 'API — на api.shop.local.'
+    - 'Передай заголовок Origin: https://evil.local.'
+    - 'Если Access-Control-Allow-Origin отражает твой Origin — доступ открыт.'
+    - 'Ответ уже содержит данные; сохрани его в found.txt.'
 ---
 
 Представь: пользователь залогинен в `shop.local`, а в соседней вкладке он открыл твой сайт `evil.local`. Если бы скрипт с `evil.local` мог свободно читать ответы `shop.local`, он бы утащил чужие заказы и данные. Именно поэтому в браузере есть **Same-Origin Policy (SOP)** — правило «читай только свой домен». А чтобы сайтам можно было легально общаться, придумали **CORS**. Ошибки в CORS — один из самых частых багов в API.

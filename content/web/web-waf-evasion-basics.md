@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Базовый уровень обхода WAF: verb tampering, HTTP Parameter Pollution и нормализация Unicode."
+lab:
+  kind: shell
+  title: "Практика: WAF — verb tampering и X-Original-URL"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - 'WAF смотрит на метод + путь: POST /admin режется.'
+    - 'Verb tampering: смени метод на PATCH (или PUT).'
+    - 'Альтернатива — заголовок X-Original-URL: /admin.'
+    - 'Сохрани ответ админки в found.txt.'
 ---
 
 ## Задача

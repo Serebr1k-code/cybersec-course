@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 40
 summary: "Как устроена изоляция сайтов в браузере и какие механизмы защищают данные между origin, сайтами и процессами."
+lab:
+  kind: shell
+  title: "Практика: COOP/COEP — отсутствие изоляции"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - 'Проверь заголовки Cross-Origin-Opener-Policy / -Embedder-Policy.'
+    - 'На shop.local и /admin они отсутствуют.'
+    - 'Без изоляции чужое окно удерживает window.opener.'
+    - 'Эксплуатируй opener-leak и сохрани результат в found.txt.'
 ---
 
 ## Вопрос, с которого всё начинается

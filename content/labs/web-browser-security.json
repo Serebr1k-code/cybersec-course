@@ -1,0 +1,22 @@
+{
+  "id": "web-browser-security",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{c00p_c0ep_m1ss1ng_1solat10n}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: модель безопасности браузера — COOP/COEP\n\nSite Isolation и заголовки `Cross-Origin-Opener-Policy` /\n`Cross-Origin-Embedder-Policy` изолируют окно. Если их нет, чужое окно\nможет удерживать `window.opener` и читать контекст. Проверь заголовки.\n\n1. Заголовки изоляции на главной:\n\n   curl -sI https://shop.local/\n\n2. На админке их тоже нет:\n\n   curl -sI https://shop.local/admin\n\n3. Эксплуатируем отсутствие изоляции (opener leak):\n\n   curl -s 'https://shop.local/leak?opener=https://shop.local/admin' > found.txt\n\n4. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        { "match": "leak|opener", "example": "-s 'https://shop.local/leak?opener=https://shop.local/admin'", "output": "[leak] window.opener = https://shop.local/admin (same-origin)\n[leak] admin DOM readable: nto{c00p_c0ep_m1ss1ng_1solat10n}\n" },
+        { "match": "admin.*-sI|-sI.*admin", "example": "-sI https://shop.local/admin", "output": "HTTP/1.1 200 OK\nContent-Type: text/html\n# Cross-Origin-Opener-Policy: (missing)\n# Cross-Origin-Embedder-Policy: (missing)\n" },
+        { "match": "-sI|-I|--head", "example": "-sI https://shop.local/", "output": "HTTP/1.1 200 OK\nServer: nginx\nContent-Type: text/html\n# Cross-Origin-Opener-Policy: (missing)\n# Cross-Origin-Embedder-Policy: (missing)\n" },
+        { "match": "shop\\.local", "example": "-s https://shop.local/", "output": "<!doctype html><title>shop</title>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется shop.local.\n"
+    }
+  }
+}
