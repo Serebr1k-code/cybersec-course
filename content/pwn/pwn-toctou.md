@@ -13,6 +13,17 @@ useful_for:
   - "Privilege escalation"
 estimated_minutes: 45
 summary: "Разбираем TOCTOU от теории до эксплойта: симлинк-гонки, подмена файлов и дескрипторов, стабилизация и расширение окна."
+lab:
+  kind: shell
+  title: "Практика: окно TOCTOU"
+  toolset: [core, objdump]
+  workdir: /home/student/task
+  files: [task.md, toctou]
+  check: "grep -q 'check=0x15' answer.txt"
+  hints:
+    - "`objdump -d toctou` — функция `_start`."
+    - "Первым идёт syscall проверки (`access`, 0x15)."
+    - "Вторым — syscall использования (`open`, 0x2)."
 ---
 ## Вопрос, с которого всё начинается
 

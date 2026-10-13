@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 50
 summary: "Учимся детерминированно расширять окно гонки: userfaultfd, FUSE, mprotect, ptrace и планировщик — от идеи до полного эксплойта."
+lab:
+  kind: shell
+  title: "Практика: расширение окна гонки"
+  toolset: [core, objdump]
+  workdir: /home/student/task
+  files: [task.md, widen]
+  check: "grep -q 'sleep=0x23' answer.txt"
+  hints:
+    - "`objdump -d widen` — функция `_start`."
+    - "Пауза — это syscall `nanosleep`."
+    - "Номер `nanosleep` = 35 = 0x23 (в `mov $...,%edi`)."
 ---
 ## Вопрос, с которого всё начинается
 

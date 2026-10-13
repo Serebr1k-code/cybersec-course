@@ -13,6 +13,17 @@ useful_for:
   - "Exploit mitigation bypass"
 estimated_minutes: 55
 summary: "Intel CET (shadow stack + IBT) и CFI усложняют ROP/ret2libc: разбираем, как они работают, когда реально включены и какие обходы существуют."
+lab:
+  kind: shell
+  title: "Практика: ENDBR64 в CET-бинаре"
+  toolset: [core, objdump, readelf]
+  workdir: /home/student/task
+  files: [task.md, cet]
+  check: "grep -q 'f3 0f 1e fa' answer.txt"
+  hints:
+    - "`objdump -d cet` — начало функции `target`."
+    - "ENDBR64 — это 4-байтовый опкод перед прологом."
+    - "`readelf -n cet` подтвердит `IBT, SHSTK`."
 ---
 
 ## Вопрос, с которого всё начинается

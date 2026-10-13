@@ -13,6 +13,17 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 50
 summary: "Разбираем многопоточные гонки: data race, гонки на heap-метаданных, double-free из разных потоков и стабилизацию эксплойта."
+lab:
+  kind: shell
+  title: "Практика: разделяемая переменная"
+  toolset: [core, nm, objdump]
+  workdir: /home/student/task
+  files: [task.md, race]
+  check: "grep -q 'shared=0x403000' answer.txt"
+  hints:
+    - "`nm race` — глобальные символы в секции bss (B)."
+    - "Ищи `shared_counter`."
+    - "`objdump -d race` покажет load/add/store по её адресу."
 ---
 ## Вопрос, с которого всё начинается
 
