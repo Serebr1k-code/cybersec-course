@@ -13,6 +13,17 @@ useful_for:
   - "Reverse engineering"
 estimated_minutes: 50
 summary: "Полный разбор Unicorn: API, память, регистры, хуки и практические примеры эмуляции функций, обхода anti-debug и расчёта значений."
+lab:
+  kind: shell
+  title: "Практика: эмуляция блоба (Unicorn)"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, blob.bin, emu.log]
+  check: "grep -q 'eax=0x26' answer.txt"
+  hints:
+    - "`emu.log` содержит итоговый EAX после emu_start."
+    - "Код: `mov eax,5; imul eax,eax,7; add eax,3`."
+    - "5*7+3 = 38 = 0x26."
 ---
 
 ## Вопрос, с которого всё начинается

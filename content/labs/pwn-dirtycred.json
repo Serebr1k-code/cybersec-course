@@ -1,0 +1,24 @@
+{
+ "id": "pwn-dirtycred",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "euid_off=0x14"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: найти смещение euid в struct cred (DirtyCred)\n\nDirtyCred подменяет объект `cred` процесса на другой (например, с\n`euid=0`). Чтобы понять, какие байты меняются, разберём дамп `cred.bin`\nпо layout-у ядра:\n\n```\noffset  field\n0x00    usage\n0x04    uid\n0x08    gid\n0x0c    suid\n0x10    sgid\n0x14    euid\n0x18    egid\n0x1c    fsuid\n0x20    fsgid\n```\n\nВ дампе `uid=1000`, а `euid` уже подменён на 0 (root).\n\n1. `xxd cred.bin | head` — посмотри байты.\n2. Найди смещение поля `euid` по layout-у выше.\n\nЗапиши в `answer.txt` строку `euid_off=0x...` и набери `check`.\n"
+  },
+  {
+   "path": "/home/student/task/cred.bin",
+   "b64": "AQAAAOgDAADoAwAA6AMAAOgDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP//////AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+   "mode": "644"
+  }
+ ]
+}

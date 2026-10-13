@@ -12,6 +12,17 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 60
 summary: "Как через _IO_str_overflow/_IO_str_finish и поддельную vtable добиться вызова произвольной функции на glibc 2.24–2.27."
+lab:
+  kind: shell
+  title: "Практика: offset _IO_str_overflow"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, libc.syms]
+  check: "grep -q 'str_overflow=0x92110' answer.txt"
+  hints:
+    - "`libc.syms` — реальный вывод `nm -D` по libc."
+    - "Ищи строку с `_IO_str_overflow`."
+    - "Смещение указано в первом столбце."
 ---
 ## Вопрос, с которого всё начинается
 

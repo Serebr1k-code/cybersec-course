@@ -1,0 +1,28 @@
+{
+ "id": "pwn-emulation-hooks",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "insns=4"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: посчитать инструкции по code hook (Unicorn)\n\nДля трассировки в Unicorn вешают `UC_HOOK_CODE` — колбэк вызывается\nперед каждой инструкцией. `hooks.log` — реальный вывод такого запуска\nдля блоба `blob.bin` (x86-64).\n\n1. `cat hooks.log` — посмотри строки `[hook NN]`.\n2. `xxd blob.bin` — сопоставь байты блоба с дизассемблером.\n3. Посчитай, сколько инструкций выполнилось.\n\nЗапиши в `answer.txt` строку `insns=N` (десятичное) и набери `check`.\n"
+  },
+  {
+   "path": "/home/student/task/blob.bin",
+   "b64": "uAEAAACDwAKDwAODwAQ=",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/hooks.log",
+   "text": "# Unicorn x86-64: code hook по каждой инструкции\n# blob: b8 01 00 00 00 83 c0 02 83 c0 03 83 c0 04\nloaded 0x1000000, 14 bytes\n[hook 01] 0x1000000  size=5  bytes=b801000000\n[hook 02] 0x1000005  size=3  bytes=83c002\n[hook 03] 0x1000008  size=3  bytes=83c003\n[hook 04] 0x100000b  size=3  bytes=83c004\nemu_stop: EAX=0xa\n"
+  }
+ ]
+}

@@ -1,0 +1,27 @@
+{
+ "id": "pwn-nday",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "size=64"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: инвертировать фикс и найти баг (N-day)\n\nN-day начинается с диффа двух версий. `vuln.c` — уязвимая функция,\n`fixed.c` — исправленная. Патч меняет длину копирования.\n\n1. `cat vuln.c` и `cat fixed.c`.\n2. Найди, что именно изменили в `copy()`.\n3. Определи размер, который копируется в УЯЗВИМОЙ версии.\n\nЗапиши в `answer.txt` строку `size=N` (десятичное) и набери `check`.\n"
+  },
+  {
+   "path": "/home/student/task/vuln.c",
+   "text": "void *memcpy(void *, const void *, unsigned long);\nchar dst[16];\nvoid copy(char *src){\n    memcpy(dst, src, 64);   /* BUG: fixed 64 instead of sizeof(dst) */\n}\n"
+  },
+  {
+   "path": "/home/student/task/fixed.c",
+   "text": "void *memcpy(void *, const void *, unsigned long);\nchar dst[16];\nvoid copy(char *src){\n    memcpy(dst, src, sizeof(dst));   /* FIXED */\n}\n"
+  }
+ ]
+}

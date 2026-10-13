@@ -12,6 +12,17 @@ useful_for:
   - "Real-world exploitation"
 estimated_minutes: 60
 summary: "Как из патча найти уязвимость и написать эксплойт: диффинг коммитов, определение версии, воспроизведение и адаптация."
+lab:
+  kind: shell
+  title: "Практика: дифф версий"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, vuln.c, fixed.c]
+  check: "grep -q 'size=64' answer.txt"
+  hints:
+    - "Сравни `vuln.c` и `fixed.c`."
+    - "Патч заменил числовой размер копирования на `sizeof(dst)`."
+    - "В уязвимой версии копируется 64 байта."
 ---
 ## Вопрос, с которого всё начинается
 

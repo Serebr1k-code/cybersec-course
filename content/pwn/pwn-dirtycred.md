@@ -12,6 +12,17 @@ useful_for:
   - "Пентест — локальное повышение привилегий"
 estimated_minutes: 55
 summary: "Техника DirtyCred: подмена структуры cred вместо ROP — без обхода SMEP/SMAP/KPTI; механика, CVE-2022-2588/3913 и полный сценарий."
+lab:
+  kind: shell
+  title: "Практика: смещение euid"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, cred.bin]
+  check: "grep -q 'euid_off=0x14' answer.txt"
+  hints:
+    - "Смотри layout struct cred в task.md."
+    - "usage(0x0), uid(0x4), gid(0x8), suid(0xc), sgid(0x10), euid(0x14)."
+    - "`xxd cred.bin` — на 0x14 лежит 0 (root после подмены)."
 ---
 
 ## Вопрос, с которого всё начинается

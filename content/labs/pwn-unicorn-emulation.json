@@ -1,0 +1,28 @@
+{
+ "id": "pwn-unicorn-emulation",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "eax=0x26"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: эмулировать блоб и найти EAX (Unicorn)\n\n`emu.log` — результат эмуляции блоба `blob.bin` (x86-64) в Unicorn:\nзагрузили по 0x1000000 и выполнили до конца. Нужно понять, что\nвычисляет код, и каким стал `EAX`.\n\n1. `cat emu.log` — посмотри строки `[insn NN]` и итоговый `EAX`.\n2. `xxd blob.bin` — байты блоба.\n3. Проверь по дизассемблеру: `mov eax,5; imul eax,eax,7; add eax,3`.\n\nЗапиши в `answer.txt` строку `eax=0x...` и набери `check`.\n"
+  },
+  {
+   "path": "/home/student/task/blob.bin",
+   "b64": "uAUAAABrwAeDwAM=",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/emu.log",
+   "text": "# Unicorn x86-64: эмуляция блоба\n# blob: b8 05 00 00 00 6b c0 07 83 c0 03\nloaded 0x1000000, 11 bytes\n[insn 01] 0x1000000  size=5  bytes=b805000000\n[insn 02] 0x1000005  size=3  bytes=6bc007\n[insn 03] 0x1000008  size=3  bytes=83c003\nemu_stop: EAX=0x26  (unsigned 38)\n"
+  }
+ ]
+}

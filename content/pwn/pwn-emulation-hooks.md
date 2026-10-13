@@ -13,6 +13,17 @@ useful_for:
   - "Automation"
 estimated_minutes: 45
 summary: "Разбираем продвинутое использование хуков в Unicorn и Qiling: подмена памяти и регистров, перехват функций, автоматический реверс и сравнение с Frida."
+lab:
+  kind: shell
+  title: "Практика: подсчёт инструкций (Unicorn)"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, blob.bin, hooks.log]
+  check: "grep -q 'insns=4' answer.txt"
+  hints:
+    - "Code hook вызывается на каждую инструкцию."
+    - "Посчитай строки `[hook NN]` в `hooks.log`."
+    - "Их четыре."
 ---
 
 ## Вопрос, с которого всё начинается
