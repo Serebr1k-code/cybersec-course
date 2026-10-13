@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 45
 summary: "Внутреннее устройство кустов реестра (hbin/cell), транзакционные журналы .LOG, восстановление удалённых ключей и продвинутые ветки (Amcache, SRUM, AppCompatCache)."
+lab:
+  kind: shell
+  title: "Практика: разбор куста реестра (SYSTEM)"
+  toolset: [core, hex, dfir]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, SYSTEM, reg_export.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Подтверди формат куста: `xxd -l 16 SYSTEM` (сигнатура `regf`)."
+    - "Разбери куст реестра: `regripper SYSTEM`."
+    - "Найди подозрительный путь автозапуска: `grep nto reg_export.txt`."
+    - "Загляни в строки куста: `strings SYSTEM | grep nto{`."
 ---
 
 ## Вопрос, с которого всё начинается

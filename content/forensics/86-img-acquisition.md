@@ -13,6 +13,18 @@ useful_for:
   - "Data recovery"
 estimated_minutes: 14
 summary: "Первый этап работы с образами: снятие дампа, инструменты sleuthkit, разбор RAID — что читать и в каком порядке."
+lab:
+  kind: shell
+  title: "Практика: образ раздела и целостность"
+  toolset: [core, hex, sleuthkit]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, sdb.img]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Найди раздел: `mmls sdb.img` — запомни LBA начала раздела."
+    - "Сними образ раздела: `dd if=sdb.img of=part.img bs=512 skip=64 count=4`."
+    - "Посмотри содержимое: `strings part.img | grep nto{`."
+    - "Подтверди целостность исходника: `sha256sum sdb.img`."
 ---
 
 Этот модуль открывает ветку «Образы дисков». Прежде чем анализировать содержимое, нужно **корректно получить образ** и уметь обращаться с ним инструментами. Здесь же — отдельный случай, когда носитель собран в **RAID-массив** и одного диска недостаточно.

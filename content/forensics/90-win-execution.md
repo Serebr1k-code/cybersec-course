@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 14
 summary: "Первый этап артефактов Windows: доказательства запуска программ и работы пользователя (Prefetch/ShimCache, Shellbags, LNK, WMI) — что читать."
+lab:
+  kind: shell
+  title: "Практика: доказать запуск (Prefetch + AmCache)"
+  toolset: [core, hex, dfir]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, POWERSHELL.EXE-1A2B3C4D.pf, amcache.csv]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Подтверди формат Prefetch: `xxd -l 16 POWERSHELL.EXE-1A2B3C4D.pf` (магия `SCCA`)."
+    - "Разбери Prefetch: `PECmd POWERSHELL.EXE-1A2B3C4D.pf`."
+    - "Посмотри AmCache: `grep nto amcache.csv`."
+    - "Загляни в строки Prefetch: `strings POWERSHELL.EXE-1A2B3C4D.pf | grep nto{`."
 ---
 
 Первый и самый важный вопрос при расследовании Windows — **что запускалось и что открывал пользователь**. Этот модуль собирает артефакты «активности»: следы выполнения программ и навигации по файловой системе. Это ядро доказательной базы по инциденту.

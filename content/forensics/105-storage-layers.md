@@ -13,6 +13,18 @@ useful_for:
   - "Работа с серверными томами"
 estimated_minutes: 14
 summary: "Этап ветки «Съём образов»: слои абстракции между железом и ФС — LVM, RAID-метаданные, форматы виртуальных дисков и аппаратные write blockers."
+lab:
+  kind: shell
+  title: "Практика: снять слои хранения (LVM и QCOW2)"
+  toolset: [core, hex, lvm]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, pv.img, vm.qcow2]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри sector 1 образа: `xxd -s 512 -l 32 pv.img` — ищи `LABELONE` и `LVM2 001`."
+    - "Разбери Physical Volume: `pvscan pv.img` и `pvs pv.img`."
+    - "Найди текстовые метаданные LVM (имена VG/LV): `strings pv.img | grep nto{`."
+    - "Второй слой — виртуальный диск: `xxd -l 16 vm.qcow2` (магия QFI) и `qemu-img info vm.qcow2`."
 ---
 
 Прежде чем монтировать ФС, часто приходится снимать **слои абстракции**: LVM между разделом и томом, RAID-метаданные между дисками, формат виртуального диска между гипервизором и гостевым диском. Этот модуль — про эти слои и про корректный сбор образов. Пропустив их, вы будете смотреть на «мусор» вместо файловой системы.

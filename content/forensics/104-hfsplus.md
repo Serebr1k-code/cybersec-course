@@ -13,6 +13,18 @@ useful_for:
   - "Data recovery"
 estimated_minutes: 52
 summary: "Устройство HFS+: volume header, B-дерево каталога (catalog file), extents overflow, resource forks и journal — разбор macOS-образов и восстановление данных."
+lab:
+  kind: shell
+  title: "Практика: HFS+ и resource fork"
+  toolset: [core, hex, sleuthkit]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, disk.img]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Подтверди файловую систему: `xxd -s 1024 -l 2 disk.img` — сигнатура `H+`."
+    - "Посмотри параметры: `fsstat -o 63 disk.img`."
+    - "Покажи потоки файла: `fls -o 63 -r -p disk.img` — видишь `com.apple.ResourceFork`?"
+    - "Сними resource fork: `icat -o 63 disk.img '23:com.apple.ResourceFork'`."
 ---
 
 ## Вопрос, с которого всё начинается
