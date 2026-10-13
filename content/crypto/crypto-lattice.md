@@ -13,6 +13,18 @@ useful_for:
   - "Ломать усечённые LCG и knapsack"
 estimated_minutes: 45
 summary: "Решётки и редукция базиса: определения, SVP/CVP, алгоритмы LLL и BKZ. Как строить решётку под задачу (embedding technique), применение к Coppersmith, атакам на knapsack, усечённые LCG, NTRU и малые секреты. Практические примеры в Sage."
+lab:
+  kind: shell
+  title: "Практика: решить рюкзак редукцией LLL"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, challenge.txt, table.txt, solve.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри данные: `cat challenge.txt` и `cat table.txt`."
+    - "Построй матрицу: строка `i` = `2` на позиции `i` и `N·a_i` в конце; последняя строка — все `1` и `N·S`."
+    - "Запусти LLL: `python3 solve.py` — он найдёт короткий вектор `(1−2x_i, 0)`."
+    - "Сохрани флаг: `python3 solve.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

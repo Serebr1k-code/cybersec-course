@@ -1,0 +1,47 @@
+{
+ "id": "crypto-lattice",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "expect": {
+  "file": "/home/student/task/found.txt",
+  "contains": "nto{l4tt1c3_r3duct10n_w1ns}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: решить рюкзак решёточной редукцией\n\nВ `challenge.txt` — рюкзак из восьми больших чисел `a_i` и сумма `S`.\nНужно найти биты `x_i` (какие числа вошли в сумму). Флаг собран из фрагментов\n`table.txt`: выбираются фрагменты с индексами, где `x_i = 1`.\n\nШаги:\n1. `cat challenge.txt` и `cat table.txt` — данные и фрагменты.\n2. Собери решётку: строка `i` = `2` на позиции `i` и `N·a_i` в конце; последняя\n   строка — все `1` и `N·S` (N — большой множитель, напр. `10^12`).\n3. Запусти LLL: `python3 solve.py` — он найдёт короткий вектор `(1−2x_i, 0)`.\n4. `1` в битах = число вошло в сумму. Скрипт собирает флаг из фрагментов.\n5. Сохрани: `python3 solve.py | grep nto > found.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/notes.txt",
+   "text": "Заметки:\n- Вектор истинного решения имеет координаты ±1 и последнюю 0 — он очень короткий.\n- `-1` означает `x_i = 1`, `+1` означает `x_i = 0`.\n- При `n = 8` перебор (2^8) тоже возможен, но метод масштабируется; для больших n — BKZ.\n"
+  },
+  {
+   "path": "/home/student/task/challenge.txt",
+   "text": "a = [1769167388, 1397687963, 1921618823, 1177436136, 1229297561, 1275884552, 1859052796, 1198293562]\nS = 6727275143\n"
+  },
+  {
+   "path": "/home/student/task/table.txt",
+   "text": "nto{\nd3c0y_\nl4tt1c3_\nr3duct10n_\nn0p3_\nxxxxx\nw1ns}\nzzz\n"
+  },
+  {
+   "path": "/home/student/task/solve.py",
+   "text": "from sympy import Matrix, ZZ\n\na = [1769167388, 1397687963, 1921618823, 1177436136, 1229297561, 1275884552, 1859052796, 1198293562]\nS = 6727275143\nn = len(a)\nN = 10**12\n\nrows = []\nfor i in range(n):\n    r = [0]*(n+1)\n    r[i] = 2\n    r[n] = N*a[i]\n    rows.append(r)\nlast = [1]*n + [N*S]\nrows.append(last)\n\nB = Matrix(rows)\nR = B.lll(delta=ZZ(3)/4)\nv = R.row(0).tolist()[0]\nbits = [1 if x == -1 else 0 for x in v[:n]]\n# guard: if the short vector isn't the intended one, scan rows\nfor cand in R.tolist():\n    b = [1 if x == -1 else 0 for x in cand[:n]]\n    if sum(bi*ai for bi, ai in zip(b, a)) == S:\n        bits = b\n        break\nfrags = [l.rstrip(\"\\n\") for l in open(\"table.txt\").read().splitlines()]\nflag = \"\".join(f for f, b in zip(frags, bits) if b)\nprint(\"recovered subset bits:\", bits)\nprint(\"sum check:\", sum(bi*ai for bi, ai in zip(bits, a)) == S)\nprint(\"flag:\", flag)"
+  }
+ ],
+ "tools": {
+  "python3": {
+   "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+   "cases": [
+    {
+     "match": "solve",
+     "example": "python3 solve.py",
+     "output": "recovered subset bits: [1, 0, 1, 1, 0, 0, 1, 0]\nsum check: True\nflag: nto{l4tt1c3_r3duct10n_w1ns}\n"
+    }
+   ]
+  }
+ }
+}

