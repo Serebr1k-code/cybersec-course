@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "PostgreSQL от фингерпринта до RCE: pg_catalog, string_agg, pg_read_file, COPY TO/FROM PROGRAM, large objects и sqlmap."
+lab:
+  kind: shell
+  title: 'Практика: PostgreSQL — pg_catalog и дамп'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Диалект: `curl -s "http://shop.example/item?id=1''"` — `unterminated quoted string`.'
+    - 'В PostgreSQL агрегация строк — `string_agg`, конкатенация — `||`.'
+    - 'Таблицы: `FROM pg_tables WHERE schemaname=''public''`.'
+    - 'Флаг — в таблице `secrets`: `... string_agg(password,'','') ... FROM secrets`.'
 ---
 
 ## Задача

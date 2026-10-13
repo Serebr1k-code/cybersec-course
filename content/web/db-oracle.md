@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 50
 summary: "Oracle от фингерпринта до OOB: all_tables, error-based через CTXSYS, time-blind через dbms_pipe, UTL_HTTP/DNS и PL/SQL-инъекции."
+lab:
+  kind: shell
+  title: 'Практика: Oracle — LISTAGG и дамп'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Диалект: `curl -s "https://erp.example/report?id=1''"` — `ORA-01756`.'
+    - 'В Oracle каждый `SELECT` без таблицы требует `FROM dual`.'
+    - 'Таблицы: `FROM user_tables` + `LISTAGG(table_name,'','') WITHIN GROUP (ORDER BY table_name)`.'
+    - 'Флаг — в `SECRETS` (некавычечные имена в верхнем регистре).'
 ---
 
 ## Задача

