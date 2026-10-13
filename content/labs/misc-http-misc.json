@@ -1,0 +1,49 @@
+{
+  "id": "misc-http-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h34d3r5_d0nt_l13}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: HTTP-заголовки\n\nВнутренний сервис `http://10.10.10.5/` по недосмотру отдаёт отладочный\nзаголовок. Запроси его и найди флаг.\n\n`curl` в этой лабе эмулируется. Попробуй `curl -I <url>` (только\nзаголовки) и `curl <url>` (тело).\n"
+    },
+    {
+      "path": "/home/student/task/target.txt",
+      "text": "http://10.10.10.5/\n"
+    }
+  ],
+  "vars": {
+    "target": "http://10.10.10.5"
+  },
+  "tools": {
+    "curl": {
+      "help": "curl [-I | -i] <url> — HTTP-запрос (эмуляция, вывод захвачен с реального curl)",
+      "cases": [
+        {
+          "match": "(-I|-sI)\\b",
+          "example": "-I http://10.10.10.5/",
+          "output": "HTTP/1.1 200 OK\nServer: nginx/1.24.0\nDate: Tue, 13 Oct 2026 08:49:29 GMT\nContent-Type: text/html\nContent-Length: 67\nX-Powered-By: PHP/7.4.3\nX-Debug-Token: nto{h34d3r5_d0nt_l13}\n"
+        },
+        {
+          "match": "(-i|-si)\\b",
+          "example": "-i http://10.10.10.5/",
+          "output": "HTTP/1.1 200 OK\nServer: nginx/1.24.0\nDate: Tue, 13 Oct 2026 08:49:29 GMT\nContent-Type: text/html\nContent-Length: 67\nX-Powered-By: PHP/7.4.3\nX-Debug-Token: nto{h34d3r5_d0nt_l13}\n\n<html><body><h1>VantaDrop</h1><p>internal service</p></body></html>"
+        },
+        {
+          "match": "\\{\\{target\\}\\}",
+          "example": "http://10.10.10.5/",
+          "output": "<html><body><h1>VantaDrop</h1><p>internal service</p></body></html>"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступно: `curl -I http://10.10.10.5/` и `curl http://10.10.10.5/`\n"
+    }
+  }
+}

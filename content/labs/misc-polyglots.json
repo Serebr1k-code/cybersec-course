@@ -1,0 +1,41 @@
+{
+  "id": "misc-polyglots",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p0lygl0t_png_z1p}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: файл, который сразу два формата\n\n`polyglot.png` открывается как картинка (`file` скажет PNG), но с конца он\nже — валидный ZIP-архив с файлом `flag.txt`. Достань флаг и запиши в `found.txt`.\n\nПодсказки по инструментам: `file`, `file -k`, `grep -aboP 'PK\\x03\\x04'`,\n`unzip -l polyglot.png`, `unzip -p polyglot.png flag.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/polyglot.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAFUlEQVR4nGNgUHBIaFhw4AEGPbQkAFSoVAHAhGGJAAAAAElFTkSuQmCCUEsDBBQAAAAIAOtgTV3JwNS4GAAAABYAAAAIAAAAZmxhZy50eHTLK8mvLjDIqUzPMSiJL8hLj68yLKjlAgBQSwECFAMUAAAACADrYE1dycDUuBgAAAAWAAAACAAAAAAAAAAAAAAAgAEAAAAAZmxhZy50eHRQSwUGAAAAAAEAAQA2AAAAPgAAAAAA",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "unzip": {
+      "help": "unzip [-l | -p <файл>] <архив> — список/печать файла (эмуляция, вывод захвачен с реального unzip)",
+      "cases": [
+        {
+          "match": "-l\\s+polyglot\\.png",
+          "example": "-l polyglot.png",
+          "output": "Archive:  polyglot.png\nwarning [polyglot.png]:  78 extra bytes at beginning or within zipfile\n  (attempting to process anyway)\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n       22  2026-10-13 12:07   flag.txt\n---------                     -------\n       22                     1 file\n"
+        },
+        {
+          "match": "-p\\s+polyglot\\.png\\s+flag\\.txt",
+          "example": "-p polyglot.png flag.txt",
+          "output": "warning [polyglot.png]:  78 extra bytes at beginning or within zipfile\n  (attempting to process anyway)\nnto{p0lygl0t_png_z1p}\n"
+        }
+      ]
+    }
+  }
+}

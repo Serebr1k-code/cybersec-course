@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 14
 summary: "Как Android-приложение вызывает нативный код через JNI, как извлечь и реверсить .so, находить функции проверки и хукать их через Frida."
+lab:
+  kind: shell
+  title: "Практика: секрет в нативной библиотеке"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, lib/arm64-v8a/libnative.so]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Подтверди, что это ELF: `file lib/arm64-v8a/libnative.so`."
+    - "Секреты в нативном коде часто лежат открытым текстом среди строк."
+    - "Вытащи строки и отфильтруй флаг: `strings lib/arm64-v8a/libnative.so | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

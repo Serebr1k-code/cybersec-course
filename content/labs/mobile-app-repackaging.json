@@ -1,0 +1,41 @@
+{
+  "id": "mobile-app-repackaging",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r3p4ck4g3d_4pk}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: заметить следы перепаковки в APK\n\n`app.apk` — настоящий ZIP. Кто-то перепаковал приложение и добавил лишний\nфайл в `assets/`. Найди его, достань встроенный токен и раскодируй (base64).\n\nПолезно: `unzip -l app.apk`, затем `unzip -p app.apk assets/backdoor.dat`.\nЗапиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/app.apk",
+      "b64": "UEsDBBQAAAAIAPJiTV2L9H2sJgAAACQAAAATAAAAQW5kcm9pZE1hbmlmZXN0LnhtbLPJTczLTEstLlEoSEzOTkxPtVVKzs/VK0vMK0nUSywoUNK34wIAUEsDBBQAAAAIAPJiTV3lwQhBEAAAAA4AAAALAAAAY2xhc3Nlcy5kZXhLSa3gMjA2ZchJTc8s4QIAUEsDBBQAAAAIAPJiTV2GmUzDKQAAAD4AAAARAAAATUVUQS1JTkYvQ0VSVC5SU0HT1QUCJ1d3Tz8FZ9egEE83T2fHEFeQoC6Xr6enk56eHheY5+rngqkCAFBLAwQUAAAACADyYk1dXam8/FIAAABQAAAAEwAAAGFzc2V0cy9iYWNrZG9vci5kYXRLSkzOTsnPL7JSSK1Iy8yxzSgpKSi20tdPLcvM0UutSMwtyEnVT87PyUlNLuEqyc9OzbNNygsqSzX2rEp2CcpKrArK8zUKSvPzcCpKC7S15QIAUEsDBBQAAAAIAPJiTV2jBExUNQAAAEIAAAAWAAAAcmVzL3ZhbHVlcy9zdHJpbmdzLnhtbLMpSi3OLy1KTi22sykuKcrMS1fIS8xNtVVKLCiIB7GU7MIS80oSXYryC2z0ISrsbPQRurgAUEsBAhQDFAAAAAgA8mJNXYv0fawmAAAAJAAAABMAAAAAAAAAAAAAAIABAAAAAEFuZHJvaWRNYW5pZmVzdC54bWxQSwECFAMUAAAACADyYk1d5cEIQRAAAAAOAAAACwAAAAAAAAAAAAAAgAFXAAAAY2xhc3Nlcy5kZXhQSwECFAMUAAAACADyYk1dhplMwykAAAA+AAAAEQAAAAAAAAAAAAAAgAGQAAAATUVUQS1JTkYvQ0VSVC5SU0FQSwECFAMUAAAACADyYk1dXam8/FIAAABQAAAAEwAAAAAAAAAAAAAAgAHoAAAAYXNzZXRzL2JhY2tkb29yLmRhdFBLAQIUAxQAAAAIAPJiTV2jBExUNQAAAEIAAAAWAAAAAAAAAAAAAACAAWsBAAByZXMvdmFsdWVzL3N0cmluZ3MueG1sUEsFBgAAAAAFAAUAPgEAANQBAAAAAA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "unzip": {
+      "help": "unzip [-l | -p <файл>] <архив> — список/печать файла (эмуляция)",
+      "cases": [
+        {
+          "match": "-l\\s+app\\.apk",
+          "example": "-l app.apk",
+          "output": "Archive:  app.apk\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n       36  2026-10-13 12:23   AndroidManifest.xml\n       14  2026-10-13 12:23   classes.dex\n       62  2026-10-13 12:23   META-INF/CERT.RSA\n       80  2026-10-13 12:23   assets/backdoor.dat\n       66  2026-10-13 12:23   res/values/strings.xml\n---------                     -------\n      258                     5 files\n"
+        },
+        {
+          "match": "-p\\s+app\\.apk\\s+assets/backdoor\\.dat",
+          "example": "-p app.apk assets/backdoor.dat",
+          "output": "backdoor: exfil=https://evil.example/collect\ntoken=bnRve3IzcDRjazRnM2RfNHBrfQ==\n"
+        }
+      ]
+    }
+  }
+}

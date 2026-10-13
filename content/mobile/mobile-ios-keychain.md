@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 35
 summary: "Как iOS хранит секреты (Keychain, Data Protection, NSUserDefaults), какие accessibility-опции делают их уязвимыми и как извлекать/анализировать Keychain на устройстве."
+lab:
+  kind: shell
+  title: "Практика: дамп Keychain"
+  toolset: [core, grep, plist]
+  workdir: /home/student/task
+  files: [task.md, keychain_dump.plist]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Это plist — текстовый XML. Поищи секреты: `grep -n v_Data keychain_dump.plist`."
+    - "У каждой записи есть `svce` (сервис) и `acct` (аккаунт)."
+    - "Флаг — значение `v_Data` записи `com.vanta.lab.session`. Запиши его в `found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

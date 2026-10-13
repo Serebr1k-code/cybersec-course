@@ -1,0 +1,41 @@
+{
+  "id": "misc-forensics-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c4rv3_th3_4rch1v3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: вырезать ZIP из дампа (карвинг)\n\n`dump.bin` — фрагмент дампа. Где-то внутри с некоторого смещения начинается\nZIP-архив с файлом `flag.txt`. Найди смещение сигнатуры `PK\\x03\\x04`, вырежи\nархив в `carved.zip` и достань флаг.\n\nПолезно: `grep -aboP 'PK\\x03\\x04' dump.bin`, `dd if=dump.bin of=carved.zip bs=1 skip=<смещение>`,\n`unzip -l carved.zip`, `unzip -p carved.zip flag.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/dump.bin",
+      "b64": "WzEzL09jdC8yMDI2XSBjb2xsZWN0b3I6IGJ1ZmZlcmVkIDQwOTYgYnl0ZXMgZnJvbSAvZGV2L3R0eVMwClsxMy9PY3QvMjAyNl0gY29sbGVjdG9yOiBidWZmZXJlZCA0MDk2IGJ5dGVzIGZyb20gL2Rldi90dHlTMApbMTMvT2N0LzIwMjZdIGNvbGxlY3RvcjogYnVmZmVyZWQgNDA5NiBieXRlcyBmcm9tIC9kZXYvdHR5UzAKWzEzL09jdC8yMDI2XSBjb2xsZWN0b3I6IGJ1ZmZlcmVkIDQwOTYgYnl0ZXMgZnJvbSAvZGV2L3R0eVMwClsxMy9PY3QvMjAyNl0gY29sbGVjdG9yOiBidWZmZXJlZCA0MDk2IGJ5dGVzIGZyb20gL2Rldi90dHlTMApbMTMvT2N0LzIwMjZdIGNvbGxlY3RvcjogYnVmZmVyZWQgNDA5NiBieXRlcyBmcm9tIC9kZXYvdHR5UzAKWzEzL09jdC8yMDI2XSBjb2xsZWN0b3I6IGJ1ZmZlcmVkIDQwOTYgYnl0ZXMgZnJvbSAvZGV2L3R0eVMwClsxMy9PY3QvMjAyNl0gY29sbGVjdG9yOiBidWZmZXJlZCA0MDk2IGJ5dGVzIGZyb20gL2Rldi90dHlTMApbMTMvT2N0LzIwMjZdIGNvbGxlY3RvcjogYnVmZmVyZWQgNDA5NiBieXRlcyBmcm9tIC9kZXYvdHR5UzAKWzEzL09jdC8yMDI2XSBjb2xsZWN0b3I6IGJ1ZmZlcmVkIDQwOTYgYnl0ZXMgZnJvbSAvZGV2L3R0eVMwClsxMy9PY3QvMjAyNl0gY29sbGVjdG9yOiBidWZmZXJlZCA0MDk2IGJ5dGVzIGZyb20gL2Rldi90dHlTMApbMTMvT2N0LzIwMjZdIGNvbGxlY3RvcjogYnVmZmVyZWQgNDA5NiBieXRlcyBmcm9tIC9kZXYvdHR5UzAKWzEzL09jdC8yMDI2XSBjb2xsZWN0b3I6IGJ1ZmZlcmVkIDQwOTYgYnl0ZXMgZnJvbSAvZGV2L3R0eVMwClsxMy9PY3QvMjAyNl0gY29sbGVjdG9yOiBidWZmZXJlZCA0MDk2IGJ5dGVzIGZyb20gL2Rldi90dHlTMApbMTMvT2N0LzIwMjZdIGNvbGxlY3RvcjogYnVmZmVyZWQgNDA5NiBieXRlcyBmcm9tIC9kZXYvdHR5UzAKWzEzL09jdC8yMDI2XSBjb2xsZWN0b3I6IGJ1ZmZlcmVkIDQwOTYgYnl0ZXMgZnJvbSAvZGV2L3R0eVMwClsxMy9PY3QvMjAyNl0gY29sbGVjdG9yOiBidWZmZXJlZCA0MDk2IGJ5dGVzIGZyClBLAwQUAAAACABYYk1d2avzPRkAAAAXAAAACAAAAGZsYWcudHh0yyvJr042KSozji/JMI43KUrOMCwzruUCAFBLAQIUAxQAAAAIAFhiTV3Zq/M9GQAAABcAAAAIAAAAAAAAAAAAAACAAQAAAABmbGFnLnR4dFBLBQYAAAAAAQABADYAAAA/AAAAAAA=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "unzip": {
+      "help": "unzip [-l | -p <файл>] <архив> — список/печать файла (эмуляция)",
+      "cases": [
+        {
+          "match": "-l\\s+carved\\.zip",
+          "example": "-l carved.zip",
+          "output": "Archive:  carved.zip\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n       23  2026-10-13 12:12   flag.txt\n---------                     -------\n       23                     1 file\n"
+        },
+        {
+          "match": "-p\\s+carved\\.zip\\s+flag\\.txt",
+          "example": "-p carved.zip flag.txt",
+          "output": "nto{c4rv3_th3_4rch1v3}\n"
+        }
+      ]
+    }
+  }
+}

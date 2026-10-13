@@ -13,6 +13,17 @@ useful_for:
   - "Работа: обработка изображений и OCR"
 estimated_minutes: 12
 summary: "Разбор image/pixel-задач: манипуляции с пикселями и каналами через PIL, OCR через tesseract, инверсия/порог/разностные изображения и извлечение скрытого текста."
+lab:
+  kind: shell
+  title: "Практика: текст в метаданных PNG"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, image.png]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`file image.png` подтвердит формат."
+    - "Внутри картинки есть читаемый текст — покажи его: `strings image.png`."
+    - "Отфильтруй строку с флагом и запиши её: `strings image.png | grep nto > found.txt`."
 ---
 ## Вопрос, с которого всё начинается
 

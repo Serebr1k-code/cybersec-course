@@ -13,6 +13,17 @@ useful_for:
   - "Работа: разбор документов и метаданных"
 estimated_minutes: 35
 summary: "Разбор PDF в misc: структура файла, извлечение текста и изображений, работа с объектами и потоками, OCR отсканированных документов и поиск скрытых данных."
+lab:
+  kind: shell
+  title: "Практика: объекты внутри PDF"
+  toolset: [core, hex, exiftool]
+  workdir: /home/student/task
+  files: [task.md, report.pdf]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "PDF — это текст с бинарными вставками. Начни со `strings report.pdf`."
+    - "В потоке страницы есть комментарий с флагом. `strings report.pdf | grep nto{`."
+    - "В объекте 5 есть base64-значение `/Blob (…)` — тоже проверь его через `base64 -d`."
 ---
 ## Вопрос, с которого всё начинается
 

@@ -1,0 +1,32 @@
+{
+  "id": "mobile-forensics-ios",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1tun3s_b4ckup_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: секрет в бэкапе iOS\n\n`backup/` — фрагмент iTunes-бэкапа приложения (plist в XML). В настройках\nприложения оставлен отладочный токен. Найди его и запиши в `found.txt`.\n\nПолезно: `find backup -type f`, `grep -rn nto backup`.\n"
+    },
+    {
+      "path": "/home/student/task/backup",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/backup/Info.plist",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\"><dict>\n  <key>CFBundleIdentifier</key><string>com.vanta.mobile</string>\n  <key>CFBundleVersion</key><string>4.2.1</string>\n  <key>VantaDebugToken</key><string>nto{1tun3s_b4ckup_l34k}</string>\n</dict></plist>\n"
+    },
+    {
+      "path": "/home/student/task/backup/Manifest.plist",
+      "text": "<?xml version=\"1.0\"?>\n<plist version=\"1.0\"><dict><key>Version</key><string>10.0</string></dict></plist>\n"
+    }
+  ],
+  "tools": {}
+}

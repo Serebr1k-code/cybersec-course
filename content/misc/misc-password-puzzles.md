@@ -13,6 +13,17 @@ useful_for:
   - "Форензика: восстановление доступов"
 estimated_minutes: 45
 summary: "Парольные головоломки: идентификация хешей, словарные и гибридные атаки, правила и маски hashcat, John the Ripper, взлом zip/rar/pdf и разборы с командами."
+lab:
+  kind: shell
+  title: "Практика: восстанови пароль по радужной таблице"
+  toolset: [core, hash]
+  workdir: /home/student/task
+  files: [task.md, hashes.txt, rainbow.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Возьми хеш сервиса `svc_backup`: `grep svc_backup hashes.txt | cut -d: -f2`."
+    - "Таблица `rainbow.txt` хранит строки `alg:hash:plain`. Найди свой хеш в ней."
+    - "Например: `grep <hash> rainbow.txt` — последнее поле и есть пароль (флаг)."
 ---
 
 ## Вопрос, с которого всё начинается

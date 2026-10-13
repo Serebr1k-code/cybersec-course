@@ -13,6 +13,17 @@ useful_for:
   - "Понимание разбора строк shell"
 estimated_minutes: 40
 summary: "Shell-головоломки: quoting и экранирование, command substitution, brace/glob-подстановки, $IFS и eval-трюки, обход фильтров и разборы с командами."
+lab:
+  kind: shell
+  title: "Практика: имена, которые ломают shell"
+  toolset: [core, glob]
+  workdir: /home/student/task
+  files: [task.md, jail]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с `ls -la jail/` — обрати внимание на пробелы и точку с запятой в именах."
+    - "Рекурсивный поиск: `grep -r nto{ jail/` (или `grep -rn`)."
+    - "Флаг в файле со «злым» именем. Возьми имя в кавычки: `cat 'jail/weird name; rm -rf.txt'`."
 ---
 
 ## Вопрос, с которого всё начинается

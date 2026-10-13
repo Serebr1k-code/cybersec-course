@@ -1,0 +1,39 @@
+{
+  "id": "mobile-static-analysis",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h4rdc0d3d_4p1_k3y}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/src",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: охота за зашитыми секретами\n\nПриложение уже декомпилировано: исходники лежат в `src/`. Проведи статический\nанализ и найди **настоящий** секрет, зашитый в код (а не decoy из ресурсов).\n\nЗапиши значение секрета (флаг) в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/src/com/vanta/lab/net/ApiClient.java",
+      "text": "package com.vanta.lab.net;\n\npublic class ApiClient {\n    // TODO: move to BuildConfig before release!\n    private static final String API_KEY = \"nto{h4rdc0d3d_4p1_k3y}\";\n    private static final String BASE = \"https://api.vanta.local/v1/\";\n    public String key() { return API_KEY; }\n}\n"
+    },
+    {
+      "path": "/home/student/task/src/com/vanta/lab/ui/MainActivity.java",
+      "text": "package com.vanta.lab.ui;\n\npublic class MainActivity {\n    private static final String TAG = \"VantaLab\";\n    private static final String ANALYTICS = \"UA-000000-2\";\n    protected void onCreate() { /* ... */ }\n}\n"
+    },
+    {
+      "path": "/home/student/task/src/com/vanta/lab/BuildConfig.java",
+      "text": "package com.vanta.lab;\npublic final class BuildConfig {\n    public static final boolean DEBUG = false;\n    public static final String VERSION = \"1.4.2\";\n}\n"
+    },
+    {
+      "path": "/home/student/task/src/res/values/strings.xml",
+      "text": "<?xml version=\"1.0\"?>\n<resources>\n  <string name=\"app_name\">Vanta Lab</string>\n  <string name=\"api_key\">AIzaSyDECOY0000000000000000000000000000</string>\n</resources>\n"
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "id": "mobile-api-testing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1d0r_0n_4p1}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: BOLA в мобильном API\n\nПерехвачен запрос мобильного приложения. Токен пользователя `mira` —\nв `api.md`. Проверь, соблюдает ли API авторизацию на уровне объекта\n(BOLA/IDOR): попробуй прочитать чужой профиль по id.\n\n`curl` эмулируется; заголовок авторизации передавай через `-H`.\nНайди утёкший `api_token` (флаг) и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/api.md",
+      "text": "# Перехваченный трафик\n\n```\nGET /v2/users/me HTTP/1.1\nHost: api.vanta.local\nAuthorization: Bearer mira-token\nUser-Agent: VantaApp/2.1.0 (Android 14)\n```\n\nБазовый URL: `https://api.vanta.local`\n"
+    }
+  ],
+  "vars": {
+    "base": "https://api.vanta.local"
+  },
+  "tools": {
+    "curl": {
+      "help": "curl [-H 'Authorization: …'] <url> — HTTP GET (эмуляция, вывод захвачен с реального curl)",
+      "cases": [
+        {
+          "match": "/v2/users/me",
+          "example": "https://api.vanta.local/v2/users/me",
+          "output": "{\"id\":1,\"user\":\"mira\",\"role\":\"user\",\"email\":\"mira@vanta.local\"}"
+        },
+        {
+          "match": "/v2/users/2\\b",
+          "example": "https://api.vanta.local/v2/users/2",
+          "output": "{\"id\":2,\"user\":\"admin\",\"role\":\"admin\",\"email\":\"admin@vanta.local\",\"api_token\":\"nto{1d0r_0n_4p1}\"}"
+        }
+      ],
+      "fallback": "{\"error\":\"not found\"}\n"
+    }
+  }
+}

@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений (resilience)"
 estimated_minutes: 14
 summary: "Как приложения защищаются от реверса: переименование ProGuard/R8, шифрование строк, DexGuard, нативный код, динамическая загрузка, анти-тампер и анти-Frida. Как обходить каждый слой и где заканчиваются границы анализа."
+lab:
+  kind: shell
+  title: "Практика: деобфускация строки из dex"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, strings.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Найди подозрительную строку: `grep API_KEY strings.txt`."
+    - "Значение — это base64. Вырежи его из кавычек: добавь `| cut -d'"' -f2`."
+    - "Раскодируй: `grep API_KEY strings.txt | cut -d'"' -f2 | base64 -d > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

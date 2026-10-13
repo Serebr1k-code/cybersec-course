@@ -13,6 +13,17 @@ useful_for:
   - "Анализ активности пользователя"
 estimated_minutes: 45
 summary: "Windows-артефакты: реестр (hives), Prefetch, Amcache, LNK/Jump Lists, USN Journal, $MFT, Shellbags и EVTX; инструменты (regripper, Zimmerman, Volatility) и разборы."
+lab:
+  kind: shell
+  title: "Практика: подозрительный сервис в реестре"
+  toolset: [core, log]
+  workdir: /home/student/task
+  files: [task.md, registry_export.txt, evtx_rendered.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри записи автозапуска и сервисов: `grep -i ImagePath registry_export.txt`."
+    - "Путь сервиса ведёт в `C:\\Windows\\Temp` — это красный флаг."
+    - "В аргументах запуска сервиса есть `--token`. Запиши значение в `found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

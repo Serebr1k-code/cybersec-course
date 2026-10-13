@@ -1,0 +1,24 @@
+{
+  "id": "mobile-obfuscation",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d3x_str1ngs_4r3_b4s364}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: деобфусцировать строку из dex\n\n`strings.txt` — вывод `strings` по `classes.dex` обфусцированного приложения.\nРазработчики «спрятали» ключ, закодировав его base64 (это не шифрование).\nНайди закодированное значение, раскодируй и запиши флаг в `found.txt`.\n\nПолезно: `grep API_KEY strings.txt`, затем вырежи значение (`cut -d'\"' -f2`)\nи раскодируй (`base64 -d`).\n"
+    },
+    {
+      "path": "/home/student/task/strings.txt",
+      "text": "com/vanta/app/MainActivity\nonCreate\nLandroid/util/Log;\nconst-string v1, \"VantaDrop mobile\"\nsget-object v0, Landroid/os/Build;->MODEL:Ljava/lang/String;\nconst-string v2, \"%s\"\nconst-string v3, \"bnRve2QzeF9zdHIxbmdzXzRyM19iNHMzNjR9\"   # API_KEY\ninvoke-static {v3}, Lcom/vanta/app/crypto/A;->a(Ljava/lang/String;)V\nreturn-void\n.method public getDeviceId()Ljava/lang/String;\n"
+    }
+  ],
+  "tools": {}
+}

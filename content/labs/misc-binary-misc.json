@@ -1,0 +1,27 @@
+{
+  "id": "misc-binary-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b1n4ry_h1d3_4nd_s33k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: байтовая головоломка\n\n`chunk.bin` — фрагмент дампа памяти. Внутри есть служебная строка\n`config=...`, значение которой закодировано base64.\n\nНайди значение, раскодируй и запиши флаг в `found.txt`.\n`strings`, `grep`, `cut` и `base64` — твои друзья.\n"
+    },
+    {
+      "path": "/home/student/task/chunk.bin",
+      "b64": "f0VMRgABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fAABjb25maWc9Ym5SdmUySXhialJ5ZVY5b01XUXpYelJ1WkY5ek16TnJmUT09AP/+/QARIjMAbm90ZT10aGlzIGxpbmUgaXMgYSBkZWNveSwgaWdub3JlIGl0ABrT2NsrQPq0sKHKSWeyF6Fb4LM7Or9oYQ=="
+    },
+    {
+      "path": "/home/student/task/README.txt",
+      "text": "Фрагмент дампа памяти. Внутри — служебная строка `config=...`.\nЗначение закодировано. Найди его и раскодируй.\n"
+    }
+  ]
+}

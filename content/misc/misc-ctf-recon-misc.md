@@ -13,6 +13,17 @@ useful_for:
   - "Быстрый старт задачи"
 estimated_minutes: 35
 summary: "Разведка в CTF: как читать условие, инвентаризировать файлы, делать быстрые проверки, работать с подсказками и не терять зацепки."
+lab:
+  kind: shell
+  title: "Практика: инвентаризация выданных файлов"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Составь полный список файлов: `find recon_tgt -type f`."
+    - "Расширения обманывают — ищи по содержимому: `grep -rn nto recon_tgt`."
+    - "Запиши найденный флаг: `grep -r nto recon_tgt > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

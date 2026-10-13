@@ -13,6 +13,17 @@ useful_for:
   - "Снятие защиты с JS/байткода"
 estimated_minutes: 50
 summary: "Эзотерическая обфускация: JSFuck и jjencode, whitespace-обфускация, цепочки eval/base64, полиморфизм и самомодификация, жонглирование типами и практические приёмы деобфускации."
+lab:
+  kind: shell
+  title: "Практика: распутать цепочку base64"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, payload.b64]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри обёртку: `cat payload.b64`."
+    - "Значение в кавычках — это base64. Вырежи его: `cut -d\"'\" -f2 payload.b64`."
+    - "Раскодируй столько раз, сколько слоёв (трижды): `cut -d\"'\" -f2 payload.b64 | base64 -d | base64 -d | base64 -d > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

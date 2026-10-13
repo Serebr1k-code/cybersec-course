@@ -13,6 +13,17 @@ useful_for:
   - "Анализ трафика"
 estimated_minutes: 50
 summary: "Как читать Network Security Config, почему пользовательский CA не работает, как обходить trust-anchors, cleartext-политику и config-level pinning."
+lab:
+  kind: shell
+  title: "Практика: Network Security Config"
+  toolset: [core, xml]
+  workdir: /home/student/task
+  files: [task.md, network_security_config.xml]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Найди блоки с `cleartextTrafficPermitted=\"true\"`: `grep -n cleartext network_security_config.xml`."
+    - "Определи, для каких доменов разрешён plain HTTP."
+    - "Флаг оставлен в комментарии `TODO(sec)`. `grep nto{ network_security_config.xml`."
 ---
 
 ## Вопрос, с которого всё начинается

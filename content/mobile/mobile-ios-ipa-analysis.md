@@ -12,6 +12,17 @@ useful_for:
   - "Пентест iOS-приложений: статический анализ"
 estimated_minutes: 45
 summary: "Структура IPA и Mach-O, работа с otool/nm/class-dump/codesign, entitlements, fat-бинарники, встроенные фреймворки и извлечение секретов из iOS-приложения."
+lab:
+  kind: shell
+  title: "Практика: разбор IPA"
+  toolset: [core, unzip, strings]
+  workdir: /home/student/task
+  files: [task.md, app.ipa]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "IPA — тоже zip. Список: `unzip -l app.ipa`."
+    - "Часть файлов лежит без сжатия — секреты видны через `strings app.ipa`."
+    - "Флаг в бинарнике `VantaKit` (фреймворк). `strings app.ipa | grep nto{`."
 ---
 
 ## Вопрос, с которого всё начинается

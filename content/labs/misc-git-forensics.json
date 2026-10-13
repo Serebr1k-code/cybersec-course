@@ -1,0 +1,72 @@
+{
+  "id": "misc-git-forensics",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s3cr3t_l1v3s_1n_h1st0ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: секрет в истории git\n\nЭто рабочий каталог сервиса billing. Файл с секретами когда-то\nдобавили, а потом удалили. В рабочем дереве его нет — но git помнит\nвсё. Достань флаг из истории репозитория и запиши в `found.txt`.\n\n`git` в этой лабе умеет: `log [--oneline|-p|--all]`, `show <rev>`,\n`reflog`, `cat-file -p <blob>`.\n"
+    },
+    {
+      "path": "/home/student/task/config.txt",
+      "text": "service=billing\nenv=prod\ndb_host=db.internal\n"
+    },
+    {
+      "path": "/home/student/task/README.md",
+      "text": "# Billing service\n\nConfig lives in config.txt.\n"
+    },
+    {
+      "path": "/home/student/task/.git/HEAD",
+      "text": "ref: refs/heads/main\n"
+    },
+    {
+      "path": "/home/student/task/.git/config",
+      "text": "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n\tbare = false\n[remote \"origin\"]\n\turl = git@vanta.local:billing.git\n"
+    },
+    {
+      "path": "/home/student/task/.git/description",
+      "text": "Unnamed repository; edit this file to name it.\n"
+    }
+  ],
+  "tools": {
+    "git": {
+      "help": "git <log|show|reflog|cat-file> … — доступ к истории репозитория (эмуляция, вывод захвачен с реального git)",
+      "cases": [
+        {
+          "match": "log\\s+--oneline",
+          "example": "log --oneline --all",
+          "output": "b156510 docs: readme\n148fb53 cleanup: move secrets to vault\n24134fd add deployment secrets (temporary)\nd1f83d0 init: billing config\n"
+        },
+        {
+          "match": "reflog",
+          "example": "reflog",
+          "output": "b156510 HEAD@{0}: commit: docs: readme\n148fb53 HEAD@{1}: commit: cleanup: move secrets to vault\n24134fd HEAD@{2}: commit: add deployment secrets (temporary)\nd1f83d0 HEAD@{3}: commit (initial): init: billing config\n"
+        },
+        {
+          "match": "show\\s+\\S+",
+          "example": "show 0bd0af1",
+          "output": "commit 148fb53ee6d350f3a0c6596b88e0572e1d230550\nAuthor: Mira <mira@vanta.local>\nDate:   Tue Mar 3 09:15:00 2026 +0300\n\n    cleanup: move secrets to vault\n\ndiff --git a/config.txt b/config.txt\nindex e65d92a..d6bc0c8 100644\n--- a/config.txt\n+++ b/config.txt\n@@ -1,2 +1,3 @@\n service=billing\n env=prod\n+db_host=db.internal\ndiff --git a/secrets.env b/secrets.env\ndeleted file mode 100644\nindex 5bf30ee..0000000\n--- a/secrets.env\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-FLAG=nto{s3cr3t_l1v3s_1n_h1st0ry}\n-DB_PASS=hunter2\n"
+        },
+        {
+          "match": "cat-file",
+          "example": "cat-file -p 5bf30ee",
+          "output": "FLAG=nto{s3cr3t_l1v3s_1n_h1st0ry}\nDB_PASS=hunter2\n"
+        },
+        {
+          "match": "log",
+          "example": "log --all -p",
+          "output": "commit b15651023649e0bc434f2481945e1c1f5dc35b46\nAuthor: Mira <mira@vanta.local>\nDate:   Wed Mar 4 08:00:00 2026 +0300\n\n    docs: readme\n\ndiff --git a/README.md b/README.md\nnew file mode 100644\nindex 0000000..2f000d7\n--- /dev/null\n+++ b/README.md\n@@ -0,0 +1,3 @@\n+# Billing service\n+\n+Config lives in config.txt.\n\ncommit 148fb53ee6d350f3a0c6596b88e0572e1d230550\nAuthor: Mira <mira@vanta.local>\nDate:   Tue Mar 3 09:15:00 2026 +0300\n\n    cleanup: move secrets to vault\n\ndiff --git a/config.txt b/config.txt\nindex e65d92a..d6bc0c8 100644\n--- a/config.txt\n+++ b/config.txt\n@@ -1,2 +1,3 @@\n service=billing\n env=prod\n+db_host=db.internal\ndiff --git a/secrets.env b/secrets.env\ndeleted file mode 100644\nindex 5bf30ee..0000000\n--- a/secrets.env\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-FLAG=nto{s3cr3t_l1v3s_1n_h1st0ry}\n-DB_PASS=hunter2\n\ncommit 24134fddcadf8cce4380ee30b0df0096288baca4\nAuthor: Mira <mira@vanta.local>\nDate:   Mon Mar 2 11:30:00 2026 +0300\n\n    add deployment secrets (temporary)\n\ndiff --git a/secrets.env b/secrets.env\nnew file mode 100644\nindex 0000000..5bf30ee\n--- /dev/null\n+++ b/secrets.env\n@@ -0,0 +1,2 @@\n+FLAG=nto{s3cr3t_l1v3s_1n_h1st0ry}\n+DB_PASS=hunter2\n\ncommit d1f83d00640b900ff691c9686c71d52c7306ef8a\nAuthor: Mira <mira@vanta.local>\nDate:   Sun Mar 1 10:00:00 2026 +0300\n\n    init: billing config\n\ndiff --git a/config.txt b/config.txt\nnew file mode 100644\nindex 0000000..e65d92a\n--- /dev/null\n+++ b/config.txt\n@@ -0,0 +1,2 @@\n+service=billing\n+env=prod\n"
+        }
+      ],
+      "fallback": "git: в этой лабе доступны: log [--oneline|-p|--all], show <rev>, reflog, cat-file -p <blob>\n"
+    }
+  }
+}

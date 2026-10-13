@@ -1,0 +1,39 @@
+{
+  "id": "mobile-ios-backup",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b4ckup_l34k5}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: секрет в iOS-бэкапе\n\nПеред тобой распакованный iOS-бэкап (`backup/`). Файлы пронумерованы хешами,\nно метаданные и часть данных — в открытом виде.\n\nНайди утёкший токен (флаг) и запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/backup",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/backup/Manifest.plist",
+      "text": "<?xml version=\"1.0\"?>\n<plist><dict><key>Version</key><string>10.0</string></dict></plist>\n"
+    },
+    {
+      "path": "/home/student/task/backup/Info.plist",
+      "text": "<?xml version=\"1.0\"?>\n<plist><dict><key>Device Name</key><string>iPhone-de-Mira</string></dict></plist>\n"
+    },
+    {
+      "path": "/home/student/task/backup/3d/3d0d7e5fb2ce288813306e4d4636395e047a3d28",
+      "text": "ciphertext-blob-not-interesting\n"
+    },
+    {
+      "path": "/home/student/task/backup/7b/7b8a2f1c9e0d4b6a8c2e1f0a9b8c7d6e5f4a3b2c",
+      "text": "{\"service\":\"com.vanta.app\",\"account\":\"mira\",\"token\":\"nto{b4ckup_l34k5}\"}\n"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "id": "mobile-ios-ipa-analysis",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1pa_1ns1d3_0ut}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ IPA\n\n`app.ipa` — iOS-приложение. Внутри есть `Payload/Vanta.app` с бинарниками\nи конфигом. Часть файлов сохранена без сжатия — это классическая ошибка\nсборки, из-за которой секреты видны через `strings`.\n\nНайди флаг и запиши в `found.txt`. (`unzip -l`, `unzip -p`, `strings`.)\n"
+    },
+    {
+      "path": "/home/student/task/app.ipa",
+      "b64": "UEsDBBQAAAAIAFJeTV3d9xsfpwAAAAkBAAAcAAAAUGF5bG9hZC9WYW50YS5hcHAvSW5mby5wbGlzdGWPwQ6CMBBE73wF4QNa9byWoImJifFS471A1cbSNtsF5e9FwIN62mQyb3YG8mdj005jNN6tsyVbZLlIIFgTSUBtKhJJmsJd92K727Sutnpfa0fmYjQCf+sQCY27iso3rFOOFLOqBD6rv7S8eaTz9E+Olu+UFRs6/NFHWYRwQuViGHCpqxYN9TM5tvzYrPWPWGBpCBX2B6/qONsIW80F8GnUfIFPU5MXUEsDBBQAAAAIAFJeTV0e5X3bXwAAAFoAAAAXAAAAUGF5bG9hZC9WYW50YS5hcHAvVmFudGEBWgCl/8/67f4g615xa/ChH0qitcuTgCHImYssvfzOGqyvdjkjp0olfp+HPVV0xtoYfW4jx0MMLKAB0+YN5S2CxYfnWm0W2ov1AHZhbnRhX3NlY3JldF9zdG9yYWdlAFBLAwQUAAAACABSXk1dfMXj+18AAAB0AAAAKgAAAFBheWxvYWQvVmFudGEuYXBwL2VtYmVkZGVkLm1vYmlsZXByb3Zpc2lvbrOxr8jNUShLLSrOzM+zVTLUM1Cyt7MpyMksLrGzSclMBpLZqZV2IamJuZ4pqXklmWmZqUU2+iAxm8SiokQgVVxSlJmXbufo5OziamhkbGJqow8VstGHKtGHmKQPMRcAUEsDBBQAAAAAAFJeTV0ZJ9eHOQAAADkAAAA4AAAAUGF5bG9hZC9WYW50YS5hcHAvRnJhbWV3b3Jrcy9WYW50YUtpdC5mcmFtZXdvcmsvVmFudGFLaXTP+u3+PSs1UR1W7i9OpAYYjoRX8PjaOg698ZWyBJitDq4UEncAbnRvezFwYV8xbnMxZDNfMHV0fQBQSwMEFAAAAAgAUl5NXRB4qLg9AAAAPAAAAB0AAABQYXlsb2FkL1ZhbnRhLmFwcC9jb25maWcuanNvbqtWSs1LKcjPzCtRslLKKCkpKLbS108syNQrS8wrSdTLyU9OzFHSUSrIzAPKF2ckGpma6bu4OvtHKtVyAQBQSwECFAMUAAAACABSXk1d3fcbH6cAAAAJAQAAHAAAAAAAAAAAAAAAgAEAAAAAUGF5bG9hZC9WYW50YS5hcHAvSW5mby5wbGlzdFBLAQIUAxQAAAAIAFJeTV0e5X3bXwAAAFoAAAAXAAAAAAAAAAAAAACAAeEAAABQYXlsb2FkL1ZhbnRhLmFwcC9WYW50YVBLAQIUAxQAAAAIAFJeTV18xeP7XwAAAHQAAAAqAAAAAAAAAAAAAACAAXUBAABQYXlsb2FkL1ZhbnRhLmFwcC9lbWJlZGRlZC5tb2JpbGVwcm92aXNpb25QSwECFAMUAAAAAABSXk1dGSfXhzkAAAA5AAAAOAAAAAAAAAAAAAAAgAEcAgAAUGF5bG9hZC9WYW50YS5hcHAvRnJhbWV3b3Jrcy9WYW50YUtpdC5mcmFtZXdvcmsvVmFudGFLaXRQSwECFAMUAAAACABSXk1dEHiouD0AAAA8AAAAHQAAAAAAAAAAAAAAgAGrAgAAUGF5bG9hZC9WYW50YS5hcHAvY29uZmlnLmpzb25QSwUGAAAAAAUABQCYAQAAIwMAAAAA"
+    }
+  ],
+  "tools": {
+    "unzip": {
+      "help": "unzip [-l | -p <файл>] <архив> — список/извлечение (эмуляция, вывод захвачен с реального unzip)",
+      "cases": [
+        {
+          "match": "-l\\s+app\\.ipa",
+          "example": "-l app.ipa",
+          "output": "Archive:  app.ipa\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n      265  2026-10-13 11:50   Payload/Vanta.app/Info.plist\n       90  2026-10-13 11:50   Payload/Vanta.app/Vanta\n      116  2026-10-13 11:50   Payload/Vanta.app/embedded.mobileprovision\n       57  2026-10-13 11:50   Payload/Vanta.app/Frameworks/VantaKit.framework/VantaKit\n       60  2026-10-13 11:50   Payload/Vanta.app/config.json\n---------                     -------\n      588                     5 files\n"
+        },
+        {
+          "match": "-p\\s+app\\.ipa\\s+Payload/Vanta\\.app/config\\.json",
+          "example": "-p app.ipa Payload/Vanta.app/config.json",
+          "output": "{\"endpoint\":\"https://api.vanta.local\",\"pin\":\"sha256/DECOY\"}\n"
+        }
+      ]
+    }
+  }
+}

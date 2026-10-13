@@ -1,0 +1,35 @@
+{
+  "id": "misc-pdf-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pdf_str34ms_h1d3_4ll}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор PDF\n\n`report.pdf` — «отчёт», пришедший по почте. Внутри спрятан флаг\n(и один decoy в base64). Найди настоящий флаг и запиши в `found.txt`.\n\nПолезно: `strings report.pdf`, `grep`, `xxd`, `base64 -d`, `exiftool`.\n"
+    },
+    {
+      "path": "/home/student/task/report.pdf",
+      "b64": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvQ29udGVudHMgNCAwIFIgPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA4NyA+PgpzdHJlYW0KQlQgL0YxIDEyIFRmIDcyIDcyMCBUZCAoUXVhcnRlcmx5IHJlcG9ydCAtIGludGVybmFsKSBUaiBFVAolIG50b3twZGZfc3RyMzRtc19oMWQzXzRsbH0KZW5kc3RyZWFtCmVuZG9iago1IDAgb2JqCjw8IC9Ob3RlIChtZXRhKSAvQmxvYiAoYm5SdmUzQmtabDl6ZEhJek5HMXpYMmd4WkROZk5HeHNmUT09KSA+PgplbmRvYmoKeHJlZgowIDYKMDAwMDAwMDAwMCA2NTUzNSBmIAp0cmFpbGVyCjw8IC9TaXplIDYgL1Jvb3QgMSAwIFIgPj4Kc3RhcnR4cmVmCjAKJSVFT0YK"
+    }
+  ],
+  "tools": {
+    "exiftool": {
+      "help": "exiftool <файл> — метаданные файла (эмуляция, вывод захвачен с реального exiftool)",
+      "cases": [
+        {
+          "match": "report\\.pdf",
+          "example": "exiftool report.pdf",
+          "output": "ExifTool Version Number         : 13.55\nFile Name                       : report.pdf\nDirectory                       : misc-pdf-misc\nFile Size                       : 498 bytes\nFile Modification Date/Time     : 2026:10:13 11:50:37+03:00\nFile Access Date/Time           : 2026:10:13 11:50:37+03:00\nFile Inode Change Date/Time     : 2026:10:13 11:50:37+03:00\nFile Permissions                : -rw-r--r--\nFile Type                       : PDF\nFile Type Extension             : pdf\nMIME Type                       : application/pdf\nPDF Version                     : 1.4\nLinearized                      : No\nWarning                         : Invalid xref table\n"
+        }
+      ]
+    }
+  }
+}

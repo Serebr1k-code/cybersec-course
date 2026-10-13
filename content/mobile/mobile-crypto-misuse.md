@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 35
 summary: "Типовые ошибки криптографии в клиентах: hardcoded-ключи, ECB, фиксированный IV, слабое хэширование, самодельные схемы — и как их находить и эксплуатировать."
+lab:
+  kind: shell
+  title: "Практика: расшифровать данные на слабом ключе"
+  toolset: [core, openssl]
+  workdir: /home/student/task
+  files: [task.md, cipher.bin, crypto.properties]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Ключ и IV лежат рядом: `cat crypto.properties`."
+    - "Это AES-256-CBC. Расшифруй файл: `openssl enc -d -aes-256-cbc -K <key> -iv <iv> -in cipher.bin`."
+    - "Запиши расшифрованный флаг: добавь `> found.txt` к команде."
 ---
 
 ## Вопрос, с которого всё начинается

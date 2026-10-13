@@ -1,0 +1,49 @@
+{
+  "id": "misc-osint-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{os1nt_f1nd5_4ll}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: пассивная разведка по DNS\n\nУ тебя есть дамп зоны `zone.txt` и вывод `dig` по домену. Найди флаг,\nспрятанный в TXT-записи, и запиши его в `found.txt`.\n\nЗаодно отметь подозрительную запись (dangling CNAME) — это классический\nвектор subdomain takeover.\n"
+    },
+    {
+      "path": "/home/student/task/zone.txt",
+      "text": "$ORIGIN vanta-lab.local.\n@               IN SOA  ns1.vanta-lab.local. hostmaster.vanta-lab.local. ( 2026031101 3600 900 604800 300 )\n@               IN NS   ns1.vanta-lab.local.\n@               IN NS   ns2.vanta-lab.local.\n@               IN A    10.10.10.5\nwww             IN A    10.10.10.5\nmail            IN A    10.10.10.9\n@               IN MX   10 mail.vanta-lab.local.\n@               IN TXT  \"v=spf1 include:_spf.vanta-lab.local -all\"\n_dmarc          IN TXT  \"v=DMARC1; p=none; rua=mailto:dmarc@vanta-lab.local\"\n_globalsign-verify IN TXT \"globalsign-domain-verification=rdgY12OTnyalCZA7drWG\"\nflag            IN TXT  \"nto{os1nt_f1nd5_4ll}\"\nlegacy          IN CNAME old-marketing.herokuapp.com.\ndocs            IN CNAME vanta-lab-docs.netlify.app.\ninternal        IN A    10.10.10.20\ninternal        IN TXT  \"stage=prod; note=do not expose\"\n"
+    },
+    {
+      "path": "/home/student/task/dig-a.txt",
+      "text": "digital.mephi.ru.\t1301\tIN\tA\t85.143.113.117\n"
+    }
+  ],
+  "tools": {
+    "dig": {
+      "help": "dig [+noall +answer] <имя> [A|TXT|NS] — DNS-запрос (эмуляция, вывод захвачен с реального dig)",
+      "cases": [
+        {
+          "match": "TXT",
+          "example": "+noall +answer vanta-lab.local TXT",
+          "output": "digital.mephi.ru.\t4380\tIN\tTXT\t\"_globalsign-domain-verification=rdgY12OTnyalCZA7drWG-n_6ux6IdjHe21KGMiR1GA\"\n"
+        },
+        {
+          "match": "\\bA\\b",
+          "example": "+noall +answer vanta-lab.local A",
+          "output": "digital.mephi.ru.\t1301\tIN\tA\t85.143.113.117\n"
+        },
+        {
+          "match": "\\S+",
+          "example": "+noall +answer vanta-lab.local A",
+          "output": "digital.mephi.ru.\t1301\tIN\tA\t85.143.113.117\n"
+        }
+      ]
+    }
+  }
+}

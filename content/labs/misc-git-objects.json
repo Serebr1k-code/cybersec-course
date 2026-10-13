@@ -1,0 +1,67 @@
+{
+  "id": "misc-git-objects",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d4ngl1ng_g1t_bl0b}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти висячий (dangling) blob в репозитории\n\nЭто рабочий каталог сервиса billing. В `.git` остался объект, который ни один\nкоммит не ссылается, — «висячий» blob. Его содержимое и есть флаг.\n\n`git` в этой лабе умеет: `fsck`, `cat-file -t <sha>`, `cat-file -p <sha>`,\n`log --oneline`, `ls-tree HEAD`.\n"
+    },
+    {
+      "path": "/home/student/task/config.txt",
+      "text": "service=billing\nenv=prod\n"
+    },
+    {
+      "path": "/home/student/task/.git/HEAD",
+      "text": "ref: refs/heads/main\n"
+    },
+    {
+      "path": "/home/student/task/.git/config",
+      "text": "[core]\n\trepositoryformatversion = 0\n\tbare = false\n[remote \"origin\"]\n\turl = git@vanta.local:billing.git\n"
+    },
+    {
+      "path": "/home/student/task/.git/refs/heads/main",
+      "text": "d477ed7b2f4e0a9c1d3a5b6c7e8f90a1b2c3d4e5\n"
+    }
+  ],
+  "tools": {
+    "git": {
+      "help": "git fsck | git cat-file -t|-p <sha> | git log --oneline | git ls-tree HEAD — эмуляция (вывод захвачен с реального git)",
+      "cases": [
+        {
+          "match": "^fsck",
+          "example": "fsck",
+          "output": "dangling blob 5b9d71d6140d06cef4e65b5eaba9165f263cb21e\n"
+        },
+        {
+          "match": "cat-file\\s+-t\\s+5b9d71d6140d06cef4e65b5eaba9165f263cb21e",
+          "example": "cat-file -t 5b9d71d6140d06cef4e65b5eaba9165f263cb21e",
+          "output": "blob\n"
+        },
+        {
+          "match": "cat-file\\s+-p\\s+5b9d71d6140d06cef4e65b5eaba9165f263cb21e",
+          "example": "cat-file -p 5b9d71d6140d06cef4e65b5eaba9165f263cb21e",
+          "output": "nto{d4ngl1ng_g1t_bl0b}"
+        },
+        {
+          "match": "^log",
+          "example": "log --oneline",
+          "output": "d477ed7 init billing config\n"
+        },
+        {
+          "match": "ls-tree\\s+HEAD",
+          "example": "ls-tree HEAD",
+          "output": "100644 blob e65d92a34542544bb083b05edec886552bf5f76e\tconfig.txt\n"
+        }
+      ]
+    }
+  }
+}

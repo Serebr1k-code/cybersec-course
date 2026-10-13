@@ -1,0 +1,27 @@
+{
+  "id": "misc-encoding-chains",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ch41n5_0f_3nc0d1ng}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: распутай цепочку кодировок\n\nФайл `flag.enc` получили из переписки. По виду — base64, но одной\nраспаковки не хватит: данные кодировали несколько раз подряд.\n\nРаскрой все слои и найди флаг. Запиши флаг в `found.txt`.\n\nПайпы (`|`) позволяют сцепить декодеры в одну строку.\n"
+    },
+    {
+      "path": "/home/student/task/flag.enc",
+      "text": "V1ZjMWFHSkliSHBoV0UxbldUSTVkR05IZUd4a1IxVkxZMjFXZW1SWGVEQlBhVUoxWkVjNU4xa3laekJOVnpReFdIcENiVmg2VG5WWmVrSnJUVmMxYm1aUmNISmFWMVozU1Vka2RtRlhOVzVNUTBKMVlqTlNiMkZYTlc1SlIxWnpZekpWWjJGSFZubGFVVzg5\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметка аналитика\n-----------------\n- Файл выглядит как обычный текст из букв/цифр/«=» в конце — классическая база.\n- Похоже, кодировали не один раз: раскрывай послойно.\n- Не забывай про пайпы: результат одного декодера можно сразу скормить следующему.\n"
+    }
+  ]
+}

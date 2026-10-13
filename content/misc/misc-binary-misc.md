@@ -13,6 +13,17 @@ useful_for:
   - "Работа: обработка бинарных данных"
 estimated_minutes: 25
 summary: "Байтовые и битовые задачи: XOR, побитовые операции, определение формата по magic-байтам, порядок байтов, битовые плоскости и практические приёмы разбора."
+lab:
+  kind: shell
+  title: "Практика: строки внутри бинарного дампа"
+  toolset: [core, hex, base64]
+  workdir: /home/student/task
+  files: [task.md, chunk.bin, README.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Не пытайся читать бинарь целиком — извлеки печатаемые строки: `strings chunk.bin`."
+    - "Среди строк есть `config=<base64>`. Отдели значение: `grep config chunk.bin | cut -d= -f2`."
+    - "Декодируй значение: `... | base64 -d`. Запиши флаг в `found.txt`."
 ---
 ## Вопрос, с которого всё начинается
 

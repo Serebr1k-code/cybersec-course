@@ -13,6 +13,17 @@ useful_for:
   - "Автоматизация декодирования"
 estimated_minutes: 26
 summary: "Распознавание кодировок по алфавиту, многослойные цепочки, CyberChef magic, автоматический декодер на Python и типичные ловушки."
+lab:
+  kind: shell
+  title: "Практика: распутай цепочку кодировок"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, flag.enc, notes.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Файл `flag.enc` — это base64. Попробуй `base64 -d flag.enc`."
+    - "Одного слоя мало: декодируй результат ещё раз — используй пайп `|`."
+    - "Цепочка из трёх слоёв base64: `base64 -d flag.enc | base64 -d | base64 -d`."
 ---
 ## Вопрос, с которого всё начинается
 

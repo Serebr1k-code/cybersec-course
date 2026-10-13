@@ -1,0 +1,23 @@
+{
+  "id": "mobile-exported-components",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "SettingsActivity"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: экспортированные компоненты\n\nВ манифесте найди все компоненты с `android:exported=\"true\"` и определи,\nкакой из них открывает внешний deep-link со схемой `vanta`.\n\nЗапиши полное имя этого Activity в `answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/AndroidManifest.xml",
+      "text": "<?xml version=\"1.0\"?>\n<manifest package=\"com.vanta.lab\">\n  <application>\n    <activity android:name=\".ui.MainActivity\" android:exported=\"false\"/>\n    <activity android:name=\".ui.SettingsActivity\" android:exported=\"true\">\n      <intent-filter><action android:name=\"android.intent.action.VIEW\"/>\n        <category android:name=\"android.intent.category.BROWSABLE\"/>\n        <data android:scheme=\"vanta\" android:host=\"open\"/>\n      </intent-filter>\n    </activity>\n    <receiver android:name=\".push.PushReceiver\" android:exported=\"true\"/>\n    <provider android:name=\".data.UserProvider\" android:exported=\"true\"\n              android:authorities=\"com.vanta.lab.users\"/>\n  </application>\n</manifest>\n"
+    }
+  ]
+}

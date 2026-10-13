@@ -13,6 +13,17 @@ useful_for:
   - "Символическое исполнение"
 estimated_minutes: 50
 summary: "Реверс в misc: крекми и check-функции, форматы файлов, дизассемблеры и отладчики, символическое исполнение (angr), инструменты и разборы."
+lab:
+  kind: shell
+  title: "Практика: вскрыть простой крекми"
+  toolset: [core, hex, crackme]
+  workdir: /home/student/task
+  files: [task.md, crackme]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи тип файла: `file crackme`."
+    - "Пароль часто лежит в бинарнике строкой: `strings crackme`."
+    - "Запусти крекми с найденным паролем и запиши флаг: `crackme s3cr3t_p4ss > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

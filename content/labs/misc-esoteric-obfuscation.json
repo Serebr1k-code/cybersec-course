@@ -1,0 +1,24 @@
+{
+  "id": "misc-esoteric-obfuscation",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b4s364_1n_3v4l_ch41n5}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: распутать цепочку base64\n\n`payload.b64` — обфусцированный код вида `eval(base64_decode('...'))`. Внутри\nнесколько слоёв base64: чтобы добраться до флага, раскодируй их последовательно.\n\nПолезно: `cat payload.b64`, вырезать значение из кавычек (`cut -d\"'\" -f2`),\nзатем несколько раз `base64 -d`. Флаг запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/payload.b64",
+      "text": "eval(base64_decode('WW01U2RtVXlTVEJqZWsweVRrWTRlR0pzT0hwa2FsSnpXREpPYjA1RVJuVk9XREE5'))\n"
+    }
+  ],
+  "tools": {}
+}

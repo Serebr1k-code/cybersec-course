@@ -1,0 +1,35 @@
+{
+  "id": "misc-jwt-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{jwt_p4yl04d_1s_n0t_s3cr3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: прочитать полезную нагрузку JWT\n\n`token.txt` — выданный приложением JWT. Подпись проверять не нужно: интересна\nименно нагрузка (payload) — она лишь закодирована, а не зашифрована. Найди в ней\nфлаг и запиши в `found.txt`.\n\nИнструмент `jwt <токен>` декодирует header и payload (вывод реального декодера).\nПолезно: `cat token.txt`, затем `jwt token.txt` (или вставь сам токен).\n"
+    },
+    {
+      "path": "/home/student/task/token.txt",
+      "text": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoiZ3Vlc3QiLCJyb2xlIjoidXNlciIsIm5vdGUiOiJudG97and0X3A0eWwwNGRfMXNfbjB0X3MzY3IzdH0ifQ.lFxnaq5ZwjnAKo6bJoxAoory_rtRKh3Z01iRkdqTx-w\n"
+    }
+  ],
+  "tools": {
+    "jwt": {
+      "help": "jwt <токен|файл> — декодировать JWT (header + payload)",
+      "cases": [
+        {
+          "match": ".*",
+          "example": "token.txt",
+          "output": "{\n  \"header\": {\n    \"alg\": \"HS256\",\n    \"typ\": \"JWT\"\n  },\n  \"payload\": {\n    \"user\": \"guest\",\n    \"role\": \"user\",\n    \"note\": \"nto{jwt_p4yl04d_1s_n0t_s3cr3t}\"\n  }\n}\n"
+        }
+      ]
+    }
+  }
+}

@@ -13,6 +13,17 @@ useful_for:
   - "Анализ трафика"
 estimated_minutes: 28
 summary: "Ручной разбор бинарных протоколов, nc/socat, Scapy, реверс неизвестного формата по дампу и написание собственного клиента."
+lab:
+  kind: shell
+  title: "Практика: разобрать бинарный протокол по дампу"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, capture.bin]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри дамп как hex: `xxd capture.bin`."
+    - "Заметь: перед каждым текстовым сообщением один байт длины."
+    - "Вытащи читаемые строки и запиши флаг: `strings capture.bin | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

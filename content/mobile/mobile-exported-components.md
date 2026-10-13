@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 14
 summary: "Как компоненты Android становятся доступны другим приложениям через android:exported, чем это опасно (неавторизованный доступ, обход экранов, утечки через ContentProvider) и как их перечислять и вызывать через adb."
+lab:
+  kind: shell
+  title: "Практика: экспортированные компоненты"
+  toolset: [core, xml]
+  workdir: /home/student/task
+  files: [task.md, AndroidManifest.xml]
+  check: "grep -q 'SettingsActivity' answer.txt"
+  hints:
+    - "Найди всё с `android:exported=\"true\"`: `grep -n exported AndroidManifest.xml`."
+    - "Из них нужно то, что открывает внешний deep-link со схемой `vanta`."
+    - "Смотри `intent-filter` с `android:scheme=\"vanta\"`. Запиши полное имя Activity в `answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

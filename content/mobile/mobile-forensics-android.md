@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 50
 summary: "Практическое извлечение данных Android: логический и root-дамп, сбор артефактов, анализ через ALEAPP и SQLite, поиск токенов и учётных данных."
+lab:
+  kind: shell
+  title: "Практика: утечка в logcat"
+  toolset: [core, log]
+  workdir: /home/student/task
+  files: [task.md, logcat.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Приложение логировало слишком много. Поищи токены: `grep -i token logcat.txt`."
+    - "Есть decoy `Authorization: Bearer …` и настоящий `session token`."
+    - "Флаг в строке `[debug] session token = …`. Запиши его в `found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

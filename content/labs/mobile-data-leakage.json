@@ -1,0 +1,43 @@
+{
+  "id": "mobile-data-leakage",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c4ch3_4nd_l0g5}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: утечки на устройстве\n\nДамп каталога приложения: логи, кэш и tmp. Приложение кэшировало профиль\nвместе с токеном. Найди токен (флаг) и запиши в `found.txt`.\n\nПолезно: `grep -r token .`, `find . -name '*.json'`.\n"
+    },
+    {
+      "path": "/home/student/task/cache",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/cache/profile.json",
+      "text": "{\"user\":\"mira\",\"email\":\"mira@vanta.local\",\"token\":\"nto{c4ch3_4nd_l0g5}\",\"pin\":\"1234\"}\n"
+    },
+    {
+      "path": "/home/student/task/logs",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/logs/app.log",
+      "text": "03-11 04:01:02 I VantaLab: app start v2.1.0\n03-11 04:01:03 D VantaLab: loading cached profile\n03-11 04:01:04 D VantaLab: cache hit: /data/data/com.vanta.lab/cache/profile.json\n03-11 04:01:05 I VantaLab: analytics id = UA-000000-2\n03-11 04:02:00 I VantaLab: synced with server\n"
+    },
+    {
+      "path": "/home/student/task/tmp",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/tmp/notes.txt",
+      "text": "screenshot saved: /sdcard/DCIM/Screenshots/secret.png\n"
+    }
+  ]
+}

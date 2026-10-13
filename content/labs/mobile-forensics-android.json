@@ -1,0 +1,23 @@
+{
+  "id": "mobile-forensics-android",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l0gcat_l34k5_t0k3n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: что утекло в logcat\n\nПриложение писало в `logcat.txt` слишком много. Найди строку, в которой\nутёк чувствительный токен, и запиши его (флаг) в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/logcat.txt",
+      "text": "03-11 04:01:02.101  1201  1201 I ActivityManager: Start proc com.vanta.lab\n03-11 04:01:02.220  1450  1450 D ApiClient: base=https://api.vanta.local/v1/\n03-11 04:01:02.221  1450  1450 D ApiClient: Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.decoy\n03-11 04:01:02.334  1450  1450 W VantaLab: [debug] session token = nto{l0gcat_l34k5_t0k3n}\n03-11 04:01:03.010  1450  1450 I VantaLab: user logged in\n03-11 04:02:11.500  1450  1450 I VantaLab: screen: settings\n"
+    }
+  ]
+}

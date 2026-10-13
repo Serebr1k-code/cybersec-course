@@ -12,6 +12,17 @@ useful_for:
   - "Bug bounty: утечка PII/токенов на устройстве"
 estimated_minutes: 42
 summary: "Где мобильное приложение светит чувствительные данные: logcat и консоль, буфер обмена, клавиатурный кэш, превью, дампы памяти, бэкапы и кэш — как искать и как доказывать утечку."
+lab:
+  kind: shell
+  title: "Практика: утечки в кэше и логах"
+  toolset: [core, grep, find]
+  workdir: /home/student/task
+  files: [task.md, cache, logs, tmp]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Найди все JSON: `find . -name '*.json'`."
+    - "Кэш часто хранит ответы API целиком: `cat cache/profile.json`."
+    - "Токен — поле `token`. Запиши его в `found.txt` (`grep -r token .`)."
 ---
 
 ## Вопрос, с которого всё начинается

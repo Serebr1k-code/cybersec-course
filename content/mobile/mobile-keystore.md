@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 35
 summary: "Как Android Keystore хранит ключи, чем hardware-backed (TEE/StrongBox) отличается от software, как их инспектировать и какие ошибки конфигурации делают ключи извлекаемыми."
+lab:
+  kind: shell
+  title: "Практика: инспекция Android keystore"
+  toolset: [core, keytool]
+  workdir: /home/student/task
+  files: [task.md, app.keystore, keystore.properties]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Пароль к хранилищу лежит рядом: `cat keystore.properties`."
+    - "Список записей: `keytool -list -keystore app.keystore -storepass changeit`."
+    - "Подробности (владелец сертификата) покажет `-v`: `keytool -list -v -keystore app.keystore -storepass changeit | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

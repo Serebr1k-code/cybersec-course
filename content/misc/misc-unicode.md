@@ -13,6 +13,17 @@ useful_for:
   - "Пентест: обход WAF и фильтров нормализацией"
 estimated_minutes: 35
 summary: "Unicode-трюки для обхода фильтров и головоломок: нормализация NFC/NFD/NFKC, гомоглифы и confusables, невидимые символы, двунаправленный текст и overlong-кодировки."
+lab:
+  kind: shell
+  title: "Практика: найти гомоглиф в списке учётных записей"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, roster.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Открой список: `cat roster.txt`."
+    - "Строки выглядят похоже, но одна набрана кириллицей — присмотрись к имени `admin`."
+    - "Флаг лежит в комментарии этой строки: `grep nto roster.txt > found.txt`."
 ---
 ## Вопрос, с которого всё начинается
 

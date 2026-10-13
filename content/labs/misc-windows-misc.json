@@ -1,0 +1,27 @@
+{
+  "id": "misc-windows-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r3g1stry_p3rs1st3nc3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: артефакты Windows\n\nЕсть экспорт реестра и журнал событий с рабочей станции. Найди подозрительный\nсервис с подозрительным путём запуска и забери оттуда флаг.\n\nПолезно: `grep -i imagepath registry_export.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/registry_export.txt",
+      "text": "Windows Registry Editor Version 5.00\n\n[HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\WinUpdateSvc]\n\"Type\"=dword:00000010\n\"Start\"=dword:00000002\n\"ObjectName\"=\"LocalSystem\"\n\"ImagePath\"=\"C:\\\\Windows\\\\Temp\\\\svc32.exe --token nto{r3g1stry_p3rs1st3nc3} --silent\"\n\"DisplayName\"=\"Windows Update Helper\"\n\n[HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run]\n\"OneDrive\"=\"C:\\\\Users\\\\mira\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\OneDrive.exe /background\"\n"
+    },
+    {
+      "path": "/home/student/task/evtx_rendered.txt",
+      "text": "2026-03-11 04:01:02 EventID=4624 LogonType=3 Account=mira Source=10.10.10.20\n2026-03-11 04:01:05 EventID=4688 NewProcess=svc32.exe Parent=services.exe\n2026-03-11 04:01:06 EventID=7045 ServiceInstall WinUpdateSvc\n2026-03-11 04:02:10 EventID=4625 FailedLogon Account=administrator Source=203.0.113.66\n"
+    }
+  ]
+}

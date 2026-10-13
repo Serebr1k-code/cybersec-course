@@ -13,6 +13,17 @@ useful_for:
   - "Восстановление данных"
 estimated_minutes: 26
 summary: "Генерация и чтение QR, повреждённые и стилизованные коды, коррекция ошибок Reed-Solomon, штрихкоды EAN/Code128, Aztec и DataMatrix."
+lab:
+  kind: shell
+  title: "Практика: прочитать QR-код"
+  toolset: [core, zbarimg]
+  workdir: /home/student/task
+  files: [task.md, qr.png]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Подтверди, что это изображение: `file qr.png`."
+    - "Распознай код: `zbarimg qr.png`."
+    - "Запиши результат: `zbarimg qr.png | grep nto > found.txt`."
 ---
 ## Вопрос, с которого всё начинается
 

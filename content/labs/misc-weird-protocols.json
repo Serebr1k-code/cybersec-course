@@ -1,0 +1,25 @@
+{
+  "id": "misc-weird-protocols",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l3ngth_pr3f1x_pr0t0}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разобрать бинарный протокол\n\n`capture.bin` — дамп обмена с неизвестным сервисом. Каждое сообщение начинается\nоднобайтовой длиной, за которой идёт ASCII-текст. Одно из сообщений содержит флаг.\n\nПосмотри дамп как hex (`xxd capture.bin`), пойми формат, вытащи текст\n(`strings capture.bin`) и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/capture.bin",
+      "b64": "BUhFTExPCVNUQVRVUz1PSxhudG97bDNuZ3RoX3ByM2YxeF9wcjB0MH0DQllF",
+      "mode": "644"
+    }
+  ],
+  "tools": {}
+}

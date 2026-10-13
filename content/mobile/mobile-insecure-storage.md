@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 14
 summary: "Где Android-приложение хранит данные (SharedPreferences, SQLite, files, кэш, логи, внешняя память) и как найти там пароли, токены и флаги. Плюс как правильно — через Keystore и EncryptedSharedPreferences."
+lab:
+  kind: shell
+  title: "Практика: небезопасное хранение"
+  toolset: [core, grep, sqlite3]
+  workdir: /home/student/task
+  files: [task.md, shared_prefs, databases]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Настройки Android лежат в `shared_prefs/*.xml` — это обычный текст: `grep -r token shared_prefs/`."
+    - "Ещё есть база: `strings databases/app.db`."
+    - "В этой лабе есть `sqlite3`: `sqlite3 databases/app.db \"SELECT * FROM sessions;\"`."
 ---
 
 ## Вопрос, с которого всё начинается

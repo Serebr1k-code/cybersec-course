@@ -13,6 +13,17 @@ useful_for:
   - "Восстанавливать утерянные данные из Git"
 estimated_minutes: 12
 summary: "Git хранит гораздо больше, чем видно в рабочем дереве: удалённые коммиты, ветки, blob'ы и следы в reflog остаются в объектах. Разбираем, как вытащить секреты и флаги из .git, восстановить удалённое и провести аудит истории."
+lab:
+  kind: shell
+  title: "Практика: секрет в истории git"
+  toolset: [core, git]
+  workdir: /home/student/task
+  files: [task.md, config.txt, README.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Секрет удалили из рабочего дерева, но он остался в истории: `git log --oneline --all`."
+    - "Посмотри патчи коммитов: `git log --all -p`."
+    - "Найди строку с флагом: `git log --all -p | grep nto{`."
 ---
 
 ## Вопрос, с которого всё начинается

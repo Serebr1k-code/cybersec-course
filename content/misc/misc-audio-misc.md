@@ -13,6 +13,17 @@ useful_for:
   - "Работа: обработка сигналов и распознавание"
 estimated_minutes: 12
 summary: "Разбор audio-задач: построение спектрограмм, распознавание DTMF, SSTV и Morse, скрытые данные в WAV, работа с sox/ffmpeg и метаданными аудио."
+lab:
+  kind: shell
+  title: "Практика: секрет в метаданных WAV"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, audio.wav]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи формат: `file audio.wav`."
+    - "Ищи читаемый текст в контейнере: `strings audio.wav`."
+    - "Отфильтруй флаг и запиши: `strings audio.wav | grep nto > found.txt`."
 ---
 ## Вопрос, с которого всё начинается
 

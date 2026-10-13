@@ -1,0 +1,39 @@
+{
+  "id": "mobile-firebase",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0p3n_f1r3b4s3_db}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: мисконфиг Firebase\n\n`google-services.json` из приложения. Проверь, доступна ли Realtime\nDatabase без аутентификации (частая ошибка — правила `.read: true`).\n\n`curl` эмулируется. Найди URL базы и запроси данные, затем запиши флаг\nв `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/google-services.json",
+      "text": "{\n  \"project_info\": {\n    \"project_number\": \"1234567890\",\n    \"firebase_url\": \"https://vanta-lab-default-rtdb.firebaseio.com\",\n    \"project_id\": \"vanta-lab\",\n    \"storage_bucket\": \"vanta-lab.appspot.com\"\n  },\n  \"client\": [\n    {\n      \"client_info\": {\n        \"mobilesdk_app_id\": \"1:1234567890:android:0a1b2c3d4e5f\",\n        \"android_client_info\": { \"package_name\": \"com.vanta.lab\" }\n      },\n      \"api_key\": [ { \"current_key\": \"AIzaSyDECOY0000000000000000000000000000\" } ]\n    }\n  ]\n}\n"
+    }
+  ],
+  "vars": {
+    "base": "https://vanta-lab-default-rtdb.firebaseio.com"
+  },
+  "tools": {
+    "curl": {
+      "help": "curl <url> — HTTP GET (эмуляция, вывод захвачен с реального curl)",
+      "cases": [
+        {
+          "match": "users\\.json",
+          "example": "https://vanta-lab-default-rtdb.firebaseio.com/users.json",
+          "output": "{\"1\":{\"name\":\"mira\",\"role\":\"user\",\"flag\":\"nto{0p3n_f1r3b4s3_db}\"},\"2\":{\"name\":\"admin\",\"role\":\"admin\"}}"
+        }
+      ],
+      "fallback": "{\"error\":\"Permission denied\"}\n"
+    }
+  }
+}

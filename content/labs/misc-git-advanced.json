@@ -1,0 +1,58 @@
+{
+  "id": "misc-git-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r3fl0g_n3v3r_f0rg3ts}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: восстановить удалённый коммит через reflog\n\nСекретный коммит убрали из истории (`reset --hard`), но он ещё жив в `reflog`.\nНайди его и прочитай содержимое. Флаг запиши в `found.txt`.\n\nИнструмент `git` эмулируется. Полезно: `git reflog`, `git show <sha>`,\n`git show <sha>:app.conf`.\n"
+    },
+    {
+      "path": "/home/student/task/app.conf",
+      "text": "version=1\n"
+    },
+    {
+      "path": "/home/student/task/.git/HEAD",
+      "text": "ref: refs/heads/main\n"
+    },
+    {
+      "path": "/home/student/task/.git/config",
+      "text": "[core]\n\trepositoryformatversion = 0\n\tbare = false\n"
+    }
+  ],
+  "tools": {
+    "git": {
+      "help": "git reflog | git show <sha> | git log --oneline — эмуляция (вывод реального git)",
+      "cases": [
+        {
+          "match": "^reflog",
+          "example": "reflog",
+          "output": "93d886a HEAD@{0}: reset: moving to HEAD~1\n2b28672 HEAD@{1}: commit: v2 adds token\n93d886a HEAD@{2}: commit (initial): v1\n"
+        },
+        {
+          "match": "show\\s+2b28672:app\\.conf",
+          "example": "show 2b28672:app.conf",
+          "output": "version=2\nnto{r3fl0g_n3v3r_f0rg3ts}\n"
+        },
+        {
+          "match": "show\\s+2b28672",
+          "example": "show 2b28672",
+          "output": "commit 2b286721d3a7b90fbbf0a735b89458ed6051c628\nAuthor: x <a@b.c>\nDate:   Tue Oct 13 12:25:25 2026 +0300\n\n    v2 adds token\n\ndiff --git a/app.conf b/app.conf\nindex 03770cf..8753f67 100644\n--- a/app.conf\n+++ b/app.conf\n@@ -1 +1,2 @@\n-version=1\n+version=2\n+nto{r3fl0g_n3v3r_f0rg3ts}\n"
+        },
+        {
+          "match": "^log",
+          "example": "log --oneline",
+          "output": "93d886a v1\n"
+        }
+      ]
+    }
+  }
+}

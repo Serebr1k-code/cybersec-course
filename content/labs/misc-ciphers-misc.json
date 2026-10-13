@@ -1,0 +1,35 @@
+{
+  "id": "misc-ciphers-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c43s4r_5h1ft5_4r3_fun}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: вскрыть шифр Цезаря\n\nВ `ciphertext.txt` лежит строка, зашифрованная шифром Цезаря (каждая буква\nсдвинута на одно и то же число позиций). Ключ неизвестен — его надо перебрать.\n\nИнструмент `caesar` печатает все 26 сдвигов текста из `ciphertext.txt`\n(это скрипт из урока: `for s in range(26): print(s, caesar(text, s))`).\nСреди строк найди осмысленную — в ней флаг формата `nto{...}`.\nЗапиши флаг (только его) в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/ciphertext.txt",
+      "text": "ekf{t43j4i_5y1wk5_4i3_wle}\n"
+    }
+  ],
+  "tools": {
+    "caesar": {
+      "help": "caesar — напечатать все 26 сдвигов Цезаря для ciphertext.txt (эмуляция скрипта из урока)",
+      "cases": [
+        {
+          "match": ".*",
+          "example": "caesar",
+          "output": "0 ekf{t43j4i_5y1wk5_4i3_wle}\n1 flg{u43k4j_5z1xl5_4j3_xmf}\n2 gmh{v43l4k_5a1ym5_4k3_yng}\n3 hni{w43m4l_5b1zn5_4l3_zoh}\n4 ioj{x43n4m_5c1ao5_4m3_api}\n5 jpk{y43o4n_5d1bp5_4n3_bqj}\n6 kql{z43p4o_5e1cq5_4o3_crk}\n7 lrm{a43q4p_5f1dr5_4p3_dsl}\n8 msn{b43r4q_5g1es5_4q3_etm}\n9 nto{c43s4r_5h1ft5_4r3_fun}\n10 oup{d43t4s_5i1gu5_4s3_gvo}\n11 pvq{e43u4t_5j1hv5_4t3_hwp}\n12 qwr{f43v4u_5k1iw5_4u3_ixq}\n13 rxs{g43w4v_5l1jx5_4v3_jyr}\n14 syt{h43x4w_5m1ky5_4w3_kzs}\n15 tzu{i43y4x_5n1lz5_4x3_lat}\n16 uav{j43z4y_5o1ma5_4y3_mbu}\n17 vbw{k43a4z_5p1nb5_4z3_ncv}\n18 wcx{l43b4a_5q1oc5_4a3_odw}\n19 xdy{m43c4b_5r1pd5_4b3_pex}\n20 yez{n43d4c_5s1qe5_4c3_qfy}\n21 zfa{o43e4d_5t1rf5_4d3_rgz}\n22 agb{p43f4e_5u1sg5_4e3_sha}\n23 bhc{q43g4f_5v1th5_4f3_tib}\n24 cid{r43h4g_5w1ui5_4g3_ujc}\n25 dje{s43i4h_5x1vj5_4h3_vkd}\n"
+        }
+      ]
+    }
+  }
+}

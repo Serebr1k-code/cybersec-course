@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 14
 summary: "Как находить Firebase-конфиг в APK/IPA и проверять, открыты ли Firestore, Realtime Database и Storage без аутентификации; типовые мисконфиги правил безопасности."
+lab:
+  kind: shell
+  title: "Практика: открытая Firebase-БД"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, google-services.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Найди URL базы: `grep -i databaseURL google-services.json`."
+    - "Запроси корень базы через REST: `curl https://vanta-lab-default-rtdb.firebaseio.com/users.json`."
+    - "Если правила открыты, вернётся JSON с флагом. Запиши флаг в `found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

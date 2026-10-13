@@ -1,0 +1,24 @@
+{
+  "id": "misc-unicode",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h0m0gl1ph_1n_th3_u53rl1st}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти гомоглиф в списке пользователей\n\n`roster.txt` — выгрузка списка учётных записей. Одна строка — не то, чем\nкажется: имя набрано смешением латиницы и кириллицы (гомоглиф). Именно в\nней спрятан флаг.\n\nСравни строки: символы кириллицы выглядят как латинские, но имеют другие\nкоды. Найди подозрительную строку и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/roster.txt",
+      "text": "# roster: support team (exported from HR portal)\nuser: alice      role: support\nuser: bob        role: support\nuser: carol      role: admin\nuser: dave       role: support\nuser: аdmin      role: support   # nto{h0m0gl1ph_1n_th3_u53rl1st}\nuser: erin       role: support\nuser: frank      role: admin\n"
+    }
+  ],
+  "tools": {}
+}

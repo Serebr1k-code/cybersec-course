@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 40
 summary: "Как экспортированные Content Providers раскрывают данные: path traversal в openFile, SQL-инъекции в query, обход проверок и извлечение файлов и БД."
+lab:
+  kind: shell
+  title: "Практика: утечка через ContentProvider"
+  toolset: [core, sqlite3]
+  workdir: /home/student/task
+  files: [task.md, databases/app.db]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Экспортированный провайдер отдаёт SQLite-базу `databases/app.db`."
+    - "Посмотри список таблиц: `sqlite3 databases/app.db '.tables'`."
+    - "Прочитай таблицу с секретами и запиши флаг: `sqlite3 databases/app.db 'SELECT * FROM secrets;' | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

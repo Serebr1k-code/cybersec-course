@@ -13,6 +13,17 @@ useful_for:
   - "Аудит аутентификации"
 estimated_minutes: 28
 summary: "Структура JWT, alg=none, алгоритмная путаница HS/RS, слабые секреты, kid-инъекции и подделка токенов с практическими примерами."
+lab:
+  kind: shell
+  title: "Практика: прочитать payload JWT"
+  toolset: [core, jwt]
+  workdir: /home/student/task
+  files: [task.md, token.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри токен: `cat token.txt`."
+    - "JWT — это header.payload.signature, где первые две части лишь base64url-кодированы."
+    - "Декодируй его инструментом `jwt token.txt`, найди флаг в payload и запиши: `jwt token.txt | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

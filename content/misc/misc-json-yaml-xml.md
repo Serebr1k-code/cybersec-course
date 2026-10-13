@@ -13,6 +13,17 @@ useful_for:
   - "Аудит парсеров"
 estimated_minutes: 30
 summary: "Дубликаты ключей, YAML-теги и RCE, XXE и billion laughs, JSON-полиглоты и расхождения реализаций парсеров — практические трюки."
+lab:
+  kind: shell
+  title: "Практика: трюки парсеров"
+  toolset: [core, xml]
+  workdir: /home/student/task
+  files: [task.md, config.json, app.yaml, secret.xml, etc_secret]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "В `config.json` два одинаковых ключа `feature` — какой победит у большинства парсеров?"
+    - "В `app.yaml` есть якоря и merge-ключ `<<`. В `secret.xml` объявлена внешняя сущность."
+    - "Сущность `&f;` ссылается на `file:///etc/secret`. В этой лабе этот файл есть — прочитай его: `cat /etc/secret`."
 ---
 ## Вопрос, с которого всё начинается
 

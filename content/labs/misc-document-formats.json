@@ -1,0 +1,40 @@
+{
+  "id": "misc-document-formats",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{00xml_1s_4_zip}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: документ — это архив\n\n`report.docx` — обычный Word-документ. Формат OOXML — это zip с XML-частями.\nСреди служебных частей есть скрытые свойства документа.\n\nНайди флаг в свойствах и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/report.docx",
+      "b64": "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"
+    }
+  ],
+  "tools": {
+    "unzip": {
+      "help": "unzip [-l | -p <файл>] <архив> — список/извлечение (эмуляция, вывод захвачен с реального unzip)",
+      "cases": [
+        {
+          "match": "-l\\s+report\\.docx",
+          "example": "-l report.docx",
+          "output": "Archive:  report.docx\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n      297  2026-10-13 11:55   [Content_Types].xml\n      106  2026-10-13 11:55   _rels/.rels\n      202  2026-10-13 11:55   word/document.xml\n      306  2026-10-13 11:55   docProps/core.xml\n      345  2026-10-13 11:55   docProps/custom.xml\n       70  2026-10-13 11:55   word/media/image1.png\n---------                     -------\n     1326                     6 files\n"
+        },
+        {
+          "match": "-p\\s+report\\.docx\\s+docProps/custom\\.xml",
+          "example": "-p report.docx docProps/custom.xml",
+          "output": "<?xml version=\"1.0\"?><Properties xmlns=\"http://schemas.openxmlformats.org/officeDocument/2006/custom-properties\" xmlns:vt=\"http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes\"><property fmtid=\"{D5CDD505-2E9C-101B-9397-08002B2CF9AE}\" pid=\"2\" name=\"internal_flag\"><vt:lpwstr>nto{00xml_1s_4_zip}</vt:lpwstr></property></Properties>"
+        }
+      ]
+    }
+  }
+}

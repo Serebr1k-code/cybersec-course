@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 14
 summary: "Как анализировать серверный API мобильного приложения после снятия pinning: карта эндпоинтов, перехват и модификация запросов, IDOR/BOLA, атаки на JWT, mass assignment, бизнес-логика и клиентские проверки."
+lab:
+  kind: shell
+  title: "Практика: BOLA/IDOR в мобильном API"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, api.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Свой профиль: `curl -H 'Authorization: Bearer mira-token' https://api.vanta.local/v2/users/me`."
+    - "Попробуй чужой id — API не проверяет владельца объекта: `/v2/users/2`."
+    - "В ответе чужого профиля есть `api_token` (флаг). Запиши его в `found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

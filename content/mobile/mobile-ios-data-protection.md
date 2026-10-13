@@ -13,6 +13,17 @@ useful_for:
   - "Bug bounty iOS"
 estimated_minutes: 50
 summary: "Классы Data Protection (NSFileProtectionComplete и др.), как они защищают файлы, как проверить их на устройстве и какие слабые классы создают утечки."
+lab:
+  kind: shell
+  title: "Практика: секрет в дампе Keychain"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, keychain.plist]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Это plist. Посмотри его: `cat keychain.plist`."
+    - "Секрет в поле `<data>` и закодирован base64. Вырежи значение: `grep data keychain.plist | cut -d'>' -f2 | cut -d'<' -f1`."
+    - "Раскодируй и запиши: добавь `| base64 -d > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

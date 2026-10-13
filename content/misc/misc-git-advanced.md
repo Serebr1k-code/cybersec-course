@@ -13,6 +13,17 @@ useful_for:
   - "Пентест: восстановление удалённого кода"
 estimated_minutes: 12
 summary: "Глубокая git-форензика: reflog, dangling-объекты, packfiles, git fsck/cat-file, восстановление удалённых коммитов и разбор внутреннего устройства .git."
+lab:
+  kind: shell
+  title: "Практика: восстановить коммит через reflog"
+  toolset: [core, git]
+  workdir: /home/student/task
+  files: [task.md, app.conf]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри историю обычным способом: `git log --oneline` — там только v1."
+    - "Удалённые коммиты остаются в reflog: `git reflog`."
+    - "Прочитай содержимое нужного коммита: `git show <sha>:app.conf | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,17 @@ useful_for:
   - "Работа: AppSec"
 estimated_minutes: 14
 summary: "Систематический статический анализ Android-приложения: декомпиляция jadx, автоматизированный MobSF, охота за захардкоженными секретами, анализ манифеста и конфигураций безопасности."
+lab:
+  kind: shell
+  title: "Практика: охота за секретом в исходниках"
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, src]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Исходники уже декомпилированы в `src/`. Ищи по всему дереву: `grep -r API_KEY src/`."
+    - "Обрати внимание: в `strings.xml` есть decoy-ключ. Настоящий — в Java-коде."
+    - "Секрет в `ApiClient.java`. Запиши его значение в `found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

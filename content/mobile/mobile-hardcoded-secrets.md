@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 25
 summary: "Как быстро находить зашитые в APK ключи, токены, пароли и внутренние URL: strings, ресурсы, BuildConfig, секрет-сканеры."
+lab:
+  kind: shell
+  title: "Практика: секрет в ассетах APK"
+  toolset: [core, unzip, base64]
+  workdir: /home/student/task
+  files: [task.md, app.apk]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сначала список файлов: `unzip -l app.apk` — ищи необычное в `assets/`."
+    - "Напечатай файл: `unzip -p app.apk assets/config.dat`."
+    - "Значение в base64 — раскодируй: `unzip -p app.apk assets/config.dat | cut -d'|' -f2 | base64 -d`."
 ---
 
 ## Вопрос, с которого всё начинается

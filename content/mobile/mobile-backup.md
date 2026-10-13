@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 30
 summary: "Как извлекать данные приложения через adb backup и авто-бэкап, почему allowBackup=true опасен и как искать секреты в бэкапе."
+lab:
+  kind: shell
+  title: "Практика: разобрать backup приложения"
+  toolset: [core, tar]
+  workdir: /home/student/task
+  files: [task.md, backup.tar]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Это tar-архив. Посмотри состав: `tar -tvf backup.tar`."
+    - "Токен лежит в shared_prefs: `tar -xOf backup.tar apps/com.vanta.app/f/prefs.xml`."
+    - "Запиши флаг: добавь `| grep nto > found.txt` к команде извлечения."
 ---
 
 ## Вопрос, с которого всё начинается

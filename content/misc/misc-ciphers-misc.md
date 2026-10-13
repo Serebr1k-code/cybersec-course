@@ -13,6 +13,17 @@ useful_for:
   - "Криптоанализ без ключа"
 estimated_minutes: 45
 summary: "Классические шифры: Цезарь/ROT, Виженер, моноалфавитные подстановки, аффинный шифр, частотный анализ и разборы с инструментами (CyberChef, quipqiup)."
+lab:
+  kind: shell
+  title: "Практика: вскрыть шифр Цезаря перебором"
+  toolset: [core, caesar]
+  workdir: /home/student/task
+  files: [task.md, ciphertext.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Открой шифртекст: `cat ciphertext.txt`."
+    - "Ключей у Цезаря всего 26. Инструмент `caesar` печатает все сдвиги сразу."
+    - "Найди читаемую строку и перенеси флаг: `caesar > shifts.txt`, затем `grep 'nto{' shifts.txt | cut -d' ' -f2 > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

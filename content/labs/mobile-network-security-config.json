@@ -1,0 +1,23 @@
+{
+  "id": "mobile-network-security-config",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cl34rt3xt_1s_b4d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор Network Security Config\n\nПеред тобой `network_security_config.xml` из приложения. Найди домен, для\nкоторого разрешён **cleartext** (plain HTTP), и забери флаг, оставленный в\nкомментарии. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/network_security_config.xml",
+      "text": "<?xml version=\"1.0\"?>\n<network-security-config>\n  <base-config cleartextTrafficPermitted=\"false\">\n    <trust-anchors><certificates src=\"system\"/></trust-anchors>\n  </base-config>\n  <domain-config cleartextTrafficPermitted=\"true\">\n    <domain includeSubdomains=\"true\">api.vanta-lab.local</domain>\n    <domain includeSubdomains=\"false\">metrics.vanta-lab.local</domain>\n  </domain-config>\n  <!-- TODO(sec): убрать перед релизом: nto{cl34rt3xt_1s_b4d} -->\n  <debug-overrides><trust-anchors><certificates src=\"user\"/></trust-anchors></debug-overrides>\n</network-security-config>\n"
+    }
+  ]
+}

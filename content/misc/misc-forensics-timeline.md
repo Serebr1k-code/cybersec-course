@@ -13,6 +13,17 @@ useful_for:
   - "Анализ временных аномалий"
 estimated_minutes: 45
 summary: "Таймлайны: MAC-времена (MACB), источники временных меток, построение хронологии (plaso/log2timeline), фильтрация, timestomping и разборы с командами."
+lab:
+  kind: shell
+  title: "Практика: хронология инцидента"
+  toolset: [core, log]
+  workdir: /home/student/task
+  files: [task.md, auth.log]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сначала отфильтруй всплеск неудачных входов: `grep Failed auth.log | wc -l`."
+    - "Посчитай источник: `grep Failed auth.log | cut -d' ' -f11 | sort | uniq -c`."
+    - "После брутфорса был вход и странная активность — `grep -i cron auth.log`."
 ---
 
 ## Вопрос, с которого всё начинается

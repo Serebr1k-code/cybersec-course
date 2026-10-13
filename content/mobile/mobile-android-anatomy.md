@@ -13,6 +13,17 @@ useful_for:
   - "Работа: AppSec"
 estimated_minutes: 14
 summary: "Как устроен APK изнутри: контейнер zip, AndroidManifest.xml, DEX-байткод, smali, ресурсы и нативные библиотеки. Как быстро распаковать и что искать в каждом слое."
+lab:
+  kind: shell
+  title: "Практика: разбор APK"
+  toolset: [core, unzip]
+  workdir: /home/student/task
+  files: [task.md, app.apk]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "APK — это zip. Посмотри содержимое: `unzip -l app.apk`."
+    - "Ресурсы лежат в `res/values/strings.xml`. Достань файл: `unzip -p app.apk res/values/strings.xml`."
+    - "Среди строк есть `flag` — запиши его значение в `found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

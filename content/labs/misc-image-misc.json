@@ -1,0 +1,25 @@
+{
+  "id": "misc-image-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{t3xt_chunk_h1d3s_th3_fl4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: текст в PNG-чанке\n\n`image.png` — обычная картинка, но в её метаданных (PNG text-чанк `tEXt`)\nоставлена запись с флагом. Данные видны как обычный текст.\n\nДостань флаг (`strings` или `grep`) и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/image.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAOHRFWHRDb21tZW50AGF1dGhvcj1hbm9uOyBub3RlPW50b3t0M3h0X2NodW5rX2gxZDNzX3RoM19mbDRnfV4ZKr4AAAFgSURBVHicY2DQCKhYcOKDhEPGhB0POAwiGlZc+KHgUTDjwAsBi4SODTfQ5RnY9cPrl5//Lu+eP33/c37z+Pb11/+r+5fPP/5e3D69f/t9dHkGPrO4tnXX/qn5lc079k7MLq1v2z02vbC6Zee+ybnlTdv3DF2eQdQ2tXfrXVbd0NqlZ7/KuuZO3fuU1zS2de3Vv6q+pXOPvkWXZ5BxyZmy5wmPSUzLmit/VHxK5hx5I2KT0rPlDotOSM2SM1/Q5RmUvYtnH34tbJ3cvfk2s3Zw9eLTn6WdsyfvfsxtHN28+vJvdHkGraCqRac+STllTdr1iMsoqmnVpV9KXkWzDr0Sskrq2nSLCV2ewTCyceXFn4qehTMPvhS0TOzceJNRM7By4cmPko6ZE3c+5ESXZ8Aa2HgigwFrYOOJDAasgY0nMhiwBjaeyGDAGth4IoMBa2DjiQwGrIGNJzIYsAY2nsgAANRFeJBtV+OIAAAAAElFTkSuQmCC",
+      "mode": "644"
+    }
+  ],
+  "tools": {}
+}

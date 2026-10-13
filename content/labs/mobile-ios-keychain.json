@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-keychain",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{k3ych41n_dump}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: дамп Keychain\n\n`keychain_dump.plist` — выгрузка связки ключей с джейлбрейкнутого устройства.\nНайди секрет приложения и запиши его (флаг) в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/keychain_dump.plist",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<array>\n  <dict>\n    <key>svce</key><string>com.vanta.lab.session</string>\n    <key>acct</key><string>mira</string>\n    <key>class</key><string>genp</string>\n    <key>v_Data</key><string>nto{k3ych41n_dump}</string>\n  </dict>\n  <dict>\n    <key>svce</key><string>com.vanta.lab.analytics</string>\n    <key>acct</key><string>anon</string>\n    <key>class</key><string>genp</string>\n    <key>v_Data</key><string>UA-000000-2</string>\n  </dict>\n</array>\n</plist>\n"
+    }
+  ]
+}

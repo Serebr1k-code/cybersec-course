@@ -13,6 +13,17 @@ useful_for:
   - "Анализ HTTP"
 estimated_minutes: 28
 summary: "Ручная работа с HTTP: curl/nc, разбор заголовков, chunked-encoding, request smuggling и нестандартные методы — практические misc-задачи."
+lab:
+  kind: shell
+  title: "Практика: что выдают заголовки"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, target.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сначала посмотри только заголовки: `curl -I http://10.10.10.5/`."
+    - "Ищи нестандартные заголовки (`X-…`): `curl -I http://10.10.10.5/ | grep -i x-`."
+    - "Секрет лежит в `X-Debug-Token`. Запиши его значение в `found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

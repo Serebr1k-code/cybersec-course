@@ -13,6 +13,17 @@ useful_for:
   - "CTF Mobile"
 estimated_minutes: 50
 summary: "Перепаковка APK: декомпиляция, патч smali, добавление кода, повторная подпись и установка; клонирование, dual-app и защита от подмены."
+lab:
+  kind: shell
+  title: "Практика: заметить следы перепаковки"
+  toolset: [core, unzip]
+  workdir: /home/student/task
+  files: [task.md, app.apk]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Это ZIP-архив. Посмотри состав: `unzip -l app.apk`."
+    - "Подозрительный файл в assets. Прочитай его: `unzip -p app.apk assets/backdoor.dat`."
+    - "Токен внутри — base64. Раскодируй и запиши: `unzip -p app.apk assets/backdoor.dat | grep token | cut -d= -f2 | base64 -d > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

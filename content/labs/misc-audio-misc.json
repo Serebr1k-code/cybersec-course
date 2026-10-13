@@ -1,0 +1,25 @@
+{
+  "id": "misc-audio-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w4v_chunk_s3cr3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: секрет в метаданных WAV\n\n`audio.wav` — короткий звук. Флаг спрятан не в сэмплах, а в текстовом чанке\nконтейнера (`LIST/INFO`). Достань его и запиши в `found.txt`.\n\nПодсказка: `file audio.wav`, `strings audio.wav`.\n"
+    },
+    {
+      "path": "/home/student/task/audio.wav",
+      "b64": "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",
+      "mode": "644"
+    }
+  ],
+  "tools": {}
+}

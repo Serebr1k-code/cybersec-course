@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений (iOS)"
 estimated_minutes: 50
 summary: "Извлечение и анализ данных iOS: логические бэкапы, полные дампы (checkra1n/palera1n), артефакты, Keychain и iLEAPP-отчёт."
+lab:
+  kind: shell
+  title: "Практика: секрет в бэкапе iOS"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, backup/Info.plist, backup/Manifest.plist]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Бэкап — это каталог с plist-файлами. Составь список: `find backup -type f`."
+    - "Отладочный токен — это значение в plist. Ищи по содержимому: `grep -rn nto backup`."
+    - "Запиши найденный флаг: `grep -r nto backup > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

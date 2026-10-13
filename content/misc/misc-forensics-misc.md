@@ -13,6 +13,17 @@ useful_for:
   - "Анализ метаданных"
 estimated_minutes: 45
 summary: "Misc-форензика: артефакты, карвинг файлов по сигнатурам (foremost, binwalk), метаданные (exiftool), strings/hex-анализ и разборы с командами."
+lab:
+  kind: shell
+  title: "Практика: вырезать архив из дампа"
+  toolset: [core, hex, unzip]
+  workdir: /home/student/task
+  files: [task.md, dump.bin]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри на дамп: `file dump.bin`, `xxd -l 64 dump.bin`."
+    - "Найди смещение ZIP-сигнатуры: `grep -aboP 'PK\x03\x04' dump.bin`."
+    - "Вырежи архив и распакуй: `dd if=dump.bin of=carved.zip bs=1 skip=<смещение>`, затем `unzip -p carved.zip flag.txt > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

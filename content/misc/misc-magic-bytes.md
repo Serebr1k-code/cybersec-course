@@ -13,6 +13,17 @@ useful_for:
   - "Карвинг данных"
 estimated_minutes: 25
 summary: "Сигнатуры форматов, file/binwalk/xxd, карвинг встроенных файлов, ложные расширения и ручное определение типа по первым байтам."
+lab:
+  kind: shell
+  title: "Практика: найти полиглот"
+  toolset: [core, hex, unzip]
+  workdir: /home/student/task
+  files: [task.md, samples]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Пройдись по всем файлам: `file samples/*` — тип определяется по первым байтам."
+    - "Полиглот содержит ZIP в конце. `file -k samples/*` покажет больше одной сигнатуры."
+    - "Найдя `blob_polyglot.dat`, распакуй его: `unzip -p samples/blob_polyglot.dat secret.txt`."
 ---
 ## Вопрос, с которого всё начинается
 

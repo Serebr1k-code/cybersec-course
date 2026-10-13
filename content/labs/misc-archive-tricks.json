@@ -1,0 +1,50 @@
+{
+  "id": "misc-archive-tricks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p4ssw0rd5_4nd_p0lygl0ts}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: зашифрованный архив\n\n`protected.7z` — архив с флагом внутри. Заголовок не шифрован, так что\nсписок файлов виден, но данные под AES.\n\nПароль лежит в `notes.txt`. Достань `flag.txt` из архива и запиши его\nсодержимое (флаг) в `found.txt`. `7z` умеет `l` (список) и\n`x -so` (извлечь в stdout).\n"
+    },
+    {
+      "path": "/home/student/task/protected.7z",
+      "b64": "N3q8ryccAAS40yI/xAAAAAAAAAAiAAAAAAAAAM6G9s01mqrNmy4lYUeeXB9vax26aixbN1H9QZfyuBj1kfkhfhC5BSzelphgCtAEZTJ538mD/HBFtPZRflc1CINRBA3uAACBMweuD9Hy+/1Au5RkOzmkeudqI0YtS6iagUO/JJV1nKsJKc+ThidZ9ebq/ZepduDK+f8Tqh4DAiv+qpS4WEqD9QUiLfqlYX4UsCqvmKSHvisMpx09ydFj3zR9CRuOkePJc/F8UC1+gS0NNEsinewX4qcQIFL8ZpzjQbvpJdLUAAAAFwZAAQmAhAAHCwEAASMDAQEFXQAQAAAMgJ4KARJ+Q9YAAA=="
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Тикет #4821\n-----------\nАрхив бэкапа vault. Пароль: S3cr3t-Backup-2026\n(не переиспользовать! сгенерирован для этого бэкапа)\n"
+    }
+  ],
+  "tools": {
+    "7z": {
+      "help": "7z <l | x -so -pПАРОЛЬ> <архив> [файл] — список/извлечение (эмуляция, вывод захвачен с реального 7z)",
+      "cases": [
+        {
+          "match": "\\bl\\b",
+          "example": "l protected.7z",
+          "output": "\n7-Zip 26.00 (x64) : Copyright (c) 1999-2026 Igor Pavlov : 2026-02-12\n 64-bit locale=C.UTF-8 Threads:12 OPEN_MAX:524288, ASM\n\nScanning the drive for archives:\n1 file, 262 bytes (1 KiB)\n\nListing archive: protected.7z\n\n--\nPath = protected.7z\nType = 7z\nPhysical Size = 262\nHeaders Size = 198\nMethod = LZMA2:12 7zAES\nSolid = +\nBlocks = 1\n\n   Date      Time    Attr         Size   Compressed  Name\n------------------- ----- ------------ ------------  ------------------------\n2026-10-13 11:50:37 ....A           29           64  flag.txt\n2026-10-13 11:50:37 ....A           25               vault.txt\n------------------- ----- ------------ ------------  ------------------------\n2026-10-13 11:50:37                 54           64  2 files\n"
+        },
+        {
+          "match": "S3cr3t-Backup-2026",
+          "example": "x -so -pS3cr3t-Backup-2026 protected.7z flag.txt",
+          "output": "nto{p4ssw0rd5_4nd_p0lygl0ts}\n"
+        },
+        {
+          "match": "\\bx\\b",
+          "example": "x -pwrong protected.7z",
+          "output": "\n7-Zip 26.00 (x64) : Copyright (c) 1999-2026 Igor Pavlov : 2026-02-12\n 64-bit locale=C.UTF-8 Threads:12 OPEN_MAX:524288, ASM\n\nScanning the drive for archives:\n1 file, 262 bytes (1 KiB)\n\nExtracting archive: protected.7z\n--\nPath = protected.7z\nType = 7z\nPhysical Size = 262\nHeaders Size = 198\nMethod = LZMA2:12 7zAES\nSolid = +\nBlocks = 1\n\nERROR: Data Error in encrypted file. Wrong password? : flag.txt\nERROR: Data Error in encrypted file. Wrong password? : vault.txt\n\nSub items Errors: 2\n\nArchives with Errors: 1\n\nSub items Errors: 2\n"
+        }
+      ],
+      "fallback": "7z: доступно: `7z l protected.7z` и `7z x -so -pПАРОЛЬ protected.7z flag.txt`\n"
+    }
+  }
+}

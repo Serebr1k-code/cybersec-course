@@ -13,6 +13,17 @@ useful_for:
   - "Bug bounty iOS"
 estimated_minutes: 50
 summary: "Как устроен iTunes/Finder-бэкап iOS, как его извлечь (idevicebackup2, iMazing), расшифровать ManifestKeyBag и анализировать содержимое без jailbreak."
+lab:
+  kind: shell
+  title: "Практика: секрет в iOS-бэкапе"
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, backup]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Пройди по дереву бэкапа: `find backup -type f`."
+    - "Часть файлов — открытый JSON/plist. Поищи токен: `grep -r token backup/`."
+    - "Файл `7b/7b8a…` содержит JSON с полем `token` (флаг). Запиши его в `found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

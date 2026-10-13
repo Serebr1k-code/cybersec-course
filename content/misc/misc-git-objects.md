@@ -13,6 +13,17 @@ useful_for:
   - "Анализ репозиториев"
 estimated_minutes: 28
 summary: "Внутреннее устройство git: blob/tree/commit/tag, zlib-сжатие, ручное чтение объектов, восстановление потерянных данных и работа с packfiles."
+lab:
+  kind: shell
+  title: "Практика: найти висячий blob в репозитории"
+  toolset: [core, git]
+  workdir: /home/student/task
+  files: [task.md, config.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Осмотри репозиторий: `git log --oneline`, `git ls-tree HEAD`."
+    - "Ищи объекты, на которые никто не ссылается: `git fsck`."
+    - "Прочитай найденный blob: `git cat-file -p <sha> > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

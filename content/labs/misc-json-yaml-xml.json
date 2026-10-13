@@ -1,0 +1,39 @@
+{
+  "id": "misc-json-yaml-xml",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pars3r5_d15agr33}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: парсеры расходятся\n\nПеред тобой три конфига разных форматов. Изучи их и пойми, чем\nповедение парсеров отличается (дубликаты ключей, якоря/merge в YAML,\nвнешние сущности в XML).\n\nВ `secret.xml` объявлена сущность `&f;`, ссылающаяся на локальный файл.\nВ этой лабе он существует — прочитай его и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/config.json",
+      "text": "{\n  \"service\": \"billing\",\n  \"env\": \"prod\",\n  \"feature\": \"v2\",\n  \"token\": \"dG9rZW5fZGVjb3k=\",\n  \"note\": \"duplicate keys: \\u043f\\u043e\\u0441\\u043b\\u0435\\u0434\\u043d\\u0438\\u0439 \\u0432\\u044b\\u0438\\u0433\\u0440\\u044b\\u0432\\u0430\\u0435\\u0442 \\u0443 \\u0431\\u043e\\u043b\\u044c\\u0448\\u0438\\u043d\\u0441\\u0442\\u0432\\u0430 \\u043f\\u0430\\u0440\\u0441\\u0435\\u0440\\u043e\\u0432\"\n}\n"
+    },
+    {
+      "path": "/home/student/task/app.yaml",
+      "text": "defaults: &defaults\n  retries: 3\n  timeout: 5\nprod:\n  <<: *defaults\n  host: prod.internal\n  retries: 1\nstaging:\n  <<: *defaults\n  host: staging.internal\nflag_hint: 'в YAML якоря и merge-ключи (<<) перекрывают значения'\n"
+    },
+    {
+      "path": "/home/student/task/secret.xml",
+      "text": "<?xml version=\"1.0\"?>\n<!DOCTYPE cfg [ <!ENTITY f SYSTEM \"file:///etc/secret\"> ]>\n<config>\n  <api><endpoint>https://api.internal/v1</endpoint></api>\n  <!-- XXE: если парсер раскрывает внешние сущности, &f; подставит содержимое -->\n  <value>&f;</value>\n  <debug>true</debug>\n</config>\n"
+    },
+    {
+      "path": "/home/student/task/etc_secret",
+      "text": "nto{pars3r5_d15agr33}\n"
+    },
+    {
+      "path": "/etc/secret",
+      "text": "nto{pars3r5_d15agr33}\n"
+    }
+  ]
+}

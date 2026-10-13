@@ -13,6 +13,17 @@ useful_for:
   - "Анализ вредоносных документов"
 estimated_minutes: 45
 summary: "Полиглоты: как один файл остаётся валидным и как изображение, и как архив, и как скрипт; GIFAR, PDF+ZIP, shell/python-полиглоты, обнаружение и извлечение, инструменты."
+lab:
+  kind: shell
+  title: "Практика: достать ZIP из картинки-полиглота"
+  toolset: [core, hex, unzip]
+  workdir: /home/student/task
+  files: [task.md, polyglot.png]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри на файл: `file polyglot.png`, затем `file -k polyglot.png`."
+    - "Убедись, что внутри есть ZIP-сигнатура: `grep -aboP 'PK\\x03\\x04' polyglot.png` (или `xxd polyglot.png | tail`)."
+    - "Читай его как архив: `unzip -l polyglot.png`, затем `unzip -p polyglot.png flag.txt > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,52 @@
+{
+  "id": "misc-ctf-recon-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1nv3nt0ry_f1nd5_4ll}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: инвентаризация файлов\n\nКаталог `recon_tgt/` — «выданные файлы» задачи. Флаг спрятан в одном из них,\nпричём имя/расширение могут вводить в заблуждение (`.bin`, `.hidden`).\n\nСначала составь список: `find recon_tgt -type f`, затем ищи по содержимому\nрекурсивно (`grep -rn nto recon_tgt`) и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/recon_tgt",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/recon_tgt/readme.txt",
+      "text": "Welcome to the challenge. Inventory the files.\n"
+    },
+    {
+      "path": "/home/student/task/recon_tgt/notes.md",
+      "text": "# notes\nnothing here\n"
+    },
+    {
+      "path": "/home/student/task/recon_tgt/backup.sql",
+      "text": "INSERT INTO flags VALUES ('nto{1nv3nt0ry_f1nd5_4ll}');\n"
+    },
+    {
+      "path": "/home/student/task/recon_tgt/core.bin",
+      "text": "core dump placeholder\n"
+    },
+    {
+      "path": "/home/student/task/recon_tgt/.hidden",
+      "text": "hidden but not the flag\n"
+    },
+    {
+      "path": "/home/student/task/recon_tgt/logs",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/recon_tgt/logs/app.log",
+      "text": "INFO boot\nINFO ready\n"
+    }
+  ],
+  "tools": {}
+}

@@ -13,6 +13,17 @@ useful_for:
   - "Анализ изображений и документов"
 estimated_minutes: 40
 summary: "OSINT в misc: метаданные как разведданные, геолокация по изображениям, авторы документов, поиск по хешам и именам, инструменты и разборы."
+lab:
+  kind: shell
+  title: "Практика: разбор DNS-данных"
+  toolset: [core, dig]
+  workdir: /home/student/task
+  files: [task.md, zone.txt, dig-a.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Собери адреса: `dig +noall +answer vanta-lab.local A` и посмотри `dig-a.txt`."
+    - "Флаг прячется в TXT-записи. `dig +noall +answer vanta-lab.local TXT`."
+    - "В `zone.txt` много записей: отфильтруй `grep TXT zone.txt` и найди строку с `nto{`."
 ---
 
 ## Вопрос, с которого всё начинается

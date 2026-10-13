@@ -13,6 +13,17 @@ useful_for:
   - "Анализ вложений"
 estimated_minutes: 30
 summary: "Структура ZIP и zipcrypto, known-plaintext-атака, tar-трюки, 7z, вложенные архивы, полиглоты и восстановление повреждённых архивов."
+lab:
+  kind: shell
+  title: "Практика: зашифрованный архив"
+  toolset: [core, 7z]
+  workdir: /home/student/task
+  files: [task.md, protected.7z, notes.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри содержимое без пароля: `7z l protected.7z` — имена файлов видны."
+    - "Пароль есть в `notes.txt`. Извлеки содержимое в stdout: `7z x -so -pПАРОЛЬ protected.7z flag.txt`."
+    - "Перенаправь вывод в файл: `7z x -so -pПАРОЛЬ protected.7z flag.txt > found.txt`."
 ---
 ## Вопрос, с которого всё начинается
 

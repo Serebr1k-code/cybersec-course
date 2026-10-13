@@ -1,0 +1,24 @@
+{
+  "id": "mobile-ios-data-protection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{keych41n_d4t4_pr0t3ct3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: секрет в дампе Keychain\n\n`keychain.plist` — дамп связки ключей (plist). Значение секрета хранится в поле\n`<data>` и закодировано base64. Достань и раскодируй его, флаг запиши в `found.txt`.\n\nПолезно: `cat keychain.plist`, вырезать base64 (`cut -d'>' -f2`), затем `base64 -d`.\n"
+    },
+    {
+      "path": "/home/student/task/keychain.plist",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n  <key>class</key>\n  <string>genp</string>\n  <key>svce</key>\n  <string>com.vanta.mobile.session</string>\n  <key>acct</key>\n  <string>api_token</string>\n  <key>data</key>\n  <data>bnRve2tleWNoNDFuX2Q0dDRfcHIwdDNjdDNkfQ==</data>\n  <key>pdmn</key>\n  <string>ak</string>\n</dict>\n</plist>\n"
+    }
+  ],
+  "tools": {}
+}

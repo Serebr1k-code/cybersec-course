@@ -1,0 +1,41 @@
+{
+  "id": "mobile-crypto-misuse",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h4rdc0d3d_k3y_1n_pr3fs}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: расшифровать данные на слабом ключе\n\nПриложение шифрует данные AES-256-CBC, но ключ и IV лежат рядом в открытом\n`crypto.properties` (типичная ошибка «crypto misuse»). Зашифрованный файл —\n`cipher.bin`. Расшифруй его и запиши флаг в `found.txt`.\n\nИнструмент `openssl` эмулируется (вывод реального openssl).\nПолезно: `cat crypto.properties`, затем\n`openssl enc -d -aes-256-cbc -K <key> -iv <iv> -in cipher.bin`.\n"
+    },
+    {
+      "path": "/home/student/task/cipher.bin",
+      "b64": "j29kh92m6Xtgf6PKN32fAkuxU2NehnuJobh56rHmwDk=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/crypto.properties",
+      "text": "key=261b57b69d30485e6b74e3d6724c15b98f0c8f9bbc5717aaaa441fc37bda1036\niv=cdc7ee7cc1f77b2ffa8f5567b9146a87\n"
+    }
+  ],
+  "tools": {
+    "openssl": {
+      "help": "openssl enc -d -aes-256-cbc -K <hexkey> -iv <hexiv> -in <файл> — эмуляция (вывод реального openssl)",
+      "cases": [
+        {
+          "match": "-K\\s+261b57b69d30485e6b74e3d6724c15b98f0c8f9bbc5717aaaa441fc37bda1036",
+          "example": "enc -d -aes-256-cbc -K 261b57b69d30485e6b74e3d6724c15b98f0c8f9bbc5717aaaa441fc37bda1036 -iv cdc7ee7cc1f77b2ffa8f5567b9146a87 -in cipher.bin",
+          "output": "nto{h4rdc0d3d_k3y_1n_pr3fs}"
+        }
+      ],
+      "fallback": "bad decrypt\n"
+    }
+  }
+}

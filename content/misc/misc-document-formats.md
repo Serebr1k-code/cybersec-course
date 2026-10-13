@@ -13,6 +13,17 @@ useful_for:
   - "OSINT и метаданные"
 estimated_minutes: 28
 summary: "docx/xlsx как ZIP+XML, скрытый текст и макросы, метаданные через exiftool, восстановление удалённого содержимого и ODF-трюки."
+lab:
+  kind: shell
+  title: "Практика: документ OOXML изнутри"
+  toolset: [core, unzip]
+  workdir: /home/student/task
+  files: [task.md, report.docx]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "DOCX — это zip. Посмотри части: `unzip -l report.docx`."
+    - "Обрати внимание на служебную часть `docProps/`. Свойства документа иногда содержат лишнее."
+    - "Напечатай скрытое свойство: `unzip -p report.docx docProps/custom.xml`."
 ---
 ## Вопрос, с которого всё начинается
 
