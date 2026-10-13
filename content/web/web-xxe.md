@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 40
 summary: "Как эксплуатировать XML External Entity: чтение файлов, SSRF, blind-эксфильтрация и обход фильтров."
+lab:
+  kind: shell
+  title: 'Практика: XXE — чтение файла через XML-сущность'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, passwd.xml, payload.xml]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Начни с нормального счёта, чтобы увидеть контракт эндпоинта `/api/import-invoice`.'
+    - 'Изучи `passwd.xml`: `<!ENTITY xxe SYSTEM "file:///etc/passwd">`, подставленная как `&xxe;` в seller.'
+    - 'Парсер вернёт содержимое файла прямо в сообщении об ошибке — отправь `--data-binary @passwd.xml`.'
+    - 'В `payload.xml` тот же приём с `file:///flag`; отправь его, запиши ответ в found.txt и набери `check`.'
 ---
 
 Многие интеграции обмениваются данными в формате **XML** — текстовом формате с «тегами» вроде `<price>100</price>`. Например, бухгалтерия присылает магазину счёт в XML. У XML есть почти забытая, но опасная возможность — **сущности** (entities): короткие имена, которые подставляются в документ. Если сущность ссылается на файл, парсер его прочитает. Это и есть **XXE** — XML External Entity Injection.

