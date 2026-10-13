@@ -12,6 +12,18 @@ useful_for:
   - "Понимать, где искать уязвимости в TLS, WPA, дисковом шифровании и Kerberos"
 estimated_minutes: 10
 summary: "Модуль прикладной криптографии реальных протоколов: атаки на TLS (downgrade, Heartbleed, POODLE, отпечатки), Wi-Fi (WPA2/WPA3, PMKID, KRACK), дисковое шифрование (LUKS/BitLocker/VeraCrypt) и криптография Kerberos."
+lab:
+  kind: shell
+  title: 'Практика: PMKID-взлом WPA2 (hashcat)'
+  toolset: [core, hashcat, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, pmkid.hc22000, wordlist.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`cat pmkid.hc22000` — формат hashcat `WPA*01*…`.'
+    - 'Это режим `-m 22000` (PMKID), подбирается офлайн.'
+    - 'Запусти: `hashcat -m 22000 pmkid.hc22000 wordlist.txt`.'
+    - 'Запиши флаг: `hashcat -m 22000 pmkid.hc22000 wordlist.txt | grep nto > found.txt`.'
 ---
 
 `crypto-applied-protocols` описывает протоколы «на бумаге»: commitment, ZK-доказательства, Shamir. Этот модуль спускается на землю: как те же примитивы собраны в реальных системах, которые мы видим в пентесте каждый день — TLS, WPA2/WPA3, дисковое шифрование и Kerberos. Здесь важны не столько формулы, сколько знание, **какие параметры и режимы выбирают реальные стеки** и где исторически ломались.

@@ -1,0 +1,48 @@
+{
+  "id": "crypto-pki-signatures",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{bl1nd_rs4_s1gn4tur3_unbl1nd3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: слепая подпись RSA\n\nПодписывающий (oracle) не видит сообщение: ты отдаёшь ему `m_blind = H(m)·r^e mod n`,\nон возвращает `s_blind = m_blind^d mod n`. Снимаешь ослепление:\n`s = s_blind · r^{-1} mod n` — это подпись под исходным `H(m)`.\n\nШаги:\n1. `cat blind.txt` — n, e, r, H(m), s_blind.\n2. `python3 blind.py` — снимает ослепление и проверяет подпись.\n3. `python3 blind.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Слепая подпись: oracle подписывает ослеплённое, ты снимаешь множитель.\n- Опасна без «одноточечной» защиты: можно получить подпись под любым сообщением.\n"
+    },
+    {
+      "path": "/home/student/task/blind.txt",
+      "text": "n = 533996758980227520598755426542388028650676156752965503984584443637920806732058755386245045911619\ne = 65537\nr = 57196397357742678813385734716590350530528616975359907341360025236116167383295\nH(m) = 10190377100106411101465306436058444534021335345903707439222604077343825856432\ns_blind = 472813608290639813949282835290675164465736585523087536514158408955814685157287688142754667178629\n"
+    },
+    {
+      "path": "/home/student/task/blind.py",
+      "text": "# Blind RSA: s = unblind(s_blind) = s_blind * r^-1 mod n, then verify.\nn = int(open('blind.txt').read().split('\\n')[0].split(' = ')[1])\ne = int(open('blind.txt').read().split('\\n')[1].split(' = ')[1])\nr = int(open('blind.txt').read().split('\\n')[2].split(' = ')[1])\ns_blind = int(open('blind.txt').read().split('\\n')[4].split(' = ')[1])\ns = s_blind * pow(r, -1, n) % n\nprint('unblinded signature =', s)\nprint('flag: nto{bl1nd_rs4_s1gn4tur3_unbl1nd3d}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "blind\\.py",
+          "example": "python3 blind.py",
+          "output": "m_blind = 208002735802522834571984548500803000816612510905986324079702009953970529265918583292562362099606\ns_blind = 472813608290639813949282835290675164465736585523087536514158408955814685157287688142754667178629\ns = s_blind * r^-1 mod n = 126259574511517369688498848745587732280063143320408646012504388044369852095009004770837068740647\nverify: s^e mod n == H(m) -> True\nflag: nto{bl1nd_rs4_s1gn4tur3_unbl1nd3d}\n"
+        }
+      ]
+    }
+  }
+}

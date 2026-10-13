@@ -1,0 +1,48 @@
+{
+  "id": "crypto-rsa-advanced-attacks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h4st4d_br04dc4st_3_r3c1p13nts}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: широковещательная атака Хастада\n\nОдно и то же сообщение `m` отправлено трём получателям с `e = 3` и разными\nмодулями. Тогда `m³ < N = n1·n2·n3`, и CRT + целочисленный кубический корень\nвосстанавливают `m` без факторизации.\n\nШаги:\n1. `cat recipients.txt` — три пары (n_i, c_i = m³ mod n_i).\n2. `python3 hastad.py` — CRT и точный кубический корень.\n3. `python3 hastad.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Условие успеха: m^e < Π n_i (обычно e получателей при малом e).\n- Лечится паддингом: OAEP делает сообщения разными и большими.\n"
+    },
+    {
+      "path": "/home/student/task/recipients.txt",
+      "text": "n0 = 1400988035130624178265035447314195758318255086822492680838921370257565818560278551342415698024541\nc0 = 508862067716230558757046242753296588719821107574331471813083511471844054885543501819555399272692\nn1 = 1176578941273814320721237411999980213156566876383274128698753589079373277039724507434764717773101\nc1 = 274182011757132262470062757348673665174421303585061905306956305761633529413358616392974755252335\nn2 = 1575596750098952462006043182713273488909662469131537031350872020771276062558699293101165700374059\nc2 = 1180540387341859023103153091222553735780048868199392971714792331607573697120183018135344383701532\n"
+    },
+    {
+      "path": "/home/student/task/hastad.py",
+      "text": "# Hastad broadcast: same m, e=3, three coprime moduli -> m^3 < N -> exact cube root.\nfrom sympy import integer_nthroot\ndata = open('recipients.txt').read().split('\\n')\nns = [int(l.split(' = ')[1]) for l in data if l.startswith('n')]\ncs = [int(l.split(' = ')[1]) for l in data if l.startswith('c')]\nN = ns[0]*ns[1]*ns[2]\nx = 0\nfor c,n in zip(cs,ns):\n    Ni = N//n\n    x = (x + c*Ni*pow(Ni,-1,n)) % N\nroot,_ = integer_nthroot(x,3)\nprint('recovered message:', root.to_bytes((root.bit_length()+7)//8,'big'))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "hastad\\.py",
+          "example": "python3 hastad.py",
+          "output": "CRT(c1,c2,c3) mod N = 35100285937346261041421469864279326946169773411833257529964180587304414361386796640472691969206741170873280776504549829006112739459873869414556193400019172776234371018112943450751440539348185775071361018585150863179178198686665668581511001665125\ninteger cube root -> m = 3274187540041930148117550490684502143467103962211258028326787988808181002976654205\nrecovered message: b'nto{h4st4d_br04dc4st_3_r3c1p13nts}'\nflag: nto{h4st4d_br04dc4st_3_r3c1p13nts}\n"
+        }
+      ]
+    }
+  }
+}

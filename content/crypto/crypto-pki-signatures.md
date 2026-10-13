@@ -12,6 +12,18 @@ useful_for:
   - "Понимать X.509, DSA/ElGamal/Schnorr и слепые подписи"
 estimated_minutes: 10
 summary: "Модуль подписей и PKI: инфраструктура открытых ключей X.509 (цепочки, расширения, CT), схемы подписей на дискретном логарифме (ElGamal, DSA, Schnorr) и слепые подписи с их атаками."
+lab:
+  kind: shell
+  title: 'Практика: слепая подпись RSA'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, blind.txt, blind.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`cat blind.txt` — n, e, r (множитель), H(m), s_blind.'
+    - 'Снятие ослепления: s = s_blind · r⁻¹ mod n.'
+    - '`python3 blind.py` сделает это и проверит s^e ≡ H(m).'
+    - 'Запиши флаг: `python3 blind.py | grep nto > found.txt`.'
 ---
 
 RSA-ветка подробно разбирает подписи на RSA. Но в реальном мире подписи строятся не только на RSA: DSA, ElGamal, Schnorr, EdDSA — все они на дискретном логарифме и имеют собственные тонкости (nonce, порядок подгруппы). А связывает всё это PKI — X.509-сертификаты, цепочки доверия и инфраструктура, где чаще всего и находят практические баги.

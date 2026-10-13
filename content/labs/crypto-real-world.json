@@ -1,0 +1,59 @@
+{
+  "id": "crypto-real-world",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pmk1d_cr4ck3d_n0_h4ndsh4k3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: взлом PMKID (WPA2 без рукопожатия)\n\nВ `pmkid.hc22000` — PMKID-хэш точки доступа (формат hashcat 22000). PMKID\nвыводится из PSK напрямую, поэтому клиент и полное 4-way handshake не нужны.\nПодбери PSK по `wordlist.txt`; найденный пароль — это флаг.\n\nШаги:\n1. `cat pmkid.hc22000` — убедись в формате `WPA*01*…`.\n2. `hashcat -m 22000 pmkid.hc22000 wordlist.txt`.\n3. `hashcat -m 22000 pmkid.hc22000 wordlist.txt | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- PMKID = HMAC-SHA1(PMK, \"PMK Name\"||AP||STA); PMK из PSK+SSID.\n- Атака offline: ушёл с периметра один PMKID — и Wi-Fi-пароль подбирается дома.\n"
+    },
+    {
+      "path": "/home/student/task/pmkid.hc22000",
+      "text": "WPA*01*4a1f2c9d8e3b7a6f5c4d3e2b1a0f9e8d*aabbccddeeff*112233445566***\n"
+    },
+    {
+      "path": "/home/student/task/wordlist.txt",
+      "text": "sunshine\npassword\nletmein\nqwerty\nadmin123\nwelcome1\ndragon\nmaster\nshadow\nfootball\nnto{pmk1d_cr4ck3d_n0_h4ndsh4k3}\nnetwork\nwireless\nguest2024\n"
+    }
+  ],
+  "tools": {
+    "hashcat": {
+      "help": "hashcat -m 22000 <hash> <wordlist> — офлайн-подбор WPA/PMKID",
+      "cases": [
+        {
+          "match": "-m\\s+22000.*pmkid\\.hc22000",
+          "example": "hashcat -m 22000 pmkid.hc22000 wordlist.txt",
+          "output": "hashcat (v6.2.6) starting...\nWPA*01*4a1f2c9d8e3b7a6f5c4d3e2b1a0f9e8d*aabbccddeeff*112233445566***:nto{pmk1d_cr4ck3d_n0_h4ndsh4k3}\nStatus...........: Cracked\nHash.Mode........: 22000 (WPA-PBKDF2-PMKID+EAPOL)\nRecovered........: 1/1 (100.00%)\n"
+        },
+        {
+          "match": "--version|^-V$",
+          "example": "hashcat --version",
+          "output": "v6.2.6\n"
+        }
+      ],
+      "fallback": "hashcat: нет в этой лабе вывода для такого запуска (попробуй -m 22000)\n"
+    },
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        }
+      ]
+    }
+  }
+}

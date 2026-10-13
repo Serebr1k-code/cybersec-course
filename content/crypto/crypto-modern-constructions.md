@@ -12,6 +12,18 @@ useful_for:
   - "Понимать, где применяются ZK, HE, white-box и MPC"
 estimated_minutes: 10
 summary: "Модуль современных конструкций: доказательства с нулевым разглашением, гомоморфное шифрование (Paillier, RSA-HE), white-box криптография и безопасные многосторонние вычисления (MPC/threshold)."
+lab:
+  kind: shell
+  title: 'Практика: гомоморфное сложение (Paillier)'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, pubkey.txt, ct.txt, hom.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`cat pubkey.txt ct.txt` — модуль n, λ и два шифротекста.'
+    - 'Гомоморфизм Paillier: c1·c2 mod n² = E(m1+m2).'
+    - '`python3 hom.py` перемножает и дешифрует.'
+    - 'Запиши флаг: `python3 hom.py | grep nto > found.txt`.'
 ---
 
 `crypto-expert-topics` закрывает побочные каналы и квантовые алгоритмы. Этот модуль — про конструкции, которые лежат на переднем крае прикладной криптографии и всё чаще появляются на CTF и в реальных системах: доказательства с нулевым разглашением, гомоморфное шифрование, white-box криптография и безопасные многосторонние вычисления. Все они требуют свободного владения алгеброй из `crypto-math-advanced` и опыта `crypto-applied-protocols`.
