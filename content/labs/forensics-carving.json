@@ -1,0 +1,44 @@
+{
+  "id": "forensics-carving",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{byt3s_d0nt_l13_but_0ffs3ts_d0}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: вытащить вложенный архив из прошивки\n\nТебе дали `firmware.bin` — образ прошивки. Внутри, после текстового\nзаголовка, дописан ZIP-архив. Его видно по сигнатуре `PK\\x03\\x04`.\n\nШаги:\n1. Найди смещение сигнатуры ZIP: `grep -aboP 'PK\\x03\\x04' firmware.bin`.\n2. Вырежи архив с этого смещения: `dd if=firmware.bin of=carved.zip bs=1 skip=<СМЕЩЕНИЕ>`.\n3. Посмотри содержимое архива и достань файл с флагом (`unzip`).\n4. Запиши флаг в `found.txt` и набери `check`.\n\nПодсказка: `file carved.zip` подтвердит, что вырезан именно ZIP.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Прошивка начинается с читаемого текста, потом идут бинарные данные.\n- \"carving\" = вырезание по сигнатуре, без опоры на структуру ФС.\n- Смещение из grep — в байтах, dd с bs=1 skip=<offset> возьмёт ровно с него.\n"
+    },
+    {
+      "path": "/home/student/task/firmware.bin",
+      "b64": "RklSTVdBUkUgdjEuNC4yIC0tIGJ1aWxkIDIwMjYwOTAxCltib290bG9hZGVyXSBzdGFnZTAgb2sKW2tlcm5lbF0gbG9hZGluZyBpbWFnZSAuLi4KW2luaXRdIG1vdW50aW5nIHJvb3RmcwojIGVuZCBvZiBwbGFpbnRleHQgaGVhZGVyOyBiaW5hcnkgcGF5bG9hZCBmb2xsb3dzCi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLi4uLgpQSwMEFAAAAAgAml1NXW1zKR8yAAAAMgAAAAoAAAByZWFkbWUudHh0C8nILFYAokSFlNTk/EqFvPySVIXMvOLMlFSFkoxUhdTcpNSUlNQUhcSi5IzMslQ9LgBQSwMEFAAAAAgAml1NXS4nbxAjAAAAIwAAAAgAAABmbGFnLnR4dMsrya9OqiwxLo5PMcgric8xNI5PKi2JN0hLKzYuAQnWcgEAUEsBAhQDFAAAAAgAml1NXW1zKR8yAAAAMgAAAAoAAAAAAAAAAAAAAIABAAAAAHJlYWRtZS50eHRQSwECFAMUAAAACACaXU1dLidvECMAAAAjAAAACAAAAAAAAAAAAAAAgAFaAAAAZmxhZy50eHRQSwUGAAAAAAIAAgBuAAAAowAAAAAA"
+    }
+  ],
+  "tools": {
+    "unzip": {
+      "help": "unzip [-l | -p <архив> [файл]] <архив> — список/извлечение (эмуляция, вывод захвачен с реального unzip)",
+      "cases": [
+        {
+          "match": "\\-l\\s+carved\\.zip",
+          "example": "-l carved.zip",
+          "output": "Archive:  carved.zip\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n       52  2026-10-13 12:00   readme.txt\n       32  2026-10-13 12:00   flag.txt\n---------                     -------\n       84                     2 files\n"
+        },
+        {
+          "match": "\\-p\\s+carved\\.zip",
+          "example": "-p carved.zip flag.txt",
+          "output": "nto{byt3s_d0nt_l13_but_0ffs3ts_d0}\n"
+        }
+      ]
+    }
+  }
+}

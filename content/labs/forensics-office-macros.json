@@ -1,0 +1,44 @@
+{
+  "id": "forensics-office-macros",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m4cr0s_4r3_just_z1p_3ntr13s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: макрос в Office-документе\n\nДан `report.docm` (Word с макросами). OOXML-документ — это ZIP.\nМакрос лежит в `word/vbaProject.bin`. Нужно достать его и найти флаг.\n\nШаги:\n1. `file report.docm` — это Zip/OOXML.\n2. `unzip -l report.docm` — список внутренних частей.\n3. `unzip -p report.docm word/vbaProject.bin` — извлечь макрос.\n4. Найди флаг и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- .docm/.xlsm = OOXML-архив; макросы в vbaProject.bin.\n- `unzip -p <архив> <часть>` печатает часть в stdout.\n"
+    },
+    {
+      "path": "/home/student/task/report.docm",
+      "b64": "UEsDBBQAAAAAADZeTV0dZqtO7gAAAO4AAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbDw/eG1sIHZlcnNpb249IjEuMCI/PjxUeXBlcyB4bWxucz0iaHR0cDovL3NjaGVtYXMub3BlbnhtbGZvcm1hdHMub3JnL3BhY2thZ2UvMjAwNi9jb250ZW50LXR5cGVzIj48RGVmYXVsdCBFeHRlbnNpb249InhtbCIgQ29udGVudFR5cGU9ImFwcGxpY2F0aW9uL3htbCIvPjxEZWZhdWx0IEV4dGVuc2lvbj0iYmluIiBDb250ZW50VHlwZT0iYXBwbGljYXRpb24vdm5kLm1zLW9mZmljZS52YmFQcm9qZWN0Ii8+PC9UeXBlcz5QSwMEFAAAAAAANl5NXZAStR+3AAAAtwAAABEAAAB3b3JkL2RvY3VtZW50LnhtbDw/eG1sIHZlcnNpb249IjEuMCI/Pjx3OmRvY3VtZW50IHhtbG5zOnc9Imh0dHA6Ly9zY2hlbWFzLm9wZW54bWxmb3JtYXRzLm9yZy93b3JkcHJvY2Vzc2luZ21sLzIwMDYvbWFpbiI+PHc6Ym9keT48dzpwPjx3OnI+PHc6dD5RdWFydGVybHkgcmVwb3J0PC93OnQ+PC93OnI+PC93OnA+PC93OmJvZHk+PC93OmRvY3VtZW50PlBLAwQUAAAAAAA2Xk1dy39dTI4AAACOAAAAEwAAAHdvcmQvdmJhUHJvamVjdC5iaW5TdWIgQXV0b09wZW4oKQ0KICAgIERpbSBwYXlsb2FkIEFzIFN0cmluZw0KICAgIHBheWxvYWQgPSAibnRve200Y3Iwc180cjNfanVzdF96MXBfM250cjEzc30iDQogICAgU2hlbGwgInBvd2Vyc2hlbGwgLWVuYyAiICYgcGF5bG9hZA0KRW5kIFN1Yg0KUEsBAhQDFAAAAAAANl5NXR1mq07uAAAA7gAAABMAAAAAAAAAAAAAAIABAAAAAFtDb250ZW50X1R5cGVzXS54bWxQSwECFAMUAAAAAAA2Xk1dkBK1H7cAAAC3AAAAEQAAAAAAAAAAAAAAgAEfAQAAd29yZC9kb2N1bWVudC54bWxQSwECFAMUAAAAAAA2Xk1dy39dTI4AAACOAAAAEwAAAAAAAAAAAAAAgAEFAgAAd29yZC92YmFQcm9qZWN0LmJpblBLBQYAAAAAAwADAMEAAADEAgAAAAA="
+    }
+  ],
+  "tools": {
+    "unzip": {
+      "help": "unzip [-l | -p <часть>] <архив> — список/извлечение (эмуляция, вывод реального unzip)",
+      "cases": [
+        {
+          "match": "\\-l\\s+report\\.docm",
+          "example": "-l report.docm",
+          "output": "Archive:  /tmp/pentestcode/labs/data/report.docm\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n      238  2026-10-13 11:49   [Content_Types].xml\n      183  2026-10-13 11:49   word/document.xml\n      142  2026-10-13 11:49   word/vbaProject.bin\n---------                     -------\n      563                     3 files\n"
+        },
+        {
+          "match": "\\-p\\s+report\\.docm",
+          "example": "-p report.docm word/vbaProject.bin",
+          "output": "Sub AutoOpen()\n    Dim payload As String\n    payload = \"nto{m4cr0s_4r3_just_z1p_3ntr13s}\"\n    Shell \"powershell -enc \" & payload\nEnd Sub\n"
+        }
+      ]
+    }
+  }
+}

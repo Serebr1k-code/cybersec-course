@@ -1,0 +1,28 @@
+{
+  "id": "stego-hex-analysis",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h3x_4n4lys1s_r34d5_byt3s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: прочитать байты глазами (hex-анализ)\n\nДан `blob.bin`. Внутри есть секрет, но байты флага разделены нулями\n(`6e 00 74 00 6f 00 ...`), поэтому `strings` его не находит.\n\nШаги:\n1. `file blob.bin`.\n2. `xxd blob.bin` — смотри правую (ASCII) колонку: `n.t.o.{...}`.\n3. Собери символы без нулей и запиши флаг в `found.txt`\n   (`echo 'nto{...}' > found.txt`).\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- xxd печатает 16 байт в строке: hex слева, ASCII справа.\n- Байт 0x00 печатается как точка и «разрывает» строки для `strings`.\n"
+    },
+    {
+      "path": "/home/student/task/blob.bin",
+      "b64": "QklOQVJZIEJMT0IgdjEKbgB0AG8AewBoADMAeABfADQAbgA0AGwAeQBzADEAcwBfAHIAMwA0AGQANQBfAGIAeQB0ADMAcwB9Cn9/f39/f39/f39/f39/f39/f39/f39/f39/f39/f39/"
+    }
+  ],
+  "tools": {}
+}

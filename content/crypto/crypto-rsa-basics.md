@@ -13,6 +13,19 @@ useful_for:
   - "Распознавать слабые параметры по условию"
 estimated_minutes: 40
 summary: "RSA с нуля: генерация ключей, шифрование/подпись, textbook RSA и почему он небезопасен. Атаки начального уровня: малый e и целочисленный корень, факторизация малого/слабого n, малый размер ключа. Инструменты (RsaCtfTool, sympy, Sage) и распознавание по условию задачи."
+lab:
+  kind: shell
+  title: "Практика: факторизовать малый RSA"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, solve.py, pubkey.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`cat pubkey.txt` — там n, e, c."
+    - "n маленький: его легко разложить на простые множители."
+    - "Посмотри `solve.py` (`cat solve.py`) — там факторизация и расшифровка."
+    - "Запусти решатель: `python3 solve.py > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

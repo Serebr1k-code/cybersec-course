@@ -13,6 +13,19 @@ useful_for:
   - "Понимать, почему одноразовый блокнот ломается при переиспользовании"
 estimated_minutes: 35
 summary: "XOR как основа потоковых шифров: свойства, атаки на однобайтовый и повторяющийся ключ, crib-dragging против many-time pad, почему одноразовый блокнот катастрофически рушится при переиспользовании ключа. Пошаговые скрипты и разбор реальных CTF-сценариев."
+lab:
+  kind: shell
+  title: "Практика: XOR-расшифровка"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, decrypt.py, cipher.b64, key.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри данные: `cat key.txt` и `cat cipher.b64`."
+    - "Открой скрипт: `cat decrypt.py` — там формула XOR."
+    - "Запусти его: `python3 decrypt.py`."
+    - "Запиши результат в файл: `python3 decrypt.py > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

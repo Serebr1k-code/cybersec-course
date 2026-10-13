@@ -13,6 +13,19 @@ useful_for:
   - "Восстанавливать HMAC-секрет подписей"
 estimated_minutes: 42
 summary: "Криптография JWT/JWS/JWE: структура, алгоритмы (HS256/RS256/ES256/EdDSA), атаки alg=none, RS/HS confusion, внедрение jwk/jku/x5u, слабый kid, восстановление HMAC-секрета, JWE, полный набор команд jwt_tool/hashcat/john."
+lab:
+  kind: shell
+  title: "Практика: разобрать JWT-токен"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, token.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`cat token.txt` — три части через точку: header.payload.signature."
+    - "Payload — второе поле: `cut -d. -f2 token.txt`."
+    - "Раскодируй его: `cut -d. -f2 token.txt | base64 -d`."
+    - "Сохрани декодированный payload: `cut -d. -f2 token.txt | base64 -d > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

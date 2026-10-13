@@ -13,6 +13,19 @@ useful_for:
   - "Форензика фотографий"
 estimated_minutes: 50
 summary: "Полный разбор метаданных: EXIF-теги и MakerNote, XMP и IPTC, GPS, комментарии и стеганография во встроенном EXIF-превью — со всеми флагами exiftool."
+lab:
+  kind: shell
+  title: "Практика: метаданные EXIF"
+  toolset: [core, exiftool]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, photo.jpg]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`file photo.jpg` — обычный JPEG."
+    - "Метаданные читает exiftool: `exiftool photo.jpg`."
+    - "Ищи поле User Comment / Artist."
+    - "Запиши флаг: `exiftool photo.jpg | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

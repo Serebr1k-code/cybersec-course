@@ -1,0 +1,44 @@
+{
+  "id": "crypto-x509-pki",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c3rt5_4r3_ju5t_4sN1_0bj3ct5}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит X.509-сертификата\n\nДан `server.crt` — самоподписанный сертификат внутреннего портала.\nНужно разобрать его поля и найти подозрительное значение (флаг).\n\nШаги:\n1. `file server.crt` — это PEM.\n2. `openssl x509 -in server.crt -noout -subject` — субъект.\n3. `openssl x509 -in server.crt -text -noout` — полный дамп полей.\n4. Найди флаг, запиши в `found.txt`.\n\nОткрой урок: сертификаты часто «текут» внутренними именами и секретами.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- PEM — base64 между строками -----BEGIN/END CERTIFICATE-----.\n- Полезные поля: Subject (CN/O/OU), SAN, Issuer, Key Usage, расширения.\n"
+    },
+    {
+      "path": "/home/student/task/server.crt",
+      "b64": "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURuekNDQW9lZ0F3SUJBZ0lVQlVFb2cxYUxrSnpSRS9mTUJEQjlXa2cyMFFjd0RRWUpLb1pJaHZjTkFRRUwKQlFBd1VERXBNQ2NHQTFVRUF3d2diblJ2ZTJNemNuUTFYelJ5TTE5cWRUVjBYelJ6VGpGZk1HSnFNMk4wTlgweApGakFVQmdOVkJBb01EVU52Y25BZ1NXNTBaWEp1WVd3eEN6QUpCZ05WQkFzTUFrbFVNQjRYRFRJMk1UQXhNekE1Ck1EZ3hORm9YRFRJM01UQXhNekE1TURneE5Gb3dVREVwTUNjR0ExVUVBd3dnYm5SdmUyTXpjblExWHpSeU0xOXEKZFRWMFh6UnpUakZmTUdKcU0yTjBOWDB4RmpBVUJnTlZCQW9NRFVOdmNuQWdTVzUwWlhKdVlXd3hDekFKQmdOVgpCQXNNQWtsVU1JSUJJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBNXc0c3J0Vkt2b1A2Cm5FYWllNFAxV2FoSnBSOCtOMlFpV05CTElNdVhHamY5eW1Hd09xMnZ2YWdhZ1F4Y04zQ21JYWJRby9VbHEwcy8KSnBNRWJLUW1zald1ekQzWWdLRi9aWHhQMWhYNWcyU25COEpSN1hKQU5SVUFMUDdhc0ZuRzBuQ1RTMVQ4TWZCcQpYb2w3Mkx0N290RytqS2xnK21oQnJrMUpkU01HdXExa2lHL0dDM2V3aVYzVm9UNGZYdnhoVUtyRUJLbDNkYnY1CldibS9lT2pFeU92RU1FWTUrYWVHaFBqaGNWVmVobkdRNGl1QUhSYUI4ZUdpT3VRay85VHcrRDRuVWJQeXZpMWoKQy9LeE5XTUx6ekFNZGdTdS9jYzkyTW5mdjZjOGdXcVJjUWhKOGl3QUk2bDhMUHl2UFNkWGx5blF3R0lNRjNJMQpjQWJubEtpQzVRSURBUUFCbzNFd2J6QWRCZ05WSFE0RUZnUVVvMEw3ZGtVK2YwT3ZObVVNdkJRdElZUGNPL293Ckh3WURWUjBqQkJnd0ZvQVVvMEw3ZGtVK2YwT3ZObVVNdkJRdElZUGNPL293RHdZRFZSMFRBUUgvQkFVd0F3RUIKL3pBY0JnTlZIUkVFRlRBVGdoRndiM0owWVd3dVkyOXljQzVzYjJOaGJEQU5CZ2txaGtpRzl3MEJBUXNGQUFPQwpBUUVBZlgyNXp0VndnY0Z2SlpGeTBiaWZrai9Ma3NlV01ydUtXaHQ5T2lOR3A2MEVucVU3a3M3UStYV3pwanRaCkRLSG02S2VXblY3SWZpU3ZKMkRQYWFGUE1iakp2eFVwblRsTzF0UndSQ2xhL2dvVTgwaDZjeEpPYzNWamgwWlAKTXFyUVFQR0F4dldCYmxtRW9wclZZVkVoSXMrMkozODE4dzNJZVhtbHpCSEJ1ekl5M2ZjR2pHSmNRZ1c4dFJjWgpEUUplMDdNUGJ0aDU0T2loeWQ0RmJlS2t1aXNURnFTK3cwWEJkK0JKWUc1d3FrZ0xOdlVic2dsVGZ6MGh1b1Y3CkJBcDFDbzFmaGxJV1NnTUJmcm5EOTRIc0ZSaFU0eUt2dS9ISkhHSlh6cWYyTllmWi9UckIzMm1MdkxyTzhXY04KZURsK0FTRjJvMDV2ZEtlSld6dU05V1dQNUE9PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg=="
+    }
+  ],
+  "tools": {
+    "openssl": {
+      "help": "openssl <подкоманда> [опции] — криптоинструмент (эмуляция, вывод реального openssl)",
+      "cases": [
+        {
+          "match": "x509.*-text",
+          "example": "openssl x509 -in server.crt -text -noout",
+          "output": "Certificate:\n    Data:\n        Version: 3 (0x2)\n        Serial Number:\n            05:41:28:83:56:8b:90:9c:d1:13:f7:cc:04:30:7d:5a:48:36:d1:07\n        Signature Algorithm: sha256WithRSAEncryption\n        Issuer: CN=nto{c3rt5_4r3_ju5t_4sN1_0bj3ct5}, O=Corp Internal, OU=IT\n        Validity\n            Not Before: Oct 13 09:08:14 2026 GMT\n            Not After : Oct 13 09:08:14 2027 GMT\n        Subject: CN=nto{c3rt5_4r3_ju5t_4sN1_0bj3ct5}, O=Corp Internal, OU=IT\n        Subject Public Key Info:\n            Public Key Algorithm: rsaEncryption\n                Public-Key: (2048 bit)\n                Modulus:\n                    00:e7:0e:2c:ae:d5:4a:be:83:fa:9c:46:a2:7b:83:\n                    f5:59:a8:49:a5:1f:3e:37:64:22:58:d0:4b:20:cb:\n                    97:1a:37:fd:ca:61:b0:3a:ad:af:bd:a8:1a:81:0c:\n                    5c:37:70:a6:21:a6:d0:a3:f5:25:ab:4b:3f:26:93:\n                    04:6c:a4:26:b2:35:ae:cc:3d:d8:80:a1:7f:65:7c:\n                    4f:d6:15:f9:83:64:a7:07:c2:51:ed:72:40:35:15:\n                    00:2c:fe:da:b0:59:c6:d2:70:93:4b:54:fc:31:f0:\n                    6a:5e:89:7b:d8:bb:7b:a2:d1:be:8c:a9:60:fa:68:\n                    41:ae:4d:49:75:23:06:ba:ad:64:88:6f:c6:0b:77:\n                    b0:89:5d:d5:a1:3e:1f:5e:fc:61:50:aa:c4:04:a9:\n                    77:75:bb:f9:59:b9:bf:78:e8:c4:c8:eb:c4:30:46:\n                    39:f9:a7:86:84:f8:e1:71:55:5e:86:71:90:e2:2b:\n                    80:1d:16:81:f1:e1:a2:3a:e4:24:ff:d4:f0:f8:3e:\n                    27:51:b3:f2:be:2d:63:0b:f2:b1:35:63:0b:cf:30:\n                    0c:76:04:ae:fd:c7:3d:d8:c9:df:bf:a7:3c:81:6a:\n                    91:71:08:49:f2:2c:00:23:a9:7c:2c:fc:af:3d:27:\n                    57:97:29:d0:c0:62:0c:17:72:35:70:06:e7:94:a8:\n                    82:e5\n                Exponent: 65537 (0x10001)\n        X509v3 extensions:\n            X509v3 Subject Key Identifier: \n                A3:42:FB:76:45:3E:7F:43:AF:36:65:0C:BC:14:2D:21:83:DC:3B:FA\n            X509v3 Authority Key Identifier: \n                A3:42:FB:76:45:3E:7F:43:AF:36:65:0C:BC:14:2D:21:83:DC:3B:FA\n            X509v3 Basic Constraints: critical\n                CA:TRUE\n            X509v3 Subject Alternative Name: \n                DNS:portal.corp.local\n    Signature Algorithm: sha256WithRSAEncryption\n    Signature Value:\n        7d:7d:b9:ce:d5:70:81:c1:6f:25:91:72:d1:b8:9f:92:3f:cb:\n        92:c7:96:32:bb:8a:5a:1b:7d:3a:23:46:a7:ad:04:9e:a5:3b:\n        92:ce:d0:f9:75:b3:a6:3b:59:0c:a1:e6:e8:a7:96:9d:5e:c8:\n        7e:24:af:27:60:cf:69:a1:4f:31:b8:c9:bf:15:29:9d:39:4e:\n        d6:d4:70:44:29:5a:fe:0a:14:f3:48:7a:73:12:4e:73:75:63:\n        87:46:4f:32:aa:d0:40:f1:80:c6:f5:81:6e:59:84:a2:9a:d5:\n        61:51:21:22:cf:b6:27:7f:35:f3:0d:c8:79:79:a5:cc:11:c1:\n        bb:32:32:dd:f7:06:8c:62:5c:42:05:bc:b5:17:19:0d:02:5e:\n        d3:b3:0f:6e:d8:79:e0:e8:a1:c9:de:05:6d:e2:a4:ba:2b:13:\n        16:a4:be:c3:45:c1:77:e0:49:60:6e:70:aa:48:0b:36:f5:1b:\n        b2:09:53:7f:3d:21:ba:85:7b:04:0a:75:0a:8d:5f:86:52:16:\n        4a:03:01:7e:b9:c3:f7:81:ec:15:18:54:e3:22:af:bb:f1:c9:\n        1c:62:57:ce:a7:f6:35:87:d9:fd:3a:c1:df:69:8b:bc:ba:ce:\n        f1:67:0d:78:39:7e:01:21:76:a3:4e:6f:74:a7:89:5b:3b:8c:\n        f5:65:8f:e4\n"
+        },
+        {
+          "match": "x509.*-subject",
+          "example": "openssl x509 -in server.crt -noout -subject",
+          "output": "subject=CN=nto{c3rt5_4r3_ju5t_4sN1_0bj3ct5}, O=Corp Internal, OU=IT\n"
+        }
+      ]
+    }
+  }
+}

@@ -13,6 +13,19 @@ useful_for:
   - "Forensics: скрытые сообщения в документах"
 estimated_minutes: 35
 summary: "Полный набор текстовых каналов сокрытия: пробелы/табы, zero-width символы, гомоглифы, акростих, регистр и порядок слов; как извлекать и где искать."
+lab:
+  kind: shell
+  title: "Практика: биты в пробелах"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, decode.py, message.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри файл как текст: `cat message.txt` — строки странные."
+    - "Пробелы/табы в конце строк что-то значат (0 и 1)."
+    - "Открой декодер: `cat decode.py`."
+    - "Запусти: `python3 decode.py > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,19 @@ useful_for:
   - "Malware analysis (dropper-контейнеры)"
 estimated_minutes: 35
 summary: "Как находить и извлекать данные, спрятанные внутри файлов и образов: binwalk, foremost, dd, сигнатуры."
+lab:
+  kind: shell
+  title: "Практика: вырезать вложенный ZIP из прошивки"
+  toolset: [core, hex, unzip]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, firmware.bin]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с `ls -la` и `file firmware.bin` — что система думает об образе?"
+    - "Сигнатуру ZIP (`PK\\x03\\x04`) ищут байтовым grep: `grep -aboP 'PK\\x03\\x04' firmware.bin`. Опция `-b` печатает смещение в байтах."
+    - "Вырежи архив ровно с найденного смещения: `dd if=firmware.bin of=carved.zip bs=1 skip=<СМЕЩЕНИЕ>`, затем `unzip -l carved.zip`."
+    - "Достань файл с флагом: `unzip -p carved.zip flag.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

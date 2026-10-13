@@ -1,0 +1,52 @@
+{
+  "id": "crypto-xor-otp",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m4ny_t1m3_p4d_1s_n0t_4n_0tp}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: расшифровать XOR-«одноразовый блокнот»\n\nШифртекст в `cipher.b64` (base64), ключ — в `key.txt`. Ключ короткий и\nиспользован повторно — это уже не OTP, а many-time pad.\n\nШаги:\n1. `cat key.txt`, `cat cipher.b64`.\n2. Запусти готовый скрипт-расшифровщик: `python3 decrypt.py`.\n3. Запиши полученный флаг в `found.txt`.\n\nПосмотри внутрь `decrypt.py` (`cat decrypt.py`) — там ровно формула XOR.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- XOR обратен сам себе: (c ^ k) ^ k = c.\n- Повторное использование ключа = утечка (crib-dragging).\n"
+    },
+    {
+      "path": "/home/student/task/decrypt.py",
+      "text": "#!/usr/bin/env python3\n# XOR-расшифровка: одноразовый блокнот с повторно использованным ключом\nimport base64\nct = base64.b64decode(open(\"cipher.b64\").read())\nkey = open(\"key.txt\").read().strip().encode()\npt = bytes(b ^ key[i % len(key)] for i, b in enumerate(ct))\nprint(pt.decode())\n"
+    },
+    {
+      "path": "/home/student/task/cipher.b64",
+      "text": "PUcsKV5gTypsN2NeZ34jBycNAid+PQM3DQc6fmNHMy8=\n"
+    },
+    {
+      "path": "/home/student/task/key.txt",
+      "text": "S3CR3T!\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.14.4"
+        },
+        {
+          "match": "decrypt\\.py",
+          "example": "python3 decrypt.py",
+          "output": "nto{m4ny_t1m3_p4d_1s_n0t_4n_0tp}\n"
+        }
+      ]
+    }
+  }
+}

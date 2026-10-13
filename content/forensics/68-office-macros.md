@@ -13,6 +13,19 @@ useful_for:
   - "Анализ фишинга"
 estimated_minutes: 50
 summary: "Разбор документов Office (docm/xlsm/docx): OLE-структура, извлечение и деобфускация VBA-макросов (olevba), встроенные объекты, шаблоны-приманки и индикаторы фишинга."
+lab:
+  kind: shell
+  title: "Практика: извлечь макрос из .docm"
+  toolset: [core, unzip]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, report.docm]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`file report.docm` — OOXML это ZIP-архив."
+    - "Посмотри части: `unzip -l report.docm`."
+    - "Макрос лежит в `word/vbaProject.bin` — `unzip -p report.docm word/vbaProject.bin`."
+    - "Флаг внутри VBA-кода. Запиши его в `found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

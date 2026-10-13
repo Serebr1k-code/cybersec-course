@@ -1,0 +1,28 @@
+{
+  "id": "stego-pdf",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pdf_1nv1s1bl3_t3xt_0bj3ct5}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: невидимый текст в PDF\n\nДан `hidden.pdf`. На странице видна только одна строка, но в контенте\nесть второй текст, нарисованный в невидимом режиме (`3 Tr`).\n\nШаги:\n1. `file hidden.pdf`.\n2. `strings hidden.pdf` — текстовые объекты PDF читаемы.\n3. Найди флаг и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- PDF content stream — обычный текст с операторами Tj/TJ.\n- `3 Tr` = режим рендеринга «невидимый» (текст есть, но не рисуется).\n"
+    },
+    {
+      "path": "/home/student/task/hidden.pdf",
+      "b64": "JVBERi0xLjQKMSAwIG9iaiA8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4gZW5kb2JqCjIgMCBvYmogPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4gZW5kb2JqCjMgMCBvYmogPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4gZW5kb2JqCjQgMCBvYmogPDwgL0xlbmd0aCA5MCA+PiBzdHJlYW0KQlQgL0YxIDEyIFRmIDcyIDcyMCBUZCAodmlzaWJsZSBsaW5lKSBUaiBFVApCVCAzIFRyIC9GMSAxMiBUZiA3MiA3MDAgVGQgKG50b3twZGZfMW52MXMxYmwzX3QzeHRfMGJqM2N0NX0pIFRqIEVUCmVuZHN0cmVhbSBlbmRvYmoKNSAwIG9iaiA8PCAvVHlwZSAvRm9udCAvU3VidHlwZSAvVHlwZTEgL0Jhc2VGb250IC9IZWx2ZXRpY2EgPj4gZW5kb2JqCnRyYWlsZXIgPDwgL1Jvb3QgMSAwIFIgPj4KJSVFT0YK"
+    }
+  ],
+  "tools": {}
+}

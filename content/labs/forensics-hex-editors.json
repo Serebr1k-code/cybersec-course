@@ -1,0 +1,32 @@
+{
+  "id": "forensics-hex-editors",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{byt3s_d0nt_l13_but_0ffs3ts_d0}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: починить сломанный PNG hex-редактором\n\nВ каталоге лежит `broken.png` — картинка, которую не открывает ни один\nпросмотрщик. Первые 8 байт (сигнатура) испорчены. Рядом лежит\n`good_header.bin` — корректная 8-байтовая сигнатура PNG.\n\nШаги:\n1. Посмотри на байты: `xxd -l 16 broken.png` и `xxd good_header.bin`.\n2. Замени первые 8 байт на корректные, не трогая остальное:\n   `dd if=good_header.bin of=broken.png bs=1 count=8 conv=notrunc`.\n3. Проверь: `file broken.png` должен сказать «PNG image data».\n4. Внутри картинки есть текстовый чанк. Найди флаг (`strings` + `grep`),\n   запиши его в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- `conv=notrunc` у dd НЕ обрезает файл — пишет байты поверх начала.\n- count=8 + bs=1 = ровно 8 байт.\n- Первые 8 байт PNG: 89 50 4e 47 0d 0a 1a 0a.\n"
+    },
+    {
+      "path": "/home/student/task/broken.png",
+      "b64": "Tk9UQVBORyEAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAL3RFWHRDb21tZW50AGZsYWc9bnRve2J5dDNzX2QwbnRfbDEzX2J1dF8wZmZzM3RzX2Qwfey93k0AAAANSURBVHjaY2BgYPgPAAEEAQCAu9FbAAAAAElFTkSuQmCC"
+    },
+    {
+      "path": "/home/student/task/good_header.bin",
+      "b64": "iVBORw0KGgo="
+    }
+  ],
+  "tools": {}
+}

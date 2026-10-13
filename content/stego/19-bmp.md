@@ -13,6 +13,19 @@ useful_for:
   - "Быстрое извлечение из «сырых» картинок"
 estimated_minutes: 30
 summary: "Специфика BMP: несжатые пиксели, поля заголовка как канал, padding до 4 байт, палитра и простые LSB-приёмы, которые работают только на BMP."
+lab:
+  kind: shell
+  title: "Практика: размер в заголовке BMP"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, secret.bmp]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри заголовок: `xxd -l 8 secret.bmp`."
+    - "Байты 2..5 — это `bfSize` (little-endian). Переведи их в число."
+    - "Вырежи всё после заявленного размера в файл: `dd if=secret.bmp of=tail.b64 bs=1 skip=<bfSize>`."
+    - "Хвост — base64. Раскодируй: `dd if=secret.bmp of=tail.b64 bs=1 skip=58` затем `base64 -d tail.b64 > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

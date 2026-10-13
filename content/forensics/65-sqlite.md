@@ -13,6 +13,19 @@ useful_for:
   - "Веб-форензика"
 estimated_minutes: 45
 summary: "Как читать SQLite-базы в форензике: WAL/journal, свободные страницы и восстановление удалённых записей, структура b-tree, типичные источники (браузеры, приложения)."
+lab:
+  kind: shell
+  title: "Практика: удалённая запись SQLite"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, secrets.db]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`file secrets.db` — что это за база?"
+    - "Удалённые данные SQLite остаются в свободных страницах."
+    - "Ищи строку флага: `strings secrets.db | grep -i nto`."
+    - "Запиши флаг в `found.txt` и набери `check`."
+
 ---
 
 ## Вопрос, с которого всё начинается

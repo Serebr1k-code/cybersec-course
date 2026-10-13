@@ -13,6 +13,19 @@ useful_for:
   - "Анализ устройств"
 estimated_minutes: 55
 summary: "Разбор прошивок и IoT-устройств: извлечение из flash, распаковка образов (squashfs/UBI/cramfs/JFFS2), анализ скриптов запуска, конфигов, ключей и секретов."
+lab:
+  kind: shell
+  title: "Практика: прошивка роутера"
+  toolset: [core, binwalk, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, firmware.bin]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сначала `file firmware.bin` и `binwalk firmware.bin`."
+    - "binwalk покажет смещение вложенного образа (DECIMAL)."
+    - "Вырежи его: `dd if=firmware.bin of=rootfs.tar bs=1 skip=<СМЕЩЕНИЕ>`."
+    - "Флаг в неотсортированном tar: `strings rootfs.tar | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

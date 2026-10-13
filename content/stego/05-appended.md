@@ -13,6 +13,19 @@ useful_for:
   - "Forensics-задачи с carving"
 estimated_minutes: 32
 summary: "Техники поиска данных после конца файла и внутри него: сигнатуры форматов, binwalk, foremost, dd по смещениям, дописанные ZIP/PDF, slack space и concatenated-контейнеры."
+lab:
+  kind: shell
+  title: "Практика: дописанные данные после IEND"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, postcard.png]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с `file postcard.png` — картинка валидна."
+    - "Выведи печатные строки: `strings postcard.png` — ищи `SECRET=`."
+    - "Значение закодировано base64: выдели его `cut -d= -f2`."
+    - "Раскодируй: `strings postcard.png | grep SECRET | cut -d= -f2 | base64 -d > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

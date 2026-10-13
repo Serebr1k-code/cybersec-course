@@ -13,6 +13,19 @@ useful_for:
   - "SOC / Threat Hunting"
 estimated_minutes: 50
 summary: "Глубокий анализ системных и сервисных логов Linux: journald, syslog, auth.log, cron, web-серверы — что искать при расследовании и как коррелировать."
+lab:
+  kind: shell
+  title: "Практика: триаж auth.log"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, auth.log]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посчитай неудачные входы по IP: `grep \"Failed password\" auth.log | cut -d\" \" -f11 | sort | uniq -c | sort -rn`."
+    - "Найди все события этого IP: `grep \"203.0.113.66\" auth.log`."
+    - "Ищи, что было после `Accepted password` — успешный вход и дальнейшие команды."
+    - "Флаг в строке с curl/эксфильтрацией: `grep -i nto auth.log > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

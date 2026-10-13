@@ -1,0 +1,39 @@
+{
+  "id": "stego-exif-xmp",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3x1f_1s_4_qu13t_c4rr13r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: метаданные EXIF\n\nДан `photo.jpg`. В метаданных EXIF (поле UserComment) спрятан флаг.\n\nШаги:\n1. `file photo.jpg`.\n2. Прочитай метаданные: `exiftool photo.jpg`.\n3. Найди флаг и запиши в `found.txt`.\n\nEXIF переживает «редактирование» картинки и часто утекает: GPS, автор,\nмодель камеры, комментарии.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- EXIF-поля читают exiftool, identify -verbose, а иногда просто strings.\n- UserComment/Artist/ImageDescription — частые места для секретов.\n"
+    },
+    {
+      "path": "/home/student/task/photo.jpg",
+      "b64": "/9j/4AAQSkZJRgABAQAAAQABAAD/4QDqRXhpZgAATU0AKgAAAAgABwEOAAIAAAAOAAAAYgEaAAUAAAABAAAAcAEbAAUAAAABAAAAeAEoAAMAAAABAAEAAAE7AAIAAAAIAAAAgAITAAMAAAABAAEAAIdpAAQAAAABAAAAiAAAAABob2xpZGF5IHBob3RvAAAAAAEAAAABAAAAAQAAAAFhbmFseXN0AAAEkAAABwAAAAQwMjMykQEABwAAAAQBAgMAkoYABwAAACQAAAC+oAEAAwAAAAH//wAAAAAAAEFTQ0lJAAAAbnRvezN4MWZfMXNfNF9xdTEzdF9jNHJyMTNyff/bAEMAAwICAgICAwICAgMDAwMEBgQEBAQECAYGBQYJCAoKCQgJCQoMDwwKCw4LCQkNEQ0ODxAQERAKDBITEhATDxAQEP/bAEMBAwMDBAMECAQECBALCQsQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEP/AABEIADAAMAMBEQACEQEDEQH/xAAVAAEBAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAWAQEBAQAAAAAAAAAAAAAAAAAABQj/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCaTVaIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//9k="
+    }
+  ],
+  "tools": {
+    "exiftool": {
+      "help": "exiftool <файл> — чтение метаданных (эмуляция, вывод реального exiftool)",
+      "cases": [
+        {
+          "match": "photo\\.jpg",
+          "example": "exiftool photo.jpg",
+          "output": "ExifTool Version Number         : 13.55\nFile Name                       : photo.jpg\nDirectory                       : .\nFile Size                       : 551 bytes\nFile Modification Date/Time     : 2026:10:13 12:08:14+03:00\nFile Access Date/Time           : 2026:10:13 12:08:14+03:00\nFile Inode Change Date/Time     : 2026:10:13 12:08:14+03:00\nFile Permissions                : -rw-r--r--\nFile Type                       : JPEG\nFile Type Extension             : jpg\nMIME Type                       : image/jpeg\nJFIF Version                    : 1.01\nExif Byte Order                 : Big-endian (Motorola, MM)\nImage Description               : holiday photo\nX Resolution                    : 1\nY Resolution                    : 1\nResolution Unit                 : None\nArtist                          : analyst\nY Cb Cr Positioning             : Centered\nExif Version                    : 0232\nComponents Configuration        : Y, Cb, Cr, -\nUser Comment                    : nto{3x1f_1s_4_qu13t_c4rr13r}\nColor Space                     : Uncalibrated\nImage Width                     : 48\nImage Height                    : 48\nEncoding Process                : Baseline DCT, Huffman coding\nBits Per Sample                 : 8\nColor Components                : 3\nY Cb Cr Sub Sampling            : YCbCr4:4:4 (1 1)\nImage Size                      : 48x48\nMegapixels                      : 0.002\n"
+        }
+      ]
+    }
+  }
+}

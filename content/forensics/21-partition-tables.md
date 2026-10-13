@@ -13,6 +13,19 @@ useful_for:
   - "Анализ образов дисков"
 estimated_minutes: 35
 summary: "Устройство MBR и GPT, разбор таблиц разделов, восстановление потерянных разделов и работа с образами через mmls/parted/gdisk."
+lab:
+  kind: shell
+  title: "Практика: разобрать MBR и вырезать раздел"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, disk.img]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Таблица разделов начинается с байта 446: `xxd -s 446 -l 16 disk.img`."
+    - "Первая запись: байт type=0x83 (Linux), а LBA start — 4 байта по смещению +8, little-endian."
+    - "Вырежи раздел: `dd if=disk.img of=part.img bs=512 skip=<LBA> count=16`."
+    - "Флаг в удалённой записи: `strings part.img | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,28 @@
+{
+  "id": "stego-png-chunks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{png_t3xt_chunks_4r3_r34d4bl3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: прочитать PNG-чанки\n\nДан `flag.png`. Внутри PNG есть текстовые чанки (`tEXt`, `zTXt`), куда\nчасто прячут данные. Нужно найти флаг.\n\nШаги:\n1. `file flag.png`.\n2. `strings flag.png` — текстовые чанки видны как обычный текст.\n3. Найди флаг и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- PNG = сигнатура + чанки: длина(4) тип(4) данные CRC(4).\n- tEXt хранит пары ключ\\0значение в открытом виде; zTXt — сжато.\n"
+    },
+    {
+      "path": "/home/student/task/flag.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAD3RFWHRTb2Z0d2FyZQBsaWJwbmfXfmCMAAAALnRFWHRDb21tZW50AGZsYWc9bnRve3BuZ190M3h0X2NodW5rc180cjNfcjM0ZDRibDN9gmaMuwAAAB56VFh0Tm90ZQAAeJxLzs8tKEotLk5NUUhJTc6vBAA3SwZqnKNI5AAAAA1JREFUeNpjYGBg+A8AAQQBAIC70VsAAAAASUVORK5CYII="
+    }
+  ],
+  "tools": {}
+}

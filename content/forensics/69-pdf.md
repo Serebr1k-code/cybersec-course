@@ -13,6 +13,19 @@ useful_for:
   - "Анализ документов"
 estimated_minutes: 45
 summary: "Разбор PDF: структура объектов и xref, инкрементальные обновления, извлечение JavaScript/вложений, метаданные и восстановление скрытого содержимого."
+lab:
+  kind: shell
+  title: "Практика: спрятанное в PDF"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, invoice.pdf]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с `file invoice.pdf` — что говорит система?"
+    - "Выведи читаемые строки: `strings invoice.pdf`."
+    - "Ищи ключевые слова PDF: `strings invoice.pdf | grep -i 'JS\\|Title\\|nto'`."
+    - "Запиши флаг в `found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

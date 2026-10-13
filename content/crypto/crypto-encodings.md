@@ -13,6 +13,19 @@ useful_for:
   - "Писать свой декодер, когда стандартные не справляются"
 estimated_minutes: 35
 summary: "Полный разбор всех базовых кодировок: base16/32/64/85, ASCII85, uuencode, base58, base91, urlencode. Как распознавать их по алфавиту и выравниванию, как строить цепочки декодирования и писать собственные декодеры."
+lab:
+  kind: shell
+  title: "Практика: снять вложенные base64"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, secret.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`file secret.txt` — это текст. Посмотри начало: `head -c 60 secret.txt`."
+    - "Похоже на base64 (алфавит A–Z a–z 0–9 + / =). Раскодируй: `base64 -d secret.txt`."
+    - "Один слой не помог — результат снова base64. Соедини слои: `base64 -d secret.txt | base64 -d`."
+    - "Слоёв три: `base64 -d secret.txt | base64 -d | base64 -d > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

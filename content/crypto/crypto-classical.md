@@ -13,6 +13,19 @@ useful_for:
   - "Решать задачи с ROT, Atbash, Rail Fence, Playfair"
 estimated_minutes: 20
 summary: "Классические шифры от Цезаря до Vigenère: как они устроены, как их распознавать и как взламывать — частотный анализ, индекс совпадений, тест Касиски, восстановление ключа. Плюс транспозиции (Rail Fence, столбцовая) и матричные шифры (Playfair, Hill)."
+lab:
+  kind: shell
+  title: "Практика: перебор Цезаря"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, caesar.py, cipher.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`cat cipher.txt` — текст выглядит как сдвинутый на несколько позиций."
+    - "Пробел сдвинуть нельзя, поэтому в шифртексте его не видно."
+    - "Запусти перебор: `python3 caesar.py` — увидишь все сдвиги."
+    - "Найди строку с флагом: `python3 caesar.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,19 @@ useful_for:
   - "Понимать Certificate Transparency"
 estimated_minutes: 40
 summary: "Инфраструктура открытых ключей: структура X.509 (поля, расширения SAN/KeyUsage/NameConstraints), цепочки доверия и валидация, Certificate Transparency, а также типичные ошибки проверки (null byte, CN vs SAN, доверие к самоподписанным, отсутствие hostname-проверки), инструменты openssl/ct и разбор."
+lab:
+  kind: shell
+  title: "Практика: разобрать сертификат X.509"
+  toolset: [core, openssl]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, server.crt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`file server.crt` — что это за формат?"
+    - "Посмотри субъект: `openssl x509 -in server.crt -noout -subject`."
+    - "Полный дамп полей: `openssl x509 -in server.crt -text -noout`."
+    - "Флаг в поле Subject: `openssl x509 -in server.crt -text -noout | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

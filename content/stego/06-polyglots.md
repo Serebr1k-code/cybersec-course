@@ -13,6 +13,19 @@ useful_for:
   - "Forensics-задачи с «невозможными» файлами"
 estimated_minutes: 25
 summary: "Как строятся полиглоты (PNG+ZIP, GIF+JAR, PDF+ZIP, JPEG+GZIP), как их распознать и как разобрать оба «слоя» одновременно; практические примеры и скрипты."
+lab:
+  kind: shell
+  title: "Практика: полиглот PNG/ZIP"
+  toolset: [core, hex, unzip]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, polyglot.png]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`file polyglot.png` покажет только PNG. Запусти `file -k polyglot.png`."
+    - "Вторая сигнатура — ZIP (`PK\\x03\\x04`). Найди смещение: `grep -aboP 'PK\\x03\\x04' polyglot.png`."
+    - "Вырежи архив: `dd if=polyglot.png of=polyglot.zip bs=1 skip=<СМЕЩЕНИЕ>`."
+    - "Достань флаг: `unzip -p polyglot.zip flag.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

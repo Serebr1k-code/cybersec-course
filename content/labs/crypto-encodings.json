@@ -1,0 +1,28 @@
+{
+  "id": "crypto-encodings",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{n3st3d_b64_1s_st1ll_just_b64}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: распутать вложенные кодировки\n\nВ `secret.txt` лежит значение, закодированное несколько раз подряд\n(каждый слой — обычный base64). Нужно снять слои до читаемого текста.\n\nШаги:\n1. `file secret.txt` и `head -c 60 secret.txt` — посмотри на данные.\n2. Раскодируй: `base64 -d secret.txt | base64 -d | base64 -d`.\n3. Найди флаг, запиши в `found.txt`, набери `check`.\n\nЧисло слоёв — не 1. Если после первого `base64 -d` всё ещё «мусор» — добавь ещё.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- base64 узнаётся по алфавиту A–Z a–z 0–9 + / и знаку = в конце.\n- Слои снимаются слева направо в одном конвейере: `| base64 -d`.\n"
+    },
+    {
+      "path": "/home/student/task/secret.txt",
+      "text": "WW01U2RtVXlOSHBqTTFGNldrWTVhVTVxVW1aTldFNW1Zek5SZUdKSGVHWmhibFo2WkVZNWFVNXFV\namtLCg==\n"
+    }
+  ],
+  "tools": {}
+}

@@ -13,6 +13,19 @@ useful_for:
   - "Поиск данных, скрытых в структуре кода"
 estimated_minutes: 27
 summary: "Как устроен QR-код, коррекция ошибок, распознавание (zbar/pyzbar/OpenCV), предобработка изображений, восстановление повреждённых кодов и баркоды 1D."
+lab:
+  kind: shell
+  title: "Практика: распознать QR-код"
+  toolset: [core, zbarimg]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, qr.png]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`file qr.png` — это изображение."
+    - "Для QR нужен декодер: `zbarimg qr.png`."
+    - "Вывод будет вида `QR-Code:<текст>`."
+    - "Запиши флаг: `zbarimg qr.png | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

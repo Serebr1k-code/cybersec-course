@@ -13,6 +13,19 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 50
 summary: "История, cookies, загрузки, кэш и сессии Chrome/Firefox/Edge: где лежат SQLite-базы, как их читать и что доказывать."
+lab:
+  kind: shell
+  title: "Практика: история браузера"
+  toolset: [core, sqlite3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, History]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Что за тип файла? `file History`."
+    - "Это SQLite. Посмотри таблицы эмулируемым `sqlite3 History \".tables\"`."
+    - "Запроси URL-ы: `sqlite3 History \"SELECT url FROM urls;\"` — или просто `strings History | grep nto`."
+    - "Запиши флаг в `found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

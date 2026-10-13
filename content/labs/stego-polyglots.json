@@ -1,0 +1,44 @@
+{
+  "id": "stego-polyglots",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p0lygl0t_png_4nd_z1p_4t_0nc3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: полиглот PNG + ZIP\n\nДан `polyglot.png` — один файл, который одновременно является и PNG, и\nZIP-архивом (полиглот).\n\nШаги:\n1. `file polyglot.png` — только PNG. А теперь `file -k polyglot.png` —\n   увидишь ВТОРУЮ сигнатуру (ZIP).\n2. Найди смещение ZIP: `grep -aboP 'PK\\x03\\x04' polyglot.png`.\n3. Вырежи архив: `dd if=polyglot.png of=polyglot.zip bs=1 skip=<СМЕЩЕНИЕ>`.\n4. Достань флаг: `unzip -p polyglot.zip flag.txt > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- `file` смотрит только начало файла; `file -k` продолжает после первого совпадения.\n- Полиглот — валидный сразу для нескольких парсеров.\n"
+    },
+    {
+      "path": "/home/student/task/polyglot.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAF3RFWHRDb21tZW50AHBvbHlnbG90IHNhbXBsZVeqLo4AAAANSURBVHjaY2BgYPgPAAEEAQCAu9FbAAAAAElFTkSuQmCCUEsDBBQAAAAIAAdhTV2fSa9LJQAAACMAAAAKAAAAcmVhZG1lLnR4dEvNTUpNSUlNUUgsSs7ILEtVyMxTSFQI8HNXKMjPqUzPyS/hAgBQSwMEFAAAAAgAB2FNXX4Mb1AkAAAAIgAAAAgAAABmbGFnLnR4dMsrya8uMMipTM8xKIkvyEuPN8lLia8yLIg3KYk3yEs2ruUCAFBLAQIUAxQAAAAIAAdhTV2fSa9LJQAAACMAAAAKAAAAAAAAAAAAAACAAQAAAAByZWFkbWUudHh0UEsBAhQDFAAAAAgAB2FNXX4Mb1AkAAAAIgAAAAgAAAAAAAAAAAAAAIABTQAAAGZsYWcudHh0UEsFBgAAAAACAAIAbgAAAJcAAAAAAA=="
+    }
+  ],
+  "tools": {
+    "unzip": {
+      "help": "unzip [-l | -p <часть>] <архив> — список/извлечение (эмуляция, вывод реального unzip)",
+      "cases": [
+        {
+          "match": "\\-l\\s+polyglot\\.zip",
+          "example": "-l polyglot.zip",
+          "output": "unzip:  cannot find or open polyglot.zip, polyglot.zip.zip or polyglot.zip.ZIP.\n"
+        },
+        {
+          "match": "\\-p\\s+polyglot\\.zip",
+          "example": "-p polyglot.zip flag.txt",
+          "output": "nto{p0lygl0t_png_4nd_z1p_4t_0nc3}\n"
+        }
+      ]
+    }
+  }
+}

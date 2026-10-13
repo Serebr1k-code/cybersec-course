@@ -13,6 +13,19 @@ useful_for:
   - "Патчинг и восстановление повреждённых файлов"
 estimated_minutes: 35
 summary: "Как читать и редактировать бинарные данные вручную: xxd, hexdump, wxHexEditor, HxD, 010 Editor, поиск/замена байтов и структурные шаблоны."
+lab:
+  kind: shell
+  title: "Практика: починить сигнатуру PNG"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, broken.png, good_header.bin]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сравни первые байты: `xxd -l 16 broken.png` и `xxd good_header.bin`."
+    - "Сигнатуру PNG можно записать поверх: `dd if=good_header.bin of=broken.png bs=1 count=8 conv=notrunc`."
+    - "Убедись, что `file broken.png` теперь говорит «PNG image data», а не «data»."
+    - "Флаг лежит в текстовом чанке внутри PNG: `strings broken.png | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

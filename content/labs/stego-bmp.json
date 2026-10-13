@@ -1,0 +1,28 @@
+{
+  "id": "stego-bmp",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{bmp_s1z3_f13ld_11s_4b0ut_4pp3nd3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: BMP и его поле размера\n\nДан `secret.bmp`. В заголовке BMP (смещение 2) лежит поле `bfSize` —\nзаявленный размер файла. Реальный файл БОЛЬШЕ: после пикселей дописан\nсекрет (base64).\n\nШаги:\n1. `xxd -l 8 secret.bmp` — прочитай bfSize (4 байта little-endian).\n2. Вырежи всё после заявленного размера в файл:\n   `dd if=secret.bmp of=tail.b64 bs=1 skip=<bfSize>`.\n3. Раскодируй base64 и запиши флаг в `found.txt`:\n   `base64 -d tail.b64 > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- BMP-заголовок: \"BM\", затем 4-байтовый bfSize, 4 байта reserved, 4 байта bfOffBits.\n- Несовпадение bfSize с реальным размером = признак дописанных данных.\n"
+    },
+    {
+      "path": "/home/student/task/secret.bmp",
+      "b64": "Qk06AAAAAAAAADYAAAAoAAAAAQAAAAEAAAABABgAAAAAAAQAAAATCwAAEwsAAAAAAAAAAAAAAAD/AApiblJ2ZTJKdGNGOXpNWG96WDJZeE0yeGtYekV4YzE4MFlqQjFkRjgwY0hBemJtUXpaSDA9Cg=="
+    }
+  ],
+  "tools": {}
+}

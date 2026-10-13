@@ -1,0 +1,28 @@
+{
+  "id": "stego-appended",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4pp3nd3d_d4t4_4ft3r_13nd}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: данные после конца файла (appended data)\n\nДан `postcard.png`. Файл валидный, открывается, но после маркера\nконца PNG (`IEND`) к нему дописан секрет.\n\nШаги:\n1. `file postcard.png` — это PNG.\n2. `strings postcard.png` — в хвосте видна строка `SECRET=<base64>`.\n3. Выдели значение и раскодируй: `strings postcard.png | grep SECRET | cut -d= -f2 | base64 -d`.\n4. Запиши флаг в `found.txt`.\n\nАльтернатива: найти смещение через `grep -abo` и вырезать `dd`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Лишние байты после IEND не мешают просмотрщику — потому и незаметны.\n- `strings` видит только печатные последовательности; base64 как раз такая.\n"
+    },
+    {
+      "path": "/home/student/task/postcard.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAGXRFWHRDb21tZW50AGEgbm9ybWFsIHBvc3RjYXJkcEj0fAAAAA1JREFUeNpjYGBg+A8AAQQBAIC70VsAAAAASUVORK5CYIIKU0VDUkVUPWJuUnZlelJ3Y0ROdVpETmtYMlEwZERSZk5HWjBNM0pmTVROdVpIMD0K"
+    }
+  ],
+  "tools": {}
+}

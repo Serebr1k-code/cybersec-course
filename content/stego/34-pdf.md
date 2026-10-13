@@ -13,6 +13,19 @@ useful_for:
   - "Bug bounty: вредоносные PDF"
 estimated_minutes: 30
 summary: "Каналы сокрытия в PDF: невидимые/наложенные объекты, метаданные, JavaScript, встроенные потоки и файлы, whitespace после %%EOF; практические инструменты и извлечение."
+lab:
+  kind: shell
+  title: "Практика: невидимый текст в PDF"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, hidden.pdf]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`file hidden.pdf` — PDF."
+    - "Content stream PDF читается как текст: `strings hidden.pdf`."
+    - "Ищи оператор `3 Tr` (невидимый текст) и строку с флагом."
+    - "Запиши флаг: `strings hidden.pdf | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

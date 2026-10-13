@@ -12,6 +12,19 @@ useful_for:
   - "Сравнение двух «одинаковых» файлов"
 estimated_minutes: 34
 summary: "Методика ручного hex-анализа: чтение структуры через xxd, поиск сигнатур, diff двух файлов для поиска встроенных данных, анализ энтропии и аномалий, автоматизация."
+lab:
+  kind: shell
+  title: "Практика: ручной hex-анализ"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, blob.bin]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`file blob.bin` и `strings blob.bin` — strings флаг не покажет."
+    - "Смотри hex-дамп: `xxd blob.bin`."
+    - "В ASCII-колонке видно `n.t.o.{...}` — байты разделены 0x00."
+    - "Собери символы и запиши: `echo 'nto{...}' > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

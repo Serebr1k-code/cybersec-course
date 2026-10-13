@@ -13,6 +13,19 @@ useful_for:
   - "Incident Response"
 estimated_minutes: 40
 summary: "Как находить удалённые файлы: удалённые inode и directory entries, slack space, unallocated-пространство, журналы ФС и инструменты восстановления."
+lab:
+  kind: shell
+  title: "Практика: восстановить удалённый файл из ext2"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, disk.img]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с `file disk.img` и `ls -la` — образ какого типа перед тобой?"
+    - "Данные удалённого файла остаются в блоках. Ищи их `strings disk.img | grep -i nto`."
+    - "Можно сузить поиск: `strings disk.img | grep -i secret` и посмотреть окрестность."
+    - "Запиши найденный флаг в `found.txt` и набери `check`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,48 @@
+{
+  "id": "crypto-classical",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c4es4r_sh1fts_4r3_w34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: взломать шифр Цезаря перебором\n\nВ `cipher.txt` — текст, зашифрованный сдвигом Цезаря по печатному ASCII.\nКлюч неизвестен, но пространство ключей крошечное — его перебирают.\n\nШаги:\n1. `cat cipher.txt` — посмотри на шифртекст.\n2. Запусти перебор всех сдвигов: `python3 caesar.py`.\n3. Найди осмысленную строку с флагом, запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Цезарь: сдвиг по алфавиту; здесь — по всем печатным ASCII (95 символов).\n- Если пространство ключей мало, brute force всегда выигрывает.\n"
+    },
+    {
+      "path": "/home/student/task/caesar.py",
+      "text": "#!/usr/bin/env python3\n# Перебор всех сдвигов Цезаря (латиница+цифры, печатный ASCII)\nct = open(\"cipher.txt\").read().strip()\nfor s in range(1, 95):\n    pt = \"\".join(chr((ord(c) - 32 - s) % 95 + 32) for c in ct)\n    print(\"%2d: %s\" % (s, pt))\n"
+    },
+    {
+      "path": "/home/student/task/cipher.txt",
+      "text": "u{v#j;lz;yfzo8m{zf;y:f~:;r%\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.14.4"
+        },
+        {
+          "match": "caesar\\.py",
+          "example": "python3 caesar.py",
+          "output": " 1: tzu\"i:ky:xeyn7lzye:x9e}9:q$\n 2: syt!h9jx9wdxm6kyxd9w8d|89p#\n 3: rxs g8iw8vcwl5jxwc8v7c{78o\"\n 4: qwr~f7hv7ubvk4iwvb7u6bz67n!\n 5: pvq}e6gu6tauj3hvua6t5ay56m \n 6: oup|d5ft5s`ti2gut`5s4`x45l~\n 7: nto{c4es4r_sh1fts_4r3_w34k}\n 8: msnzb3dr3q^rg0esr^3q2^v23j|\n 9: lrmya2cq2p]qf/drq]2p1]u12i{\n10: kqlx`1bp1o\\pe.cqp\\1o0\\t01hz\n11: jpkw_0ao0n[od-bpo[0n/[s/0gy\n12: iojv^/`n/mZnc,aonZ/m.Zr./fx\n13: hniu]._m.lYmb+`nmY.l-Yq-.ew\n14: gmht\\-^l-kXla*_mlX-k,Xp,-dv\n15: flgs[,]k,jWk`)^lkW,j+Wo+,cu\n16: ekfrZ+\\j+iVj_(]kjV+i*Vn*+bt\n17: djeqY*[i*hUi^'\\jiU*h)Um)*as\n18: cidpX)Zh)gTh]&[ihT)g(Tl()`r\n19: bhcoW(Yg(fSg\\%ZhgS(f'Sk'(_q\n20: agbnV'Xf'eRf[$YgfR'e&Rj&'^p\n21: `famU&We&dQeZ#XfeQ&d%Qi%&]o\n22: _e`lT%Vd%cPdY\"WedP%c$Ph$%\\n\n23: ^d_kS$Uc$bOcX!VdcO$b#Og#$[m\n24: ]c^jR#Tb#aNbW UcbN#a\"Nf\"#Zl\n25: \\b]iQ\"Sa\"`MaV~TbaM\"`!Me!\"Yk\n26: [a\\hP!R`!_L`U}Sa`L!_ Ld !Xj\n27: Z`[gO Q_ ^K_T|R`_K ^~Kc~ Wi\n28: Y_ZfN~P^~]J^S{Q_^J~]}Jb}~Vh\n29: X^YeM}O]}\\I]RzP^]I}\\|Ia|}Ug\n30: W]XdL|N\\|[H\\QyO]\\H|[{H`{|Tf\n31: V\\WcK{M[{ZG[PxN\\[G{ZzG_z{Se\n32: U[VbJzLZzYFZOwM[ZFzYyF^yzRd\n33: TZUaIyKYyXEYNvLZYEyXxE]xyQc\n34: SYT`HxJXxWDXMuKYXDxWwD\\wxPb\n35: RXS_GwIWwVCWLtJXWCwVvC[vwOa\n36: QWR^FvHVvUBVKsIWVBvUuBZuvN`\n37: PVQ]EuGUuTAUJrHVUAuTtAYtuM_\n38: OUP\\DtFTtS@TIqGUT@tSs@XstL^\n39: NTO[CsESsR?SHpFTS?sRr?WrsK]\n40: MSNZBrDRrQ>RGoESR>rQq>VqrJ\\\n41: LRMYAqCQqP=QFnDRQ=qPp=UpqI[\n42: KQLX@pBPpO<PEmCQP<pOo<TopHZ\n43: JPKW?oAOoN;ODlBPO;oNn;SnoGY\n44: IOJV>n@NnM:NCkAON:nMm:RmnFX\n45: HNIU=m?MmL9MBj@NM9mLl9QlmEW\n46: GMHT<l>LlK8LAi?ML8lKk8PklDV\n47: FLGS;k=KkJ7K@h>LK7kJj7OjkCU\n48: EKFR:j<JjI6J?g=KJ6jIi6NijBT\n49: DJEQ9i;IiH5I>f<JI5iHh5MhiAS\n50: CIDP8h:HhG4H=e;IH4hGg4Lgh@R\n51: BHCO7g9GgF3G<d:HG3gFf3Kfg?Q\n52: AGBN6f8FfE2F;c9GF2fEe2Jef>P\n53: @FAM5e7EeD1E:b8FE1eDd1Ide=O\n54: ?E@L4d6DdC0D9a7ED0dCc0Hcd<N\n55: >D?K3c5CcB/C8`6DC/cBb/Gbc;M\n56: =C>J2b4BbA.B7_5CB.bAa.Fab:L\n57: <B=I1a3Aa@-A6^4BA-a@`-E`a9K\n58: ;A<H0`2@`?,@5]3A@,`?_,D_`8J\n59: :@;G/_1?_>+?4\\2@?+_>^+C^_7I\n60: 9?:F.^0>^=*>3[1?>*^=]*B]^6H\n61: 8>9E-]/=]<)=2Z0>=)]<\\)A\\]5G\n62: 7=8D,\\.<\\;(<1Y/=<(\\;[(@[\\4F\n63: 6<7C+[-;[:';0X.<;'[:Z'?Z[3E\n64: 5;6B*Z,:Z9&:/W-;:&Z9Y&>YZ2D\n65: 4:5A)Y+9Y8%9.V,:9%Y8X%=XY1C\n66: 394@(X*8X7$8-U+98$X7W$<WX0B\n67: 283?'W)7W6#7,T*87#W6V#;VW/A\n68: 172>&V(6V5\"6+S)76\"V5U\":UV.@\n69: 061=%U'5U4!5*R(65!U4T!9TU-?\n70: /50<$T&4T3 4)Q'54 T3S 8ST,>\n71: .4/;#S%3S2~3(P&43~S2R~7RS+=\n72: -3.:\"R$2R1}2'O%32}R1Q}6QR*<\n73: ,2-9!Q#1Q0|1&N$21|Q0P|5PQ);\n74: +1,8 P\"0P/{0%M#10{P/O{4OP(:\n75: *0+7~O!/O.z/$L\"0/zO.Nz3NO'9\n76: )/*6}N .N-y.#K!/.yN-My2MN&8\n77: (.)5|M~-M,x-\"J .-xM,Lx1LM%7\n78: '-(4{L},L+w,!I~-,wL+Kw0KL$6\n79: &,'3zK|+K*v+ H},+vK*Jv/JK#5\n80: %+&2yJ{*J)u*~G|+*uJ)Iu.IJ\"4\n81: $*%1xIz)I(t)}F{*)tI(Ht-HI!3\n82: #)$0wHy(H's(|Ez)(sH'Gs,GH 2\n83: \"(#/vGx'G&r'{Dy('rG&Fr+FG~1\n84: !'\".uFw&F%q&zCx'&qF%Eq*EF}0\n85:  &!-tEv%E$p%yBw&%pE$Dp)DE|/\n86: ~% ,sDu$D#o$xAv%$oD#Co(CD{.\n87: }$~+rCt#C\"n#w@u$#nC\"Bn'BCz-\n88: |#}*qBs\"B!m\"v?t#\"mB!Am&ABy,\n89: {\"|)pAr!A l!u>s\"!lA @l%@Ax+\n90: z!{(o@q @~k t=r! k@~?k$?@w*\n91: y z'n?p~?}j~s<q ~j?}>j#>?v)\n92: x~y&m>o}>|i}r;p~}i>|=i\"=>u(\n93: w}x%l=n|={h|q:o}|h={<h!<=t'\n94: v|w$k<m{<zg{p9n|{g<z;g ;<s&\n"
+        }
+      ]
+    }
+  }
+}

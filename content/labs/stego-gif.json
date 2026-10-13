@@ -1,0 +1,28 @@
+{
+  "id": "stego-gif",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{g1f_c0mm3nt_3xt3ns10ns}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: комментарий в GIF\n\nДан `tiny.gif`. GIF поддерживает расширение-комментарий (блок 0x21 0xFE),\nвнутри которого можно хранить произвольный текст. Именно там флаг.\n\nШаги:\n1. `file tiny.gif`.\n2. `strings tiny.gif` — комментарий виден как строка.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- GIF: заголовок, дескрипторы, расширения (0x21) и блоки изображения (0x2C).\n- Комментарий = 0x21 0xFE <len> <текст> 0x00.\n"
+    },
+    {
+      "path": "/home/student/task/tiny.gif",
+      "b64": "R0lGODlhAQABAIAAAAAAAP///yH+G250b3tnMWZfYzBtbTNudF8zeHQzbnMxMG5zfQAsAAAAAAEAAQAAAgJEAQA7"
+    }
+  ],
+  "tools": {}
+}

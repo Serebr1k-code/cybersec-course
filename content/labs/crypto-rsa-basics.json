@@ -1,0 +1,48 @@
+{
+  "id": "crypto-rsa-basics",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sm4ll_r54_m0dulu5_f4ct0rs_f4st}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: сломать RSA с малым модулем\n\nДаны `n`, `e` и список шифрблоков `cs` (файл `pubkey.txt`). Модуль `n`\nмаленький — его можно разложить на множители перебором, найти `d` и\nрасшифровать блоки (текст шифруется порциями по 4 байта, т.к. каждый\nблок-число должен быть меньше `n`).\n\nШаги:\n1. `cat pubkey.txt` — посмотри n, e, cs.\n2. Запусти готовый решатель: `python3 solve.py` (факторизует n и расшифрует).\n3. Запиши флаг в `found.txt`.\n\nКлючевая идея: стойкость RSA держится на сложности факторизации n.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- n = p*q; phi = (p-1)(q-1); d = e^-1 mod phi.\n- m = c^d mod n; блок-число обязано быть < n, поэтому текст бьют на куски.\n"
+    },
+    {
+      "path": "/home/student/task/solve.py",
+      "text": "#!/usr/bin/env python3\n# RSA с малым модулем: факторизуем n, находим d и расшифровываем блоки\nimport math\nn = 1000036000099\ne = 65537\ncs = [213273551696, 295110875858, 637354389372, 224281914313, 685635051147, 781340483515, 396681340083, 158512074046, 640551525727]\nfor i in range(2, int(math.isqrt(n)) + 1):\n    if n % i == 0:\n        p, q = i, n // i\n        break\nphi = (p - 1) * (q - 1)\nd = pow(e, -1, phi)\npt = b\"\".join(pow(c, d, n).to_bytes(4, \"big\") for c in cs)\nprint(pt.rstrip(b\"\\x00\").decode())\n"
+    },
+    {
+      "path": "/home/student/task/pubkey.txt",
+      "text": "n = 1000036000099\ne = 65537\ncs = [213273551696, 295110875858, 637354389372, 224281914313, 685635051147, 781340483515, 396681340083, 158512074046, 640551525727]\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.14.4"
+        },
+        {
+          "match": "solve\\.py",
+          "example": "python3 solve.py",
+          "output": "nto{sm4ll_r54_m0dulu5_f4ct0rs_f4st}\n"
+        }
+      ]
+    }
+  }
+}

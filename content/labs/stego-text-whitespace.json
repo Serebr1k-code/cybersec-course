@@ -1,0 +1,48 @@
+{
+  "id": "stego-text-whitespace",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{wh1t3sp4c3_c4rr13s_b1ts}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: стеганография в пробелах\n\nДан `message.txt`. На вид — мусорные строки, но в концевых пробелах и\nтабах закодированы биты: пробел=0, таб=1, по 8 бит на символ.\n\nШаги:\n1. `file message.txt` и `cat -A` не помогут — смотри `xxd` или сам текст.\n2. Запусти декодер: `python3 decode.py`.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Trailing whitespace невидим глазом, но сохраняется в файле.\n- Частая схема: space=0, tab=1; группировка по 8 бит = байт.\n"
+    },
+    {
+      "path": "/home/student/task/decode.py",
+      "text": "#!/usr/bin/env python3\n# Декодер whitespace-стего: пробел=0, таб=1, 8 бит на символ\ndata = open(\"message.txt\", \"rb\").read().decode()\nbits = \"\"\nfor line in data.split(\"\\n\"):\n    if not line:\n        continue\n    tail = line[1:]\n    for ch in tail:\n        if ch == \" \":\n            bits += \"0\"\n        elif ch == \"\\t\":\n            bits += \"1\"\nout = bytes(int(bits[i:i+8], 2) for i in range(0, len(bits) - 7, 8))\nprint(out.decode())\n"
+    },
+    {
+      "path": "/home/student/task/message.txt",
+      "text": "x \nx\t\nx\t\nx \nx\t\nx\t\nx\t\nx \nx \nx\t\nx\t\nx\t\nx \nx\t\nx \nx \nx \nx\t\nx\t\nx \nx\t\nx\t\nx\t\nx\t\nx \nx\t\nx\t\nx\t\nx\t\nx \nx\t\nx\t\nx \nx\t\nx\t\nx\t\nx \nx\t\nx\t\nx\t\nx \nx\t\nx\t\nx \nx\t\nx \nx \nx \nx \nx \nx\t\nx\t\nx \nx \nx \nx\t\nx \nx\t\nx\t\nx\t\nx \nx\t\nx \nx \nx \nx \nx\t\nx\t\nx \nx \nx\t\nx\t\nx \nx\t\nx\t\nx\t\nx \nx \nx\t\nx\t\nx \nx\t\nx\t\nx\t\nx \nx \nx \nx \nx \nx \nx\t\nx\t\nx \nx\t\nx \nx \nx \nx\t\nx\t\nx \nx \nx \nx\t\nx\t\nx \nx \nx\t\nx\t\nx \nx \nx\t\nx\t\nx \nx\t\nx \nx\t\nx\t\nx\t\nx\t\nx\t\nx \nx\t\nx\t\nx \nx \nx \nx\t\nx\t\nx \nx \nx\t\nx\t\nx \nx\t\nx \nx \nx \nx\t\nx\t\nx\t\nx \nx \nx\t\nx \nx \nx\t\nx\t\nx\t\nx \nx \nx\t\nx \nx \nx \nx\t\nx\t\nx \nx \nx \nx\t\nx \nx \nx\t\nx\t\nx \nx \nx\t\nx\t\nx \nx\t\nx\t\nx\t\nx \nx \nx\t\nx\t\nx \nx\t\nx \nx\t\nx\t\nx\t\nx\t\nx\t\nx \nx\t\nx\t\nx \nx \nx \nx\t\nx \nx \nx \nx\t\nx\t\nx \nx \nx \nx\t\nx \nx\t\nx\t\nx\t\nx \nx\t\nx \nx \nx \nx\t\nx\t\nx\t\nx \nx \nx\t\nx\t\nx \nx\t\nx\t\nx\t\nx\t\nx\t\nx \nx\t\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.14.4"
+        },
+        {
+          "match": "decode\\.py",
+          "example": "python3 decode.py",
+          "output": "nto{wh1t3sp4c3_c4rr13s_b1ts}\n"
+        }
+      ]
+    }
+  }
+}

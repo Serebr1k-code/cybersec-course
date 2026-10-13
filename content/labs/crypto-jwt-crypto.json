@@ -1,0 +1,28 @@
+{
+  "id": "crypto-jwt-crypto",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{jwt_p4yl04d_1s_ju5t_b64}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разобрать JWT\n\nВ `token.txt` лежит JWT (JSON Web Token). Он состоит из трёх частей,\nразделённых точками: `header.payload.signature`. Первые две — base64url.\n\nШаги:\n1. `cat token.txt` — посмотри структуру.\n2. Выдели payload (второе поле): `cut -d. -f2 token.txt | base64 -d`.\n3. В JSON-payload найди флаг, запиши в `found.txt`.\n\nОбрати внимание: подпись не проверяется, если сервер доверяет `alg` из заголовка.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- JWT = base64url(header) . base64url(payload) . signature.\n- Payload читается без ключа — подпись лишь подтверждает целостность.\n"
+    },
+    {
+      "path": "/home/student/task/token.txt",
+      "text": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImZsYWciOiJudG97and0X3A0eWwwNGRfMXNfanU1dF9iNjR9IiwiaWF0IjoxMzM3MDAwMDAwfQ.ESIzESIzESIzESIzESIzESIzESIzESIzESIzESIzESIz\n"
+    }
+  ],
+  "tools": {}
+}

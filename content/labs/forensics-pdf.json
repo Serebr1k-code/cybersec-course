@@ -1,0 +1,28 @@
+{
+  "id": "forensics-pdf",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pdf_0bj3cts_4r3_just_byt3s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: форензика PDF\n\nДан `invoice.pdf`. Подозрительное вложение: где-то внутри спрятан\nфлаг — в метаданных, JavaScript-действии или потоке.\n\nШаги:\n1. `file invoice.pdf` — подтверди формат.\n2. `strings invoice.pdf` — посмотри читаемые объекты.\n3. Найди флаг (`grep`) и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- PDF — это текстовая структура объектов: `<< /Key (value) >>`.\n- `/OpenAction` с `/JavaScript` — типичный вектор.\n"
+    },
+    {
+      "path": "/home/student/task/invoice.pdf",
+      "b64": "JVBERi0xLjUKMSAwIG9iaiA8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgL09wZW5BY3Rpb24gNSAwIFIgPj4gZW5kb2JqCjIgMCBvYmogPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4gZW5kb2JqCjMgMCBvYmogPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvQ29udGVudHMgNCAwIFIgPj4gZW5kb2JqCjQgMCBvYmogPDwgL0xlbmd0aCA0NCA+PiBzdHJlYW0KQlQgL0YxIDEyIFRmIDcyIDcyMCBUZCAoSW52b2ljZSAjNDgyMSkgVGogRVQKZW5kc3RyZWFtIGVuZG9iago1IDAgb2JqIDw8IC9TIC9KYXZhU2NyaXB0IC9KUyAoYXBwLmFsZXJ0KCJudG97cGRmXzBiajNjdHNfNHIzX2p1c3RfYnl0M3N9Iik7KSA+PiBlbmRvYmoKNiAwIG9iaiA8PCAvVGl0bGUgKFF1YXJ0ZXJseSBpbnZvaWNlKSAvQXV0aG9yIChiaWxsaW5nQGNvcnAubG9jYWwpIC9TdWJqZWN0IChudG97cGRmXzBiajNjdHNfNHIzX2p1c3RfYnl0M3N9KSA+PiBlbmRvYmoKdHJhaWxlciA8PCAvUm9vdCAxIDAgUiAvSW5mbyA2IDAgUiA+PgolJUVPRgo="
+    }
+  ],
+  "tools": {}
+}

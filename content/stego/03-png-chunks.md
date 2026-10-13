@@ -13,6 +13,19 @@ useful_for:
   - "Понимание формата на уровне байтов"
 estimated_minutes: 27
 summary: "Разбор формата PNG на чанки, скрытые данные в tEXt/zTXt/iTXt, аномалии CRC, ручная распаковка IDAT через zlib и поиск повреждённых/лишних чанков."
+lab:
+  kind: shell
+  title: "Практика: текстовые чанки PNG"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, flag.png]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`file flag.png` — подтверди формат."
+    - "Выведи строки: `strings flag.png`."
+    - "Ищи пару `Comment`/`flag=` — это текстовый чанк."
+    - "Запиши флаг: `strings flag.png | grep nto > found.txt`."
+
 ---
 ## Вопрос, с которого всё начинается
 

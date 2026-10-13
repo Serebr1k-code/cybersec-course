@@ -13,6 +13,19 @@ useful_for:
   - "Forensics: скрытые данные в анимации"
 estimated_minutes: 35
 summary: "Каналы сокрытия в GIF: скрытые кадры, задержки между кадрами, палитры отдельных кадров, различия между кадрами и восстановление из повреждённых файлов."
+lab:
+  kind: shell
+  title: "Практика: комментарий GIF"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, tiny.gif]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`file tiny.gif` — подтверди формат."
+    - "`strings tiny.gif` — текст комментария виден как обычная строка."
+    - "Найди флаг в выводе."
+    - "Запиши его: `strings tiny.gif | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается
