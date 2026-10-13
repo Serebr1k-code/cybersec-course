@@ -13,6 +13,18 @@ useful_for:
   - "Работа: оценка egress-политик"
 estimated_minutes: 50
 summary: "Как обойти firewall, используя разрешённый исходящий трафик: reverse-shell, разрешённые протоколы/порты и pivoting внутрь сети."
+lab:
+  kind: shell
+  title: "Практика: находим внешний C2"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, egress.txt, c2.pcap]
+  check: "grep -q '203.0.113.77' answer.txt"
+  hints:
+    - "Сначала разведка egress: `cat egress.txt` — наружу разрешены HTTPS и DNS."
+    - "Входящие закрыты, значит канал исходящий: `tshark -r c2.pcap -nn`."
+    - "Поля запроса: `tshark -r c2.pcap -Y 'http.request' -T fields -e ip.dst -e tcp.dstport -e http.request.uri -e http.host`."
+    - "Внешний C2-адрес — `203.0.113.77`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -42,6 +42,36 @@ const LABS = [
       'base64 -d labels.txt',
       'echo exfil-dns-channel-42 > answer.txt',
     ] },
+  { id: 'network-idps-evasion',
+    check: "grep -q 'union/**/select' answer.txt",
+    solution: [
+      'tshark -r evasion.pcap -nn',
+      "tshark -r evasion.pcap -Y 'http.request' -T fields -e ip.src -e ip.dst -e http.request.uri",
+      "echo 'union/**/select' > answer.txt",
+    ] },
+  { id: 'network-traffic-replay',
+    check: "grep -q 'HELLO:root!' answer.txt",
+    solution: [
+      'capinfos custom.pcap',
+      'tshark -r final.pcap -nn',
+      'tshark -r final.pcap -T fields -e ip.dst -e data.data',
+      'echo HELLO:root! > answer.txt',
+    ] },
+  { id: 'network-vlan-qinq',
+    check: "grep -q '100' answer.txt",
+    solution: [
+      'tshark -r qinq.pcap -nn',
+      'tshark -r qinq.pcap -T fields -e ieee8021ad.id -e vlan.id',
+      'echo 100 > answer.txt',
+    ] },
+  { id: 'network-firewall-piercing',
+    check: "grep -q '203.0.113.77' answer.txt",
+    solution: [
+      'cat egress.txt',
+      'tshark -r c2.pcap -nn',
+      "tshark -r c2.pcap -Y 'http.request' -T fields -e ip.dst -e tcp.dstport -e http.request.uri -e http.host",
+      'echo 203.0.113.77 > answer.txt',
+    ] },
 ]
 
 describe('network labs batch B12 solve end-to-end', () => {

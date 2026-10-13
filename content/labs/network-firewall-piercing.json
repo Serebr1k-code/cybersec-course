@@ -1,0 +1,46 @@
+{
+  "id": "network-firewall-piercing",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "203.0.113.77"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: пробивание firewall\n\nEgress-политика (`egress.txt`): наружу разрешены HTTPS и DNS, входящие соединения закрыты.\nЗначит bind-shell бесполезен — нужен исходящий канал. В `c2.pcap` — сессия импланта.\n\nНайди **внешний C2-адрес**, к которому стучится имплант.\n\n1. `cat egress.txt`\n2. `tshark -r c2.pcap -nn`\n3. `tshark -r c2.pcap -Y 'http.request' -T fields -e ip.dst -e tcp.dstport -e http.request.uri -e http.host`\n\nЗапиши IP C2 в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/egress.txt",
+      "text": "$ curl -m5 -k https://attacker.example/ -o /dev/null -w '%{http_code}\\n'\n200\n$ dig @8.8.8.8 example.com +short\n93.184.216.34\n$ nc -vz -w3 attacker.example 22\nnc: connect to attacker.example port 22 (tcp) failed: Connection refused\n# вывод: egress HTTPS/DNS разрешён, входящие (bind-shell) закрыты\n"
+    },
+    {
+      "path": "/home/student/task/c2.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAAAAAAAAAAACIAAAAiAAAAP///////2h6ZJWAowgARQAAegABAABABi8SCgoFFMsAcU3AAAG7AAAAAQAAAAFQGCAAf+IAAEdFVCAvc2hlbGw/Y21kPWlkIEhUVFAvMS4xDQpIb3N0OiBjZG4tdXBkYXRlcy5leGFtcGxlDQpVc2VyLUFnZW50OiBNb3ppbGxhLzUuMA0KDQoAAAAAIE4AAHoAAAB6AAAA////////aHpklYCjCABFAABsAAEAAEAGLyDLAHFNCgoFFAG7wAAAAAABAAAAAVAYIACP5wAASFRUUC8xLjEgMjAwIE9LDQpDb250ZW50LVR5cGU6IHRleHQvcGxhaW4NCg0KdWlkPTAocm9vdCkgZ2lkPTAocm9vdCk=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "http\\.request\\.uri",
+          "example": "-r c2.pcap -Y 'http.request' -T fields -e ip.dst -e tcp.dstport -e http.request.uri -e http.host",
+          "output": "203.0.113.77\t443\t/shell?cmd=id\tcdn-updates.example\n"
+        },
+        {
+          "match": "c2\\.pcap",
+          "example": "-r c2.pcap -nn",
+          "output": "    1   0.000000    10.10.5.20 → 203.0.113.77   TCP 90 49152 → 443 [PSH, ACK] Seq=1 Ack=1 Len=58\n    2   0.020000   203.0.113.77 → 10.10.5.20    TCP 83 443 → 49152 [PSH, ACK] Seq=1 Ack=1 Len=51\n"
+        }
+      ],
+      "fallback": "    1   0.000000    10.10.5.20 → 203.0.113.77   TCP 90 49152 → 443 [PSH, ACK] Seq=1 Ack=1 Len=58\n    2   0.020000   203.0.113.77 → 10.10.5.20    TCP 83 443 → 49152 [PSH, ACK] Seq=1 Ack=1 Len=51\n"
+    }
+  }
+}

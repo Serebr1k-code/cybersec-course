@@ -1,0 +1,46 @@
+{
+  "id": "network-idps-evasion",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "union/**/select"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: обход IDS\n\nIDS-правило (`ids.rules`) ищет литерал `union select` в URI. В `evasion.pcap` — фрагментированный\nHTTP-запрос, который прошёл мимо правила. Найди конструкцию, которой инъекция обошла сигнатуру.\n\n1. `tshark -r evasion.pcap -nn`\n2. `tshark -r evasion.pcap -Y 'http.request' -T fields -e ip.src -e ip.dst -e http.request.uri`\n\nЗапиши обходную конструкцию (как она видна в URI) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/ids.rules",
+      "text": "alert http $EXTERNAL_NET any -> $HOME_NET any (msg:\"SQLi union\";\n  content:\"union select\"; nocase; http_uri; sid:1000001; rev:1;)\n"
+    },
+    {
+      "path": "/home/student/task/evasion.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAADFXOak0EDQAqAAAAKgAAAP///////2h6ZJWAowgARQAAHBCSIABABjX/CgAAQgoAAArLogBQAAAAAQxVzmpNBA0AKgAAACoAAAD///////9oemSVgKMIAEUAABwQkiABQAY1/goAAEIKAAAKAAAAAVAYIAAMVc5qTQQNACoAAAAqAAAA////////aHpklYCjCABFAAAcEJIgAkAGNf0KAABCCgAACusSAABHRVQgDFXOak0EDQAqAAAAKgAAAP///////2h6ZJWAowgARQAAHBCSIANABjX8CgAAQgoAAAovaW5kZXgucAxVzmpNBA0AKgAAACoAAAD///////9oemSVgKMIAEUAABwQkiAEQAY1+woAAEIKAAAKaHA/aWQ9MSsMVc5qTQQNACoAAAAqAAAA////////aHpklYCjCABFAAAcEJIgBUAGNfoKAABCCgAACnVuaW9uLyoqDFXOak0EDQAqAAAAKgAAAP///////2h6ZJWAowgARQAAHBCSIAZABjX5CgAAQgoAAAovc2VsZWN0KwxVzmpNBA0AKgAAACoAAAD///////9oemSVgKMIAEUAABwQkiAHQAY1+AoAAEIKAAAKdXNlcixwYXMMVc5qTQQNACoAAAAqAAAA////////aHpklYCjCABFAAAcEJIgCEAGNfcKAABCCgAACnMrZnJvbSt1DFXOak0EDQAqAAAAKgAAAP///////2h6ZJWAowgARQAAHBCSIAlABjX2CgAAQgoAAApzZXJzIEhUVAxVzmpNBA0AKgAAACoAAAD///////9oemSVgKMIAEUAABwQkiAKQAY19QoAAEIKAAAKUC8xLjENCkgMVc5qTQQNACoAAAAqAAAA////////aHpklYCjCABFAAAcEJIgC0AGNfQKAABCCgAACm9zdDogMTAuDFXOak0EDQAqAAAAKgAAAP///////2h6ZJWAowgARQAAHBCSIAxABjXzCgAAQgoAAAowLjAuMTANCgxVzmpNBA0AJAAAACQAAAD///////9oemSVgKMIAEUAABYQkgANQAZV+AoAAEIKAAAKDQo=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "http\\.request\\.uri",
+          "example": "-r evasion.pcap -Y 'http.request' -T fields -e ip.src -e ip.dst -e http.request.uri",
+          "output": "10.0.0.66\t10.0.0.10\t/index.php?id=1+union/**/select+user,pass+from+users\n"
+        },
+        {
+          "match": "evasion\\.pcap",
+          "example": "-r evasion.pcap -nn",
+          "output": "    1   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=0, ID=1092)\n    2   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=8, ID=1092)\n    3   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=16, ID=1092)\n    4   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=24, ID=1092)\n    5   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=32, ID=1092)\n    6   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=40, ID=1092)\n    7   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=48, ID=1092)\n    8   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=56, ID=1092)\n    9   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=64, ID=1092)\n    10   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=72, ID=1092)\n"
+        }
+      ],
+      "fallback": "    1   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=0, ID=1092)\n    2   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=8, ID=1092)\n    3   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=16, ID=1092)\n    4   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=24, ID=1092)\n    5   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=32, ID=1092)\n    6   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=40, ID=1092)\n    7   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=48, ID=1092)\n    8   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=56, ID=1092)\n    9   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=64, ID=1092)\n    10   0.000000    10.0.0.66 → 10.0.0.10    IPv4 42 Fragmented IP protocol (proto=TCP 6, off=72, ID=1092)\n"
+    }
+  }
+}

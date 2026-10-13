@@ -13,6 +13,18 @@ useful_for:
   - "Тестирование устойчивости протоколов"
 estimated_minutes: 36
 summary: "Реплей записанного трафика: tcpreplay/tcprewrite/tcpprep, модификация через Scapy, MITM-прокси mitmproxy/bettercap, реплей аутентификации и его ограничения."
+lab:
+  kind: shell
+  title: "Практика: реплей и модификация payload"
+  toolset: [core, tshark, capinfos, tcprewrite]
+  workdir: /home/student/task
+  files: [task.md, custom.pcap, final.pcap]
+  check: "grep -q 'HELLO:root!' answer.txt"
+  hints:
+    - "Сначала паспорт исходника: `capinfos custom.pcap`."
+    - "Затем новый дамп: `tshark -r final.pcap -nn`."
+    - "Payload виден как hex: `tshark -r final.pcap -T fields -e ip.dst -e data.data`. Можно и `strings final.pcap`."
+    - "Изменённое содержимое — `HELLO:root!`."
 ---
 
 ## Вопрос, с которого всё начинается

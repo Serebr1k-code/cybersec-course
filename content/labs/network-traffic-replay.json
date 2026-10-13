@@ -1,0 +1,69 @@
+{
+  "id": "network-traffic-replay",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "HELLO:root!"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: реплей и модификация\n\n`custom.pcap` — исходный дамп (2 пакета на порт 9000). Из него собрали `final.pcap`: переписали\nадрес назначения (`tcprewrite --dstipmap`) и заменили часть payload (Scapy).\n\nВосстанови **изменённое содержимое payload** первого пакета в `final.pcap`.\n\n1. `capinfos custom.pcap`\n2. `tshark -r final.pcap -nn`\n3. `tshark -r final.pcap -T fields -e ip.dst -e data.data` (значение — hex)\n\nЗапиши текст payload в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/custom.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAAAAAAAAAAABBAAAAQQAAAP///////2h6ZJWAowgARQAAMwABAABABmayCgAACQoAAArHOCMoAAAAAQAAAAFQGCAAcLIAAEhFTExPOmFkbWluAAAAAAMBAAA6AAAAOgAAAP///////2h6ZJWAowgARQAALAABAABABma5CgAACQoAAArHOCMoAAAACAAAAAFQGCAA8rsAAFBJTkc=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/final.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAAAAAAAAAAABBAAAAQQAAAP///////2h6ZJWAowgARQAAMwABAABABmaKCgAACQoAADLHOCMoAAAAAQAAAAFQGCAAqnQAAEhFTExPOnJvb3QhAAAAAAMBAAA6AAAAOgAAAP///////2h6ZJWAowgARQAALAABAABABmaRCgAACQoAADLHOCMoAAAADAAAAAFQGCAA8o8AAFBJTkc=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "capinfos": {
+      "help": "capinfos <файл> — паспорт дампа (эмуляция: реальный вывод capinfos)",
+      "cases": [
+        {
+          "match": "custom\\.pcap",
+          "example": "custom.pcap",
+          "output": "File name:           custom.pcap\nFile type:           Wireshark/tcpdump/... - pcap\nFile encapsulation:  Ethernet\nNumber of packets:   2\nCapture duration:    0.000259 seconds\nAverage packet size: 61.50 bytes\n"
+        }
+      ],
+      "fallback": "capinfos: не удалось открыть файл\n"
+    },
+    "tcprewrite": {
+      "help": "tcprewrite --infile=… --outfile=… [--dstipmap=…] — правка дампа (эмуляция)",
+      "cases": [
+        {
+          "match": "dstipmap",
+          "example": "--infile=custom.pcap --outfile=rw.pcap --dstipmap=10.0.0.9/32:10.0.0.50/32",
+          "output": "rewriting custom.pcap -> rw.pcap\n  dst ip map: 10.0.0.9/32 -> 10.0.0.50/32\n  packets: 2 rewritten, 0 skipped\n"
+        }
+      ],
+      "fallback": "rewriting custom.pcap -> rw.pcap\n  dst ip map: 10.0.0.9/32 -> 10.0.0.50/32\n  packets: 2 rewritten, 0 skipped\n"
+    },
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "data\\.data",
+          "example": "-r final.pcap -T fields -e ip.dst -e data.data",
+          "output": "10.0.0.50\t48454c4c4f3a726f6f7421\n10.0.0.50\t50494e47\n"
+        },
+        {
+          "match": "final\\.pcap",
+          "example": "-r final.pcap -nn",
+          "output": "    1   0.000000     10.0.0.9 → 10.0.0.50     TCP 60 51000 → 9000 [PSH, ACK] Seq=1 Ack=1 Len=12\n    2   0.000259     10.0.0.9 → 10.0.0.50     TCP 53 51000 → 9000 [PSH, ACK] Seq=13 Ack=1 Len=4\n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.9 → 10.0.0.50     TCP 60 51000 → 9000 [PSH, ACK] Seq=1 Ack=1 Len=12\n    2   0.000259     10.0.0.9 → 10.0.0.50     TCP 53 51000 → 9000 [PSH, ACK] Seq=13 Ack=1 Len=4\n"
+    }
+  }
+}

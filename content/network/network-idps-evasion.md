@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): настройка IDS и разбор обходов"
 estimated_minutes: 55
 summary: "Как IDS/IPS сопоставляют сигнатуры, где расхождения парсеров позволяют обойти детект и какие техники обфускации применяют на практике."
+lab:
+  kind: shell
+  title: "Практика: обход сигнатуры IDS"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, ids.rules, evasion.pcap]
+  check: "grep -q 'union/**/select' answer.txt"
+  hints:
+    - "Правило (`ids.rules`) ищет литерал `union select`. Сводка дампа: `tshark -r evasion.pcap -nn`."
+    - "Пакет фрагментирован (fragsize=8) — сигнатура размазана по фрагментам."
+    - "tshark пересобирает сам: `tshark -r evasion.pcap -Y 'http.request' -T fields -e ip.src -e ip.dst -e http.request.uri`."
+    - "Обходная конструкция — комментарий между словами: `union/**/select`."
 ---
 
 ## Вопрос, с которого всё начинается

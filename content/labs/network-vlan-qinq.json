@@ -1,0 +1,42 @@
+{
+  "id": "network-vlan-qinq",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "100"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: QinQ — два тега\n\nВ `qinq.pcap` — кадр, снятый на транке: он несёт **два** тега 802.1Q. Внешний тег — сервисный\n(S-Tag, TPID `0x88a8`), внутренний — клиентский (C-Tag, TPID `0x8100`).\n\nНайди **внутренний (клиентский) VLAN ID**.\n\n1. `tshark -r qinq.pcap -nn`\n2. `tshark -r qinq.pcap -T fields -e ieee8021ad.id -e vlan.id`\n\nЗапиши номер внутреннего VLAN в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/qinq.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAADFXOaplEDQA+AAAAPgAAAAgAJ6q7zFJUABEiM4ioAAqBAABkCABFAAAoAAEAAEAGUsIKAAAFCgAUCQTSAFAAAAAAAAAAAFACIABiswAA",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "ieee8021ad",
+          "example": "-r qinq.pcap -T fields -e ieee8021ad.id -e vlan.id",
+          "output": "10\t100\n"
+        },
+        {
+          "match": "qinq\\.pcap",
+          "example": "-r qinq.pcap -nn",
+          "output": "    1   0.000000     10.0.0.5 → 10.0.20.9    TCP 62 1234 → 80 [SYN] Seq=0 Win=8192 Len=0\n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.5 → 10.0.20.9    TCP 62 1234 → 80 [SYN] Seq=0 Win=8192 Len=0\n"
+    }
+  }
+}

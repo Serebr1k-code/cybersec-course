@@ -13,6 +13,18 @@ useful_for:
   - "Работа (инженер): корректная настройка trunk/native VLAN"
 estimated_minutes: 60
 summary: "Как устроен 802.1Q, чем отличается access от trunk, как работает native VLAN, что такое QinQ и double tagging, как выполняется VLAN hopping и как от него защищаться."
+lab:
+  kind: shell
+  title: "Практика: разбираем QinQ (два тега)"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, qinq.pcap]
+  check: "grep -q '100' answer.txt"
+  hints:
+    - "Сводка: `tshark -r qinq.pcap -nn` — кадр несёт два тега."
+    - "Внешний тег — сервисный S-Tag (TPID 0x88a8), внутренний — клиентский C-Tag (0x8100)."
+    - "Поля: `tshark -r qinq.pcap -T fields -e ieee8021ad.id -e vlan.id`."
+    - "Внутренний (клиентский) VLAN ID — `100`."
 ---
 
 ## Вопрос, с которого всё начинается
