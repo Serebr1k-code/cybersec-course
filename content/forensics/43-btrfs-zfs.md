@@ -13,6 +13,18 @@ useful_for:
   - "Анализ серверных образов"
 estimated_minutes: 60
 summary: "Форензика современных CoW-файловых систем: Btrfs (суперблоки, деревья, snapshots), ZFS (uberblock, ZAP, zpool), XFS (AG, B-деревья), восстановление данных и поиск следов."
+lab:
+  kind: shell
+  title: "Практика: достать удалённый файл из Btrfs"
+  toolset: [core, hex, btrfs]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, disk.img]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Проверь сигнатуру суперблока: `xxd -s 0x10000 -l 16 disk.img` (ищи `_BHRfS_M`)."
+    - "Посмотри дерево и снапшоты: `btrfs restore -l disk.img`."
+    - "Удалённые данные не затёрты (CoW) — поищи их прямо в образе: `strings disk.img`."
+    - "Сохрани флаг: `strings disk.img | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

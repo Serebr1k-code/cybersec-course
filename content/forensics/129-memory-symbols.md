@@ -13,6 +13,18 @@ useful_for:
   - "Incident Response"
 estimated_minutes: 50
 summary: "Работа с символами Volatility3: Intermediate Symbol Format (ISF), автоматическая загрузка, генерация профилей для Linux/Windows, диагностика ошибок и kernel debug."
+lab:
+  kind: shell
+  title: "Практика: сгенерировать ISF и прочитать Linux-дамп"
+  toolset: [core, volatility]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, linux.mem, System.map-5.15.0-91-generic, vmlinux-5.15.0-91-generic]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сначала `vol -f linux.mem banners` — узнай версию ядра."
+    - "`vol -f linux.mem linux.pslist` упадёт с `Unsatisfied requirement` — нет символов."
+    - "Сгенерируй ISF: `dwarf2json linux --system-map System.map-5.15.0-91-generic --elf vmlinux-5.15.0-91-generic > symbols/linux/5.15.0-91-generic.json`."
+    - "Затем `vol -f linux.mem --symbol-dirs symbols linux.dmesg | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

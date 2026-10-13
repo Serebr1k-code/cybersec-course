@@ -21,6 +21,14 @@ const LABS = [
   { id: 'forensics-volatility-deep', flag: 'nto{p4g3_3x3c_1n_m3m0ry}', hints: 4,
     solution: ['vol -f mem.raw windows.pslist', 'vol -f mem.raw windows.netscan',
       'vol -f mem.raw windows.malfind --pid 4120 | grep nto > found.txt'] },
+  { id: 'forensics-memory-symbols', flag: 'nto{symb0ls_unl0ck_th3_k3rn3l}', hints: 4,
+    solution: ['vol -f linux.mem banners', 'vol -f linux.mem linux.pslist',
+      'dwarf2json linux --system-map System.map-5.15.0-91-generic --elf vmlinux-5.15.0-91-generic > symbols/linux/5.15.0-91-generic.json',
+      'vol -f linux.mem --symbol-dirs symbols linux.pslist',
+      'vol -f linux.mem --symbol-dirs symbols linux.dmesg | grep nto > found.txt'] },
+  { id: 'forensics-btrfs-zfs', flag: 'nto{c0w_sn4psh0t_k33ps_d3l3t3d_f1l3s}', hints: 4,
+    solution: ['xxd -s 0x10000 -l 16 disk.img', 'btrfs restore -l disk.img',
+      'strings disk.img | grep nto > found.txt'] },
 ]
 
 describe.each(LABS)('forensics/crypto lab: $id', ({ id, flag, hints, solution }) => {

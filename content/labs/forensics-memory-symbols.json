@@ -1,0 +1,92 @@
+{
+ "id": "forensics-memory-symbols",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "expect": {
+  "file": "/home/student/task/found.txt",
+  "contains": "nto{symb0ls_unl0ck_th3_k3rn3l}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/symbols",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/symbols/linux",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: заставить Volatility3 прочитать Linux-дамп\n\nЕсть дамп `linux.mem`. Плагины падают с ошибкой отсутствия символов.\nСгенерируй ISF и добудь флаг из кольцевого буфера ядра (`linux.dmesg`).\n\nШаги:\n1. `vol -f linux.mem banners` — определи версию ядра.\n2. `vol -f linux.mem linux.pslist` — увидишь ошибку `Unsatisfied requirement`.\n3. Сгенерируй ISF: `dwarf2json linux --system-map System.map-5.15.0-91-generic \\\n     --elf vmlinux-5.15.0-91-generic > symbols/linux/5.15.0-91-generic.json`.\n4. `vol -f linux.mem --symbol-dirs symbols linux.pslist` — теперь работает.\n5. `vol -f linux.mem --symbol-dirs symbols linux.dmesg | grep nto > found.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/notes.txt",
+   "text": "Заметки:\n- Volatility3 не хранит профили — читает ISF (JSON-описание типов ядра).\n- Смещения полей различаются между версиями ядра: «похожий» ISF не подойдёт.\n- Раскладка: `symbols/<os>/<name>.json`, затем `--symbol-dirs symbols`.\n"
+  },
+  {
+   "path": "/home/student/task/System.map-5.15.0-91-generic",
+   "text": "ffffffff81000000 T startup_64\nffffffff81000030 T secondary_startup_64\nffffffff81a2b4c0 D init_task\nffffffff81c03e40 D init_mm\nffffffff8240a000 T ntofs_mount\nffffffff8240a120 T ntofs_umount\n"
+  },
+  {
+   "path": "/home/student/task/vmlinux-5.15.0-91-generic",
+   "b64": "f0VMRgIBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/linux.mem",
+   "b64": "f0VMRgIBAQAAAAAAAAAAAExpbnV4IHZlcnNpb24gNS4xNS4wLTkxLWdlbmVyaWMgKGJ1aWxkZEBsY3kwMikgIzEgU01QAHN5c3RlbWQAa3RocmVhZGQAa3dvcmtlci8wOjEAc3NoZABIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3DSInlXcNIieVdw0iJ5V3D",
+   "mode": "644"
+  }
+ ],
+ "tools": {
+  "vol": {
+   "help": "vol -f <дамп> [--symbol-dirs DIR] <плагин> — эмуляция Volatility 3",
+   "cases": [
+    {
+     "match": "banners",
+     "example": "banners",
+     "output": "Volatility 3 Framework 2.5.0\nLinux version 5.15.0-91-generic (buildd@lcy02) (gcc-11) #1 SMP Debian 5.15.0-91\n  Command line: BOOT_IMAGE=/vmlinuz-5.15.0-91-generic root=UUID=... ro quiet\n"
+    },
+    {
+     "match": "isfinfo",
+     "example": "isfinfo",
+     "output": "Required symbol table: linux/5.15.0-91-generic.json\nSearch paths: builtin, ~/.cache/volatility3/symbols, ./symbols (via --symbol-dirs)\n"
+    },
+    {
+     "match": "symbol-dirs.*linux\\.pslist",
+     "example": "--symbol-dirs symbols linux.pslist",
+     "output": "PID   PPID  COMM\n1     0     systemd\n2     0     kthreadd\n412   1     sshd\n981   1     ntofsd\n"
+    },
+    {
+     "match": "linux\\.pslist",
+     "example": "linux.pslist",
+     "output": "Volatility 3 Framework 2.5.0\nUnsatisfied requirement: kernel.symbol_table_name\n"
+    },
+    {
+     "match": "symbol-dirs.*linux\\.dmesg",
+     "example": "--symbol-dirs symbols linux.dmesg",
+     "output": "Volatility 3 Framework 2.5.0\n[    0.000000] Linux version 5.15.0-91-generic (buildd@lcy02) #1 SMP\n[    0.912004] systemd[1]: Detected virtualization kvm.\n[    3.412889] ntofs: mounting evidence volume 'case-4412'\n[    3.412901] ntofs: volume label = nto{symb0ls_unl0ck_th3_k3rn3l}\n[    3.500112] EXT4-fs (sda1): mounted filesystem with ordered data mode.\n"
+    },
+    {
+     "match": "linux\\.dmesg",
+     "example": "linux.dmesg",
+     "output": "Volatility 3 Framework 2.5.0\nUnsatisfied requirement: kernel.symbol_table_name\n"
+    }
+   ]
+  },
+  "dwarf2json": {
+   "help": "dwarf2json <os> --system-map <map> [--elf <vmlinux>] — генерация ISF (эмуляция)",
+   "cases": [
+    {
+     "match": "linux",
+     "example": "linux --system-map System.map-5.15.0-91-generic",
+     "output": "{\"metadata\":{\"producer\":{\"name\":\"dwarf2json\",\"version\":\"0.8.0\"},\"format\":\"6.2.0\"},\"base_types\":{\"int\":{\"size\":4,\"signed\":true,\"kind\":\"int\"}},\"user_types\":{\"task_struct\":{\"size\":9664,\"fields\":{\"pid\":{\"type\":{\"kind\":\"base\",\"name\":\"int\"},\"offset\":1}}}},\"symbols\":{\"init_task\":{\"address\":2153065664},\"ntofs_mount\":{\"address\":2185129984}},\"enums\":{}}\n"
+    }
+   ]
+  }
+ }
+}
