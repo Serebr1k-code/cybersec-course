@@ -13,6 +13,18 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 50
 summary: "Разбираем House of Roman: комбинация fastbin и unsorted bin для записи в цель без утечки libc, включая 12-битный брутфорс."
+lab:
+  kind: shell
+  title: "Практика: сколько бит брутить"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, libc.maps.txt, libc.syms]
+  check: "grep -q 'bits=12' answer.txt"
+  hints:
+    - "`cat libc.maps.txt` — три базовых адреса libc из разных запусков."
+    - "Сравни младшие hex-цифры всех трёх адресов."
+    - "Младшие 3 hex-цифры (12 бит) совпадают — это смещение внутри страницы."
+    - "Запиши `bits=12`."
 ---
 
 ## Вопрос, с которого всё начинается

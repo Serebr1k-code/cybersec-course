@@ -13,6 +13,18 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 50
 summary: "Разбираем перекрытие чанков: как получить два аллоцированных региона на одной памяти, через off-by-one, UAF и подделку size, и как это превратить в arbitrary write."
+lab:
+  kind: shell
+  title: "Практика: corrupted size"
+  toolset: [core, objdump]
+  workdir: /home/student/task
+  files: [task.md, overlap.c, overlap, run.txt]
+  check: "grep -q 'size=0xe1' answer.txt"
+  hints:
+    - "`cat overlap.c` — какой байт и куда пишется (off-by-one)."
+    - "`cat run.txt` — размеры A/B/C и результат порчи."
+    - "Было 0x61, младший байт заменяется на 0xe1."
+    - "Запиши `size=0xe1`."
 ---
 ## Вопрос, с которого всё начинается
 

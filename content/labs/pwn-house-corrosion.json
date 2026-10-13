@@ -1,0 +1,26 @@
+{
+ "id": "pwn-house-corrosion",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "bk_nextsize=0x28"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: смещение bk_nextsize (House of Corrosion)\n\nHouse of Corrosion портит поле `bk_nextsize` чанка в **large bin**. Ниже —\nреальный дамп заголовка такого чанка (`largebin.bin`). Поля malloc_chunk идут\nподряд: `prev_size`, `size`, `fd`, `bk`, `fd_nextsize`, `bk_nextsize`.\n\n1. `xxd largebin.bin` — дамп байтов.\n2. Заголовок чанка — первые 0x10 байт, дальше `fd`/`bk` и т.д.\n\nНа каком смещении от начала чанка лежит `bk_nextsize`? Запиши `bk_nextsize=0x...`\nи набери `check`.\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/largebin.bin",
+   "b64": "AAAAAAAAAAARBAAAAAAAAKCw4ff/fwAAoLDh9/9/AAAAwOH3/38AAADA4ff/fwAAAAAAAAAAAAAAAAAAAAAAAA==",
+   "mode": "755"
+  }
+ ],
+ "tools": {}
+}

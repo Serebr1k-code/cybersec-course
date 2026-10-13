@@ -1,0 +1,31 @@
+{
+ "id": "pwn-house-roman",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "bits=12"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: сколько бит брутить (House of Roman)\n\nHouse of Roman пишет по цели **частичной перезаписью** указателя без утечки\nlibc. Младшие биты адреса внутри страницы детерминированы, а выше — ASLR.\n`libc.maps.txt` — реальные базовые адреса libc из трёх запусков.\n\n1. `cat libc.maps.txt` — сравни три базы.\n2. `cat libc.syms` — смещение классической цели `__free_hook`.\n\nСколько младших бит адреса детерминированы (то есть сколько бит нужно\nперебрать)? Запиши `bits=<N>` (десятичное) и набери `check`.\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/libc.maps.txt",
+   "text": "7fe3596d7000-7fe3596fb000 r--p 00000000 103:04 1183081                   /usr/lib/libc.so.6\n7f418367e000-7f41836a2000 r--p 00000000 103:04 1183081                   /usr/lib/libc.so.6\n7f301e5f1000-7f301e615000 r--p 00000000 103:04 1183081                   /usr/lib/libc.so.6\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/libc.syms",
+   "text": "00000000001e84a0 D _IO_2_1_stderr_@@GLIBC_2.2.5\n00000000001e8580 D _IO_2_1_stdout_@@GLIBC_2.2.5\n00000000001e6030 D _IO_file_jumps@@GLIBC_2.2.5\n00000000001e8480 D _IO_list_all@@GLIBC_2.2.5\n0000000000092110 T _IO_str_overflow@@GLIBC_2.2.5\n00000000001e6228 D _IO_wfile_jumps@@GLIBC_2.2.5\n00000000001ee188 V __free_hook@GLIBC_2.2.5\n00000000000a7d70 T __libc_calloc@@GLIBC_2.2.5\n00000000000a7520 T __libc_free@@GLIBC_2.2.5\n00000000000a9540 T __libc_freeres@@GLIBC_2.2.5\n00000000000a6fd0 T __libc_malloc@@GLIBC_2.2.5\n00000000001ee180 V __malloc_hook@GLIBC_2.2.5\n",
+   "mode": "644"
+  }
+ ],
+ "tools": {}
+}

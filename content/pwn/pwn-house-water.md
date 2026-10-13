@@ -13,6 +13,18 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 50
 summary: "Разбираем House of Water: манипуляция _IO_list_all и построение FSOP-цепочки до захвата управления в modern glibc."
+lab:
+  kind: shell
+  title: "Практика: смещение _IO_list_all"
+  toolset: [core, nm]
+  workdir: /home/student/task
+  files: [task.md, libc.syms]
+  check: "grep -q 'list_all=0x1e8480' answer.txt"
+  hints:
+    - "`nm -D libc.syms` — динамические символы libc."
+    - "Ищи символ `_IO_list_all`."
+    - "Первый столбец — смещение от базы libc."
+    - "Запиши `list_all=0x1e8480`."
 ---
 
 ## Вопрос, с которого всё начинается

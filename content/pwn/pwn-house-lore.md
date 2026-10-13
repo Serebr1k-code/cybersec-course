@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 55
 summary: "Как поддельный small-чанк, вставленный в small bin, позволяет malloc вернуть контролируемый указатель (произвольная аллокация)."
+lab:
+  kind: shell
+  title: "Практика: индекс small bin"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, lore.c, lore, run.txt]
+  check: "grep -q 'bin=0xe' answer.txt"
+  hints:
+    - "`./lore` печатает индекс корзины и адрес smallbin[idx].bk."
+    - "Формула: index = size / 0x10 - 2."
+    - "Для size = 0x100: 0x100/0x10 - 2 = 0xe."
+    - "Запиши `bin=0xe`."
 ---
 ## Вопрос, с которого всё начинается
 

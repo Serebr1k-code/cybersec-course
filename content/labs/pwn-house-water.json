@@ -1,0 +1,37 @@
+{
+ "id": "pwn-house-water",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "list_all=0x1e8480"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: смещение _IO_list_all (House of Water)\n\nHouse of Water строит FSOP-цепочку через `_IO_list_all`. Нужно смещение этого\nсимвола в целевой libc (`libc.syms` — реальный `nm -D`).\n\n1. `nm -D libc.syms` (или `grep _IO_list_all libc.syms`).\n2. Первый столбец — смещение от базы libc.\n\nЗапиши `list_all=0x...` и набери `check`.\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/libc.syms",
+   "text": "00000000001e84a0 D _IO_2_1_stderr_@@GLIBC_2.2.5\n00000000001e8580 D _IO_2_1_stdout_@@GLIBC_2.2.5\n00000000001e6030 D _IO_file_jumps@@GLIBC_2.2.5\n00000000001e8480 D _IO_list_all@@GLIBC_2.2.5\n0000000000092110 T _IO_str_overflow@@GLIBC_2.2.5\n00000000001e6228 D _IO_wfile_jumps@@GLIBC_2.2.5\n00000000001ee188 V __free_hook@GLIBC_2.2.5\n00000000000a7d70 T __libc_calloc@@GLIBC_2.2.5\n00000000000a7520 T __libc_free@@GLIBC_2.2.5\n00000000000a9540 T __libc_freeres@@GLIBC_2.2.5\n00000000000a6fd0 T __libc_malloc@@GLIBC_2.2.5\n00000000001ee180 V __malloc_hook@GLIBC_2.2.5\n",
+   "mode": "644"
+  }
+ ],
+ "tools": {
+  "nm": {
+   "help": "nm -D <файл> — динамические символы",
+   "cases": [
+    {
+     "match": "libc\\.syms",
+     "example": "-D libc.syms",
+     "output": "00000000001e84a0 D _IO_2_1_stderr_@@GLIBC_2.2.5\n00000000001e8580 D _IO_2_1_stdout_@@GLIBC_2.2.5\n00000000001e6030 D _IO_file_jumps@@GLIBC_2.2.5\n00000000001e8480 D _IO_list_all@@GLIBC_2.2.5\n0000000000092110 T _IO_str_overflow@@GLIBC_2.2.5\n00000000001e6228 D _IO_wfile_jumps@@GLIBC_2.2.5\n00000000001ee188 V __free_hook@GLIBC_2.2.5\n00000000000a7d70 T __libc_calloc@@GLIBC_2.2.5\n00000000000a7520 T __libc_free@@GLIBC_2.2.5\n00000000000a9540 T __libc_freeres@@GLIBC_2.2.5\n00000000000a6fd0 T __libc_malloc@@GLIBC_2.2.5\n00000000001ee180 V __malloc_hook@GLIBC_2.2.5\n"
+    }
+   ]
+  }
+ }
+}

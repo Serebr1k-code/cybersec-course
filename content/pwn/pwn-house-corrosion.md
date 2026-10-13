@@ -13,6 +13,18 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 50
 summary: "Разбираем House of Corrosion: эксплуатация large bin через bk_nextsize в glibc 2.27–2.30 и получение произвольной записи."
+lab:
+  kind: shell
+  title: "Практика: смещение bk_nextsize"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, largebin.bin]
+  check: "grep -q 'bk_nextsize=0x28' answer.txt"
+  hints:
+    - "`xxd largebin.bin` — дамп заголовка чанка."
+    - "Поля идут подряд: prev_size, size, fd, bk, fd_nextsize, bk_nextsize."
+    - "Каждое поле — 8 байт."
+    - "bk_nextsize — шестое поле, смещение 0x28."
 ---
 
 ## Вопрос, с которого всё начинается
