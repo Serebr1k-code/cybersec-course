@@ -12,6 +12,17 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 60
 summary: "Как функция tcache_stashing_unlink переносит чанки из small bin в tcache и почему это даёт произвольную запись/аллокацию на glibc 2.29–2.3x."
+lab:
+  kind: shell
+  title: "Практика: tcache stashing"
+  toolset: [core, gdb]
+  workdir: /home/student/task
+  files: [task.md, stashing.gdb.txt]
+  check: "grep -q 'stashed=2' answer.txt"
+  hints:
+    - "Правило stashing: `min(tcache_max - count, len(smallbin))`."
+    - "`tcache_max = 7`, `count = 5`, в small bin 2 чанка."
+    - "7 - 5 = 2."
 ---
 ## Вопрос, с которого всё начинается
 

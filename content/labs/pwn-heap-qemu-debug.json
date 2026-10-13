@@ -1,0 +1,23 @@
+{
+ "id": "pwn-heap-qemu-debug",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "top=0x405100"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: найти top chunk при отладке под qemu-user\n\nПри отладке ARM-бинаря под qemu-user удобно печатать адреса чанков\nпрямо в gdb. `heap.gdb.txt` — сессия, где аллоцировали три чанка 0x50\nи вывели их адреса и карту памяти.\n\nTop chunk идёт сразу после последнего чанка: `top = c3 + size(c3)`,\nгде размер чанка под запрос 0x40 равен 0x50.\n\n1. `grep -n 'c1=\\|top\\|heap' heap.gdb.txt`\n2. Вычисли адрес top chunk.\n\nЗапиши в `answer.txt` строку `top=0x...` и набери `check`.\n"
+  },
+  {
+   "path": "/home/student/task/heap.gdb.txt",
+   "text": "# gdb под qemu-user (ARM) — анализ heap\n# (в этой лабе вывод соответствует реальной сессии gdb -batch)\n(gdb) b mark\nBreakpoint 1 at 0x40110a\n(gdb) run\nBreakpoint 1 at 0x40110a: file heapdemo2.c, line 3.\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/usr/lib/libthread_db.so.1\".\n\nBreakpoint 1, mark () at heapdemo2.c:3\n3\tvoid mark(void){}\nc1=0x405010 c2=0x405060 c3=0x4050b0\ntop = c3 + 0x50 = 0x405100\nprocess 574121\nMapped address spaces:\n\nStart Addr         End Addr           Size               Offset             Perms File \n0x0000000000400000 0x0000000000401000 0x1000             0x0                r--p  /tmp/labpwn4/heapdemo2 \n0x0000000000401000 0x0000000000402000 0x1000             0x1000             r-xp  /tmp/labpwn4/heapdemo2 \n0x0000000000402000 0x0000000000403000 0x1000             0x2000             r--p  /tmp/labpwn4/heapdemo2 \n0x0000000000403000 0x0000000000404000 0x1000             0x2000             r--p  /tmp/labpwn4/heapdemo2 \n0x0000000000404000 0x0000000000405000 0x1000             0x3000             rw-p  /tmp/labpwn4/heapdemo2 \n0x0000000000405000 0x0000000000426000 0x21000            0x0                rw-p  [heap] \n0x00007ffff7d92000 0x00007ffff7d95000 0x3000             0x0                rw-p   \n0x00007ffff7d95000 0x00007ffff7db9000 0x24000            0x0                r--p  /usr/lib/libc.so.6 \n0x00007ffff7db9000 0x00007ffff7f2a000 0x171000           0x24000            r-xp  /usr/lib/libc.so.6 \n0x00007ffff7f2a000 0x00007ffff7f78000 0x4e000            0x195000           r--p  /usr/lib/libc.so.6 \n0x00007ffff7f78000 0x00007ffff7f7c000 0x4000             0x1e2000           r--p  /usr/lib/libc.so.6 \n0x00007ffff7f7c000 0x00007ffff7f7e000 0x2000             0x1e6000           rw-p  /usr/lib/libc.so.6 \n0x00007ffff7f7e000 0x00007ffff7f88000 0xa000             0x0                rw-p   \n0x00007ffff7fbd000 0x00007ffff7fc1000 0x4000             0x0                r--p  [vvar] \n0x00007ffff7fc1000 0x00007ffff7fc3000 0x2000             0x0                r--p  [vvar_vclock] \n0x00007ffff7fc3000 0x00007ffff7fc5000 0x2000             0x0                r-xp  [vdso] \n0x00007ffff7fc5000 0x00007ffff7fc6000 0x1000             0x0                r--p  /usr/lib/ld-linux-x86-64.so.2 \n0x00007ffff7fc6000 0x00007ffff7ff0000 0x2a000            0x1000             r-xp  /usr/lib/ld-linux-x86-64.so.2 \n0x00007ffff7ff0000 0x00007ffff7ffb000 0xb000             0x2b000            r--p  /usr/lib/ld-linux-x86-64.so.2 \n0x00007ffff7ffb000 0x00007ffff7ffd000 0x2000             0x36000            r--p  /usr/lib/ld-linux-x86-64.so.2 \n0x00007ffff7ffd000 0x00007ffff7ffe000 0x1000             0x38000            rw-p  /usr/lib/ld-linux-x86-64.so.2 \n0x00007ffff7ffe000 0x00007ffff7fff000 0x1000             0x0                rw-p   \n0x00007ffffffde000 0x00007ffffffff000 0x21000            0x0                rw-p  [stack] \n0xffffffffff600000 0xffffffffff601000 0x1000             0x0                --xp  [vsyscall] \n"
+  }
+ ]
+}

@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 60
 summary: "Разбираем старый unsafe unlink: как через подделку fd/bk в свободном чанке и перезапись метаданных получить произвольную запись указателя и перекрывающиеся чанки."
+lab:
+  kind: shell
+  title: "Практика: unsafe unlink"
+  toolset: [core, hex, gdb]
+  workdir: /home/student/task
+  files: [task.md, unlink.gdb.txt, chunks.bin]
+  check: "grep -q 'write=0x4040b8' answer.txt"
+  hints:
+    - "unlink(P) делает `FD->bk = BK`, где `FD = P->fd`."
+    - "`bk` в malloc_chunk лежит по смещению +0x18 от user-данных."
+    - "target = P->fd + 0x18."
 ---
 ## Вопрос, с которого всё начинается
 

@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 50
 summary: "Детально разбираем tcache poisoning с учётом safe-linking (glibc 2.32+), выбор цели записи в modern glibc и полную цепочку до shell."
+lab:
+  kind: shell
+  title: "Практика: safe-linking в tcache"
+  toolset: [core, hex, gdb]
+  workdir: /home/student/task
+  files: [task.md, tcache.gdb.txt, tcache.bin]
+  check: "grep -q 'next=0x404100' answer.txt"
+  hints:
+    - "С glibc 2.32 указатель fd маскируется: `stored = next ^ (chunk_addr >> 12)`."
+    - "`chunk_addr = 0x404060`, значит `chunk_addr >> 12 = 0x404`."
+    - "`next = stored ^ (chunk_addr >> 12)`."
 ---
 ## Вопрос, с которого всё начинается
 

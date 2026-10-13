@@ -1,0 +1,23 @@
+{
+ "id": "pwn-tcache-stashing",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "stashed=2"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: сколько чанков уедет в tcache (stashing)?\n\n`tcache_stashing_unlink` при `_int_malloc` переносит чанки из small bin\nв tcache, если tcache не полон. Правило: `min(tcache_max - count, len(smallbin))`.\n\nТранскрипт `stashing.gdb.txt` показывает `count` и длину small bin.\n\n1. `grep -n 'count\\|smallbin\\|tcache_max' stashing.gdb.txt`\n2. Посчитай, сколько чанков переедет.\n\nЗапиши в `answer.txt` строку `stashed=N` и набери `check`.\n"
+  },
+  {
+   "path": "/home/student/task/stashing.gdb.txt",
+   "text": "# gdb: перед вызовом _int_malloc(0x80)\n(gdb) b mark\nBreakpoint 1 at 0x40111d\n(gdb) run\nBreakpoint 1 at 0x40110a: file heapdemo.c, line 4.\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/usr/lib/libthread_db.so.1\".\n\nBreakpoint 1, mark () at heapdemo.c:4\n4\tvoid mark(void){}\ntcache_max = 7\ntcache[0x90].count = 5\nsmallbin[0x90] (unsorted->sorted) = 0x4041a0 -> 0x404230\ncall: _int_malloc(0x80) -> tcache_stashing_unlink(smallbin[0x90])\nstash_rule: переносим (tcache_max - count) = (7 - 5) чанков, но не больше чем в бине\n"
+  }
+ ]
+}

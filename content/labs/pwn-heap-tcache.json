@@ -1,0 +1,28 @@
+{
+ "id": "pwn-heap-tcache",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "next=0x404100"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: снять маску safe-linking в tcache\n\nС glibc 2.32 указатель `fd` в tcache/fastbin маскируется:\n`stored = next ^ (chunk_addr >> 12)` (макрос `PROTECT_PTR`).\n\nТранскрипт `tcache.gdb.txt` показывает замаскированное `fd` головного\nчанка tcache[0x30]. Адрес самого чанка там же.\n\n1. `grep -n 'PROTECT_PTR\\|raw fd\\|chunk address' tcache.gdb.txt`\n2. Сними маску: `next = stored ^ (chunk_addr >> 12)`.\n3. Байты: `xxd tcache.bin`.\n\nЗапиши в `answer.txt` строку `next=0x...` и набери `check`.\n"
+  },
+  {
+   "path": "/home/student/task/tcache.gdb.txt",
+   "text": "# gdb: tcache[0x30] с safe-linking (glibc 2.32+)\n(gdb) b mark\nBreakpoint 1 at 0x40111d: file heapdemo.c, line 4.\n(gdb) run\nBreakpoint 1, mark () at heapdemo.c:4\nBreakpoint 1 at 0x40110a: file heapdemo.c, line 4.\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/usr/lib/libthread_db.so.1\".\n\nBreakpoint 1, mark () at heapdemo.c:4\n4\tvoid mark(void){}\ntcache[0x30].entries[0] = 0x404060  (user data of the freed chunk)\nraw fd (PROTECT_PTR encoded) = 0x404504\nchunk address (>>12)        = 0x404\n0x404060 <region+32>:\t0x0000000000404504\t0x0000000000000000\n0x404070 <region+48>:\t0x0000000000000000\t0x0000000000000000\n"
+  },
+  {
+   "path": "/home/student/task/tcache.bin",
+   "b64": "BEVAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+   "mode": "644"
+  }
+ ]
+}

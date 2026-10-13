@@ -12,6 +12,17 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 50
 summary: "Как отлаживать heap-эксплойты на не-x86 архитектурах: gdb-multiarch, qemu -g, pwndbg/gef для ARM/MIPS/RISC-V и типичные проблемы."
+lab:
+  kind: shell
+  title: "Практика: heap-анализ в gdb"
+  toolset: [core, gdb]
+  workdir: /home/student/task
+  files: [task.md, heap.gdb.txt]
+  check: "grep -q 'top=0x405100' answer.txt"
+  hints:
+    - "Top chunk идёт сразу за последним аллоцированным чанком."
+    - "Размер чанка под запрос 0x40 равен 0x50."
+    - "top = c3 + 0x50."
 ---
 ## Вопрос, с которого всё начинается
 

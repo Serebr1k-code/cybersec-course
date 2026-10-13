@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 60
 summary: "Разбираем fastbin dup: double-free в fastbin позволяет вернуть один и тот же чанк дважды и перезаписать указатель next, получая аллокацию по произвольному адресу."
+lab:
+  kind: shell
+  title: "Практика: fastbin dup"
+  toolset: [core, hex, gdb]
+  workdir: /home/student/task
+  files: [task.md, fastbin.gdb.txt, fastbin.bin]
+  check: "grep -q 'dup=0x404060' answer.txt"
+  hints:
+    - "Double-free прошёл, потому что проверяется только верхушка fastbin (old == p)."
+    - "Смотри `fastbin.gdb.txt`: цепочка имеет вид `A -> B -> A`."
+    - "Дублируется первый элемент цикла — user-указатель чанка A."
 ---
 ## Вопрос, с которого всё начинается
 

@@ -1,0 +1,28 @@
+{
+ "id": "pwn-unsafe-unlink",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "write=0x4040b8"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: адрес записи unsafe unlink\n\nПри `unlink(P)` glibc делает `FD->bk = BK` и `BK->fd = FD`, где\n`FD = P->fd`, `BK = P->bk`. Поле `bk` в `malloc_chunk` лежит по\nсмещению `+0x18` от начала user-данных (fd — `+0x0`, bk — `+0x8`,\nно `FD->bk` — это `FD + 0x18`, т.к. учитывается заголовок чанка).\n\nТранскрипт `unlink.gdb.txt` показывает `P->fd` и `P->bk`.\n\n1. `grep -n 'P->fd\\|unlink\\|target' unlink.gdb.txt`\n2. Вычисли адрес, по которому произойдёт запись: `P->fd + 0x18`.\n\nЗапиши в `answer.txt` строку `write=0x...` и набери `check`.\n"
+  },
+  {
+   "path": "/home/student/task/unlink.gdb.txt",
+   "text": "# gdb: чанк P перед unsafe unlink\n(gdb) b mark\nBreakpoint 1 at 0x40111d\n(gdb) run\nBreakpoint 1 at 0x40110a: file heapdemo.c, line 4.\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/usr/lib/libthread_db.so.1\".\n\nBreakpoint 1, mark () at heapdemo.c:4\n4\tvoid mark(void){}\nP (user) = 0x404060\nP->fd = 0x4040a0   P->bk = 0x4041e0\nunlink: FD->bk = BK  =>  *(P->fd + 0x18) = P->bk\ntarget = P->fd + 0x18 = 0x4040b8\n0x404060 <region+32>:\t0x00000000004040a0\t0x00000000004041e0\n0x404070 <region+48>:\t0x0000000000000000\t0x0000000000000000\n"
+  },
+  {
+   "path": "/home/student/task/chunks.bin",
+   "b64": "AAAAAAAAAACRAAAAAAAAAKBAQAAAAAAA4EFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+   "mode": "644"
+  }
+ ]
+}
