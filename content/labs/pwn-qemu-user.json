@@ -1,0 +1,32 @@
+{
+  "id": "pwn-qemu-user",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "machine=ARM"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Чужой ELF: какая архитектура?\n\nНа x86-хосте ARM-бинарь не запускается: `cannot execute binary file: Exec format error`. Для запуска нужен эмулятор `qemu-user` (например `qemu-arm`).\n\nПрежде чем эмулировать, нужно точно знать архитектуру и разрядность. В `armvuln` — реальный 32-битный ARM ELF-объект.\n\nПосмотрите заголовок (`readelf --file-header armvuln`, `file armvuln`) и определите поле `Machine`.\n\nЗапишите `machine=<значение>` в `answer.txt` и наберите `check`.\n"
+    },
+    {
+      "path": "/home/student/task/armvuln",
+      "b64": "f0VMRgEBAQAAAAAAAAAAAAEAKAABAAAAAAAAAAAAAACAAQAAAAAABTQAAAAAACgACgABAABILekNsKDhBNBN4gAAjeUAAJ3lAQCA4gvQoOEAiL3oAAAAAAEAAAAAY2xhbmcgdmVyc2lvbiAyMi4xLjMAQUsAAABhZWFiaQABQQAAAEMyLjA5AAVhcm0xMTc2anpmLXMABgYIAQkBCgIOAA8BEAERAhIEFAEVABcDGAEZARoCHAEeBiIAJgFEAQAAAAAAAAAAAAAAAAAAAAAAAE8AAAAAAAAAAAAAAAQA8f8AAAAAAAAAAAAAAAADAAIAYwAAAAAAAAAAAAAAAAACAE0AAAAAAAAAIAAAABIAAgAAAAAAKgIAAAAucmVsLkFSTS5leGlkeAAudGV4dAAuY29tbWVudAAuQVJNLmF0dHJpYnV0ZXMALm5vdGUuR05VLXN0YWNrAC5sbHZtX2FkZHJzaWcAZgBjLmMALnN0cnRhYgAuc3ltdGFiACRhAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFMAAAADAAAAAAAAAAAAAAAYAQAAZgAAAAAAAAAAAAAAAQAAAAAAAAAQAAAAAQAAAAYAAAAAAAAANAAAACAAAAAAAAAAAAAAAAQAAAAAAAAABQAAAAEAAHCCAAAAAAAAAFQAAAAIAAAAAgAAAAAAAAAEAAAAAAAAAAEAAAAJAAAAQAAAAAAAAAAQAQAACAAAAAkAAAADAAAABAAAAAgAAAAWAAAAAQAAADAAAAAAAAAAXAAAABYAAAAAAAAAAAAAAAEAAAABAAAALwAAAAEAAAAAAAAAAAAAAHIAAAAAAAAAAAAAAAAAAAABAAAAAAAAAB8AAAADAABwAAAAAAAAAAByAAAATAAAAAAAAAAAAAAAAQAAAAAAAAA/AAAAA0z/bwAAAIAAAAAAGAEAAAAAAAAJAAAAAAAAAAEAAAAAAAAAWwAAAAIAAAAAAAAAAAAAAMAAAABQAAAAAQAAAAQAAAAEAAAAEAAAAA==",
+      "mode": "755"
+    }
+  ],
+  "tools": {
+    "readelf": {
+      "help": "readelf [--file-header] <файл>",
+      "cases": [
+        {
+          "match": "--file-header.*armvuln",
+          "example": "--file-header armvuln",
+          "output": "  Class:                             ELF32\n  Data:                              2's complement, little endian\n  Type:                              REL (Relocatable file)\n  Machine:                           ARM\n"
+        }
+      ]
+    }
+  }
+}

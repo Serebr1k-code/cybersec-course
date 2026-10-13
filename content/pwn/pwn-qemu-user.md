@@ -12,6 +12,18 @@ useful_for:
   - "Эмуляция embedded"
 estimated_minutes: 50
 summary: "Как работают cross-архитектурные pwn-задачи под qemu-user, как их запускать, отлаживать и в чём отличия от реального железа."
+lab:
+  kind: shell
+  title: "Практика: определяем архитектуру чужого ELF"
+  toolset: [core, bin]
+  workdir: /home/student/task
+  files: [task.md, armvuln]
+  check: "grep -q 'machine=ARM' answer.txt"
+  hints:
+    - "x86-ядро не может исполнить ARM-код напрямую — нужен qemu-user."
+    - "Прежде чем эмулировать, определяют архитектуру по заголовку ELF."
+    - "`readelf --file-header armvuln` печатает строку `Machine:`."
+    - "Запишите `machine=<значение Machine>`."
 ---
 ## Вопрос, с которого всё начинается
 

@@ -1,0 +1,31 @@
+{
+  "id": "pwn-browser",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "type=JS_OBJECT_TYPE"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# V8: внутренний тип объекта\n\nЭксплуатация движка V8 начинается с понимания памяти: у каждого объекта есть **map** (описание типа), properties и elements. Отладочная функция `%DebugPrint` печатает внутреннее представление объекта.\n\nРеальный вывод `node --allow-natives-syntax -e 'let obj={a:1,b:2}; %DebugPrint(obj)'` сохранён в `debugprint.txt`. При желании воспроизведите его.\n\nОпределите **внутренний тип** объекта (то, что в квадратных скобках в первой строке / в строке `- type:` у Map).\n\nЗапишите `type=...` в `answer.txt` и наберите `check`.\n"
+    },
+    {
+      "path": "/home/student/task/debugprint.txt",
+      "text": "DebugPrint: 0xc32f1ba85a9: [JS_OBJECT_TYPE]\n - map: 0x3e45ff5bf0c9 <Map[40](HOLEY_ELEMENTS)> [FastProperties]\n - prototype: 0x1ec8a9172439 <Object map = 0x2c5ff35b6c9>\n - elements: 0x027b874c0dd1 <FixedArray[0]> [HOLEY_ELEMENTS]\n - properties: 0x027b874c0dd1 <FixedArray[0]>\n - All own properties (excluding elements): {\n    0x27b874c5549: [String] in ReadOnlySpace: #a: 1 (const data field 0, attrs: [WEC]) @ Any, location: in-object\n    0x27b874c5561: [String] in ReadOnlySpace: #b: 2 (const data field 1, attrs: [WEC]) @ Any, location: in-object\n }\n0x3e45ff5bf0c9: [Map] in OldSpace\n - map: 0x02c5ff35ac29 <MetaMap (0x02c5ff35acb9 <NativeContext[301]>)>\n - type: JS_OBJECT_TYPE\n - instance size: 40\n - inobject properties: 2\n - unused property fields: 0\n - elements kind: HOLEY_ELEMENTS\n - enum length: invalid\n - stable_map\n - back pointer: 0x3e45ff5bf081 <Map[40](HOLEY_ELEMENTS)>\n - prototype_validity_cell: 0x027b874c1351 <Cell value= [cleared]>\n - instance descriptors (own) #2: 0x0c32f1ba8609 <DescriptorArray[2]>\n - prototype: 0x1ec8a9172439 <Object map = 0x2c5ff35b6c9>\n - constructor: 0x1ec8a915bf21 <JSFunction Object (sfi = 0x27b874d1f09)>\n - dependent code: 0x027b874c0df1 <Other heap object (WEAK_ARRAY_LIST_TYPE)>\n - construction counter: 0\n\n"
+    }
+  ],
+  "tools": {
+    "node": {
+      "help": "node [--allow-natives-syntax] -e '<скрипт>'",
+      "cases": [
+        {
+          "match": "allow-natives-syntax",
+          "example": "--allow-natives-syntax -e '%DebugPrint(obj)'",
+          "output": "DebugPrint: 0xc32f1ba85a9: [JS_OBJECT_TYPE]\n - map: 0x3e45ff5bf0c9 <Map[40](HOLEY_ELEMENTS)> [FastProperties]\n - prototype: 0x1ec8a9172439 <Object map = 0x2c5ff35b6c9>\n - elements: 0x027b874c0dd1 <FixedArray[0]> [HOLEY_ELEMENTS]\n - properties: 0x027b874c0dd1 <FixedArray[0]>\n - All own properties (excluding elements): {\n    0x27b874c5549: [String] in ReadOnlySpace: #a: 1 (const data field 0, attrs: [WEC]) @ Any, location: in-object\n    0x27b874c5561: [String] in ReadOnlySpace: #b: 2 (const data field 1, attrs: [WEC]) @ Any, location: in-object\n }\n0x3e45ff5bf0c9: [Map] in OldSpace\n - map: 0x02c5ff35ac29 <MetaMap (0x02c5ff35acb9 <NativeContext[301]>)>\n - type: JS_OBJECT_TYPE\n - instance size: 40\n - inobject properties: 2\n - unused property fields: 0\n - elements kind: HOLEY_ELEMENTS\n - enum length: invalid\n - stable_map\n - back pointer: 0x3e45ff5bf081 <Map[40](HOLEY_ELEMENTS)>\n - prototype_validity_cell: 0x027b874c1351 <Cell value= [cleared]>\n - instance descriptors (own) #2: 0x0c32f1ba8609 <DescriptorArray[2]>\n - prototype: 0x1ec8a9172439 <Object map = 0x2c5ff35b6c9>\n - constructor: 0x1ec8a915bf21 <JSFunction Object (sfi = 0x27b874d1f09)>\n - dependent code: 0x027b874c0df1 <Other heap object (WEAK_ARRAY_LIST_TYPE)>\n - construction counter: 0\n\n"
+        }
+      ]
+    }
+  }
+}

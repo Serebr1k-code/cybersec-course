@@ -13,6 +13,18 @@ useful_for:
   - "Firmware/IoT"
 estimated_minutes: 50
 summary: "Разбираем Qiling: эмуляция ОС поверх Unicorn, rootfs, syscall-хуки, запуск ELF/PE и анализ чужой архитектуры."
+lab:
+  kind: shell
+  title: "Практика: читаем трейс эмуляции"
+  toolset: [core, bin]
+  workdir: /home/student/task
+  files: [task.md, emulate.py, trace.txt]
+  check: "grep -q 'syscall=4004' answer.txt"
+  hints:
+    - "Qiling построен на Unicorn: он эмулирует CPU и перехватывает системные вызовы."
+    - "`emulate.py` реально эмулирует MIPS32-фрагмент через Unicorn."
+    - "Запустите `python3 emulate.py` (или посмотрите `trace.txt`) — хук печатает вызов."
+    - "Запишите `syscall=<номер MIPS o32 write>`."
 ---
 
 ## Вопрос, с которого всё начинается

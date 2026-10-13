@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty (Chrome/V8)"
 estimated_minutes: 75
 summary: "Эксплуатация браузерных движков: баги JIT (V8/SpiderMonkey/JSC), type confusion, addrof/fakeobj и построение arbitrary read/write."
+lab:
+  kind: shell
+  title: "Практика: читаем DebugPrint от V8"
+  toolset: [core, bin]
+  workdir: /home/student/task
+  files: [task.md, debugprint.txt]
+  check: "grep -q 'type=JS_OBJECT_TYPE' answer.txt"
+  hints:
+    - "`debugprint.txt` — реальный вывод `%DebugPrint(obj)` в Node.js (V8)."
+    - "Первая строка показывает внутренний тип объекта в квадратных скобках."
+    - "В секции `[Map]` есть строка `- type: ...`."
+    - "Запишите `type=<ВНУТРЕННИЙ_ТИП>`."
 ---
 ## Вопрос, с которого всё начинается
 

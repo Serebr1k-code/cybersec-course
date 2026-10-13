@@ -1,0 +1,31 @@
+{
+  "id": "pwn-symbolic-angr",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "x=1337"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Символьное исполнение: solver находит вход\n\nСимвольное исполнение не перебирает вход, а накапливает ограничения на символы и отдаёт их **решателю** (z3 в основе angr). Решатель возвращает конкретный вход, удовлетворяющий всем проверкам.\n\nПусть crackme принимает 64-битное число `x` и печатает флаг при `x*3 + 7 == 4018` при `0 < x < 100000`. В `solve.py` это ограничение уже сформулировано для z3.\n\nЗапустите `python3 solve.py`, возьмите найденное значение `x`.\n\nЗапишите `x=<значение>` в `answer.txt` и наберите `check`.\n"
+    },
+    {
+      "path": "/home/student/task/solve.py",
+      "text": "from z3 import *\nx = BitVec('x', 64)\ns = Solver()\ns.add(x * 3 + 7 == 4018)\ns.add(x > 0, x < 100000)\nprint(s.check())\nm = s.model()\nprint(\"x =\", m[x])\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py>",
+      "cases": [
+        {
+          "match": "solve\\.py",
+          "example": "solve.py",
+          "output": "sat\nx = 1337\n"
+        }
+      ]
+    }
+  }
+}

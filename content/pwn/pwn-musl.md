@@ -13,6 +13,18 @@ useful_for:
   - "IoT/embedded"
 estimated_minutes: 60
 summary: "musl libc отличается аллокатором (mallocng), отсутствием некоторых гаджетов и другим layout — разбираем, как это меняет эксплуатацию статических бинарей и контейнеров на Alpine."
+lab:
+  kind: shell
+  title: "Практика: статический бинарь без динамики"
+  toolset: [core, bin]
+  workdir: /home/student/task
+  files: [task.md, chall]
+  check: "grep -q 'needed=0' answer.txt"
+  hints:
+    - "`chall` — статически слинкованный бинарь (аналог статических сборок на musl)."
+    - "`file chall` покажет `statically linked`."
+    - "`readelf -d chall` печатает динамическую секцию — или сообщает, что её нет."
+    - "Запишите `needed=<сколько NEEDED-библиотек>`."
 ---
 
 ## Вопрос, с которого всё начинается

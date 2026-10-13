@@ -12,6 +12,18 @@ useful_for:
   - "Bug hunting"
 estimated_minutes: 55
 summary: "Как применять angr для автоматического поиска пути к цели: настройка, find/avoid, хуки, решение ограничений и типичные подводные камни."
+lab:
+  kind: shell
+  title: "Практика: решаем ограничения solver'ом"
+  toolset: [core, bin]
+  workdir: /home/student/task
+  files: [task.md, solve.py]
+  check: "grep -q 'x=1337' answer.txt"
+  hints:
+    - "`solve.py` формулирует проверку crackme как ограничение для SMT-решателя (z3)."
+    - "Символьное исполнение накапливает ограничения и отдаёт их решателю."
+    - "Запустите: `python3 solve.py` — решатель напечатает модель."
+    - "Запишите `x=<найденное значение>`."
 ---
 ## Вопрос, с которого всё начинается
 

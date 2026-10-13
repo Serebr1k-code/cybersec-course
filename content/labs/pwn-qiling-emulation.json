@@ -1,0 +1,35 @@
+{
+  "id": "pwn-qiling-emulation",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "syscall=4004"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Эмуляция MIPS и перехват syscall\n\nQiling = Unicorn + модель ОС: он эмулирует не только CPU, но и системные вызовы, подсовывая rootfs. Здесь MIPS-бинарь из прошивки выполняет `write`, и хук перехватывает этот syscall.\n\nВ `emulate.py` — реальная эмуляция MIPS32-фрагмента через Unicorn с хуком системных вызовов. Запустите `python3 emulate.py` (результат также сохранён в `trace.txt`).\n\nОпределите **номер системного вызова**, который выполняет программа (MIPS o32 `write`).\n\nЗапишите `syscall=<N>` в `answer.txt` и наберите `check`.\n"
+    },
+    {
+      "path": "/home/student/task/emulate.py",
+      "text": "from unicorn import *\nfrom unicorn.mips_const import *\nimport struct\n\nBASE = 0x1000\nBUF  = 0x1800\nmu = Uc(UC_ARCH_MIPS, UC_MODE_MIPS32 + UC_MODE_LITTLE_ENDIAN)\nmu.mem_map(BASE, 0x2000)\nmu.mem_write(BUF, b\"hello\\n\")\n\ndef addiu(rt, rs, imm):\n    return struct.pack(\"<I\", (0x09 << 26) | (rs << 21) | (rt << 16) | (imm & 0xffff))\n\ncode  = addiu(2, 0, 4004)   # $v0 = 4004 (write)\ncode += addiu(4, 0, 1)      # $a0 = 1 (stdout)\ncode += addiu(5, 0, BUF)    # $a1 = buffer\ncode += addiu(6, 0, 6)      # $a2 = 6\ncode += struct.pack(\"<I\", 0x0000000c)  # syscall\ncode += addiu(2, 0, 0x42)   # $v0 = 0x42\nmu.mem_write(BASE, code)\n\nSYSCALL = struct.pack(\"<I\", 0x0000000c)\nnames = {4004: \"write\", 4001: \"exit\", 4003: \"read\"}\n\ndef on_code(mu, addr, size, ud):\n    if bytes(mu.mem_read(addr, 4)) == SYSCALL:\n        v0 = mu.reg_read(UC_MIPS_REG_V0)\n        a0 = mu.reg_read(UC_MIPS_REG_A0)\n        a1 = mu.reg_read(UC_MIPS_REG_A1)\n        a2 = mu.reg_read(UC_MIPS_REG_A2)\n        print(f\"syscall {names.get(v0,'?')}({v0}) a0={a0} a1=0x{a1:x} a2={a2}\")\n        if v0 == 4004:\n            print(f\"  writes {a2} bytes: {bytes(mu.mem_read(a1, a2))!r}\")\n        mu.reg_write(UC_MIPS_REG_PC, addr + 4)\n\nmu.hook_add(UC_HOOK_CODE, on_code)\nmu.emu_start(BASE, BASE + len(code))\nprint(f\"final V0 = {hex(mu.reg_read(UC_MIPS_REG_V0))}\")\n"
+    },
+    {
+      "path": "/home/student/task/trace.txt",
+      "text": "syscall write(4004) a0=1 a1=0x1800 a2=6\n  writes 6 bytes: b'hello\\n'\nfinal V0 = 0x42\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py>",
+      "cases": [
+        {
+          "match": "emulate\\.py",
+          "example": "emulate.py",
+          "output": "syscall write(4004) a0=1 a1=0x1800 a2=6\n  writes 6 bytes: b'hello\\n'\nfinal V0 = 0x42\n"
+        }
+      ]
+    }
+  }
+}
