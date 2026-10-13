@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting / SOC"
 estimated_minutes: 45
 summary: "Fileless-атаки: LOLBins, PowerShell-пейлоады, WMI/реестр-персистентность, in-memory выполнение — и какие артефакты остаются после них."
+lab:
+  kind: shell
+  title: 'Практика: fileless-персистентность в Run-ключе'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, NTUSER.reg, decode.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Ищи Run-ключи, запускающие powershell.'
+    - '`grep -i powershell NTUSER.reg`.'
+    - 'Параметр `-enc` — base64 от UTF-16LE; `decode.py` его расшифрует.'
+    - '`python3 decode.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

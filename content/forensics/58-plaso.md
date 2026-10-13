@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 55
 summary: "Построение super-timeline из разнородных артефактов через plaso: сбор, нормализация, фильтрация по времени и визуализация в Timesketch."
+lab:
+  kind: shell
+  title: 'Практика: super-timeline — корреляция источника и времени'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, timeline.csv, hunt.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Сначала найди момент компрометации: `grep WEBSERVER timeline.csv`.'
+    - 'Нужно самое раннее FILE-событие после него.'
+    - '`hunt.py --source FILE --after "<время>"` фильтрует как psort.'
+    - '`python3 hunt.py --source FILE --after "2019-03-14 09:41:07" | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

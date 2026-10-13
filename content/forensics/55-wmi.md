@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 55
 summary: "Разбор WMI repository (OBJECTS.DATA, INDEX.BTR, MAPPING): восстановление WMI-подписок и постоянных потребителей — популярной fileless-персистентности."
+lab:
+  kind: shell
+  title: 'Практика: разбор WMI-подписки в OBJECTS.DATA'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, OBJECTS.DATA, parse_wmi.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`strings OBJECTS.DATA | head` — увидишь классы CIM.'
+    - 'Ищи CommandLineEventConsumer и CommandLineTemplate.'
+    - '`parse_wmi.py` вытаскивает фильтр, потребителя и binding.'
+    - '`python3 parse_wmi.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

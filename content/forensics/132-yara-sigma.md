@@ -13,6 +13,18 @@ useful_for:
   - "Malware Analysis"
 estimated_minutes: 52
 summary: "Написание и применение правил: YARA для файлов/памяти и Sigma для логов; синтаксис, условия, производительность, конвертация Sigma в SIEM-запросы и типичные ошибки."
+lab:
+  kind: shell
+  title: 'Практика: Sigma-правило → обнаружение encoded PowerShell'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, events.log, rule.yml, extract.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'События — JSON-строки (Sysmon EventID 1); смотри поле `CommandLine`.'
+    - 'Sigma-правило ловит powershell с ` -enc ` / ` -EncodedCommand `.'
+    - '`extract.py` повторяет условие правила и декодирует payload.'
+    - '`python3 extract.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

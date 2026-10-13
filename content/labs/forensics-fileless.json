@@ -1,0 +1,45 @@
+{
+  "id": "forensics-fileless",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{f1l3l3ss_run_k3y_p3rs1st3nc3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: fileless-персистентность\n\n`NTUSER.reg` — экспорт ветки реестра пользователя. Атакующий закрепился без файла\nна диске: через ключ `...\\CurrentVersion\\Run` он запускает `powershell` с\n**encoded command** (`-enc`), который исполняет payload в памяти.\n\nНайди подозрительное значение Run-ключа и декодируй его payload (base64 от\nUTF-16LE). Флаг — в декодированном скрипте.\n\n`grep -i powershell NTUSER.reg` → затем `python3 decode.py`. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/NTUSER.reg",
+      "text": "Windows Registry Editor Version 5.00\n\n[HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run]\n\"OneDriveSync\"=\"powershell.exe -nop -w hidden -ep bypass -enc JABrAD0AJwBIAEsAQwBVADoAXABTAG8AZgB0AHcAYQByAGUAXABNAGkAYwByAG8AcwBvAGYAdABcAFcAaQBuAGQAbwB3AHMAXABDAHUAcgByAGUAbgB0AFYAZQByAHMAaQBvAG4AXABSAHUAbgAnADsAUwBlAHQALQBJAHQAZQBtAFAAcgBvAHAAZQByAHQAeQAgAC0AUABhAHQAaAAgACQAawAgAC0ATgBhAG0AZQAgACcATwBuAGUARAByAGkAdgBlAFMAeQBuAGMAJwAgAC0AVgBhAGwAdQBlACAAIgBwAG8AdwBlAHIAcwBoAGUAbABsACAALQB3ACAAaABpAGQAZABlAG4AIAAtAGUAcAAgAGIAeQBwAGEAcwBzACIAOwAjACAAbgB0AG8AewBmADEAbAAzAGwAMwBzAHMAXwByAHUAbgBfAGsAMwB5AF8AcAAzAHIAcwAxAHMAdAAzAG4AYwAzAH0A\"\n\"SecurityHealth\"=\"%windir%\\\\system32\\\\SecurityHealthSystray.exe\"\n\n[HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\Shell Folders]\n\"Startup\"=\"C:\\\\Users\\\\alice\\\\AppData\\\\Roaming\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\Startup\"\n"
+    },
+    {
+      "path": "/home/student/task/decode.py",
+      "text": "#!/usr/bin/env python3\n# Hunt for fileless persistence: find Run-key values that launch PowerShell with\n# an encoded command, then decode the payload (base64 of UTF-16LE).\nimport re, base64\ntxt = open(\"NTUSER.reg\", encoding=\"utf-8\").read()\nfor m in re.finditer(r'\"([^\"]+)\"=\"([^\"]*)\"', txt):\n    name, val = m.group(1), m.group(2)\n    if \"powershell\" in val.lower() and \" -enc\" in val.lower():\n        b64 = re.search(r\"-enc\\s+([A-Za-z0-9+/=]+)\", val).group(1)\n        payload = base64.b64decode(b64).decode(\"utf-16-le\", \"replace\")\n        print(\"value name :\", name)\n        print(\"launch     :\", val[:70] + \"...\")\n        print(\"decoded    :\", payload)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "decode\\.py",
+          "example": "python3 decode.py",
+          "output": "value name : OneDriveSync\nlaunch     : powershell.exe -nop -w hidden -ep bypass -enc JABrAD0AJwBIAEsAQwBVADoA...\ndecoded    : $k='HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run';Set-ItemProperty -Path $k -Name 'OneDriveSync' -Value \"powershell -w hidden -ep bypass\";# nto{f1l3l3ss_run_k3y_p3rs1st3nc3}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 decode.py`\n"
+    }
+  }
+}

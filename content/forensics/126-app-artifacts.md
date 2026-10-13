@@ -13,6 +13,18 @@ useful_for:
   - "Incident Response"
 estimated_minutes: 50
 summary: "Разбор артефактов мобильных приложений: базы SQLite мессенджеров (WhatsApp, Telegram, Signal), вложения, кэши, ключи и шифрование, а также восстановление удалённой переписки."
+lab:
+  kind: shell
+  title: 'Практика: восстановление удалённого сообщения из SQLite'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, msgstore.db, read_db.py, carve.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`read_db.py` покажет живые строки — id=4 отсутствует (удалено).'
+    - 'Удалённые строки остаются в свободных страницах файла БД.'
+    - '`strings msgstore.db | grep nto` или `python3 carve.py`.'
+    - '`python3 carve.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается
