@@ -12,6 +12,17 @@ useful_for:
   - "Подъём бинаря в IR"
 estimated_minutes: 10
 summary: "Второй модуль символьного исполнения: SMT-решатель Z3 и подъём бинаря (binary lifting) в промежуточное представление."
+lab:
+  kind: shell
+  title: 'Практика: capstone + z3 в связке'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, crackme16]
+  check: 'grep -q ''nto{z3_symb0l1c_t00lch41n}'' found.txt'
+  hints:
+    - '`sym.py` дизассемблирует стуб (capstone) и решает его (z3).'
+    - 'Пароль: `cQNW]`.'
+    - 'Запусти `crackme16 cQNW]`.'
 ---
 Второй модуль символьного исполнения — про инструменты нижнего уровня. Здесь вы учитесь формулировать задачи для SMT-решателя Z3 и переводить машинный код в промежуточное представление (binary lifting), на котором работает символьный анализ.
 

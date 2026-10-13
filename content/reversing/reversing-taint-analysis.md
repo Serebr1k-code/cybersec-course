@@ -13,6 +13,17 @@ useful_for:
   - "Malware analysis"
 estimated_minutes: 55
 summary: "Отслеживание потока данных через программу: taint-анализ, DBI-фреймворки, поиск зависимостей."
+lab:
+  kind: shell
+  title: 'Практика: taint-анализ трассы'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, trace.txt]
+  check: 'grep -q ''nto{t41nt_tr4ck1ng_t0_th3_s1nk}'' found.txt'
+  hints:
+    - 'Источник — `src`; стоки — `out`.'
+    - 'Отследи, какие регистры загрязнены.'
+    - '`python3 taint.py trace.txt` покажет поток и флаг.'
 ---
 ## Вопрос, с которого всё начинается
 

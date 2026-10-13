@@ -1,0 +1,36 @@
+{
+  "id": "reversing-devirtualization",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d3v1rtu4l1z3d_vm_byt3c0d3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: девиртуализация байткода VM\n\n`prog.vmbc` — байткод кастомной виртуальной машины: пары `op, arg`.\nОпкоды: 0x01=PUSH, 0x02=XOR, 0x03=PRINT, 0x04=HALT.\n\n1. `xxd prog.vmbc` — посмотри байткод.\n2. `python3 vm.py prog.vmbc` — дизассемблируй его в листинг.\n\nФлаг из вывода запиши в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/prog.vmbc",
+      "b64": "ASoCKgMABAA=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> [файл] — эмуляция интерпретатора",
+      "cases": [
+        {
+          "match": "vm\\.py",
+          "example": "python3 vm.py prog.vmbc",
+          "output": "vm bytecode, 8 bytes\n  0000: 01 2a   PUSH   0x2a\n  0002: 02 2a   XOR    0x2a\n  0004: 03 00   PRINT  0x0\n  0006: 04 00   HALT   0x0\nprogram XOR-decodes its data with 0x2a and prints it\nnto{d3v1rtu4l1z3d_vm_byt3c0d3}\n"
+        }
+      ]
+    }
+  }
+}

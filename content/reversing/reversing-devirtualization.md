@@ -13,6 +13,17 @@ useful_for:
   - "Protector research"
 estimated_minutes: 65
 summary: "Восстановление кода из VM-обфускации: реверс виртуальной машины, диспетчер, handler-таблица, символьная девиртуализация."
+lab:
+  kind: shell
+  title: 'Практика: девиртуализация байткода'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, prog.vmbc]
+  check: 'grep -q ''nto{d3v1rtu4l1z3d_vm_byt3c0d3}'' found.txt'
+  hints:
+    - 'Байткод — пары `op, arg`.'
+    - 'Опкоды: 0x01 PUSH, 0x02 XOR, 0x03 PRINT, 0x04 HALT.'
+    - '`python3 vm.py prog.vmbc` покажет листинг и флаг.'
 ---
 ## Вопрос, с которого всё начинается
 

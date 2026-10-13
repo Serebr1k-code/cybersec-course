@@ -13,6 +13,17 @@ useful_for:
   - "Reverse-engineering игр/DRM в браузере"
 estimated_minutes: 60
 summary: "Как читать .wasm: секции модуля, экспорт, байткод и декомпиляция — на реальном скомпилированном модуле."
+lab:
+  kind: shell
+  title: 'Практика: разбор WASM-секций'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, mod.wasm]
+  check: 'grep -q ''nto{w4sm_d4t4_s3ct10n_p4rs3d}'' found.txt'
+  hints:
+    - 'WASM начинается с `\0asm` + версия `01 00 00 00`.'
+    - 'Custom-секция имеет id=0.'
+    - '`python3 wasm.py mod.wasm` распарсит её и покажет флаг.'
 ---
 
 ## Вопрос, с которого всё начинается

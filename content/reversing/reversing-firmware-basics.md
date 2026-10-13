@@ -12,6 +12,17 @@ useful_for:
   - "CTF Hardware/Firmware"
 estimated_minutes: 10
 summary: "Первый модуль по прошивкам: база — SDR, UEFI/BIOS, RTOS и эмуляция прошивок."
+lab:
+  kind: shell
+  title: 'Практика: разбор образа прошивки'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, firmware.bin]
+  check: 'grep -q ''nto{f1rmw4r3_squ4shfs_c4rv3d}'' found.txt'
+  hints:
+    - '`binwalk firmware.bin` покажет сигнатуру SquashFS и её offset.'
+    - 'Вырежи ФС через `dd ... bs=1 skip=<offset>`.'
+    - '`strings root.sqfs | grep nto`.'
 ---
 Первый из двух модулей по реверсу прошивок. Здесь фундамент: как получить образ, как разобрать специфичные форматы и как запустить прошивку в эмуляции, чтобы её исследовать.
 

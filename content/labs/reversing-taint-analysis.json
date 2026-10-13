@@ -1,0 +1,35 @@
+{
+  "id": "reversing-taint-analysis",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{t41nt_tr4ck1ng_t0_th3_s1nk}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ распространения данных (taint)\n\n`trace.txt` — трасса выполнения: байты читаются из недоверенного источника\nи проходят преобразования до записи в вывод. Нужно отследить, какие байты\nзагрязнены (tainted) и как формируется поток.\n\n1. `cat trace.txt` — прочитай трассу.\n2. `python3 taint.py trace.txt` — прогони taint-анализ.\n\nФлаг из вывода запиши в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/trace.txt",
+      "text": "ld r0, src+0\nld r1, src+1\nld r2, src+2\nxor r0, r0, 0x13\nadd r1, r1, 0x0c\nsub r2, r2, 0x05\nst out+0, r0\nst out+1, r1\nst out+2, r2\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> [файл] — эмуляция интерпретатора",
+      "cases": [
+        {
+          "match": "taint\\.py",
+          "example": "python3 taint.py trace.txt",
+          "output": "ld  r0 <- src+0  [TAINT]\nld  r1 <- src+1  [TAINT]\nld  r2 <- src+2  [TAINT]\nxor r0 = r0 xor 0x13  [tainted]\nadd r1 = r1 add 0x0c  [tainted]\nsub r2 = r2 sub 0x05  [tainted]\nst  out+0 <- r0  [SINK tainted!]\nst  out+1 <- r1  [SINK tainted!]\nst  out+2 <- r2  [SINK tainted!]\ntainted bytes at sink -> decode key stream 0x13/0x0c/0x05 applied\nnto{t41nt_tr4ck1ng_t0_th3_s1nk}\n"
+        }
+      ]
+    }
+  }
+}
