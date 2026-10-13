@@ -1,0 +1,29 @@
+{
+  "id": "web-ruby-deser",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{m4rsh4l_r41ls_g4dg3t}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: Ruby Marshal gadget (Rails)\n\nRails-приложение `https://portal.example` ставит cookie `_session_id` — base64\nMarshal-объекта (`session.txt`). Cookie подписан secret_key_base; считаем, что ключ утёк.\n\n1. Подтверди формат (сигнатура `04 08` = Marshal):\n\n   base64 -d session.txt | xxd | head -1\n\n2. Сгенерируй подписанную cookie скриптом `gen.rb`:\n\n   ruby gen.rb > cookie.txt\n\n3. Отправь cookie серверу:\n\n   curl -s https://portal.example/ -b cookie.txt > found.txt\n\n4. Набери `check`.\n" },
+    { "path": "/home/student/task/session.txt", "text": "BAh7CEkJInNlc3Npb25faWQGOgZFVEkPImNzcmZfdG9rZW4GOwBU\n" },
+    { "path": "/home/student/task/gen.rb", "text": "require 'base64'\n# secret_key_base утёк -> можно подписать любой Marshal-объект\n# gadget: Gem::Requirement / universal deserialisation chain -> Kernel#system\nmarshal = \"\\x04\\x08\\x7b\\x08\" + \"I\\x09\\\"session_id\\x06:\\x06ET\"\nputs \"portal.example\\tFALSE\\t/\\tFALSE\\t0\\t_session_id\\t#{Base64.strict_encode64(marshal)}\"\n" }
+  ],
+  "tools": {
+    "ruby": {
+      "help": "ruby <скрипт> — интерпретатор Ruby (replay: генератор подписанной Marshal-cookie)",
+      "cases": [
+        { "match": "gen\\.rb", "example": "gen.rb", "output": "portal.example\tFALSE\t/\tFALSE\t0\t_session_id\tBAh7CEkiD3Nlc3Npb25faWQGOgZFVEkPImNzcmZfdG9rZW4GOwBU\n" }
+      ],
+      "fallback": "ruby: в этой лабе эмулируется только генератор cookie (ruby gen.rb).\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция portal.example)",
+      "cases": [
+        { "match": "-b cookie|cookie\\.txt|--cookie", "example": "-s https://portal.example/ -b cookie.txt", "output": "{\"status\":\"error\",\"message\":\"Marshal.load: Kernel#system -> nto{m4rsh4l_r41ls_g4dg3t}\"}\n" },
+        { "match": "portal\\.example", "example": "-s https://portal.example/", "output": "{\"status\":\"ok\",\"session\":{\"user\":\"bob\"}}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://portal.example/.\n"
+    }
+  }
+}

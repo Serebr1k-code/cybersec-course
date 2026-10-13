@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Как превратить SSRF в RCE: gopher/dict-схемы, атака на Redis, FastCGI, MySQL и внутренние сервисы."
+lab:
+  kind: shell
+  title: 'Практика: SSRF → gopher → Redis'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, gopher.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Проверь, что SSRF-ручка говорит по gopher: `url=gopher://127.0.0.1:6379/_PING`.'
+    - 'Изучи `gopher.txt` — URL-encoded RESP-команда `GET flag`.'
+    - 'Отправь файл как значение: `--data-urlencode ''url@gopher.txt''`.'
+    - 'Запиши ответ Redis в found.txt и набери `check`.'
 ---
 
 Обычная SSRF позволяет отправлять **HTTP**-запросы внутренним сервисам. Но многие внутренние сервисы говорят не на HTTP, а на своих протоколах: Redis, Memcached, MySQL, FastCGI. Если SSRF умеет схему `gopher://`, она может передать на их порт **произвольные байты** — а значит, поговорить с ними на их языке. Это и есть **протокольная контрабанда**, и она часто превращает «просто SSRF» в полноценный RCE.

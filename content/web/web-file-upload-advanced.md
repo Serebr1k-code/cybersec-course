@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 46
 summary: "Продвинутый обход загрузки файлов: полиглоты, .htaccess/.user.ini, SVG XSS/XXE, конфиги nginx, phar-десериализация."
+lab:
+  kind: shell
+  title: 'Практика: .htaccess + полиглот → RCE'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, .htaccess, shell.gif]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Обычный `shell.php` отбивается проверкой magic bytes.'
+    - 'Загрузи `.htaccess` с `AddType application/x-httpd-php .gif`.'
+    - 'Загрузи полиглот `shell.gif` (начинается с GIF89a, внутри PHP).'
+    - 'Обратись к `/uploads/shell.gif?c=cat flag.txt`, запиши ответ в found.txt и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

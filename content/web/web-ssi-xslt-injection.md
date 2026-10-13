@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Server-Side Includes и XSLT-инъекции: выполнение директив и трансформаций, чтение файлов, SSRF и RCE."
+lab:
+  kind: shell
+  title: 'Практика: XSLT-инъекция → чтение файла'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, data.xml, evil.xsl]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Сервис применяет НАШ XSLT к присланному XML — изучи `evil.xsl`.'
+    - 'Функция `unparsed-text(''file:///flag'')` читает файл сервера.'
+    - 'Отправь шаблон: `curl -s -X POST https://reports.example/report -H ''Content-Type: application/xml'' --data-binary @evil.xsl`.'
+    - 'Запиши ответ в found.txt и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

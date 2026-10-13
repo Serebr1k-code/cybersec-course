@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 36
 summary: "Ruby-десериализация: Marshal.load и YAML.load gadget'ы, Rails-цепочки, universal deserialisation gadget."
+lab:
+  kind: shell
+  title: 'Практика: Ruby Marshal gadget (Rails)'
+  toolset: [core, ruby, curl]
+  workdir: /home/student/task
+  files: [task.md, session.txt, gen.rb]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Подтверди формат: `base64 -d session.txt | xxd | head -1` — сигнатура `04 08`.'
+    - 'Изучи `gen.rb`: подписывает Marshal-объект (secret_key_base утёк).'
+    - 'Сгенерируй cookie: `ruby gen.rb > cookie.txt`.'
+    - 'Отправь cookie: `curl -s https://portal.example/ -b cookie.txt > found.txt`, затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается
