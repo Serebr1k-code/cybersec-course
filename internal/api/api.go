@@ -36,6 +36,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/tree", s.handleTree)
 	mux.HandleFunc("GET /api/lessons", s.handleLessons)
 	mux.HandleFunc("GET /api/lessons/{id}", s.handleLesson)
+	mux.HandleFunc("GET /api/labs/{id}", s.handleLab)
 	mux.HandleFunc("GET /api/search", s.handleSearch)
 	mux.HandleFunc("GET /api/progress", s.handleGetProgress)
 	mux.HandleFunc("POST /api/progress/section", s.handleSectionProgress)
@@ -122,8 +123,24 @@ func (s *Server) handleLesson(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, l)
 }
 
-func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query().Get("q")
+// handleLab serves a lab fixture bundle (<content>/labs/<id>.json) verbatim.
+// Bundles are lazily fetched by the frontend only for lessons that carry a lab,
+// so the heavy fixtures stay out of the lesson payload.
+func (s *Server) handleLab(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	b, ok := s.Content.LabBundle(id)
+	if !ok {
+		writeJSON(w, 404, map[string]string{"error": "lab not found"})
+		return
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	w.Header().Set("Pragma", "no-cache")
+	w.WriteHeader(200)
+	_, _ = w.Write(b)
+}
+
+func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {	q := r.URL.Query().Get("q")
 	writeJSON(w, 200, map[string]any{"query": q, "results": s.Content.Search(q)})
 }
 

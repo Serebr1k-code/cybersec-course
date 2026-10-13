@@ -51,11 +51,12 @@ dev:
 	  cd frontend && $(NPM) run dev ) ; \
 	wait
 
-## test: go-тесты + фронтенд-тесты + валидатор контента
+## test: go-тесты + фронтенд-тесты + валидаторы контента
 test:
 	$(GO) test ./...
 	cd frontend && $(NPM) run test
 	$(GO) run ./tools/quizvalidate -content ./content
+	$(GO) run ./tools/labvalidate -content ./content
 
 ## fmt: gofmt по всему модулю
 fmt:

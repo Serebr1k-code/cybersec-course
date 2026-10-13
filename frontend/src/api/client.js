@@ -19,6 +19,7 @@ async function req(path, opts = {}) {
 export const api = {
   tree: () => req('/tree'),
   lesson: (id) => req('/lessons/' + encodeURIComponent(id)),
+  lab: (id) => req('/labs/' + encodeURIComponent(id)),
   lessons: () => req('/lessons'),
   search: (q) => req('/search?q=' + encodeURIComponent(q)),
   meta: () => req('/meta'),

@@ -4,7 +4,7 @@ import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
 import TreeGraph from './TreeGraph.vue'
 import { useProgressStore } from '../stores/progress'
-import { NODE_D, RING_STEP, radialLayout } from '../utils/radialLayout'
+import { HUB_D, CARD_W, RING_STEP, radialLayout } from '../utils/radialLayout'
 
 vi.mock('../api/client', () => ({
   api: { complete: vi.fn().mockResolvedValue({ completed: true, xp: 0 }) }
@@ -50,12 +50,24 @@ function view(w) {
   return { tx: +m[1], ty: +m[2], scale: +m[3] }
 }
 
+// Parse each rendered node slot. The slot transform is
+// `translate(x, y) translate(-50%, -50%)`, so (x, y) is the node's CENTRE — the
+// exact point the SVG edge endpoints use (centre-to-centre convention).
 function slots(w) {
   return w.findAll('.node-slot').map((s) => {
     const m = s.attributes('style').match(/translate\(([-\d.eE+]+)px,\s*([-\d.eE+]+)px\)/)
     const rn = s.find('.rnode')
-    const dm = rn.attributes('style').match(/--d:\s*([\d.]+)px/)
-    return { x: +m[1], y: +m[2], size: dm ? +dm[1] : 0, title: s.find('.tip-title').text(), el: s }
+    const style = rn.attributes('style') || ''
+    const hub = rn.classes().includes('hub')
+    const wm = style.match(/width:\s*([\d.]+)px/)
+    const hm = style.match(/height:\s*([\d.]+)px/)
+    const dm = style.match(/--d:\s*([\d.]+)px/)
+    const width = hub ? (dm ? +dm[1] : 0) : (wm ? +wm[1] : 0)
+    const height = hub ? (dm ? +dm[1] : 0) : (hm ? +hm[1] : 0)
+    const title = rn.find('.title').exists()
+      ? rn.find('.title').text()
+      : (rn.attributes('aria-label') || '')
+    return { x: +m[1], y: +m[2], width, height, hub, title, el: s, rn }
   })
 }
 function slotByTitle(w, title) {
@@ -76,24 +88,35 @@ async function clickControl(w, i) {
 }
 
 describe('components/TreeGraph.vue — radial layout', () => {
-  it('renders one circle per visible node', async () => {
+  it('renders one node per visible node', async () => {
     const w = await factory()
     expect(slots(w).length).toBe(3)
     expect(w.findAll('.rnode').length).toBe(3)
   })
 
-  it('renders every node as a fixed-size circle (same size regardless of title)', async () => {
+  it('renders real lessons as fixed-width cards and hubs as small circles', async () => {
     const LONG = 'Request Smuggling advanced: TE.TE, TE.CL, CL.0, response-queue poisoning'
     const nodes = [
       { id: 'a', title: 'Root', parent: null, order: 1, sections: 1 },
       { id: 'b', title: 'XSS', parent: 'a', order: 1, sections: 1 },
-      { id: 'c', title: LONG, parent: 'a', order: 2, sections: 1 }
+      { id: 'c', title: LONG, parent: 'a', order: 2, sections: 1 },
+      { id: 'h', title: 'Модуль: группа', parent: 'a', order: 3, sections: 1, tags: ['roadmap'] }
     ]
     const { w } = await factoryWithProgress({ nodes })
-    expect(slots(w).every((s) => s.size === NODE_D)).toBe(true)
-    // the long title no longer inflates the node — it only shows in the tooltip
-    expect(slotByTitle(w, LONG)).toBeDefined()
-    expect(w.findAll('.title').length).toBe(0)
+    // lessons: a fixed-width (150px) card whose height grows with the title
+    const xss = slotByTitle(w, 'XSS')
+    const long = slotByTitle(w, LONG)
+    expect(xss.width).toBe(CARD_W)
+    expect(long.width).toBe(CARD_W)
+    expect(long.height).toBeGreaterThanOrEqual(xss.height)
+    expect(xss.rn.find('.title').text()).toBe('XSS')
+    // hub: a small circle with NO title text on its face
+    const h = slotByTitle(w, 'Модуль: группа')
+    expect(h.width).toBe(HUB_D)
+    expect(h.height).toBe(HUB_D)
+    expect(h.hub).toBe(true)
+    expect(h.rn.find('.title').exists()).toBe(false)
+    expect(xss.hub).toBe(false)
   })
 
   it('places the category root at the centre and children on the first ring', async () => {
@@ -101,15 +124,36 @@ describe('components/TreeGraph.vue — radial layout', () => {
     const L = radialLayout(NODES)
     const root = slotByTitle(w, 'Root')
     const b = slotByTitle(w, 'Bee')
-    // the slot's translate equals the layout circle's top-left corner
-    expect(root.x).toBeCloseTo(L.pos.a.left, 3)
-    expect(root.y).toBeCloseTo(L.pos.a.top, 3)
-    // b sits RING_STEP away from the layout centre
-    const bcx = b.x + NODE_D / 2
-    const bcy = b.y + NODE_D / 2
-    expect(Math.hypot(bcx - L.cx, bcy - L.cy)).toBeCloseTo(RING_STEP, 3)
+    // the slot's translate IS the node CENTRE (== the layout centre / edge endpoint)
+    expect(root.x).toBeCloseTo(L.pos.a.x, 3)
+    expect(root.y).toBeCloseTo(L.pos.a.y, 3)
+    // b's centre sits RING_STEP away from the layout centre
+    expect(Math.hypot(b.x - L.cx, b.y - L.cy)).toBeCloseTo(RING_STEP, 3)
     const c = slotByTitle(w, 'Cee')
     expect(c.x).not.toBeCloseTo(b.x, 1)
+  })
+
+  it('anchors every rendered node centre exactly on its layout (x, y) — the edge endpoint', async () => {
+    const w = await factory()
+    const L = radialLayout(NODES)
+    // Every node slot's centre must equal the layout centre for that node, and
+    // every edge endpoint must equal the SAME point (centre-to-centre convention).
+    const edgeEnds = {}
+    for (const e of L.edges) edgeEnds[e.to] = { x: L.pos[e.to].x, y: L.pos[e.to].y }
+    for (const s of slots(w)) {
+      const id = Object.keys(L.pos).find((k) => L.pos[k].x === s.x && L.pos[k].y === s.y)
+      expect(id).toBeDefined()
+      // the parsed DOM centre is exactly the layout centre (sub-pixel)
+      expect(s.x).toBeCloseTo(L.pos[id].x, 6)
+      expect(s.y).toBeCloseTo(L.pos[id].y, 6)
+    }
+    // the rendered edge path endpoints (start/end of the `d`) are the centres too
+    for (const p of w.findAll('.edges path')) {
+      const nums = p.attributes('d').match(/-?[\d.]+/g).map(Number)
+      const startX = nums[0], startY = nums[1], endX = nums[nums.length - 2], endY = nums[nums.length - 1]
+      const to = Object.keys(L.pos).find((k) => L.pos[k].x === endX && L.pos[k].y === endY)
+      expect(to).toBeDefined()
+    }
   })
 
   it('auto-fits the whole category into the canvas on mount', async () => {
@@ -170,8 +214,8 @@ describe('components/TreeGraph.vue — focus, collapse and highlight', () => {
     await nextTick()
     const v = view(w)
     const b = slotByTitle(w, 'Bee')
-    expect(v.tx + v.scale * (b.x + NODE_D / 2)).toBeCloseTo(400, 3)
-    expect(v.ty + v.scale * (b.y + NODE_D / 2)).toBeCloseTo(300, 3)
+    expect(v.tx + v.scale * b.x).toBeCloseTo(400, 3)
+    expect(v.ty + v.scale * b.y).toBeCloseTo(300, 3)
   })
 
   it('does nothing when the focus id is not in this category', async () => {
@@ -322,14 +366,15 @@ describe('components/TreeGraph.vue — right-click completion toggle', () => {
 })
 
 describe('components/TreeGraph.vue — progressive reveal (fog of war)', () => {
-  // Every rendered circle must fit inside the 800x600 canvas after the transform.
+  // Every rendered box must fit inside the 800x600 canvas after the transform.
   function allInside(w) {
     const v = view(w)
     return slots(w).every((s) => {
-      const x = v.tx + v.scale * s.x
-      const y = v.ty + v.scale * s.y
+      // s.x/s.y are the node CENTRE; the box spans centre ± size/2.
+      const x = v.tx + v.scale * (s.x - s.width / 2)
+      const y = v.ty + v.scale * (s.y - s.height / 2)
       return x >= -1 && y >= -1 &&
-        x + v.scale * NODE_D <= 801 && y + v.scale * NODE_D <= 601
+        x + v.scale * s.width <= 801 && y + v.scale * s.height <= 601
     })
   }
   // Root -> L1 -> L2 -> L3 -> L4 plus a sibling branch L1b (6 nodes, 4 levels).

@@ -1,6 +1,7 @@
 package content
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -910,4 +911,231 @@ func TestContentUniqueIDsAndParentsResolve(t *testing.T) {
 		t.Errorf("loader loaded %d lessons, but %d distinct ids exist across %d files (silent skip or duplicate id)", got, len(ids), len(files))
 	}
 	t.Logf("validated %d lesson files, %d distinct ids, all parents resolve", len(files), len(ids))
+}
+
+// --- lab front-matter block ------------------------------------------------
+
+func TestParseLabBlock(t *testing.T) {
+	raw := strings.Join([]string{
+		"id: forensics-file-magic",
+		"title: \"Магия байтов\"",
+		"tags: [file, hex]",
+		"useful_for:",
+		"  - CTF",
+		"lab:",
+		"  kind: shell",
+		"  title: \"Практика: разбор файла\"",
+		"  toolset: [core, grep, hex]",
+		"  workdir: /home/student/task",
+		"  files: [task.md, evidence.dat]",
+		"  check: \"grep -q 'nto{' found.txt\"",
+		"  hints:",
+		"    - \"Сначала посмотри тип файла\"",
+		"    - \"Загляни внутрь через strings\"",
+		"difficulty: beginner",
+	}, "\n")
+
+	fm := parseSimpleYAML(strings.Split(raw, "\n"))
+
+	// A nested block must not pollute the top-level list keys around it.
+	if got := getList(fm, "tags"); !reflect.DeepEqual(got, []string{"file", "hex"}) {
+		t.Errorf("tags = %v", got)
+	}
+	if got := getList(fm, "useful_for"); !reflect.DeepEqual(got, []string{"CTF"}) {
+		t.Errorf("useful_for = %v", got)
+	}
+	if got := getString(fm, "difficulty"); got != "beginner" {
+		t.Errorf("difficulty after lab block = %q (block swallowed following keys?)", got)
+	}
+
+	lab := getLab(fm, "lab")
+	if lab == nil {
+		t.Fatal("lab block not parsed")
+	}
+	if lab.Kind != "shell" {
+		t.Errorf("kind = %q", lab.Kind)
+	}
+	if lab.Title != "Практика: разбор файла" {
+		t.Errorf("title = %q", lab.Title)
+	}
+	if !reflect.DeepEqual(lab.Toolset, []string{"core", "grep", "hex"}) {
+		t.Errorf("toolset = %v", lab.Toolset)
+	}
+	if lab.Workdir != "/home/student/task" {
+		t.Errorf("workdir = %q", lab.Workdir)
+	}
+	if !reflect.DeepEqual(lab.Files, []string{"task.md", "evidence.dat"}) {
+		t.Errorf("files = %v", lab.Files)
+	}
+	if lab.Check != "grep -q 'nto{' found.txt" {
+		t.Errorf("check = %q", lab.Check)
+	}
+	if !reflect.DeepEqual(lab.Hints, []string{"Сначала посмотри тип файла", "Загляни внутрь через strings"}) {
+		t.Errorf("hints = %v", lab.Hints)
+	}
+}
+
+func TestParseLabBlockAbsent(t *testing.T) {
+	fm := parseSimpleYAML(strings.Split("id: web-sqli\ntags: [sqli]", "\n"))
+	if lab := getLab(fm, "lab"); lab != nil {
+		t.Errorf("expected no lab, got %#v", lab)
+	}
+}
+
+func TestParseLessonWithLab(t *testing.T) {
+	raw := strings.Join([]string{
+		"---",
+		"id: forensics-file-magic",
+		"title: \"Магия байтов\"",
+		"lab:",
+		"  kind: shell",
+		"  workdir: /home/student/task",
+		"  check: \"grep -q nto{ flag.txt\"",
+		"---",
+		"## Введение",
+		"текст",
+	}, "\n")
+
+	l, err := parseLesson(raw, "/x/forensics/02-file-magic.md")
+	if err != nil {
+		t.Fatalf("parseLesson: %v", err)
+	}
+	if l.Lab == nil {
+		t.Fatal("lesson.Lab is nil")
+	}
+	if l.Lab.Kind != "shell" || l.Lab.Workdir != "/home/student/task" {
+		t.Errorf("lab = %#v", l.Lab)
+	}
+}
+
+func TestSplitInlineList(t *testing.T) {
+	got := splitInlineList(`[core, "a, b", grep]`)
+	want := []string{"core", "a, b", "grep"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("splitInlineList = %v, want %v", got, want)
+	}
+	if got := splitInlineList("[]"); got != nil {
+		t.Errorf("empty list = %v", got)
+	}
+}
+
+func TestLabBundle(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "labs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := []byte(`{"id":"demo","tools":{}}`)
+	if err := os.WriteFile(filepath.Join(dir, "labs", "demo.json"), body, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	s := NewStore(dir)
+	if b, ok := s.LabBundle("demo"); !ok || string(b) != string(body) {
+		t.Errorf("LabBundle(demo) = %q, %v", b, ok)
+	}
+	if _, ok := s.LabBundle("missing"); ok {
+		t.Error("LabBundle(missing) should be false")
+	}
+	// Path traversal ids must be rejected outright.
+	for _, bad := range []string{"../secret", "a/b", ".env", "x.json"} {
+		if _, ok := s.LabBundle(bad); ok {
+			t.Errorf("LabBundle(%q) should be rejected", bad)
+		}
+	}
+}
+
+// TestContentLabsValid runs the real loader over ./content and asserts that
+// every lesson carrying a `lab:` block references an existing, well-formed
+// fixture bundle. This is the CI counterpart of tools/labvalidate.
+func TestContentLabsValid(t *testing.T) {
+	root := contentRoot(t)
+	store := NewStore(root)
+	if err := store.Load(); err != nil {
+		t.Fatalf("load %s: %v", root, err)
+	}
+
+	type seed struct {
+		Path string `json:"path"`
+		Type string `json:"type"`
+		Text *string `json:"text"`
+		B64  *string `json:"b64"`
+	}
+	type toolCase struct {
+		Match  string `json:"match"`
+		Output string `json:"output"`
+	}
+	type bundle struct {
+		ID      string                 `json:"id"`
+		Workdir string                 `json:"workdir"`
+		FS      []seed                 `json:"fs"`
+		Tools   map[string]struct {
+			Help  string     `json:"help"`
+			Cases []toolCase `json:"cases"`
+		} `json:"tools"`
+	}
+
+	withLab := 0
+	for _, l := range store.All() {
+		if l.Lab == nil {
+			continue
+		}
+		withLab++
+		lab := l.Lab
+		if lab.Kind != "shell" {
+			t.Errorf("%s: unsupported lab kind %q", l.ID, lab.Kind)
+		}
+		if !strings.HasPrefix(lab.Workdir, "/") {
+			t.Errorf("%s: lab workdir %q must be absolute", l.ID, lab.Workdir)
+		}
+		if strings.TrimSpace(lab.Check) == "" {
+			t.Errorf("%s: lab has no check predicate", l.ID)
+		}
+		if len(lab.Hints) == 0 {
+			t.Errorf("%s: lab has no hints", l.ID)
+		}
+
+		bundleID := lab.Bundle
+		if bundleID == "" {
+			bundleID = l.ID
+		}
+		raw, ok := store.LabBundle(bundleID)
+		if !ok {
+			t.Errorf("%s: lab bundle %q missing (content/labs/%s.json)", l.ID, bundleID, bundleID)
+			continue
+		}
+		var b bundle
+		if err := json.Unmarshal(raw, &b); err != nil {
+			t.Errorf("%s: lab bundle %q is not valid JSON: %v", l.ID, bundleID, err)
+			continue
+		}
+		if b.ID != "" && b.ID != bundleID {
+			t.Errorf("%s: bundle id %q != %q", l.ID, b.ID, bundleID)
+		}
+		seeded := map[string]bool{}
+		for i, s := range b.FS {
+			if s.Path == "" {
+				t.Errorf("%s: bundle fs[%d] has no path", l.ID, i)
+				continue
+			}
+			if s.Type != "dir" && s.Text == nil && s.B64 == nil {
+				t.Errorf("%s: bundle fs[%d] %q has neither text nor b64", l.ID, i, s.Path)
+			}
+			seeded[s.Path] = true
+		}
+		for _, f := range lab.Files {
+			if !seeded[f] && !seeded[filepath.ToSlash(filepath.Join(lab.Workdir, f))] {
+				t.Errorf("%s: declared file %q is not seeded by the bundle", l.ID, f)
+			}
+		}
+		for name, tool := range b.Tools {
+			if strings.TrimSpace(tool.Help) == "" {
+				t.Errorf("%s: tool %q has no help", l.ID, name)
+			}
+			for i, c := range tool.Cases {
+				if strings.TrimSpace(c.Match) == "" || strings.TrimSpace(c.Output) == "" {
+					t.Errorf("%s: tool %q case #%d is incomplete", l.ID, name, i+1)
+				}
+			}
+		}
+	}
+	t.Logf("validated %d lab(s) against their fixture bundles", withLab)
 }

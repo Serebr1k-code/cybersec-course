@@ -2,7 +2,7 @@
 import { computed, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import LessonNode from './LessonNode.vue'
 import { useProgressStore } from '../stores/progress'
-import { radialLayout, NODE_D } from '../utils/radialLayout'
+import { radialLayout, isHubNode } from '../utils/radialLayout'
 
 const props = defineProps({
   nodes: { type: Array, default: () => [] },   // узлы одной категории
@@ -16,8 +16,8 @@ const progress = useProgressStore()
 const MIN_SCALE = 0.05
 const MAX_SCALE = 4
 
-// Difficulty palette — the circle FILL (mirrors LessonNode.vue / main.css).
-// A compact legend keeps the colour-only nodes understandable.
+// Difficulty palette — the CARD accent (left border + star colour) mirrors
+// LessonNode.vue / main.css. A compact legend keeps the colours understandable.
 const DIFF_LEGEND = [
   { k: 'beginner', label: 'Новичок', c: '#22c55e' },
   { k: 'easy', label: 'Легко', c: '#84cc16' },
@@ -324,8 +324,11 @@ function toggleCollapse(id) {
 function setHover(id) { hoverId.value = id || '' }
 
 // ---- right-click context menu: toggle lesson completion -------------------
+// Completion applies to REAL LESSONS only — a hub / connector node is not a
+// lesson, so it gets no context menu.
 const menu = ref({ show: false, x: 0, y: 0, id: '' })
 function openMenu(e, id) {
+  if (isHubNode(nodeById.value[id])) return
   const el = wrap.value
   const r = el ? el.getBoundingClientRect() : null
   menu.value = {
@@ -445,7 +448,7 @@ onBeforeUnmount(() => {
           v-for="n in visibleNodes"
           :key="n.id"
           class="node-slot"
-          :style="{ transform: `translate(${layout.pos[n.id].left}px, ${layout.pos[n.id].top}px)` }"
+          :style="{ transform: `translate(${layout.pos[n.id].x}px, ${layout.pos[n.id].y}px) translate(-50%, -50%)` }"
           @mouseenter="setHover(n.id)"
           @mouseleave="setHover('')"
           @contextmenu.prevent="openMenu($event, n.id)"
@@ -455,8 +458,9 @@ onBeforeUnmount(() => {
             :color="color"
             :ratio="progress.lessonRatio(n.id, n.sections)"
             :completed="progress.isCompleted(n.id)"
-            :size="NODE_D"
-            :zoom="view.scale"
+            :width="layout.pos[n.id].w"
+            :height="layout.pos[n.id].h"
+            :size="layout.pos[n.id].w"
             :has-children="layout.hasChildren[n.id]"
             :collapsed="nodeCollapsed(n.id)"
             :dimmed="!!activeId && !pathSet.has(n.id)"
@@ -493,6 +497,11 @@ onBeforeUnmount(() => {
 .canvas:active { cursor: grabbing; }
 .stage { position: absolute; top: 0; left: 0; transform-origin: 0 0; }
 .edges { position: absolute; top: 0; left: 0; pointer-events: none; }
+/* A node slot is CENTRE-anchored: the inline transform first moves the slot's
+   origin to the layout centre (pos.x/pos.y — the exact point the SVG edge
+   endpoints use) and then translate(-50%,-50%) recentres the slot's own box on
+   it. So the rendered node centre == the edge endpoint for EVERY node, whatever
+   its box size (hub circle or lesson card). */
 .node-slot { position: absolute; top: 0; left: 0; }
 
 .controls {

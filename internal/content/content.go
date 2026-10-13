@@ -77,6 +77,24 @@ func NewStore(dir string) *Store {
 // Dir returns the content directory.
 func (s *Store) Dir() string { return s.dir }
 
+// labIDRe restricts a lab id to a filename-safe alphabet so it can never escape
+// the labs directory.
+var labIDRe = regexp.MustCompile(`^[A-Za-z0-9_-]{1,64}$`)
+
+// LabBundle returns the raw JSON fixture bundle for a lab id from
+// <content>/labs/<id>.json. The API serves it lazily so the (potentially large)
+// fixtures never travel with the lesson payload.
+func (s *Store) LabBundle(id string) ([]byte, bool) {
+	if !labIDRe.MatchString(id) {
+		return nil, false
+	}
+	b, err := os.ReadFile(filepath.Join(s.dir, "labs", id+".json"))
+	if err != nil {
+		return nil, false
+	}
+	return b, true
+}
+
 // Load (re)reads every markdown file under the content directory.
 func (s *Store) Load() error {
 	lessons := map[string]*model.Lesson{}
@@ -341,6 +359,7 @@ func parseLesson(raw, path string) (*model.Lesson, error) {
 		},
 	}
 	l.Slug = id
+	l.Lab = getLab(fm, "lab")
 	l.Sections = splitSections(body)
 	// Извлекаем интерактивный квиз из секций: либо из явного блока ```quiz,
 	// либо из обычной секции "## Квиз" (основной формат контента). Ответы
@@ -710,7 +729,8 @@ func splitFrontmatter(raw string) (map[string]any, string) {
 func parseSimpleYAML(lines []string) map[string]any {
 	m := map[string]any{}
 	curKey := ""
-	for _, ln := range lines {
+	for i := 0; i < len(lines); i++ {
+		ln := lines[i]
 		if strings.TrimSpace(ln) == "" || strings.HasPrefix(strings.TrimSpace(ln), "#") {
 			continue
 		}
@@ -728,24 +748,157 @@ func parseSimpleYAML(lines []string) map[string]any {
 		key := strings.TrimSpace(ln[:idx])
 		val := strings.TrimSpace(ln[idx+1:])
 		curKey = key
+		// The optional `lab:` block is the only structured (nested) block we
+		// support. It is consumed as one unit so its inner `- item` lines are
+		// not mistaken for top-level lists.
+		if key == "lab" && val == "" {
+			block, next := collectIndentedBlock(lines, i+1)
+			m["lab"] = parseLabBlock(block)
+			i = next - 1
+			continue
+		}
 		if val == "" {
 			m[key] = []string{}
 			continue
 		}
 		if strings.HasPrefix(val, "[") && strings.HasSuffix(val, "]") {
-			inner := strings.TrimSpace(val[1 : len(val)-1])
-			var arr []string
-			if inner != "" {
-				for _, p := range strings.Split(inner, ",") {
-					arr = append(arr, unquote(strings.TrimSpace(p)))
-				}
-			}
-			m[key] = arr
+			m[key] = splitInlineList(val)
 			continue
 		}
 		m[key] = unquote(val)
 	}
 	return m
+}
+
+// collectIndentedBlock gathers the indented lines following a `key:` line and
+// returns them plus the index of the first line after the block. Blank lines
+// inside the block are preserved; a non-blank line at column 0 ends it.
+func collectIndentedBlock(lines []string, start int) ([]string, int) {
+	var block []string
+	i := start
+	for i < len(lines) {
+		ln := lines[i]
+		if strings.TrimSpace(ln) == "" {
+			block = append(block, "")
+			i++
+			continue
+		}
+		if len(ln)-len(strings.TrimLeft(ln, " \t")) == 0 {
+			break
+		}
+		block = append(block, ln)
+		i++
+	}
+	return block, i
+}
+
+// parseLabBlock parses the nested mapping under a front-matter `lab:` key. It
+// accepts `key: value`, inline lists `[a, b]` and nested `- item` lists for
+// toolset/files/hints. Returns nil when nothing meaningful was found.
+func parseLabBlock(lines []string) *model.Lab {
+	lab := &model.Lab{}
+	curKey := ""
+	for _, raw := range lines {
+		t := strings.TrimSpace(raw)
+		if t == "" || strings.HasPrefix(t, "#") {
+			continue
+		}
+		if strings.HasPrefix(t, "- ") {
+			item := unquote(strings.TrimSpace(t[2:]))
+			switch curKey {
+			case "toolset":
+				lab.Toolset = append(lab.Toolset, item)
+			case "files":
+				lab.Files = append(lab.Files, item)
+			case "hints":
+				lab.Hints = append(lab.Hints, item)
+			}
+			continue
+		}
+		idx := strings.Index(t, ":")
+		if idx == -1 {
+			continue
+		}
+		key := strings.TrimSpace(t[:idx])
+		val := strings.TrimSpace(t[idx+1:])
+		curKey = key
+		if val == "" {
+			continue
+		}
+		if strings.HasPrefix(val, "[") && strings.HasSuffix(val, "]") {
+			list := splitInlineList(val)
+			switch key {
+			case "toolset":
+				lab.Toolset = list
+			case "files":
+				lab.Files = list
+			case "hints":
+				lab.Hints = list
+			}
+			continue
+		}
+		switch key {
+		case "kind":
+			lab.Kind = unquote(val)
+		case "title":
+			lab.Title = unquote(val)
+		case "workdir":
+			lab.Workdir = unquote(val)
+		case "check":
+			lab.Check = unquote(val)
+		case "bundle":
+			lab.Bundle = unquote(val)
+		}
+	}
+	if lab.Kind == "" && lab.Check == "" && lab.Workdir == "" && len(lab.Hints) == 0 && len(lab.Files) == 0 {
+		return nil
+	}
+	return lab
+}
+
+// splitInlineList parses an inline YAML list `[a, "b, c", d]`, honouring quotes
+// so a comma inside a quoted element does not split it.
+func splitInlineList(val string) []string {
+	if len(val) < 2 {
+		return nil
+	}
+	inner := strings.TrimSpace(val[1 : len(val)-1])
+	if inner == "" {
+		return nil
+	}
+	var out []string
+	var cur strings.Builder
+	var quote rune
+	for _, r := range inner {
+		switch {
+		case quote != 0:
+			if r == quote {
+				quote = 0
+			} else {
+				cur.WriteRune(r)
+			}
+		case r == '"' || r == '\'':
+			quote = r
+		case r == ',':
+			if s := strings.TrimSpace(cur.String()); s != "" {
+				out = append(out, s)
+			}
+			cur.Reset()
+		default:
+			cur.WriteRune(r)
+		}
+	}
+	if s := strings.TrimSpace(cur.String()); s != "" {
+		out = append(out, s)
+	}
+	return out
+}
+
+func getLab(m map[string]any, k string) *model.Lab {
+	if v, ok := m[k].(*model.Lab); ok {
+		return v
+	}
+	return nil
 }
 
 func unquote(s string) string {

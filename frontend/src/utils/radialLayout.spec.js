@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { radialLayout, NODE_D, NODE_R, RING_STEP, GAP_X, GAP_Y, MIN_SHARE } from './radialLayout'
+import {
+  radialLayout, isHubNode, nodeBox, radialCardHeight,
+  HUB_D, NODE_D, NODE_R, CARD_W, CARD_H, RING_STEP, GAP_X, GAP_Y, MIN_SHARE
+} from './radialLayout'
 
 const NODES = [
   { id: 'r', title: 'Root', parent: null, order: 1 },
@@ -11,17 +14,25 @@ const NODES = [
   { id: 'b1', title: 'B1', parent: 'b', order: 1 }
 ]
 
-// Circles overlap when the distance between their centres is smaller than the
-// sum of their radii (both are NODE_D wide).
+// Two axis-aligned boxes overlap when their rectangles intersect (with a tiny
+// tolerance so exact edge contact is NOT an overlap).
+function rectsOverlap(a, b) {
+  const eps = 1e-6
+  return !(
+    a.left + a.w <= b.left + eps ||
+    b.left + b.w <= a.left + eps ||
+    a.top + a.h <= b.top + eps ||
+    b.top + b.h <= a.top + eps
+  )
+}
+
+// Boxes overlap when their rectangles intersect.
 function overlapping(L) {
   const ids = Object.keys(L.pos)
   const bad = []
   for (let i = 0; i < ids.length; i++) {
     for (let j = i + 1; j < ids.length; j++) {
-      const a = L.pos[ids[i]], b = L.pos[ids[j]]
-      const dx = a.x - b.x, dy = a.y - b.y
-      const minDist = (a.w + b.w) / 2
-      if (Math.hypot(dx, dy) < minDist - 1e-6) bad.push([ids[i], ids[j]])
+      if (rectsOverlap(L.pos[ids[i]], L.pos[ids[j]])) bad.push([ids[i], ids[j]])
     }
   }
   return bad
@@ -47,7 +58,33 @@ function bigTree() {
   return out
 }
 
-describe('utils/radialLayout.js — sunburst geometry of circle nodes', () => {
+describe('utils/radialLayout.js — hub detection', () => {
+  it('treats a title starting with "Модуль:" as a hub', () => {
+    expect(isHubNode({ title: 'Модуль: сетевой анализ' })).toBe(true)
+    expect(isHubNode({ title: 'модуль: строчная' })).toBe(true)
+  })
+
+  it('treats a roadmap tag as a hub (canonical thin-lessons.py rule)', () => {
+    expect(isHubNode({ title: 'Архитектура: базовый фундамент', tags: ['web', 'roadmap'] })).toBe(true)
+    expect(isHubNode({ title: 'Обычный урок', tags: ['roadmap', 'ssrf'] })).toBe(true)
+  })
+
+  it('does not treat a normal lesson as a hub', () => {
+    expect(isHubNode({ title: 'SQL-инъекции', tags: ['web', 'sqli'] })).toBe(false)
+    expect(isHubNode({ title: 'Модульный тест', tags: [] })).toBe(false) // "Модульный" is not "Модуль:"
+    expect(isHubNode(null)).toBe(false)
+  })
+
+  it('sizes a hub as a small square and a lesson as a wide card', () => {
+    expect(nodeBox({ title: 'Модуль: X' })).toEqual({ w: HUB_D, h: HUB_D })
+    const card = nodeBox({ title: 'SQL-инъекции' })
+    expect(card.w).toBe(CARD_W)
+    expect(card.h).toBe(radialCardHeight({ title: 'SQL-инъекции' }))
+    expect(card.h).toBeGreaterThanOrEqual(40)
+  })
+})
+
+describe('utils/radialLayout.js — sunburst geometry of hybrid nodes', () => {
   it('places the single root at the centre of the stage', () => {
     const L = radialLayout(NODES)
     expect(L.pos.r.x).toBeCloseTo(L.cx, 6)
@@ -55,13 +92,24 @@ describe('utils/radialLayout.js — sunburst geometry of circle nodes', () => {
     expect(L.pos.r.r).toBe(0)
   })
 
-  it('sizes every node as a fixed circle (no content-driven card height)', () => {
-    const L = radialLayout(NODES)
-    for (const id in L.pos) {
-      expect(L.pos[id].w).toBe(NODE_D)
-      expect(L.pos[id].h).toBe(NODE_D)
-    }
-    expect(NODE_R).toBe(NODE_D / 2)
+  it('reserves a wide card for lessons and a small square for hubs', () => {
+    const nodes = [
+      { id: 'r', title: 'Root', parent: null, order: 0 },
+      { id: 'h', title: 'Модуль: группа', parent: 'r', order: 1 },
+      { id: 'l', title: 'Настоящий урок', parent: 'r', order: 2 }
+    ]
+    const L = radialLayout(nodes)
+    expect(L.pos.l.w).toBe(CARD_W)
+    expect(L.pos.l.h).toBe(radialCardHeight({ title: 'Настоящий урок' }))
+    expect(L.pos.h.w).toBe(HUB_D)
+    expect(L.pos.h.h).toBe(HUB_D)
+    expect(L.pos.h.hub).toBe(true)
+    expect(L.pos.l.hub).toBe(false)
+  })
+
+  it('keeps the backwards-compatible small-node aliases', () => {
+    expect(NODE_D).toBe(HUB_D)
+    expect(NODE_R).toBe(HUB_D / 2)
   })
 
   it('puts every depth on its own ring, radius growing with depth', () => {
@@ -72,26 +120,18 @@ describe('utils/radialLayout.js — sunburst geometry of circle nodes', () => {
     expect(L.pos.a1.r).toBeGreaterThan(L.pos.a.r)
   })
 
-  it('packs rings tightly: RING_STEP is one diameter plus the ring gap', () => {
-    expect(RING_STEP).toBe(NODE_D + GAP_Y)
-    // a sparse ring needs no extra room, so its radius is exactly RING_STEP
+  it('packs a sparse ring at the base radial step', () => {
+    expect(RING_STEP).toBe(CARD_W + GAP_Y)
     const L = radialLayout(NODES)
     expect(L.pos.a.r).toBeCloseTo(RING_STEP, 6)
   })
 
-  it('grows the radius of a dense ring so its circles never collide', () => {
+  it('grows the radius of a dense ring so its boxes never collide', () => {
     const wide = [{ id: 'r', title: 'R', parent: null, order: 0 }]
     for (let i = 0; i < 40; i++) wide.push({ id: 'c' + i, title: 'C' + i, parent: 'r', order: i })
     const L = radialLayout(wide)
-    // 40 circles on one ring need a radius well beyond the base step
+    // 40 cards on one ring need a radius well beyond the base step
     expect(L.pos.c0.r).toBeGreaterThan(RING_STEP)
-    // adjacent circles clear the required centre distance (diameter + gap)
-    const ids = Object.keys(L.pos).filter((id) => id !== 'r')
-    const angs = ids.map((id) => ({ id, a: L.pos[id].angle })).sort((x, y) => x.a - y.a)
-    for (let i = 0; i < angs.length; i++) {
-      const p = L.pos[angs[i].id], q = L.pos[angs[(i + 1) % angs.length].id]
-      expect(Math.hypot(p.x - q.x, p.y - q.y)).toBeGreaterThanOrEqual(NODE_D + GAP_X - 1e-6)
-    }
     expect(overlapping(L)).toEqual([])
   })
 
@@ -106,20 +146,55 @@ describe('utils/radialLayout.js — sunburst geometry of circle nodes', () => {
     }
   })
 
-  it('never overlaps two circles (small tree)', () => {
+  it('never overlaps two boxes (small tree)', () => {
     expect(overlapping(radialLayout(NODES))).toEqual([])
   })
 
-  it('never overlaps two circles on a wide, deep tree', () => {
+  it('never overlaps two boxes on a wide, deep tree', () => {
     const L = radialLayout(bigTree())
     expect(Object.keys(L.pos).length).toBeGreaterThan(60)
     expect(overlapping(L)).toEqual([])
+  })
+
+  it('never overlaps a mixed hub + lesson tree', () => {
+    const nodes = [
+      { id: 'r', title: 'Root lesson', parent: null, order: 0 },
+      { id: 'h1', title: 'Модуль: A', parent: 'r', order: 1, tags: ['roadmap'] },
+      { id: 'h2', title: 'Модуль: B', parent: 'r', order: 2 },
+      { id: 'l1', title: 'Урок 1', parent: 'h1', order: 1 },
+      { id: 'l2', title: 'Урок 2 с длинным названием', parent: 'h1', order: 2 },
+      { id: 'l3', title: 'Урок 3', parent: 'h2', order: 1 }
+    ]
+    expect(overlapping(radialLayout(nodes))).toEqual([])
   })
 
   it('emits one curved edge per non-root node', () => {
     const L = radialLayout(NODES)
     expect(L.edges.length).toBe(NODES.length - 1)
     for (const e of L.edges) expect(e.d).toMatch(/^M .* C /)
+  })
+
+  it('anchors every edge endpoint on the node CENTRE (centre-to-centre convention)', () => {
+    // The DOM node-slot is centred on (pos.x, pos.y); the SVG edge endpoints must
+    // use the SAME point, otherwise a circle would sit off the line intersection.
+    const L = radialLayout(NODES)
+    for (const e of L.edges) {
+      const nums = e.d.match(/-?[\d.]+/g).map(Number)
+      // "M fromX fromY C c1x c1y, c2x c2y, toX toY"
+      expect(nums[0]).toBeCloseTo(L.pos[e.from].x, 6)
+      expect(nums[1]).toBeCloseTo(L.pos[e.from].y, 6)
+      expect(nums[nums.length - 2]).toBeCloseTo(L.pos[e.to].x, 6)
+      expect(nums[nums.length - 1]).toBeCloseTo(L.pos[e.to].y, 6)
+    }
+  })
+
+  it('reports the box centre (x, y) exactly half a box from the top-left corner', () => {
+    const L = radialLayout(NODES)
+    for (const id in L.pos) {
+      const p = L.pos[id]
+      expect(p.x).toBeCloseTo(p.left + p.w / 2, 6)
+      expect(p.y).toBeCloseTo(p.top + p.h / 2, 6)
+    }
   })
 
   it('gives every node at least the floored share of its ring', () => {
@@ -178,7 +253,7 @@ describe('utils/radialLayout.js — sunburst geometry of circle nodes', () => {
     const L = radialLayout([])
     expect(L.edges).toEqual([])
     expect(Object.keys(L.pos)).toEqual([])
-    expect(L.w).toBe(NODE_D)
-    expect(L.h).toBe(NODE_D)
+    expect(L.w).toBe(CARD_W)
+    expect(L.h).toBe(CARD_H)
   })
 })

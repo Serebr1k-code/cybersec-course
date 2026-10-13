@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, nextTick, watch, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api/client'
 import { useTreeStore } from '../stores/tree'
@@ -8,6 +8,11 @@ import { renderMarkdown, highlightAll } from '../utils/markdown'
 import { buildAliasIndex, linkTopics, shortestPath } from '../utils/topicLinks'
 import Quiz from '../components/Quiz.vue'
 import NotesPanel from '../components/NotesPanel.vue'
+
+// Лаборатория подгружается лениво: тяжёлый терминальный движок (@xterm) НЕ
+// попадает в основной бандл и скачивается только для уроков, у которых в
+// front-matter есть блок `lab:`.
+const LabPanel = defineAsyncComponent(() => import('../components/LabPanel.vue'))
 
 const route = useRoute()
 const router = useRouter()
@@ -655,6 +660,9 @@ async function markComplete() {
             </template>
             <div v-else class="md" v-html="render(s.markdown)"></div>
           </section>
+
+          <!-- Интерактивная лаборатория (только если у урока есть блок `lab:`). -->
+          <LabPanel v-if="lesson.lab" :lesson-id="lesson.id" :lab="lesson.lab" />
 
           <NotesPanel :lesson-id="lesson.id" />
 

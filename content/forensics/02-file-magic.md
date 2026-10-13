@@ -13,6 +13,18 @@ useful_for:
   - "Triage неизвестных артефактов"
 estimated_minutes: 30
 summary: "Как определять тип файла по магическим байтам, читать hex и восстанавливать повреждённые заголовки."
+lab:
+  kind: shell
+  title: "Практика: разбор подозрительного файла"
+  toolset: [core, hex, unzip]
+  workdir: /home/student/task
+  files: [task.md, evidence.dat, notes.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с `ls -la` и `file evidence.dat`: что система думает о типе файла?"
+    - "Загляни внутрь байтами: `xxd -l 16 evidence.dat`. Сравни первые байты с сигнатурой PNG из урока."
+    - "Файл — полиглот: `file -k evidence.dat` показывает больше одной сигнатуры. Поищи читаемые строки через `strings`."
+    - "В строках есть значение в base64. Раскодировать его поможет `base64 -d`, а выделить само значение из строки — `grep` и `cut`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -55,6 +55,32 @@ type QuizQuestion struct {
 	Explanation string   `json:"explanation,omitempty"`
 }
 
+// Lab describes an optional interactive terminal lab attached to a lesson via
+// its front-matter `lab:` block. When present, the frontend renders a terminal
+// panel ("Лаборатория") and lazily loads the lab bundle (virtual-FS seed +
+// captured tool fixtures) from GET /api/labs/{id}. The heavy terminal engine is
+// code-split and only downloaded for lessons that actually carry a lab.
+type Lab struct {
+	// Kind is the lab engine kind; "shell" is the client-side virtual shell.
+	Kind string `json:"kind"`
+	// Title is an optional human label for the lab panel.
+	Title string `json:"title,omitempty"`
+	// Toolset lists the tool groups the author enabled (core, grep, net, ...).
+	// Purely informational for the UI; the engine exposes everything it knows.
+	Toolset []string `json:"toolset,omitempty"`
+	// Workdir is the initial working directory inside the virtual FS.
+	Workdir string `json:"workdir,omitempty"`
+	// Files lists the seed files the student should start from (documentation).
+	Files []string `json:"files,omitempty"`
+	// Check is a shell command run inside the lab; exit code 0 == solved.
+	Check string `json:"check,omitempty"`
+	// Hints are progressive hints (weakest first, strongest last). The lab
+	// never exposes the full spoiler automatically.
+	Hints []string `json:"hints,omitempty"`
+	// Bundle is the fixture-bundle id (defaults to the lesson id).
+	Bundle string `json:"bundle,omitempty"`
+}
+
 // Lesson is a full lesson: metadata + rendered sections.
 type Lesson struct {
 	LessonMeta
@@ -62,6 +88,7 @@ type Lesson struct {
 	Sections []Section      `json:"sections"`
 	Quiz     []QuizQuestion `json:"quiz"`
 	Words    int            `json:"words"`
+	Lab      *Lab           `json:"lab,omitempty"`
 }
 
 // TreeNode is a node of the learning tree (a lesson in graph form).
