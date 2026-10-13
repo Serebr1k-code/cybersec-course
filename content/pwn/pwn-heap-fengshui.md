@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 50
 summary: "Как планировать последовательность аллокаций/освобождений, чтобы гарантированно разместить чанки рядом, обойти консолидацию и сделать эксплойт детерминированным."
+lab:
+  kind: shell
+  title: "Практика: grooming для unsortedbin-утечки"
+  toolset: [core, hex, gdb]
+  workdir: /home/student/task
+  files: [task.md, fengshui, fengshui.gdb.txt]
+  check: "grep -q 'leak=0x7ffff7f7ceb8' answer.txt"
+  hints:
+    - "Размер `0x420 > 0x410` — чанк не попадёт в tcache, а уйдёт в `unsorted bin`."
+    - "Сторожевая аллокация `guard` не даёт жертве слиться с top chunk."
+    - "После `free(v)` первые два слова данных — `fd` и `bk`; в списке один элемент, оба равны голове."
+    - "Голова `unsorted bin` — внутри `main_arena` в libc. Смотри `gdb fengshui`; запиши `leak=0x...`."
 ---
 
 ## Вопрос, с которого всё начинается

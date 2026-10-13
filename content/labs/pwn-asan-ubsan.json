@@ -1,0 +1,29 @@
+{
+ "id": "pwn-asan-ubsan",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "asan=heap-buffer-overflow"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: классифицировать ошибки санитайзеров\n\nДаны два реальных отчёта: `asan.out` (сборка с `-fsanitize=address`) и\n`ubsan.out` (`-fsanitize=undefined`).\n\n1. `cat asan.out` — найди строку `ERROR: AddressSanitizer: ...`.\n2. `cat ubsan.out` — найди строку `runtime error: ...`.\n3. Определи класс ошибки из отчёта ASan.\n4. Запиши `asan=<класс>` в `answer.txt` и набери `check`.\n"
+  },
+  {
+   "path": "/home/student/task/asan.out",
+   "text": "=================================================================\n==601177==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7bab6d9e0020 at pc 0x55c8d44612c6 bp 0x7fff9f4eb210 sp 0x7fff9f4eb200\nWRITE of size 4 at 0x7bab6d9e0020 thread T0\n    #0 0x55c8d44612c5 in main /tmp/labpwn/asan.c:8\n    #1 0x7f8b6ec366c0  (/usr/lib/libc.so.6+0x276c0) (BuildId: 7a8d41a2df4fde040b4c6ac2832311ab645a1e41)\n    #2 0x7f8b6ec367f8 in __libc_start_main (/usr/lib/libc.so.6+0x277f8) (BuildId: 7a8d41a2df4fde040b4c6ac2832311ab645a1e41)\n    #3 0x55c8d44610f4 in _start (/tmp/labpwn/asan+0x10f4) (BuildId: eab185078cde055890293d657dc343256bb2c1ae)\n\n0x7bab6d9e0020 is located 0 bytes after 16-byte region [0x7bab6d9e0010,0x7bab6d9e0020)\nallocated by thread T0 here:\n    #0 0x7f8b6ef20cb5 in malloc (/usr/lib/libasan.so.8+0x120cb5) (BuildId: 0b96d08695bbce2da9d4770c29ad2e72fb536f47)\n    #1 0x55c8d4461260 in main /tmp/labpwn/asan.c:7\n    #2 0x7f8b6ec366c0  (/usr/lib/libc.so.6+0x276c0) (BuildId: 7a8d41a2df4fde040b4c6ac2832311ab645a1e41)\n    #3 0x7f8b6ec367f8 in __libc_start_main (/usr/lib/libc.so.6+0x277f8) (BuildId: 7a8d41a2df4fde040b4c6ac2832311ab645a1e41)\n    #4 0x55c8d44610f4 in _start (/tmp/labpwn/asan+0x10f4) (BuildId: eab185078cde055890293d657dc343256bb2c1ae)\n\nSUMMARY: AddressSanitizer: heap-buffer-overflow /tmp/labpwn/asan.c:8 in main\nShadow bytes around the buggy address:\n  0x7bab6d9dfd80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x7bab6d9dfe00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x7bab6d9dfe80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x7bab6d9dff00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x7bab6d9dff80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n=>0x7bab6d9e0000: fa fa 00 00[fa]fa fa fa fa fa fa fa fa fa fa fa\n  0x7bab6d9e0080: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x7bab6d9e0100: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x7bab6d9e0180: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x7bab6d9e0200: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x7bab6d9e0280: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\nShadow byte legend (one shadow byte represents 8 application bytes):\n  Addressable:           00\n  Partially addressable: 01 02 03 04 05 06 07 \n  Heap left redzone:       fa\n  Freed heap region:       fd\n  Stack left redzone:      f1\n  Stack mid redzone:       f2\n  Stack right redzone:     f3\n  Stack after return:      f5\n  Stack use after scope:   f8\n  Global redzone:          f9\n  Global init order:       f6\n  Poisoned by user:        f7\n  Container overflow:      fc\n  Array cookie:            ac\n  Intra object redzone:    bb\n  ASan internal:           fe\n  Left alloca redzone:     ca\n  Right alloca redzone:    cb\n==601177==ABORTING\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/ubsan.out",
+   "text": "ubsan.c:4:9: runtime error: signed integer overflow: 2147483647 + 1 cannot be represented in type 'int'\n-2147483648\n",
+   "mode": "644"
+  }
+ ]
+}

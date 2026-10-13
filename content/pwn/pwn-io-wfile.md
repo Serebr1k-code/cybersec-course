@@ -13,6 +13,18 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 50
 summary: "Разбираем атаку _IO_wfile: структура _IO_wide_data, путь через _IO_wfile_jumps и захват управления в modern glibc."
+lab:
+  kind: shell
+  title: "Практика: _IO_wfile_jumps и _wide_vtable"
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, libc.syms]
+  check: "grep -q 'wfile_jumps=0x1e6228' answer.txt"
+  hints:
+    - "`IO_validate_vtable` проверяет только первую `vtable` (`_IO_FILE.vtable`)."
+    - "У «широкого» потока есть второй уровень: `_wide_data->_wide_vtable`, и он НЕ проверяется."
+    - "Цепочка: `_IO_wfile_overflow -> _IO_wdoallocbuf -> _wide_vtable->_IO_doallocate`."
+    - "Найди смещение `_IO_wfile_jumps` в libc и запиши `wfile_jumps=0x...`."
 ---
 ## Вопрос, с которого всё начинается
 

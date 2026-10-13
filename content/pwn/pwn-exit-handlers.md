@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 55
 summary: "Как устроен путь завершения процесса, какие указатели он вызывает (__exit_funcs, _IO_cleanup) и как перезапись exit-функций даёт выполнение кода."
+lab:
+  kind: shell
+  title: "Практика: порядок atexit-обработчиков"
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, exith, exith.out, libc.syms]
+  check: "grep -q 'first_handler=bye2' answer.txt"
+  hints:
+    - "`atexit(fn)` кладёт запись в список `__exit_funcs`."
+    - "Список обслуживается в порядке LIFO: последний зарегистрированный вызывается первым."
+    - "Программа регистрирует сначала `bye`, потом `bye2`."
+    - "Значит первым выполнится `bye2`. Запиши `first_handler=bye2`."
 ---
 ## Вопрос, с которого всё начинается
 

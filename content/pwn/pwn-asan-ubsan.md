@@ -12,6 +12,18 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 50
 summary: "AddressSanitizer и UBSan точно указывают баг и место: разбираем shadow memory, redzone, отчёты и как эксплуатировать цель, собранную с санитайзером."
+lab:
+  kind: shell
+  title: "Практика: чтение отчётов ASan и UBSan"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, asan.out, ubsan.out]
+  check: "grep -q 'asan=heap-buffer-overflow' answer.txt"
+  hints:
+    - "ASan ставит «красные зоны» вокруг объектов и проверяет каждое обращение."
+    - "Строка отчёта `ERROR: AddressSanitizer: <тип>` содержит класс ошибки."
+    - "В `asan.out` запись за границу 16-байтового региона на 0 байт."
+    - "Запиши `asan=<класс>` (например, `heap-buffer-overflow`)."
 ---
 ## Вопрос, с которого всё начинается
 

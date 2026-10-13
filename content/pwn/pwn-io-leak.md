@@ -13,6 +13,18 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 45
 summary: "Учимся извлекать утечки libc и heap через потоки _IO_FILE: подделка _IO_2_1_stdout_, условия вывода и практические приёмы."
+lab:
+  kind: shell
+  title: "Практика: утечка libc через unsorted bin"
+  toolset: [core, hex, gdb, elf]
+  workdir: /home/student/task
+  files: [task.md, uns, leak.gdb.txt, libc.syms]
+  check: "grep -q 'leak=0x7ffff7f7ceb8' answer.txt"
+  hints:
+    - "Освобождённый большой чанк уходит в `unsorted bin`, а его `fd`/`bk` — адреса внутри libc."
+    - "Размер `0x420 > 0x410`, поэтому tcache не задействован; сторожевой чанк мешает слиянию с top."
+    - "Смотри транскрипт `leak.gdb.txt`: первые два слова чанка `a` равны."
+    - "Запиши `leak=0x...` (значение `fd`/`bk`)."
 ---
 ## Вопрос, с которого всё начинается
 

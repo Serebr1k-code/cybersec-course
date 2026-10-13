@@ -13,6 +13,18 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 45
 summary: "Разбираем sandbox на seccomp, почему system('/bin/sh') не работает, и как применять SROP и цепочки open-read-write (ORW) для чтения флага."
+lab:
+  kind: shell
+  title: "Практика: декодирование seccomp-фильтра"
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, chall, chall.objdump.txt]
+  check: "grep -q 'blocked_syscall=execve' answer.txt"
+  hints:
+    - "Фильтр — массив `struct sock_filter` в секции `.data`; символ называется `filter`."
+    - "Каждая инструкция — 8 байт: `code`, `jt`, `jf`, `k`."
+    - "`0x15` — сравнение аккумулятора с `k`; `k = 0x3b` это syscall 59."
+    - "Syscall 59 = `execve`. Запиши `blocked_syscall=execve`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,36 @@
+{
+ "id": "pwn-io-wfile",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "wfile_jumps=0x1e6228"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: таблица wide-потока\n\nАтака `_IO_wfile` использует легальную `vtable` `_IO_wfile_jumps` (проверка\nпроходит), но подменяет `_wide_data->_wide_vtable`, которую glibc не\nвалидирует.\n\n1. Посмотри символы libc: `readelf -sW libc.so.6` (или `cat libc.syms`).\n2. Найди `_IO_wfile_jumps` и возьми её `Value`.\n3. Сравни с `_IO_file_jumps` — обе в секции `__libc_IO_vtables`.\n4. Запиши `wfile_jumps=0x...` в `answer.txt` и набери `check`.\n"
+  },
+  {
+   "path": "/home/student/task/libc.syms",
+   "text": "   535: 0000000000040b20    30 FUNC    GLOBAL DEFAULT   13 exit@@GLIBC_2.2.5\n   691: 00000000001e8480     8 OBJECT  GLOBAL DEFAULT   29 _IO_list_all@@GLIBC_2.2.5\n   875: 00000000001e78e0   224 OBJECT  GLOBAL DEFAULT   29 _IO_2_1_stdin_@@GLIBC_2.2.5\n  1064: 0000000000053b00    45 FUNC    WEAK   DEFAULT   13 system@@GLIBC_2.2.5\n  1195: 00000000001e6030   168 OBJECT  GLOBAL DEFAULT   26 _IO_file_jumps@@GLIBC_2.2.5\n  1618: 00000000001e8580   224 OBJECT  GLOBAL DEFAULT   29 _IO_2_1_stdout_@@GLIBC_2.2.5\n  1640: 0000000000040290    16 FUNC    GLOBAL DEFAULT   13 __cxa_atexit@@GLIBC_2.2.5\n  1928: 00000000001e6228   168 OBJECT  GLOBAL DEFAULT   26 _IO_wfile_jumps@@GLIBC_2.2.5\n  2802: 0000000000040660   100 FUNC    GLOBAL DEFAULT   13 __call_tls_dtors@@GLIBC_PRIVATE\n",
+   "mode": "644"
+  }
+ ],
+ "tools": {
+  "readelf": {
+   "help": "readelf [-sW] <файл> — (replay для libc.so.6)",
+   "cases": [
+    {
+     "match": "libc",
+     "example": "-sW libc.so.6",
+     "output": "   535: 0000000000040b20    30 FUNC    GLOBAL DEFAULT   13 exit@@GLIBC_2.2.5\n   691: 00000000001e8480     8 OBJECT  GLOBAL DEFAULT   29 _IO_list_all@@GLIBC_2.2.5\n   875: 00000000001e78e0   224 OBJECT  GLOBAL DEFAULT   29 _IO_2_1_stdin_@@GLIBC_2.2.5\n  1064: 0000000000053b00    45 FUNC    WEAK   DEFAULT   13 system@@GLIBC_2.2.5\n  1195: 00000000001e6030   168 OBJECT  GLOBAL DEFAULT   26 _IO_file_jumps@@GLIBC_2.2.5\n  1618: 00000000001e8580   224 OBJECT  GLOBAL DEFAULT   29 _IO_2_1_stdout_@@GLIBC_2.2.5\n  1640: 0000000000040290    16 FUNC    GLOBAL DEFAULT   13 __cxa_atexit@@GLIBC_2.2.5\n  1928: 00000000001e6228   168 OBJECT  GLOBAL DEFAULT   26 _IO_wfile_jumps@@GLIBC_2.2.5\n  2802: 0000000000040660   100 FUNC    GLOBAL DEFAULT   13 __call_tls_dtors@@GLIBC_PRIVATE\n"
+    }
+   ]
+  }
+ }
+}
