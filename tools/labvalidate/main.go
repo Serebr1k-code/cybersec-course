@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -189,16 +190,39 @@ func main() {
 		}
 	}
 
+	// --- silent-failure guard ------------------------------------------------
+	// A lesson whose raw front-matter declares a `lab:` block can fail to PARSE
+	// into a *model.Lab (nil Lab) — e.g. an empty block, an inline `lab: {...}`
+	// value, or a multi-line value whose continuation line sits at column 0 and
+	// truncates the block before any recognised key. Such a lesson is skipped by
+	// the loop above (l.Lab == nil) and would otherwise go completely unnoticed.
+	// Cross-check the raw files against the parsed store and flag every mismatch.
+	rawLabs := scanRawLabBlocks(*contentDir)
+	rawLabCount := len(rawLabs)
+	for _, rl := range rawLabs {
+		l, ok := store.Lesson(rl.id)
+		if !ok {
+			issues = append(issues, issue{Lesson: rl.path, Slug: rl.id, Kind: "lab.unparsed",
+				Detail: "front-matter declares a `lab:` block but no lesson with this id was loaded"})
+			continue
+		}
+		if l.Lab == nil {
+			issues = append(issues, issue{Lesson: l.Title, Slug: rl.id, Kind: "lab.unparsed",
+				Detail: "front-matter `lab:` block did not parse into a Lab (the lab is invisible); check indentation, multi-line values, or an inline `lab: {...}` value"})
+		}
+	}
+
 	if *asJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		_ = enc.Encode(map[string]any{
-			"lessons_with_lab": withLab,
-			"per_category":     perCat,
-			"issues":           issues,
+			"lessons_with_lab":     withLab,
+			"lessons_with_raw_lab": rawLabCount,
+			"per_category":         perCat,
+			"issues":               issues,
 		})
 	} else {
-		fmt.Printf("labvalidate: %d lesson(s) with a lab\n", withLab)
+		fmt.Printf("labvalidate: %d lesson(s) with a parsed lab (%d raw `lab:` block(s))\n", withLab, rawLabCount)
 		for _, c := range sortedKeys(perCat) {
 			fmt.Printf("  %-12s %d\n", c, perCat[c])
 		}
@@ -236,4 +260,110 @@ func sortedKeys(m map[string]int) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// rawLab is a markdown file whose front-matter declares a top-level `lab:` key,
+// together with the lesson id the loader would derive for it.
+type rawLab struct {
+	id   string
+	path string
+}
+
+// scanRawLabBlocks walks the content directory and returns every markdown file
+// whose YAML front-matter declares a top-level `lab:` key (with an empty value,
+// an inline value, or a spaced `lab :`). It mirrors the loader's file-skip
+// rules so its count is comparable to the parsed-lab count. This is what lets
+// us detect a `lab:` block that silently failed to parse into a *model.Lab:
+// such a lesson is skipped by the main loop (l.Lab == nil) and would otherwise
+// be invisible while this tool still reported OK.
+func scanRawLabBlocks(contentDir string) []rawLab {
+	var out []rawLab
+	_ = filepath.WalkDir(contentDir, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return nil
+		}
+		if d.IsDir() {
+			n := d.Name()
+			if (strings.HasPrefix(n, ".") || strings.HasPrefix(n, "_")) && p != contentDir {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		n := d.Name()
+		if strings.HasPrefix(n, ".") || strings.HasPrefix(n, "_") {
+			return nil
+		}
+		if !strings.HasSuffix(n, ".md") && !strings.HasSuffix(n, ".markdown") {
+			return nil
+		}
+		b, rerr := os.ReadFile(p)
+		if rerr != nil {
+			return nil
+		}
+		if id, ok := frontmatterLabID(string(b), p); ok {
+			out = append(out, rawLab{id: id, path: p})
+		}
+		return nil
+	})
+	sort.Slice(out, func(i, j int) bool { return out[i].path < out[j].path })
+	return out
+}
+
+// frontmatterLabID returns the lesson id and true when raw's front-matter
+// contains a top-level `lab:` key. A key is top-level when it starts at column 0
+// and its text before the first ':' trims to exactly "lab".
+func frontmatterLabID(raw, path string) (string, bool) {
+	raw = strings.ReplaceAll(raw, "\r\n", "\n")
+	lines := strings.Split(raw, "\n")
+	start := -1
+	for i, l := range lines {
+		if strings.TrimSpace(l) == "---" {
+			start = i
+			break
+		}
+		if strings.TrimSpace(l) != "" {
+			return "", false
+		}
+	}
+	if start == -1 {
+		return "", false
+	}
+	found := false
+	for i := start + 1; i < len(lines); i++ {
+		l := lines[i]
+		if strings.TrimSpace(l) == "---" {
+			break
+		}
+		if l != strings.TrimLeft(l, " \t") {
+			continue // indented → not a top-level key
+		}
+		idx := strings.Index(l, ":")
+		if idx == -1 {
+			continue
+		}
+		if strings.TrimSpace(l[:idx]) == "lab" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return "", false
+	}
+	// Derive the lesson id exactly like the loader: explicit `id:` else basename.
+	for i := start + 1; i < len(lines); i++ {
+		l := lines[i]
+		if strings.TrimSpace(l) == "---" {
+			break
+		}
+		if l != strings.TrimLeft(l, " \t") {
+			continue
+		}
+		if strings.HasPrefix(l, "id:") {
+			if v := strings.Trim(strings.TrimSpace(l[3:]), "\"'"); v != "" {
+				return v, true
+			}
+		}
+	}
+	base := filepath.Base(path)
+	return strings.TrimSuffix(base, filepath.Ext(base)), true
 }
