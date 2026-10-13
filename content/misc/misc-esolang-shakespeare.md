@@ -13,6 +13,17 @@ useful_for:
   - "Написание интерпретаторов"
 estimated_minutes: 40
 summary: "Shakespeare Programming Language: персонажи-переменные, числа в цветах и оскорблениях, инструкции-реплики, компилятор spl2c и Python-интерпретатор shakespearelang."
+lab:
+  kind: shell
+  title: 'Практика: Shakespeare (SPL)'
+  toolset: [core, shakespeare]
+  workdir: /home/student/task
+  files: [task.md, hello.spl, flag.spl]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`hello.spl` — не код, а текст пьесы. Это Shakespeare Programming Language.'
+    - 'Запусти `shakespeare run hello.spl` — получишь «Hello World!» и поймёшь, как исполнять пьесу.'
+    - 'Задача — в `flag.spl`: `shakespeare run flag.spl` напечатает флаг. Запиши его в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

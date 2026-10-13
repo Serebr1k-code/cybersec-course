@@ -1,0 +1,43 @@
+{
+  "id": "misc-esolang-shakespeare",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sh4k3sp34r3_sp34ks_1n_c0d3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Shakespeare (SPL)\n\n`hello.spl` — эталонная пьеса, печатающая «Hello World!».\n`flag.spl` — пьеса-задача: исполни её и получи флаг.\nФлаг запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/hello.spl",
+      "text": "Shakespeare's Flag.\n\nRomeo, a young man with a remarkable patience.\nJuliet, a likewise young woman of remarkable grace.\n\nAct I: The printing of the flag.\n\nScene I: The reveal.\n\n[Enter Romeo and Juliet]\n\nRomeo:\n You are as big as the sum of big big big big big big cat and big big big cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big cat and big big cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big cat and big big cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big cat and the sum of big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as big big big big big cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big cat and the sum of big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big cat and the sum of big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big big cat and big cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big cat and big big cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and big big cat!\n Speak your mind!\n You are as big as the sum of big big big big big cat and cat!\n Speak your mind!\n\n[Exeunt]\n"
+    },
+    {
+      "path": "/home/student/task/flag.spl",
+      "text": "Shakespeare's Flag.\n\nRomeo, a young man with a remarkable patience.\nJuliet, a likewise young woman of remarkable grace.\n\nAct I: The printing of the flag.\n\nScene I: The reveal.\n\n[Enter Romeo and Juliet]\n\nRomeo:\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big cat and the sum of big big cat and big cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big big cat and big big cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big cat and the sum of big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big big cat and the sum of big big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and big big big cat!\n Speak your mind!\n You are as big as the sum of big big big big big cat and the sum of big big big big cat and big big cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big cat and the sum of big big big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and big big big big cat!\n Speak your mind!\n You are as big as the sum of big big big big big cat and the sum of big big big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big cat and the sum of big big big big cat and big big cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big big cat and big cat!\n Speak your mind!\n You are as big as the sum of big big big big big cat and the sum of big big big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big cat and the sum of big big big cat and the sum of big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and big big big big cat!\n Speak your mind!\n You are as big as the sum of big big big big big cat and the sum of big big big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big cat and the sum of big big big big cat and big big cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big cat and the sum of big big big cat and the sum of big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big cat and the sum of big big big big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big cat and the sum of big big cat and big cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big cat and the sum of big big big cat and the sum of big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big cat and big big big big cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and big big cat!\n Speak your mind!\n You are as big as the sum of big big big big big cat and the sum of big big big big cat and the sum of big cat and cat!\n Speak your mind!\n You are as big as the sum of big big big big big big cat and the sum of big big big big big cat and the sum of big big big big cat and the sum of big big big cat and the sum of big big cat and cat!\n Speak your mind!\n\n[Exeunt]\n"
+    }
+  ],
+  "tools": {
+    "shakespeare": {
+      "help": "shakespeare [run] <файл> — интерпретатор Shakespeare (shakespearelang; вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "hello\\.spl",
+          "output": "Hello World!"
+        },
+        {
+          "match": "flag\\.spl",
+          "output": "nto{sh4k3sp34r3_sp34ks_1n_c0d3}"
+        }
+      ],
+      "fallback": "shakespeare: доступно `shakespeare run hello.spl` и `shakespeare run flag.spl`\n"
+    }
+  }
+}
