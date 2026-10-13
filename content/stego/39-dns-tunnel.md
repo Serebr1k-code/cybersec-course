@@ -13,6 +13,19 @@ useful_for:
   - "Bug bounty: скрытые каналы"
 estimated_minutes: 31
 summary: "Как данные прячут в DNS: кодирование в поддоменах и TXT-записях, инструменты (iodine, dnscat2), извлечение из PCAP и детект аномального DNS."
+lab:
+  kind: shell
+  title: "Практика: распознать DNS-туннель"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, dns.log]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай лог: `cat dns.log`."
+    - "Ищи необычно длинную метку в запросе."
+    - "Найди строку туннеля: `grep tun.example dns.log`."
+    - "Раскодируй: `grep tun.example dns.log | cut -d- -f2 | cut -d. -f1 | base64 -d > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

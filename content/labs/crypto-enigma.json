@@ -1,0 +1,48 @@
+{
+  "id": "crypto-enigma",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{enigma_was_broken_by_poland}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: взломать Enigma с неизвестным начальным положением\n\n`cipher.txt` — сообщение, зашифрованное упрощённой Enigma (3 ротора,\nрефлектор, без patch-панели). Начальные положения роторов неизвестны.\nИз перехвата известно (crib), что в тексте есть слово `POLAND`.\n\nШаги:\n1. `cat cipher.txt` — только буквы.\n2. Перебери начальные положения роторов и отфильтруй по crib: `python3 enigma.py`.\n3. Скрипт печатает расшифровку, содержащую флаг.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Enigma симметрична: расшифровка тем же проходом.\n- «Crib» — известный фрагмент открытого текста; именно так ломали Enigma в Блетчли-Парке.\n"
+    },
+    {
+      "path": "/home/student/task/cipher.txt",
+      "text": "KAQ{DBAMVI_NJH_TQFHPT_JV_XZETQA}\n"
+    },
+    {
+      "path": "/home/student/task/enigma.py",
+      "text": "ROT = ['EKMFLGDQVZNTOWYHXUSPAIBRCJ','AJDKSIRUXBLHWTMCQGZNPYFVOE','BDFHJLCPRTXVZNYEIWGAKMUSQO']\nREF = 'YRUHQSLDPXNGOKMIEBFZCWVJAT'\nCRIB = 'POLAND'\nP=[[ord(c)-65 for c in R] for R in ROT]\nINV=[[0]*26 for _ in range(3)]\nfor i in range(3):\n    for c in range(26): INV[i][P[i][c]]=c\ndef step(o):\n    o[0]=(o[0]+1)%26\n    if o[0]==0:\n        o[1]=(o[1]+1)%26\n        if o[1]==0: o[2]=(o[2]+1)%26\ndef run(t,start):\n    o=list(start); out=''\n    for ch in t.upper():\n        if not ch.isalpha(): out+=ch; continue\n        step(o); x=ord(ch)-65\n        for i in range(3): x=(P[i][(x+o[i])%26]-o[i])%26\n        x=ord(REF[x])-65\n        for i in reversed(range(3)): x=(INV[i][(x+o[i])%26]-o[i])%26\n        out+=chr(x+65)\n    return out\nct=open('cipher.txt').read().strip()\nfor a in range(26):\n    for b in range(26):\n        for c in range(26):\n            pt=run(ct,[a,b,c])\n            if CRIB in pt:\n                print(pt.lower())\n                raise SystemExit\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "enigma\\.py",
+          "example": "python3 enigma.py",
+          "output": "nto{enigma_was_broken_by_poland}\n"
+        }
+      ]
+    }
+  }
+}

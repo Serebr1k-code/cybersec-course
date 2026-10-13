@@ -1,0 +1,48 @@
+{
+  "id": "stego-text",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{z3r0_w1dth_ch4rs_4r3_1nv1s1bl3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: zero-width символы в тексте\n\nВ `message.txt` между обычными буквами вставлены невидимые символы\nнулевой ширины (U+200B и U+200C), которыми закодирован флаг.\n\nШаги:\n1. `cat message.txt` — текст выглядит обычным.\n2. `xxd message.txt | head` — видны байты `e2 80 8b` / `e2 80 8c`.\n3. Декодируй биты скриптом: `python3 decode.py`.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Zero-width символы не отображаются, но занимают байты UTF-8.\n- Два разных невидимых символа кодируют 0 и 1.\n"
+    },
+    {
+      "path": "/home/student/task/message.txt",
+      "text": "Dear friend,​‌‌​‌‌‌​​‌‌‌​‌​​​‌‌​‌‌‌‌​‌‌‌‌​‌‌​‌‌‌‌​‌​​​‌‌​​‌‌​‌‌‌​​‌​​​‌‌​​​​​‌​‌‌‌‌‌​‌‌‌​‌‌‌​​‌‌​​​‌​‌‌​​‌​​​‌‌‌​‌​​​‌‌​‌​​​​‌​‌‌‌‌‌​‌‌​​​‌‌​‌‌​‌​​​​​‌‌​‌​​​‌‌‌​​‌​​‌‌‌​​‌‌​‌​‌‌‌‌‌​​‌‌​‌​​​‌‌‌​​‌​​​‌‌​​‌‌​‌​‌‌‌‌‌​​‌‌​​​‌​‌‌​‌‌‌​​‌‌‌​‌‌​​​‌‌​​​‌​‌‌‌​​‌‌​​‌‌​​​‌​‌‌​​​‌​​‌‌​‌‌​​​​‌‌​​‌‌​‌‌‌‌‌​‌\nEverything is fine here. See you soon.\n"
+    },
+    {
+      "path": "/home/student/task/decode.py",
+      "text": "s = open('message.txt', encoding='utf-8').read()\nbits = ''\nfor ch in s:\n    if ch == '\\u200b': bits += '0'\n    elif ch == '\\u200c': bits += '1'\ndata = bytes(int(bits[i:i+8], 2) for i in range(0, len(bits)//8*8, 8))\nprint(data.decode('latin-1'))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "decode\\.py",
+          "example": "python3 decode.py",
+          "output": "nto{z3r0_w1dth_ch4rs_4r3_1nv1s1bl3}\n"
+        }
+      ]
+    }
+  }
+}

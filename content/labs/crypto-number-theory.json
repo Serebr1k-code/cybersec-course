@@ -1,0 +1,52 @@
+{
+  "id": "crypto-number-theory",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cr7_glu3s_th3_s3cr3t_t0g3th3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: китайская теорема об остатках\n\nСекрет (флаг как большое число) разбит на остатки по нескольким\nвзаимно простым модулям — `residues.txt` и `moduli.txt`.\n\nШаги:\n1. `cat moduli.txt`, `cat residues.txt`.\n2. Восстанови число по CRT: `python3 solve.py`.\n3. Скрипт печатает флаг.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- CRT: `x ≡ r_i (mod m_i)` при взаимно простых `m_i` имеет единственное решение.\n- Произведение модулей должно превышать секрет.\n"
+    },
+    {
+      "path": "/home/student/task/moduli.txt",
+      "text": "m0=2305843009213693951\nm1=2305843009213693921\nm2=2305843009213693907\nm3=2305843009213693723\nm4=2305843009213693693\n"
+    },
+    {
+      "path": "/home/student/task/residues.txt",
+      "text": "r0=983486014965769693\nr1=470401773575204789\nr2=770802219175309858\nr3=778759866620327314\nr4=1149780339286987639\n"
+    },
+    {
+      "path": "/home/student/task/solve.py",
+      "text": "def crt(rs, ms):\n    M = 1\n    for m in ms: M *= m\n    x = 0\n    for r, m in zip(rs, ms):\n        Mi = M // m\n        x = (x + r * Mi * pow(Mi, -1, m)) % M\n    return x\nrs = [int(l.split('=')[1]) for l in open('residues.txt') if l.strip()]\nms = [int(l.split('=')[1]) for l in open('moduli.txt') if l.strip()]\nx = crt(rs, ms)\nprint(x.to_bytes((x.bit_length()+7)//8, 'big').decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "solve\\.py",
+          "example": "python3 solve.py",
+          "output": "nto{cr7_glu3s_th3_s3cr3t_t0g3th3r}\n"
+        }
+      ]
+    }
+  }
+}

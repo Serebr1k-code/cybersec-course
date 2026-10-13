@@ -13,6 +13,19 @@ useful_for:
   - "Судебная экспертиза"
 estimated_minutes: 55
 summary: "Полный арсенал Sleuth Kit: mmls/fsstat/fls/icat/istat/ifind/blkls/mactime/tsk_recover, построение bodyfile-таймлайна и работа в Autopsy с ingest-модулями."
+lab:
+  kind: shell
+  title: "Практика: восстановить удалённый файл из образа"
+  toolset: [core, fls, icat]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, disk.dd]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи образ: `file disk.dd`."
+    - "Посмотри удалённые файлы: `fls -rd disk.dd`."
+    - "Найди inode файла `secret_flag.txt` (число перед двоеточием)."
+    - "Вытащи содержимое: `icat disk.dd 13 > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

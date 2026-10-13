@@ -13,6 +13,19 @@ useful_for:
   - "Криминалистика"
 estimated_minutes: 35
 summary: "Как восстановить удалённые в Корзину файлы, получить оригинальные пути и время удаления из $I-файлов, и вытащить превью изображений/документов из Thumbcache."
+lab:
+  kind: shell
+  title: "Практика: восстановить файл из корзины"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, $I6ZQ1AB.txt, $R6ZQ1AB.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри пару файлов: `ls -la`."
+    - "Разбери заголовок `$I`: `xxd -l 48 $I6ZQ1AB.txt` (или глоб `*I6ZQ1AB.txt`)."
+    - "Содержимое лежит в `$R`-файле: `strings *R6ZQ1AB.txt`."
+    - "Запиши флаг: `strings *R6ZQ1AB.txt | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

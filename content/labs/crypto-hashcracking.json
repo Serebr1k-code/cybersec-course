@@ -1,0 +1,52 @@
+{
+  "id": "crypto-hashcracking",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w0rdl1st_plus_rul3s_w1ns}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: словарь + правила (hashcat-подход)\n\n`hash.txt` — SHA-512 от пароля. Простое слово из `wordlist.txt`\nне подойдёт: к нему применено ПРАВИЛО — добавлен год (2025/2026) или 123.\n\nШаги:\n1. `cat hash.txt`, `cat wordlist.txt`.\n2. `python3 crack.py` — перебирает слова × суффиксы (правило).\n3. Найденный пароль — это флаг (без суффикса). Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Hashcat «rules» применяют к словарю преобразования (append year и т.п.).\n- Здесь суффикс добавляется к флагу-слову, поэтому в `found.txt` нужен сам флаг.\n"
+    },
+    {
+      "path": "/home/student/task/hash.txt",
+      "text": "ac3962a39f2eeef893be7ded916415cedd4c513ea45cef973a46302305a223dd538d7de4e9729070bb57305c41071ccfde6418c6640df8866f7002f0bea76285\n"
+    },
+    {
+      "path": "/home/student/task/wordlist.txt",
+      "text": "summer\nwinter\nautumn\nnto{w0rdl1st_plus_rul3s_w1ns}\nspring\nshadow\n"
+    },
+    {
+      "path": "/home/student/task/crack.py",
+      "text": "import hashlib\ntarget = open('hash.txt').read().strip()\nsuffixes = ['', '2026', '2025', '123']\nfor w in open('wordlist.txt'):\n    w = w.strip()\n    for s in suffixes:\n        cand = w + s\n        if hashlib.sha512(cand.encode()).hexdigest() == target:\n            print('MATCH', cand)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "crack\\.py",
+          "example": "python3 crack.py",
+          "output": "MATCH nto{w0rdl1st_plus_rul3s_w1ns}2026\n"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "id": "crypto-ecb-oracle",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3cb_0r4cl3_l34ks_0n3_byt3_4t_4_t1m3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: атака на ECB-оракул\n\n`oracle.py` шифрует `ваш_ввод + секрет` в режиме AES-ECB\nс фиксированным ключом. Повторяющиеся блоки шифртекста выдают\nструктуру открытого текста — секрет восстанавливается побайтово.\n\nШаги:\n1. `cat oracle.py` — пойми контракт оракула.\n2. Запусти `python3 attack.py` — пошаговое восстановление секрета.\n3. Скрипт печатает флаг.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- В ECB одинаковые 16-байтные блоки дают одинаковый шифртекст.\n- Сдвигая ввод, выравнивают секрет к границе блока и подбирают байт.\n"
+    },
+    {
+      "path": "/home/student/task/secret.bin",
+      "b64": "bnRvezNjYl8wcjRjbDNfbDM0a3NfMG4zX2J5dDNfNHRfNF90MW0zfQ=="
+    },
+    {
+      "path": "/home/student/task/oracle.py",
+      "text": "from Crypto.Cipher import AES\nKEY = bytes.fromhex('00112233445566778899aabbccddeeff')\ndef pkcs7(b, bs=16):\n    p = bs - len(b) % bs\n    return b + bytes([p]) * p\ndef ORACLE(inp):\n    c = AES.new(KEY, AES.MODE_ECB)\n    return c.encrypt(pkcs7(inp + open('secret.bin','rb').read()))\n"
+    },
+    {
+      "path": "/home/student/task/attack.py",
+      "text": "import oracle\ndef ecb_attack(oracle, block=16):\n    base = len(oracle(b''))\n    n = 0\n    while len(oracle(b'A'*n)) == base:\n        n += 1\n    secret_len = base - (n - 1)\n    known = b''\n    for i in range(secret_len):\n        pad = block - 1 - (i % block)\n        prefix = b'A' * pad\n        idx = (len(prefix) + i) // block\n        tb = oracle(prefix)[idx*block:(idx+1)*block]\n        for b in range(256):\n            cand = oracle(prefix + known + bytes([b]))\n            if cand[idx*block:(idx+1)*block] == tb:\n                known += bytes([b])\n                break\n    return known\nprint(ecb_attack(oracle.ORACLE).decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "attack\\.py",
+          "example": "python3 attack.py",
+          "output": "nto{3cb_0r4cl3_l34ks_0n3_byt3_4t_4_t1m3}\u0001\n"
+        }
+      ]
+    }
+  }
+}

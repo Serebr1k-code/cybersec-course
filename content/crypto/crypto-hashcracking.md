@@ -13,6 +13,19 @@ useful_for:
   - "Взламывать NTLM, bcrypt, SHA-крипт и архивы"
 estimated_minutes: 40
 summary: "Практический взлом хэшей: как определять режим hashcat (-m) и формат john, стратегии перебора (словарь, правила, маски, гибрид), работа с GPU и словарями, извлечение хэшей из zip/rar/pdf/keepass. Реальные команды и разбор типичных ошибок."
+lab:
+  kind: shell
+  title: "Практика: словарь с правилами"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, hash.txt, wordlist.txt, crack.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай хэш и словарь: `cat hash.txt`, `cat wordlist.txt`."
+    - "Простой перебор словаря не поможет — нужны правила (суффиксы)."
+    - "Запусти `python3 crack.py`."
+    - "Сохрани флаг (без суффикса): `python3 crack.py | cut -d\" \" -f2 | cut -c1-30 > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

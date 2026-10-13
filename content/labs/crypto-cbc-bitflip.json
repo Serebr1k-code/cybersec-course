@@ -1,0 +1,48 @@
+{
+  "id": "crypto-cbc-bitflip",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cbc_b1tfl1p_c0ntr0ls_th3_pl41nt3xt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: CBC bit-flipping\n\n`cipher.bin` — AES-CBC шифртекст строки из двух блоков:\nпервый блок — служебный паддинг-префикс, во втором `role=user;name=x;`.\nИзменяя байты ПРЕДЫДУЩЕГО блока (первого), можно контролируемо\nисказить открытый текст второго блока и стать `root`.\n\nШаги:\n1. `xxd -l 48 cipher.bin` — блоки по 16 байт.\n2. Запусти `python3 bitflip.py` — флип байтов и проверка.\n3. При `role=root` скрипт печатает флаг.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- CBC: `P_i = D(C_i) XOR C_{i-1}`; правя `C_{i-1}`, правим `P_i`.\n- Искажение первого блока портит предыдущий — потому бьют по IV/предыдущему.\n"
+    },
+    {
+      "path": "/home/student/task/cipher.bin",
+      "b64": "i6aDXE7B8HbwLPL5bsGehErfaQYURzbKw5mJrTAsCArqbkRuoW7BEIJNLZk7yie9"
+    },
+    {
+      "path": "/home/student/task/bitflip.py",
+      "text": "from Crypto.Cipher import AES\nKEY = bytes.fromhex('aabbccddeeff00112233445566778899')\nIV = bytes.fromhex('101112131415161718191a1b1c1d1e1f')\nct = bytearray(open('cipher.bin','rb').read())\norig = b'role=user;name=x;'\ntarget = b'role=root;name=x;'\ndiff = [i for i in range(16) if orig[i] != target[i]]\nfor i in diff:\n    ct[i] ^= orig[i] ^ target[i]\npt = AES.new(KEY, AES.MODE_CBC, IV).decrypt(bytes(ct))\nprint(pt.decode('latin-1'))\nif b'role=root' in pt:\n    print('ACCESS GRANTED: nto{cbc_b1tfl1p_c0ntr0ls_th3_pl41nt3xt}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "bitflip\\.py",
+          "example": "python3 bitflip.py",
+          "output": "Ö½\"ó¿ Ö¯\u001cÃÚ «<role=root;name=x;\u000f\u000f\u000f\u000f\u000f\u000f\u000f\u000f\u000f\u000f\u000f\u000f\u000f\u000f\u000f\nACCESS GRANTED: nto{cbc_b1tfl1p_c0ntr0ls_th3_pl41nt3xt}\n"
+        }
+      ]
+    }
+  }
+}

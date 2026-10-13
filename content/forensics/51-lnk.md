@@ -13,6 +13,19 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 35
 summary: "Формат LNK и автоматических/пользовательских Jump Lists: Shell Item ID Lists, MAC-времена, доказательство доступа к файлам на локальных и съёмных дисках."
+lab:
+  kind: shell
+  title: "Практика: достать аргументы из LNK-ярлыка"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, suspicious.lnk]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри сигнатуру: `xxd -l 32 suspicious.lnk`."
+    - "Извлеки строки: `strings suspicious.lnk`."
+    - "Ищи аргумент `--proof` — за ним флаг."
+    - "Запиши флаг: `strings suspicious.lnk | grep proof > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

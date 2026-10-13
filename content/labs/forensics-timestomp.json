@@ -1,0 +1,28 @@
+{
+  "id": "forensics-timestomp",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{t1m3st0mp_l34v3s_4_tr4c3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти timestomping\n\nДан `bodyfile.txt` (mactime-совместимый таймлайн). Атакующий\nподделал время одного файла, чтобы спрятать его среди системных.\nПри timestomping `mtime`/`ctime`/`crtime` расходятся с `atime`.\n\nПоля: MD5|name|inode|mode|uid|gid|size|atime|mtime|ctime|crtime.\n\nШаги:\n1. `cat bodyfile.txt` — прочитай строки.\n2. Сравни времена: у одного файла они аномально старые/разные.\n3. Имя этого файла содержит флаг.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- `mactime` строит таймлайн из bodyfile.\n- При timestomp четыре времени не согласованы между собой.\n"
+    },
+    {
+      "path": "/home/student/task/bodyfile.txt",
+      "text": "0|/home/deploy/.bashrc|101|100644|1000|1000|3771|1700000000|1700000000|1700000000|1700000000\n0|/home/deploy/report.docx|102|100644|1000|1000|20481|1700000100|1700000100|1700000100|1700000100\n0|/home/deploy/nto{t1m3st0mp_l34v3s_4_tr4c3}|103|100644|1000|1000|64|1700000200|1600000000|1600000000|1600000000\n0|/home/deploy/notes.txt|104|100644|1000|1000|120|1700000300|1700000300|1700000300|1700000300\n"
+    }
+  ],
+  "tools": {}
+}

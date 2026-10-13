@@ -1,0 +1,48 @@
+{
+  "id": "crypto-classical-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4ff1n3_1s_just_l1n34r_4lg3br4}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аффинный шифр\n\n`cipher.txt` зашифрован аффинным шифром `E(x) = (a·x + b) mod 26`.\nКлюч неизвестен, но пространство крошечное — 312 допустимых пар.\n\nШаги:\n1. `cat cipher.txt`.\n2. Запусти перебор всех ключей: `python3 solve.py`.\n3. В выводе найди строку с `nto{` — это флаг.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Аффинный шифр — обобщение Цезаря (a=1).\n- Ключ `a` должен быть взаимно прост с 26 (иначе нет обратного).\n"
+    },
+    {
+      "path": "/home/student/task/cipher.txt",
+      "text": "vza{4hh1v3_1u_beuz_l1v34p_4lm3np4}\n"
+    },
+    {
+      "path": "/home/student/task/solve.py",
+      "text": "def affine_dec(s, a, b):\n    inv = pow(a, -1, 26)\n    out = ''\n    for c in s:\n        if c.isalpha():\n            out += chr((inv * (ord(c) - 97 - b)) % 26 + 97)\n        else:\n            out += c\n    return out\ns = open('cipher.txt').read().strip()\nfor a in range(26):\n    if a % 2 == 0 or a == 13:\n        continue\n    for b in range(26):\n        pt = affine_dec(s, a, b)\n        if 'nto{' in pt:\n            print(f'a={a} b={b}: {pt}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "solve\\.py",
+          "example": "python3 solve.py",
+          "output": "a=5 b=8: nto{4ff1n3_1s_just_l1n34r_4lg3br4}\n"
+        }
+      ]
+    }
+  }
+}

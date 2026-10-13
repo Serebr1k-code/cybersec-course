@@ -1,0 +1,47 @@
+{
+  "id": "crypto-aes-modes",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cbc_n33ds_4_fr3sh_1v_3v3ry_t1m3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: расшифровать AES-256-CBC\n\n`cipher.bin` зашифрован AES-256-CBC (OpenSSL, без соли).\nКлюч и IV лежат рядом в hex-виде.\n\nШаги:\n1. `cat key.txt` и `cat iv.txt` — прочитай ключ и IV.\n2. Расшифруй: `openssl enc -d -aes-256-cbc -K $(cat key.txt) -iv $(cat iv.txt) -in cipher.bin`.\n   (в лабе подставь значения ключа и IV вручную — подстановка `$(...)` не поддерживается)\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- CBC требует уникальный IV на каждое сообщение; повтор IV ломает режим.\n- `-K` принимает hex-ключ, `-iv` — hex-IV; `-pass` — пароль (с солью).\n"
+    },
+    {
+      "path": "/home/student/task/key.txt",
+      "text": "603deb1015ca71be2b73aef0857d77811f352c073b6108d72d9810a30914dff4\n"
+    },
+    {
+      "path": "/home/student/task/iv.txt",
+      "text": "000102030405060708090a0b0c0d0e0f\n"
+    },
+    {
+      "path": "/home/student/task/cipher.bin",
+      "b64": "e27bq7hhwDcuA/RtTyIeG3bRJzitJkgtXqxsdovm3Tnyup0dfwFTgtYKVrA9Ed62"
+    }
+  ],
+  "tools": {
+    "openssl": {
+      "help": "openssl enc -d -aes-256-cbc -K <hex> -iv <hex> -in <файл> (вывод реального openssl)",
+      "cases": [
+        {
+          "match": "enc -d -aes-256-cbc",
+          "example": "openssl enc -d -aes-256-cbc -K ... -iv ... -in cipher.bin",
+          "output": "nto{cbc_n33ds_4_fr3sh_1v_3v3ry_t1m3}"
+        }
+      ]
+    }
+  }
+}

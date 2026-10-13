@@ -13,6 +13,19 @@ useful_for:
   - "Forensics: анализ аномалий IDAT"
 estimated_minutes: 30
 summary: "Глубокий разбор PNG: как IDAT хранит zlib/deflate-поток, как читать и править его вручную, что такое чересстрочный режим Adam7 и как использовать фильтры и аномалии для сокрытия."
+lab:
+  kind: shell
+  title: "Практика: распаковать zTXt-чанк PNG"
+  toolset: [core, hex, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, image.png, decode.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри чанки: `strings image.png | grep zTXt`."
+    - "Содержимое zTXt сжато zlib — просто `strings` не поможет."
+    - "Распакуй: `python3 decode.py`."
+    - "Сохрани флаг: `python3 decode.py > found.txt`."
+
 ---
 ## Вопрос, с которого всё начинается
 

@@ -13,6 +13,19 @@ useful_for:
   - "Incident Response (атрибуция документов)"
 estimated_minutes: 30
 summary: "Как читать и интерпретировать метаданные изображений и документов, находить GPS, автора и скрытые свойства."
+lab:
+  kind: shell
+  title: "Практика: достать сообщение из EXIF"
+  toolset: [core, exiftool]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, photo.jpg]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с `exiftool photo.jpg` — читай теги сверху вниз."
+    - "Ищи тег `User Comment` — там строка base64."
+    - "Выдели значение: `exiftool photo.jpg | grep 'User Comment' | cut -d: -f2`."
+    - "Раскодируй и сохрани: `... | base64 -d > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

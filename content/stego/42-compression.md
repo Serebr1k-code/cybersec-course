@@ -13,6 +13,19 @@ useful_for:
   - "Forensics: детект компрессионных каналов"
 estimated_minutes: 30
 summary: "Стеганография, использующая сам механизм сжатия: выбор между эквивалентными сжатыми представлениями, модельная/арифметическая стеганография и почему это трудно детектировать."
+lab:
+  kind: shell
+  title: "Практика: распаковать спрятанный zlib-блок"
+  toolset: [core, hex, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, carrier.bin, decode.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри содержимое: `strings carrier.bin`."
+    - "Ищи маркер `BLOB:`."
+    - "Распакуй zlib-блок: `python3 decode.py`."
+    - "Сохрани флаг: `python3 decode.py > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

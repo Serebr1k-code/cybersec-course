@@ -13,6 +13,19 @@ useful_for:
   - "Forensics: скрытые данные в мессенджерах"
 estimated_minutes: 32
 summary: "Как эмодзи и Unicode-механизмы прячут данные: ZWJ-последовательности, вариационные селекторы, тона кожи, теги; как извлекать и где искать."
+lab:
+  kind: shell
+  title: "Практика: биты в emoji variation selectors"
+  toolset: [core, hex, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, post.txt, decode.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай текст: `cat post.txt`."
+    - "Загляни в байты: `xxd post.txt | head`."
+    - "Декодируй скрытые биты: `python3 decode.py`."
+    - "Сохрани флаг: `python3 decode.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

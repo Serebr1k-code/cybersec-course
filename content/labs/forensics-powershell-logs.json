@@ -1,0 +1,28 @@
+{
+  "id": "forensics-powershell-logs",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p0w3rsh3ll_b4s364_0bfusc4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: PowerShell Script Block логирование\n\nДан журнал PowerShell с Script Block logging. Одна из команд\nобфусцирована через base64 (`FromBase64String`) — классический\nприём, чтобы спрятать нагрузку от глаз.\n\nШаги:\n1. `grep FromBase64String PS.log` — найди подозрительную команду.\n2. Выдели строку в двойных кавычках: `cut -d'\"' -f2`.\n3. Декодируй: `... | base64 -d` — увидишь исходную команду с флагом.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Script Block logging фиксирует текст скриптов, в т.ч. восстановленных.\n- base64 в аргументе легко выделить через `cut` по кавычке.\n"
+    },
+    {
+      "path": "/home/student/task/PS.log",
+      "text": "2026-01-12 03:14:02.114 Information Engine state is changed from None to Available.\n2026-01-12 03:14:03.001 Information CommandInvocation(Out-Default): \"Out-Default\"\n2026-01-12 03:14:05.220 Information Creating Scriptblock text (1 of 1):\nGet-Service | Where-Object {$_.Status -eq \"Running\"}\n2026-01-12 03:14:07.881 Information ScriptBlock ID: 8f2a-11\n2026-01-12 03:15:11.402 Information Creating Scriptblock text (1 of 1):\nIEX ([Text.Encoding]::UTF8.GetString([Convert]::FromBase64String(\"V3JpdGUtT3V0cHV0ICJudG97cDB3M3JzaDNsbF9iNHMzNjRfMGJmdXNjNHQxMG59Ig==\")))\n2026-01-12 03:15:11.405 Information ScriptBlock ID: a19c-44\n"
+    }
+  ],
+  "tools": {}
+}

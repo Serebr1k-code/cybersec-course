@@ -13,6 +13,19 @@ useful_for:
   - "Threat Hunting / SOC"
 estimated_minutes: 40
 summary: "Сетевая форензика через Zeek: conn/dns/http/ssl/files логи, извлечение файлов, NetFlow-анализ объёмов и артефакты IDS (Suricata) для восстановления картины атаки."
+lab:
+  kind: shell
+  title: "Практика: найти эксфильтрацию в логах Zeek"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, conn.log, dns.log]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри крупные соединения: `grep -v \"^#\" conn.log`."
+    - "Проверь DNS: `grep -v \"^#\" dns.log | grep TXT`."
+    - "В имени TXT-запроса — метка base64 (после `exfil-`)."
+    - "Декодируй метку: `grep TXT dns.log | cut -d- -f2 | cut -d. -f1 | base64 -d > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

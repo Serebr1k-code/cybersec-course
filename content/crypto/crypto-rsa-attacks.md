@@ -13,6 +13,19 @@ useful_for:
   - "Распознавать атаку по структуре параметров задачи"
 estimated_minutes: 25
 summary: "Каталог классических RSA-атак: common modulus (общий n), Wiener (малый d через цепные дроби), Håstad broadcast (малое e, несколько получателей, CRT), атака Ферма (близкие p и q), shared primes (общий простой множитель), малый d и их распознавание по условию задачи. Готовые скрипты."
+lab:
+  kind: shell
+  title: "Практика: RSA с малым e"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, n.txt, e.txt, c.txt, attack.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай параметры: `cat e.txt`, `cat n.txt`, `cat c.txt`."
+    - "e=3 и короткое сообщение → `m^3 < n`."
+    - "Возьми целочисленный кубический корень: `python3 attack.py`."
+    - "Сохрани флаг: `python3 attack.py > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,39 @@
+{
+  "id": "forensics-disk-imaging",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c4rv3_w1th_dd_4nd_v3r1fy}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: образ диска, хэш и караинг\n\nДан `evidence.img`. Перед анализом образ фиксируют хэшем\n(контроль целостности), затем ищут данные.\n\nШаги:\n1. `sha256sum evidence.img` — зафиксируй хэш.\n2. `strings evidence.img` — найди строку с секретом.\n3. Альтернатива: `grep -abo SECRET evidence.img` → смещение, затем `dd if=evidence.img of=carved.bin bs=1 skip=<СМЕЩЕНИЕ>`.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Хэш образа — часть chain of custody; без него доказательство невалидно.\n- `grep -abo` даёт смещение найденной подстроки в байтах.\n"
+    },
+    {
+      "path": "/home/student/task/evidence.img",
+      "b64": "SU1BR0VNQUdJQwowMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwCkVORF9IRUFERVIKU0VDUkVUOm50b3tjNHJ2M193MXRoX2RkXzRuZF92M3IxZnl9ClBLAwR0YWls"
+    }
+  ],
+  "tools": {
+    "sha256sum": {
+      "help": "sha256sum <файл> — контрольная сумма SHA-256 (вывод реального sha256sum)",
+      "cases": [
+        {
+          "match": "evidence\\.img",
+          "example": "sha256sum evidence.img",
+          "output": "2c5f6982210e21e70c831f2efd1501226ae83475841fe3a47c5310c7aed7b4a4  evidence.img\n"
+        }
+      ]
+    }
+  }
+}

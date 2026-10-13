@@ -13,6 +13,19 @@ useful_for:
   - "Криминалистика данных"
 estimated_minutes: 35
 summary: "Анализ архивов, восстановление паролей ZIP/RAR/7z, работа с encrypted headers и известные атаки."
+lab:
+  kind: shell
+  title: "Практика: разобрать архив и достать флаг"
+  toolset: [core, unzip]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, evidence.zip]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с `file evidence.zip` — определи формат."
+    - "Список содержимого: `unzip -l evidence.zip`."
+    - "Внутри есть каталог `secret/` — посмотри, что в нём."
+    - "Достань флаг: `unzip -p evidence.zip secret/flag.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

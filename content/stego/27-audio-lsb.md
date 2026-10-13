@@ -13,6 +13,19 @@ useful_for:
   - "Forensics: анализ аудио на скрытые данные"
 estimated_minutes: 35
 summary: "Как прячут данные в младших битах аудиосэмплов: структура WAV, ручное извлечение, инструменты (wav2png, DeepSound), и почему аудио — удобный носитель большой ёмкости."
+lab:
+  kind: shell
+  title: "Практика: LSB в сэмплах WAV"
+  toolset: [core, hex, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, tone.wav, decode.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи формат: `file tone.wav`."
+    - "Посмотри заголовок: `xxd -l 64 tone.wav`."
+    - "Извлеки младшие биты сэмплов: `python3 decode.py`."
+    - "Сохрани флаг: `python3 decode.py | grep nto > found.txt`."
+
 ---
 ## Вопрос, с которого всё начинается
 

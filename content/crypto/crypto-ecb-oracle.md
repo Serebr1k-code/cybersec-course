@@ -13,6 +13,19 @@ useful_for:
   - "Решать задачи класса Cryptopals 12/14"
 estimated_minutes: 40
 summary: "Атака ECB byte-at-a-time: сервер шифрует attacker_input || secret в ECB, мы восстанавливаем secret побайтово, управляя выравниванием блоков. Пошаговый алгоритм, обработка неизвестного префикса, код на Python. Классика Cryptopals 12 и 14."
+lab:
+  kind: shell
+  title: "Практика: побайтовое восстановление через ECB-оракул"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, oracle.py, attack.py, secret.bin]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Изучи контракт оракула: `cat oracle.py`."
+    - "ECB шифрует одинаковые блоки одинаково — это и есть утечка."
+    - "Запусти `python3 attack.py`."
+    - "Сохрани флаг: `python3 attack.py > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,19 @@ useful_for:
   - "Анализ веб-серверов"
 estimated_minutes: 40
 summary: "Анализ скомпрометированного веб-сервера: логи nginx/apache, webshells, артефакты PHP/Python/Node, базы, cron и восстановление цепочки атаки."
+lab:
+  kind: shell
+  title: "Практика: разбор журнала веб-атаки"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, access.log]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с поиска инструмента: `grep -i sqlmap access.log`."
+    - "Посмотри, какие запросы слал этот IP."
+    - "Ищи строку с внешним Referer — там спрятан флаг."
+    - "Запиши флаг: `grep evil.example access.log > found.txt` (в строке есть флаг)."
+
 ---
 
 ## Вопрос, с которого всё начинается

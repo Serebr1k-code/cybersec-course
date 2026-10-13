@@ -13,6 +13,19 @@ useful_for:
   - "Понимать Logjam и выбор простых чисел"
 estimated_minutes: 40
 summary: "Diffie-Hellman: протокол, математика, атаки — дискретное логарифмирование, алгоритм Полига–Хеллмана при гладких p-1, малые подгруппы (при отсутствии проверки), Logjam (общее слабое простое), MITM. Практические скрипты и распознавание слабых параметров."
+lab:
+  kind: shell
+  title: "Практика: дискретный логарифм в слабой группе DH"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, p.txt, g.txt, h.txt, cipher.bin, attack.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай параметры: `cat p.txt`, `cat g.txt`, `cat h.txt`."
+    - "Группа крошечная — дискретный логарифм берётся перебором."
+    - "Запусти `python3 attack.py`."
+    - "Сохрани флаг: `python3 attack.py > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,39 @@
+{
+  "id": "stego-image-tools",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{t3xt_chunk_1n_png_l34ks}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: метаданные изображения как носитель\n\nВ `cover.png` между пиксельными данными спрятан текстовый чанк\nPNG (`tEXt`) с секретом. Инструменты для изображений его показывают.\n\nШаги:\n1. `file cover.png` — PNG.\n2. `exiftool cover.png` — прочитай все текстовые теги.\n3. Один из тегов содержит флаг (например `SecretNote`).\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- PNG tEXt-чанки хранят ключ=значение и переживают ресайз.\n- `exiftool` показывает и EXIF, и текстовые чанки PNG.\n"
+    },
+    {
+      "path": "/home/student/task/cover.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAIAAADYYG7QAAAAInRFWHRDb21tZW50AHBsYXVzaWJsZSBpbm5vY2VudCBjYXB0aW9u4cIIjgAAABZ0RVh0U29mdHdhcmUAUGhvdG9Ub29sIDIuMfr1ti4AAAAndEVYdFNlY3JldE5vdGUAbnRve3QzeHRfY2h1bmtfMW5fcG5nX2wzNGtzfQatmQoAAABLSURBVHic7c6hAcAgAMAw4MJpNP/fMD9TyURyQeazz/iTdTvwJVSEilARKkJFqAgVoSJUhIpQESpCRagIFaEiVISKUBEqQkWoCJUX4I8BbvDmLTAAAAAASUVORK5CYII="
+    }
+  ],
+  "tools": {
+    "exiftool": {
+      "help": "exiftool <файл> — чтение метаданных (вывод реального exiftool)",
+      "cases": [
+        {
+          "match": "cover\\.png",
+          "example": "exiftool cover.png",
+          "output": "ExifTool Version Number         : 13.55\nFile Name                       : cover.png\nDirectory                       : .\nFile Size                       : 263 bytes\nFile Modification Date/Time     : 2026:10:13 12:50:30+03:00\nFile Access Date/Time           : 2026:10:13 12:50:30+03:00\nFile Inode Change Date/Time     : 2026:10:13 12:50:30+03:00\nFile Permissions                : -rw-r--r--\nFile Type                       : PNG\nFile Type Extension             : png\nMIME Type                       : image/png\nImage Width                     : 48\nImage Height                    : 48\nBit Depth                       : 8\nColor Type                      : RGB\nCompression                     : Deflate/Inflate\nFilter                          : Adaptive\nInterlace                       : Noninterlaced\nComment                         : plausible innocent caption\nSoftware                        : PhotoTool 2.1\nSecret Note                     : nto{t3xt_chunk_1n_png_l34ks}\nImage Size                      : 48x48\nMegapixels                      : 0.002\n"
+        }
+      ]
+    }
+  }
+}

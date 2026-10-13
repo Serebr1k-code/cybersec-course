@@ -13,6 +13,19 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 55
 summary: "Расследование инцидентов в облаке по аудит-логам: AWS CloudTrail, Azure Activity/Sign-in, GCP Audit Logs — атрибуция, персистентность, эксфильтрация."
+lab:
+  kind: shell
+  title: "Практика: найти backdoor в CloudTrail"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, cloudtrail.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Список действий: `grep eventName cloudtrail.json`."
+    - "Ищи подозрительные: `grep CreateUser cloudtrail.json` и `grep AttachUserPolicy cloudtrail.json`."
+    - "Найди событие `PutObject` — в поле `key` флаг."
+    - "Запиши флаг: `grep nto cloudtrail.json > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

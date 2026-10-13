@@ -1,0 +1,48 @@
+{
+  "id": "stego-png-deflate",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ztxt_chunk_1s_d3fl4t3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: сжатый чанк PNG (zTXt)\n\nPNG состоит из чанков. В `image.png` есть чанк `zTXt` — текстовый,\nно его содержимое сжато zlib/deflate, поэтому `strings` его не покажет.\n\nШаги:\n1. `file image.png`; `strings image.png | grep zTXt` — видно имя чанка.\n2. Разбери чанки и распакуй zTXt: `python3 decode.py`.\n3. Скрипт печатает флаг.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Формат чанка: длина(4) + тип(4) + данные + CRC(4).\n- zTXt: `keyword\\0` + метод(1) + zlib-сжатый текст.\n"
+    },
+    {
+      "path": "/home/student/task/image.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAALHpUWHRDb21tZW50AAB42ssrya+uKqkoiU/OKM3Ljjcsjk8xTssxKTFOqQUAnR8KpiL8D94AAAAMSURBVHjaYwhIKAAAAiQBIcIXFVoAAAAASUVORK5CYII="
+    },
+    {
+      "path": "/home/student/task/decode.py",
+      "text": "import struct, zlib\nd = open('image.png','rb').read()\ni = 8\nwhile i < len(d):\n    ln = struct.unpack('>I', d[i:i+4])[0]\n    typ = d[i+4:i+8]\n    body = d[i+8:i+8+ln]\n    if typ == b'zTXt':\n        kw, rest = body.split(b'\\x00', 1)\n        print(zlib.decompress(rest[1:]).decode())\n    i += 12 + ln\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "decode\\.py",
+          "example": "python3 decode.py",
+          "output": "nto{ztxt_chunk_1s_d3fl4t3d}\n"
+        }
+      ]
+    }
+  }
+}

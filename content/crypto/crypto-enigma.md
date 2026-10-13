@@ -13,6 +13,19 @@ useful_for:
   - "Разбираться в устройстве механических шифровальных машин"
 estimated_minutes: 45
 summary: "Как устроена Enigma (роторы, отражатель, коммутационная панель), почему она обратима, как шифровать/дешифровать, и как её ломали — crib-атака, ограничения отражателя, логика Bombe. С рабочим эмулятором на Python."
+lab:
+  kind: shell
+  title: "Практика: расшифровать Enigma перебором роторов"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, cipher.txt, enigma.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай шифртекст: `cat cipher.txt`."
+    - "Начальное положение роторов неизвестно (26³ вариантов)."
+    - "Запусти перебор: `python3 enigma.py`."
+    - "Сохрани флаг: `python3 enigma.py | grep -i nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

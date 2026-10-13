@@ -1,0 +1,39 @@
+{
+  "id": "forensics-metadata",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3x1f_h1d3s_th3_tru3_st0ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: метаданные изображения\n\nДан `photo.jpg`. Картинка обычная, но в EXIF спрятано\nсообщение (закодировано base64).\n\nШаги:\n1. `exiftool photo.jpg` — прочитай все теги.\n2. Обрати внимание на тег `User Comment`.\n3. Его значение — base64. Раскодируй: `exiftool photo.jpg | grep 'User Comment' | cut -d: -f2 | base64 -d`.\n4. Запиши результат в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Метаданные переживают пересылку по почте и мессенджерам.\n- `strings photo.jpg` тоже покажет значение, но без структуры тегов.\n"
+    },
+    {
+      "path": "/home/student/task/photo.jpg",
+      "b64": "/9j/4AAQSkZJRgABAQAAAQABAAD/4QDcRXhpZgAATU0AKgAAAAgABgEaAAUAAAABAAAAVgEbAAUAAAABAAAAXgEoAAMAAAABAAEAAAE7AAIAAAAIAAAAZgITAAMAAAABAAEAAIdpAAQAAAABAAAAbgAAAAAAAAABAAAAAQAAAAEAAAABc3R1ZGVudAAABJAAAAcAAAAEMDIzMpEBAAcAAAAEAQIDAJKGAAcAAAAwAAAApKABAAMAAAAB//8AAAAAAABBU0NJSQAAAGJuUnZlek40TVdaZmFERmtNM05mZEdnelgzUnlkVE5mYzNRd2NubDn//gAVTm90aGluZyB0byBzZWUgaGVyZf/bAEMACAYGBwYFCAcHBwkJCAoMFA0MCwsMGRITDxQdGh8eHRocHCAkLicgIiwjHBwoNyksMDE0NDQfJzk9ODI8LjM0Mv/bAEMBCQkJDAsMGA0NGDIhHCEyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMv/AABEIAEAAQAMBIgACEQEDEQH/xAAfAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgv/xAC1EAACAQMDAgQDBQUEBAAAAX0BAgMABBEFEiExQQYTUWEHInEUMoGRoQgjQrHBFVLR8CQzYnKCCQoWFxgZGiUmJygpKjQ1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4eLj5OXm5+jp6vHy8/T19vf4+fr/xAAfAQADAQEBAQEBAQEBAAAAAAAAAQIDBAUGBwgJCgv/xAC1EQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqCg4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/APJaKKK2MgooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD//2Q=="
+    }
+  ],
+  "tools": {
+    "exiftool": {
+      "help": "exiftool <файл> — чтение метаданных (вывод реального exiftool)",
+      "cases": [
+        {
+          "match": "photo\\.jpg",
+          "example": "exiftool photo.jpg",
+          "output": "ExifTool Version Number         : 13.55\nFile Name                       : photo.jpg\nDirectory                       : .\nFile Size                       : 937 bytes\nFile Modification Date/Time     : 2026:10:13 12:36:51+03:00\nFile Access Date/Time           : 2026:10:13 12:36:51+03:00\nFile Inode Change Date/Time     : 2026:10:13 12:36:51+03:00\nFile Permissions                : -rw-r--r--\nFile Type                       : JPEG\nFile Type Extension             : jpg\nMIME Type                       : image/jpeg\nJFIF Version                    : 1.01\nExif Byte Order                 : Big-endian (Motorola, MM)\nX Resolution                    : 1\nY Resolution                    : 1\nResolution Unit                 : None\nArtist                          : student\nY Cb Cr Positioning             : Centered\nExif Version                    : 0232\nComponents Configuration        : Y, Cb, Cr, -\nUser Comment                    : bnRvezN4MWZfaDFkM3NfdGgzX3RydTNfc3Qwcnl9\nColor Space                     : Uncalibrated\nComment                         : Nothing to see here\nImage Width                     : 64\nImage Height                    : 64\nEncoding Process                : Baseline DCT, Huffman coding\nBits Per Sample                 : 8\nColor Components                : 3\nY Cb Cr Sub Sampling            : YCbCr4:2:0 (2 2)\nImage Size                      : 64x64\nMegapixels                      : 0.004\n"
+        }
+      ]
+    }
+  }
+}

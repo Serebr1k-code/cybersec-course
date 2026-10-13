@@ -13,6 +13,19 @@ useful_for:
   - "Различать кодирование, шифрование и хэширование"
 estimated_minutes: 40
 summary: "Полный справочник по кодированиям: base16/32/64/85, ascii85, base91, uuencode, quoted-printable, base58/62, а также техника распознавания и распутывания цепочек и написание декодера под нестандартный алфавит."
+lab:
+  kind: shell
+  title: "Практика: снять два слоя кодирования"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, encoded.txt, decode.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри строку: `cat encoded.txt`."
+    - "Алфавит A-Z2-7 указывает на base32."
+    - "В шелле нет base32 — используй готовый `python3 decode.py`."
+    - "Запиши результат: `python3 decode.py > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

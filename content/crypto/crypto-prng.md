@@ -13,6 +13,19 @@ useful_for:
   - "Восстанавливать seed и состояние PRNG"
 estimated_minutes: 40
 summary: "Генераторы псевдослучайных чисел: почему Python random (MT19937) предсказуем по 624 выходам, как восстанавливается состояние и seed, атаки на LCG (линейный конгруэнтный генератор), поиск слабого seed, безопасная альтернатива (secrets/os.urandom). Практические скрипты."
+lab:
+  kind: shell
+  title: "Практика: предсказать MT19937"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, outputs.txt, cipher.bin, predict.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Проверь объём данных: `wc -l outputs.txt` (нужно 624)."
+    - "Меньше 624 слов состояние не восстановить."
+    - "Запусти `python3 predict.py` — клонирует генератор и расшифровывает `cipher.bin`."
+    - "Сохрани флаг: `python3 predict.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

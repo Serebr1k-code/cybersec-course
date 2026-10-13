@@ -13,6 +13,19 @@ useful_for:
   - "Решать задачи с шифрованными cookie/сессиями"
 estimated_minutes: 35
 summary: "Атака bit-flipping на CBC: как изменение байта в предыдущем блоке шифротекста (или в IV) предсказуемо меняет соответствующий байт открытого текста. Разбор формулы, атака на IV, атака на ciphertext-блок, «admin» в cookie, ограничения и защита (AEAD/HMAC)."
+lab:
+  kind: shell
+  title: "Практика: CBC bit-flipping"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, cipher.bin, bitflip.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри шифртекст: `xxd -l 48 cipher.bin`."
+    - "Цель — заменить `role=user` на `role=root` во втором блоке."
+    - "Правь байты предыдущего (первого) блока на ту же дельту."
+    - "Запусти `python3 bitflip.py` и сохрани флаг: `python3 bitflip.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

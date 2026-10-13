@@ -13,6 +13,19 @@ useful_for:
   - "Forensics: поиск встроенных данных в фотографиях"
 estimated_minutes: 30
 summary: "Как прячут данные в JPEG через квантованные DCT-коэффициенты: устройство сжатия, методы JSteg, F5, OutGuess и практическое извлечение."
+lab:
+  kind: shell
+  title: "Практика: данные после EOI в JPEG"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, photo.jpg]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи формат: `file photo.jpg`."
+    - "Посмотри хвост: `strings photo.jpg | tail`."
+    - "Ищи строку `HIDDEN=`."
+    - "Сохрани флаг: `strings photo.jpg | grep HIDDEN > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,48 @@
+{
+  "id": "stego-compression",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c0mpr3ss10n_h1d3s_th3_p4yl04d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: полезная нагрузка в сжатом виде\n\nВ `carrier.bin` после маркера `BLOB:` лежит zlib-сжатый флаг.\nСжатые данные нечитаемы в `strings` — их надо распаковать.\n\nШаги:\n1. `file carrier.bin`; `strings carrier.bin` — видно маркер `BLOB:`.\n2. Распакуй zlib-блок: `python3 decode.py`.\n3. Скрипт печатает флаг.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- zlib-поток начинается с `78 9c` (default compression).\n- Стеганография часто комбинируется со сжатием/шифрованием.\n"
+    },
+    {
+      "path": "/home/student/task/carrier.bin",
+      "b64": "VGhpcyBpcyBhIHBsYWluIHRleHQgY2FycmllciBmaWxlLgpOb3RoaW5nIHN1c3BpY2lvdXMgaGVyZS4KQkxPQjp42ssrya9ONsgtKDIuLjY0yIvPMEwxLo4vyTCOLzCpzDEwSakFANtbDDQK"
+    },
+    {
+      "path": "/home/student/task/decode.py",
+      "text": "import zlib\nd = open('carrier.bin','rb').read()\ni = d.find(b'BLOB:')\nprint(zlib.decompress(d[i+5:]).decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "decode\\.py",
+          "example": "python3 decode.py",
+          "output": "nto{c0mpr3ss10n_h1d3s_th3_p4yl04d}\n"
+        }
+      ]
+    }
+  }
+}

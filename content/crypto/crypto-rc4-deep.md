@@ -13,6 +13,19 @@ useful_for:
   - "Распознавать устаревшие/запрещённые шифры"
 estimated_minutes: 45
 summary: "RC4 вглубь: фазы KSA и PRGA, состояние S-бокса, генерация keystream. Смещения (biases) и их использование: FMS-атака на WEP, атака на второй байт, RC4 NOMORE против TLS, Fluhrer-Mantin-Shamir. Статистический анализ, извлечение ключа, запрет RC4 (RFC 7465) и практические скрипты."
+lab:
+  kind: shell
+  title: "Практика: расшифровать RC4"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, key.txt, cipher.bin, rc4.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай ключ: `cat key.txt`."
+    - "RC4 симметричен: тот же алгоритм расшифровывает."
+    - "Запусти `python3 rc4.py`."
+    - "Сохрани флаг: `python3 rc4.py > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

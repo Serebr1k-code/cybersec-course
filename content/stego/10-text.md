@@ -13,6 +13,19 @@ useful_for:
   - "Forensics-задачи с документами и логами"
 estimated_minutes: 30
 summary: "Сокрытие данных в тексте: trailing whitespace, пробел vs таб, zero-width символы Unicode, регистр, синонимы, акростихи; инструменты и собственные скрипты для извлечения."
+lab:
+  kind: shell
+  title: "Практика: невидимые zero-width символы"
+  toolset: [core, hex, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, message.txt, decode.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай текст: `cat message.txt` (на вид обычный)."
+    - "Загляни в байты: `xxd message.txt | head`."
+    - "Декодируй скрытые биты: `python3 decode.py`."
+    - "Сохрани флаг: `python3 decode.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

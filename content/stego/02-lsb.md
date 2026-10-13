@@ -12,6 +12,19 @@ useful_for:
   - "Форензика: анализ младших битов изображений"
 estimated_minutes: 26
 summary: "Младшие биты пикселей, порядок обхода каналов, признаки LSB-стеганографии, извлечение через zsteg, stegsolve и собственный Python-скрипт."
+lab:
+  kind: shell
+  title: "Практика: извлечь LSB-сообщение"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, image.png, extract.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри на файл: `file image.png`."
+    - "`strings image.png` флаг не покажет — он в младших битах."
+    - "Запусти извлечение: `python3 extract.py`."
+    - "Сохрани флаг: `python3 extract.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

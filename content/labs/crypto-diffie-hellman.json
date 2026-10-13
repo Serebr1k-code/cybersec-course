@@ -1,0 +1,60 @@
+{
+  "id": "crypto-diffie-hellman",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sm4ll_subgr0up_br34ks_dh}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: слабая группа Diffie-Hellman\n\nПараметры DH слишком малы (`p` помещается в 20 бит). Обменный ключ\n`h = g^x mod p` даёт дискретный логарифм полным перебором, а по `x`\nвосстанавливается потоковый ключ и открывается флаг.\n\nШаги:\n1. `cat p.txt`, `cat g.txt`, `cat h.txt`.\n2. Реши дискретный логарифм: `python3 attack.py`.\n3. Скрипт печатает флаг.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Размер группы DH должен быть ≥ 2048 бит (иначе Logjam/полный перебор).\n- Потоковый ключ здесь — 4 байта `x`, XOR с шифртекстом.\n"
+    },
+    {
+      "path": "/home/student/task/p.txt",
+      "text": "1000003\n"
+    },
+    {
+      "path": "/home/student/task/g.txt",
+      "text": "5\n"
+    },
+    {
+      "path": "/home/student/task/h.txt",
+      "text": "336546\n"
+    },
+    {
+      "path": "/home/student/task/cipher.bin",
+      "b64": "bnRfQnNtBFVsX0NMYmdCCXVwb1tyMwRSc19UUX0="
+    },
+    {
+      "path": "/home/student/task/attack.py",
+      "text": "p = int(open('p.txt').read().strip())\ng = int(open('g.txt').read().strip())\nh = int(open('h.txt').read().strip())\nct = open('cipher.bin','rb').read()\nx = None\nfor i in range(p):\n    if pow(g, i, p) == h:\n        x = i\n        break\nkey = x.to_bytes(4, 'big')\nprint(bytes(b ^ key[i % 4] for i, b in enumerate(ct)).decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "attack\\.py",
+          "example": "python3 attack.py",
+          "output": "nto{sm4ll_subgr0up_br34ks_dh}\n"
+        }
+      ]
+    }
+  }
+}

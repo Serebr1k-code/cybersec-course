@@ -1,0 +1,52 @@
+{
+  "id": "crypto-lcg",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{lcg_1s_p4th3t1c4lly_w34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: восстановить состояние LCG\n\n`outputs.txt` — шесть подряд идущих выходов линейного конгруэнтного\nгенератора `x_{n+1} = (a·x_n + c) mod m`. Модуль `m` известен (в `modulus.txt`).\nФлаг закодирован в начальном состоянии `x_0`.\n\nШаги:\n1. `cat modulus.txt` и `head -c 80 outputs.txt`.\n2. Восстанови `a`, `c`, затем `x_0`: `python3 recover.py`.\n3. Скрипт печатает флаг.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Из трёх выходов восстанавливаются `a` и `c` по модулю `m`.\n- Затем обратный ход даёт `x_0`.\n"
+    },
+    {
+      "path": "/home/student/task/modulus.txt",
+      "text": "115792089237316195423570985008687907853269984665640564039457584007913129639747\n"
+    },
+    {
+      "path": "/home/student/task/outputs.txt",
+      "text": "8941529411713536159872877933801400563426411457927060831397904781386286237533\n108600430855555894406061886677371273694708490249143305733119420825908357265940\n78069041548736591677949781057532002447922549930868077240743977694887839984694\n83271491992403600287606647183649996089720975420849971639864215746935724282719\n2403281919440530294605075849454147251457212648607168541429564209018785063072\n83272068091316822848249166020838973952793665758473354020918785650100640700229\n"
+    },
+    {
+      "path": "/home/student/task/recover.py",
+      "text": "def inv(x, m):\n    return pow(x, -1, m)\nm = int(open('modulus.txt').read().strip())\nt = [int(l) for l in open('outputs.txt').read().split()]\na = ((t[2]-t[1]) * inv(t[1]-t[0], m)) % m\nc = (t[1] - a*t[0]) % m\nx0 = ((t[0] - c) * inv(a, m)) % m\nprint(x0.to_bytes((x0.bit_length()+7)//8, 'big').decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "recover\\.py",
+          "example": "python3 recover.py",
+          "output": "nto{lcg_1s_p4th3t1c4lly_w34k}\n"
+        }
+      ]
+    }
+  }
+}

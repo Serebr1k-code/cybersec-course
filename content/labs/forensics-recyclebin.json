@@ -1,0 +1,32 @@
+{
+  "id": "forensics-recyclebin",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r3cycl3_b1n_r3c0v3ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: корзина Windows ($I / $R)\n\nВ каталоге — пара файлов корзины: `$I…` (метаданные: размер,\nвремя удаления, исходный путь) и `$R…` (содержимое удалённого файла).\n\nШаги:\n1. `ls -la` — посмотри пару `$I…`/`$R…`.\n2. `xxd -l 48 *I6ZQ1AB.txt` — разбери заголовок записи.\n   (имя начинается с `$`, поэтому в шелле его удобнее задать глобом `*I…`.)\n3. `strings *R6ZQ1AB.txt` — содержимое удалённого файла (там флаг).\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- `$I` хранит метаданные, `$R` — сами данные (имя совпадает по суффиксу).\n- Даже после удаления `$R` часто остаётся нетронутым.\n"
+    },
+    {
+      "path": "/home/student/task/$I6ZQ1AB.txt",
+      "b64": "AgAAAAAAAAA+AAAAAAAAAAAgFCPvVNsBQwA6AFwAVQBzAGUAcgBzAFwAZABlAHAAbABvAHkAXABEAG8AYwB1AG0AZQBuAHQAcwBcAG4AbwB0AGUAcwAuAHQAeAB0AAAA"
+    },
+    {
+      "path": "/home/student/task/$R6ZQ1AB.txt",
+      "b64": "cHJvamVjdCBub3RlcwpkbyBub3QgZm9yZ2V0IHRoZSBrZXkKbnRve3IzY3ljbDNfYjFuX3IzYzB2M3J5fQo="
+    }
+  ],
+  "tools": {}
+}

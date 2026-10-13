@@ -1,0 +1,49 @@
+{
+  "id": "forensics-archives",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4rch1v3_l1st1ng_h1d3s_th3_pr1z3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разобрать архив\n\nДан `evidence.zip` — контейнер, изъятый с рабочей станции.\nЧасть файлов безобидна, но внутри спрятан флаг.\n\nШаги:\n1. `file evidence.zip` — подтверди тип.\n2. `unzip -l evidence.zip` — посмотри список членов архива.\n3. Обрати внимание на каталог `secret/`.\n4. Достань флаг: `unzip -p evidence.zip secret/flag.txt > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- `unzip -l` только перечисляет; `unzip -p` печатает содержимое в stdout.\n- `unzip -o` распаковывает на диск — но здесь достаточно `-p`.\n"
+    },
+    {
+      "path": "/home/student/task/evidence.zip",
+      "b64": "UEsDBBQAAAAIAJlkTV3QHa+FJgAAACYAAAAKAAAAcmVhZG1lLnR4dPPLL8nIzEtXKMlXKE5NVchILUrVUwjJyCxWAKJEhZTU5PxKPS4AUEsDBBQAAAAIAJlkTV1C4WlIEwAAABQAAAAMAAAAbG9ncy9hcHAubG9n8/Rz81dIys8v4fIEsTJTclK5AFBLAwQUAAAACACZZE1dJfvVJicAAAAlAAAADwAAAHNlY3JldC9mbGFnLnR4dMsrya82KUrOMCwzjs8xLC4xzEuPzzBMMS6OL8kwji8oMqwyruUCAFBLAwQUAAAACACZZE1dUlTENR0AAAAbAAAAEAAAAHNlY3JldC9ub3Rlcy50eHQrSk3OL0stSk1RSCvKz1UoyUhVSCxKzsgsS+UCAFBLAQIUAxQAAAAIAJlkTV3QHa+FJgAAACYAAAAKAAAAAAAAAAAAAACAAQAAAAByZWFkbWUudHh0UEsBAhQDFAAAAAgAmWRNXULhaUgTAAAAFAAAAAwAAAAAAAAAAAAAAIABTgAAAGxvZ3MvYXBwLmxvZ1BLAQIUAxQAAAAIAJlkTV0l+9UmJwAAACUAAAAPAAAAAAAAAAAAAACAAYsAAABzZWNyZXQvZmxhZy50eHRQSwECFAMUAAAACACZZE1dUlTENR0AAAAbAAAAEAAAAAAAAAAAAAAAgAHfAAAAc2VjcmV0L25vdGVzLnR4dFBLBQYAAAAABAAEAO0AAAAqAQAAAAA="
+    }
+  ],
+  "tools": {
+    "unzip": {
+      "help": "unzip [-l | -p <файл> <член>] <архив> — список/извлечение (вывод реального unzip)",
+      "cases": [
+        {
+          "match": "\\-l\\s+evidence\\.zip",
+          "example": "unzip -l evidence.zip",
+          "output": "Archive:  evidence.zip\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n       38  2026-10-13 12:36   readme.txt\n       20  2026-10-13 12:36   logs/app.log\n       37  2026-10-13 12:36   secret/flag.txt\n       27  2026-10-13 12:36   secret/notes.txt\n---------                     -------\n      122                     4 files\n"
+        },
+        {
+          "match": "\\-p\\s+evidence\\.zip\\s+readme\\.txt",
+          "example": "unzip -p evidence.zip readme.txt",
+          "output": "Nothing to see here. This is a decoy.\n"
+        },
+        {
+          "match": "\\-p\\s+evidence\\.zip\\s+secret/flag\\.txt",
+          "example": "unzip -p evidence.zip secret/flag.txt",
+          "output": "nto{4rch1v3_l1st1ng_h1d3s_th3_pr1z3}\n"
+        }
+      ]
+    }
+  }
+}

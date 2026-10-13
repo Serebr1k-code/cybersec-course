@@ -1,0 +1,28 @@
+{
+  "id": "stego-dns-tunnel",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dns_1s_4_sn34ky_tunn3l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: DNS как скрытый канал\n\nВ `dns.log` обычный трафик, но один запрос выбивается: длинная\nbase64-метка в TXT-запросе на подозрительный домен — признак туннеля.\n\nШаги:\n1. `cat dns.log` — найди необычный запрос.\n2. `grep tun.example dns.log` — строка туннеля.\n3. Выдели метку после `chunk0-` и раскодируй base64.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- DNS почти всегда разрешён наружу — идеальный канал эксфильтрации.\n- Данные кодируют в поддомены, по частям (chunk0, chunk1, …).\n"
+    },
+    {
+      "path": "/home/student/task/dns.log",
+      "text": "2026/01/12T03:00:01Z query A www.example.com from 10.0.0.20\n2026/01/12T03:00:03Z query A api.example.com from 10.0.0.20\n2026/01/12T03:01:10Z query TXT chunk0-bnRve2Ruc18xc180X3NuMzRreV90dW5uM2x9.tun.example from 10.0.0.20\n2026/01/12T03:00:05Z query A mail.example.com from 10.0.0.20\n"
+    }
+  ],
+  "tools": {}
+}

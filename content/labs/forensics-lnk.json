@@ -1,0 +1,28 @@
+{
+  "id": "forensics-lnk",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{lnk_t4rg3t_p4th_l34ks}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор ярлыка Windows (LNK)\n\nДан `suspicious.lnk` — ярлык, найденный в автозагрузке. Внутри\nбинарного формата хранятся целевой путь и аргументы запуска.\n\nШаги:\n1. `file suspicious.lnk` и `xxd -l 32 suspicious.lnk` — сигнатура.\n2. `strings suspicious.lnk` — целевой путь и аргументы командной строки.\n3. Среди аргументов есть флаг (после `--proof`).\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- LNK — это бинарный формат Shell Link (MS-SHLLINK).\n- Аргументы командной строки в LNK часто выдают вредоносную нагрузку.\n"
+    },
+    {
+      "path": "/home/student/task/suspicious.lnk",
+      "b64": "TAAAAAEUAgAAAAAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAfAAAAQwA6AFwAVQBzAGUAcgBzAFwAZABlAHAAbABvAHkAXABBAHAAcABEAGEAdABhAFwAUgBvAGEAbQBpAG4AZwBcAHMAdgBjAC4AZQB4AGUAAAAtLXJ1biAtLXByb29mIG50b3tsbmtfdDRyZzN0X3A0dGhfbDM0a3N9AEMAOgBcAFcAaQBuAGQAbwB3AHMAXABTAHkAcwB0AGUAbQAzADIAXABjAG0AZAAuAGUAeABlAAAA"
+    }
+  ],
+  "tools": {}
+}

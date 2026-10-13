@@ -13,6 +13,19 @@ useful_for:
   - "Bug bounty: вредоносные документы"
 estimated_minutes: 31
 summary: "Как прячут данные в DOCX/XLSX/PPTX: OOXML — это ZIP с XML; скрытый текст, метаданные, кастомные части, макросы, вложенные объекты и дописанные данные."
+lab:
+  kind: shell
+  title: "Практика: достать скрытую часть DOCX"
+  toolset: [core, unzip]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, report.docx]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи тип: `file report.docx` (это ZIP)."
+    - "Посмотри части: `unzip -l report.docx`."
+    - "Обрати внимание на `docProps/custom.xml`."
+    - "Достань флаг: `unzip -p report.docx docProps/custom.xml > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

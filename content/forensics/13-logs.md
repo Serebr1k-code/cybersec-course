@@ -13,6 +13,19 @@ useful_for:
   - "Incident Response"
 estimated_minutes: 50
 summary: "Приёмы анализа журналов: web-логи, auth, JSON-логи, grep/jq/awk, выявление брутфорса, сканирования и эксфильтрации."
+lab:
+  kind: shell
+  title: "Практика: найти эксфильтрацию в access.log"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, access.log]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сгруппируй запросы по IP: `cut -d\" \" -f1 access.log | sort | uniq -c`."
+    - "Один IP выбивается по числу запросов — посмотри его строки."
+    - "Ищи параметр `exfil=` — его значение закодировано base64."
+    - "Раскодируй: `grep exfil access.log | cut -d= -f2 | cut -d\" \" -f1 | base64 -d > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

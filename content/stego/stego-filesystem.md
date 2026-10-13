@@ -12,6 +12,19 @@ useful_for:
   - "IR: обнаружение скрытых областей на диске"
 estimated_minutes: 33
 summary: "Сокрытие данных в структурах файловых систем: файловый slack, альтернативные потоки NTFS (ADS), скрытые разделы, стеганографические ФС и неиспользуемые метаданные; методы поиска через FTK/imager, sleuthkit и ручной разбор."
+lab:
+  kind: shell
+  title: "Практика: данные в slack space"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, disk.img]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи образ: `file disk.img`."
+    - "Посмотри логическое содержимое: `cat disk.img`."
+    - "Извлеки строки: `strings disk.img`."
+    - "Сохрани флаг: `strings disk.img | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

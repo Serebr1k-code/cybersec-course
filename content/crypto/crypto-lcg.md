@@ -12,6 +12,19 @@ useful_for:
   - "Ломать java.util.Random и glibc rand"
 estimated_minutes: 34
 summary: "Линейные конгруэнтные генераторы: формула x_{n+1}=a·x_n+c mod m, восстановление параметров a, c, m по выходам, ломка java.util.Random и glibc rand, truncated LCG и решёточные методы, практические скрипты."
+lab:
+  kind: shell
+  title: "Практика: восстановить LCG"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, modulus.txt, outputs.txt, recover.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри данные: `cat modulus.txt`, `cat outputs.txt`."
+    - "Из трёх последовательных выходов выводятся `a` и `c`."
+    - "Запусти `python3 recover.py` — он делает обратный ход к `x_0`."
+    - "Сохрани флаг: `python3 recover.py > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

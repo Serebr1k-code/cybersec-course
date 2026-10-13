@@ -13,6 +13,19 @@ useful_for:
   - "Понимать математику за RSA, Diffie-Hellman и ECC"
 estimated_minutes: 22
 summary: "Необходимый математический минимум для крипто-задач: модульная арифметика, алгоритм Евклида и расширенный Евклид, обратный элемент, функция Эйлера, малые теоремы Ферма и Эйлера, китайская теорема об остатках (CRT) и её применение в атаках. Много готового кода на Python."
+lab:
+  kind: shell
+  title: "Практика: собрать секрет по CRT"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, moduli.txt, residues.txt, solve.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри данные: `cat moduli.txt`, `cat residues.txt`."
+    - "Модули взаимно просты — применима CRT."
+    - "Запусти `python3 solve.py`."
+    - "Сохрани флаг: `python3 solve.py > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

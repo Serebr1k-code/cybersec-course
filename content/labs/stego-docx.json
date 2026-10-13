@@ -1,0 +1,44 @@
+{
+  "id": "stego-docx",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{docx_1s_just_4_z1p_4rch1v3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: секрет в DOCX\n\nDOCX — это ZIP-архив с XML внутри. В `report.docx` есть скрытая\nчасть `docProps/custom.xml` с секретом.\n\nШаги:\n1. `file report.docx` — Zip archive.\n2. `unzip -l report.docx` — список внутренних частей.\n3. Достань `docProps/custom.xml`: `unzip -p report.docx docProps/custom.xml`.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- OOXML (docx/xlsx/pptx) = ZIP + XML; любой может содержать лишние части.\n- `unzip -l` показывает всё, включая невидимые для Word части.\n"
+    },
+    {
+      "path": "/home/student/task/report.docx",
+      "b64": "UEsDBBQAAAAIAE9mTV3uR1hmHwAAAB0AAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbLOxr8jNUShLLSrOzM+zVTLUM1Cyt7MJqSxILda3AwBQSwMEFAAAAAgAT2ZNXbLBVtNQAAAAcAAAABEAAAB3b3JkL2RvY3VtZW50LnhtbLOxr8jNUShLLSrOzM+zVTLUM1Cyt7Mpt0rJTy7NTc0rAbGT8lMqQXQBiCgCESV2gaWJRSWpRTmVCkWpBflFJTb6IFEQWQQmC8AkRKc+knEAUEsDBBQAAAAIAE9mTV3J1VEbPQAAAE8AAAAQAAAAZG9jUHJvcHMvYXBwLnhtbLOxr8jNUShLLSrOzM+zVTLUM1Cyt7MJKMovSC0qyUwttrNxLCjIyUxOLAHK24UXZZakFtnoI4vZ6COpBgBQSwMEFAAAAAgAT2ZNXWrBJSpkAAAAdQAAABMAAABkb2NQcm9wcy9jdXN0b20ueG1ss7GvyM1RKEstKs7Mz7NVMtQzULK3swkoyi9ILSrJTC22symAsCsV8hJzU22VPPNKUovyEnOCUtOU7PJK8qtT8pMr4g2L47NKi0viTeKrDAviTYqSMwzLjGtt9GGa7Wz0kcwEAFBLAQIUAxQAAAAIAE9mTV3uR1hmHwAAAB0AAAATAAAAAAAAAAAAAACAAQAAAABbQ29udGVudF9UeXBlc10ueG1sUEsBAhQDFAAAAAgAT2ZNXbLBVtNQAAAAcAAAABEAAAAAAAAAAAAAAIABUAAAAHdvcmQvZG9jdW1lbnQueG1sUEsBAhQDFAAAAAgAT2ZNXcnVURs9AAAATwAAABAAAAAAAAAAAAAAAIABzwAAAGRvY1Byb3BzL2FwcC54bWxQSwECFAMUAAAACABPZk1dasElKmQAAAB1AAAAEwAAAAAAAAAAAAAAgAE6AQAAZG9jUHJvcHMvY3VzdG9tLnhtbFBLBQYAAAAABAAEAP8AAADPAQAAAAA="
+    }
+  ],
+  "tools": {
+    "unzip": {
+      "help": "unzip [-l | -p <файл> <член>] <архив> — список/извлечение (вывод реального unzip)",
+      "cases": [
+        {
+          "match": "\\-l\\s+report\\.docx",
+          "example": "unzip -l report.docx",
+          "output": "Archive:  report.docx\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n       29  2026-10-13 12:50   [Content_Types].xml\n      112  2026-10-13 12:50   word/document.xml\n       79  2026-10-13 12:50   docProps/app.xml\n      117  2026-10-13 12:50   docProps/custom.xml\n---------                     -------\n      337                     4 files\n"
+        },
+        {
+          "match": "\\-p\\s+report\\.docx\\s+docProps/custom\\.xml",
+          "example": "unzip -p report.docx docProps/custom.xml",
+          "output": "<?xml version=\"1.0\"?><Properties><property name=\"InternalRef\">nto{docx_1s_just_4_z1p_4rch1v3}</property></Properties>"
+        }
+      ]
+    }
+  }
+}

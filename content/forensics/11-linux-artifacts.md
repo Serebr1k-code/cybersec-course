@@ -13,6 +13,19 @@ useful_for:
   - "Анализ серверов после взлома"
 estimated_minutes: 40
 summary: "Артефакты Linux-сервера: история команд, журналы аутентификации, cron, SSH-ключи — восстановление действий атакующего."
+lab:
+  kind: shell
+  title: "Практика: разбор auth.log"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, auth.log]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сначала посчитай неудачные попытки: `grep Failed auth.log | cut -d\" \" -f12 | sort | uniq -c`."
+    - "Найди успешный вход: `grep Accepted auth.log`."
+    - "Команда атакующего видна по `grep sudo auth.log`."
+    - "Скопируй значение после `nto_proof=` в `found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

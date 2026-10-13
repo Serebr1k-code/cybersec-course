@@ -13,6 +13,19 @@ useful_for:
   - "Писать свой частотный анализатор и индекс совпадений"
 estimated_minutes: 35
 summary: "Глубокое погружение в классику: Affine и Hill (линейная алгебра по модулю), Playfair (полиграммная замена), Bacon (бинарное кодирование в тексте), а также автоматизированный частотный анализ — индекс совпадений, χ², n-граммы — с готовыми скриптами на Python."
+lab:
+  kind: shell
+  title: "Практика: взломать аффинный шифр перебором"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, cipher.txt, solve.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай шифртекст: `cat cipher.txt`."
+    - "Пространство ключей мало — перебирай все a и b."
+    - "Запусти `python3 solve.py` и ищи строку с `nto{`."
+    - "Сохрани флаг: `python3 solve.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

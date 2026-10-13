@@ -13,6 +13,19 @@ useful_for:
   - "Анализ малвари с архивной упаковкой"
 estimated_minutes: 50
 summary: "Скрытые данные в архивах: комментарии и extra-поля ZIP, конкатенация gzip, 7z/RAR/tar-нюансы, вложенные матрёшки и архивные полиглоты."
+lab:
+  kind: shell
+  title: "Практика: комментарий ZIP-архива"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, archive.zip]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи тип: `file archive.zip`."
+    - "Посмотри печатные строки в хвосте: `strings archive.zip | tail`."
+    - "Найди `checksum=` — значение закодировано base64."
+    - "Раскодируй: `strings archive.zip | grep checksum | cut -d= -f2 | base64 -d > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

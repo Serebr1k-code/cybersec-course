@@ -13,6 +13,19 @@ useful_for:
   - "Анализ векторной графики"
 estimated_minutes: 40
 summary: "SVG — это текст на XML: данные прячут в комментариях, неиспользуемых атрибутах, data:URI, CSS и координатах path; разбираем приёмы и инструменты извлечения."
+lab:
+  kind: shell
+  title: "Практика: найти флаг в SVG"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, logo.svg]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай файл: `cat logo.svg`."
+    - "SVG — это текстовый XML."
+    - "Ищи комментарии `<!-- ... -->`."
+    - "Сохрани флаг: `grep nto logo.svg > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

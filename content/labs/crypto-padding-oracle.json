@@ -1,0 +1,48 @@
+{
+  "id": "crypto-padding-oracle",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p4dd1ng_0r4cl3_cbc_f4lls_4p4rt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: padding oracle на CBC\n\n`cipher.bin` — AES-CBC шифртекст секрета. Сервер сообщает, валиден\nли PKCS#7-padding после расшифровки (oracle). Этого достаточно,\nчтобы побайтово восстановить открытый текст без ключа.\n\nШаги:\n1. `xxd -l 48 cipher.bin` — блоки по 16 байт.\n2. Запусти `python3 attack.py` — побайтовая атака на padding oracle.\n3. Скрипт печатает флаг.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Oracle = «padding валиден / нет»; утечка 1 бита на запрос.\n- Классика: Bleichenbacher, POODLE, Vaudenay.\n"
+    },
+    {
+      "path": "/home/student/task/cipher.bin",
+      "b64": "Df3NNr2XTkMQhqEHbq6dXdGuXQ7/npSASgbrjwEll0GDRGezw/XpRCvQNKB4J1Yn"
+    },
+    {
+      "path": "/home/student/task/attack.py",
+      "text": "from Crypto.Cipher import AES\nKEY = bytes.fromhex('0f1e2d3c4b5a69788796a5b4c3d2e1f0')\nIV = bytes.fromhex('000102030405060708090a0b0c0d0e0f')\ndef dec_block(ct):\n    return AES.new(KEY, AES.MODE_CBC, IV).decrypt(ct)\ndef valid_pad(pt):\n    p = pt[-1]\n    return 1 <= p <= 16 and pt[-p:] == bytes([p])*p\nct = open('cipher.bin','rb').read()\nblocks = [ct[i:i+16] for i in range(0, len(ct), 16)]\nout = b''\nprev = IV\nfor blk in blocks:\n    inter = bytearray(16)\n    for pad in range(1, 17):\n        for g in range(256):\n            forged = bytearray(prev)\n            forged[-pad] = g\n            for k in range(1, pad):\n                forged[-k] = inter[-k] ^ pad\n            pt = dec_block(bytes(forged) + blk)\n            if valid_pad(pt):\n                if pad == 1:\n                    f2 = bytearray(forged); f2[-2] ^= 0x01\n                    if not valid_pad(dec_block(bytes(f2) + blk)):\n                        continue\n                inter[-pad] = g ^ pad\n                break\n    out += bytes(a ^ b for a, b in zip(inter, prev))\n    prev = blk\nprint(out.decode('latin-1'))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "attack\\.py",
+          "example": "python3 attack.py",
+          "output": "nto{p4dd1ng_0r4cl3_cbc_f4lls_4p4rt}\n\n\n\n\n\n\n\n\n\n\n\n\n"
+        }
+      ]
+    }
+  }
+}

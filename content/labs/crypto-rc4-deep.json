@@ -1,0 +1,52 @@
+{
+  "id": "crypto-rc4-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{rc4_b14s3s_4r3_4_sm0k1ng_gun}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: расшифровать RC4\n\n`cipher.bin` зашифрован потоковым шифром RC4 с ключом из `key.txt`.\n\nШаги:\n1. `cat key.txt`, `xxd -l 32 cipher.bin`.\n2. Реализация RC4 (KSA + PRGA) есть в `rc4.py`.\n3. Запусти `python3 rc4.py` — он печатает открытый текст.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- RC4 = KSA (перестановка S по ключу) + PRGA (генерация гаммы XOR).\n- RC4 запрещён в TLS из-за смещений гаммы; повтор ключа смертелен.\n"
+    },
+    {
+      "path": "/home/student/task/key.txt",
+      "text": "KEY123\n"
+    },
+    {
+      "path": "/home/student/task/cipher.bin",
+      "b64": "sapAhIzkaO8ka92kqF+glcTddEtEnBpqTiwIf4Le7V2y"
+    },
+    {
+      "path": "/home/student/task/rc4.py",
+      "text": "S = list(range(256))\nk = open('key.txt').read().strip().encode()\nct = open('cipher.bin','rb').read()\nj = 0\nfor i in range(256):\n    j = (j + S[i] + k[i % len(k)]) % 256\n    S[i], S[j] = S[j], S[i]\nout = bytearray(); i = j = 0\nfor b in ct:\n    i = (i + 1) % 256\n    j = (j + S[i]) % 256\n    S[i], S[j] = S[j], S[i]\n    out.append(b ^ S[(S[i] + S[j]) % 256])\nprint(out.decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "rc4\\.py",
+          "example": "python3 rc4.py",
+          "output": "nto{rc4_b14s3s_4r3_4_sm0k1ng_gun}\n"
+        }
+      ]
+    }
+  }
+}

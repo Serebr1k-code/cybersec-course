@@ -13,6 +13,19 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 50
 summary: "Как обнаружить изменение временных меток (timestomping): сравнение $STANDARD_INFORMATION и $FILE_NAME в NTFS, аномалии в USN/EVTX, метаданные ФС, инструменты детекта."
+lab:
+  kind: shell
+  title: "Практика: обнаружить timestomping"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, bodyfile.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай таймлайн: `cat bodyfile.txt`."
+    - "Сравни поля времени у строк (колонки 8-11)."
+    - "У одной строки времена резко отличаются — это подделка."
+    - "Имя файла содержит флаг: `grep 1600000000 bodyfile.txt | cut -d\"|\" -f2 > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

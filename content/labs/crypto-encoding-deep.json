@@ -1,0 +1,48 @@
+{
+  "id": "crypto-encoding-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3nc0d1ng_1s_n0t_3ncrypt10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: многослойные кодировки\n\nВ `encoded.txt` — строка, закодированная ДВАЖДЫ: снаружи\nbase32, внутри base64. Это кодирование, а не шифрование.\n\nШаги:\n1. `cat encoded.txt` — посмотри алфавит (A-Z2-7 = base32).\n2. Декодируй base32 (в шелле нет base32 — есть `decode.py`): `python3 decode.py`.\n3. Скрипт сам снимает второй слой (base64) и печатает флаг.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- base32: только A-Z и 2-7, часто с `=` на конце.\n- base64: A-Za-z0-9+/ — различить по алфавиту.\n"
+    },
+    {
+      "path": "/home/student/task/encoded.txt",
+      "text": "MJXFE5TFPJHHKWL2IJVU2VZVNZMHURT2LAZDI53EIY4HUYTNJZ4WKWCCGBGVIQTVMZIT2PI=\n"
+    },
+    {
+      "path": "/home/student/task/decode.py",
+      "text": "import base64\ns = open('encoded.txt').read().strip()\nd = base64.b32decode(s)\nprint(base64.b64decode(d).decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "decode\\.py",
+          "example": "python3 decode.py",
+          "output": "nto{3nc0d1ng_1s_n0t_3ncrypt10n}\n"
+        }
+      ]
+    }
+  }
+}

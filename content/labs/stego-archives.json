@@ -1,0 +1,28 @@
+{
+  "id": "stego-archives",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{z1p_c0mm3nt_1s_4_h1d1ng_sp0t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: секрет в комментарии ZIP\n\nУ ZIP-архива есть поле комментария в конце файла. В `archive.zip`\nтам лежит base64-строка с флагом.\n\nШаги:\n1. `file archive.zip` — Zip archive.\n2. `strings archive.zip | tail` — комментарий виден как печатная строка.\n3. Раскодируй значение base64: `... | cut -d= -f2 | base64 -d`.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- ZIP-комментарий лежит после центрального каталога и не виден при распаковке.\n- `strings` показывает его как обычный текст.\n"
+    },
+    {
+      "path": "/home/student/task/archive.zip",
+      "b64": "UEsDBBQAAAAIAE9mTV13mB8JEwAAABEAAAAJAAAAbm90ZXMudHh0yy9KycxLLKpUSCxKzsgsS+UCAFBLAQIUAxQAAAAIAE9mTV13mB8JEwAAABEAAAAJAAAAAAAAAAAAAACAAQAAAABub3Rlcy50eHRQSwUGAAAAAAEAAQA3AAAAOgAAADUAY2hlY2tzdW09Ym5SdmUzb3hjRjlqTUcxdE0yNTBYekZ6WHpSZmFERmtNVzVuWDNOd01IUjk="
+    }
+  ],
+  "tools": {}
+}

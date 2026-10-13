@@ -13,6 +13,19 @@ useful_for:
   - "Биоинформатика в безопасности"
 estimated_minutes: 25
 summary: "Как прячут данные в последовательностях ДНК: алфавит ACGT как base-4, кодирование бит в основания, скрытые сообщения в «мусорной» ДНК и биоинформатические инструменты."
+lab:
+  kind: shell
+  title: "Практика: декодировать ДНК-последовательность"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, sequence.txt, decode.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай последовательность: `cat sequence.txt`."
+    - "ACGT — это алфавит base-4 (2 бита на символ)."
+    - "Декодируй: `python3 decode.py`."
+    - "Сохрани флаг: `python3 decode.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

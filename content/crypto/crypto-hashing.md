@@ -13,6 +13,19 @@ useful_for:
   - "Понимать, почему MD5/SHA1 небезопасны и как работают коллизии"
 estimated_minutes: 40
 summary: "Хэш-функции: свойства, семейства (MD5/SHA-2/SHA-3), пароли (bcrypt/argon2/scrypt), атака удлинением сообщения (length-extension) против Merkle–Damgård, коллизии MD5/SHA1 и их последствия, выбор правильного хэша. Практические скрипты и разбор CTF-сценариев."
+lab:
+  kind: shell
+  title: "Практика: опознать и вскрыть хэш"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, hash.txt, wordlist.txt, crack.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри дайджест: `cat hash.txt` — какая длина?"
+    - "64 hex-символа = SHA-256."
+    - "Запусти словарный перебор: `python3 crack.py`."
+    - "Сохрани прообраз: `python3 crack.py | cut -d\" \" -f2 > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

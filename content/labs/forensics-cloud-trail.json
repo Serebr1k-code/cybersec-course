@@ -1,0 +1,28 @@
+{
+  "id": "forensics-cloud-trail",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cl0udtr41l_3v3nts_t3ll_st0r13s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор CloudTrail\n\nДан `cloudtrail.json` — выгрузка событий AWS CloudTrail. Внутри\nесть создание «запасного» пользователя и выгрузка данных.\n\nШаги:\n1. `grep eventName cloudtrail.json` — какие действия выполнялись?\n2. Найди `CreateUser` и `AttachUserPolicy` — кто и откуда их делал?\n3. Найди `PutObject` — в поле `key` записан флаг.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- CloudTrail — основной аудит-лог AWS; каждый API-вызов = событие.\n- `sourceIPAddress` вне доверенного диапазона — красный флаг.\n"
+    },
+    {
+      "path": "/home/student/task/cloudtrail.json",
+      "text": "{\n  \"Records\": [\n    {\n      \"eventTime\": \"2026-01-12T03:00:00Z\",\n      \"eventName\": \"GetObject\",\n      \"userIdentity\": {\n        \"userName\": \"app-reader\"\n      },\n      \"sourceIPAddress\": \"10.0.0.20\",\n      \"requestParameters\": {\n        \"bucketName\": \"reports\"\n      }\n    },\n    {\n      \"eventTime\": \"2026-01-12T03:04:11Z\",\n      \"eventName\": \"CreateUser\",\n      \"userIdentity\": {\n        \"userName\": \"deploy\"\n      },\n      \"sourceIPAddress\": \"198.51.100.9\",\n      \"requestParameters\": {\n        \"userName\": \"backdoor-svc\"\n      }\n    },\n    {\n      \"eventTime\": \"2026-01-12T03:05:02Z\",\n      \"eventName\": \"AttachUserPolicy\",\n      \"userIdentity\": {\n        \"userName\": \"deploy\"\n      },\n      \"sourceIPAddress\": \"198.51.100.9\",\n      \"requestParameters\": {\n        \"userName\": \"backdoor-svc\",\n        \"policyArn\": \"arn:aws:iam::aws:policy/AdministratorAccess\"\n      }\n    },\n    {\n      \"eventTime\": \"2026-01-12T03:06:40Z\",\n      \"eventName\": \"PutObject\",\n      \"userIdentity\": {\n        \"userName\": \"backdoor-svc\"\n      },\n      \"sourceIPAddress\": \"198.51.100.9\",\n      \"requestParameters\": {\n        \"bucketName\": \"exfil\",\n        \"key\": \"nto{cl0udtr41l_3v3nts_t3ll_st0r13s}\"\n      }\n    },\n    {\n      \"eventTime\": \"2026-01-12T03:20:00Z\",\n      \"eventName\": \"DescribeInstances\",\n      \"userIdentity\": {\n        \"userName\": \"app-reader\"\n      },\n      \"sourceIPAddress\": \"10.0.0.20\",\n      \"requestParameters\": {}\n    }\n  ]\n}"
+    }
+  ],
+  "tools": {}
+}

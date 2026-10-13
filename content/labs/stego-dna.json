@@ -1,0 +1,48 @@
+{
+  "id": "stego-dna",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dn4_1s_b4s3_f0ur_3nc0d1ng}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: ДНК-стеганография (base-4)\n\nВ `sequence.txt` — последовательность нуклеотидов ACGT. Каждый\nнуклеотид кодирует 2 бита (base-4), а вместе — байты флага.\n\nШаги:\n1. `cat sequence.txt` — строка из A/C/G/T.\n2. Пойми отображение base-4 → биты (A=00,C=01,G=10,T=11).\n3. Декодируй: `python3 decode.py`.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Четыре нуклеотида = алфавит из 4 символов = 2 бита на символ.\n- Служебные `ATG`/`TAA` — рамка, их можно отбросить.\n"
+    },
+    {
+      "path": "/home/student/task/sequence.txt",
+      "text": "ATGCGTGCTCACGTTCTGTCGCACGTGATCACCTTATACCTATCCTTCGAGATCACTATATATCCTTCGCGATAACTCCCTAGCCTTATATCGTGCGATATAACGCAATACCGTGCGCTCTTCTAA\n"
+    },
+    {
+      "path": "/home/student/task/decode.py",
+      "text": "mp = {'A':'00','C':'01','G':'10','T':'11'}\ns = open('sequence.txt').read().strip()\nif s.startswith('ATG'): s = s[3:]\nif s.endswith('TAA'): s = s[:-3]\nbits = ''.join(mp[c] for c in s if c in mp)\ndata = bytes(int(bits[i:i+8], 2) for i in range(0, len(bits)//8*8, 8))\nprint(data.decode('latin-1'))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "decode\\.py",
+          "example": "python3 decode.py",
+          "output": "nto{dn4_1s_b4s3_f0ur_3nc0d1ng}\n"
+        }
+      ]
+    }
+  }
+}

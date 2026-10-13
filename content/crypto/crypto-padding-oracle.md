@@ -13,6 +13,19 @@ useful_for:
   - "Понимать POODLE/Lucky13-класс атак"
 estimated_minutes: 45
 summary: "Padding oracle: полное восстановление открытого текста CBC за ~256 запросов на байт. Разбор PKCS#7, механики оракула, алгоритма по байтам, обработки краевых случаев (padding=0x01), практический эксплойт и защита (AEAD, encrypt-then-MAC, единообразные ответы)."
+lab:
+  kind: shell
+  title: "Практика: padding oracle на CBC"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, cipher.bin, attack.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри шифртекст: `xxd -l 48 cipher.bin`."
+    - "Блоки по 16 байт; oracle сообщает валидность padding."
+    - "Запусти `python3 attack.py`."
+    - "Сохрани флаг: `python3 attack.py > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

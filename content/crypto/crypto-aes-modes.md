@@ -13,6 +13,19 @@ useful_for:
   - "Готовить почву для атак на ECB/CBC/CTR"
 estimated_minutes: 40
 summary: "Блочные шифры и режимы работы AES: ECB (и его катастрофа), CBC, CTR, GCM. Роль IV и nonce, padding, аутентификация. Как определять режим по шифротексту и какие атаки открывает каждый режим (мост к ECB oracle, CBC bit-flipping, padding oracle, IV reuse)."
+lab:
+  kind: shell
+  title: "Практика: расшифровать AES-256-CBC"
+  toolset: [core, openssl]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, key.txt, iv.txt, cipher.bin]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай параметры: `cat key.txt` и `cat iv.txt`."
+    - "Файл зашифрован в режиме CBC — нужны и ключ, и IV."
+    - "Расшифруй через `openssl enc -d -aes-256-cbc`, подставив hex-значения."
+    - "Сохрани результат: `openssl enc -d -aes-256-cbc -K <key> -iv <iv> -in cipher.bin > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

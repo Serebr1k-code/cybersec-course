@@ -1,0 +1,48 @@
+{
+  "id": "stego-audio-lsb",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w4v_lsb_1n_s4mpl3s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: LSB в аудиосэмплах\n\nВ `tone.wav` младшие биты 16-битных сэмплов несут скрытое\nсообщение. На слух это неотличимо от обычного тона.\n\nШаги:\n1. `file tone.wav` — WAVE audio.\n2. `xxd -l 64 tone.wav` — заголовок RIFF/WAVE.\n3. Извлеки LSB сэмплов: `python3 decode.py`.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- WAV PCM: заголовок 44 байта, далее 16-битные сэмплы (LE).\n- Младший бит сэмпла — минимальное изменение амплитуды.\n"
+    },
+    {
+      "path": "/home/student/task/tone.wav",
+      "b64": "UklGRhQCAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YfABAADoAw0EMwRWBH0EoQTHBOoEEAU1BVsFfwWkBckF7gUSBjgGXQaDBqYGzQbxBhcHOwdgB4UHqwfPB/UHGAg/CGMIiAitCNMI9wgcCUEJZwmLCbAJ1An7CR8KRAppCo4KsgrYCv0KIwtHC2wLkQu3CwoEMARVBHoEnwTFBOkEDwUzBVgFfQWjBcYF7QURBjYGWgaABqUGywbvBhQHOAdfB4MHqAfNB/MHFgg8CGAIhwiqCNAI9QgaCT8JZQmJCa8J0wn4CRwKQwpnCowKsArWCvsKIAtFC2sLjgu1CwkELwRSBHgEnQTCBOcEDQUxBVcFewWgBcUF6wUPBjQGWAZ/BqMGyAbsBhMHNwdcB4EHpgfKB/AHFQg7CF4IhQipCM4I8wgYCT0JYwmHCawJ0An2CRoKQAplCosKrgrVCvkKHgtCC2gLjAuzCwcELARQBHcEmwTABOUECwUvBVQFeAWfBcMF6AUNBjMGVwZ9BqEGxgbrBhAHNAdaB34HpAfIB+4HEgg4CFwIggimCMwI8AgWCToJYAmECaoJzgn0CRgKPgpiCogKrArSCvYKHAtAC2YLiguwCwQEKgROBHQEmAS+BOIECAUsBVIFdgWcBcAF5gUKBjAGVAZ6Bp4GxAboBg4HMgdYB3wHogfGB+wHEAg2CFoI"
+    },
+    {
+      "path": "/home/student/task/decode.py",
+      "text": "import wave, struct\nwf = wave.open('tone.wav','rb')\nn = wf.getnframes()\ndata = wf.readframes(n)\nsamples = struct.unpack('<%dH' % n, data)\nbits = ''.join(str(s & 1) for s in samples)\nout = bytes(int(bits[i:i+8], 2) for i in range(0, len(bits)//8*8, 8))\nprint(out.decode('latin-1'))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "decode\\.py",
+          "example": "python3 decode.py",
+          "output": "nto{w4v_lsb_1n_s4mpl3s}\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\n"
+        }
+      ]
+    }
+  }
+}

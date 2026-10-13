@@ -13,6 +13,19 @@ useful_for:
   - "Аудит метаданных изображений и документов"
 estimated_minutes: 33
 summary: "Практический обзор инструментов: exiftool для метаданных, steghide и outguess для парольной стеганографии, stegseek для быстрого брута, а также stegoveritas и статический анализ."
+lab:
+  kind: shell
+  title: "Практика: спрятанный tEXt-чанк PNG"
+  toolset: [core, exiftool]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, cover.png]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с `file cover.png`."
+    - "Посмотри метаданные: `exiftool cover.png`."
+    - "Ищи тег `SecretNote` — там флаг."
+    - "Сохрани флаг: `exiftool cover.png | grep -i secret > found.txt`."
+
 ---
 ## Вопрос, с которого всё начинается
 

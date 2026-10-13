@@ -1,0 +1,28 @@
+{
+  "id": "forensics-logs",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l0gs_n3v3r_l13}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аномалия в журнале веб-сервера\n\nДан `access.log` nginx. Один внешний клиент вёл себя иначе,\nчем остальные, и вынес данные в строке запроса (base64).\n\nШаги:\n1. `cut -d\" \" -f1 access.log | sort | uniq -c` — сколько запросов у каждого IP?\n2. `grep exfil access.log` — найди подозрительный запрос.\n3. Значение параметра — base64. Выдели его и раскодируй: `grep exfil access.log | cut -d= -f2 | cut -d\" \" -f1 | base64 -d`.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Логи — самый дешёвый источник таймлайна: время, IP, метод, путь.\n- Эксфильтрация через query-строку часто маскируется под обычный GET.\n"
+    },
+    {
+      "path": "/home/student/task/access.log",
+      "text": "10.0.0.5 - - [12/Jan/2026:08:00:01 +0000] \"GET /index.html HTTP/1.1\" 200 1043 \"-\" \"Mozilla/5.0\"\n10.0.0.7 - - [12/Jan/2026:08:00:12 +0000] \"GET /assets/app.js HTTP/1.1\" 200 55120 \"-\" \"Mozilla/5.0\"\n198.51.100.9 - - [12/Jan/2026:08:01:33 +0000] \"GET /login HTTP/1.1\" 200 2211 \"-\" \"curl/8.5.0\"\n198.51.100.9 - - [12/Jan/2026:08:02:02 +0000] \"POST /login HTTP/1.1\" 302 0 \"-\" \"curl/8.5.0\"\n198.51.100.9 - - [12/Jan/2026:08:02:44 +0000] \"GET /.git/config HTTP/1.1\" 404 153 \"-\" \"curl/8.5.0\"\n198.51.100.9 - - [12/Jan/2026:08:03:10 +0000] \"GET /backup HTTP/1.1\" 200 912 \"-\" \"curl/8.5.0\"\n198.51.100.9 - - [12/Jan/2026:08:03:11 +0000] \"GET /?exfil=bnRve2wwZ3NfbjN2M3JfbDEzfQ HTTP/1.1\" 200 12 \"-\" \"curl/8.5.0\"\n10.0.0.5 - - [12/Jan/2026:08:04:00 +0000] \"GET /favicon.ico HTTP/1.1\" 200 1150 \"-\" \"Mozilla/5.0\"\n"
+    }
+  ],
+  "tools": {}
+}

@@ -13,6 +13,19 @@ useful_for:
   - "Threat Hunting / SOC"
 estimated_minutes: 45
 summary: "Как включить и читать PowerShell-логирование (Operational, Script Block 4104, Transcription, Module), восстанавливать обфусцированные команды и ловить LOLBin-активность."
+lab:
+  kind: shell
+  title: "Практика: декодировать base64-обфускацию в логе"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, PS.log]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Найди закодированную команду: `grep FromBase64String PS.log`."
+    - "Выдели значение в кавычках: `cut -d'\"' -f2`."
+    - "Декодируй: `... | base64 -d`."
+    - "Запиши флаг: `grep FromBase64String PS.log | cut -d'\"' -f2 | base64 -d | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

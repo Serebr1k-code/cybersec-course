@@ -1,0 +1,28 @@
+{
+  "id": "forensics-web-forensics",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w3b_l0g_f0r3ns1cs_101}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: веб-форензика по журналу доступа\n\nДан `access.log` веб-приложения. Ночью был автоматизированный\nскан и SQL-инъекции. Нужно найти атакующего и след флага.\n\nШаги:\n1. `grep -i sqlmap access.log` — какой User-Agent у атакующего?\n2. `grep \"UNION SELECT\" access.log` — что пытались вытащить?\n3. Обрати внимание на строку с внешним Referer — там флаг.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- User-Agent — сильный индикатор компрометации (sqlmap, nikto, nuclei).\n- Referer с чужим доменом означает утечку данных на внешний хост.\n"
+    },
+    {
+      "path": "/home/student/task/access.log",
+      "text": "192.0.2.10 - - [12/Jan/2026:10:00:00 +0000] \"GET / HTTP/1.1\" 200 812 \"-\" \"Mozilla/5.0 (X11; Linux x86_64)\"\n192.0.2.10 - - [12/Jan/2026:10:00:04 +0000] \"GET /products?page=1 HTTP/1.1\" 200 4021 \"-\" \"Mozilla/5.0 (X11; Linux x86_64)\"\n203.0.113.7 - - [12/Jan/2026:10:02:11 +0000] \"GET /products?id=1%27%20OR%20%271%27%3D%271 HTTP/1.1\" 500 521 \"-\" \"sqlmap/1.8#stable (https://sqlmap.org)\"\n203.0.113.7 - - [12/Jan/2026:10:02:15 +0000] \"GET /products?id=1%20UNION%20SELECT%20NULL,NULL,version() HTTP/1.1\" 200 4021 \"-\" \"sqlmap/1.8#stable (https://sqlmap.org)\"\n203.0.113.7 - - [12/Jan/2026:10:03:02 +0000] \"GET /products?id=1%20UNION%20SELECT%20flag%20FROM%20secret HTTP/1.1\" 200 4102 \"-\" \"sqlmap/1.8#stable (https://sqlmap.org)\"\n203.0.113.7 - - [12/Jan/2026:10:03:40 +0000] \"GET /admin HTTP/1.1\" 403 276 \"-\" \"sqlmap/1.8#stable (https://sqlmap.org)\"\n192.0.2.10 - - [12/Jan/2026:10:05:00 +0000] \"GET /favicon.ico HTTP/1.1\" 200 1150 \"-\" \"Mozilla/5.0 (X11; Linux x86_64)\"\n203.0.113.7 - - [12/Jan/2026:10:06:19 +0000] \"GET / HTTP/1.1\" 200 812 \"https://evil.example/nto{w3b_l0g_f0r3ns1cs_101}\" \"Mozilla/5.0\"\n"
+    }
+  ],
+  "tools": {}
+}

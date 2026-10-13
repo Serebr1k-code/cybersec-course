@@ -1,0 +1,48 @@
+{
+  "id": "stego-emoji",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3m0j1_v4r14t10n_s3l3ct0rs}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: emoji variation selectors\n\nВ `post.txt` за эмодзи спрятаны variation selector-символы\n(U+FE0F / U+FE0E), которыми закодирован флаг.\n\nШаги:\n1. `cat post.txt` — выглядит как обычный пост.\n2. `xxd post.txt | head` — видны байты `ef b8 8f` / `ef b8 8e`.\n3. Декодируй биты: `python3 decode.py`.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Variation selectors меняют отображение эмодзи и почти невидимы.\n- Два варианта кодируют 0 и 1.\n"
+    },
+    {
+      "path": "/home/student/task/post.txt",
+      "text": "Status: 😀︎️️︎️️️︎︎️️️︎️︎︎︎️️︎️️️️︎️️️️︎️️︎︎️️︎︎️️︎️️︎️️︎️︎︎️️︎︎︎︎︎️️︎️︎️︎︎︎️️︎︎︎️︎️︎️️️️️︎️️️︎️️︎︎︎️️︎️︎︎︎️️️︎︎️︎︎︎️️︎︎︎️︎︎️️︎️︎︎︎️️️︎️︎︎︎︎️️︎︎︎️︎︎️️︎︎︎︎︎️️︎️️️︎︎️︎️️️️️︎️️️︎︎️️︎︎️️︎︎️️︎️️︎️️︎︎︎︎️️︎︎️️︎️️︎︎︎️️︎️️️︎️︎︎︎︎️️︎︎︎︎︎️️️︎︎️︎︎️️️︎︎️️︎️️️️️︎️ all good!\n"
+    },
+    {
+      "path": "/home/student/task/decode.py",
+      "text": "s = open('post.txt', encoding='utf-8').read()\nbits = ''\nfor ch in s:\n    if ch == '\\ufe0f': bits += '1'\n    elif ch == '\\ufe0e': bits += '0'\ndata = bytes(int(bits[i:i+8], 2) for i in range(0, len(bits)//8*8, 8))\nprint(data.decode('latin-1'))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "decode\\.py",
+          "example": "python3 decode.py",
+          "output": "nto{3m0j1_v4r14t10n_s3l3ct0rs}\n"
+        }
+      ]
+    }
+  }
+}

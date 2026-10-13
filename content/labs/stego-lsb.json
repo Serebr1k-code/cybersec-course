@@ -1,0 +1,48 @@
+{
+  "id": "stego-lsb",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{lsb_1s_th3_cl4ss1c_st4rt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: LSB в изображении\n\nВ `image.png` младшие биты каналов R/G/B несут скрытое\nсообщение (по одному биту на канал, построчно).\n\nШаги:\n1. `file image.png` — обычный PNG, на вид ничего.\n2. `strings image.png` — флаг не виден (он в младших битах).\n3. Извлеки LSB-поток скриптом: `python3 extract.py`.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Изменение младшего бита почти не влияет на цвет — глаз не замечает.\n- Порядок обхода каналов критичен: R,G,B построчно.\n"
+    },
+    {
+      "path": "/home/student/task/image.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAEAAAAADCAIAAACsx55LAAAAdUlEQVR4nM2OsRHDMAwDH3ceOn1qz/wuSEcyLwOYBSUQ0FP5fE8gSiJiAgS7dWkSJS0AQkAJGkL71hwWT4SEp4+1rJB0cO2pc/E7v/ElB71oq2j9zxQQDCrcQav5E7ZyzMGb7fR3c93dckymk+/RDybgj35nXUfRb1wjbQT1AAAAAElFTkSuQmCC"
+    },
+    {
+      "path": "/home/student/task/extract.py",
+      "text": "from PIL import Image\nimg = Image.open('image.png').convert('RGB')\nw, h = img.size\nbits = ''\nfor y in range(h):\n    for x in range(w):\n        for c in img.getpixel((x, y)):\n            bits += str(c & 1)\ndata = bytes(int(bits[i:i+8], 2) for i in range(0, len(bits)//8*8, 8))\nprint(data.decode('latin-1'))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "extract\\.py",
+          "example": "python3 extract.py",
+          "output": "nto{lsb_1s_th3_cl4ss1c_st4rt}\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0000\n"
+        }
+      ]
+    }
+  }
+}

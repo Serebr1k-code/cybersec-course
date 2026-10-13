@@ -1,0 +1,56 @@
+{
+  "id": "crypto-rsa-attacks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sm4ll_3_w1th0ut_p4dd1ng_1s_f4t4l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: RSA с малым e без паддинга\n\nДаны `n`, `e=3`, `c`. Сообщение короткое и не западно́ (textbook RSA),\nпоэтому `m^3 < n` и шифртекст — это просто куб сообщения.\n\nШаги:\n1. `cat e.txt`, `cat n.txt`, `cat c.txt`.\n2. Возьми целочисленный кубический корень из `c`: `python3 attack.py`.\n3. Скрипт печатает флаг.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Textbook RSA без OAEP детерминирован и уязвим.\n- При `m^e < n` шифрование сводится к целочисленному корню (атака Håstad).\n"
+    },
+    {
+      "path": "/home/student/task/n.txt",
+      "text": "165756413861427389106322529716347237173452681721057311349370608703127072503912311778022677848909581208399690038721418067514222830337542251807410334887541835864175502183155227137670923365313909171757001803209430800611799685008229038135456168313270915899361410819900313\n"
+    },
+    {
+      "path": "/home/student/task/e.txt",
+      "text": "3\n"
+    },
+    {
+      "path": "/home/student/task/c.txt",
+      "text": "165756413861427389106322529716347237173452681721057311349370608703127072503912311778022677848909581208399690038721418067514222830337542251807410334887541835864175502183155227137670923365313909171757001803209430800611799685008229038135456168313270915899361410819895653\n"
+    },
+    {
+      "path": "/home/student/task/attack.py",
+      "text": "def iroot(x, k):\n    lo, hi = 0, 1\n    while hi ** k <= x:\n        hi *= 2\n    while lo < hi:\n        mid = (lo + hi) // 2\n        if mid ** k < x:\n            lo = mid + 1\n        else:\n            hi = mid\n    return lo\nn = int(open('n.txt').read().strip())\ne = int(open('e.txt').read().strip())\nc = int(open('c.txt').read().strip())\nm = iroot(c, e)\nprint(m.to_bytes((m.bit_length()+7)//8, 'big').decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "attack\\.py",
+          "example": "python3 attack.py",
+          "output": "nto{sm4ll_3_w1th0ut_p4dd1ng_1s_f4t4l}\n"
+        }
+      ]
+    }
+  }
+}

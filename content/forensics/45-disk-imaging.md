@@ -13,6 +13,19 @@ useful_for:
   - "Судебная экспертиза"
 estimated_minutes: 40
 summary: "Как корректно снять побайтовый образ: dd/dc3dd/dcfldd/FTK Imager, аппаратные write blockers, форматы raw/E01/AFF4, контрольные суммы и фиксация целостности."
+lab:
+  kind: shell
+  title: "Практика: зафиксировать образ и вырезать данные"
+  toolset: [core, hash]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, evidence.img]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сначала зафиксируй целостность: `sha256sum evidence.img`."
+    - "Найди данные: `strings evidence.img | grep nto`."
+    - "Или найди смещение: `grep -abo SECRET evidence.img`."
+    - "Запиши флаг в `found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

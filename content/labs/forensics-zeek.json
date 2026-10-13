@@ -1,0 +1,32 @@
+{
+  "id": "forensics-zeek",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{z33k_l0gs_4r3_4_g0ldm1n3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ логов Zeek\n\nДаны `conn.log` и `dns.log` (формат Zeek TSV). Хост выгружал\nданные: часть — длинным соединением на нестандартный порт,\nчасть — через DNS (TXT-запрос с base64 в имени).\n\nШаги:\n1. `grep -v \"^#\" conn.log | sort -t$\"\\t\" -k10 -n` — крупные сессии.\n2. `grep -v \"^#\" dns.log | grep TXT` — необычный TXT-запрос.\n3. Выдели base64-метку из имени запроса и декодируй: `base64 -d`.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Строки, начинающиеся с `#`, — заголовки полей, их отбрасывают `grep -v \"^#\"`.\n- DNS-туннель прячет данные в метках доменного имени.\n"
+    },
+    {
+      "path": "/home/student/task/conn.log",
+      "text": "#separator \\x09\n#fields\tts\tuid\tid.orig_h\tid.orig_p\tid.resp_h\tid.resp_p\tproto\tservice\tduration\torig_bytes\tresp_bytes\tconn_state\n1736654400.1\tC1\t10.0.0.20\t50000\t93.184.216.34\t443\ttcp\thttps\t12.3\t5120\t20480\tSF\n1736654402.3\tC3\t10.0.0.20\t50002\t10.0.0.53\t53\tudp\tdns\t0.1\t120\t240\tSF\n1736654450.9\tC9\t10.0.0.20\t50010\t198.51.100.5\t4444\ttcp\t-\t1800.0\t1048576\t4096\tSF\n"
+    },
+    {
+      "path": "/home/student/task/dns.log",
+      "text": "#separator \\x09\n#fields\tts\tuid\tid.orig_h\tid.orig_p\tid.resp_h\tid.resp_p\tproto\ttrans_id\tquery\tqclass\tqclass_name\tqtype\tqtype_name\trcode\n1736654400.1\tC1\thost\t51000\t10.0.0.53\t53\tudp\t1234\twww.example.com\t1\tC_INET\t1\tA\t0\n1736654401.2\tC2\thost\t51001\t10.0.0.53\t53\tudp\t1235\tapi.example.com\t1\tC_INET\t1\tA\t0\n1736654402.3\tC3\thost\t51002\t10.0.0.53\t53\tudp\t1236\texfil-bnRve3ozM2tfbDBnc180cjNfNF9nMGxkbTFuM30.evil.example\t1\tC_INET\t16\tTXT\t0\n1736654403.4\tC4\thost\t51003\t10.0.0.53\t53\tudp\t1237\tmail.example.com\t1\tC_INET\t1\tA\t0\n"
+    }
+  ],
+  "tools": {}
+}

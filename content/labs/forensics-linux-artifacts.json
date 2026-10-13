@@ -1,0 +1,28 @@
+{
+  "id": "forensics-linux-artifacts",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4uth_l0g_t3lls_4ll}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: артефакты Linux в журнале аутентификации\n\nДан `auth.log` сервера web01. Ночью шёл подбор паролей, затем\nпроизошёл вход. Нужно найти, с какого IP вошли успешно и что\nвыполнил атакующий, чтобы записать флаг.\n\nШаги:\n1. `grep Failed auth.log | cut -d\" \" -f12 | sort | uniq -c` — кто и откуда перебирал пароли?\n2. `grep Accepted auth.log` — найди успешный вход.\n3. `grep sudo auth.log` — команда атакующего содержит флаг.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Поле с IP в sshd-логах идёт после `from`.\n- `sort | uniq -c` — базовый способ посчитать частоты в логах.\n"
+    },
+    {
+      "path": "/home/student/task/auth.log",
+      "text": "Jan 12 03:10:00 web01 sshd[20000]: Failed password for invalid user admin from 198.51.100.23 port 40220 ssh2\nJan 12 03:11:01 web01 sshd[20001]: Failed password for invalid user admin from 198.51.100.23 port 40221 ssh2\nJan 12 03:12:02 web01 sshd[20002]: Failed password for invalid user admin from 198.51.100.23 port 40222 ssh2\nJan 12 03:13:03 web01 sshd[20003]: Failed password for invalid user admin from 198.51.100.23 port 40223 ssh2\nJan 12 03:14:04 web01 sshd[20004]: Failed password for invalid user admin from 198.51.100.23 port 40224 ssh2\nJan 12 03:15:05 web01 sshd[20005]: Failed password for invalid user admin from 198.51.100.23 port 40225 ssh2\nJan 12 03:16:06 web01 sshd[20006]: Failed password for invalid user admin from 198.51.100.23 port 40226 ssh2\nJan 12 03:17:07 web01 sshd[20007]: Failed password for invalid user admin from 198.51.100.23 port 40227 ssh2\nJan 12 03:18:08 web01 sshd[20008]: Failed password for invalid user admin from 198.51.100.23 port 40228 ssh2\nJan 12 03:19:09 web01 sshd[20009]: Failed password for invalid user admin from 198.51.100.23 port 40229 ssh2\nJan 12 03:10:00 web01 sshd[20010]: Failed password for invalid user admin from 198.51.100.23 port 402210 ssh2\nJan 12 03:11:01 web01 sshd[20011]: Failed password for invalid user admin from 198.51.100.23 port 402211 ssh2\nJan 12 03:20:11 web01 sshd[21000]: Failed password for deploy from 203.0.113.66 port 51100 ssh2\nJan 12 03:21:11 web01 sshd[21001]: Failed password for deploy from 203.0.113.66 port 51101 ssh2\nJan 12 03:22:11 web01 sshd[21002]: Failed password for deploy from 203.0.113.66 port 51102 ssh2\nJan 12 03:23:11 web01 sshd[21003]: Failed password for deploy from 203.0.113.66 port 51103 ssh2\nJan 12 03:24:11 web01 sshd[21004]: Failed password for deploy from 203.0.113.66 port 51104 ssh2\nJan 12 03:25:11 web01 sshd[21005]: Failed password for deploy from 203.0.113.66 port 51105 ssh2\nJan 12 03:26:11 web01 sshd[21006]: Failed password for deploy from 203.0.113.66 port 51106 ssh2\nJan 12 03:27:11 web01 sshd[21007]: Failed password for deploy from 203.0.113.66 port 51107 ssh2\nJan 12 03:28:11 web01 sshd[21008]: Failed password for deploy from 203.0.113.66 port 51108 ssh2\nJan 12 03:30:42 web01 sshd[2200]: Accepted password for deploy from 203.0.113.66 port 51109 ssh2\nJan 12 03:31:05 web01 sudo:   deploy : TTY=pts/0 ; PWD=/home/deploy ; USER=root ; COMMAND=/usr/bin/env nto_proof=nto{4uth_l0g_t3lls_4ll}\nJan 12 03:31:40 web01 sshd[2200]: pam_unix(sshd:session): session closed for user deploy\n"
+    }
+  ],
+  "tools": {}
+}
