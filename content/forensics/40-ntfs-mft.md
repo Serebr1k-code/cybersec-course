@@ -13,6 +13,18 @@ useful_for:
   - "Анализ образов Windows"
 estimated_minutes: 55
 summary: "Глубокий разбор NTFS: записи MFT и их атрибуты, resident/non-resident данные, $LogFile, $UsnJrnl, Alternate Data Streams, восстановление удалённых записей."
+lab:
+  kind: shell
+  title: 'Практика: разбор записи $MFT'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, mft.bin, parse_mft.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Запись начинается с сигнатуры `FILE`.'
+    - 'Смещение атрибутов — по 0x14; атрибуты идут цепочкой до `0xFFFFFFFF`.'
+    - 'У резидентного атрибута данные лежат в самой записи (content_offset/length).'
+    - '`python3 parse_mft.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

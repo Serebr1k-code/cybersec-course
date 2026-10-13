@@ -13,6 +13,18 @@ useful_for:
   - "Incident Response"
 estimated_minutes: 52
 summary: "Скриптование форензика на Python: доступ к файловым системам через pytsk3, использование API Volatility3, разбор PCAP через pyshark и построение собственных пайплайнов для нестандартных задач."
+lab:
+  kind: shell
+  title: 'Практика: карвинг встроенного ZIP из образа'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, disk.img, carve.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'ZIP начинается с сигнатуры `PK\x03\x04` (50 4b 03 04).'
+    - 'Найди смещение сигнатуры в образе.'
+    - 'Вырежи байты от сигнатуры и открой как ZIP (в памяти).'
+    - '`python3 carve.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

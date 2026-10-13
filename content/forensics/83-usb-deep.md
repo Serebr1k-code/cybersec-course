@@ -13,6 +13,18 @@ useful_for:
   - "Корпоративные расследования"
 estimated_minutes: 50
 summary: "Глубокий анализ подключений USB: USBSTOR, MountedDevices, setupapi.dev.log, Volume Serial, связь устройства с LNK/Shellbags и восстановление истории использования носителей."
+lab:
+  kind: shell
+  title: 'Практика: корреляция USB-устройства по VSN'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, usbstore.txt, mounted_devices.txt, lnk.csv, setupapi.dev.log, usb_correlate.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'LNK хранит Volume Serial Number (VSN), а не серийник устройства.'
+    - 'MountedDevices сопоставляет VSN с буквой диска.'
+    - 'USBSTOR хранит серийный номер устройства; VSN — его часть (без дефисов).'
+    - '`python3 usb_correlate.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

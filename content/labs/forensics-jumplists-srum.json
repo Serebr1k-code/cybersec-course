@@ -1,0 +1,53 @@
+{
+  "id": "forensics-jumplists-srum",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{srum_chrome.exe_524288000}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: эксфильтрация по SRUM\n\n`srum.csv` — выгрузка SRUDB.dat (сетевые операции по процессам). Найди процесс,\nотправивший больше всего байт, и сформируй флаг `nto{srum_<exe>_<bytesSent>}`.\n"
+    },
+    {
+      "path": "/home/student/task/jl.csv",
+      "text": "AppId,Entry,TargetPath\n1b4dd67f29cb1962,1,\\Downloads\\notes.txt\n1b4dd67f29cb1962,2,\\Downloads\\secret.docx\n9d1f905ce5044aee,1,\\Temp\\scratch.tmp\n"
+    },
+    {
+      "path": "/home/student/task/srum.csv",
+      "text": "ExeName,Timestamp,BytesSent,BytesReceived\nexplorer.exe,2024-03-01 22:00:00,2048,4096\nchrome.exe,2024-03-01 22:30:00,524288000,12000000\nsvchost.exe,2024-03-01 21:00:00,512,1024\nOneDrive.exe,2024-03-01 20:00:00,1048576,2048\n"
+    },
+    {
+      "path": "/home/student/task/bam.txt",
+      "text": "chrome.exe 2024-03-01 22:31:11\nsvchost.exe 2024-03-01 21:00:02\n"
+    },
+    {
+      "path": "/home/student/task/investigate.py",
+      "text": "rows = open('srum.csv').read().splitlines()\nhdr = rows[0].split(',')\nrecs = [dict(zip(hdr, r.split(','))) for r in rows[1:]]\ntop = max(recs, key=lambda r: int(r['BytesSent']))\nprint('top egress process :', top['ExeName'])\nprint('bytes sent         :', top['BytesSent'])\nprint('at                 :', top['Timestamp'])\nprint('flag: nto{srum_' + top['ExeName'] + '_' + top['BytesSent'] + '}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "investigate\\.py",
+          "example": "python3 investigate.py",
+          "output": "top egress process : chrome.exe\nbytes sent         : 524288000\nat                 : 2024-03-01 22:30:00\nflag: nto{srum_chrome.exe_524288000}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 investigate.py`\n"
+    }
+  }
+}

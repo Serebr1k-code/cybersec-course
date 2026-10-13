@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 52
 summary: "Артефакты пользовательской активности Windows: JumpLists (недавние файлы и задачи), SRUM (сетевая/процессная активность по приложениям), BAM/DAM (доступ к исполняемым файлам) — инструменты JLECmd, SrumECmd, разбор баз ESE."
+lab:
+  kind: shell
+  title: 'Практика: SRUM — кто выгрузил больше всех'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, jl.csv, srum.csv, bam.txt, investigate.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'SRUM хранит BytesSent/BytesReceived по каждому процессу.'
+    - 'Отсортируй строки по `BytesSent` по убыванию.'
+    - 'Возьми `ExeName` и `BytesSent` верхней строки.'
+    - '`python3 investigate.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

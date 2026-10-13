@@ -1,0 +1,57 @@
+{
+  "id": "forensics-usb-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4C530001120523116345}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: какое устройство вынесло файл?\n\nЕсть дамп `Enum\\USBSTOR` (`usbstore.txt`), `MountedDevices` (`mounted_devices.txt`)\nи список недавних файлов (`lnk.csv`). Свяжи Volume Serial из LNK с серийным номером\nустройства из USBSTOR и найди serial съёмного носителя с файлом `secret.docx` — это флаг.\n"
+    },
+    {
+      "path": "/home/student/task/usbstore.txt",
+      "text": "USBSTOR\nUSBSTOR\\Disk&Ven_SanDisk&Prod_Cruzer&Rev_1.00\n  S/N: 4C530001120523116345\n  First Install: 2024-02-10 09:00:00\n  Last Connected: 2024-03-01 12:00:00\nUSBSTOR\\Disk&Ven_Kingston&Prod_DataTraveler&Rev_2.00\n  S/N: 0019E06B3F1C4A2D9E77\n  First Install: 2023-11-02 14:20:11\n  Last Connected: 2023-11-02 14:55:02\n"
+    },
+    {
+      "path": "/home/student/task/mounted_devices.txt",
+      "text": "\\DosDevices\\E: -> Serial: 4C53-0001\n\\DosDevices\\F: -> Serial: 0019-E06B\n"
+    },
+    {
+      "path": "/home/student/task/lnk.csv",
+      "text": "Target,VolumeSerial,Drive\nD:\\backup\\secret.docx,4C53-0001,Removable\nD:\\docs\\report.pdf,0019-E06B,Fixed\n"
+    },
+    {
+      "path": "/home/student/task/setupapi.dev.log",
+      "text": ">>>  Section start 2024/03/01 12:00:03.123\n     #-199 Executing \"E:\\setup.exe\"\n<<<  Section end 2024/03/01 12:00:04.001\n"
+    },
+    {
+      "path": "/home/student/task/usb_correlate.py",
+      "text": "import re\n# Enum\\USBSTOR: model + serial per device\ndev = {}\ncur = None\nfor line in open('usbstore.txt'):\n    line = line.rstrip('\\n')\n    m = re.match(r'USBSTOR\\\\Disk&Ven_\\S+', line)\n    if m:\n        cur = line.strip(); dev[cur] = {}\n    elif cur and line.strip().startswith('S/N:'):\n        dev[cur]['serial'] = line.split(':', 1)[1].strip()\n# MountedDevices: volume serial -> drive letter\nvol = {}\nfor line in open('mounted_devices.txt'):\n    m = re.match(r'\\\\DosDevices\\\\([A-Z]): -> Serial: (\\S+)', line.strip())\n    if m:\n        vol[m.group(2)] = m.group(1)\n# LNK: which file lives on which volume serial\nfor row in open('lnk.csv').read().splitlines()[1:]:\n    target, vsn, drive = row.split(',')\n    if drive != 'Removable':\n        continue\n    if vsn in vol:\n        # map VSN 4C53-0001 back to the USBSTOR serial 4C530001120523116345\n        norm = vsn.replace('-', '')\n        for k, v in dev.items():\n            if v['serial'].startswith(norm):\n                print('file           :', target)\n                print('volume serial  :', vsn, '-> drive', vol[vsn])\n                print('device         :', k)\n                print('device serial  :', v['serial'])\n                print('flag: nto{' + v['serial'] + '}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "usb_correlate\\.py",
+          "example": "python3 usb_correlate.py",
+          "output": "file           : D:\\backup\\secret.docx\nvolume serial  : 4C53-0001 -> drive E\ndevice         : USBSTOR\\Disk&Ven_SanDisk&Prod_Cruzer&Rev_1.00\ndevice serial  : 4C530001120523116345\nflag: nto{4C530001120523116345}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 usb_correlate.py`\n"
+    }
+  }
+}

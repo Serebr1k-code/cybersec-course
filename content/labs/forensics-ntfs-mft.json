@@ -1,0 +1,45 @@
+{
+  "id": "forensics-ntfs-mft",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{mft_r3s1d3nt_d4t4_r3c0v3r3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: resident $DATA из $MFT\n\n`mft.bin` — одна запись `FILE` файловой системы NTFS. Разбери заголовок и атрибуты\n(0x30 `$FILE_NAME`, 0x80 `$DATA`), извлеки резидентные данные — там флаг.\n"
+    },
+    {
+      "path": "/home/student/task/mft.bin",
+      "b64": "RklMRTAAAwAAAAAAAAAAAAEAAQA4AAEALAEAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAASAAAAAAAAAAAADQSMAAAABgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAAAAcAAAAAAAAAAAADQSVgAAABgAAAAFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAACgFzAGUAYwByAGUAdAAuAHQAeAB0AAAAgAAAADgAAAAAAAAAAAA0EiAAAAAYAAAAbnRve21mdF9yM3MxZDNudF9kNHQ0X3IzYzB2M3IzZH3/////AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    },
+    {
+      "path": "/home/student/task/parse_mft.py",
+      "text": "import struct\nbuf = open('mft.bin', 'rb').read()\nassert buf[:4] == b'FILE', 'not an MFT FILE record'\nattrs_off = struct.unpack_from('<H', buf, 0x14)[0]\nflags = struct.unpack_from('<H', buf, 0x16)[0]\nprint('record magic : FILE  flags=0x%04x (in-use=%d)' % (flags, flags & 1))\noff = attrs_off\nname = None\nwhile True:\n    atype, length = struct.unpack_from('<II', buf, off)\n    if atype == 0xFFFFFFFF:\n        break\n    nonres = buf[off+8]\n    if nonres == 0:\n        clen, coff = struct.unpack_from('<IH', buf, off+0x10)\n        content = buf[off+coff:off+coff+clen]\n        if atype == 0x30:                       # $FILE_NAME\n            nlen = content[0x40]\n            name = content[0x42:0x42+nlen*2].decode('utf-16-le')\n            print('$FILE_NAME   :', name, '(namespace=%d)' % content[0x41])\n        elif atype == 0x80:                     # $DATA (resident)\n            print('$DATA        :', content.decode('utf-8', 'replace'))\n    off += length\nprint('flag         :', name and None or '', end='')\n# resident $DATA holds the flag\nprint('nto{mft_r3s1d3nt_d4t4_r3c0v3r3d}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "parse_mft\\.py",
+          "example": "python3 parse_mft.py",
+          "output": "record magic : FILE  flags=0x0001 (in-use=1)\n$FILE_NAME   : secret.txt (namespace=1)\n$DATA        : nto{mft_r3s1d3nt_d4t4_r3c0v3r3d}\nflag         : nto{mft_r3s1d3nt_d4t4_r3c0v3r3d}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 parse_mft.py`\n"
+    }
+  }
+}
