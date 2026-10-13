@@ -13,6 +13,18 @@ useful_for:
   - "Анализ современного ПО"
 estimated_minutes: 50
 summary: "Особенности компиляции Rust и Go: мономорфизация, статическая линковка, Go-символы и goroutines."
+lab:
+  kind: shell
+  title: 'Практика: строки Go и символы Rust'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, gobin.rodata, rust.syms, buildinfo.txt]
+  check: "grep -q 'nto{g0_st4t1c_4nd_sym6ols}' found.txt"
+  hints:
+    - 'Go линкует статически и оставляет богатую символьную информацию; Rust — мономорфизация и mangled-имена.'
+    - '`gobin.rodata` — реальный фрагмент `.rodata` Go-бинарника; `rust.syms` — вывод `nm` по Rust-бинарнику.'
+    - 'Go-строковые константы лежат в `.rodata` в открытом виде: `strings gobin.rodata`.'
+    - '`strings gobin.rodata | grep nto > found.txt` и `check`.'
 ---
 
 ## Задача

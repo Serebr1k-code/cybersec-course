@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty (Rust-сервисы)"
 estimated_minutes: 60
 summary: "Глубокий реверс Rust: демаглинг, мономорфизация, обработка panic, распознавание идиом std/core."
+lab:
+  kind: shell
+  title: 'Практика: демаглинг Rust-символов'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, rustbin.rodata, rust.syms]
+  check: "grep -q 'nto{rust_d3m4ngl1ng_4nd_p4n1c}' found.txt"
+  hints:
+    - 'Rust мономорфизирует generics: в бинарнике появляются специализированные копии функций.'
+    - '`rust.syms` — `nm` по Rust-бинарнику: видны mangled-имена `_ZN...E`.'
+    - 'Демаглинг (`rustfilt`) превращает их в читаемые пути вида `alloc::vec::Vec::...`.'
+    - '`strings rustbin.rodata | grep nto > found.txt` и `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

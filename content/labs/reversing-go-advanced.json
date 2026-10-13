@@ -1,0 +1,45 @@
+{
+  "id": "reversing-go-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pclnt4b_r3c0v3rs_sym6ols}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Go advanced — pclntab\n\nВ stripped-Go-бинарнике символы восстанавливают из `pclntab` (`go tool nm`).\n`gobin2.rodata` — фрагмент `.rodata`, `go.nm` — вывод `go tool nm`.\n\n1. `go tool nm gobin2` — символы (`main.main`).\n2. `xxd -l 64 gobin2.rodata` — байты.\n3. `strings gobin2.rodata` — строковая константа в base64.\n4. Декодируй и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/gobin2.rodata",
+      "b64": "IG5vIHN5bmNncm91cDM0Njk0NDY5NTE5NTM2MTQxODg4MjM4NDg5NjI3ODM4MTM0NzY1NjI1c3RyY29udjogaWxsZWdhbCBBcHBlbmRJbnQvRm9ybWF0SW50IGJhc2UKYm5SdmUzQmpiRzUwTkdKZmNqTmpNSFl6Y25OZmMzbHRObTlzYzMwPQogYnl0ZXM7IGluY29tcGF0aWJsZSB3aXRoIG11dGV4IGZsYWcgbWFzayBwZXJzaXN0ZW50YWxsb2M6IGFsaWduIGlzIG5vdCBhIHBvd2VyIG9mIDJub24tZW1wdHkgbQ==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/go.nm",
+      "text": "  57aaa0 D go:main.inittasks\n  49df60 T main.main\n  448f00 T runtime.main\n  475780 T runtime.main.func1\n  449340 T runtime.main.func2\n  4cf308 R runtime.mainPC\n  5a4c99 D runtime.mainStarted\n  584840 D runtime.main_init_done\n"
+    }
+  ],
+  "tools": {
+    "go": {
+      "help": "go tool nm <файл> | go version -m <файл>",
+      "cases": [
+        {
+          "match": "nm",
+          "output": "  57aaa0 D go:main.inittasks\n  49df60 T main.main\n  448f00 T runtime.main\n  475780 T runtime.main.func1\n  449340 T runtime.main.func2\n  4cf308 R runtime.mainPC\n  5a4c99 D runtime.mainStarted\n  584840 D runtime.main_init_done\n",
+          "example": "go tool nm gobin2"
+        },
+        {
+          "match": "version",
+          "output": "/tmp/labgen/fx/gobin: go1.26.1\n\tpath\tcommand-line-arguments\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-ldflags=\"-s -w\"\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n",
+          "example": "go version -m gobin2"
+        }
+      ]
+    }
+  }
+}

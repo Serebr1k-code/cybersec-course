@@ -1,0 +1,54 @@
+{
+  "id": "reversing-rust-go",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{g0_st4t1c_4nd_sym6ols}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Rust и Go бинарники\n\n`gobin.rodata` — фрагмент `.rodata` реального Go-бинарника, `rust.syms` — `nm`\nпо Rust-бинарнику, `buildinfo.txt` — `go version -m`.\n\n1. `go version -m gobin` — версия сборки Go (эмуляция).\n2. `nm rustbin` — mangled-имена Rust (`_ZN...`).\n3. `strings gobin.rodata` — Go-строки в открытом виде.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/gobin.rodata",
+      "b64": "bnNpc3RlbnQgcG9sbC5mZE11dGV4aGFzaCBvZiB1bmhhc2hhYmxlIHR5cGU6IEdPREVCVUc6IGNhbiBub3QgZW5hYmxlICJpbXBvc3NpYmxlIGNncm91cCB2ZXJzaW9ubnRve2cwX3N0NHQxY180bmRfc3ltNm9sc311bmtub3duIEFCSSBwYXJhbWV0ZXIga2luZDE0NTUxOTE1MjI4MzY2ODUxODA2NjQwNjI1NzI3NTk1NzYxNDE4MzQyNTkwMzMyMDMxMjVhbGwgZ29yb3V0aW5lcyBzdGE=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/rust.syms",
+      "text": "0000000000058668 d DW.ref.rust_eh_personality\n000000000000cb3c r GCC_except_table0\n000000000000cbbc r GCC_except_table0\n000000000000cbd8 r GCC_except_table10\n000000000000cbf0 r GCC_except_table10\n000000000000cdf0 r GCC_except_table100\n000000000000ce04 r GCC_except_table101\n000000000000abe0 r GCC_except_table102\n000000000000ce18 r GCC_except_table102\n000000000000c76c r GCC_except_table1025\n000000000000c7a8 r GCC_except_table1026\n000000000000ac08 r GCC_except_table103\n000000000000ce2c r GCC_except_table103\n000000000000ac30 r GCC_except_table104\n000000000000ce40 r GCC_except_table104\n000000000000ce54 r GCC_except_table105\n000000000000ac58 r GCC_except_table106\n000000000000ce68 r GCC_except_table106\n000000000000ac80 r GCC_except_table107\n000000000000ce7c r GCC_except_table107\n000000000000c7d4 r GCC_except_table1071\n000000000000c7e4 r GCC_except_table1078\n000000000000c7f4 r GCC_except_table1079\n000000000000ac98 r GCC_except_table108\n000000000000ce90 r GCC_except_table108\n000000000000c804 r GCC_except_table1082\n000000000000cea4 r GCC_except_table109\n000000000000c824 r GCC_except_table1097\n000000000000c838 r GCC_except_table1098\n000000000000acb0 r GCC_except_table110\n000000000000ceb8 r GCC_except_table110\n000000000000c858 r GCC_except_table1103\n000000000000c86c r GCC_except_table1104\n000000000000cecc r GCC_except_table111\n000000000000c88c r GCC_except_table1110\n000000000000c8b0 r GCC_except_table1113\n000000000000c8e8 r GCC_except_table1116\n000000000000cee0 r GCC_except_table112\n000000000000c90c r GCC_except_table1123\n000000000000cef4 r GCC_except_table113\n000000000000c940 r GCC_except_table1134\n000000000000c964 r GCC_except_table1135\n000000000000cf08 r GCC_except_table114\n000000000000c97c r GCC_except_table1143\n000000000000c98c r GCC_except_table1144\n000000000000c9a0 r GCC_except_table1145\n000000000000c9b0 r GCC_except_table1147\n000000000000c9c4 r GCC_except_table1148\n000000000000c9d8 r GCC_except_table1149\n000000000000cf1c r GCC_except_table115\n000000000000c9f8 r GCC_except_table1150\n000000000000ca0c r GCC_except_table1157\n000000000000cf30 r GCC_except_table116\n000000000000acc8 r GCC_except_table117\n000000000000cf44 r GCC_except_table117\n000000000000acdc r GCC_except_table118\n000000000000cf58 r GCC_except_table118\n000000000000ca20 r GCC_except_table1183\n000000000000ca34 r GCC_except_table1184\n000000000000acec r GCC_except_table119\n000000000000ca4c r GCC_except_table1190\n000000000000ca64 r GCC_except_table1191\n000000000000cc04 r GCC_except_table12\n000000000000ad00 r GCC_except_table120\n000000000000cf6c r GCC_except_table120\n000000000000ca7c r GCC_except_table1203\n000000000000ca8c r GCC_except_table1210\n000000000000ca98 r GCC_except_table1211\n000000000000caac r GCC_except_table1217\n000000000000cac8 r GCC_except_table1220\n000000000000caf0 r GCC_except_table1223\n000000000000cb24 r GCC_except_table1227\n000000000000ad1c r GCC_except_table123\n000000000000ad40 r GCC_except_table126\n000000000000ad64 r GCC_except_table128\n000000000000ad88 r GCC_except_table132\n000000000000adac r GCC_except_table151\n000000000000cc10 r GCC_except_table16\n000000000000adc0 r GCC_except_table161\n000000000000cc20 r GCC_except_table17\n000000000000add4 r GCC_except_table179\n000000000000cf80 r GCC_except_table18\n000000000000ae14 r GCC_except_table182\n000000000000ae30 r GCC_except_table183\n000000000000ae44 r GCC_except_table184\n000000000000ae54 r GCC_except_table187\n000000000000ae6c r GCC_except_table188\n000000000000ae88 r GCC_except_table189\n000000000000cf8c r GCC_except_table19\n000000000000aed8 r GCC_except_table190\n000000000000aeec r GCC_except_table195\n000000000000aef8 r GCC_except_table197\n000000000000cb5c r GCC_except_table2\n000000000000cf9c r GCC_except_table20\n000000000000af20 r GCC_except_table201\n000000000000af34 r GCC_except_table209\n000000000000a690 r GCC_except_table22\n000000000000cfac r GCC_except_table23\n000000000000af68 r GCC_except_table233\n000000000000af78 r GCC_except_table235\n000000000000af8c r GCC_except_table237\n000000000000cb7c r GCC_except_table"
+    },
+    {
+      "path": "/home/student/task/buildinfo.txt",
+      "text": "/tmp/labgen/fx/gobin: go1.26.1\n\tpath\tcommand-line-arguments\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-ldflags=\"-s -w\"\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n"
+    }
+  ],
+  "tools": {
+    "go": {
+      "help": "go version -m <файл>",
+      "cases": [
+        {
+          "match": "version",
+          "output": "/tmp/labgen/fx/gobin: go1.26.1\n\tpath\tcommand-line-arguments\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-ldflags=\"-s -w\"\n\tbuild\tCGO_ENABLED=1\n\tbuild\tCGO_CFLAGS=\n\tbuild\tCGO_CPPFLAGS=\n\tbuild\tCGO_CXXFLAGS=\n\tbuild\tCGO_LDFLAGS=\n\tbuild\tGOARCH=amd64\n\tbuild\tGOOS=linux\n\tbuild\tGOAMD64=v1\n",
+          "example": "go version -m gobin"
+        }
+      ]
+    },
+    "nm": {
+      "help": "nm <файл>",
+      "cases": [
+        {
+          "match": "rustbin",
+          "output": "0000000000058668 d DW.ref.rust_eh_personality\n000000000000cb3c r GCC_except_table0\n000000000000cbbc r GCC_except_table0\n000000000000cbd8 r GCC_except_table10\n000000000000cbf0 r GCC_except_table10\n000000000000cdf0 r GCC_except_table100\n000000000000ce04 r GCC_except_table101\n000000000000abe0 r GCC_except_table102\n000000000000ce18 r GCC_except_table102\n000000000000c76c r GCC_except_table1025\n000000000000c7a8 r GCC_except_table1026\n000000000000ac08 r GCC_except_table103\n000000000000ce2c r GCC_except_table103\n000000000000ac30 r GCC_except_table104\n000000000000ce40 r GCC_except_table104\n000000000000ce54 r GCC_except_table105\n000000000000ac58 r GCC_except_table106\n000000000000ce68 r GCC_except_table106\n000000000000ac80 r GCC_except_table107\n000000000000ce7c r GCC_except_table107\n000000000000c7d4 r GCC_except_table1071\n000000000000c7e4 r GCC_except_table1078\n000000000000c7f4 r GCC_except_table1079\n000000000000ac98 r GCC_except_table108\n000000000000ce90 r GCC_except_table108\n000000000000c804 r GCC_except_table1082\n000000000000cea4 r GCC_except_table109\n000000000000c824 r GCC_except_table1097\n000000000000c838 r GCC_except_table1098\n000000000000acb0 r GCC_except_table110\n000000000000ceb8 r GCC_except_table110\n000000000000c858 r GCC_except_table1103\n000000000000c86c r GCC_except_table1104\n000000000000cecc r GCC_except_table111\n000000000000c88c r GCC_except_table1110\n000000000000c8b0 r GCC_except_table1113\n000000000000c8e8 r GCC_except_table1116\n000000000000cee0 r GCC_except_table112\n000000000000c90c r GCC_except_table1123\n000000000000cef4 r GCC_except_table113\n000000000000c940 r GCC_except_table1134\n000000000000c964 r GCC_except_table1135\n000000000000cf08 r GCC_except_table114\n000000000000c97c r GCC_except_table1143\n000000000000c98c r GCC_except_table1144\n000000000000c9a0 r GCC_except_table1145\n000000000000c9b0 r GCC_except_table1147\n000000000000c9c4 r GCC_except_table1148\n000000000000c9d8 r GCC_except_table1149\n000000000000cf1c r GCC_except_table115\n000000000000c9f8 r GCC_except_table1150\n000000000000ca0c r GCC_except_table1157\n000000000000cf30 r GCC_except_table116\n000000000000acc8 r GCC_except_table117\n000000000000cf44 r GCC_except_table117\n000000000000acdc r GCC_except_table118\n000000000000cf58 r GCC_except_table118\n000000000000ca20 r GCC_except_table1183\n000000000000ca34 r GCC_except_table1184\n000000000000acec r GCC_except_table119\n000000000000ca4c r GCC_except_table1190\n000000000000ca64 r GCC_except_table1191\n000000000000cc04 r GCC_except_table12\n000000000000ad00 r GCC_except_table120\n000000000000cf6c r GCC_except_table120\n000000000000ca7c r GCC_except_table1203\n000000000000ca8c r GCC_except_table1210\n000000000000ca98 r GCC_except_table1211\n000000000000caac r GCC_except_table1217\n000000000000cac8 r GCC_except_table1220\n000000000000caf0 r GCC_except_table1223\n000000000000cb24 r GCC_except_table1227\n000000000000ad1c r GCC_except_table123\n000000000000ad40 r GCC_except_table126\n000000000000ad64 r GCC_except_table128\n000000000000ad88 r GCC_except_table132\n000000000000adac r GCC_except_table151\n000000000000cc10 r GCC_except_table16\n000000000000adc0 r GCC_except_table161\n000000000000cc20 r GCC_except_table17\n000000000000add4 r GCC_except_table179\n000000000000cf80 r GCC_except_table18\n000000000000ae14 r GCC_except_table182\n000000000000ae30 r GCC_except_table183\n000000000000ae44 r GCC_except_table184\n000000000000ae54 r GCC_except_table187\n000000000000ae6c r GCC_except_table188\n000000000000ae88 r GCC_except_table189\n000000000000cf8c r GCC_except_table19\n000000000000aed8 r GCC_except_table190\n000000000000aeec r GCC_except_table195\n000000000000aef8 r GCC_except_table197\n000000000000cb5c r GCC_except_table2\n000000000000cf9c r GCC_except_table20\n000000000000af20 r GCC_except_table201\n000000000000af34 r GCC_except_table209\n000000000000a690 r GCC_except_table22\n000000000000cfac r GCC_except_table23\n000000000000af68 r GCC_except_table233\n000000000000af78 r GCC_except_table235\n000000000000af8c r GCC_except_table237\n000000000000cb7c r GCC_except_table",
+          "example": "nm rustbin"
+        }
+      ]
+    }
+  }
+}

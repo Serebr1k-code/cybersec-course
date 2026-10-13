@@ -13,6 +13,18 @@ useful_for:
   - "Vuln research: отладка эксплойтов под Windows"
 estimated_minutes: 55
 summary: "Windows-отладчики x64dbg и WinDbg: интерфейс и горячие клавиши, скрипты, плагины, расширения !analyze, анализ краш-дампов, работа с PE и структурами Windows."
+lab:
+  kind: shell
+  title: 'Практика: анализ краш-дампа в WinDbg'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, target.exe]
+  check: "grep -q 'nto{w1ndbg_4n4lyz3_cr4sh_dump}' found.txt"
+  hints:
+    - '`file target.exe` — PE32+. WinDbg анализирует краш-дампы командой `!analyze -v`.'
+    - '`objdump -x target.exe` — список секций PE.'
+    - 'В образе/дампе остаётся faulting-строка. Посмотри `strings target.exe`.'
+    - '`strings target.exe | grep nto > found.txt` и `check`. Либо `windbg -z target.dmp -c "!analyze -v"`.'
 ---
 ## Вопрос, с которого всё начинается
 

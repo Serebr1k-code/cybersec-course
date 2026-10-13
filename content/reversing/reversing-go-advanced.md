@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty (Go-сервисы)"
 estimated_minutes: 60
 summary: "Глубокий реверс Go: определение версии, восстановление символов через pclntab, runtime, горутины."
+lab:
+  kind: shell
+  title: 'Практика: pclntab и восстановление символов Go'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, gobin2.rodata, go.nm]
+  check: "grep -q 'nto{pclnt4b_r3c0v3rs_sym6ols}' found.txt"
+  hints:
+    - 'Версию Go даёт `go version -m`; символы восстанавливаются из таблицы pclntab.'
+    - '`go.nm` — реальный вывод `go tool nm`: виден символ `main.main`.'
+    - 'Строковые константы Go лежат в `.rodata` в открытом виде — но здесь base64.'
+    - '`strings gobin2.rodata | grep bnRv | base64 -d > found.txt` и `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

@@ -13,6 +13,18 @@ useful_for:
   - "Аудит enterprise-приложений"
 estimated_minutes: 50
 summary: "Реверс managed-кода: как читать Java-байткод (javap) и .NET IL (monodis), и почему декомпиляция здесь почти возвращает исходники."
+lab:
+  kind: shell
+  title: 'Практика: дизассемблировать Java-байткод'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, License.java, License.class]
+  check: "grep -q 'nto{j4v4_byt3c0d3_r3v3rs3d}' found.txt"
+  hints:
+    - 'Managed-код декомпилируется почти в исходники: Java — `javap`, .NET — `monodis`.'
+    - '`javap -c -p License` дизассемблирует класс в байткод JVM.'
+    - 'Константа-флаг видна в байткоде как `// String nto{...}`.'
+    - '`javap -c -p License | grep nto > found.txt` и `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

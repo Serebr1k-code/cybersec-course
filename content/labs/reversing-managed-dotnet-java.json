@@ -1,0 +1,40 @@
+{
+  "id": "reversing-managed-dotnet-java",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{j4v4_byt3c0d3_r3v3rs3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: managed-код (Java)\n\n`License.class` — скомпилированный Java-класс, `License.java` — исходник.\n\n1. `strings License.class` — строковые константы.\n2. `javap -c -p License` — дизассемблируй байткод JVM.\n3. Найди константу-флаг (`ldc // String ...`).\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/License.java",
+      "text": "public class License {\n  public static void main(String[] a){\n    String key = \"nto{j4v4_byt3c0d3_r3v3rs3d}\";\n    System.out.println(\"licensed to: \" + key);\n  }\n}\n"
+    },
+    {
+      "path": "/home/student/task/License.class",
+      "b64": "yv66vgAAAD0AMAoAAgADBwAEDAAFAAYBABBqYXZhL2xhbmcvT2JqZWN0AQAGPGluaXQ+AQADKClWCAAIAQAbbnRve2o0djRfYnl0M2MwZDNfcjN2M3JzM2R9CQAKAAsHAAwMAA0ADgEAEGphdmEvbGFuZy9TeXN0ZW0BAANvdXQBABVMamF2YS9pby9QcmludFN0cmVhbTsSAAAAEAwAEQASAQAXbWFrZUNvbmNhdFdpdGhDb25zdGFudHMBACYoTGphdmEvbGFuZy9TdHJpbmc7KUxqYXZhL2xhbmcvU3RyaW5nOwoAFAAVBwAWDAAXABgBABNqYXZhL2lvL1ByaW50U3RyZWFtAQAHcHJpbnRsbgEAFShMamF2YS9sYW5nL1N0cmluZzspVgcAGgEAB0xpY2Vuc2UBAARDb2RlAQAPTGluZU51bWJlclRhYmxlAQAEbWFpbgEAFihbTGphdmEvbGFuZy9TdHJpbmc7KVYBAApTb3VyY2VGaWxlAQAMTGljZW5zZS5qYXZhAQAQQm9vdHN0cmFwTWV0aG9kcw8GACMKACQAJQcAJgwAEQAnAQAkamF2YS9sYW5nL2ludm9rZS9TdHJpbmdDb25jYXRGYWN0b3J5AQCYKExqYXZhL2xhbmcvaW52b2tlL01ldGhvZEhhbmRsZXMkTG9va3VwO0xqYXZhL2xhbmcvU3RyaW5nO0xqYXZhL2xhbmcvaW52b2tlL01ldGhvZFR5cGU7TGphdmEvbGFuZy9TdHJpbmc7W0xqYXZhL2xhbmcvT2JqZWN0OylMamF2YS9sYW5nL2ludm9rZS9DYWxsU2l0ZTsIACkBAA5saWNlbnNlZCB0bzogAQEADElubmVyQ2xhc3NlcwcALAEAJWphdmEvbGFuZy9pbnZva2UvTWV0aG9kSGFuZGxlcyRMb29rdXAHAC4BAB5qYXZhL2xhbmcvaW52b2tlL01ldGhvZEhhbmRsZXMBAAZMb29rdXAAIQAZAAIAAAAAAAIAAQAFAAYAAQAbAAAAHQABAAEAAAAFKrcAAbEAAAABABwAAAAGAAEAAAABAAkAHQAeAAEAGwAAADAAAgACAAAAEBIHTLIACSu6AA8AALYAE7EAAAABABwAAAAOAAMAAAADAAMABAAPAAUAAwAfAAAAAgAgACEAAAAIAAEAIgABACgAKgAAAAoAAQArAC0ALwAZ",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "javap": {
+      "help": "javap -c -p -classpath <dir> <класс>",
+      "cases": [
+        {
+          "match": "License",
+          "output": "Compiled from \"License.java\"\npublic class License {\n  public License();\n    Code:\n       0: aload_0\n       1: invokespecial #1                  // Method java/lang/Object.\"<init>\":()V\n       4: return\n\n  public static void main(java.lang.String[]);\n    Code:\n       0: ldc           #7                  // String nto{j4v4_byt3c0d3_r3v3rs3d}\n       2: astore_1\n       3: getstatic     #9                  // Field java/lang/System.out:Ljava/io/PrintStream;\n       6: aload_1\n       7: invokedynamic #15,  0             // InvokeDynamic #0:makeConcatWithConstants:(Ljava/lang/String;)Ljava/lang/String;\n      12: invokevirtual #19                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V\n      15: return\n}\n",
+          "example": "javap -c -p License"
+        }
+      ]
+    }
+  }
+}
