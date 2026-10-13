@@ -13,6 +13,18 @@ useful_for:
   - "Пентест облачных приложений"
 estimated_minutes: 38
 summary: "Атаки на serverless: SSRF к metadata/внутренним сервисам, инъекции в event-объекты, злоупотребление ролями и таймингами."
+lab:
+  kind: shell
+  title: "Практика: SSRF в serverless-функции"
+  toolset: [core, curl, aws]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Функция принимает URL — это SSRF-вход; цель — служба метаданных `169.254.169.254`."
+    - "Имя роли видно даже в ошибке: запроси `.../iam/security-credentials/`."
+    - "Забери ключи: `.../security-credentials/shop-lambda-role`."
+    - "Ключи в окружении — проверь `aws sts get-caller-identity`, затем `aws secretsmanager get-secret-value --secret-id prod/db | grep nto > found.txt` и `check`."
 ---
 
 До сих пор сервер, с которым мы работали, был обычной виртуальной машиной: у него есть диск, логи, SSH. Но всё чаще код вообще не «живёт» на машине постоянно. Ты загружаешь функцию, облако запускает её на долю секунды в ответ на событие и тут же выключает. Это **serverless** («без серверов») или **FaaS** (Function-as-a-Service). Своих серверов у тебя нет, но уязвимости остаются — и некоторые становятся даже интереснее.

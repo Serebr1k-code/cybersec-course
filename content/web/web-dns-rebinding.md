@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "TOCTOU-атака через DNS: как обойти allowlist SSRF и обратиться к внутренним/localhost сервисам."
+lab:
+  kind: shell
+  title: "Практика: DNS rebinding vs SSRF-allowlist"
+  toolset: [core, curl, dig]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Ручка резолвит хост и блокирует приватные IP — прямой `169.254.169.254` отсекается."
+    - "Наш домен `evil.example` чередует ответы: публичный IP для проверки, `127.0.0.1` для запроса."
+    - "Посмотри DNS: `dig evil.example A` — две A-записи, TTL 0."
+    - "Повторяй `curl -s 'https://shop.local/tools/fetch' -d 'url=http://evil.example/admin' | grep nto > found.txt` и набери `check`."
 ---
 
 Разработчики читали про SSRF и поставили защиту: перед запросом сервер **проверяет**, что домен из нашего URL резолвится в публичный IP, и запрещает внутренние адреса. Казалось бы, надёжно. Но есть изъян: проверка и сам запрос происходят в **разные моменты**, а DNS за это время может ответить по-разному. На этом и строится **DNS rebinding**.

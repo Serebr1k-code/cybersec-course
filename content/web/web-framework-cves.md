@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 46
 summary: "Эксплуатация N-day в популярных стеках: Spring4Shell, Struts2, Tomcat, Jenkins — от версии до RCE."
+lab:
+  kind: shell
+  title: "Практика: Spring4Shell (CVE-2022-22965)"
+  toolset: [core, curl, searchsploit, nuclei]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи стек: `JSESSIONID` — Java, а `X-Application-Context` — Spring Boot."
+    - "Зафиксируй ТОЧНУЮ версию: `curl -s https://shop.local/actuator/info`."
+    - "Spring4Shell пишет JSP через data-binding: отправь payload с `class.module.classLoader...`."
+    - "Выполни команду: `curl -s 'https://shop.local/shell.jsp?cmd=cat /flag.txt' > found.txt` — затем `check`."
 ---
 
 До этого мы искали ошибки в **коде приложения**: включаем файл, шлём XML, заставляем ходить по URL. Но иногда код безупречен, а уязвимость сидит в **самом фреймворке** — библиотеке, на которой приложение построено. Такие дыры называют **N-day** (публично известные, но ещё не закрытые на конкретном сервере). Их главная особенность: они срабатывают **независимо** от того, как написано приложение.

