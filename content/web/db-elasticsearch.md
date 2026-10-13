@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Elasticsearch: фингерпринт 9200, анонимный доступ, дамп индексов через _cat/_search, Query DSL, painless-инъекция и RCE через скрипты и Kibana CVE."
+lab:
+  kind: shell
+  title: 'Практика: Elasticsearch — открытый кластер и дамп логов'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Elasticsearch говорит по HTTP/JSON: `curl -s http://shop.local:9200/`.'
+    - 'Карта индексов: `curl -s ''http://shop.local:9200/_cat/indices?v''`.'
+    - 'Индекс `users` — учётки; индекс `logs-*` — логи приложения.'
+    - 'Логи содержат заголовки `Authorization` — ищи `Bearer nto{...}`.'
 ---
 
 ## Задача

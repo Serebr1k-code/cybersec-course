@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 50
 summary: "MongoDB от фингерпринта до RCE: анонимный доступ на 27017, операторная инъекция ($ne/$gt/$regex/$where), blind-извлечение, JS-выполнение и дамп через mongosh."
+lab:
+  kind: shell
+  title: 'Практика: MongoDB — операторная инъекция и дамп'
+  toolset: [core, curl, mongosh]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Обойди логин: отправь пароль объектом-оператором `{"$ne":"x"}`.'
+    - 'Фингерпринт Mongo — `ObjectId` в ответах `/api/items`.'
+    - 'Если порт открыт без auth — база читается клиентом: `mongosh "mongodb://shop.local:27017" --eval ''db.getMongo().getDBNames()''`.'
+    - 'Дамп: `db.users.find({},{username:1,password:1}).toArray()`.'
 ---
 
 ## Задача

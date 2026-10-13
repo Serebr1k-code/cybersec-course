@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 55
 summary: "Redis от PING до RCE: анонимный доступ на 6379, дамп ключей, webshell через CONFIG+SAVE, запись authorized_keys/cron, MODULE LOAD, master-slave replication и SSRF через gopher."
+lab:
+  kind: shell
+  title: 'Практика: Redis — анонимный дамп и webshell'
+  toolset: [core, redis-cli, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Проверь доступ: `redis-cli -u redis://shop.local:6379 PING` → `PONG`.'
+    - 'Карта: `INFO server`, `INFO keyspace`.'
+    - 'Перечисли ключи: `redis-cli -u redis://shop.local:6379 --scan`; секрет ищи в `secret:*`.'
+    - 'Прочитай значение: `redis-cli -u redis://shop.local:6379 GET secret:flag`.'
 ---
 
 ## Задача

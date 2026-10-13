@@ -1,0 +1,47 @@
+{
+  "id": "db-elasticsearch",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3l4st1c_s34rch_l34ks_l0gs}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Elasticsearch на shop.local:9200\n\n1. Корень кластера: `curl -s http://shop.local:9200/` (без auth).\n2. Индексы: `curl -s 'http://shop.local:9200/_cat/indices?v'`.\n3. Учётки: `curl -s 'http://shop.local:9200/users/_search?size=100'`.\n4. Логи: `curl -s 'http://shop.local:9200/logs-*/_search?size=200'` — там `Authorization: Bearer ...`.\n5. Флаг: `... | grep 'nto' > found.txt`, затем `check`.\nПримечание: `jq` в лабе нет — используй `grep`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция Elasticsearch shop.local:9200)",
+      "cases": [
+        {
+          "match": "_cat/indices",
+          "example": "-s 'http://shop.local:9200/_cat/indices?v'",
+          "output": "health status index              docs.count store.size\ngreen  open   users                    1240      1.2mb\ngreen  open   orders                   8103      4.5mb\ngreen  open   sessions                 2310      0.9mb\ngreen  open   logs-app-2026.10.11      9921     12.3mb\n"
+        },
+        {
+          "match": "/users/_search",
+          "example": "-s 'http://shop.local:9200/users/_search?size=100'",
+          "output": "{\"hits\":{\"total\":{\"value\":2},\"hits\":[{\"_source\":{\"username\":\"admin\",\"password\":\"$2b$10$QmFzZTY0\",\"role\":\"admin\"}},{\"_source\":{\"username\":\"root\",\"password\":\"$2b$10$dG9wU2VjcmV0\",\"role\":\"admin\"}}]}}\n"
+        },
+        {
+          "match": "logs-",
+          "example": "-s 'http://shop.local:9200/logs-*/_search?size=200'",
+          "output": "{\"hits\":{\"total\":{\"value\":3},\"hits\":[{\"_source\":{\"msg\":\"GET /admin 200\"}},{\"_source\":{\"msg\":\"authorization: Bearer nto{3l4st1c_s34rch_l34ks_l0gs}\"}},{\"_source\":{\"msg\":\"GET /login 401\"}}]}}\n"
+        },
+        {
+          "match": "9200/?$",
+          "example": "-s http://shop.local:9200/",
+          "output": "{\n  \"name\" : \"node-1\",\n  \"cluster_name\" : \"shop-cluster\",\n  \"version\" : { \"number\" : \"7.10.2\" },\n  \"tagline\" : \"You Know, for Search\"\n}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только корень, /_cat/indices, /users/_search и /logs-*/_search.\n"
+    }
+  }
+}

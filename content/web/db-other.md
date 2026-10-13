@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Практический разбор прочих хранилищ: CouchDB (admin party и RCE через _config), Cassandra (cqlsh, дефолтные креды), Memcached (без аутентификации), InfluxDB, Neo4j (Cypher-инъекция) и общий триаж открытых хранилищ."
+lab:
+  kind: shell
+  title: 'Практика: CouchDB — admin party и дамп'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'CouchDB говорит по HTTP/JSON: начни с `curl -s http://10.10.10.42:5984/`.'
+    - 'Список баз: `curl -s http://10.10.10.42:5984/_all_dbs`.'
+    - 'Дамп документов: `.../appdb/_all_docs?include_docs=true`.'
+    - 'Пароль админа — в документе `user:admin`.'
 ---
 
 ## Задача

