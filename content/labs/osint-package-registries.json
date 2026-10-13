@@ -1,0 +1,42 @@
+{
+  "id": "osint-package-registries",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{npm_r3g1stry_l34ks_1nt3rn4ls}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разведка по реестру npm\n\nОрганизация `company` публикует пакеты в npm под скоупом `@company`.\nНужно реконструировать внутреннюю структуру и найти утечку.\n\n1. Найди пакеты скоупа:\n   curl -s 'https://registry.npmjs.org/-/v1/search?text=scope:company'\n2. Посмотри метаданные пакета:\n   curl -s https://registry.npmjs.org/@company/internal-cli\n3. В описании одного пакета утёк внутренний хост и флаг.\n4. Запиши строку nto{...} в answer.txt и набери check.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <url> — HTTP-клиент (эмуляция registry.npmjs.org)",
+      "cases": [
+        {
+          "match": "internal-cli",
+          "example": "-s https://registry.npmjs.org/@company/internal-cli",
+          "output": "{\n  \"_id\": \"@company/internal-cli\",\n  \"name\": \"@company/internal-cli\",\n  \"description\": \"Internal deploy CLI. Connects to git.internal.example:8443. Do not publish. nto{npm_r3g1stry_l34ks_1nt3rn4ls}\",\n  \"dist-tags\": { \"latest\": \"2.3.1\" },\n  \"author\": { \"name\": \"Platform Team\", \"email\": \"platform@company.example\" },\n  \"repository\": { \"type\": \"git\", \"url\": \"git+ssh://git@git.internal.example:8443/platform/internal-cli.git\" },\n  \"readme\": \"# internal-cli\\n\\nUsage: internal-cli deploy --env prod\\nDefault registry: registry.internal.example:5000\\n\"\n}\n"
+        },
+        {
+          "match": "v1/search",
+          "example": "-s 'https://registry.npmjs.org/-/v1/search?text=scope:company'",
+          "output": "{\n  \"objects\": [\n    { \"package\": { \"name\": \"@company/internal-cli\", \"version\": \"2.3.1\", \"description\": \"Internal deploy CLI\" } },\n    { \"package\": { \"name\": \"@company/ui-kit\", \"version\": \"0.9.0\", \"description\": \"Shared UI components\" } },\n    { \"package\": { \"name\": \"@company/logger\", \"version\": \"1.1.4\", \"description\": \"Logging helper\" } }\n  ],\n  \"total\": 3\n}\n"
+        },
+        {
+          "match": "registry\\.npmjs\\.org/@company",
+          "example": "-s https://registry.npmjs.org/@company/ui-kit",
+          "output": "{\n  \"_id\": \"@company/ui-kit\",\n  \"name\": \"@company/ui-kit\",\n  \"description\": \"Shared UI components\",\n  \"dist-tags\": { \"latest\": \"0.9.0\" },\n  \"author\": { \"name\": \"Frontend Team\" }\n}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется registry.npmjs.org.\n"
+    }
+  }
+}

@@ -12,6 +12,18 @@ useful_for:
   - "Анализ маршрутных аномалий"
 estimated_minutes: 60
 summary: "Автономные системы, префиксы и маршруты; инструменты whois/bgp.he.net/RIPEstat, чтение AS-path, обнаружение hijack и leak, связь с разведкой."
+lab:
+  kind: shell
+  title: "Практика: от IP к ASN и апстримам"
+  toolset: [core, whois, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Атрибуция IP через Team Cymru: `whois -h whois.cymru.com ' -v 93.158.134.144'`."
+    - "Получишь ASN и BGP-префикс."
+    - "Апстримы ASN смотри в RIPEstat: `curl -s 'https://stat.ripe.net/data/as-routing-consistency/data.json?resource=AS200350'`."
+    - "Флаг — в данных об апстримах AS. Запиши nto{...} в `answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

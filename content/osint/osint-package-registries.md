@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty: утечки в пакетах"
 estimated_minutes: 45
 summary: "Разведка через реестры пакетов: поиск внутренних имён, утёкших секретов, typosquat-пакетов, владельцев и зависимостей; Docker Hub и приватные образы."
+lab:
+  kind: shell
+  title: "Практика: реестр npm раскрывает внутренности"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Найди пакеты скоупа: `curl -s 'https://registry.npmjs.org/-/v1/search?text=scope:company'`."
+    - "Метаданные пакета: `curl -s https://registry.npmjs.org/@company/internal-cli`."
+    - "Ищи в описании/README утечку внутреннего хоста и флаг."
+    - "Запиши строку nto{...} в `answer.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

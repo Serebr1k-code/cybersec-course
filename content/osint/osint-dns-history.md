@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty: subdomain takeover"
 estimated_minutes: 55
 summary: "Пассивные DNS-базы (SecurityTrails, PassiveTotal, ViewDNS), исторические A/CNAME-записи, поиск origin за CDN и признаков takeover."
+lab:
+  kind: shell
+  title: "Практика: origin-IP в исторических DNS"
+  toolset: [core, dig]
+  workdir: /home/student/task
+  files: [task.md, pdnsexport.txt]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Посмотри выгрузку пассивного DNS: `cat pdnsexport.txt`."
+    - "Настоящий сервер — запись, чей IP НЕ принадлежит Cloudflare."
+    - "Диапазоны Cloudflare: 104.16.0.0/12, 104.18.0.0/15, 172.67.0.0/16."
+    - "Рядом с историческим origin-IP оставлен флаг — запиши nto{...} в `answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

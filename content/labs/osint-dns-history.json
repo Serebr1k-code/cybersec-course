@@ -1,0 +1,36 @@
+{
+  "id": "osint-dns-history",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{0r1g1n_1p_1n_dns_h1st0ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: origin за CDN по историческим DNS\n\n`shop.example.com` закрыт Cloudflare — прямой запрос вернёт только адрес CDN.\nНо инфраструктура менялась во времени. В `pdnsexport.txt` — выгрузка\nисторических A-записей из пассивного DNS.\n\n1. Посмотри выгрузку: cat pdnsexport.txt\n2. Отдели записи Cloudflare (104.16.0.0/12, 104.18.0.0/15, 172.67.0.0/16)\n   от настоящего origin.\n3. Проверь текущий ответ: dig shop.example.com A +noall +answer\n4. Рядом с origin-записью лежит флаг nto{...}. Запиши его в answer.txt и набери check.\n"
+    },
+    {
+      "path": "/home/student/task/pdnsexport.txt",
+      "text": "# Passive DNS export - shop.example.com - A records (SecurityTrails, 2026-10-01)\n# first_seen           last_seen            ip              tags\n2021-03-14 09:12:00   2022-06-30 11:00:00   203.0.113.42    origin\n2022-07-01 00:05:00   2023-01-19 22:41:00   172.67.150.10   cloudflare\n2023-01-20 03:00:00   2024-08-11 17:30:00   104.18.32.7     cloudflare\n2024-08-12 00:00:00   2026-10-01 00:00:00   104.16.132.229  cloudflare\n# note: 203.0.113.42 was the pre-CDN server; flag nto{0r1g1n_1p_1n_dns_h1st0ry}\n"
+    }
+  ],
+  "tools": {
+    "dig": {
+      "help": "dig <имя> <тип> [+noall +answer] — DNS-клиент (эмуляция)",
+      "cases": [
+        {
+          "match": "shop\\.example\\.com",
+          "example": "shop.example.com A +noall +answer",
+          "output": "shop.example.com.\t300\tIN\tA\t104.16.132.229\nshop.example.com.\t300\tIN\tA\t104.18.32.7\n"
+        }
+      ],
+      "fallback": ";; connection timed out; no servers could be reached\n"
+    }
+  }
+}

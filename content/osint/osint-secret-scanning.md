@@ -12,6 +12,18 @@ useful_for:
   - "Пентест: доступ через секреты в коде"
 estimated_minutes: 50
 summary: "Как искать секреты в git-истории и live-коде: trufflehog, gitleaks, GitHub search и API, приоритизация находок, проверка валидности ключей."
+lab:
+  kind: shell
+  title: "Практика: gitleaks находит ключи"
+  toolset: [core, gitleaks]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Запусти сканер: `gitleaks detect --source . -v`."
+    - "gitleaks выдаёт RuleID, файл, строку и найденный секрет."
+    - "Один finding — не пароль, а флаг."
+    - "Запиши строку nto{...} в `answer.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

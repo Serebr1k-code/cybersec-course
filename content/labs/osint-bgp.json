@@ -1,0 +1,43 @@
+{
+  "id": "osint-bgp",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{4s_p4th_r3v34ls_upstr34ms}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: BGP и атрибуция IP\n\nДан IP `93.158.134.144`. Нужно получить ASN, префикс и апстримы.\n\n1. Атрибуция через Team Cymru:\n   whois -h whois.cymru.com ' -v 93.158.134.144'\n2. Узнай апстримы AS:\n   curl -s 'https://stat.ripe.net/data/as-routing-consistency/data.json?resource=AS200350'\n3. Среди данных об апстримах есть флаг.\n4. Запиши строку nto{...} в answer.txt и набери check.\n"
+    }
+  ],
+  "tools": {
+    "whois": {
+      "help": "whois [-h <сервер>] <IP> — атрибуция IP (эмуляция Team Cymru)",
+      "cases": [
+        {
+          "match": "cymru|93\\.158\\.134\\.144",
+          "example": "-h whois.cymru.com ' -v 93.158.134.144'",
+          "output": "AS      | IP               | BGP Prefix          | CC | Registry | Allocated  | AS Name\n200350  | 93.158.134.144   | 93.158.134.0/24     | RU | ripencc  | 2005-06-14 | YANDEX, RU\n"
+        }
+      ],
+      "fallback": "whois: в этой лабе эмулируется Team Cymru (whois.cymru.com).\n"
+    },
+    "curl": {
+      "help": "curl [-s] <url> — HTTP-клиент (эмуляция RIPEstat)",
+      "cases": [
+        {
+          "match": "stat\\.ripe\\.net",
+          "example": "-s 'https://stat.ripe.net/data/as-routing-consistency/data.json?resource=AS200350'",
+          "output": "{\n  \"data\": {\n    \"resource\": \"AS200350\",\n    \"prefixes\": [\"93.158.134.0/24\"],\n    \"upstreams\": [\"AS3356\", \"AS1299\", \"AS6939\"],\n    \"notes\": \"nto{4s_p4th_r3v34ls_upstr34ms}\"\n  },\n  \"status\": \"ok\",\n  \"status_code\": 200\n}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется stat.ripe.net.\n"
+    }
+  }
+}
