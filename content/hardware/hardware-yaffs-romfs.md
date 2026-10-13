@@ -13,6 +13,18 @@ useful_for:
   - "Извлечение rootfs из дампа"
 estimated_minutes: 40
 summary: "Редкие встраиваемые ФС: YAFFS/YAFFS2 для NAND, минимальная ROMFS, их сигнатуры, извлечение, монтирование и подводные камни."
+lab:
+  kind: shell
+  title: "Практика: ROMFS-образ прошивки"
+  toolset: [core, hex]
+  workdir: /home/student/romfs
+  files: [task.md, notes.md, rootfs.romfs]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "ROMFS начинается со строки `-rom1fs-`. Проверь: `xxd -l 16 rootfs.romfs`."
+    - "ROMFS не сжат — содержимое видно напрямую."
+    - "Найди флаг: `strings rootfs.romfs | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,29 @@
+{
+  "id": "hardware-ble-deep",
+  "workdir": "/home/student/bledeep",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/bledeep/found.txt",
+    "contains": "nto{bl3_g4tt_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/bledeep",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/bledeep/task.md",
+      "text": "# Задача: BLE глубоко\n\nРазбери BLE-сессию. Найди характеристику с секретом и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/bledeep/notes.md",
+      "text": "Заметки\n------\n- GATT: services/characteristics; handles 0x0001..\n- Pairing: Just Works = без аутентификации; Legacy pairing ломается.\n"
+    },
+    {
+      "path": "/home/student/bledeep/ble-log.txt",
+      "text": "ADV: AcmeSensor (AA:BB:CC:DD:EE:FF)\nconnect -> MTU 247\nservice 0x180F (battery), 0x1234 (vendor)\nchar 0x1235 READ -> \"nto{bl3_g4tt_l34k}\"\npairing: Just Works (no MITM protection)\n"
+    }
+  ],
+  "tools": {}
+}

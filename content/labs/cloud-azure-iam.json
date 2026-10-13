@@ -1,0 +1,33 @@
+{
+  "id": "cloud-azure-iam",
+  "workdir": "/home/student/aziam",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/aziam/found.txt",
+    "contains": "nto{4zur3_rb4c_0wn3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/aziam",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/aziam/task.md",
+      "text": "# Задача: Azure RBAC\n\nРазбери назначения ролей. Найди избыточные права service principal и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/aziam/notes.md",
+      "text": "Заметки\n------\n- Azure RBAC: scope (sub/RG/resource) + role definition + principal.\n- Owner/Contributor на подписку = полный контроль.\n"
+    },
+    {
+      "path": "/home/student/aziam/role-assignments.json",
+      "text": "[\n  {\"principal\": \"deploy-sp\", \"role\": \"Reader\", \"scope\": \"/subscriptions/1111\"},\n  {\"principal\": \"legacy-sp\", \"role\": \"Owner\", \"scope\": \"/subscriptions/1111\",\n   \"note\": \"created 2019, secret leaked -> nto{4zur3_rb4c_0wn3r}\"}\n]\n"
+    },
+    {
+      "path": "/home/student/aziam/sp-list.json",
+      "text": "[\n  {\"displayName\": \"deploy-sp\", \"appId\": \"9f2a...\", \"enabled\": true},\n  {\"displayName\": \"legacy-sp\", \"appId\": \"abcd...\", \"enabled\": true}\n]\n"
+    }
+  ],
+  "tools": {}
+}

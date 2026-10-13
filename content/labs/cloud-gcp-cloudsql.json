@@ -1,0 +1,37 @@
+{
+  "id": "cloud-gcp-cloudsql",
+  "workdir": "/home/student/cloudsql",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/cloudsql/found.txt",
+    "contains": "nto{cloudsql_publ1c}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/cloudsql",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/cloudsql/task.md",
+      "text": "# Задача: Cloud SQL\n\nОпиши инстанс и найди небезопасную конфигурацию и флаг.\n\nИнструмент: `gcloud` (эмуляция).\n"
+    },
+    {
+      "path": "/home/student/cloudsql/notes.md",
+      "text": "Заметки\n------\n- Публичный IP + authorizedNetworks 0.0.0.0/0 = открытый доступ.\n- IAM database auth может быть выключена.\n"
+    }
+  ],
+  "tools": {
+    "gcloud": {
+      "help": "gcloud sql instances describe <name> — Google Cloud CLI (эмуляция)",
+      "cases": [
+        {
+          "match": "sql instances describe",
+          "example": "gcloud sql instances describe acme-db",
+          "output": "name: acme-db\nregion: europe-west1\ndatabaseVersion: POSTGRES_15\nsettings:\n  ipConfiguration:\n    authorizedNetworks:\n      - value: 0.0.0.0/0\n    ipv4Enabled: true\n  note: \"public exposure, admin pw nto{cloudsql_publ1c}\"\n"
+        }
+      ],
+      "fallback": "gcloud: (эмуляция) такой вызов не захвачен. Попробуй:\n  gcloud sql instances describe acme-db\n"
+    }
+  }
+}

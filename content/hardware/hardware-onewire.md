@@ -13,6 +13,18 @@ useful_for:
   - "Аппаратная безопасность"
 estimated_minutes: 35
 summary: "Как работает 1-Wire: один провод для питания и данных, ROM-команды, датчики DS18B20, ключи iButton и практическое чтение/клонирование."
+lab:
+  kind: shell
+  title: "Практика: 1-Wire и iButton"
+  toolset: [core]
+  workdir: /home/student/onewire
+  files: [task.md, notes.md, onewire-scan.txt, ibutton-read.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`onewire-scan.txt` — список 1-Wire устройств на шине."
+    - "`ibutton-read.txt` — содержимое iButton; часть памяти может быть защищена, но секрет виден."
+    - "Найди флаг: `grep nto ibutton-read.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,37 @@
+{
+  "id": "cloud-enum-methodology",
+  "workdir": "/home/student/enum",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/enum/found.txt",
+    "contains": "nto{3num3r4t3_p3rm5}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/enum",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/enum/task.md",
+      "text": "# Задача: enumeration\n\nУ тебя есть статичные креды. Прогони перечисление и найди доступный секрет.\n\nИнструмент: `enumerate-iam` (эмуляция — вывод захвачен с реального запуска).\n"
+    },
+    {
+      "path": "/home/student/enum/notes.md",
+      "text": "Заметки\n------\n- enumerate-iam перебирает read-only API и показывает доступные.\n- cloudfox/pacu — более широкие фреймворки.\n"
+    }
+  ],
+  "tools": {
+    "enumerate-iam": {
+      "help": "enumerate-iam --access-key <ak> --secret-key <sk> — перечисление прав AWS (эмуляция)",
+      "cases": [
+        {
+          "match": "access-key",
+          "example": "enumerate-iam --access-key AKIAIOSFODNN7EXAMPLE --secret-key wJalr...",
+          "output": "[+] s3:ListBuckets\n[+] ssm:DescribeParameters\n[+] ssm:GetParameter\n[+] secretsmanager:GetSecretValue\n[+] found secret in /prod/flag -> nto{3num3r4t3_p3rm5}\n"
+        }
+      ],
+      "fallback": "enumerate-iam: (эмуляция) нужен --access-key. Пример:\n  enumerate-iam --access-key AKIAIOSFODNN7EXAMPLE --secret-key wJalr...\n"
+    }
+  }
+}

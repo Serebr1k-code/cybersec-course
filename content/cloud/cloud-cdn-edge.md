@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty: обход WAF/CDN"
 estimated_minutes: 40
 summary: "Как атаковать облачный edge: поиск origin за CDN (CloudFront/Cloudflare), обход WAF, неправильные конфигурации кэша и заголовков. Практические приёмы и защита."
+lab:
+  kind: shell
+  title: "Практика: CDN и edge (origin-экспозиция)"
+  toolset: [core, curl]
+  workdir: /home/student/cdn
+  files: [task.md, notes.md, cloudfront-config.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`cloudfront-config.json` — конфиг дистрибутива CloudFront."
+    - "Если origin доступен напрямую (S3 website / ALB), CDN не защищает."
+    - "Найди флаг: `grep nto cloudfront-config.json > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

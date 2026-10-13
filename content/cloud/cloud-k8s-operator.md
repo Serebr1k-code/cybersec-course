@@ -13,6 +13,18 @@ useful_for:
   - "Пентест платформенных кластеров"
 estimated_minutes: 50
 summary: "Как устроены операторы и CRD в Kubernetes, почему контроллеры часто имеют избыточные права и как через создание/изменение кастомного ресурса заставить оператор выполнить привилегированное действие."
+lab:
+  kind: shell
+  title: "Практика: операторы и CRD"
+  toolset: [core, kubectl]
+  workdir: /home/student/operator
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Перечисли CRD: `kubectl get crd`."
+    - "Опиши подозрительный CR: `kubectl get acmeclusters.acme.io -o yaml`."
+    - "Найди флаг: сохрани вывод и `grep nto cr.txt > found.txt`."
+
 ---
 
 ## Задача

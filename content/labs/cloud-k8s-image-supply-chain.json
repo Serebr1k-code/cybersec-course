@@ -1,0 +1,33 @@
+{
+  "id": "cloud-k8s-image-supply-chain",
+  "workdir": "/home/student/k8ssupply",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/k8ssupply/found.txt",
+    "contains": "nto{1m4g3_supply_ch41n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/k8ssupply",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/k8ssupply/task.md",
+      "text": "# Задача: supply chain образов\n\nРазбери допущенные образы и подписи. Найди подменённый образ и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/k8ssupply/notes.md",
+      "text": "Заметки\n------\n- Admission по реестру/подписи (cosign) блокирует неподписанные образы.\n- Отсутствие проверки тега/digest = подмена.\n"
+    },
+    {
+      "path": "/home/student/k8ssupply/admission-images.txt",
+      "text": "allowed: registry.acme.io/*\nallowed: ghcr.io/acme/*\ndeny: docker.io/*\n"
+    },
+    {
+      "path": "/home/student/k8ssupply/image-signatures.txt",
+      "text": "registry.acme.io/api:1.9.4  signed by acme@ci  OK\ndocker.io/library/redis:latest  NO SIGNATURE  -> admitted due to misconfig\n  injected secret: nto{1m4g3_supply_ch41n}\n"
+    }
+  ],
+  "tools": {}
+}

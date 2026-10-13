@@ -1,0 +1,29 @@
+{
+  "id": "cloud-gcp-orgpolicy",
+  "workdir": "/home/student/orgpolicy",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/orgpolicy/found.txt",
+    "contains": "nto{0rg_p0l1cy_g4p}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/orgpolicy",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/orgpolicy/task.md",
+      "text": "# Задача: GCP org policies\n\nРазбери иерархию и org policies. Найди не применённую политику и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/orgpolicy/notes.md",
+      "text": "Заметки\n------\n- Политики наследуются: org → folder → project; ниже может переопределить.\n- `compute.disableSerialPortAccess` часто не enforced.\n"
+    },
+    {
+      "path": "/home/student/orgpolicy/org-policies.json",
+      "text": "{\n  \"org/123\": {\"compute.disableSerialPortAccess\": \"enforced\"},\n  \"folder/456\": {\"iam.disableServiceAccountKeyCreation\": \"enforced\"},\n  \"project/acme-prod\": {\"compute.disableSerialPortAccess\": \"not enforced\",\n     \"note\": \"serial console open -> nto{0rg_p0l1cy_g4p}\"}\n}\n"
+    }
+  ],
+  "tools": {}
+}

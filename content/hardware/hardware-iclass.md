@@ -13,6 +13,18 @@ useful_for:
   - "Исследование корпоративных и транспортных карт"
 estimated_minutes: 55
 summary: "HF-карты HID iClass и семейство LEGIC: структура, криптография, слабости стандартных ключей, атаки и клонирование через Proxmark3, iCopy-X и эмуляцию — с разобранными примерами."
+lab:
+  kind: shell
+  title: "Практика: iClass и LEGIC"
+  toolset: [core]
+  workdir: /home/student/iclass
+  files: [task.md, notes.md, iclass-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`iclass-log.txt` — разбор HID iClass (13.56 МГц)."
+    - "Ищи ключи/данные, которые восстанавливаются через weaknesses."
+    - "Найди флаг: `grep nto iclass-log.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

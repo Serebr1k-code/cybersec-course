@@ -1,0 +1,29 @@
+{
+  "id": "hardware-secure-enclave",
+  "workdir": "/home/student/enclave",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/enclave/found.txt",
+    "contains": "nto{trustz0n3_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/enclave",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/enclave/task.md",
+      "text": "# Задача: secure enclave\n\nРазбери лог TrustZone. Найди утечку из secure world и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/enclave/notes.md",
+      "text": "Заметки\n------\n- TrustZone делит мир на Secure/Non-secure; NS не читает secure RAM.\n- Shared memory и неверные проверки NS-указателей — типичные утечки.\n"
+    },
+    {
+      "path": "/home/student/enclave/tz-log.txt",
+      "text": "SMC call: TA_INVOKE cmd=0x1 param=0x0 (shared buffer)\nsecure world wrote 32 bytes to shared buffer\nNS world reads shared buffer: ACME-SECURE nto{trustz0n3_l34k}\n"
+    }
+  ],
+  "tools": {}
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Реверс встраиваемых Linux-систем"
 estimated_minutes: 35
 summary: "Простые read-only ФС прошивок: CRAMFS, romfs, ext2/ext4 и initramfs/cpio — распознавание, распаковка и извлечение без спецсофта."
+lab:
+  kind: shell
+  title: "Практика: разбор образа CRAMFS"
+  toolset: [core, hex]
+  workdir: /home/student/cramfs
+  files: [task.md, notes.md, rootfs.cramfs]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри первые байты: `xxd -l 16 rootfs.cramfs` — сравни с сигнатурой CRAMFS из урока (0x28cd3d45)."
+    - "CRAMFS не сжат по строкам: имена файлов и содержимое видны как ASCII."
+    - "Вытащи строки и найди флаг: `strings rootfs.cramfs | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,29 @@
+{
+  "id": "hardware-bootrom",
+  "workdir": "/home/student/bootrom",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/bootrom/found.txt",
+    "contains": "nto{b00tr0m_dfu_m0d3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/bootrom",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/bootrom/task.md",
+      "text": "# Задача: bootROM\n\nУстройство вошло в bootROM download mode. В логе — вывод mask ROM. Определи режим и найди флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/bootrom/notes.md",
+      "text": "Заметки\n------\n- bootROM (mask ROM) неизменяем и печатает версию SoC.\n- Кнопка BOOT/тест-поинт переводит SoC в DFU/USB download mode.\n"
+    },
+    {
+      "path": "/home/student/bootrom/bootrom.log",
+      "text": "ROM: 1.2.3\nBoot mode: USB download (DFU)\nOTP secure boot: disabled\nDevice ID: ACME-77f3\nRecovery token: nto{b00tr0m_dfu_m0d3}\nWaiting for download...\n"
+    }
+  ],
+  "tools": {}
+}

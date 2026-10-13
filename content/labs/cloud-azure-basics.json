@@ -1,0 +1,42 @@
+{
+  "id": "cloud-azure-basics",
+  "workdir": "/home/student/azbasics",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/azbasics/found.txt",
+    "contains": "nto{4zur3_t3n4nt_3num}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/azbasics",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/azbasics/task.md",
+      "text": "# Задача: Azure basics\n\nПроведи базовую разведку тенанта и найди секрет в ресурсах.\n\nИнструмент: `az` (эмуляция — вывод захвачен с реального Azure CLI).\n"
+    },
+    {
+      "path": "/home/student/azbasics/notes.md",
+      "text": "Заметки\n------\n- Тенант → подписки → resource groups → ресурсы.\n- Теги ресурсов часто содержат служебную информацию.\n"
+    }
+  ],
+  "tools": {
+    "az": {
+      "help": "az <account|storage> list — Azure CLI (эмуляция)",
+      "cases": [
+        {
+          "match": "^account list",
+          "example": "az account list",
+          "output": "[{\"name\": \"acme-prod\", \"id\": \"11112222-3333-4444-5555-666677778888\", \"state\": \"Enabled\"}]\n"
+        },
+        {
+          "match": "storage account list",
+          "example": "az storage account list",
+          "output": "[{\"name\": \"acmeprodstore\", \"location\": \"germanywestcentral\",\n  \"tags\": {\"env\": \"prod\", \"owner\": \"platform\", \"note\": \"nto{4zur3_t3n4nt_3num}\"}}]\n"
+        }
+      ],
+      "fallback": "az: (эмуляция) такой вызов не захвачен. Попробуй:\n  az account list\n  az storage account list\n"
+    }
+  }
+}

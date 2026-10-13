@@ -1,0 +1,33 @@
+{
+  "id": "cloud-ransomware",
+  "workdir": "/home/student/ransom",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/ransom/found.txt",
+    "contains": "nto{cl0ud_r4ns0mw4r3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/ransom",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/ransom/task.md",
+      "text": "# Задача: ransomware\n\nРазбери события и записку. Найди флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/ransom/notes.md",
+      "text": "Заметки\n------\n- Облачный ransomware: удаление/шифрование объектов, подмена версий, удаление бэкапов.\n- Защита: versioning, object lock, MFA delete.\n"
+    },
+    {
+      "path": "/home/student/ransom/bucket-events.json",
+      "text": "{\"events\": [\n  {\"action\": \"DeleteObjects\", \"count\": 12000},\n  {\"action\": \"PutObject\", \"key\": \"READ_ME.txt\"},\n  {\"action\": \"DeleteBucketPolicy\"}\n]}\n"
+    },
+    {
+      "path": "/home/student/ransom/ransom-note.txt",
+      "text": "Your data is encrypted. Pay 5 BTC.\nproof: nto{cl0ud_r4ns0mw4r3}\n"
+    }
+  ],
+  "tools": {}
+}

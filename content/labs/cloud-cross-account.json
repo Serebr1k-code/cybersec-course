@@ -1,0 +1,51 @@
+{
+  "id": "cloud-cross-account",
+  "workdir": "/home/student/crossacct",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/crossacct/found.txt",
+    "contains": "nto{cr0ss_4cc0unt_ch41n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/crossacct",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/crossacct/task.md",
+      "text": "# Задача: cross-account\n\nРазбери карту доверия и пройди цепочку до аккаунта с секретом.\n\nИнструмент: `aws` (эмуляция).\n"
+    },
+    {
+      "path": "/home/student/crossacct/notes.md",
+      "text": "Заметки\n------\n- Каждый шаг — sts:AssumeRole к следующей роли.\n- Цепочки доверия позволяют обойти границы аккаунтов.\n"
+    },
+    {
+      "path": "/home/student/crossacct/trust-map.json",
+      "text": "{\n  \"111122223333\": [\"arn:aws:iam::444455556666:role/step-b\"],\n  \"444455556666\": [\"arn:aws:iam::777788889999:role/step-c\"],\n  \"777788889999\": \"target (secret holder)\"\n}\n"
+    }
+  ],
+  "tools": {
+    "aws": {
+      "help": "aws sts|ssm <...> — AWS CLI (эмуляция)",
+      "cases": [
+        {
+          "match": "assume-role.*step-b",
+          "example": "aws sts assume-role --role-arn arn:aws:iam::444455556666:role/step-b --role-session-name a",
+          "output": "{\"Credentials\": {\"AccessKeyId\": \"ASIAIOSFODNN7EXAMPLE\", \"SecretAccessKey\": \"s1\", \"SessionToken\": \"t1\"}}\n"
+        },
+        {
+          "match": "assume-role.*step-c",
+          "example": "aws sts assume-role --role-arn arn:aws:iam::777788889999:role/step-c --role-session-name b",
+          "output": "{\"Credentials\": {\"AccessKeyId\": \"ASIAIOSFODNN7EXAMPLE\", \"SecretAccessKey\": \"s2\", \"SessionToken\": \"t2\"}}\n"
+        },
+        {
+          "match": "ssm get-parameter",
+          "example": "aws ssm get-parameter --name /shared/flag",
+          "output": "{\"Parameter\": {\"Name\": \"/shared/flag\", \"Value\": \"nto{cr0ss_4cc0unt_ch41n}\"}}\n"
+        }
+      ],
+      "fallback": "aws: (эмуляция) такой вызов не захвачен. Смотри trust-map.json для ARN.\n"
+    }
+  }
+}

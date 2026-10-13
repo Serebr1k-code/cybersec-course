@@ -13,6 +13,18 @@ useful_for:
   - "Аппаратная безопасность"
 estimated_minutes: 50
 summary: "Обзор отладочных интерфейсов разных архитектур: ETM/CoreSight трассировка, BDM (Freescale), Background Debug, отладочные мониторы и как из них извлекать пользу при реверсе."
+lab:
+  kind: shell
+  title: "Практика: встроенная отладка и трассировка"
+  toolset: [core]
+  workdir: /home/student/edbg
+  files: [task.md, notes.md, etm-trace.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`etm-trace.txt` — трассировка ETM/ETB инструкций."
+    - "Ищи вызовы, связанные с проверкой лицензии/секретом."
+    - "Найди флаг: `grep nto etm-trace.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

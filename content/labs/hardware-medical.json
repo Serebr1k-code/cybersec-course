@@ -1,0 +1,29 @@
+{
+  "id": "hardware-medical",
+  "workdir": "/home/student/medical",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/medical/found.txt",
+    "contains": "nto{m3d1c4l_d3v1c3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/medical",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/medical/task.md",
+      "text": "# Задача: медицинские устройства\n\nРазбери лог медицинского устройства. Найди утёкшие данные и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/medical/notes.md",
+      "text": "Заметки\n------\n- Мед-устройства часто с устаревшим ПО и без шифрования.\n- Данные пациентов и сервисные аккаунты — критичны.\n"
+    },
+    {
+      "path": "/home/student/medical/device-log.txt",
+      "text": "MONITOR acme-patient-01 v3.4.1\nGET /api/vitals?patient=12345 -> {\"hr\":72,\"spo2\":98}\nservice user: biomed, password: Tr0ub4dor&3\nmaintenance token: nto{m3d1c4l_d3v1c3}\n"
+    }
+  ],
+  "tools": {}
+}

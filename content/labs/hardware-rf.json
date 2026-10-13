@@ -1,0 +1,29 @@
+{
+  "id": "hardware-rf",
+  "workdir": "/home/student/rf",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/rf/found.txt",
+    "contains": "nto{rf_5urv3y}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/rf",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/rf/task.md",
+      "text": "# Задача: радиоканал\n\nРазбери обзор радиоэфира. Найди целевые устройства и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/rf/notes.md",
+      "text": "Заметки\n------\n- Sub-GHz брелоки, 2.4 ГГц BLE/Wi-Fi, 13.56 МГц NFC.\n- Ключ к успеху — правильная антенна и определение модуляции.\n"
+    },
+    {
+      "path": "/home/student/rf/rf-survey.txt",
+      "text": "315MHz  OOK   -> tire pressure sensors\n433.92MHz OOK -> gate remote (fixed code)\n2402MHz  GFSK  -> BLE sensor tag\n13.56MHz ISO14443A -> access cards\noperator note: nto{rf_5urv3y}\n"
+    }
+  ],
+  "tools": {}
+}

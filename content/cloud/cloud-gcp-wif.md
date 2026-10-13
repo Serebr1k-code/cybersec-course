@@ -13,6 +13,18 @@ useful_for:
   - "Пентест мульти-облачных пайплайнов"
 estimated_minutes: 55
 summary: "Как устроена Workload Identity Federation в GCP: пулы, провайдеры, маппинг атрибутов и условия. Как слабое условие доверия позволяет внешнему IdP получить GCP-токен и имперсонировать сервисный аккаунт."
+lab:
+  kind: shell
+  title: "Практика: Workload Identity Federation (GCP)"
+  toolset: [core]
+  workdir: /home/student/wif
+  files: [task.md, notes.md, wif-provider.json, sa-token.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`wif-provider.json` — конфигурация WIF-провайдера; условие по атрибуту слишком слабое."
+    - "Внешний IdP может выпустить токен для любого subject."
+    - "Раскодируй `sa-token.txt` (base64) и найди флаг: `base64 -d sa-token.txt > t.json`, `grep nto t.json > found.txt`."
+
 ---
 
 ## Задача

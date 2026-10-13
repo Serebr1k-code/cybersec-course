@@ -13,6 +13,18 @@ useful_for:
   - "CTF Hardware (эксперт)"
 estimated_minutes: 48
 summary: "Как лазером вызвать ошибку в конкретном транзисторе, зачем декапсулировать чип и как это обходит проверку подписи."
+lab:
+  kind: shell
+  title: "Практика: лазерная инъекция ошибок"
+  toolset: [core]
+  workdir: /home/student/laser
+  files: [task.md, notes.md, laser-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`laser-log.txt` — лог лазерной инъекции в чип (LFI)."
+    - "Ищи точку, где бит подписи/проверки переключён."
+    - "Найди флаг: `grep nto laser-log.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

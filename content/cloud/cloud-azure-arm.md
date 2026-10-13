@@ -13,6 +13,18 @@ useful_for:
   - "Понимание модели прав ARM"
 estimated_minutes: 55
 summary: "Как ARM-развёртывания и Bicep становятся вектором эскалации: назначение ролей, runCommand на VM, custom script extensions, управляемые идентичности и чтение истории deployments ради секретов."
+lab:
+  kind: shell
+  title: "Практика: ARM-шаблоны и PassRole по-azure"
+  toolset: [core]
+  workdir: /home/student/arm
+  files: [task.md, notes.md, template.json, deployment-ops.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`template.json` создаёт role assignment для managed identity."
+    - "`deployment-ops.json` — операции деплоя, где может утечь секрет."
+    - "Найди флаг: `grep nto deployment-ops.json > found.txt`."
+
 ---
 
 ## Задача

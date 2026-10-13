@@ -1,0 +1,33 @@
+{
+  "id": "cloud-bicep",
+  "workdir": "/home/student/bicep",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/bicep/found.txt",
+    "contains": "nto{b1c3p_d3f4ult}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/bicep",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/bicep/task.md",
+      "text": "# Задача: Bicep\n\nРазбери Bicep и скомпилированный ARM. Найди секрет.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/bicep/notes.md",
+      "text": "Заметки\n------\n- Bicep компилируется в ARM JSON (az bicep build).\n- Дефолтные значения параметров попадают в деплой.\n"
+    },
+    {
+      "path": "/home/student/bicep/main.bicep",
+      "text": "@secure()\nparam adminPassword string = 'Tr0ub4dor&3'\nresource sa 'Microsoft.Storage/storageAccounts@2023-01-01' = {\n  name: 'acmebicep'\n}\n"
+    },
+    {
+      "path": "/home/student/bicep/compiled.json",
+      "text": "{\n  \"$schema\": \"deploymentTemplate\",\n  \"parameters\": {\"adminPassword\": {\"defaultValue\": \"nto{b1c3p_d3f4ult}\"}}\n}\n"
+    }
+  ],
+  "tools": {}
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Понимание, что оставляет следы в облаке"
 estimated_minutes: 35
 summary: "Как проводить форензику в облаке и контейнерах: порядок изоляции, сбор логов (CloudTrail/Flow Logs), снимки дисков и памяти, артефакты контейнеров. Практические команды и типичные ошибки."
+lab:
+  kind: shell
+  title: "Практика: контейнерная форензика"
+  toolset: [core]
+  workdir: /home/student/cforensics
+  files: [task.md, notes.md, incident-timeline.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`incident-timeline.txt` — хронология инцидента в контейнере."
+    - "Восстанови последовательность и найди артефакт с флагом."
+    - "Найди флаг: `grep nto incident-timeline.txt > found.txt`."
+
 ---
 ## Задача
 

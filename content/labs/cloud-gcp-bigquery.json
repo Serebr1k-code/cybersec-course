@@ -1,0 +1,42 @@
+{
+  "id": "cloud-gcp-bigquery",
+  "workdir": "/home/student/bigquery",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/bigquery/found.txt",
+    "contains": "nto{bq_publ1c_d4t4}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/bigquery",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/bigquery/task.md",
+      "text": "# Задача: BigQuery\n\nРазбери публичные датасеты и найди утечку.\n\nИнструмент: `bq` (эмуляция — вывод захвачен с реального bq CLI).\n"
+    },
+    {
+      "path": "/home/student/bigquery/notes.md",
+      "text": "Заметки\n------\n- Публичные датасеты BigQuery читаемы всем.\n- Забытые таблицы с секретами — частая утечка.\n"
+    }
+  ],
+  "tools": {
+    "bq": {
+      "help": "bq <ls|query> ... — BigQuery CLI (эмуляция)",
+      "cases": [
+        {
+          "match": "^ls",
+          "example": "bq ls --project_id acme-prod",
+          "output": "datasetId\nanalytics\nlogs\nsecret_backup\n"
+        },
+        {
+          "match": "^query",
+          "example": "bq query \"SELECT * FROM acme-prod.secret_backup.creds LIMIT 10\"",
+          "output": "user      api_key\nadmin     nto{bq_publ1c_d4t4}\n"
+        }
+      ],
+      "fallback": "bq: (эмуляция) такой вызов не захвачен. Попробуй:\n  bq ls --project_id acme-prod\n  bq query \"SELECT * FROM acme-prod.secret_backup.creds LIMIT 10\"\n"
+    }
+  }
+}

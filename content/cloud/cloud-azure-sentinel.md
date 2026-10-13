@@ -13,6 +13,18 @@ useful_for:
   - "Аудит аналитических правил"
 estimated_minutes: 45
 summary: "Microsoft Sentinel: data connectors, analytics rules, workbooks и automation. Что реально детектируется, где слепые зоны и как атакующий минимизирует след."
+lab:
+  kind: shell
+  title: "Практика: Microsoft Sentinel — правила и слепые зоны"
+  toolset: [core]
+  workdir: /home/student/sentinel
+  files: [task.md, notes.md, analytics-rules.json, signin-logs.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`analytics-rules.json` — правила детекта; `signin-logs.txt` — события входа."
+    - "Ищи активность, не покрытую правилами."
+    - "Найди флаг: `grep nto signin-logs.txt > found.txt`."
+
 ---
 ## Задача
 

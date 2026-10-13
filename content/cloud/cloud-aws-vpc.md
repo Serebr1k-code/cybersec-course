@@ -13,6 +13,18 @@ useful_for:
   - "Планирование lateral movement в VPC"
 estimated_minutes: 55
 summary: "Как читать VPC: подсети, маршруты, security groups, NACL, VPC endpoints и peering. Как находить открытые наружу сервисы и понимать, что достижимо изнутри."
+lab:
+  kind: shell
+  title: "Практика: security group, открытый в интернет"
+  toolset: [core]
+  workdir: /home/student/vpc
+  files: [task.md, notes.md, describe-security-groups.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Ищи в `describe-security-groups.json` правило с `CidrIp: 0.0.0.0/0` на чувствительный порт (22/3389)."
+    - "У найденной группы в Tags лежит секрет."
+    - "Достань флаг: `grep nto describe-security-groups.json > found.txt`."
+
 ---
 
 ## Задача

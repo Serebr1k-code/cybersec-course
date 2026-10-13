@@ -13,6 +13,18 @@ useful_for:
   - "Аудит secure element"
 estimated_minutes: 55
 summary: "Смарт-карты изнутри: APDU-команды, файловая система ISO 7816, GlobalPlatform, Java Card/JCOP, Secure Channel и практические атаки."
+lab:
+  kind: shell
+  title: "Практика: GlobalPlatform и JCOP"
+  toolset: [core]
+  workdir: /home/student/scdeep
+  files: [task.md, notes.md, gp-list.txt, apdu-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`gp-list.txt` — список пакетов/апплетов через GlobalPlatform (gp)."
+    - "Один апплет оставлен в debug-режиме; `apdu-log.txt` содержит его вывод."
+    - "Найди флаг: `grep nto apdu-log.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

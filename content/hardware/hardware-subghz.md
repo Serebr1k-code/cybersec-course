@@ -13,6 +13,18 @@ useful_for:
   - "Аппаратная безопасность"
 estimated_minutes: 45
 summary: "Как перехватывать и повторять суб-ГГц сигналы (433/868 МГц), чем отличаются фиксированные коды от rolling-кодов, и как работает атака RollJam на брелоки и шлагбаумы."
+lab:
+  kind: shell
+  title: "Практика: Sub-GHz, RollJam и rolling codes"
+  toolset: [core]
+  workdir: /home/student/subghz
+  files: [task.md, notes.md, subghz-capture.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`subghz-capture.txt` — захват Sub-GHz (315/433/868 МГц)."
+    - "Ищи два кадра с одинаковым счётчиком (RollJam) и секрет."
+    - "Найди флаг: `grep nto subghz-capture.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,33 @@
+{
+  "id": "cloud-terraform",
+  "workdir": "/home/student/tf",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/tf/found.txt",
+    "contains": "nto{tfst4t3_s3cr3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/tf",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/tf/task.md",
+      "text": "# Задача: Terraform\n\nРазбери IaC и state. Найди секрет, оставшийся в state.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/tf/notes.md",
+      "text": "Заметки\n------\n- tfstate хранит все значения, включая sensitive.\n- Remote state без шифрования = утечка.\n"
+    },
+    {
+      "path": "/home/student/tf/main.tf",
+      "text": "resource \"aws_db_instance\" \"db\" {\n  password = var.db_password\n}\nvariable \"db_password\" { sensitive = true }\n"
+    },
+    {
+      "path": "/home/student/tf/terraform.tfstate",
+      "text": "{\n  \"resources\": [{\"type\": \"aws_db_instance\", \"instances\": [{\"attributes\": {\n    \"password\": \"Tr0ub4dor&3\", \"note\": \"nto{tfst4t3_s3cr3t}\"}}]}]\n}\n"
+    }
+  ],
+  "tools": {}
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty в бессерверных API"
 estimated_minutes: 40
 summary: "Глубокий разбор инъекций в serverless: command injection в Lambda, инъекции в SQS/SNS-сообщения, event-source mapping, API Gateway и десериализация. Как источники событий становятся векторами."
+lab:
+  kind: shell
+  title: "Практика: инъекции в источники событий Lambda"
+  toolset: [core]
+  workdir: /home/student/svcinject
+  files: [task.md, notes.md, sqs-event.json, handler-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`sqs-event.json` — событие с полезной нагрузкой атакующего."
+    - "Если handler конкатенирует тело в SQL/shell — инъекция."
+    - "Найди флаг: `grep nto handler-log.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

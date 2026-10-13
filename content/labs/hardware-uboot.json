@@ -1,0 +1,29 @@
+{
+  "id": "hardware-uboot",
+  "workdir": "/home/student/uboot",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/uboot/found.txt",
+    "contains": "nto{ub00t_3nv_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/uboot",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/uboot/task.md",
+      "text": "# Задача: U-Boot environment\n\nТы остановил автозагрузку U-Boot и вывел окружение (`printenv`). Найди секрет, который команда хранит прямо в переменных загрузчика.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/uboot/notes.md",
+      "text": "Заметки\n------\n- `bootdelay=0` не даёт нажать клавишу — нужно замыкать NAND/SPI или менять env.\n- В env часто лежат ключи провижининга и пароли сервисов.\n"
+    },
+    {
+      "path": "/home/student/uboot/uboot-env.txt",
+      "text": "arch=arm\nbaudrate=115200\nboard=acme-gw\nbootcmd=run boot_nand\nbootdelay=0\nethaddr=02:00:de:ad:be:ef\nfactory_key=ACME-FACTORY-9f21c0de\nprovision_flag=nto{ub00t_3nv_l34k}\nserverip=192.168.1.10\nstdin=serial\n"
+    }
+  ],
+  "tools": {}
+}

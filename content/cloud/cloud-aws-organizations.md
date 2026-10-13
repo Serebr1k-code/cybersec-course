@@ -13,6 +13,18 @@ useful_for:
   - "Планирование lateral movement между аккаунтами"
 estimated_minutes: 35
 summary: "Как устроены AWS Organizations, Service Control Policies и мульти-аккаунт. Где проходят границы доверия, как их читать и как искать пути между аккаунтами."
+lab:
+  kind: shell
+  title: "Практика: AWS Organizations и SCP"
+  toolset: [core]
+  workdir: /home/student/orgs
+  files: [task.md, notes.md, scp-list.json, scp-policy.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`scp-list.json` — список SCP, `scp-policy.json` — содержимое одной."
+    - "Ищи SCP, который не запрещает опасное действие (дыра в границе)."
+    - "Найди флаг: `grep nto scp-policy.json > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

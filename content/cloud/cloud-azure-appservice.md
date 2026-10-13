@@ -13,6 +13,18 @@ useful_for:
   - "Использование Kudu/SCM для выполнения кода"
 estimated_minutes: 50
 summary: "Как устроены Azure App Service и Functions, чем опасен Kudu/SCM-эндпоинт, как через SSRF или Kudu получить managed identity токен и дойти до Key Vault, ARM и Graph."
+lab:
+  kind: shell
+  title: "Практика: Azure App Service, Kudu и managed identity"
+  toolset: [core, curl]
+  workdir: /home/student/appservice
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Kudu SCM endpoint раскрывает окружение: `curl -s https://acme-app.scm.azurewebsites.net/api/settings`."
+    - "Там же лежат переменные приложения (в т.ч. секреты)."
+    - "Найди флаг: сохрани вывод и `grep nto settings.json > found.txt`."
+
 ---
 
 ## Задача

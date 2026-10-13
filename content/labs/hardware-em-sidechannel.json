@@ -1,0 +1,29 @@
+{
+  "id": "hardware-em-sidechannel",
+  "workdir": "/home/student/em",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/em/found.txt",
+    "contains": "nto{3m_s1d3ch4nn3l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/em",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/em/task.md",
+      "text": "# Задача: EM side-channel\n\nРазбери отчёт по ЭМИ-анализу. Найди восстановленный секрет.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/em/notes.md",
+      "text": "Заметки\n------\n- EM-зонд рядом с чипом снимает излучение транзисторов.\n- DEMA/CPA по ЭМИ даёт ключи AES.\n"
+    },
+    {
+      "path": "/home/student/em/em-report.txt",
+      "text": "probe: H-field 500MHz\ntrace length: 2M samples\nDEMA peak at sample 10432\nrecovered AES key: 2b7e151628aed2a6abf7158809cf4f3c\nflag: nto{3m_s1d3ch4nn3l}\n"
+    }
+  ],
+  "tools": {}
+}

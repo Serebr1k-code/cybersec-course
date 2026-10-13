@@ -1,0 +1,33 @@
+{
+  "id": "cloud-gcp-iam",
+  "workdir": "/home/student/gcpiam",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/gcpiam/found.txt",
+    "contains": "nto{1mp3rs0n4t3d_s4}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/gcpiam",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/gcpiam/task.md",
+      "text": "# Задача: имперсонация SA\n\nУ тебя есть право `iam.serviceAccountTokenCreator` на чужой сервисный аккаунт. Подтверди это по политике IAM и извлеки флаг из полезной нагрузки выпущенного токена (`sa-token.txt`, base64).\n\nИнструменты: `cat`, `grep`, `base64`.\n"
+    },
+    {
+      "path": "/home/student/gcpiam/notes.md",
+      "text": "Заметки\n------\n- TokenCreator позволяет `gcloud auth print-access-token --impersonate-service-account=<SA>`.\n- Выпущенный access token — JWT; его payload легко декодируется из base64.\n"
+    },
+    {
+      "path": "/home/student/gcpiam/iam-policy.json",
+      "text": "{\n  \"bindings\": [\n    {\"role\": \"roles/iam.serviceAccountTokenCreator\",\n     \"members\": [\"user:analyst@acme.example\"]},\n    {\"role\": \"roles/iam.serviceAccountUser\",\n     \"members\": [\"user:analyst@acme.example\"]}\n  ],\n  \"resource\": \"projects/acme-prod/serviceAccounts/deploy@acme.iam.gserviceaccount.com\"\n}\n"
+    },
+    {
+      "path": "/home/student/gcpiam/sa-token.txt",
+      "text": "eyJpc3MiOiJkZXBsb3lAYWNtZS5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIsInN1YiI6ImRlcGxveUBhY21lLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwic2NvcGUiOiJodHRwczovL3d3dy5nb29nbGVhcGlzLmNvbS9hdXRoL2Nsb3VkLXBsYXRmb3JtIiwiY3VzdG9tIjp7ImZsYWciOiJudG97MW1wM3JzMG40dDNkX3M0fSJ9fQ==\n"
+    }
+  ],
+  "tools": {}
+}

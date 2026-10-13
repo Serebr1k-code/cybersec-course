@@ -1,0 +1,42 @@
+{
+  "id": "cloud-azure-appservice",
+  "workdir": "/home/student/appservice",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/appservice/found.txt",
+    "contains": "nto{4zur3_kudu_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/appservice",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/appservice/task.md",
+      "text": "# Задача: Azure App Service\n\nПриложение имеет доступный Kudu SCM endpoint. Получи настройки и найди секрет.\n\nИнструмент: `curl` (эмуляция — ответ захвачен с реального Kudu API).\n"
+    },
+    {
+      "path": "/home/student/appservice/notes.md",
+      "text": "Заметки\n------\n- Kudu: https://<app>.scm.azurewebsites.net; /api/settings, /api/env.\n- App settings содержат connection strings и ключи.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <url> — HTTP-запрос (эмуляция: ответ захвачен с Azure Kudu)",
+      "cases": [
+        {
+          "match": "scm\\.azurewebsites\\.net/api/settings",
+          "example": "curl -s https://acme-app.scm.azurewebsites.net/api/settings",
+          "output": "{\n  \"DB_CONN\": \"Server=db.acme;User=acme;Password=Tr0ub4dor&3\",\n  \"APPINSIGHTS_KEY\": \"abc\",\n  \"SIGNING_SECRET\": \"nto{4zur3_kudu_l34k}\"\n}\n"
+        },
+        {
+          "match": "scm\\.azurewebsites\\.net/api/env",
+          "example": "curl -s https://acme-app.scm.azurewebsites.net/api/env",
+          "output": "{\"WEBSITE_SITE_NAME\": \"acme-app\", \"IDENTITY_ENDPOINT\": \"http://127.0.0.1:41741/MSI/token/\"}\n"
+        }
+      ],
+      "fallback": "curl: (эмуляция) для этого URL нет захваченного ответа. Попробуй:\n  https://acme-app.scm.azurewebsites.net/api/settings\n"
+    }
+  }
+}

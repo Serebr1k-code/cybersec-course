@@ -1,0 +1,33 @@
+{
+  "id": "hardware-embedded-fuzzing",
+  "workdir": "/home/student/efuzz",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/efuzz/found.txt",
+    "contains": "nto{3mb3dd3d_fuzz_cr4sh}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/efuzz",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/efuzz/task.md",
+      "text": "# Задача: embedded fuzzing\n\nРазбери результат фаззинга прошивки. Найди крэш и утёкший секрет.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/efuzz/notes.md",
+      "text": "Заметки\n------\n- AFL++/QEMU для embedded: afl-fuzz -Q на бинарнике rootfs.\n- Крэш-входы часто раскрывают стек/секреты.\n"
+    },
+    {
+      "path": "/home/student/efuzz/afl-output.txt",
+      "text": "afl-fuzz 4.1a  target: /usr/sbin/acme_mqtt\nrun time : 0 days, 3 hrs\nexecs done : 12,400,113\ncrashes : 3 (uniq)\ncrashes/hangs: 3/0\n"
+    },
+    {
+      "path": "/home/student/efuzz/crash-report.txt",
+      "text": "Crash input (id:000002) len=1040:\n  41 41 41 41 ... (overflow)\nBacktrace: parse_packet -> strcpy -> __stack_chk_fail\nLeaked memory window: \"ACME-77f3 nto{3mb3dd3d_fuzz_cr4sh}\"\n"
+    }
+  ],
+  "tools": {}
+}

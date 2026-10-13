@@ -13,6 +13,18 @@ useful_for:
   - "Red team / защита критической инфраструктуры"
 estimated_minutes: 45
 summary: "Как устроены аппаратные закладки: вредоносные схемы на плате, подмена прошивки, контрафактные компоненты и методы обнаружения троянов в цепочке поставок."
+lab:
+  kind: shell
+  title: "Практика: аппаратный троян и supply chain"
+  toolset: [core]
+  workdir: /home/student/trojan
+  files: [task.md, notes.md, netlist-diff.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`netlist-diff.txt` — сравнение эталонной и поставленной netlist."
+    - "Ищи добавленную логику/триггер, не описанный в спецификации."
+    - "Найди флаг: `grep nto netlist-diff.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

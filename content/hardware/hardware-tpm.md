@@ -13,6 +13,18 @@ useful_for:
   - "Аудит доверенной загрузки"
 estimated_minutes: 50
 summary: "Как работает TPM 1.2/2.0: PCR, измеряемая загрузка, sealed secrets, BitLocker, attestation и практические атаки на доверенную платформу."
+lab:
+  kind: shell
+  title: "Практика: TPM — PCR и sealed secret"
+  toolset: [core]
+  workdir: /home/student/tpm
+  files: [task.md, notes.md, pcr-read.txt, nv-read.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`pcr-read.txt` — значения PCR из TPM. `nv-read.txt` — чтение NV-индекса."
+    - "Секрет запечатан на NV-индекс; при доступе он отдаётся в plaintext."
+    - "Найди флаг: `grep nto nv-read.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

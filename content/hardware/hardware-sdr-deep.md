@@ -13,6 +13,18 @@ useful_for:
   - "Реверс беспроводных протоколов"
 estimated_minutes: 50
 summary: "Глубокое погружение в SDR: IQ-сэмплы, модуляции (ASK/FSK/PSK), настройка приёмника, запись и декодирование сигналов на практике."
+lab:
+  kind: shell
+  title: "Практика: SDR глубоко (IQ-сэмплы, демодуляция)"
+  toolset: [core, sdr]
+  workdir: /home/student/sdr
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запиши IQ-сэмплы: `rtl_sdr -f 433920000 -s 1024000 capture.iq`."
+    - "Демодулируй и декодируй: `sdr decode capture.iq`."
+    - "Найди флаг: сохрани вывод и `grep nto decoded.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

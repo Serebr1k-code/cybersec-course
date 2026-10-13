@@ -1,0 +1,47 @@
+{
+  "id": "cloud-api-gateway",
+  "workdir": "/home/student/apigw",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/apigw/found.txt",
+    "contains": "nto{4p1gw_m1ss1ng_4uth}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/apigw",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/apigw/task.md",
+      "text": "# Задача: API Gateway\n\nВ OpenAPI-спецификации API есть маршрут, забывший объявить авторизацию. Найди его и вызови — он вернёт флаг.\n\nИнструменты: `cat`, `grep`, `curl` (эмуляция — ответ захвачен с реального API Gateway).\n"
+    },
+    {
+      "path": "/home/student/apigw/notes.md",
+      "text": "Заметки\n------\n- В OpenAPI `security` объявляется глобально или на уровне операции.\n- Отсутствие security = открытый маршрут (если нет authorizer по умолчанию).\n"
+    },
+    {
+      "path": "/home/student/apigw/openapi.json",
+      "text": "{\n  \"openapi\": \"3.0.1\",\n  \"paths\": {\n    \"/users\": {\"get\": {\"security\": [{\"cognito\": []}], \"responses\": {\"200\": {\"description\": \"ok\"}}}},\n    \"/admin/flag\": {\"get\": {\"responses\": {\"200\": {\"description\": \"ok\"}}}},\n    \"/orders\": {\"get\": {\"security\": [{\"cognito\": []}], \"responses\": {\"200\": {\"description\": \"ok\"}}}}\n  }\n}\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <url> — HTTP-запрос (эмуляция: ответ захвачен с реального API Gateway)",
+      "cases": [
+        {
+          "match": "/admin/flag",
+          "example": "curl -s https://api.acme.example/admin/flag",
+          "output": "{\"flag\": \"nto{4p1gw_m1ss1ng_4uth}\", \"ok\": true}\n"
+        },
+        {
+          "match": "/users",
+          "example": "curl -s https://api.acme.example/users",
+          "output": "{\"message\": \"Unauthorized\"}\n",
+          "code": 401
+        }
+      ],
+      "fallback": "curl: (эмуляция) для этого URL нет захваченного ответа. Попробуй /admin/flag.\n"
+    }
+  }
+}

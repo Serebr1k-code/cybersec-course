@@ -13,6 +13,18 @@ useful_for:
   - "Ремонт и реверс электроники"
 estimated_minutes: 45
 summary: "Когда внутрисхемное чтение невозможно: выпаивание BGA/eMMC, реболлинг, чтение чипа вне платы и возврат на место."
+lab:
+  kind: shell
+  title: "Практика: chip-off и чтение eMMC"
+  toolset: [core, hex]
+  workdir: /home/student/bga
+  files: [task.md, notes.md, emmc-dump.bin, read-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`emmc-dump.bin` — дамп eMMC, снятый после chip-off. `read-log.txt` — лог чтения."
+    - "Ищи текстовые артефакты: `strings emmc-dump.bin`."
+    - "Найди флаг: `strings emmc-dump.bin | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

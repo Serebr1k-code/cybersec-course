@@ -13,6 +13,18 @@ useful_for:
   - "Пентест внутренней инфраструктуры"
 estimated_minutes: 55
 summary: "Как атаковать Jenkins и GitLab CI: script console, Groovy RCE, credentials store, GitLab runners и pipeline injection. Пути к облачным кредам и хосту."
+lab:
+  kind: shell
+  title: "Практика: Jenkins и GitLab CI"
+  toolset: [core, curl]
+  workdir: /home/student/jenkins
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Jenkins script console доступен: `curl -s -X POST http://jenkins.acme:8080/scriptText --data-urlencode script=...`."
+    - "Groovy-консоль = RCE на мастере; прочитай секрет."
+    - "Найди флаг: сохрани вывод и `grep nto out.txt > found.txt`."
+
 ---
 ## Задача
 

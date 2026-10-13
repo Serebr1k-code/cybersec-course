@@ -13,6 +13,18 @@ useful_for:
   - "Аудит соответствия и конфигураций"
 estimated_minutes: 40
 summary: "AWS Config: configuration items, rules, conformance packs и агрегаторы. Что реально пишется, какие правила ловят атакующего и где остаются слепые зоны для OPSEC."
+lab:
+  kind: shell
+  title: "Практика: AWS Config и слепые зоны наблюдаемости"
+  toolset: [core]
+  workdir: /home/student/awsconfig
+  files: [task.md, notes.md, config-rules.json, aggregator.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`config-rules.json` — активные правила; `aggregator.json` — агрегатор."
+    - "Ищи регион/аккаунт, не покрытый агрегатором (слепая зона)."
+    - "Найди флаг: `grep nto aggregator.json > found.txt`."
+
 ---
 ## Задача
 

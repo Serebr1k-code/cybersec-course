@@ -13,6 +13,18 @@ useful_for:
   - "Пентест IoT и мобильных устройств"
 estimated_minutes: 50
 summary: "bootROM и режимы восстановления: DFU, USB download (Rockchip/Allwinner), Qualcomm EDL, fastboot — как войти и что можно сделать."
+lab:
+  kind: shell
+  title: "Практика: bootROM-лог и режим восстановления"
+  toolset: [core]
+  workdir: /home/student/bootrom
+  files: [task.md, notes.md, bootrom.log]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`bootrom.log` — вывод mask ROM по UART при входе в режим восстановления."
+    - "Найди строки про DFU/download mode и токен, напечатанный bootROM."
+    - "Флаг — в логе: `grep nto bootrom.log > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

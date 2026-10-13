@@ -13,6 +13,18 @@ useful_for:
   - "Анализ потоков DynamoDB Streams"
 estimated_minutes: 45
 summary: "DynamoDB: чтение таблиц через Scan/PartiQL, экспорт в S3, восстановление из бэкапов, DynamoDB Streams и инъекции в ключи/выражения."
+lab:
+  kind: shell
+  title: "Практика: сканирование DynamoDB и утечка секрета"
+  toolset: [core, aws]
+  workdir: /home/student/ddb
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "У роли есть `dynamodb:Scan` на таблицу `prod-secrets`. Просканируй её: `aws dynamodb scan --table-name prod-secrets`."
+    - "В результатах есть элемент с атрибутом `flag` — это флаг."
+    - "Сохрани вывод и найди флаг: `... > scan.json`, затем `grep nto scan.json > found.txt`."
+
 ---
 
 ## Задача

@@ -13,6 +13,18 @@ useful_for:
   - "Аппаратная безопасность"
 estimated_minutes: 40
 summary: "Как устроены Bluetooth Classic и BLE, как сниффить трафик, ломать устаревшее спаривание (Crackle), исследовать GATT и находить уязвимости BLE-устройств."
+lab:
+  kind: shell
+  title: "Практика: Bluetooth Classic и BLE"
+  toolset: [core]
+  workdir: /home/student/bt
+  files: [task.md, notes.md, bt-scan.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`bt-scan.txt` — сканирование Classic/BLE устройств."
+    - "Ищи устройство с утёкшим именем/данными."
+    - "Найди флаг: `grep nto bt-scan.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

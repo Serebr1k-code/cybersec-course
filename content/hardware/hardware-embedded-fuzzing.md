@@ -13,6 +13,18 @@ useful_for:
   - "Автоматический анализ бинарников IoT"
 estimated_minutes: 55
 summary: "Как перенести прошивочный бинарник на хост, настроить AFL++/QEMU, эмулировать устройство через FirmAE/Firmadyne и триажить краши."
+lab:
+  kind: shell
+  title: "Практика: фаззинг встраиваемого бинарника"
+  toolset: [core]
+  workdir: /home/student/efuzz
+  files: [task.md, notes.md, afl-output.txt, crash-report.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`afl-output.txt` — статистика фаззинга, `crash-report.txt` — разбор крэша."
+    - "Крэш-вход вызывает переполнение и раскрывает секрет в памяти."
+    - "Найди флаг: `grep nto crash-report.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

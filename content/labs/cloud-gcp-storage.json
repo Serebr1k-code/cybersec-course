@@ -1,0 +1,50 @@
+{
+  "id": "cloud-gcp-storage",
+  "workdir": "/home/student/gcs",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/gcs/found.txt",
+    "contains": "nto{gcs_publ1c_buck3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/gcs",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/gcs/task.md",
+      "text": "# Задача: публичный Cloud Storage бакет\n\nБакет `acme-backup` отдаёт роль `roles/storage.objectViewer` для `allUsers`. Найди в листинге чувствительный объект и скачай его по публичному URL.\n\nИнструменты: `cat`, `grep`, `curl` (эмуляция — ответ захвачен с реального GCS).\n"
+    },
+    {
+      "path": "/home/student/gcs/notes.md",
+      "text": "Заметки\n------\n- Публичный объект доступен как https://storage.googleapis.com/<bucket>/<object>.\n- В бэкапах часто лежат .env/.tfstate/дампы БД.\n"
+    },
+    {
+      "path": "/home/student/gcs/gsutil-ls.txt",
+      "text": "gs://acme-backup/:\n  gs://acme-backup/index.html\n  gs://acme-backup/assets/logo.png\n  gs://acme-backup/config/prod.env\n  gs://acme-backup/db/backup-2026-09-01.sql.gz\n"
+    },
+    {
+      "path": "/home/student/gcs/bucket-iam.json",
+      "text": "{\n  \"bindings\": [\n    {\"role\": \"roles/storage.objectViewer\", \"members\": [\"allUsers\"]},\n    {\"role\": \"roles/storage.objectAdmin\", \"members\": [\"serviceAccount:deploy@acme.iam.gserviceaccount.com\"]}\n  ]\n}\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <url> — HTTP-запрос (эмуляция: ответ захвачен с реального GCS)",
+      "cases": [
+        {
+          "match": "storage\\.googleapis\\.com/acme-backup/config/prod\\.env",
+          "example": "https://storage.googleapis.com/acme-backup/config/prod.env",
+          "output": "APP_ENV=production\nDB_HOST=db.acme.internal\nDB_USER=acme\nDB_PASS=Tr0ub4dor&3-prod\nJWT_SIGNING_KEY=nto{gcs_publ1c_buck3t}\n"
+        },
+        {
+          "match": "storage\\.googleapis\\.com/acme-backup/index\\.html",
+          "example": "https://storage.googleapis.com/acme-backup/index.html",
+          "output": "<html><body><h1>Acme status</h1></body></html>\n"
+        }
+      ],
+      "fallback": "curl: (эмуляция) для этого URL нет захваченного ответа. Попробуй объект из листинга:\n  https://storage.googleapis.com/acme-backup/config/prod.env\n"
+    }
+  }
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Аппаратная безопасность"
 estimated_minutes: 45
 summary: "Как работают контактные смарт-карты (ISO 7816): APDU-команды, чтение файловой системы, работа с SIM/EMV, и аппаратные атаки на защищённые карты."
+lab:
+  kind: shell
+  title: "Практика: смарт-карта и APDU"
+  toolset: [core]
+  workdir: /home/student/smartcard
+  files: [task.md, notes.md, apdu-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`apdu-log.txt` — обмен APDU с картой (ISO 7816)."
+    - "Команда SELECT выбирает файл, READ BINARY читает его содержимое."
+    - "Найди флаг в ответе READ BINARY: `grep nto apdu-log.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

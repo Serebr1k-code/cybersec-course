@@ -1,0 +1,42 @@
+{
+  "id": "cloud-gcp-basics",
+  "workdir": "/home/student/gcpbasics",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/gcpbasics/found.txt",
+    "contains": "nto{gcp_s4_3num}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/gcpbasics",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/gcpbasics/task.md",
+      "text": "# Задача: GCP basics\n\nПроведи базовую разведку проекта GCP и найди секрет.\n\nИнструмент: `gcloud` (эмуляция — вывод захвачен с реального gcloud).\n"
+    },
+    {
+      "path": "/home/student/gcpbasics/notes.md",
+      "text": "Заметки\n------\n- gcloud projects list, iam service-accounts list.\n- Описания/display-name SA часто содержат служебную информацию.\n"
+    }
+  ],
+  "tools": {
+    "gcloud": {
+      "help": "gcloud <projects|iam> list — Google Cloud CLI (эмуляция)",
+      "cases": [
+        {
+          "match": "projects list",
+          "example": "gcloud projects list",
+          "output": "PROJECT_ID   NAME        PROJECT_NUMBER\nacme-prod    acme-prod   123456789012\n"
+        },
+        {
+          "match": "service-accounts list",
+          "example": "gcloud iam service-accounts list",
+          "output": "NAME                              EMAIL\ndefault                           acme-prod@appspot.gserviceaccount.com\ndeploy                            deploy@acme-prod.iam.gserviceaccount.com\nnote: provisioning secret nto{gcp_s4_3num}\n"
+        }
+      ],
+      "fallback": "gcloud: (эмуляция) такой вызов не захвачен. Попробуй:\n  gcloud projects list\n  gcloud iam service-accounts list\n"
+    }
+  }
+}

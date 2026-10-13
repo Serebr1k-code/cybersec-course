@@ -1,0 +1,33 @@
+{
+  "id": "cloud-gcp-wif",
+  "workdir": "/home/student/wif",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/wif/found.txt",
+    "contains": "nto{w1f_4ttr1but3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/wif",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/wif/task.md",
+      "text": "# Задача: GCP WIF\n\nРазбери конфигурацию Workload Identity Federation. Найди слабое условие и флаг.\n\nИнструменты: `cat`, `grep`, `base64`.\n"
+    },
+    {
+      "path": "/home/student/wif/notes.md",
+      "text": "Заметки\n------\n- WIF позволяет внешнему IdP выпускать токены для GCP SA.\n- Слабое attribute condition = любой subject получает доступ.\n"
+    },
+    {
+      "path": "/home/student/wif/wif-provider.json",
+      "text": "{\n  \"name\": \"projects/123/locations/global/workloadIdentityPools/acme/providers/github\",\n  \"attributeMapping\": {\"google.subject\": \"assertion.sub\"},\n  \"attributeCondition\": \"assertion.repository_owner == 'acme'\"\n}\n"
+    },
+    {
+      "path": "/home/student/wif/sa-token.txt",
+      "text": "eyJzdWIiOiJyZXBvOmFjbWUvYW55dGhpbmciLCJpc3MiOiJodHRwczovL3Rva2VuLmFjdGlvbnMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwiZmxhZyI6Im50b3t3MWZfNHR0cjFidXQzfSJ9\n"
+    }
+  ],
+  "tools": {}
+}

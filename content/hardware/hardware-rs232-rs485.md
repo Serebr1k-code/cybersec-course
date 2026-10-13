@@ -13,6 +13,18 @@ useful_for:
   - "Реверс промышленных протоколов"
 estimated_minutes: 45
 summary: "Чем RS-232 и RS-485 отличаются от TTL-UART, как подключиться к промышленной линии и перехватить обмен Modbus RTU."
+lab:
+  kind: shell
+  title: "Практика: RS-485 и перехват Modbus RTU"
+  toolset: [core]
+  workdir: /home/student/rs485
+  files: [task.md, notes.md, serial-capture.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`serial-capture.txt` — дамп линии RS-485 с кадрами Modbus RTU."
+    - "Регистры Modbus читаются как 16-битные слова; часть содержит ASCII-секрет."
+    - "Найди флаг: `grep nto serial-capture.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,18 @@ useful_for:
   - "RCE на агентах сборки"
 estimated_minutes: 50
 summary: "Azure DevOps: Pipelines, variable groups, service connections, agent pools и PAT. Как из сборки получить креды к подписке Azure и всей организации."
+lab:
+  kind: shell
+  title: "Практика: Azure DevOps — pipelines и service connections"
+  toolset: [core]
+  workdir: /home/student/azdevops
+  files: [task.md, notes.md, service-connections.json, pipeline-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`service-connections.json` — подключения к Azure/репозиториям."
+    - "Service connection с ролью Owner на подписку = захват облака."
+    - "Найди флаг: `grep nto service-connections.json > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

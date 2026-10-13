@@ -1,0 +1,29 @@
+{
+  "id": "hardware-fault-injection",
+  "workdir": "/home/student/glitch",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/glitch/found.txt",
+    "contains": "nto{gl1tch_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/glitch",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/glitch/task.md",
+      "text": "# Задача: fault injection\n\nРазбери лог glitching. Найди успешную инъекцию, обошедшую проверку, и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/glitch/notes.md",
+      "text": "Заметки\n------\n- Voltage/clock glitch вызывает ошибку в критичный момент.\n- Цель — обойти сравнение или проверку подписи.\n"
+    },
+    {
+      "path": "/home/student/glitch/glitch-log.txt",
+      "text": "attempt 1  offset=1200ns width=40ns  -> reset\nattempt 2  offset=1240ns width=35ns  -> reset\nattempt 3  offset=1280ns width=30ns  -> CHECK BYPASSED, auth ok\ndevice returned: nto{gl1tch_byp4ss}\n"
+    }
+  ],
+  "tools": {}
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Lateral movement от AKS к подписке"
 estimated_minutes: 50
 summary: "AKS: managed identity кластера, kubelet identity, Azure AD Workload Identity и IMDS пода. Как из контейнера получить токен Entra ID и эскалировать в подписку."
+lab:
+  kind: shell
+  title: "Практика: AKS — managed identity пода и Azure RBAC"
+  toolset: [core, curl]
+  workdir: /home/student/aks
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Из пода возьми токен managed identity через IMDS: `curl -s -H Metadata:true \"http://169.254.169.254/metadata/identity/oauth2/token?resource=https://management.azure.com/&api-version=2018-02-01\"`."
+    - "Затем прочитай metadata инстанса — там тег с флагом."
+    - "Найди флаг: `curl ... metadata/instance > inst.json`, затем `grep nto inst.json > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

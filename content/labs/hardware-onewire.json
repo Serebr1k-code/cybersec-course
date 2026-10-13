@@ -1,0 +1,33 @@
+{
+  "id": "hardware-onewire",
+  "workdir": "/home/student/onewire",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/onewire/found.txt",
+    "contains": "nto{1w1r3_1butt0n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/onewire",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/onewire/task.md",
+      "text": "# Задача: 1-Wire / iButton\n\nНа шине 1-Wire найден iButton. Прочитай его память и найди секрет.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/onewire/notes.md",
+      "text": "Заметки\n------\n- 1-Wire: одна линия данных + GND; ROM-код уникален.\n- iButton (DS1990/DS1996) хранит данные, читаемые по протоколу.\n"
+    },
+    {
+      "path": "/home/student/onewire/onewire-scan.txt",
+      "text": "28 3C 8A 1F 00 00 00 5D  DS18B20 temperature\n01 2B 4C 6E 00 00 00 9A  DS1990 iButton\n24 5F 11 22 00 00 00 7C  DS2431 EEPROM\n"
+    },
+    {
+      "path": "/home/student/onewire/ibutton-read.txt",
+      "text": "$ owread /01.2B4C6E0000009A/main/0\n0000: 41 43 4D 45 2d 46 41 43 54 4f 52 59 00 00 00 00\n0010: 6e 74 6f 7b 31 77 31 72 33 5f 31 62 75 74 74 30 6e 7d 00 00\nascii: ACME-FACTORY....nto{1w1r3_1butt0n}\n"
+    }
+  ],
+  "tools": {}
+}

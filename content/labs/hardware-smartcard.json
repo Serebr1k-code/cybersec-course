@@ -1,0 +1,29 @@
+{
+  "id": "hardware-smartcard",
+  "workdir": "/home/student/smartcard",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/smartcard/found.txt",
+    "contains": "nto{1s07816_r34d_b1n4ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/smartcard",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/smartcard/task.md",
+      "text": "# Задача: смарт-карта\n\nРазбери лог APDU-обмена. Найди файл с секретом и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/smartcard/notes.md",
+      "text": "Заметки\n------\n- APDU: CLA INS P1 P2 Lc [data] Le; ответ = data + SW1SW2.\n- SW 9000 = успех, 6A82 = файл не найден.\n"
+    },
+    {
+      "path": "/home/student/smartcard/apdu-log.txt",
+      "text": "> 00 A4 04 00 07 A0 00 00 00 03 10 10\n< 6F 1A 84 07 ... 90 00   (SELECT applet)\n> 00 A4 00 00 02 01 02\n< 90 00   (SELECT EF 0102)\n> 00 B0 00 00 20\n< 41 43 4D 45 2d 46 41 43 54 4f 52 59 3a 6e 74 6f 7b 31 73 30 37 38 31 36 5f 72 33 34 64 5f 62 31 6e 34 72 79 7d 90 00\n  ASCII: ACME-FACTORY:nto{1s07816_r34d_b1n4ry}\n"
+    }
+  ],
+  "tools": {}
+}

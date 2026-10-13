@@ -1,0 +1,33 @@
+{
+  "id": "cloud-eks-aks-gke",
+  "workdir": "/home/student/mk8s",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/mk8s/found.txt",
+    "contains": "nto{3ks_1rs4}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/mk8s",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/mk8s/task.md",
+      "text": "# Задача: managed Kubernetes\n\nРазбери маппинг прав и метаданные пода. Найди захваченную роль и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/mk8s/notes.md",
+      "text": "Заметки\n------\n- EKS IRSA: SA ↔ IAM role через OIDC; GKE Workload Identity; AKS pod identity.\n- Широкие права роли = доступ к облачным ресурсам из пода.\n"
+    },
+    {
+      "path": "/home/student/mk8s/eks-auth.txt",
+      "text": "aws-auth ConfigMap:\n  mapRoles:\n    - rolearn: arn:aws:iam::111122223333:role/acme-admin\n      groups: [system:masters]\n"
+    },
+    {
+      "path": "/home/student/mk8s/pod-metadata.txt",
+      "text": "AWS_ROLE_ARN=arn:aws:iam::111122223333:role/acme-admin\nAWS_WEB_IDENTITY_TOKEN_FILE=/var/run/secrets/eks.amazonaws.com/serviceaccount/token\nsts:AssumeRoleWithWebIdentity -> admin creds\nflag: nto{3ks_1rs4}\n"
+    }
+  ],
+  "tools": {}
+}

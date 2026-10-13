@@ -1,0 +1,29 @@
+{
+  "id": "hardware-lora",
+  "workdir": "/home/student/lora",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/lora/found.txt",
+    "contains": "nto{l0r4w4n_k3ys}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/lora",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/lora/task.md",
+      "text": "# Задача: LoRa/LoRaWAN\n\nРазбери перехват LoRaWAN-сессии. Найди ключи и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/lora/notes.md",
+      "text": "Заметки\n------\n- LoRaWAN: Join Request/Accept, затем AppData, шифруется NwkSKey/AppSKey.\n- ABP-устройства с фиксированными ключами особенно уязвимы.\n"
+    },
+    {
+      "path": "/home/student/lora/lorawan-join.txt",
+      "text": "JoinRequest  DevEUI=70B3D57ED0001F3A  JoinEUI=70B3D57ED0000000\nJoinAccept   DevAddr=26011F3A  (accept, OTAA)\nAppData      FCnt=12  payload(enc)=0x1F3A...\nnote: provisioned keys NwkSKey=... AppSKey=... dev-secret nto{l0r4w4n_k3ys}\n"
+    }
+  ],
+  "tools": {}
+}

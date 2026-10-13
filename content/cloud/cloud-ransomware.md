@@ -13,6 +13,18 @@ useful_for:
   - "Blue team: детект и защита от удаления данных"
 estimated_minutes: 50
 summary: "Как выглядит ransomware в облаке: удаление снапшотов и бэкапов, отключение версионирования, удаление KMS-ключей, массовое шифрование/замена объектов. Что делает защита и как оценивать восстановимость."
+lab:
+  kind: shell
+  title: "Практика: облачный ransomware (S3/Blob destructive)"
+  toolset: [core]
+  workdir: /home/student/ransom
+  files: [task.md, notes.md, ransom-note.txt, bucket-events.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`bucket-events.json` — события над бакетом; `ransom-note.txt` — записка."
+    - "Ищи массовое удаление/шифрование объектов и требование выкупа."
+    - "Найди флаг: `grep nto ransom-note.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

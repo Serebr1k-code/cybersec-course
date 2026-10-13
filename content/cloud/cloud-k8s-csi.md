@@ -13,6 +13,18 @@ useful_for:
   - "Понимание storage-модели кластера"
 estimated_minutes: 50
 summary: "Как устроены CSI, PersistentVolume, StorageClass и снапшоты в Kubernetes, и как через клонирование томов, перепривязку PVC и привилегированные CSI-поды добраться до чужих данных и узла."
+lab:
+  kind: shell
+  title: "Практика: CSI и storage в Kubernetes"
+  toolset: [core, kubectl]
+  workdir: /home/student/k8scsi
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Перечисли PersistentVolumes: `kubectl get pv -o yaml`."
+    - "Найди PV с данными приложения; прочитай его содержимое через под."
+    - "Найди флаг: сохрани вывод и `grep nto pv.txt > found.txt`."
+
 ---
 
 ## Задача

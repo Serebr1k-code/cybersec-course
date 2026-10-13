@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty и CTF по serverless-приложениям"
 estimated_minutes: 45
 summary: "В serverless нет сервера — атакуем событие, код и, главное, IAM-роль функции. Разбираем event injection, переменные окружения, злоупотребление execution role и типовые мисконфиги триггеров."
+lab:
+  kind: shell
+  title: "Практика: Serverless и захват роли функции"
+  toolset: [core]
+  workdir: /home/student/serverless
+  files: [task.md, notes.md, event.json, fn-config.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`event.json` — входное событие функции; `fn-config.json` — конфигурация."
+    - "Смотри переменные окружения и роль функции."
+    - "Найди флаг: `grep nto fn-config.json > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

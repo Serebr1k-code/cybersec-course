@@ -13,6 +13,18 @@ useful_for:
   - "Пентест контейнерных хостов"
 estimated_minutes: 50
 summary: "Как обнаружить и использовать открытый Docker socket/API: 2375/2376, TCP и unix-socket, запуск привилегированного контейнера с монтированием корня, извлечение кредов и персистентность."
+lab:
+  kind: shell
+  title: "Практика: захват хоста через открытый Docker socket"
+  toolset: [core, curl]
+  workdir: /home/student/docker
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Docker API через socket: `curl -s --unix-socket /var/run/docker.sock http://localhost/containers/json`."
+    - "Найди контейнер с секретом в окружении, затем его inspect: `... /containers/<id>/json`."
+    - "Секрет (флаг) — в Config.Env. Сохрани inspect и найди: `grep nto inspect.json > found.txt`."
+
 ---
 
 ## Задача

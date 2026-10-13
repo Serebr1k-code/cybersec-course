@@ -1,0 +1,29 @@
+{
+  "id": "hardware-signal-replay",
+  "workdir": "/home/student/replay",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/replay/found.txt",
+    "contains": "nto{s1gn4l_r3pl4y}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/replay",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/replay/task.md",
+      "text": "# Задача: signal replay\n\nРазбери лог записи/повтора сигнала. Найди флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/replay/notes.md",
+      "text": "Заметки\n------\n- Фиксированные коды (без rolling) повторяются тривиально.\n- Защита: rolling codes, challenge-response.\n"
+    },
+    {
+      "path": "/home/student/replay/replay-log.txt",
+      "text": "record 433.92MHz OOK 24 bits -> 0xAB12CD\nreplay same code -> gate OPENED\ngate controller secret: nto{s1gn4l_r3pl4y}\n"
+    }
+  ],
+  "tools": {}
+}

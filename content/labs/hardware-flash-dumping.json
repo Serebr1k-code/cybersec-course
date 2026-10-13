@@ -1,0 +1,29 @@
+{
+  "id": "hardware-flash-dumping",
+  "workdir": "/home/student/flash",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/flash/found.txt",
+    "contains": "nto{n0r_fl4sh_dump3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/flash",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/flash/task.md",
+      "text": "# Задача: дамп флеш-памяти\n\nТы снял `flash.bin` с SPI-NOR программатором. Найди в дампе секрет и флаг.\n\nИнструменты: `xxd`, `strings`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/flash/notes.md",
+      "text": "Заметки\n------\n- NOR часто читается на месте (SPI), без выпайки.\n- Секреты: ключи провижининга, пароли, токены в U-Boot env и FS.\n"
+    },
+    {
+      "path": "/home/student/flash/flash.bin",
+      "b64": "WqVapVqlWqUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBQ01FLUJPT1RMT0FERVItdjMAAAAAAAAAAAAAAAAAd2lmaV9wc2s9U3VwM3JTM2NyZXRXaWZpAHByb3Zpc2lvbl90b2tlbj1udG97bjByX2ZsNHNoX2R1bXAzZH0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    }
+  ],
+  "tools": {}
+}

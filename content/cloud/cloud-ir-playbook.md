@@ -13,6 +13,18 @@ useful_for:
   - "Blue team: изоляция и восстановление"
 estimated_minutes: 55
 summary: "Пошаговый playbook облачного IR: подготовка, обнаружение, сдерживание, устранение, восстановление. Что делать с ключами, логами, снапшотами и как искать персистентность."
+lab:
+  kind: shell
+  title: "Практика: Cloud IR — расследование инцидента"
+  toolset: [core]
+  workdir: /home/student/cloudir
+  files: [task.md, notes.md, cloudtrail-events.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`cloudtrail-events.json` — события CloudTrail инцидента."
+    - "Найди ключевое событие (CreateUser/CreateAccessKey/AttachUserPolicy)."
+    - "Найди флаг: `grep nto cloudtrail-events.json > found.txt`."
+
 ---
 ## Задача
 

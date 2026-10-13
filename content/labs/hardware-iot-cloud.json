@@ -1,0 +1,29 @@
+{
+  "id": "hardware-iot-cloud",
+  "workdir": "/home/student/iotcloud",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/iotcloud/found.txt",
+    "contains": "nto{mqtt_t0p1c_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/iotcloud",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/iotcloud/task.md",
+      "text": "# Задача: IoT-облако / MQTT\n\nТы перехватил MQTT-трафик устройства. Найди топик с секретом и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/iotcloud/notes.md",
+      "text": "Заметки\n------\n- Незашифрованный MQTT (1883) виден в трафике целиком.\n- Топики вида acme/<device>/cmd часто несут токены.\n"
+    },
+    {
+      "path": "/home/student/iotcloud/mqtt-capture.txt",
+      "text": "CONNECT  client=ACME-77f3 user=acme  (clean=1)\nSUBSCRIBE  acme/ACME-77f3/cmd\nPUBLISH  acme/ACME-77f3/cmd  payload={\"action\":\"provision\",\"token\":\"nto{mqtt_t0p1c_l34k}\"}\nPUBLISH  acme/ACME-77f3/telemetry  payload={\"temp\":21.4}\n"
+    }
+  ],
+  "tools": {}
+}

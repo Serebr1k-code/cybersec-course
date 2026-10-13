@@ -13,6 +13,18 @@ useful_for:
   - "CTF Hardware/ICS"
 estimated_minutes: 55
 summary: "DNP3 изнутри: модель объектов, функции, режимы Unsolicited/Class, Secure DNP3 (SAv2/SAv5), типовые ошибки и практические команды чтения/управления outstation."
+lab:
+  kind: shell
+  title: "Практика: DNP3 — протокол энергетики"
+  toolset: [core]
+  workdir: /home/student/dnp3
+  files: [task.md, notes.md, dnp3-capture.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`dnp3-capture.txt` — перехват DNP3 (энергетика)."
+    - "DNP3 не шифрует трафик и не требует аутентификации в базовой конфигурации."
+    - "Найди флаг: `grep nto dnp3-capture.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,18 @@ useful_for:
   - "Ответственное раскрытие в здравоохранении"
 estimated_minutes: 40
 summary: "Специфика медицинских устройств: беспроводные интерфейсы (BLE/Wi-Fi/ANT+), телеметрия, уязвимости и регуляторные ограничения, безопасные методы тестирования."
+lab:
+  kind: shell
+  title: "Практика: медицинские устройства"
+  toolset: [core]
+  workdir: /home/student/medical
+  files: [task.md, notes.md, device-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`device-log.txt` — лог медицинского устройства (монитор пациента)."
+    - "Ищи незашифрованные данные и секрет обслуживания."
+    - "Найди флаг: `grep nto device-log.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,41 @@
+{
+  "id": "cloud-k8s-pod-security",
+  "workdir": "/home/student/k8spsa",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/k8spsa/found.txt",
+    "contains": "nto{rb4c_s3cr3t_r34d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/k8spsa",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/k8spsa/task.md",
+      "text": "# Задача: RBAC на секреты\n\nСервис-аккаунт пода имеет право `get secrets` в namespace `prod`. Подтверди право, найди интересный секрет и прочитай его значение (данные в base64).\n\nИнструменты: `cat`, `grep`, `cut`, `base64`.\n"
+    },
+    {
+      "path": "/home/student/k8spsa/notes.md",
+      "text": "Заметки\n------\n- `kubectl auth can-i get secrets -n prod` показывает право.\n- Значения Secret хранятся в `data` под ключами, в base64.\n"
+    },
+    {
+      "path": "/home/student/k8spsa/can-i.json",
+      "text": "{\n  \"allowed\": true,\n  \"reason\": \"RBAC: allowed by ClusterRoleBinding \\\"app-reader\\\" of ClusterRole \\\"secret-reader\\\" to ServiceAccount \\\"prod/app\\\"\"\n}\n"
+    },
+    {
+      "path": "/home/student/k8spsa/secrets-list.txt",
+      "text": "NAME        TYPE     DATA   AGE\napp-token   Opaque   1      12d\ndb-conn     Opaque   2      12d\ntls-cert    kubernetes.io/tls   2   40d\n"
+    },
+    {
+      "path": "/home/student/k8spsa/secret.yaml",
+      "text": "apiVersion: v1\nkind: Secret\nmetadata:\n  name: app-token\n  namespace: prod\ntype: Opaque\ndata:\n  token: bnRve3JiNGNfczNjcjN0X3IzNGR9\n"
+    },
+    {
+      "path": "/home/student/k8spsa/app-token.b64",
+      "text": "bnRve3JiNGNfczNjcjN0X3IzNGR9\n"
+    }
+  ],
+  "tools": {}
+}

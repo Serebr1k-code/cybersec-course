@@ -1,0 +1,33 @@
+{
+  "id": "cloud-azure-app-registrations",
+  "workdir": "/home/student/appreg",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/appreg/found.txt",
+    "contains": "nto{3ntr4_4pp_s3cr3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/appreg",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/appreg/task.md",
+      "text": "# Задача: app registration\n\nРазбери конфигурацию приложения и выданные consent. Найди секрет и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/appreg/notes.md",
+      "text": "Заметки\n------\n- App registration: client_id + client_secret; секрет даёт токен приложения.\n- Избыточные API permissions = широкий доступ к tenant.\n"
+    },
+    {
+      "path": "/home/student/appreg/app-config.json",
+      "text": "{\n  \"tenant_id\": \"11112222-3333-4444-5555-666677778888\",\n  \"client_id\": \"9f2a1b3c-4d5e-6f70-8192-a3b4c5d6e7f8\",\n  \"client_secret\": \"nto{3ntr4_4pp_s3cr3t}\"\n}\n"
+    },
+    {
+      "path": "/home/student/appreg/consent-grants.json",
+      "text": "[\n  {\"scope\": \"https://graph.microsoft.com/.default\", \"roles\": [\"Directory.ReadWrite.All\", \"Mail.Read\"]}\n]\n"
+    }
+  ],
+  "tools": {}
+}

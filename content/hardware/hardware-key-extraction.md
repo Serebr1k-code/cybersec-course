@@ -13,6 +13,18 @@ useful_for:
   - "Исследование аппаратной криптографии"
 estimated_minutes: 55
 summary: "Как извлекают криптоключи из встраиваемых устройств: логические методы, отладка, шины, side-channel, обход readout protection и атаки на secure element."
+lab:
+  kind: shell
+  title: "Практика: извлечение ключей из дампа"
+  toolset: [core, hex]
+  workdir: /home/student/keyext
+  files: [task.md, notes.md, secure.bin, extract-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`extract-log.txt` подсказывает смещение, где лежит ключевой материал."
+    - "Проверь область через `xxd -s <offset> -l 64 secure.bin`."
+    - "Найди флаг: `strings secure.bin | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

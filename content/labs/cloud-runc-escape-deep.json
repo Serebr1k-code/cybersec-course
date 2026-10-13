@@ -1,0 +1,29 @@
+{
+  "id": "cloud-runc-escape-deep",
+  "workdir": "/home/student/runc",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/runc/found.txt",
+    "contains": "nto{runc_cv3_3sc4p3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/runc",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/runc/task.md",
+      "text": "# Задача: runc escape\n\nРазбери лог побега через runc. Найди подтверждение выхода на хост и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/runc/notes.md",
+      "text": "Заметки\n------\n- CVE-2019-5736 (runc): перезапись бинаря runc через /proc/self/exe.\n- Итог — выполнение на хосте от root.\n"
+    },
+    {
+      "path": "/home/student/runc/runc-exploit.txt",
+      "text": "container: overwriting /proc/self/exe (runc) ...\nhost: runc exec triggered -> shell on host\nuid=0(root) gid=0(root)\nhost flag: nto{runc_cv3_3sc4p3}\n"
+    }
+  ],
+  "tools": {}
+}

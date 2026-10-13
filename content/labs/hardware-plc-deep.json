@@ -1,0 +1,29 @@
+{
+  "id": "hardware-plc-deep",
+  "workdir": "/home/student/plc",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/plc/found.txt",
+    "contains": "nto{plc_s7_0wn3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/plc",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/plc/task.md",
+      "text": "# Задача: ПЛК\n\nРазбери сессию с ПЛК. Найди обход защиты и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/plc/notes.md",
+      "text": "Заметки\n------\n- S7comm: Setup Communication, Read/Write Var, защита паролем.\n- Слабые/дефолтные пароли и отсутствие защиты — норма для старых ПЛК.\n"
+    },
+    {
+      "path": "/home/student/plc/plc-session.txt",
+      "text": "S7comm setup communication rack=0 slot=2 -> OK\nread protection level: 0 (no protection)\nread DB1 (project) -> ACME-LINE-1 recipe=A7\nwrite DB1 STOP\nproject secret: nto{plc_s7_0wn3d}\n"
+    }
+  ],
+  "tools": {}
+}

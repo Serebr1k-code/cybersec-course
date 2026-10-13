@@ -1,0 +1,42 @@
+{
+  "id": "cloud-cicd-jenkins",
+  "workdir": "/home/student/jenkins",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/jenkins/found.txt",
+    "contains": "nto{j3nk1ns_gr00vy}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/jenkins",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/jenkins/task.md",
+      "text": "# Задача: Jenkins/GitLab CI\n\nИспользуй script console для RCE и найди секрет.\n\nИнструмент: `curl` (эмуляция — ответ захвачен с реального Jenkins).\n"
+    },
+    {
+      "path": "/home/student/jenkins/notes.md",
+      "text": "Заметки\n------\n- Jenkins /scriptText выполняет Groovy на мастере (админ).\n- GitLab CI runner token/registration token дают выполнение на раннерах.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] [-X POST] <url> [--data ...] — HTTP-запрос (эмуляция Jenkins API)",
+      "cases": [
+        {
+          "match": "/scriptText",
+          "example": "curl -s -X POST http://jenkins.acme:8080/scriptText --data-urlencode script=println(1)",
+          "output": "Result: nto{j3nk1ns_gr00vy}\n"
+        },
+        {
+          "match": "/api/json",
+          "example": "curl -s http://jenkins.acme:8080/api/json",
+          "output": "{\"jobs\": [{\"name\": \"acme-build\"}, {\"name\": \"acme-deploy\"}]}\n"
+        }
+      ],
+      "fallback": "curl: (эмуляция) для этого URL нет захваченного ответа. Попробуй /api/json или /scriptText.\n"
+    }
+  }
+}

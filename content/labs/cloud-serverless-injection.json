@@ -1,0 +1,33 @@
+{
+  "id": "cloud-serverless-injection",
+  "workdir": "/home/student/svcinject",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/svcinject/found.txt",
+    "contains": "nto{3v3nt_1nj3ct10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/svcinject",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/svcinject/task.md",
+      "text": "# Задача: serverless injection\n\nРазбери событие и лог обработчика. Найди инъекцию и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/svcinject/notes.md",
+      "text": "Заметки\n------\n- Источники событий (SQS/SNS/S3) несут недоверенные данные.\n- Конкатенация в SQL/команду = инъекция в роли функции.\n"
+    },
+    {
+      "path": "/home/student/svcinject/sqs-event.json",
+      "text": "{\"Records\": [{\"body\": \"{\\\"user\\\": \\\"admin UNION SELECT secret FROM flags--\\\"}\"}]}\n"
+    },
+    {
+      "path": "/home/student/svcinject/handler-log.txt",
+      "text": "handler: query = \"SELECT * FROM users WHERE name='\" + body.user + \"'\"\nERROR: SQL syntax; exfil via error-based -> nto{3v3nt_1nj3ct10n}\n"
+    }
+  ],
+  "tools": {}
+}

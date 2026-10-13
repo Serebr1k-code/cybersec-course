@@ -13,6 +13,18 @@ useful_for:
   - "Исследование промышленных шин"
 estimated_minutes: 55
 summary: "Архитектура автомобиля как атакуемой системы: CAN-шина, ECU, OBD-II, UDS, телематика, keyless и иммобилайзеры, методы атак и инструменты."
+lab:
+  kind: shell
+  title: "Практика: автомобильная шина CAN + UDS"
+  toolset: [core]
+  workdir: /home/student/auto
+  files: [task.md, notes.md, candump.log, uds-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`candump.log` — трафик CAN, `uds-log.txt` — диагностика ECU."
+    - "Свяжи кадры: запросы UDS идут на 0x7DF/0x7E0, ответы — на 0x7E8."
+    - "Найди флаг в ответе ECU: `grep nto uds-log.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

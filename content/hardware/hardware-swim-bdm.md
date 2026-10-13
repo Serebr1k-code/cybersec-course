@@ -13,6 +13,18 @@ useful_for:
   - "CTF Hardware"
 estimated_minutes: 40
 summary: "Проприетарные интерфейсы отладки ST (SWIM) и NXP/Freescale (BDM): распиновка, адаптеры, работа через OpenOCD и специализированные программаторы, чтение памяти и обход защиты."
+lab:
+  kind: shell
+  title: "Практика: SWIM и BDM (NXP/ST)"
+  toolset: [core]
+  workdir: /home/student/swim
+  files: [task.md, notes.md, swim-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`swim-log.txt` — лог отладки SWIM/BDM."
+    - "Ищи чтение EEPROM/flash и секрет."
+    - "Найди флаг: `grep nto swim-log.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

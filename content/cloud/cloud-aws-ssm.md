@@ -13,6 +13,18 @@ useful_for:
   - "Пентест внутренней инфраструктуры AWS"
 estimated_minutes: 50
 summary: "Как ssm:SendCommand превращается в выполнение кода на инстансах, где лежат секреты в Parameter Store и как Session Manager даёт интерактивный доступ без SSH."
+lab:
+  kind: shell
+  title: "Практика: Parameter Store и Run Command через SSM"
+  toolset: [core, aws]
+  workdir: /home/student/ssm
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сначала посмотри, какие параметры лежат в Parameter Store: `aws ssm describe-parameters`."
+    - "Флаг — это SecureString-параметр `/prod/app/flag`; прочитай его с расшифровкой: `aws ssm get-parameter --name /prod/app/flag --with-decryption`."
+    - "Сохрани вывод и найди значение: `... > p.json`, затем `grep nto p.json > found.txt`."
+
 ---
 
 ## Задача

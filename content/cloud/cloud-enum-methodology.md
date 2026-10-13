@@ -13,6 +13,18 @@ useful_for:
   - "Пентест AWS/GCP/Azure с нуля"
 estimated_minutes: 55
 summary: "Методика облачной разведки: определить идентичность, выгрузить права, найти ресурсы и секреты, построить пути эскалации. Инструменты cloudfox, enumerate-iam, pacu, ScoutSuite, Prowler и их применение."
+lab:
+  kind: shell
+  title: "Практика: разведка облака (enumerate-iam/cloudfox)"
+  toolset: [core, enumerate-iam]
+  workdir: /home/student/enum
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прогони перечисление прав: `enumerate-iam --access-key AKIA... --secret ...`."
+    - "Инструмент покажет, какие API доступны твоим кредам."
+    - "Найди флаг: сохрани вывод и `grep nto enum.txt > found.txt`."
+
 ---
 
 ## Задача

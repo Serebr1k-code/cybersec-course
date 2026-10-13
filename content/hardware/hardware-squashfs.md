@@ -13,6 +13,18 @@ useful_for:
   - "Реверс прошивок роутеров и камер"
 estimated_minutes: 45
 summary: "Устройство SquashFS, все сжатия, точная распаковка, сборка обратно и модификация rootfs без пересборки прошивки."
+lab:
+  kind: shell
+  title: "Практика: разбор SquashFS rootfs"
+  toolset: [core, hex]
+  workdir: /home/student/squashfs
+  files: [task.md, notes.md, rootfs.sqfs]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри магию: `xxd -l 16 rootfs.sqfs` — SquashFS начинается с `hsqs`."
+    - "`strings` по образу покажет имена файлов и незашифрованные строки."
+    - "Найди флаг: `strings rootfs.sqfs | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

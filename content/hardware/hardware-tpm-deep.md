@@ -13,6 +13,18 @@ useful_for:
   - "Реверс firmware и secure element"
 estimated_minutes: 55
 summary: "Глубокое погружение в TPM 2.0: иерархии, primary keys, NV-индексы, политики, sealed objects, attestation и полный набор команд tpm2-tools."
+lab:
+  kind: shell
+  title: "Практика: TPM 2.0 — иерархии и NV-индексы"
+  toolset: [core, tpm2]
+  workdir: /home/student/tpmdeep
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Перечисли NV-индексы: `tpm2 getcap handles-nv-index`."
+    - "Прочитай подозрительный индекс: `tpm2 nvread 0x1500017`."
+    - "Сохрани вывод и найди флаг: `... > nv.txt`, затем `grep nto nv.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

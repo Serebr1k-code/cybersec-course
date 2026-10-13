@@ -1,0 +1,33 @@
+{
+  "id": "cloud-database-exposure",
+  "workdir": "/home/student/dbexposure",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/dbexposure/found.txt",
+    "contains": "nto{db_publ1c_4cc3ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/dbexposure",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/dbexposure/task.md",
+      "text": "# Задача: database exposure\n\nНайди управляемую БД, открытую в интернет, и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/dbexposure/notes.md",
+      "text": "Заметки\n------\n- PubliclyAccessible / public network access = открытая БД.\n- Слабые пароли усугубляют.\n"
+    },
+    {
+      "path": "/home/student/dbexposure/rds-instances.json",
+      "text": "{\"DBInstances\": [\n  {\"DBInstanceIdentifier\": \"acme-db\", \"PubliclyAccessible\": true, \"Engine\": \"postgres\",\n   \"Endpoint\": {\"Address\": \"acme-db.abc.eu-central-1.rds.amazonaws.com\"},\n   \"note\": \"master pw leaked -> nto{db_publ1c_4cc3ss}\"}\n]}\n"
+    },
+    {
+      "path": "/home/student/dbexposure/cosmos-config.json",
+      "text": "{\"name\": \"acme-cosmos\", \"publicNetworkAccess\": \"Disabled\", \"ipRules\": []}\n"
+    }
+  ],
+  "tools": {}
+}

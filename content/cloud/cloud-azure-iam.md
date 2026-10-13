@@ -13,6 +13,18 @@ useful_for:
   - "Атаки на гибридные AD + Entra ID среды"
 estimated_minutes: 40
 summary: "Как читать и злоупотреблять правами в Entra ID и Azure RBAC: роли, app permissions, административные unit'ы, гибридные связи с on-prem AD и типовые пути эскалации."
+lab:
+  kind: shell
+  title: "Практика: Entra ID и Azure RBAC"
+  toolset: [core]
+  workdir: /home/student/aziam
+  files: [task.md, notes.md, role-assignments.json, sp-list.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`role-assignments.json` — назначения ролей; `sp-list.json` — service principals."
+    - "Ищи service principal с ролью Owner на подписку."
+    - "Найди флаг: `grep nto role-assignments.json > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

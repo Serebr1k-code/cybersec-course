@@ -1,0 +1,29 @@
+{
+  "id": "hardware-rubber-ducky",
+  "workdir": "/home/student/ducky",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/ducky/found.txt",
+    "contains": "nto{ducky_p4yl04d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/ducky",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/ducky/task.md",
+      "text": "# Задача: Rubber Ducky\n\nРазбери DuckyScript payload. Найди, какой секрет он оставляет на хосте.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/ducky/notes.md",
+      "text": "Заметки\n------\n- DuckyScript: DELAY, STRING, ENTER, GUI r и т.д.\n- Payload эмулирует клавиатуру и может выполнить команды за секунды.\n"
+    },
+    {
+      "path": "/home/student/ducky/payload.txt",
+      "text": "DELAY 1000\nGUI r\nDELAY 500\nSTRING powershell -w hidden\nENTER\nDELAY 800\nSTRING echo nto{ducky_p4yl04d} > $env:TEMP\\flag.txt\nENTER\nSTRING exit\nENTER\n"
+    }
+  ],
+  "tools": {}
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Анализ утечек через печать"
 estimated_minutes: 40
 summary: "Сетевые принтеры как точка входа: языки PJL/PostScript, извлечение документов из памяти, микроточки MIC/yellow dots как стеганография, обход и защита."
+lab:
+  kind: shell
+  title: "Практика: PJL и микроточки принтера"
+  toolset: [core, nc]
+  workdir: /home/student/printer
+  files: [task.md, notes.md, pjl-session.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`pjl-session.txt` — сессия PJL к принтеру (порт 9100/515)."
+    - "PJL позволяет читать/писать файлы (`FSUPLOAD`/`FSDOWNLOAD`)."
+    - "Найди флаг: `grep nto pjl-session.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

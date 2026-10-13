@@ -13,6 +13,18 @@ useful_for:
   - "Пивот к внутренним сервисам"
 estimated_minutes: 50
 summary: "SSRF глубоко: IMDSv1/v2, GCP/Azure metadata, внутренние API, обход фильтров и переход от SSRF к облачным ролям. Практические цепочки для AWS, Azure и GCP."
+lab:
+  kind: shell
+  title: "Практика: SSRF глубоко — от внутренних API к роли"
+  toolset: [core, curl]
+  workdir: /home/student/ssrfdeep
+  files: [task.md, notes.md, app-endpoints.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`app-endpoints.txt` — внутренние эндпоинты приложения (SSRF-цели)."
+    - "Начни с внутреннего API, который отдаёт метаданные/токены."
+    - "Найди флаг: `curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/ec2-admin-role > c.json`, затем `grep nto c.json > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

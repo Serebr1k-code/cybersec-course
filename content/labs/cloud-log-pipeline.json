@@ -1,0 +1,33 @@
+{
+  "id": "cloud-log-pipeline",
+  "workdir": "/home/student/logpipeline",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/logpipeline/found.txt",
+    "contains": "nto{l0g_p1p3l1n3_t4mp3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/logpipeline",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/logpipeline/task.md",
+      "text": "# Задача: log pipeline\n\nРазбери конфиг пайплайна и лог. Найди вмешательство и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/logpipeline/notes.md",
+      "text": "Заметки\n------\n- Пайплайн (CloudTrail→S3→SIEM) можно фильтровать/удалять события.\n- Drop-фильтр по пользователю = сокрытие следов.\n"
+    },
+    {
+      "path": "/home/student/logpipeline/pipeline-config.json",
+      "text": "{\n  \"filters\": [\n    {\"action\": \"drop\", \"match\": {\"userIdentity.userName\": \"backdoor\"}}\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/logpipeline/pipeline-log.txt",
+      "text": "event backdoor:CreateAccessKey -> DROPPED by filter\nevent backdoor:AttachUserPolicy -> DROPPED by filter\naudit note: pipeline tampered, marker nto{l0g_p1p3l1n3_t4mp3r}\n"
+    }
+  ],
+  "tools": {}
+}

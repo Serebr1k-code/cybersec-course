@@ -13,6 +13,18 @@ useful_for:
   - "Защита критической инфраструктуры"
 estimated_minutes: 55
 summary: "Как устроены АСУ ТП и протоколы Modbus/DNP3/S7, где искать уязвимости и как безопасно оценивать ICS-сети без риска для производства."
+lab:
+  kind: shell
+  title: "Практика: SCADA и протоколы АСУ ТП"
+  toolset: [core]
+  workdir: /home/student/scada
+  files: [task.md, notes.md, scada-capture.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`scada-capture.txt` — смешанный трафик Modbus/S7/DNP3."
+    - "Ищи команду записи и утёкший секрет."
+    - "Найди флаг: `grep nto scada-capture.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

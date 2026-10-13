@@ -1,0 +1,29 @@
+{
+  "id": "hardware-multimeter-scope",
+  "workdir": "/home/student/scope",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/scope/found.txt",
+    "contains": "nto{0sc1ll0sc0p3_u4rt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/scope",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/scope/task.md",
+      "text": "# Задача: мультиметр и осциллограф\n\nПо отсчётам с осциллографа восстанови данные на линии и найди флаг.\n\nИнструменты: `cat`, `grep`, `cut`.\n"
+    },
+    {
+      "path": "/home/student/scope/notes.md",
+      "text": "Заметки\n------\n- 9600 8N1: старт-бит (0), 8 данных, стоп (1); длительность бита ~104µs.\n- Мультиметр проверяет питания/КЗ; осциллограф — сигнал.\n"
+    },
+    {
+      "path": "/home/student/scope/scope-samples.csv",
+      "text": "t_us,v\n0,3.3\n104,0.0\n208,3.3\n# decoded UART frame: 0x6e ('n')\n312,0.0\n# ... decoded line: \"nto{0sc1ll0sc0p3_u4rt}\"\n1000,3.3\n"
+    }
+  ],
+  "tools": {}
+}

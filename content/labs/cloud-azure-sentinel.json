@@ -1,0 +1,33 @@
+{
+  "id": "cloud-azure-sentinel",
+  "workdir": "/home/student/sentinel",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/sentinel/found.txt",
+    "contains": "nto{s3nt1n3l_g4p}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/sentinel",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/sentinel/task.md",
+      "text": "# Задача: Sentinel\n\nРазбери правила и логи входов. Найди непокрытую активность и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/sentinel/notes.md",
+      "text": "Заметки\n------\n- Sentinel-правила (KQL) детектят аномалии.\n- Активность вне правил не поднимает алерт.\n"
+    },
+    {
+      "path": "/home/student/sentinel/analytics-rules.json",
+      "text": "[{\"name\": \"Impossible travel\"}, {\"name\": \"Brute force\"}, {\"name\": \"Sign-in from risky IP\"}]\n"
+    },
+    {
+      "path": "/home/student/sentinel/signin-logs.txt",
+      "text": "sign-in admin@acme ok from 10.0.0.5 (corp)\nsign-in admin@acme ok from 185.220.101.4 (TOR)  -> no rule matched (gap)\nconsent grant to rogue app -> no rule matched\ncompromised data marker: nto{s3nt1n3l_g4p}\n"
+    }
+  ],
+  "tools": {}
+}

@@ -1,0 +1,42 @@
+{
+  "id": "cloud-argocd",
+  "workdir": "/home/student/argocd",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/argocd/found.txt",
+    "contains": "nto{4rg0cd_g1t0ps}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/argocd",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/argocd/task.md",
+      "text": "# Задача: ArgoCD\n\nРазбери приложения ArgoCD и найди секрет в их конфигурации.\n\nИнструмент: `argocd` (эмуляция — вывод захвачен с реального CLI).\n"
+    },
+    {
+      "path": "/home/student/argocd/notes.md",
+      "text": "Заметки\n------\n- ArgoCD хранит repo-креды и синкает манифесты в кластер.\n- Компрометация ArgoCD = запись в кластер.\n"
+    }
+  ],
+  "tools": {
+    "argocd": {
+      "help": "argocd <app list|app get> [...] — ArgoCD CLI (эмуляция)",
+      "cases": [
+        {
+          "match": "app list",
+          "example": "argocd app list",
+          "output": "NAME        CLUSTER        NAMESPACE  STATUS   HEALTH\nacme-api    https://kubernetes.default.svc  prod  Synced  Healthy\n"
+        },
+        {
+          "match": "app get",
+          "example": "argocd app get acme-api",
+          "output": "Name: acme-api\nRepo: https://github.com/acme/deploy\nPath: k8s/prod\nParameters:\n  repo-token: nto{4rg0cd_g1t0ps}\n"
+        }
+      ],
+      "fallback": "argocd: (эмуляция) такой вызов не захвачен. Попробуй:\n  argocd app list\n  argocd app get acme-api\n"
+    }
+  }
+}

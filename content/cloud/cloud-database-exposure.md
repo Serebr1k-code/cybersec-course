@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty: утечки через базы данных"
 estimated_minutes: 45
 summary: "Как находить публично доступные управляемые базы (RDS, Cosmos DB, Cloud SQL), какие контроли их защищают и как их обходят типовые мисконфиги."
+lab:
+  kind: shell
+  title: "Практика: открытые управляемые БД (RDS/Cosmos/Cloud SQL)"
+  toolset: [core]
+  workdir: /home/student/dbexposure
+  files: [task.md, notes.md, rds-instances.json, cosmos-config.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`rds-instances.json` — RDS-инстансы, ищи `PubliclyAccessible: true`."
+    - "`cosmos-config.json` — конфиг Cosmos DB."
+    - "Найди флаг: `grep nto rds-instances.json > found.txt`."
+
 ---
 ## Задача
 

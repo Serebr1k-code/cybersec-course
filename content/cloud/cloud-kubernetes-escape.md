@@ -13,6 +13,18 @@ useful_for:
   - "Понимание, когда контейнер = хост"
 estimated_minutes: 40
 summary: "Полный разбор побега из пода на хост: hostPath, privileged, hostPID/hostNetwork, capabilities, монтирование docker.sock и ядерные трюки. Что проверить в первую очередь."
+lab:
+  kind: shell
+  title: "Практика: побег из пода через hostPath"
+  toolset: [core]
+  workdir: /home/student/k8s
+  files: [task.md, notes.md, pod.yaml]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай `pod.yaml`: у пода смонтирован hostPath `/` (корень ноды) — это побег."
+    - "Внутри смонтированного каталога `mnt/host/` лежит файловая система ноды."
+    - "Найди флаг: `find mnt/host -name flag.txt`, затем `cat ... > found.txt`."
+
 ---
 
 ## Задача

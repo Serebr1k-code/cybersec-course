@@ -1,0 +1,29 @@
+{
+  "id": "hardware-laser-fault",
+  "workdir": "/home/student/laser",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/laser/found.txt",
+    "contains": "nto{l4s3r_f4ult}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/laser",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/laser/task.md",
+      "text": "# Задача: laser fault injection\n\nРазбери лог лазерной инъекции. Найди успешный сбой и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/laser/notes.md",
+      "text": "Заметки\n------\n- LFI: сфокусированный лазер меняет состояние транзистора.\n- Цели: SRAM, регистр проверки, fuse anti-rollback.\n"
+    },
+    {
+      "path": "/home/student/laser/laser-log.txt",
+      "text": "scan XY 1024x1024 step 2um\nhit at (512, 640): signature verify bit flipped 1->0\nsecure boot: bypassed\nunlocked value: nto{l4s3r_f4ult}\n"
+    }
+  ],
+  "tools": {}
+}

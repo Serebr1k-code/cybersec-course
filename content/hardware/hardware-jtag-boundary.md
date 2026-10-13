@@ -13,6 +13,18 @@ useful_for:
   - "CTF Hardware"
 estimated_minutes: 40
 summary: "IEEE 1149.1 boundary scan: цепочка JTAG, IDCODE, инструкции, BSDL-описания, чтение состояния выводов и тестирование дорожек без доступа к ядру процессора."
+lab:
+  kind: shell
+  title: "Практика: JTAG boundary scan"
+  toolset: [core]
+  workdir: /home/student/boundary
+  files: [task.md, notes.md, bsdl-info.txt, boundary-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`bsdl-info.txt` — информация о цепочке JTAG, `boundary-log.txt` — прогон boundary scan."
+    - "Boundary scan может читать состояние пинов, подключённых к флеш-памяти."
+    - "Найди флаг: `grep nto boundary-log.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

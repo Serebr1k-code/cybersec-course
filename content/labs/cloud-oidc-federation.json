@@ -1,0 +1,33 @@
+{
+  "id": "cloud-oidc-federation",
+  "workdir": "/home/student/oidc",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/oidc/found.txt",
+    "contains": "nto{01dc_sub_w1ldc4rd}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/oidc",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/oidc/task.md",
+      "text": "# Задача: OIDC federation\n\nTrust-политика доверяет OIDC-провайдеру, но условие `sub` слишком широкое. Подтверди проблему и достань флаг из токена.\n\nИнструменты: `cat`, `grep`, `base64`.\n"
+    },
+    {
+      "path": "/home/student/oidc/notes.md",
+      "text": "Заметки\n------\n- OIDC-federation: облако доверяет внешнему IdP по `sub`/`aud`.\n- Слишком широкий `sub` (`repo:acme/*`) позволяет чужому репо принять роль.\n"
+    },
+    {
+      "path": "/home/student/oidc/trust-policy.json",
+      "text": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [{\n    \"Effect\": \"Allow\",\n    \"Principal\": {\"Federated\": \"arn:aws:iam::111122223333:oidc-provider/token.actions.githubusercontent.com\"},\n    \"Action\": \"sts:AssumeRoleWithWebIdentity\",\n    \"Condition\": {\"StringLike\": {\"token.actions.githubusercontent.com:sub\": \"repo:acme/*\"}}\n  }]\n}\n"
+    },
+    {
+      "path": "/home/student/oidc/oidc-token.txt",
+      "text": "eyJpc3MiOiJodHRwczovL3Rva2VuLmFjdGlvbnMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwic3ViIjoicmVwbzphY21lL2F0dGFja2VyLXJlcG8iLCJhdWQiOiJzdHMuYW1hem9uYXdzLmNvbSIsImZsYWciOiJudG97MDFkY19zdWJfdzFsZGM0cmR9In0=\n"
+    }
+  ],
+  "tools": {}
+}

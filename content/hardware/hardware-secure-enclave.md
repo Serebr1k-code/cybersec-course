@@ -13,6 +13,18 @@ useful_for:
   - "CTF Hardware (эксперт)"
 estimated_minutes: 45
 summary: "Как устроены TEE/secure enclave, где живут ключи и как исследовать доверенную среду ARM TrustZone, OP-TEE и Apple SEP."
+lab:
+  kind: shell
+  title: "Практика: secure enclave и TrustZone"
+  toolset: [core]
+  workdir: /home/student/enclave
+  files: [task.md, notes.md, tz-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`tz-log.txt` — лог работы TrustZone/TEE."
+    - "Ищи утечку из secure world (world switch, shared memory)."
+    - "Найди флаг: `grep nto tz-log.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

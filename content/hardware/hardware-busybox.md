@@ -13,6 +13,18 @@ useful_for:
   - "Реверс встраиваемых систем"
 estimated_minutes: 45
 summary: "BusyBox внутри: как один бинарник заменяет coreutils, как читать applets и конфиг, какие команды урезаны и где искать уязвимости."
+lab:
+  kind: shell
+  title: "Практика: BusyBox и SUID-приложение"
+  toolset: [core]
+  workdir: /home/student/busybox
+  files: [task.md, notes.md, busybox-list.txt, etc-config.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`busybox-list.txt` — список апплетов, `etc-config.txt` — конфиги устройства."
+    - "Ищи SUID/сторонние утилиты и секрет в конфиге провижининга."
+    - "Найди флаг: `grep nto etc-config.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

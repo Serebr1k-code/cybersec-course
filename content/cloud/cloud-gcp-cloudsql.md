@@ -13,6 +13,18 @@ useful_for:
   - "Извлечение данных из бэкапов"
 estimated_minutes: 45
 summary: "Cloud SQL: публичные инстансы, SSL-настройки, IAM database authentication, чтение пароля из Secret Manager и восстановление из бэкапов."
+lab:
+  kind: shell
+  title: "Практика: Cloud SQL — публичный доступ и снапшоты"
+  toolset: [core, gcloud]
+  workdir: /home/student/cloudsql
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Опиши инстанс: `gcloud sql instances describe acme-db`."
+    - "Смотри authorizedNetworks (0.0.0.0/0) и бэкапы."
+    - "Найди флаг: сохрани вывод и `grep nto db.txt > found.txt`."
+
 ---
 
 ## Задача

@@ -13,6 +13,18 @@ useful_for:
   - "Использование IAM-аутентификации в БД"
 estimated_minutes: 55
 summary: "RDS/Aurora: публичная доступность, снапшоты как канал утечки, IAM database authentication и чтение мастер-паролей из Secrets Manager/SSM."
+lab:
+  kind: shell
+  title: "Практика: публичный снапшот RDS и дамп БД"
+  toolset: [core]
+  workdir: /home/student/rds
+  files: [task.md, notes.md, describe-db-snapshots.json, snapshot-attribute.json, rds-dump.sql]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Найди SnapshotId в `describe-db-snapshots.json`."
+    - "Проверь права: в `snapshot-attribute.json` стоит `\"AttributeValues\": [\"all\"]` — снапшот расшарен всем."
+    - "Восстанови/дамп БД (`rds-dump.sql`) и найди флаг: `grep nto rds-dump.sql > found.txt`."
+
 ---
 
 ## Задача

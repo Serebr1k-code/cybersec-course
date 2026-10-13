@@ -13,6 +13,18 @@ useful_for:
   - "Разработка NFC-приложений"
 estimated_minutes: 45
 summary: "NFC изнутри: ISO 14443 A/B, NDEF, типы тегов, чтение и запись через nfcpy/ACR122U, эмуляция, relay и защита."
+lab:
+  kind: shell
+  title: "Практика: NFC глубоко (ISO 14443, NDEF)"
+  toolset: [core]
+  workdir: /home/student/nfcdeep
+  files: [task.md, notes.md, ndef-dump.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`ndef-dump.txt` — разбор NDEF-сообщения с NFC-метки."
+    - "Собери записи (records) и найди текст с секретом."
+    - "Найди флаг: `grep nto ndef-dump.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

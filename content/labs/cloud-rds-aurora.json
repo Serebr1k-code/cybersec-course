@@ -1,0 +1,37 @@
+{
+  "id": "cloud-rds-aurora",
+  "workdir": "/home/student/rds",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/rds/found.txt",
+    "contains": "nto{rds_publ1c_sn4psh0t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/rds",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/rds/task.md",
+      "text": "# Задача: публичный RDS snapshot\n\nСнапшот кластера Aurora расшарен для всех аккаунтов. Определи это и найди флаг в дампе базы (`rds-dump.sql`).\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/rds/notes.md",
+      "text": "Заметки\n------\n- Публичный снапшот можно restore в свой аккаунт и прочитать данные.\n- Секреты в БД: таблицы users, api_keys, feature_flags.\n"
+    },
+    {
+      "path": "/home/student/rds/describe-db-snapshots.json",
+      "text": "{\n  \"DBSnapshots\": [\n    {\"DBSnapshotIdentifier\": \"rds:acme-prod-2026-09-01\", \"Engine\": \"aurora-mysql\", \"SnapshotType\": \"manual\"},\n    {\"DBSnapshotIdentifier\": \"rds:acme-staging\", \"Engine\": \"aurora-mysql\", \"SnapshotType\": \"automated\"}\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/rds/snapshot-attribute.json",
+      "text": "{\n  \"DBSnapshotIdentifier\": \"rds:acme-prod-2026-09-01\",\n  \"AttributeName\": \"restore\",\n  \"AttributeValues\": [\"all\"]\n}\n"
+    },
+    {
+      "path": "/home/student/rds/rds-dump.sql",
+      "text": "INSERT INTO users (id,email,role) VALUES (1,'admin@acme.example','admin');\nINSERT INTO api_keys (id,key_hash) VALUES (7,'$2b$12$Q3JhbTN...');\nINSERT INTO feature_flags (name,value) VALUES ('release-secret','nto{rds_publ1c_sn4psh0t}');\n"
+    }
+  ],
+  "tools": {}
+}

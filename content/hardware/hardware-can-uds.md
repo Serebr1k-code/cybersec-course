@@ -13,6 +13,18 @@ useful_for:
   - "Пентест connected car"
 estimated_minutes: 50
 summary: "Протокол UDS поверх CAN: сессии, SecurityAccess (seed-key), чтение/запись ECU, прошивка и обход аутентификации — практический реверс диагностики автомобиля."
+lab:
+  kind: shell
+  title: "Практика: UDS-диагностика ECU (ISO 14229)"
+  toolset: [core]
+  workdir: /home/student/canuds
+  files: [task.md, notes.md, uds-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`uds-log.txt` — диагностическая сессия UDS с ECU."
+    - "Ищи сервисы 0x27 (SecurityAccess) и 0x22 (ReadDataByIdentifier)."
+    - "Флаг — в ответе ReadDataByIdentifier (DID): `grep nto uds-log.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

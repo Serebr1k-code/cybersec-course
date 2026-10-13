@@ -1,0 +1,29 @@
+{
+  "id": "hardware-facedancer",
+  "workdir": "/home/student/facedancer",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/facedancer/found.txt",
+    "contains": "nto{f4c3d4nc3r_3mul}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/facedancer",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/facedancer/task.md",
+      "text": "# Задача: Facedancer\n\nТы эмулируешь USB-устройство. Разбери дескрипторы, найди подмену и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/facedancer/notes.md",
+      "text": "Заметки\n------\n- Facedancer/GreatFET позволяет эмулировать произвольные USB-дескрипторы.\n- Строковые дескрипторы (iManufacturer/iProduct) часто несут скрытые данные.\n"
+    },
+    {
+      "path": "/home/student/facedancer/fd-descriptors.txt",
+      "text": "iManufacturer: \"Acme Corp.\"\niProduct: \"USB Storage\"\niSerialNumber: \"ACME-77f3-nto{f4c3d4nc3r_3mul}\"\nbDeviceClass: 0x00  bNumConfigurations: 1\n"
+    }
+  ],
+  "tools": {}
+}

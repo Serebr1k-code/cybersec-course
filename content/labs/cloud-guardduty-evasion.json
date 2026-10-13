@@ -1,0 +1,33 @@
+{
+  "id": "cloud-guardduty-evasion",
+  "workdir": "/home/student/guardduty",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/guardduty/found.txt",
+    "contains": "nto{gu4rdduty_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/guardduty",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/guardduty/task.md",
+      "text": "# Задача: GuardDuty evasion\n\nРазбери детекторы и план обхода. Найди флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/guardduty/notes.md",
+      "text": "Заметки\n------\n- GuardDuty детектит Recon/UnauthorizedAccess/CryptoCurrency.\n- «Тихие» API и использование легитимных ролей снижают детект.\n"
+    },
+    {
+      "path": "/home/student/guardduty/detector-findings.txt",
+      "text": "FINDING: UnauthorizedAccess:IAMUser/InstanceCredentialExfiltration\nFINDING: Recon:EC2/Portscan\nFINDING: CryptoCurrency:EC2/BitcoinTool.B\n"
+    },
+    {
+      "path": "/home/student/guardduty/evasion-notes.txt",
+      "text": "avoid portscan (use existing connections)\nuse instance creds from within AWS (no exfil detection)\nslow API calls, stay under baseline\nresult: evaded detection, nto{gu4rdduty_byp4ss}\n"
+    }
+  ],
+  "tools": {}
+}

@@ -1,0 +1,29 @@
+{
+  "id": "hardware-power-analysis",
+  "workdir": "/home/student/power",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/power/found.txt",
+    "contains": "nto{cpa_p0w3r_4n4lys1s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/power",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/power/task.md",
+      "text": "# Задача: power analysis\n\nРазбери результаты CPA по трассам энергопотребления. Найди восстановленный секрет.\n\nИнструменты: `cat`, `grep`, `sort`.\n"
+    },
+    {
+      "path": "/home/student/power/notes.md",
+      "text": "Заметки\n------\n- SPA/DPA/CPA анализируют зависимость потребления от данных.\n- Утечка через зависимость от ключа восстанавливает байты.\n"
+    },
+    {
+      "path": "/home/student/power/cpa-scores.txt",
+      "text": "byte 0 : best guess 0x41 (A) corr=0.981\nbyte 1 : best guess 0x43 (C) corr=0.972\nbyte 2 : best guess 0x4d (M) corr=0.965\n# recovered secret (32 bytes): ACME...nto{cpa_p0w3r_4n4lys1s}\n"
+    }
+  ],
+  "tools": {}
+}

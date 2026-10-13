@@ -13,6 +13,18 @@ useful_for:
   - "CTF Hardware (эксперт)"
 estimated_minutes: 50
 summary: "Как частые обращения к строке DRAM вызывают битфлипы в соседних строках, какие есть защиты и как это ведёт к повышению привилегий."
+lab:
+  kind: shell
+  title: "Практика: Rowhammer"
+  toolset: [core]
+  workdir: /home/student/rowhammer
+  files: [task.md, notes.md, hammer-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`hammer-log.txt` — лог Rowhammer (bit flips в DRAM)."
+    - "Ищи строку, где переключённый бит раскрывает секрет."
+    - "Найди флаг: `grep nto hammer-log.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

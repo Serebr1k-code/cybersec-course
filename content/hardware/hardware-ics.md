@@ -13,6 +13,18 @@ useful_for:
   - "Аудит OT-безопасности"
 estimated_minutes: 55
 summary: "Архитектура промышленных систем (ICS/SCADA), Purdue-модель, PLC/RTU/HMI, протоколы Modbus/DNP3/S7 и векторы атак на OT."
+lab:
+  kind: shell
+  title: "Практика: ICS/SCADA и модель Purdue"
+  toolset: [core]
+  workdir: /home/student/ics
+  files: [task.md, notes.md, ics-map.txt, modbus-capture.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`ics-map.txt` — карта сети АСУ ТП по уровням Purdue."
+    - "`modbus-capture.txt` — трафик с ПЛК; найди секрет в регистрах."
+    - "Найди флаг: `grep nto modbus-capture.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

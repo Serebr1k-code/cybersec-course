@@ -13,6 +13,18 @@ useful_for:
   - "Пентест: обход защит загрузки"
 estimated_minutes: 50
 summary: "Как строится цепочка доверия: UEFI Secure Boot, измеряемая загрузка, PCR и проверка целостности, а также практические способы обхода и защита."
+lab:
+  kind: shell
+  title: "Практика: измеряемая загрузка и eventlog"
+  toolset: [core]
+  workdir: /home/student/measured
+  files: [task.md, notes.md, pcr-values.txt, eventlog.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`pcr-values.txt` — значения PCR (хэши). `eventlog.txt` — какие измерения их породили."
+    - "В eventlog видно, что один из модулей измерен не по цепочке доверия."
+    - "Флаг — в событии eventlog: `grep nto eventlog.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

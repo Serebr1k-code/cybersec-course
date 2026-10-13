@@ -13,6 +13,18 @@ useful_for:
   - "Фаззинг USB-драйверов"
 estimated_minutes: 50
 summary: "Как эмулировать произвольное USB-устройство на Facedancer/GreatFET: подмена дескрипторов, обход whitelist, эмуляция HID, сетевой карты и накопителя, диагностика."
+lab:
+  kind: shell
+  title: "Практика: эмуляция USB-устройства (Facedancer)"
+  toolset: [core]
+  workdir: /home/student/facedancer
+  files: [task.md, notes.md, fd-descriptors.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`fd-descriptors.txt` — дескрипторы, которые эмулирует Facedancer."
+    - "Ищи подмену вендора/класса и секрет в строковых дескрипторах."
+    - "Найди флаг: `grep nto fd-descriptors.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

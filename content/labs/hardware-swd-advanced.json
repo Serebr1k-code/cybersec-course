@@ -1,0 +1,29 @@
+{
+  "id": "hardware-swd-advanced",
+  "workdir": "/home/student/swd",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/swd/found.txt",
+    "contains": "nto{swd_c0r3s1ght}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/swd",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/swd/task.md",
+      "text": "# Задача: SWD\n\nРазбери лог отладки по SWD. Найди дамп памяти с секретом.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/swd/notes.md",
+      "text": "Заметки\n------\n- SWD: SWCLK+SWDIO; CoreSight даёт доступ к памяти и регистрам.\n- Debug port может быть разблокирован; readout protection — обходится glitch.\n"
+    },
+    {
+      "path": "/home/student/swd/openocd-swd.txt",
+      "text": "Info : SWD DPIDR 0x2ba01477 (Cortex-M4)\nInfo : target halted\n> mdw 0x0800F000 16\n0x0800f000: 6e74 6f7b 7377 645f 6330 7233 7331 6768  nto{swd_c0r3s1gh\n0x0800f010: 747d 0000 0000 0000 0000 0000 0000 0000  t}..............\n  ASCII: nto{swd_c0r3s1ght}\n"
+    }
+  ],
+  "tools": {}
+}

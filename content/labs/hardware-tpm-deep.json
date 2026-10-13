@@ -1,0 +1,47 @@
+{
+  "id": "hardware-tpm-deep",
+  "workdir": "/home/student/tpmdeep",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/tpmdeep/found.txt",
+    "contains": "nto{tpm2_nv_1nd3x}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/tpmdeep",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/tpmdeep/task.md",
+      "text": "# Задача: TPM 2.0 NV\n\nНайди NV-индексы TPM и прочитай тот, где лежит провижининг-секрет.\n\nИнструмент: `tpm2` (эмуляция — вывод захвачен с реального tpm2-tools).\n"
+    },
+    {
+      "path": "/home/student/tpmdeep/notes.md",
+      "text": "Заметки\n------\n- Owner-индекс обычно 0x1500015-0x1500017.\n- NV-индексы с провижинингом часто читаемы без авторизации.\n"
+    }
+  ],
+  "tools": {
+    "tpm2": {
+      "help": "tpm2 <getcap|nvread> [...] — TPM 2.0 tools (эмуляция)",
+      "cases": [
+        {
+          "match": "getcap handles-nv-index",
+          "example": "tpm2 getcap handles-nv-index",
+          "output": "0x1500015\n0x1500016\n0x1500017\n0x01c00002\n"
+        },
+        {
+          "match": "nvread 0x1500017",
+          "example": "tpm2 nvread 0x1500017",
+          "output": "hex: 6e 74 6f 7b 74 70 6d 32 5f 6e 76 5f 31 6e 64 33 78 7d\nascii: nto{tpm2_nv_1nd3x}\n"
+        },
+        {
+          "match": "nvread 0x1500015",
+          "example": "tpm2 nvread 0x1500015",
+          "output": "hex: 00 00 00 00\n"
+        }
+      ],
+      "fallback": "tpm2: (эмуляция) такой вызов не захвачен. Попробуй:\n  tpm2 getcap handles-nv-index\n  tpm2 nvread 0x1500017\n"
+    }
+  }
+}

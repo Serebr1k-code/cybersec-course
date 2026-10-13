@@ -1,0 +1,29 @@
+{
+  "id": "cloud-container-runtime",
+  "workdir": "/home/student/rt",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/rt/found.txt",
+    "contains": "nto{c0nt41n3rd_cv3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/rt",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/rt/task.md",
+      "text": "# Задача: container runtime\n\nОпредели рантайм и его версию, найди уязвимость и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/rt/notes.md",
+      "text": "Заметки\n------\n- containerd/CRI-O/runc — стек рантайма; CVE ищутся по версиям.\n- Устаревшая версия = известный побег.\n"
+    },
+    {
+      "path": "/home/student/rt/runtime-recon.txt",
+      "text": "runtime: containerd 1.5.8\nshim: runc 1.0.0-rc95\nCVE-2022-23648 (containerd) applicable\nexploit note: nto{c0nt41n3rd_cv3}\n"
+    }
+  ],
+  "tools": {}
+}

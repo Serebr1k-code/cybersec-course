@@ -13,6 +13,18 @@ useful_for:
   - "Реверс загрузчиков"
 estimated_minutes: 45
 summary: "U-Boot на практике: переменные окружения, скрипты, FIT-образы, загрузка по TFTP/USB, правка bootargs и типовые сценарии доступа."
+lab:
+  kind: shell
+  title: "Практика: U-Boot environment и обход автозагрузки"
+  toolset: [core]
+  workdir: /home/student/uboot
+  files: [task.md, notes.md, uboot-env.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "В `uboot-env.txt` — дамп окружения U-Boot (`printenv`)."
+    - "Обрати внимание на `bootdelay` и переменные с секретами (`factory_key`)."
+    - "Найди флаг среди переменных: `grep nto uboot-env.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

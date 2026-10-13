@@ -1,0 +1,33 @@
+{
+  "id": "hardware-measured-boot",
+  "workdir": "/home/student/measured",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/measured/found.txt",
+    "contains": "nto{pcr_3v3ntl0g_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/measured",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/measured/task.md",
+      "text": "# Задача: measured boot\n\nРазбери PCR и eventlog измеряемой загрузки. Найди подозрительное измерение и флаг.\n\nИнструменты: `cat`, `grep`, `sort`, `uniq`.\n"
+    },
+    {
+      "path": "/home/student/measured/notes.md",
+      "text": "Заметки\n------\n- PCR — хэши, не дают секретов напрямую; смысл в eventlog.\n- Вредоносный модуль ломает непрерывность цепочки доверия.\n"
+    },
+    {
+      "path": "/home/student/measured/pcr-values.txt",
+      "text": "PCR-00  sha256 8f2a...  (SRTM)\nPCR-01  sha256 3c1d...  (platform config)\nPCR-04  sha256 9e7b...  (boot manager)\nPCR-07  sha256 d41a...  (secure boot policy)\n"
+    },
+    {
+      "path": "/home/student/measured/eventlog.txt",
+      "text": "event 1  PCR-00  EV_S_CRTM_VERSION  \"ACME UEFI 2.4.1\"\nevent 2  PCR-04  EV_EFI_BOOT_SERVICES_DRIVER  \"bootmgfw.efi\"\nevent 3  PCR-07  EV_EFI_VARIABLE_DRIVER_CONFIG  \"db=Microsoft...\"\nevent 4  PCR-04  EV_EFI_BOOT_SERVICES_DRIVER  \"acme-hook.efi\" (UNSIGNED)\nevent 5  PCR-07  EV_SEPARATOR  \"nto{pcr_3v3ntl0g_l34k}\"\n"
+    }
+  ],
+  "tools": {}
+}

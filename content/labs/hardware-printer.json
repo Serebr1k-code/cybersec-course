@@ -1,0 +1,29 @@
+{
+  "id": "hardware-printer",
+  "workdir": "/home/student/printer",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/printer/found.txt",
+    "contains": "nto{pjl_f1l3_r34d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/printer",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/printer/task.md",
+      "text": "# Задача: принтер PJL\n\nРазбери сессию PJL с сетевым принтером. Найди прочитанный файл с флагом.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/printer/notes.md",
+      "text": "Заметки\n------\n- PJL (port 9100 raw) умеет @PJL FSDOWNLOAD/ FSUPLOAD — чтение/запись файлов.\n- Микроточки (MIC) — жёлтые точки с серийным номером на распечатке.\n"
+    },
+    {
+      "path": "/home/student/printer/pjl-session.txt",
+      "text": "@PJL INFO ID\n\"HP LaserJet acme-print-01\"\n@PJL FSDIRLIST NAME=\"0:/\" ENTRY=1 COUNT=10\n. 0:\\  0\n.. 0:\\  0\nconfig.cfg 0:\\  \n@PJL FSUPLOAD NAME=\"0:/config.cfg\" OFFSET=0 SIZE=64\ndevice=acme-print-01\nadmin_token=nto{pjl_f1l3_r34d}\n"
+    }
+  ],
+  "tools": {}
+}

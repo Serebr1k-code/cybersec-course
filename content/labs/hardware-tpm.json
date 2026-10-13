@@ -1,0 +1,33 @@
+{
+  "id": "hardware-tpm",
+  "workdir": "/home/student/tpm",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/tpm/found.txt",
+    "contains": "nto{tpm_nv_s3cr3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/tpm",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/tpm/task.md",
+      "text": "# Задача: TPM\n\nНа хосте есть TPM. Прочитай PCR и NV-индекс, найди запечатанный секрет.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/tpm/notes.md",
+      "text": "Заметки\n------\n- `tpm2_pcrread` показывает PCR; `tpm2_nvread -C o <index>` — NV-индекс.\n- Секреты могут быть запечатаны к состоянию PCR (sealed data).\n"
+    },
+    {
+      "path": "/home/student/tpm/pcr-read.txt",
+      "text": "sha256:\n  0 : 8f2a1c...  (SRTM)\n  7 : d41a9e...  (secure boot)\n"
+    },
+    {
+      "path": "/home/student/tpm/nv-read.txt",
+      "text": "$ tpm2_nvread -C o 0x1500016\nhex dump: 6e 74 6f 7b 74 70 6d 5f 6e 76 5f 73 33 63 72 33 74 7d 0a\nascii   : nto{tpm_nv_s3cr3t}\n"
+    }
+  ],
+  "tools": {}
+}

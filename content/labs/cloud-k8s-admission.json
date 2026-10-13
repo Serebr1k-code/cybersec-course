@@ -1,0 +1,33 @@
+{
+  "id": "cloud-k8s-admission",
+  "workdir": "/home/student/k8sadm",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/k8sadm/found.txt",
+    "contains": "nto{4dm1ss10n_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/k8sadm",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/k8sadm/task.md",
+      "text": "# Задача: admission\n\nРазбери Kyverno-политику и найди способ её обойти. Найди флаг в заметке правила.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/k8sadm/notes.md",
+      "text": "Заметки\n------\n- Admission-политики валидируют манифесты на входе.\n- Неполное покрытие (initContainers, ephemeralContainers) = обход.\n"
+    },
+    {
+      "path": "/home/student/k8sadm/kyverno-policy.yaml",
+      "text": "apiVersion: kyverno.io/v1\nkind: ClusterPolicy\nmetadata:\n  name: disallow-privileged\nspec:\n  validationFailureAction: Enforce\n  rules:\n    - name: check-privileged\n      match:\n        resources: {kinds: [Pod]}\n      validate:\n        message: \"privileged denied (note: initContainers unchecked -> nto{4dm1ss10n_byp4ss})\"\n        pattern:\n          spec:\n            containers:\n              - securityContext:\n                  privileged: \"false\"\n"
+    },
+    {
+      "path": "/home/student/k8sadm/rejected-pod.yaml",
+      "text": "apiVersion: v1\nkind: Pod\nmetadata: {name: evil}\nspec:\n  containers:\n    - name: c\n      image: alpine\n      securityContext: {privileged: true}\n"
+    }
+  ],
+  "tools": {}
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Анализ утёкших сервисных ключей"
 estimated_minutes: 35
 summary: "Как устроен GCP: организация, папки, проекты, IAM-политики с наследованием, сервисные аккаунты и metadata-сервер. Первые команды разведки и карта поверхности атаки."
+lab:
+  kind: shell
+  title: "Практика: базовая разведка GCP-проекта"
+  toolset: [core, gcloud]
+  workdir: /home/student/gcpbasics
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Перечисли проекты: `gcloud projects list`."
+    - "Перечисли service accounts: `gcloud iam service-accounts list`."
+    - "Найди флаг: сохрани вывод и `grep nto sa.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

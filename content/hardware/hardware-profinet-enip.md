@@ -13,6 +13,18 @@ useful_for:
   - "CTF Hardware/ICS"
 estimated_minutes: 70
 summary: "Промышленный Ethernet: PROFINET (DCP, RT/IRT, GSDML) и EtherNet/IP (CIP, explicit/implicit messaging, список тегов). Обнаружение, чтение и запись через явные сообщения, риски и защита."
+lab:
+  kind: shell
+  title: "Практика: Profinet и EtherNet/IP"
+  toolset: [core]
+  workdir: /home/student/profinet
+  files: [task.md, notes.md, enip-capture.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`enip-capture.txt` — перехват EtherNet/IP (CIP) с ПЛК."
+    - "Ищи в трафике тег/комментарий с секретом."
+    - "Найди флаг: `grep nto enip-capture.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

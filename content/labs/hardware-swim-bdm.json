@@ -1,0 +1,29 @@
+{
+  "id": "hardware-swim-bdm",
+  "workdir": "/home/student/swim",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/swim/found.txt",
+    "contains": "nto{sw1m_bdm_dbg}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/swim",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/swim/task.md",
+      "text": "# Задача: SWIM/BDM\n\nРазбери лог SWIM/BDM-отладки. Найди секрет в памяти.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/swim/notes.md",
+      "text": "Заметки\n------\n- SWIM — однопроводный интерфейс ST; BDM — NXP/HCS08.\n- Readout protection снимается массовым стиранием либо glitch.\n"
+    },
+    {
+      "path": "/home/student/swim/swim-log.txt",
+      "text": "SWIM: sync ok, device STM8S\nread eeprom 0x4000 0x20\n0x4000: 41 43 4d 45 00 6e 74 6f 7b 73 77 31 6d 5f 62 64 6d 5f 64 62 67 7d\n  ASCII: ACME.nto{sw1m_bdm_dbg}\n"
+    }
+  ],
+  "tools": {}
+}

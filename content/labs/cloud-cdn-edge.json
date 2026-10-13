@@ -1,0 +1,29 @@
+{
+  "id": "cloud-cdn-edge",
+  "workdir": "/home/student/cdn",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/cdn/found.txt",
+    "contains": "nto{cdn_0r1g1n_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/cdn",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/cdn/task.md",
+      "text": "# Задача: CDN/edge\n\nРазбери конфиг CDN и найди origin-экспозицию и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/cdn/notes.md",
+      "text": "Заметки\n------\n- CDN кэширует и защищает origin, если origin недоступен напрямую.\n- S3 website endpoint/ALB в открытом доступе обходят CDN.\n"
+    },
+    {
+      "path": "/home/student/cdn/cloudfront-config.json",
+      "text": "{\n  \"Distribution\": \"E123ABC\",\n  \"Origins\": [{\"DomainName\": \"acme-origin.s3-website.eu-central-1.amazonaws.com\"}],\n  \"Note\": \"origin bucket is public, bypass CDN -> nto{cdn_0r1g1n_l34k}\"\n}\n"
+    }
+  ],
+  "tools": {}
+}

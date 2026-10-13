@@ -13,6 +13,18 @@ useful_for:
   - "Обход верификации артефактов"
 estimated_minutes: 50
 summary: "Как устроены SBOM, подпись артефактов (Sigstore/cosign), attestations и SLSA. Как атакующий обходит или обманывает верификацию: mutable-теги, TOCTOU, необязательная проверка, компрометация ключа подписи."
+lab:
+  kind: shell
+  title: "Практика: SBOM и подпись артефактов (Sigstore/cosign)"
+  toolset: [core, cosign]
+  workdir: /home/student/sbom
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Проверь подпись образа: `cosign verify acme/api:1.9.4`."
+    - "Если подпись невалидна — образ подменён."
+    - "Найди флаг: сохрани вывод и `grep nto verify.txt > found.txt`."
+
 ---
 ## Задача
 

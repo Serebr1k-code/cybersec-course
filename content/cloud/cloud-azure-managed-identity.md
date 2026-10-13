@@ -13,6 +13,18 @@ useful_for:
   - "Пентест App Service, Functions, AKS, VM"
 estimated_minutes: 35
 summary: "Как устроен endpoint managed identity в Azure, чем отличается IMDS от IMDSv2 в AWS, и как через SSRF/RCE получить токен, определить его права и пройти в Key Vault, ARM и Graph."
+lab:
+  kind: shell
+  title: "Практика: Azure IMDS — токен managed identity и теги инстанса"
+  toolset: [core, curl]
+  workdir: /home/student/azmi
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "IMDS Azure: `http://169.254.169.254/metadata/instance?api-version=2021-02-01` (заголовок Metadata: true)."
+    - "Токен managed identity: `.../metadata/identity/oauth2/token?resource=https://management.azure.com/&api-version=2018-02-01`."
+    - "Флаг спрятан в тегах инстанса. Сохрани instance metadata и найди его: `grep nto inst.json > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

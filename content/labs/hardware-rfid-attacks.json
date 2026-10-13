@@ -1,0 +1,29 @@
+{
+  "id": "hardware-rfid-attacks",
+  "workdir": "/home/student/rfidatt",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/rfidatt/found.txt",
+    "contains": "nto{rf1d_cl0n3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/rfidatt",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/rfidatt/task.md",
+      "text": "# Задача: RFID-атаки\n\nРазбери лог клонирования карты. Найди флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/rfidatt/notes.md",
+      "text": "Заметки\n------\n- Mifare Classic: UID не защищён; magic-карта перезаписывает UID.\n- NFC relay удлиняет канал между картой и ридером.\n"
+    },
+    {
+      "path": "/home/student/rfidatt/clone-log.txt",
+      "text": "read card UID: 04 2B 4C 6E 77 F3 80 (Mifare Classic 1K)\nwrite magic card UID: 04 2B 4C 6E 77 F3 80 -> OK\naccess granted with clone\nvault note: nto{rf1d_cl0n3}\n"
+    }
+  ],
+  "tools": {}
+}

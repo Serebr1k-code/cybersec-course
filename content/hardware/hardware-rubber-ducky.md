@@ -13,6 +13,18 @@ useful_for:
   - "Пентест: демонстрация риска USB-портов"
 estimated_minutes: 40
 summary: "DuckyScript 1.0 против 3.0, платформы для HID-инъекции, подбор таймингов, доставка payload'а и обход простых защит."
+lab:
+  kind: shell
+  title: "Практика: DuckyScript payload"
+  toolset: [core]
+  workdir: /home/student/ducky
+  files: [task.md, notes.md, payload.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`payload.txt` — DuckyScript, который выполнится при подключении к USB."
+    - "Разбери, что делает payload (открывает терминал, качает/пишет данные)."
+    - "Флаг — в строке, которую payload записывает: `grep nto payload.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,33 @@
+{
+  "id": "hardware-busybox",
+  "workdir": "/home/student/busybox",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/busybox/found.txt",
+    "contains": "nto{busyb0x_appl3t5}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/busybox",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/busybox/task.md",
+      "text": "# Задача: BusyBox\n\nRootfs на BusyBox. Изучи список апплетов и конфиги устройства, найди секрет.\n\nИнструменты: `cat`, `grep`, `sort`, `uniq`.\n"
+    },
+    {
+      "path": "/home/student/busybox/notes.md",
+      "text": "Заметки\n------\n- `busybox --list` печатает встроенные апплеты.\n- Сторонние SUID-утилиты на BusyBox-системах — частый путь privesc.\n"
+    },
+    {
+      "path": "/home/student/busybox/busybox-list.txt",
+      "text": "[\nash\ncat\nchmod\ncp\ndd\nfind\ngrep\ninit\nls\nmount\nnc\nsh\nstrings\ntar\ntelnet\ntftp\nwget\n]\n"
+    },
+    {
+      "path": "/home/student/busybox/etc-config.txt",
+      "text": "/etc/acme/agent.conf:\n  server = mqtts://iot.acme.internal:8883\n  device_id = ACME-77f3\n  provision_key = nto{busyb0x_appl3t5}\n/etc/init.d/rcS:\n  telnetd -l /bin/sh\n"
+    }
+  ],
+  "tools": {}
+}

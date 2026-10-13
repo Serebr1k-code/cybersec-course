@@ -1,0 +1,29 @@
+{
+  "id": "hardware-nfc-deep",
+  "workdir": "/home/student/nfcdeep",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/nfcdeep/found.txt",
+    "contains": "nto{ndef_m3ss4g3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/nfcdeep",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/nfcdeep/task.md",
+      "text": "# Задача: NFC\n\nРазбери NDEF-сообщение с метки. Найди флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/nfcdeep/notes.md",
+      "text": "Заметки\n------\n- NDEF: TNF + type + payload; записи бывают URI/Text/MIME.\n- NDEF можно перезаписывать и подделывать.\n"
+    },
+    {
+      "path": "/home/student/nfcdeep/ndef-dump.txt",
+      "text": "TNF=1 type=U payload=\"https://acme.example/activate\"\nTNF=1 type=T lang=ru payload=\"nto{ndef_m3ss4g3}\"\nTNF=2 type=application/json payload=\"{\\\"v\\\":1}\"\n"
+    }
+  ],
+  "tools": {}
+}

@@ -1,0 +1,29 @@
+{
+  "id": "cloud-route53-dns",
+  "workdir": "/home/student/r53",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/r53/found.txt",
+    "contains": "nto{r53_d4ngl1ng_cn4m3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/r53",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/r53/task.md",
+      "text": "# Задача: зона Route 53\n\nТы выгрузил все записи зоны `acme.example`. Найди запись, допускающую захват (dangling CNAME на несуществующий бакет), и флаг, оставленный в TXT-записи.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/r53/notes.md",
+      "text": "Заметки\n------\n- CNAME на `*.s3-website.<region>.amazonaws.com` опасен, если бакет удалён.\n- TXT-записи иногда используют для верификации домена или «меченых» данных.\n"
+    },
+    {
+      "path": "/home/student/r53/list-record-sets.json",
+      "text": "{\n  \"ResourceRecordSets\": [\n    {\"Name\": \"acme.example.\", \"Type\": \"A\", \"AliasTarget\": {\"DNSName\": \"d1.cloudfront.net.\"}},\n    {\"Name\": \"shop.acme.example.\", \"Type\": \"CNAME\",\n     \"TTL\": 300, \"ResourceRecords\": [{\"Value\": \"shop-acme.s3-website.eu-central-1.amazonaws.com\"}]},\n    {\"Name\": \"flag.acme.example.\", \"Type\": \"TXT\",\n     \"TTL\": 60, \"ResourceRecords\": [{\"Value\": \"\\\"nto{r53_d4ngl1ng_cn4m3}\\\"\"}]}\n  ]\n}\n"
+    }
+  ],
+  "tools": {}
+}

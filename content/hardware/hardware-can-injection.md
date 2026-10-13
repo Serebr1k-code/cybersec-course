@@ -13,6 +13,18 @@ useful_for:
   - "Пентест CAN-шин и встраиваемых сетей"
 estimated_minutes: 55
 summary: "Инъекция кадров в CAN-шину, фаззинг и идентификация сигналов, работа с диагностическим трафиком UDS: полный тулинг (can-utils, Caring Caribou, ICSim, SocketCAN), разобранные примеры и защита через SecOC и шлюзы."
+lab:
+  kind: shell
+  title: "Практика: CAN injection и фаззинг шины"
+  toolset: [core]
+  workdir: /home/student/caninject
+  files: [task.md, notes.md, candump.log]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`candump.log` — трафик CAN-шины (candump)."
+    - "Ищи кадр, инжектированный злоумышленником (аномальный ID/частота)."
+    - "Найди флаг: `grep nto candump.log > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

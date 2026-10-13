@@ -13,6 +13,18 @@ useful_for:
   - "Аппаратная безопасность"
 estimated_minutes: 50
 summary: "Глубокое погружение в атаки на Crypto1: как работает потоковый шифр Mifare Classic, чем отличаются nested, darkside и hardnested, и как восстановить все ключи карты."
+lab:
+  kind: shell
+  title: "Практика: Mifare Classic и Crypto1 (nested/hardnested)"
+  toolset: [core]
+  workdir: /home/student/mifare
+  files: [task.md, notes.md, mfoc-output.txt, dump-mf.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`mfoc-output.txt` — результат восстановления ключей (nested attack)."
+    - "`dump-mf.txt` — дамп секторов; сектор с секретом содержит ASCII-флаг."
+    - "Найди флаг: `grep nto dump-mf.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,29 @@
+{
+  "id": "hardware-nfc-relay",
+  "workdir": "/home/student/nfcrelay",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/nfcrelay/found.txt",
+    "contains": "nto{nfc_r3l4y}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/nfcrelay",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/nfcrelay/task.md",
+      "text": "# Задача: NFC relay\n\nРазбери лог релей-атаки. Найди флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/nfcrelay/notes.md",
+      "text": "Заметки\n------\n- Relay удлиняет NFC-канал; защита — distance bounding / тайминги.\n- Требует близости карты, но не копии.\n"
+    },
+    {
+      "path": "/home/student/nfcrelay/relay-log.txt",
+      "text": "proxmark relay: card <-> reader over TCP\nRTT baseline 4ms -> relayed 38ms\nauth APDU relayed, reader ACCEPTED\nnote: nto{nfc_r3l4y}\n"
+    }
+  ],
+  "tools": {}
+}

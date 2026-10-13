@@ -13,6 +13,18 @@ useful_for:
   - "Пентест CI/CD и внешних интеграций"
 estimated_minutes: 40
 summary: "Как устроена OIDC-федерация в AWS/Azure/GCP, какие условия trust-политик критичны (aud/sub/iss) и как слабые проверки ведут к захвату облачных ролей. Практические пейлоады."
+lab:
+  kind: shell
+  title: "Практика: OIDC-федерация и подделка trust"
+  toolset: [core]
+  workdir: /home/student/oidc
+  files: [task.md, notes.md, trust-policy.json, oidc-token.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "В `trust-policy.json` условие `sub` слишком широкое (`repo:acme/*`) — любой репозиторий подходит."
+    - "`oidc-token.txt` — base64 payload токена, выпущенного для подставного репозитория."
+    - "Раскодируй: `base64 -d oidc-token.txt > token.json`, затем `grep nto token.json > found.txt`."
+
 ---
 ## Задача
 

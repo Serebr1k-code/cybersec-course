@@ -1,0 +1,33 @@
+{
+  "id": "hardware-gnuradio",
+  "workdir": "/home/student/gnuradio",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/gnuradio/found.txt",
+    "contains": "nto{gnur4d10_gr4ph}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/gnuradio",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/gnuradio/task.md",
+      "text": "# Задача: GNU Radio\n\nРазбери граф GNU Radio и декодированный вывод. Найди флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/gnuradio/notes.md",
+      "text": "Заметки\n------\n- GRC-граф: source -> filter -> demod -> decode -> sink.\n- Параметры: sample rate, center freq, gain.\n"
+    },
+    {
+      "path": "/home/student/gnuradio/grc-flow.txt",
+      "text": "source: RTL-SDR @ 433.92MHz, sr=1Msps\n-> low_pass(75kHz)\n-> quadrature_demod\n-> binary_slicer\n-> decode_ook\n-> file_sink\n"
+    },
+    {
+      "path": "/home/student/gnuradio/decoded.txt",
+      "text": "preamble sync ok\npayload: 41 43 4d 45 2d 47 41 54 45\ndecoded ascii: ACME-GATE nto{gnur4d10_gr4ph}\n"
+    }
+  ],
+  "tools": {}
+}

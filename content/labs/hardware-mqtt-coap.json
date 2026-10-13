@@ -1,0 +1,33 @@
+{
+  "id": "hardware-mqtt-coap",
+  "workdir": "/home/student/mqttcoap",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/mqttcoap/found.txt",
+    "contains": "nto{c04p_c0nf1g_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/mqttcoap",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/mqttcoap/task.md",
+      "text": "# Задача: MQTT/CoAP\n\nРазбери перехваченный CoAP-трафик и карту MQTT-топиков. Найди секрет.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/mqttcoap/notes.md",
+      "text": "Заметки\n------\n- CoAP по умолчанию без шифрования (UDP/5683); DTLS — редкость.\n- Ресурсы /config, /keys часто не защищены.\n"
+    },
+    {
+      "path": "/home/student/mqttcoap/coap-capture.txt",
+      "text": "GET coap://[fd00::77f3]/config  -> 2.05 Content\n  {\"provision_key\":\"nto{c04p_c0nf1g_l34k}\",\"mqtt_broker\":\"iot.acme.internal\"}\nGET coap://[fd00::77f3]/status  -> 2.05 Content\n  {\"uptime\":84012}\n"
+    },
+    {
+      "path": "/home/student/mqttcoap/mqtt-topics.txt",
+      "text": "acme/+/telemetry\nacme/+/cmd\nacme/+/config\n$SYS/broker/clients/connected\n"
+    }
+  ],
+  "tools": {}
+}

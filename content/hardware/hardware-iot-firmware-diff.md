@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty (IoT-программы)"
 estimated_minutes: 45
 summary: "Как сравнивать версии прошивок, находить изменённые бинарники, извлекать версии библиотек и искать известные CVE в прошивке устройства."
+lab:
+  kind: shell
+  title: "Практика: диффинг прошивок IoT"
+  toolset: [core, hex]
+  workdir: /home/student/fwdiff
+  files: [task.md, notes.md, fw-1.2.bin, fw-1.3.bin]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "В новых версиях часто остаются старые секреты. Сравни строки обеих прошивок."
+    - "Сначала `strings fw-1.2.bin`, потом `strings fw-1.3.bin` — ищи различия."
+    - "Найди флаг: `strings fw-1.3.bin | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

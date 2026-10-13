@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty: dangling DNS"
 estimated_minutes: 30
 summary: "Как атаковать облачный DNS: dangling-записи и subdomain takeover (S3, CloudFront, App Service), анализ hosted zones, злоупотребление зонами и DNS-логами."
+lab:
+  kind: shell
+  title: "Практика: разбор зоны Route 53 и dangling CNAME"
+  toolset: [core]
+  workdir: /home/student/r53
+  files: [task.md, notes.md, list-record-sets.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "В `list-record-sets.json` найди CNAME, указывающий на внешний ресурс (например S3 website endpoint)."
+    - "Если ресурс-цель уже не существует — это dangling record, потенциальный subdomain takeover."
+    - "Флаг лежит в TXT-записи зоны: `grep nto list-record-sets.json > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

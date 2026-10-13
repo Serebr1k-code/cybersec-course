@@ -1,0 +1,33 @@
+{
+  "id": "cloud-k8s-falco-bypass",
+  "workdir": "/home/student/falco",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/falco/found.txt",
+    "contains": "nto{f4lc0_bl1nd_sp0t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/falco",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/falco/task.md",
+      "text": "# Задача: обход Falco\n\nРазбери правила и события. Найди действие в слепой зоне и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/falco/notes.md",
+      "text": "Заметки\n------\n- Falco матчит syscalls по правилам; действия вне правил не детектятся.\n- Типичные пробелы: чтение через /proc, memfd, unshare.\n"
+    },
+    {
+      "path": "/home/student/falco/falco-rules.yaml",
+      "text": "- rule: Terminal shell in container\n  condition: spawned_process and proc.name in (bash, sh)\n- rule: Write below etc\n  condition: open_write and fd.name startswith /etc\n"
+    },
+    {
+      "path": "/home/student/falco/falco-events.txt",
+      "text": "EVENT spawned_process proc=sh container=acme  -> ALERT\nEVENT open_write /etc/passwd -> ALERT\nEVENT memfd_create + exec (fileless) -> NO RULE MATCH\n  exfil via memfd: nto{f4lc0_bl1nd_sp0t}\n"
+    }
+  ],
+  "tools": {}
+}

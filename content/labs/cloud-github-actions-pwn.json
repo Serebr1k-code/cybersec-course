@@ -1,0 +1,33 @@
+{
+  "id": "cloud-github-actions-pwn",
+  "workdir": "/home/student/gha",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/gha/found.txt",
+    "contains": "nto{prt_s3cr3t_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/gha",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/gha/task.md",
+      "text": "# Задача: GitHub Actions\n\nWorkflow использует `pull_request_target`, но чекаутит код из PR и запускает его с доступом к секретам. Подтверди проблему и найди флаг в логе прогона.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/gha/notes.md",
+      "text": "Заметки\n------\n- `pull_request_target` даёт доступ к секретам даже для PR из форков.\n- Опасность в комбинации с checkout `ref: ${{ github.event.pull_request.head.sha }}`.\n"
+    },
+    {
+      "path": "/home/student/gha/pr-workflow.yml",
+      "text": "name: ci\non: pull_request_target\njobs:\n  build:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          ref: ${{ github.event.pull_request.head.sha }}\n      - run: make test\n        env:\n          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}\n"
+    },
+    {
+      "path": "/home/student/gha/action-log.txt",
+      "text": "Run make test\n$ node ./scripts/build.js\n> loading plugin from PR\n> env NPM_TOKEN=npm_... leaked by build script\n> SECRET_CANARY=nto{prt_s3cr3t_l34k}\nBuild failed (exit 1)\n"
+    }
+  ],
+  "tools": {}
+}

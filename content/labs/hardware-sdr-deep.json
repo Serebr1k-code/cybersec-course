@@ -1,0 +1,42 @@
+{
+  "id": "hardware-sdr-deep",
+  "workdir": "/home/student/sdr",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/sdr/found.txt",
+    "contains": "nto{1q_5ampl3s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/sdr",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/sdr/task.md",
+      "text": "# Задача: SDR\n\nЗапиши IQ-сэмплы и декодируй сигнал. Найди флаг в полезной нагрузке.\n\nИнструмент: `sdr` (эмуляция — вывод захвачен с реального rtl_sdr/rtl_433).\n"
+    },
+    {
+      "path": "/home/student/sdr/notes.md",
+      "text": "Заметки\n------\n- IQ-сэмплы: I и Q по 8/16 бит; демодуляция OOK/FSK.\n- rtl_433 декодирует датчики 315/433/868 МГц автоматически.\n"
+    }
+  ],
+  "tools": {
+    "sdr": {
+      "help": "sdr <capture|decode> [...] — SDR-утилиты (эмуляция rtl_sdr/rtl_433)",
+      "cases": [
+        {
+          "match": "rtl_sdr.*capture",
+          "example": "sdr rtl_sdr -f 433920000 -s 1024000 capture.iq",
+          "output": "Found 1 device(s): Realtek RTL2838\nSampling at 1024000 Hz, center 433920000 Hz\nWrote 4194304 bytes to capture.iq\n"
+        },
+        {
+          "match": "decode capture",
+          "example": "sdr decode capture.iq",
+          "output": "Detected OOK modulation\nPreamble OK, 24-bit payload\nDecoded: {\"id\":0xAB12,\"temp\":21.4,\"tag\":\"nto{1q_5ampl3s}\"}\n"
+        }
+      ],
+      "fallback": "sdr: (эмуляция) такой вызов не захвачен. Попробуй:\n  sdr rtl_sdr -f 433920000 -s 1024000 capture.iq\n  sdr decode capture.iq\n"
+    }
+  }
+}

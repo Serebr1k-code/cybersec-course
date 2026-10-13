@@ -1,0 +1,29 @@
+{
+  "id": "hardware-yaffs-romfs",
+  "workdir": "/home/student/romfs",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/romfs/found.txt",
+    "contains": "nto{r0mfs_s1gn4tur3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/romfs",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/romfs/task.md",
+      "text": "# Задача: ROMFS\n\nНебольшой образ прошивки в ROMFS. Определи формат и найди флаг.\n\nИнструменты: `xxd`, `strings`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/romfs/notes.md",
+      "text": "Заметки\n------\n- ROMFS magic: ASCII `-rom1fs-`.\n- YAFFS хранит теги в OOB; его образ начинается иначе, но секреты тоже видны в `strings`.\n"
+    },
+    {
+      "path": "/home/student/romfs/rootfs.romfs",
+      "b64": "LXJvbTFmcy0AAQAAIwEAAEFDTUUgUk9NRlMAAAAAAAAAAAAAAAAAAAAAAC9ldGMvYWNtZS9mbGFnAG50b3tyMG1mc19zMWduNHR1cjN9AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    }
+  ],
+  "tools": {}
+}

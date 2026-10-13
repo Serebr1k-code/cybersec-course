@@ -13,6 +13,18 @@ useful_for:
   - "Работа: физическая безопасность"
 estimated_minutes: 12
 summary: "Этап клонирования RFID и релей-атак NFC."
+lab:
+  kind: shell
+  title: "Практика: клонирование и релей карт"
+  toolset: [core]
+  workdir: /home/student/rfidatt
+  files: [task.md, notes.md, clone-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`clone-log.txt` — лог клонирования/релея карты доступа."
+    - "Ищи UID, считанный и записанный на клон, и секрет."
+    - "Найди флаг: `grep nto clone-log.txt > found.txt`."
+
 ---
 
 Этот урок — **этап-навигатор** в ветке. Он короткий: его задача — объяснить, что вы будете изучать на этом этапе, почему темы идут именно в таком порядке и что вы сможете делать после прохождения.

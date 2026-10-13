@@ -1,0 +1,29 @@
+{
+  "id": "hardware-pcb-reversing",
+  "workdir": "/home/student/pcb",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/pcb/found.txt",
+    "contains": "nto{pcb_tr4c3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/pcb",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/pcb/task.md",
+      "text": "# Задача: реверс PCB\n\nПроследи дорожки, найди скрытый интерфейс и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/pcb/notes.md",
+      "text": "Заметки\n------\n- Многослойная плата: смотри переходные отверстия и внутренние слои.\n- Вендоры иногда разрывают дорожку и оставляют тест-поинт.\n"
+    },
+    {
+      "path": "/home/student/pcb/pcb-traces.txt",
+      "text": "U1 (MCU) pin 21 -> via -> U3 (flash) pin 2 (DO)\nU1 pin 22 -> test point TP7 (SPI CLK, unpopulated)\nnet name \"DBG\" -> J4 pad (hidden UART TX)\nschematic leak: nto{pcb_tr4c3}\n"
+    }
+  ],
+  "tools": {}
+}

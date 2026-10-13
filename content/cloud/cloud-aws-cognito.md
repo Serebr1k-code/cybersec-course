@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty: Cognito misconfig"
 estimated_minutes: 50
 summary: "Как устроены Cognito user pool и identity pool, чем опасен неаутентифицированный guest-доступ и как из публичного identity pool получить временные AWS-креды и роль."
+lab:
+  kind: shell
+  title: "Практика: Cognito — от identity pool к данным пользователя"
+  toolset: [core, aws]
+  workdir: /home/student/cognito
+  files: [task.md, notes.md, identity-pool.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай `identity-pool.json`: он разрешает unauth-доступ и отдаёт роль, а user pool доверяет ей."
+    - "Получи пользователя по токену: `aws cognito-idp get-user --access-token <token>`."
+    - "В UserAttributes лежит `custom:flag`: `grep nto user.json > found.txt`."
+
 ---
 
 ## Задача

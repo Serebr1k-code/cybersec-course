@@ -13,6 +13,18 @@ useful_for:
   - "Аудит умных счётчиков и датчиков"
 estimated_minutes: 45
 summary: "Физический уровень LoRa (Chirp Spread Spectrum), классы устройств LoRaWAN, join-процедура OTAA/ABP, криптография кадров и атаки на сеть."
+lab:
+  kind: shell
+  title: "Практика: LoRa и LoRaWAN"
+  toolset: [core]
+  workdir: /home/student/lora
+  files: [task.md, notes.md, lorawan-join.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`lorawan-join.txt` — перехват Join Accept/AppData LoRaWAN."
+    - "Ищи поля DevAddr/NwkSKey/AppSKey и payload с секретом."
+    - "Найди флаг: `grep nto lorawan-join.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

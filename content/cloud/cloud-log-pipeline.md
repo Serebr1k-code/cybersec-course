@@ -13,6 +13,18 @@ useful_for:
   - "IR: доказательства и их сохранность"
 estimated_minutes: 55
 summary: "Как устроены лог-пайплайны облака (CloudTrail, CloudWatch, Azure Monitor, Cloud Logging), какие действия нарушают целостность логов, как это детектится и что это значит для атаки и расследования."
+lab:
+  kind: shell
+  title: "Практика: вмешательство в лог-пайплайн"
+  toolset: [core]
+  workdir: /home/student/logpipeline
+  files: [task.md, notes.md, pipeline-config.json, pipeline-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`pipeline-config.json` — конфиг лог-пайплайна (фильтры)."
+    - "Ищи фильтр, отбрасывающий события определённых пользователей."
+    - "Найди флаг: `grep nto pipeline-log.txt > found.txt`."
+
 ---
 ## Задача
 

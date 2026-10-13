@@ -13,6 +13,18 @@ useful_for:
   - "Пентест managed-кластеров"
 estimated_minutes: 50
 summary: "Как работают NetworkPolicy в Kubernetes, почему изоляция часто неполная и как обходить её легитимными механизмами: DNS, kubelet, hostNetwork, node network и разрешённые egress-пути."
+lab:
+  kind: shell
+  title: "Практика: NetworkPolicy и lateral movement"
+  toolset: [core]
+  workdir: /home/student/netpol
+  files: [task.md, notes.md, networkpolicies.txt, recon.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`networkpolicies.txt` — какие политики есть, `recon.txt` — что доступно из пода."
+    - "Ищи namespace без default-deny."
+    - "Найди флаг: `grep nto recon.txt > found.txt`."
+
 ---
 
 ## Задача

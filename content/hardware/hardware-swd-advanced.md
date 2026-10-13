@@ -13,6 +13,18 @@ useful_for:
   - "Аппаратная безопасность"
 estimated_minutes: 45
 summary: "Продвинутая отладка ARM через SWD и CoreSight: SWO/ITM-трассировка, ETM-инструкции, точки останова, отладка без остановки ядра и обход защиты от отладки."
+lab:
+  kind: shell
+  title: "Практика: SWD и CoreSight"
+  toolset: [core]
+  workdir: /home/student/swd
+  files: [task.md, notes.md, openocd-swd.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`openocd-swd.txt` — лог OpenOCD по SWD (CoreSight)."
+    - "Ищи чтение памяти (mdw) и дамп области, где лежит секрет."
+    - "Найди флаг: `grep nto openocd-swd.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,18 @@ useful_for:
   - "Аудит secure boot и цепочки доверия"
 estimated_minutes: 65
 summary: "Глубокое погружение в U-Boot: бинарный формат окружения (CRC, избыточность), fw_setenv/fw_printenv, FIT-образы и подписи, secure/verified boot, bootcount/altbootcmd, fastboot/DFU и практические обходы цепочки доверия."
+lab:
+  kind: shell
+  title: "Практика: U-Boot bootargs и secure boot"
+  toolset: [core]
+  workdir: /home/student/ubootdeep
+  files: [task.md, notes.md, bootargs.txt, secure-boot.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`bootargs.txt` — kernel command line, переданная U-Boot. Ищи `init=` и `root=` с секретом."
+    - "`secure-boot.txt` показывает, что verified boot выключен (`CONFIG_FIT_SIGNATURE=n`)."
+    - "Флаг — в bootargs: `grep nto bootargs.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

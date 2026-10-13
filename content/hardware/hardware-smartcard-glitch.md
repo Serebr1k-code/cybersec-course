@@ -13,6 +13,18 @@ useful_for:
   - "Аудит защищённых микроконтроллеров и secure element"
 estimated_minutes: 65
 summary: "Физические атаки на смарт-карты: анализ по потреблению (SPA/DPA/CPA), инъекция сбоев по питанию, клоку и свету, обход проверки PIN и извлечение ключей через ChipWhisperer, Proxmark и специализированные платформы — с разобранными примерами."
+lab:
+  kind: shell
+  title: "Практика: glitch и side-channel на смарт-карте"
+  toolset: [core]
+  workdir: /home/student/scglitch
+  files: [task.md, notes.md, glitch-apdu.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`glitch-apdu.txt` — APDU-лог с инъекцией glitch в момент PIN-проверки."
+    - "Ищи ответ, который должен был быть 63Cx, но стал 9000."
+    - "Найди флаг: `grep nto glitch-apdu.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

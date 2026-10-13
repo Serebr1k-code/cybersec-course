@@ -13,6 +13,18 @@ useful_for:
   - "Анализ Bicep-шаблонов"
 estimated_minutes: 45
 summary: "Bicep: компиляция в ARM, deployments и PassRole по-azure'овски. Как из шаблона выполнить команду на VM через RunCommand или назначить роль managed identity."
+lab:
+  kind: shell
+  title: "Практика: Azure Bicep → ARM"
+  toolset: [core]
+  workdir: /home/student/bicep
+  files: [task.md, notes.md, main.bicep, compiled.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`main.bicep` компилируется в ARM; смотри дефолтные параметры и права."
+    - "`compiled.json` — результат компиляции, там может быть секрет."
+    - "Найди флаг: `grep nto compiled.json > found.txt`."
+
 ---
 
 ## Задача

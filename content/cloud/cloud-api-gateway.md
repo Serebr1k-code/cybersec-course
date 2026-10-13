@@ -13,6 +13,18 @@ useful_for:
   - "Поиск ошибок маршрутизации API"
 estimated_minutes: 45
 summary: "Как устроены API Gateway (AWS), API Management (Azure) и Apigee/API Gateway (GCP), как искать методы без авторизации, обходить авторизаторы и WAF и находить расхождения между шлюзом и бэкендом."
+lab:
+  kind: shell
+  title: "Практика: незащищённый маршрут API Gateway"
+  toolset: [core, curl]
+  workdir: /home/student/apigw
+  files: [task.md, notes.md, openapi.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "В `openapi.json` найди маршрут без секции `security` (в отличие от остальных)."
+    - "Это `GET /admin/flag` — он не требует авторизации."
+    - "Вызови его и сохрани ответ: `curl -s https://api.acme.example/admin/flag > found.txt`, затем `check`."
+
 ---
 
 ## Задача

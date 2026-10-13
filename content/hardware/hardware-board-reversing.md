@@ -13,6 +13,18 @@ useful_for:
   - "Работа: hardware-исследования"
 estimated_minutes: 12
 summary: "Этап реверса печатной платы и измерений мультиметром/осциллографом."
+lab:
+  kind: shell
+  title: "Практика: реверс платы и поиск интерфейсов"
+  toolset: [core]
+  workdir: /home/student/board
+  files: [task.md, notes.md, board-survey.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`board-survey.txt` — результаты осмотра/прозвонки платы."
+    - "Ищи тест-поинты и подписи (TX/RX/GND, J2, TP1)."
+    - "Найди флаг: `grep nto board-survey.txt > found.txt`."
+
 ---
 
 Этот урок — **этап-навигатор** в ветке. Он короткий: его задача — объяснить, что вы будете изучать на этом этапе, почему темы идут именно в таком порядке и что вы сможете делать после прохождения.

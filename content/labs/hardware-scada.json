@@ -1,0 +1,29 @@
+{
+  "id": "hardware-scada",
+  "workdir": "/home/student/scada",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/scada/found.txt",
+    "contains": "nto{sc4d4_c0ntr0l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/scada",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/scada/task.md",
+      "text": "# Задача: SCADA\n\nРазбери трафик АСУ ТП. Найди вредоносную команду и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/scada/notes.md",
+      "text": "Заметки\n------\n- Протоколы: Modbus/TCP (502), S7comm (102), DNP3 (20000).\n- Классические атаки: чтение/запись регистров, stop CPU, manipulation of view.\n"
+    },
+    {
+      "path": "/home/student/scada/scada-capture.txt",
+      "text": "S7comm  setup communication, rack=0 slot=2\nS7comm  write area DB1 offset 0 len 4 -> STOP\nModbus  write single coil addr=1 val=1\nnote: operator creds nto{sc4d4_c0ntr0l}\n"
+    }
+  ],
+  "tools": {}
+}

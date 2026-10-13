@@ -1,0 +1,33 @@
+{
+  "id": "hardware-chip-off-bga",
+  "workdir": "/home/student/bga",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/bga/found.txt",
+    "contains": "nto{ch1p_0ff_3mmc}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/bga",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/bga/task.md",
+      "text": "# Задача: chip-off\n\nЧип памяти выпаян и прочитан. В логе видно смещение, где лежит таблица разделов. Найди флаг в дампе.\n\nИнструменты: `xxd`, `strings`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/bga/notes.md",
+      "text": "Заметки\n------\n- eMMC/SD: MBR/GPT в начале; сектор 0 = MBR (55 AA в конце).\n- Chip-off рискован (термо-повреждение), но обходит блокировки чтения.\n"
+    },
+    {
+      "path": "/home/student/bga/read-log.txt",
+      "text": "reading emmc via eMMC reader @ 24MHz\nsector 0: MBR, partition 1 @ 0x200000 (ext4)\nsector 4096: GPT backup present\ndump complete: 8 GiB -> emmc-dump.bin\n"
+    },
+    {
+      "path": "/home/student/bga/emmc-dump.bin",
+      "b64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVaoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEFDTUUtU2VjdXJlU3RvcmUAZGV2aWNlX3NlY3JldD1udG97Y2gxcF8wZmZfM21tY30AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    }
+  ],
+  "tools": {}
+}

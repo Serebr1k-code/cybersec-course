@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty: CI/CD в публичных репозиториях"
 estimated_minutes: 40
 summary: "Как эксплуатировать GitHub Actions: script injection в workflow, pull_request_target, OIDC-доверие к AWS/GCP/Azure, утечка GITHUB_TOKEN и секретов. Практические пейлоады."
+lab:
+  kind: shell
+  title: "Практика: инъекция в GitHub Actions workflow"
+  toolset: [core]
+  workdir: /home/student/ghainject
+  files: [task.md, notes.md, workflow.yml, run-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`workflow.yml` подставляет контекст события прямо в `run:` — это инъекция."
+    - "`${{ github.event.issue.title }}` контролируется атакующим."
+    - "Найди флаг: `grep nto run-log.txt > found.txt`."
+
 ---
 ## Задача
 

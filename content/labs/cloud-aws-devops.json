@@ -1,0 +1,46 @@
+{
+  "id": "cloud-aws-devops",
+  "workdir": "/home/student/awsdevops",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/awsdevops/found.txt",
+    "contains": "nto{c0d3bu1ld_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/awsdevops",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/awsdevops/task.md",
+      "text": "# Задача: AWS DevOps\n\nРазбери buildspec и логи сборки. Найди секрет, доступный сборке.\n\nИнструмент: `aws` (эмуляция).\n"
+    },
+    {
+      "path": "/home/student/awsdevops/notes.md",
+      "text": "Заметки\n------\n- CodeBuild выполняет buildspec в контейнере с ролью сборки.\n- Логи содержат вывод команд, иногда с секретами.\n"
+    },
+    {
+      "path": "/home/student/awsdevops/buildspec.yml",
+      "text": "version: 0.2\nphases:\n  install:\n    commands:\n      - npm ci\n  build:\n    commands:\n      - npm run build\n      - echo \"deploying\"\n"
+    }
+  ],
+  "tools": {
+    "aws": {
+      "help": "aws codebuild <...> — AWS CLI (эмуляция)",
+      "cases": [
+        {
+          "match": "batch-get-builds",
+          "example": "aws codebuild batch-get-builds --ids acme:build:123",
+          "output": "{\n  \"builds\": [{\n    \"id\": \"acme:build:123\",\n    \"buildStatus\": \"SUCCEEDED\",\n    \"logs\": {\"groupName\": \"/aws/codebuild/acme\"}\n  }]\n}\n"
+        },
+        {
+          "match": "get-log-events|logs",
+          "example": "aws logs get-log-events --log-group-name /aws/codebuild/acme",
+          "output": "{\n  \"events\": [\n    {\"message\": \"[Container] Running command npm ci\"},\n    {\"message\": \"[Container] deploy token: nto{c0d3bu1ld_rce}\"}\n  ]\n}\n"
+        }
+      ],
+      "fallback": "aws: (эмуляция) такой вызов не захвачен. Попробуй:\n  aws codebuild batch-get-builds --ids acme:build:123\n"
+    }
+  }
+}

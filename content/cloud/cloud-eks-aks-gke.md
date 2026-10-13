@@ -13,6 +13,18 @@ useful_for:
   - "Понимание отличий EKS/AKS/GKE"
 estimated_minutes: 40
 summary: "Специфика managed-Kubernetes: EKS (IRSA), AKS (workload identity), GKE (workload identity). Как k8s-доступ превращается в облачные права и как атаковать control plane."
+lab:
+  kind: shell
+  title: "Практика: managed Kubernetes (EKS/AKS/GKE)"
+  toolset: [core]
+  workdir: /home/student/mk8s
+  files: [task.md, notes.md, eks-auth.txt, pod-metadata.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`eks-auth.txt` — маппинг IAM→Kubernetes; `pod-metadata.txt` — метаданные пода."
+    - "Ищи pod identity/IRSA с широкими правами."
+    - "Найди флаг: `grep nto pod-metadata.txt > found.txt`."
+
 ---
 
 ## Задача

@@ -13,6 +13,18 @@ useful_for:
   - "Обход admission по образам"
 estimated_minutes: 50
 summary: "Supply chain образов Kubernetes: реестры (ECR/GCR/ACR/Harbor), mutable-теги, подписи (cosign/Sigstore), image pull secrets и admission-политики. Как подменить образ и обойти проверки."
+lab:
+  kind: shell
+  title: "Практика: supply chain образов Kubernetes"
+  toolset: [core]
+  workdir: /home/student/k8ssupply
+  files: [task.md, notes.md, admission-images.txt, image-signatures.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`admission-images.txt` — какие образы допущены; `image-signatures.txt` — подписи."
+    - "Ищи образ без валидной подписи или из недоверенного реестра."
+    - "Найди флаг: `grep nto image-signatures.txt > found.txt`."
+
 ---
 
 ## Задача

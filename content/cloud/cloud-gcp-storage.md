@@ -13,6 +13,18 @@ useful_for:
   - "Использование утёкших signed URLs"
 estimated_minutes: 45
 summary: "GCS: IAM vs ACL, uniform bucket-level access, публичные бакеты, signed URLs и object versioning. Как находить и читать данные, которые «должны быть приватными»."
+lab:
+  kind: shell
+  title: "Практика: публичный бакет GCS и утечка объекта"
+  toolset: [core, curl]
+  workdir: /home/student/gcs
+  files: [task.md, notes.md, gsutil-ls.txt, bucket-iam.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "В `bucket-iam.json` найди `allUsers` — бакет отдаёт объекты всем."
+    - "В листинге `gsutil-ls.txt` есть объект `config/prod.env` — публичный бакет позволяет скачать его по HTTP."
+    - "Скачай объект и найди флаг: `curl -s https://storage.googleapis.com/acme-backup/config/prod.env > prod.env`, затем `grep nto prod.env > found.txt`."
+
 ---
 
 ## Задача

@@ -13,6 +13,18 @@ useful_for:
   - "Аппаратная безопасность"
 estimated_minutes: 50
 summary: "Как устроены чиповые платёжные карты EMV: APDU-команды, контактный и бесконтактный интерфейс, известные атаки и жёсткие правовые рамки."
+lab:
+  kind: shell
+  title: "Практика: EMV и платёжные APDU"
+  toolset: [core]
+  workdir: /home/student/emv
+  files: [task.md, notes.md, emv-apdu.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`emv-apdu.txt` — обмен с EMV-картой (SELECT PSE, GPO, READ RECORD)."
+    - "Проприетарные теги (9Fxx/BFxx) могут содержать внутренние данные банка."
+    - "Найди флаг: `grep nto emv-apdu.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,29 @@
+{
+  "id": "cloud-aws-vpc",
+  "workdir": "/home/student/vpc",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/vpc/found.txt",
+    "contains": "nto{sg_0p3n_t0_w0rld}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/vpc",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/vpc/task.md",
+      "text": "# Задача: security group\n\nНайди security group, открытую в интернет на управляющий порт, и флаг в её тегах.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/vpc/notes.md",
+      "text": "Заметки\n------\n- 0.0.0.0/0 в IpRanges = доступ из интернета.\n- Порты 22/3389/3306 на 0.0.0.0/0 — классическая ошибка.\n"
+    },
+    {
+      "path": "/home/student/vpc/describe-security-groups.json",
+      "text": "{\n  \"SecurityGroups\": [\n    {\"GroupId\": \"sg-0aaa\", \"GroupName\": \"web-sg\", \"IpPermissions\": [\n       {\"FromPort\": 443, \"ToPort\": 443, \"IpProtocol\": \"tcp\", \"IpRanges\": [{\"CidrIp\": \"0.0.0.0/0\"}]}]},\n    {\"GroupId\": \"sg-0bbb\", \"GroupName\": \"admin-sg\", \"Tags\": [{\"Key\": \"note\", \"Value\": \"nto{sg_0p3n_t0_w0rld}\"}],\n     \"IpPermissions\": [\n       {\"FromPort\": 22, \"ToPort\": 22, \"IpProtocol\": \"tcp\", \"IpRanges\": [{\"CidrIp\": \"0.0.0.0/0\"}]}]}\n  ]\n}\n"
+    }
+  ],
+  "tools": {}
+}

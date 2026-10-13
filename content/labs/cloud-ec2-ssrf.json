@@ -1,0 +1,47 @@
+{
+  "id": "cloud-ec2-ssrf",
+  "workdir": "/home/student/ec2ssrf",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/ec2ssrf/found.txt",
+    "contains": "nto{1mdsv2_h0p_l1m1t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/ec2ssrf",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/ec2ssrf/task.md",
+      "text": "# Задача: EC2 IMDSv2\n\nПриложение уязвимо к SSRF. Получи токен IMDSv2 и прочитай метаданные.\n\nИнструмент: `curl` (эмуляция AWS IMDS).\n"
+    },
+    {
+      "path": "/home/student/ec2ssrf/notes.md",
+      "text": "Заметки\n------\n- IMDSv2: PUT /latest/api/token -> токен, затем заголовок.\n- Hop limit=1 блокирует SSRF из контейнера; если 2 — SSRF работает.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] [-X PUT] [-H ...] <url> — HTTP-запрос (эмуляция AWS IMDS)",
+      "cases": [
+        {
+          "match": "api/token",
+          "example": "curl -s -X PUT \"http://169.254.169.254/latest/api/token\" -H \"X-aws-ec2-metadata-token-ttl-seconds: 21600\"",
+          "output": "AQAEAAAB-example-token-IMDSv2\n"
+        },
+        {
+          "match": "user-data",
+          "example": "curl -s -H \"X-aws-ec2-metadata-token: AQAEAAAB\" http://169.254.169.254/latest/user-data",
+          "output": "#cloud-config\nruncmd:\n  - echo nto{1mdsv2_h0p_l1m1t} > /root/flag\n"
+        },
+        {
+          "match": "meta-data/iam/security-credentials",
+          "example": "curl -s -H \"X-aws-ec2-metadata-token: AQAEAAAB\" http://169.254.169.254/latest/meta-data/iam/security-credentials/",
+          "output": "ec2-admin-role\n"
+        }
+      ],
+      "fallback": "curl: (эмуляция) для этого URL нет захваченного ответа. Попробуй api/token, user-data или iam/security-credentials.\n"
+    }
+  }
+}

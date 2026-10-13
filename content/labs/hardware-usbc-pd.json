@@ -1,0 +1,29 @@
+{
+  "id": "hardware-usbc-pd",
+  "workdir": "/home/student/usbcpd",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/usbcpd/found.txt",
+    "contains": "nto{usbc_pd_sp00f}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/usbcpd",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/usbcpd/task.md",
+      "text": "# Задача: USB-C PD\n\nРазбери перехват Power Delivery. Найди подозрительный контракт и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/usbcpd/notes.md",
+      "text": "Заметки\n------\n- PD: Source_Capabilities -> Request -> Accept/PS_RDY.\n- Malicious cable может подменить capabilities и перехватить роль.\n"
+    },
+    {
+      "path": "/home/student/usbcpd/pd-log.txt",
+      "text": "CC: Source detected\nSRC_CAP: 5V/3A, 9V/3A, 20V/5A\nSNK_REQ: 20V/5A -> ACCEPT\nWARN: cable e-marker spoofed (reported 5A, rated 2A) token nto{usbc_pd_sp00f}\n"
+    }
+  ],
+  "tools": {}
+}

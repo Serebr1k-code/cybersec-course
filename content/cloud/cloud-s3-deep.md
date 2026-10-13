@@ -13,6 +13,18 @@ useful_for:
   - "Понимание, почему бакет открыт"
 estimated_minutes: 40
 summary: "Глубокий разбор контроля доступа S3: ACL vs bucket policy, public access block, presigned URL, Object Ownership, и как обходить типовые ограничения."
+lab:
+  kind: shell
+  title: "Практика: S3 bucket policy и presigned URL"
+  toolset: [core, curl]
+  workdir: /home/student/s3deep
+  files: [task.md, notes.md, list-objects.txt, bucket-policy.json, presigned-url.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "В `bucket-policy.json` найди `Principal: \"*\"` — политика разрешает доступ всем."
+    - "В листинге есть объект `flag.txt`; в `presigned-url.txt` — подписанная ссылка на него."
+    - "Скачай объект по ссылке и найди флаг: `curl -s \"<url>\" > obj.txt`, затем `grep nto obj.txt > found.txt`."
+
 ---
 ## Задача
 

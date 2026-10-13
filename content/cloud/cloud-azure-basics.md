@@ -13,6 +13,18 @@ useful_for:
   - "Разбор инцидентов в гибридных Microsoft-средах"
 estimated_minutes: 35
 summary: "Как устроен Azure: подписки, ресурсные группы, ARM, Entra ID, RBAC и Managed Identity. Карта поверхности атаки и первые команды разведки через Azure CLI."
+lab:
+  kind: shell
+  title: "Практика: базовая разведка Azure-тенанта"
+  toolset: [core, az]
+  workdir: /home/student/azbasics
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с аккаунтов: `az account list`."
+    - "Перечисли storage accounts: `az storage account list`."
+    - "В теге storage account найден флаг: сохрани вывод и `grep nto sa.json > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

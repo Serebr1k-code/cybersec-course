@@ -1,0 +1,29 @@
+{
+  "id": "hardware-smartcard-glitch",
+  "workdir": "/home/student/scglitch",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/scglitch/found.txt",
+    "contains": "nto{sc_gl1tch_p1n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/scglitch",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/scglitch/task.md",
+      "text": "# Задача: smartcard glitch\n\nРазбери лог атаки на смарт-карту. Найди обход PIN и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/scglitch/notes.md",
+      "text": "Заметки\n------\n- PIN verify: 00 20 00 80 08 <pin>; неверный PIN -> 63Cx.\n- Glitch в момент сравнения может дать 9000 без знания PIN.\n"
+    },
+    {
+      "path": "/home/student/scglitch/glitch-apdu.txt",
+      "text": "> 00 20 00 80 08 FF FF FF FF FF FF FF FF\n< 63 C0   (2 tries left)\nglitch injected @ 3.2us during compare\n> 00 20 00 80 08 FF FF FF FF FF FF FF FF\n< 90 00   (PIN accepted!)\n> 00 B0 00 00 20\n< 6e 74 6f 7b 73 63 5f 67 6c 31 74 63 68 5f 70 31 6e 7d 90 00\n  ASCII: nto{sc_gl1tch_p1n}\n"
+    }
+  ],
+  "tools": {}
+}

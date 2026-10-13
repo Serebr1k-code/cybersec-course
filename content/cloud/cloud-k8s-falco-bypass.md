@@ -13,6 +13,18 @@ useful_for:
   - "Пентест кластеров с мониторингом"
 estimated_minutes: 50
 summary: "Falco: правила, драйверы (eBPF/kernel module), макросы и исключения. Какие техники побега детектируются, как снизить шум и где остаются слепые зоны runtime-мониторинга."
+lab:
+  kind: shell
+  title: "Практика: обход Falco (runtime-детект)"
+  toolset: [core]
+  workdir: /home/student/falco
+  files: [task.md, notes.md, falco-rules.yaml, falco-events.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`falco-rules.yaml` — правила детекта; `falco-events.txt` — события."
+    - "Ищи действие, не покрытое правилами (слепая зона)."
+    - "Найди флаг: `grep nto falco-events.txt > found.txt`."
+
 ---
 
 ## Задача

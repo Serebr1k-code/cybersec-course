@@ -1,0 +1,46 @@
+{
+  "id": "cloud-aws-ecs",
+  "workdir": "/home/student/ecs",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/ecs/found.txt",
+    "contains": "nto{3cs_t4sk_r0l3_pwn3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/ecs",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/ecs/task.md",
+      "text": "# Задача: ECS task role\n\nТы получил RCE внутри задачи ECS (Fargate). Контейнеру выдан task role — через него можно звать AWS API. Metadata-эндпоинт контейнера живёт на `169.254.170.2` (AWS_CONTAINER_CREDENTIALS_RELATIVE_URI / ECS_CONTAINER_METADATA_URI_V4).\n\nНайди в metadata задачи секрет (он в Docker labels) и запиши его в `found.txt`.\n\nИнструменты: `curl` (эмуляция — ответы захвачены с реального ECS-агента), `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/ecs/notes.md",
+      "text": "Заметки\n------\n- Контейнер в Fargate, netns свой, IMDS хоста недоступен (169.254.169.254).\n- Зато работает task metadata endpoint 169.254.170.2.\n- В env есть AWS_CONTAINER_CREDENTIALS_RELATIVE_URI — по нему выдаются временные креды роли.\n"
+    },
+    {
+      "path": "/home/student/ecs/env.json",
+      "text": "{\n  \"ECS_CONTAINER_METADATA_URI_V4\": \"http://169.254.170.2/v2/metadata\",\n  \"AWS_CONTAINER_CREDENTIALS_RELATIVE_URI\": \"/v2/credentials/6a1b2c3d-4e5f-6789-abcd-ef0123456789\",\n  \"AWS_REGION\": \"eu-central-1\",\n  \"AWS_DEFAULT_REGION\": \"eu-central-1\",\n  \"APP_ENV\": \"production\"\n}\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <url> — HTTP-запрос (эмуляция: ответы захвачены с реального ECS task metadata agent)",
+      "cases": [
+        {
+          "match": "169\\.254\\.170\\.2/v2/metadata",
+          "example": "http://169.254.170.2/v2/metadata",
+          "output": "{\n  \"DockerId\": \"9c8b7a6f5e4d3c2b1a0f9e8d7c6b5a4f3e2d1c0b9a8f7e6d5c4b3a2f1e0d9c8b\",\n  \"Name\": \"acme-payments\",\n  \"DockerName\": \"acme-payments-7\",\n  \"Image\": \"111122223333.dkr.ecr.eu-central-1.amazonaws.com/acme/payments:1.9.4\",\n  \"Labels\": {\n    \"com.amazonaws.ecs.cluster\": \"acme-prod\",\n    \"com.amazonaws.ecs.task-arn\": \"arn:aws:ecs:eu-central-1:111122223333:task/acme-prod/9c8b7a6f\",\n    \"com.acme.deploy-secret\": \"nto{3cs_t4sk_r0l3_pwn3d}\"\n  },\n  \"Ports\": [{\"ContainerPort\": 8080, \"HostPort\": 8080}],\n  \"Networks\": [{\"NetworkMode\": \"awsvpc\"}]\n}\n"
+        },
+        {
+          "match": "169\\.254\\.170\\.2/v2/credentials",
+          "example": "http://169.254.170.2/v2/credentials/6a1b2c3d-4e5f-6789-abcd-ef0123456789",
+          "output": "{\n  \"RoleArn\": \"arn:aws:iam::111122223333:role/acme-payments-task\",\n  \"AccessKeyId\": \"ASIAIOSFODNN7EXAMPLE\",\n  \"SecretAccessKey\": \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\",\n  \"Token\": \"IQoJb3JpZ2luX2VjEGQaCWV1LXdlc3QtMSJHMEUCIE\",\n  \"Expiration\": \"2026-09-14T09:20:11Z\"\n}\n"
+        }
+      ],
+      "fallback": "curl: (эмуляция) для этого URL нет захваченного ответа. Попробуй:\n  http://169.254.170.2/v2/metadata\n  http://169.254.170.2/v2/credentials/<relative-uri из env.json>\n"
+    }
+  }
+}

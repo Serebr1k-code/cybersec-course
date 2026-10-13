@@ -13,6 +13,18 @@ useful_for:
   - "Поиск проектов вне действия политик"
 estimated_minutes: 50
 summary: "Как устроена иерархия Organization → Folder → Project, как наследуется IAM и как org policies задают границы. Где искать проекты-исключения и как из folder-админа получить контроль над организацией."
+lab:
+  kind: shell
+  title: "Практика: GCP org policies и resource hierarchy"
+  toolset: [core]
+  workdir: /home/student/orgpolicy
+  files: [task.md, notes.md, org-policies.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`org-policies.json` — политики на уровнях org/folder/project."
+    - "Ищи политику, которая не enforced на нужном уровне (дыра)."
+    - "Найди флаг: `grep nto org-policies.json > found.txt`."
+
 ---
 
 ## Задача

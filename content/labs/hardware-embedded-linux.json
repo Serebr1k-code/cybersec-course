@@ -1,0 +1,33 @@
+{
+  "id": "hardware-embedded-linux",
+  "workdir": "/home/student/elinux",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/elinux/found.txt",
+    "contains": "nto{d3v1c3_tr33_s3cr3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/elinux",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/elinux/task.md",
+      "text": "# Задача: embedded Linux\n\nРазбери device tree платы и kernel cmdline. Найди секрет, вшитый в узел factory-data.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/elinux/notes.md",
+      "text": "Заметки\n------\n- Device tree описывает железо; вендоры иногда кладут туда калибровки/ключи.\n- Kernel cmdline задаёт root, console, init.\n"
+    },
+    {
+      "path": "/home/student/elinux/board.dts",
+      "text": "/dts-v1/;\n/ {\n  model = \"Acme GW v2\";\n  chosen {\n    bootargs = \"console=ttyS0,115200 root=/dev/mmcblk0p2\";\n  };\n  factory-data {\n    compatible = \"acme,factory\";\n    device-id = \"ACME-77f3\";\n    provision-secret = \"nto{d3v1c3_tr33_s3cr3t}\";\n  };\n};\n"
+    },
+    {
+      "path": "/home/student/elinux/cmdline.txt",
+      "text": "console=ttyS0,115200 root=/dev/mmcblk0p2 rw rootwait\n"
+    }
+  ],
+  "tools": {}
+}

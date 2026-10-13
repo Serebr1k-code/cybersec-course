@@ -1,0 +1,37 @@
+{
+  "id": "cloud-gcp-functions",
+  "workdir": "/home/student/gcpfn",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/gcpfn/found.txt",
+    "contains": "nto{gcp_fn_3nv}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/gcpfn",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/gcpfn/task.md",
+      "text": "# Задача: Cloud Functions\n\nОпиши функцию и найди секрет в её конфигурации.\n\nИнструмент: `gcloud` (эмуляция).\n"
+    },
+    {
+      "path": "/home/student/gcpfn/notes.md",
+      "text": "Заметки\n------\n- Cloud Functions/Cloud Run имеют service account (runtime SA).\n- Переменные окружения видны через describe.\n"
+    }
+  ],
+  "tools": {
+    "gcloud": {
+      "help": "gcloud functions describe <fn> --region <r> — Google Cloud CLI (эмуляция)",
+      "cases": [
+        {
+          "match": "functions describe",
+          "example": "gcloud functions describe acme-fn --region europe-west1",
+          "output": "name: projects/acme-prod/locations/europe-west1/functions/acme-fn\nserviceAccountEmail: acme-fn@acme-prod.iam.gserviceaccount.com\nenvironmentVariables:\n  DB_PASSWORD: Tr0ub4dor&3\n  WEBHOOK_SECRET: nto{gcp_fn_3nv}\n"
+        }
+      ],
+      "fallback": "gcloud: (эмуляция) такой вызов не захвачен. Попробуй:\n  gcloud functions describe acme-fn --region europe-west1\n"
+    }
+  }
+}

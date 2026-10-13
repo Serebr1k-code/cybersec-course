@@ -13,6 +13,18 @@ useful_for:
   - "CTF Hardware"
 estimated_minutes: 42
 summary: "Что такое secure element, чем он отличается от TEE, как с ним общаться по I2C/SPI и почему извлечь ключ из него непросто."
+lab:
+  kind: shell
+  title: "Практика: secure element"
+  toolset: [core]
+  workdir: /home/student/secureel
+  files: [task.md, notes.md, se-session.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`se-session.txt` — сессия с secure element (ATECC/SE050)."
+    - "Ищи команды чтения слота и результат."
+    - "Найди флаг: `grep nto se-session.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,33 @@
+{
+  "id": "cloud-azure-arm",
+  "workdir": "/home/student/arm",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/arm/found.txt",
+    "contains": "nto{4rm_p4ssr0l3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/arm",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/arm/task.md",
+      "text": "# Задача: ARM\n\nРазбери ARM-шаблон и операции деплоя. Найди секрет.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/arm/notes.md",
+      "text": "Заметки\n------\n- ARM deployment может назначить роль (аналог PassRole).\n- История деплоя хранит входные параметры, включая секреты.\n"
+    },
+    {
+      "path": "/home/student/arm/template.json",
+      "text": "{\n  \"resources\": [{\n    \"type\": \"Microsoft.Authorization/roleAssignments\",\n    \"properties\": {\"roleDefinitionId\": \"Owner\", \"principalId\": \"[parameters('mi')]\"}\n  }]\n}\n"
+    },
+    {
+      "path": "/home/student/arm/deployment-ops.json",
+      "text": "{\n  \"value\": [\n    {\"properties\": {\"provisioningState\": \"Succeeded\",\n      \"parameters\": {\"adminSecret\": {\"value\": \"nto{4rm_p4ssr0l3}\"}}}}\n  ]\n}\n"
+    }
+  ],
+  "tools": {}
+}

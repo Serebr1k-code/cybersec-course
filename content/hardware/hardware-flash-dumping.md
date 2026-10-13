@@ -13,6 +13,18 @@ useful_for:
   - "Аппаратная криминалистика"
 estimated_minutes: 45
 summary: "Как снять полный дамп с SPI-NOR, eMMC и NAND: in-system через SPI, eMMC по DAT0/CMD, chip-off, работа с bad-блоками и извлечение файловой системы."
+lab:
+  kind: shell
+  title: "Практика: дамп NOR-флеши и поиск секретов"
+  toolset: [core, hex]
+  workdir: /home/student/flash
+  files: [task.md, notes.md, flash.bin]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`flash.bin` — сырой дамп NOR. Сначала глянь сигнатуры: `xxd -l 32 flash.bin`."
+    - "Секреты и строки ищи через `strings`."
+    - "Найди флаг: `strings flash.bin | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

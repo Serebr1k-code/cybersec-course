@@ -13,6 +13,18 @@ useful_for:
   - "CTF Hardware"
 estimated_minutes: 40
 summary: "Как работает verified boot, зачем нужен счётчик anti-rollback и почему старая уязвимая прошивка не загрузится."
+lab:
+  kind: shell
+  title: "Практика: anti-rollback и verified boot"
+  toolset: [core, hex]
+  workdir: /home/student/rollback
+  files: [task.md, notes.md, fw-current.bin, fw-old.bin, rollback-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`rollback-log.txt` показывает, что попытка откатиться отклонена (`ROLLBACK`)."
+    - "В старой прошивке `fw-old.bin` остался секрет, которого нет в новой."
+    - "Найди флаг: `strings fw-old.bin | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

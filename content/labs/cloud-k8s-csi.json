@@ -1,0 +1,42 @@
+{
+  "id": "cloud-k8s-csi",
+  "workdir": "/home/student/k8scsi",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/k8scsi/found.txt",
+    "contains": "nto{csi_sn4psh0t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/k8scsi",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/k8scsi/task.md",
+      "text": "# Задача: CSI/storage\n\nРазбери PersistentVolumes и снапшоты. Найди данные с секретом.\n\nИнструмент: `kubectl` (эмуляция — вывод захвачен с реального кластера).\n"
+    },
+    {
+      "path": "/home/student/k8scsi/notes.md",
+      "text": "Заметки\n------\n- CSI-плагин создаёт PV/PVC и VolumeSnapshot.\n- Снапшот можно восстановить в свой namespace и прочитать данные.\n"
+    }
+  ],
+  "tools": {
+    "kubectl": {
+      "help": "kubectl <get|describe> <resource> — kubectl (эмуляция)",
+      "cases": [
+        {
+          "match": "get pv",
+          "example": "kubectl get pv -o yaml",
+          "output": "items:\n  - metadata: {name: pvc-acme-db}\n    spec:\n      capacity: {storage: 10Gi}\n      csi: {driver: ebs.csi.aws.com, volumeHandle: vol-0abc}\n    status: {phase: Bound}\n"
+        },
+        {
+          "match": "get volumesnapshot",
+          "example": "kubectl get volumesnapshot -o yaml",
+          "output": "items:\n  - metadata: {name: snap-acme-db}\n    spec: {source: {persistentVolumeClaimName: pvc-acme-db}}\n    status: {readyToUse: true}\n    note: \"restored data contains nto{csi_sn4psh0t}\"\n"
+        }
+      ],
+      "fallback": "kubectl: (эмуляция) такой вызов не захвачен. Попробуй:\n  kubectl get pv -o yaml\n  kubectl get volumesnapshot -o yaml\n"
+    }
+  }
+}

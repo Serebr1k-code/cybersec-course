@@ -13,6 +13,18 @@ useful_for:
   - "Понимание IaC как вектора эскалации"
 estimated_minutes: 50
 summary: "Как атаковать CloudFormation и ARM-шаблоны: чтение стеков, злоупотребление ролями сервиса, экспорт секретов и эскалация через PassRole. Практические цепочки."
+lab:
+  kind: shell
+  title: "Практика: CloudFormation — дефолтный пароль и PassRole"
+  toolset: [core]
+  workdir: /home/student/cfn
+  files: [task.md, notes.md, template.yaml, stack-events.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай `template.yaml`: у параметра есть `Default`-пароль, а роль получает `iam:PassRole`."
+    - "Посмотри события стека `stack-events.json` — в сообщении об ошибке/выводе может утечь секрет."
+    - "Найди флаг: `grep nto stack-events.json > found.txt`."
+
 ---
 ## Задача
 

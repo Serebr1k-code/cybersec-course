@@ -1,0 +1,46 @@
+{
+  "id": "cloud-assume-role",
+  "workdir": "/home/student/assume",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/assume/found.txt",
+    "contains": "nto{4ssum3_r0l3_c0nfus3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/assume",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/assume/task.md",
+      "text": "# Задача: assume-role\n\nЧужая роль доверяет твоему аккаунту без ExternalId. Прими её и достань секрет.\n\nИнструмент: `aws` (эмуляция — вывод захвачен с реального AWS CLI).\n"
+    },
+    {
+      "path": "/home/student/assume/notes.md",
+      "text": "Заметки\n------\n- Confused deputy: без ExternalId любой, кто знает ARN, может принять роль.\n- STS assume-role выдаёт временные креды (ASIA...).\n"
+    },
+    {
+      "path": "/home/student/assume/trust-policy.json",
+      "text": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [{\n    \"Effect\": \"Allow\",\n    \"Principal\": {\"AWS\": \"arn:aws:iam::444455556666:root\"},\n    \"Action\": \"sts:AssumeRole\"\n  }]\n}\n"
+    }
+  ],
+  "tools": {
+    "aws": {
+      "help": "aws sts|secretsmanager <...> — AWS CLI (эмуляция)",
+      "cases": [
+        {
+          "match": "sts assume-role",
+          "example": "aws sts assume-role --role-arn arn:aws:iam::111122223333:role/acme-cross --role-session-name x",
+          "output": "{\n  \"Credentials\": {\n    \"AccessKeyId\": \"ASIAIOSFODNN7EXAMPLE\",\n    \"SecretAccessKey\": \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\",\n    \"SessionToken\": \"FQoGZXIvYXdzEBEaDA...\",\n    \"Expiration\": \"2026-09-14T09:20:11Z\"\n  }\n}\n"
+        },
+        {
+          "match": "secretsmanager get-secret-value",
+          "example": "aws secretsmanager get-secret-value --secret-id prod/flag",
+          "output": "{\n  \"Name\": \"prod/flag\",\n  \"SecretString\": \"nto{4ssum3_r0l3_c0nfus3d}\"\n}\n"
+        }
+      ],
+      "fallback": "aws: (эмуляция) такой вызов не захвачен. Попробуй:\n  aws sts assume-role --role-arn arn:aws:iam::111122223333:role/acme-cross --role-session-name x\n  aws secretsmanager get-secret-value --secret-id prod/flag\n"
+    }
+  }
+}

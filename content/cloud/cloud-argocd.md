@@ -13,6 +13,18 @@ useful_for:
   - "Пентест GitOps-развёртываний"
 estimated_minutes: 50
 summary: "ArgoCD: applications, repo credentials, cluster credentials и RBAC. Как GitOps-контроллер держит доступ к репозиториям и кластерам и как этим злоупотребить."
+lab:
+  kind: shell
+  title: "Практика: ArgoCD, GitOps и repo-креды"
+  toolset: [core, argocd]
+  workdir: /home/student/argocd
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Перечисли приложения: `argocd app list`."
+    - "Прочитай манифест приложения: `argocd app get acme-api`."
+    - "Найди флаг в параметрах/секретах: сохрани вывод и `grep nto app.txt > found.txt`."
+
 ---
 ## Задача
 

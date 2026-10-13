@@ -13,6 +13,18 @@ useful_for:
   - "Инъекция событий в Lambda"
 estimated_minutes: 45
 summary: "SQS и SNS: чтение/запись в очереди, resource-based политики, cross-account подписки, dead-letter queues и инъекция сообщений, запускающих Lambda с широкой ролью."
+lab:
+  kind: shell
+  title: "Практика: cross-account политика очереди SQS"
+  toolset: [core]
+  workdir: /home/student/sqs
+  files: [task.md, notes.md, get-queue-attributes.json, receive-message.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "В `get-queue-attributes.json` разбери `Policy`: она разрешает `sqs:ReceiveMessage` чужому аккаунту (Principal с account-id)."
+    - "Сообщения очереди уже получены — `receive-message.json`."
+    - "Тело сообщения содержит токен-флаг: `grep nto receive-message.json > found.txt`."
+
 ---
 
 ## Задача

@@ -1,0 +1,29 @@
+{
+  "id": "hardware-rolling-codes",
+  "workdir": "/home/student/rolling",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/rolling/found.txt",
+    "contains": "nto{keel0q_r3pl4y}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/rolling",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/rolling/task.md",
+      "text": "# Задача: rolling codes\n\nРазбери захват сигналов брелока KeeLoq. Найди секрет/флаг в логе.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/rolling/notes.md",
+      "text": "Заметки\n------\n- KeeLoq использует счётчик; RollJam глушит один кадр и переигрывает.\n- Известные атаки: слабый ключ, replay при отсутствии счётчика.\n"
+    },
+    {
+      "path": "/home/student/rolling/keeloq-log.txt",
+      "text": "capture t=0.00s  433.92MHz  serial=ACME77  counter=1042  btn=lock\ncapture t=1.20s  433.92MHz  serial=ACME77  counter=1043  btn=unlock\ncapture t=2.40s  433.92MHz  serial=ACME77  counter=1043  btn=unlock  (DUPLICATE -> replay)\nnote: keystore leak nto{keel0q_r3pl4y}\n"
+    }
+  ],
+  "tools": {}
+}

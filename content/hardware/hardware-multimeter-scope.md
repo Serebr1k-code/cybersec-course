@@ -13,6 +13,18 @@ useful_for:
   - "Работа: hardware-исследования"
 estimated_minutes: 25
 summary: "Базовые измерения на плате: напряжение, прозвонка, ток, аналоговая форма сигнала — и когда нужен мультиметр, а когда осциллограф."
+lab:
+  kind: shell
+  title: "Практика: мультиметр и осциллограф"
+  toolset: [core]
+  workdir: /home/student/scope
+  files: [task.md, notes.md, scope-samples.csv]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`scope-samples.csv` — захваченные отсчёты осциллографа (time,voltage)."
+    - "Ищи аномальный уровень/паттерн, кодирующий данные (например UART-биты)."
+    - "Найди флаг: `grep nto scope-samples.csv > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

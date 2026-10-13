@@ -13,6 +13,18 @@ useful_for:
   - "Понимание инфраструктуры как кода"
 estimated_minutes: 50
 summary: "Как атаковать Terraform/IaC: секреты в state и plan-файлах, злоупотребление провайдерами, drift и подмена модулей. Практические приёмы и типовые ошибки."
+lab:
+  kind: shell
+  title: "Практика: Terraform и IaC"
+  toolset: [core]
+  workdir: /home/student/tf
+  files: [task.md, notes.md, terraform.tfstate, main.tf]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`terraform.tfstate` часто содержит секреты в открытом виде."
+    - "Поищи в state: `grep nto terraform.tfstate`."
+    - "Сохрани флаг: `grep nto terraform.tfstate > found.txt`."
+
 ---
 ## Задача
 

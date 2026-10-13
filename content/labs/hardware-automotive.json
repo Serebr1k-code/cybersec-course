@@ -1,0 +1,33 @@
+{
+  "id": "hardware-automotive",
+  "workdir": "/home/student/auto",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/auto/found.txt",
+    "contains": "nto{c4r_c4n_uds}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/auto",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/auto/task.md",
+      "text": "# Задача: automotive\n\nТы подключился к OBD-II порту автомобиля. Разбери CAN и UDS-трафик, найди флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/auto/notes.md",
+      "text": "Заметки\n------\n- OBD-II: 0x7DF функциональный запрос, 0x7E0-0x7E7 физические, ответы 0x7E8+.\n- Через UDS можно читать DID с внутренними данными.\n"
+    },
+    {
+      "path": "/home/student/auto/candump.log",
+      "text": "can0  7DF   [8]  02 01 0C 00 00 00 00 00\ncan0  7E8   [8]  06 41 0C 1A F8 00 00 00   (RPM)\ncan0  7E0   [8]  03 22 F1 90 00 00 00 00\ncan0  7E8   [8]  10 14 62 F1 90 6E 74 6F\n"
+    },
+    {
+      "path": "/home/student/auto/uds-log.txt",
+      "text": "TX 7E0  03 22 F1 90\nRX 7E8  10 14 62 F1 90 6e 74 6f 7b 63 34 72 5f 63 34 6e 5f 75 64 35 7d 00 00\n  DID F190 = \"nto{c4r_c4n_uds}\"\n"
+    }
+  ],
+  "tools": {}
+}

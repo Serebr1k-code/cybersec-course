@@ -1,0 +1,42 @@
+{
+  "id": "cloud-gcp-gke",
+  "workdir": "/home/student/gke",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/gke/found.txt",
+    "contains": "nto{gk3_n0d3_s4}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/gke",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/gke/task.md",
+      "text": "# Задача: GKE\n\nИз пода GKE захвати node/SA токен и найди секрет в метаданных.\n\nИнструмент: `curl` (эмуляция GCP metadata).\n"
+    },
+    {
+      "path": "/home/student/gke/notes.md",
+      "text": "Заметки\n------\n- GKE Workload Identity сопоставляет KSA↔GSA.\n- Без него под использует node SA (широкие права).\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] -H \"Metadata-Flavor: Google\" <url> — GCP metadata (эмуляция)",
+      "cases": [
+        {
+          "match": "service-accounts/default/token",
+          "example": "curl -s -H \"Metadata-Flavor: Google\" http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token",
+          "output": "{\"access_token\": \"ya29.a0AfH6SMBexample\", \"expires_in\": 3599, \"token_type\": \"Bearer\"}\n"
+        },
+        {
+          "match": "instance/attributes/flag",
+          "example": "curl -s -H \"Metadata-Flavor: Google\" http://metadata.google.internal/computeMetadata/v1/instance/attributes/flag",
+          "output": "nto{gk3_n0d3_s4}\n"
+        }
+      ],
+      "fallback": "curl: (эмуляция) для этого URL нет захваченного ответа. Попробуй .../service-accounts/default/token или .../instance/attributes/flag.\n"
+    }
+  }
+}

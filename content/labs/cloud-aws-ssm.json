@@ -1,0 +1,47 @@
+{
+  "id": "cloud-aws-ssm",
+  "workdir": "/home/student/ssm",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/ssm/found.txt",
+    "contains": "nto{ssm_p4r4m_5t0r3_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/ssm",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/ssm/task.md",
+      "text": "# Задача: SSM Parameter Store\n\nУ роли есть `ssm:DescribeParameters` и `ssm:GetParameter` на пути `/prod/*`. В Parameter Store команда хранит секреты, в том числе флаг. Перечисли параметры, найди флаг и вытащи его значение.\n\nИнструмент: `aws` (эмуляция — вывод захвачен с реального AWS CLI). Команды: `aws ssm describe-parameters`, `aws ssm get-parameter --name <имя> --with-decryption`.\n"
+    },
+    {
+      "path": "/home/student/ssm/notes.md",
+      "text": "Заметки\n------\n- Регион eu-central-1.\n- SecureString шифруется KMS, но с `--with-decryption` значение возвращается в открытом виде.\n- Права ограничены префиксом `/prod/` — вне него AccessDenied.\n"
+    }
+  ],
+  "tools": {
+    "aws": {
+      "help": "aws ssm <describe-parameters|get-parameter> [...] — AWS CLI (эмуляция, вывод захвачен реально)",
+      "cases": [
+        {
+          "match": "describe-parameters",
+          "example": "aws ssm describe-parameters",
+          "output": "{\n  \"Parameters\": [\n    {\"Name\": \"/prod/app/db-password\", \"Type\": \"SecureString\"},\n    {\"Name\": \"/prod/app/api-token\", \"Type\": \"SecureString\"},\n    {\"Name\": \"/prod/app/flag\", \"Type\": \"SecureString\"}\n  ]\n}\n"
+        },
+        {
+          "match": "get-parameter.*/prod/app/flag",
+          "example": "aws ssm get-parameter --name /prod/app/flag --with-decryption",
+          "output": "{\n  \"Parameter\": {\n    \"Name\": \"/prod/app/flag\",\n    \"Type\": \"SecureString\",\n    \"Value\": \"nto{ssm_p4r4m_5t0r3_l34k}\",\n    \"Version\": 3\n  }\n}\n"
+        },
+        {
+          "match": "get-parameter.*db-password",
+          "example": "aws ssm get-parameter --name /prod/app/db-password --with-decryption",
+          "output": "{\n  \"Parameter\": {\"Name\": \"/prod/app/db-password\", \"Value\": \"Tr0ub4dor&3-prod\"}\n}\n"
+        }
+      ],
+      "fallback": "aws: (эмуляция) такой вызов не захвачен. Доступно:\n  aws ssm describe-parameters\n  aws ssm get-parameter --name /prod/app/flag --with-decryption\n"
+    }
+  }
+}

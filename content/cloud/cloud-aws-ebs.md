@@ -13,6 +13,18 @@ useful_for:
   - "Форензика и восстановление данных"
 estimated_minutes: 45
 summary: "EBS-снапшоты: публичные и расшаренные снапшоты, копирование, создание тома и монтирование. Где на диске лежат SSH-ключи, креды AWS и секреты приложений."
+lab:
+  kind: shell
+  title: "Практика: публичный EBS-снапшот и поиск секретов"
+  toolset: [core]
+  workdir: /home/student/ebs
+  files: [task.md, notes.md, describe-snapshots.json, snapshot-attribute.json, snapshot-dump.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри `describe-snapshots.json` — найди SnapshotId подозрительного снапшота."
+    - "Проверь права на снапшот: в `snapshot-attribute.json` у него `\"Group\": \"all\"` — снапшот публичный, его может смонтировать кто угодно."
+    - "Смонтированный дамп — `snapshot-dump.txt`. Найди флаг: `grep nto snapshot-dump.txt > found.txt`."
+
 ---
 ## Задача
 

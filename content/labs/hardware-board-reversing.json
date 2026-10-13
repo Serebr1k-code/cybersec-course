@@ -1,0 +1,29 @@
+{
+  "id": "hardware-board-reversing",
+  "workdir": "/home/student/board",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/board/found.txt",
+    "contains": "nto{b04rd_t3stp01nt5}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/board",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/board/task.md",
+      "text": "# Задача: реверс платы\n\nПо осмотру платы определи отладочные интерфейсы и найди флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/board/notes.md",
+      "text": "Заметки\n------\n- Ищи подписанные пятачки, 4-pin header (UART), 10-pin (JTAG), 2x5 (SWD).\n- Прозвонка GND/VCC, поиск неразведённых тест-поинтов.\n"
+    },
+    {
+      "path": "/home/student/board/board-survey.txt",
+      "text": "J1 4-pin: [GND, TX, RX, VCC]  -> UART @ 115200\nJ2 10-pin: TCK/TMS/TDI/TDO/GND -> JTAG (unpopulated)\nTP1, TP2, TP3 near flash: SPI (CLK/MOSI/MISO)\nsilkscreen note: factory pw nto{b04rd_t3stp01nt5}\n"
+    }
+  ],
+  "tools": {}
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Инъекции через источники событий"
 estimated_minutes: 50
 summary: "Как устроены Cloud Functions (1st/2nd gen) и Cloud Run, как находить публичные эндпоинты, инъекции и слабые права, и как из функции/сервиса захватить runtime service account и данные."
+lab:
+  kind: shell
+  title: "Практика: Cloud Functions и захват service account"
+  toolset: [core, gcloud]
+  workdir: /home/student/gcpfn
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Опиши функцию: `gcloud functions describe acme-fn --region europe-west1`."
+    - "Смотри переменные окружения (environmentVariables) — там секрет."
+    - "Найди флаг: сохрани вывод и `grep nto fn.txt > found.txt`."
+
 ---
 
 ## Задача

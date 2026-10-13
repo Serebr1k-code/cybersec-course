@@ -1,0 +1,29 @@
+{
+  "id": "hardware-profinet-enip",
+  "workdir": "/home/student/profinet",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/profinet/found.txt",
+    "contains": "nto{3th3rn3t1p_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/profinet",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/profinet/task.md",
+      "text": "# Задача: Profinet / EtherNet/IP\n\nРазбери перехват промышленной сети. Найди секрет в CIP-трафике.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/profinet/notes.md",
+      "text": "Заметки\n------\n- EtherNet/IP: TCP/44818 (explicit), UDP/2222 (implicit).\n- CIP-теги иногда содержат пароли и токены.\n"
+    },
+    {
+      "path": "/home/student/profinet/enip-capture.txt",
+      "text": "ENIP ListIdentity request -> PLC \"acme-line-1\" (Rockwell)\nCIP Read Tag \"Line_Speed\" -> 42\nCIP Write Tag \"Recipe\" -> {\"batch\":\"A7\",\"token\":\"nto{3th3rn3t1p_l34k}\"}\nProfinet DCP Identify -> device \"acme-io-3\" (192.168.10.23)\n"
+    }
+  ],
+  "tools": {}
+}

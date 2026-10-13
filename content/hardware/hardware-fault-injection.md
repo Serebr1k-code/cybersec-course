@@ -13,6 +13,18 @@ useful_for:
   - "Атаки на защищённые микроконтроллеры"
 estimated_minutes: 55
 summary: "Как инъекция сбоев обходит проверки: glitch по питанию и клоку, ChipWhisperer, поиск окна сбоя, обход проверки пароля и чтения защищённой памяти."
+lab:
+  kind: shell
+  title: "Практика: fault injection (glitching)"
+  toolset: [core]
+  workdir: /home/student/glitch
+  files: [task.md, notes.md, glitch-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`glitch-log.txt` — лог инъекции ошибок по питанию/такту."
+    - "Ищи момент, когда проверка была пропущена (glitch success)."
+    - "Найди флаг: `grep nto glitch-log.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

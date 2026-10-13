@@ -13,6 +13,18 @@ useful_for:
   - "Анализ пультов, датчиков и BLE-устройств"
 estimated_minutes: 35
 summary: "Основы радиоканала для пентеста: как принимать и передавать сигналы sub-GHz и BLE, декодировать модуляции, воспроизводить команды и находить слабую защиту."
+lab:
+  kind: shell
+  title: "Практика: радиоканал, SDR и BLE"
+  toolset: [core]
+  workdir: /home/student/rf
+  files: [task.md, notes.md, rf-survey.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`rf-survey.txt` — обзор радиоэфира (частоты/модуляции)."
+    - "Определи целевые устройства и секрет в трафике."
+    - "Найди флаг: `grep nto rf-survey.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

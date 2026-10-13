@@ -1,0 +1,37 @@
+{
+  "id": "hardware-firmware-rollback",
+  "workdir": "/home/student/rollback",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/rollback/found.txt",
+    "contains": "nto{4nt1_r0llb4ck_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/rollback",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/rollback/task.md",
+      "text": "# Задача: anti-rollback\n\nУстройство запрещает откат прошивки. В логе — отказ, но старая прошивка осталась у тебя. Найди в ней секрет.\n\nИнструменты: `cat`, `strings`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/rollback/notes.md",
+      "text": "Заметки\n------\n- Anti-rollback хранит минимальную версию в OTP/fuse или RPMB.\n- Verified boot (AVB) проверяет подпись vbmeta.\n"
+    },
+    {
+      "path": "/home/student/rollback/rollback-log.txt",
+      "text": "verifying vbmeta... OK\ncurrent version: 4 (min allowed: 3)\ninstalling 2 ... REJECTED: ROLLBACK (version 2 < 3)\nboot continues on version 4\n"
+    },
+    {
+      "path": "/home/student/rollback/fw-current.bin",
+      "b64": "QUNNRS1GVyB2NABidWlsZD00LjAuMQAAAAAAAAAAAAAAAAAAAAAAbm8gc2VjcmV0cyBoZXJlAAAAAAAAAAAAAAAAAAAAAAA="
+    },
+    {
+      "path": "/home/student/rollback/fw-old.bin",
+      "b64": "QUNNRS1GVyB2MgBidWlsZD0yLjMuMQBkZWJ1Z190b2tlbj1udG97NG50MV9yMGxsYjRja19ieXA0c3N9AAAAAAAAAAAAAAAAAAAAAAA="
+    }
+  ],
+  "tools": {}
+}

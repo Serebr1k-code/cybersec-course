@@ -13,6 +13,18 @@ useful_for:
   - "Аппаратная безопасность"
 estimated_minutes: 45
 summary: "Глубоко о двух ключевых IoT-протоколах: MQTT (QoS, retain, will, ACL) и CoAP (UDP, методы, DTLS), их слабости и практические атаки."
+lab:
+  kind: shell
+  title: "Практика: MQTT и CoAP — атаки на IoT-протоколы"
+  toolset: [core]
+  workdir: /home/student/mqttcoap
+  files: [task.md, notes.md, coap-capture.txt, mqtt-topics.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`coap-capture.txt` — UDP-перехват CoAP, `mqtt-topics.txt` — карта топиков."
+    - "CoAP GET/PUT к /config может раскрывать секреты."
+    - "Найди флаг: `grep nto coap-capture.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

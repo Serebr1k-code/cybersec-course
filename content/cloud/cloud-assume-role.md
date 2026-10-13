@@ -13,6 +13,18 @@ useful_for:
   - "Понимание confused deputy и OIDC-доверия"
 estimated_minutes: 40
 summary: "Как работают cross-account роли, цепочки AssumeRole, ExternalId и confused deputy. Практические приёмы поиска и эксплуатации слабых trust policies."
+lab:
+  kind: shell
+  title: "Практика: cross-account роль и confused deputy"
+  toolset: [core, aws]
+  workdir: /home/student/assume
+  files: [task.md, notes.md, trust-policy.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "В `trust-policy.json` разбери `Condition`: нет `sts:ExternalId` — это confused deputy."
+    - "Роль доверяет аккаунту; прими её: `aws sts assume-role --role-arn <arn> --role-session-name x`."
+    - "Получив временные креды, читай секрет: `aws secretsmanager get-secret-value --secret-id prod/flag`, затем `grep nto out.json > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

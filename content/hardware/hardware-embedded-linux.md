@@ -13,6 +13,18 @@ useful_for:
   - "Реверс встраиваемых Linux-устройств"
 estimated_minutes: 45
 summary: "Как устроен встраиваемый Linux: сборка (Buildroot/Yocto/OpenWrt), ядро и device tree, различия с десктопом, точки входа для анализа."
+lab:
+  kind: shell
+  title: "Практика: device tree и kernel cmdline"
+  toolset: [core]
+  workdir: /home/student/elinux
+  files: [task.md, notes.md, board.dts, cmdline.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`board.dts` — device tree, `cmdline.txt` — kernel command line."
+    - "Ищи в device tree узлы с секретами (например `factory-data`)."
+    - "Найди флаг: `grep nto board.dts > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,29 @@
+{
+  "id": "hardware-zigbee-zwave",
+  "workdir": "/home/student/zigbee",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/zigbee/found.txt",
+    "contains": "nto{z1gb33_n3tw0rk_k3y}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/zigbee",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/zigbee/task.md",
+      "text": "# Задача: Zigbee/Z-Wave\n\nРазбери сниффинг умного дома. Найди сетевой ключ и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/zigbee/notes.md",
+      "text": "Заметки\n------\n- Zigbee: сетевой ключ передаётся при join; при well-known TC link key его можно снять.\n- Z-Wave: S0/S2 — S0 ключ часто дефолтный.\n"
+    },
+    {
+      "path": "/home/student/zigbee/zigbee-capture.txt",
+      "text": "Zigbee ch=15  Transport Key  NetworkKey=0x5A6967426565416C6C69616E63653039\nZigbee ch=15  APS Command \"on/off\"  dst=0x1F3A\nZ-Wave       S0 Encapsulated  key=0x00000000000000000000000000000000 (default)\nnote: gw secret nto{z1gb33_n3tw0rk_k3y}\n"
+    }
+  ],
+  "tools": {}
+}

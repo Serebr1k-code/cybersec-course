@@ -13,6 +13,18 @@ useful_for:
   - "Права root на хосте Kubernetes"
 estimated_minutes: 55
 summary: "Побег из контейнера через runc: CVE-2019-5736, CVE-2024-21626, привилегированные контейнеры, capabilities, nsenter и доступ к host-путям. Как от пода дойти до хоста."
+lab:
+  kind: shell
+  title: "Практика: побег из контейнера через runc"
+  toolset: [core]
+  workdir: /home/student/runc
+  files: [task.md, notes.md, runc-exploit.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`runc-exploit.txt` — лог эксплуатации уязвимости runc."
+    - "Ищи запись в host-файл или монтирование через /proc/self/exe."
+    - "Найди флаг: `grep nto runc-exploit.txt > found.txt`."
+
 ---
 
 ## Задача

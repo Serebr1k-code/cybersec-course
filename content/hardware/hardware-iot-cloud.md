@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty (IoT-программы)"
 estimated_minutes: 40
 summary: "Как умные устройства общаются с облаком, как устроен MQTT-брокер, и где искать уязвимости: слабая аутентификация, wildcard-подписки, утечки ключей, небезопасные API."
+lab:
+  kind: shell
+  title: "Практика: MQTT-брокер IoT-облака"
+  toolset: [core]
+  workdir: /home/student/iotcloud
+  files: [task.md, notes.md, mqtt-capture.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`mqtt-capture.txt` — перехваченный трафик MQTT (subscribe/publish)."
+    - "Ищи топик с командами провижининга и полезную нагрузку с секретом."
+    - "Найди флаг: `grep nto mqtt-capture.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

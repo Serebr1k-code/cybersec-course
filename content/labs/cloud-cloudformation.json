@@ -1,0 +1,33 @@
+{
+  "id": "cloud-cloudformation",
+  "workdir": "/home/student/cfn",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/cfn/found.txt",
+    "contains": "nto{cfn_d3f4ult_p4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/cfn",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/cfn/task.md",
+      "text": "# Задача: CloudFormation\n\nШаблон инфраструктуры содержит дефолтный пароль администратора и роль с `iam:PassRole`. Найди в шаблоне небезопасные значения и флаг, попавший в события стека.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/cfn/notes.md",
+      "text": "Заметки\n------\n- Default-значения параметров попадают в стек и видны в консоли/API.\n- iam:PassRole + запуск compute = эскалация до роли.\n"
+    },
+    {
+      "path": "/home/student/cfn/template.yaml",
+      "text": "AWSTemplateFormatVersion: \"2010-09-09\"\nParameters:\n  AdminPassword:\n    Type: String\n    NoEcho: false\n    Default: Tr0ub4dor&3-prod\nResources:\n  AppRole:\n    Type: AWS::IAM::Role\n    Properties:\n      AssumeRolePolicyDocument: {Version: \"2012-10-17\"}\n      Policies:\n        - PolicyName: pass\n          PolicyDocument:\n            Statement:\n              - Effect: Allow\n                Action: iam:PassRole\n                Resource: \"*\"\n"
+    },
+    {
+      "path": "/home/student/cfn/stack-events.json",
+      "text": "{\n  \"StackEvents\": [\n    {\"ResourceType\": \"AWS::CloudFormation::Stack\", \"ResourceStatus\": \"CREATE_IN_PROGRESS\",\n     \"ResourceStatusReason\": \"User Initiated\"},\n    {\"ResourceType\": \"AWS::IAM::Role\", \"ResourceStatus\": \"CREATE_COMPLETE\",\n     \"ResourceStatusReason\": \"Resource creation Initiated with secret nto{cfn_d3f4ult_p4ss}\"}\n  ]\n}\n"
+    }
+  ],
+  "tools": {}
+}

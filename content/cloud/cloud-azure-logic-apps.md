@@ -13,6 +13,18 @@ useful_for:
   - "Поиск workflow-инъекций"
 estimated_minutes: 45
 summary: "Logic Apps: триггеры, действия, connector'ы и managed identity. Как low-code workflow держит креды и права, и как через инъекции в параметры получить доступ к данным и сервисам."
+lab:
+  kind: shell
+  title: "Практика: Logic Apps, connectors и managed identity"
+  toolset: [core]
+  workdir: /home/student/logicapps
+  files: [task.md, notes.md, workflow-definition.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`workflow-definition.json` — определение Logic App."
+    - "Ищи действие с connector, использующим managed identity (доступ к ресурсам)."
+    - "Найди флаг: `grep nto workflow-definition.json > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

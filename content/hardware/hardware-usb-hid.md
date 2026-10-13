@@ -13,6 +13,18 @@ useful_for:
   - "Пентест: оценка риска USB-портов"
 estimated_minutes: 45
 summary: "Как работают BadUSB и Rubber Ducky: HID-инъекция, DuckyScript, Digispark, Flipper Zero, полезные payload'ы и защита."
+lab:
+  kind: shell
+  title: "Практика: BadUSB и HID-инъекция"
+  toolset: [core]
+  workdir: /home/student/usbhid
+  files: [task.md, notes.md, hid-descriptor.txt, hid-capture.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`hid-descriptor.txt` — дескрипторы устройства; `hid-capture.txt` — перехваченные HID-отчёты."
+    - "Собери keystrokes из отчётов HID (usage code → символ)."
+    - "Найди флаг: `grep nto hid-capture.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

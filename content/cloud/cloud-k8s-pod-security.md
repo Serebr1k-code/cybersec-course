@@ -13,6 +13,18 @@ useful_for:
   - "Понимание ограничений подов"
 estimated_minutes: 45
 summary: "Pod Security Admission: уровни privileged/baseline/restricted, режимы enforce/audit/warn, labels namespace и version-pinned. Как читать политику и находить обходы."
+lab:
+  kind: shell
+  title: "Практика: чтение Secret по RBAC"
+  toolset: [core]
+  workdir: /home/student/k8spsa
+  files: [task.md, notes.md, can-i.json, secrets-list.txt, secret.yaml, app-token.b64]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Проверь права: в `can-i.json` видно, что `get secrets` разрешён."
+    - "В `secrets-list.txt` есть секрет `app-token` — читай его: `secret.yaml` содержит `data.token` в base64."
+    - "Значение `data.token` продублировано в `app-token.b64`. Раскодируй его: `base64 -d app-token.b64 > found.txt`."
+
 ---
 
 ## Задача

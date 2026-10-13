@@ -1,0 +1,42 @@
+{
+  "id": "cloud-azure-keyvault",
+  "workdir": "/home/student/kv",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/kv/found.txt",
+    "contains": "nto{keyv4ult_s3cr3t_r34d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/kv",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/kv/task.md",
+      "text": "# Задача: Azure Key Vault\n\nУ managed identity есть доступ к Key Vault `acme-prod`. Перечисли секреты и прочитай значение чувствительного секрета — в одном из них флаг.\n\nИнструмент: `curl` (эмуляция — ответы захвачены с реального Key Vault data-plane API).\n"
+    },
+    {
+      "path": "/home/student/kv/notes.md",
+      "text": "Заметки\n------\n- Data-plane: https://<vault>.vault.azure.net/secrets?api-version=7.4 (список).\n- Значение: https://<vault>.vault.azure.net/secrets/<name>?api-version=7.4.\n- Токен берётся у IMDS: /metadata/identity/oauth2/token?resource=https://vault.azure.net.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <url> — HTTP-запрос (эмуляция: ответы захвачены с Azure Key Vault API)",
+      "cases": [
+        {
+          "match": "vault\\.azure\\.net/secrets/db-password",
+          "example": "https://acme-prod.vault.azure.net/secrets/db-password?api-version=7.4",
+          "output": "{\n  \"value\": \"nto{keyv4ult_s3cr3t_r34d}\",\n  \"id\": \"https://acme-prod.vault.azure.net/secrets/db-password/9f2a\",\n  \"attributes\": {\"enabled\": true}\n}\n"
+        },
+        {
+          "match": "vault\\.azure\\.net/secrets\\?",
+          "example": "https://acme-prod.vault.azure.net/secrets?api-version=7.4",
+          "output": "{\n  \"value\": [\n    {\"id\": \"https://acme-prod.vault.azure.net/secrets/db-password\", \"attributes\": {\"enabled\": true}},\n    {\"id\": \"https://acme-prod.vault.azure.net/secrets/api-key\", \"attributes\": {\"enabled\": true}},\n    {\"id\": \"https://acme-prod.vault.azure.net/secrets/redis-conn\", \"attributes\": {\"enabled\": true}}\n  ],\n  \"nextLink\": null\n}\n"
+        }
+      ],
+      "fallback": "curl: (эмуляция) для этого URL нет захваченного ответа. Попробуй:\n  https://acme-prod.vault.azure.net/secrets?api-version=7.4\n  https://acme-prod.vault.azure.net/secrets/db-password?api-version=7.4\n"
+    }
+  }
+}

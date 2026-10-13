@@ -1,0 +1,42 @@
+{
+  "id": "cloud-azure-aks",
+  "workdir": "/home/student/aks",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/aks/found.txt",
+    "contains": "nto{4ks_p0d_m1}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/aks",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/aks/task.md",
+      "text": "# Задача: AKS\n\nИз пода AKS захвати managed identity и найди секрет в метаданных.\n\nИнструмент: `curl` (эмуляция Azure IMDS).\n"
+    },
+    {
+      "path": "/home/student/aks/notes.md",
+      "text": "Заметки\n------\n- AKS: kubelet identity, pod-managed identity (aad-pod-identity), workload identity.\n- IMDS доступен из пода при отсутствии NetworkPolicy.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] [-H ...] <url> — HTTP-запрос (эмуляция Azure IMDS)",
+      "cases": [
+        {
+          "match": "metadata/identity/oauth2/token",
+          "example": "curl -s -H Metadata:true \"http://169.254.169.254/metadata/identity/oauth2/token?resource=https://management.azure.com/&api-version=2018-02-01\"",
+          "output": "{\"access_token\": \"eyJ0eXAi...\", \"client_id\": \"9f2a\", \"expires_in\": \"3599\", \"token_type\": \"Bearer\"}\n"
+        },
+        {
+          "match": "metadata/instance",
+          "example": "curl -s -H Metadata:true \"http://169.254.169.254/metadata/instance?api-version=2021-02-01\"",
+          "output": "{\"compute\": {\"name\": \"aks-agentpool-1\", \"resourceGroupName\": \"MC_acme-prod\",\n  \"tagsList\": [{\"name\": \"note\", \"value\": \"nto{4ks_p0d_m1}\"}]}}\n"
+        }
+      ],
+      "fallback": "curl: (эмуляция) для этого URL нет захваченного ответа. Попробуй IMDS metadata/instance или oauth2/token.\n"
+    }
+  }
+}

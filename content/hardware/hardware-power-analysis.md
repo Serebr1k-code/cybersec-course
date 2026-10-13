@@ -13,6 +13,18 @@ useful_for:
   - "CTF Hardware (эксперт)"
 estimated_minutes: 50
 summary: "Как по кривой потребления восстановить ключ AES/RSA: разница SPA/DPA/CPA, модель утечки и практика с осциллографом."
+lab:
+  kind: shell
+  title: "Практика: power analysis (SPA/DPA/CPA)"
+  toolset: [core]
+  workdir: /home/student/power
+  files: [task.md, notes.md, cpa-scores.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`cpa-scores.txt` — результат корреляционного анализа по байтам ключа."
+    - "Правильная гипотеза для каждого байта имеет максимальную корреляцию."
+    - "Итоговый восстановленный секрет есть в отчёте: `grep nto cpa-scores.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

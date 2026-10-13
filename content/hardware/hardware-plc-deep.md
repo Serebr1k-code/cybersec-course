@@ -13,6 +13,18 @@ useful_for:
   - "CTF Hardware/ICS"
 estimated_minutes: 75
 summary: "ПЛК изнутри: цикл сканирования, лестничная логика, загрузка/выгрузка программ, режимы RUN/STOP, защита паролем, unsafe-инструкции и последствия вмешательства. Инструменты: OpenPLC, snap7, pycomm3, PLCinject."
+lab:
+  kind: shell
+  title: "Практика: эксплуатация ПЛК"
+  toolset: [core]
+  workdir: /home/student/plc
+  files: [task.md, notes.md, plc-session.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`plc-session.txt` — сессия с ПЛК (S7comm)."
+    - "Ищи доступ к защищённой области и секрет проекта."
+    - "Найди флаг: `grep nto plc-session.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

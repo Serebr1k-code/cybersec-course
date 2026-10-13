@@ -1,0 +1,29 @@
+{
+  "id": "hardware-crypto",
+  "workdir": "/home/student/crypto",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/crypto/found.txt",
+    "contains": "nto{3mb3dd3d_k3y_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/crypto",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/crypto/task.md",
+      "text": "# Задача: embedded crypto\n\nНайди в прошивке вшитый ключ и флаг.\n\nИнструменты: `strings`, `xxd`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/crypto/notes.md",
+      "text": "Заметки\n------\n- Вшитые AES-ключи/HMAC-секреты — классическая проблема IoT.\n- Иногда ключ рядом с IV или солью в открытом виде.\n"
+    },
+    {
+      "path": "/home/student/crypto/firmware.bin",
+      "b64": "QUNNRS1TRUNVUkUtdjEAAAAAAAAAAAAAAAAAAAAAAEFFU19LRVk9MmI3ZTE1MTYyOGFlZDJhNmFiZjcxNTg4MDljZjRmM2MASVY9MDAwMTAyMDMwNDA1MDYwNzA4MDkwYTBiMGMwZDBlMGYASE1BQ19TRUNSRVQ9bnRvezNtYjNkZDNkX2szeV9sMzRrfQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    }
+  ],
+  "tools": {}
+}

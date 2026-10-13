@@ -1,0 +1,42 @@
+{
+  "id": "cloud-supply-chain-sbom",
+  "workdir": "/home/student/sbom",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/sbom/found.txt",
+    "contains": "nto{sbom_un51gn3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/sbom",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/sbom/task.md",
+      "text": "# Задача: supply chain/SBOM\n\nПроверь подписи артефактов. Найди неподписанный образ и флаг.\n\nИнструмент: `cosign` (эмуляция — вывод захвачен с реального cosign).\n"
+    },
+    {
+      "path": "/home/student/sbom/notes.md",
+      "text": "Заметки\n------\n- cosign verify проверяет подпись по ключу/identity.\n- SBOM перечисляет компоненты; несоответствие — признак подмены.\n"
+    }
+  ],
+  "tools": {
+    "cosign": {
+      "help": "cosign verify <image> — проверка подписи (эмуляция)",
+      "cases": [
+        {
+          "match": "verify.*api",
+          "example": "cosign verify acme/api:1.9.4",
+          "output": "Error: no matching signatures: signature not found\n  -> image UNSIGNED, tampered layer contains nto{sbom_un51gn3d}\n"
+        },
+        {
+          "match": "verify.*worker",
+          "example": "cosign verify acme/worker:1.9.4",
+          "output": "Verified OK\n"
+        }
+      ],
+      "fallback": "cosign: (эмуляция) такой вызов не захвачен. Попробуй:\n  cosign verify acme/api:1.9.4\n"
+    }
+  }
+}

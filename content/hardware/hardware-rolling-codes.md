@@ -13,6 +13,18 @@ useful_for:
   - "Анализ алгоритмов доступа"
 estimated_minutes: 45
 summary: "Как устроены rolling codes и KeeLoq, почему replay не работает, атаки десинхронизации и RollJam, криптоанализ слабых ключей."
+lab:
+  kind: shell
+  title: "Практика: rolling codes и KeeLoq"
+  toolset: [core]
+  workdir: /home/student/rolling
+  files: [task.md, notes.md, keeloq-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`keeloq-log.txt` — захват нескольких нажатий брелока (KeeLoq)."
+    - "Ищи повтор/аномалию в счётчике и секрет в захвате."
+    - "Найди флаг: `grep nto keeloq-log.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

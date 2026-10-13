@@ -1,0 +1,33 @@
+{
+  "id": "hardware-hf-cards",
+  "workdir": "/home/student/hfcards",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/hfcards/found.txt",
+    "contains": "nto{ultr4l1ght_p4g3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/hfcards",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/hfcards/task.md",
+      "text": "# Задача: HF-карты\n\nОпредели тип HF-карты и найди секрет в её памяти.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/hfcards/notes.md",
+      "text": "Заметки\n------\n- Mifare Ultralight: 4 байта на страницу, страницы 0-15 (MF0ICU1).\n- Страницы 0-2 — UID/BCC, далее пользовательские данные.\n"
+    },
+    {
+      "path": "/home/student/hfcards/nfc-scan.txt",
+      "text": "ISO/IEC 14443A (106 kbps) target:\n  ATQA: 00 44\n  SAK: 00\n  UID: 04 2b 4c 6e 77 f3 80\n  Type: Mifare Ultralight\n"
+    },
+    {
+      "path": "/home/student/hfcards/ultralight-dump.txt",
+      "text": "Page 04: 04 2B 4C 6E\nPage 05: 77 F3 80 48\nPage 06: 41 43 4D 45\nPage 07: 2D 54 41 47 00 00 00 00\nPage 08: 6E 74 6F 7b  nto{\nPage 09: 75 6C 74 72 34  ult r4\nPage 10: 6C 31 67 68 74 5F 70 34 67 33 7d 00  nto{ultr4l1ght_p4g3}\n"
+    }
+  ],
+  "tools": {}
+}

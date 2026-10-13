@@ -13,6 +13,18 @@ useful_for:
   - "RCE на раннерах CodeBuild"
 estimated_minutes: 50
 summary: "CodeBuild/CodePipeline/CodeDeploy: превращение прав на сборку в выполнение кода, кража секретов из переменных окружения, подмена артефактов и захват роли пайплайна."
+lab:
+  kind: shell
+  title: "Практика: AWS CodeBuild/CodePipeline как RCE"
+  toolset: [core, aws]
+  workdir: /home/student/awsdevops
+  files: [task.md, notes.md, buildspec.yml]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`buildspec.yml` показывает, что CodeBuild запускает скрипты из репозитория."
+    - "Право `codebuild:StartBuild` + управление buildspec = выполнение кода."
+    - "Найди флаг в логах сборки: `aws codebuild batch-get-builds --ids acme:build:123 > b.json`, затем `grep nto b.json > found.txt`."
+
 ---
 
 ## Задача

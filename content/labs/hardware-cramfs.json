@@ -1,0 +1,29 @@
+{
+  "id": "hardware-cramfs",
+  "workdir": "/home/student/cramfs",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/cramfs/found.txt",
+    "contains": "nto{cr4mfs_m4g1c_5p0tt3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/cramfs",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/cramfs/task.md",
+      "text": "# Задача: CRAMFS\n\nТебе дали образ `rootfs.cramfs` с устройства. Определи формат по магическим байтам и найди флаг, спрятанный в файловой системе.\n\nИнструменты: `xxd`, `strings`, `grep`, `cat`.\n"
+    },
+    {
+      "path": "/home/student/cramfs/notes.md",
+      "text": "Заметки\n------\n- CRAMFS signature: `0x28cd3d45` (в файле — little-endian `45 3d cd 28`).\n- Образ read-only и сжимает блоками (zlib), но имена/короткие строки видны в plaintext.\n"
+    },
+    {
+      "path": "/home/student/cramfs/rootfs.cramfs",
+      "b64": "RT3NKN7AAAAAEAAACAAAAEFDTUUtUm9vdEZTAAAAAAAAAAAAAAAAAAAAAAAvZXRjL2FjbWUvZmFjdG9yeS5rZXkAQUNNRS1GQUNUT1JZLTlmMjFjMGRlAC9yb290L2ZsYWcudHh0AG50b3tjcjRtZnNfbTRnMWNfNXAwdHQzZH0AL2Jpbi9idXN5Ym94AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    }
+  ],
+  "tools": {}
+}

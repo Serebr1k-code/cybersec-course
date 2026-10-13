@@ -1,0 +1,37 @@
+{
+  "id": "cloud-lambda-privesc",
+  "workdir": "/home/student/lambda",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/lambda/found.txt",
+    "contains": "nto{l4mbd4_3nv_s3cr3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/lambda",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/lambda/task.md",
+      "text": "# Задача: конфигурация Lambda\n\nУ роли есть `lambda:GetFunctionConfiguration`. Переменные окружения функции иногда содержат секреты. Прочитай конфигурацию и вытащи флаг.\n\nИнструмент: `aws` (эмуляция — вывод захвачен с реального AWS CLI).\n"
+    },
+    {
+      "path": "/home/student/lambda/notes.md",
+      "text": "Заметки\n------\n- `get-function-configuration` возвращает Environment, Layers, Role, VpcConfig.\n- Переменные видны в plaintext — популярная утечка.\n"
+    }
+  ],
+  "tools": {
+    "aws": {
+      "help": "aws lambda get-function-configuration --function-name <fn> — AWS CLI (эмуляция)",
+      "cases": [
+        {
+          "match": "get-function-configuration",
+          "example": "aws lambda get-function-configuration --function-name acme-api",
+          "output": "{\n  \"FunctionName\": \"acme-api\",\n  \"Runtime\": \"python3.12\",\n  \"Role\": \"arn:aws:iam::111122223333:role/acme-api-role\",\n  \"Environment\": {\n    \"Variables\": {\n      \"DB_HOST\": \"db.acme.internal\",\n      \"DB_PASSWORD\": \"Tr0ub4dor&3-prod\",\n      \"SIGNING_KEY\": \"nto{l4mbd4_3nv_s3cr3t}\"\n    }\n  },\n  \"Timeout\": 30\n}\n"
+        }
+      ],
+      "fallback": "aws: (эмуляция) такой вызов не захвачен. Попробуй:\n  aws lambda get-function-configuration --function-name acme-api\n"
+    }
+  }
+}

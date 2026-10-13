@@ -1,0 +1,33 @@
+{
+  "id": "cloud-network-security",
+  "workdir": "/home/student/netsec",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/netsec/found.txt",
+    "contains": "nto{sg_n4cl_g4p}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/netsec",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/netsec/task.md",
+      "text": "# Задача: cloud network\n\nРазбери SG и NACL. Найди опасное правило и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/netsec/notes.md",
+      "text": "Заметки\n------\n- SG — stateful, NACL — stateless; оба могут пропускать трафик.\n- 0.0.0.0/0 на 22/3389/6379 — критично.\n"
+    },
+    {
+      "path": "/home/student/netsec/sg-rules.json",
+      "text": "{\"SecurityGroups\": [{\"GroupName\": \"redis-sg\",\n  \"IpPermissions\": [{\"FromPort\": 6379, \"ToPort\": 6379, \"IpProtocol\": \"tcp\",\n    \"IpRanges\": [{\"CidrIp\": \"0.0.0.0/0\"}], \"note\": \"open redis, nto{sg_n4cl_g4p}\"}]}]}\n"
+    },
+    {
+      "path": "/home/student/netsec/nacl-rules.json",
+      "text": "{\"NetworkAcls\": [{\"Entries\": [{\"RuleNumber\": 100, \"Action\": \"allow\", \"CidrBlock\": \"0.0.0.0/0\"}]}]}\n"
+    }
+  ],
+  "tools": {}
+}

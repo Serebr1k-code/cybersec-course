@@ -13,6 +13,18 @@ useful_for:
   - "Понимание confused deputy"
 estimated_minutes: 50
 summary: "Cross-account доверие и confused deputy: AssumeRole, trust policies, условия (ExternalId, PrincipalOrgID) и цепочки ролей между аккаунтами. Как из одного аккаунта добраться до другого."
+lab:
+  kind: shell
+  title: "Практика: многоуровневая cross-account цепочка"
+  toolset: [core, aws]
+  workdir: /home/student/crossacct
+  files: [task.md, notes.md, trust-map.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`trust-map.json` показывает цепочку доверия A → B → C."
+    - "Пройди по цепочке последовательными assume-role."
+    - "В аккаунте C лежит флаг: `aws ssm get-parameter --name /shared/flag`, затем `grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

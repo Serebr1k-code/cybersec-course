@@ -13,6 +13,18 @@ useful_for:
   - "Атаки на смарт-карты и TPM"
 estimated_minutes: 55
 summary: "Как по электромагнитному излучению чипа восстановить ключ шифрования: простой и дифференциальный анализ (SPA/DPA), корреляционный анализ (CPA) и практика на ChipWhisperer."
+lab:
+  kind: shell
+  title: "Практика: электромагнитные side-channel атаки"
+  toolset: [core]
+  workdir: /home/student/em
+  files: [task.md, notes.md, em-report.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`em-report.txt` — анализ ЭМИ-излучения чипа."
+    - "В отчёте есть корреляция с секретом/ключом."
+    - "Найди флаг: `grep nto em-report.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

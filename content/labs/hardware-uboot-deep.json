@@ -1,0 +1,33 @@
+{
+  "id": "hardware-uboot-deep",
+  "workdir": "/home/student/ubootdeep",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/ubootdeep/found.txt",
+    "contains": "nto{ub00t_b00t4rgs}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/ubootdeep",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/ubootdeep/task.md",
+      "text": "# Задача: U-Boot bootargs\n\nРазбери, как U-Boot передаёт управление ядру и почему подпись образов не защищает. Найди флаг в аргументах загрузки.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/ubootdeep/notes.md",
+      "text": "Заметки\n------\n- bootargs задают root, console, init и иногда секреты для initramfs.\n- CONFIG_FIT_SIGNATURE=n означает, что образ не проверяется — можно подменить.\n"
+    },
+    {
+      "path": "/home/student/ubootdeep/bootargs.txt",
+      "text": "console=ttyS0,115200 root=/dev/mmcblk0p3 rw rootwait\ninit=/sbin/init acme.region=eu-central-1\nacme.release_token=nto{ub00t_b00t4rgs}\n"
+    },
+    {
+      "path": "/home/student/ubootdeep/secure-boot.txt",
+      "text": "U-Boot 2021.07\nCONFIG_FIT=y\nCONFIG_FIT_SIGNATURE=n\nCONFIG_SECURE_BOOT=n\nverify=n\n"
+    }
+  ],
+  "tools": {}
+}

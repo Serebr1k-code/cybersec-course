@@ -13,6 +13,18 @@ useful_for:
   - "Понимание периметра AWS/GCP/Azure"
 estimated_minutes: 45
 summary: "Как читать сетевую изоляцию в трёх облаках: security groups, NACL, firewall rules, подсети и маршруты. Как находить сервисы, доступные из интернета, и планировать внутреннее продвижение."
+lab:
+  kind: shell
+  title: "Практика: security groups, NACL и firewall"
+  toolset: [core]
+  workdir: /home/student/netsec
+  files: [task.md, notes.md, sg-rules.json, nacl-rules.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`sg-rules.json` — правила security group; `nacl-rules.json` — NACL."
+    - "Ищи разрешение из 0.0.0.0/0 на опасный порт."
+    - "Найди флаг: `grep nto sg-rules.json > found.txt`."
+
 ---
 
 ## Задача

@@ -1,0 +1,33 @@
+{
+  "id": "hardware-iot-firmware-diff",
+  "workdir": "/home/student/fwdiff",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/fwdiff/found.txt",
+    "contains": "nto{fw_d1ff_s3cr3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/fwdiff",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/fwdiff/task.md",
+      "text": "# Задача: диффинг прошивок\n\nУ тебя две версии прошивки. Найди секрет, который разработчики забыли вырезать в новой версии.\n\nИнструменты: `strings`, `grep`, `diff`.\n"
+    },
+    {
+      "path": "/home/student/fwdiff/notes.md",
+      "text": "Заметки\n------\n- Диффинг (binwalk -W, дифф строк) находит новые/удалённые данные.\n- Частая ошибка: секрет остаётся в обеих версиях.\n"
+    },
+    {
+      "path": "/home/student/fwdiff/fw-1.2.bin",
+      "b64": "QUNNRS1JT1QgdjEuMgBidWlsZD0xLjIuMAB3aWZpX3NzaWQ9YWNtZS1ndWVzdABkZWJ1Z190b2tlbj1udG97ZndfZDFmZl9zM2NyM3R9AAAAAAAAAAAAAAAAAAAAAAA="
+    },
+    {
+      "path": "/home/student/fwdiff/fw-1.3.bin",
+      "b64": "QUNNRS1JT1QgdjEuMwBidWlsZD0xLjMuMAB3aWZpX3NzaWQ9YWNtZS1ndWVzdABmaXg6IENWRS0yMDI2LTEyMzQgcGF0Y2hlZABkZWJ1Z190b2tlbj1udG97ZndfZDFmZl9zM2NyM3R9AAAAAAAAAAAAAAAAAAAAAAA="
+    }
+  ],
+  "tools": {}
+}

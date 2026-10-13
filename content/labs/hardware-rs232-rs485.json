@@ -1,0 +1,29 @@
+{
+  "id": "hardware-rs232-rs485",
+  "workdir": "/home/student/rs485",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/rs485/found.txt",
+    "contains": "nto{rs485_m0dbu5_5n1ff}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/rs485",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/rs485/task.md",
+      "text": "# Задача: RS-232/RS-485\n\nТы перехватил трафик промышленной линии. Разбери кадры Modbus и найди секрет.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/rs485/notes.md",
+      "text": "Заметки\n------\n- Modbus RTU: addr + function + data + CRC16.\n- Read Holding Registers (0x03) возвращает пары байт на регистр.\n"
+    },
+    {
+      "path": "/home/student/rs485/serial-capture.txt",
+      "text": "RX 01 03 02 00 2A 79 84   slave=1 fc=3 reg=42 val=0x002A\nRX 01 03 04 41 43 4D 45 42   slave=1 fc=3 ascii=\"ACME\"\nRX 01 03 18 6e 74 6f 7b 72 73 34 38 35 5f 6d 30 64 62 75 35 5f 35 6e 31 66 66 7d 00 00 3f\n   slave=1 fc=3 ascii=\"nto{rs485_m0dbu5_5n1ff}\"\n"
+    }
+  ],
+  "tools": {}
+}

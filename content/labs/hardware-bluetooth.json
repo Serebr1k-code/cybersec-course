@@ -1,0 +1,29 @@
+{
+  "id": "hardware-bluetooth",
+  "workdir": "/home/student/bt",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/bt/found.txt",
+    "contains": "nto{bt_5n1ff}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/bt",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/bt/task.md",
+      "text": "# Задача: Bluetooth\n\nРазбери скан Bluetooth. Найди утёкший секрет и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/bt/notes.md",
+      "text": "Заметки\n------\n- Classic: SDP/SPP, PIN pairing; BLE: GATT.\n- Устройства могут раскрывать имя/сервисы до pairing.\n"
+    },
+    {
+      "path": "/home/student/bt/bt-scan.txt",
+      "text": "AC:11:22:33:44:55  Acme Printer (Classic)  SPP\nAA:BB:CC:DD:EE:FF  AcmeSensor (BLE)\nF0:DE:F1:C2:B3:A4  AcmeDebug-nto{bt_5n1ff} (Classic)\n"
+    }
+  ],
+  "tools": {}
+}

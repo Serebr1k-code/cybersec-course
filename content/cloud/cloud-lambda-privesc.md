@@ -13,6 +13,18 @@ useful_for:
   - "Понимание serverless-эскалации"
 estimated_minutes: 55
 summary: "Как из ограниченных прав в Lambda добраться до администратора: iam:PassRole + update-function-configuration, отравление слоёв, Function URL и переменные окружения. Практические цепочки."
+lab:
+  kind: shell
+  title: "Практика: секреты в конфигурации Lambda"
+  toolset: [core, aws]
+  workdir: /home/student/lambda
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Получи конфигурацию функции: `aws lambda get-function-configuration --function-name acme-api`."
+    - "В `Environment.Variables` лежит секрет-флаг."
+    - "Сохрани вывод и найди флаг: `... > fn.json`, затем `grep nto fn.json > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

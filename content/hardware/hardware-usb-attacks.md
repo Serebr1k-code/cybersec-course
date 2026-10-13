@@ -13,6 +13,18 @@ useful_for:
   - "Red team: физические атаки"
 estimated_minutes: 40
 summary: "Обзор USB-атак за пределами HID: вредоносные кабели, USB Killer, juice jacking, DMA/Thunderbolt, autorun и способы защиты."
+lab:
+  kind: shell
+  title: "Практика: malicious cable, USB Killer и DMA"
+  toolset: [core]
+  workdir: /home/student/usbattacks
+  files: [task.md, notes.md, usb-forensics.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`usb-forensics.txt` — разбор подозрительного USB-устройства/кабеля."
+    - "Определи тип угрозы (HID-инъекция / DMA / OMG-кабель) по логу."
+    - "Найди флаг: `grep nto usb-forensics.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,37 @@
+{
+  "id": "cloud-aws-ebs",
+  "workdir": "/home/student/ebs",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/ebs/found.txt",
+    "contains": "nto{3bs_publ1c_sn4psh0t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/ebs",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/ebs/task.md",
+      "text": "# Задача: публичный EBS snapshot\n\nВ аккаунте есть снапшот тома, случайно открытый для всех (`createVolumePermission = all`). Определи, что он публичный, и найди секрет в его содержимом (файл `snapshot-dump.txt`).\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/ebs/notes.md",
+      "text": "Заметки\n------\n- Публичный снапшот можно `create-volume` в своём аккаунте и примонтировать.\n- Секреты часто остаются в `/etc/`, `/var/lib/` и конфигах приложений.\n"
+    },
+    {
+      "path": "/home/student/ebs/describe-snapshots.json",
+      "text": "{\n  \"Snapshots\": [\n    {\"SnapshotId\": \"snap-0aaa1111\", \"VolumeSize\": 8, \"State\": \"completed\", \"Description\": \"nightly root\"}, \n    {\"SnapshotId\": \"snap-0bbb2222\", \"VolumeSize\": 40, \"State\": \"completed\", \"Description\": \"acme-prod-db-backup\"}, \n    {\"SnapshotId\": \"snap-0ccc3333\", \"VolumeSize\": 8, \"State\": \"completed\", \"Description\": \"scratch\"}\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/ebs/snapshot-attribute.json",
+      "text": "{\n  \"SnapshotId\": \"snap-0bbb2222\",\n  \"CreateVolumePermissions\": [\n    {\"Group\": \"all\"}\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/ebs/snapshot-dump.txt",
+      "text": "$ find /mnt/snap/ -type f -name \"*.conf\"\n/mnt/snap/etc/acme/db.conf\n/mnt/snap/root/.aws/credentials\n$ cat /mnt/snap/etc/acme/db.conf\n[database]\nhost = db.acme.internal\nuser = acme\npassword = Tr0ub4dor&3-prod\n$ cat /mnt/snap/root/.aws/credentials\n[default]\naws_access_key_id = AKIAIOSFODNN7EXAMPLE\naws_secret_access_key = wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\n# operator note: do not rotate, break-glass key\n$ cat /mnt/snap/opt/acme/release.txt\nbuild=1.9.4\nflag=nto{3bs_publ1c_sn4psh0t}\n"
+    }
+  ],
+  "tools": {}
+}

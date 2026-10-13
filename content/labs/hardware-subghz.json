@@ -1,0 +1,29 @@
+{
+  "id": "hardware-subghz",
+  "workdir": "/home/student/subghz",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/subghz/found.txt",
+    "contains": "nto{r0llj4m_5ubghz}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/subghz",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/subghz/task.md",
+      "text": "# Задача: Sub-GHz\n\nРазбери захват Sub-GHz. Найди атаку RollJam и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/subghz/notes.md",
+      "text": "Заметки\n------\n- Sub-GHz: 315/433.92/868 МГц; OOK/FSK.\n- RollJam: глушим 1-й кадр, ловим 2-й, переигрываем оба.\n"
+    },
+    {
+      "path": "/home/student/subghz/subghz-capture.txt",
+      "text": "315MHz  frame#1 counter=8812 jammed (captured, not delivered)\n433MHz  frame#2 counter=8813 delivered? no (jammed)\nreplay frame#1 counter=8812 -> OK\nreplay frame#2 counter=8813 -> OK (replay succeeded)\nnote: nto{r0llj4m_5ubghz}\n"
+    }
+  ],
+  "tools": {}
+}

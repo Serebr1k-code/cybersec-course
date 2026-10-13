@@ -1,0 +1,29 @@
+{
+  "id": "cloud-azure-logic-apps",
+  "workdir": "/home/student/logicapps",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/logicapps/found.txt",
+    "contains": "nto{l0g1c4pp_c0nn3ct0r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/logicapps",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/logicapps/task.md",
+      "text": "# Задача: Logic Apps\n\nРазбери определение workflow. Найди действие с connector и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/logicapps/notes.md",
+      "text": "Заметки\n------\n- Logic Apps используют connector-ы (Office365, Azure, HTTP).\n- Managed identity может давать широкий доступ.\n"
+    },
+    {
+      "path": "/home/student/logicapps/workflow-definition.json",
+      "text": "{\n  \"definition\": {\n    \"actions\": {\n      \"Send_email\": {\n        \"type\": \"ApiConnection\",\n        \"inputs\": {\"host\": {\"connection\": \"office365\"}},\n        \"note\": \"connector auth via MI, secret nto{l0g1c4pp_c0nn3ct0r}\"\n  }}}}\n"
+    }
+  ],
+  "tools": {}
+}

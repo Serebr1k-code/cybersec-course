@@ -1,0 +1,29 @@
+{
+  "id": "hardware-dnp3",
+  "workdir": "/home/student/dnp3",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/dnp3/found.txt",
+    "contains": "nto{dnp3_0p3r4t3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/dnp3",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/dnp3/task.md",
+      "text": "# Задача: DNP3\n\nРазбери перехват DNP3-сессии с RTU. Найди секрет в трафике.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/dnp3/notes.md",
+      "text": "Заметки\n------\n- DNP3 работает поверх TCP/20000, часто без TLS и аутентификации (SAv5).\n- Функции: READ, OPERATE, DIRECT_OPERATE, COLD_RESTART.\n"
+    },
+    {
+      "path": "/home/student/dnp3/dnp3-capture.txt",
+      "text": "TCP 10.0.0.5:51000 -> 10.0.0.9:20000  DNP3 LNK FUNC=RESET\nDNP3 APP FUNC=READ obj=AnalogInput(30) -> value=13.4\nDNP3 APP FUNC=DIRECT_OPERATE obj=BinaryOutput(10) idx=3 -> TRIP\nDNP3 APP comment=\"op token: nto{dnp3_0p3r4t3}\"\n"
+    }
+  ],
+  "tools": {}
+}

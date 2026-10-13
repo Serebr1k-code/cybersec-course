@@ -13,6 +13,18 @@ useful_for:
   - "Работа: hardware-исследования"
 estimated_minutes: 40
 summary: "Как читать плату как схему: находить тест-поинты, прозванивать цепи мультиметром, определять интерфейсы и восстанавливать соединения без документации."
+lab:
+  kind: shell
+  title: "Практика: трассировка печатной платы"
+  toolset: [core]
+  workdir: /home/student/pcb
+  files: [task.md, notes.md, pcb-traces.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`pcb-traces.txt` — разбор дорожек и переходных отверстий."
+    - "Проследи линию от флеши к разъёму/тест-поинту."
+    - "Найди флаг: `grep nto pcb-traces.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

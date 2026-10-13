@@ -1,0 +1,29 @@
+{
+  "id": "hardware-can-uds",
+  "workdir": "/home/student/canuds",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/canuds/found.txt",
+    "contains": "nto{ud5_s3cur1ty_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/canuds",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/canuds/task.md",
+      "text": "# Задача: UDS\n\nРазбери диагностический лог UDS. Найди, как обошли SecurityAccess, и флаг из DID.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/canuds/notes.md",
+      "text": "Заметки\n------\n- UDS: 0x10 DiagnosticSessionControl, 0x27 SecurityAccess, 0x22 ReadDataByIdentifier.\n- Слабый алгоритм seed→key или фиксированный key = обход.\n"
+    },
+    {
+      "path": "/home/student/canuds/uds-log.txt",
+      "text": "TX 7E0  02 10 03        -> RX 7E8 06 50 03 00 32 01 F4   (extended session)\nTX 7E0  02 27 01        -> RX 7E8 06 67 01 12 34 AB CD   (seed=0x1234ABCD)\nTX 7E0  06 27 02 56 78 12 34  -> RX 7E8 02 67 02 00 00   (key accepted; algo=~seed)\nTX 7E0  03 22 F1 90     -> RX 7E8 14 62 F1 90 6e 74 6f 7b 75 64 35 5f 73 33 63 75 72 31 74 79 5f 62 79 70 34 73 73 7d\n  DID F190 = \"nto{ud5_s3cur1ty_byp4ss}\"\n"
+    }
+  ],
+  "tools": {}
+}

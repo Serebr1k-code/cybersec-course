@@ -13,6 +13,18 @@ useful_for:
   - "Понимание шифрования в облаке"
 estimated_minutes: 50
 summary: "Как устроены KMS/Key Vault/CryptoKey, key policies и grants, и как использовать чужие ключи как оракул для расшифровки данных, выдавать себе доступ и обходить границы доверия."
+lab:
+  kind: shell
+  title: "Практика: KMS и CryptoKey — использование ключей"
+  toolset: [core, aws]
+  workdir: /home/student/kms
+  files: [task.md, notes.md, key-policy.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`key-policy.json` показывает, кому разрешён `kms:Decrypt`."
+    - "У тебя есть право decrypt — расшифруй блоб: `aws kms decrypt --ciphertext-blob fileb://secret.bin`."
+    - "Найди флаг: сохрани вывод и `grep nto dec.json > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

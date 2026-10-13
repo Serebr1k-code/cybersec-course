@@ -13,6 +13,18 @@ useful_for:
   - "Анализ защищённых элементов и цепочек поставок"
 estimated_minutes: 45
 summary: "Как искать и извлекать криптографические ключи из встраиваемых устройств: хардкод в прошивке, слабый RNG, утечки через память, атаки на secure element и fault injection."
+lab:
+  kind: shell
+  title: "Практика: поиск ключей в прошивке"
+  toolset: [core, hex]
+  workdir: /home/student/crypto
+  files: [task.md, notes.md, firmware.bin]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "В `firmware.bin` вшиты ключи. Начни со `strings`."
+    - "Ключи часто лежат рядом с метками `key`, `AES`, `hmac`."
+    - "Найди флаг: `strings firmware.bin | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

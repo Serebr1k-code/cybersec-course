@@ -1,0 +1,33 @@
+{
+  "id": "cloud-artifact-registry",
+  "workdir": "/home/student/registry",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/registry/found.txt",
+    "contains": "nto{r3g1stry_p01s0n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/registry",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/registry/task.md",
+      "text": "# Задача: artifact registry\n\nРазбери содержимое реестра. Найди секрет в конфиге образа.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/registry/notes.md",
+      "text": "Заметки\n------\n- ECR/GCR/ACR: push-права = отравление supply chain.\n- Конфиг образа (env/labels) может нести секреты.\n"
+    },
+    {
+      "path": "/home/student/registry/ecr-images.txt",
+      "text": "111122223333.dkr.ecr.eu-central-1.amazonaws.com/acme/api:1.9.4\n111122223333.dkr.ecr.eu-central-1.amazonaws.com/acme/worker:1.9.4\n"
+    },
+    {
+      "path": "/home/student/registry/image-config.json",
+      "text": "{\n  \"image\": \"acme/api:1.9.4\",\n  \"env\": [\"APP_ENV=production\"],\n  \"labels\": {\"build\": \"ci\", \"note\": \"nto{r3g1stry_p01s0n}\"}\n}\n"
+    }
+  ],
+  "tools": {}
+}

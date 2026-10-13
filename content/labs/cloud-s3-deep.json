@@ -1,0 +1,49 @@
+{
+  "id": "cloud-s3-deep",
+  "workdir": "/home/student/s3deep",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/s3deep/found.txt",
+    "contains": "nto{s3_pr3s1gn3d_url_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/s3deep",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/s3deep/task.md",
+      "text": "# Задача: S3 bucket policy + presigned URL\n\nБакет `acme-private` по ошибке имеет политику, разрешающую доступ всем, и вдобавок утекла подписанная ссылка. Определи проблему и достань объект с флагом.\n\nИнструменты: `cat`, `grep`, `curl` (эмуляция — ответ захвачен с реального S3).\n"
+    },
+    {
+      "path": "/home/student/s3deep/notes.md",
+      "text": "Заметки\n------\n- Presigned URL действует ограниченное время (X-Amz-Expires).\n- Даже приватный объект отдаётся по валидной подписи.\n"
+    },
+    {
+      "path": "/home/student/s3deep/list-objects.txt",
+      "text": "2026-09-01 04:12:07       1024  backups/index.html\n2026-09-01 04:12:07     524288  backups/db-2026-09-01.sql.gz\n2026-09-14 03:00:11         42  flag.txt\n"
+    },
+    {
+      "path": "/home/student/s3deep/bucket-policy.json",
+      "text": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": \"*\",\n      \"Action\": \"s3:GetObject\",\n      \"Resource\": \"arn:aws:s3:::acme-private/*\"\n    }\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/s3deep/presigned-url.txt",
+      "text": "https://acme-private.s3.eu-central-1.amazonaws.com/flag.txt?X-Amz-Signature=abc123def456\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <url> — HTTP-запрос (эмуляция: ответ захвачен с реального S3)",
+      "cases": [
+        {
+          "match": "flag\\.txt",
+          "example": "https://acme-private.s3.eu-central-1.amazonaws.com/flag.txt?X-Amz-Signature=abc123def456",
+          "output": "nto{s3_pr3s1gn3d_url_l34k}\n"
+        }
+      ],
+      "fallback": "curl: (эмуляция) для этого URL нет захваченного ответа. Возьми URL из presigned-url.txt.\n"
+    }
+  }
+}

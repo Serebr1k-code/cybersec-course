@@ -1,0 +1,33 @@
+{
+  "id": "hardware-mifare-deep",
+  "workdir": "/home/student/mifare",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/mifare/found.txt",
+    "contains": "nto{m1f4r3_crypt01_pwn}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/mifare",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/mifare/task.md",
+      "text": "# Задача: Mifare Classic\n\nТы восстановил ключи карты nested-атакой и снял дамп. Найди секрет в дампе.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/mifare/notes.md",
+      "text": "Заметки\n------\n- Mifare Classic (Crypto1) ломается: nested/darkside/hardnested.\n- Дамп: 16 секторов × 4 блока × 16 байт; трейлер = KeyA+AC+KeyB.\n"
+    },
+    {
+      "path": "/home/student/mifare/mfoc-output.txt",
+      "text": "Found KeyA sector 1: FFFFFFFFFFFF\nFound KeyA sector 2: A0A1A2A3A4A5\nFound KeyB sector 5: 4E 54 4F 5F 4B 45 59 21 00 00 00 00 00 00\nmfoc: all sectors recovered\n"
+    },
+    {
+      "path": "/home/student/mifare/dump-mf.txt",
+      "text": "Sector 5, block 0: 41 43 4D 45 2d 4c 4f 59 41 4c 54 59 00 00 00 00  ACME-LOYALTY\nSector 5, block 1: 6e 74 6f 7b 6d 31 66 34 72 33 5f 63 72 79 70 74 30 31 5f 70 77 6e 7d  nto{m1f4r3_crypt01_pwn}\nSector 5, block 2: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n"
+    }
+  ],
+  "tools": {}
+}

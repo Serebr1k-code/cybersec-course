@@ -13,6 +13,18 @@ useful_for:
   - "CTF Hardware"
 estimated_minutes: 40
 summary: "sigrok и PulseView: захват произвольных цифровых сигналов логическим анализатором, стековые декодеры протоколов (UART/SPI/I2C/1-Wire/CAN), триггеры и анализ неизвестной шины."
+lab:
+  kind: shell
+  title: "Практика: sigrok-cli и декодирование шины"
+  toolset: [core, sigrok]
+  workdir: /home/student/sigrok
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сначала определи устройство: `sigrok-cli --scan`."
+    - "Декодируй UART с канала D0: `sigrok-cli -d fx2lafw --channels D0 --config baudrate=9600 --protocol-decoder uart`."
+    - "В декодированных байтах есть флаг: сохрани вывод и `grep nto decoded.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

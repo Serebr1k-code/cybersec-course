@@ -1,0 +1,33 @@
+{
+  "id": "hardware-smartcard-deep",
+  "workdir": "/home/student/scdeep",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/scdeep/found.txt",
+    "contains": "nto{gl0b4lpl4tf0rm_dbg}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/scdeep",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/scdeep/task.md",
+      "text": "# Задача: GlobalPlatform / JCOP\n\nРазбери список апплетов и лог APDU. Найди отладочный апплет с секретом.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/scdeep/notes.md",
+      "text": "Заметки\n------\n- `gp --list` показывает ISD, пакеты и апплеты.\n- Апплеты с известными default-ключами (например 40..4F) уязвимы.\n"
+    },
+    {
+      "path": "/home/student/scdeep/gp-list.txt",
+      "text": "AID: A000000003000000 (ISD)\nAID: A0000000620001  ACME Loyalty\nAID: A0000000620F01  ACME DebugApp (DEBUG build)\n"
+    },
+    {
+      "path": "/home/student/scdeep/apdu-log.txt",
+      "text": "> 80 CA 9F 7F 00\n< 9F 7F 2A 47 50 2E 32 2E 33 2E 31 90 00\n> 80 10 00 00 0A 01 02 03 04 05 06 07 08 09 0A\n< 6D 00   (INS not supported on ISD)\n> 00 20 00 00 08 40 41 42 43 44 45 46 47\n< 90 00   (VERIFY default key 40..4F succeeded)\n> 00 C0 00 00 20\n< 6e 74 6f 7b 67 6c 30 62 34 6c 70 6c 34 74 66 30 72 6d 5f 64 62 67 7d 90 00\n  ASCII: nto{gl0b4lpl4tf0rm_dbg}\n"
+    }
+  ],
+  "tools": {}
+}

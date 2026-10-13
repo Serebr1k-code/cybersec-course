@@ -1,0 +1,33 @@
+{
+  "id": "hardware-usb-hid",
+  "workdir": "/home/student/usbhid",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/usbhid/found.txt",
+    "contains": "nto{b4dusb_h1d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/usbhid",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/usbhid/task.md",
+      "text": "# Задача: BadUSB / HID\n\nРазбери дескрипторы и перехваченные HID-отчёты. Найди, что «печатает» устройство.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/usbhid/notes.md",
+      "text": "Заметки\n------\n- HID keyboard: 8-байтные отчёты [modifier, reserved, k1..k6].\n- Usage code 0x04 = клавиша a, 0x1E = клавиша 1; HID доверяет классу устройства.\n"
+    },
+    {
+      "path": "/home/student/usbhid/hid-descriptor.txt",
+      "text": "Device Descriptor: bDeviceClass=0x00 (per interface)\nInterface 0: bInterfaceClass=0x03 (HID), bInterfaceSubClass=0x01 (Boot)\nHID Report Descriptor: Usage Page (Generic Desktop), Usage (Keyboard)\n"
+    },
+    {
+      "path": "/home/student/usbhid/hid-capture.txt",
+      "text": "report: 00 00 0F 00 00 00 00 00   (\"l\")\nreport: 00 00 17 00 00 00 00 00   (\"t\")\n...\ndecoded keystrokes: \"echo nto{b4dusb_h1d} > C:\\flag.txt\"\n"
+    }
+  ],
+  "tools": {}
+}

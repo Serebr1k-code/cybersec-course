@@ -1,0 +1,29 @@
+{
+  "id": "hardware-emv",
+  "workdir": "/home/student/emv",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/emv/found.txt",
+    "contains": "nto{3mv_pr0pr13t4ry_t4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/emv",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/emv/task.md",
+      "text": "# Задача: EMV\n\nРазбери лог EMV-сессии. Найди проприетарный тег с внутренним секретом.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/emv/notes.md",
+      "text": "Заметки\n------\n- EMV: SELECT 2PAY.SYS.DDF01 (PSE), GET PROCESSING OPTIONS, READ RECORD.\n- Теги 5A (PAN), 5F24 (expiry), 9Fxx — проприетарные/эмитента.\n"
+    },
+    {
+      "path": "/home/student/emv/emv-apdu.txt",
+      "text": "> 00 A4 04 00 0E 32 50 41 59 2E 53 59 53 2E 44 44 46 30 31\n< 6F ... 90 00\n> 80 A8 00 00 02 83 00\n< 77 ... 90 00  (GPO)\n> 00 B2 01 0C 00\n< 70 ... 5A 08 4111 1111 1111 1111 ... 9F 1F 10 6e 74 6f 7b 33 6d 76 5f 70 72 30 70 72 31 33 74 34 72 79 5f 74 34 67 7d 90 00\n  tag 9F1F (issuer proprietary) = \"nto{3mv_pr0pr13t4ry_t4g}\"\n"
+    }
+  ],
+  "tools": {}
+}

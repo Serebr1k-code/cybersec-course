@@ -13,6 +13,18 @@ useful_for:
   - "Аудит доступа к секретам"
 estimated_minutes: 45
 summary: "Secret Manager: версии, права secretmanager.versions.access, IAM на уровне секрета, CMEK и audit-логи. Как найти и прочитать секреты при слабых правах."
+lab:
+  kind: shell
+  title: "Практика: GCP Secret Manager"
+  toolset: [core, gcloud]
+  workdir: /home/student/gcpsm
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Перечисли секреты: `gcloud secrets list`."
+    - "Прочитай версию: `gcloud secrets versions access latest --secret=prod-flag`."
+    - "Найди флаг: сохрани вывод и `grep nto v.txt > found.txt`."
+
 ---
 ## Задача
 

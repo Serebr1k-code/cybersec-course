@@ -1,0 +1,29 @@
+{
+  "id": "hardware-squashfs",
+  "workdir": "/home/student/squashfs",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/squashfs/found.txt",
+    "contains": "nto{squ4shfs_unsqu4sh}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/squashfs",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/squashfs/task.md",
+      "text": "# Задача: SquashFS\n\nОбраз `rootfs.sqfs` снят с камеры. Определи формат по магии и найди флаг в rootfs.\n\nИнструменты: `xxd`, `strings`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/squashfs/notes.md",
+      "text": "Заметки\n------\n- SquashFS magic: `hsqs` (0x73717368), версия 4.0.\n- Данные сжаты (gzip/xz/zstd), но `strings` всё равно находит слабо-сжатые участки.\n- Полный разбор: `unsquashfs -ll rootfs.sqfs` / `unsquashfs rootfs.sqfs`.\n"
+    },
+    {
+      "path": "/home/student/squashfs/rootfs.sqfs",
+      "b64": "aHNxcwQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABzcXVhc2hmcy10b29scy1uZwAAAAAAAAAAL2V0Yy9zaGFkb3cAcm9vdDokNiR4eXokYWJjOjE5MDAwOjA6OTk5OTk6Nzo6OgAvb3B0L2FjbWUvcmVsZWFzZS50eHQAYnVpbGQ9Mi4zLjEAZmxhZz1udG97c3F1NHNoZnNfdW5zcXU0c2h9AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    }
+  ],
+  "tools": {}
+}

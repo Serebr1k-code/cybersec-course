@@ -1,0 +1,29 @@
+{
+  "id": "hardware-embedded-debug",
+  "workdir": "/home/student/edbg",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/edbg/found.txt",
+    "contains": "nto{3tm_tr4c3_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/edbg",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/edbg/task.md",
+      "text": "# Задача: embedded debug\n\nРазбери трассировку исполнения. Найди утёкший секрет.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/edbg/notes.md",
+      "text": "Заметки\n------\n- ETM/ETB и SWO дают поток инструкций и printf-вывод.\n- Трассировка может раскрыть ветки проверок и значения в регистрах.\n"
+    },
+    {
+      "path": "/home/student/edbg/etm-trace.txt",
+      "text": "trace: bl 0x08001a20  check_license\ntrace: cmp r0, #0\ntrace: bne 0x08001a80\nSWO printf: \"license ok, secret=nto{3tm_tr4c3_l34k}\"\n"
+    }
+  ],
+  "tools": {}
+}

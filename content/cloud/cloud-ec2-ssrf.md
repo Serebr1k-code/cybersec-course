@@ -13,6 +13,18 @@ useful_for:
   - "Пентест EC2 и контейнеров на EC2"
 estimated_minutes: 40
 summary: "Глубокий разбор AWS IMDS: IMDSv1 vs IMDSv2, hop limit, как контейнеры ограничивают metadata, и какие техники обхода реально работают."
+lab:
+  kind: shell
+  title: "Практика: EC2 IMDSv2 — обход hop limit"
+  toolset: [core, curl]
+  workdir: /home/student/ec2ssrf
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "IMDSv2 требует токен: `curl -s -X PUT \"http://169.254.169.254/latest/api/token\" -H \"X-aws-ec2-metadata-token-ttl-seconds: 21600\"`."
+    - "Затем с токеном читай метаданные: `curl -s -H \"X-aws-ec2-metadata-token: <t>\" .../latest/user-data`."
+    - "Найди флаг: сохрани user-data и `grep nto ud.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

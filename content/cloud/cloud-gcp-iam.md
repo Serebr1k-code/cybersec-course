@@ -13,6 +13,18 @@ useful_for:
   - "Автоматизация аудита GCP-проектов"
 estimated_minutes: 40
 summary: "Как читать IAM-политики GCP, находить пути имперсонации сервисных аккаунтов и эскалировать до owner. Практические команды gcloud, gcpwn и разбор типовых цепочек."
+lab:
+  kind: shell
+  title: "Практика: имперсонация сервисного аккаунта (TokenCreator)"
+  toolset: [core]
+  workdir: /home/student/gcpiam
+  files: [task.md, notes.md, iam-policy.json, sa-token.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "В `iam-policy.json` твой аккаунт имеет `roles/iam.serviceAccountTokenCreator` на SA `deploy@acme.iam.gserviceaccount.com` — это право выпускать за него токены."
+    - "Файл `sa-token.txt` — base64 полезной нагрузки выпущенного токена. Раскодируй его: `base64 -d sa-token.txt > token.json`."
+    - "В claims токена лежит флаг: `grep nto token.json > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

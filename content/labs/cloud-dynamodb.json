@@ -1,0 +1,37 @@
+{
+  "id": "cloud-dynamodb",
+  "workdir": "/home/student/ddb",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/ddb/found.txt",
+    "contains": "nto{dyn4m0db_sc4n_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/ddb",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/ddb/task.md",
+      "text": "# Задача: DynamoDB Scan\n\nРоль в аккаунте имеет `dynamodb:Scan` на `prod-secrets`. В таблице лежат секреты и флаг. Просканируй таблицу и вытащи флаг.\n\nИнструмент: `aws` (эмуляция — вывод захвачен с реального AWS CLI).\n"
+    },
+    {
+      "path": "/home/student/ddb/notes.md",
+      "text": "Заметки\n------\n- Scan читает всю таблицу — часто избыточное право, ведущее к утечке.\n- Атрибуты в формате DynamoDB JSON: {\"S\": \"...\"}, {\"N\": \"...\"}.\n"
+    }
+  ],
+  "tools": {
+    "aws": {
+      "help": "aws dynamodb scan --table-name <таблица> — AWS CLI (эмуляция)",
+      "cases": [
+        {
+          "match": "dynamodb scan.*prod-secrets",
+          "example": "aws dynamodb scan --table-name prod-secrets",
+          "output": "{\n  \"Items\": [\n    {\"pk\": {\"S\": \"user#1001\"}, \"password_hash\": {\"S\": \"$2b$12$Q3JhbTN...\"}},\n    {\"pk\": {\"S\": \"service#redis\"}, \"conn\": {\"S\": \"redis://:Tr0ub4dor@redis.acme:6379\"}},\n    {\"pk\": {\"S\": \"vault\"}, \"flag\": {\"S\": \"nto{dyn4m0db_sc4n_l34k}\"}}\n  ],\n  \"Count\": 3,\n  \"ScannedCount\": 3\n}\n"
+        }
+      ],
+      "fallback": "aws: (эмуляция) такой вызов не захвачен. Попробуй:\n  aws dynamodb scan --table-name prod-secrets\n"
+    }
+  }
+}

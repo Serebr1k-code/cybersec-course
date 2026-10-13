@@ -13,6 +13,18 @@ useful_for:
   - "Пентест CI/CD и k8s"
 estimated_minutes: 45
 summary: "Как атаковать облачные container registries: открытые ECR/GCR/ACR, слабая аутентификация, отравление образов, теги mutable и pull-секреты. Пути к компрометации деплоя."
+lab:
+  kind: shell
+  title: "Практика: реестры образов (ECR/GCR/ACR) и отравление"
+  toolset: [core]
+  workdir: /home/student/registry
+  files: [task.md, notes.md, ecr-images.txt, image-config.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`ecr-images.txt` — образы в реестре; `image-config.json` — конфиг одного."
+    - "Право push позволяет отравить образ, который подтянет кластер."
+    - "Найди флаг: `grep nto image-config.json > found.txt`."
+
 ---
 ## Задача
 

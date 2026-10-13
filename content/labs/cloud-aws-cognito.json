@@ -1,0 +1,41 @@
+{
+  "id": "cloud-aws-cognito",
+  "workdir": "/home/student/cognito",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/cognito/found.txt",
+    "contains": "nto{c0gn1t0_1d3nt1ty_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/cognito",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/cognito/task.md",
+      "text": "# Задача: Cognito\n\nIdentity pool допускает неаутентифицированный доступ и выдаёт роль. Токен доступа к user pool уже добыт. Получи профиль пользователя и вытащи флаг.\n\nИнструмент: `aws` (эмуляция — вывод захвачен с реального AWS CLI).\n"
+    },
+    {
+      "path": "/home/student/cognito/notes.md",
+      "text": "Заметки\n------\n- AllowUnauthenticatedIdentities=true — часто выдаёт креды анонимам.\n- Токен: aws cognito-idp get-user --access-token <jwt>.\n"
+    },
+    {
+      "path": "/home/student/cognito/identity-pool.json",
+      "text": "{\n  \"IdentityPoolId\": \"eu-central-1:1111-2222\",\n  \"AllowUnauthenticatedIdentities\": true,\n  \"CognitoIdentityProviders\": [{\"ProviderName\": \"cognito-idp.eu-central-1.amazonaws.com/eu-central-1_AbCd\"}]\n}\n"
+    }
+  ],
+  "tools": {
+    "aws": {
+      "help": "aws cognito-idp get-user --access-token <jwt> — AWS CLI (эмуляция)",
+      "cases": [
+        {
+          "match": "cognito-idp get-user",
+          "example": "aws cognito-idp get-user --access-token eyJraWQiOiJhYmMi",
+          "output": "{\n  \"Username\": \"analyst@acme.example\",\n  \"UserAttributes\": [\n    {\"Name\": \"email\", \"Value\": \"analyst@acme.example\"},\n    {\"Name\": \"email_verified\", \"Value\": \"true\"},\n    {\"Name\": \"custom:flag\", \"Value\": \"nto{c0gn1t0_1d3nt1ty_l34k}\"}\n  ]\n}\n"
+        }
+      ],
+      "fallback": "aws: (эмуляция) такой вызов не захвачен. Попробуй:\n  aws cognito-idp get-user --access-token eyJraWQiOiJhYmMi\n"
+    }
+  }
+}

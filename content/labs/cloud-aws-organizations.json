@@ -1,0 +1,33 @@
+{
+  "id": "cloud-aws-organizations",
+  "workdir": "/home/student/orgs",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/orgs/found.txt",
+    "contains": "nto{scp_h0l3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/orgs",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/orgs/task.md",
+      "text": "# Задача: Organizations/SCP\n\nРазбери SCP организации. Найди дыру в границе и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/orgs/notes.md",
+      "text": "Заметки\n------\n- SCP ограничивают максимальные права; Deny важнее Allow.\n- Отсутствие Deny на IAM-действия = эскалация.\n"
+    },
+    {
+      "path": "/home/student/orgs/scp-list.json",
+      "text": "{\"Policies\": [{\"Id\": \"p-root\", \"Name\": \"FullAWSAccess\"}, {\"Id\": \"p-guard\", \"Name\": \"DenyDangerous\"}]}\n"
+    },
+    {
+      "path": "/home/student/orgs/scp-policy.json",
+      "text": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\"Effect\": \"Deny\", \"Action\": [\"ec2:DeleteVpc\"], \"Resource\": \"*\"},\n    {\"Effect\": \"Allow\", \"Action\": \"*\", \"Resource\": \"*\",\n     \"Sid\": \"note: iam:CreatePolicyVersion not denied -> escalation, flag nto{scp_h0l3}\"}\n  ]\n}\n"
+    }
+  ],
+  "tools": {}
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Понимание soft-delete и purge для персистентности"
 estimated_minutes: 50
 summary: "Как устроен Key Vault: две модели доступа (access policies и RBAC), секреты/ключи/сертификаты, soft-delete и purge protection. Как из managed identity токена добраться до секретов и как не ошибиться с plane-ами."
+lab:
+  kind: shell
+  title: "Практика: чтение секрета из Azure Key Vault"
+  toolset: [core, curl]
+  workdir: /home/student/kv
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сначала перечисли секреты: `curl -s \"https://acme-prod.vault.azure.net/secrets?api-version=7.4\"`."
+    - "В списке есть секрет `db-password` — прочитай его значение тем же способом с именем секрета в пути."
+    - "Сохрани ответ и найди флаг: `... > sec.json`, затем `grep nto sec.json > found.txt`."
+
 ---
 
 ## Задача

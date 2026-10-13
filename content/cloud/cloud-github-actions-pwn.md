@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty: workflow injection"
 estimated_minutes: 55
 summary: "GitHub Actions: pull_request_target, workflow_run, issue_comment и инъекции в ${{ }}. Как из PR из форка получить секреты и токены облака (OIDC)."
+lab:
+  kind: shell
+  title: "Практика: pull_request_target и утечка секрета"
+  toolset: [core]
+  workdir: /home/student/gha
+  files: [task.md, notes.md, pr-workflow.yml, action-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай `pr-workflow.yml`: триггер `pull_request_target` + checkout кода из PR = инъекция."
+    - "Секрет доступен джобе; лог `action-log.txt` показывает, что он утёк."
+    - "Найди флаг: `grep nto action-log.txt > found.txt`."
+
 ---
 ## Задача
 

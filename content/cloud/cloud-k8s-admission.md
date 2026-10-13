@@ -13,6 +13,18 @@ useful_for:
   - "Аудит политик безопасности k8s"
 estimated_minutes: 40
 summary: "Как работают admission-контроллеры, Pod Security Standards и политики OPA/Kyverno. Классы обхода и практические приёмы, когда политика разрешает больше, чем кажется."
+lab:
+  kind: shell
+  title: "Практика: обход admission-политики (OPA/Kyverno)"
+  toolset: [core]
+  workdir: /home/student/k8sadm
+  files: [task.md, notes.md, kyverno-policy.yaml, rejected-pod.yaml]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`kyverno-policy.yaml` — правило, запрещающее privileged-поды."
+    - "Правило смотрит только на `containers`, но не на `initContainers`."
+    - "Найди флаг: `grep nto kyverno-policy.yaml > found.txt`."
+
 ---
 
 ## Задача

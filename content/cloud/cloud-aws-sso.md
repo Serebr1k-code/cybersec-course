@@ -13,6 +13,18 @@ useful_for:
   - "Атаки на федерацию с внешним IdP"
 estimated_minutes: 45
 summary: "IAM Identity Center (SSO): permission sets, assignments, SCIM-провижининг и федерация с внешним IdP. Как получить роли аккаунтов и где искать ошибки доверия."
+lab:
+  kind: shell
+  title: "Практика: AWS IAM Identity Center (SSO)"
+  toolset: [core, aws]
+  workdir: /home/student/sso
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри permission sets: `aws sso-admin list-permission-sets --instance-arn ...`."
+    - "Один permission set содержит административную политику."
+    - "Найди флаг: `aws sso-admin describe-permission-set ... > ps.json`, затем `grep nto ps.json > found.txt`."
+
 ---
 ## Задача
 

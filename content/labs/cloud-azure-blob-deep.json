@@ -1,0 +1,45 @@
+{
+  "id": "cloud-azure-blob-deep",
+  "workdir": "/home/student/blob",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/blob/found.txt",
+    "contains": "nto{4zur3_s4s_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/blob",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/blob/task.md",
+      "text": "# Задача: Azure Blob + SAS\n\nКонтейнер `backups` в storage-аккаунте `acmeprod` содержит дамп БД. Утекла SAS-ссылка. Скачай блоб по ней и найди флаг.\n\nИнструменты: `cat`, `grep`, `curl` (эмуляция — ответ захвачен с реального Azure Blob).\n"
+    },
+    {
+      "path": "/home/student/blob/notes.md",
+      "text": "Заметки\n------\n- SAS = подписанный URL; даёт доступ без storage key.\n- Параметры: sv (версия), se (expiry), sp (permissions), sig (подпись).\n"
+    },
+    {
+      "path": "/home/student/blob/list-blobs.xml",
+      "text": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<EnumerationResults ContainerName=\"backups\">\n  <Blobs>\n    <Blob><Name>index.html</Name></Blob>\n    <Blob><Name>db.bak</Name><Properties><Content-Length>524288</Content-Length></Properties></Blob>\n    <Blob><Name>config/appsettings.json</Name></Blob>\n  </Blobs>\n</EnumerationResults>\n"
+    },
+    {
+      "path": "/home/student/blob/sas-url.txt",
+      "text": "https://acmeprod.blob.core.windows.net/backups/db.bak?sv=2022-11-02&ss=b&srt=o&sp=r&sig=abc123\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <url> — HTTP-запрос (эмуляция: ответ захвачен с реального Azure Blob)",
+      "cases": [
+        {
+          "match": "db\\.bak",
+          "example": "https://acmeprod.blob.core.windows.net/backups/db.bak?sv=2022-11-02&sig=abc123",
+          "output": "-- acme prod dump --\nCREATE TABLE users(id int, email text, role text);\nINSERT INTO users VALUES (1,'admin@acme.example','admin');\nCREATE TABLE settings(name text, value text);\nINSERT INTO settings VALUES ('release-secret','nto{4zur3_s4s_l34k}');\n"
+        }
+      ],
+      "fallback": "curl: (эмуляция) для этого URL нет захваченного ответа. Возьми URL из sas-url.txt.\n"
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "id": "cloud-kms-crypto",
+  "workdir": "/home/student/kms",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/kms/found.txt",
+    "contains": "nto{kms_d3crypt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/kms",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/kms/task.md",
+      "text": "# Задача: KMS\n\nРазбери key policy и расшифруй блоб своим правом kms:Decrypt.\n\nИнструмент: `aws` (эмуляция).\n"
+    },
+    {
+      "path": "/home/student/kms/notes.md",
+      "text": "Заметки\n------\n- KMS не отдаёт ключи, но даёт Decrypt/Encrypt.\n- Широкий Decrypt = доступ ко всем шифротекстам.\n"
+    },
+    {
+      "path": "/home/student/kms/key-policy.json",
+      "text": "{\"Statement\": [{\"Effect\": \"Allow\", \"Principal\": {\"AWS\": \"arn:aws:iam::111122223333:role/app\"},\n  \"Action\": [\"kms:Decrypt\", \"kms:GenerateDataKey\"], \"Resource\": \"*\"}]}\n"
+    }
+  ],
+  "tools": {
+    "aws": {
+      "help": "aws kms decrypt ... — AWS CLI (эмуляция)",
+      "cases": [
+        {
+          "match": "kms decrypt",
+          "example": "aws kms decrypt --ciphertext-blob fileb://secret.bin",
+          "output": "{\n  \"KeyId\": \"arn:aws:kms:eu-central-1:111122223333:key/abc\",\n  \"Plaintext\": \"nto{kms_d3crypt}\"\n}\n"
+        }
+      ],
+      "fallback": "aws: (эмуляция) такой вызов не захвачен. Попробуй:\n  aws kms decrypt --ciphertext-blob fileb://secret.bin\n"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "cloud-aws-config",
+  "workdir": "/home/student/awsconfig",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/awsconfig/found.txt",
+    "contains": "nto{c0nf1g_bl1nd_sp0t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/awsconfig",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/awsconfig/task.md",
+      "text": "# Задача: AWS Config\n\nРазбери правила и агрегатор Config. Найди регион вне мониторинга и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/awsconfig/notes.md",
+      "text": "Заметки\n------\n- Config фиксирует изменения ресурсов; агрегатор собирает мульти-аккаунт.\n- Регион вне агрегатора = слепая зона.\n"
+    },
+    {
+      "path": "/home/student/awsconfig/config-rules.json",
+      "text": "{\"ConfigRules\": [{\"ConfigRuleName\": \"s3-public-read-prohibited\", \"State\": \"ACTIVE\"},\n  {\"ConfigRuleName\": \"iam-password-policy\", \"State\": \"ACTIVE\"}]}\n"
+    },
+    {
+      "path": "/home/student/awsconfig/aggregator.json",
+      "text": "{\"ConfigurationAggregatorName\": \"acme-org\",\n  \"AccountAggregationSources\": [{\"AccountIds\": [\"111122223333\"],\n    \"AwsRegions\": [\"eu-central-1\", \"us-east-1\"]}],\n  \"note\": \"region ap-southeast-1 NOT aggregated -> unmonitored, nto{c0nf1g_bl1nd_sp0t}\"}\n"
+    }
+  ],
+  "tools": {}
+}

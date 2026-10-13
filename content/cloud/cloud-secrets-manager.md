@@ -13,6 +13,18 @@ useful_for:
   - "Пентест и red team"
 estimated_minutes: 45
 summary: "Как находить и извлекать секреты из AWS Secrets Manager, Azure Key Vault и GCP Secret Manager, и как злоупотреблять KMS. Практические команды и типовые мисконфиги."
+lab:
+  kind: shell
+  title: "Практика: секрет-менеджеры (Secrets Manager / Key Vault / KMS)"
+  toolset: [core, aws]
+  workdir: /home/student/secretsmgr
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Перечисли секреты: `aws secretsmanager list-secrets`."
+    - "Прочитай подозрительный: `aws secretsmanager get-secret-value --secret-id prod/app`."
+    - "Найди флаг: сохрани вывод и `grep nto s.json > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

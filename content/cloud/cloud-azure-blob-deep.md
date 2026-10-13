@@ -13,6 +13,18 @@ useful_for:
   - "Обход сетевых ограничений Storage"
 estimated_minutes: 50
 summary: "Azure Blob: уровни доступа (private/blob/container), account vs service SAS, stored access policies, версии, soft-delete и immutable. Как читать и восстанавливать данные."
+lab:
+  kind: shell
+  title: "Практика: Azure Blob и утечка SAS-токена"
+  toolset: [core, curl]
+  workdir: /home/student/blob
+  files: [task.md, notes.md, list-blobs.xml, sas-url.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "В `list-blobs.xml` перечислены блобы контейнера `backups` — среди них `db.bak`."
+    - "В `sas-url.txt` лежит SAS-ссылка (параметры sv/se/sig) — она даёт доступ без ключа."
+    - "Скачай блоб по SAS и найди флаг: `curl -s \"<url>\" > db.bak`, затем `grep nto db.bak > found.txt`."
+
 ---
 
 ## Задача

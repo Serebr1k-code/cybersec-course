@@ -13,6 +13,18 @@ useful_for:
   - "Исследование бесконтактных карт"
 estimated_minutes: 45
 summary: "Высокочастотные карты 13.56 МГц: Mifare Classic (Crypto1 и атаки), Ultralight/NTAG, чтение и клонирование через Proxmark3 и mfoc."
+lab:
+  kind: shell
+  title: "Практика: HF-карты 13.56 МГц (Mifare Ultralight)"
+  toolset: [core]
+  workdir: /home/student/hfcards
+  files: [task.md, notes.md, nfc-scan.txt, ultralight-dump.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`nfc-scan.txt` — результат `nfc-list`; определи тип карты."
+    - "`ultralight-dump.txt` — дамп страниц Ultralight; ищи ASCII."
+    - "Найди флаг: `grep nto ultralight-dump.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

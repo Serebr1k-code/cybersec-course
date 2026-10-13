@@ -1,0 +1,29 @@
+{
+  "id": "hardware-jffs2-ubifs",
+  "workdir": "/home/student/jffs2",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/jffs2/found.txt",
+    "contains": "nto{jffs2_r4w_fl4sh}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/jffs2",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/jffs2/task.md",
+      "text": "# Задача: JFFS2\n\nДамп raw-NAND с JFFS2. Подтверди формат по magic и найди флаг.\n\nИнструменты: `xxd`, `strings`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/jffs2/notes.md",
+      "text": "Заметки\n------\n- JFFS2 node magic: `0x1985`. UBIFS использует `UBI#`/`UBI!`.\n- Из-за износо-выравнивания старые версии файлов остаются в дампе.\n"
+    },
+    {
+      "path": "/home/student/jffs2/rootfs.jffs2",
+      "b64": "hRkB4AAAQAAAAEAAAAAAAAAAAAAAAAAAAAAvZXRjL2FjbWUvc2VjcmV0cwBudG97amZmczJfcjR3X2ZsNHNofQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    }
+  ],
+  "tools": {}
+}

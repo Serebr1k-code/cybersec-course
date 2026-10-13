@@ -13,6 +13,18 @@ useful_for:
   - "RCE внутри ECS/Fargate"
 estimated_minutes: 50
 summary: "Как устроены ECS и Fargate, чем task role отличается от execution role, как через execute-command и определения задач захватить права контейнера и выйти в аккаунт."
+lab:
+  kind: shell
+  title: "Практика: захват task role из контейнера ECS"
+  toolset: [core, curl]
+  workdir: /home/student/ecs
+  files: [task.md, notes.md, env.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "В `env.json` есть переменная, указывающая на metadata-эндпоинт контейнера (169.254.170.2)."
+    - "`curl -s http://169.254.170.2/v2/metadata` вернёт JSON задачи — среди Labels/DockerLabels лежит секрет."
+    - "Сохрани вывод и найди строку с флагом: `curl -s http://169.254.170.2/v2/metadata > meta.json`, затем `grep nto meta.json > found.txt`."
+
 ---
 
 ## Задача

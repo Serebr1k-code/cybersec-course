@@ -13,6 +13,18 @@ useful_for:
   - "Аудит BLE-замков, трекеров, медгаджетов"
 estimated_minutes: 55
 summary: "Глубокий разбор BLE: стек и каналы, GATT-дерево, спаривание (legacy и LE Secure Connections), атаки MITM и relay, Crackle, энумерация и запись характеристик — с полным тулингом и разобранными примерами."
+lab:
+  kind: shell
+  title: "Практика: BLE глубоко (GATT, pairing, relay)"
+  toolset: [core]
+  workdir: /home/student/bledeep
+  files: [task.md, notes.md, ble-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`ble-log.txt` — сканирование и GATT-разбор BLE-устройства."
+    - "Ищи характеристику с секретом и слабый pairing."
+    - "Найди флаг: `grep nto ble-log.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

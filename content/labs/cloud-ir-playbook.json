@@ -1,0 +1,29 @@
+{
+  "id": "cloud-ir-playbook",
+  "workdir": "/home/student/cloudir",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/cloudir/found.txt",
+    "contains": "nto{cloudtr41l_1r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/cloudir",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/cloudir/task.md",
+      "text": "# Задача: Cloud IR\n\nРазбери события CloudTrail и восстанови действия атакующего. Найди флаг.\n\nИнструменты: `cat`, `grep`, `sort`.\n"
+    },
+    {
+      "path": "/home/student/cloudir/notes.md",
+      "text": "Заметки\n------\n- Ключевые события: CreateUser, CreateAccessKey, AttachUserPolicy, PutBucketPolicy.\n- IR: изоляция, сбор артефактов, ротация ключей.\n"
+    },
+    {
+      "path": "/home/student/cloudir/cloudtrail-events.json",
+      "text": "{\"Records\": [\n  {\"eventName\": \"CreateUser\", \"userName\": \"backdoor\", \"sourceIPAddress\": \"185.220.101.4\"},\n  {\"eventName\": \"CreateAccessKey\", \"userName\": \"backdoor\"},\n  {\"eventName\": \"AttachUserPolicy\", \"policyArn\": \"arn:aws:iam::aws:policy/AdministratorAccess\"},\n  {\"eventName\": \"PutBucketPolicy\", \"note\": \"exfil bucket, marker nto{cloudtr41l_1r}\"}\n]}\n"
+    }
+  ],
+  "tools": {}
+}

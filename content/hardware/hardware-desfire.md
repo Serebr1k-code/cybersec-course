@@ -13,6 +13,18 @@ useful_for:
   - "Исследование бесконтактных карт"
 estimated_minutes: 50
 summary: "Mifare DESFire EV1/EV2: архитектура, аутентификация AES/3DES, команды, чтение/запись через Proxmark3 и реальные векторы атак."
+lab:
+  kind: shell
+  title: "Практика: Mifare DESFire EV1/EV2"
+  toolset: [core]
+  workdir: /home/student/desfire
+  files: [task.md, notes.md, desfire-apdu.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`desfire-apdu.txt` — обмен APDU с DESFire (GetVersion, Auth, ReadData)."
+    - "Аутентификация прошла дефолтным ключом; затем читается файл с секретом."
+    - "Найди флаг: `grep nto desfire-apdu.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

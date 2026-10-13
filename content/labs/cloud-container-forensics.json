@@ -1,0 +1,29 @@
+{
+  "id": "cloud-container-forensics",
+  "workdir": "/home/student/cforensics",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/cforensics/found.txt",
+    "contains": "nto{c0nt41n3r_1r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/cforensics",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/cforensics/task.md",
+      "text": "# Задача: container forensics\n\nСобери следы инцидента в контейнере и найди флаг.\n\nИнструменты: `cat`, `grep`, `sort`.\n"
+    },
+    {
+      "path": "/home/student/cforensics/notes.md",
+      "text": "Заметки\n------\n- Артефакты: docker diff, слои образа, логи, open fds.\n- Удалённые, но открытые файлы — важные следы.\n"
+    },
+    {
+      "path": "/home/student/cforensics/incident-timeline.txt",
+      "text": "03:01 image pulled docker.io/library/redis:latest (untrusted)\n03:02 container started with --privileged\n03:04 host / mounted at /mnt\n03:05 exfil via DNS to telemetry.acme\n03:06 artifact: /mnt/root/.bash_history contains nto{c0nt41n3r_1r}\n"
+    }
+  ],
+  "tools": {}
+}

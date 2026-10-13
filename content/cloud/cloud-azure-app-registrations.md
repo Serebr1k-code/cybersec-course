@@ -13,6 +13,18 @@ useful_for:
   - "Атаки на OAuth consent"
 estimated_minutes: 50
 summary: "Entra ID app registrations: сервис-принципалы, client secrets/сертификаты, API permissions и admin consent. Как из приложения получить постоянный доступ к Graph и подпискам."
+lab:
+  kind: shell
+  title: "Практика: Entra ID app registration и секрет"
+  toolset: [core]
+  workdir: /home/student/appreg
+  files: [task.md, notes.md, app-config.json, consent-grants.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`app-config.json` — конфиг приложения, в нём может остаться client secret."
+    - "`consent-grants.json` показывает выданные разрешения (scope)."
+    - "Найди флаг: `grep nto app-config.json > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

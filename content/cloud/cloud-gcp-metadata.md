@@ -13,6 +13,18 @@ useful_for:
   - "Продвижение от токена к имперсонации"
 estimated_minutes: 50
 summary: "Как устроен metadata-сервис GCP, чем он отличается от AWS IMDS, как через SSRF/RCE получить OAuth-токен сервисного аккаунта и как из токена вырастить имперсонацию и доступ к ресурсам."
+lab:
+  kind: shell
+  title: "Практика: GCP metadata — service-account токен и attributes"
+  toolset: [core, curl]
+  workdir: /home/student/gcpmeta
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "GCP metadata: `http://metadata.google.internal/computeMetadata/v1/` (заголовок Metadata-Flavor: Google)."
+    - "Перечисли пользовательские атрибуты: `.../instance/attributes/`."
+    - "Прочитай значение атрибута `flag`: `.../instance/attributes/flag` и сохрани в found.txt."
+
 ---
 
 ## Задача

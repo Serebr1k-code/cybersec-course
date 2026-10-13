@@ -13,6 +13,18 @@ useful_for:
   - "Аппаратная безопасность"
 estimated_minutes: 55
 summary: "Как анализировать Zigbee (IEEE 802.15.4) и Z-Wave: сниффинг, извлечение ключей сети, атаки на спаривание и replay команд умного дома."
+lab:
+  kind: shell
+  title: "Практика: Zigbee и Z-Wave"
+  toolset: [core]
+  workdir: /home/student/zigbee
+  files: [task.md, notes.md, zigbee-capture.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`zigbee-capture.txt` — сниффинг Zigbee (канал 15) + Z-Wave."
+    - "Ищи network key и команды с секретом."
+    - "Найди флаг: `grep nto zigbee-capture.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

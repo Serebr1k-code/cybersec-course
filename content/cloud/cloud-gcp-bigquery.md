@@ -13,6 +13,18 @@ useful_for:
   - "Эксфильтрация данных через экспорт"
 estimated_minutes: 45
 summary: "BigQuery: IAM датасетов, публичные наборы, jobs и экспорт в GCS. Как из аналитического сервиса вытащить данные и секреты, которые там оказались."
+lab:
+  kind: shell
+  title: "Практика: BigQuery — публичные датасеты и утечка"
+  toolset: [core, bq]
+  workdir: /home/student/bigquery
+  files: [task.md, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Перечисли датасеты: `bq ls --project_id acme-prod`."
+    - "Запроси таблицу: `bq query \"SELECT * FROM acme-prod.analytics.events LIMIT 10\"`."
+    - "Найди флаг: сохрани вывод и `grep nto q.txt > found.txt`."
+
 ---
 
 ## Задача

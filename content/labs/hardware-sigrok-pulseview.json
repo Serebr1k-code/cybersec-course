@@ -1,0 +1,42 @@
+{
+  "id": "hardware-sigrok-pulseview",
+  "workdir": "/home/student/sigrok",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/sigrok/found.txt",
+    "contains": "nto{s1gr0k_d3c0d3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/sigrok",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/sigrok/task.md",
+      "text": "# Задача: sigrok/PulseView\n\nЛогический анализатор снял сигнал с UART-линии. Декодируй шину и найди флаг.\n\nИнструмент: `sigrok` (эмуляция — вывод захвачен с реального sigrok-cli).\n"
+    },
+    {
+      "path": "/home/student/sigrok/notes.md",
+      "text": "Заметки\n------\n- sigrok-cli декодирует протоколы поверх захваченных сэмплов.\n- UART: baudrate, parity, stop bits — задаются в --config.\n"
+    }
+  ],
+  "tools": {
+    "sigrok-cli": {
+      "help": "sigrok-cli [--scan | -d <driver> --protocol-decoder uart ...] — sigrok (эмуляция)",
+      "cases": [
+        {
+          "match": "--scan",
+          "example": "sigrok-cli --scan",
+          "output": "fx2lafw:conn=1.7 - Saleae Logic clone (8 channels)\n"
+        },
+        {
+          "match": "protocol-decoder uart",
+          "example": "sigrok-cli -d fx2lafw --channels D0 --config baudrate=9600 --protocol-decoder uart",
+          "output": "uart-1: RX: 6e 74 6f 7b 73 31 67 72 30 6b 5f 64 33 63 30 64 33 64 7d 0a\nuart-1: RX data: \"nto{s1gr0k_d3c0d3d}\"\n"
+        }
+      ],
+      "fallback": "sigrok: (эмуляция) такой вызов не захвачен. Попробуй:\n  sigrok-cli --scan\n  sigrok-cli -d fx2lafw --channels D0 --config baudrate=9600 --protocol-decoder uart\n"
+    }
+  }
+}

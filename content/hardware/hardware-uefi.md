@@ -13,6 +13,18 @@ useful_for:
   - "Red team / защита конечных точек"
 estimated_minutes: 55
 summary: "Как анализировать и атаковать прошивку UEFI/BIOS: извлечение из SPI-флеш, разбор UEFI-модулей, обход Secure Boot, постоянные буткиты и защита."
+lab:
+  kind: shell
+  title: "Практика: UEFI-переменные и Secure Boot"
+  toolset: [core]
+  workdir: /home/student/uefi
+  files: [task.md, notes.md, uefi-vars.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`uefi-vars.txt` — дамп UEFI-переменных (efivar)."
+    - "Ищи нестандартные вендорские переменные и содержимое, похожее на секрет."
+    - "Найди флаг: `grep nto uefi-vars.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

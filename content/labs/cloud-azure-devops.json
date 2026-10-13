@@ -1,0 +1,33 @@
+{
+  "id": "cloud-azure-devops",
+  "workdir": "/home/student/azdevops",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/azdevops/found.txt",
+    "contains": "nto{4zur3_d3v0ps_sc}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/azdevops",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/azdevops/task.md",
+      "text": "# Задача: Azure DevOps\n\nРазбери service connections и лог пайплайна. Найди секрет.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/azdevops/notes.md",
+      "text": "Заметки\n------\n- Service connections дают пайплайнам доступ к Azure/GitHub.\n- Owner-подключение = эскалация из пайплайна.\n"
+    },
+    {
+      "path": "/home/student/azdevops/service-connections.json",
+      "text": "[\n  {\"name\": \"azurerm-prod\", \"type\": \"azurerm\",\n   \"spn\": \"deploy-sp\", \"role\": \"Owner\", \"subscription\": \"1111\",\n   \"secret\": \"nto{4zur3_d3v0ps_sc}\"}\n]\n"
+    },
+    {
+      "path": "/home/student/azdevops/pipeline-log.txt",
+      "text": "Stage build succeeded\nStage deploy: using azurerm-prod connection\n"
+    }
+  ],
+  "tools": {}
+}

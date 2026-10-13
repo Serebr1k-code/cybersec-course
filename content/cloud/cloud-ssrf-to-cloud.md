@@ -13,6 +13,18 @@ useful_for:
   - "Понимание отличий metadata между провайдерами"
 estimated_minutes: 40
 summary: "Сквозные цепочки SSRF до захвата роли/аккаунта: как отличать провайдеров, обходить защиту IMDS, и что делать с полученным токеном. Разбор AWS, Azure, GCP и Yandex Cloud."
+lab:
+  kind: shell
+  title: "Практика: SSRF → захват облака (сквозная цепочка)"
+  toolset: [core, curl]
+  workdir: /home/student/ssrfe2e
+  files: [task.md, notes.md, request.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`request.txt` — уязвимый запрос приложения (параметр url)."
+    - "Через SSRF возьми токен GCP SA, затем прочитай секрет из внутреннего API."
+    - "Найди флаг: `curl -s http://metadata.google.internal/computeMetadata/v1/instance/attributes/flag > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

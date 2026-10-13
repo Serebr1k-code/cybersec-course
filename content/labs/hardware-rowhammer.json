@@ -1,0 +1,29 @@
+{
+  "id": "hardware-rowhammer",
+  "workdir": "/home/student/rowhammer",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/rowhammer/found.txt",
+    "contains": "nto{r0wh4mm3r_b1tfl1p}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/rowhammer",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/rowhammer/task.md",
+      "text": "# Задача: Rowhammer\n\nРазбери лог Rowhammer. Найди bit flip и раскрытый секрет.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/rowhammer/notes.md",
+      "text": "Заметки\n------\n- Rowhammer: частые обращения к строке DRAM индуцируют flips в соседней.\n- Цели: таблицы страниц, проверки доступа, ключи.\n"
+    },
+    {
+      "path": "/home/student/rowhammer/hammer-log.txt",
+      "text": "hammering rows 0x1000/0x1002 for 40s\nflip @ 0x1001 offset 0x1f: 0x00 -> 0x01 (page table U/S bit)\nprivilege escalation achieved\nleaked: nto{r0wh4mm3r_b1tfl1p}\n"
+    }
+  ],
+  "tools": {}
+}

@@ -1,0 +1,29 @@
+{
+  "id": "hardware-hardware-trojan",
+  "workdir": "/home/student/trojan",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/trojan/found.txt",
+    "contains": "nto{htr0j4n_tr1gg3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/trojan",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/trojan/task.md",
+      "text": "# Задача: аппаратный троян\n\nРазбери диф netlist. Найди внедрённый троян и флаг.\n\nИнструменты: `cat`, `grep`, `diff`.\n"
+    },
+    {
+      "path": "/home/student/trojan/notes.md",
+      "text": "Заметки\n------\n- Аппаратный троян: скрытый триггер + payload в кремнии.\n- Обнаружение: диф netlist/маски, side-channel, микроскопия.\n"
+    },
+    {
+      "path": "/home/student/trojan/netlist-diff.txt",
+      "text": "+ cell U_TROJ (trigger: counter==0xDEAD) -> payload: leak_key\n  added net: trojan_out -> AES key register tap\n  trigger constant encodes: nto{htr0j4n_tr1gg3r}\n"
+    }
+  ],
+  "tools": {}
+}

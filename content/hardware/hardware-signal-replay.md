@@ -13,6 +13,18 @@ useful_for:
   - "Аудит беспроводных устройств доступа"
 estimated_minutes: 40
 summary: "Когда replay срабатывает, как захватывать и воспроизводить сигнал с SDR, задержка и повторы, и как защищаться от replay-атак."
+lab:
+  kind: shell
+  title: "Практика: replay сигнала"
+  toolset: [core]
+  workdir: /home/student/replay
+  files: [task.md, notes.md, replay-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`replay-log.txt` — запись и повтор сигнала брелока/пульта."
+    - "Ищи, что даёт replay (открытие/команда) и секрет."
+    - "Найди флаг: `grep nto replay-log.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

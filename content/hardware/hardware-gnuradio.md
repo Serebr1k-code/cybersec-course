@@ -13,6 +13,18 @@ useful_for:
   - "Разработка SDR-обработки"
 estimated_minutes: 50
 summary: "GNU Radio и GNU Radio Companion: как строить графы обработки сигналов, ключевые блоки, Python API и практическое декодирование."
+lab:
+  kind: shell
+  title: "Практика: GNU Radio и GRC"
+  toolset: [core]
+  workdir: /home/student/gnuradio
+  files: [task.md, notes.md, grc-flow.txt, decoded.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`grc-flow.txt` — описание графа обработки, `decoded.txt` — результат."
+    - "Граф декодирует модуляцию; в выводе есть флаг."
+    - "Найди флаг: `grep nto decoded.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

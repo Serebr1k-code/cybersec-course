@@ -1,0 +1,29 @@
+{
+  "id": "hardware-usb-attacks",
+  "workdir": "/home/student/usbattacks",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/usbattacks/found.txt",
+    "contains": "nto{usb_dm4_4tt4ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/usbattacks",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/usbattacks/task.md",
+      "text": "# Задача: USB-атаки\n\nРазбери форензику подозрительного USB-устройства. Найди тип атаки и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/usbattacks/notes.md",
+      "text": "Заметки\n------\n- DMA (Thunderbolt/PCIe) читает память в обход ОС; нужен IOMMU.\n- USB Killer подаёт высокое напряжение и выжигает порт.\n"
+    },
+    {
+      "path": "/home/student/usbattacks/usb-forensics.txt",
+      "text": "device class: PCIe/Thunderbolt adapter (DMA capable)\nevent: 4.2s after plug -> memory read 0xffff888000000000 (0x4000 bytes)\nexfiltrated blob contained LSA secrets: \"nto{usb_dm4_4tt4ck}\"\nIOMMU: disabled in BIOS\n"
+    }
+  ],
+  "tools": {}
+}

@@ -1,0 +1,33 @@
+{
+  "id": "cloud-k8s-networkpolicy",
+  "workdir": "/home/student/netpol",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/netpol/found.txt",
+    "contains": "nto{n3tp0l_1s0l4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/netpol",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/netpol/task.md",
+      "text": "# Задача: NetworkPolicy\n\nРазбери политики и результаты рекогносцировки. Найди не изолированный namespace и флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/netpol/notes.md",
+      "text": "Заметки\n------\n- Без default-deny в namespace поды общаются свободно.\n- Ищи доступ к DB/метаданным соседнего namespace.\n"
+    },
+    {
+      "path": "/home/student/netpol/networkpolicies.txt",
+      "text": "namespace prod:  NetworkPolicy default-deny (ingress+egress)\nnamespace staging: (none)\n"
+    },
+    {
+      "path": "/home/student/netpol/recon.txt",
+      "text": "from pod/staging-x: tcp/connect to prod-db:5432 -> DENIED (policy)\nfrom pod/staging-x: tcp/connect to staging-db:5432 -> OK\nstaging-db creds leaked: nto{n3tp0l_1s0l4t10n}\n"
+    }
+  ],
+  "tools": {}
+}

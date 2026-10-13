@@ -1,0 +1,42 @@
+{
+  "id": "cloud-k8s-operator",
+  "workdir": "/home/student/operator",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/operator/found.txt",
+    "contains": "nto{0p3r4t0r_crd}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/operator",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/operator/task.md",
+      "text": "# Задача: оператор\n\nРазбери CRD и кастомные ресурсы. Найди секрет в CR.\n\nИнструмент: `kubectl` (эмуляция).\n"
+    },
+    {
+      "path": "/home/student/operator/notes.md",
+      "text": "Заметки\n------\n- Операторы реагируют на CR и создают ресурсы/поды.\n- Избыточные права оператора = эскалация через CR.\n"
+    }
+  ],
+  "tools": {
+    "kubectl": {
+      "help": "kubectl get <resource> — kubectl (эмуляция)",
+      "cases": [
+        {
+          "match": "get crd",
+          "example": "kubectl get crd",
+          "output": "NAME                    CREATED AT\nacmeclusters.acme.io    2026-01-01T00:00:00Z\n"
+        },
+        {
+          "match": "get acmeclusters",
+          "example": "kubectl get acmeclusters.acme.io -o yaml",
+          "output": "items:\n  - metadata: {name: prod-cluster}\n    spec:\n      size: 3\n      adminToken: nto{0p3r4t0r_crd}\n"
+        }
+      ],
+      "fallback": "kubectl: (эмуляция) такой вызов не захвачен. Попробуй:\n  kubectl get crd\n  kubectl get acmeclusters.acme.io -o yaml\n"
+    }
+  }
+}

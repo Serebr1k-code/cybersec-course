@@ -1,0 +1,42 @@
+{
+  "id": "cloud-aws-sso",
+  "workdir": "/home/student/sso",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/sso/found.txt",
+    "contains": "nto{ss0_p3rm1ss10n_s3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/sso",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/sso/task.md",
+      "text": "# Задача: AWS SSO\n\nРазбери permission sets Identity Center. Найди избыточные права и флаг.\n\nИнструмент: `aws` (эмуляция).\n"
+    },
+    {
+      "path": "/home/student/sso/notes.md",
+      "text": "Заметки\n------\n- IAM Identity Center раздаёт доступ через permission sets.\n- AdministratorAccess permission set = вход в аккаунт с полными правами.\n"
+    }
+  ],
+  "tools": {
+    "aws": {
+      "help": "aws sso-admin <...> — AWS CLI (эмуляция)",
+      "cases": [
+        {
+          "match": "list-permission-sets",
+          "example": "aws sso-admin list-permission-sets --instance-arn arn:aws:sso:::instance/ssoins-123",
+          "output": "{\"PermissionSets\": [\"ps-aaa111\", \"ps-bbb222\", \"ps-ccc333\"]}\n"
+        },
+        {
+          "match": "describe-permission-set",
+          "example": "aws sso-admin describe-permission-set --instance-arn arn:aws:sso:::instance/ssoins-123 --permission-set-arn arn:aws:sso:::permissionSet/ssoins-123/ps-bbb222",
+          "output": "{\n  \"PermissionSet\": {\n    \"Name\": \"AcmeAdmin\",\n    \"Description\": \"full admin, flag=nto{ss0_p3rm1ss10n_s3t}\",\n    \"SessionDuration\": \"PT8H\"\n  }\n}\n"
+        }
+      ],
+      "fallback": "aws: (эмуляция) такой вызов не захвачен. Попробуй:\n  aws sso-admin list-permission-sets --instance-arn arn:aws:sso:::instance/ssoins-123\n"
+    }
+  }
+}

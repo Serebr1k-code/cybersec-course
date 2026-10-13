@@ -1,0 +1,29 @@
+{
+  "id": "hardware-desfire",
+  "workdir": "/home/student/desfire",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/desfire/found.txt",
+    "contains": "nto{d3sf1r3_d3f4ult_k3y}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/desfire",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/desfire/task.md",
+      "text": "# Задача: DESFire\n\nРазбери лог обмена с DESFire-картой. Найди секрет, доступный после аутентификации.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/desfire/notes.md",
+      "text": "Заметки\n------\n- DESFire нативный режим: INS 0x90 (GetVersion), 0x1A (Auth), 0xBD (ReadData).\n- Дефолтные ключи (все нули) — частая ошибка вендоров.\n"
+    },
+    {
+      "path": "/home/student/desfire/desfire-apdu.txt",
+      "text": "> 90 60 00 00 00 00\n< AF 04 01 01 00 18 05 90 00   (GetVersion EV2)\n> 90 1A 00 00 01 00 00\n< 91 AF 90 00   (Authenticate with key 0)\n> 90 BD 00 00 07 01 00 00 00 00 00 00\n< 6e 74 6f 7b 64 33 73 66 31 72 33 5f 64 33 66 34 75 6c 74 5f 6b 33 79 7d 91 00\n  ASCII: nto{d3sf1r3_d3f4ult_k3y}\n"
+    }
+  ],
+  "tools": {}
+}

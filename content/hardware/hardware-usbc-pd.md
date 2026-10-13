@@ -13,6 +13,18 @@ useful_for:
   - "Аудит питания и док-станций"
 estimated_minutes: 50
 summary: "Как устроен USB-C: Configuration Channel, роли, контракт Power Delivery, Alternate Mode и DMA, атаки на источник питания и защита."
+lab:
+  kind: shell
+  title: "Практика: USB-C Power Delivery"
+  toolset: [core]
+  workdir: /home/student/usbcpd
+  files: [task.md, notes.md, pd-log.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`pd-log.txt` — перехват USB-C PD (Source/Sink, контракт питания)."
+    - "Ищи аномалию в запросе питания/роли и секрет."
+    - "Найди флаг: `grep nto pd-log.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

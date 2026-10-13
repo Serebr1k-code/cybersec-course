@@ -1,0 +1,29 @@
+{
+  "id": "hardware-uefi",
+  "workdir": "/home/student/uefi",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/uefi/found.txt",
+    "contains": "nto{u3f1_v4r_s3cr3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/uefi",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/uefi/task.md",
+      "text": "# Задача: UEFI/BIOS\n\nПроанализируй дамп UEFI-переменных. Найди вендорскую переменную с секретом и флаг.\n\nИнструменты: `cat`, `grep`, `strings`.\n"
+    },
+    {
+      "path": "/home/student/uefi/notes.md",
+      "text": "Заметки\n------\n- `efivar -l` перечисляет переменные; SecureBoot/SetupMode в db, PK, KEK.\n- Вендоры кладут в NVRAM настройки и иногда секреты.\n"
+    },
+    {
+      "path": "/home/student/uefi/uefi-vars.txt",
+      "text": "GUID: 8be4df61-93ca-11d2-aa0d-00e098032b8c  Name: \"SecureBoot\"  Attr: NV,BS,Runtime  Value: 01\nGUID: 8be4df61-93ca-11d2-aa0d-00e098032b8c  Name: \"SetupMode\"   Value: 00\nGUID: acme0001-0000-4000-8000-000000000001  Name: \"AcmeProvision\"  Attr: NV,BS\n  Value: 6e 74 6f 7b 75 33 66 31 5f 76 34 72 5f 73 33 63 72 33 74 7d 00\n  ASCII: nto{u3f1_v4r_s3cr3t}\n"
+    }
+  ],
+  "tools": {}
+}

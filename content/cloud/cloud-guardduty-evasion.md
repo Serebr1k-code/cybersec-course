@@ -13,6 +13,18 @@ useful_for:
   - "Red team OPSEC в облаке"
 estimated_minutes: 55
 summary: "Как работают облачные детект-сервисы (GuardDuty, Defender for Cloud, Security Command Center), какие источники они используют, где слепые зоны и как снизить заметность, не отключая детект напрямую."
+lab:
+  kind: shell
+  title: "Практика: обход GuardDuty и Defender for Cloud"
+  toolset: [core]
+  workdir: /home/student/guardduty
+  files: [task.md, notes.md, detector-findings.txt, evasion-notes.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`detector-findings.txt` — что детектит GuardDuty; `evasion-notes.txt` — план."
+    - "Ищи технику, не покрытую детекторами (например, использование «тихих» API)."
+    - "Найди флаг: `grep nto evasion-notes.txt > found.txt`."
+
 ---
 ## Задача
 

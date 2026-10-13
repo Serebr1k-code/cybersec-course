@@ -1,0 +1,29 @@
+{
+  "id": "hardware-secure-element",
+  "workdir": "/home/student/secureel",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/secureel/found.txt",
+    "contains": "nto{s3cur3_3l3m3nt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/secureel",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/secureel/task.md",
+      "text": "# Задача: secure element\n\nРазбери сессию с secure element. Найди секрет слота.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/secureel/notes.md",
+      "text": "Заметки\n------\n- Secure element хранит ключи и не отдаёт их наружу.\n- Но при слабой конфигурации слот можно прочитать.\n"
+    },
+    {
+      "path": "/home/student/secureel/se-session.txt",
+      "text": "SE: ATECC608A\nRead Slot 3 (data): 41 43 4d 45 2d 46 41 43 54 4f 52 59\nRead Slot 9 (secret): 6e 74 6f 7b 73 33 63 75 72 33 5f 33 6c 33 6d 33 6e 74 7d\n  ASCII: nto{s3cur3_3l3m3nt}\n"
+    }
+  ],
+  "tools": {}
+}

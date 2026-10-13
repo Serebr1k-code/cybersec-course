@@ -1,0 +1,41 @@
+{
+  "id": "cloud-kubernetes-escape",
+  "workdir": "/home/student/k8s",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/k8s/found.txt",
+    "contains": "nto{h0stp4th_br34k0ut}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/k8s",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/k8s/task.md",
+      "text": "# Задача: побег из пода\n\nПод запущен с hostPath-монтированием корня ноды. Изучи манифест, подтверди монтирование и прочитай файл с флагом на ноде (он лежит в смонтированном каталоге).\n\nИнструменты: `cat`, `find`, `ls`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/k8s/notes.md",
+      "text": "Заметки\n------\n- hostPath с `path: /` = доступ ко всей ноде.\n- Смонтировано в `/mnt/host` (в лабе — каталог `mnt/host`).\n"
+    },
+    {
+      "path": "/home/student/k8s/pod.yaml",
+      "text": "apiVersion: v1\nkind: Pod\nmetadata:\n  name: acme-debug\nspec:\n  containers:\n    - name: shell\n      image: acme/debug:1.0\n      command: [\"sleep\", \"infinity\"]\n      volumeMounts:\n        - mountPath: /mnt/host\n          name: hostroot\n  volumes:\n    - name: hostroot\n      hostPath:\n        path: /\n        type: Directory\n"
+    },
+    {
+      "path": "/home/student/k8s/mnt/host/root/flag.txt",
+      "text": "nto{h0stp4th_br34k0ut}\n"
+    },
+    {
+      "path": "/home/student/k8s/mnt/host/etc/hostname",
+      "text": "acme-node-01\n"
+    },
+    {
+      "path": "/home/student/k8s/mnt/host/var/lib/kubelet/config.yaml",
+      "text": "apiVersion: kubelet.config.k8s.io/v1beta1\nkind: KubeletConfiguration\nauthentication:\n  anonymous:\n    enabled: false\n"
+    }
+  ],
+  "tools": {}
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Оценка патч-уровня кластеров"
 estimated_minutes: 40
 summary: "Архитектура контейнерных рантаймов (Docker/containerd/CRI-O/runc) и классы уязвимостей побега: runc CVEs, монтирования, cgroups. Как определить версии и на что ориентироваться."
+lab:
+  kind: shell
+  title: "Практика: рантаймы контейнеров (containerd/CRI-O)"
+  toolset: [core]
+  workdir: /home/student/rt
+  files: [task.md, notes.md, runtime-recon.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`runtime-recon.txt` — рекогносцировка рантайма и его версии."
+    - "Сопоставь версию с известными CVE."
+    - "Найди флаг: `grep nto runtime-recon.txt > found.txt`."
+
 ---
 
 ## Задача

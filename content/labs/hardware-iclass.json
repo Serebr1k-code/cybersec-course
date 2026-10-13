@@ -1,0 +1,29 @@
+{
+  "id": "hardware-iclass",
+  "workdir": "/home/student/iclass",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/iclass/found.txt",
+    "contains": "nto{1cl4ss_br34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/iclass",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/iclass/task.md",
+      "text": "# Задача: iClass / LEGIC\n\nРазбери лог работы с iClass-картой. Найди флаг.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/iclass/notes.md",
+      "text": "Заметки\n------\n- iClass имеет известные слабости (weak keys / standard keys).\n- LEGIC Prime частично реверснут (LEGIC United).\n"
+    },
+    {
+      "path": "/home/student/iclass/iclass-log.txt",
+      "text": "CSN: 0A 1B 2C 3D 4E 5F FF 12\nkey recovery via standard key -> OK\napp area 1 dump: ACME-ACCESS\noperator secret: nto{1cl4ss_br34k}\n"
+    }
+  ],
+  "tools": {}
+}

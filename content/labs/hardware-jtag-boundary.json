@@ -1,0 +1,33 @@
+{
+  "id": "hardware-jtag-boundary",
+  "workdir": "/home/student/boundary",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/boundary/found.txt",
+    "contains": "nto{bound4ry_sc4n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/boundary",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/boundary/task.md",
+      "text": "# Задача: JTAG boundary scan\n\nРазбери цепочку JTAG и boundary scan. Найди секрет, снятый с пинов.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/boundary/notes.md",
+      "text": "Заметки\n------\n- BSDL описывает boundary-scan ячейки; IDCODE идентифицирует чип.\n- Через EXTEST/SAMPLE можно читать пины, не подключаясь к флеши напрямую.\n"
+    },
+    {
+      "path": "/home/student/boundary/bsdl-info.txt",
+      "text": "chain: 2 devices\nIDCODE 0x06411041 (Xilinx XC2C64A)\nIDCODE 0x12345678 (Acme ASIC)\n"
+    },
+    {
+      "path": "/home/student/boundary/boundary-log.txt",
+      "text": "SAMPLE pins -> shifted out 0x6e746f7b626f756e643472795f7363346e7d\n  ASCII: nto{bound4ry_sc4n}\n"
+    }
+  ],
+  "tools": {}
+}

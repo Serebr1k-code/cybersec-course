@@ -13,6 +13,18 @@ useful_for:
   - "Реверс встраиваемых систем"
 estimated_minutes: 50
 summary: "Как разобрать журналируемые raw-flash ФС JFFS2 и UBIFS/UBI: jefferson, ubireader, mtdram, nandsim, эмуляция NAND и извлечение файлов."
+lab:
+  kind: shell
+  title: "Практика: raw-flash ФС JFFS2"
+  toolset: [core, hex]
+  workdir: /home/student/jffs2
+  files: [task.md, notes.md, rootfs.jffs2]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "JFFS2-узлы начинаются с magic `0x1985` (в файле — `85 19`)."
+    - "Имена и короткие данные лежат в узлах незашифрованными."
+    - "Найди флаг: `strings rootfs.jffs2 | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

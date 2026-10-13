@@ -1,0 +1,33 @@
+{
+  "id": "cloud-sqs-sns",
+  "workdir": "/home/student/sqs",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/sqs/found.txt",
+    "contains": "nto{sqs_cr0ss_4cc0unt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/sqs",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/sqs/task.md",
+      "text": "# Задача: cross-account SQS\n\nОчередь `acme-events` имеет политику, разрешающую чтение чужому аккаунту. Определи это и найди флаг в полученном сообщении.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/sqs/notes.md",
+      "text": "Заметки\n------\n- Политики очереди — JSON в атрибуте Policy.\n- Сообщения могут содержать токены сервисов и PII.\n"
+    },
+    {
+      "path": "/home/student/sqs/get-queue-attributes.json",
+      "text": "{\n  \"Attributes\": {\n    \"QueueArn\": \"arn:aws:sqs:eu-central-1:111122223333:acme-events\",\n    \"Policy\": \"{\\\"Version\\\":\\\"2012-10-17\\\",\\\"Statement\\\":[{\\\"Effect\\\":\\\"Allow\\\",\\\"Principal\\\":{\\\"AWS\\\":\\\"arn:aws:iam::444455556666:root\\\"},\\\"Action\\\":\\\"sqs:ReceiveMessage\\\",\\\"Resource\\\":\\\"arn:aws:sqs:eu-central-1:111122223333:acme-events\\\"}]}\"\n  }\n}\n"
+    },
+    {
+      "path": "/home/student/sqs/receive-message.json",
+      "text": "{\n  \"Messages\": [\n    {\n      \"MessageId\": \"a1b2c3d4-0001\",\n      \"Body\": \"{\\\"event\\\":\\\"user.login\\\",\\\"user\\\":\\\"admin@acme.example\\\",\\\"service_token\\\":\\\"nto{sqs_cr0ss_4cc0unt}\\\"}\"\n    }\n  ]\n}\n"
+    }
+  ],
+  "tools": {}
+}

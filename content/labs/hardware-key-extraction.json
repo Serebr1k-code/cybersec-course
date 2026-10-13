@@ -1,0 +1,33 @@
+{
+  "id": "hardware-key-extraction",
+  "workdir": "/home/student/keyext",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/keyext/found.txt",
+    "contains": "nto{s3cur3_k3y_bl0b}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/keyext",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/keyext/task.md",
+      "text": "# Задача: извлечение ключей\n\nИз дампа устройства нужно достать ключевой материал. Используй лог и `strings`.\n\nИнструменты: `strings`, `xxd`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/keyext/notes.md",
+      "text": "Заметки\n------\n- Ключи в blob часто в формате PKCS#8/DER (начинаются с 30 82).\n- При отсутствии шифрования blob читается напрямую.\n"
+    },
+    {
+      "path": "/home/student/keyext/extract-log.txt",
+      "text": "scanning secure.bin ...\noffset 0x00000040: RSA private key blob (PKCS#8, unencrypted)\noffset 0x00000120: device provisioning secret\n"
+    },
+    {
+      "path": "/home/student/keyext/secure.bin",
+      "b64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAC0tLS0tQkVHSU4gUFJJVkFURSBLRVktLS0tLQBNSUlFdlFJQkFEQU5CZ2txaGtpRzl3MEJBUUVGQUFTQ0JLY3dnZ1NqQWdFQUFvSUJBUQBkZXZfc2VjcmV0PW50b3tzM2N1cjNfazN5X2JsMGJ9AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    }
+  ],
+  "tools": {}
+}
