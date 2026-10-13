@@ -13,6 +13,18 @@ useful_for:
   - "Vuln research: анализ JIT-уязвимостей"
 estimated_minutes: 55
 summary: "Анализ JIT-компилируемого кода: как работают JIT (V8, HotSpot, RyuJIT), поиск сгенерированного кода в памяти, отладка JIT-регионов, анти-JIT защита и практические приёмы."
+lab:
+  kind: shell
+  title: 'Практика: дизассемблировать JIT-регион'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, jit_dump.bin]
+  check: "grep -q 'nto{j1t_c0d3_1n_rwx_m3m0ry}' found.txt"
+  hints:
+    - 'JIT-компилятор пишет сгенерированный код в RWX-память во время работы.'
+    - '`jit_dump.bin` — дамп JIT-региона. Его надо дизассемблировать как код.'
+    - '`gdb -batch -ex "x/40i 0x7ffff7ff1000" jit_dump.bin` — увидишь сгенерированные инструкции и встроенную строку.'
+    - '`gdb -batch -ex "x/40i 0x7ffff7ff1000" jit_dump.bin | grep nto > found.txt` и `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

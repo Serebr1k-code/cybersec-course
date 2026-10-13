@@ -13,6 +13,18 @@ useful_for:
   - "Kernel/hypervisor analysis"
 estimated_minutes: 65
 summary: "Продвинутый анализ анти-читов: kernel-драйверы, hypervisor-детект, техники обнаружения и контрмеры."
+lab:
+  kind: shell
+  title: 'Практика: анализ анти-чит-драйвера (детект гипервизора)'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, acdrv.sys]
+  check: "grep -q 'nto{hyp3rv1s0r_d3t3ct10n_byp4ss}' found.txt"
+  hints:
+    - '`file acdrv.sys` — PE32+ (драйвер). Kernel-античит видит систему целиком.'
+    - 'Строки драйвера хранят «визитки» проверок: `VMXON`, `hypervisor_present`, `KdDebuggerEnabled`.'
+    - '`strings acdrv.sys` — среди строк лежит флаг.'
+    - '`strings acdrv.sys | grep nto > found.txt` и `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

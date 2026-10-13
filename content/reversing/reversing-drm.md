@@ -13,6 +13,18 @@ useful_for:
   - "DRM analysis"
 estimated_minutes: 60
 summary: "Понимание DRM: Steam/Origin-интеграция, Denuvo, лицензионные проверки, анти-tamper и этика анализа."
+lab:
+  kind: shell
+  title: 'Практика: keygen для лицензии (CRC32 XOR)'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, liccheck, keygen.py]
+  check: "grep -q 'nto{k3yg3n_crc32_x0r_dr34m}' found.txt"
+  hints:
+    - '`objdump -d liccheck` — найди `xor` с большой константой (`0xdeadbeef`) рядом с CRC.'
+    - 'Схема слабая: key = CRC32(name) XOR 0xDEADBEEF. Значит, возможен keygen.'
+    - '`python3 keygen.py` — получишь корректный ключ для пользователя `alice`.'
+    - 'Проверь ключ: `liccheck F92302A8` — программа выдаст флаг. Запиши: `liccheck F92302A8 | grep nto > found.txt`, затем `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

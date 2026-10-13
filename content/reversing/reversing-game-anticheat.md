@@ -13,6 +13,18 @@ useful_for:
   - "Анализ защищённых приложений"
 estimated_minutes: 55
 summary: "Реверс игровых бинарников: память, движки, анти-чит, целостность, анализ сетевых пакетов."
+lab:
+  kind: shell
+  title: 'Практика: обойти проверку целостности анти-чита'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, ac]
+  check: "grep -q 'nto{4nt1_ch34t_1nt3gr1ty_gu4rd}' found.txt"
+  hints:
+    - '`file ac` — ELF64. Анти-чит считает `sum()` по защищённым данным (guard) и по коду.'
+    - '`objdump -d ac` — видно цикл хеша и байты `DE AD BE EF ...` в `.data`.'
+    - '`strings ac` покажет подозрительную base64-строку, начинающуюся на `bnRv` (это `nto`).'
+    - 'Декодируй её и запиши: `strings ac | grep bnRv | base64 -d > found.txt`, затем `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

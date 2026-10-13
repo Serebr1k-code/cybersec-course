@@ -13,6 +13,18 @@ useful_for:
   - "DRM / anti-tamper research"
 estimated_minutes: 70
 summary: "Сравнительный обзор коммерческих протекторов (VMProtect, Themida, Enigma, Obsidium, ASProtect, .NET Reactor): классы защит, детект по секциям/строкам/энтропии и выбор стратегии анализа."
+lab:
+  kind: shell
+  title: 'Практика: определить протектор по секциям и энтропии'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, vmp_like, entropy.py]
+  check: "grep -q 'nto{vmp0_s3ct10ns_4r3_4_g1v34w4y}' found.txt"
+  hints:
+    - '`readelf -S vmp_like` — посмотри имена секций.'
+    - 'Секции `.vmp0`/`.vmp1` — визитная карточка VMProtect.'
+    - 'Высокая энтропия (~7.8) подтверждает упакованные/зашифрованные данные: `python3 entropy.py vmp1.bin`.'
+    - '`strings vmp_like | grep nto > found.txt` и `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

@@ -1,0 +1,36 @@
+{
+  "id": "reversing-jit-analysis",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{j1t_c0d3_1n_rwx_m3m0ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ JIT-кода\n\nJIT (V8/HotSpot/RyuJIT) компилирует код в память во время исполнения.\n`jit_dump.bin` — дамп JIT-региона, снятый в момент работы.\n\n1. `xxd -l 32 jit_dump.bin` — посмотри байты.\n2. `gdb -batch -ex \"x/40i 0x7ffff7ff1000\" jit_dump.bin` — дизассемблируй регион.\n3. Найди строку-флаг в сгенерированном коде.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/jit_dump.bin",
+      "b64": "+6tvZTOywARM29GkmWZt7+LDSUQoA4WMDD+OYN9tM6Fv2HEVqwOeCKRMClLQyQYWIa3PCmSl1i+ReW6apwDOkA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "gdb": {
+      "help": "gdb -q -batch -ex '<команда>' <файл>",
+      "cases": [
+        {
+          "match": "x/",
+          "output": "0x7ffff7ff1000:\tmov    eax,0x2a\n0x7ffff7ff1005:\tadd    eax,0x8\n0x7ffff7ff1008:\tcmp    eax,0x32\n0x7ffff7ff100b:\tjne    0x7ffff7ff1020\n0x7ffff7ff1011:\tmovabs rdi,0x7ffff7ff2000\n0x7ffff7ff101b:\tcall   0x7ffff7ff1040\n0x7ffff7ff2000:\t\"nto{j1t_c0d3_1n_rwx_m3m0ry}\"\n",
+          "example": "gdb -batch -ex 'x/40i 0x7ffff7ff1000' jit_dump.bin"
+        }
+      ]
+    }
+  }
+}
