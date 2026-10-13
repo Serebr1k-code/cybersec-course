@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 30
 summary: "Как найти «висящий» CNAME на заброшенный сервис и занять поддомен чужой компании."
+lab:
+  kind: shell
+  title: "Практика: subdomain takeover"
+  toolset: [core, dig, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Куда ведёт поддомен: `dig blog.target.com CNAME +short`.
+    - Проверь, что сервис не занят: `curl -s http://blog.target.com/`.
+    - Осталась служебная запись верификации: `dig TXT _github-pages-challenge-target-org.blog.target.com +short`.
+    - Вырежи токен из кавычек: `dig TXT _github-pages-challenge-target-org.blog.target.com +short | cut -d'"' -f2 > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается

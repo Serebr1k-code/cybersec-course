@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как расхождение парсеров между фронтендом и бэкендом позволяет прятать запросы, обходить WAF и отравлять очередь."
+lab:
+  kind: shell
+  title: "Практика: HTTP Request Smuggling"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, payload.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Обычный запрос: `curl -s 'http://shop.local/'`.
+    - В каталоге есть заготовка smuggled-запроса — посмотри её: `cat payload.txt`.
+    - Отправь её как chunked-тело: `curl -s 'http://shop.local/' --data-binary @payload.txt -H 'Transfer-Encoding: chunked'`.
+    - Флаг — последняя строка ответа: `curl -s 'http://shop.local/' --data-binary @payload.txt -H 'Transfer-Encoding: chunked' | tail -1 > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается

