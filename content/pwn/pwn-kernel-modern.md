@@ -13,6 +13,18 @@ useful_for:
   - "Real-world CVE"
 estimated_minutes: 12
 summary: "Отдельный этап: современные kernel-техники — cross-cache attack, Dirty Pipe и DirtyCred, которые обходят стандартные митигации ядра."
+lab:
+  kind: shell
+  title: "Практика: адрес init_cred (DirtyCred)"
+  toolset: [core, bin]
+  workdir: /home/student/task
+  files: [task.md, system.map]
+  check: "grep -q 'nto{init_cred=0xffffffff838140c0}' answer.txt"
+  hints:
+    - "DirtyCred подменяет не поток управления, а объекты ядра `struct cred`."
+    - "Символ `init_cred` — эталонная root-credential-структура ядра."
+    - "`grep init_cred system.map` — найди строку с адресом."
+    - "Запиши `nto{init_cred=0x...}` — адрес из первого столбца."
 ---
 
 Ядро Linux — самая защищённая цель в pwn: SMEP/SMAP, KASLR, KPTI, hardened usercopy, рандомизация slab. Классический ret2usr мёртв. Современная kernel-эксплуатация — это работа с аллокаторами (SLUB, cross-cache), логическими багами (Dirty Pipe) и манипуляцией credentials (DirtyCred). Эти техники переписали правила: иногда даже UAF не нужен.

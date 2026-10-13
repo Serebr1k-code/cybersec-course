@@ -12,6 +12,18 @@ useful_for:
   - "Эксплуатация драйверов Linux"
 estimated_minutes: 10
 summary: "Первый kernel-этап: база эксплуатации ядра — SMEP/SMAP, kernel ROP и работа с kernel heap."
+lab:
+  kind: shell
+  title: "Практика: биты CR4 (SMEP/SMAP)"
+  toolset: [core, bin]
+  workdir: /home/student/task
+  files: [task.md, cr4_bits.txt, system.map]
+  check: "grep -q 'nto{cr4_smep_bit=20}' answer.txt"
+  hints:
+    - "SMEP и SMAP включаются битами управляющего регистра CR4."
+    - "`grep SMEP cr4_bits.txt` — найди строку `X86_CR4_SMEP_BIT`."
+    - "`_BITUL(n)` — это бит номер `n` (то есть `1 << n`)."
+    - "Запиши `nto{cr4_smep_bit=<номер бита SMEP>}`."
 ---
 Первый из двух модулей по эксплуатации ядра Linux. После общего введения (pwn-kernel-intro) вы переходите к базовому набору техник: как обойти аппаратные защиты, как построить kernel ROP и как работать с кучей ядра.
 

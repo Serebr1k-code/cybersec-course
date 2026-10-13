@@ -1,0 +1,25 @@
+{
+ "id": "pwn-kernel-modern",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "nto{init_cred=0xffffffff838140c0}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: адрес init_cred для DirtyCred\n\nМодуль `pwn-kernel-modern` — современные техники: cross-cache, Dirty Pipe и\n**DirtyCred**. DirtyCred не перехватывает исполнение — он подменяет объекты\nядра `struct cred`, повышая привилегии процесса без ROP.\n\nКлючевой ориентир — символ `init_cred`: эталонная credential-структура root,\nкоторую часто копируют или на которую указывают.\n\nНиже — реальный `System.map` целевого ядра.\n\n1. `grep init_cred system.map` (или `cat system.map`).\n2. Первый столбец — адрес символа в памяти ядра.\n3. Запиши `nto{init_cred=0x...}` в `answer.txt` и набери `check`.\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/system.map",
+   "text": "ffffffff81001870 T swapgs_restore_regs_and_return_to_usermode\nffffffff812f19e0 T native_write_cr4\nffffffff813793e0 T __x64_sys_setuid\nffffffff81397360 T commit_creds\nffffffff81397620 T prepare_kernel_cred\nffffffff838140c0 t init_cred\nffffffff83934b20 T modprobe_path\nffffffff83998220 t core_pattern\n",
+   "mode": "644"
+  }
+ ]
+}

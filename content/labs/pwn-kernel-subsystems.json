@@ -1,0 +1,25 @@
+{
+ "id": "pwn-kernel-subsystems",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "nto{bpf=321}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: номер syscall для eBPF\n\nМодуль `pwn-kernel-subsystems` разбирает четыре «горячие» подсистемы ядра:\npipe buffer, **eBPF**, io_uring и nftables. Атака начинается с вызова\nпользователем соответствующего системного вызова.\n\nНиже — реальная таблица syscall'ов x86-64\n(`arch/x86/include/generated/uapi/asm/unistd_64.h`).\n\n1. `grep bpf unistd_64.h` (или `cat unistd_64.h`).\n2. Найди `__NR_bpf` — номер системного вызова eBPF.\n3. Запиши `nto{bpf=<номер>}` в `answer.txt` и набери `check`.\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/unistd_64.h",
+   "text": "#define __NR_read 0\n#define __NR_write 1\n#define __NR_setuid 105\n#define __NR_bpf 321\n#define __NR_userfaultfd 323\n#define __NR_io_uring_setup 425\n#define __NR_io_uring_enter 426\n",
+   "mode": "644"
+  }
+ ]
+}

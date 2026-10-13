@@ -12,6 +12,18 @@ useful_for:
   - "Анализ CVE в ядре Linux"
 estimated_minutes: 10
 summary: "Второй kernel-этап: эксплуатация конкретных подсистем ядра — pipe buffer, eBPF, io_uring и nftables."
+lab:
+  kind: shell
+  title: "Практика: syscall eBPF"
+  toolset: [core, bin]
+  workdir: /home/student/task
+  files: [task.md, unistd_64.h]
+  check: "grep -q 'nto{bpf=321}' answer.txt"
+  hints:
+    - "Каждая подсистема (eBPF, io_uring, nftables) входит через свой syscall."
+    - "`grep bpf unistd_64.h` — найди строку `__NR_bpf`."
+    - "Число в конце строки — номер системного вызова."
+    - "Запиши `nto{bpf=<номер>}`."
 ---
 Второй модуль по эксплуатации ядра: переход от общих техник к конкретным подсистемам, в которых регулярно находят уязвимости. Каждая из четырёх тем — это отдельный класс CVE, и вместе они покрывают большинство современных kernel-задач.
 

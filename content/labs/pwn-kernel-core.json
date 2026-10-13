@@ -1,0 +1,30 @@
+{
+ "id": "pwn-kernel-core",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "nto{cr4_smep_bit=20}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: бит CR4 для SMEP\n\nМодуль `pwn-kernel-core` — база эксплуатации ядра. Первый шаг любой kernel-задачи:\nпонять, какие аппаратные защиты включены. **SMEP** (Supervisor Mode Execution\nPrevention) и **SMAP** (Supervisor Mode Access Prevention) управляются битами\nрегистра **CR4**.\n\nНиже — реальный фрагмент заголовка ядра Linux\n`arch/x86/include/uapi/asm/processor-flags.h` с определениями битов CR4.\n\n1. `grep SMEP cr4_bits.txt` (или `cat cr4_bits.txt`).\n2. Найди `X86_CR4_SMEP_BIT` — это номер бита.\n3. Запиши `nto{cr4_smep_bit=<номер>}` в `answer.txt` и набери `check`.\n\nФайл `system.map` (реальные символы целевого ядра) пригодится дальше в модуле —\nпо нему находят `commit_creds`, `prepare_kernel_cred` и `modprobe_path`.\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/cr4_bits.txt",
+   "text": "#define X86_CR4_FSGSBASE_BIT\t16 /* enable RDWRFSGS support */\n#define X86_CR4_FSGSBASE\t_BITUL(X86_CR4_FSGSBASE_BIT)\n#define X86_CR4_PCIDE_BIT\t17 /* enable PCID support */\n#define X86_CR4_PCIDE\t\t_BITUL(X86_CR4_PCIDE_BIT)\n#define X86_CR4_OSXSAVE_BIT\t18 /* enable xsave and xrestore */\n#define X86_CR4_OSXSAVE\t\t_BITUL(X86_CR4_OSXSAVE_BIT)\n#define X86_CR4_SMEP_BIT\t20 /* enable SMEP support */\n#define X86_CR4_SMEP\t\t_BITUL(X86_CR4_SMEP_BIT)\n#define X86_CR4_SMAP_BIT\t21 /* enable SMAP support */\n#define X86_CR4_SMAP\t\t_BITUL(X86_CR4_SMAP_BIT)\n#define X86_CR4_PKE_BIT\t\t22 /* enable Protection Keys support */\n#define X86_CR4_PKE\t\t_BITUL(X86_CR4_PKE_BIT)\n#define X86_CR4_CET_BIT\t\t23 /* enable Control-flow Enforcement Technology */\n#define X86_CR4_CET\t\t_BITUL(X86_CR4_CET_BIT)\n#define X86_CR4_LASS_BIT\t27 /* enable Linear Address Space Separation support */\n#define X86_CR4_LASS\t\t_BITUL(X86_CR4_LASS_BIT)\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/system.map",
+   "text": "ffffffff81001870 T swapgs_restore_regs_and_return_to_usermode\nffffffff812f19e0 T native_write_cr4\nffffffff813793e0 T __x64_sys_setuid\nffffffff81397360 T commit_creds\nffffffff81397620 T prepare_kernel_cred\nffffffff838140c0 t init_cred\nffffffff83934b20 T modprobe_path\nffffffff83998220 t core_pattern\n",
+   "mode": "644"
+  }
+ ]
+}
