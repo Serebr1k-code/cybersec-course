@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "XPath-инъекции: подмена логики запроса к XML, обход логина, слепое извлечение узлов и атрибутов."
+lab:
+  kind: shell
+  title: 'Практика: XPath-инъекция и обход входа'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Проверь инъекцию: `username=admin''` ломает XPath-парсер → HTTP 500.'
+    - 'Обход: `username=admin'' or ''1''=''1` — кавычки нужно сбалансировать самому (комментариев в XPath нет).'
+    - 'Сохрани cookie и запроси админский флаг: `-c cookies.txt`, затем `-b cookies.txt .../admin/flag`.'
+    - 'Blind: `user='' or string-length(//user[1]/password)=6 and ''1''=''1`.'
 ---
 
 ## Задача

