@@ -1,0 +1,78 @@
+{
+  "id": "web-recon-fuzzing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{hidden_paths_ar3_st1ll_th3r3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разведка и фаззинг\n\nЦель — `http://shop.lab.local`. В корне спрятаны служебные каталоги, о которых\nсайт молчит. Нужно найти их перебором и достать флаг.\n\n1. Сначала бесплатные карты: `curl -s http://shop.lab.local/robots.txt`.\n2. Перебор путей (в каталоге лежит `wordlist.txt`):\n\n   ffuf -u 'http://shop.lab.local/FUZZ' -w wordlist.txt -mc all -fc 404\n\n   `FUZZ` — место подстановки; `-fc 404` убирает шум-заглушки.\n3. Найди каталог, отдающий листинг (`301` → каталог), зайди в него\n   и прочитай файл с флагом.\n4. Запиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/wordlist.txt",
+      "text": "admin\nbackup\ninternal\napi\nlogin\nuploads\nconfig\n.git\n.env\nrobots.txt\nsitemap.xml\nstatic\ndashboard\nphpinfo.php\nserver-status\nflag.txt\nsecret\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.lab.local)",
+      "cases": [
+        {
+          "match": "robots\\.txt",
+          "example": "-s http://shop.lab.local/robots.txt",
+          "output": "User-agent: *\nDisallow: /admin\nDisallow: /internal\nDisallow: /backup\n"
+        },
+        {
+          "match": "/backup/\\s*$|/backup/['\\\"]?\\s*$",
+          "example": "-s http://shop.lab.local/backup/",
+          "output": "<html><head><title>Index of /backup/</title></head><body><h1>Index of /backup/</h1><ul><li><a href=\"db_dump.sql\">db_dump.sql</a></li><li><a href=\"flag.txt\">flag.txt</a></li></ul></body></html>\n"
+        },
+        {
+          "match": "/backup/flag\\.txt",
+          "example": "-s http://shop.lab.local/backup/flag.txt",
+          "output": "nto{hidden_paths_ar3_st1ll_th3r3}\n"
+        },
+        {
+          "match": "/backup/db_dump\\.sql",
+          "example": "-s http://shop.lab.local/backup/db_dump.sql",
+          "output": "INSERT INTO products VALUES (1,'Laptop',1200);\n"
+        },
+        {
+          "match": "/\\s*$|^http://shop\\.lab\\.local/?$",
+          "example": "-s http://shop.lab.local/",
+          "output": "<html><body><h1>Shop</h1></body></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только запросы к shop.lab.local (/, /robots.txt, /backup/).\n"
+    },
+    "ffuf": {
+      "help": "ffuf -u <url/FUZZ> -w <словарь> [-mc all -fc 404] — фаззинг путей (эмуляция shop.lab.local)",
+      "cases": [
+        {
+          "match": "shop\\.lab\\.local",
+          "example": "-u 'http://shop.lab.local/FUZZ' -w wordlist.txt -mc all -fc 404",
+          "output": "admin                   [Status: 401, Size: 42, Words: 2, Lines: 1, Duration: 4ms]\n\napi                     [Status: 301, Size: 0, Words: 1, Lines: 1, Duration: 1ms]\n\nbackup                  [Status: 301, Size: 0, Words: 1, Lines: 1, Duration: 4ms]\n\nconfig                  [Status: 200, Size: 10, Words: 1, Lines: 2, Duration: 0ms]\n\ninternal                [Status: 403, Size: 39, Words: 2, Lines: 1, Duration: 3ms]\n\nlogin                   [Status: 200, Size: 68, Words: 3, Lines: 1, Duration: 4ms]\n\nrobots.txt              [Status: 200, Size: 69, Words: 5, Lines: 5, Duration: 1ms]\n"
+        }
+      ],
+      "fallback": "ffuf: в этой лабе эмулируется только перебор http://shop.lab.local/FUZZ.\n"
+    },
+    "gobuster": {
+      "help": "gobuster dir -u <url> -w <словарь> — перебор каталогов (эмуляция shop.lab.local)",
+      "cases": [
+        {
+          "match": "shop\\.lab\\.local",
+          "example": "dir -u http://shop.lab.local -w wordlist.txt",
+          "output": "/admin                (Status: 401) [Size: 42]\n\n/api                  (Status: 301) [Size: 0] [--> /api/]\n\n/backup               (Status: 301) [Size: 0] [--> /backup/]\n\n/config               (Status: 200) [Size: 10]\n\n/internal             (Status: 403) [Size: 39]\n\n/login                (Status: 200) [Size: 68]\n\n/robots.txt           (Status: 200) [Size: 69]\n"
+        }
+      ],
+      "fallback": "gobuster: в этой лабе эмулируется только перебор http://shop.lab.local.\n"
+    }
+  }
+}

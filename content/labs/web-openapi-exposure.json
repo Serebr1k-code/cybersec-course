@@ -1,0 +1,62 @@
+{
+  "id": "web-openapi-exposure",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sw4gger_m4ps_th3_wh0le_ap1}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: утечка Swagger/OpenAPI\n\nЦель — `http://api.lab.local`. Эндпоинтов ты не знаешь, но у API может быть\nоткрыта машинная спецификация (OpenAPI/Swagger). Найди её и составь карту API.\n\n1. Перебери типовые пути спецификации (`api_paths.txt` в каталоге):\n\n   ffuf -w api_paths.txt -u http://api.lab.local/FUZZ -mc 200 -s\n\n2. Найденный путь отдай в curl и сохрани: `curl -s http://api.lab.local/<путь> -o api.json`.\n3. Спека — одна строка JSON. Найди в ней необычный эндпоинт:\n   `grep -o '/internal/[a-z]*' api.json`.\n4. Запроси его и достань флаг. Запиши флаг в `found.txt`, набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/api_paths.txt",
+      "text": "swagger.json\nopenapi.json\napi-docs\nv3/api-docs\nswagger-ui.html\nv2/api-docs\ndocs\nredoc\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция api.lab.local)",
+      "cases": [
+        {
+          "match": "v3/api-docs",
+          "example": "-s http://api.lab.local/v3/api-docs -o api.json",
+          "output": "{\"openapi\":\"3.0.1\",\"info\":{\"title\":\"Shop API\",\"version\":\"1.4.0\"},\"paths\":{\"/v1/item\":{\"get\":{\"parameters\":[{\"name\":\"id\",\"in\":\"query\"}]}},\"/v1/items\":{\"get\":{}},\"/v1/login\":{\"post\":{}},\"/v1/me\":{\"get\":{\"security\":[{\"bearerAuth\":[]}]}},\"/internal/flag\":{\"get\":{\"summary\":\"internal healthcheck\"}}}}\n"
+        },
+        {
+          "match": "internal/flag",
+          "example": "-s http://api.lab.local/internal/flag",
+          "output": "{\"status\":\"ok\",\"debug_flag\":\"nto{sw4gger_m4ps_th3_wh0le_ap1}\"}\n"
+        },
+        {
+          "match": "swagger\\.json",
+          "example": "-s http://api.lab.local/swagger.json",
+          "output": "{\"error\":\"not found\"}\n"
+        },
+        {
+          "match": "openapi\\.json",
+          "example": "-s http://api.lab.local/openapi.json",
+          "output": "{\"error\":\"not found\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только /v3/api-docs и /internal/flag на api.lab.local.\n"
+    },
+    "ffuf": {
+      "help": "ffuf -u <url/FUZZ> -w <словарь> [-mc 200] — фаззинг путей (эмуляция api.lab.local)",
+      "cases": [
+        {
+          "match": "api\\.lab\\.local",
+          "example": "-w api_paths.txt -u http://api.lab.local/FUZZ -mc 200 -s",
+          "output": "v3/api-docs\n"
+        }
+      ],
+      "fallback": "ffuf: в этой лабе эмулируется только перебор http://api.lab.local/FUZZ.\n"
+    }
+  }
+}

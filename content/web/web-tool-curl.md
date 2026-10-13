@@ -14,6 +14,18 @@ useful_for:
   - "Работа с API и CI"
 estimated_minutes: 45
 summary: "Полный справочник по curl: все рабочие флаги, сессии, JSON-API, загрузка файлов, SSRF-пробы, отладка и разбор вывода — от первого запроса до готового PoC."
+lab:
+  kind: shell
+  title: "Практика: curl на реальном API"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Список предметов: `curl -s http://api.lab.local/v1/items`.
+    - Логин — POST с JSON: `curl -s -X POST http://api.lab.local/v1/login -H 'Content-Type: application/json' -d '{"username":"alice","password":"hunter2"}'`.
+    - Токен передаётся заголовком: `curl -s http://api.lab.local/v1/me -H "Authorization: Bearer <token>"`.
+    - В ответе есть поле `debug_flag`. Достань его: `curl -s http://api.lab.local/v1/me -H "Authorization: Bearer <token>" | cut -d: -f4 > found.txt`, затем `check`.
 ---
 
 ## Задача

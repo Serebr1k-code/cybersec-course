@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Как найти скрытые страницы, параметры и виртуальные хосты: словари, фильтрация шума и чтение результатов."
+lab:
+  kind: shell
+  title: "Практика: разведка и фаззинг shop.lab.local"
+  toolset: [core, curl, ffuf, gobuster]
+  workdir: /home/student/task
+  files: [task.md, wordlist.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Начни с `curl -s http://shop.lab.local/robots.txt` — там перечислены служебные пути.
+    - Перебери пути: `ffuf -u 'http://shop.lab.local/FUZZ' -w wordlist.txt -mc all -fc 404`.
+    - Каталог `/backup` отвечает редиректом `301`. Зайди в него: `curl -s http://shop.lab.local/backup/`.
+    - В листинге есть `flag.txt` — прочитай его: `curl -s http://shop.lab.local/backup/flag.txt > found.txt`, затем `check`.
 ---
 
 В браузере видно лишь то, что приложение показывает. Но почти всегда есть **скрытые** страницы (`/admin`, `/backup`), параметры и виртуальные хосты, о которых UI молчит. Их не угадывают вручную — их находят **фаззингом**: перебором по словарю с анализом ответов.

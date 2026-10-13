@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 50
 summary: "Все флаги nuclei: цели, фильтрация шаблонов, rate-limit, вывод, свой YAML-шаблон, DAST-режим и Interactsh OOB."
+lab:
+  kind: shell
+  title: "Практика: сканер nuclei на app.lab.local"
+  toolset: [core, curl, nuclei]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Запусти сканер: `nuclei -u http://app.lab.local -tags exposure,git`.
+    - Среди находок — утечка `.env` уровня `high` и `git-config` уровня `medium`.
+    - Прочитай конфиг, на который указал сканер: `curl -s http://app.lab.local/.env`.
+    - Флаг — в строке `FLAG=`. Достань: `curl -s http://app.lab.local/.env | grep FLAG | cut -d= -f2 > found.txt`, затем `check`.
 ---
 
 ## Задача

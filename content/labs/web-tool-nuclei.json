@@ -1,0 +1,48 @@
+{
+  "id": "web-tool-nuclei",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{g1t_h1st0ry_n3v3r_f0rg3ts}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: сканер nuclei\n\nЦель — `http://app.lab.local`. Прогони по ней nuclei (теги `exposure,git`) и\nразбери находки. Сканер укажет на открытые файлы — дальше дело техники.\n\n1. Запусти: `nuclei -u http://app.lab.local -tags exposure,git`.\n2. Среди находок есть `high`-уровня утечка конфига. Прочитай этот файл через\n   curl: `curl -s http://app.lab.local/.env`.\n3. В файле — флаг. Запиши его в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "nuclei": {
+      "help": "nuclei -u <url> [-tags ...] — сканер уязвимостей (эмуляция app.lab.local)",
+      "cases": [
+        {
+          "match": "app\\.lab\\.local",
+          "example": "-u http://app.lab.local -tags exposure,git",
+          "output": "[codeigniter-env] [http] [high] http://app.lab.local/.env [paths=\"/.env\"]\n[generic-env] [http] [high] http://app.lab.local/.env [paths=\"/.env\"]\n[git-config] [http] [medium] http://app.lab.local/.git/config\n[laravel-env] [http] [high] http://app.lab.local/.env [paths=\"/.env\"]\n"
+        }
+      ],
+      "fallback": "nuclei: в этой лабе эмулируется только скан http://app.lab.local.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.lab.local)",
+      "cases": [
+        {
+          "match": "\\.env",
+          "example": "-s http://app.lab.local/.env",
+          "output": "APP_ENV=production\nDB_HOST=db.internal\nDB_USER=shop\nDB_PASSWORD=S3cr3tProd2024!\nFLAG=nto{g1t_h1st0ry_n3v3r_f0rg3ts}\n"
+        },
+        {
+          "match": "\\.git/config",
+          "example": "-s http://app.lab.local/.git/config",
+          "output": "[core]\n\trepositoryformatversion = 0\n\tfilemode = true\n[remote \"origin\"]\n\turl = git@github.com:shop/app.git\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только /.env и /.git/config на app.lab.local.\n"
+    }
+  }
+}

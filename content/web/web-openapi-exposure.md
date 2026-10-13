@@ -13,6 +13,19 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 28
 summary: "Как находить Swagger/OpenAPI-спецификации и debug-страницы: карта API, скрытые эндпоинты, параметры и схемы."
+lab:
+  kind: shell
+  title: "Практика: утечка OpenAPI/Swagger"
+  toolset: [core, curl, ffuf]
+  workdir: /home/student/task
+  files: [task.md, api_paths.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Перебери типовые пути спецификации: `ffuf -w api_paths.txt -u http://api.lab.local/FUZZ -mc 200 -s`.
+    - Найден путь `/v3/api-docs` — сохрани его: `curl -s http://api.lab.local/v3/api-docs -o api.json`.
+    - Спека — одна строка. Ищи необычный маршрут: `grep -o '/internal/[a-z]*' api.json`.
+    - Запроси найденный эндпоинт: `curl -s http://api.lab.local/internal/flag`. Флаг — в поле `debug_flag`.
+    - Достань флаг: `curl -s http://api.lab.local/internal/flag | cut -d: -f3 > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается
