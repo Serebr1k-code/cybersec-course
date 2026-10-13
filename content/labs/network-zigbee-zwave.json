@@ -1,0 +1,42 @@
+{
+  "id": "network-zigbee-zwave",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "0x1a2b"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбираем 802.15.4 / Zigbee\n\n`zigbee.pcap` — кадр сети Zigbee (IEEE 802.15.4), снятый сниффером.\n\n1. Сводка: `tshark -r zigbee.pcap -nn`\n2. Поля: `tshark -r zigbee.pcap -T fields -e wpan.dst_pan -e wpan.src16 -e zbee_aps.cluster -e zbee_aps.profile`\n\nНайди **PAN ID** сети (поле `wpan.dst_pan`) и запиши его в формате `0x....` в `answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/zigbee.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AADDAAAAj3HOakfXDgAjAAAAIwAAAEGIASsaAAA0EggIAAA0Eh4FAAAAAAAAAAAgAQYABAEBA4ON",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-Y <фильтр>] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "dst_pan",
+          "example": "-r zigbee.pcap -T fields -e wpan.dst_pan -e wpan.src16 -e zbee_aps.cluster -e zbee_aps.profile",
+          "output": "0x1a2b\t0x1234\t0x0006\t0x0104\n"
+        },
+        {
+          "match": "zigbee\\.pcap",
+          "example": "-r zigbee.pcap -nn",
+          "output": "    1   0.000000       0x1234 → 0x0000       ZigBee HA 35 APS: Data, Dst Endpt: 1, Src Endpt: 1\n"
+        }
+      ],
+      "fallback": "    1   0.000000       0x1234 → 0x0000       ZigBee HA 35 APS: Data, Dst Endpt: 1, Src Endpt: 1\n"
+    }
+  }
+}

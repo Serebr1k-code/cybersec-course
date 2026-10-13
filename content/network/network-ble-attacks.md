@@ -13,6 +13,18 @@ useful_for:
   - "Защита BLE-устройств"
 estimated_minutes: 42
 summary: "Bluetooth Low Energy: реклама, GATT-профили, сканирование, sniffing, MITM, атаки на pairing (Just Works, crackle), инструменты bettercap/btlejack/gattacker."
+lab:
+  kind: shell
+  title: "Практика: читаем BLE/ATT в HCI-дампе"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, ble.pcap]
+  check: "grep -q 'AcmeTag-7' answer.txt"
+  hints:
+    - "Сводка: `tshark -r ble.pcap -nn` — Read Request и Read Response."
+    - "Поля: `tshark -r ble.pcap -T fields -e btatt.opcode -e btatt.value`."
+    - "`btatt.value` выводится в hex — декодируй байты в ASCII."
+    - "Значение — `AcmeTag-7`."
 ---
 
 ## Вопрос, с которого всё начинается

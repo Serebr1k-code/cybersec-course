@@ -1,0 +1,42 @@
+{
+  "id": "network-evil-twin",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "de:ad:be:ef:00:01"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: ищем подставную точку доступа\n\n`eviltwin.pcap` — два beacon-кадра с одинаковым SSID. Один из них — **evil twin** (без шифрования).\n\n1. Сводка: `tshark -r eviltwin.pcap -nn`\n2. Поля: `tshark -r eviltwin.pcap -T fields -e wlan.bssid -e wlan.ssid -e wlan.fixed.capabilities.privacy`\n   (`privacy` = True — шифрование включено, False — открытая сеть)\n\nНайди **BSSID подставной точки** (у которой нет шифрования) и запиши его\nв формате `aa:bb:cc:dd:ee:ff` в `answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/eviltwin.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAB/AAAAj3HOavC9DgA5AAAAOQAAAAAACAAAAAAAgAAAAP///////6q7zBEiM6q7zBEiMwAAAAAAAAAAAABkABEAAAhDb3JwV2lGaQMBBo9xzmoqwA4AOQAAADkAAAAAAAgAAAAAAIAAAAD////////erb7vAAHerb7vAAEAAAAAAAAAAAAAZAABAAAIQ29ycFdpRmkDAQY=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-Y <фильтр>] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "capabilities\\.privacy",
+          "example": "-r eviltwin.pcap -T fields -e wlan.bssid -e wlan.ssid -e wlan.fixed.capabilities.privacy",
+          "output": "aa:bb:cc:11:22:33\t436f727057694669\tTrue\nde:ad:be:ef:00:01\t436f727057694669\tFalse\n"
+        },
+        {
+          "match": "eviltwin\\.pcap",
+          "example": "-r eviltwin.pcap -nn",
+          "output": "    1   0.000000 aa:bb:cc:11:22:33 → ff:ff:ff:ff:ff:ff 802.11 57 Beacon frame, SN=0, FN=0, Flags=........, BI=100, SSID=\"CorpWiFi\"\n    2   0.000570 de:ad:be:ef:00:01 → ff:ff:ff:ff:ff:ff 802.11 57 Beacon frame, SN=0, FN=0, Flags=........, BI=100, SSID=\"CorpWiFi\"\n"
+        }
+      ],
+      "fallback": "    1   0.000000 aa:bb:cc:11:22:33 → ff:ff:ff:ff:ff:ff 802.11 57 Beacon frame, SN=0, FN=0, Flags=........, BI=100, SSID=\"CorpWiFi\"\n    2   0.000570 de:ad:be:ef:00:01 → ff:ff:ff:ff:ff:ff 802.11 57 Beacon frame, SN=0, FN=0, Flags=........, BI=100, SSID=\"CorpWiFi\"\n"
+    }
+  }
+}

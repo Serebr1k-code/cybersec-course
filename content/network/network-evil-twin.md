@@ -13,6 +13,18 @@ useful_for:
   - "Работа (Red team): физический доступ и Wi-Fi"
 estimated_minutes: 50
 summary: "Как поднять поддельную точку доступа, собрать учётные данные через captive portal и перехватить трафик клиента, который к ней подключился."
+lab:
+  kind: shell
+  title: "Практика: ищем подставную точку доступа"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, eviltwin.pcap]
+  check: "grep -q 'de:ad:be:ef:00:01' answer.txt"
+  hints:
+    - "Сводка: `tshark -r eviltwin.pcap -nn` — два beacon с одинаковым SSID."
+    - "Поля: `tshark -r eviltwin.pcap -T fields -e wlan.bssid -e wlan.fixed.capabilities.privacy`."
+    - "Подставная точка — та, у которой `privacy` = False (нет шифрования)."
+    - "Rogue BSSID — `de:ad:be:ef:00:01`."
 ---
 
 ## Вопрос, с которого всё начинается

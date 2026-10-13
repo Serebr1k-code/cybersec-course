@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): детект радио-аномалий"
 estimated_minutes: 55
 summary: "Zigbee (802.15.4) и Z-Wave (sub-GHz): стек, управление ключами, перехват и реплей, слабости S0/дефолтных ключей, инструменты killerbee/z-attack/Proxmark и защита."
+lab:
+  kind: shell
+  title: "Практика: разбираем 802.15.4 / Zigbee"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, zigbee.pcap]
+  check: "grep -q '0x1a2b' answer.txt"
+  hints:
+    - "Сводка: `tshark -r zigbee.pcap -nn` — кадр ZigBee HA."
+    - "Поля: `tshark -r zigbee.pcap -T fields -e wpan.dst_pan -e wpan.src16`."
+    - "PAN ID — это поле `wpan.dst_pan`."
+    - "PAN ID — `0x1a2b`."
 ---
 
 ## Вопрос, с которого всё начинается

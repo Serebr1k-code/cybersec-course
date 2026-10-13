@@ -1,0 +1,25 @@
+{
+  "id": "network-nfc-rfid",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "04:a1:b2:c3"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: читаем дамп MIFARE Classic\n\n`card.mfd` — дамп карты MIFARE Classic 1K (1024 байта, блоки по 16 байт), снятый с ридера.\nПервый блок (блок 0) — **manufacturer block**: в первых байтах лежит UID карты (NFCID1).\n\n1. Посмотри начало дампа: `xxd -l 32 card.mfd`\n2. (полезно) строки: `strings -n 6 card.mfd`\n\nИзвлеки **UID карты** (первый байт блока 0 всегда `04` для карт NXP).\nЗапиши его через двоеточия (`04:aa:bb:cc`) в `answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/card.mfd",
+      "b64": "BKGyw9QIAAQAAAAAAAAAAENBUkQtT1dORVI9YWxpY2VCQUxBTkNFPTAwMDAwMDAw/////////weAaf///////0RBVEEtMDEtMP////////9EQVRBLTAxLTH/////////REFUQS0wMS0y//////////////////8HgGn///////9EQVRBLTAyLTD/////////REFUQS0wMi0x/////////0RBVEEtMDItMv//////////////////B4Bp////////REFUQS0wMy0w/////////0RBVEEtMDMtMf////////9EQVRBLTAzLTL//////////////////weAaf///////0RBVEEtMDQtMP////////9EQVRBLTA0LTH/////////REFUQS0wNC0y//////////////////8HgGn///////9EQVRBLTA1LTD/////////REFUQS0wNS0x/////////0RBVEEtMDUtMv//////////////////B4Bp////////REFUQS0wNi0w/////////0RBVEEtMDYtMf////////9EQVRBLTA2LTL//////////////////weAaf///////0RBVEEtMDctMP////////9EQVRBLTA3LTH/////////REFUQS0wNy0y//////////////////8HgGn///////9EQVRBLTA4LTD/////////REFUQS0wOC0x/////////0RBVEEtMDgtMv//////////////////B4Bp////////REFUQS0wOS0w/////////0RBVEEtMDktMf////////9EQVRBLTA5LTL//////////////////weAaf///////0RBVEEtMTAtMP////////9EQVRBLTEwLTH/////////REFUQS0xMC0y//////////////////8HgGn///////9EQVRBLTExLTD/////////REFUQS0xMS0x/////////0RBVEEtMTEtMv//////////////////B4Bp////////REFUQS0xMi0w/////////0RBVEEtMTItMf////////9EQVRBLTEyLTL//////////////////weAaf///////0RBVEEtMTMtMP////////9EQVRBLTEzLTH/////////REFUQS0xMy0y//////////////////8HgGn///////9EQVRBLTE0LTD/////////REFUQS0xNC0x/////////0RBVEEtMTQtMv//////////////////B4Bp////////REFUQS0xNS0w/////////0RBVEEtMTUtMf////////9EQVRBLTE1LTL//////////////////weAaf///////w==",
+      "mode": "644"
+    }
+  ],
+  "tools": {}
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): контроль доступа"
 estimated_minutes: 55
 summary: "RFID/NFC на разных частотах, Mifare Classic и сломанный Crypto1, чтение и клонирование карт доступа, NFC-релей для обхода расстояния, инструменты Proxmark3/nfcpy и защита."
+lab:
+  kind: shell
+  title: "Практика: читаем дамп MIFARE Classic"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, card.mfd]
+  check: "grep -q '04:a1:b2:c3' answer.txt"
+  hints:
+    - "Начни с `ls -la` и `xxd -l 32 card.mfd`."
+    - "Блок 0 — manufacturer block; первые байты — UID."
+    - "UID карт NXP начинается с байта `04`."
+    - "UID — `04:a1:b2:c3`."
 ---
 
 ## Вопрос, с которого всё начинается
