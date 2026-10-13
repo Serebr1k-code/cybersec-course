@@ -13,6 +13,18 @@ useful_for:
   - "Пентест: профилирование"
 estimated_minutes: 40
 summary: "Как собирать данные из TikTok: профили, видео, комментарии, звуки и геолокационные подсказки в кадре."
+lab:
+  kind: shell
+  title: "Практика: геолокация по видео TikTok"
+  toolset: [core, curl, jq, tesseract, exiftool]
+  workdir: /home/student/task
+  files: [task.md, frame_007.png, clip.mp4]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "OEmbed даёт автора и заголовок: `curl -s "https://www.tiktok.com/oembed?url=..." > tt.json`."
+    - "`jq '{author_name,title}' tt.json`."
+    - "OCR кадра: `tesseract frame_007.png -` — читай вывеску."
+    - "Метаданные клипа: `exiftool clip.mp4`; маркер `nto{...}` — на вывеске."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,75 @@
+{
+  "id": "osint-social-tiktok",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{t1kt0k_g30_v14_5t0r3_5ign}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: геолокация по видео TikTok\n\nЕсть `clip.mp4` и кадр `frame_007.png`.\n\n1. OEmbed-метаданные: `curl -s \"https://www.tiktok.com/oembed?url=https://www.tiktok.com/@vintage.msk/video/7312345678901234567\" > tt.json`\n2. `jq '{author_name,title}' tt.json`\n3. OCR кадра: `tesseract frame_007.png -` — читай вывеску магазина.\n4. Метаданные клипа: `exiftool clip.mp4`.\n5. Маркер `nto{...}` напечатан на вывеске в кадре — запиши в `answer.txt`, набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/frame_007.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAoAAAAFoCAIAAABIUN0GAAASUUlEQVR4nO3cfWyVZ93A8evQQhEiU+Ik6h9smUkL+LYNHEEzU9oMlJcWaqCJjA6qoGQIw+EUh0sb2Ji8TAdBZWGEGgfbwluEFcNLyCbMkDmG23Q1MaBmC2vFhbKytIyDf5znafrQUhgd/PTZ5/PX2X2u+3euuyfZl7vnQKapqSkBANdWr+gNAMAHkQADQAABBoAAAgwAAQQYAAIIMAAEEGAACCDAABBAgAEggAADQAABBoAAAgwAAQQYAAIIMAAEEGAACCDAABBAgAEggAADQAABBoAAAgwAAQQYAAL0KMBLlizZtGlT+39WVlY+88wzGzdu7OaUNWvW9OQVU0ovv/xyZWXl17/+9alTp77xxhvvy0wAuMYyTU1NV3zy73//+/Xr1z/22GMppZaWlrFjxz733HPdn1JUVPTaa69d8SumlEpLS3/1q1994hOf2LVr129+85tf/OIXPZ8JANdYj+6AR4wY8corr7z77rsppeeee664uDilVFRUlHu2qKho2bJlkydPLikpqa+vTymtWLGipaWlsrKyoaGhrKysuLh43bp1KaWmpqaqqqry8vK5c+cOGzYspXTq1Km77757ypQpkyZNOnLkSMcXPXnyZGtra0rpjjvumDFjRvvMxsbGadOmTZo0adq0aY2NjbkN3HPPPevXr+9mGgCE6FGA8/LybrnllhdffDGltHfv3jFjxnR8tq2tbeDAgVu3bn388ccXL16cUrr33nv79++/efPmDRs2LFq0aNu2bT//+c9TSrW1tWVlZdu3bx83blxLS0vuyMyZM5966qk1a9YsXLiw49gf/OAH5eXlCxYsOHz48G233dY+s6ampry8fNu2beXl5bW1tSml1tbWsrKy6urqbqYBQIj8Hp5/xx137N+//4tf/OKLL764bNmyjk9ls9nKysqU0uDBg0+fPt3xqfvvv3/Hjh179uzJHT906NDKlStTSqWlpXl5eSmlAwcOHD9+PLf4zJkz586dyx1PKU2dOnXs2LG7d+/+8Y9//LWvfe173/te7vihQ4ceeeSRlNLEiROXLl2aUsrLy7v99tu7nwYAIXoa4OLi4scee+yVV175zGc+k5//f6b16dNnwIABuceZTKbjU7NmzRo3blx1dXVdXV1K6ezZs7nj58+fP3/+fErp3LlzTzzxREFBQTabPXz4cHsvT548eezYseHDh0+dOrW0tHT06NHtAe7i2vLze/Xq1c00AIjS07+GNGDAgA996EObNm0aO3bshaN7dTE8m81ms9mjR49OmDChtbU192nu8OHDd+/enVKqr6/PBXjEiBG5j43379+/evXq9tMzmcysWbNyX35+6623PvWpT7XPHDVq1M6dO1NKO3fuHDVqVMcXvdg0AIjSo29B5/zyl79csWLF0aNH+/Xrlzp8z7njl5PbH995552ZTOazn/3srl27hg4d+rvf/e6FF144ceLEvHnzUkq33nrrpk2bXn311TfeeGPhwoXvvPNOfn7+8uXLBw8e3P5y+/bte+SRR/r27durV6/a2tqioqLczOXLly9YsODMmTP9+vVbtWrVoEGD2l+0m2kAEOJ9CHDPzZ8/f/bs2UOGDHnppZdqamq2bdsWvSMAuLp6+hnw+2LmzJmLFi3q27fv2bNnH3rooejtAMBV9x9xBwwAHzT+LWgACCDAABBAgAEggAADQAABBoAAAgwAAQQYAAIIMAAEEGAACCDAABBAgAEggAADQAABBoAAAgwAAQQYAAIIMAAEEGAACHBVAlxUVHSZBy+poaFh48aN7+mUZ599duTIkRUVFRUVFQ8//PAVvCgAXG350Ru4hMLCwsLCwvd0SmNj45w5c6ZPn36VtgQAPdfTO+CO97Xv6R731KlTd99995QpUyZNmnTkyJH2CcuWLZs8eXJJSUl9ff0FYzs/29DQUFZWVlxcvG7duvbJjY2NgwYN6uF1AcBVFXYHXFtbO3PmzFtuueX111+vqqrau3dvSqmtrW3gwIFbt27929/+VlFR8dWvfrXjKZ2f3bBhw6JFiwoLC4uLi2fNmpVb9uabbx47dmzt2rUf+chHampqbrjhhmt/dQDQvfczwNls9vIXHzhw4Pjx47nHZ86cOXfuXF5eXjabraysTCkNHjz49OnTnedf8Oz999+/Y8eOPXv2dFycyWSGDh26fPnyZ555ZuHChU8//XTPLgsA3n89DXB7dJubm9va2i7/xHPnzj3xxBMFBQXZbPbw4cN5eXkppT59+gwYMCC3IJPJXHBK52dnzZo1bty46urqurq69mXV1dWf/OQnU0pjxoz5/ve/f4UXBgBXU08/A/7whz/c0NCQUtqyZcsFyWxpaenmxBEjRuQ+x92/f//q1av/Zze9uttP52ePHj06YcKE1tbW1tbW9oNLly7N/UL7yJEjQ4YMeQ8XAwDXSk/vgJcsWTJ79uyPfexjX/jCFwoKCnIHb7zxxtWrVx88eHDz5s3tK9va2srKynKPR4wYUVNTs3Dhwrq6uvz8/OXLl1/Zq991110TJ04cOnTodddd19bW1qdPn5TSfffdN3/+/HXr1hUUFFzxZAC4qjJNTU3RewCADxz/EhYABBBgAAggwAAQQIABIIAAA0AAAQaAAAIMAAEEGAACCDAABBBgAAggwAAQQIABIIAAA0AAAQaAAAIMAAEEGAACCDAABBBgAAhwTQO8ePHilStXXstXpHsrV6584IEHoncB8EF0VQK8Zs2aLo8//fTT8+bN67igubl5/vz5hYWF7WuKioq6nNbc3DxjxoyysrIZM2Y0NzdfbHH33nnnnW9/+9sVFRVjxozZu3fvxcZ2r/Oec/bt23fjjTd2Xv/ss8+OHDmyoqKioqLi4YcfvuRFdbPbS05uaGjYuHHj5VxFzrx585588snLXw/A++WaBjillJ+f33HB9OnTP/e5z2UymUtOe/TRR0eOHLljx47bbrtt9erVV7axDRs2fP7zn9+yZUtdXd2iRYuubGyXe3777bd/+tOf9u7du/P6xsbGOXPmbNmyZcuWLffdd9/lX1Tn3V5ycmFhYVVV1eVcRU7u7QDg2utpgIuKipYtWzZ58uSSkpL6+vqU0ooVK1paWiorKxsbG6dNmzZp0qRp06Y1Nja2n9K+IKW0bt26mTNndh77z3/+s6SkpKGhoX3xvn37ysvLU0rl5eX79u3rcvEFQ5qamqqqqsrLy+fOnTts2LCU0je+8Y1vfvObKaW//OUvufZ0MzantLT0xIkTKaW2trYvfelL2Wy2yz0/+OCD3/rWt3r16uLn2djYOGjQoI5Hur+ooqKie+65Z/369Z13e8nJ6X9/K9D52lNXbxYAUXoa4La2toEDB27duvXxxx9fvHhxSunee+/t37//5s2ba2pqysvLt23bVl5eXltbu3fv3ttvv73jgpTSxz/+8c4zz549+53vfKempqawsLB9cVNT0/XXX587pampqcvFF8ypra0tKyvbvn37uHHjWlpaUkrXXXdd7969586de9ddd/3kJz9JKV1sbLvx48f/9re/TSkdPHiwuLi4V69enfd8+PDhEydOTJw4scsf0Ztvvrl3796ysrKqqqrjx493/Al0+eqtra1lZWXV1dWdd3vJyd1ce+rqzUopfeUrX+ny99sAXFU9DXA2m83dyw4ePPj06dMdnzp06FCuSRMnTjx48GAmkzl79uzlzPzhD384efLkL3/5yz1cfOjQofHjx6eUSktL8/Ly2o+vXr167dq1Tz311OXMnzBhQi7Ae/bs6TKxbW1ttbW1Dz300MUmZDKZoUOH7tixY+rUqQsXLrzkK+bl5eX+pHLJ3XYzuctr7/LNysvL6/4jAACuhp4GuE+fPgMGDMg97v7/4yUlJc8///wlB7a2tjY0NPzhD3+44Pj111+fu0dsbGzM3TV2szinvffnz58/f/58SulHP/rRu+++m1IqLS3N3fZ1Obajm2666a233jp9+vTLL788YsSIzgt27dr19ttvz5kzp6KioqWl5bvf/e4FC6qrq6dPn55SGjNmzJ///OdLXlR+fn7uV9mdd3v5kztfe7rIm7V///6SkpLOwwG4qnoa4C4/9cxms9lsdtSoUTt37kwp7dy5c9SoUZ0XdDmwoKBgx44d//jHP3796193XFxSUrJ9+/aU0vbt20ePHn2xxR0NHz589+7dKaX6+vpchE6fPp078sILL9x0000ppS7HXmDMmDFr1qy5+eabu/wTxqRJkw4cOJD7JlT//v0fffTRCxYsXbo0l88jR44MGTLkkhfVrvNuL2fyxa49XeTNAiBEpssPPi9fUVHRa6+9dsHjO++8M5PJLF++fMGCBWfOnOnXr9+qVasGDRpUWFj4pz/9KS8vL7egrq7uYkNOnjw5fvz4tWvX3nzzzbnFa9asmTdv3r/+9a+BAwf+7Gc/y93JdV7ccW9///vfc3/r6dZbb920adOrr776+uuvz5s3L5vN9u7de+nSpZ/+9Kebm5s7j73AX//619GjR2/ZsmX48OFdXnj3B48dOzZ//vz8/PyCgoIHH3zwhhtuaP8RdXNRKaXOu72cybnTO197lz/nc+fODRs2rPOeAbjaehrg92Tx4sUf/ehHFyxYcJXmP/nkk+2flU6ZMuX555+fPXv2kCFDXnrppZqamm3btl3BkKlTp/ZwG1cwoeeT58+ffznXvmrVqlOnTtXU1LxfOwTgMl3TAF9jf/zjHx944IG+ffuePXt2yZIl7/Vf7fiv9kG+doD/Cv+fAwwA/7F8KwcAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAACDAABBBgAAggwAAQQYAAIIMAAEECAASCAAANAAAEGgAD/BgpabwrKfOgvAAAAAElFTkSuQmCC",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/clip.mp4",
+      "b64": "AAAAGGZ0eXBtcDQyAAAAAG1wNDJpc29tAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — TikTok oEmbed (эмуляция)",
+      "cases": [
+        {
+          "match": "tiktok\\.com/oembed",
+          "example": "curl -s \"https://www.tiktok.com/oembed?url=https://www.tiktok.com/@vintage.msk/video/...\"",
+          "output": "{\"author_name\": \"vintage.msk\", \"author_url\": \"https://www.tiktok.com/@vintage.msk\", \"title\": \"new store opening #moscow\", \"provider_name\": \"TikTok\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только tiktok.com/oembed.\n"
+    },
+    "jq": {
+      "help": "jq [-r] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "author_name|title",
+          "example": "jq '{author_name,title}' tt.json",
+          "output": "{\n  \"author_name\": \"vintage.msk\",\n  \"title\": \"new store opening #moscow\"\n}\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддержан фильтр по author_name/title.\n"
+    },
+    "tesseract": {
+      "help": "tesseract <файл> <вывод> — OCR (эмуляция)",
+      "cases": [
+        {
+          "match": "frame_007",
+          "example": "frame_007.png -",
+          "output": "Vintage Store\nul. Lenina 5\nnto{t1kt0k_g30_v14_5t0r3_5ign}\n"
+        }
+      ],
+      "fallback": "tesseract: в этой лабе распознаётся только frame_007.png.\n"
+    },
+    "exiftool": {
+      "help": "exiftool <файл> — метаданные (эмуляция)",
+      "cases": [
+        {
+          "match": "clip\\.mp4",
+          "example": "clip.mp4",
+          "output": "======== clip.mp4\nFile Type                       : MP4\nMIME Type                       : video/mp4\nCreate Date                     : 2024:02:18 19:05:11\nDuration                        : 14.28 s\n    1 image files read\n"
+        }
+      ],
+      "fallback": "exiftool: в этой лабе есть только clip.mp4.\n"
+    }
+  }
+}

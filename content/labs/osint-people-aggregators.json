@@ -1,0 +1,53 @@
+{
+  "id": "osint-people-aggregators",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{p30pl3_4ggr3g4t0r_c0rr3l4t3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: people-search агрегатор\n\nНужно собрать запись о человеке из агрегатора и подтвердить её через Wikidata.\n\n1. Поиск в агрегаторе: `curl -s -H \"User-Agent: osint-research\" \"https://api.example-people.com/search?name=Ivan+Petrov&city=Moscow\" > people.json`\n2. `jq -r '.records[] | [.name,.email,.phone] | @tsv' people.json`\n3. Подтверждение: `curl -s \"https://www.wikidata.org/w/api.php?action=wbsearchentities&search=Ivan+Petrov&format=json\" > wd.json`\n4. `jq -r '.search[].id' wd.json`\n5. Маркер `nto{...}` в поле `note` записи — запиши в `answer.txt`, набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — people-search API / Wikidata (эмуляция)",
+      "cases": [
+        {
+          "match": "api\\.example-people\\.com",
+          "example": "curl -s -H \"User-Agent: osint-research\" \"https://api.example-people.com/search?name=Ivan+Petrov&city=Moscow\"",
+          "output": "{\"count\": 2, \"records\": [\n {\"name\": \"Ivan Petrov\", \"email\": \"i.petrov@example.com\", \"phone\": \"+7 916 555-11-22\", \"city\": \"Moscow\", \"note\": \"nto{p30pl3_4ggr3g4t0r_c0rr3l4t3d}\"},\n {\"name\": \"Ivan Petrov\", \"email\": \"ivan.p@other.net\", \"phone\": \"+7 903 000-00-00\", \"city\": \"Kazan\", \"note\": \"\"}\n]}\n"
+        },
+        {
+          "match": "wikidata\\.org",
+          "example": "curl -s \"https://www.wikidata.org/w/api.php?action=wbsearchentities&search=Ivan+Petrov&format=json\"",
+          "output": "{\"search\": [\n {\"id\": \"Q123456\", \"label\": \"Ivan Petrov\", \"description\": \"Russian engineer\"},\n {\"id\": \"Q654321\", \"label\": \"Ivan Petrov\", \"description\": \"ice hockey player\"}\n]}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны api.example-people.com и www.wikidata.org.\n"
+    },
+    "jq": {
+      "help": "jq [-r] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "records|name|email|phone",
+          "example": "jq -r '.records[] | [.name,.email,.phone] | @tsv' people.json",
+          "output": "Ivan Petrov\ti.petrov@example.com\t+7 916 555-11-22\nIvan Petrov\tivan.p@other.net\t+7 903 000-00-00\n"
+        },
+        {
+          "match": "search|\\.id",
+          "example": "jq -r '.search[].id' wd.json",
+          "output": "Q123456\nQ654321\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддержаны фильтры по .records[] и .search[].\n"
+    }
+  }
+}

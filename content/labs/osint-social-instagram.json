@@ -1,0 +1,53 @@
+{
+  "id": "osint-social-instagram",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{1nst4gr4m_4v4t4r_m3t4d4t4}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: профиль Instagram без логина\n\nЦель — `instagram.com/examplecorp`.\n\n1. Приватный API требует логин: `curl -s -H \"x-ig-app-id: 936619743392459\" \"https://i.instagram.com/api/v1/users/web_profile_info/?username=examplecorp\"`.\n2. Публичные мета-теги: `curl -s -A \"Mozilla/5.0\" \"https://www.instagram.com/examplecorp/\" > ig.html`; `grep og:description ig.html`.\n3. Аватар лежит как `avatar.jpg`. Прочитай метаданные: `exiftool avatar.jpg`.\n4. В EXIF аватара спрятан маркер `nto{...}` — запиши в `answer.txt`, набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/avatar.jpg",
+      "b64": "/9j/4AAQSkZJRgABAQAAAQABAAD/4QB3RXhpZgAATU0AKgAAAAgAAgExAAIAAAAVAAAAJodpAAQAAAABAAAAOwAAAABBZG9iZSBMaWdodHJvb20gMTMuMgAAAZKGAAcAAAAmAAAASUFTQ0lJAAAAbnRvezFuc3Q0Z3I0bV80djR0NHJfbTN0NGQ0dDR9/9sAQwAKBwcIBwYKCAgICwoKCw4YEA4NDQ4dFRYRGCMfJSQiHyIhJis3LyYpNCkhIjBBMTQ5Oz4+PiUuRElDPEg3PT47/9sAQwEKCwsODQ4cEBAcOygiKDs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7Ozs7/8AAEQgBLAEsAwEiAAIRAQMRAf/EAB8AAAEFAQEBAQEBAAAAAAAAAAABAgMEBQYHCAkKC//EALUQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+v/EAB8BAAMBAQEBAQEBAQEAAAAAAAABAgMEBQYHCAkKC//EALURAAIBAgQEAwQHBQQEAAECdwABAgMRBAUhMQYSQVEHYXETIjKBCBRCkaGxwQkjM1LwFWJy0QoWJDThJfEXGBkaJicoKSo1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoKDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uLj5OXm5+jp6vLz9PX29/j5+v/aAAwDAQACEQMRAD8AwKKKK+gPOCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAP/Z",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — Instagram API / страница (эмуляция)",
+      "cases": [
+        {
+          "match": "i\\.instagram\\.com/api",
+          "example": "curl -s -H \"x-ig-app-id: 936619743392459\" https://i.instagram.com/api/v1/users/web_profile_info/?username=examplecorp",
+          "output": "{\"message\":\"Please wait a few minutes before you try again.\",\"require_login\":true,\"status\":\"fail\"}\n"
+        },
+        {
+          "match": "www\\.instagram\\.com",
+          "example": "curl -s -A \"Mozilla/5.0\" https://www.instagram.com/examplecorp/",
+          "output": "<html><head>\n<meta property=\"og:title\" content=\"Example Corp (@examplecorp) • Instagram photos and videos\">\n<meta property=\"og:description\" content=\"12.4K Followers, 94 Following, 4,962 Posts\">\n<meta property=\"og:image\" content=\"https://scontent.cdninstagram.com/avatar.jpg\">\n</head></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны i.instagram.com/api и www.instagram.com/examplecorp.\n"
+    },
+    "exiftool": {
+      "help": "exiftool <файл> — метаданные аватара (эмуляция)",
+      "cases": [
+        {
+          "match": "avatar\\.jpg",
+          "example": "avatar.jpg",
+          "output": "======== avatar.jpg\nExifTool Version Number         : 12.76\nFile Name                       : avatar.jpg\nFile Type                       : JPEG\nSoftware                        : Adobe Lightroom 13.2\nUser Comment                    : nto{1nst4gr4m_4v4t4r_m3t4d4t4}\nImage Width                     : 300\nImage Height                    : 300\n    1 image files read\n"
+        }
+      ],
+      "fallback": "exiftool: в этой лабе есть только avatar.jpg.\n"
+    }
+  }
+}

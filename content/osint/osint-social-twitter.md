@@ -13,6 +13,18 @@ useful_for:
   - "Расследования"
 estimated_minutes: 50
 summary: "Как использовать операторы поиска X/Twitter, Nitter-зеркала и архивы для сбора постов, связей и технического контекста."
+lab:
+  kind: shell
+  title: "Практика: удалённый твит"
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Прямой запрос к x.com отдаёт SPA — данных нет."
+    - "Зеркало отдаёт JSON: `curl -s "https://api.fxtwitter.com/nasa" > user.json`."
+    - "Удалённый пост: `curl -s "https://api.fxtwitter.com/nasa/status/1098765432109876543" > tweet.json`."
+    - "`jq -r '.tweet.text' tweet.json` — там маркер `nto{...}`."
 ---
 
 ## Вопрос, с которого всё начинается

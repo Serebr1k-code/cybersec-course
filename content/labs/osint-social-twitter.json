@@ -1,0 +1,58 @@
+{
+  "id": "osint-social-twitter",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{d3l3t3d_tw33t_f0und}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: удалённый твит\n\nАккаунт `@nasa` (пример). Нужно достать удалённый пост.\n\n1. Прямой запрос бесполезен (SPA): `curl -s -o /dev/null -w \"code=%{http_code}\\n\" https://x.com/nasa`.\n2. Зеркало отдаёт JSON: `curl -s \"https://api.fxtwitter.com/nasa\" > user.json`; `jq '.user | {screen_name,name,location,joined}' user.json`.\n3. Удалённый пост: `curl -s \"https://api.fxtwitter.com/nasa/status/1098765432109876543\" > tweet.json`\n4. `jq -r '.tweet.text' tweet.json`\n5. Запиши `nto{...}` в `answer.txt`, набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — fxtwitter mirror (эмуляция)",
+      "cases": [
+        {
+          "match": "x\\.com/nasa",
+          "example": "curl -s -o /dev/null -w \"code=%{http_code}\\n\" https://x.com/nasa",
+          "output": "<!doctype html><html><head><title>nasa (@nasa) / X</title></head>\n<body><div id=\"react-root\"></div></body></html>\n"
+        },
+        {
+          "match": "api\\.fxtwitter\\.com/nasa/status",
+          "example": "curl -s https://api.fxtwitter.com/nasa/status/1098765432109876543",
+          "output": "{\"code\": 200, \"tweet\": {\"id\": \"1098765432109876543\", \"text\": \"Mission patch leak: nto{d3l3t3d_tw33t_f0und}\", \"author\": {\"screen_name\": \"NASA\"}, \"likes\": 12}}\n"
+        },
+        {
+          "match": "api\\.fxtwitter\\.com/nasa",
+          "example": "curl -s https://api.fxtwitter.com/nasa",
+          "output": "{\"code\": 200, \"user\": {\"screen_name\": \"NASA\", \"name\": \"NASA\", \"description\": \"Making the seemingly impossible, possible.\", \"location\": \"Pale Blue Dot\", \"website\": \"http://www.nasa.gov/\", \"followers\": 92326396, \"following\": 115, \"tweets\": 74417, \"joined\": \"Wed Dec 19 20:20:32 +0000 2007\"}}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны api.fxtwitter.com/nasa и /nasa/status/<id>.\n"
+    },
+    "jq": {
+      "help": "jq [-r] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "tweet|text|author",
+          "example": "jq -r '.tweet.text' tweet.json",
+          "output": "Mission patch leak: nto{d3l3t3d_tw33t_f0und}\n"
+        },
+        {
+          "match": "user|screen_name|location|joined",
+          "example": "jq '.user | {screen_name,name,location,joined}' user.json",
+          "output": "{\n  \"screen_name\": \"NASA\",\n  \"name\": \"NASA\",\n  \"location\": \"Pale Blue Dot\",\n  \"joined\": \"Wed Dec 19 20:20:32 +0000 2007\"\n}\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддержаны фильтры по .tweet и .user.\n"
+    }
+  }
+}

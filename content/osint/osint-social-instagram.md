@@ -13,6 +13,18 @@ useful_for:
   - "Пентест: профилирование сотрудников"
 estimated_minutes: 40
 summary: "Как собирать данные из Instagram: поиск по геолокации, хэштегам и профилям, разбор сторис и метаданных без нарушения ToS."
+lab:
+  kind: shell
+  title: "Практика: профиль Instagram без логина"
+  toolset: [core, curl, exiftool]
+  workdir: /home/student/task
+  files: [task.md, avatar.jpg]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Приватный API вернёт `require_login: true`."
+    - "Публичные мета-теги: `curl -s -A "Mozilla/5.0" "https://www.instagram.com/examplecorp/" > ig.html`; `grep og:description ig.html`."
+    - "Аватар — это `avatar.jpg`; прочитай `exiftool avatar.jpg`."
+    - "В поле User Comment аватара спрятан маркер `nto{...}`."
 ---
 
 ## Вопрос, с которого всё начинается

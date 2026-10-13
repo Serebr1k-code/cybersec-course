@@ -13,6 +13,18 @@ useful_for:
   - "Проверка контрагентов"
 estimated_minutes: 30
 summary: "Агрегаторы людей и брокеры данных: что они знают, чем различаются, как искать и как оценивать достоверность собранных ими сведений."
+lab:
+  kind: shell
+  title: "Практика: people-search агрегатор"
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Поиск в агрегаторе: `curl -s -H "User-Agent: osint-research" "https://api.example-people.com/search?name=Ivan+Petrov&city=Moscow" > people.json`."
+    - "`jq -r '.records[] | [.name,.email,.phone] | @tsv' people.json`."
+    - "Подтверди через Wikidata: `curl -s "https://www.wikidata.org/w/api.php?action=wbsearchentities&search=Ivan+Petrov&format=json" > wd.json`."
+    - "Маркер `nto{...}` в поле `note` одной из записей."
 ---
 
 ## Вопрос, с которого всё начинается
