@@ -12,6 +12,17 @@ useful_for:
   - "Тренировка навыков"
 estimated_minutes: 55
 summary: "Практическая библиотека рецептов: по сигнатурам задачи (checksec, тип бага, митигации) быстро выбрать рабочую технику и шаги эксплойта."
+lab:
+  kind: shell
+  title: "Практика: смещение до RIP"
+  toolset: [core, objdump, nm]
+  workdir: /home/student/task
+  files: [task.md, vuln]
+  check: "grep -q 'offset=72' answer.txt"
+  hints:
+    - "Буфер виден как `lea -0x40(%rbp),%rax` в `objdump -d vuln`."
+    - "Смещение = размер буфера + 8 (сохранённый rbp)."
+    - "0x40 + 8 = 72."
 ---
 ## Вопрос, с которого всё начинается
 

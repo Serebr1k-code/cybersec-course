@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 45
 summary: "Системный чек-лист решения pwn-задачи: от триажа бинаря и определения защит до выбора вектора, построения эксплойта и отладки."
+lab:
+  kind: shell
+  title: "Практика: триаж защит"
+  toolset: [core, readelf, nm]
+  workdir: /home/student/task
+  files: [task.md, meth]
+  check: "grep -q 'canary=yes' answer.txt"
+  hints:
+    - "Канарейка = наличие символа `__stack_chk_fail`."
+    - "`readelf -s meth` покажет `__stack_chk_fail@GLIBC_2.4`."
+    - "Символ есть → `canary=yes`."
 ---
 
 ## Вопрос, с которого всё начинается

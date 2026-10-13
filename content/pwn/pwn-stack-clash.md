@@ -13,6 +13,17 @@ useful_for:
   - "Privilege escalation"
 estimated_minutes: 55
 summary: "Класс Stack Clash: как большой alloca/VLA или mmap сдвигает указатель стека за guard-страницу и позволяет перезаписать соседний регион (кучу, другой стек) без классического переполнения."
+lab:
+  kind: shell
+  title: "Практика: величина Stack Clash"
+  toolset: [core, objdump]
+  workdir: /home/student/task
+  files: [task.md, clash]
+  check: "grep -q 'size=0x100008' answer.txt"
+  hints:
+    - "`__builtin_alloca` вычитает размер из rsp."
+    - "Смотри в `main` инструкцию `add $0x...,%rax`."
+    - "Это округлённый размер большой аллокации на стеке."
 ---
 ## Вопрос, с которого всё начинается
 

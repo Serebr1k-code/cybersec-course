@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 60
 summary: "Превращаем %n в произвольную запись, перезаписываем GOT/адрес возврата и автоматизируем подбор смещения через fmtstr_payload pwntools."
+lab:
+  kind: shell
+  title: "Практика: смещение format string"
+  toolset: [core, objdump, readelf]
+  workdir: /home/student/task
+  files: [task.md, run.txt, fmt]
+  check: "grep -q 'offset=6' answer.txt"
+  hints:
+    - "Ищи в `run.txt` значение, содержащее `41414141`."
+    - "Это шестой `%p` в выводе."
+    - "На x86-64 первый variadic-аргумент уходит в позицию 6."
 ---
 
 ## Вопрос, с которого всё начинается

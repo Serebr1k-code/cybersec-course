@@ -13,6 +13,17 @@ useful_for:
   - "Real-world exploitation"
 estimated_minutes: 45
 summary: "Разбираем гонки, возникающие при обработке сигналов: небезопасные функции, SIGALRM-таймеры, setjmp/longjmp и подмена состояния между сигналами."
+lab:
+  kind: shell
+  title: "Практика: небезопасный вызов в handler"
+  toolset: [core, nm, objdump]
+  workdir: /home/student/task
+  files: [task.md, sig]
+  check: "grep -q 'bad=printf' answer.txt"
+  hints:
+    - "`nm sig` покажет адрес `handler`."
+    - "Ищи `call ...@plt` внутри `handler` в `objdump -d sig`."
+    - "printf не входит в список async-signal-safe функций."
 ---
 
 ## Вопрос, с которого всё начинается
