@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 45
 summary: "Осваиваем Return-Oriented Programming: находим гаджеты, строим цепочки вызовов и обходим неисполняемый стек (NX)."
+lab:
+  kind: shell
+  title: "Практика: адрес win для ROP"
+  toolset: [core, objdump, nm]
+  workdir: /home/student/task
+  files: [task.md, vuln]
+  check: "grep -q 'win=0x401030' answer.txt"
+  hints:
+    - "`file vuln` — ELF x86-64, без PIE: адреса фиксированы."
+    - "Символы видны через `nm vuln` или `objdump -d vuln`."
+    - "`win` — это функция; её адрес и нужен. Запиши `win=0x...`."
 ---
 
 ## Вопрос, с которого всё начинается

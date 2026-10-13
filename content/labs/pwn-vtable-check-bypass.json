@@ -1,0 +1,52 @@
+{
+ "id": "pwn-vtable-check-bypass",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "file_jumps=0x1e6030"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: легальная vtable, проходящая IO_validate_vtable\n\n`IO_validate_vtable` в glibc отклоняет произвольные адреса vtable, но пропускает\nтаблицы, лежащие в специальной секции `.data.rel.ro`. Нам нужен символ\n`_IO_file_jumps` — он живёт именно там и потому проходит проверку.\n\nВ каталоге: `libc.syms` (символы) и `libc.sections` (таблица секций).\n\n1. `nm -D libc.syms | grep file_jumps`.\n2. `readelf -SW libc.sections` — убедись, что адрес попадает в `.data.rel.ro`.\n\nЗапиши в `answer.txt` строку `file_jumps=0x...` и набери `check`.\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/libc.syms",
+   "text": "00000000001e6030 D _IO_file_jumps@@GLIBC_2.2.5\n00000000001e6228 D _IO_wfile_jumps@@GLIBC_2.2.5\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/libc.sections",
+   "text": "  [14] .rodata           PROGBITS        0000000000195000 195000 025ea0 00   A  0   0 32\n  [26] .data.rel.ro      PROGBITS        00000000001e3be0 1e2be0 002d60 00  WA  0   0 32\n",
+   "mode": "644"
+  }
+ ],
+ "tools": {
+  "nm": {
+   "help": "nm -D <файл>",
+   "cases": [
+    {
+     "match": "libc.syms",
+     "example": "-D libc.syms",
+     "output": "00000000001e6030 D _IO_file_jumps@@GLIBC_2.2.5\n00000000001e6228 D _IO_wfile_jumps@@GLIBC_2.2.5\n"
+    }
+   ]
+  },
+  "readelf": {
+   "help": "readelf -SW <файл>",
+   "cases": [
+    {
+     "match": "libc.sections",
+     "example": "-SW libc.sections",
+     "output": "  [14] .rodata           PROGBITS        0000000000195000 195000 025ea0 00   A  0   0 32\n  [26] .data.rel.ro      PROGBITS        00000000001e3be0 1e2be0 002d60 00  WA  0   0 32\n"
+    }
+   ]
+  }
+ }
+}

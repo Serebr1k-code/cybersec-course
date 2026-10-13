@@ -1,0 +1,26 @@
+{
+ "id": "pwn-signal-frame-forgery",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "gadget=0x4408d"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: setcontext-гаджет для SROP без сигналов\n\nВ файле `setcontext.txt` — реальный дизассемблер функции `setcontext` из целевой\nlibc (objdump). Приём «SROP без сигналов» строится на одной конкретной инструкции\nвнутри неё, которая загружает `rsp` из поддельного `ucontext` (смещение поля\n`uc_mcontext.gregs[REG_RSP]` = 0xa0).\n\n1. `grep rsp setcontext.txt` (или `cat setcontext.txt`).\n2. Найди инструкцию `mov 0xa0(...),%rsp` и её **абсолютный адрес**.\n\nЗапиши в `answer.txt` строку `gadget=0x...` и набери `check`.\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/setcontext.txt",
+   "text": "\n/usr/lib/libc.so.6:     file format elf64-x86-64\n\n\nDisassembly of section .text:\n\n0000000000044050 <setcontext@@GLIBC_2.2.5>:\n   44050:\tf3 0f 1e fa          \tendbr64\n   44054:\t57                   \tpush   %rdi\n   44055:\t48 8d b7 28 01 00 00 \tlea    0x128(%rdi),%rsi\n   4405c:\t31 d2                \txor    %edx,%edx\n   4405e:\tbf 02 00 00 00       \tmov    $0x2,%edi\n   44063:\t41 ba 08 00 00 00    \tmov    $0x8,%r10d\n   44069:\tb8 0e 00 00 00       \tmov    $0xe,%eax\n   4406e:\t0f 05                \tsyscall\n   44070:\t5a                   \tpop    %rdx\n   44071:\t48 3d 01 f0 ff ff    \tcmp    $0xfffffffffffff001,%rax\n   44077:\t0f 83 22 01 00 00    \tjae    4419f <setcontext@@GLIBC_2.2.5+0x14f>\n   4407d:\t48 8b 8a e0 00 00 00 \tmov    0xe0(%rdx),%rcx\n   44084:\td9 21                \tfldenv (%rcx)\n   44086:\t0f ae 92 c0 01 00 00 \tldmxcsr 0x1c0(%rdx)\n   4408d:\t48 8b a2 a0 00 00 00 \tmov    0xa0(%rdx),%rsp\n   44094:\t48 8b 9a 80 00 00 00 \tmov    0x80(%rdx),%rbx\n   4409b:\t48 8b 6a 78          \tmov    0x78(%rdx),%rbp\n   4409f:\t4c 8b 62 48          \tmov    0x48(%rdx),%r12\n   440a3:\t4c 8b 6a 50          \tmov    0x50(%rdx),%r13\n   440a7:\t4c 8b 72 58          \tmov    0x58(%rdx),%r14\n   440ab:\t4c 8b 7a 60          \tmov    0x60(%rdx),%r15\n   440af:\t64                   \tfs\n",
+   "mode": "644"
+  }
+ ],
+ "tools": {}
+}

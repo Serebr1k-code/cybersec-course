@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 70
 summary: "Разбираем FSOP: структуру _IO_FILE, механизм vtable и её валидацию, а также построение поддельного файла, чей overflow вызовет system('/bin/sh')."
+lab:
+  kind: shell
+  title: "Практика: адрес _IO_2_1_stdout_"
+  toolset: [core, nm]
+  workdir: /home/student/task
+  files: [task.md, libc.syms]
+  check: "grep -q 'stdout=0x1e8580' answer.txt"
+  hints:
+    - "`nm -D libc.syms` — динамические символы libc."
+    - "Ищи символ `_IO_2_1_stdout_`."
+    - "Первый столбец — смещение от базы libc."
 ---
 ## Вопрос, с которого всё начинается
 

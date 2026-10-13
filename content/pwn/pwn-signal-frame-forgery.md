@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 50
 summary: "Учимся подделывать ucontext и использовать setcontext+0x35 как «SROP без сигналов», обходить проверки ядра и связывать с FSOP."
+lab:
+  kind: shell
+  title: "Практика: setcontext-гаджет"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, setcontext.txt]
+  check: "grep -q 'gadget=0x4408d' answer.txt"
+  hints:
+    - "`grep rsp setcontext.txt` — ищи инструкцию загрузки `rsp`."
+    - "Это `mov 0xa0(%rdx),%rsp` — поле RSP из ucontext."
+    - "Возьми абсолютный адрес этой инструкции из первой колонки."
 ---
 
 ## Вопрос, с которого всё начинается

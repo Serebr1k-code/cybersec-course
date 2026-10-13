@@ -12,6 +12,17 @@ useful_for:
   - "Exploit development"
 estimated_minutes: 60
 summary: "Продвинутые техники shellcode: egghunter для поиска полезной нагрузки, ограниченные алфавиты, self-modifying и полиморфный код."
+lab:
+  kind: shell
+  title: "Практика: разбор egghunter"
+  toolset: [core, objdump]
+  workdir: /home/student/task
+  files: [task.md, egg]
+  check: "grep -q 'probe=0x21' answer.txt"
+  hints:
+    - "`file egg`, затем `objdump -d egg`."
+    - "Egghunter проверяет доступность страницы syscall-ом `access`."
+    - "Номер syscall лежит в `mov $...,%rax` перед первым `syscall` (это 0x21)."
 ---
 ## Вопрос, с которого всё начинается
 

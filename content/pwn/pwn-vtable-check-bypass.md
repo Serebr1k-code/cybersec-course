@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 45
 summary: "Разбираем проверку IO_validate_vtable: как она устроена, почему её нельзя обойти «в лоб» и какими легальными vtable пользуются атакующие."
+lab:
+  kind: shell
+  title: "Практика: легальная vtable"
+  toolset: [core, nm, readelf]
+  workdir: /home/student/task
+  files: [task.md, libc.syms, libc.sections]
+  check: "grep -q 'file_jumps=0x1e6030' answer.txt"
+  hints:
+    - "`nm -D libc.syms | grep file_jumps`."
+    - "`readelf -SW libc.sections` — где лежит `.data.rel.ro`."
+    - "Адрес `_IO_file_jumps` должен попадать в `.data.rel.ro`."
 ---
 ## Вопрос, с которого всё начинается
 
