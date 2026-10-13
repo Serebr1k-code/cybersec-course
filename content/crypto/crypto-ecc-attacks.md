@@ -12,6 +12,18 @@ useful_for:
   - "Планирование порядка изучения криптографии"
 estimated_minutes: 10
 summary: "Первая группа тем хаба ECC: повтор nonce и его последствия в ECDSA, атаки на неверные точки (invalid curve) и продвинутые подписи."
+lab:
+  kind: shell
+  title: 'Практика: ECDSA с повторённым nonce'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, sig1.txt, sig2.txt, ecdsa_reuse.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Сравни `r` в `sig1.txt` и `sig2.txt`: они совпадают.'
+    - 'Тогда k=(z1−z2)/(s1−s2) mod n, а d=(s1·k−z1)/r mod n.'
+    - 'Готовый скрипт: `python3 ecdsa_reuse.py`.'
+    - 'Запиши флаг: `python3 ecdsa_reuse.py | grep nto > found.txt`.'
 ---
 
 Эллиптические кривые стали стандартом де-факто для подписей и обмена ключами, и большинство реальных атак на них — не про математику кривой, а про реализацию: повтор nonce, отсутствие проверки принадлежности точки кривой, слабые параметры. Этот модуль даёт практический набор атак на ECDSA и на операции с точками.

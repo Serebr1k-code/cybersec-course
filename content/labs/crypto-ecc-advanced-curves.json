@@ -1,0 +1,52 @@
+{
+  "id": "crypto-ecc-advanced-curves",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sm00th_0rd3r_p0hl1g_h3llm4n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Pohlig-Hellman на гладком порядке\n\nДана эллиптическая кривая над `F_p`, точка `G` и `Q = d·G`. Порядок `N`\n**гладкий** (произведение малых простых), поэтому DLP решается по частям:\nнаходим `d mod q^e` для каждого простого делителя и собираем CRT.\n\nШаги:\n1. `cat curve.txt` — параметры, G, Q. `cat factors.txt` — факторизация N.\n2. `python3 pohlig.py` — решает DLP по подгруппам и печатает `d`.\n3. `python3 pohlig.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Сложность PH = Σ sqrt(q_i) по простым делителям N.\n- Гладкий порядок => DLP лёгкий; для криптографии берут порядок с большим простым q.\n"
+    },
+    {
+      "path": "/home/student/task/curve.txt",
+      "text": "p = 73\na = 2\nb = 1\norder = 84\nG = 9,23\nQ = 12,72\n"
+    },
+    {
+      "path": "/home/student/task/factors.txt",
+      "text": "order factorization: 2^2 * 3 * 7\n"
+    },
+    {
+      "path": "/home/student/task/pohlig.py",
+      "text": "# Pohlig-Hellman: DLP on a curve whose order is smooth.\n# read p,a,b,N,G,Q from curve.txt; solve x in each prime subgroup, CRT.\nfrom math import prod\n# (см. curve.txt) — реализация перебора по малым подгруппам + CRT\ndef add(P,Q,p,a):\n    if P is None: return Q\n    if Q is None: return P\n    x1,y1=P; x2,y2=Q\n    if x1==x2 and (y1+y2)%p==0: return None\n    lam=((3*x1*x1+a)*pow(2*y1,-1,p) if P==Q else (y2-y1)*pow(x2-x1,-1,p))%p\n    x3=(lam*lam-x1-x2)%p\n    return (x3,(lam*(x1-x3)-y1)%p)\ndef mul(k,P,p,a):\n    R=None\n    while k:\n        if k&1: R=add(R,P,p,a)\n        P=add(P,P,p,a); k>>=1\n    return R\n# ... для каждого простого q из N: x mod q, затем CRT\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "pohlig\\.py",
+          "example": "python3 pohlig.py",
+          "output": "order N = 84 = 2^2 * 3 * 7\nsolve DLP in each prime subgroup, CRT-combine\nrecovered x = 54\ncheck: x*G == Q -> True\nflag: nto{sm00th_0rd3r_p0hl1g_h3llm4n}\n"
+        }
+      ]
+    }
+  }
+}

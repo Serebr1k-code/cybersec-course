@@ -1,0 +1,52 @@
+{
+  "id": "crypto-ecc-attacks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3cds4_n0nc3_r3us3_r3c0v3rs_k3y}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: переиспользование nonce в ECDSA\n\nДве подписи подписаны одним и тем же одноразовым числом `k` — поэтому у них\nсовпадает `r`. Это фатально: `k = (z1-z2)/(s1-s2) mod n`, а затем\n`d = (s1*k - z1)/r mod n`.\n\nШаги:\n1. `cat sig1.txt sig2.txt` — проверь, что `r` совпадает.\n2. `python3 ecdsa_reuse.py` — восстанови k и приватный ключ d.\n3. `python3 ecdsa_reuse.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Одинаковый k => одинаковый r => система из двух уравнений на (k, d).\n- Лечится детерминированным RFC 6979 или честным CSPRNG.\n"
+    },
+    {
+      "path": "/home/student/task/sig1.txt",
+      "text": "msg = 'transfer: 100 coins to alice'\nr = 105285139404868741011967484033563755720700696489340288994471124950473778694573\ns = 96586894540834700763117604729031312374635248830619505958050444056652753241271\nz = 66883926480483344379104325682572297169331119317009026917606443135316873365564\n"
+    },
+    {
+      "path": "/home/student/task/sig2.txt",
+      "text": "msg = 'transfer: 200 coins to bob'\nr = 105285139404868741011967484033563755720700696489340288994471124950473778694573\ns = 110576158023913525919378800434955076425385220330993201129948168747171288613120\nz = 75868415130858501581380557826022189873021840694330128973409195486435663657388\n"
+    },
+    {
+      "path": "/home/student/task/ecdsa_reuse.py",
+      "text": "# ECDSA nonce reuse: k = (z1-z2)/(s1-s2), d = (s1*k - z1)/r  (mod n)\nn = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141\ndef load(p):\n    d = {}\n    for line in open(p):\n        k, _, v = line.partition(' = ')\n        d[k.strip()] = int(v)\n    return d\na = load('sig1.txt'); b = load('sig2.txt')\nk = (a['z'] - b['z']) * pow((a['s'] - b['s']) % n, -1, n) % n\nd = (a['s'] * k - a['z']) * pow(a['r'], -1, n) % n\nprint('recovered nonce k = 0x%x' % k)\nprint('recovered private key d = 0x%x' % d)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "ecdsa_reuse\\.py",
+          "example": "python3 ecdsa_reuse.py",
+          "output": "two signatures share the SAME nonce k (same r)\nrecovered nonce k = 0xb66e686bb2725422ea82361127774ba063d685b9419181413ba2b6c1a77e70b5\nrecovered private key d = 0xdb0a3a7683bcc959cae3e4050682c30547bcf6bb9b7f7b971b34406a04dcc49a\nflag: nto{3cds4_n0nc3_r3us3_r3c0v3rs_k3y}\n"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "id": "crypto-math-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{qu4dr4t1c_r3s1du3_crt_sqrt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: квадратный корень по составному модулю\n\nДано `c = x^2 mod n`, где `n = p*q` (факторизация известна из `params.txt`).\nКорень берётся по каждому простому множителю (Tonelli-Shanks) и сшивается CRT —\nполучается 4 корня; один из них и есть секрет.\n\nШаги:\n1. `cat params.txt` — n, c и множители p, q.\n2. `python3 sqrtmod.py` — находит корни, декодирует их в байты.\n3. `python3 sqrtmod.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- x^2≡c (mod p*q) имеет 4 корня: ±x mod p и ±x mod q, сшитые CRT.\n- Tonelli-Shanks даёт sqrt mod нечётного простого за полиномиальное время.\n"
+    },
+    {
+      "path": "/home/student/task/params.txt",
+      "text": "n = 533996758980227520598755426542388028650676861547515090439207718182894535832382154263166732296179\nc = 226767293575515124375458753329423974748730076320140103537099590865064823929634190438570286346885\np = 730750818665451459101842416358141509827966283941\nq = 730750818665451459101842416358141509827967259319\n"
+    },
+    {
+      "path": "/home/student/task/sqrtmod.py",
+      "text": "# Rabin/square-root mod n=p*q: Tonelli-Shanks per prime + CRT -> 4 roots.\nn = int(open('params.txt').read().split('\\n')[0].split(' = ')[1])\nc = int(open('params.txt').read().split('\\n')[1].split(' = ')[1])\ndef tonelli(a,p):\n    a %= p\n    if a == 0: return 0\n    if pow(a,(p-1)//2,p) != 1: return None\n    if p % 4 == 3: return pow(a,(p+1)//4,p)\n    q,s = p-1,0\n    while q%2==0: q//=2; s+=1\n    z=2\n    while pow(z,(p-1)//2,p)!=p-1: z+=1\n    m,c0,t,r = s,pow(z,q,p),pow(a,q,p),pow(a,(q+1)//2,p)\n    while t!=1:\n        i,tt=0,t\n        while tt!=1: tt=tt*tt%p; i+=1\n        b=pow(c0,1<<(m-i-1),p)\n        m,c0,t,r = i,b*b%p,t*b*b%p,r*b%p\n    return r\nprint('roots (choose the one that decodes to a flag)')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "sqrtmod\\.py",
+          "example": "python3 sqrtmod.py",
+          "output": "n = 533996758980227520598755426542388028650676861547515090439207718182894535832382154263166732296179\nc = 226767293575515124375458753329423974748730076320140103537099590865064823929634190438570286346885\ntonelli-shanks sqrt mod p, mod q -> CRT -> 4 roots\nroot0 = 195156785256015754974780462744887591323383444231776117848519502441525441661\nroot1 = 533996758980227520598560269757132012895702081084770202847884334738662759714533634760725206854518\nroot2 = 195156785256015754974780462744887591323383444231776117848519502441525441661\nroot3 = 533996758980227520598560269757132012895702081084770202847884334738662759714533634760725206854518\nroot0 as bytes = b'nto{qu4dr4t1c_r3s1du3_crt_sqrt}'\nflag: nto{qu4dr4t1c_r3s1du3_crt_sqrt}\n"
+        }
+      ]
+    }
+  }
+}

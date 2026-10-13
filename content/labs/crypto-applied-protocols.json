@@ -1,0 +1,48 @@
+{
+  "id": "crypto-applied-protocols",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sh4m1r_l4gr4ng3_r3c0v3rs_s3cr3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: пороговая схема Шамира\n\nСекрет (он же флаг) разделён по схеме Шамира с порогом **3 из 5**:\n`f(x) = s + a1*x + a2*x^2 mod p`, доли лежат в `shares.txt`.\n\nШаги:\n1. `cat shares.txt` — модуль `p` и пять долей `(x, f(x))`.\n2. Возьми любые три доли и восстанови `f(0)` интерполяцией Лагранжа.\n3. `python3 shamir.py` — скрипт делает это и печатает секрет.\n4. Запиши флаг: `python3 shamir.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Порог t=3: любые t долей восстанавливают секрет, t-1 — нет.\n- Восстановление: f(0)=Σ y_i·Π_{j≠i}(0−x_j)/(x_i−x_j) mod p.\n"
+    },
+    {
+      "path": "/home/student/task/shares.txt",
+      "text": "p = 6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057151\nshares (x, f(x)):\n1 214577154782175269773333071638503952719693890514416642182575456278546079686921375727751\n2 214577155026018636561699360555533885958449951280257219599550275481384735270446377856299\n3 214577155360784916934865409942462167989039769277940994326624247205396567340583785888361\n4 214577155786474110892831219799288798811463344507467966363797371450581575897333599823937\n5 214577156303086218435596790126013778425720676968838135711069648216939760940695819663027\n"
+    },
+    {
+      "path": "/home/student/task/shamir.py",
+      "text": "# Shamir threshold (3-of-5): reconstruct f(0) from any 3 shares.\nfrom math import prod\np = 2**521 - 1\nshares = [(1, 0), (2, 0), (3, 0)]  # fill x,y from shares.txt\ndef lagrange(pts):\n    s = 0\n    for i,(xi,yi) in enumerate(pts):\n        num = den = 1\n        for j,(xj,_) in enumerate(pts):\n            if i == j: continue\n            num = num * (-xj) % p\n            den = den * (xi - xj) % p\n        s = (s + yi * num * pow(den, -1, p)) % p\n    return s\nsecret = lagrange(shares)\nprint('secret bytes =', secret.to_bytes((secret.bit_length()+7)//8,'big'))\nprint('flag:', secret.to_bytes((secret.bit_length()+7)//8,'big').decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "shamir\\.py",
+          "example": "python3 shamir.py",
+          "output": "lagrange reconstruct from shares x=1,2,3\nsecret int = 214577154629254816569766543191372368272771586980419262075699789596880600590008779502717\nsecret bytes = b'nto{sh4m1r_l4gr4ng3_r3c0v3rs_s3cr3t}'\nflag: nto{sh4m1r_l4gr4ng3_r3c0v3rs_s3cr3t}\n"
+        }
+      ]
+    }
+  }
+}
