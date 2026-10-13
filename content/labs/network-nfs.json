@@ -1,0 +1,59 @@
+{
+  "id": "network-nfs",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{nfs_n0_r00t_squ4sh_0wn3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: NFS-экспорты\n\nНа хосте `10.0.0.20` открыты `111` (rpcbind) и `2049` (NFS).\nДва экспорта уже примонтированы в каталог `exports/`.\n\n1. Список экспортов: `showmount -e 10.0.0.20`\n2. Экспорт, разрешённый всем (`*`), — главная ошибка. Определи, какой это каталог.\n3. Прочитай флаг из соответствующего примонтированного каталога:\n   `cat exports/srv_export/flag.txt`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/exports",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/exports/var_backups/notes.txt",
+      "text": "backup rotations for 10.0.0.0/24 hosts\naccess: restricted\n"
+    },
+    {
+      "path": "/home/student/task/exports/srv_export/flag.txt",
+      "text": "nto{nfs_n0_r00t_squ4sh_0wn3d}\n"
+    },
+    {
+      "path": "/home/student/task/exports/srv_export/README",
+      "text": "world-readable export (/srv/export)\n"
+    }
+  ],
+  "tools": {
+    "showmount": {
+      "help": "showmount -e <хост> — список NFS-экспортов (эмуляция)",
+      "cases": [
+        {
+          "match": "-e",
+          "example": "-e 10.0.0.20",
+          "output": "Export list for 10.0.0.20:\n/srv/export  *\n/var/backups 10.0.0.0/24\n"
+        }
+      ],
+      "fallback": "showmount: доступно `showmount -e 10.0.0.20` (см. task.md)\n"
+    },
+    "rpcinfo": {
+      "help": "rpcinfo -p <хост> — зарегистрированные RPC-программы (эмуляция)",
+      "cases": [
+        {
+          "match": "-p",
+          "example": "-p 10.0.0.20",
+          "output": "   program vers proto   port  service\n    100000    4   tcp    111  portmapper\n    100000    4   udp    111  portmapper\n    100003    3   tcp   2049  nfs\n    100003    4   tcp   2049  nfs\n    100005    1   udp  20048  mountd\n    100005    3   tcp  20048  mountd\n"
+        }
+      ],
+      "fallback": "rpcinfo: доступно `rpcinfo -p 10.0.0.20` (см. task.md)\n"
+    }
+  }
+}

@@ -13,6 +13,19 @@ useful_for:
   - "Работа (SOC): детект малвари и аномалий"
 estimated_minutes: 55
 summary: "TLS-фингерпринтинг: ClientHello, SNI, JA3/JA4, сертификаты и ECH — как различать клиентов без расшифровки, как это помогает SOC и как маскироваться под легитимный трафик."
+lab:
+  kind: shell
+  title: 'Практика: сопоставление JA3 с threat-intel'
+  toolset: [core, grep, tshark]
+  workdir: /home/student/task
+  files: [task.md, tls.pcap, ja3-intel.txt]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'В дампе `tls.pcap` два клиента устанавливают TLS. Посмотри сводку: `tshark -r tls.pcap`.'
+    - 'Вытащи SNI и отпечаток JA3 каждого ClientHello:
+`tshark -r tls.pcap -Y tls.handshake.extensions_server_name -T fields -e ip.src -e tls.handshake.extensions_server_name -e tls.handshake.ja3`.'
+    - 'Один SNI (`cdn.malware-c2.example`) и его JA3 подозрительны.'
+    - 'Сопоставь JA3 с `ja3-intel.txt` (`grep 5d24a8 ja3-intel.txt`) — там имя малвари и флаг.'
 ---
 
 ## Вопрос, с которого всё начинается

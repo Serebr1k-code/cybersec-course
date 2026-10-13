@@ -1,0 +1,46 @@
+{
+  "id": "network-tls-fingerprint",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{ja3_c2_b34c0n_m4tch}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти клиента малвари по JA3\n\nТрафик зашифрован, но отпечаток ClientHello (JA3) выдаёт клиента.\nВ `tls.pcap` два клиента; один — легитимный, второй — подозрительный.\n\n1. Сводка: `tshark -r tls.pcap`\n2. SNI + JA3: `tshark -r tls.pcap -Y tls.handshake.extensions_server_name -T fields -e ip.src -e tls.handshake.extensions_server_name -e tls.handshake.ja3`\n3. Сопоставь JA3 подозрительного клиента с базой: `grep 5d24a8 ja3-intel.txt`\n4. Запиши флаг `nto{...}` из найденной записи в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/tls.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAW0rOausACAA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABjrwCgAABV242CLIIgG7AAAD6AAAAABQAiAAgj0AAFtKzmp2AQgANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAY68F242CIKAAAFAbvIIgAAE4gAAAPpUBIgAG6kAABbSs5q9AEIADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEAGOvAKAAAFXbjYIsgiAbsAAAPpAAATiVAQIABupQAAW0rOangCCACmAAAApgAAAP///////2h6ZJWAowgARQAAmAABAABABjqACgAABV242CLIIgG7AAAD6QAAE4lQGCAAtEwAABYDAQBrAQAAZwMDAAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8AAAoTARMCEwPAK8AvAQAANAAAABAADgAAC2V4YW1wbGUuY29tACsABAMEAwMACgAIAAYAHQAXABgADQAIAAYEAwgEBAFbSs5qSgMIADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEAGRn8KAAAJxjNkFMksAbsAAAPoAAAAAFACIACMwgAAW0rOassDCAA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABkZ/xjNkFAoAAAkBu8ksAAATiAAAA+lQEiAAeSkAAFtKzmpDBAgANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAZGfwoAAAnGM2QUySwBuwAAA+kAABOJUBAgAHkqAABbSs5qyQQIAKkAAACpAAAA////////aHpklYCjCABFAACbAAEAAEAGRgwKAAAJxjNkFMksAbsAAAPpAAATiVAYIAC0VAAAFgMBAG4BAABqAwMAAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHwAAChMBEwLAK8AswDABAAA3AAAAGwAZAAAWY2RuLm1hbHdhcmUtYzIuZXhhbXBsZQArAAQDBAMDAAoABAACAB0ADQAEAAIEAw==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/ja3-intel.txt",
+      "text": "# JA3 threat-intel feed (hash  app / family  note)\nb8aa7ac25d577266a6fd60b20472ab87  curl-8.5.0       benign (scripted HTTP client)\n5d24a88aada509974de98eb86e24ee57  CobaltStrike-beacon  C2 malleable profile  nto{ja3_c2_b34c0n_m4tch}\ne7d705a3286e19ea42f587b344ee6865  Tor-client       benign (privacy tool)\n"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [фильтр] — разбор трафика (эмуляция: вывод захвачен с реального tshark)",
+      "cases": [
+        {
+          "match": "ja3|server_name|tls\\.handshake",
+          "example": "-r tls.pcap -Y tls.handshake.extensions_server_name -T fields -e ip.src -e tls.handshake.extensions_server_name -e tls.handshake.ja3",
+          "output": "10.0.0.5\texample.com\tb8aa7ac25d577266a6fd60b20472ab87\n10.0.0.9\tcdn.malware-c2.example\t5d24a88aada509974de98eb86e24ee57\n"
+        },
+        {
+          "match": "tls\\.pcap",
+          "example": "-r tls.pcap",
+          "output": "    1   0.000000     10.0.0.5 → 93.184.216.34 TCP 54 51234 → 443 [SYN] Seq=0 Win=8192 Len=0\n    2   0.000139 93.184.216.34 → 10.0.0.5     TCP 54 443 → 51234 [SYN, ACK] Seq=0 Ack=1 Win=8192 Len=0\n    3   0.000265     10.0.0.5 → 93.184.216.34 TCP 54 51234 → 443 [ACK] Seq=1 Ack=1 Win=8192 Len=0\n    4   0.000397     10.0.0.5 → 93.184.216.34 TLSv1 166 Client Hello (SNI=example.com)\n    5   0.000607     10.0.0.9 → 198.51.100.20 TCP 54 51500 → 443 [SYN] Seq=0 Win=8192 Len=0\n    6   0.000736 198.51.100.20 → 10.0.0.9     TCP 54 443 → 51500 [SYN, ACK] Seq=0 Ack=1 Win=8192 Len=0\n    7   0.000856     10.0.0.9 → 198.51.100.20 TCP 54 51500 → 443 [ACK] Seq=1 Ack=1 Win=8192 Len=0\n    8   0.000990     10.0.0.9 → 198.51.100.20 TLSv1 169 Client Hello (SNI=cdn.malware-c2.example)\n"
+        }
+      ],
+      "fallback": "tshark: доступно `tshark -r tls.pcap` (см. task.md)\n"
+    }
+  }
+}

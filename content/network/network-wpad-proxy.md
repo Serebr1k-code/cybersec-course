@@ -13,6 +13,18 @@ useful_for:
   - "Защита корпоративной ЛВС"
 estimated_minutes: 35
 summary: "WPAD и PAC как вектор MITM: DHCP-опция 252, DNS/LLMNR-перехват, mitm6 и Responder, прозрачные прокси, риски и защита."
+lab:
+  kind: shell
+  title: 'Практика: WPAD/LLMNR-перехват'
+  toolset: [core, grep, tshark]
+  workdir: /home/student/task
+  files: [task.md, wpad.pcap]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Ноутбук ищет WPAD-файл: DHCP-опцию 252 сервер не отдал, поэтому идёт LLMNR-запрос имени `wpad`.'
+    - 'Ответил не легитимный сервер: `tshark -r wpad.pcap -Y llmnr -T fields -e ip.src -e ip.dst -e dns.qry.name -e dns.a`.'
+    - 'Кто ответил на LLMNR — тот и атакующий. Клиент скачивает у него `wpad.dat` (PAC-файл).'
+    - 'PAC — исполняемый JS; собери поток: `tshark -r wpad.pcap -q -z follow,tcp,ascii,0` — в комментарии флаг.'
 ---
 
 ## Вопрос, с которого всё начинается

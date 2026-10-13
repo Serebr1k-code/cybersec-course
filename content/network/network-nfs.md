@@ -13,6 +13,18 @@ useful_for:
   - "Право-повышение в ЛВС"
 estimated_minutes: 35
 summary: "NFS/RPC: перечисление экспортов, монтирование, UID/GID spoofing, no_root_squash как путь к root, запись в authorized_keys и cron, защита."
+lab:
+  kind: shell
+  title: 'Практика: перечисление NFS-экспортов'
+  toolset: [core, grep, showmount, rpcinfo]
+  workdir: /home/student/task
+  files: [task.md, exports]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'RPC/NFS: порт 111 (`rpcbind`) подсказывает порт NFS; порт 2049 — сам NFS.'
+    - 'Список экспортов даёт `showmount`: `showmount -e 10.0.0.20`.'
+    - 'Экспорт со звёздочкой (`*`) разрешён ВСЕМ — это и есть ошибка администрирования.'
+    - 'В `exports/` уже примонтированы оба экспорта; прочитай флаг из того, что открыт всем: `cat exports/srv_export/flag.txt`.'
 ---
 ## Вопрос, с которого всё начинается
 

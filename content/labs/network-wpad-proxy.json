@@ -1,0 +1,47 @@
+{
+  "id": "network-wpad-proxy",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{wpad_p4c_m1tm_pr0xy}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: WPAD через LLMNR-перехват\n\nНоутбук `10.0.0.5` ищет настройки прокси (WPAD). DHCP-опцию 252 сервер\nне отдал, поэтому клиент ушёл в LLMNR за именем `wpad`.\n\n1. Сводка: `tshark -r wpad.pcap`\n2. LLMNR-обмен: `tshark -r wpad.pcap -Y llmnr -T fields -e ip.src -e ip.dst -e dns.qry.name -e dns.a`\n   — ответил адрес, которого в легитимной сети быть не должно (атакующий).\n3. Клиент скачал у него `wpad.dat` (PAC). Собери поток: `tshark -r wpad.pcap -q -z follow,tcp,ascii,0`\n4. В комментарии PAC-файла — флаг. Запиши его в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/wpad.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAW0rOat0wCAAyAAAAMgAAAP///////2h6ZJWAowgARQAAJAABAABAEXrJAAAAAP////8ARABDABChzgEBBgAaKzxNW0rOarsxCABAAAAAQAAAAAEAXgAA/Gh6ZJWAowgARQAAMgABAABAEY+5CgAABeAAAPwU6xTrAB4R/wAAAAAAAQAAAAAAAAR3cGFkAAABAAFbSs5qBDMIAFQAAABUAAAA////////aHpklYCjCABFAABGAAEAAEARZmAKAABCCgAABRTrFOsAMoVRAACAAAABAAEAAAAABHdwYWQAAAEAAQR3cGFkAAABAAEAAAAeAAQKAABCW0rOaj80CACSAAAAkgAAAP///////2h6ZJWAowgARQAAhAABAABABmYtCgAABQoAAELAlB+QAAAD6QAAE4lQGCAAuRgAAEdFVCAvd3BhZC5kYXQgSFRUUC8xLjENCkhvc3Q6IHdwYWQuY29ycC5sb2NhbA0KVXNlci1BZ2VudDogV2luSHR0cC1BdXRvcHJveHktU2VydmljZS81LjENCg0KW0rOah01CABbAQAAWwEAAP///////2h6ZJWAowgARQABTQABAABABmVkCgAAQgoAAAUfkMCUAAATiQAABEVQGCAAst4AAEhUVFAvMS4xIDIwMCBPSw0KU2VydmVyOiBNaWNyb3NvZnQtSUlTLzEwLjANCkNvbnRlbnQtVHlwZTogYXBwbGljYXRpb24veC1ucy1wcm94eS1hdXRvY29uZmlnDQpDb250ZW50LUxlbmd0aDogMTc2DQoNCmZ1bmN0aW9uIEZpbmRQcm94eUZvclVSTCh1cmwsIGhvc3QpIHsNCiAgaWYgKHNoRXhwTWF0Y2goaG9zdCwgIiouY29ycC5sb2NhbCIpKSByZXR1cm4gIkRJUkVDVCI7DQogIC8vIGV4ZmlsIGtleTogbnRve3dwYWRfcDRjX20xdG1fcHIweHl9DQogIHJldHVybiAiUFJPWFkgMTAuMC4wLjY2OjgwODAiOw0KfQ0K",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [фильтр] — разбор трафика (эмуляция: вывод захвачен с реального tshark)",
+      "cases": [
+        {
+          "match": "follow",
+          "example": "-r wpad.pcap -q -z follow,tcp,ascii,0",
+          "output": "\n===================================================================\nFollow: tcp,ascii\nFilter: tcp.stream eq 0\nNode 0: 10.0.0.5:49300\nNode 1: 10.0.0.66:8080\n92\nGET /wpad.dat HTTP/1.1\nHost: wpad.corp.local\nUser-Agent: WinHttp-Autoproxy-Service/5.1\n\n\n\t293\nHTTP/1.1 200 OK\nServer: Microsoft-IIS/10.0\nContent-Type: application/x-ns-proxy-autoconfig\nContent-Length: 176\n\nfunction FindProxyForURL(url, host) {\n  if (shExpMatch(host, \"*.corp.local\")) return \"DIRECT\";\n  // exfil key: nto{wpad_p4c_m1tm_pr0xy}\n  return \"PROXY 10.0.0.66:8080\";\n}\n\n===================================================================\n"
+        },
+        {
+          "match": "llmnr",
+          "example": "-r wpad.pcap -Y llmnr -T fields -e ip.src -e ip.dst -e dns.qry.name -e dns.a",
+          "output": "10.0.0.5\t224.0.0.252\twpad\t\n10.0.0.66\t10.0.0.5\twpad\t10.0.0.66\n"
+        },
+        {
+          "match": "wpad\\.pcap",
+          "example": "-r wpad.pcap",
+          "output": "    1   0.000000      0.0.0.0 → 255.255.255.255 BOOTP 50 DHCP Discover\n    2   0.000222     10.0.0.5 → 224.0.0.252  LLMNR 64 Standard query 0x0000 A wpad\n    3   0.000551    10.0.0.66 → 10.0.0.5     LLMNR 84 Standard query response 0x0000 A wpad A 10.0.0.66\n    4   0.000866     10.0.0.5 → 10.0.0.66    HTTP 146 GET /wpad.dat HTTP/1.1 \n    5   0.001088    10.0.0.66 → 10.0.0.5     HTTP 347 HTTP/1.1 200 OK  (application/x-ns-proxy-autoconfig)\n"
+        }
+      ],
+      "fallback": "tshark: доступно `tshark -r wpad.pcap` (см. task.md)\n"
+    }
+  }
+}

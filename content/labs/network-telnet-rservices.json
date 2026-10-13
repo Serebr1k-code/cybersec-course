@@ -1,0 +1,42 @@
+{
+  "id": "network-telnet-rservices",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{t3ln3t_cl3rt3xt_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: перехват Telnet-сессии\n\nХост `10.0.0.9` держит открытым порт 23 (Telnet). В `telnet.pcap` — сессия входа.\n\n1. Сводка (видна фаза IAC): `tshark -r telnet.pcap`\n2. Собери поток целиком: `tshark -r telnet.pcap -q -z follow,tcp,ascii,0`\n3. В потоке — логин, пароль и вывод `cat /flag.txt`.\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/telnet.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAW0rOau8WCAA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABmbCCgAABQoAAAnAMAAXAAAH0AAAAABQAiAAs70AAFtKzmp+FwgANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAZmwgoAAAkKAAAFABfAMAAAG1gAAAfRUBIgAJhUAABbSs5qBRgIADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEAGZsIKAAAFCgAACcAwABcAAAfRAAAbWVAQIACYVQAAW0rOaoAYCABCAAAAQgAAAP///////2h6ZJWAowgARQAANAABAABABma2CgAABQoAAAnAMAAXAAAH0QAAG1lQGCAAYP4AAP/9GP/9IP/9I//9J1tKzmpKGQgAPQAAAD0AAAD///////9oemSVgKMIAEUAAC8AAQAAQAZmuwoAAAkKAAAFABfAMAAAG1kAAAfdUBggADYnAABsb2dpbjogW0rOaiIaCAA9AAAAPQAAAP///////2h6ZJWAowgARQAALwABAABABma7CgAABQoAAAnAMAAXAAAH3QAAG2BQGCAAUVgAAGFkbWluDQpbSs5q4xoIAEAAAABAAAAA////////aHpklYCjCABFAAAyAAEAAEAGZrgKAAAJCgAABQAXwDAAABtgAAAH5FAYIACwYAAAUGFzc3dvcmQ6IFtKzmq7GwgAQQAAAEEAAAD///////9oemSVgKMIAEUAADMAAQAAQAZmtwoAAAUKAAAJwDAAFwAAB+QAABtqUBggAJ23AABhZG0xblBAc3MNCltKzmqvHAgAZAAAAGQAAAD///////9oemSVgKMIAEUAAFYAAQAAQAZmlAoAAAkKAAAFABfAMAAAG2oAAAfwUBggAO2xAAAkIGNhdCAvZmxhZy50eHQNCm50b3t0M2xuM3RfY2wzcnQzeHRfbDM0a30NCiQg",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [фильтр] — разбор трафика (эмуляция: вывод захвачен с реального tshark)",
+      "cases": [
+        {
+          "match": "follow",
+          "example": "-r telnet.pcap -q -z follow,tcp,ascii,0",
+          "output": "\n===================================================================\nFollow: tcp,ascii\nFilter: tcp.stream eq 0\nNode 0: 10.0.0.5:49200\nNode 1: 10.0.0.9:23\n12\n..... ..#..'\n\t7\nlogin: \n7\nadmin\n\n\t10\nPassword: \n11\nadm1nP@ss\n\n\t46\n$ cat /flag.txt\nnto{t3ln3t_cl3rt3xt_l34k}\n$ \n===================================================================\n"
+        },
+        {
+          "match": "telnet\\.pcap",
+          "example": "-r telnet.pcap",
+          "output": "    1   0.000000     10.0.0.5 → 10.0.0.9     TCP 54 49200 → 23 [SYN] Seq=0 Win=8192 Len=0\n    2   0.000143     10.0.0.9 → 10.0.0.5     TCP 54 23 → 49200 [SYN, ACK] Seq=0 Ack=1 Win=8192 Len=0\n    3   0.000278     10.0.0.5 → 10.0.0.9     TCP 54 49200 → 23 [ACK] Seq=1 Ack=1 Win=8192 Len=0\n    4   0.000401     10.0.0.5 → 10.0.0.9     TELNET 66 Do Terminal Type, Do Terminal Speed, Do X Display Location, Do New Environment Option\n    5   0.000603     10.0.0.9 → 10.0.0.5     TELNET 61 7 bytes data\n    6   0.000819     10.0.0.5 → 10.0.0.9     TELNET 61 7 bytes data\n    7   0.001012     10.0.0.9 → 10.0.0.5     TELNET 64 10 bytes data\n    8   0.001228     10.0.0.5 → 10.0.0.9     TELNET 65 11 bytes data\n    9   0.001472     10.0.0.9 → 10.0.0.5     TELNET 100 46 bytes data\n"
+        }
+      ],
+      "fallback": "tshark: доступно `tshark -r telnet.pcap` (см. task.md)\n"
+    }
+  }
+}

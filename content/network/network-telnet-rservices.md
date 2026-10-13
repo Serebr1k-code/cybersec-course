@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): детект legacy-доступа"
 estimated_minutes: 50
 summary: "Telnet и r-services (rlogin/rsh/rexec): почему они опасны, как перехватить пароли из трафика, как работает доверие по .rhosts/hosts.equiv и как это эксплуатировать и закрывать."
+lab:
+  kind: shell
+  title: 'Практика: перехват Telnet-сессии'
+  toolset: [core, grep, tshark]
+  workdir: /home/student/task
+  files: [task.md, telnet.pcap]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Telnet не шифрует: всё, включая пароль, идёт открытым текстом.'
+    - 'Сначала видно фазу IAC (управляющие байты `ff fd ...`) — `tshark -r telnet.pcap`.'
+    - 'Собери TCP-поток целиком: `tshark -r telnet.pcap -q -z follow,tcp,ascii,0`.'
+    - 'В потоке — логин, пароль и вывод `cat /flag.txt` с флагом.'
 ---
 
 ## Вопрос, с которого всё начинается
