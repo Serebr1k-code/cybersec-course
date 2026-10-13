@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов ядра"
 estimated_minutes: 65
 summary: "Устройство nftables, UAF при работе с объектами фильтрации, доступ через user-namespace и эксплуатация через объект-жертву (CVE-2022-32250, CVE-2023-32233)."
+lab:
+  kind: shell
+  title: 'Практика: условия для nf_tables-эксплойта'
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, unprivileged_userns_clone.txt, nft-version.txt, version.txt]
+  check: 'grep -q ''userns_clone=1'' answer.txt'
+  hints:
+    - 'nf_tables-эксплойты (CVE-2022-32250, CVE-2023-32233) требуют user namespace.'
+    - 'Проверь `cat unprivileged_userns_clone.txt` — захваченный `/proc/sys/kernel/unprivileged_userns_clone`.'
+    - '`1` = непривилегированные userns разрешены → атака достижима.'
+    - 'Запиши `userns_clone=1` в `answer.txt` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

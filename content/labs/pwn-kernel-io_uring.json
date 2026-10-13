@@ -1,0 +1,27 @@
+{
+  "id": "pwn-kernel-io_uring",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "io_uring_disabled=2"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: доступность io_uring\n\nПрежде чем строить эксплойт через io_uring, узнай, не выключен ли интерфейс на цели.\n\n1. `cat io_uring_disabled.txt` — захваченный `/proc/sys/kernel/io_uring_disabled`.\n2. `cat version.txt` — версия ядра.\n3. Запиши `io_uring_disabled=<значение>` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/io_uring_disabled.txt",
+      "text": "2\n"
+    },
+    {
+      "path": "/home/student/task/version.txt",
+      "text": "Linux version 6.1.0-lab (root@lab) #1 SMP PREEMPT_DYNAMIC x86_64 GNU/Linux\n"
+    }
+  ]
+}

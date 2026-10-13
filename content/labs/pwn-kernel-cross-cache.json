@@ -1,0 +1,27 @@
+{
+  "id": "pwn-kernel-cross-cache",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "cred_cache=cred"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: имена кэшей для cross-cache\n\nCross-cache эксплуатация требует точно знать имя кэша объекта-жертвы.\n\n1. `cat slab-list.txt` — реальный список кэшей ядра.\n2. `cat structs.txt` — краткие размеры.\n3. Найди кэш, в котором живёт `struct cred` (это не `kmalloc-*`).\n4. Запиши `cred_cache=<имя>` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/slab-list.txt",
+      "text": "cred\nfilp\nkmalloc-128\nkmalloc-16\nkmalloc-192\nkmalloc-1k\nkmalloc-256\nkmalloc-2k\nkmalloc-32\nkmalloc-4k\nkmalloc-512\nkmalloc-64\nkmalloc-8\nkmalloc-8k\nkmalloc-96\nmsg_msg-128\nmsg_msg-16\nmsg_msg-192\nmsg_msg-1k\nmsg_msg-256\nmsg_msg-2k\nmsg_msg-32\nmsg_msg-4k\nmsg_msg-512\nmsg_msg-64\nmsg_msg-8\nmsg_msg-8k\nmsg_msg-96\nseq_file\nskbuff_head_cache\ntask_struct\n"
+    },
+    {
+      "path": "/home/student/task/structs.txt",
+      "text": "struct cred          -> dedicated cache\nstruct file          -> dedicated cache (filp)\nstruct seq_operations-> kmalloc-32\nstruct msg_msg       -> msg_msg-<size> or kmalloc\n"
+    }
+  ]
+}

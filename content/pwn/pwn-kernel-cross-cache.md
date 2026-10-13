@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов ядра"
 estimated_minutes: 60
 summary: "Как cross-cache attack освобождает целую slab-страницу одного кэша и переиспользует её под объекты другого кэша, делая UAF универсальным."
+lab:
+  kind: shell
+  title: 'Практика: cross-cache — имена кэшей'
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, slab-list.txt, structs.txt]
+  check: 'grep -q ''cred_cache=cred'' answer.txt'
+  hints:
+    - 'Cross-cache атака переиспользует память между разными кэшами/слабами.'
+    - '`slab-list.txt` — реальный `ls /sys/kernel/slab/`; имена кэшей там точные.'
+    - 'Найди отдельный (не kmalloc-) кэш для структуры `struct cred`.'
+    - 'Он называется `cred`. Запиши `cred_cache=cred` в `answer.txt` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

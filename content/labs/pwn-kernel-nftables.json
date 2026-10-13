@@ -1,0 +1,31 @@
+{
+  "id": "pwn-kernel-nftables",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "userns_clone=1"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: условия для nf_tables\n\nЧтобы эксплуатировать баг в `nf_tables` из userland, нужен unprivileged user namespace.\n\n1. `cat unprivileged_userns_clone.txt` — можно ли создавать userns без root.\n2. `cat version.txt` и `cat nft-version.txt` — версия ядра и nftables (контекст).\n3. Запиши `userns_clone=<значение>` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/unprivileged_userns_clone.txt",
+      "text": "1\n"
+    },
+    {
+      "path": "/home/student/task/nft-version.txt",
+      "text": "nftables v1.0.9 (Old Doc Yak #3)\n"
+    },
+    {
+      "path": "/home/student/task/version.txt",
+      "text": "Linux version 6.1.0-lab (root@lab) #1 SMP PREEMPT_DYNAMIC x86_64 GNU/Linux\n"
+    }
+  ]
+}

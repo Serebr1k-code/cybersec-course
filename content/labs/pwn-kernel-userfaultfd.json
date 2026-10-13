@@ -1,0 +1,23 @@
+{
+  "id": "pwn-kernel-userfaultfd",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "unprivileged_userfaultfd=0"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: доступность userfaultfd\n\nПриём UFFD (заморозить ядро на user-странице) требует включённого unprivileged userfaultfd.\n\n1. `cat unprivileged_userfaultfd.txt`.\n2. Определи, доступен ли UFFD обычному пользователю (0 = нет, 1 = да).\n3. Запиши `unprivileged_userfaultfd=<значение>` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/unprivileged_userfaultfd.txt",
+      "text": "0\n"
+    }
+  ]
+}

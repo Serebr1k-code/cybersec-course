@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов ядра"
 estimated_minutes: 55
 summary: "Как userfaultfd и FUSE превращают наносекундное окно гонки в управляемую паузу, настройка обоих механизмов и типовой сценарий race-эксплуатации."
+lab:
+  kind: shell
+  title: 'Практика: доступность userfaultfd'
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, unprivileged_userfaultfd.txt]
+  check: 'grep -q ''unprivileged_userfaultfd=0'' answer.txt'
+  hints:
+    - 'UFFD нужен для «заморозки» ядра в гонке (окно между check и use).'
+    - 'Проверь `cat unprivileged_userfaultfd.txt` — захваченный `/proc/sys/vm/unprivileged_userfaultfd`.'
+    - 'Значение `0` = unprivileged-доступ запрещён (нужен CAP_SYS_PTRACE); тогда гонку делают через FUSE.'
+    - 'Запиши `unprivileged_userfaultfd=0` в `answer.txt` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

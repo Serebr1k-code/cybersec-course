@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов ядра"
 estimated_minutes: 65
 summary: "Устройство io_uring, его асинхронная природа как источник UAF и гонок, приёмы эксплуатации с userfaultfd и переиспользованием объектов, полный сценарий."
+lab:
+  kind: shell
+  title: 'Практика: доступность io_uring'
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, io_uring_disabled.txt, version.txt]
+  check: 'grep -q ''io_uring_disabled=2'' answer.txt'
+  hints:
+    - 'io_uring-эксплойты (CVE-2021-41073, CVE-2023-0461) требуют доступного интерфейса io_uring.'
+    - 'Проверь `cat io_uring_disabled.txt` — захваченный `/proc/sys/kernel/io_uring_disabled`.'
+    - 'Значение `2` = io_uring полностью отключён (syscall `io_uring_setup` не создаст ring).'
+    - 'Запиши `io_uring_disabled=2` в `answer.txt` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов ядра"
 estimated_minutes: 65
 summary: "Устройство eBPF, баги верификатора, примитивы произвольного чтения/записи, JIT-спрей и полный сценарий повышения привилегий через eBPF."
+lab:
+  kind: shell
+  title: 'Практика: доступность eBPF на цели'
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, bpfprog.o, bpf.readelf.txt, unprivileged_bpf_disabled.txt, bpf_jit_enable.txt]
+  check: 'grep -q ''unprivileged_bpf=2'' answer.txt'
+  hints:
+    - 'Сначала проверь, разрешён ли unprivileged eBPF: `cat unprivileged_bpf_disabled.txt`.'
+    - 'Значение `2` означает «полностью запрещён» (даже для CAP_BPF-пользователей он не включается).'
+    - 'Для контекста: `bpf.readelf.txt` — реальный ELF-заголовок eBPF-объекта (`Machine: Linux BPF`).'
+    - 'Запиши `unprivileged_bpf=2` в `answer.txt` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается
