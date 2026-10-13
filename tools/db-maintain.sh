@@ -25,20 +25,22 @@
 #   1. Refuses to run while the server is up (unless you pass --stop).
 #   2. Truncates any leftover WAL so we start from a known-free state.
 #   3. Makes a safety copy IF the disk has room (otherwise warns and skips).
-#   4. Prints before counts; FK-safe prunes all but the newest --keep sessions.
+#   4. Prints before counts; FK-safe prunes SUBAGENT sessions only, ALWAYS keeping
+#      every top-level session (parent_id IS NULL) plus the newest --keep subagents.
 #   5. VACUUM + WAL checkpoint to actually shrink the file.
 #   6. Prints size before/after and df -h /home.
 #   7. Restarts the server and prints the attach command.
 #
 # Usage:
 #   systemctl --user stop pentestcode-serve     # stop first (recommended)
-#   tools/db-maintain.sh [--keep N] [--batch-mb M] [--no-backup]
+#   tools/db-maintain.sh [--keep N] [--batch-sessions N] [--no-backup]
 #
 #   tools/db-maintain.sh --stop --keep 3        # one-shot: stop, prune, restart
 #
 # Options:
-#   --keep N       keep the N most recent sessions (default 3)
-#   --batch-mb M   WAL budget per delete batch, MiB (default 400)
+#   --keep N            also keep the N most recently updated SUBAGENT sessions
+#                       (default 3).  Top-level sessions are ALWAYS kept.
+#   --batch-sessions N  delete at most N sessions per transaction batch (default 20)
 #   --stop         stop the running server first (opt-in; default refuses)
 #   --no-backup    skip the safety copy even if space allows
 #   -h, --help     show this help
@@ -49,7 +51,7 @@ SERVICE="${PENTESTCODE_SERVICE:-pentestcode-serve}"
 HOST="127.0.0.1"
 PORT="${PENTESTCODE_PORT:-4096}"
 KEEP=3
-BATCH_MB=400
+BATCH_SESSIONS=20
 STOP_FIRST=0
 DO_BACKUP=1
 
@@ -59,14 +61,16 @@ die()  { printf '[db-maintain] ERROR: %s\n' "$*" >&2; exit 1; }
 
 human() { awk -v b="${1:-0}" 'BEGIN{split("B KB MB GB TB PB",u," ");i=1;while(b>=1024&&i<6){b/=1024;i++}printf "%.1f%s",b,u[i]}'; }
 
-usage() { sed -n '2,37p' "$0" | sed 's/^# \{0,1\}//'; }
+usage() { sed -n '2,47p' "$0" | sed 's/^# \{0,1\}//'; }
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --keep)     [ $# -ge 2 ] || die "--keep requires a number"; KEEP="$2"; shift 2 ;;
     --keep=*)   KEEP="${1#*=}"; shift ;;
-    --batch-mb) [ $# -ge 2 ] || die "--batch-mb requires a number"; BATCH_MB="$2"; shift 2 ;;
-    --batch-mb=*) BATCH_MB="${1#*=}"; shift ;;
+    --batch-sessions) [ $# -ge 2 ] || die "--batch-sessions requires a number"; BATCH_SESSIONS="$2"; shift 2 ;;
+    --batch-sessions=*) BATCH_SESSIONS="${1#*=}"; shift ;;
+    --batch-mb)   warn "--batch-mb is deprecated and ignored (batching is now by session count; use --batch-sessions)"; shift; if [ $# -ge 1 ] && [[ "$1" =~ ^[0-9]+$ ]]; then shift; fi ;;
+    --batch-mb=*) warn "--batch-mb is deprecated and ignored (batching is now by session count; use --batch-sessions)"; shift ;;
     --stop)     STOP_FIRST=1; shift ;;
     --no-backup) DO_BACKUP=0; shift ;;
     -h|--help)  usage; exit 0 ;;
@@ -75,7 +79,7 @@ while [ $# -gt 0 ]; do
 done
 
 [[ "$KEEP" =~ ^[0-9]+$ ]] && [ "$KEEP" -ge 1 ] || die "--keep must be a positive integer"
-[[ "$BATCH_MB" =~ ^[0-9]+$ ]] && [ "$BATCH_MB" -ge 1 ] || die "--batch-mb must be a positive integer"
+[[ "$BATCH_SESSIONS" =~ ^[0-9]+$ ]] && [ "$BATCH_SESSIONS" -ge 1 ] || die "--batch-sessions must be a positive integer"
 
 # --- resolve the DB path (ask the CLI, fall back to the default) -------------
 DB="$(pentestcode db path 2>/dev/null || true)"
@@ -85,10 +89,25 @@ command -v sqlite3 >/dev/null 2>&1 || die "sqlite3 not found in PATH"
 
 log "DB path: $DB"
 
-# sessions to keep = newest $KEEP by time_created (the live TUI/TG session is
-# the most recently created) UNION the $KEEP most recently updated (covers a
-# session that was resumed from an older time_created).
-KEEP_SQL="SELECT id FROM (SELECT id FROM session ORDER BY time_created DESC LIMIT $KEEP) UNION SELECT id FROM (SELECT id FROM session ORDER BY time_updated DESC LIMIT $KEEP)"
+# KEEP set = EVERY top-level session (parent_id IS NULL).  The live coordinator /
+# TUI session is typically OLD, so it falls OUTSIDE any "newest N" window and
+# would be deleted by a time-based keep-set -- keeping all parent_id-NULL rows is
+# what makes it impossible to purge the running session.  We ALSO keep the $KEEP
+# most recently updated SUBAGENT sessions (parent_id IS NOT NULL) so a recently
+# resumed child survives; every other subagent is purged.
+KEEP_SQL="SELECT id FROM session WHERE parent_id IS NULL"
+KEEP_SQL="$KEEP_SQL UNION SELECT id FROM (SELECT id FROM session WHERE parent_id IS NOT NULL ORDER BY time_updated DESC LIMIT $KEEP)"
+
+# --- SAFETY ASSERT (never purge the coordinator) ---------------------------
+# Verify the computed keep-set covers EVERY top-level (parent_id IS NULL)
+# session.  A future edit that breaks this would silently delete the live
+# coordinator session, so ABORT before any destructive step.
+TOPLEVEL_TOTAL=$(sqlite3 "$DB" "SELECT COUNT(*) FROM session WHERE parent_id IS NULL;")
+TOPLEVEL_KEPT=$(sqlite3 "$DB" "SELECT COUNT(*) FROM session WHERE parent_id IS NULL AND id IN ($KEEP_SQL);")
+if [ "$TOPLEVEL_KEPT" != "$TOPLEVEL_TOTAL" ]; then
+  die "SAFETY ASSERT FAILED: keep-set covers only $TOPLEVEL_KEPT of $TOPLEVEL_TOTAL top-level (parent_id IS NULL) sessions -- refusing to purge (this would delete the live coordinator session)."
+fi
+log "Safety assert OK: all $TOPLEVEL_TOTAL top-level session(s) are protected."
 
 port_listening() {
   if command -v ss >/dev/null 2>&1; then
@@ -209,40 +228,42 @@ fi
 log "Row counts BEFORE:"
 counts
 
-log "Keeping the $KEEP most recent session(s):"
+log "Keeping $TOPLEVEL_TOTAL top-level session(s) + the $KEEP most recent subagent(s):"
 sqlite3 -column -header "$DB" "
-  SELECT id, datetime(time_created/1000,'unixepoch','localtime') AS created
-  FROM session WHERE id IN ($KEEP_SQL) ORDER BY time_created DESC;"
+  SELECT id, datetime(time_created/1000,'unixepoch','localtime') AS created,
+         CASE WHEN parent_id IS NULL THEN 'top-level' ELSE 'subagent' END AS kind
+  FROM session WHERE id IN ($KEEP_SQL) ORDER BY (parent_id IS NOT NULL), time_created DESC;"
 
 PURGE_TSV=$(mktemp /tmp/db-maintain-purge.XXXXXX)
 trap 'rm -f "$PURGE_TSV"' EXIT
 
+# Purge candidates = SUBAGENT sessions (parent_id IS NOT NULL) not in the
+# keep-set.  NOTE: deliberately NO SUM(LENGTH(e.data)) -- that aggregate over
+# the multi-GB `event` table is pathologically slow (it scans ~all of it per
+# session) and was the cause of the apparent hang.  We select session ids only.
 sqlite3 -separator '|' "$DB" "
-  SELECT s.id, COALESCE(SUM(LENGTH(e.data)),0) AS bytes
-  FROM session s LEFT JOIN event e ON e.aggregate_id = s.id
-  WHERE s.id NOT IN ($KEEP_SQL)
-  GROUP BY s.id ORDER BY bytes ASC;" > "$PURGE_TSV"
+  SELECT id FROM session
+  WHERE parent_id IS NOT NULL AND id NOT IN ($KEEP_SQL)
+  ORDER BY time_created ASC;" > "$PURGE_TSV"
 
 TOTAL=$(wc -l < "$PURGE_TSV")
-log "Sessions to purge: $TOTAL   (batch budget: ${BATCH_MB} MiB of event payload)"
+log "Sessions to purge: $TOTAL   (batch size: ${BATCH_SESSIONS} sessions/transaction)"
 
-BUDGET_BYTES=$((BATCH_MB * 1024 * 1024))
-batch=(); batch_bytes=0; done_n=0; batch_n=0
+batch=(); done_n=0; batch_n=0
 flush_batch() {
   [ "${#batch[@]}" -eq 0 ] && return 0
   batch_n=$((batch_n + 1))
   run_batch "${batch[@]}"
   done_n=$((done_n + ${#batch[@]}))
   printf '[db-maintain]   batch %d: %d sessions (cumulative %d/%d)\n' "$batch_n" "${#batch[@]}" "$done_n" "$TOTAL"
-  batch=(); batch_bytes=0
+  batch=()
 }
-while IFS='|' read -r sid bytes; do
+while IFS='|' read -r sid _; do
   [ -z "$sid" ] && continue
-  bytes="${bytes:-0}"
-  if [ "${#batch[@]}" -gt 0 ] && [ $((batch_bytes + bytes)) -gt "$BUDGET_BYTES" ]; then
+  if [ "${#batch[@]}" -ge "$BATCH_SESSIONS" ]; then
     flush_batch
   fi
-  batch+=("$sid"); batch_bytes=$((batch_bytes + bytes))
+  batch+=("$sid")
 done < "$PURGE_TSV"
 flush_batch
 

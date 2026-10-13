@@ -56,3 +56,7 @@ Thumbs.db
 /__pycache__/
 **/__pycache__/
 *.pyc
+
+# --- Go-утилиты, собранные локально в корне репозитория ------------
+# `go build -o labvalidate ./tools/labvalidate` кладёт бинарь в корень.
+/labvalidate
