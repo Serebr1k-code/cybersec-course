@@ -12,6 +12,17 @@ useful_for:
   - "Malware analysis: снятие протекторов и обход анти-анализа"
 estimated_minutes: 6
 summary: "Подмодуль о защите кода: распаковка UPX и кастомных упаковщиков, коммерческие протекторы (VMProtect/Themida), обход анти-анализа и проверки целостности."
+lab:
+  kind: shell
+  title: 'Практика: определить протектор по секциям'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, prot]
+  check: 'grep -q ''nto{vmp_s3ct10ns_g1v3_1t_4w4y}'' found.txt'
+  hints:
+    - '`file prot` и `readelf -S prot` — смотри имена секций.'
+    - 'Секции `.vmp0`/`.vmp1` характерны для VMProtect (`.themida` — для Themida).'
+    - 'Флаг лежит в одной из нестандартных секций: `strings prot | grep nto`.'
 ---
 
 Защита кода ставит между вами и логикой программы барьеры: шифрование секций, виртуализация

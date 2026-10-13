@@ -12,6 +12,17 @@ useful_for:
   - "Malware analysis: эмуляция и трассировка"
 estimated_minutes: 6
 summary: "Подмодуль об автоматическом анализе: эмуляция (Qiling/Unicorn), DBI и taint-анализ (Triton), трассировка Intel PT и готовые рецепты символического исполнения."
+lab:
+  kind: shell
+  title: 'Практика: z3 и Unicorn'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, solve.py, emu.py]
+  check: 'grep -q ''nto{z3_4nd_un1c0rn_4ut0m4t3}'' found.txt'
+  hints:
+    - '`python3 solve.py` — SMT-солвер восстанавливает строку из ограничений.'
+    - '`python3 emu.py` — Unicorn исполняет ARM-инструкцию и достаёт ключ.'
+    - 'Любой из двух путей печатает флаг.'
 ---
 
 Автоматизация в реверсе строится на трёх китах: символическое исполнение (превратить проверку в

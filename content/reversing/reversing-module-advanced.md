@@ -13,6 +13,17 @@ useful_for:
   - "Vuln research: точная отладка сложных целей"
 estimated_minutes: 8
 summary: "Навигационный модуль по продвинутой отладке и защите кода: современные отладчики, точки наблюдения, распаковка, коммерческие протекторы и обход анти-анализа."
+lab:
+  kind: shell
+  title: 'Практика: анти-отладка и распаковка'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, adv, enc.bin, unpack.py]
+  check: 'grep -q ''nto{4nt1_d3bug_then_unp4ck}'' found.txt'
+  hints:
+    - '`objdump -d adv | grep ptrace` — вызов `ptrace(PTRACE_TRACEME,...)`.'
+    - '`strings adv` — маркер анти-отладки в секции `.note.stub`.'
+    - 'Полезная нагрузка XOR-зашифрована: `python3 unpack.py enc.bin`.'
 ---
 
 Когда бинарник упакован UPX, защищён VMProtect или Themida, отказывается отлаживаться и проверяет

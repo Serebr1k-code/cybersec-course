@@ -12,6 +12,17 @@ useful_for:
   - "Malware analysis: отладка под Windows и macOS"
 estimated_minutes: 6
 summary: "Подмодуль об отладочном инструментарии: rizin/Cutter, LLDB, Windows-отладчики (x64dbg/WinDbg), аппаратные breakpoints и watchpoints."
+lab:
+  kind: shell
+  title: 'Практика: аппаратный watchpoint в gdb'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, wp]
+  check: 'grep -q ''nto{hw_w4tchp01nt_c4tch3s_wr1t3}'' found.txt'
+  hints:
+    - '`file wp` — ELF. Отладчик: `gdb ./wp`.'
+    - 'Поставь точку на `decode`, затем watchpoint на `unlocked`.'
+    - '`gdb -batch -ex ''b decode'' -ex run -ex ''watch unlocked'' -ex continue -ex ''x/s &flagbuf'' wp`.'
 ---
 
 GDB — не единственный отладчик, и часто не лучший. Для Windows это x64dbg и WinDbg, для macOS —

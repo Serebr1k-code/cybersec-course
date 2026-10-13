@@ -1,0 +1,44 @@
+{
+  "id": "reversing-mod-symbolic-dbi",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{z3_4nd_un1c0rn_4ut0m4t3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: автоматизация анализа\n\nЕсть два пути к флагу — символический и эмуляционный.\n\n1. `python3 solve.py` — Z3 решает ограничения `f[i]^0x5a==ct[i]`.\n2. `python3 emu.py` — Unicorn эмулирует ARM-инструкцию `mov r0,#0x5a` и расшифровывает.\n\nПолученный флаг запиши в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/solve.py",
+      "text": "from z3 import *\nct = [52, 46, 53, 33, 32, 105, 5, 110, 52, 62, 5, 47, 52, 107, 57, 106, 40, 52, 5, 110, 47, 46, 106, 55, 110, 46, 105, 39]\nf = [BitVec('f%d'%i, 8) for i in range(len(ct))]\ns = Solver()\nfor i in range(len(ct)):\n    s.add(f[i] ^ 0x5a == ct[i])\n    s.add(f[i] >= 0x20, f[i] <= 0x7e)\nprint(s.check())\nm = s.model()\nprint('flag =', bytes([m[x].as_long() for x in f]).decode())\n"
+    },
+    {
+      "path": "/home/student/task/emu.py",
+      "text": "from unicorn import *\nfrom unicorn.arm_const import *\nCODE = bytes.fromhex('5a00a0e3')  # mov r0, #0x5a\nmu = Uc(UC_ARCH_ARM, UC_MODE_ARM)\nmu.mem_map(0x1000, 0x1000)\nmu.mem_write(0x1000, CODE)\nmu.emu_start(0x1000, 0x1004)\nkey = mu.reg_read(UC_ARM_REG_R0)\nct = bytes([52, 46, 53, 33, 32, 105, 5, 110, 52, 62, 5, 47, 52, 107, 57, 106, 40, 52, 5, 110, 47, 46, 106, 55, 110, 46, 105, 39])\nprint('emulated key = 0x%02x' % key)\nprint(bytes(b ^ key for b in ct).decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — интерпретатор (replay реального вывода)",
+      "cases": [
+        {
+          "match": "solve\\.py",
+          "example": "python3 solve.py",
+          "output": "sat\nflag = nto{z3_4nd_un1c0rn_4ut0m4t3}\n"
+        },
+        {
+          "match": "emu\\.py",
+          "example": "python3 emu.py",
+          "output": "emulated key = 0x5a\nnto{z3_4nd_un1c0rn_4ut0m4t3}\n"
+        }
+      ]
+    }
+  }
+}

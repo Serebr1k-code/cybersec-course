@@ -13,6 +13,17 @@ useful_for:
   - "Vuln research: понимание загрузки и релокаций"
 estimated_minutes: 8
 summary: "Навигационный модуль по форматам исполняемых файлов и механике загрузки: ELF/PE/Mach-O изнутри, секции и сегменты, компоновка, PLT/GOT и динамическое связывание."
+lab:
+  kind: shell
+  title: 'Практика: ELF, PE и Mach-O'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, prog.elf, fmt.exe, prog.macho, pe.py, macho.py]
+  check: 'grep -q ''nto{mz_4rr0w_t0_pe_fl4g}'' found.txt'
+  hints:
+    - '`file prog.elf fmt.exe prog.macho` — три разных формата.'
+    - '`xxd fmt.exe | head` — магия `MZ`; `xxd prog.macho | head` — `cffaedfe`.'
+    - 'Флаг в PE-секции `.flag` (XOR 0x33): `python3 pe.py fmt.exe`.'
 ---
 
 Программа на диске — это не просто «куча байтов». Это строго структурированный контейнер:
