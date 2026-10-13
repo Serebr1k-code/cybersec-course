@@ -1,0 +1,46 @@
+{
+  "id": "osint-dns-recon",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "github-com.mail.protection.outlook.com"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: DNS-разведка домена\n\nДомен-цель: **`github.com`**. Тебе нужно найти его **почтовый сервер** (MX) —\nэто выдаёт почтового провайдера организации.\n\n1. Запроси MX-записи: `dig github.com MX`\n2. Выпиши имя почтового сервера (полностью, без точки в конце).\n\nЗапиши его в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "dig": {
+      "help": "dig [тип] <имя> — DNS-запрос (эмуляция: вывод захвачен с реального dig)",
+      "cases": [
+        {
+          "match": "\\bmx\\b",
+          "example": "github.com MX",
+          "output": "github.com.\t\t177\tIN\tMX\t0 github-com.mail.protection.outlook.com.\n"
+        },
+        {
+          "match": "\\bns\\b",
+          "example": "github.com NS",
+          "output": "github.com.\t\t927\tIN\tNS\tdns1.p08.nsone.net.\ngithub.com.\t\t927\tIN\tNS\tdns3.p08.nsone.net.\ngithub.com.\t\t927\tIN\tNS\tns-421.awsdns-52.com.\ngithub.com.\t\t927\tIN\tNS\tns-1707.awsdns-21.co.uk.\ngithub.com.\t\t927\tIN\tNS\tdns2.p08.nsone.net.\ngithub.com.\t\t927\tIN\tNS\tdns4.p08.nsone.net.\ngithub.com.\t\t927\tIN\tNS\tns-1283.awsdns-32.org.\ngithub.com.\t\t927\tIN\tNS\tns-520.awsdns-01.net.\n"
+        },
+        {
+          "match": "\\btxt\\b",
+          "example": "github.com TXT",
+          "output": "github.com.\t\t127\tIN\tTXT\t\"MS=ms44452932\"\ngithub.com.\t\t127\tIN\tTXT\t\"google-site-verification=82Le34Flgtd15ojYhHlGF_6g72muSjamlMVThBOJpks\"\ngithub.com.\t\t127\tIN\tTXT\t\"atlassian-domain-verification=jjgw98AKv2aeoYFxiL/VFaoyPkn3undEssTRuMg6C/3Fp/iqhkV4HVV7WjYlVeF8\"\ngithub.com.\t\t127\tIN\tTXT\t\"adobe-idp-site-verification=b92c9e999aef825edc36e0a3d847d2dbad5b2fc0e05c79ddd7a16139b48ecf4b\"\ngithub.com.\t\t127\tIN\tTXT\t\"apple-domain-verification=RyQhdzTl6Z6x8ZP4\"\ngithub.com.\t\t127\tIN\tTXT\t\"shopify-verification-code=t1YPwcmvnxZyBycaCpk1MPyWoFs72o\"\ngithub.com.\t\t127\tIN\tTXT\t\"miro-verification=d2e174fdb00c71e0bcf58f8e58c3da2dd80dcfa9\"\ngithub.com.\t\t127\tIN\tTXT\t\"calendly-site-verification=at0DQARi7IZvJtXQAWhMqpmIzpvoBNF7aam5VKKxP\"\ngithub.com.\t\t127\tIN\tTXT\t\"anthropic-domain-verification-4az7qn=if8YWuRRqwLycGJDooumzHtxm\"\ngithub.com.\t\t127\tIN\tTXT\t\"loom-site-verification=f3787154f1154b7880e720a511ea664d\"\ngithub.com.\t\t127\tIN\tTXT\t\"facebook-domain-verification=39xu4jzl7roi7x0n93ldkxjiaarx50\"\ngithub.com.\t\t127\tIN\tTXT\t\"MS=6BF03E6AF5CB689E315FB6199603BABF2C88D805\"\ngithub.com.\t\t127\tIN\tTXT\t\"docusign=087098e3-3d46-47b7-9b4e-8a23028154cd\"\ngithub.com.\t\t127\tIN\tTXT\t\"TAILSCALE-xOzoDvFUzZr5YYVCQFuD\"\ngithub.com.\t\t127\tIN\tTXT\t\"krisp-domain-verification=ZlyiK7XLhnaoUQb2hpak1PLY7dFkl1WE\"\ngithub.com.\t\t127\tIN\tTXT\t\"00Dd0000000hHE0=1TBKg000000TN2r\"\ngithub.com.\t\t127\tIN\tTXT\t\"openai-domain-verification=dv-3nh33eQwdkotMIAzLrIDVZo1\"\ngithub.com.\t\t127\tIN\tTXT\t\"serval-domain-verification-ydryhj=qbkiEakpwEpTvHh5fIiCqtaue\"\ngithub.com.\t\t127\tIN\tTXT\t\"MS=ms58704441\"\ngithub.com.\t\t127\tIN\tTXT\t\"google-site-verification=UTM-3akMgubp6tQtgEuAkYNYLyYAvpTnnSrDMWoDR3o\"\ngithub.com.\t\t127\tIN\tTXT\t\"stripe-verification=f88ef17321660a01bab1660454192e014defa29ba7b8de9633c69d6b4912217f\"\ngithub.com.\t\t127\tIN\tTXT\t\"jamf-site-verification=XtaPNIYghF_e_xRDI8CjgQ\"\ngithub.com.\t\t127\tIN\tTXT\t\"cursor-domain-verification-gtfwmt=1rfLOtiTngX5QSxD5HvNKTvm3\"\ngithub.com.\t\t127\tIN\tTXT\t\"v=spf1 ip4:192.30.252.0/22 include:spf.protection.outlook.com include:_netblocks.google.com include:_netblocks2.google.com include:mail.zendesk.com include:_spf.salesforce.com include:servers.mcsv.net include:mktomail.com include:sendgrid.net ip4:62.253.2\" \"27.114 ip4:166.78.69.169 ip4:166.78.69.170 ip4:166.78.71.131 ~all\"\n"
+        },
+        {
+          "match": "\\ba\\b",
+          "example": "github.com A",
+          "output": "github.com.\t\t69\tIN\tA\t140.82.121.3\n"
+        }
+      ]
+    }
+  },
+  "workdir": "/home/student/task"
+}

@@ -13,6 +13,17 @@ useful_for:
   - "Пентест: анализ захваченного трафика"
 estimated_minutes: 50
 summary: "Повторяемый workflow анализа PCAP в CTF: инвентаризация, протоколы, объекты, скрытые каналы, восстановление и поиск флага."
+lab:
+  kind: shell
+  title: "Практика: флаг в DNS-туннеле"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, exfil.pcap]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "В дампе только DNS — значит, данные спрятаны в самих именах запросов."
+    - "Вытащи имена: `tshark -r exfil.pcap -Y 'dns.flags.response == 0' -T fields -e dns.qry.name`."
+    - "Первая метка каждого имени — base64. Собери метки по порядку и декодируй: `... | cut -d. -f1 | base64 -d`."
 ---
 ## Вопрос, с которого всё начинается
 

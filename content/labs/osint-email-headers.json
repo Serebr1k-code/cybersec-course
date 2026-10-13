@@ -1,0 +1,24 @@
+{
+  "id": "osint-email-headers",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "203.0.113.66"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор заголовков письма\n\nТебе дан файл `message.eml` — письмо, которое якобы пришло от банка.\nНужно понять, подделка это или нет, и **откуда** оно реально отправлено.\n\n1. Сравни поля отправителя:\n   `grep -iE '^(From|Return-Path|Reply-To):' message.eml`\n2. Посмотри цепочку `Received:` — каждый сервер добавляет свою строку сверху.\n   **Самая нижняя** строка `Received` — это первый внешний хост, откуда\n   пришло письмо.\n3. Выпиши **IP-адрес** этого первого внешнего сервера (он в квадратных\n   скобках, например `[203.0.113.66]`).\n\nЗапиши только IP в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/message.eml",
+      "text": "Delivered-To: victim@corp.example\nReceived: from mx.corp.example (mx.corp.example [10.20.30.40])\n\tby mail.corp.example (Postfix) with ESMTPS id 3F1A2B7C\n\tfor <victim@corp.example>; Tue, 13 May 2026 09:14:02 +0300\nReceived: from mail.evil.example (mail.evil.example [203.0.113.66])\n\tby mx.corp.example (Postfix) with ESMTP id 9C7D1144\n\tfor <victim@corp.example>; Tue, 13 May 2026 09:13:58 +0300\nAuthentication-Results: mx.corp.example;\n\tspf=fail (sender IP is 203.0.113.66) smtp.mailfrom=evil.example;\n\tdkim=none; dmarc=fail action=none header.from=sberbank.ru\nReceived-SPF: fail (mx.corp.example: domain of bounce@evil.example does not\n\tdesignate 203.0.113.66 as permitted sender)\nFrom: \"Sberbank\" <info@sberbank.ru>\nReturn-Path: <bounce@evil.example>\nReply-To: support@sberbank-secure.evil.example\nTo: victim@corp.example\nSubject: Срочно подтвердите вход в аккаунт\nDate: Tue, 13 May 2026 09:13:55 +0300\nMessage-ID: <20260513061355.9C7D1144@mail.evil.example>\nMIME-Version: 1.0\nContent-Type: text/html; charset=\"utf-8\"\n\n<html><body>\n<p>Уважаемый клиент!</p>\n<p>Зафиксирована подозрительная активность. Подтвердите вход по ссылке:</p>\n<p><a href=\"https://sberbank-secure.evil.example/login\">Войти</a></p>\n</body></html>\n"
+    }
+  ],
+  "tools": {},
+  "workdir": "/home/student/task"
+}

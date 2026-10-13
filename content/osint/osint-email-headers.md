@@ -13,6 +13,17 @@ useful_for:
   - "Расследования"
 estimated_minutes: 25
 summary: "Как читать заголовки письма: цепочка Received, IP отправителя, SPF/DKIM/DMARC, вложения, трекинг-пиксели и определение подделок."
+lab:
+  kind: shell
+  title: "Практика: разбор заголовков письма"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, message.eml]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Цепочка `Received:` идёт сверху вниз: верхняя строка — последний хоп, нижняя — первый."
+    - "`grep -n '^Received:' message.eml`."
+    - "Первый внешний хост — в самой нижней строке `Received`; его IP записан в квадратных скобках."
 ---
 
 ## Вопрос, с которого всё начинается

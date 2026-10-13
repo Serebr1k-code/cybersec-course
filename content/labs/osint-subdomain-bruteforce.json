@@ -1,0 +1,24 @@
+{
+  "id": "osint-subdomain-bruteforce",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "home.zonetransfer.me"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор результатов перебора поддоменов\n\nПеред тобой `brute.log` — результат **активного перебора** поддоменов\n`zonetransfer.me` по словарю (реальные DNS-ответы). Большинство имён не\nсуществует (`NXDOMAIN`), но несколько резолвятся.\n\nЗадача: найди поддомен, A-запись которого указывает на **loopback**\n(`127.0.0.1`). Такая запись — ошибка конфигурации: имя резолвится в локальный\nадрес, что бывает предпосылкой для SSRF и странного поведения прокси.\n\n1. Посмотри лог: `cat brute.log`\n2. Отбрось несуществующие имена: `grep -v NXDOMAIN brute.log`\n3. Найди строку с адресом `127.0.0.1`.\n\nЗапиши полное имя поддомена (например, `foo.zonetransfer.me`) в `answer.txt`\nи набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/brute.log",
+      "text": "# Перебор поддоменов zonetransfer.me (A/CNAME), дата: 2026-05-14\nwww.zonetransfer.me      A=[5.196.105.14 ] CNAME=[]\nmail.zonetransfer.me     NXDOMAIN\nvpn.zonetransfer.me      A=[174.36.59.154 ] CNAME=[]\noffice.zonetransfer.me   A=[4.23.39.254 ] CNAME=[]\nowa.zonetransfer.me      A=[207.46.197.32 ] CNAME=[]\nemail.zonetransfer.me    A=[74.125.206.26 ] CNAME=[]\nhome.zonetransfer.me     A=[127.0.0.1 ] CNAME=[]\ntesting.zonetransfer.me  A=[www.zonetransfer.me. 5.196.105.14 ] CNAME=[www.zonetransfer.me. ]\nstaging.zonetransfer.me  A=[www.sydneyoperahouse.com. dc8smvz8l4jlg.cloudfront.net. 13.249.8.19 13.249.8.95 13.249.8.52 13.249.8.117 ] CNAME=[www.sydneyoperahouse.com. ]\napi.zonetransfer.me      NXDOMAIN\ndev.zonetransfer.me      NXDOMAIN\nadmin.zonetransfer.me    NXDOMAIN\nportal.zonetransfer.me   NXDOMAIN\ngit.zonetransfer.me      NXDOMAIN\njenkins.zonetransfer.me  NXDOMAIN\ndb.zonetransfer.me       NXDOMAIN\nsql.zonetransfer.me      NXDOMAIN\ninternal.zonetransfer.me NXDOMAIN\nintranet.zonetransfer.me NXDOMAIN\nftp.zonetransfer.me      NXDOMAIN\nsso.zonetransfer.me      NXDOMAIN\ncrm.zonetransfer.me      NXDOMAIN\nblog.zonetransfer.me     NXDOMAIN\nshop.zonetransfer.me     NXDOMAIN\ncdn.zonetransfer.me      NXDOMAIN\nstatic.zonetransfer.me   NXDOMAIN\ntest.zonetransfer.me     NXDOMAIN\ndemo.zonetransfer.me     NXDOMAIN\nmonitor.zonetransfer.me  NXDOMAIN\nremote.zonetransfer.me   NXDOMAIN\n"
+    }
+  ],
+  "tools": {},
+  "workdir": "/home/student/task"
+}

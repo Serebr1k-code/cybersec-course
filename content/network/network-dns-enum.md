@@ -13,6 +13,17 @@ useful_for:
   - "Работа (SOC): детект перечисления"
 estimated_minutes: 55
 summary: "Как перечислять DNS: zone transfer (AXFR), брутфорс поддоменов, обратный брутфорс, типовые SRV/поддомены и инструменты (dig, dnsx, gobuster, dnsrecon) — с командами и разбором."
+lab:
+  kind: shell
+  title: "Практика: DNS-перечисление домена"
+  toolset: [core, dig]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'com' answer.txt"
+  hints:
+    - "NS-записи показывают, какой DNS-провайдер обслуживает домен."
+    - "`dig example.com NS` вернёт серверы имён."
+    - "Провайдер — общий суффикс имён NS (например, для `ns1.foo.net` это `foo.net`)."
 ---
 
 ## Вопрос, с которого всё начинается

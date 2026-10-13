@@ -1,0 +1,56 @@
+{
+  "id": "network-pcap-analysis",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "hunter2"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти учётные данные в дампе\n\nТебе дан дамп `capture.pcap` с веб-обменом к внутреннему сайту\n`intranet.lab`. Пользователь где-то вводил логин и пароль.\n\n1. Посмотри обзор дампа: `tshark -r capture.pcap -q -z io,phs`\n2. Собери запросы: `tshark -r capture.pcap -Y http -T fields -e frame.number -e http.request.method -e http.request.uri`\n3. Прочитай HTTP-сессию целиком в ASCII: `tshark -r capture.pcap -z follow,tcp,ascii,0`\n4. Найди **пароль**, который пользователь отправил формой на `/login`.\n\nЗапиши пароль в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/capture.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAqe/NaoPTAAA2AAAANgAAAAJCCg0lUAJCCg0lDwgARQAAKAABAABABhxXCg0lDwoNJVCgKABQAAAD6AAAAABQAiAAjQkAAKnvzWoT1QAANgAAADYAAAACQgoNJQ8CQgoNJVAIAEUAACgAAQAAQAYcVwoNJVAKDSUPAFCgKAAAE4gAAAPpUBIgAHlwAACp781q0dUAADYAAAA2AAAAAkIKDSVQAkIKDSUPCABFAAAoAAEAAEAGHFcKDSUPCg0lUKAoAFAAAAPpAAATiVAQIAB5cQAAqe/NaozWAACBAAAAgQAAAAJCCg0lUAJCCg0lDwgARQAAcwABAABABhwMCg0lDwoNJVCgKABQAAAD6QAAE4lQGCAAUZYAAEdFVCAvIEhUVFAvMS4xDQpIb3N0OiBpbnRyYW5ldC5sYWINClVzZXItQWdlbnQ6IGN1cmwvOC41LjANCkFjY2VwdDogKi8qDQoNCqnvzWrC1wAAtAAAALQAAAACQgoNJQ8CQgoNJVAIAEUAAKYAAQAAQAYb2QoNJVAKDSUPAFCgKAAAE4kAAAQ0UBggABVSAABIVFRQLzEuMSAyMDAgT0sNClNlcnZlcjogbmdpbngvMS4xOC4wDQpDb250ZW50LVR5cGU6IHRleHQvaHRtbA0KQ29udGVudC1MZW5ndGg6IDM0DQoNCjxodG1sPjxib2R5PkludHJhbmV0IGxvZ2luPC9ib2R5PjwvaHRtbD6p781q4tgAADYAAAA2AAAAAkIKDSVQAkIKDSUPCABFAAAoAAEAAEAGHFcKDSUPCg0lUKAoAFAAAAQ0AAAUB1AQIAB4qAAAqe/NapzZAADGAAAAxgAAAAJCCg0lUAJCCg0lDwgARQAAuAABAABABhvHCg0lDwoNJVCgKABQAAAENAAAFAdQGCAATp4AAFBPU1QgL2xvZ2luIEhUVFAvMS4xDQpIb3N0OiBpbnRyYW5ldC5sYWINCkNvbnRlbnQtVHlwZTogYXBwbGljYXRpb24veC13d3ctZm9ybS11cmxlbmNvZGVkDQpDb250ZW50LUxlbmd0aDogMzENCg0KdXNlcm5hbWU9YWRtaW4mcGFzc3dvcmQ9aHVudGVyMqnvzWrs2gAAuAAAALgAAAACQgoNJQ8CQgoNJVAIAEUAAKoAAQAAQAYb1QoNJVAKDSUPAFCgKAAAFAcAAATEUBggANM4AABIVFRQLzEuMSAzMDIgRm91bmQNClNlcnZlcjogbmdpbngvMS4xOC4wDQpMb2NhdGlvbjogL2Rhc2hib2FyZA0KU2V0LUNvb2tpZTogc2Vzc2lvbj1udG97cGNhcF9kMG50X2wxM18yX20zfQ0KQ29udGVudC1MZW5ndGg6IDANCg0Kqe/Nal7cAABIAAAASAAAAAJCCg0lUwJCCg0lDwgARQAAOgABAABAERxVCg0lDwoNJTXPCAA1ACYl6RERAQAAAQAAAAAAAAhpbnRyYW5ldANsYWIAAAEAAanvzWow3gAAZAAAAGQAAAACQgoNJQ8CQgoNJVMIAEUAAFYAAQAAQBEcOQoNJTUKDSUPADXPCABCi+IREYGAAAEAAQAAAAAIaW50cmFuZXQDbGFiAAABAAEIaW50cmFuZXQDbGFiAAABAAEAAAA8AAR/AAABqe/Nan3gAABHAAAARwAAAAJCCg0lUwJCCg0lDwgARQAAOQABAABAERxWCg0lDwoNJTXPCQA1ACUJVSIiAQAAAQAAAAAAAAd1cGRhdGVzA2xhYgAAAQABqe/NanjiAABiAAAAYgAAAAJCCg0lDwJCCg0lUwgARQAAVAABAABAERw7Cg0lNQoNJQ8ANc8JAEB5tiIigYAAAQABAAAAAAd1cGRhdGVzA2xhYgAAAQABB3VwZGF0ZXMDbGFiAAABAAEAAAA8AAR/AAAB",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [фильтр] — анализ трафика (эмуляция: вывод захвачен с реального tshark)",
+      "cases": [
+        {
+          "match": "follow",
+          "example": "-r capture.pcap -z follow,tcp,ascii,0",
+          "output": "    1   0.000000  10.13.37.15 → 10.13.37.80  TCP 54 41000 → 80 [SYN] Seq=0 Win=8192 Len=0\n    2   0.000400  10.13.37.80 → 10.13.37.15  TCP 54 80 → 41000 [SYN, ACK] Seq=0 Ack=1 Win=8192 Len=0\n    3   0.000590  10.13.37.15 → 10.13.37.80  TCP 54 41000 → 80 [ACK] Seq=1 Ack=1 Win=8192 Len=0\n    4   0.000777  10.13.37.15 → 10.13.37.80  HTTP 129 GET / HTTP/1.1 \n    5   0.001087  10.13.37.80 → 10.13.37.15  HTTP 180 HTTP/1.1 200 OK  (text/html)\n    6   0.001375  10.13.37.15 → 10.13.37.80  TCP 54 41000 → 80 [ACK] Seq=76 Ack=127 Win=8192 Len=0\n    7   0.001561  10.13.37.15 → 10.13.37.80  HTTP 198 POST /login HTTP/1.1  (application/x-www-form-urlencoded)\n    8   0.001897  10.13.37.80 → 10.13.37.15  HTTP 184 Continuation\n    9   0.002267  10.13.37.15 → 10.13.37.53  DNS 72 Standard query 0x1111 A intranet.lab\n   10   0.002733  10.13.37.53 → 10.13.37.15  DNS 100 Standard query response 0x1111 A intranet.lab A 127.0.0.1\n   11   0.003322  10.13.37.15 → 10.13.37.53  DNS 71 Standard query 0x2222 A updates.lab\n   12   0.003829  10.13.37.53 → 10.13.37.15  DNS 98 Standard query response 0x2222 A updates.lab A 127.0.0.1\n\n===================================================================\nFollow: tcp,ascii\nFilter: tcp.stream eq 0\nNode 0: 10.13.37.15:41000\nNode 1: 10.13.37.80:80\n75\nGET / HTTP/1.1\nHost: intranet.lab\nUser-Agent: curl/8.5.0\nAccept: */*\n\n\n\t126\nHTTP/1.1 200 OK\nServer: nginx/1.18.0\nContent-Type: text/html\nContent-Length: 34\n\n<html><body>Intranet login</body></html>\n144\nPOST /login HTTP/1.1\nHost: intranet.lab\nContent-Type: application/x-www-form-urlencoded\nContent-Length: 31\n\nusername=admin&password=hunter2\n\t130\nHTTP/1.1 302 Found\nServer: nginx/1.18.0\nLocation: /dashboard\nSet-Cookie: session=nto{pcap_d0nt_l13_2_m3}\nContent-Length: 0\n\n\n===================================================================\n"
+        },
+        {
+          "match": "io,?phs",
+          "example": "-r capture.pcap -q -z io,phs",
+          "output": "\n===================================================================\nProtocol Hierarchy Statistics\nFilter: \n\nframe                                    frames:12 bytes:1248\n  eth                                    frames:12 bytes:1248\n    ip                                   frames:12 bytes:1248\n      tcp                                frames:8 bytes:907\n        http                             frames:4 bytes:691\n          data-text-lines                frames:1 bytes:180\n          urlencoded-form                frames:1 bytes:198\n      udp                                frames:4 bytes:341\n        dns                              frames:4 bytes:341\n===================================================================\n"
+        },
+        {
+          "match": "dns",
+          "example": "-r capture.pcap -Y dns -T fields -e dns.qry.name",
+          "output": "intranet.lab\nintranet.lab\nupdates.lab\nupdates.lab\n"
+        },
+        {
+          "match": "http",
+          "example": "-r capture.pcap -Y http -T fields -e http.request.method",
+          "output": "4\t10.13.37.15\tGET\t/\n5\t10.13.37.80\t\t/\n7\t10.13.37.15\tPOST\t/login\n8\t10.13.37.80\t\t\n"
+        },
+        {
+          "match": "capture\\.pcap",
+          "example": "-r capture.pcap",
+          "output": "    1   0.000000  10.13.37.15 → 10.13.37.80  TCP 54 41000 → 80 [SYN] Seq=0 Win=8192 Len=0\n    2   0.000400  10.13.37.80 → 10.13.37.15  TCP 54 80 → 41000 [SYN, ACK] Seq=0 Ack=1 Win=8192 Len=0\n    3   0.000590  10.13.37.15 → 10.13.37.80  TCP 54 41000 → 80 [ACK] Seq=1 Ack=1 Win=8192 Len=0\n    4   0.000777  10.13.37.15 → 10.13.37.80  HTTP 129 GET / HTTP/1.1 \n    5   0.001087  10.13.37.80 → 10.13.37.15  HTTP 180 HTTP/1.1 200 OK  (text/html)\n    6   0.001375  10.13.37.15 → 10.13.37.80  TCP 54 41000 → 80 [ACK] Seq=76 Ack=127 Win=8192 Len=0\n    7   0.001561  10.13.37.15 → 10.13.37.80  HTTP 198 POST /login HTTP/1.1  (application/x-www-form-urlencoded)\n    8   0.001897  10.13.37.80 → 10.13.37.15  HTTP 184 Continuation\n    9   0.002267  10.13.37.15 → 10.13.37.53  DNS 72 Standard query 0x1111 A intranet.lab\n   10   0.002733  10.13.37.53 → 10.13.37.15  DNS 100 Standard query response 0x1111 A intranet.lab A 127.0.0.1\n   11   0.003322  10.13.37.15 → 10.13.37.53  DNS 71 Standard query 0x2222 A updates.lab\n   12   0.003829  10.13.37.53 → 10.13.37.15  DNS 98 Standard query response 0x2222 A updates.lab A 127.0.0.1\n"
+        }
+      ]
+    }
+  },
+  "workdir": "/home/student/task"
+}

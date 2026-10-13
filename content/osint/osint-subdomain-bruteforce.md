@@ -13,6 +13,17 @@ useful_for:
   - "Картирование инфраструктуры"
 estimated_minutes: 40
 summary: "Перебор поддоменов: пассивные и активные методы, инструменты amass/subfinder/puredns/massdns/dnsx, словари, валидация и wildcard, permutations и vhost."
+lab:
+  kind: shell
+  title: "Практика: разбор перебора поддоменов"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, brute.log]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Сначала отбрось несуществующие имена: `grep -v NXDOMAIN brute.log`."
+    - "Смотри на колонку A — там IP-адреса резолвнувшихся имён."
+    - "Ищи адрес `127.0.0.1` — он указывает на loopback."
 ---
 
 ## Вопрос, с которого всё начинается

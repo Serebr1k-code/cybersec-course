@@ -1,0 +1,46 @@
+{
+  "id": "network-portscan",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "21,22,80"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: какие порты открыты на хосте\n\nХост-цель: **`scanme.nmap.org`**. Нужно понять, какие TCP-порты в диапазоне\n**1–1000** отвечают (открыты).\n\n1. Просканируй диапазон: `nmap -Pn -p 1-1000 scanme.nmap.org`\n2. Найди строки со статусом `open` и выпиши номера этих портов\n   **в порядке возрастания через запятую без пробелов** (например, `1,2,3`).\n\nЗапиши результат в `answer.txt` и набери `check`.\n\nПодсказка: `grep open` по выводу скана, затем `cut`/`sort`.\n"
+    }
+  ],
+  "tools": {
+    "nmap": {
+      "help": "nmap [опции] <цель> — сканер портов/сервисов (эмуляция: вывод захвачен с реального nmap)",
+      "cases": [
+        {
+          "match": "1\\-1000",
+          "example": "-Pn -p 1-1000 scanme.nmap.org",
+          "output": "# Nmap 7.99 scan initiated Tue Oct 13 11:43:04 2026 as: nmap -Pn -T4 -p 1-1000 -oN nmap_ports.txt scanme.nmap.org\nNmap scan report for scanme.nmap.org (45.33.32.156)\nHost is up (0.21s latency).\nOther addresses for scanme.nmap.org (not scanned): 2600:3c01::f03c:91ff:fe18:bb2f\nNot shown: 997 closed tcp ports (conn-refused)\nPORT   STATE SERVICE\n21/tcp open  ftp\n22/tcp open  ssh\n80/tcp open  http\n\n# Nmap done at Tue Oct 13 11:43:23 2026 -- 1 IP address (1 host up) scanned in 19.59 seconds\n",
+          "writes": [
+            "-oN",
+            "-oG",
+            "-oX"
+          ]
+        },
+        {
+          "match": "\\-sV",
+          "example": "-sV scanme.nmap.org",
+          "output": "# Nmap 7.99 scan initiated Tue Oct 13 11:43:30 2026 as: nmap -sV --version-light -Pn -T4 -p 21,22,80 -oN nmap_sv.txt scanme.nmap.org\nNmap scan report for scanme.nmap.org (45.33.32.156)\nHost is up (0.054s latency).\nOther addresses for scanme.nmap.org (not scanned): 2600:3c01::f03c:91ff:fe18:bb2f\n\nPORT   STATE SERVICE    VERSION\n21/tcp open  tcpwrapped\n22/tcp open  ssh        OpenSSH 6.6.1p1 Ubuntu 2ubuntu2.13 (Ubuntu Linux; protocol 2.0)\n80/tcp open  http       Apache httpd 2.4.7 ((Ubuntu))\nService Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel\n\nService detection performed. Please report any incorrect results at https://nmap.org/submit/ .\n# Nmap done at Tue Oct 13 11:43:39 2026 -- 1 IP address (1 host up) scanned in 9.47 seconds\n",
+          "writes": [
+            "-oN",
+            "-oG",
+            "-oX"
+          ]
+        }
+      ]
+    }
+  },
+  "workdir": "/home/student/task"
+}

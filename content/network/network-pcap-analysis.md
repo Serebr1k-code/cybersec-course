@@ -13,6 +13,17 @@ useful_for:
   - "Расследование сетевых инцидентов"
 estimated_minutes: 50
 summary: "Пошаговый разбор PCAP: чек-лист анализа, извлечение файлов, поиск учётных данных, выявление скрытых каналов и автоматизация."
+lab:
+  kind: shell
+  title: "Практика: разбор PCAP, поиск учётных данных"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, capture.pcap]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Начни с обзора протоколов: `tshark -r capture.pcap -q -z io,phs`."
+    - "Список HTTP-запросов: `-Y http -T fields -e http.request.method -e http.request.uri`."
+    - "Прочитай сессию целиком в ASCII: `-z follow,tcp,ascii,0` — там видна форма логина."
 ---
 ## Вопрос, с которого всё начинается
 

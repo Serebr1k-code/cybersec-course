@@ -13,6 +13,17 @@ useful_for:
   - "Пентест: инвентаризация сервисов"
 estimated_minutes: 45
 summary: "Типы TCP/UDP-сканов, синтаксис nmap, определение версий, NSE-скрипты и высокоскоростной masscan."
+lab:
+  kind: shell
+  title: "Практика: сканирование портов"
+  toolset: [core, nmap]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Скан диапазона: `nmap -Pn -p 1-1000 scanme.nmap.org`."
+    - "Оставь только открытые порты: `grep open` по выводу скана."
+    - "Выпиши номера портов по возрастанию через запятую без пробелов (формат `21,22,80`)."
 ---
 ## Вопрос, с которого всё начинается
 

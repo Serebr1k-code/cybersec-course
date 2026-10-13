@@ -1,0 +1,41 @@
+{
+  "id": "network-dns-enum",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "cloudflare.com"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: DNS-перечисление домена\n\nДомен-цель: **`example.com`**. Зонная передача (AXFR) закрыта, поэтому\nсобираем открытые записи.\n\nЗадача: определи, какой **DNS-провайдер** обслуживает домен. Имя провайдера\nвидно по NS-записям (например, если NS — `ns1.dns-provider.net`, провайдер\nэто `dns-provider.net`).\n\n1. Запроси NS-записи: `dig example.com NS`\n2. Выпиши **доменное имя провайдера** (без `ns1.`/`ns2.` и без точек в конце).\n\nЗапиши его в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "dig": {
+      "help": "dig [тип] <имя> — DNS-запрос (эмуляция: вывод захвачен с реального dig)",
+      "cases": [
+        {
+          "match": "\\bns\\b",
+          "example": "example.com NS",
+          "output": "example.com.\t\t4219\tIN\tNS\telliott.ns.cloudflare.com.\nexample.com.\t\t4219\tIN\tNS\thera.ns.cloudflare.com.\n"
+        },
+        {
+          "match": "\\bmx\\b",
+          "example": "example.com MX",
+          "output": "example.com.\t\t94\tIN\tMX\t0 .\n"
+        },
+        {
+          "match": "\\btxt\\b",
+          "example": "example.com TXT",
+          "output": "example.com.\t\t94\tIN\tTXT\t\"v=spf1 -all\"\nexample.com.\t\t94\tIN\tTXT\t\"_k2n1y4vw3qtb4skdx9e7dxt97qrmmq9\"\n"
+        }
+      ]
+    }
+  },
+  "workdir": "/home/student/task"
+}

@@ -1,0 +1,36 @@
+{
+  "id": "osint-dmarc-analysis",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "reject"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: политика DMARC домена\n\nДомен-цель: **`example.com`**. DMARC — это политика, что делать с письмами,\nне прошедшими SPF/DKIM. Она лежит в TXT-записи `_dmarc.<домен>`.\n\n1. Запроси: `dig _dmarc.example.com TXT`\n2. Найди параметр `p=` — это и есть политика домена.\n\nЗапиши **значение политики** (`none`, `quarantine` или `reject`) в\n`answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "dig": {
+      "help": "dig [тип] <имя> — DNS-запрос (эмуляция: вывод захвачен с реального dig)",
+      "cases": [
+        {
+          "match": "dmarc",
+          "example": "_dmarc.example.com TXT",
+          "output": "_dmarc.example.com.\t95\tIN\tTXT\t\"v=DMARC1;p=reject;sp=reject;adkim=s;aspf=s\"\n"
+        },
+        {
+          "match": "\\btxt\\b",
+          "example": "example.com TXT",
+          "output": "example.com.\t\t94\tIN\tTXT\t\"v=spf1 -all\"\nexample.com.\t\t94\tIN\tTXT\t\"_k2n1y4vw3qtb4skdx9e7dxt97qrmmq9\"\n"
+        }
+      ]
+    }
+  },
+  "workdir": "/home/student/task"
+}

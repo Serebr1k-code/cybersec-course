@@ -12,6 +12,17 @@ useful_for:
   - "Blue team: приоритизация алертов"
 estimated_minutes: 52
 summary: "Что такое IOC, как обогащать индикаторы (IP/домен/хэш/email) через сервисы, пивотинг на связанные сущности и оценка уверенности."
+lab:
+  kind: shell
+  title: "Практика: обогащение индикаторов (IOC)"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, report.txt]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Разделы отчёта помечены заголовками в квадратных скобках."
+    - "`cat report.txt` или `grep -n 'Домены' report.txt`."
+    - "C2 — сервер управления; в отчёте он помечен как `command-and-control`."
 ---
 
 ## Вопрос, с которого всё начинается

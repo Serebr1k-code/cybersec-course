@@ -1,0 +1,36 @@
+{
+  "id": "osint-zone-transfer",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "www.sydneyoperahouse.com"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: трансфер зоны (AXFR)\n\nДомен-цель: **`zonetransfer.me`** — учебный домен, у которого зонная передача\n(AXFR) намеренно оставлена открытой. Забери всю зону одним запросом и найди\nв ней подозрительные записи.\n\n1. Найди авторитетные серверы: `dig zonetransfer.me NS`\n2. Запроси зону целиком: `dig AXFR zonetransfer.me @nsztm1.digi.ninja`\n3. Найди поддомен **`staging`** и его запись **CNAME**. Куда он указывает?\n   То, что staging «смотрит» на чужой домен, — классический признак\n   неаккуратной конфигурации (и потенциального захвата).\n\nЗапиши целевое имя CNAME (без завершающей точки) в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "dig": {
+      "help": "dig [тип] <имя> — DNS-запрос (эмуляция: вывод захвачен с реального dig)",
+      "cases": [
+        {
+          "match": "axfr",
+          "example": "AXFR zonetransfer.me @nsztm1.digi.ninja",
+          "output": "\n; <<>> DiG 9.20.22 <<>> AXFR zonetransfer.me @nsztm1.digi.ninja\n;; global options: +cmd\nzonetransfer.me.\t7200\tIN\tSOA\tnsztm1.digi.ninja. robin.digi.ninja. 2019100801 172800 900 1209600 3600\nzonetransfer.me.\t7200\tIN\tDNSKEY\t256 3 7 AwEAAapoL+InQBYx2oi3dI424+dEDFgnVW0cOINfCY3jLrngZxBsEur8 ByhMOQsxoIOYu/7b3c8tj2BwlQquqxZe79QHSW78fK7D+bP/8AosnBG5 K5gJXEvphEtJ9x8/X0Y971XaW9lLmtJ6h4AXsrbgTr2g9KOiPSIbvDPM W8qLMaQkTm89hvPc+NuzrOEOPNhoXs/iPM+SQzrvTBfr6y0w2yPtYYdW I1kN76OQBxh0xjIdlyT0QKiohKq2bybPROJO7K3NlDc8oaOZoXH5/RfL DQzxzXyYSV8fLwimUeulo7YA11I/AHQ7DsUsFu2S2vxGCyR8nmx9gYbN 4sBvTF2i5eM=\nzonetransfer.me.\t301\tIN\tTXT\t\"google-site-verification=tyP28J7JAUHA9fw2sHXMgcCC0I6XBmmoVi04VlMewxA\"\nzonetransfer.me.\t7200\tIN\tMX\t0 ASPMX.L.GOOGLE.COM.\nzonetransfer.me.\t7200\tIN\tMX\t10 ALT1.ASPMX.L.GOOGLE.COM.\nzonetransfer.me.\t7200\tIN\tMX\t10 ALT2.ASPMX.L.GOOGLE.COM.\nzonetransfer.me.\t7200\tIN\tMX\t20 ASPMX2.GOOGLEMAIL.COM.\nzonetransfer.me.\t7200\tIN\tMX\t20 ASPMX3.GOOGLEMAIL.COM.\nzonetransfer.me.\t7200\tIN\tMX\t20 ASPMX4.GOOGLEMAIL.COM.\nzonetransfer.me.\t7200\tIN\tMX\t20 ASPMX5.GOOGLEMAIL.COM.\nzonetransfer.me.\t7200\tIN\tA\t5.196.105.14\nzonetransfer.me.\t7200\tIN\tNS\tnsztm1.digi.ninja.\nzonetransfer.me.\t7200\tIN\tNS\tnsztm2.digi.ninja.\nzonetransfer.me.\t7200\tIN\tCERT\tPKIX 0 0 MIIDvTCCAqUCFHh5BGzOrlYrXo5h90ipm0aDUEz9MA0GCSqGSIb3DQEB CwUAMIGaMQswCQYDVQQGEwJHQjEYMBYGA1UECAwPU291dGggWW9ya3No aXJlMRIwEAYDVQQHDAlTaGVmZmllbGQxEjAQBgNVBAoMCURpZ2luaW5q YTEQMA4GA1UECwwHSGFja2luZzEYMBYGA1UEAwwPem9uZXRyYW5zZmVy Lm1lMR0wGwYJKoZIhvcNAQkBFg56dG1AZGlnaS5uaW5qYTAeFw0yNTA3 MDIxMzU1MTNaFw0yNjA3MDIxMzU1MTNaMIGaMQswCQYDVQQGEwJHQjEY MBYGA1UECAwPU291dGggWW9ya3NoaXJlMRIwEAYDVQQHDAlTaGVmZmll bGQxEjAQBgNVBAoMCURpZ2luaW5qYTEQMA4GA1UECwwHSGFja2luZzEY MBYGA1UEAwwPem9uZXRyYW5zZmVyLm1lMR0wGwYJKoZIhvcNAQkBFg56 dG1AZGlnaS5uaW5qYTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoC ggEBALzYVM9WlBqOKU1lmnKJkKdIEZOhkscHQktEJORXCismSWV3Ffbs Lw7D3sfCc0h9ecZglsYvFUmEM0I0noYtuHPAlF2+FotVuoFrYuMYrEQo Zs4kuORIEx8pwHMZQUSM6KwVVLIB/FE956GfovgxGxWs33QaTKATAVCh D9KTLf6wVh/eC+0GI6mbvGvjqZFmmV/SYmmkdqEBWB7q3+SByfVrUohC A2GO30dwk6vUBtIj+J+i4SzKzLXIvFEfbCirMPQvdflgwPbjwp+cWG7o UBvfQZfZbaTp+9+V8FoBl0f8fGj/Mae1n0rSV5hnuXot8d3PAoAWQtW3 HJUv1nEboAMCAwEAATANBgkqhkiG9w0BAQsFAAOCAQEAXop6ftpV2/r7 tkXqFCsMwub7ZBd12U14nsBon+X7K5Nr6obrVAtnWO+XwD8x2UgvYIQB uRLK9LOX6VYoiWMVrItIN8KRSsin5eJe4tzewsNGrVtkVbbKULViCeBt DgmImk8rkZeWU1uNOsq0t/wd3GUZe2CM9DpKVhPFhc9Uq3pYbAsidYlp SApuuj8ka3L+VruzJVwveyKTUkWAsN1iSv7BGgEF0039WW3IEv1ZP81c AdWFy1fx+tuteM6Iz5xkx1tp0/eLtb39cnKFQnrs8itDG2j3yBc3CClY mw4NNU2nODN4COt7uzXBez6iIFSNqQjVyFyomtPn4ae0cYRHEw==\nzonetransfer.me.\t300\tIN\tHINFO\t\"Casio fx-700G\" \"Windows XP\"\n_acme-challenge.zonetransfer.me. 301 IN\tTXT\t\"6Oa05hbUJ9xSsvYy7pApQvwCUSSGgxvrbdizjePEsZI\"\n_sip._tcp.zonetransfer.me. 14000 IN\tSRV\t0 0 5060 www.zonetransfer.me.\n14.105.196.5.IN-ADDR.ARPA.zonetransfer.me. 7200\tIN PTR www.zonetransfer.me.\nasfdbauthdns.zonetransfer.me. 7900 IN\tAFSDB\t1 asfdbbox.zonetransfer.me.\nasfdbbox.zonetransfer.me. 7200\tIN\tA\t127.0.0.1\nasfdbvolume.zonetransfer.me. 7800 IN\tAFSDB\t1 asfdbbox.zonetransfer.me.\ncanberra-office.zonetransfer.me. 7200 IN A\t202.14.81.230\ncmdexec.zonetransfer.me. 300\tIN\tTXT\t\"; ls\"\ncontact.zonetransfer.me. 2592000 IN\tTXT\t\"Remember to call or email Pippa on +44 123 4567890 or pippa@zonetransfer.me when making DNS changes\"\ndc-office.zonetransfer.me. 7200\tIN\tA\t143.228.181.132\ndeadbeef.zonetransfer.me. 7201\tIN\tAAAA\tdead:beaf::\ndr.zonetransfer.me.\t300\tIN\tLOC\t53 20 56.558 N 1 38 33.526 W 0.00m 1m 10000m 10m\nDZC.zonetransfer.me.\t7200\tIN\tTXT\t\"AbCdEfG\"\nemail.zonetransfer.me.\t2222\tIN\tNAPTR\t1 1 \"P\" \"E2U+email\" \"\" email.zonetransfer.me.zonetransfer.me.\nemail.zonetransfer.me.\t7200\tIN\tA\t74.125.206.26\nHello.zonetransfer.me.\t7200\tIN\tTXT\t\"Hi to Josh and all his class\"\nhome.zonetransfer.me.\t7200\tIN\tA\t127.0.0.1\nInfo.zonetransfer.me.\t7200\tIN\tTXT\t\"ZoneTransfer.me service provided by Robin Wood - robin@digi.ninja. See http://digi.ninja/projects/zonetransferme.php for more information.\"\ninternal.zonetransfer.me. 300\tIN\tNS\tintns1.zonetransfer.me.\ninternal.zonetransfer.me. 300\tIN\tNS\tintns2.zonetransfer.me.\nintns1.zonetransfer.me.\t300\tIN\tA\t81.4.108.41\nintns2.zonetransfer.me.\t300\tIN\tA\t5.196.105.10\noffice.zonetransfer.me.\t7200\tIN\tA\t4.23.39.254\nipv6actnow.org.zonetransfer.me.\t7200 IN\tAAAA\t2001:67c:2e8:11::c100:1332\nowa.zonetransfer.me.\t7200\tIN\tA\t207.46.197.32\nrobinwood.zonetransfer.me. 302\tIN\tTXT\t\"Robin Wood\"\nrp.zonetransfer.me.\t321\tIN\tRP\trobin.zonetransfer.me. robinwood.zonetransfer.me.\nsip.zonetransfer.me.\t3333\tIN\tNAPTR\t2 3 \"P\" \"E2U+sip\" \"!^.*$!sip:customer-service@zonetransfer.me!\" .\nsqli.zonetransfer.me.\t300\tIN\tTXT\t\"' or 1=1 --\"\nsshock.zonetransfer.me.\t7200\tIN\tTXT\t\"() { :]}; echo ShellShocked\"\nstaging.zonetransfer.me. 7200\tIN\tCNAME\twww.sydneyoperahouse.com.\nalltcpportsopen.firewall.test.zonetransfer.me. 301 IN A\t127.0.0.1\ntesting.zonetransfer.me. 301\tIN\tCNAME\twww.zonetransfer.me.\nvpn.zonetransfer.me.\t4000\tIN\tA\t174.36.59.154\nwww.zonetransfer.me.\t7200\tIN\tA\t5.196.105.14\nxss.zonetransfer.me.\t300\tIN\tTXT\t\"'><script>alert('Boo')</script>\"\nzonetransfer.me.\t7200\tIN\tSOA\tnsztm1.digi.ninja. robin.digi.ninja. 2019100801 172800 900 1209600 3600\n;; Query time: 68 msec\n;; SERVER: 81.4.108.41#53(nsztm1.digi.ninja) (TCP)\n;; WHEN: Tue Oct 13 12:00:05 MSK 2026\n;; XFR size: 52 records (messages 1, bytes 3339)\n\n"
+        },
+        {
+          "match": "\\bns\\b",
+          "example": "zonetransfer.me NS",
+          "output": "zonetransfer.me.\t4479\tIN\tNS\tnsztm1.digi.ninja.\nzonetransfer.me.\t4479\tIN\tNS\tnsztm2.digi.ninja.\n"
+        }
+      ]
+    }
+  },
+  "workdir": "/home/student/task"
+}

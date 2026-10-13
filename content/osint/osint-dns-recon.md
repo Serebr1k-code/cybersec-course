@@ -12,6 +12,17 @@ useful_for:
   - "CTF-задачи с поддоменами и записями"
 estimated_minutes: 45
 summary: "Типы DNS-записей, пассивный и активный сбор поддоменов, разбор dig/host/nslookup, реверс DNS."
+lab:
+  kind: shell
+  title: "Практика: DNS-разведка домена"
+  toolset: [core, dig]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "MX-запись указывает на почтовый сервер домена."
+    - "`dig github.com MX`."
+    - "Имя сервера содержит домен почтового провайдера (например, `...mail.protection.outlook.com`)."
 ---
 
 ## Вопрос, с которого всё начинается

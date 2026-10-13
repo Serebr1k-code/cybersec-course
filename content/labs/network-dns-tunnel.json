@@ -1,0 +1,24 @@
+{
+  "id": "network-dns-tunnel",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "exfil.lab"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: детект DNS-туннеля\n\nПеред тобой `queries.log` — выгрузка DNS-запросов, снятая на хосте. Часть\nзапросов — обычные (сайты, CDN), но некоторые являются **туннелем**:\nдлинные случайные метки, отправляемые на один и тот же домен.\n\n1. Посмотри на лог: `head -n 20 queries.log`, затем `wc -l queries.log`.\n2. Найди запросы с аномально длинной первой меткой — это и есть туннель.\n3. Определи **базовый домен** (зону), на которую уходят эти запросы —\n   например, для `aGVsbG8.x000.tunnel.example` базовый домен это `tunnel.example`.\n\nЗапиши базовый домен туннеля в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/queries.log",
+      "text": "11:02:49.847  client#53000  query  A  static.cloudflare.com\n11:03:26.229  client#53000  query  A  www.example.com\n11:04:04.591  client#53000  query  AAAA  login.microsoftonline.com\n11:04:42.227  client#53000  query  A  fonts.gstatic.com\n11:04:45.137  client#53000  query  A  api.github.com\n11:05:04.554  client#53000  query  A  registry.npmjs.org\n11:05:12.574  client#53000  query  A  bnRve2Ruc190dW5uM2xfaDFk.x000.exfil.lab\n11:05:24.585  client#53000  query  A  cdn.jsdelivr.net\n11:05:37.561  client#53000  query  A  www.wikipedia.org\n11:05:42.634  client#53000  query  A  pypi.org\n11:05:56.545  client#53000  query  A  fonts.gstatic.com\n11:06:24.477  client#53000  query  A  ZDNuXzFuX3BsNDFuX3MxZ2h0.x001.exfil.lab\n11:07:02.371  client#53000  query  AAAA  github.com\n11:07:22.185  client#53000  query  A  update.microsoft.com\n11:07:38.308  client#53000  query  A  fonts.gstatic.com\n11:08:12.352  client#53000  query  A  api.github.com\n11:08:41.075  client#53000  query  A  graph.facebook.com\n11:08:49.169  client#53000  query  A  fQ.x002.exfil.lab\n11:09:11.501  client#53000  query  A  graph.facebook.com\n11:09:38.685  client#53000  query  A  api.github.com\n11:09:43.587  client#53000  query  A  time.windows.com\n11:10:04.359  client#53000  query  A  api.github.com\n"
+    }
+  ],
+  "tools": {},
+  "workdir": "/home/student/task"
+}

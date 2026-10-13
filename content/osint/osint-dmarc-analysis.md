@@ -13,6 +13,17 @@ useful_for:
   - "Работа/SOC — защита почты"
 estimated_minutes: 36
 summary: "SPF, DKIM и DMARC: как читать записи, определять политику (none/quarantine/reject), находить слабые места для спуфинга и правильно защищать домен."
+lab:
+  kind: shell
+  title: "Практика: политика DMARC"
+  toolset: [core, dig]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "DMARC лежит в TXT-записи `_dmarc.<домен>`."
+    - "`dig _dmarc.example.com TXT`."
+    - "Политика — значение параметра `p=`: `none`, `quarantine` или `reject`."
 ---
 
 ## Вопрос, с которого всё начинается

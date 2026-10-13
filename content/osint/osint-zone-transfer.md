@@ -12,6 +12,17 @@ useful_for:
   - "CTF: поиск скрытых поддоменов"
 estimated_minutes: 45
 summary: "Как работает AXFR, почему он бывает открыт, как его запросить dig/флагами и что делать, если трансфер запрещён (перебор типов запросов и имён)."
+lab:
+  kind: shell
+  title: "Практика: трансфер зоны (AXFR)"
+  toolset: [core, dig]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "AXFR — зонная передача; она идёт по TCP/53 и иногда остаётся открытой."
+    - "Сначала узнай NS, затем запроси зону: `dig AXFR zonetransfer.me @nsztm1.digi.ninja`."
+    - "Найди строку с `staging` и посмотри её CNAME-цель."
 ---
 
 ## Вопрос, с которого всё начинается

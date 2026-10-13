@@ -1,0 +1,46 @@
+{
+  "id": "network-traffic-analysis-ctf",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{dns_tunn3l_h1dd3n_1n_pl41n_s1ght}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: флаг в DNS-туннеле\n\nДамп `exfil.pcap` снят на хосте, который подозревают в утечке данных.\nВнешне это «обычный DNS», но данные вынесены **внутри DNS-запросов**.\n\nWorkflow:\n\n1. Инвентаризация: `tshark -r exfil.pcap -q -z io,phs` — какие протоколы есть?\n2. Вытащи имена запросов:\n   `tshark -r exfil.pcap -Y 'dns.flags.response == 0' -T fields -e dns.qry.name`\n3. Первая метка каждого запроса — это кусок закодированных данных. Собери\n   метки по порядку и **декодируй base64** (padding можно отбросить):\n   `... -e dns.qry.name | cut -d. -f1 | base64 -d`\n4. Получишь секрет — в нём флаг.\n\nЗапиши флаг (`nto{...}`) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/exfil.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAqe/Naqn4AABjAAAAYwAAAAJCCg0lUwJCCg0lDwgARQAAVQABAABAERw6Cg0lDwoNJTXPCAA1AEGfVCAAAQAAAQAAAAAAABhiblJ2ZTJSdWMxOTBkVzV1TTJ4ZmFERmsEeDAwMAVleGZpbANsYWIAAAEAAanvzWow+gAAmgAAAJoAAAACQgoNJQ8CQgoNJVMIAEUAAIwAAQAAQBEcAwoNJTUKDSUPADXPCAB4JBIgAIGAAAEAAQAAAAAYYm5SdmUyUnVjMTkwZFc1dU0yeGZhREZrBHgwMDAFZXhmaWwDbGFiAAABAAEYYm5SdmUyUnVjMTkwZFc1dU0yeGZhREZrBHgwMDAFZXhmaWwDbGFiAAABAAEAAAA8AAR/AAABqe/NauX7AABjAAAAYwAAAAJCCg0lUwJCCg0lDwgARQAAVQABAABAERw6Cg0lDwoNJTXPCQA1AEGKgiABAQAAAQAAAAAAABhaRE51WHpGdVgzQnNOREZ1WDNNeFoyaDAEeDAwMQVleGZpbANsYWIAAAEAAanvzWpI/QAAmgAAAJoAAAACQgoNJQ8CQgoNJVMIAEUAAIwAAQAAQBEcAwoNJTUKDSUPADXPCQB4PysgAYGAAAEAAQAAAAAYWkROdVh6RnVYM0JzTkRGdVgzTXhaMmgwBHgwMDEFZXhmaWwDbGFiAAABAAEYWkROdVh6RnVYM0JzTkRGdVgzTXhaMmgwBHgwMDEFZXhmaWwDbGFiAAABAAEAAAA8AAR/AAABqe/Nagr/AABNAAAATQAAAAJCCg0lUwJCCg0lDwgARQAAPwABAABAERxQCg0lDwoNJTXPCgA1ACtnJCACAQAAAQAAAAAAAAJmUQR4MDAyBWV4ZmlsA2xhYgAAAQABqe/NassAAQBuAAAAbgAAAAJCCg0lDwJCCg0lUwgARQAAYAABAABAERwvCg0lNQoNJQ8ANc8KAEyT1SACgYAAAQABAAAAAAJmUQR4MDAyBWV4ZmlsA2xhYgAAAQABAmZRBHgwMDIFZXhmaWwDbGFiAAABAAEAAAA8AAR/AAAB",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [фильтр] — анализ трафика (эмуляция: вывод захвачен с реального tshark)",
+      "cases": [
+        {
+          "match": "io,?phs",
+          "example": "-r exfil.pcap -q -z io,phs",
+          "output": "\n===================================================================\nProtocol Hierarchy Statistics\nFilter: \n\nframe                                    frames:6 bytes:693\n  eth                                    frames:6 bytes:693\n    ip                                   frames:6 bytes:693\n      udp                                frames:6 bytes:693\n        dns                              frames:6 bytes:693\n===================================================================\n"
+        },
+        {
+          "match": "dns",
+          "example": "-r exfil.pcap -Y 'dns.flags.response==0' -T fields -e dns.qry.name",
+          "output": "bnRve2Ruc190dW5uM2xfaDFk.x000.exfil.lab\nZDNuXzFuX3BsNDFuX3MxZ2h0.x001.exfil.lab\nfQ.x002.exfil.lab\n"
+        },
+        {
+          "match": "exfil\\.pcap",
+          "example": "-r exfil.pcap",
+          "output": "    1   0.000000  10.13.37.15 → 10.13.37.53  DNS 99 Standard query 0x2000 A bnRve2Ruc190dW5uM2xfaDFk.x000.exfil.lab\n    2   0.000391  10.13.37.53 → 10.13.37.15  DNS 154 Standard query response 0x2000 A bnRve2Ruc190dW5uM2xfaDFk.x000.exfil.lab A 127.0.0.1\n    3   0.000828  10.13.37.15 → 10.13.37.53  DNS 99 Standard query 0x2001 A ZDNuXzFuX3BsNDFuX3MxZ2h0.x001.exfil.lab\n    4   0.001183  10.13.37.53 → 10.13.37.15  DNS 154 Standard query response 0x2001 A ZDNuXzFuX3BsNDFuX3MxZ2h0.x001.exfil.lab A 127.0.0.1\n    5   0.001633  10.13.37.15 → 10.13.37.53  DNS 77 Standard query 0x2002 A fQ.x002.exfil.lab\n    6   0.002082  10.13.37.53 → 10.13.37.15  DNS 110 Standard query response 0x2002 A fQ.x002.exfil.lab A 127.0.0.1\n"
+        }
+      ]
+    }
+  },
+  "workdir": "/home/student/task"
+}

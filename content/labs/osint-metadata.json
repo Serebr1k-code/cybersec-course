@@ -1,0 +1,36 @@
+{
+  "id": "osint-metadata",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "Adobe Photoshop 24.0"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: метаданные фото\n\nТебе дан файл `photo.jpg`. Задача — вытащить из него **метаданные**, не глядя\nна само изображение: кто и чем его создал, где и когда снято.\n\n1. Посмотри все метаданные: `exiftool photo.jpg`\n2. Найди поле `Software` — программа, которой файл был последний раз сохранён.\n   Это важный OSINT-признак: если снимок «с камеры» на деле сохранён\n   фоторедактором, значит изображение редактировали.\n\nЗапиши **значение поля `Software`** в `answer.txt` и набери `check`.\n\nПолезно также посмотреть `Make`, `Model`, `DateTimeOriginal` и `GPS Position`.\n"
+    },
+    {
+      "path": "/home/student/task/photo.jpg",
+      "b64": "/9j/4AAQSkZJRgABAQAAAQABAAD/4QF6RXhpZgAATU0AKgAAAAgACQEPAAIAAAAGAAAAegEQAAIAAAAPAAAAgAEaAAUAAAABAAAAkAEbAAUAAAABAAAAmAEoAAMAAAABAAEAAAExAAIAAAAVAAAAoAITAAMAAAABAAEAAIdpAAQAAAABAAAAtoglAAQAAAABAAABAAAAAABDYW5vbgBDYW5vbiBFT1MgNjAwRAAAAAAAAQAAAAEAAAABAAAAAUFkb2JlIFBob3Rvc2hvcCAyNC4wAAAABJAAAAcAAAAEMDIzMpADAAIAAAAUAAAA7JEBAAcAAAAEAQIDAKABAAMAAAAB//8AAAAAAAAyMDI2OjA1OjE0IDE4OjQyOjExAAAFAAAAAQAAAAQCAwAAAAEAAgAAAAJOAAAAAAIABQAAAAMAAAFCAAMAAgAAAAJFAAAAAAQABQAAAAMAAAFaAAAAAAAAADcAAAABAAAALQAAAAEAAAIKAAAAGQAAACUAAAABAAAAJQAAAAEAAAA5AAAAGf/bAEMACAYGBwYFCAcHBwkJCAoMFA0MCwsMGRITDxQdGh8eHRocHCAkLicgIiwjHBwoNyksMDE0NDQfJzk9ODI8LjM0Mv/bAEMBCQkJDAsMGA0NGDIhHCEyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMv/AABEIADAAQAMBIgACEQEDEQH/xAAfAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgv/xAC1EAACAQMDAgQDBQUEBAAAAX0BAgMABBEFEiExQQYTUWEHInEUMoGRoQgjQrHBFVLR8CQzYnKCCQoWFxgZGiUmJygpKjQ1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4eLj5OXm5+jp6vHy8/T19vf4+fr/xAAfAQADAQEBAQEBAQEBAAAAAAAAAQIDBAUGBwgJCgv/xAC1EQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqCg4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/APJqKKK9Q4wooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAP/Z",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "exiftool": {
+      "help": "exiftool <файл> — чтение метаданных (эмуляция: вывод захвачен с реального exiftool)",
+      "cases": [
+        {
+          "match": "photo\\.jpg",
+          "example": "photo.jpg",
+          "output": "ExifTool Version Number         : 13.55\nFile Name                       : photo.jpg\nDirectory                       : .\nFile Size                       : 1056 bytes\nFile Modification Date/Time     : 2026:10:13 11:45:29+03:00\nFile Access Date/Time           : 2026:10:13 11:45:30+03:00\nFile Inode Change Date/Time     : 2026:10:13 11:45:29+03:00\nFile Permissions                : -rw-r--r--\nFile Type                       : JPEG\nFile Type Extension             : jpg\nMIME Type                       : image/jpeg\nJFIF Version                    : 1.01\nExif Byte Order                 : Big-endian (Motorola, MM)\nMake                            : Canon\nCamera Model Name               : Canon EOS 600D\nX Resolution                    : 1\nY Resolution                    : 1\nResolution Unit                 : None\nSoftware                        : Adobe Photoshop 24.0\nY Cb Cr Positioning             : Centered\nExif Version                    : 0232\nDate/Time Original              : 2026:05:14 18:42:11\nComponents Configuration        : Y, Cb, Cr, -\nColor Space                     : Uncalibrated\nGPS Version ID                  : 2.3.0.0\nGPS Latitude Ref                : North\nGPS Longitude Ref               : East\nImage Width                     : 64\nImage Height                    : 48\nEncoding Process                : Baseline DCT, Huffman coding\nBits Per Sample                 : 8\nColor Components                : 3\nY Cb Cr Sub Sampling            : YCbCr4:2:0 (2 2)\nImage Size                      : 64x48\nMegapixels                      : 0.003\nGPS Latitude                    : 55 deg 45' 20.88\" N\nGPS Longitude                   : 37 deg 37' 2.28\" E\nGPS Position                    : 55 deg 45' 20.88\" N, 37 deg 37' 2.28\" E\n"
+        }
+      ]
+    }
+  },
+  "workdir": "/home/student/task"
+}

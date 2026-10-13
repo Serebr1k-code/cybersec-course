@@ -13,6 +13,17 @@ useful_for:
   - "Работа (SOC/IR): анализ DNS-артефактов"
 estimated_minutes: 50
 summary: "Подробный разбор типов DNS-записей: как читать A/AAAA/CNAME/MX/TXT/SRV/SOA/PTR, что каждая раскрывает о инфраструктуре и как использовать это в разведке."
+lab:
+  kind: shell
+  title: "Практика: разбор SPF-записи"
+  toolset: [core, dig]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'all' answer.txt"
+  hints:
+    - "SPF живёт в TXT-записи и начинается с `v=spf1`."
+    - "`dig example.com TXT` покажет все TXT-записи домена."
+    - "Последний механизм SPF — квалификатор `all`: `-all`, `~all` или `?all`."
 ---
 
 ## Вопрос, с которого всё начинается

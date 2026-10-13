@@ -1,0 +1,46 @@
+{
+  "id": "network-tool-nmap",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "OpenSSH 6.6.1p1"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разведка хоста `scanme.nmap.org`\n\nТебе дан адрес лабораторного хоста **`scanme.nmap.org`** (это публичный\nтестовый хост для nmap). Нужно определить, какие сервисы и версии на нём\nзапущены.\n\nСделай так:\n\n1. Просканируй три порта с определением версий:\n   `nmap -sV -Pn -p 21,22,80 scanme.nmap.org`\n2. Найди в выводе строку SSH и выпиши **полный баннер версии** SSH-сервера\n   (например, `OpenSSH x.y.z...`).\n\nЗапиши найденный баннер в файл `answer.txt` (одна строка) и набери `check`.\n\nПодсказка: вывод удобно перенаправить в файл (`> scan.txt`) и искать\nчерез `grep`. Команда `help` покажет доступные инструменты.\n"
+    }
+  ],
+  "tools": {
+    "nmap": {
+      "help": "nmap [опции] <цель> — сканер портов/сервисов (эмуляция: вывод захвачен с реального nmap)",
+      "cases": [
+        {
+          "match": "\\-sV",
+          "example": "-sV -Pn -p 21,22,80 scanme.nmap.org",
+          "output": "# Nmap 7.99 scan initiated Tue Oct 13 11:43:30 2026 as: nmap -sV --version-light -Pn -T4 -p 21,22,80 -oN nmap_sv.txt scanme.nmap.org\nNmap scan report for scanme.nmap.org (45.33.32.156)\nHost is up (0.054s latency).\nOther addresses for scanme.nmap.org (not scanned): 2600:3c01::f03c:91ff:fe18:bb2f\n\nPORT   STATE SERVICE    VERSION\n21/tcp open  tcpwrapped\n22/tcp open  ssh        OpenSSH 6.6.1p1 Ubuntu 2ubuntu2.13 (Ubuntu Linux; protocol 2.0)\n80/tcp open  http       Apache httpd 2.4.7 ((Ubuntu))\nService Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel\n\nService detection performed. Please report any incorrect results at https://nmap.org/submit/ .\n# Nmap done at Tue Oct 13 11:43:39 2026 -- 1 IP address (1 host up) scanned in 9.47 seconds\n",
+          "writes": [
+            "-oN",
+            "-oG",
+            "-oX"
+          ]
+        },
+        {
+          "match": "1\\-1000|top\\-ports",
+          "example": "-Pn -p 1-1000 scanme.nmap.org",
+          "output": "# Nmap 7.99 scan initiated Tue Oct 13 11:43:04 2026 as: nmap -Pn -T4 -p 1-1000 -oN nmap_ports.txt scanme.nmap.org\nNmap scan report for scanme.nmap.org (45.33.32.156)\nHost is up (0.21s latency).\nOther addresses for scanme.nmap.org (not scanned): 2600:3c01::f03c:91ff:fe18:bb2f\nNot shown: 997 closed tcp ports (conn-refused)\nPORT   STATE SERVICE\n21/tcp open  ftp\n22/tcp open  ssh\n80/tcp open  http\n\n# Nmap done at Tue Oct 13 11:43:23 2026 -- 1 IP address (1 host up) scanned in 19.59 seconds\n",
+          "writes": [
+            "-oN",
+            "-oG",
+            "-oX"
+          ]
+        }
+      ]
+    }
+  },
+  "workdir": "/home/student/task"
+}

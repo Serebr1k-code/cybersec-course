@@ -1,0 +1,41 @@
+{
+  "id": "network-dns-records",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "-all"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор SPF-записи\n\nДомен-цель: **`example.com`**. Нас интересует почтовая политика **SPF** —\nона живёт в TXT-записи и описывает, кто вправе отправлять почту от домена.\n\n1. Запроси TXT-записи: `dig example.com TXT`\n2. Найди строку, начинающуюся с `v=spf1`.\n3. Выпиши **квалификатор `all`** — последний механизм записи (это `-all`,\n   `~all` или `?all`). Он говорит, что делать со всеми прочими отправителями.\n\nЗапиши квалификатор в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "dig": {
+      "help": "dig [тип] <имя> — DNS-запрос (эмуляция: вывод захвачен с реального dig)",
+      "cases": [
+        {
+          "match": "\\btxt\\b",
+          "example": "example.com TXT",
+          "output": "example.com.\t\t94\tIN\tTXT\t\"v=spf1 -all\"\nexample.com.\t\t94\tIN\tTXT\t\"_k2n1y4vw3qtb4skdx9e7dxt97qrmmq9\"\n"
+        },
+        {
+          "match": "\\bmx\\b",
+          "example": "example.com MX",
+          "output": "example.com.\t\t94\tIN\tMX\t0 .\n"
+        },
+        {
+          "match": "\\bns\\b",
+          "example": "example.com NS",
+          "output": "example.com.\t\t4219\tIN\tNS\telliott.ns.cloudflare.com.\nexample.com.\t\t4219\tIN\tNS\thera.ns.cloudflare.com.\n"
+        }
+      ]
+    }
+  },
+  "workdir": "/home/student/task"
+}

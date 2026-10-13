@@ -12,6 +12,17 @@ useful_for:
   - "CTF-задачи с вложенными метаданными"
 estimated_minutes: 40
 summary: "EXIF изображений, метаданные PDF/Office, GPS, имена авторов, скрытые комментарии и очистка метаданных."
+lab:
+  kind: shell
+  title: "Практика: метаданные фото"
+  toolset: [core, exiftool]
+  workdir: /home/student/task
+  files: [task.md, photo.jpg]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Метаданные читает `exiftool`."
+    - "`exiftool photo.jpg` выведет все теги файла."
+    - "Поле `Software` показывает, чем файл сохраняли в последний раз."
 ---
 
 ## Вопрос, с которого всё начинается

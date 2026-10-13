@@ -12,6 +12,17 @@ useful_for:
   - "Пентест: оценка фишинг-поверхности"
 estimated_minutes: 45
 summary: "Как устроены SPF, DKIM и DMARC, как их читать через DNS, как искать подделываемые домены и оценивать политику защиты."
+lab:
+  kind: shell
+  title: "Практика: аудит SPF домена"
+  toolset: [core, dig]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'all' answer.txt"
+  hints:
+    - "SPF — это TXT-запись, начинающаяся с `v=spf1`."
+    - "`dig github.com TXT` (запись SPF длинная и может быть разбита на части)."
+    - "Смотри на квалификатор последнего механизма `all`: `-all`, `~all` или `?all`."
 ---
 
 ## Вопрос, с которого всё начинается
