@@ -13,6 +13,18 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 42
 summary: "Атаки на мобильные API: обход certificate pinning, поиск скрытых эндпоинтов, IDOR, подпись запросов и секреты в приложении."
+lab:
+  kind: shell
+  title: "Практика: мобильное API — реверс APK и IDOR/BOLA"
+  toolset: [core, curl, apktool, jadx, strings, openssl, objection]
+  workdir: /home/student/task
+  files: [task.md, com.shop.app.apk]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "APK — это zip: распакуй apktool и декомпилируй jadx."
+    - "Ищи строки: strings com.shop.app.apk | grep mapi (домен бэкенда) и | grep sign_key (ключ подписи)."
+    - "Мобильный бэкенд mapi.example — не тот, что веб; у заказов нет проверки владельца."
+    - "IDOR: curl -s 'https://mapi.example/v2/orders/1002' с любым валидным токеном > found.txt, затем check."
 ---
 
 ## Вопрос, с которого всё начинается

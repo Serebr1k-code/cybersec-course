@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Экспертный уровень: HTTP request smuggling и cache poisoning как обход периметра."
+lab:
+  kind: shell
+  title: "Практика: WAF — smuggling и cache poisoning"
+  toolset: [core, curl, nc]
+  workdir: /home/student/task
+  files: [task.md, smuggle.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "WAF видит и блокирует прямой GET /admin — нужно спрятать второй запрос в теле."
+    - "CL.TE: прокси считает границу по Content-Length, бэкенд — по Transfer-Encoding: chunked."
+    - "Готовая заготовка smuggled-запроса — в smuggle.txt."
+    - "curl -s 'http://shop.local/' --data-binary @smuggle.txt -H 'Transfer-Encoding: chunked' > found.txt, затем check."
 ---
 
 ## Задача

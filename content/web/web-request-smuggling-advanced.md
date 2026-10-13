@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Все варианты рассинхронизации фронтенд/бэкенд: TE.TE, TE.CL, CL.TE, CL.0 и отравление очереди ответов."
+lab:
+  kind: shell
+  title: "Практика: request smuggling advanced — CL.0 и queue poisoning"
+  toolset: [core, curl, nc]
+  workdir: /home/student/task
+  files: [task.md, clte.txt, cl0.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Базовый десинк — это CL+TE: отправь clte.txt с заголовком Transfer-Encoding: chunked."
+    - "CL.0 проще: прокси игнорирует тело запроса к /favicon.ico, а бэкенд читает его как новый запрос."
+    - "Заготовки: clte.txt (CL.TE) и cl0.txt (CL.0)."
+    - "Отправь cl0.txt на /favicon.ico через --data-binary и запиши ответ в found.txt, затем check."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Средний уровень: десериализация в Python, Node.js, Ruby и PHP."
+lab:
+  kind: shell
+  title: "Практика: десериализация по языкам"
+  toolset: [core, curl, python3]
+  workdir: /home/student/task
+  files: [task.md, cart.b64, pickle_rce.py, node.json, ruby.b64, php.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "base64 -d cart.b64 | xxd -l 8 покажет 80 04 — это Python pickle протокол 4."
+    - "pickle_rce.py использует __reduce__ с os.system — собери payload: python3 pickle_rce.py."
+    - "Сравни сигнатуры: node.json (_$$ND_FUNC$$_), ruby.b64 (04 08 = Marshal), php.txt (O:8:\"UserProfile\")."
+    - "Сохрани payload в payload.b64 и отправь: curl -s -b @payload.b64 https://shop.local/cart > found.txt."
 ---
 
 ## Задача
