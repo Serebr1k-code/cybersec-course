@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Базовый уровень серверного шаблонирования: SSI/XSLT и инъекции выражений EL/OGNL."
+lab:
+  kind: shell
+  title: "Практика: SSTI — Jinja2 от {{7*7}} до RCE"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, subclasses.txt, rce.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Проверь синтаксисы: {{7*7}}, #{7*7}, <%= 7*7 %> — сработает только один (Jinja2/Twig)."
+    - "{{config}} отдаёт внутренние объекты — значит движок Python/Jinja2."
+    - "Payload'ы с [ ломают glob, поэтому они лежат в subclasses.txt и rce.txt."
+    - "Шли файл через --data-urlencode 'name@rce.txt' и пиши вывод в found.txt, затем check."
 ---
 
 ## Задача

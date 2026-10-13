@@ -14,6 +14,18 @@ useful_for:
   - "Работа: AppSec, code review"
 estimated_minutes: 25
 summary: "Как определить тип NoSQL/иного хранилища по порту и отклику и выбрать вектор: инъекция операторов, анонимный доступ, RCE через конфиг, модули или репликацию."
+lab:
+  kind: shell
+  title: "Практика: открытые NoSQL-хранилища"
+  toolset: [core, nmap, redis-cli, mongosh, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Скан портов 27017/6379/9200/5984 назовёт сервисы по баннеру."
+    - "Elasticsearch отвечает HTTP/JSON на 9200, Redis — текстовым PONG на PING."
+    - "Redis без requirepass: подключайся через redis-cli -u redis://shop.local:6379 (не -h)."
+    - "Список ключей: KEYS '*'; токен админа в admin:reset_token — прочитай его в found.txt."
 ---
 
 ## Вопрос, с которого всё начинается

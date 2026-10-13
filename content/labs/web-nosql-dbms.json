@@ -1,0 +1,48 @@
+{
+  "id": "web-nosql-dbms",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{r3d1s_4n0nym0us_r3s3t_t0k3n}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: открытые NoSQL-хранилища\n\n`shop.local` держит рядом MongoDB, Redis и Elasticsearch. Скан портов называет\nсервисы; анонимный доступ отдаёт данные. Найди в Redis токен сброса пароля\nадминистратора — это и есть флаг.\n\n1. Скан хранилищ:\n\n   nmap -sV -p 27017,6379,9200,5984 shop.local\n\n2. Elasticsearch отвечает HTTP/JSON:\n\n   curl -s http://shop.local:9200/\n\n3. MongoDB по HTTP на native-порту ругается:\n\n   curl -s http://shop.local:28017/\n\n4. Redis без requirepass — читаем ключи (важно: подключайся через -u, не -h):\n\n   redis-cli -u redis://shop.local:6379 KEYS '*'\n\n5. Забираем значение токена:\n\n   redis-cli -u redis://shop.local:6379 GET admin:reset_token > found.txt\n\n6. Набери `check`.\n" }
+  ],
+  "tools": {
+    "nmap": {
+      "help": "nmap [опции] <host> — сканер портов (эмуляция shop.local)",
+      "cases": [
+        { "match": "27017|6379|9200|-sV", "example": "-sV -p 27017,6379,9200,5984 shop.local", "output": "PORT      STATE SERVICE      VERSION\n27017/tcp open  mongodb      MongoDB 6.0.5\n6379/tcp  open  redis        Redis key-value store 7.0.11\n9200/tcp  open  http         Elasticsearch 8.7.1\n" }
+      ],
+      "fallback": "nmap: в этой лабе эмулируется скан хранилищ на shop.local.\n"
+    },
+    "redis-cli": {
+      "help": "redis-cli -u redis://host:port <команда> — клиент Redis (эмуляция)",
+      "cases": [
+        { "match": "GET admin:reset_token|get admin:reset_token", "example": "-u redis://shop.local:6379 GET admin:reset_token", "output": "nto{r3d1s_4n0nym0us_r3s3t_t0k3n}\n" },
+        { "match": "KEYS|keys", "example": "-u redis://shop.local:6379 KEYS '*'", "output": "1) \"session:9f2a\"\n2) \"cart:1001\"\n3) \"admin:reset_token\"\n" },
+        { "match": "PING|ping", "example": "-u redis://shop.local:6379 PING", "output": "PONG\n" },
+        { "match": "INFO|info", "example": "-u redis://shop.local:6379 INFO", "output": "# Server\nredis_version:7.0.11\n" }
+      ],
+      "fallback": "redis-cli: в этой лабе эмулируется Redis на shop.local:6379.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция хранилищ shop.local)",
+      "cases": [
+        { "match": "9200/_cat/indices|9200/_cat", "example": "-s http://shop.local:9200/_cat/indices?v", "output": "green open users   5 1 1000 0 1.2mb 600kb\ngreen open orders  5 1 5000 0 3.4mb 1.7mb\n" },
+        { "match": "9200/users/_search|9200/users", "example": "-s 'http://shop.local:9200/users/_search?q=password'", "output": "{\"hits\":{\"hits\":[{\"_source\":{\"user\":\"admin\",\"password\":\"5f4dcc3b...\"}}]}}\n" },
+        { "match": "9200", "example": "-s http://shop.local:9200/", "output": "{\n  \"name\" : \"es-node-1\",\n  \"cluster_name\" : \"shop-cluster\",\n  \"version\" : { \"number\" : \"8.7.1\" }\n}\n" },
+        { "match": "5984/_all_dbs", "example": "-s http://shop.local:5984/_all_dbs", "output": "[\"_users\",\"_replicator\",\"orders\"]\n" },
+        { "match": "28017", "example": "-s http://shop.local:28017/", "output": "It looks like you are trying to access MongoDB over HTTP on the native driver port.\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируются HTTP-сервисы Elasticsearch/CouchDB/MongoDB.\n"
+    },
+    "mongosh": {
+      "help": "mongosh <uri> --eval '<js>' — клиент MongoDB (эмуляция)",
+      "cases": [
+        { "match": "getDBNames|getMongo", "example": "mongodb://shop.local:27017 --eval 'db.getMongo().getDBNames()'", "output": "[ 'admin', 'shop', 'users' ]\n" },
+        { "match": "mongodb://", "example": "mongodb://shop.local:27017", "output": "Current Mongosh Log ID: 651f...\nConnecting to: mongodb://shop.local:27017\nshop>\n" }
+      ],
+      "fallback": "mongosh: в этой лабе эмулируется MongoDB на shop.local:27017.\n"
+    }
+  }
+}

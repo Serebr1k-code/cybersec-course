@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Экспертный уровень: побег из песочниц шаблонизаторов, Log4Shell/JNDI и десериализация."
+lab:
+  kind: shell
+  title: "Практика: SSTI — побег из песочницы Jinja2"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, escape.txt, rce.txt, jndi.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "{{7*7}} работает, а {{config}} пуст и .__class__ даёт SecurityError — это SandboxedEnvironment."
+    - "Песочница запрещает атрибуты, но не фильтр |attr — обращайся к атрибутам по имени строкой."
+    - "Готовый payload побега лежит в escape.txt, RCE — в rce.txt (шли через --data-urlencode name@)."
+    - "Родственный вектор — Log4Shell/JNDI в заголовке User-Agent (jndi.txt); флаг придёт из rce.txt."
 ---
 
 ## Задача

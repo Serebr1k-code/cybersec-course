@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Инъекции там, где нет SQL: MongoDB-операторы, LDAP-фильтры и XPath — обход аутентификации и извлечение данных."
+lab:
+  kind: shell
+  title: "Практика: NoSQL / LDAP / XPath-инъекции"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, bypass.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Тело в формате JSON идёт в MongoDB-фильтр findOne — тип значения не проверяется."
+    - "Подставь оператор $ne вместо строки пароля: тело уже лежит в bypass.json."
+    - "Payload с $ движок вырезает из argv — поэтому передавай через --data-binary @bypass.json."
+    - "LDAP: user=*&password=* на /staff/login. XPath: user=' or 1=1 or ''=' на /legacy/login."
 ---
 
 ## Вопрос, с которого всё начинается

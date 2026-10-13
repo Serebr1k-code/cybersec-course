@@ -13,6 +13,18 @@ useful_for:
   - "Пентест облачных приложений"
 estimated_minutes: 45
 summary: "Доступ к cloud metadata (IMDSv1/v2, GCP, Azure), кража IAM-токенов и эскалация до захвата аккаунта."
+lab:
+  kind: shell
+  title: "Практика: SSRF в облако — IMDSv1 vs IMDSv2"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Ручка shop.local/profile/avatar ходит по параметру url — проверь http://127.0.0.1:8080/."
+    - "Имя роли видно в тексте ошибки: запроси .../iam/security-credentials/."
+    - "Обычный GET к кредам заблокирован — включён IMDSv2."
+    - "Сделай PUT на /latest/api/token с заголовком X-aws-ec2-metadata-token-ttl-seconds, затем GET к кредам с заголовком X-aws-ec2-metadata-token."
 ---
 
 В прошлом уроке мы нашли SSRF через «загрузку аватара» и увидели, что сервер ходит по нашим URL. Теперь зададим самый дорогой вопрос: а что, если сервер живёт в облаке? Тогда внутри у него есть служебный адрес, где лежат **временные ключи доступа** к облачному аккаунту. SSRF превращается в кражу этих ключей — и часто в захват всей инфраструктуры.

