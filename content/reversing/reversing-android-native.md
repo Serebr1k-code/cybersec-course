@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty (мобильные клиенты)"
 estimated_minutes: 65
 summary: "Реверс нативных .so в Android: JNI-биндинг, arm64, декомпиляция и обход обфускации — на реальной JNI-библиотеке."
+lab:
+  kind: shell
+  title: 'Практика: JNI-библиотека и её экспорты'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, libnative.so]
+  check: "grep -q 'nto{jni_n4m3_m4pp1ng_arm64}' found.txt"
+  hints:
+    - '`readelf --file-header libnative.so` — смотри `Machine` (AArch64) и `Type` (DYN).'
+    - '`nm -D libnative.so` — экспорт `Java_*` кодирует пакет/класс/метод (точки → `_`).'
+    - '`Java_com_example_app_Native_check` = `com.example.app.Native.check()`.'
+    - 'Флаг — строка в `.rodata`: `strings libnative.so | grep nto > found.txt`, затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

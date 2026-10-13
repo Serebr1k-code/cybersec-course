@@ -13,6 +13,18 @@ useful_for:
   - "Threat intelligence"
 estimated_minutes: 60
 summary: "Реверс NativeAOT/ReadyToRun .NET: как опознать AOT, что остаётся от метаданных и как анализировать нативный код — на реальной AOT-сборке."
+lab:
+  kind: shell
+  title: 'Практика: разобрать AOT-сборку по символам'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, Check.exe.so]
+  check: "grep -q 'nto{aot_n4t1v3_managed_sym6ols}' found.txt"
+  hints:
+    - '`file Check.exe.so` покажет ELF, а не «.NET assembly» — это признак AOT.'
+    - '`nm Check.exe.so` — ищи символы managed-методов (`Check_Verify_int`, `Check_Main`).'
+    - '`readelf --file-header Check.exe.so` подтвердит нативный ELF.'
+    - 'Флаг лежит строкой в `.rodata`: `strings Check.exe.so | grep nto > found.txt`, затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается
