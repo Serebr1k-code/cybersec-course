@@ -13,6 +13,20 @@ useful_for:
   - "Анализ медиа из реальных инцидентов"
 estimated_minutes: 45
 summary: "Инструменты-детекторы и встраиватели: stegdetect (jsteg/jphide/outguess/F5), jphide/jpseek, аудио-инструменты (mp3stego, DeepSound, SilentEye, OpenStego, snow)."
+
+lab:
+  kind: shell
+  title: "Практика: детект и извлечение jphide"
+  toolset: [core, steg, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, suspect.jpg]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Проверь формат: `file suspect.jpg`."
+    - "Запусти детектор: `stegdetect suspect.jpg`."
+    - "Извлечение: `jpseek suspect.jpg -p s3cr3t`."
+    - "Сохрани флаг: `jpseek suspect.jpg -p s3cr3t | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

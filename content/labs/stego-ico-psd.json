@@ -1,0 +1,27 @@
+{
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1c0_p4yl04d_h1dd3n_1mg}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: данные за кадром ICO\n\n`icon.ico` — иконка, но в неё добавлен скрытый слой.\n\n1. `file icon.ico` — MS Windows icon.\n2. `xxd icon.ico | tail` — посмотри конец файла.\n3. Либо `strings icon.ico | grep nto`.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "ICO — контейнер с несколькими изображениями; данные можно добавить после кадра (полиглот).\n"
+    },
+    {
+      "path": "/home/student/task/icon.ico",
+      "b64": "AAABAAEAICAAAAAAIABsAAAAFgAAAIlQTkcNChoKAAAADUlIRFIAAAAgAAAAIAgGAAAAc3p69AAAADNJREFUeJztzsEJACAQwLAKwu3o/nvoGH5S6D+rzp3q17vpawAAAAAAAAAAAAAAAAAAAA8IrQOJ+VHzvQAAAABJRU5ErkJgggo8IS0tIGxheWVyIHBheWxvYWQgLS0+Cm50b3sxYzBfcDR5bDA0ZF9oMWRkM25fMW1nfQo="
+    }
+  ],
+  "id": "stego-ico-psd"
+}

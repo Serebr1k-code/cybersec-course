@@ -13,6 +13,20 @@ useful_for:
   - "Анализ исходников дизайна"
 estimated_minutes: 45
 summary: "ICO хранит несколько вложенных изображений, PSD — слои, каналы и маски; разбираем, где прячут данные в этих форматах и как их извлекать."
+
+lab:
+  kind: shell
+  title: "Практика: скрытый слой в ICO"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, icon.ico]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи формат: `file icon.ico`."
+    - "Посмотри конец файла: `xxd icon.ico | tail`."
+    - "Строки в файле: `strings icon.ico`."
+    - "Сохрани флаг: `strings icon.ico | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

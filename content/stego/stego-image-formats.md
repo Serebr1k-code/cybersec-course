@@ -12,6 +12,20 @@ useful_for:
   - "Планирование порядка изучения стеганографии"
 estimated_minutes: 10
 summary: "Группа тем по современным форматам: WebP (RIFF/VP8L), TIFF (теги/IFD/стрипы), HEIF/AVIF (боксы ISOBMFF) и RAW-фото (CR2/NEF/DNG с встроенным превью)."
+
+lab:
+  kind: shell
+  title: "Практика: метаданные TIFF"
+  toolset: [core, exif, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, sample.tiff]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Проверь формат: `file sample.tiff`."
+    - "Прочитай теги: `exiftool sample.tiff`."
+    - "Метаданные лежат в файле сырыми: `strings sample.tiff`."
+    - "Сохрани флаг: `strings sample.tiff | grep nto > found.txt`."
+
 ---
 
 Этот модуль закрывает пробел между «классическими» PNG/JPEG/BMP/GIF и форматами, которые всё чаще встречаются в реальных CTF и форензике: WebP, TIFF, HEIF/AVIF и RAW-фото. У каждого — своя структура контейнера (RIFF, IFD-теги, ISOBMFF-боксы), свои «невидимые» области (неиспользуемые чанки, приватные теги, встроенные превью) и свои инструменты. Здесь важно уметь читать спецификацию формата, а не полагаться только на `strings`.

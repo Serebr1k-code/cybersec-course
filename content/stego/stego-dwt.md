@@ -12,6 +12,19 @@ useful_for:
   - "Понимание частотной области за пределами DCT"
 estimated_minutes: 36
 summary: "Дискретное вейвлет-преобразование: разложение на LL/LH/HL/HH, встраивание в коэффициенты, устойчивость к JPEG, PyWavelets и практический разбор, edge cases."
+
+lab:
+  kind: shell
+  title: "Практика: извлечь DWT-встраивание"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, ll_subband.txt, dwt_extract.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри коэффициенты: `head ll_subband.txt`."
+    - "Данные в младших битах коэффициентов LL."
+    - "Извлеки: `python3 dwt_extract.py`."
+    - "Сохрани флаг: `python3 dwt_extract.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

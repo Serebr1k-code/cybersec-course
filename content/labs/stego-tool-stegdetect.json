@@ -1,0 +1,49 @@
+{
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{jpseek_f0und_th3_jph1d3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: детект и извлечение jphide\n\n`suspect.jpg` — JPEG, подозрительный на стеганографию.\n\n1. `file suspect.jpg` — JPEG.\n2. Прогнать детектор: `stegdetect suspect.jpg`.\n3. Извлечь данные: `jpseek suspect.jpg -p s3cr3t`.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "stegdetect подсказывает схему (jphide/jsteghide/outguess), jpseek извлекает с паролем.\n"
+    },
+    {
+      "path": "/home/student/task/suspect.jpg",
+      "b64": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCABQAFADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwD8zbPSeny1uWekdPlrYs9J6fLW5Z6R0+WvLlXLy3MNtTHs9J6fLW5Z6R0+Wtiz0np8tblnpHT5a53iD9Sy3MNtTHs9J6fLW5Z6T0+Wtiz0np8tblnpPT5awliD9Sy7MNtTHs9J6fLW5Z6T0+Wtiz0np8tblnpPT5a55Yg/UsuzDbU+GrPSeny1uWek9PlrZs9J6fLW5Z6R0+Wv2yVc/wA+8tzDbUls9J6fLW5Z6T0+Wtiz0np8tblnpPT5a/B3iD4LLsw21Mez0np8tblnpPT5a2LPSeny1uWek9PlrnlXP1LLsw21Mez0np8tblnpPT5a2LPSeny1uWekdPlrB4g/UstzDbUx7PSeny1uWek9PlrYs9J6fLW5Z6R0+WsJYg/UstzDbU+GrPSeny1uWekdPlrZs9J6fLW5Z6T0+Wv2t4g/z7y3MNtSWz0np8tblnpPTitiz0jp8tblnpPT5a/BpYg+Cy3MNtTHs9J6fLW5Z6T0+Wtiz0jp8tblnpPT5aweIP1LLcw21Mez0np8tblnpHT5a2LPSeny1uWek9PlrCVc/UstzDbUx7PSeny1uWekdPlrYs9J6fLW5Z6T0+Wud4g/UsuzDbU+GrPSeny1uWekdPlrZs9J6fLW5Z6T0+Wv2yWIP8/MuzDbUls9I6fLW5Z6T0+Wtmz0np8tblnpPT5a/B5Yg+By3MNtTGs9I6fLW5Z6T0+Wtiz0np8tblnpPT5a55Yg/UsuzDbUx7PSOny1uWek9PlrYs9J6fLW5Z6T0+WsHiD9Sy7MNtTHs9J6fLW5Z6T0+Wtiz0np8tblnpPT5a55Vz9Sy3MNtT4as9I6fLW5Z6T04rZs9I6fLW5Z6T0+Wv2yWIP8/MtzDbU/HOz0np8tblnpPT5a2bPSeny1uWekdPlr9plXP7gy3MNtTGs9J6fLW5Z6T0+Wtmz0npxW5Z6R0+WsHiD9Sy3MNtTGs9J6fLW5Z6T0+Wtmz0np8tblnpPT5awliD9Sy3MNtTGs9I6fLW5Z6T0+Wtiz0np8tbtnpPT5a55Yg/UsuzDbU+GrPSeny1uWek9PlrYs9J6fLW5Z6T0+Wv2yVc/z8y7MNtT/2Q=="
+    }
+  ],
+  "tools": {
+    "stegdetect": {
+      "help": "stegdetect <файл.jpg> — детектор стеганографии (эмуляция)",
+      "cases": [
+        {
+          "match": "suspect\\.jpg",
+          "example": "stegdetect suspect.jpg",
+          "output": "suspect.jpg : jphide(***)\n"
+        }
+      ]
+    },
+    "jpseek": {
+      "help": "jpseek <файл.jpg> -p <пароль> — извлечение jphide (эмуляция)",
+      "cases": [
+        {
+          "match": "suspect\\.jpg",
+          "example": "jpseek suspect.jpg -p s3cr3t",
+          "output": "nto{jpseek_f0und_th3_jph1d3}\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-tool-stegdetect"
+}

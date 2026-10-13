@@ -1,0 +1,63 @@
+{
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{n3st3d_4rch1v3s_4ll_th3_w4y_d0wn}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: раскрутить матрёшку архивов\n\n`outer.zip` — архив, внутри которого ещё архивы, а в самом вложенном — флаг.\n\n1. `file outer.zip` — ZIP.\n2. Список содержимого: `unzip -l outer.zip`.\n3. Раскрути все слои: `python3 unwrap.py`. Либо `strings outer.zip | grep nto`.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Вложенные архивы — классика CTF. Если слои хранятся без сжатия (STORED), внутренние байты видны напрямую.\n"
+    },
+    {
+      "path": "/home/student/task/outer.zip",
+      "b64": "UEsDBBQAAAAAAIeTTV1BhRk6DgEAAA4BAAAKAAAAbGF5ZXIxLnppcFBLAwQUAAAAAACHk01dwTAle5gAAACYAAAACgAAAGxheWVyMi56aXBQSwMEFAAAAAAAh5NNXezkSM8mAAAAJgAAAAgAAABmbGFnLnR4dG50b3tuM3N0M2RfNHJjaDF2M3NfNGxsX3RoM193NHlfZDB3bn0KUEsBAhQDFAAAAAAAh5NNXezkSM8mAAAAJgAAAAgAAAAAAAAAAAAAAIABAAAAAGZsYWcudHh0UEsFBgAAAAABAAEANgAAAEwAAAAAAFBLAQIUAxQAAAAAAIeTTV3BMCV7mAAAAJgAAAAKAAAAAAAAAAAAAACAAQAAAABsYXllcjIuemlwUEsFBgAAAAABAAEAOAAAAMAAAAAAAFBLAQIUAxQAAAAAAIeTTV1BhRk6DgEAAA4BAAAKAAAAAAAAAAAAAACAAQAAAABsYXllcjEuemlwUEsFBgAAAAABAAEAOAAAADYBAAAAAA=="
+    },
+    {
+      "path": "/home/student/task/unwrap.py",
+      "text": "# recursively unwrap nested zip layers\nimport zipfile, io\ndata = open(\"outer.zip\", \"rb\").read()\nwhile True:\n    z = zipfile.ZipFile(io.BytesIO(data))\n    name = z.namelist()[0]\n    data = z.read(name)\n    if name.endswith(\".txt\"):\n        print(data.decode().strip())\n        break\n"
+    }
+  ],
+  "tools": {
+    "unzip": {
+      "help": "unzip [-l | -p <файл>] <архив> — работа с ZIP (эмуляция)",
+      "cases": [
+        {
+          "match": "\\-l\\s+outer\\.zip",
+          "example": "unzip -l outer.zip",
+          "output": "Archive:  outer.zip\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n      512  2026-10-13 18:20   layer1.zip\n---------                     -------\n      512                     1 file\n"
+        },
+        {
+          "match": "outer\\.zip",
+          "example": "unzip outer.zip",
+          "output": "Archive:  outer.zip\n  inflating: layer1.zip\n"
+        }
+      ]
+    },
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4\n"
+        },
+        {
+          "match": "unwrap\\.py",
+          "example": "python3 unwrap.py",
+          "output": "nto{n3st3d_4rch1v3s_4ll_th3_w4y_d0wn}\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-archive-nested"
+}

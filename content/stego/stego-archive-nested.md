@@ -12,6 +12,20 @@ useful_for:
   - "Автоматизация извлечения «до дна»"
 estimated_minutes: 32
 summary: "Рекурсивная вложенность контейнеров: архивы в архивах, конкатенация форматов, полиглоты, пароли на вложенных уровнях; автоматизация через binwalk -e, foremost, 7z и собственный скрипт."
+
+lab:
+  kind: shell
+  title: "Практика: раскрутить вложенные архивы"
+  toolset: [core, unzip, python, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, outer.zip, unwrap.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Проверь формат: `file outer.zip`."
+    - "Список: `unzip -l outer.zip`."
+    - "Слои хранятся без сжатия — `strings outer.zip`."
+    - "Сохрани флаг: `strings outer.zip | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается
