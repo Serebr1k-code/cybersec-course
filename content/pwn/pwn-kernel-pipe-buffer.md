@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов ядра"
 estimated_minutes: 65
 summary: "Устройство pipe_buffer, примитив записи в page-cache (Dirty Pipe, CVE-2022-0847), захват RIP через ops и полный сценарий UAF → pipe_buffer."
+lab:
+  kind: shell
+  title: 'Практика: pipe_buffer — размеры и кэш'
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, slab-list.txt, pipe-max-size.txt, pipe-user-pages-soft.txt]
+  check: 'grep -q ''victim_cache=kmalloc-1k'' answer.txt'
+  hints:
+    - 'Уязвимый объект занимает ~0x280 байт — его надо накрыть объектом из того же кэша.'
+    - '`slab-list.txt` — реальный список кэшей; найди ближайший кэш ≥ 0x280.'
+    - '0x280 = 640 байт: это больше `kmalloc-512`, но ≤ `kmalloc-1k`.'
+    - 'Запиши `victim_cache=kmalloc-1k` в `answer.txt` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

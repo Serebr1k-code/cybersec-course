@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов ядра"
 estimated_minutes: 55
 summary: "Как работают SMEP, SMAP и KASLR, как их проверять и обходить: отключение cr4, гаджеты stac/clac, утечки адресов и сборка рабочей цепочки."
+lab:
+  kind: shell
+  title: 'Практика: проверка SMEP/SMAP и очистка cr4'
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, cpuinfo.txt, cr4.txt]
+  check: 'grep -q ''cr4_clean=0x70ef0'' answer.txt'
+  hints:
+    - 'Проверь флаги CPU: `grep smep cpuinfo.txt` и `grep smap cpuinfo.txt` — обе защиты включены.'
+    - 'SMEP — бит 20 регистра `cr4` (0x100000), SMAP — бит 21 (0x200000).'
+    - 'Текущее значение `cr4` захвачено в `cr4.txt`: `0x370ef0`.'
+    - 'Очисти оба бита: `cr4 & ~0x300000` → `0x70ef0`. Запиши `cr4_clean=0x70ef0` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

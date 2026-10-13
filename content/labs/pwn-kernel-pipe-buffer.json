@@ -1,0 +1,31 @@
+{
+  "id": "pwn-kernel-pipe-buffer",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "victim_cache=kmalloc-1k"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: pipe_buffer и кэш жертвы\n\nПлан: освободить уязвимый объект (~0x280 байт) и накрыть его `pipe_buffer`-массивом.\nДля этого нужен **тот же** kmalloc-кэш.\n\n1. `cat slab-list.txt` — реальный `ls /sys/kernel/slab/`.\n2. `cat pipe-max-size.txt`, `cat pipe-user-pages-soft.txt` — лимиты pipe (контекст).\n3. Определи кэш для объекта размером 0x280 (округление вверх).\n4. Запиши `victim_cache=<кэш>` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/slab-list.txt",
+      "text": "cred\nfilp\nkmalloc-128\nkmalloc-16\nkmalloc-192\nkmalloc-1k\nkmalloc-256\nkmalloc-2k\nkmalloc-32\nkmalloc-4k\nkmalloc-512\nkmalloc-64\nkmalloc-8\nkmalloc-8k\nkmalloc-96\nmsg_msg-128\nmsg_msg-16\nmsg_msg-192\nmsg_msg-1k\nmsg_msg-256\nmsg_msg-2k\nmsg_msg-32\nmsg_msg-4k\nmsg_msg-512\nmsg_msg-64\nmsg_msg-8\nmsg_msg-8k\nmsg_msg-96\nseq_file\nskbuff_head_cache\ntask_struct\n"
+    },
+    {
+      "path": "/home/student/task/pipe-max-size.txt",
+      "text": "1048576\n"
+    },
+    {
+      "path": "/home/student/task/pipe-user-pages-soft.txt",
+      "text": "16384\n"
+    }
+  ]
+}

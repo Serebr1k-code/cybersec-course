@@ -1,0 +1,27 @@
+{
+  "id": "pwn-kernel-heap",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "seq_ops_cache=kmalloc-32"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: выбор kmalloc-кэша\n\nУязвимый объект — `struct seq_operations` (открытие `/proc/self/stat` его аллоцирует).\nЧтобы переиспользовать освобождённую память, объект-жертва должен попасть в **тот же** кэш.\n\n1. Посмотри список кэшей: `cat slab-list.txt` (реальный `ls /sys/kernel/slab/`).\n2. В `structs.txt` — размеры структур. Возьми размер `seq_operations`.\n3. Округли размер вверх до ближайшего `kmalloc-*` кэша.\n4. Запиши `seq_ops_cache=<кэш>` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/slab-list.txt",
+      "text": "cred\nfilp\nkmalloc-128\nkmalloc-16\nkmalloc-192\nkmalloc-1k\nkmalloc-256\nkmalloc-2k\nkmalloc-32\nkmalloc-4k\nkmalloc-512\nkmalloc-64\nkmalloc-8\nkmalloc-8k\nkmalloc-96\nmsg_msg-128\nmsg_msg-16\nmsg_msg-192\nmsg_msg-1k\nmsg_msg-256\nmsg_msg-2k\nmsg_msg-32\nmsg_msg-4k\nmsg_msg-512\nmsg_msg-64\nmsg_msg-8\nmsg_msg-8k\nmsg_msg-96\nseq_file\nskbuff_head_cache\ntask_struct\n"
+    },
+    {
+      "path": "/home/student/task/structs.txt",
+      "text": "struct seq_operations   size 0x20    (4 function pointers)\nstruct pipe_buffer      size 0x28    (per-entry, array in kmalloc)\nstruct tty_struct       size 0x2b8   (kernel 6.1, varies)\nstruct msg_msg header   size 0x30    (+ payload, variable)\n"
+    }
+  ]
+}

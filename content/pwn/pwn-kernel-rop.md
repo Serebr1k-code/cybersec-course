@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов ядра"
 estimated_minutes: 70
 summary: "Построение ROP-цепочки в ядре: гаджеты, commit_creds(prepare_kernel_cred(0)), обход SMEP/SMAP/KPTI через trampoline и возврат в userland."
+lab:
+  kind: shell
+  title: 'Практика: поиск гаджетов в vmlinux'
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, vmlinux, vmlinux.ropgadget.txt]
+  check: 'grep -q ''pop_rdi=0x401036'' answer.txt'
+  hints:
+    - 'ROPgadget ищет гаджеты в ELF: `ROPgadget --binary ./vmlinux --only "pop|ret"`.'
+    - 'Первый аргумент в x86-64 передаётся через `rdi`, поэтому нужен гаджет `pop rdi ; ret`.'
+    - 'Готовый вывод захвачен в `vmlinux.ropgadget.txt` (файл `vmlinux` — тот же образ).'
+    - 'Найди строку `pop rdi ; ret` и запиши её адрес: `pop_rdi=0x401036`. Затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

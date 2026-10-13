@@ -1,0 +1,71 @@
+{
+  "id": "pwn-kernel-intro",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "ioctl=0x1337"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разведка уязвимого модуля ядра\n\nВ каталоге лежит объект ядерного модуля `vuln.ko` (устройство `/dev/vuln`).\nТвоя цель — найти **команду ioctl**, которая триггерит баг.\n\n1. `file vuln.ko` — убедись, что это ELF-объект.\n2. `readelf -sW vuln.ko` (или `cat vuln.readelf.txt`) — символы модуля.\n3. `objdump -d vuln.ko` (или `cat vuln.objdump.txt`) — дизассемблер; найди константу сравнения в `vuln_ioctl`.\n4. Запиши `ioctl=<команда>` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/vuln.ko",
+      "b64": "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",
+      "mode": "755"
+    },
+    {
+      "path": "/home/student/task/vuln.readelf.txt",
+      "text": "\nSymbol table '.symtab' contains 9 entries:\n   Num:    Value          Size Type    Bind   Vis      Ndx Name\n     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND \n     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS vuln.c\n     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 .text\n     3: 0000000000000000     8 OBJECT  GLOBAL DEFAULT    4 vuln_buf\n     4: 0000000000000008     8 OBJECT  GLOBAL DEFAULT    4 vuln_idx\n     5: 0000000000000000    96 FUNC    GLOBAL DEFAULT    1 vuln_ioctl\n     6: 0000000000000060    13 FUNC    GLOBAL DEFAULT    1 vuln_read\n     7: 000000000000006d    26 FUNC    GLOBAL DEFAULT    1 vuln_write\n     8: 0000000000000087    18 FUNC    GLOBAL DEFAULT    1 vuln_init\n"
+    },
+    {
+      "path": "/home/student/task/vuln.objdump.txt",
+      "text": "\nvuln.ko:     file format elf64-x86-64\n\n\nDisassembly of section .text:\n\n0000000000000000 <vuln_ioctl>:\n   0:\t55                   \tpush   %rbp\n   1:\t48 89 e5             \tmov    %rsp,%rbp\n   4:\t48 89 7d f8          \tmov    %rdi,-0x8(%rbp)\n   8:\t48 89 75 f0          \tmov    %rsi,-0x10(%rbp)\n   c:\t48 81 7d f8 37 13 00 \tcmpq   $0x1337,-0x8(%rbp)\n  13:\t00 \n  14:\t75 12                \tjne    28 <vuln_ioctl+0x28>\n  16:\t48 8b 45 f0          \tmov    -0x10(%rbp),%rax\n  1a:\t48 89 05 00 00 00 00 \tmov    %rax,0x0(%rip)        # 21 <vuln_ioctl+0x21>\n  21:\tb8 00 00 00 00       \tmov    $0x0,%eax\n  26:\teb 36                \tjmp    5e <vuln_ioctl+0x5e>\n  28:\t48 81 7d f8 38 13 00 \tcmpq   $0x1338,-0x8(%rbp)\n  2f:\t00 \n  30:\t75 09                \tjne    3b <vuln_ioctl+0x3b>\n  32:\t48 8b 05 00 00 00 00 \tmov    0x0(%rip),%rax        # 39 <vuln_ioctl+0x39>\n  39:\teb 23                \tjmp    5e <vuln_ioctl+0x5e>\n  3b:\t48 81 7d f8 39 13 00 \tcmpq   $0x1339,-0x8(%rbp)\n  42:\t00 \n  43:\t75 12                \tjne    57 <vuln_ioctl+0x57>\n  45:\t48 8b 45 f0          \tmov    -0x10(%rbp),%rax\n  49:\t48 89 05 00 00 00 00 \tmov    %rax,0x0(%rip)        # 50 <vuln_ioctl+0x50>\n  50:\tb8 00 00 00 00       \tmov    $0x0,%eax\n  55:\teb 07                \tjmp    5e <vuln_ioctl+0x5e>\n  57:\t48 c7 c0 ff ff ff ff \tmov    $0xffffffffffffffff,%rax\n  5e:\t5d                   \tpop    %rbp\n  5f:\tc3                   \tret\n\n0000000000000060 <vuln_read>:\n  60:\t55                   \tpush   %rbp\n  61:\t48 89 e5             \tmov    %rsp,%rbp\n  64:\t48 8b 05 00 00 00 00 \tmov    0x0(%rip),%rax        # 6b <vuln_read+0xb>\n  6b:\t5d                   \tpop    %rbp\n  6c:\tc3                   \tret\n\n000000000000006d <vuln_write>:\n  6d:\t55                   \tpush   %rbp\n  6e:\t48 89 e5             \tmov    %rsp,%rbp\n  71:\t48 89 7d f8          \tmov    %rdi,-0x8(%rbp)\n  75:\t48 8b 45 f8          \tmov    -0x8(%rbp),%rax\n  79:\t48 89 05 00 00 00 00 \tmov    %rax,0x0(%rip)        # 80 <vuln_write+0x13>\n  80:\tb8 00 00 00 00       \tmov    $0x0,%eax\n  85:\t5d                   \tpop    %rbp\n  86:\tc3                   \tret\n\n0000000000000087 <vuln_init>:\n  87:\t55                   \tpush   %rbp\n  88:\t48 89 e5             \tmov    %rsp,%rbp\n  8b:\t48 c7 05 00 00 00 00 \tmovq   $0x0,0x0(%rip)        # 96 <vuln_init+0xf>\n  92:\t00 00 00 00 \n  96:\t90                   \tnop\n  97:\t5d                   \tpop    %rbp\n  98:\tc3                   \tret\n"
+    },
+    {
+      "path": "/home/student/task/cpuinfo.txt",
+      "text": "processor\t: 0\nvendor_id\t: GenuineIntel\ncpu family\t: 6\nmodel\t\t: 158\nmodel name\t: Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz\nstepping\t: 10\ncpu MHz\t\t: 3192.000\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology cpuid pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ssbd ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp md_clear flush_l1d arch_capabilities\nbugs\t\t: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds swapgs itlb_multihit\nbogomips\t: 6384.00\n"
+    }
+  ],
+  "tools": {
+    "readelf": {
+      "help": "readelf [-sW | --file-header] <файл> — (replay)",
+      "cases": [
+        {
+          "match": "vuln",
+          "example": "-sW vuln.ko",
+          "output": "\nSymbol table '.symtab' contains 9 entries:\n   Num:    Value          Size Type    Bind   Vis      Ndx Name\n     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND \n     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS vuln.c\n     2: 0000000000000000     0 SECTION LOCAL  DEFAULT    1 .text\n     3: 0000000000000000     8 OBJECT  GLOBAL DEFAULT    4 vuln_buf\n     4: 0000000000000008     8 OBJECT  GLOBAL DEFAULT    4 vuln_idx\n     5: 0000000000000000    96 FUNC    GLOBAL DEFAULT    1 vuln_ioctl\n     6: 0000000000000060    13 FUNC    GLOBAL DEFAULT    1 vuln_read\n     7: 000000000000006d    26 FUNC    GLOBAL DEFAULT    1 vuln_write\n     8: 0000000000000087    18 FUNC    GLOBAL DEFAULT    1 vuln_init\n"
+        }
+      ],
+      "fallback": "readelf: доступно `readelf -sW vuln.ko`\n"
+    },
+    "objdump": {
+      "help": "objdump [-d | -s] <файл> — (replay)",
+      "cases": [
+        {
+          "match": "vuln",
+          "example": "-d vuln.ko",
+          "output": "\nvuln.ko:     file format elf64-x86-64\n\n\nDisassembly of section .text:\n\n0000000000000000 <vuln_ioctl>:\n   0:\t55                   \tpush   %rbp\n   1:\t48 89 e5             \tmov    %rsp,%rbp\n   4:\t48 89 7d f8          \tmov    %rdi,-0x8(%rbp)\n   8:\t48 89 75 f0          \tmov    %rsi,-0x10(%rbp)\n   c:\t48 81 7d f8 37 13 00 \tcmpq   $0x1337,-0x8(%rbp)\n  13:\t00 \n  14:\t75 12                \tjne    28 <vuln_ioctl+0x28>\n  16:\t48 8b 45 f0          \tmov    -0x10(%rbp),%rax\n  1a:\t48 89 05 00 00 00 00 \tmov    %rax,0x0(%rip)        # 21 <vuln_ioctl+0x21>\n  21:\tb8 00 00 00 00       \tmov    $0x0,%eax\n  26:\teb 36                \tjmp    5e <vuln_ioctl+0x5e>\n  28:\t48 81 7d f8 38 13 00 \tcmpq   $0x1338,-0x8(%rbp)\n  2f:\t00 \n  30:\t75 09                \tjne    3b <vuln_ioctl+0x3b>\n  32:\t48 8b 05 00 00 00 00 \tmov    0x0(%rip),%rax        # 39 <vuln_ioctl+0x39>\n  39:\teb 23                \tjmp    5e <vuln_ioctl+0x5e>\n  3b:\t48 81 7d f8 39 13 00 \tcmpq   $0x1339,-0x8(%rbp)\n  42:\t00 \n  43:\t75 12                \tjne    57 <vuln_ioctl+0x57>\n  45:\t48 8b 45 f0          \tmov    -0x10(%rbp),%rax\n  49:\t48 89 05 00 00 00 00 \tmov    %rax,0x0(%rip)        # 50 <vuln_ioctl+0x50>\n  50:\tb8 00 00 00 00       \tmov    $0x0,%eax\n  55:\teb 07                \tjmp    5e <vuln_ioctl+0x5e>\n  57:\t48 c7 c0 ff ff ff ff \tmov    $0xffffffffffffffff,%rax\n  5e:\t5d                   \tpop    %rbp\n  5f:\tc3                   \tret\n\n0000000000000060 <vuln_read>:\n  60:\t55                   \tpush   %rbp\n  61:\t48 89 e5             \tmov    %rsp,%rbp\n  64:\t48 8b 05 00 00 00 00 \tmov    0x0(%rip),%rax        # 6b <vuln_read+0xb>\n  6b:\t5d                   \tpop    %rbp\n  6c:\tc3                   \tret\n\n000000000000006d <vuln_write>:\n  6d:\t55                   \tpush   %rbp\n  6e:\t48 89 e5             \tmov    %rsp,%rbp\n  71:\t48 89 7d f8          \tmov    %rdi,-0x8(%rbp)\n  75:\t48 8b 45 f8          \tmov    -0x8(%rbp),%rax\n  79:\t48 89 05 00 00 00 00 \tmov    %rax,0x0(%rip)        # 80 <vuln_write+0x13>\n  80:\tb8 00 00 00 00       \tmov    $0x0,%eax\n  85:\t5d                   \tpop    %rbp\n  86:\tc3                   \tret\n\n0000000000000087 <vuln_init>:\n  87:\t55                   \tpush   %rbp\n  88:\t48 89 e5             \tmov    %rsp,%rbp\n  8b:\t48 c7 05 00 00 00 00 \tmovq   $0x0,0x0(%rip)        # 96 <vuln_init+0xf>\n  92:\t00 00 00 00 \n  96:\t90                   \tnop\n  97:\t5d                   \tpop    %rbp\n  98:\tc3                   \tret\n"
+        }
+      ],
+      "fallback": "objdump: доступно `objdump -d vuln.ko`\n"
+    },
+    "nm": {
+      "help": "nm <файл> — (replay)",
+      "cases": [
+        {
+          "match": "vuln",
+          "example": "vuln.ko",
+          "output": "0000000000000000 B vuln_buf\n0000000000000008 B vuln_idx\n0000000000000087 T vuln_init\n0000000000000000 T vuln_ioctl\n0000000000000060 T vuln_read\n000000000000006d T vuln_write\n"
+        }
+      ],
+      "fallback": "nm: доступно `nm vuln.ko`\n"
+    }
+  }
+}

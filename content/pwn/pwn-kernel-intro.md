@@ -13,6 +13,18 @@ useful_for:
   - "Local privilege escalation"
 estimated_minutes: 65
 summary: "Знакомимся с эксплуатацией ядра Linux: разбираем уязвимый модуль, ret2usr, перезапись modprobe_path и heap-примитивы через msg_msg для повышения привилегий до root."
+lab:
+  kind: shell
+  title: 'Практика: разведка уязвимого модуля ядра'
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, vuln.ko, vuln.readelf.txt, vuln.objdump.txt, cpuinfo.txt]
+  check: 'grep -q ''ioctl=0x1337'' answer.txt'
+  hints:
+    - 'Модуль — это ELF-объект: `file vuln.ko` покажет `ELF`, а `readelf -sW vuln.ko` перечислит символы.'
+    - 'Символы обработчиков: `vuln_read`, `vuln_write`, `vuln_ioctl` — именно ioctl обычно несёт баг.'
+    - 'В дизассемблере (`objdump -d vuln.ko`, файл `vuln.objdump.txt`) найди в `vuln_ioctl` сравнение с константой: `cmpq $0x1337`.'
+    - 'Запиши `ioctl=0x1337` в `answer.txt` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

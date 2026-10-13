@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов ядра"
 estimated_minutes: 60
 summary: "Устройство ядерного аллокатора SLUB, kmalloc-кэши, переиспользование объектов и техника UAF в ядре (seq_operations, msg_msg, pipe_buffer)."
+lab:
+  kind: shell
+  title: 'Практика: выбор kmalloc-кэша (SLUB)'
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, slab-list.txt, structs.txt]
+  check: 'grep -q ''seq_ops_cache=kmalloc-32'' answer.txt'
+  hints:
+    - 'SLUB округляет запрос до ближайшего кэша из списка `slab-list.txt`.'
+    - '`seq_operations` — это 4 указателя на функции (`start`, `stop`, `next`, `show`).'
+    - 'На 64-бит один указатель = 8 байт, значит размер структуры = 4 × 8 = 0x20.'
+    - 'Ближайший кэш ≥ 0x20 — `kmalloc-32`. Запиши `seq_ops_cache=kmalloc-32` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

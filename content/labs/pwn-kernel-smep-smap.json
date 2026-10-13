@@ -1,0 +1,27 @@
+{
+  "id": "pwn-kernel-smep-smap",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "cr4_clean=0x70ef0"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: обход SMEP/SMAP через cr4\n\nПрежде чем строить ROP, узнай защиты цели. `cpuinfo.txt` — захваченный `/proc/cpuinfo`.\n\n1. `grep smep cpuinfo.txt` и `grep smap cpuinfo.txt` — убедись, что биты есть.\n2. `cat cr4.txt` — значение `cr4` из отладчика (`p/x $cr4`).\n3. Сбрось биты SMEP (20) и SMAP (21), чтобы `ret2usr` стал возможен.\n4. Запиши `cr4_clean=<значение>` (в hex, с префиксом `0x`) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/cpuinfo.txt",
+      "text": "processor\t: 0\nvendor_id\t: GenuineIntel\ncpu family\t: 6\nmodel\t\t: 158\nmodel name\t: Intel(R) Core(TM) i7-8700 CPU @ 3.20GHz\nstepping\t: 10\ncpu MHz\t\t: 3192.000\nflags\t\t: fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush dts acpi mmx fxsr sse sse2 ss ht tm pbe syscall nx pdpe1gb rdtscp lm constant_tsc art arch_perfmon pebs bts rep_good nopl xtopology cpuid pni pclmulqdq dtes64 monitor ds_cpl vmx smx est tm2 ssse3 sdbg fma cx16 xtpr pdcm pcid sse4_1 sse4_2 x2apic movbe popcnt tsc_deadline_timer aes xsave avx f16c rdrand lahf_lm abm 3dnowprefetch cpuid_fault epb invpcid_single pti ssbd ibrs ibpb stibp tpr_shadow vnmi flexpriority ept vpid fsgsbase tsc_adjust bmi1 avx2 smep bmi2 erms invpcid mpx rdseed adx smap clflushopt intel_pt xsaveopt xsavec xgetbv1 xsaves dtherm ida arat pln pts hwp hwp_notify hwp_act_window hwp_epp md_clear flush_l1d arch_capabilities\nbugs\t\t: cpu_meltdown spectre_v1 spectre_v2 spec_store_bypass l1tf mds swapgs itlb_multihit\nbogomips\t: 6384.00\n"
+    },
+    {
+      "path": "/home/student/task/cr4.txt",
+      "text": "$ gdb ./vmlinux -ex 'target remote :1234'\nRemote debugging using :1234\n0xffffffff81000000 in ?? ()\n(gdb) p/x $cr4\n$1 = 0x370ef0\n(gdb) x/2i $rip\n=> 0xffffffff81000000:  nop\n   0xffffffff81000002:  nop\n"
+    }
+  ]
+}
