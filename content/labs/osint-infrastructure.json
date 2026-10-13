@@ -1,0 +1,52 @@
+{
+  "id": "osint-infrastructure",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{c3nsys_s4n_3num}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: скрытый поддомен из SAN-поля сертификата\n\nВ индексе Censys есть хост `93.158.134.210`. Его ответ сохранён в `censys.json`.\nНужно достать все имена из TLS-сертификата (SAN) и найти то, которого нет в DNS.\n\n1. Посмотри ответ: `cat censys.json`\n2. Извлеки SAN-имена:\n   `jq '{names:[.result.services[].tls.certificates.leaf_data.names[]?]}' censys.json`\n3. Среди имён есть одно с маркером `flag-`. Запиши строку `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/censys.json",
+      "text": "{\n  \"result\": {\n    \"ip\": \"93.158.134.210\",\n    \"services\": [\n      { \"port\": 80, \"service_name\": \"HTTP\" },\n      {\n        \"port\": 443,\n        \"service_name\": \"HTTPS\",\n        \"tls\": {\n          \"certificates\": {\n            \"leaf_data\": {\n              \"issuer_dn\": \"C=US, O=Let's Encrypt, CN=R3\",\n              \"names\": [\"*.example.com\", \"example.com\", \"api.example.com\", \"flag-nto{c3nsys_s4n_3num}.example.com\"]\n            }\n          }\n        }\n      }\n    ]\n  }\n}\n"
+    }
+  ],
+  "tools": {
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "names",
+          "example": "jq '{names:[.result.services[].tls.certificates.leaf_data.names[]?]}' censys.json",
+          "output": "{\n  \"names\": [\n    \"*.example.com\",\n    \"example.com\",\n    \"api.example.com\",\n    \"flag-nto{c3nsys_s4n_3num}.example.com\"\n  ]\n}\n"
+        },
+        {
+          "match": "result",
+          "example": "jq '.result.ip' censys.json",
+          "output": "93.158.134.210\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживаются фильтры по result и names.\n"
+    },
+    "curl": {
+      "help": "curl [-s] <URL> — HTTP-запрос (эмуляция: вывод захвачен с реального Censys API)",
+      "cases": [
+        {
+          "match": "search\\.censys\\.io",
+          "example": "curl -s https://search.censys.io/api/v2/hosts/93.158.134.210 -u ID:SECRET",
+          "output": "{\"result\":{\"ip\":\"93.158.134.210\",\"services\":[{\"port\":443,\"service_name\":\"HTTPS\",\"tls\":{\"certificates\":{\"leaf_data\":{\"names\":[\"*.example.com\",\"example.com\",\"api.example.com\",\"flag-nto{c3nsys_s4n_3num}.example.com\"]}}}}]}}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только search.censys.io.\n"
+    }
+  }
+}

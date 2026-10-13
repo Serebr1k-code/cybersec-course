@@ -1,0 +1,40 @@
+{
+  "id": "osint-ai-assisted",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{llm_v4l1d4t3_3nt1ty}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: валидация вывода LLM\n\nLLM извлёк из статей сущности и сложил их в `llm_output.json`. Модель могла\n«выдумать» URL — их надо проверить программно.\n\n1. Посмотри вывод модели: `cat llm_output.json`\n2. Запусти валидатор URL:\n   `python3 validate.py llm_output.json`\n3. Валидный (существующий) URL с маркером `flag-` — это ответ. Запиши строку `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/llm_output.json",
+      "text": "{\n  \"people\": [\"Ivan Petrov\"],\n  \"orgs\": [\"Example LLC\"],\n  \"locations\": [\"London\"],\n  \"dates\": [\"2019-03-12\"],\n  \"urls\": [\n    \"https://example.com/about\",\n    \"https://flag-nto{llm_v4l1d4t3_3nt1ty}.example.com/team\",\n    \"https://hallucinated-example.invalid/page\"\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/task/validate.py",
+      "text": "#!/usr/bin/env python3\n# Проверка URL из вывода LLM: 200 = существует, 404 = выдуман.\nimport json, sys\ndef main():\n    data = json.load(open(sys.argv[1]))\n    print(f'Проверка {len(data[\"urls\"])} URL из {sys.argv[1]}:')\n    for url in data['urls']:\n        code = 404 if 'invalid' in url else 200\n        note = ' (выдумано)' if code == 404 else ''\n        print(f'{url} -> {code}{note}')\nif __name__ == '__main__':\n    main()\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <script> [аргументы] — запуск скрипта (эмуляция; вывод захвачен с реального запуска)",
+      "cases": [
+        {
+          "match": "validate\\.py",
+          "example": "python3 validate.py llm_output.json",
+          "output": "Проверка 3 URL из llm_output.json:\nhttps://example.com/about -> 200\nhttps://flag-nto{llm_v4l1d4t3_3nt1ty}.example.com/team -> 200\nhttps://hallucinated-example.invalid/page -> 404 (выдумано)\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе запускается только validate.py.\n"
+    }
+  }
+}

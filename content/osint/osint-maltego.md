@@ -13,6 +13,18 @@ useful_for:
   - "Визуализация связей"
 estimated_minutes: 36
 summary: "Maltego: сущности и граф, трансформы, Community Edition, разбор сценария домен→IP→сети, наборы трансформов, iTDS и подводные камни."
+lab:
+  kind: shell
+  title: "Практика: цепочка трансформов и PTR-соседи"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, transform.py, crtsh_example.json]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Скрипт трансформов — `transform.py`, данные CT — `crtsh_example.json`."
+    - "Запусти цепочку: `python3 transform.py example.com crtsh_example.json`."
+    - "Ищи узел `[PTR]` — соседа по хостингу."
+    - "Узел PTR с маркером `flag-nto{...}` — ответ; запиши `nto{...}` в `answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

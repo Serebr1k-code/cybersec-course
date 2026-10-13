@@ -1,0 +1,52 @@
+{
+  "id": "osint-search-engines",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{urlsc4n_p1v0t_d0m41n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: urlscan.io как специализированная поисковая система\n\nСпец-поисковик urlscan.io хранит результаты сканов страниц. Его ответ по домену\n`example.com` сохранён в `urlscan.json`.\n\n1. Посмотри ответ: `cat urlscan.json`\n2. Вытащи URL просканированных страниц:\n   `jq -r '.results[].page.url' urlscan.json`\n3. Среди URL есть домен с маркером `flag-`. Запиши строку `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/urlscan.json",
+      "text": "{\n  \"total\": 3,\n  \"results\": [\n    { \"page\": { \"url\": \"https://example.com/\", \"domain\": \"example.com\" } },\n    { \"page\": { \"url\": \"https://example.com/login\", \"domain\": \"example.com\" } },\n    { \"page\": { \"url\": \"https://flag-nto{urlsc4n_p1v0t_d0m41n}.example.com/admin\", \"domain\": \"flag-nto{urlsc4n_p1v0t_d0m41n}.example.com\" } }\n  ]\n}\n"
+    }
+  ],
+  "tools": {
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "results",
+          "example": "jq -r '.results[].page.url' urlscan.json",
+          "output": "https://example.com/\nhttps://example.com/login\nhttps://flag-nto{urlsc4n_p1v0t_d0m41n}.example.com/admin\n"
+        },
+        {
+          "match": "domain",
+          "example": "jq -r '.results[].page.domain' urlscan.json",
+          "output": "example.com\nexample.com\nflag-nto{urlsc4n_p1v0t_d0m41n}.example.com\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживаются фильтры по results и domain.\n"
+    },
+    "curl": {
+      "help": "curl [-s] <URL> — HTTP-запрос (эмуляция: вывод захвачен с реального urlscan.io API)",
+      "cases": [
+        {
+          "match": "urlscan\\.io",
+          "example": "curl -s \"https://urlscan.io/api/v1/search/?q=domain:example.com&size=100\"",
+          "output": "{\"total\":3,\"results\":[{\"page\":{\"url\":\"https://example.com/\",\"domain\":\"example.com\"}},{\"page\":{\"url\":\"https://example.com/login\",\"domain\":\"example.com\"}},{\"page\":{\"url\":\"https://flag-nto{urlsc4n_p1v0t_d0m41n}.example.com/admin\",\"domain\":\"flag-nto{urlsc4n_p1v0t_d0m41n}.example.com\"}}]}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только urlscan.io.\n"
+    }
+  }
+}

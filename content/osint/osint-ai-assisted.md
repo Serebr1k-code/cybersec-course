@@ -13,6 +13,18 @@ useful_for:
   - "Threat intelligence"
 estimated_minutes: 30
 summary: "Как применять LLM и ML в OSINT: суммаризация, перевод, NER, генерация гипотез и кода — и почему нельзя доверять моделям факты."
+lab:
+  kind: shell
+  title: "Практика: валидация вывода LLM"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, llm_output.json, validate.py]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Вывод модели лежит в `llm_output.json` — посмотри его: `cat llm_output.json`."
+    - "Модель могла выдумать URL — их надо проверить программно."
+    - "Запусти валидатор: `python3 validate.py llm_output.json`."
+    - "Валидный URL (200) с маркером `flag-nto{...}` — ответ; запиши `nto{...}` в `answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

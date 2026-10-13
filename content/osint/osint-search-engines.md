@@ -13,6 +13,18 @@ useful_for:
   - "Расследования"
 estimated_minutes: 50
 summary: "Обзор поисковиков и баз под конкретные типы данных: код, наука, люди, компании, файлы, домены, утечки, изображения."
+lab:
+  kind: shell
+  title: "Практика: urlscan.io как спец-поисковик"
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md, urlscan.json]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Ответ urlscan.io лежит в `urlscan.json` — посмотри его: `cat urlscan.json`."
+    - "URL страниц — в поле `.results[].page.url`."
+    - "Вытащи их: `jq -r '.results[].page.url' urlscan.json`."
+    - "Домен с маркером `flag-nto{...}` — ответ; запиши `nto{...}` в `answer.txt`."
 ---
 
 ## Задача

@@ -13,6 +13,18 @@ useful_for:
   - "Attack surface management"
 estimated_minutes: 44
 summary: "Как использовать Shodan/Censys/FOFA/ZoomEye для поиска открытых сервисов, фильтры и API, а также продвинутый анализ TLS-сертификатов."
+lab:
+  kind: shell
+  title: "Практика: скрытый поддомен из SAN-поля сертификата"
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md, censys.json]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Ответ Censys сохранён в `censys.json` — посмотри его: `cat censys.json`."
+    - "Имена сертификата лежат в `.result.services[].tls.certificates.leaf_data.names`."
+    - "Извлеки их: `jq '{names:[.result.services[].tls.certificates.leaf_data.names[]?]}' censys.json`."
+    - "Имя с маркером `flag-nto{...}` — ответ; запиши `nto{...}` в `answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

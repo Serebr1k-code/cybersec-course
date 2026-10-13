@@ -1,0 +1,40 @@
+{
+  "id": "osint-maltego",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{tr4nsf0rm_p1v0t_gr4ph}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: собрать граф трансформами (как Maltego)\n\nСкрипт `transform.py` повторяет цепочку трансформов Maltego: Domain -> DNSName ->\nIPv4Address -> PTR (соседи по хостингу). Данные CT-логов лежат в `crtsh_example.json`.\n\n1. Запусти цепочку трансформов:\n   `python3 transform.py example.com crtsh_example.json`\n2. Найди узел PTR (сосед по хостингу) с маркером `flag-`.\n3. Запиши строку `nto{...}` из этого узла в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/transform.py",
+      "text": "#!/usr/bin/env python3\n# Maltego-подобная цепочка трансформов: Domain -> DNSName -> IP -> PTR.\nimport json, sys\ndef main():\n    domain, path = sys.argv[1], sys.argv[2]\n    subs = set()\n    for row in json.load(open(path)):\n        for name in row.get('name_value', '').split('\\n'):\n            subs.add(name.strip().lower().lstrip('*.'))\n    print(f'[Domain] {domain}')\n    for n in sorted(subs):\n        print(f'  -> [DNSName] {n}')\n    print('[IPv4Address] 198.18.0.18')\n    print('  <- [PTR] flag-nto{tr4nsf0rm_p1v0t_gr4ph}.example.com')\n    print(f'nodes: {len(subs) + 8} edges: {len(subs) + 2}')\nif __name__ == '__main__':\n    main()\n"
+    },
+    {
+      "path": "/home/student/task/crtsh_example.json",
+      "text": "[\n  { \"name_value\": \"api.example.com\" },\n  { \"name_value\": \"dev.example.com\" },\n  { \"name_value\": \"mail.example.com\" },\n  { \"name_value\": \"staging.example.com\" },\n  { \"name_value\": \"vpn.example.com\" },\n  { \"name_value\": \"*.example.com\" }\n]\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <script> [аргументы] — запуск скрипта (эмуляция; вывод захвачен с реального запуска)",
+      "cases": [
+        {
+          "match": "transform\\.py",
+          "example": "python3 transform.py example.com crtsh_example.json",
+          "output": "[Domain] example.com\n  -> [DNSName] api.example.com\n  -> [DNSName] dev.example.com\n  -> [DNSName] example.com\n  -> [DNSName] mail.example.com\n  -> [DNSName] staging.example.com\n  -> [DNSName] vpn.example.com\n[IPv4Address] 198.18.0.18\n  <- [PTR] flag-nto{tr4nsf0rm_p1v0t_gr4ph}.example.com\nnodes: 14 edges: 8\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе запускается только transform.py.\n"
+    }
+  }
+}
