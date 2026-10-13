@@ -1,0 +1,28 @@
+{
+  "id": "osint-bugbounty-workflow",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{s3cr3ts_1n_js_bundl3s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: найти секреты в JS-бандлах\n\nКонвейер разведки собрал живые хосты (`live.txt`) и скачал JS-бандлы в `alljs.txt`.\n\n1. Посмотри живые хосты: `cat live.txt`\n2. В JS-бандлах часто утекают ключи и внутренние URL. Ищи секреты:\n   `grep -i secret alljs.txt`  ·  `grep -i akia alljs.txt`\n3. В бандле лежит маркер `nto{...}`. Запиши его в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/live.txt",
+      "text": "https://dev.example.com [200] [Dev Portal] [nginx, React]\nhttps://api.example.com [401] [API] [Express]\nhttps://old.example.com [200] [Legacy] [Apache, PHP 5.6]\nhttps://marketing.example.com [200] [Marketing] [WordPress]\n"
+    },
+    {
+      "path": "/home/student/task/alljs.txt",
+      "text": "// bundle from https://example.com/static/app.js\nconst config = {\n  apiKey: \"AKIAIOSFODNN7EXAMPLE\",\n  secret: \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\",\n  internal: \"https://internal.example.com/graphql\"\n};\nconst secretMarker = \"nto{s3cr3ts_1n_js_bundl3s}\";\nexport default config;\n"
+    }
+  ],
+  "tools": {}
+}

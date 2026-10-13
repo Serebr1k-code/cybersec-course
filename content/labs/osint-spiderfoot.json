@@ -1,0 +1,24 @@
+{
+  "id": "osint-spiderfoot",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{sp1d3rf00t_l34ks_cr3ds}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: отфильтровать скан SpiderFoot\n\nSpiderFoot завершил скан и выгрузил события в `scan.csv` (колонки: type,data,source). Событий много — фильтруй по типам.\n\n1. Посмотри типы: `cut -d, -f1 scan.csv | sort -u`\n2. Найди утёкшие учётки (самый важный тип): `grep LEAKED_CREDENTIALS scan.csv`\n3. В поле `data` этого события есть маркер `nto{...}`. Запиши его в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/scan.csv",
+      "text": "type,data,source\nINTERNET_NAME,staging.target.com,sfp_crt\nINTERNET_NAME,old.target.com,sfp_dnsresolve\nIP_ADDRESS,203.0.113.42,sfp_dnsresolve\nEMAILADDR,analyst@target.com,sfp_hunter\nLEAKED_CREDENTIALS,analyst@target.com:nto{sp1d3rf00t_l34ks_cr3ds},sfp_haveibeenpwned\nTCP_PORT_OPEN,203.0.113.42:22,sfp_portscan_tcp\n"
+    }
+  ],
+  "tools": {}
+}

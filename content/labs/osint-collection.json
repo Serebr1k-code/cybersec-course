@@ -1,0 +1,42 @@
+{
+  "id": "osint-collection",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{rd4p_t3ll5_m0r3_th4n_who1s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: владелец домена через RDAP\n\nНачни сбор с владельца домена `example.com`. RDAP отдаёт тот же реестр, что и whois, но в JSON.\n\n1. Запроси домен: `curl -s https://rdap.verisign.com/com/v1/domain/example.com > domain.json`\n2. Посмотри ответ: `cat domain.json` (или `grep -i remarks domain.json`)\n3. В поле `remarks` регистратора лежит маркер `nto{...}`. Запиши его в `answer.txt` и набери `check`.\n   (Бонус: `curl -s https://rdap.org/ip/8.8.8.8` покажет владельца IP-блока.)\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — HTTP-запрос (эмуляция)",
+      "cases": [
+        {
+          "match": "rdap\\.verisign\\.com",
+          "example": "https://rdap.verisign.com/com/v1/domain/example.com",
+          "output": "{\"ldhName\":\"EXAMPLE.COM\",\"status\":[\"client delete prohibited\",\"client transfer prohibited\",\"client update prohibited\"],\"events\":[{\"eventAction\":\"registration\",\"eventDate\":\"1995-08-14T04:00:00Z\"},{\"eventAction\":\"expiration\",\"eventDate\":\"2027-08-13T04:00:00Z\"}],\"remarks\":[{\"title\":\"note\",\"description\":\"nto{rd4p_t3ll5_m0r3_th4n_who1s}\"}]}\n"
+        },
+        {
+          "match": "rdap\\.org/ip",
+          "example": "https://rdap.org/ip/8.8.8.8",
+          "output": "{\"handle\":\"NET-8-8-8-0-2\",\"name\":\"GOGL\",\"startAddress\":\"8.8.8.0\",\"endAddress\":\"8.8.8.255\"}\n"
+        },
+        {
+          "match": "stat\\.ripe\\.net",
+          "example": "https://stat.ripe.net/data/announced-prefixes/data.json?resource=AS15169",
+          "output": "{\"data\":{\"resource\":\"AS15169\",\"prefixes\":[{\"prefix\":\"8.8.4.0/24\"},{\"prefix\":\"8.8.8.0/24\"}]}}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны только rdap.verisign.com, rdap.org и stat.ripe.net.\n"
+    }
+  }
+}

@@ -13,6 +13,18 @@ useful_for:
   - "OSINT-автоматизация"
 estimated_minutes: 40
 summary: "SpiderFoot: установка, модули и типы данных, CLI и веб-интерфейс, разбор скана домена, API, производительность и типичные ошибки."
+lab:
+  kind: shell
+  title: "Практика: отфильтровать скан SpiderFoot"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, scan.csv]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Скан лежит в `scan.csv` (type,data,source)."
+    - "Уникальные типы событий: `cut -d, -f1 scan.csv | sort -u`."
+    - "Самый важный тип — утёкшие учётки: `grep LEAKED_CREDENTIALS scan.csv`."
+    - "Маркер `nto{...}` — в поле `data` этого события."
 ---
 
 ## Вопрос, с которого всё начинается

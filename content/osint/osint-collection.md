@@ -13,6 +13,18 @@ useful_for:
   - "Пентест: карта инфраструктуры"
 estimated_minutes: 15
 summary: "Модуль-навигатор: две базовые ветки сбора данных — поисковые операторы/дорки и WHOIS/ASN-карта инфраструктуры."
+lab:
+  kind: shell
+  title: "Практика: владелец домена через RDAP"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "RDAP отдаёт тот же реестр, что whois, но в JSON."
+    - "Запроси домен: `curl -s https://rdap.verisign.com/com/v1/domain/example.com`."
+    - "Смотри поля `status` и `events`; маркер — в `remarks`."
+    - "Запиши строку `nto{...}` в `answer.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

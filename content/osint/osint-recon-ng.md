@@ -13,6 +13,18 @@ useful_for:
   - "Автоматизация OSINT"
 estimated_minutes: 34
 summary: "recon-ng: workspaces, marketplace, модули recon/import/reporting, база SQLite, API-ключи, скрипты и типичные ошибки при recon."
+lab:
+  kind: shell
+  title: "Практика: запросить базу recon-ng"
+  toolset: [core, sqlite3]
+  workdir: /home/student/task
+  files: [task.md, recon.db]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Убедись, что это база: `file recon.db`."
+    - "Посмотри таблицы: `sqlite3 recon.db \".tables\"`."
+    - "Выведи контакты: `sqlite3 recon.db \"SELECT * FROM contacts;\"`."
+    - "Маркер `nto{...}` — в поле `notes` одного из контактов."
 ---
 
 ## Вопрос, с которого всё начинается

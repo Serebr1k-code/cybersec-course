@@ -13,6 +13,18 @@ useful_for:
   - "CTF категория OSINT"
 estimated_minutes: 30
 summary: "Как встроить OSINT в bug bounty: чтение scope, приоритизация активов, конвейер разведки, автоматизация и границы допустимого."
+lab:
+  kind: shell
+  title: "Практика: секреты в JS-бандлах"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, live.txt, alljs.txt]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Живые хосты — в `live.txt`; скачанные JS-бандлы — в `alljs.txt`."
+    - "В JS часто утекают ключи: `grep -i secret alljs.txt`."
+    - "Ищи AWS-ключ: `grep -i akia alljs.txt`."
+    - "Маркер `nto{...}` лежит в том же бандле — запиши его в `answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается
