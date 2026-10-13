@@ -13,6 +13,18 @@ useful_for:
   - "Incident Response"
 estimated_minutes: 14
 summary: "Этап ветки «Введение»: графический стек Autopsy/The Sleuth Kit, правила YARA и Sigma и скриптование анализа на Python (pytsk3, volatility3 API)."
+lab:
+  kind: shell
+  title: "Практика: автоматизация правилами YARA"
+  toolset: [core, yara]
+  workdir: /home/student/task
+  files: [task.md, rules.yar, sample.bin]
+  check: "grep -q 'nto{y4r4_4ut0m4t3d_tr14g3_m4tch}' answer.txt"
+  hints:
+    - "Прочитай правило: `cat rules.yar`."
+    - "Прогони сканер: `yara rules.yar sample.bin`."
+    - "YARA печатает имя сработавшего правила и совпавшие строки."
+    - "Метка в совпавшей строке: `yara rules.yar sample.bin > yara.txt` и `grep nto yara.txt > answer.txt`."
 ---
 
 Этот модуль — про **инструменты и автоматизацию**, а не про отдельный артефакт. Здесь мы собираем три вещи: графическую платформу Autopsy, язык правил (YARA для файлов/памяти и Sigma для логов) и скриптование на Python, когда готовые утилиты не покрывают задачу.

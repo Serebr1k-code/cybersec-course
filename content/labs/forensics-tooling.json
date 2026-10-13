@@ -1,0 +1,40 @@
+{
+ "id": "forensics-tooling",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "nto{y4r4_4ut0m4t3d_tr14g3_m4tch}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: автоматизация правилами YARA\n\nВместо ручного перебора используем правило. Прогони `rules.yar` по образцу\n`sample.bin` и найди сработавшую строку.\n\n1. Прочитай правило: `cat rules.yar`.\n2. Прогони сканер: `yara rules.yar sample.bin > yara.txt`.\n3. Метка: `grep nto yara.txt > answer.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/rules.yar",
+   "text": "rule suspicious_powershell\n{\n  meta:\n    author = \"dfir\"\n    description = \"hidden powershell\"\n  strings:\n    $a = \"powershell\" nocase\n    $b = \"-enc\"\n    $c = \"nto{\" ascii\n  condition:\n    any of them\n}\n"
+  },
+  {
+   "path": "/home/student/task/sample.bin",
+   "b64": "cG93ZXJzaGVsbC5leGUgLW5vcCAtdyBoaWRkZW4gLWVuYyBTUUJGQUZnQUtBQk9BR1VBZHdBdEFFOEFZZ0JxQUdVQVl3QjBBQ2tBCiMgc3RhZ2VkIHBheWxvYWQKIyBudG97eTRyNF80dXQwbTR0M2RfdHIxNGczX200dGNofQo=",
+   "mode": "644"
+  }
+ ],
+ "tools": {
+  "yara": {
+   "help": "yara <правило.yar> <файл> — сканирование сигнатурами",
+   "cases": [
+    {
+     "match": "sample\\.bin",
+     "example": "rules.yar sample.bin",
+     "output": "suspicious_powershell sample.bin\n0x0:$a: powershell\n0x1b:$b: -enc\n0x54:$c: nto{y4r4_4ut0m4t3d_tr14g3_m4tch}\n"
+    }
+   ]
+  }
+ }
+}

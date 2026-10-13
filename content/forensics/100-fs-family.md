@@ -13,6 +13,18 @@ useful_for:
   - "Data recovery"
 estimated_minutes: 14
 summary: "Второй этап ветки «Файловые системы»: разбор FAT/exFAT, XFS и HFS+ — как читать их метаданные и восстанавливать данные, когда NTFS/ext4 не применимы."
+lab:
+  kind: shell
+  title: "Практика: FAT32 и удалённые кластеры"
+  toolset: [core, sleuthkit]
+  workdir: /home/student/task
+  files: [task.md, card.img]
+  check: "grep -q 'nto{f4t32_d3l3t3d_clust3r_r3c0v3ry}' answer.txt"
+  hints:
+    - "Загрузочный сектор: `xxd -l 16 card.img` (OEM `MSDOS5.0`)."
+    - "Тип ФС: `fsstat card.img` (FAT32)."
+    - "Список файлов, включая удалённые: `fls -r card.img`."
+    - "Метка в образе: `strings card.img | grep nto > answer.txt`."
 ---
 
 Этот модуль — второй этап ветки «Файловые системы». Первый модуль (`forensics-fs-structure`) дал разметку диска и общий recovery, а `forensics-fs-internals` — устройство NTFS, ext4, Btrfs/ZFS и APFS. Здесь мы закрываем **оставшиеся семейства**: FAT/exFAT (флешки, SD-карты, встраиваемые устройства, EFI-разделы), XFS (серверные Linux-тома) и HFS+ (старые macOS). Без них вы не разберёте задачу, где образ — это SD-карта камеры или серверный XFS-том.

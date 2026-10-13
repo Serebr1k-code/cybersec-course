@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 14
 summary: "Третий этап артефактов Windows: журналы событий, логи PowerShell и построение таймлайна — что читать и в каком порядке."
+lab:
+  kind: shell
+  title: "Практика: событие входа в EVTX"
+  toolset: [core, evtx]
+  workdir: /home/student/task
+  files: [task.md, Security.evtx]
+  check: "grep -q 'nto{3vtx_4624_l0g0n_typ3_10}' answer.txt"
+  hints:
+    - "Сигнатура: `xxd -l 7 Security.evtx` (`45 6c 66 46 69 6c 65` = `ElfFile`)."
+    - "Разбери журнал: `evtx_dump.py Security.evtx -o events.json`."
+    - "Ищи Event ID 4624 (вход) с Logon Type 10."
+    - "Метка в сообщении события: `grep nto events.json > answer.txt`."
 ---
 
 Артефакты выполнения и файлов дают разрозненные факты. **Журналы** превращают их в связную историю: кто вошёл, какая служба запустилась, что выполнил PowerShell. Этот модуль — про логи и про то, как свести всё в единый таймлайн.

