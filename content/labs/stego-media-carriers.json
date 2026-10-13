@@ -1,0 +1,49 @@
+{
+  "id": "stego-media-carriers",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{z3r0_w1dth_c4rr13r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: нулевой ширины\n\n`message.txt` выглядит как обычная заметка, но между словами вставлены символы нулевой ширины (U+200B / U+200C). Это текстовый носитель.\n\n1. `wc -c message.txt` и `xxd message.txt | head` — заметишь необычные байты E2 80 8B/8C.\n2. Извлеки сообщение: `python3 zw.py`.\n3. Флаг — в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "U+200B (zero-width space) и U+200C (zero-width non-joiner) невидимы в редакторе, но реально занимают байты в UTF-8 (E2 80 8B / E2 80 8C).\n"
+    },
+    {
+      "path": "/home/student/task/message.txt",
+      "b64": "UOKAi3LigIxv4oCMauKAi2XigIxj4oCMdOKAjCDigItu4oCLb+KAjHTigIxl4oCMc+KAizrigIwg4oCLdOKAi2jigItl4oCMIOKAjHHigIt14oCMYeKAjHLigIx04oCMZeKAi3LigIxs4oCMeeKAjCDigIxm4oCLaeKAjGfigIx14oCLcuKAjGXigIxz4oCMIOKAjGHigIty4oCMZeKAiyDigIth4oCLdOKAjHTigIxh4oCLY+KAi2jigIxl4oCMZOKAiyDigIxi4oCMZeKAjGzigItv4oCLd+KAjC7igIsg4oCLUOKAi2zigIxl4oCMYeKAi3PigItl4oCLIOKAi3LigItl4oCMduKAi2nigIxl4oCMd+KAjCDigIx04oCMaOKAi2XigIwg4oCMZOKAjHLigIth4oCMZuKAjHTigIwg4oCLYuKAi2XigIxm4oCMb+KAi3LigItl4oCLIOKAjHTigIto4oCMZeKAjCDigItG4oCLcuKAjGnigItk4oCLYeKAi3nigIwg4oCMc+KAjHnigItu4oCMY+KAiyDigIth4oCLbuKAjGTigIwg4oCLbOKAjGXigIth4oCLduKAi2XigIsg4oCMY+KAi2/igIxt4oCMbeKAjGXigIxu4oCMdOKAi3PigIwu4oCMIOKAi07igItv4oCLdOKAjGjigIxp4oCLbuKAi2figIwg4oCMdeKAi27igIx14oCLc+KAi3XigIth4oCMbOKAjCDigIxo4oCLZeKAi3LigIxl4oCLLOKAiyDigIxq4oCMdeKAjHPigIt04oCLIOKAjG/igIty4oCLZOKAi2nigIxu4oCMYeKAi3LigIt54oCLIOKAjHTigItl4oCLeOKAjHTigIwg4oCLYeKAi2LigIxv4oCMdeKAi3TigIwg4oCMb+KAjHLigItk4oCLaeKAjG7igIth4oCLcuKAjHnigIwg4oCMdOKAjGjigIxp4oCLbuKAjGdzLiBCdWRnZXQgbGluZXMgd2VyZSB1cGRhdGVkIGFmdGVyIHRoZSBsYXN0IHJldmlldyBtZWV0aW5nLiAK",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/zw.py",
+      "text": "import re\ns = open('message.txt', encoding='utf-8').read()\nzw = [c for c in s if c in ('\\u200b','\\u200c')]\nbits = ''.join('1' if c == '\\u200c' else '0' for c in zw)\ndata = bytes(int(bits[i:i+8], 2) for i in range(0, len(bits)//8*8, 8))\nm = re.search(rb'nto\\{[^}]*\\}', data)\nprint('zero-width chars found:', len(zw))\nprint('decoded message:')\nprint(m.group().decode() if m else '(nothing)')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4\n"
+        },
+        {
+          "match": "zw\\.py",
+          "example": "python3 zw.py",
+          "output": "zero-width chars found: 184\ndecoded message:\nnto{z3r0_w1dth_c4rr13r}\n"
+        }
+      ]
+    }
+  }
+}

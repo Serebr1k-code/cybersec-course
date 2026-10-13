@@ -13,6 +13,18 @@ useful_for:
   - "Эзотерические форматы и комбинированные задачи"
 estimated_minutes: 30
 summary: "Частотная стеганография (DCT/DWT), spread-spectrum, стеганография в палитрах и индексах, эзотерические носители (esolang, ноты, шахматы), методы стегоанализа и стратегия комбинированных задач."
+lab:
+  kind: shell
+  title: "Практика: нестандартный чанк PNG"
+  toolset: [core, python3, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, advanced.png, chunk.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Подтверди формат: `file advanced.png`."
+    - "PNG — цепочка чанков. Посмотри их скриптом `python3 chunk.py`."
+    - "Нестандартный чанк `prVt` несёт полезную нагрузку."
+    - "Сохрани: `python3 chunk.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

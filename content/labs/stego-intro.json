@@ -1,0 +1,29 @@
+{
+  "id": "stego-intro",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p1p3l1n3_str1ngs_th3n_3x1f}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: первый взгляд на файл\n\nВ каталоге лежит `mystery.png`. На вид обычная картинка, но в задаче сказано: «данные спрятаны». Прогони базовый пайплайн стего-разведки и достань флаг.\n\nПайплайн: `file` → `strings` → `exiftool`. Флаг записывается в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- `file` отвечает на вопрос «что это на самом деле».\n- `strings` вытаскивает печатаемые строки, в том числе дописанные после конца файла.\n- `exiftool` читает метаданные (в этой лабе он не нужен, но в реальных задачах — обязателен).\n"
+    },
+    {
+      "path": "/home/student/task/mystery.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAIAAADRv8uKAAAAL0lEQVR4nO3NMQEAMAgAoLkIZjGL/aNYwc8HChBZ/S78k1UsFovFYrFYLBaLxSsDWrQA2F22c0EAAAAASUVORK5CYIIKLS0gdHJhaWxpbmcgbm90ZSAtLSBudG97cDFwM2wxbjNfc3RyMW5nc190aDNuXzN4MWZ9IC0tCg==",
+      "mode": "644"
+    }
+  ],
+  "tools": {}
+}

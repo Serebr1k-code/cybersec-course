@@ -12,6 +12,18 @@ useful_for:
   - "Планирование порядка изучения стеганографии"
 estimated_minutes: 10
 summary: "Первый этап стеганографии: LSB в изображениях, базовый набор инструментов и аудиостеганография — самый частый вход в задачи."
+lab:
+  kind: shell
+  title: "Практика: LSB в изображении и аудио"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, cover.png, tone.wav, extract.py, audio.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Это LSB: младший бит каждого значения канала."
+    - "Для картинки: `python3 extract.py`."
+    - "Для аудио: `python3 audio.py`."
+    - "Сохрани: `python3 extract.py | grep nto > found.txt`."
 ---
 
 Этот модуль открывает практическую часть стеганографии тремя темами, с которых начинается почти любая CTF-задача категории Stego: метод LSB в изображениях, инструментарий для изображений и аудиостеганография. Здесь формируется базовый рефлекс «дан файл → прогони exiftool, strings, zsteg/steghide, проверь младшие биты», который экономит время в 80% задач.

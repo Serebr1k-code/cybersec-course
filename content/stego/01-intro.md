@@ -13,6 +13,18 @@ useful_for:
   - "Понимание разницы между стеганографией и шифрованием"
 estimated_minutes: 31
 summary: "Базовые понятия стеганографии, отличия от криптографии, классификация носителей и универсальный пайплайн разбора файла-контейнера."
+lab:
+  kind: shell
+  title: "Практика: первый взгляд на файл"
+  toolset: [core, hex, exif]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, mystery.png]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с `ls -la` и `file mystery.png`."
+    - "Флаг не в пикселях: попробуй `strings mystery.png`."
+    - "Данные дописаны после конца PNG — `strings` их покажет."
+    - "Сохрани: `strings mystery.png | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

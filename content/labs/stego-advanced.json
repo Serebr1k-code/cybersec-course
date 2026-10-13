@@ -1,0 +1,49 @@
+{
+  "id": "stego-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pr1v4t3_chunk_sp3c_r34d1ng}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: приватный чанк\n\n`advanced.png` — валидный PNG, но помимо стандартных чанков (IHDR/IDAT/IEND) в нём есть нестандартный. Читай спецификацию, а не картинку.\n\n1. `file advanced.png` — подтверди формат.\n2. Разбери чанки: `python3 chunk.py`.\n3. Сохрани флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "PNG — это цепочка чанков: 4 байта длины, 4 байта типа, данные, 4 байта CRC. Незнакомый тип чанка = потенциальный носитель.\n"
+    },
+    {
+      "path": "/home/student/task/advanced.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAIAAADRv8uKAAAAL0lEQVR4nO3NMQEAMAgAoLkIZjGL/aNYwc8HChBZ/S78k1UsFovFYrFYLBaLxSsDWrQA2F22c0EAAAAocHJWdHBheWxvYWQ6IG50b3twcjF2NHQzX2NodW5rX3NwM2NfcjM0ZDFuZ30M8JnfAAAAAElFTkSuQmCC",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/chunk.py",
+      "text": "import struct\ndata = open('advanced.png','rb').read()\ni = 8\nwhile i < len(data):\n    ln = struct.unpack('>I', data[i:i+4])[0]\n    typ = data[i+4:i+8].decode('latin-1')\n    body = data[i+8:i+8+ln]\n    if typ not in ('IHDR','IDAT','IEND'):\n        print('non-standard chunk:', typ, 'len', ln)\n        print('  contents:', body.decode('latin-1'))\n    i += 12 + ln\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4\n"
+        },
+        {
+          "match": "chunk\\.py",
+          "example": "python3 chunk.py",
+          "output": "non-standard chunk: prVt len 40\n  contents: payload: nto{pr1v4t3_chunk_sp3c_r34d1ng}\n"
+        }
+      ]
+    }
+  }
+}
