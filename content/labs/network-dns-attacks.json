@@ -1,0 +1,47 @@
+{
+  "id": "network-dns-attacks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{dns_c4ch3_p01s0n_sp00f3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: отравление DNS-кэша\n\nВ дампе `dns.pcap` резолвер `10.0.0.53` опрашивает авторитетный сервер `198.51.100.1`\nпо имени `portal.corp.local`. Настоящий адрес сервиса — `203.0.113.10`.\n\n1. Посмотри сводку: `tshark -r dns.pcap`\n2. Вытащи все ответы: `tshark -r dns.pcap -Y dns -T fields -e ip.src -e dns.qry.name -e dns.a`\n3. Один ответ — подделка. Жертва `10.0.0.5` пошла на подставленный адрес; собери поток:\n   `tshark -r dns.pcap -q -z follow,tcp,ascii,0`\n4. В теле страницы — флаг `nto{...}`. Запиши его в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/dns.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAW0rOavLKBwBNAAAATQAAAP///////2h6ZJWAowgARQAAPwABAABAEUZECgAANcYzZAHUMQA1ACvBKTA5AQAAAQAAAAAAAAZwb3J0YWwEY29ycAVsb2NhbAAAAQABW0rOas7MBwBuAAAAbgAAAP///////2h6ZJWAowgARQAAYAABAABAEUYjxjNkAQoAADUANdQxAEzAajA5hQAAAQABAAAAAAZwb3J0YWwEY29ycAVsb2NhbAAAAQABBnBvcnRhbARjb3JwBWxvY2FsAAABAAEAAA4QAAQKAABjW0rOah/OBwBuAAAAbgAAAP///////2h6ZJWAowgARQAAYAABAABAEUYjxjNkAQoAADUANdQxAEyOwjA5hQAAAQABAAAAAAZwb3J0YWwEY29ycAVsb2NhbAAAAQABBnBvcnRhbARjb3JwBWxvY2FsAAABAAEAAA4QAATLAHEKW0rOalfPBwB5AAAAeQAAAP///////2h6ZJWAowgARQAAawABAABABmYlCgAABQoAAGO/aQBQAAAD6QAAE4lQGCAAj7UAAEdFVCAvIEhUVFAvMS4xDQpIb3N0OiBwb3J0YWwuY29ycC5sb2NhbA0KVXNlci1BZ2VudDogY3VybC84LjUuMA0KDQpbSs5qUtAHAOQAAADkAAAA////////aHpklYCjCABFAADWAAEAAEAGZboKAABjCgAABQBQv2kAABOJAAAELFAYIABR7wAASFRUUC8xLjEgMjAwIE9LDQpTZXJ2ZXI6IG5naW54LzEuMjQuMA0KQ29udGVudC1UeXBlOiB0ZXh0L2h0bWwNCkNvbnRlbnQtTGVuZ3RoOiA4OA0KDQo8aHRtbD48Ym9keT48aDE+Y29ycCBwb3J0YWw8L2gxPjxwPnRva2VuIG50b3tkbnNfYzRjaDNfcDAxczBuX3NwMDBmM2R9PC9wPjwvYm9keT48L2h0bWw+",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [фильтр] — разбор трафика (эмуляция: вывод захвачен с реального tshark)",
+      "cases": [
+        {
+          "match": "follow",
+          "example": "-r dns.pcap -q -z follow,tcp,ascii,0",
+          "output": "\n===================================================================\nFollow: tcp,ascii\nFilter: tcp.stream eq 0\nNode 0: 10.0.0.5:49001\nNode 1: 10.0.0.99:80\n67\nGET / HTTP/1.1\nHost: portal.corp.local\nUser-Agent: curl/8.5.0\n\n\n\t174\nHTTP/1.1 200 OK\nServer: nginx/1.24.0\nContent-Type: text/html\nContent-Length: 88\n\n<html><body><h1>corp portal</h1><p>token nto{dns_c4ch3_p01s0n_sp00f3d}</p></body></html>\n===================================================================\n"
+        },
+        {
+          "match": "dns",
+          "example": "-r dns.pcap -Y dns -T fields -e ip.src -e dns.qry.name -e dns.a",
+          "output": "10.0.0.53\tportal.corp.local\t\n198.51.100.1\tportal.corp.local\t10.0.0.99\n198.51.100.1\tportal.corp.local\t203.0.113.10\n"
+        },
+        {
+          "match": "dns\\.pcap",
+          "example": "-r dns.pcap",
+          "output": "    1   0.000000    10.0.0.53 → 198.51.100.1 DNS 77 Standard query 0x3039 A portal.corp.local\n    2   0.000476 198.51.100.1 → 10.0.0.53    DNS 110 Standard query response 0x3039 A portal.corp.local A 10.0.0.99\n    3   0.000813 198.51.100.1 → 10.0.0.53    DNS 110 Standard query response 0x3039 A portal.corp.local A 203.0.113.10\n    4   0.001125     10.0.0.5 → 10.0.0.99    HTTP 121 GET / HTTP/1.1 \n    5   0.001376    10.0.0.99 → 10.0.0.5     HTTP 228 HTTP/1.1 200 OK  (text/html)\n"
+        }
+      ],
+      "fallback": "tshark: доступно `tshark -r dns.pcap` (см. task.md)\n"
+    }
+  }
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Пентест: внутренние DNS-атаки"
 estimated_minutes: 45
 summary: "Полный спектр атак на DNS: спуфинг ответов, отравление кэша, DNS-rebinding против SSRF-фильтров и DNS-туннелирование."
+lab:
+  kind: shell
+  title: 'Практика: отравление DNS-кэша'
+  toolset: [core, grep, tshark]
+  workdir: /home/student/task
+  files: [task.md, dns.pcap]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Резолвер `10.0.0.53` спросил авторитетный сервер `198.51.100.1` про `portal.corp.local`.'
+    - 'На один запрос пришло ДВА ответа: `tshark -r dns.pcap -Y dns -T fields -e ip.src -e dns.qry.name -e dns.a`.'
+    - 'Настоящий сервер — `203.0.113.10`; поддельный ответ указывает на `10.0.0.99`. Жертва пошла именно туда.'
+    - 'Собери HTTP-поток до отравленной цели: `tshark -r dns.pcap -q -z follow,tcp,ascii,0` — в теле страницы флаг.'
 ---
 
 ## Вопрос, с которого всё начинается

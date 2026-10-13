@@ -1,0 +1,59 @@
+{
+  "id": "network-service-enum",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{ld4p_4n0n_b1nd_svc_backup}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: глубокая энумерация сервисов\n\nХост `10.10.10.10` — контроллер домена `corp.local`. Без пароля выжми максимум.\n\n1. Версии сервисов: `nmap -sV -p 445,3389,389,88,135,1433,5985 10.10.10.10`\n2. SMB null-сессия и RID-brute (перебор числовых SID):\n   `nxc smb 10.10.10.10 -u '' -p '' --rid-brute`\n3. Найди сервисный аккаунт (имя начинается с `svc_`).\n4. Анонимный бинд LDAP отдаёт описания: `ldapsearch -x -H ldap://10.10.10.10 -b \"dc=corp,dc=local\"`\n5. Запиши флаг `nto{...}` из атрибута `description` в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "nmap": {
+      "help": "nmap [опции] <цель> — сканирование (эмуляция: вывод захвачен с реального nmap)",
+      "cases": [
+        {
+          "match": "-sV",
+          "example": "-sV -p 445,3389,389,88,135,1433,5985 10.10.10.10",
+          "output": "Starting Nmap 7.95 ( https://nmap.org ) at 2026-10-13 14:02 MSK\nNmap scan report for 10.10.10.10\nHost is up (0.0011s latency).\n\nPORT     STATE SERVICE       VERSION\n88/tcp   open  kerberos-sec  Microsoft Windows Kerberos (server time: 2026-10-13 11:02:15Z)\n135/tcp  open  msrpc         Microsoft Windows RPC\n389/tcp  open  ldap          Microsoft Windows Active Directory LDAP (Domain: corp.local, Site: Default-First-Site-Name)\n445/tcp  open  microsoft-ds  Windows Server 2019 Standard 17763 microsoft-ds (workgroup: CORP)\n1433/tcp open  ms-sql-s      Microsoft SQL Server 2019 15.00.2000.00\n3389/tcp open  ms-wbt-server Microsoft Terminal Services\n5985/tcp open  wsman         Microsoft HTTPAPI httpd 2.0 (SSDP/UPnP)\n\nService Info: Host: DC01; OS: Windows; CPE: cpe:/o:microsoft:windows\n\nNmap done: 1 IP address (1 host up) scanned in 6.31 seconds\n"
+        }
+      ],
+      "fallback": "nmap: доступно `nmap -sV -p 445,3389,389,88,135,1433,5985 10.10.10.10` (см. task.md)\n"
+    },
+    "nxc": {
+      "help": "nxc smb <цель> -u '' -p '' [--shares|--rid-brute] — энумерация SMB (эмуляция)",
+      "cases": [
+        {
+          "match": "rid-brute",
+          "example": "-u '' -p '' --rid-brute",
+          "output": "SMB         10.10.10.10     445    DC01             [*] Windows Server 2019 Build 17763 (name:DC01) (domain:corp.local) (signing:False) (SMBv1:None)\nSMB         10.10.10.10     445    DC01             [+] corp.local\\: \nSMB         10.10.10.10     445    DC01             1103: CORP\\alice (SidTypeUser)\nSMB         10.10.10.10     445    DC01             1104: CORP\\bob (SidTypeUser)\nSMB         10.10.10.10     445    DC01             1105: CORP\\svc_backup (SidTypeUser)\n"
+        },
+        {
+          "match": "--shares",
+          "example": "-u '' -p '' --shares",
+          "output": "SMB         10.10.10.10     445    DC01             [*] Windows Server 2019 Build 17763 (name:DC01) (domain:corp.local) (signing:False) (SMBv1:None)\nSMB         10.10.10.10     445    DC01             [*] Enumerated shares\nSMB         10.10.10.10     445    DC01             Share     Permissions  Remark\nSMB         10.10.10.10     445    DC01             -----     -----------  ------\nSMB         10.10.10.10     445    DC01             NETLOGON  READ         Logon server share\nSMB         10.10.10.10     445    DC01             SYSVOL    READ         Logon server share\n"
+        }
+      ],
+      "fallback": "nxc: доступно `nxc smb 10.10.10.10 -u '' -p '' --rid-brute` (см. task.md)\n"
+    },
+    "ldapsearch": {
+      "help": "ldapsearch -x -H ldap://<хост> -b <база> — LDAP-поиск (эмуляция)",
+      "cases": [
+        {
+          "match": "ldap",
+          "example": "-x -H ldap://10.10.10.10 -b \"dc=corp,dc=local\"",
+          "output": "# extended LDIF\n#\n# LDAPv3\n# base <dc=corp,dc=local> with scope subtree\n# filter: (objectClass=*)\n# requesting: ALL\n#\n\n# svc_backup, Users, corp.local\ndn: CN=svc_backup,CN=Users,DC=corp,DC=local\ncn: svc_backup\nsAMAccountName: svc_backup\ndescription: service account - nto{ld4p_4n0n_b1nd_svc_backup}\nmemberOf: CN=Backup Operators,CN=Builtin,DC=corp,DC=local\n\n# search result\nsearch: 2\nresult: 0 Success\n\n# numResponses: 2\n# numEntries: 1\n"
+        }
+      ],
+      "fallback": "ldapsearch: доступно `ldapsearch -x -H ldap://10.10.10.10 -b \"dc=corp,dc=local\"` (см. task.md)\n"
+    }
+  }
+}

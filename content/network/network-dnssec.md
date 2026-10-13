@@ -13,6 +13,18 @@ useful_for:
   - "Работа: защита DNS и расследования"
 estimated_minutes: 40
 summary: "Как DNSSEC подписывает записи (RRSIG, DNSKEY, DS, chain of trust), какие атаки остаются и как обходят валидацию через downgrade."
+lab:
+  kind: shell
+  title: 'Практика: strip-атака на DNSSEC'
+  toolset: [core, grep, dig]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Валидирующий резолвер `1.1.1.1` возвращает флаг `ad` и RRSIG — подпись проверена.'
+    - 'Локальный резолвер `127.0.0.1` валидацию не делает: в ответе нет `ad`, и адрес подменён на `10.0.0.99`.'
+    - 'Атакующий в пути удалил RRSIG/DS (strip) — «ленивый» резолвер принял подделку.'
+    - 'Запроси у него поддельную TXT-запись: `dig +dnssec bank.example TXT @127.0.0.1` — в ней флаг.'
 ---
 
 ## Вопрос, с которого всё начинается

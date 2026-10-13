@@ -13,6 +13,18 @@ useful_for:
   - "Защита приватности"
 estimated_minutes: 38
 summary: "DNS over HTTPS/TLS/QUIC: как работают, почему ломают DNS-фильтрацию и мониторинг, инструменты, детект через DPI и SNI, скрытые каналы и политики."
+lab:
+  kind: shell
+  title: 'Практика: детект DoH по SNI'
+  toolset: [core, grep, tshark]
+  workdir: /home/student/task
+  files: [task.md, doh.pcap]
+  check: 'grep -q ''cloudflare-dns.com'' answer.txt'
+  hints:
+    - 'Клиент `10.0.0.50` не ходит на порт 53 — значит, DNS спрятан в TLS.'
+    - 'Посмотри все ClientHello с SNI: `tshark -r doh.pcap -Y tls.handshake.extensions_server_name -T fields -e ip.src -e tcp.dstport -e tls.handshake.extensions_server_name`.'
+    - 'DoT идёт на порт `853` (там `dns.quad9.net`). DoH сливается с вебом на порту `443`.'
+    - 'Запиши имя DoH-эндпоинта (порт 443) в `answer.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,52 @@
+{
+  "id": "network-dnssec",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{dnssec_str1p_d0wngr4d3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: strip-атака (downgrade) на DNSSEC\n\nЗона `bank.example` подписана (DNSSEC). Валидирующий резолвер `1.1.1.1`\nпроверяет подпись; локальный резолвер `127.0.0.1` — нет.\n\n1. Сравни два ответа:\n   `dig +dnssec bank.example A @1.1.1.1`  — есть флаг `ad`, адрес настоящий\n   `dig +dnssec bank.example A @127.0.0.1` — нет `ad`, адрес подменён\n2. Атакующий удалил из ответа RRSIG/DS (strip-атака) — «ленивый» резолвер принял подделку.\n3. Спроси у него поддельную TXT-запись: `dig +dnssec bank.example TXT @127.0.0.1`\n4. Запиши флаг `nto{...}` из ответа в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "dig": {
+      "help": "dig [тип] <имя> [@сервер] — DNS-запрос (эмуляция: вывод захвачен с реального dig)",
+      "cases": [
+        {
+          "match": "\\bTXT\\b",
+          "example": "+dnssec bank.example TXT @127.0.0.1",
+          "output": "; <<>> DiG 9.20.22 <<>> +dnssec bank.example TXT @127.0.0.1\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 41289\n;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0\n\n;; QUESTION SECTION:\n;bank.example.\t\t\tIN\tTXT\n\n;; ANSWER SECTION:\nbank.example.\t\t300\tIN\tTXT\t\"nto{dnssec_str1p_d0wngr4d3}\"\n\n;; Query time: 0 msec\n;; SERVER: 127.0.0.1#53(127.0.0.1) (UDP)\n;; MSG SIZE  rcvd: 74\n"
+        },
+        {
+          "match": "DNSKEY",
+          "example": "bank.example DNSKEY +short",
+          "output": "257 3 13 mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==\n"
+        },
+        {
+          "match": "\\bDS\\b",
+          "example": "bank.example DS +short",
+          "output": "12345 13 2 8A9B4C1D2E3F405162738495A6B7C8D9E0F1A2B3C4D5E6F708192A3B4C5D6E7F\n"
+        },
+        {
+          "match": "1\\.1\\.1\\.1",
+          "example": "+dnssec bank.example A @1.1.1.1",
+          "output": "; <<>> DiG 9.20.22 <<>> +dnssec bank.example A @1.1.1.1\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 41287\n;; flags: qr rd ra ad; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1\n\n;; OPT PSEUDOSECTION:\n; EDNS: version: 0, flags: do; udp: 1232\n;; QUESTION SECTION:\n;bank.example.\t\t\tIN\tA\n\n;; ANSWER SECTION:\nbank.example.\t\t300\tIN\tA\t203.0.113.10\nbank.example.\t\t300\tIN\tRRSIG\tA 13 2 300 20261101000000 20261001000000 12345 bank.example. mdsswUyr3DPW132mOi8V9xESWE8jTo0dxCjjnopKl+GqJxpVXckHAeF+KkxLbxILfDLUT0rAK9iUzy1L53eKGQ==\n\n;; Query time: 12 msec\n;; SERVER: 1.1.1.1#53(1.1.1.1) (UDP)\n;; MSG SIZE  rcvd: 179\n"
+        },
+        {
+          "match": "127\\.0\\.0\\.1",
+          "example": "+dnssec bank.example A @127.0.0.1",
+          "output": "; <<>> DiG 9.20.22 <<>> +dnssec bank.example A @127.0.0.1\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 41288\n;; flags: qr rd ra; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0\n\n;; QUESTION SECTION:\n;bank.example.\t\t\tIN\tA\n\n;; ANSWER SECTION:\nbank.example.\t\t300\tIN\tA\t10.0.0.99\n\n;; Query time: 1 msec\n;; SERVER: 127.0.0.1#53(127.0.0.1) (UDP)\n;; MSG SIZE  rcvd: 57\n"
+        }
+      ],
+      "fallback": "dig: доступно `dig +dnssec bank.example A @1.1.1.1` (см. task.md)\n"
+    }
+  }
+}

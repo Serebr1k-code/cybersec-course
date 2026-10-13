@@ -1,0 +1,47 @@
+{
+  "id": "network-doh-dot",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "cloudflare-dns.com"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти DoH-эндпоинт по SNI\n\nКлиент `10.0.0.50` обходит DNS-фильтр: на порту 53 пусто, но идёт TLS-обмен.\nВ `doh.pcap` — рукопожатия клиента.\n\n1. Сводка: `tshark -r doh.pcap`\n2. Все SNI: `tshark -r doh.pcap -Y tls.handshake.extensions_server_name -T fields -e ip.src -e tcp.dstport -e tls.handshake.extensions_server_name`\n3. DoT узнаётся по порту `853`; DoH сливается с вебом — порт `443`.\n4. Запиши имя DoH-эндпоинта (тот, что на `443`) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/doh.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAW0rOajPpBwA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABm6cCgAAMgEBAQHIIgG7AAAD6AAAAABQAiAAtekAAFtKzmrC6QcANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAZunAEBAQEKAAAyAbvIIgAAE4gAAAPpUBIgAKJQAABbSs5qQeoHADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEAGbpwKAAAyAQEBAcgiAbsAAAPpAAATiVAQIACiUQAAW0rOasfqBwCtAAAArQAAAP///////2h6ZJWAowgARQAAnwABAABABm4lCgAAMgEBAQHIIgG7AAAD6QAAE4lQGCAAZaAAABYDAQByAQAAbgMDAAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8AAAoTARMCEwPAK8AvAQAAOwAAABcAFQAAEmNsb3VkZmxhcmUtZG5zLmNvbQArAAQDBAMDAAoACAAGAB0AFwAYAA0ACAAGBAMIBAQBW0rOasLrBwA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABl6MCgAAMgkJCQnIKANVAAAD6AAAAABQAiAApDkAAFtKzmpF7AcANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAZejAkJCQkKAAAyA1XIKAAAE4gAAAPpUBIgAJCgAABbSs5qw+wHADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEAGXowKAAAyCQkJCcgoA1UAAAPpAAATiVAQIACQoQAAW0rOaj3tBwCkAAAApAAAAP///////2h6ZJWAowgARQAAlgABAABABl4eCgAAMgkJCQnIKANVAAAD6QAAE4lQGCAAPksAABYDAQBpAQAAZQMDAAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8AAAYTARMCEwMBAAA2AAAAEgAQAAANZG5zLnF1YWQ5Lm5ldAArAAQDBAMDAAoACAAGAB0AFwAYAA0ACAAGBAMIBAQB",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [фильтр] — разбор трафика (эмуляция: вывод захвачен с реального tshark)",
+      "cases": [
+        {
+          "match": "853",
+          "example": "-r doh.pcap -Y tcp.port==853",
+          "output": "    6   0.000736     9.9.9.9 → 10.0.0.50    TCP 54 853 → 51240 [SYN, ACK] Seq=0 Ack=1 Win=8192 Len=0\n    7   0.000856    10.0.0.50 → 9.9.9.9     TCP 54 51240 → 853 [ACK] Seq=1 Ack=1 Win=8192 Len=0\n    8   0.001034    10.0.0.50 → 9.9.9.9     TLSv1 164 Client Hello (SNI=dns.quad9.net)\n"
+        },
+        {
+          "match": "server_name|tls\\.handshake",
+          "example": "-r doh.pcap -Y tls.handshake.extensions_server_name -T fields -e ip.src -e tcp.dstport -e tls.handshake.extensions_server_name",
+          "output": "10.0.0.50\t443\tcloudflare-dns.com\n10.0.0.50\t853\tdns.quad9.net\n"
+        },
+        {
+          "match": "doh\\.pcap",
+          "example": "-r doh.pcap",
+          "output": "    1   0.000000    10.0.0.50 → 1.1.1.1      TCP 54 51234 → 443 [SYN] Seq=0 Win=8192 Len=0\n    2   0.000139      1.1.1.1 → 10.0.0.50    TCP 54 443 → 51234 [SYN, ACK] Seq=0 Ack=1 Win=8192 Len=0\n    3   0.000265    10.0.0.50 → 1.1.1.1      TCP 54 51234 → 443 [ACK] Seq=1 Ack=1 Win=8192 Len=0\n    4   0.000404    10.0.0.50 → 1.1.1.1      TLSv1 173 Client Hello (SNI=cloudflare-dns.com)\n    5   0.000607    10.0.0.50 → 9.9.9.9      TCP 54 51240 → 853 [SYN] Seq=0 Win=8192 Len=0\n    6   0.000736      9.9.9.9 → 10.0.0.50    TCP 54 853 → 51240 [SYN, ACK] Seq=0 Ack=1 Win=8192 Len=0\n    7   0.000856    10.0.0.50 → 9.9.9.9      TCP 54 51240 → 853 [ACK] Seq=1 Ack=1 Win=8192 Len=0\n    8   0.001034    10.0.0.50 → 9.9.9.9      TLSv1 164 Client Hello (SNI=dns.quad9.net)\n"
+        }
+      ],
+      "fallback": "tshark: доступно `tshark -r doh.pcap` (см. task.md)\n"
+    }
+  }
+}

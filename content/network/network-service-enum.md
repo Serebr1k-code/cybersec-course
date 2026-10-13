@@ -13,6 +13,18 @@ useful_for:
   - "Работа: аудит конфигураций сервисов"
 estimated_minutes: 55
 summary: "Как выжимать максимум информации из SMB, RDP, LDAP и NFS: null-сессии, анонимные бинды, шары, пользователи и версии."
+lab:
+  kind: shell
+  title: 'Практика: энумерация SMB и анонимный LDAP'
+  toolset: [core, grep, nmap, nxc, ldapsearch]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Начни с версий: `nmap -sV -p 445,3389,389,88,135,1433,5985 10.10.10.10`.'
+    - 'Через null-сессию перечисли пользователей методом RID-brute: `nxc smb 10.10.10.10 -u '''' -p '''' --rid-brute`.'
+    - 'Обрати внимание на учётку `svc_backup` — это сервисный аккаунт.'
+    - 'Анонимный бинд LDAP отдаёт атрибут `description`: `ldapsearch -x -H ldap://10.10.10.10 -b "dc=corp,dc=local"` — там флаг.'
 ---
 
 ## Вопрос, с которого всё начинается
