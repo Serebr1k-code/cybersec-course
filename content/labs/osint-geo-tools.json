@@ -1,0 +1,52 @@
+{
+  "id": "osint-geo-tools",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{0v3rp455_surv3ll4nc3_n0d3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: найти объект через Overpass API\n\nРядом с координатами 55.7558, 37.6173 нужно найти камеру наблюдения.\nОтвет Overpass API уже сохранён в `overpass.json` (формат OSM JSON).\n\n1. Посмотри ответ: `cat overpass.json`\n2. Отфильтруй объекты наблюдения:\n   `jq -r '.elements[] | select(.tags.man_made==\"surveillance\") | .tags.operator' overpass.json`\n3. Полученное значение — строка `nto{...}`. Запиши её в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/overpass.json",
+      "text": "{\n  \"version\": 0.6,\n  \"generator\": \"Overpass API 0.7.62\",\n  \"elements\": [\n    {\n      \"type\": \"node\",\n      \"id\": 123456789,\n      \"lat\": 55.7558,\n      \"lon\": 37.6173,\n      \"tags\": { \"amenity\": \"cafe\", \"name\": \"Example Cafe\", \"addr:street\": \"Tverskaya ulitsa\" }\n    },\n    {\n      \"type\": \"node\",\n      \"id\": 987654321,\n      \"lat\": 55.7561,\n      \"lon\": 37.6180,\n      \"tags\": { \"man_made\": \"surveillance\", \"surveillance:type\": \"camera\", \"operator\": \"nto{0v3rp455_surv3ll4nc3_n0d3}\", \"ref\": \"CAM-07\" }\n    },\n    {\n      \"type\": \"way\",\n      \"id\": 555000111,\n      \"tags\": { \"highway\": \"residential\", \"name\": \"Tverskaya ulitsa\" }\n    }\n  ]\n}\n"
+    }
+  ],
+  "tools": {
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "man_made",
+          "example": "jq -r '.elements[] | select(.tags.man_made==\"surveillance\") | .tags.operator' overpass.json",
+          "output": "nto{0v3rp455_surv3ll4nc3_n0d3}\n"
+        },
+        {
+          "match": "elements",
+          "example": "jq -r '.elements[] | .id' overpass.json",
+          "output": "123456789\n987654321\n555000111\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживаются фильтры по elements и man_made.\n"
+    },
+    "curl": {
+      "help": "curl [-s] <URL> — HTTP-запрос (эмуляция: вывод захвачен с реального Overpass API)",
+      "cases": [
+        {
+          "match": "overpass-api\\.de",
+          "example": "curl -s https://overpass-api.de/api/interpreter --data 'data=[out:json];node[man_made=surveillance](around:300,55.7558,37.6173);out;'",
+          "output": "{\"version\":0.6,\"generator\":\"Overpass API 0.7.62\",\"elements\":[{\"type\":\"node\",\"id\":987654321,\"lat\":55.7561,\"lon\":37.6180,\"tags\":{\"man_made\":\"surveillance\",\"surveillance:type\":\"camera\",\"operator\":\"nto{0v3rp455_surv3ll4nc3_n0d3}\",\"ref\":\"CAM-07\"}}]}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только https://overpass-api.de/api/interpreter.\n"
+    }
+  }
+}

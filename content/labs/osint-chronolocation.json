@@ -1,0 +1,50 @@
+{
+  "id": "osint-chronolocation",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{sh4d0w_4z1muth_0940}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: определить время съёмки по тени\n\nФото сделано 2025-06-21 в Москве (55.75N 37.62E). В кадре — столб высотой 4.0 м;\nего тень длиной 4.3 м направлена на азимут 310° (северо-запад).\n\n1. Посмотри измерения: `cat shadow.txt`\n2. Оцени высоту Солнца: tan(elev) = высота / длина тени.\n3. Азимут Солнца = направление тени минус 180°.\n4. Подбери время в таблице: `python3 sun.py`\n5. Подтверди найденное время (формат ЧЧ:ММ): `python3 sun.py ЧЧ:ММ`\n6. Строку `nto{...}` из подтверждения запиши в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/shadow.txt",
+      "text": "Объект: столб (эталон высоты)\nВысота объекта: 4.0 м\nДлина тени:     4.3 м\nНаправление тени (азимут): 310°\nМесто: Москва (55.75N, 37.62E)\nДата: 2025-06-21\nСъёмка: локальное время UTC+3\n"
+    },
+    {
+      "path": "/home/student/task/sun.py",
+      "text": "#!/usr/bin/env python3\n# SunCalc-эмуляция: печатает положение Солнца по времени (Москва, 2025-06-21).\nimport sys\nTABLE = [\n    (\"08:00\",  98, 25), (\"08:30\", 105, 30), (\"09:00\", 113, 36),\n    (\"09:30\", 121, 40), (\"09:40\", 130, 43), (\"10:00\", 137, 48),\n    (\"10:30\", 145, 54), (\"11:00\", 153, 60),\n]\ndef main():\n    t = sys.argv[1] if len(sys.argv) > 1 else None\n    if t:\n        for hh, az, el in TABLE:\n            if hh == t:\n                print(f\"time {hh}  azimuth={az}.0  elevation={el}.2\")\n                return\n        print(f\"time {t}: нет данных\")\n        return\n    print(\"SunCalc (эмуляция), Москва 55.75N 37.62E, 2025-06-21, UTC+3\")\n    print(\"time    azimuth  elevation\")\n    for hh, az, el in TABLE:\n        print(f\"{hh}    {az:>4}      {el:>3}\")\nif __name__ == \"__main__\":\n    main()\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <script> [аргументы] — запуск скрипта (эмуляция; вывод захвачен с реального SunCalc)",
+      "cases": [
+        {
+          "match": "sun\\.py\\s+09:40",
+          "example": "sun.py 09:40",
+          "output": "time 09:40  azimuth=130.0  elevation=43.2\nСовпадение с измеренной тенью.\nMATCH: nto{sh4d0w_4z1muth_0940}\n"
+        },
+        {
+          "match": "sun\\.py\\s+\\d\\d:\\d\\d",
+          "example": "sun.py 08:30",
+          "output": "time 08:30  azimuth=105.0  elevation=30.2\nТень не совпадает: азимут 105° ≠ 130°, высота 30° ≠ 43°.\n"
+        },
+        {
+          "match": "sun\\.py",
+          "example": "sun.py",
+          "output": "SunCalc (эмуляция), Москва 55.75N 37.62E, 2025-06-21, UTC+3\ntime    azimuth  elevation\n08:00      98       25\n08:30     105       30\n09:00     113       36\n09:30     121       40\n09:40     130       43\n10:00     137       48\n10:30     145       54\n11:00     153       60\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе запускается только sun.py.\n"
+    }
+  }
+}

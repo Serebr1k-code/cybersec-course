@@ -13,6 +13,18 @@ useful_for:
   - "Расследования"
 estimated_minutes: 40
 summary: "Как извлекать данные из SEC/EDGAR и корпоративных отчётов: структура, риски, технологии, дочерние компании и ключевые лица."
+lab:
+  kind: shell
+  title: "Практика: Exhibit 21 — дочерние компании из EDGAR"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, filings.json]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Профиль компании лежит в `filings.json` — посмотри его: `cat filings.json`."
+    - "Найди последний 10-K: `grep 10-K filings.json` — обрати внимание на `accessionNumber`."
+    - "Скачай Exhibit 21 по номеру доступа: `curl -s \"https://www.sec.gov/Archives/edgar/data/1234567/000123456725000042/ex21.htm\"`."
+    - "Среди дочерних компаний есть «офшорная» с маркером `nto{...}` — запиши её в `answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,41 @@
+{
+  "id": "osint-threat-intel",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{st1x_1nd1c4t0r_t3rm}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: индикатор из STIX-бандла\n\nАналитик положил в `stix.json` машиночитаемый бандл (STIX 2.1).\nНужно вытащить индикатор компрометации (IOC) и домен C2.\n\n1. Посмотри бандл: `cat stix.json`\n2. Извлеки паттерн индикатора:\n   `jq -r '.objects[] | select(.type==\"indicator\") | .pattern' stix.json`\n3. В паттерне есть домен с маркером `flag-nto{...}`. Запиши строку `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/stix.json",
+      "text": "{\n  \"type\": \"bundle\",\n  \"id\": \"bundle--6a1f9c20-1111-4a2b-9c3d-001122334455\",\n  \"spec_version\": \"2.1\",\n  \"objects\": [\n    {\n      \"type\": \"identity\",\n      \"id\": \"identity--a1a1a1a1-2222-4333-8444-555566667777\",\n      \"name\": \"Example CERT\"\n    },\n    {\n      \"type\": \"indicator\",\n      \"id\": \"indicator--b2b2b2b2-3333-4444-8555-666677778888\",\n      \"pattern\": \"[domain-name:value = 'c2.flag-nto{st1x_1nd1c4t0r_t3rm}.example']\",\n      \"pattern_type\": \"stix\",\n      \"valid_from\": \"2026-01-01T00:00:00Z\",\n      \"labels\": [\"malicious-activity\"],\n      \"description\": \"C2 domain observed in phishing campaign\"\n    },\n    {\n      \"type\": \"malware\",\n      \"id\": \"malware--c3c3c3c3-4444-4555-8666-777788889999\",\n      \"name\": \"ExampleLoader\",\n      \"is_family\": false\n    }\n  ]\n}\n"
+    }
+  ],
+  "tools": {
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "pattern",
+          "example": "jq -r '.objects[] | select(.type==\"indicator\") | .pattern' stix.json",
+          "output": "type=indicator pattern=[domain-name:value = 'c2.flag-nto{st1x_1nd1c4t0r_t3rm}.example'] valid_from=2026-01-01T00:00:00Z\n"
+        },
+        {
+          "match": "objects",
+          "example": "jq -r '.objects[] | .type' stix.json",
+          "output": "identity\nindicator\nmalware\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживаются фильтры по objects и pattern.\n"
+    }
+  }
+}

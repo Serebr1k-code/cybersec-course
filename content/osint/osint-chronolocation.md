@@ -13,6 +13,18 @@ useful_for:
   - "Верификация"
 estimated_minutes: 50
 summary: "Как определять время съёмки по теням, положению солнца, погоде и астрономическим данным, и как это подтверждает геолокацию."
+lab:
+  kind: shell
+  title: "Практика: определить время съёмки по тени"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, shadow.txt, sun.py]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Измерения тени лежат в `shadow.txt` — посмотри их: `cat shadow.txt`."
+    - "Высота Солнца: tan(elev) = 4.0 / 4.3 ≈ 0.93, значит elev ≈ 43°. Азимут Солнца = 310° − 180° = 130°."
+    - "Найди строку таблицы с azimuth≈130 и elevation≈43: `python3 sun.py`."
+    - "Подтверди время `python3 sun.py 09:40` — в выводе будет строка `nto{...}`."
 ---
 
 ## Вопрос, с которого всё начинается

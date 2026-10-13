@@ -13,6 +13,18 @@ useful_for:
   - "CTF категория OSINT"
 estimated_minutes: 50
 summary: "Как превращать разведданные в аналитику угроз: индикаторы (IOC), TTP, MITRE ATT&CK, Diamond Model, обмен через MISP/STIX и оценка достоверности."
+lab:
+  kind: shell
+  title: "Практика: вытащить IOC из STIX-бандла"
+  toolset: [core, jq]
+  workdir: /home/student/task
+  files: [task.md, stix.json]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "STIX-бандл лежит в `stix.json` — посмотри его: `cat stix.json`."
+    - "Индикатор — объект с `type: indicator`."
+    - "Извлеки паттерн: `jq -r '.objects[] | select(.type==\"indicator\") | .pattern' stix.json`."
+    - "Домен C2 содержит маркер `flag-nto{...}` — запиши строку `nto{...}` в `answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

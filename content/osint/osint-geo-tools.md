@@ -13,6 +13,18 @@ useful_for:
   - "Журналистика"
 estimated_minutes: 30
 summary: "Картографические инструменты для геолокации: OpenStreetMap, Overpass API, Mapillary, What3Words, SunCalc и сопоставление объектов на фото с картой."
+lab:
+  kind: shell
+  title: "Практика: найти камеру наблюдения через Overpass API"
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md, overpass.json]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Ответ Overpass API сохранён в `overpass.json` — посмотри его: `cat overpass.json`."
+    - "Нужен объект с тегом `man_made=surveillance`."
+    - "Отфильтруй его поле `operator`: `jq -r '.elements[] | select(.tags.man_made==\"surveillance\") | .tags.operator' overpass.json`."
+    - "Значение поля operator и есть строка `nto{...}` — запиши её в `answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

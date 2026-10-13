@@ -1,0 +1,41 @@
+{
+  "id": "osint-sec-filings",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{3x1b1t21_subs1d14ry_l1st}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Exhibit 21 — дочерние компании из SEC/EDGAR\n\nПрофиль компании Example Inc сохранён в `filings.json` (формат submissions.json).\nНужно дойти до Exhibit 21 последнего 10-K и найти «аномальную» дочернюю компанию.\n\n1. Найди последний 10-K: `grep 10-K filings.json`\n2. Возьми его `accessionNumber` (без дефисов) и скачай Exhibit 21:\n   `curl -s \"https://www.sec.gov/Archives/edgar/data/1234567/000123456725000042/ex21.htm\"`\n3. В списке дочерних есть имя с маркером. Запиши строку `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/filings.json",
+      "text": "{\n  \"cik\": \"0001234567\",\n  \"entityName\": \"Example Inc\",\n  \"filings\": {\n    \"recent\": [\n      { \"form\": \"10-Q\", \"filed\": \"2025-08-01\", \"accessionNumber\": \"0001234567-25-000120\", \"primaryDocument\": \"ex10q.htm\" },\n      { \"form\": \"8-K\",  \"filed\": \"2025-05-01\", \"accessionNumber\": \"0001234567-25-000088\", \"primaryDocument\": \"ex8k.htm\" },\n      { \"form\": \"10-K\", \"filed\": \"2025-02-14\", \"accessionNumber\": \"0001234567-25-000042\", \"primaryDocument\": \"ex10k.htm\" },\n      { \"form\": \"DEF 14A\", \"filed\": \"2025-04-02\", \"accessionNumber\": \"0001234567-25-000070\", \"primaryDocument\": \"proxy.htm\" }\n    ]\n  }\n}\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — HTTP-запрос (эмуляция: вывод захвачен с реального SEC EDGAR)",
+      "cases": [
+        {
+          "match": "ex21",
+          "example": "curl -s https://www.sec.gov/Archives/edgar/data/1234567/000123456725000042/ex21.htm",
+          "output": "<html><body><h3>EXHIBIT 21 — SUBSIDIARIES OF EXAMPLE INC</h3>\n<ul>\n<li>Example Labs LLC (Delaware, USA)</li>\n<li>Example EU GmbH (Berlin, Germany)</li>\n<li>Example APAC Pte Ltd (Singapore)</li>\n<li>nto{3x1b1t21_subs1d14ry_l1st} Holdings Ltd (George Town, Cayman Islands)</li>\n</ul></body></html>\n"
+        },
+        {
+          "match": "submissions/CIK",
+          "example": "curl -s https://data.sec.gov/submissions/CIK0001234567.json",
+          "output": "{\"cik\":\"0001234567\",\"entityName\":\"Example Inc\",\"filings\":{\"recent\":[{\"form\":\"10-K\",\"filed\":\"2025-02-14\",\"accessionNumber\":\"0001234567-25-000042\"}]}}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны только data.sec.gov и www.sec.gov/Archives.\n"
+    }
+  }
+}
