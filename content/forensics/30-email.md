@@ -13,6 +13,18 @@ useful_for:
   - "OSINT (анализ отправителя)"
 estimated_minutes: 40
 summary: "Разбор писем .eml/.msg: заголовки Received, аутентификация SPF/DKIM/DMARC, вложения и макросы, восстановление маршрута и выявление фишинга."
+lab:
+  kind: shell
+  title: "Практика: разбор фишингового письма"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, message.eml]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай заголовки: `cat message.eml` (или `head -20`)."
+    - "Цепочка `Received` читается от последнего хопа к первому; ищи IP отправителя."
+    - "Нестандартный заголовок `X-Invoice-Note` содержит base64."
+    - "Достань и раскодируй: `grep X-Invoice-Note message.eml | cut -d' ' -f2 | base64 -d > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,18 @@ useful_for:
   - "Понимание covert channels"
 estimated_minutes: 40
 summary: "Скрытые каналы по времени: кодирование бит задержками между пакетами, интервалами, порядком; как извлекать из PCAP и как детектировать тайминговые каналы."
+lab:
+  kind: shell
+  title: "Практика: тайминговый covert-канал"
+  toolset: [core, tshark, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, capture.pcap, decode.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри метки времени: `tshark -r capture.pcap -T fields -e frame.time_epoch`."
+    - "Интервалы двух видов: короткий (~10 мс) = 0, длинный (~50 мс) = 1."
+    - "Декодер собирает биты в байты: `python3 decode.py`."
+    - "Запиши флаг: `python3 decode.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

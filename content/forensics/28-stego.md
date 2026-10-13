@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting (скрытые каналы)"
 estimated_minutes: 40
 summary: "Как прячут данные в изображениях, аудио и документах, и как их извлекать: LSB, steghide, zsteg, stegseek, спектрограммы, appended data."
+lab:
+  kind: shell
+  title: "Практика: дописанные данные после JPEG"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, holiday.jpg]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с `file holiday.jpg` и `ls -la` — размер подозрительный."
+    - "JPEG заканчивается маркером `FF D9`. Посмотри, что идёт после него."
+    - "`strings holiday.jpg` покажет строку `X-SECRET:` со значением в base64."
+    - "Раскодируй: `strings holiday.jpg | grep X-SECRET | cut -d: -f2 | base64 -d > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

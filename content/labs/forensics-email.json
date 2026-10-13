@@ -1,0 +1,27 @@
+{
+  "id": "forensics-email",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ph1sh1ng_h34d3rs_t3ll_4ll}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: фишинговое письмо\n\n`message.eml` — письмо, которое якобы пришло от биллинга. Заголовки\nраскрывают маршрут и лишние поля. Достань скрытый флаг и запиши его\nв `found.txt`.\n\nИнструменты: `cat`, `grep`, `cut`, `base64`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки\n-------\n- Цепочка `Received:` читается снизу вверх: нижний — самый ранний хоп.\n- Обрати внимание на нестандартные заголовки `X-*`.\n- Значение в `X-Invoice-Note` закодировано base64.\n"
+    },
+    {
+      "path": "/home/student/task/message.eml",
+      "text": "Delivered-To: cfo@corp.example\r\nReturn-Path: <billing@secure-invoices.example>\r\nReceived: from mail.secure-invoices.example (mail.secure-invoices.example [203.0.113.66])\r\n\tby mx.corp.example (Postfix) with ESMTP id 4A1B2C3D4E\r\n\tfor <cfo@corp.example>; Mon, 13 Oct 2026 09:12:44 +0300 (MSK)\r\nReceived: from localhost (unknown [10.13.37.9])\r\n\tby mail.secure-invoices.example with ESMTP id X9Y8Z7\r\n\tMon, 13 Oct 2026 09:12:41 +0300\r\nFrom: \"Billing\" <billing@secure-invoices.example>\r\nTo: cfo@corp.example\r\nSubject: [URGENT] Invoice #INV-90210 overdue - action required\r\nDate: Mon, 13 Oct 2026 09:12:40 +0300\r\nMessage-ID: <9f8e7d6c5b4a@secure-invoices.example>\r\nX-Mailer: PHPMailer 6.5.0\r\nX-Invoice-Note: bnRve3BoMXNoMW5nX2gzNGQzcnNfdDNsbF80bGx9\r\nMIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n\r\n<html><body>Dear customer, please open the attached invoice.</body></html>\r\n"
+    }
+  ]
+}

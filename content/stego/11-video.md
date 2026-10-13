@@ -12,6 +12,18 @@ useful_for:
   - "Анализ видео по кадрам, аудиодорожке и метаданным"
 estimated_minutes: 31
 summary: "Видео как многоканальный носитель: скрытые кадры, LSB в кадрах, отдельная аудиодорожка, метаданные контейнера MP4/MKV, дописанные данные и извлечение вложенных потоков."
+lab:
+  kind: shell
+  title: "Практика: метаданные MP4-контейнера"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, clip.mp4]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри контейнер: `file clip.mp4` и `xxd clip.mp4 | head`."
+    - "MP4 состоит из боксов (atom); текстовые поля видны через `strings`."
+    - "Ищи метку `NOTE:` — значение закодировано base64."
+    - "Раскодируй: `strings clip.mp4 | grep NOTE | cut -d: -f2 | base64 -d > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

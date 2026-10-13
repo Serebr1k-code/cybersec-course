@@ -1,0 +1,49 @@
+{
+  "id": "crypto-tool-john",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{j0hn_th3_r1pp3r_cr4cks_sh4d0w}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: взлом shadow в John the Ripper\n\n`shadow.txt` — выдержка из `/etc/shadow` (md5crypt, `$1$`). Восстанови\nпароль пользователя `ctf` и запиши его в `found.txt`.\n\nИнструменты: `john --wordlist=john_wordlist.txt shadow.txt`, затем\n`john --show shadow.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки\n-------\n- Формат хэша John определяет автоматически.\n- `--show` печатает формат `пользователь:пароль:...`.\n- Поле пароля отделяется двоеточием.\n"
+    },
+    {
+      "path": "/home/student/task/shadow.txt",
+      "text": "ctf:$1$Xy9$OkeIaLb4/b4AAn7FHX7gv/:19000:0:99999:7:::\n"
+    },
+    {
+      "path": "/home/student/task/john_wordlist.txt",
+      "text": "admin\nroot\nnto{j0hn_th3_r1pp3r_cr4cks_sh4d0w}\nsecret\n"
+    }
+  ],
+  "tools": {
+    "john": {
+      "help": "john [--wordlist=<файл>] <файл> | john --show <файл> (эмуляция)",
+      "cases": [
+        {
+          "match": "--show",
+          "example": "--show shadow.txt",
+          "output": "ctf:nto{j0hn_th3_r1pp3r_cr4cks_sh4d0w}:19000:0:99999:7:::\n\n1 password hash cracked, 0 left\n"
+        },
+        {
+          "match": "--wordlist",
+          "example": "--wordlist=john_wordlist.txt shadow.txt",
+          "output": "Using default input encoding: UTF-8\nLoaded 1 password hash (md5crypt, crypt(3) $1$ [MD5 256/256 AVX2 8x3])\nPress 'q' or Ctrl-C to abort, almost any other key for status\nnto{j0hn_th3_r1pp3r_cr4cks_sh4d0w} (ctf)\n1g 0:00:00:00 DONE (2026-10-13 09:22) 12.50g/s 1600p/s 1600c/s 1600C/s\nUse the \"--show\" option to display all of the cracked passwords reliably\nSession completed.\n"
+        }
+      ],
+      "fallback": "john: в этой лабе есть только запуск из задания (см. `john --help`).\n"
+    }
+  }
+}

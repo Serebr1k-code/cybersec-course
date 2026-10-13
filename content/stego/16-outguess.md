@@ -13,6 +13,18 @@ useful_for:
   - "Forensics: анализ контейнеров с ключом"
 estimated_minutes: 30
 summary: "Глубокий разбор OutGuess и steghide: как работают их алгоритмы, откуда берётся пароль, как извлекать и когда какой инструмент применять."
+lab:
+  kind: shell
+  title: "Практика: steghide с паролем"
+  toolset: [core, exiftool, steghide]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, cover.jpg]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с `file cover.jpg` и `steghide info cover.jpg`."
+    - "Данные зашифрованы паролем — пароль часто оставляют в метаданных."
+    - "Найди строку `Steghide password: ...` в комментарии: `exiftool cover.jpg`."
+    - "Извлеки: `steghide extract -sf cover.jpg -p s3cr3t_pw -xf out.txt` и `grep nto out.txt > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

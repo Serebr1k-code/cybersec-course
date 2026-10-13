@@ -13,6 +13,18 @@ useful_for:
   - "Incident Response"
 estimated_minutes: 60
 summary: "Реконструкция RAID-массивов (0/1/5/6) и LVM из образов: определение layout, порядок дисков, размер stripe, сборка через mdadm, работа с missing-дисками."
+lab:
+  kind: shell
+  title: "Практика: RAID1 — выбор свежего члена"
+  toolset: [core, mdadm]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, disk0.img, disk1.img]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Оба образа — члены одного зеркала: `mdadm --examine disk0.img` и `mdadm --examine disk1.img`."
+    - "Сравни счётчик `Events`: свежий член имеет больше событий."
+    - "Данные лежат после суперблока и видны через `strings`."
+    - "Извлеки флаг: `strings disk0.img | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

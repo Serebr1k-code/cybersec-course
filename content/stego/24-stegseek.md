@@ -13,6 +13,18 @@ useful_for:
   - "Forensics: восстановление доступа к контейнеру"
 estimated_minutes: 30
 summary: "Как быстро вскрывать steghide-контейнеры: stegseek против rockyou, stegcracker, подготовка словарей и стратегия перебора вместо слепого брута."
+lab:
+  kind: shell
+  title: "Практика: перебор пароля stegseek"
+  toolset: [core, stegseek]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, hidden.jpg, steg_wordlist.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Проверь контейнер: `file hidden.jpg` и `steghide info hidden.jpg`."
+    - "Пароль в словаре: `cat steg_wordlist.txt`."
+    - "Перебирай: `stegseek hidden.jpg steg_wordlist.txt -xf out.txt`."
+    - "Запиши флаг: `grep nto out.txt > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

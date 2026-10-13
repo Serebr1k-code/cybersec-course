@@ -1,0 +1,56 @@
+{
+  "id": "crypto-stream-ciphers",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{n3v3r_r3us3_4_k3ystr34m}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: повторное использование keystream\n\nДва сообщения зашифрованы RC4 одним и тем же ключом: `c1.hex`, `c2.hex`\n(`XOR` с одинаковым keystream). Плейнтекст второго сообщения известен\n(`known.txt`). Восстанови первое сообщение и запиши флаг в `found.txt`.\n\nЗаготовка: `python3 recover.py`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки\n-------\n- c1 = p1 ^ ks, c2 = p2 ^ ks  =>  c1 ^ c2 = p1 ^ p2.\n- Зная p2, получаем p1 = (c1 ^ c2) ^ p2.\n- Скрипт читает hex-файлы и восстанавливает p1.\n"
+    },
+    {
+      "path": "/home/student/task/c1.hex",
+      "text": "b868fbd3fbfec563e28c15fd1a966f05c21087b47d5178296acb211a943e7d3f3ae3d5e44e8567b729b210901cd87be735ce\n"
+    },
+    {
+      "path": "/home/student/task/c2.hex",
+      "text": "9a48c0e1c7bdf44383a83ec430f41b46f030aef70562120861eb572eaa20704e30dba3b07cbf54c8448c24e31cc56ab0689e\n"
+    },
+    {
+      "path": "/home/student/task/known.txt",
+      "text": "KNOWN-PLAINTEXT-FOR-KEYSTREAM-REUSE-ANALYSIS-01234\n"
+    },
+    {
+      "path": "/home/student/task/recover.py",
+      "text": "import binascii\nc1 = binascii.unhexlify(open('c1.hex').read().strip())\nc2 = binascii.unhexlify(open('c2.hex').read().strip())\nknown = open('known.txt', 'rb').read().strip()\nks = bytes(a ^ b for a, b in zip(c1, c2))          # = p1 ^ p2\np1 = bytes(a ^ b for a, b in zip(ks, known))       # recover p1 using known p2\nprint('recovered plaintext:', p1.decode('latin-1'))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.14.4\n"
+        },
+        {
+          "match": "recover\\.py",
+          "example": "recover.py",
+          "output": "recovered plaintext: internal memo: nto{n3v3r_r3us3_4_k3ystr34m} -- end\n"
+        }
+      ]
+    }
+  }
+}

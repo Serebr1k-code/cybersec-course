@@ -1,0 +1,46 @@
+{
+  "id": "stego-stegseek",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{st3gs33k_cr4cks_1n_s3c0nds}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: перебор пароля через stegseek\n\n`hidden.jpg` — steghide-контейнер с паролем из словаря. Подбери пароль\nпо `steg_wordlist.txt` и извлеки секрет в `found.txt`.\n\nИнструмент: `stegseek hidden.jpg steg_wordlist.txt -xf out.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки\n-------\n- stegseek перебирает словарь за секунды (использует steghide-совместимый движок).\n- Ключ `-xf <файл>` задаёт, куда писать извлечённые данные.\n- Пароль — одно из слов в словаре.\n"
+    },
+    {
+      "path": "/home/student/task/hidden.jpg",
+      "b64": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAYABgDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDu6KKK/Nz1wooooAKKKKACiiigD//Z"
+    },
+    {
+      "path": "/home/student/task/steg_wordlist.txt",
+      "text": "123456\npassword\nsunshine\nnto{st3gs33k_cr4cks_1n_s3c0nds}\nqwerty\n"
+    }
+  ],
+  "tools": {
+    "stegseek": {
+      "help": "stegseek <jpeg> <словарь> [-xf <выход>] — перебор steghide-пароля (эмуляция)",
+      "cases": [
+        {
+          "match": "steg_wordlist",
+          "example": "hidden.jpg steg_wordlist.txt -xf out.txt",
+          "output": "StegSeek 0.6 - https://github.com/RickdeJager/StegSeek\n\n[i] Found passphrase: \"sunshine\"\n[i] Original filename: \"secret.txt\".\n[i] Extracting to \"out.txt\".\nnto{st3gs33k_cr4cks_1n_s3c0nds}\n",
+          "writes": [
+            "-xf"
+          ]
+        }
+      ]
+    }
+  }
+}

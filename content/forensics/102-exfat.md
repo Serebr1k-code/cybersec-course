@@ -13,6 +13,18 @@ useful_for:
   - "Анализ камер и дронов"
 estimated_minutes: 48
 summary: "Устройство exFAT: boot sector, allocation bitmap, таблицы FAT, наборы записей каталога (File/Directory/Stream/Name), восстановление удалённых файлов и типичные подводные камни."
+lab:
+  kind: shell
+  title: "Практика: разбор exFAT-образа"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, sdcard.img]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи файловую систему: `file sdcard.img`."
+    - "Загрузочный сектор: `xxd -l 128 sdcard.img` — ищи `EXFAT` и метку тома по смещению 0x40."
+    - "Данные кластеров идут после сектора; `strings sdcard.img` покажет текст."
+    - "Запиши флаг: `strings sdcard.img | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

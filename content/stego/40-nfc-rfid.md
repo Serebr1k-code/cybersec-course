@@ -13,6 +13,18 @@ useful_for:
   - "Понимание RFID-стеганографии"
 estimated_minutes: 40
 summary: "Данные и сокрытие в NFC/RFID: структура Mifare Classic/Ultralight, скрытые и «неиспользуемые» блоки, клонирование и эмуляция с Proxmark3/Flipper; как извлекать скрытое."
+lab:
+  kind: shell
+  title: "Практика: скрытые данные в Mifare Classic"
+  toolset: [core, hex, pm3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, mfclassic.dump]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи карту: `pm3 hf search`."
+    - "Посмотри дамп памяти: `pm3 hf mf dump`."
+    - "Дамп — 1024 байта; в свободных блоках может быть ASCII: `xxd mfclassic.dump`."
+    - "Найди текст: `strings mfclassic.dump | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

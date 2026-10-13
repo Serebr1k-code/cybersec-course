@@ -1,0 +1,49 @@
+{
+  "id": "crypto-tool-hashcat",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h4shc4t_cr4cks_md5_1n_s3c0nds}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: взлом MD5 в hashcat\n\n`hashes.txt` содержит один MD5-хэш, `wordlist.txt` — небольшой словарь.\nВосстанови пароль и запиши его в `found.txt`.\n\nИнструменты: `hashcat -m 0 -a 0 hashes.txt wordlist.txt`, затем `--show`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки\n-------\n- Режим 0 (`-m 0`) — это MD5.\n- `-a 0` — атака по словарю.\n- Результат удобно смотреть через `hashcat -m 0 hashes.txt --show`.\n"
+    },
+    {
+      "path": "/home/student/task/hashes.txt",
+      "text": "ab8d2fb6724df4f4c51e0080b4060d9f\n"
+    },
+    {
+      "path": "/home/student/task/wordlist.txt",
+      "text": "password\n123456\nnto{h4shc4t_cr4cks_md5_1n_s3c0nds}\nqwerty\nletmein\n"
+    }
+  ],
+  "tools": {
+    "hashcat": {
+      "help": "hashcat -m 0 -a 0 <хэши> <словарь> | hashcat -m 0 <хэши> --show (эмуляция)",
+      "cases": [
+        {
+          "match": "\\-m\\s+0.*--show|--show.*\\-m\\s+0",
+          "example": "-m 0 hashes.txt --show",
+          "output": "ab8d2fb6724df4f4c51e0080b4060d9f:nto{h4shc4t_cr4cks_md5_1n_s3c0nds}\n"
+        },
+        {
+          "match": "\\-a\\s+0",
+          "example": "-m 0 -a 0 hashes.txt wordlist.txt",
+          "output": "hashcat (v6.2.6) starting\n\nDictionary cache built:\n* Filename..: wordlist.txt\n* Passwords.: 6\n* Bytes.....: 58\n\nHashes: 1 digests; 1 unique digests, 1 unique salts\nSession..........: hashcat\nStatus...........: Cracked\nHash.Mode........: 0 (MD5)\nHash.Target......: hashes.txt\nRecovered........: 1/1 (100.00%) Digests\n\nab8d2fb6724df4f4c51e0080b4060d9f:nto{h4shc4t_cr4cks_md5_1n_s3c0nds}\n\nStarted: Mon Oct 13 09:20:00 2026\nStopped: Mon Oct 13 09:20:03 2026\n"
+        }
+      ],
+      "fallback": "hashcat: в этой лабе есть только запуск из задания (см. `hashcat -h`).\n"
+    }
+  }
+}

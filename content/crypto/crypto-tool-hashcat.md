@@ -13,6 +13,18 @@ useful_for:
   - "Red team: Kerberoast, AS-REP, NetNTLM"
 estimated_minutes: 30
 summary: "hashcat от А до Я: все режимы хэшей (-m), режимы атак (-a), словари, правила, маски, hashcat-utils, свои правила, GPU/CPU и распределённый перебор. Таблицы флагов и рабочие рецепты."
+lab:
+  kind: shell
+  title: "Практика: взлом MD5 в hashcat"
+  toolset: [core, hashcat]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, hashes.txt, wordlist.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри данные: `cat hashes.txt` и `cat wordlist.txt`."
+    - "MD5 — это режим `-m 0`, словарная атака — `-a 0`."
+    - "Запусти: `hashcat -m 0 -a 0 hashes.txt wordlist.txt`."
+    - "Покажи результат и возьми пароль: `hashcat -m 0 hashes.txt --show | cut -d: -f2 > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

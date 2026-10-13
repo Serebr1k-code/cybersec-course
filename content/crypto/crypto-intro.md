@@ -13,6 +13,18 @@ useful_for:
   - "Получить карту всей ветви crypto и стартовый набор инструментов"
 estimated_minutes: 35
 summary: "Что такое криптография на CTF, из каких классов состоят задачи, чем кодирование отличается от шифрования и хэширования. Карта всей ветви crypto и универсальный алгоритм действий с любым крипто-артефактом."
+lab:
+  kind: shell
+  title: "Практика: кодирование ≠ шифрование"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, message.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри файл: `file message.txt` и `cat message.txt`."
+    - "Строка из символов `A-Za-z0-9+/=` — это base64."
+    - "Одного декодирования мало: результат снова похож на base64."
+    - "Раскодируй дважды: `base64 -d message.txt | base64 -d > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

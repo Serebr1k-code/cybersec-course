@@ -13,6 +13,18 @@ useful_for:
   - "Понимать устройство потоковых шифров"
 estimated_minutes: 40
 summary: "Потоковые шифры: принцип keystream, RC4 и его слабости (KSA/PRGA, biases, WEP-атака), регистры сдвига с обратной связью (LFSR) и атака Берлекампа-Месси. Практические скрипты на Python. Мост к PRNG-предсказанию."
+lab:
+  kind: shell
+  title: "Практика: повторное использование keystream"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, c1.hex, c2.hex, known.txt, recover.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри данные: `cat known.txt` и `head c1.hex`."
+    - "При одном keystream `c1 ^ c2 = p1 ^ p2`."
+    - "Зная p2 (`known.txt`), восстанови p1 скриптом: `python3 recover.py`."
+    - "Запиши флаг: `python3 recover.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,57 @@
+{
+  "id": "stego-outguess",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0utgu3ss_w1th_4_p4ssw0rd}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: steghide с паролем\n\n`cover.jpg` — обычный JPEG, но `steghide` сообщает, что внутри данные,\nзащищённые паролем. Найди пароль и извлеки секрет в `found.txt`.\n\nИнструменты: `file`, `exiftool cover.jpg`, `steghide`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки\n-------\n- Пароль часто оставляют в метаданных контейнера.\n- `steghide info cover.jpg` покажет, что спрятано.\n- Извлечение: `steghide extract -sf cover.jpg -p <пароль> -xf out.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/cover.jpg",
+      "b64": "/9j/4AAQSkZJRgABAQAAAQABAAD//gAeU3RlZ2hpZGUgcGFzc3dvcmQ6IHMzY3IzdF9wd//aAAgBAQAAPwAAAAAAAAAAAP/Z"
+    }
+  ],
+  "tools": {
+    "exiftool": {
+      "help": "exiftool <файл> — чтение метаданных (эмуляция, вывод реального exiftool)",
+      "cases": [
+        {
+          "match": "cover\\.jpg",
+          "example": "cover.jpg",
+          "output": "ExifTool Version Number         : 13.55\nFile Name                       : cover.jpg\nDirectory                       : .\nFile Size                       : 72 bytes\nFile Modification Date/Time     : 2026:10:13 18:01:05+03:00\nFile Access Date/Time           : 2026:10:13 18:03:48+03:00\nFile Inode Change Date/Time     : 2026:10:13 18:01:05+03:00\nFile Permissions                : -rw-r--r--\nFile Type                       : JPEG\nFile Type Extension             : jpg\nMIME Type                       : image/jpeg\nJFIF Version                    : 1.01\nResolution Unit                 : None\nX Resolution                    : 1\nY Resolution                    : 1\nComment                         : Steghide password: s3cr3t_pw\n"
+        }
+      ]
+    },
+    "steghide": {
+      "help": "steghide info <файл> | steghide extract -sf <файл> -p <пароль> -xf <выход> (эмуляция)",
+      "cases": [
+        {
+          "match": "info",
+          "example": "info cover.jpg",
+          "output": "cover.jpg:\n  format: jpeg\n  capacity: 512.0 KB\nTry to get information about embedded data ? (y/n) y\n  embedded file \"secret.txt\":\n    size: 32.0 Byte\n  encrypted: rijndael-128, cbc\n  compressed: yes\n"
+        },
+        {
+          "match": "extract",
+          "example": "extract -sf cover.jpg -p s3cr3t_pw -xf out.txt",
+          "output": "Enter passphrase: \nwrote extracted data to \"out.txt\".\n--- out.txt ---\nnto{0utgu3ss_w1th_4_p4ssw0rd}\n",
+          "writes": [
+            "-xf"
+          ]
+        }
+      ]
+    }
+  }
+}

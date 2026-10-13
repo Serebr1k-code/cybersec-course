@@ -1,0 +1,62 @@
+{
+  "id": "crypto-block-analysis",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d1ff3r3nt14l_crypt4n4lys1s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: таблица разностей S-box (DDT)\n\nДля S-box шифра PRESENT (`sbox.py`) построй таблицу разностей и найди\nсамую вероятную выходную разность для входной разности `0xb`. Проверь\nответ: `python3 check.py 0x<разность>`, затем запиши флаг в `found.txt`.\n\nИнструменты: `python3 ddt.py`, `python3 check.py`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки\n-------\n- DDT[DX][DY] = число пар x, где S(x) ^ S(x^DX) == DY.\n- Ищи максимум в строке `0xb`.\n- Чем больше счётчик, тем вероятнее дифференциал (счётчик/16).\n"
+    },
+    {
+      "path": "/home/student/task/sbox.py",
+      "text": "# S-box шифра PRESENT (4-битный вход/выход)\nS = [0xC, 0x5, 0x6, 0xB, 0x9, 0x0, 0xA, 0xD, 0x3, 0xE, 0xF, 0x8, 0x4, 0x7, 0x1, 0x2]\n"
+    },
+    {
+      "path": "/home/student/task/ddt.py",
+      "text": "S = [0xC, 0x5, 0x6, 0xB, 0x9, 0x0, 0xA, 0xD, 0x3, 0xE, 0xF, 0x8, 0x4, 0x7, 0x1, 0x2]\nprint('Difference Distribution Table of the PRESENT S-box')\nprint('rows = input difference (0x0..0xf), cols = output difference (0x0..0xf)')\nprint('     ' + ' '.join(f'{j:>2x}' for j in range(16)))\nfor dx in range(16):\n    row = [sum(1 for x in range(16) if (S[x] ^ S[x ^ dx]) == dy) for dy in range(16)]\n    print(f'0x{dx:x}: ' + ' '.join(f'{c:>2d}' for c in row))\n"
+    },
+    {
+      "path": "/home/student/task/check.py",
+      "text": "import sys\nS = [0xC, 0x5, 0x6, 0xB, 0x9, 0x0, 0xA, 0xD, 0x3, 0xE, 0xF, 0x8, 0x4, 0x7, 0x1, 0x2]\nDX = 0xb\nans = int(sys.argv[1], 16)\nrow = [sum(1 for x in range(16) if (S[x] ^ S[x ^ DX]) == dy) for dy in range(16)]\nbest = max(range(16), key=lambda dy: row[dy])\nif ans == best:\n    print(f'[+] correct: for input difference 0x{DX:x} the most likely output difference is 0x{best:x} ({row[best]}/16)')\n    print('nto{d1ff3r3nt14l_crypt4n4lys1s}')\nelse:\n    print(f'[-] no: 0x{ans:x} occurs only {row[ans]}/16 for input difference 0x{DX:x}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.14.4\n"
+        },
+        {
+          "match": "ddt\\.py",
+          "example": "ddt.py",
+          "output": "Difference Distribution Table of the PRESENT S-box\nrows = input difference (0x0..0xf), cols = output difference (0x0..0xf)\n      0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f\n0x0: 16  0  0  0  0  0  0  0  0  0  0  0  0  0  0  0\n0x1:  0  0  0  4  0  0  0  4  0  4  0  0  0  4  0  0\n0x2:  0  0  0  2  0  4  2  0  0  0  2  0  2  2  2  0\n0x3:  0  2  0  2  2  0  4  2  0  0  2  2  0  0  0  0\n0x4:  0  0  0  0  0  4  2  2  0  2  2  0  2  0  2  0\n0x5:  0  2  0  0  2  0  0  0  0  2  2  2  4  2  0  0\n0x6:  0  0  2  0  0  0  2  0  2  0  0  4  2  0  0  4\n0x7:  0  4  2  0  0  0  2  0  2  0  0  0  2  0  0  4\n0x8:  0  0  0  2  0  0  0  2  0  2  0  4  0  2  0  4\n0x9:  0  0  2  0  4  0  2  0  2  0  0  0  2  0  4  0\n0xa:  0  0  2  2  0  4  0  0  2  0  2  0  0  2  2  0\n0xb:  0  2  0  0  2  0  0  0  4  2  2  2  0  2  0  0\n0xc:  0  0  2  0  0  4  0  2  2  2  2  0  0  0  2  0\n0xd:  0  2  4  2  2  0  0  2  0  0  2  2  0  0  0  0\n0xe:  0  0  2  2  0  0  2  2  2  2  0  0  2  2  0  0\n0xf:  0  4  0  0  4  0  0  0  0  0  0  0  0  0  4  4\n"
+        },
+        {
+          "match": "check\\.py\\s+0x8\\b",
+          "example": "check.py 0x8",
+          "output": "[+] correct: for input difference 0xb the most likely output difference is 0x8 (4/16)\nnto{d1ff3r3nt14l_crypt4n4lys1s}\n"
+        },
+        {
+          "match": "check\\.py",
+          "example": "check.py 0x3",
+          "output": "[-] no: 0x3 occurs only 0/16 for input difference 0xb\n"
+        }
+      ]
+    }
+  }
+}

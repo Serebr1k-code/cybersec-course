@@ -13,6 +13,18 @@ useful_for:
   - "Форензика: пароли из архивов и документов"
 estimated_minutes: 28
 summary: "John the Ripper (jumbo) от А до Я: форматы, режимы перебора (--wordlist, --rules, --incremental, --mask, --single), сессии и pot-файлы, конвертеры *2john, сравнение с hashcat и рабочие рецепты."
+lab:
+  kind: shell
+  title: "Практика: взлом shadow в John"
+  toolset: [core, john]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, shadow.txt, john_wordlist.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Строка shadow: `cat shadow.txt` (формат `$1$` — md5crypt)."
+    - "Запусти перебор по словарю: `john --wordlist=john_wordlist.txt shadow.txt`."
+    - "Результат показывается командой `john --show shadow.txt`."
+    - "Возьми поле пароля: `john --show shadow.txt | cut -d: -f2 > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

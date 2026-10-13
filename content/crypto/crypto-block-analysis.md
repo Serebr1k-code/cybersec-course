@@ -13,6 +13,18 @@ useful_for:
   - "Оценивать стойкость S-box и раундов"
 estimated_minutes: 45
 summary: "Введение в дифференциальный и линейный криптоанализ: модель SPN-сети, S-box, разностные характеристики, дифференциалы, вероятности, линейные приближения и смещения. Как это применяется к редуцированным DES/AES и самодельным шифрам на CTF. Практические скрипты."
+lab:
+  kind: shell
+  title: "Практика: DDT S-box (PRESENT)"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, sbox.py, ddt.py, check.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Изучи S-box: `cat sbox.py`."
+    - "Построй таблицу разностей: `python3 ddt.py`."
+    - "Найди максимум в строке `0xb` — это самая вероятная выходная разность."
+    - "Проверь и запиши флаг: `python3 check.py 0x8 | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

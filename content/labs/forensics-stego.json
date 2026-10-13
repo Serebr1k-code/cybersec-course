@@ -1,0 +1,27 @@
+{
+  "id": "forensics-stego",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4pp3nd3d_d4t4_4ft3r_30I}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор файла после JPEG\n\nВ `holiday.jpg` аналитик подозревает дописанные данные: обычная\nкартинка, но размер чуть больше ожидаемого. Найди скрытое\nсообщение и положи флаг в `found.txt`.\n\nПодсказки по инструментам: `file`, `xxd`, `strings`, `grep`,\n`cut`, `base64`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки аналитика\n-----------------\n- JPEG заканчивается маркером EOI (FF D9). Всё, что после него, — не картинка.\n- Строки после EOI видно через `strings`.\n- Значение помечено `X-SECRET:` и закодировано base64.\n"
+    },
+    {
+      "path": "/home/student/task/holiday.jpg",
+      "b64": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAAQABADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDzeiiiv0U+NP/ZClgtU0VDUkVUOmJuUnZlelJ3Y0ROdVpETmtYMlEwZERSZk5HWjBNM0pmTXpCSmZRPT0K"
+    }
+  ]
+}
