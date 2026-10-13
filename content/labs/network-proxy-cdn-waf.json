@@ -1,0 +1,46 @@
+{
+  "id": "network-proxy-cdn-waf",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{cdn_byp4ss_0r1g1n_f0und}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти origin за CDN и обойти его\n\nСайт `shop.example.com` стоит за Cloudflare — прямой запрос попадает в CDN.\nНужно найти настоящий IP origin и обратиться к нему, подставив `Host`.\n\n1. Заголовки через CDN: `curl -sI https://shop.example.com` — увидишь `server: cloudflare`.\n2. В `dns-history.txt` лежит история A-записей — найди старый адрес origin.\n3. Обратись к origin напрямую (SNI + Host = домен):\n   `curl --resolve shop.example.com:443:198.51.100.77 https://shop.example.com/`\n4. Запиши флаг `nto{...}` из ответа origin в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/dns-history.txt",
+      "text": "2026-02-11  shop.example.com  A  198.51.100.77   # direct origin (pre-CDN)\n2026-03-02  shop.example.com  A  104.18.32.7     # cloudflare\n2026-04-19  shop.example.com  A  104.18.33.7     # cloudflare\n2026-07-01  shop.example.com  CNAME  shop.cdn-edge.net\nnote: origin kept its cert + vhost; Host header still routes there\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-sI | --resolve host:port:ip] <url> — HTTP-клиент (эмуляция)",
+      "cases": [
+        {
+          "match": "--resolve",
+          "example": "--resolve shop.example.com:443:198.51.100.77 https://shop.example.com/",
+          "output": "<!DOCTYPE html>\n<html><head><title>shop origin</title></head>\n<body><h1>shop.example.com (origin)</h1>\n<p>x-origin-direct: 198.51.100.77</p>\n<p>debug: nto{cdn_byp4ss_0r1g1n_f0und}</p></body></html>\n"
+        },
+        {
+          "match": "\\-I|--head",
+          "example": "-sI https://shop.example.com",
+          "output": "HTTP/2 200 \ndate: Tue, 13 Oct 2026 15:13:08 GMT\ncontent-type: text/html; charset=utf-8\nserver: cloudflare\nlast-modified: Fri, 09 Oct 2026 20:18:28 GMT\nage: 3\ncf-cache-status: HIT\ncf-ray: a49f49591f64ec67-DME\nalt-svc: h3=\":443\"; ma=86400\n\n"
+        },
+        {
+          "match": "shop\\.example\\.com",
+          "example": "https://shop.example.com/",
+          "output": "HTTP/2 200 \nserver: cloudflare\ncf-cache-status: HIT\n\n<!DOCTYPE html><html><body><h1>shop</h1></body></html>\n"
+        }
+      ],
+      "fallback": "curl: доступно `curl -sI https://shop.example.com` (см. task.md)\n"
+    }
+  }
+}

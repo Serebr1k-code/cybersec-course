@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): анализ цепочки посредников"
 estimated_minutes: 55
 summary: "Forward/reverse прокси, CDN и WAF: как они меняют модель трафика, как найти реальный origin за CDN, как обходятся WAF и как анализировать заголовки цепочки (X-Forwarded-For, Via)."
+lab:
+  kind: shell
+  title: 'Практика: обход CDN и поиск origin'
+  toolset: [core, grep, curl]
+  workdir: /home/student/task
+  files: [task.md, dns-history.txt]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Сайт `shop.example.com` отдаёт заголовок `server: cloudflare` — значит, отвечает reverse-прокси, а не origin.'
+    - 'Прямое сканирование домена попадёт в CDN. Нужен настоящий IP origin.'
+    - 'История DNS (`dns-history.txt`) хранит старые A-записи — найди в ней адрес origin.'
+    - 'Обратись к origin напрямую, подставив Host через `--resolve`: `curl --resolve shop.example.com:443:198.51.100.77 https://shop.example.com/` — в ответе флаг.'
 ---
 ## Вопрос, с которого всё начинается
 

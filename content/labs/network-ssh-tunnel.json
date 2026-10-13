@@ -1,0 +1,64 @@
+{
+  "id": "network-ssh-tunnel",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{ssh_L_f0rw4rd_p1v0t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: локальный SSH-форвард\n\nBastion `203.0.113.10` — единственная точка входа. Внутренний сервис\n`10.0.0.5:8080` доступен только с bastion, напрямую — нет.\n\n1. Подними локальный форвард:\n   `ssh -N -L 8080:10.0.0.5:8080 analyst@bastion`\n2. Убедись, что порт слушает: `ss -ltnp`\n3. Обратись к цели через туннель: `curl http://127.0.0.1:8080/`\n4. Запиши флаг `nto{...}` из ответа в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/bastion.txt",
+      "text": "bastion  203.0.113.10  port 22  user: analyst (key auth)\ninternal service: 10.0.0.5:8080 (only reachable from bastion)\n"
+    }
+  ],
+  "tools": {
+    "ssh": {
+      "help": "ssh [-N] [-L lport:host:port] user@host — SSH-клиент (эмуляция)",
+      "cases": [
+        {
+          "match": "-L",
+          "example": "-N -L 8080:10.0.0.5:8080 analyst@bastion",
+          "output": "Warning: Permanently added 'bastion,203.0.113.10' (ED25519) to the list of known hosts.\n"
+        }
+      ],
+      "fallback": "ssh: доступно `ssh -N -L 8080:10.0.0.5:8080 analyst@bastion` (см. task.md)\n"
+    },
+    "ss": {
+      "help": "ss -ltnp — список слушающих TCP-сокетов (эмуляция)",
+      "cases": [
+        {
+          "match": "ltnp",
+          "example": "-ltnp",
+          "output": "State  Recv-Q Send-Q Local Address:Port  Peer Address:Port Process\ntcp    LISTEN 0      128        127.0.0.1:8080      0.0.0.0:*     users:((\"ssh\",pid=4821,fd=5))\n"
+        }
+      ],
+      "fallback": "ss: доступно `ss -ltnp` (см. task.md)\n"
+    },
+    "curl": {
+      "help": "curl <url> — HTTP-клиент (эмуляция: вывод захвачен с реального curl)",
+      "cases": [
+        {
+          "match": "10\\.0\\.0\\.5:8080",
+          "example": "http://10.0.0.5:8080/",
+          "output": "curl: (7) Failed to connect to 10.0.0.5 port 8080 after 0 ms: Couldn't connect to server\n",
+          "code": 7
+        },
+        {
+          "match": "127\\.0\\.0\\.1:8080",
+          "example": "http://127.0.0.1:8080/",
+          "output": "<!DOCTYPE html>\n<html><head><title>internal inventory</title></head>\n<body><h1>Inventory service</h1>\n<p>Deploy token: nto{ssh_L_f0rw4rd_p1v0t}</p></body></html>\n"
+        }
+      ],
+      "fallback": "curl: доступно `curl http://127.0.0.1:8080/` (см. task.md)\n"
+    }
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "id": "network-socks-http-connect",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{s0cks5_pr0xy_p1v0t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: pivoting через SOCKS5-прокси\n\nНа foothold `10.10.10.50` поднят динамический порт: `ssh -D 1080 -N -f user@10.10.10.50`.\nЛокально слушает `127.0.0.1:1080`, за ним видна внутренняя сеть.\n\n1. Разбери приветствие SOCKS5-сервера (файл `socks5-greeting.bin`):\n   `xxd socks5-greeting.bin`  — байты `05 00`: версия 5, метод 0 (без аутентификации)\n2. Инструменты, не понимающие SOCKS, лезут в сеть напрямую — проксируй их через curl:\n   `curl --socks5 127.0.0.1:1080 http://intranet.corp.local/`\n3. Запиши флаг `nto{...}` из ответа в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/socks5-greeting.bin",
+      "b64": "BQA=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [--socks5 host:port | -x proxy] <url> — HTTP-клиент (эмуляция)",
+      "cases": [
+        {
+          "match": "socks5",
+          "example": "--socks5 127.0.0.1:1080 http://intranet.corp.local/",
+          "output": "<!DOCTYPE html>\n<html><head><title>intranet</title></head>\n<body><h1>intranet.corp.local</h1>\n<p>pivot ok: nto{s0cks5_pr0xy_p1v0t}</p></body></html>\n"
+        },
+        {
+          "match": "-x\\s",
+          "example": "-x http://proxy.corp.local:3128 http://intranet.corp.local/",
+          "output": "HTTP/1.1 200 Connection established\n\n<!DOCTYPE html>\n<html><body><h1>intranet</h1><p>ok</p></body></html>\n"
+        },
+        {
+          "match": "intranet\\.corp\\.local",
+          "example": "http://intranet.corp.local/",
+          "output": "curl: (6) Could not resolve host: intranet.corp.local\n",
+          "code": 6
+        }
+      ],
+      "fallback": "curl: доступно `curl --socks5 127.0.0.1:1080 http://intranet.corp.local/` (см. task.md)\n"
+    },
+    "nc": {
+      "help": "nc -w1 <host> <port> — TCP-клиент (эмуляция)",
+      "cases": [
+        {
+          "match": "1080",
+          "example": "-w1 127.0.0.1 1080",
+          "output": "05 00\n"
+        }
+      ],
+      "fallback": "nc: доступно `nc -w1 127.0.0.1 1080` (см. task.md)\n"
+    }
+  }
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Работа: безопасный удалённый доступ"
 estimated_minutes: 50
 summary: "Три вида SSH-перенаправления портов, их практическое применение для pivoting и обхода сетевых ограничений."
+lab:
+  kind: shell
+  title: 'Практика: локальный форвард (-L)'
+  toolset: [core, grep, ssh, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Внутренний сервис `10.0.0.5:8080` виден только с bastion. Локальный форвард: `-L lport:host:port`.'
+    - 'Подними туннель: `ssh -N -L 8080:10.0.0.5:8080 analyst@bastion`.'
+    - 'Проверь, что порт слушает: `ss -ltnp`.'
+    - 'Теперь цель доступна локально — `curl http://127.0.0.1:8080/`; в странице флаг.'
 ---
 
 ## Вопрос, с которого всё начинается

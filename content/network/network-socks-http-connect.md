@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): детект прокси-злоупотребления"
 estimated_minutes: 55
 summary: "Как работают SOCKS4/5 и HTTP CONNECT, как настроить pivoting через SSH-динамический порт и proxychains, чем отличается прокси от туннеля и как детектировать прокси-трафик."
+lab:
+  kind: shell
+  title: 'Практика: pivoting через SOCKS5'
+  toolset: [core, grep, curl, nc]
+  workdir: /home/student/task
+  files: [task.md, socks5-greeting.bin]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'На foothold поднят динамический SOCKS-прокси `ssh -D 1080`: локально слушает `127.0.0.1:1080`.'
+    - 'Посмотри приветствие сервера в hex: `xxd socks5-greeting.bin` — версия и метод (без аутентификации).'
+    - 'Инструменты, «не понимающие» SOCKS, лезут напрямую. Проксируй через `curl --socks5`.'
+    - '`curl --socks5 127.0.0.1:1080 http://intranet.corp.local/` — в ответе флаг.'
 ---
 
 ## Вопрос, с которого всё начинается

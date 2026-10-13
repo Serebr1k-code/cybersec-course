@@ -1,0 +1,53 @@
+{
+  "id": "network-firewall-evasion",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{fr4g_byp4ss_3gr3ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: обойти egress-фильтр\n\nИз сегмента DMZ наружу разрешены только DNS (UDP/53) и HTTPS (TCP/443).\nВнутренний сервис `10.10.20.5:8080` фильтром закрыт.\n\n1. ACK-скан покажет, фильтрует ли ACL порт (не устанавливая соединение):\n   `nmap -sA -Pn -p445 10.10.20.5`\n2. Простая фрагментация: `nmap -f --mtu 8 -g 53 -Pn -p445 10.10.20.5`\n3. Выровненные данные + исходный порт 53 обходят stateless-фильтр:\n   `nmap --data-length 200 -g 53 -Pn -p445,8080 10.10.20.5`\n4. Обратись к открытому сервису: `curl http://10.10.20.5:8080/` — флаг.\n5. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "nmap": {
+      "help": "nmap [опции] <цель> — сканирование (эмуляция: вывод захвачен с реального nmap)",
+      "cases": [
+        {
+          "match": "data-length",
+          "example": "--data-length 200 -g 53 -Pn -p445,8080 10.10.20.5",
+          "output": "Starting Nmap 7.95 ( https://nmap.org ) at 2026-10-13 14:20 MSK\nNmap scan report for 10.10.20.5\nHost is up (0.00087s latency).\n\nPORT     STATE SERVICE\n445/tcp  open  microsoft-ds\n8080/tcp open  http-proxy\n\nNmap done: 1 IP address (1 host up) scanned in 3.44 seconds\n"
+        },
+        {
+          "match": "\\-sA",
+          "example": "-sA -Pn -p445 10.10.20.5",
+          "output": "Starting Nmap 7.95 ( https://nmap.org ) at 2026-10-13 14:18 MSK\nNmap scan report for 10.10.20.5\nHost is up (0.00091s latency).\n\nPORT    STATE      SERVICE\n445/tcp unfiltered microsoft-ds\n\nNmap done: 1 IP address (1 host up) scanned in 2.11 seconds\n"
+        },
+        {
+          "match": "\\s\\-f\\b|--mtu",
+          "example": "-f --mtu 8 -g 53 -Pn -p445 10.10.20.5",
+          "output": "Starting Nmap 7.95 ( https://nmap.org ) at 2026-10-13 14:19 MSK\nNmap scan report for 10.10.20.5\nHost is up (0.00093s latency).\n\nPORT    STATE    SERVICE\n445/tcp filtered microsoft-ds\n\nNmap done: 1 IP address (1 host up) scanned in 3.02 seconds\n"
+        }
+      ],
+      "fallback": "nmap: доступно `nmap -sA -Pn -p445 10.10.20.5` (см. task.md)\n"
+    },
+    "curl": {
+      "help": "curl <url> — HTTP-клиент (эмуляция)",
+      "cases": [
+        {
+          "match": "10\\.10\\.20\\.5:8080",
+          "example": "http://10.10.20.5:8080/",
+          "output": "<!DOCTYPE html>\n<html><head><title>internal filestore</title></head>\n<body><h1>fileserver</h1>\n<p>bypass ok: nto{fr4g_byp4ss_3gr3ss}</p></body></html>\n"
+        }
+      ],
+      "fallback": "curl: доступно `curl http://10.10.20.5:8080/` (см. task.md)\n"
+    }
+  }
+}
