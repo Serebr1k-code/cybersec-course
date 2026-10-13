@@ -13,6 +13,18 @@ useful_for:
   - "Работа следователем/аналитиком SOC"
 estimated_minutes: 45
 summary: "Что такое цифровая форензика, её принципы, типовые артефакты и как подходить к CTF-задачам."
+lab:
+  kind: shell
+  title: "Практика: разобрать вложение invoice.bin"
+  toolset: [core, hex, unzip, base64]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, invoice.bin]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с `ls -la` и `file invoice.bin` — расширению верить нельзя."
+    - "Это ZIP: посмотри содержимое через `unzip -l invoice.bin`."
+    - "Достань скрипт: `unzip -p invoice.bin update.ps1 > update.ps1`, затем `cat update.ps1`."
+    - "Нагрузка в base64: `base64 -d update.ps1 > dec.txt`, флаг видно в `cat dec.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

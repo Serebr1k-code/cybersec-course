@@ -13,6 +13,18 @@ useful_for:
   - "Malware analysis (in-memory)"
 estimated_minutes: 55
 summary: "Продвинутые приёмы Volatility 3: символы и ISF, кастомные плагины, yarascan, timeline, анализ ядра, VAD, дампы процессов и работа со сложными дампами."
+lab:
+  kind: shell
+  title: "Практика: найти инъекцию в дампе памяти"
+  toolset: [core, volatility]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, mem.raw]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с `vol -f mem.raw windows.pslist` и `windows.netscan`."
+    - "Подозрительное соединение держит процесс с внешним IP на 443."
+    - "Регионы инъекции ищет `vol -f mem.raw windows.malfind --pid 4120`."
+    - "В выводе malfind есть строка с C2-URL и флагом: `... --pid 4120 | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается
