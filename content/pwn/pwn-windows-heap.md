@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 65
 summary: "Менеджеры кучи Windows (NT Heap, LFH, Segment Heap): метаданные, типовые атаки и современные ограничения."
+lab:
+  kind: shell
+  title: "Практика: импорт heap-функций PE"
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, winheap.exe, winheap.objdump.txt]
+  check: "grep -q 'alloc_api=malloc' answer.txt"
+  hints:
+    - "Windows-куча — отдельный менеджер (NT Heap / LFH), но приложение может звать CRT-функции."
+    - "Таблица импорта видна через `objdump -p winheap.exe`."
+    - "В `msvcrt.dll` приложение импортирует `malloc`, `free`, `calloc`."
+    - "Запиши `alloc_api=malloc`."
 ---
 
 ## Вопрос, с которого всё начинается

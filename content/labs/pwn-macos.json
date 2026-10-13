@@ -1,0 +1,29 @@
+{
+ "id": "pwn-macos",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "magic=0xfeedfacf"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: определить формат Mach-O\n\nФайл `mac.o` — объектный файл Mach-O (macOS). Формат другой, но идея та же:\nзаголовок, сегменты, точка входа.\n\n1. `cat mac.txt` — там `file` и первые байты через `xxd`.\n2. Посмотри первые 4 байта.\n3. Для 64-битного Mach-O это magic `0xfeedfacf` (на диске little-endian).\n4. Запиши `magic=0x...` в `answer.txt` и набери `check`.\n"
+  },
+  {
+   "path": "/home/student/task/mac.o",
+   "b64": "z/rt/gcAAAEDAAAAAQAAAAQAAABgAQAAACAAAAAAAAAZAAAA6AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIgAAAAAAAAAgAEAAAAAAACIAAAAAAAAAAcAAAAHAAAAAgAAAAAAAABfX3RleHQAAAAAAAAAAAAAX19URVhUAAAAAAAAAAAAAAAAAAAAAAAAHwAAAAAAAACAAQAABAAAAAAAAAAAAAAAAAQAgAAAAAAAAAAAAAAAAF9fZWhfZnJhbWUAAAAAAABfX1RFWFQAAAAAAAAAAAAAIAAAAAAAAABoAAAAAAAAAKABAAADAAAAAAAAAAAAAAALAABoAAAAAAAAAAAAAAAAJAAAABAAAAAABAoAAAAAAAIAAAAYAAAACAIAAAIAAAAoAgAAEAAAAAsAAABQAAAAAAAAAAAAAAAAAAAAAgAAAAIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAVUiJ5V3DZi4PH4QAAAAAAFVIieXHRfwAAAAAMcBdwwAUAAAAAAAAAAF6UgABeBABEAwHCJABAAAkAAAAHAAAAMD/////////BgAAAAAAAAAAQQ4QhgJDDQYAAAAAAAAAJAAAAEQAAACo/////////w8AAAAAAAAAAEEOEIYCQw0GAAAAAAAAAAYAAAAPAQAAEAAAAAAAAAABAAAADwEAAAAAAAAAAAAAAF93aW4AX21haW4AAAAAAA==",
+   "mode": "755"
+  },
+  {
+   "path": "/home/student/task/mac.txt",
+   "text": "mac.o: Mach-O 64-bit x86_64 object, flags:<|SUBSECTIONS_VIA_SYMBOLS>\n---\n00000000: cffa edfe 0700 0001 0300 0000 0100 0000  ................\n00000010: 0400 0000 6001 0000 0020 0000 0000 0000  ....`.... ......\n--- strings ---\n__text\n__TEXT\n__eh_frame\n__TEXT\n_win\n_main\n",
+   "mode": "644"
+  }
+ ]
+}

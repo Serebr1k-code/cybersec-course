@@ -12,6 +12,18 @@ useful_for:
   - "Security research Apple"
 estimated_minutes: 60
 summary: "Особенности эксплуатации на macOS: Mach-O, entitlements, hardened runtime, PAC, sandbox и типичные цели."
+lab:
+  kind: shell
+  title: "Практика: magic Mach-O"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, mac.o, mac.txt]
+  check: "grep -q 'magic=0xfeedfacf' answer.txt"
+  hints:
+    - "macOS использует формат Mach-O, а не ELF."
+    - "Первые 4 байта — magic. Для 64-битного Mach-O байты на диске `cf fa ed fe`."
+    - "Читай байты как little-endian: `0xfeedfacf`."
+    - "Запиши `magic=0xfeedfacf`."
 ---
 ## Вопрос, с которого всё начинается
 

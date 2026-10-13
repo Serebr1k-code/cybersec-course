@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 65
 summary: "Эксплуатация уязвимых драйверов Windows: pool-коррупция, IOCTL, подмена токена и обход SMEP/KASLR в ring 0."
+lab:
+  kind: shell
+  title: "Практика: IOCTL-код из клиента HEVD"
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, hevd.exe, hevd.objdump.txt]
+  check: "grep -q 'ioctl=0x222003' answer.txt"
+  hints:
+    - "Драйвер общается с userland через `DeviceIoControl(h, IOCTL, ...)`."
+    - "Путь устройства — строка `\\.\HackSysExtremeVulnerableDriver`."
+    - "Код команды кладётся в стек как 32-битная константа — её видно в дизассемблере."
+    - "Запиши `ioctl=0x222003`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -12,6 +12,18 @@ useful_for:
   - "Security research новых ISA"
 estimated_minutes: 55
 summary: "Эксплуатация RISC-V: регистры, соглашения вызовов, ROP, эмуляция через qemu и особенности современных RISC-V-целей."
+lab:
+  kind: shell
+  title: "Практика: архитектура RISC-V-бинаря"
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, riscv.elf, riscv.readelf.txt]
+  check: "grep -q 'machine=RISC-V' answer.txt"
+  hints:
+    - "RISC-V — открытая архитектура, частaя в embedded; формат ELF, но своя ISA."
+    - "`readelf --file-header` печатает `Machine:` — здесь `RISC-V`."
+    - "Возврат в RISC-V — псевдоинструкция `ret` = `jalr x0, 0(ra)`."
+    - "Запиши `machine=<значение Machine>`."
 ---
 ## Вопрос, с которого всё начинается
 

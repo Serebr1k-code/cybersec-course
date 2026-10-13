@@ -12,6 +12,18 @@ useful_for:
   - "Реверс прошивок роутеров"
 estimated_minutes: 60
 summary: "Эксплуатация MIPS-бинарей (частый формат роутеров/IoT): регистры, delay slots, соглашения вызовов, ROP и особенности endianness."
+lab:
+  kind: shell
+  title: "Практика: endianness MIPS-бинаря"
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, mips.elf, mips.readelf.txt]
+  check: "grep -q 'endianness=big' answer.txt"
+  hints:
+    - "MIPS в embedded часто big-endian (`MSB`) — это меняет упаковку payload."
+    - "`readelf --file-header` печатает `Data:` — порядок байт."
+    - "`2's complement, big endian` = старший байт первый."
+    - "Запиши `endianness=big`."
 ---
 ## Вопрос, с которого всё начинается
 
@@ -119,7 +131,7 @@ MIPS — это **роутеры, IP-камеры, NAS, IoT**. Реальные 
 
 Чтобы закрепить, проговорим полный порядок действий на MIPS-задаче:
 
-1. **Определи архитектуру и endianness** (`file`, `readelf -h`). От этого зависит порядок байт в payload.
+1. **Определи архитектуру и endianness** (`file`, `readelf --file-header`). От этого зависит порядок байт в payload.
 2. **Найди смещение до сохранённого `$ra`.** Переполняй вход, пока в отладчике не увидишь, что `$ra` (или сохранённое на стеке значение) стало твоими байтами.
 3. **Определи, что класть в `$ra`.** Если есть функция `win` — её адрес; если нет — адрес `system`, а в `$a0` нужно положить строку `/bin/sh`.
 4. **Проверь endianness payload** — на big-endian адрес пишется старшим байтом вперёд.

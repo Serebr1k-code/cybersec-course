@@ -13,6 +13,18 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 60
 summary: "Знакомимся с эксплуатацией Windows-приложений: стек и адрес возврата, SEH, защиты DEP/ASLR/GS, построение ROP и запуск эксплойта через pwntools/WinDbg."
+lab:
+  kind: shell
+  title: "Практика: формат PE-бинаря"
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, winvuln.exe, winvuln.objdump.txt]
+  check: "grep -q 'format=PE32' answer.txt"
+  hints:
+    - "Windows-исполняемые — это PE (PE32 = 32 бит, PE32+ = 64 бит)."
+    - "`file winvuln.exe` печатает `PE32 executable ... Intel i386`."
+    - "`objdump -f` покажет `file format pei-i386`."
+    - "Запиши `format=PE32`."
 ---
 ## Вопрос, с которого всё начинается
 

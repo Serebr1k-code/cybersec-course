@@ -13,6 +13,18 @@ useful_for:
   - "IoT / embedded security"
 estimated_minutes: 55
 summary: "Осваиваем AArch64: регистры и инструкции, особенности стека и адреса возврата, а также собираем ret2win-эксплойт и запускаем его через qemu-aarch64."
+lab:
+  kind: shell
+  title: "Практика: заголовок AArch64-бинаря"
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, arm64.elf, arm64.readelf.txt]
+  check: "grep -q 'machine=AArch64' answer.txt"
+  hints:
+    - "ARM64-бинарь не запустится на x86-64 — его читают статически."
+    - "`readelf --file-header` печатает `Machine:` — архитектуру цели."
+    - "Первый аргумент функции на AArch64 передаётся в `x0` (не `rdi`)."
+    - "Запиши `machine=<значение Machine>` из заголовка."
 ---
 
 ## Вопрос, с которого всё начинается

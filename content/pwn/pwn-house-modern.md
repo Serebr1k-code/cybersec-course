@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 65
 summary: "Обзор новейших heap-техник glibc 2.31–2.38: House of Kiwi, Emma, Apple, God, Water — условия, примитивы и когда их применять."
+lab:
+  kind: shell
+  title: "Практика: определить современный «дом»"
+  toolset: [core, hex, gdb, elf]
+  workdir: /home/student/task
+  files: [task.md, house, house.gdb.txt, libc.syms]
+  check: "grep -q 'technique=House_of_Apple_2' answer.txt"
+  hints:
+    - "Поддельный `_IO_FILE` имеет `vtable`, равную адресу символа libc; найди этот символ по смещению."
+    - "Смещение `0x1e6228` в libc — это `_IO_wfile_jumps` (проверь `libc.syms`)."
+    - "Второй уровень косвенности `_wide_data->_wide_vtable[0x68]` = `_IO_doallocate` = `system`."
+    - "Техника с `_IO_wfile_jumps` + `_wide_vtable` называется House of Apple 2."
 ---
 ## Вопрос, с которого всё начинается
 

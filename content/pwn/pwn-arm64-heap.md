@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 60
 summary: "Особенности heap-эксплуатации на AArch64: тот же glibc, но другие указатели, безопасность и типичные цели (TLS, function pointers)."
+lab:
+  kind: shell
+  title: "Практика: разрядность указателей AArch64"
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, arm64heap.elf, arm64heap.readelf.txt]
+  check: "grep -q 'ptr_size=8' answer.txt"
+  hints:
+    - "glibc-аллокатор на AArch64 тот же, но размер указателей меняет раскладку."
+    - "`Class:` в заголовке ELF говорит о разрядности: `ELF64` = 64 бита."
+    - "64-битная архитектура => указатель 8 байт; заголовок чанка всё те же 16 байт."
+    - "Запиши `ptr_size=8`."
 ---
 ## Вопрос, с которого всё начинается
 
