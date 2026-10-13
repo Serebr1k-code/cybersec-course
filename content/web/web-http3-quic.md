@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 40
 summary: "Как устроен HTTP/3 поверх QUIC, чем он меняет поверхность атак и какие новые классы десинка/DoS появляются."
+lab:
+  kind: shell
+  title: "Практика: расхождение H1/H3-фасадов"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`curl -sI https://shop.local/` покажет `alt-svc: h3=\":443\"` — сайт объявил HTTP/3."
+    - "Проверь H3-фасад: `curl -sI --http3 https://shop.local/`."
+    - "WAF стоит только на TCP-фасаде: `curl -sI https://shop.local/admin` → 403."
+    - "Тот же путь по H3 (`--http3`) WAF не видит — отдаётся страница с флагом. Сохрани в `found.txt` и `check`."
 ---
 
 ## Вопрос, с которого всё начинается

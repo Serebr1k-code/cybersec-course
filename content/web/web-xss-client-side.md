@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Клиентский уровень XSS-ветви: open redirect/CRLF, DOM clobbering, dangling markup и CSS-инъекции."
+lab:
+  kind: shell
+  title: "Практика: open redirect как мост внутрь"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Параметр `next` управляет редиректом: `curl -sI 'https://shop.local/login?next=/profile'`."
+    - "Проверь, принимает ли он чужой домен (`https://evil.com`) — увидишь `Location`."
+    - "Протокол-относительный URL `//internal.shop.local/admin` ведёт на внутренний хост."
+    - "Пройди по редиректу `curl -sL ...` — внутренний админ отдаст страницу с флагом. Сохрани в `found.txt` и `check`."
 ---
 
 ## Задача

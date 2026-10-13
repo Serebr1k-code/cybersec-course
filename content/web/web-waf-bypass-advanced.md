@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 42
 summary: "Продвинутый обход WAF: многослойное кодирование, Unicode/overlong, charset confusion, chunked/TE, HPP и нормализация."
+lab:
+  kind: shell
+  title: "Практика: обход WAF через charset confusion"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, bypass.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "WAF декодирует тело как UTF-8 — классический payload в GET вернёт 403."
+    - "Приложение декодирует тело по charset из `Content-Type` — вот и разница."
+    - "Тело запроса уже в файле `bypass.txt`; отправь его через `--data-binary @`."
+    - "Объяви `Content-Type: ...; charset=ibm037` — payload пройдёт WAF. Ответ с флагом сохрани в `found.txt` и `check`."
 ---
 
 ## Вопрос, с которого всё начинается

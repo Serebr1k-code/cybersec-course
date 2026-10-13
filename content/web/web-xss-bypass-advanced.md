@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Продвинутый уровень XSS: обход CSP, prototype pollution, mXSS и CSTI."
+lab:
+  kind: shell
+  title: "Практика: обход CSP через разрешённый JSONP"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сначала посмотри CSP: `curl -sI https://shop.local/ | grep -i content-security-policy`."
+    - "`script-src` разрешает `cdn.shop.local` — это доверенный домен."
+    - "На CDN есть JSONP-эндпоинт, отражающий `callback` в ответ без экранирования."
+    - "Приватный эндпоинт того же CDN отдаёт секрет с отражённым callback. Запиши в `found.txt` и `check`."
 ---
 
 ## Задача

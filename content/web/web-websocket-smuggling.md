@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 42
 summary: "Как использовать WebSocket-апгрейд для рассинхронизации HTTP-соединения, туннелирования и обхода прокси."
+lab:
+  kind: shell
+  title: "Практика: WebSocket smuggling (desync)"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, smuggle.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "WebSocket начинается обычным HTTP-запросом с `Upgrade: websocket` — посмотри рукопожатие."
+    - "Если фронтенд видит апгрейд, а бэкенд — обычный запрос, граница между запросами «разъедется»."
+    - "Контрабандный запрос лежит в `smuggle.txt`; отправь его тем же «апгрейдом» через `--data-binary @`."
+    - "Во втором ответе потока — контрабандный `/admin/flag` с флагом. Сохрани в `found.txt` и `check`."
 ---
 
 ## Вопрос, с которого всё начинается
