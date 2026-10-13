@@ -13,18 +13,6 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Продвинутый уровень: инъекции через ORM и second-order (отложенные) инъекции."
-lab:
-  kind: shell
-  title: "Практика: ORM-инъекция и second-order"
-  toolset: [core, curl]
-  workdir: /home/student/task
-  files: [task.md, payload.txt]
-  check: "grep -q 'nto{' found.txt"
-  hints:
-    - "`sort` вклеивается в HQL напрямую — обычный запрос вернёт список товаров."
-    - "Докажи инъекцию: `case when 1=1 then 1 else 1/0 end` в `sort` уронит запрос (500)."
-    - "Second-order: зарегистрируй пользователя с payload в имени (`-d @payload.txt`)."
-    - "Отчёт выполнит сохранённый payload позже и вернёт флаг: `curl -s https://shop.local/admin/report`. Сохрани в `found.txt` и `check`."
 ---
 
 ## Задача

@@ -1,0 +1,35 @@
+{
+  "id": "web-tool-httpx-katana",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{httpx_k4t4n4_m4pp3d_th3_h1dd3n_3ndp01nt}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: разведка httpx + katana\n\nЕсть список поддоменов `subs.txt`. Сначала пробиваем хосты (httpx), затем\nкраулим живые (katana) и ищем скрытые эндпоинты.\n\n1. Проба хостов — статус, заголовок, технологии:\n\n   httpx -l subs.txt -title -tech-detect -status-code -silent\n\n2. Краулинг живого хоста (с JS-парсингом):\n\n   katana -u https://shop.example -jc\n\n3. В выводе katana найдётся скрытый `/internal/flag`. Забери его:\n\n   curl -s https://shop.example/internal/flag > found.txt\n\n4. Набери `check`.\n" },
+    { "path": "/home/student/task/subs.txt", "text": "shop.example\napi.example\nold.example\n" }
+  ],
+  "tools": {
+    "httpx": {
+      "help": "httpx -l <файл> [-title -tech-detect -status-code -silent] — проба хостов",
+      "cases": [
+        { "match": "subs\\.txt|-l", "example": "-l subs.txt -title -tech-detect -status-code -silent", "output": "https://shop.example [200] [Example Shop] [nginx,PHP,Laravel]\nhttps://api.example [401] [] [nginx,Express,Node.js]\nhttps://old.example [301] [] [Apache]\n" }
+      ],
+      "fallback": "httpx: в этой лабе эмулируется только -l subs.txt.\n"
+    },
+    "katana": {
+      "help": "katana -u <url> [-jc] — краулинг (эмуляция shop.example)",
+      "cases": [
+        { "match": "katana|-u|shop\\.example", "example": "-u https://shop.example -jc", "output": "https://shop.example/\nhttps://shop.example/products\nhttps://shop.example/api/v1/items?id=1\nhttps://shop.example/backup/config.php.bak\nhttps://shop.example/internal/flag\n" }
+      ],
+      "fallback": "katana: в этой лабе эмулируется только краулинг https://shop.example.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.example/internal/flag)",
+      "cases": [
+        { "match": "internal/flag", "example": "-s https://shop.example/internal/flag", "output": "nto{httpx_k4t4n4_m4pp3d_th3_h1dd3n_3ndp01nt}\n" },
+        { "match": "shop\\.example", "example": "-s https://shop.example/", "output": "<!doctype html><title>Example Shop</title>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://shop.example.\n"
+    }
+  }
+}

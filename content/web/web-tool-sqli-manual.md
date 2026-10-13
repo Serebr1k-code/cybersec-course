@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 60
 summary: "Пошаговые ручные SQLi: найти инъекцию, посчитать колонки, UNION/error/boolean/time-blind извлечение, OOB и скриптинг."
+lab:
+  kind: shell
+  title: "Практика: ручная UNION-инъекция"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Цель — `https://shop.example/api/item?id=1`. Сначала нормальный ответ."
+    - "Кавычка (`id=1%27`) ломает SQL — увидишь ошибку СУБД."
+    - "Посчитай колонки: `id=1 ORDER BY 3` ок, `ORDER BY 4` — ошибка. Значит 3 колонки."
+    - "UNION-инъекция: `id=-1 UNION SELECT 1,password,3 FROM users-- -` вернёт флаг. Сохрани в `found.txt` и `check`."
 ---
 
 ## Задача

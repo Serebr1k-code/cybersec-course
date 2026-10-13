@@ -13,18 +13,6 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Базовый уровень обхода WAF: verb tampering, HTTP Parameter Pollution и нормализация Unicode."
-lab:
-  kind: shell
-  title: "Практика: обход WAF сменой метода (verb tampering)"
-  toolset: [core, curl]
-  workdir: /home/student/task
-  files: [task.md]
-  check: "grep -q 'nto{' found.txt"
-  hints:
-    - "WAF блокирует GET с `UNION` — вернёт 403. Сначала убедись в этом."
-    - "Правило WAF часто привязано к методу. Смени метод запроса."
-    - "Попробуй `-X PATCH` с тем же payload — WAF пропустит, приложение обработает."
-    - "Ответ содержит утёкший пароль-флаг. Сохрани в `found.txt` и набери `check`."
 ---
 
 ## Задача

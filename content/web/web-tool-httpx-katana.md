@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Все флаги httpx (проба хостов, технологии, матчеры, JSON) и katana (краулинг, JS-crawl, формы, фильтры) с пайплайнами."
+lab:
+  kind: shell
+  title: "Практика: разведка httpx + katana"
+  toolset: [core, httpx, katana, curl]
+  workdir: /home/student/task
+  files: [task.md, subs.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Список целей — в `subs.txt`. Прогони `httpx -l subs.txt -title -tech-detect -status-code -silent`."
+    - "Живой хост `shop.example` (200, PHP/Laravel). Запусти по нему `katana -u https://shop.example -jc`."
+    - "В выводе краулера есть скрытый эндпоинт `/internal/flag`."
+    - "Забери его: `curl -s https://shop.example/internal/flag > found.txt`, затем `check`."
 ---
 
 ## Задача

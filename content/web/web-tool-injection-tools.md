@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 40
 summary: "Практический справочник по автоматизации инъекций: command injection (commix), SSTI (tplmap), XSS (dalfox/xsstrike) и RCE через sqlmap --os-shell."
+lab:
+  kind: shell
+  title: "Практика: commix / tplmap / dalfox"
+  toolset: [core, commix, tplmap, dalfox]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`host` на `/ping` похож на команду ОС — это работа для `commix`."
+    - "Запусти `commix -u 'https://shop.acme-lab.test/ping?host=127.0.0.1' --batch --os-cmd='cat /flag'`."
+    - "commix подтвердит инъекцию и выполнит команду — вернётся флаг."
+    - "Для полноты проверь `tplmap` (SSTI) и `dalfox` (XSS), а флаг сохрани в `found.txt` и набери `check`."
 ---
 
 ## Задача

