@@ -13,6 +13,18 @@ useful_for:
   - "Kernel/glibc internals"
 estimated_minutes: 12
 summary: "Отдельный этап: эксплуатация обработчиков сигналов и sigreturn-фреймов — SROP, подделка ucontext и гонки в async-signal-коде."
+lab:
+  kind: shell
+  title: "Практика: смещение rip в SigreturnFrame"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, frame.bin, frame.hex.txt]
+  check: "grep -q 'rip_off=0xa8' answer.txt"
+  hints:
+    - "SigreturnFrame — это 248 байт; каждое поле лежит по своему смещению."
+    - "`frame.hex.txt` — реальный hex дампа фрейма (pwntools, amd64)."
+    - "Мы положили в `rip` маркер `0xdeadbeefcafebabe` — найди его в дампе."
+    - "Маркер `bebafecaefbeadde` (little-endian) стоит по смещению 168 = `0xa8`."
 ---
 
 Сигналы — механизм асинхронных уведомлений ядра, и в pwn они превращаются в отдельный класс примитивов. Как только программа устанавливает обработчик через `signal()`/`sigaction()`, ядро при доставке сигнала сохраняет полный контекст на стек и вызывает обработчик; возврат идёт через `rt_sigreturn`, который восстанавливает регистры **из стека**. Если атакующий контролирует стек, он контролирует и восстановление — это и есть SROP (Sigreturn-Oriented Programming).

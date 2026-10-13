@@ -12,6 +12,18 @@ useful_for:
   - "Обход NX без libc"
 estimated_minutes: 10
 summary: "Первый ROP-этап: базовый арсенал return-oriented programming — GOT/PLT, поиск гаджетов, ret2csu и stack pivot."
+lab:
+  kind: shell
+  title: "Практика: поиск гаджета pop rdi; ret"
+  toolset: [core, objdump, nm]
+  workdir: /home/student/task
+  files: [task.md, rop, rop.objdump.txt, rop.ropgadget.txt]
+  check: "grep -q 'pop_rdi=0x401111' answer.txt"
+  hints:
+    - "Гаджет `pop rdi; ret` в x86-64 ставит первый аргумент функции."
+    - "Байты гаджета: `5f c3` (`pop rdi` = `5f`, `ret` = `c3`)."
+    - "`rop.objdump.txt` содержит метку `<g_pop_rdi>` с адресом."
+    - "`rop.ropgadget.txt` подтверждает: `0x401111 : pop rdi ; ret`."
 ---
 Первый из двух ROP-модулей. Здесь базовый арсенал return-oriented programming: как получить управление, как искать гаджеты и как строить цепочки вызовов, когда удобных примитивов не хватает.
 

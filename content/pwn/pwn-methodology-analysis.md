@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty: фаззинг парсеров"
 estimated_minutes: 10
 summary: "Первый методологический этап: инструменты поиска уязвимостей — фаззинг, AddressSanitizer/UBSan и символьное исполнение с angr."
+lab:
+  kind: shell
+  title: "Практика: чтение отчёта AddressSanitizer"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, crash.c, asan.log]
+  check: "grep -q 'bug=heap-buffer-overflow' answer.txt"
+  hints:
+    - "ASan в первой строке отчёта пишет класс бага: `ERROR: AddressSanitizer: <класс>`."
+    - "Смотри `crash.c` — запись `p[4]` в буфер из 4 байт."
+    - "Отчёт также называет регион: `0 bytes after 4-byte region`."
+    - "Класс бага — `heap-buffer-overflow`."
 ---
 Первый из трёх методологических модулей. Здесь собраны инструменты поиска уязвимостей: как автоматически находить баги, как быстро локализовать их санитайзерами и как доказывать достижимость пути символьным исполнением.
 

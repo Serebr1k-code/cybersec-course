@@ -1,0 +1,24 @@
+{
+ "id": "pwn-signal-handlers",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "rip_off=0xa8"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: смещение поля rip в SigreturnFrame\n\nДля SROP нужно знать layout `SigreturnFrame`. Мы собрали реальный фрейм pwntools\nи записали в поле `rip` маркер `0xdeadbeefcafebabe`.\n\n1. `xxd frame.bin` — дамп реального фрейма (248 байт).\n2. `cat frame.hex.txt` — тот же фрейм в hex.\n3. Найди байты маркера `be ba fe ca ef be ad de` (little-endian) и определи\n   смещение его начала в байтах.\n\nЗапиши в `answer.txt` строку `rip_off=0x<смещение>` и набери `check`.\n"
+  },
+  {
+   "path": "/home/student/task/frame.bin",
+   "b64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADg////fwAAvrr+yu++rd4AAAAAAAAAADMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/frame.hex.txt",
+   "text": "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000e0ffffff7f0000bebafecaefbeadde000000000000000033000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+  }
+ ]
+}

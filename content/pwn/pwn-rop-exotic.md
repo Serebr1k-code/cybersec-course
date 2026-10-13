@@ -12,6 +12,18 @@ useful_for:
   - "Эксплуатация без libc"
 estimated_minutes: 10
 summary: "Второй ROP-этап: нестандартные векторы — Blind ROP без бинаря и ret2vdso как источник гаджетов без libc."
+lab:
+  kind: shell
+  title: "Практика: syscall;ret в vDSO (ret2vdso)"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, vdso.bin, vdso.hex.txt]
+  check: "grep -q 'off=0x111b' answer.txt"
+  hints:
+    - "vDSO — небольшой ELF, отображённый ядром в каждый процесс; там есть syscall-гаджеты."
+    - "`syscall` — байт `0f 05`, `ret` — `c3`; вместе `0f 05 c3`."
+    - "`vdso.bin` — реальный дамп vDSO (8 КБ), `vdso.hex.txt` — его hex."
+    - "Ищи в hex-дампе `0f 05 c3`; смещение первого вхождения — ответ."
 ---
 Второй ROP-модуль — про нестандартные векторы. Когда у вас нет бинаря под рукой или недоступна libc, на помощь приходят BROP и ret2vdso.
 
