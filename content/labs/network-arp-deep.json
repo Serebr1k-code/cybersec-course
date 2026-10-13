@@ -1,0 +1,42 @@
+{
+  "id": "network-arp-deep",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "02:00:00:de:ad:01"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: ARP-спуфинг: кто выдаёт себя за шлюз\n\nВ сегменте кто-то шлёт поддельные ARP-reply, объявляя IP шлюза `10.0.0.1` своим MAC-адресом. В дампе `arp.pcap` видны два одинаковых ответа и один легитимный запрос жертвы.\n\n1. Сводка: `tshark -r arp.pcap -nn`\n2. Поля: `tshark -r arp.pcap -T fields -e arp.opcode -e arp.src.hw_mac -e arp.src.proto_ipv4`\n\nЗапиши **MAC-адрес атакующего** (который в reply выдаёт себя за 10.0.0.1) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/arp.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAzVDOamykDAAqAAAAKgAAAAIAAAAABQIAAN6tAQgGAAEIAAYEAAICAADerQEKAAABAgAAAAAFCgAABc1QzmpfpQwAKgAAACoAAAACAAAAAAUCAADerQEIBgABCAAGBAACAgAA3q0BCgAAAQIAAAAABQoAAAXNUM5qOqYMACoAAAAqAAAAAgAA3q0BAgAAAAAFCAYAAQgABgQAAQIAAAAABQoAAAUAAAAAAAAKAAAB",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "arp\\.opcode|arp\\.src",
+          "example": "-r arp.pcap -T fields -e arp.opcode -e arp.src.hw_mac -e arp.src.proto_ipv4",
+          "output": "2\t02:00:00:de:ad:01\t10.0.0.1\n2\t02:00:00:de:ad:01\t10.0.0.1\n1\t02:00:00:00:00:05\t10.0.0.5\n"
+        },
+        {
+          "match": "arp\\.pcap",
+          "example": "-r arp.pcap -nn",
+          "output": "    1   0.000000 02:00:00:de:ad:01 → 02:00:00:00:00:05 ARP 42 10.0.0.1 is at 02:00:00:de:ad:01\n    2   0.000243 02:00:00:de:ad:01 → 02:00:00:00:00:05 ARP 42 10.0.0.1 is at 02:00:00:de:ad:01\n    3   0.000462 02:00:00:00:00:05 → 02:00:00:de:ad:01 ARP 42 Who has 10.0.0.1? Tell 10.0.0.5\n"
+        }
+      ],
+      "fallback": "    1   0.000000 02:00:00:de:ad:01 → 02:00:00:00:00:05 ARP 42 10.0.0.1 is at 02:00:00:de:ad:01\n    2   0.000243 02:00:00:de:ad:01 → 02:00:00:00:00:05 ARP 42 10.0.0.1 is at 02:00:00:de:ad:01\n    3   0.000462 02:00:00:00:00:05 → 02:00:00:de:ad:01 ARP 42 Who has 10.0.0.1? Tell 10.0.0.5\n"
+    }
+  }
+}

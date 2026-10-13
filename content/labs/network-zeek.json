@@ -1,0 +1,31 @@
+{
+  "id": "network-zeek",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "10.0.0.66"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Zeek: охота по логам, а не по пакетам\n\nZeek превращает трафик в структурированные логи. В каталоге есть три лога: `conn.log`, `dns.log`, `notice.log`. Нужно по логам найти внутренний хост, который попал в **notice** (сработала сигнатура сканирования).\n\n1. Что в notice: `cat notice.log` или `grep Scan notice.log`\n2. Сверь с `conn.log` (beaconing каждые ~60 c на 203.0.113.9:443).\n\nЗапиши **IP-адрес источника** из notice.log в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/conn.log",
+      "text": "#separator \\x09\n#set_separator\t,\n#empty_field\t(empty)\n#unset_field\t-\n#path\tconn\n#open\t2026-10-12-11-00-00\n#fields\tts\tuid\tid.orig_h\tid.orig_p\tid.resp_h\tid.resp_p\tproto\tservice\tduration\torig_bytes\tresp_bytes\tconn_state\n#types\ttime\tstring\taddr\tport\taddr\tport\tenum\tstring\tinterval\tcount\tcount\tstring\n1700000000.000000\tC1\t10.0.0.66\t51515\t203.0.113.9\t443\ttcp\tssl\t0.120\t1200\t2400\tSF\n1700000060.010000\tC2\t10.0.0.66\t51516\t203.0.113.9\t443\ttcp\tssl\t0.110\t1180\t2360\tSF\n1700000120.020000\tC3\t10.0.0.66\t51517\t203.0.113.9\t443\ttcp\tssl\t0.130\t1210\t2420\tSF\n1700000180.030000\tC4\t10.0.0.66\t51518\t203.0.113.9\t443\ttcp\tssl\t0.125\t1195\t2390\tSF\n1700000240.040000\tC5\t10.0.0.66\t51519\t203.0.113.9\t443\ttcp\tssl\t0.115\t1205\t2410\tSF\n1700000300.050000\tC6\t10.0.0.66\t51520\t203.0.113.9\t443\ttcp\tssl\t0.121\t1198\t2396\tSF\n"
+    },
+    {
+      "path": "/home/student/task/dns.log",
+      "text": "#separator \\x09\n#set_separator\t,\n#empty_field\t(empty)\n#unset_field\t-\n#path\tdns\n#open\t2026-10-12-11-00-00\n#fields\tts\tuid\tid.orig_h\tid.orig_p\tid.resp_h\tid.resp_p\tproto\ttrans_id\tquery\tqclass\tqtype\trcode\n#types\ttime\tstring\taddr\tport\taddr\tport\tenum\tcount\tstring\tcount\tstring\tstring\n1700000000.400000\tD1\t10.0.0.66\t53000\t10.0.0.1\t53\tudp\t12345\tevil-c2.example.com\t1\tA\tNOERROR\n1700000060.410000\tD2\t10.0.0.66\t53001\t10.0.0.1\t53\tudp\t12346\tevil-c2.example.com\t1\tA\tNOERROR\n"
+    },
+    {
+      "path": "/home/student/task/notice.log",
+      "text": "#separator \\x09\n#set_separator\t,\n#empty_field\t(empty)\n#unset_field\t-\n#path\tnotice\n#open\t2026-10-12-11-00-00\n#fields\tts\tuid\tid.orig_h\tid.orig_p\tid.resp_h\tid.resp_p\tfuid\tfile_mime_type\tfile_desc\tproto\tnote\tmsg\tsub\n#types\ttime\tstring\taddr\tport\taddr\tport\tstring\tstring\tstring\tenum\tstring\tstring\tstring\n1700000310.000000\tN1\t10.0.0.66\t-\t-\t-\t-\t-\t-\ttcp\tScan::Port_Scan\t10.0.0.66 scanned 512 ports of 203.0.113.0/24\t-\n1700000320.000000\tN2\t10.0.0.66\t-\t-\t-\t-\t-\t-\ttcp\tScan::Address_Scan\t10.0.0.66 scanned 254 hosts of 203.0.113.0/24\t-\n"
+    }
+  ]
+}

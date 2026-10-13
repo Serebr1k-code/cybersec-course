@@ -13,6 +13,18 @@ useful_for:
   - "Работа: защита коммутаторов"
 estimated_minutes: 55
 summary: "Как устроена сегментация VLAN, чем опасен DTP и double tagging, и как атакующий выходит из своего сегмента в чужой."
+lab:
+  kind: shell
+  title: "Практика: VLAN hopping — double tagging"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, vlan.pcap]
+  check: "grep -q '666' answer.txt"
+  hints:
+    - "Ищи кадр с двумя тегами 802.1Q."
+    - "`tshark -r vlan.pcap -T fields -e vlan.id` покажет оба ID."
+    - "Внешний тег — native VLAN (1), внутренний — чужой."
+    - "Внутренний VLAN ID — `666`."
 ---
 
 ## Вопрос, с которого всё начинается

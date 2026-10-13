@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): детект ARP-аномалий"
 estimated_minutes: 50
 summary: "Механика ARP-спуфинга на уровне кадров, полноценный перехват с релеем, защита и практические способы обнаружения."
+lab:
+  kind: shell
+  title: "Практика: ARP-спуфинг — кто выдаёт себя за шлюз"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, arp.pcap]
+  check: "grep -q '02:00:00:de:ad:01' answer.txt"
+  hints:
+    - "ARP-reply — это opcode 2 (в выводе `is at`)."
+    - "Кто-то повторно объявляет `10.0.0.1` чужим MAC — признак спуфинга."
+    - "Поля: `arp.opcode`, `arp.src.hw_mac`, `arp.src.proto_ipv4`."
+    - "MAC атакующего — `02:00:00:de:ad:01`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,42 @@
+{
+  "id": "network-vlan-hopping",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "666"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: VLAN hopping: double tagging\n\nАтакующий из native VLAN `1` отправил кадр с **двойным тегом 802.1Q**, чтобы пробиться в чужой сегмент. Внешний тег (native) снимается первым коммутатором, а внутренний доставляется жертве.\n\n1. Сводка: `tshark -r vlan.pcap -nn`\n2. Теги: `tshark -r vlan.pcap -T fields -e vlan.id`\n\nЗапиши **внутренний (чужой) VLAN ID** в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/vlan.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAzVDOat6JDAAyAAAAMgAAAAIAAAAAAgIAAAAAAYEAAAGBAAKaCABFAAAcAAEAAEABUtMKAAAFCgAUCQgA9/8AAAAA",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "vlan\\.id",
+          "example": "-r vlan.pcap -T fields -e vlan.id",
+          "output": "1,666\n"
+        },
+        {
+          "match": "vlan\\.pcap",
+          "example": "-r vlan.pcap -nn",
+          "output": "    1   0.000000     10.0.0.5 → 10.0.20.9    ICMP 50 Echo (ping) request  id=0x0000, seq=0/0, ttl=64\n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.5 → 10.0.20.9    ICMP 50 Echo (ping) request  id=0x0000, seq=0/0, ttl=64\n"
+    }
+  }
+}

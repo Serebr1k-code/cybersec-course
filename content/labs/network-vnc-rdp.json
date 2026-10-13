@@ -1,0 +1,42 @@
+{
+  "id": "network-vnc-rdp",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "003.008"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: VNC (RFB): версия протокола и типы аутентификации\n\nВ дампе `vnc.pcap` — начало сессии **VNC (RFB)** на порту 5900: сервер объявляет версию протокола и список поддерживаемых типов безопасности.\n\n1. Сводка: `tshark -r vnc.pcap -nn`\n2. Поля: `tshark -r vnc.pcap -T fields -e vnc.server_proto_ver -e vnc.security_type`\n\nЗапиши **версию протокола сервера** (например, `003.008`) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/vnc.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAzVDOanWPDABCAAAAQgAAAP///////2h6ZJWAowgARQAANAABAABABma2CgAACQoAAAUXDMgiAAAAAQAAAAFQGCAAPIMAAFJGQiAwMDMuMDA4Cs1QzmoxkQwAQgAAAEIAAAD///////9oemSVgKMIAEUAADQAAQAAQAZmtgoAAAUKAAAJyCIXDAAAAAEAAAANUBggADx3AABSRkIgMDAzLjAwOArNUM5qu5MMADkAAAA5AAAA////////aHpklYCjCABFAAArAAEAAEAGZr8KAAAJCgAABRcMyCIAAAANAAAADVAYIACZcQAAAgIB",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "vnc\\.server_proto_ver|vnc\\.security|vnc\\.num",
+          "example": "-r vnc.pcap -T fields -e vnc.server_proto_ver -e vnc.security_type",
+          "output": "003.008\t2,1\n"
+        },
+        {
+          "match": "vnc\\.pcap",
+          "example": "-r vnc.pcap -nn",
+          "output": "    1   0.000000     10.0.0.9 → 10.0.0.5     VNC 66 Server protocol version: 003.008\n    2   0.000444     10.0.0.5 → 10.0.0.9     VNC 66 Client protocol version: 003.008\n    3   0.001094     10.0.0.9 → 10.0.0.5     VNC 57 Security types supported\n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.9 → 10.0.0.5     VNC 66 Server protocol version: 003.008\n    2   0.000444     10.0.0.5 → 10.0.0.9     VNC 66 Client protocol version: 003.008\n    3   0.001094     10.0.0.9 → 10.0.0.5     VNC 57 Security types supported\n"
+    }
+  }
+}

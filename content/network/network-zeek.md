@@ -13,6 +13,18 @@ useful_for:
   - "Пентест — анализ трафика"
 estimated_minutes: 42
 summary: "Zeek (ex-Bro): архитектура, установка, ключевые логи (conn/dns/http/ssl/files/notice), кастомные скрипты, извлечение файлов, интеграция с Elastic и RITA."
+lab:
+  kind: shell
+  title: "Практика: Zeek — охота по notice.log"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, conn.log, dns.log, notice.log]
+  check: "grep -q '10.0.0.66' answer.txt"
+  hints:
+    - "Zeek пишет логи в TSV; имена колонок — в строке `#fields`."
+    - "События безопасности — в `notice.log`."
+    - "`grep Scan notice.log` покажет источник."
+    - "Источник — `10.0.0.66`."
 ---
 ## Вопрос, с которого всё начинается
 

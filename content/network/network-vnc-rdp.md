@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): детект RDP/VNC-атак"
 estimated_minutes: 55
 summary: "VNC (RFB) и RDP: как устроена аутентификация, где хранятся пароли VNC, NLA/CredSSP и BlueKeep в RDP, инструменты и защита удалённого доступа."
+lab:
+  kind: shell
+  title: "Практика: VNC (RFB) — версия и аутентификация"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, vnc.pcap]
+  check: "grep -q '003.008' answer.txt"
+  hints:
+    - "Порт 5900 — это VNC (RFB)."
+    - "Сервер первым объявляет версию протокола."
+    - "Поле `vnc.server_proto_ver`."
+    - "Версия — `003.008`."
 ---
 
 ## Вопрос, с которого всё начинается
