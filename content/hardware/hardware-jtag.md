@@ -13,6 +13,18 @@ useful_for:
   - "Реверс прошивок без доступа к консоли"
 estimated_minutes: 45
 summary: "Как найти JTAG/SWD на плате, определить пины, подключиться через OpenOCD и читать/писать память, обходить readout protection."
+lab:
+  kind: shell
+  title: "Практика: JTAG-подключение и дамп памяти"
+  toolset: [core, hex]
+  workdir: /home/student/jtag
+  files: [task.md, openocd.log, flash-dump.bin, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай лог OpenOCD: `cat openocd.log` — определи чип по IDCODE."
+    - "OpenOCD снял дамп flash в файл `flash-dump.bin` (команда `dump_image`)."
+    - "В дампе есть читаемые строки — вытащи их: `strings flash-dump.bin`."
+    - "Итог: `strings flash-dump.bin | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

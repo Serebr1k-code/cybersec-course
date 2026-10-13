@@ -13,6 +13,18 @@ useful_for:
   - "Анализ встраиваемых систем"
 estimated_minutes: 40
 summary: "Чем eMMC отличается от raw NAND, как читать оба через ISP и программатор, как собрать рабочий образ из дампа."
+lab:
+  kind: shell
+  title: "Практика: разбор дампа eMMC"
+  toolset: [core, hex]
+  workdir: /home/student/emmc
+  files: [task.md, emmc-dump.bin, partitions.txt, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри описание разделов: `cat partitions.txt` — на каком секторе начинается `rootfs`?"
+    - "Сектор = 512 байт. Вырежи раздел через `dd if=emmc-dump.bin of=part.bin bs=512 skip=<сектор> count=8`."
+    - "В вырезанном разделе ищи строки: `strings part.bin | grep nto`."
+    - "Итог: `dd if=emmc-dump.bin of=part.bin bs=512 skip=8 count=8` затем `strings part.bin | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

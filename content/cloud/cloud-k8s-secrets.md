@@ -13,6 +13,18 @@ useful_for:
   - "Эксплуатация kubelet и etcd endpoints"
 estimated_minutes: 35
 summary: "Где хранятся секреты в Kubernetes, как читать их через API, kubelet и etcd, и как захватывать service-account токены. Практические команды и типовые мисконфиги."
+lab:
+  kind: shell
+  title: "Практика: секреты Kubernetes из манифеста"
+  toolset: [core, base64]
+  workdir: /home/student/cluster
+  files: [task.md, secret.yaml, sa-token.txt, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри, что вообще лежит: `ls -la` и `cat secret.yaml`."
+    - "Kubernetes хранит данные Secret в поле `data` в **base64** (это не шифрование!). Значения — после двоеточия."
+    - "Выдели значение нужного ключа: `grep flag: secret.yaml | cut -d: -f2` — и раскодируй через `base64 -d`."
+    - "Итог: `grep flag: secret.yaml | cut -d: -f2 | base64 -d > found.txt`."
 ---
 
 ## Задача

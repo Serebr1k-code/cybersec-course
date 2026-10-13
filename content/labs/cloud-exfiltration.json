@@ -1,0 +1,55 @@
+{
+  "id": "cloud-exfiltration",
+  "workdir": "/home/student/capture",
+  "expect": {
+    "file": "/home/student/capture/found.txt",
+    "contains": "nto{3xf1l_0v3r_dn5_2026}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/capture",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/capture/task.md",
+      "text": "# Задача: эксфильтрация через DNS\n\nАналитик снял трафик с заражённого хоста (`exfil.pcap`). Подозрение —\nутечка данных через DNS-туннель. Найди канал и восстанови утечённые данные.\n\nПолезные команды: `tshark` (эмулируется, вывод — реальный), `grep`, `cut`, `base64`, `sort`, `uniq`.\nПолный список — `help`, справка по инструменту — `tshark -h`.\n\nФлаг — в `found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/capture/notes.md",
+      "text": "Заметки\n------\n- Хост: 10.20.30.40, резолвер: 10.20.30.1.\n- Большинство запросов — обычные домены (acme.com, example.net).\n- Один запрос выбивается из общего ряда: длинный случайный label.\n- `-Y 'dns.flags.response == 0'` оставляет только запросы (без ответов-дублей).\n"
+    },
+    {
+      "path": "/home/student/capture/exfil.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAgKvgZgAAAABIAAAASAAAAN6tvu8AAaq7zAARIggARQAAOgABAABAESpiChQeKAoUHgGcQAA1ACb1wAPoAQAAAQAAAAAAAAN3d3cEYWNtZQNjb20AAAEAAYCr4GYgoQcASAAAAEgAAADerb7vAAGqu8wAESIIAEUAADoAAQAAQBEqYgoUHigKFB4BnEEANQAm/OID6QEAAAEAAAAAAAADYXBpBGFjbWUDY29tAAABAAGBq+BmAAAAAEsAAABLAAAA3q2+7wABqrvMABEiCABFAAA9AAEAAEARKl8KFB4oChQeAZxCADUAKeGYA+oBAAABAAAAAAAAA2NkbgdleGFtcGxlA25ldAAAAQABgavgZiChBwBuAAAAbgAAAN6tvu8AAaq7zAARIggARQAAYAABAABAESo8ChQeKAoUHgGcQwA1AEzf7QPrAQAAAQAAAAAAACBiblJ2ZXpONFpqRnNYekIyTTNKZlpHNDFYekl3TWpaOQVleGZpbAdldmlsLWMyA25ldAAAAQABgqvgZgAAAABJAAAASQAAAN6tvu8AAaq7zAARIggARQAAOwABAABAESphChQeKAoUHgGcRAA1ACf4dAPsAQAAAQAAAAAAAARtYWlsBGFjbWUDY29tAAABAAGCq+BmIKEHAEoAAABKAAAA3q2+7wABqrvMABEiCABFAAA8AAEAAEARKmAKFB4oChQeAZxFADUAKDOsA+0BAAABAAAAAAAABHRpbWUFYXBwbGUDY29tAAABAAGAq+BmIE4AAGQAAABkAAAAqrvMABEi3q2+7wABCABFAABWAAEAAEARKkYKFB4BChQeKAA1nEAAQiJKA+iFAAABAAEAAAAAA3d3dwRhY21lA2NvbQAAAQABA3d3dwRhY21lA2NvbQAAAQABAAABLAAEXbjYIoCr4GZA7wcAZAAAAGQAAACqu8wAESLerb7vAAEIAEUAAFYAAQAAQBEqRgoUHgEKFB4oADWcQQBCMJAD6YUAAAEAAQAAAAADYXBpBGFjbWUDY29tAAABAAEDYXBpBGFjbWUDY29tAAABAAEAAAEsAARduNgigavgZiBOAABqAAAAagAAAKq7zAARIt6tvu8AAQgARQAAXAABAABAESpAChQeAQoUHigANZxCAEjWIQPqhQAAAQABAAAAAANjZG4HZXhhbXBsZQNuZXQAAAEAAQNjZG4HZXhhbXBsZQNuZXQAAAEAAQAAASwABF242CKBq+BmQO8HALAAAACwAAAAqrvMABEi3q2+7wABCABFAACiAAEAAEARKfoKFB4BChQeKAA1nEMAjvapA+uFAAABAAEAAAAAIGJuUnZlek40WmpGc1h6QjJNM0pmWkc0MVh6SXdNalo5BWV4ZmlsB2V2aWwtYzIDbmV0AAABAAEgYm5SdmV6TjRaakZzWHpCMk0zSmZaRzQxWHpJd01qWjkFZXhmaWwHZXZpbC1jMgNuZXQAAAEAAQAAASwABF242CKCq+BmIE4AAGYAAABmAAAAqrvMABEi3q2+7wABCABFAABYAAEAAEARKkQKFB4BChQeKAA1nEQARMkYA+yFAAABAAEAAAAABG1haWwEYWNtZQNjb20AAAEAAQRtYWlsBGFjbWUDY29tAAABAAEAAAEsAARduNgigqvgZkDvBwBoAAAAaAAAAKq7zAARIt6tvu8AAQgARQAAWgABAABAESpCChQeAQoUHigANZxFAEaeKgPthQAAAQABAAAAAAR0aW1lBWFwcGxlA2NvbQAAAQABBHRpbWUFYXBwbGUDY29tAAABAAEAAAEsAARduNgi",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-Y фильтр] [-T fields -e <поле>] — разбор pcap (эмуляция: вывод захвачен с реального tshark)",
+      "cases": [
+        {
+          "match": "-Y.*exfil",
+          "example": "-r exfil.pcap -Y \"dns.qry.name contains \\\"exfil\\\"\" -T fields -e dns.qry.name",
+          "output": "bnRvezN4ZjFsXzB2M3JfZG41XzIwMjZ9.exfil.evil-c2.net\nbnRvezN4ZjFsXzB2M3JfZG41XzIwMjZ9.exfil.evil-c2.net\n"
+        },
+        {
+          "match": "-Y.*response.*-T\\s+fields",
+          "example": "-r exfil.pcap -Y 'dns.flags.response == 0' -T fields -e dns.qry.name",
+          "output": "www.acme.com\napi.acme.com\ncdn.example.net\nbnRvezN4ZjFsXzB2M3JfZG41XzIwMjZ9.exfil.evil-c2.net\nmail.acme.com\ntime.apple.com\n"
+        },
+        {
+          "match": "-T\\s+fields\\s+-e\\s+dns\\.qry\\.name",
+          "example": "-r exfil.pcap -T fields -e dns.qry.name",
+          "output": "www.acme.com\napi.acme.com\ncdn.example.net\nbnRvezN4ZjFsXzB2M3JfZG41XzIwMjZ9.exfil.evil-c2.net\nmail.acme.com\ntime.apple.com\nwww.acme.com\napi.acme.com\ncdn.example.net\nbnRvezN4ZjFsXzB2M3JfZG41XzIwMjZ9.exfil.evil-c2.net\nmail.acme.com\ntime.apple.com\n"
+        },
+        {
+          "match": "-r\\s+exfil\\.pcap",
+          "example": "-r exfil.pcap",
+          "output": "    1   0.000000  10.20.30.40 → 10.20.30.1   DNS 72 Standard query 0x03e8 A www.acme.com\n    2   0.500000  10.20.30.40 → 10.20.30.1   DNS 72 Standard query 0x03e9 A api.acme.com\n    3   1.000000  10.20.30.40 → 10.20.30.1   DNS 75 Standard query 0x03ea A cdn.example.net\n    4   1.500000  10.20.30.40 → 10.20.30.1   DNS 110 Standard query 0x03eb A bnRvezN4ZjFsXzB2M3JfZG41XzIwMjZ9.exfil.evil-c2.net\n    5   2.000000  10.20.30.40 → 10.20.30.1   DNS 73 Standard query 0x03ec A mail.acme.com\n    6   2.500000  10.20.30.40 → 10.20.30.1   DNS 74 Standard query 0x03ed A time.apple.com\n    7   0.020000   10.20.30.1 → 10.20.30.40  DNS 100 Standard query response 0x03e8 A www.acme.com A 93.184.216.34\n    8   0.520000   10.20.30.1 → 10.20.30.40  DNS 100 Standard query response 0x03e9 A api.acme.com A 93.184.216.34\n    9   1.020000   10.20.30.1 → 10.20.30.40  DNS 106 Standard query response 0x03ea A cdn.example.net A 93.184.216.34\n   10   1.520000   10.20.30.1 → 10.20.30.40  DNS 176 Standard query response 0x03eb A bnRvezN4ZjFsXzB2M3JfZG41XzIwMjZ9.exfil.evil-c2.net A 93.184.216.34\n   11   2.020000   10.20.30.1 → 10.20.30.40  DNS 102 Standard query response 0x03ec A mail.acme.com A 93.184.216.34\n   12   2.520000   10.20.30.1 → 10.20.30.40  DNS 104 Standard query response 0x03ed A time.apple.com A 93.184.216.34\n"
+        }
+      ],
+      "fallback": "tshark: в этой лабе есть pcap только exfil.pcap. Примеры:\n  tshark -r exfil.pcap\n  tshark -r exfil.pcap -T fields -e dns.qry.name\n"
+    }
+  }
+}

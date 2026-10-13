@@ -1,0 +1,30 @@
+{
+  "id": "cloud-azure-storage-sas",
+  "workdir": "/home/student/azure",
+  "expect": {
+    "file": "/home/student/azure/found.txt",
+    "contains": "nto{s4s_t0k3n_t00_p3rm1ss1v3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/azure",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/azure/task.md",
+      "text": "# Задача: SAS-токены Azure Storage\n\nВ истории браузера подрядчика нашли список SAS-ссылок (`sas-urls.txt`).\nОпредели, какая из них избыточно привилегированная, и достань флаг,\nскачанный из доступного объекта (`downloaded-flag.txt`).\n\nПолезные команды: `cat`, `grep`, `cut`.\n\nФлаг — в `found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/azure/notes.md",
+      "text": "Заметки\n------\n- `sp=r` — только чтение; `sp=rwdlacup` — почти полный контроль.\n- `srt=sco` — сервис, контейнер и объект.\n- Флаг лежит в `downloaded-flag.txt`.\n"
+    },
+    {
+      "path": "/home/student/azure/sas-urls.txt",
+      "text": "Список SAS-ссылок, найденных в истории браузера подрядчика:\n\n1) https://acmestore.blob.core.windows.net/public/logo.png?sv=2023-01-03&ss=b&srt=o&sp=r&se=2026-01-01T00:00:00Z&sig=AAAAshortsig1\n2) https://acmestore.blob.core.windows.net/backups/db.bak?sv=2023-01-03&ss=b&srt=sco&sp=rwdlacup&se=2027-01-01T00:00:00Z&sig=BBBBoverpermissive2\n3) https://acmestore.blob.core.windows.net/backups/flag.txt?sv=2023-01-03&ss=b&srt=o&sp=r&se=2026-01-01T00:00:00Z&sig=CCCCreadsig3\n\nПримечание аналитика: токен (2) даёт запись/удаление на весь контейнер.\n"
+    },
+    {
+      "path": "/home/student/azure/downloaded-flag.txt",
+      "text": "nto{s4s_t0k3n_t00_p3rm1ss1v3}\n"
+    }
+  ]
+}

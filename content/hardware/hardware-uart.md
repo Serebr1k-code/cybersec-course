@@ -13,6 +13,18 @@ useful_for:
   - "Реверс устройств без документации"
 estimated_minutes: 40
 summary: "Как найти UART на плате, подключиться, подобрать скорость и получить консоль, а из неё — shell или загрузчик."
+lab:
+  kind: shell
+  title: "Практика: разбор дампа UART-консоли"
+  toolset: [core]
+  workdir: /home/student/console
+  files: [task.md, uart-boot.log, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Открой лог: `wc -l uart-boot.log` и `head -40 uart-boot.log`."
+    - "Обрати внимание, доходит ли загрузка до shell — ищи строку-приглашение `/ #` или `#`."
+    - "Флаг лежит в файле, который читают на устройстве. Найди его: `grep -r nto .`"
+    - "Проще всего: `strings uart-boot.log | grep nto > found.txt` или `grep nto uart-boot.log > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

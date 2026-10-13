@@ -13,6 +13,18 @@ useful_for:
   - "CTF и реальные пентесты облачных приложений"
 estimated_minutes: 40
 summary: "Metadata-сервис по адресу 169.254.169.254 отдаёт приложению его облачную роль. Если найти SSRF или RCE — роль ваша. Разбираем AWS IMDSv1/IMDSv2, GCP, Azure, обход защиты и практические payload'ы."
+lab:
+  kind: shell
+  title: "Практика: SSRF в metadata-сервис (IMDS)"
+  toolset: [core, curl]
+  workdir: /home/student/ssrf
+  files: [task.md, ssrf-request.txt, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Найди уязвимый параметр в `ssrf-request.txt` — куда сервер делает запрос от твоего имени?"
+    - "Сервер в AWS: попробуй обратиться к metadata-сервису `http://169.254.169.254/latest/meta-data/`."
+    - "У инстанса есть роль: `.../latest/meta-data/iam/security-credentials/` вернёт её имя, а затем — временные ключи."
+    - "В `.../latest/user-data` лежит cloud-init с флагом. Достань: `curl -s http://169.254.169.254/latest/user-data > ud.txt`, затем `grep nto ud.txt | cut -d'\"' -f2 > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

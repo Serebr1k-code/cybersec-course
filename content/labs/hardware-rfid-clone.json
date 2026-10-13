@@ -1,0 +1,26 @@
+{
+  "id": "hardware-rfid-clone",
+  "workdir": "/home/student/rfid",
+  "expect": {
+    "file": "/home/student/rfid/found.txt",
+    "contains": "nto{m1f4r3_d3f4ult_k3y}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/rfid",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/rfid/task.md",
+      "text": "# Задача: Mifare Classic\n\nТы склонировал карту Mifare Classic 1K (`nfc-session.log`). Ключи частично\nдефолтные. Найди блок с полезными данными и достань флаг.\n\nПолезные команды: `cat`, `strings`, `grep`, `cut`.\n\nФлаг — в `found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/rfid/notes.md",
+      "text": "Заметки\n------\n- UID карты: 04 8A 3C 2E 5F 6B 80.\n- Ключи секторов 0/2/3 — дефолтные FFFFFFFFFFFF.\n- Полезные данные в блоках 4 и 8.\n"
+    },
+    {
+      "path": "/home/student/rfid/nfc-session.log",
+      "text": "$ nfc-list\nNFC device: PN532 v1.6 (7f 0a) opened\n1 ISO14443A passive target(s) found:\n  ATQA (SENS_RES): 00  04\n     UID (NFCID1): 04  8a  3c  2e  5f  6b  80\n    SAK (SEL_RES): 08\n\n$ mfoc -O card.mfd\n[...] sector 0 key A found: FFFFFFFFFFFF\n[...] sector 1 key A found: A0A1A2A3A4A5\n[...] sector 2 key A found: FFFFFFFFFFFF\n[...] sector 3 key A found: FFFFFFFFFFFF\n[...] all keys recovered (default keys not changed!)\n\n$ nfc-mfclassic r a card.mfd\n$ xxd card-blocks.txt | head\nBlock 0 : 04 8A 3C 2E 5F 6B 80 00  00 00 00 00 00 00 00 00\nBlock 1 : 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00\nBlock 4 : 41 43 4D 45 2D 4D 49 46  41 52 45 2D 43 41 52 44  'ACME-MIFARE-CARD'\nBlock 5 : 00 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00\nBlock 8 : 6E 74 6F 7B 6D 31 66 34 72 33 5F 64 33 66 34 75 6C 74 5F 6B 33 79 7D  'nto{m1f4r3_d3f4ult_k3y}'\n"
+    }
+  ]
+}

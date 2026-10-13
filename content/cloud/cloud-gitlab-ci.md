@@ -13,6 +13,18 @@ useful_for:
   - "RCE на раннерах"
 estimated_minutes: 50
 summary: "GitLab CI: .gitlab-ci.yml, runners (shared/specific), protected/masked переменные, runner-token и CI_JOB_TOKEN. Как из job'а получить облачные креды и выйти на раннер."
+lab:
+  kind: shell
+  title: "Практика: секреты в переменных CI"
+  toolset: [core, base64]
+  workdir: /home/student/ci
+  files: [task.md, .gitlab-ci.yml, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Открой пайплайн: `cat .gitlab-ci.yml`."
+    - "В блоке `variables:` есть значение в base64 (`DEPLOY_TOKEN_B64`)."
+    - "Выдели значение после `=` и раскодируй через `base64 -d`."
+    - "Итог: `grep DEPLOY_TOKEN_B64 .gitlab-ci.yml | cut -d: -f2 > t.txt`, затем `base64 -d t.txt > found.txt`."
 ---
 ## Задача
 

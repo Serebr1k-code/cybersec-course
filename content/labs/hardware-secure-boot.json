@@ -1,0 +1,26 @@
+{
+  "id": "hardware-secure-boot",
+  "workdir": "/home/student/boot",
+  "expect": {
+    "file": "/home/student/boot/found.txt",
+    "contains": "nto{pcr_m15m4tch_f0und}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/boot",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/boot/task.md",
+      "text": "# Задача: measured boot\n\nС устройства сняли event log и значения PCR (`pcr-values.txt`). Нужно понять,\nкакой PCR не совпал с эталоном, и достать флаг из записи event log.\n\nПолезные команды: `cat`, `grep`, `cut`, `strings`.\n"
+    },
+    {
+      "path": "/home/student/boot/notes.md",
+      "text": "Заметки\n------\n- PCR[4] отвечает за загрузчик/фрагменты прошивки.\n- `verdict` в конце файла подводит итог.\n- Флаг — в строке `EV_POST_CODE`.\n"
+    },
+    {
+      "path": "/home/student/boot/pcr-values.txt",
+      "text": "=== tpm2_eventlog / PCR summary ===\nPCR[0]  sha256  9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08\nPCR[1]  sha256  6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b\nPCR[4]  sha256  8f1c0b2a9d3e4f5061728394a5b6c7d8e9f0a1b2c3d4e5f60718293a4b5c6d7e\nPCR[7]  sha256  4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce\n   event: EV_EFI_VARIABLE_DRIVER_CONFIG  \"SecureBoot\" = 1\n   event: EV_SEPARATOR\n   event: EV_POST_CODE  \"nto{pcr_m15m4tch_f0und}\"\n=== verdict ===\nPCR[4] differs from the golden baseline (expected 8f1c0b2a...c6d7e -> got ...deadbeef)\n=> measured boot FAILED: firmware image was modified\n"
+    }
+  ]
+}

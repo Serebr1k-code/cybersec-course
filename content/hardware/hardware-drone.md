@@ -13,6 +13,18 @@ useful_for:
   - "Аудит БПЛА и телеметрии"
 estimated_minutes: 45
 summary: "Полётные контроллеры, протокол MAVLink, радио-каналы управления и телеметрии, GPS/GNSS спуфинг, перехват и подмена управления, разбор прошивки и параметров ArduPilot/PX4."
+lab:
+  kind: shell
+  title: "Практика: разбор MAVLink-лога дрона"
+  toolset: [core]
+  workdir: /home/student/drone
+  files: [task.md, mavlink-log.log, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Открой лог: `cat mavlink-log.log`."
+    - "Смотри на сообщения `PARAM_VALUE` — это параметры полётного контроллера."
+    - "Один параметр называется `FACTORY_KEY` и содержит флаг."
+    - "Итог: `grep FACTORY_KEY mavlink-log.log | cut -d'\"' -f4 > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

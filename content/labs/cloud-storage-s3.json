@@ -1,0 +1,42 @@
+{
+  "id": "cloud-storage-s3",
+  "workdir": "/home/student/bucket",
+  "expect": {
+    "file": "/home/student/bucket/found.txt",
+    "contains": "nto{publ1c_buck3t_3xp0s3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/bucket",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/bucket/downloaded",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/bucket/downloaded/backups",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/bucket/task.md",
+      "text": "# Задача: публичный S3-бакет\n\nАудит нашёл бакет `acme-backups`. Разберись, почему он публичный,\nи достань флаг из объекта, который оказался доступен всем.\n\nФайлы: `bucket-policy.json`, `list-objects.xml`, `downloaded/backups/flag.txt`.\n\nПолезные команды: `cat`, `grep`, `find`, `cut`.\n\nФлаг — в `found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/bucket/notes.md",
+      "text": "Заметки\n------\n- Политика бакета разрешает чтение всем (`Principal: *`).\n- Object Ownership/Public Access Block не включены.\n- Один из объектов — `backups/flag.txt`.\n"
+    },
+    {
+      "path": "/home/student/bucket/bucket-policy.json",
+      "text": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"PublicReadBackups\",\n      \"Effect\": \"Allow\",\n      \"Principal\": \"*\",\n      \"Action\": [\n        \"s3:GetObject\"\n      ],\n      \"Resource\": \"arn:aws:s3:::acme-backups/backups/*\"\n    }\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/bucket/list-objects.xml",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\n  <Name>acme-backups</Name>\n  <Prefix>backups/</Prefix>\n  <Contents><Key>backups/db-2026-09-01.sql</Key><Size>10485760</Size></Contents>\n  <Contents><Key>backups/flag.txt</Key><Size>32</Size></Contents>\n  <Contents><Key>backups/notes.txt</Key><Size>120</Size></Contents>\n</ListBucketResult>\n"
+    },
+    {
+      "path": "/home/student/bucket/downloaded/backups/flag.txt",
+      "text": "nto{publ1c_buck3t_3xp0s3d}\n"
+    }
+  ]
+}

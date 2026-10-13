@@ -1,0 +1,26 @@
+{
+  "id": "cloud-k8s-kubelet",
+  "workdir": "/home/student/kubelet",
+  "expect": {
+    "file": "/home/student/kubelet/found.txt",
+    "contains": "nto{kub3l3t_4n0nym0us_rc3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/kubelet",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/kubelet/task.md",
+      "text": "# Задача: анонимный kubelet API\n\nПорт kubelet 10250 отдаёт список подов без аутентификации (`/pods`). Тебе\nвыгрузили ответ в `kubelet-pods.json`. Найди опасный под (монтирует корень\nхоста) и достань флаг из его переменных окружения.\n\nПолезные команды: `cat`, `grep`, `cut`, `head`.\n\nФлаг — в `found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/kubelet/notes.md",
+      "text": "Заметки\n------\n- kubelet 10250 без `--anonymous-auth=false` открыт на чтение.\n- Опасный признак — `hostPath: /` (доступ к файлам узла).\n- Флаг — в env пода.\n"
+    },
+    {
+      "path": "/home/student/kubelet/kubelet-pods.json",
+      "text": "{\n  \"kind\": \"PodList\",\n  \"items\": [\n    {\n      \"metadata\": {\n        \"name\": \"web-0\",\n        \"namespace\": \"prod\"\n      },\n      \"spec\": {\n        \"nodeName\": \"node-1\",\n        \"containers\": [\n          {\n            \"name\": \"web\",\n            \"image\": \"nginx:1.25\"\n          }\n        ]\n      }\n    },\n    {\n      \"metadata\": {\n        \"name\": \"metrics-agent\",\n        \"namespace\": \"kube-system\"\n      },\n      \"spec\": {\n        \"nodeName\": \"node-1\",\n        \"containers\": [\n          {\n            \"name\": \"agent\",\n            \"image\": \"acme/metrics:2.1\",\n            \"env\": [\n              {\n                \"name\": \"SA_TOKEN\",\n                \"value\": \"nto{kub3l3t_4n0nym0us_rc3}\"\n              }\n            ],\n            \"volumeMounts\": [\n              {\n                \"name\": \"hostroot\",\n                \"mountPath\": \"/host\"\n              }\n            ]\n          }\n        ],\n        \"volumes\": [\n          {\n            \"name\": \"hostroot\",\n            \"hostPath\": {\n              \"path\": \"/\"\n            }\n          }\n        ]\n      }\n    }\n  ]\n}\n"
+    }
+  ]
+}

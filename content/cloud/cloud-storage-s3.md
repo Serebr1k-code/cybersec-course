@@ -13,6 +13,18 @@ useful_for:
   - "CTF: 'найди флаг в бакете'"
 estimated_minutes: 28
 summary: "Объектные хранилища — самый частый источник облачных утечек. Разбираем права ListBucket/GetObject/PutObject, ACL и bucket policy, presigned URL, а также инструменты для массового поиска открытых бакетов."
+lab:
+  kind: shell
+  title: "Практика: публичный S3-бакет"
+  toolset: [core]
+  workdir: /home/student/bucket
+  files: [task.md, bucket-policy.json, list-objects.xml, downloaded/backups/flag.txt, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Изучи политику бакета: `cat bucket-policy.json` — кому разрешено чтение?"
+    - "`Principal: \"*\"` + `s3:GetObject` = бакет публичный. Теперь посмотри листинг: `cat list-objects.xml`."
+    - "В листинге есть объект `backups/flag.txt`. Он уже скачан в `downloaded/`."
+    - "Итог: `grep nto downloaded/backups/flag.txt > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

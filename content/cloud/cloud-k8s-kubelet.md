@@ -13,6 +13,18 @@ useful_for:
   - "Чтение подов и секретов без API-сервера"
 estimated_minutes: 50
 summary: "Как устроен kubelet API, какие порты он слушает, чем опасен анонимный доступ и как через /exec, /run и /logs получить выполнение команд в подах и прочитать их данные."
+lab:
+  kind: shell
+  title: "Практика: анонимный kubelet API"
+  toolset: [core]
+  workdir: /home/student/kubelet
+  files: [task.md, kubelet-pods.json, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Открой ответ kubelet: `cat kubelet-pods.json` — это список подов с узла."
+    - "Найди под, который монтирует корень хоста (`hostPath: /`) — это побег из пода."
+    - "У этого пода в `env` есть секрет-флаг. Поищи: `grep nto kubelet-pods.json`."
+    - "Итог: `grep nto kubelet-pods.json | cut -d'\"' -f4 > found.txt`."
 ---
 
 ## Задача

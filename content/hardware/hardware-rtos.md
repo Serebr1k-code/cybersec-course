@@ -13,6 +13,18 @@ useful_for:
   - "Аппаратная безопасность"
 estimated_minutes: 60
 summary: "Как реверсить прошивки на RTOS (FreeRTOS, Zephyr, ThreadX): находить таблицу задач, разбирать структуры, анализировать очереди и восстанавливать логику многозадачного кода."
+lab:
+  kind: shell
+  title: "Практика: разбор прошивки RTOS"
+  toolset: [core]
+  workdir: /home/student/rtos
+  files: [task.md, rtos.bin, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи тип: `file rtos.bin` и посмотри строки: `strings rtos.bin | head`."
+    - "В прошивке видны имена задач и предупреждения. Флаг тоже лежит строкой."
+    - "Ищи флаг: `strings rtos.bin | grep nto`."
+    - "Итог: `strings rtos.bin | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

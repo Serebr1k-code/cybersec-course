@@ -1,0 +1,26 @@
+{
+  "id": "hardware-i2c",
+  "workdir": "/home/student/i2c",
+  "expect": {
+    "file": "/home/student/i2c/found.txt",
+    "contains": "nto{i2c_eepr0m_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/i2c",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/i2c/task.md",
+      "text": "# Задача: шина I2C\n\nЛогический анализатор декодировал шину I2C в текст (`i2c-capture.txt`).\nУстройство 0x50 — EEPROM. Найди чтение, содержащее флаг.\n\nПолезные команды: `cat`, `strings`, `grep`, `cut`.\n\nФлаг — в `found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/i2c/notes.md",
+      "text": "Заметки\n------\n- I2C EEPROM адресуется по 0x50.\n- Первое чтение — сигнатура ACME, второе — данные, третье — секрет.\n"
+    },
+    {
+      "path": "/home/student/i2c/i2c-capture.txt",
+      "text": "=== sigrok-cli i2c decode (bus i2c-1) ===\ni2c-1  Start\ni2c-1  Address write: 0x50\ni2c-1  Data write: 0x00\ni2c-1  Data write: 0x00\ni2c-1  Start\ni2c-1  Address read: 0x50\ni2c-1  Data read: 0x41 0x43 0x4d 0x45   'ACME'\ni2c-1  Data read: 0x45 0x45 0x50 0x00   'EEP.'\ni2c-1  Stop\ni2c-1  Start\ni2c-1  Address write: 0x50\ni2c-1  Data write: 0x00\ni2c-1  Data write: 0x10\ni2c-1  Start\ni2c-1  Address read: 0x50\ni2c-1  Data read: 0x6e 0x74 0x6f 0x7b 0x69 0x32 0x63 0x5f 0x65 0x65 0x70 0x72 0x30 0x6d 0x5f 0x6c 0x33 0x34 0x6b 0x7d   'nto{i2c_eepr0m_l34k}'\ni2c-1  Stop\n"
+    }
+  ]
+}

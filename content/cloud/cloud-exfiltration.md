@@ -13,6 +13,18 @@ useful_for:
   - "Понимание каналов утечки"
 estimated_minutes: 50
 summary: "Как выводят данные из облака: скачивание, снапшоты, шаринг, API, DNS, публичные бакеты. Как работает egress-контроль и какие техники его обходят или обходят не полностью."
+lab:
+  kind: shell
+  title: "Практика: DNS-эксфильтрация в захвате трафика"
+  toolset: [core, tshark]
+  workdir: /home/student/capture
+  files: [task.md, exfil.pcap, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сначала общий обзор: `tshark -r exfil.pcap` — сколько пакетов, какой протокол?"
+    - "Вытащи все DNS-запросы: `tshark -r exfil.pcap -Y 'dns.flags.response == 0' -T fields -e dns.qry.name`."
+    - "Один запрос выглядит не как домен, а как base64-строка с суффиксом `.exfil.evil-c2.net`. Это канал утечки."
+    - "Выдели первый label (`cut -d. -f1`) и раскодируй: `tshark -r exfil.pcap -Y 'dns.flags.response == 0' -T fields -e dns.qry.name > names.txt` затем `grep exfil names.txt | cut -d. -f1 > t.txt` и `base64 -d t.txt > found.txt`."
 ---
 ## Задача
 

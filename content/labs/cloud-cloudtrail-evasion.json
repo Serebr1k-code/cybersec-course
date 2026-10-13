@@ -1,0 +1,26 @@
+{
+  "id": "cloud-cloudtrail-evasion",
+  "workdir": "/home/student/logs",
+  "expect": {
+    "file": "/home/student/logs/found.txt",
+    "contains": "nto{cl0udtr41l_w4s_bl1nd3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/logs",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/logs/task.md",
+      "text": "# Задача: CloudTrail после инцидента\n\nИз аккаунта AWS утекли бэкапы. У тебя есть выгрузка CloudTrail (`cloudtrail.json`).\nНайди действия атакующего (отключение аудита) и флаг, оставленный в параметрах.\n\nПолезные команды: `cat`, `grep`, `cut`, `head`.\n\nФлаг — в `found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/logs/notes.md",
+      "text": "Заметки\n------\n- Подозрительный IP: 203.0.113.77.\n- Сначала отключили логирование, потом удалили trail, потом качали бэкапы.\n- Флаг — в `requestParameters` события StopLogging.\n"
+    },
+    {
+      "path": "/home/student/logs/cloudtrail.json",
+      "text": "{\n  \"Records\": [\n    {\n      \"eventTime\": \"2026-09-14T03:20:11Z\",\n      \"eventSource\": \"cloudtrail.amazonaws.com\",\n      \"eventName\": \"StopLogging\",\n      \"sourceIPAddress\": \"203.0.113.77\",\n      \"userAgent\": \"aws-cli/2.15.0\",\n      \"requestParameters\": {\n        \"name\": \"nto{cl0udtr41l_w4s_bl1nd3d}\"\n      },\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"userName\": \"ci-deploy\"\n      }\n    },\n    {\n      \"eventTime\": \"2026-09-14T03:20:19Z\",\n      \"eventSource\": \"cloudtrail.amazonaws.com\",\n      \"eventName\": \"DeleteTrail\",\n      \"sourceIPAddress\": \"203.0.113.77\",\n      \"userAgent\": \"aws-cli/2.15.0\",\n      \"requestParameters\": {\n        \"name\": \"prod-trail\"\n      },\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"userName\": \"ci-deploy\"\n      }\n    },\n    {\n      \"eventTime\": \"2026-09-14T03:21:02Z\",\n      \"eventSource\": \"s3.amazonaws.com\",\n      \"eventName\": \"GetObject\",\n      \"sourceIPAddress\": \"203.0.113.77\",\n      \"requestParameters\": {\n        \"bucketName\": \"acme-backups\",\n        \"key\": \"prod.dump\"\n      },\n      \"userIdentity\": {\n        \"type\": \"IAMUser\",\n        \"userName\": \"ci-deploy\"\n      }\n    }\n  ]\n}\n"
+    }
+  ]
+}

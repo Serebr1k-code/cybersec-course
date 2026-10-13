@@ -13,6 +13,18 @@ useful_for:
   - "Реверс прошивок"
 estimated_minutes: 40
 summary: "Практический поиск секретов в прошивке: пароли, хэши, API-токены, приватные ключи, скрытые учётки и обфусцированные данные."
+lab:
+  kind: shell
+  title: "Практика: секреты внутри прошивки"
+  toolset: [core]
+  workdir: /home/student/fw
+  files: [task.md, firmware.bin, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с `file firmware.bin` и `strings firmware.bin | head`."
+    - "В прошивках ищи пароли и токены: `strings firmware.bin | grep -i -E \"pass|psk|token|key\"` (у grep здесь подстрочный поиск)."
+    - "Есть строки `/etc/passwd`-стиля, WiFi-пароль и API-токен. Флаг тоже лежит строкой."
+    - "Итог: `strings firmware.bin | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

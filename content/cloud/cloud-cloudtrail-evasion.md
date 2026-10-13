@@ -13,6 +13,18 @@ useful_for:
   - "IR/Blue team: усиление детекта"
 estimated_minutes: 40
 summary: "Как устроены CloudTrail, GuardDuty и аудит, какие слепые зоны существуют, и как атакующий минимизирует следы. Практические приёмы OPSEC и что всё равно выдаёт активность."
+lab:
+  kind: shell
+  title: "Практика: анализ CloudTrail после инцидента"
+  toolset: [core]
+  workdir: /home/student/logs
+  files: [task.md, cloudtrail.json, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Открой лог: `cat cloudtrail.json` — это записи CloudTrail."
+    - "Ищи «тихие» события: `StopLogging`, `DeleteTrail`. С какого IP они пришли?"
+    - "В поле `requestParameters` одного события лежит флаг. Поищи: `grep nto cloudtrail.json`."
+    - "Итог: `grep nto cloudtrail.json | cut -d'\"' -f4 > found.txt`."
 ---
 ## Задача
 

@@ -13,6 +13,18 @@ useful_for:
   - "Реверс протоколов датчиков и модулей"
 estimated_minutes: 35
 summary: "Как найти I2C-шину, просканировать адреса, читать/писать EEPROM и перехватывать обмен данными между SoC и периферией."
+lab:
+  kind: shell
+  title: "Практика: разбор шины I2C"
+  toolset: [core]
+  workdir: /home/student/i2c
+  files: [task.md, i2c-capture.txt, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай декодированный захват шины: `cat i2c-capture.txt`."
+    - "Устройство 0x50 — EEPROM. Смотри на блоки `Data read`."
+    - "В одном из чтений ASCII-колонка содержит флаг."
+    - "Итог: `strings i2c-capture.txt | grep nto | cut -d\"'\" -f2 > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

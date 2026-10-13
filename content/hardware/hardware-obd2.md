@@ -13,6 +13,18 @@ useful_for:
   - "Диагностика и реверс CAN"
 estimated_minutes: 45
 summary: "Практическая работа с OBD-II и CAN: адаптеры ELM327/CANtact, настройка socketcan, can-utils, чтение DTC/PID, запись и воспроизведение кадров."
+lab:
+  kind: shell
+  title: "Практика: диагностика OBD-II / UDS"
+  toolset: [core]
+  workdir: /home/student/obd
+  files: [task.md, obd-session.log, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай сессию: `cat obd-session.log`."
+    - "Обычные PID (0100, 0902) дают VIN. Ищи нестандартный запрос `22 F1 99` (dealer mode)."
+    - "Ответ ECU содержит ASCII-строку в кавычках — это флаг."
+    - "Итог: `strings obd-session.log | grep nto | cut -d\"'\" -f2 > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

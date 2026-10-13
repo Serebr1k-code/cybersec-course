@@ -1,0 +1,26 @@
+{
+  "id": "hardware-uart",
+  "workdir": "/home/student/console",
+  "expect": {
+    "file": "/home/student/console/found.txt",
+    "contains": "nto{u4rt_c0ns0l3_1s_r00t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/console",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/console/task.md",
+      "text": "# Задача: UART-консоль устройства\n\nТы подключился к UART-пятачкам роутера и записал лог загрузки в `uart-boot.log`.\nНужно понять, попал ли ты в shell, и достать флаг, лежащий на устройстве.\n\nФайлы: `uart-boot.log` (лог консоли), `notes.md` (заметки).\n\nПолезные команды: `wc`, `head`, `grep`, `strings`, `cat`.\n\nФлаг — в `found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/console/notes.md",
+      "text": "Заметки\n------\n- Скорость консоли 115200 8N1 (видно по kernel command line).\n- Автозагрузка не останавливается (bootdelay=0).\n- Загрузка доходит до BusyBox ash от root.\n"
+    },
+    {
+      "path": "/home/student/console/uart-boot.log",
+      "text": "U-Boot 2021.07 (Aug 12 2026 - 10:11:02 +0000)\n\nSoC: MediaTek MT7621\nDRAM:  256 MiB\nNAND:  128 MiB\nIn:    serial\nOut:   serial\nErr:   serial\nNet:   eth0\nHit any key to stop autoboot:  0\nLoading kernel from 0x00080000 ...\n## Booting kernel from Legacy Image at 00080000 ...\n   Verifying Checksum ... OK\n   Loading Kernel Image ... OK\nStarting kernel ...\n\n[    0.000000] Linux version 5.10.138 (buildbot@acme) #1 SMP\n[    0.000000] Kernel command line: console=ttyS0,115200 root=/dev/mtdblock3\n[    1.204511] mtk-serial 1e000c00.serial: ttyS0 at MMIO 0x1e000c00 (irq = 24)\n[    2.778221] mtdblock: MTD device 'rootfs' is read-only\n[    3.101334] init: starting /etc/preinit\n[    3.412907] acme-fleet: provisioning agent v2.4.1\n[    3.500112] acme-fleet: device already enrolled (id=ACME-77f3)\n[    3.612004] acme-fleet: applying factory config\n\nBusyBox v1.35.0 (2026-07-30) built-in shell (ash)\nEnter 'help' for a list of built-in commands.\n\n/ # id\nuid=0(root) gid=0(root)\n/ # cat /etc/acme/factory.key\nACME-FACTORY-9f21c0de\n/ # cat /root/flag.txt\nnto{u4rt_c0ns0l3_1s_r00t}\n/ # \n"
+    }
+  ]
+}

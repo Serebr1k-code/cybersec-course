@@ -1,0 +1,26 @@
+{
+  "id": "hardware-modbus-deep",
+  "workdir": "/home/student/modbus",
+  "expect": {
+    "file": "/home/student/modbus/found.txt",
+    "contains": "nto{m0dbu5_r3g1st3r5}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/modbus",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/modbus/task.md",
+      "text": "# Задача: Modbus/TCP\n\nТы декодировал захват Modbus/TCP в текст (`modbus.log`). Нужно найти\nподозрительную запись в регистры и достать из неё флаг.\n\nПолезные команды: `cat`, `grep`, `cut`, `wc`.\n\nФлаг — в `found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/modbus/notes.md",
+      "text": "Заметки\n------\n- FC=03 — чтение holding registers (норма).\n- FC=06/16 — запись (то, что ищем).\n- Полезная нагрузка в записи — ASCII.\n"
+    },
+    {
+      "path": "/home/student/modbus/modbus.log",
+      "text": "=== Modbus/TCP capture (decoded) ===\n10.0.0.5:502 <- 10.0.0.9:51000  FC=03 Read Holding Registers  addr=0 count=4\n   response bytes: 00 01 00 02 00 03 00 04\n10.0.0.5:502 <- 10.0.0.9:51002  FC=06 Write Single Register  addr=100 value=0x0001\n10.0.0.5:502 <- 10.0.0.9:51004  FC=16 Write Multiple Registers addr=200 count=8\n   response: 00 08\n   ascii: nto{m0dbu5_r3g1st3r5}\n10.0.0.5:502 <- 10.0.0.9:51006  FC=03 Read Holding Registers  addr=0 count=4\n   response bytes: 00 01 00 02 00 03 00 04\n"
+    }
+  ]
+}

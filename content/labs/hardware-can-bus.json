@@ -1,0 +1,26 @@
+{
+  "id": "hardware-can-bus",
+  "workdir": "/home/student/can",
+  "expect": {
+    "file": "/home/student/can/found.txt",
+    "contains": "nto{c4n_bu5_0p3n5}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/can",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/can/task.md",
+      "text": "# Задача: CAN-трафик\n\nТы записал трафик CAN-шины в `candump.log` (формат `candump -a`: hex + ASCII).\nСреди служебных кадров есть кадр с полезной нагрузкой — найди его и достань флаг.\n\nПолезные команды: `cat`, `strings`, `grep`, `cut`, `wc`.\n\nФлаг — в `found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/can/notes.md",
+      "text": "Заметки\n------\n- Идентификатор 0x100 — периодический heartbeat.\n- 0x1A0 — телеметрия, бинарные поля.\n- Один кадр содержит ASCII — это и есть ответ.\n"
+    },
+    {
+      "path": "/home/student/can/candump.log",
+      "text": "=== candump -a can0 (CAN FD) ===\n  can0  100   [8]  00 00 00 00 00 00 00 00   '........'\n  can0  1A0   [8]  10 20 30 40 50 60 70 80   '.. 0@\\`p'\n  can0  2A0   [18]  6e 74 6f 7b 63 34 6e 5f 62 75 35 5f 30 70 33 6e 35 7d   'nto{c4n_bu5_0p3n5}'\n  can0  100   [8]  00 00 00 00 00 00 00 00   '........'\n"
+    }
+  ]
+}

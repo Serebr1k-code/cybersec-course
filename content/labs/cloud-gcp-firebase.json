@@ -1,0 +1,30 @@
+{
+  "id": "cloud-gcp-firebase",
+  "workdir": "/home/student/firebase",
+  "expect": {
+    "file": "/home/student/firebase/found.txt",
+    "contains": "nto{0p3n_f1r3b4s3_db}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/firebase",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/firebase/task.md",
+      "text": "# Задача: открытая база Firebase\n\nМобильное приложение использует Firebase Realtime Database. Правила\nбезопасности настроены неправильно — база **читается всеми**. Тебе дали\nэкспорт базы. Нужно найти секрет, который туда попал.\n\nФайлы: `firebase-export.json` (дамп), `rules.json` (правила).\n\nПолезные команды: `cat`, `head`, `grep`, `cut`, `wc`.\n\nФлаг — в `found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/firebase/notes.md",
+      "text": "Заметки\n------\n- Дамп сняли анонимным GET к https://acme-app.firebaseio.com/.json\n- В rules.json видно \".read\": true на корне — классическая ошибка.\n- В базе лежат профили пользователей и служебный объект config.\n"
+    },
+    {
+      "path": "/home/student/firebase/rules.json",
+      "text": "{\n  \"rules\": {\n    \".read\": true,\n    \".write\": false,\n    \"users\": {\n      \"$uid\": {\n        \".read\": true,\n        \".write\": \"auth.uid === $uid\"\n      }\n    }\n  }\n}\n"
+    },
+    {
+      "path": "/home/student/firebase/firebase-export.json",
+      "text": "{\n  \"users\": {\n    \"1\": {\n      \"email\": \"a@example.com\",\n      \"role\": \"user\"\n    },\n    \"2\": {\n      \"email\": \"b@example.com\",\n      \"role\": \"user\"\n    }\n  },\n  \"config\": {\n    \"build\": \"1.4.2\",\n    \"region\": \"europe-west1\",\n    \"adminToken\": \"nto{0p3n_f1r3b4s3_db}\"\n  },\n  \"flags\": {\n    \"beta\": true\n  }\n}\n"
+    }
+  ]
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Восстановление доступа при пентесте через утёкшие артефакты"
 estimated_minutes: 40
 summary: "Ключи утекают из репозиториев, CI-логов, Docker-образов, .env и terraform-стейта. Учимся искать их автоматически, отличать валидные от мусора и безопасно проверять их объём."
+lab:
+  kind: shell
+  title: "Практика: охота за облачными креденшелами в репозитории"
+  toolset: [core, base64, grep]
+  workdir: /home/student/repo
+  files: [task.md, README.md, notes.md, .env, ci/build.log, config/app.tfvars, artifacts/backup-notes.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с обхода дерева: `ls -la`, затем `find . -type f` — где вообще лежат конфиги, логи и артефакты?"
+    - "Облачные креденшелы живут в `.env`, `*.tfvars` и логах CI. Поищи ключи AWS по префиксу: `grep -r AKIA .`"
+    - "В логе сборки есть строка-маркер `FLAG_B64=`. Выдели значение (`grep` + `cut -d= -f2`) и раскодируй его командой `base64 -d`."
+    - "Полная цепочка: `grep FLAG_B64 ci/build.log | cut -d= -f2 > t.txt` затем `base64 -d t.txt > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

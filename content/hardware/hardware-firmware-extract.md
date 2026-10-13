@@ -13,6 +13,18 @@ useful_for:
   - "Поиск паролей, ключей и бэкдоров"
 estimated_minutes: 45
 summary: "Как разобрать дамп прошивки на составные части: найти ядро, rootfs, распаковать squashfs/jffs2/ubifs и найти секреты внутри."
+lab:
+  kind: shell
+  title: "Практика: извлечение SquashFS из образа прошивки"
+  toolset: [core, hex, unsquashfs]
+  workdir: /home/student/fw
+  files: [task.md, firmware.bin, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи тип файла: `file firmware.bin` — вероятно «data», значит есть заголовок и внутри лежит файловая система."
+    - "Найди сигнатуру SquashFS (`hsqs`) в дампе: `xxd firmware.bin | grep hsqs` — слева будет смещение (00000040 = 64)."
+    - "Со смещением образ читается: `unsquashfs -o 64 -ll firmware.bin` — посмотри список файлов."
+    - "Достань флаг: `unsquashfs -o 64 -cat firmware.bin root/flag.txt > found.txt` (заодно интересен `etc/config`)."
 ---
 
 ## Вопрос, с которого всё начинается

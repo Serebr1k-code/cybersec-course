@@ -13,6 +13,18 @@ useful_for:
   - "Анализ security rules"
 estimated_minutes: 45
 summary: "Firebase: Realtime Database, Firestore, Storage и security rules. Как найти конфиг в клиенте, проверить rules и вытащить данные без аутентификации."
+lab:
+  kind: shell
+  title: "Практика: открытая база Firebase"
+  toolset: [core]
+  workdir: /home/student/firebase
+  files: [task.md, firebase-export.json, rules.json, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Открой дамп базы: `cat firebase-export.json` (или `head -50`)."
+    - "Правила в `rules.json` показывают, что база читается всеми (`\".read\": true`). Найди в дампе админский токен."
+    - "Ищи значение с флагом: `grep nto firebase-export.json`."
+    - "Выдели значение между кавычками: `grep nto firebase-export.json | cut -d'\"' -f4 > found.txt`."
 ---
 
 ## Задача

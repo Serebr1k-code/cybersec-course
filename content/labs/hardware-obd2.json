@@ -1,0 +1,26 @@
+{
+  "id": "hardware-obd2",
+  "workdir": "/home/student/obd",
+  "expect": {
+    "file": "/home/student/obd/found.txt",
+    "contains": "nto{0bd2_d34l3r_m0d3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/obd",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/obd/task.md",
+      "text": "# Задача: OBD-II / UDS\n\nТы снял сессию диагностики автомобиля (`obd-session.log`, адаптер ELM327,\nпротокол ISO 14229/UDS). Найди ответ ECU в «дилерском» режиме и достань флаг.\n\nПолезные команды: `cat`, `strings`, `grep`, `cut`.\n\nФлаг — в `found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/obd/notes.md",
+      "text": "Заметки\n------\n- Mode 09 PID 02 — VIN (мультикадровый ответ).\n- Запрос `22 F1 90` — VIN через UDS.\n- Запрос `22 F1 99` — нестандартный, ответ содержит флаг.\n"
+    },
+    {
+      "path": "/home/student/obd/obd-session.log",
+      "text": "$ obd2-session.log  (ELM327 / ISO 14229 UDS)\n> ATZ\nELM327 v1.5\n> ATSP6\nOK\n> 0100\n7E8 06 41 00 98 3A 80 13\n> 0902\n7E8 10 14 49 02 01 41 43 4D 45 2D 44 45 4D 4F 2D 56 49 4E 2D 30 30 31\n7E8 21 32 33 34 35 36 37 38 39 30 31 32 33 34 35 36 37\n> 22 F1 90   (read VIN via UDS)\n7E8 62 F1 90 41 43 4D 45 30 30 31 32 33 34 35 36 37 38 39 30 31 32\n> 22 F1 99   (dealer mode unlock)\n7E8 62 F1 99  'nto{0bd2_d34l3r_m0d3}'  6E 74 6F 7B 30 62 64 32 5F 64 33 34 6C 33 72 5F 6D 30 64 33 7D\n> 10 03\n7E8 50 03 00 32 01 F4\n"
+    }
+  ]
+}

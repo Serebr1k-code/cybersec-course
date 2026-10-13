@@ -13,6 +13,18 @@ useful_for:
   - "Аппаратная безопасность"
 estimated_minutes: 45
 summary: "Как развернуть RTL-SDR, найти сигнал в спектре, записать IQ, декодировать датчики и пульты через rtl_433 и разобрать сигнал в GNU Radio."
+lab:
+  kind: shell
+  title: "Практика: приём 433 МГц через rtl_433"
+  toolset: [core]
+  workdir: /home/student/rf
+  files: [task.md, rtl433.json, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Открой захват: `cat rtl433.json` (по одной JSON-строке на пакет)."
+    - "Найди устройство, у которого есть поле с флагом — модель `Acme-Gate-Remote`."
+    - "Флаг — значение поля `flag`. Выдели его между кавычками."
+    - "Итог: `grep nto rtl433.json | cut -d'\"' -f4 > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

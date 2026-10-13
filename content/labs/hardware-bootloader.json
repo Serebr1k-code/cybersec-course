@@ -1,0 +1,26 @@
+{
+  "id": "hardware-bootloader",
+  "workdir": "/home/student/uboot",
+  "expect": {
+    "file": "/home/student/uboot/found.txt",
+    "contains": "nto{ub00t_3nv_n3v3r_cl34rs}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/uboot",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/uboot/task.md",
+      "text": "# Задача: окружение U-Boot\n\nС устройства сняли дамп U-Boot environment (`uboot-env.txt`). Нужно найти\nопасные настройки и флаг, спрятанный в переменной окружения.\n\nПолезные команды: `cat`, `grep`, `cut`, `wc`.\n\nФлаг — в `found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/uboot/notes.md",
+      "text": "Заметки\n------\n- `bootdelay=0` — прервать автозагрузку нельзя без перепрошивки.\n- `console_password` — пароль консоли загрузчика (в открытом виде).\n- Флаг в переменной `flag`.\n"
+    },
+    {
+      "path": "/home/student/uboot/uboot-env.txt",
+      "text": "U-Boot> printenv\narch=arm\nbaudrate=115200\nboard=acme-gateway\nbootargs=console=ttyS0,115200 root=/dev/mmcblk0p2 rw\nbootcmd=run distro_bootcmd\nbootdelay=0\nconsole_password=adm1n-boot\nethaddr=00:11:22:33:44:55\nflag=nto{ub00t_3nv_n3v3r_cl34rs}\nsoc=mt7621\nstderr=serial\nstdin=serial\nstdout=serial\n\nEnvironment size: 419/8188 bytes\nU-Boot> \n"
+    }
+  ]
+}

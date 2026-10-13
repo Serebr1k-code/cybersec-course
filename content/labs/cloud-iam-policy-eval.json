@@ -1,0 +1,30 @@
+{
+  "id": "cloud-iam-policy-eval",
+  "workdir": "/home/student/iam",
+  "expect": {
+    "file": "/home/student/iam/found.txt",
+    "contains": "nto{p4ssr0l3_t0_pwn}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/iam",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/iam/task.md",
+      "text": "# Задача: оценка IAM-политики\n\nУ сервисной роли `ci-runner` есть политика, которую написал джуниор.\nНужно понять, есть ли в ней **путь эскалации привилегий**, и достать\nфлаг, оставленный аудитором в комментарии политики.\n\nСмотри `policy.json` (политика) и `trust.json` (trust policy роли).\n\nПолезные команды: `cat`, `grep`, `cut`, `wc`, `sort`.\n\nФлаг запиши в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/iam/notes.md",
+      "text": "Заметки\n------\n- Политика прикреплена к роли, которую может ассумить CI.\n- Ключевой вопрос: может ли эта роль передать себе более мощную роль?\n- Смотри на PassRole без условия iam:PassedToService.\n"
+    },
+    {
+      "path": "/home/student/iam/trust.json",
+      "text": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Effect\": \"Allow\",\n      \"Principal\": {\n        \"Service\": \"codebuild.amazonaws.com\"\n      },\n      \"Action\": \"sts:AssumeRole\"\n    }\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/iam/policy.json",
+      "text": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\n      \"Sid\": \"ReadLogs\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"logs:GetLogEvents\",\n        \"logs:DescribeLogGroups\"\n      ],\n      \"Resource\": \"*\"\n    },\n    {\n      \"Sid\": \"Deploy\",\n      \"Effect\": \"Allow\",\n      \"Action\": [\n        \"iam:PassRole\",\n        \"lambda:CreateFunction\",\n        \"lambda:InvokeFunction\",\n        \"lambda:UpdateFunctionCode\"\n      ],\n      \"Resource\": \"*\",\n      \"Description\": \"nto{p4ssr0l3_t0_pwn}\"\n    }\n  ]\n}\n"
+    }
+  ]
+}

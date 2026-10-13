@@ -1,0 +1,26 @@
+{
+  "id": "hardware-rtl-sdr",
+  "workdir": "/home/student/rf",
+  "expect": {
+    "file": "/home/student/rf/found.txt",
+    "contains": "nto{rf_433_r3pl4y_4tt4ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/rf",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/rf/task.md",
+      "text": "# Задача: rtl_433\n\nТы записал эфир на 433 МГц (`rtl433.json` — вывод `rtl_433 -F json`).\nНайди устройство с секретом и достань флаг.\n\nПолезные команды: `cat`, `grep`, `cut`.\n\nФлаг — в `found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/rf/notes.md",
+      "text": "Заметки\n------\n- `Interlogix-Security` — статичный код, уязвим к replay.\n- `Acme-Gate-Remote` — содержит поле flag.\n"
+    },
+    {
+      "path": "/home/student/rf/rtl433.json",
+      "text": "{\"time\":\"2026-09-14 03:20:11\",\"model\":\"Interlogix-Security\",\"id\":1234567,\"cmd\":10,\"battery_ok\":1,\"rssi\":-6.1,\"snr\":18.2}\n{\"time\":\"2026-09-14 03:20:14\",\"model\":\"Nexus-Temperature\",\"id\":42,\"channel\":1,\"temperature_C\":21.5,\"battery_ok\":1}\n{\"time\":\"2026-09-14 03:20:19\",\"model\":\"Acme-Gate-Remote\",\"id\":77,\"code\":123456,\"flag\":\"nto{rf_433_r3pl4y_4tt4ck}\",\"rssi\":-3.4}\n{\"time\":\"2026-09-14 03:20:22\",\"model\":\"Interlogix-Security\",\"id\":1234567,\"cmd\":10,\"battery_ok\":1,\"rssi\":-6.0,\"snr\":17.9}\n"
+    }
+  ]
+}

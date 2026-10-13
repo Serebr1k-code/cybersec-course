@@ -13,6 +13,18 @@ useful_for:
   - "Поиск публичных контейнеров"
 estimated_minutes: 45
 summary: "Как устроены Azure Storage и SAS-токены, чем service/account/user-delegation SAS отличаются, как находить публичные контейнеры и использовать утёкшие токены для чтения, записи и удаления данных."
+lab:
+  kind: shell
+  title: "Практика: разбор SAS-токенов Azure"
+  toolset: [core]
+  workdir: /home/student/azure
+  files: [task.md, sas-urls.txt, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Открой список ссылок: `cat sas-urls.txt`."
+    - "Разбери параметры SAS: `sp=` — разрешения (r/w/d/l/a/c/u/p), `srt=` — тип ресурса."
+    - "Найди токен с избыточными правами (`sp=rwdlacup`) — это и есть находка."
+    - "Скачанное содержимое объекта с флагом лежит в `downloaded-flag.txt`. Итог: `grep nto downloaded-flag.txt > found.txt`."
 ---
 
 ## Задача

@@ -13,6 +13,18 @@ useful_for:
   - "Аудит защиты прошивок"
 estimated_minutes: 45
 summary: "Как по графику энтропии отличить сжатие от шифрования, инструменты анализа (binwalk -E, ent), поиск ключа и обход шифрования прошивки."
+lab:
+  kind: shell
+  title: "Практика: энтропия регионов прошивки"
+  toolset: [core, hex]
+  workdir: /home/student/fw2
+  files: [task.md, image.bin, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри на дамп: `file image.bin`, `wc -c image.bin`."
+    - "Часть образа выглядит «случайной» (зашифровано/сжато), часть — обычный текст. Текстовый регион виден команде `strings`."
+    - "Сравни регионы: `xxd -s 0x400 -l 64 image.bin` (шум) против `xxd -s 0x1200 -l 64 image.bin` (текст)."
+    - "Итог: `strings image.bin | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

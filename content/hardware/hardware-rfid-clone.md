@@ -13,6 +13,18 @@ useful_for:
   - "Аппаратная безопасность"
 estimated_minutes: 40
 summary: "Практическое клонирование низкочастотных RFID-карт (125 кГц): EM4100, HID Prox — чтение, запись, эмуляция и почему это так просто."
+lab:
+  kind: shell
+  title: "Практика: клонирование Mifare Classic"
+  toolset: [core]
+  workdir: /home/student/rfid
+  files: [task.md, nfc-session.log, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай сессию: `cat nfc-session.log`."
+    - "`mfoc` восстановил ключи. Обрати внимание, что большинство — дефолтные `FFFFFFFFFFFF`."
+    - "В блоках карты есть ASCII-строки. Найди флаг."
+    - "Итог: `strings nfc-session.log | grep nto | cut -d\"'\" -f2 > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

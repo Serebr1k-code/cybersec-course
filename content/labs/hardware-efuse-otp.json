@@ -1,0 +1,26 @@
+{
+  "id": "hardware-efuse-otp",
+  "workdir": "/home/student/otp",
+  "expect": {
+    "file": "/home/student/otp/found.txt",
+    "contains": "nto{0tp_fu53_1s_p3rm4n3nt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/otp",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/otp/task.md",
+      "text": "# Задача: e-fuse / OTP\n\nТы считал e-fuse (OTP) микроконтроллера (`otp-summary.txt`). Нужно оценить\nсостояние secure boot и достать значение, записанное в пользовательский блок.\n\nПолезные команды: `cat`, `strings`, `grep`, `cut`.\n\nФлаг — в `found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/otp/notes.md",
+      "text": "Заметки\n------\n- SECURE_BOOT_EN = False — secure boot выключен.\n- BLK1 — пользовательский блок, записан один раз.\n- Внутри BLK1 — ASCII-флаг.\n"
+    },
+    {
+      "path": "/home/student/otp/otp-summary.txt",
+      "text": "=== espefuse.py summary ===\nEFUSE_NAME (Block)   Description        R/W  Value\nMAC                  (BLK0)  Factory MAC  R/W  24:6f:28:aa:bb:cc\nSPI_BOOT_CRYPT_CNT   (BLK0)  Enables      R/W  Disable (0b000)\nSECURE_BOOT_EN       (BLK0)  Secure boot  R/W  False\nBLK1                 (BLK1)  User block   R/W  6e 74 6f 7b 30 74 70 5f 66 75 35 33 5f 31 73 5f 70 33 72 6d 34 6e 33 6e 74 7d\n   ascii: 'nto{0tp_fu53_1s_p3rm4n3nt}'\nFLASH_CRYPT_CNT      (BLK0)  Flash crypt  R/W  Disable (0b000)\n"
+    }
+  ]
+}

@@ -13,6 +13,18 @@ useful_for:
   - "CTF Hardware (эксперт)"
 estimated_minutes: 40
 summary: "Что такое e-fuse/OTP, зачем там ключи и флаги защиты, почему её нельзя перезаписать и как это влияет на атаку."
+lab:
+  kind: shell
+  title: "Практика: чтение e-fuse / OTP"
+  toolset: [core]
+  workdir: /home/student/otp
+  files: [task.md, otp-summary.txt, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай вывод инструмента: `cat otp-summary.txt`."
+    - "eFuse-блоки `BLK0/BLK1` содержат заводские и пользовательские значения."
+    - "В пользовательском блоке `BLK1` есть ASCII-строка — это флаг."
+    - "Итог: `strings otp-summary.txt | grep nto | cut -d\"'\" -f2 > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

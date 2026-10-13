@@ -13,6 +13,18 @@ useful_for:
   - "Реверс промышленных протоколов"
 estimated_minutes: 50
 summary: "Modbus изнутри: функции, регистры и coils, TCP/RTU, pymodbus, реверс логики PLC, спуфинг и безопасная запись."
+lab:
+  kind: shell
+  title: "Практика: разбор Modbus/TCP"
+  toolset: [core]
+  workdir: /home/student/modbus
+  files: [task.md, modbus.log, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Открой декодированный захват: `cat modbus.log`."
+    - "Смотри на коды функций (FC). Запись регистров — это FC=06 и FC=16."
+    - "В кадре FC=16 есть строка `ascii:` — это и есть флаг."
+    - "Итог: `grep ascii: modbus.log | cut -d: -f2 > found.txt` (лишний пробел не помешает проверке)."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,26 @@
+{
+  "id": "hardware-drone",
+  "workdir": "/home/student/drone",
+  "expect": {
+    "file": "/home/student/drone/found.txt",
+    "contains": "nto{dr0n3_m4vl1nk_pwn}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/drone",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/drone/task.md",
+      "text": "# Задача: MAVLink-лог\n\nТы перехватил телеметрию дрона (`mavlink-log.log`, декодированный MAVLink v2).\nНайди опасные параметры и флаг, оставленный производителем.\n\nПолезные команды: `cat`, `grep`, `cut`.\n\nФлаг — в `found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/drone/notes.md",
+      "text": "Заметки\n------\n- `RC_OVERRIDE_ENABLE=1` — разрешён захват управления по RC.\n- `FENCE_ENABLE=1` — геозона включена.\n- Флаг — в параметре FACTORY_KEY.\n"
+    },
+    {
+      "path": "/home/student/drone/mavlink-log.log",
+      "text": "$ mavlink-log.log  (decoded MAVLink v2)\nHEARTBEAT {type: 2 (QUADROTOR), autopilot: 3 (ARDUPILOTMEGA), base_mode: 81, custom_mode: 0, system_status: 4}\nSYS_STATUS {voltage_battery: 12600, current_battery: 120, battery_remaining: 87}\nGPS_RAW_INT {fix_type: 3, satellites_visible: 12, alt: 124500}\nPARAM_VALUE {param_id: \"WPNAV_SPEED\", param_value: 500.0}\nPARAM_VALUE {param_id: \"FENCE_ENABLE\", param_value: 1.0}\nPARAM_VALUE {param_id: \"RC_OVERRIDE_ENABLE\", param_value: 1.0}\nPARAM_VALUE {param_id: \"FACTORY_KEY\", param_value: \"nto{dr0n3_m4vl1nk_pwn}\"}\nCOMMAND_LONG {command: 400 (MAV_CMD_COMPONENT_ARM_DISARM), param1: 1.0}\n"
+    }
+  ]
+}

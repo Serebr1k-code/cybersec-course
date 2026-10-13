@@ -13,6 +13,18 @@ useful_for:
   - "Аудит секретов в организации"
 estimated_minutes: 45
 summary: "Secrets sprawl: где в облаке утекают секреты — Git-история, логи, артефакты, переменные среды, снапшоты, мобильные приложения. Инструменты поиска и валидации."
+lab:
+  kind: shell
+  title: "Практика: секреты расползлись по логам и артефактам"
+  toolset: [core, base64]
+  workdir: /home/student/audit
+  files: [task.md, notes.md, app.log, deploy/.env.bak, artifacts/trace.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Обойди дерево: `find . -type f` — сколько источников?"
+    - "Секреты утекают не только в `.env`: их печатают в логи и трейсы. Поищи маркеры: `grep -r Bearer .` и `grep -r token .`."
+    - "В `app.log` есть строка `Authorization: Bearer <base64>`. Выдели третье поле и раскодируй."
+    - "Итог: `grep Bearer app.log | cut -d' ' -f3 | base64 -d > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

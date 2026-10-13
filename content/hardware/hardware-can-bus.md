@@ -13,6 +13,18 @@ useful_for:
   - "Аппаратная безопасность"
 estimated_minutes: 50
 summary: "Как работает CAN-шина, как подключиться через OBD-II, читать и отправлять кадры (candump/cansend), анализировать сигналы и находить уязвимости автомобиля."
+lab:
+  kind: shell
+  title: "Практика: разбор CAN-трафика"
+  toolset: [core]
+  workdir: /home/student/can
+  files: [task.md, candump.log, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Открой лог: `cat candump.log`. Формат — вывод `candump -a` (hex + ASCII)."
+    - "Найди кадр, у которого ASCII-часть содержит читаемый текст: `strings candump.log`."
+    - "ASCII-часть обрамлена кавычками. Выдели содержимое через `cut -d\"'\" -f2`."
+    - "Итог: `strings candump.log | grep nto | cut -d\"'\" -f2 > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

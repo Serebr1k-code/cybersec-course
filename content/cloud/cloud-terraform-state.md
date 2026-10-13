@@ -13,6 +13,18 @@ useful_for:
   - "Атаки на backend"
 estimated_minutes: 45
 summary: "Terraform state: где лежит, что содержит, как читать и подменять. Backend S3/GCS/Azure, шифрование, блокировки и извлечение секретов через terraform show/state pull."
+lab:
+  kind: shell
+  title: "Практика: секреты в Terraform state"
+  toolset: [core]
+  workdir: /home/student/iac
+  files: [task.md, terraform.tfstate, main.tf, backend.tf, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Осмотрись: `ls -la` и `cat backend.tf` — где хранится state?"
+    - "Terraform пишет в state **все** атрибуты ресурсов в открытом виде, включая пароли. Поищи: `grep -i password terraform.tfstate`."
+    - "Настоящий флаг лежит в блоке outputs. Найди его: `grep nto terraform.tfstate`."
+    - "Выдели значение между кавычками: `grep secret_output terraform.tfstate | cut -d'\"' -f4 > found.txt`."
 ---
 ## Задача
 

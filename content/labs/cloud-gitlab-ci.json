@@ -1,0 +1,26 @@
+{
+  "id": "cloud-gitlab-ci",
+  "workdir": "/home/student/ci",
+  "expect": {
+    "file": "/home/student/ci/found.txt",
+    "contains": "nto{c1_v4r14bl3s_l34k_s3cr3ts}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/ci",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/ci/task.md",
+      "text": "# Задача: секреты в CI\n\nТебе попал в руки `.gitlab-ci.yml` из репозитория. Разработчики хранили\nсекрет прямо в переменных пайплайна. Найди и раскодируй его.\n\nПолезные команды: `cat`, `grep`, `cut`, `base64`.\n\nФлаг — в `found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/ci/notes.md",
+      "text": "Заметки\n------\n- Секреты должны быть masked/protected переменными, а не в файле.\n- Значение `DEPLOY_TOKEN_B64` — base64.\n"
+    },
+    {
+      "path": "/home/student/ci/.gitlab-ci.yml",
+      "text": "stages:\n  - build\n  - deploy\n\nvariables:\n  REGISTRY: registry.gitlab.example.com\n  DEPLOY_TOKEN_B64: bnRve2MxX3Y0cjE0Ymwzc19sMzRrX3MzY3IzdHN9\n  AWS_REGION: eu-central-1\n\nbuild:\n  stage: build\n  script:\n    - docker build -t $REGISTRY/app:$CI_COMMIT_SHORT_SHA .\n    - echo \"deploy token present\"\n\ndeploy:\n  stage: deploy\n  script:\n    - ./deploy.sh\n"
+    }
+  ]
+}

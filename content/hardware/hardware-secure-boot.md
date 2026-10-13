@@ -13,6 +13,18 @@ useful_for:
   - "Аппаратная безопасность"
 estimated_minutes: 50
 summary: "Как устроена цепочка доверия от BootROM до ядра и где её ломают: перехват U-Boot, подмена образов, dm-verity, откат версий и fault injection."
+lab:
+  kind: shell
+  title: "Практика: measured boot и PCR"
+  toolset: [core]
+  workdir: /home/student/boot
+  files: [task.md, pcr-values.txt, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Открой отчёт: `cat pcr-values.txt`."
+    - "Смотри на блок `verdict`: какой PCR не совпал с эталоном?"
+    - "В event log есть запись EV_POST_CODE с полезной нагрузкой — это флаг."
+    - "Итог: `grep EV_POST_CODE pcr-values.txt | cut -d'\"' -f2 > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

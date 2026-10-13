@@ -13,6 +13,18 @@ useful_for:
   - "Реверс прошивок и загрузочных цепочек"
 estimated_minutes: 45
 summary: "Загрузчики встраиваемых устройств: U-Boot, UEFI, coreboot и bootROM — консоль, команды, извлечение прошивки и точки входа для атаки."
+lab:
+  kind: shell
+  title: "Практика: окружение U-Boot"
+  toolset: [core]
+  workdir: /home/student/uboot
+  files: [task.md, uboot-env.txt, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай дамп окружения: `cat uboot-env.txt`."
+    - "Обрати внимание на `bootdelay` (сколько ждать нажатия клавиши) и `console_password`."
+    - "Флаг лежит в переменной `flag=`. Выдели значение после знака `=`."
+    - "Итог: `grep flag= uboot-env.txt | cut -d= -f2 > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

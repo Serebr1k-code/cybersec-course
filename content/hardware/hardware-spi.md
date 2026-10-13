@@ -13,6 +13,18 @@ useful_for:
   - "Реверс встраиваемых систем"
 estimated_minutes: 35
 summary: "Как найти SPI-флеш, определить чип, снять дамп через CH341A/flashrom и верифицировать его. Основа для извлечения прошивки."
+lab:
+  kind: shell
+  title: "Практика: дамп SPI-флеша и U-Boot env"
+  toolset: [core, hex]
+  workdir: /home/student/spi
+  files: [task.md, flash.bin, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи тип файла: `file flash.bin` и посмотри размер `ls -la`."
+    - "Это сырой дамп SPI-флеша. Сначала вытащи читаемые строки: `strings flash.bin | head -30`."
+    - "Среди строк есть U-Boot environment (`bootargs=`, `secret_key=`) и флаг. Найди его: `strings flash.bin | grep nto`."
+    - "Можно и по смещению: `xxd -s 0x2400 -l 64 flash.bin`. Итог: `strings flash.bin | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

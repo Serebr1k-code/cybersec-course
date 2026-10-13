@@ -1,0 +1,34 @@
+{
+  "id": "cloud-terraform-state",
+  "workdir": "/home/student/iac",
+  "expect": {
+    "file": "/home/student/iac/found.txt",
+    "contains": "nto{st4t3_l34ks_s3cr3ts}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/iac",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/iac/task.md",
+      "text": "# Задача: секреты в Terraform state\n\nКоманда ведёт инфраструктуру через Terraform, а state лежит в S3-бэкенде.\nТебе выдали локальную копию state-файла. Нужно доказать, что state —\nэто **открытый** источник секретов, и достать флаг из блока outputs.\n\nЧто есть:\n\n- `terraform.tfstate` — копия state;\n- `main.tf`, `backend.tf` — конфигурация;\n- `notes.md` — заметки.\n\nПолезные команды: `ls`, `cat`, `grep`, `cut`, `wc`.\n\nФлаг запиши в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/iac/notes.md",
+      "text": "Заметки\n------\n- State бэкенд: S3 без шифрования (server_side_encryption не задан).\n- В state пароль RDS лежит открытым текстом — это ожидаемо.\n- Флаг положили в outputs как отдельное значение.\n"
+    },
+    {
+      "path": "/home/student/iac/backend.tf",
+      "text": "terraform {\n  backend \"s3\" {\n    bucket = \"acme-tfstate\"\n    key    = \"prod/terraform.tfstate\"\n    region = \"eu-central-1\"\n  }\n}\n"
+    },
+    {
+      "path": "/home/student/iac/main.tf",
+      "text": "resource \"aws_db_instance\" \"prod\" {\n  identifier = \"acme-prod\"\n  engine     = \"postgres\"\n  username   = \"app\"\n  password   = var.db_password\n}\n\noutput \"secret_output\" {\n  value     = var.rotated_secret\n  sensitive = false\n}\n"
+    },
+    {
+      "path": "/home/student/iac/terraform.tfstate",
+      "text": "{\n  \"version\": 4,\n  \"terraform_version\": \"1.9.5\",\n  \"serial\": 42,\n  \"lineage\": \"a1b2c3\",\n  \"outputs\": {\n    \"secret_output\": {\n      \"value\": \"nto{st4t3_l34ks_s3cr3ts}\",\n      \"type\": \"string\"\n    }\n  },\n  \"resources\": [\n    {\n      \"mode\": \"managed\",\n      \"type\": \"aws_db_instance\",\n      \"name\": \"prod\",\n      \"instances\": [\n        {\n          \"attributes\": {\n            \"identifier\": \"acme-prod\",\n            \"engine\": \"postgres\",\n            \"username\": \"app\",\n            \"password\": \"Pr0d-DB-P@ss-2026\",\n            \"address\": \"acme-prod.abc.eu-central-1.rds.amazonaws.com\"\n          }\n        }\n      ]\n    }\n  ]\n}\n"
+    }
+  ]
+}

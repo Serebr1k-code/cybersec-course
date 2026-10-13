@@ -13,6 +13,18 @@ useful_for:
   - "Аудит политик и границ"
 estimated_minutes: 50
 summary: "Как облако оценивает права: explicit deny, SCP, permission boundaries, session policies, resource policies и conditions. Как читать логику и находить обходы через conditions и confused deputy."
+lab:
+  kind: shell
+  title: "Практика: оценка IAM-политики и путь эскалации"
+  toolset: [core]
+  workdir: /home/student/iam
+  files: [task.md, policy.json, trust.json, notes.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай политику целиком: `cat policy.json` — какие действия (`Action`) она разрешает?"
+    - "Опасная комбинация: `iam:PassRole` + создание/запуск вычислительного ресурса с этой ролью. Найди её."
+    - "В политике есть поле-комментарий с внутренней заметкой и флагом. Поищи: `grep nto policy.json`."
+    - "Выдели значение между кавычками: `grep nto policy.json | cut -d'\"' -f4 > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается
