@@ -1,0 +1,53 @@
+{
+  "id": "osint-social-vk",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{vk_s0c14l_gr4ph_m4pp3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: граф связей VK через API\n\nЦель — `Иван Иванов`, Москва. VK даёт список друзей и подписок.\n\n1. Базовые поля: `curl -s \"https://api.vk.com/method/users.get?user_ids=1&fields=city,work&v=5.131\" > user.json`\n2. Профиль: `jq '.response[0]' user.json`\n3. Друзья: `curl -s \"https://api.vk.com/method/friends.get?user_id=1&fields=city,work&v=5.131\" > friends.json`\n4. Работа друзей: `jq -r '.response.items[].work' friends.json`\n5. Один друг работает в компании с маркером `nto{...}`. Запиши его в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — VK API 5.131 (эмуляция реального формата)",
+      "cases": [
+        {
+          "match": "friends\\.get",
+          "example": "curl -s \"https://api.vk.com/method/friends.get?user_id=1&fields=city,work&v=5.131\"",
+          "output": "{\"response\": {\"count\": 312, \"items\": [\n  {\"id\": 101, \"first_name\": \"Сергей\", \"last_name\": \"Петров\", \"city\": {\"title\": \"Москва\"}, \"work\": \"Example Corp\"},\n  {\"id\": 102, \"first_name\": \"Анна\", \"last_name\": \"Смирнова\", \"city\": {\"title\": \"Москва\"}, \"work\": \"Example Corp (deploy: nto{vk_s0c14l_gr4ph_m4pp3d})\"},\n  {\"id\": 103, \"first_name\": \"Олег\", \"last_name\": \"Кузнецов\", \"city\": {\"title\": \"Санкт-Петербург\"}}\n]}}\n"
+        },
+        {
+          "match": "users\\.get",
+          "example": "curl -s \"https://api.vk.com/method/users.get?user_ids=1&fields=city,work&v=5.131\"",
+          "output": "{\"response\": [{\"id\": 1, \"first_name\": \"Иван\", \"last_name\": \"Иванов\", \"city\": {\"title\": \"Москва\"}, \"work\": \"Example Corp\"}]}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны только method/users.get и method/friends.get (v=5.131).\n"
+    },
+    "jq": {
+      "help": "jq [-r] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "response\\.items",
+          "example": "jq -r '.response.items[].work' friends.json",
+          "output": "Example Corp\nExample Corp (deploy: nto{vk_s0c14l_gr4ph_m4pp3d})\n"
+        },
+        {
+          "match": "response",
+          "example": "jq '.response[0]' user.json",
+          "output": "{\n  \"id\": 1,\n  \"first_name\": \"Иван\",\n  \"last_name\": \"Иванов\",\n  \"city\": {\"title\": \"Москва\"},\n  \"work\": \"Example Corp\"\n}\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддержаны фильтры по `.response[0]` и `.response.items[].work`.\n"
+    }
+  }
+}

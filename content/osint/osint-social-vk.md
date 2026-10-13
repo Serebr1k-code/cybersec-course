@@ -13,6 +13,18 @@ useful_for:
   - "CTF OSINT"
 estimated_minutes: 40
 summary: "VK как OSINT-источник: поиск людей и сообществ, содержимое профиля, друзья/подписки/интересы, VK API и инструменты, анализ графа связей и этика."
+lab:
+  kind: shell
+  title: 'Практика: граф связей VK через API'
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Базовые поля цели: `curl -s "https://api.vk.com/method/users.get?user_ids=1&fields=city,work&v=5.131" > user.json`.'
+    - 'Разбери профиль: `jq ''.response[0]'' user.json`.'
+    - 'Выгрузи друзей: `curl -s "https://api.vk.com/method/friends.get?user_id=1&fields=city,work&v=5.131" > friends.json`.'
+    - 'Поля работы: `jq -r ''.response.items[].work'' friends.json`. У одного друга в работе маркер `nto{...}` — запиши в `answer.txt` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

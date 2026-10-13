@@ -12,6 +12,18 @@ useful_for:
   - "Поиск уязвимых сервисов по fingerprint"
 estimated_minutes: 50
 summary: "Синтаксис поиска Censys/FOFA/ZoomEye, различия в покрытии, поиск по сертификатам, баннерам, favicon и заголовкам, автоматизация через API."
+lab:
+  kind: shell
+  title: 'Практика: Censys и FOFA — перекрёстный поиск'
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Censys по заголовку: `curl -s "https://search.censys.io/api/v2/hosts/search?q=services.http.response.html_title%3A%20Grafana&per_page=50" > censys.json`.'
+    - 'IP-адреса: `jq -r ''.result.hits[].ip'' censys.json`.'
+    - 'FOFA по тому же отпечатку: `curl -s "https://fofa.info/api/v1/search/all?qbase64=aHR0cF90aXRsZT0iR3JhZmFuYSI=&size=50" > fofa.json`.'
+    - 'Заголовки результатов: `jq -r ''.results[].title'' fofa.json`. Один несёт маркер `nto{...}` — запиши в `answer.txt` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

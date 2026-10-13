@@ -1,0 +1,53 @@
+{
+  "id": "osint-censys-fofa",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{c3nsys_f0f4_cr0ss_3ng1n3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Censys и FOFA — перекрёстный поиск\n\nОрганизация `example.com`. Нужно найти все инстансы Grafana; один движок покрывает не всё.\n\n1. Censys по заголовку: `curl -s \"https://search.censys.io/api/v2/hosts/search?q=services.http.response.html_title%3A%20Grafana&per_page=50\" > censys.json`\n2. IP-адреса: `jq -r '.result.hits[].ip' censys.json`\n3. FOFA по тому же отпечатку: `curl -s \"https://fofa.info/api/v1/search/all?qbase64=aHR0cF90aXRsZT0iR3JhZmFuYSI=&size=50\" > fofa.json`\n4. Заголовки: `jq -r '.results[].title' fofa.json`\n5. Один заголовок содержит маркер `nto{...}`. Запиши его в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — Censys/FOFA API (эмуляция реального формата)",
+      "cases": [
+        {
+          "match": "search\\.censys\\.io",
+          "example": "curl -s \"https://search.censys.io/api/v2/hosts/search?q=...Grafana...\"",
+          "output": "{\"code\": 200, \"result\": {\"total\": 3, \"hits\": [\n  {\"ip\": \"203.0.113.22\", \"services\": [{\"port\": 3000, \"service_name\": \"HTTP\"}]},\n  {\"ip\": \"198.51.100.40\", \"services\": [{\"port\": 3000, \"service_name\": \"HTTP\"}]}\n]}}\n"
+        },
+        {
+          "match": "fofa\\.info",
+          "example": "curl -s \"https://fofa.info/api/v1/search/all?qbase64=...&size=50\"",
+          "output": "{\"error\": false, \"size\": 2, \"results\": [\n  {\"host\": \"https://203.0.113.22:3000\", \"title\": \"Grafana\"},\n  {\"host\": \"https://203.0.113.90:3000\", \"title\": \"Grafana - prod-dashboard nto{c3nsys_f0f4_cr0ss_3ng1n3}\"}\n]}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны только search.censys.io/api/v2/hosts/search и fofa.info/api/v1/search/all.\n"
+    },
+    "jq": {
+      "help": "jq [-r] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "result\\.hits",
+          "example": "jq -r '.result.hits[].ip' censys.json",
+          "output": "203.0.113.22\n198.51.100.40\n"
+        },
+        {
+          "match": "results",
+          "example": "jq -r '.results[].title' fofa.json",
+          "output": "Grafana\nGrafana - prod-dashboard nto{c3nsys_f0f4_cr0ss_3ng1n3}\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддержаны фильтры по `.result.hits[].ip` и `.results[].title`.\n"
+    }
+  }
+}

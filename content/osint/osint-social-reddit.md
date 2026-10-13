@@ -13,6 +13,18 @@ useful_for:
   - "Деанонимизация (в рамках закона)"
 estimated_minutes: 34
 summary: "Reddit как OSINT-источник: поиск постов и комментариев, история профилей, инструменты (PRAW, Arctic Shift), деанон по стилю и связям, этика и защита."
+lab:
+  kind: shell
+  title: 'Практика: поведенческий портрет по Reddit'
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Профиль: `curl -s "https://www.reddit.com/user/pixel_engineer/about.json" > about.json`.'
+    - 'Дата регистрации и карма: `jq ''.data.created_utc, .data.total_karma'' about.json`.'
+    - 'История комментариев: `curl -s "https://www.reddit.com/user/pixel_engineer/comments.json?limit=100" > comments.json`.'
+    - 'Тексты: `jq -r ''.data.children[].data.body'' comments.json`. Один комментарий несёт маркер `nto{...}` — запиши в `answer.txt` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

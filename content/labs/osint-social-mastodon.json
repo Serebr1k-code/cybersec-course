@@ -1,0 +1,53 @@
+{
+  "id": "osint-social-mastodon",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{f3d1v3rs3_4cc0unt_4ttr1but3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: профиль в федерации Mastodon\n\nВ федерации нет единого сервера — аккаунт обозначают как `user@instance`.\n\n1. Проверь публичный аккаунт: `curl -s \"https://mastodon.social/api/v1/accounts/lookup?acct=Gargron\" > gargron.json`\n2. Разбор: `jq '{username,acct,display_name,statuses_count,followers_count}' gargron.json`\n3. Аккаунт цели: `curl -s \"https://mastodon.social/api/v1/accounts/lookup?acct=examplecorp\" > corp.json`\n4. Поле `note`: `jq -r '.note' corp.json`\n5. В `note` есть маркер `nto{...}`. Запиши его в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — Mastodon API v1/v2 (эмуляция реального формата)",
+      "cases": [
+        {
+          "match": "acct=Gargron",
+          "example": "curl -s \"https://mastodon.social/api/v1/accounts/lookup?acct=Gargron\"",
+          "output": "{\"id\": \"1\", \"username\": \"Gargron\", \"acct\": \"Gargron\", \"display_name\": \"Eugen Rochko\", \"note\": \"<p>Founder of Mastodon</p>\", \"statuses_count\": 82482, \"followers_count\": 383123, \"created_at\": \"2016-03-16T00:00:00.000Z\"}\n"
+        },
+        {
+          "match": "acct=examplecorp",
+          "example": "curl -s \"https://mastodon.social/api/v1/accounts/lookup?acct=examplecorp\"",
+          "output": "{\"id\": \"998877\", \"username\": \"examplecorp\", \"acct\": \"examplecorp\", \"display_name\": \"Example Corp\", \"note\": \"<p>Official account. Security contact: soc@example.com - internal token nto{f3d1v3rs3_4cc0unt_4ttr1but3d}</p>\", \"statuses_count\": 47, \"followers_count\": 512, \"created_at\": \"2019-11-02T09:14:00.000Z\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны только lookup по acct=Gargron и acct=examplecorp на mastodon.social.\n"
+    },
+    "jq": {
+      "help": "jq [-r] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "followers_count",
+          "example": "jq '{username,acct,...}' gargron.json",
+          "output": "{\n  \"username\": \"Gargron\",\n  \"acct\": \"Gargron\",\n  \"display_name\": \"Eugen Rochko\",\n  \"statuses_count\": 82482,\n  \"followers_count\": 383123\n}\n"
+        },
+        {
+          "match": "note",
+          "example": "jq -r '.note' corp.json",
+          "output": "<p>Official account. Security contact: soc@example.com - internal token nto{f3d1v3rs3_4cc0unt_4ttr1but3d}</p>\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддержаны фильтры по `.note` и полям профиля.\n"
+    }
+  }
+}

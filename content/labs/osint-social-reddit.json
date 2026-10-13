@@ -1,0 +1,53 @@
+{
+  "id": "osint-social-reddit",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{r3dd1t_c0mm3nt_p0rtra1t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: поведенческий портрет по Reddit\n\nИзвестен только ник `u/pixel_engineer`. Собери профиль.\n\n1. Профиль: `curl -s \"https://www.reddit.com/user/pixel_engineer/about.json\" > about.json`\n2. Метаданные: `jq '.data.created_utc, .data.total_karma' about.json`\n3. Комментарии: `curl -s \"https://www.reddit.com/user/pixel_engineer/comments.json?limit=100\" > comments.json`\n4. Тексты: `jq -r '.data.children[].data.body' comments.json`\n5. Один комментарий содержит маркер `nto{...}`. Запиши его в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — Reddit JSON API (эмуляция реального формата)",
+      "cases": [
+        {
+          "match": "comments\\.json",
+          "example": "curl -s \"https://www.reddit.com/user/pixel_engineer/comments.json?limit=100\"",
+          "output": "{\"kind\": \"Listing\", \"data\": {\"children\": [\n  {\"kind\": \"t1\", \"data\": {\"subreddit\": \"AskEngineers\", \"body\": \"we use Kubernetes at my current job in...\"}},\n  {\"kind\": \"t1\", \"data\": {\"subreddit\": \"CityName\", \"body\": \"the district near the river floods every spring\"}},\n  {\"kind\": \"t1\", \"data\": {\"subreddit\": \"hobby\", \"body\": \"my dog Pixel hates the rain\"}},\n  {\"kind\": \"t1\", \"data\": {\"subreddit\": \"netsec\", \"body\": \"our internal build token is nto{r3dd1t_c0mm3nt_p0rtra1t}\"}}\n]}}\n"
+        },
+        {
+          "match": "about\\.json",
+          "example": "curl -s \"https://www.reddit.com/user/pixel_engineer/about.json\"",
+          "output": "{\"kind\": \"t2\", \"data\": {\"name\": \"pixel_engineer\", \"created_utc\": 1382313600.0, \"link_karma\": 4210, \"comment_karma\": 18832, \"total_karma\": 23042}}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны только about.json и comments.json пользователя pixel_engineer.\n"
+    },
+    "jq": {
+      "help": "jq [-r] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "created_utc",
+          "example": "jq '.data.created_utc, .data.total_karma' about.json",
+          "output": "1382313600\n23042\n"
+        },
+        {
+          "match": "children",
+          "example": "jq -r '.data.children[].data.body' comments.json",
+          "output": "we use Kubernetes at my current job in...\nthe district near the river floods every spring\nmy dog Pixel hates the rain\nour internal build token is nto{r3dd1t_c0mm3nt_p0rtra1t}\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддержаны фильтры по `.data.created_utc` и `.data.children[].data.body`.\n"
+    }
+  }
+}

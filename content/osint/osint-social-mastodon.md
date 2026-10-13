@@ -13,6 +13,18 @@ useful_for:
   - "Мониторинг сообществ"
 estimated_minutes: 40
 summary: "Разведка в федеративной сети: как устроен Fediverse, поиск профилей по нику и WeblFinger, инстансы, миграции и данные через ActivityPub."
+lab:
+  kind: shell
+  title: 'Практика: профиль в федерации Mastodon'
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Публичный аккаунт: `curl -s "https://mastodon.social/api/v1/accounts/lookup?acct=Gargron" > gargron.json`.'
+    - 'Разбери поля: `jq ''{username,acct,display_name,statuses_count,followers_count}'' gargron.json`.'
+    - 'Теперь цель: `curl -s "https://mastodon.social/api/v1/accounts/lookup?acct=examplecorp" > corp.json`.'
+    - 'Поле `note` содержит маркер `nto{...}`: `jq -r ''.note'' corp.json`. Запиши в `answer.txt` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается
