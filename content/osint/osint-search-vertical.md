@@ -13,6 +13,18 @@ useful_for:
   - "Академический и патентный поиск"
 estimated_minutes: 40
 summary: "Вертикальные поисковики: академический, по коду, датасетам, патентам, торрентам и архивам — что где искать и как автоматизировать."
+lab:
+  kind: shell
+  title: "Практика: удалённые страницы через Wayback CDX"
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md, cdx.json]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Ответ CDX API лежит в `cdx.json` — посмотри его: `cat cdx.json`."
+    - "Колонка `original` — индекс 2 в каждой строке."
+    - "Вытащи адреса: `jq -r '.[] | .[2]' cdx.json`."
+    - "Файл с маркером `flag-nto{...}` — ответ; запиши `nto{...}` в `answer.txt`."
 ---
 
 ## Задача

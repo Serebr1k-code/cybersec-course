@@ -8,7 +8,7 @@ import { createSession } from './session'
 // lesson front-matter, replays the intended solution with the emulated tools,
 // and asserts the lab's own `check` predicate passes. If a lab stops being
 // solvable in the engine, this fails. (Fixtures captured from real
-// curl/jq/python3/EDGAR/Overpass runs.)
+// curl/jq/python3/EDGAR/Overpass/Censys/urlscan/Wayback runs.)
 const dir = path.resolve(process.cwd(), '../content/labs')
 const WD = '/home/student/task'
 const CHECK = "grep -q 'nto{' answer.txt"
@@ -31,6 +31,38 @@ const LABS = [
     'cat stix.json',
     "jq -r '.objects[] | select(.type==\"indicator\") | .pattern' stix.json",
     "echo 'nto{st1x_1nd1c4t0r_t3rm}' > answer.txt"] },
+  { id: 'osint-infrastructure', solution: [
+    'cat censys.json',
+    "jq '{names:[.result.services[].tls.certificates.leaf_data.names[]?]}' censys.json",
+    "echo 'nto{c3nsys_s4n_3num}' > answer.txt"] },
+  { id: 'osint-search-engines', solution: [
+    'cat urlscan.json',
+    "jq -r '.results[].page.url' urlscan.json",
+    "echo 'nto{urlsc4n_p1v0t_d0m41n}' > answer.txt"] },
+  { id: 'osint-ai-assisted', solution: [
+    'cat llm_output.json',
+    'python3 validate.py llm_output.json',
+    "echo 'nto{llm_v4l1d4t3_3nt1ty}' > answer.txt"] },
+  { id: 'osint-maltego', solution: [
+    'python3 transform.py example.com crtsh_example.json',
+    "echo 'nto{tr4nsf0rm_p1v0t_gr4ph}' > answer.txt"] },
+  { id: 'osint-shadow-analysis', solution: [
+    'cat measurements.txt',
+    'python3 pysolar.py',
+    'python3 pysolar.py 15',
+    "echo 'nto{sh4d0w_3l3v45_4z225}' > answer.txt"] },
+  { id: 'osint-public-records', solution: [
+    'cat gleif.json',
+    "jq -r '.data[].attributes.ultimateParent.entity.legalName' gleif.json",
+    "echo 'nto{r3g1stry_ub0_ch41n}' > answer.txt"] },
+  { id: 'osint-search-vertical', solution: [
+    'cat cdx.json',
+    "jq -r '.[] | .[2]' cdx.json",
+    "echo 'nto{cdx_4rch1v3_p1v0t}' > answer.txt"] },
+  { id: 'osint-reporting', solution: [
+    'sha256sum -c page.sha256',
+    'cat page.html',
+    "echo 'nto{3v1d3nc3_h4sh_m1sm4tch}' > answer.txt"] },
 ]
 
 describe('osint labs B6 solve end-to-end', () => {

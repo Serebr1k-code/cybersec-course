@@ -1,0 +1,70 @@
+{
+  "id": "osint-public-records",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{r3g1stry_ub0_ch41n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: цепочка владения по публичным реестрам\n\nИдём по цепочке: Companies House (регистрация) -> officers (директора) -> GLEIF\n(конечный владелец). Ответы сохранены в `company.json`, `officers.json`, `gleif.json`.\n\n1. Найди компанию и её номер: `cat company.json`\n2. Посмотри директоров: `cat officers.json`\n3. Достань конечного владельца (ultimate parent):\n   `jq -r '.data[].attributes.ultimateParent.entity.legalName' gleif.json`\n4. Имя конечного владельца — строка `nto{...}`. Запиши её в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/company.json",
+      "text": "{\n  \"items\": [\n    { \"title\": \"EXAMPLE LLC\", \"company_number\": \"12345678\", \"address\": \"1 Example Street, London\" }\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/task/officers.json",
+      "text": "{\n  \"items\": [\n    { \"name\": \"PETROV, Ivan\", \"role\": \"director\", \"appointed_on\": \"2019-03-12\" },\n    { \"name\": \"SMITH, Anna\", \"role\": \"secretary\", \"appointed_on\": \"2019-03-12\" }\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/task/gleif.json",
+      "text": "{\n  \"data\": [\n    {\n      \"id\": \"LEI-529900T8BM49AURSDO55\",\n      \"attributes\": {\n        \"entity\": { \"legalName\": \"EXAMPLE LLC\" },\n        \"ultimateParent\": { \"entity\": { \"legalName\": \"nto{r3g1stry_ub0_ch41n}\" } }\n      }\n    }\n  ]\n}\n"
+    }
+  ],
+  "tools": {
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "ultimateParent|legalName",
+          "example": "jq -r '.data[].attributes.ultimateParent.entity.legalName' gleif.json",
+          "output": "EXAMPLE LLC\nnto{r3g1stry_ub0_ch41n}\n"
+        },
+        {
+          "match": "items",
+          "example": "jq -r '.items[].name' officers.json",
+          "output": "PETROV, Ivan\nSMITH, Anna\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживаются фильтры по items и legalName/ultimateParent.\n"
+    },
+    "curl": {
+      "help": "curl [-s] <URL> — HTTP-запрос (эмуляция: вывод захвачен с реальных Companies House / GLEIF API)",
+      "cases": [
+        {
+          "match": "search/companies",
+          "example": "curl -s \"https://api.company-information.service.gov.uk/search/companies?q=example\" -u KEY:",
+          "output": "{\"items\":[{\"title\":\"EXAMPLE LLC\",\"company_number\":\"12345678\",\"address\":\"1 Example Street, London\"}]}\n"
+        },
+        {
+          "match": "officers",
+          "example": "curl -s \"https://api.company-information.service.gov.uk/company/12345678/officers\" -u KEY:",
+          "output": "{\"items\":[{\"name\":\"PETROV, Ivan\",\"role\":\"director\",\"appointed_on\":\"2019-03-12\"},{\"name\":\"SMITH, Anna\",\"role\":\"secretary\",\"appointed_on\":\"2019-03-12\"}]}\n"
+        },
+        {
+          "match": "gleif",
+          "example": "curl -s \"https://api.gleif.org/api/v1/lei-records/LEI-529900T8BM49AURSDO55/ultimate-parent\"",
+          "output": "{\"data\":[{\"id\":\"LEI-529900T8BM49AURSDO55\",\"attributes\":{\"entity\":{\"legalName\":\"EXAMPLE LLC\"},\"ultimateParent\":{\"entity\":{\"legalName\":\"nto{r3g1stry_ub0_ch41n}\"}}}}]}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны company-information.service.gov.uk и api.gleif.org.\n"
+    }
+  }
+}

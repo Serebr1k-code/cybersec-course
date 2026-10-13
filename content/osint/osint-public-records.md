@@ -13,6 +13,18 @@ useful_for:
   - "Due diligence"
 estimated_minutes: 45
 summary: "Как использовать публичные и государственные реестры: собственность, суды, лицензии, регистрация — для верификации и установления фактов."
+lab:
+  kind: shell
+  title: "Практика: цепочка владения по реестрам"
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md, company.json, officers.json, gleif.json]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Ответы реестров лежат в `company.json`, `officers.json`, `gleif.json`."
+    - "Сначала компания и её номер: `cat company.json`."
+    - "Конечный владелец — в GLEIF: `jq -r '.data[].attributes.ultimateParent.entity.legalName' gleif.json`."
+    - "Имя конечного владельца — строка `nto{...}`; запиши её в `answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

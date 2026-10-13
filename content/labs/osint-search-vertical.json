@@ -1,0 +1,52 @@
+{
+  "id": "osint-search-vertical",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{cdx_4rch1v3_p1v0t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: удалённые страницы через Wayback CDX API\n\nWayback Machine хранит исторические копии. CDX API отдаёт список всех сохранённых\nURL. Ответ по домену `example.com` сохранён в `cdx.json`.\n\n1. Посмотри ответ: `cat cdx.json`\n2. Вытащи оригинальные адреса (колонка `original`, индекс 2):\n   `jq -r '.[] | .[2]' cdx.json`\n3. Среди адресов есть файл с маркером `flag-`. Запиши строку `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/cdx.json",
+      "text": "[\n  [\"urlkey\", \"timestamp\", \"original\", \"mimetype\", \"statuscode\"],\n  [\"com,example)/\", \"20020120142510\", \"http://example.com:80/\", \"text/html\", \"200\"],\n  [\"com,example)/team\", \"20180603112233\", \"http://example.com/team\", \"text/html\", \"200\"],\n  [\"com,example)/flag-nto{cdx_4rch1v3_p1v0t}.txt\", \"20191215090000\", \"http://example.com/flag-nto{cdx_4rch1v3_p1v0t}.txt\", \"text/plain\", \"200\"]\n]\n"
+    }
+  ],
+  "tools": {
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "cdx\\.json|\\[2\\]",
+          "example": "jq -r '.[] | .[2]' cdx.json",
+          "output": "original\nhttp://example.com:80/\nhttp://example.com/team\nhttp://example.com/flag-nto{cdx_4rch1v3_p1v0t}.txt\n"
+        },
+        {
+          "match": "timestamp",
+          "example": "jq -r '.[] | .[1]' cdx.json",
+          "output": "timestamp\n20020120142510\n20180603112233\n20191215090000\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживаются фильтры по timestamp и original.\n"
+    },
+    "curl": {
+      "help": "curl [-s] <URL> — HTTP-запрос (эмуляция: вывод захвачен с реального web.archive.org CDX API)",
+      "cases": [
+        {
+          "match": "web\\.archive\\.org/cdx",
+          "example": "curl -s \"http://web.archive.org/cdx/search/cdx?url=example.com&output=json\"",
+          "output": "[[\"urlkey\",\"timestamp\",\"original\",\"mimetype\",\"statuscode\"],[\"com,example)/\",\"20020120142510\",\"http://example.com:80/\",\"text/html\",\"200\"],[\"com,example)/team\",\"20180603112233\",\"http://example.com/team\",\"text/html\",\"200\"],[\"com,example)/flag-nto{cdx_4rch1v3_p1v0t}.txt\",\"20191215090000\",\"http://example.com/flag-nto{cdx_4rch1v3_p1v0t}.txt\",\"text/plain\",\"200\"]]\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только web.archive.org/cdx.\n"
+    }
+  }
+}

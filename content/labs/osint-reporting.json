@@ -1,0 +1,70 @@
+{
+  "id": "osint-reporting",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{3v1d3nc3_h4sh_m1sm4tch}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: проверить целостность артефакта перед сдачей отчёта\n\nПеред сдачей отчёта артефакты проверяют по контрольной сумме. Сохранённая копия —\n`page.html`, её контрольная сумма — в `page.sha256`, находки — в `findings.json`.\n\n1. Сгенерируй таблицу находок:\n   `jq -r '.[] | \"| \\(.fact) | \\(.source) | \\(.date) | \\(.confidence) | \\(.artifact) |\"' findings.json`\n2. Проверь целостность: `sha256sum -c page.sha256`\n3. Сумма не сходится — значит артефакт подменён. Найди маркер изменения внутри `page.html`.\n4. Запиши строку `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/findings.json",
+      "text": "[\n  { \"fact\": \"14 поддоменов\", \"source\": \"crt.sh\", \"date\": \"2026-10-11\", \"confidence\": \"moderate\", \"artifact\": \"subs.txt\" },\n  { \"fact\": \"staging-страница отдаёт 200\", \"source\": \"curl -I\", \"date\": \"2026-10-11\", \"confidence\": \"high\", \"artifact\": \"staging.html\" },\n  { \"fact\": \"публичный бакет example-static-dev\", \"source\": \"S3 XML listing\", \"date\": \"2026-10-11\", \"confidence\": \"high\", \"artifact\": \"listing.xml\" }\n]\n"
+    },
+    {
+      "path": "/home/student/task/page.html",
+      "text": "<!DOCTYPE html>\n<html>\n<head><title>Staging</title></head>\n<body>\n<!-- tamper-marker: nto{3v1d3nc3_h4sh_m1sm4tch} -->\n<h1>Staging environment</h1>\n<p>Internal use only.</p>\n</body>\n</html>\n"
+    },
+    {
+      "path": "/home/student/task/page.sha256",
+      "text": "0000000000000000000000000000000000000000000000000000000000000000  page.html\n"
+    },
+    {
+      "path": "/home/student/task/collected_at.txt",
+      "text": "Mon Oct 12 12:23:35 UTC 2026\n"
+    }
+  ],
+  "tools": {
+    "sha256sum": {
+      "help": "sha256sum [-c] <файл> — контрольная сумма SHA-256 (эмуляция)",
+      "cases": [
+        {
+          "match": "-c",
+          "example": "sha256sum -c page.sha256",
+          "output": "page.html: FAILED\nsha256sum: WARNING: 1 computed checksum did NOT match\n",
+          "code": 1
+        },
+        {
+          "match": "page\\.html",
+          "example": "sha256sum page.html",
+          "output": "18c4d29e15989140a52f5085f31c026fbe6e6d5593cfda537ddba45b8a42e9a7  page.html\n"
+        }
+      ],
+      "fallback": "sha256sum: в этой лабе есть только page.html и page.sha256.\n"
+    },
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "fact",
+          "example": "jq -r '.[] | \"| \\(.fact) | \\(.source) | \\(.date) | \\(.confidence) | \\(.artifact) |\"' findings.json",
+          "output": "| 14 поддоменов | crt.sh | 2026-10-11 | moderate | subs.txt |\n| staging-страница отдаёт 200 | curl -I | 2026-10-11 | high | staging.html |\n| публичный бакет example-static-dev | S3 XML listing | 2026-10-11 | high | listing.xml |\n"
+        },
+        {
+          "match": "artifact",
+          "example": "jq -r '.[].artifact' findings.json",
+          "output": "subs.txt\nstaging.html\nlisting.xml\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживаются фильтры по fact и artifact.\n"
+    }
+  }
+}

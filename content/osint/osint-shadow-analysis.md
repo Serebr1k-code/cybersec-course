@@ -13,6 +13,18 @@ useful_for:
   - "Верификация изображений"
 estimated_minutes: 38
 summary: "Shadow analysis и solar geometry: определение времени/места по длине и направлению теней, SunCalc, azimuth/elevation, worked example и ограничения метода."
+lab:
+  kind: shell
+  title: "Практика: точный расчёт времени по тени"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, measurements.txt, pysolar.py]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Измерения тени — в `measurements.txt`: `cat measurements.txt`."
+    - "tan(elev)=H/L=1.0 -> elev=45°; азимут Солнца = СВ+180° = 225°."
+    - "Найди час в таблице: `python3 pysolar.py`."
+    - "Подтверди час: `python3 pysolar.py 15` — в выводе будет строка `nto{...}`."
 ---
 
 ## Вопрос, с которого всё начинается

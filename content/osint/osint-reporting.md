@@ -13,6 +13,18 @@ useful_for:
   - "Пентест / Bug bounty"
 estimated_minutes: 40
 summary: "Как превратить разрозненные находки в понятный отчёт: структура, уровни уверенности, фиксация доказательств, ссылки на источники и визуализация."
+lab:
+  kind: shell
+  title: "Практика: проверка целостности артефакта"
+  toolset: [core, sha256sum, jq]
+  workdir: /home/student/task
+  files: [task.md, findings.json, page.html, page.sha256, collected_at.txt]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Артефакт — `page.html`, его сумма — в `page.sha256`."
+    - "Проверь целостность: `sha256sum -c page.sha256` — увидишь FAILED."
+    - "Сумма не сходится — значит файл подменён. Посмотри `page.html`."
+    - "Маркер изменения внутри `page.html` — строка `nto{...}`; запиши её в `answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

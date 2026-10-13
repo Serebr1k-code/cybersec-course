@@ -1,0 +1,50 @@
+{
+  "id": "osint-shadow-analysis",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{sh4d0w_3l3v45_4z225}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: точный расчёт времени по тени\n\nФото `street.jpg` сделано в Москве (55.7558N 37.6173E) 2024-06-21.\nИзмерения тени — в `measurements.txt`. Нужно посчитать угол Солнца и подобрать час.\n\n1. Посмотри измерения: `cat measurements.txt`\n2. Вычисли высоту Солнца: tan(elev) = H / L; азимут Солнца = направление тени + 180°.\n3. Подбери час в таблице: `python3 pysolar.py`\n4. Подтверди выбранный час (0–23): `python3 pysolar.py 15`\n5. Строку `nto{...}` из подтверждения запиши в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/measurements.txt",
+      "text": "Фото: street.jpg\nМесто: Москва (55.7558N, 37.6173E)\nДата: 2024-06-21\nЭталон: рост человека 1.7 м = 200 px\nТень человека: 200 px\nОтношение L/H = 200/200 = 1.0  ->  tan(elev)=1.0  ->  elev = 45°\nНаправление тени: северо-восток (СВ)  ->  азимут Солнца ≈ 225° (ЮЗ)\n"
+    },
+    {
+      "path": "/home/student/task/pysolar.py",
+      "text": "#!/usr/bin/env python3\n# Положение Солнца (pysolar-эмуляция), Москва 2024-06-21, UTC.\nimport sys\nTABLE = {14: (48.9, 210.2), 15: (43.2, 228.4), 16: (36.1, 242.9)}\ndef main():\n    if len(sys.argv) > 1:\n        h = int(sys.argv[1])\n        alt, az = TABLE.get(h, (0.0, 0.0))\n        print(f'2024-06-21 {h:02d}:00 UTC  altitude={alt}  azimuth={az}')\n        return\n    print('Москва 55.7558 37.6173, 2024-06-21, UTC')\n    print('час  altitude  azimuth')\n    for h, (alt, az) in TABLE.items():\n        print(f'{h:>2}   {alt:>5}     {az:>5}')\nif __name__ == '__main__':\n    main()\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <script> [аргументы] — запуск скрипта (эмуляция; вывод захвачен с реального pysolar)",
+      "cases": [
+        {
+          "match": "pysolar\\.py\\s+15",
+          "example": "pysolar.py 15",
+          "output": "2024-06-21 15:00 UTC  altitude=43.2  azimuth=228.4\nБлижайшее к измеренным (45°, 225°).\nMATCH: nto{sh4d0w_3l3v45_4z225}\n"
+        },
+        {
+          "match": "pysolar\\.py\\s+\\d",
+          "example": "pysolar.py 14",
+          "output": "2024-06-21 14:00 UTC  altitude=48.9  azimuth=210.2\nНе совпадает: азимут 210° ≠ 225°.\n"
+        },
+        {
+          "match": "pysolar\\.py",
+          "example": "pysolar.py",
+          "output": "Москва 55.7558 37.6173, 2024-06-21, UTC\nчас  altitude  azimuth\n14    48.9     210.2\n15    43.2     228.4\n16    36.1     242.9\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе запускается только pysolar.py.\n"
+    }
+  }
+}
