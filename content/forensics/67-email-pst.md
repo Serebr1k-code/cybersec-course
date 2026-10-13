@@ -13,6 +13,18 @@ useful_for:
   - "Корпоративные расследования"
 estimated_minutes: 50
 summary: "Разбор почтовых архивов Outlook (PST/OST) и отдельных сообщений (EML/MSG): извлечение писем, вложений, заголовков, удалённых элементов и метаданных."
+lab:
+  kind: shell
+  title: 'Практика: разбор EML и вложения'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, message.eml, parse_eml.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'EML — это MIME-сообщение: заголовки, затем части (`multipart`).'
+    - 'Вложение закодировано base64; декодируй payload.'
+    - 'Используй модуль `email` для обхода частей сообщения.'
+    - '`python3 parse_eml.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

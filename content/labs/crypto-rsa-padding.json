@@ -1,0 +1,54 @@
+{
+ "id": "crypto-rsa-padding",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "vars": {},
+ "expect": {
+  "file": "/home/student/task/found.txt",
+  "contains": "nto{pkcs1_v15_3_s1gn4tur3_f0rg3ry}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: подделка подписи PKCS#1 v1.5\n\nСервер проверяет подписи RSA со схемой PKCS#1 v1.5 и малым показателем `e=3`.\nЕго проверка сравнивает только префикс DigestInfo и не сверяет «хвост» блока.\nПодделай валидную для него подпись сообщения `admin=true` и запиши флаг в `found.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/n.txt",
+   "text": "10658460720014757048293551573898406460106100007615023872039225853610049358426994871754157831728824597648771152200563144365541017987208811876751771435441661301993047961647773274755232241178321939484090071448714353382665186778622956555591452857994137298674362114377403442960511520305415778079668455125009399502166946922245323587717802201671237986854799821636089948731265151834905490749817011750813149858114079793058455281761997787197688161847590335507791870014590149043153911708656475637469179197758935996980655839175600044911598390660400927167119610382289516927792015208628196476513966941741228700578719713569433154647\n"
+  },
+  {
+   "path": "/home/student/task/e.txt",
+   "text": "3\n"
+  },
+  {
+   "path": "/home/student/task/msg.txt",
+   "text": "admin=true\n"
+  },
+  {
+   "path": "/home/student/task/forge.py",
+   "text": "# Bleichenbacher's PKCS#1 v1.5 signature forgery with a small exponent (e=3).\n# A sloppy verifier checks that sig^3 mod n begins with 00 01 FF..FF 00 and then\n# the SHA-256 DigestInfo -- but never compares the trailing bytes. So we can pick\n# a number whose cube root is an integer and whose leading bytes are exactly the\n# required block; the cube root is a valid-for-that-verifier signature.\nimport hashlib, math\nn = 10658460720014757048293551573898406460106100007615023872039225853610049358426994871754157831728824597648771152200563144365541017987208811876751771435441661301993047961647773274755232241178321939484090071448714353382665186778622956555591452857994137298674362114377403442960511520305415778079668455125009399502166946922245323587717802201671237986854799821636089948731265151834905490749817011750813149858114079793058455281761997787197688161847590335507791870014590149043153911708656475637469179197758935996980655839175600044911598390660400927167119610382289516927792015208628196476513966941741228700578719713569433154647\ne = 3\nk = 256\nmessage = b'admin=true'\ndigest = hashlib.sha256(message).digest()\ndigest_info = bytes.fromhex(\"3031300d060960864801650304020105000420\") + digest\n# PKCS#1 v1.5 block with the minimum 8 bytes of 0xff padding\nprefix = b\"\\x00\\x01\" + b\"\\xff\" * 8 + b\"\\x00\" + digest_info\ntarget = int.from_bytes(prefix + b\"\\x00\" * (k - len(prefix)), \"big\")\ndef icbrt(x):\n    lo, hi = 0, 1 << ((x.bit_length() + 2) // 3 + 1)\n    while lo < hi:\n        mid = (lo + hi + 1) // 2\n        if mid ** 3 <= x: lo = mid\n        else: hi = mid - 1\n    return lo\ns = icbrt(target) + 1\nassert s ** 3 >= target\nrecovered = pow(s, e, n).to_bytes(k, \"big\")\nok = recovered[:2] == b\"\\x00\\x01\" and b\"\\xff\" * 8 in recovered[:12] and digest_info in recovered\nprint(\"forged signature s =\", s)\nprint(\"verifier accepts forged signature:\", ok)\nprint(\"forged for message:\", message.decode())\nprint(\"server grants admin -> flag: nto{pkcs1_v15_3_s1gn4tur3_f0rg3ry}\" if ok else \"forgery failed\")\n"
+  }
+ ],
+ "tools": {
+  "python3": {
+   "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+   "cases": [
+    {
+     "match": "--version|^-V$",
+     "example": "python3 --version",
+     "output": "Python 3.12.4"
+    },
+    {
+     "match": "forge\\.py",
+     "example": "python3 forge.py",
+     "output": "forged signature s = 995391042663285905082373840334783075535901580439276937985819219650254216242498862519052999631342742552837113876729487494623888546825087027056058406432830302239332693847622727735971825875904733277417878698\nverifier accepts forged signature: True\nforged for message: admin=true\nserver grants admin -> flag: nto{pkcs1_v15_3_s1gn4tur3_f0rg3ry}\n"
+    }
+   ],
+   "fallback": "python3: доступно `python3 forge.py`\n"
+  }
+ }
+}

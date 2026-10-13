@@ -13,6 +13,18 @@ useful_for:
   - "Понимать математику за атаками на малый d и частично известный ключ"
 estimated_minutes: 28
 summary: "Цепные дроби как инструмент криптоанализа: разложение, подходящие дроби (convergents), rational reconstruction и точная атака Винера на малый d. Разбор, почему d < n^0.25/3 гарантирует успех, и переход к атаке Боне–Дюрфе."
+lab:
+  kind: shell
+  title: 'Практика: атака Винера на малый d'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, n.txt, e.txt, c.txt, wiener.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'При малом `d` дробь `e/n` хорошо приближается `k/d`.'
+    - 'Разложи `e/n` в цепную дробь и перебери подходящие дроби (convergents).'
+    - 'Для каждой пары `(k, d)` проверь, что `phi = (e*d-1)/k` даёт целые p, q.'
+    - '`python3 wiener.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,18 @@ useful_for:
   - "Выбирать AEAD-режим безопасно"
 estimated_minutes: 45
 summary: "Сравнение AEAD-режимов: CCM (CBC-MAC + CTR), ChaCha20-Poly1305 и внутреннее устройство Poly1305. Атаки: повтор nonce, восстановление Poly1305-ключа r при утечке, подделка тега, сравнение с GCM. Практические примеры и рекомендации по выбору."
+lab:
+  kind: shell
+  title: 'Практика: подделка CBC-MAC (основа CCM)'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, forge.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'CCM аутентифицирует данные через CBC-MAC.'
+    - 'CBC-MAC без кодирования длины уязвим к удлинению сообщения.'
+    - 'Зная тег одного блока `t`, построй второй блок как `m2 XOR t`.'
+    - '`python3 forge.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

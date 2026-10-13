@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 45
 summary: "Как по кустам NTUSER.DAT и UsrClass.dat доказать, что пользователь открывал папки, включая удалённые и съёмные носители, и как читать Shellbags/UserAssist/RecentDocs."
+lab:
+  kind: shell
+  title: 'Практика: UserAssist из NTUSER.DAT'
+  toolset: [core, hex, python3]
+  workdir: /home/student/task
+  files: [task.md, NTUSER.DAT, parse_userassist.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'UserAssist хранится в NTUSER.DAT (куст реестра, `regf`).'
+    - 'Имена значений закодированы ROT13.'
+    - 'Разбери записи `vk` и примени ROT13 к именам.'
+    - '`python3 parse_userassist.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

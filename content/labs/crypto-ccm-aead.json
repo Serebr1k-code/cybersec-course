@@ -1,0 +1,42 @@
+{
+ "id": "crypto-ccm-aead",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "vars": {},
+ "expect": {
+  "file": "/home/student/task/found.txt",
+  "contains": "nto{cbc_m4c_l3ngth_3xt3n510n_f0rg3ry}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: подделка CBC-MAC\n\nCCM аутентифицирует данные через CBC-MAC без кодирования длины. Известен тег\nодноблочного сообщения. Построй другое (двухблочное) сообщение с тем же тегом и\nзапиши флаг в `found.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/forge.py",
+   "text": "# CCM authenticates with CBC-MAC. Without length encoding, CBC-MAC is\n# forgeable: given the tag of a one-block message we can build a two-block\n# message with the SAME tag. The verifier only checks the tag.\nfrom Crypto.Cipher import AES\nkey = bytes.fromhex(\"000102030405060708090a0b0c0d0e0f\")\nm1 = b'user=guest;ok!!'\nm2 = b'amount=0000;ok!'\ndef pad(m): return m + b\"\\x80\" + b\"\\x00\" * ((16 - (len(m) % 16) - 1) % 16)\ndef cbc_mac(msg):\n    c = b\"\\x00\" * 16\n    for i in range(0, len(msg), 16):\n        c = AES.new(key, AES.MODE_ECB).encrypt(bytes(a ^ b for a, b in zip(c, msg[i:i+16])))\n    return c\nknown_tag = bytes.fromhex(\"b7b361cb6e38611480ed978efb40101d\")      # tag of message m2, from the wire\n# forge: single-block m1, then block2 = pad(m2) XOR tag(m1)\nt1 = cbc_mac(pad(m1))\nforged_block2 = bytes(a ^ b for a, b in zip(pad(m2), t1))\nforged = pad(m1) + forged_block2\nforged_tag = cbc_mac(forged)\nprint(\"known tag (m2) :\", known_tag.hex())\nprint(\"forged tag     :\", forged_tag.hex())\nprint(\"forgery accepted:\", forged_tag == known_tag)\nprint(\"flag: nto{cbc_m4c_l3ngth_3xt3n510n_f0rg3ry}\" if forged_tag == known_tag else \"no\")\n"
+  }
+ ],
+ "tools": {
+  "python3": {
+   "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+   "cases": [
+    {
+     "match": "--version|^-V$",
+     "example": "python3 --version",
+     "output": "Python 3.12.4"
+    },
+    {
+     "match": "forge\\.py",
+     "example": "python3 forge.py",
+     "output": "known tag (m2) : b7b361cb6e38611480ed978efb40101d\nforged tag     : b7b361cb6e38611480ed978efb40101d\nforgery accepted: True\nflag: nto{cbc_m4c_l3ngth_3xt3n510n_f0rg3ry}\n"
+    }
+   ],
+   "fallback": "python3: доступно `python3 forge.py`\n"
+  }
+ }
+}

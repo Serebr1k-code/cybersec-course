@@ -13,6 +13,18 @@ useful_for:
   - "Timeline analysis"
 estimated_minutes: 50
 summary: "Практический разбор $UsnJrnl: извлечение потока $J, парсинг причин (Reason), реконструкция пар rename, поиск удалений и построение таймлайна действий."
+lab:
+  kind: shell
+  title: 'Практика: разбор $UsnJrnl ($J)'
+  toolset: [core, hex, python3]
+  workdir: /home/student/task
+  files: [task.md, usn.j, parse_usn.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Записи USN_RECORD_V2 идут подряд, каждая с полем RecordLength.'
+    - 'Поля Reason кодируют CREATE/DELETE/RENAME_OLD/RENAME_NEW.'
+    - 'Имя файла — UTF-16LE по смещению из поля FileNameOffset.'
+    - '`python3 parse_usn.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

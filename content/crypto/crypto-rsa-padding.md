@@ -13,6 +13,18 @@ useful_for:
   - "Различать PKCS#1 v1.5 и OAEP"
 estimated_minutes: 40
 summary: "Padding в RSA: почему textbook RSA небезопасен, PKCS#1 v1.5 (структура EM), OAEP (MGF, хэш), и атака Блейхенбахера (million message) на PKCS#1 v1.5 при наличии padding oracle. Защита: constant-time, единый ответ, OAEP. Связь с ROBOT и реальными TLS-стеками."
+lab:
+  kind: shell
+  title: 'Практика: подделка подписи PKCS#1 v1.5 при e=3'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, n.txt, e.txt, msg.txt, forge.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Сервер проверяет подпись RSA с `e=3` и схемой PKCS#1 v1.5.'
+    - 'Баг: сравнивается только префикс DigestInfo, а «хвост» блока игнорируется.'
+    - 'Ищи целочисленный кубический корень числа с нужными старшими байтами.'
+    - '`python3 forge.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

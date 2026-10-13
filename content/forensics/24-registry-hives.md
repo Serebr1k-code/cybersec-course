@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 50
 summary: "Глубокий разбор кустов реестра Windows: учётные записи и хеши (SAM), службы и USB (SYSTEM), политики и LSA (SECURITY), история пользователя (NTUSER.DAT)."
+lab:
+  kind: shell
+  title: 'Практика: разбор куста реестра (regf)'
+  toolset: [core, hex, python3]
+  workdir: /home/student/task
+  files: [task.md, SAM, parse_hive.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Куст реестра начинается с сигнатуры `regf`; значения лежат в записях `vk`.'
+    - 'В `vk` поля: длина имени, размер данных, смещение данных, тип.'
+    - 'Данные `REG_SZ` (тип 1) — UTF-16LE; раскодируй их.'
+    - '`python3 parse_hive.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

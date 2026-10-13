@@ -1,0 +1,42 @@
+{
+ "id": "crypto-ecdsa-advanced",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "vars": {},
+ "expect": {
+  "file": "/home/student/task/found.txt",
+  "contains": "nto{p0hl1g_h3llm4n_sm00th_0rd3r_ad3c0c0de}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: Pohlig–Hellman на суперсингулярной кривой\n\nДана кривая `y^2 = x^3 + x` над `F_p` (`p ≡ 3 mod 4`) с гладким порядком `p+1`.\nТочки `G` и `Q = d*G` известны. Восстанови секретный скаляр `d` через Pohlig–Hellman\nи запиши флаг в `found.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/pohlig.py",
+   "text": "# Pohlig-Hellman on a supersingular curve y^2 = x^3 + x over F_p (p = 3 mod 4).\n# #E = p + 1, which is smooth -> the DLP splits into small subgroups.\np = 275526451199\na, b = 1, 0\n\ndef inv(x): return pow(x, p - 2, p)\ndef add(P, Q):\n    if P is None: return Q\n    if Q is None: return P\n    x1, y1 = P; x2, y2 = Q\n    if x1 == x2 and (y1 + y2) % p == 0: return None\n    if P == Q:\n        m = (3 * x1 * x1 + a) * inv(2 * y1 % p) % p\n    else:\n        m = (y2 - y1) * inv((x2 - x1) % p) % p\n    x3 = (m * m - x1 - x2) % p\n    y3 = (m * (x1 - x3) - y1) % p\n    return (x3, y3)\ndef mul(k, P):\n    R = None\n    while k:\n        if k & 1: R = add(R, P)\n        P = add(P, P); k >>= 1\n    return R\n\n# factor the group order (p+1 = 2^19 * 3 * 5^2 * 7^2 * 11 * 13)\ndef factor(n):\n    f = {}\n    d = 2\n    while d * d <= n:\n        while n % d == 0:\n            f[d] = f.get(d, 0) + 1; n //= d\n        d += 1\n    if n > 1: f[n] = f.get(n, 0) + 1\n    return f\n\ndef bsgs(P, Q, n):\n    import math\n    m = int(math.isqrt(n)) + 1\n    table = {}\n    R = None\n    for j in range(m):\n        table.setdefault(R, j)\n        R = add(R, P)\n    # Q - i*m*P\n    mP = mul(m, P)\n    negmP = (mP[0], (-mP[1]) % p)\n    gamma = Q\n    for i in range(m):\n        if gamma in table:\n            return i * m + table[gamma]\n        gamma = add(gamma, negmP)\n    return None\n\n# generator and secret\nG = (2, None)\n# find a point on the curve\nfor x in range(2, 100):\n    rhs = (x * x * x + a * x + b) % p\n    y = pow(rhs, (p + 1) // 4, p)  # p = 3 mod 4\n    if y * y % p == rhs:\n        G = (x, y); break\nN = p + 1\nd = 0x5ec3e7d0c0de\nQ = mul(d, G)\n\n# Pohlig-Hellman\nres = {}\nfor q, e in factor(N).items():\n    qe = q ** e\n    Gq = mul(N // qe, G)\n    Qq = mul(N // qe, Q)\n    xq = bsgs(Gq, Qq, qe)\n    res[q] = xq\n# CRT\nfrom functools import reduce\nmods = [q ** e for q, e in factor(N).items()]\nvals = [res[q] for q in factor(N)]\nM = reduce(lambda x, y: x * y, mods)\ndrec = 0\nfor v, m in zip(vals, mods):\n    Mi = M // m\n    drec = (drec + v * Mi * pow(Mi, -1, m)) % M\nprint(\"order of G divides:\", N, \"=\", factor(N))\nprint(\"recovered d =\", drec)\nassert mul(drec, G) == Q\nprint(\"check d*G == Q:\", mul(drec, G) == Q)\nprint(\"flag: nto{p0hl1g_h3llm4n_sm00th_0rd3r_%x}\" % drec)\n"
+  }
+ ],
+ "tools": {
+  "python3": {
+   "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+   "cases": [
+    {
+     "match": "--version|^-V$",
+     "example": "python3 --version",
+     "output": "Python 3.12.4"
+    },
+    {
+     "match": "pohlig\\.py",
+     "example": "python3 pohlig.py",
+     "output": "order of G divides: 275526451200 = {2: 19, 3: 1, 5: 2, 7: 2, 11: 1, 13: 1}\nrecovered d = 46502297822\ncheck d*G == Q: True\nflag: nto{p0hl1g_h3llm4n_sm00th_0rd3r_ad3c0c0de}\n"
+    }
+   ],
+   "fallback": "python3: доступно `python3 pohlig.py`\n"
+  }
+ }
+}

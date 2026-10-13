@@ -1,0 +1,54 @@
+{
+ "id": "crypto-rsa-bleichenbacher",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "vars": {},
+ "expect": {
+  "file": "/home/student/task/found.txt",
+  "contains": "nto{bl31ch3nb4ch3r_p4dd1ng_0r4cl3}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: padding oracle Блейхенбахера\n\nСервер расшифровывает RSAES-PKCS1-v1_5 и сообщает лишь одно: корректен ли padding.\nЭтого одного бита достаточно, чтобы восстановить открытый текст `c0`. Запусти атаку\nи запиши флаг в `found.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/n.txt",
+   "text": "1108802037070032785126412787773246394262765886077273581809856945521797689081708122279537080436953459520627795761929\n"
+  },
+  {
+   "path": "/home/student/task/e.txt",
+   "text": "3\n"
+  },
+  {
+   "path": "/home/student/task/c0.txt",
+   "text": "245506123828874950191026469095102634725216175312555371151585549586013621097651470634098831567384223163011335092253\n"
+  },
+  {
+   "path": "/home/student/task/bleich.py",
+   "text": "# Bleichenbacher \"million-message\" attack on RSAES-PKCS1-v1_5.\n# A server decrypts our ciphertext and only tells us whether the padding is\n# valid (starts with 00 02). That single bit is enough to recover the plaintext.\nn = 1108802037070032785126412787773246394262765886077273581809856945521797689081708122279537080436953459520627795761929\ne = 3\nd = 739201358046688523417608525182164262841843924051515721203930418042588362948087107532736974678636437634332908288523   # private key, only so the LOCAL oracle below can answer\nc0 = 245506123828874950191026469095102634725216175312555371151585549586013621097651470634098831567384223163011335092253\nk = 48\nB = 1 << (8 * (k - 2))\n\ndef oracle(c):\n    m = pow(c, d, n).to_bytes(k, 'big')\n    return m[:2] == b'\\x00\\x02'      # padding-valid?\n\ndef ceildiv(a, b):\n    return -((-a) // b)\n\n# Step 1: smallest s with a valid padding\ns = ceildiv(n, 3 * B)\nqueries = 0\nwhile not oracle((c0 * pow(s, e, n)) % n):\n    s += 1; queries += 1\nM = [(2 * B, 3 * B - 1)]\nwhile True:\n    newM = []\n    for (a, b) in M:\n        for r in range(ceildiv(a * s - 3 * B + 1, n), (b * s - 2 * B) // n + 1):\n            lo = max(a, ceildiv(2 * B + r * n, s))\n            hi = min(b, (3 * B - 1 + r * n) // s)\n            if lo <= hi:\n                newM.append((lo, hi))\n    M = newM\n    if len(M) == 1 and M[0][0] == M[0][1]:\n        break\n    if len(M) > 1:\n        s += 1\n        while not oracle((c0 * pow(s, e, n)) % n):\n            s += 1; queries += 1\n    else:\n        a, b = M[0]\n        r = ceildiv(2 * (b * s - 2 * B), n)\n        found = False\n        while not found:\n            s = ceildiv(2 * B + r * n, b)\n            while s <= (3 * B + r * n) // a:\n                if oracle((c0 * pow(s, e, n)) % n):\n                    found = True; break\n                s += 1; queries += 1\n            r += 1\nm = M[0][0]\npt = m.to_bytes(k, 'big')\nbody = pt[pt.index(b\"\\x00\", 2) + 1:]\nprint(\"oracle queries:\", queries)\nprint(\"recovered plaintext:\", body.decode())\n"
+  }
+ ],
+ "tools": {
+  "python3": {
+   "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+   "cases": [
+    {
+     "match": "--version|^-V$",
+     "example": "python3 --version",
+     "output": "Python 3.12.4"
+    },
+    {
+     "match": "bleich\\.py",
+     "example": "python3 bleich.py",
+     "output": "oracle queries: 4015\nrecovered plaintext: nto{bl31ch3nb4ch3r_p4dd1ng_0r4cl3}\n"
+    }
+   ],
+   "fallback": "python3: доступно `python3 bleich.py`\n"
+  }
+ }
+}

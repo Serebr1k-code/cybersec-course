@@ -1,0 +1,42 @@
+{
+ "id": "crypto-php-mtrand",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "vars": {},
+ "expect": {
+  "file": "/home/student/task/found.txt",
+  "contains": "nto{4212541441_134231623}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: восстановление java.util.Random\n\nДаны два подряд идущих выхода `nextInt()`. Восстанови 48-битное состояние LCG,\nпредскажи следующие два значения и запиши флаг в `found.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/java_random.py",
+   "text": "# Recover java.util.Random's 48-bit LCG state from two consecutive nextInt() calls.\nA = 0x5DEECE66D\nB = 0xB\nM = (1 << 48) - 1\nx1 = 3100950091\nx2 = 3281860534\ndef next_int(state):\n    state = (state * A + B) & M\n    return state, state >> 16\nfor low in range(1 << 16):\n    s1 = (x1 << 16) | low\n    s2, o2 = next_int(s1)\n    if o2 == x2:\n        s3, o3 = next_int(s2)\n        s4, o4 = next_int(s3)\n        print(\"recovered 48-bit state:\", s1)\n        print(\"next two nextInt():\", o3, o4)\n        print(\"flag: nto{%d_%d}\" % (o3, o4))\n        break\nelse:\n    print(\"not found\")\n"
+  }
+ ],
+ "tools": {
+  "python3": {
+   "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+   "cases": [
+    {
+     "match": "--version|^-V$",
+     "example": "python3 --version",
+     "output": "Python 3.12.4"
+    },
+    {
+     "match": "java_random\\.py",
+     "example": "python3 java_random.py",
+     "output": "recovered 48-bit state: 203223865224777\nnext two nextInt(): 4212541441 134231623\nflag: nto{4212541441_134231623}\n"
+    }
+   ],
+   "fallback": "python3: доступно `python3 java_random.py`\n"
+  }
+ }
+}

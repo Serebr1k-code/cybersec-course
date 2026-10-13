@@ -1,0 +1,47 @@
+{
+ "id": "forensics-email-pst",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "vars": {},
+ "expect": {
+  "file": "/home/student/task/found.txt",
+  "contains": "nto{pst_4tt4chm3nt_b64_d3c0d3d}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: разбор EML\n\nВ почтовом сообщении есть вложение с уликой. Разбери MIME-части, декодируй\nbase64-вложение и запиши флаг в `found.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/message.eml",
+   "b64": "RnJvbTogYXR0YWNrZXJAZXZpbC5leGFtcGxlClRvOiB2aWN0aW1AY29ycC5leGFtcGxlClN1YmplY3Q6IEludm9pY2UgIzQ0NzEKRGF0ZTogVHVlLCAxMyBPY3QgMjAyNiAwOToxMjowMCArMDAwMApNSU1FLVZlcnNpb246IDEuMApDb250ZW50LVR5cGU6IG11bHRpcGFydC9taXhlZDsgYm91bmRhcnk9Ij09PT09PT09PT09PT09PTUyMjg3MzUwNjk2MjEyNTYxNzM9PSIKCi0tPT09PT09PT09PT09PT09NTIyODczNTA2OTYyMTI1NjE3Mz09CkNvbnRlbnQtVHlwZTogdGV4dC9wbGFpbjsgY2hhcnNldD0idXRmLTgiCkNvbnRlbnQtVHJhbnNmZXItRW5jb2Rpbmc6IDdiaXQKClBsZWFzZSBmaW5kIHRoZSBpbnZvaWNlIGF0dGFjaGVkLgoKLS09PT09PT09PT09PT09PT01MjI4NzM1MDY5NjIxMjU2MTczPT0KQ29udGVudC1UeXBlOiB0ZXh0L3BsYWluCkNvbnRlbnQtVHJhbnNmZXItRW5jb2Rpbmc6IGJhc2U2NApDb250ZW50LURpc3Bvc2l0aW9uOiBhdHRhY2htZW50OyBmaWxlbmFtZT0iaW52b2ljZS50eHQiCk1JTUUtVmVyc2lvbjogMS4wCgpiblJ2ZTNCemRGODBkSFEwWTJodE0yNTBYMkkyTkY5a00yTXdaRE5rZlE9PQoKLS09PT09PT09PT09PT09PT01MjI4NzM1MDY5NjIxMjU2MTczPT0tLQo=",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/parse_eml.py",
+   "text": "# Parse an EML message: headers + base64 attachment containing the evidence.\nimport email, email.policy\nmsg = email.message_from_file(open(\"message.eml\"), policy=email.policy.default)\nprint(\"From   :\", msg[\"From\"])\nprint(\"To     :\", msg[\"To\"])\nprint(\"Subject:\", msg[\"Subject\"])\nprint(\"Date   :\", msg[\"Date\"])\nfor part in msg.walk():\n    if part.get_content_maintype() == \"multipart\":\n        continue\n    fname = part.get_filename()\n    if fname:\n        payload = part.get_payload(decode=True)\n        print(\"attachment %s (%d bytes):\" % (fname, len(payload)))\n        print(payload.decode(\"utf-8\", \"replace\"))\n"
+  }
+ ],
+ "tools": {
+  "python3": {
+   "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+   "cases": [
+    {
+     "match": "--version|^-V$",
+     "example": "python3 --version",
+     "output": "Python 3.12.4"
+    },
+    {
+     "match": "parse_eml\\.py",
+     "example": "python3 parse_eml.py",
+     "output": "From   : attacker@evil.example\nTo     : victim@corp.example\nSubject: Invoice #4471\nDate   : Tue, 13 Oct 2026 09:12:00 +0000\nattachment invoice.txt (31 bytes):\nnto{pst_4tt4chm3nt_b64_d3c0d3d}\n"
+    }
+   ],
+   "fallback": "python3: доступно `python3 parse_eml.py`\n"
+  }
+ }
+}

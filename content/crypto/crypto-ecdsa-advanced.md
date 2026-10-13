@@ -12,6 +12,18 @@ useful_for:
   - "Восстанавливать параметры кривой по подписям"
 estimated_minutes: 36
 summary: "Продвинутые атаки на ECDSA/EdDSA: Pohlig-Hellman при гладком порядке, Smart's attack на аномальных кривых, MOV при малом embedding degree, восстановление параметров кривой по подписям, практические скрипты на Sage и распознавание слабых кривых."
+lab:
+  kind: shell
+  title: 'Практика: Pohlig–Hellman на гладком порядке'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, pohlig.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Кривая `y^2 = x^3 + x` над `F_p` при `p ≡ 3 (mod 4)` суперсингулярна: `#E = p+1`.'
+    - 'Порядок группы `p+1` гладкий — DLP распадается на малые подгруппы.'
+    - 'Реши DLP в каждой подгруппе (BSGS) и собери `d` по CRT.'
+    - '`python3 pohlig.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

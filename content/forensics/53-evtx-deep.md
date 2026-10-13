@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting / SOC"
 estimated_minutes: 50
 summary: "Формат EVTX, восстановление повреждённых журналов, ключевые Event ID (logon/process/service/task) и богатый набор событий Sysmon для детекта атак."
+lab:
+  kind: shell
+  title: 'Практика: разбор EVTX (заголовок, чанк, записи)'
+  toolset: [core, hex, python3]
+  workdir: /home/student/task
+  files: [task.md, Security.evtx, parse_evtx.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Файл EVTX начинается с `ElfFile\x00`; чанки — с `ElfChnk\x00`.'
+    - 'Записи начинаются с магии `0x00002a2a` и имеют поле размера.'
+    - 'BinXML хранит строки как UTF-16LE — раскодируй тело записи.'
+    - '`python3 parse_evtx.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

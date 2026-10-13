@@ -13,6 +13,18 @@ useful_for:
   - "Incident Response"
 estimated_minutes: 60
 summary: "Форензика шифрованных дисков: определение типа шифрования, заголовки LUKS/BitLocker/VeraCrypt/FileVault, извлечение ключей из памяти и TPM, монтирование и восстановление."
+lab:
+  kind: shell
+  title: 'Практика: разбор заголовка LUKS'
+  toolset: [core, hex, python3]
+  workdir: /home/student/task
+  files: [task.md, disk.img, parse_luks.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Заголовок LUKS начинается с магии `LUKS\xba\xbe`.'
+    - 'Поля версии, cipher-name, cipher-mode и hash-spec идут подряд.'
+    - 'Активный keyslot помечен магией `0x00AC71F3`.'
+    - '`python3 parse_luks.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

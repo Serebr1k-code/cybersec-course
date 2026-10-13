@@ -1,0 +1,47 @@
+{
+ "id": "forensics-usn",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "vars": {},
+ "expect": {
+  "file": "/home/student/task/found.txt",
+  "contains": "nto{usnjrnl_r3n4m3_p41r_r3c0v3r3d}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: разбор $UsnJrnl\n\nВ журнале USN зафиксированы операции с файлами. Разбери записи USN_RECORD_V2,\nвосстанови переименования и найди подозрительное имя. Запиши флаг в `found.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/usn.j",
+   "b64": "UAAAAAIAAABpAAAAAAABAAUAAAAAAAEAZAAAAAAAAAAAyvQxTfXUAQABAAAAAAAAAAEAACAAAAASADwAZABvAGMAdQBtAGUAbgB0AHMAAABYAAAAAgAAAHMAAAAAAAEABQAAAAAAAQBuAAAAAAAAAACr6jdN9dQBAAEAAAAAAAAAAQAAIAAAABYAPAByAGUAcABvAHIAdAAuAGQAbwBjAHgAAAAAAAAAWAAAAAIAAAB9AAAAAAABAAUAAAAAAAEAeAAAAAAAAAAAjOA9TfXUAQAgAAAAAAAAAAEAACAAAAAWADwAcgBlAHAAbwByAHQALgBkAG8AYwB4AAAAAAAAAIgAAAACAAAAhwAAAAAAAQAFAAAAAAABAIIAAAAAAAAAAG3WQ0311AEAQAAAAAAAAAABAAAgAAAATAA8AG4AdABvAHsAdQBzAG4AagByAG4AbABfAHIAMwBuADQAbQAzAF8AcAA0ADEAcgBfAHIAMwBjADAAdgAzAHIAMwBkAH0ALgBlAHgAZQCIAAAAAgAAAJEAAAAAAAEABQAAAAAAAQCMAAAAAAAAAABOzElN9dQBAAIAAAAAAAAAAQAAIAAAAEwAPABuAHQAbwB7AHUAcwBuAGoAcgBuAGwAXwByADMAbgA0AG0AMwBfAHAANAAxAHIAXwByADMAYwAwAHYAMwByADMAZAB9AC4AZQB4AGUA",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/parse_usn.py",
+   "text": "# Parse $UsnJrnl:$J (USN_RECORD_V2) and reconstruct file operations.\nimport struct, sys\ndata = open(sys.argv[1] if len(sys.argv) > 1 else \"usn.j\", \"rb\").read()\npos = 0\nlast = {}\nREASON = {0x100: \"FILE_CREATE\", 0x200: \"FILE_DELETE\", 0x1000: \"DATA_OVERWRITE\", 0x2000: \"RENAME_OLD\", 0x4000: \"RENAME_NEW\"}\nwhile pos + 8 <= len(data):\n    rl, major, minor = struct.unpack_from(\"<IHH\", data, pos)\n    if rl == 0 or pos + rl > len(data):\n        break\n    usn = struct.unpack_from(\"<Q\", data, pos + 0x18)[0]\n    reason = struct.unpack_from(\"<I\", data, pos + 0x28)[0]\n    nlen = struct.unpack_from(\"<H\", data, pos + 0x38)[0]\n    noff = struct.unpack_from(\"<H\", data, pos + 0x3A)[0]\n    name = data[pos + noff:pos + noff + nlen].decode(\"utf-16-le\", \"replace\")\n    rs = \"|\".join(v for k, v in REASON.items() if reason & k) or hex(reason)\n    print(\"USN=%d reason=%-22s name=%s\" % (usn, rs, name))\n    pos += rl\n"
+  }
+ ],
+ "tools": {
+  "python3": {
+   "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+   "cases": [
+    {
+     "match": "--version|^-V$",
+     "example": "python3 --version",
+     "output": "Python 3.12.4"
+    },
+    {
+     "match": "parse_usn\\.py",
+     "example": "python3 parse_usn.py",
+     "output": "USN=100 reason=FILE_CREATE            name=documents\nUSN=110 reason=FILE_CREATE            name=report.docx\nUSN=120 reason=RENAME_OLD             name=report.docx\nUSN=130 reason=RENAME_NEW             name=nto{usnjrnl_r3n4m3_p41r_r3c0v3r3d}.exe\nUSN=140 reason=FILE_DELETE            name=nto{usnjrnl_r3n4m3_p41r_r3c0v3r3d}.exe\n"
+    }
+   ],
+   "fallback": "python3: доступно `python3 parse_usn.py`\n"
+  }
+ }
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Восстанавливать сообщение за ~10^6 запросов"
 estimated_minutes: 45
 summary: "Атака Блейхенбахера (million message attack) на RSAES-PKCS1-v1_5: oracle корректности padding, интервальное сужение, восстановление открытого текста. Связь с ROBOT, практическая реализация, распознавание и защита."
+lab:
+  kind: shell
+  title: 'Практика: padding oracle Блейхенбахера'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, n.txt, e.txt, c0.txt, bleich.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Сервер расшифровывает наш шифротекст и сообщает только: корректен ли padding.'
+    - 'Один бит (padding valid/invalid) позволяет сужать интервал возможных m.'
+    - 'Стандартный алгоритм: искать s, затем сужать множество интервалов M.'
+    - '`python3 bleich.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

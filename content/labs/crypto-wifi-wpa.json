@@ -1,0 +1,46 @@
+{
+ "id": "crypto-wifi-wpa",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "vars": {},
+ "expect": {
+  "file": "/home/student/task/found.txt",
+  "contains": "nto{wpa2_psk_sunshine2024}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: подбор пароля WPA2\n\nПерехвачено рукопожатие WPA2-PSK (EAPOL + MIC). Восстанови пароль по словарю,\nпроверив MIC для каждого кандидата, и запиши флаг в `found.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/wordlist.txt",
+   "text": "password\n12345678\nsunshine2024\nqwerty123\nletmein\nadmin\n"
+  },
+  {
+   "path": "/home/student/task/crack.py",
+   "text": "# WPA2-PSK handshake crack: derive the PMK/PTK and verify the EAPOL MIC.\nimport hashlib, hmac\nssid = b'HOME-NET'\naa = bytes.fromhex(\"aabbccddeeff\")\nspa = bytes.fromhex(\"112233445566\")\nanonce = bytes.fromhex(\"00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff\")\nsnonce = bytes.fromhex(\"ffeeddccbbaa99887766554433221100ffeeddccbbaa99887766554433221100\")\neapol = bytes.fromhex(\"020300750201000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\")\ncaptured_mic = bytes.fromhex(\"4f66afa02a561ca64f56a8c6e262b253\")\n\ndef prf(key, a, b, bits):\n    out = b\"\"; i = 0\n    while len(out) * 8 < bits:\n        out += hmac.new(key, a + b\"\\x00\" + b + bytes([i]), hashlib.sha1).digest()\n        i += 1\n    return out[: bits // 8]\n\nb = min(aa, spa) + max(aa, spa) + min(anonce, snonce) + max(anonce, snonce)\nwords = [b\"password\", b\"12345678\", b\"sunshine2024\", b\"qwerty123\", b\"letmein\", b\"admin\"]\nfor w in words:\n    pmk = hashlib.pbkdf2_hmac(\"sha1\", w, ssid, 4096, 32)\n    ptk = prf(pmk, b\"Pairwise key expansion\", b, 512)\n    if hmac.new(ptk[:16], eapol, hashlib.sha1).digest()[:16] == captured_mic:\n        print(\"passphrase found:\", w.decode())\n        print(\"flag: nto{wpa2_psk_\" + w.decode() + \"}\")\n        break\nelse:\n    print(\"not found\")\n"
+  }
+ ],
+ "tools": {
+  "python3": {
+   "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+   "cases": [
+    {
+     "match": "--version|^-V$",
+     "example": "python3 --version",
+     "output": "Python 3.12.4"
+    },
+    {
+     "match": "crack\\.py",
+     "example": "python3 crack.py",
+     "output": "passphrase found: sunshine2024\nflag: nto{wpa2_psk_sunshine2024}\n"
+    }
+   ],
+   "fallback": "python3: доступно `python3 crack.py`\n"
+  }
+ }
+}

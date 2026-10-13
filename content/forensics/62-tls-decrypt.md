@@ -13,6 +13,18 @@ useful_for:
   - "Анализ сетевого трафика"
 estimated_minutes: 40
 summary: "Как расшифровать TLS-трафик в Wireshark: SSLKEYLOGFILE, извлечение сессионных ключей из памяти/дампа, RSA-ключ, и почему forward secrecy усложняет задачу."
+lab:
+  kind: shell
+  title: 'Практика: расшифровка TLS 1.2 по SSLKEYLOGFILE'
+  toolset: [core, hex, python3]
+  workdir: /home/student/task
+  files: [task.md, client_random.txt, server_random.txt, keylog.txt, record.bin, decrypt_tls.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'SSLKEYLOGFILE даёт `CLIENT_RANDOM <random> <master_secret>`.'
+    - 'Ключевой блок выводится через TLS PRF: PRF(master, "key expansion", server_random+client_random).'
+    - 'Для AES-128-GCM: client key = первые 16 байт, fixed_iv = байты 32..36.'
+    - '`python3 decrypt_tls.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

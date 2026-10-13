@@ -13,6 +13,18 @@ useful_for:
   - "Анализ образов Linux"
 estimated_minutes: 55
 summary: "Глубокий разбор ext4: суперблок и группы блоков, inode и extent-дерево, журнал JBD2 и восстановление удалённых файлов, работа с debugfs и ext4magic."
+lab:
+  kind: shell
+  title: 'Практика: обход ext4 (суперблок → inode → extent)'
+  toolset: [core, hex, python3]
+  workdir: /home/student/task
+  files: [task.md, disk.img, ext4_walk.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Суперблок ext4 по смещению 1024; магия `0xEF53` по смещению 0x38.'
+    - 'Таблица inode-ов находится в дескрипторе группы, а не в суперблоке.'
+    - 'Корневой каталог — inode 2; его блоки описываются extent-деревом.'
+    - '`python3 ext4_walk.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

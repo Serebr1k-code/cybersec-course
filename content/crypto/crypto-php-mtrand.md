@@ -13,6 +13,18 @@ useful_for:
   - "Атаковать токены/пароли, сгенерированные слабым ГПСЧ"
 estimated_minutes: 40
 summary: "Предсказание генераторов конкретных языков: PHP mt_rand (MT19937 с усечением и seed-ом), восстановление состояния и php_mt_seed, Java java.util.Random (48-битный LCG) и восстановление по двум выходам, а также сравнение с Python random и C rand. Практические скрипты и атаки на токены."
+lab:
+  kind: shell
+  title: 'Практика: восстановление java.util.Random'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, java_random.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`java.util.Random` — 48-битный LCG: `s = (s*A + B) mod 2^48`, `A=0x5DEECE66D`.'
+    - '`nextInt()` возвращает `s >> 16` — старшие 32 бита.'
+    - 'Из двух выходов перебери младшие 16 бит состояния и проверь второй выход.'
+    - '`python3 java_random.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

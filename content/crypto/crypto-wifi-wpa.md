@@ -13,6 +13,18 @@ useful_for:
   - "Оценивать конфигурацию беспроводных сетей"
 estimated_minutes: 45
 summary: "Криптография Wi-Fi: WPA2 4-way handshake и вывод PTK, PMKID-атака без клиента, WPA3 SAE/Dragonfly и переход к forward secrecy, атака KRACK на handshake, инструменты hcxdumptool/hcxtools/hashcat/aircrack и полный разбор подбора PSK."
+lab:
+  kind: shell
+  title: 'Практика: подбор пароля WPA2 по рукопожатию'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, wordlist.txt, crack.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'PMK = PBKDF2-HMAC-SHA1(пароль, SSID, 4096, 32).'
+    - 'PTK выводится через PRF-512(PMK, "Pairwise key expansion", …).'
+    - 'Сравни вычисленный MIC (HMAC-SHA1(KCK, EAPOL)) с захваченным.'
+    - '`python3 crack.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

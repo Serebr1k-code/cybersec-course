@@ -1,0 +1,59 @@
+{
+ "id": "forensics-tls-decrypt",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "vars": {},
+ "expect": {
+  "file": "/home/student/task/found.txt",
+  "contains": "nto{tls12_k3yl0g_r3c0rd_d3crypt3d}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: расшифровка TLS 1.2\n\nЕсть SSLKEYLOGFILE и зашифрованная запись TLS 1.2 (AES-128-GCM). Выведи ключевой\nблок через TLS PRF, расшифруй запись и найди флаг в открытом тексте. Запиши его в `found.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/client_random.txt",
+   "text": "a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90\n"
+  },
+  {
+   "path": "/home/student/task/server_random.txt",
+   "text": "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0\n"
+  },
+  {
+   "path": "/home/student/task/keylog.txt",
+   "text": "CLIENT_RANDOM a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90 4d5e6f708192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f8091a2b3c\n"
+  },
+  {
+   "path": "/home/student/task/record.bin",
+   "b64": "FwMDAG7K/rq+3q2+70x++o/fsIeUX1ANib39QpMRpDfcvE6+l2Vi+3HLY3ClToonuP3tG/XRxnPM22641ieWx7tWYmLQQy1t5feX/oF8Zp1lhAuGuQeK5Tg92CmY3AVNXUYh9d/AzWnPHxK7ilgmQugHJA==",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/decrypt_tls.py",
+   "text": "# Decrypt a TLS 1.2 AES-128-GCM record using an SSLKEYLOGFILE entry.\nimport hashlib, hmac, struct\nfrom Crypto.Cipher import AES\nclient_random = bytes.fromhex(open(\"client_random.txt\").read().strip())\nserver_random = bytes.fromhex(open(\"server_random.txt\").read().strip())\nmaster = bytes.fromhex(open(\"keylog.txt\").read().split()[-1])\nrecord = open(\"record.bin\", \"rb\").read()\ndef p_hash(secret, seed, n):\n    out = b\"\"; a = seed\n    while len(out) < n:\n        a = hmac.new(secret, a, hashlib.sha256).digest()\n        out += hmac.new(secret, a + seed, hashlib.sha256).digest()\n    return out[:n]\ndef prf(secret, label, seed, n):\n    return p_hash(secret, label + seed, n)\nkeyblock = prf(master, b\"key expansion\", server_random + client_random, 40)\nclient_key = keyblock[:16]\nfixed_iv = keyblock[32:36]\nctype, ver, length = struct.unpack(\">BHH\", record[:5])\nbody = record[5:5 + length]\nnonce = fixed_iv + body[:8]\nc = AES.new(client_key, AES.MODE_GCM, nonce=nonce)\nplaintext = c.decrypt(body[8:])\nprint(\"record type:\", ctype)\nprint(\"decrypted:\", plaintext.decode(\"latin-1\"))\n"
+  }
+ ],
+ "tools": {
+  "python3": {
+   "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+   "cases": [
+    {
+     "match": "--version|^-V$",
+     "example": "python3 --version",
+     "output": "Python 3.12.4"
+    },
+    {
+     "match": "decrypt_tls\\.py",
+     "example": "python3 decrypt_tls.py",
+     "output": "record type: 23\ndecrypted: GET /admin?token=nto{tls12_k3yl0g_r3c0rd_d3crypt3d} HTTP/1.1\nHost: intranet.local\n\n:ª\u0004¼ÖùØîí#%ÂEJ\n"
+    }
+   ],
+   "fallback": "python3: доступно `python3 decrypt_tls.py`\n"
+  }
+ }
+}
