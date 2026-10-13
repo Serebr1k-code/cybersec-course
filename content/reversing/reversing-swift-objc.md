@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty (Apple-платформы)"
 estimated_minutes: 60
 summary: "Реверс Apple-бинарников: секции Objective-C, метод-листы, Swift-манглинг и демагглинг — на реальном Mach-O объекте."
+lab:
+  kind: shell
+  title: 'Практика: Objective-C/Swift метаданные'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, objc.o, macho.py]
+  check: "grep -q 'nto{0bjc_m3th0d_l1sts_d3m4ngl3}' found.txt"
+  hints:
+    - '`xxd objc.o | head -1` — магия Mach-O `cffaedfe`.'
+    - '`python3 macho.py objc.o` — разбор секций; ищи `__objc_classname`, `__objc_methname`.'
+    - 'Имена классов/методов не вырезаются (нужны runtime): `strings objc.o | grep Greeter`.'
+    - 'Флаг в `__cstring`: `strings objc.o | grep nto > found.txt`, затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

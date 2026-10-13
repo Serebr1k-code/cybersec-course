@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty (iOS-приложения)"
 estimated_minutes: 55
 summary: "Реверс iOS-приложений: Mach-O внутри IPA, arm64, class-dump, Frida и обход SSL-pinning — на реальном arm64-бинарнике."
+lab:
+  kind: shell
+  title: 'Практика: разобрать iOS Mach-O (arm64)'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, ios_demo, macho.py]
+  check: "grep -q 'nto{10s_m4ch0_4rm64_1pa}' found.txt"
+  hints:
+    - '`xxd ios_demo | head -1` — магия `cffaedfe` (Mach-O 64-bit, little-endian).'
+    - '`python3 macho.py ios_demo` — заголовок и load-команды (Mach-O).'
+    - '`cputype=0x0100000c` — это arm64; `LC_ENCRYPTION_INFO_64 cryptid=0` значит бинарник расшифрован.'
+    - 'Флаг в `__cstring`: `strings ios_demo | grep nto > found.txt`, затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

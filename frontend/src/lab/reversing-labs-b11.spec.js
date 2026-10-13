@@ -14,6 +14,8 @@ const LABS = {
   'reversing-dotnet-advanced': { flag: 'nto{1l_p4tch_bne_un_byp4ss}', steps: ['file Obf.exe', 'monodis Obf.exe | grep nto > found.txt'] },
   'reversing-dotnet-deobfuscation': { flag: 'nto{d0tn3t_m3t4d4t4_surv1v3s}', steps: ['monodis Check.exe | grep nto > found.txt'] },
   'reversing-smart-contracts': { flag: 'nto{evm_0pc0d3_d1s4ss3mbly}', steps: ['xxd contract.bin', 'python3 evmdis.py contract.bin', 'strings contract.bin | grep nto > found.txt'] },
+  'reversing-ios': { flag: 'nto{10s_m4ch0_4rm64_1pa}', steps: ['xxd ios_demo | head -1', 'python3 macho.py ios_demo', 'strings ios_demo | grep nto > found.txt'] },
+  'reversing-swift-objc': { flag: 'nto{0bjc_m3th0d_l1sts_d3m4ngl3}', steps: ['python3 macho.py objc.o', 'strings objc.o | grep nto > found.txt'] },
 }
 
 describe('reversing batch B11 end-to-end', () => {
