@@ -1,0 +1,48 @@
+{
+  "id": "osint-social-news",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{n3ws_c0d3n4m3_1n_h34dl1n3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: мониторинг упоминаний в медиа\n\nСобери свежие упоминания `Example Corp` в новостях автоматически.\n\n1. Google News RSS: `curl -s \"https://news.google.com/rss/search?q=%22Example+Corp%22&hl=en-US&gl=US&ceid=US:en\" > news.xml`\n2. Найди аномальный заголовок: `grep nto news.xml`\n3. GDELT API: `curl -s \"https://api.gdeltproject.org/api/v2/doc/doc?query=%22Example+Corp%22&format=json\" > gdelt.json`\n4. Заголовки: `jq -r '.articles[].title' gdelt.json`\n5. Запиши маркер `nto{...}` в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — RSS/API (эмуляция реального формата)",
+      "cases": [
+        {
+          "match": "news\\.google\\.com",
+          "example": "curl -s \"https://news.google.com/rss/search?q=%22Example+Corp%22...\"",
+          "output": "<?xml version=\"1.0\" encoding=\"UTF-8\"?><rss version=\"2.0\"><channel>\n<title>Example Corp - Google News</title>\n<item><title>Example Corp reports record quarter - Reuters</title><link>https://news.example/1</link></item>\n<item><title>Example Corp ships Project nto{n3ws_c0d3n4m3_1n_h34dl1n3} - The Verge</title><link>https://news.example/2</link></item>\n<item><title>Analysts upgrade Example Corp - Bloomberg</title><link>https://news.example/3</link></item>\n</channel></rss>\n"
+        },
+        {
+          "match": "gdeltproject",
+          "example": "curl -s \"https://api.gdeltproject.org/api/v2/doc/doc?query=...\"",
+          "output": "{\"articles\": [\n  {\"title\": \"Example Corp reports record quarter\", \"url\": \"https://news.example/1\", \"domain\": \"reuters.com\"},\n  {\"title\": \"Example Corp ships Project nto{n3ws_c0d3n4m3_1n_h34dl1n3}\", \"url\": \"https://news.example/2\", \"domain\": \"theverge.com\"},\n  {\"title\": \"Analysts upgrade Example Corp\", \"url\": \"https://news.example/3\", \"domain\": \"bloomberg.com\"}\n]}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны только news.google.com/rss/search и api.gdeltproject.org.\n"
+    },
+    "jq": {
+      "help": "jq [-r] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "articles",
+          "example": "jq -r '.articles[].title' gdelt.json",
+          "output": "Example Corp reports record quarter\nExample Corp ships Project nto{n3ws_c0d3n4m3_1n_h34dl1n3}\nAnalysts upgrade Example Corp\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживается только фильтр `.articles[].title`.\n"
+    }
+  }
+}

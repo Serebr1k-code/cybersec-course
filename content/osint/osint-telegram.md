@@ -13,6 +13,18 @@ useful_for:
   - "Расследования (RU-контекст)"
 estimated_minutes: 50
 summary: "Как искать данные в Telegram: публичные каналы, поиск по username и номеру, боты-OSINT, архивы и карта утечек."
+lab:
+  kind: shell
+  title: 'Практика: публичное веб-превью Telegram'
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Читай канал без аккаунта: `curl -s "https://t.me/s/examplecorp" > page.html`.'
+    - 'Собери ссылки на профили: `grep t.me page.html`.'
+    - 'Листай историю: `curl -s "https://t.me/s/examplecorp?before=1000" > older.html`.'
+    - 'В старом посте есть утечка с маркером. `grep nto older.html` → `nto{...}`; запиши в `answer.txt` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

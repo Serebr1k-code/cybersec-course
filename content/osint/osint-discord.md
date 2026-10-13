@@ -13,6 +13,18 @@ useful_for:
   - "Пентест: разведка сообществ"
 estimated_minutes: 50
 summary: "Как находить публичные Discord-серверы, читать каналы, искать инвайты и уязвимые вебхуки, используя публичный API без нарушения ToS."
+lab:
+  kind: shell
+  title: 'Практика: метаданные Discord без логина'
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Инвайт-метаданные без токена: `curl -s "https://discord.com/api/v10/invites/examplecorp?with_counts=true" > inv.json`.'
+    - 'Разбери сервер: `jq ''{name: .guild.name, id: .guild.id, members: .approximate_member_count}'' inv.json`.'
+    - 'Виджет отдаёт каналы без аутентификации: `curl -s "https://discord.com/api/v10/guilds/123456789012345678/widget.json" > widget.json`.'
+    - 'Имена каналов: `jq -r ''.channels[].name'' widget.json`. Один канал несёт маркер `nto{...}` — запиши в `answer.txt` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

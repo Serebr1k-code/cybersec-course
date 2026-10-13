@@ -13,6 +13,18 @@ useful_for:
   - "Threat intelligence"
 estimated_minutes: 40
 summary: "Мониторинг новостей и медиа: RSS-агрегация, Google News, GDELT, пресс-релизы и архивы — как отслеживать упоминания цели во времени."
+lab:
+  kind: shell
+  title: 'Практика: мониторинг упоминаний в медиа'
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Забери Google News RSS по цели: `curl -s "https://news.google.com/rss/search?q=%22Example+Corp%22&hl=en-US&gl=US&ceid=US:en" > news.xml`.'
+    - 'Найди аномальный заголовок: `grep nto news.xml`.'
+    - 'Сверь с GDELT: `curl -s "https://api.gdeltproject.org/api/v2/doc/doc?query=%22Example+Corp%22&format=json" > gdelt.json`.'
+    - 'Заголовки: `jq -r ''.articles[].title'' gdelt.json`. Маркер `nto{...}` — кодовое имя из пресс-релиза; запиши в `answer.txt` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

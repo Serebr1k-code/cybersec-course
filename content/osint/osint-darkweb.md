@@ -13,6 +13,18 @@ useful_for:
   - "CTF категория OSINT"
 estimated_minutes: 45
 summary: "Как безопасно работать с Tor и .onion: настройка изоляции, каталоги, поиск утечек и мониторинг, юридические и этические границы."
+lab:
+  kind: shell
+  title: 'Практика: проверка leak-site в Tor (только чтение)'
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Читай .onion через Tor SOCKS: `curl -s --socks5-hostname 127.0.0.1:9050 "http://ex4mplel34k7f3k2q5v8w1z.onion/" > site.html`.'
+    - 'Проверь, есть ли цель в списке: `grep example.com site.html`.'
+    - 'Открой список жертв: `curl -s --socks5-hostname 127.0.0.1:9050 "http://ex4mplel34k7f3k2q5v8w1z.onion/victims" > victims.html`.'
+    - 'В записи о жертве есть маркер. `grep nto victims.html` → `nto{...}`; запиши в `answer.txt` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,37 @@
+{
+  "id": "osint-telegram",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{t3l3gr4m_publ1c_pr3v13w_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: публичное веб-превью Telegram\n\nКомпания `Example Corp`, канал `examplecorp`. Публичные каналы читаются без аккаунта.\n\n1. Сними веб-превью: `curl -s \"https://t.me/s/examplecorp\" > page.html`\n2. Вытащи упоминания профилей: `grep t.me page.html`\n3. Пролистай историю: `curl -s \"https://t.me/s/examplecorp?before=1000\" > older.html`\n4. Найди маркер в старом посте: `grep nto older.html`. Запиши `nto{...}` в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — выгрузка (эмуляция реального HTML t.me)",
+      "cases": [
+        {
+          "match": "before=",
+          "example": "curl -s \"https://t.me/s/examplecorp?before=1000\"",
+          "output": "<div class=\"tgme_channel_info\">Example Corp - официальный канал</div>\n<div class=\"tgme_widget_message_text\">Обновление сервиса в пятницу. Вакансия: backend, резюме на hr@example.com</div>\n<div class=\"tgme_widget_message_text\">Утечка тестового конфига: DB_PASS=Spring2026! deploy=nto{t3l3gr4m_publ1c_pr3v13w_l34k}</div>\n<a href=\"https://t.me/examplecorp_chat\">t.me/examplecorp_chat</a>\n"
+        },
+        {
+          "match": "t\\.me/s/examplecorp",
+          "example": "curl -s \"https://t.me/s/examplecorp\"",
+          "output": "<div class=\"tgme_channel_info\">Example Corp - официальный канал</div>\n<div class=\"tgme_widget_message_text\">Обновление сервиса запланировано на пятницу.</div>\n<div class=\"tgme_widget_message_text\">Вакансия: backend-разработчик, резюме на hr@example.com</div>\n<a href=\"https://t.me/ivan_dev\">t.me/ivan_dev</a>\n<a href=\"https://t.me/alex_smirnov\">t.me/alex_smirnov</a>\n<a href=\"https://t.me/examplecorp_chat\">t.me/examplecorp_chat</a>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны только t.me/s/examplecorp и t.me/s/examplecorp?before=1000.\n"
+    }
+  }
+}

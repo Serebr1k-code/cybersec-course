@@ -1,0 +1,37 @@
+{
+  "id": "osint-darkweb",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{0n10n_l34k_s1t3_c0nf1rm3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: проверка leak-site в Tor\n\nПроверь, не упоминается ли домен `example.com` на портале утечек. Только чтение.\n\n1. Домашняя страница onion: `curl -s --socks5-hostname 127.0.0.1:9050 \"http://ex4mplel34k7f3k2q5v8w1z.onion/\" > site.html`\n2. Есть ли цель в списке: `grep example.com site.html`\n3. Список жертв: `curl -s --socks5-hostname 127.0.0.1:9050 \"http://ex4mplel34k7f3k2q5v8w1z.onion/victims\" > victims.html`\n4. Найди маркер: `grep nto victims.html`. Запиши `nto{...}` в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] --socks5-hostname 127.0.0.1:9050 <onion-URL> — доступ через Tor (эмуляция)",
+      "cases": [
+        {
+          "match": "victims",
+          "example": "curl -s --socks5-hostname 127.0.0.1:9050 \"http://ex4mplel34k7f3k2q5v8w1z.onion/victims\"",
+          "output": "<html><body><h1>Victims</h1>\n<ul>\n<li>acme-corp.com | published 2026-09-30 | 14 GB</li>\n<li>example.com | published 2026-10-08 | 3.2 GB | tag=nto{0n10n_l34k_s1t3_c0nf1rm3d}</li>\n</ul></body></html>\n"
+        },
+        {
+          "match": "onion",
+          "example": "curl -s --socks5-hostname 127.0.0.1:9050 \"http://ex4mplel34k7f3k2q5v8w1z.onion/\"",
+          "output": "<html><body><h1>Leak Portal</h1>\n<p>example.com - added 2026-10-08, deadline 2026-10-20</p>\n<p>acme-corp.com - added 2026-09-30</p>\n</body></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны только ex4mplel34k7f3k2q5v8w1z.onion/ и .../victims через Tor SOCKS.\n"
+    }
+  }
+}

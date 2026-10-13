@@ -1,0 +1,53 @@
+{
+  "id": "osint-discord",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{d1sc0rd_w1dg3t_ch4nn3l_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: метаданные Discord без логина\n\nСообщество компании `Example Corp` в Discord. Многое видно до вступления.\n\n1. Инвайт-метаданные: `curl -s \"https://discord.com/api/v10/invites/examplecorp?with_counts=true\" > inv.json`\n2. Разбор: `jq '{name: .guild.name, id: .guild.id, members: .approximate_member_count}' inv.json`\n3. Виджет (каналы без логина): `curl -s \"https://discord.com/api/v10/guilds/123456789012345678/widget.json\" > widget.json`\n4. Каналы: `jq -r '.channels[].name' widget.json`\n5. Один канал содержит маркер `nto{...}`. Запиши его в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — Discord API v10 (эмуляция реального формата)",
+      "cases": [
+        {
+          "match": "widget\\.json",
+          "example": "curl -s \"https://discord.com/api/v10/guilds/123456789012345678/widget.json\"",
+          "output": "{\n  \"id\": \"123456789012345678\",\n  \"name\": \"Example Corp Community\",\n  \"instant_invite\": \"https://discord.gg/examplecorp\",\n  \"channels\": [\n    {\"id\": \"1\", \"name\": \"general\", \"position\": 0},\n    {\"id\": \"2\", \"name\": \"announcements\", \"position\": 1},\n    {\"id\": \"3\", \"name\": \"leaks-nto{d1sc0rd_w1dg3t_ch4nn3l_l34k}\", \"position\": 2}\n  ],\n  \"presence_count\": 312\n}\n"
+        },
+        {
+          "match": "invites/examplecorp",
+          "example": "curl -s \"https://discord.com/api/v10/invites/examplecorp?with_counts=true\"",
+          "output": "{\n  \"code\": \"examplecorp\",\n  \"guild\": {\"id\": \"123456789012345678\", \"name\": \"Example Corp Community\"},\n  \"approximate_member_count\": 4213,\n  \"approximate_presence_count\": 312\n}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны только invites/examplecorp и guilds/123456789012345678/widget.json.\n"
+    },
+    "jq": {
+      "help": "jq [-r] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "approximate_member_count",
+          "example": "jq '{name: .guild.name, ...}' inv.json",
+          "output": "{\n  \"name\": \"Example Corp Community\",\n  \"id\": \"123456789012345678\",\n  \"members\": 4213\n}\n"
+        },
+        {
+          "match": "channels",
+          "example": "jq -r '.channels[].name' widget.json",
+          "output": "general\nannouncements\nleaks-nto{d1sc0rd_w1dg3t_ch4nn3l_l34k}\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддержаны фильтры по `.guild.*` и `.channels[].name`.\n"
+    }
+  }
+}
