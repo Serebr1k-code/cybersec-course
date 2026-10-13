@@ -1,0 +1,29 @@
+{
+  "id": "web-tools-cli",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{curl_p1p3s_b34t_scr33nsh0ts}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: CLI-инструменты (curl + base64)\n\nAPI `http://api.lab.local/v1/report` отдаёт отчёт, в котором полезная нагрузка\nзакодирована base64. Воспроизведи запрос curl-ом и раскодируй её.\n\n1. Запрос:\n   curl -s 'http://api.lab.local/v1/report'\n2. В ответе строка `data: <base64>`. Вырежи значение и раскодируй:\n   curl -s 'http://api.lab.local/v1/report' | grep data: | cut -d' ' -f2 | base64 -d\n3. Получишь флаг. Запиши его в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция api.lab.local)",
+      "cases": [
+        {
+          "match": "api\\.lab\\.local",
+          "example": "-s 'http://api.lab.local/v1/report'",
+          "output": "report_id: 42\ndata: bnRve2N1cmxfcDFwM3NfYjM0dF9zY3IzM25zaDB0c30=\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только http://api.lab.local/v1/report.\n"
+    }
+  }
+}

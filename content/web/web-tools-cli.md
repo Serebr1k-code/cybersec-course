@@ -14,6 +14,18 @@ useful_for:
   - "Работа с API"
 estimated_minutes: 45
 summary: "Модуль-навигатор по консольным инструментам HTTP и сети: curl, HTTPie, netcat и socat — что делает каждый и как связать их в работе."
+lab:
+  kind: shell
+  title: "Практика: curl + base64"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Запрос: `curl -s 'http://api.lab.local/v1/report'`.
+    - В ответе строка `data: <base64>` — это закодированная нагрузка.
+    - Вырежи значение и раскодируй: `curl -s 'http://api.lab.local/v1/report' | grep data: | cut -d' ' -f2 | base64 -d`.
+    - `curl -s 'http://api.lab.local/v1/report' | grep data: | cut -d' ' -f2 | base64 -d > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается

