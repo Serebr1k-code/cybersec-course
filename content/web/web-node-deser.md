@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 34
 summary: "Node.js-десериализация: node-serialize IIFE gadget, funcster, serialize-javascript и цепочки до RCE."
+lab:
+  kind: shell
+  title: 'Практика: node-serialize IIFE gadget'
+  toolset: [core, node, curl]
+  workdir: /home/student/task
+  files: [task.md, profile.txt, gen.js]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Посмотри обычный профиль: `base64 -d profile.txt`.'
+    - 'Изучи `gen.js`: строка с префиксом `_$$ND_FUNC$$_` выполняется как функция.'
+    - 'Сгенерируй payload: `node gen.js > payload.json`.'
+    - 'Отправь его: `curl -s https://store.example/ --data-binary @payload.json > found.txt`, затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

