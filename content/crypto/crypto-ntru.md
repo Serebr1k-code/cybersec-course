@@ -12,6 +12,18 @@ useful_for:
   - "Применять LLL/BKZ к NTRU-задачам"
 estimated_minutes: 36
 summary: "NTRU: кольцо усечённых полиномов, ключи и шифрование, NTRU-решётка и задача SVP/CVP, атаки LLL/BKZ при малых параметрах, NSS-задачи, практические скрипты на Sage/fpylll и распознавание уязвимых инстансов."
+lab:
+  kind: shell
+  title: 'Практика: восстановление ключа NTRU'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, ntru_pub.txt, cipher.txt, ntru_solve.py, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`ntru_pub.txt` — публичный ключ, `cipher.txt` — шифротекст.'
+    - 'Параметры NTRU: кольцо Z[x]/(x^N-1), малые полиномы f,g.'
+    - 'Запусти восстановление: `python3 ntru_solve.py`.'
+    - 'Выдели флаг: `python3 ntru_solve.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

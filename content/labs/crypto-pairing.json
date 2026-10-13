@@ -1,0 +1,48 @@
+{
+  "id": "crypto-pairing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p41r1ng_bls_s1gn4tur3_v4l1d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: подпись BLS\n\n`bls_params.txt` — параметры билинейной пары (G1, G2, GT, e). `signature.txt` — подпись σ и открытый ключ. Проверь её через pairing.\n\n1. `cat bls_params.txt signature.txt`.\n2. `python3 pairing_verify.py`.\n\nФлаг `nto{...}` запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/bls_params.txt",
+      "text": "curve: BLS12-381\nG1 generator g1 = 0x97f1...\nG2 generator g2 = 0x93e0...\npairing: e: G1 x G2 -> GT  (bilinear, non-degenerate)\n"
+    },
+    {
+      "path": "/home/student/task/signature.txt",
+      "text": "message  = \"withdraw:100\"\npk       = 0xa1b2...  (in G2)\nsigma    = 0x5c6d...  (in G1)\n"
+    },
+    {
+      "path": "/home/student/task/pairing_verify.py",
+      "text": "#!/usr/bin/env python3\n# BLS verify: e(H(m), pk) == e(sigma, g2)\nprint(\"[*] hashing message to G1\")\nprint(\"[*] computing e(H(m), pk)\")\nprint(\"[*] computing e(sigma, g2)\")\nprint(\"[+] pairings equal: True\")\nprint(\"verified: nto{p41r1ng_bls_s1gn4tur3_v4l1d}\")\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "BLS: σ = H(m)^sk ∈ G1; проверка e(σ, g2) == e(H(m), pk). Билинейность e(aP, bQ) = e(P,Q)^{ab} делает проверку компактной. Агрегация подписей — главное практическое свойство.\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "pairing_verify\\.py",
+          "example": "python3 pairing_verify.py",
+          "output": "[*] hashing message to G1\n[*] computing e(H(m), pk)\n[*] computing e(sigma, g2)\n[+] pairings equal: True\nverified: nto{p41r1ng_bls_s1gn4tur3_v4l1d}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 pairing_verify.py`\n"
+    }
+  }
+}

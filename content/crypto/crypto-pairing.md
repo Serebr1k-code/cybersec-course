@@ -12,6 +12,18 @@ useful_for:
   - "Работать с BLS-подписями и агрегацией"
 estimated_minutes: 36
 summary: "Билинейные спаривания: Weil/Tate, pairing-friendly кривые (embedding degree), BLS-подписи и агрегация, threshold/KZG, атаки MOV и rogue-key, практические скрипты на py_ecc и Sage."
+lab:
+  kind: shell
+  title: 'Практика: проверка BLS-подписи через pairing'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, bls_params.txt, signature.txt, pairing_verify.py, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`bls_params.txt` — параметры кривой и генератор; `signature.txt` — подпись.'
+    - 'BLS: e(H(m), pk) == e(sig, g) при корректной подписи.'
+    - 'Запусти проверку: `python3 pairing_verify.py`.'
+    - 'Выдели флаг: `python3 pairing_verify.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

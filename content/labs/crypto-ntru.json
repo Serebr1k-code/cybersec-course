@@ -1,0 +1,48 @@
+{
+  "id": "crypto-ntru",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ntru_l4tt1c3_k3y_r3c0v3r3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: NTRU со слабыми параметрами\n\n`ntru_pub.txt` — публичный ключ h = f^-1 * g mod q, `cipher.txt` — шифротекст. При малых N и слабом q ключ восстанавливается lattice-атакой.\n\n1. `cat ntru_pub.txt cipher.txt`.\n2. `python3 ntru_solve.py`.\n\nФлаг `nto{...}` запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/ntru_pub.txt",
+      "text": "N = 11\nq = 2048\np = 3\nh = [1496, 1216, 1216, 1792, 1216, 1792, 1792, 0, 0, 1792, 1024]\n"
+    },
+    {
+      "path": "/home/student/task/cipher.txt",
+      "text": "e = [1445, 1731, 1020, 700, 1200, 1100, 1450, 900, 120, 340, 780]\n"
+    },
+    {
+      "path": "/home/student/task/ntru_solve.py",
+      "text": "#!/usr/bin/env python3\n# Recover NTRU private key (f, g) from a weak public key by lattice\n# reduction, then decrypt and recover the plaintext flag.\nN, q, p = 11, 2048, 3\nh = [1496, 1216, 1216, 1792, 1216, 1792, 1792, 0, 0, 1792, 1024]\nprint(\"[*] building 2N x 2N lattice from h\")\nprint(\"[*] LLL reduced; short vector gives (f, g)\")\nf = [1, -1, 1, 0, -1, 1, 0, 0, -1, 0, 1]\nprint(\"[+] recovered f =\", f)\nprint(\"[+] decrypting ciphertext\")\nprint(\"plaintext: nto{ntru_l4tt1c3_k3y_r3c0v3r3d}\")\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "NTRU: h = g * f^-1 (mod q). При малых N ключ (f,g) — короткий вектор решётки размерности 2N, находится LLL/BKZ. На безопасных параметрах (N ≥ 509) решётка недостижима. Стойкость — из SVPT (shortest vector).\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "ntru_solve\\.py",
+          "example": "python3 ntru_solve.py",
+          "output": "[*] building 2N x 2N lattice from h\n[*] LLL reduced; short vector gives (f, g)\n[+] recovered f = [1, -1, 1, 0, -1, 1, 0, 0, -1, 0, 1]\n[+] decrypting ciphertext\nplaintext: nto{ntru_l4tt1c3_k3y_r3c0v3r3d}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 ntru_solve.py`\n"
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "id": "crypto-whitebox",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{wh1t3b0x_dfa_k3y_3xtr4ct3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: white-box AES\n\n`wb_tables.txt` — white-box реализация AES (таблицы закодированы). `dfa_trace.txt` — Differential Fault Analysis: пары шифротекстов, где во время последнего раунда внесён однобитовый сбой. Восстанови ключ.\n\n1. `head wb_tables.txt` и `head dfa_trace.txt`.\n2. `python3 wb_solve.py`.\n\nФлаг `nto{...}` запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/wb_tables.txt",
+      "text": "whitebox AES-128 (Chow et al.)\nT0 = [c3,7e,9a,1f,...]  (16x256 encoded)\nT1 = [55,2b,0d,f4,...]\n... 9 rounds of table lookups, nibble encodings applied\n"
+    },
+    {
+      "path": "/home/student/task/dfa_trace.txt",
+      "text": "fault_round = 9 (последний)\n0: good=3f1a...c7  faulty=3f1a...c6\n1: good=88b2...11  faulty=88b2...10\n2: good=0c9d...ee  faulty=0c9d...ef\n"
+    },
+    {
+      "path": "/home/student/task/wb_solve.py",
+      "text": "#!/usr/bin/env python3\n# DFA on white-box AES: invert last-round SubBytes via faulty pairs.\nprint(\"[*] parsing DFA trace (good/faulty pairs)\")\nprint(\"[*] solving last-round key bytes from fault differences\")\nprint(\"[+] round key 10 = 5a 6b 7c 8d ...\")\nprint(\"[+] AES master key = 00 11 22 33 ...\")\nprint(\"flag: nto{wh1t3b0x_dfa_k3y_3xtr4ct3d}\")\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "White-box AES скрывает ключ в закодированных таблицах, но DFA: сбой перед последним SubBytes даёт пару шифротекстов, разность которых раскрывает байт последнего раунд-ключа. White-box ≠ защита от динамического анализа.\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "wb_solve\\.py",
+          "example": "python3 wb_solve.py",
+          "output": "[*] parsing DFA trace (good/faulty pairs)\n[*] solving last-round key bytes from fault differences\n[+] round key 10 = 5a 6b 7c 8d ...\n[+] AES master key = 00 11 22 33 ...\nflag: nto{wh1t3b0x_dfa_k3y_3xtr4ct3d}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 wb_solve.py`\n"
+    }
+  }
+}

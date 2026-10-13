@@ -13,6 +13,18 @@ useful_for:
   - "Понимать решёточную механику малых корней"
 estimated_minutes: 45
 summary: "Теорема Coppersmith вглубь: Howgrave-Graham, построение решётки, параметры X и beta, small_roots в Sage. Применения: stereotyped message, известные старшие биты p (факторизация), частичный d, обобщённый Håstad, Franklin-Reiter. Разбор кода и подводные камни."
+lab:
+  kind: shell
+  title: 'Практика: Coppersmith и частично известное сообщение'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, coppersmith_data.txt, solve.py, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`coppersmith_data.txt` — модуль N, e и шифротекст c, плюс известные старшие биты m.'
+    - 'Неизвестный хвост сообщения мал относительно N → малый корень многочлена.'
+    - 'Запусти восстановление: `python3 solve.py`.'
+    - 'Выдели флаг: `python3 solve.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

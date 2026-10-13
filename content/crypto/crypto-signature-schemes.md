@@ -13,6 +13,18 @@ useful_for:
   - "Реализовать Schnorr-подпись"
 estimated_minutes: 40
 summary: "Схемы электронной подписи на дискретном логарифме: ElGamal, DSA и Schnorr. Формулы генерации и проверки, роль nonce и почему его повтор/смещение ломает ключ, различия и связь с ECDSA/EdDSA, атаки и практические скрипты."
+lab:
+  kind: shell
+  title: 'Практика: повтор nonce в ECDSA'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, sig_data.txt, recover_key.py, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`sig_data.txt` — две подписи ECDSA одной и той же схемы.'
+    - 'Проверь nonce: одинаковые `r` при разных `s` → переиспользование `k`.'
+    - 'Запусти восстановление ключа: `python3 recover_key.py`.'
+    - 'Выдели флаг: `python3 recover_key.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

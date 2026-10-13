@@ -13,6 +13,18 @@ useful_for:
   - "Разбирать white-box реализации в DRM и мобильных приложениях"
 estimated_minutes: 45
 summary: "White-box криптография: идея реализации шифра, устойчивой к анализу при полностью известном коде и данных, табличные реализации AES (Chow et al.), а также атаки извлечения ключа — differential fault analysis (DFA) и BGE. Практические инструменты и разбор."
+lab:
+  kind: shell
+  title: 'Практика: извлечение ключа из white-box AES'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, wb_tables.txt, dfa_trace.txt, wb_solve.py, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`wb_tables.txt` — закодированные таблицы white-box AES.'
+    - '`dfa_trace.txt` — пары (правильный, сбойный) шифротексты (DFA).'
+    - 'Запусти анализ: `python3 wb_solve.py`.'
+    - 'Выдели флаг: `python3 wb_solve.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

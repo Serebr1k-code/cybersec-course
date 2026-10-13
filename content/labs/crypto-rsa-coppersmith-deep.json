@@ -1,0 +1,44 @@
+{
+  "id": "crypto-rsa-coppersmith-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c0pp3r5m1th_sm4ll_r00t_r3c0v3r3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Coppersmith, частичное сообщение\n\n`coppersmith_data.txt` содержит RSA-модуль `N`, показатель `e`, шифротекст `c` и старшие биты сообщения `m`. Неизвестен только младший хвост `x` (`m = known + x`), и `x` мал — значит это малый корень многочлена f(x) = (known + x)^e - c mod N.\n\n1. `cat coppersmith_data.txt`.\n2. `python3 solve.py`.\n\nФлаг `nto{...}` запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/coppersmith_data.txt",
+      "text": "N = 0x00c1e7...  (2048 bit)\ne = 3\nc = 0x7a91...\nknown_high = \"flag prefix + padding\"\nunknown_bits = 64   (x < 2^64, x^e << N)\n"
+    },
+    {
+      "path": "/home/student/task/solve.py",
+      "text": "#!/usr/bin/env python3\n# Coppersmith univariate: find small root of f(x) = (known+x)^e - c mod N\nprint(\"[*] degree e=3, bound X = 2^64\")\nprint(\"[*] building lattice (m=3, t=1) and reducing\")\nprint(\"[+] small root x found\")\nprint(\"recovered message: b'...'\")\nprint(\"flag: nto{c0pp3r5m1th_sm4ll_r00t_r3c0v3r3d}\")\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Теорема Coppersmith: если f(x) mod N имеет корень |x| < N^(1/deg(f)), он находится за полиномиальное время. Применение: атака Хастадта, частично известное сообщение, утечка битов. При e=3 и x < N^(1/3) простой перебор тоже реален, но Coppersmith даёт полиномиальность.\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "solve\\.py",
+          "example": "python3 solve.py",
+          "output": "[*] degree e=3, bound X = 2^64\n[*] building lattice (m=3, t=1) and reducing\n[+] small root x found\nrecovered message: b'...'\nflag: nto{c0pp3r5m1th_sm4ll_r00t_r3c0v3r3d}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 solve.py`\n"
+    }
+  }
+}

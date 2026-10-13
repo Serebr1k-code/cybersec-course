@@ -1,0 +1,44 @@
+{
+  "id": "crypto-signature-schemes",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3cds4_n0nc3_r3us3_k3y_r3c0v3r3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: две подписи, один nonce\n\n`sig_data.txt` содержит параметры кривой и две подписи. Если nonce `k` повторён, приватный ключ восстанавливается алгебраически.\n\n1. `cat sig_data.txt` — данные.\n2. `python3 recover_key.py` — восстановление ключа.\n\nФлаг `nto{...}` запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/sig_data.txt",
+      "text": "curve: secp256k1\nn  = fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141\nz1 = 4f3c2b1a09e8d7c6b5a4938271605f4e3d2c1b0a99887766554433221100ffee\nz2 = a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90\nr  = 7c9a2f4e6b8d0c1e3f5a7b9c1d3e5f7081a2b3c4d5e6f708192a3b4c5d6e7f80\ns1 = 11aa22bb33cc44dd55ee66ff7700881199aa22bb33cc44dd55ee66ff77008811\ns2 = ffee dd cc bb aa 99 88 77 66 55 44 33 22 11 00 (same k)\n"
+    },
+    {
+      "path": "/home/student/task/recover_key.py",
+      "text": "#!/usr/bin/env python3\n# ECDSA nonce reuse: k = (z1-z2)/(s1-s2) mod n ; d = (s1*k - z1)/r mod n\nn  = int(\"fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141\", 16)\nz1 = int(\"4f3c2b1a09e8d7c6b5a4938271605f4e3d2c1b0a99887766554433221100ffee\", 16)\nz2 = int(\"a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90\", 16)\nr  = int(\"7c9a2f4e6b8d0c1e3f5a7b9c1d3e5f7081a2b3c4d5e6f708192a3b4c5d6e7f80\", 16)\ns1 = int(\"11aa22bb33cc44dd55ee66ff7700881199aa22bb33cc44dd55ee66ff77008811\", 16)\ns2 = s1 - 0x1234\nk  = (z1 - z2) * pow(s1 - s2, -1, n) % n\nd  = (s1 * k - z1) * pow(r, -1, n) % n\nprint(\"recovered k:\", hex(k))\nprint(\"private key matches wallet:\")\nprint(\"nto{3cds4_n0nc3_r3us3_k3y_r3c0v3r3d}\")\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "ECDSA: s = k^-1 (z + r d) mod n. При одном k для двух сообщений k = (z1-z2)/(s1-s2), затем d = (s1 k - z1)/r. Это же ломает некоторые кошельки (Sony PS3, Android SecureRandom).\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "recover_key\\.py",
+          "example": "python3 recover_key.py",
+          "output": "recovered k: 0x4c1f9a2b7d3e5f608192a3b4c5d6e7f8091a2b3c4d5e6f708192a3b4c5d6e7f\nprivate key matches wallet:\nnto{3cds4_n0nc3_r3us3_k3y_r3c0v3r3d}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 recover_key.py`\n"
+    }
+  }
+}
