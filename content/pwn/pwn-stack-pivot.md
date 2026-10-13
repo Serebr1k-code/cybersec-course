@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 55
 summary: "Разбираем stack pivot: как перенести RSP в контролируемую область памяти (bss/heap) гаджетами leave;ret или xchg rsp,rax и построить там длинную ROP-цепочку."
+lab:
+  kind: shell
+  title: "Практика: leave; ret"
+  toolset: [core, objdump, ROPgadget]
+  workdir: /home/student/task
+  files: [task.md, pivot]
+  check: "grep -q '0x401000' answer.txt"
+  hints:
+    - "Дизассемблируй: `objdump -d pivot`."
+    - "Гаджет `leave` = `mov rsp, rbp; pop rbp` — это и есть классический pivot."
+    - "Он лежит в метке `gadget`, сразу перед `ret`."
 ---
 
 ## Вопрос, с которого всё начинается

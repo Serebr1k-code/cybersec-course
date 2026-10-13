@@ -12,6 +12,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 55
 summary: "Массивы указателей .init_array/.fini_array и обработчики atexit дают цель для подмены потока управления, когда GOT защищён (Full RELRO); разбираем перезапись и повторный вызов main."
+lab:
+  kind: shell
+  title: "Практика: INIT_ARRAY / FINI_ARRAY"
+  toolset: [core, readelf]
+  workdir: /home/student/task
+  files: [task.md, ctors]
+  check: "grep -q '0x403dd8' answer.txt"
+  hints:
+    - "Конструкторы/деструкторы регистрируются в массивах указателей."
+    - "Динамические теги видны в `readelf -d ctors`."
+    - "Найди тег `INIT_ARRAY` — его значение и есть адрес массива."
 ---
 
 ## Вопрос, с которого всё начинается

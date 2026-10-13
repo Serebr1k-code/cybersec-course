@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 55
 summary: "Учимся выставлять третий аргумент (rdx) в ROP-цепочке через гаджеты из __libc_csu_init, когда в бинаре нет pop rdx; ret."
+lab:
+  kind: shell
+  title: "Практика: gadget-цепочка __libc_csu_init"
+  toolset: [core, objdump]
+  workdir: /home/student/task
+  files: [task.md, csu]
+  check: "grep -q '0x401000' answer.txt"
+  hints:
+    - "Бинарник статический и без libc: `file csu`."
+    - "Дизассемблируй: `objdump -d csu` — ищи метку `csu_gadget`."
+    - "Классический CSU-гаджет начинается с `pop %rbx`: это адрес первого `pop`."
 ---
 
 ## Вопрос, с которого всё начинается

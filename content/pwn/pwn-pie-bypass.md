@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 55
 summary: "Разбираем, как PIE и ASLR рандомизируют адреса, как утекать базовый адрес бинаря и libc и как использовать partial overwrite и bounce-технику для повторного входа."
+lab:
+  kind: shell
+  title: "Практика: PIE и смещение функции"
+  toolset: [core, readelf, nm]
+  workdir: /home/student/task
+  files: [task.md, pieapp]
+  check: "grep -q '0x1139' answer.txt"
+  hints:
+    - "Тип файла: `readelf -h pieapp` — `DYN` означает PIE."
+    - "При PIE абсолютные адреса неизвестны, но **смещения** символов — да."
+    - "`nm pieapp` покажет адрес `win` как смещение от базы."
 ---
 
 ## Вопрос, с которого всё начинается

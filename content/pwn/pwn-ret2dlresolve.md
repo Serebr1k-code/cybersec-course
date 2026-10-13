@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 55
 summary: "Учимся заставлять динамический линкер резолвить произвольный символ (system) без знания libc — через подделку структур .rela.plt, .dynstr и symtab."
+lab:
+  kind: shell
+  title: "Практика: релокации .rela.plt"
+  toolset: [core, readelf]
+  workdir: /home/student/task
+  files: [task.md, ret2dl]
+  check: "grep -q '0x404008' answer.txt"
+  hints:
+    - "Это динамически слинкованный ELF: `file ret2dl`."
+    - "Таблица релокаций: `readelf -r ret2dl` (секция `.rela.plt`)."
+    - "Строка для `read` имеет тип `R_X86_64_JUMP_SLOT`; первый столбец — это `r_offset`."
 ---
 
 ## Вопрос, с которого всё начинается
