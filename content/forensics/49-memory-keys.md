@@ -13,6 +13,18 @@ useful_for:
   - "Penetration testing (post-exploit)"
 estimated_minutes: 55
 summary: "Поиск учётных данных в дампах памяти: хеши и пароли из LSASS, SAM/registry из памяти, LSA secrets, кэш браузеров, ключи шифрования и токены; инструменты Volatility 3, pypykatz, mimikatz."
+lab:
+  kind: shell
+  title: 'Практика: секреты LSASS и LSA из памяти'
+  toolset: [core, volatility]
+  workdir: /home/student/task
+  files: [task.md, mem_keys.raw]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Локальные хеши достаются плагином `vol -f mem_keys.raw windows.hashdump`.'
+    - 'Пароли служб лежат в LSA secrets: `vol -f mem_keys.raw windows.lsadump`.'
+    - 'Обрати внимание на поле `DefaultPassword`.'
+    - 'Это и есть флаг `nto{…}` — запиши его в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

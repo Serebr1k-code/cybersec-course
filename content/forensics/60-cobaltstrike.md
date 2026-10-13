@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 50
 summary: "Как распознавать Cobalt Strike Beacon и другие C2 в трафике и памяти: JA3, named pipes, watermark, sleep-маскировка, конфиги malleable C2."
+lab:
+  kind: shell
+  title: 'Практика: конфиг Cobalt Strike Beacon'
+  toolset: [core, hex, python3, volatility]
+  workdir: /home/student/task
+  files: [task.md, pid.4120.dmp, cs_parse.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Найди сетевую активность: `vol -f mem.raw windows.netscan`.'
+    - 'Дамп инъецированного региона пришёл из `windows.malfind --dump`.'
+    - 'Разбери конфиг Beacon: `python3 cs_parse.py pid.4120.dmp`.'
+    - 'Поле `Watermark` — это и есть флаг `nto{…}`; запиши его в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

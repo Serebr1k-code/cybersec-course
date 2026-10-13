@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 45
 summary: "Приёмы сокрытия следов (timestomping, вайпинг, очистка логов, руткиты, шифрование) и как их обнаружить: расхождения, артефакты удаления, аномалии."
+lab:
+  kind: shell
+  title: 'Практика: timestomping и вайпинг'
+  toolset: [core, hex, python3]
+  workdir: /home/student/task
+  files: [task.md, mft.csv, disk.raw, anti_detect.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Начни с `python3 anti_detect.py` — он сравнивает времена $SI и $FN в `mft.csv`.'
+    - 'Строки с вердиктом TIMESTOMPED — это файлы с подделанным временем создания.'
+    - 'Свободное место образа ищи через `strings disk.raw`.'
+    - 'Флаг — это строка `nto{…}` в неразмеченной области `disk.raw`; запиши её в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

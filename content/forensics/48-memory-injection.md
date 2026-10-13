@@ -13,6 +13,18 @@ useful_for:
   - "Incident Response"
 estimated_minutes: 60
 summary: "Обнаружение инъекций в память: process hollowing, DLL injection, reflective loading, shellcode; анализ VAD, malfind, скрытых потоков, руткитов и kernel-модификаций в Volatility 3."
+lab:
+  kind: shell
+  title: 'Практика: malfind и извлечение shellcode'
+  toolset: [core, hex, python3, volatility]
+  workdir: /home/student/task
+  files: [task.md, mem.raw, malfind_carve.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Найди подозрительный процесс: `vol -f mem.raw windows.malfind`.'
+    - 'Ищи в дампе заголовок PE: `python3 malfind_carve.py`.'
+    - 'Скрипт карит инъецированный регион в `shellcode.bin`.'
+    - 'Флаг — строка `nto{…}` внутри вырезанного региона; запиши её в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

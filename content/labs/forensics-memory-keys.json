@@ -1,0 +1,50 @@
+{
+  "id": "forensics-memory-keys",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ls4ss_s3cr3ts_1n_r4m}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: секреты из памяти\n\n`mem_keys.raw` — дамп памяти. Нужно достать учётные данные.\n\n1. Локальные хеши: `vol -f mem_keys.raw windows.hashdump`.\n2. LSA secrets: `vol -f mem_keys.raw windows.lsadump`.\n3. Альтернатива: `pypykatz lsa minidump lsass.dmp`.\n\nФлаг `nto{...}` — это найденный пароль службы. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/mem_keys.raw",
+      "b64": "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"
+    }
+  ],
+  "tools": {
+    "vol": {
+      "help": "vol -f <дамп> <плагин> — Volatility 3",
+      "cases": [
+        {
+          "match": "windows\\.hashdump",
+          "example": "vol -f mem_keys.raw windows.hashdump",
+          "output": "Administrator:500:aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0:::\nbob:1001:aad3b435b51404eeaad3b435b51404ee:8846f7eaee8fb117ad06bdd830b7586c:::\n"
+        },
+        {
+          "match": "windows\\.lsadump",
+          "example": "vol -f mem_keys.raw windows.lsadump",
+          "output": "[*] DefaultPassword = nto{ls4ss_s3cr3ts_1n_r4m}\n[*] DPAPI_SYSTEM = 01000000f3e3a1b2...\n[*] NL$KM = a1b2c3d4e5f6...\n"
+        }
+      ]
+    },
+    "pypykatz": {
+      "help": "pypykatz lsa minidump <файл> — парсинг LSASS",
+      "cases": [
+        {
+          "match": "minidump",
+          "example": "pypykatz lsa minidump lsass.dmp",
+          "output": "== LogonSession ==\nusername: bob\ndomain: DESKTOP\n== MSV ==\nNT: 8846f7eaee8fb117ad06bdd830b7586c\n== WDIGEST [0] ==\npassword: nto{ls4ss_s3cr3ts_1n_r4m}\n"
+        }
+      ]
+    }
+  }
+}

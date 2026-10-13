@@ -1,0 +1,60 @@
+{
+  "id": "forensics-cobaltstrike",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cs_b34c0n_w4t3rm4rk_31337}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: конфиг Cobalt Strike Beacon\n\nЕсть дамп памяти и выгрузка инъецированного региона `pid.4120.dmp`.\n\n1. Сетевое соединение: `vol -f mem.raw windows.netscan`.\n2. Инъекция: `vol -f mem.raw windows.malfind --pid 4120`.\n3. Разбери конфиг Beacon: `python3 cs_parse.py pid.4120.dmp`.\n\nФлаг `nto{...}` — в поле `Watermark`. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/pid.4120.dmp",
+      "b64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABCZWFjb25UeXBlAAUASFRUUFNQb3J0AAMANDQzQzJTZXJ2ZXIAFwAxODUuMjIwLjEwMS43LC9nYXRlLnBocFVzZXJBZ2VudAAdAE1vemlsbGEvNS4wIChXaW5kb3dzIE5UIDEwLjApU3Bhd25UbwAfAEM6XFdpbmRvd3NcU3lzdGVtMzJcZGxsaG9zdC5leGVXYXRlcm1hcmsAHgBudG97Y3NfYjM0YzBuX3c0dDNybTRya18zMTMzN32LQj7y+Di+KDxq8BQRDrAygIM0BsyBfL8ewtjaJs109HUW7Fy5fQzKVN84D4eRdH+hGWb8fGEJ0bI4eWamUFom"
+    },
+    {
+      "path": "/home/student/task/cs_parse.py",
+      "text": "#!/usr/bin/env python3\n# Parse a Cobalt Strike beacon config blob (key\\0 <u16 len> value records).\nimport struct\ndata = open(\"pid.4120.dmp\", \"rb\").read()\ni = 0\ncfg = {}\nwhile i < len(data):\n    z = data.find(b\"\\x00\", i)\n    if z < 0 or z + 3 > len(data):\n        break\n    key = data[i:z]\n    ln = struct.unpack(\"<H\", data[z+1:z+3])[0]\n    val = data[z+3:z+3+ln]\n    if key and all(32 <= c < 127 for c in key) and ln < 200:\n        try:\n            cfg[key.decode()] = val.decode(\"latin-1\")\n        except Exception:\n            pass\n        i = z + 3 + ln\n    else:\n        i = z + 1\nfor k in (\"BeaconType\", \"Port\", \"C2Server\", \"UserAgent\", \"SpawnTo\", \"Watermark\"):\n    if k in cfg:\n        print(\"%-10s = %s\" % (k, cfg[k]))\nprint(\"watermark (flag):\", cfg.get(\"Watermark\", \"?\"))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "cs_parse\\.py",
+          "example": "python3 cs_parse.py pid.4120.dmp",
+          "output": "BeaconType = HTTPS\nPort       = 443\nC2Server   = 185.220.101.7,/gate.php\nUserAgent  = Mozilla/5.0 (Windows NT 10.0)\nSpawnTo    = C:\\Windows\\System32\\dllhost.exe\nWatermark  = nto{cs_b34c0n_w4t3rm4rk_31337}\nwatermark (flag): nto{cs_b34c0n_w4t3rm4rk_31337}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 pid.4120.dmp`\n"
+    },
+    "vol": {
+      "help": "vol -f <дамп> <плагин> [--pid N] — Volatility 3",
+      "cases": [
+        {
+          "match": "windows\\.netscan",
+          "example": "vol -f mem.raw windows.netscan",
+          "output": "Offset      Proto  LocalAddr        ForeignAddr       State        PID   Owner\n0x9a1b2c30  TCPv4  10.0.0.5:49152   185.220.101.7:443 ESTABLISHED  4120  dllhost.exe\n"
+        },
+        {
+          "match": "windows\\.malfind",
+          "example": "vol -f mem.raw windows.malfind --pid 4120",
+          "output": "PID    Process      Start        End          Protection\n4120   dllhost.exe  0x400000     0x460000     PAGE_EXECUTE_READWRITE\n"
+        }
+      ]
+    }
+  }
+}
