@@ -1,0 +1,50 @@
+{
+  "id": "crypto-sponge",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sp0ng3_w34k_c4p4c1ty_c0ll1s10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: коллизия в sponge с малой capacity\n\n`sponge.py` реализует sponge-конструкцию (как SHA-3/Keccak) с **нестандартными\nпараметрами**: rate = 3 байта, capacity = 1 байт. Capacity определяет стойкость:\nпри 1 байте внутреннее состояние всего 4 байта, и коллизия находится за ~2^16\nсообщений (парадокс дней рождения), а не за 2^128.\n\n`collide.py` перебирает сообщения и находит два **разных** входа с одинаковым\nдайджестом.\n\n`python3 collide.py` → запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/sponge.py",
+      "text": "#!/usr/bin/env python3\n# A deliberately weak sponge: rate = 3 bytes, capacity = 1 byte -> a 4-byte\n# internal state. The permutation is a tiny invertible ARX round.\nRATE, CAP = 3, 1\nMASK = 0xffffffff\n\ndef perm(state):\n    x = int.from_bytes(bytes(state), \"little\")\n    for r in range(8):\n        x = (x + ((x << 5) & MASK)) & MASK\n        x ^= (x >> 7)\n        x = ((x << 11) | (x >> 21)) & MASK\n    return list(x.to_bytes(4, \"little\"))\n\ndef absorb(data):\n    s = [0, 0, 0, 0]\n    m = data + b\"\\x80\"\n    m += b\"\\x00\" * ((RATE - len(m) % RATE) % RATE)\n    for i in range(0, len(m), RATE):\n        for j in range(RATE):\n            s[j] ^= m[i + j]\n        s = perm(s)\n    return s\n\ndef sponge_hash(data):\n    return bytes(absorb(data)[:RATE])\n\nif __name__ == \"__main__\":\n    for msg in (b\"admin=false\", b\"role=user\", b\"guest\"):\n        print(\"%-12s -> %s\" % (msg.decode(), sponge_hash(msg).hex()))\n"
+    },
+    {
+      "path": "/home/student/task/collide.py",
+      "text": "#!/usr/bin/env python3\n# Because capacity is only 1 byte, the sponge state (4 bytes) collides after\n# ~2^16 messages: find two DIFFERENT messages with the same digest.\nfrom sponge import sponge_hash\nseen = {}\ni = 0\nwhile True:\n    m = (\"msg-%d\" % i).encode()\n    d = sponge_hash(m)\n    if d in seen and seen[d] != m:\n        m2 = seen[d]\n        print(\"collision on digest %s\" % d.hex())\n        print(\"  m1 = %s\" % m.decode())\n        print(\"  m2 = %s\" % m2.decode())\n        print(\"  sponge_hash(m1) == sponge_hash(m2): %s\" % (sponge_hash(m) == sponge_hash(m2)))\n        print(\"flag: nto{sp0ng3_w34k_c4p4c1ty_c0ll1s10n}\")\n        break\n    seen[d] = m\n    i += 1\nprint(\"tried %d messages\" % i)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "sponge\\.py",
+          "example": "python3 sponge.py",
+          "output": "admin=false  -> 5350d2\nrole=user    -> 416a9a\nguest        -> dc38d2\n"
+        },
+        {
+          "match": "collide\\.py",
+          "example": "python3 collide.py",
+          "output": "collision on digest 2a2d84\n  m1 = msg-3226\n  m2 = msg-1074\n  sponge_hash(m1) == sponge_hash(m2): True\nflag: nto{sp0ng3_w34k_c4p4c1ty_c0ll1s10n}\ntried 3226 messages\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 sponge.py` и `python3 collide.py`\n"
+    }
+  }
+}

@@ -12,6 +12,18 @@ useful_for:
   - "Применять meet-in-the-middle к 2DES/3DES"
 estimated_minutes: 34
 summary: "Meet-in-the-middle: почему двойное шифрование даёт лишь один бит прироста, полная атака на 2DES (2^57), структура 2-key/3-key 3DES, time-memory tradeoff и практические скрипты, а также MITM на хэшах и MAC."
+lab:
+  kind: shell
+  title: 'Практика: meet-in-the-middle на 2DES'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, mitm.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Двойное шифрование не удваивает стойкость: работаем посередине.'
+    - 'Собери таблицу `E_k1(P)` для всех k1 (2^16).'
+    - 'Для каждого k2 проверь, есть ли `D_k2(C)` в таблице.'
+    - '`python3 mitm.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

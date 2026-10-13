@@ -13,6 +13,18 @@ useful_for:
   - "Анализировать нестандартные sponge-параметры"
 estimated_minutes: 40
 summary: "Sponge-конструкция: состояние, absorbing и squeezing, rate и capacity, функция перестановки Keccak, SHA-3 и SHAKE, почему sponge устойчив к length-extension в отличие от Merkle–Damgård, а также атаки на слабые параметры и практические примеры."
+lab:
+  kind: shell
+  title: 'Практика: коллизия в sponge с малой capacity'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, sponge.py, collide.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Capacity=1 байт → внутреннее состояние всего 4 байта.'
+    - 'Коллизия по парадоксу дней рождения ≈ за 2^16 попыток.'
+    - '`collide.py` хранит digest→сообщение и ищет повтор.'
+    - '`python3 collide.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

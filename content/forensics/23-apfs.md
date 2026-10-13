@@ -13,6 +13,18 @@ useful_for:
   - "DFIR / Incident Response"
 estimated_minutes: 40
 summary: "Устройство APFS и HFS+, монтирование образов macOS, артефакты системы (plist, Unified Logs, Spotlight, quarantine) и особенности восстановления."
+lab:
+  kind: shell
+  title: 'Практика: файл из старого checkpoint APFS'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, disk.img, apfs_scan.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Суперблок контейнера `NXSB` — в блоке 0, магия по смещению 0x20.'
+    - 'Том — суперблок `APSB` в блоке 1.'
+    - '`apfs_scan.py` находит запись удалённого файла и его блок данных.'
+    - '`python3 apfs_scan.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -23,6 +23,16 @@ const LABS = [
     solution: ['python3 decode.py | grep nto > found.txt'] },
   { id: 'forensics-wmi', flag: 'nto{wm1_subscr1pt10n_p3rs1st3nc3}', hints: 4,
     solution: ['python3 parse_wmi.py | grep nto > found.txt'] },
+  { id: 'forensics-network-deep', flag: 'nto{dns_3xf1l_v14_txt_r3c0n}', hints: 4,
+    solution: ['python3 analyze.py | grep nto > found.txt'] },
+  { id: 'forensics-apfs', flag: 'nto{4pfs_ch3ckp01nt_r3c0v3ry}', hints: 4,
+    solution: ['python3 apfs_scan.py | grep nto > found.txt'] },
+  { id: 'forensics-ransomware', flag: 'nto{ctr_n0nc3_r3us3_c4t4str0ph3}', hints: 4,
+    solution: ['python3 decrypt.py | grep nto > found.txt'] },
+  { id: 'crypto-mitm', flag: 'nto{2d3s_m1tm_1a2b_4c5d}', hints: 4,
+    solution: ['python3 mitm.py | grep nto > found.txt'] },
+  { id: 'crypto-sponge', flag: 'nto{sp0ng3_w34k_c4p4c1ty_c0ll1s10n}', hints: 4,
+    solution: ['python3 collide.py | grep nto > found.txt'] },
 ]
 
 describe.each(LABS)('forensics/crypto lab: $id', ({ id, flag, hints, solution }) => {

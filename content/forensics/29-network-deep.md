@@ -13,6 +13,18 @@ useful_for:
   - "Incident Response"
 estimated_minutes: 50
 summary: "Продвинутый анализ трафика: реконструкция сессий, скрытые каналы (DNS/ICMP/HTTP), эксфильтрация, TLS/JA3, Zeek и статистические аномалии."
+lab:
+  kind: shell
+  title: 'Практика: DNS-туннель — реконструкция эксфильтрации'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, capture.pcap, analyze.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Ищи TXT-запросы к домену `exfil.evil.example` — данные в имени.'
+    - 'Числовой префикс метки задаёт порядок чанков.'
+    - '`analyze.py` собирает hex-чанки и декодирует их.'
+    - '`python3 analyze.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

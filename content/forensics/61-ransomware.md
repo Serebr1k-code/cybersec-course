@@ -13,6 +13,18 @@ useful_for:
   - "Восстановление после атак"
 estimated_minutes: 50
 summary: "Форензика рансомварь: идентификация семейства, поиск слабостей схемы шифрования, восстановление через теневые копии, журналы, известные ключи и криптоанализ."
+lab:
+  kind: shell
+  title: 'Практика: расшифровка при переиспользовании CTR-nonce'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, desktop.ini, desktop.ini.enc, secret_plans.txt.enc, decrypt.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Все файлы зашифрованы одним keystream (nonce переиспользован).'
+    - 'Известный файл `desktop.ini` даёт keystream: C xor P.'
+    - 'Этим keystream расшифруй `secret_plans.txt.enc`.'
+    - '`python3 decrypt.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

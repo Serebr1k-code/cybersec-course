@@ -1,0 +1,45 @@
+{
+  "id": "forensics-network-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dns_3xf1l_v14_txt_r3c0n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: DNS-туннель и эксфильтрация\n\n`capture.pcap` — дамп трафика. Внутри — обычный DNS плюс подозрительная\nактивность: хост `10.0.0.9` задаёт множество TXT-запросов к домену\n`*.exfil.evil.example`, кодируя украденные данные в **именах** запросов\n(DNS-туннель). Порядок задан числовым префиксом в метке.\n\nРеконструируй данные: собери шестнадцатеричные чанки по порядку и раскодируй.\nСкрипт `analyze.py` разбирает pcap (scapy) и восстанавливает поток.\n\n`python3 analyze.py` → запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/capture.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAANlzOanUeDgBPAAAATwAAAP///////2h6ZJWAowgARQAAQQABAABAEWamCgAABQoAAAGcQAA1AC3UUwAAAQAAAQAAAAAAAAhpbnRyYW5ldARjb3JwBWxvY2FsAAABAAE2XM5qQSAOAEoAAABKAAAA////////aHpklYCjCABFAAA8AAEAAEARZqsKAAAFCgAAAZxBADUAKMB6AAABAAABAAAAAAAAA3d3dwZnb29nbGUDY29tAAABAAE2XM5qaiEOAEsAAABLAAAA////////aHpklYCjCABFAAA9AAEAAEARZqoKAAAFCgAAAZxCADUAKSHOAAABAAABAAAAAAAAA2NkbgdleGFtcGxlA25ldAAAAQABNlzOamgiDgBLAAAASwAAAP///////2h6ZJWAowgARQAAPQABAABAEWaqCgAABQoAAAGcQwA1ACnOJgAAAQAAAQAAAAAAAARtYWlsBGNvcnAFbG9jYWwAAAEAATZczmpkIw4AXQAAAF0AAAD///////9oemSVgKMIAEUAAE8AAQAAQBFkiQoAAAkICAQEzwgANQA71EgAAAEAAAEAAAAAAAADMDAwCjZlNzQ2ZjdiNjQFZXhmaWwEZXZpbAdleGFtcGxlAAAQAAE2XM5qVSQOAF0AAABdAAAA////////aHpklYCjCABFAABPAAEAAEARZIkKAAAJCAgEBM8JADUAOwBLAAABAAABAAAAAAAAAzAwMQo2ZTczNWYzMzc4BWV4ZmlsBGV2aWwHZXhhbXBsZQAAEAABNlzOamAlDgBdAAAAXQAAAP///////2h6ZJWAowgARQAATwABAABAEWSJCgAACQgIBATPCgA1ADsDSgAAAQAAAQAAAAAAAAMwMDIKNjYzMTZjNWY3NgVleGZpbARldmlsB2V4YW1wbGUAABAAATZczmpKJg4AXQAAAF0AAAD///////9oemSVgKMIAEUAAE8AAQAAQBFkiQoAAAkICAQEzwsANQA7MkoAAAEAAAEAAAAAAAADMDAzCjMxMzQ1Zjc0NzgFZXhmaWwEZXZpbAdleGFtcGxlAAAQAAE2XM5qMycOAF0AAABdAAAA////////aHpklYCjCABFAABPAAEAAEARZIkKAAAJCAgEBM8MADUAOzdFAAABAAABAAAAAAAAAzAwNAo3NDVmNzIzMzYzBWV4ZmlsBGV2aWwHZXhhbXBsZQAAEAABNlzOahwoDgBZAAAAWQAAAP///////2h6ZJWAowgARQAASwABAABAEWSNCgAACQgIBATPDQA1ADd0twAAAQAAAQAAAAAAAAMwMDUGMzA2ZTdkBWV4ZmlsBGV2aWwHZXhhbXBsZQAAEAABNlzOahYpDgBOAAAATgAAAP///////2h6ZJWAowgARQAAQAABAABAEWanCgAABQoAAAGgKAA1ACzrwgAAAQAAAQAAAAAAAAd1cGRhdGVzBGNvcnAFbG9jYWwAAAEAAQ=="
+    },
+    {
+      "path": "/home/student/task/analyze.py",
+      "text": "#!/usr/bin/env python3\n# Reconstruct a DNS-tunnel exfiltration from a capture: the queried names carry\n# hex chunks of the stolen data as TXT queries.\nimport re, binascii\nfrom scapy.all import rdpcap, DNS, DNSQR\n\nnames = []\nfor p in rdpcap(\"capture.pcap\"):\n    if p.haslayer(DNSQR):\n        q = p[DNSQR].qname.decode(\"ascii\", \"ignore\").rstrip(\".\")\n        names.append(q)\nprint(\"total DNS queries:\", len(names))\n\npat = re.compile(r\"^(\\d{3})\\.([0-9a-f]+)\\.exfil\\.evil\\.example$\")\nparts = []\nfor q in names:\n    m = pat.match(q)\n    if m:\n        parts.append((int(m.group(1)), m.group(2)))\nparts.sort()\nprint(\"exfil chunks:\", len(parts))\ndata = \"\".join(c for _, c in parts)\nprint(\"reassembled hex:\", data)\ntry:\n    print(\"exfiltrated    :\", binascii.unhexlify(data).decode())\nexcept Exception as e:\n    print(\"decode error:\", e)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "analyze\\.py",
+          "example": "python3 analyze.py",
+          "output": "/home/Serebr1k/.local/lib/python3.14/site-packages/scapy/layers/tls/crypto/groups.py:25: CryptographyDeprecationWarning: Diffie-Hellman over finite fields (FFDH) is deprecated and support will be removed in a future release. Use a more modern key exchange algorithm.\n  from cryptography.hazmat.primitives.asymmetric.dh import DHParameterNumbers\ntotal DNS queries: 11\nexfil chunks: 6\nreassembled hex: 6e746f7b646e735f337866316c5f7631345f7478745f723363306e7d\nexfiltrated    : nto{dns_3xf1l_v14_txt_r3c0n}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 analyze.py`\n"
+    }
+  }
+}

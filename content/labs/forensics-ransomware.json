@@ -1,0 +1,53 @@
+{
+  "id": "forensics-ransomware",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ctr_n0nc3_r3us3_c4t4str0ph3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: расшифровка после рансомварь-атаки\n\nАтакующий зашифровал файлы в потоковом режиме (CTR), но **переиспользовал\nnonce** — один и тот же keystream на все файлы. Есть шифротексты\n`desktop.ini.enc` и `secret_plans.txt.enc`, а также **известный** файл\n`desktop.ini` (стандартный файл, восстановленный из бэкапа).\n\nИзвестный открытый текст XOR с его шифротекстом даёт keystream → им\nрасшифровывается второй файл.\n\n`python3 decrypt.py` → запиши флаг из `secret_plans.txt` в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/desktop.ini",
+      "b64": "Wy5TaGVsbENsYXNzSW5mb10KQ29uZmlybUZpbGVPcD0wCk5vU2hhcmluZ1JlYWQ9MApJY29uUmVzb3VyY2U9JVN5c3RlbVJvb3QlXHN5c3RlbTMyXGltYWdlcmVzLmRsbCwtMTAyCkljb25JbmRleD0wCkluZm9UaXA9U3lzdGVtIGZpbGUuIERvIG5vdCBkZWxldGUuCkNMU0lEPXs2NDVGRjA0MC01MDgxLTEwMUItOUYwOC0wMEFBMDAyRjk1NEV9CkRlc2NyaXB0aW9uPVN0YW5kYXJkIGZvbGRlciBjdXN0b21pemF0aW9uIGZpbGUuCkZsYWdzPTB4MDAwMDAwMDAKQ2F0ZWdvcnk9U3lzdGVtClZlcnNpb249MS4wCg=="
+    },
+    {
+      "path": "/home/student/task/desktop.ini.enc",
+      "b64": "sH+7w+KNO5JCozOmbgNB7RTAwLKnRikKuPaUDeHtR7kmUC7tc4Ep7Twa+ifO4TDOKZNaRTYfWN7cW3qpvWAEvdsdQvSB/xE9EBGSCr/9NRuFS+2T0z9OK64QMyXIIPM8IFqvn4SSpLAMfBlurAXlemeVCtn0sBI8Ea0PibWD6lnXxoMfyF9DGrrzhvc0+sW1nCwM6qKjZugRJGg9piMvgxcReYJGkMd4xvlTOCsmRAZZkJtdOtnjHFtLt0T3MPXkUdGg6IRVxhWbIvtx2DAmwj5+mYNLaWkKHwsicx6573zdeU2l/SkHxH4gwii+gsBHCnJVSLXI6BduKZGMri0DNfgP8EcS7uuZGrUf3iqG+4k09ZC4IfoRX1tjoQMZqhOMdA=="
+    },
+    {
+      "path": "/home/student/task/secret_plans.txt.enc",
+      "b64": "1mzVi8GoGZBggQX1dShkzR+P0YTpawUhhpDVBeuCWetiehPqQZsttnVJoEih4jWQcuxjeSkQecjfXH26rWAZpagKRe+f8TcgIAuHOK+3GR3TU62S0DUXPv0GNTKLfv9jMXz0z8HM2qYGd1cH4kGgInqFILCn9jshNvAA6v3Js22L7A=="
+    },
+    {
+      "path": "/home/student/task/decrypt.py",
+      "text": "#!/usr/bin/env python3\n# Recover a file encrypted by ransomware that reused the CTR keystream (nonce\n# collision). We know the plaintext of one small, standard file (desktop.ini),\n# so XORing it with its ciphertext recovers the keystream -> decrypt the target.\nimport itertools\nknown = open(\"desktop.ini\",\"rb\").read()\nc_known = open(\"desktop.ini.enc\",\"rb\").read()\nc_target = open(\"secret_plans.txt.enc\",\"rb\").read()\nks = bytes(a ^ b for a, b in zip(c_known, known))\nplain = bytes(a ^ b for a, b in zip(c_target, ks))\nprint(\"keystream reused across files (nonce collision)\")\nprint(\"recovered secret_plans.txt:\")\nprint(plain.decode(\"latin-1\"))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "decrypt\\.py",
+          "example": "python3 decrypt.py",
+          "output": "keystream reused across files (nonce collision)\nrecovered secret_plans.txt:\n=== FINANCE RECOVERY KEYS (do not share) ===\nbackup_passphrase = nto{ctr_n0nc3_r3us3_c4t4str0ph3}\nvault_id          = FIN-2019-Q1\n\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 decrypt.py`\n"
+    }
+  }
+}
