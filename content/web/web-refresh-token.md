@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 38
 summary: "Атаки на refresh-токены: отсутствие ротации, reuse detection, слабая привязка, вечные токены и захват долгоживущей сессии."
+lab:
+  kind: shell
+  title: "Практика: refresh-token без ротации"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Обменяй утёкший refresh-токен на access-токен: `curl -s 'https://shop.local/oauth/token' -d 'grant_type=refresh_token&refresh_token=rt_9f2c8a1b4e6d7f0a2c3e5b8d1a4f7c9e'`.
+    - В ответе `refresh_token` тот же самый — ротации нет.
+    - Используй выданный access-токен против админского API.
+    - `curl -s 'https://shop.local/api/admin' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJhZG1pbiJ9.sig' | grep 'nto{' > found.txt`, затем `check`.
 ---
 
 Access-токен живёт недолго (минуты) — это сделано специально, чтобы кража была бесполезна. Но тогда пользователя выкидывало бы каждые несколько минут. Чтобы этого не было, существует **refresh-токен** — долгоживущий ключ, которым можно получить новый access-токен. Он как «мастер-ключ» от сессии, и его защита критична.
