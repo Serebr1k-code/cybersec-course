@@ -13,6 +13,17 @@ useful_for:
   - "Работа с компилятором ick"
 estimated_minutes: 40
 summary: "INTERCAL: философия PLEASE и COMEFROM, типы данных spark/twos/tail, побитовые операторы interleave/select/mingle, компилятор ick и разбор Hello World."
+lab:
+  kind: shell
+  title: 'Практика: INTERCAL'
+  toolset: [core, ick]
+  workdir: /home/student/task
+  files: [task.md, hello.i, flag.i]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`hello.i` — программа на INTERCAL: строки `DO`/`PLEASE DO`, массив `,1 SUB #n <- #v`.'
+    - 'Собери и запусти эталон: `ick hello.i` — получишь «hello, world».'
+    - 'Задача — в `flag.i`: `ick flag.i` напечатает флаг. Запиши его в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

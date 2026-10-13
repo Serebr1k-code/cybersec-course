@@ -1,0 +1,43 @@
+{
+  "id": "misc-esolang-intercal",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1nt3rc4l_pl34s3_4nd_c0m3fr0m}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: INTERCAL\n\n`hello.i` — эталонный пример, печатающий «hello, world».\n`flag.i` — программа-задача: собери её (`ick`) и получи флаг.\nФлаг запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/hello.i",
+      "text": "        DO ,1 <- #13\n        PLEASE DO ,1SUB#1 <- #234\n        DO ,1SUB#2 <- #112\n        DO ,1SUB#3 <- #112\n        DO ,1SUB#4 <- #0\n        DO ,1SUB#5 <- #64\n        DO ,1SUB#6 <- #194\n        DO ,1SUB#7 <- #48\n        PLEASE DO ,1SUB#8 <- #22\n        DO ,1SUB#9 <- #248\n        DO ,1SUB#10 <- #168\n        DO ,1SUB#11 <- #24\n        DO ,1SUB#12 <- #16\n        DO ,1SUB#13 <- #214\n        PLEASE READ OUT ,1\n        PLEASE GIVE UP\n"
+    },
+    {
+      "path": "/home/student/task/flag.i",
+      "text": "DO ,1 <- #33\nDO ,1 SUB #1 <- #138\nPLEASE DO ,1 SUB #2 <- #72\nDO ,1 SUB #3 <- #56\nDO ,1 SUB #4 <- #24\nDO ,1 SUB #5 <- #82\nPLEASE DO ,1 SUB #6 <- #22\nDO ,1 SUB #7 <- #72\nDO ,1 SUB #8 <- #98\nDO ,1 SUB #9 <- #126\nPLEASE DO ,1 SUB #10 <- #136\nDO ,1 SUB #11 <- #154\nDO ,1 SUB #12 <- #246\nDO ,1 SUB #13 <- #60\nPLEASE DO ,1 SUB #14 <- #236\nDO ,1 SUB #15 <- #216\nDO ,1 SUB #16 <- #106\nDO ,1 SUB #17 <- #160\nPLEASE DO ,1 SUB #18 <- #94\nDO ,1 SUB #19 <- #2\nDO ,1 SUB #20 <- #210\nDO ,1 SUB #21 <- #206\nPLEASE DO ,1 SUB #22 <- #182\nDO ,1 SUB #23 <- #80\nDO ,1 SUB #24 <- #44\nDO ,1 SUB #25 <- #52\nPLEASE DO ,1 SUB #26 <- #186\nDO ,1 SUB #27 <- #86\nDO ,1 SUB #28 <- #234\nDO ,1 SUB #29 <- #102\nPLEASE DO ,1 SUB #30 <- #24\nDO ,1 SUB #31 <- #66\nDO ,1 SUB #32 <- #86\nDO ,1 SUB #33 <- #248\nPLEASE READ OUT ,1\nPLEASE GIVE UP\n"
+    }
+  ],
+  "tools": {
+    "ick": {
+      "help": "ick <файл> [-o <выход>] — C-INTERCAL: собрать и выполнить программу (Turing Tape I/O)",
+      "cases": [
+        {
+          "match": "hello\\.i",
+          "output": "hello, world\n"
+        },
+        {
+          "match": "flag\\.i",
+          "output": "nto{1nt3rc4l_pl34s3_4nd_c0m3fr0m}"
+        }
+      ],
+      "fallback": "ick: доступно `ick hello.i` и `ick flag.i`\n"
+    }
+  }
+}

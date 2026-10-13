@@ -44,3 +44,34 @@ describe('misc-esolang-shakespeare lab', () => {
     expect(s.solved).toBe(true)
   })
 })
+
+const INTERCAL = {
+  kind: 'shell',
+  workdir: '/home/student/task',
+  files: ['task.md', 'hello.i', 'flag.i'],
+  check: "grep -q 'nto{' found.txt",
+  hints: ['a', 'b', 'c'],
+}
+
+describe('misc-esolang-intercal lab', () => {
+  const bundle = loadBundle('misc-esolang-intercal')
+  const FLAG = 'nto{1nt3rc4l_pl34s3_4nd_c0m3fr0m}'
+
+  it('runs the reference hello program', async () => {
+    const s = session(INTERCAL, bundle)
+    expect((await s.run('ick hello.i')).stdout).toBe('hello, world\n')
+  })
+
+  it('runs the flag program', async () => {
+    const s = session(INTERCAL, bundle)
+    expect((await s.run('ick flag.i')).stdout).toBe(FLAG)
+  })
+
+  it('solves after writing the flag', async () => {
+    const s = session(INTERCAL, bundle)
+    expect((await s.run('check')).code).toBe(1)
+    await s.run('ick flag.i > found.txt')
+    expect((await s.run('check')).code).toBe(0)
+    expect(s.solved).toBe(true)
+  })
+})
