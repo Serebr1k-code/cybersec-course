@@ -13,6 +13,18 @@ useful_for:
   - "Защита репозиториев"
 estimated_minutes: 40
 summary: "Git-история как источник утечек: удалённый код остаётся в коммитах, инструменты gitleaks/trufflehog, разбор примера, поиск ключей и защита репозиториев."
+lab:
+  kind: shell
+  title: "Практика: секрет в git-истории"
+  toolset: [core, git]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "История коммитов: `git log --oneline`."
+    - "Файл .env удалили — но git помнит: `git log --oneline -- .env`."
+    - "Содержимое удалённого файла: `git show 06ab95e:.env`."
+    - "Флаг лежит внутри .env. Запиши строку nto{...} в `answer.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

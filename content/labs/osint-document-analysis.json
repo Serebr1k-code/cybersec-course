@@ -1,0 +1,48 @@
+{
+  "id": "osint-document-analysis",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{pdf_h1dd3n_1n_pl41n_s1ght}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: анализ документа invoice.pdf\n\nДали файл `invoice.pdf` и спросили: нет ли внутри чего-то скрытого.\n\n1. Прочитай метаданные: exiftool invoice.pdf\n2. Посмотри служебную информацию: pdfinfo invoice.pdf\n3. Загляни внутрь контейнера: strings invoice.pdf\n4. Флаг спрятан в комментарии PDF (строка, начинающаяся с %).\n   Запиши строку nto{...} в answer.txt и набери check.\n"
+    },
+    {
+      "path": "/home/student/task/invoice.pdf",
+      "b64": "JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA3OCA+PgpzdHJlYW0KQlQgL0YxIDEyIFRmIDcyIDc3MCBUZCAoSW52b2ljZSBJTlYtMjAyNi0wMDQyIC0gRXhhbXBsZSBDb3JwKSBUaiBFVAplbmRzdHJlYW0KZW5kb2JqCjUgMCBvYmoKPDwgL1R5cGUgL0ZvbnQgL1N1YnR5cGUgL1R5cGUxIC9CYXNlRm9udCAvSGVsdmV0aWNhID4+CmVuZG9iago2IDAgb2JqCjw8IC9UaXRsZSAoSW52b2ljZSBJTlYtMjAyNi0wMDQyKSAvQXV0aG9yIChPbGVnIEl2YW5vdikgL0NyZWF0b3IgKExpYnJlT2ZmaWNlIFdyaXRlciA3LjYpIC9Qcm9kdWNlciAoTGlicmVPZmZpY2UgNy42LjQuMSkgL0NyZWF0aW9uRGF0ZSAoRDoyMDI2MDQxMDExNTkwMCswMycwMCcpIC9Nb2REYXRlIChEOjIwMjYwNDExMTAxMjAwKzAzJzAwJykgL0tleXdvcmRzIChpbnRlcm5hbCBkcmFmdCwgZG8gbm90IGRpc3RyaWJ1dGUpID4+CmVuZG9iagolIHJlZGFjdGlvbiBsZWZ0b3ZlcjogdGhlIGF1dGhvciBmb3Jnb3QgdG8gc3RyaXAgYSBkcmFmdCBtYXJrZXIKJSBudG97cGRmX2gxZGQzbl8xbl9wbDQxbl9zMWdodH0KdHJhaWxlcgo8PCAvUm9vdCAxIDAgUiAvSW5mbyA2IDAgUiAvU2l6ZSA3ID4+CiUlRU9GCg==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "exiftool": {
+      "help": "exiftool <файл> — метаданные документа (эмуляция PDF)",
+      "cases": [
+        {
+          "match": "invoice",
+          "example": "invoice.pdf",
+          "output": "ExifTool Version Number         : 12.76\nFile Name                       : invoice.pdf\nFile Size                       : 838 bytes\nFile Type                       : PDF\nFile Type Extension             : pdf\nMIME Type                       : application/pdf\nPDF Version                     : 1.4\nLinearized                      : No\nPage Count                      : 1\nTitle                           : Invoice INV-2026-0042\nAuthor                          : Oleg Ivanov\nCreator                         : LibreOffice Writer 7.6\nProducer                        : LibreOffice 7.6.4.1\nCreate Date                     : 2026:04:10 11:59:00+03:00\nModify Date                     : 2026:04:11 10:12:00+03:00\nKeywords                        : internal draft, do not distribute\n"
+        }
+      ],
+      "fallback": "exiftool: в этой лабе есть только invoice.pdf.\n"
+    },
+    "pdfinfo": {
+      "help": "pdfinfo <файл> — информация о PDF (эмуляция)",
+      "cases": [
+        {
+          "match": "invoice",
+          "example": "invoice.pdf",
+          "output": "Title:          Invoice INV-2026-0042\nAuthor:         Oleg Ivanov\nCreator:        LibreOffice Writer 7.6\nProducer:       LibreOffice 7.6.4.1\nCreationDate:   Fri Apr 10 11:59:00 2026 +03\nModDate:        Sat Apr 11 10:12:00 2026 +03\nTagged:         no\nPages:          1\nEncrypted:      no\nPage size:      595 x 842 pts (A4)\nFile size:      838 bytes\nOptimized:      no\nPDF version:    1.4\n"
+        }
+      ],
+      "fallback": "pdfinfo: в этой лабе есть только invoice.pdf.\n"
+    }
+  }
+}

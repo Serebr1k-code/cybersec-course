@@ -13,6 +13,18 @@ useful_for:
   - "CTF категория OSINT"
 estimated_minutes: 55
 summary: "Поиск секретов в публичных репозиториях: операторы GitHub-поиска, gitleaks/trufflehog, история git, удалённые коммиты и форки."
+lab:
+  kind: shell
+  title: "Практика: GitHub-поиск утёкших секретов"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Профиль организации: `curl -s https://api.github.com/orgs/example`."
+    - "Поиск по коду: `curl -s 'https://api.github.com/search/code?q=org:example+AKIA'`."
+    - "GitHub-поиск понимает операторы: org:, repo:, filename:, extension:."
+    - "В найденном фрагменте есть ключ AWS и флаг — запиши nto{...} в `answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

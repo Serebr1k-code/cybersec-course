@@ -1,0 +1,57 @@
+{
+  "id": "osint-exif-deep",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{s4m3_d3v1c3_s4m3_ph0t0gr4ph3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: два фото — один фотограф?\n\nЕсть два снимка `a.jpg` и `b.jpg`, опубликованных с разных аккаунтов.\nНужно понять, сняты ли они одним устройством.\n\n1. Посмотри метаданные: exiftool a.jpg b.jpg\n2. Сравни Serial Number (серийный номер камеры) — он уникален.\n3. Обрати внимание и на поле User Comment.\n4. Найди строку nto{...} и запиши её в answer.txt, затем набери check.\n"
+    },
+    {
+      "path": "/home/student/task/a.jpg",
+      "b64": "/9j/4AAQSkZJRgABAQAAAQABAAD/4QG6RXhpZgAATU0AKgAAAAgACQEPAAIAAAAGAAAAegEQAAIAAAAOAAAAgAEaAAUAAAABAAAAjgEbAAUAAAABAAAAlgEoAAMAAAABAAEAAAExAAIAAAAHAAAAngITAAMAAAABAAEAAIdpAAQAAAABAAAApoglAAQAAAABAAABQAAAAABBcHBsZQBpUGhvbmUgMTMgUHJvAAAAAAEAAAABAAAAAQAAAAExNi42LjEAAAAGkAAABwAAAAQwMjMykAMAAgAAABQAAAD0kQEABwAAAAQBAgMAkoYABwAAACoAAAEIoAEAAwAAAAH//wAApDEAAgAAAA0AAAEyAAAAADIwMjU6MDc6MTQgMTg6MjI6MzEAQVNDSUkAAABudG97czRtM19kM3YxYzNfczRtM19waDB0MGdyNHBoM3J9RjJMWDlBQkNERUYxAAAABQAAAAEAAAAEAgMAAAABAAIAAAACTgAAAAACAAUAAAADAAABggADAAIAAAACRQAAAAAEAAUAAAADAAABmgAAAAAAAAAwAAAAAQAAADMAAAABAAAC9AAAABkAAAACAAAAAQAAABEAAAABAAAAyQAAAAX/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCABgAGADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDyeiiivBP1gKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD/9k=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/b.jpg",
+      "b64": "/9j/4AAQSkZJRgABAQAAAQABAAD/4QEGRXhpZgAATU0AKgAAAAgACAEPAAIAAAAGAAAAbgEQAAIAAAAOAAAAdAEaAAUAAAABAAAAggEbAAUAAAABAAAAigEoAAMAAAABAAEAAAExAAIAAAAHAAAAkgITAAMAAAABAAEAAIdpAAQAAAABAAAAmgAAAABBcHBsZQBpUGhvbmUgMTMgUHJvAAAAAAEAAAABAAAAAQAAAAExNi42LjEAAAAFkAAABwAAAAQwMjMykAMAAgAAABQAAADckQEABwAAAAQBAgMAoAEAAwAAAAH//wAApDEAAgAAAA0AAADwAAAAADIwMjU6MDk6MDIgMTE6MDU6MDkARjJMWDlBQkNERUYxAAD/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCABgAGADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDyKiiiv0g+cCiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA/9k=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "exiftool": {
+      "help": "exiftool [опции] <файл…> — чтение метаданных (эмуляция)",
+      "cases": [
+        {
+          "match": "-UserComment",
+          "example": "-UserComment a.jpg",
+          "output": "======== a.jpg\nUser Comment                    : nto{s4m3_d3v1c3_s4m3_ph0t0gr4ph3r}\n"
+        },
+        {
+          "match": "a\\.jpg.*b\\.jpg|b\\.jpg.*a\\.jpg",
+          "example": "a.jpg b.jpg",
+          "output": "======== a.jpg\nExifTool Version Number         : 12.76\nFile Name                       : a.jpg\nFile Size                       : 1217 bytes\nFile Type                       : JPEG\nFile Type Extension             : jpg\nMIME Type                       : image/jpeg\nMake                            : Apple\nCamera Model Name               : iPhone 13 Pro\nSoftware                        : 16.6.1\nDate/Time Original              : 2025:07:14 18:22:31\nUser Comment                    : nto{s4m3_d3v1c3_s4m3_ph0t0gr4ph3r}\nSerial Number                   : F2LX9ABCDEF1\nGPS Latitude                    : 48 deg 51' 30.24\" N\nGPS Longitude                   : 2 deg 17' 40.20\" E\nGPS Position                    : 48 deg 51' 30.24\" N, 2 deg 17' 40.20\" E\nImage Size                      : 96x96\n======== b.jpg\nExifTool Version Number         : 12.76\nFile Name                       : b.jpg\nFile Size                       : 1037 bytes\nFile Type                       : JPEG\nFile Type Extension             : jpg\nMIME Type                       : image/jpeg\nMake                            : Apple\nCamera Model Name               : iPhone 13 Pro\nSoftware                        : 16.6.1\nDate/Time Original              : 2025:09:02 11:05:09\nSerial Number                   : F2LX9ABCDEF1\nImage Size                      : 96x96\n    2 image files read\n"
+        },
+        {
+          "match": "b\\.jpg",
+          "example": "b.jpg",
+          "output": "======== b.jpg\nExifTool Version Number         : 12.76\nFile Name                       : b.jpg\nFile Size                       : 1037 bytes\nFile Type                       : JPEG\nMIME Type                       : image/jpeg\nMake                            : Apple\nCamera Model Name               : iPhone 13 Pro\nSoftware                        : 16.6.1\nDate/Time Original              : 2025:09:02 11:05:09\nSerial Number                   : F2LX9ABCDEF1\nImage Size                      : 96x96\n"
+        },
+        {
+          "match": "a\\.jpg",
+          "example": "a.jpg",
+          "output": "======== a.jpg\nExifTool Version Number         : 12.76\nFile Name                       : a.jpg\nFile Size                       : 1217 bytes\nFile Type                       : JPEG\nMIME Type                       : image/jpeg\nMake                            : Apple\nCamera Model Name               : iPhone 13 Pro\nSoftware                        : 16.6.1\nDate/Time Original              : 2025:07:14 18:22:31\nUser Comment                    : nto{s4m3_d3v1c3_s4m3_ph0t0gr4ph3r}\nSerial Number                   : F2LX9ABCDEF1\nGPS Latitude                    : 48 deg 51' 30.24\" N\nGPS Longitude                   : 2 deg 17' 40.20\" E\nGPS Position                    : 48 deg 51' 30.24\" N, 2 deg 17' 40.20\" E\nImage Size                      : 96x96\n"
+        }
+      ],
+      "fallback": "exiftool: в этой лабе есть только a.jpg и b.jpg.\n"
+    }
+  }
+}

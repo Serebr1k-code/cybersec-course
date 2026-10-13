@@ -13,6 +13,18 @@ useful_for:
   - "OPSEC и защита приватности"
 estimated_minutes: 40
 summary: "EXIF и метаданные: важные поля (GPS, камера, дата), exiftool/exiv2/identify, разбор примера, метаданные в Office/PDF, очистка и защита."
+lab:
+  kind: shell
+  title: "Практика: связать фото по серийному номеру камеры"
+  toolset: [core, exiftool]
+  workdir: /home/student/task
+  files: [task.md, a.jpg, b.jpg]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Смотри метаданные обоих файлов: `exiftool a.jpg b.jpg`."
+    - "Сравни Serial Number — уникальный номер камеры."
+    - "Оба фото сняты одной камерой, значит одним устройством."
+    - "Флаг лежит в поле User Comment: `exiftool -UserComment a.jpg`."
 ---
 
 ## Вопрос, с которого всё начинается

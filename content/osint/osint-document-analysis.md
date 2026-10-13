@@ -13,6 +13,18 @@ useful_for:
   - "Поиск скрытых данных в документах"
 estimated_minutes: 55
 summary: "Разбор PDF и Office-файлов: внутренняя структура, метаданные, скрытые слои, вложения, редакционные правки и извлечение полезных данных."
+lab:
+  kind: shell
+  title: "Практика: скрытое внутри PDF"
+  toolset: [core, exiftool, pdfinfo]
+  workdir: /home/student/task
+  files: [task.md, invoice.pdf]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Прочитай метаданные: `exiftool invoice.pdf` (или `pdfinfo invoice.pdf`)."
+    - "PDF — это контейнер: внутри есть служебные комментарии и потоки."
+    - "Ищи текст прямо в контейнере: `strings invoice.pdf`."
+    - "Флаг лежит в комментарии (строка с `%`). Запиши nto{...} в `answer.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

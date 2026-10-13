@@ -1,0 +1,52 @@
+{
+  "id": "osint-git-history",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{g1t_h1st0ry_n3v3r_f0rg3ts}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: что удалили из истории\n\nПубличный репозиторий `example/app`. Разработчик добавил `.env`, потом\nудалил его коммитом «Remove .env». Но git хранит всю историю.\n\n1. Посмотри коммиты: git log --oneline\n2. Найди коммит, где менялся .env: git log --oneline -- .env\n3. Посмотри содержимое файла из того коммита: git show 06ab95e:.env\n4. Флаг лежит внутри .env. Запиши строку nto{...} в answer.txt и набери check.\n"
+    }
+  ],
+  "tools": {
+    "git": {
+      "help": "git <команда> — репозиторий example/app (эмуляция: log, show, grep)",
+      "cases": [
+        {
+          "match": "show\\s+\\S*:\\.env|show\\s+\\S*:\\.\\S*env",
+          "example": "show 06ab95e:.env",
+          "output": "AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\nAWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\nDB_PASSWORD=Sup3rS3cret!\nFLAG=nto{g1t_h1st0ry_n3v3r_f0rg3ts}\n"
+        },
+        {
+          "match": "log.*\\.env",
+          "example": "log --oneline -- .env",
+          "output": "f57f6c9 Remove .env\n06ab95e add env\n"
+        },
+        {
+          "match": "log",
+          "example": "log --oneline",
+          "output": "f57f6c9 Remove .env\n06ab95e add env\n0272c38 init config\n"
+        },
+        {
+          "match": "show",
+          "example": "show 06ab95e",
+          "output": "commit 06ab95e50dd31fbeaee8e77eba7143ce6d733501\nAuthor: dev <dev@example.com>\nDate:   Sat Mar 2 18:44:00 2024 +0300\n\n    add env\n\ndiff --git a/.env b/.env\nnew file mode 100644\nindex 0000000..e69de29\n--- /dev/null\n+++ b/.env\n@@ -0,0 +1,4 @@\n+AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\n+AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\n+DB_PASSWORD=Sup3rS3cret!\n+FLAG=nto{g1t_h1st0ry_n3v3r_f0rg3ts}\n"
+        },
+        {
+          "match": "grep",
+          "example": "grep AKIA $(git rev-list --all)",
+          "output": "06ab95e:.env:1:AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\n06ab95e:.env:4:FLAG=nto{g1t_h1st0ry_n3v3r_f0rg3ts}\n"
+        }
+      ],
+      "fallback": "git: в этой лабе эмулируется история example/app (log, show, grep).\n"
+    }
+  }
+}
