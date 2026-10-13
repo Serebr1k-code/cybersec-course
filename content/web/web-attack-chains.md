@@ -13,6 +13,18 @@ useful_for:
   - "Red team"
 estimated_minutes: 40
 summary: "Как из средних багов собрать критичный импакт: композиция уязвимостей, цепочки recon→exploit→pivot→RCE."
+lab:
+  kind: shell
+  title: "Практика: цепочка SSRF → internal → чтение секрета"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - 'Параметр /fetch?url= — это SSRF: сервер ходит по URL за тебя.'
+    - 'Проверь внутренний сервис: http://127.0.0.1:8080/health и /admin.'
+    - 'Схема file:// читает локальные файлы сервера.'
+    - 'Прочитай file:///flag.txt и сохрани вывод в found.txt.'
 ---
 
 ## Вопрос, с которого всё начинается

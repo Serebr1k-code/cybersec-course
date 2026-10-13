@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 40
 summary: "Практический справочник по автоматизации инъекций: command injection (commix), SSTI (tplmap), XSS (dalfox/xsstrike) и RCE через sqlmap --os-shell."
+lab:
+  kind: shell
+  title: "Практика: commix/tplmap — command injection и SSTI"
+  toolset: [core, curl, commix, tplmap]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - 'commix автоматически тестирует параметр host на command injection.'
+    - 'tplmap определяет движок шаблонов (здесь Jinja2).'
+    - 'Проверь математикой: {{7*7}} должно вернуть 49.'
+    - 'Прочитай конфиг шаблона: {{config}} содержит SECRET_KEY — сохрани в found.txt.'
 ---
 
 ## Задача

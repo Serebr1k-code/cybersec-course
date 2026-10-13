@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Полный справочник генераторов gadget-цепочек: ysoserial (Java), ysoserial.net, phpggc, marshalsec (JNDI), node-serialize и pickle — с кодированием и встраиванием."
+lab:
+  kind: shell
+  title: "Практика: ysoserial — gadget-цепочка CC6"
+  toolset: [core, curl, java]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - 'ysoserial собирает сериализованный Java-объект из gadget-цепочки.'
+    - 'CommonsCollections6 (CC6) — рабочая цепочка для большинства Java-стеков.'
+    - 'Перенаправь вывод java в payload.bin, чтобы не портить бинарь в терминале.'
+    - 'Отправь payload.bin на /api/import и сохрани ответ в found.txt.'
 ---
 
 ## Задача
