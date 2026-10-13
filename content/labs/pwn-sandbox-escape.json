@@ -1,0 +1,42 @@
+{
+ "id": "pwn-sandbox-escape",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "allowed=0,1,2,60"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: разобрать seccomp-фильтр\n\nВ каталоге: `filter.bpf` — сырой cBPF-фильтр seccomp, `seccomp.py` — его\nдизассемблер/интерпретатор. Нужно понять, какие системные вызовы песочница\nразрешает, чтобы построить побег (open/read/write для чтения флага).\n\n1. `xxd filter.bpf` — сырые записи `struct sock_filter`.\n2. `python3 seccomp.py filter.bpf` — декодируй фильтр и найди разрешённые номера.\n\nЗапиши в `answer.txt` строку `allowed=...` (номера через запятую) и набери `check`.\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/filter.bpf",
+   "b64": "IAAAAAQAAAAVAAEAPgAAwAYAAAAAAAAAIAAAAAAAAAAVAAQAAAAAABUAAwABAAAAFQACAAIAAAAVAAEAPAAAAAYAAAAAAAAABgAAAAAA/38=",
+   "mode": "755"
+  },
+  {
+   "path": "/home/student/task/seccomp.py",
+   "text": "#!/usr/bin/env python3\n# Minimal cBPF disassembler + interpreter for a seccomp filter.\n# Decodes struct sock_filter records (code u16, jt u8, jf u8, k u32) and runs\n# each candidate syscall number through the program to find which are allowed.\nimport struct, sys\n\ndata = open(sys.argv[1] if len(sys.argv) > 1 else 'filter.bpf', 'rb').read()\nassert len(data) % 8 == 0, 'bad filter length'\ninsns = [struct.unpack_from('<HBBI', data, i) for i in range(0, len(data), 8)]\n\nfor idx, (code, jt, jf, k) in enumerate(insns):\n    if code == 0x20:   print(f'{idx:2}: ld [off={k}]')\n    elif code == 0x15: print(f'{idx:2}: jeq {k:#x} ? +{jt} : +{jf}')\n    elif code == 0x06: print(f'{idx:2}: ret {k:#x}')\n    else:              print(f'{idx:2}: (code {code:#x})')\n\nKILL, ALLOW = 0x00000000, 0x7fff0000\ndef verdict(nr):\n    # struct seccomp_data: nr at off 0, arch at off 4\n    mem = {0: nr, 4: 0xC000003E}\n    A = 0\n    pc = 0\n    while pc < len(insns):\n        code, jt, jf, k = insns[pc]\n        if code == 0x20:      # ld [k]\n            A = mem.get(k, 0); pc += 1\n        elif code == 0x15:    # jeq k\n            pc += (jt + 1) if A == k else (jf + 1)\n        elif code == 0x06:    # ret k\n            return k\n        else:\n            return None\n    return None\n\nallowed = [n for n in range(0, 512) if verdict(n) == ALLOW]\nprint('allowed syscalls:', ','.join(str(n) for n in allowed))\n",
+   "mode": "644"
+  }
+ ],
+ "tools": {
+  "python3": {
+   "help": "python3 <скрипт>",
+   "cases": [
+    {
+     "match": "seccomp\\.py",
+     "example": "seccomp.py filter.bpf",
+     "output": " 0: ld [off=4]\n 1: jeq 0xc000003e ? +1 : +0\n 2: ret 0x0\n 3: ld [off=0]\n 4: jeq 0x0 ? +4 : +0\n 5: jeq 0x1 ? +3 : +0\n 6: jeq 0x2 ? +2 : +0\n 7: jeq 0x3c ? +1 : +0\n 8: ret 0x0\n 9: ret 0x7fff0000\nallowed syscalls: 0,1,2,60\n"
+    }
+   ]
+  }
+ }
+}

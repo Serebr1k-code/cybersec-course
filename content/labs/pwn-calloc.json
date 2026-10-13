@@ -1,0 +1,37 @@
+{
+ "id": "pwn-calloc",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "calloc=0xa7d70"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: адрес __libc_calloc\n\n`calloc` — не просто `malloc` + `memset`: для mmap-чанков память уже нулевая,\nпоэтому memset пропускается, а размер проверяется на переполнение. Нам нужен\nадрес реализации в целевой libc. В каталоге `libc.syms` — дамп `nm -D`.\n\n1. `nm -D libc.syms` (или `grep calloc libc.syms`).\n2. Найди символ `__libc_calloc` и его смещение от базы libc.\n\nЗапиши в `answer.txt` строку `calloc=0x...` и набери `check`.\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/libc.syms",
+   "text": "00000000000a7d70 T __libc_calloc@@GLIBC_2.2.5\n00000000000a6fd0 T __libc_malloc@@GLIBC_2.2.5\n",
+   "mode": "644"
+  }
+ ],
+ "tools": {
+  "nm": {
+   "help": "nm -D <файл>",
+   "cases": [
+    {
+     "match": "libc.syms",
+     "example": "-D libc.syms",
+     "output": "00000000000a7d70 T __libc_calloc@@GLIBC_2.2.5\n00000000000a6fd0 T __libc_malloc@@GLIBC_2.2.5\n"
+    }
+   ]
+  }
+ }
+}

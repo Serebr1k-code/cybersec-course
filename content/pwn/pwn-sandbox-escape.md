@@ -12,6 +12,17 @@ useful_for:
   - "Пентест — выход из контейнера"
 estimated_minutes: 60
 summary: "Виды песочниц, обход seccomp через ORW и user-notify, escape из nsjail/firejail и контейнеров (docker.sock, privileged, capabilities)."
+lab:
+  kind: shell
+  title: "Практика: разбор seccomp-фильтра"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, filter.bpf, seccomp.py]
+  check: "grep -q 'allowed=0,1,2,60' answer.txt"
+  hints:
+    - "`xxd filter.bpf` — записи по 8 байт (`struct sock_filter`)."
+    - "`python3 seccomp.py filter.bpf` декодирует фильтр."
+    - "Интерпретатор прогоняет номера syscall и печатает разрешённые."
 ---
 
 ## Вопрос, с которого всё начинается

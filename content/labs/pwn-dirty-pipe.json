@@ -1,0 +1,31 @@
+{
+ "id": "pwn-dirty-pipe",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "flags_off=0x18"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: смещение поля flags в pipe_buffer\n\nCVE-2022-0847 («Dirty Pipe») эксплуатирует неинициализированное поле\n`pipe_buffer.flags`: если там остаётся `PIPE_BUF_FLAG_CAN_MERGE`, запись в\nканал «прилипает» к странице файла и перезаписывает её в page cache.\n\nВ каталоге: `pipe_buffer.bin` — дамп структуры, `exploit.c` — фрагмент эксплойта.\n\n1. `xxd pipe_buffer.bin` — сопоставь байты со структурой из `exploit.c`.\n2. Определи **смещение** поля `flags` в структуре (где лежит `0x10`).\n\nЗапиши в `answer.txt` строку `flags_off=0x...` и набери `check`.\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/pipe_buffer.bin",
+   "b64": "AKDCA4CI//8AAAAAABAAAMCh5IH/////EAAAAAAAAAAAAAAAAAAAAA==",
+   "mode": "755"
+  },
+  {
+   "path": "/home/student/task/exploit.c",
+   "text": "/* CVE-2022-0847 \"Dirty Pipe\" — key primitive (kernel 5.8 .. 5.16.11)\n * An uninitialized pipe_buffer.flags lets a reader splice() pages and then\n * write past a file's end into the page cache. The field that must NOT carry\n * PIPE_BUF_FLAG_CAN_MERGE is reset by the fix. */\n#define PIPE_BUF_FLAG_CAN_MERGE 0x10\nstruct pipe_buffer {\n    struct page *page;              /* +0x00 */\n    unsigned int offset, len;       /* +0x08, +0x0c */\n    const struct pipe_buf_operations *ops; /* +0x10 */\n    unsigned int flags;             /* <-- which offset? */\n    unsigned long private;          /* +0x20 */\n};\n",
+   "mode": "644"
+  }
+ ],
+ "tools": {}
+}

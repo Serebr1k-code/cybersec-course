@@ -12,6 +12,17 @@ useful_for:
   - "Пентест — локальное повышение привилегий"
 estimated_minutes: 55
 summary: "Разбор CVE-2022-0847: неинициализированные флаги pipe_buffer позволяют писать в page cache read-only файлов; полный PoC и условия применимости."
+lab:
+  kind: shell
+  title: "Практика: смещение flags в pipe_buffer"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, pipe_buffer.bin, exploit.c]
+  check: "grep -q 'flags_off=0x18' answer.txt"
+  hints:
+    - "`cat exploit.c` — там описан layout `pipe_buffer`."
+    - "`xxd pipe_buffer.bin` — сопоставь байты с полями."
+    - "Флаг `PIPE_BUF_FLAG_CAN_MERGE` = 0x10; найди его смещение (0x18)."
 ---
 
 ## Вопрос, с которого всё начинается

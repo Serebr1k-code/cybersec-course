@@ -12,6 +12,17 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 50
 summary: "Чем calloc отличается от malloc, почему он не берёт чанки из tcache и как это ломает (или помогает) эксплойту."
+lab:
+  kind: shell
+  title: "Практика: адрес __libc_calloc"
+  toolset: [core, nm]
+  workdir: /home/student/task
+  files: [task.md, libc.syms]
+  check: "grep -q 'calloc=0xa7d70' answer.txt"
+  hints:
+    - "`nm -D libc.syms`."
+    - "Ищи `__libc_calloc` (и `__libc_malloc` рядом)."
+    - "Первый столбец — смещение от базы libc."
 ---
 ## Вопрос, с которого всё начинается
 
