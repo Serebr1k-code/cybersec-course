@@ -13,6 +13,17 @@ useful_for:
   - "Собрать базовый инструментарий"
 estimated_minutes: 14
 summary: "Что такое misc-категория на CTF, из чего она состоит и как системно подходить к задачам, которые не влезают в стандартные категории. Универсальный чек-лист разбора артефакта и стартовый набор инструментов."
+lab:
+  kind: shell
+  title: 'Практика: разбор файла mystery'
+  toolset: [core, base64, file, hex]
+  workdir: /home/student/task
+  files: [task.md, mystery]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Начни с `ls -la` и `file mystery` — определи реальный тип по магическим байтам.'
+    - '`cat mystery` покажет строку из A–Z a–z 0–9 с `=` в конце — это Base64.'
+    - 'Декодируй: `base64 -d mystery` и запиши флаг в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

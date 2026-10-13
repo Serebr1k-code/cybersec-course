@@ -13,6 +13,17 @@ useful_for:
   - "Понимание самомодифицирующегося кода"
 estimated_minutes: 45
 summary: "Malbolge: как устроена его самошифрующаяся память, таблица из восьми инструкций, чем отличается Malbolge Unshackled и как запускать/разбирать программы в CTF."
+lab:
+  kind: shell
+  title: 'Практика: Malbolge'
+  toolset: [core, malbolge, xxd]
+  workdir: /home/student/task
+  files: [task.md, hello.mal, flag.mal]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`hello.mal` — сплошная строка из «злых» символов без пробелов. Это Malbolge.'
+    - 'Запусти `malbolge hello.mal` — увидишь «Hello World!» и поймёшь, что интерпретатор работает.'
+    - 'Настоящая задача в `flag.mal`: `malbolge flag.mal` напечатает флаг. Запиши его в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается
