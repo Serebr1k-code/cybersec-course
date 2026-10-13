@@ -12,6 +12,19 @@ useful_for:
   - "Research: сокрытие в типографике документов"
 estimated_minutes: 28
 summary: "Сокрытие в шрифтах и типографике: контуры глифов, кернинг и трекинг, неиспользуемые таблицы OpenType, порядок глифов, водяные знаки в вёрстке; разбор через fontTools и визуальный анализ."
+
+lab:
+  kind: shell
+  title: "Практика: данные в таблицах шрифта"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, font.ttf, name.py, glyf.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Шрифт — это контейнер таблиц. Начни с `python3 name.py`."
+    - "Таблица `name` хранит copyright, версию, описание — там легко спрятать строку."
+    - "Проверь и контуры глифов: `python3 glyf.py`."
+    - "Сохрани: `python3 name.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

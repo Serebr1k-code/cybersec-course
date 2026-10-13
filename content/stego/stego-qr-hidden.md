@@ -12,6 +12,19 @@ useful_for:
   - "Понимание ECC как места для сокрытия"
 estimated_minutes: 36
 summary: "Сокрытие в QR-кодах: кодирование в масках и формате, использование резервных/ECC-байтов Reed-Solomon, версии и режимы, порядок модулей; разбор через zbar, qrtools и ручной парсинг."
+
+lab:
+  kind: shell
+  title: "Практика: второй слой в QR-коде (LSB)"
+  toolset: [core, python, image]
+  workdir: /home/student/task
+  files: [task.md, qr.png, lsb.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Первый слой читается штатно: `zbarimg -q qr.png`."
+    - "QR — это картинка, значит к ней применим LSB."
+    - "Извлеки младшие биты: `python3 lsb.py`."
+    - "Сохрани: `python3 lsb.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

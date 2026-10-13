@@ -13,6 +13,19 @@ useful_for:
   - "Форензика медиаконтента"
 estimated_minutes: 55
 summary: "Цифровые водяные знаки: устойчивые и хрупкие, встраивание в LSB/DCT/DWT/DFT, fingerprinting и методы обнаружения и извлечения."
+
+lab:
+  kind: shell
+  title: "Практика: устойчивый и хрупкий водяной знак"
+  toolset: [core, python, hex]
+  workdir: /home/student/task
+  files: [task.md, marked.jpg, wm.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Метка в метаданных — быстрый путь: `exiftool marked.jpg` (это только id)."
+    - "Настоящий флаг — в хрупком маркере (JPEG COM), который теряется при пересжатии."
+    - "Извлеки маркер: `python3 wm.py` (или `strings marked.jpg`)."
+    - "Сохрани: `python3 wm.py | grep nto > found.txt`."
 ---
 
 

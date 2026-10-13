@@ -13,6 +13,19 @@ useful_for:
   - "Онлайн-анализ без установки"
 estimated_minutes: 40
 summary: "Методология визуального стего-анализа: StegSolve (каналы, bit-planes, frame browser), AperiSolve и StegOnline — что смотреть, в каком порядке и как интерпретировать."
+
+lab:
+  kind: shell
+  title: "Практика: битовые плоскости вручную (StegSolve)"
+  toolset: [core, python, image]
+  workdir: /home/student/task
+  files: [task.md, hidden.png, planes.py, lsb.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Авто-инструмент слеп: `zsteg -a hidden.png` ничего не находит."
+    - "Разложи изображение на битовые плоскости: `python3 planes.py`."
+    - "Данные лежат только в красном канале, только в бите 0."
+    - "Сохрани: `python3 lsb.py | grep nto > found.txt`."
 ---
 
 

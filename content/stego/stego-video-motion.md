@@ -12,6 +12,19 @@ useful_for:
   - "Исследования: стеганография в видеокодеках"
 estimated_minutes: 34
 summary: "Сокрытие в компрессионных параметрах видео: векторы движения, режимы межкадрового предсказания, коэффициенты DCT/DST, выбор режима intra; как извлекать и почему это устойчивее покадрового LSB."
+
+lab:
+  kind: shell
+  title: "Практика: данные в параметрах видеокодека"
+  toolset: [core, python, hex]
+  workdir: /home/student/task
+  files: [task.md, video.mp4, boxes.py, mv.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Разбери контейнер: `ffprobe -v error -show_streams video.mp4`."
+    - "Найди лишний/добавленный бокс: `python3 boxes.py`."
+    - "Извлеки его содержимое: `python3 mv.py` (или `strings video.mp4`)."
+    - "Сохрани: `python3 mv.py | grep nto > found.txt`."
 ---
 
 

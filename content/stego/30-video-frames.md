@@ -13,6 +13,19 @@ useful_for:
   - "Forensics: скрытые данные в видео"
 estimated_minutes: 40
 summary: "Как прячут данные в видео: покадровые различия, скрытые кадры, DCT-манипуляции (как в JPEG), аудиодорожка и контейнерные метаданные; практическое извлечение."
+
+lab:
+  kind: shell
+  title: "Практика: поиск «выбивающегося» кадра в видео"
+  toolset: [core, python, image]
+  workdir: /home/student/task
+  files: [task.md, clip.mp4, frame.py, frames/00217.png]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Разбери контейнер: `ffprobe -v error -show_streams clip.mp4` (30 кадров, аудио нет)."
+    - "Найди отличающийся кадр: `python3 frame.py`."
+    - "Прочитай QR на нём: `zbarimg frames/00217.png`."
+    - "Сохрани: `zbarimg frames/00217.png | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

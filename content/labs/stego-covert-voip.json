@@ -1,0 +1,60 @@
+{
+  "id": "stego-covert-voip",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{rtp_ssrc_c0v3rt_ch4nn3l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\n`voip.pcap` — запись VoIP-разговора. Речь чистая, но данные спрятаны в служебных полях RTP. Собери флаг.\n"
+    },
+    {
+      "path": "/home/student/task/voip.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAA0VXOaleeAAA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABAEWa3CgAABQoAAAkTjBOMABRmD4AAAAEAAACgbnRve9FVzmq+nwAANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQBFmtwoAAAUKAAAJE4wTjAAUYIqAAAACAAABQHJ0cF/RVc5qg6AAADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEARZrcKAAAFCgAACROME4wAFFzmgAAAAwAAAeBzc3Jj0VXOaj2hAAA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABAEWa3CgAABQoAAAkTjBOMABSyQoAAAAQAAAKAX2MwdtFVzmr3oQAANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQBFmtwoAAAUKAAAJE4wTjAAUmamAAAAFAAADIDNydF/RVc5qvaIAADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEARZrcKAAAFCgAACROME4wAFKkDgAAABgAAA8BjaDRu0VXOapyjAAA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABAEWa3CgAABQoAAAkTjBOMABRliIAAAAcAAARgbjNsfQ==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/ssrc.py",
+      "text": "from scapy.all import rdpcap, Raw\nout = b\"\"\nfor p in rdpcap(\"voip.pcap\"):\n    if Raw in p:\n        out += bytes(p[Raw].load)[8:12]\nprint(out.decode(\"latin1\").rstrip(\"\\x00\"))\n"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark [-r pcap -z rtp,streams -q | -Y rtp -T fields -e rtp.ssrc]",
+      "cases": [
+        {
+          "match": "-z\\s+rtp,streams",
+          "example": "tshark -r voip.pcap -z rtp,streams -q",
+          "output": "Streams: 2\n  SSRC=0x666c6167  packets=1024\n  SSRC=0x7b727470  packets=990\n"
+        },
+        {
+          "match": "rtp\\.ssrc",
+          "example": "tshark -r voip.pcap -Y rtp -T fields -e rtp.ssrc",
+          "output": "0x6e746f7b\n0x7274705f\n0x73737263\n0x5f633076\n0x3372745f\n0x6368346e\n0x6e336c7d\n"
+        }
+      ]
+    },
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4\n"
+        },
+        {
+          "match": "ssrc\\.py",
+          "example": "python3 ssrc.py",
+          "output": "nto{rtp_ssrc_c0v3rt_ch4nn3l}\n"
+        }
+      ]
+    }
+  }
+}

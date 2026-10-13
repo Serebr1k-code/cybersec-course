@@ -12,6 +12,19 @@ useful_for:
   - "Forensics: анализ мультимедиа-контейнеров"
 estimated_minutes: 38
 summary: "Сокрытие в мультиплексированных контейнерах: скрытые и лишние дорожки, несоответствие длины A/V, метаданные глав, chapters, вложения и cover selection; разбор через ffprobe, mkvmerge, binwalk."
+
+lab:
+  kind: shell
+  title: "Практика: скрытая дорожка в мультиплексоре MP4"
+  toolset: [core, python, hex]
+  workdir: /home/student/task
+  files: [task.md, container.mp4, tracks.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Смотри потоки: `ffprobe -v error -show_streams container.mp4`."
+    - "Их три: видео, аудио и лишняя дорожка (subtitle)."
+    - "Извлеки её: `python3 tracks.py`."
+    - "Сохрани: `python3 tracks.py | grep nto > found.txt`."
 ---
 
 

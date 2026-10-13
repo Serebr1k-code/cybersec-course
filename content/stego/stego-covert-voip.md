@@ -12,6 +12,19 @@ useful_for:
   - "IR: детект эксфильтрации через VoIP"
 estimated_minutes: 30
 summary: "Скрытые каналы в VoIP: модификация RTP-заголовка и полей LACK, использование джиттера и пауз, сокрытие в кодеке и таймингах; разбор через tshark и scapy, методы детекта."
+
+lab:
+  kind: shell
+  title: "Практика: скрытый канал в SSRC RTP"
+  toolset: [core, python, hex]
+  workdir: /home/student/task
+  files: [task.md, voip.pcap, ssrc.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Обзор потоков: `tshark -r voip.pcap -z rtp,streams -q`."
+    - "Значения SSRC выглядят как ASCII — это сигнал."
+    - "Собери SSRC-байты: `python3 ssrc.py`."
+    - "Сохрани: `python3 ssrc.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

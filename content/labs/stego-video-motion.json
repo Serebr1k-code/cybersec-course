@@ -1,0 +1,64 @@
+{
+  "id": "stego-video-motion",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m0t10n_v3ct0r_c0d3c}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\n`video.mp4` — короткое H.264-видео. Пиксельный LSB не даёт ничего, но флаг «внутри видеокодека». Достань его.\n"
+    },
+    {
+      "path": "/home/student/task/video.mp4",
+      "b64": "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",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/boxes.py",
+      "text": "import struct\ndata = open(\"video.mp4\", \"rb\").read()\noff = 0\nwhile off + 8 <= len(data):\n    size, typ = struct.unpack(\">I4s\", data[off:off+8])\n    if size < 8: break\n    print(\"%-6s size=%d\" % (typ.decode(\"latin1\"), size))\n    off += size\nprint(\"hint: inspect the appended box\")\n"
+    },
+    {
+      "path": "/home/student/task/mv.py",
+      "text": "import struct\ndata = open(\"video.mp4\", \"rb\").read()\noff = 0\nwhile off + 8 <= len(data):\n    size, typ = struct.unpack(\">I4s\", data[off:off+8])\n    if size < 8: break\n    if typ == b\"free\":\n        print(data[off+8:off+size].decode())\n    off += size\n"
+    }
+  ],
+  "tools": {
+    "ffprobe": {
+      "help": "ffprobe [-show_streams] <файл> — параметры потоков",
+      "cases": [
+        {
+          "match": "video\\.mp4",
+          "example": "ffprobe -v error -show_streams video.mp4",
+          "output": "[STREAM]\nindex=0\ncodec_name=h264\nwidth=96\nheight=64\nnb_frames=3\npict_type=I\npict_type=P\npict_type=B\n[/STREAM]\n"
+        }
+      ]
+    },
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4\n"
+        },
+        {
+          "match": "boxes\\.py",
+          "example": "python3 boxes.py",
+          "output": "ftyp size=24\nmoov size=...\nfree size=32  <- appended after moov\nhint: inspect the appended box\n"
+        },
+        {
+          "match": "mv\\.py",
+          "example": "python3 mv.py",
+          "output": "nto{m0t10n_v3ct0r_c0d3c}\n"
+        }
+      ]
+    }
+  }
+}

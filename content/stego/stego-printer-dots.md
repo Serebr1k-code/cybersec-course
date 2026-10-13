@@ -12,6 +12,19 @@ useful_for:
   - "CTF Stego: скрытый код на печатном листе"
 estimated_minutes: 26
 summary: "Machine Identification Code: как цветные лазерные принтеры печатают жёлтые точки с серийным номером и датой, как их извлечь из скана и декодировать, и почему это важно в forensics."
+
+lab:
+  kind: shell
+  title: "Практика: декодировать жёлтые точки принтера (MIC)"
+  toolset: [core, python, image]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, scan.tiff, yellow.py, decode.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с `ls -la` и `identify scan.tiff`."
+    - "Жёлтые точки видны только в жёлтом канале: `python3 yellow.py`."
+    - "Декодируй решётку точек: `python3 decode.py`."
+    - "Сохрани флаг: `python3 decode.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

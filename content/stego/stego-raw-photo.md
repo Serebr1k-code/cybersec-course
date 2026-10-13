@@ -13,6 +13,19 @@ useful_for:
   - "Анализ DNG и сенсорных данных"
 estimated_minutes: 55
 summary: "RAW-форматы (CR2/NEF/DNG) — это TIFF-контейнеры: разбираем встроенные JPEG-превью, MakerNote, сенсорные данные и приёмы извлечения скрытых сообщений."
+
+lab:
+  kind: shell
+  title: "Практика: скрытые данные в RAW-фото (NEF)"
+  toolset: [core, python, hex]
+  workdir: /home/student/task
+  files: [task.md, holiday.nef, info.py, extract.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи контейнер: `python3 info.py` (это TIFF-контейнер, big-endian)."
+    - "Посмотри теги: `exiftool -a -u -g1 holiday.nef` — есть MakerNoteNikon."
+    - "Извлеки MakerNote: `exiftool -b -MakerNoteNikon holiday.nef | strings`."
+    - "Или сразу: `python3 extract.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

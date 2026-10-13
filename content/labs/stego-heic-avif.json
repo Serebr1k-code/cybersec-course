@@ -1,0 +1,60 @@
+{
+  "id": "stego-heic-avif",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h31c_1sobmmff_b0x3s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\n`IMG_0001.heic` — «фото с телефона» в формате HEIF. Обычные инструменты не понимают формат. Разбери ISOBMFF-боксы и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/IMG_0001.heic",
+      "b64": "AAAAGGZ0eXBoZWljAAAAAG1pZjFoZWljAAAAQW1ldGEAAAAMaWluZgAAAAEAAAAtaWRhdE5pa29uTWFrZXIAAG50b3toMzFjXzFzb2JtbWZmX2IweDNzfQAAAABNbWRhdE5pa29uTWFrZXIAAG50b3toMzFjXzFzb2JtbWZmX2IweDNzfQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/boxes.py",
+      "text": "import struct\ndata = open(\"IMG_0001.heic\", \"rb\").read()\noff = 0\nwhile off + 8 <= len(data):\n    size, typ = struct.unpack(\">I4s\", data[off:off+8])\n    if size < 8: break\n    print(\"%-6s size=%d\" % (typ.decode(\"latin1\"), size))\n    off += size\nprint(\"hint: the flag hides inside an item payload (mdat/meta)\")\n"
+    }
+  ],
+  "tools": {
+    "exiftool": {
+      "help": "exiftool [-a -u -g1 | -b -TAG] <файл> — метаданные",
+      "cases": [
+        {
+          "match": "-a\\s+-u\\s+-g1|MakerNoteUnknown.*-a",
+          "example": "exiftool -a -u -g1 IMG_0001.heic",
+          "output": "[ExifTool]      ExifToolVersion : 12.60\n[File]          FileType        : HEIC\n[QuickTime]     MajorBrand      : HEIF Image HEVC Main or Main Still Picture Profile\n[ExifIFD]       MakerNoteUnknown : (Binary data 37 bytes, use -b option to extract)\n"
+        },
+        {
+          "match": "-b\\s+-MakerNoteUnknown",
+          "example": "exiftool -b -MakerNoteUnknown IMG_0001.heic",
+          "output": "NikonMaker\u0000\u0000nto{h31c_1sobmmff_b0x3s}\u0000"
+        }
+      ]
+    },
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4\n"
+        },
+        {
+          "match": "boxes\\.py",
+          "example": "python3 boxes.py",
+          "output": "ftyp   size=24\nmeta   size=65\nmdat   size=77\nhint: the flag hides inside an item payload (mdat/meta)\n"
+        }
+      ]
+    }
+  }
+}

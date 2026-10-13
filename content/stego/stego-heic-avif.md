@@ -13,6 +13,19 @@ useful_for:
   - "Форензика мобильных фото"
 estimated_minutes: 55
 summary: "HEIF и AVIF основаны на ISOBMFF: разбираем боксы ftyp/meta/mdat/iloc, встроенные тайлы и превью, EXIF/XMP в item-таблицах и практические приёмы извлечения."
+
+lab:
+  kind: shell
+  title: "Практика: разбор боксов HEIF/AVIF и MakerNote"
+  toolset: [core, python, hex]
+  workdir: /home/student/task
+  files: [task.md, IMG_0001.heic, boxes.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Карта боксов: `python3 boxes.py`."
+    - "Метаданные и неизвестные items: `exiftool -a -u -g1 IMG_0001.heic`."
+    - "Извлеки MakerNote: `exiftool -b -MakerNoteUnknown IMG_0001.heic | strings`."
+    - "Или сразу: `strings IMG_0001.heic | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

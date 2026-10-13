@@ -13,6 +13,19 @@ useful_for:
   - "Понимание алгоритмов jsteg/steghide"
 estimated_minutes: 50
 summary: "jsteg, cloakify/camouflage и StegHide со всеми флагами: как встраивать и извлекать данные, где искать пароли и как диагностировать типовые ошибки."
+
+lab:
+  kind: shell
+  title: "Практика: steghide/jsteg — правильный инструмент под формат"
+  toolset: [core, python, hex]
+  workdir: /home/student/task
+  files: [task.md, cat.jpg, extract.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`file cat.jpg` — это JPEG, значит `zsteg` (для PNG) не подойдёт."
+    - "Проверь наличие встроенных данных: `steghide info cat.jpg`."
+    - "Извлеки скрытый слой: `python3 extract.py` (или `strings cat.jpg`)."
+    - "Сохрани: `python3 extract.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

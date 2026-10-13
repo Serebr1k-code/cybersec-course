@@ -1,0 +1,55 @@
+{
+  "id": "stego-qr-hidden",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{qr_lsb_l4y3r_2nd_ch4nn3l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\n`qr.png` — обычный QR-код со ссылкой. Но в нём спрятан второй слой. Достань флаг и сохрани в found.txt.\n"
+    },
+    {
+      "path": "/home/student/task/qr.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAcIAAAHCCAIAAADzel4SAAAKAElEQVR4nO3dy24jyRFAUdGY//9ky4vBGLLYXdPwneyIIs9Z9UMii0XyIjeBePz78/Px8fHx8fH58fHnH/7888f//vXx1z/+99+//vzFX58f9uOvR3t+us8f/e/PHvDb9Xy77B/+2P/3+N8e8/l5f/gSfnY9v/56nx/nbx/w+Yd/5fU+v8bnF/v8Mxefh+vrfL7U5+d9/uFvV/7twr5dIfxOj8/Pn30gAfh7/5q+AIB7k1GAREYBEhkFSGQUIJFRgERGARIZBUhkFCCRUYBERgESGQVIZBQgkVGAREYBEhkFSGQUIJFRgERGARIZBUhkFCCRUYBERgESGQVIZBQgkVGAREYBEhkFSGQUIJFRgERGARIZBUhkFCCRUYBERgESGQVIZBQgkVGA5I+pJ348HlNPfcjn5+fF/557vdfPe055ReVenbvPd7yq4t2+g+c4jQIkMgqQyChAIqMAiYwCJDIKkMgoQCKjAImMAiRjU0zXpqYRru2ckCle73nLfT43p/R6d3LKzskrp1GAREYBEhkFSGQUIJFRgERGARIZBUhkFCCRUYBk6RTTtTvuNSrXvHOTT7HzPpdHLq9oagKquON38BynUYBERgESGQVIZBQgkVGAREYBEhkFSGQUIJFRgOSWU0x3NDXlMrW75txVTU25TD3vzu1DfOU0CpDIKEAiowCJjAIkMgqQyChAIqMAiYwCJDIKkJhi+k3Oze3cccbp2s7XO7Ux6Y67id6N0yhAIqMAiYwCJDIKkMgoQCKjAImMAiQyCpDIKEByyymmO8512E204XeLc7NVU3u6ijt+B89xGgVIZBQgkVGAREYBEhkFSGQUIJFRgERGARIZBUiWTjHt3BFUnNsg5Hd/z++eMzWJdO31voPnOI0CJDIKkMgoQCKjAImMAiQyCpDIKEAiowCJjAIkY1NMdrn8uneb+fHZ+Mp93s9pFCCRUYBERgESGQVIZBQgkVGAREYBEhkFSGQUIHmYZPiqTIycu5PndvW83uvduddop53zb3d8f51GARIZBUhkFCCRUYBERgESGQVIZBQgkVGAREYBkrFdTDvnZ84977mNOjude73lkd9t9mbqU7dz1ugcp1GAREYBEhkFSGQUIJFRgERGARIZBUhkFCCRUYBkbBfTufmK15s1mpqQ2Tm3c8cJmZ0ze+euaue3+xynUYBERgESGQVIZBQgkVGAREYBEhkFSGQUIJFRgGRsF9O1nbMK5yY3dm7yeb35mTv+7tQE1B03nk1xGgVIZBQgkVGAREYBEhkFSGQUIJFRgERGARIZBUjGppjuuCPo3IaZnfuFpjbqlKmeqcmrqXmhqe1hO7eWTXEaBUhkFCCRUYBERgESGQVIZBQgkVGAREYBEhkFSJbuYpqyc8apKK9o50TQzvt8zeTVV3d8B685jQIkMgqQyChAIqMAiYwCJDIKkMgoQCKjAImMAiRjU0xTkwzntgCde95rU5upru3cLlWcm/k5N2m28/N87rsw9blyGgVIZBQgkVGAREYBEhkFSGQUIJFRgERGARIZBUiW7mKamvm5tnP6Yucmn5336tzs3NS9Ovfu7/wO7uQ0CpDIKEAiowCJjAIkMgqQyChAIqMAiYwCJDIKkDx2bsWZ2i90x/mKqSmmKTvno+5o57ds50zXNadRgERGARIZBUhkFCCRUYBERgESGQVIZBQgkVGAZOkupuKO22nK8xbnZkJ2TptMTchMTdZN7YC643ehcBoFSGQUIJFRgERGARIZBUhkFCCRUYBERgESGQVIxnYx7ZxyubZzFmVq9uacO05tnTN1zTs/sTvfQadRgERGARIZBUhkFCCRUYBERgESGQVIZBQgkVGAZOkupqldLq83X7Hzqt5tk8/Od+Gc1/seXXMaBUhkFCCRUYBERgESGQVIZBQgkVGAREYBEhkFSMZ2MV2b2nr0eqamtq7tvKprth79unebFXQaBUhkFCCRUYBERgESGQVIZBQgkVGAREYBEhkFSG45xXTt9fbtTD3yOe/2qdt5n3duPDv3vOc4jQIkMgqQyChAIqMAiYwCJDIKkMgoQCKjAImMAiR/TD3xzk0v185NX+zcMHPuXt1xX9bOyas7bi7a+R0snEYBEhkFSGQUIJFRgERGARIZBUhkFCCRUYBERgGSsSmmc87NZkxtmHm9nTnXzl3Vuc/Gzj1OOzeAlefdyWkUIJFRgERGARIZBUhkFCCRUYBERgESGQVIZBQgGZti2rnZ5tq5uQ4bdf4p5+7kzpmuKXe8k+c4jQIkMgqQyChAIqMAiYwCJDIKkMgoQCKjAImMAiSPqRmJnXMs5ZGv3XGzzc45pWLnRNCUqe/gtZ27tq45jQIkMgqQyChAIqMAiYwCJDIKkMgoQCKjAImMAiRju5iu7Zw2ueN8RbFz+9C5LUBT8287p4l2XvPO6TinUYBERgESGQVIZBQgkVGAREYBEhkFSGQUIJFRgGTpFFOxc75i56TK1COfu1c7J6/O/W65k+cmvq7tnEQqnEYBEhkFSGQUIJFRgERGARIZBUhkFCCRUYBERgGSW04x3XEbzzl33BFU7Jyf2Xmvrp2bFrt+j3a+g4XTKEAiowCJjAIkMgqQyChAIqMAiYwCJDIKkMgoQPI4t2+Hr15vs825CaipRz5n53tU3PFdOMdpFCCRUYBERgESGQVIZBQgkVGAREYBEhkFSGQUIBnbxbRzp0oxtX/m3O6pa+ceuXi3+1xMvYM773PhNAqQyChAIqMAiYwCJDIKkMgoQCKjAImMAiQyCpCMTTFd27mtpcyTTO0mOncnz21MKnbO/JTffb3NVDu/3YXTKEAiowCJjAIkMgqQyChAIqMAiYwCJDIKkMgoQLJ0iunauUmVnTM/O3fmXNs54zRl6m5M3eepma4pTqMAiYwCJDIKkMgoQCKjAImMAiQyCpDIKEAiowDJLaeYXs/rTblMTV5de72NWNfOXfPOz+TUfXYaBUhkFCCRUYBERgESGQVIZBQgkVGAREYBEhkFSEwxvbh323o0NZlT5memZo3O3Y1zM107P89OowCJjAIkMgqQyChAIqMAiYwCJDIKkMgoQCKjAMktp5imNq5MueMWoOur2rkFqLjjrNG1O74LU5xGARIZBUhkFCCRUYBERgESGQVIZBQgkVGAREYBkqVTTO82I1HmWM5tttk5ATX1enfOGk15t9d7zWkUIJFRgERGARIZBUhkFCCRUYBERgESGQVIZBQgebzbXiOAf5bTKEAiowCJjAIkMgqQyChAIqMAiYwCJDIKkMgoQCKjAImMAiQyCpDIKEAiowCJjAIkMgqQyChAIqMAiYwCJDIKkMgoQCKjAImMAiQyCpDIKEAiowCJjAIkMgqQyChAIqMAiYwCJDIKkMgoQCKjAImMAiQyCpDIKEAiowCJjAIk/wE5J/qxyR8yxQAAAABJRU5ErkJggg==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/lsb.py",
+      "text": "import numpy as np\nfrom PIL import Image\na = np.array(Image.open(\"qr.png\").convert(\"RGB\")).reshape(-1, 3)\ndata = np.packbits(a[:, 0] & 1).tobytes()\ni = data.find(b\"nto{\")\nprint(data[i:i+40].split(b\"\\x00\")[0].decode())\n"
+    }
+  ],
+  "tools": {
+    "zbarimg": {
+      "help": "zbarimg [-q] <изображение> — декодер QR/штрихкодов",
+      "cases": [
+        {
+          "match": "qr\\.png",
+          "example": "zbarimg -q qr.png",
+          "output": "QR-Code:https://example.com\n"
+        }
+      ]
+    },
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4\n"
+        },
+        {
+          "match": "lsb\\.py",
+          "example": "python3 lsb.py",
+          "output": "nto{qr_lsb_l4y3r_2nd_ch4nn3l}\n"
+        }
+      ]
+    }
+  }
+}

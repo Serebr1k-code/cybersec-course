@@ -12,6 +12,19 @@ useful_for:
   - "Понимание водяных знаков и fingerprinting текста"
 estimated_minutes: 36
 summary: "Сокрытие в типографике: кернинг и трекинг как канал, лигатуры и альтернативные глифы, вариативные шрифты (variable fonts), OpenType-фичи, разбор через fontTools и сравнение вёрсток."
+
+lab:
+  kind: shell
+  title: "Практика: кернинг как канал в PDF"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, doc_v1.pdf, doc_v2.pdf, kern.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сравни два PDF: текст одинаковый, различие — в расстояниях между буквами."
+    - "Различие кодируется оператором `Tc` (character spacing) в потоке содержимого."
+    - "Запусти готовый разбор: `python3 kern.py`."
+    - "Сохрани: `python3 kern.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается
