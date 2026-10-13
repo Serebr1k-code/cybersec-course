@@ -1,0 +1,50 @@
+{
+  "id": "osint-cdn-origin",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "203.0.113.10"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти origin за CDN\n\nДомен `api.example.com` отвечает, но за ним стоит Cloudflare (WAF + CDN),\nкоторый прячет настоящий сервер (**origin**).\n\n1. DNS-дамп `dns.pcap` показывает, куда резолвится `api.example.com`:\n   `tshark -r dns.pcap -Y dns -T fields -e ip.src -e ip.dst -e dns.qry.name -e dns.a`\n   Адрес `104.16.x.x` — это Cloudflare, не origin.\n2. Заголовки ответа подтверждают CDN: `curl -sI https://api.example.com`\n   (виден `server: cloudflare` и `cf-ray`).\n3. В том же DNS-дампе есть поддомен, который резолвится в **реальный** IP\n   приложения. Найди его и запиши этот IP в `answer.txt`, затем набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/dns.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AABlAAAAAPFTZQAAAAA9AAAAPQAAAEUAAD0AAQAAQBFmcgoAAAkKAAA1nEAANQApC7EAAAEAAAEAAAAAAAADYXBpB2V4YW1wbGUDY29tAAABAAEB8VNl6AMAAFwAAABcAAAARQAAXAABAABAEWZTCgAANQoAAAkANZxAAEhmCQAAgQAAAQABAAAAAANhcGkHZXhhbXBsZQNjb20AAAEAAQNhcGkHZXhhbXBsZQNjb20AAAEAAQAAASwABGgQhOUC8VNl0AcAAEQAAABEAAAARQAARAABAABAEWZrCgAACQoAADWcQQA1ADDIVAAAAQAAAQAAAAAAAAZvcmlnaW4DYXBpB2V4YW1wbGUDY29tAAABAAED8VNluAsAAGoAAABqAAAARQAAagABAABAEWZFCgAANQoAAAkANZxBAFaFRwAAgQAAAQABAAAAAAZvcmlnaW4DYXBpB2V4YW1wbGUDY29tAAABAAEGb3JpZ2luA2FwaQdleGFtcGxlA2NvbQAAAQABAAABLAAEywBxCg=="
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark [опции] -r <pcap> [-Y фильтр] [-T fields -e поле]",
+      "cases": [
+        {
+          "match": "dns",
+          "example": "-Y dns -T fields -e ip.src -e ip.dst -e dns.qry.name -e dns.a",
+          "output": "10.0.0.9\t10.0.0.53\tapi.example.com\t\n10.0.0.53\t10.0.0.9\tapi.example.com\t104.16.132.229\n10.0.0.9\t10.0.0.53\torigin.api.example.com\t\n10.0.0.53\t10.0.0.9\torigin.api.example.com\t203.0.113.10\n"
+        },
+        {
+          "match": "dns\\.pcap",
+          "example": "",
+          "output": "10.0.0.9\t10.0.0.53\tapi.example.com\t\n10.0.0.53\t10.0.0.9\tapi.example.com\t104.16.132.229\n10.0.0.9\t10.0.0.53\torigin.api.example.com\t\n10.0.0.53\t10.0.0.9\torigin.api.example.com\t203.0.113.10\n"
+        }
+      ]
+    },
+    "curl": {
+      "help": "curl [-sI] <url> — выполнить HTTP-запрос",
+      "cases": [
+        {
+          "match": "api\\.example\\.com",
+          "example": "https://api.example.com",
+          "output": "HTTP/1.0 200 OK\nServer: cloudflare\nDate: Tue, 13 Oct 2026 09:59:19 GMT\nContent-Type: text/html; charset=utf-8\ncf-ray: 8f3a2b1c9d7e-LHR\n\n"
+        }
+      ]
+    }
+  }
+}

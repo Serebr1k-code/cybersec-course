@@ -13,6 +13,17 @@ useful_for:
   - "Работа (SOC): детект ICMP-аномалий"
 estimated_minutes: 55
 summary: "Все значимые типы ICMP, ICMP redirect и его опасность, TTL как инструмент traceroute, ICMP-сканирование хостов и портов, timestamp и unreachable — с командами и разбором."
+lab:
+  kind: shell
+  title: "Практика: типы ICMP"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, icmp.pcap]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Типы ICMP: `tshark -r icmp.pcap -Y icmp -T fields -e icmp.type`."
+    - "8 — echo request, 0 — echo reply, 11 — time exceeded, 3 — destination unreachable."
+    - "Ошибка доставки — это Destination Unreachable, тип 3."
 ---
 
 ## Вопрос, с которого всё начинается

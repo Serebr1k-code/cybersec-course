@@ -13,6 +13,17 @@ useful_for:
   - "Картирование поверхности атаки"
 estimated_minutes: 40
 summary: "Стандартные файлы сайта как источник структуры: robots.txt, sitemap.xml, security.txt, .well-known, ads.txt и другие — что искать и как читать."
+lab:
+  kind: shell
+  title: "Практика: служебные файлы сайта"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Начни с robots.txt: `curl -s https://app.example.com/robots.txt`."
+    - "Директивы Disallow перечисляют то, что владелец не хочет индексировать."
+    - "Путь вида /api/... намекает на внутренний API."
 ---
 
 ## Вопрос, с которого всё начинается

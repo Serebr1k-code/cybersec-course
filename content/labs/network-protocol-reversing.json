@@ -1,0 +1,40 @@
+{
+  "id": "network-protocol-reversing",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "XPRT"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: реверс собственного протокола\n\nДан `custom.pcap` — обмен по TCP-порту 9000 неизвестным протоколом.\nКаждое сообщение начинается с 4 магических байт, затем версия, команда и длина.\n\n1. Прочитай TCP-сессию целиком в ASCII:\n   `tshark -r custom.pcap -z follow,tcp,ascii,0`\n2. Найди **4 магических байта**, с которых начинается каждое сообщение.\n3. Запиши эти 4 байта (как есть, латиницей) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/custom.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AABlAAAAAPFTZQAAAAA6AAAAOgAAAEUAADoAAQAAQAZmsAoAAAUKAAAJnEAjKAAAAAEAAAABUBggAHN9AABYUFJUAQADSEVMTE86YWRtaW4B8VNl6AMAADcAAAA3AAAARQAANwABAABABmazCgAACQoAAAUjKJxAAAAAAQAAABRQGCAAhjYAAFhQUlQBAAJPSzphZG1pbg=="
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark [опции] -r <pcap> [-Y фильтр] [-T fields -e поле]",
+      "cases": [
+        {
+          "match": "follow",
+          "example": "-z follow,tcp,ascii,0",
+          "output": "    1   0.000000     10.0.0.5 → 10.0.0.9     TCP 58 40000 → 9000 [PSH, ACK] Seq=1 Ack=1 Win=8192 Len=18\n    2   1.001000     10.0.0.9 → 10.0.0.5     TCP 55 [TCP ACKed unseen segment] 9000 → 40000 [PSH, ACK] Seq=1 Ack=20 Win=8192 Len=15\n\n===================================================================\nFollow: tcp,ascii\nFilter: tcp.stream eq 0\nNode 0: 10.0.0.5:40000\nNode 1: 10.0.0.9:9000\n18\nXPRT...HELLO:admin\n\t15\nXPRT...OK:admin\n===================================================================\n"
+        },
+        {
+          "match": "custom",
+          "example": "",
+          "output": "    1   0.000000     10.0.0.5 → 10.0.0.9     TCP 58 40000 → 9000 [PSH, ACK] Seq=1 Ack=1 Win=8192 Len=18\n    2   1.001000     10.0.0.9 → 10.0.0.5     TCP 55 [TCP ACKed unseen segment] 9000 → 40000 [PSH, ACK] Seq=1 Ack=20 Win=8192 Len=15\n\n===================================================================\nFollow: tcp,ascii\nFilter: tcp.stream eq 0\nNode 0: 10.0.0.5:40000\nNode 1: 10.0.0.9:9000\n18\nXPRT...HELLO:admin\n\t15\nXPRT...OK:admin\n===================================================================\n"
+        }
+      ]
+    }
+  }
+}

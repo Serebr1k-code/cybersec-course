@@ -13,6 +13,17 @@ useful_for:
   - "Работа (SOC): детект амплификации и спуфинга"
 estimated_minutes: 55
 summary: "Как устроен UDP, почему спуфинг источника тривиален, как работают амплификационные атаки (DNS/NTP/memcached), как правильно сканировать UDP-порты и детектировать аномалии."
+lab:
+  kind: shell
+  title: "Практика: DNS-амплификация"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, amp.pcap]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Обмен: `tshark -r amp.pcap -Y dns -T fields -e ip.src -e ip.dst -e udp.length -e dns.qry.name`."
+    - "Сравни udp.length запроса и ответа — это коэффициент усиления."
+    - "Запиши UDP-длину ответного пакета."
 ---
 
 ## Вопрос, с которого всё начинается

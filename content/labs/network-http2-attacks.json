@@ -1,0 +1,40 @@
+{
+  "id": "network-http2-attacks",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "3"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: HTTP/2 Rapid Reset\n\nДан `h2.pcap` — HTTP/2-сессия. В ней видна атака **Rapid Reset**: клиент шлёт\nзапрос (HEADERS), а сразу за ним отменяет поток (RST_STREAM), заставляя сервер\nтратить ресурсы впустую.\n\n1. Посмотри сводку кадров: `tshark -r h2.pcap`\n   В кадре 4 виден клиентский сегмент: Magic, SETTINGS, HEADERS, RST_STREAM, …\n2. Тип кадра **RST_STREAM** — 3. Посчитай, сколько кадров RST_STREAM в захвате:\n   `tshark -r h2.pcap -T fields -e http2.type`\n3. Запиши число кадров RST_STREAM в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/h2.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AABlAAAAAPFTZQAAAAAoAAAAKAAAAEUAACgAAQAAQAZmwgoAAAkKAAAFxzgBuwAAA+gAAAAAUAIgAK75AAAB8VNl6AMAACgAAAAoAAAARQAAKAABAABABmbCCgAABQoAAAkBu8c4AAATiAAAA+lQEiAAm2AAAALxU2XQBwAAKAAAACgAAABFAAAoAAEAAEAGZsIKAAAJCgAABcc4AbsAAAPpAAATiVAQIACbYQAAA/FTZbgLAACgAAAAoAAAAEUAAKAAAQAAQAZmSgoAAAkKAAAFxzgBuwAAA+kAABOJUBggAOgEAABQUkkgKiBIVFRQLzIuMA0KDQpTTQ0KDQoAAAYEAAAAAAAAAwAAAGQAAAUBBAAAAAGChoRBCAAABAMAAAAAAQAAAAAAAAUBBAAAAAOChoRBCAAABAMAAAAAAwAAAAAAAAUBBAAAAAWChoRBCAAABAMAAAAABQAAAAAE8VNloA8AADcAAAA3AAAARQAANwABAABABmazCgAABQoAAAkBu8c4AAATiQAABGFQGCAAEc4AAAAABgQAAAAAAAADAAAAgA=="
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark [опции] -r <pcap> [-Y фильтр] [-T fields -e поле]",
+      "cases": [
+        {
+          "match": "-e http2\\.type",
+          "example": "-T fields -e http2.type",
+          "output": "4,1,3,1,3,1,3\n"
+        },
+        {
+          "match": "h2\\.pcap",
+          "example": "",
+          "output": "    1   0.000000     10.0.0.9 → 10.0.0.5     TCP 40 51000 → 443 [SYN] Seq=0 Win=8192 Len=0\n    2   1.001000     10.0.0.5 → 10.0.0.9     TCP 40 443 → 51000 [SYN, ACK] Seq=0 Ack=1 Win=8192 Len=0\n    3   2.002000     10.0.0.9 → 10.0.0.5     TCP 40 51000 → 443 [ACK] Seq=1 Ack=1 Win=8192 Len=0\n    4   3.003000     10.0.0.9 → 10.0.0.5     HTTP2 160 Magic, SETTINGS[0], HEADERS[1]: GET /, RST_STREAM[1], HEADERS[3], RST_STREAM[3], HEADERS[5], RST_STREAM[5]\n    5   4.004000     10.0.0.5 → 10.0.0.9     SSL 55 Continuation Data\n"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "id": "network-ipsec-ike",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "client@corp.local"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор IKE-дамапа\n\nТебе дан `ike.pcap` — захват обмена IKE с периметровым VPN-шлюзом `10.0.0.1`.\n\n1. Посмотри, какие версии IKE и типы обмена (exchange type) есть в дампе:\n   `tshark -r ike.pcap -Y isakmp -T fields -e isakmp.version -e isakmp.exchangetype`\n2. Тип обмена **4** при версии **1** — это aggressive mode, в нём до шифрования\n   утекает идентификатор клиента.\n3. Достань идентификатор из aggressive-mode обмена:\n   `tshark -r ike.pcap -Y 'isakmp.exchangetype==4' -T fields -e isakmp.version -e isakmp.exchangetype -e isakmp.id.data.fqdn`\n4. Запиши утёкший идентификатор (FQDN) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/ike.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AABlAAAAAPFTZQAAAAA4AAAAOAAAAEUAADgAAQAAQBFmrwoAAAUKAAABAfQB9AAkoUgREREREREREQAAAAAAAAAAABACAAAAAAAAAAAcAfFTZegDAAA4AAAAOAAAAEUAADgAAQAAQBFmrwoAAAEKAAAFAfQB9AAkoUgREREREREREQAAAAAAAAAAABACAAAAAAAAAAAcAvFTZdAHAABRAAAAUQAAAEUAAFEAAQAAQBFmlgoAAAUKAAABAfQB9AA9eEAzMzMzMzMzMwAAAAAAAAAABRAEAAAAAAAAAAA1AAAAGQIAAABjbGllbnRAY29ycC5sb2NhbAPxU2W4CwAAOAAAADgAAABFAAA4AAEAAEARZq8KAAAFCgAAAQH0AfQAJLRrREREREREREQAAAAAAAAAAAAgIgAAAAAAAAAAHATxU2WgDwAAOAAAADgAAABFAAA4AAEAAEARZq8KAAABCgAABQH0AfQAJLRrREREREREREQAAAAAAAAAAAAgIgAAAAAAAAAAHAXxU2WIEwAAOAAAADgAAABFAAA4AAEAAEARZq8KAAAFCgAAAQH0AfQAJG8nVVVVVVVVVVUAAAAAAAAAAAAgIwAAAAAAAAAAHA=="
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark [опции] -r <pcap> [-Y фильтр] [-T fields -e поле]",
+      "cases": [
+        {
+          "match": "isakmp\\.id\\.data\\.fqdn",
+          "example": "-Y 'isakmp.exchangetype==4' -T fields -e isakmp.id.data.fqdn",
+          "output": "0x10\t4\tclient@corp.local\n"
+        },
+        {
+          "match": "isakmp\\.version==0x20",
+          "example": "-Y 'isakmp.version==0x20' -T fields -e isakmp.version -e isakmp.exchangetype",
+          "output": "0x20\t34\n0x20\t34\n0x20\t35\n"
+        },
+        {
+          "match": "-e isakmp\\.exchangetype",
+          "example": "-Y isakmp -T fields -e isakmp.version -e isakmp.exchangetype",
+          "output": "0x10\t2\n0x10\t2\n0x10\t4\n0x20\t34\n0x20\t34\n0x20\t35\n"
+        },
+        {
+          "match": "exchangetype==4.*-V|isakmp.*-V",
+          "example": "-Y 'isakmp.exchangetype==4' -V",
+          "output": "Frame 3: Packet, 81 bytes on wire (648 bits), 81 bytes captured (648 bits)\n    Encapsulation type: Raw IP (7)\n    Arrival Time: Nov 15, 2023 01:13:22.002000000 MSK\n    UTC Arrival Time: Nov 14, 2023 22:13:22.002000000 UTC\n    Epoch Arrival Time: 1700000002.002000000\n    [Time shift for this packet: 0.000000000 seconds]\n    [Time delta from previous captured frame: 1.001000000 seconds]\n    [Time since reference or first frame: 2.002000000 seconds]\n    Frame Number: 3\n    Frame Length: 81 bytes (648 bits)\n    Capture Length: 81 bytes (648 bits)\n    [Frame is marked: False]\n    [Frame is ignored: False]\n    [Protocols in frame: raw:ip:udp:isakmp]\n    Character encoding: ASCII (0)\nRaw packet data\nInternet Protocol Version 4, Src: 10.0.0.5, Dst: 10.0.0.1\n    0100 .... = Version: 4\n    .... 0101 = Header Length: 20 bytes (5)\n    Differentiated Services Field: 0x00 (DSCP: CS0, ECN: Not-ECT)\n        0000 00.. = Differentiated Services Codepoint: Default (0)\n        .... ..00 = Explicit Congestion Notification: Not ECN-Capable Transport (0)\n    Total Length: 81\n    Identification: 0x0001 (1)\n    000. .... = Flags: 0x0\n        0... .... = Reserved bit: Not set\n        .0.. .... = Don't fragment: Not set\n        ..0. .... = More fragments: Not set\n    ...0 0000 0000 0000 = Fragment Offset: 0\n    Time to Live: 64\n    Protocol: UDP (17)\n    Header Checksum: 0x6696 [validation disabled]\n    [Header checksum status: Unverified]\n    Source Address: 10.0.0.5\n    Destination Address: 10.0.0.1\n    [Stream index: 0]\nUser Datagram Protocol, Src Port: 500, Dst Port: 500\n    Source Port: 500\n    Destination Port: 500\n    Length: 61\n    Checksum: 0x7840 [unverified]\n    [Checksum Status: Unverified]\n    [Stream index: 0]\n    [Stream Packet Number: 3]\n    [Timestamps]\n        [Time since first frame: 2.002000000 seconds]\n        [Time since previous frame: 1.001000000 seconds]\n    UDP payload (53 bytes)\nInternet Security Association and Key Management Protocol\n    Initiator SPI: 3333333333333333\n    Responder SPI: 0000000000000000\n    Next payload: Identification (5)\n    Version: 1.0\n        0001 .... = MjVer: 0x1\n        .... 0000 = MnVer: 0x0\n    Exchange type: Aggressive (4)\n    Flags: 0x00\n        .... ...0 = Encryption: Not encrypted\n        .... ..0. = Commit: No commit\n        .... .0.. = Authentication: No authentication\n    Message ID: 0x00000000\n    Length: 53\n    Payload: Identification (5)\n        Next payload: NONE / No Next Payload (0)\n        Reserved: 00\n        Payload length: 25\n        ID type: FQDN (2)\n        Protocol ID: Unused\n        Port: Unused\n        Identification Data:client@corp.local\n            ID_FQDN: client@corp.local\n\n"
+        }
+      ]
+    }
+  }
+}

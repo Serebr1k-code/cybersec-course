@@ -1,0 +1,45 @@
+{
+  "id": "network-openvpn",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "7"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор трафика OpenVPN\n\nДан `vpn.pcap` — захват UDP-трафика на нестандартном порту. Похоже на OpenVPN.\n\n1. Посмотри распределение опкодов (тип пакета OpenVPN кодируется в первом байте):\n   `tshark -r vpn.pcap -T fields -e openvpn.opcode`\n2. Опкод **0x07** — `P_CONTROL_HARD_RESET_CLIENT_V2`: именно с него клиент\n   начинает сессию. То, что control-опкоды вообще видны, означает: `tls-crypt` не включён.\n3. Запиши **десятичный** номер опкода, с которого начинается сессия клиента,\n   в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/vpn.pcap",
+      "b64": "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"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark [опции] -r <pcap> [-Y фильтр] [-T fields -e поле]",
+      "cases": [
+        {
+          "match": "-e openvpn\\.opcode",
+          "example": "-T fields -e openvpn.opcode",
+          "output": "0x07\n0x08\n0x09\n0x09\n0x09\n0x09\n0x09\n0x09\n0x09\n0x09\n0x09\n0x09\n0x09\n0x09\n0x09\n0x09\n0x09\n0x09\n0x09\n0x09\n0x09\n0x09\n"
+        },
+        {
+          "match": "openvpn.*-V|-V.*openvpn",
+          "example": "-Y openvpn -V",
+          "output": "Frame 1: Packet, 42 bytes on wire (336 bits), 42 bytes captured (336 bits)\n    Encapsulation type: Raw IP (7)\n    Arrival Time: Nov 15, 2023 01:13:20.000000000 MSK\n    UTC Arrival Time: Nov 14, 2023 22:13:20.000000000 UTC\n    Epoch Arrival Time: 1700000000.000000000\n    [Time shift for this packet: 0.000000000 seconds]\n    [Time since reference or first frame: 0.000000000 seconds]\n    Frame Number: 1\n    Frame Length: 42 bytes (336 bits)\n    Capture Length: 42 bytes (336 bits)\n    [Frame is marked: False]\n    [Frame is ignored: False]\n    [Protocols in frame: raw:ip:udp:openvpn]\n    Character encoding: ASCII (0)\nRaw packet data\nInternet Protocol Version 4, Src: 10.0.0.9, Dst: 10.0.0.1\n    0100 .... = Version: 4\n    .... 0101 = Header Length: 20 bytes (5)\n    Differentiated Services Field: 0x00 (DSCP: CS0, ECN: Not-ECT)\n        0000 00.. = Differentiated Services Codepoint: Default (0)\n        .... ..00 = Explicit Congestion Notification: Not ECN-Capable Transport (0)\n    Total Length: 42\n    Identification: 0x0001 (1)\n    000. .... = Flags: 0x0\n        0... .... = Reserved bit: Not set\n        .0.. .... = Don't fragment: Not set\n        ..0. .... = More fragments: Not set\n    ...0 0000 0000 0000 = Fragment Offset: 0\n    Time to Live: 64\n    Protocol: UDP (17)\n    Header Checksum: 0x66b9 [validation disabled]\n    [Header checksum status: Unverified]\n    Source Address: 10.0.0.9\n    Destination Address: 10.0.0.1\n    [Stream index: 0]\nUser Datagram Protocol, Src Port: 40000, Dst Port: 1194\n    Source Port: 40000\n    Destination Port: 1194\n    Length: 22\n    Checksum: 0xa9ce [unverified]\n    [Checksum Status: Unverified]\n    [Stream index: 0]\n    [Stream Packet Number: 1]\n    [Timestamps]\n        [Time since first frame: 0.000000000 seconds]\n        [Time since previous frame: 0.000000000 seconds]\n    UDP payload (14 bytes)\nOpenVPN Protocol\n    Type: 0x38 [opcode/key_id]\n        0011 1... = Opcode: P_CONTROL_HARD_RESET_CLIENT_V2 (0x07)\n        .... .000 = Key ID: 0\n    Session ID: 10243016187548936008\n[Malformed Packet: OpenVPN]\n    [Expert Info (Error/Malformed): Malformed Packet (Exception occurred)]\n        [Malformed Packet (Exception occurred)]\n        [Severity level: Error]\n        [Group: Malformed]\n\n"
+        },
+        {
+          "match": "openvpn",
+          "example": "",
+          "output": "    1   0.000000     10.0.0.9 → 10.0.0.1     OpenVPN 42 MessageType: P_CONTROL_HARD_RESET_CLIENT_V2[Malformed Packet]\n    2   1.001000     10.0.0.1 → 10.0.0.9     OpenVPN 42 MessageType: P_CONTROL_HARD_RESET_SERVER_V2[Malformed Packet]\n    3   2.002000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n    4   3.003000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n    5   4.004000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n    6   5.005000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n    7   6.006000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n    8   7.007000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n    9   8.008000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n   10   9.009000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n   11  10.010000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n   12  11.011000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n   13  12.012000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n   14  13.013000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n   15  14.014000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n   16  15.015000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n   17  16.016000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n   18  17.017000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n   19  18.018000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n   20  19.019000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n   21  20.020000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n   22  21.021000     10.0.0.9 → 10.0.0.1     OpenVPN 89 MessageType: P_DATA_V2\n"
+        }
+      ]
+    }
+  }
+}

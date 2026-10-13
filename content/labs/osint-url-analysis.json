@@ -1,0 +1,24 @@
+{
+  "id": "osint-url-analysis",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "example.com.evil.example"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разобрать подозрительный URL, не переходя по нему\n\nВ `url.txt` лежит ссылка из фишингового письма. Всё, что стоит **до** символа `@`,\n— обманка; настоящий хост идёт **после** `@`.\n\n1. Посмотри ссылку: `cat url.txt`\n2. Отрежь всё до `@` и возьми то, что после:\n   `cut -d@ -f2 url.txt`\n3. Убери порт и путь — оставь только хост:\n   `cut -d@ -f2 url.txt | cut -d: -f1`\n4. Запиши реальный хост в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/url.txt",
+      "text": "http://user@example.com.evil.example:8443/login?next=http://evil.example\n"
+    }
+  ],
+  "tools": {}
+}

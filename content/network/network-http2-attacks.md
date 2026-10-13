@@ -13,6 +13,17 @@ useful_for:
   - "Работа (SOC): детект HTTP/2-аномалий"
 estimated_minutes: 55
 summary: "HTTP/2 и HTTP/3: фреймы, потоки, HPACK, request smuggling (CL.TE/TE.TE), HPACK-бомбы, rapid reset и HTTP/3-специфика — с командами и разбором защиты."
+lab:
+  kind: shell
+  title: "Практика: HTTP/2 Rapid Reset"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, h2.pcap]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Сводка кадров: `tshark -r h2.pcap` — в кадре 4 видны HEADERS и RST_STREAM."
+    - "Тип кадра RST_STREAM — 3."
+    - "Посчитай их: `tshark -r h2.pcap -T fields -e http2.type` (или глазами по сводке)."
 ---
 
 ## Вопрос, с которого всё начинается

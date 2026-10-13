@@ -1,0 +1,50 @@
+{
+  "id": "osint-tls-fingerprint",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "origin.example.com"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: TLS-сертификат как источник имён\n\nСайт `www.example.com` закрыт CDN, но TLS-сертификат он отдать обязан.\nВ файле `cert.pem` лежит сертификат, который сервер отдаёт при подключении.\n\n1. Посмотри subject, issuer, сроки и Subject Alternative Name:\n   `openssl x509 -in cert.pem -noout -subject -issuer -dates -ext subjectAltName`\n   (в реальном пентесте то же самое достают так:\n   `echo | openssl s_client -connect www.example.com:443 -servername www.example.com | openssl x509 -noout -ext subjectAltName`)\n2. В списке SAN кроме публичных имён есть поддомен, который выдаёт **origin** —\n   настоящий сервер за CDN.\n3. Запиши этот поддомен в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/cert.pem",
+      "text": "-----BEGIN CERTIFICATE-----\nMIIDlDCCAnygAwIBAgIURgcAZKfz9jgrZlcWrkR+tNJ7F10wDQYJKoZIhvcNAQEL\nBQAwOjELMAkGA1UEBhMCVVMxFTATBgNVBAoMDEV4YW1wbGUgQ29ycDEUMBIGA1UE\nAwwLZXhhbXBsZS5jb20wHhcNMjYxMDEzMDk1OTI5WhcNMjcwMTExMDk1OTI5WjA6\nMQswCQYDVQQGEwJVUzEVMBMGA1UECgwMRXhhbXBsZSBDb3JwMRQwEgYDVQQDDAtl\neGFtcGxlLmNvbTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAKTXQDDb\nEHaeHMCikIwtHwiL8gGl/J1+5f7xUTWIYYBjIWGd+dbs+Zw+crqgqC06DXt48QUz\nB/K0+7cu5mJsB9XB2RU7ZaVLqf0vEk/0gtloxkYz+Rt8lMA2NTonlDlk8/6VPZPC\nR7/0U/IiP1vjb6LKmaIPgsdQFhMGGPJ0rgHZs9Y9LxOX74sf+yYMEUpDDoV+3m91\nmF1d+28AxO1eTl0vVYHcUt5ujfIGT4vZ3vcMPzDfeirFW/dyI5TVxVFVZ1tReY6+\nMAIhJCL0LxrkHkcJqrclOI2hXuvgYMpZwHTbu0koubOyawPMRnP1u+aWRzC5LAf2\nzJCPwvLCq+gZMpsCAwEAAaOBkTCBjjAdBgNVHQ4EFgQUo4Zw6sHROzPiRO7QCg9Q\nUgEgvZAwHwYDVR0jBBgwFoAUo4Zw6sHROzPiRO7QCg9QUgEgvZAwDwYDVR0TAQH/\nBAUwAwEB/zA7BgNVHREENDAygg93d3cuZXhhbXBsZS5jb22CC2V4YW1wbGUuY29t\nghJvcmlnaW4uZXhhbXBsZS5jb20wDQYJKoZIhvcNAQELBQADggEBAB6hPCO+a2TE\nC+vQUvEK8/SBoiD6CijgpBrg1s+37tFhf0jL6BoPH5U59NN/SSkyhqMqZ0pjjwP6\nmnHUa7+1NPp1P2tNZg21IpQcykY9K83tVRQbrcPnjxaPktQ8i7/PngGytlEERJv4\n8UdfR/SCjmrTq+h3YGIHMAgZSGBSiJCPHZqYYNFPY6DwMnGYe+ZszuvqZO6bHign\nLbt1aylfmZUXiG/eFeVjesfj+2+UwOSHxWerV1oPBDnAiqodk5NwobWeYuIW5iZh\nBeDAnEAJUoM1JCT+QPdA4BXnO1Z6vntwS+GHpVkZNcuBMNhEt7DYDseCa7gQXvfs\na7yZ5bbfjiI=\n-----END CERTIFICATE-----\n"
+    }
+  ],
+  "tools": {
+    "openssl": {
+      "help": "openssl <команда> — работа с сертификатами (x509, s_client)",
+      "cases": [
+        {
+          "match": "subjectAltName",
+          "example": "x509 -in cert.pem -noout -subject -issuer -dates -ext subjectAltName",
+          "output": "subject=C=US, O=Example Corp, CN=example.com\nissuer=C=US, O=Example Corp, CN=example.com\nnotBefore=Oct 13 09:59:29 2026 GMT\nnotAfter=Jan 11 09:59:29 2027 GMT\nX509v3 Subject Alternative Name: \n    DNS:www.example.com, DNS:example.com, DNS:origin.example.com\n"
+        },
+        {
+          "match": "showcerts",
+          "example": "s_client -connect www.example.com:443 -servername www.example.com -showcerts",
+          "output": " 0 s:C=US, O=Example Corp, CN=example.com\n   i:C=US, O=Example Corp, CN=example.com\n"
+        },
+        {
+          "match": "s_client",
+          "example": "s_client -connect www.example.com:443 -servername www.example.com",
+          "output": "subject=C=US, O=Example Corp, CN=example.com\nissuer=C=US, O=Example Corp, CN=example.com\nnotBefore=Oct 13 09:59:29 2026 GMT\nnotAfter=Jan 11 09:59:29 2027 GMT\nX509v3 Subject Alternative Name: \n    DNS:www.example.com, DNS:example.com, DNS:origin.example.com\n"
+        },
+        {
+          "match": "x509",
+          "example": "x509 -in cert.pem -noout -subject -issuer -dates -ext subjectAltName",
+          "output": "subject=C=US, O=Example Corp, CN=example.com\nissuer=C=US, O=Example Corp, CN=example.com\nnotBefore=Oct 13 09:59:29 2026 GMT\nnotAfter=Jan 11 09:59:29 2027 GMT\nX509v3 Subject Alternative Name: \n    DNS:www.example.com, DNS:example.com, DNS:origin.example.com\n"
+        }
+      ]
+    }
+  }
+}

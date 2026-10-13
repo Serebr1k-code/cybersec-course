@@ -13,6 +13,17 @@ useful_for:
   - "Работа: разбор конфигураций и инцидентов VPN"
 estimated_minutes: 40
 summary: "Как устроены WireGuard (Noise_IK) и IPsec/IKEv2, что видно на проводе, какие типовые ошибки конфигурации эксплуатируются."
+lab:
+  kind: shell
+  title: "Практика: типы сообщений WireGuard"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, vpn.pcap]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Типы сообщений: `tshark -r vpn.pcap -T fields -e wg.type`."
+    - "1 = Handshake Initiation, 2 = Handshake Response, 4 = Transport Data."
+    - "Данные (transport) несут сообщения типа 4."
 ---
 
 ## Вопрос, с которого всё начинается

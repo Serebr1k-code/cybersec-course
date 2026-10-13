@@ -1,0 +1,45 @@
+{
+  "id": "network-wireguard",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "4"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор трафика WireGuard\n\nДан `vpn.pcap` — UDP-трафик на порту 51820. Первый байт payload кодирует тип\nсообщения WireGuard: 1 = Handshake Initiation, 2 = Handshake Response,\n3 = Cookie, 4 = Transport Data.\n\n1. Посмотри типы сообщений: `tshark -r vpn.pcap -T fields -e wg.type`\n2. Определи, какой номер типа несёт **зашифрованные данные** (transport data).\n3. Запиши это число в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/vpn.pcap",
+      "b64": "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"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark [опции] -r <pcap> [-Y фильтр] [-T fields -e поле]",
+      "cases": [
+        {
+          "match": "-e wg\\.type",
+          "example": "-T fields -e wg.type",
+          "output": "1\n2\n\n4\n4\n4\n4\n4\n4\n4\n4\n4\n4\n4\n4\n"
+        },
+        {
+          "match": "udp\\.port==51820",
+          "example": "-Y 'udp.port==51820' -T fields -e wg.type",
+          "output": "1\n2\n\n4\n4\n4\n4\n4\n4\n4\n4\n4\n4\n4\n4\n"
+        },
+        {
+          "match": "wg",
+          "example": "",
+          "output": "    1   0.000000     10.0.0.9 → 10.0.0.1     WireGuard 176 Handshake Initiation, sender=0xE2835EC4\n    2   1.001000     10.0.0.1 → 10.0.0.9     WireGuard 120 Handshake Response, sender=0x87EE7330, receiver=0x43EE83DA\n    3   2.002000     10.0.0.9 → 10.0.0.1     UDP 56 40000 → 51820 Len=28\n    4   3.003000     10.0.0.9 → 10.0.0.1     WireGuard 89 Transport Data, receiver=0xD5A589AD, counter=5002663136374956377, datalen=29\n    5   4.004000     10.0.0.9 → 10.0.0.1     WireGuard 89 Transport Data, receiver=0x2A018B62, counter=3149282626901004335, datalen=29\n    6   5.005000     10.0.0.9 → 10.0.0.1     WireGuard 89 Transport Data, receiver=0x2673B689, counter=8883778107169210392, datalen=29\n    7   6.006000     10.0.0.9 → 10.0.0.1     WireGuard 89 Transport Data, receiver=0x768D7420, counter=3932290712745515198, datalen=29\n    8   7.007000     10.0.0.9 → 10.0.0.1     WireGuard 89 Transport Data, receiver=0xAB0939A6, counter=12939622710605904410, datalen=29\n    9   8.008000     10.0.0.9 → 10.0.0.1     WireGuard 89 Transport Data, receiver=0xF23B4E38, counter=13201352826563312519, datalen=29\n   10   9.009000     10.0.0.9 → 10.0.0.1     WireGuard 89 Transport Data, receiver=0x975680AF, counter=7662906932560392869, datalen=29\n   11  10.010000     10.0.0.9 → 10.0.0.1     WireGuard 89 Transport Data, receiver=0xABEE516A, counter=468031012477087205, datalen=29\n   12  11.011000     10.0.0.9 → 10.0.0.1     WireGuard 89 Transport Data, receiver=0x22B90B4A, counter=6524088305093945173, datalen=29\n   13  12.012000     10.0.0.9 → 10.0.0.1     WireGuard 89 Transport Data, receiver=0xA08F743C, counter=1585763544836940018, datalen=29\n   14  13.013000     10.0.0.9 → 10.0.0.1     WireGuard 89 Transport Data, receiver=0xFAD7072A, counter=18315090325308874597, datalen=29\n   15  14.014000     10.0.0.9 → 10.0.0.1     WireGuard 89 Transport Data, receiver=0x489F3A39, counter=10970524000613558004, datalen=29\n"
+        }
+      ]
+    }
+  }
+}

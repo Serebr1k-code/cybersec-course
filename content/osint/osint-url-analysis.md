@@ -12,6 +12,17 @@ useful_for:
   - "Blue team: triage инцидентов"
 estimated_minutes: 45
 summary: "Анализ URL без перехода по нему: urlscan.io, VirusTotal, MalwareBazaar, AbuseIPDB, WHOIS-корреляция и построение вердикта по домену."
+lab:
+  kind: shell
+  title: "Практика: разбор URL без перехода"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, url.txt]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Посмотри ссылку: `cat url.txt`."
+    - "Всё до символа @ — обманка; реальный хост после @."
+    - "Отрежь: `cut -d@ -f2 url.txt | cut -d: -f1`."
 ---
 
 ## Вопрос, с которого всё начинается

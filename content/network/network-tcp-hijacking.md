@@ -13,6 +13,17 @@ useful_for:
   - "Изучение защиты сессий"
 estimated_minutes: 38
 summary: "Перехват и подмена TCP-сессий: как работает ISN, почему нужен seq/ack, blind-инъекция, RST-сброс, Mitnick-атака и защита через рандомизацию."
+lab:
+  kind: shell
+  title: "Практика: TCP-хайджекинг"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, hijack.pcap]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Абсолютные seq/ack: `tshark -o tcp.relative_sequence_numbers:FALSE -r hijack.pcap -Y 'tcp.port==23' -T fields -e ip.src -e tcp.seq -e tcp.ack -e tcp.len`."
+    - "Возьми последний сегмент сервера (10.0.0.5)."
+    - "Его ack — номер следующего ожидаемого байта от клиента."
 ---
 
 ## Вопрос, с которого всё начинается

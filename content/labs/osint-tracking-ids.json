@@ -1,0 +1,36 @@
+{
+  "id": "osint-tracking-ids",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "UA-241659-3"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: tracking ID как pivot\n\nTracking-идентификаторы (Google Analytics, GTM, AdSense) связывают домены\nодного владельца. Найди их на странице `app.example.com`.\n\n1. Скачай HTML: `curl -s https://app.example.com/`\n2. Найди в нём идентификаторы аналитики:\n   `curl -s https://app.example.com/ | grep -i 'UA-\\|GTM-\\|G-\\|ca-pub'`\n3. Запиши **классический Google Analytics ID** (вида `UA-XXXXXX-X`) в `answer.txt`\n   и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-sI] <url> — выполнить HTTP-запрос",
+      "cases": [
+        {
+          "match": "example\\.com/?$|example\\.com/?\\s*$",
+          "example": "https://app.example.com/",
+          "output": "<!doctype html>\n<html><head>\n<title>app.example.com</title>\n<script async src=\"https://www.googletagmanager.com/gtag/js?id=UA-241659-3\"></script>\n<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-9ZQ4K2LMTD');</script>\n<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime()});})(window,document,'script','dataLayer','GTM-P4X8KQ2');</script>\n<script src=\"https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8123774682991043\" async></script>\n</head><body>\n<h1>Welcome</h1>\n<!-- Google tag (gtag.js) -->\n</body></html>\n"
+        },
+        {
+          "match": "app\\.example\\.com",
+          "example": "https://app.example.com/",
+          "output": "<!doctype html>\n<html><head>\n<title>app.example.com</title>\n<script async src=\"https://www.googletagmanager.com/gtag/js?id=UA-241659-3\"></script>\n<script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','G-9ZQ4K2LMTD');</script>\n<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':new Date().getTime()});})(window,document,'script','dataLayer','GTM-P4X8KQ2');</script>\n<script src=\"https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-8123774682991043\" async></script>\n</head><body>\n<h1>Welcome</h1>\n<!-- Google tag (gtag.js) -->\n</body></html>\n"
+        }
+      ]
+    }
+  }
+}

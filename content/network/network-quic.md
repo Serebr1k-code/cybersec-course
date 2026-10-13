@@ -13,6 +13,17 @@ useful_for:
   - "Работа (SOC): видимость и инспекция QUIC"
 estimated_minutes: 50
 summary: "Как устроен QUIC поверх UDP, что видно без расшифровки и как инспектировать и блокировать его в корпоративной сети."
+lab:
+  kind: shell
+  title: "Практика: разбор QUIC-пакетов"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, q.pcap]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Типы QUIC-пакетов: `tshark -r q.pcap -Y quic -T fields -e quic.long.packet_type`."
+    - "0 — это Initial; именно он несёт Destination Connection ID клиента."
+    - "DCID клиентского Initial: `tshark -r q.pcap -Y 'quic.long.packet_type==0' -T fields -e quic.dcid`."
 ---
 
 ## Вопрос, с которого всё начинается

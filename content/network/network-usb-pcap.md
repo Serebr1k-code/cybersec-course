@@ -13,6 +13,17 @@ useful_for:
   - "Пентест: физические устройства"
 estimated_minutes: 55
 summary: "Как разбирать захваченный USB-трафик: определять устройства, восстанавливать нажатия клавиатуры и данные с накопителей."
+lab:
+  kind: shell
+  title: "Практика: декодирование HID-нажатий"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, usb.pcap, keymap.txt]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "HID-отчёты: `tshark -r usb.pcap -T fields -e usb.capdata`."
+    - "Третий байт отчёта — нажатая клавиша; строки из нулей — отпускания."
+    - "Сопоставь ненулевые коды с таблицей в `keymap.txt` (09=f, 0f=l, 04=a, 0a=g)."
 ---
 ## Вопрос, с которого всё начинается
 

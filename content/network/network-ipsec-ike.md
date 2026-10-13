@@ -13,6 +13,17 @@ useful_for:
   - "Работа (SOC): детект IKE-аномалий"
 estimated_minutes: 60
 summary: "IPsec изнутри: AH/ESP, транспортный и туннельный режимы, IKEv1/v2 и их фазы, aggressive mode и его утечки, NAT-T, инструменты ike-scan и strongSwan, защита."
+lab:
+  kind: shell
+  title: "Практика: разбор IKE и aggressive mode"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, ike.pcap]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Начни с обзора: `tshark -r ike.pcap -Y isakmp -T fields -e isakmp.version -e isakmp.exchangetype`."
+    - "Тип обмена 4 при версии 1 — это aggressive mode: он отдаёт идентификатор до шифрования."
+    - "Достань FQDN: `tshark -r ike.pcap -Y 'isakmp.exchangetype==4' -T fields -e isakmp.id.data.fqdn`."
 ---
 
 ## Вопрос, с которого всё начинается

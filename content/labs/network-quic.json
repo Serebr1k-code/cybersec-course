@@ -1,0 +1,60 @@
+{
+  "id": "network-quic",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "5c8a3f1e2b4d"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор QUIC-дамапа\n\nДан `q.pcap` — UDP-трафик на порт 443. Это QUIC (HTTP/3).\n\n1. Посмотри типы QUIC-пакетов: `tshark -r q.pcap -Y quic -T fields -e quic.long.packet_type`\n   (0 = Initial, 2 = Handshake).\n2. Initial-пакет клиента несёт Destination Connection ID (DCID) — по нему\n   сервер идентифицирует соединение. Достань DCID:\n   `tshark -r q.pcap -Y 'quic.long.packet_type==0' -T fields -e quic.dcid`\n3. Запиши DCID из клиентского Initial в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/q.pcap",
+      "b64": "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"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark [опции] -r <pcap> [-Y фильтр] [-T fields -e поле]",
+      "cases": [
+        {
+          "match": "quic\\.long\\.packet_type==0.*quic\\.dcid",
+          "example": "-Y 'quic.long.packet_type==0' -T fields -e quic.dcid",
+          "output": "5c8a3f1e2b4d\n5c8a3f1e2b4d\n"
+        },
+        {
+          "match": "-e quic\\.dcid",
+          "example": "-Y quic -T fields -e quic.dcid",
+          "output": "5c8a3f1e2b4d\n5c8a3f1e2b4d\naabbccdd\naabbccdd\naabbccdd\naabbccdd\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+        },
+        {
+          "match": "-e quic\\.long\\.packet_type",
+          "example": "-Y quic -T fields -e quic.long.packet_type",
+          "output": "0\n0\n2\n2\n2\n2\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n"
+        },
+        {
+          "match": "-e quic\\.version",
+          "example": "-Y quic.version -T fields -e quic.version",
+          "output": "0x00000001\n0x00000001\n0x00000001\n0x00000001\n0x00000001\n0x00000001\n"
+        },
+        {
+          "match": "io,phs",
+          "example": "-q -z io,phs",
+          "output": "\n===================================================================\nProtocol Hierarchy Statistics\nFilter: \n\nframe                                    frames:26 bytes:4370\n  raw                                    frames:26 bytes:4370\n    ip                                   frames:26 bytes:4370\n      udp                                frames:26 bytes:4370\n        quic                             frames:26 bytes:4370\n===================================================================\n"
+        },
+        {
+          "match": "quic",
+          "example": "",
+          "output": "\n===================================================================\nProtocol Hierarchy Statistics\nFilter: \n\nframe                                    frames:26 bytes:4370\n  raw                                    frames:26 bytes:4370\n    ip                                   frames:26 bytes:4370\n      udp                                frames:26 bytes:4370\n        quic                             frames:26 bytes:4370\n===================================================================\n"
+        }
+      ]
+    }
+  }
+}

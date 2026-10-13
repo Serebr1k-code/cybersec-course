@@ -1,0 +1,54 @@
+{
+  "id": "network-db-protocols",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "postgres"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: что рассказывают БД до входа\n\nДаны два дампа: `mysql.pcap` (Server Greeting MySQL) и `pg.pcap` (StartupMessage\nPostgreSQL). Оба содержат данные, которые сервер отдаёт **до** аутентификации.\n\n1. MySQL отдаёт версию и salt:\n   `tshark -r mysql.pcap -Y mysql -T fields -e mysql.version -e mysql.thread_id -e mysql.salt`\n2. PostgreSQL в StartupMessage открытым текстом шлёт имя пользователя и базу:\n   `tshark -r pg.pcap -Y pgsql -T fields -e pgsql.parameter_name -e pgsql.parameter_value`\n3. Запиши **имя пользователя** из StartupMessage PostgreSQL в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/mysql.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AABlAAAAAPFTZQAAAAB1AAAAdQAAAEUAAHUAAQAAQAZmdQoAAAUKAAAJDOqr4AAAAAEAAAABUBggAN+kAABJAAAACjguMC4zNgAMAAAAYWJjZGVmZ2gA//8hAgD//xUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbXlzcWxfbmF0aXZlX3Bhc3N3b3JkAA=="
+    },
+    {
+      "path": "/home/student/task/pg.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AABlAAAAAPFTZQAAAABOAAAATgAAAEUAAE4AAQAAQAZmnAoAAAkKAAAFr8gVOAAAAAEAAAABUBggAI4ZAAAAAAAmAAMAAHVzZXIAcG9zdGdyZXMAZGF0YWJhc2UAYXBwZGIAAA=="
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark [опции] -r <pcap> [-Y фильтр] [-T fields -e поле]",
+      "cases": [
+        {
+          "match": "-e mysql\\.version",
+          "example": "-Y mysql -T fields -e mysql.version -e mysql.thread_id -e mysql.salt",
+          "output": "8.0.36\t12\tabcdefgh\n"
+        },
+        {
+          "match": "mysql.*-V",
+          "example": "-Y mysql -V",
+          "output": "Frame 1: Packet, 117 bytes on wire (936 bits), 117 bytes captured (936 bits)\n    Encapsulation type: Raw IP (7)\n    Arrival Time: Nov 15, 2023 01:13:20.000000000 MSK\n    UTC Arrival Time: Nov 14, 2023 22:13:20.000000000 UTC\n    Epoch Arrival Time: 1700000000.000000000\n    [Time shift for this packet: 0.000000000 seconds]\n    [Time since reference or first frame: 0.000000000 seconds]\n    Frame Number: 1\n    Frame Length: 117 bytes (936 bits)\n    Capture Length: 117 bytes (936 bits)\n    [Frame is marked: False]\n    [Frame is ignored: False]\n    [Protocols in frame: raw:ip:tcp:mysql]\n    Character encoding: ASCII (0)\nRaw packet data\nInternet Protocol Version 4, Src: 10.0.0.5, Dst: 10.0.0.9\n    0100 .... = Version: 4\n    .... 0101 = Header Length: 20 bytes (5)\n    Differentiated Services Field: 0x00 (DSCP: CS0, ECN: Not-ECT)\n        0000 00.. = Differentiated Services Codepoint: Default (0)\n        .... ..00 = Explicit Congestion Notification: Not ECN-Capable Transport (0)\n    Total Length: 117\n    Identification: 0x0001 (1)\n    000. .... = Flags: 0x0\n        0... .... = Reserved bit: Not set\n        .0.. .... = Don't fragment: Not set\n        ..0. .... = More fragments: Not set\n    ...0 0000 0000 0000 = Fragment Offset: 0\n    Time to Live: 64\n    Protocol: TCP (6)\n    Header Checksum: 0x6675 [validation disabled]\n    [Header checksum status: Unverified]\n    Source Address: 10.0.0.5\n    Destination Address: 10.0.0.9\n    [Stream index: 0]\nTransmission Control Protocol, Src Port: 3306, Dst Port: 44000, Seq: 1, Ack: 1, Len: 77\n    Source Port: 3306\n    Destination Port: 44000\n    [Stream index: 0]\n    [Stream Packet Number: 1]\n    [Conversation completeness: Incomplete (0)]\n        ..0. .... = RST: Absent\n        ...0 .... = FIN: Absent\n        .... 0... = Data: Absent\n        .... .0.. = ACK: Absent\n        .... ..0. = SYN-ACK: Absent\n        .... ...0 = SYN: Absent\n        [Completeness Flags: [ Null ]]\n    [TCP Segment Len: 77]\n    Sequence Number: 1    (relative sequence number)\n    Sequence Number (raw): 1\n    [Next Sequence Number: 78    (relative sequence number)]\n    Acknowledgment Number: 1    (relative ack number)\n    Acknowledgment number (raw): 1\n    0101 .... = Header Length: 20 bytes (5)\n    Flags: 0x018 (PSH, ACK)\n        000. .... .... = Reserved: Not set\n        ...0 .... .... = Accurate ECN: Not set\n        .... 0... .... = Congestion Window Reduced: Not set\n        .... .0.. .... = ECN-Echo: Not set\n        .... ..0. .... = Urgent: Not set\n        .... ...1 .... = Acknowledgment: Set\n        .... .... 1... = Push: Set\n        .... .... .0.. = Reset: Not set\n        .... .... ..0. = Syn: Not set\n        .... .... ...0 = Fin: Not set\n        [TCP Flags: ·······AP···]\n    Window: 8192\n    [Calculated window size: 8192]\n    [Window size scaling factor: -1 (unknown)]\n    Checksum: 0xdfa4 [unverified]\n    [Checksum Status: Unverified]\n    Urgent Pointer: 0\n    [Timestamps]\n        [Time since first frame in this TCP stream: 0.000000000 seconds]\n        [Time since previous frame in this TCP stream: 0.000000000 seconds]\n    [Client Contiguous Streams: 0]\n    [Server Contiguous Streams: 1]\n    TCP payload (77 bytes)\n    [PDU Size: 77]\nMySQL Protocol\n    Packet Length: 73\n    Packet Number: 0\n    Server Greeting\n        Protocol: 10\n        Version: 8.0.36\n        Thread ID: 12\n        Salt: abcdefgh\n        Server Capabilities: 0xffff\n            .... .... .... ...1 = Long Password: Set\n            .... .... .... ..1. = Found Rows: Set\n            .... .... .... .1.. = Long Column Flags: Set\n            .... .... .... 1... = Connect With Database: Set\n            .... .... ...1 .... = Don't Allow database.table.column: Set\n            .... .... ..1. .... = Can use compression protocol: Set\n            .... .... .1.. .... = ODBC Client: Set\n            .... .... 1... .... = Can Use LOAD DATA LOCAL: Set\n            .... ...1 .... .... = Ignore Spaces before '(': Set\n            .... ..1. .... .... = Speaks 4.1 protocol (new flag): Set\n            .... .1.. .... .... = Interactive Client: Set\n            .... 1... .... .... = Switch to SSL after handshake: Set\n            ...1 .... .... .... = Ignore sigpipes: Set\n            ..1. .... .... .... = Knows about transactions: Set\n            .1.. .... .... .... = Speaks 4.1 protocol (old flag): Set\n            1... .... .... .... = Can do 4.1 authentication: Set\n        Server Language: utf8mb3 COLLATE utf8mb3_general_ci (33)\n        Server Status: 0x0002\n            .... .... .... ...0 = In transaction: Not set\n            .... .... .... ..1. = AUTO_COMMIT: Set\n            .... .... .... .0.. = Multi query / Unused: Not set\n            .... .... .... 0... = More results: Not set\n            .... .... ...0 .... = Bad index used: Not set\n            .... .... ..0. .... = No index used: Not set\n            .... .... .0.. .... = Cursor exists: Not set\n            .... .... 0... .... = Last row sent: Not set\n            .... ...0 .... .... = Database dropped: Not set\n            .... ..0. .... .... = No backslash escapes: Not set\n            .... .0.. .... .... = Metadata changed: Not set\n            .... 0... .... .... = Query was slow: Not set\n            ...0 .... .... .... = PS Out Params: Not set\n            ..0. .... .... .... = In Trans Readonly: Not set\n            .0.. .... .... .... = Session state changed: Not set\n        Extended Server Capabilities: 0xffff\n            .... .... .... ...1 = Multiple statements: Set\n            .... .... .... ..1. = Multiple results: Set\n            .... .... .... .1.. = PS Multiple results: Set\n            .... .... .... 1... = Plugin Auth: Set\n            .... .... ...1 .... = Connect attrs: Set\n            .... .... ..1. .... = Plugin Auth LENENC Client Data: Set\n            .... .... .1.. .... = Client can handle expired passwords: Set\n            .... .... 1... .... = Session variable tracking: Set\n            .... ...1 .... .... = Deprecate EOF: Set\n            .... ..1. .... .... = Client can handle optional resultset metadata: Set\n            .... .1.. .... .... = ZSTD Compression Algorithm: Set\n            .... 1... .... .... = Query Attributes: Set\n            ...1 .... .... .... = Multifactor Authentication: Set\n            ..1. .... .... .... = Capability Extension: Set\n            .1.. .... .... .... = Client verifies server's TLS/SSL certificate: Set\n            1... .... .... .... = Unused: 0x1\n        Authentication Plugin Length: 21\n        Unused: 00000000000000000000\n        Salt: \n        Authentication Plugin: \n    Payload: 000000000000000000006d7973716c5f6e61746976655f70617373776f726400\n        [Expert Info (Warning/Undecoded): FIXME - dissector is incomplete]\n            [FIXME - dissector is incomplete]\n            [Severity level: Warning]\n            [Group: Undecoded]\n\n"
+        },
+        {
+          "match": "pgsql",
+          "example": "-Y pgsql -T fields -e pgsql.parameter_name -e pgsql.parameter_value",
+          "output": "user,database\tpostgres,appdb\n"
+        },
+        {
+          "match": "mysql",
+          "example": "",
+          "output": "8.0.36\t12\tabcdefgh\n"
+        }
+      ]
+    }
+  }
+}

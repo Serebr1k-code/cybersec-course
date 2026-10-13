@@ -13,6 +13,17 @@ useful_for:
   - "Пентест сетевой инфраструктуры"
 estimated_minutes: 35
 summary: "Фрагментация IPv4 как вектор атаки и обхода фильтров: teardrop, перекрытие фрагментов, tiny fragment, сборка на хосте и разбор в Wireshark/Scapy."
+lab:
+  kind: shell
+  title: "Практика: фрагментация IPv4"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, frag.pcap]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Фрагменты: `tshark -r frag.pcap -Y 'ip.flags.mf==1 || ip.frag_offset>0' -T fields -e ip.id -e ip.flags.mf -e ip.frag_offset -e ip.len`."
+    - "IP Identification общий у обоих фрагментов — по нему собирают датаграмму."
+    - "Значение выводится в hex с префиксом 0x."
 ---
 
 ## Вопрос, с которого всё начинается

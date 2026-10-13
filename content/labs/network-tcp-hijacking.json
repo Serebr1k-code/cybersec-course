@@ -1,0 +1,40 @@
+{
+  "id": "network-tcp-hijacking",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "1020"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: TCP-хайджекинг сессии\n\nДан `hijack.pcap` — сессия telnet (порт 23). Атакующий хочет вклиниться и\nотправить команду от имени клиента. Ядро примет сегмент, только если его\n**sequence number** попадает в окно приёма сервера.\n\n1. Посмотри абсолютные seq/ack:\n   `tshark -o tcp.relative_sequence_numbers:FALSE -r hijack.pcap -Y 'tcp.port==23' -T fields -e ip.src -e tcp.seq -e tcp.ack -e tcp.len`\n2. Возьми последний сегмент сервера (`10.0.0.5`): его **ack** — это номер\n   следующего байта, который сервер ожидает от клиента. Именно его должен\n   использовать атакующий в своём инъектируемом сегменте.\n3. Запиши это число в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/hijack.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AABlAAAAAPFTZQAAAAAoAAAAKAAAAEUAACgAAQAAQAZmwgoAAAkKAAAFqMoAFwAAA+gAAAAAUAIgAM8LAAAB8VNl6AMAACgAAAAoAAAARQAAKAABAABABmbCCgAABQoAAAkAF6jKAAATiAAAA+lQEiAAu3IAAALxU2XQBwAAKAAAACgAAABFAAAoAAEAAEAGZsIKAAAJCgAABajKABcAAAPpAAATiVAQIAC7cwAAA/FTZbgLAAAwAAAAMAAAAEUAADAAAQAAQAZmugoAAAkKAAAFqMoAFwAAA+kAABOJUBggAFomAAB3aG9hbWkNCgTxU2WgDwAALwAAAC8AAABFAAAvAAEAAEAGZrsKAAAFCgAACQAXqMoAABOJAAAD8VAYIAB0gQAAYWRtaW4NCgXxU2WIEwAAMwAAADMAAABFAAAzAAEAAEAGZrcKAAAJCgAABajKABcAAAPxAAATkFAYIADW+gAAY2F0IC9mbGFnDQoG8VNlcBcAADoAAAA6AAAARQAAOgABAABABmawCgAABQoAAAkAF6jKAAATkAAAA/xQGCAAwbYAAG50b3tzZXFfMXNfazFuZ30NCg=="
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark [опции] -r <pcap> [-Y фильтр] [-T fields -e поле]",
+      "cases": [
+        {
+          "match": "tcp\\.seq",
+          "example": "-o tcp.relative_sequence_numbers:FALSE -Y 'tcp.port==23' -T fields -e ip.src -e tcp.seq -e tcp.ack -e tcp.len",
+          "output": "10.0.0.9\t1000\t0\t0\n10.0.0.5\t5000\t1001\t0\n10.0.0.9\t1001\t5001\t0\n10.0.0.9\t1001\t5001\t8\n10.0.0.5\t5001\t1009\t7\n10.0.0.9\t1009\t5008\t11\n10.0.0.5\t5008\t1020\t18\n"
+        },
+        {
+          "match": "hijack",
+          "example": "",
+          "output": "10.0.0.9\t1000\t0\t0\n10.0.0.5\t5000\t1001\t0\n10.0.0.9\t1001\t5001\t0\n10.0.0.9\t1001\t5001\t8\n10.0.0.5\t5001\t1009\t7\n10.0.0.9\t1009\t5008\t11\n10.0.0.5\t5008\t1020\t18\n"
+        }
+      ]
+    }
+  }
+}

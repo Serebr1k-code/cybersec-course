@@ -13,6 +13,17 @@ useful_for:
   - "Threat intelligence и атрибуция"
 estimated_minutes: 30
 summary: "TLS как источник разведданных: разбор сертификатов и цепочек, JA3/JA4-отпечатки, поиск origin за CDN и корреляция хостов по стеку TLS."
+lab:
+  kind: shell
+  title: "Практика: TLS-сертификат как источник имён"
+  toolset: [core, openssl]
+  workdir: /home/student/task
+  files: [task.md, cert.pem]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Посмотри сертификат: `openssl x509 -in cert.pem -noout -subject -issuer -dates -ext subjectAltName`."
+    - "Список SAN перечисляет все домены сертификата."
+    - "Один из поддоменов выдаёт origin — настоящий сервер за CDN."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,46 @@
+{
+  "id": "osint-wellknown-files",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "api/internal/"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: служебные файлы сайта\n\nОбъект — `app.example.com`. Сайт сам отдаёт набор служебных файлов,\nсозданных для роботов и сервисов. Собери из них карту структуры.\n\n1. `robots.txt` — какие пути сайт просит не индексировать:\n   `curl -s https://app.example.com/robots.txt`\n2. `sitemap.xml` — карта страниц: `curl -s https://app.example.com/sitemap.xml`\n3. `security.txt` — контакты: `curl -s https://app.example.com/.well-known/security.txt`\n4. Найди в `robots.txt` путь, который выглядит как **внутренний API** (обычно\n   его не хотят показывать поисковикам). Запиши этот путь в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-sI] <url> — выполнить HTTP-запрос",
+      "cases": [
+        {
+          "match": "robots\\.txt",
+          "example": "https://app.example.com/robots.txt",
+          "output": "User-agent: *\nDisallow: /admin/\nDisallow: /api/internal/\nDisallow: /backup/\nAllow: /public/\n\nSitemap: https://app.example.com/sitemap.xml\n"
+        },
+        {
+          "match": "sitemap\\.xml",
+          "example": "https://app.example.com/sitemap.xml",
+          "output": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n<url><loc>https://app.example.com/</loc></url>\n<url><loc>https://app.example.com/products/</loc></url>\n<url><loc>https://app.example.com/blog/2026/10/release/</loc></url>\n<url><loc>https://app.example.com/downloads/manual-v3.pdf</loc></url>\n</urlset>\n"
+        },
+        {
+          "match": "security\\.txt",
+          "example": "https://app.example.com/.well-known/security.txt",
+          "output": "Contact: mailto:soc@example.com\nExpires: 2027-03-01T00:00:00Z\nPolicy: https://app.example.com/security/policy\nPreferred-Languages: en, ru\n"
+        },
+        {
+          "match": "humans\\.txt",
+          "example": "https://app.example.com/humans.txt",
+          "output": "/* TEAM */\nDeveloper: Ivan Petrov\nContact: ivan@example.com\n"
+        }
+      ]
+    }
+  }
+}

@@ -13,6 +13,17 @@ useful_for:
   - "Атрибуция и поиск аффилированных доменов"
 estimated_minutes: 30
 summary: "Как tracking-идентификаторы (Google Analytics, GTM, AdSense, пиксели соцсетей) связывают домены одного владельца и как их искать и использовать для pivot."
+lab:
+  kind: shell
+  title: "Практика: tracking ID как pivot"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Скачай HTML: `curl -s https://app.example.com/`."
+    - "Ищи идентификаторы аналитики через grep."
+    - "Классический Google Analytics ID начинается с UA-."
 ---
 
 ## Вопрос, с которого всё начинается

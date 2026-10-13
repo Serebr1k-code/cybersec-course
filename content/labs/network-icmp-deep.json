@@ -1,0 +1,40 @@
+{
+  "id": "network-icmp-deep",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "3"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор ICMP\n\nДан `icmp.pcap` с несколькими типами ICMP-сообщений.\n\n1. Посмотри типы ICMP в дампе:\n   `tshark -r icmp.pcap -Y icmp -T fields -e icmp.type`\n   (8 = echo request, 0 = echo reply, 11 = time exceeded, 3 = destination unreachable)\n2. Найди тип сообщения **Destination Unreachable** (ошибка доставки).\n3. Запиши его номер в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/icmp.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AABlAAAAAPFTZQAAAABUAAAAVAAAAEUAAFQAAQAAQAFmnwoAAAkKAAABCAC4ahJnAAF4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eAHxU2XoAwAAVAAAAFQAAABFAABUAAEAAEABZp8KAAABCgAACQAAwGoSZwABeHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHgC8VNl0AcAADgAAAA4AAAARQAAOAABAABAAWa7CgAAAQoAAAkLAA8yAAAAAEUAABwAAQAAQBFguAoAAAkICAgIADUANQAI5VsD8VNluAsAADgAAAA4AAAARQAAOAABAABAAWaxCgoAAQoAAAkDBCUtAAAAAEUAABwAAQAAQBFSuQoAAAkKChQFADUANQAI11w="
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark [опции] -r <pcap> [-Y фильтр] [-T fields -e поле]",
+      "cases": [
+        {
+          "match": "-e icmp\\.type",
+          "example": "-Y icmp -T fields -e icmp.type",
+          "output": "8\n0\n11\n3\n"
+        },
+        {
+          "match": "icmp",
+          "example": "",
+          "output": "8\n0\n11\n3\n"
+        }
+      ]
+    }
+  }
+}

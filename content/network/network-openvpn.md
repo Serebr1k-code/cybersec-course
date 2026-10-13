@@ -13,6 +13,17 @@ useful_for:
   - "Работа: диагностика и защита VPN-доступа"
 estimated_minutes: 50
 summary: "Как OpenVPN прячет трафик в TLS/UDP, что видно на проводе и какие ошибки конфигурации ведут к компрометации."
+lab:
+  kind: shell
+  title: "Практика: опкоды OpenVPN"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, vpn.pcap]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "Посмотри опкоды: `tshark -r vpn.pcap -T fields -e openvpn.opcode`."
+    - "0x07 — это P_CONTROL_HARD_RESET_CLIENT_V2, старт сессии клиента."
+    - "Нужен десятичный номер: 0x07 = 7."
 ---
 
 ## Вопрос, с которого всё начинается

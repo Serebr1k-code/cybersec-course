@@ -12,6 +12,17 @@ useful_for:
   - "Пентест: реальный периметр"
 estimated_minutes: 62
 summary: "Как определить CDN/WAF, найти настоящий origin через исторический DNS, CT, favicon, поддомены, прямые порты и утечки; проверка через Host-заголовок и риски."
+lab:
+  kind: shell
+  title: "Практика: поиск origin за CDN"
+  toolset: [core, tshark, curl]
+  workdir: /home/student/task
+  files: [task.md, dns.pcap]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "DNS-дамп: `tshark -r dns.pcap -Y dns -T fields -e ip.src -e ip.dst -e dns.qry.name -e dns.a`."
+    - "104.16.x.x — это Cloudflare, а не origin."
+    - "Ищи поддомен, который резолвится в адрес вне сети Cloudflare."
 ---
 
 ## Вопрос, с которого всё начинается

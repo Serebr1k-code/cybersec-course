@@ -13,6 +13,17 @@ useful_for:
   - "Работа (SOC): детект БД-аномалий"
 estimated_minutes: 50
 summary: "MySQL, PostgreSQL и MSSQL на проводе: handshake, методы аутентификации, что видно без TLS, как перехватить учётные данные и как защитить базы данных шифрованием и сегментацией."
+lab:
+  kind: shell
+  title: "Практика: что отдают БД до входа"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, mysql.pcap, pg.pcap]
+  check: "grep -q '' answer.txt"
+  hints:
+    - "MySQL: `tshark -r mysql.pcap -Y mysql -T fields -e mysql.version -e mysql.thread_id -e mysql.salt`."
+    - "PostgreSQL: `tshark -r pg.pcap -Y pgsql -T fields -e pgsql.parameter_name -e pgsql.parameter_value`."
+    - "В StartupMessage PostgreSQL первым параметром идёт user — это и есть имя пользователя."
 ---
 
 ## Вопрос, с которого всё начинается

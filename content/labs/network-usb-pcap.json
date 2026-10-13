@@ -1,0 +1,49 @@
+{
+  "id": "network-usb-pcap",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "flag"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: восстановить текст, набранный на USB-клавиатуре\n\nДан `usb.pcap` — захват обмена USB-клавиатуры (device 3, endpoint 0x81).\nКлавиатура шлёт 8-байтные HID-отчёты; нажатая клавиша — в **третьем** байте.\n\n1. Убедись, что это устройство ввода:\n   `tshark -r usb.pcap -T fields -e usb.device_address -e usb.endpoint_address`\n2. Достань HID-отчёты (hex):\n   `tshark -r usb.pcap -T fields -e usb.capdata`\n3. В файле `keymap.txt` — таблица HID-кодов для нескольких клавиш. Ненулевые\n   третьи байты — это нажатия (строки из нулей — отпускания).\n4. Собери слово из нажатий и запиши его в `answer.txt`, затем набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/usb.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAC9AAAAAPFTZQAAAAA4AAAAOAAAAGQAAAAAAAAAQwGBAwEAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAgAAAAAAAAAAAAAAAAACQAAAAAAAfFTZegDAAA4AAAAOAAAAGUAAAAAAAAAQwGBAwEAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAvFTZdAHAAA4AAAAOAAAAGYAAAAAAAAAQwGBAwEAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAgAAAAAAAAAAAAAAAAADwAAAAAAA/FTZbgLAAA4AAAAOAAAAGcAAAAAAAAAQwGBAwEAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAABPFTZaAPAAA4AAAAOAAAAGgAAAAAAAAAQwGBAwEAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAgAAAAAAAAAAAAAAAAABAAAAAAABfFTZYgTAAA4AAAAOAAAAGkAAAAAAAAAQwGBAwEAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAABvFTZXAXAAA4AAAAOAAAAGoAAAAAAAAAQwGBAwEAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAgAAAAAAAAAAAAAAAAACgAAAAAAB/FTZVgbAAA4AAAAOAAAAGsAAAAAAAAAQwGBAwEAAAAAAAAAAAAAAAAAAAAAAAAACAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    {
+      "path": "/home/student/task/keymap.txt",
+      "text": "04 = a\n05 = b\n06 = c\n07 = d\n08 = e\n09 = f\n0a = g\n0f = l\n"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark [опции] -r <pcap> [-Y фильтр] [-T fields -e поле]",
+      "cases": [
+        {
+          "match": "-e usb\\.capdata",
+          "example": "-T fields -e usb.capdata",
+          "output": "0000090000000000\n0000000000000000\n00000f0000000000\n0000000000000000\n0000040000000000\n0000000000000000\n00000a0000000000\n0000000000000000\n"
+        },
+        {
+          "match": "usb\\.device_address",
+          "example": "-T fields -e usb.device_address -e usb.endpoint_address",
+          "output": "3\t0x81\n3\t0x81\n3\t0x81\n3\t0x81\n3\t0x81\n3\t0x81\n3\t0x81\n3\t0x81\n"
+        },
+        {
+          "match": "usb",
+          "example": "",
+          "output": "    1   0.000000        1.3.1 → host         USB 56 URB_INTERRUPT in\n    2   1.001000        1.3.1 → host         USB 56 URB_INTERRUPT in\n    3   2.002000        1.3.1 → host         USB 56 URB_INTERRUPT in\n    4   3.003000        1.3.1 → host         USB 56 URB_INTERRUPT in\n    5   4.004000        1.3.1 → host         USB 56 URB_INTERRUPT in\n    6   5.005000        1.3.1 → host         USB 56 URB_INTERRUPT in\n    7   6.006000        1.3.1 → host         USB 56 URB_INTERRUPT in\n    8   7.007000        1.3.1 → host         USB 56 URB_INTERRUPT in\n"
+        }
+      ]
+    }
+  }
+}
