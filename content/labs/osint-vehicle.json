@@ -1,0 +1,56 @@
+{
+  "id": "osint-vehicle",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{v1n_d3c0d3d_0wn3r_s34rch}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: фото авто с VIN\n\nНа фото `car.jpg` виден VIN `1HGCM82633A004352`.\n\n1. Декодируй VIN через открытый API NHTSA:\n   `curl -s \"https://vpic.nhtsa.dot.gov/api/vehicles/decodevin/1HGCM82633A004352?format=json\" > vin.json`\n2. Разбери результат:\n   `jq -r '.Results[] | select(.Value!=\"\") | \"\\(.Variable): \\(.Value)\"' vin.json`\n3. Символы 1–3 (`1HG`) — производитель/страна, символ 10 — год выпуска.\n4. Одно из полей содержит маркер `nto{...}`. Запиши его в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/car.jpg",
+      "b64": "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — NHTSA vPIC API (эмуляция: реальный формат ответа)",
+      "cases": [
+        {
+          "match": "vpic\\.nhtsa\\.dot\\.gov",
+          "example": "vpic.nhtsa.dot.gov/api/vehicles/decodevin/1HGCM82633A004352?format=json",
+          "output": "{\n  \"Count\": 8,\n  \"Results\": [\n    {\"Variable\": \"Make\", \"Value\": \"HONDA\"},\n    {\"Variable\": \"Model\", \"Value\": \"Accord\"},\n    {\"Variable\": \"ModelYear\", \"Value\": \"2003\"},\n    {\"Variable\": \"Series\", \"Value\": \"nto{v1n_d3c0d3d_0wn3r_s34rch}\"},\n    {\"Variable\": \"PlantCountry\", \"Value\": \"UNITED STATES (USA)\"},\n    {\"Variable\": \"VehicleType\", \"Value\": \"PASSENGER CAR\"},\n    {\"Variable\": \"BodyClass\", \"Value\": \"Sedan/Saloon\"},\n    {\"Variable\": \"ErrorText\", \"Value\": \"0 - VIN decoded clean. Check Digit (9th position) is correct\"}\n  ]\n}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только vpic.nhtsa.dot.gov (decodevin).\n"
+    },
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "Results",
+          "example": "jq -r '.Results[] | select(.Value!=\"\") | \"\\(.Variable): \\(.Value)\"' vin.json",
+          "output": "Make: HONDA\nModel: Accord\nModelYear: 2003\nSeries: nto{v1n_d3c0d3d_0wn3r_s34rch}\nPlantCountry: UNITED STATES (USA)\nVehicleType: PASSENGER CAR\nBodyClass: Sedan/Saloon\nErrorText: 0 - VIN decoded clean. Check Digit (9th position) is correct\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживается только фильтр по '.Results[]'.\n"
+    },
+    "exiftool": {
+      "help": "exiftool <файл> — метаданные фото (эмуляция)",
+      "cases": [
+        {
+          "match": "car\\.jpg",
+          "example": "exiftool car.jpg",
+          "output": "ExifTool Version Number         : 13.55\nFile Name                       : car.jpg\nFile Type                       : JPEG\nMIME Type                       : image/jpeg\nCamera Model Name               : iPhone 12\nCreate Date                     : 2023:05:12 14:22:03\nGPS Position                    : 55 deg 45' 21.00\" N, 37 deg 37' 4.00\" E\n"
+        }
+      ],
+      "fallback": "exiftool: в этой лабе доступен только car.jpg.\n"
+    }
+  }
+}

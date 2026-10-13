@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty recon"
 estimated_minutes: 45
 summary: "Редкие операторы, различия Google/Bing/Yandex, Google Hacking Database, автоматизация доркинга и защита от ложных срабатываний."
+lab:
+  kind: shell
+  title: "Практика: от дорка к подтверждению"
+  toolset: [core, googler, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Прогони дорк: `googler --json -n 20 \"site:example.com (filetype:env OR filetype:ini)\"`."
+    - "Дорк находит проиндексированное, а не доступное. Проверь `.env` заголовками: `curl -sI \"https://example.com/.env\"`."
+    - "Отсей ложное срабатывание: `curl -sI \"https://example.com/old-config.php\"` вернёт 404."
+    - "Подтверждённый файл прочитай: `curl -s \"https://example.com/.env\"` — строка `FLAG=...` и есть `nto{...}`. Запиши в `answer.txt` и набери `check`."
 ---
 
 ## Задача

@@ -1,0 +1,39 @@
+{
+  "id": "osint-verification",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{v1r4l_ph0t0_r3us3d_2020}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: верификация вирусного фото\n\nКартинка `viral.jpg` с утверждением «снято сегодня в городе X».\n\n1. Прочитай метаданные:\n   `exiftool viral.jpg`\n2. EXIF может быть обрезан соцсетью, но XMP часто остаётся. Посмотри все XMP-поля:\n   `exiftool -XMP:all viral.jpg`\n3. Сравни дату съёмки в EXIF с датой в XMP — расхождение и есть признак переиспользования.\n4. Маркер в XMP-описании — это `nto{...}`. Запиши в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/viral.jpg",
+      "b64": "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "exiftool": {
+      "help": "exiftool [-XMP:all] <файл> — метаданные изображения (эмуляция: реальный формат вывода)",
+      "cases": [
+        {
+          "match": "-xmp",
+          "example": "exiftool -XMP:all viral.jpg",
+          "output": "XMP-dc:Description              : Reused stock photo, first published 2020. Marker nto{v1r4l_ph0t0_r3us3d_2020}\nXMP-xmp:CreateDate              : 2020:06:15 09:00:00\nXMP-xmp:ModifyDate              : 2020:06:15 09:00:00\nXMP-photoshop:DateCreated       : 2020:06:15 09:00:00\nXMP-xmp:CreatorTool             : Adobe Photoshop 21.0\n"
+        },
+        {
+          "match": "viral",
+          "example": "exiftool viral.jpg",
+          "output": "ExifTool Version Number         : 13.55\nFile Name                       : viral.jpg\nDirectory                       : .\nFile Size                       : 633 bytes\nFile Type                       : JPEG\nMIME Type                       : image/jpeg\nImage Width                     : 1\nImage Height                    : 1\nEncoding Process                : Baseline DCT, Huffman coding\nMake                            : Apple\nCamera Model Name               : iPhone 12\nCreate Date                     : 2026:10:12 14:22:03\nGPS Position                    : 55 deg 45' 21.00\" N, 37 deg 37' 4.00\" E\n"
+        }
+      ],
+      "fallback": "exiftool: в этой лабе доступен разбор viral.jpg (и -XMP:all).\n"
+    }
+  }
+}

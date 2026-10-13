@@ -13,6 +13,18 @@ useful_for:
   - "Понимание трекинга"
 estimated_minutes: 40
 summary: "Browser fingerprinting: canvas/WebGL/fonts/timezone, библиотеки и сервисы проверки, как сессии коррелируют, антидетект-браузеры, Tor и чек-лист защиты."
+lab:
+  kind: shell
+  title: "Практика: сетевой отпечаток клиента"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Посмотри, как сервер видит твой клиент: `curl -s \"https://tls.browserleaks.com/json\"`."
+    - "Поле `user_agent` будет `curl/...`, а `ja3_hash` не совпадёт с браузерным профилем — это и есть автоматизация."
+    - "Для контраста посмотри заголовки к цели: `curl -sI \"https://example.com\"`."
+    - "В поле `note` ответа сервиса отпечатков есть маркер `nto{...}`. Запиши в `answer.txt` и набери `check`."
 ---
 
 ## Вопрос, с которого всё начинается

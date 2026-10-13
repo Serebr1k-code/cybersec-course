@@ -14,6 +14,18 @@ useful_for:
   - "Работа: верификация контента"
 estimated_minutes: 50
 summary: "Как проверять подлинность контента и выявлять дезинформацию: источник, метаданные, геолокация, время, кросс-подтверждение."
+lab:
+  kind: shell
+  title: "Практика: верификация вирусного фото"
+  toolset: [core, exiftool]
+  workdir: /home/student/task
+  files: [task.md, viral.jpg]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Прочитай метаданные: `exiftool viral.jpg` — EXIF может быть урезан, но посмотри дату."
+    - "Платформы чистят EXIF, но XMP часто остаётся: `exiftool -XMP:all viral.jpg`."
+    - "Сравни `Create Date` (EXIF, 2026) и `XMP-xmp:CreateDate` (2020) — расхождение = переиспользование."
+    - "В поле `XMP-dc:Description` есть маркер `nto{...}`. Запиши в `answer.txt` и набери `check`."
 ---
 
 ## Вопрос, с которого всё начинается

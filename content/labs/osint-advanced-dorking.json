@@ -1,0 +1,50 @@
+{
+  "id": "osint-advanced-dorking",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{d0rk_200_c0nf1rm3d}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: от дорка к подтверждению\n\nДомен `example.com` на bug bounty. Дорк уже проиндексировал интересные файлы — их нужно подтвердить.\n\n1. Прогони дорк через CLI-поиск:\n   `googler --json -n 20 \"site:example.com (filetype:env OR filetype:ini)\"`\n2. Проверь найденный `.env` только заголовками:\n   `curl -sI \"https://example.com/.env\"`\n3. Исключи ложное срабатывание: `curl -sI \"https://example.com/old-config.php\"` (должен быть 404).\n4. Подтверждённый файл прочитай целиком: `curl -s \"https://example.com/.env\"`.\n5. Строка `FLAG=...` в теле — маркер. Запиши `nto{...}` в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "googler": {
+      "help": "googler [--json] -n <N> <дорк> — поиск Google из CLI (эмуляция)",
+      "cases": [
+        {
+          "match": "filetype",
+          "example": "googler --json -n 20 \"site:example.com (filetype:env OR filetype:ini)\"",
+          "output": "[\n  {\"url\": \"https://example.com/.env\", \"title\": \".env\"},\n  {\"url\": \"https://example.com/old-config.php\", \"title\": \"config\"},\n  {\"url\": \"https://example.com/backup.sql\", \"title\": \"backup\"}\n]\n"
+        }
+      ],
+      "fallback": "googler: в этой лабе доступен только дорк по site:example.com с filetype:.\n"
+    },
+    "curl": {
+      "help": "curl [-sI|-s] <URL> — проверка и выгрузка (эмуляция: реальный формат ответа)",
+      "cases": [
+        {
+          "match": "(-sI|-I|-is).*\\.env",
+          "example": "curl -sI https://example.com/.env",
+          "output": "HTTP/2 200\ncontent-type: text/plain; charset=utf-8\ncontent-length: 118\n"
+        },
+        {
+          "match": "old-config",
+          "example": "curl -sI https://example.com/old-config.php",
+          "output": "HTTP/2 404\ncontent-type: text/html; charset=utf-8\n"
+        },
+        {
+          "match": "example\\.com/\\.env",
+          "example": "curl -s https://example.com/.env",
+          "output": "APP_ENV=production\nAPP_KEY=base64:8fJ2kQ9pLmN3vR7tY1wZ4xC6bA0dE5gH2jK8sP3qU9=\nAWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\nFLAG=nto{d0rk_200_c0nf1rm3d}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны только https://example.com/.env и https://example.com/old-config.php.\n"
+    }
+  }
+}

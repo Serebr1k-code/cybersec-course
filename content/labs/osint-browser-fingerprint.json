@@ -1,0 +1,34 @@
+{
+  "id": "osint-browser-fingerprint",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{j43_f1ng3rpr1nt_m1sm4tch}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: сетевой отпечаток клиента\n\nТы ходишь по цели через `curl`. Сервер видит не только IP, но и TLS-отпечаток (JA3/JA4).\n\n1. Посмотри, как сервер видит твой клиент, на публичном сервисе отпечатков:\n   `curl -s \"https://tls.browserleaks.com/json\"`\n2. Сравни: `user_agent` будет `curl/...`, а `ja3_hash` не совпадёт ни с одним браузерным профилем.\n3. Заголовки обычного запроса к цели (для контраста): `curl -sI \"https://example.com\"`.\n4. В ответе сервиса отпечатков есть поле-заметка с маркером `nto{...}`. Запиши его в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-sI|-s] <URL> — сервис отпечатков TLS / заголовки (эмуляция: реальный формат ответа)",
+      "cases": [
+        {
+          "match": "tls\\.browserleaks\\.com",
+          "example": "curl -s https://tls.browserleaks.com/json",
+          "output": "{\n  \"user_agent\": \"curl/8.5.0\",\n  \"ja3_hash\": \"b32309a26951912be7dba376398abc3b\",\n  \"ja3\": \"771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,0-23-65281-10-11-35-16-5-13-18-51-45-43-27-21,29-23-24,0\",\n  \"ja3n_hash\": \"8d9f77476752718a9a9e1b5b6b1a2e5a\",\n  \"akamai_hash\": \"52d84b11737d980aef856699f885ca86\",\n  \"akamai_text\": \"1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p\",\n  \"note\": \"curl/8.5.0: JA3 does not match any browser profile - flagged as automation. marker nto{j43_f1ng3rpr1nt_m1sm4tch}\"\n}\n"
+        },
+        {
+          "match": "example\\.com",
+          "example": "curl -sI https://example.com",
+          "output": "HTTP/2 200\nserver: nginx/1.25.3\ncontent-type: text/html; charset=utf-8\nx-powered-by: Express\nstrict-transport-security: max-age=63072000; includeSubDomains\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны только https://tls.browserleaks.com/json и https://example.com.\n"
+    }
+  }
+}

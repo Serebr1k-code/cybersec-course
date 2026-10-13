@@ -13,6 +13,18 @@ useful_for:
   - "Верификация"
 estimated_minutes: 50
 summary: "Как исследовать автомобили по фото: VIN, номерные знаки, модели, регионы — и что законно делать с этими данными."
+lab:
+  kind: shell
+  title: "Практика: декодируем VIN с фото"
+  toolset: [core, curl, jq, exiftool]
+  workdir: /home/student/task
+  files: [task.md, car.jpg]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Декодируй VIN через NHTSA: `curl -s \"https://vpic.nhtsa.dot.gov/api/vehicles/decodevin/1HGCM82633A004352?format=json\" > vin.json`."
+    - "Разбери результат: `jq -r '.Results[] | select(.Value!=\"\") | \"\(.Variable): \(.Value)\"" vin.json`."
+    - "Обрати внимание: `Make: HONDA`, `ModelYear: 2003` — это Honda Accord 2003-го."
+    - "Поле `Series` содержит маркер `nto{...}`. Запиши в `answer.txt` и набери `check`."
 ---
 
 ## Вопрос, с которого всё начинается

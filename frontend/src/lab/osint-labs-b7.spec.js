@@ -51,6 +51,24 @@ const LABS = [
     'theHarvester -d example.com -b all -f harvest.txt',
     'grep nto harvest.txt',
     "echo 'nto{aut0m4t3d_h4rv3st_fl4g}' > answer.txt"] },
+  { id: 'osint-verification', solution: [
+    'exiftool viral.jpg',
+    'exiftool -XMP:all viral.jpg',
+    "echo 'nto{v1r4l_ph0t0_r3us3d_2020}' > answer.txt"] },
+  { id: 'osint-vehicle', solution: [
+    'curl -s "https://vpic.nhtsa.dot.gov/api/vehicles/decodevin/1HGCM82633A004352?format=json" > vin.json',
+    'jq -r \'.Results[] | select(.Value!="") | "\\(.Variable): \\(.Value)"\' vin.json',
+    "echo 'nto{v1n_d3c0d3d_0wn3r_s34rch}' > answer.txt"] },
+  { id: 'osint-advanced-dorking', solution: [
+    'googler --json -n 20 "site:example.com (filetype:env OR filetype:ini)"',
+    'curl -sI "https://example.com/.env"',
+    'curl -sI "https://example.com/old-config.php"',
+    'curl -s "https://example.com/.env"',
+    "echo 'nto{d0rk_200_c0nf1rm3d}' > answer.txt"] },
+  { id: 'osint-browser-fingerprint', solution: [
+    'curl -s "https://tls.browserleaks.com/json"',
+    'curl -sI "https://example.com"',
+    "echo 'nto{j43_f1ng3rpr1nt_m1sm4tch}' > answer.txt"] },
 ]
 
 describe('osint labs B7 solve end-to-end', () => {
