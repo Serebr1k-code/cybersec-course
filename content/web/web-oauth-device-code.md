@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 35
 summary: "Device Authorization Grant: как устроен, где ломается, фишинг через user_code и захват токенов."
+lab:
+  kind: shell
+  title: 'Практика: device code phishing'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Устройство запрашивает код: `curl -s https://acmeid.example/device/code -d ''client_id=shop-tv&scope=openid''`.'
+    - 'Получишь `device_code` (секрет) и `user_code` (его человек вводит на `verification_uri`).'
+    - 'Жертва вводит ЧУЖОЙ `user_code` и подтверждает — токены уходят устройству, начавшему flow.'
+    - 'Собери итог: `curl -s ''https://acmeid.example/device/approve?user_code=WDJB-MJHT&device_code=GmRhmhcxhwAzkoEqiMEg'' | tail -1 > found.txt`, затем `check`.'
 ---
 
 Представь умный телевизор, на котором надо войти в аккаунт, но нет клавиатуры. Вводить пароль пультом — мучение. Для таких устройств придумали **device code flow** (Device Authorization Grant): телевизор показывает код и ссылку, ты вводишь код на телефоне, подтверждаешь вход — и телевизор получает токен. Удобно. Но именно эта схема открыта для **фишинга**: жертва подтверждает вход на **чужом** устройстве, думая, что на своём.

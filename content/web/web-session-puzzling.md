@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 40
 summary: "Session puzzling: переиспользование одной переменной сессии разными модулями, путаница ролей и обход проверок."
+lab:
+  kind: shell
+  title: 'Практика: session puzzling (переиспользование ключа)'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Регистрация в два шага: step1 пишет email в сессию под ключом `pending`.'
+    - 'Сброс пароля пишет в ТОТ ЖЕ ключ `pending` email жертвы.'
+    - 'Начни регистрацию, затем запусти сброс для жертвы — ключ перезапишется.'
+    - 'Затем заверши регистрацию той же cookie: `curl -s -b jar -X POST https://t/register/step2 -d ''password=Pwn1!'' | tail -1 > found.txt`, затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

