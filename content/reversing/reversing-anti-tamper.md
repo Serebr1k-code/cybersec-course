@@ -13,6 +13,17 @@ useful_for:
   - "Аудит защищённого ПО"
 estimated_minutes: 60
 summary: "Проверки целостности и анти-тампер: как они устроены, как находить и обходить, не ломая программу."
+lab:
+  kind: shell
+  title: 'Практика: нейтрализовать anti-tamper'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, guard]
+  check: 'grep -q ''nto{t4mp3r_ch3ck_n3utr4l1z3d}'' found.txt'
+  hints:
+    - '`guard` считает CRC32 секции `protected` и сравнивает с константой.'
+    - 'Эталон не совпадает — срабатывает защита. Найди `check()` в `objdump -d guard`.'
+    - 'В gdb: `b check`, `run`, `set var crc=0xdeadbeef`, `continue` — печатается лицензия.'
 ---
 
 ## Вопрос, с которого всё начинается

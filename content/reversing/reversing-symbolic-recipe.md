@@ -13,6 +13,17 @@ useful_for:
   - "Аудит: проверка условий"
 estimated_minutes: 55
 summary: "Готовые рецепты символического исполнения: angr explore/simulation, символизация stdin/argv, Z3-модели, решение keygenme, хуки, управление взрывом путей и практические примеры."
+lab:
+  kind: shell
+  title: 'Практика: решить keygenme через Z3'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, keygenme, solve.py]
+  check: 'grep -q ''nto{k3yg3nm3_s0lv3d_w1th_z3}'' found.txt'
+  hints:
+    - '`strings keygenme` — подсказок мало: флаг зашифрован.'
+    - '`python3 solve.py` — Z3 решает `key[i]^0x20==tgt[i]` и печатает ключ.'
+    - 'Подставь ключ: `keygenme <key>` — программа напечатает флаг.'
 ---
 ## Вопрос, с которого всё начинается
 

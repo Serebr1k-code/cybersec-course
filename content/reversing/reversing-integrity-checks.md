@@ -13,6 +13,17 @@ useful_for:
   - "Vuln research: понимание защиты от модификации"
 estimated_minutes: 55
 summary: "Проверки целостности кода и анти-патч: контрольные суммы, self-hash, проверка секций, обнаружение отладчиков-патчей, методы нейтрализации и практические приёмы."
+lab:
+  kind: shell
+  title: 'Практика: обойти проверку целостности'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, ac, flag.enc, rec.py]
+  check: 'grep -q ''nto{1nt3gr1ty_ch3ck_b4ckf1r3}'' found.txt'
+  hints:
+    - '`ac` печатает два хэша: своего кода и массива-«стража».'
+    - 'Флаг зашифрован ключом, производным от `guard hash`.'
+    - 'Передай хэш: `python3 rec.py 0x<guard_hash>`.'
 ---
 ## Вопрос, с которого всё начинается
 

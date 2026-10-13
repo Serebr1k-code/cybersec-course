@@ -13,6 +13,17 @@ useful_for:
   - "Malware research"
 estimated_minutes: 55
 summary: "LIEF для программного разбора и модификации ELF/PE/Mach-O: секции, импорты, патч кода — на реальном примере."
+lab:
+  kind: shell
+  title: 'Практика: разбор ELF через LIEF'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, crackme, lief_demo.py]
+  check: 'grep -q ''nto{l13f_p4r53s_3lf_s3ct10ns}'' found.txt'
+  hints:
+    - 'LIEF парсит бинарник как объект: `lief.parse(''crackme'')`.'
+    - 'Нужна нестандартная секция `.flag` — `b.get_section(''.flag'')`.'
+    - 'Её содержимое зашифровано XOR 0x33: `python3 lief_demo.py`.'
 ---
 
 ## Вопрос, с которого всё начинается
