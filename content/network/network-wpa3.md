@@ -13,6 +13,18 @@ useful_for:
   - "Работа: оценка стойкости Wi-Fi"
 estimated_minutes: 55
 summary: "Как WPA3/SAE закрывает оффлайн-перебор, что такое уязвимости Dragonblood, и почему переходный режим снова открывает WPA2-атаки."
+lab:
+  kind: shell
+  title: "Практика: что за handshake в дампе?"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, wpa3.pcap]
+  check: "grep -q 'SAE' answer.txt"
+  hints:
+    - "Сводка: `tshark -r wpa3.pcap -nn` — это кадры Authentication."
+    - "Поля: `tshark -r wpa3.pcap -T fields -e wlan.fixed.auth.alg -e wlan.fixed.sae_message_type`."
+    - "Значение `alg=3` — это SAE (Simultaneous Authentication of Equals)."
+    - "Ответ — `SAE`."
 ---
 
 ## Вопрос, с которого всё начинается

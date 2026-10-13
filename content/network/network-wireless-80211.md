@@ -13,6 +13,18 @@ useful_for:
   - "Работа: защита Wi-Fi и расследования"
 estimated_minutes: 50
 summary: "Как устроен Wi-Fi, как перехватить и взломать WPA2-handshake/PMKID, что такое evil twin и почему WPA3 меняет правила."
+lab:
+  kind: shell
+  title: "Практика: разведка эфира — читаем beacon"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, wifi.pcap]
+  check: "grep -q 'HomeWiFi' answer.txt"
+  hints:
+    - "Сводка: `tshark -r wifi.pcap -nn` — в строке виден SSID."
+    - "В `-T fields -e wlan.ssid` SSID выводится как hex-строка."
+    - "Поля: `tshark -r wifi.pcap -T fields -e wlan.bssid -e wlan.ssid -e wlan.ds.current_channel`."
+    - "SSID — `HomeWiFi` (в hex: 486f6d6557694669)."
 ---
 
 ## Вопрос, с которого всё начинается

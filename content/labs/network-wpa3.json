@@ -1,0 +1,42 @@
+{
+  "id": "network-wpa3",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "SAE"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: что за handshake в дампе?\n\n`wpa3.pcap` — обмен кадрами аутентификации 802.11. Определи механизм аутентификации.\n\n1. Сводка: `tshark -r wpa3.pcap -nn`\n2. Алгоритм: `tshark -r wpa3.pcap -T fields -e wlan.fixed.auth.alg -e wlan.fixed.sae_message_type`\n   (`alg`: 1=Open, 2=Shared Key, 3=SAE)\n\nОпредели, какой механизм аутентификации используется, и запиши его **сокращение**\n(заглавными буквами) в `answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/wpa3.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAB/AAAAj3HOaiHRDgCIAAAAiAAAAAAACAAAAAAAsAAAAKq7zBEiMxAgMEBQYKq7zBEiMwAAAwABAAAAEwABAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgKPcc5qy9IOAIgAAACIAAAAAAAIAAAAAACwAAAAECAwQFBgqrvMESIzqrvMESIzAAADAAIAAAATAAMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-Y <фильтр>] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "auth\\.alg",
+          "example": "-r wpa3.pcap -T fields -e wlan.fixed.auth.alg -e wlan.fixed.sae_message_type",
+          "output": "3\t1\n3\t2\n"
+        },
+        {
+          "match": "wpa3\\.pcap",
+          "example": "-r wpa3.pcap -nn",
+          "output": "    1   0.000000 10:20:30:40:50:60 → aa:bb:cc:11:22:33 802.11 136 Authentication, SN=0, FN=0, Flags=........\n    2   0.000426 aa:bb:cc:11:22:33 → 10:20:30:40:50:60 802.11 136 Authentication, SN=0, FN=0, Flags=........\n"
+        }
+      ],
+      "fallback": "    1   0.000000 10:20:30:40:50:60 → aa:bb:cc:11:22:33 802.11 136 Authentication, SN=0, FN=0, Flags=........\n    2   0.000426 aa:bb:cc:11:22:33 → 10:20:30:40:50:60 802.11 136 Authentication, SN=0, FN=0, Flags=........\n"
+    }
+  }
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): детект Wi-Fi-атак"
 estimated_minutes: 55
 summary: "Атаки на WPA2: перехват 4-way handshake, PMKID без клиента, KRACK, WPS-брутфорс и deauth — с командами aircrack-ng/hcxdumptool и разбором защиты."
+lab:
+  kind: shell
+  title: "Практика: нашли 4-way handshake — чей он?"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, eapol.pcap]
+  check: "grep -q 'aa:bb:cc:11:22:33' answer.txt"
+  hints:
+    - "Сводка: `tshark -r eapol.pcap -nn` — это сообщения 1 и 2 из 4."
+    - "BSSID — это MAC-адрес точки доступа."
+    - "Поля: `tshark -r eapol.pcap -T fields -e wlan.bssid -e wlan.ta`."
+    - "BSSID — `aa:bb:cc:11:22:33`."
 ---
 
 ## Вопрос, с которого всё начинается

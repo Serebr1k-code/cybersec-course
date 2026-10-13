@@ -1,0 +1,42 @@
+{
+  "id": "network-wpa2-attacks",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "aa:bb:cc:11:22:33"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: нашли 4-way handshake — чей он?\n\n`eapol.pcap` — фрагмент 4-way handshake WPA2 (сообщения 1 и 2).\n\n1. Сводка: `tshark -r eapol.pcap -nn`\n2. Поля: `tshark -r eapol.pcap -T fields -e wlan.bssid -e wlan.ta -e eapol.type -e eapol.keydes.replay_counter`\n\nОпредели **BSSID точки доступа**, к которой относится это рукопожатие, и запиши его\nв формате `aa:bb:cc:dd:ee:ff` в `answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/eapol.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAB/AAAAj3HOag/HDgCNAAAAjQAAAAAACAAAAAAAiAAAABAgMEBQYKq7zBEiM6q7zBEiMwAAAACqqgMAAACIjgIDAF8CAYgAAAAAAAAAAAABEREREREREREREREREREREREREREREREREREREREREREAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAI9xzmpqyg4AjQAAAI0AAAAAAAgAAAAAAIgAAACqu8wRIjMQIDBAUGCqu8wRIjMAAAAAqqoDAAAAiI4CAwBfAgEIAAAAAAAAAAAAASIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiIiAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-Y <фильтр>] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "wlan\\.bssid",
+          "example": "-r eapol.pcap -T fields -e wlan.bssid -e wlan.ta -e eapol.type -e eapol.keydes.replay_counter",
+          "output": "aa:bb:cc:11:22:33\taa:bb:cc:11:22:33\t3\t1\naa:bb:cc:11:22:33\t10:20:30:40:50:60\t3\t1\n"
+        },
+        {
+          "match": "eapol\\.pcap",
+          "example": "-r eapol.pcap -nn",
+          "output": "    1   0.000000 aa:bb:cc:11:22:33 → 10:20:30:40:50:60 EAPOL 141 Key (Message 1 of 4)\n    2   0.000859 10:20:30:40:50:60 → aa:bb:cc:11:22:33 EAPOL 141 Key (Message 2 of 4)\n"
+        }
+      ],
+      "fallback": "    1   0.000000 aa:bb:cc:11:22:33 → 10:20:30:40:50:60 EAPOL 141 Key (Message 1 of 4)\n    2   0.000859 10:20:30:40:50:60 → aa:bb:cc:11:22:33 EAPOL 141 Key (Message 2 of 4)\n"
+    }
+  }
+}

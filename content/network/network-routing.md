@@ -13,6 +13,18 @@ useful_for:
   - "Пентест сетевой инфраструктуры"
 estimated_minutes: 45
 summary: "Как работают BGP, OSPF и EIGRP, какие у них врождённые слабости и как атакующий перехватывает или зацикливает чужой трафик."
+lab:
+  kind: shell
+  title: "Практика: читаем OSPF-анонс в дампе"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, ospf.pcap]
+  check: "grep -q '2.2.2.2' answer.txt"
+  hints:
+    - "Сводка: `tshark -r ospf.pcap -nn` — это OSPF Hello."
+    - "Поля OSPF: `tshark -r ospf.pcap -T fields -e ospf.srcrouter -e ospf.area_id`."
+    - "Router ID отправителя — в поле `ospf.srcrouter`."
+    - "Router ID — `2.2.2.2`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,42 @@
+{
+  "id": "network-routing",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "2.2.2.2"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: читаем OSPF-анонс в дампе\n\n`ospf.pcap` — один OSPF Hello из внутренней сети. Маршрутизатор анонсирует себя Router ID.\n\n1. Сводка: `tshark -r ospf.pcap -nn`\n2. Поля OSPF: `tshark -r ospf.pcap -T fields -e ospf.msg -e ospf.srcrouter -e ospf.area_id -e ospf.hello.hello_interval -e ospf.hello.designated_router`\n\nНайди **Router ID** отправителя (поле `ospf.srcrouter`) и запиши его в `answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/ospf.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAvXHOamT1AgBOAAAATgAAAAEAXgAABQAMKavN7wgARQAAQAABAAABWc9dCgAAAuAAAAUCAQAsAgICAgAAAAD2lgAAAAAAAAAAAAD///8AAAoAAQAAACgCAgICAAAAAA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-Y <фильтр>] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "ospf\\.srcrouter",
+          "example": "-r ospf.pcap -T fields -e ospf.msg -e ospf.srcrouter -e ospf.area_id -e ospf.hello.hello_interval -e ospf.hello.designated_router",
+          "output": "1\t2.2.2.2\t0.0.0.0\t10\t2.2.2.2\n"
+        },
+        {
+          "match": "ospf\\.pcap",
+          "example": "-r ospf.pcap -nn",
+          "output": "    1   0.000000     10.0.0.2 → 224.0.0.5    OSPF 78 Hello Packet\n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.2 → 224.0.0.5    OSPF 78 Hello Packet\n"
+    }
+  }
+}

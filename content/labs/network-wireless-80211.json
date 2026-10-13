@@ -1,0 +1,47 @@
+{
+  "id": "network-wireless-80211",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "HomeWiFi"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разведка эфира — читаем beacon\n\n`wifi.pcap` — один beacon-кадр 802.11, снятый в monitor mode.\n\n1. Сводка: `tshark -r wifi.pcap -nn` (в строке виден SSID)\n2. Поля: `tshark -r wifi.pcap -T fields -e wlan.bssid -e wlan.ssid -e wlan.ds.current_channel`\n\nНайди **SSID** сети и запиши его в `answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/wifi.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAB/AAAAj3HOare4DgBDAAAAQwAAAAAACAAAAAAAgAAAAP///////6q7zBEiM6q7zBEiMwAAAAAAAAAAAABkABEAAAhIb21lV2lGaQEIgoSLlgwSGCQDAQY=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-Y <фильтр>] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "wlan\\.bssid",
+          "example": "-r wifi.pcap -T fields -e wlan.bssid -e wlan.ssid -e wlan.ds.current_channel",
+          "output": "aa:bb:cc:11:22:33\t486f6d6557694669\t6\n"
+        },
+        {
+          "match": "wlan\\.ssid",
+          "example": "-r wifi.pcap -T fields -e wlan.ssid",
+          "output": "486f6d6557694669\n"
+        },
+        {
+          "match": "wifi\\.pcap",
+          "example": "-r wifi.pcap -nn",
+          "output": "    1   0.000000 aa:bb:cc:11:22:33 → ff:ff:ff:ff:ff:ff 802.11 67 Beacon frame, SN=0, FN=0, Flags=........, BI=100, SSID=\"HomeWiFi\"\n"
+        }
+      ],
+      "fallback": "    1   0.000000 aa:bb:cc:11:22:33 → ff:ff:ff:ff:ff:ff 802.11 67 Beacon frame, SN=0, FN=0, Flags=........, BI=100, SSID=\"HomeWiFi\"\n"
+    }
+  }
+}
