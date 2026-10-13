@@ -13,6 +13,18 @@ useful_for:
   - "Понимание, что видит защита"
 estimated_minutes: 45
 summary: "Каждое облачное действие логируется. Разбираем CloudTrail, Cloud Logging, Azure Activity Log, что искать при детекте, как защищается организация (GuardDuty, Security Hub) и как атакующему минимизировать шум."
+lab:
+  kind: shell
+  title: "Практика: читаем след в CloudTrail"
+  toolset: [core]
+  workdir: /home/student/trail
+  files: [task.md, notes.md, cloudtrail.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри все userAgent в логе: `grep userAgent cloudtrail.json`."
+    - "Обычные вызовы идут от `aws-cli/...`; один — не похож на стандартный."
+    - "Аномальный userAgent — это и есть маркер атакующего (кастомный скрипт)."
+    - "Запиши флаг: `grep nto cloudtrail.json > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

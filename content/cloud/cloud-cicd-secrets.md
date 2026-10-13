@@ -13,6 +13,18 @@ useful_for:
   - "Переход к supply-chain атакам"
 estimated_minutes: 50
 summary: "CI/CD-пайплайны хранят секреты и имеют права на деплой. Разбираем GitHub Actions, GitLab CI, Jenkins: где лежат секреты, как их извлечь, как злоупотребить раннером и как это связано с облаком."
+lab:
+  kind: shell
+  title: "Практика: секреты CI/CD через pull_request_target"
+  toolset: [core]
+  workdir: /home/student/cicd
+  files: [task.md, notes.md, .github/workflows/deploy.yml, collector.log, exfil.b64]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай workflow: `cat .github/workflows/deploy.yml` — на каком событии он запускается?"
+    - "Событие `pull_request_target` даёт секреты, а checkout берёт код из PR — это и есть дыра."
+    - "Посмотри лог коллектора: `cat collector.log` — тело запроса сохранено в `exfil.b64`."
+    - "Декодируй: `base64 -d exfil.b64 > found.txt`."
 ---
 
 ## Задача

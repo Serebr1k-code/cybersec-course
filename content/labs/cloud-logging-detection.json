@@ -1,0 +1,26 @@
+{
+  "id": "cloud-logging-detection",
+  "workdir": "/home/student/trail",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/trail/found.txt",
+    "contains": "nto{cust0m_us3r4g3nt_1s_4_r3df14g}"
+  },
+  "fs": [
+    { "path": "/home/student/trail", "type": "dir" },
+    {
+      "path": "/home/student/trail/task.md",
+      "text": "# Задача: CloudTrail — читаем след атакующего\n\nВ `cloudtrail.json` — выгрузка событий аудита AWS за последний час.\nСреди обычных вызовов есть один нетипичный: атакующий использовал кастомный скрипт.\n\nИнструменты: `grep`, `cat`.\n\nШаги:\n1. Посмотри все `userAgent` в логе: `grep userAgent cloudtrail.json`.\n2. Найди значение, которое не похоже на обычный CLI/браузер.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/trail/notes.md",
+      "text": "Заметки\n------\n- Каждое событие CloudTrail — JSON: eventTime, eventName, eventSource, userIdentity, sourceIPAddress, userAgent.\n- Control plane (меняет ресурсы) логируется почти всегда; data plane (чтение данных) — только при включённых data events.\n- GuardDuty поднимает тревогу на аномалии: нетипичный userAgent, вызовы из нового IP, StopLogging/DeleteTrail.\n"
+    },
+    {
+      "path": "/home/student/trail/cloudtrail.json",
+      "text": "[\n  {\n    \"eventTime\": \"2026-10-11T09:13:40Z\",\n    \"eventName\": \"ConsoleLogin\",\n    \"userIdentity\": { \"userName\": \"admin\" },\n    \"sourceIPAddress\": \"198.51.100.4\",\n    \"userAgent\": \"Mozilla/5.0 (X11; Linux x86_64)\"\n  },\n  {\n    \"eventTime\": \"2026-10-11T09:14:02Z\",\n    \"eventName\": \"GetCallerIdentity\",\n    \"userIdentity\": { \"userName\": \"ci-deploy\" },\n    \"sourceIPAddress\": \"203.0.113.7\",\n    \"userAgent\": \"aws-cli/2.15.0 Python/3.11 Linux/6.1 botocore/2.15.0\"\n  },\n  {\n    \"eventTime\": \"2026-10-11T09:14:07Z\",\n    \"eventName\": \"ListBuckets\",\n    \"userIdentity\": { \"userName\": \"ci-deploy\" },\n    \"sourceIPAddress\": \"203.0.113.7\",\n    \"userAgent\": \"aws-cli/2.15.0 Python/3.11 Linux/6.1 botocore/2.15.0\"\n  },\n  {\n    \"eventTime\": \"2026-10-11T09:15:33Z\",\n    \"eventName\": \"GetSecretValue\",\n    \"userIdentity\": { \"userName\": \"ci-deploy\" },\n    \"sourceIPAddress\": \"203.0.113.7\",\n    \"userAgent\": \"nto{cust0m_us3r4g3nt_1s_4_r3df14g}\"\n  },\n  {\n    \"eventTime\": \"2026-10-11T09:16:01Z\",\n    \"eventName\": \"ListBuckets\",\n    \"userIdentity\": { \"userName\": \"ci-deploy\" },\n    \"sourceIPAddress\": \"203.0.113.7\",\n    \"userAgent\": \"aws-cli/2.15.0 Python/3.11 Linux/6.1 botocore/2.15.0\"\n  }\n]\n"
+    }
+  ],
+  "tools": {}
+}

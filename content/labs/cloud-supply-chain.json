@@ -1,0 +1,38 @@
+{
+  "id": "cloud-supply-chain",
+  "workdir": "/home/student/supply",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/supply/found.txt",
+    "contains": "nto{1nt3rn4l_p4ck4g3_h4rdc0d3d_s3cr3t}"
+  },
+  "fs": [
+    { "path": "/home/student/supply", "type": "dir" },
+    {
+      "path": "/home/student/supply/task.md",
+      "text": "# Задача: supply chain — от lock-файла до секрета\n\nУ цели есть публичный репозиторий. В `package-lock.json` спрятана зацепка:\nодна из зависимостей берётся НЕ из публичного реестра.\n\nИнструменты: `cat`, `grep`.\n\nШаги:\n1. Найди в `package-lock.json` пакет, который резолвится не с `registry.npmjs.org`.\n2. Его исходники лежат в каталоге `acme-auth-utils/`. Изучи их.\n3. Найди в коде пакета захардкоженный секрет и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/supply/notes.md",
+      "text": "Заметки\n------\n- package-lock.json фиксирует точные версии и адреса (поле \"resolved\").\n- Имя внутреннего пакета, утёкшее из lock/SBOM/логов, — вход в dependency confusion.\n- Если имя свободно в публичном реестре, атакующий публикует пакет с бо́льшей версией + postinstall.\n- Утечка секретов бывает и прямо в исходниках пакета: захардкоженные токены.\n"
+    },
+    {
+      "path": "/home/student/supply/package.json",
+      "text": "{\n  \"name\": \"acme-api\",\n  \"version\": \"1.9.4\",\n  \"dependencies\": {\n    \"express\": \"^4.19.2\",\n    \"acme-auth-utils\": \"1.2.0\"\n  }\n}\n"
+    },
+    {
+      "path": "/home/student/supply/package-lock.json",
+      "text": "{\n  \"name\": \"acme-api\",\n  \"version\": \"1.9.4\",\n  \"lockfileVersion\": 3,\n  \"packages\": {\n    \"node_modules/express\": {\n      \"version\": \"4.19.2\",\n      \"resolved\": \"https://registry.npmjs.org/express/-/express-4.19.2.tgz\"\n    },\n    \"node_modules/acme-auth-utils\": {\n      \"version\": \"1.2.0\",\n      \"resolved\": \"https://nexus.acme.local/repository/npm/acme-auth-utils/-/acme-auth-utils-1.2.0.tgz\"\n    }\n  }\n}\n"
+    },
+    {
+      "path": "/home/student/supply/acme-auth-utils/package.json",
+      "text": "{\n  \"name\": \"acme-auth-utils\",\n  \"version\": \"1.2.0\",\n  \"main\": \"index.js\"\n}\n"
+    },
+    {
+      "path": "/home/student/supply/acme-auth-utils/index.js",
+      "text": "// acme-auth-utils — internal helper\nconst axios = require('axios')\n\n// TODO: move to vault before next release\nconst SERVICE_TOKEN = 'nto{1nt3rn4l_p4ck4g3_h4rdc0d3d_s3cr3t}'\n\nasync function verify(token) {\n  return axios.get('https://auth.acme.local/verify', {\n    headers: { Authorization: 'Bearer ' + SERVICE_TOKEN }\n  })\n}\n\nmodule.exports = { verify }\n"
+    }
+  ],
+  "tools": {}
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Защита сборки: SBOM, подписи, SLSA"
 estimated_minutes: 45
 summary: "Цепочка поставки — это доверие к чужому коду и артефактам. Разбираем dependency confusion, typosquatting, компрометацию инструментов сборки, злоупотребление publish-токенами, а также защиту через SBOM и подписи."
+lab:
+  kind: shell
+  title: "Практика: supply chain — от lock-файла до секрета"
+  toolset: [core]
+  workdir: /home/student/supply
+  files: [task.md, notes.md, package.json, package-lock.json, acme-auth-utils/package.json, acme-auth-utils/index.js]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Найди зависимость не из публичного реестра: `grep resolved package-lock.json`."
+    - "Пакет `acme-auth-utils` резолвится с внутреннего `nexus.acme.local` — это цель dependency confusion."
+    - "Изучи исходники пакета: `cat acme-auth-utils/index.js`."
+    - "В коде захардкожен токен — это флаг. Запиши: `grep nto acme-auth-utils/index.js > found.txt`."
 ---
 ## Задача
 
