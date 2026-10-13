@@ -1,0 +1,60 @@
+{
+  "id": "crypto-modern-modes",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{gcm_n0nc3_r3us3_k1lls}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: повтор nonce в AES-GCM\n\nСервер шифрует сообщения AES-GCM, но переиспользует один и тот же nonce.\nДаны два шифротекста `c1.hex`, `c2.hex` (тот же ключ и nonce), а также\nизвестный открытый текст первого сообщения `known.txt`.\n\nПорядок:\n1. Посмотри входные данные: `cat known.txt`, `cat c1.hex`, `cat c2.hex`.\n2. Осознай: при одинаковом key+nonce ключевой поток совпадает, значит\n   `c1 XOR c2 = m1 XOR m2`.\n3. Запусти восстановление: `python3 gcm_reuse.py`.\n4. Флаг положи в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки аналитика\n-----------------\n- GCM = CTR-шифрование + GHASH-аутентификация. Секретность даёт CTR: он XOR-ит\n  открытый текст с ключевым потоком, зависящим только от (key, nonce).\n- Один nonce на два сообщения => одинаковый ключевой поток => XOR шифротекстов\n  даёт XOR открытых текстов. Зная один — получаешь второй.\n- Дополнительно компрометируется тег: можно подделывать сообщения (forbidden\n  attack). Поэтому nonce в GCM обязан быть уникальным на каждый ключ.\n- Усечённый тег и неверная обработка AAD — другие типичные ошибки AEAD.\n"
+    },
+    {
+      "path": "/home/student/task/c1.hex",
+      "text": "1493a001b13410342b460e7284891a7af006848a091e293921adf74714b127ce2d790bc281edaa62\n"
+    },
+    {
+      "path": "/home/student/task/c2.hex",
+      "text": "3da29b5af93619062c184059e3823866b45b86f5175c20276fb7\n"
+    },
+    {
+      "path": "/home/student/task/known.txt",
+      "text": "GET /admin HTTP/1.1 user=guest role=user\n"
+    },
+    {
+      "path": "/home/student/task/nonce.txt",
+      "text": "cafebabefacedbaddecaf888\n"
+    },
+    {
+      "path": "/home/student/task/gcm_reuse.py",
+      "text": "import sys\nc1 = bytes.fromhex(open('c1.hex').read().strip())\nc2 = bytes.fromhex(open('c2.hex').read().strip())\nm1 = open('known.txt','rb').read().strip()\n# same key+nonce => identical keystream => c1^c2 = m1^m2\nm2 = bytes(a ^ b ^ c for a, b, c in zip(c1, c2, m1))\nprint('recovered m2:', m2.decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "gcm_reuse\\.py",
+          "example": "python3 gcm_reuse.py",
+          "output": "recovered m2: nto{gcm_n0nc3_r3us3_k1lls}\n"
+        }
+      ]
+    }
+  }
+}

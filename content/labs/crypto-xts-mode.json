@@ -1,0 +1,56 @@
+{
+  "id": "crypto-xts-mode",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{xts_tw34k_p3r_s3ct0r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: переиспользование tweak в XTS\n\nДиск шифровали AES-XTS, но двум разным секторам назначили ОДИН и тот же\nномер (tweak). Даны `sec1.hex`, `sec2.hex` и открытый текст первого сектора\n`sector1.txt`.\n\nПорядок:\n1. Изучи входные данные: `cat sector1.txt`, `cat sec1.hex`, `cat sec2.hex`.\n2. Пойми: одинаковый tweak => одинаковый ключевой поток => `sec1 XOR sec2 = p1 XOR p2`.\n3. Восстанови второй сектор: `python3 xts_reuse.py`.\n4. Флаг положи в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки аналитика\n-----------------\n- XTS — tweakable-режим для дисков: каждый сектор шифруется своим tweak\n  (номер сектора), поэтому одинаковые блоки в разных секторах дают разный\n  шифротекст. Позиция — открыта, но уникальна.\n- Конструкция XEX: `C = E_K(P XOR T) XOR T`, где T выводится из tweak.\n- Если tweak повторить (или взять одинаковый номер сектора), ключевой поток\n  совпадёт и XOR двух шифротекстов раскроет XOR открытых текстов.\n- Именно поэтому ECB не годится для дисков (виден паттерн), а CBC не даёт\n  произвольного доступа к секторам.\n"
+    },
+    {
+      "path": "/home/student/task/sec1.hex",
+      "text": "3e98eb1fc7c904ead92f51dbf559779e07829eab01d09e0d010512ac99b7bf13ad5be8365d8d93\n"
+    },
+    {
+      "path": "/home/student/task/sec2.hex",
+      "text": "2389e716dac9468f8d2b078cea69758d02b499f042d7cb110f\n"
+    },
+    {
+      "path": "/home/student/task/sector1.txt",
+      "text": "secret1: sector with sensitive header!!\n"
+    },
+    {
+      "path": "/home/student/task/xts_reuse.py",
+      "text": "s1 = bytes.fromhex(open('sec1.hex').read().strip())\ns2 = bytes.fromhex(open('sec2.hex').read().strip())\nknown = open('sector1.txt','rb').read().strip()\n# same key+tweak => same keystream => s1^s2 = p1^p2\np2 = bytes(a ^ b ^ c for a, b, c in zip(s1, s2, known))\nprint('recovered sector2:', p2.decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "xts_reuse\\.py",
+          "example": "python3 xts_reuse.py",
+          "output": "recovered sector2: nto{xts_tw34k_p3r_s3ct0r}\n"
+        }
+      ]
+    }
+  }
+}

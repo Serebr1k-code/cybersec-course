@@ -13,6 +13,18 @@ useful_for:
   - "Разбирать LUKS/BitLocker-совместимые образы"
 estimated_minutes: 35
 summary: "Режим XTS для шифрования дисков: tweakable-блочные шифры, конструкция XEX, роль tweak (номер сектора), ciphertext stealing для неполных блоков, сравнение с ECB/CBC, атаки при переиспользовании ключа и практическая реализация."
+lab:
+  kind: shell
+  title: "Практика: переиспользование tweak в XTS"
+  toolset: [core, hex, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, sec1.hex, sec2.hex, sector1.txt, xts_reuse.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Изучи данные: `cat sector1.txt`, `cat sec1.hex`, `cat sec2.hex`."
+    - "Одинаковый tweak => одинаковый ключевой поток: `sec1 XOR sec2 = p1 XOR p2`."
+    - "Восстанови второй сектор: `python3 xts_reuse.py`."
+    - "Запиши результат: `python3 xts_reuse.py | grep nto{ > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

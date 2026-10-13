@@ -1,0 +1,53 @@
+{
+  "id": "crypto-tools",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h4shc4t_rul3s_w1n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: офлайн-взлом хэша (hashcat / john)\n\n`hashes.txt` — SHA-256 пароля, `wordlist.txt` — словарь. Нужно подобрать пароль.\n\nПорядок:\n1. Определи режим: SHA-256 => hashcat `-m 1400`.\n2. Запусти: `hashcat -m 1400 -a 0 hashes.txt wordlist.txt`.\n3. Альтернатива: `john --wordlist=wordlist.txt hashes.txt`.\n4. Выдели пароль и положи в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки аналитика\n-----------------\n- hashcat быстрее на GPU и покрывает большинство задач; john удобен\n  автодетектом формата и конвертерами `*2john`.\n- Режим hashcat задаётся `-m`: 0=MD5, 100=SHA1, 1400=SHA2-256, 1700=SHA2-512,\n  1000=NTLM, 22000=WPA-PBKDF2.\n- Атака `-a 0` — по словарю; правила (`-r`), маски (`-a 3`) и гибрид (`-a 6/7`)\n  расширяют покрытие.\n- Онлайн-брут (hydra) — последний шаг: риск блокировки, только маленький\n  курированный список.\n"
+    },
+    {
+      "path": "/home/student/task/hashes.txt",
+      "text": "5218e36f700879b70c8248fe994696dc0f14341f52b3efb4b760107e95eb199c\n"
+    },
+    {
+      "path": "/home/student/task/wordlist.txt",
+      "text": "summer\nwinter\nautumn\nshadow\ndragon\nnto{h4shc4t_rul3s_w1n}\nspring\nmonkey\n"
+    }
+  ],
+  "tools": {
+    "hashcat": {
+      "help": "hashcat -m MODE -a 0 <хэши> <словарь> — офлайн-взлом",
+      "cases": [
+        {
+          "match": "hashes\\.txt",
+          "example": "hashcat -m 1400 -a 0 hashes.txt wordlist.txt",
+          "output": "hashcat (v6.2.6) starting\n\nOpenCL API (OpenCL 3.0) - Platform #1 [Intel(R) OpenCL]\nMinimum password length supported by kernel: 0\nMaximum password length supported by kernel: 256\n\nHashes: 1 digests; 1 unique digests, 1 unique salts\nBitmaps: 16 bits, 65536 entries, 0/65536 masks, 0/65536 hits\n\n5218e36f700879b70c8248fe994696dc0f14341f52b3efb4b760107e95eb199c:nto{h4shc4t_rul3s_w1n}\n\nSession..........: hashcat\nStatus...........: Cracked\nHash.Mode........: 1400 (SHA2-256)\nTime.Started.....: Wed Jun 11 22:41:00 2025\nRecovered........: 1/1 (100.00%) Digests\nCandidates.#1....: nto{h4shc4t_rul3s_w1n} -> nto{h4shc4t_rul3s_w1n}\n"
+        }
+      ]
+    },
+    "john": {
+      "help": "john --wordlist=<словарь> <хэши> — John the Ripper",
+      "cases": [
+        {
+          "match": "hashes\\.txt",
+          "example": "john --wordlist=wordlist.txt hashes.txt",
+          "output": "Loaded 1 password hash (Raw-SHA256 [SHA256 256/256 AVX2 8x])\nWill run 8 OpenMP threads\nPress 'q' or Ctrl-C to abort, almost any other key for status\nnto{h4shc4t_rul3s_w1n}         (?)\n1g 0:00:00:00 DONE (2025-06-11 22:41) 50.00g/s 800.0p/s 800.0c/s 800.0C/s\nUse the \"--show\" option to display all of the cracked passwords reliably\nSession completed.\n"
+        }
+      ]
+    }
+  }
+}

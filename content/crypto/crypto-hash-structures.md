@@ -12,6 +12,18 @@ useful_for:
   - "Понимать деревья Меркла, sponge-конструкцию и time-memory tradeoff"
 estimated_minutes: 10
 summary: "Модуль структур хэширования: деревья Меркла (доказательства включения, second-preimage), sponge-конструкция SHA-3/Keccak и её устойчивость к length-extension, а также радужные таблицы и time-memory tradeoff."
+lab:
+  kind: shell
+  title: "Практика: вскрыть хэш по радужной таблице"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, hash.txt, rainbow.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай хэш: `cat hash.txt`."
+    - "Найди его в таблице (подставь хэш из шага 1): `grep <хэш> rainbow.txt`."
+    - "Выдели пароль: `grep <хэш> rainbow.txt | cut -d: -f2`."
+    - "Запиши пароль: `grep <хэш> rainbow.txt | cut -d: -f2 > found.txt`."
 ---
 
 `crypto-hash-forge` и `crypto-merkle` покрывают атаку удлинением сообщения и коллизии. Этот модуль — про **структуры**, которые строятся поверх хэш-функций: деревья Меркла (криптовалюты, доказательства включения), sponge-конструкция (SHA-3/Keccak) и радужные таблицы как классический time-memory tradeoff. Здесь важно понимать, что структура может добавлять уязвимости, которых нет в самой хэш-функции.

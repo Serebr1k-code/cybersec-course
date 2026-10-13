@@ -1,0 +1,31 @@
+{
+  "id": "crypto-hash-structures",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r41nb0w_t4bl3_t1m3_m3m0ry_tr4d30ff}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: вскрыть хэш по радужной таблице\n\n`hash.txt` — SHA-256 пароля, `rainbow.txt` — готовая таблица «хэш:пароль»\n(time-memory tradeoff). Нужно восстановить пароль.\n\nПорядок:\n1. Прочитай хэш: `cat hash.txt`.\n2. Найди его в таблице (подставь хэш из шага 1): `grep <хэш> rainbow.txt`.\n3. Выдели пароль: `cut -d: -f2`.\n\nНайденный пароль (это флаг) положи в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки аналитика\n-----------------\n- Радужная таблица — компромисс время/память: заранее считают цепочки\n  reduction(hash) и хранят только начало/конец. Восстановление — O(1) на запись.\n- Радужная таблица НЕ содержит пароль для КАЖДОГО хэша — только для тех, что\n  попали в цепочки. Уникальная соль ломает таблицу полностью.\n- Отличие от простого словаря: словарь хранит hash->password напрямую\n  (больше памяти, но 100% попаданий по словарю).\n- В лабе `rainbow.txt` — «идеальный» случай: таблица содержит нужный хэш.\n"
+    },
+    {
+      "path": "/home/student/task/hash.txt",
+      "text": "66f5dd06159b8a1ddcefd8215b9678d9b11600425ed0840e168df0e86652f574\n"
+    },
+    {
+      "path": "/home/student/task/rainbow.txt",
+      "text": "5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8:password\n8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92:123456\n65e84be33532fb784c48129675f9eff3a682b27168c0ea744b2cf58ee02337c5:qwerty\n1c8bfe8f801d79745c4631d09fff36c82aa37fc4cce4fc946683d7b336b63032:letmein\n8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918:admin\n280d44ab1e9f79b5cce2dd4f58f5fe91f0fbacdac9f7447dffc318ceb79f2d02:welcome\n0bb09d80600eec3eb9d7793a6f859bedde2a2d83899b70bd78e961ed674b32f4:shadow\na941a4c4fd0c01cddef61b8be963bf4c1e2b0811c037ce3f1835fddf6ef6c223:sunshine\n203b70b5ae883932161bbd0bded9357e763e63afce98b16230be33f0b94c2cc5:trustno1\na9c43be948c5cabd56ef2bacffb77cdaa5eec49dd5eb0cc4129cf3eda5f0e74c:dragon\n6382deaf1f5dc6e792b76db4a4a7bf2ba468884e000b25e7928e621e27fb23cb:football\n66f5dd06159b8a1ddcefd8215b9678d9b11600425ed0840e168df0e86652f574:nto{r41nb0w_t4bl3_t1m3_m3m0ry_tr4d30ff}\n"
+    }
+  ]
+}

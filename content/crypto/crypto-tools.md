@@ -13,6 +13,18 @@ useful_for:
   - "Red team: Kerberoast/AS-REP, онлайн-брут сервисов"
 estimated_minutes: 12
 summary: "Практический инструментарий ветви crypto: hashcat и john для офлайн-взлома хэшей, hydra/medusa/patator для онлайн-подбора учётных данных. Что выбрать и в каком порядке."
+lab:
+  kind: shell
+  title: "Практика: офлайн-взлом хэша (hashcat/john)"
+  toolset: [core, hashcat, john]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, hashes.txt, wordlist.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи режим: SHA-256 => hashcat `-m 1400`."
+    - "Запусти: `hashcat -m 1400 -a 0 hashes.txt wordlist.txt`."
+    - "Альтернатива: `john --wordlist=wordlist.txt hashes.txt`."
+    - "Выдели пароль: `hashcat -m 1400 -a 0 hashes.txt wordlist.txt | grep nto{ | cut -d: -f2 > found.txt`."
 ---
 
 Этот модуль — практическая мастерская ветви crypto. Здесь три инструментальных справочника, без которых не обходится ни одна задача «у меня есть хэш/архив/логин — что дальше»: **hashcat** и **john** для офлайн-взлома, **hydra/medusa/patator** для онлайн-подбора. Тут нет теории криптоалгоритмов — только флаги, таблицы режимов и рабочие команды, которые можно копировать.
