@@ -1,0 +1,44 @@
+{
+  "id": "forensics-live-forensics",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{v0l4t1l3_0rd3r_0f_c0ll3ct10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: «странный» Linux-сервер\n\nСервер `web01` подозревается в компрометации. Собери волатильные данные в правильном порядке (сеть → процессы → память) и найди командную строку вредоносного процесса.\n\n1. `cat netstat.txt` — сетевые соединения.\n2. `ps auxww` — процессы с полными командными строками.\n3. `strings mem.raw` — если нужно заглянуть в память.\n\nФлаг `nto{...}` (идентификатор кампании) запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/netstat.txt",
+      "text": "Proto Local Address        Foreign Address      State\ntcp   10.10.20.5:22        10.10.20.1:51422     ESTABLISHED\ntcp   10.10.20.5:443       10.10.20.5:8080      LISTEN\ntcp   10.10.20.5:54122     185.199.110.153:4444 ESTABLISHED\nudp   10.10.20.5:53        *:*\n"
+    },
+    {
+      "path": "/home/student/task/mem.raw",
+      "b64": "TElOVVgtTUVNLURVTVAtREVNTwoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAcGFnZTogL3RtcC8uY2FjaGUveG1yaWcgcnVubmluZwo=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Порядок волатильности: регистры/кэш → память → сеть → процессы → диск → логи. Сеть и процессы исчезают при перезагрузке, поэтому их собирают раньше диска.\n"
+    }
+  ],
+  "tools": {
+    "ps": {
+      "help": "ps auxww — список процессов (эмуляция)",
+      "cases": [
+        {
+          "match": "aux|auxww|ef",
+          "example": "ps auxww",
+          "output": "USER       PID %CPU %MEM    VSZ   RSS TTY STAT START   TIME COMMAND\nroot         1  0.0  0.1 168400 11200 ?   Ss   09:01   0:04 /sbin/init\nroot       812  0.0  0.2 905432 21004 ?   Ssl  09:01   0:11 /usr/sbin/nginx\nwww-data   955  0.1  0.3 1120344 24008 ?  S   09:02   0:31 /usr/bin/php-fpm\nroot      31337 97.4  4.2 4820016 341122 ?  Sl   03:14 612:44 /tmp/.cache/xmrig --donate-level 1 --url pool.example:4444 --campaign nto{v0l4t1l3_0rd3r_0f_c0ll3ct10n}\n"
+        }
+      ]
+    }
+  }
+}

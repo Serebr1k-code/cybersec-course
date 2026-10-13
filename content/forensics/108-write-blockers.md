@@ -13,6 +13,18 @@ useful_for:
   - "Судебная экспертиза"
 estimated_minutes: 45
 summary: "Аппаратные и программные write blockers, процедура снятия образа, форматы EWF/AFF, контрольные суммы и типичные ошибки, которые портят доказательства."
+lab:
+  kind: shell
+  title: 'Практика: образ диска с write blocker'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, disk.img, disk.img.sha256, acquire.log, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Начни с `file disk.img` и `xxd -l 16 disk.img` — определи формат.'
+    - 'Проверь целостность: `sha256sum -c disk.img.sha256` (должно быть OK).'
+    - 'Ищи читаемые строки образа: `strings disk.img` — там остался удалённый файл.'
+    - 'Выдели флаг: `strings disk.img | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

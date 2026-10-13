@@ -13,6 +13,18 @@ useful_for:
   - "Анализ образов дисков"
 estimated_minutes: 48
 summary: "Работа в Autopsy: создание кейса, добавление образов, ingest-модули, просмотр артефактов (веб, реестр, медиа), теги, отчёты и типичные настройки для быстрого триажа."
+lab:
+  kind: shell
+  title: 'Практика: Sleuthkit CLI поверх образа USB'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, usb.E01, keyword_hits.txt, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Начни с `file usb.E01` и разбора разделов: `mmls usb.E01`.'
+    - 'Список файлов ФС: `fls -r usb.E01`.'
+    - 'Вытащи подозрительный inode: `icat usb.E01 4`.'
+    - 'Выдели флаг: `icat usb.E01 4 | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

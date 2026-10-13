@@ -13,6 +13,18 @@ useful_for:
   - "Incident Response"
 estimated_minutes: 46
 summary: "Формальное обращение с цифровыми доказательствами: идентификация, сбор, хеширование, упаковка, цепочка сохранности, документирование и типичные ошибки, обесценивающие улики."
+lab:
+  kind: shell
+  title: 'Практика: обращение с доказательствами — детект подмены'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, evidence_A.dd, evidence_B.dd, hashes.txt, evidence_check.py, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`evidence_A.dd` — оригинал, `evidence_B.dd` — рабочая копия; `hashes.txt` — эталонные хеши.'
+    - 'Сравни файлы побайтово: `cmp evidence_A.dd evidence_B.dd` или `sha256sum` обоих.'
+    - 'Запусти проверку цепочки: `python3 evidence_check.py`.'
+    - 'Выдели вердикт: `python3 evidence_check.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

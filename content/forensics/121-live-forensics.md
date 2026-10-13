@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 50
 summary: "Живой сбор данных с работающей системы: принцип порядка волатильности, набор волатильных артефактов (память, процессы, сеть, реестр), инструменты и типичные ошибки."
+lab:
+  kind: shell
+  title: 'Практика: порядок волатильности на живом сервере'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, mem.raw, netstat.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Сначала самые волатильные данные: память и сеть. `cat netstat.txt`.'
+    - 'Найди обратное соединение на нестандартный порт (`ESTABLISHED`).'
+    - 'Список процессов с полными командными строками: `ps auxww`.'
+    - 'Выдели подозрительный процесс: `ps auxww | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

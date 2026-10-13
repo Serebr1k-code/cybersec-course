@@ -1,0 +1,49 @@
+{
+  "id": "forensics-ir-nist",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{n1st_800_61_p0st_1nc1d3nt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: реагирование по NIST SP 800-61\n\n`incident_timeline.csv` — события инцидента. Разложи их по фазам (Preparation → Detection & Analysis → Containment → Eradication/Recovery → Post-incident). Скрипт `ir_report.py` собирает отчёт по фазам.\n\nФлаг `nto{...}` — в выводах фазы post-incident. Запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/incident_timeline.csv",
+      "text": "ts,phase,actor,event\n2026-03-01T08:00:00Z,preparation,team,\"playbook updated\"\n2026-03-02T03:14:00Z,detection,ids,\"C2 beacon to 185.199.110.153:4444\"\n2026-03-02T03:20:00Z,analysis,soc,\"process /tmp/.cache/xmrig\"\n2026-03-02T04:05:00Z,containment,soc,\"host isolated\"\n2026-03-02T06:30:00Z,eradication,soc,\"malware removed\"\n2026-03-02T09:00:00Z,recovery,soc,\"service restored\"\n2026-03-05T10:00:00Z,post-incident,team,\"root cause: leaked SSH key\"\n"
+    },
+    {
+      "path": "/home/student/task/ir_report.py",
+      "text": "#!/usr/bin/env python3\nimport csv, collections\nphases = collections.OrderedDict()\nfor row in csv.DictReader(open(\"incident_timeline.csv\")):\n    phases.setdefault(row[\"phase\"], []).append(row[\"event\"])\nprint(\"NIST SP 800-61 incident report\")\nfor ph, evs in phases.items():\n    print(\"[%s] %d event(s)\" % (ph, len(evs)))\nprint(\"post-incident action item: nto{n1st_800_61_p0st_1nc1d3nt}\")\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Фазы NIST SP 800-61: подготовка; обнаружение и анализ; сдерживание; ликвидация и восстановление; выводы (post-incident). Выводы — не формальность: именно они закрывают первопричину.\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4\n"
+        },
+        {
+          "match": "ir_report\\.py",
+          "example": "python3 ir_report.py",
+          "output": "NIST SP 800-61 incident report\n[preparation] 1 event(s)\n[detection] 1 event(s)\n[analysis] 1 event(s)\n[containment] 1 event(s)\n[eradication] 1 event(s)\n[recovery] 1 event(s)\n[post-incident] 1 event(s)\npost-incident action item: nto{n1st_800_61_p0st_1nc1d3nt}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 ir_report.py`\n"
+    }
+  }
+}

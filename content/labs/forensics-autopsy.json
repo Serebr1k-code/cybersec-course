@@ -1,0 +1,64 @@
+{
+  "id": "forensics-autopsy",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4ut0psy_1ng3st_k3yw0rd_h1t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: образ `usb.E01`\n\n`usb.E01` — образ USB-накопителя (EWF). В Autopsy его добавили как источник и прогнали ingest-модуль Keyword Search; `keyword_hits.txt` — индекс хитов. Пройди путь до файла, в котором найден секрет.\n\n1. `mmls usb.E01` — таблица разделов.\n2. `fls -r usb.E01` — файлы.\n3. `icat usb.E01 4` — содержимое найденного inode.\n\nФлаг `nto{...}` запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/usb.E01",
+      "b64": "RVZGCQ0K/wBFV0YtREVNTy1JTUFHRQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAdm9sdW1lOiB1c2IgKEZBVDMyKQpudG97NHV0MHBzeV8xbmczc3RfazN5dzByZF9oMXR9Cg==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/keyword_hits.txt",
+      "text": "Autopsy Keyword Search ingest\nKeyword: \"password|secret|nto\"\nInode 4  /Users/jdoe/Desktop/stolen.txt  hits: 1\nInode 7  /Windows/System32/config/SAM        hits: 0\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Autopsy — GUI над Sleuthkit. Те же данные доступны через CLI: `mmls` (разделы), `fls` (файлы), `icat` (содержимое по inode). Ключевые слова ищет ingest-модуль и складывает хиты в отчёт.\n"
+    }
+  ],
+  "tools": {
+    "mmls": {
+      "help": "mmls <образ> — таблица разделов (эмуляция)",
+      "cases": [
+        {
+          "match": "usb\\.E01",
+          "example": "mmls usb.E01",
+          "output": "DOS Partition Table\nOffset Sector: 0\nUnits are in 512-byte sectors\n\n      Slot      Start        End          Length       Description\n000:  Meta      0000000000   0000000000   0000000001   Primary Table (#0)\n001:  -------   0000000000   0000002047   0000002048   Unallocated\n002:  000:000   0000002048   0000012287   0000010240   Win95 FAT32 (0x0b)\n"
+        }
+      ]
+    },
+    "fls": {
+      "help": "fls [-r] <образ> — список файлов (эмуляция)",
+      "cases": [
+        {
+          "match": "usb\\.E01",
+          "example": "fls -r usb.E01",
+          "output": "d/d 1:    Users\nd/d 2:    Users/jdoe\nd/d 3:    Users/jdoe/Desktop\nr/r 4:    Users/jdoe/Desktop/stolen.txt\nr/r 5:    Users/jdoe/Desktop/notes.txt\nr/r * 6:  Users/jdoe/Desktop/~deleted~.bak\nr/r 7:    Windows/System32/config/SAM\n"
+        }
+      ]
+    },
+    "icat": {
+      "help": "icat <образ> <inode> — содержимое файла по inode (эмуляция)",
+      "cases": [
+        {
+          "match": "usb\\.E01\\s+4",
+          "example": "icat usb.E01 4",
+          "output": "stolen credentials dump\nuser: jdoe\nsecret: nto{4ut0psy_1ng3st_k3yw0rd_h1t}\n"
+        }
+      ]
+    }
+  }
+}

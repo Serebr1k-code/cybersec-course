@@ -1,0 +1,74 @@
+{
+  "id": "forensics-evidence-handling",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3v1d3nc3_t4mp3r_d3t3ct3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: целостность доказательства\n\nИзъяты две копии образа: `evidence_A.dd` (оригинал) и `evidence_B.dd` (рабочая копия). `hashes.txt` хранит эталонные SHA-256. Проверь, не подменена ли рабочая копия, и оформи вердикт.\n\n1. `sha256sum evidence_A.dd evidence_B.dd`.\n2. `python3 evidence_check.py` — автоматическая сверка.\n\nФлаг `nto{...}` — вердикт. Запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/evidence_A.dd",
+      "b64": "RVZJREVOQ0UtT1JJR0lOQUwKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABjYXNlLTIwMjYtMDQxNwo=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/evidence_B.dd",
+      "b64": "RVZJREVOQ0UtT1JJR0lOQUwKAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABjYXNlLTIwMjYtMDQxOAo=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/hashes.txt",
+      "text": "6469208d1a46bbadd66c02048feedbdaf5819290373547fcba9072817e8f0424  evidence_A.dd\n6469208d1a46bbadd66c02048feedbdaf5819290373547fcba9072817e8f0424  evidence_B.dd\n"
+    },
+    {
+      "path": "/home/student/task/evidence_check.py",
+      "text": "#!/usr/bin/env python3\nimport hashlib\ndef h(p):\n    return hashlib.sha256(open(p, \"rb\").read()).hexdigest()\nref = dict(l.split() for l in open(\"hashes.txt\"))\nref = {v: k for k, v in ref.items()}\nbad = []\nfor f in (\"evidence_A.dd\", \"evidence_B.dd\"):\n    got = h(f)\n    ok = got in ref\n    print(\"%-16s %s  %s\" % (f, got[:16], \"OK\" if ok else \"MISMATCH\"))\n    if not ok:\n        bad.append(f)\nprint(\"tampered:\", bad)\nif bad:\n    print(\"verdict: nto{3v1d3nc3_t4mp3r_d3t3ct3d}\")\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Любое копирование — уже событие в цепочке сохранности. Эталонный хеш снимают с оригинала и фиксируют в журнале; рабочую копию сверяют с ним. Расхождение хешей = доказательство изменено/подменено.\n"
+    }
+  ],
+  "tools": {
+    "sha256sum": {
+      "help": "sha256sum <файл…> — SHA-256 хеши",
+      "cases": [
+        {
+          "match": "evidence",
+          "example": "sha256sum evidence_A.dd evidence_B.dd",
+          "output": "6469208d1a46bbadd66c02048feedbdaf5819290373547fcba9072817e8f0424  evidence_A.dd\n6d402558116c2c71d76442fa4a958668a026623ad3bd2581e0ddd7948e341aef  evidence_B.dd\n"
+        }
+      ]
+    },
+    "cmp": {
+      "help": "cmp <файл1> <файл2> — побайтовое сравнение",
+      "cases": [
+        {
+          "match": "evidence",
+          "example": "cmp evidence_A.dd evidence_B.dd",
+          "output": "evidence_A.dd evidence_B.dd differ: byte 49, line 3\n"
+        }
+      ]
+    },
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "evidence_check\\.py",
+          "example": "python3 evidence_check.py",
+          "output": "evidence_A.dd    6469208d1a46bbad  OK\nevidence_B.dd    6d402558116c2c71  MISMATCH\ntampered: ['evidence_B.dd']\nverdict: nto{3v1d3nc3_t4mp3r_d3t3ct3d}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 evidence_check.py`\n"
+    }
+  }
+}

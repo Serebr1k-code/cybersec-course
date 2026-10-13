@@ -13,6 +13,18 @@ useful_for:
   - "SOC"
 estimated_minutes: 48
 summary: "Фазы реагирования на инциденты по NIST SP 800-61: подготовка, обнаружение и анализ, сдерживание, ликвидация, восстановление, выводы; роль форензики и типовые ошибки процесса."
+lab:
+  kind: shell
+  title: 'Практика: жизненный цикл IR по NIST SP 800-61'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, incident_timeline.csv, notes.txt, ir_report.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`incident_timeline.csv` — хронология инцидента; разбери фазы.'
+    - 'Прогони разбор: `python3 ir_report.py`.'
+    - 'Скрипт печатает выводы по фазам NIST — включая post-incident.'
+    - 'Флаг лежит в выводах фазы post-incident: `python3 ir_report.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается
