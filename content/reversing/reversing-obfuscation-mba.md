@@ -13,6 +13,17 @@ useful_for:
   - "Deobfuscation: автоматическое упрощение"
 estimated_minutes: 55
 summary: "MBA-обфускация (mixed boolean-arithmetic): как простое выражение превращают в запутанное, распознавание паттернов, упрощение через Z3 и souper, opaque predicates и практический разбор."
+lab:
+  kind: shell
+  title: 'Практика: упрощение MBA-выражения'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{mba_s1mpl1f13d_by_z3}'' found.txt'
+  hints:
+    - 'MBA-выражение: `(x ^ 0x42) + 2*(x & 0x42)`.'
+    - 'Оно тождественно `x + 0x42`.'
+    - 'Запусти `python3 mba.py` — z3 упростит и покажет флаг.'
 ---
 ## Вопрос, с которого всё начинается
 

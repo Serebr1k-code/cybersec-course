@@ -13,6 +13,17 @@ useful_for:
   - "Анализ защищённого ПО"
 estimated_minutes: 55
 summary: "Виды обфускации кода, распознавание мусора/ложных предикатов и распутывание flattening."
+lab:
+  kind: shell
+  title: 'Практика: обфусцированная проверка'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, obf]
+  check: 'grep -q ''nto{0bfusc4t3d_c0ntr0l_fl0w}'' found.txt'
+  hints:
+    - 'Пароль остаётся печатаемой строкой: `strings obf`.'
+    - '`objdump -d obf` покажет порядок проверок.'
+    - 'Запусти `obf st4t3_m4ch1n3_0k`.'
 ---
 ## Вопрос, с которого всё начинается
 

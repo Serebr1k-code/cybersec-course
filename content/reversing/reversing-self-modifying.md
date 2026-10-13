@@ -13,6 +13,17 @@ useful_for:
   - "Packer analysis"
 estimated_minutes: 60
 summary: "Самомодифицирующийся код: почему статика ломается, распаковка через эмуляцию и восстановление кода."
+lab:
+  kind: shell
+  title: 'Практика: самодешифрующийся код'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, smc]
+  check: 'grep -q ''nto{s3lf_m0d1fy1ng_c0d3_d3crypt3d}'' found.txt'
+  hints:
+    - 'Статически флага нет — он расшифровывается в `.bss`.'
+    - 'Остановись после `unlock` и прочитай `flagbuf`.'
+    - '`x/s &flagbuf` в gdb покажет флаг.'
 ---
 ## Вопрос, с которого всё начинается
 

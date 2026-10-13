@@ -13,6 +13,17 @@ useful_for:
   - "Анализ упакованного ПО"
 estimated_minutes: 50
 summary: "Как определить упаковщик, распаковать UPX и вручную снять stub у нестандартных пакеров."
+lab:
+  kind: shell
+  title: 'Практика: снять упаковочный заголовок'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, packed.bin]
+  check: 'grep -q ''nto{upx_l1k3_stub_str1pp3d}'' found.txt'
+  hints:
+    - 'Заголовок — 16 байт; посмотри `xxd -l 32 packed.bin`.'
+    - 'Срежь заголовок: `dd if=packed.bin of=unpacked bs=1 skip=16`.'
+    - 'Затем `file unpacked` и `strings unpacked | grep nto`.'
 ---
 ## Вопрос, с которого всё начинается
 

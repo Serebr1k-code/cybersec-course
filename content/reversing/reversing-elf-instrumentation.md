@@ -13,6 +13,17 @@ useful_for:
   - "Tooling"
 estimated_minutes: 55
 summary: "Инструментация и перезапись ELF: e9patch для статического трейсинга, frida-gadget для инъекции без root."
+lab:
+  kind: shell
+  title: 'Практика: разбор и запуск проверки'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, crackme6]
+  check: 'grep -q ''nto{1nstrum3nt4t10n_and_p4tch}'' found.txt'
+  hints:
+    - 'Пароль — печатаемая строка в `.rodata`: `strings crackme6`.'
+    - 'Он сравнивается через `strcmp` (виден в `objdump -d`).'
+    - 'Запусти `crackme6 0p3n_s3s4m3`, чтобы получить флаг.'
 ---
 ## Вопрос, с которого всё начинается
 

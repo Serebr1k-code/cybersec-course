@@ -1,0 +1,31 @@
+{
+  "id": "reversing-obfuscation-mba",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{mba_s1mpl1f13d_by_z3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Mixed Boolean-Arithmetic (MBA)\n\nОбфускатор заменил простое сложение на MBA-выражение\n`(x ^ 0x42) + 2*(x & 0x42)`. Оно эквивалентно `x + 0x42`, но глазами не читается.\n\n1. `python3 mba.py` — упрости выражение через z3.\n2. Убедись, что обфускация не защищает логику.\n\nФлаг из вывода запиши в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — эмуляция интерпретатора",
+      "cases": [
+        {
+          "match": "mba\\.py",
+          "example": "python3 mba.py",
+          "output": "obfuscated : (x ^ 0x42) + 2*(x & 0x42)\ncandidate  : x + 0x42\nz3: unsat -> obfuscation is IDENTICAL to x + 0x42 for all x\nnto{mba_s1mpl1f13d_by_z3}\n"
+        }
+      ]
+    }
+  }
+}
