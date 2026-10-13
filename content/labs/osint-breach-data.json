@@ -1,0 +1,24 @@
+{
+  "id": "osint-breach-data",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{p4ssw0rds_l34k3d_us3_mfa}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: оценить утечки по email\n\nДля адреса `analyst@example.com` сервис HIBP вернул список утечек — он лежит в `breaches.json`.\n\n1. Посмотри ответ: `cat breaches.json`\n2. Найди утечку, где в `DataClasses` реально утёк пароль — там есть строка `Passwords`.\n   `grep -i passwords breaches.json`\n3. Рядом с ней лежит маркер `nto{...}` (пометка исследования). Запиши его в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/breaches.json",
+      "text": "[\n  {\"Name\": \"LinkedIn\", \"BreachDate\": \"2012-05-05\", \"DataClasses\": [\"Email addresses\"]},\n  {\"Name\": \"Adobe\", \"BreachDate\": \"2013-10-04\", \"DataClasses\": [\"Email addresses\", \"Password hints\", \"Usernames\"]},\n  {\"Name\": \"Dropbox\", \"BreachDate\": \"2012-07-01\", \"DataClasses\": [\"Email addresses\", \"Passwords\", \"nto{p4ssw0rds_l34k3d_us3_mfa}\"]}\n]\n"
+    }
+  ],
+  "tools": {}
+}

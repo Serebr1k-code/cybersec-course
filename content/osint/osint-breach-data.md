@@ -13,6 +13,18 @@ useful_for:
   - "Проверка компрометации"
 estimated_minutes: 45
 summary: "Как легально работать с базами утечек: проверка email/домена, поиск по кредам, пассивные vs активные сервисы, обработка и этические границы."
+lab:
+  kind: shell
+  title: "Практика: оценить утечки по email"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, breaches.json]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Ответ HIBP лежит в `breaches.json`: `cat breaches.json`."
+    - "Смотри `DataClasses`: пароль утёк там, где есть строка `Passwords`."
+    - "Найди её: `grep -i passwords breaches.json`."
+    - "Рядом с ней — маркер `nto{...}`; запиши его в `answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

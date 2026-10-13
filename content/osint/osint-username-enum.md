@@ -12,6 +12,18 @@ useful_for:
   - "CTF-задачи с деаноном"
 estimated_minutes: 40
 summary: "Инструменты и техники проверки занятости ника на множестве платформ, анализ ложных срабатываний."
+lab:
+  kind: shell
+  title: "Практика: проверить ник на нескольких площадках"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, nick.txt]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Ник лежит в `nick.txt`: `cat nick.txt`."
+    - "Проверь API GitHub: `curl -s https://api.github.com/users/dark_wizard_88`."
+    - "`403` (Reddit) — это антибот, а не «ника нет». Смотри тело ответа, а не только код."
+    - "Маркер `nto{...}` — в описании реального профиля на GitLab."
 ---
 
 ## Вопрос, с которого всё начинается

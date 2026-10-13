@@ -13,6 +13,18 @@ useful_for:
   - "Управление поверхностью атаки"
 estimated_minutes: 40
 summary: "Как свести все результаты OSINT в единую карту цифровой поверхности атаки: активы, связи, приоритеты и форматы представления (граф, таблица, отчёт)."
+lab:
+  kind: shell
+  title: "Практика: найти pivot в карте активов"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, assets.csv]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Карта активов — это `assets.csv`: `cat assets.csv`."
+    - "Висячий родитель: сравни колонку `id` и колонку `parent` (`cut -d, -f1` и `-f7`)."
+    - "Pivot между доменами — узел типа `tracking`: `grep tracking assets.csv`."
+    - "Маркер `nto{...}` стоит в поле `value` этого узла."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,51 @@
+{
+  "id": "osint-username-enum",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{0n3_n1ck_m4ny_pl4tf0rms}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: проверить ник на нескольких платформах\n\nДан ник `dark_wizard_88` (в `nick.txt`). Проверь его на площадках и не попадись на ложные коды ответа.\n\n1. `curl -s https://api.github.com/users/dark_wizard_88`\n2. `curl -s https://gitlab.com/dark_wizard_88`\n3. `curl -s https://www.reddit.com/user/dark_wizard_88/about.json`\n4. `curl -s https://mastodon.social/@dark_wizard_88`\n5. Помни: `403` — это НЕ «нет», а антибот. Маркер `nto{...}` лежит в описании реального профиля.\n6. Запиши маркер в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/nick.txt",
+      "text": "dark_wizard_88\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — HTTP-запрос (эмуляция)",
+      "cases": [
+        {
+          "match": "api\\.github\\.com/users/dark_wizard_88",
+          "example": "https://api.github.com/users/dark_wizard_88",
+          "output": "{\"message\":\"Not Found\",\"documentation_url\":\"https://docs.github.com/rest\"}\n"
+        },
+        {
+          "match": "gitlab\\.com/dark_wizard_88",
+          "example": "https://gitlab.com/dark_wizard_88",
+          "output": "<!DOCTYPE html>\n<html><head><title>dark_wizard_88 · GitLab</title></head>\n<body>\n<div class=\"profile-header\"><h2>dark_wizard_88</h2>\n<p class=\"bio\">Backend dev. marker: nto{0n3_n1ck_m4ny_pl4tf0rms}</p>\n<span class=\"joined\">Joined 2019</span></div>\n</body></html>\n"
+        },
+        {
+          "match": "reddit\\.com/user/dark_wizard_88",
+          "example": "https://www.reddit.com/user/dark_wizard_88/about.json",
+          "output": "{\"message\":\"Forbidden\",\"error\":403}\n"
+        },
+        {
+          "match": "mastodon\\.social/@dark_wizard_88",
+          "example": "https://mastodon.social/@dark_wizard_88",
+          "output": "<!DOCTYPE html>\n<html><head><title>dark_wizard_88</title></head>\n<body>\n<p>No public posts.</p>\n</body></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе проверяются github.com, gitlab.com, reddit.com и mastodon.social.\n"
+    }
+  }
+}

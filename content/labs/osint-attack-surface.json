@@ -1,0 +1,24 @@
+{
+  "id": "osint-attack-surface",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{gtm_p1v0t5_d0m41ns}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: свести находки в карту и найти pivot\n\nАктивы цели сведены в `assets.csv` (колонки: id,type,value,source,confidence,first_seen,parent,notes).\n\n1. Посмотри карту: `cat assets.csv`\n2. Найди **висячего родителя** — узел, чей `parent` не существует: сравни 1-ю колонку (`id`) и 7-ю (`parent`).\n   `cut -d, -f1 assets.csv | sort > ids.txt`  ·  `cut -d, -f7 assets.csv | sort -u`\n3. Найди **pivot** между доменами — узел типа `tracking` (он связывает несколько доменов, чего не видно из DNS).\n   `grep tracking assets.csv`\n4. В поле `value` этого узла стоит маркер `nto{...}`. Запиши его в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/assets.csv",
+      "text": "id,type,value,source,confidence,first_seen,parent,notes\nd1,domain,example.com,whois,confirmed,2026-10-01,,головной\ns1,subdomain,api.example.com,crt.sh,confirmed,2026-10-01,d1,\ni1,ip,203.0.113.42,dig,confirmed,2026-10-01,s1,\np1,person,Ivan Petrov,linkedin,likely,2026-10-02,,devops\na1,account,ipetrov-dev,github,likely,2026-10-02,p1,\nx9,subdomain,legacy.example.com,crt.sh,confirmed,2026-10-01,d9,\nt1,tracking,nto{gtm_p1v0t5_d0m41ns},html,confirmed,2026-10-01,d1,связывает 4 домена\n"
+    }
+  ],
+  "tools": {}
+}

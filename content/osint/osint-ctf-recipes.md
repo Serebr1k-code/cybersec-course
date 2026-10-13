@@ -13,6 +13,18 @@ useful_for:
   - "Быстрый разбор задач"
 estimated_minutes: 30
 summary: "Практические рецепты решения CTF-задач категории OSINT: типы задач, чек-листы по каждому вводу, инструменты и стратегия поиска флага."
+lab:
+  kind: shell
+  title: "Практика: разобрать CTF-задачу «дано фото»"
+  toolset: [core, exiftool]
+  workdir: /home/student/task
+  files: [task.md, challenge.jpg]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Метаданные — всегда первым делом: `exiftool challenge.jpg`."
+    - "В метаданных есть GPS и комментарий, но флага нет — значит, он внутри файла."
+    - "Прогони строки: `strings challenge.jpg | grep nto`."
+    - "Запиши маркер `nto{...}` в `answer.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается
