@@ -1,0 +1,42 @@
+{
+  "id": "network-iot-messaging",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "home/livingroom/temp"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: читаем MQTT в дампе\n\n`mqtt.pcap` — подключение датчика к MQTT-брокеру (`10.0.0.10:1883`) и одна публикация.\n\n1. Сводка: `tshark -r mqtt.pcap -nn`\n2. Поля MQTT: `tshark -r mqtt.pcap -T fields -e mqtt.msgtype -e mqtt.clientid -e mqtt.topic`\n\nНайди **топик**, в который публикует датчик, и запиши его (вида `a/b/c`) в `answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/mqtt.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAj3HOasSfDgBNAAAATQAAAFJUABI0VgAMKavN7wgARQAAPwABAABABmZ9CgAAMgoAAAq+oAdbAAAAAQAAAAFQGCAASfsAABAVAARNUVRUBAIAPAAJc2Vuc29yLTA3j3HOasSfDgBSAAAAUgAAAFJUABI0VgAMKavN7wgARQAARAABAABABmZ4CgAAMgoAAAq+oAdbAAAAGAAAAAFQGCAAJr8AADAaABRob21lL2xpdmluZ3Jvb20vdGVtcDIxLjU=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-Y <фильтр>] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "mqtt\\.topic",
+          "example": "-r mqtt.pcap -T fields -e mqtt.msgtype -e mqtt.clientid -e mqtt.topic",
+          "output": "1\tsensor-07\t\n3\t\thome/livingroom/temp\n"
+        },
+        {
+          "match": "mqtt\\.pcap",
+          "example": "-r mqtt.pcap -nn",
+          "output": "    1   0.000000    10.0.0.50 → 10.0.0.10    MQTT 77 Connect Command\n    2   0.000000    10.0.0.50 → 10.0.0.10    MQTT 82 Publish Message [home/livingroom/temp]\n"
+        }
+      ],
+      "fallback": "    1   0.000000    10.0.0.50 → 10.0.0.10    MQTT 77 Connect Command\n    2   0.000000    10.0.0.50 → 10.0.0.10    MQTT 82 Publish Message [home/livingroom/temp]\n"
+    }
+  }
+}

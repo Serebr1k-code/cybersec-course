@@ -1,0 +1,42 @@
+{
+  "id": "network-intro",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "example.com"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбираем один HTTP-запрос\n\n`http.pcap` содержит один HTTP-запрос и ответ. Разбери его по слоям:\n\n1. Сводка: `tshark -r http.pcap -nn`\n2. HTTP: `tshark -r http.pcap -Y 'http.request' -T fields -e ip.src -e ip.dst -e http.host -e http.request.uri -e http.user_agent`\n\nНайди **имя хоста (Host)**, к которому обращается клиент, и запиши его в `answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/http.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAj3HOasSfDgCHAAAAhwAAAFJUABI0VgAMKavN7wgARQAAeQABAABABjqfCgAABV242CLIIgBQAAAAAQAAAAFQGCAAwJoAAEdFVCAvaW5kZXguaHRtbCBIVFRQLzEuMQ0KSG9zdDogZXhhbXBsZS5jb20NClVzZXItQWdlbnQ6IGxhYi8xLjANCkFjY2VwdDogKi8qDQoNCo9xzmrBrA4AcAAAAHAAAAAADCmrze9SVAASNFYIAEUAAGIAAQAAQAY6tl242CIKAAAFAFDIIgAAAAEAAAABUBggAGWGAABIVFRQLzEuMSAyMDAgT0sNClNlcnZlcjogbmdpbngNCkNvbnRlbnQtTGVuZ3RoOiA1DQoNCmhlbGxv",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-Y <фильтр>] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "http\\.host",
+          "example": "-r http.pcap -Y 'http.request' -T fields -e ip.src -e ip.dst -e http.host -e http.request.uri -e http.user_agent",
+          "output": "10.0.0.5\t93.184.216.34\texample.com\t/index.html\tlab/1.0\n"
+        },
+        {
+          "match": "http\\.pcap",
+          "example": "-r http.pcap -nn",
+          "output": "    1   0.000000     10.0.0.5 → 93.184.216.34 HTTP 135 GET /index.html HTTP/1.1 \n    2   0.003325 93.184.216.34 → 10.0.0.5     HTTP 112 HTTP/1.1 200 OK \n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.5 → 93.184.216.34 HTTP 135 GET /index.html HTTP/1.1 \n    2   0.003325 93.184.216.34 → 10.0.0.5     HTTP 112 HTTP/1.1 200 OK \n"
+    }
+  }
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Работа: чтение дампов без Wireshark"
 estimated_minutes: 25
 summary: "Байтовое устройство Ethernet, IPv4, TCP и UDP: поля заголовков, флаги, как вручную читать пакет из hex."
+lab:
+  kind: shell
+  title: "Практика: читаем TCP-заголовок в дампе"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, tcpip.pcap]
+  check: "grep -q '443' answer.txt"
+  hints:
+    - "Начни со сводки: `tshark -r tcpip.pcap -nn`."
+    - "Флаги `[SYN]`/`[SYN, ACK]` — это установка TCP-соединения."
+    - "Поля заголовков: `tshark -r tcpip.pcap -T fields -e ip.src -e tcp.srcport -e tcp.dstport -e tcp.flags`."
+    - "Порт назначения — второй порт в колонках; это `443`."
 ---
 
 ## Вопрос, с которого всё начинается

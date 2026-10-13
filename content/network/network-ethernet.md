@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): чтение L2-дампов"
 estimated_minutes: 50
 summary: "Кадр Ethernet II и 802.3, типы MAC-адресов, как коммутатор обучается и пересылает кадры, CAM-таблица, flooding и фильтрация — с командами tcpdump/bridge и разбором."
+lab:
+  kind: shell
+  title: "Практика: поддельный MAC на канальном уровне"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, ethernet.pcap]
+  check: "grep -q '02:aa:bb:cc:dd:ee' answer.txt"
+  hints:
+    - "Сводка: `tshark -r ethernet.pcap -nn`."
+    - "Все MAC-источники: `tshark -r ethernet.pcap -T fields -e eth.src`."
+    - "Locally administered — у первого октета выставлен бит 0x02 (второй младший)."
+    - "Такой адрес — `02:aa:bb:cc:dd:ee`."
 ---
 
 ## Вопрос, с которого всё начинается

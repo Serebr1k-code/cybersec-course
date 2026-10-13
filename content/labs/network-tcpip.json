@@ -1,0 +1,47 @@
+{
+  "id": "network-tcpip",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "443"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: читаем TCP-заголовок в дампе\n\n`tcpip.pcap` — короткая TCP-сессия. Клиент `10.0.0.5` подключается к серверу.\n\n1. Сводка: `tshark -r tcpip.pcap -nn`\n2. Поля заголовков: `tshark -r tcpip.pcap -T fields -e ip.src -e tcp.srcport -e tcp.dstport -e tcp.flags`\n\nОпредели **порт назначения** (dst port) сервера, к которому идёт подключение.\nЗапиши только число в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/tcpip.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAj3HOasSfDgA2AAAANgAAAFJUABI0VgAMKavN7wgARQAAKAABAABABjrwCgAABV242CLAAAG7AAAD6AAAAABQAiAAil8AAI9xzmrwoA4ANgAAADYAAAAADCmrze9SVAASNFYIAEUAACgAAQAANgZE8F242CIKAAAFAbvAAAAAE4gAAAPpUBIgAHbGAACPcc5qxJ8OADYAAAA2AAAAUlQAEjRWAAwpq83vCABFAAAoAAEAAEAGOvAKAAAFXbjYIsAAAbsAAAPpAAATiVAQIAB2xwAA",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-Y <фильтр>] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "tcp\\.dstport",
+          "example": "-r tcpip.pcap -T fields -e ip.src -e tcp.srcport -e tcp.dstport -e tcp.flags",
+          "output": "10.0.0.5\t49152\t443\t0x0002\n93.184.216.34\t443\t49152\t0x0012\n10.0.0.5\t49152\t443\t0x0010\n"
+        },
+        {
+          "match": "tcp\\.flags",
+          "example": "-r tcpip.pcap -T fields -e tcp.flags",
+          "output": "0x0002\n0x0012\n0x0010\n"
+        },
+        {
+          "match": "tcpip\\.pcap",
+          "example": "-r tcpip.pcap -nn",
+          "output": "    1   0.000000     10.0.0.5 → 93.184.216.34 TCP 54 49152 → 443 [SYN] Seq=0 Win=8192 Len=0\n    2   0.000300 93.184.216.34 → 10.0.0.5     TCP 54 443 → 49152 [SYN, ACK] Seq=0 Ack=1 Win=8192 Len=0\n    3   0.000000     10.0.0.5 → 93.184.216.34 TCP 54 49152 → 443 [ACK] Seq=1 Ack=1 Win=8192 Len=0\n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.5 → 93.184.216.34 TCP 54 49152 → 443 [SYN] Seq=0 Win=8192 Len=0\n    2   0.000300 93.184.216.34 → 10.0.0.5     TCP 54 443 → 49152 [SYN, ACK] Seq=0 Ack=1 Win=8192 Len=0\n    3   0.000000     10.0.0.5 → 93.184.216.34 TCP 54 49152 → 443 [ACK] Seq=1 Ack=1 Win=8192 Len=0\n"
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "id": "network-ethernet",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "02:aa:bb:cc:dd:ee"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: поддельный MAC на канальном уровне\n\n`ethernet.pcap` — кадры из локальной сети. Один из хостов подменил MAC-адрес:\nу такого адреса выставлен бит **locally administered** (второй младший бит первого октета).\n\n1. Сводка: `tshark -r ethernet.pcap -nn`\n2. MAC и тип: `tshark -r ethernet.pcap -T fields -e eth.src -e eth.dst -e eth.type -e vlan.id`\n\nНайди **MAC-адрес источника**, который выглядит локально администрируемым (поддельным),\nи запиши его в формате `aa:bb:cc:dd:ee:ff` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/ethernet.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAj3HOarOlDgAqAAAAKgAAAFJUABEiMwgAJ6q7zAgARQAAHAABAABAAWbTCgAABQoAAAkIAPf/AAAAAI9xzmrZpg4AKgAAACoAAAD///////8CqrvM3e4IBgABCAAGBAABaHpklYCjCgAABwAAAAAAAAoAAAWPcc5qW6cOAC4AAAAuAAAAUlQAESIzCAAnqrvMgQAAZAgARQAAHAABAABAAVLTCgAABQoAFAkIAPf/AAAAAA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-Y <фильтр>] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "eth\\.src",
+          "example": "-r ethernet.pcap -T fields -e eth.src -e eth.dst -e eth.type -e vlan.id",
+          "output": "08:00:27:aa:bb:cc\t52:54:00:11:22:33\t0x0800\t\n02:aa:bb:cc:dd:ee\tff:ff:ff:ff:ff:ff\t0x0806\t\n08:00:27:aa:bb:cc\t52:54:00:11:22:33\t0x8100\t100\n"
+        },
+        {
+          "match": "ethernet\\.pcap",
+          "example": "-r ethernet.pcap -nn",
+          "output": "    1   0.000000     10.0.0.5 → 10.0.0.9     ICMP 42 Echo (ping) request  id=0x0000, seq=0/0, ttl=64\n    2   0.000294 02:aa:bb:cc:dd:ee → ff:ff:ff:ff:ff:ff ARP 42 Who has 10.0.0.5? Tell 10.0.0.7\n    3   0.000424     10.0.0.5 → 10.0.20.9    ICMP 46 Echo (ping) request  id=0x0000, seq=0/0, ttl=64\n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.5 → 10.0.0.9     ICMP 42 Echo (ping) request  id=0x0000, seq=0/0, ttl=64\n    2   0.000294 02:aa:bb:cc:dd:ee → ff:ff:ff:ff:ff:ff ARP 42 Who has 10.0.0.5? Tell 10.0.0.7\n    3   0.000424     10.0.0.5 → 10.0.20.9    ICMP 46 Echo (ping) request  id=0x0000, seq=0/0, ttl=64\n"
+    }
+  }
+}

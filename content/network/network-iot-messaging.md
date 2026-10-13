@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): детект IoT-аномалий"
 estimated_minutes: 55
 summary: "MQTT, CoAP и AMQP: как работают pub/sub и брокеры, почему открытый MQTT даёт контроль над IoT, что видно на проводе, инструменты (mosquitto, mqtt-pwn) и защита."
+lab:
+  kind: shell
+  title: "Практика: читаем MQTT в дампе"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, mqtt.pcap]
+  check: "grep -q 'home/livingroom/temp' answer.txt"
+  hints:
+    - "Сводка: `tshark -r mqtt.pcap -nn` — видно `Publish Message` с топиком."
+    - "Поля MQTT: `tshark -r mqtt.pcap -T fields -e mqtt.msgtype -e mqtt.topic`."
+    - "Топик иерархический, уровни разделены `/`."
+    - "Топик — `home/livingroom/temp`."
 ---
 
 ## Вопрос, с которого всё начинается

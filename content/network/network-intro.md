@@ -13,6 +13,18 @@ useful_for:
   - "Подготовка к анализу трафика"
 estimated_minutes: 20
 summary: "Модель OSI и стек TCP/IP, инкапсуляция пакета, типовые цели сетевых задач и карта всей ветки Network."
+lab:
+  kind: shell
+  title: "Практика: разбираем HTTP-запрос в дампе"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, http.pcap]
+  check: "grep -q 'example.com' answer.txt"
+  hints:
+    - "Сводка: `tshark -r http.pcap -nn`."
+    - "Заголовок Host лежит в HTTP-запросе."
+    - "Поля: `tshark -r http.pcap -Y 'http.request' -T fields -e http.host`."
+    - "Host — `example.com`."
 ---
 
 ## Вопрос, с которого всё начинается
