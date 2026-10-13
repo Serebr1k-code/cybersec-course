@@ -1,0 +1,36 @@
+{
+ "id": "reversing-java-advanced",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "expect": {
+  "file": "/home/student/task/found.txt",
+  "contains": "nto{0bfusc4t3d_n4m3s_n0t_s3cur3}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: обфусцированный Java-байткод\n\n`Obf.class` прошёл ProGuard-подобную обфускацию: методы/поля получили короткие имена (`a`).\n\n1. `javap -c -p Obf` — имена обфусцированы, но инструкции остались логичными.\n2. Прочитай `main`: что возвращает метод `a(int)` и с какой константой он сравнивает? (подсказка: `0x1337` = 4919).\n3. Обфускация имён НЕ меняет пул констант — найди строковую константу-флаг (`ldc // String ...`).\n4. Запиши флаг в `found.txt` и вызови `check`.\n"
+  },
+  {
+   "path": "/home/student/task/Obf.class",
+   "b64": "yv66vgAAAD0ANQoAAgADBwAEDAAFAAYBABBqYXZhL2xhbmcvT2JqZWN0AQAGPGluaXQ+AQADKClWCAAIAQAgbnRvezBiZnVzYzR0M2RfbjRtM3NfbjB0X3MzY3VyM30JAAoACwcADAwADQAOAQAQamF2YS9sYW5nL1N5c3RlbQEAA291dAEAFUxqYXZhL2lvL1ByaW50U3RyZWFtOwoAEAARBwASDAATABQBAANPYmYBAAFhAQAEKEkpSRIAAAAWDAAXABgBABdtYWtlQ29uY2F0V2l0aENvbnN0YW50cwEAJyhJTGphdmEvbGFuZy9TdHJpbmc7KUxqYXZhL2xhbmcvU3RyaW5nOwoAGgAbBwAcDAAdAB4BABNqYXZhL2lvL1ByaW50U3RyZWFtAQAHcHJpbnRsbgEAFShMamF2YS9sYW5nL1N0cmluZzspVgEABENvZGUBAA9MaW5lTnVtYmVyVGFibGUBAA1TdGFja01hcFRhYmxlAQAEbWFpbgEAFihbTGphdmEvbGFuZy9TdHJpbmc7KVYBAApTb3VyY2VGaWxlAQAIT2JmLmphdmEBABBCb290c3RyYXBNZXRob2RzDwYAKAoAKQAqBwArDAAXACwBACRqYXZhL2xhbmcvaW52b2tlL1N0cmluZ0NvbmNhdEZhY3RvcnkBAJgoTGphdmEvbGFuZy9pbnZva2UvTWV0aG9kSGFuZGxlcyRMb29rdXA7TGphdmEvbGFuZy9TdHJpbmc7TGphdmEvbGFuZy9pbnZva2UvTWV0aG9kVHlwZTtMamF2YS9sYW5nL1N0cmluZztbTGphdmEvbGFuZy9PYmplY3Q7KUxqYXZhL2xhbmcvaW52b2tlL0NhbGxTaXRlOwgALgEABXI9ASABAQAMSW5uZXJDbGFzc2VzBwAxAQAlamF2YS9sYW5nL2ludm9rZS9NZXRob2RIYW5kbGVzJExvb2t1cAcAMwEAHmphdmEvbGFuZy9pbnZva2UvTWV0aG9kSGFuZGxlcwEABkxvb2t1cAAhABAAAgAAAAAAAwABAAUABgABAB8AAAAdAAEAAQAAAAUqtwABsQAAAAEAIAAAAAYAAQAAAAEACAATABQAAQAfAAAAMAACAAEAAAANGhETN6AABwSnAAQDrAAAAAIAIAAAAAYAAQAAAAIAIQAAAAUAAgtAAQAJACIAIwABAB8AAAA2AAMAAgAAABYSB0yyAAkREze4AA8rugAVAAC2ABmxAAAAAQAgAAAADgADAAAABAADAAUAFQAGAAMAJAAAAAIAJQAmAAAACAABACcAAQAtAC8AAAAKAAEAMAAyADQAGQ==",
+   "mode": "644"
+  }
+ ],
+ "tools": {
+  "javap": {
+   "help": "javap [-c] [-p] [-v] <класс>",
+   "cases": [
+    {
+     "match": "Obf",
+     "example": "javap -c -p Obf",
+     "output": "Compiled from \"Obf.java\"\npublic class Obf {\n  public Obf();\n    Code:\n       0: aload_0\n       1: invokespecial #1                  // Method java/lang/Object.\"<init>\":()V\n       4: return\n\n  static int a(int);\n    Code:\n       0: iload_0\n       1: sipush        4919\n       4: if_icmpne     11\n       7: iconst_1\n       8: goto          12\n      11: iconst_0\n      12: ireturn\n\n  public static void main(java.lang.String[]);\n    Code:\n       0: ldc           #7                  // String nto{0bfusc4t3d_n4m3s_n0t_s3cur3}\n       2: astore_1\n       3: getstatic     #9                  // Field java/lang/System.out:Ljava/io/PrintStream;\n       6: sipush        4919\n       9: invokestatic  #15                 // Method a:(I)I\n      12: aload_1\n      13: invokedynamic #21,  0             // InvokeDynamic #0:makeConcatWithConstants:(ILjava/lang/String;)Ljava/lang/String;\n      18: invokevirtual #25                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V\n      21: return\n}\n"
+    }
+   ]
+  }
+ }
+}

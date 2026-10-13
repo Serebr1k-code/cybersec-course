@@ -13,6 +13,18 @@ useful_for:
   - "Mobile: Android-приложения (dex)"
 estimated_minutes: 55
 summary: "Анализ байткода JVM: структура class-файла, javap и декомпиляторы (CFR, Procyon, jadx), JAR-архивы, обфускация и её снятие, ключевые инструкции и практические приёмы."
+lab:
+  kind: shell
+  title: 'Практика: дизассемблировать class-файл JVM'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, Hello.class]
+  check: "grep -q 'nto{jvm_byt3c0d3_0p3nc0d3}' found.txt"
+  hints:
+    - 'Байткод лежит прямо в файле: `strings Hello.class` покажет строки пула констант.'
+    - '`javap -c -p Hello` — штатный дизассемблер JVM.'
+    - 'В `main` есть `ldc // String <флаг>`; логика `check(int)` сравнивает аргумент с `sipush 4919`.'
+    - 'Запиши флаг в `found.txt` (`echo ... > found.txt`) и выполни `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

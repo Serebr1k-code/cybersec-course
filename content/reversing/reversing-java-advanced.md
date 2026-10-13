@@ -13,6 +13,18 @@ useful_for:
   - "Анализ Java-малвари"
 estimated_minutes: 60
 summary: "Разбор обфусцированного Java: ProGuard/R8, анализ байткода, патчинг и деобфускация — на реальном байткоде."
+lab:
+  kind: shell
+  title: 'Практика: обфусцированный Java-байткод'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, Obf.class]
+  check: "grep -q 'nto{0bfusc4t3d_n4m3s_n0t_s3cur3}' found.txt"
+  hints:
+    - 'Обфускация имён не трогает инструкции: `javap -c -p Obf` читается как обычный байткод.'
+    - 'Метод `a(int)` сравнивает аргумент с `sipush 4919` (`0x1337`) — это и есть «логика под именем a».'
+    - 'Пул констант не обфусцирован: ищи `ldc // String ...` — там лежит флаг.'
+    - '`echo ... > found.txt`, затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается
