@@ -1,0 +1,43 @@
+{
+  "id": "osint-satellite",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{s3nt1n3l_ch4ng3_d3t3ct10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: change detection по Sentinel-2\n\nНужно найти сцены Sentinel-2 для площадки и подтвердить изменение.\n\n1. Запроси сцены: `curl -s \"https://catalogue.dataspace.copernicus.eu/odata/v1/Products?filter=Collection/Name eq 'SENTINEL-2'&top=5\" > scenes.json`\n   (в эмуляции параметры `$filter/$top` уже подставлены)\n2. `jq -r '.value[] | [.Name, .ContentDate.Start] | @tsv' scenes.json`\n3. Одна сцена помечена служебным маркером `nto{...}` — запиши в `answer.txt`, набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — Copernicus OData (эмуляция)",
+      "cases": [
+        {
+          "match": "catalogue\\.dataspace\\.copernicus\\.eu",
+          "example": "curl -s \"https://catalogue.dataspace.copernicus.eu/odata/v1/Products?...\"",
+          "output": "{\"@odata.context\":\"$metadata#Products\",\"value\":[\n {\"Name\":\"S2A_MSIL2A_20240928T081601_N0500_R064_T37UCR_20240928T105031\",\"ContentDate\":{\"Start\":\"2024-09-28T08:16:01.000Z\"}},\n {\"Name\":\"S2B_MSIL2A_20240918T081601_N0500_R064_T37UCR_nto{s3nt1n3l_ch4ng3_d3t3ct10n}\",\"ContentDate\":{\"Start\":\"2024-09-18T08:16:01.000Z\"}}\n]}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только catalogue.dataspace.copernicus.eu.\n"
+    },
+    "jq": {
+      "help": "jq [-r] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "value|\\.Name|ContentDate",
+          "example": "jq -r '.value[] | [.Name, .ContentDate.Start] | @tsv' scenes.json",
+          "output": "S2A_MSIL2A_20240928T081601_N0500_R064_T37UCR_20240928T105031\t2024-09-28T08:16:01.000Z\nS2B_MSIL2A_20240918T081601_N0500_R064_T37UCR_nto{s3nt1n3l_ch4ng3_d3t3ct10n}\t2024-09-18T08:16:01.000Z\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддержан фильтр по .value[].Name.\n"
+    }
+  }
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Журналистика и фактчекинг"
 estimated_minutes: 30
 summary: "Технический анализ изображений: Error Level Analysis, карта шума, анализ сжатия и клонирования, метаданные — как отличить подлинное фото от отредактированного."
+lab:
+  kind: shell
+  title: "Практика: подлинное фото или монтаж?"
+  toolset: [core, exiftool, strings]
+  workdir: /home/student/task
+  files: [task.md, protest.jpg]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Начни с `exiftool protest.jpg` — что говорит `Software`?"
+    - "Расхождение `Date/Time Original` и `Modify Date` — признак правки."
+    - "Полный дамп: `exiftool -a -u -g1 protest.jpg`."
+    - "Маркер виден и в сырых байтах: `strings protest.jpg | grep nto`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,18 @@ useful_for:
   - "Threat intelligence"
 estimated_minutes: 30
 summary: "Как из множества разрозненных аккаунтов и идентификаторов собрать доказанную личность: техники корреляции, оценка уверенности и защита от ложного связывания."
+lab:
+  kind: shell
+  title: "Практика: связать аккаунты в одну личность"
+  toolset: [core, curl, jq, gpg, sherlock]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "`sherlock ipetrov-dev --timeout 6 --print-found` даёт список платформ."
+    - "GitHub API отдаёт email: `curl -s https://api.github.com/users/ipetrov-dev | jq '{login,name,email,blog}'`."
+    - "`gpg --search-keys i.petrov@example.com` подтверждает ключ."
+    - "Личный сайт из поля blog: `curl -s https://ipetrov.dev/ > site.html`, затем `grep nto site.html`."
 ---
 
 ## Вопрос, с которого всё начинается

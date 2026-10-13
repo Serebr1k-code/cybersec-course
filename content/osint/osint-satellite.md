@@ -12,6 +12,18 @@ useful_for:
   - "Верификация событий"
 estimated_minutes: 56
 summary: "Источники спутниковых снимков (Sentinel, Landsat, Planet, Maxar), таймлайны и сравнение дат, обнаружение изменений, геопривязка и этика."
+lab:
+  kind: shell
+  title: "Практика: change detection по Sentinel-2"
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Запроси сцены у Copernicus OData: `curl -s "https://catalogue.dataspace.copernicus.eu/odata/v1/Products?..."`."
+    - "Разбери JSON: `jq -r '.value[].Name' scenes.json`."
+    - "Сравни две даты сцен (2023 и 2024) — это change detection."
+    - "Одна сцена несёт служебный маркер `nto{...}` в поле Name."
 ---
 
 ## Вопрос, с которого всё начинается

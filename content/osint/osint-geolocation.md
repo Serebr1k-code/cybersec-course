@@ -12,6 +12,18 @@ useful_for:
   - "CTF-задачи «где сделано фото»"
 estimated_minutes: 55
 summary: "Методика определения места по фото: контекст, вывески, дорожные знаки, инфраструктура, небо, карты и панорамы."
+lab:
+  kind: shell
+  title: "Практика: где сделан снимок?"
+  toolset: [core, exiftool, tesseract, curl, jq]
+  workdir: /home/student/task
+  files: [task.md, street.jpg]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Сначала `exiftool street.jpg` — есть ли GPS?"
+    - "Текст вывески читает OCR: `tesseract street.jpg - -l rus+eng`."
+    - "Адрес подтверждается обратным геокодированием через Nominatim."
+    - "Маркер `nto{...}` напечатан на плакате рядом с вывеской."
 ---
 
 ## Вопрос, с которого всё начинается

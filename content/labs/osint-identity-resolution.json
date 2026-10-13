@@ -1,0 +1,70 @@
+{
+  "id": "osint-identity-resolution",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{1d3nt1ty_r3s0lv3d_pgp_4nch0r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: связать аккаунты в одну личность\n\nЕсть ник `ipetrov-dev`. Нужно собрать независимые сигналы (ник, email, PGP, личный домен) и подтвердить атрибуцию.\n\n1. `sherlock ipetrov-dev --timeout 6 --print-found`\n2. `curl -s https://api.github.com/users/ipetrov-dev | jq '{login,name,email,blog}'`\n3. `gpg --search-keys i.petrov@example.com`\n4. Личный сайт из профиля: `curl -s https://ipetrov.dev/ > site.html`\n5. `grep nto site.html` — запиши `nto{...}` в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "sherlock": {
+      "help": "sherlock <ник> [--timeout N --print-found] — поиск ника (эмуляция)",
+      "cases": [
+        {
+          "match": "ipetrov-dev",
+          "example": "ipetrov-dev --print-found",
+          "output": "[*] Checking username ipetrov-dev on:\n\n[+] GitHub: https://www.github.com/ipetrov-dev\n[+] GitLab: https://gitlab.com/ipetrov-dev\n[+] Reddit: https://www.reddit.com/user/ipetrov-dev\n[+] Docker Hub: https://hub.docker.com/u/ipetrov-dev/\n[+] Keybase: https://keybase.io/ipetrov-dev\n[+] Telegram: https://t.me/ipetrov-dev\n"
+        }
+      ],
+      "fallback": "sherlock: в этой лабе проверяется только ник ipetrov-dev.\n"
+    },
+    "curl": {
+      "help": "curl [-s] <URL> — GitHub API / личный сайт (эмуляция)",
+      "cases": [
+        {
+          "match": "api\\.github\\.com/users/ipetrov-dev",
+          "example": "curl -s https://api.github.com/users/ipetrov-dev",
+          "output": "{\n  \"login\": \"ipetrov-dev\",\n  \"name\": \"Ivan Petrov\",\n  \"email\": \"i.petrov@example.com\",\n  \"blog\": \"https://ipetrov.dev\",\n  \"bio\": \"backend, gpg 1A2B3C4D5E6F7A8B\",\n  \"public_repos\": 42\n}\n"
+        },
+        {
+          "match": "ipetrov\\.dev",
+          "example": "curl -s https://ipetrov.dev/",
+          "output": "<!doctype html>\n<html><head><title>Ivan Petrov</title>\n<meta name=\"pgp\" content=\"1A2B3C4D5E6F7A8B\">\n<meta name=\"contact\" content=\"i.petrov@example.com\">\n</head><body><h1>Ivan Petrov</h1>\n<p>verify: nto{1d3nt1ty_r3s0lv3d_pgp_4nch0r}</p>\n</body></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны api.github.com/users/ipetrov-dev и ipetrov.dev.\n"
+    },
+    "jq": {
+      "help": "jq [-r] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "login|name|email|blog",
+          "example": "jq '{login,name,email,blog}' gh.json",
+          "output": "{\n  \"login\": \"ipetrov-dev\",\n  \"name\": \"Ivan Petrov\",\n  \"email\": \"i.petrov@example.com\",\n  \"blog\": \"https://ipetrov.dev\"\n}\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддержан фильтр по полям профиля.\n"
+    },
+    "gpg": {
+      "help": "gpg --search-keys <email> — поиск ключа на keyserver (эмуляция)",
+      "cases": [
+        {
+          "match": "search-keys|i\\.petrov@example\\.com",
+          "example": "gpg --search-keys i.petrov@example.com",
+          "output": "gpg: data source: https://keys.openpgp.org\n(1)     Ivan Petrov <i.petrov@example.com>\n          4096 bit RSA key 1A2B3C4D5E6F7A8B, created: 2018-06-01\nKeys 1-1 of 1 for \"i.petrov@example.com\"\n"
+        }
+      ],
+      "fallback": "gpg: в этой лабе доступен только поиск ключа i.petrov@example.com.\n"
+    }
+  }
+}
