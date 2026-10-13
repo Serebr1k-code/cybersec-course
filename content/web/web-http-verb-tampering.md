@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 40
 summary: "Как смена HTTP-метода или заголовков override обходит аутентификацию, авторизацию и фильтры."
+lab:
+  kind: shell
+  title: "Практика: HTTP method tampering"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Обычный GET к админке блокируется: `curl -s https://shop.local/admin`.
+    - Правило безопасности написано только под POST — смена метода обходит его.
+    - Попробуй POST: `curl -s -X POST https://shop.local/admin`.
+    - Забери флаг: `curl -s -X POST https://shop.local/admin | grep 'nto{' > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается

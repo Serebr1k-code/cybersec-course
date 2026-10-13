@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 42
 summary: "Все режимы и флаги gobuster (dir/dns/vhost/fuzz) и feroxbuster (рекурсия, авто-фильтры, extract-links) с рецептами."
+lab:
+  kind: shell
+  title: "Практика: feroxbuster (рекурсия)"
+  toolset: [core, feroxbuster, curl]
+  workdir: /home/student/task
+  files: [task.md, raft-medium-directories.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - `gobuster dir` плоский — вложенные каталоги пропустит.
+    - Запусти рекурсивный скан: `feroxbuster -u https://shop.acme-lab.test -w raft-medium-directories.txt -x php,html -d 3 --smart -q`.
+    - В выводе есть `/api/internal` (200) — вложенная ветка.
+    - Запроси её: `curl -s https://shop.acme-lab.test/api/internal | grep 'nto{' > found.txt`, затем `check`.
 ---
 
 ## Задача
