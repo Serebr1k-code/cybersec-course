@@ -1,0 +1,48 @@
+{
+  "id": "crypto-rsa-coppersmith-path",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{fr4nkl1n_r31t3r_p4th_r3c0v3rs}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Franklin-Reiter (связанные сообщения)\n\nДва сообщения связаны линейно: `m2 = a·m1 + b (mod n)`, у обоих `e = 3`.\nТогда `gcd(x³ − c1, (a·x+b)³ − c2) = x − m1` — НОД многочленов линеен,\nи `m1` находится без факторизации.\n\nШаги:\n1. `cat fr.txt` — n, e, c1, c2, a, b.\n2. `python3 fr.py` — считает полиномиальный НОД и извлекает m1.\n3. `python3 fr.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Работает при малом e и линейной связи сообщений.\n- Обобщение: Coppersmith для малых корней и частично известных битов.\n"
+    },
+    {
+      "path": "/home/student/task/fr.txt",
+      "text": "n = 533996758980227520598755426542388028650676140188305946476130768717356912725707010605905505165111\ne = 3\nc1 = 42212959795048198881497479946266857479281108045938874445665104451308268242987179247382587985955\nc2 = 470387937428414861216611212523239039535448888754514025475749945458143992464390825533891467475331\na = 2\nb = 5\n"
+    },
+    {
+      "path": "/home/student/task/fr.py",
+      "text": "# Franklin-Reiter: m2 = a*m1 + b, same e. gcd(x^e-c1, (ax+b)^e-c2) = x - m1.\nn = int(open('fr.txt').read().split('\\n')[0].split(' = ')[1])\ne = 3\nc1 = int(open('fr.txt').read().split('\\n')[1].split(' = ')[1])\nc2 = int(open('fr.txt').read().split('\\n')[2].split(' = ')[1])\na = int(open('fr.txt').read().split('\\n')[3].split(' = ')[1])\nb = int(open('fr.txt').read().split('\\n')[4].split(' = ')[1])\n# polynomial gcd over Z_n (см. реализацию в скрипте) -> линейный -> m1\nprint('gcd is linear; m1 is its root')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "fr\\.py",
+          "example": "python3 fr.py",
+          "output": "gcd(g1, g2) = 1*x + 533996758980224246411215396750852965519245974088506081355235024250923395700025176491198452444090  (linear)\nm1 = 3274187540029791535063131430166099799865120895744466433517025681834114707052721021\nrecovered message: b'nto{fr4nkl1n_r31t3r_p4th_r3c0v3rs}'\nflag: nto{fr4nkl1n_r31t3r_p4th_r3c0v3rs}\n"
+        }
+      ]
+    }
+  }
+}

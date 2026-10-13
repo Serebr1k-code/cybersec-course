@@ -1,0 +1,48 @@
+{
+  "id": "crypto-rsa-implementation-attacks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{rs4_crt_f4ult_gcd_f4ct0rs_n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: fault-атака на RSA-CRT (Bellcore)\n\nПодпись считалась по CRT, но в одной ветви (mod q) произошёл сбой. Тогда\n`s^e ≢ m (mod q)`, но `≡ m (mod p)`, поэтому `gcd(s^e − m, n) = p` — модуль\nраскладывается на множители по одной ошибочной подписи. Зная p и q, расшифруй `c`.\n\nШаги:\n1. `cat fault.txt` — n, e, c, ошибочная подпись s и открытый m.\n2. `python3 fault.py` — gcd(s^e−m, n), факторизация и дешифровка c.\n3. `python3 fault.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Достаточно ОДНОЙ ошибочной подписи: gcd(s^e−m, n) даёт p.\n- Защита: проверять подпись перед выдачей (verify-after-sign).\n"
+    },
+    {
+      "path": "/home/student/task/fault.txt",
+      "text": "n = 533996758980227520598755426542388028650676138820340413934405637278707909303266104207952623515879\ne = 65537\nc = 333027024260554708627615974993407093278649801235441603597701261651995642795555972685901375229764\ns = 263987915959327612295250281236732804562399854276000422976450300426235394501372464567750268201448\nm = 49960137025644522781186325927092945734244731454585803300321210533949623725693\n"
+    },
+    {
+      "path": "/home/student/task/fault.py",
+      "text": "# Bellcore RSA-CRT fault: gcd(s^e - m, n) splits n; then decrypt c.\nfrom math import gcd\nd = {}\nfor line in open('fault.txt'):\n    k, _, v = line.partition(' = ')\n    d[k.strip()] = int(v)\nn, e, c, s, m = d['n'], d['e'], d['c'], d['s'], d['m']\np = gcd(pow(s, e, n) - m, n)\nq = n // p\ndd = pow(e, -1, (p - 1) * (q - 1))\nrec = pow(c, dd, n)\nprint('p =', p, ' q =', q)\nprint('recovered message:', rec.to_bytes((rec.bit_length() + 7) // 8, 'big'))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "fault\\.py",
+          "example": "python3 fault.py",
+          "output": "faulty signature s = 263987915959327612295250281236732804562399854276000422976450300426235394501372464567750268201448\ngcd(s^e - m, n) = 730750818665451459101842416358141509827966273659\nrecovered factors: p = 730750818665451459101842416358141509827966273659  q = 730750818665451459101842416358141509827966280581\nrecovered message: b'nto{rs4_crt_f4ult_gcd_f4ct0rs_n}'\nflag: nto{rs4_crt_f4ult_gcd_f4ct0rs_n}\n"
+        }
+      ]
+    }
+  }
+}

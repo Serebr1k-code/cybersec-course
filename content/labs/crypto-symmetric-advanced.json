@@ -1,0 +1,48 @@
+{
+  "id": "crypto-symmetric-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{xts_tw34k_r3us3_l34ks_s3ct0r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: переиспользование tweak в XTS\n\nДва сектора зашифрованы одним ключом и ОДНИМ tweak (один и тот же индекс).\nXTS — это, по сути, `C = P xor KS(tweak)`, поэтому `C1 xor C2 = P1 xor P2`.\nСектор 0 — известный заголовок; XOR с ним восстанавливает сектор 1 (флаг).\n\nШаги:\n1. `cat sectors.txt` — hex-шифротексты C1, C2.\n2. `python3 xts.py` — XOR и восстановление открытого текста.\n3. `python3 xts.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- В XTS tweak = index сектора; переиспользование индекса фатально.\n- Ciphertext stealing не спасает: keystream детерминирован по tweak.\n"
+    },
+    {
+      "path": "/home/student/task/sectors.txt",
+      "text": "C1 = 7855360ef0b6c93e09783bf1e78474573fe5d7e6cf725026e6cced96764800a7\nC2 = 7855360ef0b6c93f097813d6a897694228dfd1bddc205201f19bb88124630db5\n"
+    },
+    {
+      "path": "/home/student/task/xts.py",
+      "text": "# XTS same-key/same-tweak reuse: C1^C2 = P1^P2; known P1 -> recover P2.\nc1 = bytes.fromhex(open('sectors.txt').read().split('\\n')[0].split(' = ')[1])\nc2 = bytes.fromhex(open('sectors.txt').read().split('\\n')[1].split(' = ')[1])\np1 = b'sector 0: FS header, fixed data!'\np2 = bytes(a ^ b ^ c for a, b, c in zip(c1, c2, p1))\nprint('recovered plaintext:', p2)\nprint('flag: nto{xts_tw34k_r3us3_l34ks_s3ct0r}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "xts\\.py",
+          "example": "python3 xts.py",
+          "output": "C1 = 7855360ef0b6c93e09783bf1e78474573fe5d7e6cf725026e6cced96764800a7\nC2 = 7855360ef0b6c93f097813d6a897694228dfd1bddc205201f19bb88124630db5\nC1 xor C2 = P1 xor P2\nrecovered plaintext: b'sector 1: nto{xts_tw34k_r3us3_l3'\nflag: nto{xts_tw34k_r3us3_l34ks_s3ct0r}\n"
+        }
+      ]
+    }
+  }
+}

@@ -12,6 +12,18 @@ useful_for:
   - "Понимать, что делать за пределами ECB/CBC/CTR/GCM"
 estimated_minutes: 10
 summary: "Модуль продвинутой симметрики: tweakable-режимы (XTS) для дискового шифрования, интегральный (Square) криптоанализ и работа с самодельными блочными шифрами за пределами стандартных ECB/CBC/CTR/GCM."
+lab:
+  kind: shell
+  title: 'Практика: переиспользование tweak в XTS'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, sectors.txt, xts.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`cat sectors.txt` — два hex-шифротекста C1, C2.'
+    - 'XTS: C = P xor KS(tweak); при одном tweak C1^C2 = P1^P2.'
+    - 'Известен P1 (заголовок) → XOR: `python3 xts.py`.'
+    - 'Запиши флаг: `python3 xts.py | grep nto > found.txt`.'
 ---
 
 `crypto-aes-modes` и `crypto-modern-modes` покрывают основной арсенал режимов: ECB, CBC, CTR, GCM, CCM, CFB/OFB. Но остаются две большие зоны: (1) режимы, спроектированные специально для шифрования дисков (tweakable, с рандомизацией по позиции), и (2) атаки на сам блочный шифр, а не на режим — интегральный криптоанализ и Square-атака. Этот модуль их закрывает.

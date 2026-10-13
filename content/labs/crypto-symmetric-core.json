@@ -1,0 +1,48 @@
+{
+  "id": "crypto-symmetric-core",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{symm3tr1c_c0r3_k3ystr34m_r3us3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: переиспользование гаммы потокового шифра\n\nДва сообщения зашифрованы одним потоковым ключом (один и тот же keystream).\nТогда `C1 xor C2 = P1 xor P2` — гамма сокращается. Первое сообщение известно,\nпоэтому второе (флаг) восстанавливается одним XOR.\n\nШаги:\n1. `cat msgs.txt` — hex C1 и C2.\n2. `python3 otp_reuse.py` — XOR и crib по известному P1.\n3. `python3 otp_reuse.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Потоковый шифр = XOR с гаммой; повтор гаммы = many-time pad.\n- Лечится уникальным nonce/IV на каждое сообщение.\n"
+    },
+    {
+      "path": "/home/student/task/msgs.txt",
+      "text": "C1 = 6a4f16869a2a650bda856b3ae6ca815b77fea4864412e1ea8d5108faaa261d5287fc31665b90c53a6fa499ce\nC2 = 6a4f1686992a6514db8b623dfad5801123fef0957403a5b8cc6b02adaa7b490094e87c19098390697cf999ce\n"
+    },
+    {
+      "path": "/home/student/task/otp_reuse.py",
+      "text": "# Stream cipher keystream reuse (many-time pad): C1^C2 = P1^P2.\nc1 = bytes.fromhex(open('msgs.txt').read().split('\\n')[0].split(' = ')[1])\nc2 = bytes.fromhex(open('msgs.txt').read().split('\\n')[1].split(' = ')[1])\np1 = b'msg A: quarterly report ready.'\np2 = bytes(a ^ b ^ c for a, b, c in zip(c1, c2, p1))\nprint('recovered plaintext:', p2)\nprint('flag: nto{symm3tr1c_c0r3_k3ystr34m_r3us3}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "otp_reuse\\.py",
+          "example": "python3 otp_reuse.py",
+          "output": "C1 = 6a4f16869a2a650bda856b3ae6ca815b77fea4864412e1ea8d5108faaa261d5287fc31665b90c53a6fa499ce\nC2 = 6a4f1686992a6514db8b623dfad5801123fef0957403a5b8cc6b02adaa7b490094e87c19098390697cf999ce\nC1 xor C2 = P1 xor P2 (keystream cancels)\nrecovered plaintext: b'msg B: nto{symm3tr1c_c0r3_k3ystr34m_r3us3}  '\nflag: nto{symm3tr1c_c0r3_k3ystr34m_r3us3}\n"
+        }
+      ]
+    }
+  }
+}
