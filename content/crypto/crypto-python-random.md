@@ -12,6 +12,18 @@ useful_for:
   - "Восстанавливать seed и предсказывать значения"
 estimated_minutes: 34
 summary: "Предсказание Python random: устройство Mersenne Twister, getrandbits/getstate, полное восстановление через randcrack (624 значения), восстановление seed по одному выходу, практические скрипты и атаки на токены/пароли/OTP."
+lab:
+  kind: shell
+  title: 'Практика: восстановление seed модуля random'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, token.txt, window.txt, predict.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`int(time.time())` — всего ~600 вариантов в окне ±300 с.'
+    - 'Для каждого кандидата-seed сгенерируй первый токен и сравни с известным.'
+    - 'Найдя seed, сгенерируй следующий токен — он и есть флаг.'
+    - '`python3 predict.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

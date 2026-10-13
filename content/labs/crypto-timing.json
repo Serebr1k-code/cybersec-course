@@ -1,0 +1,49 @@
+{
+  "id": "crypto-timing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{tim1ng_s1d3_ch4nn3l_a3f9c1e0d2b7}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: timing-атака\n\n`server.py` сравнивает секрет с guess посимвольно с ранним выходом. Его `check()`\nвозвращает число выполненных сравнений (`work`) — детерминированную модель времени.\nВосстанови секрет побайтово и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/server.py",
+      "text": "SECRET = 'a3f9c1e0d2b7'\ndef check(guess):\n    \"\"\"Returns (ok, work). `work` = number of byte comparisons performed\n    (a deterministic model of the wall-clock cost of a non constant-time compare).\"\"\"\n    work = 0\n    for i in range(min(len(guess), len(SECRET))):\n        work += 1\n        if guess[i] != SECRET[i]:\n            return False, work\n    if len(guess) == len(SECRET):\n        work += 1\n        return True, work\n    return False, work\n"
+    },
+    {
+      "path": "/home/student/task/length.txt",
+      "text": "12\n"
+    },
+    {
+      "path": "/home/student/task/attack.py",
+      "text": "from server import check\nL = int(open('length.txt').read())\nknown = ''\nfor pos in range(L):\n    best, best_w = None, -1\n    for c in '0123456789abcdef':\n        guess = (known + c).ljust(L, 'x')   # always full length\n        _, w = check(guess)\n        if w > best_w:\n            best_w, best = w, c\n    known += best\n    print(\"pos %2d: '%s' -> '%s' (work=%d)\" % (pos, best, known, best_w))\nprint('recovered:', known)\nprint('flag: nto{tim1ng_s1d3_ch4nn3l_' + known + '}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "attack\\.py",
+          "example": "python3 attack.py",
+          "output": "pos  0: 'a' -> 'a' (work=2)\npos  1: '3' -> 'a3' (work=3)\npos  2: 'f' -> 'a3f' (work=4)\npos  3: '9' -> 'a3f9' (work=5)\npos  4: 'c' -> 'a3f9c' (work=6)\npos  5: '1' -> 'a3f9c1' (work=7)\npos  6: 'e' -> 'a3f9c1e' (work=8)\npos  7: '0' -> 'a3f9c1e0' (work=9)\npos  8: 'd' -> 'a3f9c1e0d' (work=10)\npos  9: '2' -> 'a3f9c1e0d2' (work=11)\npos 10: 'b' -> 'a3f9c1e0d2b' (work=12)\npos 11: '7' -> 'a3f9c1e0d2b7' (work=13)\nrecovered: a3f9c1e0d2b7\nflag: nto{tim1ng_s1d3_ch4nn3l_a3f9c1e0d2b7}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 attack.py`\n"
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "id": "crypto-python-random",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{04a4d8a5}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: предсказание токена\n\nСервис генерирует reset-токены через `random.seed(int(time.time()))` и\n`random.choice(\"0123456789abcdef\")`. У нас есть один токен (`token.txt`) и примерное\nокно времени (`window.txt`). Восстанови seed и предскажи СЛЕДУЮЩИЙ токен (это флаг).\n"
+    },
+    {
+      "path": "/home/student/task/token.txt",
+      "text": "22b53240\n"
+    },
+    {
+      "path": "/home/student/task/window.txt",
+      "text": "1791785391 1791785991\n"
+    },
+    {
+      "path": "/home/student/task/predict.py",
+      "text": "import random\ndef reset_token(r):\n    return ''.join(r.choice('0123456789abcdef') for _ in range(8))\nknown=open('token.txt').read().strip()\nlo,hi=[int(x) for x in open('window.txt').read().split()]\nfor s in range(lo,hi):\n    r=random.Random(s)\n    if reset_token(r)==known:\n        nxt=reset_token(r)\n        print('seed      :', s)\n        print('known     :', known)\n        print('next token: nto{'+nxt+'}')\n        break\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "predict\\.py",
+          "example": "python3 predict.py",
+          "output": "seed      : 1791785691\nknown     : 22b53240\nnext token: nto{04a4d8a5}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 predict.py`\n"
+    }
+  }
+}

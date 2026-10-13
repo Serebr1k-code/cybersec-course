@@ -1,0 +1,49 @@
+{
+  "id": "crypto-merkle-tree",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m3rkl3_dup_l34f_s3c0nd_pr31m4g3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: second-preimage в дереве Меркла\n\nДерево Меркла построено над листьями `[H(A), H(B), H(C)]` без доменного разделения.\nПри нечётном числе листьев последний дублируется — покажи, что набор `[A,B,C,C]` даёт\nтот же корень, что `[A,B,C]`. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/leaves.txt",
+      "text": "559aead08264d5795d3909718cdd05abd49572e84fe55590eef31a88a08fdffd\ndf7e70e5021544f4834bbee64a9e3789febc4be81470df629cad6ddb03320a5c\n6b23c0d5f35d1b11f9b683f0b0a617355deb11277d91ae091d399c655b87940d\n"
+    },
+    {
+      "path": "/home/student/task/root.txt",
+      "text": "420940ee1c7a73de80cfa2554efb4e6cec7ea745fed73108ccb06886054df8c6\n"
+    },
+    {
+      "path": "/home/student/task/merkle.py",
+      "text": "import hashlib\ndef H(*parts):\n    h=hashlib.sha256()\n    for p in parts: h.update(p)\n    return h.digest()\ndef root(leaves):\n    if len(leaves)==1: return leaves[0]\n    if len(leaves)%2: leaves=leaves+[leaves[-1]]\n    return root([H(leaves[i],leaves[i+1]) for i in range(0,len(leaves),2)])\nleaves=[bytes.fromhex(l.strip()) for l in open('leaves.txt') if l.strip()]\nr=open('root.txt').read().strip()\n# C hashes are duplicated at each odd level -> appending C again is a second-preimage\nalt=[H(b'A'),H(b'B'),H(b'C'),H(b'C')]\nprint('leaves            :', [l.hex()[:12] for l in leaves])\nprint('root(3 leaves)    :', root(leaves).hex())\nprint('root([A,B,C,C])   :', root(alt).hex())\nprint('collision         :', root(leaves)==root(alt)==bytes.fromhex(r))\nprint('flag: nto{m3rkl3_dup_l34f_s3c0nd_pr31m4g3}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "merkle\\.py",
+          "example": "python3 merkle.py",
+          "output": "leaves            : ['559aead08264', 'df7e70e50215', '6b23c0d5f35d']\nroot(3 leaves)    : 420940ee1c7a73de80cfa2554efb4e6cec7ea745fed73108ccb06886054df8c6\nroot([A,B,C,C])   : 420940ee1c7a73de80cfa2554efb4e6cec7ea745fed73108ccb06886054df8c6\ncollision         : True\nflag: nto{m3rkl3_dup_l34f_s3c0nd_pr31m4g3}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 merkle.py`\n"
+    }
+  }
+}

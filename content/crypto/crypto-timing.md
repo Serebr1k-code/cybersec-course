@@ -12,6 +12,18 @@ useful_for:
   - "Писать статистический анализ таймингов"
 estimated_minutes: 38
 summary: "Timing side-channels: атака Кохера на RSA, утечка через сравнение строк (memcmp/HMAC), статистический анализ удалённых таймингов, полный скрипт на Python, контрмеры (constant-time) и связь с cache/power-каналами."
+lab:
+  kind: shell
+  title: 'Практика: timing side-channel по раннему выходу'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, server.py, length.txt, attack.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Ранний выход: чем длиннее совпавший префикс, тем больше `work`.'
+    - 'Для каждой позиции перебери символы и выбери тот, что даёт максимальный `work`.'
+    - 'Длину секрета смотри в `length.txt`.'
+    - '`python3 attack.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

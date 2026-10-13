@@ -13,6 +13,18 @@ useful_for:
   - "Атаковать слабые nonce и предсказуемые challenge"
 estimated_minutes: 36
 summary: "Commitment-схемы и доказательства знания: свойства hiding/binding, хэш- и Pedersen-commitment, сигма-протокол Schnorr, Fiat-Shamir-преобразование, атаки на слабый nonce и отсутствие привязки, практические скрипты."
+lab:
+  kind: shell
+  title: 'Практика: повтор nonce в Schnorr-подписи'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, pubkey.txt, sig.txt, recover.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Одинаковый `r` в двух подписях — фатально.'
+    - '`s1 - s2 = (c1 - c2)·x mod q`.'
+    - 'Подели по модулю: `x = (s1-s2) * inverse(c1-c2, q) mod q`.'
+    - '`python3 recover.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

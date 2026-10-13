@@ -1,0 +1,53 @@
+{
+  "id": "crypto-hash-forge",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l3ngth_3xt3n510n_m4c_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: подделка MAC (length extension)\n\nСервер аутентифицирует cookie как `MAC = SHA256(secret || msg)`, где `secret` — 9 байт.\nНам известны `msg.txt`, `mac.txt` и длина секрета (`secret_len.txt`), но не сам секрет.\nВосстанови валидный MAC для сообщения, оканчивающегося на `&role=admin`, используя\nструктуру Merkle–Damgård (length extension), и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/secret_len.txt",
+      "text": "9\n"
+    },
+    {
+      "path": "/home/student/task/msg.txt",
+      "text": "user=guest&role=user\n"
+    },
+    {
+      "path": "/home/student/task/mac.txt",
+      "text": "aa94c78364e413135bcfdc0eaf42b1ad15718da437fe009ba4800bf0d44040e9\n"
+    },
+    {
+      "path": "/home/student/task/forge.py",
+      "text": "import struct\nK=[1116352408, 1899447441, 3049323471, 3921009573, 961987163, 1508970993, 2453635748, 2870763221, 3624381080, 310598401, 607225278, 1426881987, 1925078388, 2162078206, 2614888103, 3248222580, 3835390401, 4022224774, 264347078, 604807628, 770255983, 1249150122, 1555081692, 1996064986, 2554220882, 2821834349, 2952996808, 3210313671, 3336571891, 3584528711, 113926993, 338241895, 666307205, 773529912, 1294757372, 1396182291, 1695183700, 1986661051, 2177026350, 2456956037, 2730485921, 2820302411, 3259730800, 3345764771, 3516065817, 3600352804, 4094571909, 275423344, 430227734, 506948616, 659060556, 883997877, 958139571, 1322822218, 1537002063, 1747873779, 1955562222, 2024104815, 2227730452, 2361852424, 2428436474, 2756734187, 3204031479, 3329325298]\nM=0xffffffff\ndef rotr(x,n): return ((x>>n)|(x<<(32-n)))&M\ndef compress(h,b):\n    w=list(struct.unpack('>16I',b))+[0]*48\n    for i in range(16,64):\n        s0=rotr(w[i-15],7)^rotr(w[i-15],18)^(w[i-15]>>3)\n        s1=rotr(w[i-2],17)^rotr(w[i-2],19)^(w[i-2]>>10)\n        w[i]=(w[i-16]+s0+w[i-7]+s1)&M\n    a,b_,c,dd,e,f,g,hh=h\n    for i in range(64):\n        S1=rotr(e,6)^rotr(e,11)^rotr(e,25)\n        ch=(e&f)^((~e&M)&g)\n        t1=(hh+S1+ch+K[i]+w[i])&M\n        S0=rotr(a,2)^rotr(a,13)^rotr(a,22)\n        maj=(a&b_)^(a&c)^(b_&c)\n        t2=(S0+maj)&M\n        hh,g,f,e,dd,c,b_,a=g,f,e,(dd+t1)&M,c,b_,a,(t1+t2)&M\n    return [(x+y)&M for x,y in zip(h,[a,b_,c,dd,e,f,g,hh])]\ndef pad(n):\n    p=b'\\x80'\n    while (n+len(p))%64!=56: p+=b'\\x00'\n    return p+struct.pack('>Q',n*8)\ndef h256(data):\n    data = data + pad(len(data))\n    h=[0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]\n    for i in range(0,len(data),64):\n        h=compress(h,data[i:i+64])\n    return h\nmsg=open('msg.txt','rb').read().strip()\nmac=open('mac.txt').read().strip()\nslen=int(open('secret_len.txt').read())\n# MAC = SHA256(secret || msg). We know mac (internal state after secret||msg||glue)\nstate=list(struct.unpack('>8I',bytes.fromhex(mac)))\nglue=pad(slen+len(msg))\nappend=b'&role=admin'\ntail=append+pad(slen+len(msg)+len(glue)+len(append))\nst=state\nfor i in range(0,len(tail),64):\n    st=compress(st,tail[i:i+64])\nforged=msg+glue+append\nfmac=''.join('%08x'%x for x in st)\nprint('original message :', msg.decode())\nprint('known MAC        :', mac)\nprint('forged message   :', repr(forged))\nprint('forged MAC       :', fmac)\n# verify: server would compute SHA256(secret || forged)\nreal=open('secret.txt','rb').read().strip()\nvh=h256(real+forged)\nok=(''.join('%08x'%x for x in vh)==fmac)\nprint('verify (sha256(secret||forged)==forged_mac):', ok)\nprint('server: role=admin -> flag: nto{l3ngth_3xt3n510n_m4c_byp4ss}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "forge\\.py",
+          "example": "python3 forge.py",
+          "output": "original message : user=guest&role=user\nknown MAC        : aa94c78364e413135bcfdc0eaf42b1ad15718da437fe009ba4800bf0d44040e9\nforged message   : b'user=guest&role=user\\x80\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\x00\\xe8&role=admin'\nforged MAC       : 724bda6de1d8e0f8ff13b39d3afbbefee7485ae2e1b6a2ed81cc22e568eedba1\nverify (sha256(secret||forged)==forged_mac): True\nserver: role=admin -> flag: nto{l3ngth_3xt3n510n_m4c_byp4ss}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 forge.py`\n"
+    }
+  }
+}

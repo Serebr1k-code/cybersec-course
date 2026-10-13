@@ -13,6 +13,18 @@ useful_for:
   - "Понимать структуры данных блокчейна"
 estimated_minutes: 40
 summary: "Деревья Меркла: построение, корень, доказательство включения (Merkle proof), обход дерева без его полной загрузки, атака second-preimage в наивных деревьях (CVE-2012-2459), применение в блокчейне и распределённых системах, а также практические скрипты и типичные ошибки."
+lab:
+  kind: shell
+  title: 'Практика: коллизия листьев в дереве Меркла'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, leaves.txt, root.txt, merkle.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Нечётное число узлов на уровне → последний узел дублируется.'
+    - 'Дубль означает: `root([A,B,C]) == root([A,B,C,C])`.'
+    - 'Запусти `python3 merkle.py` — скрипт строит оба дерева и сравнивает корни.'
+    - '`python3 merkle.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,49 @@
+{
+  "id": "crypto-commitment",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sch0rr_r3u53d_n0nc3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: восстановление секрета Schnorr\n\nДве подписи Schnorr (`c1,s1`) и (`c2,s2`) подписаны с ОДНИМ и тем же nonce `r`.\nИз пары ответов секрет восстанавливается: `x = (s1-s2)/(c1-c2) mod q`.\nНайди `x`, декодируй его байты как строку — это флаг.\n"
+    },
+    {
+      "path": "/home/student/task/pubkey.txt",
+      "text": "53046079466148778048404283341031917901827489912904934267116164632991265540689\n"
+    },
+    {
+      "path": "/home/student/task/sig.txt",
+      "text": "4369 11832756924110045064217124397744443273847545906369282552230762\n8738 23665513848220090128434248795488886547695091812738562435034039\n"
+    },
+    {
+      "path": "/home/student/task/recover.py",
+      "text": "p = 57896044618658097711785492504343953926634992332820282019728792003956564819949\nq = 57896044618658097711785492504343953926634992332820282019728792003956564819948\nX = int(open('pubkey.txt').read())\nc1, s1, c2, s2 = [int(t) for t in open('sig.txt').read().split()]\nx = ((s1 - s2) * pow(c1 - c2, -1, q)) % q\nprint('recovered x :', hex(x))\nprint('g^x == X    :', pow(3, x, p) == X)\nb = x.to_bytes((x.bit_length()+7)//8, 'big')\nprint('flag        :', b.decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "recover\\.py",
+          "example": "python3 recover.py",
+          "output": "recovered x : 0x6e746f7b7363683072725f7233753533645f6e306e63337d\ng^x == X    : True\nflag        : nto{sch0rr_r3u53d_n0nc3}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 recover.py`\n"
+    }
+  }
+}

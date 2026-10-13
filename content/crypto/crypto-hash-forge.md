@@ -13,6 +13,18 @@ useful_for:
   - "Практически строить chosen-prefix коллизии"
 estimated_minutes: 45
 summary: "Коллизии хэшей на практике: почему MD5 и SHA-1 сломаны, как строят идентичные-префиксные и chosen-prefix коллизии, чем collision отличается от second-preimage, и как это эксплуатируют для подделки подписей, сертификатов и логики приложений. Инструменты fastcoll/uniqcoll/SHA-1 collider."
+lab:
+  kind: shell
+  title: 'Практика: length extension на наивном MAC'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, secret_len.txt, msg.txt, mac.txt, forge.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`SHA256(secret||msg)` — не HMAC: клей (padding) уже «вшит» в хэш.'
+    - 'Состояние SHA-256 после обработки `secret||msg||padding` — это 8 слов из самого хэша.'
+    - 'Продолжи сжатие с этого состояния, добавив `&role=admin` и новую длину.'
+    - '`python3 forge.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается
