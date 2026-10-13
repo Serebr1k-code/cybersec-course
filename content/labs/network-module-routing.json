@@ -1,0 +1,79 @@
+{
+  "id": "network-module-routing",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{bgp_pr3f1x_h1j4ck_0r1g1n_65002}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: расследование BGP-хайджекинга\n\nПрефикс `198.51.100.0/24` начал уходить не туда. Есть доступ к CLI роутера и\nвыгрузка анонсов.\n\n1. Куда идёт трафик: `ip route get 10.20.30.40`\n2. BGP-сессии: `vtysh -c 'show bgp summary'`\n3. Лучший маршрут к префиксу: `vtysh -c 'show bgp ipv4 unicast 198.51.100.0/24'`\n4. Кто такой origin AS: `whois AS65002`\n\nНайди AS, который объявил чужой префикс, и его примету. Запиши метку `nto{...}` в `answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/bgp_updates.log",
+      "text": "2026-10-11 03:11:00 ANNOUNCE 198.51.100.0/25 origin AS65002 as_path 65002\n2026-10-11 03:11:00 ANNOUNCE 198.51.100.128/25 origin AS65002 as_path 65002\n2026-10-11 03:11:02 WITHDRAW 198.51.100.0/24 origin AS65001\n"
+    }
+  ],
+  "tools": {
+    "vtysh": {
+      "help": "vtysh -c 'команда' — CLI FRRouting (эмуляция)",
+      "cases": [
+        {
+          "match": "show bgp ipv4 unicast 198\\.51\\.100\\.0/24",
+          "example": "-c 'show bgp ipv4 unicast 198.51.100.0/24'",
+          "output": "BGP routing table entry for 198.51.100.0/24\n  Paths: (1 available, best #1)\n  Advertised to non peer-group peers:\n  local\n  65002\n    203.0.113.9 from 203.0.113.9 (203.0.113.9)\n      Origin IGP, metric 0, localpref 100, valid, external, best\n      Community: 65002:666\n      Last update: Mon Oct 11 03:11:00 2026\n"
+        },
+        {
+          "match": "show bgp summary",
+          "example": "-c 'show bgp summary'",
+          "output": "BGP router identifier 198.51.100.1, local AS number 65001\nNeighbor        V         AS   MsgRcvd   MsgSent   TblVer  InQ OutQ Up/Down  State/PfxRcd\n203.0.113.9     4      65002       412       401       12    0    0 02:14:07        4\n"
+        }
+      ],
+      "fallback": "% Unknown command\n"
+    },
+    "ip": {
+      "help": "ip route get <addr> | ip route show — таблица маршрутов (эмуляция)",
+      "cases": [
+        {
+          "match": "route get",
+          "example": "route get 10.20.30.40",
+          "output": "10.20.30.40 via 10.0.0.1 dev eth0 src 10.0.0.5 uid 1000\n    cache\n"
+        },
+        {
+          "match": "route show",
+          "example": "route show",
+          "output": "default via 10.0.0.1 dev eth0\n10.0.0.0/24 dev eth0 proto kernel scope link src 10.0.0.5\n10.20.30.0/24 via 10.0.0.1 dev eth0 proto ospf metric 20\n198.51.100.0/24 via 203.0.113.9 dev eth0 proto bgp metric 20\n"
+        }
+      ],
+      "fallback": "default via 10.0.0.1 dev eth0\n"
+    },
+    "whois": {
+      "help": "whois AS<номер> — информация об автономной системе (эмуляция)",
+      "cases": [
+        {
+          "match": "as65002",
+          "example": "AS65002",
+          "output": "aut-num:        AS65002\nas-name:        ROGUE-TRANSIT\norg:            ORG-RA1-RIPE\ndescr:          hijacked-prefix operator - nto{bgp_pr3f1x_h1j4ck_0r1g1n_65002}\ncountry:        ZZ\n"
+        }
+      ],
+      "fallback": "% No entries found for the selected source(s).\n"
+    },
+    "curl": {
+      "help": "curl -s <url> — HTTP-запрос (эмуляция RIPE Stat)",
+      "cases": [
+        {
+          "match": "routing-status",
+          "example": "-s 'https://stat.ripe.net/data/routing-status/data.json?resource=198.51.100.0/24'",
+          "output": "{\"data\":{\"resource\":\"198.51.100.0/24\",\"observed_neighbours\":42,\"visibility\":{\"total_ris_peers\":250},\"last_seen\":{\"origin\":65002,\"time\":\"2026-10-11T03:11:00\"}}}\n"
+        }
+      ],
+      "fallback": "{\"data\":{}}\n"
+    }
+  }
+}

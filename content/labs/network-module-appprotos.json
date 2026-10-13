@@ -1,0 +1,52 @@
+{
+  "id": "network-module-appprotos",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{pr0t0c0l_h13r4rchy_0dd_p0rt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор «чужого» дампа по протоколам\n\nТебе дали `cap.pcap` — смесь трафика. Нужно понять, какие протоколы внутри и\nнайти метку, оставленную в одном из прикладных запросов.\n\n1. «Фазовый состав» трафика: `tshark -r cap.pcap -q -z io,phs`\n2. TLS-метаданные: `tshark -r cap.pcap -T fields -e tls.handshake.extensions_server_name`\n3. Прикладной слой: `tshark -r cap.pcap -Y http.request -T fields -e tcp.dstport -e http.host -e http.request.uri`\n\nЗапиши метку `nto{...}` в `answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/cap.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAVXTOaqUrBwB+AAAAfgAAAP///////2h6ZJWAowgARQAAcAABAABABjqoCgAABV242CLDUAG7AAAAAAAAAABQGCAAzd4AABYDAQBDAQAAPwMDEREREREREREREREREREREREREREREREREREREREREREAAAITAQEAABQAAAAQAA4AAAtleGFtcGxlLmNvbVV0zmo7LgcAtAAAALQAAAD///////9oemSVgKMIAEUAAKYAAQAAQAZmOQoAAAUKAAAUw1EfkAAAAAAAAAAAUBggAPngAABHRVQgL2FwaS92MS9leHBvcnQ/dG9rZW49bnRve3ByMHQwYzBsX2gxM3I0cmNoeV8wZGRfcDBydH0gSFRUUC8xLjENCkhvc3Q6IDEwLjAuMC4yMDo4MDgwDQpVc2VyLUFnZW50OiBweXRob24tcmVxdWVzdHMvMi4zMQ0KDQpVdM5qOTAHAEcAAABHAAAA////////aHpklYCjCABFAAA5AAEAAEARZnoKAAAFCgAANcNSADUAJVh1AAABAAABAAAAAAAAB2V4YW1wbGUDY29tAAABAAFVdM5qHTIHADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEAGZq0KAAAFCgAAHsNTDOoAAAAAAAAAAFACIACrggAA",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-Y фильтр] [-T fields -e поле…] [-q -z io,phs] — разбор дампа",
+      "cases": [
+        {
+          "match": "io,phs",
+          "example": "-r cap.pcap -q -z io,phs",
+          "output": "\n===================================================================\nProtocol Hierarchy Statistics\nFilter: \n\nframe                                    frames:4 bytes:431\n  eth                                    frames:4 bytes:431\n    ip                                   frames:4 bytes:431\n      tcp                                frames:3 bytes:360\n        tls                              frames:1 bytes:126\n        http                             frames:1 bytes:180\n      udp                                frames:1 bytes:71\n        dns                              frames:1 bytes:71\n===================================================================\n"
+        },
+        {
+          "match": "tls\\.handshake",
+          "example": "-r cap.pcap -T fields -e tls.handshake.extensions_server_name",
+          "output": "example.com\n"
+        },
+        {
+          "match": "http\\.request",
+          "example": "-r cap.pcap -Y http.request -T fields -e tcp.dstport -e http.host -e http.request.uri",
+          "output": "8080\t10.0.0.20:8080\t/api/v1/export?token=nto{pr0t0c0l_h13r4rchy_0dd_p0rt}\n"
+        },
+        {
+          "match": "cap\\.pcap",
+          "example": "-r cap.pcap -nn",
+          "output": "    1   0.000000     10.0.0.5 → 93.184.216.34 TLSv1 126 Client Hello (SNI=example.com)\n    2   0.000662     10.0.0.5 → 10.0.0.20    HTTP 180 GET /api/v1/export?token=nto{pr0t0c0l_h13r4rchy_0dd_p0rt} HTTP/1.1 \n    3   0.001172     10.0.0.5 → 10.0.0.53    DNS 71 Standard query 0x0000 A example.com\n    4   0.001656     10.0.0.5 → 10.0.0.30    TCP 54 50003 → 3306 [SYN] Seq=0 Win=8192 Len=0\n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.5 → 93.184.216.34 TLSv1 126 Client Hello (SNI=example.com)\n    2   0.000662     10.0.0.5 → 10.0.0.20    HTTP 180 GET /api/v1/export?token=nto{pr0t0c0l_h13r4rchy_0dd_p0rt} HTTP/1.1 \n    3   0.001172     10.0.0.5 → 10.0.0.53    DNS 71 Standard query 0x0000 A example.com\n    4   0.001656     10.0.0.5 → 10.0.0.30    TCP 54 50003 → 3306 [SYN] Seq=0 Win=8192 Len=0\n"
+    }
+  }
+}

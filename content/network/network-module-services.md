@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): детект аномалий сервисов"
 estimated_minutes: 60
 summary: "Модуль по сетевым сервисам: FTP/TFTP, Telnet/r-services, VNC/RDP и IoT-протоколы (MQTT/CoAP/AMQP) — как энумерировать, что видно на проводе, какие атаки работают и как защищаться."
+lab:
+  kind: shell
+  title: "Практика: аудит открытого MQTT-брокера"
+  toolset: [core, nmap, mosquitto_sub]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{mqtt_0p3n_br0k3r_l34k}' answer.txt"
+  hints:
+    - "Сначала определи сервисы: `nmap -sV -p 21,23,1883,3389,5900 10.0.0.1`."
+    - "На порту 1883 — MQTT-брокер без аутентификации."
+    - "Подпишись на все топики: `mosquitto_sub -t 'home/#' -C 5`."
+    - "Секрет в сообщении: `nto{mqtt_0p3n_br0k3r_l34k}`."
 ---
 
 ## Вопрос, с которого всё начинается

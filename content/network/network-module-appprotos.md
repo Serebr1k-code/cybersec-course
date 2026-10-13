@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): фингерпринт и детект"
 estimated_minutes: 55
 summary: "Модуль по прикладным протоколам: HTTP/2 и HTTP/3/QUIC, протоколы баз данных (MySQL/PostgreSQL/MSSQL) и TLS-фингерпринтинг (JA3/JA4/SNI) — что видно на проводе и какие атаки возможны."
+lab:
+  kind: shell
+  title: "Практика: разбор чужого дампа по протоколам"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, cap.pcap]
+  check: "grep -q 'nto{pr0t0c0l_h13r4rchy_0dd_p0rt}' answer.txt"
+  hints:
+    - "Сначала «фазовый состав»: `tshark -r cap.pcap -q -z io,phs`."
+    - "TLS-метаданные видны даже при шифровании: `tshark -r cap.pcap -T fields -e tls.handshake.extensions_server_name`."
+    - "Прикладной слой на нестандартном порту: `tshark -r cap.pcap -Y http.request -T fields -e tcp.dstport -e http.host -e http.request.uri`."
+    - "Метка в URI запроса: `nto{pr0t0c0l_h13r4rchy_0dd_p0rt}`."
 ---
 
 ## Вопрос, с которого всё начинается

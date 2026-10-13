@@ -1,0 +1,101 @@
+{
+  "id": "network-module-analysis",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{b34c0n_c2_3xf1l_0v3r_http}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор инцидента по метаданным и PCAP\n\nХост `10.0.0.5` подозревается в периодическом beaconing наружу. У тебя есть дамп\n`capture.pcap`, выгрузка NetFlow и логи IDS/Zeek.\n\n1. Метаданные потоков: `nfdump -r nfcapd.202610110000 'host 10.0.0.5' -s dstip/bytes -n 5`\n2. Логи детекта: `cat suricata/fast.log` и `cat zeek/conn.log`\n3. Разбор дампа: `tshark -r capture.pcap -nn`\n4. Содержимое сессии: `tshark -r capture.pcap -q -z follow,tcp,ascii,0`\n\nНайди секрет, который хост выносит на C2. Запиши метку `nto{...}` в `answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/capture.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAVHTOauItDgA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABkaQCgAABcYzZAfAAABQAAAD6AAAAABQAiAAl2oAAFR0zmpXLw4ANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAZGkMYzZAcKAAAFAFDAAAAAB9AAAAPpUBIgAI+JAABUdM5qIzAOADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEAGRpAKAAAFxjNkB8AAAFAAAAPpAAAH0VAQIACPigAAVHTOauAwDgC9AAAAvQAAAP///////2h6ZJWAowgARQAArwABAABABkYJCgAABcYzZAfAAABQAAAD6QAAB9FQGCAAztUAAFBPU1QgL2dhdGUucGhwIEhUVFAvMS4xDQpIb3N0OiBjZG4tbWV0cmljcy5leGFtcGxlDQpVc2VyLUFnZW50OiBjdXJsLzguNS4wDQpDb250ZW50LUxlbmd0aDogMzcNCg0Kdj0xJmlkPW50b3tiMzRjMG5fYzJfM3hmMWxfMHYzcl9odHRwfVR0zmoTMg4AXgAAAF4AAAD///////9oemSVgKMIAEUAAFAAAQAAQAZGaMYzZAcKAAAFAFDAAAAAB9EAAARwUBggAJCHAABIVFRQLzEuMSAyMDAgT0sNCkNvbnRlbnQtTGVuZ3RoOiAyDQoNCk9LVHTOakIzDgA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABkaQCgAABcYzZAfAAQBQAAAD6AAAAABQAiAAl2kAAFR0zmr2Mw4ANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAZGkMYzZAcKAAAFAFDAAQAAB9AAAAPpUBIgAI+IAABUdM5qrDQOADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEAGRpAKAAAFxjNkB8ABAFAAAAPpAAAH0VAQIACPiQAAVHTOaok1DgCgAAAAoAAAAP///////2h6ZJWAowgARQAAkgABAABABkYmCgAABcYzZAfAAQBQAAAD6QAAB9FQGCAA7x8AAFBPU1QgL2dhdGUucGhwIEhUVFAvMS4xDQpIb3N0OiBjZG4tbWV0cmljcy5leGFtcGxlDQpVc2VyLUFnZW50OiBjdXJsLzguNS4wDQpDb250ZW50LUxlbmd0aDogOQ0KDQp2PTEmaWQ9aGJUdM5qqzYOAF4AAABeAAAA////////aHpklYCjCABFAABQAAEAAEAGRmjGM2QHCgAABQBQwAEAAAfRAAAEU1AYIACQowAASFRUUC8xLjEgMjAwIE9LDQpDb250ZW50LUxlbmd0aDogMg0KDQpPS1R0zmrJNw4ATwAAAE8AAAD///////9oemSVgKMIAEUAAEEAAQAAQBFmcgoAAAUKAAA1nEAANQAtGbgAAAEAAAEAAAAAAAALY2RuLW1ldHJpY3MHZXhhbXBsZQAAAQABVHTOaug5DgByAAAAcgAAAP///////2h6ZJWAowgARQAAZAABAABAEWZPCgAANQoAAAUANZxAAFA+/QAAhQAAAQABAAAAAAtjZG4tbWV0cmljcwdleGFtcGxlAAABAAELY2RuLW1ldHJpY3MHZXhhbXBsZQAAAQABAAAAAAAExjNkBw==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/suricata",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/suricata/fast.log",
+      "text": "11/10/2026 -- 03:11:22 - [**] [1:2000001:1] Possible C2 beacon [**] [Classification: Potentially Bad Traffic] [Priority: 2] {TCP} 10.0.0.5:49152 -> 198.51.100.7:80\n11/10/2026 -- 03:12:22 - [**] [1:2000001:1] Possible C2 beacon [**] {TCP} 10.0.0.5:49153 -> 198.51.100.7:80\n"
+    },
+    {
+      "path": "/home/student/task/zeek",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/zeek/conn.log",
+      "text": "#separator \\x09\n#fields\tts\tuid\tid.orig_h\tid.orig_p\tid.resp_h\tid.resp_p\tproto\tservice\tduration\torig_bytes\tresp_bytes\tconn_state\n1700000000.000000\tC1\t10.0.0.5\t49152\t198.51.100.7\t80\ttcp\thttp\t0.001\t189\t94\tSF\n1700000060.000000\tC2\t10.0.0.5\t49153\t198.51.100.7\t80\ttcp\thttp\t0.001\t160\t94\tSF\n"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-Y фильтр] [-T fields -e поле…] [-q -z follow,tcp,ascii,N] — разбор дампа",
+      "cases": [
+        {
+          "match": "follow,tcp,ascii",
+          "example": "-r capture.pcap -q -z follow,tcp,ascii,0",
+          "output": "\n===================================================================\nFollow: tcp,ascii\nFilter: tcp.stream eq 0\nNode 0: 10.0.0.5:49152\nNode 1: 198.51.100.7:80\n135\nPOST /gate.php HTTP/1.1\nHost: cdn-metrics.example\nUser-Agent: curl/8.5.0\nContent-Length: 37\n\nv=1&id=nto{b34c0n_c2_3xf1l_0v3r_http}\n\t40\nHTTP/1.1 200 OK\nContent-Length: 2\n\nOK\n===================================================================\n"
+        },
+        {
+          "match": "http\\.request",
+          "example": "-r capture.pcap -Y http.request -T fields -e ip.dst -e http.host -e http.request.uri -e http.file_data",
+          "output": "198.51.100.7\tcdn-metrics.example\t/gate.php\t763d312669643d6e746f7b62333463306e5f63325f337866316c5f307633725f687474707d\n198.51.100.7\tcdn-metrics.example\t/gate.php\t763d312669643d6862\n"
+        },
+        {
+          "match": "tcp\\.dstport",
+          "example": "-r capture.pcap -T fields -e ip.src -e ip.dst -e tcp.dstport -e udp.dstport",
+          "output": "10.0.0.5\t10.0.0.53\t\t53\n10.0.0.5\t198.51.100.7\t80\t\n10.0.0.53\t10.0.0.5\t\t40000\n198.51.100.7\t10.0.0.5\t49152\t\n198.51.100.7\t10.0.0.5\t49153\t\n"
+        },
+        {
+          "match": "capture\\.pcap",
+          "example": "-r capture.pcap -nn",
+          "output": "    1   0.000000     10.0.0.5 → 198.51.100.7 TCP 54 49152 → 80 [SYN] Seq=0 Win=8192 Len=0\n    2   0.000373 198.51.100.7 → 10.0.0.5     TCP 54 80 → 49152 [SYN, ACK] Seq=0 Ack=1 Win=8192 Len=0\n    3   0.000577     10.0.0.5 → 198.51.100.7 TCP 54 49152 → 80 [ACK] Seq=1 Ack=1 Win=8192 Len=0\n    4   0.000766     10.0.0.5 → 198.51.100.7 HTTP 189 POST /gate.php HTTP/1.1 \n    5   0.001073 198.51.100.7 → 10.0.0.5     HTTP 94 HTTP/1.1 200 OK \n    6   0.001376     10.0.0.5 → 198.51.100.7 TCP 54 49153 → 80 [SYN] Seq=0 Win=8192 Len=0\n    9   0.001959     10.0.0.5 → 198.51.100.7 HTTP 160 POST /gate.php HTTP/1.1 \n   11   0.002535     10.0.0.5 → 10.0.0.53    DNS 79 Standard query 0x0000 A cdn-metrics.example\n   12   0.003078    10.0.0.53 → 10.0.0.5     DNS 114 Standard query response 0x0000 A cdn-metrics.example A 198.51.100.7\n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.5 → 198.51.100.7 TCP 54 49152 → 80 [SYN] Seq=0 Win=8192 Len=0\n    2   0.000373 198.51.100.7 → 10.0.0.5     TCP 54 80 → 49152 [SYN, ACK] Seq=0 Ack=1 Win=8192 Len=0\n    3   0.000577     10.0.0.5 → 198.51.100.7 TCP 54 49152 → 80 [ACK] Seq=1 Ack=1 Win=8192 Len=0\n    4   0.000766     10.0.0.5 → 198.51.100.7 HTTP 189 POST /gate.php HTTP/1.1 \n    5   0.001073 198.51.100.7 → 10.0.0.5     HTTP 94 HTTP/1.1 200 OK \n    6   0.001376     10.0.0.5 → 198.51.100.7 TCP 54 49153 → 80 [SYN] Seq=0 Win=8192 Len=0\n    9   0.001959     10.0.0.5 → 198.51.100.7 HTTP 160 POST /gate.php HTTP/1.1 \n   11   0.002535     10.0.0.5 → 10.0.0.53    DNS 79 Standard query 0x0000 A cdn-metrics.example\n   12   0.003078    10.0.0.53 → 10.0.0.5     DNS 114 Standard query response 0x0000 A cdn-metrics.example A 198.51.100.7\n"
+    },
+    "nfdump": {
+      "help": "nfdump -r <файл> ['фильтр'] [-s dstip/bytes -n N] — чтение NetFlow (эмуляция)",
+      "cases": [
+        {
+          "match": "host 10\\.0\\.0\\.5",
+          "example": "-r nfcapd.202610110000 'host 10.0.0.5' -s dstip/bytes -n 5",
+          "output": "Date first seen          Duration Proto      Src IP Addr:Port          Dst IP Addr:Port   Packets    Bytes\n2026-10-11 03:11:22.000     0.001 TCP     10.0.0.5:49152 ->   198.51.100.7:80          3      283\n2026-10-11 03:12:22.000     0.001 TCP     10.0.0.5:49153 ->   198.51.100.7:80          3      254\n2026-10-11 03:13:22.000     0.001 TCP     10.0.0.5:49154 ->   198.51.100.7:80          3      291\n"
+        }
+      ],
+      "fallback": "Date first seen          Duration Proto      Src IP Addr:Port          Dst IP Addr:Port   Packets    Bytes\n"
+    },
+    "suricata": {
+      "help": "suricata -r <pcap> -S <rules> -l <dir> — IDS-разбор (эмуляция)",
+      "cases": [
+        {
+          "match": "capture\\.pcap",
+          "example": "-r capture.pcap -S local.rules -l out/",
+          "output": "11/10/2026 -- 03:11:22 - [**] [1:2000001:1] Possible C2 beacon [**] [Classification: Potentially Bad Traffic] [Priority: 2] {TCP} 10.0.0.5:49152 -> 198.51.100.7:80\n"
+        }
+      ],
+      "fallback": "11/10/2026 -- 03:11:22 - [**] [1:2000001:1] Possible C2 beacon [**] {TCP} 10.0.0.5:49152 -> 198.51.100.7:80\n"
+    },
+    "zeek": {
+      "help": "zeek -r <pcap> — сетевой монитор, пишет conn/dns/http-логи (эмуляция)",
+      "cases": [
+        {
+          "match": "capture\\.pcap",
+          "example": "-r capture.pcap",
+          "output": "# zeek -r capture.pcap\n# -> conn.log dns.log http.log\n"
+        }
+      ],
+      "fallback": "# zeek: доступно: -r <pcap>\n"
+    }
+  }
+}

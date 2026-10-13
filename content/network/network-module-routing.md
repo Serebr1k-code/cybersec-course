@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC/инженер): анализ и защита маршрутизации"
 estimated_minutes: 60
 summary: "Модуль по маршрутизации: как выбирается путь, чем отличаются RIP/OSPF/EIGRP/BGP, зачем нужны MPLS и VRF и какие атаки возможны на динамическую маршрутизацию."
+lab:
+  kind: shell
+  title: "Практика: расследование BGP-хайджекинга"
+  toolset: [core, vtysh, ip, whois, curl]
+  workdir: /home/student/task
+  files: [task.md, bgp_updates.log]
+  check: "grep -q 'nto{bgp_pr3f1x_h1j4ck_0r1g1n_65002}' answer.txt"
+  hints:
+    - "Куда уходит трафик: `ip route get 10.20.30.40`."
+    - "BGP-сессии роутера: `vtysh -c 'show bgp summary'`."
+    - "Лучший маршрут к префиксу: `vtysh -c 'show bgp ipv4 unicast 198.51.100.0/24'` — обрати внимание на origin AS."
+    - "Кто такой origin AS: `whois AS65002` — в descr спрятана метка `nto{bgp_pr3f1x_h1j4ck_0r1g1n_65002}`."
 ---
 
 ## Вопрос, с которого всё начинается

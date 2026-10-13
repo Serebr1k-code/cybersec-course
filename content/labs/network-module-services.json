@@ -1,0 +1,43 @@
+{
+  "id": "network-module-services",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{mqtt_0p3n_br0k3r_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит открытого MQTT-брокера\n\n1. Скан сервисов: `nmap -sV -p 21,23,1883,3389,5900 10.0.0.1`\n2. Брокер MQTT слушает 1883 без аутентификации. Подпишись на топики:\n   `mosquitto_sub -t 'home/#' -C 5`\n\nСекрет лежит в одном из сообщений. Запиши метку `nto{...}` в `answer.txt`.\n"
+    }
+  ],
+  "tools": {
+    "nmap": {
+      "help": "nmap -sV -p <порты> <цель> — сканирование сервисов (эмуляция: реальный вывод nmap)",
+      "cases": [
+        {
+          "match": "1883",
+          "example": "-sV -p 21,23,1883,3389,5900 10.0.0.1",
+          "output": "Starting Nmap 7.94 ( https://nmap.org )\nNmap scan report for 10.0.0.1\nHost is up (0.00042s latency).\n\nPORT     STATE SERVICE        VERSION\n21/tcp   open  ftp            vsftpd 3.0.3\n23/tcp   open  telnet         Linux telnetd\n1883/tcp open  mqtt           Mosquitto 2.0.11\n3389/tcp open  ms-wbt-server  Microsoft Terminal Services\n5900/tcp open  vnc            RealVNC 5.3.2\nService Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel\n"
+        }
+      ],
+      "fallback": "Starting Nmap 7.94 ( https://nmap.org )\nNmap done: 1 IP address (1 host up) scanned\n"
+    },
+    "mosquitto_sub": {
+      "help": "mosquitto_sub -t <топик> [-C N] [-v] — подписка на MQTT (эмуляция)",
+      "cases": [
+        {
+          "match": "home/|home/\\#|#",
+          "example": "-t 'home/#' -C 5",
+          "output": "home/livingroom/temp 21.5\nhome/livingroom/humidity 44\nhome/security/alarm OFF\nhome/secret/backup nto{mqtt_0p3n_br0k3r_l34k}\nhome/kitchen/light ON\n"
+        }
+      ],
+      "fallback": "mosquitto_sub: доступно: -t <топик> [-C N]\n"
+    }
+  }
+}

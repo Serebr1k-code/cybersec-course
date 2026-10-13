@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): мониторинг и детект"
 estimated_minutes: 55
 summary: "Модуль по анализу трафика: NetFlow/IPFIX для метаданных, IDS/IPS (Suricata/Zeek) для детекта, прокси/CDN/WAF как инфраструктура на пути — что видно, что нет и как это обойти или настроить."
+lab:
+  kind: shell
+  title: "Практика: инцидент beaconing по метаданным и PCAP"
+  toolset: [core, tshark, nfdump, suricata, zeek]
+  workdir: /home/student/task
+  files: [task.md, capture.pcap, suricata, zeek]
+  check: "grep -q 'nto{b34c0n_c2_3xf1l_0v3r_http}' answer.txt"
+  hints:
+    - "Сначала метаданные: `nfdump -r nfcapd.202610110000 'host 10.0.0.5' -s dstip/bytes -n 5`."
+    - "Логи детекта: `cat suricata/fast.log` и `cat zeek/conn.log` — куда ходит 10.0.0.5."
+    - "Содержимое сессии: `tshark -r capture.pcap -q -z follow,tcp,ascii,0`."
+    - "Секрет вынесен в теле POST: `nto{b34c0n_c2_3xf1l_0v3r_http}`."
 ---
 
 ## Вопрос, с которого всё начинается
