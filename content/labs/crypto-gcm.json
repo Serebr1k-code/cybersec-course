@@ -1,0 +1,48 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nДва сообщения зашифрованы AES-GCM с одним и тем же ключом и nonce. Первый открытый текст известен. Восстанови второй (флаг).\n\nGCM — режим счётчика: при повторном nonce keystream совпадает.\n"
+    },
+    {
+      "path": "/home/student/task/ct1.hex",
+      "text": "d0d8dac04e547623b8e8a6be2826a908e62ae9ae4f61ed93b9d8dfee273a7339cd6da2\n"
+    },
+    {
+      "path": "/home/student/task/ct2.hex",
+      "text": "d5c2dacc471a6b10b7b1a6a97e01af16e37ebe954d3cf3cda6c483ad246a\n"
+    },
+    {
+      "path": "/home/student/task/gcm_reuse.py",
+      "text": "from Crypto.Cipher import AES\nkey=bytes(range(16)); nonce=b'0123456789ab'\np1=b'known-plaintext-padding-known-plain'\nct1=bytes.fromhex(open('ct1.hex').read().strip())\nct2=bytes.fromhex(open('ct2.hex').read().strip())\n# GCM is CTR-based: reusing the nonce reuses the keystream.\nks=bytes(a^b for a,b in zip(ct1,p1))\npt=bytes(a^b for a,b in zip(ct2,ks))\nprint(pt.decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "gcm_reuse\\.py",
+          "example": "python3 gcm_reuse.py",
+          "output": "nto{gcm_n0nc3_r3u53_k3ystr34m}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-gcm",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{gcm_n0nc3_r3u53_k3ystr34m}"
+  }
+}

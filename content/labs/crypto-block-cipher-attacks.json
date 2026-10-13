@@ -1,0 +1,40 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nОракул шифрует `ввод ‖ секрет` алгоритмом AES-ECB. Восстанови секрет побайтово (byte-at-a-time).\n\nВыравнивай ввод так, чтобы байт секрета попадал в конец блока, и сравнивай блоки.\n"
+    },
+    {
+      "path": "/home/student/task/ecb_attack.py",
+      "text": "from Crypto.Cipher import AES\nkey=bytes(range(16))\nsecret='nto{3cb_byt3_4t_4_t1m3_0r4cl3}'.encode()\ndef oracle(inp):\n    return AES.new(key,AES.MODE_ECB).encrypt((inp+secret+b'\\x00'*16)[: (len(inp+secret)+15)//16*16])\nknown=b''\nbs=16\nfor i in range(len(secret)):\n    pad=b'A'*(bs-1-(i%bs))\n    target=oracle(pad)[:bs*(i//bs+1)][-bs:]\n    for c in range(256):\n        if oracle(pad+known+bytes([c]))[:bs*(i//bs+1)][-bs:]==target:\n            known+=bytes([c]); break\nprint(known.decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "ecb_attack\\.py",
+          "example": "python3 ecb_attack.py",
+          "output": "nto{3cb_byt3_4t_4_t1m3_0r4cl3}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-block-cipher-attacks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3cb_byt3_4t_4_t1m3_0r4cl3}"
+  }
+}

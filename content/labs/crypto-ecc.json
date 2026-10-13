@@ -1,0 +1,44 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nДана эллиптическая кривая над малым простым полем, базовая точка `G` и точка `Q = d·G`. Найди `d` (ECDLP) методом baby-step giant-step.\n\nBSGS: построй таблицу `j·G` до √p и ищи пересечение с `Q − i·m·G`.\n"
+    },
+    {
+      "path": "/home/student/task/curve.txt",
+      "text": "p=1000003\na=2\nb=1\nG=1,2\nQ=682951,419309\n"
+    },
+    {
+      "path": "/home/student/task/ecc.py",
+      "text": "import math\np=1000003; a=2; b=1\nG=(1,2); Q=(682951,419309)\ndef add(P,Q):\n    if P is None: return Q\n    if Q is None: return P\n    x1,y1=P; x2,y2=Q\n    if x1==x2 and (y1+y2)%p==0: return None\n    if P==Q: lam=(3*x1*x1+a)*pow(2*y1,-1,p)%p\n    else: lam=(y2-y1)*pow(x2-x1,-1,p)%p\n    x3=(lam*lam-x1-x2)%p\n    return (x3,(lam*(x1-x3)-y1)%p)\ndef mul(k,P):\n    R=None\n    while k:\n        if k&1: R=add(R,P)\n        P=add(P,P); k>>=1\n    return R\nm=int(math.isqrt(p))+1\ntbl={}\nP=G\nfor j in range(m):\n    tbl[P]=j; P=add(P,G)\nGneg=(G[0],(-G[1])%p)\nfactor=mul(m,Gneg)\nR=Q\nfor i in range(m):\n    if R in tbl:\n        print('private key:',i*m+tbl[R]); break\n    R=add(R,factor)\nprint('FLAG nto{3cdlp_bsgs_sm4ll_curv3}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "ecc\\.py",
+          "example": "python3 ecc.py",
+          "output": "private key: 94564\nFLAG nto{3cdlp_bsgs_sm4ll_curv3}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-ecc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3cdlp_bsgs_sm4ll_curv3}"
+  }
+}

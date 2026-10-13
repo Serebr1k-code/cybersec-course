@@ -1,0 +1,44 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nСервер Диффи-Хеллмана использует генератор `g` малого порядка `q`. Даны `p`, `g`, открытый ключ `A`. Восстанови секретную экспоненту.\n\nПорядок g мал → дискретный логарифм перебирается напрямую.\n"
+    },
+    {
+      "path": "/home/student/task/params.txt",
+      "text": "p=1048703\ng=4\nA=311998\n"
+    },
+    {
+      "path": "/home/student/task/dh.py",
+      "text": "p=1048703; g=4; A=311998; q=524351\n# g has small order q -> brute-force the discrete log\nfor x in range(q):\n    if pow(g,x,p)==A:\n        print('secret exponent:',x)\n        break\nprint('FLAG nto{dh_sm4ll_subgr0up_c0nf1n3m3nt}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "dh\\.py",
+          "example": "python3 dh.py",
+          "output": "secret exponent: 4660\nFLAG nto{dh_sm4ll_subgr0up_c0nf1n3m3nt}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-dh-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dh_sm4ll_subgr0up_c0nf1n3m3nt}"
+  }
+}

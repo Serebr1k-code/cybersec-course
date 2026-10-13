@@ -13,6 +13,18 @@ useful_for:
   - "Понимать, почему переиспользование nonce в ECDSA фатально"
 estimated_minutes: 40
 summary: "Эллиптические кривые в криптографии: группы точек, скалярное умножение, ECDH и ECDSA. Атаки: invalid-curve (отсутствие проверки точки на кривой), малые подгруппы, twist, переиспользование nonce в ECDSA (восстановление ключа). Практические скрипты на Sage/Python."
+lab:
+  kind: shell
+  title: "Практика: ECDLP методом BSGS"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, curve.txt, ecc.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Кривая задана y² = x³ + ax + b mod p."
+    - "Порядок точки мал → применим BSGS."
+    - "`python3 ecc.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,18 @@ useful_for:
   - "Понимать precomputation и выбор параметров"
 estimated_minutes: 34
 summary: "Продвинутые атаки на Diffie-Hellman: Pohlig-Hellman при гладком p-1, малые подгруппы и оракул d mod m, Logjam (precomputation для общего простого), invalid-curve для ECDH, safe primes и корректный выбор параметров, практические скрипты."
+lab:
+  kind: shell
+  title: "Практика: малая подгруппа в Диффи-Хеллмане"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, params.txt, dh.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "g порождает подгруппу малого порядка q."
+    - "Дискретный логарифм в малой подгруппе берётся перебором."
+    - "`python3 dh.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

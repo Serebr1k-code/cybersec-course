@@ -13,6 +13,19 @@ useful_for:
   - "Понимать AEAD-конструкции и их границы"
 estimated_minutes: 50
 summary: "Устройство AES-GCM: CTR-режим для шифрования и GHASH-аутентификация. Главная атака — повтор nonce (forbidden attack): восстановление ключа H и подделка тега, а также прямая расшифровка XOR при совпадении счётчиков. Полный разбор с алгеброй GF(2^128) и готовым кодом."
+lab:
+  kind: shell
+  title: "Практика: повтор nonce в GCM"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, ct1.hex, ct2.hex, gcm_reuse.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "GCM внутри — потоковый режим."
+    - "Одинаковый nonce → одинаковый keystream."
+    - "keystream = ct1 ⊕ известный pt1, затем pt2 = ct2 ⊕ keystream."
+    - "`python3 gcm_reuse.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается
