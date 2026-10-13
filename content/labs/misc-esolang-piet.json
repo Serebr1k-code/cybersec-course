@@ -1,0 +1,43 @@
+{
+  "id": "misc-esolang-piet",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p13t_1s_4_p1ctur3_l4ngu4g3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Piet\n\n`hello.png` — эталонная Piet-программа (печатает «Hi»).\n`art.png` — программа-задача: исполни картинку и получи флаг.\nФлаг запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/hello.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAKAAAACgBAMAAAB54XoeAAAAJFBMVEUAAAAAAMAA//8A/wDAwP//AADAAMD//wAAwAAAwMDA/8AAAP8U6qkTAAAAqUlEQVR4nO3ZMQ2AQBBE0bOABSxgAQtYwAIWsIAFLGCOZodikg0F1R7/d7fZvPJyhHYlDUktmizNGyAgIGDnoANZgICAgL2Dao7W6IgAAQEBq4PLS3pH+nyMdAYEBATsHdSiLtIxCRAQEPAvoM8F7REgICBgdXCzmvUsWg4qQEBAwN7AKclBdUaAgICAVcGvCdQHOiAgIGBVMLtgfZ7tCdQPbUBAQMCi4A0m6nNEIWCoJgAAAABJRU5ErkJggg=="
+    },
+    {
+      "path": "/home/student/task/art.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAXkAAAAMCAIAAAAI+VqsAAABUElEQVR4nO2ZUQ6DMAxDk4mDcfTezPsAsYJKGyANA/kJTUhjdp1CykAg0tySCAT1LU1HNZUaMpCUAmWYi7mYq3MuQEQAKMRC+yj1kTEpOcmYlJjruhJzXVd6ZC5AVbF8steEyJiUmOu6EnNdV/LKpSIpzWLjqINFlhBCjjLd0Sz7j+w1Wu2pgMh+27Xdxx3EMiAvq6KDo8HKLC6XH3EzXyzPnVVxGtDetJ+Ihuw3j+w1deoXSP5l0FkxDain2Sbxa3K5EjTzm9Pv/vL4DShXOiHzOe9MCCFm2GsIIRG88D+UN6Y3AD5OTlZqeyHpZdZVvguWQgeOP58v9Da+4SHCzFCv+jSYpRbVQjiddIEPP2253Mx+/MV12LnQWtitPFxUg/2mh/adtWY7splXZIoCrXXCNXLcMhrvtkd+Dnot7oSQQApdcL228MImhHQB617zBbYjjbfzWzkKAAAAAElFTkSuQmCC"
+    }
+  ],
+  "tools": {
+    "npiet": {
+      "help": "npiet [-t] <файл.png> — эталонный интерпретатор Piet (вывод захвачен из реального прогона)",
+      "cases": [
+        {
+          "match": "hello\\.png",
+          "output": "Hi\n"
+        },
+        {
+          "match": "art\\.png",
+          "output": "nto{p13t_1s_4_p1ctur3_l4ngu4g3}"
+        }
+      ],
+      "fallback": "npiet: доступно `npiet hello.png` и `npiet art.png`\n"
+    }
+  }
+}

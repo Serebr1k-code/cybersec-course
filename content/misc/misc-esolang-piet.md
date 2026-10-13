@@ -13,6 +13,17 @@ useful_for:
   - "Визуальные головоломки"
 estimated_minutes: 24
 summary: "Язык Piet: программа как абстрактная картинка, кодирование цветом, стек и переходы, практическая интерпретация и поиск скрытых программ."
+lab:
+  kind: shell
+  title: 'Практика: Piet'
+  toolset: [core, npiet, file]
+  workdir: /home/student/task
+  files: [task.md, hello.png, art.png]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`hello.png` — это не картинка, а Piet-программа. Проверь: `file hello.png`.'
+    - 'Исполни эталон: `npiet hello.png` — напечатает «Hi».'
+    - 'Задача — в `art.png`: `npiet art.png` выведет флаг. Запиши его в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

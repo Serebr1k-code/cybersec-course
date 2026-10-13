@@ -75,3 +75,39 @@ describe('misc-esolang-intercal lab', () => {
     expect(s.solved).toBe(true)
   })
 })
+
+const PIET = {
+  kind: 'shell',
+  workdir: '/home/student/task',
+  files: ['task.md', 'hello.png', 'art.png'],
+  check: "grep -q 'nto{' found.txt",
+  hints: ['a', 'b', 'c'],
+}
+
+describe('misc-esolang-piet lab', () => {
+  const bundle = loadBundle('misc-esolang-piet')
+  const FLAG = 'nto{p13t_1s_4_p1ctur3_l4ngu4g3}'
+
+  it('identifies the PNG', async () => {
+    const s = session(PIET, bundle)
+    expect((await s.run('file hello.png')).stdout).toContain('PNG image data')
+  })
+
+  it('runs the reference Piet program', async () => {
+    const s = session(PIET, bundle)
+    expect((await s.run('npiet hello.png')).stdout).toBe('Hi\n')
+  })
+
+  it('runs the flag program', async () => {
+    const s = session(PIET, bundle)
+    expect((await s.run('npiet art.png')).stdout).toBe(FLAG)
+  })
+
+  it('solves after writing the flag', async () => {
+    const s = session(PIET, bundle)
+    expect((await s.run('check')).code).toBe(1)
+    await s.run('npiet art.png > found.txt')
+    expect((await s.run('check')).code).toBe(0)
+    expect(s.solved).toBe(true)
+  })
+})
