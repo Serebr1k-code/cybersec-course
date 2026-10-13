@@ -12,6 +12,19 @@ useful_for:
   - "OSINT/classic crypto: исторические методы сокрытия"
 estimated_minutes: 26
 summary: "Null-шифр и родственные методы: сокрытие сообщения в тексте через акростихи, первые/последние буквы, книжный шифр, маркеры и выбор слов; ручной и автоматический разбор."
+
+lab:
+  kind: shell
+  title: "Практика: собрать акростих"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, poem.txt, acrostic.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай текст: `head poem.txt`."
+    - "Первые символы строк что-то складывают."
+    - "Собери их скриптом: `python3 acrostic.py`."
+    - "Сохрани флаг: `python3 acrostic.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

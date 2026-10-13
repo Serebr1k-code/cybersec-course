@@ -1,0 +1,48 @@
+{
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p4l3tt3_0rd3r_1s_4_ch4nn3l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: данные спрятаны в палитре PNG\n\n`palette.png` — палитровое изображение. Первые 16 записей палитры задают цвета\nкартинки, но палитра длиннее, чем реально используется.\n\n1. `file palette.png` и `xxd palette.png | head` — посмотри на структуру (PLTE-чанк).\n2. `strings palette.png` — обрати внимание, что среди «строк» есть что-то похожее на флаг.\n3. Либо разбери порядок палитры скриптом: `python3 palette.py`.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Палитра (PLTE) хранится в PNG как сырые RGB-триплеты — она не сжимается.\n"
+    },
+    {
+      "path": "/home/student/task/palette.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAADAFBMVEUA/4AQ74Ag34Awz4BAv4BQr4Bgn4Bwj4CAf4CQb4CgX4CwT4DAP4DQL4DgH4DwD4BudG97cDRsM3R0M18wcmQzcl8xc180X2NoNG5uM2x9AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACpq/WlAAAAZUlEQVR4nO3UORKDQAwF0Wa1AQP3vy0ncNRVRB0qmRpJXw+GcZqX9fPd9uN3XvfrNfY97H+w/WDngZ0ndh/YfWLzgM0TNo/YPGPvAXtP2HskD/IgD/IgD/IgD/IgD/IgD/LgT/0ASWF4AYDOyCsAAAAASUVORK5CYII="
+    },
+    {
+      "path": "/home/student/task/palette.py",
+      "text": "from PIL import Image\nim = Image.open(\"palette.png\")\nraw = bytes(im.getpalette())\n# after the 16 used entries the palette carries raw ASCII bytes\ni = raw.find(b\"nto{\")\nprint(raw[i:i+40].split(b\"\\x00\")[0].decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4\n"
+        },
+        {
+          "match": "palette\\.py",
+          "example": "python3 palette.py",
+          "output": "nto{p4l3tt3_0rd3r_1s_4_ch4nn3l}\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-palette-sort"
+}

@@ -12,6 +12,19 @@ useful_for:
   - "Понимание палитровых форматов"
 estimated_minutes: 34
 summary: "Сокрытие через перестановку палитры: порядок записей PLTE как канал, сортировка по яркости/частоте, неиспользуемые цвета, порядок индексов; разбор через pngcheck и Python."
+
+lab:
+  kind: shell
+  title: "Практика: извлечь данные из палитры PNG"
+  toolset: [core, python, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, palette.png, palette.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи формат: `file palette.png`."
+    - "Палитра в PNG — сырые байты, не сжатие: попробуй `strings palette.png`."
+    - "Или разбери порядок записей скриптом: `python3 palette.py`."
+    - "Сохрани флаг: `strings palette.png | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

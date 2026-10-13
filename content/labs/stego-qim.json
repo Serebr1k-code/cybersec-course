@@ -1,0 +1,48 @@
+{
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{q1m_surv1v3s_c0mpr3ss10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: извлечь сообщение из QIM-коэффициентов\n\n`coeffs.txt` — массив целочисленных коэффициентов после встраивания методом QIM\n(Quantization Index Modulation) с шагом `DELTA = 16`. Каждый коэффициент —\nквантованный слот; чётность индекса слота несёт бит.\n\n1. `head coeffs.txt` — посмотри на значения (кратны 16 с небольшим шумом).\n2. `python3 qim.py` — декодируй биты в сообщение.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "QIM: y = DELTA*(2k + b). Извлечение: b = round(y/DELTA) mod 2.\nШум до ±2 не мешает, пока он меньше DELTA/2 = 8.\n"
+    },
+    {
+      "path": "/home/student/task/coeffs.txt",
+      "text": "1185\n882\n753\n1055\n79\n370\n1166\n610\n161\n144\n1039\n431\n895\n1264\n608\n736\n642\n1041\n913\n418\n591\n1070\n1105\n142\n542\n176\n1232\n1042\n1041\n544\n336\n495\n1246\n110\n1233\n1135\n895\n606\n770\n846\n671\n1218\n240\n1202\n897\n33\n574\n304\n928\n786\n879\n800\n142\n847\n735\n302\n482\n527\n738\n496\n561\n561\n689\n1230\n704\n463\n80\n1070\n514\n1215\n17\n15\n610\n113\n686\n1074\n610\n786\n1216\n366\n702\n978\n304\n46\n482\n1217\n752\n63\n1248\n271\n910\n1234\n704\n976\n623\n545\n62\n895\n1038\n1166\n514\n129\n928\n112\n546\n879\n80\n369\n1087\n1168\n689\n994\n1246\n514\n398\n753\n930\n798\n1072\n1074\n1214\n1105\n625\n1232\n97\n287\n238\n1167\n126\n495\n386\n1104\n1263\n175\n114\n272\n258\n208\n1232\n1122\n961\n736\n1072\n1202\n448\n898\n110\n304\n192\n674\n927\n994\n865\n401\n177\n1154\n367\n783\n927\n206\n575\n370\n1042\n750\n929\n1152\n192\n577\n479\n178\n976\n305\n513\n94\n942\n864\n1\n866\n1137\n1070\n1154\n866\n946\n1136\n1026\n366\n206\n558\n319\n895\n1198\n1232\n286\n400\n142\n145\n94\n575\n722\n1104\n802\n545\n273\n302\n960\n478\n290\n594\n1154\n-2\n751\n1071\n190\n385\n161\n383\n834\n561\n398\n1057\n978\n622\n752\n481\n321\n1006\n593\n81\n1170\n882\n447\n113\n"
+    },
+    {
+      "path": "/home/student/task/qim.py",
+      "text": "# QIM extraction: bit = round(y / DELTA) mod 2\nDELTA = 16\nys = [int(l) for l in open(\"coeffs.txt\") if l.strip()]\nbits = [round(y / DELTA) % 2 for y in ys]\nout = bytearray()\nfor i in range(0, len(bits)//8*8, 8):\n    v = 0\n    for b in bits[i:i+8]:\n        v = (v << 1) | b\n    out.append(v)\ns = out.decode(\"latin-1\")\nj = s.find(\"nto{\")\nprint(s[j:j+40].split(\"\\x00\")[0])\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4\n"
+        },
+        {
+          "match": "qim\\.py",
+          "example": "python3 qim.py",
+          "output": "nto{q1m_surv1v3s_c0mpr3ss10n}\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-qim"
+}

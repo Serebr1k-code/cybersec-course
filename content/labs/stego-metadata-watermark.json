@@ -1,0 +1,44 @@
+{
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3x1f_c0mm3nt_w4t3rm4rk}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти данные в метаданных изображения\n\n`watermark.jpg` выглядит как обычная картинка. В её метаданных спрятано сообщение.\n\n1. `file watermark.jpg` — обычный JPEG.\n2. `exiftool watermark.jpg` — прочитай метаданные (ImageDescription).\n3. Либо `strings watermark.jpg | grep nto` — метаданные лежат в файле сырыми.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "EXIF/XMP-поля хранятся в APP1-сегменте JPEG открытым текстом.\nСмена только метаданных не портит изображение.\n"
+    },
+    {
+      "path": "/home/student/task/watermark.jpg",
+      "b64": "/9j/4AAQSkZJRgABAQAAAQABAAD/4QBaRXhpZgAATU0AKgAAAAgAAgEOAAIAAAAcAAAAJgE7AAIAAAAQAAAAQgAAAABudG97M3gxZl9jMG1tM250X3c0dDNybTRya30AdzR0M3JtNHJrLW93bmVyAP/bAEMABQMEBAQDBQQEBAUFBQYHDAgHBwcHDwsLCQwRDxISEQ8RERMWHBcTFBoVEREYIRgaHR0fHx8TFyIkIh4kHB4fHv/bAEMBBQUFBwYHDggIDh4UERQeHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHv/AABEIAGAAYAMBIgACEQEDEQH/xAAfAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgv/xAC1EAACAQMDAgQDBQUEBAAAAX0BAgMABBEFEiExQQYTUWEHInEUMoGRoQgjQrHBFVLR8CQzYnKCCQoWFxgZGiUmJygpKjQ1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4eLj5OXm5+jp6vHy8/T19vf4+fr/xAAfAQADAQEBAQEBAQEBAAAAAAAAAQIDBAUGBwgJCgv/xAC1EQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqCg4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/APlOOL2qxHF7VPHF7VYji9q/WpVTgoViCOL2qeOKrEcXtU8cXtXPKqe1QrEEcXtViOL2qeOL2qxHF7VzSqntUKxXjh9qsRxe1Txxe1WI4vauaVU9mhWII4vap44qsRxe1Txxe1c8qp7VCsQRxe1WI4vap44varEcXtXNKqezQrHnUcXtU8cXtViOL2qeOL2r2pVT+aqFYgjiqeOL2qxHF7VPHF7Vzyqns0KxBHF7VYjh9qnji9qsRxe1c0qp7VCsV44varEcXtU8cXtViOL2rnlVPaoViCOKp44varEcXtU8cXtXNKqezQrEEcXtViOL2qeOL2qxHF7VzSqntUKx51HF7VPHFViOL2qeOL2r2pVT+aaFYgji9qsRxe1Txxe1WI4vaueVU9qhWK8cPtViOL2qeOL2qxHF7VzSqntUKxXji9qsRxVPHF7VYji9q55VT2aFYgji9qnji9qsRxe1Txxe1c0qp7VCsQRxe1WI4vap44varEcXtXNKqezQrHnUcVTxxe1WI4vap44vavblVP5qoViCOL2qxHD7VPHF7VYji9q5pVT2qFYrxxe1WI4vap44varEcXtXNKqezQrEEcVTxxe1WI4vap44vaueVU9qhWII4varEcXtU8cXtViOL2rmlVPaoVivHF7VYji9qnji9qsRxe1c0qp7NCsedRxe1Txxe1WI4vap44vavblVP5poViCOH2qxHF7VPHF7VYji9q5pVT2qFYrxxe1WI4qnji9qsRxe1c0qp7VCsQRxe1Txxe1WI4vap44vaueVU9mhWII4varEcXtU8cXtViOL2rmlVPaoVivHF7VYji9qnji9qsRxe1c0qp7NCsedRxe1Txw+1WI4vap44vavblVP5qoViCOL2qxHF7VPHF7VYji9q5pVT2qFYrxxVYji9qnji9qsRxe1c0qp7NCsQRxe1Txxe1WI4vap44vaueVU9qhWII4varEcXtU8cXtViOL2rmlVPaoVivHF7VYji9qnji9qsRxe1c0qp7NCsf/Z"
+    }
+  ],
+  "tools": {
+    "exiftool": {
+      "help": "exiftool <файл> — прочитать метаданные (эмуляция)",
+      "cases": [
+        {
+          "match": "watermark\\.jpg",
+          "example": "exiftool watermark.jpg",
+          "output": "ExifTool Version Number         : 12.76\nFile Name                       : watermark.jpg\nFile Type                       : JPEG\nMIME Type                       : image/jpeg\nImage Width                     : 96\nImage Height                    : 96\nImage Description               : nto{3x1f_c0mm3nt_w4t3rm4rk}\nArtist                          : w4t3rm4rk-owner\n"
+        },
+        {
+          "match": "--version",
+          "example": "exiftool --version",
+          "output": "12.76\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-metadata-watermark"
+}

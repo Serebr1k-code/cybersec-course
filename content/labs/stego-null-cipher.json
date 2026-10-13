@@ -1,0 +1,48 @@
+{
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4cr0st1c_null_c1ph3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: прочитать null-шифр (акростих)\n\n`poem.txt` — безобидный на вид текст. Сообщение спрятано по первым символам строк.\n\n1. `head poem.txt` — посмотри на строки.\n2. `cut -d' ' -f1 poem.txt` — первые слова строк; обрати внимание на их первые буквы.\n3. Собери акростих: `python3 acrostic.py`.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Null-шифр: значимые символы выбираются по правилу (первые буквы строк).\nЧасто это первые буквы каждого слова или каждого N-го слова.\n"
+    },
+    {
+      "path": "/home/student/task/poem.txt",
+      "text": "n the secret keeps going\nt the secret keeps going\no the secret keeps going\n{ start of the hidden phrase\n4 the secret keeps going\nc the secret keeps going\nr the secret keeps going\n0 the secret keeps going\ns the secret keeps going\nt the secret keeps going\n1 the secret keeps going\nc the secret keeps going\n_ a separator between words\nn the secret keeps going\nu the secret keeps going\nl the secret keeps going\nl the secret keeps going\n_ a separator between words\nc the secret keeps going\n1 the secret keeps going\np the secret keeps going\nh the secret keeps going\n3 the secret keeps going\nr the secret keeps going\n} close the phrase here\n"
+    },
+    {
+      "path": "/home/student/task/acrostic.py",
+      "text": "# Null cipher: take the first letter of every line\nletters = [l[0] for l in open(\"poem.txt\").read().splitlines() if l]\nprint(\"\".join(letters))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4\n"
+        },
+        {
+          "match": "acrostic\\.py",
+          "example": "python3 acrostic.py",
+          "output": "nto{4cr0st1c_null_c1ph3r}\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-null-cipher"
+}

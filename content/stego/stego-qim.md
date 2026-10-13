@@ -12,6 +12,19 @@ useful_for:
   - "Понимание watermarking-схем на основе квантования"
 estimated_minutes: 36
 summary: "Quantization Index Modulation: данные кодируются выбором слота квантования, а не младшим битом; dither modulation, выбор шага Δ, устойчивость к сжатию и шуму, извлечение."
+
+lab:
+  kind: shell
+  title: "Практика: декодировать QIM-встраивание"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, coeffs.txt, qim.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри значения: `head coeffs.txt`."
+    - "Они кратны DELTA=16 с шумом ±2 — это квантованные слоты."
+    - "Декодируй: `python3 qim.py`."
+    - "Сохрани флаг: `python3 qim.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

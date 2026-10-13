@@ -12,6 +12,19 @@ useful_for:
   - "Понимание, почему хи-квадрат ловит классический LSB"
 estimated_minutes: 36
 summary: "LSB matching и ±1-встраивание: почему случайный сдвиг значения на единицу ломает симметрию гистограммы, как извлекать такие данные, варианты LSBMR и MME, детект через RS/SPA."
+
+lab:
+  kind: shell
+  title: "Практика: извлечь данные из LSB matching"
+  toolset: [core, python, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, cover_lsb.png, stego_classic.png, stego_matching.png, chi.py, extract.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сначала пойми, где данные: `python3 chi.py`."
+    - "Хи-квадрат покажет встраивание только у одного файла — но данные есть в двух."
+    - "Извлеки из matching-файла: `python3 extract.py`."
+    - "Сохрани флаг: `python3 extract.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается
