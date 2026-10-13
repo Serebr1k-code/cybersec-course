@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как заставить сервер делать запросы: доступ к внутренним сервисам, облачным метаданным и цепочкам к RCE."
+lab:
+  kind: shell
+  title: "Практика: SSRF до облачных метаданных"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Сервер ходит по URL из параметра: `curl -s -G http://vuln.lab.local/fetch --data-urlencode 'url=http://example.com/'`.
+    - Адрес метаданных AWS: `http://169.254.169.254/latest/meta-data/iam/security-credentials/`.
+    - Запроси его через SSRF и получи JSON с ключами и `Token`.
+    - В поле `Token` — флаг. Достань: `... | cut -d: -f6 > found.txt`.
 ---
 
 У `shop.local` есть кнопка «загрузить аватар по ссылке»: ты вставляешь URL картинки, а сервер сам скачивает её и сохраняет. Удобно. Но что, если вместо картинки подставить адрес внутреннего сервиса, которого из интернета не видно? Сервер послушно сходит туда и принесёт ответ. Это и есть **SSRF** — Server-Side Request Forgery, «подделка запроса на стороне сервера».

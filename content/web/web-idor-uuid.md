@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "IDOR на непрозрачных идентификаторах: UUIDv1/v7 предиктивность, enumeration через GraphQL/API, кеш и утечки."
+lab:
+  kind: shell
+  title: "Практика: IDOR (горизонтальный доступ)"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Свой профиль: `curl -s http://vuln.lab.local/api/user/1`.
+    - Попробуй соседний id: `curl -s http://vuln.lab.local/api/user/2`.
+    - Профиль админа содержит поле `api_key` со значением-флагом.
+    - Достань: `... | cut -d: -f5 > found.txt`.
 ---
 
 В прошлом уроке мы подменяли числовой ID `5501` на `5502` — легко, потому что они идут подряд. Разработчики это знают и часто переходят на **UUID** — длинные идентификаторы вида `9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d`. Логика проста: «их не перебрать, значит, IDOR закрыт». Сегодня разберём, почему это не так.

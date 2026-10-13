@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 42
 summary: "Продвинутый GraphQL: обход отключённой introspection, batching/aliasing для обхода rate-limit и authz, depth-DoS и IDOR."
+lab:
+  kind: shell
+  title: "Практика: GraphQL introspection"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Интроспекция: `curl -s -G http://vuln.lab.local/graphql --data-urlencode 'query={__schema{queryType{name}}}'`.
+    - В схеме есть поле `flag` — запроси его: `--data-urlencode 'query={flag}'`.
+    - Ответ — JSON `{"data":{"flag":"nto{...}"}}`.
+    - Достань: `curl -s -G http://vuln.lab.local/graphql --data-urlencode 'query={flag}' | cut -d: -f3 > found.txt`.
 ---
 
 ## Вопрос, с которого всё начинается

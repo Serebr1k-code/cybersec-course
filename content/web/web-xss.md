@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 40
 summary: "Как находить и эксплуатировать XSS трёх типов, обходить CSP и превращать его в кражу сессии или выполнение действий."
+lab:
+  kind: shell
+  title: "Практика: отражённый XSS"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q '<script>alert(1)</script>' found.txt"
+  hints:
+    - Посмотри обычный ответ: `curl -s -G http://vuln.lab.local/search --data-urlencode 'q=laptop'`.
+    - Вставь тег: `... --data-urlencode 'q=<script>alert(1)</script>'`.
+    - Тег возвращается как есть (без `&lt;`) — значит отражённый XSS есть.
+    - Сохрани ответ: `curl -s -G http://vuln.lab.local/search --data-urlencode 'q=<script>alert(1)</script>' > found.txt`.
 ---
 
 ## Вопрос, с которого всё начинается

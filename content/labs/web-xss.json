@@ -1,0 +1,33 @@
+{
+  "id": "web-xss",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: отражённый XSS\n\nЦель — `http://vuln.lab.local/search?q=`. Значение `q` попадает в HTML ответа.\nПроверь, экранируется ли оно.\n\n1. Обычный запрос: `curl -s -G http://vuln.lab.local/search --data-urlencode 'q=laptop'`.\n2. Вставь HTML-тег: `... --data-urlencode 'q=<script>alert(1)</script>'`.\n3. Если тег вернулся **как есть** (не `&lt;script&gt;`) — есть отражённый XSS.\n4. Сохрани ответ в `found.txt` и набери `check` (условие: в файле есть `<script>alert(1)</script>`).\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция vuln.lab.local/search)",
+      "cases": [
+        {
+          "match": "<script>",
+          "example": "-s -G http://vuln.lab.local/search --data-urlencode 'q=<script>alert(1)</script>'",
+          "output": "<html><body><h2>Results for: <script>alert(1)</script></h2><p>no results found</p></body></html>\n"
+        },
+        {
+          "match": "q=",
+          "example": "-s -G http://vuln.lab.local/search --data-urlencode 'q=laptop'",
+          "output": "<html><body><h2>Results for: laptop</h2><p>no results found</p></body></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /search на vuln.lab.local.\n"
+    }
+  }
+}
