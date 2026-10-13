@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): анализ сетевых аномалий"
 estimated_minutes: 60
 summary: "Модуль по сетевому уровню: поля датаграммы IPv4, реальные возможности ICMP (redirect, traceroute, timestamp), UDP без соединений и мир IPv6 — база для практических уроков модуля."
+lab:
+  kind: shell
+  title: "Практика: скрытый канал в ICMP"
+  toolset: [core, tshark, tcpdump]
+  workdir: /home/student/task
+  files: [task.md, icmp.pcap]
+  check: "grep -q 'nto{1cmp_3xf1l_4nd_c0v3rt_ch4nn3l}' answer.txt"
+  hints:
+    - "Сводка дампа: `tshark -r icmp.pcap -nn`."
+    - "Кто-то выносит данные в полезной нагрузке эхо-запросов ICMP (`icmp.type==8`)."
+    - "ASCII-содержимое пакетов: `tcpdump -r icmp.pcap -A icmp` (или `strings icmp.pcap`)."
+    - "Метка в payload: `nto{1cmp_3xf1l_4nd_c0v3rt_ch4nn3l}`."
 ---
 
 ## Вопрос, с которого всё начинается

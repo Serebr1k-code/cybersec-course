@@ -1,0 +1,58 @@
+{
+  "id": "network-module-ip",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{1cmp_3xf1l_4nd_c0v3rt_ch4nn3l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: скрытый канал в ICMP\n\nВ дампе `icmp.pcap` — трафик хоста `10.0.0.5`. Кроме обычного ping видно, что\nкто-то выносит данные **внутри эхо-запросов ICMP** (классический covert-канал).\n\nНайди полезную нагрузку ICMP в ASCII и вытащи метку.\n\n1. Сводка: `tshark -r icmp.pcap -nn`\n2. Поля ICMP-запросов: `tshark -r icmp.pcap -Y 'icmp.type==8' -T fields -e ip.src -e ip.ttl -e data.data`\n3. ASCII-содержимое пакетов: `tcpdump -r icmp.pcap -A icmp` (или `strings icmp.pcap`)\n\nЗапиши метку `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/icmp.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAaXPOanzBCQBTAAAAUwAAAP///////2h6ZJWAowgARQAARQABAABAAWCjCgAABQgICAgIAD4lGisAAVgtRklMOiBudG97MWNtcF8zeGYxbF80bmRfYzB2M3J0X2NoNG5uM2x9aXPOanHGCQBTAAAAUwAAAP///////2h6ZJWAowgARQAARQABAAA5AWejCAgICAoAAAUAAEYlGisAAVgtRklMOiBudG97MWNtcF8zeGYxbF80bmRfYzB2M3J0X2NoNG5uM2x9aXPOamnKCQA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABmbBCgAABQoAAAqCNQAWAAAAAAAAAABQAiAA+YgAAGlzzmoIzAkANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAZmwQoAAAUKAAAKgjYBuwAAAAAAAAAAUAIgAPfiAAA=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-Y фильтр] [-T fields -e поле…] — разбор дампа",
+      "cases": [
+        {
+          "match": "icmp\\.type",
+          "example": "-r icmp.pcap -Y 'icmp.type==8' -T fields -e ip.src -e ip.ttl -e data.data",
+          "output": "10.0.0.5\t64\t582d46494c3a206e746f7b31636d705f337866316c5f346e645f6330763372745f6368346e6e336c7d\n"
+        },
+        {
+          "match": "icmp\\.pcap",
+          "example": "-r icmp.pcap -nn",
+          "output": "    1   0.000000     10.0.0.5 → 8.8.8.8      ICMP 83 Echo (ping) request  id=0x1a2b, seq=1/256, ttl=64\n    2   0.001269      8.8.8.8 → 10.0.0.5     ICMP 83 Echo (ping) reply    id=0x1a2b, seq=1/256, ttl=57 (request in 1)\n    3   0.002285     10.0.0.5 → 10.0.0.10    TCP 54 33333 → 22 [SYN] Seq=0 Win=8192 Len=0\n    4   0.002700     10.0.0.5 → 10.0.0.10    TCP 54 33334 → 443 [SYN] Seq=0 Win=8192 Len=0\n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.5 → 8.8.8.8      ICMP 83 Echo (ping) request  id=0x1a2b, seq=1/256, ttl=64\n    2   0.001269      8.8.8.8 → 10.0.0.5     ICMP 83 Echo (ping) reply    id=0x1a2b, seq=1/256, ttl=57 (request in 1)\n    3   0.002285     10.0.0.5 → 10.0.0.10    TCP 54 33333 → 22 [SYN] Seq=0 Win=8192 Len=0\n    4   0.002700     10.0.0.5 → 10.0.0.10    TCP 54 33334 → 443 [SYN] Seq=0 Win=8192 Len=0\n"
+    },
+    "tcpdump": {
+      "help": "tcpdump -r <pcap> [-nn] [-A] [фильтр] — чтение/вывод pcap (эмуляция: вывод реального tcpdump)",
+      "cases": [
+        {
+          "match": "icmp",
+          "example": "-r icmp.pcap -A icmp",
+          "output": "15:04:11.201000 IP 10.0.0.5 > 8.8.8.8: ICMP echo request, id 6699, seq 1, length 32\nE..T..@.@.....\t............\nX-FIL: nto{1cmp_3xf1l_4nd_c0v3rt_ch4nn3l}\n15:04:11.202269 IP 8.8.8.8 > 10.0.0.5: ICMP echo reply, id 6699, seq 1, length 32\nE..T..\t......... \t............\nX-FIL: nto{1cmp_3xf1l_4nd_c0v3rt_ch4nn3l}\n15:04:11.204285 IP 10.0.0.5.33333 > 10.0.0.10.22: Flags [S], seq 0, win 8192, length 0\n15:04:11.204700 IP 10.0.0.5.33334 > 10.0.0.10.443: Flags [S], seq 0, win 8192, length 0\n"
+        },
+        {
+          "match": "icmp\\.pcap",
+          "example": "-r icmp.pcap -nn",
+          "output": "15:04:11.201000 IP 10.0.0.5 > 8.8.8.8: ICMP echo request, id 6699, seq 1, length 32\n15:04:11.202269 IP 8.8.8.8 > 10.0.0.5: ICMP echo reply, id 6699, seq 1, length 32\n15:04:11.204285 IP 10.0.0.5.33333 > 10.0.0.10.22: Flags [S], seq 0, win 8192, length 0\n15:04:11.204700 IP 10.0.0.5.33334 > 10.0.0.10.443: Flags [S], seq 0, win 8192, length 0\n"
+        }
+      ],
+      "fallback": "15:04:11.201000 IP 10.0.0.5 > 8.8.8.8: ICMP echo request, id 6699, seq 1, length 32\n15:04:11.202269 IP 8.8.8.8 > 10.0.0.5: ICMP echo reply, id 6699, seq 1, length 32\n15:04:11.204285 IP 10.0.0.5.33333 > 10.0.0.10.22: Flags [S], seq 0, win 8192, length 0\n15:04:11.204700 IP 10.0.0.5.33334 > 10.0.0.10.443: Flags [S], seq 0, win 8192, length 0\n"
+    }
+  }
+}

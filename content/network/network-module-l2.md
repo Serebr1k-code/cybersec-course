@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC/инженер): чтение коммутационной топологии"
 estimated_minutes: 60
 summary: "Модуль про канальный уровень: кадр Ethernet, VLAN (802.1Q/QinQ), STP/RSTP/MSTP и протоколы обнаружения LLDP/CDP — как читать L2 и где искать слабости."
+lab:
+  kind: shell
+  title: "Практика: разбираем L2-кадры из порта"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, l2.pcap]
+  check: "grep -q 'nto{l2_0ld_sw1tch_1s_0wn3d}' answer.txt"
+  hints:
+    - "Начни со сводки дампа: `tshark -r l2.pcap -nn`."
+    - "Один из кадров — служебный LLDP от коммутатора `core-sw-1` (ethertype 0x88cc)."
+    - "Разбери поля LLDP: `tshark -r l2.pcap -Y lldp -T fields -e lldp.tlv.system.name -e lldp.tlv.system.desc`."
+    - "Метка лежит в System Description: `nto{l2_0ld_sw1tch_1s_0wn3d}`."
 ---
 
 ## Вопрос, с которого всё начинается

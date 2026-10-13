@@ -13,6 +13,18 @@ useful_for:
   - "CTF Hardware/Network"
 estimated_minutes: 40
 summary: "Bluetooth Classic: стек и профили, сканирование, legacy/SSP pairing, атаки BlueBorne/KNOB/BIAS, инструменты bluesnarfer/btlejack и защита."
+lab:
+  kind: shell
+  title: "Практика: аудит Bluetooth-устройства по SDP"
+  toolset: [core, hcitool, sdptool]
+  workdir: /home/student/task
+  files: [task.md, scan.txt, sdp.txt]
+  check: "grep -q 'nto{blu3t00th_0b3x_push_ch9}' answer.txt"
+  hints:
+    - "Список устройств в эфире: `hcitool scan` (или файл `scan.txt`)."
+    - "SDP-записи — это список сервисов, которые устройство предоставляет."
+    - "Запроси сервисы телефона: `sdptool browse 00:1A:7D:DA:71:13`."
+    - "Метка — в имени подозрительного сервиса: `nto{blu3t00th_0b3x_push_ch9}`."
 ---
 
 ## Вопрос, с которого всё начинается

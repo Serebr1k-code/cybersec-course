@@ -1,0 +1,78 @@
+{
+  "id": "network-module-dns",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{dns_txt_1s_4_tr34sur3_m4p}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разведка DNS и TXT-записи\n\nДомен `vault.corp.local` держит секрет в **TXT-записи** — так иногда оставляют\nметки в CTF и «заметки» в реальной разведке.\n\n1. Базовые записи: `dig example.com A +short`, `dig example.com NS +short`\n2. Дамп реальных запросов: `tshark -r dns.pcap -nn`\n3. Секрет в TXT: `dig vault.corp.local TXT +short`\n\nЗапиши метку `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/dns.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAaXPOar3vCQBHAAAARwAAAP///////2h6ZJWAowgARQAAOQABAABAEWZ6CgAABQoAADWtnAA1ACVuKwAAAQAAAQAAAAAAAAdleGFtcGxlA2NvbQAAAQABaXPOarHxCQBiAAAAYgAAAP///////2h6ZJWAowgARQAAVAABAABAEWZfCgAANQoAAAUANa2cAEBHRgAAhQAAAQABAAAAAAdleGFtcGxlA2NvbQAAAQABB2V4YW1wbGUDY29tAAABAAEAAAAAAARduNgiaXPOapjzCQBMAAAATAAAAP///////2h6ZJWAowgARQAAPgABAABAEWZ1CgAABQoAADWtnQA1ACpJcAAAAQAAAQAAAAAAAAV2YXVsdARjb3JwBWxvY2FsAAAQAAFpc85qFvUJAIcAAACHAAAA////////aHpklYCjCABFAAB5AAEAAEARZjoKAAA1CgAABQA1rZ0AZdgAAACFAAABAAEAAAAABXZhdWx0BGNvcnAFbG9jYWwAABAAAQV2YXVsdARjb3JwBWxvY2FsAAAQAAEAAAAAAB8ebnRve2Ruc190eHRfMXNfNF90cjM0c3VyM19tNHB9",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "dig": {
+      "help": "dig <имя> [тип] [+short] — DNS-запрос (эмуляция: вывод реального dig)",
+      "cases": [
+        {
+          "match": "vault\\.corp\\.local.*txt|txt.*vault\\.corp\\.local",
+          "example": "dig vault.corp.local TXT +short",
+          "output": "\"nto{dns_txt_1s_4_tr34sur3_m4p}\"\n"
+        },
+        {
+          "match": "vault\\.corp\\.local",
+          "example": "dig vault.corp.local A +short",
+          "output": "; <<>> DiG 9.18.24 <<>> vault.corp.local\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 1234\n;; QUESTION SECTION:\n;vault.corp.local.\t\tIN\tA\n;; AUTHORITY SECTION:\ncorp.local.\t\t3600\tIN\tSOA\tns1.corp.local. admin.corp.local. 1 7200 3600 1209600 3600\n"
+        },
+        {
+          "match": "example\\.com.*ns|ns.*example\\.com",
+          "example": "dig example.com NS +short",
+          "output": "a.iana-servers.net.\nb.iana-servers.net.\n"
+        },
+        {
+          "match": "example\\.com.*mx|mx.*example\\.com",
+          "example": "dig example.com MX +short",
+          "output": "0 .\n"
+        },
+        {
+          "match": "example\\.com",
+          "example": "dig example.com A +short",
+          "output": "93.184.216.34\n"
+        }
+      ],
+      "fallback": "\n; <<>> DiG 9.18.24 <<>> example.com\n;; global options: +cmd\n;; Got answer:\n;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 4660\n;; QUESTION SECTION:\n;example.com.\t\t\tIN\tA\n;; ANSWER SECTION:\nexample.com.\t\t3600\tIN\tA\t93.184.216.34\n"
+    },
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-Y фильтр] [-T fields -e поле…] — разбор дампа",
+      "cases": [
+        {
+          "match": "dns\\.txt",
+          "example": "-r dns.pcap -Y 'dns.qry.type==16' -T fields -e dns.qry.name -e dns.qry.type -e dns.txt",
+          "output": "vault.corp.local\t16\tnto{dns_txt_1s_4_tr34sur3_m4p}\n"
+        },
+        {
+          "match": "dns\\.qry",
+          "example": "-r dns.pcap -T fields -e dns.qry.name -e dns.qry.type",
+          "output": "example.com\t1\nvault.corp.local\t16\n"
+        },
+        {
+          "match": "dns\\.pcap",
+          "example": "-r dns.pcap -nn",
+          "output": "    1   0.000000     10.0.0.5 → 10.0.0.53    DNS 71 Standard query 0x0000 A example.com\n    2   0.000500    10.0.0.53 → 10.0.0.5     DNS 98 Standard query response 0x0000 A example.com A 93.184.216.34\n    3   0.000987     10.0.0.5 → 10.0.0.53    DNS 76 Standard query 0x0000 TXT vault.corp.local\n    4   0.001369    10.0.0.53 → 10.0.0.5     DNS 135 Standard query response 0x0000 TXT vault.corp.local TXT\n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.5 → 10.0.0.53    DNS 71 Standard query 0x0000 A example.com\n    2   0.000500    10.0.0.53 → 10.0.0.5     DNS 98 Standard query response 0x0000 A example.com A 93.184.216.34\n    3   0.000987     10.0.0.5 → 10.0.0.53    DNS 76 Standard query 0x0000 TXT vault.corp.local\n    4   0.001369    10.0.0.53 → 10.0.0.5     DNS 135 Standard query response 0x0000 TXT vault.corp.local TXT\n"
+    }
+  }
+}

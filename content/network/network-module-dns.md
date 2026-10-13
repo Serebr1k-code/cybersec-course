@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): анализ DNS-трафика"
 estimated_minutes: 60
 summary: "Модуль по DNS: типы записей и их смысл, как работает резолвинг и кэширование, перечисление зоны и поддоменов, база для атак (спуфинг, туннели, rebinding)."
+lab:
+  kind: shell
+  title: "Практика: разведка DNS и TXT-запись"
+  toolset: [core, dig, tshark]
+  workdir: /home/student/task
+  files: [task.md, dns.pcap]
+  check: "grep -q 'nto{dns_txt_1s_4_tr34sur3_m4p}' answer.txt"
+  hints:
+    - "Начни с базовых запросов: `dig example.com A +short` и `dig example.com NS +short`."
+    - "В дампе `dns.pcap` видно запрос типа TXT к `vault.corp.local`."
+    - "Запроси запись напрямую: `dig vault.corp.local TXT +short`."
+    - "Секрет в TXT-ответе: `nto{dns_txt_1s_4_tr34sur3_m4p}`."
 ---
 
 ## Вопрос, с которого всё начинается

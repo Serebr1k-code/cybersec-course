@@ -1,0 +1,56 @@
+{
+  "id": "network-bluetooth",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{blu3t00th_0b3x_push_ch9}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит Bluetooth-устройства по SDP\n\nВо время аудита беспроводного окружения ты просканировал эфир и собрал список\nBluetooth Classic-устройств, а затем запросил их SDP-записи (какие сервисы\nустройство предоставляет).\n\nОдин из сервисов телефона `00:1A:7D:DA:71:13` выдаёт себя подозрительным\nименем — это и есть метка.\n\n1. Список устройств: `hcitool scan`\n2. Записи сервисов телефона: `sdptool browse 00:1A:7D:DA:71:13`\n3. Имя сервиса содержит метку.\n\nЗапиши метку `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/scan.txt",
+      "text": "$ hcitool scan\nScanning ...\n\t00:1A:7D:DA:71:13\tPixel-7-Audit\n\tAC:37:43:AA:11:22\tJBL Flip 5\n\t00:02:72:C9:8D:44\tOBDII-ADAPTER\n"
+    },
+    {
+      "path": "/home/student/task/sdp.txt",
+      "text": "Browsing 00:1A:7D:DA:71:13 ...\nService Name: Audio Sink\nService RecHandle: 0x10000\nProtocol Descriptor List:\n  \"L2CAP\" (0x0100)\n  \"AVDTP\" (0x0019)\n\nService Name: OBEX Object Push\nService RecHandle: 0x10002\nProtocol Descriptor List:\n  \"L2CAP\" (0x0100)\n  \"RFCOMM\" (0x0003)\n    Channel: 9\nProfile Descriptor List:\n  \"OBEX Object Push\" (0x1105)\n    Version: 0x0100\n\nService Name: nto{blu3t00th_0b3x_push_ch9}\nService RecHandle: 0x10003\nProtocol Descriptor List:\n  \"L2CAP\" (0x0100)\n  \"RFCOMM\" (0x0003)\n    Channel: 9\n"
+    }
+  ],
+  "tools": {
+    "hcitool": {
+      "help": "hcitool scan — сканирование Bluetooth Classic-устройств (эмуляция)",
+      "cases": [
+        {
+          "match": "scan",
+          "example": "scan",
+          "output": "Scanning ...\n\t00:1A:7D:DA:71:13\tPixel-7-Audit\n\tAC:37:43:AA:11:22\tJBL Flip 5\n\t00:02:72:C9:8D:44\tOBDII-ADAPTER\n"
+        }
+      ],
+      "fallback": "hcitool: доступны: scan\n"
+    },
+    "sdptool": {
+      "help": "sdptool browse <bdaddr> — SDP-записи устройства (эмуляция)",
+      "cases": [
+        {
+          "match": "browse.*00:1a:7d:da:71:13",
+          "example": "browse 00:1A:7D:DA:71:13",
+          "output": "Browsing 00:1A:7D:DA:71:13 ...\nService Name: Audio Sink\nService RecHandle: 0x10000\nProtocol Descriptor List:\n  \"L2CAP\" (0x0100)\n  \"AVDTP\" (0x0019)\n\nService Name: OBEX Object Push\nService RecHandle: 0x10002\nProtocol Descriptor List:\n  \"L2CAP\" (0x0100)\n  \"RFCOMM\" (0x0003)\n    Channel: 9\nProfile Descriptor List:\n  \"OBEX Object Push\" (0x1105)\n    Version: 0x0100\n\nService Name: nto{blu3t00th_0b3x_push_ch9}\nService RecHandle: 0x10003\nProtocol Descriptor List:\n  \"L2CAP\" (0x0100)\n  \"RFCOMM\" (0x0003)\n    Channel: 9\n"
+        },
+        {
+          "match": "browse",
+          "example": "browse 00:02:72:C9:8D:44",
+          "output": "Browsing 00:02:72:C9:8D:44 ...\nService Name: Serial Port\nService RecHandle: 0x10001\nProtocol Descriptor List:\n  \"L2CAP\" (0x0100)\n  \"RFCOMM\" (0x0003)\n    Channel: 1\n"
+        }
+      ],
+      "fallback": "Browsing ...\nService Name: Audio Sink\n"
+    }
+  }
+}

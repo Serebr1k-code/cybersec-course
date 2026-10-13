@@ -1,0 +1,57 @@
+{
+  "id": "network-module-l2",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{l2_0ld_sw1tch_1s_0wn3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор L2-трафика из порта коммутатора\n\nВ каталоге лежит дамп `l2.pcap`, снятый с порта доступа небольшого сегмента.\nВ нём: служебные кадры коммутатора, ARP и немного пользовательского трафика.\n\nКто-то оставил метку прямо в **служебном протоколе обнаружения**, которым\nкоммутаторы сами рассказывают о себе соседям (LLDP).\n\n1. Сводка дампа: `tshark -r l2.pcap -nn`\n2. Найди кадры LLDP: `tshark -r l2.pcap -Y lldp -T fields -e lldp.tlv.system.name -e lldp.tlv.system.desc`\n3. В описании системы (System Description) спрятана метка.\n\nЗапиши метку `nto{...}` в файл `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/l2.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAaXPOasqwCQBMAAAATAAAAAGAwgAADgKqu8zd7ojMAgcEAgAAAAABBAUFZXRoMAYCAHgKCWNvcmUtc3ctMQwbbnRve2wyXzBsZF9zdzF0Y2hfMXNfMHduM2R9AABpc85qybEJACoAAAAqAAAA////////Aqq7zN3uCAYAAQgABgQAAWh6ZJWAowoAAAUAAAAAAAAKAAABaXPOakCzCQA6AAAAOgAAAAIRIjNEVQKqu8zd7oEAAGQIAEUAACgAAQAAQAZmaAoAAAUKAABjnK8BvQAAAAAAAAAAUAIgAN0OAABpc85qPrYJAFkAAABZAAAAAhEiM0RVAqq7zN3uCABFAABLAAEAAEAGZkUKAAAFCgAAY5ywAFAAAAAAAAAAAFAYIAANwwAAR0VUIC8gSFRUUC8xLjENCkhvc3Q6IDEwLjAuMC45OQ0KDQo=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-Y фильтр] [-T fields -e поле…] — разбор дампа (реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "lldp\\.tlv",
+          "example": "-r l2.pcap -Y lldp -T fields -e lldp.tlv.system.name -e lldp.tlv.system.desc",
+          "output": "core-sw-1\tnto{l2_0ld_sw1tch_1s_0wn3d}\n"
+        },
+        {
+          "match": "lldp",
+          "example": "-r l2.pcap -Y lldp -nn",
+          "output": "    1   0.000000 02:aa:bb:cc:dd:ee → 01:80:c2:00:00:0e LLDP 76 MA/02:00:00:00:00:01 IN/eth0 120 SysN=core-sw-1 SysD=nto{l2_0ld_sw1tch_1s_0wn3d} \n"
+        },
+        {
+          "match": "vlan",
+          "example": "-r l2.pcap -Y vlan -T fields -e vlan.id -e ip.src -e tcp.dstport",
+          "output": "100\t10.0.0.5\t445\n"
+        },
+        {
+          "match": "eth\\.src",
+          "example": "-r l2.pcap -T fields -e frame.number -e eth.src -e eth.dst -e eth.type",
+          "output": "1\t02:aa:bb:cc:dd:ee\t01:80:c2:00:00:0e\t0x88cc\n2\t02:aa:bb:cc:dd:ee\tff:ff:ff:ff:ff:ff\t0x0806\n3\t02:aa:bb:cc:dd:ee\t02:11:22:33:44:55\t0x8100\n4\t02:aa:bb:cc:dd:ee\t02:11:22:33:44:55\t0x0800\n"
+        },
+        {
+          "match": "l2\\.pcap",
+          "example": "-r l2.pcap -nn",
+          "output": "    1   0.000000 02:aa:bb:cc:dd:ee → 01:80:c2:00:00:0e LLDP 76 MA/02:00:00:00:00:01 IN/eth0 120 SysN=core-sw-1 SysD=nto{l2_0ld_sw1tch_1s_0wn3d} \n    2   0.000255 02:aa:bb:cc:dd:ee → ff:ff:ff:ff:ff:ff ARP 42 Who has 10.0.0.1? Tell 10.0.0.5\n    3   0.000630     10.0.0.5 → 10.0.0.99    TCP 58 40111 → 445 [SYN] Seq=0 Win=8192 Len=0\n    4   0.001396     10.0.0.5 → 10.0.0.99    HTTP 89 GET / HTTP/1.1 \n"
+        }
+      ],
+      "fallback": "    1   0.000000 02:aa:bb:cc:dd:ee → 01:80:c2:00:00:0e LLDP 76 MA/02:00:00:00:00:01 IN/eth0 120 SysN=core-sw-1 SysD=nto{l2_0ld_sw1tch_1s_0wn3d} \n    2   0.000255 02:aa:bb:cc:dd:ee → ff:ff:ff:ff:ff:ff ARP 42 Who has 10.0.0.1? Tell 10.0.0.5\n    3   0.000630     10.0.0.5 → 10.0.0.99    TCP 58 40111 → 445 [SYN] Seq=0 Win=8192 Len=0\n    4   0.001396     10.0.0.5 → 10.0.0.99    HTTP 89 GET / HTTP/1.1 \n"
+    }
+  }
+}
