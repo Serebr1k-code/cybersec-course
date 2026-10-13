@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Все флаги ffuf по группам, режимы подстановки, матчеры/фильтры, рецепты для путей, vhost, параметров, значений и логинов."
+lab:
+  kind: shell
+  title: "Практика: ffuf"
+  toolset: [core, ffuf, curl]
+  workdir: /home/student/task
+  files: [task.md, api_wordlist.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Перебор: `ffuf -u 'https://shop.acme-lab.test/api/FUZZ' -w api_wordlist.txt -mc all -fc 404`.
+    - Эндпоинт `debug` отвечает 200 и заметно больше остальных.
+    - Запроси его: `curl -s 'https://shop.acme-lab.test/api/debug'`.
+    - `curl -s 'https://shop.acme-lab.test/api/debug' | tail -1 > found.txt`, затем `check`.
 ---
 
 ## Задача

