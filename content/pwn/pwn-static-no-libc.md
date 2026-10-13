@@ -12,6 +12,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 65
 summary: "Статический бинарь не даёт libc-гаджетов: строим ROP на гаджетах самого бинаря, используем syscall/ORW, ret2dlresolve и внутренние функции как mini-libc."
+lab:
+  kind: shell
+  title: "Практика: статический ELF без интерпретатора"
+  toolset: [core, readelf]
+  workdir: /home/student/task
+  files: [task.md, staticapp]
+  check: "grep -q '0x401000' answer.txt"
+  hints:
+    - "У статического ELF нет `PT_INTERP` (динамического линкера)."
+    - "Смотри заголовки программы: `readelf -l staticapp` — ищи `INTERP`."
+    - "Раз интерпретатора нет, старт задаёт `e_entry`: `readelf -h staticapp`."
 ---
 
 ## Вопрос, с которого всё начинается

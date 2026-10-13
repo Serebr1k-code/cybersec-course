@@ -12,6 +12,17 @@ useful_for:
   - "Утечки адресов"
 estimated_minutes: 40
 summary: "Как через символ environ в libc прочитать адрес стека, зачем он нужен и как использовать утечку для format string и ret2shellcode."
+lab:
+  kind: shell
+  title: "Практика: символ environ в libc"
+  toolset: [core, nm]
+  workdir: /home/student/task
+  files: [task.md, libc.syms]
+  check: "grep -q '0x1eede8' answer.txt"
+  hints:
+    - "`environ` — глобальный указатель в libc на массив окружения на стеке."
+    - "Он экспортируется как динамический символ: `nm -D libc.so.6`."
+    - "Ищи строку с `environ` — первый столбец это смещение от базы libc."
 ---
 
 ## Вопрос, с которого всё начинается

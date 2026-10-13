@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 12
 summary: "Отдельный этап: глубокий разбор _IO_FILE — атака _IO_wfile, обход проверки vtable и извлечение утечек через потоки."
+lab:
+  kind: shell
+  title: "Практика: _IO_2_1_stdout_ и vtable"
+  toolset: [core, nm]
+  workdir: /home/student/task
+  files: [task.md, libc.syms]
+  check: "grep -q '0x1e8580' answer.txt"
+  hints:
+    - "`stdout` — это указатель на структуру `_IO_FILE` в libc."
+    - "Сама структура экспортируется как `_IO_2_1_stdout_`: `nm -D libc.so.6`."
+    - "Её первый qword — vtable (`_IO_file_jumps`); через него идёт FSOP."
 ---
 
 FSOP (File-Stream-Oriented Programming) строится на структуре `_IO_FILE_plus` и её vtable. Базовые приёмы (`_IO_2_1_stdout_`, `_IO_str_overflow`) уже разобраны в ветке `pwn-fsop`, но modern glibc усилил проверки: vtable должен лежать в секции `__libc_IO_vtables`, а wide-ориентированные потоки (`_IO_wfile_jumps`) открывают новые цели. Этот модуль — про то, как FSOP выживает в glibc 2.24+ и как из потоков достать утечки.

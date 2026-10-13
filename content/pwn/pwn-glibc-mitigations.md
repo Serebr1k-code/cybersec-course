@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 60
 summary: "Разбираем эволюцию защит glibc 2.26-2.35: tcache key, safe-linking указателей, проверки размера и удаление __malloc_hook/__free_hook, а также современные цели для записи."
+lab:
+  kind: shell
+  title: "Практика: full RELRO / BIND_NOW"
+  toolset: [core, readelf]
+  workdir: /home/student/task
+  files: [task.md, fullrelro]
+  check: "grep -q 'BIND_NOW' answer.txt"
+  hints:
+    - "Partial RELRO = только `GNU_RELRO`; full RELRO = ещё и немедленное связывание."
+    - "Смотри `readelf -l fullrelro` (сегмент `GNU_RELRO`) и `readelf -d fullrelro`."
+    - "Немедленное связывание задаётся тегом `FLAGS` со значением `BIND_NOW`."
 ---
 ## Вопрос, с которого всё начинается
 
