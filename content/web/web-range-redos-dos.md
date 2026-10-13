@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 40
 summary: "Как через диапазонные запросы, катастрофический regex и амплификацию вывести сервис из строя — и как это безопасно тестировать."
+lab:
+  kind: shell
+  title: "Практика: Range-амплификация и ReDoS"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Проверь заголовки файла: `curl -sI https://files.local/big.zip` — есть `Accept-Ranges`."
+    - "Один Range-запрос со множеством диапазонов заставляет сервер собирать ответ из кусков."
+    - "Валидатор email использует катастрофический regex `([a-z]+)+` — почти-совпадение даёт экспоненциальное время."
+    - "Отправь строку из ~30 `a` (без `@`) в `/api/validate-email` — debug-трассировка содержит флаг; сохрани `| grep nto > found.txt` и набери `check`."
 ---
 
 ## Вопрос, с которого всё начинается

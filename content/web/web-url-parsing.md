@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Расхождения в парсинге URL: @-трюки, backslash, кодирование, схема, порт — обход SSRF-allowlist и open redirect."
+lab:
+  kind: shell
+  title: "Практика: @-трюк против allowlist"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Allowlist разрешает только `trusted.local` — прямой `evil.local` отсекается."
+    - "В URL часть ДО `@` — это логин:пароль, а хост — ПОСЛЕ `@`."
+    - "Валидатор видит `trusted.local`, а запрос идёт на хост после `@`."
+    - "`curl -s 'https://proxy.local/preview?url=https://trusted.local@127.0.0.1:8080/admin' | grep nto > found.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

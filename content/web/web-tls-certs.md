@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как работает HTTPS, из чего состоит сертификат, что такое HSTS и какие TLS-ошибки ведут к перехвату трафика."
+lab:
+  kind: shell
+  title: "Практика: SAN и скрытый поддомен"
+  toolset: [core, curl, openssl, sslscan]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запроси сертификат: `openssl s_client -connect shop.local:443 -servername shop.local`."
+    - "Смотри поле `SAN` (subjectAltName) — там перечислены имена сайта."
+    - "В SAN есть `admin.shop.local` — поддомен, которого нет в DNS-выдаче."
+    - "Подключись по SNI и забери флаг: `curl -sk https://admin.shop.local/ | grep nto > found.txt`, затем `check`."
 ---
 
 В прошлом уроке мы ходили по `http://shop.local` — всё было видно в открытом виде. Но в реальном интернете пароли и cookie передаются по HTTPS. Что это такое и почему иногда браузер кричит «соединение не защищено»?
