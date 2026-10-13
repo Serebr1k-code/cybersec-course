@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Базовый уровень логических багов: обход капчи и эксплуатация дорогих вычислений (ReDoS/DoS)."
+lab:
+  kind: shell
+  title: 'Практика: обход капчи отсутствием параметра'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Сначала убедись, что капча вообще обязательна на сервере, а не только в браузере.'
+    - 'Попробуй регистрацию БЕЗ полей капчи: `curl -s -X POST https://shop.local/register -d ''user=alice&pass=x''`.'
+    - 'Сервер проверяет капчу только если параметр пришёл. Зарегистрируй зарезервированного `admin` без капчи.'
+    - '`curl -s -X POST https://shop.local/register -d ''user=admin&pass=x'' | tail -1 > found.txt`, затем `check`.'
 ---
 
 ## Задача

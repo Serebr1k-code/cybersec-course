@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Средний уровень: состояния гонки и продвинутые многошаговые логические абьюзы."
+lab:
+  kind: shell
+  title: 'Практика: гонка за одноразовым купоном'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Один запрос купон применяет, второй получает `coupon_already_used` — проверка и запись разделены во времени.'
+    - 'Последовательные запросы лимит не обходят: нужна ОДНОВРЕМЕННОСТЬ (single-packet).'
+    - 'В curl пачка одновременных запросов — это `--parallel` с URL-глобом: добавь `&burst=20`.'
+    - 'Запусти: `curl -s --parallel -X POST ''http://shop.local/cart/coupon?code=SAVE10&burst=20'' | tail -1 > found.txt`, затем `check`.'
 ---
 
 ## Задача

