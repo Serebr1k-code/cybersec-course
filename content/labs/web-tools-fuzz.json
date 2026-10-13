@@ -1,0 +1,29 @@
+{
+  "id": "web-tools-fuzz",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{ffuf_f1lt3r_by_s1z3_f1nd5_th3_h1dd3n_p4th}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: фаззинг каталогов ffuf\n\nЦель — `https://shop.acme-lab.test`. Словарь имён путей — `raft.txt`.\n\n1. Перебор «в лоб» утонет в «мягких 404» (сервер отдаёт 200 на всё):\n\n   ffuf -u https://shop.acme-lab.test/FUZZ -w raft.txt -t 40\n\n2. Отфильтруй шум по размеру ответа «мягкой 404» (Size 5211):\n\n   ffuf -u https://shop.acme-lab.test/FUZZ -w raft.txt -fs 5211\n\n3. В чистых результатах виден скрытый `/admin`. Забери его:\n\n   curl -s https://shop.acme-lab.test/admin > found.txt\n\n4. Набери `check`.\n" },
+    { "path": "/home/student/task/raft.txt", "text": "index.php\nabout\nzxcvbnm\nbackup\nadmin\napi\nrobots.txt\n" }
+  ],
+  "tools": {
+    "ffuf": {
+      "help": "ffuf -u <url/FUZZ> -w <словарь> [-t N] [-fs <размер>] — перебор путей",
+      "cases": [
+        { "match": "-fs|--filter-size|5211", "example": "-u https://shop.acme-lab.test/FUZZ -w raft.txt -fs 5211", "output": "\n        /'___\\  /'___\\           /'___\\\n       /\\ \\__/ /\\ \\__/  __  __  /\\ \\__/\n       \\ \\ ,__\\\\ \\ ,__\\/\\ \\/\\ \\ \\ \\ ,__\\\n        \\ \\ \\_/ \\ \\ \\_/\\ \\ \\_\\ \\ \\ \\ \\_/\n         \\ \\_\\    \\ \\_\\  \\ \\____/  \\ \\_\\\n          \\/_/     \\/_/   \\/___/    \\/_/\n\n       v2.1.0\n________________________________________________\n\n :: Method           : GET\n :: URL              : https://shop.acme-lab.test/FUZZ\n :: Wordlist         : FUZZ: /home/student/task/raft.txt\n :: Filter           : Response size: 5211\n________________________________________________\n\nadmin                   [Status: 302, Size: 0, Words: 1, Lines: 1]\nbackup                  [Status: 403, Size: 289, Words: 12, Lines: 8]\nrobots.txt              [Status: 200, Size: 61, Words: 6, Lines: 4]\n:: Progress: [7/7] :: Job [1/1] :: 0 req/sec :: Duration: [0:00:00] :: Errors: 0 ::\n" },
+        { "match": "FUZZ|-w|raft", "example": "-u https://shop.acme-lab.test/FUZZ -w raft.txt -t 40", "output": "\n        /'___\\  /'___\\           /'___\\\n       v2.1.0\n________________________________________________\n :: URL              : https://shop.acme-lab.test/FUZZ\n________________________________________________\n\nindex.php               [Status: 200, Size: 5211, Words: 120, Lines: 88]\nabout                   [Status: 200, Size: 5211, Words: 120, Lines: 88]\nzxcvbnm                 [Status: 200, Size: 5211, Words: 120, Lines: 88]\nbackup                  [Status: 200, Size: 5211, Words: 120, Lines: 88]\nadmin                   [Status: 200, Size: 5211, Words: 120, Lines: 88]\napi                     [Status: 200, Size: 5211, Words: 120, Lines: 88]\nrobots.txt              [Status: 200, Size: 61, Words: 6, Lines: 4]\n:: Progress: [7/7] :: Errors: 0 ::\n" }
+      ],
+      "fallback": "ffuf: в этой лабе эмулируется только перебор https://shop.acme-lab.test/FUZZ с raft.txt.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.acme-lab.test)",
+      "cases": [
+        { "match": "admin", "example": "-s https://shop.acme-lab.test/admin", "output": "<h1>Admin</h1><p>flag: nto{ffuf_f1lt3r_by_s1z3_f1nd5_th3_h1dd3n_p4th}</p>\n" },
+        { "match": "shop\\.acme-lab\\.test", "example": "-s https://shop.acme-lab.test/", "output": "<!doctype html><title>Shop</title>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://shop.acme-lab.test.\n"
+    }
+  }
+}

@@ -13,18 +13,6 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Прокси, Repeater, Intruder, Decoder, Scanner, расширения, макросы и session handling — с точными настройками и рецептами."
-lab:
-  kind: shell
-  title: "Практика: IDOR через «Copy as curl» из Burp"
-  toolset: [core, curl]
-  workdir: /home/student/task
-  files: [task.md, request.txt]
-  check: "grep -q 'nto{' found.txt"
-  hints:
-    - "Захваченный Burp-запрос лежит в `request.txt` — посмотри его (`cat request.txt`)."
-    - "Воспроизведи свой запрос: `curl -s 'https://shop.acme-lab.test/api/users?id=1' -H 'Cookie: session=user'`."
-    - "В Repeater меняют один параметр. Поменяй `id` на 2."
-    - "`id=2` вернёт данные другого пользователя с флагом. Сохрани в `found.txt` и набери `check`."
 ---
 
 ## Задача

@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Модуль-навигатор по инструментам фаззинга: что перебирать ffuf/gobuster/feroxbuster/wfuzz и когда какой брать."
+lab:
+  kind: shell
+  title: "Практика: фаззинг каталогов ffuf"
+  toolset: [core, ffuf, curl]
+  workdir: /home/student/task
+  files: [task.md, raft.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Цель — `https://shop.acme-lab.test`, словарь — `raft.txt`."
+    - "Перебор «в лоб» (`-t 40`) утонет в «мягких 404» — все пути отдают 200 и одинаковый размер."
+    - "Отфильтруй шум по размеру мягкой 404: `-fs 5211` — останутся реальные отклонения."
+    - "В чистых результатах виден скрытый `/admin`. Забери его `curl -s .../admin > found.txt` и набери `check`."
 ---
 
 ## Задача

