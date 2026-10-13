@@ -1,0 +1,48 @@
+{
+  "id": "stego-module-embed",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{lsb_m4tch1ng_p1us_m1nus_0n3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: извлечь данные из LSB matching (±1)\n\n`carrier.png` содержит данные, встроенные не классическим LSB (замена бита),\nа LSB matching: значение канала сдвигалось на ±1. Простой `zsteg` такое\nиногда пропускает. Нужно извлечь сообщение.\n\nПорядок:\n1. Проверь формат: `file carrier.png`.\n2. Извлеки младшие биты синего канала: `python3 lsb_match.py`.\n\nФлаг положи в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки аналитика\n-----------------\n- Классический LSB: младший бит заменяется на бит сообщения (0<->1).\n- LSB matching: если бит не совпадает, значение меняется на ±1 — гистограмма\n  остаётся симметричной, и хи-квадрат/RS-анализ не так легко срабатывают.\n- Извлечение всё равно читает младший бит канала (для LSB matching он и есть\n  встроенный бит).\n- Другие семейства: адаптивные (HUGO/WOW, функция стоимости), QIM (слот\n  квантования), spread-spectrum (корреляционный приёмник по seed).\n"
+    },
+    {
+      "path": "/home/student/task/carrier.png",
+      "b64": "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"
+    },
+    {
+      "path": "/home/student/task/lsb_match.py",
+      "text": "from PIL import Image\nim = Image.open('carrier.png').convert('RGB')\npx = list(im.getdata())\nbits = ''.join(str(p[2] & 1) for p in px)\nout = bytes(int(bits[i:i+8], 2) for i in range(0, len(bits)-7, 8))\nprint('LSB-matching payload:', out.split(b'\\x00')[0].decode(errors='ignore'))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "lsb_match\\.py",
+          "example": "python3 lsb_match.py",
+          "output": "LSB-matching payload: nto{lsb_m4tch1ng_p1us_m1nus_0n3}\n"
+        }
+      ]
+    }
+  }
+}

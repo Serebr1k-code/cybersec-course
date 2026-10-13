@@ -1,0 +1,31 @@
+{
+  "id": "stego-image-formats-exotic",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{svg_c0mm3nt_c4rr13r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: скрытое в векторном и экзотическом формате\n\nДали два ассета: `logo.svg` (векторный, текстовый) и `icon.ico` (иконка,\nбинарная). Данные спрятаны в неочевидных местах этих форматов.\n\nПорядок:\n1. Прочитай SVG как текст: `cat logo.svg` и поищи комментарии/атрибуты.\n2. Найди маркер: `grep nto logo.svg`.\n3. Посмотри заголовок ICO: `xxd -l 16 icon.ico`.\n\nФлаг (из SVG-комментария) положи в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки аналитика\n-----------------\n- SVG — это XML-текст: данные прячут в комментариях `<!-- -->`, неиспользуемых\n  атрибутах, `data:` URI и даже в координатах `path`.\n- ICO хранит несколько вложенных изображений (BMP или PNG); заголовок начинается\n  с `00 00 01 00`, далее count и записи каталога.\n- PSD хранит слои и каналы (включая скрытые/невидимые маски).\n- TGA/DDS — низкоуровневые текстуры: заголовки, padding и DXT-блоки.\n"
+    },
+    {
+      "path": "/home/student/task/logo.svg",
+      "b64": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPCEtLSBidWlsZDogN2YzYTljMWU7IG5vdGU6IG50b3tzdmdfYzBtbTNudF9jNHJyMTNyfSAtLT4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2NCIgaGVpZ2h0PSI2NCIgdmlld0JveD0iMCAwIDY0IDY0Ij4KICA8dGl0bGU+bG9nbzwvdGl0bGU+CiAgPG1ldGFkYXRhPmF1dGhvcj1kZXNpZ25lcjsgcmV2aXNpb249MzwvbWV0YWRhdGE+CiAgPHJlY3Qgd2lkdGg9IjY0IiBoZWlnaHQ9IjY0IiBmaWxsPSIjMjA0MDYwIi8+CiAgPGNpcmNsZSBjeD0iMzIiIGN5PSIzMiIgcj0iMTgiIGZpbGw9IiNlMGIwMDAiLz4KICA8IS0tIHVudXNlZC1hdHRyOiBkYXRhLW5vdGU9ImFHVnNiRzg9IiAtLT4KPC9zdmc+Cg=="
+    },
+    {
+      "path": "/home/student/task/icon.ico",
+      "b64": "AAABAAEAEBAAAAEAIABWAAAAFgAAAIlQTkcNChoKAAAADUlIRFIAAAAQAAAAEAgGAAAAH/P/YQAAAB1JREFUeJxjPGFj85+BAsBEieZRA0YNGDVgMBkAAF+XAl+AzMREAAAAAElFTkSuQmCC"
+    }
+  ]
+}

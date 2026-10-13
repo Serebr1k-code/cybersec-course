@@ -12,6 +12,18 @@ useful_for:
   - "Анализ pcap на предмет эксфильтрации данных"
 estimated_minutes: 8
 summary: "Навигационный модуль по сетевым скрытым каналам: HTTP-заголовки и chunked, ICMP, TCP-поля и тайминги, VoIP/RTP, каналы по длине пакетов."
+lab:
+  kind: shell
+  title: "Практика: скрытый канал в ICMP-трафике"
+  toolset: [core, hex, tshark, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, covert.pcap, icmp_extract.py, tshark.hex]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри трафик: `tshark -r covert.pcap -Y icmp -T fields -e data.data`."
+    - "Полезная нагрузка ICMP — в hex. Раскодируй: `python3 icmp_extract.py`."
+    - "Или просто поищи строку в сыром pcap: `strings covert.pcap | grep nto{`."
+    - "Запиши флаг: `strings covert.pcap | grep nto{ > found.txt`."
 ---
 
 Этот модуль собирает вместе техники, которые прячут данные не в файле, а в самом сетевом протоколе. Обычная стеганография работает с носителем (картинка, звук, документ), а скрытые каналы работают с полями протокола, которые либо не проверяются, либо трактуются как «служебные»: заголовки HTTP, поля TCP, полезную нагрузку ICMP, размеры пакетов. Для аналитика это критично, потому что такие данные не видны при простом `strings` по файлу — их надо собирать из трафика.

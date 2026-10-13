@@ -1,0 +1,54 @@
+{
+  "id": "stego-tooling-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{jph1d3_p4ssphr4s3_f0und}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: определить инструмент стеганографии и извлечь данные\n\nДан `image.jpg`. `zsteg` тут не подходит (это JPEG), метаданные чистые.\nНужно определить, КАКИМ инструментом прятали, и подобрать парный извлекатель.\n\nПорядок:\n1. Определи алгоритм детектором: `stegdetect image.jpg`.\n2. Гипотеза `jphide` => извлекатель `jpseek` (нужен пароль).\n3. Пароль — одно из слов в `wordlist.txt`. Попробуй: `jpseek -p <пароль> image.jpg`.\n\nФлаг из вывода `jpseek` положи в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки аналитика\n-----------------\n- stegdetect сравнивает статистику DCT-коэффициентов JPEG с «отпечатками»\n  известных алгоритмов (jsteg, jphide, outguess, F5) и выдаёт гипотезу со\n  звёздочками уверенности.\n- Звёздочки — приоритет, а не вердикт; отсутствие гипотез не гарантирует чистоту.\n- Под гипотезу подбирают парный извлекатель: jphide -> jpseek, outguess -> outguess,\n  F5 -> f5, steghide -> steghide (часто с паролем).\n- jpseek обычно требует пароль; его ищут в словаре или рядом с файлом.\n"
+    },
+    {
+      "path": "/home/student/task/image.jpg",
+      "b64": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAAwAEADASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDhKKKK+jPnwooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKAP/9k="
+    },
+    {
+      "path": "/home/student/task/wordlist.txt",
+      "text": "secret\npassword\njphide\nsteg0\n"
+    }
+  ],
+  "tools": {
+    "stegdetect": {
+      "help": "stegdetect <файл.jpg> — детектор стеганографии в JPEG",
+      "cases": [
+        {
+          "match": "image\\.jpg",
+          "example": "stegdetect image.jpg",
+          "output": "image.jpg: jphide(***)\n"
+        }
+      ]
+    },
+    "jpseek": {
+      "help": "jpseek -p <пароль> <файл.jpg> — извлечь данные, встроенные jphide",
+      "cases": [
+        {
+          "match": "steg0",
+          "example": "jpseek -p steg0 image.jpg",
+          "output": "nto{jph1d3_p4ssphr4s3_f0und}\n"
+        }
+      ],
+      "fallback": "jpseek: wrong passphrase\n"
+    }
+  }
+}

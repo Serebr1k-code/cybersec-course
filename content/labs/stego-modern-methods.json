@@ -1,0 +1,48 @@
+{
+  "id": "stego-modern-methods",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0p_r3turn_ch4nn3l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: сокрытие в блокчейне (OP_RETURN)\n\n`tx.hex` — сырая транзакция. В её выходе есть OP_RETURN — поле для\nпроизвольных данных. Нужно вытащить спрятанное значение.\n\nПорядок:\n1. Посмотри транзакцию: `cat tx.hex`.\n2. Найди опкод OP_RETURN (`6a`) и следующий за ним push.\n3. Разбери: `python3 op_return.py`.\n\nФлаг положи в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки аналитика\n-----------------\n- Блокчейн как носитель: записи публичны и НЕИЗМЕНЯЕМЫ — данные нельзя удалить.\n- OP_RETURN (`0x6a`) — стандартный способ записать произвольные небольшие данные\n  в выход транзакции; далее идёт push длины и сами байты.\n- Часто в OP_RETURN кладут base64/hex-значение или хэш.\n- Другие носители: метаданные NFT, IPFS-контент, скрытые каналы через\n  генеративную (нейросетевую) стеганографию.\n"
+    },
+    {
+      "path": "/home/student/task/tx.hex",
+      "text": "020000000100000000000000000000000000000000000000000000000000000000000000000000000000ffffffff010000000000000000226a20626e5276657a42775833497a64485679626c396a61445275626a4e7366513d3d00000000"
+    },
+    {
+      "path": "/home/student/task/op_return.py",
+      "text": "tx = bytes.fromhex(open('tx.hex').read().strip())\ni = tx.index(b'\\x6a')          # OP_RETURN\nln = tx[i+1]\nimport base64\nprint('OP_RETURN:', base64.b64decode(tx[i+2:i+2+ln]).decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "op_return\\.py",
+          "example": "python3 op_return.py",
+          "output": "OP_RETURN: nto{0p_r3turn_ch4nn3l}\n"
+        }
+      ]
+    }
+  }
+}

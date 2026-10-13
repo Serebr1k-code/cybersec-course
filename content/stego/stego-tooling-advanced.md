@@ -12,6 +12,18 @@ useful_for:
   - "Планирование порядка изучения стеганографии"
 estimated_minutes: 10
 summary: "Группа тем про продвинутые инструменты: StegSolve/AperiSolve/StegOnline (каналы и кадры), stegdetect/jphide/jpseek и аудио-инструменты, jsteg/cloakify/camouflage/StegHide."
+lab:
+  kind: shell
+  title: "Практика: stegdetect + jpseek"
+  toolset: [core, stego]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, image.jpg, wordlist.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи алгоритм детектором: `stegdetect image.jpg`."
+    - "Гипотеза jphide => парный извлекатель jpseek."
+    - "Пароль — одно из слов в `wordlist.txt`. Пробуй: `jpseek -p <пароль> image.jpg`."
+    - "Запиши флаг: `jpseek -p steg0 image.jpg > found.txt`."
 ---
 
 Этот модуль — продолжение базового инструментария. Если stego-tooling покрывал OutGuess, steghide, stegseek и zsteg, то здесь собраны инструменты для визуального анализа каналов (StegSolve, AperiSolve, StegOnline), детекторы и встраиватели в JPEG и аудио (stegdetect, jphide/jpseek, mp3stego, DeepSound, SilentEye, OpenStego, snow) и утилиты для «незаметной» передачи (jsteg, cloakify, camouflage, StegHide со всеми флагами). Цель — научиться выбирать правильный инструмент под конкретный формат и алгоритм.

@@ -1,0 +1,62 @@
+{
+  "id": "stego-covert-channels",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1cmp_p1ng_tunn3l_d4t4}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти скрытый канал в трафике (ICMP)\n\n`covert.pcap` — перехваченный трафик. Внутри часть ping-пакетов несёт не\nтолько «служебные» данные: в полезной нагрузке ICMP спрятана эксфильтрация.\n\nПорядок:\n1. Посмотри, что вообще есть: `tshark -r covert.pcap -Y icmp -T fields -e ip.src -e icmp.type -e data.data`.\n2. Полезная нагрузка ICMP — в hex. Раскодируй её: `python3 icmp_extract.py`.\n3. Либо просто поищи строку: `strings covert.pcap | grep nto{`.\n\nФлаг положи в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки аналитика\n-----------------\n- Скрытый канал прячет данные не в носителе, а в ПОЛЯХ протокола: HTTP-заголовки,\n  полезная нагрузка ICMP, поля TCP, размеры пакетов.\n- ICMP удобен: payload эхо-пакета часто не проверяют и не логируют — классический\n  «ping-туннель».\n- Разбор: `tshark -r file.pcap -Y icmp -T fields -e data.data` выдаёт payload в hex;\n  затем hex декодируется в байты.\n- `strings` по pcap часто находит ASCII-полезную нагрузку сразу.\n"
+    },
+    {
+      "path": "/home/student/task/covert.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAALmPOapw6BgA7AAAAOwAAAP///////2h6ZJWAowgARQAALQABAABAAWC7CgAABQgICAgIAOzWAAAAAHBpbmcgc2VxPTEgbm9ybWFsLmPOaho+BgA7AAAAOwAAAP///////2h6ZJWAowgARQAALQABAABAAWC7CgAABQgICAgIAOzVAAAAAHBpbmcgc2VxPTIgbm9ybWFsLmPOav8/BgBEAAAARAAAAP///////2h6ZJWAowgARQAANgABAABAAWCyCgAABQgICAgIAJEeEzcAA250b3sxY21wX3AxbmdfdHVubjNsX2Q0dDR9LmPOagJCBgA7AAAAOwAAAP///////2h6ZJWAowgARQAALQABAABAAWC7CgAABQgICAgIAOzTAAAAAHBpbmcgc2VxPTQgbm9ybWFs"
+    },
+    {
+      "path": "/home/student/task/icmp_extract.py",
+      "text": "import binascii\nraw = open('tshark.hex').read().strip().splitlines()\nfor line in raw:\n    payload = binascii.unhexlify(line)\n    if b'nto{' in payload:\n        print('exfiltrated:', payload.decode())\n"
+    },
+    {
+      "path": "/home/student/task/tshark.hex",
+      "text": "70696e67207365713d31206e6f726d616c\n70696e67207365713d32206e6f726d616c\n6e746f7b31636d705f70316e675f74756e6e336c5f643474347d\n70696e67207365713d34206e6f726d616c\n"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-Y фильтр] [-T fields -e поле] — разбор трафика",
+      "cases": [
+        {
+          "match": "covert\\.pcap",
+          "example": "tshark -r covert.pcap -Y icmp -T fields -e data.data",
+          "output": "10.0.0.5\t8\t70696e67207365713d31206e6f726d616c\n10.0.0.5\t8\t70696e67207365713d32206e6f726d616c\n10.0.0.5\t8\t6e746f7b31636d705f70316e675f74756e6e336c5f643474347d\n10.0.0.5\t8\t70696e67207365713d34206e6f726d616c\n"
+        }
+      ]
+    },
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "icmp_extract\\.py",
+          "example": "python3 icmp_extract.py",
+          "output": "exfiltrated: nto{1cmp_p1ng_tunn3l_d4t4}\n"
+        }
+      ]
+    }
+  }
+}
