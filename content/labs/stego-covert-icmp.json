@@ -1,0 +1,63 @@
+{
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1cmp_p4yl04d_c0v3rt_ch4nn3l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти данные в ICMP-трафике\n\n`covert_icmp.pcap` — дамп пингов. Один из эхо-пакетов несёт не только «ping».\n\n1. `file covert_icmp.pcap` — это pcap.\n2. `tshark -r covert_icmp.pcap` — общий разбор.\n3. Полезная нагрузка эхо-пакетов: `tshark -r covert_icmp.pcap -T fields -e data.data` (hex).\n   Либо `strings covert_icmp.pcap | grep nto`.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "ICMP echo request имеет поле данных произвольной длины — удобный канал.\n"
+    },
+    {
+      "path": "/home/student/task/covert_icmp.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAOk3OapD/DgBKAAAASgAAAP///////2h6ZJWAowgARQAAPAABAABAAWShCgEBCgoBARQIAIlTEzcAAW50b3sxY21wX3A0eWwwNGRfYzB2M3J0X2NoNG5uM2x9Ok3OaqUBDwA4AAAAOAAAAP///////2h6ZJWAowgARQAAKgABAABAAWSzCgEBCgoBARQIAAUQEzcAAmtlZXBhbGl2ZS1waW5n"
+    },
+    {
+      "path": "/home/student/task/icmp_decode.py",
+      "text": "# The echo payloads carry the message; tshark prints them as hex.\nimport binascii\nhexs = [\n \"6e746f7b31636d705f7034796c3034645f6330763372745f6368346e6e336c7d\",\n]\ndata = b\"\".join(binascii.unhexlify(h) for h in hexs)\ni = data.find(b\"nto{\")\nprint(data[i:i+40].split(b\"\\x00\")[0].decode())\n"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [...] — разбор трафика (эмуляция)",
+      "cases": [
+        {
+          "match": "data\\.data",
+          "example": "tshark -r covert_icmp.pcap -T fields -e data.data",
+          "output": "10.1.1.10\t10.1.1.20\t8\t1\t6e746f7b31636d705f7034796c3034645f6330763372745f6368346e6e336c7d\n10.1.1.10\t10.1.1.20\t8\t2\t6b656570616c6976652d70696e67\n"
+        },
+        {
+          "match": "-r\\s+covert_icmp\\.pcap",
+          "example": "tshark -r covert_icmp.pcap",
+          "output": "    1   0.000000 10.1.1.10 -> 10.1.1.20 ICMP 74 Echo (ping) request  id=0x1337, seq=1/256, ttl=64\n    2   0.100000 10.1.1.10 -> 10.1.1.20 ICMP 68 Echo (ping) request  id=0x1337, seq=2/512, ttl=64\n"
+        }
+      ]
+    },
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4\n"
+        },
+        {
+          "match": "icmp_decode\\.py",
+          "example": "python3 icmp_decode.py",
+          "output": "nto{1cmp_p4yl04d_c0v3rt_ch4nn3l}\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-covert-icmp"
+}

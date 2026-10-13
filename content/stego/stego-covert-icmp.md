@@ -12,6 +12,19 @@ useful_for:
   - "IR: детект ping-туннелей"
 estimated_minutes: 28
 summary: "Как использовать ICMP для скрытой передачи: полезная нагрузка эхо-пакета, поля identifier/sequence, размеры и тайминги, а также разбор и построение туннеля через scapy и icmpsh."
+
+lab:
+  kind: shell
+  title: "Практика: разобрать ICMP-канал"
+  toolset: [core, tshark, python, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, covert_icmp.pcap, icmp_decode.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи формат: `file covert_icmp.pcap`."
+    - "Разбери дамп: `tshark -r covert_icmp.pcap`."
+    - "Полезная нагрузка в hex: `tshark -r covert_icmp.pcap -T fields -e data.data`."
+    - "Сохрани флаг: `strings covert_icmp.pcap | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -12,6 +12,19 @@ useful_for:
   - "Анализ pcap: поиск эксфильтрации через веб"
 estimated_minutes: 30
 summary: "Как прячут данные в HTTP: нестандартные заголовки, cookies, User-Agent, порядок и регистр, а также chunked-кодирование тела ответа и разбор всего этого через tshark, scapy и Burp."
+
+lab:
+  kind: shell
+  title: "Практика: найти HTTP-канал"
+  toolset: [core, tshark, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, covert_http.pcap]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Разбери дамп: `tshark -r covert_http.pcap`."
+    - "Собери поток: `tshark -r covert_http.pcap -q -z follow,tcp,ascii,0`."
+    - "Заголовки лежат в файле сырыми: `strings covert_http.pcap`."
+    - "Сохрани флаг: `strings covert_http.pcap | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

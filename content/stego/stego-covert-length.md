@@ -12,6 +12,19 @@ useful_for:
   - "IR: детект эксфильтрации по метаданным трафика"
 estimated_minutes: 28
 summary: "Скрытые каналы, где данные кодируются размером пакета, его энтропией или межпакетным интервалом, а не содержимым: как строить, извлекать и детектировать такие каналы статистическими методами."
+
+lab:
+  kind: shell
+  title: "Практика: декодировать канал по длине"
+  toolset: [core, tshark, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, covert_length.pcap, length_decode.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Разбери дамп: `tshark -r covert_length.pcap`."
+    - "Выведи длины: `tshark -r covert_length.pcap -T fields -e frame.number -e frame.len`."
+    - "Короткий пакет = 0, длинный = 1."
+    - "Декодируй: `python3 length_decode.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

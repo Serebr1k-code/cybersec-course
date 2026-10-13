@@ -1,0 +1,44 @@
+{
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{http_h34d3r_c0v3rt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: данные в HTTP-заголовке\n\n`covert_http.pcap` — один HTTP-запрос и ответ. Один из заголовков запроса\nнесёт лишнее.\n\n1. `tshark -r covert_http.pcap` — общий разбор.\n2. Собери TCP-поток в ASCII: `tshark -r covert_http.pcap -q -z follow,tcp,ascii,0`.\n3. Либо `strings covert_http.pcap | grep nto`.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Пользовательские заголовки (X-*) — классический канал утечки данных.\n"
+    },
+    {
+      "path": "/home/student/task/covert_http.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAKU3Oav10AAC9AAAAvQAAAP///////2h6ZJWAowgARQAArwABAABABmAlCgMDCgoDAxTHOABQAAAAAQAAAAFQGCAAOfUAAEdFVCAvYXBpL3N0YXR1cyBIVFRQLzEuMQ0KSG9zdDogaW50cmFuZXQuY29ycC5sb2NhbA0KVXNlci1BZ2VudDogTW96aWxsYS81LjANClgtU2Vzc2lvbi1Ub2tlbjogbnRve2h0dHBfaDM0ZDNyX2MwdjNydH0NCkFjY2VwdDogKi8qDQoNCilNzmrndQAAeAAAAHgAAAD///////9oemSVgKMIAEUAAGoAAQAAQAZgagoDAxQKAwMKAFDHOAAAAAEAAACIUBggACVnAABIVFRQLzEuMSAyMDAgT0sNCkNvbnRlbnQtTGVuZ3RoOiAyDQpDb250ZW50LVR5cGU6IHRleHQvcGxhaW4NCg0KT0s="
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [...] — разбор трафика (эмуляция)",
+      "cases": [
+        {
+          "match": "follow,tcp,ascii",
+          "example": "tshark -r covert_http.pcap -q -z follow,tcp,ascii,0",
+          "output": "\n===================================================================\nFollow: tcp,ascii\nFilter: tcp.stream eq 0\nNode 0: 10.3.3.10:51000\nNode 1: 10.3.3.20:80\n135\nGET /api/status HTTP/1.1\nHost: intranet.corp.local\nUser-Agent: Mozilla/5.0\nX-Session-Token: nto{http_h34d3r_c0v3rt}\nAccept: */*\n\n\n\t66\nHTTP/1.1 200 OK\nContent-Length: 2\nContent-Type: text/plain\n\nOK\n===================================================================\n"
+        },
+        {
+          "match": "-r\\s+covert_http\\.pcap",
+          "example": "tshark -r covert_http.pcap",
+          "output": "    1   0.000000 10.3.3.10 -> 10.3.3.20 HTTP 189 GET /api/status HTTP/1.1\n    2   0.000000 10.3.3.20 -> 10.3.3.10 HTTP 102 HTTP/1.1 200 OK  (text/plain)\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-covert-http"
+}

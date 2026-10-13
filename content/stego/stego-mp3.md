@@ -12,6 +12,19 @@ useful_for:
   - "Понимание сокрытия в сжатом с потерями аудио"
 estimated_minutes: 36
 summary: "Сокрытие в MP3: mp3stego и запасные биты кодера, фазовое кодирование в MDCT-коэффициентах, ID3-метаданные, извлечение и проверка; отличия от WAV-LSB."
+
+lab:
+  kind: shell
+  title: "Практика: найти данные в MP3"
+  toolset: [core, exif, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, song.mp3]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Проверь формат: `file song.mp3`."
+    - "Прочитай теги: `exiftool song.mp3`."
+    - "ID3-тег лежит в файле сырым: `strings song.mp3`."
+    - "Сохрани флаг: `strings song.mp3 | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

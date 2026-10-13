@@ -12,6 +12,19 @@ useful_for:
   - "IR: детект низкоуровневых туннелей"
 estimated_minutes: 32
 summary: "Скрытые каналы в TCP: номер начальной последовательности (ISN), sequence/ack, флаги, TCP options, окно и тайминги; разбор через tshark и scapy, методы детекта."
+
+lab:
+  kind: shell
+  title: "Практика: декодировать TCP-канал по ISN"
+  toolset: [core, tshark, python]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, covert_tcp.pcap, isn_decode.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Разбери дамп: `tshark -r covert_tcp.pcap`."
+    - "Посмотри сырые ISN: `tshark -r covert_tcp.pcap -T fields -e tcp.seq_raw`."
+    - "Каждый ISN — это байт, умноженный на 0x010101."
+    - "Декодируй: `python3 isn_decode.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

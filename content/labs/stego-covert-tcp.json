@@ -1,0 +1,63 @@
+{
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{tcp_1sn_c0v3rt_b1ts}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: данные в TCP ISN\n\n`covert_tcp.pcap` — серия SYN-пакетов. Обычные SYN, но их начальные\nпоследовательные номера (ISN) не случайны — каждый кодирует байт.\n\n1. `tshark -r covert_tcp.pcap` — посмотри на пакеты.\n2. ISN в сыром виде: `tshark -r covert_tcp.pcap -T fields -e tcp.seq_raw`.\n3. Декодируй байты: `python3 isn_decode.py`.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "ISN — 32-битное поле. Кодируют байт как b*0x010101; извлечение: isn // 0x010101.\n"
+    },
+    {
+      "path": "/home/student/task/covert_tcp.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAKU3Oaps1AAA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABmKuCgICCgoCAhScQAG7AG5ubgAAAABQAiAAaukAAClNzmpqNgAANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAZirgoCAgoKAgIUnEEBuwB0dHQAAAAAUAIgAGTcAAApTc5qDDcAADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEAGYq4KAgIKCgICFJxCAbsAb29vAAAAAFACIABp5QAAKU3Oao03AAA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABmKuCgICCgoCAhScQwG7AHt7ewAAAABQAiAAXcwAAClNzmoNOAAANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAZirgoCAgoKAgIUnEQBuwB0dHQAAAAAUAIgAGTZAAApTc5qlDgAADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEAGYq4KAgIKCgICFJxFAbsAY2NjAAAAAFACIAB1+gAAKU3Oago5AAA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABmKuCgICCgoCAhScRgG7AHBwcAAAAABQAiAAaN8AAClNzmp7OQAANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAZirgoCAgoKAgIUnEcBuwBfX18AAAAAUAIgAHoAAAApTc5qHToAADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEAGYq4KAgIKCgICFJxIAbsAMTExAAAAAFACIACoWwAAKU3Oapo6AAA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABmKuCgICCgoCAhScSQG7AHNzcwAAAABQAiAAZdYAAClNzmoOOwAANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAZirgoCAgoKAgIUnEoBuwBubm4AAAAAUAIgAGrfAAApTc5qhDsAADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEAGYq4KAgIKCgICFJxLAbsAX19fAAAAAFACIAB5/AAAKU3OavM7AAA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABmKuCgICCgoCAhScTAG7AGNjYwAAAABQAiAAdfMAAClNzmpkPAAANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAZirgoCAgoKAgIUnE0BuwAwMDAAAAAAUAIgAKlYAAApTc5q1jwAADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEAGYq4KAgIKCgICFJxOAbsAdnZ2AAAAAFACIABiywAAKU3Oakc9AAA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABmKuCgICCgoCAhScTwG7ADMzMwAAAABQAiAAplAAAClNzmqzPQAANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAZirgoCAgoKAgIUnFABuwBycnIAAAAAUAIgAGbRAAApTc5qSD4AADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEAGYq4KAgIKCgICFJxRAbsAdHR0AAAAAFACIABkzAAAKU3Oatg+AAA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABmKuCgICCgoCAhScUgG7AF9fXwAAAABQAiAAefUAAClNzmpcPwAANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAZirgoCAgoKAgIUnFMBuwBiYmIAAAAAUAIgAHbuAAApTc5qzj8AADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEAGYq4KAgIKCgICFJxUAbsAMTExAAAAAFACIACoTwAAKU3OakBAAAA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABmKuCgICCgoCAhScVQG7AHR0dAAAAABQAiAAZMgAAClNzmqxQAAANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAZirgoCAgoKAgIUnFYBuwBzc3MAAAAAUAIgAGXJAAApTc5qH0EAADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEAGYq4KAgIKCgICFJxXAbsAfX19AAAAAFACIABbtAAA"
+    },
+    {
+      "path": "/home/student/task/isn_decode.py",
+      "text": "# Each SYN packet's ISN encodes one byte: byte = isn // 0x010101.\nseqs = [7237230,7631988,7303023,8092539,7631988,6513507,7368816,6250335,3223857,7566195,7237230,6250335,6513507,3158064,7763574,3355443,7500402,7631988,6250335,6447714,3223857,7631988,7566195,8224125]\nout = \"\".join(chr(s // 0x010101) for s in seqs)\ni = out.find(\"nto{\")\nprint(out[i:i+40].split(\"\\x00\")[0])\n"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [...] — разбор трафика (эмуляция)",
+      "cases": [
+        {
+          "match": "tcp\\.seq_raw",
+          "example": "tshark -r covert_tcp.pcap -T fields -e tcp.seq_raw",
+          "output": "10.2.2.10\t0x0002\t7237230\n10.2.2.10\t0x0002\t7631988\n10.2.2.10\t0x0002\t7303023\n10.2.2.10\t0x0002\t8092539\n10.2.2.10\t0x0002\t7631988\n10.2.2.10\t0x0002\t6513507\n10.2.2.10\t0x0002\t7368816\n10.2.2.10\t0x0002\t6250335\n10.2.2.10\t0x0002\t3223857\n10.2.2.10\t0x0002\t7566195\n10.2.2.10\t0x0002\t7237230\n10.2.2.10\t0x0002\t6250335\n10.2.2.10\t0x0002\t6513507\n10.2.2.10\t0x0002\t3158064\n10.2.2.10\t0x0002\t7763574\n10.2.2.10\t0x0002\t3355443\n10.2.2.10\t0x0002\t7500402\n10.2.2.10\t0x0002\t7631988\n10.2.2.10\t0x0002\t6250335\n10.2.2.10\t0x0002\t6447714\n10.2.2.10\t0x0002\t3223857\n10.2.2.10\t0x0002\t7631988\n10.2.2.10\t0x0002\t7566195\n10.2.2.10\t0x0002\t8224125\n"
+        },
+        {
+          "match": "-r\\s+covert_tcp\\.pcap",
+          "example": "tshark -r covert_tcp.pcap",
+          "output": "    1   0.000000 10.2.2.10 -> 10.2.2.20 TCP 74 40000 -> 443 [SYN] Seq=7237230 Win=8192 Len=0\n    2   0.000000 10.2.2.10 -> 10.2.2.20 TCP 74 40001 -> 443 [SYN] Seq=7631988 Win=8192 Len=0\n    3   0.000000 10.2.2.10 -> 10.2.2.20 TCP 74 40002 -> 443 [SYN] Seq=7303023 Win=8192 Len=0\n"
+        }
+      ]
+    },
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4\n"
+        },
+        {
+          "match": "isn_decode\\.py",
+          "example": "python3 isn_decode.py",
+          "output": "nto{tcp_1sn_c0v3rt_b1ts}\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-covert-tcp"
+}
