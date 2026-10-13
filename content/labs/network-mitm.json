@@ -1,0 +1,47 @@
+{
+  "id": "network-mitm",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "Str1pped-2-plain"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: перехват трафика: SSL stripping\n\nМы встали «между» жертвой и шлюзом (ARP-спуфинг) и снимали трафик. Жертва думала, что работает по HTTPS, но атака **SSL stripping** свела сессию к открытому HTTP — и форма логина ушла в дамп `mitm.pcap` в открытом виде.\n\n1. Посмотри сводку: `tshark -r mitm.pcap -nn`\n2. Разбери POST-форму: `tshark -r mitm.pcap -T fields -e urlencoded-form.key -e urlencoded-form.value`\n\nЗапиши **пароль** из формы в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/mitm.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAzVDOajoyDADwAAAA8AAAAP///////2h6ZJWAowgARQAA4gABAABABmYICgAABQoAAAnHOABQAAAAAQAAAAFQGCAAQGIAAFBPU1QgL2xvZ2luIEhUVFAvMS4xDQpIb3N0OiBiYW5rLmV4YW1wbGUNClVzZXItQWdlbnQ6IE1vemlsbGEvNS4wDQpDb250ZW50LVR5cGU6IGFwcGxpY2F0aW9uL3gtd3d3LWZvcm0tdXJsZW5jb2RlZA0KQ29udGVudC1MZW5ndGg6IDQ4DQoNCnVzZXI9YWRtaW4mcGFzc3dvcmQ9U3RyMXBwZWQtMi1wbGFpbiZjc3JmPTlmMmMxYc1QzmrbNAwAcAAAAHAAAAD///////9oemSVgKMIAEUAAGIAAQAAQAZmiAoAAAkKAAAFAFDHOAAAAAEAAAC7UBggAJLFAABIVFRQLzEuMSAzMDIgRm91bmQNCkxvY2F0aW9uOiAvaG9tZQ0KQ29udGVudC1MZW5ndGg6IDANCg0K",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "urlencoded-form",
+          "example": "-r mitm.pcap -T fields -e urlencoded-form.key -e urlencoded-form.value",
+          "output": "user,password,csrf\tadmin,Str1pped-2-plain,9f2c1a\n"
+        },
+        {
+          "match": "\\b-V\\b",
+          "example": "-r mitm.pcap -V",
+          "output": "Hypertext Transfer Protocol\n    POST /login HTTP/1.1\n    Host: bank.example\r\n    Content-Type: application/x-www-form-urlencoded\r\n    Form item: \"user\" = \"admin\"\n    Form item: \"password\" = \"Str1pped-2-plain\"\n    Form item: \"csrf\" = \"9f2c1a\"\n"
+        },
+        {
+          "match": "mitm\\.pcap",
+          "example": "-r mitm.pcap -nn",
+          "output": "    1   0.000000     10.0.0.5 → 10.0.0.9     HTTP 240 POST /login HTTP/1.1  (application/x-www-form-urlencoded)\n    2   0.000673     10.0.0.9 → 10.0.0.5     HTTP 112 HTTP/1.1 302 Found \n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.5 → 10.0.0.9     HTTP 240 POST /login HTTP/1.1  (application/x-www-form-urlencoded)\n    2   0.000673     10.0.0.9 → 10.0.0.5     HTTP 112 HTTP/1.1 302 Found \n"
+    }
+  }
+}

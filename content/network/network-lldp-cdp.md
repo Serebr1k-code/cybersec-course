@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): инвентаризация и детект rogue-устройств"
 estimated_minutes: 50
 summary: "LLDP (802.1AB) и CDP: какие поля раскрывают устройство, порт, VLAN и версию ПО; как пассивно собрать топологию из дампа и почему discovery-протоколы — утечка и вектор атаки."
+lab:
+  kind: shell
+  title: "Практика: пассивная разведка топологии (LLDP/CDP)"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, discovery.pcap]
+  check: "grep -q 'core-sw-01' answer.txt"
+  hints:
+    - "Служебные кадры ловятся без сканирования: `tshark -r discovery.pcap -nn`."
+    - "У LLDP имя устройства лежит в TLV `System Name`."
+    - "Вытащи поле: `tshark -r discovery.pcap -T fields -e lldp.tlv.system.name`."
+    - "Искомое имя — `core-sw-01`."
 ---
 
 ## Вопрос, с которого всё начинается

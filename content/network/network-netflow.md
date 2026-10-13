@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): IR и охота по метаданным"
 estimated_minutes: 55
 summary: "NetFlow, IPFIX и sFlow: как определяются потоки, как экспортировать и анализировать (nfdump, SiLK), что видно без PCAP и как использовать метаданные в расследовании и обходе мониторинга."
+lab:
+  kind: shell
+  title: "Практика: поиск эксфильтрации в потоках NetFlow"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, netflow.pcap]
+  check: "grep -q '198.51.100.66' answer.txt"
+  hints:
+    - "Это не pcap с пакетами, а экспорт потоков (NetFlow v5)."
+    - "Поля потока: `cflow.srcaddr`, `cflow.dstaddr`, `cflow.octets`."
+    - "Сравни объём (`octets`) у всех потоков — эксфильтрация самая крупная."
+    - "Крупнейший поток идёт на `198.51.100.66`."
 ---
 ## Вопрос, с которого всё начинается
 

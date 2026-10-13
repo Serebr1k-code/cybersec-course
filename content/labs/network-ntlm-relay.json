@@ -1,0 +1,42 @@
+{
+  "id": "network-ntlm-relay",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "svc_backup"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: NTLM relay: под какой учёткой вошли\n\nМы перехватили аутентификацию NTLM и **переслали** её (relay) на файловый сервер, не зная пароля. В дампе `ntlm.pcap` виден HTTP-запрос с сообщением `NTLMSSP_AUTH` (Type 3), в котором лежит имя релеённой учётной записи.\n\n1. Сводка: `tshark -r ntlm.pcap -nn`\n2. Поля: `tshark -r ntlm.pcap -T fields -e ntlmssp.auth.username -e ntlmssp.auth.domain`\n\nЗапиши **имя пользователя** (username) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/ntlm.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAzVDOavtaDABsAQAAbAEAAP///////2h6ZJWAowgARQABXgABAABABmWMCgAABQoAAAnIIgBQAAAAAQAAAAFQGCAAzqcAAEdFVCAvYWRtaW4gSFRUUC8xLjENCkhvc3Q6IGZpbGVzZXJ2ZXIuY29ycC5sb2NhbA0KQXV0aG9yaXphdGlvbjogTlRMTSBUbFJNVFZOVFVBQURBQUFBR0FBWUFFQUFBQUFZQUJnQVdBQUFBQWdBQ0FCd0FBQUFGQUFVQUhnQUFBQVNBQklBakFBQUFBQUFBQUNlQUFBQUJZSUlBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUVNQVR3QlNBRkFBY3dCMkFHTUFYd0JpQUdFQVl3QnJBSFVBY0FCWEFGTUFMUUJHQUVrQVRnQXRBREFBTndBPQ0KQ29ubmVjdGlvbjoga2VlcC1hbGl2ZQ0KDQrNUM5qyVwMAF4AAABeAAAA////////aHpklYCjCABFAABQAAEAAEAGZpoKAAAJCgAABQBQyCIAAAABAAABN1AYIACzoAAASFRUUC8xLjEgMjAwIE9LDQpDb250ZW50LUxlbmd0aDogMg0KDQpPSw==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "ntlmssp",
+          "example": "-r ntlm.pcap -T fields -e ntlmssp.auth.username -e ntlmssp.auth.domain -e ntlmssp.auth.hostname",
+          "output": "svc_backup\tCORP\tWS-FIN-07\n"
+        },
+        {
+          "match": "ntlm\\.pcap",
+          "example": "-r ntlm.pcap -nn",
+          "output": "    1   0.000000     10.0.0.5 → 10.0.0.9     HTTP 364 GET /admin HTTP/1.1 , NTLMSSP_AUTH, User: CORP\\svc_backup\n    2   0.000462     10.0.0.9 → 10.0.0.5     HTTP 94 HTTP/1.1 200 OK \n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.5 → 10.0.0.9     HTTP 364 GET /admin HTTP/1.1 , NTLMSSP_AUTH, User: CORP\\svc_backup\n    2   0.000462     10.0.0.9 → 10.0.0.5     HTTP 94 HTTP/1.1 200 OK \n"
+    }
+  }
+}

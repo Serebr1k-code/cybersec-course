@@ -1,0 +1,47 @@
+{
+  "id": "network-lldp-cdp",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "core-sw-01"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: пассивная разведка топологии (LLDP/CDP)\n\nВ дампе `discovery.pcap` два устройства сами объявили о себе служебными кадрами: одно по **LLDP**, другое по **CDP**. Сканировать сеть не нужно — вся информация уже в кадpах.\n\n1. Посмотри сводку: `tshark -r discovery.pcap -nn`\n2. Вытащи поля: `tshark -r discovery.pcap -T fields -e lldp.tlv.system.name -e cdp.deviceid`\n\nЗапиши **имя (System Name) LLDP-устройства** в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/discovery.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAzVDOan0bDABCAAAAQgAAAAGAwgAADgIAAAAAAYjMAgcEAgAAAAABBAkFR2kxLzAvMjQGAgB4Cgpjb3JlLXN3LTAxEAwFAAoAAAEBAAAAAAAAAM1QzmreKQwAgAAAAIAAAAABAAzMzMwCAAAAAAKIcKqqAwAADCAAArShPgABABBzdy1mbG9vcjMtMDEAAwAURmFzdEV0aGVybmV0MC8xMgAFAClDaXNjbyBJT1MgU29mdHdhcmUsIFZlcnNpb24gMTUuMig0KUU3AAYAGWNpc2NvIFdTLUMyOTYwLTI0VFQtTA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "lldp\\.tlv|cdp\\.deviceid|cdp\\.platform|mgn",
+          "example": "-r discovery.pcap -T fields -e lldp.tlv.system.name -e cdp.deviceid",
+          "output": "core-sw-01\t0a000001\tGi1/0/24\t\t\n\t\t\tsw-floor3-01\tcisco WS-C2960-24TT-L\n"
+        },
+        {
+          "match": "discovery\\.pcap\\s+-V|-V\\s+.*discovery\\.pcap|\\b-V\\b",
+          "example": "-r discovery.pcap -V",
+          "output": "Frame 1: 66 bytes on wire (528 bits)\nEthernet II, Src: 02:00:00:00:00:01, Dst: 01:80:c2:00:00:0e\nLink Layer Discovery Protocol\n    Chassis Subtype = MAC address, Id: 02:00:00:00:00:01\n    Port Subtype = Interface name, Id: Gi1/0/24\n    Time To Live: 120 seconds\n    System Name: core-sw-01\n    Management Address: 0a000001\nFrame 2: 128 bytes on wire (1024 bits)\nEthernet II, Src: 02:00:00:00:00:02, Dst: 01:00:0c:cc:cc:cc\nCisco Discovery Protocol\n    Device ID: sw-floor3-01\n    Port ID: FastEthernet0/12\n    Software Version: Cisco IOS Software, Version 15.2(4)E7\n    Platform: cisco WS-C2960-24TT-L\n"
+        },
+        {
+          "match": "discovery\\.pcap",
+          "example": "-r discovery.pcap -nn",
+          "output": "    1   0.000000 02:00:00:00:00:01 → 01:80:c2:00:00:0e LLDP 66 MA/02:00:00:00:00:01 IN/Gi1/0/24 120 SysN=core-sw-01 \n    2   0.003681 02:00:00:00:00:02 → 01:00:0c:cc:cc:cc CDP 128 Device ID: sw-floor3-01  Port ID: FastEthernet0/12  \n"
+        }
+      ],
+      "fallback": "    1   0.000000 02:00:00:00:00:01 → 01:80:c2:00:00:0e LLDP 66 MA/02:00:00:00:00:01 IN/Gi1/0/24 120 SysN=core-sw-01 \n    2   0.003681 02:00:00:00:00:02 → 01:00:0c:cc:cc:cc CDP 128 Device ID: sw-floor3-01  Port ID: FastEthernet0/12  \n"
+    }
+  }
+}

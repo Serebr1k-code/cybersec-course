@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): детект NTLM-аномалий"
 estimated_minutes: 60
 summary: "Как перехватить и переслать NTLM-аутентификацию, зачем нужна коэрсия и как защититься (signing, EPA, SMB over QUIC)."
+lab:
+  kind: shell
+  title: "Практика: NTLM relay — чья учётка вошла"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, ntlm.pcap]
+  check: "grep -q 'svc_backup' answer.txt"
+  hints:
+    - "Смотри HTTP-заголовок `Authorization: NTLM ...`."
+    - "Сообщение Type 3 (`NTLMSSP_AUTH`) содержит имя пользователя и домен."
+    - "Поля: `ntlmssp.auth.username`, `ntlmssp.auth.domain`."
+    - "Учётка — `svc_backup` (домен CORP)."
 ---
 
 ## Вопрос, с которого всё начинается

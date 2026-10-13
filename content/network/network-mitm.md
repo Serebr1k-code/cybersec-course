@@ -13,6 +13,18 @@ useful_for:
   - "Понимание защиты от MITM"
 estimated_minutes: 50
 summary: "Полный цикл MITM: подготовка позиции, перехват и модификация трафика с bettercap, атака SSL stripping и защита (HSTS, pinning)."
+lab:
+  kind: shell
+  title: "Практика: перехват формы при SSL stripping"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, mitm.pcap]
+  check: "grep -q 'Str1pped-2-plain' answer.txt"
+  hints:
+    - "Форма ушла открытым текстом: ищи в дампе HTTP-запрос `POST /login`."
+    - "Поля формы разбираются как `urlencoded-form.key` / `urlencoded-form.value`."
+    - "Команда: `tshark -r mitm.pcap -T fields -e urlencoded-form.value`."
+    - "Пароль — значение ключа `password`."
 ---
 
 ## Вопрос, с которого всё начинается

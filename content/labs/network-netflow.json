@@ -1,0 +1,47 @@
+{
+  "id": "network-netflow",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "198.51.100.66"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ потоков NetFlow v5\n\nПолного pcap нет — есть только **экспорт потоков** NetFlow v5 (`netflow.pcap`). По метаданным нужно найти крупнейшую исходящую передачу (кандидат на эксфильтрацию).\n\n1. Сводка: `tshark -r netflow.pcap -nn`\n2. Потоки: `tshark -r netflow.pcap -T fields -e cflow.srcaddr -e cflow.dstaddr -e cflow.dstport -e cflow.octets`\n\nЗапиши **IP-адрес назначения** самого объёмного потока в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/netflow.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAzVDOarZTDAACAQAAAgEAAP///////2h6ZJWAowgARQAA9AABAABAEWTyCgAA/goAAAkIBwgHAODpNAAFAAQAAAAAZVPxAAAAAAAAAAAAAAAAAQoAAAXGM2RCAAAAAAAAAAAAABBoAIra4AAAA+gAAAfQyTsBuwAYBgAAAAAAAAAAAAoAAAVduNgiAAAAAAAAAAAAAAAHAAAFJwAAA+gAAAfQyTwAUAAYBgAAAAAAAAAAAAoAAAXLAHEHAAAAAAAAAAAAAAADAAACWAAAA+gAAAfQyT0AFgAYBgAAAAAAAAAAAAoAAAcKAAAFAAAAAAAAAAAAAA7YAE9YgAAAA+gAAAfQAbvJOwAYBgAAAAAAAAAAAA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "cflow\\.|conv",
+          "example": "-r netflow.pcap -T fields -e cflow.srcaddr -e cflow.dstaddr -e cflow.dstport -e cflow.octets",
+          "output": "10.0.0.5,10.0.0.5,10.0.0.5,10.0.0.7\t198.51.100.66,93.184.216.34,203.0.113.7,10.0.0.5\t443,80,22,51515\t9100000,1319,600,5200000\n"
+        },
+        {
+          "match": "cflow",
+          "example": "-r netflow.pcap -nn",
+          "output": "    1   0.000000   10.0.0.254 → 10.0.0.9     CFLOW 258 total: 4 (v5) flows\n"
+        },
+        {
+          "match": "netflow\\.pcap",
+          "example": "-r netflow.pcap -nn",
+          "output": "    1   0.000000   10.0.0.254 → 10.0.0.9     CFLOW 258 total: 4 (v5) flows\n"
+        }
+      ],
+      "fallback": "    1   0.000000   10.0.0.254 → 10.0.0.9     CFLOW 258 total: 4 (v5) flows\n"
+    }
+  }
+}
