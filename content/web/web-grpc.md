@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 40
 summary: "gRPC/protobuf: реверс .proto, gRPC reflection, вызов методов без схемы, grpc-web, атаки на HTTP/2-транспорт."
+lab:
+  kind: shell
+  title: "Практика: gRPC reflection → BOLA"
+  toolset: [core, curl, grpcurl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "На сервере включён server reflection — схему отдаёт сам сервис."
+    - "Перечисли сервисы и опиши метод: `grpcurl -plaintext app.example:50051 list`."
+    - "Метод `GetUser` не проверяет владельца объекта — подставь чужой id."
+    - "`grpcurl -plaintext -d '{\"id\":\"1002\"}' app.example:50051 myapp.UserService/GetUser` — токен в ответе флаг. Сохрани в `found.txt` и `check`."
 ---
 
 ## Вопрос, с которого всё начинается

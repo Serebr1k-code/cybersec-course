@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "PHP-специфика для CTF: type juggling и magic hashes, обход сравнений, filter chains до RCE, phar-десериализация, race в файлах."
+lab:
+  kind: shell
+  title: "Практика: magic hash + php://filter"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Логин сравнивает md5 через `==`. Найди строку, чей md5 имеет вид `0e` + цифры."
+    - "Magic hash для пароля: `240610708`. Отправь его в поле `pass` (user=admin)."
+    - "После входа в ответе есть путь к файлу флага. Заверни его в обёртку `php://filter/convert.base64-encode` — include исполнил бы PHP, а обёртка отдаёт исходник."
+    - "`curl -s 'https://blog.example/?page=php://filter/convert.base64-encode/resource=/var/www/flag.php' | base64 -d > found.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

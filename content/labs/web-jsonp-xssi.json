@@ -1,0 +1,21 @@
+{
+  "id": "web-jsonp-xssi",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{js0np_c4llb4ck_l34ks_s3ss10n}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: JSONP / XSSI\n\n`shop.local` отдаёт API с JSONP-обёрткой `?callback=`. Эндпоинт\n`/api/me` доверяет сессионной cookie.\n\n1. Без cookie данные закрыты:\n\n   curl -s 'https://shop.local/api/me?callback=cb'\n\n2. С cookie жертвы приходят её данные. Подставь `session=victim` через `-b`:\n\n   curl -s 'https://shop.local/api/me?callback=cb' -b 'session=victim'\n\n3. Токен в ответе — это флаг. Запиши его в `found.txt` и набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        { "match": "session=", "example": "-s 'https://shop.local/api/me?callback=cb' -b 'session=victim'", "output": "cb({\"email\":\"victim@shop.local\",\"token\":\"nto{js0np_c4llb4ck_l34ks_s3ss10n}\"})\n" },
+        { "match": "static/config\\.js", "example": "-s https://shop.local/static/config.js", "output": "window.__CONFIG__ = {\"apiKey\":\"AIzaSyEXAMPLE\",\"admin\":true};\n" },
+        { "match": "api/me", "example": "-s 'https://shop.local/api/me?callback=cb'", "output": "cb({\"error\":\"unauthorized\"})\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только JSONP /api/me на shop.local.\n"
+    }
+  }
+}

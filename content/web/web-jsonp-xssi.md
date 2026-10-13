@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 40
 summary: "Почему JSONP опасен, как работает XSSI и как через теги читать данные, которые SOP вроде бы защищает."
+lab:
+  kind: shell
+  title: "Практика: JSONP читает данные жертвы"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`<script>` шлёт cookie жертвы автоматически — эндпоинту нужна сессия."
+    - "Без cookie `/api/me?callback=cb` вернёт `unauthorized`."
+    - "Передай сессию жертвы: `curl -s 'https://shop.local/api/me?callback=cb' -b 'session=victim'`."
+    - "Токен в ответе — это флаг: сохрани в `found.txt` и набери `check`."
 ---
 
 ## Вопрос, с которого всё начинается

