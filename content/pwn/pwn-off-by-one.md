@@ -12,6 +12,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 45
 summary: "Один лишний или нулевой байт за границей буфера переписывает размер следующего heap-чанка: poison null byte, перекрытие чанков и расширение вниз."
+lab:
+  kind: shell
+  title: "Практика: off-by-one в size следующего чанка"
+  toolset: [core, gdb]
+  workdir: /home/student/task
+  files: [task.md, offbyone, offbyone.gdb.txt]
+  check: "grep -q 'size=0x41' answer.txt"
+  hints:
+    - "`malloc(0x18)` даёт пользовательскую область ровно 0x18 байт."
+    - "Запись `p[0x18]` (25-й байт) попадает в заголовок следующего чанка `b`."
+    - "Это затирает младший байт поля `size` чанка `b` (0x21 → 0x41)."
 ---
 ## Вопрос, с которого всё начинается
 

@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 60
 summary: "Разбираем Blind ROP: как найти гаджеты и построить цепочку, имея только сетевой сервис с переполнением, который перезапускается после падения, и ни байта бинаря."
+lab:
+  kind: shell
+  title: "Практика: гаджеты для blind ROP"
+  toolset: [core, ROPgadget]
+  workdir: /home/student/task
+  files: [task.md, brop]
+  check: "grep -q '0x401000' answer.txt"
+  hints:
+    - "В BROP сначала находят `ret` (stop gadget), потом `pop rdi; ret`."
+    - "`ROPgadget --binary brop` выдаёт список гаджетов с адресами."
+    - "Ищи строку `pop rdi ; ret`."
 ---
 
 ## Вопрос, с которого всё начинается

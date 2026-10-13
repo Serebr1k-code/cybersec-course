@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 45
 summary: "Разбираем устройство glibc-кучи: чанки и их заголовки, bins (fastbin/tcache/small/large/unsorted), consolidation — база для UAF и tcache poisoning."
+lab:
+  kind: shell
+  title: "Практика: заголовок chunk"
+  toolset: [core, gdb]
+  workdir: /home/student/task
+  files: [task.md, heap, heap.gdb.txt]
+  check: "grep -q 'size=0x31' answer.txt"
+  hints:
+    - "`malloc(0x20)` возвращает указатель на **данные**, заголовок лежит на `-0x10`."
+    - "Заголовок = `prev_size` (8 байт) + `size` (8 байт)."
+    - "В `size` младшие 3 бита — флаги; для занятого чанка видно `0x31`."
 ---
 
 ## Вопрос, с которого всё начинается

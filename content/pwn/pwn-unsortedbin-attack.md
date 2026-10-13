@@ -12,6 +12,17 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 55
 summary: "Как удаление чанка из unsorted bin записывает адрес main_arena по контролируемому адресу и как использовать это для утечки и записи."
+lab:
+  kind: shell
+  title: "Практика: unsorted bin и main_arena"
+  toolset: [core, gdb]
+  workdir: /home/student/task
+  files: [task.md, unsorted, unsorted.gdb.txt]
+  check: "grep -q '0x7ffff7f7cac8' answer.txt"
+  hints:
+    - "Чанк размером > 0x410 при free попадает в unsorted bin (минуя tcache)."
+    - "У единственного чанка в unsorted bin `fd == bk`."
+    - "Оба указывают в `main_arena` — это libc leak."
 ---
 
 ## Вопрос, с которого всё начинается

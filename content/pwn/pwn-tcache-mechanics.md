@@ -12,6 +12,17 @@ useful_for:
   - "Разбор CVE в glibc tcache"
 estimated_minutes: 10
 summary: "Модуль tcache: эволюция защит glibc, tcache stashing, особенности calloc и house of botcake."
+lab:
+  kind: shell
+  title: "Практика: safe-linking в tcache"
+  toolset: [core, gdb]
+  workdir: /home/student/task
+  files: [task.md, tcache, tcache.gdb.txt]
+  check: "grep -q 'next=0x405010' answer.txt"
+  hints:
+    - "После free двух чанков tcache хранит их в LIFO: `b` — голова, `b->fd` — следующий."
+    - "С glibc 2.32 указатель замаскирован: `stored = next ^ (chunk_addr >> 12)`."
+    - "`b = 0x405040`, `stored = 0x405415` → `next = 0x405415 ^ 0x405`."
 ---
 Модуль посвящён tcache — кэшу небольших chunk в современном glibc, который стал центральным объектом heap-эксплуатации. Здесь вы разбираете эволюцию его защит и конкретные техники обхода.
 
