@@ -13,6 +13,17 @@ useful_for:
   - "Работа (SOC): детект оверлеев"
 estimated_minutes: 60
 summary: "GRE и VXLAN: как инкапсулируется трафик, как читать GRE-заголовок и VXLAN VNI, зачем нужны VTEP, какие атаки возможны и как детектировать оверлеи в трафике."
+lab:
+  kind: shell
+  title: "Практика: VNI в VXLAN-инкапсуляции"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, vxlan.pcap]
+  check: "grep -q '100' answer.txt"
+  hints:
+    - "VXLAN инкапсулирует кадр L2 в UDP/4789 и добавляет 8-байтовый заголовок с VNI."
+    - "Поле `vxlan.vni` содержит идентификатор сегмента."
+    - "Искомый VNI — `100`."
 ---
 
 ## Вопрос, с которого всё начинается

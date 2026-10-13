@@ -13,6 +13,17 @@ useful_for:
   - "Работа (SOC): детект нелегитимных туннелей"
 estimated_minutes: 60
 summary: "Переходные механизмы IPv6 (6to4, Teredo, ISATAP, 6in4), почему они обходят IPv4-фильтры, как атакующий строит скрытый IPv6-канал и как это детектировать."
+lab:
+  kind: shell
+  title: "Практика: IPv6-в-IPv4 (6in4) туннель"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, tunnel.pcap]
+  check: "grep -q '2001:db8::2' answer.txt"
+  hints:
+    - "Протокол IP 41 означает инкапсуляцию IPv6 внутрь IPv4 (6in4)."
+    - "tshark показывает внутренние IPv6-адреса в полях `ipv6.src`/`ipv6.dst`."
+    - "Искомый адрес назначения — `2001:db8::2`."
 ---
 
 ## Вопрос, с которого всё начинается

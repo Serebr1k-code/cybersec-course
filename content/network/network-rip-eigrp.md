@@ -13,6 +13,17 @@ useful_for:
   - "Работа (SOC): детект поддельных update"
 estimated_minutes: 55
 summary: "Как работают RIP и EIGRP, как выглядят их пакеты, почему поддельные update уводят трафик и как защититься аутентификацией и фильтрацией."
+lab:
+  kind: shell
+  title: "Практика: RIPv2-анонс сети"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, rip.pcap]
+  check: "grep -q '10.1.1.0' answer.txt"
+  hints:
+    - "RIPv2 рассылает анонсы в multicast 224.0.0.9 на UDP/520."
+    - "Поле `rip.ip` содержит анонсируемую сеть, `rip.netmask` — маску."
+    - "Искомая сеть — `10.1.1.0`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,24 @@
+{
+  "id": "network-ids-suricata",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор suricata fast.log\n\nВ каталоге лежит `fast.log` — журнал IDS Suricata. В нём смешаны события\nразного типа. Нужно найти **внешний** адрес, с которого шло сканирование\nSSH/VNC.\n\n1. Посмотри журнал: `cat fast.log`\n2. Отфильтруй сканирования: `grep 'ET SCAN' fast.log`\n3. Определи адрес источника (левый адрес в 5-tuple).\n\nЗапиши **IP сканера** в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/fast.log",
+      "text": "10/13/2026-18:20:01.114522  [**] [1:2100498:7] GPL ATTACK_RESPONSE id check returned root [**] [Classification: Potentially Bad Traffic] [Priority: 2] {TCP} 10.0.0.10:80 -> 10.0.0.55:49152\n10/13/2026-18:20:11.223344  [**] [1:2001219:20] ET SCAN Potential SSH Scan [**] [Classification: Attempted Information Leak] [Priority: 2] {TCP} 203.0.113.45:51122 -> 10.0.0.10:22\n10/13/2026-18:20:11.445566  [**] [1:2002911:6] ET SCAN Potential VNC Scan 5900-5920 [**] [Classification: Attempted Information Leak] [Priority: 2] {TCP} 203.0.113.45:51130 -> 10.0.0.10:5900\n10/13/2026-18:20:12.010203  [**] [1:2010935:3] ET POLICY curl User-Agent Outbound [**] [Classification: Potential Corporate Privacy Violation] [Priority: 1] {TCP} 10.0.0.77:53100 -> 198.51.100.23:80\n10/13/2026-18:20:13.778899  [**] [1:2027757:2] ET INFO Session Traversal Utilities for NAT (STUN) [**] [Classification: Potentially Bad Traffic] [Priority: 2] {UDP} 10.0.0.77:40200 -> 8.8.8.8:3478\n"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "203.0.113.45"
+  },
+  "tools": {}
+}

@@ -1,0 +1,42 @@
+{
+  "id": "network-mdns-ssdp",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: SSDP M-SEARCH (UPnP discovery)\n\nВ дампе `discovery.pcap` видно два вида discovery-трафика: mDNS (UDP/5353) и\nSSDP (UDP/1900). Нас интересует SSDP-запрос `M-SEARCH`.\n\n1. Посмотри сводку: `tshark -r discovery.pcap -nn`\n2. Разбери запрос детально: `tshark -r discovery.pcap -V`\n\nЗапиши **значение заголовка ST** (search target) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/discovery.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AADkAAAAv0zOap1MCwA9AAAAPQAAAEUAAD0AAQAAQBGPrQoAAAfgAAD7FOkU6QApZdIAAAEAAAEAAAAAAAAEX2lwcARfdGNwBWxvY2FsAAAMAAG/TM5qlE0LAIEAAACBAAAARQAAgQABAABAEYBqCgAAB+////qcQQdsAG1kY00tU0VBUkNIICogSFRUUC8xLjENCkhPU1Q6IDIzOS4yNTUuMjU1LjI1MDoxOTAwDQpNQU46ICJzc2RwOmRpc2NvdmVyIg0KTVg6IDENClNUOiB1cG5wOnJvb3RkZXZpY2UNCg0K",
+      "mode": "644"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "upnp:rootdevice"
+  },
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: вывод реального tshark)",
+      "cases": [
+        {
+          "match": "-V",
+          "example": "-r discovery.pcap -V",
+          "output": "    HOST: 239.255.255.250:1900\\r\\n\n    MAN: \"ssdp:discover\"\\r\\n\n    MX: 1\\r\\n\n    ST: upnp:rootdevice\\r\\n\n"
+        },
+        {
+          "match": "-r\\s+discovery\\.pcap",
+          "example": "-r discovery.pcap -nn",
+          "output": "    1   0.000000     10.0.0.7 → 224.0.0.251  MDNS 61 Standard query 0x0000 PTR _ipp._tcp.local, \"QM\" question\n    2   0.000247     10.0.0.7 → 239.255.255.250 SSDP 129 M-SEARCH * HTTP/1.1 \n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.7 → 224.0.0.251  MDNS 61 Standard query 0x0000 PTR _ipp._tcp.local, \"QM\" question\n    2   0.000247     10.0.0.7 → 239.255.255.250 SSDP 129 M-SEARCH * HTTP/1.1 \n"
+    }
+  }
+}

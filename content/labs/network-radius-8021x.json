@@ -1,0 +1,42 @@
+{
+  "id": "network-radius-8021x",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор RADIUS Access-Accept\n\nВ дампе `radius.pcap` зафиксирован обмен 802.1X: NAS `10.0.0.30` принял решение\nи отправил клиенту `Access-Accept`. Нужно понять, какая учётная запись прошла\nаутентификацию.\n\n1. Посмотри сводку: `tshark -r radius.pcap -nn`\n2. Вытащи атрибут имени: `tshark -r radius.pcap -T fields -e radius.User_Name -e radius.code`\n\nЗапиши **логин** (значение User-Name) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/radius.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AADkAAAAv0zOaixICwA3AAAANwAAAEUAADcAAQAAQBFmkQoAAB4KAAAHBxScQAAjDTQCAQAbAQEBAQEBAQEBAQEBAQEBAQEHYWxpY2U=",
+      "mode": "644"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "alice"
+  },
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: вывод реального tshark)",
+      "cases": [
+        {
+          "match": "user_name|radius\\.",
+          "example": "-r radius.pcap -T fields -e radius.User_Name -e radius.code",
+          "output": "alice\t2\n"
+        },
+        {
+          "match": "-r\\s+radius\\.pcap",
+          "example": "-r radius.pcap -nn",
+          "output": "    1   0.000000    10.0.0.30 → 10.0.0.7     RADIUS 55 Access-Accept id=1\n"
+        }
+      ],
+      "fallback": "    1   0.000000    10.0.0.30 → 10.0.0.7     RADIUS 55 Access-Accept id=1\n"
+    }
+  }
+}

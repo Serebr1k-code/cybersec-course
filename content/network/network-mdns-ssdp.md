@@ -13,6 +13,17 @@ useful_for:
   - "Защита домашних и офисных сетей"
 estimated_minutes: 34
 summary: "mDNS/SSDP/UPnP: обнаружение устройств, утечки метаданных, SSRF к SSDP, UPnP port-mapping и амплификация, инструменты и защита."
+lab:
+  kind: shell
+  title: "Практика: SSDP M-SEARCH (UPnP discovery)"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, discovery.pcap]
+  check: "grep -q 'upnp:rootdevice' answer.txt"
+  hints:
+    - "SSDP работает на UDP/1900 и рассылается в 239.255.255.250."
+    - "В M-SEARCH заголовок `ST` задаёт, что ищем."
+    - "Искомое значение ST — `upnp:rootdevice`."
 ---
 
 ## Вопрос, с которого всё начинается

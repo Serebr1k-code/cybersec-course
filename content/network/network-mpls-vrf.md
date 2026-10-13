@@ -13,6 +13,17 @@ useful_for:
   - "Работа (инженер): диагностика MPLS и изоляции"
 estimated_minutes: 60
 summary: "Как MPLS коммутирует по меткам, что такое LSP, как VRF изолирует маршруты клиентов и какие атаки возможны (route leak, label spoofing) — с командами и разбором."
+lab:
+  kind: shell
+  title: "Практика: MPLS-метка в кадре"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, mpls.pcap]
+  check: "grep -q '1600' answer.txt"
+  hints:
+    - "MPLS-метка идёт между Ethernet и внутренним IP-заголовком."
+    - "Поле `mpls.label` содержит номер метки (верхние 20 бит)."
+    - "Искомый номер метки — `1600`."
 ---
 
 ## Вопрос, с которого всё начинается

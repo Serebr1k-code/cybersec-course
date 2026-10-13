@@ -1,0 +1,42 @@
+{
+  "id": "network-mpls-vrf",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: MPLS-метка в кадре\n\nВ дампе `mpls.pcap` зафиксирован MPLS-кадр: провайдер пометил трафик меткой.\nНужно определить номер метки (label).\n\n1. Посмотри сводку: `tshark -r mpls.pcap -nn`\n2. Вытащи метку: `tshark -r mpls.pcap -T fields -e mpls.label -e ip.src -e ip.dst`\n\nЗапиши **номер MPLS-метки** в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/mpls.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAv0zOatU8CwAuAAAALgAAAP///////2h6ZJWAo4hHAGQBQEUAABwAAQAAQAFm3goAAAEKAAACCAD3/wAAAAA=",
+      "mode": "644"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "1600"
+  },
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: вывод реального tshark)",
+      "cases": [
+        {
+          "match": "mpls\\.label",
+          "example": "-r mpls.pcap -T fields -e mpls.label -e ip.src -e ip.dst",
+          "output": "1600\t10.0.0.1\t10.0.0.2\n"
+        },
+        {
+          "match": "-r\\s+mpls\\.pcap",
+          "example": "-r mpls.pcap -nn",
+          "output": "    1   0.000000     10.0.0.1 → 10.0.0.2     ICMP 46 Echo (ping) request  id=0x0000, seq=0/0, ttl=64\n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.1 → 10.0.0.2     ICMP 46 Echo (ping) request  id=0x0000, seq=0/0, ttl=64\n"
+    }
+  }
+}

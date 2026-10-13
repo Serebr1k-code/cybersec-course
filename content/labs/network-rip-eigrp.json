@@ -1,0 +1,42 @@
+{
+  "id": "network-rip-eigrp",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: RIPv2-анонс сети\n\nВ дампе `rip.pcap` зафиксирован RIPv2 Response — маршрутизатор анонсирует\nподсети в multicast-группу. Определи, какую сеть он рекламирует.\n\n1. Посмотри сводку: `tshark -r rip.pcap -nn`\n2. Вытащи анонс: `tshark -r rip.pcap -T fields -e rip.ip -e rip.netmask -e rip.metric`\n\nЗапиши **анонсируемую сеть** (например, `10.1.1.0`) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/rip.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AADkAAAAv0zOaq5FCwA0AAAANAAAAEUAADQAAQAAQBGQrgoAAAHgAAAJAggCCAAg+4sCAgAAAAIAAAoBAQD///8ACgAAAQAAAAE=",
+      "mode": "644"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "10.1.1.0"
+  },
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: вывод реального tshark)",
+      "cases": [
+        {
+          "match": "rip\\.",
+          "example": "-r rip.pcap -T fields -e rip.ip -e rip.netmask -e rip.metric",
+          "output": "10.1.1.0\t255.255.255.0\t1\n"
+        },
+        {
+          "match": "-r\\s+rip\\.pcap",
+          "example": "-r rip.pcap -nn",
+          "output": "    1   0.000000     10.0.0.1 → 224.0.0.9    RIPv2 52 Response\n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.1 → 224.0.0.9    RIPv2 52 Response\n"
+    }
+  }
+}

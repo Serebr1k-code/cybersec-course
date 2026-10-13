@@ -1,0 +1,42 @@
+{
+  "id": "network-ipv6-tunneling",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: IPv6-в-IPv4 (6in4) туннель\n\nВ дампе `tunnel.pcap` зафиксирован трафик туннеля: IPv6-пакеты упакованы внутрь\nIPv4 (protocol 41). Нужно определить адрес назначения внутреннего IPv6-пакета.\n\n1. Посмотри сводку: `tshark -r tunnel.pcap -nn`\n2. Вытащи внутренние адреса: `tshark -r tunnel.pcap -T fields -e ipv6.src -e ipv6.dst`\n\nЗапиши **IPv6-адрес назначения** в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/tunnel.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AADkAAAAqUzOaoeXCABEAAAARAAAAEUAAEQAAQAAQCn2jMAAAgHAAAICYAAAAAAIOkAgAQ24AAAAAAAAAAAAAAABIAENuAAAAAAAAAAAAAAAAoAAJEgAAAAA",
+      "mode": "644"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "2001:db8::2"
+  },
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: вывод реального tshark)",
+      "cases": [
+        {
+          "match": "ipv6\\.",
+          "example": "-r tunnel.pcap -T fields -e ipv6.src -e ipv6.dst",
+          "output": "2001:db8::1\t2001:db8::2\n"
+        },
+        {
+          "match": "-r\\s+tunnel\\.pcap",
+          "example": "-r tunnel.pcap -nn",
+          "output": "    1   0.000000  2001:db8::1 → 2001:db8::2  ICMPv6 68 Echo (ping) request id=0x0000, seq=0, hop limit=64\n"
+        }
+      ],
+      "fallback": "    1   0.000000  2001:db8::1 → 2001:db8::2  ICMPv6 68 Echo (ping) request id=0x0000, seq=0, hop limit=64\n"
+    }
+  }
+}

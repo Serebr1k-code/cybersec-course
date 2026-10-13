@@ -1,0 +1,47 @@
+{
+  "id": "network-dhcpv6",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: DUID клиента в DHCPv6\n\nВ дампе `dhcp6.pcap` зафиксирован DHCPv6 `Solicit` от клиента. Сервер должен\nответить `Advertise`. Определи идентификатор клиента (DUID).\n\n1. Посмотри сводку: `tshark -r dhcp6.pcap -nn`\n2. Разбери детально: `tshark -r dhcp6.pcap -V`\n3. Вытащи поля: `tshark -r dhcp6.pcap -T fields -e dhcpv6.xid -e dhcpv6.duid.bytes`\n\nЗапиши **DUID клиента** (hex) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/dhcp6.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AADlAAAAv0zOalhKCwBGAAAARgAAAGAAAAAAHhFA/oAAAAAAAAAAAAAAAAAAAf8CAAAAAAAAAAAAAAABAAICIgIjAB5z9wERIjMAAQAOAAEAAQAAAAAAESIzRFU=",
+      "mode": "644"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "0001000100000000001122334455"
+  },
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: вывод реального tshark)",
+      "cases": [
+        {
+          "match": "-V",
+          "example": "-r dhcp6.pcap -V",
+          "output": "    Message type: Solicit (1)\n    Transaction ID: 0x112233\n    Client Identifier\n        Option: Client Identifier (1)\n        Length: 14\n        DUID: 0001000100000000001122334455\n        DUID Type: link-layer address plus time (1)\n"
+        },
+        {
+          "match": "-T\\s+fields",
+          "example": "-r dhcp6.pcap -T fields -e dhcpv6.xid -e dhcpv6.duid.bytes",
+          "output": "0x112233\t0001000100000000001122334455\n"
+        },
+        {
+          "match": "-r\\s+dhcp6\\.pcap",
+          "example": "-r dhcp6.pcap -nn",
+          "output": "    1   0.000000      fe80::1 → ff02::1:2    DHCPv6 70 Solicit XID: 0x112233 CID: 0001000100000000001122334455 \n"
+        }
+      ],
+      "fallback": "    1   0.000000      fe80::1 → ff02::1:2    DHCPv6 70 Solicit XID: 0x112233 CID: 0001000100000000001122334455 \n"
+    }
+  }
+}

@@ -13,6 +13,17 @@ useful_for:
   - "Защита Wi-Fi Enterprise"
 estimated_minutes: 42
 summary: "802.1X/EAP: методы аутентификации, атаки на PEAP/MSCHAPv2, rogue AP с EAP-фейком, eaphammer/hostapd-mana, обход NAC и защита."
+lab:
+  kind: shell
+  title: "Практика: разбор RADIUS Access-Accept"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, radius.pcap]
+  check: "grep -q 'alice' answer.txt"
+  hints:
+    - "RADIUS использует UDP/1812 (authentication) и UDP/1813 (accounting)."
+    - "Атрибут `User-Name` содержит логин прошедшего аутентификацию."
+    - "Искомый логин — `alice`."
 ---
 
 ## Вопрос, с которого всё начинается

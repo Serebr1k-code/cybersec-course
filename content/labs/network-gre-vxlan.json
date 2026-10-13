@@ -1,0 +1,42 @@
+{
+  "id": "network-gre-vxlan",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: VNI в VXLAN-инкапсуляции\n\nВ дампе `vxlan.pcap` зафиксирован VXLAN-трафик между VTEP `192.0.2.1` и\n`192.0.2.2`. Внутри инкапсуляции — DNS-запрос тенанта `10.10.0.5`.\n\n1. Посмотри сводку: `tshark -r vxlan.pcap -nn`\n2. Вытащи VNI и адреса: `tshark -r vxlan.pcap -T fields -e vxlan.vni -e ip.src -e ip.dst`\n\nЗапиши **номер VNI** в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/vxlan.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAqUzOam7OBwB+AAAAfgAAAP///////2h6ZJWAowgARQAAcAABAABAEfZ4wAACAcAAAgIStRK1AFykbgwAAAMAAGQA////////aHpklYCjCABFAAA+AAEAAEARZo0KCgAFCgoACQTSADUAKux3AAEBAAABAAAAAAAABWlubmVyBGNvcnAFbG9jYWwAAAEAAQ==",
+      "mode": "644"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "100"
+  },
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: вывод реального tshark)",
+      "cases": [
+        {
+          "match": "vxlan\\.vni",
+          "example": "-r vxlan.pcap -T fields -e vxlan.vni -e ip.src -e ip.dst",
+          "output": "100\t192.0.2.1,10.10.0.5\t192.0.2.2,10.10.0.9\n"
+        },
+        {
+          "match": "-r\\s+vxlan\\.pcap",
+          "example": "-r vxlan.pcap -nn",
+          "output": "    1   0.000000    10.10.0.5 → 10.10.0.9    DNS 126 Standard query 0x0001 A inner.corp.local\n"
+        }
+      ],
+      "fallback": "    1   0.000000    10.10.0.5 → 10.10.0.9    DNS 126 Standard query 0x0001 A inner.corp.local\n"
+    }
+  }
+}

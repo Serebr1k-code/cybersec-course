@@ -13,6 +13,17 @@ useful_for:
   - "Работа (SOC): настройка и тюнинг IDS"
 estimated_minutes: 55
 summary: "Suricata и Zeek: сигнатурный vs поведенческий детект, синтаксис правил Suricata, богатые логи Zeek, тюнинг и обход детекта — с командами и примерами."
+lab:
+  kind: shell
+  title: "Практика: разбор suricata fast.log"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, fast.log]
+  check: "grep -q '203.0.113.45' answer.txt"
+  hints:
+    - "Каждая строка fast.log — это сработавшее правило с 5-tuple в конце."
+    - "Классификация `ET SCAN` означает сканирование."
+    - "Ищи строки с `ET SCAN` и смотри на адрес источника."
 ---
 ## Вопрос, с которого всё начинается
 

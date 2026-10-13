@@ -13,6 +13,17 @@ useful_for:
   - "Работа (SOC): детект RA-спуфинга"
 estimated_minutes: 55
 summary: "Как IPv6 назначает адреса (SLAAC, DHCPv6, RA), чем опасны rogue DHCPv6 и RA-спуфинг, как подсунуть жертве свой DNS/шлюз и как защититься (RA Guard, DHCPv6 Guard)."
+lab:
+  kind: shell
+  title: "Практика: DUID клиента в DHCPv6"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, dhcp6.pcap]
+  check: "grep -q '0001000100000000001122334455' answer.txt"
+  hints:
+    - "DHCPv6 использует UDP/546 (клиент) и UDP/547 (сервер) поверх IPv6."
+    - "Клиент идентифицируется через Client Identifier (DUID)."
+    - "Искомый DUID — 14 байт: `0001000100000000001122334455`."
 ---
 
 ## Вопрос, с которого всё начинается
