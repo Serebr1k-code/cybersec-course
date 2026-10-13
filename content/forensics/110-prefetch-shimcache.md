@@ -13,6 +13,19 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 55
 summary: "Глубокий разбор артефактов выполнения Windows: Prefetch (что и сколько раз запускалось), ShimCache/AppCompatCache (следы EXE, включая удалённые), AmCache (пути и хеши) — с инструментами PECmd, AppCompatCacheParser, AmcacheParser."
+lab:
+  kind: shell
+  title: "Практика: разбор Prefetch"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, UPDATER.EXE-1234ABCD.pf, parse_pf.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 parse_pf.py`."
+    - "Смотри строки `ref`."
+    - "Одна из ссылок заканчивается base64-строкой без расширения."
+    - "`python3 parse_pf.py | grep payload | cut -d' ' -f2 | base64 -d > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -12,6 +12,19 @@ useful_for:
   - "Применять решётки к смещённым nonce (biased nonce)"
 estimated_minutes: 38
 summary: "Атаки на ECDSA: формула подписи, восстановление ключа при повторном nonce (k), атака на смещённый/усечённый nonce через решётки (hidden number problem), полные скрипты на Sage и ecdsa, распознавание в CTF."
+lab:
+  kind: shell
+  title: "Практика: переиспользование nonce ECDSA"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, r.txt, s1.txt, s2.txt, z1.txt, z2.txt, recover.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 recover.py`."
+    - "Одинаковый r у двух подписей выдаёт одинаковый k."
+    - "Скрипт решает систему из двух уравнений."
+    - "`python3 recover.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

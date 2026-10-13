@@ -13,6 +13,19 @@ useful_for:
   - "Распознавать варианты small-e атак"
 estimated_minutes: 40
 summary: "Атаки на RSA с малым e: целочисленный корень (m^e < n), Håstad broadcast (одно сообщение под k >= e модулями, CRT), обобщения с padding (Coppersmith), Franklin-Reiter (линейно связанные сообщения). Практические скрипты и распознавание."
+lab:
+  kind: shell
+  title: "Практика: атака Håstad broadcast"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, moduli.txt, ciphers.txt, hastad.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 hastad.py`."
+    - "Сначала CRT собирает m^3 по трём модулям."
+    - "Затем — целочисленный кубический корень."
+    - "`python3 hastad.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

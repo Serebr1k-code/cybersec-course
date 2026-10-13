@@ -1,0 +1,60 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: дискретный логарифм (Pohlig–Hellman)\n\nДаны `p` (простое), `g` (образующий), `h = g^x mod p`. Модуль `p−1`\nгладкий (разложен в `factors.txt`), поэтому работает Полига–Хеллман:\nрешаем dlog в каждой подгруппе q^e и собираем по CRT.\n\nШаги:\n1. `python3 ph.py`.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Полига–Хеллман сводит dlog к подгруппам простых степеней.\n- В каждой подгруппе — маленький BSGS, затем CRT.\n"
+    },
+    {
+      "path": "/home/student/task/p.txt",
+      "text": "1261119365937371447217391643780861931114144377975664773823999817353623840102395529908224000000001\n"
+    },
+    {
+      "path": "/home/student/task/g.txt",
+      "text": "61\n"
+    },
+    {
+      "path": "/home/student/task/h.txt",
+      "text": "588102065158419124691018839531146769050133717516230020420016354846206089547239661409790794828445\n"
+    },
+    {
+      "path": "/home/student/task/factors.txt",
+      "text": "2 21\n3 14\n5 9\n7 8\n11 6\n13 6\n17 5\n19 5\n23 5\n29 4\n31 4\n37 4\n41 4\n43 4\n47 4\n"
+    },
+    {
+      "path": "/home/student/task/ph.py",
+      "text": "from math import isqrt\np=int(open('p.txt').read()); g=int(open('g.txt').read()); h=int(open('h.txt').read())\nfactors=[tuple(map(int,l.split())) for l in open('factors.txt').read().splitlines()]\ndef bsgs(g,h,p,order):\n    n=isqrt(order)+1\n    table={}; e=1\n    for j in range(n):\n        table.setdefault(e,j); e=e*g%p\n    factor=pow(g,-n,p); gamma=h\n    for i in range(n):\n        if gamma in table: return i*n+table[gamma]\n        gamma=gamma*factor%p\n    return None\nres=[]; mods=[]\nfor q,e in factors:\n    qe=q**e\n    gi=pow(g,(p-1)//qe,p); hi=pow(h,(p-1)//qe,p)\n    res.append(bsgs(gi,hi,p,qe)); mods.append(qe)\nx=0; M=1\nfor r,mo in zip(res,mods):\n    while x%mo!=r: x+=M\n    M*=mo\nprint(x.to_bytes((x.bit_length()+7)//8,'big').decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "ph\\.py",
+          "example": "python3 ph.py",
+          "output": "nto{p0hl1g_h3llm4n_sm00th_p_m1nus_1}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-discrete-log",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p0hl1g_h3llm4n_sm00th_p_m1nus_1}"
+  }
+}

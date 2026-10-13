@@ -1,0 +1,48 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: стегоанализ хи-квадрат\n\n`suspect.png` — RGB-картинка; в одном из каналов есть LSB-встраивание.\nХи-квадрат тест Вестфельда–Пфитцмана показывает, в каком канале\nчастоты пар (0,1),(2,3),… выровнены (встроенный канал).\n\nШаги:\n1. `python3 chi.py` — считает chi² по каналам и извлекает LSB аномального.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- LSB-встраивание выравнивает частоты пар значений.\n- Аномальный канал — тот, где нормализованный chi² минимален.\n"
+    },
+    {
+      "path": "/home/student/task/suspect.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAGAAAABgCAIAAABt+uBvAAABRElEQVR4nO3Q0YqsMBAE0Eo7///L7sOgm9G43Mu+NMuBQkLsVPSMJJVRqcpe2So51nXsvwfeybQ/z58zNTVsn/v78fa+v01vLzPnjXPq4d6x6l/2XP5rrM6OSl6pJJUk2ZL9WL+f41jvyUjGsX4/t2myprPjeLt/9lz6989777efM2PVf++p/+lZfv929H9PvlKXrllnrL7g/Ku743nq3BkPO8uz/zh/n3nqyXPPfOqn73+l5q7luh7Wl8m/mRNIAAECBKhfAAECBAhQ4wACBAgQoMYBBAgQIECNAwgQIECAGgcQIECAADUOIECAAAFqHECAAAEC1DiAAAECBKhxAAECBAhQ4wACBAgQoMYBBAgQIECNAwgQIECAGgcQIECAADUOIECAAAFqHECAAAEC1DiAAAECBKhxAAECBAhQ4wAC9Lt8AahdRdwF9LW6AAAAAElFTkSuQmCC"
+    },
+    {
+      "path": "/home/student/task/chi.py",
+      "text": "from PIL import Image\nfrom collections import Counter\nimg=Image.open('suspect.png').convert('RGB')\npx=list(img.getdata())\ndef chi(vals):\n    c=Counter(vals); chi2=0; df=0\n    for k in range(0,256,2):\n        n0=c.get(k,0); n1=c.get(k+1,0)\n        if n0+n1>0:\n            e=(n0+n1)/2\n            chi2 += ((n0-e)**2+(n1-e)**2)/e; df+=1\n    return chi2/df if df else 0\nnames=['R','G','B']\nfor ch in range(3):\n    v=[p[ch] for p in px]\n    print('channel', names[ch], 'normalized chi2 %.3f' % chi(v))\nbest=min(range(3), key=lambda ch: chi([p[ch] for p in px]))\nbits=''.join(str(p[best]&1) for p in px)\nbs=bytes(int(bits[i:i+8],2) for i in range(0,len(bits)//8*8,8))\nt=bs.decode('latin1'); i=t.find('nto{'); j=t.find('}',i)\nprint('embedded channel:', names[best])\nprint(t[i:j+1])\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "chi\\.py",
+          "example": "python3 chi.py",
+          "output": "channel R normalized chi2 96.000\nchannel G normalized chi2 96.000\nchannel B normalized chi2 0.115\nembedded channel: B\nnto{ch1_squ4r3_d3t3cts_lsb}\n/tmp/pentestcode/labs/data3s/chi.py:4: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.\n  px=list(img.getdata())\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-steganalysis",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ch1_squ4r3_d3t3cts_lsb}"
+  }
+}

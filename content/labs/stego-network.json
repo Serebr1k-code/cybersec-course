@@ -1,0 +1,48 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: covert-канал в TCP sequence number\n\n`covert.pcap` — серия TCP SYN. В младшем байте `seq` каждого пакета\nспрятан байт флага.\n\nШаги:\n1. `python3 decode.py` — читает seq из pcap.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Поля протоколов, которые мало кто проверяет (seq, IP ID, TTL) — канал утечки.\n- В tshark: `-T fields -e tcp.seq`.\n"
+    },
+    {
+      "path": "/home/student/task/covert.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AADkAAAAZAfOagQoDwAoAAAAKAAAAEUAACgAAQAAQAZGgwoAABTGM2QFnEABuwAAAG4AAAAAUAIgAL0sAABkB85quCgPACgAAAAoAAAARQAAKAABAABABkaDCgAAFMYzZAWcQQG7AAAAdAAAAABQAiAAvSUAAGQHzmoFKQ8AKAAAACgAAABFAAAoAAEAAEAGRoMKAAAUxjNkBZxCAbsAAABvAAAAAFACIAC9KQAAZAfOakkpDwAoAAAAKAAAAEUAACgAAQAAQAZGgwoAABTGM2QFnEMBuwAAAHsAAAAAUAIgAL0cAABkB85qiikPACgAAAAoAAAARQAAKAABAABABkaDCgAAFMYzZAWcRAG7AAAAdAAAAABQAiAAvSIAAGQHzmrKKQ8AKAAAACgAAABFAAAoAAEAAEAGRoMKAAAUxjNkBZxFAbsAAABjAAAAAFACIAC9MgAAZAfOagkqDwAoAAAAKAAAAEUAACgAAQAAQAZGgwoAABTGM2QFnEYBuwAAAHAAAAAAUAIgAL0kAABkB85qUSoPACgAAAAoAAAARQAAKAABAABABkaDCgAAFMYzZAWcRwG7AAAAXwAAAABQAiAAvTQAAGQHzmqOKg8AKAAAACgAAABFAAAoAAEAAEAGRoMKAAAUxjNkBZxIAbsAAABzAAAAAFACIAC9HwAAZAfOassqDwAoAAAAKAAAAEUAACgAAQAAQAZGgwoAABTGM2QFnEkBuwAAADMAAAAAUAIgAL1eAABkB85qCCsPACgAAAAoAAAARQAAKAABAABABkaDCgAAFMYzZAWcSgG7AAAAcQAAAABQAiAAvR8AAGQHzmpGKw8AKAAAACgAAABFAAAoAAEAAEAGRoMKAAAUxjNkBZxLAbsAAABfAAAAAFACIAC9MAAAZAfOaoYrDwAoAAAAKAAAAEUAACgAAQAAQAZGgwoAABTGM2QFnEwBuwAAAGMAAAAAUAIgAL0rAABkB85qyCsPACgAAAAoAAAARQAAKAABAABABkaDCgAAFMYzZAWcTQG7AAAAMAAAAABQAiAAvV0AAGQHzmoELA8AKAAAACgAAABFAAAoAAEAAEAGRoMKAAAUxjNkBZxOAbsAAAB2AAAAAFACIAC9FgAAZAfOakEsDwAoAAAAKAAAAEUAACgAAQAAQAZGgwoAABTGM2QFnE8BuwAAADMAAAAAUAIgAL1YAABkB85qfiwPACgAAAAoAAAARQAAKAABAABABkaDCgAAFMYzZAWcUAG7AAAAcgAAAABQAiAAvRgAAGQHzmq6LA8AKAAAACgAAABFAAAoAAEAAEAGRoMKAAAUxjNkBZxRAbsAAAB0AAAAAFACIAC9FQAAZAfOavUsDwAoAAAAKAAAAEUAACgAAQAAQAZGgwoAABTGM2QFnFIBuwAAAF8AAAAAUAIgAL0pAABkB85qLi0PACgAAAAoAAAARQAAKAABAABABkaDCgAAFMYzZAWcUwG7AAAAYwAAAABQAiAAvSQAAGQHzmpoLQ8AKAAAACgAAABFAAAoAAEAAEAGRoMKAAAUxjNkBZxUAbsAAABoAAAAAFACIAC9HgAAZAfOaqUtDwAoAAAAKAAAAEUAACgAAQAAQAZGgwoAABTGM2QFnFUBuwAAADQAAAAAUAIgAL1RAABkB85q3y0PACgAAAAoAAAARQAAKAABAABABkaDCgAAFMYzZAWcVgG7AAAAbgAAAABQAiAAvRYAAGQHzmojLg8AKAAAACgAAABFAAAoAAEAAEAGRoMKAAAUxjNkBZxXAbsAAABuAAAAAFACIAC9FQAAZAfOal8uDwAoAAAAKAAAAEUAACgAAQAAQAZGgwoAABTGM2QFnFgBuwAAADMAAAAAUAIgAL1PAABkB85qmS4PACgAAAAoAAAARQAAKAABAABABkaDCgAAFMYzZAWcWQG7AAAAbAAAAABQAiAAvRUAAGQHzmrSLg8AKAAAACgAAABFAAAoAAEAAEAGRoMKAAAUxjNkBZxaAbsAAAB9AAAAAFACIAC9AwAA"
+    },
+    {
+      "path": "/home/student/task/decode.py",
+      "text": "from scapy.all import rdpcap, TCP\npkts=rdpcap('covert.pcap')\nbs=bytes(p[TCP].seq & 0xff for p in pkts)\nt=bs.decode('latin1'); i=t.find('nto{'); j=t.find('}',i)\nprint(t[i:j+1])\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "decode\\.py",
+          "example": "python3 decode.py",
+          "output": "nto{tcp_s3q_c0v3rt_ch4nn3l}\n/home/Serebr1k/.local/lib/python3.14/site-packages/scapy/layers/tls/crypto/groups.py:25: CryptographyDeprecationWarning: Diffie-Hellman over finite fields (FFDH) is deprecated and support will be removed in a future release. Use a more modern key exchange algorithm.\n  from cryptography.hazmat.primitives.asymmetric.dh import DHParameterNumbers\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-network",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{tcp_s3q_c0v3rt_ch4nn3l}"
+  }
+}

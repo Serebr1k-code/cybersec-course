@@ -1,0 +1,28 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разобрать метаданные LVM\n\n`lvm_meta.txt` — фрагмент метаданных физического тома LVM2\n(текстовый формат `pv0/vg0/lv0`). В одном из полей спрятана base64-строка.\n\nШаги:\n1. `cat lvm_meta.txt` — прочитай метаданные.\n2. Найди поле со значением в кавычках, которое выглядит как base64.\n3. Раскодируй и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- LVM2 хранит метаданные в текстовом виде: PV → VG → LV.\n- `pe_start` — смещение первого Physical Extent в секторах.\n"
+    },
+    {
+      "path": "/home/student/task/lvm_meta.txt",
+      "text": "# LVM2 physical volume metadata (fragment)\npv0 {\n    id = \"aBcD-EF12-3456\"\n    device = \"/dev/sdb1\"\n    status = [\"ALLOCATABLE\"]\n    pe_start = 2048\n}\nvg0 {\n    id = \"Zx9Y-Wv8U-7654\"\n    seqno = 3\n    extent_size = 8192\n    pv_count = 1\n    secret = \"bnRve2x2bV9wdl92Z19sdl9yM2MwdjNyeX0=\"\n    lv_count = 1\n}\nlv0 {\n    id = \"Lv01-Lv02-Lv03\"\n    segment_count = 1\n}\n"
+    }
+  ],
+  "tools": {},
+  "id": "forensics-lvm",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{lvm_pv_vg_lv_r3c0v3ry}"
+  }
+}

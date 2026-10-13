@@ -13,6 +13,19 @@ useful_for:
   - "Forensics: данные в бинарниках"
 estimated_minutes: 35
 summary: "Как прячут данные в PE/ELF: overlay после конца образа, ресурсы, неиспользуемые/пустые секции, дописанные архивы, иконы и строковые ресурсы; практическое извлечение."
+lab:
+  kind: shell
+  title: "Практика: overlay после ELF"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, sample.elf, overlay.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 overlay.py`."
+    - "Конец сегментов — max(p_offset+p_filesz)."
+    - "Всё после — overlay с base64."
+    - "`python3 overlay.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,19 @@ useful_for:
   - "Forensics: скрытые сообщения в обычном тексте"
 estimated_minutes: 45
 summary: "Лингвистическая стеганография: null-шифры (использование части слов), mimic-функции и spam-mimic, кодирование через синонимы и структуру предложений, и как это распознавать и декодировать."
+lab:
+  kind: shell
+  title: "Практика: null-шифр по длинам слов"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, story.txt, null.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 null.py`."
+    - "Длина каждого слова кодирует hex-цифру."
+    - "Длина = цифра + 1; собери hex и байты."
+    - "`python3 null.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

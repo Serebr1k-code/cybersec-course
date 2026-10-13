@@ -1,0 +1,48 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор суперблока XFS\n\n`xfs.img` — суперблок XFS. В поле `s_last_mounted` лежит base64-строка.\n\nШаги:\n1. `python3 parse_xfs.py`.\n2. Возьми строку `last_mounted` и раскодируй её значение.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- XFS: магия `XFSB` в первых 4 байтах суперблока.\n- `sb_agcount` — число allocation groups (поле по смещению 0x18).\n"
+    },
+    {
+      "path": "/home/student/task/xfs.img",
+      "b64": "WEZTQgAAAgAAAAAAAAAACAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZGF0YS14ZnMtbGFiYm5SdmUzaG1jMTgwYkd3d1l6UjBNVEJ1WDJkeU1IVndjMzA9AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
+    },
+    {
+      "path": "/home/student/task/parse_xfs.py",
+      "text": "data=open('xfs.img','rb').read()\nif data[0:4]==b'XFSB':\n    bs=int.from_bytes(data[4:8],'big')\n    ag=int.from_bytes(data[0x18:0x1c],'big')\n    lbl=data[0x6c:0x78].split(b'\\x00')[0].decode()\n    lm=data[0x78:0x78+64].split(b'\\x00')[0].decode()\n    print('XFSB blocksize %d agcount %d' % (bs, ag))\n    print('label %s' % lbl)\n    print('last_mounted %s' % lm)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "parse_xfs\\.py",
+          "example": "python3 parse_xfs.py",
+          "output": "XFSB blocksize 512 agcount 4\nlabel data-xfs-lab\nlast_mounted bnRve3hmc180bGwwYzR0MTBuX2dyMHVwc30=\n"
+        }
+      ]
+    }
+  },
+  "id": "forensics-xfs",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{xfs_4ll0c4t10n_gr0ups}"
+  }
+}

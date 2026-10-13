@@ -1,0 +1,48 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разобрать Prefetch\n\n`UPDATER.EXE-1234ABCD.pf` — файл Prefetch. Он хранит имя запущенного\nисполняемого файла, число запусков и список загруженных файлов (references).\nОдна из ссылок содержит base64-строку — флаг.\n\nШаги:\n1. `python3 parse_pf.py` — разбор заголовка и списка references.\n2. Найди `ref`, значение которого — base64 (после последнего `\\`).\n3. Раскодируй base64 и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Prefetch: версия в первых 4 байтах, имя (UTF-16) по 0x10, run count по 0xD0.\n- Список references — строки UTF-16 с путями; часто выдают stage-2 артефакты.\n"
+    },
+    {
+      "path": "/home/student/task/UPDATER.EXE-1234ABCD.pf",
+      "b64": "HgAAAAAAAAAAAAAAAAAAAFUAUABEAEEAVABFAFIALgBFAFgARQAtADEAMgAzADQAQQBCAEMARAAuAHAAZgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABW8sTjZAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFwAVgBPAEwAVQBNAEUAXABDADoAXABXAGkAbgBkAG8AdwBzAFwAVABlAG0AcABcAHMAdABhAGcAZQAyAC4AZABsAGwAAABcAFYATwBMAFUATQBFAFwAQwA6AFwAVQBzAGUAcgBzAFwAUAB1AGIAbABpAGMAXABiAG4AUgB2AGUAMwBCAHkATQAyAFkAegBkAEcATgBvAFgAegBOADQATQAyAE4AMQBkAEQARQB3AGIAbAA5ADAAYwBqAFIAagBNADMATgA5AAAAXABWAE8ATABVAE0ARQBcAEMAOgBcAFcAaQBuAGQAbwB3AHMAXABTAHkAcwB0AGUAbQAzADIAXABrAGUAcgBuAGUAbAAzADIALgBkAGwAbAA="
+    },
+    {
+      "path": "/home/student/task/parse_pf.py",
+      "text": "import struct\nd=open('UPDATER.EXE-1234ABCD.pf','rb').read()\nver=struct.unpack_from('<I',d,0)[0]\nname=d[0x10:0x10+60].decode('utf-16le','ignore').split('\\x00')[0]\nruns=struct.unpack_from('<I',d,0xD0)[0]\nprint('version %d' % ver)\nprint('name %s' % name)\nprint('run_count %d' % runs)\ntxt=d[0x100:].decode('utf-16le','ignore')\nfor s in txt.split('\\x00'):\n    if s.startswith('\\\\'):\n        base=s.split('\\\\')[-1]\n        if '.' not in base:\n            print('payload %s' % base)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "parse_pf\\.py",
+          "example": "python3 parse_pf.py",
+          "output": "version 30\nname UPDATER.EXE-1234ABCD.pf\nrun_count 7\npayload bnRve3ByM2YzdGNoXzN4M2N1dDEwbl90cjRjM3N9\n"
+        }
+      ]
+    }
+  },
+  "id": "forensics-prefetch-shimcache",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pr3f3tch_3x3cut10n_tr4c3s}"
+  }
+}

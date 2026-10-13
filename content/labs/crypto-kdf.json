@@ -1,0 +1,60 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: подобрать пароль по PBKDF2-хэшу\n\n`hash.txt` — PBKDF2-HMAC-SHA256 (salt, iters из файлов). Пароль — в `wordlist.txt`.\n\nШаги:\n1. `python3 crack.py` — перебор словаря.\n2. Запиши найденный пароль в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- PBKDF2 с высокой итерацией замедляет перебор, но словарь всё равно работает.\n- Всегда сравнивайте байты через hmac.compare_digest в реальном коде.\n"
+    },
+    {
+      "path": "/home/student/task/salt.txt",
+      "b64": "bGFic2FsdA=="
+    },
+    {
+      "path": "/home/student/task/iters.txt",
+      "text": "12000\n"
+    },
+    {
+      "path": "/home/student/task/hash.txt",
+      "text": "0ca924c463baf5c2cb08cae2d48f04b741abd59dc3096ac5bf7f91ed84fe087d\n"
+    },
+    {
+      "path": "/home/student/task/wordlist.txt",
+      "text": "password\nletmein\nqwerty\nadmin\nwelcome\nnto{pbkdf2_1t3r4t10ns_m4tt3r}\ndragon\nmonkey\nsunshine\n"
+    },
+    {
+      "path": "/home/student/task/crack.py",
+      "text": "import hashlib\nsalt=open('salt.txt','rb').read()\niters=int(open('iters.txt').read())\ntarget=open('hash.txt').read().strip()\nfor pw in open('wordlist.txt').read().splitlines():\n    if hashlib.pbkdf2_hmac('sha256', pw.encode(), salt, iters, 32).hex()==target:\n        print(pw)\n        break\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "crack\\.py",
+          "example": "python3 crack.py",
+          "output": "nto{pbkdf2_1t3r4t10ns_m4tt3r}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-kdf",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pbkdf2_1t3r4t10ns_m4tt3r}"
+  }
+}

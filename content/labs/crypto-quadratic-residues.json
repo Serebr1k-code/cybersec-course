@@ -1,0 +1,52 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: квадратный корень по простому модулю\n\nДаны простое `p` и `c = m^2 mod p`. Сообщение — флаг. Найди `m`\nалгоритмом Тонелли–Шанкса (или прямым возведением при p ≡ 3 mod 4).\n\nШаги:\n1. `python3 sqrt.py`.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Для простого p корень существует, если c — квадратичный вычет (символ Лежандра = 1).\n- Тонелли–Шанкс даёт корень за O(log²p).\n"
+    },
+    {
+      "path": "/home/student/task/p.txt",
+      "text": "13407807929942597099574024998205846127479365820592393377723561443721764030073546976801874298166903427690031858186486051409411147875203962483004812344041879\n"
+    },
+    {
+      "path": "/home/student/task/c.txt",
+      "text": "2496015291639477672165943750447419596528068549440769780463854146223814819002452672591143191334040201217469767871677555242165042841642693984536075176086281\n"
+    },
+    {
+      "path": "/home/student/task/sqrt.py",
+      "text": "p=int(open('p.txt').read()); c=int(open('c.txt').read())\ndef legendre(a,p): return pow(a,(p-1)//2,p)\ndef tonelli(n,p):\n    if legendre(n,p)!=1: return None\n    if p%4==3: return pow(n,(p+1)//4,p)\n    q=p-1; s=0\n    while q%2==0: q//=2; s+=1\n    z=2\n    while legendre(z,p)!=1: z+=1\n    m_=s; cc=pow(z,q,p); t=pow(n,q,p); r=pow(n,(q+1)//2,p)\n    while t!=1:\n        i=1; t2=t*t%p\n        while t2!=1: t2=t2*t2%p; i+=1\n        b=pow(cc,1<<(m_-i-1),p)\n        m_=i; cc=b*b%p; t=t*cc%p; r=r*b%p\n    return r\nr=tonelli(c,p)\nfor cand in (r, p-r):\n    b=cand.to_bytes((cand.bit_length()+7)//8,'big')\n    if b.startswith(b'nto{'):\n        print(b.decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "sqrt\\.py",
+          "example": "python3 sqrt.py",
+          "output": "nto{t0n3ll1_sh4nks_squ4r3_r00ts}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-quadratic-residues",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{t0n3ll1_sh4nks_squ4r3_r00ts}"
+  }
+}

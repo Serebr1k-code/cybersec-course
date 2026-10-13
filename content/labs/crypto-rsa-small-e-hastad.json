@@ -1,0 +1,52 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Håstad broadcast (малое e)\n\nОдно и то же сообщение зашифровано textbook-RSA с `e=3` под тремя\nразными модулями (`moduli.txt`, `ciphers.txt`). По CRT восстанавливаем\n`m³`, затем берём целочисленный кубический корень.\n\nШаги:\n1. `python3 hastad.py`.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Håstad: m^e mod n_i при e взаимно просто с числом уравнений.\n- CRT даёт m^e точно (без модуля), дальше — целочисленный корень.\n"
+    },
+    {
+      "path": "/home/student/task/moduli.txt",
+      "text": "2982449583744595079826664865615429520595527895867517132481141664138113664928361605048269072659733192126519533172912768397546410977993509134570772661817883\n1682193813115807499178804844571190726733798305983164742924613603232409191342144676797743041520337645599038660684496571984072782448285011424417142085644909\n8689790741353360668735182355893979320093040567238580506659809485915494250403507787620119638321797727280889125743691475350519291860652736574843557365981\n"
+    },
+    {
+      "path": "/home/student/task/ciphers.txt",
+      "text": "1985585482363821643947492238972133998111709590429339152440448293139624185529474669199552514321052755402157862262112125969418241673099900330471003690867841\n783809194484284388282491939838645463958121635113082665370178946592386834708354655121980244140626831519672258516619372026434238498937807289104200225866071\n3048492054950426478254123538205560139334746446084778163894987864094482057738491744516814451641931708852131186138213953271794316440992606868701075371902\n"
+    },
+    {
+      "path": "/home/student/task/hastad.py",
+      "text": "from functools import reduce\ne=3\nns=[int(l) for l in open('moduli.txt').read().split()]\ncs=[int(l) for l in open('ciphers.txt').read().split()]\nM=reduce(lambda a,b:a*b,ns)\nx=0\nfor n,c in zip(ns,cs):\n    Mi=M//n\n    x=(x+c*Mi*pow(Mi,-1,n))%M\ndef iroot(v,k):\n    lo,hi=0,1\n    while hi**k<=v: hi*=2\n    while lo<hi:\n        mid=(lo+hi)//2\n        if mid**k<v: lo=mid+1\n        else: hi=mid\n    return lo\nm=iroot(x,e)\nprint(m.to_bytes((m.bit_length()+7)//8,'big').decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "hastad\\.py",
+          "example": "python3 hastad.py",
+          "output": "nto{h4st4d_br04dc4st_w1th_sm4ll_e}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-rsa-small-e-hastad",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h4st4d_br04dc4st_w1th_sm4ll_e}"
+  }
+}

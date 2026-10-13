@@ -1,0 +1,48 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: LSB в сэмплах WAV\n\n`audio.wav` — короткий тон. Флаг спрятан в младшем бите\nкаждого 16-битного сэмпла.\n\nШаги:\n1. `python3 lsb.py` — извлекает младшие биты и собирает байты.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- PCM WAV: сэмплы — целые; младший бит почти не влияет на звук.\n- 8 бит на байт, старший бит первым.\n"
+    },
+    {
+      "path": "/home/student/task/audio.wav",
+      "b64": "UklGRnQCAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YVACAAAAAPkDeQcWCoMLkwtFCr4HUARfAGH80/gc9pH0YPSO9fr3WftF/0QD4waxCVkLqwuaCkkI/QQbARf9avmF9sH0TvQ/9Xf3rvqI/o4CRgZDCSQLtwvlCssIpAXVAc79Cfr49vv0SfT69Pj2CfrO/dQBpAXKCOUKtwskC0IJRgaPAoj+rvp39z/1TvTA9IT2avkW/RsB/ARJCJsKqwtZC7EJ4gZFA0X/WPv794/1YPSQ9Bz20/hh/F8AUAS+B0UKkwuCCxcKeQf4AwAACPyJ+Or1fvRt9Lz1Qfix+6P/nwMvB+QJbguhC3EKBAimBLwAvfwc+U/2p/RW9Gf1t/cD++b+6gKXBnoJQQuzC8EKiwhRBXYBc/25+b/22vRL9Bv1N/da+ir+MwL3BQYJBwu4CwYLBgn3BTMCK/5a+jf3G/VK9Nr0v/a4+XP9dwFRBYsIwQqyC0ELewmXBuoC5v4D+7f3ZvVW9Kf0T/Yc+b38vACmBAQIcQqhC24L5QkvB54Do/+w+0H4vfVt9H706vWI+Aj8AAD5A3kHFgqDC5MLRAq+B1AEXgBh/NP4HPaQ9GH0j/X691n7Rf9FA+IGsAlZC6sLmgpJCP0EGwEX/Wv5hPbB9E70P/V296/6if6OAkcGQgklC7YL5QrKCKUF1QHO/Qn6+fb69Ej0+vT59gn6zv3VAaUFygjlCrYLJQtCCUcGjgKJ/q/6dvc/9U70wPSF9mr5Fv0aAf0ESQiaCqoLWQuxCeMGRANE/1n7+/eP9WD0kfQc9tL4YfxeAFAEvwdECpML"
+    },
+    {
+      "path": "/home/student/task/lsb.py",
+      "text": "import wave, struct\nw=wave.open('audio.wav','rb')\nn=w.getnframes(); data=w.readframes(n)\ns=struct.unpack('<%dh'%n, data)\nbits=''.join(str(x&1) for x in s)\nbs=bytes(int(bits[i:i+8],2) for i in range(0,len(bits)//8*8,8))\nt=bs.decode('latin1'); i=t.find('nto{'); j=t.find('}',i)\nprint(t[i:j+1])\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "lsb\\.py",
+          "example": "python3 lsb.py",
+          "output": "nto{aud10_lsb_1n_w4v_s4mpl3s}\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-audio",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{aud10_lsb_1n_w4v_s4mpl3s}"
+  }
+}

@@ -12,6 +12,19 @@ useful_for:
   - "Понимать tempering и обратную операцию"
 estimated_minutes: 36
 summary: "MT19937 изнутри: twist и tempering, обратимое untempering, полное восстановление по 624 выходам, частичные выходы и решатель Z3, восстановление seed, сравнение randcrack и символьных методов, готовые скрипты."
+lab:
+  kind: shell
+  title: "Практика: клонирование MT19937"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, outputs.txt, cipher.bin, untemper.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 untemper.py`."
+    - "Нужны все 624 выхода — это состояние целиком."
+    - "После untemper генератор продолжается с нужного места."
+    - "`python3 untemper.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

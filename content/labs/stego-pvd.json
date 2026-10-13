@@ -1,0 +1,48 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: PVD (pixel value differencing)\n\n`pvd.png` — grayscale-картинка. Данные встроены в разность\nзначений соседних пикселей (пары по горизонтали).\n\nШаги:\n1. `python3 pvd.py` — восстанавливает разности и извлекает биты.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- PVD: диапазон разности определяет, сколько бит несёт пара.\n- Диапазоны: [0-7],[8-15],[16-31],[32-63],[64-127],[128-255].\n"
+    },
+    {
+      "path": "/home/student/task/pvd.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAGAAAAAwCAAAAADLfSATAAAAlklEQVR4nO3NQW4FMQwCULBnkmO353aC6abqDb7UhdmCePxK5X3OPmHqrX3yrFq1L8C7at1sGv3WrreWAOpR3F1PQ+umUtl/fS1Rr6BVS7zrvEEbJt3ZAbNpOhp2ADRAN5VmKgQ4TMKEw/27ADqMaAAk4BCQSsGpEL/x2cSH/wcYYIABBhhggAEGGGCAAQYYYIAB/hXwA5Q8U10+wHZCAAAAAElFTkSuQmCC"
+    },
+    {
+      "path": "/home/student/task/pvd.py",
+      "text": "from PIL import Image\nimport math\nimg=Image.open('pvd.png').convert('L')\npx=img.load(); W,H=img.size\nranges=[(0,7),(8,15),(16,31),(32,63),(64,127),(128,255)]\nbits=''\nfor y in range(H):\n    for x in range(0,W,2):\n        d=px[x+1,y]-px[x,y]\n        ad=abs(d)\n        for lk,uk in ranges:\n            if lk<=ad<=uk:\n                nb=int(math.log2(uk-lk+1)); m=ad-lk\n                bits += format(m,'0%db'%nb)\n                break\nbs=bytes(int(bits[i:i+8],2) for i in range(0,len(bits)//8*8,8))\nt=bs.decode('latin1'); i=t.find('nto{'); j=t.find('}',i)\nprint(t[i:j+1])\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "pvd\\.py",
+          "example": "python3 pvd.py",
+          "output": "nto{pvd_p1x3l_v4lu3_d1ff3r3nc1ng}\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-pvd",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pvd_p1x3l_v4lu3_d1ff3r3nc1ng}"
+  }
+}

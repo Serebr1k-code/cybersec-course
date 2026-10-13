@@ -1,0 +1,28 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти эксфильтрацию по объёму потоков\n\n`flows.csv` — выгрузка NetFlow: `ts,src,dst,dstport,proto,bytes,label`.\nОдин поток выбивается по объёму, и его метка — флаг.\n\nШаги:\n1. `sort -t, -k6 -n flows.csv` — отсортируй по числу байт.\n2. Найди поток с максимальным объёмом.\n3. Запиши его метку (последнее поле) в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- NetFlow даёт «кто, куда и сколько» без содержимого — идеально для охоты за эксфильтрацией.\n- Направление `внутрь → наружу` на нестандартный порт при большом объёме — красный флаг.\n"
+    },
+    {
+      "path": "/home/student/task/flows.csv",
+      "text": "ts,src,dst,dstport,proto,bytes,label\n08:00:01,10.0.0.5,93.184.216.34,443,tcp,20480,web\n08:00:05,10.0.0.5,8.8.8.8,53,udp,240,dns\n08:01:33,198.51.100.9,10.0.0.10,22,tcp,4096,ssh-scan\n08:02:44,10.0.0.20,198.51.100.5,4444,tcp,104857600,nto{n3tfl0w_v0lum3_4n4lys1s}\n08:03:10,10.0.0.7,52.94.236.248,443,tcp,51200,web\n"
+    }
+  ],
+  "tools": {},
+  "id": "forensics-netflow",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{n3tfl0w_v0lum3_4n4lys1s}"
+  }
+}

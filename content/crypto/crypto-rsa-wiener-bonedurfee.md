@@ -13,6 +13,19 @@ useful_for:
   - "Понимать границы Винера и Boneh-Durfee"
 estimated_minutes: 40
 summary: "Атаки на RSA при малом приватном показателе d: классическая атака Винера через цепные дроби (d < n^0.25) и её усиление Boneh-Durfee (d < n^0.292) через решётки. Разбор подхода, практические скрипты, распознавание."
+lab:
+  kind: shell
+  title: "Практика: атака Винера"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, n.txt, e.txt, c.txt, wiener.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 wiener.py`."
+    - "Скрипт раскладывает e/n в цепную дробь."
+    - "Кандидаты k/d проверяются через phi."
+    - "`python3 wiener.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

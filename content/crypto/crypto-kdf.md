@@ -13,6 +13,19 @@ useful_for:
   - "Правильно подбирать режим hashcat для bcrypt/scrypt/argon2"
 estimated_minutes: 40
 summary: "Внутреннее устройство KDF для паролей: PBKDF2 (HMAC-итерации), bcrypt (EksBlowfish), scrypt (memory-hard), Argon2 (финалист PHC, parallelism + memory). Соль, work factor, атаки (GPU/ASIC, rainbow), практика подбора в hashcat и рекомендации по параметрам."
+lab:
+  kind: shell
+  title: "Практика: перебор PBKDF2-хэша"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, salt.txt, iters.txt, hash.txt, wordlist.txt, crack.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 crack.py`."
+    - "Скрипт считает PBKDF2 для каждого слова словаря."
+    - "Совпадение hex-хэша даёт пароль."
+    - "`python3 crack.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

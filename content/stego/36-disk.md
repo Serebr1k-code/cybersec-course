@@ -13,6 +13,19 @@ useful_for:
   - "IR: поиск скрытых данных на носителях"
 estimated_minutes: 45
 summary: "Сокрытие данных на диске: slack space, Alternate Data Streams (ADS), скрытые/пустые разделы, данные в неразмеченных областях и после конца раздела; инструменты и извлечение."
+lab:
+  kind: shell
+  title: "Практика: slack space"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, disk.img]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Вытащи строки: `strings disk.img`."
+    - "Ищи метку `SLACK:`."
+    - "Значение после метки — base64."
+    - "`strings disk.img | grep SLACK | cut -d: -f2 | base64 -d > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

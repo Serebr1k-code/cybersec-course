@@ -13,6 +13,19 @@ useful_for:
   - "Применять символы Лежандра и Якоби в криптоанализе"
 estimated_minutes: 40
 summary: "Квадратичные вычеты по-настоящему: критерий Эйлера, символы Лежандра и Якоби, алгоритм Тонелли–Шанкса для извлечения корня, извлечение корня по составному модулю и атака на криптосистему Rabin. Готовый код на Python и Sage."
+lab:
+  kind: shell
+  title: "Практика: Тонелли–Шанкс"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, p.txt, c.txt, sqrt.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 sqrt.py`."
+    - "Нужен квадратный корень по модулю простого p."
+    - "Из двух корней (r и p−r) подходит тот, что начинается с `nto{`."
+    - "`python3 sqrt.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

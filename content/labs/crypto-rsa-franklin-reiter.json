@@ -1,0 +1,64 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Franklin-Reiter (связанные сообщения)\n\nДва сообщения `m` и `m+delta` зашифрованы одним RSA-ключом (`e=3`).\nПолиномиальный НОД `x^e−c1` и `(x+delta)^e−c2` даёт линейный множитель `x−m`.\n\nШаги:\n1. `python3 fr.py`.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Franklin-Reiter: одинаковый модуль и связанные сообщения.\n- НОД полиномов по модулю n (композитному) всё равно даёт x−m.\n"
+    },
+    {
+      "path": "/home/student/task/n.txt",
+      "text": "34780024476276115664825418852149778731132188382542457919620798837353703761539030012604307433518867176073933800419520357476032328422501531016546968900666699817872550227986666317640776891930966922695710842811026429875116054441063926502282021998868941227590680019079180030477466052169187124997065503329370928587\n"
+    },
+    {
+      "path": "/home/student/task/e.txt",
+      "text": "3\n"
+    },
+    {
+      "path": "/home/student/task/c1.txt",
+      "text": "165756413847821171529424819438525942820335131754364741065383158969499888794001713177285391297215944526331881134854639965602532174801872874987932529090332608326712139490596865044239649872304439885720559853050998163373297117051590948492272234167734791484237733893697125\n"
+    },
+    {
+      "path": "/home/student/task/c2.txt",
+      "text": "165756413847821171529424819438525942820335131754364741065383158969499888794001713177285771501879781701551950813753330340202854510944855892314784455039143305818255074123263505485421808040796598273708867151947827491118548640051250638806429654360791962281752089421797943\n"
+    },
+    {
+      "path": "/home/student/task/delta.txt",
+      "text": "42\n"
+    },
+    {
+      "path": "/home/student/task/fr.py",
+      "text": "n=int(open('n.txt').read()); e=int(open('e.txt').read())\nc1=int(open('c1.txt').read()); c2=int(open('c2.txt').read()); d=int(open('delta.txt').read())\ndef pmul(a,b):\n    r=[0]*(len(a)+len(b)-1)\n    for i,x in enumerate(a):\n        for j,y in enumerate(b): r[i+j]=(r[i+j]+x*y)%n\n    return r\ndef pmod(a,b):\n    a=[x%n for x in a]; b=[x%n for x in b]\n    while len(b)>1 and b[-1]==0: b.pop()\n    inv=pow(b[-1],-1,n)\n    b=[(x*inv)%n for x in b]\n    while len(a)>=len(b) and any(a):\n        coef=a[-1]\n        shift=len(a)-len(b)\n        for i in range(len(b)): a[i+shift]=(a[i+shift]-coef*b[i])%n\n        while a and a[-1]==0: a.pop()\n    return a or [0]\ndef pgcd(a,b):\n    while any(b): a,b=b,pmod(a,b)\n    inv=pow(a[-1],-1,n)\n    return [(x*inv)%n for x in a]\nf=[(-c1)%n,0,0,1]\ng=[(pow(d,e,n)-c2)%n, (e*pow(d,e-1,n))%n, (e*(e-1)//2*pow(d,e-2,n))%n, 1]\ng=pgcd(f,g)\nm=(-g[0])%n\nprint(m.to_bytes((m.bit_length()+7)//8,'big').decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "fr\\.py",
+          "example": "python3 fr.py",
+          "output": "nto{fr4nkl1n_r31t3r_r3l4t3d_m3ss4g3s}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-rsa-franklin-reiter",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{fr4nkl1n_r31t3r_r3l4t3d_m3ss4g3s}"
+  }
+}

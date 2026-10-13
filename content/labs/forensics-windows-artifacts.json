@@ -1,0 +1,48 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: автозапуск из куста реестра\n\n`SYSTEM.hive` — фрагмент куста реестра с ключом `...\\CurrentVersion\\Run`.\nОдна из записей автозапуска содержит base64-строку — это флаг.\n\nШаги:\n1. `python3 parse_hive.py` — разбор значений ключа Run.\n2. Найди значение, которое выглядит как base64 (длинное, без пробелов).\n3. Раскодируй третье поле строки и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Ключ Run — классический механизм персистентности в Windows.\n- Значения в кустах реестра хранятся как UTF-16LE; парсер декодирует их.\n"
+    },
+    {
+      "path": "/home/student/task/SYSTEM.hive",
+      "b64": "SElWRQAAAABcUmVnaXN0cnlcTWFjaGluZVxTb2Z0d2FyZVxNaWNyb3NvZnRcV2luZG93c1xDdXJyZW50VmVyc2lvblxSdW4AVXBkYXRlcgBDOlxVc2Vyc1xQdWJsaWNcdXBkLmV4ZQBCZWFjb24AYm5SdmUzQXpjbk14YzNRemJtTXpYekZ1WDNSb00xOW9NWFl6ZlE9PQA="
+    },
+    {
+      "path": "/home/student/task/parse_hive.py",
+      "text": "data=open('SYSTEM.hive','rb').read()\nkey=b'\\\\Registry\\\\Machine\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run'\ni=data.find(key)\nrest=data[i+len(key)+1:]\nvals=[v for v in rest.split(b'\\x00') if v]\nfor n in range(0,len(vals)-1,2):\n    print('Run %s %s' % (vals[n].decode(), vals[n+1].decode()))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "parse_hive\\.py",
+          "example": "python3 parse_hive.py",
+          "output": "Run Updater C:\\Users\\Public\\upd.exe\nRun Beacon bnRve3AzcnMxc3QzbmMzXzFuX3RoM19oMXYzfQ==\n"
+        }
+      ]
+    }
+  },
+  "id": "forensics-windows-artifacts",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p3rs1st3nc3_1n_th3_h1v3}"
+  }
+}

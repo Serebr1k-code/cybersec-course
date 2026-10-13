@@ -13,6 +13,19 @@ useful_for:
   - "Понимание теории обнаружения стего"
 estimated_minutes: 27
 summary: "Статистические методы обнаружения стеганографии: хи-квадрат, RS-анализ, SPA, калибровка для JPEG; как понять, что данные есть, даже если извлечь не удаётся."
+lab:
+  kind: shell
+  title: "Практика: хи-квадрат стегоанализ"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, suspect.png, chi.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 chi.py`."
+    - "Смотри нормализованный chi² по каналам R/G/B."
+    - "Минимальный — встроенный; из него извлекается LSB."
+    - "`python3 chi.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

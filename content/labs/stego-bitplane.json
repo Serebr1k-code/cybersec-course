@@ -1,0 +1,48 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: старший бит-плоскость канала G\n\n`plane.png` — картинка, где флаг записан в старший бит (bit 7)\nзелёного канала построчно.\n\nШаги:\n1. `python3 plane.py` — читает MSB зелёного канала.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Бит-плоскость 7 видна как «шум» в младших деталях изображения.\n- Читаем пиксели построчно, старший бит первым.\n"
+    },
+    {
+      "path": "/home/student/task/plane.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAGAAAAAECAIAAAD+n60jAAAAa0lEQVR4nNWSwQ6AMAhD3/zyfrqXRZHC9KbusAAlr12yIYQAELOAc0KQXD0mi7YrOjs17h7DVU9SSg9bALbstEgQJ57bVb+df0ugekPadHgidOTS6woc8/84V1XhFN+P3h7xb2dIejvDp88Otkw5Br7GtHIAAAAASUVORK5CYII="
+    },
+    {
+      "path": "/home/student/task/plane.py",
+      "text": "from PIL import Image\nimg=Image.open('plane.png').convert('RGB')\npx=img.load(); W,H=img.size\nbits=''\nfor y in range(H):\n    for x in range(W):\n        bits += str((px[x,y][1]>>7)&1)\nbs=bytes(int(bits[i:i+8],2) for i in range(0,len(bits)//8*8,8))\nt=bs.decode('latin1'); i=t.find('nto{'); j=t.find('}',i)\nprint(t[i:j+1])\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "plane\\.py",
+          "example": "python3 plane.py",
+          "output": "nto{msb_b1t_pl4n3_1n_p1x3ls}\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-bitplane",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{msb_b1t_pl4n3_1n_p1x3ls}"
+  }
+}

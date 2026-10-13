@@ -13,6 +13,19 @@ useful_for:
   - "SOC / Threat Hunting"
 estimated_minutes: 52
 summary: "Запуск Suricata на PCAP, чтение eve.json (alerts, flows, http/dns/tls), написание и отладка правил, разбор сигнатур и извлечение артефактов из алертов."
+lab:
+  kind: shell
+  title: "Практика: разбор eve.json Suricata"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, eve.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри события: `grep event_type eve.json`."
+    - "Алерт с сигнатурой `DNS Exfil` содержит `rrname`."
+    - "Метка домена — base64 до `.evil.example`."
+    - "`grep rrname eve.json | cut -d'\"' -f4 | cut -d. -f1 | base64 -d > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,19 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 48
 summary: "Потоковые данные NetFlow/IPFIX: структура записи, инструменты nfdump/SiLK, построение сводок и обнаружение эксфильтрации без анализа payload."
+lab:
+  kind: shell
+  title: "Практика: эксфильтрация по объёму NetFlow"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, flows.csv]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сортируй по столбцу `bytes` (6-й): `sort -t, -k6 -n flows.csv`."
+    - "Максимальный объём — в самом конце."
+    - "Возьми последнее поле (7) этой строки."
+    - "`sort -t, -k6 -n flows.csv | tail -1 | cut -d, -f7 > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

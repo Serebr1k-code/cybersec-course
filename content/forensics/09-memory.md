@@ -13,6 +13,19 @@ useful_for:
   - "Поиск следов атаки в RAM"
 estimated_minutes: 45
 summary: "Анализ дампа оперативной памяти через Volatility: процессы, соединения, командные строки, поиск строк и артефактов."
+lab:
+  kind: shell
+  title: "Практика: секрет в дампе памяти"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, mem.raw]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Вытащи печатаемые строки: `strings mem.raw`."
+    - "Ищи метку `CMDLINE`."
+    - "Второе поле — base64 токена."
+    - "`strings mem.raw | grep CMDLINE | cut -d' ' -f2 | base64 -d > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

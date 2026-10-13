@@ -1,0 +1,28 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разобрать дескриптор VMDK\n\n`disk.vmdk` — текстовый дескриптор VMDK (disk descriptor). В поле `ddb.comment`\nоставлена base64-строка.\n\nШаги:\n1. `cat disk.vmdk`.\n2. Найди `ddb.comment` и возьми значение в кавычках.\n3. Раскодируй base64 и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- VMDK бывает monolithic sparse (с дескриптором) или потоком секторов.\n- `ddb.*` — Disk Data Base: метаданные гостевой ВМ.\n"
+    },
+    {
+      "path": "/home/student/task/disk.vmdk",
+      "text": "# Disk DescriptorFile\nversion=1\nencoding=\"UTF-8\"\nCID=fffffffe\nparentCID=ffffffff\ncreateType=\"monolithicSparse\"\n\n# Extent description\nRW 4192256 SPARSE \"disk-s001.vmdk\"\n\n# The Disk Data Base\n#DDB\nddb.virtualHWVersion = \"19\"\nddb.geometry.cylinders = \"4096\"\nddb.comment = \"bnRve3ZtZGtfZDNzY3IxcHQwcl9zM2NyM3RzfQ==\"\nddb.adapterType = \"lsilogic\"\n"
+    }
+  ],
+  "tools": {},
+  "id": "forensics-vdisk-formats",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{vmdk_d3scr1pt0r_s3cr3ts}"
+  }
+}

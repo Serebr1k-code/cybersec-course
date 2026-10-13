@@ -1,0 +1,56 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: факторизация RSA методом Полларда p−1\n\n`n`, `e`, `c`. Один из простых множителей таков, что `p−1` гладкое\n(состоит из малых простых), поэтому p−1 метод Полларда его находит.\n\nШаги:\n1. `python3 pollard.py` — скрипт находит `p`, затем расшифровывает `c`.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- p−1 метод: считаем a = 2^(j!) mod n, пока gcd(a−1, n) не даст делитель.\n- Работает, когда все простые множители p−1 малы (B-smooth).\n"
+    },
+    {
+      "path": "/home/student/task/n.txt",
+      "text": "69162768298626377899728211515355941459563186555750913135302270997652932359261013043413383932555403\n"
+    },
+    {
+      "path": "/home/student/task/e.txt",
+      "text": "65537\n"
+    },
+    {
+      "path": "/home/student/task/c.txt",
+      "text": "14773987301785370005491274310605447268441565055181678974025697381106702112613094610214066973239302\n"
+    },
+    {
+      "path": "/home/student/task/pollard.py",
+      "text": "from math import gcd\nn=int(open('n.txt').read()); e=int(open('e.txt').read()); c=int(open('c.txt').read())\na=2\nfor j in range(2, 200000):\n    a=pow(a,j,n)\n    g=gcd(a-1,n)\n    if 1<g<n:\n        break\np=g; q=n//p\nd=pow(e,-1,(p-1)*(q-1))\nm=pow(c,d,n)\nprint(m.to_bytes((m.bit_length()+7)//8,'big').decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "pollard\\.py",
+          "example": "python3 pollard.py",
+          "output": "nto{p0ll4rd_p_m1nus_1_sm00th}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-pollard",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p0ll4rd_p_m1nus_1_sm00th}"
+  }
+}

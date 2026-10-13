@@ -13,6 +13,19 @@ useful_for:
   - "Анализ изображений с малым числом цветов"
 estimated_minutes: 33
 summary: "Как прячут данные в палитровых изображениях: порядок записей PLTE, неиспользуемые цвета, младшие биты индексов и практические инструменты."
+lab:
+  kind: shell
+  title: "Практика: индексы палитры"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, pal.png, pal.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 pal.py`."
+    - "В P-mode данные — это индексы палитры."
+    - "Первые пиксели несут байты флага."
+    - "`python3 pal.py | grep nto > found.txt`."
+
 ---
 ## Вопрос, с которого всё начинается
 

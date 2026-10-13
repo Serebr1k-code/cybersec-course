@@ -13,6 +13,19 @@ useful_for:
   - "Forensics: извлечение зашифрованных контейнеров"
 estimated_minutes: 35
 summary: "Зачем и как комбинируют шифрование со стеганографией: шифротекст в стего-контейнере, порядок извлечения, типичные цепочки (стего → архив → крипто) и инструменты."
+lab:
+  kind: shell
+  title: "Практика: шифрование + стеганография"
+  toolset: [core, openssl]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, key.txt, secret.enc]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай пароль: `cat key.txt`."
+    - "Расшифруй: `openssl enc -d -aes-256-cbc -pbkdf2 -in secret.enc -pass pass:<пароль>`."
+    - "Флаг появится на stdout."
+    - "`openssl enc -d -aes-256-cbc -pbkdf2 -in secret.enc -pass pass:s3cr3t-pass | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

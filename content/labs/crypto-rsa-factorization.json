@@ -1,0 +1,56 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: факторизация RSA методом Ферма\n\n`n`, `e=65537`, `c`. Простые `p` и `q` очень близки друг к другу,\nпоэтому работает факторизация Ферма (n = a² − b²).\n\nШаги:\n1. `python3 fermat.py` — скрипт факторизует `n` и расшифрует `c`.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Ферма: n = a² − b² = (a−b)(a+b), a = ceil(sqrt(n)).\n- Быстро, когда |p−q| мал.\n"
+    },
+    {
+      "path": "/home/student/task/n.txt",
+      "text": "44942328371557897693232629769725618340449424473557664318357520289433168951375240783177119330601884006272182668983588935683053825573362996163542271246303439884699806496083904761643232610866060943518401894563241365294884697999754534438176724544360781154950261261452932082071237884896530835143736910074476061161\n"
+    },
+    {
+      "path": "/home/student/task/e.txt",
+      "text": "65537\n"
+    },
+    {
+      "path": "/home/student/task/c.txt",
+      "text": "27001173580387568205487568764207750654043886033369325481362141954873548588358972966476814245598573255629392395983341669760046096861246825898077520914827502984793908002563231014018913221219185058729379305136137897724156368216813565902583530935976023753871944197750044694983711362640695502636827894480553975232\n"
+    },
+    {
+      "path": "/home/student/task/fermat.py",
+      "text": "from math import isqrt\nn=int(open('n.txt').read()); e=int(open('e.txt').read()); c=int(open('c.txt').read())\na=isqrt(n)\nif a*a<n: a+=1\nwhile True:\n    b2=a*a-n; b=isqrt(b2)\n    if b*b==b2: break\n    a+=1\np=a-b; q=a+b\nd=pow(e,-1,(p-1)*(q-1))\nm=pow(c,d,n)\nprint(m.to_bytes((m.bit_length()+7)//8,'big').decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "fermat\\.py",
+          "example": "python3 fermat.py",
+          "output": "nto{f3rm4t_f4ct0r1z4t10n_1s_0p}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-rsa-factorization",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{f3rm4t_f4ct0r1z4t10n_1s_0p}"
+  }
+}

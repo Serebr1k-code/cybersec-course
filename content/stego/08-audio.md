@@ -12,6 +12,19 @@ useful_for:
   - "Форензика: анализ аудиофайлов на скрытые данные"
 estimated_minutes: 30
 summary: "Структура WAV, LSB-стеганография в аудиосэмплах, извлечение через steghide/скрипты, обзор инструментов (sox, ffmpeg, audacity) и первые шаги разбора аудиофайла."
+lab:
+  kind: shell
+  title: "Практика: LSB в WAV"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, audio.wav, lsb.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 lsb.py`."
+    - "Младший бит каждого сэмпла — один бит сообщения."
+    - "8 бит на байт, старший бит первым."
+    - "`python3 lsb.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

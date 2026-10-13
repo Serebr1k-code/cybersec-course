@@ -1,0 +1,64 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: общий модуль (common modulus)\n\nОдно сообщение зашифровано двумя взаимно простыми экспонентами `e1`,`e2`\nпод одним модулем `n`. Соотношение Безу `a·e1 + b·e2 = 1` даёт `m`.\n\nШаги:\n1. `python3 common.py`.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Common modulus: никогда не переиспользуйте n с разными e.\n- Отрицательные показатели Безу — через модульную инверсию.\n"
+    },
+    {
+      "path": "/home/student/task/n.txt",
+      "text": "10113639442820636445008438658857158804965426156638486941864149946916151216459540821581419241141800327650356151271853852944277439303708178924901577963026527264939722529523760653443676873036703161584102710261545255272425666295824167289431860607431190615730273733083668603034220243401609490376318140606558538939\n"
+    },
+    {
+      "path": "/home/student/task/e1.txt",
+      "text": "65537\n"
+    },
+    {
+      "path": "/home/student/task/e2.txt",
+      "text": "17\n"
+    },
+    {
+      "path": "/home/student/task/c1.txt",
+      "text": "2868046307007991236457887288584145300333911366682694466967085755676391807091343827481273911483992761376830351725374195921323340935895587310755762911905486720514188885942632177505189737116211762160253922452877263720147040143343434213640504192371178954770597469753820175823037210579063267073770498678329356183\n"
+    },
+    {
+      "path": "/home/student/task/c2.txt",
+      "text": "1325346279326593510532023245432164987954405905586481543641342626618554899819366075091657230943120127051594726553127535920990900501343950821762111503423498659448011004552842198329371561785366274948275363212857256891996969170926547034507805318702570128231836620196538309334716824065617172028361988424350455040\n"
+    },
+    {
+      "path": "/home/student/task/common.py",
+      "text": "n=int(open('n.txt').read())\ne1=int(open('e1.txt').read()); e2=int(open('e2.txt').read())\nc1=int(open('c1.txt').read()); c2=int(open('c2.txt').read())\ndef egcd(a,b):\n    if b==0: return (a,1,0)\n    g,x,y=egcd(b,a%b); return (g,y,x-(a//b)*y)\ng,a,b=egcd(e1,e2)\ndef inv(x): return pow(x,-1,n)\nm=1\nif a>=0: m=m*pow(c1,a,n)%n\nelse: m=m*pow(inv(c1),-a,n)%n\nif b>=0: m=m*pow(c2,b,n)%n\nelse: m=m*pow(inv(c2),-b,n)%n\nprint(m.to_bytes((m.bit_length()+7)//8,'big').decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "common\\.py",
+          "example": "python3 common.py",
+          "output": "nto{c0mm0n_m0dulus_b3z0ut_1d3nt1ty}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-rsa-multi",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c0mm0n_m0dulus_b3z0ut_1d3nt1ty}"
+  }
+}

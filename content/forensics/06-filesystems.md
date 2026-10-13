@@ -13,6 +13,19 @@ useful_for:
   - "Disk forensics / IR"
 estimated_minutes: 40
 summary: "Как устроен образ диска: таблица разделов, файловая система, inode — и как читать файлы без монтирования."
+lab:
+  kind: shell
+  title: "Практика: определить ФС по суперблоку"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, superblocks.bin, parse_sb.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 parse_sb.py` — скрипт печатает по строке на каждую ФС."
+    - "ext4 — там, где magic `0x53EF`; смотри строку с `last_mounted`."
+    - "Возьми четвёртое поле строки ext4 — это base64."
+    - "`python3 parse_sb.py | grep ext4 | cut -d' ' -f4 | base64 -d > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

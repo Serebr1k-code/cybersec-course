@@ -1,0 +1,48 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: стеганография в индексах палитры\n\n`pal.png` — палитровое (P-mode) изображение. Флаг записан\nзначениями индексов первых пикселей.\n\nШаги:\n1. `python3 pal.py` — читает индексы и собирает байты.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- В P-mode пиксель — это индекс в палитру, а не цвет.\n- Индексы неиспользуемых цветов палитры — тоже канал.\n"
+    },
+    {
+      "path": "/home/student/task/pal.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAGAAAAACCAMAAACQeilbAAADAFBMVEUAAP8BA/4CBv0DCfwEDPsFD/oGEvkHFfgIGPcJG/YKHvULIfQMJPMNJ/IOKvEPLfAQMO8RM+4SNu0TOewUPOsVP+oWQukXRegYSOcZS+YaTuUbUeQcVOMdV+IeWuEfXeAgYN8hY94iZt0jadwkbNslb9omctknddgoeNcpe9YqftUrgdQshNMth9IuitEvjdAwkM8xk84yls0zmcw0nMs1n8o2osk3pcg4qMc5q8Y6rsU7scQ8tMM9t8I+usE/vcBAwL9Bw75Cxr1DybxEzLtFz7pG0rlH1bhI2LdJ27ZK3rVL4bRM5LNN57JO6rFP7bBQ8K9R865S9q1T+axU/KtV/6pWAqlXBahYCKdZC6ZaDqVbEaRcFKNdF6JeGqFfHaBgIJ9hI55iJp1jKZxkLJtlL5pmMplnNZhoOJdpO5ZqPpVrQZRsRJNtR5JuSpFvTZBwUI9xU45yVo1zWYx0XIt1X4p2Yol3ZYh4aId5a4Z6boV7cYR8dIN9d4J+eoF/fYCAgH+Bg36Chn2DiXyEjHuFj3qGknmHlXiImHeJm3aKnnWLoXSMpHONp3KOqnGPrXCQsG+Rs26Stm2TuWyUvGuVv2qWwmmXxWiYyGeZy2aazmWb0WSc1GOd12Ke2mGf3WCg4F+h416i5l2j6Vyk7Ful71qm8lmn9Vio+Fep+1aq/lWrAVSsBFOtB1KuClGvDVCwEE+xE06yFk2zGUy0HEu1H0q2Ikm3JUi4KEe5K0a6LkW7MUS8NEO9N0K+OkG/PUDAQD/BQz7CRj3DSTzETDvFTzrGUjnHVTjIWDfJWzbKXjXLYTTMZDPNZzLOajHPbTDQcC/Rcy7Sdi3TeSzUfCvVfyrWginXhSjYiCfZiybajiXbkSTclCPdlyLemiHfnSDgoB/hox7iph3jqRzkrBvlrxrmshnntRjouBfpuxbqvhXrwRTsxBPtxxLuyhHvzRDw0A/x0w7y1g3z2Qz03Av13wr24gn35Qj46Af56wb67gX78QT89AP99wL++gH//QCWjg+XAAAAzUlEQVR4nAHCAD3/AG50b3twNGwzdHQzXzFuZDN4X3N0M2c0bjBncjRwaHl94Ofu9fwDChEYHyYtNDtCSVBXXmVsc3qBiI+WnaSrsrnAx87V3OPq8fj/Bg0UGyIpMDc+RUxTWmFob3Z9hIuSmQCgp661vMPK0djf5u30+wIJEBceJSwzOkFIT1ZdZGtyeYCHjpWco6qxuL/GzdTb4unw9/4FDBMaISgvNj1ES1JZYGdudXyDipGYn6attLvCydDX3uXs8/oBCA8WHSQrMjkPsVqVZd9xsgAAAABJRU5ErkJggg=="
+    },
+    {
+      "path": "/home/student/task/pal.py",
+      "text": "from PIL import Image\nimg=Image.open('pal.png')\nidx=list(img.getdata())\nbs=bytes(idx[:64])\nt=bs.decode('latin1'); i=t.find('nto{'); j=t.find('}',i)\nprint(t[i:j+1])\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "pal\\.py",
+          "example": "python3 pal.py",
+          "output": "nto{p4l3tt3_1nd3x_st3g4n0gr4phy}\n/tmp/pentestcode/labs/data3s/pal.py:3: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.\n  idx=list(img.getdata())\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-palette",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p4l3tt3_1nd3x_st3g4n0gr4phy}"
+  }
+}

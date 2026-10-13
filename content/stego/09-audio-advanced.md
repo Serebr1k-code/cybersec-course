@@ -13,6 +13,19 @@ useful_for:
   - "Извлечение изображений/текста из звука"
 estimated_minutes: 29
 summary: "Спектрограмма как инструмент визуализации, распознавание DTMF и SSTV, декодирование морзе и FSK, работа с тональными сигналами и эхо-стеганография; полный воркфлоу с sox/ffmpeg/multimon-ng."
+lab:
+  kind: shell
+  title: "Практика: Морзе в аудио"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, morse.wav, morse.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 morse.py`."
+    - "Символы Морзе разделены паузами."
+    - "Декодированный текст — hex; собери байты."
+    - "`python3 morse.py | grep nto > found.txt`."
+
 ---
 ## Вопрос, с которого всё начинается
 

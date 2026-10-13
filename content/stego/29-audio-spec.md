@@ -13,6 +13,19 @@ useful_for:
   - "Forensics: анализ скрытых сигналов"
 estimated_minutes: 45
 summary: "Глубокий разбор сигнальных методов в аудио: чтение спектрограммы, распознавание DTMF, декодирование SSTV, FSK/RTTY и морзе; инструменты и практические приёмы."
+lab:
+  kind: shell
+  title: "Практика: FSK в спектрограмме"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, fsk.wav, fsk.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 fsk.py`."
+    - "Два тона: 1000 Гц = 0, 3000 Гц = 1."
+    - "Окно БПФ равно длине бита."
+    - "`python3 fsk.py | grep nto > found.txt`."
+
 ---
 ## Вопрос, с которого всё начинается
 

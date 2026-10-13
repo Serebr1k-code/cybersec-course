@@ -1,0 +1,28 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аномальный вход в Azure/Entra ID\n\n`signins.json` — выгрузка логов входа Entra ID. Один вход выделяется:\nслужебная учётка входит из «чужой» сети, и в поле `riskDetail` оставлена метка.\n\nШаги:\n1. `cat signins.json`.\n2. Найди запись `svc-backup`.\n3. Возьми значение `riskDetail` и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Entra ID sign-in logs: `userPrincipalName`, `ipAddress`, `resultType` (0 = успех).\n- Служебная учётка, входящая из внешней сети, — классический признак компрометации.\n"
+    },
+    {
+      "path": "/home/student/task/signins.json",
+      "text": "{\"time\":\"2026-01-12T08:00:01Z\",\"userPrincipalName\":\"alice@corp.example\",\"ipAddress\":\"203.0.113.5\",\"appDisplayName\":\"Azure Portal\",\"resultType\":\"0\",\"riskDetail\":\"none\"}\n{\"userPrincipalName\":\"svc-backup@corp.example\",\"riskDetail\":\"nto{4zur3_s1gn1n_l0gs_t3ll_4ll}\",\"ipAddress\":\"198.51.100.77\"}\n{\"time\":\"2026-01-12T08:06:33Z\",\"userPrincipalName\":\"bob@corp.example\",\"ipAddress\":\"203.0.113.9\",\"appDisplayName\":\"Azure Portal\",\"resultType\":\"50126\",\"riskDetail\":\"none\"}\n"
+    }
+  ],
+  "tools": {},
+  "id": "forensics-azure-forensics",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4zur3_s1gn1n_l0gs_t3ll_4ll}"
+  }
+}

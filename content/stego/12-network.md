@@ -13,6 +13,19 @@ useful_for:
   - "Network forensics"
 estimated_minutes: 31
 summary: "Covert channels в сетевых протоколах: младшие биты полей IP/TCP, IP ID, TTL, тайминги, DNS/ICMP-туннели, порядок пакетов; анализ PCAP через tshark/scapy и извлечение скрытых данных."
+lab:
+  kind: shell
+  title: "Практика: covert-канал в TCP seq"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, covert.pcap, decode.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 decode.py`."
+    - "Младший байт seq — один символ."
+    - "Собери байты по порядку пакетов."
+    - "`python3 decode.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

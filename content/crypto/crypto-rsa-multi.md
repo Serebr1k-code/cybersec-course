@@ -13,6 +13,19 @@ useful_for:
   - "Применять common-modulus и Fermat"
 estimated_minutes: 40
 summary: "Атаки на RSA по нескольким ключам и модулям: common modulus (один n, разные e, egcd), shared primes (общий простой множитель через gcd), атака Ферма (близкие p и q), мультипростой RSA и его слабости. Практические скрипты и распознавание."
+lab:
+  kind: shell
+  title: "Практика: common modulus"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, n.txt, e1.txt, e2.txt, c1.txt, c2.txt, common.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 common.py`."
+    - "Скрипт применяет расширенный алгоритм Евклида к e1 и e2."
+    - "Затем комбинирует c1 и c2 по модулю n."
+    - "`python3 common.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

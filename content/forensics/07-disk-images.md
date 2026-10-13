@@ -13,6 +13,19 @@ useful_for:
   - "Disk forensics / IR"
 estimated_minutes: 40
 summary: "Снятие корректного образа диска, хеширование, восстановление удалённых файлов через inode и carving свободного места."
+lab:
+  kind: shell
+  title: "Практика: извлечь раздел из образа по MBR"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, disk.img, decode.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри запись раздела: `xxd -s 446 -l 16 disk.img`."
+    - "LBA начала раздела — 4 байта little-endian по смещению 454."
+    - "Вырежи ровно один сектор: `dd if=disk.img of=part.img bs=512 skip=<LBA> count=1`."
+    - "Затем: `python3 decode.py part.img | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,19 @@ useful_for:
   - "Быстрое нахождение нестандартных каналов"
 estimated_minutes: 31
 summary: "Как системно искать данные в PNG/BMP через zsteg (перебор каналов/бит/порядков) и stegsolve (визуальные плоскости), и как читать их вывод."
+lab:
+  kind: shell
+  title: "Практика: перебор каналов"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, mystery.png, channels.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 channels.py`."
+    - "Перебираются 3 канала × 8 бит."
+    - "Ищи вывод, начинающийся с `nto{`."
+    - "`python3 channels.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

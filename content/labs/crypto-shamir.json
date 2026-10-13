@@ -1,0 +1,52 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разделение секрета Шамира\n\n`shares.txt` — 4 доли схемы Шамира с порогом 3 над простым `p`.\nСекрет — свободный член полинома; восстанови его по любым трём долям.\n\nШаги:\n1. `python3 shamir.py`.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Секрет = интерполяция Лагранжа в точке x=0.\n- Любых k долей достаточно, k−1 — нет.\n"
+    },
+    {
+      "path": "/home/student/task/p.txt",
+      "text": "6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057151\n"
+    },
+    {
+      "path": "/home/student/task/shares.txt",
+      "text": "1 177494062206112737179266751154937072187870500460490998778132621\n2 177494062206112737179266751154937072187870503985868755087069151\n3 177494062206112737179266751154937072187870509806841329457638771\n4 177494062206112737179266751154937072187870517923408721889841481\n"
+    },
+    {
+      "path": "/home/student/task/shamir.py",
+      "text": "P=int(open('p.txt').read())\nshares=[tuple(map(int,l.split())) for l in open('shares.txt').read().splitlines()]\ndef lagrange(points, x=0):\n    s=0\n    for i,(xi,yi) in enumerate(points):\n        num=1; den=1\n        for j,(xj,_) in enumerate(points):\n            if i!=j:\n                num=num*(x-xj)%P; den=den*(xi-xj)%P\n        s=(s+yi*num*pow(den,-1,P))%P\n    return s\nsec=lagrange(shares[:3])\nprint(sec.to_bytes((sec.bit_length()+7)//8,'big').decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "shamir\\.py",
+          "example": "python3 shamir.py",
+          "output": "nto{sh4m1r_s3cr3t_sh4r1ng}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-shamir",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sh4m1r_s3cr3t_sh4r1ng}"
+  }
+}

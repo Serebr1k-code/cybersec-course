@@ -13,6 +13,19 @@ useful_for:
   - "Атаковать небрежные пороговые схемы"
 estimated_minutes: 38
 summary: "Shamir Secret Sharing: полиномиальная схема (k, n), восстановление секрета интерполяцией Лагранжа, варианты (Blakley, CRT), атаки на небрежные реализации и полный набор рабочих скриптов на Python/Sage."
+lab:
+  kind: shell
+  title: "Практика: секрет Шамира"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, p.txt, shares.txt, shamir.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 shamir.py`."
+    - "Возьми любые три доли."
+    - "Интерполируй полином в x=0."
+    - "`python3 shamir.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

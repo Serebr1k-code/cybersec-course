@@ -1,0 +1,48 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: null-шифр по длинам слов\n\n`story.txt` — текст. Сообщение спрятано в длинах слов:\nкаждое слово кодирует одну hex-цифру (длина = цифра + 1).\n\nШаги:\n1. `python3 null.py` — считает длины слов, собирает hex и байты.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Null-шифр прячет сообщение в незаметном свойстве текста (длины, первые буквы).\n- Здесь: hex-цифра d кодируется словом длины d+1.\n"
+    },
+    {
+      "path": "/home/student/task/story.txt",
+      "text": "Through pwdkryfmtahovcj sentence there through qxelszgnubipwdkr sentence mtahovcjqxel through pwdkryfmtahovcj sentence number through nubipwdkryfmt through nubipwdkryfmt number qxelszgnubipwdkr through that that of sentence a through different that that sentence the number qxelszgnubipwdkr sentence sentence that a sentence the through there number qxelszgnubipwdkr through nubipwdkryfmt that that through pwdkryfmtahovcj through sentence sentence there through different sentence ovcjqxelszgnub."
+    },
+    {
+      "path": "/home/student/task/null.py",
+      "text": "import re\ntext=open('story.txt').read()\nwords=re.findall(r'[A-Za-z]+', text)\nhexstr=''.join(format(len(w)-1,'x') for w in words)\nprint(bytes.fromhex(hexstr).decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "null\\.py",
+          "example": "python3 null.py",
+          "output": "nto{null_c1ph3r_w0rd_l3ngth}\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-text-linguistic",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{null_c1ph3r_w0rd_l3ngth}"
+  }
+}

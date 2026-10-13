@@ -13,6 +13,19 @@ useful_for:
   - "Ломать GCM при повторном nonce"
 estimated_minutes: 32
 summary: "Переиспользование IV/nonce в потоковых режимах: why CTR/OFB/CFB превращаются в many-time pad, XOR двух сообщений и crib-dragging, катастрофа повторного nonce в GCM, практические скрипты и распознавание в коде."
+lab:
+  kind: shell
+  title: "Практика: many-time pad"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, ct1.hex, ct2.hex, known.bin, xor.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 xor.py`."
+    - "Известен открытый текст первого сообщения."
+    - "XOR двух шифртекстов с известным текстом даёт второй текст."
+    - "`python3 xor.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

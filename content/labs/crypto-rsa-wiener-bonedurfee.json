@@ -1,0 +1,56 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: атака Винера (малый приватный ключ)\n\n`e` очень велико, потому что приватный показатель `d` мал (d < n^0.25/3).\nАтака Винера восстанавливает `d` из цепной дроби e/n.\n\nШаги:\n1. `python3 wiener.py`.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Разложение e/n в цепную дробь даёт подходящие дроби k/d.\n- Для верного k/d: phi=(e·d−1)/k, затем p,q из n и phi.\n"
+    },
+    {
+      "path": "/home/student/task/n.txt",
+      "text": "50926272625514640437718270368854509529428216931058418355990507863219223479190019650240817257069336581774640181699348760881085196181058297642327895394222172036917735015285528974145802692920011227650900633016820260370711307148444387881919849057956355298006391892548071487499631966720110977849954832438285450339\n"
+    },
+    {
+      "path": "/home/student/task/e.txt",
+      "text": "21253828797445397775445428322731472230151769900128865511359341275869883509691991703215824999722573412470726674884202955366480302112752793455690167422358479493559399864230869702324035182418979880986877245632758414040302601064635959499621098479151393202581446271430555829158702621448037198211840795139002287841\n"
+    },
+    {
+      "path": "/home/student/task/c.txt",
+      "text": "40705040006559240513366294463014679349186927997679324811523247427422104645525329386947459772460101528512418612230932000471641206627722776228786336364383495259943794046559652359477665379847863686264841649059678487609109066911376643628529355337307243177563948142410362243353392048072650568146416943525281590542\n"
+    },
+    {
+      "path": "/home/student/task/wiener.py",
+      "text": "from fractions import Fraction\nn=int(open('n.txt').read()); e=int(open('e.txt').read()); c=int(open('c.txt').read())\ndef cf(x,y):\n    while y:\n        q=x//y; yield q; x,y=y,x-q*y\ndef convergents(x,y):\n    h0,h1,k0,k1=0,1,1,0\n    for a in cf(x,y):\n        h0,h1=h1,a*h1+h0; k0,k1=k1,a*k1+k0\n        yield h1,k1\nfor k,d in convergents(e,n):\n    if k==0: continue\n    if (e*d-1)%k: continue\n    phi=(e*d-1)//k\n    s=n-phi+1\n    disc=s*s-4*n\n    if disc<0: continue\n    r=math.isqrt(disc) if (math:=__import__('math')) else 0\n    if r*r==disc:\n        m=pow(c,d,n)\n        print(m.to_bytes((m.bit_length()+7)//8,'big').decode())\n        break\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "wiener\\.py",
+          "example": "python3 wiener.py",
+          "output": "nto{w13n3r_4tt4ck_sm4ll_pr1v4t3_d}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-rsa-wiener-bonedurfee",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w13n3r_4tt4ck_sm4ll_pr1v4t3_d}"
+  }
+}

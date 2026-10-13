@@ -13,6 +13,19 @@ useful_for:
   - "Распознавать related-message задачи"
 estimated_minutes: 32
 summary: "Franklin-Reiter: атака на два линейно связанных сообщения под одним RSA-ключом, gcd полиномов по модулю n, обобщение на аффинную связь, вариант без Sage для e=2, связь с Håstad/Coppersmith, полный скрипт и распознавание в CTF."
+lab:
+  kind: shell
+  title: "Практика: Franklin-Reiter"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, n.txt, e.txt, c1.txt, c2.txt, delta.txt, fr.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 fr.py`."
+    - "Скрипт считает НОД двух полиномов по модулю n."
+    - "Результат — линейный полином x − m."
+    - "`python3 fr.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

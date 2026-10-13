@@ -1,0 +1,48 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: overlay после ELF\n\n`sample.elf` — исполняемый файл с данными, дописанными ПОСЛЕ конца\nпоследнего сегмента (overlay). Там base64-строка.\n\nШаги:\n1. `python3 overlay.py` — считает конец сегментов и читает overlay.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Overlay не загружается загрузчиком, но остаётся в файле.\n- Конец сегментов = max(p_offset + p_filesz) по program headers.\n"
+    },
+    {
+      "path": "/home/student/task/sample.elf",
+      "b64": "f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAAABAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAAAAAAAAAAEAAAAFAAAAAAAAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAAIAAAAAAAAAAgAAAAAAAAAQAAAAAAAAkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJAKT1ZFUkxBWTpiblJ2ZXpOc1psOHdkak55YkRSNVh6UndjRE51WkROa2ZRPT0K"
+    },
+    {
+      "path": "/home/student/task/overlay.py",
+      "text": "import struct\nd=open('sample.elf','rb').read()\ne_phoff=struct.unpack_from('<Q', d, 0x20)[0]\ne_phentsize=struct.unpack_from('<H', d, 0x36)[0]\ne_phnum=struct.unpack_from('<H', d, 0x38)[0]\nend=0\nfor i in range(e_phnum):\n    off=e_phoff+i*e_phentsize\n    p_offset,p_filesz=struct.unpack_from('<QQ', d, off+8)[0], struct.unpack_from('<Q', d, off+32)[0]\n    end=max(end, p_offset+p_filesz)\nov=d[end:]\nimport base64\nb64=ov.split(b'OVERLAY:')[1].strip().decode()\nprint(base64.b64decode(b64).decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "overlay\\.py",
+          "example": "python3 overlay.py",
+          "output": "nto{3lf_0v3rl4y_4pp3nd3d}\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-executable",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3lf_0v3rl4y_4pp3nd3d}"
+  }
+}

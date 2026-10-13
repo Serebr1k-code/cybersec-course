@@ -1,0 +1,43 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: снять слой шифрования\n\n`secret.enc` — файл, зашифрованный AES-256-CBC (PBKDF2). Пароль\nлежит в `key.txt`. Расшифруй и достань флаг.\n\nШаги:\n1. `cat key.txt` — узнай пароль.\n2. `openssl enc -d -aes-256-cbc -pbkdf2 -in secret.enc -pass pass:<пароль>`.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Шифрование + стеганография — «двойная защита».\n- openssl требует корректный набор флагов (pbkdf2, aes-256-cbc).\n"
+    },
+    {
+      "path": "/home/student/task/key.txt",
+      "text": "s3cr3t-pass\n"
+    },
+    {
+      "path": "/home/student/task/secret.enc",
+      "b64": "U2FsdGVkX1+HZ7QhVjPOE50XcF0DSaCg07Rwns7xDs3G2NxoxTaUy7Kys1JoKr7y"
+    }
+  ],
+  "tools": {
+    "openssl": {
+      "help": "openssl enc -d ... — расшифровка",
+      "cases": [
+        {
+          "match": "enc\\s+-d.*secret\\.enc",
+          "example": "openssl enc -d -aes-256-cbc -pbkdf2 -in secret.enc -pass pass:s3cr3t-pass",
+          "output": "nto{3ncrypt3d_th3n_h1dd3n}\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-encryption",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3ncrypt3d_th3n_h1dd3n}"
+  }
+}

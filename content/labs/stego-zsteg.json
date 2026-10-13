@@ -1,0 +1,48 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: перебор каналов (как zsteg)\n\n`mystery.png` — флаг спрятан в одном из 8 бит одного из каналов R/G/B.\nПеребери все комбинации (как делает `zsteg`).\n\nШаги:\n1. `python3 channels.py` — перебор каналов и бит-плоскостей.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- zsteg перебирает каналы, биты и порядки бит.\n- Признак успеха — печатаемая строка, начинающаяся с `nto{`.\n"
+    },
+    {
+      "path": "/home/student/task/mystery.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAA1klEQVR4nO2QQQ7DIAzAQtVX9v//YIdqiEJAO6zyxT5UEJI0Trmuq0RERI24D/c5ntfyDbZ4n7+59odWPvdfxcvzO89zDPVDi5jmnvNrlzOUDPFGWbymGxyCA2esV7X6X9tH6tmXl+yazpFmpj61E6u3QJtmyNvQ55TsKbKNzD3Tp1V+Gj9/qV812qelkb9zvP+Ld1GARgEaBWgUoFGARgEaBWgUoFGARgEaBWgUoFGARgEaBWgUoFGARgEaBWgUoFGARgEaBWgUoFGARgEaBWgUoFGA5gOAnUOA1NA5HQAAAABJRU5ErkJggg=="
+    },
+    {
+      "path": "/home/student/task/channels.py",
+      "text": "from PIL import Image\nimg=Image.open('mystery.png').convert('RGB')\npx=list(img.getdata()); names=['R','G','B']\nfor ch in range(3):\n    for bit in range(8):\n        bits=''.join(str((p[ch]>>bit)&1) for p in px)\n        bs=bytes(int(bits[i:i+8],2) for i in range(0,len(bits)//8*8,8))\n        t=bs.decode('latin1')\n        i=t.find('nto{')\n        if i>=0 and '}' in t[i:]:\n            print('channel', names[ch], 'bit', bit)\n            print(t[i:t.find('}',i)+1])\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "channels\\.py",
+          "example": "python3 channels.py",
+          "output": "channel R bit 0\nnto{brut3f0rc3_4ll_ch4nn3ls}\n/tmp/pentestcode/labs/data3s/channels.py:3: DeprecationWarning: Image.Image.getdata is deprecated and will be removed in Pillow 14 (2027-10-15). Use get_flattened_data instead.\n  px=list(img.getdata()); names=['R','G','B']\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-zsteg",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{brut3f0rc3_4ll_ch4nn3ls}"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разобрать eve.json Suricata\n\n`eve.json` — журнал Suricata (по строке JSON на событие). Один алерт\nпро DNS-эксфильтрацию: метка домена содержит base64-строку.\n\nШаги:\n1. `grep event_type eve.json` — посмотри типы событий.\n2. Найди алерт `DNS Exfil`.\n3. Возьми `rrname`, отдели метку до `.evil.example` и раскодируй base64.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Suricata пишет структурированный JSON: `event_type` = flow/alert/http/dns.\n- Эксфильтрация по DNS прячет данные в метках доменного имени.\n"
+    },
+    {
+      "path": "/home/student/task/eve.json",
+      "text": "{\"timestamp\":\"2026-01-12T08:00:01\",\"event_type\":\"flow\",\"src_ip\":\"10.0.0.5\",\"dest_ip\":\"93.184.216.34\"}\n{\"timestamp\":\"2026-01-12T08:01:33\",\"event_type\":\"alert\",\"alert\":{\"signature\":\"ET POLICY curl User-Agent\",\"severity\":3},\"src_ip\":\"198.51.100.9\"}\n{\"rrname\":\"bnRve3N1cjFjNHQ0X3MxZ240dHVyM3NfYzR0Y2hfMXR9.evil.example\",\"event_type\":\"alert\",\"alert\":{\"signature\":\"ET MALWARE DNS Exfil\",\"severity\":1},\"src_ip\":\"10.0.0.20\"}\n{\"timestamp\":\"2026-01-12T08:03:10\",\"event_type\":\"http\",\"http\":{\"hostname\":\"cdn.example.com\"}}\n"
+    }
+  ],
+  "tools": {},
+  "id": "forensics-suricata",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sur1c4t4_s1gn4tur3s_c4tch_1t}"
+  }
+}

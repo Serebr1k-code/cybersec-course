@@ -13,6 +13,19 @@ useful_for:
   - "Понимание распределения бит по каналам"
 estimated_minutes: 30
 summary: "Что такое бит-плоскости, как работает мультибитный LSB и схема распределения бит 2-3-3 по каналам RGB, и как их извлекать вручную и инструментами."
+lab:
+  kind: shell
+  title: "Практика: бит-плоскость PNG"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, plane.png, plane.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 plane.py`."
+    - "Флаг в старшем бите зелёного канала."
+    - "Читаем построчно, 8 бит на байт."
+    - "`python3 plane.py | grep nto > found.txt`."
+
 ---
 ## Вопрос, с которого всё начинается
 

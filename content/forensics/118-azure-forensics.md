@@ -13,6 +13,19 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 52
 summary: "Источники логов Azure (Activity Log, Entra ID sign-in/audit, Diagnostic settings) и признаки компрометации: подозрительные входы, изменения RBAC, создание приложений и managed identity, сбор доказательств через KQL."
+lab:
+  kind: shell
+  title: "Практика: аномалия в логах Entra ID"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, signins.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай логи: `cat signins.json`."
+    - "Ищи учётку `svc-backup`."
+    - "Значение поля `riskDetail` в её строке — флаг."
+    - "`grep svc-backup signins.json | cut -d'\"' -f8 > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,19 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 45
 summary: "Разбор ключевых артефактов Windows: Prefetch, реестр, журналы событий, MFT — восстановление истории запуска и атак."
+lab:
+  kind: shell
+  title: "Практика: персистентность в кусте реестра"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, SYSTEM.hive, parse_hive.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 parse_hive.py`."
+    - "Два значения ключа Run: одно — путь к exe, второе — base64."
+    - "Возьми третье поле строки со значением `Beacon`."
+    - "`python3 parse_hive.py | grep Beacon | cut -d' ' -f3 | base64 -d > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

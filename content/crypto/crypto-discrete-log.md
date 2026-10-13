@@ -13,6 +13,19 @@ useful_for:
   - "Понимать, почему порядок подгруппы критичен для стойкости"
 estimated_minutes: 35
 summary: "Полный арсенал решения задачи дискретного логарифма: baby-step giant-step (O(√n) с памятью), Поллард rho (O(√n) без памяти), Полига–Хеллман (разбиение по простым множителям порядка) и index calculus для подгрупп большого гладкого порядка. Готовые скрипты и распознавание по условию."
+lab:
+  kind: shell
+  title: "Практика: дискретный логарифм Полига–Хеллмана"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, p.txt, g.txt, h.txt, factors.txt, ph.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 ph.py`."
+    - "p−1 гладкое — раскладывается на малые простые."
+    - "Решаем dlog в каждой подгруппе и собираем CRT."
+    - "`python3 ph.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,56 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: many-time pad (переиспользование IV)\n\nДва сообщения зашифрованы одним потоковым ключом (одинаковый IV/nonce).\nДля первого сообщения известен открытый текст (`known.bin`). Тогда\n`pt2 = ct1 ⊕ ct2 ⊕ pt1`.\n\nШаги:\n1. `python3 xor.py`.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Переиспользование IV в потоковых режимах = many-time pad.\n- XOR двух шифртекстов = XOR двух открытых текстов.\n"
+    },
+    {
+      "path": "/home/student/task/ct1.hex",
+      "text": "feba723d6df62e307109fd9647a22e1cb96ada133db31cb61a2cfa97f7741bf8aba5cac9fd0c27cfb755a2c26366e32f53093b458f0b41645bfa33f058baf5b85d5019c88bdf\n"
+    },
+    {
+      "path": "/home/student/task/ct2.hex",
+      "text": "d78b49662fae2f2e4713ecb320a90e07ec1bda68688940b01d25a7\n"
+    },
+    {
+      "path": "/home/student/task/known.bin",
+      "b64": "R0VUIC9sb2dpbiBIVFRQLzEuMQ0KSG9zdDogYmFuay5leGFtcGxlDQpDb29raWU6IHNlc3Npb249YW5vbnltb3VzDQoNCg=="
+    },
+    {
+      "path": "/home/student/task/xor.py",
+      "text": "ct1=bytes.fromhex(open('ct1.hex').read().strip())\nct2=bytes.fromhex(open('ct2.hex').read().strip())\nknown=open('known.bin','rb').read()\npt2=bytes(a^b^c for a,b,c in zip(ct1,ct2,known))\nprint(pt2.decode('latin1'))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "xor\\.py",
+          "example": "python3 xor.py",
+          "output": "nto{m4ny_t1m3_p4d_1v_r3us3}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-iv-reuse",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m4ny_t1m3_p4d_1v_r3us3}"
+  }
+}

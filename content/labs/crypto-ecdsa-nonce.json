@@ -1,0 +1,64 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: переиспользование nonce в ECDSA\n\nДве подписи ECDSA под разными сообщениями имеют одинаковый `r` — значит,\nиспользован один и тот же `k`. Из двух уравнений восстанавливается приватный ключ `d`.\n\nШаги:\n1. `python3 recover.py`.\n2. Запиши флаг (это байты d) в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- k = (z1−z2)·(s1−s2)^-1 mod n.\n- d = (s1·k − z1)·r^-1 mod n.\n"
+    },
+    {
+      "path": "/home/student/task/r.txt",
+      "text": "24949683972903365965918603714852949309449321331517031336149615744090779197010707047719465730313499795851486619575964\n"
+    },
+    {
+      "path": "/home/student/task/s1.txt",
+      "text": "16628188218738492577024680005073908408951011643717444541964031757687660474227405745142555491097060048382629164132102\n"
+    },
+    {
+      "path": "/home/student/task/s2.txt",
+      "text": "6333439265061807231096138577336367619483035427011344373130019707547024626845491919118994872574307071482241293142112\n"
+    },
+    {
+      "path": "/home/student/task/z1.txt",
+      "text": "26258684193607176930512810339316446672845628965429263539516045335126796753398\n"
+    },
+    {
+      "path": "/home/student/task/z2.txt",
+      "text": "67678848579834249215386434600670760871559584500560075065506884984746167695979\n"
+    },
+    {
+      "path": "/home/student/task/recover.py",
+      "text": "N=39402006196394479212279040100143613805079739270465446667948293404245721771496870329047266088258938001861606973112319\nr=int(open('r.txt').read()); s1=int(open('s1.txt').read()); s2=int(open('s2.txt').read())\nz1=int(open('z1.txt').read()); z2=int(open('z2.txt').read())\nk=(z1-z2)*pow(s1-s2,-1,N)%N\nd=(s1*k-z1)*pow(r,-1,N)%N\nprint(d.to_bytes((d.bit_length()+7)//8,'big').decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "recover\\.py",
+          "example": "python3 recover.py",
+          "output": "nto{3cds4_n0nc3_r3us3_1s_f4t4l}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-ecdsa-nonce",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3cds4_n0nc3_r3us3_1s_f4t4l}"
+  }
+}

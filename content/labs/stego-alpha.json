@@ -1,0 +1,48 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: LSB альфа-канала\n\n`rgba.png` — RGBA-изображение. Флаг спрятан в младшем бите\nальфа-канала (прозрачности).\n\nШаги:\n1. `python3 alpha.py` — извлекает LSB альфы.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Альфа-канал часто игнорируют при визуальном осмотре.\n- LSB альфы почти не заметен на глаз.\n"
+    },
+    {
+      "path": "/home/student/task/rgba.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAGAAAAAECAYAAABx/Tp0AAAAkElEQVR4nN1SQQ6AMAgrZk/1Tb7JVzkPZgk2BVmMF3cSWkpptH1bDwCG63X3PWqInjnM4zxf6fGOqr7CuR/Nz3IM+o6KJ8Zv2gsNelCZ9GLKjOKzVuX4SMtjJrhZSGNGhaQCjHR7wssy4ewMgLVJA/5PiILMcOapflRHxylOFkR1R2XfTC312gsDX+FP+3/1TqxEMeZ8wuYVAAAAAElFTkSuQmCC"
+    },
+    {
+      "path": "/home/student/task/alpha.py",
+      "text": "from PIL import Image\nimg=Image.open('rgba.png').convert('RGBA')\npx=img.load(); W,H=img.size\nbits=''\nfor y in range(H):\n    for x in range(W):\n        bits += str(px[x,y][3]&1)\nbs=bytes(int(bits[i:i+8],2) for i in range(0,len(bits)//8*8,8))\nt=bs.decode('latin1'); i=t.find('nto{'); j=t.find('}',i)\nprint(t[i:j+1])\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "alpha\\.py",
+          "example": "python3 alpha.py",
+          "output": "nto{4lph4_ch4nn3l_h1d3s_d4t4}\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-alpha",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4lph4_ch4nn3l_h1d3s_d4t4}"
+  }
+}

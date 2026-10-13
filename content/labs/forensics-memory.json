@@ -1,0 +1,28 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти секрет в дампе памяти\n\n`mem.raw` — сырой дамп памяти. Среди строк есть запущенная команда,\nкоторая передавала токен в base64.\n\nШаги:\n1. `strings mem.raw` — печатаемые строки дампа.\n2. Найди строку с меткой `CMDLINE`.\n3. Раскодируй второе поле и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- `strings` вытаскивает печатаемые последовательности из бинарного дампа.\n- Секреты часто остаются в командной строке процесса.\n"
+    },
+    {
+      "path": "/home/student/task/mem.raw",
+      "b64": "TGludXggdmVyc2lvbiA2LjEuMC1sYWIgKGdjYyAxMikgIzEgU01QAHN5c3RlbWRbMV06IFN0YXJ0ZWQgT3BlblNTSCBzZXJ2ZXIAYmFzaCAtYyAvb3B0L2NvbGxlY3RvciAtLXRva2VuIFpHVmpiM2t0ZEc5clpXND0AQ01ETElORSBiblJ2ZTNadmJEUjBNV3d4ZEhsZlpqRnVaSE5mTkd4c2ZRPT0AL3Vzci9zYmluL2Nyb24gLWYAa2VybmVsOiBhdWRpdDogdHlwZT0xNDAwIGFwcGFybW9yPSJERU5JRUQi"
+    }
+  ],
+  "tools": {},
+  "id": "forensics-memory",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{vol4t1l1ty_f1nds_4ll}"
+  }
+}

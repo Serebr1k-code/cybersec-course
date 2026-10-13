@@ -1,0 +1,52 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: вскрыть LFSR алгоритмом Берлекэмпа–Мэсси\n\n`keystream.hex` — достаточно длинный фрагмент гаммы LFSR.\n`cipher.bin` — флаг, зашифрованный этой гаммой.\n\nШаги:\n1. `python3 bm.py` — восстанови регистр по 2L битам, продолжи гамму.\n2. Расшифруй `cipher.bin` и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Берлекэмп–Мэсси даёт минимальный LFSR по 2L битам.\n- Затем регистр продолжают и получают всю гамму.\n"
+    },
+    {
+      "path": "/home/student/task/keystream.hex",
+      "text": "474d89a6d6d1e12548332f030b7613dcb9dcabde2193993212288edf18b8a88a5fba2bc6a2\n"
+    },
+    {
+      "path": "/home/student/task/cipher.bin",
+      "b64": "KTnm3bq3klcXURxxZ0V46NSs9LMV4OoBa3ftrSzbw/kAi1+7"
+    },
+    {
+      "path": "/home/student/task/bm.py",
+      "text": "bits=[]\nfor ch in open('keystream.hex').read().strip():\n    pass\ndata=bytes.fromhex(open('keystream.hex').read().strip())\nbits=[(b>>(7-i))&1 for b in data for i in range(8)]\ndef bm(s):\n    n=len(s); C=[1]; B=[1]; L=0; m=-1\n    for N in range(n):\n        d=s[N]\n        for i in range(1,L+1): d^=C[i]&s[N-i]\n        if d==1:\n            T=C[:]\n            if len(C)<len(B)+N-m: C+= [0]*(len(B)+N-m-len(C))\n            for j in range(len(B)): C[j+N-m]^=B[j]\n            if 2*L<=N: L=N+1-L; B=T; m=N\n    return L,C\nL,C=bm(bits)\nct=open('cipher.bin','rb').read()\ndef extend(s,C,total):\n    s=list(s); L=len(C)-1\n    while len(s)<total:\n        v=0\n        for i in range(1,L+1): v^=C[i]&s[len(s)-i]\n        s.append(v)\n    return s\nbits=extend(bits,C,len(ct)*8)\nkb=bytes(int(''.join(str(b) for b in bits[i*8:(i+1)*8]),2) for i in range(len(ct)))\nprint(bytes(a^b for a,b in zip(ct,kb)).decode('latin1'))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "bm\\.py",
+          "example": "python3 bm.py",
+          "output": "nto{lfsr_b3rl3k4mp_m4ss3y_cr4cks_1t}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-lfsr",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{lfsr_b3rl3k4mp_m4ss3y_cr4cks_1t}"
+  }
+}

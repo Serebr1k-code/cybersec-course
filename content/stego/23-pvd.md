@@ -13,6 +13,19 @@ useful_for:
   - "Forensics: детект нестандартных встраиваний"
 estimated_minutes: 31
 summary: "Пространственные методы сокрытия за пределами LSB: Pixel Value Differencing (PVD), адаптивное встраивание по контрасту, и как их извлекать и детектировать."
+lab:
+  kind: shell
+  title: "Практика: PVD-встраивание"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, pvd.png, pvd.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 pvd.py`."
+    - "Разность соседних пикселей определяет диапазон."
+    - "Число бит = log2(ширины диапазона)."
+    - "`python3 pvd.py | grep nto > found.txt`."
+
 ---
 ## Вопрос, с которого всё начинается
 

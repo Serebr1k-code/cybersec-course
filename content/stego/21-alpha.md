@@ -13,6 +13,19 @@ useful_for:
   - "Извлечение данных из канала, который «не виден»"
 estimated_minutes: 30
 summary: "Как альфа-канал и прозрачные области используются для сокрытия: LSB в альфе, данные в полностью прозрачных пикселях, премультипликация и практическое извлечение."
+lab:
+  kind: shell
+  title: "Практика: LSB альфа-канала"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, rgba.png, alpha.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 alpha.py`."
+    - "Данные в младшем бите альфа-канала."
+    - "8 бит на байт, построчно."
+    - "`python3 alpha.py | grep nto > found.txt`."
+
 ---
 ## Вопрос, с которого всё начинается
 

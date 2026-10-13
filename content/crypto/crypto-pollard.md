@@ -13,6 +13,19 @@ useful_for:
   - "Выбирать инструмент факторизации под структуру числа"
 estimated_minutes: 30
 summary: "Практический арсенал факторизации: метод Полларда p-1 (гладкий p-1), Полларда rho (общий случай), ECM (находит малые простые множители больших чисел), метод Ферма (близкие p и q) и связка инструментов yafu/pari/sage. С распознаванием, какой метод применим."
+lab:
+  kind: shell
+  title: "Практика: факторизация Полларда p−1"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, n.txt, e.txt, c.txt, pollard.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `python3 pollard.py`."
+    - "Скрипт считает 2^(j!) mod n и берёт gcd с n."
+    - "Когда gcd даёт делитель — задача решена."
+    - "`python3 pollard.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

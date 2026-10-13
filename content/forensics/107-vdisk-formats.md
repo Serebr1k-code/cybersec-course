@@ -13,6 +13,19 @@ useful_for:
   - "Cloud Forensics"
 estimated_minutes: 50
 summary: "Форматы виртуальных дисков: монолитный/sparse VMDK, QCOW2, VHD/VHDX, VDI; магии и дескрипторы, конвертация qemu-img, монтирование через qemu-nbd и разбор снапшотов."
+lab:
+  kind: shell
+  title: "Практика: дескриптор VMDK"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, disk.vmdk]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай дескриптор: `cat disk.vmdk`."
+    - "Ищи строку `ddb.comment`."
+    - "Значение в кавычках — base64."
+    - "`grep comment disk.vmdk | cut -d'\"' -f2 | base64 -d > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается
