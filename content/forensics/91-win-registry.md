@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 14
 summary: "Второй этап артефактов Windows: реестр, корзина, браузеры и USB-устройства — какие уроки читать и в каком порядке."
+lab:
+  kind: shell
+  title: "Практика: автозапуск в реестре"
+  toolset: [core, regripper]
+  workdir: /home/student/task
+  files: [task.md, SOFTWARE]
+  check: "grep -q 'nto{r3g_run_k3y_p3rs1st3nc3_f0und}' answer.txt"
+  hints:
+    - "Проверь магию куста: `xxd -l 4 SOFTWARE` (`72 65 67 66` = `regf`)."
+    - "Разбери ключ Run: `rip.pl -r SOFTWARE -p soft_run`."
+    - "Значения ключа Run показывают автозапуск."
+    - "Метка в одном из значений: `rip.pl -r SOFTWARE -p soft_run > run.txt` и `grep nto run.txt > answer.txt`."
 ---
 
 Если предыдущий модуль отвечал на вопрос «что запускалось», этот отвечает на «**что за устройство, что подключали и что осталось в файлах**». Здесь собраны конфигурация системы (реестр), удалённые файлы (корзина), следы браузеров и история съёмных носителей.

@@ -13,6 +13,18 @@ useful_for:
   - "Data recovery"
 estimated_minutes: 10
 summary: "Отдельный этап ветки образов: разбор зашифрованных дисков и контейнеров (VeraCrypt, LUKS, BitLocker) — что читать."
+lab:
+  kind: shell
+  title: "Практика: заголовок LUKS"
+  toolset: [core, cryptsetup]
+  workdir: /home/student/task
+  files: [task.md, luks.img]
+  check: "grep -q 'nto{luks_h34d3r_l34ks_th3_l4b3l}' answer.txt"
+  hints:
+    - "Сигнатура: `xxd -l 16 luks.img` (`4c 55 4b 53 ba be` = LUKS)."
+    - "Заголовок читается `cryptsetup luksDump luks.img`."
+    - "В заголовке есть label и слоты ключей."
+    - "Метка в поле заголовка: `cryptsetup luksDump luks.img > dump.txt` и `grep nto dump.txt > answer.txt`."
 ---
 
 Шифрование — стена на пути анализа: без ключа содержимое неразличимо. Этот модуль выделен отдельно, потому что методы здесь принципиально иные — вы работаете не с метаданными, а с **криптографией**: ищете ключи, пароли, восстановление после сбоя.

@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 12
 summary: "Ветка работы с «живыми» снимками: дампы оперативной памяти и сетевые захваты (pcap) — что читать и в каком порядке."
+lab:
+  kind: shell
+  title: "Практика: дамп памяти и pcap"
+  toolset: [core, volatility, tshark]
+  workdir: /home/student/task
+  files: [task.md, capture.pcap, mem.raw]
+  check: "grep -q 'nto{l1v3_sn4psh0t_pc4p_c4ptur3s_s3cr3ts}' answer.txt"
+  hints:
+    - "Процессы в памяти: `vol -f mem.raw windows.pslist`."
+    - "Сводка захвата: `tshark -r capture.pcap -nn`."
+    - "Реконструируй TCP-сессию: `tshark -r capture.pcap -q -z follow,tcp,ascii,0`."
+    - "Метка уходит в HTTP-заголовке: `strings capture.pcap | grep nto > answer.txt`."
 ---
 
 Образ диска — не единственный снимок системы. **Дамп памяти** показывает, что происходило в момент снятия (процессы, сеть, ключи), а **pcap** — что прошло по сети. Этот модуль собирает оба типа «энергозависимых» источников, которые дополняют диск и друг друга.

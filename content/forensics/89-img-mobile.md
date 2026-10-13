@@ -13,6 +13,18 @@ useful_for:
   - "Mobile Forensics"
 estimated_minutes: 10
 summary: "Отдельный этап ветки образов: снятие и разбор образов Android/iOS — что читать и в каком порядке."
+lab:
+  kind: shell
+  title: "Практика: образ мобильного устройства"
+  toolset: [core, android]
+  workdir: /home/student/task
+  files: [task.md, userdata.img]
+  check: "grep -q 'nto{andr01d_sp4rs3_1mg3_chip_0ff}' answer.txt"
+  hints:
+    - "Сигнатура: `xxd -l 4 userdata.img` (`3a ff 26 ed` = Android sparse image)."
+    - "Разверни образ: `simg2img userdata.img userdata.raw`."
+    - "Sparse-образ нужно развернуть перед анализом."
+    - "Метка в сыром образе: `strings userdata.img | grep nto > answer.txt`."
 ---
 
 Мобильные устройства — это компьютеры с иной моделью доступа: часть данных зашифрована, часть доступна только через специальные образы (backup, `adb backup`, iTunes). Этот модуль выделен в отдельный этап, потому что инструменты и артефакты здесь сильно отличаются от «настольной» форензики.
