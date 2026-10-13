@@ -13,6 +13,18 @@ useful_for:
   - "Пентест-отчёты"
 estimated_minutes: 45
 summary: "Как документировать форензик-исследование: цепочка сохранности, журнал действий, структура отчёта, воспроизводимость."
+lab:
+  kind: shell
+  title: "Практика: оформить находку и восстановить файл"
+  toolset: [core, sleuthkit, hash]
+  workdir: /home/student/task
+  files: [task.md, srv.img, imaging.log, chain_of_custody.csv]
+  check: "grep -q 'nto{ch41n_0f_cust0dy_pr0v3s_1nt3gr1ty}' answer.txt"
+  hints:
+    - "Начни с целостности образа: `sha256sum srv.img` и `mmls srv.img`."
+    - "Раздел начинается с offset 2048 — файлы смотри `fls -o 2048 srv.img`."
+    - "Удалённый `export.csv` — inode 13; восстанови его через `icat -o 2048 srv.img 13 > export.csv`."
+    - "Метка в восстановленном файле: `grep nto export.csv > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,75 @@
+{
+ "id": "forensics-mobile",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "nto{andr01d_b4ckup_l34ks_s3ss10n_t0k3n}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: разобрать Android-бэкап\n\nС разблокированного Android снят логический бэкап `backup.ab`. Нужно достать\nпереписку мессенджера, GPS из фото и токен сессии из `shared_prefs`.\n\n1. Распакуй `.ab` в tar: `java -jar abe.jar unpack backup.ab backup.tar`.\n2. База WhatsApp: `sqlite3 ext/apps/com.whatsapp/db/msgstore.db \".tables\"`.\n3. Переписка: `sqlite3 ext/apps/com.whatsapp/db/msgstore.db \"SELECT key_remote_jid, data FROM messages ORDER BY timestamp DESC LIMIT 3\"`.\n4. GPS: `exiftool -gps:all ext/shared/DCIM/Camera/IMG_20240112_101133.jpg`.\n5. Токен лежит в `shared_prefs`: `grep nto ext/shared/shared_prefs/com.whatsapp_preferences.xml > answer.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/backup.ab",
+   "b64": "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",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/ext/apps/com.whatsapp/db/msgstore.db",
+   "b64": "U1FMaXRlIGZvcm1hdCAzAAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsc=",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/ext/shared/shared_prefs/com.whatsapp_preferences.xml",
+   "text": "<?xml version=\"1.0\" encoding=\"utf-8\" standalone=\"yes\" ?>\n<map>\n    <string name=\"wa_session_token\">nto{andr01d_b4ckup_l34ks_s3ss10n_t0k3n}</string>\n    <string name=\"push_name\">Alice</string>\n    <boolean name=\"verified\" value=\"true\" />\n</map>\n"
+  },
+  {
+   "path": "/home/student/task/ext/shared/DCIM/Camera/IMG_20240112_101133.jpg",
+   "b64": "/9j/4AAQSkZJRgABAQAAAQABAABFeGlmAABHUFMgNTUuNzU1OE4gMzcuNjE3N0UgMjAyNDowMToxMiAxMDoxMTozMw==",
+   "mode": "644"
+  }
+ ],
+ "tools": {
+  "java": {
+   "help": "java -jar abe.jar unpack <backup.ab> <out.tar> — Android Backup Extractor",
+   "cases": [
+    {
+     "match": "abe\\.jar",
+     "example": "-jar abe.jar unpack backup.ab backup.tar",
+     "output": "0 bytes read: 100.0%\n\n$ tar -tf backup.tar | head\napps/\napps/com.whatsapp/db/msgstore.db\napps/com.android.providers.contacts/db/contacts2.db\nshared/DCIM/Camera/IMG_20240112_101133.jpg\n"
+    }
+   ]
+  },
+  "sqlite3": {
+   "help": "sqlite3 <db> \"<SQL>\" — запрос к базе",
+   "cases": [
+    {
+     "match": "\\.tables",
+     "example": "msgstore.db \".tables\"",
+     "output": "android_metadata   message_media   messages   chat_list\n"
+    },
+    {
+     "match": "messages",
+     "example": "msgstore.db \"SELECT key_remote_jid, data FROM messages ...\"",
+     "output": "4915123456789@s.whatsapp.net|Привет, я на месте\n4915123456789@s.whatsapp.net|встретимся у входа в 10:30\ngroup-1203630@g.us|скинул координаты\n"
+    }
+   ]
+  },
+  "exiftool": {
+   "help": "exiftool [-gps:all] <файл> — метаданные файла",
+   "cases": [
+    {
+     "match": "gps",
+     "example": "-gps:all IMG_20240112_101133.jpg",
+     "output": "GPS Latitude  : 55 deg 45' 21.00\" N\nGPS Longitude : 37 deg 37' 4.00\" E\nGPS Position  : 55 deg 45' 21.00\" N, 37 deg 37' 4.00\" E\n"
+    }
+   ]
+  }
+ }
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Анализ Android/iOS"
 estimated_minutes: 45
 summary: "Основы мобильной форензики: извлечение данных Android (ADB, образ, backup) и iOS, разбор приложений (APK/IPA), базы SQLite, артефакты мессенджеров и геолокации."
+lab:
+  kind: shell
+  title: "Практика: разбор Android-бэкапа"
+  toolset: [core, sqlite, exiftool]
+  workdir: /home/student/task
+  files: [task.md, backup.ab]
+  check: "grep -q 'nto{andr01d_b4ckup_l34ks_s3ss10n_t0k3n}' answer.txt"
+  hints:
+    - "Файл `backup.ab` — это Android Backup; внутри tar-поток (`java -jar abe.jar unpack …`)."
+    - "Приложения хранят данные в SQLite — смотри таблицы `msgstore.db` через `sqlite3`."
+    - "GPS бери из EXIF фото: `exiftool -gps:all …/IMG_20240112_101133.jpg`."
+    - "Токен сессии лежит в `shared_prefs/com.whatsapp_preferences.xml` — `grep nto` по нему."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,18 @@ useful_for:
   - "Анализ образов дисков"
 estimated_minutes: 15
 summary: "Второй этап ветки ФС: внутреннее устройство NTFS (MFT/USN), ext4 (журнал), Btrfs/ZFS и APFS — что читать и в каком порядке."
+lab:
+  kind: shell
+  title: "Практика: журнал ext4 и удалённые inode"
+  toolset: [core, ext]
+  workdir: /home/student/task
+  files: [task.md, ext4.img]
+  check: "grep -q 'nto{3xt4_j0urn4l_r3c0v3rs_d3l3t3d}' answer.txt"
+  hints:
+    - "Суперблок ext: `xxd -s 0x438 -l 2 ext4.img` (магия `53 ef`)."
+    - "Параметры ФС: `dumpe2fs ext4.img`."
+    - "Удалённые inode: `debugfs -R \"lsdel\" ext4.img`."
+    - "Прочитай удалённый файл: `debugfs -R \"cat /secret.txt\" ext4.img > out.txt`, затем `grep nto`."
 ---
 
 После разметки и базового recovery следующий шаг — **понять, как конкретная файловая система хранит метаданные**. Именно метаданные дают форензику: время создания/изменения, историю операций, следы удаления и переименований. Этот модуль собирает четыре ключевые ФС в один маршрут.
