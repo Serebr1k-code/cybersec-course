@@ -1,0 +1,41 @@
+{
+  "id": "osint-smtp-enum",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{sm7p_vrfy_l34ks_us3rs}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: SMTP VRFY — какие ящики существуют\n\nПочтовый сервер `mail.example.com` обслуживает домен `example.com`.\nВ `users.txt` — список кандидатов. Задача: найти существующие ящики\nи достать флаг.\n\n1. Посмотри список: cat users.txt\n2. Прогони перечисление: smtp-user-enum -M VRFY -U users.txt -t mail.example.com\n3. Существующие ящики отвечают 250, несуществующие — 252/550.\n4. У одного ящика ответ сервера содержит строку nto{...}. Запиши её в\n   answer.txt и набери check.\n"
+    },
+    {
+      "path": "/home/student/task/users.txt",
+      "text": "admin\ninfo\nsales\nflag\nbackup\nroot\n"
+    }
+  ],
+  "tools": {
+    "smtp-user-enum": {
+      "help": "smtp-user-enum -M VRFY|RCPT -U <файл> -t <сервер> — перебор ящиков (эмуляция)",
+      "cases": [
+        {
+          "match": "rcpt",
+          "example": "-M RCPT -U users.txt -t mail.example.com",
+          "output": "Starting smtp-user-enum v1.2\n\n----------------------------------------------------------\n|                   Scan Information                       |\n----------------------------------------------------------\n\nMode ..................... RCPT\nTargets .................. mail.example.com\nUsername file ............ users.txt\n\n----------------------------------------------------------\n\n220 mail.example.com ESMTP Postfix (Ubuntu)\n\n250 2.1.5 Ok admin@example.com\n250 2.1.5 Ok info@example.com\n550 5.1.1 sales@example.com: Recipient address rejected\n550 5.1.1 root@example.com: Recipient address rejected\n\n----------------------------------------------------------\n6 targets examined, 2 valid responses.\n"
+        },
+        {
+          "match": "vrfy",
+          "example": "-M VRFY -U users.txt -t mail.example.com",
+          "output": "Starting smtp-user-enum v1.2\n\n----------------------------------------------------------\n|                   Scan Information                       |\n----------------------------------------------------------\n\nMode ..................... VRFY\nTargets .................. mail.example.com\nUsername file ............ users.txt\n\n----------------------------------------------------------\n\n220 mail.example.com ESMTP Postfix (Ubuntu)\n\n250 admin@example.com\n250 info@example.com\n252 sales@example.com\n550 5.1.1 root@example.com: Recipient address rejected\n250 nto{sm7p_vrfy_l34ks_us3rs}\n550 5.1.1 backup@example.com: Recipient address rejected\n\n----------------------------------------------------------\n6 targets examined, 4 valid responses.\n"
+        }
+      ],
+      "fallback": "smtp-user-enum: в этой лабе доступен сервер mail.example.com.\n"
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "id": "osint-favicon",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{f4v1c0n_h4sh_c0rr3l4t3s_h0sts}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: favicon как отпечаток инфраструктуры\n\n`shop.example.com` закрыт CDN, но файл `/favicon.ico` одинаков на всех\nсерверах одной организации. У тебя три скачанных иконки: `shop.ico`\n(с CDN), `origin.ico` (кандидат в настоящий сервер) и `cdn.ico` (иконка CDN).\n\n1. Посчитай отпечатки: md5sum shop.ico origin.ico cdn.ico\n2. Одинаковый хэш у shop.ico и origin.ico подтверждает: origin — тот же сайт.\n3. Загляни внутрь иконки: strings shop.ico\n4. Найди строку nto{...} и запиши её в answer.txt, затем набери check.\n"
+    },
+    {
+      "path": "/home/student/task/shop.ico",
+      "b64": "AAABAAEAEBAAAAEAIABIBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAADIeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKPCEtLSBidWlsZDogZmF2aWNvbiB2MyAoYykgRXhhbXBsZSBDb3JwIC0tPgpudG97ZjR2MWMwbl9oNHNoX2MwcnIzbDR0M3NfaDBzdHN9Cg==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/origin.ico",
+      "b64": "AAABAAEAEBAAAAEAIABIBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAADIeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/yHgo/8h4KP/IeCj/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKPCEtLSBidWlsZDogZmF2aWNvbiB2MyAoYykgRXhhbXBsZSBDb3JwIC0tPgpudG97ZjR2MWMwbl9oNHNoX2MwcnIzbDR0M3NfaDBzdHN9Cg==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/cdn.ico",
+      "b64": "AAABAAEAEBAAAAEAIABIBAAAFgAAACgAAAAQAAAAIAAAAAEAIAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAA8PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/PDzI/zw8yP88PMj/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAKPCEtLSBDRE4gZWRnZSBpY29uIC0tPgo=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "md5sum": {
+      "help": "md5sum <файл…> — MD5-отпечаток файла",
+      "cases": [
+        {
+          "match": "shop\\.ico",
+          "example": "shop.ico",
+          "output": "f619b899fddc2b857007ca5a1f806f52  shop.ico\n"
+        },
+        {
+          "match": "origin\\.ico",
+          "example": "origin.ico",
+          "output": "f619b899fddc2b857007ca5a1f806f52  origin.ico\n"
+        },
+        {
+          "match": "cdn\\.ico",
+          "example": "cdn.ico",
+          "output": "e52532141171f2ef0cb394554238981c  cdn.ico\n"
+        },
+        {
+          "match": "ico",
+          "example": "shop.ico origin.ico cdn.ico",
+          "output": "f619b899fddc2b857007ca5a1f806f52  origin.ico\ne52532141171f2ef0cb394554238981c  cdn.ico\nf619b899fddc2b857007ca5a1f806f52  shop.ico\n"
+        }
+      ],
+      "fallback": "md5sum: в этой лабе есть только shop.ico, origin.ico и cdn.ico.\n"
+    }
+  }
+}

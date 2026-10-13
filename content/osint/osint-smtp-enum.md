@@ -12,6 +12,18 @@ useful_for:
   - "OSINT: подтверждение существования адресов"
 estimated_minutes: 45
 summary: "Команды VRFY/EXPN/RCPT TO, smtp-user-enum, автоматический перебор и защита от enumeration, этика и rate-limit."
+lab:
+  kind: shell
+  title: "Практика: перечисление ящиков через SMTP"
+  toolset: [core, smtp-user-enum]
+  workdir: /home/student/task
+  files: [task.md, users.txt]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Запусти перебор: `smtp-user-enum -M VRFY -U users.txt -t mail.example.com`."
+    - "Метод VRFY отвечает 250 для существующего ящика и 252/550 для остальных."
+    - "Пройди по списку users.txt и найди существующие адреса."
+    - "У одного служебного ящика в ответе сервера зашит флаг — запиши nto{...} в `answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

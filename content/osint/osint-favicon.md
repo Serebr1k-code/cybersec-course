@@ -12,6 +12,18 @@ useful_for:
   - "Картирование однотипных серверов"
 estimated_minutes: 50
 summary: "Как хэшировать favicon (mmh3/MD5), искать по нему в Shodan/FOFA/Censys, определять технологии через Wappalyzer и whatweb, использовать фингерпринты для корреляции."
+lab:
+  kind: shell
+  title: "Практика: favicon-хэш коррелирует хосты"
+  toolset: [core, md5sum]
+  workdir: /home/student/task
+  files: [task.md, shop.ico, origin.ico, cdn.ico]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Посчитай отпечатки: `md5sum shop.ico origin.ico cdn.ico`."
+    - "Одинаковый хэш у двух файлов = один и тот же сайт (shop и origin)."
+    - "Внутри иконки может остаться текст сборки: `strings shop.ico`."
+    - "Флаг — строка nto{...} из `strings`; запиши её в `answer.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

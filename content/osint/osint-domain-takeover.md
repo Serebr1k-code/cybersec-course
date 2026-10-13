@@ -13,6 +13,18 @@ useful_for:
   - "Мониторинг поверхности атаки"
 estimated_minutes: 30
 summary: "Как находить висящие CNAME на удалённые облачные ресурсы и определять захват поддоменов: список уязвимых сервисов, проверка и подтверждение."
+lab:
+  kind: shell
+  title: "Практика: висячий CNAME и захват поддомена"
+  toolset: [core, dig, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Разреши имя: `dig docs.example.com CNAME +noall +answer`."
+    - "CNAME ведёт на внешний сервис (GitHub Pages), которого больше нет."
+    - "Запроси страницу: `curl -s http://docs.example.com/` — сервис отдаёт 404."
+    - "Флаг — в HTML-комментарии заглушки: `curl -s http://docs.example.com/ | grep nto > answer.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

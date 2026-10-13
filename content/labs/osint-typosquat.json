@@ -1,0 +1,67 @@
+{
+  "id": "osint-typosquat",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{h0m0gl1ph_d0m41n_s3rv3s_ph1sh}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: домены-двойники бренда example.com\n\nБренд — `example.com`. В файле `candidates.txt` список кандидатов:\nдва из них — безобидный паркинг, один — фишинговая инфраструктура.\n\n1. Посмотри список: cat candidates.txt\n2. Проверь каждый домен: whois <домен>\n3. Отличи паркинг от фишинга по регистратору, дате регистрации и NS.\n4. У фишингового домена (омоглиф с кириллицей) в whois лежит флаг.\n   Запиши строку nto{...} в answer.txt и набери check.\n"
+    },
+    {
+      "path": "/home/student/task/candidates.txt",
+      "text": "example.com\nexamp1e.com\nexample-secure.com\nexаmple.com\n"
+    }
+  ],
+  "tools": {
+    "whois": {
+      "help": "whois <домен|IP> — регистрационные данные (эмуляция)",
+      "cases": [
+        {
+          "match": "xn--|xn--exmple-4nf",
+          "example": "xn--exmple-4nf.com",
+          "output": "Domain Name: XN--EXMPLE-4NF.COM\nRegistry Domain ID: 2948172631_DOMAIN_COM-VRSN\nRegistrar WHOIS Server: whois.namecheap.com\nRegistrar: NameCheap, Inc.\nCreation Date: 2026-09-27T04:10:33Z\nUpdated Date: 2026-09-28T04:12:00Z\nRegistrar Registration Expiration Date: 2027-09-27T04:10:33Z\nDomain Status: clientTransferProhibited\nRegistrant Organization: Example Corp (look-alike: cyrillic 'a')\nName Server: NS1.PHISH-HOST.RU\nName Server: NS2.PHISH-HOST.RU\nDNSSEC: unsigned\n% NOTE: registered 6 days ago, NS on a bulletproof host\n% flag: nto{h0m0gl1ph_d0m41n_s3rv3s_ph1sh}\n"
+        },
+        {
+          "match": "examp1e\\.com",
+          "example": "examp1e.com",
+          "output": "Domain Name: EXAMP1E.COM\nRegistrar: GoDaddy.com, LLC\nCreation Date: 2019-11-02T10:00:00Z\nRegistrant Organization: Domain Parking Inc\nName Server: NS1.PARKING.COM\nName Server: NS2.PARKING.COM\nDNSSEC: unsigned\n"
+        },
+        {
+          "match": "example-secure\\.com",
+          "example": "example-secure.com",
+          "output": "Domain Name: EXAMPLE-SECURE.COM\nRegistrar: Namecheap, Inc.\nCreation Date: 2020-05-18T12:00:00Z\nRegistrant Organization: Brand Protection Ltd\nName Server: NS1.SEDO.COM\nName Server: NS2.SEDO.COM\nDNSSEC: unsigned\n"
+        },
+        {
+          "match": "example\\.com",
+          "example": "example.com",
+          "output": "Domain Name: EXAMPLE.COM\nRegistry Domain ID: 2336799_DOMAIN_COM-VRSN\nRegistrar WHOIS Server: whois.iana.org\nRegistrar: RESERVED-Internet Assigned Numbers Authority\nCreation Date: 1995-08-14T04:00:00Z\nName Server: A.IANA-SERVERS.NET\nName Server: B.IANA-SERVERS.NET\nDNSSEC: unsigned\n"
+        }
+      ],
+      "fallback": "whois: в этой лабе доступны только домены из candidates.txt.\n"
+    },
+    "dig": {
+      "help": "dig <имя> <тип> [+short] — DNS-клиент (эмуляция)",
+      "cases": [
+        {
+          "match": "xn--|xn--exmple-4nf",
+          "example": "xn--exmple-4nf.com A",
+          "output": "xn--exmple-4nf.com.\t1800\tIN\tA\t45.148.10.77\n"
+        },
+        {
+          "match": "example\\.com",
+          "example": "example.com A",
+          "output": "example.com.\t3600\tIN\tA\t93.184.216.34\n"
+        }
+      ],
+      "fallback": ";; connection timed out; no servers could be reached\n"
+    }
+  }
+}

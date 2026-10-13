@@ -1,0 +1,63 @@
+{
+  "id": "osint-domain-takeover",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{d4ngl1ng_cn4m3_1s_0wn3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: висячий CNAME → захват поддомена\n\nТы собрал поддомены цели `example.com` и проверяешь их по одному.\nУ `docs.example.com` странный ответ: сервис на другом конце отдаёт 404\n«There isn't a GitHub Pages site here».\n\n1. Посмотри, куда указывает поддомен:\n   dig docs.example.com CNAME +noall +answer\n2. Убедись, что это внешний сервис, и запроси страницу:\n   curl -s http://docs.example.com/\n3. Подтверди признак захвата (404 GitHub Pages = страницы там больше нет).\n4. Флаг спрятан в HTML-комментарии заглушки. Достань его и запиши в\n   `answer.txt`, затем набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "dig": {
+      "help": "dig [@сервер] <имя> <тип> [+short|+noall +answer] — DNS-клиент (эмуляция)",
+      "cases": [
+        {
+          "match": "cname",
+          "example": "docs.example.com CNAME +noall +answer",
+          "output": "docs.example.com.\t300\tIN\tCNAME\texample.github.io.\n"
+        },
+        {
+          "match": "\\bA\\b|docs\\.example\\.com",
+          "example": "docs.example.com A +noall +answer",
+          "output": "docs.example.com.\t300\tIN\tCNAME\texample.github.io.\nexample.github.io.\t3600\tIN\tA\t185.199.108.153\nexample.github.io.\t3600\tIN\tA\t185.199.109.153\n"
+        },
+        {
+          "match": "blog\\.example\\.com",
+          "example": "blog.example.com A +noall +answer",
+          "output": "blog.example.com.\t300\tIN\tA\t203.0.113.10\n"
+        }
+      ],
+      "fallback": ";; connection timed out; no servers could be reached\n"
+    },
+    "curl": {
+      "help": "curl [-sI] <url> — HTTP-запрос (эмуляция example.com)",
+      "cases": [
+        {
+          "match": "docs\\.example\\.com",
+          "example": "-s http://docs.example.com/",
+          "output": "HTTP/1.1 404 Not Found\nServer: GitHub.com\nContent-Type: text/html; charset=utf-8\n\n<!DOCTYPE html>\n<html>\n  <head><title>404</title></head>\n  <body>\n    <h1>There isn't a GitHub Pages site here.</h1>\n    <p>If you're the owner of this site, check your repository settings.</p>\n    <!-- takeover proof: nto{d4ngl1ng_cn4m3_1s_0wn3d} -->\n  </body>\n</html>\n"
+        },
+        {
+          "match": "blog\\.example\\.com",
+          "example": "-s http://blog.example.com/",
+          "output": "<html><body><h1>Example Corp Blog</h1><p>Latest posts…</p></body></html>\n"
+        },
+        {
+          "match": "shop\\.example\\.com",
+          "example": "-s http://shop.example.com/",
+          "output": "<html><body><h1>Example Shop</h1><p>Free shipping over $50.</p></body></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только несколько хостов example.com.\n"
+    }
+  }
+}
