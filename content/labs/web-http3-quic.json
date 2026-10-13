@@ -1,0 +1,42 @@
+{
+  "id": "web-http3-quic",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{http3_f4c4d3_d3sync_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: десинхронизация через H3-фасад\n\n`shop.local` объявляет поддержку HTTP/3 через `Alt-Svc`.\n\n1. Убедись, что сайт умеет H3:\n\n   curl -sI https://shop.local/ | grep -i alt-svc\n   curl -sI --http3 https://shop.local/\n\n2. У сайта два фасада: H1/H2 по TCP и H3 по UDP. H1/H2 пропатчен, а H3-терминатор\n   настроили позже и забыли закрыть — через него `/admin` доступен.\n\n3. Запроси `/admin` по H3 и сохрани ответ:\n\n   curl -s --http3 https://shop.local/admin > found.txt\n\n4. Набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local, H1/H2 + H3)",
+      "cases": [
+        {
+          "match": "http3.*admin|admin.*http3",
+          "example": "-s --http3 https://shop.local/admin",
+          "output": "HTTP/3 200\n[quic] H3 facade -> H1.1 downgrade; missing auth patch on H3 terminator\n<h1>Admin</h1>\nnto{http3_f4c4d3_d3sync_byp4ss}\n"
+        },
+        {
+          "match": "http3",
+          "example": "-sI --http3 https://shop.local/",
+          "output": "HTTP/3 200\nserver: nginx-quic\nalt-svc: h3=\":443\"; ma=86400\n"
+        },
+        {
+          "match": "alt-svc|shop\\.local",
+          "example": "-sI https://shop.local/",
+          "output": "HTTP/1.1 200 OK\nalt-svc: h3=\":443\"; ma=86400\nserver: nginx\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется shop.local (H1/H2 + H3).\n"
+    }
+  }
+}

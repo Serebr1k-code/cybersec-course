@@ -12,6 +12,19 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 40
 summary: "Как устроен HTTP/3 поверх QUIC, чем он меняет поверхность атак и какие новые классы десинка/DoS появляются."
+lab:
+  kind: shell
+  title: "Практика: десинхронизация через H3-фасад"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сайт объявляет HTTP/3: curl -sI https://shop.local/ | grep -i alt-svc"
+    - "Проверь H3-фасад: curl -sI --http3 https://shop.local/"
+    - "H1/H2-фасад пропатчен, а H3-терминатор настроили позже и забыли закрыть."
+    - "Запроси /admin через H3: curl -s --http3 https://shop.local/admin > found.txt"
+
 ---
 
 ## Вопрос, с которого всё начинается

