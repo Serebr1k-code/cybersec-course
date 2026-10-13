@@ -13,6 +13,18 @@ useful_for:
   - "Понимать, как защищены данные at rest"
 estimated_minutes: 45
 summary: "Шифрование дисков: структура LUKS (header, keyslots, мастер-ключ), BitLocker (VMK, TPM, recovery key) и VeraCrypt (header, PIM), извлечение хэшей и офлайн-подбор пароля, инструменты cryptsetup/hashcat/dislocker/bdemount, типичные ошибки и защита."
+lab:
+  kind: shell
+  title: 'Практика: разбор LUKS и слабый KDF'
+  toolset: [core, hex, python3, cryptsetup]
+  workdir: /home/student/task
+  files: [task.md, luks_disk.img, luks_keyslot.bin, luks_dump.py, luks_crack.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Подтверди формат: `xxd -l 8 luks_disk.img` — магия `LUKS`.'
+    - 'Разбери заголовок: `python3 luks_dump.py` (или `cryptsetup luksDump luks_disk.img`).'
+    - 'Пароль разворачивает keyslot через PBKDF2-HMAC-SHA256; проверь кандидатов.'
+    - 'Запусти `python3 luks_crack.py` — восстановленный пароль и есть флаг `nto{…}`.'
 ---
 
 ## Вопрос, с которого всё начинается

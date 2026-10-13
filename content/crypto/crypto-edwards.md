@@ -12,6 +12,18 @@ useful_for:
   - "Работать с X25519/Ed25519 в CTF и аудите"
 estimated_minutes: 34
 summary: "Современные кривые: формы Вейерштрасса, Монтгомери и Эдвардса, Curve25519/X25519 (ECDH) и Ed25519/EdDSA (подпись), cofactor, twist, атаки на слабый nonce и малые подгруппы, практические скрипты на libsodium/PyNaCl/Sage."
+lab:
+  kind: shell
+  title: 'Практика: Ed25519 и X25519'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, eddsa.json, ed_verify.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'В `eddsa.json` — публичный ключ Ed25519, подпись и hex подписанного сообщения.'
+    - 'Проверь подпись: `python3 ed_verify.py`.'
+    - 'EdDSA-подпись детерминирована — если она проходит, сообщение аутентично.'
+    - 'Сообщение и есть флаг `nto{…}`; запиши его в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

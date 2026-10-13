@@ -1,0 +1,45 @@
+{
+  "id": "crypto-edwards",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3dw4rd5_c0f4ct0r_sm4ll_0rd3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Ed25519 / X25519\n\n`eddsa.json` — публичный ключ Ed25519, подпись и hex сообщения.\n\nПроверь подпись: `python3 ed_verify.py`.\n\nПодписанное сообщение — это флаг `nto{...}`. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/eddsa.json",
+      "text": "{\n \"pubkey\": \"4207f49a08b3525f7ee26452bb7fe909f879ee67f3908b4fd26cd9da5008b3ba\",\n \"signature\": \"06ceade06d59649e162240ef75c83fe9d1c26090d449ede3d0e8f674639060a62d9c38bd8c0a830d7c59ac4f448b9fd32c95daf74b9e1d20784e0ad96dbb190a\",\n \"message_hex\": \"6e746f7b336477347264355f63306634637430725f736d346c6c5f30726433727d\",\n \"x25519_shared_equal\": true\n}"
+    },
+    {
+      "path": "/home/student/task/ed_verify.py",
+      "text": "#!/usr/bin/env python3\n# Verify an Ed25519 signature and recover the signed message.\nimport json\nfrom cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey\nd = json.load(open(\"eddsa.json\"))\npk = Ed25519PublicKey.from_public_bytes(bytes.fromhex(d[\"pubkey\"]))\nsig = bytes.fromhex(d[\"signature\"])\nmsg = bytes.fromhex(d[\"message_hex\"])\npk.verify(sig, msg)\nprint(\"ed25519 verify: OK\")\nprint(\"message:\", msg.decode())\nprint(\"x25519 shared equal:\", d[\"x25519_shared_equal\"])\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "ed_verify\\.py",
+          "example": "python3 ed_verify.py",
+          "output": "ed25519 verify: OK\nmessage: nto{3dw4rd5_c0f4ct0r_sm4ll_0rd3r}\nx25519 shared equal: True\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 ed_verify.py`\n"
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "id": "crypto-zk-proofs",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sch0rr_r3us3d_n0nc3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: переиспользование nonce в Schnorr\n\n`schnorr.txt` — параметры протокола и два транскрипта с одинаковым `a = g^k`.\n\nИз `z1-z2 = (c1-c2)*x` восстанови секрет `x` по модулю `q`: `python3 zk_recover.py`.\n\nСекрет декодируется во флаг `nto{...}`. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/schnorr.txt",
+      "text": "p = 57896044618658097711785492504343953926634992332820282019728792003956564819949\nq = 57896044618658097711785492504343953926634992332820282019728792003956564819948\ng = 3\ny = 20527804040070457162915294713880483190225886112215568933164269500036825623174\na = 14497983914025607528616682360040535443896082701157639786168470617877238846000\nc1 = 4369\nz1 = 11832756924110045064217124397744444553032734053133036078353025\nc2 = 8738\nz2 = 23665513848220090128434248795488889106065468106266072156701390\n"
+    },
+    {
+      "path": "/home/student/task/zk_recover.py",
+      "text": "#!/usr/bin/env python3\n# Schnorr nonce reuse: same k used for two challenges -> recover x.\nimport re\nt = open(\"schnorr.txt\").read()\ndef gv(name):\n    return int(re.search(name + r\"\\s*=\\s*(\\d+)\", t).group(1))\np, q, g = gv(\"p\"), gv(\"q\"), gv(\"g\")\ny, a = gv(\"y\"), gv(\"a\")\nc1, z1, c2, z2 = gv(\"c1\"), gv(\"z1\"), gv(\"c2\"), gv(\"z2\")\nx_rec = ((z1 - z2) * pow(c1 - c2, -1, q)) % q\nmsg = x_rec.to_bytes((x_rec.bit_length() + 7) // 8, \"big\").decode()\nprint(\"recovered x =\", hex(x_rec))\nprint(\"g^x == y   :\", pow(g, x_rec, p) == y)\nprint(\"secret     :\", msg)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "zk_recover\\.py",
+          "example": "python3 zk_recover.py",
+          "output": "recovered x = 0x6e746f7b7363683072725f7233757333645f6e306e63337d\ng^x == y   : True\nsecret     : nto{sch0rr_r3us3d_n0nc3}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 zk_recover.py`\n"
+    }
+  }
+}

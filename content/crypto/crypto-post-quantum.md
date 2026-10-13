@@ -12,6 +12,18 @@ useful_for:
   - "Разбирать LWE и решёточные схемы"
 estimated_minutes: 36
 summary: "Пост-квантовая криптография: задача LWE/MLWE, ML-KEM (Kyber), ML-DSA (Dilithium), FN-DSA (Falcon), хэш-подписи SLH-DSA (SPHINCS+), атаки на ослабленные параметры, практические библиотеки (liboqs, pqcrypto) и разбор Kyber по шагам."
+lab:
+  kind: shell
+  title: 'Практика: повтор случайности в KEM'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, kem.txt, pq_solve.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'В `kem.txt` — два обмена KEM, где переиспользован один и тот же `r`.'
+    - 'Тогда `v1 = m1 ^ r` и `v2 = m2 ^ r`.'
+    - 'XOR двух `v` даёт XOR сообщений: `m1 ^ m2 = v1 ^ v2`.'
+    - 'Запусти `python3 pq_solve.py` — восстановишь `m2` = флаг `nto{…}`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,45 @@
+{
+  "id": "crypto-threshold-mpc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sh4m1r_thr3sh0ld_r3c0nstruct}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: пороговая схема Шамира\n\n`shares.txt` — k-of-n доли секрета над простым полем `p`.\n\nСобери секрет (свободный член) интерполяцией Лагранжа из k долей: `python3 shamir_recover.py`.\n\nСекрет — это флаг `nto{...}`. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/shares.txt",
+      "text": "# threshold scheme: k=3 of n=5 shares, prime p\np = 6864797660130609714981900799081393217269435300143305409394463459185543183397656052122559640661454554977296311391480858037121987999716643812574028291115057151\nshare 1: 2749788558001723517840464700194354702348666699608548453481375529319933256992955630256700689101272573282384617663446212740292462785009882334647167209677132490\nshare 2: 3606075848100019131424704637695685721491672781431277882845896837180060780933650589899777392224249284834401546557007697681357413666486909652262766508691142367\nshare 3: 2568861870294886840752719812503993057429018245468188288093563923580382571822097668724308700168295760427528179905433870370963943796452138404122756637475758268\nshare 4: 6502944284716936360806411023700669927430138391862585078618840247706441813055952918852854253594866555039060829100205588846234041174622212402801165887146037344\nshare 5: 1678727771104948261621976673122929896956162620327857435632798891187152137839904236040294771181052558714406871358361137032923729801563844023149937675471865293\n"
+    },
+    {
+      "path": "/home/student/task/shamir_recover.py",
+      "text": "#!/usr/bin/env python3\n# Shamir secret sharing: reconstruct the constant term from k shares (Lagrange).\nimport re\nt = open(\"shares.txt\").read()\np = int(re.search(r\"p = (\\d+)\", t).group(1))\nshares = [tuple(map(int, m)) for m in re.findall(r\"share (\\d+): (\\d+)\", t)]\nk = int(re.search(r\"k=(\\d+)\", t).group(1))\nuse = shares[:k]\nsecret = 0\nfor i, (xi, yi) in enumerate(use):\n    num = den = 1\n    for j, (xj, _) in enumerate(use):\n        if i == j:\n            continue\n        num = (num * (-xj)) % p\n        den = (den * (xi - xj)) % p\n    lag = num * pow(den, -1, p) % p\n    secret = (secret + yi * lag) % p\nmsg = secret.to_bytes((secret.bit_length() + 7) // 8, \"big\")\nprint(\"shares used:\", use)\nprint(\"reconstructed secret:\", msg.decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "shamir_recover\\.py",
+          "example": "python3 shamir_recover.py",
+          "output": "shares used: [(1, 2749788558001723517840464700194354702348666699608548453481375529319933256992955630256700689101272573282384617663446212740292462785009882334647167209677132490), (2, 3606075848100019131424704637695685721491672781431277882845896837180060780933650589899777392224249284834401546557007697681357413666486909652262766508691142367), (3, 2568861870294886840752719812503993057429018245468188288093563923580382571822097668724308700168295760427528179905433870370963943796452138404122756637475758268)]\nreconstructed secret: nto{sh4m1r_thr3sh0ld_r3c0nstruct}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 shamir_recover.py`\n"
+    }
+  }
+}

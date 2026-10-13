@@ -13,6 +13,18 @@ useful_for:
   - "Реализовать простое MPC и oblivious transfer"
 estimated_minutes: 45
 summary: "Пороговые схемы и безопасные многосторонние вычисления (MPC): разделение секрета Шамира и его варианты, пороговые подписи (threshold ECDSA, FROST), oblivious transfer, garbled circuits и протоколы GMW, а также типичные атаки и ошибки реализации."
+lab:
+  kind: shell
+  title: 'Практика: восстановление секрета Shamir'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, shares.txt, shamir_recover.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`shares.txt` — это k-of-n пороговая схема Шамира над простым полем `p`.'
+    - 'Секрет — свободный член полинома степени k-1; он восстанавливается из любых k долей.'
+    - 'Интерполяция Лагранжа в точке 0: `L_i(0) = Π_{j≠i} (−x_j)/(x_i − x_j)`.'
+    - 'Запусти `python3 shamir_recover.py` — получишь секрет-флаг `nto{…}`.'
 ---
 
 ## Вопрос, с которого всё начинается

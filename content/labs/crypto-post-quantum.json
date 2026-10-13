@@ -1,0 +1,45 @@
+{
+  "id": "crypto-post-quantum",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{k3m_r3us3_m4ny_t1m3_p4d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: повтор случайности в KEM\n\n`kem.txt` — два обмена KEM с переиспользованным `r`.\n\n`v1 = m1 ^ r`, `v2 = m2 ^ r`; из XOR получи `m2`: `python3 pq_solve.py`.\n\nФлаг `nto{...}` — это `m2`. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/kem.txt",
+      "text": "note: KEM reused randomness r in two encapsulations\nm1 = known-plaintext-session-key-0000\nv1 = 6b6e6f776e2d706c61696e746578742d4be49a096a139caa7fe7cc09ec39290d\nv2 = 6e746f7b6b336d5f72337573335f6d3456f8b60e3211c1d864b6d159dc09193d\n"
+    },
+    {
+      "path": "/home/student/task/pq_solve.py",
+      "text": "#!/usr/bin/env python3\n# KEM r-reuse: v1 = m1 ^ r, v2 = m2 ^ r  =>  m2 = m1 ^ v1 ^ v2\nimport re\nt = open(\"kem.txt\").read()\nm1 = re.search(r\"m1 = (.+)\", t).group(1).encode()\nv1 = bytes.fromhex(re.search(r\"v1 = ([0-9a-f]+)\", t).group(1))\nv2 = bytes.fromhex(re.search(r\"v2 = ([0-9a-f]+)\", t).group(1))\nm2 = bytes(a ^ b ^ c for a, b, c in zip(m1, v1, v2)).rstrip(b\"\\x00\")\nprint(\"recovered m2:\", m2.decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "pq_solve\\.py",
+          "example": "python3 pq_solve.py",
+          "output": "recovered m2: nto{k3m_r3us3_m4ny_t1m3_p4d}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 pq_solve.py`\n"
+    }
+  }
+}

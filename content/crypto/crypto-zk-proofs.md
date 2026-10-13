@@ -13,6 +13,18 @@ useful_for:
   - "Реализовать доказательство знания дискретного логарифма"
 estimated_minutes: 40
 summary: "Доказательства с нулевым разглашением: интерактивные сигма-протоколы, Schnorr как доказательство знания дискретного логарифма, преобразование Fiat–Shamir и его ловушки, атаки на слабый nonce, replay и frozen-heart, практические примеры."
+lab:
+  kind: shell
+  title: 'Практика: переиспользование nonce в Schnorr'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, schnorr.txt, zk_recover.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'В `schnorr.txt` — параметры протокола и два транскрипта с одинаковым `a = g^k`.'
+    - 'При одном `k` и разных челленджах: `z1 − z2 = (c1 − c2)·x`.'
+    - 'Отсюда `x = (z1 − z2)/(c1 − c2) mod q`.'
+    - 'Запусти `python3 zk_recover.py` — секрет `x` декодируется во флаг `nto{…}`.'
 ---
 
 ## Вопрос, с которого всё начинается
