@@ -1,0 +1,37 @@
+{
+  "id": "osint-search-regional",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{y4nd3x_b34ts_g00gl3_ru}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: региональный поисковик\n\nGoogle не находит русскоязычного Ивана Иванова. Ищи в Яндексе.\n\n1. `curl -s \"https://yandex.com/search/?text=%22%D0%98%D0%B2%D0%B0%D0%BD+%D0%98%D0%B2%D0%B0%D0%BD%D0%BE%D0%B2%22+site:vk.com\" > yandex.html`\n2. `grep vk.com yandex.html`\n3. Один результат содержит маркер `nto{...}`.\n4. Сравни покрытие с Baidu: `curl -s \"https://www.baidu.com/s?wd=...\" > baidu.html`.\n5. Запиши `nto{...}` в `answer.txt`, набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — Яндекс/Baidu SERP (эмуляция)",
+      "cases": [
+        {
+          "match": "yandex\\.com/search",
+          "example": "curl -s \"https://yandex.com/search/?text=...\"",
+          "output": "<html><body><ol class=\"serp\">\n<li><a href=\"https://vk.com/ivan_ivanov_msk\">Иван Иванов | VK</a> <span>Москва, МГУ</span></li>\n<li><a href=\"https://vk.com/ivan_ivanov\">Иван Иванов</a> <span>nto{y4nd3x_b34ts_g00gl3_ru}</span></li>\n</ol></body></html>\n"
+        },
+        {
+          "match": "baidu\\.com",
+          "example": "curl -s \"https://www.baidu.com/s?wd=...\"",
+          "output": "<html><body><div class=\"result\">\n<a href=\"https://baike.baidu.com/item/...\">百度百科</a>\n</div></body></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны yandex.com/search и baidu.com/s.\n"
+    }
+  }
+}

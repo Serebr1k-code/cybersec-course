@@ -13,6 +13,18 @@ useful_for:
   - "Threat intelligence"
 estimated_minutes: 30
 summary: "Синтетические медиа (deepfake, AI-изображения, голосовые клоны): признаки генерации, детекторы, метаданные и методология верификации."
+lab:
+  kind: shell
+  title: "Практика: фото сгенерировано нейросетью?"
+  toolset: [core, exiftool, curl, jq]
+  workdir: /home/student/task
+  files: [task.md, suspect.jpg]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "`exiftool -a -u -g1 suspect.jpg` — нет `Make`/`Camera Model Name`?"
+    - "Ровный размер 1024x1024 — типичный выход диффузионной модели."
+    - "Детектор: `curl -s -X POST "https://api.example-detector.com/v1/detect" -F "file=@suspect.jpg" > det.json`."
+    - "Вердикт и маркер в JSON: `jq '{verdict,confidence}' det.json`."
 ---
 
 ## Вопрос, с которого всё начинается

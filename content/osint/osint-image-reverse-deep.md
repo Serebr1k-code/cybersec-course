@@ -13,6 +13,18 @@ useful_for:
   - "CTF OSINT"
 estimated_minutes: 36
 summary: "Reverse image search: движки (Google/Yandex/Bing/TinEye/PimEyes/SauceNAO), методы (crop/flip/enhance), геолокация по фото, деанон, этика и защита."
+lab:
+  kind: shell
+  title: "Практика: деанон по кропам"
+  toolset: [core, exiftool, curl, jq]
+  workdir: /home/student/task
+  files: [task.md, street.jpg, crop_face.jpg, crop_sign.jpg]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Метаданные: `exiftool street.jpg`."
+    - "Кроп лица — в PimEyes: `curl -s -X POST "https://pimeyes.com/api/search" -F "image=@crop_face.jpg" > face.json`."
+    - "Кроп вывески — в Google Lens: `curl -s "https://serpapi.com/search?engine=google_lens&url=crop_sign.jpg"`."
+    - "Подтверждённый профиль: `curl -s "https://vk.com/ivan_petrov" > vk.html`; `grep nto vk.html`."
 ---
 
 ## Вопрос, с которого всё начинается

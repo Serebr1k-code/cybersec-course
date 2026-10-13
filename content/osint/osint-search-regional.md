@@ -13,6 +13,18 @@ useful_for:
   - "Анализ контента на других языках"
 estimated_minutes: 40
 summary: "Региональные поисковики (Яндекс, Baidu, Naver, Seznam и др.): операторы, языковые особенности, автоматизация и подводные камни при OSINT."
+lab:
+  kind: shell
+  title: "Практика: региональный поисковик"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Начни с Яндекса, не с Google."
+    - "`curl -s "https://yandex.com/search/?text=...site:vk.com" > yandex.html`."
+    - "Результаты — это HTML, ищи по нему: `grep vk.com yandex.html`."
+    - "Один результат содержит маркер `nto{...}`; сравни с Baidu."
 ---
 
 ## Задача

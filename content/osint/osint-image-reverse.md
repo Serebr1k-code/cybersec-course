@@ -12,6 +12,18 @@ useful_for:
   - "CTF-задачи с картинкой"
 estimated_minutes: 35
 summary: "Google/Yandex/Bing/TinEye, подготовка изображения, поиск кропа/зеркал, связка с геолокацией."
+lab:
+  kind: shell
+  title: "Практика: найди источник фото"
+  toolset: [core, exiftool, curl, jq]
+  workdir: /home/student/task
+  files: [task.md, street.jpg]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Сначала метаданные: `exiftool street.jpg` (GPS и дата)."
+    - "Точные совпадения ищет TinEye: `curl -s -X POST "https://api.tineye.com/rest/search/" -F "image=@street.jpg" > tineye.json`."
+    - "`jq -r '.matches[].backlinks[] | [.crawl_date, .url] | @tsv' tineye.json` — самое старое совпадение и есть источник."
+    - "Открой источник: `curl -s "https://forum.example.org/thread/12345" > src.html`; `grep nto src.html`."
 ---
 
 ## Вопрос, с которого всё начинается
