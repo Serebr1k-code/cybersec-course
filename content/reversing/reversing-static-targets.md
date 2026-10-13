@@ -12,6 +12,17 @@ useful_for:
   - "CTF Reversing: shellcode-задачи"
 estimated_minutes: 10
 summary: "Второй модуль статического анализа: специфические цели — прошивки, статический анализ malware и shellcode."
+lab:
+  kind: shell
+  title: 'Практика: stripped-бинарь без символов'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, target]
+  check: 'grep -q ''nto{str1pp3d_b1n4ry_n0_sym6ols}'' found.txt'
+  hints:
+    - '`nm target` скажет `no symbols` — это ожидаемо.'
+    - 'Ищи строки: `strings target`.'
+    - '`strings target | grep nto`.'
 ---
 Второй модуль статического анализа посвящён специфическим целям, где «обычный» разбор не работает: прошивки с чужой архитектурой, malware без символов и позиционно-независимый shellcode.
 

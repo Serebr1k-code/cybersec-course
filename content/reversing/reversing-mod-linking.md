@@ -12,6 +12,17 @@ useful_for:
   - "Vuln research: GOT-перезапись, ret2plt"
 estimated_minutes: 6
 summary: "Подмодуль о статической и динамической компоновке: релокации и символы, библиотеки, ленивое связывание и механизм PLT/GOT."
+lab:
+  kind: shell
+  title: 'Практика: dynamic vs static linking'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, dyn, stat]
+  check: 'grep -q ''nto{dyn4m1c_l1nk3r_n33ds_l1bc}'' found.txt'
+  hints:
+    - '`file` покажет тип компоновки каждого бинаря.'
+    - '`readelf -d dyn` покажет NEEDED (libc.so.6).'
+    - 'Флаг: `strings dyn | grep nto`.'
 ---
 
 Между «скомпилировано» и «запущено» стоит линкер. Он решает, какие библиотеки подключить, как

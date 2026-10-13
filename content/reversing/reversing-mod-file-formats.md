@@ -12,6 +12,17 @@ useful_for:
   - "Malware analysis: определение упаковщика и секций"
 estimated_minutes: 6
 summary: "Подмодуль о внутреннем устройстве ELF, PE и Mach-O и о разнице между секциями и сегментами."
+lab:
+  kind: shell
+  title: 'Практика: секции ELF и readelf'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, hello]
+  check: 'grep -q ''nto{3lf_s3ct10n_h3ad3rs}'' found.txt'
+  hints:
+    - 'Список секций: `readelf -S hello`.'
+    - 'Дампить строки секции: `readelf -p .flagdata hello`.'
+    - 'Флаг в дампе `.flagdata`.'
 ---
 
 Формат — это контракт между компилятором, линкером и загрузчиком операционной системы. Поняв его,

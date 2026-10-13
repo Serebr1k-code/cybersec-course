@@ -13,6 +13,17 @@ useful_for:
   - "Анализ ARM/MIPS malware"
 estimated_minutes: 50
 summary: "Чтение ARM/AArch64, MIPS и RISC-V: регистры, соглашения вызова, особенности, эмуляция."
+lab:
+  kind: shell
+  title: 'Практика: распознать архитектуру по коду'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, blob.bin, prog, enc.hex]
+  check: 'grep -q ''nto{4arch64_n0t_x86}'' found.txt'
+  hints:
+    - '`file prog` — x86-64 ELF; `blob.bin` магии не имеет.'
+    - 'Дизассемблируй блоб: `python3 disasm.py blob.bin`.'
+    - 'Ключ XOR = 0x42 из `mov w0,#0x42`; затем `python3 xor.py enc.hex 0x42`.'
 ---
 
 ## Вопрос, с которого всё начинается

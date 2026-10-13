@@ -12,6 +12,17 @@ useful_for:
   - "Анализ патчей и diff-реверс"
 estimated_minutes: 10
 summary: "Первый модуль статического анализа: инструменты и техники — radare2, динамическая линковка, бинарный diff и Rust/Go-бинари."
+lab:
+  kind: shell
+  title: 'Практика: ELF, strings, nm, objdump'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, sample]
+  check: 'grep -q ''nto{str1ngs_1s_th3_f1rst_st3p}'' found.txt'
+  hints:
+    - 'Начни с `file sample` и `strings sample`.'
+    - '`strings` по умолчанию показывает строки длиной ≥4.'
+    - 'Флаг в формате `nto{...}`: `strings sample | grep nto`.'
 ---
 Первый из двух модулей статического анализа. Здесь собраны инструменты и техники, которыми вы будете пользоваться при разборе бинаря без запуска: от дизассемблера radare2 до сравнения версий и особенностей Rust/Go.
 
