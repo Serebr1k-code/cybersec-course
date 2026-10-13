@@ -12,6 +12,19 @@ useful_for:
   - "Forensics: анализ покадровых структур"
 estimated_minutes: 34
 summary: "Сокрытие в анимации GIF: кодирование бит в задержках кадров (frame delay) и методе disposal, порядок и число кадров, комментарии/расширения; извлечение через Pillow и gifsicle."
+lab:
+  kind: shell
+  title: "Практика: LSB в кадрах GIF"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, anim.gif, gif_lsb.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "GIF состоит из кадров — нужен последний."
+    - "В P-режиме значение пикселя — индекс палитры."
+    - "Младший бит индекса кодирует бит сообщения."
+    - "`python3 gif_lsb.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

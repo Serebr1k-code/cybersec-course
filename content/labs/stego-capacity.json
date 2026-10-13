@@ -1,0 +1,44 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nДано изображение-контейнер `cover.png`. Вычисли его LSB-ёмкость (в битах и байтах) для RGB-изображения. Ответ подскажет, сколько данных влезает.\n\nНа каждый пиксель RGB приходится 3 бита (по одному на канал).\n"
+    },
+    {
+      "path": "/home/student/task/cover.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAIAAAABgCAIAAABaGO0eAAAA6UlEQVR4nO3RQREAIAzAMED5pE9GHjQKetc7MyfO0wG/awDWAKwBWAOwBmANwBqANQBrANYArAFYA7AGYA3AGoA1AGsA1gCsAVgDsAZgDcAagDUAawDWAKwBWAOwBmANwBqANQBrANYArAFYA7AGYA3AGoA1AGsA1gCsAVgDsAZgDcAagDUAawDWAKwBWAOwBmANwBqANQBrANYArAFYA7AGYA3AGoA1AGsA1gCsAVgDsAZgDcAagDUAawDWAKwBWAOwBmANwBqANQBrANYArAFYA7AGYA3AGoA1AGsA1gCsAVgDsAZgDcAWUUECQEMOTm4AAAAASUVORK5CYII="
+    },
+    {
+      "path": "/home/student/task/capacity.py",
+      "text": "from PIL import Image\nim=Image.open('cover.png')\nw,h=im.size\nprint('size:',w,'x',h,'mode:',im.mode)\nprint('LSB capacity (bits):',w*h*3)\nprint('LSB capacity (bytes):',w*h*3//8)\nprint('FLAG nto{lsb_c4p4c1ty_1s_wxhx3_b1ts}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "capacity\\.py",
+          "example": "python3 capacity.py",
+          "output": "size: 128 x 96 mode: RGB\nLSB capacity (bits): 36864\nLSB capacity (bytes): 4608\nFLAG nto{lsb_c4p4c1ty_1s_wxhx3_b1ts}\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-capacity",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{lsb_c4p4c1ty_1s_wxhx3_b1ts}"
+  }
+}

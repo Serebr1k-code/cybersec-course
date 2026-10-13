@@ -1,0 +1,44 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nДан TGA-файл `image.tga`. Данные спрятаны в поле Image ID (первый байт заголовка — его длина). Извлеки флаг.\n\nTGA: байт 0 — длина Image ID; сам ID идёт сразу после 18-байтового заголовка.\n"
+    },
+    {
+      "path": "/home/student/task/image.tga",
+      "b64": "HwACAAAAAAABAAEACCAAAAEAbnRve3RnNF8xbTRnM18xZF9mMTNsZF9jNHJyMTNyfYA="
+    },
+    {
+      "path": "/home/student/task/tga.py",
+      "text": "import struct\nd=open('image.tga','rb').read()\nidlen=d[0]\nprint('image id length:',idlen)\nprint(d[18:18+idlen].decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "tga\\.py",
+          "example": "python3 tga.py",
+          "output": "image id length: 31\nnto{tg4_1m4g3_1d_f13ld_c4rr13r}\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-tga-dds",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{tg4_1m4g3_1d_f13ld_c4rr13r}"
+  }
+}

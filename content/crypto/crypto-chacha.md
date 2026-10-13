@@ -13,6 +13,18 @@ useful_for:
   - "Реализовывать ChaCha20/Salsa20 и видеть ошибки реализации"
 estimated_minutes: 45
 summary: "Устройство ARX-потоковых шифров ChaCha20 и Salsa20: quarter-round, раскладка состояния, блок-функция и keystream. Атаки: повтор nonce, related-key и reduced-round дифференциалы, а также связь с Poly1305. Реализация на Python и практические выводы."
+lab:
+  kind: shell
+  title: "Практика: расшифровка ChaCha20"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, ct.hex, chacha.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Ключ и nonce заданы в `task.md`."
+    - "ChaCha20 — потоковый шифр, расшифрование = повторное шифрование."
+    - "`python3 chacha.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

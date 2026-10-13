@@ -13,6 +13,19 @@ useful_for:
   - "Анализ хронологии атаки"
 estimated_minutes: 50
 summary: "Виды временных меток (MACB), их подделка, построение хронологии событий через mactime, plaso и сведение артефактов Windows в единый супертаймлайн."
+lab:
+  kind: shell
+  title: "Практика: таймлайн из bodyfile (mactime)"
+  toolset: [core, mactime]
+  workdir: /home/student/task
+  files: [task.md, bodyfile.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Bodyfile — текстовый формат метаданных."
+    - "`mactime -b bodyfile.txt -d` строит хронологию."
+    - "Ищи аномалию в путях файлов."
+    - "`mactime -b bodyfile.txt -d | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

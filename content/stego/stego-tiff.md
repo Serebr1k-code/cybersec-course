@@ -13,6 +13,19 @@ useful_for:
   - "Анализ GeoTIFF и научных изображений"
 estimated_minutes: 50
 summary: "TIFF как дерево IFD-тегов: приватные теги, множественные изображения, стрипы, ExtraSamples и Geo-теги — где прячут данные и как их извлекать."
+lab:
+  kind: shell
+  title: "Практика: метаданные TIFF"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, image.tif, tiff.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "TIFF хранит метаданные в тегах."
+    - "ImageDescription — тег 270."
+    - "Прочитай значение тега через PIL."
+    - "`python3 tiff.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

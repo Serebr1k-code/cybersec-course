@@ -12,6 +12,19 @@ useful_for:
   - "Понимать атаку Bellcore на RSA-CRT"
 estimated_minutes: 34
 summary: "RSA fault-атаки: модель инъекции сбоя, атака Bellcore на CRT-подписи (одна ошибка даёт факторизацию через gcd), подписи с ошибками в e/d, практика инъекции (сбой питания/клока/лазера), контрмеры и полный скрипт восстановления."
+lab:
+  kind: shell
+  title: "Практика: fault-атака на RSA-CRT"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, n.txt, e.txt, sig_good.txt, sig_faulty.txt, ct.txt, fault.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сравни две подписи: различие выдаёт множитель n."
+    - "gcd(s_good − s_faulty, n) = p."
+    - "Восстанови закрытый ключ и расшифруй `ct.txt`."
+    - "`python3 fault.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

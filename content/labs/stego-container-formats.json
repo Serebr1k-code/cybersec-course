@@ -1,0 +1,44 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nФайл `image.png` — полиглот: это валидный PNG, к которому дописан ZIP-архив. Извлеки из архива `secret.txt` с флагом.\n\nНайди сигнатуру ZIP (`PK\\x03\\x04`) внутри файла и распакуй данные после неё.\n"
+    },
+    {
+      "path": "/home/student/task/image.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAALUlEQVR4nGMU0bBhoCVgoqnpoxaMWjBqwagFoxaMWjBqwagFoxaMWjBqARUBAD5xALh//OxtAAAAAElFTkSuQmCCUEsDBBQAAAAAAKRuTV1iXCTFHwAAAB8AAAAKAAAAc2VjcmV0LnR4dG50b3twMGx5Z2wwdF9wbmdfejFwXzRwcDNuZDNkfQpQSwECFAMUAAAAAACkbk1dYlwkxR8AAAAfAAAACgAAAAAAAAAAAAAAgAEAAAAAc2VjcmV0LnR4dFBLBQYAAAAAAQABADgAAABHAAAAAAA="
+    },
+    {
+      "path": "/home/student/task/polyglot.py",
+      "text": "data=open('image.png','rb').read()\nimport zipfile,io\noff=data.find(b'PK\\x03\\x04')\nz=zipfile.ZipFile(io.BytesIO(data[off:]))\nprint(z.read('secret.txt').decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "polyglot\\.py",
+          "example": "python3 polyglot.py",
+          "output": "nto{p0lygl0t_png_z1p_4pp3nd3d}\n\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-container-formats",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p0lygl0t_png_z1p_4pp3nd3d}"
+  }
+}

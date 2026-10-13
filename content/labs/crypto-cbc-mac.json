@@ -1,0 +1,48 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nСервис подписывает сообщения CBC-MAC (AES-128, IV=0). Известны сообщение `from=guest&to=alice` и его тег. Продемонстрируй подделку тега для сообщения, начинающегося с этого же блока.\n\nФайлы: `msg.txt`, `tag.hex`. CBC-MAC одного блока `m1` равен `E_k(m1)`.\n"
+    },
+    {
+      "path": "/home/student/task/msg.txt",
+      "text": "from=guest&to=alice\n"
+    },
+    {
+      "path": "/home/student/task/tag.hex",
+      "text": "f92c8974faf55478f91c10a1b2882968\n"
+    },
+    {
+      "path": "/home/student/task/cbcmac_forge.py",
+      "text": "tag=bytes.fromhex(open('tag.hex').read().strip())\nm1=open('msg.txt','rb').read().strip()\nm1=m1.ljust(16,b'\\x00')\n# CBC-MAC of a single block m1 is E_k(m1).  For m1||m2 the tag is E_k(m1 xor m2).\n# Choose m2 = m1 xor tag  =>  new tag = E_k(m1 xor m2) = E_k(tag) = tag xor m2.\nm2=bytes(a^b for a,b in zip(m1,tag))\nforged=tag  # tag of m1||m2 equals the original tag\nprint('forged message (hex):', (open('msg.txt','rb').read().strip()+m2).hex())\nprint('forged tag (hex):', forged.hex())\nprint('FLAG nto{cbc_m4c_l3ngth_3xt3ns10n_f0rg3}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "cbcmac_forge\\.py",
+          "example": "python3 cbcmac_forge.py",
+          "output": "forged message (hex): 66726f6d3d677565737426746f3d616c6963659f5ee619c792211d8a6836d5ddb54804\nforged tag (hex): f92c8974faf55478f91c10a1b2882968\nFLAG nto{cbc_m4c_l3ngth_3xt3ns10n_f0rg3}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-cbc-mac",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cbc_m4c_l3ngth_3xt3ns10n_f0rg3}"
+  }
+}

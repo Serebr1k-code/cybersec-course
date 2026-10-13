@@ -1,0 +1,44 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nБайты флага покомпонентно заменены на их мультипликативные обратные в поле GF(2⁸) с полиномом AES (0x11B). Файл `inv.bin`. Восстанови флаг.\n\nНужно снова взять обратный элемент в GF(2⁸): inv(inv(x)) = x.\n"
+    },
+    {
+      "path": "/home/student/task/inv.bin",
+      "b64": "IRA7BkM2F5IXeSw8F/IX85dFEPSTbBBF0xdFIRfzpoX6"
+    },
+    {
+      "path": "/home/student/task/gf.py",
+      "text": "def gmul(a,b):\n    p=0\n    for _ in range(8):\n        if b&1: p^=a\n        hi=a&0x80; a=(a<<1)&0xFF\n        if hi: a^=0x1B\n        b>>=1\n    return p\ndef ginv(a):\n    if a==0: return 0\n    for x in range(1,256):\n        if gmul(a,x)==1: return x\nenc=open('inv.bin','rb').read()\nprint(bytes(ginv(b) for b in enc).decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "gf\\.py",
+          "example": "python3 gf.py",
+          "output": "nto{gf_2_p0w_8_4r1thm3t1c_1n_4es}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-finite-fields",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{gf_2_p0w_8_4r1thm3t1c_1n_4es}"
+  }
+}

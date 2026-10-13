@@ -1,0 +1,23 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nДан фрагмент `setupapi.dev.log` с Windows-хоста. Определи серийный номер подключавшегося USB-накопителя — это и есть флаг.\n\nЗаписи установки устройств содержат Instance ID вида `USB\\VID_...\\<serial>`.\n"
+    },
+    {
+      "path": "/home/student/task/setupapi.dev.log",
+      "text": ">>>  [Device Install (Hardware initiated) - USB\\VID_0951&PID_1666\\nto{usb_d3v1c3_s3r14l_tr4c3}]\n>>>  Section start 2023/11/03 12:00:01.123\n     dvi: {DIF_SELECTBESTCOMPATDRV}\n     sto: {Core Device Install} 12:00:01.130\n     inf: Device USB\\VID_0951&PID_1666\\nto{usb_d3v1c3_s3r14l_tr4c3} installed.\n<<<  Section end 2023/11/03 12:00:02.000\n"
+    }
+  ],
+  "id": "forensics-usb-devices",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{usb_d3v1c3_s3r14l_tr4c3}"
+  }
+}

@@ -12,6 +12,18 @@ useful_for:
   - "Атаковать самодельные/редуцированные Feistel-шифры"
 estimated_minutes: 34
 summary: "Feistel-сеть: обратимая структура без обращения round-функции, DES и его key schedule, редуцированные варианты, атаки (slide, differential, related-key, MITM), практические скрипты на Z3/Sage и распознавание самодельных Feistel в CTF."
+lab:
+  kind: shell
+  title: "Практика: расшифровка сети Фейстеля"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, ct.bin, feistel.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Изучи структуру сети Фейстеля в уроке."
+    - "Обратимость: раунды применяются в обратном порядке."
+    - "`python3 feistel.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

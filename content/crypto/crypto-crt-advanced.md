@@ -13,6 +13,19 @@ useful_for:
   - "Понимать, как реальные библиотеки ускоряют RSA"
 estimated_minutes: 30
 summary: "CRT по-настоящему: конструктивное доказательство, формула Гарнера без обратных элементов, RSA-CRT и атака по ошибкам (gcd(n, s^e - m)), а также подъём Гензеля и реконструкция секрета из неполных CRT-долей."
+lab:
+  kind: shell
+  title: "Практика: Håstad broadcast через CRT"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, moduli.txt, ciphertexts.txt, hastad.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Три модуля, один малый показатель e=3."
+    - "Собери CRT-систему из трёх сравнений."
+    - "Затем возьми целочисленный кубический корень."
+    - "`python3 hastad.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

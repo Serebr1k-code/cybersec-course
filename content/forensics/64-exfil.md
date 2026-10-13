@@ -13,6 +13,19 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 45
 summary: "Как обнаруживать утечку данных в трафике: DNS/ICMP/HTTP-туннели, скрытые каналы, аномалии объёмов и таймингов, извлечение переданных данных."
+lab:
+  kind: shell
+  title: "Практика: DNS-эксфильтрация"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, exfil.pcap]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Имена запросов: `tshark -r exfil.pcap -T fields -e dns.qry.name`."
+    - "Первый label — base64-фрагмент (`cut -d. -f1`)."
+    - "base64 игнорирует переводы строк — декодируй поток целиком."
+    - "`tshark -r exfil.pcap -T fields -e dns.qry.name | cut -d. -f1 | base64 -d > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,48 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nПриложение строит cookie вида `email=<...>&uid=10&role=user` и шифрует его AES-ECB. Собери cookie, в котором поле role равно `admin`, не зная ключа.\n\nФайлы: `profile.b64` (готовый шифртекст с выровненным блоком `role=`), `admin_block.b64` (зашифрованный ровно-блок `admin`).\n"
+    },
+    {
+      "path": "/home/student/task/profile.b64",
+      "text": "FFK7/oznmGXrxC7b6YCRQnECPngZyjE3BDESzYmoF2E=\n"
+    },
+    {
+      "path": "/home/student/task/admin_block.b64",
+      "text": "cQI+eBnKMTcEMRLNiagXYQ==\n"
+    },
+    {
+      "path": "/home/student/task/cutpaste.py",
+      "text": "import base64\nadmin=base64.b64decode(open('admin_block.b64').read().strip())\nprof=base64.b64decode(open('profile.b64').read().strip())\n# ECB encrypts identical 16-byte blocks identically.\n# Build a block whose plaintext is exactly 'admin' (padded), then splice it in.\nforged=prof[:16]+admin\nprint('forged cookie:',base64.b64encode(forged).decode())\nprint('FLAG nto{3cb_cut_4nd_p4st3_0r4cl3}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "cutpaste\\.py",
+          "example": "python3 cutpaste.py",
+          "output": "forged cookie: FFK7/oznmGXrxC7b6YCRQnECPngZyjE3BDESzYmoF2E=\nFLAG nto{3cb_cut_4nd_p4st3_0r4cl3}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-cut-and-paste",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3cb_cut_4nd_p4st3_0r4cl3}"
+  }
+}

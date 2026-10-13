@@ -13,6 +13,19 @@ useful_for:
   - "Forensics: оценка объёма эксфильтрации"
 estimated_minutes: 30
 summary: "Триада стеганографии (ёмкость, незаметность, робастность), расчёт ёмкости носителей, скорость встраивания и практические оценки для изображений, аудио и видео."
+lab:
+  kind: shell
+  title: "Практика: LSB-ёмкость изображения"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, cover.png, capacity.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Ёмкость LSB = число каналов × число пикселей (в битах)."
+    - "Для RGB: 3 бита на пиксель."
+    - "Переведи в байты делением на 8."
+    - "`python3 capacity.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

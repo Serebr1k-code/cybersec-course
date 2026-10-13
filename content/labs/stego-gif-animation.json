@@ -1,0 +1,44 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nДан анимированный GIF `anim.gif` (3 кадра). Флаг спрятан в младших битах индексов палитры последнего кадра.\n\nРазбери кадры (`ImageSequence`), возьми последний и прочитай LSB пикселей как биты.\n"
+    },
+    {
+      "path": "/home/student/task/anim.gif",
+      "b64": "R0lGODlhQABAAIEAAAAAAAEBAQAAAAAAACH/C05FVFNDQVBFMi4wAwEAAAAh+QQAFAAAACwAAAAAQABAAAAIxAABBBBIcKDBgggPKkzIcKHDhg8jNpwoseJEihgtasyYcKNHjh8XghwZkqTAkihNSlTJMqVDly1jDpRJEyXMmyxr6vSIs+fInUAr+hyKMajRl0eTziTKtKPSpE+bBpD6NOpRqlStMsUKletWrUDBDvVqVOxOskTN9kQblu1atTTh3nSrU65MujjtusQbl+9evTn9thScErBNwyYRhyQcWDFIxiUd85TMkbJGyIkxT9ZcmfNly0U9ZxRtEbRQ0xdJU1QtMSAAIfkEARQAAgAsAAAAAEAAQACBAAAAAQEBAAAAAAAACMQAAwAQSHCgwYIIDypMyHChw4YPIzacKLHiRIoYLWrMmHCjR44fF4IcGZKkwJIoTUpUyTKlQ5ctYw6USRMlzJssa+r0iLPnyJ1AK/ocijGo0ZdHk84kyrSj0qRPmwKQ+jTqUapUrTLFCpXrVq1AwQ71alTsTrJEzfZEG5btWrU04d50q1OuTLo47brEG5fvXr05/bYUnBKwTcMmEYckHFgxSMYlHfOUzJGyRsiJMU/WXJnzZctFPWcUbRG0UNMXSVNULTEgACH5BAEUAAIALAAAAABAAEAAgQAAAAEBAQAAAAAAAAj/AAEEEEBwoACBAgIIBHDQYMKECB0qNBiRIcSGCBsSXDiwY0GLCgtuDJlx40eHGlMSfCgxI8iRKS1i9DgRIsmOMkEuVEkR58efGVG+XMnQpcSRL4UeXFqUqdOmAKA+nSq1KtWrVq1i3ZqVq9esXcN+HSvWYlmyaM8WVZu2rVi3cNlWlRu3rlm7eMvS3ZvXJN+/bgELbtt3sN7CiKUmXryW8WLHhp9GnrwVcmLKmKdaxpy589LNhT17Bj1Z9GPTnEnjVW0YNWLWdl1Thi1Ydl/acW1Hxv1X92rftXkTBp5bOF3jaYkDRi5XOVzmZJ3zha5W+nDqXK0f1x4d+1vu1b1XDQb/lfxZ8WHNe0WPNSAAOw=="
+    },
+    {
+      "path": "/home/student/task/gif_lsb.py",
+      "text": "from PIL import Image, ImageSequence\nim=Image.open('anim.gif')\nfr=[f.copy() for f in ImageSequence.Iterator(im)]\nlast=fr[-1]\npx=[(p[0] if isinstance(p,tuple) else p) for p in list(last.getdata())]\nbits=''.join(str(p&1) for p in px)\nn=len(bits)//8\nout=bytes(int(bits[i*8:i*8+8],2) for i in range(n))\ns=out.split(b'nto{',1)[1].split(b'}',1)[0]\nprint('nto{'+s.decode()+'}'.replace('\\n',''))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "gif_lsb\\.py",
+          "example": "python3 gif_lsb.py",
+          "output": "nto{g1f_fr4m3_lsb_tr4ns1tt3r}\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-gif-animation",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{g1f_fr4m3_lsb_tr4ns1tt3r}"
+  }
+}

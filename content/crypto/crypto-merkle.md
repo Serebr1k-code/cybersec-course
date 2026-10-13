@@ -13,6 +13,18 @@ useful_for:
   - "Ломать подписанные токены и cookie на CTF и в реальных приложениях"
 estimated_minutes: 40
 summary: "Атака length extension на хэши семейства Merkle–Damgård: как по H(secret||msg) достроить H(secret||msg||padding||extra) без ключа, как это ломает наивные MAC и подписанные cookie, и почему HMAC этой атаке не подвержен. Практика с hashpump и самописным эксплойтом."
+lab:
+  kind: shell
+  title: "Практика: дерево Меркла"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, leaves.hex, merkle.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Листья уже даны в `leaves.hex`."
+    - "Узел = SHA-256(left ‖ right), корень — из двух узлов."
+    - "`python3 merkle.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

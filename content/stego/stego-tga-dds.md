@@ -13,6 +13,19 @@ useful_for:
   - "Reverse engineering игровых ресурсов"
 estimated_minutes: 45
 summary: "TGA и DDS — низкоуровневые форматы текстур: разбираем заголовки, RLE-сжатие, DXT/BC-блоки, палитру и приёмы извлечения скрытых данных из игровых ассетов."
+lab:
+  kind: shell
+  title: "Практика: данные в поле Image ID формата TGA"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, image.tga, tga.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "TGA-заголовок — 18 байт."
+    - "Байт 0 — длина Image ID."
+    - "Читай `d[18:18+idlen]`."
+    - "`python3 tga.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

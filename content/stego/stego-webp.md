@@ -13,6 +13,19 @@ useful_for:
   - "Форензика браузерных кэшей"
 estimated_minutes: 45
 summary: "Разбираем WebP как RIFF-контейнер: чанки VP8/VP8L/VP8X, ALPH, ICCP, EXIF и XMP, лосслесс-режим и практические приёмы извлечения скрытых данных."
+lab:
+  kind: shell
+  title: "Практика: нестандартный RIFF-чанк в WebP"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, image.webp, webp.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "WebP — это RIFF-контейнер."
+    - "Чанки: `id(4) + size(4) + data`, выравнивание по чётности."
+    - "Ищи чанк `FLAG`."
+    - "`python3 webp.py | grep nto > found.txt`."
+
 ---
 ## Вопрос, с которого всё начинается
 

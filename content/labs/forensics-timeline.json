@@ -1,0 +1,35 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nДан bodyfile с метаданными файлов (`bodyfile.txt`, формат Sleuth Kit). Построй таймлайн и найди подозрительный файл — в его имени флаг.\n\nЗапусти `mactime -b bodyfile.txt -d` и просмотри события по времени.\n"
+    },
+    {
+      "path": "/home/student/task/bodyfile.txt",
+      "text": "d41d8cd98f00b204e9800998ecf8427e|/etc/passwd|2|r/rrw-r--r--|0|0|2048|1699000000|1699000000|1699000000|1699000000\nd41d8cd98f00b204e9800998ecf8427e|/var/log/syslog|3|r/rrw-r-----|0|0|4096|1699000100|1699000100|1699000100|1699000100\nd41d8cd98f00b204e9800998ecf8427e|/tmp/nto{t1m3l1n3_r3v34ls_th3_1ntrud3r}|9|r/rrwxr-xr-x|1000|1000|13|1699000200|1699000200|1699000200|1699000200\nd41d8cd98f00b204e9800998ecf8427e|/home/user/.bash_history|7|r/rrw-------|1000|1000|512|1699000300|1699000300|1699000300|1699000300\n"
+    }
+  ],
+  "tools": {
+    "mactime": {
+      "help": "mactime -b <bodyfile> [-d] — построение таймлайна (Sleuth Kit)",
+      "cases": [
+        {
+          "match": "-b\\s+bodyfile",
+          "example": "mactime -b bodyfile.txt -d",
+          "output": "Date,Size,Type,Mode,UID,GID,Meta,File Name\nFri Nov 03 2023 11:26:40,2048,macb,r/rrw-r--r--,0,0,2,\"/etc/passwd\"\nFri Nov 03 2023 11:28:20,4096,macb,r/rrw-r-----,0,0,3,\"/var/log/syslog\"\nFri Nov 03 2023 11:30:00,13,macb,r/rrwxr-xr-x,1000,1000,9,\"/tmp/nto{t1m3l1n3_r3v34ls_th3_1ntrud3r}\"\nFri Nov 03 2023 11:31:40,512,macb,r/rrw-------,1000,1000,7,\"/home/user/.bash_history\"\n"
+        }
+      ]
+    }
+  },
+  "id": "forensics-timeline",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{t1m3l1n3_r3v34ls_th3_1ntrud3r}"
+  }
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Криминалистика (утечки на носители)"
 estimated_minutes: 40
 summary: "Как восстановить историю подключения USB-устройств: реестр USBSTOR, SetupAPI, LNK-файлы, MountPoints и привязка файлов к конкретной флешке."
+lab:
+  kind: shell
+  title: "Практика: USB-устройства по setupapi.dev.log"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, setupapi.dev.log]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Формат `USB\\VID_xxxx&PID_xxxx\\<serial>`."
+    - "Ищи строки установки устройства."
+    - "`grep -i nto setupapi.dev.log > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

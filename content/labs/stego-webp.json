@@ -1,0 +1,44 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nВ WebP-файле `image.webp` добавлен нестандартный RIFF-чанк `FLAG`. Найди его и извлеки содержимое.\n\nRIFF: 4 байта `RIFF`, 4 байта размера, `WEBP`, затем чанки `[id(4) size(4) data]`.\n"
+    },
+    {
+      "path": "/home/student/task/image.webp",
+      "b64": "UklGRk4AAABXRUJQVlA4IB4AAABwAQCdASoQABAAAUAmJZwCdAFAAAD+/Msn13iAAABGTEFHGwAAAG50b3t3M2JwX3IxZmZfY3VzdDBtX2NodW5rfQA="
+    },
+    {
+      "path": "/home/student/task/webp.py",
+      "text": "import struct\nd=open('image.webp','rb').read()\nassert d[:4]==b'RIFF' and d[8:12]==b'WEBP'\ni=12\nwhile i+8<=len(d):\n    cid=d[i:i+4]; size=struct.unpack('<I',d[i+4:i+8])[0]\n    if cid==b'FLAG': print(d[i+8:i+8+size].decode())\n    i+=8+size+(size&1)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "webp\\.py",
+          "example": "python3 webp.py",
+          "output": "nto{w3bp_r1ff_cust0m_chunk}\n"
+        }
+      ]
+    }
+  },
+  "id": "stego-webp",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w3bp_r1ff_cust0m_chunk}"
+  }
+}

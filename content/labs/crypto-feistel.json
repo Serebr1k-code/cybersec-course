@@ -1,0 +1,44 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nФлаг зашифрован 6-раундовой сетью Фейстеля с известной round-функцией `F(rk,x)=(x*0x9E3779B1+rk) & 0xFFFF`. Раундовые ключи: 0x1111..0x6666. Шифртекст — `ct.bin` (8-байтовые блоки). Расшифруй.\n\nСеть Фейстеля обращается: применяй раунды в обратном порядке.\n"
+    },
+    {
+      "path": "/home/student/task/ct.bin",
+      "b64": "bnRao2YzhYd0M/M/bjOksTBy2R8xcwQLbnbjjHQxMCwzfa9KAAAJOA=="
+    },
+    {
+      "path": "/home/student/task/feistel.py",
+      "text": "def F(rk,x): return (x*0x9E3779B1+rk)&0xFFFF\nrks=[0x1111,0x2222,0x3333,0x4444,0x5555,0x6666]\nct=open('ct.bin','rb').read()\nout=b''\nfor i in range(0,len(ct),8):\n    l=int.from_bytes(ct[i:i+4],'big'); r=int.from_bytes(ct[i+4:i+8],'big')\n    for rk in reversed(rks):\n        l,r=r^F(rk,l),l\n    out+=l.to_bytes(4,'big')+r.to_bytes(4,'big')\nprint(out.rstrip(b'\\x00').decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "feistel\\.py",
+          "example": "python3 feistel.py",
+          "output": "nto{f315t3l_n3tw0rk_1s_1nv3rt1bl3}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-feistel",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{f315t3l_n3tw0rk_1s_1nv3rt1bl3}"
+  }
+}

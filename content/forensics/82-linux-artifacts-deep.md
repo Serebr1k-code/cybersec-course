@@ -13,6 +13,19 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 55
 summary: "Глубокий разбор артефактов Linux: shell history, cron/systemd/timer persistence, auditd, SSH-артефакты, package-логи и следы закрепления."
+lab:
+  kind: shell
+  title: "Практика: Linux-артефакты"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, bash_history.txt, auth.log]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "История команд — `bash_history.txt`."
+    - "Журнал входов — `auth.log`."
+    - "Ищи экспортированную переменную или строку с nto."
+    - "`grep nto bash_history.txt > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

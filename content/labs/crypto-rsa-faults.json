@@ -1,0 +1,60 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nRSA-CRT подпись устройства выдала корректную (`sig_good.txt`) и ошибочную (`sig_faulty.txt`) подписи одного сообщения. Публичные `n.txt`, `e.txt`, шифртекст `ct.txt`. Восстанови флаг (fault attack).\n\nЕсли s_correct ≠ s_faulty (mod n), то gcd(s_correct − s_faulty, n) даёт простой множитель.\n"
+    },
+    {
+      "path": "/home/student/task/n.txt",
+      "text": "62362613879935020702940199804408103566440341248368757053053188504812646064749894083360715172092444674692062969193079632864337878525532354752904657042096509669693542182560074946997033772270696608135629031559578781935811802550758672783300095301556327221357752348511802734700850259962768487613150302927788071831\n"
+    },
+    {
+      "path": "/home/student/task/e.txt",
+      "text": "65537\n"
+    },
+    {
+      "path": "/home/student/task/sig_good.txt",
+      "text": "49960137025644522781186325927092945734244731454585803300321210533949623725693\n"
+    },
+    {
+      "path": "/home/student/task/sig_faulty.txt",
+      "text": "50717974645192336608400527259312843907176764783753491103606520908722932425848950419183159671285590085224874303746852457411484320377964698112641280668720100289892763849824976517747441531236978278158164334013167506569633861651977629893899880713620781456369387124722230600138445351132081734251319745837132026134\n"
+    },
+    {
+      "path": "/home/student/task/ct.txt",
+      "text": "55105799008873155330223681211383869469899031147101520996830574315033567849041562570179822988048561467296543569018949090820236945124784702253679922457963577922693464848838747941879334891946577076771210387137892227689326783544308886145719588646668392913380787644990868246983965361362830496824294760680967122773\n"
+    },
+    {
+      "path": "/home/student/task/fault.py",
+      "text": "import math\nn=int(open('n.txt').read()); e=int(open('e.txt').read())\ngood=int(open('sig_good.txt').read()); bad=int(open('sig_faulty.txt').read())\nct=int(open('ct.txt').read())\np=math.gcd(good-bad, n)\nq=n//p\nd=pow(e,-1,(p-1)*(q-1))\nm=pow(ct,d,n)\nprint(m.to_bytes((m.bit_length()+7)//8,'big').decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "fault\\.py",
+          "example": "python3 fault.py",
+          "output": "nto{rs4_crt_f4ult_gcd_f4ct0rs_n}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-rsa-faults",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{rs4_crt_f4ult_gcd_f4ct0rs_n}"
+  }
+}

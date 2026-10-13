@@ -1,0 +1,49 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nДан дамп трафика `capture.pcap`. В одном из HTTP-обменов спрятан флаг, а в заголовке Authorization — учётные данные. Разбери поток и найди флаг.\n\nНачни с `tshark -r capture.pcap`, затем просмотри TCP-поток целиком (`-z follow,tcp,ascii,0`).\n"
+    },
+    {
+      "path": "/home/student/task/capture.pcap",
+      "b64": "Cg0NCsAAAABNPCsaAQAAAP//////////AQAlAEdlbmVyYXRlZCBmcm9tIGlucHV0IGZpbGUgc3RyZWFtLnR4dC4AAAACADIAMTN0aCBHZW4gSW50ZWwoUikgQ29yZShUTSkgaTUtMTM0MjBIICh3aXRoIFNTRTQuMikAAAMAFQBMaW51eCA2LjE5LjExLWFyY2gxLTEAAAAEABsAVGV4dDJwY2FwIChXaXJlc2hhcmspIDQuNi40AAAAAADAAAAAAQAAADgAAAABAAAAAAAEAAIAEgBGYWtlIElGLCB0ZXh0MnBjYXAAAAkAAQAJAAAAAAAAADgAAAAGAAAAMAEAAAAAAAAxEd4Y6PlNuRABAAAQAQAAIFJFQ1YAIFNFTkQACABFAAECEjQAAP8GkbwKAQEBCgICApxAH5AAAAAAAAAAAFAAIACwAgAAR0VUIC9hZG1pbi9zZWNyZXQgSFRUUC8xLjENCkhvc3Q6IDEwLjEwLjEwLjUNCkF1dGhvcml6YXRpb246IEJhc2ljIFozVmxjM1E2YzNWd00zSnpNMk55TTNRPQ0KVXNlci1BZ2VudDogY3VybC84LjUuMA0KDQpIVFRQLzEuMSAyMDAgT0sNCkNvbnRlbnQtVHlwZTogdGV4dC9wbGFpbg0KQ29udGVudC1MZW5ndGg6IDM0DQoNCm50b3twY2FwX2h0dHBfc3RyMzRtX2ZsNGdfNGRtMW59DQowAQAA"
+    },
+    {
+      "path": "/home/student/task/tshark_notes.txt",
+      "text": "Полезно: tshark -r capture.pcap -z follow,tcp,ascii,0\n"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark [опции] -r <pcap> — разбор захвата трафика",
+      "cases": [
+        {
+          "match": "-z\\s*follow,tcp,ascii,0",
+          "example": "tshark -r capture.pcap -z follow,tcp,ascii,0",
+          "output": "    1 0.000000000     10.1.1.1 → 10.2.2.2     HTTP 272 GET /admin/secret HTTP/1.1 HTTP/1.1 200 OK  (text/plain)\n\n===================================================================\nFollow: tcp,ascii\nFilter: tcp.stream eq 0\nNode 0: 10.1.1.1:40000\nNode 1: 10.2.2.2:8080\n218\nGET /admin/secret HTTP/1.1\nHost: 10.10.10.5\nAuthorization: Basic Z3Vlc3Q6c3VwM3JzM2NyM3Q=\nUser-Agent: curl/8.5.0\n\nHTTP/1.1 200 OK\nContent-Type: text/plain\nContent-Length: 34\n\nnto{pcap_http_str34m_fl4g_4dm1n}\n\n===================================================================\n"
+        },
+        {
+          "match": "-T\\s*fields",
+          "example": "tshark -r capture.pcap -T fields -e http.request.uri",
+          "output": "/admin/secret,/admin/secret\tBasic Z3Vlc3Q6c3VwM3JzM2NyM3Q=\n"
+        },
+        {
+          "match": "-r\\s+capture\\.pcap",
+          "example": "tshark -r capture.pcap",
+          "output": "    1 0.000000000     10.1.1.1 → 10.2.2.2     HTTP 272 GET /admin/secret HTTP/1.1 HTTP/1.1 200 OK  (text/plain)\n"
+        }
+      ]
+    }
+  },
+  "id": "forensics-pcap",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pcap_http_str34m_fl4g_4dm1n}"
+  }
+}

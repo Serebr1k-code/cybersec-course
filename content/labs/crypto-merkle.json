@@ -1,0 +1,44 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nДаны четыре листа дерева Меркла (`leaves.hex`). Один лист — это SHA-256 от флага. Вычисли корень дерева и определи, какой лист соответствует флагу.\n\nУзел = SHA-256(left ‖ right).\n"
+    },
+    {
+      "path": "/home/student/task/leaves.hex",
+      "text": "95cd603fe577fa9548ec0c9b50b067566fe07c8af6acba45f6196f3a15d511f6 709b55bd3da0f5a838125bd0ee20c5bfdd7caba173912d4281cae816b79a201b 659a57e5dfc3567067ea571d5316a20458329537edb282ff7896dde53fa3b798 1f3cb18e896256d7d6bb8c11a6ec71f005c75de05e39beae5d93bbd1e2c8b7a9\n"
+    },
+    {
+      "path": "/home/student/task/merkle.py",
+      "text": "import hashlib\ndef h(a,b): return hashlib.sha256(a+b).digest()\nls=[bytes.fromhex(x) for x in open('leaves.hex').read().split()]\nn01=h(ls[0],ls[1]); n23=h(ls[2],ls[3]); root=h(n01,n23)\nprint('root:',root.hex())\n# leaf 2 is the odd one out: its preimage is the flag message\nprint('FLAG nto{m3rkl3_tr33_4nd_1nclus10n_pr00f}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "merkle\\.py",
+          "example": "python3 merkle.py",
+          "output": "root: 922a1cb1d5b87744d8f5303acb8bbf608693b72ab4cd96d67a93db1c4162fe2a\nFLAG nto{m3rkl3_tr33_4nd_1nclus10n_pr00f}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-merkle",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m3rkl3_tr33_4nd_1nclus10n_pr00f}"
+  }
+}

@@ -13,6 +13,19 @@ useful_for:
   - "Восстановление данных"
 estimated_minutes: 40
 summary: "Разбор всех основных форматов сжатия и контейнеров: gzip/zstd/lzma/bzip2, tar, 7z, вложенность, encrypted headers, потоки без каталога и восстановление битых архивов."
+lab:
+  kind: shell
+  title: "Практика: разбор вложенного архива"
+  toolset: [core, unzip]
+  workdir: /home/student/task
+  files: [task.md, evidence.zip]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`unzip -l evidence.zip` — список файлов."
+    - "Внутри `layer2.b64` — base64 второго архива."
+    - "Декодируй его в `inner.zip`, затем распакуй `flag.b64`."
+    - "`unzip -p evidence.zip layer2.b64 > layer2.b64; base64 -d layer2.b64 > inner.zip; unzip -p inner.zip flag.b64 | base64 -d > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

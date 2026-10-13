@@ -1,0 +1,44 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nДан шифртекст ChaCha20 (`ct.hex`), ключ (32 байта 00..1f) и nonce (8 байт 00..07). Расшифруй его — внутри флаг.\n\nChaCha20 — потоковый шифр: P = C ⊕ keystream(key, nonce, counter=0).\n"
+    },
+    {
+      "path": "/home/student/task/ct.hex",
+      "text": "99eccef292fdd20aea2400c95454c4010d64a9ce497acce191\n"
+    },
+    {
+      "path": "/home/student/task/chacha.py",
+      "text": "from Crypto.Cipher import ChaCha20\nkey=bytes(range(32)); nonce=bytes(range(8))\nct=bytes.fromhex(open('ct.hex').read().strip())\npt=ChaCha20.new(key=key,nonce=nonce).decrypt(ct)\nprint(pt.decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "chacha\\.py",
+          "example": "python3 chacha.py",
+          "output": "nto{ch4ch4_20_str34m_x0r}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-chacha",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ch4ch4_20_str34m_x0r}"
+  }
+}

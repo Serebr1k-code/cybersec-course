@@ -13,6 +13,19 @@ useful_for:
   - "Forensics: детект скрытых аудиоканалов"
 estimated_minutes: 45
 summary: "Методы аудиостеганографии за пределами LSB: эхо-сокрытие, фазовое кодирование и spread-spectrum — как они работают, как их извлекать и почему устойчивы к сжатию."
+lab:
+  kind: shell
+  title: "Практика: эхо-сокрытие в аудио"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, echo.wav, echo_decode.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Эхо-сокрытие: добавляем эхо с разной задержкой для 0 и 1."
+    - "Автокорреляция сегмента на задержке d выделяет эхо."
+    - "Сравни корреляции при d=40 и d=60."
+    - "`python3 echo_decode.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

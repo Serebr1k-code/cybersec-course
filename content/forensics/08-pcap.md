@@ -13,6 +13,19 @@ useful_for:
   - "Анализ инцидентов"
 estimated_minutes: 40
 summary: "Как открыть и прочитать сетевой дамп: фильтры tshark, реконструкция HTTP-сессии, извлечение объектов."
+lab:
+  kind: shell
+  title: "Практика: разбор pcap через tshark"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, capture.pcap, tshark_notes.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Запусти `tshark -r capture.pcap` для списка пакетов."
+    - "Нужен полный TCP-поток: `-z follow,tcp,ascii,0`."
+    - "Флаг — в теле HTTP-ответа."
+    - "`tshark -r capture.pcap -z follow,tcp,ascii,0 | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

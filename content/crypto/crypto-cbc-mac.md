@@ -13,6 +13,19 @@ useful_for:
   - "Проектировать корректную комбинацию шифрования и аутентификации"
 estimated_minutes: 45
 summary: "CBC-MAC и CMAC: как строится тег, почему CBC-MAC уязвим при переменной длине (length extension/extension attack) и как CMAC это чинит. Разбор порядков Encrypt-then-MAC / MAC-then-Encrypt / MAC-and-Encrypt, атака MAC-then-Encrypt и связь с padding oracle."
+lab:
+  kind: shell
+  title: "Практика: подделка CBC-MAC"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, msg.txt, tag.hex, cbcmac_forge.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "CBC-MAC одного блока m1 — это просто E_k(m1)."
+    - "Тег сообщения m1||m2 равен E_k(m1 ⊕ m2)."
+    - "Подбери m2 так, чтобы новый тег совпал с известным."
+    - "`python3 cbcmac_forge.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

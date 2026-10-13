@@ -1,0 +1,55 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nНайден архив `evidence.zip`, внутри — вложенный архив в base64. Достань флаг через два слоя распаковки.\n\n`unzip -l` покажет содержимое; `unzip -p <архив> <файл>` выводит файл на stdout.\n"
+    },
+    {
+      "path": "/home/student/task/evidence.zip",
+      "b64": "UEsDBBQAAAAAAERuTV2Fq7LjLQAAAC0AAAAKAAAAcmVhZG1lLnR4dHNlY29uZCBsYXllciBpcyBiYXNlNjQtZW5jb2RlZCBpbiBsYXllcjIuYjY0ClBLAwQUAAAAAABEbk1d5oyYuNUAAADVAAAACgAAAGxheWVyMi5iNjRVRXNEQkJRQUFBQUFBRVJ1VFYxbHI4eDZMUUFBQUMwQUFBQUlBQUFBWm14aFp5NWlOalJpYmxKMlpUSTBlbU16VVhwYVJqZ3dZMjFPYjAxWVdYcFlNa2t3WTNwTk1rNUdPWE5PU0d0NlkyNHdQUXBRU3dFQ0ZBTVVBQUFBQUFCRWJrMWRaYS9NZWkwQUFBQXRBQUFBQ0FBQUFBQUFBQUFBQUFBQWdBRUFBQUFBWm14aFp5NWlOalJRU3dVR0FBQUFBQUVBQVFBMkFBQUFVd0FBQUFBQQpQSwECFAMUAAAAAABEbk1dhauy4y0AAAAtAAAACgAAAAAAAAAAAAAAgAEAAAAAcmVhZG1lLnR4dFBLAQIUAxQAAAAAAERuTV3mjJi41QAAANUAAAAKAAAAAAAAAAAAAACAAVUAAABsYXllcjIuYjY0UEsFBgAAAAACAAIAcAAAAFIBAAAAAA=="
+    }
+  ],
+  "tools": {
+    "unzip": {
+      "help": "unzip [-l | -p <файл>] <архив> — работа с ZIP",
+      "cases": [
+        {
+          "match": "-l\\s+evidence\\.zip",
+          "example": "unzip -l evidence.zip",
+          "output": "Archive:  evidence.zip\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n       45  2026-10-13 13:50   readme.txt\n      213  2026-10-13 13:50   layer2.b64\n---------                     -------\n      258                     2 files\n"
+        },
+        {
+          "match": "-p\\s+evidence\\.zip\\s+readme\\.txt",
+          "example": "unzip -p evidence.zip readme.txt",
+          "output": "second layer is base64-encoded in layer2.b64\n"
+        },
+        {
+          "match": "-p\\s+evidence\\.zip\\s+layer2\\.b64",
+          "example": "unzip -p evidence.zip layer2.b64",
+          "output": "UEsDBBQAAAAAAERuTV1lr8x6LQAAAC0AAAAIAAAAZmxhZy5iNjRiblJ2ZTI0emMzUXpaRjgwY21Ob01YWXpYMkkwY3pNMk5GOXNOSGt6Y24wPQpQSwECFAMUAAAAAABEbk1dZa/Mei0AAAAtAAAACAAAAAAAAAAAAAAAgAEAAAAAZmxhZy5iNjRQSwUGAAAAAAEAAQA2AAAAUwAAAAAA\n"
+        },
+        {
+          "match": "-l\\s+inner\\.zip",
+          "example": "unzip -l inner.zip",
+          "output": "Archive:  inner.zip\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n       45  2026-10-13 13:50   flag.b64\n---------                     -------\n       45                     1 file\n"
+        },
+        {
+          "match": "-p\\s+inner\\.zip\\s+flag\\.b64",
+          "example": "unzip -p inner.zip flag.b64",
+          "output": "bnRve24zc3QzZF80cmNoMXYzX2I0czM2NF9sNHkzcn0=\n"
+        }
+      ]
+    }
+  },
+  "id": "forensics-archive-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{n3st3d_4rch1v3_b4s364_l4y3r}"
+  }
+}

@@ -12,6 +12,19 @@ useful_for:
   - "Понимание watermarking в аудио/видео"
 estimated_minutes: 36
 summary: "Spread-spectrum image steganography (SSIS): модуляция псевдослучайной последовательностью, корреляционный приёмник, DSSS/FHSS, seed как ключ, робастность к обрезке и шуму."
+lab:
+  kind: shell
+  title: "Практика: расширение спектра в LSB"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, spectrum.png, spread.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "PN-последовательность задана seed=42."
+    - "Каждый бит маскируется знаком PN."
+    - "Декодируй корреляцией LSB с PN."
+    - "`python3 spread.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

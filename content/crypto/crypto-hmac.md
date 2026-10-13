@@ -13,6 +13,18 @@ useful_for:
   - "Атаковать HMAC через слабый ключ и timing"
 estimated_minutes: 35
 summary: "HMAC: конструкция ipad/opad, почему она защищает от length-extension, различия HMAC-MD5/SHA1/SHA256, атаки (слабый ключ, timing, утечки, неверные сравнения), HMAC в JWT и API-подписях. Практические скрипты."
+lab:
+  kind: shell
+  title: "Практика: HMAC со слабым ключом"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, message.txt, mac.txt, wordlist.txt, hmac.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Перебери словарь кандидатов."
+    - "Для каждого ключа считай HMAC-SHA256 и сравни с `mac.txt`."
+    - "`python3 hmac.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,19 @@ useful_for:
   - "Веб-форензика"
 estimated_minutes: 45
 summary: "Форензика серверных СУБД: файлы данных и журналы MySQL/InnoDB, PostgreSQL/WAL, MSSQL/MDF+LDF, восстановление удалённых записей и разбор логов запросов."
+lab:
+  kind: shell
+  title: "Практика: анализ SQLite-базы"
+  toolset: [core, sqlite3]
+  workdir: /home/student/task
+  files: [task.md, evidence.db]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`sqlite3 evidence.db \".tables\"` — список таблиц."
+    - "`sqlite3 evidence.db \".schema\"` — структура."
+    - "Выбери нужную таблицу и колонку с флагом."
+    - "`sqlite3 evidence.db \"SELECT flag FROM secrets\" | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается

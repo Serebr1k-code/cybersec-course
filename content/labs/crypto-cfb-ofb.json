@@ -1,0 +1,48 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nПерехвачены два шифртекста OFB, зашифрованные одним ключом и одним IV. Известно начало первого открытого текста (в `task.md` ниже). Восстанови второй открытый текст — там флаг.\n\nИзвестный открытый текст:\n`INTERCEPTED: same key and IV reused in OFB mode!`\n\nФайлы: `ct1.hex`, `ct2.hex` — hex-строки шифртекстов (по 45 байт).\n"
+    },
+    {
+      "path": "/home/student/task/ct1.hex",
+      "text": "bccdf17cbcaa92c14b791967fe0c3427c324c221ba1f3894da772176f23a1ba42f20853f8bb2bedb302635f82622f1dd\n"
+    },
+    {
+      "path": "/home/student/task/ct2.hex",
+      "text": "9bf7ca42de8fb5ce740f242eaa0d667ecb5bdb77b60a6aa58f243746e63c4abd21\n"
+    },
+    {
+      "path": "/home/student/task/ofb_reuse.py",
+      "text": "ct1=bytes.fromhex(open('ct1.hex').read().strip())\nct2=bytes.fromhex(open('ct2.hex').read().strip())\nknown=b'INTERCEPTED: same key and IV reused in OFB mode!'\n# OFB: C = P xor keystream, and the keystream repeats for the same key+IV\nks=bytes(a^b for a,b in zip(ct1,known))\np2=bytes(a^b for a,b in zip(ct2,ks))\nprint(p2.decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "ofb_reuse\\.py",
+          "example": "python3 ofb_reuse.py",
+          "output": "nto{0fb_k3ystr34m_r3u53_1s_f4t4l}\n"
+        }
+      ]
+    }
+  },
+  "id": "crypto-cfb-ofb",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0fb_k3ystr34m_r3u53_1s_f4t4l}"
+  }
+}

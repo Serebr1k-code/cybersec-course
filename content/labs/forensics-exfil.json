@@ -1,0 +1,40 @@
+{
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nЗахвачен DNS-трафик `exfil.pcap`. Похоже на DNS-туннель: данные утекают в поддоменах. Восстанови флаг.\n\nИзвлеки имена запросов (`-T fields -e dns.qry.name`), отрежь домен и декодируй base64.\n"
+    },
+    {
+      "path": "/home/student/task/exfil.pcap",
+      "b64": "Cg0NCrwAAABNPCsaAQAAAP//////////AQAiAEdlbmVyYXRlZCBmcm9tIGlucHV0IGZpbGUgZG5zLnR4dC4AAAIAMgAxM3RoIEdlbiBJbnRlbChSKSBDb3JlKFRNKSBpNS0xMzQyMEggKHdpdGggU1NFNC4yKQAAAwAVAExpbnV4IDYuMTkuMTEtYXJjaDEtMQAAAAQAGwBUZXh0MnBjYXAgKFdpcmVzaGFyaykgNC42LjQAAAAAALwAAAABAAAAOAAAAAEAAAAAAAQAAgASAEZha2UgSUYsIHRleHQycGNhcAAACQABAAkAAAAAAAAAOAAAAAYAAAB0AAAAAAAAADER3hjow+j0VAAAAFQAAAAgUkVDVgAgU0VORAAIAEUAAEYSNAAA/xGSbQoBAQEKAgICMDkANQAykGASNAEAAAEAAAAAAAAMYm5SdmUyUnVjMTkwAmMyBGV2aWwDY29tAAABAAF0AAAABgAAAHQAAAAAAAAAMRHeGNDH6PRUAAAAVAAAACBSRUNWACBTRU5EAAgARQAARhI0AAD/EZJtCgEBAQoCAgIwOQA1ADJ4UxI1AQAAAQAAAAAAAAxkVzV1TTJ4Zk0zaG0CYzIEZXZpbANjb20AAAEAAXQAAAAGAAAAdAAAAAAAAAAxEd4YuMvo9FQAAABUAAAAIFJFQ1YAIFNFTkQACABFAABGEjQAAP8Rkm0KAQEBCgICAjA5ADUAMnhNEjYBAAABAAAAAAAADE1XeGZkakUwWDNSegJjMgRldmlsA2NvbQAAAQABdAAAAAYAAABwAAAAAAAAADER3higz+j0UAAAAFAAAAAgUkVDVgAgU0VORAAIAEUAAEISNAAA/xGScQoBAQEKAgICMDkANQAuVCkSNwEAAAEAAAAAAAAIYURSeWEzMD0CYzIEZXZpbANjb20AAAEAAXAAAAA="
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark [опции] -r <pcap> — разбор захвата трафика",
+      "cases": [
+        {
+          "match": "dns\\.qry\\.name",
+          "example": "tshark -r exfil.pcap -T fields -e dns.qry.name",
+          "output": "bnRve2Ruc190.c2.evil.com\ndW5uM2xfM3hm.c2.evil.com\nMWxfdjE0X3Rz.c2.evil.com\naDRya30=.c2.evil.com\n"
+        },
+        {
+          "match": "-r\\s+exfil\\.pcap",
+          "example": "tshark -r exfil.pcap",
+          "output": "    1 0.000000000     10.1.1.1 → 10.2.2.2     DNS 84 Standard query 0x1234 A bnRve2Ruc190.c2.evil.com\n    2 0.000001000     10.1.1.1 → 10.2.2.2     DNS 84 Standard query 0x1235 A dW5uM2xfM3hm.c2.evil.com\n    3 0.000002000     10.1.1.1 → 10.2.2.2     DNS 84 Standard query 0x1236 A MWxfdjE0X3Rz.c2.evil.com\n    4 0.000003000     10.1.1.1 → 10.2.2.2     DNS 80 Standard query 0x1237 A aDRya30=.c2.evil.com\n"
+        }
+      ]
+    }
+  },
+  "id": "forensics-exfil",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dns_tunn3l_3xf1l_v14_tsh4rk}"
+  }
+}

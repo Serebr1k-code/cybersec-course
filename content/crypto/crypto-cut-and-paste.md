@@ -13,6 +13,19 @@ useful_for:
   - "Понимать, почему шифрование без аутентификации опасно"
 estimated_minutes: 45
 summary: "Cut-and-paste атаки на блочные шифры: перестановка и копирование блоков в CBC, манипуляция IV, цепочки битфлипов для подделки сериализованных структур (роль, сумма, id), и ECB cut-and-paste. Практические сценарии с cookie, токенами и сериализацией, плюс защита (AEAD, Encrypt-then-MAC)."
+lab:
+  kind: shell
+  title: "Практика: ECB cut-and-paste"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, profile.b64, admin_block.b64, cutpaste.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "ECB шифрует одинаковые 16-байтовые блоки одинаково."
+    - "Сделай так, чтобы блок `admin` оказался на месте блока `role=...`."
+    - "Склей первый блок профиля с зашифрованным блоком `admin`."
+    - "`python3 cutpaste.py | grep nto > found.txt`."
+
 ---
 
 ## Вопрос, с которого всё начинается
