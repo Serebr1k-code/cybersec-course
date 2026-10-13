@@ -225,10 +225,12 @@ describe('components/TreeGraph.vue — focus, collapse and highlight', () => {
     expect(view(w)).toEqual(before)
   })
 
-  it('collapsing a node hides its subtree and re-lays out', async () => {
+  it('collapsing a node (toggleCollapse) hides its subtree and re-lays out', async () => {
     const w = await factory()
     expect(slots(w).length).toBe(3)
-    await w.find('.node-slot .chev').trigger('click')
+    // the on-node chevron was removed; the collapse API stays exposed on the vm
+    expect(w.find('.node-slot .chev').exists()).toBe(false)
+    w.vm.toggleCollapse('a')
     await flushPromises()
     expect(slots(w).length).toBe(1)
     expect(slotByTitle(w, 'Bee')).toBeUndefined()
@@ -445,15 +447,55 @@ describe('components/TreeGraph.vue — progressive reveal (fog of war)', () => {
     expect(allInside(w)).toBe(true)
   })
 
-  it('keeps a manually expanded subtree open (chevron overrides fog-of-war)', async () => {
+  it('keeps a manually expanded subtree open (toggleCollapse overrides fog-of-war)', async () => {
     const { w } = await factoryWithProgress({ nodes: TREE })
     expect(slotByTitle(w, 'L3')).toBeUndefined()
-    const l2 = slotByTitle(w, 'L2') // L2 has hidden child L3 -> chevron expands
-    await l2.el.find('.chev').trigger('click')
+    // no on-node chevron any more — expand programmatically via the exposed API
+    w.vm.toggleCollapse('c') // L2 has hidden child L3
     await flushPromises()
     expect(slotByTitle(w, 'L3')).toBeDefined()
     await nextTick()
     expect(slotByTitle(w, 'L3')).toBeDefined()
+  })
+
+  // Root -> L1 -> hub -> {L2a, L2b -> L3}. The hub sits at depth 2 (visible by
+  // the default 2-level overview) but its children are at depth 3 (hidden by the
+  // old rule). Hubs are transparent, so the children must appear anyway.
+  const HUB_TREE = [
+    { id: 'a', title: 'Root', parent: null, order: 1, sections: 1 },
+    { id: 'b', title: 'L1', parent: 'a', order: 1, sections: 1 },
+    { id: 'h', title: 'Модуль: Группа', parent: 'b', order: 1, sections: 1, tags: ['roadmap'] },
+    { id: 'c', title: 'L2a', parent: 'h', order: 1, sections: 1 },
+    { id: 'd', title: 'L2b', parent: 'h', order: 2, sections: 1 },
+    { id: 'e', title: 'L3', parent: 'd', order: 1, sections: 1 }
+  ]
+
+  it('passes the fog of war through a hub: a revealed hub also reveals its children', async () => {
+    const { w } = await factoryWithProgress({ nodes: HUB_TREE })
+    // Root(0), L1(1), hub(2) from the default overview; the hub is TRANSPARENT so
+    // its depth-3 children L2a/L2b appear too — the hub never dead-ends the fog.
+    expect(slots(w).map((s) => s.title).sort())
+      .toEqual(['L1', 'L2a', 'L2b', 'Root', 'Модуль: Группа'])
+    // a REAL lesson is NOT transparent: L2b's child L3 stays hidden
+    expect(slotByTitle(w, 'L3')).toBeUndefined()
+  })
+
+  // Root -> hubA -> hubB -> Real -> Next: the cascade must chain through hubs.
+  const CHAINED_HUB_TREE = [
+    { id: 'a', title: 'Root', parent: null, order: 1, sections: 1 },
+    { id: 'h1', title: 'Модуль: A', parent: 'a', order: 1, sections: 1 },
+    { id: 'h2', title: 'Модуль: B', parent: 'h1', order: 1, sections: 1 },
+    { id: 'c', title: 'Real', parent: 'h2', order: 1, sections: 1 },
+    { id: 'd', title: 'Next', parent: 'c', order: 1, sections: 1 }
+  ]
+
+  it('passes the fog of war through CHAINED hubs until real lessons are reached', async () => {
+    const { w } = await factoryWithProgress({ nodes: CHAINED_HUB_TREE })
+    // Root + both hubs (depth<=2) + the first real lesson beyond the chain.
+    expect(slots(w).map((s) => s.title).sort())
+      .toEqual(['Real', 'Root', 'Модуль: A', 'Модуль: B'])
+    // a real lesson keeps the old rule: its own child is not auto-revealed
+    expect(slotByTitle(w, 'Next')).toBeUndefined()
   })
 
   it('shows a legend hint explaining the progressive reveal', async () => {

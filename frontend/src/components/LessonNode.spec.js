@@ -123,18 +123,15 @@ describe('components/LessonNode.vue — real lesson renders a text card', () => 
     expect(factory({ dimmed: true }).classes()).toContain('dim')
   })
 
-  it('renders a collapse chevron only for nodes with children', () => {
-    expect(factory({ hasChildren: false }).find('.chev').exists()).toBe(false)
-    const w = factory({ hasChildren: true, collapsed: false })
-    expect(w.find('.chev').exists()).toBe(true)
-    expect(factory({ hasChildren: true, collapsed: true }).classes()).toContain('folded')
-  })
-
-  it('emits toggle when the chevron is clicked', async () => {
-    const w = factory({ hasChildren: true })
-    await w.find('.chev').trigger('click')
-    expect(w.emitted('toggle')).toBeTruthy()
-    expect(w.emitted('toggle')[0]).toEqual(['web-sqli'])
+  it('renders NO collapse chevron on the card (on-node chevrons were removed)', () => {
+    // The little collapse arrows were removed from every node: the chevron
+    // button, its `folded` / `has-chev` state classes and the toggle emit are
+    // all gone (the tree toolbar still collapses via TreeGraph.collapseAll).
+    const w = factory()
+    expect(w.find('.chev').exists()).toBe(false)
+    expect(w.find('button').exists()).toBe(false)
+    expect(w.classes()).not.toContain('folded')
+    expect(w.classes()).not.toContain('has-chev')
   })
 
   it('carries the title + difficulty name in the accessibility label', () => {
@@ -179,16 +176,12 @@ describe('components/LessonNode.vue — hub renders a plain small circle', () =>
     expect(hub({ color: '#ff0000' }).attributes('style')).toContain('--cat: #ff0000')
   })
 
-  it('renders a collapse chevron only for hubs with children', () => {
-    expect(hub({ hasChildren: false }).find('.chev').exists()).toBe(false)
-    expect(hub({ hasChildren: true }).find('.chev').exists()).toBe(true)
-    expect(hub({ hasChildren: true, collapsed: true }).classes()).toContain('folded')
-  })
-
-  it('emits toggle when the hub chevron is clicked', async () => {
-    const w = hub({ hasChildren: true })
-    await w.find('.chev').trigger('click')
-    expect(w.emitted('toggle')[0]).toEqual(['web-auth-core'])
+  it('renders NO collapse chevron on the hub circle (on-node chevrons were removed)', () => {
+    const w = hub()
+    expect(w.find('.chev').exists()).toBe(false)
+    expect(w.find('button').exists()).toBe(false)
+    expect(w.classes()).not.toContain('folded')
+    expect(w.classes()).not.toContain('has-chev')
   })
 
   it('reflects the path / dim interaction state as classes', () => {

@@ -45,8 +45,17 @@ function started(n) {
 // ДВА уровня дерева (корень + его дети + внуки), чтобы с самого начала был
 // виден обзор, а не только точка старта. Набор ancestor-closed: родитель любого
 // видимого узла тоже видим.
+//
+// ХАБЫ ПРОЗРАЧНЫ ДЛЯ ТУМАНА: хаб/коннектор (Модуль:/roadmap) — не реальный урок,
+// а лишь соединитель без собственного контента, поэтому проявление хаба НЕ должно
+// упираться в туман: как только хаб видим, видимы и все его дети (ещё на один
+// уровень), и так каскадом через цепочки хабов, пока не упрёмся в реальные уроки.
+// Реальные уроки сохраняют прежнее правило (следующий шаг — только их прямые дети).
+// Инвариант ancestor-closed сохраняется: детей хаба добавляем, лишь когда сам хаб
+// уже видим, поэтому рёбра остаются связными.
 const revealSet = computed(() => {
   const m = treeMeta()
+  const byId = Object.fromEntries(props.nodes.map((n) => [n.id, n]))
   const vis = new Set()
   for (const n of props.nodes) {
     const d = m.depth[n.id]
@@ -59,6 +68,18 @@ const revealSet = computed(() => {
     let guard = 0
     while (p && guard++ < 1000) { vis.add(p); p = m.parentOf[p] }
     for (const c of m.children.get(n.id) || []) vis.add(c)
+  }
+  // Каскад «хабы прозрачны»: каждый видимый хаб раскрывает своих детей; если
+  // среди них снова хаб — продолжаем. Реальные уроки детей НЕ раскрывают.
+  const stack = [...vis].filter((id) => isHubNode(byId[id]))
+  let guard = 0
+  while (stack.length && guard++ < 100000) {
+    const id = stack.pop()
+    for (const c of m.children.get(id) || []) {
+      if (vis.has(c)) continue
+      vis.add(c)
+      if (isHubNode(byId[c])) stack.push(c)
+    }
   }
   return vis
 })
@@ -303,12 +324,11 @@ function childrenShown(id) {
   if (!kids.length) return false
   return kids.every((c) => !!layout.value.pos[c])
 }
-// Состояние шеврона: «свёрнут», если у узла есть скрытые дети.
-function nodeCollapsed(id) {
-  return (treeMeta().children.get(id) || []).length > 0 && !childrenShown(id)
-}
-// Шеврон: если дети показаны — сворачиваем; если скрыты (fog-of-war) —
-// раскрываем вручную; вручную раскрытое поддерево остаётся открытым.
+// Ручное сворачивание/раскрытие поддерева (осталось как программный API —
+// на узле больше нет шеврона; панель «Свернуть/Развернуть всё» работает
+// через collapseAll/expandAll ниже). Если дети показаны — сворачиваем; если
+// скрыты (fog-of-war) — раскрываем вручную; вручную раскрытое поддерево
+// остаётся открытым.
 function toggleCollapse(id) {
   const kids = treeMeta().children.get(id) || []
   if (!kids.length) return
@@ -461,11 +481,8 @@ onBeforeUnmount(() => {
             :width="layout.pos[n.id].w"
             :height="layout.pos[n.id].h"
             :size="layout.pos[n.id].w"
-            :has-children="layout.hasChildren[n.id]"
-            :collapsed="nodeCollapsed(n.id)"
             :dimmed="!!activeId && !pathSet.has(n.id)"
             :onpath="pathSet.has(n.id)"
-            @toggle="toggleCollapse"
           />
         </div>
       </div>

@@ -17,12 +17,9 @@ const props = defineProps({
   // HUB / CONNECTOR circle diameter (px). Only used when the node is a hub.
   size: { type: Number, default: HUB_D },
   // radial interaction state
-  collapsed: { type: Boolean, default: false },
-  hasChildren: { type: Boolean, default: false },
   dimmed: { type: Boolean, default: false },
   onpath: { type: Boolean, default: false }
 })
-const emit = defineEmits(['toggle'])
 
 // A hub / connector node (module / roadmap index page) renders as a plain small
 // CIRCLE; a real lesson renders as a wide TEXT CARD.
@@ -75,27 +72,18 @@ const durText = computed(() => fmtDuration(
     v-if="isHub"
     :to="'/lesson/' + node.id"
     class="rnode hub"
-    :class="{ done: completed, dim: dimmed, on: onpath, folded: collapsed, 'has-chev': hasChildren }"
+    :class="{ done: completed, dim: dimmed, on: onpath }"
     :style="{ '--cat': color, '--d': size + 'px' }"
     :aria-label="node.title"
   >
     <span class="bullet" aria-hidden="true"></span>
-
-    <button
-      v-if="hasChildren"
-      type="button"
-      class="chev"
-      :class="{ closed: collapsed }"
-      :title="collapsed ? 'Развернуть' : 'Свернуть'"
-      @click.stop.prevent="emit('toggle', node.id)"
-    >{{ collapsed ? '▸' : '▾' }}</button>
   </RouterLink>
 
   <RouterLink
     v-else
     :to="'/lesson/' + node.id"
     class="rnode card"
-    :class="{ done: completed, dim: dimmed, on: onpath, folded: collapsed, 'has-chev': hasChildren }"
+    :class="{ done: completed, dim: dimmed, on: onpath }"
     :style="{ '--cat': color, '--diff': diffColor, width: width + 'px', height: cardH + 'px' }"
     :title="node.title + ' — ' + diffName"
   >
@@ -115,15 +103,6 @@ const durText = computed(() => fmtDuration(
     </span>
 
     <span class="badge" v-if="completed">✓</span>
-
-    <button
-      v-if="hasChildren"
-      type="button"
-      class="chev"
-      :class="{ closed: collapsed }"
-      :title="collapsed ? 'Развернуть' : 'Свернуть'"
-      @click.stop.prevent="emit('toggle', node.id)"
-    >{{ collapsed ? '▸' : '▾' }}</button>
   </RouterLink>
 </template>
 
@@ -162,21 +141,6 @@ const durText = computed(() => fmtDuration(
 }
 .rnode.hub:hover .bullet { background: color-mix(in srgb, var(--cat) 34%, transparent); }
 .rnode.hub.done .bullet { border-color: var(--green, #22c55e); }
-
-/* hub chevron — tucked at the bottom-right, revealed on hover/fold */
-.rnode.hub .chev {
-  position: absolute; bottom: -6px; right: -6px;
-  width: 13px; height: 13px; padding: 0;
-  display: grid; place-items: center;
-  border-radius: 50%; cursor: pointer;
-  background: rgba(10, 16, 24, .92); color: var(--muted);
-  border: 1px solid var(--border-strong);
-  font-size: 8px; line-height: 1;
-  opacity: 0; transition: opacity .14s ease;
-}
-.rnode.hub:hover .chev, .rnode.hub.folded .chev { opacity: 1; }
-.rnode.hub .chev:hover { color: var(--text); border-color: var(--cat); }
-.rnode.hub .chev.closed { color: var(--cat); }
 
 /* ================= REAL LESSON — readable text card ====================== */
 .rnode.card {
@@ -229,8 +193,6 @@ const durText = computed(() => fmtDuration(
 }
 
 .meta { position: relative; display: flex; align-items: center; gap: 4px; min-height: 11px; }
-/* leave room for the collapse chevron pinned to the bottom-right corner */
-.rnode.card.has-chev .meta { padding-right: 15px; }
 
 /* Minimalist star rating — 1–5 ★, coloured by difficulty (no text label). */
 .stars {
@@ -256,15 +218,4 @@ const durText = computed(() => fmtDuration(
   box-shadow: 0 0 8px rgba(34,197,94,.6);
 }
 
-.rnode.card .chev {
-  position: absolute; bottom: 2px; right: 2px;
-  width: 14px; height: 14px; padding: 0;
-  display: grid; place-items: center;
-  border-radius: 4px; cursor: pointer;
-  background: rgba(10,16,24,.82); color: var(--muted);
-  border: 1px solid var(--border-strong);
-  font-size: 9px; line-height: 1;
-}
-.rnode.card .chev:hover { color: var(--text); border-color: var(--cat); }
-.rnode.card .chev.closed { color: var(--cat); }
 </style>
