@@ -13,6 +13,17 @@ useful_for:
   - "Собеседование: демонстрация методики"
 estimated_minutes: 55
 summary: "CTF-рецепты для reversing: классификация задач, чек-лист триажа, готовые рецепты по типам (crackme, anti-debug, VM, crypto), автоматизация, практический разбор и типичные ловушки."
+lab:
+  kind: shell
+  title: 'Практика: рецепт CTF-задачи до флага'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, keygenme]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'В main есть `xor $0x2a` и `cmp $0x1337` — серийник должен удовлетворять условию.'
+    - 'Нужно `(serial ^ 0x2a) & 0xffff == 0x1337`. Найди serial.'
+    - 'serial = 0x1337 ^ 0x2a = 4893. Запусти `keygenme 4893`.'
 ---
 ## Вопрос, с которого всё начинается
 

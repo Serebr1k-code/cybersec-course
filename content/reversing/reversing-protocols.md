@@ -13,6 +13,17 @@ useful_for:
   - "Реверс закрытых протоколов"
 estimated_minutes: 45
 summary: "Как восстановить структуру бинарного протокола или формата файла: перехват, гипотезы, верификация."
+lab:
+  kind: shell
+  title: 'Практика: разобрать бинарный протокол'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, capture.bin]
+  check: 'grep -q ''HELLO'' answer.txt'
+  hints:
+    - 'Байты: `50 52 4f 54` = `PROT`, затем `02`, `01`, `00 05`, payload.'
+    - 'length = 5, значит payload — 5 байт после заголовка.'
+    - '`echo HELLO > answer.txt` затем `check`.'
 ---
 
 ## Задача

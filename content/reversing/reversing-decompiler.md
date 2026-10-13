@@ -13,6 +13,17 @@ useful_for:
   - "Восстановление алгоритмов"
 estimated_minutes: 45
 summary: "Как читать псевдо-C, восстанавливать типы и обходить типичные артефакты декомпиляции."
+lab:
+  kind: shell
+  title: 'Практика: прочитать псевдо-C и найти ключ'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, decompiled.c]
+  check: 'grep -q ''k3y!z0r'' answer.txt'
+  hints:
+    - 'Каждый `key[i]` — ASCII-код символа ключа.'
+    - '0x6b k, 0x33 3, 0x79 y, 0x21 !, 0x7a z, 0x30 0, 0x72 r.'
+    - '`echo ''k3y!z0r'' > answer.txt` затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

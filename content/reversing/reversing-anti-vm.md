@@ -13,6 +13,17 @@ useful_for:
   - "Анализ защищённого ПО"
 estimated_minutes: 50
 summary: "Как malware и протекторы детектируют виртуальные машины и песочницы и как это обойти."
+lab:
+  kind: shell
+  title: 'Практика: инструкция CPUID в анти-VM проверке'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, cpuvm]
+  check: 'grep -qi ''cpuid'' answer.txt'
+  hints:
+    - 'Это одна инструкция, а не вызов функции.'
+    - 'Она возвращает данные в eax/ebx/ecx/edx; проверяется бит 31 в ecx.'
+    - '`echo cpuid > answer.txt` затем `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

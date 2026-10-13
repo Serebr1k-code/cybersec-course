@@ -13,6 +13,17 @@ useful_for:
   - "DRM research"
 estimated_minutes: 65
 summary: "Реверс нестандартной криптографии: разбор custom cipher, извлечение встроенного ключа и приёмы против white-box."
+lab:
+  kind: shell
+  title: 'Практика: white-box — обратить преобразование'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, wbox]
+  check: 'grep -q ''nto{wh1t3b0x_k3y}'' answer.txt'
+  hints:
+    - 'Порядок обратных операций — с конца: сначала XOR 0x1f, затем ror8 на 3.'
+    - '`x = ror8(target[i] ^ 0x1f, 3)` для каждого байта.'
+    - 'Ключ — `nto{wh1t3b0x_k3y}`; проверь `wbox ''nto{wh1t3b0x_k3y}''`.'
 ---
 
 ## Вопрос, с которого всё начинается

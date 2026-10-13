@@ -13,6 +13,17 @@ useful_for:
   - "Патчинг и аудит бинарников"
 estimated_minutes: 35
 summary: "Что такое реверс, как устроена программа на уровне машинного кода и с чего начать анализ."
+lab:
+  kind: shell
+  title: 'Практика: первый разбор чужого бинарника'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, crackme]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - '`strings crackme | grep -i pass` покажет пароль.'
+    - 'Пароль — `s3cr3t_p4ss`; запусти `crackme s3cr3t_p4ss`.'
+    - 'Скопируй флаг из вывода в answer.txt: `crackme s3cr3t_p4ss | grep nto > answer.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

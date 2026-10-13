@@ -13,6 +13,17 @@ useful_for:
   - "Malware analysis (эволюция образцов)"
 estimated_minutes: 55
 summary: "Сравнение двух версий бинарника: поиск исправленных функций, восстановление уязвимости из патча."
+lab:
+  kind: shell
+  title: 'Практика: бинарный diff двух версий'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, v1, v2]
+  check: 'grep -qi ''0x11d9'' answer.txt'
+  hints:
+    - 'Ищи строку, где xxd двух файлов отличаются.'
+    - 'Отличие — в строке `000011d0`: `75` против `74`.'
+    - 'Смещение изменённого байта — `0x11d9`.'
 ---
 
 ## Задача

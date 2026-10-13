@@ -13,6 +13,17 @@ useful_for:
   - "Анализ протекторов"
 estimated_minutes: 60
 summary: "Как распутывать обфусцированный код: алгебраическое упрощение (MBA), удаление ложных предикатов, девиртуализация."
+lab:
+  kind: shell
+  title: 'Практика: упростить обфусцированное выражение'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, expr.txt]
+  check: 'grep -q ''75'' answer.txt'
+  hints:
+    - 'Выражение эквивалентно `a + b`.'
+    - 'a = 60, b = 15.'
+    - '`echo 75 > answer.txt` затем `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

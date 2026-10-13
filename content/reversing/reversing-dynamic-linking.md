@@ -13,6 +13,17 @@ useful_for:
   - "Патчинг и перехват функций"
 estimated_minutes: 50
 summary: "Как программа вызывает функции из библиотек: PLT/GOT, релокации, ld.so, перехват через LD_PRELOAD."
+lab:
+  kind: shell
+  title: 'Практика: интерпретатор загрузчика'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, crackme]
+  check: 'grep -q ''ld-linux'' answer.txt'
+  hints:
+    - '`file crackme` в конце печатает `interpreter /lib64/...`.'
+    - 'Путь — `/lib64/ld-linux-x86-64.so.2`.'
+    - '`echo /lib64/ld-linux-x86-64.so.2 > answer.txt` затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

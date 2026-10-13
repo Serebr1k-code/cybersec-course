@@ -1,0 +1,23 @@
+{
+  "id": "reversing-decompiler",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "k3y!z0r"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: извлечь ключ из декомпиляции\n\nДекомпилятор свёл `strcmp` с секретом к массиву байтов. Прочитай псевдо-C\nи восстанови строку-ключ.\n\n1. `cat decompiled.c`\n2. Переведи hex-байты в ASCII (`0x6b`='k', ...).\n\nЗапиши **ключ** (строку) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/decompiled.c",
+      "text": "// Псевдо-C, восстановленный декомпилятором (упрощённо)\nvoid unlock(char *s) {\n    // декомпилятор свёл сравнение к массиву байтов\n    char key[8];\n    key[0] = 0x6b;  // 'k'\n    key[1] = 0x33;  // '3'\n    key[2] = 0x79;  // 'y'\n    key[3] = 0x21;  // '!'\n    key[4] = 0x7a;  // 'z'\n    key[5] = 0x30;  // '0'\n    key[6] = 0x72;  // 'r'\n    key[7] = 0x00;\n    if (strcmp(s, key) == 0) {\n        grant_access();\n    }\n}\n"
+    }
+  ]
+}

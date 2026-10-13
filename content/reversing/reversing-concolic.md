@@ -13,6 +13,17 @@ useful_for:
   - "Malware analysis"
 estimated_minutes: 65
 summary: "Concolic-исполнение: конкретно-символьное выполнение, Triton/Manticore, извлечение constraints и решение."
+lab:
+  kind: shell
+  title: 'Практика: инвертировать ветки (concolic)'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, checker3.py]
+  check: 'grep -q ''c0nc'' answer.txt'
+  hints:
+    - 'Каждое условие сравнивает один символ.'
+    - 'Нужно, чтобы ни одно `!=` не сработало: c, 0, n, c.'
+    - 'Ответ — `c0nc`; проверь `python3 checker3.py c0nc`.'
 ---
 ## Вопрос, с которого всё начинается
 

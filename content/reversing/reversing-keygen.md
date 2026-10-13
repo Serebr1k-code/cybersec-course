@@ -13,6 +13,17 @@ useful_for:
   - "Понимание серийных проверок"
 estimated_minutes: 50
 summary: "Как восстановить алгоритм проверки лицензии/серийного номера и написать генератор ключей (keygen)."
+lab:
+  kind: shell
+  title: 'Практика: написать keygen'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, keygenme]
+  check: 'grep -q ''4893'' answer.txt'
+  hints:
+    - 'XOR обратим: serial = 0x1337 ^ 0x2a.'
+    - '0x1337 = 4919, 0x2a = 42, 4919 ^ 42 = 4893.'
+    - '`echo 4893 > answer.txt`; проверь: `keygenme 4893`.'
 ---
 ## Вопрос, с которого всё начинается
 

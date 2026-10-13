@@ -1,0 +1,36 @@
+{
+  "id": "reversing-z3-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "p4ss"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: решить систему из дизассемблера\n\nПроверка свелась к линейной системе над четырьмя байтами. Реши её.\n\n1. `cat checker2.py` — четыре уравнения.\n2. Вырази переменные (метод подстановки/Гаусса).\n3. Проверь: `python3 checker2.py <ответ>`.\n\nЗапиши **ответ** (строку из 4 символов) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/checker2.py",
+      "text": "import sys\n# Линейная система над 4 неизвестными-байтами.\ndef check(s):\n    if len(s) != 4:\n        return False\n    a, b, c, d = [ord(x) for x in s]\n    return (a + b == 164) and (b + c == 167) and (c + d == 230) and (a - d == -3)\nif __name__ == '__main__':\n    print(\"OK\" if len(sys.argv) > 1 and check(sys.argv[1]) else \"NO\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 checker2.py <вход> — проверка кандидата (эмуляция)",
+      "cases": [
+        {
+          "match": "p4ss",
+          "example": "python3 checker2.py p4ss",
+          "output": "OK\n"
+        }
+      ],
+      "fallback": "NO\n"
+    }
+  }
+}

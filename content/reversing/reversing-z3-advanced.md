@@ -13,6 +13,17 @@ useful_for:
   - "Cryptanalysis"
 estimated_minutes: 55
 summary: "Продвинутый Z3: битвекторы, массивы, упрощение, оптимизация моделей и решение реальных крэкми."
+lab:
+  kind: shell
+  title: 'Практика: линейная система ограничений'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, checker2.py]
+  check: 'grep -q ''p4ss'' answer.txt'
+  hints:
+    - 'Из `a - d == -3` и `c + d == 230` вырази d, затем остальные.'
+    - 'a=112, b=52, c=115, d=115.'
+    - 'Ответ — `p4ss`; проверь `python3 checker2.py p4ss`.'
 ---
 ## Вопрос, с которого всё начинается
 

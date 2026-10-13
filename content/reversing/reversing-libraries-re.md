@@ -13,6 +13,17 @@ useful_for:
   - "Vuln research: подмена библиотек"
 estimated_minutes: 55
 summary: "Реверс разделяемых библиотек: что такое .so/DLL, экспорт и импорт, поиск функций по именам и восстановление логики проверки."
+lab:
+  kind: shell
+  title: 'Практика: что программа импортирует'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, crackme]
+  check: 'grep -q ''strcmp'' answer.txt'
+  hints:
+    - 'Ищи среди `U` (undefined) функций ту, что сравнивает строки.'
+    - 'Это `strcmp`.'
+    - '`echo strcmp > answer.txt` затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

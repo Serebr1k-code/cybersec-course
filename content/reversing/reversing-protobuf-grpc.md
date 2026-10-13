@@ -13,6 +13,17 @@ useful_for:
   - "Reverse-engineering клиентов"
 estimated_minutes: 55
 summary: "Разбор protobuf/gRPC/Thrift: wire-format, .proto из бинарника, реконструкция сообщений и gRPC-методов."
+lab:
+  kind: shell
+  title: 'Практика: декод protobuf без схемы'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, msg.pb]
+  check: 'grep -q ''150'' answer.txt'
+  hints:
+    - 'Первый байт `08` = (1<<3)|0. Следующий байт — varint.'
+    - 'Varint `96 01` = 0x96 | (0x01<<7) = 150.'
+    - '`echo 150 > answer.txt` затем `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

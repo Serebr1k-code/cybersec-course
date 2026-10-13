@@ -13,6 +13,17 @@ useful_for:
   - "Разбор упакованных/скомпилированных скриптов"
 estimated_minutes: 45
 summary: "Декомпиляция .pyc, анализ marshal-структур, работа с PyInstaller и обфусцированным Python."
+lab:
+  kind: shell
+  title: 'Практика: байткод Python вместо исходника'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, check.pyc]
+  check: 'grep -q ''nto{pyc}'' answer.txt'
+  hints:
+    - '110=0x6e n, 116=0x74 t, 111=0x6f o, 123=0x7b { ...'
+    - 'Собери строку по кодам из константы.'
+    - '`echo ''nto{pyc}'' > answer.txt` затем `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

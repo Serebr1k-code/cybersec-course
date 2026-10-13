@@ -1,0 +1,36 @@
+{
+  "id": "reversing-concolic",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "c0nc"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: пройти проверку с коротким замыканием\n\nConcolic-исполнение инвертирует ветки по одной. Проверка сравнивает символы\nпоследовательно и возвращает `False` на первом несовпадении.\n\n1. `cat checker3.py` — цепочка `if s[i] != ...`.\n2. Инвертируй каждую ветку, чтобы не выйти раньше времени.\n3. Проверь: `python3 checker3.py <ответ>`.\n\nЗапиши **ответ** (4 символа) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/checker3.py",
+      "text": "import sys\n# Проверка с коротким замыканием: concolic инвертирует ветки по одной.\ndef check(s):\n    if len(s) != 4: return False\n    if s[0] != 'c': return False\n    if s[1] != '0': return False\n    if s[2] != 'n': return False\n    if s[3] != 'c': return False\n    return True\nif __name__ == '__main__':\n    print(\"OK\" if len(sys.argv) > 1 and check(sys.argv[1]) else \"NO\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 checker3.py <вход> — проверка кандидата (эмуляция)",
+      "cases": [
+        {
+          "match": "c0nc",
+          "example": "python3 checker3.py c0nc",
+          "output": "OK\n"
+        }
+      ],
+      "fallback": "NO\n"
+    }
+  }
+}

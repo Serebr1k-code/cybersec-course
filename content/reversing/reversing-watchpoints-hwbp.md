@@ -13,6 +13,17 @@ useful_for:
   - "Vuln research: отслеживание доступа к памяти"
 estimated_minutes: 55
 summary: "Аппаратные точки останова и watchpoints: регистры DR0–DR7, точки на исполнение и на чтение/запись памяти, ограничения, практические приёмы ловли расшифровки и обхода анти-отладки."
+lab:
+  kind: shell
+  title: 'Практика: watchpoint на переменную'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, watchme]
+  check: 'grep -q ''counter=8'' answer.txt'
+  hints:
+    - '`bump()` делает `counter += 7`, затем `counter ^= 3` — отсюда 0→7→4.'
+    - 'Второй вызов: 4→11→8.'
+    - 'Последнее значение — 8: `echo counter=8 > answer.txt`.'
 ---
 ## Вопрос, с которого всё начинается
 

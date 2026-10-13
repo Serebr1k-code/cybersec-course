@@ -13,6 +13,17 @@ useful_for:
   - "Exploit triage"
 estimated_minutes: 55
 summary: "Разбор shellcode: позиционно-независимый код, декодеры, API-резолвинг, анализ стейджеров и статический разбор blob."
+lab:
+  kind: shell
+  title: 'Практика: разбор сырого шеллкода'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, sc.bin]
+  check: 'grep -qi ''execve'' answer.txt'
+  hints:
+    - '`0x3b` = 59 — номер syscall в Linux x86-64.'
+    - 'Syscall 59 — это `execve`.'
+    - '`echo execve > answer.txt` затем `check`.'
 ---
 
 ## Задача

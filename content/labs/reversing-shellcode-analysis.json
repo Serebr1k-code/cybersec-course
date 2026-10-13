@@ -1,0 +1,37 @@
+{
+  "id": "reversing-shellcode-analysis",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "execve"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: определить syscall в blob\n\nДан сырой blob байтов (не ELF). Его дизассемблируют как flat binary.\nНайди системный вызов, который он делает в конце.\n\n1. `xxd sc.bin` — посмотри байты.\n2. `objdump -D -b binary -m i386:x86-64 sc.bin` — дизассемблируй.\n3. Определи, что кладётся в `rax` перед `syscall` (там `push $0x3b; pop %rax`).\n\nЗапиши **имя системного вызова** (одним словом) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/sc.bin",
+      "b64": "SDH2Vki/L2Jpbi8vc2hXVF9qO1iZDwU=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "objdump": {
+      "help": "objdump -D -b binary -m i386:x86-64 <файл> — дизассемблер сырого кода",
+      "cases": [
+        {
+          "match": "binary",
+          "example": "objdump -D -b binary -m i386:x86-64 sc.bin",
+          "output": "\nsc.bin:     file format binary\n\n\nDisassembly of section .data:\n\n0000000000000000 <.data>:\n   0:\t48 31 f6             \txor    %rsi,%rsi\n   3:\t56                   \tpush   %rsi\n   4:\t48 bf 2f 62 69 6e 2f \tmovabs $0x68732f2f6e69622f,%rdi\n   b:\t2f 73 68 \n   e:\t57                   \tpush   %rdi\n   f:\t54                   \tpush   %rsp\n  10:\t5f                   \tpop    %rdi\n  11:\t6a 3b                \tpush   $0x3b\n  13:\t58                   \tpop    %rax\n  14:\t99                   \tcltd\n  15:\t0f 05                \tsyscall\n"
+        }
+      ],
+      "fallback": "\nsc.bin:     file format binary\n\n\nDisassembly of section .data:\n\n0000000000000000 <.data>:\n   0:\t48 31 f6             \txor    %rsi,%rsi\n   3:\t56                   \tpush   %rsi\n   4:\t48 bf 2f 62 69 6e 2f \tmovabs $0x68732f2f6e69622f,%rdi\n   b:\t2f 73 68 \n   e:\t57                   \tpush   %rdi\n   f:\t54                   \tpush   %rsp\n  10:\t5f                   \tpop    %rdi\n  11:\t6a 3b                \tpush   $0x3b\n  13:\t58                   \tpop    %rax\n  14:\t99                   \tcltd\n  15:\t0f 05                \tsyscall\n"
+    }
+  }
+}

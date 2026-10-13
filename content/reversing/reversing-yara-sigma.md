@@ -13,6 +13,17 @@ useful_for:
   - "Threat intelligence"
 estimated_minutes: 55
 summary: "Написание YARA-правил для файлов и Sigma-правил для логов: синтаксис, тестирование, false positives."
+lab:
+  kind: shell
+  title: 'Практика: сигнатура для образца'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, sample.bin]
+  check: 'grep -q ''MALWARE-MARKER-9f3a'' answer.txt'
+  hints:
+    - '`strings sample.bin` покажет несколько строк; нужна самая «сигнатурная».'
+    - 'Ищи строку с `MARKER`.'
+    - '`strings sample.bin | grep MARKER > answer.txt` затем `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

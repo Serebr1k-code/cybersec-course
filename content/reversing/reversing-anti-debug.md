@@ -13,6 +13,17 @@ useful_for:
   - "Анализ защищённого ПО"
 estimated_minutes: 50
 summary: "Техники детекта отладчика (ptrace, timing, self-debug) и способы их нейтрализации — на реальном анти-отладочном бинарнике."
+lab:
+  kind: shell
+  title: 'Практика: найти анти-отладочную проверку'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, antidebug]
+  check: 'grep -qi ''ptrace'' answer.txt'
+  hints:
+    - 'Номер syscall 101 в Linux x86-64 — это анти-отладочный вызов.'
+    - '`0x65` = 101 = `ptrace`.'
+    - '`echo ptrace > answer.txt` затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

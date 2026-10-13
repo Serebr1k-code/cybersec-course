@@ -1,0 +1,24 @@
+{
+  "id": "reversing-protocols",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "HELLO"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: прочитать поля кадра\n\nДан захваченный кадр самодельного бинарного протокола. Структура:\n`magic[4] | version[1] | type[1] | length[2 big-endian] | payload`.\n\n1. `xxd capture.bin` — посмотри байты.\n2. Разбери поля по смещениям (4/1/1/2).\n\nЗапиши **payload** (строку) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/capture.bin",
+      "b64": "UFJPVAIBAAVIRUxMTw==",
+      "mode": "644"
+    }
+  ]
+}

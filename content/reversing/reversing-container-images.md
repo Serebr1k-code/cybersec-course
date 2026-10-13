@@ -13,6 +13,17 @@ useful_for:
   - "Cloud-native analysis"
 estimated_minutes: 55
 summary: "Разбор образов контейнеров: слои OCI, извлечение бинарников, serverless-артефакты и анализ cloud-кода."
+lab:
+  kind: shell
+  title: 'Практика: разбор слоя docker-образа'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, manifest.json, layer.tar]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - '`strings layer.tar` покажет пути (`app/config.json`) и содержимое файлов.'
+    - 'Ищи строку с `api_key`.'
+    - '`strings layer.tar | grep nto > answer.txt` затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

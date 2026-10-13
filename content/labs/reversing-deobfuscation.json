@@ -1,0 +1,23 @@
+{
+  "id": "reversing-deobfuscation",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "75"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: снять MBA-обфускацию\n\nСмешанная булево-арифметическая обфускация (MBA) прячет простую формулу за\nгромоздким выражением. Найди эквивалент и посчитай результат.\n\n1. `cat expr.txt`\n2. Заметь тождество `(a^b) + 2*(a&b) == a + b`.\n3. Посчитай `a + b`.\n\nЗапиши **результат** (число) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/expr.txt",
+      "text": "# Задача: упростить MBA-выражение\n# Обфускаторы заменяют простую арифметику «смешанными» выражениями (MBA).\n#\n# Дано:\n#   x = (a ^ b) + 2 * (a & b)\n#   a = 60\n#   b = 15\n#\n# Тождество: (a ^ b) + 2*(a & b) == a + b\n# Упрости и посчитай x.\n"
+    }
+  ]
+}

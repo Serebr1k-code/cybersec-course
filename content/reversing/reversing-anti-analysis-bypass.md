@@ -13,6 +13,17 @@ useful_for:
   - "Vuln research: анализ защищённых целей"
 estimated_minutes: 55
 summary: "Анти-отладка и анти-VM: ptrace/IsDebuggerPresent, тайминги, детект песочниц и виртуальных машин, обход через патчинг, хуки, плагины сокрытия и методология."
+lab:
+  kind: shell
+  title: 'Практика: обойти ptrace-проверку патчем'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, antidebug, patch.bin]
+  check: 'xxd -s 4318 -l 1 antidebug | grep -q ''eb'''
+  hints:
+    - '`je` (0x74) меняется на `jmp` (0xeb) — смещение относительного перехода не трогаем.'
+    - 'offset = 0x10de = 4318.'
+    - '`dd if=patch.bin of=antidebug bs=1 seek=4318 count=1 conv=notrunc`; запиши `4318` в answer.txt.'
 ---
 ## Вопрос, с которого всё начинается
 

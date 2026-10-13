@@ -1,0 +1,37 @@
+{
+  "id": "reversing-python-bytecode",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{pyc}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: вытащить секрет из .pyc\n\n`.pyc` — скомпилированный байткод Python. Дизассемблировав его, можно увидеть\nконстанты функции проверки.\n\n1. `xxd -l 16 check.pyc` — magic-заголовок.\n2. `python3 dis check.pyc` — дизассемблировать.\n3. В `check` есть `LOAD_CONST (110,116,111,123,112,121,99,125)`.\n\nПереведи числа в ASCII и запиши строку в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/check.pyc",
+      "b64": "Kw4NCgAAAAAQDM5qBwEAAOMAAAAAAAAAAAAAAAAFAAAAAAAAAPMoAAAAgABSABcAdABdASEAXQAhAFIBNAEAAAAAAAA0AQAAAAAAAB8AUgIjACkDYwEAAAAAAAAAAAAAAAQAAAADAAAA864AAACAAC4AUgNPAXABXAEAAAAAAAAAAFYANAEAAAAAAABcAQAAAAAAAAAAVgE0AQAAAAAAADh3AABkAwAAHABSASMAXAMAAAAAAAAAAFcBNAIAAAAAAAAQAEYmAAB3AgAAciNcBQAAAAAAAAAAVgI0AQAAAAAAAF4RLAwAAAAAAAAAAAAAVgNeESwMAAAAAAAAAAAAADh3AABnAwAAHABLJQAAHwBSASMACQAeAFICIwApBOluAAAARlQpCHIDAAAA6XQAAADpbwAAAOl7AAAA6XAAAADpeQAAAOljAAAA6X0AAAApA9oDbGVu2gN6aXDaA29yZCkE2gFz2gZ0YXJnZXTaAWHaAWJzBAAAACYgICDaCGNoZWNrLnB52gVjaGVja3ITAAAAAQAAAHNGAAAAgADaDT2ARtwHCogxg3aUE5BWkxvUBxzZDxTcEBOQQZYOiQSIAdwLDohxizaQRI09mEGgBJ1I1gsk2hMY8QUAER/xBgAMEPMAAAAAeghudG97cHljfU4pAnITAAAA2gVwcmludKkAchQAAAByEgAAANoIPG1vZHVsZT5yFwAAAAEAAABzGQAAAPADAQEB8gIHARDxEAABBoFliErTBhfWABhyFAAAAA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 dis <файл.pyc> — дизассемблер байткода (эмуляция)",
+      "cases": [
+        {
+          "match": "dis",
+          "example": "python3 dis check.pyc",
+          "output": "  0           RESUME                   0\n\n  1           LOAD_CONST               0 (<code object check at 0x7fbde57865b0, file \"check.py\", line 1>)\n              MAKE_FUNCTION\n              STORE_NAME               0 (check)\n\n  9           LOAD_NAME                1 (print)\n              PUSH_NULL\n              LOAD_NAME                0 (check)\n              PUSH_NULL\n              LOAD_CONST               1 ('nto{pyc}')\n              CALL                     1\n              CALL                     1\n              POP_TOP\n              LOAD_CONST               2 (None)\n              RETURN_VALUE\n\nDisassembly of <code object check at 0x7fbde57865b0, file \"check.py\", line 1>:\n  1           RESUME                   0\n\n  2           BUILD_LIST               0\n              LOAD_CONST               3 ((110, 116, 111, 123, 112, 121, 99, 125))\n              LIST_EXTEND              1\n              STORE_FAST               1 (target)\n\n  3           LOAD_GLOBAL              1 (len + NULL)\n              LOAD_FAST_BORROW         0 (s)\n              CALL                     1\n              LOAD_GLOBAL              1 (len + NULL)\n              LOAD_FAST_BORROW         1 (target)\n              CALL                     1\n              COMPARE_OP             119 (bool(!=))\n              POP_JUMP_IF_FALSE        3 (to L1)\n              NOT_TAKEN\n\n  4           LOAD_CONST               1 (False)\n              RETURN_VALUE\n\n  5   L1:     LOAD_GLOBAL              3 (zip + NULL)\n              LOAD_FAST_BORROW_LOAD_FAST_BORROW 1 (s, target)\n              CALL                     2\n              GET_ITER\n      L2:     FOR_ITER                38 (to L4)\n              UNPACK_SEQUENCE          2\n              STORE_FAST_STORE_FAST   35 (a, b)\n\n  6           LOAD_GLOBAL              5 (ord + NULL)\n              LOAD_FAST_BORROW         2 (a)\n              CALL                     1\n              LOAD_SMALL_INT          17\n              BINARY_OP               12 (^)\n              LOAD_FAST_BORROW         3 (b)\n              LOAD_SMALL_INT          17\n              BINARY_OP               12 (^)\n              COMPARE_OP             119 (bool(!=))\n              POP_JUMP_IF_TRUE         3 (to L3)\n              NOT_TAKEN\n              JUMP_BACKWARD           37 (to L2)\n\n  7   L3:     POP_TOP\n              LOAD_CONST               1 (False)\n              RETURN_VALUE\n\n  5   L4:     END_FOR\n              POP_ITER\n\n  8           LOAD_CONST               2 (True)\n              RETURN_VALUE\n"
+        }
+      ],
+      "fallback": "usage: python3 dis <file.pyc>\n"
+    }
+  }
+}

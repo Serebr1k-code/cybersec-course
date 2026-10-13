@@ -1,0 +1,36 @@
+{
+  "id": "reversing-symbolic-execution",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: восстановить вход из ограничений\n\nСимволическое исполнение сводит проверку к системе ограничений. Прочитай\n`checker.py` и найди вход, проходящий все условия.\n\n1. `cat checker.py` — пять покомпонентных условий.\n2. Вырази каждый байт из своего уравнения.\n3. Проверь: `python3 checker.py <ответ>` (должно быть `OK`).\n\nЗапиши **ответ** (строку) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/checker.py",
+      "text": "import sys\n# Покомпонентные ограничения на 5 байт входа.\ndef check(s):\n    if len(s) != 5: return False\n    a, b, c, d, e = [ord(x) for x in s]\n    return (a == 0x6e) and (b - 0x74 == 0) and (c == 0x6f) and (d == 0x7b) and (e + 0 == 0x7d)\nif __name__ == '__main__':\n    print(\"OK\" if len(sys.argv) > 1 and check(sys.argv[1]) else \"NO\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 checker.py <вход> — проверка кандидата (эмуляция)",
+      "cases": [
+        {
+          "match": "nto\\{\\}",
+          "example": "python3 checker.py 'nto{}'",
+          "output": "OK\n"
+        }
+      ],
+      "fallback": "NO\n"
+    }
+  }
+}

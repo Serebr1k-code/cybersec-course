@@ -13,6 +13,17 @@ useful_for:
   - "Vuln research: LD_PRELOAD, interposition"
 estimated_minutes: 50
 summary: "Статическая и динамическая компоновка: почему статические бинарники огромны, как работает LD_PRELOAD и что это значит для анализа."
+lab:
+  kind: shell
+  title: 'Практика: статика против динамики'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, static_bin, dyn_bin]
+  check: 'grep -qi ''dynamically linked'' answer.txt'
+  hints:
+    - '`file` в конце строки пишет `statically linked` или `dynamically linked`.'
+    - '`dyn_bin` — динамический (PIE, interpreter ld-linux).'
+    - '`echo "dynamically linked" > answer.txt` затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

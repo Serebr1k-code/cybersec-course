@@ -13,6 +13,17 @@ useful_for:
   - "Vuln research: анализ скрытого кода"
 estimated_minutes: 55
 summary: "Распаковка исполняемых файлов: UPX, кастомные упаковщики, поиск OEP, дамп образа из памяти, восстановление таблицы импортов через Scylla и практический разбор."
+lab:
+  kind: shell
+  title: 'Практика: высокая энтропия = упакован'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, packed.bin]
+  check: 'grep -qi ''packed'' answer.txt'
+  hints:
+    - 'Мало строк + случайные байты = шифрование/упаковка.'
+    - 'Такой профиль типичен для упакованного кода.'
+    - '`echo packed > answer.txt` затем `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

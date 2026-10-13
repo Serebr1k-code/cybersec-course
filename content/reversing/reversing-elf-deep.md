@@ -13,6 +13,17 @@ useful_for:
   - "Malware analysis: анализ Linux-образцов"
 estimated_minutes: 55
 summary: "Полный разбор формата ELF: заголовок, program/section headers, отображение сегментов в память, динамические таблицы и практические приёмы чтения через readelf/objdump."
+lab:
+  kind: shell
+  title: 'Практика: какие библиотеки нужны программе'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, crackme]
+  check: 'grep -q ''libc.so.6'' answer.txt'
+  hints:
+    - 'Ищи в выводе `--dynamic` тег `(NEEDED)`.'
+    - 'Библиотека называется `libc.so.6`.'
+    - '`echo libc.so.6 > answer.txt` затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

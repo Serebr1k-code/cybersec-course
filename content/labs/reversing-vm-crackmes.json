@@ -1,0 +1,28 @@
+{
+  "id": "reversing-vm-crackmes",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "32"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: выполнить байткод виртуальной машины\n\nКрекми на своей VM прячут логику в байткоде. Восстанови результат, выполнив\nпрограмму вручную по спецификации опкодов.\n\n1. `cat vm_spec.md`\n2. `xxd vm.bc`\n3. Выполни стек: `5 3 + = 8`, `8 4 * = 32`, PRINT.\n\nЗапиши **выведенное число** в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/vm.bc",
+      "b64": "AQUBAwIBBAMEAA==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/vm_spec.md",
+      "text": "# Задача: трассировать простую VM\n# Файл vm.bc — байткод стековой виртуальной машины.\n#\n# Спецификация опкодов:\n#   01 xx  PUSH xx        (положить константу)\n#   02     ADD            (снять два, положить сумму)\n#   03     MUL            (снять два, положить произведение)\n#   04     PRINT          (снять верх и напечатать)\n#   00     HALT\n#\n# Программа:\n#   PUSH 5, PUSH 3, ADD, PUSH 4, MUL, PRINT, HALT\n"
+    }
+  ]
+}

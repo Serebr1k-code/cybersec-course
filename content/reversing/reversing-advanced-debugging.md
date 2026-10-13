@@ -13,6 +13,17 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 55
 summary: "Глубокие приёмы отладки: условные/аппаратные точки останова, watchpoints, скрипты, remote."
+lab:
+  kind: shell
+  title: 'Практика: gdb-скрипт для автоматизации'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, watchme, trace.gdb]
+  check: 'grep -q ''calls=2'' answer.txt'
+  hints:
+    - 'Каждая строка `bump called, ...` — одно срабатывание.'
+    - 'В выводе две такие строки.'
+    - '`echo calls=2 > answer.txt` затем `check`.'
 ---
 
 ## Задача

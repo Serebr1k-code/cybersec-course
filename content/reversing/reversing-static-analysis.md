@@ -13,6 +13,17 @@ useful_for:
   - "Исследование проприетарного ПО"
 estimated_minutes: 55
 summary: "Практический обзор дизассемблеров: как загружать бинарник, ориентироваться, искать и переименовывать."
+lab:
+  kind: shell
+  title: 'Практика: статика без запуска — где main'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, crackme]
+  check: 'grep -q ''401185'' answer.txt'
+  hints:
+    - '`nm` печатает `T main` с адресом в первом столбце.'
+    - 'Адрес `main` — `0000000000401185`; впиши `0x401185`.'
+    - '`echo 0x401185 > answer.txt` затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

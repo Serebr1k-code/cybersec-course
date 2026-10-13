@@ -13,6 +13,17 @@ useful_for:
   - "Анализ бинарников всех ОС"
 estimated_minutes: 45
 summary: "Устройство ELF/PE/Mach-O: заголовки, секции и сегменты, импорты, инструменты разбора."
+lab:
+  kind: shell
+  title: 'Практика: паспорт ELF-файла'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, crackme]
+  check: 'grep -q ''0x1060'' answer.txt'
+  hints:
+    - 'Строка `Entry point address:` в выводе readelf.'
+    - 'Значение — `0x1060`.'
+    - '`echo 0x1060 > answer.txt` затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

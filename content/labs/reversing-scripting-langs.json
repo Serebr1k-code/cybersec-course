@@ -1,0 +1,24 @@
+{
+  "id": "reversing-scripting-langs",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "2b0e0d0a"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: прочитать заголовок байткода\n\n`.pyc` начинается с 4-байтового magic-числа (плюс версия и timestamp).\nMagic однозначно определяет версию Python, которой скомпилирован файл.\n\n1. `xxd -l 16 check.pyc`\n2. Первые 4 байта — magic.\n\nЗапиши **первые 4 байта** (hex, без пробелов, например `abcd1234`) в `answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/check.pyc",
+      "b64": "Kw4NCgAAAAAQDM5qBwEAAOMAAAAAAAAAAAAAAAAFAAAAAAAAAPMoAAAAgABSABcAdABdASEAXQAhAFIBNAEAAAAAAAA0AQAAAAAAAB8AUgIjACkDYwEAAAAAAAAAAAAAAAQAAAADAAAA864AAACAAC4AUgNPAXABXAEAAAAAAAAAAFYANAEAAAAAAABcAQAAAAAAAAAAVgE0AQAAAAAAADh3AABkAwAAHABSASMAXAMAAAAAAAAAAFcBNAIAAAAAAAAQAEYmAAB3AgAAciNcBQAAAAAAAAAAVgI0AQAAAAAAAF4RLAwAAAAAAAAAAAAAVgNeESwMAAAAAAAAAAAAADh3AABnAwAAHABLJQAAHwBSASMACQAeAFICIwApBOluAAAARlQpCHIDAAAA6XQAAADpbwAAAOl7AAAA6XAAAADpeQAAAOljAAAA6X0AAAApA9oDbGVu2gN6aXDaA29yZCkE2gFz2gZ0YXJnZXTaAWHaAWJzBAAAACYgICDaCGNoZWNrLnB52gVjaGVja3ITAAAAAQAAAHNGAAAAgADaDT2ARtwHCogxg3aUE5BWkxvUBxzZDxTcEBOQQZYOiQSIAdwLDohxizaQRI09mEGgBJ1I1gsk2hMY8QUAER/xBgAMEPMAAAAAeghudG97cHljfU4pAnITAAAA2gVwcmludKkAchQAAAByEgAAANoIPG1vZHVsZT5yFwAAAAEAAABzGQAAAPADAQEB8gIHARDxEAABBoFliErTBhfWABhyFAAAAA==",
+      "mode": "644"
+    }
+  ]
+}

@@ -13,6 +13,17 @@ useful_for:
   - "Vuln research: анализ связывания"
 estimated_minutes: 55
 summary: "Как устроены PLT и GOT: ленивое связывание пошагово, структура таблиц, первый и последующие вызовы, GOT-перезапись, RELRO и практический разбор на ассемблере."
+lab:
+  kind: shell
+  title: 'Практика: GOT-слот для strcmp'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, crackme]
+  check: 'grep -qi ''0x4010'' answer.txt'
+  hints:
+    - 'Смотри секцию `.rela.plt` в выводе `readelf --relocs`.'
+    - 'Строка `... R_X86_64_JUMP_SLO ... strcmp@GLIBC_2.2.5` имеет Offset `4010`.'
+    - '`echo 0x4010 > answer.txt` затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

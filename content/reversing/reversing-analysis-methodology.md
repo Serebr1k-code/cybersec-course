@@ -13,6 +13,17 @@ useful_for:
   - "Триаж любого бинарника"
 estimated_minutes: 40
 summary: "Как организовать анализ: триаж, выбор между статикой и динамикой, чередование подходов."
+lab:
+  kind: shell
+  title: 'Практика: триаж пятью командами'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, crackme]
+  check: 'grep -qi ''not stripped'' answer.txt'
+  hints:
+    - 'Посмотри последнюю часть вывода `file crackme` — там прямо написано про симвoлы.'
+    - 'Если `nm` показывает имена (`main`, `put`, `scmp`) — таблица символов на месте.'
+    - '`echo "not stripped" > answer.txt` затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

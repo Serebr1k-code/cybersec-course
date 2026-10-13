@@ -13,6 +13,17 @@ useful_for:
   - "Threat intelligence"
 estimated_minutes: 65
 summary: "Анализ ransomware: схема шифрования, извлечение ключей, поиск ошибок реализации и восстановление файлов."
+lab:
+  kind: shell
+  title: 'Практика: слабый шифр — восстановление ключа'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, secret.enc]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - '`0x59 ^ 0x6e = 0x37` — ключ XOR.'
+    - 'Расшифруй каждый байт: `b ^ 0x37`.'
+    - 'Флаг: `nto{r4ns0mw4r3_w34k_k3y}` → в answer.txt.'
 ---
 ## Вопрос, с которого всё начинается
 

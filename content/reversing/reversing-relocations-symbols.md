@@ -13,6 +13,17 @@ useful_for:
   - "Pwn: поиск символов и гаджетов"
 estimated_minutes: 55
 summary: "Релокации и символьные таблицы ELF: как линкер подставляет адреса, что такое .symtab/.dynsym и как работать со stripped-бинарником."
+lab:
+  kind: shell
+  title: 'Практика: символы и адрес main'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, crackme]
+  check: 'grep -q ''1159'' answer.txt'
+  hints:
+    - '`nm` печатает `0000000000001159 T main`.'
+    - 'Адрес `main` — `0x1159`.'
+    - '`echo 0x1159 > answer.txt` затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,24 @@
+{
+  "id": "reversing-protobuf-grpc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "150"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: прочитать varint-поле\n\nProtobuf без `.proto` читается по wire-format: `(field<<3)|wiretype`, затем\nзначение. Байт `0x08` = поле 1, wiretype 0 (varint).\n\n1. `xxd msg.pb`\n2. `08` + varint → первое поле.\n\nЗапиши **числовое значение поля 1** в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/msg.pb",
+      "b64": "CJYBEgVudG97cA==",
+      "mode": "644"
+    }
+  ]
+}

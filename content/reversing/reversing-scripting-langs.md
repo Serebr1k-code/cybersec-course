@@ -13,6 +13,17 @@ useful_for:
   - "Аудит: анализ интерпретируемого кода"
 estimated_minutes: 55
 summary: "Реверс скриптовых языков: Python-байткод (pyc, pycdc, decompyle3), Lua (luadec, unluac), Perl и Ruby, восстановление исходников, защита и обход."
+lab:
+  kind: shell
+  title: 'Практика: структура .pyc'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, check.pyc]
+  check: 'grep -qi ''2b0e0d0a'' answer.txt'
+  hints:
+    - 'Смотри первую строку `xxd -l 16 check.pyc`.'
+    - 'Первые четыре байта — `2b 0e 0d 0a`.'
+    - '`echo 2b0e0d0a > answer.txt` затем `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

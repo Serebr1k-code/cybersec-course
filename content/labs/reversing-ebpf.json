@@ -1,0 +1,24 @@
+{
+  "id": "reversing-ebpf",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "42"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: прочитать инструкцию eBPF\n\neBPF-инструкция — 8 байт: `opcode(1) | dst:src(1) | off(2) | imm(4)`.\nOpcode `0xb7` = `MOV64_IMM` (r0 = imm), `0x95` = `EXIT`.\n\n1. `xxd ebpf.bin`\n2. Разбери первую инструкцию: `b7 00 00 00 2a 00 00 00`.\n3. `imm` (младшие 4 байта, little-endian) — `2a 00 00 00`.\n\nЗапиши **значение, загружаемое в r0** (десятичное число) в `answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/ebpf.bin",
+      "b64": "twAAACoAAACVAAAAAAAAAA==",
+      "mode": "644"
+    }
+  ]
+}

@@ -13,6 +13,17 @@ useful_for:
   - "Malware analysis: нестандартные секции"
 estimated_minutes: 50
 summary: "Как секции и сегменты образуют карту памяти программы: права страниц, выравнивание, инициализаторы, writable+executable области, RELRO и практические аномалии."
+lab:
+  kind: shell
+  title: 'Практика: размер секции .text'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, crackme]
+  check: 'grep -qi ''0x18f'' answer.txt'
+  hints:
+    - 'В `readelf --section-headers` у каждой секции две строки: адрес/offset, затем Size.'
+    - 'У `.text` Size = `000000000000018f`.'
+    - '`echo 0x18f > answer.txt` затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

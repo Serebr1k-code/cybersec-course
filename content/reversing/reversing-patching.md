@@ -13,6 +13,17 @@ useful_for:
   - "Malware analysis (нейтрализация проверок)"
 estimated_minutes: 40
 summary: "Патчинг бинарников: как заменить инструкцию в файле, NOP-аут проверок, изменение условий и проверка результата."
+lab:
+  kind: shell
+  title: 'Практика: патч условного перехода'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, crackme, patch.bin]
+  check: 'xxd -s 4569 -l 1 crackme | grep -q ''74'''
+  hints:
+    - 'Адрес `jne` в дизассемблере — `0x4011d9`. Файловый offset = адрес − `0x400000`.'
+    - 'offset = 4569 (`0x11d9`). Исходный байт — `75`.'
+    - '`dd if=patch.bin of=crackme bs=1 seek=4569 count=1 conv=notrunc` и запиши `4569` в answer.txt.'
 ---
 
 ## Вопрос, с которого всё начинается

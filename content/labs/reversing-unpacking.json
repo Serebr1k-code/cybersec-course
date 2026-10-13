@@ -1,0 +1,24 @@
+{
+  "id": "reversing-unpacking",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "packed"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: диагностировать упаковку\n\nУпакованный/зашифрованный код выглядит как случайные байты — высокая энтропия,\nмало осмысленных строк. Проверь образец.\n\n1. `file packed.bin`\n2. `strings packed.bin` — почти нет строк.\n3. `xxd -l 64 packed.bin` — байты выглядят случайными.\n\nОтветь: что означает такой профиль? Запиши слово `packed` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/packed.bin",
+      "b64": "h6xvu+I341hj2Ci90PPMhDemgriu2skVfuXYK7VRFxQR9n2t6WuSPdIeBV5NRY8DDj/hOE0MTk9mSft9z26+G1EhSprQ0QCRoSc0YDNOaZF9/bPC9G+qxVCLJH2Yys/htQbzk0UOFOO8EInz61A39uhNj8JdwfY2sh0GKusoC7MYRHXcvDNISa428VAGKo2PiaGuBBLI/mMo3B57v6I+2X83mw+vNYKdNFQ717Fv9e/9u+S5u2O2ENAufM5s+4EvgC51DcJV55JEvAVXfoUcSbXjbCHg726VWXTW6JRx+zZ8+vvtPeUihKTI7P8oz2ETY3G8GDQ4ha7SOhvnQ2h6L+T9SJsDIGPpqBJeIaGYtFWUOC6ru14bI+QGHpCusm0Sw3FdjqDXeEPVEiFUqRAZdJRBx1G2ED2oAnfNkjGSEoccDqzvOrWVHf4CWAmRXEQN55o+vRWlBfy/VLYEOGeu1U37lNTLXCwgihSMfBJzl7eMW1joYG3ASJU2nbyAggh0O73Or7sV1gBPU53J+X2/AOEjEKFQkv/euF8w8yoFRPy2/y2xkaYnFtmHgwnFDzOjIGkPZlWX8HlFMiWFCa6Z9KtaSERV1DozAVzr7LY3jVOWdHEyd67grqghde3oTu64srzsNErJaFMT42Nx6OC4UttPO9vtzRKuT+Za7bwSli4=",
+      "mode": "644"
+    }
+  ]
+}

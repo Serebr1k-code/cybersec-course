@@ -13,6 +13,17 @@ useful_for:
   - "Анализ malware"
 estimated_minutes: 55
 summary: "Отладка бинарников: точки останова, шаг с исполнением, инспекция памяти, патчинг на лету."
+lab:
+  kind: shell
+  title: 'Практика: достать пароль отладчиком'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, crackme]
+  check: 'grep -q ''s3cr3t_p4ss'' answer.txt'
+  hints:
+    - 'Аргументы функции в SysV x86-64: `rdi` — первый, `rsi` — второй.'
+    - '`strcmp(rdi, rsi)`: `rsi` — секрет.'
+    - 'Пароль — `s3cr3t_p4ss`; впиши в answer.txt.'
 ---
 
 ## Вопрос, с которого всё начинается

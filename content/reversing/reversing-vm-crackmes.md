@@ -13,6 +13,17 @@ useful_for:
   - "Malware analysis"
 estimated_minutes: 60
 summary: "Как разобрать бинарник с собственной виртуальной машиной: опкоды, интерпретатор, девиртуализация."
+lab:
+  kind: shell
+  title: 'Практика: трассировка байткода VM'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, vm.bc, vm_spec.md]
+  check: 'grep -q ''32'' answer.txt'
+  hints:
+    - 'PUSH 5 и PUSH 3, затем ADD → 8.'
+    - 'PUSH 4, затем MUL → 8*4 = 32.'
+    - '`echo 32 > answer.txt` затем `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

@@ -13,6 +13,17 @@ useful_for:
   - "Malware analysis (eBPF rootkits)"
 estimated_minutes: 60
 summary: "Анализ eBPF: байткод и BTF, загрузка программ, verifier, eBPF-руткиты и трассировка через bpftrace."
+lab:
+  kind: shell
+  title: 'Практика: декодировать eBPF-байткод'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, ebpf.bin]
+  check: 'grep -q ''42'' answer.txt'
+  hints:
+    - 'imm хранится little-endian: байты `2a 00 00 00`.'
+    - '`0x2a` = 42.'
+    - '`echo 42 > answer.txt` затем `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

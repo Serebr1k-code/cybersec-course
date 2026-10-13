@@ -13,6 +13,17 @@ useful_for:
   - "Обход сложных проверок"
 estimated_minutes: 55
 summary: "Как angr и SMT-решатели находят ввод, удовлетворяющий условиям, без полного реверса."
+lab:
+  kind: shell
+  title: 'Практика: решить ограничения вручную'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, checker.py]
+  check: 'grep -q ''nto{}'' answer.txt'
+  hints:
+    - 'Условия независимы по байтам: a=0x6e, b=0x74, c=0x6f, d=0x7b, e=0x7d.'
+    - 'Это ASCII-коды `n t o { }`.'
+    - 'Проверь: `python3 checker.py ''nto{}''`; впиши ответ в answer.txt.'
 ---
 
 ## Задача

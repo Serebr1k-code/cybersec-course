@@ -13,6 +13,17 @@ useful_for:
   - "Анализ защищённого ПО"
 estimated_minutes: 50
 summary: "Как опознать AES/RC4/SHA/MD5 и другие алгоритмы по константам и структуре кода, и как найти ключ."
+lab:
+  kind: shell
+  title: 'Практика: XOR-«шифр» и его ключ'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, xorbin]
+  check: 'grep -q ''nt0{r3v3rs3_x0r}'' answer.txt'
+  hints:
+    - 'Массив target в коде сравнивается с `input[i] ^ 0x5a`.'
+    - 'XOR симметричен: `input = target ^ 0x5a`.'
+    - 'Проверь: `xorbin ''nt0{r3v3rs3_x0r}''`.'
 ---
 
 ## Вопрос, с которого всё начинается

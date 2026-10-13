@@ -13,6 +13,17 @@ useful_for:
   - "Отладка нативного кода"
 estimated_minutes: 50
 summary: "Регистры, стек, вызовы функций и как читать дизассемблированный код x86-64."
+lab:
+  kind: shell
+  title: 'Практика: читаем check_password по ассемблеру'
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md, asmcrack]
+  check: 'grep -q ''fl4g_hunt3r'' answer.txt'
+  hints:
+    - 'Обрати внимание на `cmp %al,%dl` и `je` — это сравнение байтов ввода и секрета.'
+    - 'Секрет лежит по адресу из `lea 0xf3d(%rip),%rax`; посмотри строки файла.'
+    - '`strings asmcrack | grep fl4g` → впиши результат в answer.txt.'
 ---
 
 ## Вопрос, с которого всё начинается

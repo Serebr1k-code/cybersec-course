@@ -1,0 +1,24 @@
+{
+  "id": "reversing-yara-sigma",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "MALWARE-MARKER-9f3a"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти уникальную сигнатуру\n\nYARA-правило строится на уникальных строках образца. Найди маркер, по которому\nможно детектировать этот файл.\n\n1. `strings sample.bin`\n2. Найди подозрительный маркер `MALWARE-MARKER-...`.\n\nЗапиши **маркер целиком** в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/sample.bin",
+      "b64": "anVuayBkYXRhClg1TyFQJUBBUFs0XFBaWDU0KFBeKTdDQyk3fSRNQUxXQVJFLU1BUktFUi05ZjNhCm1vcmUganVuawo=",
+      "mode": "644"
+    }
+  ]
+}
