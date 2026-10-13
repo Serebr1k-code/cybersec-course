@@ -1,0 +1,59 @@
+{
+  "id": "network-tools",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{nc_b4nn3r_gr4b_4444}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: инструментарий — найти и снять баннер\n\n1. Быстрый скан подсети: `masscan 10.10.10.0/24 -p1-65535 --rate 1000`\n2. Определи сервисы на цели: `nmap -sV -p 22,80,4444 10.10.10.5`\n3. На порту 4444 странный сервис — сними баннер: `nc 10.10.10.5 4444`\n\nЗапиши метку `nto{...}` из баннера в `answer.txt`.\n"
+    }
+  ],
+  "tools": {
+    "nmap": {
+      "help": "nmap [-sV] -p <порты> <цель> — сканирование (эмуляция: реальный вывод nmap)",
+      "cases": [
+        {
+          "match": "4444",
+          "example": "-sV -p 22,80,4444 10.10.10.5",
+          "output": "Starting Nmap 7.94 ( https://nmap.org )\nNmap scan report for 10.10.10.5\nHost is up (0.0011s latency).\nPORT     STATE SERVICE VERSION\n22/tcp   open  ssh     OpenSSH 8.9p1\n80/tcp   open  http    nginx 1.24.0\n4444/tcp open  unknown\n"
+        }
+      ],
+      "fallback": "Starting Nmap 7.94 ( https://nmap.org )\nNmap done: 1 IP address (1 host up) scanned\n"
+    },
+    "masscan": {
+      "help": "masscan <CIDR> -p<порты> --rate <r> — быстрый скан (эмуляция)",
+      "cases": [
+        {
+          "match": "10\\.10\\.10\\.0/24",
+          "example": "10.10.10.0/24 -p1-65535 --rate 1000",
+          "output": "Starting masscan 1.3.2\nDiscovered open port 22/tcp on 10.10.10.5\nDiscovered open port 80/tcp on 10.10.10.5\nDiscovered open port 4444/tcp on 10.10.10.5\nDiscovered open port 443/tcp on 10.10.10.20\n"
+        }
+      ],
+      "fallback": "Starting masscan 1.3.2\n"
+    },
+    "nc": {
+      "help": "nc <host> <порт> — подключиться к порту, вывести ответ (эмуляция)",
+      "cases": [
+        {
+          "match": "4444",
+          "example": "10.10.10.5 4444",
+          "output": "=== vault service v0.1 ===\nnto{nc_b4nn3r_gr4b_4444}\n=== end ===\n"
+        },
+        {
+          "match": "80",
+          "example": "10.10.10.5 80",
+          "output": "HTTP/1.1 400 Bad Request\r\nServer: nginx/1.24.0\r\n\r\n"
+        }
+      ],
+      "fallback": "nc: connect: connection refused\n"
+    }
+  }
+}

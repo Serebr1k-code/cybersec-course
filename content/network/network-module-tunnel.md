@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): детект инкапсуляции"
 estimated_minutes: 60
 summary: "Модуль по туннелям и оверлеям: чем прокси отличается от туннеля, как работают SOCKS и HTTP CONNECT, что инкапсулируют GRE и VXLAN и как это использовать для pivoting и обхода сегментации."
+lab:
+  kind: shell
+  title: "Практика: туннель к скрытому сегменту"
+  toolset: [core, ssh, proxychains4]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{ssh_tunn3l_t0_h1dd3n_s3gm3nt}' answer.txt"
+  hints:
+    - "Сначала посмотри, что видит футхолд: `ssh user@10.10.10.5 'ip route; nmap -sn 10.10.20.0/24'`."
+    - "У футхолда есть интерфейс в `10.10.20.0/24`, у тебя — нет."
+    - "Протяни сегмент через туннель: `proxychains4 nmap -sT -Pn -p 22,80 10.10.20.7`."
+    - "Забери ответ хоста: `proxychains4 curl -s http://10.10.20.7/` — там метка `nto{ssh_tunn3l_t0_h1dd3n_s3gm3nt}`."
 ---
 
 ## Вопрос, с которого всё начинается

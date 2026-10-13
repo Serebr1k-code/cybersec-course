@@ -1,0 +1,48 @@
+{
+  "id": "network-module-tunnel",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{ssh_tunn3l_t0_h1dd3n_s3gm3nt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: туннель к скрытому сегменту\n\nТы получил SSH-доступ на футхолд `10.10.10.5`. Прямого маршрута в сегмент\n`10.10.20.0/24` у твоей машины нет — но его видит футхолд.\n\n1. Что видит футхолд: `ssh user@10.10.10.5 'ip route; nmap -sn 10.10.20.0/24'`\n2. Протяни сегмент через туннель: `proxychains4 nmap -sT -Pn -p 22,80 10.10.20.7`\n3. Забери ответ скрытого хоста: `proxychains4 curl -s http://10.10.20.7/`\n\nНайди метку `nto{...}` в ответе и запиши в `answer.txt`.\n"
+    }
+  ],
+  "tools": {
+    "ssh": {
+      "help": "ssh <user@host> '<команда>' — выполнить команду на футхолде (эмуляция)",
+      "cases": [
+        {
+          "match": "10\\.10\\.10\\.5",
+          "example": "user@10.10.10.5 'ip route; nmap -sn 10.10.20.0/24'",
+          "output": "default via 10.10.10.1 dev eth0\n10.10.20.0/24 dev eth1 proto kernel scope link src 10.10.20.5\nStarting Nmap 7.94 ( https://nmap.org )\nNmap scan report for 10.10.20.7\nHost is up (0.0012s latency).\nNmap done: 256 IP addresses (1 host up) scanned in 2.01 seconds\n"
+        }
+      ],
+      "fallback": "ssh: could not resolve hostname\n"
+    },
+    "proxychains4": {
+      "help": "proxychains4 <команда> — выполнить команду через туннель (эмуляция)",
+      "cases": [
+        {
+          "match": "nmap",
+          "example": "nmap -sT -Pn -p 22,80 10.10.20.7",
+          "output": "ProxyChains-3.1 (http://proxychains.sf.net)\n|S-chain|-<>-127.0.0.1:9050-<>-10.10.20.7:22-<><>-OK\nStarting Nmap 7.94 ( https://nmap.org )\nNmap scan report for 10.10.20.7\nHost is up (0.0021s latency).\nPORT   STATE SERVICE\n22/tcp open  ssh\n80/tcp open  http\n"
+        },
+        {
+          "match": "curl",
+          "example": "curl -s http://10.10.20.7/",
+          "output": "ProxyChains-3.1 (http://proxychains.sf.net)\n<html><body><h1>intranet vault</h1><p>flag: nto{ssh_tunn3l_t0_h1dd3n_s3gm3nt}</p></body></html>\n"
+        }
+      ],
+      "fallback": "ProxyChains-3.1 (http://proxychains.sf.net)\n"
+    }
+  }
+}

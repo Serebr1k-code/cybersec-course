@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): детект беспроводных атак"
 estimated_minutes: 60
 summary: "Модуль по беспроводным технологиям: как устроены Wi-Fi (802.11, WPA2/WPA3), Zigbee/Z-Wave, NFC/RFID и SDR; какие атаки возможны и как от них защищаться."
+lab:
+  kind: shell
+  title: "Практика: найти rogue AP и его скрытый SSID"
+  toolset: [core, airodump-ng, airmon-ng, wash, tshark]
+  workdir: /home/student/task
+  files: [task.md, wifi.pcap]
+  check: "grep -q 'nto{r0gu3_4p_h1dd3n_ss1d}' answer.txt"
+  hints:
+    - "Включи monitor mode: `airmon-ng start wlan0`."
+    - "Сканируй эфир: `airodump-ng wlan0mon` — одна AP вещает со скрытым SSID (`<length: 0>`)."
+    - "WPS-точки: `wash -i wlan0mon`."
+    - "В дампе beacon раскрывает SSID: `tshark -r wifi.pcap -nn` → `nto{r0gu3_4p_h1dd3n_ss1d}`."
 ---
 
 ## Вопрос, с которого всё начинается

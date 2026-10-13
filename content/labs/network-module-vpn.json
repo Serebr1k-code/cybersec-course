@@ -1,0 +1,58 @@
+{
+  "id": "network-module-vpn",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{1k3_v3nd0r_1d_4ggr3ss1v3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: фингерпринт VPN на периметре\n\nШлюз `203.0.113.10` подозревается в том, что у него включён VPN с ошибкой\nконфигурации. Определи, какой это VPN, и найди утёкшую метку в IKE-обмене.\n\n1. Скан VPN-портов: `nmap -sU -p 500,4500,1194,51820 203.0.113.10`\n2. Разбор IKE-дамапа: `tshark -r ike.pcap -nn`\n3. Печатаемые строки в дампе: `strings ike.pcap`\n\nЗапиши метку `nto{...}` в `answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/ike.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAxHTOal1fAABnAAAAZwAAAP///////2h6ZJWAowgARQAAWQABAABAEQJ/ywBxCcsAcQoB9AH0AEVUJRERERERERERIiIiIiIiIiINEAQAAAAAAAAAAD0AAAAhbnRvezFrM192M25kMHJfMWRfNGdncjNzczF2M30=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "nmap": {
+      "help": "nmap [-sU|-sS] -p <порты> <цель> — сканирование (эмуляция: реальный вывод nmap)",
+      "cases": [
+        {
+          "match": "-su|500,4500",
+          "example": "-sU -p 500,4500,1194,51820 203.0.113.10",
+          "output": "Starting Nmap 7.94 ( https://nmap.org )\nNmap scan report for 203.0.113.10\nHost is up (0.0087s latency).\nPORT      STATE SERVICE\n500/udp   open  isakmp\n4500/udp  open  ipsec-nat-t\n1194/udp  open  openvpn\n"
+        },
+        {
+          "match": "1723",
+          "example": "-sS -p 443,1723 203.0.113.10",
+          "output": "Starting Nmap 7.94 ( https://nmap.org )\nNmap scan report for 203.0.113.10\nHost is up (0.0087s latency).\nPORT     STATE SERVICE\n443/tcp  open  https\n1723/tcp open  pptp\n"
+        }
+      ],
+      "fallback": "Starting Nmap 7.94 ( https://nmap.org )\nNmap done: 1 IP address (1 host up) scanned\n"
+    },
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] — разбор IKE/IPsec-дамапа (эмуляция)",
+      "cases": [
+        {
+          "match": "isakmp",
+          "example": "-r ike.pcap -Y isakmp -nn",
+          "output": "    1   0.000000  203.0.113.9 → 203.0.113.10 ISAKMP 103 Aggressive\n"
+        },
+        {
+          "match": "ike\\.pcap",
+          "example": "-r ike.pcap -nn",
+          "output": "    1   0.000000  203.0.113.9 → 203.0.113.10 ISAKMP 103 Aggressive\n"
+        }
+      ],
+      "fallback": "    1   0.000000  203.0.113.9 → 203.0.113.10 ISAKMP 103 Aggressive\n"
+    }
+  }
+}

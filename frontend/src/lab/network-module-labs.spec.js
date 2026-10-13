@@ -69,6 +69,35 @@ const LABS = [
       'nmap -sV -p 21,23,1883,3389,5900 10.0.0.1',
       "mosquitto_sub -t 'home/#' -C 5 | grep nto > answer.txt",
     ] },
+  { id: 'network-module-tunnel',
+    check: "grep -q 'nto{ssh_tunn3l_t0_h1dd3n_s3gm3nt}' answer.txt",
+    solution: [
+      "ssh user@10.10.10.5 'ip route; nmap -sn 10.10.20.0/24'",
+      'proxychains4 nmap -sT -Pn -p 22,80 10.10.20.7',
+      'proxychains4 curl -s http://10.10.20.7/ | grep nto > answer.txt',
+    ] },
+  { id: 'network-module-vpn',
+    check: "grep -q 'nto{1k3_v3nd0r_1d_4ggr3ss1v3}' answer.txt",
+    solution: [
+      'nmap -sU -p 500,4500,1194,51820 203.0.113.10',
+      'tshark -r ike.pcap -nn',
+      'strings ike.pcap | grep nto > answer.txt',
+    ] },
+  { id: 'network-module-wireless',
+    check: "grep -q 'nto{r0gu3_4p_h1dd3n_ss1d}' answer.txt",
+    solution: [
+      'airmon-ng start wlan0',
+      'airodump-ng wlan0mon',
+      'wash -i wlan0mon',
+      'tshark -r wifi.pcap -nn | grep nto > answer.txt',
+    ] },
+  { id: 'network-tools',
+    check: "grep -q 'nto{nc_b4nn3r_gr4b_4444}' answer.txt",
+    solution: [
+      'masscan 10.10.10.0/24 -p1-65535 --rate 1000',
+      'nmap -sV -p 22,80,4444 10.10.10.5',
+      'nc 10.10.10.5 4444 | grep nto > answer.txt',
+    ] },
 ]
 
 describe('network module labs solve end-to-end', () => {

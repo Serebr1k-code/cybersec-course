@@ -1,0 +1,75 @@
+{
+  "id": "network-module-wireless",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{r0gu3_4p_h1dd3n_ss1d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти rogue AP и его скрытый SSID\n\nВ эфире появилась подозрительная точка. Собери карту эфира и определи её SSID.\n\n1. Включи monitor mode: `airmon-ng start wlan0`\n2. Просканируй эфир: `airodump-ng wlan0mon` (одна AP со скрытым SSID)\n3. Проверь WPS: `wash -i wlan0mon`\n4. В дампе `wifi.pcap` найди beacon и его SSID: `tshark -r wifi.pcap -nn`\n\nЗапиши метку `nto{...}` (скрытый SSID) в `answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/wifi.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAB/AAAAr3TOapggDQBKAAAASgAAAAAACAAAAAAAgAAAAP///////96tvu8AEd6tvu8AEQAAAAAAAAAAAABkABEAABludG97cjBndTNfNHBfaDFkZDNuX3NzMWR9AwEG",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "airmon-ng": {
+      "help": "airmon-ng start <iface> — включить monitor mode (эмуляция)",
+      "cases": [
+        {
+          "match": "start",
+          "example": "start wlan0",
+          "output": "Found 3 processes that could cause trouble.\nPHY\tInterface\tDriver\t\tChipset\nphy0\twlan0\t\tath9k_htc\tAtheros AR9271\n\n\t(mac80211 monitor mode vif enabled for [phy0]wlan0 on [phy0]wlan0mon)\n"
+        }
+      ],
+      "fallback": "airmon-ng: доступно: start <iface>\n"
+    },
+    "airodump-ng": {
+      "help": "airodump-ng <iface> — сканирование Wi-Fi (эмуляция)",
+      "cases": [
+        {
+          "match": "wlan0mon",
+          "example": "wlan0mon",
+          "output": " BSSID              PWR  Beacons  CH  ENC   CIPHER  AUTH  ESSID\n AA:BB:CC:DD:EE:FF  -42      140   6  WPA2  CCMP    PSK   CORP-WIFI\n 11:22:33:44:55:66  -58       98   1  WPA2  CCMP    PSK   CORP-GUEST\n DE:AD:BE:EF:00:11  -33      210   6  WPA2  CCMP    PSK   <length: 0>\n"
+        }
+      ],
+      "fallback": "airodump-ng: доступно: <iface>\n"
+    },
+    "wash": {
+      "help": "wash -i <iface> — поиск WPS-точек (эмуляция)",
+      "cases": [
+        {
+          "match": "wlan0mon|-i",
+          "example": "-i wlan0mon",
+          "output": "Wash v1.6.6\nBSSID               Ch  dBm  WPS  Lck  Vendor    ESSID\nDE:AD:BE:EF:00:11    6  -33  1.0  No   Unknown   <hidden>\n"
+        }
+      ],
+      "fallback": "Wash v1.6.6\n"
+    },
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-Y фильтр] [-T fields -e поле…] — разбор 802.11 (эмуляция)",
+      "cases": [
+        {
+          "match": "wlan\\.ssid",
+          "example": "-r wifi.pcap -T fields -e wlan.bssid -e wlan.ssid",
+          "output": "de:ad:be:ef:00:11\t6e746f7b72306775335f34705f68316464336e5f737331647d\n"
+        },
+        {
+          "match": "wifi\\.pcap",
+          "example": "-r wifi.pcap -nn",
+          "output": "    1   0.000000 de:ad:be:ef:00:11 → ff:ff:ff:ff:ff:ff 802.11 74 Beacon frame, SN=0, FN=0, Flags=........, BI=100, SSID=\"nto{r0gu3_4p_h1dd3n_ss1d}\"\n"
+        }
+      ],
+      "fallback": "    1   0.000000 de:ad:be:ef:00:11 → ff:ff:ff:ff:ff:ff 802.11 74 Beacon frame, SN=0, FN=0, Flags=........, BI=100, SSID=\"nto{r0gu3_4p_h1dd3n_ss1d}\"\n"
+    }
+  }
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): детект VPN-аномалий"
 estimated_minutes: 60
 summary: "Модуль по VPN: чем отличаются IPsec, WireGuard, OpenVPN, SSTP и L2TP, что видно на проводе, какие мисконфигурации опасны и какие атаки возможны на VPN-инфраструктуру."
+lab:
+  kind: shell
+  title: "Практика: фингерпринт VPN на периметре"
+  toolset: [core, nmap, tshark]
+  workdir: /home/student/task
+  files: [task.md, ike.pcap]
+  check: "grep -q 'nto{1k3_v3nd0r_1d_4ggr3ss1v3}' answer.txt"
+  hints:
+    - "Сначала порты: `nmap -sU -p 500,4500,1194,51820 203.0.113.10` (500/4500 — IPsec, 1194 — OpenVPN)."
+    - "Разбери IKE-дамап: `tshark -r ike.pcap -nn` — обрати внимание на тип обмена (Aggressive)."
+    - "Печатаемые строки в дампе: `strings ike.pcap`."
+    - "Метка в Vendor ID IKE: `nto{1k3_v3nd0r_1d_4ggr3ss1v3}`."
 ---
 
 ## Вопрос, с которого всё начинается
