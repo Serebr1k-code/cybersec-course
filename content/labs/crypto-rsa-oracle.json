@@ -1,0 +1,45 @@
+{
+  "id": "crypto-rsa-oracle",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{par1ty_0r4cl3_lsb_r3c0v3ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: parity (LSB) оракул RSA\n\n`oracle.py` — сервис: он расшифровывает присланный шифротекст закрытым ключом и\nвозвращает **только один бит** — чётность (младший бит) результата. Приватный ключ\nизвестен только сервису.\n\nДаны публичный ключ `(n,e)` и целевой шифротекст `c` (в `attack.py`). Каждый\nзапрос `c·2^(i·e)` даёт сравнение `2^i·m mod n` с `n/2` — это бинарный поиск по\nинтервалу. За ~`bit_length(n)` запросов сообщение восстанавливается целиком.\n\n`python3 attack.py` → запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/oracle.py",
+      "text": "#!/usr/bin/env python3\n# Simulated RSA service. The private key never leaves this module; it exposes\n# ONLY one bit of each decryption — the parity (LSB) of the plaintext.\n# Treat it as a black box.\nn = 5700289273639020391186826495503499241698234902011370009083477940180365979697431673367926538388101615344230397534946696866271138512049020491438836095168033\ne = 65537\n_d = 1540905515537618219483128891989868205226451157728205915451163391492368642084882747407543041380149083228243833725726315662270796802707491237459649178098113\n\ndef public():\n    return n, e\n\ndef parity_oracle(ct):\n    return pow(ct, _d, n) & 1\n"
+    },
+    {
+      "path": "/home/student/task/attack.py",
+      "text": "#!/usr/bin/env python3\n# RSA parity (LSB) oracle attack: recover m with ~bit_length(n) queries.\n# The oracle reveals whether (2^i * m mod n) >= n/2; that is a comparison that\n# halves the interval each step -> binary search.\nfrom fractions import Fraction\nfrom oracle import public, parity_oracle\n\nn, e = public()\nC = 5009447539128009171913275549702361978561860368523204091832357478835600556282750364451219748264379363804297138763947371264925673766450211813098919679533062\n\nlo, hi = Fraction(0), Fraction(n)\ncc = C\nfor _ in range(1, n.bit_length() + 1):\n    cc = (cc * pow(2, e, n)) % n\n    mid = (lo + hi) / 2\n    if parity_oracle(cc) == 0:\n        hi = mid\n    else:\n        lo = mid\n\nm = int(hi)\nmsg = m.to_bytes((m.bit_length() + 7) // 8, \"big\")\nprint(\"queries : %d\" % n.bit_length())\nprint(\"plaintext:\", msg.decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "attack\\.py",
+          "example": "python3 attack.py",
+          "output": "queries : 511\nplaintext: nto{par1ty_0r4cl3_lsb_r3c0v3ry}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 attack.py`\n"
+    }
+  }
+}

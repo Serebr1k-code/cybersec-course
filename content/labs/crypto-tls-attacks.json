@@ -1,0 +1,49 @@
+{
+  "id": "crypto-tls-attacks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h34rtbl33d_m4st3r_s3cr3t_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Heartbleed → расшифровка TLS-сессии\n\nУязвимость Heartbleed позволила прочитать память сервера: `leak.bin` — фрагмент\nкучи, в котором оказались **master secret** и случайные значения\n`CLIENT_RANDOM`/`SERVER_RANDOM` для перехваченной сессии. Рядом `capture.bin` —\nзапись TLS `application_data` с зашифрованным HTTP-запросом.\n\nВыведи ключевой блок через TLS 1.2 PRF (`key expansion`) и расшифруй запись\n(AES-256-CBC). В открытом тексте — флаг.\n\n`python3 decrypt_tls.py` → запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/leak.bin",
+      "b64": "SFRUUC8xLjEgMjAwIE9LDQpTZXJ2ZXI6IG5naW54DQoAAAAAAAAAAAAAAAAAAAAAQ0xJRU5UX1JBTkRPTT0xMTIyMzM0NDU1NjY3Nzg4OTlhYWJiY2NkZGVlZmYwMDExMjIzMzQ0NTU2Njc3ODg5OWFhYmJjY2RkZWVmZjAwClNFUlZFUl9SQU5ET009ZmZlZWRkY2NiYmFhOTk4ODc3NjY1NTQ0MzMyMjExMDBmZmVlZGRjY2JiYWE5OTg4Nzc2NjU1NDQzMzIyMTEwMAptYXN0ZXJfc2VjcmV0PTZkNjE3Mzc0NjU3MjczNjU2MzcyNjU3NDMwMzEzMjMzMzQzNTM2MzczODM5MzAzMTMyMzMzNDM1MzYzNzM4MzkzMAol6aZEah9i5+ksEwKxoGAc2SleDiUKucwaxii9D0R7gnH80X87t13J37sLa4FrM8tdi52UpvkiNCJcylOa+b5f"
+    },
+    {
+      "path": "/home/student/task/capture.bin",
+      "b64": "FwMDAKBbA56YkWBPaeDaoV1MD3OzUAkbwHh8SBbkB03l5SqaVe0kZWWNlnj0I7LX2qMiG13D1x98Z6MNZB4jJX5ZludYudavZ9VChLV9Gi41pQ2zQ2e/jK6INnNWOdBZlenlQDwODawiXDpY+a/tGPOsxKAl+TTfgME5HCbNdTMugQ7sruOfYKb9qhu7DqBx9l34BgWtruuSa+GVhUsrzZdFabyx"
+    },
+    {
+      "path": "/home/student/task/decrypt_tls.py",
+      "text": "#!/usr/bin/env python3\n# Heartbleed leaked a chunk of server heap memory (leak.bin). Among it is the TLS\n# master secret plus the client/server randoms for a captured session. Derive the\n# key block with the TLS 1.2 PRF and decrypt the captured record (capture.bin).\nimport hmac, hashlib, struct, re\nfrom Crypto.Cipher import AES\n\ndef p_hash(secret, seed, n):\n    out = b\"\"; a = seed\n    while len(out) < n:\n        a = hmac.new(secret, a, hashlib.sha256).digest()\n        out += hmac.new(secret, a + seed, hashlib.sha256).digest()\n    return out[:n]\ndef prf(secret, label, seed, n):\n    return p_hash(secret, label + seed, n)\n\nleak = open(\"leak.bin\", \"rb\").read()\ndef field(name):\n    m = re.search(name.encode() + rb\"=([0-9a-f]+)\", leak)\n    return bytes.fromhex(m.group(1).decode())\nclient_random = field(\"CLIENT_RANDOM\")\nserver_random = field(\"SERVER_RANDOM\")\nmaster = field(\"master_secret\")\nprint(\"leaked master secret :\", master.hex())\nkb = prf(master, b\"key expansion\", server_random + client_random, 96)\ncwk = kb[0:32]; civ = kb[64:80]\n\nrec = open(\"capture.bin\", \"rb\").read()\nctype, ver, ln = rec[0], rec[1:3], struct.unpack(\">H\", rec[3:5])[0]\nct = rec[5:5+ln]\nprint(\"record type=%d version=0x%04x len=%d\" % (ctype, int.from_bytes(ver, \"big\"), ln))\npt = AES.new(cwk, AES.MODE_CBC, civ).decrypt(ct)\npt = pt[:-pt[-1]]  # strip PKCS#7 padding\nprint(\"decrypted application data:\")\nprint(pt.decode(\"latin-1\"))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "decrypt_tls\\.py",
+          "example": "python3 decrypt_tls.py",
+          "output": "leaked master secret : 6d6173746572736563726574303132333435363738393031323334353637383930\nrecord type=23 version=0x0303 len=160\ndecrypted application data:\nGET /admin/dashboard HTTP/1.1\nHost: intranet.corp.local\nCookie: session=nto{h34rtbl33d_m4st3r_s3cr3t_l34k}; role=admin\nUser-Agent: Mozilla/5.0\n\n\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 decrypt_tls.py`\n"
+    }
+  }
+}

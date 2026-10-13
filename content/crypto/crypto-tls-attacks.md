@@ -13,6 +13,18 @@ useful_for:
   - "Использовать отпечатки JA3/JA4 для детекта"
 estimated_minutes: 45
 summary: "Криптографические атаки на TLS: downgrade и POODLE (padding oracle в CBC), BEAST/CRIME/BREACH (сжатие и IV), Heartbleed (утечка памяти), renegotiation, отпечатки JA3/JA4 и pinning. Практические инструменты и разбор."
+lab:
+  kind: shell
+  title: 'Практика: Heartbleed → расшифровка TLS'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, leak.bin, capture.bin, decrypt_tls.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'В `leak.bin` лежат master secret и randoms.'
+    - 'Ключевой блок = PRF(master, "key expansion", server_random+client_random).'
+    - 'Из key_block: client_write_key = первые 32 байта, IV — с 64-го.'
+    - '`python3 decrypt_tls.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

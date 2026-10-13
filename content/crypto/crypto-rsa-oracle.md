@@ -13,6 +13,18 @@ useful_for:
   - "Различать типы RSA-оракулов"
 estimated_minutes: 45
 summary: "RSA parity/LSB oracle: восстановление сообщения за ~n бит запросов через бинарный поиск по интервалу. Manger attack на OAEP. Сравнение с Блейхенбахером, распознавание оракула по условию задачи, полный рабочий скрипт и защита (constant-time, единый ответ)."
+lab:
+  kind: shell
+  title: 'Практика: parity-оракул RSA — восстановление сообщения'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, oracle.py, attack.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Оракул отдаёт только LSB расшифровки — но этого хватает.'
+    - 'Запрос c·2^(i·e) даёт сравнение 2^i·m mod n с n/2.'
+    - 'Это бинарный поиск: интервал [lo,hi] делится вдвое каждый шаг.'
+    - '`python3 attack.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

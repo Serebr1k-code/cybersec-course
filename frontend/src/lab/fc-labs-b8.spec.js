@@ -33,6 +33,16 @@ const LABS = [
     solution: ['python3 mitm.py | grep nto > found.txt'] },
   { id: 'crypto-sponge', flag: 'nto{sp0ng3_w34k_c4p4c1ty_c0ll1s10n}', hints: 4,
     solution: ['python3 collide.py | grep nto > found.txt'] },
+  { id: 'crypto-rsa-oracle', flag: 'nto{par1ty_0r4cl3_lsb_r3c0v3ry}', hints: 4,
+    solution: ['python3 attack.py | grep nto > found.txt'] },
+  { id: 'crypto-power', flag: 'nto{dp4_c0rr3l4t10n_k3y_3b}', hints: 4,
+    solution: ['python3 cpa.py | grep nto > found.txt'] },
+  { id: 'crypto-integral-cryptanalysis', flag: 'nto{4r0und_squ4r3_4tt4ck_k3y_00112233445566778899aabbccddeeff}', hints: 4,
+    solution: ['python3 integral.py | grep nto > found.txt'] },
+  { id: 'crypto-rsa-partial-key', flag: 'nto{rsa_dp_l34k_f4ct0r5_n}', hints: 4,
+    solution: ['python3 factor.py | grep nto > found.txt'] },
+  { id: 'crypto-tls-attacks', flag: 'nto{h34rtbl33d_m4st3r_s3cr3t_l34k}', hints: 4,
+    solution: ['python3 decrypt_tls.py | grep nto > found.txt'] },
 ]
 
 describe.each(LABS)('forensics/crypto lab: $id', ({ id, flag, hints, solution }) => {

@@ -1,0 +1,41 @@
+{
+  "id": "crypto-rsa-partial-key",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{rsa_dp_l34k_f4ct0r5_n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: partial key exposure (утечка dp)\n\nИз памяти процесса утёк только `dp = d mod (p−1)`. При **малом** публичном\nпоказателе `e` этого достаточно, чтобы факторизовать `n`: из сравнения\n`e·dp ≡ 1 (mod p−1)` следует `e·dp − 1 = k·(p−1)` для некоторого `1 ≤ k < e`.\nПеребирая `k`, получаем кандидата `p` и проверяем делимость `n`.\n\n`python3 factor.py` → запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/factor.py",
+      "text": "#!/usr/bin/env python3\n# Partial key exposure: we leaked dp = d mod (p-1) and nothing else. With a small\n# public exponent e this is enough to factor n, because e*dp - 1 = k*(p-1).\nn = 95436801635419581367656925229612442159347858268473963736650873807955508999309339261264761125934936943973470021089810013444742460032503540159873928424552602176412871593722725151742304551483243020854476615471798236218058351101057530214193203727121596812416368968550316481250590111069549039612220687438413838489\ne = 65537\ndp = 4401039009721786699173180646511068102391293373707323316460433387152394378155832187294743582251803827110797950809930431051514022985351541959344483794032499\n\nfor k in range(1, e):\n    if (e * dp - 1) % k:\n        continue\n    cand = (e * dp - 1) // k + 1\n    if cand > 1 and n % cand == 0:\n        p = cand\n        q = n // p\n        print(\"recovered p :\", p)\n        print(\"recovered q :\", q)\n        print(\"multiplier k: %d\" % k)\n        print(\"flag: nto{rsa_dp_l34k_f4ct0r5_n}\")\n        break\nelse:\n    print(\"no factor found\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "factor\\.py",
+          "example": "python3 factor.py",
+          "output": "recovered p : 12375290409754011022598907625623026139203595221721236031701524129823935742961289486366139363712037903520846325234067475858028683416612348452806428729974167\nrecovered q : 7711883800334720369405643154943882405009035477939653742546495044218195981659177139318710707100622423968970626451218025615739503773214978001555921253957967\nmultiplier k: 23307\nflag: nto{rsa_dp_l34k_f4ct0r5_n}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 factor.py`\n"
+    }
+  }
+}

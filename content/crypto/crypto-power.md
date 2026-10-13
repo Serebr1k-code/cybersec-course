@@ -12,6 +12,18 @@ useful_for:
   - "Анализировать трассы энергопотребления"
 estimated_minutes: 36
 summary: "Power/EM side-channels: физика утечки, SPA и DPA/CPA на AES, полный DPA-скрипт на numpy с реальными формулами, сбор трасс (ChipWhisperer/осциллограф), контрмеры (маскирование, hiding) и связь с timing/cache."
+lab:
+  kind: shell
+  title: 'Практика: CPA по трассам энергопотребления AES'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, cpa.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Утечка ~ Hamming weight значения на выходе S-box.'
+    - 'Для каждой гипотезы g считай HW(SBOX[p ⊕ g]).'
+    - 'Считай корреляцию Пирсона с трассами — верный g даёт пик.'
+    - '`python3 cpa.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

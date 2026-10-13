@@ -13,6 +13,18 @@ useful_for:
   - "Понимать атаки на побочные каналы"
 estimated_minutes: 36
 summary: "Partial key exposure в RSA: восстановление p по известным старшим битам (Coppersmith), по младшим битам (перебор), утечка dp=d mod (p-1) (Heninger-Shacham), утечка битов d (Boneh-Durfee/Frankel), связь с side-channel, практические скрипты на Sage."
+lab:
+  kind: shell
+  title: 'Практика: факторизация по утёкшему dp'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, factor.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Утёк только dp = d mod (p−1), но e мал.'
+    - 'Из e·dp ≡ 1 (mod p−1): e·dp − 1 = k·(p−1).'
+    - 'Перебирай k от 1 до e−1 и проверяй делимость n.'
+    - '`python3 factor.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

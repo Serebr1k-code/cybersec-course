@@ -1,0 +1,41 @@
+{
+  "id": "crypto-integral-cryptanalysis",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4r0und_squ4r3_4tt4ck_k3y_00112233445566778899aabbccddeeff}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: интегральный (Square) анализ 4-раундового AES\n\n`integral.py` берёт **delta-набор**: 256 открытых текстов, различающихся одним\nактивным байтом. Через 3 раунда каждый байт состояния **сбалансирован** (XOR по\nнабору == 0). Для последнего (4-го) раунда подбираем байт раундового ключа,\nинвертируем `SubBytes` и проверяем баланс — так восстанавливается весь последний\nраундовый ключ, а из него (обратной развёрткой расписания) — мастер-ключ.\n\n`python3 integral.py` → запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/integral.py",
+      "text": "#!/usr/bin/env python3\n# Integral (Square) attack on 4-round AES.\n# A set of 256 plaintexts with ONE active byte becomes \"balanced\" after 3 rounds\n# (XOR of every state byte over the set == 0). Guessing a byte of the last round\n# key lets us invert the final SubBytes for that byte position and test the\n# balance -> recover the whole last round key, then invert the key schedule.\nSBOX = [99, 124, 119, 123, 242, 107, 111, 197, 48, 1, 103, 43, 254, 215, 171, 118, 202, 130, 201, 125, 250, 89, 71, 240, 173, 212, 162, 175, 156, 164, 114, 192, 183, 253, 147, 38, 54, 63, 247, 204, 52, 165, 229, 241, 113, 216, 49, 21, 4, 199, 35, 195, 24, 150, 5, 154, 7, 18, 128, 226, 235, 39, 178, 117, 9, 131, 44, 26, 27, 110, 90, 160, 82, 59, 214, 179, 41, 227, 47, 132, 83, 209, 0, 237, 32, 252, 177, 91, 106, 203, 190, 57, 74, 76, 88, 207, 208, 239, 170, 251, 67, 77, 51, 133, 69, 249, 2, 127, 80, 60, 159, 168, 81, 163, 64, 143, 146, 157, 56, 245, 188, 182, 218, 33, 16, 255, 243, 210, 205, 12, 19, 236, 95, 151, 68, 23, 196, 167, 126, 61, 100, 93, 25, 115, 96, 129, 79, 220, 34, 42, 144, 136, 70, 238, 184, 20, 222, 94, 11, 219, 224, 50, 58, 10, 73, 6, 36, 92, 194, 211, 172, 98, 145, 149, 228, 121, 231, 200, 55, 109, 141, 213, 78, 169, 108, 86, 244, 234, 101, 122, 174, 8, 186, 120, 37, 46, 28, 166, 180, 198, 232, 221, 116, 31, 75, 189, 139, 138, 112, 62, 181, 102, 72, 3, 246, 14, 97, 53, 87, 185, 134, 193, 29, 158, 225, 248, 152, 17, 105, 217, 142, 148, 155, 30, 135, 233, 206, 85, 40, 223, 140, 161, 137, 13, 191, 230, 66, 104, 65, 153, 45, 15, 176, 84, 187, 22]\nINV = [0]*256\nfor i, v in enumerate(SBOX): INV[v] = i\nRCON = [0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,0x1b,0x36]\nKEY = bytes.fromhex(\"00112233445566778899aabbccddeeff\")\n\ndef xt(a): return ((a << 1) ^ 0x1b) & 0xff if a & 0x80 else (a << 1) & 0xff\ndef mul(a, b):\n    r = 0\n    while b:\n        if b & 1: r ^= a\n        a = xt(a); b >>= 1\n    return r\ndef sub(s): return [SBOX[x] for x in s]\ndef shift(s): return [s[0],s[5],s[10],s[15],s[4],s[9],s[14],s[3],s[8],s[13],s[2],s[7],s[12],s[1],s[6],s[11]]\ndef mix(s):\n    o = [0]*16\n    for c in range(4):\n        a = s[4*c:4*c+4]\n        o[4*c+0] = mul(a[0],2)^mul(a[1],3)^a[2]^a[3]\n        o[4*c+1] = a[0]^mul(a[1],2)^mul(a[2],3)^a[3]\n        o[4*c+2] = a[0]^a[1]^mul(a[2],2)^mul(a[3],3)\n        o[4*c+3] = mul(a[0],3)^a[1]^a[2]^mul(a[3],2)\n    return o\ndef addk(s, k): return [a ^ b for a, b in zip(s, k)]\ndef expand(key, nr):\n    w = [list(key[4*i:4*i+4]) for i in range(4)]\n    for i in range(4, 4*(nr+1)):\n        t = w[i-1][:]\n        if i % 4 == 0:\n            t = t[1:]+t[:1]; t = [SBOX[x] for x in t]; t[0] ^= RCON[i//4-1]\n        w.append([w[i-4][j]^t[j] for j in range(4)])\n    return w\ndef rk(w, r): return sum(w[4*r:4*r+4], [])\ndef encrypt(block, key, nr):\n    w = expand(key, nr); s = list(block); s = addk(s, rk(w,0))\n    for r in range(1, nr):\n        s = sub(s); s = shift(s); s = mix(s); s = addk(s, rk(w,r))\n    s = sub(s); s = shift(s); s = addk(s, rk(w,nr))\n    return s\n\n# collect 3 delta-sets (one active byte, different constants) and intersect\nsets = []\nfor cval in range(3):\n    cts = []\n    for v in range(256):\n        p = [0]*16; p[0] = v; p[1] = cval\n        cts.append(encrypt(p, list(KEY), 4))\n    sets.append(cts)\ntrue_rk4 = rk(expand(list(KEY), 4), 4)\nrec = []\nfor j in range(16):\n    cand = None\n    for cts in sets:\n        cset = []\n        for g in range(256):\n            x = 0\n            for c in cts: x ^= INV[c[j]^g]\n            if x == 0: cset.append(g)\n        cand = cset if cand is None else [x for x in cand if x in cset]\n    rec.append(cand[0])\nprint(\"last round key :\", bytes(rec).hex())\nprint(\"(true)         :\", bytes(true_rk4).hex())\n\ndef g(word, rcon):\n    t = word[1:]+word[:1]; t = [SBOX[x] for x in t]; t[0] ^= rcon; return t\nwv = {}\nfor i in range(4): wv[16+i] = rec[4*i:4*i+4]\nwv[15] = [wv[19][j]^wv[18][j] for j in range(4)]\nwv[14] = [wv[18][j]^wv[17][j] for j in range(4)]\nwv[13] = [wv[17][j]^wv[16][j] for j in range(4)]\nwv[12] = [wv[16][j]^g(wv[15],RCON[3])[j] for j in range(4)]\nwv[11] = [wv[15][j]^wv[14][j] for j in range(4)]\nwv[10] = [wv[14][j]^wv[13][j] for j in range(4)]\nwv[9]  = [wv[13][j]^wv[12][j] for j in range(4)]\nwv[8]  = [wv[12][j]^g(wv[11],RCON[2])[j] for j in range(4)]\nwv[7]  = [wv[11][j]^wv[10][j] for j in range(4)]\nwv[6]  = [wv[10][j]^wv[9][j] for j in range(4)]\nwv[5]  = [wv[9][j]^wv[8][j] for j in range(4)]\nwv[4]  = [wv[8][j]^g(wv[7],RCON[1])[j] for j in range(4)]\nwv[3]  = [wv[7][j]^wv[6][j] for j in range(4)]\nwv[2]  = [wv[6][j]^wv[5][j] for j in range(4)]\nwv[1]  = [wv[5][j]^wv[4][j] for j in range(4)]\nwv[0]  = [wv[4][j]^g(wv[3],RCON[0])[j] for j in range(4)]\nmaster = sum((wv[i] for i in range(4)), [])\nprint(\"master key     :\", bytes(master).hex())\nprint(\"flag: nto{4r0und_squ4r3_4tt4ck_k3y_%s}\" % bytes(master).hex())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "integral\\.py",
+          "example": "python3 integral.py",
+          "output": "last round key : 541923185e9752b92afe0e61e058698b\n(true)         : 541923185e9752b92afe0e61e058698b\nmaster key     : 00112233445566778899aabbccddeeff\nflag: nto{4r0und_squ4r3_4tt4ck_k3y_00112233445566778899aabbccddeeff}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 integral.py`\n"
+    }
+  }
+}
