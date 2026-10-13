@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 50
 summary: "Модуль-навигатор по двум корпоративным СУБД: MSSQL с xp_cmdshell и linked servers и Oracle с PL/SQL, UTL_HTTP/DNS и OOB-каналами."
+lab:
+  kind: shell
+  title: "Практика: MSSQL — xp_cmdshell до системного аккаунта"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Замерь время: WAITFOR DELAY '0:0:5' даёт ~5 секунд — это MSSQL, а не MySQL."
+    - "Проверь права: IS_SRVROLEMEMBER('sysadmin') вернёт 1 — ты под администратором."
+    - "Включи xp_cmdshell через sp_configure, затем выполни whoami — увидишь nt authority\\system."
+    - "Прочитай флаг: EXEC xp_cmdshell 'type C:\\flag.txt' > found.txt — затем check."
 ---
 
 ## Вопрос, с которого всё начинается

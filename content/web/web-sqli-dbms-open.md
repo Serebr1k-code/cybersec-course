@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Модуль-навигатор по трём самым частым открытым СУБД в вебе: MySQL/MariaDB, PostgreSQL и SQLite — что общего и чем диалекты различаются при инъекции."
+lab:
+  kind: shell
+  title: "Практика: MySQL — UNION-дамп и RCE через INTO OUTFILE"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Текст ошибки называет диалект: 'You have an error in your SQL syntax' — это MySQL."
+    - "Посчитай колонки (ORDER BY 3 ок, ORDER BY 4 падает) и прочитай @@version."
+    - "Таблицы в MySQL — в information_schema.tables, склей их GROUP_CONCAT."
+    - "Дампни users в found.txt, затем запиши webshell через INTO OUTFILE и проверь s.php?c=id."
 ---
 
 ## Вопрос, с которого всё начинается

