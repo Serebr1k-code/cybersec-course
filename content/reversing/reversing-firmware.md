@@ -13,6 +13,18 @@ useful_for:
   - "Анализ прошивок"
 estimated_minutes: 55
 summary: "Извлечение и анализ прошивок: binwalk, файловые системы, u-boot, эмуляция, поиск секретов."
+lab:
+  kind: shell
+  title: 'Практика: извлечь секрет из прошивки'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, firmware.bin]
+  check: "grep -q 'nto{u_b00t_squ4shfs_s3cr3t}' found.txt"
+  hints:
+    - 'Прошивка = заголовок (u-boot) + файловая система. `binwalk firmware.bin` покажет смещение SquashFS.'
+    - 'Смещение SquashFS — 65 байт (0x41).'
+    - 'Вырежи файловую систему: `dd if=firmware.bin of=root.sqfs bs=1 skip=65`.'
+    - '`strings root.sqfs | grep nto > found.txt` и `check`.'
 ---
 
 ## Задача

@@ -12,6 +12,18 @@ useful_for:
   - "Malware analysis: разбор скриптов и байткода"
 estimated_minutes: 6
 summary: "Подмодуль об управляемом и интерпретируемом коде: деобфускация .NET, байткод JVM, скриптовые языки и анализ JIT-компиляции."
+lab:
+  kind: shell
+  title: 'Практика: константы Python-байткода'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, secret.pyc, dis_pyc.py]
+  check: "grep -q 'nto{pyth0n_byt3c0d3_c0nst4nts}' found.txt"
+  hints:
+    - 'Управляемый/интерпретируемый байткод хранит константы в открытом виде.'
+    - '`secret.pyc` — скомпилированный Python-модуль (`.pyc`).'
+    - '`strings secret.pyc` покажет строковые константы, включая флаг.'
+    - '`strings secret.pyc | grep nto > found.txt` и `check`.'
 ---
 
 Не весь код компилируется в машинные инструкции. .NET и Java исполняют байткод на виртуальной

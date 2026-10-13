@@ -1,0 +1,25 @@
+{
+  "id": "reversing-mod-emerging",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3m3rg1ng_m4lw4r3_c0nf1g_3xf1l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: конфиг дроппера\n\n`dropper.bin` — образец с вшитым конфигом (`CONFIG=<base64>`, `C2=...`).\n\n1. `file dropper.bin`.\n2. `strings dropper.bin` — найди `CONFIG=` и адрес C2.\n3. Значение `CONFIG` закодировано base64.\n4. Декодируй и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/dropper.bin",
+      "b64": "f0VMRgIBAQAIHUbNu/HRg/6YbBENH2xVT8/8j0hDytUUOZOmc6u1KZIXwrwwtTsYOI85UAQvNhnj8Z94T2gLAbcgysLScg36Q09ORklHPQpiblJ2ZXpOdE0zSm5NVzVuWDIwMGJIYzBjak5mWXpCdVpqRm5Yek40WmpGc2ZRPT0KO0MyPWh0dHBzOi8vZXZpbC5leGFtcGxlL2dhdGUucGhwAOm0wbuUG5v9431n5XL4sBHKb7GVXzJuhHtAlT9Yvmp1",
+      "mode": "644"
+    }
+  ],
+  "tools": {}
+}

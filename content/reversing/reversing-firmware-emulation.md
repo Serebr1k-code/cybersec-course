@@ -13,6 +13,18 @@ useful_for:
   - "IoT pentest"
 estimated_minutes: 60
 summary: "Автоматическая эмуляция прошивок: извлечение ФС, QEMU user/system, FirmAE/firmadyne, отладка сервисов."
+lab:
+  kind: shell
+  title: 'Практика: эмуляция фрагмента прошивки (Unicorn)'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, blob.bin, emu.py]
+  check: "grep -q 'nto{f1rmw4r3_3mul4t3d_unic0rn}' found.txt"
+  hints:
+    - 'Эмуляция (Unicorn/QEMU) исполняет код целевой архитектуры без железа.'
+    - '`blob.bin` — фрагмент ARM-кода прошивки; `emu.py` эмулирует его через Unicorn.'
+    - '`python3 emu.py` — запусти эмуляцию.'
+    - '`python3 emu.py | grep nto > found.txt` и `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

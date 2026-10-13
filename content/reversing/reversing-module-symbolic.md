@@ -13,6 +13,18 @@ useful_for:
   - "Аудит кода: анализ байткода и смарт-контрактов"
 estimated_minutes: 8
 summary: "Навигационный модуль по автоматическому анализу: символическое исполнение, эмуляция (Qiling/Unicorn), DBI (Triton), Intel PT, управляемый байткод и новые платформы."
+lab:
+  kind: shell
+  title: 'Практика: символически решить crackme'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, crackme, solve.py]
+  check: "grep -q 'nto{symb0l1c_3mul4t10n_d1sp4tch3r}' found.txt"
+  hints:
+    - 'Символическое исполнение доказывает достижимость пути «успех» и находит вход.'
+    - '`solve.py` использует z3, чтобы подобрать пароль к `crackme`.'
+    - '`python3 solve.py` — получишь искомый ввод.'
+    - 'Проверь: `crackme s3cr3t` выдаст флаг. Запиши: `crackme s3cr3t | grep nto > found.txt`, затем `check`.'
 ---
 
 Ручной реверс не масштабируется. Когда проверка ключа состоит из тысяч инструкций, а программа

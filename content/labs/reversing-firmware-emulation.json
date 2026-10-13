@@ -1,0 +1,40 @@
+{
+  "id": "reversing-firmware-emulation",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{f1rmw4r3_3mul4t3d_unic0rn}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: эмуляция прошивки\n\n`blob.bin` — ARM-код из прошивки, `emu.py` — скрипт эмуляции на Unicorn.\n\n1. `file blob.bin` и `xxd -l 16 blob.bin`.\n2. `python3 emu.py` — эмулируй выполнение.\n3. Найди секрет в выводе эмуляции.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/blob.bin",
+      "b64": "AQCg4wAAAAAAAAAAAAAAAA==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/emu.py",
+      "text": "from unicorn import *\nfrom unicorn.arm_const import *\ncode=open(\"blob.bin\",\"rb\").read()\nmu=Uc(UC_ARCH_ARM,UC_MODE_ARM)\nmu.mem_map(0x1000,0x1000)\nmu.mem_write(0x1000,code)\nmu.emu_start(0x1000,0x1000+len(code))\nprint(\"emulated firmware; secret = nto{f1rmw4r3_3mul4t3d_unic0rn}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт>",
+      "cases": [
+        {
+          "match": "emu",
+          "output": "emulated firmware; secret = nto{f1rmw4r3_3mul4t3d_unic0rn}\n",
+          "example": "python3 emu.py"
+        }
+      ]
+    }
+  }
+}

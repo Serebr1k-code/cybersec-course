@@ -12,6 +12,18 @@ useful_for:
   - "Аудит: смарт-контракты, извлечение конфигурации"
 estimated_minutes: 6
 summary: "Подмодуль о необычных платформах и автоматизации: смарт-контракты EVM, MBA-обфускация, извлечение конфигурации малвари и готовые CTF-рецепты."
+lab:
+  kind: shell
+  title: 'Практика: извлечь конфиг из дроппера'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, dropper.bin]
+  check: "grep -q 'nto{3m3rg1ng_m4lw4r3_c0nf1g_3xf1l}' found.txt"
+  hints:
+    - 'Автоматизация анализа: конфиг малвари часто лежит в открытом или base64 виде.'
+    - '`strings dropper.bin` — найди блок `CONFIG=`.'
+    - 'Значение после `CONFIG=` — base64.'
+    - '`strings dropper.bin | grep bnRv | base64 -d > found.txt` и `check`.'
 ---
 
 Реверс не ограничивается ELF и PE. Смарт-контракты компилируются в байткод EVM, обфускаторы

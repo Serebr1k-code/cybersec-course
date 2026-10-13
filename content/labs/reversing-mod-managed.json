@@ -1,0 +1,40 @@
+{
+  "id": "reversing-mod-managed",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pyth0n_byt3c0d3_c0nst4nts}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Python-байткод\n\n`secret.pyc` — байткод Python, `dis_pyc.py` — скрипт дизассемблирования.\n\n1. `file secret.pyc`.\n2. `strings secret.pyc` — строковые константы модуля.\n3. Для полноты: `python3 dis_pyc.py` — байткод CPython.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/secret.pyc",
+      "b64": "Kw4NCgAAAADnT85qQwAAAOMAAAAAAAAAAAAAAAABAAAAAAAAAPMQAAAAgABSAHQAUgEXAHQBUgIjACkDeh5udG97cHl0aDBuX2J5dDNjMGQzX2MwbnN0NG50c31jAAAAAAAAAAAAAAAAAQAAAAMAAADzDgAAAIAAXAAAAAAAAAAAACMAKQFOKQHaBEZMQUepAPMAAAAA2hwvdG1wL2xhYmdlbi9meC9weWMvc2VjcmV0LnB52gNnZXRyBwAAAAIAAABzBwAAAIAA3AsPgEtyBQAAAE4pAnIDAAAAcgcAAAByBAAAAHIFAAAAcgYAAADaCDxtb2R1bGU+cggAAAABAAAAcw8AAADwAwEBAdgHJ4AE9AIBARByBQAAAA==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/dis_pyc.py",
+      "text": "import dis as _d\nsrc = open(\"secret.py\").read()\n_d.dis(compile(src, \"secret.py\", \"exec\"))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт>",
+      "cases": [
+        {
+          "match": "dis_pyc",
+          "output": "  0           RESUME                   0\n\n  1           LOAD_CONST               0 ('nto{pyth0n_byt3c0d3_c0nst4nts}')\n              STORE_NAME               0 (FLAG)\n\n  2           LOAD_CONST               1 (<code object get at 0x7f8d3528e4f0, file \"secret.py\", line 2>)\n              MAKE_FUNCTION\n              STORE_NAME               1 (get)\n              LOAD_CONST               2 (None)\n              RETURN_VALUE\n\nDisassembly of <code object get at 0x7f8d3528e4f0, file \"secret.py\", line 2>:\n  2           RESUME                   0\n\n  3           LOAD_GLOBAL              0 (FLAG)\n              RETURN_VALUE\n",
+          "example": "python3 dis_pyc.py"
+        }
+      ]
+    }
+  }
+}
