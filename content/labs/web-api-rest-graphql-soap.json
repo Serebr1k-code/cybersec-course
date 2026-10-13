@@ -1,0 +1,24 @@
+{
+  "id": "web-api-rest-graphql-soap",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{gr4phql_1ntr0sp3ct10n_l34ks_th3_sch3m4}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: картирование API магазина\n\nAPI магазина: `https://api.shop.local`. Разведка начинается с корня.\n\n1. Корень API подсказывает документацию:\n\n   curl -s https://api.shop.local/\n\n2. Загляни в документацию:\n\n   curl -s https://api.shop.local/swagger\n\n3. Там есть GraphQL. Спроси схему интроспекцией (запрос уже в файле):\n\n   curl -s -X POST https://api.shop.local/graphql -H 'Content-Type: application/json' --data-binary @introspection.json\n\n4. В схеме видно поле `adminSecret`. Запроси его:\n\n   curl -s -X POST https://api.shop.local/graphql -H 'Content-Type: application/json' --data-binary @secret.json > found.txt\n\n5. Набери `check`.\n" },
+    { "path": "/home/student/task/introspection.json", "text": "{\"query\":\"{__schema{queryType{fields{name}}}}\"}\n" },
+    { "path": "/home/student/task/secret.json", "text": "{\"query\":\"{adminSecret}\"}\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция api.shop.local)",
+      "cases": [
+        { "match": "secret\\.json|adminSecret", "example": "-s -X POST https://api.shop.local/graphql -H 'Content-Type: application/json' --data-binary @secret.json", "output": "{\"data\":{\"adminSecret\":\"nto{gr4phql_1ntr0sp3ct10n_l34ks_th3_sch3m4}\"}}\n" },
+        { "match": "introspection\\.json|__schema", "example": "-s -X POST https://api.shop.local/graphql -H 'Content-Type: application/json' --data-binary @introspection.json", "output": "{\"data\":{\"__schema\":{\"queryType\":{\"fields\":[{\"name\":\"product\"},{\"name\":\"products\"},{\"name\":\"user\"},{\"name\":\"adminSecret\"}]}}}}\n" },
+        { "match": "swagger", "example": "-s https://api.shop.local/swagger", "output": "{\"openapi\":\"3.0.1\",\"paths\":{\"/api/v1/product\":{\"get\":{}},\"/api/v1/user/{id}\":{\"get\":{}},\"/graphql\":{\"post\":{}}}}\n" },
+        { "match": "api\\.shop\\.local/?$|api\\.shop\\.local'?$", "example": "-s https://api.shop.local/", "output": "{\"name\":\"shop-api\",\"version\":\"v1\",\"docs\":\"/swagger\"}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только api.shop.local (/, /swagger, /graphql).\n"
+    }
+  }
+}

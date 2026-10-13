@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 45
 summary: "Как устроены REST, GraphQL и SOAP, как найти их документацию и почему API часто уязвимее интерфейса."
+lab:
+  kind: shell
+  title: "Практика: картирование API и интроспекция GraphQL"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, introspection.json, secret.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с корня API: он сам подскажет, где документация (`docs`)."
+    - "В `/swagger` перечислены REST-пути и наличие `/graphql`."
+    - "GraphQL отвечает на интроспекцию: запрос лежит в `introspection.json`, отправь его через `--data-binary @`."
+    - "В схеме найди поле `adminSecret`, запроси его (`secret.json`) и сохрани флаг в `found.txt`, затем `check`."
 ---
 
 Разведка показала у магазина раздел `/api/`. Это «машинный» интерфейс: им пользуются не люди, а код (фронтенд, мобильное приложение, другие сервисы). И именно поэтому API часто уязвимее UI — он повторяет ту же логику, но без защиты, которую даёт страница.

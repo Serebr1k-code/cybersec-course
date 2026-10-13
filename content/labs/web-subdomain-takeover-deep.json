@@ -1,0 +1,22 @@
+{
+  "id": "web-subdomain-takeover-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{ns_d3l3g4t10n_t4k3s_th3_wh0l3_z0n3}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: NS/MX-тейковер\n\nУ `target.com` есть поддомен `internal.target.com`. CNAME у него нет — но,\nвозможно, зона делегирована наружу. Разбери цепочку записей.\n\n1. Кто обслуживает зону поддомена:\n\n   dig +short NS internal.target.com\n\n2. Если делегирование ведёт на мёртвый провайдер — вся зона твоя. Проверь\n   почту домена (MX):\n\n   dig +short MX target.com\n\n3. Заброшенный провайдер оставил служебную запись верификации с токеном:\n\n   dig +short TXT _acme-challenge.internal.target.com\n\n4. Токен в кавычках — это флаг. Вырежи его и запиши в `found.txt`, затем `check`.\n" }
+  ],
+  "tools": {
+    "dig": {
+      "help": "dig [тип] <имя> [+short] — DNS-запрос (эмуляция target.com)",
+      "cases": [
+        { "match": "_acme-challenge.*internal\\.target\\.com", "example": "+short TXT _acme-challenge.internal.target.com", "output": "\"nto{ns_d3l3g4t10n_t4k3s_th3_wh0l3_z0n3}\"\n" },
+        { "match": "\\bmx\\b.*target\\.com|target\\.com.*\\bmx\\b", "example": "+short MX target.com", "output": "10 mail.deadmailer.net.\n" },
+        { "match": "internal\\.target\\.com", "example": "+short NS internal.target.com", "output": "ns1.abandoned-provider.net.\nns2.abandoned-provider.net.\n" },
+        { "match": "target\\.com", "example": "+short A target.com", "output": "203.0.113.10\n" }
+      ],
+      "fallback": "dig: в этой лабе эмулируются только записи target.com (NS/MX/TXT).\n"
+    }
+  }
+}

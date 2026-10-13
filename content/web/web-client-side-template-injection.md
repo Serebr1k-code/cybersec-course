@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 36
 summary: "Как браузерный шаблонизатор исполняет пользовательский ввод и как из {{...}} получить XSS/RCE-в-странице."
+lab:
+  kind: shell
+  title: "Практика: CSTI на AngularJS — от {{7*7}} до process"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`{{...}}` в ответе — признак того, что шаблон компилируется, а не отдаётся как текст."
+    - "Проверь вычисление: `?q=%7B%7B7*7%7D%7D` должно вернуть `49`."
+    - "AngularJS-выражение имеет доступ к `constructor`; через него можно дотянуться до `process`."
+    - "Payload: `?q=%7B%7Bconstructor.constructor(%27return%20process.env.FLAG%27)()%7D%7D` — сохрани в `found.txt` и набери `check`."
 ---
 
 ## Вопрос, с которого всё начинается

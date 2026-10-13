@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Базовый уровень инъекций: XSS, инъекции команд ОС и NoSQL/LDAP/XPath."
+lab:
+  kind: shell
+  title: "Практика: инъекция команд ОС в сервисе «проверка сайта»"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Приложение собирает `ping -c1 <host>` конкатенацией — добавь свой разделитель `;`."
+    - "В URL точка с запятой кодируется как `%3B`, пробел — как `%20`."
+    - "Сначала проверь выполнение команды: `host=127.0.0.1%3Bid` → ответ `uid=33(www-data)`."
+    - "Прочитай файл: `host=127.0.0.1%3Bcat%20/flag`, сохрани вывод в `found.txt` и набери `check`."
 ---
 
 ## Задача

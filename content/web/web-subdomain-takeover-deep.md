@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 36
 summary: "Полный разбор subdomain takeover: список провайдеров, проверка CNAME/NS/MX, автоматизация и доказательство."
+lab:
+  kind: shell
+  title: "Практика: NS/MX-тейковер поддомена"
+  toolset: [core, dig]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "CNAME у `internal.target.com` нет — смотри на записи делегирования: `dig +short NS internal.target.com`."
+    - "NS ведут на `abandoned-provider.net` — зона поддомена делегирована мёртвому провайдеру."
+    - "Проверь почту домена: `dig +short MX target.com` — MX тоже ведёт на мёртвый сервис."
+    - "Провайдер оставил служебную запись `_acme-challenge.internal.target.com TXT` — её токен и есть флаг. Запиши в `found.txt` и `check`."
 ---
 
 ## Вопрос, с которого всё начинается
