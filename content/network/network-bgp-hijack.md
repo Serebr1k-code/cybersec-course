@@ -13,6 +13,18 @@ useful_for:
   - "CTF/анализ сетевых инцидентов"
 estimated_minutes: 45
 summary: "Как работает BGP, чем опасен hijack префиксов, route leak и более специфичный маршрут; разбор исторических инцидентов, RPKI/ROA, фильтрация и инструменты анализа."
+lab:
+  kind: shell
+  title: "Практика: находим origin-AS хайджека"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, bgp.pcap]
+  check: "grep -q '64599' answer.txt"
+  hints:
+    - "Сводка: `tshark -r bgp.pcap -nn` — видно два BGP UPDATE."
+    - "Легитимный владелец анонсирует /24, атакующий взял более специфичный префикс (/25)."
+    - "AS_PATH: `tshark -r bgp.pcap -T fields -e bgp.type -e bgp.nlri_prefix -e bgp.update.path_attribute.as_path_segment.as2`."
+    - "Origin-AS — первый AS в AS_PATH анонса /25: `64599`."
 ---
 
 ## Вопрос, с которого всё начинается

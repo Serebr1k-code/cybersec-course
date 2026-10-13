@@ -1,0 +1,42 @@
+{
+  "id": "network-arp",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "02:00:00:ca:fe:01"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: отравленный ARP-кэш\n\nВ дампе `arp.pcap` снят трафик маленького сегмента `10.0.0.0/24`: шлюз `10.0.0.1`, станция `10.0.0.5`.\nКто-то отравил ARP-кэш станции, выдав себя за шлюз.\n\nНайди **MAC-адрес атакующего** — тот, которым он представляется как `10.0.0.1`.\n\n1. Сводка: `tshark -r arp.pcap -nn`\n2. Поля: `tshark -r arp.pcap -T fields -e arp.opcode -e arp.src.hw_mac -e arp.src.proto_ipv4`\n\nЗапиши MAC в `answer.txt` (например: `echo MAC > answer.txt`) и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/arp.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAiVTOagmgAQAqAAAAKgAAAP///////6q7zAARIggGAAEIAAYEAAGqu8wAESIKAAAFAAAAAAAACgAAAYlUzmrZoQEAKgAAACoAAACqu8wAESLerb7vAAEIBgABCAAGBAAC3q2+7wABCgAAAaq7zAARIgoAAAWJVM5qc6IBACoAAAAqAAAAqrvMABEiAgAAyv4BCAYAAQgABgQAAgIAAMr+AQoAAAGqu8wAESIKAAAF",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "arp\\.opcode",
+          "example": "-r arp.pcap -T fields -e arp.opcode -e arp.src.hw_mac -e arp.src.proto_ipv4",
+          "output": "1\taa:bb:cc:00:11:22\t10.0.0.5\t10.0.0.1\n2\tde:ad:be:ef:00:01\t10.0.0.1\t10.0.0.5\n2\t02:00:00:ca:fe:01\t10.0.0.1\t10.0.0.5\n"
+        },
+        {
+          "match": "arp\\.pcap",
+          "example": "-r arp.pcap -nn",
+          "output": "    1   0.000000 aa:bb:cc:00:11:22 → ff:ff:ff:ff:ff:ff ARP 42 Who has 10.0.0.1? Tell 10.0.0.5\n    2   0.000212 de:ad:be:ef:00:01 → aa:bb:cc:00:11:22 ARP 42 10.0.0.1 is at de:ad:be:ef:00:01\n    3   0.000327 02:00:00:ca:fe:01 → aa:bb:cc:00:11:22 ARP 42 10.0.0.1 is at 02:00:00:ca:fe:01\n"
+        }
+      ],
+      "fallback": "    1   0.000000 aa:bb:cc:00:11:22 → ff:ff:ff:ff:ff:ff ARP 42 Who has 10.0.0.1? Tell 10.0.0.5\n    2   0.000212 de:ad:be:ef:00:01 → aa:bb:cc:00:11:22 ARP 42 10.0.0.1 is at de:ad:be:ef:00:01\n    3   0.000327 02:00:00:ca:fe:01 → aa:bb:cc:00:11:22 ARP 42 10.0.0.1 is at 02:00:00:ca:fe:01\n"
+    }
+  }
+}

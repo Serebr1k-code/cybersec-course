@@ -1,0 +1,42 @@
+{
+  "id": "network-covert",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "exfil-dns-channel-42"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: DNS-туннель\n\nДамп `capture.pcap` снят на клиенте. Одна зона собрала почти все запросы, а метки поддоменов\nвыглядят как случайные строки — это эксфильтрация через DNS.\n\nСобери метки подозрительной зоны по порядку и декодируй их (base64).\n\n1. `tshark -r capture.pcap -T fields -e dns.qry.name`\n2. `tshark -r capture.pcap -T fields -e dns.qry.name | grep t.example.com | cut -d. -f1 > labels.txt`\n3. `base64 -d labels.txt`\n\nЗапиши расшифрованный секрет в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/capture.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAAAAAAAAAAABSAAAAUgAAAP///////2h6ZJWAowgARQAARAABAABAEWBnCgAAMggICAicQAA1ADDNagAAAQAAAQAAAAAAAAhaWGhtYVd3dAF0B2V4YW1wbGUDY29tAAABAAEAAAAAIKEHAFIAAABSAAAA////////aHpklYCjCABFAABEAAEAAEARYGcKAAAyCAgICJxBADUAMNbaAAABAAABAAAAAAAACFpHNXpMV05vAXQHZXhhbXBsZQNjb20AAAEAAQEAAAAAAAAAUgAAAFIAAAD///////9oemSVgKMIAEUAAEQAAQAAQBFgZwoAADIICAgInEIANQAwxqMAAAEAAAEAAAAAAAAIWVc1dVpXd3QBdAdleGFtcGxlA2NvbQAAAQABAQAAACChBwBOAAAATgAAAP///////2h6ZJWAowgARQAAQAABAABAEWBrCgAAMggICAicQwA1ACzhcwAAAQAAAQAAAAAAAAROREk9AXQHZXhhbXBsZQNjb20AAAEAAQIAAAAAAAAASwAAAEsAAAD///////9oemSVgKMIAEUAAD0AAQAAQBFgbgoAADIICAgInEQANQAp/oQAAAEAAAEAAAAAAAADd3d3B2V4YW1wbGUDY29tAAABAAECAAAAIKEHAEwAAABMAAAA////////aHpklYCjCABFAAA+AAEAAEARYG0KAAAyCAgICJxFADUAKgk4AAABAAABAAAAAAAABG1haWwHZXhhbXBsZQNjb20AAAEAAQMAAAAAAAAASwAAAEsAAAD///////9oemSVgKMIAEUAAD0AAQAAQBFgbgoAADIICAgInEYANQApBacAAAEAAAEAAAAAAAADYXBpB2V4YW1wbGUDY29tAAABAAE=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "dns\\.qry\\.name",
+          "example": "-r capture.pcap -T fields -e dns.qry.name",
+          "output": "ZXhmaWwt.t.example.com\nZG5zLWNo.t.example.com\nYW5uZWwt.t.example.com\nNDI=.t.example.com\nwww.example.com\nmail.example.com\napi.example.com\n"
+        },
+        {
+          "match": "capture\\.pcap",
+          "example": "-r capture.pcap -nn",
+          "output": "    1   0.000000    10.0.0.50 → 8.8.8.8      DNS 82 Standard query 0x0000 A ZXhmaWwt.t.example.com\n    2   0.500000    10.0.0.50 → 8.8.8.8      DNS 82 Standard query 0x0000 A ZG5zLWNo.t.example.com\n    3   1.000000    10.0.0.50 → 8.8.8.8      DNS 82 Standard query 0x0000 A YW5uZWwt.t.example.com\n    4   1.500000    10.0.0.50 → 8.8.8.8      DNS 78 Standard query 0x0000 A NDI=.t.example.com\n    5   2.000000    10.0.0.50 → 8.8.8.8      DNS 75 Standard query 0x0000 A www.example.com\n    6   2.500000    10.0.0.50 → 8.8.8.8      DNS 76 Standard query 0x0000 A mail.example.com\n    7   3.000000    10.0.0.50 → 8.8.8.8      DNS 75 Standard query 0x0000 A api.example.com\n"
+        }
+      ],
+      "fallback": "    1   0.000000    10.0.0.50 → 8.8.8.8      DNS 82 Standard query 0x0000 A ZXhmaWwt.t.example.com\n    2   0.500000    10.0.0.50 → 8.8.8.8      DNS 82 Standard query 0x0000 A ZG5zLWNo.t.example.com\n    3   1.000000    10.0.0.50 → 8.8.8.8      DNS 82 Standard query 0x0000 A YW5uZWwt.t.example.com\n    4   1.500000    10.0.0.50 → 8.8.8.8      DNS 78 Standard query 0x0000 A NDI=.t.example.com\n    5   2.000000    10.0.0.50 → 8.8.8.8      DNS 75 Standard query 0x0000 A www.example.com\n    6   2.500000    10.0.0.50 → 8.8.8.8      DNS 76 Standard query 0x0000 A mail.example.com\n    7   3.000000    10.0.0.50 → 8.8.8.8      DNS 75 Standard query 0x0000 A api.example.com\n"
+    }
+  }
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Подготовка к MITM"
 estimated_minutes: 45
 summary: "Как работают ARP и DNS, почему они уязвимы, как выполняется ARP- и DNS-спуфинг и как от этого защищаются."
+lab:
+  kind: shell
+  title: "Практика: находим отравленный ARP-кэш"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, arp.pcap]
+  check: "grep -q '02:00:00:ca:fe:01' answer.txt"
+  hints:
+    - "Сводка дампа: `tshark -r arp.pcap -nn`."
+    - "Два ARP-ответа утверждают, что 10.0.0.1 — это разные MAC. Один из них лишний."
+    - "Поля ответов: `tshark -r arp.pcap -T fields -e arp.opcode -e arp.src.hw_mac -e arp.src.proto_ipv4`."
+    - "MAC, которым атакующий выдаёт себя за шлюз 10.0.0.1, — `02:00:00:ca:fe:01`."
 ---
 
 ## Вопрос, с которого всё начинается

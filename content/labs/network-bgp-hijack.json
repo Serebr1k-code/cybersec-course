@@ -1,0 +1,42 @@
+{
+  "id": "network-bgp-hijack",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "64599"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: sub-prefix hijack\n\nВ дампе `bgp.pcap` два BGP UPDATE от разных AS. Легитимный владелец `203.0.113.0/24` — AS64496.\nАтакующий анонсировал **более специфичный** префикс, чтобы перехватить часть трафика (longest-prefix match).\n\nНайди **origin-AS атакующего** — первый AS в AS_PATH того анонса, чей префикс специфичнее.\n\n1. Сводка: `tshark -r bgp.pcap -nn`\n2. Поля: `tshark -r bgp.pcap -T fields -e bgp.type -e bgp.nlri_prefix -e bgp.update.path_attribute.as_path_segment.as2`\n\nЗапиши номер AS в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/bgp.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAiVTOapimAQBlAAAAZQAAAP///////2h6ZJWAowgARQAAVwABAABABo5qwAACAcYzZAEAswCzAAAAAQAAAAFQGCAAx/MAAP////////////////////8ALwIAAAAUQAEBAEACBgIC+/ANHEADBMYzZAEYywBxiVTOap6pAQBmAAAAZgAAAP///////2h6ZJWAowgARQAAWAABAABABo5pxjNkAcAAAgEAswCzAAAAAQAAAAFQGCAAx4kAAP////////////////////8AMAIAAAAUQAEBAEACBgIC/FcNHEADBMYzZAEZywBxAA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "bgp\\.nlri_prefix",
+          "example": "-r bgp.pcap -T fields -e bgp.type -e bgp.nlri_prefix -e bgp.update.path_attribute.as_path_segment.as2",
+          "output": "2\t203.0.113.0\t64496,3356\n2\t203.0.113.0\t64599,3356\n"
+        },
+        {
+          "match": "bgp\\.pcap",
+          "example": "-r bgp.pcap -nn",
+          "output": "    1   0.000000    192.0.2.1 → 198.51.100.1 BGP 101 UPDATE Message\n    2   0.000347 198.51.100.1 → 192.0.2.1    BGP 102 UPDATE Message\n"
+        }
+      ],
+      "fallback": "    1   0.000000    192.0.2.1 → 198.51.100.1 BGP 101 UPDATE Message\n    2   0.000347 198.51.100.1 → 192.0.2.1    BGP 102 UPDATE Message\n"
+    }
+  }
+}

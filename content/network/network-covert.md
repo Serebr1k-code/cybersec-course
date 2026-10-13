@@ -13,6 +13,18 @@ useful_for:
   - "SOC: детект туннелирования"
 estimated_minutes: 50
 summary: "Скрытые каналы передачи данных поверх легитимных протоколов: DNS, ICMP, HTTP; принципы построения, извлечение и обнаружение."
+lab:
+  kind: shell
+  title: "Практика: разбираем DNS-туннель"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, capture.pcap]
+  check: "grep -q 'exfil-dns-channel-42' answer.txt"
+  hints:
+    - "Имена запросов: `tshark -r capture.pcap -T fields -e dns.qry.name`."
+    - "Подозрительная зона — `t.example.com`; её метки идут по порядку."
+    - "Собери метки: `tshark -r capture.pcap -T fields -e dns.qry.name | grep t.example.com | cut -d. -f1 > labels.txt`."
+    - "Метки — это base64: `base64 -d labels.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

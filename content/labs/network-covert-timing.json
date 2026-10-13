@@ -1,0 +1,46 @@
+{
+  "id": "network-covert-timing",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "p1ng"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: timing-канал\n\nДамп `cap.pcap` — слишком ровный ICMP-ping: интервалы между пакетами кодируют биты.\nПравило: пауза **> 0.2 с** = `1`, иначе `0`. Биты идут по старшинству (MSB-first), по 8 на символ ASCII.\n\n`times.txt` уже содержит относительные времена (`tshark ... -e frame.time_relative`).\n\n1. `cat times.txt`\n2. `tshark -r cap.pcap -T fields -e frame.time_relative`\n\nДекодируй сообщение (4 символа) и запиши его в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/times.txt",
+      "text": "0.000000000\n0.100000000\n0.400000000\n0.700000000\n1.000000000\n1.100000000\n1.200000000\n1.300000000\n1.400000000\n1.500000000\n1.800000000\n1.900000000\n2.000000000\n2.100000000\n2.200000000\n2.500000000\n2.800000000\n3.100000000\n3.200000000\n3.300000000\n3.400000000\n3.700000000\n3.800000000\n4.100000000\n4.400000000\n4.500000000\n4.600000000\n4.700000000\n4.800000000\n4.900000000\n5.000000000\n5.100000000\n5.400000000\n"
+    },
+    {
+      "path": "/home/student/task/cap.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAAAAAAAAAAAAqAAAAKgAAAP///////2h6ZJWAowgARQAAHAABAABAAWbbCgAABQoAAAEIAOXLEjQAAAAAAACghgEAKgAAACoAAAD///////9oemSVgKMIAEUAABwAAQAAQAFm2woAAAUKAAABCADlyhI0AAEAAAAAgBoGACoAAAAqAAAA////////aHpklYCjCABFAAAcAAEAAEABZtsKAAAFCgAAAQgA5ckSNAACAAAAAGCuCgAqAAAAKgAAAP///////2h6ZJWAowgARQAAHAABAABAAWbbCgAABQoAAAEIAOXIEjQAAwEAAAAAAAAAKgAAACoAAAD///////9oemSVgKMIAEUAABwAAQAAQAFm2woAAAUKAAABCADlxxI0AAQBAAAAoIYBACoAAAAqAAAA////////aHpklYCjCABFAAAcAAEAAEABZtsKAAAFCgAAAQgA5cYSNAAFAQAAAEANAwAqAAAAKgAAAP///////2h6ZJWAowgARQAAHAABAABAAWbbCgAABQoAAAEIAOXFEjQABgEAAADgkwQAKgAAACoAAAD///////9oemSVgKMIAEUAABwAAQAAQAFm2woAAAUKAAABCADlxBI0AAcBAAAAgBoGACoAAAAqAAAA////////aHpklYCjCABFAAAcAAEAAEABZtsKAAAFCgAAAQgA5cMSNAAIAQAAACChBwAqAAAAKgAAAP///////2h6ZJWAowgARQAAHAABAABAAWbbCgAABQoAAAEIAOXCEjQACQEAAADAJwkAKgAAACoAAAD///////9oemSVgKMIAEUAABwAAQAAQAFm2woAAAUKAAABCADlwRI0AAoBAAAAoLsNACoAAAAqAAAA////////aHpklYCjCABFAAAcAAEAAEABZtsKAAAFCgAAAQgA5cASNAALAgAAAEANAwAqAAAAKgAAAP///////2h6ZJWAowgARQAAHAABAABAAWbbCgAABQoAAAEIAOW/EjQADAIAAADgkwQAKgAAACoAAAD///////9oemSVgKMIAEUAABwAAQAAQAFm2woAAAUKAAABCADlvhI0AA0CAAAAgBoGACoAAAAqAAAA////////aHpklYCjCABFAAAcAAEAAEABZtsKAAAFCgAAAQgA5b0SNAAOAgAAACChBwAqAAAAKgAAAP///////2h6ZJWAowgARQAAHAABAABAAWbbCgAABQoAAAEIAOW8EjQADwIAAAAANQwAKgAAACoAAAD///////9oemSVgKMIAEUAABwAAQAAQAFm2woAAAUKAAABCADluxI0ABACAAAAoLsNACoAAAAqAAAA////////aHpklYCjCABFAAAcAAEAAEABZtsKAAAFCgAAAQgA5boSNAARAwAAAEANAwAqAAAAKgAAAP///////2h6ZJWAowgARQAAHAABAABAAWbbCgAABQoAAAEIAOW5EjQAEgMAAAAgoQcAKgAAACoAAAD///////9oemSVgKMIAEUAABwAAQAAQAFm2woAAAUKAAABCADluBI0ABMDAAAAwCcJACoAAAAqAAAA////////aHpklYCjCABFAAAcAAEAAEABZtsKAAAFCgAAAQgA5bcSNAAUAwAAAKC7DQAqAAAAKgAAAP///////2h6ZJWAowgARQAAHAABAABAAWbbCgAABQoAAAEIAOW2EjQAFQQAAABADQMAKgAAACoAAAD///////9oemSVgKMIAEUAABwAAQAAQAFm2woAAAUKAAABCADltRI0ABYEAAAAIKEHACoAAAAqAAAA////////aHpklYCjCABFAAAcAAEAAEABZtsKAAAFCgAAAQgA5bQSNAAXBAAAAMAnCQAqAAAAKgAAAP///////2h6ZJWAowgARQAAHAABAABAAWbbCgAABQoAAAEIAOWzEjQAGAQAAABgrgoAKgAAACoAAAD///////9oemSVgKMIAEUAABwAAQAAQAFm2woAAAUKAAABCADlshI0ABkFAAAAAAAAACoAAAAqAAAA////////aHpklYCjCABFAAAcAAEAAEABZtsKAAAFCgAAAQgA5bESNAAaBQAAAOCTBAAqAAAAKgAAAP///////2h6ZJWAowgARQAAHAABAABAAWbbCgAABQoAAAEIAOWwEjQAGwUAAACAGgYAKgAAACoAAAD///////9oemSVgKMIAEUAABwAAQAAQAFm2woAAAUKAAABCADlrxI0ABwFAAAAIKEHACoAAAAqAAAA////////aHpklYCjCABFAAAcAAEAAEABZtsKAAAFCgAAAQgA5a4SNAAdBQAAAAA1DAAqAAAAKgAAAP///////2h6ZJWAowgARQAAHAABAABAAWbbCgAABQoAAAEIAOWtEjQAHgYAAACghgEAKgAAACoAAAD///////9oemSVgKMIAEUAABwAAQAAQAFm2woAAAUKAAABCADlrBI0AB8GAAAAgBoGACoAAAAqAAAA////////aHpklYCjCABFAAAcAAEAAEABZtsKAAAFCgAAAQgA5asSNAAg",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "time_relative",
+          "example": "-r cap.pcap -T fields -e frame.time_relative",
+          "output": "0.000000000\n0.100000000\n0.400000000\n0.700000000\n1.000000000\n1.100000000\n1.200000000\n1.300000000\n1.400000000\n1.500000000\n1.800000000\n1.900000000\n2.000000000\n2.100000000\n2.200000000\n2.500000000\n2.800000000\n3.100000000\n3.200000000\n3.300000000\n3.400000000\n3.700000000\n3.800000000\n4.100000000\n4.400000000\n4.500000000\n4.600000000\n4.700000000\n4.800000000\n4.900000000\n5.000000000\n5.100000000\n5.400000000\n"
+        },
+        {
+          "match": "cap\\.pcap",
+          "example": "-r cap.pcap -nn",
+          "output": "    1   0.000000000    10.0.0.5 → 10.0.0.1      ICMP 74 Echo (ping) request  id=0x1234, seq=0/0, ttl=64\n    2   0.100000000    10.0.0.5 → 10.0.0.1      ICMP 74 Echo (ping) request  id=0x1234, seq=1/0, ttl=64\n    3   0.400000000    10.0.0.5 → 10.0.0.1      ICMP 74 Echo (ping) request  id=0x1234, seq=2/0, ttl=64\n    4   0.700000000    10.0.0.5 → 10.0.0.1      ICMP 74 Echo (ping) request  id=0x1234, seq=3/0, ttl=64\n    5   1.000000000    10.0.0.5 → 10.0.0.1      ICMP 74 Echo (ping) request  id=0x1234, seq=4/0, ttl=64\n"
+        }
+      ],
+      "fallback": "    1   0.000000000    10.0.0.5 → 10.0.0.1      ICMP 74 Echo (ping) request  id=0x1234, seq=0/0, ttl=64\n    2   0.100000000    10.0.0.5 → 10.0.0.1      ICMP 74 Echo (ping) request  id=0x1234, seq=1/0, ttl=64\n    3   0.400000000    10.0.0.5 → 10.0.0.1      ICMP 74 Echo (ping) request  id=0x1234, seq=2/0, ttl=64\n    4   0.700000000    10.0.0.5 → 10.0.0.1      ICMP 74 Echo (ping) request  id=0x1234, seq=3/0, ttl=64\n    5   1.000000000    10.0.0.5 → 10.0.0.1      ICMP 74 Echo (ping) request  id=0x1234, seq=4/0, ttl=64\n"
+    }
+  }
+}
