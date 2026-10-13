@@ -1,0 +1,55 @@
+{
+ "id": "forensics-gcp-forensics",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "expect": {
+  "file": "/home/student/task/found.txt",
+  "contains": "nto{gcp_4ud1t_l0g_k3y_p3rs1st3nc3}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: расследование инцидента в GCP\n\nПодозрение на кражу данных из проекта. Есть экспорт Cloud Audit Logs `audit.json`\nи права на чтение логов. Восстанови цепочку и найди флаг.\n\nШаги:\n1. Ищи создание ключа сервисной учётки:\n   `gcloud logging read 'protoPayload.methodName:\"CreateServiceAccountKey\"' --freshness=7d`.\n2. Ищи эскалацию: `gcloud logging read 'protoPayload.methodName:\"SetIamPolicy\"' --freshness=7d`.\n3. Ищи доступ к данным: `gcloud logging read 'protoPayload.methodName:\"storage.objects.get\"' --freshness=7d`.\n4. Флаг — имя выкачанного объекта: `grep nto audit.json > found.txt`.\n"
+  },
+  {
+   "path": "/home/student/task/notes.txt",
+   "text": "Заметки:\n- Admin Activity логи включены всегда; Data Access — по умолчанию ВЫКЛЮЧЕН.\n- Персистентность: долгоживущий ключ service account не требует «входа».\n- Ищи последовательность: CreateServiceAccountKey -> SetIamPolicy -> доступ к данным.\n"
+  },
+  {
+   "path": "/home/student/task/audit.json",
+   "b64": "WwogewogICJ0aW1lc3RhbXAiOiAiMjAyNC0wMy0wMVQyMjoxMDowMFoiLAogICJzZXZlcml0eSI6ICJOT1RJQ0UiLAogICJwcm90b1BheWxvYWQiOiB7CiAgICJAdHlwZSI6ICJ0eXBlLmdvb2dsZWFwaXMuY29tL2dvb2dsZS5jbG91ZC5hdWRpdC5BdWRpdExvZyIsCiAgICJhdXRoZW50aWNhdGlvbkluZm8iOiB7CiAgICAicHJpbmNpcGFsRW1haWwiOiAiYXR0YWNrZXJAZXhhbXBsZS5jb20iCiAgIH0sCiAgICJtZXRob2ROYW1lIjogImdvb2dsZS5pYW0uYWRtaW4udjEuQ3JlYXRlU2VydmljZUFjY291bnRLZXkiLAogICAicmVxdWVzdCI6IHsKICAgICJuYW1lIjogInByb2plY3RzL2Nhc2UtNDQxMi9zZXJ2aWNlQWNjb3VudHMvY2ktc2FAY2FzZS00NDEyLmlhbS5nc2VydmljZWFjY291bnQuY29tIiwKICAgICJrZXkiOiB7CiAgICAgImtleUFsZ29yaXRobSI6ICJLRVlfQUxHX1JTQV8yMDQ4IgogICAgfQogICB9LAogICAicmVzb3VyY2VOYW1lIjogInByb2plY3RzL2Nhc2UtNDQxMi9zZXJ2aWNlQWNjb3VudHMvY2ktc2FAY2FzZS00NDEyLmlhbS5nc2VydmljZWFjY291bnQuY29tIgogIH0KIH0sCiB7CiAgInRpbWVzdGFtcCI6ICIyMDI0LTAzLTAxVDIyOjEyOjAwWiIsCiAgInNldmVyaXR5IjogIk5PVElDRSIsCiAgInByb3RvUGF5bG9hZCI6IHsKICAgIkB0eXBlIjogInR5cGUuZ29vZ2xlYXBpcy5jb20vZ29vZ2xlLmNsb3VkLmF1ZGl0LkF1ZGl0TG9nIiwKICAgImF1dGhlbnRpY2F0aW9uSW5mbyI6IHsKICAgICJwcmluY2lwYWxFbWFpbCI6ICJhdHRhY2tlckBleGFtcGxlLmNvbSIKICAgfSwKICAgIm1ldGhvZE5hbWUiOiAiU2V0SWFtUG9saWN5IiwKICAgInJlcXVlc3QiOiB7CiAgICAicG9saWN5IjogewogICAgICJiaW5kaW5ncyI6IFsKICAgICAgewogICAgICAgInJvbGUiOiAicm9sZXMvc3RvcmFnZS5hZG1pbiIsCiAgICAgICAibWVtYmVycyI6IFsKICAgICAgICAic2VydmljZUFjY291bnQ6Y2ktc2FAY2FzZS00NDEyLmlhbS5nc2VydmljZWFjY291bnQuY29tIgogICAgICAgXQogICAgICB9CiAgICAgXQogICAgfQogICB9LAogICAicmVzb3VyY2VOYW1lIjogInByb2plY3RzL2Nhc2UtNDQxMiIKICB9CiB9LAogewogICJ0aW1lc3RhbXAiOiAiMjAyNC0wMy0wMVQyMjoxNTowMFoiLAogICJzZXZlcml0eSI6ICJJTkZPIiwKICAicHJvdG9QYXlsb2FkIjogewogICAiQHR5cGUiOiAidHlwZS5nb29nbGVhcGlzLmNvbS9nb29nbGUuY2xvdWQuYXVkaXQuQXVkaXRMb2ciLAogICAiYXV0aGVudGljYXRpb25JbmZvIjogewogICAgInByaW5jaXBhbEVtYWlsIjogImNpLXNhQGNhc2UtNDQxMi5pYW0uZ3NlcnZpY2VhY2NvdW50LmNvbSIKICAgfSwKICAgIm1ldGhvZE5hbWUiOiAic3RvcmFnZS5vYmplY3RzLmdldCIsCiAgICJyZXNvdXJjZU5hbWUiOiAicHJvamVjdHMvXy9idWNrZXRzL2Nhc2UtNDQxMi1ldmlkZW5jZS9vYmplY3RzL250b3tnY3BfNHVkMXRfbDBnX2szeV9wM3JzMXN0M25jM30udGFyLmd6IiwKICAgInJlc291cmNlIjogewogICAgImxhYmVscyI6IHsKICAgICAiYnVja2V0X25hbWUiOiAiY2FzZS00NDEyLWV2aWRlbmNlIiwKICAgICAib2JqZWN0X25hbWUiOiAibnRve2djcF80dWQxdF9sMGdfazN5X3AzcnMxc3QzbmMzfS50YXIuZ3oiCiAgICB9CiAgIH0KICB9CiB9Cl0=",
+   "mode": "644"
+  }
+ ],
+ "tools": {
+  "gcloud": {
+   "help": "gcloud logging read <фильтр> [--freshness=Nd] — эмуляция gcloud",
+   "cases": [
+    {
+     "match": "CreateServiceAccountKey",
+     "example": "logging read 'protoPayload.methodName:\"CreateServiceAccountKey\"'",
+     "output": "TIMESTAMP                PRINCIPAL_EMAIL          REQUEST_NAME\n2024-03-01T22:10:00Z     attacker@example.com     projects/case-4412/serviceAccounts/ci-sa@case-4412.iam.gserviceaccount.com\n"
+    },
+    {
+     "match": "SetIamPolicy",
+     "example": "logging read 'protoPayload.methodName:\"SetIamPolicy\"'",
+     "output": "TIMESTAMP                PRINCIPAL_EMAIL\n2024-03-01T22:12:00Z     attacker@example.com\n"
+    },
+    {
+     "match": "storage\\.objects",
+     "example": "logging read 'protoPayload.methodName:\"storage.objects.get\"'",
+     "output": "TIMESTAMP                PRINCIPAL_EMAIL                      RESOURCE\n2024-03-01T22:15:00Z     ci-sa@case-4412.iam.gserviceaccount.com  projects/_/buckets/case-4412-evidence/objects/nto{gcp_4ud1t_l0g_k3y_p3rs1st3nc3}.tar.gz\n"
+    },
+    {
+     "match": "logging\\s+read",
+     "example": "logging read '<фильтр>'",
+     "output": "TIMESTAMP                PRINCIPAL_EMAIL\n2024-03-01T22:15:00Z     ci-sa@case-4412.iam.gserviceaccount.com\n"
+    }
+   ]
+  }
+ }
+}

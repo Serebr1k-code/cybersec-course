@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting"
 estimated_minutes: 50
 summary: "Источники логов GCP (Cloud Audit Logs: Admin Activity, Data Access, System Event, Policy Denied), признаки компрометации service account, анализ IAM-изменений и сбор доказательств."
+lab:
+  kind: shell
+  title: "Практика: восстановить цепочку в Cloud Audit Logs"
+  toolset: [core, gcloud]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, audit.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с создания ключа: `gcloud logging read 'protoPayload.methodName:\"CreateServiceAccountKey\"' --freshness=7d`."
+    - "Затем эскалация прав: `gcloud logging read 'protoPayload.methodName:\"SetIamPolicy\"' --freshness=7d`."
+    - "Доступ к данным: `gcloud logging read 'protoPayload.methodName:\"storage.objects.get\"' --freshness=7d`."
+    - "Имя выкачанного объекта — это флаг: `grep nto audit.json > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

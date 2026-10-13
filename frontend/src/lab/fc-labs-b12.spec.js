@@ -36,6 +36,15 @@ const LABS = [
     solution: ['adb devices -l', 'adb shell pm list packages',
       'sqlite3 apps/org.thoughtcrime.securesms/databases/msgstore.db ".tables"',
       'sqlite3 apps/org.thoughtcrime.securesms/databases/msgstore.db "SELECT body FROM message" | grep nto > found.txt'] },
+  { id: 'forensics-mobile-ios', flag: 'nto{i0s_m4n1f3st_db_unl0cks_b4ckup}', hints: 4,
+    solution: ['plutil -p Info.plist',
+      'sqlite3 Manifest.db "SELECT fileID, domain, relativePath FROM Files"',
+      'sqlite3 sms.db "SELECT text FROM message ORDER BY date DESC LIMIT 3" | grep nto > found.txt'] },
+  { id: 'forensics-gcp-forensics', flag: 'nto{gcp_4ud1t_l0g_k3y_p3rs1st3nc3}', hints: 4,
+    solution: ['gcloud logging read protoPayload.methodName:CreateServiceAccountKey --freshness=7d',
+      'gcloud logging read protoPayload.methodName:SetIamPolicy --freshness=7d',
+      'gcloud logging read protoPayload.methodName:storage.objects.get --freshness=7d',
+      'grep nto audit.json > found.txt'] },
 ]
 
 describe.each(LABS)('forensics/crypto lab: $id', ({ id, flag, hints, solution }) => {

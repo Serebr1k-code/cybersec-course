@@ -13,6 +13,18 @@ useful_for:
   - "DFIR"
 estimated_minutes: 55
 summary: "Анализ iOS-устройств и бэкапов: структура iTunes/Finder-бэкапа, Manifest.db, Keychain, app-базы, системные артефакты и методы извлечения."
+lab:
+  kind: shell
+  title: "Практика: найти сообщение в iOS-бэкапе"
+  toolset: [core, plutil, sqlite]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, Info.plist, Manifest.db, sms.db]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Определи, зашифрован ли бэкап: `plutil -p Info.plist` (ключ `IsEncrypted`)."
+    - "Карта файлов — в `Manifest.db`: `sqlite3 Manifest.db \"SELECT fileID, domain, relativePath FROM Files\"`."
+    - "Переписка лежит в `sms.db` (домен `AppDomain-com.apple.MobileSMS`)."
+    - "Прочитай сообщения: `sqlite3 sms.db \"SELECT text FROM message\" | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается
