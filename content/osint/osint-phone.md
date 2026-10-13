@@ -13,6 +13,18 @@ useful_for:
   - "Проверка контрагентов"
 estimated_minutes: 50
 summary: "Что можно узнать по номеру телефона: формат E.164, мессенджеры, соцсети, утечки, определение оператора и этические границы."
+lab:
+  kind: shell
+  title: 'Практика: номер → оператор → корреляция'
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md, phone.py]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Нормализуй номер скриптом: `python3 phone.py`.'
+    - 'Проверь мессенджер: `curl -sI "https://wa.me/79165551122"`.'
+    - 'Найди номер в открытых текстах: `googler --json -n 10 "79165551122"`.'
+    - 'Открой найденный форум-пост: `curl -s "https://forum.example.net/thread/4821" > post.html`, затем `grep nto post.html` — там ник и маркер `nto{...}`.'
 ---
 
 ## Вопрос, с которого всё начинается

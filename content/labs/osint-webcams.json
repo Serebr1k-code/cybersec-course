@@ -1,0 +1,70 @@
+{
+  "id": "osint-webcams",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{c4m_g30l0c4t3d_0n3_fr4m3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: кадр с открытой камеры\n\nIP `203.0.113.44` — камера Hikvision. Нужно подтвердить, что она реальна, и снять один кадр.\n\n1. Поиск камер с включённым скриншотом в стране:\n   `shodan search --fields ip_str,port,product 'webcam country:RU has_screenshot:true'`\n2. Проверь поток, не скачивая видео:\n   `ffprobe -rtsp_transport tcp -v error -show_entries stream=codec_name,width,height \"rtsp://203.0.113.44:554/Streaming/Channels/101\"`\n3. Кадр уже сохранён как `cam.jpg`. Прочитай метаданные: `exiftool cam.jpg`.\n4. В поле `User Comment` зашита точка геолокации — маркер `nto{...}`. Запиши в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/cam.jpg",
+      "b64": "/9j/4AAQSkZJRgABAQAAAQABAAD/4QCKRXhpZgAATU0AKgAAAAgAApADAAIAAAAUAAAAJpKGAAIAAABHAAAAOgAAAAAyMDI2OjEwOjExIDE0OjIyOjAzAFJUU1AgZnJhbWUgZnJvbSAyMDMuMC4xMTMuNDQgZ2VvbG9jYXRlZDogbnRve2M0bV9nMzBsMGM0dDNkXzBuM19mcjRtM30AAP/bAEMACAYGBwYFCAcHBwkJCAoMFA0MCwsMGRITDxQdGh8eHRocHCAkLicgIiwjHBwoNyksMDE0NDQfJzk9ODI8LjM0Mv/bAEMBCQkJDAsMGA0NGDIhHCEyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMv/AABEIAEAAQAMBIgACEQEDEQH/xAAfAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgv/xAC1EAACAQMDAgQDBQUEBAAAAX0BAgMABBEFEiExQQYTUWEHInEUMoGRoQgjQrHBFVLR8CQzYnKCCQoWFxgZGiUmJygpKjQ1Njc4OTpDREVGR0hJSlNUVVZXWFlaY2RlZmdoaWpzdHV2d3h5eoOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4eLj5OXm5+jp6vHy8/T19vf4+fr/xAAfAQADAQEBAQEBAQEBAAAAAAAAAQIDBAUGBwgJCgv/xAC1EQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqCg4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/APJqKKK0MwooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigD//2Q==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "shodan": {
+      "help": "shodan search — поисковик баннеров (эмуляция реального формата)",
+      "cases": [
+        {
+          "match": "webcam",
+          "example": "shodan search --fields ip_str,port,product 'webcam country:RU has_screenshot:true'",
+          "output": "203.0.113.44  554   Hikvision IP Camera\n198.51.100.9  8080  Dahua\n"
+        }
+      ],
+      "fallback": "shodan: в этой лабе доступен только запрос `webcam country:RU has_screenshot:true`.\n"
+    },
+    "ffprobe": {
+      "help": "ffprobe [опции] <URL> — метаданные потока (эмуляция реального формата)",
+      "cases": [
+        {
+          "match": "rtsp",
+          "example": "ffprobe -rtsp_transport tcp -v error -show_entries stream=codec_name,width,height \"rtsp://203.0.113.44:554/Streaming/Channels/101\"",
+          "output": "[STREAM]\ncodec_name=h264\nwidth=1920\nheight=1080\n[/STREAM]\n"
+        }
+      ],
+      "fallback": "ffprobe: в этой лабе доступен только поток rtsp://203.0.113.44:554/Streaming/Channels/101.\n"
+    },
+    "exiftool": {
+      "help": "exiftool <файл> — метаданные изображения (эмуляция реального вывода)",
+      "cases": [
+        {
+          "match": "cam\\.jpg",
+          "example": "exiftool cam.jpg",
+          "output": "ExifTool Version Number         : 13.10\nFile Name                       : cam.jpg\nFile Type                       : JPEG\nFile Type Extension             : jpg\nMIME Type                       : image/jpeg\nImage Width                     : 64\nImage Height                    : 64\nExif Byte Order                 : Big-endian (Motorola, MM)\nDate/Time Original              : 2026:10:11 14:22:03\nGPS Position                    : 55 deg 45' 21.00\" N, 37 deg 37' 4.00\" E\nUser Comment                    : RTSP frame from 203.0.113.44 geolocated: nto{c4m_g30l0c4t3d_0n3_fr4m3}\n"
+        }
+      ],
+      "fallback": "exiftool: в этой лабе доступен только `exiftool cam.jpg`.\n"
+    },
+    "sha256sum": {
+      "help": "sha256sum <файл> — контрольная сумма (эмуляция реального вывода)",
+      "cases": [
+        {
+          "match": "cam\\.jpg",
+          "example": "sha256sum cam.jpg",
+          "output": "cb274156f4ce978d48edf58f49cc9e08b9fad686f6bcb7a0d93f7f547901da44  cam.jpg\n"
+        }
+      ],
+      "fallback": "sha256sum: в этой лабе доступен только `sha256sum cam.jpg`.\n"
+    }
+  }
+}

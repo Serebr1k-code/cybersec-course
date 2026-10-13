@@ -1,0 +1,48 @@
+{
+  "id": "osint-shodan-dorks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{sh0d4n_b4nn3r_r3v34l5_t0k3n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: от фильтра Shodan к баннеру\n\nОрганизация `Acme`. Найди её SSH-серверы через Shodan и определи, какой из них старый.\n\n1. Запрос по организации (сохрани ответ):\n   `shodan search --fields ip_str,port,product,version 'org:\"Acme\" port:22' > acme_ssh.json`\n2. Разбери JSON:\n   `jq -r '.[] | \"\\(.ip_str)\\t\\(.product) \\(.version)\"' acme_ssh.json`\n3. Устаревший хост (`203.0.113.15`, OpenSSH 7.4) изучи целиком: `shodan host 203.0.113.15`.\n4. В баннере есть внутренний маркер `nto{...}`. Запиши его в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "shodan": {
+      "help": "shodan search|host — поисковик баннеров (эмуляция реального формата)",
+      "cases": [
+        {
+          "match": "search.*org",
+          "example": "shodan search --fields ip_str,port,product,version 'org:\"Acme\" port:22'",
+          "output": "[\n  {\"ip_str\": \"203.0.113.10\", \"port\": 22, \"product\": \"OpenSSH\", \"version\": \"8.9\"},\n  {\"ip_str\": \"203.0.113.15\", \"port\": 22, \"product\": \"OpenSSH\", \"version\": \"7.4\"},\n  {\"ip_str\": \"198.51.100.7\", \"port\": 22, \"product\": \"OpenSSH\", \"version\": \"9.3\"}\n]\n"
+        },
+        {
+          "match": "host\\s+203\\.0\\.113\\.15",
+          "example": "shodan host 203.0.113.15",
+          "output": "203.0.113.15\nHostnames: ssh.acme.example\nCountry:   United States\nOrganization: Acme\nPorts: 22, 80\n  22/tcp OpenSSH 7.4 (protocol 2.0)\n  80/tcp nginx 1.18.0 (title: \"Acme Intranet - build nto{sh0d4n_b4nn3r_r3v34l5_t0k3n}\")\n"
+        }
+      ],
+      "fallback": "shodan: в этой лабе доступны `search ... org:\"Acme\"` и `host 203.0.113.15`.\n"
+    },
+    "jq": {
+      "help": "jq [-r] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "ip_str",
+          "example": "jq -r '.[] | ...' acme_ssh.json",
+          "output": "203.0.113.10\tOpenSSH 8.9\n203.0.113.15\tOpenSSH 7.4\n198.51.100.7\tOpenSSH 9.3\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживается только фильтр по `.ip_str`.\n"
+    }
+  }
+}

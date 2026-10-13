@@ -12,6 +12,18 @@ useful_for:
   - "CTF-задачи с поиском скрытых страниц"
 estimated_minutes: 45
 summary: "Операторы Google/Bing/Yandex, построение дорков, поиск утечек и панелей, OPSEC и ограничения."
+lab:
+  kind: shell
+  title: 'Практика: дорк → бэкап админки'
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Домен `example.com`. Дорк по админкам: `googler --json -n 20 "site:example.com inurl:admin" > dork1.json`.'
+    - 'Дорк по листингам: `googler --json -n 20 "site:example.com intitle:\"index of\"" > dork2.json`.'
+    - 'Открой найденный каталог `https://example.com/admin/backup/`, затем бэкап конфига: `curl -s "https://example.com/admin/backup/config.php.bak" > backup.txt`.'
+    - 'Внутри бэкапа строка с `nto{...}`. Запиши её в `answer.txt` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

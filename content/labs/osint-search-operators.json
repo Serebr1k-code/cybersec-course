@@ -1,0 +1,53 @@
+{
+  "id": "osint-search-operators",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{d0rk3d_4dm1n_b4ckup_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: от дорка к бэкапу админки\n\nДомен `example.com`. Поисковик проиндексировал служебные страницы — их надо подтвердить.\n\n1. Дорк по админ-разделам: `googler --json -n 20 \"site:example.com inurl:admin\" > dork1.json`\n2. Дорк по листингам каталогов: `googler --json -n 20 \"site:example.com intitle:\\\"index of\\\"\" > dork2.json`\n3. Открой каталог: `curl -s \"https://example.com/admin/backup/\" > listing.html`\n4. Скачай бэкап конфига: `curl -s \"https://example.com/admin/backup/config.php.bak\" > backup.txt`\n5. Найди маркер: `grep nto backup.txt`. Запиши `nto{...}` в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "googler": {
+      "help": "googler [--json] -n <N> <дорк> — поиск Google из CLI (эмуляция)",
+      "cases": [
+        {
+          "match": "inurl:admin",
+          "example": "googler --json -n 20 \"site:example.com inurl:admin\"",
+          "output": "[\n  {\"url\": \"https://example.com/admin/login.php\", \"title\": \"Admin Login\"},\n  {\"url\": \"https://example.com/admin/backup/\", \"title\": \"Index of /admin/backup\"}\n]\n"
+        },
+        {
+          "match": "index of",
+          "example": "googler --json -n 20 \"site:example.com intitle:\\\"index of\\\"\"",
+          "output": "[\n  {\"url\": \"https://example.com/admin/backup/\", \"title\": \"Index of /admin/backup\"},\n  {\"url\": \"https://example.com/files/\", \"title\": \"Index of /files\"}\n]\n"
+        }
+      ],
+      "fallback": "googler: в этой лабе доступны дорки `inurl:admin` и `intitle:\"index of\"` по site:example.com.\n"
+    },
+    "curl": {
+      "help": "curl [-s] <URL> — выгрузка (эмуляция реального формата)",
+      "cases": [
+        {
+          "match": "config\\.php\\.bak",
+          "example": "curl -s https://example.com/admin/backup/config.php.bak",
+          "output": "<?php\n// db\n$DB_HOST = \"db.internal.example.com\";\n$DB_USER = \"svc_admin\";\n$DB_PASS = \"Adm1n!Backup2024\";\n// deploy marker\ndefine(\"DEPLOY_TOKEN\", \"nto{d0rk3d_4dm1n_b4ckup_l34k}\");\n?>\n"
+        },
+        {
+          "match": "admin/backup",
+          "example": "curl -s https://example.com/admin/backup/",
+          "output": "<!DOCTYPE HTML><html><head><title>Index of /admin/backup</title></head>\n<body><h1>Index of /admin/backup</h1>\n<a href=\"config.php.bak\">config.php.bak</a>\n<a href=\"db-2024.sql.gz\">db-2024.sql.gz</a>\n</body></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны только /admin/backup/ и /admin/backup/config.php.bak.\n"
+    }
+  }
+}

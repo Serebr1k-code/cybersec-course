@@ -13,6 +13,18 @@ useful_for:
   - "CTF категория OSINT"
 estimated_minutes: 45
 summary: "Продвинутые фильтры Shodan и Censys, дорки по сервисам, работа с API и экспорт результатов для анализа."
+lab:
+  kind: shell
+  title: 'Практика: от фильтра Shodan к баннеру'
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Начни с запроса по организации: `shodan search --fields ip_str,port,product,version ''org:"Acme" port:22'' > acme_ssh.json`.'
+    - 'Разбери результат: `jq -r ''.[] | "\(.ip_str)\t\(.product) \(.version)"'' acme_ssh.json`.'
+    - 'Самый старый хост — `203.0.113.15`. Смотри полный баннер: `shodan host 203.0.113.15`.'
+    - 'В заголовке nginx на 80/tcp зашит внутренний маркер `nto{...}`. Запиши его в `answer.txt` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

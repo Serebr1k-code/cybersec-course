@@ -12,6 +12,18 @@ useful_for:
   - "Blue team: поиск своих открытых устройств"
 estimated_minutes: 45
 summary: "Поиск открытых веб-камер, IPTV и IoT по Shodan/Insecam, распознавание RTSP/MJPEG, геолокация по кадру и этические ограничения."
+lab:
+  kind: shell
+  title: 'Практика: кадр с открытой камеры'
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md, cam.jpg]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Найди камеры: `shodan search --fields ip_str,port,product ''webcam country:RU has_screenshot:true''`.'
+    - 'Определи поток кандидата `203.0.113.44`: `ffprobe -rtsp_transport tcp -v error -show_entries stream=codec_name,width,height "rtsp://203.0.113.44:554/Streaming/Channels/101"`.'
+    - 'Снятый кадр `cam.jpg` разбери метаданными: `exiftool cam.jpg`.'
+    - 'В поле `User Comment` — точка геолокации `nto{...}`. Запиши её в `answer.txt` и набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

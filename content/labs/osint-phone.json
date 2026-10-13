@@ -1,0 +1,63 @@
+{
+  "id": "osint-phone",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{ph0n3_t0_us3rn4m3_c0rr3l4t3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: номер → оператор → корреляция\n\nДан только номер `8 916 555-11-22`. Восстанови профиль.\n\n1. Нормализация и оператор: `python3 phone.py`\n2. Проверка мессенджера (только заголовок): `curl -sI \"https://wa.me/79165551122\"`\n3. Поиск номера в открытых текстах: `googler --json -n 10 \"79165551122\"`\n4. Открой найденный пост: `curl -s \"https://forum.example.net/thread/4821\" > post.html`\n5. Найди маркер: `grep nto post.html`. Запиши `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/phone.py",
+      "text": "import phonenumbers\nfrom phonenumbers import carrier, geocoder\n\nn = phonenumbers.parse(\"8 916 555-11-22\", \"RU\")\nprint(phonenumbers.format_number(n, phonenumbers.PhoneNumberFormat.E164))\nprint(phonenumbers.is_valid_number(n))\nprint(phonenumbers.region_code_for_number(n))\nprint(carrier.name_for_number(n, \"ru\"))\nprint(geocoder.description_for_number(n, \"ru\"))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — эмуляция запуска (вывод захвачен из реального phonenumbers)",
+      "cases": [
+        {
+          "match": "phone\\.py",
+          "example": "python3 phone.py",
+          "output": "+79165551122\nTrue\nRU\nПАО «МегаФон»\nМосква и Московская область\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе доступен только `python3 phone.py`.\n"
+    },
+    "curl": {
+      "help": "curl [-sI|-s] <URL> — проверка/выгрузка (эмуляция реального формата)",
+      "cases": [
+        {
+          "match": "wa\\.me",
+          "example": "curl -sI https://wa.me/79165551122",
+          "output": "HTTP/2 200\ncontent-type: text/html; charset=utf-8\nlocation: https://wa.me/79165551122\n"
+        },
+        {
+          "match": "forum",
+          "example": "curl -s https://forum.example.net/thread/4821",
+          "output": "<html><body><h1>Продам серверное железо</h1>\n<p>Связь: +7 916 555-11-22, ник @ivan_dev</p>\n<p>Профиль: <a href=\"https://github.com/ivan-dev\">github.com/ivan-dev</a></p>\n<!-- contact-token: nto{ph0n3_t0_us3rn4m3_c0rr3l4t3d} -->\n</body></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны только wa.me/79165551122 и forum.example.net/thread/4821.\n"
+    },
+    "googler": {
+      "help": "googler [--json] -n <N> <запрос> — поиск Google из CLI (эмуляция)",
+      "cases": [
+        {
+          "match": "79165551122",
+          "example": "googler --json -n 10 \"79165551122\"",
+          "output": "[\n  {\"url\": \"https://forum.example.net/thread/4821\", \"title\": \"Продам серверное железо - forum.example.net\"}\n]\n"
+        }
+      ],
+      "fallback": "googler: в этой лабе доступен только запрос `79165551122`.\n"
+    }
+  }
+}
