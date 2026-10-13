@@ -12,6 +12,18 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 55
 summary: "Как использовать vDSO и vsyscall-страницу для получения syscall-гаджета и утечки/вызова без известного адреса libc; особенности ASLR и shadow-маппинга."
+lab:
+  kind: shell
+  title: "Практика: гаджет syscall;ret"
+  toolset: [core, objdump]
+  workdir: /home/student/task
+  files: [task.md, vdso.bin, maps.txt]
+  check: "grep -q 'gadget=0x111b' answer.txt"
+  hints:
+    - "`cat maps.txt` — реальные строки [vdso]/[vsyscall]."
+    - "`objdump -d vdso.bin` — дизасм vDSO."
+    - "Ищи `syscall`, сразу за которым идёт `ret`."
+    - "Смещение гаджета — `0x111b`. Запиши `gadget=0x111b`."
 ---
 
 ## Вопрос, с которого всё начинается

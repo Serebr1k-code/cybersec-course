@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 45
 summary: "Устройство large bin в glibc, почему вставка чанка даёт запись указателя по контролируемому адресу и как применять примитив на современном glibc."
+lab:
+  kind: shell
+  title: "Практика: граница large bin"
+  toolset: [core, objdump]
+  workdir: /home/student/task
+  files: [task.md, largebin.c, largebin, run.txt]
+  check: "grep -q 'threshold=0x400' answer.txt"
+  hints:
+    - "`cat largebin.c` — размер чанка 0x420."
+    - "`cat run.txt` — чанк сортируется в large bin."
+    - "Граница между small и large bins — 0x400."
+    - "Запиши `threshold=0x400`."
 ---
 
 ## Вопрос, с которого всё начинается

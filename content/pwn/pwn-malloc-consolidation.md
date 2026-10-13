@@ -13,6 +13,18 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 50
 summary: "Разбираем консолидацию чанков: unlink и его проверки, слияние с top chunk и unsorted bin, и как превратить это в произвольную запись."
+lab:
+  kind: shell
+  title: "Практика: размер слитого чанка"
+  toolset: [core, objdump]
+  workdir: /home/student/task
+  files: [task.md, consol.c, consol, run.txt]
+  check: "grep -q 'merged=0x841' answer.txt"
+  hints:
+    - "`cat run.txt` — размеры до и после free(B)."
+    - "A и B по 0x420; backward consolidation сливает их."
+    - "0x420 + 0x420 = 0x840, плюс флаг prev_inuse = 0x841."
+    - "Запиши `merged=0x841`."
 ---
 ## Вопрос, с которого всё начинается
 

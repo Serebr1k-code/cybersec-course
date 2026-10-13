@@ -13,6 +13,18 @@ useful_for:
   - "Browser exploitation"
 estimated_minutes: 60
 summary: "Разбираем use-after-free и double-free: как освобождённый объект переиспользуется, как захватить управление через vtable/указатели функций и построить RCE."
+lab:
+  kind: shell
+  title: "Практика: reuse после free"
+  toolset: [core, objdump]
+  workdir: /home/student/task
+  files: [task.md, uaf.c, uaf, run.txt]
+  check: "grep -q 'reuse=yes' answer.txt"
+  hints:
+    - "`cat uaf.c` — free(o), но указатель остаётся живым."
+    - "`cat run.txt` — адрес `o` и новый `malloc(0x40)`."
+    - "Сравни адреса: они совпадают?"
+    - "Запиши `reuse=yes` (или `reuse=no`)."
 ---
 
 ## Вопрос, с которого всё начинается

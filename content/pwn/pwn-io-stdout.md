@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 60
 summary: "Как использовать _IO_2_1_stdout_ для утечки libc (без UAF) и House of Husk для получения выполнения кода через printf-цепочку."
+lab:
+  kind: shell
+  title: "Практика: смещение system"
+  toolset: [core, readelf]
+  workdir: /home/student/task
+  files: [task.md, libc.sym]
+  check: "grep -q 'system=0x53b00' answer.txt"
+  hints:
+    - "`readelf -sW libc.sym` — таблица символов libc."
+    - "Ищи `system`."
+    - "Первый столбец — смещение от базы libc."
+    - "Запиши `system=0x53b00`."
 ---
 ## Вопрос, с которого всё начинается
 
