@@ -13,6 +13,18 @@ useful_for:
   - "Оценивать constant-time реализации"
 estimated_minutes: 45
 summary: "Cache side-channels против криптографии: иерархия кэшей, Flush+Reload и Prime+Probe, атака на табличные реализации AES (T-tables), утечки через S-box, связь со Spectre/Meltdown, инструменты и контрмеры (constant-time, бит-слайсинг, аппаратный AES)."
+lab:
+  kind: shell
+  title: 'Практика: восстановление ключа из cache-трасс'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, cache_trace.json, cache_recover.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'В `cache_trace.json` — S-box и шумные наблюдения затронутых индексов.'
+    - 'Для каждого байта ключа пересекай множества кандидатов `k` при `SBOX[pt^k] ∈ seen`.'
+    - 'После нескольких открытых текстов остаётся единственный кандидат.'
+    - 'Запусти `python3 cache_recover.py` — ключ и есть флаг `nto{…}`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,68 @@
+{
+  "id": "forensics-chain-custody",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ch41n_0f_cust0dy_1nt4ct}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: целостность цепочки хранения\n\n`laptop.img` + `image.sha256` — образ и его хеш; `custody.log` — журнал передач улики.\n\n1. Проверь образ: `sha256sum -c image.sha256`.\n2. Проверь цепочку HMAC-связей: `python3 custody_verify.py`.\n\nФлаг `nto{...}` — `sealed note` последней записи. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/laptop.img",
+      "b64": "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"
+    },
+    {
+      "path": "/home/student/task/image.sha256",
+      "text": "238e2e2c64c0f0ea5d0c7740fb489b779ab6074910f02e7711eff76de67e7cd5  laptop.img\n"
+    },
+    {
+      "path": "/home/student/task/custody.log",
+      "text": "E001|2026-03-01T10:00:00Z|Ivanov|seized|laptop Lenovo S/N PF12345||296d3acf2e601879bc67c175556e0ccded10de5726b1505ab12ef74c3fd92624\nE002|2026-03-01T10:15:00Z|Ivanov|imaged|dc3dd sha256=238e2e2c64c0f0ea|296d3acf2e601879bc67c175556e0ccded10de5726b1505ab12ef74c3fd92624|f5f1d573b6f0854ccf2e98aa78090a082bdacd002b2dd856a1106826d1c666f7\nE003|2026-03-01T11:00:00Z|Petrov|received|analyst workstation|f5f1d573b6f0854ccf2e98aa78090a082bdacd002b2dd856a1106826d1c666f7|bbf0e5a04773af7a25aa96e334ca10d66144aaf53fff4c853fc98d6fe6d20ce3\nE004|2026-03-02T09:00:00Z|Petrov|sealed|nto{ch41n_0f_cust0dy_1nt4ct}|bbf0e5a04773af7a25aa96e334ca10d66144aaf53fff4c853fc98d6fe6d20ce3|0805632d7a583a0784a623d28cf18a0ee7d9d34c3870a4ce0aefaf8a77112c9b\n"
+    },
+    {
+      "path": "/home/student/task/custody_verify.py",
+      "text": "#!/usr/bin/env python3\n# Verify an HMAC-linked chain-of-custody log; report the first broken link.\nimport hmac, hashlib\nkey = b\"custody-hmac-key\"\nprev = \"\"\nok = True\nfor ln in open(\"custody.log\"):\n    ln = ln.rstrip(\"\\n\")\n    if not ln:\n        continue\n    eid, ts, who, act, note, p, mac = ln.split(\"|\")\n    calc = hmac.new(key, \"|\".join([eid, ts, who, act, note, p]).encode(),\n                    hashlib.sha256).hexdigest()\n    good = (calc == mac) and (p == prev)\n    print(\"%s %-8s %-9s %s\" % (eid, act, who, \"OK\" if good else \"TAMPERED\"))\n    if not good:\n        ok = False\n    prev = mac\nprint(\"chain intact:\", ok)\nprint(\"sealed note:\", note)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "custody_verify\\.py",
+          "example": "python3 custody_verify.py",
+          "output": "E001 seized   Ivanov    OK\nE002 imaged   Ivanov    OK\nE003 received Petrov    OK\nE004 sealed   Petrov    OK\nchain intact: True\nsealed note: nto{ch41n_0f_cust0dy_1nt4ct}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 custody_verify.py`\n"
+    },
+    "sha256sum": {
+      "help": "sha256sum [-c] <файл> — SHA-256 хеш / проверка",
+      "cases": [
+        {
+          "match": "\\-c\\s+image\\.sha256",
+          "example": "sha256sum -c image.sha256",
+          "output": "laptop.img: OK\n"
+        },
+        {
+          "match": "laptop\\.img",
+          "example": "sha256sum laptop.img",
+          "output": "238e2e2c64c0f0ea5d0c7740fb489b779ab6074910f02e7711eff76de67e7cd5  laptop.img\n"
+        }
+      ]
+    }
+  }
+}

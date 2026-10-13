@@ -1,0 +1,45 @@
+{
+  "id": "crypto-rsa-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{fr4nkl1n_r31t3r_gcd_m4st3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Franklin-Reiter на RSA\n\n`challenge.txt` содержит `n`, `e=3`, `b`, `c1`, `c2`. Два сообщения связаны `m2 = m1 + b`.\n\nВосстанови `m1` через НОД полиномов `f(x)=x^e-c1` и `g(x)=(x+b)^e-c2` по модулю `n`: `python3 solve.py`.\n\nФлаг `nto{...}` — это `m1`. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/challenge.txt",
+      "text": "# Franklin-Reiter: два сообщения связаны m2 = m1 + b, e = 3\nn  = 103330381097953101807230443420239962872894437208682814320890896621464037921755858086458921945258387574086025465126632747279691293975207671387147147636836122116961877736503086295282778930304988289417593426912596329995193104558896166015084911543711694479453307598745127327653342508542875846263008018609468940619\ne  = 3\nb  = 4660\nc1 = 7432774661662100807799498630211765414613948860846299784300225074343940552535953584718320240763489331540995531068976370680899503103521395912303847591713345416534066353388610328616999337697553255610314610544740240944907211621\nc2 = 7432774661662100807799498630211765414613948860846299784300225074343941084980621783848048784051861206952276113630727488267269851996481560146237325725883489635692264818067249311386441388061397222731434219044506814616252950801\n"
+    },
+    {
+      "path": "/home/student/task/solve.py",
+      "text": "#!/usr/bin/env python3\n# Franklin-Reiter: gcd(x^3 - c1, (x+b)^3 - c2) over Z_n recovers m1.\nimport re\n\ntxt = open(\"challenge.txt\").read()\nn = int(re.search(r\"n\\s*=\\s*(\\d+)\", txt).group(1))\ne = int(re.search(r\"e\\s*=\\s*(\\d+)\", txt).group(1))\nb = int(re.search(r\"b\\s*=\\s*(\\d+)\", txt).group(1))\nc1 = int(re.search(r\"c1\\s*=\\s*(\\d+)\", txt).group(1))\nc2 = int(re.search(r\"c2\\s*=\\s*(\\d+)\", txt).group(1))\n\ndef trim(a, mod):\n    while a and a[-1] % mod == 0:\n        a = a[:-1]\n    return a\n\ndef polymod(a, b, mod):\n    a = a[:]\n    while len(a) >= len(b) and a:\n        if a[-1] % mod == 0:\n            a = a[:-1]\n            continue\n        coef = (a[-1] * pow(b[-1], -1, mod)) % mod\n        shift = len(a) - len(b)\n        for i in range(len(b)):\n            a[i + shift] = (a[i + shift] - coef * b[i]) % mod\n        a = trim(a, mod)\n    return a\n\ndef polygcd(a, b, mod):\n    while b:\n        a, b = b, polymod(a, b, mod)\n    return a\n\n# f(x) = x^e - c1  (coeffs low->high)\nf = [(-c1) % n] + [0] * (e - 1) + [1]\n# g(x) = (x+b)^e - c2\ng = [0] * (e + 1)\nfor k in range(e + 1):\n    from math import comb\n    g[k] = (comb(e, k) * pow(b, e - k, n)) % n\ng[0] = (g[0] - c2) % n\nh = polygcd(f, g, n)\nh = trim(h, n)\nprint(\"gcd degree =\", len(h) - 1)\nif len(h) - 1 == 1:\n    x0 = (-h[0] * pow(h[1], -1, n)) % n\n    msg = x0.to_bytes((x0.bit_length() + 7) // 8, \"big\")\n    print(\"recovered m1 =\", msg.decode())\nelse:\n    print(\"gcd not linear; attack failed\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "solve\\.py",
+          "example": "python3 solve.py",
+          "output": "gcd degree = 1\nrecovered m1 = nto{fr4nkl1n_r31t3r_gcd_m4st3r}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 solve.py`\n"
+    }
+  }
+}

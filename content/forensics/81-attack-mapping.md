@@ -13,6 +13,18 @@ useful_for:
   - "Threat Hunting / SOC"
 estimated_minutes: 45
 summary: "Как сопоставлять форензические артефакты с техниками MITRE ATT&CK: таблица артефакт→техника, построение покрытия и использование в отчёте и детектах."
+lab:
+  kind: shell
+  title: 'Практика: сопоставление с MITRE ATT&CK'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, events.jsonl, attack_map.json, attack_map_run.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'События лежат по одному JSON на строку в `events.jsonl`.'
+    - 'Скрипт `attack_map_run.py` сопоставляет их с таблицей `attack_map.json`.'
+    - 'Запусти `python3 attack_map_run.py` — получишь kill-chain из техник.'
+    - 'Артефакт-маркер содержит флаг `nto{…}`; запиши его в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

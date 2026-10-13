@@ -13,6 +13,18 @@ useful_for:
   - "Анализ macOS"
 estimated_minutes: 45
 summary: "Ключевые артефакты macOS: FSEvents, Unified Log, quarantine (com.apple.quarantine), LaunchAgents/Daemons, Keychain, Time Machine — и как их извлекать."
+lab:
+  kind: shell
+  title: 'Практика: LaunchAgent plist и quarantine'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, com.evil.updater.plist, quarantine.txt, evil/run.sh, macos_parse.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Разбери plist: `python3 macos_parse.py`.'
+    - 'Обрати внимание на `ProgramArguments` — путь к payload-скрипту.'
+    - 'Прочитай этот скрипт: `cat evil/run.sh`.'
+    - 'Флаг — строка `nto{…}` в теле скрипта; запиши её в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

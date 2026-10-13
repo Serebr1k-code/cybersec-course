@@ -13,6 +13,18 @@ useful_for:
   - "Понимать решёточные атаки на RSA"
 estimated_minutes: 45
 summary: "Продвинутые атаки на RSA: Franklin-Reiter (линейно связанные сообщения), Coppersmith (малые корни полинома), восстановление ключа при известных старших битах p или d, stereotyped messages. Разбор с кодом на Sage, распознавание и связь с решётками."
+lab:
+  kind: shell
+  title: 'Практика: Franklin-Reiter на RSA'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, challenge.txt, solve.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'В `challenge.txt` — `n`, `e=3`, `b`, `c1`, `c2`; сообщения связаны `m2 = m1 + b`.'
+    - 'Построй два полинома: `f(x)=x^e−c1` и `g(x)=(x+b)^e−c2`.'
+    - 'Их НОД по модулю `n` линеен, а его корень — исходное сообщение.'
+    - 'Запусти `python3 solve.py` — флаг `nto{…}` восстановится как `m1`.'
 ---
 
 ## Вопрос, с которого всё начинается

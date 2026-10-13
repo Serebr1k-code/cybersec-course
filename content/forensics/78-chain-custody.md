@@ -13,6 +13,18 @@ useful_for:
   - "CTF (теория)"
 estimated_minutes: 40
 summary: "Как обеспечить допустимость цифровых доказательств: цепочка хранения, хэширование, write blockers, документация, порядок изъятия и типовые ошибки."
+lab:
+  kind: shell
+  title: 'Практика: проверка цепочки хранения'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, laptop.img, image.sha256, custody.log, custody_verify.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Проверь целостность образа: `sha256sum -c image.sha256`.'
+    - 'Проверь цепочку: `python3 custody_verify.py`.'
+    - 'Каждая запись связана HMAC с предыдущей; статус должен быть OK.'
+    - 'Флаг — `sealed note` последней записи `nto{…}`; запиши его в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается
