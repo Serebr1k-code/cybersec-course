@@ -1,0 +1,49 @@
+{
+  "id": "stego-blockchain",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0p_r3turn_b1tco1n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: OP_RETURN\n\n`tx.hex` — сырая биткоин-транзакция (hex). В ней есть выход `OP_RETURN` (opcode 0x6a) с полезной нагрузкой.\n\n1. `head -c 120 tx.hex` — hex транзакции.\n2. Разбери выход: `python3 opret.py`.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "OP_RETURN = 0x6a + длина + данные. Это стандартный канал для произвольных данных в блокчейне (до 80 байт).\n"
+    },
+    {
+      "path": "/home/student/task/tx.hex",
+      "b64": "MDIwMDAwMDAwMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTEwMDAwMDAwMDAwZmZmZmZmZmYwMmU4MDMwMDAwMDAwMDAwMDAxOTc2YTkxNGFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWJhYmFiYWI4OGFjMDAwMDAwMDAwMDAwMDAwMDE4NmExNjZlNzQ2ZjdiMzA3MDVmNzIzMzc0NzU3MjZlNWY2MjMxNzQ2MzZmMzE2ZTdkMDAwMDAwMDAK",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/opret.py",
+      "text": "raw = bytes.fromhex(open('tx.hex').read().strip())\ni = 0\ndef rd(n):\n    global i\n    v = raw[i:i+n]; i += n; return v\ndef varint():\n    global i\n    n = raw[i]; i += 1\n    if n < 0xfd: return n\n    if n == 0xfd: return int.from_bytes(rd(2),'little')\n    return int.from_bytes(rd(4),'little')\nrd(4)                                   # version\nfor _ in range(varint()):               # inputs\n    rd(36); rd(varint()); rd(4)\nfor _ in range(varint()):               # outputs\n    rd(8)\n    spk = rd(varint())\n    if spk and spk[0] == 0x6a:          # OP_RETURN\n        ln = spk[1]\n        print('OP_RETURN output found')\n        print(spk[2:2+ln].decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4\n"
+        },
+        {
+          "match": "opret\\.py",
+          "example": "python3 opret.py",
+          "output": "OP_RETURN output found\nnto{0p_r3turn_b1tco1n}\n"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "id": "stego-capacity-theory",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ch4nn3l_c4p4c1ty_b0und}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: предел ёмкости\n\n`capacity_cover.png` — носитель. Посчитай его LSB-ёмкость и запиши ответ (вместе с флагом) в `found.txt`.\n\n`python3 capacity.py` считает W*H*3 бит для RGB. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Ёмкость LSB = W*H*channels бит. Для RGB — три бита на пиксель. Это верхняя граница канала; незаметность требует меньшего.\n"
+    },
+    {
+      "path": "/home/student/task/capacity_cover.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAIAAAABgCAIAAABaGO0eAAAA7ElEQVR4nO3RMQ0AIADAMEAN/oMIZCGjB6uCJZv37BFn6YDfNQBrANYArAFYA7AGYA3AGoA1AGsA1gCsAVgDsAZgDcAagDUAawDWAKwBWAOwBmANwBqANQBrANYArAFYA7AGYA3AGoA1AGsA1gCsAVgDsAZgDcAagDUAawDWAKwBWAOwBmANwBqANQBrANYArAFYA7AGYA3AGoA1AGsA1gCsAVgDsAZgDcAagDUAawDWAKwBWAOwBmANwBqANQBrANYArAFYA7AGYA3AGoA1AGsA1gCsAVgDsAZgDcAagDUAawDWAKwBWAOwBmAPoEUCZMoDHrkAAAAASUVORK5CYII=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/capacity.py",
+      "text": "from PIL import Image\nim = Image.open('capacity_cover.png')\nw, h = im.size\nbits = w * h * 3\nprint('cover: %dx%d RGB' % (w, h))\nprint('capacity = W*H*3 = %d bits = %d bytes' % (bits, bits // 8))\nprint('nto{ch4nn3l_c4p4c1ty_b0und}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4\n"
+        },
+        {
+          "match": "capacity\\.py",
+          "example": "python3 capacity.py",
+          "output": "cover: 128x96 RGB\ncapacity = W*H*3 = 36864 bits = 4608 bytes\nnto{ch4nn3l_c4p4c1ty_b0und}\n"
+        }
+      ]
+    }
+  }
+}

@@ -12,6 +12,18 @@ useful_for:
   - "Research: децентрализованные носители и вечные данные"
 estimated_minutes: 29
 summary: "Сокрытие данных в блокчейне и распределённых хранилищах: произвольные данные в транзакциях (OP_RETURN), метаданные NFT, IPFS-контент, кодирование в адресах и суммах; извлечение через эксплореры и API."
+lab:
+  kind: shell
+  title: "Практика: OP_RETURN"
+  toolset: [core, python3, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, tx.hex, opret.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`tx.hex` — сырая транзакция в hex."
+    - "Выход OP_RETURN начинается с байта 0x6a."
+    - "Разбери его скриптом: `python3 opret.py`."
+    - "Сохрани: `python3 opret.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

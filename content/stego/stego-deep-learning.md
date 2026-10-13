@@ -12,6 +12,18 @@ useful_for:
   - "Research: ML-стеганография и стегоанализ"
 estimated_minutes: 36
 summary: "Как нейросети прячут и извлекают данные: архитектура энкодер-декодер, генеративная стеганография на GAN, состязательный стегоанализ, метрики незаметности и почему это меняет правила игры."
+lab:
+  kind: shell
+  title: "Практика: нейросетевой декодер"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, nncover.png, nn.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сеть прячет данные в остатке (residual)."
+    - "Остаток здесь — младший бит синего канала."
+    - "Запусти декодер: `python3 nn.py`."
+    - "Сохрани: `python3 nn.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

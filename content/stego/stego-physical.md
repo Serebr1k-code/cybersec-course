@@ -12,6 +12,18 @@ useful_for:
   - "Forensics: анализ физических объектов и носителей"
 estimated_minutes: 27
 summary: "Сокрытие данных вне цифрового домена: рельеф и микроперфорация бумаги, термальные метки, магнитные состояния носителей, механические дефекты печатных машинок и пишущих устройств."
+lab:
+  kind: shell
+  title: "Практика: микроперфорация"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, paper.png, relief.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Данные вне «картинки» — в дефектах носителя."
+    - "Тёмные проколы на сетке = 1."
+    - "Прочитай сетку: `python3 relief.py`."
+    - "Сохрани: `python3 relief.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -12,6 +12,18 @@ useful_for:
   - "Supply chain: скрытые данные в коде и зависимостях"
 estimated_minutes: 27
 summary: "Как прячут данные в исходном коде: пробелы и переводы строк, комментарии, порядок и имена переменных, невидимые Unicode-символы, гомоглифы, CSS-значения и HTML-атрибуты; инструменты поиска и разбора."
+lab:
+  kind: shell
+  title: "Практика: канал в пробелах"
+  toolset: [core, python3, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, bundle.js, ws.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`cat -A bundle.js | head` покажет концевые пробелы."
+    - "Пробел = 0, таб = 1 — whitespace-канал."
+    - "Base64-комментарий — decoy, не верь ему."
+    - "Сохрани: `python3 ws.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

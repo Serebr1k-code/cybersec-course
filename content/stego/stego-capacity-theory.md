@@ -12,6 +12,18 @@ useful_for:
   - "Выбор носителя и оценка достижимой ёмкости"
 estimated_minutes: 36
 summary: "Стегоканал как канал связи: пропускная способность, rate-distortion, размен ёмкости и незаметности, выбор cover (cover selection), теоретические пределы и практические оценки."
+lab:
+  kind: shell
+  title: "Практика: расчёт ёмкости"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, capacity_cover.png, capacity.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Ёмкость LSB = W*H*каналы бит."
+    - "Для RGB — три бита на пиксель."
+    - "Посчитай: `python3 capacity.py`."
+    - "Сохрани: `python3 capacity.py | grep nto > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,49 @@
+{
+  "id": "stego-code",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c0d3_wh1t3sp4c3_ch4nn3l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: канал в исходнике\n\n`bundle.js` — собранный JS. Помимо кода в нём есть канал из концевых пробелов/табов в строках. Плюс есть base64-комментарий (осторожно: это decoy).\n\n1. `cat -A bundle.js | head` — увидишь концевые пробелы.\n2. Извлеки сообщение из whitespace-канала: `python3 ws.py`.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Пробел = 0, таб = 1. Концевые пробелы не влияют на работу кода, поэтому это популярный канал. Base64 в комментарии может быть ловушкой.\n"
+    },
+    {
+      "path": "/home/student/task/bundle.js",
+      "b64": "Ly8gYnVuZGxlZCBhbmFseXRpY3MgdjIuMS4wIAkJIAkJCmZ1bmN0aW9uIHRyYWNrKGUpewkgIAkJCQogIHZhciBpZCA9IGUuaWQgfHwgImFub24iOyAJICAgCQogIHJldHVybiB7aWQ6aWQsdHM6RGF0ZS5ub3coKX07CSAJCQkJCn0gCQkJCSAKLyogYmFzZTY0IGNvbmZpZzogYm5SdmUyTXdaRE5mWXpCdGJUTnVkRjlrTTJNd2VYMD0gKi8JCSAJCSAKbW9kdWxlLmV4cG9ydHMgPSB7dHJhY2s6dHJhY2t9OyAgCQkgIAovLyBlb2YJCSAgICAgCQkgIAkgICAgCQkgIAkJIAkgCQkJCQkgCQkJIAkJCSAJCSAJICAgICAJCSAgIAkgCQkJIAkgICAgCQkgIAkJIAkJCSAgCQkgCQkJICAgICAgCQkgCSAgIAkJICAgCQkgIAkJICAJCSAJIAkJCQkJIAkJICAgCQkgCQkgCSAgICAgCQkgCSAgIAkJIAkJCSAgCQkgCQkJICAgCQkgIAkJIAkJIAkJICAgCQkJCQkgCQo=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/ws.py",
+      "text": "import re\nbits = ''\nfor ln in open('bundle.js').read().split('\\n'):\n    for ch in ln[len(ln.rstrip(' \\t')):]:\n        bits += '1' if ch == '\\t' else '0'\ndata = bytes(int(bits[i:i+8], 2) for i in range(0, len(bits)//8*8, 8))\nm = re.search(rb'nto\\{[^}]*\\}', data)\nprint('trailing-whitespace channel:')\nprint(m.group().decode() if m else '(nothing)')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4\n"
+        },
+        {
+          "match": "ws\\.py",
+          "example": "python3 ws.py",
+          "output": "trailing-whitespace channel:\nnto{c0d3_wh1t3sp4c3_ch4nn3l}\n"
+        }
+      ]
+    }
+  }
+}
