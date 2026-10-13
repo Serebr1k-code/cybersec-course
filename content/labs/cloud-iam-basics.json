@@ -1,0 +1,26 @@
+{
+  "id": "cloud-iam-basics",
+  "workdir": "/home/student/iam",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/iam/found.txt",
+    "contains": "nto{1am_w1ldc4rd_4dm1n}"
+  },
+  "fs": [
+    { "path": "/home/student/iam", "type": "dir" },
+    {
+      "path": "/home/student/iam/task.md",
+      "text": "# Задача: читаем политику — читаем права\n\nВ бэкапе S3 ты нашёл дамп IAM-политики, сохранённый в base64 (`iam-backup.b64`).\nВнутри — документ политики в формате JSON.\n\nИнструменты: `base64`, `grep`, `cat`.\n\nШаги:\n1. Декодируй дамп: `base64 -d iam-backup.b64 > policies.json`.\n2. Найди в политике `Statement`, который разрешает **всё** (`\"Action\": \"*\"`).\n3. Его `Sid` — это флаг. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/iam/notes.md",
+      "text": "Заметки\n------\n- Политика = список Statement. У каждого: Effect (Allow/Deny), Action (что можно), Resource (к чему).\n- Опасные признаки: Action '*', Resource '*', iam:PassRole, iam:CreatePolicyVersion, sts:AssumeRole на '*'.\n- Deny всегда сильнее Allow.\n"
+    },
+    {
+      "path": "/home/student/iam/iam-backup.b64",
+      "text": "ewogICJWZXJzaW9uIjogIjIwMTItMTAtMTciLAogICJTdGF0ZW1lbnQiOiBbCiAgICB7CiAgICAgICJTaWQiOiAiUzNSZWFkT25seSIsCiAgICAgICJFZmZlY3QiOiAiQWxsb3ciLAogICAgICAiQWN0aW9uIjogWwogICAgICAgICJzMzpHZXRPYmplY3QiLAogICAgICAgICJzMzpMaXN0QnVja2V0IgogICAgICBdLAogICAgICAiUmVzb3VyY2UiOiBbCiAgICAgICAgImFybjphd3M6czM6OjpteWNvbXBhbnktc3RhdGljLXNpdGUiLAogICAgICAgICJhcm46YXdzOnMzOjo6bXljb21wYW55LXN0YXRpYy1zaXRlLyoiCiAgICAgIF0KICAgIH0sCiAgICB7CiAgICAgICJTaWQiOiAiQmFja3VwV3JpdGUiLAogICAgICAiRWZmZWN0IjogIkFsbG93IiwKICAgICAgIkFjdGlvbiI6IFsKICAgICAgICAiczM6UHV0T2JqZWN0IgogICAgICBdLAogICAgICAiUmVzb3VyY2UiOiAiYXJuOmF3czpzMzo6Om15Y29tcGFueS1iYWNrdXBzLyoiCiAgICB9LAogICAgewogICAgICAiU2lkIjogIm50b3sxYW1fdzFsZGM0cmRfNGRtMW59IiwKICAgICAgIkVmZmVjdCI6ICJBbGxvdyIsCiAgICAgICJBY3Rpb24iOiAiKiIsCiAgICAgICJSZXNvdXJjZSI6ICIqIgogICAgfQogIF0KfQ=="
+    }
+  ],
+  "tools": {}
+}

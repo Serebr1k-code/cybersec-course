@@ -13,6 +13,18 @@ useful_for:
   - "Разбор реальных утечек: почему облако — частая причина"
 estimated_minutes: 25
 summary: "Что такое облако на самом деле, чем оно отличается от VPS, как работает модель разделяемой ответственности и где именно находится поверхность атаки. Карта всего дальнейшего дерева уроков."
+lab:
+  kind: shell
+  title: "Практика: ключ из публичного репозитория"
+  toolset: [core, aws]
+  workdir: /home/student/cf
+  files: [task.md, notes.md, repo-leak.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Настрой ключ из `repo-leak.txt` и проверь, чей он: `aws sts get-caller-identity`."
+    - "Перечисли бакеты: `aws s3 ls`."
+    - "Найди объект с секретом: `aws s3 ls s3://mycompany-internal-data`, затем прочитай его через `aws s3 cp`."
+    - "Сохрани флаг: `aws s3 cp s3://mycompany-internal-data/root-creds.txt - > found.txt` (или добавь `| grep nto`)."
 ---
 
 ## Вопрос, с которого всё начинается

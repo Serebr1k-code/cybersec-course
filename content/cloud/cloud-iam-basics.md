@@ -13,6 +13,18 @@ useful_for:
   - "Основа для эскалации привилегий (cloud-privesc-iam)"
 estimated_minutes: 30
 summary: "IAM — сердце облачной безопасности. Разбираем сущности (пользователи, группы, роли), структуру JSON-политики, как быстро находить over-permissive права и как работает AssumeRole — фундамент для всей эксплуатации."
+lab:
+  kind: shell
+  title: "Практика: читаем IAM-политику"
+  toolset: [core]
+  workdir: /home/student/iam
+  files: [task.md, notes.md, iam-backup.b64]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Декодируй дамп политики: `base64 -d iam-backup.b64 > policies.json`."
+    - "Открой его: `cat policies.json` или `grep -n Action policies.json`."
+    - "Ищи Statement, где `\"Action\": \"*\"` и `\"Resource\": \"*\"` — это полный админ."
+    - "Его `Sid` — это флаг. Запиши: `grep nto policies.json > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

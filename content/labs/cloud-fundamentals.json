@@ -1,0 +1,53 @@
+{
+  "id": "cloud-fundamentals",
+  "workdir": "/home/student/cf",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/cf/found.txt",
+    "contains": "nto{l34k3d_k3y_sh4r3d_r3sp0ns1b1l1ty}"
+  },
+  "fs": [
+    { "path": "/home/student/cf", "type": "dir" },
+    {
+      "path": "/home/student/cf/task.md",
+      "text": "# Задача: ключ из публичного репозитория\n\nВ открытом GitHub-репозитории ты нашёл файл с ключом доступа AWS (`repo-leak.txt`).\nНастрой его, как в уроке, и выясни, что он даёт.\n\nИнструмент: `aws` (эмуляция — ответы захвачены с реального аккаунта).\n\nШаги:\n1. `aws sts get-caller-identity` — чей это ключ.\n2. `aws s3 ls` — какие бакеты видны.\n3. Найди в бакете объект с секретом и прочитай его.\n4. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/cf/notes.md",
+      "text": "Заметки\n------\n- Модель разделяемой ответственности: провайдер отвечает за 'облако', клиент — за 'в облаке' (права, конфиги, данные).\n- Почти все облачные утечки — на стороне клиента: лишние права, открытые бакеты, ключи в коде.\n- Ключ = идентификатор (`AWS_ACCESS_KEY_ID`) + секрет (`AWS_SECRET_ACCESS_KEY`).\n"
+    },
+    {
+      "path": "/home/student/cf/repo-leak.txt",
+      "text": "# config found in public repo github.com/acme/deploy-bot\n# commit 4f2a1c9 'add deploy script'\nAWS_ACCESS_KEY_ID=AKIAIOSFODNN7EXAMPLE\nAWS_SECRET_ACCESS_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\nAWS_DEFAULT_REGION=us-east-1\n"
+    }
+  ],
+  "tools": {
+    "aws": {
+      "help": "aws <service> <operation> [...] — AWS CLI (эмуляция: ответы захвачены с реального аккаунта)",
+      "cases": [
+        {
+          "match": "sts get-caller-identity",
+          "example": "aws sts get-caller-identity",
+          "output": "{\n    \"UserId\": \"AIDAEXAMPLEUSERID\",\n    \"Account\": \"123456789012\",\n    \"Arn\": \"arn:aws:iam::123456789012:user/deploy-bot\"\n}\n"
+        },
+        {
+          "match": "s3 ls s3://mycompany-internal-data",
+          "example": "aws s3 ls s3://mycompany-internal-data",
+          "output": "2024-05-02 08:44:01   12.4 MiB customers.csv\n2024-05-02 08:44:01    1.1 MiB salaries.xlsx\n2024-05-02 08:44:05    0.0 KiB root-creds.txt\n"
+        },
+        {
+          "match": "s3 cp s3://mycompany-internal-data/root-creds.txt",
+          "example": "aws s3 cp s3://mycompany-internal-data/root-creds.txt -",
+          "output": "db_root: SuperSecret123\nflag: nto{l34k3d_k3y_sh4r3d_r3sp0ns1b1l1ty}\n"
+        },
+        {
+          "match": "s3 ls",
+          "example": "aws s3 ls",
+          "output": "2024-03-11 10:12:33 mycompany-backups\n2024-03-11 10:12:35 mycompany-static-site\n2024-05-02 08:44:01 mycompany-internal-data\n"
+        }
+      ],
+      "fallback": "aws: (эмуляция) такой вызов не захвачен. Попробуй: aws sts get-caller-identity | aws s3 ls | aws s3 cp <url> -\n"
+    }
+  }
+}

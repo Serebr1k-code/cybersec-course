@@ -13,6 +13,18 @@ useful_for:
   - "CTF с 'найди путь к админу'"
 estimated_minutes: 55
 summary: "Разбираем конкретные IAM-права, которые позволяют повысить привилегии: CreatePolicyVersion, PassRole, AttachUserPolicy, AssumeRole и другие. Учимся строить путь эскалации и проверять его инструментами."
+lab:
+  kind: shell
+  title: "Практика: IAM-эскалация через CreatePolicyVersion"
+  toolset: [core, aws]
+  workdir: /home/student/privesc
+  files: [task.md, notes.md, ReadOnlyPlus.json, admin.json]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри политики пользователя: `aws iam list-attached-user-policies --user-name intern-bot`."
+    - "Прочитай документ: `aws iam get-policy-version --policy-arn arn:aws:iam::123456789012:policy/ReadOnlyPlus --version-id v1`."
+    - "Опасное право — `iam:CreatePolicyVersion`. Создай версию из `admin.json` и сделай её default."
+    - "Став админом, прочитай секрет: `aws secretsmanager get-secret-value --secret-id prod/flag` → запиши флаг в `found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

