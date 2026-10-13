@@ -13,6 +13,17 @@ useful_for:
   - "Исследование уязвимостей бинарного ПО"
 estimated_minutes: 35
 summary: "На одном маленьком бинарнике разбираем, что такое ELF: заголовок, сегменты, секции, динамические зависимости, точка входа и защиты — и как система запускает файл."
+lab:
+  kind: shell
+  title: "Практика: читаем ELF-заголовок"
+  toolset: [core, readelf, nm, file]
+  workdir: /home/student/task
+  files: [task.md, passcheck]
+  check: "grep -q '0x40111a' answer.txt"
+  hints:
+    - "Начни с `ls -la` и `file passcheck` — это ELF?"
+    - "Полный заголовок: `readelf -h passcheck`; первые байты: `xxd -l 16 passcheck`."
+    - "Ищи поле `Entry point address` — его значение и запиши в `answer.txt`."
 ---
 ## Вопрос, с которого всё начинается
 

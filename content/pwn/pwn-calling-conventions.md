@@ -13,6 +13,17 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 45
 summary: "Разбираем ABI System V AMD64 и AAPCS64: какие регистры передают аргументы, как работает возврат и стек — фундамент для чтения ассемблера и построения цепочек."
+lab:
+  kind: shell
+  title: "Практика: где живут аргументы функции"
+  toolset: [core, objdump, nm]
+  workdir: /home/student/task
+  files: [task.md, add.c, add]
+  check: "grep -q 'arg3=rdx' answer.txt"
+  hints:
+    - "Скомпилируй мысленно: функция `int add(int a,int b,int c)`. Открой `objdump -d add`."
+    - "В начале функции аргументы сохраняются из регистров: `mov [rbp-0x4],edi`, `mov [rbp-0x8],esi`, `mov [rbp-0xc],edx`."
+    - "Сопоставь регистры аргументам по порядку: первый — edi/rdi, второй — esi/rsi, третий — edx/rdx."
 ---
 
 ## Вопрос, с которого всё начинается

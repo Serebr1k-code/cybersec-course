@@ -13,6 +13,17 @@ useful_for:
   - "Понимание линковки"
 estimated_minutes: 35
 summary: "Разбираем, как динамический линкер связывает вызовы libc через PLT/GOT, и как использовать GOT для утечки адресов и перезаписи указателей."
+lab:
+  kind: shell
+  title: "Практика: PLT-заглушки и GOT"
+  toolset: [core, objdump, readelf]
+  workdir: /home/student/task
+  files: [task.md, dyncheck]
+  check: "grep -q '0x401030' answer.txt"
+  hints:
+    - "Это динамический (нестатический) бинарник: `file dyncheck`."
+    - "Заглушки лежат в секции `.plt`: `objdump -d dyncheck` (ищи `puts@plt`)."
+    - "Таблица релокаций: `readelf -r dyncheck` — там видно `puts` и адрес GOT-слота."
 ---
 
 ## Вопрос, с которого всё начинается

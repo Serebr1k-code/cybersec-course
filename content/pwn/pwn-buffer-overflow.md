@@ -13,6 +13,17 @@ useful_for:
   - "Исследование memory corruption"
 estimated_minutes: 40
 summary: "Учимся переполнять стековый буфер, находить точное смещение до адреса возврата и перенаправлять исполнение на нужную функцию (ret2win)."
+lab:
+  kind: shell
+  title: "Практика: смещение до адреса возврата"
+  toolset: [core, objdump, nm]
+  workdir: /home/student/task
+  files: [task.md, vuln_win]
+  check: "grep -q 'offset=72' answer.txt"
+  hints:
+    - "Дизассемблируй: `objdump -d vuln_win`, смотри функцию `vuln`."
+    - "Буфер выделяется как `lea rax,[rbp-0x40]` — это 64 байта. Читается `0x100` байт."
+    - "Смещение = размер буфера до saved RBP (0x40) + 8 байт saved RBP = 0x48 = 72."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,17 @@ useful_for:
   - "Secure coding"
 estimated_minutes: 40
 summary: "Систематизируем современные бинарные защиты и практические техники их обхода: leak, brute-force, canary leak, PIE base recovery."
+lab:
+  kind: shell
+  title: "Практика: какие защиты включены"
+  toolset: [core, readelf, file]
+  workdir: /home/student/task
+  files: [task.md, passcheck, hardened]
+  check: "grep -q 'RELRO=full' answer.txt"
+  hints:
+    - "PIE видно по типу файла: `readelf -h hardened` (EXEC против DYN)."
+    - "NX — это сегмент `GNU_STACK`: `readelf -l hardened`, смотри флаги (RW или RWE)."
+    - "RELRO full = в `readelf -d hardened` есть `BIND_NOW` и `GNU_RELRO`; canary — символ `__stack_chk_fail` в `readelf -s hardened`."
 ---
 
 ## Вопрос, с которого всё начинается
