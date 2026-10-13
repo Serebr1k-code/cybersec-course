@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 30
 summary: "Как автоматизировать мобильный анализ: MobSF (статический и динамический скан), генерация отчётов, интеграция в CI/CD и место автоматизации в методологии."
+lab:
+  kind: shell
+  title: 'Практика: разбор отчёта MobSF'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, mobsf_report.json]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'MobSF — автоматизированный анализатор мобильных приложений.'
+    - '`mobsf_report.json` — его отчёт; ищи раздел `secrets`/`hardcoded`.'
+    - 'В отчёте есть найденный секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

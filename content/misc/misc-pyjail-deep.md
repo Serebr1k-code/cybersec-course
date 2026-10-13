@@ -13,6 +13,17 @@ useful_for:
   - "Аудит Python-песочниц"
 estimated_minutes: 35
 summary: "Побег из Python-джейлов: поиск `__builtins__`, обход чёрных списков, gadget-цепочки через классы, аудит-хуки и восстановление окружения."
+lab:
+  kind: shell
+  title: 'Практика: pyjail без подчёркиваний, точек и кавычек'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, jail.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Прочитай `jail.py`: запрещены `_ . '' " пробел import os open eval exec`.'
+    - 'Собери имена из `chr(95)` для `_` и обращайся к атрибутам через `getattr(obj, name)` — без точки.'
+    - 'Готовый каркас: `getattr(vars()[chr(95)*2+chr(98)+...],chr(95)*2+chr(105)+...)` — запусти `python3 jail.py ''<payload>''`.'
 ---
 
 ## Вопрос, с которого всё начинается

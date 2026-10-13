@@ -13,6 +13,17 @@ useful_for:
   - "Реверс-инжиниринг процессов"
 estimated_minutes: 30
 summary: "Поиск значений в памяти, pointer scanning, патчинг, DLL-инъекции, чтение сохранений и обход простых анти-читов — практический game hacking."
+lab:
+  kind: shell
+  title: 'Практика: флаг в дампе памяти'
+  toolset: [core, strings]
+  workdir: /home/student/task
+  files: [task.md, memory.dump]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`memory.dump` — сырой дамп памяти процесса. Не читай его целиком.'
+    - 'Извлеки печатаемые строки: `strings memory.dump`.'
+    - 'Среди строк есть флаг — отфильтруй `grep nto` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

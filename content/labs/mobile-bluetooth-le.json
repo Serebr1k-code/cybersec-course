@@ -1,0 +1,23 @@
+{
+  "id": "mobile-bluetooth-le",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{bl3_g4tt_ch4r4ct3r1st1c}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРазбери артефакты в этом каталоге и найди флаг. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/gatt_dump.txt",
+      "text": "Service 0000180a-0000-1000-8000-00805f9b34fb (Device Information)\n  Char 00002a29 (Manufacturer Name) read: \"Vanta\"\nService 0000fff0-0000-1000-8000-00805f9b34fb (Vendor)\n  Char 0000fff1 write: \"AUTH nto{bl3_g4tt_ch4r4ct3r1st1c}\"\n"
+    }
+  ]
+}

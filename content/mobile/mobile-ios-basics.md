@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 35
 summary: "Чем iOS-приложение отличается от Android: структура IPA, Mach-O, Objective-C/Swift, class-dump, Hopper/IDA, jailbreak и Frida на iOS, Keychain, а также типовые уязвимости и ограничения тестирования."
+lab:
+  kind: shell
+  title: 'Практика: разбор Info.plist iOS'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, Payload]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`Payload/` — распакованный IPA. Конфигурация приложения — в `Info.plist`.'
+    - 'В plist интересны URL-схемы, ключи ATS и кастомные значения.'
+    - 'Секрет лежит в `Info.plist` — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

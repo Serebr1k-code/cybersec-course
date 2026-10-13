@@ -13,6 +13,17 @@ useful_for:
   - "Bug bounty Web3"
 estimated_minutes: 35
 summary: "Модель EVM, типы и видимость в Solidity, integer overflow, delegatecall, tx.origin, selfdestruct и контроль доступа — с полными примерами и PoC."
+lab:
+  kind: shell
+  title: 'Практика: аудит Solidity-контракта'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, Vault.sol]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`Vault.sol` — контракт-хранилище. Ищи классические баги: `tx.origin`, overflow, unchecked call.'
+    - 'Проверь модификаторы доступа у функций с `onlyOwner`.'
+    - 'Секрет зашит в контракте — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

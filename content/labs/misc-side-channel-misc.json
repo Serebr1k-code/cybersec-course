@@ -1,0 +1,23 @@
+{
+  "id": "misc-side-channel-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{t1m1ng_s1d3_ch4nn3l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: тайминг side-channel\n\nСервис сравнивает секрет посимвольно и возвращает ответ чуть медленнее,\nкогда введённый префикс совпадает с секретом. В `timing.csv` — `префикс,время`.\nСамый долгий ответ (время 9) — это полный секрет. Восстанови его и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/timing.csv",
+      "text": "prefix,time\nn,5\nnt,5\nnto,5\nnto{,5\nnto{t,5\nnto{t1,5\nnto{t1m,5\nnto{t1m1,5\nnto{t1m1n,5\nnto{t1m1ng,5\nnto{t1m1ng_,5\nnto{t1m1ng_s,5\nnto{t1m1ng_s1,5\nnto{t1m1ng_s1d,5\nnto{t1m1ng_s1d3,5\nnto{t1m1ng_s1d3_,5\nnto{t1m1ng_s1d3_c,5\nnto{t1m1ng_s1d3_ch,5\nnto{t1m1ng_s1d3_ch4,5\nnto{t1m1ng_s1d3_ch4n,5\nnto{t1m1ng_s1d3_ch4nn,5\nnto{t1m1ng_s1d3_ch4nn3,5\nnto{t1m1ng_s1d3_ch4nn3l,5\nnto{t1m1ng_s1d3_ch4nn3l},9\na,1\nb,1\nc,1\nd,1\ne,1\nf,1\ng,1\nh,1\ni,1\nj,1\nk,1\nl,1\nm,1\nn,1\no,1\np,1\nq,1\nr,1\ns,1\nt,1\nu,1\nv,1\nw,1\nx,1\ny,1\nz,1\n0,1\n1,1\n2,1\n3,1\n4,1\n5,1\n6,1\n7,1\n8,1\n9,1\n{,1\n},1\n_,1\n"
+    }
+  ]
+}

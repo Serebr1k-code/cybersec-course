@@ -13,6 +13,17 @@ useful_for:
   - "Анализ сигналов"
 estimated_minutes: 30
 summary: "Комплексные IQ-сэмплы, GNU Radio, rtl-sdr и gqrx, декодирование FSK/OOK, поиск сигналов в шуме и извлечение данных из радио-записей."
+lab:
+  kind: shell
+  title: 'Практика: SDR / IQ-данные'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, iq_notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`iq_notes.txt` — описание захваченного IQ-сигнала (суб-GHz).'
+    - 'Ищи модуляцию, частоту и демодулированные данные.'
+    - 'В заметках есть флаг — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,35 @@
+{
+  "id": "misc-geometry",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c0nv3x_hull_sh03l4c3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРеши задачу из `geo.py` и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/geo.py",
+      "text": "# convex hull area (shoelace)\npts=[(0,0),(4,0),(4,3),(0,3)]\ndef hull(p): return sorted(p)\nh=hull(pts)\narea=abs(sum(h[i][0]*h[(i+1)%len(h)][1]-h[(i+1)%len(h)][0]*h[i][1] for i in range(len(h))))/2\nprint(\"nto{c0nv3x_hull_sh03l4c3}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — эмуляция (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "geo\\.py",
+          "output": "nto{c0nv3x_hull_sh03l4c3}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 geo.py`\n"
+    }
+  }
+}

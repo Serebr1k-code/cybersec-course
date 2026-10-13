@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 40
 summary: "Продвинутый Frida: экспорт RPC-функций, вызов Java и нативных методов из скрипта, чтение/запись памяти и патч логики на лету."
+lab:
+  kind: shell
+  title: 'Практика: Frida-инструментация'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, agent.js, output.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`agent.js` — Frida-агент, `output.log` — его вывод.'
+    - 'Агент подменяет проверку и логирует значения.'
+    - 'В выводе есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

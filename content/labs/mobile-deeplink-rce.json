@@ -1,0 +1,35 @@
+{
+  "id": "mobile-deeplink-rce",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d33pl1nk_t0_rc3_ch41n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРазбери артефакты в этом каталоге и найди флаг. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/decoded",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/ui",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/AndroidManifest.xml",
+      "text": "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\" package=\"com.vanta.app\">\n  <application>\n    <activity android:name=\".ui.WebActivity\" android:exported=\"true\">\n      <intent-filter><action android:name=\"android.intent.action.VIEW\"/>\n        <data android:scheme=\"vanta\" android:host=\"open\"/></intent-filter>\n    </activity>\n  </application>\n</manifest>\n"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/ui/WebActivity.smali",
+      "text": ".class public Lcom/vanta/app/ui/WebActivity;\n.method public onCreate(Landroid/os/Bundle;)V\n    invoke-virtual {p0}, Landroid/app/Activity;->getIntent()Landroid/content/Intent;\n    const-string v0, \"url\"\n    invoke-virtual {p1, v0}, Landroid/content/Intent;->getStringExtra(Ljava/lang/String;)Ljava/lang/String;\n    const-string v1, \"nto{d33pl1nk_t0_rc3_ch41n}\"\n    invoke-virtual {p0, v1}, Landroid/webkit/WebView;->loadUrl(Ljava/lang/String;)V\n    return-void\n.end method\n"
+    }
+  ]
+}

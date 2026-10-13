@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-dynamic",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{10s_dyn4m1c_h00k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: iOS dynamic\n\nРазбери динамическую сессию iOS и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/frida_ios.log",
+      "text": "[*] attached Vanta (ios)\nObjC: -[VantaAuth apiToken] -> \"nto{10s_dyn4m1c_h00k}\"\n"
+    }
+  ]
+}

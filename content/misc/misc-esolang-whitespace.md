@@ -13,6 +13,17 @@ useful_for:
   - "Понимание стек-машин и байткода"
 estimated_minutes: 40
 summary: "Whitespace: три значимых символа, полный набор инструкций стек-машины, инструменты (wspace, онлайн-интерпретаторы), разбор примера и способы сделать невидимый код видимым."
+lab:
+  kind: shell
+  title: 'Практика: Whitespace'
+  toolset: [core, ws, xxd]
+  workdir: /home/student/task
+  files: [task.md, program.ws]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`program.ws` выглядит пустым — но в нём спрятана программа из пробелов, табов и переводов строк.'
+    - 'Посмотри байты: `xxd program.ws`.'
+    - 'Запусти интерпретатор: `ws program.ws` — он напечатает флаг. Запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

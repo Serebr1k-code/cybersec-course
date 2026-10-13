@@ -13,6 +13,17 @@ useful_for:
   - "Быстрый старт в задачах"
 estimated_minutes: 35
 summary: "Методология CTF: классификация задач, инструментарий по категориям, рабочий процесс, чек-листы и типичные подсказки в условиях."
+lab:
+  kind: shell
+  title: 'Практика: CTF-инструментарий'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, toolbox.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`toolbox.txt` — список инструментов и их вывода.'
+    - 'Сопоставь задачу с инструментом (forensics → binwalk, web → ffuf).'
+    - 'Среди вывода есть флаг — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

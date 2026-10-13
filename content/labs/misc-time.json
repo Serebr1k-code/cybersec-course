@@ -1,0 +1,27 @@
+{
+  "id": "misc-time",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pr3d1ct4bl3_t0k3ns}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: предсказуемые токены\n\nСервис выдаёт токены вида base64(user + \":\" + секрет).\nВ `tokens.log` есть токен администратора. Достань из него секрет и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/tokens.log",
+      "text": "user=alice token=YWxpY2U6Z3Vlc3Qtc2Vzc2lvbi0xMDAx\nuser=bob token=Ym9iOmd1ZXN0LXNlc3Npb24tMTAwMg==\nuser=admin token=YWRtaW46bnRve3ByM2QxY3Q0YmwzX3QwazNuc30=\n"
+    },
+    {
+      "path": "/home/student/task/server.py",
+      "text": "import base64\ndef make_token(user, secret):\n    return base64.b64encode(f'{user}:{secret}'.encode()).decode()\n"
+    }
+  ]
+}

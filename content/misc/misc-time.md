@@ -13,6 +13,17 @@ useful_for:
   - "Пентест: TOCTOU и предсказуемость генераторов"
 estimated_minutes: 12
 summary: "Задачи на времени: race condition и TOCTOU, предсказуемые timestamp-токены, TOTP и clock skew, работа с часовыми поясами и форматами дат, time-based оракулы."
+lab:
+  kind: shell
+  title: 'Практика: предсказуемые токены'
+  toolset: [core, base64]
+  workdir: /home/student/task
+  files: [task.md, tokens.log, server.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Токены в `tokens.log` выглядят как base64. Декодируй один: `grep admin tokens.log`.'
+    - 'Внутри видно `user:secret` — токен это `base64(user + ":" + секрет)`.'
+    - 'Декодируй токен администратора: `base64 -d` — секрет и есть флаг. Запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

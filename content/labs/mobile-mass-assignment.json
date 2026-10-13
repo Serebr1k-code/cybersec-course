@@ -1,0 +1,27 @@
+{
+  "id": "mobile-mass-assignment",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m4ss_4ss1gnm3nt_3sc4l4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: mass assignment\n\nТело запроса на обновление профиля — в `profile.json`. Сервер копирует все\nполя без фильтрации. Доберись до флага и запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/profile.json",
+      "text": "{\"username\":\"alice\",\"email\":\"alice@vanta.local\"}\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Сервер слепо копирует поля JSON в объект User. Есть поле `role`.\nОтвет сервера при успешной эскалации: {\"role\":\"admin\",\"token\":\"nto{m4ss_4ss1gnm3nt_3sc4l4t10n}\"}\n"
+    }
+  ]
+}

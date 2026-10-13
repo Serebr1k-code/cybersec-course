@@ -13,6 +13,17 @@ useful_for:
   - "Работа: точные финансовые и научные вычисления"
 estimated_minutes: 12
 summary: "Работа с большими числами и точной арифметикой: Python int, gmpy2, модульная арифметика, переполнения, комбинаторика и типовые CTF-вычисления."
+lab:
+  kind: shell
+  title: 'Практика: большие числа и точная арифметика'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, problem.txt, solve.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`problem.txt` — задача на большие числа (факториал/степень по модулю).'
+    - '`solve.py` считает ответ и собирает из него флаг.'
+    - 'Запусти `python3 solve.py` и запиши флаг в `found.txt`.'
 ---
 ## Вопрос, с которого всё начинается
 

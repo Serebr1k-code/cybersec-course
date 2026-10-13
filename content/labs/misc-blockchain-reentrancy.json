@@ -1,0 +1,27 @@
+{
+  "id": "misc-blockchain-reentrancy",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r33ntr4ncy_dr41ns_b4nk}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: reentrancy\n\nРазбери контракт `Bank.sol` и лог атаки. Найди флаг и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/Bank.sol",
+      "text": "pragma solidity ^0.6.0;\ncontract Bank {\n    mapping(address=>uint) bal;\n    function withdraw() public {\n        require(bal[msg.sender] > 0);\n        (bool ok,) = msg.sender.call{value: bal[msg.sender]}(\"\");\n        bal[msg.sender] = 0;  // state updated AFTER external call\n    }\n}\n"
+    },
+    {
+      "path": "/home/student/task/attack.log",
+      "text": "[+] deployed Attacker\n[+] reentered 12x\n[+] drained 12 ETH\n[+] flag nto{r33ntr4ncy_dr41ns_b4nk}\n"
+    }
+  ]
+}

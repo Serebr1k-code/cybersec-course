@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-static",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cl4ssdump_f1nds_m3th0ds}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРазбери артефакты в этом каталоге и найди флаг. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/classdump.txt",
+      "text": "@interface VantaAuth : NSObject\n- (NSString *)apiToken;\n- (BOOL)isPremium;\n- (NSString *)debugFlag;\n@end\n\n@implementation VantaAuth\n- (NSString *)debugFlag { return @\"nto{cl4ssdump_f1nds_m3th0ds}\"; }\n@end\n"
+    }
+  ]
+}

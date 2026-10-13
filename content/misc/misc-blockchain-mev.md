@@ -13,6 +13,17 @@ useful_for:
   - "Bug bounty Web3"
 estimated_minutes: 35
 summary: "Mempool и порядок транзакций, front-running, sandwich, MEV-боты, оракульные манипуляции и логические баги токеномики — экономические векторы в блокчейне."
+lab:
+  kind: shell
+  title: 'Практика: MEV и front-running'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, mempool.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`mempool.txt` — pending-транзакции. Ищи сделку, которую можно обогнать.'
+    - 'Front-running: поставить свою tx с большим gas перед чужой.'
+    - 'В данных есть флаг — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

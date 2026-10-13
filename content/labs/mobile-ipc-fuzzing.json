@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ipc-fuzzing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1pc_fuzz3r_f0und_cr4sh}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: IPC fuzzing\n\nРазбери вывод drozer и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/drozer.log",
+      "text": "com.vanta.app -> DebugActivity\n  isExported: true\n  permission: null\n  fuzzing extras... crash at extra \"x=nto{1pc_fuzz3r_f0und_cr4sh}\"\n"
+    }
+  ]
+}

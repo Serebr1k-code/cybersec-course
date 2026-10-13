@@ -13,6 +13,17 @@ useful_for:
   - "Пентест: анализ Ruby-приложений и гемов"
 estimated_minutes: 45
 summary: "Побег из Ruby-песочниц и эксплуатация Marshal.load: ObjectSpace, eval, send, universal gadget-цепочки и почему Marshal небезопасен для недоверенных данных."
+lab:
+  kind: shell
+  title: 'Практика: аудит Ruby-песочницы'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, sandbox.rb, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`sandbox.rb` исполняет код через `instance_eval` в `BasicObject`-контексте.'
+    - 'У `BasicObject` нет `Kernel`, но есть пути восстановить доступ.'
+    - 'Найди в коде секрет-флаг рядом с gadget-цепочкой — `grep nto` → в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

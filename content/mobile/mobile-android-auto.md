@@ -13,6 +13,17 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 50
 summary: "Безопасность Android Auto и Android Automotive: как работает проекция, automotive-API, каналы USB/Bluetooth, риски и методика тестирования."
+lab:
+  kind: shell
+  title: 'Практика: поверхность Android Auto'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, auto_config.xml, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`auto_config.xml` — конфигурация Android Auto интеграции.'
+    - 'Ищи разрешённые категории приложений и переиспользуемые компоненты.'
+    - 'Секрет есть в конфиге — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

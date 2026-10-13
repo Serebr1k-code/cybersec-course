@@ -1,0 +1,31 @@
+{
+  "id": "mobile-crossplatform",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c0rd0v4_wh1t3l1st_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Cordova\n\nРазбери гибридное приложение и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/cordova_config.xml",
+      "text": "<widget id=\"com.vanta.app\">\n  <allow-navigation href=\"*\"/>\n  <allow-intent href=\"http://*/*\"/>\n</widget>\n"
+    },
+    {
+      "path": "/home/student/task/www",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/www/config.js",
+      "text": "window.__SECRET__ = 'nto{c0rd0v4_wh1t3l1st_byp4ss}';\n"
+    }
+  ]
+}

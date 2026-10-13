@@ -12,6 +12,17 @@ useful_for:
   - "Пентест: серверная сторона мобильного продукта"
 estimated_minutes: 45
 summary: "Как мобильное приложение доверяет полям, которые присылает клиент, и как это приводит к mass assignment: подмена role, is_admin, balance, повышение привилегий и обход лимитов."
+lab:
+  kind: shell
+  title: 'Практика: mass assignment в API'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, profile.json, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`profile.json` — тело запроса на обновление профиля.'
+    - 'Mass assignment: сервер принимает лишние поля (например `role`, `is_admin`).'
+    - 'Добавь поле `role` и найди ответ с флагом — запиши `nto{` в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

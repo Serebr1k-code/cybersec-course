@@ -13,6 +13,17 @@ useful_for:
   - "Аудит агентов"
 estimated_minutes: 32
 summary: "Агенты с инструментами, косвенная инъекция через данные, MCP-серверы, эксфильтрация через tool-calls, confused deputy и защита агентных систем."
+lab:
+  kind: shell
+  title: 'Практика: эксфильтрация через tool-call агента'
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, agent.log, tools.json]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Агент умеет вызывать инструменты; каждый вызов записан в `agent.log` (JSON-строки).'
+    - 'Ищи подозрительные вызовы http/fetch: `grep -i "http" agent.log`.'
+    - 'Секрет ушёл в параметре URL — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

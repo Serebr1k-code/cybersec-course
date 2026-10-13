@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 14
 summary: "Как работают Intent, deep links (custom scheme) и Android App Links, почему небезопасный deep link открывает внутренние экраны и как использовать adb/браузер для их вызова и эксплуатации."
+lab:
+  kind: shell
+  title: 'Практика: разбор deep-link схемы'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, decoded]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Deep-link схема описана в `AndroidManifest.xml` в `<data android:scheme=...>`.'
+    - 'Найди intent-filter, который принимает кастомную схему (не http).'
+    - 'Секрет отдаётся на определённом хосте/пути — найди `nto{` в коде обработчика и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

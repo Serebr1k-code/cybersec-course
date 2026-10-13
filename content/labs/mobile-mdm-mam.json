@@ -1,0 +1,23 @@
+{
+  "id": "mobile-mdm-mam",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{mdm_p0l1cy_w34kn3ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: MDM\n\nРазбери политики MDM и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/mdm_policy.json",
+      "text": "{\n  \"allowCamera\": false,\n  \"allowScreenCapture\": true,\n  \"allowBackup\": true,\n  \"managedConfig\": {\"vaultKey\": \"nto{mdm_p0l1cy_w34kn3ss}\"}\n}\n"
+    }
+  ]
+}

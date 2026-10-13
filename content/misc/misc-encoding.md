@@ -13,6 +13,17 @@ useful_for:
   - "Строить цепочки декодирования в CyberChef"
 estimated_minutes: 28
 summary: "Кодировка — это не шифрование: данные обратимо преобразованы в другой алфавит. Разбираем base-семейство, hex, URL, ROT/Цезарь, морзянку, Unicode-трюки, QR/штрихкоды и как выстраивать цепочки декодирования."
+lab:
+  kind: shell
+  title: 'Практика: флаг в QR-коде'
+  toolset: [core, zbarimg]
+  workdir: /home/student/task
+  files: [task.md, qr.png, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Сначала определи тип файла: `file qr.png`.'
+    - 'QR-код декодируется утилитой `zbarimg`: `zbarimg -q qr.png`.'
+    - 'В выводе есть строка `QR-Code:nto{...}` — отдели флаг и запиши в `found.txt`.'
 ---
 ## Вопрос, с которого всё начинается
 

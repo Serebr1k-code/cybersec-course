@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 35
 summary: "Два практических подхода к снятию TLS pinning: статический патч APK (Frida Gadget, правка конфига) и динамические Frida-скрипты; плюс настройка сертификата."
+lab:
+  kind: shell
+  title: 'Практика: TLS pinning bypass'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, bypass.js, log.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`bypass.js` — Frida-скрипт обхода pinning, `log.txt` — вывод.'
+    - 'Скрипт хукает `TrustManager`/`SSLContext`.'
+    - 'В логе есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

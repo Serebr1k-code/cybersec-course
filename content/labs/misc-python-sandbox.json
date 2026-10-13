@@ -1,0 +1,48 @@
+{
+  "id": "misc-python-sandbox",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4ud1t_h00k_ctyp3s_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: обход аудит-хука Python\n\n`sandbox.py` ставит `sys.addaudithook`, который роняет события `os.system`,\n`subprocess.Popen` и `open`. Простая подмена имён не поможет — важно не имя,\nа событие. Найди путь, который **не порождает** перехватываемых событий.\n\n    python3 sandbox.py '<payload>'\n\nФлаг запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/sandbox.py",
+      "text": "import sys, ctypes\ndef hook(event, args):\n    if event in ('os.system', 'subprocess.Popen', 'open'):\n        raise RuntimeError('blocked: ' + event)\nsys.addaudithook(hook)\nprint(eval(input(\">>> \")))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <файл> [аргумент] — эмуляция интерпретатора (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "CDLL|ctypes\\.",
+          "example": "sandbox.py \"ctypes.CDLL(None).system(b'cat flag.txt')\"",
+          "output": ">>> nto{4ud1t_h00k_ctyp3s_byp4ss}\n0\n"
+        },
+        {
+          "match": "os\\.system|subprocess\\.Popen",
+          "output": ">>> Traceback (most recent call last):\n  File \"sandbox.py\", line 6, in <module>\n  File \"<string>\", line 1, in <module>\n  File \"sandbox.py\", line 4, in hook\nRuntimeError: blocked: os.system\n"
+        },
+        {
+          "match": "open\\(",
+          "output": ">>> Traceback (most recent call last):\n  File \"sandbox.py\", line 6, in <module>\n  File \"<string>\", line 1, in <module>\n  File \"sandbox.py\", line 4, in hook\nRuntimeError: blocked: open\n"
+        },
+        {
+          "match": "1\\+1",
+          "output": ">>> 2\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе доступно `python3 sandbox.py '<payload>'` — см. task.md\n"
+    }
+  }
+}

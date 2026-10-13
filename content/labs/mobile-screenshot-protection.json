@@ -1,0 +1,35 @@
+{
+  "id": "mobile-screenshot-protection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{scr33nsh0t_fl4g_s3cur3_m1ss1ng}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: FLAG_SECURE\n\nВ приложении есть защищённый экран (`FLAG_SECURE`), а есть экран, где защиту\nзабыли. Найди секрет на незащищённом экране и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/ui",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/ui/SecureActivity.smali",
+      "text": ".class public Lcom/vanta/app/ui/SecureActivity;\n.method public onCreate(Landroid/os/Bundle;)V\n    const/16 v0, 0x2000\n    invoke-virtual {p0, v0}, Landroid/view/Window;->addFlags(I)V\n    const-string v1, \"balance\"\n    return-void\n.end method\n"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/ui/CardActivity.smali",
+      "text": ".class public Lcom/vanta/app/ui/CardActivity;\n.method public onCreate(Landroid/os/Bundle;)V\n    const-string v0, \"nto{scr33nsh0t_fl4g_s3cur3_m1ss1ng}\"\n    return-void\n.end method\n"
+    }
+  ]
+}

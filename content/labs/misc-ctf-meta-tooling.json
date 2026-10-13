@@ -1,0 +1,23 @@
+{
+  "id": "misc-ctf-meta-tooling",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ch00s3_th3_r1ght_t00l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: инструментарий\n\nРазбери список инструментов и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/toolbox.txt",
+      "text": "$ binwalk -e firmware.bin\n  extracted squashfs-root/\n$ ffuf -u http://t/FUZZ -w wl\n  /admin [200]\n# note: nto{ch00s3_th3_r1ght_t00l}\n"
+    }
+  ]
+}

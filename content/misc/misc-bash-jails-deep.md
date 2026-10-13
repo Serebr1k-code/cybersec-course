@@ -13,6 +13,17 @@ useful_for:
   - "Понимание ограничений shell и способов их обхода"
 estimated_minutes: 12
 summary: "Как выходить из restricted shell (rbash), ограниченных SSH-аккаунтов и bash-джейлов с чёрными списками: PATH-трюки, встроенные команды, редакторы, escape-последовательности."
+lab:
+  kind: shell
+  title: 'Практика: побег из restricted shell (rbash)'
+  toolset: [core, rbash, awk]
+  workdir: /home/student/task
+  files: [task.md, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`rbash` отключил `cd`, запуск по абсолютному пути и смену `PATH`.'
+    - 'Разрешены только `vi`, `awk`, `less` — каждый умеет запускать команды.'
+    - 'Например, `awk`: `awk ''BEGIN{system("cat flag.txt")}''`. Запиши флаг в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

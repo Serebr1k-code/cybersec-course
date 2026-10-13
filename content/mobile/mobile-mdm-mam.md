@@ -12,6 +12,17 @@ useful_for:
   - "Работа: аудит мобильного контура предприятия"
 estimated_minutes: 42
 summary: "Как работают MDM и MAM, управляемые конфигурации, work profile и изоляция данных, что видит администратор, какие есть границы доверия и типовые ошибки корпоративной мобильной безопасности."
+lab:
+  kind: shell
+  title: 'Практика: MDM/MAM'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, mdm_policy.json]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`mdm_policy.json` — политики корпоративного управления устройством.'
+    - 'Ищи, что запрещено (screenshot, backup) и что осталось разрешено.'
+    - 'В политике есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,17 @@ useful_for:
   - "Работа: reverse engineering"
 estimated_minutes: 12
 summary: "Этап продвинутого Frida: RPC, скриптинг и Objection."
+lab:
+  kind: shell
+  title: 'Практика: инструментарий Frida'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, frida_tools.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`frida_tools.txt` — список инструментов и их вывода.'
+    - 'Ищи `frida-ps`, `frida-trace`, `objection`.'
+    - 'Секрет есть в выводе — найди `nto{` и запиши в `found.txt`.'
 ---
 
 Этот урок — **этап-навигатор** в ветке. Он короткий: его задача — объяснить, что вы будете изучать на этом этапе, почему темы идут именно в таком порядке и что вы сможете делать после прохождения.

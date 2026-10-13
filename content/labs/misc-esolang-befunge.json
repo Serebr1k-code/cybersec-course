@@ -1,0 +1,35 @@
+{
+  "id": "misc-esolang-befunge",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{befunge_2d_3sc4p3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Befunge\n\nРазбери двумерную программу и запусти `befunge program.bf93`.\nФлаг запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/program.bf93",
+      "text": "\"}3p4cs3_d2_egnufeb{otn\",,,,,,,,,,,,,,,,,,,,,,@\n"
+    }
+  ],
+  "tools": {
+    "befunge": {
+      "help": "befunge <файл> — интерпретатор Befunge-93 (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "program\\.bf93",
+          "output": "nto{befunge_2d_3sc4p3}\n"
+        }
+      ],
+      "fallback": "befunge: доступно `befunge program.bf93`\n"
+    }
+  }
+}

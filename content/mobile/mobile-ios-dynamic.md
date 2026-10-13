@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 45
 summary: "Динамический анализ iOS: Frida-хуки на Objective-C/Swift, LLDB/debugserver, обход jailbreak/pinning, дамп памяти и трассировка в рантайме."
+lab:
+  kind: shell
+  title: 'Практика: динамический анализ iOS'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, frida_ios.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`frida_ios.log` — динамическая сессия на iOS.'
+    - 'Ищи перехваченные ObjC-методы и их возвраты.'
+    - 'В логе есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

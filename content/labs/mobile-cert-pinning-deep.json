@@ -1,0 +1,23 @@
+{
+  "id": "mobile-cert-pinning-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0khttp_c3rt_p1nn3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: cert pinning\n\nРазбери реализацию pinning и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/pinning.java",
+      "text": "CertificatePinner pinner = new CertificatePinner.Builder()\n    .add(\"api.vanta.local\", \"sha256/DECOY=\")\n    .build();\nString debugPin = \"nto{0khttp_c3rt_p1nn3r}\";\n"
+    }
+  ]
+}

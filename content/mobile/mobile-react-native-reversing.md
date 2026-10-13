@@ -13,6 +13,17 @@ useful_for:
   - "CTF Mobile"
 estimated_minutes: 50
 summary: "Как реверсить React Native: JS-бандл, Hermes bytecode (HBC), инструменты hermes-dec/hbctool, поиск секретов и хуки через Frida."
+lab:
+  kind: shell
+  title: 'Практика: реверс React Native'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, hermes_strings.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`hermes_strings.txt` — строки из Hermes-байткода.'
+    - 'Hermes компилирует JS; строки извлекаются `hbctool`/`strings`.'
+    - 'Среди строк есть флаг — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 30
 summary: "Как приложения используют биометрию (BiometricPrompt, LocalAuthentication) и как обходить проверку через Frida-хуки; почему клиентская биометрия — не замена серверной аутентификации."
+lab:
+  kind: shell
+  title: 'Практика: обход биометрии'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, decoded]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`BiometricPrompt.authenticate` принимает `AuthenticationCallback`.'
+    - 'Если `onAuthenticationFailed` не блокирует, а `onAuthenticationSucceeded` логирует секрет — утечка.'
+    - 'Найди `nto{` в обработчике биометрии и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

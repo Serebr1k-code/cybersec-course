@@ -1,0 +1,31 @@
+{
+  "id": "mobile-ios-basics",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1pa_1nf0_pl1st_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРазбери артефакты в этом каталоге и найди флаг. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/Payload",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/Payload/Vanta.app",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/Payload/Vanta.app/Info.plist",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n  <key>CFBundleIdentifier</key><string>com.vanta.app</string>\n  <key>CFBundleShortVersionString</key><string>1.4.2</string>\n  <key>VantaDebugToken</key><string>nto{1pa_1nf0_pl1st_l34k}</string>\n  <key>NSAppTransportSecurity</key><dict><key>NSAllowsArbitraryLoads</key><true/></dict>\n</dict>\n</plist>\n"
+    }
+  ]
+}

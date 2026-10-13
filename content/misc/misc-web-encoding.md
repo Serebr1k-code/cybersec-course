@@ -13,6 +13,17 @@ useful_for:
   - "Обход фильтров"
 estimated_minutes: 26
 summary: "URL/HTML/JS-кодирование, двойное кодирование, юникод-нормализация, обход WAF и фильтров, а также практические примеры в misc-задачах."
+lab:
+  kind: shell
+  title: 'Практика: URL- и HTML-кодирование'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, payload.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`payload.txt` — строка в percent-encoding (`%XX`).'
+    - 'URL-декодирование снимает `%XX` и `+`.'
+    - 'Декодируй: `python3 -c "import urllib.parse;print(urllib.parse.unquote(open(''payload.txt'').read().strip()))"`.'
 ---
 
 ## Вопрос, с которого всё начинается

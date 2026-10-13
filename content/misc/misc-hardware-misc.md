@@ -13,6 +13,17 @@ useful_for:
   - "Декодирование радио"
 estimated_minutes: 45
 summary: "Hardware в misc: логические уровни и сигналы, интерфейсы UART/SPI/I2C, радио sub-GHz, захват и декодирование (sigrok/PulseView), разборы."
+lab:
+  kind: shell
+  title: 'Практика: разбор UART-консоли'
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, uart.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Устройство отдаёт отладочную консоль по UART. Весь лог — в `uart.log`.'
+    - 'Ищи чувствительные строки: `grep -iE "flag|secret|key|debug" uart.log`.'
+    - 'Флаг попал в лог при старте сервиса — найди строку с `nto{` и запиши её в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

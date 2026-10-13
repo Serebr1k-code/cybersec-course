@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 40
 summary: "Продвинутые атаки на WebView: эксплуатация JS-мостов, доступ к file://, спуфинг адресной строки, SSRF из веб-контекста и цепочки до RCE/ATO."
+lab:
+  kind: shell
+  title: 'Практика: WebView deep'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, decoded]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`decoded/` — распакованный APK. Ищи `addJavascriptInterface` и `loadUrl`.'
+    - 'Комбинация JS-моста и загрузки внешнего URL = RCE/утечка.'
+    - 'Секрет есть в коде — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

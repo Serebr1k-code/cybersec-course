@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 30
 summary: "Как устроены Cordova/Ionic (HTML/JS в WebView) и Xamarin/.NET MAUI (C#/IL), где искать их код и секреты и как реверсить .NET-сборки."
+lab:
+  kind: shell
+  title: 'Практика: гибридные фреймворки'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, cordova_config.xml, www]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`cordova_config.xml` и `www/` — артефакты Cordova-приложения.'
+    - 'Ищи allow-navigation/allow-intent и JS-мосты.'
+    - 'Секрет есть в www — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

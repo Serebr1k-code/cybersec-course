@@ -1,0 +1,27 @@
+{
+  "id": "mobile-api-bola",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b0la_1d0r_m0b1l3_4p1}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: BOLA в мобильном API\n\nДан лог перехваченных запросов (`api_log.txt`). Найди объект, доступный\nпользователю 1001 по чужому id, и секрет в нём. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/api_log.txt",
+      "text": "GET /api/v1/users/1001/profile  -> 200 {\"id\":1001,\"name\":\"alice\"}\nGET /api/v1/users/1002/profile  -> 200 {\"id\":1002,\"name\":\"bob\"}\nGET /api/v1/users/1000/profile  -> 200 {\"id\":1000,\"name\":\"admin\",\"note\":\"nto{b0la_1d0r_m0b1l3_4p1}\"}\nGET /api/v1/orders/1001         -> 200 {\"order\":1001}\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Запросы делаются от пользователя 1001. Соседние id — чужие объекты.\n"
+    }
+  ]
+}

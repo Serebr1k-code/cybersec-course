@@ -13,6 +13,17 @@ useful_for:
   - "Побег из контейнеров"
 estimated_minutes: 32
 summary: "Восемь Linux-namespaces, cgroups v1/v2, как они образуют контейнер, проверка изоляции и типовые векторы побега через mount, /proc и capabilities."
+lab:
+  kind: shell
+  title: 'Практика: разбор capabilities контейнера'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, caps.txt, config.json]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`caps.txt` — набор capabilities контейнера (`capsh --print`).'
+    - 'Опасны `CAP_SYS_ADMIN`, `CAP_SYS_PTRACE`, `CAP_DAC_READ_SEARCH`.'
+    - 'Найди опасную capability и секрет рядом: `grep nto caps.txt` → в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

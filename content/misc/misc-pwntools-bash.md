@@ -13,6 +13,17 @@ useful_for:
   - "Писать одноразовые bash-конвейеры для обработки файлов"
 estimated_minutes: 11
 summary: "pwntools превращает возню с сокетами в пару строк, а bash-конвейеры решают половину misc-задач без единой строки Python. Разбираем remote-соединения, packing, ELF-разбор и практичные bash-цепочки для обработки данных."
+lab:
+  kind: shell
+  title: 'Практика: автоматизация pwntools'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, exploit.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`exploit.py` — pwntools-скрипт для удалённого сервиса.'
+    - 'Разбери этапы: connect, send payload, recv flag.'
+    - 'Запусти `python3 exploit.py` — он напечатает флаг. Запиши в `found.txt`.'
 ---
 ## Вопрос, с которого всё начинается
 

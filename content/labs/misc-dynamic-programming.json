@@ -1,0 +1,35 @@
+{
+  "id": "misc-dynamic-programming",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dp_0pt1m4l_substuctur3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРеши задачу из `dp.py` и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/dp.py",
+      "text": "# coin change: min coins for amount\ncoins=[1,3,4]; amount=6\ndp=[0]+[10**9]*amount\nfor a in range(1,amount+1):\n    for c in coins:\n        if c<=a: dp[a]=min(dp[a], dp[a-c]+1)\nprint(\"nto{dp_0pt1m4l_substuctur3}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — эмуляция (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "dp\\.py",
+          "output": "nto{dp_0pt1m4l_substuctur3}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 dp.py`\n"
+    }
+  }
+}

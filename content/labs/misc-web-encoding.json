@@ -1,0 +1,35 @@
+{
+  "id": "misc-web-encoding",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{url_4nd_html_3nc0d1ng}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: web-кодирование\n\n`payload.txt` закодирован percent-encoding. Декодируй и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/payload.txt",
+      "text": "%6e%74%6f%7b%75%72%6c%5f%34%6e%64%5f%68%74%6d%6c%5f%33%6e%63%30%64%31%6e%67%7d\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 -c \"…urllib.parse.unquote…\" — эмуляция (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "unquote|urllib\\.parse",
+          "output": "nto{url_4nd_html_3nc0d1ng}\n"
+        }
+      ],
+      "fallback": "python3: см. task.md\n"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-wearable-iot",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c0mp4n10n_cl34rt3xt_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: companion\n\nРазбери обмен companion-приложения и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/companion.log",
+      "text": "phone -> watch: {\"cmd\":\"sync\",\"token\":\"nto{c0mp4n10n_cl34rt3xt_l34k}\"}\nwatch -> phone: {\"ack\":true}\n"
+    }
+  ]
+}

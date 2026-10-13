@@ -1,0 +1,40 @@
+{
+  "id": "misc-encoding",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{qr_c0d3s_4r3_just_d4t4}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: QR-код\n\nКартинка `qr.png` содержит QR-код. Декодируй его и вытащи флаг.\n\nПодсказка: QR-коды читает `zbarimg`. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/qr.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAHQAAAB0AQMAAABuVIRkAAAABlBMVEUAAAD///+l2Z/dAAAAAnRSTlP//8i138cAAAAJcEhZcwAACxIAAAsSAdLdfvwAAADCSURBVDiNvZXRDQMxCEO9Aftv6Q2ocVK1/cQnNYpOvB8LDOTQvwd/ZwDVBd0J9lzdVUXWBAnjROUgY8znAVNGxKxkwHdWex4bfb783fAcWvbT3w1LBaDESCZMyA6l0xzNPU8hrXmgiqmAeT3t6+eWe/qhgjwUAU8y4GyEXA1Ybhy8ems+jSBuP9dc7XmeviZsFZ5dSNhC3sdiBXx7iZvWnr3J9FqlbCdmq0P2VPtJDHjeU5tanfB5T9iSY8JP/z/P+AVvHrA+fmIYYAAAAABJRU5ErkJggg=="
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "В прошлый раз в ресурсах лежал decoy-код. Смотри только на `qr.png`.\n"
+    }
+  ],
+  "tools": {
+    "zbarimg": {
+      "help": "zbarimg [-q] <изображение> — декодировать штрих/QR-код (вывод захвачен из реального zbarimg)",
+      "cases": [
+        {
+          "match": "qr\\.png",
+          "example": "zbarimg -q qr.png",
+          "output": "QR-Code:nto{qr_c0d3s_4r3_just_d4t4}\n"
+        }
+      ],
+      "fallback": "zbarimg: в этой лабе доступно `zbarimg -q qr.png`\n"
+    }
+  }
+}

@@ -13,6 +13,17 @@ useful_for:
   - "Пентест: анализ обфускации и кодирования"
 estimated_minutes: 12
 summary: "Быстрое решение классических крипто-задач: ROT/Цезарь, Vigenere, XOR, частотный анализ, CyberChef-цепочки и типовые однострочники на Python."
+lab:
+  kind: shell
+  title: 'Практика: цепочка кодировок'
+  toolset: [core, base64]
+  workdir: /home/student/task
+  files: [task.md, blob.txt, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`blob.txt` — это base64. Декодируй один слой: `base64 -d blob.txt`.'
+    - 'После первого декодирования снова base64 — декодируй ещё раз.'
+    - 'Одной командой: `base64 -d blob.txt | base64 -d` — затем запиши результат в `found.txt`.'
 ---
 ## Вопрос, с которого всё начинается
 

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-oauth-sso",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0auth_pkce_m1ss1ng}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: OAuth iOS\n\nРазбери OAuth-поток и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/oauth_flow.txt",
+      "text": "GET /authorize?client_id=vanta&response_type=code&code_challenge=...\nnote: code_verifier NOT sent on token exchange\nstolen code -> token: nto{0auth_pkce_m1ss1ng}\n"
+    }
+  ]
+}

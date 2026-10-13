@@ -1,0 +1,27 @@
+{
+  "id": "misc-crypto-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cl4ss1c_m1sc_crypt0_l4y3rs}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: цепочка кодировок\n\nВ `blob.txt` лежит флаг, закодированный несколько раз подряд.\nРаскрути слои и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/blob.txt",
+      "text": "Ym5SdmUyTnNOSE56TVdOZmJURnpZMTlqY25sd2REQmZiRFI1TTNKemZRPT0=\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Классика misc: base64 поверх base64. Иногда слоёв больше — проверяй вывод `file` и глазами.\n"
+    }
+  ]
+}

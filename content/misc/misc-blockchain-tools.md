@@ -13,6 +13,17 @@ useful_for:
   - "Разбор транзакций"
 estimated_minutes: 30
 summary: "Окружение Foundry, forge/anvil/cast, форк mainnet, чтение байткода и storage, отладка транзакций и воспроизведение реальных эксплойтов."
+lab:
+  kind: shell
+  title: 'Практика: работа с cast/etherscan'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, cast_output.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`cast_output.txt` — вывод `cast` (Foundry) по контракту.'
+    - 'Ищи чтение storage/переменных через `cast storage` и `cast call`.'
+    - 'Секрет есть в выводе — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

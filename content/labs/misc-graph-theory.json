@@ -1,0 +1,35 @@
+{
+  "id": "misc-graph-theory",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{bfs_sh0rt3st_p4th_f0und}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРеши задачу из `graph.py` и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/graph.py",
+      "text": "from collections import deque\ng={1:[2,3],2:[4],3:[4],4:[5],5:[]}\nd={1:0}; q=deque([1])\nwhile q:\n    u=q.popleft()\n    for v in g[u]:\n        if v not in d: d[v]=d[u]+1; q.append(v)\nprint(\"nto{bfs_sh0rt3st_p4th_f0und}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — эмуляция (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "graph\\.py",
+          "output": "nto{bfs_sh0rt3st_p4th_f0und}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 graph.py`\n"
+    }
+  }
+}

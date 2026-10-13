@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 14
 summary: "Как приложения проверяют целостность среды (root, подпись, SafetyNet/Play Integrity, hardware attestation) и как обходить эти проверки для тестирования."
+lab:
+  kind: shell
+  title: 'Практика: Integrity / Play Integrity'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, integrity.json]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`integrity.json` — ответ Play Integrity API.'
+    - 'Ищи `MEETS_DEVICE_INTEGRITY` и поля, которые можно подделать.'
+    - 'В ответе есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

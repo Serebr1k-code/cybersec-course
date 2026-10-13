@@ -12,6 +12,17 @@ useful_for:
   - "Reverse: анализ нативного кода разных архитектур"
 estimated_minutes: 42
 summary: "Как Android запускает ARM-бинарники на x86: native bridge, libhoudini, libndk_translation, QEMU-эмуляция, почему нативный код ведёт себя иначе и как правильно тестировать ARM-приложения."
+lab:
+  kind: shell
+  title: 'Практика: ARM↔x86 трансляция'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, translation.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`translation.log` — лог трансляции нативного кода на эмуляторе.'
+    - 'Ищи участки, где нативный код выполняется через эмуляцию (libhoudini/QEMU).'
+    - 'В логе есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

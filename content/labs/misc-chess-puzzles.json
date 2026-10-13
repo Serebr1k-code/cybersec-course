@@ -1,0 +1,35 @@
+{
+  "id": "misc-chess-puzzles",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{8_qu33ns_b4ckt4ck1ng}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРеши задачу из `chess.py` и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/chess.py",
+      "text": "# 8 queens count\ndef solve(n):\n    cols=set(); d1=set(); d2=set(); cnt=0\n    def bt(r):\n        nonlocal cnt\n        if r==n: cnt+=1; return\n        for c in range(n):\n            if c in cols or (r-c) in d1 or (r+c) in d2: continue\n            cols.add(c); d1.add(r-c); d2.add(r+c); bt(r+1)\n            cols.remove(c); d1.remove(r-c); d2.remove(r+c)\n    bt(0); return cnt\nprint(\"nto{8_qu33ns_b4ckt4ck1ng}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — эмуляция (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "chess\\.py",
+          "output": "nto{8_qu33ns_b4ckt4ck1ng}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 chess.py`\n"
+    }
+  }
+}

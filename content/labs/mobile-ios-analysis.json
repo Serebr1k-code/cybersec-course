@@ -1,0 +1,35 @@
+{
+  "id": "mobile-ios-analysis",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{10s_b1n4ry_str1ngs}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: iOS analysis\n\nРазбери iOS-приложение и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/Payload",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/Payload/Vanta.app",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/Payload/Vanta.app/Vanta",
+      "text": "not-a-real-macho\nsecret=nto{10s_b1n4ry_str1ngs}\n"
+    },
+    {
+      "path": "/home/student/task/Payload/Vanta.app/Info.plist",
+      "text": "<plist><dict><key>CFBundleIdentifier</key><string>com.vanta.app</string></dict></plist>\n"
+    }
+  ]
+}

@@ -1,0 +1,45 @@
+{
+  "id": "misc-jail-misc-langs",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sed_e_fl4g_ex3c}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: побег из sed-джейла\n\nСервис принимает строку и прогоняет её через `sed`. Флаг лежит рядом в `flag.txt`,\nно прочитать его напрямую нельзя — доступен только `sed`.\n\nВспомни, что `sed` умеет не только заменять: у него есть команды `e` (execute)\nи `r` (read file). Добудь флаг и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/run.sh",
+      "text": "#!/bin/sh\n# сервис: твоя строка становится частью sed-скрипта\nread -r line\nprintf '%s' \"$line\" | sed \"$1\"\n"
+    }
+  ],
+  "tools": {
+    "sed": {
+      "help": "sed [-n] 'выражение' [файл] — потоковый редактор (эмуляция; вывод захвачен из реального sed)",
+      "cases": [
+        {
+          "match": "/e",
+          "example": "s/x/cat flag.txt/e",
+          "output": "nto{sed_e_fl4g_ex3c}\n"
+        },
+        {
+          "match": "^r\\s",
+          "example": "r flag.txt",
+          "output": "\nnto{sed_e_fl4g_ex3c}\n"
+        },
+        {
+          "match": "s/hello/world/",
+          "output": "world\n"
+        }
+      ],
+      "fallback": "sed: в этой лабе доступны команды подстановки; см. task.md\n"
+    }
+  }
+}

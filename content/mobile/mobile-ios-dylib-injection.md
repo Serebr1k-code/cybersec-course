@@ -12,6 +12,17 @@ useful_for:
   - "Пентест iOS: hooking и перехват методов"
 estimated_minutes: 50
 summary: "Как внедрить свою динамическую библиотеку в iOS-приложение: LC_LOAD_DYLIB, DYLD_INSERT_LIBRARIES, сборка dylib, re-sign через codesign, запуск на устройстве и симуляторе, обход проверок подписи."
+lab:
+  kind: shell
+  title: 'Практика: инъекция dylib'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, entitlements.plist, loader.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Для инъекции dylib нужен `get-task-allow` в entitlements (или re-sign).'
+    - 'Смотри `entitlements.plist` и лог загрузки DYLD_INSERT_LIBRARIES.'
+    - 'В логе загрузки есть путь с секретом — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

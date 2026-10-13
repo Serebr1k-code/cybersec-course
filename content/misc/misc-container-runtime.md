@@ -13,6 +13,17 @@ useful_for:
   - "Побег из контейнеров"
 estimated_minutes: 30
 summary: "Как устроен контейнерный рантайм (runc, containerd, OCI), известные CVE (runc exec, cgroup v1), проверка уязвимости и практические побеги."
+lab:
+  kind: shell
+  title: 'Практика: побег через runc'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, runc_build.txt, poc.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'CVE-2019-5736 — перезапись бинаря `runc` через `/proc/self/exe` при `exec`.'
+    - '`runc_build.txt` — версия рантайма, `poc.log` — лог эксплуатации.'
+    - 'В логе есть секрет: найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,17 @@ useful_for:
   - "Оптимизация регулярных выражений"
 estimated_minutes: 26
 summary: "Regex-гольф, катастрофический backtracking, атомарные группы, рекурсия PCRE и практические приёмы решения головоломок на регулярные выражения."
+lab:
+  kind: shell
+  title: 'Практика: regex-гольф'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, challenge.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`challenge.txt` содержит список строк и подсказки к паттерну.'
+    - 'Цель — короткая регулярка, различающая две группы.'
+    - 'В файле есть флаг — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

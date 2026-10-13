@@ -1,0 +1,23 @@
+{
+  "id": "mobile-hooking-internals",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4rt_r3g1st3rn4t1v3s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: ART internals\n\nРазбери заметки о хукинге ART и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/art_notes.txt",
+      "text": "RegisterNatives(env, clazz, methods, n)\nJVMTI RetransformClasses\nart::Method::SetEntryPointFromQuickCompiledCode\ndemo token: nto{4rt_r3g1st3rn4t1v3s}\n"
+    }
+  ]
+}

@@ -13,6 +13,17 @@ useful_for:
   - "Форензика (извлечение данных)"
 estimated_minutes: 50
 summary: "ADB как атакующий интерфейс: включённая отладка, `adb shell`, backup, content-провайдеры, fastboot и извлечение данных; как это используется в пентесте и что искать."
+lab:
+  kind: shell
+  title: 'Практика: разбор вывода adb'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, adb_devices.txt, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`adb_devices.txt` — вывод `adb devices -l` и свойств устройства.'
+    - 'Ищи устройства с `ro.debuggable=1` и незаблокированным загрузчиком.'
+    - 'Среди свойств есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

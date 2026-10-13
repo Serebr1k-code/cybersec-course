@@ -13,6 +13,17 @@ useful_for:
   - "Работа с файлами, HTTP и сокетами"
 estimated_minutes: 12
 summary: "Python — главный рабочий инструмент в misc. Учимся писать быстрые скрипты: работа с файлами, кодировками, HTTP через requests, сокетами, структурами байтов. Практические шаблоны, которые переиспользуются в 90% задач."
+lab:
+  kind: shell
+  title: 'Практика: XOR с известным открытым текстом'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, data.bin, solve.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`data.bin` — зашифрованный XOR-ом флаг, `solve.py` принимает ключ аргументом.'
+    - 'Мы знаем, что флаг начинается с `nto{`. Посмотри первый байт: `xxd -l 4 data.bin`.'
+    - 'Ключ = первый_байт XOR ord("n"). Найди его и запусти `python3 solve.py <ключ>`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,17 @@ useful_for:
   - "Threat intelligence"
 estimated_minutes: 50
 summary: "Анализ банковских троянов Android: механики (overlay, accessibility, SMS-перехват, C2), статический и динамический разбор, извлечение индикаторов."
+lab:
+  kind: shell
+  title: 'Практика: анализ банковского трояна'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, sample_strings.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`sample_strings.txt` — строки из образца Android-трояна.'
+    - 'Ищи C2-домены, права accessibility, overlay-атаки.'
+    - 'Среди строк есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

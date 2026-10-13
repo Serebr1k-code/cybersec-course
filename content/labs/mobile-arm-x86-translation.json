@@ -1,0 +1,23 @@
+{
+  "id": "mobile-arm-x86-translation",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4rm_tr4nsl4t10n_bug}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: трансляция\n\nРазбери лог ARM↔x86 трансляции и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/translation.log",
+      "text": "[*] libhoudini loaded\n[*] translating 0x4000-0x4fff (ARMv7 -> x86)\n[!] JIT cache mismatch at 0x4120\n[+] debug: nto{4rm_tr4nsl4t10n_bug}\n"
+    }
+  ]
+}

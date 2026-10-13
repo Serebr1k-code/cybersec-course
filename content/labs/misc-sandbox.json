@@ -1,0 +1,40 @@
+{
+  "id": "misc-sandbox",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3v4l_s4ndb0x_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: eval-песочница\n\n`sandbox.py` блокирует слова `import os system open subprocess eval exec`,\nзатем вызывает `eval`. Обойди фильтр и прочитай флаг. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/sandbox.py",
+      "text": "blacklist = ['import', 'os', 'system', 'open', 'subprocess', 'eval', 'exec']\nexpr = input('>>> ')\nif any(b in expr for b in blacklist):\n    print('blocked'); exit(1)\nprint(eval(expr))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> [аргумент] — эмуляция",
+      "cases": [
+        {
+          "match": "chr\\(95\\)",
+          "output": ">>> nto{3v4l_s4ndb0x_byp4ss}\n0\n"
+        },
+        {
+          "match": "\\b(import|os|system|open|subprocess|eval|exec)\\b",
+          "output": ">>> blocked\n",
+          "code": 1
+        }
+      ],
+      "fallback": "python3: доступно `python3 sandbox.py '<payload>'`\n"
+    }
+  }
+}

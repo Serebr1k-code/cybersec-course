@@ -1,0 +1,39 @@
+{
+  "id": "misc-constraint-z3",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{z3_s0lv3s_c0nstr41nts}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Z3\n\nЛицензионный ключ проверяется как система ограничений на байты.\nРеши её солвером и получи флаг: `python3 solve.py`. Запиши результат в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/check.py",
+      "text": "KEY = 0x5a\nstored = bytes(b ^ KEY for b in b'nto{z3_s0lv3s_c0nstr41nts}')\ndef verify(flag):\n    return all((flag[i] ^ KEY) == stored[i] for i in range(len(stored)))\n"
+    },
+    {
+      "path": "/home/student/task/solve.py",
+      "text": "from z3 import BitVec, Solver, sat\nKEY = 0x5a\nstored = bytes(b ^ KEY for b in b'nto{z3_s0lv3s_c0nstr41nts}')\nflag = [BitVec(f'c{i}', 8) for i in range(len(stored))]\ns = Solver()\nfor i, b in enumerate(stored):\n    s.add(flag[i] ^ KEY == b)\nassert s.check() == sat\nm = s.model()\nprint(''.join(chr(m[flag[i]].as_long()) for i in range(len(stored))))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — эмуляция (вывод захвачен из реального z3py)",
+      "cases": [
+        {
+          "match": "solve\\.py",
+          "output": "nto{z3_s0lv3s_c0nstr41nts}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 solve.py`\n"
+    }
+  }
+}

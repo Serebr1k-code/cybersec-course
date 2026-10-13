@@ -1,0 +1,23 @@
+{
+  "id": "mobile-mitm-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{qu1c_m1tm_d0wn9r4d3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: MITM advanced\n\nРазбери заметки о продвинутом перехвате и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/mitm_notes.txt",
+      "text": "transparent proxy on 443\nQUIC downgrade to TCP/443\nVPN profile installed, split-tunnel off\ncaptured bearer: nto{qu1c_m1tm_d0wn9r4d3}\n"
+    }
+  ]
+}

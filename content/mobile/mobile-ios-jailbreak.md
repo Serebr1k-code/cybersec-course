@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 35
 summary: "Как iOS-приложения детектируют jailbreak (файлы, fork, URL-схемы, sandbox-проверки) и как обходить эти проверки через Frida/Objection, включая rootless-джейлбрейки."
+lab:
+  kind: shell
+  title: 'Практика: детект jailbreak'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, jb_check.m]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`jb_check.m` — код проверки jailbreak.'
+    - 'Ищи пути `/Applications/Cydia.app`, `fork()`, запись вне песочницы.'
+    - 'Секрет есть рядом с проверкой — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

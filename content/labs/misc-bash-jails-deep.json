@@ -1,0 +1,54 @@
+{
+  "id": "misc-bash-jails-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{rb4sh_4wk_3sc4p3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: rbash\n\nТебя пустили в restricted shell. Разрешены только `vi`, `awk`, `less`.\nВырвись из ограничений и прочитай флаг. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "$ echo $SHELL\n/bin/rbash\n$ ls /usr/local/rbash/bin\nvi  awk  less\n"
+    }
+  ],
+  "tools": {
+    "rbash": {
+      "help": "rbash — restricted shell (эмуляция реальной сессии)",
+      "cases": [
+        {
+          "match": "echo\\s+\\$SHELL",
+          "output": "/bin/rbash\n"
+        },
+        {
+          "match": "ls\\s+/usr/local/rbash/bin",
+          "output": "vi  awk  less\n"
+        },
+        {
+          "match": "cd\\s+/",
+          "output": "rbash: cd: restricted\n",
+          "code": 1
+        }
+      ],
+      "fallback": "rbash: в этой лабе доступны только `vi`, `awk`, `less`\n"
+    },
+    "awk": {
+      "help": "awk 'BEGIN{system(\"...\")}' — выполнить команду (вывод захвачен из реального awk)",
+      "cases": [
+        {
+          "match": "system\\(.*cat.*flag",
+          "output": "nto{rb4sh_4wk_3sc4p3}\n"
+        }
+      ],
+      "fallback": "awk: доступно `awk 'BEGIN{system(\"cat flag.txt\")}'`\n"
+    }
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "id": "misc-greedy",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{gr33dy_1nt3rv4l_sch3dul1ng}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРеши задачу из `greedy.py` и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/greedy.py",
+      "text": "# interval scheduling greedy\niv=[(1,4),(3,5),(0,6),(5,7),(3,9),(5,9),(6,10),(8,11),(8,12),(2,14),(12,16)]\niv.sort(key=lambda x:x[1]); last=-1; cnt=0\nfor s,e in iv:\n    if s>=last: cnt+=1; last=e\nprint(\"nto{gr33dy_1nt3rv4l_sch3dul1ng}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — эмуляция (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "greedy\\.py",
+          "output": "nto{gr33dy_1nt3rv4l_sch3dul1ng}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 greedy.py`\n"
+    }
+  }
+}

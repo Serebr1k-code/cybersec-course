@@ -1,0 +1,23 @@
+{
+  "id": "misc-ai-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4dv3rs4r14l_p3rturb4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: adversarial\n\nРазбери пример adversarial-атаки и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/adversarial.txt",
+      "text": "original: cat (0.91)\nperturbation: +0.03 * sign(grad)\nadversarial: dog (0.77)\n# epsilon=0.03; secret=nto{4dv3rs4r14l_p3rturb4t10n}\n"
+    }
+  ]
+}

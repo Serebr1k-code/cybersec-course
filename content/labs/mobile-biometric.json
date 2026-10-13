@@ -1,0 +1,31 @@
+{
+  "id": "mobile-biometric",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b10m3tr1c_c4llb4ck_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: биометрия\n\nРазбери обработчик биометрической аутентификации. Найди секрет, который\nотдаётся после успеха, и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/auth",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/auth/BioCallback.smali",
+      "text": ".class public Lcom/vanta/app/auth/BioCallback;\n.method public onAuthenticationSucceeded(Landroidx/biometric/BiometricPrompt$AuthenticationResult;)V\n    const-string v0, \"unlocked token\"\n    const-string v1, \"nto{b10m3tr1c_c4llb4ck_byp4ss}\"\n    return-void\n.end method\n.method public onAuthenticationFailed()V\n    return-void\n.end method\n"
+    }
+  ]
+}

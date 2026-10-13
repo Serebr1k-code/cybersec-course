@@ -1,0 +1,35 @@
+{
+  "id": "mobile-deeplink-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d33pl1nk_4cc0unt_t4k30v3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРазбери артефакты в этом каталоге и найди флаг. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/decoded",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/ui",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/AndroidManifest.xml",
+      "text": "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\" package=\"com.vanta.app\">\n  <application>\n    <activity android:name=\".ui.ResetActivity\" android:exported=\"true\">\n      <intent-filter><action android:name=\"android.intent.action.VIEW\"/>\n        <data android:scheme=\"vanta\" android:host=\"reset\"/></intent-filter>\n    </activity>\n  </application>\n</manifest>\n"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/ui/ResetActivity.smali",
+      "text": ".class public Lcom/vanta/app/ui/ResetActivity;\n.method public onCreate(Landroid/os/Bundle;)V\n    const-string v0, \"email\"\n    const-string v1, \"reset_token=nto{d33pl1nk_4cc0unt_t4k30v3r}\"\n    return-void\n.end method\n"
+    }
+  ]
+}

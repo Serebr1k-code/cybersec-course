@@ -13,6 +13,17 @@ useful_for:
   - "Bug bounty: атаки на AI-функции продукта"
 estimated_minutes: 12
 summary: "AI/ML misc-задачи: adversarial-примеры (FGSM), извлечение и инверсия модели, отравление данных, membership inference и практические атаки на ML-пайплайны."
+lab:
+  kind: shell
+  title: 'Практика: adversarial-пример'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, adversarial.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`adversarial.txt` — данные adversarial-атаки на классификатор.'
+    - 'Ищи perturbation, которая меняет предсказание.'
+    - 'В файле есть флаг — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

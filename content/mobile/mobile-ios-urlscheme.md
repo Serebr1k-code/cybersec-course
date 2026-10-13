@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 30
 summary: "Как iOS-приложения обрабатывают custom URL schemes и Universal Links, чем опасен hijacking и x-callback-url, и как это тестировать."
+lab:
+  kind: shell
+  title: 'Практика: URL-схемы iOS'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, Payload]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'URL-схемы приложения описаны в `Info.plist` в `CFBundleURLTypes`.'
+    - 'Любое приложение может зарегистрировать ту же схему — перехват callback.'
+    - 'Секрет — в параметре callback-схемы: найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

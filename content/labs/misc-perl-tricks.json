@@ -1,0 +1,35 @@
+{
+  "id": "misc-perl-tricks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{perl_r0t13_d3c0d3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: ROT13\n\n`rot13.txt` зашифрован ROT13. Расшифруй и запиши результат в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/rot13.txt",
+      "text": "agb{crey_e0g13_q3p0q3q}\n"
+    }
+  ],
+  "tools": {
+    "perl": {
+      "help": "perl -pe 'tr/A-Za-z/N-ZA-Mn-za-m/' [файл] — ROT13 (вывод захвачен из реального perl)",
+      "cases": [
+        {
+          "match": "tr/A-Za-z/N-ZA-Mn-za-m/",
+          "output": "nto{perl_r0t13_d3c0d3d}\n"
+        }
+      ],
+      "fallback": "perl: доступно `perl -pe 'tr/A-Za-z/N-ZA-Mn-za-m/' rot13.txt`\n"
+    }
+  }
+}

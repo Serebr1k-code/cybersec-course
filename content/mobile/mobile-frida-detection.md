@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 14
 summary: "Как приложения обнаруживают Frida и отладчики (ptrace, порты, строки, /proc, timings) и как обходить эти проверки — хуками и патчем."
+lab:
+  kind: shell
+  title: 'Практика: детект Frida'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, decoded]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Frida-детект ищет порт 27042, строки `frida`, `gum-js-loop`, `linjector`.'
+    - 'Найди проверку и обойди её (переименование, хукинг).'
+    - 'Секрет лежит в коде рядом с детектом — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

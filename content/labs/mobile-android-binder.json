@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-binder",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b1nd3r_tr4ns4ct10n_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРазбери артефакты в этом каталоге и найди флаг. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/binder.log",
+      "text": "binder: 1842:1842 transaction 1 to 0x0 (activity)\n  data: interface=android.app.IActivityManager code=START_ACTIVITY\nbinder: 1842:1850 transaction 42 to 0x0 (vanta.auth)\n  data: interface=com.vanta.IAuth code=GET_TOKEN extra=\"nto{b1nd3r_tr4ns4ct10n_l34k}\"\nbinder: 1842:1851 transaction 7 to 0x0 (package)\n  data: interface=android.content.pm.IPackageManager code=GET_PACKAGE_INFO\n"
+    }
+  ]
+}

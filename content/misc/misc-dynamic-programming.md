@@ -13,6 +13,17 @@ useful_for:
   - "Работа: планирование ресурсов и расписаний"
 estimated_minutes: 30
 summary: "Динамическое программирование для CTF: мемоизация, рюкзак, LCS, редакционное расстояние, размен монет и распознавание задач, сводимых к DP."
+lab:
+  kind: shell
+  title: 'Практика: динамическое программирование'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, dp.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`dp.py` решает задачу о размене монет через DP.'
+    - 'Посмотри, как заполняется массив `dp`.'
+    - 'Запусти `python3 dp.py` и запиши флаг в `found.txt`.'
 ---
 ## Введение
 

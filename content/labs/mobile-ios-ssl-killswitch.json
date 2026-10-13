@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-ssl-killswitch",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ssl_k1llsw1tch_10s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: SSL Kill Switch\n\nРазбери лог и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/killswitch.log",
+      "text": "[*] installing SSL Kill Switch\n[*] hooking SecTrustEvaluate\n[+] pinning bypassed, captured: nto{ssl_k1llsw1tch_10s}\n"
+    }
+  ]
+}

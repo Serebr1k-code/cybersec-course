@@ -1,0 +1,31 @@
+{
+  "id": "mobile-android-components",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3xp0rt3d_4ct1v1ty_l34ks}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: экспортированный компонент\n\nВ `decoded/` лежит распакованный APK. Найди компонент, доступный\nснаружи (`android:exported=\"true\"`), в котором разработчики оставили секрет.\nЗапиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/AndroidManifest.xml",
+      "text": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"\n    package=\"com.vanta.app\">\n  <application android:label=\"@string/app_name\" android:debuggable=\"false\">\n    <activity android:name=\".ui.MainActivity\" android:exported=\"true\">\n      <intent-filter>\n        <action android:name=\"android.intent.action.MAIN\"/>\n        <category android:name=\"android.intent.category.LAUNCHER\"/>\n      </intent-filter>\n    </activity>\n    <activity android:name=\".ui.SettingsActivity\" android:exported=\"false\"/>\n    <activity android:name=\".ui.DebugActivity\" android:exported=\"true\">\n      <meta-data android:name=\"debug.token\" android:value=\"nto{3xp0rt3d_4ct1v1ty_l34ks}\"/>\n    </activity>\n  </application>\n</manifest>\n"
+    },
+    {
+      "path": "/home/student/task/decoded/res/values/strings.xml",
+      "text": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<resources>\n  <string name=\"app_name\">Vanta</string>\n  <string name=\"api_key\">AIzaSyDECOY0000000000000000000000000000</string>\n</resources>\n"
+    }
+  ]
+}

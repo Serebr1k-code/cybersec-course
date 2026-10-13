@@ -1,0 +1,23 @@
+{
+  "id": "mobile-banking-trojan",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b4nk1ng_tr0j4n_c2}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: троян\n\nРазбери строки образца банковского трояна и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/sample_strings.txt",
+      "text": "BIND_ACCESSIBILITY_SERVICE\nSYSTEM_ALERT_WINDOW\nhttps://c2.evil.example/gate.php\nc2_token=nto{b4nk1ng_tr0j4n_c2}\ntarget_packages=com.bank.a,com.bank.b\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-wear-os",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w34r_0s_d4t4_l4y3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Wear OS\n\nРазбери манифест Wear OS и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/wear_manifest.xml",
+      "text": "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\" package=\"com.vanta.wear\">\n  <uses-permission android:name=\"com.google.android.permission.PROVIDE_BACKGROUND\"/>\n  <application>\n    <meta-data android:name=\"wear.token\" android:value=\"nto{w34r_0s_d4t4_l4y3r}\"/>\n  </application>\n</manifest>\n"
+    }
+  ]
+}

@@ -13,6 +13,17 @@ useful_for:
   - "Распознавание последовательностей"
 estimated_minutes: 45
 summary: "Математические головоломки: распознавание последовательностей (OEIS), модульная арифметика, факторизация и простые числа, CRT, комбинаторика, sympy/sage и разборы с кодом."
+lab:
+  kind: shell
+  title: 'Практика: математическая головоломка'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, math.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`math.py` — решение в стиле Project Euler.'
+    - 'Разбери формулу.'
+    - 'Запусти `python3 math.py` и запиши флаг в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

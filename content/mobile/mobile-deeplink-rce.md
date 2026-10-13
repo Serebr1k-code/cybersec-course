@@ -13,6 +13,17 @@ useful_for:
   - "CTF Mobile"
 estimated_minutes: 50
 summary: "Как deep link превращается в RCE: цепочки через WebView, file/content-URI, intent redirection и нативные мосты; полный разбор с командами и демонстрацией."
+lab:
+  kind: shell
+  title: 'Практика: цепочка deep link → RCE'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, decoded]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Deep link ведёт в экспортированный компонент, который грузит URL в WebView.'
+    - 'Если URL-параметр попадает в `loadUrl` без проверки — это путь к RCE/утечке.'
+    - 'Секрет — в целевом внутреннем экране: найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

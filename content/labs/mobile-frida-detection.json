@@ -1,0 +1,31 @@
+{
+  "id": "mobile-frida-detection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{fr1d4_d3t3ct10n_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: детект Frida\n\nПриложение пытается обнаружить Frida. Найди проверку и секрет, оставленный\nрядом. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/anti",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/anti/FridaCheck.smali",
+      "text": ".class public Lcom/vanta/app/anti/FridaCheck;\n.method public detect()Z\n    const-string v0, \"frida\"\n    const-string v1, \"27042\"\n    const-string v2, \"nto{fr1d4_d3t3ct10n_byp4ss}\"\n    return v0\n.end method\n"
+    }
+  ]
+}

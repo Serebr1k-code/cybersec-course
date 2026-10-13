@@ -13,6 +13,17 @@ useful_for:
   - "Понимание изоляции процессов"
 estimated_minutes: 50
 summary: "Ядро и системные вызовы: seccomp, namespaces, cgroups, /proc и /sys, capabilities, побег из изоляции, инструменты и разборы."
+lab:
+  kind: shell
+  title: 'Практика: утечка через eBPF'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, ebpf.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`ebpf.log` — лог загрузки eBPF-программы и её вывода.'
+    - 'Программы с правами root могут читать память ядра.'
+    - 'В выводе есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

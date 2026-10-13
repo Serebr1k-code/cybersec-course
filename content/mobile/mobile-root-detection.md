@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 30
 summary: "Почему приложение отказывается работать на root-устройстве или падает при Frida, и как обойти проверки root, отладчика, целостности и anti-Frida."
+lab:
+  kind: shell
+  title: 'Практика: обход root-детекта'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, decoded]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Root-детект ищет `su`, `magisk`, тестовые ключи (`test-keys`).'
+    - 'Обход — переименовать бинарь, скрыть пакет Magisk, спрятать путь.'
+    - 'Секрет зашит рядом с проверкой — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

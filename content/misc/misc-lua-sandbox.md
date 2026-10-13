@@ -13,6 +13,17 @@ useful_for:
   - "Понимание рисков встраивания Lua"
 estimated_minutes: 12
 summary: "Как выходить из Lua-песочниц: восстановление os/io через getfenv, библиотека debug, loadstring и метатаблицы; практика на Redis EVAL и встроенных движках."
+lab:
+  kind: shell
+  title: 'Практика: побег из Lua-песочницы'
+  toolset: [core, lua]
+  workdir: /home/student/task
+  files: [task.md, sandbox.lua]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`sandbox.lua` подменяет окружение через `setmetatable`, но оставляет `__index = _G`.'
+    - 'Это значит, что глобальная таблица `_G` всё ещё видна из песочницы.'
+    - 'Запусти с payload-аргументом: `lua sandbox.lua ''os.execute("cat flag.txt")''`.'
 ---
 
 ## Вопрос, с которого всё начинается

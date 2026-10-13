@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 20
 summary: "Как буфер обмена, сторонние клавиатуры и системные side-channels раскрывают пароли/токены, как это эксплуатировать и как находить в приложениях."
+lab:
+  kind: shell
+  title: 'Практика: утечка через буфер обмена'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, decoded]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Ищи в коде `ClipboardManager.setPrimaryClip` — данные копируются в общий буфер.'
+    - 'Любое приложение может прочитать буфер обмена.'
+    - 'Найди строку с секретом и запиши `nto{` в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

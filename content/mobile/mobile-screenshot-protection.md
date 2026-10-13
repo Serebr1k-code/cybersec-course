@@ -12,6 +12,17 @@ useful_for:
   - "Пентест: анализ защищённых экранов"
 estimated_minutes: 40
 summary: "Как работает FLAG_SECURE, зачем приложения запрещают скриншоты и запись экрана, какие есть обходы (хук флагов окна, Magisk-модули, Frida) и как проверить защиту."
+lab:
+  kind: shell
+  title: 'Практика: защита от скриншотов (FLAG_SECURE)'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, decoded]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'От скриншотов защищает флаг окна `WindowManager.LayoutParams.FLAG_SECURE`.'
+    - 'Ищи его в коде: `addFlags(...FLAG_SECURE)` или отсутствие такового.'
+    - 'Экран с секретом **не** выставил FLAG_SECURE — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

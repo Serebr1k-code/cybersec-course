@@ -12,6 +12,17 @@ useful_for:
   - "CTF: быстрый запуск Android-приложения"
 estimated_minutes: 40
 summary: "Как поднять воспроизводимую лабораторию для теста Android-приложений: AVD и Genymotion, root-образы, установка пользовательского CA, прокси Burp/mitmproxy, docker-android и автоматизация с adb."
+lab:
+  kind: shell
+  title: 'Практика: конфигурация AVD'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, config.ini]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`config.ini` — конфигурация Android Virtual Device.'
+    - 'Смотри образы (`image.sysdir`) и флаги отладки.'
+    - 'В конфиге есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

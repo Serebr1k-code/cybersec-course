@@ -1,0 +1,23 @@
+{
+  "id": "misc-kernel-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{k3rn3l_l0g_l34ks}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: dmesg\n\nСнят вывод `dmesg` с продакшн-хоста. В логе ядра остался отладочный вывод,\nкоторый писать не должны были. Найди флаг и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/dmesg.txt",
+      "text": "[    0.000000] Linux version 6.1.0-13-amd64\n[    2.718281] EXT4-fs (sda1): mounted filesystem\n[    5.000000] vanta_drv: module loaded\n[    5.000111] vanta_drv: debug token nto{k3rn3l_l0g_l34ks}\n[    5.000222] vanta_drv: init complete\n"
+    }
+  ]
+}

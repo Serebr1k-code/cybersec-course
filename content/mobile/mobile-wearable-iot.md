@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений и IoT"
 estimated_minutes: 40
 summary: "Как устроены wearable и companion-приложения (Wear OS, watchOS), какие каналы (BLE, Data Layer, cloud) они используют и где искать уязвимости в связке часы-телефон-облако."
+lab:
+  kind: shell
+  title: 'Практика: companion-приложения'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, companion.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`companion.log` — обмен данными телефона и носимого устройства.'
+    - 'Ищи незашифрованные сообщения через data layer.'
+    - 'В логе есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 ## Вопрос, с которого всё начинается
 

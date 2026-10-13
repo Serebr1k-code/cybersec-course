@@ -1,0 +1,23 @@
+{
+  "id": "mobile-frida-dexdump",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{fr1d4_d3xdump_p4yl04d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРазбери артефакты в этом каталоге и найди флаг. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/dexdump.log",
+      "text": "[*] Searching for DexClassLoader in memory...\n[*] Found DEX at 0x7f9a0000, size 1480\n[+] Dumped classes.dex\n    class Lcom/vanta/app/Vault;\n      field SECRET = \"nto{fr1d4_d3xdump_p4yl04d}\"\n"
+    }
+  ]
+}

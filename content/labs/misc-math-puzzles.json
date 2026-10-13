@@ -1,0 +1,35 @@
+{
+  "id": "misc-math-puzzles",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pr0j3ct_3ul3r_style}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРеши задачу из `math.py` и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/math.py",
+      "text": "print(\"nto{pr0j3ct_3ul3r_style}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — эмуляция (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "math\\.py",
+          "output": "nto{pr0j3ct_3ul3r_style}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 math.py`\n"
+    }
+  }
+}

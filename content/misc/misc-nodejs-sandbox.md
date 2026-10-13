@@ -13,6 +13,17 @@ useful_for:
   - "Bug bounty: RCE через небезопасный eval/vm"
 estimated_minutes: 45
 summary: "Как выходить из Node.js-песочниц на базе vm, урезанного require и eval: побег через конструктор функции, prototype pollution, process.binding и восстановление require."
+lab:
+  kind: shell
+  title: 'Практика: побег из Node.js vm'
+  toolset: [core, node]
+  workdir: /home/student/task
+  files: [task.md, server.js]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Прочитай `server.js`: код исполняется в `vm.runInNewContext` — нет `require` и `process`.'
+    - 'В JS у каждого объекта есть `constructor`, у функции — `Function`, которая строит функцию из строки.'
+    - 'Из контекста можно вернуть **хостовый** `global`: `this.constructor.constructor("return global")()`. Дальше — `global.process`.'
 ---
 
 ## Вопрос, с которого всё начинается

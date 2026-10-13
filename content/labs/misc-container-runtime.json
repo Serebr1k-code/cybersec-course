@@ -1,0 +1,27 @@
+{
+  "id": "misc-container-runtime",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{runc_cv3_2019_5736_pwn}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: runc\n\nХост использует уязвимый `runc`. Разбери версию и лог PoC, найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/runc_build.txt",
+      "text": "runc version 1.0.0-rc5\ncommit: 4b1e8f5\nspec: 1.0.1-dev\n"
+    },
+    {
+      "path": "/home/student/task/poc.log",
+      "text": "[*] opening /proc/self/exe via /proc/<pid>/exe\n[*] overwriting runc binary with payload\n[+] host shell spawned\n[+] token: nto{runc_cv3_2019_5736_pwn}\n"
+    }
+  ]
+}

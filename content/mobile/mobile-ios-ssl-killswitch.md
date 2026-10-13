@@ -13,6 +13,17 @@ useful_for:
   - "Анализ трафика"
 estimated_minutes: 50
 summary: "Как обходить certificate pinning на iOS: SSL Kill Switch 2, Frida-хуки Security.framework, TrustKit, libcurl и нативный pinning; настройка MITM через Burp/mitmproxy."
+lab:
+  kind: shell
+  title: 'Практика: SSL Kill Switch'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, killswitch.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`killswitch.log` — лог работы SSL Kill Switch на iOS.'
+    - 'Инструмент отключает pinning через hooks.'
+    - 'В логе есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

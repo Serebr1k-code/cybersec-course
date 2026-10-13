@@ -1,0 +1,43 @@
+{
+  "id": "misc-python-ctf",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{x0r_w1th_kn0wn_pl41nt3xt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: XOR\n\n`data.bin` зашифрован побайтовым XOR с одним байтом-ключом.\nИзвестно, что открытый текст начинается с `nto{`. Восстанови ключ и расшифруй.\n`solve.py <ключ>` печатает результат. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/data.bin",
+      "b64": "NC41ISJqKAUtay4yBTE0ai00BSo2bms0LmkiLic="
+    },
+    {
+      "path": "/home/student/task/solve.py",
+      "text": "import sys\nkey = int(sys.argv[1], 0)\ndata = open('data.bin','rb').read()\nsys.stdout.write(''.join(chr(b ^ key) for b in data) + '\\n')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> [аргументы] — эмуляция (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "solve\\.py\\s+(0x5a|90)\\b",
+          "output": "nto{x0r_w1th_kn0wn_pl41nt3xt}\n"
+        },
+        {
+          "match": "solve\\.py\\s+\\d+",
+          "output": "4.5! i)j6,i)9j4).(nk4.)'\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 solve.py <ключ>`\n"
+    }
+  }
+}

@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 40
 summary: "Глубокий статический анализ iOS: структура Mach-O, извлечение Objective-C/Swift, дешифровка App Store-сборок, работа в Hopper/Ghidra и поиск секретов/логики."
+lab:
+  kind: shell
+  title: 'Практика: class-dump iOS'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, classdump.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`classdump.txt` — результат `class-dump` по бинарю iOS-приложения.'
+    - 'Ищи методы с подозрительными именами (`token`, `secret`, `key`, `flag`).'
+    - 'В одном из методов зашита строка-флаг — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

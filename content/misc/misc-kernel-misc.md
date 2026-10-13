@@ -13,6 +13,17 @@ useful_for:
   - "Наблюдаемость и eBPF"
 estimated_minutes: 32
 summary: "strace/ltrace, чтение /proc и /sys, syscall-ABI, seccomp-фильтры, eBPF и tracefs, а также типовые задачи про ядро и песочницы."
+lab:
+  kind: shell
+  title: 'Практика: утечка через dmesg'
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, dmesg.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`dmesg.txt` — кольцевой буфер ядра. Драйверы иногда пишут в него лишнее.'
+    - 'Ищи по ключевым словам: `grep -iE "debug|secret|key" dmesg.txt`.'
+    - 'Флаг записан в отладочном `printk` — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

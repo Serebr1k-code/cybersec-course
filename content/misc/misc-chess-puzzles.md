@@ -13,6 +13,17 @@ useful_for:
   - "Решение constraint-головоломок"
 estimated_minutes: 40
 summary: "Шахматные задачи в CTF: нотации FEN и PGN, библиотека python-chess и Stockfish, логические сетки (судоку, nonogram, kakuro) и задачи на переливания."
+lab:
+  kind: shell
+  title: 'Практика: шахматные задачи'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, chess.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`chess.py` решает задачу о N ферзях бэктрекингом.'
+    - 'Посчитай число решений для N=8.'
+    - 'Запусти `python3 chess.py` и запиши флаг в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

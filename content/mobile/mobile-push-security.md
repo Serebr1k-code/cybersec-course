@@ -12,6 +12,17 @@ useful_for:
   - "Bug bounty: подмена и утечка через уведомления"
 estimated_minutes: 40
 summary: "Как работают push-уведомления (FCM/APNs), где хранится токен, как проверить доверие к payload, подменить уведомление и найти утечки данных через push-канал."
+lab:
+  kind: shell
+  title: 'Практика: безопасность push (APNs/FCM)'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, apns_payload.json]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`apns_payload.json` — payload APNs.'
+    - 'Ищи, что попадает в `aps.alert` и `custom`-поля.'
+    - 'В payload есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,23 @@
+{
+  "id": "misc-web-logic",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w3b_l0g1c_puzzl3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: логика доступа\n\nПравила доступа описаны в `rules.txt`. Найди путь к флагу и запиши его\nв `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/rules.txt",
+      "text": "access(flag) :- user(admin), mfa(true), ip(127.0.0.1).\nuser(admin).\n# mfa(true) only if header X-Debug: 1\n# flag=\"nto{w3b_l0g1c_puzzl3}\"\n"
+    }
+  ]
+}

@@ -12,6 +12,17 @@ useful_for:
   - "Пентест: извлечение кода из-под упаковщика"
 estimated_minutes: 45
 summary: "Как извлечь настоящий DEX из памяти процесса, когда на диске лежит только зашифрованный/обфусцированный код: frida-dexdump, DexHunter, поиск magic-заголовков и починка дампа."
+lab:
+  kind: shell
+  title: 'Практика: дамп DEX из памяти'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, dexdump.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`frida-dexdump` сканирует память процесса и выгружает DEX-файлы.'
+    - 'Ищи, какой класс/метод держит секрет.'
+    - 'В логе дампа есть строка с флагом — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

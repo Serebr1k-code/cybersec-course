@@ -1,0 +1,23 @@
+{
+  "id": "mobile-integrity",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pl4y_1nt3gr1ty_sp00f}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: integrity\n\nРазбери ответ Play Integrity и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/integrity.json",
+      "text": "{\n  \"requestDetails\": {\"requestPackageName\": \"com.vanta.app\"},\n  \"deviceIntegrity\": {\"deviceRecognitionVerdict\": [\"MEETS_DEVICE_INTEGRITY\"]},\n  \"debugToken\": \"nto{pl4y_1nt3gr1ty_sp00f}\"\n}\n"
+    }
+  ]
+}

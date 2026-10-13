@@ -1,0 +1,31 @@
+{
+  "id": "mobile-tapjacking",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{t4pj4ck1ng_0v3rl4y_4tt4ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: tapjacking\n\nЭкран оплаты не блокирует наложение чужих окон. Найди экран, у которого\nотключена защита, и секрет. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/ui",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/ui/PayActivity.smali",
+      "text": ".class public Lcom/vanta/app/ui/PayActivity;\n.method public onCreate(Landroid/os/Bundle;)V\n    const/4 v0, 0x0\n    invoke-virtual {p0, v0}, Landroid/view/View;->setFilterTouchesWhenObscured(Z)V\n    const-string v1, \"nto{t4pj4ck1ng_0v3rl4y_4tt4ck}\"\n    return-void\n.end method\n"
+    }
+  ]
+}

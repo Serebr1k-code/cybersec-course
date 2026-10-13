@@ -13,6 +13,17 @@ useful_for:
   - "Пентест: аудит LLM-приложений и агентов"
 estimated_minutes: 30
 summary: "Продвинутые техники jailbreak и prompt injection: role-play, кодирование, разделение токенов, извлечение системного промпта, косвенные инъекции и атаки на инструменты агента."
+lab:
+  kind: shell
+  title: 'Практика: разбор попыток jailbreak'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, attempts.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`attempts.log` — попытки обойти правила модели.'
+    - 'Найди попытку, которая сработала (модель вывела секрет).'
+    - 'Секрет — флаг: найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

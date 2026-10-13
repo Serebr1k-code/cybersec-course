@@ -12,6 +12,17 @@ useful_for:
   - "Пентест: анализ BLE-канала и подмена периферии"
 estimated_minutes: 45
 summary: "Как приложения общаются с устройствами по Bluetooth LE: GATT-профили, характеристики, спаривание и bonding, сниффинг трафика через nRF Sniffer/Ubertooth, подмена периферии и типовые ошибки защиты BLE."
+lab:
+  kind: shell
+  title: 'Практика: разбор GATT-обмена'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, gatt_dump.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`gatt_dump.txt` — дамп GATT-сервисов и характеристик BLE-устройства.'
+    - 'Ищи характеристики с записью (write) — через них можно писать команды.'
+    - 'Среди значений есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 ## Вопрос, с которого всё начинается
 

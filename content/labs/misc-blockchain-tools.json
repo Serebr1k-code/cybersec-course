@@ -1,0 +1,23 @@
+{
+  "id": "misc-blockchain-tools",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c4st_st0r4g3_sl0t_r34d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: cast\n\nДан вывод инструментов Foundry по контракту. Найди секрет и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/cast_output.txt",
+      "text": "$ cast storage 0xVault 0\n0x0000000000000000000000000000000000000000000000000000000000000000\n$ cast call 0xVault \"secret()(string)\"\n\"nto{c4st_st0r4g3_sl0t_r34d}\"\n"
+    }
+  ]
+}

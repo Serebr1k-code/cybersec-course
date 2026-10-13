@@ -1,0 +1,23 @@
+{
+  "id": "mobile-react-native-reversing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h3rm3s_byt3c0d3_str1ngs}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: React Native\n\nРазбери строки Hermes-байткода и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/hermes_strings.txt",
+      "text": "index.android.bundle\napi.vanta.local\nSECRET_KEY=nto{h3rm3s_byt3c0d3_str1ngs}\n"
+    }
+  ]
+}

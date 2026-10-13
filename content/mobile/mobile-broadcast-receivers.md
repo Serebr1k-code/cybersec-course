@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 30
 summary: "Как экспортированные Broadcast Receivers позволяют другим приложениям запускать логику, отправлять поддельные события и утекать данные, и как это тестировать через adb."
+lab:
+  kind: shell
+  title: 'Практика: незащищённый BroadcastReceiver'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, decoded]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`decoded/` — распакованный APK. Ищи экспортированные receiver-ы.'
+    - 'Один receiver принимает действие и возвращает секрет через `putExtra`.'
+    - 'Секрет зашит в smali/java этого receiver-а — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -12,6 +12,17 @@ useful_for:
   - "Пентест: глубокая инструментация приложения"
 estimated_minutes: 50
 summary: "Как на самом деле работает перехват методов в Android: байткод Dalvik, JIT/AOT в ART, точки входа JVMTI, RegisterNatives для JNI, и почему Frida иногда не может захукать метод."
+lab:
+  kind: shell
+  title: 'Практика: внутренности хукинга ART'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, art_notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`art_notes.txt` — заметки о хукинге на уровне ART.'
+    - 'Ищи RegisterNatives, JVMTI, art::Method.'
+    - 'Секрет есть в заметках — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

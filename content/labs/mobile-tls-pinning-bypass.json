@@ -1,0 +1,27 @@
+{
+  "id": "mobile-tls-pinning-bypass",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{tls_p1nn1ng_p4tch3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: TLS pinning bypass\n\nРазбери скрипт обхода и его вывод, найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/bypass.js",
+      "text": "Java.perform(function(){\n  var X509 = Java.use('javax.net.ssl.X509TrustManager');\n  X509.checkServerTrusted.implementation = function(){ return; };\n});\n"
+    },
+    {
+      "path": "/home/student/task/log.txt",
+      "text": "[*] TrustManager.checkServerTrusted hooked\n[*] pinning disabled\n[+] intercepted token: nto{tls_p1nn1ng_p4tch3d}\n"
+    }
+  ]
+}

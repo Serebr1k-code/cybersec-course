@@ -1,0 +1,35 @@
+{
+  "id": "misc-number-theory-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m0dul4r_1nv3rs3_gcd}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРеши задачу из `nt.py` и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/nt.py",
+      "text": "print(\"nto{m0dul4r_1nv3rs3_gcd}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — эмуляция (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "nt\\.py",
+          "output": "nto{m0dul4r_1nv3rs3_gcd}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 nt.py`\n"
+    }
+  }
+}

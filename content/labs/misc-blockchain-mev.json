@@ -1,0 +1,23 @@
+{
+  "id": "misc-blockchain-mev",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m3v_fr0ntrunn1ng_b0t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: MEV\n\nВ мемпуле есть выгодная сделка. Разбери `mempool.txt` и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/mempool.txt",
+      "text": "0xaaa: swap 100 ETH -> USDC  gasPrice=20 gwei  nonce=41\n0xbbb: swap 0.1 ETH -> USDC  gasPrice=19 gwei  nonce=7\n# sandwich target; bot profit plan; token=nto{m3v_fr0ntrunn1ng_b0t}\n"
+    }
+  ]
+}

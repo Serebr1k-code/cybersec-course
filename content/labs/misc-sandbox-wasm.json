@@ -1,0 +1,23 @@
+{
+  "id": "misc-sandbox-wasm",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w4sm_cust0m_s3ct10n_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: WASM\n\nВ WASM-модуле разработчики оставили метаданные в custom-секции.\nИзвлеки их и найди флаг. Запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/module.wasm",
+      "b64": "AGFzbQEAAAAAQgp2YW50YS5tZXRhYnVpbGQ9dmFudGEtMS40LjIKc2VjcmV0PW50b3t3NHNtX2N1c3QwbV9zM2N0MTBuX2wzNGt9Cg=="
+    }
+  ]
+}

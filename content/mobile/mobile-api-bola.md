@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 40
 summary: "Как искать Broken Object Level Authorization и IDOR в мобильном API: анализ запросов, манипуляция ID, обход привязки к устройству и цепочки к массовой утечке."
+lab:
+  kind: shell
+  title: 'Практика: BOLA по числовому id в мобильном API'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, api_log.txt, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`api_log.txt` — перехваченные запросы мобильного API.'
+    - 'BOLA: объект запрашивается по своему id, а авторизация на сервере не проверяется.'
+    - 'Подмени id чужого объекта в URL и найди ответ с секретом — запиши `nto{` в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

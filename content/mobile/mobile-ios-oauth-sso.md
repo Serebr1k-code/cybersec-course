@@ -12,6 +12,17 @@ useful_for:
   - "Пентест: аудит авторизации и SSO"
 estimated_minutes: 48
 summary: "Как устроен OAuth 2.0/OIDC в мобильном приложении, роль PKCE, ASWebAuthenticationSession, Custom Tabs, типовые ошибки (implicit flow, слабый redirect_uri, отсутствие PKCE) и кража кода/токена."
+lab:
+  kind: shell
+  title: 'Практика: OAuth/SSO в iOS'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, oauth_flow.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`oauth_flow.txt` — лог OAuth-потока (PKCE).'
+    - 'Ищи, где теряется `code_verifier` или переиспользуется `state`.'
+    - 'В логе есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

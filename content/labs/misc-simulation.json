@@ -1,0 +1,35 @@
+{
+  "id": "misc-simulation",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c3llul4r_4ut0m4t4_s1mul4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРеши задачу из `sim.py` и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/sim.py",
+      "text": "# cellular automaton step (Game of Life)\ng={(1,0),(1,1),(1,2)}\ndef step(g):\n    ns={}\n    for (x,y) in g:\n        for dx in(-1,0,1):\n            for dy in(-1,0,1):\n                if dx or dy: ns[(x+dx,y+dy)]=ns.get((x+dx,y+dy),0)+1\n    return {(x,y) for (x,y),n in ns.items() if n==3 or (n==2 and (x,y) in g)}\nprint(\"nto{c3llul4r_4ut0m4t4_s1mul4t10n}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — эмуляция (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "sim\\.py",
+          "output": "nto{c3llul4r_4ut0m4t4_s1mul4t10n}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 sim.py`\n"
+    }
+  }
+}

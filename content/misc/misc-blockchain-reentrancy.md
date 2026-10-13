@@ -13,6 +13,17 @@ useful_for:
   - "Разбор инцидентов"
 estimated_minutes: 35
 summary: "Классический reentrancy, cross-function и read-only варианты, защита checks-effects-interactions, flash-loan-комбо и полный PoC атакующего контракта."
+lab:
+  kind: shell
+  title: 'Практика: reentrancy'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, Bank.sol, attack.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`Bank.sol` переводит средства до обновления баланса — классический reentrancy.'
+    - '`attack.log` — лог эксплуатации.'
+    - 'В логе есть флаг — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

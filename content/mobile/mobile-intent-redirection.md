@@ -13,6 +13,17 @@ useful_for:
   - "CTF Mobile"
 estimated_minutes: 50
 summary: "Intent redirection: как приложение переиспользует вложенный Intent и это позволяет атакующему запустить приватный компонент, украсть данные или выполнить операцию от имени жертвы."
+lab:
+  kind: shell
+  title: 'Практика: intent redirection'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, decoded]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Компонент получает `Intent` и достаёт из него **вложенный** Intent (`getParcelableExtra`).'
+    - 'Если он запускает вложенный Intent без проверки — это intent redirection.'
+    - 'Секрет лежит в целевом приватном компоненте — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,23 @@
+{
+  "id": "misc-blockchain-solidity",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s0l1d1ty_tx_0r1g1n_bug}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Solidity\n\nПроведи аудит `Vault.sol` и найди флаг, спрятанный в контракте.\n"
+    },
+    {
+      "path": "/home/student/task/Vault.sol",
+      "text": "pragma solidity ^0.8.0;\ncontract Vault {\n    address owner;\n    string secret = \"nto{s0l1d1ty_tx_0r1g1n_bug}\";\n    modifier onlyOwner() { require(tx.origin == owner); _; }\n    function withdraw() public onlyOwner { payable(msg.sender).transfer(address(this).balance); }\n}\n"
+    }
+  ]
+}

@@ -13,6 +13,17 @@ useful_for:
   - "Работа: reverse engineering"
 estimated_minutes: 12
 summary: "Этап статического и динамического анализа iOS-приложений."
+lab:
+  kind: shell
+  title: 'Практика: анализ iOS-приложения'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, Payload]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`Payload/` — распакованный IPA. Ищи бинарник и Info.plist.'
+    - 'Определи тип Mach-O (`file`) и извлеки строки.'
+    - 'Секрет есть в бинарнике — найди `nto{` и запиши в `found.txt`.'
 ---
 
 Этот урок — **этап-навигатор** в ветке. Он короткий: его задача — объяснить, что вы будете изучать на этом этапе, почему темы идут именно в таком порядке и что вы сможете делать после прохождения.

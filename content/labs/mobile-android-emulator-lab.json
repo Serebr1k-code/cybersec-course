@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-emulator-lab",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4vd_d3bugg4bl3_1m4g3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: AVD\n\nРазбери конфигурацию эмулятора и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/config.ini",
+      "text": "AvdId=VantaLab\nimage.sysdir.1=system-images/android-30/google_apis/x86_64/\nhw.gpu.enabled=yes\nhw.keyboard=yes\ndisk.dataPartition.size=6G\ndebug.token=nto{4vd_d3bugg4bl3_1m4g3}\n"
+    }
+  ]
+}

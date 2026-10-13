@@ -13,6 +13,17 @@ useful_for:
   - "Побег из песочниц"
 estimated_minutes: 30
 summary: "Модель безопасности WebAssembly, импорты и host-функции, побег через ошибки embedder'а (wasmtime/wasmer/wasm3), JIT-баги и практические примеры."
+lab:
+  kind: shell
+  title: 'Практика: разбор WASM-модуля'
+  toolset: [core, strings]
+  workdir: /home/student/task
+  files: [task.md, module.wasm]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`module.wasm` — WebAssembly-модуль. Кастомные секции могут содержать метаданные.'
+    - 'Определи тип (`file`) и извлеки строки: `strings module.wasm`.'
+    - 'Секрет лежит в custom-секции: `strings module.wasm | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

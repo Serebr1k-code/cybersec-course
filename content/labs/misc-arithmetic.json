@@ -1,0 +1,39 @@
+{
+  "id": "misc-arithmetic",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b1gnums_n33d_b1gnums}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: арифметика\n\nВ `problem.txt` — арифметическая задача, ответ кодирует флаг.\nЗапусти `python3 solve.py` и запиши результат в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/problem.txt",
+      "text": "Compute (2**1000) mod 97, then map result to a byte offset.\n"
+    },
+    {
+      "path": "/home/student/task/solve.py",
+      "text": "n = (2**1000) % 97\nflag = 'nto{b1gnums_n33d_b1gnums}'\nprint(flag)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — эмуляция",
+      "cases": [
+        {
+          "match": "solve\\.py",
+          "output": "nto{b1gnums_n33d_b1gnums}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 solve.py`\n"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-universal-links",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{un1v3rs4l_l1nks_p4ths}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРазбери артефакты в этом каталоге и найди флаг. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/apple-app-site-association",
+      "text": "{\n  \"applinks\": {\n    \"details\": [\n      {\n        \"appID\": \"ABCDE12345.com.vanta.app\",\n        \"paths\": [\"/account/*\", \"/oauth/callback?token=nto{un1v3rs4l_l1nks_p4ths}\", \"NOT /help/*\"]\n      }\n    ]\n  }\n}\n"
+    }
+  ]
+}

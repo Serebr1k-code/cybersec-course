@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 14
 summary: "Как Android WebView открывает сайты и локальные страницы, чем опасны addJavascriptInterface, setAllowFileAccess и file://, и как эксплуатировать XSS/загрузку произвольного URL в контексте приложения."
+lab:
+  kind: shell
+  title: 'Практика: WebView и доступ к файлам'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, decoded]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Опасные настройки WebView: `setAllowFileAccess`, `setJavaScriptEnabled`.'
+    - 'При включённом file-доступе страница может прочитать локальные файлы.'
+    - 'Секрет лежит в `assets/` — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

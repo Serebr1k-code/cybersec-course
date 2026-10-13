@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 30
 summary: "Как работают push-уведомления (FCM/APNs), какие данные в них утекают, как перехватывать и подделывать уведомления и эксплуатировать обработчики/глубокие ссылки в payload."
+lab:
+  kind: shell
+  title: 'Практика: перехват FCM-уведомлений'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, fcm_payload.json]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'FCM-payload может содержать чувствительные данные в `data`.'
+    - 'Если push не проверяет подпись — payload можно подделать.'
+    - 'В payload есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

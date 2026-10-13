@@ -13,6 +13,17 @@ useful_for:
   - "Писать эффективные солверы"
 estimated_minutes: 12
 summary: "Programming-задачи проверяют умение писать корректный и эффективный код под ограничения. Разбираем типовые сюжеты: перебор с отсечениями, динамическое программирование, SMT-солвер z3, работа с большими данными и оптимизация."
+lab:
+  kind: shell
+  title: 'Практика: алгоритмическая задача'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, prog.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`prog.py` — решение programming-задачи.'
+    - 'Проверь граничные случаи.'
+    - 'Запусти `python3 prog.py` и запиши флаг в `found.txt`.'
 ---
 ## Вопрос, с которого всё начинается
 

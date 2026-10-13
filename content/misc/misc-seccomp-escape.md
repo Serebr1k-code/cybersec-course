@@ -13,6 +13,17 @@ useful_for:
   - "Аудит изоляции"
 estimated_minutes: 32
 summary: "Как устроен seccomp-BPF, разбор фильтров, обход через разрешённые syscalls, x32-ABI и TOCTOU, а также побег из nsjail и учебных sandbox-бинарей."
+lab:
+  kind: shell
+  title: 'Практика: разбор seccomp-фильтра'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, seccomp_dump.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`seccomp_dump.txt` — дамп BPF-фильтра seccomp из pwn-задачи.'
+    - 'Фильтр разрешает только чтение/запись — `execve` запрещён.'
+    - 'Ищи в дампе, какие вызовы разрешены, и где спрятан флаг: найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

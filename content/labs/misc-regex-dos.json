@@ -1,0 +1,27 @@
+{
+  "id": "misc-regex-dos",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r3d0s_c4t4str0ph1c_b4ckt4ck1ng}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: ReDoS\n\nРазбери `server.js`, найди уязвимую регулярку и флаг рядом с ней.\n"
+    },
+    {
+      "path": "/home/student/task/server.js",
+      "text": "const re = /^(a+)+$/;  // catastrophic backtracking\nfunction validate(input){ return re.test(input); }\n// debug: nto{r3d0s_c4t4str0ph1c_b4ckt4ck1ng}\n"
+    },
+    {
+      "path": "/home/student/task/payload.txt",
+      "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaX\n"
+    }
+  ]
+}

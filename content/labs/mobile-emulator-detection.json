@@ -1,0 +1,31 @@
+{
+  "id": "mobile-emulator-detection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3mul4t0r_d3t3ct_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: детект эмулятора\n\nПриложение проверяет, запущено ли оно на эмуляторе. Найди функцию детекта и\nсекрет в отладочной ветке. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/anti",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/anti/EmuCheck.smali",
+      "text": ".class public Lcom/vanta/app/anti/EmuCheck;\n.method public isEmulator()Z\n    sget-object v0, Landroid/os/Build;->FINGERPRINT:Ljava/lang/String;\n    const-string v1, \"generic\"\n    const-string v2, \"nto{3mul4t0r_d3t3ct_byp4ss}\"\n    return v0\n.end method\n"
+    }
+  ]
+}

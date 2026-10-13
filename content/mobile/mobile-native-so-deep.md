@@ -13,6 +13,17 @@ useful_for:
   - "CTF Mobile"
 estimated_minutes: 50
 summary: "Углублённый реверс нативных библиотек Android: определение архитектуры, разбор JNI (Java_* и RegisterNatives), Ghidra/IDA/r2, динамические хуки, снятие строковой обфускации."
+lab:
+  kind: shell
+  title: 'Практика: реверс нативной библиотеки'
+  toolset: [core, strings, nm, objdump, readelf]
+  workdir: /home/student/task
+  files: [task.md, libvanta.so]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Определи тип файла: `file libvanta.so`.'
+    - 'Печатаемые строки в бинаре ищут `strings`: `strings libvanta.so`.'
+    - 'Среди строк есть флаг — `strings libvanta.so | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

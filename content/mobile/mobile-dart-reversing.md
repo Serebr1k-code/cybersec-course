@@ -13,6 +13,17 @@ useful_for:
   - "CTF Mobile"
 estimated_minutes: 50
 summary: "Как реверсить Flutter-приложения: структура libapp.so, AOT-снапшот Dart, blutter для восстановления символов и псевдо-C, reFlutter для патча и хуков."
+lab:
+  kind: shell
+  title: 'Практика: реверс Flutter/Dart'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, libapp.so.strings.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`libapp.so.strings.txt` — строки из нативной библиотеки Flutter.'
+    - 'Dart-строки лежат в снапшоте; `blutter` их восстанавливает.'
+    - 'Среди строк есть флаг — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

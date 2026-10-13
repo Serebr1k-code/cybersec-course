@@ -1,0 +1,23 @@
+{
+  "id": "mobile-app-cloning",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cl0n3_4pp_p4r4ll3l_sp4c3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: клонирование\n\nРазбери лог клонирования приложения и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/clone.log",
+      "text": "[*] cloning com.vanta.app -> com.vanta.app.clone\n[*] patching package name in AndroidManifest\n[!] signature check failed on clone\n[+] clone token: nto{cl0n3_4pp_p4r4ll3l_sp4c3}\n"
+    }
+  ]
+}

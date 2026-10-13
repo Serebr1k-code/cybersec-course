@@ -13,6 +13,17 @@ useful_for:
   - "Разбор малвари"
 estimated_minutes: 26
 summary: "JSFuck, jjencode, AAencode, packer-ы и eval-обфускация: как распознать, безопасно запустить и деобфусцировать JavaScript-головоломки."
+lab:
+  kind: shell
+  title: 'Практика: JS-обфускация'
+  toolset: [core, node]
+  workdir: /home/student/task
+  files: [task.md, obf.js]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`obf.js` — обфусцированный JavaScript (строки закодированы `\xNN`).'
+    - 'Запусти его в Node: `node obf.js`.'
+    - 'Скрипт печатает флаг — запиши его в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

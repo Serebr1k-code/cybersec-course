@@ -13,6 +13,17 @@ useful_for:
   - "Понимание границ Python-изоляции"
 estimated_minutes: 12
 summary: "Продвинутый побег из Python-песочниц: обход audit hooks, восстановление вырезанных builtins, использование ctypes, subinterpreters и C-API как мостов к системе."
+lab:
+  kind: shell
+  title: 'Практика: обход аудит-хука через ctypes'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, sandbox.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Прочитай `sandbox.py`: аудит-хук блокирует события `os.system`, `subprocess.Popen`, `open`.'
+    - 'Python-уровневые способы (`os.system`, `open`) порождают перехватываемое событие — они не сработают.'
+    - 'Нужен путь, не порождающий этих событий: `ctypes` уже импортирован в песочнице. Попробуй `ctypes.CDLL(None).system(b''cat flag.txt'')`.'
 ---
 
 ## Вопрос, с которого всё начинается

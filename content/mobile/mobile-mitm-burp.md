@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 30
 summary: "Пошаговая настройка перехвата мобильного HTTPS: прокси на устройстве, установка CA (пользовательский и системный), настройка Burp/mitmproxy, типичные проблемы."
+lab:
+  kind: shell
+  title: 'Практика: MITM через Burp'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, burp_cert.txt, requests.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`burp_cert.txt` и `requests.log` — настройка MITM и трафик.'
+    - 'Ищи запросы с токенами в заголовках.'
+    - 'В логе есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,17 @@ useful_for:
   - "Оптимизация медленных скриптов"
 estimated_minutes: 40
 summary: "Как читать ограничения и выбирать асимптотику: O-нотация, бюджет операций, таблица 'n → допустимая сложность', типовые оптимизации и профилирование."
+lab:
+  kind: shell
+  title: 'Практика: сложность алгоритма'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, complexity.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`complexity.py` — оптимизированное решение для больших входов.'
+    - 'Разбери, почему sieve быстрее перебора.'
+    - 'Запусти `python3 complexity.py` и запиши флаг в `found.txt`.'
 ---
 ## Вопрос, с которого всё начинается
 

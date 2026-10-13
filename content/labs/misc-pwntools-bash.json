@@ -1,0 +1,35 @@
+{
+  "id": "misc-pwntools-bash",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pwnt00ls_b4sh_4ut0m4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: pwntools\n\nРазбери скрипт автоматизации и получи флаг: `python3 exploit.py`.\nЗапиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/exploit.py",
+      "text": "from pwn import *\ncontext.log_level='error'\np = remote('target.lab', 1337)\np.sendlineafter(b'> ', b'admin')\np.sendlineafter(b'> ', b'flag')\nprint(p.recvline().decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 exploit.py — эмуляция (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "exploit\\.py",
+          "output": "nto{pwnt00ls_b4sh_4ut0m4t10n}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 exploit.py`\n"
+    }
+  }
+}

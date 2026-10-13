@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 30
 summary: "Как атаки на UI (overlay/tapjacking, task hijacking, StrandHogg) перехватывают нажатия и задачи приложения, и как это находить и тестировать."
+lab:
+  kind: shell
+  title: 'Практика: tapjacking / overlay'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, decoded]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Tapjacking возможен, если экран не блокирует наложение окон.'
+    - 'Защита — `setFilterTouchesWhenObscured(true)` или проверка `MotionEvent.FLAG_WINDOW_IS_OBSCURED`.'
+    - 'Экран без защиты содержит секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

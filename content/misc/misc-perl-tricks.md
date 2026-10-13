@@ -13,6 +13,17 @@ useful_for:
   - "Работа: автоматизация обработки логов"
 estimated_minutes: 25
 summary: "Однострочники Perl/awk/sed для быстрого парсинга, извлечения и преобразования данных в CTF: флаги -ne/-pe, поля, eval в подстановках и типовые шаблоны."
+lab:
+  kind: shell
+  title: 'Практика: ROT13 одной строкой'
+  toolset: [core, perl]
+  workdir: /home/student/task
+  files: [task.md, rot13.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`rot13.txt` закодирован ROT13 — сдвиг латинских букв на 13.'
+    - 'У `perl` есть готовый трюк через `tr`: `tr/A-Za-z/N-ZA-Mn-za-m/`.'
+    - 'Декодируй: `perl -pe ''tr/A-Za-z/N-ZA-Mn-za-m/'' rot13.txt > found.txt`.'
 ---
 ## Вопрос, с которого всё начинается
 

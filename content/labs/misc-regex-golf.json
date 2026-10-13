@@ -1,0 +1,23 @@
+{
+  "id": "misc-regex-golf",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r3g3x_g0lf_short3st_p4tt3rn}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: regex-golf\n\nНайди короткую регулярку под условие из `challenge.txt` и флаг рядом.\n"
+    },
+    {
+      "path": "/home/student/task/challenge.txt",
+      "text": "match:   foo foo bar\nnomatch: foo bar baz\ngoal: match the first group only\nflag: nto{r3g3x_g0lf_short3st_p4tt3rn}\n"
+    }
+  ]
+}

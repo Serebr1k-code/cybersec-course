@@ -1,0 +1,23 @@
+{
+  "id": "misc-kernel-misc-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3bpf_r34ds_k3rn3l_m3m}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: eBPF\n\nЗлоумышленник загрузил eBPF-программу и читает память ядра.\nРазбери лог и найди секрет. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/ebpf.log",
+      "text": "bpf: prog loaded type=kprobe attach=do_sys_open\nbpf: map dump key=0x7f.. value=6e 74 6f 7b 33 62 70 66 5f 72 33 34 64 73 5f 6b 33 72 6e 33 6c 5f 6d 33 6d 7d\nbpf: decoded=nto{3bpf_r34ds_k3rn3l_m3m}\n"
+    }
+  ]
+}

@@ -13,6 +13,17 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 50
 summary: "Безопасность Wear OS: структура приложений для часов, Data Layer API, каналы Bluetooth/Wi-Fi, утечки синхронизируемых данных и методика тестирования."
+lab:
+  kind: shell
+  title: 'Практика: Wear OS'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, wear_manifest.xml]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`wear_manifest.xml` — манифест Wear OS-приложения.'
+    - 'Ищи общие data-layer разрешения и экспортированные listener-сервисы.'
+    - 'Секрет есть в манифесте — найди `nto{` и запиши в `found.txt`.'
 ---
 ## Вопрос, с которого всё начинается
 

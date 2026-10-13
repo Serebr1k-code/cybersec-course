@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 40
 summary: "Чем Flutter (Dart/AOT) и React Native (JS/Hermes) отличаются от нативного Android, как извлекать и анализировать их код, находить секреты и хукать логику."
+lab:
+  kind: shell
+  title: 'Практика: реверс React Native / Flutter'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, index.android.bundle.strings.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`index.android.bundle.strings.txt` — строки JS-бандла (Hermes/JS).'
+    - 'Ищи константы и ключи в бандле.'
+    - 'Среди строк есть флаг — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

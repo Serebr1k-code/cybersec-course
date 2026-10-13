@@ -13,6 +13,17 @@ useful_for:
   - "Реверс-инжиниринг iOS"
 estimated_minutes: 50
 summary: "Runtime-интроспекция iOS через Cycript (объекты, методы, вызовы) и отладку LLDB/debugserver: точки останова, чтение регистров, вызов ObjC-методов."
+lab:
+  kind: shell
+  title: 'Практика: runtime-интроспекция (cycript)'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, cycript_session.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`cycript_session.log` — сессия cycript в рантайме iOS-приложения.'
+    - 'Ищи вызовы методов, возвращающих секреты.'
+    - 'В логе есть возвращённое значение с флагом — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

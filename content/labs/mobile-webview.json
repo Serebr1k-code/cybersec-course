@@ -1,0 +1,35 @@
+{
+  "id": "mobile-webview",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w3bv13w_f1l3_4cc3ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: WebView\n\nWebView приложения включил доступ к файлам и JavaScript. Через него можно\nпрочитать локальные файлы. Найди секрет в `decoded/assets/` и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/assets",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/assets/secret.txt",
+      "text": "internal token: nto{w3bv13w_f1l3_4cc3ss}\n"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/web/WebViewActivity.smali",
+      "text": ".class public Lcom/vanta/app/web/WebViewActivity;\n.method public setup()V\n    const/4 v0, 0x1\n    invoke-virtual {p0, v0}, Landroid/webkit/WebSettings;->setAllowFileAccess(Z)V\n    invoke-virtual {p0, v0}, Landroid/webkit/WebSettings;->setJavaScriptEnabled(Z)V\n    return-void\n.end method\n"
+    }
+  ]
+}

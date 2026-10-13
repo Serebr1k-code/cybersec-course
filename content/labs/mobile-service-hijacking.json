@@ -1,0 +1,35 @@
+{
+  "id": "mobile-service-hijacking",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s3rv1c3_h1j4ck_b1nd3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Service hijacking\n\nВ приложении экспортирован сервис. Найди его и секрет, который он отдаёт\nчерез binder. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/svc",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/AndroidManifest.xml",
+      "text": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"\n    package=\"com.vanta.app\">\n  <application android:label=\"@string/app_name\" android:debuggable=\"false\">\n    <service android:name=\".svc.SyncService\" android:exported=\"true\"/>\n    <service android:name=\".svc.InternalService\" android:exported=\"false\"/>\n  </application>\n</manifest>\n"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/svc/SyncService.smali",
+      "text": ".class public Lcom/vanta/app/svc/SyncService;\n.method public onBind(Landroid/content/Intent;)Landroid/os/IBinder;\n    const-string v0, \"nto{s3rv1c3_h1j4ck_b1nd3r}\"\n    return-object v0\n.end method\n"
+    }
+  ]
+}

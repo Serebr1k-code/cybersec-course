@@ -12,6 +12,17 @@ useful_for:
   - "Bug bounty: open redirect и кража токенов"
 estimated_minutes: 42
 summary: "Как работают Universal Links (iOS) и App Links (Android), проверка ассоциации домена, типовые ошибки конфигурации, перехват и подмена ссылок, кража OAuth-кода через редирект."
+lab:
+  kind: shell
+  title: 'Практика: Universal Links / AASA'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, apple-app-site-association]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Universal Links настраиваются файлом `apple-app-site-association` на домене.'
+    - 'Смотри `paths` и `components` — какие пути отдаются приложению.'
+    - 'Среди путей есть чувствительный — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

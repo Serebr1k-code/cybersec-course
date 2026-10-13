@@ -13,6 +13,17 @@ useful_for:
   - "Анализ малвари (банковские трояны)"
 estimated_minutes: 50
 summary: "Task hijacking и StrandHogg 1.0/2.0: как через taskAffinity, launchMode и allowTaskReparenting перехватить задачу жертвы, показать свой UI поверх и украсть данные."
+lab:
+  kind: shell
+  title: 'Практика: task hijacking (StrandHogg)'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, decoded]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`decoded/` — распакованный APK. Ищи `taskAffinity` и `allowTaskReparenting`.'
+    - 'Если affinity совпадает с чужой и allowTaskReparenting=true — возможен hijack.'
+    - 'Секрет есть в манифесте — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

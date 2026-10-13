@@ -1,0 +1,23 @@
+{
+  "id": "mobile-app2app",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4pp2app_r3d1r3ct_st34l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: app-to-app\n\nРазбери лог app-to-app взаимодействия и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/app2app.txt",
+      "text": "app A -> CustomTabsIntent(vanta://oauth)\nattacker registered vanta:// first -> intercept\nleaked code: nto{4pp2app_r3d1r3ct_st34l}\n"
+    }
+  ]
+}

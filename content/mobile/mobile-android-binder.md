@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 45
 summary: "Как работает Binder IPC, чем опасны экспортированные bound services и AIDL-интерфейсы, как исследовать и эксплуатировать их через adb/Frida, включая подмену Parcel."
+lab:
+  kind: shell
+  title: 'Практика: разбор Binder-транзакций'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, binder.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`binder.log` — дамп транзакций Binder (межпроцессное взаимодействие Android).'
+    - 'Обрати внимание на интерфейсы системных сервисов и передаваемые строки.'
+    - 'Среди транзакций есть строка с секретом — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,17 @@ useful_for:
   - "Анализ малвари"
 estimated_minutes: 50
 summary: "Автоматический поиск уязвимостей IPC: Drozer-модули, фаззинг Intent-ов, Marm/objection, анализ крашей logcat и приоритизация находок."
+lab:
+  kind: shell
+  title: 'Практика: фаззинг Android IPC'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, drozer.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`drozer.log` — вывод drozer по компонентам приложения.'
+    - 'Ищи `isExported` и `permission: null`.'
+    - 'В выводе есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

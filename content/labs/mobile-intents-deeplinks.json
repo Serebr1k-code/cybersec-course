@@ -1,0 +1,35 @@
+{
+  "id": "mobile-intents-deeplinks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d33pl1nk_h1j4ck_4cc0unt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: deep-link\n\nПриложение принимает кастомную схему `vanta://`. Разбери манифест, найди\nобработчик deep-link и секрет, который он передаёт. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/ui",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/AndroidManifest.xml",
+      "text": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\"\n    package=\"com.vanta.app\">\n  <application android:label=\"@string/app_name\" android:debuggable=\"false\">\n    <activity android:name=\".ui.RouterActivity\" android:exported=\"true\">\n      <intent-filter>\n        <action android:name=\"android.intent.action.VIEW\"/>\n        <category android:name=\"android.intent.category.DEFAULT\"/>\n        <category android:name=\"android.intent.category.BROWSABLE\"/>\n        <data android:scheme=\"vanta\" android:host=\"auth\"/>\n      </intent-filter>\n    </activity>\n  </application>\n</manifest>\n"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/ui/RouterActivity.smali",
+      "text": ".class public Lcom/vanta/app/ui/RouterActivity;\n.method public handle(Landroid/net/Uri;)V\n    const-string v0, \"vanta://auth/callback?token=nto{d33pl1nk_h1j4ck_4cc0unt}\"\n    return-void\n.end method\n"
+    }
+  ]
+}

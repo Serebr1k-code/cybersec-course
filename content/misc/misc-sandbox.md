@@ -13,6 +13,17 @@ useful_for:
   - "Искать примитивы побега через уже доступные функции"
 estimated_minutes: 12
 summary: "Sandbox escape — следующий уровень после джейла: выйти из изоляции уровня ОС/контейнера. Разбираем seccomp-фильтры, namespaces, cgroups, ctypes-примитивы, известные уязвимости контейнеров и системный подход к побегу."
+lab:
+  kind: shell
+  title: 'Практика: eval-песочница сервиса'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, sandbox.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Прочитай `sandbox.py`: чёрный список слов, затем `eval`.'
+    - 'Запрещённые слова нельзя писать буквально — собери их через `chr()`.'
+    - 'Собери цепочку `vars()` → `__builtins__` → `__import__` из символов и запусти `python3 sandbox.py ''<payload>''`.'
 ---
 
 ## Вопрос, с которого всё начинается

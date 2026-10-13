@@ -1,0 +1,35 @@
+{
+  "id": "misc-programming",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cl34n_c0d3_w1ns}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРеши задачу из `prog.py` и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/prog.py",
+      "text": "print(\"nto{cl34n_c0d3_w1ns}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — эмуляция (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "prog\\.py",
+          "output": "nto{cl34n_c0d3_w1ns}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 prog.py`\n"
+    }
+  }
+}

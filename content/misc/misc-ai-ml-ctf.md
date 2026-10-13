@@ -13,6 +13,17 @@ useful_for:
   - "Оценка рисков ML-систем"
 estimated_minutes: 55
 summary: "Атаки на ML: извлечение модели по API, adversarial-примеры (FGSM/PGD), отравление данных и бэкдоры, инференс членства, инструменты (ART, foolbox) и разборы с кодом."
+lab:
+  kind: shell
+  title: 'Практика: извлечение модели / adversarial'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, model_info.txt, query.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`model_info.txt` описывает модель, `query.log` — запросы к API.'
+    - 'Model extraction: по выходам восстанавливают параметры.'
+    - 'В логе есть флаг — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

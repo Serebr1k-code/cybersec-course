@@ -13,6 +13,17 @@ useful_for:
   - "Работа: AppSec"
 estimated_minutes: 12
 summary: "Этап про iOS Keychain, обход jailbreak-детекта и URL schemes."
+lab:
+  kind: shell
+  title: 'Практика: безопасность iOS'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, Payload]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`Payload/` — приложение. Ищи настройки ATS и хранилища.'
+    - 'Ищи `NSAllowsArbitraryLoads` и ключи Keychain.'
+    - 'Секрет есть в конфиге — найди `nto{` и запиши в `found.txt`.'
 ---
 
 Этот урок — **этап-навигатор** в ветке. Он короткий: его задача — объяснить, что вы будете изучать на этом этапе, почему темы идут именно в таком порядке и что вы сможете делать после прохождения.

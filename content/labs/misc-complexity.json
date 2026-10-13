@@ -1,0 +1,35 @@
+{
+  "id": "misc-complexity",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0_n_l0g_l0g_n_b34ts_0_n2}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРеши задачу из `complexity.py` и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/complexity.py",
+      "text": "# brute force vs optimized: count operations for N=10^6\nn = 10**6\n# optimized: sieve of Eratosthenes\nsieve = bytearray([1])*(n+1); sieve[0]=sieve[1]=0\nfor i in range(2, int(n**0.5)+1):\n    if sieve[i]:\n        sieve[i*i::i] = bytearray(len(sieve[i*i::i]))\nprint(\"nto{0_n_l0g_l0g_n_b34ts_0_n2}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — эмуляция (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "complexity\\.py",
+          "output": "nto{0_n_l0g_l0g_n_b34ts_0_n2}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 complexity.py`\n"
+    }
+  }
+}

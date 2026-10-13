@@ -1,0 +1,27 @@
+{
+  "id": "mobile-magisk-modules",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{zyg1sk_m0dul3_h00k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Magisk-модуль\n\nРазбери Magisk-модуль и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/module",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/module/module.prop",
+      "text": "id=vanta-unlock\nname=Vanta Unlock\nversion=1.2\ndescription=unlocks vault; token=nto{zyg1sk_m0dul3_h00k}\n"
+    }
+  ]
+}

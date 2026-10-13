@@ -1,0 +1,23 @@
+{
+  "id": "mobile-flutter",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r34ct_n4t1v3_bundl3_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: кросс-платформа\n\nРазбери строки бандла и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/index.android.bundle.strings.txt",
+      "text": "function getApiKey(){return \"nto{r34ct_n4t1v3_bundl3_l34k}\"}\nAPP_VERSION=1.4.2\n"
+    }
+  ]
+}

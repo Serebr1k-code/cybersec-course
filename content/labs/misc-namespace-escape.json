@@ -1,0 +1,27 @@
+{
+  "id": "misc-namespace-escape",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c4p_sys_4dm1n_1s_r00t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: namespaces и capabilities\n\nКонтейнер запущен с лишними capabilities. Разбери `caps.txt`\nи найди флаг. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/caps.txt",
+      "text": "Current: = cap_chown,cap_dac_override,cap_fowner,cap_setgid,cap_setuid,\n         cap_sys_admin,cap_sys_ptrace+ep\nBounding set = cap_chown,cap_dac_override,cap_fowner,cap_setgid,cap_setuid,\n         cap_sys_admin,cap_sys_ptrace\n# CAP_SYS_ADMIN + CAP_SYS_PTRACE -> escape via /proc/1/root: nto{c4p_sys_4dm1n_1s_r00t}\n"
+    },
+    {
+      "path": "/home/student/task/config.json",
+      "text": "{\"privileged\": false, \"cap_add\": [\"SYS_ADMIN\", \"SYS_PTRACE\"]}\n"
+    }
+  ]
+}

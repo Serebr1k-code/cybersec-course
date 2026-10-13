@@ -13,6 +13,17 @@ useful_for:
   - "Аудит приватности моделей"
 estimated_minutes: 30
 summary: "Извлечение системного промпта, утечка данных через дообучение, membership inference, model inversion и практические техники для CTF-задач про LLM."
+lab:
+  kind: shell
+  title: 'Практика: утечка системного промпта'
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, chat.log, config.json]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'В `chat.log` — переписка с ассистентом. Часто системный промпт утекает в ответах.'
+    - 'Ищи строки с пометкой system или `SYSTEM PROMPT`: `grep -i "system" chat.log`.'
+    - 'В утёкшем промпте спрятан секретный токен — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

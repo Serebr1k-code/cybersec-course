@@ -1,0 +1,23 @@
+{
+  "id": "mobile-frida-tooling",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{fr1d4_tr4c3_t00l1ng}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Frida tooling\n\nРазбери вывод инструментов Frida и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/frida_tools.txt",
+      "text": "$ frida-ps -U\n  PID  Name\n 1234  com.vanta.app\n$ frida-trace -U -i \"open*\"\n  open() -> \"/data/data/com.vanta.app/nto{fr1d4_tr4c3_t00l1ng}\"\n"
+    }
+  ]
+}

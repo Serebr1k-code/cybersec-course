@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 14
 summary: "Как работают обфускация ProGuard/R8 и DEX-упаковщики, чем опасен anti-tamper/anti-debug и как распаковывать защищённые APK в рантайме."
+lab:
+  kind: shell
+  title: 'Практика: распаковка DEX-пакера'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, dump.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Упакованное APK держит настоящий DEX в памяти — его дампят (`frida-dexdump`).'
+    - '`dump.txt` — строки из дампнутого DEX.'
+    - 'Среди строк есть флаг — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

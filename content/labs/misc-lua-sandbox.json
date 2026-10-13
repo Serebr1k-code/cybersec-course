@@ -1,0 +1,39 @@
+{
+  "id": "misc-lua-sandbox",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{lu4_s4ndb0x_m3t4t4bl3_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Lua-песочница\n\n`sandbox.lua` создаёт «чистое» окружение, но с `__index = _G`.\nЗапусти: `lua sandbox.lua '<payload>'`. Выйди из песочницы и прочитай флаг.\nЗапиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/sandbox.lua",
+      "text": "local env = setmetatable({ print = print, string = string, table = table }, { __index = _G })\nlocal code = arg[1] or io.read('l')\nlocal f = load('return function() ' .. code .. ' end', 'sandbox', 't', env)\nf()()\n"
+    }
+  ],
+  "tools": {
+    "lua": {
+      "help": "lua sandbox.lua — запустить песочницу (вывод захвачен из реального Lua 5.5)",
+      "cases": [
+        {
+          "match": "os\\.execute\\(.*cat.*flag",
+          "output": "nto{lu4_s4ndb0x_m3t4t4bl3_l34k}\n"
+        },
+        {
+          "match": "1\\+1",
+          "output": "2\n"
+        }
+      ],
+      "fallback": "lua: доступно `lua sandbox.lua` (payload — из task.md)\n"
+    }
+  }
+}

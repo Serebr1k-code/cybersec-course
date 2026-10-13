@@ -1,0 +1,27 @@
+{
+  "id": "mobile-task-hijacking",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{str4ndh0gg_t4sk_h1j4ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: task hijacking\n\nРазбери манифест и найди уязвимую activity. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/decoded/AndroidManifest.xml",
+      "text": "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\" package=\"com.vanta.app\">\n  <application>\n    <activity android:name=\".ui.LoginActivity\"\n        android:taskAffinity=\"com.vanta.app\"\n        android:allowTaskReparenting=\"true\"\n        android:exported=\"true\">\n      <meta-data android:name=\"hijack\" android:value=\"nto{str4ndh0gg_t4sk_h1j4ck}\"/>\n    </activity>\n  </application>\n</manifest>\n"
+    }
+  ]
+}

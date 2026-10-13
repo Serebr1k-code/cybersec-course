@@ -13,6 +13,17 @@ useful_for:
   - "Работа: оптимизация маршрутов и зависимостей"
 estimated_minutes: 28
 summary: "Графовые задачи в CTF: представление графа, BFS/DFS, Дейкстра, топологическая сортировка, разбор лабиринтов и использование networkx."
+lab:
+  kind: shell
+  title: 'Практика: графы и BFS'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, graph.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`graph.py` обходит граф в ширину.'
+    - 'BFS даёт кратчайшие расстояния от старта.'
+    - 'Запусти `python3 graph.py` и запиши флаг в `found.txt`.'
 ---
 ## Введение
 

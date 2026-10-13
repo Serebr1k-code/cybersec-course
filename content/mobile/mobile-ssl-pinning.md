@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 14
 summary: "Почему прокси не видит трафик приложения, как работают certificate pinning и network security config, и как снять пиннинг через Frida/Objection, патч APK или системный сертификат."
+lab:
+  kind: shell
+  title: 'Практика: обход SSL Pinning'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, NetworkSecurityConfig.xml]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`NetworkSecurityConfig.xml` — конфиг сетевой безопасности.'
+    - 'Ищи `<pin-set>` и `cleartextTrafficPermitted`.'
+    - 'Секрет есть в конфиге — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

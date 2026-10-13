@@ -1,0 +1,23 @@
+{
+  "id": "misc-seccomp-escape",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s3cc0mp_0r1_0r_c0t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: seccomp\n\nПолучив управление исполнением, ты упёрся в seccomp-фильтр. Разбери дамп\nфильтра и найди флаг. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/seccomp_dump.txt",
+      "text": "filter: 0x0000000000000000\n  0000: 0x20 0x00 0x00 0x00000004  A = arch\n  0001: 0x15 0x00 0x05 0xc000003e  if (A != ARCH_X86_64) goto KILL\n  0002: 0x20 0x00 0x00 0x00000000  A = sys_number\n  0003: 0x15 0x00 0x01 0x00000000  if (A != read) goto 0005\n  0004: 0x06 0x00 0x00 0x7fff0000  return ALLOW\n  0005: 0x15 0x00 0x01 0x00000001  if (A != write) goto 0007\n  0006: 0x06 0x00 0x00 0x7fff0000  return ALLOW\n  0007: 0x06 0x00 0x00 0x00000000  return KILL\n# flag path available via openat only in the fixed build: nto{s3cc0mp_0r1_0r_c0t}\n"
+    }
+  ]
+}

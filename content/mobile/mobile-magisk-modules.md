@@ -13,6 +13,17 @@ useful_for:
   - "Анализ малвари"
 estimated_minutes: 50
 summary: "Как устроены Magisk-модули, что такое Zygisk, как писать свой модуль (system.prop, service.sh, zygisk-код) и как скрывать root от приложений."
+lab:
+  kind: shell
+  title: 'Практика: Magisk-модуль и Zygisk'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, module]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`module/` — исходники Magisk-модуля.'
+    - 'Ищи `module.prop` и Zygisk-часть (`zygisk/`).'
+    - 'Секрет есть в модуле — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

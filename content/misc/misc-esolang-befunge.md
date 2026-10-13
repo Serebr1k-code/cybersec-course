@@ -13,6 +13,17 @@ useful_for:
   - "Головоломки"
 estimated_minutes: 26
 summary: "Двумерные esolang: Befunge-93/98, стек и направление движения, INTERCAL, а также практика исполнения и ручного разбора."
+lab:
+  kind: shell
+  title: 'Практика: Befunge-93'
+  toolset: [core, befunge]
+  workdir: /home/student/task
+  files: [task.md, program.bf93]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`program.bf93` — двумерная программа (Befunge): указатель ходит по сетке.'
+    - '`"..."` кладёт символы в стек, `,` печатает, `@` завершает.'
+    - 'Запусти `befunge program.bf93` и запиши флаг в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

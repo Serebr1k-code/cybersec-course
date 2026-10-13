@@ -13,6 +13,17 @@ useful_for:
   - "Понимать модель угроз джейлов"
 estimated_minutes: 12
 summary: "Джейл — это интерпретатор с чёрным списком, от которого нужно получить исполнение произвольного кода или чтение файла. Разбираем pyjail (магия классов, dunder, import-трюки) и bashjail (обход чёрных списков, IFS, кодирование, бинарники без пробелов)."
+lab:
+  kind: shell
+  title: 'Практика: побег из pyjail с чёрным списком'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, jail.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Прочитай `jail.py`: запрещены слова `import os open eval exec system subprocess`.'
+    - 'Нельзя писать запрещённые слова буквально — собери их из символов через `chr()`.'
+    - 'Строй имена через `chr(95)*2` для `_`: `getattr(vars()[chr(95)*2+...],...)`. Запусти: `python3 jail.py ''<payload>''`.'
 ---
 
 ## Вопрос, с которого всё начинается

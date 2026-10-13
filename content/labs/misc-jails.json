@@ -1,0 +1,51 @@
+{
+  "id": "misc-jails",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pyj4il_bl4ckl1st_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: побег из pyjail\n\nСервис `jail.py` берёт строку, проверяет её на чёрный список слов и вызывает `eval`.\nЗапрещены: `import os subprocess open eval exec system`.\n\nПрочитай исходник, собери рабочий payload (не используя запрещённых слов\nбуквально) и запусти его:\n\n    python3 jail.py '<payload>'\n\nЕсли payload вырвется из песочницы и прочитает флаг, запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/jail.py",
+      "text": "import sys\nblacklist = ['import', 'os', 'subprocess', 'open', 'eval', 'exec', 'system']\ncode = input(\">>> \")\nfor b in blacklist:\n    if b in code:\n        print(\"blocked:\", b); sys.exit(1)\nprint(eval(code))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <файл> [аргумент] — эмуляция интерпретатора (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "chr\\(95\\)",
+          "example": "jail.py 'getattr(vars()[chr(95)*2+...])'",
+          "output": ">>> nto{pyj4il_bl4ckl1st_byp4ss}\n0\n"
+        },
+        {
+          "match": "\\b(import|os|open|exec|eval|system|subprocess)\\b",
+          "example": "jail.py '__import__(\"os\").system(\"id\")'",
+          "output": ">>> blocked: import\n"
+        },
+        {
+          "match": "2\\s*\\*\\*\\s*10",
+          "example": "jail.py '2**10'",
+          "output": ">>> 1024\n"
+        },
+        {
+          "match": "1\\s*\\+\\s*1",
+          "example": "jail.py '1+1'",
+          "output": ">>> 2\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе доступно `python3 jail.py '<payload>'` — см. task.md\n"
+    }
+  }
+}

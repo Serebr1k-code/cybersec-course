@@ -1,0 +1,23 @@
+{
+  "id": "misc-hardware-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{u4rt_c0ns0l3_l34ks_fl4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: UART-консоль\n\nСнят лог последовательной консоли IoT-устройства (`uart.log`).\nВ нём разработчики забыли убрать отладочный вывод. Найди флаг и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/uart.log",
+      "text": "[    0.000000] Booting Linux on physical CPU 0x0\n[    0.000000] Linux version 5.10.0 (buildbot@ci) #1 SMP\n[    0.412345] mmc0: new high speed SDHC card at address 0001\n[    1.204911] devmem: mapped 0x1c20000\n[    2.001233] [DEBUG] license_key=nto{u4rt_c0ns0l3_l34ks_fl4g}\n[    2.009991] [INFO] starting app...\n[    3.117000] login: \n"
+    }
+  ]
+}

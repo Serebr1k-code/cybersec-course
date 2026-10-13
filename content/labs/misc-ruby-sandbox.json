@@ -1,0 +1,27 @@
+{
+  "id": "misc-ruby-sandbox",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ruby_b4s1c0bj3ct_br34k0ut}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Ruby-песочница\n\nПроанализируй `sandbox.rb` и `notes.txt`, найди флаг. Запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/sandbox.rb",
+      "text": "class Sandbox < BasicObject\nend\nSandbox.new.instance_eval(ARGV[0])\n# gadgets: ObjectSpace.each_object(Class).find{|c| c.to_s=='Kernel'}.send(:system,'cat flag.txt')\n# flag: nto{ruby_b4s1c0bj3ct_br34k0ut}\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Object.const_get(:Kernel).system(\"cat flag.txt\")\nIO.popen(\"cat flag.txt\"){|f| f.read}\n"
+    }
+  ]
+}

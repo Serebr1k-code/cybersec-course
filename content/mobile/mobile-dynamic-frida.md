@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 14
 summary: "Как запускать приложение под управлением Frida и Objection: установка сервера, списание флагов, перехват методов, дамп аргументов и возвращаемых значений, обход клиентских проверок в рантайме."
+lab:
+  kind: shell
+  title: 'Практика: динамический анализ с Frida'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, frida_session.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`frida_session.log` — динамическая сессия Frida.'
+    - 'Ищи значения, возвращённые перехваченными методами.'
+    - 'В сессии есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

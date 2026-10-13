@@ -12,6 +12,17 @@ useful_for:
   - "Пентест: взаимодействие приложений"
 estimated_minutes: 45
 summary: "Как приложения взаимодействуют друг с другом и где возникает доверие: intent spoofing, подмена результата Activity, Custom Tabs и перехват OAuth-редиректов, кража токенов между приложениями."
+lab:
+  kind: shell
+  title: 'Практика: app-to-app атаки'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, app2app.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`app2app.txt` — лог взаимодействия двух приложений через Intent/Custom Tabs.'
+    - 'Ищи редирект, который можно перехватить другой схемой.'
+    - 'В логе есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

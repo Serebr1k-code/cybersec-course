@@ -13,6 +13,17 @@ useful_for:
   - "Анализ малвари"
 estimated_minutes: 50
 summary: "Как приложения детектят эмулятор, прокси, отладчик и Frida, и как это обходить: Frida-хуки Build/System properties, сокрытие портов, патч проверок, аппаратные устройства."
+lab:
+  kind: shell
+  title: 'Практика: детект эмулятора'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, decoded]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Детект эмулятора проверяет `Build.FINGERPRINT`, `Build.MODEL`, файлы `qemu`/`goldfish`.'
+    - 'Найди функцию детекта и путь, который она не проверяет.'
+    - 'В коде есть отладочная ветка с секретом — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 30
 summary: "Objection поверх Frida: готовые команды для обхода SSL pinning, root/jailbreak-детекта, дампа хранилища, работы с классами и памяти — без написания скриптов."
+lab:
+  kind: shell
+  title: 'Практика: Objection без скриптов'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, objection_session.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Objection даёт готовые команды: `android sslpinning disable`, `android root disable`.'
+    - '`objection_session.log` — лог сессии.'
+    - 'Среди вывода есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-packers",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d3x_dump_unp4ck3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРазбери артефакты в этом каталоге и найди флаг. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/dump.txt",
+      "text": "Lcom/vanta/app/StubApplication; -> attachBaseContext\nLcom/vanta/app/real/Pay; -> process\nconst-string v0, \"nto{d3x_dump_unp4ck3d}\"\nLcom/packer/Native; -> load\n"
+    }
+  ]
+}

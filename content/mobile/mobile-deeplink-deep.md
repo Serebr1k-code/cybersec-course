@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 40
 summary: "Как deep links и intent redirect приводят к краже OAuth-токенов и захвату аккаунта: hijacking custom scheme, обход App Links, редиректы на произвольный компонент, цепочки до ATO."
+lab:
+  kind: shell
+  title: 'Практика: deep-link цепочка захвата аккаунта'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, decoded]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Deep link `vanta://reset?...` инициирует сброс пароля.'
+    - 'Если параметр email не проверяется, токен сброса уйдёт атакующему.'
+    - 'Секрет — токен сброса: найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 45
 summary: "Как устроен pinning на разных уровнях (network-security-config, OkHttp CertificatePinner, TrustKit, нативный OpenSSL/BoringSSL) и как обходить каждый слой."
+lab:
+  kind: shell
+  title: 'Практика: глубокий cert pinning'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, pinning.java]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`pinning.java` — реализация pinning через OkHttp/TrustKit.'
+    - 'Ищи сравнение certificate pin.'
+    - 'Секрет есть в коде — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

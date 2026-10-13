@@ -13,6 +13,17 @@ useful_for:
   - "Cloud security: побег из подов Kubernetes"
 estimated_minutes: 30
 summary: "Практический побег из Docker-контейнера и Kubernetes-пода: docker.sock, privileged, монтирования хоста, cgroup release_agent, nsenter и проверка изоляции."
+lab:
+  kind: shell
+  title: 'Практика: открытый Docker API'
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, docker_api.json]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Docker daemon слушает TCP и не защищён. Мы сняли ответ его API в `docker_api.json`.'
+    - 'Конфигурация контейнера лежит в `Config.Env` — ищи переменные окружения.'
+    - 'Среди env есть флаг: `grep nto docker_api.json` — запиши его в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

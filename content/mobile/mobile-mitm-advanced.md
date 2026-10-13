@@ -13,6 +13,17 @@ useful_for:
   - "Анализ трафика"
 estimated_minutes: 50
 summary: "Продвинутые техники перехвата: transparent proxy через iptables, VPN-режим mitmproxy, обход игнорирования прокси, HTTP/2 и QUIC/HTTP3."
+lab:
+  kind: shell
+  title: 'Практика: продвинутый MITM (QUIC/VPN)'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, mitm_notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`mitm_notes.txt` — заметки о перехвате трафика (transparent, VPN, QUIC).'
+    - 'Ищи, где TLS терминируется и какие токены утекают.'
+    - 'В заметках есть флаг — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

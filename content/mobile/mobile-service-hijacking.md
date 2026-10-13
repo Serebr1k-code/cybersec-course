@@ -13,6 +13,17 @@ useful_for:
   - "CTF Mobile"
 estimated_minutes: 50
 summary: "Атаки на Android Service: экспортированные сервисы, bindService, обход разрешений, перехват и инъекция через implicit intent и Messenger."
+lab:
+  kind: shell
+  title: 'Практика: экспортированный Service'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, decoded]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Ищи экспортированные сервисы в манифесте: `<service ... android:exported="true">`.'
+    - 'Сервис возвращает данные через binder/onBind — в коде есть секрет.'
+    - 'Найди `nto{` в smali сервиса и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

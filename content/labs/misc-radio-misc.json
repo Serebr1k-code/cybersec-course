@@ -1,0 +1,23 @@
+{
+  "id": "misc-radio-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{subghz_00k_d3m0d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: SDR\n\nРазбери описание IQ-захвата и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/iq_notes.txt",
+      "text": "center_freq=433.92 MHz\nsample_rate=2 Msps\nmodulation=OOK\ndemodulated bits -> \"nto{subghz_00k_d3m0d}\"\n"
+    }
+  ]
+}

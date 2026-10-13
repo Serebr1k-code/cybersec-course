@@ -1,0 +1,23 @@
+{
+  "id": "mobile-dynamic-frida",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dyn4m1c_fr1d4_runt1m3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Frida dynamic\n\nРазбери динамическую сессию Frida и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/frida_session.log",
+      "text": "[*] attached to com.vanta.app\nJava.perform: hooking Vault.check\nVault.check(\"user\") -> false\nVault.check(\"nto{dyn4m1c_fr1d4_runt1m3}\") -> true\n"
+    }
+  ]
+}

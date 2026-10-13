@@ -1,0 +1,31 @@
+{
+  "id": "mobile-root-detection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r00t_d3t3ct_1s_n0t_s3cur1ty}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: root-детект\n\nНайди функцию проверки root и строку, которую разработчики оставили рядом.\nЗапиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/anti",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/anti/RootCheck.smali",
+      "text": ".class public Lcom/vanta/app/anti/RootCheck;\n.method public isRooted()Z\n    const-string v0, \"/system/xbin/su\"\n    const-string v1, \"nto{r00t_d3t3ct_1s_n0t_s3cur1ty}\"\n    return v0\n.end method\n"
+    }
+  ]
+}

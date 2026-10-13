@@ -1,0 +1,27 @@
+{
+  "id": "mobile-android-auto",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4ndr01d_4ut0_3xp0s3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Android Auto\n\nРазбери конфигурацию Android Auto и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/auto_config.xml",
+      "text": "<automotiveApp>\n  <uses name=\"template\"/>\n  <category android:name=\"androidx.car.app.category.NAVIGATION\"/>\n  <meta-data android:name=\"distractionOptimized\" android:value=\"nto{4ndr01d_4ut0_3xp0s3d}\"/>\n</automotiveApp>\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Категория NAVIGATION даёт больше прав, чем MEDIA.\n"
+    }
+  ]
+}

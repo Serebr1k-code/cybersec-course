@@ -13,6 +13,17 @@ useful_for:
   - "Писать простой интерпретатор"
 estimated_minutes: 12
 summary: "Эзотерические языки программирования (esolangs) — популярный сюжет misc. Разбираем Brainfuck, JSFuck, Ook!, Whitespace, Malbolge: как их распознать по алфавиту, как запустить и как декодировать вручную, если интерпретатора нет."
+lab:
+  kind: shell
+  title: 'Практика: Brainfuck'
+  toolset: [core, bf]
+  workdir: /home/student/task
+  files: [task.md, program.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`program.txt` — программа на экзотическом языке из символов `><+-.,[]`.'
+    - 'Это Brainfuck. Интерпретатор — `bf <файл>`.'
+    - 'Запусти: `bf program.txt` — он напечатает флаг. Запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

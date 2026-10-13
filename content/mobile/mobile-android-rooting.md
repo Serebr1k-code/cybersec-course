@@ -13,6 +13,17 @@ useful_for:
   - "Bug bounty (обход root-детекта)"
 estimated_minutes: 55
 summary: "Практическое получение root: разблокировка загрузчика, патч boot.img через Magisk, KernelSU/APatch, установка Xposed/LSPosed и проверка результата."
+lab:
+  kind: shell
+  title: 'Практика: Magisk и root'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, magisk_state.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`magisk_state.txt` — состояние root-окружения (Magisk).'
+    - 'Смотри модули, DenyList и Zygisk.'
+    - 'В выводе есть секрет — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

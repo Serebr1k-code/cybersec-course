@@ -13,6 +13,17 @@ useful_for:
   - "CTF Mobile"
 estimated_minutes: 50
 summary: "Злоупотребление JavaScript-мостами WebView: как @JavascriptInterface превращает XSS в нативные вызовы, поиск опасных методов, эксплуатация и защита."
+lab:
+  kind: shell
+  title: 'Практика: JS-bridge в WebView'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, decoded]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Ищи в коде `addJavascriptInterface` — он открывает нативные методы в JS.'
+    - 'Опасность — если метод отдаёт чувствительные данные.'
+    - 'Найди метод с секретом (`nto{`) и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,35 @@
+{
+  "id": "mobile-forensics-cloud",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1cl0ud_b4ckup_syncs_s3cr3ts}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nРазбери артефакты в этом каталоге и найди флаг. Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/icloud_export",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/icloud_export/Documents",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/icloud_export/Documents/tokens.json",
+      "text": "{\"refresh_token\":\"1//0eDECOY\",\"device_id\":\"A1B2\",\"vault\":\"nto{1cl0ud_b4ckup_syncs_s3cr3ts}\"}\n"
+    },
+    {
+      "path": "/home/student/task/icloud_export/Documents/notes.txt",
+      "text": "sync ok\n"
+    }
+  ]
+}

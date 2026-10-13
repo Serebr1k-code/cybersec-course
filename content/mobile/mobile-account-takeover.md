@@ -13,6 +13,17 @@ useful_for:
   - "Пентест мобильных приложений"
 estimated_minutes: 45
 summary: "Как мобильные ошибки складываются в захват аккаунта: перехват OAuth-кода, OTP-байпасы, слабое восстановление пароля, device-binding bypass и цепочки к полному ATO."
+lab:
+  kind: shell
+  title: 'Практика: захват аккаунта в мобильном приложении'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, ato_chain.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`ato_chain.txt` — цепочка шагов захвата аккаунта.'
+    - 'Ищи слабое звено: OTP, deep link, сброс пароля.'
+    - 'В цепочке есть флаг — найди `nto{` и запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

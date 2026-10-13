@@ -1,0 +1,31 @@
+{
+  "id": "mobile-clipboard",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cl1pb04rd_1s_w0rld_r34d4bl3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: буфер обмена\n\nПриложение копирует OTP в системный буфер обмена. Найди, что именно оно\nкопирует, и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/util",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/decoded/smali/com/vanta/app/util/Clip.smali",
+      "text": ".class public Lcom/vanta/app/util/Clip;\n.method public copy(Landroid/content/Context;)V\n    const-string v0, \"otp\"\n    const-string v1, \"nto{cl1pb04rd_1s_w0rld_r34d4bl3}\"\n    invoke-static {v0, v1}, Landroid/content/ClipData;->newPlainText(Ljava/lang/CharSequence;Ljava/lang/CharSequence;)Landroid/content/ClipData;\n    return-void\n.end method\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-dart-reversing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{flutt3r_d4rt_sn4psh0t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Flutter\n\nРазбери строки Flutter-приложения и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/libapp.so.strings.txt",
+      "text": "package:flutter/src/widgets\nVantaAuth\napiToken = nto{flutt3r_d4rt_sn4psh0t}\ndart:async\n"
+    }
+  ]
+}

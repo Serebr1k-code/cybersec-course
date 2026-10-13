@@ -13,6 +13,17 @@ useful_for:
   - "Анализ логов и таблиц"
 estimated_minutes: 40
 summary: "Data science в CTF: pandas для таблиц, статистика и поиск выбросов, визуализация (matplotlib), обработка больших данных и разборы с кодом."
+lab:
+  kind: shell
+  title: 'Практика: данные и статистика'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, ds.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`ds.py` считает статистики по набору данных.'
+    - 'Разберись с mean/median/mode.'
+    - 'Запусти `python3 ds.py` и запиши флаг в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

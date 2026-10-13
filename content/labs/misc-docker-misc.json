@@ -1,0 +1,23 @@
+{
+  "id": "misc-docker-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d0ck3r_4p1_1s_0p3n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Docker API\n\nМы получили ответ незащищённого Docker API (`docker_api.json`).\nВ нём — конфигурация контейнера. Найди флаг и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/docker_api.json",
+      "text": "{\n  \"Id\": \"a1b2c3d4\",\n  \"Name\": \"/vanta-app\",\n  \"Config\": {\n    \"Image\": \"vanta/app:1.4.2\",\n    \"Env\": [\n      \"PATH=/usr/bin\",\n      \"APP_ENV=production\",\n      \"SECRET_FLAG=nto{d0ck3r_4p1_1s_0p3n}\",\n      \"DB_HOST=db\"\n    ]\n  }\n}\n"
+    }
+  ]
+}
