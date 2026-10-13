@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 50
 summary: "Учимся находить нужные ROP-гаджеты в бинаре и libc инструментами ROPgadget, ropper, pwntools ROP и one_gadget, а также строить цепочку автоматически."
+lab:
+  kind: shell
+  title: "Практика: ищем ROP-гаджеты"
+  toolset: [core, ROPgadget, objdump, nm]
+  workdir: /home/student/task
+  files: [task.md, gadgets]
+  check: "grep -q '0x401077' answer.txt"
+  hints:
+    - "Гаджеты ищут по всему файлу: `ROPgadget --binary gadgets`."
+    - "Нужен гаджет `pop rdi ; ret` — он устанавливает первый аргумент функции."
+    - "Отфильтруй вывод: `ROPgadget --binary gadgets > rop.txt`, затем `grep 'pop rdi' rop.txt`."
 ---
 ## Вопрос, с которого всё начинается
 

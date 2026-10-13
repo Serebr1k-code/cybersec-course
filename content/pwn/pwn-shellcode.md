@@ -13,6 +13,17 @@ useful_for:
   - "Exploit development"
 estimated_minutes: 60
 summary: "Пишем shellcode (execve /bin/sh), учимся его инжектить, кодировать для обхода фильтров и понимаем, почему NX его блокирует."
+lab:
+  kind: shell
+  title: "Практика: разбор shellcode-байтов"
+  toolset: [core, objdump]
+  workdir: /home/student/task
+  files: [task.md, shellcode.bin]
+  check: "grep -q '0x3b' answer.txt"
+  hints:
+    - "Сначала посмотри на байты: `xxd shellcode.bin`."
+    - "Дизассемблируй сырые байты: `objdump -D -b binary -m i386:x86-64 -M intel shellcode.bin`."
+    - "`push 0x3b; pop rax` — это загрузка номера syscall в rax. 0x3b = 59 = execve."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,35 @@
+{
+  "id": "pwn-libc-database",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "2.43"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: определить версию libc\n\nЧтобы подобрать подходящий one-gadget/смещения, надо знать **точную версию**\nlibc. Её определяют по строке версии и по уникальному build-id.\n\n- `libc_version.txt` — строка `GNU C Library ... release version ...`;\n- `libc_buildid.txt` — вывод `readelf -n` с build-id.\n\nОпредели номер версии (X.Y) и build-id.\n\nЗапиши в `answer.txt` строку вида `version=X.Y buildid=<hex>` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/libc_version.txt",
+      "text": "GNU C Library (GNU libc) stable release version 2.43.\n"
+    },
+    {
+      "path": "/home/student/task/libc_buildid.txt",
+      "text": "Displaying notes found in: .note.gnu.build-id\n  GNU                  0x00000014\tNT_GNU_BUILD_ID (unique build ID bitstring)\n    Build ID: 7a8d41a2df4fde040b4c6ac2832311ab645a1e41\n"
+    }
+  ],
+  "tools": {
+    "readelf": {
+      "help": "readelf [-n] <файл> — заметки ELF (build-id)",
+      "cases": [
+        {
+          "match": "-n.*libc",
+          "example": "-n libc.so.6",
+          "output": "Displaying notes found in: .note.gnu.build-id\n  GNU                  0x00000014\tNT_GNU_BUILD_ID (unique build ID bitstring)\n    Build ID: 7a8d41a2df4fde040b4c6ac2832311ab645a1e41\n"
+        }
+      ]
+    }
+  }
+}

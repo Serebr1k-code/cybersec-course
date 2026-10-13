@@ -1,0 +1,32 @@
+{
+  "id": "pwn-shellcode",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "0x3b"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: что делает этот shellcode\n\n`shellcode.bin` — сырые машинные байты позиционно-независимого шеллкода\nдля Linux x86-64. Нужно понять, какой системный вызов он выполняет.\n\n1. Посмотри байты: `xxd shellcode.bin`.\n2. Дизассемблируй их: `objdump -D -b binary -m i386:x86-64 -M intel shellcode.bin`.\n3. Найди номер системного вызова (он грузится в `rax`) и сам вызов `syscall`.\n\nЗапиши в `answer.txt` строку вида `syscall=0xNN reg=rax` (номер в hex)\nи набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/shellcode.bin",
+      "b64": "SDHSSDH2/8ZqO1hIuy9iaW4vL3NoU0iJ5w8F",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "objdump": {
+      "help": "objdump [-D] -b binary -m i386:x86-64 <файл> — дизассемблирование сырых байт",
+      "cases": [
+        {
+          "match": "shellcode",
+          "example": "-D -b binary -m i386:x86-64 -M intel shellcode.bin",
+          "output": "\nshellcode.bin:     file format binary\n\n\nDisassembly of section .data:\n\n0000000000000000 <.data>:\n   0:\t48 31 d2             \txor    rdx,rdx\n   3:\t48 31 f6             \txor    rsi,rsi\n   6:\tff c6                \tinc    esi\n   8:\t6a 3b                \tpush   0x3b\n   a:\t58                   \tpop    rax\n   b:\t48 bb 2f 62 69 6e 2f \tmovabs rbx,0x68732f2f6e69622f\n  12:\t2f 73 68 \n  15:\t53                   \tpush   rbx\n  16:\t48 89 e7             \tmov    rdi,rsp\n  19:\t0f 05                \tsyscall\n"
+        }
+      ]
+    }
+  }
+}

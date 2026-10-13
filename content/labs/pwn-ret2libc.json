@@ -1,0 +1,24 @@
+{
+  "id": "pwn-ret2libc",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "0x53b00"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: адрес system внутри libc\n\nДля ret2libc нужно знать **смещение** функции `system` внутри libc. Оно не\nменяется от запуска к запуску, в отличие от базового адреса.\n\nВ каталоге есть два файла, полученных с реальной libc:\n- `libc_symbols.txt` — выдержка `readelf -s libc.so.6` (строки `system` и `execve`);\n- `libc_version.txt` — версия библиотеки.\n\nНайди смещение символа `system` (колонка `Value`).\n\nЗапиши в `answer.txt` строку вида `system=0xNNNNN` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/libc_symbols.txt",
+      "text": "  1064: 0000000000053b00    45 FUNC    WEAK   DEFAULT   13 system@@GLIBC_2.2.5\n  1610: 00000000000e5680    37 FUNC    WEAK   DEFAULT   13 execve@@GLIBC_2.2.5\n"
+    },
+    {
+      "path": "/home/student/task/libc_version.txt",
+      "text": "GNU C Library (GNU libc) stable release version 2.43.\n"
+    }
+  ],
+  "tools": {}
+}

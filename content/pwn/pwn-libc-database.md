@@ -12,6 +12,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 45
 summary: "По утечке libc-адресов определяем точную версию libc и её смещения: libc-database, libc.rip, символы system//bin/sh/one_gadget — обязательный ежедневный навык ret2libc."
+lab:
+  kind: shell
+  title: "Практика: идентификация libc по build-id"
+  toolset: [core, readelf]
+  workdir: /home/student/task
+  files: [task.md, libc_version.txt, libc_buildid.txt]
+  check: "grep -q '2.43' answer.txt"
+  hints:
+    - "Версия лежит в строке `GNU C Library ... release version ...`."
+    - "Build ID — в нотах ELF: `readelf -n libc.so.6`."
+    - "Собери ответ: `version=<X.Y> buildid=<hex>`."
 ---
 
 ## Вопрос, с которого всё начинается

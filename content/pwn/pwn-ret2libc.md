@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 60
 summary: "Строим полноценный эксплойт: утекаем libc, вычисляем базу и вызываем system('/bin/sh') или one_gadget — обход ASLR через ret2libc."
+lab:
+  kind: shell
+  title: "Практика: смещение system в libc"
+  toolset: [core, readelf]
+  workdir: /home/student/task
+  files: [task.md, libc_symbols.txt, libc_version.txt]
+  check: "grep -q '0x53b00' answer.txt"
+  hints:
+    - "Смещение символа — это его `Value` в таблице символов libc."
+    - "Открой `libc_symbols.txt` (`cat`/`grep`) — там строки `system@@GLIBC_2.2.5`."
+    - "Возьми колонку Value у `system` — это смещение от базы libc."
 ---
 
 ## Вопрос, с которого всё начинается

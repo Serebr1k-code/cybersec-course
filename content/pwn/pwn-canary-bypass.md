@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 55
 summary: "Разбираем stack canary: как он устроен и хранится в TLS, какие есть стратегии обхода (утечка, brute-force, partial overwrite) и собираем эксплойт с утечкой через format string."
+lab:
+  kind: shell
+  title: "Практика: где хранится stack canary"
+  toolset: [core, objdump, readelf]
+  workdir: /home/student/task
+  files: [task.md, hardened]
+  check: "grep -q 'fs:0x28' answer.txt"
+  hints:
+    - "Функция `check` собиралась с `-fstack-protector-all`."
+    - "В дизассемблере `objdump -d hardened` найди, откуда читается canary и куда кладётся."
+    - "Canary хранится в TLS по адресу `fs:0x28`; при несовпадении вызывается `__stack_chk_fail`."
 ---
 
 ## Вопрос, с которого всё начинается
