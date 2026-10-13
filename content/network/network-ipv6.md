@@ -13,6 +13,18 @@ useful_for:
   - "Работа: защита и инвентаризация IPv6"
 estimated_minutes: 45
 summary: "Как IPv6 назначает адреса (SLAAC), как работает Neighbor Discovery и почему RA/NDP-спуфинг — главный вектор в IPv6."
+lab:
+  kind: shell
+  title: "Практика: разбираем rogue RA"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, ipv6.pcap]
+  check: "grep -q '2001:db8:bad::' answer.txt"
+  hints:
+    - "RA — это ICMPv6 тип 134. Сводка: `tshark -r ipv6.pcap -nn`."
+    - "Фильтр и поля: `tshark -r ipv6.pcap -Y 'icmpv6.type==134' -T fields -e icmpv6.nd.ra.router_lifetime -e icmpv6.opt.prefix -e icmpv6.opt.prefix.length -e icmpv6.opt.rdnss`."
+    - "Префикс раздаётся опцией Prefix Information; рядом — RDNSS (подставный DNS)."
+    - "Поддельный префикс — `2001:db8:bad::`."
 ---
 
 ## Вопрос, с которого всё начинается

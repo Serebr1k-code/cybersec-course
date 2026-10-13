@@ -1,0 +1,47 @@
+{
+  "id": "network-kerberos",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "sql01.corp.local"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: читаем Kerberos в дампе\n\n`krb.pcap` снят на клиенте домена `CORP.LOCAL`. В нём — вход в домен и запрос билета к сервису.\n\n1. Типы сообщений: `tshark -r krb.pcap -T fields -e kerberos.msg_type`\n   (10 = AS-REQ, 11 = AS-REP, 12 = TGS-REQ, 13 = TGS-REP)\n2. Имена: `tshark -r krb.pcap -T fields -e kerberos.msg_type -e kerberos.CNameString -e kerberos.SNameString`\n\nНайди **хост сервиса из SPN**, к которому запрошен TGS-билет (это цель Kerberoasting).\nЗапиши его (вида `host.domain`) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/krb.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAAAAAAAAAAACwAAAAsAAAAP///////2h6ZJWAowgARQAAogABAABAEWYPCgAAMgoAAArDUABYAI7C5mqBgzCBgKEDAgEFogMCAQqkdDByoAcDBQBAAAAAoRIwEKADAgEBoQkwBxsFYWxpY2WiDBsKQ09SUC5MT0NBTKMfMB2gAwIBAqEWMBQbBmtyYnRndBsKQ09SUC5MT0NBTKURGA8yMDM3MDEwMTAwMDAwMFqnBwIFAJ9CHG+oCDAGAgEXAgESAAAAAKCGAQC5AAAAuQAAAP///////2h6ZJWAowgARQAAqwABAABAEWYGCgAAMgoAAArDUABYAJf4umyBjDCBiaEDAgEFogMCAQykfTB7oAcDBQBAAAAAoRIwEKADAgEBoQkwBxsFYWxpY2WiDBsKQ09SUC5MT0NBTKMsMCqgAwIBAqEjMCEbCE1TU1FMU3ZjGxVzcWwwMS5jb3JwLmxvY2FsOjE0MzOlERgPMjAzNzAxMDEwMDAwMDBapwYCBBorPE2oBTADAgEX",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-Y <фильтр>] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "kerberos\\.CNameString",
+          "example": "-r krb.pcap -T fields -e kerberos.msg_type -e kerberos.CNameString -e kerberos.SNameString",
+          "output": "10\talice\tkrbtgt,CORP.LOCAL\n12\talice\tMSSQLSvc,sql01.corp.local:1433\n"
+        },
+        {
+          "match": "kerberos\\.msg_type",
+          "example": "-r krb.pcap -T fields -e kerberos.msg_type",
+          "output": "10\n12\n"
+        },
+        {
+          "match": "krb\\.pcap",
+          "example": "-r krb.pcap -nn",
+          "output": "    1   0.000000    10.0.0.50 → 10.0.0.10    KRB5 176 AS-REQ\n    2   0.100000    10.0.0.50 → 10.0.0.10    KRB5 185 TGS-REQ\n"
+        }
+      ],
+      "fallback": "    1   0.000000    10.0.0.50 → 10.0.0.10    KRB5 176 AS-REQ\n    2   0.100000    10.0.0.50 → 10.0.0.10    KRB5 185 TGS-REQ\n"
+    }
+  }
+}

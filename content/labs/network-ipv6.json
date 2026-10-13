@@ -1,0 +1,42 @@
+{
+  "id": "network-ipv6",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "2001:db8:bad::"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: rogue Router Advertisement\n\nВ сегменте появился поддельный IPv6-роутер. В `ipv6.pcap` — его Router Advertisement (ICMPv6 тип 134).\nХост, получив RA, сам строит адрес (SLAAC) и делает атакующего шлюзом.\n\nНайди **префикс**, который раздаёт этот RA.\n\n1. Сводка: `tshark -r ipv6.pcap -nn`\n2. Поля: `tshark -r ipv6.pcap -Y 'icmpv6.type==134' -T fields -e icmpv6.nd.ra.router_lifetime -e icmpv6.opt.prefix -e icmpv6.opt.prefix.length -e icmpv6.opt.rdnss`\n\nЗапиши префикс (например `2001:db8:....::`) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/ipv6.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAAAAAAAAAAAB+AAAAfgAAADMzAAAAAQIAALrdAYbdYAAAAABIOv/+gAAAAAAAAAAAAAAAAAut/wIAAAAAAAAAAAAAAAAAAYYAzYxACAcIAAAAAAAAAAADBEDAAAFRgAAAOEAAAAAAIAENuAutAAAAAAAAAAAAABkDAAAAAAJYIAENuAutAAAAAAAAAAAAAQ==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-Y <фильтр>] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "icmpv6",
+          "example": "-r ipv6.pcap -Y 'icmpv6.type==134' -T fields -e icmpv6.nd.ra.router_lifetime -e icmpv6.opt.prefix -e icmpv6.opt.prefix.length -e icmpv6.opt.rdnss",
+          "output": "1800\t2001:db8:bad::\t64\t2001:db8:bad::1\n"
+        },
+        {
+          "match": "ipv6\\.pcap",
+          "example": "-r ipv6.pcap -nn",
+          "output": "    1   0.000000    fe80::bad → ff02::1      ICMPv6 126 Router Advertisement\n"
+        }
+      ],
+      "fallback": "    1   0.000000    fe80::bad → ff02::1      ICMPv6 126 Router Advertisement\n"
+    }
+  }
+}

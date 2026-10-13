@@ -1,0 +1,42 @@
+{
+  "id": "network-layer2-attacks",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "S3cret!"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: MAC-flooding → перехват пароля\n\n`macof` переполнил CAM-таблицу коммутатора случайными MAC. Коммутатор начал флудить кадры\nво все порты — как хаб. В `flood.pcap` среди шума есть чужой HTTP-логин.\n\nНайди **пароль** из перехваченного POST-запроса.\n\n1. Сводка: `tshark -r flood.pcap -nn`\n2. Поля POST: `tshark -r flood.pcap -Y 'http.request' -T fields -e ip.src -e http.host -e urlencoded-form.key -e urlencoded-form.value`\n\nЗапиши пароль в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/flood.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAAAAAAAAAAAA+AAAAPgAAAP///////wJCIlbTOggARQAAMAABAABAEWUFCgAAugoAAP629Uz6ABwxWnh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAOgDAAA+AAAAPgAAAP///////wK2w0FcPQgARQAAMAABAABAEWUdCgAAogoAAP5bnP2zABzcEXh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAANAHAAA+AAAAPgAAAP///////wKigc9MyggARQAAMAABAABAEWWgCgAAHwoAAP5lyYHFABxOVnh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAALgLAAA+AAAAPgAAAP///////wJSuc0g4QgARQAAMAABAABAEWWeCgAAIQoAAP6Q5y9LABx1sHh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAKAPAAA+AAAAPgAAAP///////wLu8t1o5ggARQAAMAABAABAEWWiCgAAHQoAAP5LxgSbABzlhXh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAIgTAAA+AAAAPgAAAP///////wKb/sWPBwgARQAAMAABAABAEWWqCgAAFQoAAP7YLIbhABzW4Hh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAHAXAAA+AAAAPgAAAP///////wL8wLpULwgARQAAMAABAABAEWW3CgAACAoAAP6h2sBgABzTwHh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAFgbAAA+AAAAPgAAAP///////wJgAviQrQgARQAAMAABAABAEWU9CgAAggoAAP4rGM+KABw633h4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAEAfAAA+AAAAPgAAAP///////wJ1pu6sJQgARQAAMAABAABAEWWYCgAAJwoAAP4f8sHTABxUF3h4eHh4eHh4eHh4eHh4eHh4eHh4AAAAACgjAAA+AAAAPgAAAP///////wJTRzfLUggARQAAMAABAABAEWVaCgAAZQoAAP6KZ9LOABzYaHh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAABAnAAA+AAAAPgAAAP///////wKkb3xX5ggARQAAMAABAABAEWUsCgAAkwoAAP7hDimKABwq2Hh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAPgqAAA+AAAAPgAAAP///////wKLPwunzAgARQAAMAABAABAEWVZCgAAZgoAAP6xpPuxAByIR3h4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAOAuAAA+AAAAPgAAAP///////wL8BknIrwgARQAAMAABAABAEWU+CgAAgQoAAP58Z2ftABxRLnh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAMgyAAA+AAAAPgAAAP///////wI5t290PAgARQAAMAABAABAEWUBCgAAvgoAAP48QEykABysYXh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAALA2AAA+AAAAPgAAAP///////wJGag6siQgARQAAMAABAABAEWU1CgAAigoAAP6oCIXzABwHfnh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAJg6AAA+AAAAPgAAAP///////wJzunrHDggARQAAMAABAABAEWWgCgAAHwoAAP4YHHb0ABym1Hh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAIA+AAA+AAAAPgAAAP///////wJvNmHFLAgARQAAMAABAABAEWUGCgAAuQoAAP4TMEnmABzYNHh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAGhCAAA+AAAAPgAAAP///////wJ8/ueJ3ggARQAAMAABAABAEWWQCgAALwoAAP4N+oImAByltHh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAFBGAAA+AAAAPgAAAP///////wL1H2F0OQgARQAAMAABAABAEWT+CgAAwQoAAP5rKUh/AByBmnh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAADhKAAA+AAAAPgAAAP///////wJwRGpgLggARQAAMAABAABAEWWdCgAAIgoAAP5p/sq8ABwBJ3h4eHh4eHh4eHh4eHh4eHh4eHh4AAAAACBOAAA+AAAAPgAAAP///////wJ7rStjEwgARQAAMAABAABAEWTiCgAA3QoAAP5R3hc7ABzMDXh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAAhSAAA+AAAAPgAAAP///////wK+rvyiHggARQAAMAABAABAEWU/CgAAgAoAAP7i9TFSABwhPHh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAPBVAAA+AAAAPgAAAP///////wJTpUHweQgARQAAMAABAABAEWU/CgAAgAoAAP4Y068MABxtpHh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAANhZAAA+AAAAPgAAAP///////wLG3a8rKggARQAAMAABAABAEWVXCgAAaAoAAP4RknPGABywQ3h4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAMBdAAA+AAAAPgAAAP///////wKFsoHYNwgARQAAMAABAABAEWUyCgAAjQoAAP40P3aeAByKmXh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAKhhAAA+AAAAPgAAAP///////wJCuGpXwggARQAAMAABAABAEWU+CgAAgQoAAP5eglsOABx78nh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAJBlAAA+AAAAPgAAAP///////wKnST19HwgARQAAMAABAABAEWW1CgAACgoAAP5eOq4JABwptnh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAHhpAAA+AAAAPgAAAP///////wKHx0wYeQgARQAAMAABAABAEWVTCgAAbAoAAP4793iCAByBHnh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAGBtAAA+AAAAPgAAAP///////wJ+6d4XGwgARQAAMAABAABAEWTdCgAA4goAAP5fPpitABw9Nnh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAEhxAAA+AAAAPgAAAP///////wI1NHGuWQgARQAAMAABAABAEWT7CgAAxAoAAP7HFskrAByk/Xh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAADB1AAA+AAAAPgAAAP///////wJocH1bqAgARQAAMAABAABAEWUBCgAAvgoAAP4v9bkCABxMTnh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAABh5AAA+AAAAPgAAAP///////wJhLeK0nAgARQAAMAABAABAEWUkCgAAmwoAAP5quOiDABziLHh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAAB9AAA+AAAAPgAAAP///////wJD2c0q5ggARQAAMAABAABAEWTFCgAA+goAAP5iL9hxABz6aHh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAOiAAAA+AAAAPgAAAP///////wK56mtntAgARQAAMAABAABAEWTZCgAA5goAAP5EznHgABx+b3h4eHh4eHh4eHh4eHh4eHh4eHh4AAAAANCEAAA+AAAAPgAAAP///////wKQxW7G3QgARQAAMAABAABAEWVUCgAAawoAAP4gcq7PABxmV3h4eHh4eHh4eHh4eHh4eHh4eHh4AAAAALiIAAA+AAAAPgAAAP///////wL8JECG6AgARQAAMAABAABAEWThCgAA3goAAP7FSurvAByE63h4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAKCMAAA+AAAAPgAAAP///////wK3WPxLfAgARQAAMAABAABAEWWvCgAAEAoAAP58AbbmABwDDHh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAIiQAAA+AAAAPgAAAP///////wKqyHx+NwgARQAAMAABAABAEWTdCgAA4goAAP50RdihABzoOnh4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAHCUAAA+AAAAPgAAAP///////wKJ3COGHwgARQAAMAABAABAEWW6CgAABQoAAP5crbRCABwlD3h4eHh4eHh4eHh4eHh4eHh4eHh4AAAAAFiYAAA+AAAAPgAAAP///////wJgir1WGQgARQAAMAABAABAEWUICgAAtwoAAP4bhHXgAByj6Hh4eHh4eHh4eHh4eHh4eHh4eHh4AQAAAAAAAADMAAAAzAAAAAARIjNEVaq7zAARIggARQAAvgABAABABmYHCgAAMgoAAAHLKgBQAAAAAQAAAAFQGCAAqusAAFBPU1QgL2xvZ2luIEhUVFAvMS4xDQpIb3N0OiBwb3J0YWwuY29ycC5sb2NhbA0KQ29udGVudC1UeXBlOiBhcHBsaWNhdGlvbi94LXd3dy1mb3JtLXVybGVuY29kZWQNCkNvbnRlbnQtTGVuZ3RoOiAzMg0KDQp1c2VybmFtZT1pdmFub3YmcGFzc3dvcmQ9UzNjcmV0IQ==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-Y <фильтр>] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "urlencoded-form",
+          "example": "-r flood.pcap -Y 'http.request' -T fields -e ip.src -e http.host -e urlencoded-form.key -e urlencoded-form.value",
+          "output": "10.0.0.50\tportal.corp.local\tusername,password\tivanov,S3cret!\n"
+        },
+        {
+          "match": "flood\\.pcap",
+          "example": "-r flood.pcap -nn",
+          "output": "    1   0.000000   10.0.0.186 → 10.0.0.254   UDP 62 46837 → 19706 Len=20\n    2   0.001000   10.0.0.162 → 10.0.0.254   UDP 62 23452 → 64947 Len=20\n    3   0.002000   10.0.0.66 → 10.0.0.254    UDP 62 51000 → 40001 Len=20\n   41   1.000000    10.0.0.50 → 10.0.0.1     HTTP 204 POST /login HTTP/1.1  (application/x-www-form-urlencoded)\n"
+        }
+      ],
+      "fallback": "    1   0.000000   10.0.0.186 → 10.0.0.254   UDP 62 46837 → 19706 Len=20\n    2   0.001000   10.0.0.162 → 10.0.0.254   UDP 62 23452 → 64947 Len=20\n    3   0.002000   10.0.0.66 → 10.0.0.254    UDP 62 51000 → 40001 Len=20\n   41   1.000000    10.0.0.50 → 10.0.0.1     HTTP 204 POST /login HTTP/1.1  (application/x-www-form-urlencoded)\n"
+    }
+  }
+}

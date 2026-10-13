@@ -13,6 +13,18 @@ useful_for:
   - "Работа (SOC): детект Kerberos-аномалий"
 estimated_minutes: 55
 summary: "Как Kerberos выдаёт билеты (AS/TGS), что видно в трафике, и какие атаки работают на сетевом уровне: AS-REP roasting, Kerberoasting, релей."
+lab:
+  kind: shell
+  title: "Практика: ищем цель Kerberoasting в дампе"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, krb.pcap]
+  check: "grep -q 'sql01.corp.local' answer.txt"
+  hints:
+    - "Типы сообщений: `tshark -r krb.pcap -T fields -e kerberos.msg_type` (10=AS-REQ, 12=TGS-REQ)."
+    - "Имена: `tshark -r krb.pcap -T fields -e kerberos.msg_type -e kerberos.CNameString -e kerberos.SNameString`."
+    - "SPN собирается как `service/host` — ищи SNameString у сообщения типа 12 (TGS-REQ)."
+    - "Хост сервиса из SPN — `sql01.corp.local`."
 ---
 
 ## Вопрос, с которого всё начинается

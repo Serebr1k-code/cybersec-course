@@ -1,0 +1,42 @@
+{
+  "id": "network-nac-bypass",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "00:1b:21:aa:bb:cc"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: обход NAC через MAB\n\nПорт коммутатора держит 802.1X. Устройство, не умеющее 802.1X, аутентифицируется по MAC (MAB):\nкоммутатор шлёт его MAC как identity в EAP-Response/Identity. В `eapol.pcap` — обмен.\n\nАтакующий подслушал легитимный MAC и выдал себя за это устройство.\nНайди **MAC-identity**, которую он предъявил.\n\n1. Сводка: `tshark -r eapol.pcap -nn`\n2. Поля: `tshark -r eapol.pcap -T fields -e eapol.type -e eap.code -e eap.type -e eap.identity`\n\nЗапиши MAC в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/eapol.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAAAAAAAAAAAASAAAAEgAAAAGAwgAAAwIAABM3AYiOAQEAAAAAAABQwwAAFwAAABcAAAACAAATNwEBgMIAAAOIjgEAAAUBAQAFAQAAAACghgEAKAAAACgAAAABgMIAAAMCAAATNwGIjgEAABYCAQAWATAwOjFiOjIxOmFhOmJiOmNjAAAAAPBJAgAWAAAAFgAAAAIAABM3AQGAwgAAA4iOAQAABAMBAAQ=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] [-Y <фильтр>] [-T fields -e <поле>] — разбор дампа (эмуляция: реальный вывод tshark)",
+      "cases": [
+        {
+          "match": "eap\\.identity",
+          "example": "-r eapol.pcap -T fields -e eapol.type -e eap.code -e eap.type -e eap.identity",
+          "output": "1\t\t\t\n0\t1\t1\t\n0\t2\t1\t00:1b:21:aa:bb:cc\n0\t3\t\t\n"
+        },
+        {
+          "match": "eapol\\.pcap",
+          "example": "-r eapol.pcap -nn",
+          "output": "    1   0.000000 02:00:00:13:37:01 → 01:80:c2:00:00:03 EAPOL 18 Start\n    2   0.050000 01:80:c2:00:00:03 → 02:00:00:13:37:01 EAP 23 Request, Identity\n    3   0.100000 02:00:00:13:37:01 → 01:80:c2:00:00:03 EAP 40 Response, Identity\n    4   0.150000 01:80:c2:00:00:03 → 02:00:00:13:37:01 EAP 22 Success\n"
+        }
+      ],
+      "fallback": "    1   0.000000 02:00:00:13:37:01 → 01:80:c2:00:00:03 EAPOL 18 Start\n    2   0.050000 01:80:c2:00:00:03 → 02:00:00:13:37:01 EAP 23 Request, Identity\n    3   0.100000 02:00:00:13:37:01 → 01:80:c2:00:00:03 EAP 40 Response, Identity\n    4   0.150000 01:80:c2:00:00:03 → 02:00:00:13:37:01 EAP 22 Success\n"
+    }
+  }
+}

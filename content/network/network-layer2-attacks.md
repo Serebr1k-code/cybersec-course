@@ -13,6 +13,18 @@ useful_for:
   - "Работа: защита L2-инфраструктуры"
 estimated_minutes: 50
 summary: "Атаки на канальный уровень: перехват корневого моста STP, переполнение CAM-таблицы и обход port security."
+lab:
+  kind: shell
+  title: "Практика: MAC-flooding и перехват логина"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, flood.pcap]
+  check: "grep -q 'S3cret!' answer.txt"
+  hints:
+    - "Сводка: `tshark -r flood.pcap -nn` — много кадров со случайными MAC (флудинг), и один HTTP POST."
+    - "После переполнения CAM коммутатор флудит во все порты — в дампе виден чужой трафик."
+    - "Поля POST: `tshark -r flood.pcap -Y 'http.request' -T fields -e ip.src -e http.host -e urlencoded-form.key -e urlencoded-form.value`."
+    - "Перехваченный пароль — `S3cret!`."
 ---
 
 ## Вопрос, с которого всё начинается

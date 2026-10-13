@@ -72,6 +72,34 @@ const LABS = [
       "tshark -r c2.pcap -Y 'http.request' -T fields -e ip.dst -e tcp.dstport -e http.request.uri -e http.host",
       'echo 203.0.113.77 > answer.txt',
     ] },
+  { id: 'network-kerberos',
+    check: "grep -q 'sql01.corp.local' answer.txt",
+    solution: [
+      'tshark -r krb.pcap -T fields -e kerberos.msg_type',
+      'tshark -r krb.pcap -T fields -e kerberos.msg_type -e kerberos.CNameString -e kerberos.SNameString',
+      'echo sql01.corp.local > answer.txt',
+    ] },
+  { id: 'network-nac-bypass',
+    check: "grep -q '00:1b:21:aa:bb:cc' answer.txt",
+    solution: [
+      'tshark -r eapol.pcap -nn',
+      'tshark -r eapol.pcap -T fields -e eapol.type -e eap.code -e eap.type -e eap.identity',
+      'echo 00:1b:21:aa:bb:cc > answer.txt',
+    ] },
+  { id: 'network-ipv6',
+    check: "grep -q '2001:db8:bad::' answer.txt",
+    solution: [
+      'tshark -r ipv6.pcap -nn',
+      "tshark -r ipv6.pcap -Y 'icmpv6.type==134' -T fields -e icmpv6.nd.ra.router_lifetime -e icmpv6.opt.prefix -e icmpv6.opt.prefix.length -e icmpv6.opt.rdnss",
+      'echo 2001:db8:bad:: > answer.txt',
+    ] },
+  { id: 'network-layer2-attacks',
+    check: "grep -q 'S3cret!' answer.txt",
+    solution: [
+      'tshark -r flood.pcap -nn',
+      "tshark -r flood.pcap -Y 'http.request' -T fields -e ip.src -e http.host -e urlencoded-form.key -e urlencoded-form.value",
+      "echo 'S3cret!' > answer.txt",
+    ] },
 ]
 
 describe('network labs batch B12 solve end-to-end', () => {

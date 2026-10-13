@@ -13,6 +13,18 @@ useful_for:
   - "Работа: оценка и защита NAC"
 estimated_minutes: 55
 summary: "Как работает NAC/802.1X, какие у него слабые места и какие техники обхода применяют при физическом доступе к порту."
+lab:
+  kind: shell
+  title: "Практика: обход NAC через MAB"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, eapol.pcap]
+  check: "grep -q '00:1b:21:aa:bb:cc' answer.txt"
+  hints:
+    - "Сводка: `tshark -r eapol.pcap -nn` — виден EAPOL-обмен (кадры 0x888e)."
+    - "MAB шлёт MAC устройства как identity в EAP-Response/Identity (EAP code=2, type=1)."
+    - "Поля: `tshark -r eapol.pcap -T fields -e eapol.type -e eap.code -e eap.type -e eap.identity`."
+    - "Предъявленный MAC-identity — `00:1b:21:aa:bb:cc`."
 ---
 
 ## Вопрос, с которого всё начинается
