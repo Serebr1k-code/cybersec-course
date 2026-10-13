@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 60
 summary: "Как анализировать и эксплуатировать самописные аллокаторы в CTF: типовые баги, метаданные, приёмы перекрытия и захвата потока управления."
+lab:
+  kind: shell
+  title: "Практика: размер заголовка блока"
+  toolset: [core, objdump]
+  workdir: /home/student/task
+  files: [task.md, alloc.c, alloc, run.txt]
+  check: "grep -q 'hdr=0x10' answer.txt"
+  hints:
+    - "`./alloc` печатает адреса `A`, `B` и `delta`."
+    - "delta = заголовок + запрошенные 0x30 (с выравниванием до 0x10)."
+    - "`objdump -d alloc` — найди, на сколько сдвигается указатель."
+    - "Заголовок блока = 0x10. Запиши `hdr=0x10`."
 ---
 
 ## Задача

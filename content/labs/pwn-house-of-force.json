@@ -1,0 +1,36 @@
+{
+ "id": "pwn-house-of-force",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "size=0xffffffffffffffff"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: sentinel для top->size (House of Force)\n\nКлассический House of Force перезаписывает поле `size` top-чанка огромным\nзначением, чтобы `malloc` «отрезал» память у любой цели. На modern glibc\n(>= 2.29) добавлена проверка `size > system_mem` -> `malloc(): corrupted top size`.\n\n1. `cat force.c` — что пишется в top->size.\n2. `cat run.txt` — реальный прогон (сейчас там 0xdeadbeef).\n3. `cat libc.strings` — реальные сообщения malloc из целевой libc.\n\nКакое значение (SIZE_MAX, все биты в 1) писали в `top->size` в оригинальной\nтехнике? Запиши `size=0x...` (16 hex-цифр) и набери `check`.\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/force.c",
+   "text": "#include <stddef.h>\nvoid *malloc(size_t);\nvoid free(void*);\nint printf(const char*,...);\nint puts(const char*);\nint main(void){\n  char *a = malloc(0x18);\n  unsigned long *top = (unsigned long*)(a + 0x10);\n  printf(\"a=%p\\n\", (void*)a);\n  printf(\"top_size=0x%lx\\n\", top[1]);\n  puts(\"write 0xdeadbeef to top->size ...\");\n  top[1] = 0xdeadbeef;\n  printf(\"after_write top_size=0x%lx\\n\", top[1]);\n  char *b = malloc(0x100);\n  printf(\"b=%p\\n\", (void*)b);\n  return 0;\n}\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/run.txt",
+   "text": "a=0x197c8000\ntop_size=0x20fd1\nwrite 0xdeadbeef to top->size ...\nafter_write top_size=0xdeadbeef\nmalloc(): corrupted top size\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/libc.strings",
+   "text": "corrupted double-linked list\ncorrupted double-linked list (not small)\ncorrupted size vs. prev_size\ncorrupted size vs. prev_size while consolidating\nfree(): double free detected in tcache 2\nmalloc(): corrupted top size\nmalloc(): invalid size (unsorted)\nmalloc(): smallbin double linked list corrupted\n",
+   "mode": "644"
+  }
+ ],
+ "tools": {}
+}

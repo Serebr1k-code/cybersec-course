@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 45
 summary: "Техника House of Einherjar: как off-by-null перезаписывает prev_inuse и заставляет free слить контролируемый fake-чанк с существующим."
+lab:
+  kind: shell
+  title: "Практика: prev_size подделки"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, einherjar.c, trace.txt]
+  check: "grep -q 'prev_size=0x410' answer.txt"
+  hints:
+    - "`cat trace.txt` — fake.size и b.prev_size."
+    - "chunksize(fake) обязан совпасть с prev_size(b)."
+    - "fake.size = 0x411, значит prev_size(b) = 0x410."
+    - "Запиши `prev_size=0x410`."
 ---
 ## Вопрос, с которого всё начинается
 

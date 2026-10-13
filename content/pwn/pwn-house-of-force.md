@@ -13,6 +13,18 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 70
 summary: "Разбираем три классические heap-техники: House of Force (перезапись top chunk), House of Spirit (поддельный fastbin) и House of Orange (unsorted bin -> FSOP) с полным разбором каждой."
+lab:
+  kind: shell
+  title: "Практика: sentinel для top->size"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, force.c, run.txt, libc.strings]
+  check: "grep -q 'size=0xffffffffffffffff' answer.txt"
+  hints:
+    - "`cat force.c` и `cat run.txt`."
+    - "Оригинальный House of Force писал в top->size максимальное значение."
+    - "Это SIZE_MAX — все 64 бита в единице."
+    - "Запиши `size=0xffffffffffffffff`."
 ---
 
 ## Вопрос, с которого всё начинается

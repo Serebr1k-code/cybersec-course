@@ -1,0 +1,31 @@
+{
+ "id": "pwn-house-botcake",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "merged=0x221"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: размер слитого чанка (House of Botcake)\n\n`botcake.c` моделирует рецепт Botcake: наполнить tcache, `free(A)` -> unsorted,\n`free(B)` -> backward consolidation `A+B`. Программа печатает размеры\nзаголовков после каждого шага.\n\n1. `cat botcake.c` — порядок действий.\n2. `cat trace.txt` — реальный вывод: `A.size` до и после слияния.\n\nНайди размер слитого чанка `A+B` (в hex). Запиши `merged=0x...` и набери `check`.\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/botcake.c",
+   "text": "#include \"rt.h\"\n/* House of Botcake: model the recipe's chunk headers. */\nstatic char *arena;\n#define SZ 0x110\nstatic u64 *hdr(int i){ return (u64*)(arena + (u64)i*SZ); }  /* chunk header */\nvoid _start(void){\n  arena = (char*)sbrk(0x4000);\n  u64 *A=hdr(0), *B=hdr(1), *C=hdr(2);\n  A[1]=0x111; B[1]=0x111; C[1]=0x111;   /* all in-use, size 0x110 */\n  put(\"fill tcache (16 x 0x100) ...\\n\");\n  put(\"A=\"); putx((u64)(A+2)); put(\" B=\"); putx((u64)(B+2)); put(\" C=\"); putx((u64)(C+2)); putnl();\n  put(\"free(A) -> unsorted: A.size=\"); putx(A[1]); putnl();\n  put(\"free(B) -> backward consolidation ...\\n\");\n  A[1] = 0x111 + 0x110;                 /* merged A+B = 0x221 */\n  B[0] = 0;                             /* B->prev_size consumed */\n  put(\"consolidation A+B: A.size=\"); putx(A[1]); putnl();\n  put(\"malloc(0x100) -> frees a tcache slot\\n\");\n  put(\"free(B) again -> B enters tcache, still inside A+B\\n\");\n  put(\"malloc(0x1f0) -> D=\"); putx((u64)(A+2)); put(\" size=0x201\\n\");\n  put(\"wrote B[0]=0x77 ; D[0x110]=0x77 -> overlap!\\n\");\n  exit0();\n}\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/trace.txt",
+   "text": "fill tcache (16 x 0x100) ...\nA=0x37718010 B=0x37718120 C=0x37718230\nfree(A) -> unsorted: A.size=0x111\nfree(B) -> backward consolidation ...\nconsolidation A+B: A.size=0x221\nmalloc(0x100) -> frees a tcache slot\nfree(B) again -> B enters tcache, still inside A+B\nmalloc(0x1f0) -> D=0x37718010 size=0x201\nwrote B[0]=0x77 ; D[0x110]=0x77 -> overlap!\n",
+   "mode": "644"
+  }
+ ],
+ "tools": {}
+}

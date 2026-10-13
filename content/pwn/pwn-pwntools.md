@@ -13,6 +13,18 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 50
 summary: "Осваиваем pwntools: ELF/ROP-анализ, упаковка данных, взаимодействие с локальным и удалённым процессом, отладка через GDB."
+lab:
+  kind: shell
+  title: "Практика: адрес win через pwntools"
+  toolset: [core, python3, nm]
+  workdir: /home/student/task
+  files: [task.md, vuln, solve.py, checksec.txt]
+  check: "grep -q 'win=0x401167' answer.txt"
+  hints:
+    - "`cat solve.py` — что делает скрипт на pwntools."
+    - "`python3 solve.py` напечатает checksec и адрес `win`."
+    - "`nm vuln` покажет строку `T win` с адресом рядом."
+    - "Запиши в `answer.txt` `win=0x401167` (адрес функции win)."
 ---
 
 ## Вопрос, с которого всё начинается

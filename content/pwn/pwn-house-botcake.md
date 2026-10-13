@@ -12,6 +12,18 @@ useful_for:
   - "Разработка эксплойтов"
 estimated_minutes: 55
 summary: "Обход проверки double-free в tcache (glibc 2.29+) через комбинацию с unsorted bin: слияние и повторное освобождение одного и того же чанка."
+lab:
+  kind: shell
+  title: "Практика: размер слитого чанка"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, botcake.c, trace.txt]
+  check: "grep -q 'merged=0x221' answer.txt"
+  hints:
+    - "`cat trace.txt` — размер A до и после слияния."
+    - "free(A) -> unsorted: 0x111."
+    - "free(B) -> backward consolidation: 0x111 + 0x110."
+    - "Запиши `merged=0x221`."
 ---
 ## Вопрос, с которого всё начинается
 

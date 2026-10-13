@@ -1,0 +1,31 @@
+{
+ "id": "pwn-house-einherjar",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "prev_size=0x410"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: prev_size поддельного чанка (House of Einherjar)\n\n`einherjar.c` строит поддельный чанк внутри данных `a` и сбрасывает\n`prev_inuse` у `b` (off-by-null). При `free(b)` glibc идёт по `prev_size` к\nподделке и сливает её. Программа печатает `fake.size`, `b.prev_size` и\n`b.prev_inuse`.\n\n1. `cat einherjar.c` — как задаётся подделка (`fd = bk = fake`).\n2. `cat trace.txt` — реальный вывод.\n\nКакое значение должно лежать в `b->prev_size` (должно совпадать с `fake.size`)?\nЗапиши `prev_size=0x...` и набери `check`.\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/einherjar.c",
+   "text": "#include \"rt.h\"\nstatic char *arena;\n#define SZ 0x420\nvoid _start(void){\n  arena = (char*)sbrk(0x4000);\n  char *a = arena, *b = arena + SZ;\n  u64 *fh = (u64*)(a + 0x10);            /* fake chunk header inside a's data */\n  fh[0] = 0;                             /* fake prev_size */\n  fh[1] = 0x410 | 1;                     /* fake size = 0x411 */\n  u64 fake_user = (u64)(fh + 2);         /* fake user data */\n  *(u64*)(fake_user + 0) = fake_user;    /* fake->fd = fake  (self ref) */\n  *(u64*)(fake_user + 8) = fake_user;    /* fake->bk = fake  (self ref) */\n  u64 *bh = (u64*)b;\n  bh[0] = 0x410;                         /* b->prev_size = distance to fake */\n  bh[1] &= ~1UL;                         /* clear prev_inuse (off-by-null) */\n  put(\"a=\"); putx((u64)a); put(\" b=\"); putx((u64)b); putnl();\n  put(\"fake.size=\"); putx(fh[1]); putnl();\n  put(\"b.prev_size=\"); putx(bh[0]); putnl();\n  put(\"b.prev_inuse=\"); putd(bh[1]&1); putnl();\n  put(\"free(b) -> backward consolidation -> unlink(fake) -> merge\\n\");\n  put(\"malloc(0x800) -> \"); putx(fake_user); put(\" (inside a)\\n\");\n  exit0();\n}\n",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/trace.txt",
+   "text": "a=0x3d7c9000 b=0x3d7c9420\nfake.size=0x411\nb.prev_size=0x410\nb.prev_inuse=0\nfree(b) -> backward consolidation -> unlink(fake) -> merge\nmalloc(0x800) -> 0x3d7c9020 (inside a)\n",
+   "mode": "644"
+  }
+ ],
+ "tools": {}
+}
