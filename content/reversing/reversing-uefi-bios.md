@@ -13,6 +13,18 @@ useful_for:
   - "Bootkit analysis"
 estimated_minutes: 70
 summary: "Разбор UEFI-прошивок: структура PI/PEI/DXE, UEFITool, модули, SMM и анализ bootkit-техник."
+lab:
+  kind: shell
+  title: 'Практика: разобрать UEFI Firmware Volume'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, firmware.fv, uefi.py]
+  check: "grep -q 'nto{u3f1_f1rmw4r3_v0lum3_p3}' found.txt"
+  hints:
+    - '`xxd firmware.fv | head -4` — том начинается с 16-байтового GUID.'
+    - '`python3 uefi.py firmware.fv` — печатает FVH GUID, длину тома и первый PE-модуль.'
+    - 'GUID `8c8ce578-...` — это Firmware File System; `Subsystem=0x9090` — EFI Application (не Windows).'
+    - 'Флаг — строка в данных модуля: `strings firmware.fv | grep nto > found.txt`, затем `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

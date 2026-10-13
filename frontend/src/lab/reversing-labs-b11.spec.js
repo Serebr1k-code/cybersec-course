@@ -16,6 +16,7 @@ const LABS = {
   'reversing-smart-contracts': { flag: 'nto{evm_0pc0d3_d1s4ss3mbly}', steps: ['xxd contract.bin', 'python3 evmdis.py contract.bin', 'strings contract.bin | grep nto > found.txt'] },
   'reversing-ios': { flag: 'nto{10s_m4ch0_4rm64_1pa}', steps: ['xxd ios_demo | head -1', 'python3 macho.py ios_demo', 'strings ios_demo | grep nto > found.txt'] },
   'reversing-swift-objc': { flag: 'nto{0bjc_m3th0d_l1sts_d3m4ngl3}', steps: ['python3 macho.py objc.o', 'strings objc.o | grep nto > found.txt'] },
+  'reversing-uefi-bios': { flag: 'nto{u3f1_f1rmw4r3_v0lum3_p3}', steps: ['xxd firmware.fv | head -4', 'python3 uefi.py firmware.fv', 'strings firmware.fv | grep nto > found.txt'] },
 }
 
 describe('reversing batch B11 end-to-end', () => {
