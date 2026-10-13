@@ -1,0 +1,49 @@
+{
+  "id": "forensics-windows-execution",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pr3f3tch_p4th_3x3cut10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: что запускалось на хосте\n\n`CMD.EXE-8D3F2B1A.pf` — Prefetch-файл Windows (запуск `CMD.EXE`), `amcache.txt` — выдержка из Amcache. Восстанови путь, который запускался, и найди в нём флаг.\n\n1. `file CMD.EXE-8D3F2B1A.pf` — формат.\n2. `python3 pf_parse.py` — декодирование UTF-16LE строк.\n\nФлаг `nto{...}` запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/CMD.EXE-8D3F2B1A.pf",
+      "b64": "EQAAAFNDQ0EeAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADAAAAQwA6AFwAVQBzAGUAcgBzAFwAagBkAG8AZQBcAEEAcABwAEQAYQB0AGEAXABSAG8AYQBtAGkAbgBnAFwAbgB0AG8AewBwAHIAMwBmADMAdABjAGgAXwBwADQAdABoAF8AMwB4ADMAYwB1AHQAMQAwAG4AfQAuAGUAeABlAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABDTUQuRVhFLThEM0YyQjFBAA==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/amcache.txt",
+      "text": "Amcache inventory (выдержка)\nCMD.EXE  8D3F2B1A  C:\\Windows\\System32\\cmd.exe  sha1=9f2a...\n"
+    },
+    {
+      "path": "/home/student/task/pf_parse.py",
+      "text": "#!/usr/bin/env python3\nimport struct\nraw = open(\"CMD.EXE-8D3F2B1A.pf\", \"rb\").read()\nprint(\"signature:\", raw[4:8].decode(\"latin1\"))\nprint(\"version:\", struct.unpack_from(\"<I\", raw, 0)[0])\ni = raw.find(b\"\\x00\".join(b\"CMD.EXE-8D3F2B1A\"[j:j+1] for j in range(len(\"CMD.EXE-8D3F2B1A\"))))\ns = raw.decode(\"utf-16-le\", \"ignore\")\nfor part in [p for p in s.split(\"\\x00\") if len(p) > 3]:\n    print(\"string:\", part)\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Prefetch лежит в C:\\Windows\\Prefetch как `<EXE>-<HASH>.pf` и хранит до 8 последних путей запуска и число запусков. Внутренние строки — UTF-16LE, поэтому их декодируют парсером (PECmd) или вручную.\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "pf_parse\\.py",
+          "example": "python3 pf_parse.py",
+          "output": "signature: SCCA\nversion: 17\nstring: C:\\Users\\jdoe\\AppData\\Roaming\\nto{pr3f3tch_p4th_3x3cut10n}.exe\nstring: CMD.EXE-8D3F2B1A\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 pf_parse.py`\n"
+    }
+  }
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Аудит облачной безопасности"
 estimated_minutes: 45
 summary: "Форензика облачных сред: CloudTrail/Activity/audit-логи, метаданные объектов, снапшоты дисков, IAM-события и восстановление действий атакующего без доступа к железу."
+lab:
+  kind: shell
+  title: 'Практика: CloudTrail и эскалация IAM'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, cloudtrail.json, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`cloudtrail.json` — события CloudTrail (JSON Lines).'
+    - 'Ищи персистентность: `grep CreateAccessKey cloudtrail.json`.'
+    - 'Проверь, кто создал ключ и под какой сессией.'
+    - 'Выдели принципал: `grep nto cloudtrail.json > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

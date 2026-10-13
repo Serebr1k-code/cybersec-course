@@ -1,0 +1,27 @@
+{
+  "id": "forensics-k8s",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{k8s_4ud1t_p0d_3x3c_s3cr3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: инцидент в Kubernetes\n\n`audit.log` — аудит API-сервера. Восстанови цепочку: кто получил доступ, вошёл в под и прочитал секрет.\n\n1. `grep -i anonymous audit.log` — анонимный доступ.\n2. `grep -E \"pods/exec|secrets\" audit.log` — exec и секреты.\n\nФлаг `nto{...}` (имя секрета) запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/audit.log",
+      "text": "{\"ts\":\"2026-03-02T03:10:00Z\",\"user\":{\"username\":\"system:anonymous\"},\"verb\":\"get\",\"objectRef\":{\"resource\":\"secrets\",\"name\":\"db-creds\"}}\n{\"ts\":\"2026-03-02T03:10:05Z\",\"user\":{\"username\":\"system:serviceaccount:default:ci\"},\"verb\":\"create\",\"objectRef\":{\"resource\":\"pods/exec\",\"name\":\"vault\"}}\n{\"ts\":\"2026-03-02T03:10:09Z\",\"user\":{\"username\":\"system:serviceaccount:default:ci\"},\"verb\":\"get\",\"objectRef\":{\"resource\":\"secrets\",\"name\":\"nto{k8s_4ud1t_p0d_3x3c_s3cr3t}\"}}\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Audit-лог пишет кто (`user.username`), что (`verb`), с чем (`objectRef`) и откуда. `system:anonymous` в списке = открытый RBAC; `pods/exec` = вход в контейнер; `get secrets` = эксфильтрация. Дальше — снапшот etcd и снимок контейнера, не разрушая улики.\n"
+    }
+  ]
+}

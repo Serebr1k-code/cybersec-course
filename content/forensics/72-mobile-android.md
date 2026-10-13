@@ -13,6 +13,18 @@ useful_for:
   - "DFIR"
 estimated_minutes: 45
 summary: "Извлечение и анализ данных Android: ADB, backup, root-доступ, app data, SQLite-базы приложений, логи и артефакты системы."
+lab:
+  kind: shell
+  title: 'Практика: база данных Android-приложения'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, msgstore.db, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`msgstore.db` — SQLite-база приложения (извлечена через ADB).'
+    - 'Список таблиц: `sqlite3 msgstore.db ".tables"`.'
+    - 'Читай переписку: `sqlite3 msgstore.db "SELECT sender,body FROM messages"`.'
+    - 'Выдели флаг: `strings msgstore.db | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

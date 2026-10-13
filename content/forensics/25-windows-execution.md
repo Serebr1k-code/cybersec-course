@@ -13,6 +13,18 @@ useful_for:
   - "Malware analysis"
 estimated_minutes: 50
 summary: "Как доказать, что программа ЗАПУСКАЛАСЬ: Prefetch, Amcache, ShimCache/AppCompatCache, SRUM, BAM/DAM, и как их разбирать инструментами Zimmerman."
+lab:
+  kind: shell
+  title: 'Практика: разбор Prefetch'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, CMD.EXE-8D3F2B1A.pf, amcache.txt, pf_parse.py, notes.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Начни с `file CMD.EXE-8D3F2B1A.pf` — это Prefetch (сигнатура `SCCA`).'
+    - 'Prefetch хранит строки в UTF-16LE — обычный `strings` их не покажет.'
+    - 'Разбери файл скриптом: `python3 pf_parse.py`.'
+    - 'Выдели флаг: `python3 pf_parse.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается
