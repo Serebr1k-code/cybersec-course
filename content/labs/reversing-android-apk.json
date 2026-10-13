@@ -1,0 +1,35 @@
+{
+  "id": "reversing-android-apk",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d3x_m4g1c_1n_4pk}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: APK — это ZIP\n\n`small.apk` — минимальное Android-приложение.\n\n1. `unzip -l small.apk` — список содержимого.\n2. `xxd classes.dex` не сработает (файл внутри архива) — используй `strings`.\n3. `strings small.apk | grep nto` — флаг лежит в `classes.dex` без сжатия.\n\nФлаг запиши в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/small.apk",
+      "b64": "UEsDBBQAAAAAALKSTV35GkhotQAAALUAAAALAAAAY2xhc3Nlcy5kZXhkZXgKMDM1AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAcAAAAHAAAAB4VjQSAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbnRve2QzeF9tNGcxY18xbl80cGt9AExjb20vZXhhbXBsZS9hcHAvTWFpbkFjdGl2aXR5OwAAAAAAAAAAAAAAAAAAAAAAUEsDBBQAAAAAALKSTV3BIk/21QAAANUAAAATAAAAQW5kcm9pZE1hbmlmZXN0LnhtbDw/eG1sIHZlcnNpb249IjEuMCIgZW5jb2Rpbmc9InV0Zi04Ij8+CjxtYW5pZmVzdCB4bWxuczphbmRyb2lkPSJodHRwOi8vc2NoZW1hcy5hbmRyb2lkLmNvbS9hcGsvcmVzL2FuZHJvaWQiIHBhY2thZ2U9ImNvbS5leGFtcGxlLmFwcCI+PGFwcGxpY2F0aW9uPjxhY3Rpdml0eSBhbmRyb2lkOm5hbWU9Ii5NYWluQWN0aXZpdHkiLz48L2FwcGxpY2F0aW9uPjwvbWFuaWZlc3Q+ClBLAwQUAAAAAACykk1d57534UAAAABAAAAADgAAAHJlc291cmNlcy5hcnNjUkVTAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFBLAQIUAxQAAAAAALKSTV35GkhotQAAALUAAAALAAAAAAAAAAAAAACAAQAAAABjbGFzc2VzLmRleFBLAQIUAxQAAAAAALKSTV3BIk/21QAAANUAAAATAAAAAAAAAAAAAACAAd4AAABBbmRyb2lkTWFuaWZlc3QueG1sUEsBAhQDFAAAAAAAspJNXee+d+FAAAAAQAAAAA4AAAAAAAAAAAAAAIAB5AEAAHJlc291cmNlcy5hcnNjUEsFBgAAAAADAAMAtgAAAFACAAAAAA=="
+    }
+  ],
+  "tools": {
+    "unzip": {
+      "help": "unzip -l <архив>",
+      "cases": [
+        {
+          "match": "-l",
+          "example": "unzip -l small.apk",
+          "output": "Archive:  small.apk\n  Length      Date    Time    Name\n---------  ---------- -----   ----\n      181  2026-10-13 18:21   classes.dex\n      213  2026-10-13 18:21   AndroidManifest.xml\n       64  2026-10-13 18:21   resources.arsc\n---------                     -------\n      458                     3 files\n"
+        }
+      ]
+    }
+  }
+}

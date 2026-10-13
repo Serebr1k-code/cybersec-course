@@ -13,6 +13,17 @@ useful_for:
   - "Vuln research: экспорт, релокации, TLS-колбэки"
 estimated_minutes: 55
 summary: "PE изнутри: DOS/COFF-заголовки, RVA, таблица импортов и секции — на одном реальном exe-файле."
+lab:
+  kind: shell
+  title: 'Практика: разбор PE-заголовков'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, usepe.exe, pe.py]
+  check: 'grep -q ''nto{mz_4rr0w_t0_pe_h34d3r}'' found.txt'
+  hints:
+    - '`xxd usepe.exe | head -1` — магия `MZ`.'
+    - 'По смещению `0x3c` — «стрелка» на PE-заголовок; проверь `xxd -s 0x80 -l 8 usepe.exe`.'
+    - 'Флаг в секции `.flag` (XOR 0x33): `python3 pe.py usepe.exe`.'
 ---
 
 ## Вопрос, с которого всё начинается

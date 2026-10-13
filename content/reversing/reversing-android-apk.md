@@ -13,6 +13,17 @@ useful_for:
   - "Mobile pentest"
 estimated_minutes: 55
 summary: "Разбор APK: структура архива, dex/Dalvik, AndroidManifest, smali и нативные библиотеки — на реальном APK."
+lab:
+  kind: shell
+  title: 'Практика: разобрать APK-архив'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, small.apk]
+  check: 'grep -q ''nto{d3x_m4g1c_1n_4pk}'' found.txt'
+  hints:
+    - 'APK — это ZIP-архив: `unzip -l small.apk`.'
+    - 'Ключевые элементы: `classes.dex` (код), `AndroidManifest.xml`, `resources.arsc`.'
+    - 'Строки хранятся без сжатия: `strings small.apk | grep nto`.'
 ---
 
 ## Вопрос, с которого всё начинается

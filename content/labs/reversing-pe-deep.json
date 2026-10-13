@@ -1,0 +1,40 @@
+{
+  "id": "reversing-pe-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{mz_4rr0w_t0_pe_h34d3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: PE изнутри\n\n`usepe.exe` — настоящий PE (MZ → PE\\0\\0).\n\n1. `xxd usepe.exe | head -1` — магия `MZ`.\n2. `xxd -s 0x3c -l 4 usepe.exe` — «стрелка» на PE-заголовок; `xxd -s 0x80 -l 8 usepe.exe`.\n3. `python3 pe.py usepe.exe` — секции и флаг из `.flag` (XOR 0x33).\n\nФлаг запиши в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/usepe.exe",
+      "b64": "TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABQRQAAZIYCAAAAAAAAAAAAAAAAAPAAIgALAgAAAAAAAAAAAAAAAAAAABAAAAAQAAAAAABAAQAAAAAQAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAwAAAAAgAAAAAAAAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAudGV4dAAAAAACAAAAEAAAAAIAAAACAAAAAAAAAAAAAAAAAAAgAABgLmZsYWcAAAAAAgAAACAAAAACAAAABAAAAAAAAAAAAAAAAAAAQAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkJCQkDQuNSE3IAVuKChqLQUuagUqPwUyaW4+aSgnAEFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFB",
+      "mode": "755"
+    },
+    {
+      "path": "/home/student/task/pe.py",
+      "text": "import struct,sys\nd=open(sys.argv[1],'rb').read()\nprint('first bytes:', d[:2])\npe=struct.unpack_from('<I',d,0x3c)[0]\nprint('e_lfanew (0x3c) -> 0x%x' % pe)\nprint('signature:', d[pe:pe+4])\nnsect=struct.unpack_from('<H',d,pe+6)[0]\noptsz=struct.unpack_from('<H',d,pe+20)[0]\nbase=pe+24+optsz\nprint('sections=%d' % nsect)\nfor i in range(nsect):\n    o=base+i*40\n    name=d[o:o+8].rstrip(b'\\x00').decode()\n    vs,va,rs,rp=struct.unpack_from('<IIII',d,o+8)\n    print('  %-8s VA=0x%x raw=0x%x size=0x%x' % (name,va,rp,rs))\n    if name=='.flag':\n        enc=d[rp:rp+rs].split(b'\\x00')[0]\n        print('flag =', bytes(b^0x5a for b in enc).decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 pe.py <файл>",
+      "cases": [
+        {
+          "match": "pe\\.py",
+          "example": "python3 pe.py usepe.exe",
+          "output": "first bytes: b'MZ'\ne_lfanew (0x3c) -> 0x80\nsignature: b'PE\\x00\\x00'\nsections=2\n  .text    VA=0x1000 raw=0x200 size=0x200\n  .flag    VA=0x2000 raw=0x400 size=0x200\nflag = nto{mz_4rr0w_t0_pe_h34d3r}\n"
+        }
+      ]
+    }
+  }
+}

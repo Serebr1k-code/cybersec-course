@@ -1,0 +1,39 @@
+{
+  "id": "reversing-emulation-qiling",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{un1c0rn_3mul4t3s_4rm}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: эмуляция чужой архитектуры\n\n`blob.bin` — зашифрованная строка. Ключ вычисляется ARM-кодом, который на x86 не запускается —\nпоэтому его исполняют эмулятором.\n\n1. `xxd blob.bin` — шифртекст.\n2. `python3 emu.py` — Unicorn выполняет ARM-инструкции, читает ключ из `r0`, расшифровывает.\n\nФлаг запиши в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/emu.py",
+      "text": "from unicorn import *\nfrom unicorn.arm_const import *\n# mov r0,#0x42 ; add r0,r0,#0x18  -> r0 = 0x5a\nCODE = bytes.fromhex('4200a0e3180080e2')\nmu = Uc(UC_ARCH_ARM, UC_MODE_ARM)\nmu.mem_map(0x1000, 0x1000)\nmu.mem_write(0x1000, CODE)\nmu.emu_start(0x1000, 0x1000+len(CODE))\nkey = mu.reg_read(UC_ARM_REG_R0)\nprint(\"emulated r0 = 0x%02x\" % key)\nd = open(\"blob.bin\",\"rb\").read()\nprint(bytes(b ^ key for b in d).decode())\n"
+    },
+    {
+      "path": "/home/student/task/blob.bin",
+      "b64": "NC41IS80azlqKDQFaTcvNm4uaSkFbig3Jw=="
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт>",
+      "cases": [
+        {
+          "match": "emu\\.py",
+          "example": "python3 emu.py",
+          "output": "emulated r0 = 0x5a\nnto{un1c0rn_3mul4t3s_4rm}\n"
+        }
+      ]
+    }
+  }
+}

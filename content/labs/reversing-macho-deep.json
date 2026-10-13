@@ -1,0 +1,40 @@
+{
+  "id": "reversing-macho-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{f33df4c3_m4ch0_h34d3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Mach-O изнутри\n\n`macho_demo` — Mach-O (формат macOS). `readelf` его не понимает.\n\n1. `xxd macho_demo | head -1` — магия `cffaedfe`.\n2. `python3 macho.py macho_demo` — разбор заголовка и load-команд.\n3. Флаг лежит в секции `__TEXT,__cstring` (XOR 0x11).\n\nФлаг запиши в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/macho_demo",
+      "b64": "z/rt/gcAAAEDAAAAAgAAAAEAAACYAAAAhQAgAAAAAAAZAAAAmAAAAF9fVEVYVAAAAAAAAAAAAAAAAAAAAQAAAAAgAAAAAAAAAAAAAAAAAAAAAgAAAAAAAAUAAAAFAAAAAQAAAAAAAABfX2NzdHJpbmcAAAAAAAAAX19URVhUAAAAAAAAAAAAAAABAAABAAAAGwAAAAAAAAAAAQAABAAAAAAAAAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAH9lfmp3IiJ1dyVyIk58JXJ5IU55IiV1ImNsAA==",
+      "mode": "755"
+    },
+    {
+      "path": "/home/student/task/macho.py",
+      "text": "import struct,sys\nd=open(sys.argv[1],'rb').read()\nmagic,cputype,cpusub,ftype,ncmds,sz,flags,res=struct.unpack_from('<8I',d,0)\nprint('magic=0x%08x (cffaedfe little-endian)' % magic)\nprint('cputype=0x%x ftype=%d ncmds=%d' % (cputype,ftype,ncmds))\noff=32\nfor _ in range(ncmds):\n    cmd,cmdsize=struct.unpack_from('<II',d,off)\n    if cmd==0x19:\n        nsects=struct.unpack_from('<I',d,off+64)[0]\n        so=off+72\n        for _ in range(nsects):\n            sn=d[so:so+16].rstrip(b'\\x00').decode()\n            sg=d[so+16:so+32].rstrip(b'\\x00').decode()\n            size=struct.unpack_from('<Q',d,so+40)[0]\n            fo=struct.unpack_from('<I',d,so+48)[0]\n            print('  section %s,%s size=%d off=0x%x' % (sg,sn,size,fo))\n            if sn=='__cstring':\n                enc=d[fo:fo+size].split(b'\\x00')[0]\n                print('flag =', bytes(b^0x11 for b in enc).decode())\n    off+=cmdsize\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 macho.py <файл>",
+      "cases": [
+        {
+          "match": "macho\\.py",
+          "example": "python3 macho.py macho_demo",
+          "output": "magic=0xfeedfacf (cffaedfe little-endian)\ncputype=0x1000007 ftype=2 ncmds=1\n  section __TEXT,__cstring size=27 off=0x100\nflag = nto{f33df4c3_m4ch0_h34d3r}\n"
+        }
+      ]
+    }
+  }
+}

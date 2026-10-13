@@ -13,6 +13,17 @@ useful_for:
   - "Mobile: разбор iOS-приложений"
 estimated_minutes: 55
 summary: "Mach-O изнутри: заголовок, load-команды, сегменты __TEXT/__DATA и точка входа — на одном реальном бинарнике."
+lab:
+  kind: shell
+  title: 'Практика: разбор Mach-O'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, macho_demo, macho.py]
+  check: 'grep -q ''nto{f33df4c3_m4ch0_h34d3r}'' found.txt'
+  hints:
+    - '`xxd macho_demo | head -1` — магия `cffaedfe` (little-endian `0xfeedfacf`).'
+    - '`readelf` Mach-O не понимает — читай заголовок в Python.'
+    - '`python3 macho.py macho_demo` — заголовок, load-команды и секция `__cstring`.'
 ---
 
 ## Вопрос, с которого всё начинается

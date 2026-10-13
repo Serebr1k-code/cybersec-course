@@ -1,0 +1,40 @@
+{
+  "id": "reversing-vmprotect-themida",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{vm_byt3c0d3_d3v1rtu4l1z3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разобрать виртуальную машину\n\n`vmcrack.py` — учебная стековая ВМ, проверяющая пароль. У неё есть байткод и интерпретатор.\n\n1. `python3 vmcrack.py` — дизассемблируй байткод.\n2. Восстанови проверку `input[ptr]^key == target`.\n3. `python3 vmcrack.py solve` — получи пароль и флаг.\n\nФлаг запиши в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/vmcrack.py",
+      "text": "import sys\nCODE = [0, 1, 17, 2, 3, 103, 4, 0, 1, 17, 2, 3, 124, 4, 0, 1, 17, 2, 3, 114, 4, 0, 1, 17, 2, 3, 99, 4, 0, 1, 17, 2, 3, 37, 4, 0, 1, 17, 2, 3, 114, 4, 0, 1, 17, 2, 3, 122, 4, 0, 1, 17, 2, 3, 48, 4, 5]\nOPS = {0:'LOAD',1:'PUSH',2:'XOR',3:'CMPEQ',4:'INC',5:'HALT'}\ndef disasm():\n    print('=== disassembly ===')\n    i = 0\n    while i < len(CODE):\n        op = CODE[i]\n        if op in (1,3):\n            print('%04x: %-6s 0x%02x' % (i, OPS[op], CODE[i+1])); i += 2\n        else:\n            print('%04x: %s' % (i, OPS[op])); i += 1\ndef run(inp):\n    ptr = 0; i = 0\n    while i < len(CODE):\n        op = CODE[i]\n        if op == 0: st = ord(inp[ptr])\n        elif op == 1: a = CODE[i+1]; i += 1; st ^= a\n        elif op == 3:\n            if st != CODE[i+1]: return False\n            i += 1\n        elif op == 4: ptr += 1\n        elif op == 5: return True\n        i += 1\n    return False\ndef solve():\n    out = ''; i = 0\n    while i < len(CODE):\n        if CODE[i] == 3: out += chr(CODE[i+1] ^ 0x11)\n        i += 1\n    return out\nif 'solve' in sys.argv:\n    pw = solve()\n    print('password =', pw)\n    enc = [76, 86, 77, 89, 84, 79, 125, 64, 91, 86, 17, 65, 18, 70, 17, 125, 70, 17, 84, 19, 80, 86, 87, 22, 78, 19, 88, 17, 70, 95]\n    print('flag =', bytes(b ^ 0x22 for b in enc).decode())\nelse:\n    disasm()\n    print('run with: python3 vmcrack.py solve')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 vmcrack.py [solve]",
+      "cases": [
+        {
+          "match": "solve",
+          "example": "python3 vmcrack.py solve",
+          "output": "password = vmcr4ck!\nflag = nto{vm_byt3c0d3_d3v1rtu4l1z3d}\n"
+        },
+        {
+          "match": "vmcrack",
+          "example": "python3 vmcrack.py",
+          "output": "=== disassembly ===\n0000: LOAD\n0001: PUSH   0x11\n0003: XOR\n0004: CMPEQ  0x67\n0006: INC\n0007: LOAD\n0008: PUSH   0x11\n000a: XOR\n000b: CMPEQ  0x7c\n000d: INC\n000e: LOAD\n000f: PUSH   0x11\n0011: XOR\n0012: CMPEQ  0x72\n0014: INC\n0015: LOAD\n0016: PUSH   0x11\n0018: XOR\n0019: CMPEQ  0x63\n001b: INC\n001c: LOAD\n001d: PUSH   0x11\n001f: XOR\n0020: CMPEQ  0x25\n0022: INC\n0023: LOAD\n0024: PUSH   0x11\n0026: XOR\n0027: CMPEQ  0x72\n0029: INC\n002a: LOAD\n002b: PUSH   0x11\n002d: XOR\n002e: CMPEQ  0x7a\n0030: INC\n0031: LOAD\n0032: PUSH   0x11\n0034: XOR\n0035: CMPEQ  0x30\n0037: INC\n0038: HALT\nrun with: python3 vmcrack.py solve\n"
+        }
+      ]
+    }
+  }
+}

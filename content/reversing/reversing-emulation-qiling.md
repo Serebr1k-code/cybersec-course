@@ -13,6 +13,17 @@ useful_for:
   - "Vuln research: эмуляция отдельных функций"
 estimated_minutes: 55
 summary: "Эмуляция кода через Unicorn и Qiling: загрузка ELF/PE/firmware, хуки на syscalls и API, эмуляция без ОС, обход анти-эмуляции и практические сценарии."
+lab:
+  kind: shell
+  title: 'Практика: эмуляция ARM через Unicorn'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, emu.py, blob.bin]
+  check: 'grep -q ''nto{un1c0rn_3mul4t3s_4rm}'' found.txt'
+  hints:
+    - '`emu.py` эмулирует ARM-код на x86-хосте через Unicorn.'
+    - 'Инструкции `mov r0,#0x42` и `add r0,r0,#0x18` дают ключ в регистре r0.'
+    - '`python3 emu.py` исполнит код и расшифрует `blob.bin` этим ключом.'
 ---
 ## Вопрос, с которого всё начинается
 

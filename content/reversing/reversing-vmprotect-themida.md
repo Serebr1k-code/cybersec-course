@@ -13,6 +13,17 @@ useful_for:
   - "Vuln research: девиртуализация"
 estimated_minutes: 60
 summary: "Коммерческие протекторы VMProtect и Themida/WinLicense: виртуализация инструкций, обнаружение, стратегии анализа, девиртуализация и практические приёмы работы с защищёнными бинарниками."
+lab:
+  kind: shell
+  title: 'Практика: девиртуализация стековой ВМ'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, vmcrack.py]
+  check: 'grep -q ''nto{vm_byt3c0d3_d3v1rtu4l1z3d}'' found.txt'
+  hints:
+    - '`python3 vmcrack.py` печатает дизассемблер байткода VM.'
+    - 'Байткод проверяет `input[ptr]^key == target` посимвольно.'
+    - '`python3 vmcrack.py solve` восстановит пароль и флаг.'
 ---
 ## Вопрос, с которого всё начинается
 
