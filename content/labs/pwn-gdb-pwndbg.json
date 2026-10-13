@@ -1,0 +1,20 @@
+{
+  "id": "pwn-gdb-pwndbg",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "0xb57336be64e6700"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: достать canary из отладочной сессии\n\n`gdb_canary.txt` — стенограмма сессии gdb на бинарнике, собранном с\nstack protector. Мы остановились на функции `check` и прошли несколько\nинструкций вперёд.\n\n1. Прочитай файл (`cat`, `grep`).\n2. Найди, в каком регистре оказался canary после загрузки из TLS.\n3. Выпиши **значение** canary из строки `$1 = 0x...`.\n\nЗапиши в `answer.txt` строку вида `canary=0x...` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/gdb_canary.txt",
+      "text": "\nThis GDB supports auto-downloading debuginfo from the following URLs:\n  <https://debuginfod.archlinux.org>\nEnable debuginfod for this session? (y or [n]) [answered N; input not from terminal]\nDebuginfod has been disabled.\nTo make this setting permanent, add 'set debuginfod enabled off' to .gdbinit.\nBreakpoint 1 at 0x11a0\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/usr/lib/libthread_db.so.1\".\n\nBreakpoint 1, 0x00005555555551a0 in check ()\n0x00005555555551a1 in check ()\n0x00005555555551a3 in check ()\n0x00005555555551a7 in check ()\n0x00005555555551b0 in check ()\n$1 = 0xb57336be64e6700\n0x7fffffffe178:\t0x0b57336be64e6700\nrip            0x5555555551b0      0x5555555551b0 <check+16>\nrsp            0x7fffffffe130      0x7fffffffe130\n"
+    }
+  ],
+  "tools": {}
+}

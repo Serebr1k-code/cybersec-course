@@ -13,6 +13,17 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 60
 summary: "Фаззинг — половина работы в pwn: разбираем AFL++ (инструментирование, corpus, словари), libFuzzer и honggfuzz, как находить краши и превращать их в эксплойт."
+lab:
+  kind: shell
+  title: "Практика: разбор крэш-репорта"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, crash_transcript.txt, crash_input.txt]
+  check: "grep -q 'SIGSEGV' answer.txt"
+  hints:
+    - "`crash_transcript.txt` — реальный запуск упавшей программы под отладчиком."
+    - "Найди строку `Program received signal ...` — там имя сигнала."
+    - "Стек затёрт: `rbp` и адрес возврата равны `0x4141414141414141` — это байты `A`."
 ---
 ## Вопрос, с которого всё начинается
 

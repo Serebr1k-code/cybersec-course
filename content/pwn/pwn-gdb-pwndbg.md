@@ -13,6 +13,17 @@ useful_for:
   - "Реверс-инжиниринг"
 estimated_minutes: 50
 summary: "Осваиваем GDB с расширениями pwndbg/gef: смотрим стек, регистры, кучу и находим точное смещение до RIP прямо во время работы эксплойта."
+lab:
+  kind: shell
+  title: "Практика: читаем gdb-сессию"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, gdb_canary.txt]
+  check: "grep -q '0xb57336be64e6700' answer.txt"
+  hints:
+    - "Файл `gdb_canary.txt` — запись реальной отладочной сессии на бинарнике с canary."
+    - "Мы встали на функцию `check` и прошагали до инструкции, где canary уже загружен в регистр."
+    - "В выводе есть строка `$1 = 0x...` и дамп памяти `x/gx` — это и есть значение canary."
 ---
 
 ## Вопрос, с которого всё начинается

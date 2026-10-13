@@ -13,6 +13,17 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 35
 summary: "Как целочисленные переполнения, знаковость и усечение превращают проверку размера в переполнение буфера: поиск в дизассемблере и рабочий эксплойт."
+lab:
+  kind: shell
+  title: "Практика: усечение целого при приведении"
+  toolset: [core, objdump]
+  workdir: /home/student/task
+  files: [task.md, intovf.c, intovf]
+  check: "grep -q 'movzx' answer.txt"
+  hints:
+    - "Исходник `intovf.c` читает `unsigned long` и кладёт его в `unsigned short`."
+    - "Дизассемблируй `main`: `objdump -d intovf`."
+    - "Усечение до 16 бит видно по инструкции `mov WORD PTR` (запись) и `movzx` (расширение обратно)."
 ---
 
 ## Вопрос, с которого всё начинается

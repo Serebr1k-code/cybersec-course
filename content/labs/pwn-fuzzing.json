@@ -1,0 +1,24 @@
+{
+  "id": "pwn-fuzzing",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "SIGSEGV"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: что случилось с фаззером\n\nФаззер нашёл вход, на котором программа падает. Есть два файла:\n- `crash_input.txt` — вход, который подали программе;\n- `crash_transcript.txt` — вывод отладчика после падения.\n\n1. Прочитай стенограмму (`cat`, `grep`).\n2. Определи, какой сигнал получила программа.\n3. Посмотри регистры: `rip`, `rbp` — во что превратился стек?\n\nЗапиши в `answer.txt` строку вида `signal=SIGXXX rip=0x... rbp=0x...`\n(подставь реальные значения) и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/crash_transcript.txt",
+      "text": "\nThis GDB supports auto-downloading debuginfo from the following URLs:\n  <https://debuginfod.archlinux.org>\nEnable debuginfod for this session? (y or [n]) [answered N; input not from terminal]\nDebuginfod has been disabled.\nTo make this setting permanent, add 'set debuginfod enabled off' to .gdbinit.\nok\n\nProgram received signal SIGSEGV, Segmentation fault.\n0x00000000004010f3 in vuln ()\nrip            0x4010f3            0x4010f3 <vuln+57>\nrsp            0x7fffffffe2a0      0x7fffffffe2a0\nrbp            0x4141414141414141  0x4141414141414141\n=> 0x4010f3 <vuln+57>:\tret\n   0x4010f4 <_start>:\tpush   %rbp\n   0x4010f5 <_start+1>:\tmov    %rsp,%rbp\n   0x4010f8 <_start+4>:\tcall   0x4010ba <vuln>\n#0  0x00000000004010f3 in vuln ()\n#1  0x4141414141414141 in ?? ()\n#2  0x4141414141414141 in ?? ()\n"
+    },
+    {
+      "path": "/home/student/task/crash_input.txt",
+      "text": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    }
+  ],
+  "tools": {}
+}

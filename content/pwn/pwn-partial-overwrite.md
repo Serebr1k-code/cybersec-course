@@ -13,6 +13,17 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 45
 summary: "Разбираем частичную перезапись указателей: почему младшие байты предсказуемы, как обходить ASLR/PIE и как применять приём к heap-указателям."
+lab:
+  kind: shell
+  title: "Практика: перезапись младшего байта адреса"
+  toolset: [core, nm, objdump]
+  workdir: /home/student/task
+  files: [task.md, vuln_win]
+  check: "grep -q '0x77' answer.txt"
+  hints:
+    - "Посмотри адрес функции `win`: `nm vuln_win`."
+    - "При частичной перезаписи меняют только младший байт сохранённого адреса возврата."
+    - "Младший байт `win` (например `0x4010XX`) — это последние два hex-символа адреса."
 ---
 ## Вопрос, с которого всё начинается
 
