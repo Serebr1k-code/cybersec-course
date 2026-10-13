@@ -1,0 +1,30 @@
+{
+  "id": "osint-automation",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{aut0m4t3d_h4rv3st_fl4g}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разобрать вывод theHarvester\n\nДомен `example.com`. Собери данные через theHarvester и найди аномальный хост.\n\n1. Запусти сбор и сохрани отчёт в файл:\n   `theHarvester -d example.com -b all -f harvest.txt`\n2. Найди маркер в отчёте:\n   `grep nto harvest.txt`\n3. Аномальный хост начинается с `flag-` — это маркер.\n4. Запиши строку `nto{...}` в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "theHarvester": {
+      "help": "theHarvester -d <домен> -b <источники> [-l N] [-f файл] — сбор email/хостов (эмуляция)",
+      "cases": [
+        {
+          "match": "-d\\s+example\\.com",
+          "example": "theHarvester -d example.com -b all -f harvest.txt",
+          "output": "*******************************************************************\n*  _   _                      _ _   _                      _      *\n* | |_| |__   ___    __ _ _ __| (_) | |__   ___  __ _ _ __ (_) ___ *\n* | __| '_ \\ / _ \\  / _` | '__| | | | '_ \\ / _ \\/ _` | '_ \\| |/ __|*\n* | |_| | | |  __/ | (_| | |  | | | | | | |  __/ (_| | | | | | (__ *\n*  \\__|_| |_|\\___|  \\__,_|_|  |_|_|_|_| |_|\\___|\\__,_|_| |_|_|\\___|*\n*                                                                 *\n* theHarvester 4.6.0                                              *\n*******************************************************************\n\n[*] Target: example.com\n\n[*] Searching crtsh.\n[*] Searching virustotal.\n[*] Searching dnsdumpster.\n\n[*] Hosts found: 4\n---------------------\napi.example.com:198.18.0.17\ndev.example.com:198.18.0.18\nflag-nto{aut0m4t3d_h4rv3st_fl4g}.example.com:198.18.0.99\nmail.example.com:198.18.0.20\n\n[*] Emails found: 3\n----------------------\nadmin@example.com\nsales@example.com\ncto@example.com\n\n[*] Interesting emails found: 0\n",
+          "writes": ["-f"]
+        }
+      ],
+      "fallback": "theHarvester: в этой лабе эмулируется только запуск по домену example.com.\n"
+    }
+  }
+}

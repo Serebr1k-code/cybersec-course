@@ -13,6 +13,18 @@ useful_for:
   - "CTF категория OSINT"
 estimated_minutes: 45
 summary: "Фреймворки для автоматизации разведки: recon-ng, SpiderFoot, Maltego, theHarvester; конвейеры, API-ключи, визуализация и ограничения."
+lab:
+  kind: shell
+  title: "Практика: разобрать вывод theHarvester"
+  toolset: [core, theHarvester]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Запусти сбор с сохранением отчёта: `theHarvester -d example.com -b all -f harvest.txt`."
+    - "Отчёт записан в `harvest.txt` (флаг `-f`). Можно посмотреть: `cat harvest.txt`."
+    - "Найди маркер: `grep nto harvest.txt` — среди хостов есть аномальный."
+    - "Аномальный хост начинается с `flag-`; запиши `nto{...}` в `answer.txt` и набери `check`."
 ---
 
 ## Вопрос, с которого всё начинается

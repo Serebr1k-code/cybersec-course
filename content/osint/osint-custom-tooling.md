@@ -14,6 +14,18 @@ useful_for:
   - "Работа: автоматизация разведки"
 estimated_minutes: 50
 summary: "Как строить собственные OSINT-инструменты: работа с API, нормализация данных, граф связей и пайплайн сбора с соблюдением rate limit."
+lab:
+  kind: shell
+  title: "Практика: нормализовать сущности конвейером"
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, crtsh_example.json, recon.py]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Сначала прочитай скрипт конвейера: `cat recon.py`."
+    - "CT-логи уже сохранены: посмотри `cat crtsh_example.json` — это сырой ответ crt.sh."
+    - "Запусти нормализацию: `python3 recon.py example.com crtsh_example.json`."
+    - "В списке сущностей найди поддомен, начинающийся с `flag-`; строка `nto{...}` в нём — ответ. Запиши в `answer.txt` и набери `check`."
 ---
 
 ## Вопрос, с которого всё начинается

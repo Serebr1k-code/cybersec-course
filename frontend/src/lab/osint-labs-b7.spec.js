@@ -34,6 +34,23 @@ const LABS = [
     'curl -s "https://opensky-network.org/api/flights/aircraft?icao24=a1b2c3&begin=1700000000&end=1700086400"',
     'curl -s "https://registry.faa.gov/aircraftinquiry/Search/NNumberResult?nNumberTxt=N550GD"',
     "echo 'nto{faa_r3g1stry_0wn3r_sh3ll}' > answer.txt"] },
+  { id: 'osint-maritime', solution: [
+    'curl -s "https://api.vesselfinder.com/vessels?userkey=demo&imo=9300000"',
+    'curl -s "https://api.vesselfinder.com/vessels?userkey=demo&imo=9300000&extended=1"',
+    "echo 'nto{0ffsh0r3_0wn3r_4ttr1but3d}' > answer.txt"] },
+  { id: 'osint-paste-sites', solution: [
+    'curl -s "https://psbdmp.ws/api/v3/search/example.com"',
+    'curl -s "https://psbdmp.ws/api/v3/dump/bXk2pQ1a" > dump.json',
+    "jq -r '.data.text' dump.json",
+    "echo 'nto{p4st3_l34k_d3t3ct3d}' > answer.txt"] },
+  { id: 'osint-custom-tooling', solution: [
+    'cat recon.py',
+    'python3 recon.py example.com crtsh_example.json',
+    "echo 'nto{p1p3l1n3_n0rm4l1z3d_3nt1ty}' > answer.txt"] },
+  { id: 'osint-automation', solution: [
+    'theHarvester -d example.com -b all -f harvest.txt',
+    'grep nto harvest.txt',
+    "echo 'nto{aut0m4t3d_h4rv3st_fl4g}' > answer.txt"] },
 ]
 
 describe('osint labs B7 solve end-to-end', () => {

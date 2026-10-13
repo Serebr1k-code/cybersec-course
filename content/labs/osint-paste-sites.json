@@ -1,0 +1,45 @@
+{
+  "id": "osint-paste-sites",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{p4st3_l34k_d3t3ct3d}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: найти слив в архиве пастов\n\nДомен наблюдения — `example.com`.\n\n1. Поиск по архиву Pastebin (psbdmp):\n   `curl -s \"https://psbdmp.ws/api/v3/search/example.com\"`\n2. Из ответа возьми `id` паста (например `bXk2pQ1a`) и прочитай его содержимое:\n   `curl -s \"https://psbdmp.ws/api/v3/dump/bXk2pQ1a\"`\n3. Разбери текст: `jq -r '.data.text' dump.json` (сначала сохрани ответ в файл).\n4. В конфиге есть строка `FLAG=...` — это маркер. Запиши `nto{...}` в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — psbdmp.ws API (эмуляция: реальный формат ответа)",
+      "cases": [
+        {
+          "match": "psbdmp\\.ws/api/v3/dump/bXk2pQ1a",
+          "example": "psbdmp.ws/api/v3/dump/bXk2pQ1a",
+          "output": "{\n  \"success\": true,\n  \"data\": {\n    \"id\": \"bXk2pQ1a\",\n    \"text\": \"DB_HOST=db.internal.example.com\\nDB_USER=svc_backup\\nDB_PASS=Spring2023!\\nFLAG=nto{p4st3_l34k_d3t3ct3d}\\n\"\n  }\n}\n"
+        },
+        {
+          "match": "psbdmp\\.ws/api/v3/search/example\\.com",
+          "example": "psbdmp.ws/api/v3/search/example.com",
+          "output": "{\n  \"success\": true,\n  \"data\": [\n    {\"id\": \"bXk2pQ1a\", \"time\": \"2026-03-11 08:14:02\"},\n    {\"id\": \"9fLm3TzR\", \"time\": \"2026-03-09 17:02:41\"}\n  ]\n}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только psbdmp.ws/api/v3 (search/example.com, dump/bXk2pQ1a).\n"
+    },
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "data\\.text",
+          "example": "jq -r '.data.text' dump.json",
+          "output": "DB_HOST=db.internal.example.com\nDB_USER=svc_backup\nDB_PASS=Spring2023!\nFLAG=nto{p4st3_l34k_d3t3ct3d}\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживается только фильтр '.data.text'.\n"
+    }
+  }
+}

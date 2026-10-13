@@ -12,6 +12,18 @@ useful_for:
   - "Анализ логистики и санкций"
 estimated_minutes: 55
 summary: "Система AIS, сервисы MarineTraffic/VesselFinder, идентификация судна по IMO/MMSI, связь с владельцем и флагами, тёмная активность и этика."
+lab:
+  kind: shell
+  title: "Практика: от IMO к владельцу судна"
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Найди судно по постоянному номеру IMO: `curl -s \"https://api.vesselfinder.com/vessels?userkey=demo&imo=9300000\"`."
+    - "Флаг `PA` — удобный флаг (Панама), он не говорит о владельце."
+    - "Расширенный ответ добавляет владельца: `curl -s \".../vessels?userkey=demo&imo=9300000&extended=1\"`."
+    - "Поле `registered_owner` — это `nto{...}`. Запиши в `answer.txt` и набери `check`."
 ---
 
 ## Вопрос, с которого всё начинается

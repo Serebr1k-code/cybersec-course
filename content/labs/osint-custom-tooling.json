@@ -1,0 +1,37 @@
+{
+  "id": "osint-custom-tooling",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{p1p3l1n3_n0rm4l1z3d_3nt1ty}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: нормализовать сущности конвейером\n\nОтвет CT-логов уже сохранён в `crtsh_example.json`. Рядом лежит `recon.py` — минимальный конвейер (сбор → нормализация → дедуп).\n\n1. Прочитай скрипт: `cat recon.py`.\n2. Запусти конвейер: `python3 recon.py example.com crtsh_example.json`.\n3. Скрипт печатает нормализованные сущности. Среди поддоменов есть аномальный — он начинается с `flag-`.\n4. Запиши строку `nto{...}` из этой сущности в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/crtsh_example.json",
+      "text": "[\n  {\"issuer_name\": \"C=US, O=Let's Encrypt\", \"name_value\": \"api.example.com\"},\n  {\"issuer_name\": \"C=US, O=Let's Encrypt\", \"name_value\": \"dev.example.com\"},\n  {\"issuer_name\": \"C=US, O=Google Trust Services\", \"name_value\": \"*.example.com\"},\n  {\"issuer_name\": \"C=US, O=Let's Encrypt\", \"name_value\": \"flag-nto{p1p3l1n3_n0rm4l1z3d_3nt1ty}.example.com\"},\n  {\"issuer_name\": \"C=US, O=Sectigo\", \"name_value\": \"staging.example.com\"}\n]\n"
+    },
+    {
+      "path": "/home/student/task/recon.py",
+      "text": "import json, socket, sys\n\nENTITIES = []\n\ndef add(t, v, s, c=0.5):\n    ENTITIES.append({\"type\": t, \"value\": v, \"source\": s, \"confidence\": c})\n\ndef crtsh(domain, path):\n    for row in json.load(open(path)):\n        for name in row[\"name_value\"].split(\"\\n\"):\n            add(\"subdomain\", name.strip().lower(), \"crt.sh\", 0.9)\n\ndef resolve(name):\n    try:\n        for ip in socket.gethostbyname_ex(name)[2]:\n            add(\"ip\", ip, \"dns\", 0.7)\n    except socket.gaierror:\n        pass\n\ndef main(domain, path):\n    crtsh(domain, path)\n    for s in {e[\"value\"] for e in ENTITIES if e[\"type\"] == \"subdomain\"}:\n        resolve(s)\n    seen, uniq = set(), []\n    for e in ENTITIES:\n        k = (e[\"type\"], e[\"value\"])\n        if k not in seen:\n            seen.add(k); uniq.append(e)\n    json.dump(uniq, open(\"entities.json\", \"w\"), ensure_ascii=False, indent=2)\n    print(f\"{len(uniq)} уникальных сущностей\")\n\nif __name__ == \"__main__\":\n    main(sys.argv[1], sys.argv[2])\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> <домен> <файл> — конвейер разведки (эмуляция вывода)",
+      "cases": [
+        {
+          "match": "recon\\.py",
+          "example": "python3 recon.py example.com crtsh_example.json",
+          "output": "12 уникальных сущностей\n[\n  {\"type\": \"subdomain\", \"value\": \"api.example.com\", \"source\": \"crt.sh\", \"confidence\": 0.9},\n  {\"type\": \"subdomain\", \"value\": \"dev.example.com\", \"source\": \"crt.sh\", \"confidence\": 0.9},\n  {\"type\": \"subdomain\", \"value\": \"*.example.com\", \"source\": \"crt.sh\", \"confidence\": 0.9},\n  {\"type\": \"subdomain\", \"value\": \"flag-nto{p1p3l1n3_n0rm4l1z3d_3nt1ty}.example.com\", \"source\": \"crt.sh\", \"confidence\": 0.9},\n  {\"type\": \"subdomain\", \"value\": \"staging.example.com\", \"source\": \"crt.sh\", \"confidence\": 0.9},\n  {\"type\": \"ip\", \"value\": \"198.18.0.17\", \"source\": \"dns\", \"confidence\": 0.7},\n  {\"type\": \"ip\", \"value\": \"198.18.0.18\", \"source\": \"dns\", \"confidence\": 0.7},\n  {\"type\": \"ip\", \"value\": \"198.18.0.19\", \"source\": \"dns\", \"confidence\": 0.7},\n  {\"type\": \"ip\", \"value\": \"198.18.0.20\", \"source\": \"dns\", \"confidence\": 0.7},\n  {\"type\": \"ip\", \"value\": \"198.18.0.99\", \"source\": \"dns\", \"confidence\": 0.7},\n  {\"type\": \"ip\", \"value\": \"198.18.0.21\", \"source\": \"dns\", \"confidence\": 0.7},\n  {\"type\": \"ip\", \"value\": \"198.18.0.22\", \"source\": \"dns\", \"confidence\": 0.7}\n]\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только запуск recon.py с файлом CT-логов.\n"
+    }
+  }
+}

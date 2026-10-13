@@ -13,6 +13,18 @@ useful_for:
   - "CTF категория OSINT"
 estimated_minutes: 40
 summary: "Как искать данные на Pastebin и подобных сервисах, в Telegram-каналах и мессенджерах, и как организовать мониторинг упоминаний."
+lab:
+  kind: shell
+  title: "Практика: найти слив в архиве пастов"
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Поищи домен в архиве пастов: `curl -s \"https://psbdmp.ws/api/v3/search/example.com\"`."
+    - "В ответе есть `id` паста — прочитай его: `curl -s \"https://psbdmp.ws/api/v3/dump/bXk2pQ1a\"`."
+    - "Разбери текст: `jq -r '.data.text' dump.json` — в нём конфиг с паролем."
+    - "Строка `FLAG=...` в конфиге — это `nto{...}`. Запиши в `answer.txt` и набери `check`."
 ---
 
 ## Вопрос, с которого всё начинается

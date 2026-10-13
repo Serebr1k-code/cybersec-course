@@ -1,0 +1,34 @@
+{
+  "id": "osint-maritime",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{0ffsh0r3_0wn3r_4ttr1but3d}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: от IMO к владельцу судна\n\nСудно с IMO `9300000`.\n\n1. Найди судно и позицию:\n   `curl -s \"https://api.vesselfinder.com/vessels?userkey=demo&imo=9300000\"`\n2. Получи расширенные данные (владелец, менеджер):\n   `curl -s \"https://api.vesselfinder.com/vessels?userkey=demo&imo=9300000&extended=1\"`\n3. Флаг `PA` — удобный флаг (Панама), а реального владельца даёт поле `registered_owner`.\n4. Запиши строку `nto{...}` из поля владельца в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — VesselFinder API (эмуляция: реальный формат ответа)",
+      "cases": [
+        {
+          "match": "vesselfinder\\.com/vessels\\?.*extended=1",
+          "example": "api.vesselfinder.com/vessels?userkey=demo&imo=9300000&extended=1",
+          "output": "{\n  \"AIS\": [\n    {\n      \"name\": \"OCEAN TRADER\",\n      \"imo\": 9300000,\n      \"mmsi\": 353136000,\n      \"callsign\": \"3FQK9\",\n      \"flag\": \"PA\",\n      \"speed\": 12.4,\n      \"destination\": \"SINGAPORE\",\n      \"registered_owner\": \"nto{0ffsh0r3_0wn3r_4ttr1but3d}\",\n      \"ism_manager\": \"BLUEWAVE MANAGEMENT LTD\"\n    }\n  ]\n}\n"
+        },
+        {
+          "match": "vesselfinder\\.com/vessels\\?.*imo=9300000",
+          "example": "api.vesselfinder.com/vessels?userkey=demo&imo=9300000",
+          "output": "{\n  \"AIS\": [\n    {\"name\": \"OCEAN TRADER\", \"imo\": 9300000, \"mmsi\": 353136000, \"flag\": \"PA\", \"speed\": 12.4, \"destination\": \"SINGAPORE\"}\n  ]\n}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только api.vesselfinder.com/vessels?imo=9300000 (и &extended=1).\n"
+    }
+  }
+}
