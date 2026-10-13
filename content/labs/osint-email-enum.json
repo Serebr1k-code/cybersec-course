@@ -1,0 +1,51 @@
+{
+  "id": "osint-email-enum",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{gr4v4t4r_md5_p1v0t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: найти профиль по email через Gravatar\n\nДан адрес `analyst@example.com` (лежит в `email.txt`). Gravatar ищет профиль по **MD5-хешу** адреса.\n\n1. Посчитай хеш: `echo -n analyst@example.com | md5sum`  (или просто `md5sum`)\n2. Запроси профиль: `curl -s \"https://gravatar.com/<хеш>.json\"`\n3. В поле `aboutMe` спрятан маркер `nto{...}` — запиши его в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/email.txt",
+      "text": "analyst@example.com\n"
+    }
+  ],
+  "tools": {
+    "md5sum": {
+      "help": "md5sum [файл] — MD5-хеш (эмуляция; считает от stdin)",
+      "cases": [
+        {
+          "match": ".*",
+          "example": "echo -n analyst@example.com | md5sum",
+          "output": "dfb895f9101b68c023f0ffe6d7c9c1c0  -\n"
+        }
+      ]
+    },
+    "curl": {
+      "help": "curl [-s] <URL> — HTTP-запрос (эмуляция)",
+      "cases": [
+        {
+          "match": "gravatar",
+          "example": "https://gravatar.com/dfb895f9101b68c023f0ffe6d7c9c1c0.json",
+          "output": "{\"entry\":[{\"hash\":\"dfb895f9101b68c023f0ffe6d7c9c1c0\",\"displayName\":\"analyst\",\"aboutMe\":\"OSINT researcher. marker: nto{gr4v4t4r_md5_p1v0t}\",\"profileUrl\":\"https://gravatar.com/analyst\",\"preferredUsername\":\"analyst\"}]}\n"
+        },
+        {
+          "match": "api\\.github\\.com/search/users",
+          "example": "https://api.github.com/search/users?q=analyst@example.com",
+          "output": "{\"total_count\":0,\"incomplete_results\":false,\"items\":[]}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны только gravatar.com и api.github.com.\n"
+    }
+  }
+}

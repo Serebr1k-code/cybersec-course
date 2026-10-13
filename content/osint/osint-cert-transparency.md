@@ -12,6 +12,18 @@ useful_for:
   - "Пентест: карта внешней поверхности"
 estimated_minutes: 45
 summary: "Как устроены Certificate Transparency-логи, как из них вытаскивать поддомены через crt.sh, Censys и API, и как читать SAN."
+lab:
+  kind: shell
+  title: "Практика: вытащить имена из CT-лога"
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Сырой ответ crt.sh лежит в `crt.json` — посмотри его: `cat crt.json`."
+    - "Имена лежат в поле `name_value`: `jq -r '.[].name_value' crt.json`."
+    - "После `sort -u` найди аномальное имя — оно начинается с `flag-`."
+    - "Запиши строку `nto{...}` из этого имени в `answer.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

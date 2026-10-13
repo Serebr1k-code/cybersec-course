@@ -1,0 +1,42 @@
+{
+  "id": "osint-cloud-recon",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{0p3n_buck3t_m1sconf1g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: найти открытый S3-бакет\n\nБренд `example` использует предсказуемые имена бакетов. Проверь кандидатов по коду ответа и найди тот, у которого открыт листинг.\n\n1. Проверь кандидатов:\n   `curl -s \"https://example-assets.s3.amazonaws.com/?list-type=2\"`\n   `curl -s \"https://example-backup.s3.amazonaws.com/?list-type=2\"`\n   `curl -s \"https://example-dev.s3.amazonaws.com/?list-type=2\"`\n2. Публичный листинг — это `200` с XML `<ListBucketResult>`. `403` = бакет есть, но закрыт; `404` = нет.\n3. В листинге найди ключ с маркером `nto{...}`.\n4. Запиши маркер в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — HTTP-запрос (эмуляция: вывод захвачен с реального S3)",
+      "cases": [
+        {
+          "match": "example-assets\\.s3.*list-type=2",
+          "example": "https://example-assets.s3.amazonaws.com/?list-type=2",
+          "output": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<ListBucketResult xmlns=\"http://s3.amazonaws.com/doc/2006-03-01/\">\n  <Name>example-assets</Name>\n  <Prefix></Prefix>\n  <MaxKeys>1000</MaxKeys>\n  <IsTruncated>false</IsTruncated>\n  <Contents><Key>backup/2023-11.zip</Key><Size>10485760</Size></Contents>\n  <Contents><Key>terraform.tfstate</Key><Size>4096</Size></Contents>\n  <Contents><Key>public/logo.png</Key><Size>2048</Size></Contents>\n  <Contents><Key>public/nto{0p3n_buck3t_m1sconf1g}.txt</Key><Size>12</Size></Contents>\n</ListBucketResult>\n"
+        },
+        {
+          "match": "example-backup\\.s3",
+          "example": "https://example-backup.s3.amazonaws.com/?list-type=2",
+          "output": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>AccessDenied</Code><Message>Access Denied</Message><BucketName>example-backup</BucketName></Error>\n"
+        },
+        {
+          "match": "example-dev\\.s3",
+          "example": "https://example-dev.s3.amazonaws.com/?list-type=2",
+          "output": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message></Error>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе проверяются бакеты example-assets / example-backup / example-dev.\n"
+    }
+  }
+}

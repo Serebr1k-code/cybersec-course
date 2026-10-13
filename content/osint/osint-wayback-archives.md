@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty recon"
 estimated_minutes: 40
 summary: "Как доставать удалённые страницы, старые версии сайтов, исторические DNS-записи и кэш; API Wayback и archive.today."
+lab:
+  kind: shell
+  title: "Практика: восстановить удалённую страницу из Wayback"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Список сохранённых URL отдаёт CDX API: `curl -s \"http://web.archive.org/cdx/search/cdx?url=example.com&matchType=domain&output=json\"`."
+    - "Найди строку со старым админ-путём `/admin/old-panel`."
+    - "Открой снимок: `curl -s \"http://web.archive.org/web/20230512104433/http://example.com/admin/old-panel\"`."
+    - "Маркер `nto{...}` спрятан в HTML-комментарии снимка."
 ---
 
 ## Вопрос, с которого всё начинается

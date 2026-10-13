@@ -1,0 +1,43 @@
+{
+  "id": "osint-cert-transparency",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{ct_l0gs_4r3_p3rm4n3nt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: добыть поддомены из Certificate Transparency\n\nCT-лог домена `example.com` выгружен в `crt.json`. Разбери его и вытащи имена из поля `name_value`.\n\n1. Посмотри сырой ответ: `cat crt.json`\n2. Извлеки имена: `jq -r '.[].name_value' crt.json > names.txt`\n3. Отсортируй и убери дубли: `sort -u names.txt`\n4. Среди имён есть одно «аномальное» — оно начинается с `flag-`. Это и есть маркер.\n5. Запиши строку `nto{...}` в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — HTTP-запрос (эмуляция: вывод захвачен с реального crt.sh)",
+      "cases": [
+        {
+          "match": "crt\\.sh",
+          "example": "crt.sh/?q=%25.example.com&output=json",
+          "output": "[\n  {\"issuer_name\":\"C=US, O=Let's Encrypt\", \"name_value\":\"api.example.com\"},\n  {\"issuer_name\":\"C=US, O=Let's Encrypt\", \"name_value\":\"dev.example.com\\nvpn.example.com\"},\n  {\"issuer_name\":\"C=US, O=Google Trust Services\", \"name_value\":\"*.example.com\"},\n  {\"issuer_name\":\"C=US, O=DigiCert\", \"name_value\":\"jenkins.example.com\"},\n  {\"issuer_name\":\"C=US, O=Let's Encrypt\", \"name_value\":\"staging.example.com\"},\n  {\"issuer_name\":\"C=US, O=Sectigo\", \"name_value\":\"flag-nto{ct_l0gs_4r3_p3rm4n3nt}.example.com\"}\n]\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только https://crt.sh/?q=...&output=json.\n"
+    },
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "name_value",
+          "example": "jq -r '.[].name_value' crt.json",
+          "output": "api.example.com\ndev.example.com\nvpn.example.com\n*.example.com\njenkins.example.com\nstaging.example.com\nflag-nto{ct_l0gs_4r3_p3rm4n3nt}.example.com\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживается только фильтр '.[].name_value'.\n"
+    }
+  }
+}

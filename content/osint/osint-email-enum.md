@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 30
 summary: "Email как ключ к аккаунтам: поиск регистраций через holehe, извлечение данных Google-аккаунта через GHunt, проверка утечек и построение профиля."
+lab:
+  kind: shell
+  title: "Практика: профиль по email через Gravatar"
+  toolset: [core, curl, md5sum]
+  workdir: /home/student/task
+  files: [task.md, email.txt]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Адрес лежит в `email.txt`: `cat email.txt`."
+    - "Gravatar ищет по MD5-хешу: `echo -n analyst@example.com | md5sum`."
+    - "Запроси профиль по хешу: `curl -s \"https://gravatar.com/<хеш>.json\"`."
+    - "Маркер `nto{...}` лежит в поле `aboutMe`."
 ---
 
 ## Вопрос, с которого всё начинается

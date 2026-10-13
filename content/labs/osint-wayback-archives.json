@@ -1,0 +1,42 @@
+{
+  "id": "osint-wayback-archives",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{w4yb4ck_r3m3mb3rs_3v3ryth1ng}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: восстановить удалённую страницу из Wayback\n\nСтраницу `example.com/admin/old-panel` удалили — по прямой ссылке 404. Но её помнит архив.\n\n1. Получи список сохранённых URL: `curl -s \"http://web.archive.org/cdx/search/cdx?url=example.com&matchType=domain&output=json\" > cdx.json`\n2. Найди старую админку: `cat cdx.json` (или `grep old-panel cdx.json`)\n3. Открой её архивную копию: `curl -s \"http://web.archive.org/web/20230512104433/http://example.com/admin/old-panel\"`\n4. В HTML-копии спрятан маркер `nto{...}` — запиши его в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — HTTP-запрос (эмуляция: вывод захвачен с реального archive.org)",
+      "cases": [
+        {
+          "match": "cdx/search/cdx",
+          "example": "cdx/search/cdx?url=example.com&matchType=domain&output=json",
+          "output": "[\n  [\"timestamp\",\"original\",\"statuscode\"],\n  [\"20230512104433\",\"http://example.com/admin/old-panel\",\"200\"],\n  [\"20221103091200\",\"http://example.com/login\",\"200\"],\n  [\"20210301080000\",\"http://example.com/api/v1/users\",\"403\"],\n  [\"20200214153000\",\"http://example.com/\",\"200\"]\n]\n"
+        },
+        {
+          "match": "wayback/available",
+          "example": "wayback/available?url=example.com/admin/old-panel",
+          "output": "{\"archived_snapshots\":{\"closest\":{\"status\":\"200\",\"available\":true,\"url\":\"http://web.archive.org/web/20230512104433/http://example.com/admin/old-panel\",\"timestamp\":\"20230512104433\"}}}\n"
+        },
+        {
+          "match": "old-panel",
+          "example": "web/20230512104433/http://example.com/admin/old-panel",
+          "output": "<!DOCTYPE html>\n<html><head><title>Old Admin Panel</title></head>\n<body>\n<h1>Admin Panel (legacy)</h1>\n<!-- TODO remove before prod: nto{w4yb4ck_r3m3mb3rs_3v3ryth1ng} -->\n<form action=\"/admin/login\">\n  <input name=\"user\"><input name=\"pass\" type=\"password\">\n</form>\n</body></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только archive.org (CDX, available и снимок old-panel).\n"
+    }
+  }
+}

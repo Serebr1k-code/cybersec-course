@@ -13,6 +13,18 @@ useful_for:
   - "CTF категория OSINT"
 estimated_minutes: 55
 summary: "Как находить публичные бакеты и облачные ресурсы по именам, сертификатам и JS; проверка прав доступа и этические границы."
+lab:
+  kind: shell
+  title: "Практика: найти открытый S3-бакет"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Имена предсказуемы: проверь `example-assets`, `example-backup`, `example-dev`."
+    - "Запрос листинга: `curl -s \"https://example-assets.s3.amazonaws.com/?list-type=2\"`."
+    - "`200` + `<ListBucketResult>` — открытый листинг; `403` — закрыт; `404` — нет бакета."
+    - "В листинге найди `<Key>` с маркером `nto{...}`."
 ---
 
 ## Вопрос, с которого всё начинается
