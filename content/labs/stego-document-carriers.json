@@ -1,0 +1,29 @@
+{
+  "id": "stego-document-carriers",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d0cx_z1p_h1dd3n_p4rt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: документ-контейнер\n\n`report.docx` — документ Word. Но DOCX/OOXML — это ZIP-архив с частями XML. Внутри есть лишняя часть, которой не место в обычном документе.\n\n1. `file report.docx` — увидишь Zip archive.\n2. `strings report.docx` — найди скрытую часть.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "DOCX = ZIP. Части лежат по путям word/document.xml, [Content_Types].xml и т.д. Лишняя часть (word/hidden.xml) — признак сокрытия.\n"
+    },
+    {
+      "path": "/home/student/task/report.docx",
+      "b64": "UEsDBBQAAAAAAFSaTV0G8pnQoQAAAKEAAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbDw/eG1sIHZlcnNpb249IjEuMCI/PjxUeXBlcyB4bWxucz0iaHR0cDovL3NjaGVtYXMub3BlbnhtbGZvcm1hdHMub3JnL3BhY2thZ2UvMjAwNi9jb250ZW50LXR5cGVzIj48RGVmYXVsdCBFeHRlbnNpb249InhtbCIgQ29udGVudFR5cGU9ImFwcGxpY2F0aW9uL3htbCIvPjwvVHlwZXM+UEsDBBQAAAAAAFSaTV2QErUftwAAALcAAAARAAAAd29yZC9kb2N1bWVudC54bWw8P3htbCB2ZXJzaW9uPSIxLjAiPz48dzpkb2N1bWVudCB4bWxuczp3PSJodHRwOi8vc2NoZW1hcy5vcGVueG1sZm9ybWF0cy5vcmcvd29yZHByb2Nlc3NpbmdtbC8yMDA2L21haW4iPjx3OmJvZHk+PHc6cD48dzpyPjx3OnQ+UXVhcnRlcmx5IHJlcG9ydDwvdzp0PjwvdzpyPjwvdzpwPjwvdzpib2R5Pjwvdzpkb2N1bWVudD5QSwMEFAAAAAAAAAAhAG4DPjI/AAAAPwAAAA8AAAB3b3JkL2hpZGRlbi54bWw8P3htbCB2ZXJzaW9uPSIxLjAiPz48aGlkZGVuPm50b3tkMGN4X3oxcF9oMWRkM25fcDRydH08L2hpZGRlbj5QSwECFAMUAAAAAABUmk1dBvKZ0KEAAAChAAAAEwAAAAAAAAAAAAAAgAEAAAAAW0NvbnRlbnRfVHlwZXNdLnhtbFBLAQIUAxQAAAAAAFSaTV2QErUftwAAALcAAAARAAAAAAAAAAAAAACAAdIAAAB3b3JkL2RvY3VtZW50LnhtbFBLAQIUAxQAAAAAAAAAIQBuAz4yPwAAAD8AAAAPAAAAAAAAAAAAAACAAbgBAAB3b3JkL2hpZGRlbi54bWxQSwUGAAAAAAMAAwC9AAAAJAIAAAAA",
+      "mode": "644"
+    }
+  ],
+  "tools": {}
+}

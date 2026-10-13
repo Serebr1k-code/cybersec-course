@@ -12,6 +12,18 @@ useful_for:
   - "Планирование порядка изучения стеганографии"
 estimated_minutes: 9
 summary: "Группа тем про бинарные носители: сокрытие на диске (slack space, ADS, разделы) и в исполняемых файлах (overlay, ресурсы, секции)."
+lab:
+  kind: shell
+  title: "Практика: overlay в ELF"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, program]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Подтверди формат: `file program`."
+    - "Данные дописаны после конца образа (overlay)."
+    - "Overlay виден `strings program`."
+    - "Сохрани: `strings program | grep nto > found.txt`."
 ---
 
 Замыкающий модуль стеганографии переносит сокрытие на низкий уровень: диски и исполняемые файлы. Slack space между логическим и физическим размером файла, Alternate Data Streams в NTFS, скрытые разделы — всё это классика форензики. В бинарниках данные прячут в overlay после конца образа, в ресурсах и неиспользуемых секциях. Это мост между стеганографией и анализом бинарных артефактов.

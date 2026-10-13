@@ -12,6 +12,18 @@ useful_for:
   - "Планирование порядка изучения стеганографии"
 estimated_minutes: 9
 summary: "Группа тем про инструменты извлечения: OutGuess/steghide, брут парольной стеганографии через stegseek и перебор каналов zsteg."
+lab:
+  kind: shell
+  title: "Практика: zsteg и steghide"
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, secret.png, secret.jpg, wordlist.txt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Алгоритм неизвестен — начни с автоперебора каналов."
+    - "`zsteg -a secret.png` перебирает плоскости и каналы."
+    - "Флаг лежит в PNG, а не в JPEG."
+    - "Сохрани: `zsteg -a secret.png | grep nto > found.txt`."
 ---
 
 Этот модуль — про рабочий арсенал извлечения данных. OutGuess и steghide используют стеганографию с паролем и специфичные алгоритмы, stegseek и stegcracker брутфорсят пароль, а zsteg автоматически перебирает каналы и битовые комбинации в PNG/BMP. Умение быстро выбрать правильный инструмент под формат — ключевой практический навык.

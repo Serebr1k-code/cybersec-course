@@ -1,0 +1,29 @@
+{
+  "id": "stego-image-techniques",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{t3xt_chunk_1n_png}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: данные в чанке PNG\n\n`image.png` — обычная картинка. Но PNG может хранить текстовые метаданные в чанке `tEXt`.\n\n1. `file image.png`.\n2. `strings image.png` — найди текстовый чанк.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Чанк tEXt = keyword\\0text. Такие метаданные не видны на картинке, но лежат в файле открытым текстом.\n"
+    },
+    {
+      "path": "/home/student/task/image.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAADIAAAAiCAIAAACSix19AAAAHnRFWHRDb21tZW50AG50b3t0M3h0X2NodW5rXzFuX3BuZ32ILPUlAAAAQklEQVR4nO3OMQHAIADAMEDm5CAHlTOwpxc7EgWZzz7jf9btwDetQqvQKrQKrUKr0Cq0Cq1Cq9AqtAqtQqvQKrSKF0nRAcprHw56AAAAAElFTkSuQmCC",
+      "mode": "644"
+    }
+  ],
+  "tools": {}
+}

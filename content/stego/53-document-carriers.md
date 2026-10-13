@@ -12,6 +12,18 @@ useful_for:
   - "Планирование порядка изучения стеганографии"
 estimated_minutes: 10
 summary: "Группа тем про документы-носители: полиглоты, стеганография в PDF и в Office-документах (DOCX/OOXML)."
+lab:
+  kind: shell
+  title: "Практика: скрытая часть DOCX"
+  toolset: [core, hex, unzip]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, report.docx]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "DOCX — это ZIP-архив, проверь `file report.docx`."
+    - "Внутри лишняя часть word/hidden.xml."
+    - "Часть хранится без сжатия, видна `strings report.docx`."
+    - "Сохрани: `strings report.docx | grep nto > found.txt`."
 ---
 
 Этот модуль про носители-документы и многоформатные файлы. Полиглот — один файл, валидный сразу в нескольких форматах; PDF прячет данные в объектах, потоках и невидимых слоях; DOCX/XLSX (OOXML) — это ZIP-архивы, где сокрытие возможно в метаданных, скрытых листах и дополнительных частях. Здесь особенно полезно умение разбирать контейнер вручную.
