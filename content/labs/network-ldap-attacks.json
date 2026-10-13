@@ -1,0 +1,42 @@
+{
+  "id": "network-ldap-attacks",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анонимный дамп LDAP-каталога\n\nСервисный LDAP-сервер отдал ответ `searchResEntry` анонимному клиенту.\nВ дампе `ldap.pcap` видно, что в атрибуте `description` учётной записи\nслужбы лежит пароль (типичная ошибка админов).\n\n1. Посмотри дамп: `tshark -r ldap.pcap -nn`\n2. Разбери детально: `tshark -r ldap.pcap -V`\n3. Найди значение атрибута `description`.\n\nЗапиши **пароль** (только значение после `Password: `) в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/ldap.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AADkAAAAjEvOarnuDACnAAAApwAAAEUAAKcAAQAAQAZmOAoAABQKAAAFAYWcQwAAC7gAAAAAUBggAMNTAAAwfQIBAmR4BC5jbj1zdmNfc3FsLG91PVNlcnZpY2VBY2NvdW50cyxkYz1jb3JwLGRjPWxvY2FsMEYwJwQLZGVzY3JpcHRpb24xGAQWUGFzc3dvcmQ6IFNRTHN2Y18yMDI0ITAbBA5zQU1BY2NvdW50TmFtZTEJBAdzdmNfc3Fs",
+      "mode": "644"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "SQLsvc_2024!"
+  },
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] [-V] — разбор дампа (эмуляция: вывод реального tshark)",
+      "cases": [
+        {
+          "match": "-V",
+          "example": "-r ldap.pcap -V",
+          "output": "    LDAPMessage searchResEntry(2) \"cn=svc_sql,ou=ServiceAccounts,dc=corp,dc=local\" [1 result]\n        messageID: 2\n        protocolOp: searchResEntry (4)\n            searchResEntry\n                objectName: cn=svc_sql,ou=ServiceAccounts,dc=corp,dc=local\n                attributes: 2 items\n                    PartialAttributeList item description\n                        type: description\n                        vals: 1 item\n                            AttributeValue: Password: SQLsvc_2024!\n                    PartialAttributeList item sAMAccountName\n                        type: sAMAccountName\n                        vals: 1 item\n                            AttributeValue: svc_sql\n"
+        },
+        {
+          "match": "-r\\s+ldap\\.pcap",
+          "example": "-r ldap.pcap -nn",
+          "output": "    1   0.000000    10.0.0.20 → 10.0.0.5     LDAP 167 searchResEntry(2) \"cn=svc_sql,ou=ServiceAccounts,dc=corp,dc=local\" \n"
+        }
+      ],
+      "fallback": "    1   0.000000    10.0.0.20 → 10.0.0.5     LDAP 167 searchResEntry(2) \"cn=svc_sql,ou=ServiceAccounts,dc=corp,dc=local\" \n"
+    }
+  }
+}

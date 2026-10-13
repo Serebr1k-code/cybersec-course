@@ -13,6 +13,17 @@ useful_for:
   - "Защита каталогов"
 estimated_minutes: 38
 summary: "LDAP/AD: анонимный и null-bind, дамп домена, инструменты ldapsearch/windapsearch/ldapdomaindump, LDAP-инъекции и защита каталога."
+lab:
+  kind: shell
+  title: "Практика: пароль в анонимном дампе LDAP"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, ldap.pcap]
+  check: "grep -q 'SQLsvc_2024!' answer.txt"
+  hints:
+    - "`-V` показывает дерево разбора LDAP по полям."
+    - "Ищи атрибут `description` у записи `cn=svc_sql`."
+    - "Пароль — это значение после `Password: ` (включая `!`)."
 ---
 ## Вопрос, с которого всё начинается
 

@@ -1,0 +1,37 @@
+{
+  "id": "network-netbios-llmnr",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: LLMNR poisoning\n\nХост `10.0.0.7` пытается разрешить имя `fileshare`, рассылая LLMNR-запрос\nв multicast. В дампе `llmnr.pcap` видно, что на запрос отвечает **посторонний**\nхост `10.0.0.66` — это poisoning: атакующий выдаёт себя за целевой ресурс,\nчтобы жертва прислала ему NTLM-аутентификацию.\n\n1. Посмотри дамп: `tshark -r llmnr.pcap -nn`\n2. Определи, **какое имя** пыталась разрешить жертва.\n\nЗапиши это **имя** в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/llmnr.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AADkAAAA5UvOak7mBgA3AAAANwAAAEUAADcAAQAAQBGPsgoAAAfgAAD8zwgU6wAjaW8SNAAAAAEAAAAAAAAJZmlsZXNoYXJlAAABAAHlS85qk+cGAFAAAABQAAAARQAAUAABAABAEWZUCgAAQgoAAAcU688IADyo+xI0gAAAAQABAAAAAAlmaWxlc2hhcmUAAAEAAQlmaWxlc2hhcmUAAAEAAQAAAAAABAoAAEI=",
+      "mode": "644"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "fileshare"
+  },
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] — разбор дампа (эмуляция: вывод реального tshark)",
+      "cases": [
+        {
+          "match": "-r\\s+llmnr\\.pcap",
+          "example": "-r llmnr.pcap -nn",
+          "output": "    1   0.000000     10.0.0.7 → 224.0.0.252  LLMNR 55 Standard query 0x1234 A fileshare\n    2   0.000325    10.0.0.66 → 10.0.0.7     LLMNR 80 Standard query response 0x1234 A fileshare A 10.0.0.66\n"
+        }
+      ],
+      "fallback": "    1   0.000000     10.0.0.7 → 224.0.0.252  LLMNR 55 Standard query 0x1234 A fileshare\n    2   0.000325    10.0.0.66 → 10.0.0.7     LLMNR 80 Standard query response 0x1234 A fileshare A 10.0.0.66\n"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "id": "network-ntp-attacks",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: NTP-амплификация (spoofed source)\n\nВ дампе `ntp-amp.pcap` виден UDP-трафик на порт 123. Клиент с адресом\n`203.0.113.66` шлёт запрос, а ответ приходит на **тот же** адрес, хотя\nреальный клиент — подделанный (spoofed) источник. Так строится\nамплификация: жертве прилетает ответ от NTP-сервера.\n\n1. Посмотри дамп: `tshark -r ntp-amp.pcap -nn`\n2. Определи, какой IP является **жертвой** (spoofed source) — тот, кому\n   адресован ответ сервера.\n\nЗапиши **IP жертвы** в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/ntp-amp.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AADkAAAA5UvOanriBgBMAAAATAAAAEUAAEwAAQAAQBF8U8sAcULAAAIKnEAAewA4V2ATAgoAAAAAAAAAAAB/AAABAAAAAAAAAADueMplc6kgAAAAAAAAAAAA7njKZXOp+ADlS85qeeMGAEwAAABMAAAARQAATAABAABAEXxTwAACCssAcUIAe5xAADimPRQCCgAAAAAAAAAAAH8AAAEAAAAAAAAAAO54ymVzuqgAAAAAAAAAAADueMplc7sgAA==",
+      "mode": "644"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "203.0.113.66"
+  },
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [-nn] — разбор дампа (эмуляция: вывод реального tshark)",
+      "cases": [
+        {
+          "match": "-r\\s+ntp-amp\\.pcap",
+          "example": "-r ntp-amp.pcap -nn",
+          "output": "    1   0.000000 203.0.113.66 → 192.0.2.10   NTP 76 NTP Version 2, client\n    2   0.000255   192.0.2.10 → 203.0.113.66 NTP 76 NTP Version 2, server\n"
+        }
+      ],
+      "fallback": "    1   0.000000 203.0.113.66 → 192.0.2.10   NTP 76 NTP Version 2, client\n    2   0.000255   192.0.2.10 → 203.0.113.66 NTP 76 NTP Version 2, server\n"
+    }
+  }
+}

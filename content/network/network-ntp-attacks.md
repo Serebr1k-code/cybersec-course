@@ -13,6 +13,17 @@ useful_for:
   - "CTF Network"
 estimated_minutes: 35
 summary: "NTP как вектор UDP-амплификации (monlist), спуфинг времени и его последствия для TLS/Kerberos, KoD и rate-limiting, инструменты ntpq/chrony/nmap и защита через NTS."
+lab:
+  kind: shell
+  title: "Практика: NTP-амплификация (spoofed source)"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, ntp-amp.pcap]
+  check: "grep -q '203.0.113.66' answer.txt"
+  hints:
+    - "Клиентский запрос (mode=3) идёт к серверу; сервер отвечает (mode=4)."
+    - "Адрес получателя ответа и есть подделанный источник."
+    - "Это `203.0.113.66`."
 ---
 
 ## Вопрос, с которого всё начинается

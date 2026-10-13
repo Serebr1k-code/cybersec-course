@@ -13,6 +13,17 @@ useful_for:
   - "Защита корпоративной ЛВС"
 estimated_minutes: 40
 summary: "Как протоколы разрешения имён (NBT-NS, LLMNR, mDNS) приводят к утечке NTLM-хэшей: Responder/Inveigh, разбор захвата, релеинг и защита."
+lab:
+  kind: shell
+  title: "Практика: LLMNR poisoning"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, llmnr.pcap]
+  check: "grep -q 'fileshare' answer.txt"
+  hints:
+    - "LLMNR работает на UDP/5355 и рассылается в multicast 224.0.0.252."
+    - "Имя видно в строке запроса `Standard query ... A <имя>`."
+    - "Искомое имя — `fileshare`."
 ---
 
 ## Вопрос, с которого всё начинается

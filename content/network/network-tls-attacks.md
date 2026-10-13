@@ -13,6 +13,17 @@ useful_for:
   - "Работа: безопасная настройка TLS"
 estimated_minutes: 55
 summary: "Классические атаки на TLS/SSL: даунгрейд версий и шифров, Heartbleed, POODLE, BEAST, перебор параметров — и как защититься."
+lab:
+  kind: shell
+  title: "Практика: находим устаревшую версию TLS"
+  toolset: [core, nmap]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'TLSv1.0' answer.txt"
+  hints:
+    - "`ssl-enum-ciphers` группирует шифры по версии протокола."
+    - "Смотри на строку вида `TLSv1.0:` в выводе скрипта."
+    - "Флаг — строка `TLSv1.0`."
 ---
 
 ## Вопрос, с которого всё начинается

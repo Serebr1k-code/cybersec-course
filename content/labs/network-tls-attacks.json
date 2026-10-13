@@ -1,0 +1,32 @@
+{
+  "id": "network-tls-attacks",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: устаревший протокол TLS на сервере\n\nТестовый хост `tls-v1-0.badssl.com:1010` намеренно принимает устаревшие\nверсии TLS. Просканируем его и найдём, какая deprecated-версия ещё\nподдерживается.\n\n1. Запусти проверку шифров:\n   `nmap -Pn -p 1010 --script ssl-enum-ciphers tls-v1-0.badssl.com`\n2. В выводе найди раздел с устаревшей версией протокола (не TLSv1.2/1.3).\n\nЗапиши **версию протокола** (например, `TLSv1.0`) в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "TLSv1.0"
+  },
+  "tools": {
+    "nmap": {
+      "help": "nmap [-Pn] [-p порты] [--script <скрипт>] <цель> — сканер (эмуляция: вывод реального nmap)",
+      "cases": [
+        {
+          "match": "ssl-enum",
+          "example": "-Pn -p 1010 --script ssl-enum-ciphers tls-v1-0.badssl.com",
+          "output": "Nmap scan report for tls-v1-0.badssl.com (104.154.89.105)\nrDNS record for 104.154.89.105: 105.89.154.104.bc.googleusercontent.com\nPORT     STATE SERVICE\n1010/tcp open  surf\n| ssl-enum-ciphers: \n|   TLSv1.0: \n|     ciphers: \n|       TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA (secp256r1) - A\n|       TLS_DHE_RSA_WITH_AES_256_CBC_SHA (dh 1024) - A\n|       TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA (dh 1024) - A\n|       TLS_RSA_WITH_AES_256_CBC_SHA (rsa 2048) - A\n|       TLS_RSA_WITH_CAMELLIA_256_CBC_SHA (rsa 2048) - A\n|       TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA (secp256r1) - A\n|       TLS_DHE_RSA_WITH_AES_128_CBC_SHA (dh 1024) - A\n|       TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA (dh 1024) - A\n|       TLS_RSA_WITH_AES_128_CBC_SHA (rsa 2048) - A\n|       TLS_RSA_WITH_CAMELLIA_128_CBC_SHA (rsa 2048) - A\n|     compressors: \n|       NULL\n|     cipher preference: server\n|     warnings: \n|       Key exchange (dh 1024) of lower strength than certificate key\n|_  least strength: A\n"
+        }
+      ],
+      "fallback": "Nmap scan report for tls-v1-0.badssl.com (104.154.89.105)\nrDNS record for 104.154.89.105: 105.89.154.104.bc.googleusercontent.com\nPORT     STATE SERVICE\n1010/tcp open  surf\n| ssl-enum-ciphers: \n|   TLSv1.0: \n|     ciphers: \n|       TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA (secp256r1) - A\n|       TLS_DHE_RSA_WITH_AES_256_CBC_SHA (dh 1024) - A\n|       TLS_DHE_RSA_WITH_CAMELLIA_256_CBC_SHA (dh 1024) - A\n|       TLS_RSA_WITH_AES_256_CBC_SHA (rsa 2048) - A\n|       TLS_RSA_WITH_CAMELLIA_256_CBC_SHA (rsa 2048) - A\n|       TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA (secp256r1) - A\n|       TLS_DHE_RSA_WITH_AES_128_CBC_SHA (dh 1024) - A\n|       TLS_DHE_RSA_WITH_CAMELLIA_128_CBC_SHA (dh 1024) - A\n|       TLS_RSA_WITH_AES_128_CBC_SHA (rsa 2048) - A\n|       TLS_RSA_WITH_CAMELLIA_128_CBC_SHA (rsa 2048) - A\n|     compressors: \n|       NULL\n|     cipher preference: server\n|     warnings: \n|       Key exchange (dh 1024) of lower strength than certificate key\n|_  least strength: A\n"
+    }
+  }
+}
