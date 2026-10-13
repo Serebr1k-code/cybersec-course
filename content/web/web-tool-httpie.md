@@ -14,6 +14,18 @@ useful_for:
   - "Работа с API"
 estimated_minutes: 35
 summary: "Полный справочник по HTTPie: синтаксис, JSON и формы, сессии, аутентификация, вывод и отладка, offline-режим — плюс сравнение с curl на каждой задаче."
+lab:
+  kind: shell
+  title: "Практика: разведка API инструментом http"
+  toolset: [core, http]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "HTTPie: метод и URL — первые два аргумента, GET подразумевается."
+    - "Заголовки — как `Имя:Значение`, JSON-поля — как `ключ=значение`."
+    - "В ответе `/v1/item` есть поле `api_key` — его требует защищённый `/v1/flag`."
+    - "Запроси `http GET https://api.example/v1/flag 'X-API-Key:<ключ>'` — получишь флаг. Сохрани в `found.txt` и `check`."
 ---
 
 ## Задача

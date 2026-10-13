@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 42
 summary: "Современные race-атаки: single-packet attack (HTTP/2), last-byte sync, limit-overrun — обход лимитов и логики."
+lab:
+  kind: shell
+  title: "Практика: single-packet attack на голосовании"
+  toolset: [core, curl, python3]
+  workdir: /home/student/task
+  files: [task.md, turbo.py]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Лимит «один голос» — это классическая гонка: проверка и запись разделены по времени."
+    - "Обычный параллельный залп (`xargs -P`) не помогает — окно гонки проскакивает."
+    - "Открой `turbo.py`: он делает last-byte sync и выпускает все запросы одним пакетом."
+    - "Запусти `python3 turbo.py` — вывод подтвердит limit-overrun и покажет секрет. Сохрани в `found.txt` и `check`."
 ---
 
 ## Вопрос, с которого всё начинается

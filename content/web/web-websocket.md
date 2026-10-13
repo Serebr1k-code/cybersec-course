@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 40
 summary: "Как устроен WebSocket, чем он отличается от HTTP и какие ошибки авторизации/Origin делают его опасным."
+lab:
+  kind: shell
+  title: "Практика: подделка личности в WebSocket-чате"
+  toolset: [core, websocat]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "После рукопожатия это сырой поток фреймов — аутентификацию сервер проверяет сам."
+    - "Подключись без cookie: `websocat ws://t/ws` — сервер пустит как `guest`."
+    - "Сервер доверяет заголовку `X-Forwarded-User` — а его присылает клиент."
+    - "Подставь `-H 'X-Forwarded-User: admin'` — сервер отдаст приватное сообщение с флагом. Сохрани в `found.txt` и `check`."
 ---
 
 ## Вопрос, с которого всё начинается

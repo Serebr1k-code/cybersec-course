@@ -1,0 +1,22 @@
+{
+  "id": "web-tool-httpie",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{httpi3_m4k3s_4p1_r3c0n_3ff0rtl3ss}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: HTTPie против API\n\nТот же API, что и в уроке про curl: `https://api.example`. Пройдём разведку\nинструментом `http` — синтаксис короче, JSON печатается сам.\n\n1. Базовый запрос — метод и URL:\n\n   http GET https://api.example/v1/item?id=1\n\n2. Заголовки задаются как `Имя:Значение`, JSON-поля — как `ключ=значение`.\n   Создай запись:\n\n   http POST https://api.example/v1/item id=3 name=Phone\n\n3. Эндпоинт `/v1/flag` требует заголовок `X-API-Key`. Найди ключ в ответе\n   `/v1/item` (поле `api_key`), затем запроси флаг с ключом:\n\n   http GET https://api.example/v1/flag 'X-API-Key:<ключ>' > found.txt\n\n4. Набери `check`.\n" }
+  ],
+  "tools": {
+    "http": {
+      "help": "http [метод] <url> [поля | Имя:Значение] — HTTP-клиент HTTPie (эмуляция api.example)",
+      "cases": [
+        { "match": "X-API-Key|api-key|apikey", "example": "GET https://api.example/v1/flag 'X-API-Key:shp_live_9f3c2a'", "output": "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{\n    \"flag\": \"nto{httpi3_m4k3s_4p1_r3c0n_3ff0rtl3ss}\"\n}\n" },
+        { "match": "/v1/flag", "example": "GET https://api.example/v1/flag", "output": "HTTP/1.1 401 Unauthorized\nContent-Type: application/json\n\n{\n    \"error\": \"missing X-API-Key\"\n}\n" },
+        { "match": "/v1/item", "example": "GET https://api.example/v1/item?id=1", "output": "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{\n    \"id\": 1,\n    \"name\": \"Laptop\",\n    \"api_key\": \"shp_live_9f3c2a\"\n}\n" },
+        { "match": "/v1/admin", "example": "GET https://api.example/v1/admin", "output": "HTTP/1.1 403 Forbidden\nContent-Type: application/json\n\n{\n    \"error\": \"admin only\"\n}\n" }
+      ],
+      "fallback": "http: в этой лабе эмулируется только api.example/v1/{item,flag,admin}.\n"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "id": "web-websocket",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{w3bs0ck3t_trusts_x_f0rw4rd3d_us3r}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: аутентификация в WebSocket-чате\n\nЧат `t` работает по WebSocket (`ws://t/ws`). После рукопожатия это сырой\nпоток фреймов — аутентификацию сервер должен проверить сам. Обычно забывает.\n\n1. Подключись без cookie — что ответит сервер:\n\n   websocat ws://t/ws\n\n2. Проверь, доверяет ли сервер заголовку `X-Forwarded-User` для определения\n   личности (частая ошибка — верить прокси-заголовку от клиента):\n\n   websocat -H 'X-Forwarded-User: admin' ws://t/ws\n\n3. Под админом сервер отдаст приватное сообщение с флагом. Сохрани вывод\n   в `found.txt` и набери `check`.\n" }
+  ],
+  "tools": {
+    "websocat": {
+      "help": "websocat [опции] <ws-url> — WebSocket-клиент (эмуляция ws://t/ws)",
+      "cases": [
+        { "match": "X-Forwarded-User:\\s*admin|admin", "example": "-H 'X-Forwarded-User: admin' ws://t/ws", "output": "{\"type\":\"welcome\",\"user\":\"admin\"}\n{\"type\":\"secret\",\"from\":\"system\",\"text\":\"nto{w3bs0ck3t_trusts_x_f0rw4rd3d_us3r}\"}\n" },
+        { "match": "Origin:\\s*https?://evil|evil", "example": "-H 'Origin: https://evil.com' ws://t/ws", "output": "{\"type\":\"welcome\",\"user\":\"guest\"}\n{\"type\":\"notice\",\"text\":\"Origin not validated\"}\n" },
+        { "match": "ws://t/ws|/ws", "example": "ws://t/ws", "output": "{\"type\":\"welcome\",\"user\":\"guest\"}\n{\"type\":\"notice\",\"text\":\"send {\\\"type\\\":\\\"history\\\"} for messages\"}\n" }
+      ],
+      "fallback": "websocat: в этой лабе эмулируется только ws://t/ws.\n"
+    }
+  }
+}
