@@ -13,6 +13,17 @@ useful_for:
   - "Работа: инвентаризация и мониторинг"
 estimated_minutes: 35
 summary: "Полный справочник по masscan и naabu: скорость, диапазоны, баннеры, исключения, вывод и связка с nmap."
+lab:
+  kind: shell
+  title: "Практика: разбор вывода naabu"
+  toolset: [core, naabu]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q '21,22,80' answer.txt"
+  hints:
+    - "naabu печатает `хост:порт` — нужен только порт."
+    - "Отрежь номер после `:` и отсортируй: подойдут `cut -d: -f2 | sort -n`."
+    - "Открыты три порта: 21, 22, 80."
 ---
 ## Вопрос, с которого всё начинается
 

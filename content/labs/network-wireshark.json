@@ -1,0 +1,51 @@
+{
+  "id": "network-wireshark",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разобрать HTTP-запрос display-фильтрами\n\n`capture.pcap` содержит HTTP-запрос с клиентским `User-Agent`.\n\nВыдели запрос и вытащи поле:\n\n    tshark -r capture.pcap -Y http.request -T fields -e http.user_agent\n\nЗапиши **значение User-Agent** в файл `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/capture.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAAPFTZQAAAABNAAAATQAAAAJCCgAAAQJCCgAABQgARQAAPwABAABAEWCZCgAABQgICAicQAA1ACsxdRI0AQAAAQAAAAAAAAZwb3J0YWwEY29ycAVsb2NhbAAAAQABAPFTZRAnAABuAAAAbgAAAAJCCgAABQJCCgAAAQgARQAAYAABAABAEWB4CAgICAoAAAUANZxAAExCnxI0gYAAAQABAAAAAAZwb3J0YWwEY29ycAVsb2NhbAAAAQABBnBvcnRhbARjb3JwBWxvY2FsAAABAAEAAAAAAAQKAAAKAPFTZSBOAAA2AAAANgAAAAJCCgAAAQJCCgAABQgARQAAKAABAABABmbBCgAABQoAAAq/aQBQAAAD6AAAAABQAiAAuDIAAADxU2UwdQAANgAAADYAAAACQgoAAAUCQgoAAAEIAEUAACgAAQAAQAZmwQoAAAoKAAAFAFC/aQAAE4gAAAPpUBIgAKSZAAAA8VNlQJwAADYAAAA2AAAAAkIKAAABAkIKAAAFCABFAAAoAAEAAEAGZsEKAAAFCgAACr9pAFAAAAPpAAATiVAQIACkmgAAAPFTZVDDAAB+AAAAfgAAAAJCCgAAAQJCCgAABQgARQAAcAABAABABmZ5CgAABQoAAAq/aQBQAAAD6QAAE4lQGCAAJVkAAEdFVCAvbG9naW4gSFRUUC8xLjENCkhvc3Q6IHBvcnRhbC5jb3JwLmxvY2FsDQpVc2VyLUFnZW50OiBjdXJsLzguNS4wDQoNCgDxU2Vg6gAAigAAAIoAAAACQgoAAAUCQgoAAAEIAEUAAHwAAQAAQAZmbQoAAAoKAAAFAFC/aQAAE4kAAAQxUBggABwEAABIVFRQLzEuMSAyMDAgT0sNClNlcnZlcjogbmdpbngvMS4yNC4wDQpDb250ZW50LVR5cGU6IHRleHQvaHRtbA0KDQo8aHRtbD5sb2dpbjwvaHRtbD4A8VNlcBEBADYAAAA2AAAAAkIKAAABAkIKAAAFCABFAAAoAAEAAEAGZsEKAAAFCgAACr9qABUAAAfQAAAAAFACIAC0hAAAAPFTZYA4AQA2AAAANgAAAAJCCgAABQJCCgAAAQgARQAAKAABAABABmbBCgAACgoAAAUAFb9qAAAbWAAAB9FQEiAAmRsAAADxU2WQXwEANgAAADYAAAACQgoAAAECQgoAAAUIAEUAACgAAQAAQAZmwQoAAAUKAAAKv2oAFQAAB9EAABtZUBAgAJkcAAAA8VNloIYBAEoAAABKAAAAAkIKAAAFAkIKAAABCABFAAA8AAEAAEAGZq0KAAAKCgAABQAVv2oAABtZAAAH0VAYIAA88QAAMjIwICh2c0ZUUGQgMy4wLjUpDQoA8VNlsK0BAEQAAABEAAAAAkIKAAABAkIKAAAFCABFAAA2AAEAAEAGZrMKAAAFCgAACr9qABUAAAfRAAAbbVAYIACCkgAAVVNFUiBhbmFseXN0DQoA8VNlwNQBAFgAAABYAAAAAkIKAAAFAkIKAAABCABFAABKAAEAAEAGZp8KAAAKCgAABQAVv2oAABttAAAH31AYIABRrwAAMzMxIFBsZWFzZSBzcGVjaWZ5IHRoZSBwYXNzd29yZC4NCgDxU2XQ+wEARwAAAEcAAAACQgoAAAECQgoAAAUIAEUAADkAAQAAQAZmsAoAAAUKAAAKv2oAFQAAB98AABuFUBggAP15AABQQVNTIFMzY3IzdFBAc3MNCg==",
+      "mode": "644"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "curl/8.5.0"
+  },
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <файл> -Y <фильтр> -T fields -e <поле> — разбор pcap",
+      "cases": [
+        {
+          "match": "http\\.user_agent",
+          "example": "-r capture.pcap -Y http.request -T fields -e http.user_agent",
+          "output": "curl/8.5.0\n"
+        },
+        {
+          "match": "http\\.host",
+          "example": "-r capture.pcap -Y http.request -T fields -e http.host",
+          "output": "portal.corp.local\n"
+        },
+        {
+          "match": "io,phs",
+          "example": "-r capture.pcap -q -z io,phs",
+          "output": "\n===================================================================\nProtocol Hierarchy Statistics\nFilter: \n\nframe                                    frames:14 bytes:1076\n  eth                                    frames:14 bytes:1076\n    ip                                   frames:14 bytes:1076\n      udp                                frames:2 bytes:187\n        dns                              frames:2 bytes:187\n      tcp                                frames:12 bytes:889\n        http                             frames:1 bytes:126\n        ftp                              frames:4 bytes:301\n===================================================================\n"
+        },
+        {
+          "match": "ftp",
+          "example": "-r capture.pcap -Y ftp",
+          "output": "10.0.0.10\t\t\n10.0.0.5\tUSER\tanalyst\n10.0.0.10\t\t\n10.0.0.5\tPASS\tS3cr3tP@ss\n"
+        }
+      ]
+    }
+  }
+}

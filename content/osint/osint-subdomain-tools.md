@@ -12,6 +12,17 @@ useful_for:
   - "Поиск takeover-кандидатов"
 estimated_minutes: 55
 summary: "Пассивные и активные инструменты, конвейер subfinder→dnsx→httpx, поиск dangling CNAME и subdomain takeover."
+lab:
+  kind: shell
+  title: "Практика: перечисление поддоменов subfinder"
+  toolset: [core, subfinder]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'lb-140-82-116-17-sea.github.com' answer.txt"
+  hints:
+    - "`subfinder -d <домен> -silent` печатает только имена, без логов."
+    - "Ищи строки, начинающиеся с `lb-` (load balancer)."
+    - "Нужен `lb-140-82-116-17-sea.github.com`."
 ---
 
 ## Вопрос, с которого всё начинается

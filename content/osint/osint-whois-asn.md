@@ -13,6 +13,17 @@ useful_for:
   - "CTF категория OSINT"
 estimated_minutes: 55
 summary: "WHOIS домена и IP, региональные реестры (RIR), ASN и BGP-префиксы — построение карты инфраструктуры и определение владельца адреса."
+lab:
+  kind: shell
+  title: "Практика: WHOIS домена"
+  toolset: [core, whois]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'MarkMonitor Inc' answer.txt"
+  hints:
+    - "`whois <домен>` вернёт регистрационные данные домена."
+    - "Ищи строку, начинающуюся с `Registrar:` (не `Registrar WHOIS Server`)."
+    - "Имя регистратора — `MarkMonitor Inc.`."
 ---
 
 ## Вопрос, с которого всё начинается

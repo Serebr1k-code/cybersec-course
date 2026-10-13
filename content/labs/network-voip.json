@@ -1,0 +1,41 @@
+{
+  "id": "network-voip",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разобрать SIP-звонок\n\nВ дампе `sip.pcap` — установление SIP-звонка. Найди идентификатор сессии\n(`Call-ID`) — по нему в трафике связывают все сообщения одного звонка.\n\n    tshark -r sip.pcap -Y sip -T fields -e sip.Call-ID\n\nЗапиши **Call-ID** в файл `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/sip.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAAPFTZQAAAADxAAAA8QAAAAJCCgAAAQJCCgAABQgARQAA4wABAABAEWXxCgAABQoAABQTxBPEAM+TSUlOVklURSBzaXA6MTAwMkAxMC4wLjAuMjAgU0lQLzIuMA0KVmlhOiBTSVAvMi4wL1VEUCAxMC4wLjAuNTo1MDYwDQpGcm9tOiA8c2lwOjEwMDFAMTAuMC4wLjIwPg0KVG86IDxzaXA6MTAwMkAxMC4wLjAuMjA+DQpDYWxsLUlEOiA4ZjNhQDEwLjAuMC41DQpDU2VxOiAxIElOVklURQ0KQ29udGVudC1UeXBlOiBhcHBsaWNhdGlvbi9zZHANCg0Kdj0wDQoB8VNlAAAAAJoAAACaAAAAAkIKAAAFAkIKAAABCABFAACMAAEAAEARZkgKAAAUCgAABRPEE8QAeBZ+U0lQLzIuMCAyMDAgT0sNCkZyb206IDxzaXA6MTAwMUAxMC4wLjAuMjA+DQpUbzogPHNpcDoxMDAyQDEwLjAuMC4yMD4NCkNhbGwtSUQ6IDhmM2FAMTAuMC4wLjUNCkNTZXE6IDEgSU5WSVRFDQoNCg==",
+      "mode": "644"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "8f3a@10.0.0.5"
+  },
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <файл> -Y <фильтр> [-T fields -e <поле>]",
+      "cases": [
+        {
+          "match": "Call-ID",
+          "example": "-r sip.pcap -Y sip -T fields -e sip.Call-ID",
+          "output": "8f3a@10.0.0.5\tINVITE\n8f3a@10.0.0.5\t\n"
+        },
+        {
+          "match": "sip",
+          "example": "-r sip.pcap -Y sip",
+          "output": "    1   0.000000     10.0.0.5 → 10.0.0.20    SIP/SDP 241 Request: INVITE sip:1002@10.0.0.20 | \n    2   1.000000    10.0.0.20 → 10.0.0.5     SIP 154 Status: 200 OK (INVITE) | \n"
+        }
+      ]
+    }
+  }
+}

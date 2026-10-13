@@ -13,6 +13,17 @@ useful_for:
   - "Работа: диагностика сети и SOC"
 estimated_minutes: 45
 summary: "Синтаксис tcpdump, BPF-фильтры, запись в pcap и практические приёмы захвата нужного трафика."
+lab:
+  kind: shell
+  title: "Практика: читаем pcap через tcpdump"
+  toolset: [core, tcpdump]
+  workdir: /home/student/task
+  files: [task.md, capture.pcap]
+  check: "grep -q 'S3cr3tP@ss' answer.txt"
+  hints:
+    - "Сначала просто посмотри дамп: `tcpdump -r capture.pcap -nn`."
+    - "Пароль летит по FTP в открытом виде. Выведи ASCII-содержимое порта 21: `tcpdump -r capture.pcap -A port 21`."
+    - "Ищи строку, начинающуюся с `PASS` — значение после пробела и есть пароль."
 ---
 
 ## Вопрос, с которого всё начинается

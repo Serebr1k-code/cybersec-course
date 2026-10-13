@@ -13,6 +13,17 @@ useful_for:
   - "Понимание MITM на уровне TLS"
 estimated_minutes: 50
 summary: "Как устроен TLS, что даёт сертификат, как расшифровать TLS-трафик через SSLKEYLOGFILE или приватный ключ и что можно узнать без расшифровки."
+lab:
+  kind: shell
+  title: "Практика: сертификат через openssl s_client"
+  toolset: [core, openssl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'Sectigo Public Server Authentication CA DV E36' answer.txt"
+  hints:
+    - "`openssl s_client -connect host:443 -servername host` покажет цепочку и сам сертификат."
+    - "Листовой сертификат — элемент `0` (CN=github.com). Его издатель в строке `i:`."
+    - "Издатель начинается с `Sectigo Public Server Authentication CA DV E36`."
 ---
 
 ## Вопрос, с которого всё начинается

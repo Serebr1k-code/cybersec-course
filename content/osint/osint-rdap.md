@@ -12,6 +12,17 @@ useful_for:
   - "Пентест: контакты и даты регистрации"
 estimated_minutes: 55
 summary: "Разница WHOIS и RDAP, разбор полей регистратора, исторические WHOIS, приватность/GDPR и практический сбор контактов и дат."
+lab:
+  kind: shell
+  title: "Практика: RDAP-запись домена"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q '1264983250_DOMAIN_COM-VRSN' answer.txt"
+  hints:
+    - "RDAP отвечает JSON. Запроси запись через curl."
+    - "Нужно поле `handle` в самом начале объекта."
+    - "Значение выглядит как `<id>_DOMAIN_COM-VRSN`."
 ---
 
 ## Вопрос, с которого всё начинается

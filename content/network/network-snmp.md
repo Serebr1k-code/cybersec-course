@@ -13,6 +13,17 @@ useful_for:
   - "Работа: защита и мониторинг SNMP"
 estimated_minutes: 45
 summary: "Как SNMP устроен, почему community-строка = пароль, и как вытащить из устройства конфигурацию, интерфейсы и учётки."
+lab:
+  kind: shell
+  title: "Практика: SNMP с community public"
+  toolset: [core, snmpwalk]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'CorpRouter-2921 IOS 15.2' answer.txt"
+  hints:
+    - "`snmpwalk -v2c -c public <host> <oid>` обходит поддерево OID."
+    - "sysDescr — это OID `.1.3.6.1.2.1.1.1.0`, первая строка вывода."
+    - "Запиши значение STRING без кавычек."
 ---
 
 ## Вопрос, с которого всё начинается

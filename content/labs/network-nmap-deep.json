@@ -1,0 +1,36 @@
+{
+  "id": "network-nmap-deep",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: NSE-скрипт ssh-hostkey\n\nNmap умеет не только определять версии, но и запускать скрипты (NSE).\nПрогони по тестовому хосту `scanme.nmap.org` скрипт `ssh-hostkey`:\n\n    nmap -sV --script ssh-hostkey,http-title -p 22,80 scanme.nmap.org\n\nСкрипт печатает отпечатки ключей хоста по типам (DSA/RSA/ECDSA/ED25519).\nЗапиши **отпечаток ED25519-ключа** в файл `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "33:fa:91:0f:e0:e1:7b:1f:6d:05:a2:b0:f1:54:41:56"
+  },
+  "tools": {
+    "nmap": {
+      "help": "nmap [опции] <цель> — сканер портов/сервисов и NSE (эмуляция: вывод реального nmap)",
+      "cases": [
+        {
+          "match": "ssh-hostkey|--script",
+          "example": "-sV --script ssh-hostkey,http-title -p 22,80 scanme.nmap.org",
+          "output": "Starting Nmap 7.99 ( https://nmap.org ) at 2026-10-13 12:16 +0300\nNmap scan report for scanme.nmap.org (45.33.32.156)\nHost is up (0.22s latency).\nOther addresses for scanme.nmap.org (not scanned): 2600:3c01::f03c:91ff:fe18:bb2f\n\nPORT   STATE SERVICE VERSION\n22/tcp open  ssh     OpenSSH 6.6.1p1 Ubuntu 2ubuntu2.13 (Ubuntu Linux; protocol 2.0)\n| ssh-hostkey: \n|   1024 ac:00:a0:1a:82:ff:cc:55:99:dc:67:2b:34:97:6b:75 (DSA)\n|   2048 20:3d:2d:44:62:2a:b0:5a:9d:b5:b3:05:14:c2:a6:b2 (RSA)\n|   256 96:02:bb:5e:57:54:1c:4e:45:2f:56:4c:4a:24:b2:57 (ECDSA)\n|_  256 33:fa:91:0f:e0:e1:7b:1f:6d:05:a2:b0:f1:54:41:56 (ED25519)\n80/tcp open  http    Apache httpd 2.4.7 ((Ubuntu))\n|_http-server-header: Apache/2.4.7 (Ubuntu)\n|_http-title: Go ahead and ScanMe!\nService Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel\n\nService detection performed. Please report any incorrect results at https://nmap.org/submit/ .\nNmap done: 1 IP address (1 host up) scanned in 21.71 seconds\n"
+        },
+        {
+          "match": "\\-sV",
+          "example": "-sV -Pn -p 22,80 scanme.nmap.org",
+          "output": "Starting Nmap 7.99 ( https://nmap.org ) at 2026-10-13 12:16 +0300\nNmap scan report for scanme.nmap.org (45.33.32.156)\nHost is up (0.22s latency).\nOther addresses for scanme.nmap.org (not scanned): 2600:3c01::f03c:91ff:fe18:bb2f\n\nPORT   STATE SERVICE VERSION\n22/tcp open  ssh     OpenSSH 6.6.1p1 Ubuntu 2ubuntu2.13 (Ubuntu Linux; protocol 2.0)\n| ssh-hostkey: \n|   1024 ac:00:a0:1a:82:ff:cc:55:99:dc:67:2b:34:97:6b:75 (DSA)\n|   2048 20:3d:2d:44:62:2a:b0:5a:9d:b5:b3:05:14:c2:a6:b2 (RSA)\n|   256 96:02:bb:5e:57:54:1c:4e:45:2f:56:4c:4a:24:b2:57 (ECDSA)\n|_  256 33:fa:91:0f:e0:e1:7b:1f:6d:05:a2:b0:f1:54:41:56 (ED25519)\n80/tcp open  http    Apache httpd 2.4.7 ((Ubuntu))\n|_http-server-header: Apache/2.4.7 (Ubuntu)\n|_http-title: Go ahead and ScanMe!\nService Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel\n\nService detection performed. Please report any incorrect results at https://nmap.org/submit/ .\nNmap done: 1 IP address (1 host up) scanned in 21.71 seconds\n"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,57 @@
+{
+  "id": "network-icmp-tunnel",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: извлечь скрытую передачу из ICMP\n\nВ дампе `icmp.pcap` кто-то гонит данные внутри ICMP echo-запросов: каждый\nпакет несёт кусочек сообщения в payload.\n\n1. Посмотри дамп с hex+ASCII: `tcpdump -r icmp.pcap -nn -X`\n2. Или вытащи payload полем: `tshark -r icmp.pcap -Y icmp -T fields -e data.data`\n   (hex) — а можно просто `strings icmp.pcap`.\n\nСобери три кусочка в одно сообщение и запиши его в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/icmp.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAAPFTZQAAAAAxAAAAMQAAAAJCCgAAAQJCCgAABQgARQAAIwABAABAAXz1wKgBMssAcQkIANL1EzcAAEVYRklMMToB8VNlAAAAADAAAAAwAAAAAkIKAAABAkIKAAAFCABFAAAiAAEAAEABfPbAqAEyywBxCQgAD9MTNwABUEFSVDJfAvFTZQAAAAAwAAAAMAAAAAJCCgAAAQJCCgAABQgARQAAIgABAABAAXz2wKgBMssAcQkIACIGEzcAAkVORDk5OQ==",
+      "mode": "644"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "EXFIL1:PART2_END999"
+  },
+  "tools": {
+    "tcpdump": {
+      "help": "tcpdump -r <файл> [-X] [фильтр] — чтение pcap",
+      "cases": [
+        {
+          "match": "\\-X",
+          "example": "-r icmp.pcap -nn -X",
+          "output": "01:13:20.000000 IP 192.168.1.50 > 203.0.113.9: ICMP echo request, id 4919, seq 0, length 15\n\t0x0000:  4500 0023 0001 0000 4001 7cf5 c0a8 0132  E..#....@.|....2\n\t0x0010:  cb00 7109 0800 d2f5 1337 0000 4558 4649  ..q......7..EXFI\n\t0x0020:  4c31 3a                                  L1:\n01:13:21.000000 IP 192.168.1.50 > 203.0.113.9: ICMP echo request, id 4919, seq 1, length 14\n\t0x0000:  4500 0022 0001 0000 4001 7cf6 c0a8 0132  E..\"....@.|....2\n\t0x0010:  cb00 7109 0800 0fd3 1337 0001 5041 5254  ..q......7..PART\n\t0x0020:  325f                                     2_\n01:13:22.000000 IP 192.168.1.50 > 203.0.113.9: ICMP echo request, id 4919, seq 2, length 14\n\t0x0000:  4500 0022 0001 0000 4001 7cf6 c0a8 0132  E..\"....@.|....2\n\t0x0010:  cb00 7109 0800 2206 1337 0002 454e 4439  ..q...\"..7..END9\n\t0x0020:  3939                                     99\n"
+        },
+        {
+          "match": "icmp",
+          "example": "-r icmp.pcap -nn icmp",
+          "output": "01:13:20.000000 IP 192.168.1.50 > 203.0.113.9: ICMP echo request, id 4919, seq 0, length 15\n\t0x0000:  4500 0023 0001 0000 4001 7cf5 c0a8 0132  E..#....@.|....2\n\t0x0010:  cb00 7109 0800 d2f5 1337 0000 4558 4649  ..q......7..EXFI\n\t0x0020:  4c31 3a                                  L1:\n01:13:21.000000 IP 192.168.1.50 > 203.0.113.9: ICMP echo request, id 4919, seq 1, length 14\n\t0x0000:  4500 0022 0001 0000 4001 7cf6 c0a8 0132  E..\"....@.|....2\n\t0x0010:  cb00 7109 0800 0fd3 1337 0001 5041 5254  ..q......7..PART\n\t0x0020:  325f                                     2_\n01:13:22.000000 IP 192.168.1.50 > 203.0.113.9: ICMP echo request, id 4919, seq 2, length 14\n\t0x0000:  4500 0022 0001 0000 4001 7cf6 c0a8 0132  E..\"....@.|....2\n\t0x0010:  cb00 7109 0800 2206 1337 0002 454e 4439  ..q...\"..7..END9\n\t0x0020:  3939                                     99\n"
+        }
+      ],
+      "fallback": "01:13:20.000000 IP 192.168.1.50 > 203.0.113.9: ICMP echo request, id 4919, seq 0, length 15\n\t0x0000:  4500 0023 0001 0000 4001 7cf5 c0a8 0132  E..#....@.|....2\n\t0x0010:  cb00 7109 0800 d2f5 1337 0000 4558 4649  ..q......7..EXFI\n\t0x0020:  4c31 3a                                  L1:\n01:13:21.000000 IP 192.168.1.50 > 203.0.113.9: ICMP echo request, id 4919, seq 1, length 14\n\t0x0000:  4500 0022 0001 0000 4001 7cf6 c0a8 0132  E..\"....@.|....2\n\t0x0010:  cb00 7109 0800 0fd3 1337 0001 5041 5254  ..q......7..PART\n\t0x0020:  325f                                     2_\n01:13:22.000000 IP 192.168.1.50 > 203.0.113.9: ICMP echo request, id 4919, seq 2, length 14\n\t0x0000:  4500 0022 0001 0000 4001 7cf6 c0a8 0132  E..\"....@.|....2\n\t0x0010:  cb00 7109 0800 2206 1337 0002 454e 4439  ..q...\"..7..END9\n\t0x0020:  3939                                     99\n"
+    },
+    "tshark": {
+      "help": "tshark -r <файл> -Y <фильтр> -T fields -e <поле>",
+      "cases": [
+        {
+          "match": "data\\.data",
+          "example": "-r icmp.pcap -Y icmp -T fields -e data.data",
+          "output": "192.168.1.50\t203.0.113.9\t455846494c313a\n192.168.1.50\t203.0.113.9\t50415254325f\n192.168.1.50\t203.0.113.9\t454e44393939\n"
+        },
+        {
+          "match": "icmp",
+          "example": "-r icmp.pcap -Y icmp",
+          "output": "192.168.1.50\t203.0.113.9\t455846494c313a\n192.168.1.50\t203.0.113.9\t50415254325f\n192.168.1.50\t203.0.113.9\t454e44393939\n"
+        }
+      ]
+    }
+  }
+}

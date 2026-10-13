@@ -13,6 +13,17 @@ useful_for:
   - "Разведка поверхности атаки"
 estimated_minutes: 40
 summary: "Как определить технологии сайта пассивно: HTTP-заголовки, WhatWeb, Wappalyzer, BuiltWith, фингерпринт по статике, CMS и версии, WAF."
+lab:
+  kind: shell
+  title: "Практика: фингерпринт по заголовкам"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'cloudflare' answer.txt"
+  hints:
+    - "`curl -sI <url>` печатает только заголовки ответа."
+    - "Заголовок `server:` называет фронт, а `cf-ray:` выдаёт CDN."
+    - "Значение server здесь — `cloudflare`."
 ---
 
 ## Вопрос, с которого всё начинается

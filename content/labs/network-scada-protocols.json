@@ -1,0 +1,41 @@
+{
+  "id": "network-scada-protocols",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: понять команду Modbus в OT-трафике\n\nВ дампе `modbus.pcap` — обмен по Modbus/TCP (порт 502). Нужно понять, что\nза операцию запросил мастер.\n\n    tshark -r modbus.pcap -Y modbus\n\nЗапиши **название операции** (как её печатает tshark, например\n`Read Holding Registers`) в файл `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/modbus.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAAPFTZQAAAAA2AAAANgAAAAJCCgAAAQJCCgAABQgARQAAKAABAABABlKyCgAKFAoACgrDUAH2AAAAZAAAAABQAiAAohoAAAHxU2UAAAAANgAAADYAAAACQgoAAAUCQgoAAAEIAEUAACgAAQAAQAZSsgoACgoKAAoUAfbDUAAAA4QAAABlUBIgAJ6FAAAC8VNlAAAAAEIAAABCAAAAAkIKAAABAkIKAAAFCABFAAA0AAEAAEAGUqYKAAoUCgAKCsNQAfYAAABlAAADhVAYIACdXgAAAAEAAAAGAQMAAAAKA/FTZQAAAABSAAAAUgAAAAJCCgAABQJCCgAAAQgARQAARAABAABABlKWCgAKCgoAChQB9sNQAAADhQAAAHFQGCAA6ToAAAABAAAAFwEDFAAKAAAAZAAyAAAAAAAAAAAAAAA=",
+      "mode": "644"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "Read Holding Registers"
+  },
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <файл> -Y <фильтр> [-T fields -e <поле>]",
+      "cases": [
+        {
+          "match": "func_code|modbus\\.func",
+          "example": "-r modbus.pcap -Y modbus -T fields -e modbus.func_code",
+          "output": "3\t0\t10\n"
+        },
+        {
+          "match": "modbus",
+          "example": "-r modbus.pcap -Y modbus",
+          "output": "    3   2.000000   10.0.10.20 → 10.0.10.10   Modbus/TCP 66    Query: Trans:     1; Unit:   1, Func:   3: Read Holding Registers\n"
+        }
+      ]
+    }
+  }
+}

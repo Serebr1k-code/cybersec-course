@@ -13,6 +13,17 @@ useful_for:
   - "Поиск аномалий в трафике"
 estimated_minutes: 50
 summary: "Работа в Wireshark: разница capture/display-фильтров, follow stream, цветовые правила, статистика и tshark для автоматизации."
+lab:
+  kind: shell
+  title: "Практика: display-фильтры tshark"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, capture.pcap]
+  check: "grep -q 'curl/8.5.0' answer.txt"
+  hints:
+    - "`-Y` в tshark — это display-фильтр (как в Wireshark). Выдели HTTP-запросы: `-Y http.request`."
+    - "`-T fields -e http.user_agent` печатает только нужное поле."
+    - "Значение начинается с `curl/`."
 ---
 ## Вопрос, с которого всё начинается
 

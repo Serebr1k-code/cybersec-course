@@ -13,6 +13,17 @@ useful_for:
   - "Работа (SOC): детект VoIP-мошенничества"
 estimated_minutes: 50
 summary: "Как устроены SIP и RTP, как перехватить и восстановить разговор из PCAP и какие атаки (регистрация, toll fraud) работают."
+lab:
+  kind: shell
+  title: "Практика: SIP-сессия из дампа"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, sip.pcap]
+  check: "grep -q '8f3a@10.0.0.5' answer.txt"
+  hints:
+    - "SIP-сообщения в дампе легко выделить: `tshark -r sip.pcap -Y sip`."
+    - "Call-ID — отдельное поле SIP. Достань его: `-T fields -e sip.Call-ID`."
+    - "Значение выглядит как `<строка>@<ip>`."
 ---
 
 ## Вопрос, с которого всё начинается

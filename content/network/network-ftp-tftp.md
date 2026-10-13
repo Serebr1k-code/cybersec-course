@@ -13,6 +13,17 @@ useful_for:
   - "Работа (SOC): детект FTP-аномалий"
 estimated_minutes: 55
 summary: "FTP и TFTP: как работают активный/пассивный режимы, анонимный вход, FTP bounce, запись файлов и подмена конфигов через TFTP — с командами и разбором защиты."
+lab:
+  kind: shell
+  title: "Практика: анонимный FTP"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'FLAG{anon_ftp_read}' answer.txt"
+  hints:
+    - "Анонимный FTP читается curl-ом без логина: `curl -s ftp://127.0.0.1:2121/`."
+    - "В листинге виден файл `.secret_notes.txt` (начинается с точки)."
+    - "Прочитай его: `curl -s ftp://127.0.0.1:2121/.secret_notes.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

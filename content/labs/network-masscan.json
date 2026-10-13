@@ -1,0 +1,37 @@
+{
+  "id": "network-masscan",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: быстрый скан top-портов\n\n`naabu` — быстрый сканер портов. Прогони его по `scanme.nmap.org` по top-100\nпортам:\n\n    naabu -host scanme.nmap.org -top-ports 100 -silent\n\nЗапиши **полную строку для открытого FTP-порта** (в формате `хост:порт`) в файл\n`answer.txt` и набери `check`.\n"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "scanme.nmap.org:21"
+  },
+  "tools": {
+    "naabu": {
+      "help": "naabu -host <цель> [-top-ports N] — быстрый сканер портов (эмуляция: вывод реального naabu)",
+      "cases": [
+        {
+          "match": "top-ports",
+          "example": "-host scanme.nmap.org -top-ports 100 -silent",
+          "output": "scanme.nmap.org:21\nscanme.nmap.org:22\nscanme.nmap.org:80\n"
+        },
+        {
+          "match": "scanme",
+          "example": "-host scanme.nmap.org -top-ports 100",
+          "output": "scanme.nmap.org:21\nscanme.nmap.org:22\nscanme.nmap.org:80\n"
+        }
+      ],
+      "fallback": "scanme.nmap.org:21\nscanme.nmap.org:22\nscanme.nmap.org:80\n"
+    }
+  }
+}

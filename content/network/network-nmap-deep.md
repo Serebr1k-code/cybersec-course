@@ -13,6 +13,17 @@ useful_for:
   - "Работа: инвентаризация и аудит"
 estimated_minutes: 55
 summary: "Продвинутый nmap: скриптовый движок NSE, точные тайминги, определение ОС, сканирование за фильтрами и UDP."
+lab:
+  kind: shell
+  title: "Практика: NSE-скрипты nmap"
+  toolset: [core, nmap]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q '33:fa:91:0f:e0:e1:7b:1f:6d:05:a2:b0:f1:54:41:56' answer.txt"
+  hints:
+    - "`--script` задаёт NSE-скрипты. Здесь нужен `ssh-hostkey`."
+    - "В выводе блок `ssh-hostkey:` со строками отпечатков и типом в скобках."
+    - "Скопируй строку, помеченную `(ED25519)` — это 32 байта, 16 групп hex."
 ---
 ## Вопрос, с которого всё начинается
 

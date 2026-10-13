@@ -1,0 +1,32 @@
+{
+  "id": "osint-subdomain-tools",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти поддомен-балансировщик\n\n`subfinder` собирает поддомены из пассивных источников. Запусти его:\n\n    subfinder -d github.com -silent\n\nВ выводе есть поддомены-балансировщики, начинающиеся с `lb-`. Запиши **первый\nтакой поддомен** в файл `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "lb-140-82-116-17-sea.github.com"
+  },
+  "tools": {
+    "subfinder": {
+      "help": "subfinder -d <домен> [-silent] — пассивный сбор поддоменов (эмуляция: вывод реального subfinder)",
+      "cases": [
+        {
+          "match": "github\\.com",
+          "example": "-d github.com -silent",
+          "output": "sebfisch.github.com\nyusukebe.github.com\nfguillen.github.com\nlb-140-82-116-17-sea.github.com\npjambet.github.com\ncpsievert.github.com\ndpmcnevin.github.com\nokfde.github.com\nxerox007.github.com\ngroupdock.github.com\nlbpcomptable.github.com\nteramako.github.com\nborismus.github.com\ndeergate.github.com\ntmeasday.github.com\n"
+        }
+      ],
+      "fallback": "[INF] No results\n"
+    }
+  }
+}

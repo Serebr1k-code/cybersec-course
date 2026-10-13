@@ -1,0 +1,37 @@
+{
+  "id": "osint-dnssec-caa",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: какие CA вправе выдавать сертификаты\n\nCAA-записи ограничивают, какие удостоверяющие центры могут выпускать\nсертификаты для домена. Посмотри их:\n\n    dig +short github.com CAA\n\nСреди значений есть `issue \"letsencrypt.org\"`. Запиши **домен одного из\nразрешённых CA** (например `letsencrypt.org`) в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "letsencrypt.org"
+  },
+  "tools": {
+    "dig": {
+      "help": "dig <имя> CAA [+short] — DNS-клиент (эмуляция: вывод реального dig)",
+      "cases": [
+        {
+          "match": "CAA|caa",
+          "example": "+short github.com CAA",
+          "output": "$ dig +short github.com CAA\n0 issuewild \"sectigo.com\"\n0 issuewild \"digicert.com\"\n0 issue \"digicert.com\"\n0 issue \"globalsign.com\"\n0 issue \"sectigo.com\"\n0 issue \"letsencrypt.org\"\n0 issuewild \"letsencrypt.org\"\n$ dig +short github.com NS\nns-1707.awsdns-21.co.uk.\nns-1283.awsdns-32.org.\ndns1.p08.nsone.net.\nns-421.awsdns-52.com.\ndns3.p08.nsone.net.\ndns4.p08.nsone.net.\nns-520.awsdns-01.net.\ndns2.p08.nsone.net.\n$ dig github.com SOA +noall +answer\ngithub.com.\t\t1127\tIN\tSOA\tns-1707.awsdns-21.co.uk. awsdns-hostmaster.amazon.com. 1 7200 900 1209600 86400\n$ dig +dnssec github.com A +noall +answer\ngithub.com.\t\t49\tIN\tA\t140.82.121.3\n$ dig +short google.com CAA\n0 issue \"pki.goog\"\n"
+        },
+        {
+          "match": "github\\.com",
+          "example": "+short github.com CAA",
+          "output": "$ dig +short github.com CAA\n0 issuewild \"sectigo.com\"\n0 issuewild \"digicert.com\"\n0 issue \"digicert.com\"\n0 issue \"globalsign.com\"\n0 issue \"sectigo.com\"\n0 issue \"letsencrypt.org\"\n0 issuewild \"letsencrypt.org\"\n$ dig +short github.com NS\nns-1707.awsdns-21.co.uk.\nns-1283.awsdns-32.org.\ndns1.p08.nsone.net.\nns-421.awsdns-52.com.\ndns3.p08.nsone.net.\ndns4.p08.nsone.net.\nns-520.awsdns-01.net.\ndns2.p08.nsone.net.\n$ dig github.com SOA +noall +answer\ngithub.com.\t\t1127\tIN\tSOA\tns-1707.awsdns-21.co.uk. awsdns-hostmaster.amazon.com. 1 7200 900 1209600 86400\n$ dig +dnssec github.com A +noall +answer\ngithub.com.\t\t49\tIN\tA\t140.82.121.3\n$ dig +short google.com CAA\n0 issue \"pki.goog\"\n"
+        }
+      ],
+      "fallback": ";; connection timed out; no servers could be reached\n"
+    }
+  }
+}

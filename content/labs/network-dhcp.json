@@ -1,0 +1,41 @@
+{
+  "id": "network-dhcp",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: что DHCP отдаёт клиенту\n\nВ дампе `dhcp.pcap` — обмен DISCOVER/OFFER. Сервер в OFFER предлагает клиенту\nадрес и параметры. Нужно узнать, какой **DNS-сервер** (option 6) он предлагает.\n\n    tshark -r dhcp.pcap -Y dhcp\n\nЗапиши **IP DNS-сервера** в файл `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/dhcp.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAAPFTZQAAAAAjAQAAIwEAAP///////////////wgARQABFQABAABAEXnYAAAAAP////8ARABDAQH39wEBBgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACQgoAAAUAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAY4JTYzUBATcDAQMG/wHxU2UAAAAAMAEAADABAAACQgoAAAX///////8IAEUAASIAAQAAQBFlxQoAAAEKAAAFAEMARAEOs64CAQYAAAAAAAAAAAAAAAAACgAABQoAAAEAAAAAAkIKAAAFAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGOCU2M1AQI2BAoAAAEDBAoAAAEGBAgICAj/",
+      "mode": "644"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "8.8.8.8"
+  },
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <файл> -Y <фильтр> [-T fields -e <поле>]",
+      "cases": [
+        {
+          "match": "domain_name_server|dhcp\\.option",
+          "example": "-r dhcp.pcap -Y dhcp -T fields -e dhcp.option.domain_name_server",
+          "output": "1\t\n2\t8.8.8.8\n"
+        },
+        {
+          "match": "dhcp",
+          "example": "-r dhcp.pcap -Y dhcp",
+          "output": "1\t0.0.0.0\t1\t\t\n2\t10.0.0.1\t2\t8.8.8.8\t10.0.0.1\n"
+        }
+      ]
+    }
+  }
+}

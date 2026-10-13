@@ -1,0 +1,32 @@
+{
+  "id": "network-tls-inspection",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: кто выдал сертификат\n\nПодключись к `github.com:443` через openssl и посмотри цепочку сертификатов:\n\n    openssl s_client -connect github.com:443 -servername github.com\n\nВ блоке `Certificate chain` у листового сертификата (строка `0 s:CN=github.com`)\nесть издатель `i:` (issuer). Запиши **CN издателя листового сертификата** в\nфайл `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "Sectigo Public Server Authentication CA DV E36"
+  },
+  "tools": {
+    "openssl": {
+      "help": "openssl s_client -connect <host>:443 [-servername <host>] — TLS-клиент (эмуляция: вывод реального openssl)",
+      "cases": [
+        {
+          "match": "github\\.com",
+          "example": "s_client -connect github.com:443 -servername github.com",
+          "output": "CONNECTED(00000003)\n---\nCertificate chain\n 0 s:CN=github.com\n   i:C=GB, O=Sectigo Limited, CN=Sectigo Public Server Authentication CA DV E36\n   a:PKEY: EC, (prime256v1); sigalg: ecdsa-with-SHA256\n   v:NotBefore: Sep  1 00:00:00 2026 GMT; NotAfter: Nov 29 23:59:59 2026 GMT\n 1 s:C=GB, O=Sectigo Limited, CN=Sectigo Public Server Authentication CA DV E36\n   i:C=GB, O=Sectigo Limited, CN=Sectigo Public Server Authentication Root E46\n   a:PKEY: EC, (prime256v1); sigalg: ecdsa-with-SHA384\n   v:NotBefore: Mar 22 00:00:00 2021 GMT; NotAfter: Mar 21 23:59:59 2036 GMT\n 2 s:C=GB, O=Sectigo Limited, CN=Sectigo Public Server Authentication Root E46\n   i:C=US, ST=New Jersey, L=Jersey City, O=The USERTRUST Network, CN=USERTrust ECC Certification Authority\n   a:PKEY: EC, (secp384r1); sigalg: ecdsa-with-SHA384\n   v:NotBefore: Mar 22 00:00:00 2021 GMT; NotAfter: Jan 18 23:59:59 2038 GMT\n---\nServer certificate\n-----BEGIN CERTIFICATE-----\nMIID7TCCA5SgAwIBAgIRAKWevbWWdR239cCVB5YTlTwwCgYIKoZIzj0EAwIwYDEL\nMAkGA1UEBhMCR0IxGDAWBgNVBAoTD1NlY3RpZ28gTGltaXRlZDE3MDUGA1UEAxMu\nU2VjdGlnbyBQdWJsaWMgU2VydmVyIEF1dGhlbnRpY2F0aW9uIENBIERWIEUzNjAe\nFw0yNjA5MDEwMDAwMDBaFw0yNjExMjkyMzU5NTlaMBUxEzARBgNVBAMTCmdpdGh1\nYi5jb20wWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASFNhs0vLNR9yDpqprL6Cct\nYNExex040djH16D6WrHxLyjnmVFGYSI4sj6wK3V17ADiaabPE04vQk76djW0DT8q\no4ICeDCCAnQwHwYDVR0jBBgwFoAUF5moBMFv5C1wqAoQPQPT6Rq4JmMwHQYDVR0O\nBBYEFGaY7EwRNfdLUISLqBw2ZdAXVtTgMA4GA1UdDwEB/wQEAwIHgDAMBgNVHRMB\nAf8EAjAAMBMGA1UdJQQMMAoGCCsGAQUFBwMBMEkGA1UdIARCMEAwNAYLKwYBBAGy\nMQECAgcwJTAjBggrBgEFBQcCARYXaHR0cHM6Ly9zZWN0aWdvLmNvbS9DUFMwCAYG\nZ4EMAQIBMIGEBggrBgEFBQcBAQR4MHYwTwYIKwYBBQUHMAKGQ2h0dHA6Ly9jcnQu\nc2VjdGlnby5jb20vU2VjdGlnb1B1YmxpY1NlcnZlckF1dGhlbnRpY2F0aW9uQ0FE\nVkUzNi5jcnQwIwYIKwYBBQUHMAGGF2h0dHA6Ly9vY3NwLnNlY3RpZ28uY29tMIIB\nBAYKKwYBBAHWeQIEAgSB9QSB8gDwAHYA1219ENGn9XfCx+lf1wC/+YLJM1pl4dCz\nAXMXwMjFaXcAAAGgWk2g0QAABAMARzBFAiB6u6CCyQsap+pmTuz7Ab9THPLWVtQR\nPTqSNuC8ZWO6eQIhALM3rJpdu0XVcvSW2985RjODh+9BBR5n8fB5lL7LOXnmAHYA\nyKPEf8ezrbk1awE/anoSbeM6TkOlxkb5l605dZkdz5oAAAGgWk2grQAABAMARzBF\nAiBwsQvwfVSuEcGqKp4lN/jWPUUuudUX+St4fImVDxCKmQIhANHJvWdzsXH/A9uC\nrSz1sQ4k3yowTYxtVtfTJc91oze2MCUGA1UdEQQeMByCCmdpdGh1Yi5jb22CDnd3\ndy5naXRodWIuY29tMAoGCCqGSM49BAMCA0cAMEQCIBdBV7Y/5t2o988vMBDGLJEl\nLWALzPJkt3dphmsZk9CEAiAJqxa/1c8JYYWHsGy1rQNUb3ffuCJU7pnjjqJfdiim\nhQ==\n-----END CERTIFICATE-----\nsubject=CN=github.com\nissuer=C=GB, O=Sectigo Limited, CN=Sectigo Public Server Authentication CA DV E36\n---\nNo client certificate CA names sent\nPeer signing digest: SHA256\nPeer signature type: ecdsa_secp256r1_sha256\nPeer Temp Key: X25519, 253 bits\n---\nSSL handshake has read 3088 bytes and written 1605 bytes\nVerification: OK\n---\nNew, TLSv1.3, Cipher is TLS_AES_128_GCM_SHA256\nProtocol: TLSv1.3\nServer public key is 256 bit\nThis TLS version forbids renegotiation.\nCompression: NONE\nExpansion: NONE\nNo ALPN negotiated\nEarly data was not sent\nVerify return code: 0 (ok)\n---\n"
+        }
+      ],
+      "fallback": "connect: Connection refused\nconnect:errno=111\n"
+    }
+  }
+}

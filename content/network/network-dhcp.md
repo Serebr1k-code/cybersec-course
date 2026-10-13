@@ -13,6 +13,17 @@ useful_for:
   - "Работа: защита DHCP и расследования"
 estimated_minutes: 50
 summary: "Как работает DHCP, чем опасны rogue-сервер и starvation-атака, как подсунуть жертве свой шлюз/DNS и как защититься."
+lab:
+  kind: shell
+  title: "Практика: DHCP-обмен из дампа"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, dhcp.pcap]
+  check: "grep -q '8.8.8.8' answer.txt"
+  hints:
+    - "Выдели DHCP-пакеты: `tshark -r dhcp.pcap -Y dhcp`."
+    - "В OFFER-пакете смотри опции: сервер, роутер и name server."
+    - "Нужен адрес из опции Domain Name Server."
 ---
 
 ## Вопрос, с которого всё начинается

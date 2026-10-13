@@ -1,0 +1,32 @@
+{
+  "id": "network-tool-nc-socat-ssh",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: баннер сервиса через netcat\n\nНа `127.0.0.1:2222` слушает сервис, который первым делом отдаёт баннер.\nПодключись к нему netcat-ом:\n\n    nc -v 127.0.0.1 2222\n\nБаннер начинается с `SSH-2.0-`. Запиши **версию SSH** (без `SSH-2.0-`) в файл\n`answer.txt` и набери `check`.\n"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "OpenSSH_8.9p1"
+  },
+  "tools": {
+    "nc": {
+      "help": "nc [-v] <host> <port> — TCP-клиент (эмуляция: вывод реального nc)",
+      "cases": [
+        {
+          "match": "2222",
+          "example": "-v 127.0.0.1 2222",
+          "output": "Connection to 127.0.0.1 2222 port [tcp/EtherNet-IP-1] succeeded!\nSSH-2.0-OpenSSH_8.9p1 Ubuntu-3ubuntu0.10\n"
+        }
+      ],
+      "fallback": "nc: connect to 127.0.0.1 port 2222 (tcp) failed: Connection refused\n"
+    }
+  }
+}

@@ -13,6 +13,17 @@ useful_for:
   - "Аудит DNS-гигиены"
 estimated_minutes: 40
 summary: "Защитные DNS-записи как разведданные: проверка DNSSEC-подписей, разбор CAA, TXT, MTA-STS и оценка гигиены домена."
+lab:
+  kind: shell
+  title: "Практика: CAA-записи домена"
+  toolset: [core, dig]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'letsencrypt.org' answer.txt"
+  hints:
+    - "Тип записи CAA: `dig <домен> CAA`."
+    - "`+short` оставит только значения."
+    - "Годятся `letsencrypt.org`, `digicert.com`, `sectigo.com` и др."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,17 @@ useful_for:
   - "Работа: защита OT-инфраструктуры"
 estimated_minutes: 55
 summary: "Как читать промышленные протоколы на проводе (Modbus, DNP3, S7), почему в них нет аутентификации и как анализировать OT-трафик."
+lab:
+  kind: shell
+  title: "Практика: разбор Modbus/TCP"
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, modbus.pcap]
+  check: "grep -q 'Read Holding Registers' answer.txt"
+  hints:
+    - "Modbus — текстовый по смыслу протокол, но tshark показывает расшифровку. Выдели пакеты: `tshark -r modbus.pcap -Y modbus`."
+    - "В строке будет `Func: 3:` и далее человекочитаемое имя функции."
+    - "Запиши имя целиком — `Read Holding Registers`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,17 @@ useful_for:
   - "Работа: диагностика соединений"
 estimated_minutes: 40
 summary: "Полный справочник: netcat (слушатели, шеллы, передача файлов), socat (релеи, туннели), SSH-пробросы и pivoting через chisel/ligolo."
+lab:
+  kind: shell
+  title: "Практика: снять баннер через netcat"
+  toolset: [core, nc]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'OpenSSH_8.9p1' answer.txt"
+  hints:
+    - "netcat подключается к TCP-порту: `nc -v 127.0.0.1 2222`."
+    - "Сервис сразу отдаёт строку баннера, начинающуюся с `SSH-2.0-`."
+    - "Запиши часть после `SSH-2.0-` — начни с `OpenSSH_`."
 ---
 
 ## Задача

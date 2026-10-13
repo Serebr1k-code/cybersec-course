@@ -1,0 +1,42 @@
+{
+  "id": "network-ftp-tftp",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анонимный доступ к FTP\n\nFTP-сервер `127.0.0.1:2121` разрешает анонимный вход. Перечисли корень:\n\n    curl -s ftp://127.0.0.1:2121/\n\nСреди файлов есть скрытый (`ls` его не показывает в реальном FTP, но листинг\nчерез curl показывает всё). Прочитай его содержимое:\n\n    curl -s ftp://127.0.0.1:2121/.secret_notes.txt\n\nЗапиши **флаг** в файл `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "FLAG{anon_ftp_read}"
+  },
+  "tools": {
+    "curl": {
+      "help": "curl -s ftp://<host>:<port>/<путь> — FTP-клиент (эмуляция: вывод реального curl)",
+      "cases": [
+        {
+          "match": "\\.secret_notes\\.txt",
+          "example": "-s ftp://127.0.0.1:2121/.secret_notes.txt",
+          "output": "FLAG{anon_ftp_read}\n"
+        },
+        {
+          "match": "report\\.txt",
+          "example": "-s ftp://127.0.0.1:2121/report.txt",
+          "output": "quarterly-report\n"
+        },
+        {
+          "match": "ftp://127\\.0\\.0\\.1:2121",
+          "example": "-s ftp://127.0.0.1:2121/",
+          "output": "-rw-r--r--   1 ftp      ftp            20 Jan  1 00:00 .secret_notes.txt\n-rw-r--r--   1 ftp      ftp            17 Jan  1 00:00 report.txt\n"
+        }
+      ],
+      "fallback": "curl: (67) Login denied\n"
+    }
+  }
+}

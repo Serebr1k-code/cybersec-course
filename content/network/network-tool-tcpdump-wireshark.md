@@ -13,6 +13,17 @@ useful_for:
   - "Работа: SOC, IR, диагностика"
 estimated_minutes: 40
 summary: "Все ключевые фильтры tcpdump (BPF) и Wireshark (display), follow stream, профили, tshark и готовые рецепты разбора дампа."
+lab:
+  kind: shell
+  title: "Практика: tcpdump и tshark на одном дампе"
+  toolset: [core, tcpdump, tshark]
+  workdir: /home/student/task
+  files: [task.md, capture.pcap]
+  check: "grep -q 'portal.corp.local' answer.txt"
+  hints:
+    - "HTTP-трафик идёт по порту 80. Сначала выдели его: `tcpdump -r capture.pcap -nn port 80`."
+    - "tshark умеет вынимать конкретное поле: `tshark -r capture.pcap -Y http.request -T fields -e http.host`."
+    - "Нужное значение — имя хоста вида `*.corp.local`."
 ---
 ## Вопрос, с которого всё начинается
 

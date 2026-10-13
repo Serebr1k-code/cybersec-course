@@ -13,6 +13,17 @@ useful_for:
   - "Работа (SOC): детект необычного ICMP"
 estimated_minutes: 45
 summary: "Как устроены ICMP- и другие неочевидные туннели, как прятать данные в разрешённых протоколах и как это детектировать."
+lab:
+  kind: shell
+  title: "Практика: данные в ICMP-туннеле"
+  toolset: [core, tcpdump, tshark]
+  workdir: /home/student/task
+  files: [task.md, icmp.pcap]
+  check: "grep -q 'EXFIL1:PART2_END999' answer.txt"
+  hints:
+    - "Данные лежат в теле ICMP-запросов. `tcpdump -r icmp.pcap -X` покажет их в hex и ASCII справа."
+    - "`strings icmp.pcap` сразу выдаст читаемые куски — их три."
+    - "Склей куски по порядку seq (0,1,2): получится `EXFIL1:PART2_END999`."
 ---
 
 ## Вопрос, с которого всё начинается

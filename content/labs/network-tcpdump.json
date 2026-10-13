@@ -1,0 +1,52 @@
+{
+  "id": "network-tcpdump",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти пароль в захваченном трафике\n\nВ каталоге лежит дамп трафика `capture.pcap`. В нём есть сессия FTP, где\nлогин и пароль передавались в открытом виде.\n\n1. Посмотри дамп: `tcpdump -r capture.pcap -nn`\n2. Найди FTP-трафик (порт 21) и выведи содержимое пакетов:\n   `tcpdump -r capture.pcap -A port 21`\n3. Найди строку команды `PASS` — в ней передан пароль.\n\nЗапиши **пароль** (только значение) в файл `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/capture.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAAAPFTZQAAAABNAAAATQAAAAJCCgAAAQJCCgAABQgARQAAPwABAABAEWCZCgAABQgICAicQAA1ACsxdRI0AQAAAQAAAAAAAAZwb3J0YWwEY29ycAVsb2NhbAAAAQABAPFTZRAnAABuAAAAbgAAAAJCCgAABQJCCgAAAQgARQAAYAABAABAEWB4CAgICAoAAAUANZxAAExCnxI0gYAAAQABAAAAAAZwb3J0YWwEY29ycAVsb2NhbAAAAQABBnBvcnRhbARjb3JwBWxvY2FsAAABAAEAAAAAAAQKAAAKAPFTZSBOAAA2AAAANgAAAAJCCgAAAQJCCgAABQgARQAAKAABAABABmbBCgAABQoAAAq/aQBQAAAD6AAAAABQAiAAuDIAAADxU2UwdQAANgAAADYAAAACQgoAAAUCQgoAAAEIAEUAACgAAQAAQAZmwQoAAAoKAAAFAFC/aQAAE4gAAAPpUBIgAKSZAAAA8VNlQJwAADYAAAA2AAAAAkIKAAABAkIKAAAFCABFAAAoAAEAAEAGZsEKAAAFCgAACr9pAFAAAAPpAAATiVAQIACkmgAAAPFTZVDDAAB+AAAAfgAAAAJCCgAAAQJCCgAABQgARQAAcAABAABABmZ5CgAABQoAAAq/aQBQAAAD6QAAE4lQGCAAJVkAAEdFVCAvbG9naW4gSFRUUC8xLjENCkhvc3Q6IHBvcnRhbC5jb3JwLmxvY2FsDQpVc2VyLUFnZW50OiBjdXJsLzguNS4wDQoNCgDxU2Vg6gAAigAAAIoAAAACQgoAAAUCQgoAAAEIAEUAAHwAAQAAQAZmbQoAAAoKAAAFAFC/aQAAE4kAAAQxUBggABwEAABIVFRQLzEuMSAyMDAgT0sNClNlcnZlcjogbmdpbngvMS4yNC4wDQpDb250ZW50LVR5cGU6IHRleHQvaHRtbA0KDQo8aHRtbD5sb2dpbjwvaHRtbD4A8VNlcBEBADYAAAA2AAAAAkIKAAABAkIKAAAFCABFAAAoAAEAAEAGZsEKAAAFCgAACr9qABUAAAfQAAAAAFACIAC0hAAAAPFTZYA4AQA2AAAANgAAAAJCCgAABQJCCgAAAQgARQAAKAABAABABmbBCgAACgoAAAUAFb9qAAAbWAAAB9FQEiAAmRsAAADxU2WQXwEANgAAADYAAAACQgoAAAECQgoAAAUIAEUAACgAAQAAQAZmwQoAAAUKAAAKv2oAFQAAB9EAABtZUBAgAJkcAAAA8VNloIYBAEoAAABKAAAAAkIKAAAFAkIKAAABCABFAAA8AAEAAEAGZq0KAAAKCgAABQAVv2oAABtZAAAH0VAYIAA88QAAMjIwICh2c0ZUUGQgMy4wLjUpDQoA8VNlsK0BAEQAAABEAAAAAkIKAAABAkIKAAAFCABFAAA2AAEAAEAGZrMKAAAFCgAACr9qABUAAAfRAAAbbVAYIACCkgAAVVNFUiBhbmFseXN0DQoA8VNlwNQBAFgAAABYAAAAAkIKAAAFAkIKAAABCABFAABKAAEAAEAGZp8KAAAKCgAABQAVv2oAABttAAAH31AYIABRrwAAMzMxIFBsZWFzZSBzcGVjaWZ5IHRoZSBwYXNzd29yZC4NCgDxU2XQ+wEARwAAAEcAAAACQgoAAAECQgoAAAUIAEUAADkAAQAAQAZmsAoAAAUKAAAKv2oAFQAAB98AABuFUBggAP15AABQQVNTIFMzY3IzdFBAc3MNCg==",
+      "mode": "644"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "S3cr3tP@ss"
+  },
+  "tools": {
+    "tcpdump": {
+      "help": "tcpdump -r <файл> [фильтр] — чтение/фильтрация pcap (эмуляция: вывод реального tcpdump)",
+      "cases": [
+        {
+          "match": "port\\s+21",
+          "example": "-r capture.pcap -A port 21",
+          "output": "01:13:20.070000 IP 10.0.0.5.49002 > 10.0.0.10.21: Flags [S], seq 2000, win 8192, length 0\nE..(....@.f.\n...\n..\n.j..........P. .....\n01:13:20.080000 IP 10.0.0.10.21 > 10.0.0.5.49002: Flags [S.], seq 7000, ack 2001, win 8192, length 0\nE..(....@.f.\n..\n\n......j...X....P. .....\n01:13:20.090000 IP 10.0.0.5.49002 > 10.0.0.10.21: Flags [.], ack 1, win 8192, length 0\nE..(....@.f.\n...\n..\n.j.........YP. .....\n01:13:20.100000 IP 10.0.0.10.21 > 10.0.0.5.49002: Flags [P.], seq 1:21, ack 1, win 8192, length 20: FTP: 220 (vsFTPd 3.0.5)\nE..<....@.f.\n..\n\n......j...Y....P. .<...220 (vsFTPd 3.0.5)\n\n01:13:20.110000 IP 10.0.0.5.49002 > 10.0.0.10.21: Flags [P.], seq 1:15, ack 21, win 8192, length 14: FTP: USER analyst\nE..6....@.f.\n...\n..\n.j.........mP. .....USER analyst\n\n01:13:20.120000 IP 10.0.0.10.21 > 10.0.0.5.49002: Flags [P.], seq 21:55, ack 15, win 8192, length 34: FTP: 331 Please specify the password.\nE..J....@.f.\n..\n\n......j...m....P. .Q...331 Please specify the password.\n\n01:13:20.130000 IP 10.0.0.5.49002 > 10.0.0.10.21: Flags [P.], seq 15:32, ack 45, win 8192, length 17: FTP: PASS S3cr3tP@ss\nE..9....@.f.\n...\n..\n.j..........P. ..y..PASS S3cr3tP@ss\n\n"
+        },
+        {
+          "match": "port\\s+80",
+          "example": "-r capture.pcap -nn port 80",
+          "output": "01:13:20.020000 IP 10.0.0.5.49001 > 10.0.0.10.80: Flags [S], seq 1000, win 8192, length 0\n01:13:20.030000 IP 10.0.0.10.80 > 10.0.0.5.49001: Flags [S.], seq 5000, ack 1001, win 8192, length 0\n01:13:20.040000 IP 10.0.0.5.49001 > 10.0.0.10.80: Flags [.], ack 1, win 8192, length 0\n01:13:20.050000 IP 10.0.0.5.49001 > 10.0.0.10.80: Flags [P.], seq 1:73, ack 1, win 8192, length 72: HTTP: GET /login HTTP/1.1\n01:13:20.060000 IP 10.0.0.10.80 > 10.0.0.5.49001: Flags [P.], seq 1:85, ack 73, win 8192, length 84: HTTP: HTTP/1.1 200 OK\n"
+        },
+        {
+          "match": "\\-X",
+          "example": "-r capture.pcap -X port 80",
+          "output": "01:13:20.020000 IP 10.0.0.5.49001 > 10.0.0.10.80: Flags [S], seq 1000, win 8192, length 0\n\t0x0000:  4500 0028 0001 0000 4006 66c1 0a00 0005  E..(....@.f.....\n\t0x0010:  0a00 000a bf69 0050 0000 03e8 0000 0000  .....i.P........\n\t0x0020:  5002 2000 b832 0000                      P....2..\n01:13:20.030000 IP 10.0.0.10.80 > 10.0.0.5.49001: Flags [S.], seq 5000, ack 1001, win 8192, length 0\n\t0x0000:  4500 0028 0001 0000 4006 66c1 0a00 000a  E..(....@.f.....\n\t0x0010:  0a00 0005 0050 bf69 0000 1388 0000 03e9  .....P.i........\n\t0x0020:  5012 2000 a499 0000                      P.......\n01:13:20.040000 IP 10.0.0.5.49001 > 10.0.0.10.80: Flags [.], ack 1, win 8192, length 0\n\t0x0000:  4500 0028 0001 0000 4006 66c1 0a00 0005  E..(....@.f.....\n\t0x0010:  0a00 000a bf69 0050 0000 03e9 0000 1389  .....i.P........\n\t0x0020:  5010 2000 a49a 0000                      P.......\n01:13:20.050000 IP 10.0.0.5.49001 > 10.0.0.10.80: Flags [P.], seq 1:73, ack 1, win 8192, length 72: HTTP: GET /login HTTP/1.1\n\t0x0000:  4500 0070 0001 0000 4006 6679 0a00 0005  E..p....@.fy....\n\t0x0010:  0a00 000a bf69 0050 0000 03e9 0000 1389  .....i.P........\n\t0x0020:  5018 2000 2559 0000 4745 5420 2f6c 6f67  P...%Y..GET./log\n\t0x0030:  696e 2048 5454 502f 312e 310d 0a48 6f73  in.HTTP/1.1..Hos\n\t0x0040:  743a 2070 6f72 7461 6c2e 636f 7270 2e6c  t:.portal.corp.l\n\t0x0050:  6f63 616c 0d0a 5573 6572 2d41 6765 6e74  ocal..User-Agent\n\t0x0060:  3a20 6375 726c 2f38 2e35 2e30 0d0a 0d0a  :.curl/8.5.0....\n01:13:20.060000 IP 10.0.0.10.80 > 10.0.0.5.49001: Flags [P.], seq 1:85, ack 73, win 8192, length 84: HTTP: HTTP/1.1 200 OK\n\t0x0000:  4500 007c 0001 0000 4006 666d 0a00 000a  E..|....@.fm....\n\t0x0010:  0a00 0005 0050 bf69 0000 1389 0000 0431  .....P.i.......1\n\t0x0020:  5018 2000 1c04 0000 4854 5450 2f31 2e31  P.......HTTP/1.1\n\t0x0030:  2032 3030 204f 4b0d 0a53 6572 7665 723a  .200.OK..Server:\n\t0x0040:  206e 6769 6e78 2f31 2e32 342e 300d 0a43  .nginx/1.24.0..C\n\t0x0050:  6f6e 7465 6e74 2d54 7970 653a 2074 6578  ontent-Type:.tex\n\t0x0060:  742f 6874 6d6c 0d0a 0d0a 3c68 746d 6c3e  t/html....<html>\n\t0x0070:  6c6f 6769 6e3c 2f68 746d 6c3e            login</html>\n"
+        },
+        {
+          "match": "\\-r\\s+capture",
+          "example": "-r capture.pcap -nn",
+          "output": "01:13:20.000000 IP 10.0.0.5.40000 > 8.8.8.8.53: 4660+ A? portal.corp.local. (35)\n01:13:20.010000 IP 8.8.8.8.53 > 10.0.0.5.40000: 4660 1/0/0 A 10.0.0.10 (68)\n01:13:20.020000 IP 10.0.0.5.49001 > 10.0.0.10.80: Flags [S], seq 1000, win 8192, length 0\n01:13:20.030000 IP 10.0.0.10.80 > 10.0.0.5.49001: Flags [S.], seq 5000, ack 1001, win 8192, length 0\n01:13:20.040000 IP 10.0.0.5.49001 > 10.0.0.10.80: Flags [.], ack 1, win 8192, length 0\n01:13:20.050000 IP 10.0.0.5.49001 > 10.0.0.10.80: Flags [P.], seq 1:73, ack 1, win 8192, length 72: HTTP: GET /login HTTP/1.1\n01:13:20.060000 IP 10.0.0.10.80 > 10.0.0.5.49001: Flags [P.], seq 1:85, ack 73, win 8192, length 84: HTTP: HTTP/1.1 200 OK\n01:13:20.070000 IP 10.0.0.5.49002 > 10.0.0.10.21: Flags [S], seq 2000, win 8192, length 0\n01:13:20.080000 IP 10.0.0.10.21 > 10.0.0.5.49002: Flags [S.], seq 7000, ack 2001, win 8192, length 0\n01:13:20.090000 IP 10.0.0.5.49002 > 10.0.0.10.21: Flags [.], ack 1, win 8192, length 0\n01:13:20.100000 IP 10.0.0.10.21 > 10.0.0.5.49002: Flags [P.], seq 1:21, ack 1, win 8192, length 20: FTP: 220 (vsFTPd 3.0.5)\n01:13:20.110000 IP 10.0.0.5.49002 > 10.0.0.10.21: Flags [P.], seq 1:15, ack 21, win 8192, length 14: FTP: USER analyst\n01:13:20.120000 IP 10.0.0.10.21 > 10.0.0.5.49002: Flags [P.], seq 21:55, ack 15, win 8192, length 34: FTP: 331 Please specify the password.\n01:13:20.130000 IP 10.0.0.5.49002 > 10.0.0.10.21: Flags [P.], seq 15:32, ack 45, win 8192, length 17: FTP: PASS S3cr3tP@ss\n"
+        }
+      ],
+      "fallback": "01:13:20.000000 IP 10.0.0.5.40000 > 8.8.8.8.53: 4660+ A? portal.corp.local. (35)\n01:13:20.010000 IP 8.8.8.8.53 > 10.0.0.5.40000: 4660 1/0/0 A 10.0.0.10 (68)\n01:13:20.020000 IP 10.0.0.5.49001 > 10.0.0.10.80: Flags [S], seq 1000, win 8192, length 0\n01:13:20.030000 IP 10.0.0.10.80 > 10.0.0.5.49001: Flags [S.], seq 5000, ack 1001, win 8192, length 0\n01:13:20.040000 IP 10.0.0.5.49001 > 10.0.0.10.80: Flags [.], ack 1, win 8192, length 0\n01:13:20.050000 IP 10.0.0.5.49001 > 10.0.0.10.80: Flags [P.], seq 1:73, ack 1, win 8192, length 72: HTTP: GET /login HTTP/1.1\n01:13:20.060000 IP 10.0.0.10.80 > 10.0.0.5.49001: Flags [P.], seq 1:85, ack 73, win 8192, length 84: HTTP: HTTP/1.1 200 OK\n01:13:20.070000 IP 10.0.0.5.49002 > 10.0.0.10.21: Flags [S], seq 2000, win 8192, length 0\n01:13:20.080000 IP 10.0.0.10.21 > 10.0.0.5.49002: Flags [S.], seq 7000, ack 2001, win 8192, length 0\n01:13:20.090000 IP 10.0.0.5.49002 > 10.0.0.10.21: Flags [.], ack 1, win 8192, length 0\n01:13:20.100000 IP 10.0.0.10.21 > 10.0.0.5.49002: Flags [P.], seq 1:21, ack 1, win 8192, length 20: FTP: 220 (vsFTPd 3.0.5)\n01:13:20.110000 IP 10.0.0.5.49002 > 10.0.0.10.21: Flags [P.], seq 1:15, ack 21, win 8192, length 14: FTP: USER analyst\n01:13:20.120000 IP 10.0.0.10.21 > 10.0.0.5.49002: Flags [P.], seq 21:55, ack 15, win 8192, length 34: FTP: 331 Please specify the password.\n01:13:20.130000 IP 10.0.0.5.49002 > 10.0.0.10.21: Flags [P.], seq 15:32, ack 45, win 8192, length 17: FTP: PASS S3cr3tP@ss\n"
+    }
+  }
+}

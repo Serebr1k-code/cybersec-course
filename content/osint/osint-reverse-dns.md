@@ -12,6 +12,17 @@ useful_for:
   - "CTF: поиск хоста по IP"
 estimated_minutes: 45
 summary: "Обратные PTR-записи, реверс-свипы диапазонов, разница между прямой и обратной зоной, практические команды dig -x и dnsx."
+lab:
+  kind: shell
+  title: "Практика: обратный DNS (PTR)"
+  toolset: [core, dig]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'dns.google' answer.txt"
+  hints:
+    - "Ключ `-x` заставляет dig сделать обратный запрос (PTR)."
+    - "Можно добавить `+short`, чтобы получить только имя."
+    - "Для 8.8.8.8 это `dns.google.`"
 ---
 
 ## Вопрос, с которого всё начинается

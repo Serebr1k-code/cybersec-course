@@ -13,6 +13,17 @@ useful_for:
   - "Работа: инвентаризация и мониторинг"
 estimated_minutes: 45
 summary: "Как masscan сканирует миллионы адресов за минуты, чем он отличается от nmap и как сочетать оба инструмента."
+lab:
+  kind: shell
+  title: "Практика: высокоскоростное сканирование naabu"
+  toolset: [core, naabu]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'scanme.nmap.org:21' answer.txt"
+  hints:
+    - "naabu печатает по строке на открытый порт в формате `хост:порт`."
+    - "В выводе три порта. FTP — это порт 21."
+    - "Запиши строку целиком — `scanme.nmap.org:21`."
 ---
 
 ## Вопрос, с которого всё начинается

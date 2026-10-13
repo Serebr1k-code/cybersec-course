@@ -1,0 +1,42 @@
+{
+  "id": "osint-reverse-dns",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: PTR-имя для IP\n\nОбратный DNS (PTR) превращает IP в имя. Проверь публичный резолвер:\n\n    dig +short -x 8.8.8.8\n\nЗапиши **PTR-имя** (оно с точкой на конце) в файл `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "dns.google."
+  },
+  "tools": {
+    "dig": {
+      "help": "dig [-x] <имя> [+short] — DNS-клиент (эмуляция: вывод реального dig)",
+      "cases": [
+        {
+          "match": "8\\.8\\.8\\.8",
+          "example": "+short -x 8.8.8.8",
+          "output": "$ dig +short -x 8.8.8.8\ndns.google.\n$ dig +short -x 140.82.121.3\nlb-140-82-121-3-fra.github.com.\n"
+        },
+        {
+          "match": "140\\.82\\.121\\.3",
+          "example": "+short -x 140.82.121.3",
+          "output": "$ dig +short -x 8.8.8.8\ndns.google.\n$ dig +short -x 140.82.121.3\nlb-140-82-121-3-fra.github.com.\n"
+        },
+        {
+          "match": "\\-x",
+          "example": "+short -x 8.8.8.8",
+          "output": "$ dig +short -x 8.8.8.8\ndns.google.\n$ dig +short -x 140.82.121.3\nlb-140-82-121-3-fra.github.com.\n"
+        }
+      ],
+      "fallback": ";; connection timed out; no servers could be reached\n"
+    }
+  }
+}
