@@ -1,0 +1,23 @@
+{
+ "id": "pwn-methodology-realworld",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "fix=size_t"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: найти исправление в патче (n-day)\n\n`vuln.c` — уязвимая версия, `fixed.c` — версия после патча. Найди, что именно\nисправлено, чтобы понять баг и написать эксплойт.\n\n1. `cat vuln.c` и `cat fixed.c` — сравни.\n2. Обрати внимание на тип переменной размера в `copy_from_user`.\n3. В уязвимой версии размер знаковый (`int`) — это позволяет передать\n   отрицательное значение и обойти проверку длины.\n\nЗапиши в `answer.txt` строку `fix=<новый тип>` и набери `check`.\n"
+  },
+  {
+   "path": "/home/student/task/vuln.c",
+   "text": "/* vuln.c — уязвимая версия (до патча) */\nextern long read(int, void *, unsigned long);\nextern void *memcpy(void *, const void *, unsigned long);\nstatic char dst[64];\nlong copy_from_user(void){\n  int len;                       /* <-- ЗНАКОВЫЙ размер */\n  read(0, &len, 4);\n  memcpy(dst, \"AAAA\", len);\n  return len;\n}\n"
+  },
+  {
+   "path": "/home/student/task/fixed.c",
+   "text": "/* fixed.c — после патча */\nextern long read(int, void *, unsigned long);\nextern void *memcpy(void *, const void *, unsigned long);\nstatic char dst[64];\nlong copy_from_user(void){\n  size_t len;                    /* <-- ИСПРАВЛЕНО: беззнаковый размер */\n  read(0, &len, 4);\n  if (len > sizeof(dst)) return -1;   /* <-- добавлена проверка границ */\n  memcpy(dst, \"AAAA\", len);\n  return len;\n}\n"
+  }
+ ]
+}

@@ -12,6 +12,18 @@ useful_for:
   - "Эксплуатация проприетарных аллокаторов"
 estimated_minutes: 10
 summary: "Третий этап heap-эксплуатации: семейство house-of-* (force, einherjar, lore) и эксплуатация кастомных аллокаторов."
+lab:
+  kind: shell
+  title: "Практика: House of Force — top size = -1"
+  toolset: [core, gdb]
+  workdir: /home/student/task
+  files: [task.md, force.c, force.gdb.txt]
+  check: "grep -q 'top=0xffffffffffffffff' answer.txt"
+  hints:
+    - "House of Force начинается с перезаписи size top-чанка в максимальное значение."
+    - "Тогда следующий `malloc` «отрежет» кусок от top в любом месте адресного пространства."
+    - "`force.c` пишет `0xffffffffffffffff` сразу за первым чанком — в size top-чанка."
+    - "`force.gdb.txt`: строка `0x405020`, второе qword — size top-чанка."
 ---
 Завершающий этап heap-ветви: техники семейства house-of-* и эксплуатация кастомных аллокаторов. Здесь вы комбинируете все примитивы предыдущих модулей в сложные многошаговые эксплойты и учитесь атаковать нестандартные менеджеры памяти, которых нет в glibc.
 

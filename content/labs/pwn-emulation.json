@@ -1,0 +1,24 @@
+{
+ "id": "pwn-emulation",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "eax=0x48"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: значение регистра после эмуляции\n\nКод эмулируется в Unicorn (x86-64). Нужно понять, что окажется в `EAX` после\nвыполнения блоба `blob.bin`.\n\n1. `xxd blob.bin` — байты кода.\n2. `cat emu.log` — реальный лог эмуляции (map/write/emu_start и итог).\n3. Прочитай итоговое значение `EAX`.\n\nЗапиши в `answer.txt` строку `eax=0x<значение>` и набери `check`.\n"
+  },
+  {
+   "path": "/home/student/task/blob.bin",
+   "b64": "uBEAAACDwAdrwAP0",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/emu.log",
+   "text": "# Unicorn x86-64 emulation of blob.bin\n# code: b8 11 00 00 00 83 c0 07 6b c0 03 f4\nmem_map 0x1000000, 0x1000\nmem_write 0x1000000, 12 bytes\nemu_start 0x1000000 -> 0x100000c\nEAX=0x48\n"
+  }
+ ]
+}

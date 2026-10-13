@@ -13,6 +13,18 @@ useful_for:
   - "Vulnerability research"
 estimated_minutes: 12
 summary: "Отдельный этап: house-of-техники для modern glibc — Roman, Corrosion и Water, где классические приёмы уже не работают."
+lab:
+  kind: shell
+  title: "Практика: large bin — bk_nextsize"
+  toolset: [core, gdb]
+  workdir: /home/student/task
+  files: [task.md, largebin.c, largebin.gdb.txt]
+  check: "grep -q 'bk_nextsize=0x405000' answer.txt"
+  hints:
+    - "Large bin — бин для чанков > 0x400; у него есть указатели `fd_nextsize`/`bk_nextsize`."
+    - "`fd`/`bk` указывают в main_arena (libc), а `*_nextsize` — на следующий чанк того же размера."
+    - "`largebin.gdb.txt`: заголовок чанка A по `0x405000`; разложи 4 указателя."
+    - "Порядок: fd, bk, fd_nextsize, bk_nextsize — bk_nextsize это 4-е qword (0x405020)."
 ---
 
 Классические house-of-* (Lore, Force, Einherjar) появились десятилетия назад и частично закрыты проверками glibc. Но куча развивается, и вместе с ней — атаки. House of Roman обходится без утечки libc, House of Corrosion эксплуатирует large bin в glibc 2.27–2.30, House of Water использует `_IO_list_all` и FSOP. Знание этих техник отличает «могу повторить writeup» от «могу решить новую задачу».

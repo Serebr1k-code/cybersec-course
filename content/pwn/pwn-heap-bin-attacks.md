@@ -12,6 +12,18 @@ useful_for:
   - "Разбор CVE в glibc malloc"
 estimated_minutes: 10
 summary: "Второй этап heap-эксплуатации: атаки на bin-метаданные glibc — double-free в fastbin, утечка libc через unsorted bin, largebin и mmap-чанки."
+lab:
+  kind: shell
+  title: "Практика: House of Spirit"
+  toolset: [core, gdb]
+  workdir: /home/student/task
+  files: [task.md, spirit.c, spirit.gdb.txt]
+  check: "grep -q 'fake=0x404050' answer.txt"
+  hints:
+    - "House of Spirit — подсовываем `free()` поддельный чанк с валидным size."
+    - "Нужны корректные `prev_size`/`size` и правдоподобный size у «следующего» чанка."
+    - "После `free(fake)` следующий `malloc` вернёт адрес поддельного чанка."
+    - "`spirit.gdb.txt`: `P` — результат `malloc`, `&fake` — базовый адрес массива."
 ---
 Продолжение heap-эксплуатации: атаки на сами структуры bin-метаданных glibc. Если предыдущий модуль давал примитивы (порча указателя, переполнение), то здесь вы учитесь превращать их в контролируемую запись и перекрытие через механизмы аллокатора.
 

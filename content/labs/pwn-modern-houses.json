@@ -1,0 +1,23 @@
+{
+ "id": "pwn-modern-houses",
+ "hostname": "lab",
+ "workdir": "/home/student/task",
+ "expect": {
+  "file": "/home/student/task/answer.txt",
+  "contains": "bk_nextsize=0x405000"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: указатель bk_nextsize large-бина\n\n`largebin.c` отправляет большой чанк в unsorted bin, затем продвигает его в large\nbin (аллокация `0x438`). Это основа House of Corrosion.\n\n1. `cat largebin.c` — порядок операций.\n2. `cat largebin.gdb.txt` — реальный дамп заголовка чанка A после продвижения.\n3. В заголовке 4 указателя: `fd`, `bk`, `fd_nextsize`, `bk_nextsize`.\n\nЗапиши в `answer.txt` строку `bk_nextsize=0x<значение>` и набери `check`.\n"
+  },
+  {
+   "path": "/home/student/task/largebin.c",
+   "text": "extern void *malloc(unsigned long);\nextern void free(void*);\nvoid *A; void *B;\nvoid trigger(void){}\nint main(void){\n  A = malloc(0x428);\n  B = malloc(0x18);\n  (void)B;\n  free(A);\n  void *C = malloc(0x438);\n  (void)C;\n  trigger();\n  return 0;\n}\n"
+  },
+  {
+   "path": "/home/student/task/largebin.gdb.txt",
+   "text": "Breakpoint 1 at 0x40113a: file largebin.c, line 4.\n\nThis GDB supports auto-downloading debuginfo from the following URLs:\n  <https://debuginfod.archlinux.org>\nEnable debuginfod for this session? (y or [n]) [answered N; input not from terminal]\nDebuginfod has been disabled.\nTo make this setting permanent, add 'set debuginfod enabled off' to .gdbinit.\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/usr/lib/libthread_db.so.1\".\n\nBreakpoint 1, trigger () at largebin.c:4\n4\tvoid trigger(void){}\n$1 = 0x405010\n0x405000:\t0x0000000000000000\t0x0000000000000431\n0x405010:\t0x00007ffff7f7ceb8\t0x00007ffff7f7ceb8\n0x405020:\t0x0000000000405000\t0x0000000000405000\n0x405030:\t0x0000000000000000\t0x0000000000000000\n"
+  }
+ ]
+}
