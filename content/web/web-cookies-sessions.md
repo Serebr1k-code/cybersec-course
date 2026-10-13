@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как устроены cookie и серверные сессии, чем опасны слабые атрибуты и как эксплуатировать фиксацию сессии."
+lab:
+  kind: shell
+  title: 'Практика: фиксация сессии'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Загляни в `Set-Cookie` при входе: сервер НЕ меняет идентификатор сессии после логина.'
+    - 'Атакующий знает заранее выданный `session=attacker_fixed_id` — он не сгорает при логине жертвы.'
+    - 'Войди с заранее известной cookie: `curl -s -i -b ''session=attacker_fixed_id'' -X POST https://shop.local/login -d ''username=admin&password=admin''`.'
+    - 'Затем прочитай аккаунт этой cookie: `curl -s -b ''session=attacker_fixed_id'' https://shop.local/account | tail -1 > found.txt`, затем `check`.'
 ---
 
 В прошлом уроке мы видели: HTTP — протокол без состояния, сервер не помнит предыдущие запросы. Но после логина сайт всё-таки узнаёт тебя на каждой странице. Как? За это отвечают **cookie** и **сессии**. Почти любая уязвимость авторизации начинается именно здесь.

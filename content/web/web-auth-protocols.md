@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Средний уровень: продвинутый JWT, refresh-токены и OAuth/OIDC/SAML."
+lab:
+  kind: shell
+  title: 'Практика: replay refresh-токена после logout'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, tokens.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'В `tokens.txt` — выданные `access_token` и `refresh_token`.'
+    - 'Выйди из аккаунта: `curl -s https://shop.local/api/logout -H "Authorization: Bearer <access>"`.'
+    - 'Сервер не инвалидирует refresh-токен при logout и не ротирует его.'
+    - 'Обменяй старый refresh на новый access: `curl -s -d ''grant_type=refresh_token&refresh_token=rt_9f2a11c0'' https://shop.local/api/token | tail -1 > found.txt`, затем `check`.'
 ---
 
 ## Задача

