@@ -13,6 +13,18 @@ useful_for:
   - "Аудит: анализ управляемого кода"
 estimated_minutes: 55
 summary: ".NET деобфускация: структура сборок, dnSpy/ILSpy, de4dot, популярные обфускаторы, разбор IL, динамический анализ и практические приёмы восстановления кода."
+lab:
+  kind: shell
+  title: 'Практика: разобрать .NET-сборку по IL'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, Check.exe]
+  check: "grep -q 'nto{d0tn3t_m3t4d4t4_surv1v3s}' found.txt"
+  hints:
+    - '`file Check.exe` — PE32, но внутри `Mono/.Net assembly` (есть CLR-заголовок).'
+    - '`monodis Check.exe` — IL managed-кода; ищи метод `Verify(int32)` и `Main`.'
+    - 'Логика `Verify`: `ldarg.0` / `ldc.i4 4919` / `bne.un` → `x == 4919`.'
+    - 'Флаг — строковая константа `ldstr \"...\"`: `monodis Check.exe | grep nto > found.txt`, затем `check`.'
 ---
 ## Вопрос, с которого всё начинается
 

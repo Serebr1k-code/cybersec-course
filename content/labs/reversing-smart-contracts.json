@@ -1,0 +1,44 @@
+{
+ "id": "reversing-smart-contracts",
+ "workdir": "/home/student/task",
+ "hostname": "lab",
+ "expect": {
+  "file": "/home/student/task/found.txt",
+  "contains": "nto{evm_0pc0d3_d1s4ss3mbly}"
+ },
+ "fs": [
+  {
+   "path": "/home/student/task",
+   "type": "dir"
+  },
+  {
+   "path": "/home/student/task/task.md",
+   "text": "# Задача: дизассемблировать EVM-байткод\n\n`contract.bin` — runtime-байткод смарт-контракта Ethereum (EVM), без исходников.\n\n1. `xxd contract.bin` — сырые байты; `cat contract.hex` — тот же байткод в hex.\n2. `python3 evmdis.py contract.bin` — дизассемблер EVM (по таблице опкодов).\n3. Разбери поток: `PUSH32 <данные>`, `PUSH1 0x00`, `MSTORE`, `PUSH1 0x20`, `PUSH1 0x00`, `RETURN` — контракт возвращает 32 байта, положенные в память.\n4. Данные `PUSH32` содержат ASCII-флаг. `strings contract.bin | grep nto > found.txt`, затем `check`.\n"
+  },
+  {
+   "path": "/home/student/task/contract.bin",
+   "b64": "f250b3tldm1fMHBjMGQzX2QxczRzczNtYmx5fQAAAAAAYABSYCBgAPM=",
+   "mode": "644"
+  },
+  {
+   "path": "/home/student/task/contract.hex",
+   "text": "7f6e746f7b65766d5f3070633064335f643173347373336d626c797d000000000060005260206000f3\n"
+  },
+  {
+   "path": "/home/student/task/evmdis.py",
+   "text": "#!/usr/bin/env python3\n# Minimal EVM disassembler: reads a file of raw bytes (or hex text) and prints opcodes.\nimport sys\nNAMES = {0x00:'STOP',0x01:'ADD',0x02:'MUL',0x03:'SUB',0x10:'LT',0x14:'EQ',0x15:'ISZERO',\n 0x1c:'SHR',0x35:'CALLDATALOAD',0x36:'CALLDATASIZE',0x37:'CALLDATACOPY',0x50:'POP',\n 0x51:'MLOAD',0x52:'MSTORE',0x53:'MSTORE8',0x54:'SLOAD',0x55:'SSTORE',0x56:'JUMP',\n 0x57:'JUMPI',0x5b:'JUMPDEST',0xf3:'RETURN',0xfd:'REVERT',0xa0:'LOG0',0xa1:'LOG1',\n 0xa2:'LOG2',0xa4:'LOG4',0xf1:'CALL',0xf4:'DELEGATECALL',0xfa:'STATICCALL'}\nraw = open(sys.argv[1],'rb').read()\n# allow hex-text input\ntry:\n    t = raw.decode('ascii').strip()\n    if t and all(c in '0123456789abcdefABCDEF' for c in t) and len(t)%2==0:\n        raw = bytes.fromhex(t)\nexcept Exception:\n    pass\ni = 0\nwhile i < len(raw):\n    op = raw[i]\n    if 0x60 <= op <= 0x7f:\n        n = op - 0x5f\n        imm = raw[i+1:i+1+n]\n        print('%04x: PUSH%d      0x%s' % (i, n, imm.hex()))\n        i += 1 + n\n    else:\n        print('%04x: %s' % (i, NAMES.get(op, 'UNKNOWN_0x%02x' % op)))\n        i += 1\n"
+  }
+ ],
+ "tools": {
+  "python3": {
+   "help": "python3 evmdis.py <файл>",
+   "cases": [
+    {
+     "match": "evmdis",
+     "example": "python3 evmdis.py contract.bin",
+     "output": "0000: PUSH32      0x6e746f7b65766d5f3070633064335f643173347373336d626c797d0000000000\n0021: PUSH1      0x00\n0023: MSTORE\n0024: PUSH1      0x20\n0026: PUSH1      0x00\n0028: RETURN\n"
+    }
+   ]
+  }
+ }
+}

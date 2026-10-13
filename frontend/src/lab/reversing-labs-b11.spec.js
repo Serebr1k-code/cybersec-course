@@ -11,6 +11,9 @@ const LABS = {
   'reversing-java-advanced': { flag: 'nto{0bfusc4t3d_n4m3s_n0t_s3cur3}', steps: ['javap -c -p Obf | grep nto > found.txt'] },
   'reversing-aot-native': { flag: 'nto{aot_n4t1v3_managed_sym6ols}', steps: ['file Check.exe.so', 'nm Check.exe.so | grep Check', 'readelf --file-header Check.exe.so', 'strings Check.exe.so | grep nto > found.txt'] },
   'reversing-android-native': { flag: 'nto{jni_n4m3_m4pp1ng_arm64}', steps: ['readelf --file-header libnative.so', 'nm -D libnative.so | grep Java', 'strings libnative.so | grep nto > found.txt'] },
+  'reversing-dotnet-advanced': { flag: 'nto{1l_p4tch_bne_un_byp4ss}', steps: ['file Obf.exe', 'monodis Obf.exe | grep nto > found.txt'] },
+  'reversing-dotnet-deobfuscation': { flag: 'nto{d0tn3t_m3t4d4t4_surv1v3s}', steps: ['monodis Check.exe | grep nto > found.txt'] },
+  'reversing-smart-contracts': { flag: 'nto{evm_0pc0d3_d1s4ss3mbly}', steps: ['xxd contract.bin', 'python3 evmdis.py contract.bin', 'strings contract.bin | grep nto > found.txt'] },
 }
 
 describe('reversing batch B11 end-to-end', () => {

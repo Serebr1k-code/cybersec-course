@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty / аудит .NET-приложений"
 estimated_minutes: 65
 summary: "Разбор обфусцированных .NET-сборок: ConfuserEx, de4dot, чтение и патч IL, пересборка — на реальной IL-сборке."
+lab:
+  kind: shell
+  title: 'Практика: IL-патчинг .NET-сборки'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, Obf.exe]
+  check: "grep -q 'nto{1l_p4tch_bne_un_byp4ss}' found.txt"
+  hints:
+    - '`file Obf.exe` — это PE32 с `Mono/.Net assembly` внутри.'
+    - '`monodis Obf.exe` — дизассемблирует IL (managed-метаданные на месте).'
+    - 'Метод `a(int)` сравнивает аргумент с `ldc.i4 4919` (`0x1337`) и делает `bne.un` — чтобы «пропатчить», он должен вернуть 1.'
+    - 'В `Main` есть `ldstr \"...\"` — флаг: `monodis Obf.exe | grep nto > found.txt`, затем `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

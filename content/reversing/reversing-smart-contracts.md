@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty: поиск уязвимостей контрактов"
 estimated_minutes: 55
 summary: "Реверс смарт-контрактов Ethereum: байткод EVM, дизассемблирование и декомпиляция, анализ storage, типовые уязвимости (reentrancy, overflow), практический разбор и инструменты."
+lab:
+  kind: shell
+  title: 'Практика: дизассемблировать EVM-байткод'
+  toolset: [core, hex, rev]
+  workdir: /home/student/task
+  files: [task.md, contract.bin, contract.hex, evmdis.py]
+  check: "grep -q 'nto{evm_0pc0d3_d1s4ss3mbly}' found.txt"
+  hints:
+    - '`xxd contract.bin` — сырые байты контракта; `cat contract.hex` — тот же код в hex.'
+    - '`python3 evmdis.py contract.bin` — разбор опкодов EVM по смещениям.'
+    - 'Читай поток: `PUSH32 <данные>` → `PUSH1 0x00` → `MSTORE` → `PUSH1 0x20`/`PUSH1 0x00` → `RETURN` (возврат 32 байт).'
+    - 'Данные `PUSH32` — ASCII-флаг: `strings contract.bin | grep nto > found.txt`, затем `check`.'
 ---
 ## Вопрос, с которого всё начинается
 
