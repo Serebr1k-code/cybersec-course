@@ -12,6 +12,18 @@ useful_for:
   - "Журналистика и верификация"
 estimated_minutes: 45
 summary: "Как работает ADS-B, сервисы FlightRadar24/ADSBexchange, идентификация борта по hex/регистрации, трекинг частной авиации и этические границы."
+lab:
+  kind: shell
+  title: "Практика: от точки на карте до владельца"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Живая телеметрия: `curl -s \"https://api.adsb.lol/v2/hex/a1b2c3\"` — найди регистрацию в поле `flight`."
+    - "История полётов: `curl -s \"https://opensky-network.org/api/flights/aircraft?icao24=a1b2c3&begin=1700000000&end=1700086400\"`."
+    - "По регистрации `N550GD` иди в реестр FAA: `curl -s \"https://registry.faa.gov/aircraftinquiry/Search/NNumberResult?nNumberTxt=N550GD\"`."
+    - "Поле `Name` в ответе реестра — это `nto{...}`. Запиши в `answer.txt` и набери `check`."
 ---
 
 ## Вопрос, с которого всё начинается

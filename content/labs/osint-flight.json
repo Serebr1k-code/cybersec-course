@@ -1,0 +1,39 @@
+{
+  "id": "osint-flight",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{faa_r3g1stry_0wn3r_sh3ll}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: от точки на карте до владельца борта\n\nБорт с ICAO 24-bit hex `a1b2c3`.\n\n1. Живая телеметрия — найди регистрацию в поле `flight`:\n   `curl -s \"https://api.adsb.lol/v2/hex/a1b2c3\"`\n2. История полётов:\n   `curl -s \"https://opensky-network.org/api/flights/aircraft?icao24=a1b2c3&begin=1700000000&end=1700086400\"`\n3. Владелец по регистрации `N550GD` (реестр FAA):\n   `curl -s \"https://registry.faa.gov/aircraftinquiry/Search/NNumberResult?nNumberTxt=N550GD\"`\n4. Владелец — юрлицо (поле `Name`). Это маркер. Запиши строку `nto{...}` в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — adsb.lol / OpenSky / реестр FAA (эмуляция: реальный формат ответа)",
+      "cases": [
+        {
+          "match": "registry\\.faa\\.gov",
+          "example": "registry.faa.gov/.../NNumberResult?nNumberTxt=N550GD",
+          "output": "N-Number Inquiry Results\n\nN550GD\n  Name: nto{faa_r3g1stry_0wn3r_sh3ll}\n  Model: G-IV\n  Serial Number: 1399\n  Aircraft Type: Fixed Wing Multi-Engine\n  Engine Type: Turbofan\n"
+        },
+        {
+          "match": "opensky",
+          "example": "opensky-network.org/api/flights/aircraft?icao24=a1b2c3&...",
+          "output": "[\n  {\"callsign\": \"N550GD\", \"estDepartureAirport\": \"KTEB\", \"estArrivalAirport\": \"KMIA\"},\n  {\"callsign\": \"N550GD\", \"estDepartureAirport\": \"KMIA\", \"estArrivalAirport\": \"KTEB\"}\n]\n"
+        },
+        {
+          "match": "adsb\\.lol",
+          "example": "api.adsb.lol/v2/hex/a1b2c3",
+          "output": "{\n  \"ac\": [\n    {\"hex\": \"a1b2c3\", \"flight\": \"N550GD  \", \"lat\": 40.6413, \"lon\": -73.7781, \"alt_baro\": 1200, \"gs\": 145}\n  ]\n}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны только api.adsb.lol (v2/hex/<hex>), opensky-network.org (flights/aircraft) и registry.faa.gov (NNumberResult).\n"
+    }
+  }
+}

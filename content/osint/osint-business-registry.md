@@ -13,6 +13,18 @@ useful_for:
   - "Расследования"
 estimated_minutes: 45
 summary: "Как исследовать компании по бизнес-реестрам: структура владения, директора, связанные юрлица, офшоры и красные флаги."
+lab:
+  kind: shell
+  title: "Практика: дойти до реального владельца"
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Начни с поиска компании: `curl -s \"https://api.company-information.service.gov.uk/search/companies?q=Example\"` — найди номер `09876543`."
+    - "Офицеры показывают директоров, но владельца даёт PSC: `curl -s \".../company/09876543/persons-with-significant-control\"`."
+    - "Владелец — холдинг `Example Holdings Ltd` (номер `11223344`). Запроси PSC уже для него."
+    - "Имя конечного бенефициара в ответе — это и есть `nto{...}`. Запиши его в `answer.txt` и набери `check`."
 ---
 
 ## Вопрос, с которого всё начинается

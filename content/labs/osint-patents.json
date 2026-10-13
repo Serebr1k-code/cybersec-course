@@ -1,0 +1,40 @@
+{
+  "id": "osint-patents",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{f3d3r4t3d_l34rn1ng_3dg3}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: свежая заявка выдаёт направление R&D\n\nКомпания `Example Inc`. Выгрузи её патенты из PatentsView API и найди самую свежую заявку.\n\n1. Сохрани ответ API в файл:\n   `curl -s \"https://search.patentsview.org/api/v1/patent/?q=Example+Inc\" > patents.json`\n2. Разбери заголовки:\n   `jq -r '.patents[].patent_title' patents.json`\n3. В заголовке свежей заявки (2024) зашито кодовое имя разработки — это маркер.\n4. Запиши строку `nto{...}` в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — PatentsView API (эмуляция: реальный формат ответа)",
+      "cases": [
+        {
+          "match": "search\\.patentsview\\.org",
+          "example": "search.patentsview.org/api/v1/patent/?q=Example+Inc",
+          "output": "{\n  \"patents\": [\n    {\"patent_date\": \"2023-04-11\", \"patent_number\": \"US11600001B2\", \"patent_title\": \"System and method for edge caching\"},\n    {\"patent_date\": \"2023-02-28\", \"patent_number\": \"US11590002B1\", \"patent_title\": \"Distributed key management\"},\n    {\"patent_date\": \"2024-09-17\", \"patent_number\": \"US20240299001A1\", \"patent_title\": \"Method for federated learning on edge devices (codename nto{f3d3r4t3d_l34rn1ng_3dg3})\"}\n  ]\n}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только search.patentsview.org (патенты Example Inc).\n"
+    },
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "patent_title",
+          "example": "jq -r '.patents[].patent_title' patents.json",
+          "output": "System and method for edge caching\nDistributed key management\nMethod for federated learning on edge devices (codename nto{f3d3r4t3d_l34rn1ng_3dg3})\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживается только фильтр '.patents[].patent_title'.\n"
+    }
+  }
+}

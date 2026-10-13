@@ -1,0 +1,44 @@
+{
+  "id": "osint-business-registry",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{b3n3f1c14l_0wn3r_unch41n3d}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: от названия к реальному владельцу\n\nКомпания `Example LLC` (Великобритания). Через API Companies House дойди по цепочке владения до конечного бенефициара.\n\n1. Найди номер компании:\n   `curl -s \"https://api.company-information.service.gov.uk/search/companies?q=Example\"`\n2. Офицеры (директора):\n   `curl -s \"https://api.company-information.service.gov.uk/company/09876543/officers\"`\n3. Реальные владельцы (PSC):\n   `curl -s \"https://api.company-information.service.gov.uk/company/09876543/persons-with-significant-control\"`\n4. Владелец — холдинг `Example Holdings Ltd` с номером `11223344`. Повтори PSC уже для него:\n   `curl -s \"https://api.company-information.service.gov.uk/company/11223344/persons-with-significant-control\"`\n5. Имя конечного бенефициара — это маркер. Запиши строку `nto{...}` в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — API Companies House (эмуляция: реальный формат ответа)",
+      "cases": [
+        {
+          "match": "company/11223344/persons-with-significant-control",
+          "example": "company/11223344/persons-with-significant-control",
+          "output": "{\n  \"items\": [\n    {\n      \"name\": \"nto{b3n3f1c14l_0wn3r_unch41n3d}\",\n      \"natures_of_control\": [\"ownership-of-shares-75-to-100-percent\", \"right-to-appoint-and-remove-directors\"]\n    }\n  ]\n}\n"
+        },
+        {
+          "match": "company/09876543/persons-with-significant-control",
+          "example": "company/09876543/persons-with-significant-control",
+          "output": "{\n  \"items\": [\n    {\n      \"name\": \"Example Holdings Ltd\",\n      \"natures_of_control\": [\"ownership-of-shares-75-to-100-percent\"]\n    }\n  ]\n}\n"
+        },
+        {
+          "match": "company/09876543/officers",
+          "example": "company/09876543/officers",
+          "output": "{\n  \"items\": [\n    {\"name\": \"Ivan Petrov\", \"officer_role\": \"director\"},\n    {\"name\": \"Example Holdings Ltd\", \"officer_role\": \"director\"}\n  ]\n}\n"
+        },
+        {
+          "match": "search/companies\\?q=Example",
+          "example": "search/companies?q=Example",
+          "output": "{\n  \"total_results\": 3,\n  \"items\": [\n    {\"company_number\": \"09876543\", \"title\": \"Example LLC\", \"company_status\": \"active\"},\n    {\"company_number\": \"11223344\", \"title\": \"Example Holdings Ltd\", \"company_status\": \"active\"},\n    {\"company_number\": \"55667788\", \"title\": \"Example Solutions Ltd\", \"company_status\": \"dissolved\"}\n  ]\n}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только API Companies House: search/companies?q=..., company/<номер>/officers, company/<номер>/persons-with-significant-control.\n"
+    }
+  }
+}

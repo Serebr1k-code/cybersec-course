@@ -13,6 +13,18 @@ useful_for:
   - "Конкурентная разведка"
 estimated_minutes: 40
 summary: "Как искать патенты и товарные знаки: авторы-изобретатели, технологии, юрисдикции и связи между компаниями и людьми."
+lab:
+  kind: shell
+  title: "Практика: свежая заявка выдаёт R&D"
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Сохрани ответ API: `curl -s \"https://search.patentsview.org/api/v1/patent/?q=Example+Inc\" > patents.json`."
+    - "Разбери заголовки: `jq -r '.patents[].patent_title' patents.json`."
+    - "Самая свежая заявка датирована 2024 — её заголовок длиннее остальных."
+    - "Кодовое имя в заголовке 2024-й заявки — это `nto{...}`. Запиши в `answer.txt` и набери `check`."
 ---
 
 ## Вопрос, с которого всё начинается

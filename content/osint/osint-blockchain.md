@@ -13,6 +13,18 @@ useful_for:
   - "Bug bounty (web3)"
 estimated_minutes: 40
 summary: "Как читать публичный блокчейн: обозреватели, кластеризация адресов, отслеживание потоков средств, деанонимизация и риски микширования."
+lab:
+  kind: shell
+  title: "Практика: трассировка Bitcoin-адреса"
+  toolset: [core, curl, jq]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' answer.txt"
+  hints:
+    - "Сначала статистика адреса: `curl -s \"https://mempool.space/api/address/bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh\"`."
+    - "Куда ушли деньги: `curl -s \".../address/bc1qxy2.../txs\"` — смотри поле `vout`."
+    - "Адрес-назначение из `vout` проверь в аналитике: `curl -s \"https://api.blockchair.com/bitcoin/dashboards/address/<адрес>\"`."
+    - "Поле `tag` показывает метку биржи (точку KYC) — это `nto{...}`. Запиши в `answer.txt` и набери `check`."
 ---
 
 ## Вопрос, с которого всё начинается

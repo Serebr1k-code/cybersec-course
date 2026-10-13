@@ -1,0 +1,39 @@
+{
+  "id": "osint-blockchain",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{kyc_p01nt_0n_3xch4ng3}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: трассировка Bitcoin-адреса\n\nАдрес из записки о вымогательстве: `bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh` (bech32, сеть Bitcoin).\n\n1. Статистика адреса:\n   `curl -s \"https://mempool.space/api/address/bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh\"`\n2. Исходящие транзакции:\n   `curl -s \"https://mempool.space/api/address/bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh/txs\"`\n3. В поле `vout` найди адрес-назначение:\n   `bc1qdest9k5l0p3rq7v2n8s4m6h1t3w9x0z5c7b2d4e6`\n4. Проверь метку адреса в аналитическом сервисе:\n   `curl -s \"https://api.blockchair.com/bitcoin/dashboards/address/bc1qdest9k5l0p3rq7v2n8s4m6h1t3w9x0z5c7b2d4e6\"`\n5. Метка показывает точку KYC (биржу) — это маркер. Запиши строку `nto{...}` в `answer.txt` и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — mempool.space / blockchair (эмуляция: реальный формат ответа)",
+      "cases": [
+        {
+          "match": "mempool\\.space/api/address/\\S+/txs",
+          "example": "mempool.space/api/address/bc1q.../txs",
+          "output": "[\n  {\n    \"txid\": \"a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90\",\n    \"vout\": [\n      {\"scriptpubkey_address\": \"bc1qmid4m0n3y7p2q5r8s1t4u6v9w0x3y5z7a9b1c3d\"},\n      {\"scriptpubkey_address\": \"bc1qdest9k5l0p3rq7v2n8s4m6h1t3w9x0z5c7b2d4e6\"}\n    ]\n  }\n]\n"
+        },
+        {
+          "match": "blockchair",
+          "example": "api.blockchair.com/bitcoin/dashboards/address/bc1qdest...",
+          "output": "{\n  \"data\": {\n    \"bc1qdest9k5l0p3rq7v2n8s4m6h1t3w9x0z5c7b2d4e6\": {\n      \"address\": {\n        \"address\": \"bc1qdest9k5l0p3rq7v2n8s4m6h1t3w9x0z5c7b2d4e6\",\n        \"type\": \"bech32\",\n        \"tag\": \"Binance hot wallet / KYC point: nto{kyc_p01nt_0n_3xch4ng3}\"\n      },\n      \"transactions\": []\n    }\n  }\n}\n"
+        },
+        {
+          "match": "mempool\\.space/api/address",
+          "example": "mempool.space/api/address/bc1q...",
+          "output": "{\n  \"address\": \"bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh\",\n  \"chain_stats\": {\n    \"funded_txo_sum\": 2500000,\n    \"spent_txo_sum\": 2500000,\n    \"tx_count\": 3\n  }\n}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только mempool.space (address, address/<адрес>/txs) и api.blockchair.com (dashboards/address/<адрес>).\n"
+    }
+  }
+}
