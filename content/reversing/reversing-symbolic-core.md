@@ -12,6 +12,17 @@ useful_for:
   - "Автоматический поиск путей"
 estimated_minutes: 10
 summary: "Первый модуль символьного исполнения: taint-анализ, concolic-исполнение и angr."
+lab:
+  kind: shell
+  title: 'Практика: символическое решение (z3)'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, crackme15]
+  check: 'grep -q ''nto{z3_symb0l1c_s0lv3r_c0r3}'' found.txt'
+  hints:
+    - 'Проверка: `(b*3) ^ 0x11 == target` для каждого байта.'
+    - 'Реши ограничения: `python3 solve.py`.'
+    - 'Затем `crackme15 cQNW]`.'
 ---
 Первый из двух модулей символьного исполнения. Здесь ядро подхода: как отслеживать влияние входов, как комбинировать конкретное и символьное исполнение и как применять angr для автоматического поиска пути.
 

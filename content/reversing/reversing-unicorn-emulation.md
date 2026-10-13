@@ -13,6 +13,17 @@ useful_for:
   - "Automated deobfuscation"
 estimated_minutes: 60
 summary: "Фрагментная и системная эмуляция: Unicorn для функций, Qiling для процессов, распаковка и обход анти-анализа."
+lab:
+  kind: shell
+  title: 'Практика: эмуляция CPU (Unicorn)'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, vm.bin]
+  check: 'grep -q ''nto{un1c0rn_cpu_3mul4t10n}'' found.txt'
+  hints:
+    - 'Стуб XOR-декодирует буфер ключом 0x42.'
+    - 'Эмулятор выполнит код без ОС: `python3 emu.py`.'
+    - 'Расшифрованный буфер содержит флаг.'
 ---
 ## Вопрос, с которого всё начинается
 

@@ -13,6 +13,17 @@ useful_for:
   - "Malware analysis"
 estimated_minutes: 55
 summary: "Запись и обратное исполнение: rr (Linux), WinDbg TTD (Windows), reverse-continue и анализ багов/малвари."
+lab:
+  kind: shell
+  title: 'Практика: восстановление по записям в память'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, tt]
+  check: 'grep -q ''nto{t1m3_tr4v3l_r3v3rs3_d3bug}'' found.txt'
+  hints:
+    - 'Функция `build` пишет байты в `ttbuf` через `movb`.'
+    - 'Остановись после `build` и прочитай буфер.'
+    - '`x/s &ttbuf` покажет собранный флаг.'
 ---
 ## Вопрос, с которого всё начинается
 

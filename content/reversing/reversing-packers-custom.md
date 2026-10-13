@@ -13,6 +13,17 @@ useful_for:
   - "Packer research"
 estimated_minutes: 65
 summary: "Разбор самописных пакеров: стаб, слои шифрования, поиск OEP, дамп и восстановление IAT."
+lab:
+  kind: shell
+  title: 'Практика: XOR-упаковщик со стабом'
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md, crypt.bin, crypt.hex]
+  check: 'grep -q ''nto{cust0m_x0r_p4ck3r_0x5a}'' found.txt'
+  hints:
+    - 'Стаб сообщает ключ: `xxd -l 32 crypt.bin`.'
+    - 'Ключ = 0x5a.'
+    - '`python3 xor.py crypt.hex 0x5a` — раскодирует флаг.'
 ---
 ## Вопрос, с которого всё начинается
 

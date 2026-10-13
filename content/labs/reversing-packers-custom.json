@@ -1,0 +1,40 @@
+{
+  "id": "reversing-packers-custom",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cust0m_x0r_p4ck3r_0x5a}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: самодельный XOR-упаковщик\n\n`crypt.bin` начинается со стаба `NTCRYPT1 KEY=0x5a`, за которым идёт\nXOR-зашифрованный полезный груз. Ключ указан в стабе.\n\n1. `xxd -l 32 crypt.bin` — посмотри стаб и ключ.\n2. Раскодируй `crypt.hex` (hex шифртекста) ключом 0x5a:\n   `python3 xor.py crypt.hex 0x5a`\n\nФлаг из вывода запиши в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/crypt.bin",
+      "b64": "TlRDUllQVDFLRVk9MHg1YQA0LjUhOS8pLmo3BSJqKAUqbjkxaSgFaiJvOydQ",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/crypt.hex",
+      "text": "342e3521392f292e6a3705226a28052a6e39316928056a226f3b2750\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> [аргументы] — эмуляция интерпретатора",
+      "cases": [
+        {
+          "match": "xor\\.py.*0x5a",
+          "example": "python3 xor.py crypt.hex 0x5a",
+          "output": "nto{cust0m_x0r_p4ck3r_0x5a}\n\n"
+        }
+      ]
+    }
+  }
+}

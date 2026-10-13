@@ -1,0 +1,36 @@
+{
+  "id": "reversing-unicorn-emulation",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{un1c0rn_cpu_3mul4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: эмуляция кода через Unicorn\n\n`vm.bin` — байткод, но реальный стуб — это x86-64 код, который XOR-декодирует\nбуфер. Его можно выполнить без реальной ОС, через CPU-эмулятор (Unicorn).\n\n1. `xxd vm.bin` — посмотри байты.\n2. `python3 emu.py` — эмулируй стуб и прочитай расшифрованный буфер.\n\nФлаг из вывода запиши в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/vm.bin",
+      "b64": "igY0QogHSP/GSP/HSP/Jde/D",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — эмуляция интерпретатора",
+      "cases": [
+        {
+          "match": "emu\\.py",
+          "example": "python3 emu.py",
+          "output": "emulated 17 bytes of x86-64 code\ndecoded buffer: nto{un1c0rn_cpu_3mul4t10n}\n\n"
+        }
+      ]
+    }
+  }
+}
