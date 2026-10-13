@@ -1,0 +1,42 @@
+{
+  "id": "web-cors-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c0rs_r3fl3ct3d_0r1g1n_w1th_cr3ds}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: CORS с отражением Origin и credentials\n\nAPI `api.shop.local` должен доверять только `https://shop.local`, но настроен\nнебезопасно.\n\n1. Подставь чужой Origin и посмотри заголовки ответа:\n\n   curl -s -i https://api.shop.local/me -H 'Origin: https://evil.local' -b 'session=victim'\n\n2. Если `access-control-allow-origin` отражает твой origin, а\n   `access-control-allow-credentials: true` — приватные данные можно прочитать\n   из браузера жертвы (`credentials:'include'`).\n\n3. Сохрани ответ в `found.txt` и набери `check`:\n\n   curl -s -i https://api.shop.local/me -H 'Origin: https://evil.local' -b 'session=victim' > found.txt\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция api.shop.local)",
+      "cases": [
+        {
+          "match": "evil|attacker|null",
+          "example": "-i https://api.shop.local/me -H 'Origin: https://evil.local' -b 'session=victim'",
+          "output": "HTTP/1.1 200 OK\nAccess-Control-Allow-Origin: https://evil.local\nAccess-Control-Allow-Credentials: true\nAccess-Control-Allow-Methods: GET\nContent-Type: application/json\n(Vary: Origin отсутствует)\n\n{\"email\":\"victim@shop.local\",\"orders\":[{\"id\":91,\"total\":\"$420\"}],\"api_key\":\"nto{c0rs_r3fl3ct3d_0r1g1n_w1th_cr3ds}\"}\n"
+        },
+        {
+          "match": "-si|--head|\\b-i\\b",
+          "example": "-sI https://api.shop.local/me -H 'Origin: https://evil.local'",
+          "output": "HTTP/1.1 200 OK\nAccess-Control-Allow-Origin: https://evil.local\nAccess-Control-Allow-Credentials: true\nContent-Type: application/json\n"
+        },
+        {
+          "match": "api\\.shop\\.local",
+          "example": "-s https://api.shop.local/me",
+          "output": "HTTP/1.1 200 OK\nContent-Type: application/json\n\n{\"email\":\"victim@shop.local\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется api.shop.local.\n"
+    }
+  }
+}

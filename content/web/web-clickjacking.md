@@ -12,6 +12,19 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 40
 summary: "Как заставить жертву нажать на невидимую кнопку чужого сайта, как проверить защиту и обойти слабую."
+lab:
+  kind: shell
+  title: "Практика: clickjacking на смене email"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'opacity' clickjack.html && grep -q 'nto{' found.txt"
+  hints:
+    - "Проверь защиту от фрейминга: curl -sI https://victim.com/account/email | grep -i frame"
+    - "Ни X-Frame-Options, ни frame-ancestors нет — страницу можно встроить в iframe."
+    - "Собери clickjack.html: прозрачный iframe (opacity:0.0001) с https://victim.com/account/email и приманка-кнопка поверх."
+    - "Сымитируй клик жертвы: curl -s -X POST https://victim.com/account/email -d 'email=attacker@evil.com' -H 'Cookie: session=victim' > found.txt"
+
 ---
 
 ## Вопрос, с которого всё начинается

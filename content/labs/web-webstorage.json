@@ -1,0 +1,28 @@
+{
+  "id": "web-webstorage",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l0c4lst0r4g3_t0k3n_th3ft}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: токен в localStorage\n\nДамп браузерного хранилища SPA `shop.local` лежит в `localstorage_dump.txt`.\n\n1. Посмотри дамп:\n\n   cat localstorage_dump.txt\n\n2. Приложение хранит `access_token` (JWT) прямо в `localStorage` — при XSS его\n   прочитает любой скрипт. Здесь токен уже добыт через XSS-эксфильтрацию.\n\n3. Декодируй payload JWT (вторая часть между точками) и найди флаг:\n\n   cut -d. -f2 access_token.jwt | base64 -d > found.txt\n\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/localstorage_dump.txt",
+      "text": "{\n  \"access_token\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTcwMDAwMDAwMCwiZmxhZyI6Im50b3tsMGM0bHN0MHI0ZzNfdDBrM25fdGgzZnR9In0=.3f9c1a77b2e4d0c5a1b8e6f2d9c3a0b7\",\n  \"refresh_token\": \"8f3a1c9d7b2e5a6c0f4d1e8b3a7c2d9f\",\n  \"cart\": \"[{\\\"sku\\\":\\\"A1\\\",\\\"qty\\\":2}]\"\n}\n"
+    },
+    {
+      "path": "/home/student/task/access_token.jwt",
+      "text": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTcwMDAwMDAwMCwiZmxhZyI6Im50b3tsMGM0bHN0MHI0ZzNfdDBrM25fdGgzZnR9In0=.3f9c1a77b2e4d0c5a1b8e6f2d9c3a0b7\n"
+    }
+  ],
+  "tools": {}
+}

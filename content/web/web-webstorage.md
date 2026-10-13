@@ -12,6 +12,19 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 40
 summary: "Где SPA хранят токены и сессии, чем это опасно при XSS и как читать/анализировать клиентское хранилище."
+lab:
+  kind: shell
+  title: "Практика: токен в localStorage"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, localstorage_dump.txt, access_token.jwt]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Посмотри дамп хранилища: cat localstorage_dump.txt"
+    - "SPA хранит access_token (JWT) прямо в localStorage — при XSS его прочитает любой скрипт."
+    - "JWT состоит из трёх частей через точку: header.payload.signature."
+    - "Декодируй payload: cut -d. -f2 access_token.jwt | base64 -d > found.txt, затем check."
+
 ---
 
 Мы уже знаем: сессия обычно живёт в cookie, и `HttpOnly` защищает её от JavaScript. Но современные одностраничные приложения (SPA) часто хранят токены **не в cookie**, а в браузерном хранилище — `localStorage`. Разработчики считают это безопасным: «токен не отправляется автоматически, значит, CSRF невозможен». Проблема в том, что от XSS это не спасает совсем.

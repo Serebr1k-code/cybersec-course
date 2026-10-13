@@ -12,6 +12,19 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Продвинутые ошибки CORS: доверие null, обход regex-валидации, работа с credentials и доступ к внутренним сетям."
+lab:
+  kind: shell
+  title: "Практика: отражение Origin с credentials"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Подставь чужой Origin: curl -s -i https://api.shop.local/me -H 'Origin: https://evil.local' -b 'session=victim'"
+    - "Смотри на Access-Control-Allow-Origin и Access-Control-Allow-Credentials."
+    - "Если ACAO отражает твой origin, а ACAC: true — данные читаются с cookie жертвы."
+    - "Сохрани ответ: добавь > found.txt и набери check."
+
 ---
 
 ## Вопрос, с которого всё начинается

