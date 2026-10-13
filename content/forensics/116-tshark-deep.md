@@ -13,6 +13,18 @@ useful_for:
   - "Анализ трафика"
 estimated_minutes: 55
 summary: "Глубокий разбор пакетов: фильтры захвата и отображения, статистика (-z), экспорт полей, извлечение объектов и реконструкция потоков через tshark и Wireshark."
+lab:
+  kind: shell
+  title: 'Практика: извлечение кредов из pcap через tshark'
+  toolset: [core, tshark]
+  workdir: /home/student/task
+  files: [task.md, attack.pcap]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Смотри не пакеты, а сессии: `tshark -r attack.pcap -q -z conv,tcp`.'
+    - 'HTTP-фильтр: `-Y ''http.request.method=="POST"''`.'
+    - 'FTP передаёт логин/пароль открытым текстом: фильтр по `ftp.request.command`.'
+    - '`tshark -r attack.pcap -Y ''ftp.request.command=="PASS"'' -T fields -e ftp.request.arg | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

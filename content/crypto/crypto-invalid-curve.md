@@ -12,6 +12,18 @@ useful_for:
   - "Применять малые подгруппы и CRT"
 estimated_minutes: 34
 summary: "Атаки на ECDH: invalid-curve, малые подгруппы, twist, восстановление ключа по остаткам через CRT, критерии уязвимости и обязательная валидация точки, практические скрипты на Sage и распознавание в CTF."
+lab:
+  kind: shell
+  title: 'Практика: invalid-curve через CRT'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, residues.txt, crt.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Каждая точка малого порядка даёт `d mod m_i`.'
+    - 'Модули взаимно просты — примени CRT.'
+    - '`x = Σ r_i · M_i · inverse(M_i, m_i) mod M`, где `M = Π m_i`.'
+    - '`python3 crt.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

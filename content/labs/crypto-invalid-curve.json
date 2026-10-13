@@ -1,0 +1,45 @@
+{
+  "id": "crypto-invalid-curve",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1nv4l1d_curv3_crt_r3c0v3ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: восстановление ключа по остаткам (CRT)\n\nСервер не проверяет принадлежность точки кривой. Атакуя подгруппами разных порядков,\nмы получили остатки `d mod m_i` (`residues.txt`). Собери их через китайскую теорему об\nостатках и восстанови `d`; его байты — флаг.\n"
+    },
+    {
+      "path": "/home/student/task/residues.txt",
+      "text": "15703320604645844957 10710397702167951312\n9643792607515595839 6250566793650405331\n9383621696537266987 8039789702393768115\n17876002204328741579 12803934327036060507\n"
+    },
+    {
+      "path": "/home/student/task/crt.py",
+      "text": "lines = [l.split() for l in open('residues.txt') if l.strip()]\nmods = [int(a) for a, b in lines]\nrems = [int(b) for a, b in lines]\nM = 1\nfor m in mods: M *= m\nx = 0\nfor m, r in zip(mods, rems):\n    Mi = M // m\n    x = (x + r * Mi * pow(Mi, -1, m)) % M\nprint('moduli product bits :', M.bit_length())\nprint('recovered d         :', x)\nb = x.to_bytes((x.bit_length()+7)//8, 'big')\nprint('flag                :', b.decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "crt\\.py",
+          "example": "python3 crt.py",
+          "output": "moduli product bits : 254\nrecovered d         : 195156785229676846602513481891914176877852629513848192308317054143789431165\nflag                : nto{1nv4l1d_curv3_crt_r3c0v3ry}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 crt.py`\n"
+    }
+  }
+}

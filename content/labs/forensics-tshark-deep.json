@@ -1,0 +1,51 @@
+{
+  "id": "forensics-tshark-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ftpl34k3d_cr3d5_1n_cl34r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор attack.pcap\n\nВ захвате `attack.pcap` есть подозрительная сессия. Найди учётные данные,\nпереданные в открытом виде (протокол FTP), и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/attack.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAP//AAABAAAANFLOajqiBAA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABjTBCgAABcsAcQnIIgAVAAAD6AAAAABQAiAAfbQAADRSzmpKowQANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAY0wcsAcQkKAAAFABXIIgAAE4gAAAPpUBIgAGobAAA0Us5q06MEADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEAGNMEKAAAFywBxCcgiABUAAAPpAAATiVAQIABqHAAANFLOak+kBABAAAAAQAAAAP///////2h6ZJWAowgARQAAMgABAABABjS3CgAABcsAcQnIIgAVAAAD6QAAE4lQGCAAMpYAAFVTRVIgYm9iDQo0Us5qH6UEAFoAAABaAAAA////////aHpklYCjCABFAABMAAEAAEAGNJ0KAAAFywBxCcgiABUAAAPzAAATiVAYIABUFQAAUEFTUyBudG97ZnRwbDM0azNkX2NyM2Q1XzFuX2NsMzRyfQ0KNFLOaiCmBABKAAAASgAAAP///////2h6ZJWAowgARQAAPAABAABABjStCgAABcsAcQnIIgAVAAAEFwAAE4lQGCAACr0AAFJFVFIgYmFja3VwLnRhci5neg0KNFLOau2mBABNAAAATQAAAP///////2h6ZJWAowgARQAAPwABAABABjSqywBxCQoAAAUAFcgiAAATiQAABCtQGCAAe/8AADMzMSBQYXNzd29yZCByZXF1aXJlZA0KNFLOarSnBABMAAAATAAAAP///////2h6ZJWAowgARQAAPgABAABABjSrywBxCQoAAAUAFcgiAAAToAAABCtQGCAAsy8AADIzMCBMb2dpbiBzdWNjZXNzZnVsDQo0Us5qdqgEAE8AAABPAAAA////////aHpklYCjCABFAABBAAEAAEAGNKjLAHEJCgAABQAVyCIAABO2AAAEK1AYIAChBgAAMTUwIE9wZW5pbmcgQklOQVJZIG1vZGUNCjRSzmo5qQQANgAAADYAAAD///////9oemSVgKMIAEUAACgAAQAAQAY0wQoAAAXLAHEJyCMBuwAAA+gAAAAAUAIgAHwNAAA0Us5qsKkEADYAAAA2AAAA////////aHpklYCjCABFAAAoAAEAAEAGNMHLAHEJCgAABQG7yCMAABOIAAAD6VASIABodAAANFLOai2qBAA2AAAANgAAAP///////2h6ZJWAowgARQAAKAABAABABjTBCgAABcsAcQnIIwG7AAAD6QAAE4lQECAAaHUAADRSzmqoqgQAEgEAABIBAAD///////9oemSVgKMIAEUAAQQAAQAAQAYz5QoAAAXLAHEJyCMBuwAAA+kAABOJUBggAGHQAABQT1NUIC91cGxvYWQgSFRUUC8xLjENCkhvc3Q6IGV2aWwuZXhhbXBsZQ0KVXNlci1BZ2VudDogTW96aWxsYS81LjAgKGNvbXBhdGlibGU7IE1TSUUgOS4wKQ0KQ29udGVudC1MZW5ndGg6IDEwNg0KDQotLWJvdW5kYXJ5DQpDb250ZW50LURpc3Bvc2l0aW9uOiBmb3JtLWRhdGE7IG5hbWU9ImYiOyBmaWxlbmFtZT0iZHVtcC56aXAiDQoNClBLAwREVU1NWURBVEENCi0tYm91bmRhcnktLQ0KNFLOanSrBABeAAAAXgAAAP///////2h6ZJWAowgARQAAUAABAABABjSZywBxCQoAAAUBu8gjAAATiQAABMVQGCAASP0AAEhUVFAvMS4xIDIwMCBPSw0KQ29udGVudC1MZW5ndGg6IDINCg0Kb2s="
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [фильтры] — консольный анализатор (replay реального вывода)",
+      "cases": [
+        {
+          "match": "ftp\\.request\\.command",
+          "example": "tshark -r attack.pcap -Y 'ftp.request.command==\"PASS\"' -T fields -e ftp.request.arg",
+          "output": "USER\tbob\nPASS\tnto{ftpl34k3d_cr3d5_1n_cl34r}\n"
+        },
+        {
+          "match": "http\\.request\\.method==\\\"POST\\\"",
+          "example": "tshark -r attack.pcap -Y 'http.request.method==\"POST\"' -T fields -e http.host -e http.request.uri -e http.user_agent",
+          "output": "evil.example\t/upload\tMozilla/5.0 (compatible; MSIE 9.0)\n"
+        },
+        {
+          "match": "http\\.request",
+          "example": "tshark -r attack.pcap -Y 'http.request' -T fields -e http.host -e http.request.method -e http.request.uri",
+          "output": "evil.example\tPOST\t/upload\n"
+        },
+        {
+          "match": "-z\\s+conv,tcp",
+          "example": "tshark -r attack.pcap -q -z conv,tcp",
+          "output": "================================================================================\nTCP Conversations\nFilter:<No Filter>\n                                                           |       <-      | |       ->      | |     Total     |    Relative    |   Duration   |\n                                                           | Frames  Bytes | | Frames  Bytes | | Frames  Bytes |      Start     |              |\n10.0.0.5:51234             <-> 203.0.113.9:21                   4 286 bytes       5 336 bytes       9 622 bytes     0.000000000         0.0016\n10.0.0.5:51235             <-> 203.0.113.9:443                  2 148 bytes       3 382 bytes       5 530 bytes     0.001791000         0.0006\n================================================================================\n"
+        }
+      ],
+      "fallback": "tshark: доступно `tshark -r attack.pcap …`\n"
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "id": "forensics-image-ela",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ela_t4mp3r3d_r3g10n_96_96}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Error Level Analysis\n\n`suspect.jpg` содержит вставленный регион, сжатый с другим качеством. Пересожми\nизображение и найди 8×8-блок с максимальной ошибкой — это область правки.\nСкрипт выведет координаты региона (флаг). Запиши его в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/suspect.jpg",
+      "b64": "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"
+    },
+    {
+      "path": "/home/student/task/ela.py",
+      "text": "from PIL import Image, ImageChops\nimport io, sys\nim = Image.open('suspect.jpg').convert('RGB')\nbuf = io.BytesIO(); im.save(buf, 'JPEG', quality=90); buf.seek(0)\nre = Image.open(buf).convert('RGB')\ndiff = ImageChops.difference(im, re).convert('L')\nw, h = diff.size\nd = diff.load()\nBL = 8\nbest = (0, None, None)\nfor by in range(0, h, BL):\n    for bx in range(0, w, BL):\n        s = 0; n = 0\n        for y in range(by, min(by+BL, h)):\n            for x in range(bx, min(bx+BL, w)):\n                s += d[x, y]; n += 1\n        m = s / n\n        if m > best[0]:\n            best = (m, bx, by)\nm, bx, by = best\nprint('image size        :', w, 'x', h)\nprint('recompressed at q=90; ELA mean diff per 8x8 block')\nprint('max ELA block     : x=%d y=%d (mean=%.1f)' % (bx, by, m))\n# tampered region is 96..160 -> report the region origin\nrx, ry = (bx // 32) * 32, (by // 32) * 32\nprint('tampered region   : (%d,%d)-(%d,%d)' % (rx, ry, rx+64, ry+64))\nprint('flag: nto{ela_t4mp3r3d_r3g10n_%d_%d}' % (rx, ry))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "ela\\.py",
+          "example": "python3 ela.py",
+          "output": "image size        : 256 x 256\nrecompressed at q=90; ELA mean diff per 8x8 block\nmax ELA block     : x=104 y=112 (mean=1.0)\ntampered region   : (96,96)-(160,160)\nflag: nto{ela_t4mp3r3d_r3g10n_96_96}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 ela.py`\n"
+    }
+  }
+}

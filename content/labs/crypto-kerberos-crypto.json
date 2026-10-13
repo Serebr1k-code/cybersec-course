@@ -1,0 +1,53 @@
+{
+  "id": "crypto-kerberos-crypto",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{krb5tgs_a3s256_pbkdf2_cr4ck3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Kerberoasting (AES256)\n\nЕсть AES256-ключ сервисной учётки (`hash.txt`) и её salt (`salt.txt`).\nAES-ключ Kerberos = `PBKDF2-HMAC-SHA1(password, salt, 4096, 32)`. Перебери\n`wordlist.txt` и найди пароль — это флаг.\n"
+    },
+    {
+      "path": "/home/student/task/hash.txt",
+      "text": "fb77e6ea9d558da57f4a90b0724b4603cd043970cde0783690eb63c962866886\n"
+    },
+    {
+      "path": "/home/student/task/salt.txt",
+      "text": "CORP.LOCALsvc_sqlMSSQLSvc/sql01.CORP.LOCAL:1433\n"
+    },
+    {
+      "path": "/home/student/task/wordlist.txt",
+      "text": "Password123\nSummer2024!\nWelcome1\nsvc_sql\nP@ssw0rd!\nletmein\nnto{krb5tgs_a3s256_pbkdf2_cr4ck3d}\nadmin123\nqwerty\nMSSQLsvc2023\n"
+    },
+    {
+      "path": "/home/student/task/crack.py",
+      "text": "import hashlib\ntarget = open('hash.txt').read().strip()\nsalt = open('salt.txt').read().strip()\nfor pw in open('wordlist.txt'):\n    pw = pw.strip()\n    if hashlib.pbkdf2_hmac('sha1', pw.encode(), salt.encode(), 4096, 32).hex() == target:\n        print('salt      :', salt)\n        print('password  :', pw)\n        print('flag      :', pw)\n        break\nelse:\n    print('no match')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "crack\\.py",
+          "example": "python3 crack.py",
+          "output": "salt      : CORP.LOCALsvc_sqlMSSQLSvc/sql01.CORP.LOCAL:1433\npassword  : nto{krb5tgs_a3s256_pbkdf2_cr4ck3d}\nflag      : nto{krb5tgs_a3s256_pbkdf2_cr4ck3d}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 crack.py`\n"
+    }
+  }
+}

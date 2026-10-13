@@ -13,6 +13,18 @@ useful_for:
   - "Подбирать Kerberos-тикеты офлайн"
 estimated_minutes: 45
 summary: "Криптография Kerberos: тикеты TGT/TGS, типы шифрования (RC4-HMAC, AES128/256), атаки AS-REP roasting и Kerberoasting, PAC и его подписи, золотой/серебряный тикет, инструменты impacket/hashcat/kerbrute и полный разбор офлайн-подбора."
+lab:
+  kind: shell
+  title: 'Практика: офлайн-подбор AES256-ключа Kerberos'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, hash.txt, salt.txt, wordlist.txt, crack.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'AES-ключ Kerberos выводится через PBKDF2, а не как NT hash.'
+    - 'Итерации = 4096, длина = 32 байта, хэш = SHA-1.'
+    - 'Сравни `PBKDF2-HMAC-SHA1(pw, salt, 4096, 32).hex()` с `hash.txt`.'
+    - '`python3 crack.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

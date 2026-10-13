@@ -1,0 +1,53 @@
+{
+  "id": "crypto-homomorphic",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p41ll13r_m4ll34b1l1ty_v0t3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Paillier malleability\n\nИзбирательная система шифрует голоса схемой Paillier. Наш бюллетень `c0.txt`\nшифрует `0` («нет»). Paillier аддитивно гомоморфна: `E(a)·E(b) = E(a+b)`, причём\n`E(1) = g`. Сформируй шифротекст, расшифровывающийся в `1`, и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/n.txt",
+      "text": "9465012117873251669866770567609735164552119796203021117878138985158440972459180408252776373266248331377362541049473194157541405067500005411625583559455167\n"
+    },
+    {
+      "path": "/home/student/task/g.txt",
+      "text": "9465012117873251669866770567609735164552119796203021117878138985158440972459180408252776373266248331377362541049473194157541405067500005411625583559455168\n"
+    },
+    {
+      "path": "/home/student/task/c0.txt",
+      "text": "62195072388783314753186362271570929203913373274052138153210730130991343737966683306786460747834012416730739502566512649682039587931560878416943327780090326104220932899890270881112084032848819974647867908772510391803444549387812274764108019248038191367435705524293853201657523564756859809259737495874603790795\n"
+    },
+    {
+      "path": "/home/student/task/vote.py",
+      "text": "n = int(open('n.txt').read())\ng = int(open('g.txt').read())\nc0 = int(open('c0.txt').read())\nnn = n*n\n# Paillier is additively homomorphic: E(a)*E(b) = E(a+b).  E(1) = g (r=1).\nc1 = (c0 * g) % nn\nprint('honest ciphertext c0 (vote=0):', str(c0)[:24] + '...')\nprint('forged   ciphertext c1        :', str(c1)[:24] + '...')\n# local server-side verification (server holds the private key)\nlam = 4732506058936625834933385283804867582276059898101510558939069492579220486229492368452666231438386629490379284673877206029223193672191925720888442049876440\nmu = 4594999107790431821073428862094607887333747267358030108279797680999056860623102334230997523501791209248402692376900870817880545265629939944460714985156084\ndef L(u): return (u-1)//n\nm = (L(pow(c1, lam, nn)) * mu) % n\nprint('server decrypts forged ballot to:', m)\nprint('flag: nto{p41ll13r_m4ll34b1l1ty_v0t3}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "vote\\.py",
+          "example": "python3 vote.py",
+          "output": "honest ciphertext c0 (vote=0): 621950723887833147531863...\nforged   ciphertext c1        : 362458348752925369609388...\nserver decrypts forged ballot to: 1\nflag: nto{p41ll13r_m4ll34b1l1ty_v0t3}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 vote.py`\n"
+    }
+  }
+}

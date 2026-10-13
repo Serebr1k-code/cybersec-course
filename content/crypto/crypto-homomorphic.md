@@ -13,6 +13,18 @@ useful_for:
   - "Реализовать Paillier и применять в приватных вычислениях"
 estimated_minutes: 45
 summary: "Гомоморфное шифрование на практике: мультипликативная гомоморфность RSA и ElGamal, аддитивная схема Paillier, их формулы и свойства, атаки через malleability и гомоморфные оракулы, а также применение в приватных вычислениях."
+lab:
+  kind: shell
+  title: 'Практика: гомоморфная подделка бюллетеня (Paillier)'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, n.txt, g.txt, c0.txt, vote.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Paillier аддитивно гомоморфна, а не мультипликативна.'
+    - '`E(0)·E(1) = E(1)`; при `r=1` имеем `E(1) = g`.'
+    - 'Умножь `c0` на `g` по модулю `n^2`.'
+    - '`python3 vote.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

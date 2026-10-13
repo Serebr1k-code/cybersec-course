@@ -13,6 +13,18 @@ useful_for:
   - "Журналистика / судебная экспертиза"
 estimated_minutes: 50
 summary: "Обнаружение подделок изображений: Error Level Analysis (ELA), PRNU (шум сенсора), анализ метаданных и квантования JPEG, геометрии теней и освещения."
+lab:
+  kind: shell
+  title: 'Практика: ELA — поиск изменённого региона'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, suspect.jpg, ela.py]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'ELA = разница между оригиналом и пересжатой копией.'
+    - 'Считай среднюю ошибку по блокам 8×8 и найди максимум.'
+    - 'Область вставки — 64×64, её левый верхний угол и есть ответ.'
+    - '`python3 ela.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается
