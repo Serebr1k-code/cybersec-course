@@ -1,0 +1,42 @@
+{
+  "id": "web-csp-bypass",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{js0np_g4dg3t_byp4ss3s_csp}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: обход CSP через script gadget (JSONP)\n\n`forum.example` ставит CSP с `script-src 'self' https://cdn.jsdelivr.net 'nonce-abc123'`.\nИнлайн-скрипт заблокирован, но домен из `script-src` — это **script gadget**.\n\n1. Сними и разбери политику:\n\n   curl -s -I https://forum.example/ | grep -i content-security-policy\n\n2. На доверенном домене есть JSONP-эндпоинт (`?callback=`), который исполняет\n   переданное имя функции. Его ответ исполняется под доверенным origin.\n\n3. Загрузи ответ JSONP и сохрани в `found.txt`:\n\n   curl -s https://cdn.jsdelivr.net/jsonp?callback=x > found.txt\n\n4. Набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция forum.example)",
+      "cases": [
+        {
+          "match": "jsonp|callback",
+          "example": "-s https://cdn.jsdelivr.net/jsonp?callback=x",
+          "output": "x({\"user\":\"admin\",\"note\":\"trusted-domain script gadget\",\"flag\":\"nto{js0np_g4dg3t_byp4ss3s_csp}\"});\n"
+        },
+        {
+          "match": "-si|--head|\\b-i\\b",
+          "example": "-sI https://forum.example/",
+          "output": "HTTP/1.1 200 OK\nContent-Type: text/html\nContent-Security-Policy: default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'nonce-abc123'; object-src 'none'\n"
+        },
+        {
+          "match": "forum\\.example",
+          "example": "-s https://forum.example/",
+          "output": "<!doctype html><title>forum.example</title>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется forum.example.\n"
+    }
+  }
+}

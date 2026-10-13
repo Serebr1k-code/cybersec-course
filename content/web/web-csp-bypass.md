@@ -12,6 +12,19 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как читать Content-Security-Policy, где он оставляет дыры и как обходить слабые политики до выполнения JS."
+lab:
+  kind: shell
+  title: "Практика: обход CSP через script gadget (JSONP)"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сними политику: curl -s -I https://forum.example/ | grep -i content-security-policy"
+    - "В script-src есть доверенный домен — это потенциальный script gadget."
+    - "На доверенном домене есть JSONP-эндпоинт: ?callback=... исполняет любую функцию."
+    - "Загрузи его ответ: curl -s https://cdn.jsdelivr.net/jsonp?callback=x > found.txt"
+
 ---
 
 ## Вопрос, с которого всё начинается
