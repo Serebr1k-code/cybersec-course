@@ -1,0 +1,31 @@
+{
+  "id": "cloud-oauth-attacks",
+  "workdir": "/home/student/oauth",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/oauth/found.txt",
+    "contains": "nto{0auth_r3d1r3ct_ur1_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/oauth",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/oauth/task.md",
+      "text": "# Задача\n\nДан OAuth-клиент и authorize-запрос. Определи, какая ошибка позволяет увести authorization code на чужой адрес, и собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/oauth/client.json",
+      "text": "{\n  \"client_id\": \"acme-web\",\n  \"redirect_uris\": [\"https://app.acme.com/cb\", \"https://app.acme.com/cb/evil\"],\n  \"pkce\": false\n}\n"
+    },
+    {
+      "path": "/home/student/oauth/authorize-url.txt",
+      "text": "https://idp.acme.com/authorize?response_type=code&client_id=acme-web&redirect_uri=https://app.acme.com/cb/evil&scope=openid+email+offline_access&state=abc123\n"
+    },
+    {
+      "path": "/home/student/oauth/notes.md",
+      "text": "Разбор OAuth:\n\n- в redirect_uris лишний путь /cb/evil\n- PKCE выключен -> перехваченный code можно обменять\n- scope содержит offline_access -> refresh-токен\n- state присутствует, но клиент его не проверяет\n\nОстаток заметки: nto{0auth_r3d1r3ct_ur1_byp4ss}\n"
+    }
+  ]
+}

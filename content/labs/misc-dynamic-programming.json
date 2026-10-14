@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nРеши задачу из `dp.py` и запиши флаг в `found.txt`.\n"
+      "text": "# Задача\n\nРеши задачу из `dp.py` и запиши флаг в `found.txt`.\n\n`dynamic-programming` (knapsack).\n"
     },
     {
       "path": "/home/student/task/dp.py",

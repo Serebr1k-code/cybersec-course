@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: логика доступа\n\nПравила доступа описаны в `rules.txt`. Найди путь к флагу и запиши его\nв `found.txt`.\n"
+      "text": "# Задача: логика доступа\n\nПравила доступа описаны в `rules.txt`. Найди путь к флагу и запиши его\nв `found.txt`.\n\n`web`-`logic`: race condition и rate-limit.\n"
     },
     {
       "path": "/home/student/task/rules.txt",

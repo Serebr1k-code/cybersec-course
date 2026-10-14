@@ -3,8 +3,8 @@
   "workdir": "/home/student/task",
   "hostname": "lab",
   "expect": {
-    "file": "/home/student/task/found.txt",
-    "contains": "nto{fr1d4_d3xdump_p4yl04d}"
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{frida_d3xdump_unp4ck3d}"
   },
   "fs": [
     {
@@ -13,11 +13,13 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nРазбери артефакты в этом каталоге и найди флаг. Запиши его в `found.txt`.\n"
+      "text": "# Задача: найти распакованный класс в дампе DEX\n\n`dexdump_output.txt` — вывод frida-dexdump: список классов, извлечённых из\nпамяти упакованного приложения. Один метод содержит метку.\n\n1. `cat dexdump_output.txt` — просмотри классы.\n2. Найди метод с меткой.\n3. Выпиши строку: `grep nto dexdump_output.txt > answer.txt`.\n",
+      "mode": "644"
     },
     {
-      "path": "/home/student/task/dexdump.log",
-      "text": "[*] Searching for DexClassLoader in memory...\n[*] Found DEX at 0x7f9a0000, size 1480\n[+] Dumped classes.dex\n    class Lcom/vanta/app/Vault;\n      field SECRET = \"nto{fr1d4_d3xdump_p4yl04d}\"\n"
+      "path": "/home/student/task/dexdump_output.txt",
+      "text": "Dumping DEX from memory...\nclass Lcom/example/MainActivity;\nclass Lcom/example/crypto/Hidden;\nmethod Lcom/example/crypto/Hidden;->secret()Ljava/lang/String; => nto{frida_d3xdump_unp4ck3d}\n",
+      "mode": "644"
     }
   ]
 }

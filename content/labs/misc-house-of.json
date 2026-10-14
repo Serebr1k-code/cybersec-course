@@ -9,7 +9,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задание\n\nМетка спрятана в `houses.txt`. Достань её в `found.txt`.\n"
+      "text": "# Задание\n\nМетка спрятана в `houses.txt`. Достань её в `found.txt`.\n\n`house-of` — техника heap-эксплуатации.\n"
     },
     {
       "path": "/home/student/task/houses.txt",

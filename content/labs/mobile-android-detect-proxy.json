@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: разбор детекта прокси\\n\\nНайди проверку прокси.\\n"
+      "text": "# Задача: разбор детекта прокси\\n\\nНайди проверку прокси.\\n\n\nДетект `proxy` (Burp) в коде приложения.\n"
     },
     {
       "path": "/home/student/task/net_checks.txt",

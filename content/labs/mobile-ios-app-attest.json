@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: аудит аттестации\n\nНайди пропущенную проверку.\n"
+      "text": "# Задача: аудит аттестации\n\nНайди пропущенную проверку.\n\nПроверка `appattest`/`attestation`.\n"
     },
     {
       "path": "/home/student/task/attestation_object.txt",

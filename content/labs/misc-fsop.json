@@ -9,7 +9,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задание\n\nМетка спрятана в `io.txt`. Достань её в `found.txt`.\n"
+      "text": "# Задание\n\nМетка спрятана в `io.txt`. Достань её в `found.txt`.\n\nТехника `fsop` через `io_file`.\n"
     },
     {
       "path": "/home/student/task/io.txt",

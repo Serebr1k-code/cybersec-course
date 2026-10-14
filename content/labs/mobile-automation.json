@@ -3,8 +3,8 @@
   "workdir": "/home/student/task",
   "hostname": "lab",
   "expect": {
-    "file": "/home/student/task/found.txt",
-    "contains": "nto{m0bsf_f0und_th3_s3cr3t}"
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{mobsf_h4rdc0d3d_s3cr3t}"
   },
   "fs": [
     {
@@ -13,11 +13,13 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nРазбери артефакты в этом каталоге и найди флаг. Запиши его в `found.txt`.\n"
+      "text": "# Задача: найти критичную находку в отчёте MobSF\n\n`mobsf_report.json` — статический отчёт MobSF по APK: список находок с\nуровнем severity. Одна находка имеет высокий уровень.\n\n1. `cat mobsf_report.json` — просмотри находки.\n2. Найди запись severity=high с меткой.\n3. Выпиши строку: `grep nto mobsf_report.json > answer.txt`.\n",
+      "mode": "644"
     },
     {
       "path": "/home/student/task/mobsf_report.json",
-      "text": "{\n  \"app_name\": \"Vanta\",\n  \"package_name\": \"com.vanta.app\",\n  \"hardcoded_secrets\": [\n    {\"type\": \"Generic API Key\", \"value\": \"AIzaSyDECOY0000000000000000000000000000\"},\n    {\"type\": \"Flag\", \"value\": \"nto{m0bsf_f0und_th3_s3cr3t}\"}\n  ],\n  \"security_score\": 42\n}\n"
+      "text": "{\n  \"app_name\": \"com.example.app\",\n  \"findings\": [\n    {\"severity\": \"info\", \"title\": \"App uses internet permission\"},\n    {\"severity\": \"medium\", \"title\": \"Exported activity\"},\n    {\"severity\": \"high\", \"title\": \"Hardcoded secret\", \"evidence\": \"nto{mobsf_h4rdc0d3d_s3cr3t}\"}\n  ]\n}\n",
+      "mode": "644"
     }
   ]
 }

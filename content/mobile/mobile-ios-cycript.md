@@ -15,15 +15,15 @@ estimated_minutes: 50
 summary: "Runtime-интроспекция iOS через Cycript (объекты, методы, вызовы) и отладку LLDB/debugserver: точки останова, чтение регистров, вызов ObjC-методов."
 lab:
   kind: shell
-  title: 'Практика: runtime-интроспекция (cycript)'
+  title: "Практика: сессия Cycript"
   toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md, cycript_session.log]
-  check: 'grep -q ''nto{'' found.txt'
+  files: [task.md, cycript_session.txt]
+  check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - '`cycript_session.log` — сессия cycript в рантайме iOS-приложения.'
-    - 'Ищи вызовы методов, возвращающих секреты.'
-    - 'В логе есть возвращённое значение с флагом — найди `nto{` и запиши в `found.txt`.'
+    - "Cycript даёт runtime-доступ к Objective-C объектам на устройстве."
+    - "`[UIApplication sharedApplication]` — типовой вход в дерево объектов."
+    - "`grep nto cycript_session.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

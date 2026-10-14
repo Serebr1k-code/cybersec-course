@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Саймон\n\nДаны векторы z. Реши z·s=0 над GF(2), найди s и метку в map.txt.\n"
+      "text": "# Саймон\n\nДаны векторы z. Реши z·s=0 над GF(2), найди s и метку в map.txt.\n\nКвантовый `oracle` (алгоритм Simon).\n"
     },
     {
       "path": "/home/student/task/oracle.txt",

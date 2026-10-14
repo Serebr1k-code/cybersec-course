@@ -9,7 +9,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задание\n\nМетка спрятана в `dl.txt`. Достань её в `found.txt`.\n"
+      "text": "# Задание\n\nМетка спрятана в `dl.txt`. Достань её в `found.txt`.\n\n`ret2dlresolve` через PLT.\n"
     },
     {
       "path": "/home/student/task/dl.txt",

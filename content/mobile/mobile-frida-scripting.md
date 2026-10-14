@@ -15,15 +15,15 @@ estimated_minutes: 30
 summary: "Практический Frida-скриптинг: структура скрипта, перехват аргументов и возвратов, трассировка вызовов, перечисление классов и подготовка скриптов для переиспользования."
 lab:
   kind: shell
-  title: 'Практика: Frida-скриптинг'
+  title: "Практика: лог Frida-хуков"
   toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md, hook.js, frida.log]
-  check: 'grep -q ''nto{'' found.txt'
+  files: [task.md, frida_hooks.log]
+  check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Frida-скрипт хукает метод и печатает аргументы/возврат.'
-    - '`hook.js` — скрипт, `frida.log` — его вывод.'
-    - 'В выводе есть возвращённый секрет — найди `nto{` и запиши в `found.txt`.'
+    - "Frida перехватывает методы на лету (Interceptor.attach)."
+    - "Хук checkPassword печатает аргумент и возврат."
+    - "`grep nto frida_hooks.log > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

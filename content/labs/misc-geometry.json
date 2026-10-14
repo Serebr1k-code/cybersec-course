@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nРеши задачу из `geo.py` и запиши флаг в `found.txt`.\n"
+      "text": "# Задача\n\nРеши задачу из `geo.py` и запиши флаг в `found.txt`.\n\nЗадача на `geometry`: выпуклая оболочка.\n"
     },
     {
       "path": "/home/student/task/geo.py",

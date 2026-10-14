@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: арифметика\n\nВ `problem.txt` — арифметическая задача, ответ кодирует флаг.\nЗапусти `python3 solve.py` и запиши результат в `found.txt`.\n"
+      "text": "# Задача: арифметика\n\nВ `problem.txt` — арифметическая задача, ответ кодирует флаг.\nЗапусти `python3 solve.py` и запиши результат в `found.txt`.\n\nЭто `arithmetic`-задача на больших числах (`bignum`).\n"
     },
     {
       "path": "/home/student/task/problem.txt",

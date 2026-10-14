@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nРеши задачу из `nt.py` и запиши флаг в `found.txt`.\n"
+      "text": "# Задача\n\nРеши задачу из `nt.py` и запиши флаг в `found.txt`.\n\n`number-theory`: modular и gcd.\n"
     },
     {
       "path": "/home/student/task/nt.py",

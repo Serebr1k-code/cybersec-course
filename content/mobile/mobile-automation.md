@@ -15,15 +15,15 @@ estimated_minutes: 30
 summary: "Как автоматизировать мобильный анализ: MobSF (статический и динамический скан), генерация отчётов, интеграция в CI/CD и место автоматизации в методологии."
 lab:
   kind: shell
-  title: 'Практика: разбор отчёта MobSF'
+  title: "Практика: отчёт MobSF"
   toolset: [core, grep]
   workdir: /home/student/task
   files: [task.md, mobsf_report.json]
-  check: 'grep -q ''nto{'' found.txt'
+  check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'MobSF — автоматизированный анализатор мобильных приложений.'
-    - '`mobsf_report.json` — его отчёт; ищи раздел `secrets`/`hardcoded`.'
-    - 'В отчёте есть найденный секрет — найди `nto{` и запиши в `found.txt`.'
+    - "MobSF автоматизирует статический и динамический анализ APK."
+    - "severity=high — самое серьёзное; hardcoded secret — типовой пример."
+    - "`grep nto mobsf_report.json > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

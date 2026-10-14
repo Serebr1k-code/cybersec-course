@@ -14,15 +14,15 @@ estimated_minutes: 45
 summary: "Как извлечь настоящий DEX из памяти процесса, когда на диске лежит только зашифрованный/обфусцированный код: frida-dexdump, DexHunter, поиск magic-заголовков и починка дампа."
 lab:
   kind: shell
-  title: 'Практика: дамп DEX из памяти'
+  title: "Практика: дамп DEX из памяти"
   toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md, dexdump.log]
-  check: 'grep -q ''nto{'' found.txt'
+  files: [task.md, dexdump_output.txt]
+  check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - '`frida-dexdump` сканирует память процесса и выгружает DEX-файлы.'
-    - 'Ищи, какой класс/метод держит секрет.'
-    - 'В логе дампа есть строка с флагом — найди `nto{` и запиши в `found.txt`.'
+    - "Упакованное приложение расшифровывает DEX в памяти при запуске."
+    - "frida-dexdump выгружает этот DEX — видно настоящие классы."
+    - "`grep nto dexdump_output.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

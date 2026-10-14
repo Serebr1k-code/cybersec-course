@@ -3,8 +3,8 @@
   "workdir": "/home/student/task",
   "hostname": "lab",
   "expect": {
-    "file": "/home/student/task/found.txt",
-    "contains": "nto{cycr1pt_runt1m3_l34k}"
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{cycript_runt1m3_1ntr0sp3ct10n}"
   },
   "fs": [
     {
@@ -13,11 +13,13 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nРазбери артефакты в этом каталоге и найди флаг. Запиши его в `found.txt`.\n"
+      "text": "# Задача: интроспекция iOS через Cycript\n\n`cycript_session.txt` — лог сессии Cycript: вызовы Objective-C объектов в\nработающем приложении. Один вызов содержит метку.\n\n1. `cat cycript_session.txt` — просмотри сессию.\n2. Найди строку с меткой.\n3. Выпиши её: `grep nto cycript_session.txt > answer.txt`.\n",
+      "mode": "644"
     },
     {
-      "path": "/home/student/task/cycript_session.log",
-      "text": "cy# var app = [UIApplication sharedApplication]\ncy# var auth = [[NSClassFromString(@\"VantaAuth\") alloc] init]\ncy# [auth apiToken]\n@\"nto{cycr1pt_runt1m3_l34k}\"\ncy# [auth isPremium]\n@YES\n"
+      "path": "/home/student/task/cycript_session.txt",
+      "text": "cy# var app = [UIApplication sharedApplication]\ncy# [app delegate]\n#<AppDelegate: 0x...>\ncy# [[app keyWindow] rootViewController]  nto{cycript_runt1m3_1ntr0sp3ct10n}\n",
+      "mode": "644"
     }
   ]
 }

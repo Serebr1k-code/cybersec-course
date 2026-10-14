@@ -3,8 +3,8 @@
   "workdir": "/home/student/task",
   "hostname": "lab",
   "expect": {
-    "file": "/home/student/task/found.txt",
-    "contains": "nto{fr1d4_h00k_r3turn_v4lu3}"
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{frida_h00k_c4ptur3d}"
   },
   "fs": [
     {
@@ -13,15 +13,13 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nРазбери артефакты в этом каталоге и найди флаг. Запиши его в `found.txt`.\n"
+      "text": "# Задача: найти перехваченный аргумент\n\n`frida_hooks.log` — лог Frida-скрипта: какие методы перехвачены и их\nаргументы/возвраты. Один хук захватил секрет.\n\n1. `cat frida_hooks.log` — просмотри хуки.\n2. Найди строку с меткой.\n3. Выпиши её: `grep nto frida_hooks.log > answer.txt`.\n",
+      "mode": "644"
     },
     {
-      "path": "/home/student/task/hook.js",
-      "text": "Java.perform(function () {\n  var V = Java.use('com.vanta.app.Vault');\n  V.getSecret.implementation = function () {\n    var r = this.getSecret();\n    console.log('[hook] getSecret -> ' + r);\n    return r;\n  };\n});\n"
-    },
-    {
-      "path": "/home/student/task/frida.log",
-      "text": "[*] Spawned com.vanta.app\n[hook] getSecret -> nto{fr1d4_h00k_r3turn_v4lu3}\n"
+      "path": "/home/student/task/frida_hooks.log",
+      "text": "[*] hooking javax.crypto.Cipher.doFinal\n[+] doFinal(in=...) called\n[*] hooking com.example.auth.checkPassword\n[+] checkPassword(arg='s3cr3t') => true  nto{frida_h00k_c4ptur3d}\n",
+      "mode": "644"
     }
   ]
 }

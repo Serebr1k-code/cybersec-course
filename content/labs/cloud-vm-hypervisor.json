@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: собрать метаданные VM\n\n`vm_metadata.txt` — метаданные облачной виртуальной машины: id, образ,\nснимки дисков, консольный лог. В логе спрятана метка.\n\n1. `cat vm_metadata.txt` — просмотри метаданные.\n2. Найди строку console-log с меткой.\n3. Выпиши её: `grep nto vm_metadata.txt > answer.txt`.\n",
+      "text": "# Задача: собрать метаданные VM\n\n`vm_metadata.txt` — метаданные облачной виртуальной машины: id, образ,\nснимки дисков, консольный лог. В логе спрятана метка.\n\n1. `cat vm_metadata.txt` — просмотри метаданные.\n2. Найди строку console-log с меткой.\n3. Выпиши её: `grep nto vm_metadata.txt > answer.txt`.\n\nГипервизор (`hypervisor`) хранит метаданные и снимки VM.\n",
       "mode": "644"
     },
     {

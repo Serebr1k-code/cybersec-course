@@ -1,0 +1,27 @@
+{
+  "id": "cloud-aitm-phishing",
+  "workdir": "/home/student/aitm",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/aitm/found.txt",
+    "contains": "nto{41tm_c00k13_byp4ss3s_mf4}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/aitm",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/aitm/task.md",
+      "text": "# Задача\n\nДан лог AiTM-фреймворка. Определи, какой токен позволяет обойти MFA, и собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/aitm/aitm.log",
+      "text": "[+] Phishlet: microsoft\n[+] Credentials: alice@acme.com / <password>\n[+] MFA: approved by victim\n[+] Tokens captured:\n    ESTSAUTH=...; ESTSAUTHPERSISTENT=...\n[+] Session: valid until 2024-12-31\n"
+    },
+    {
+      "path": "/home/student/aitm/notes.md",
+      "text": "Разбор AiTM:\n\n- фишлет microsoft, проксирование страницы входа\n- MFA прошла жертва через прокси\n- захвачены cookie ESTSAUTH / ESTSAUTHPERSISTENT\n- cookie импортируются в браузер -> вход без пароля и MFA\n- device-bound токенов нет\n\nОстаток заметки: nto{41tm_c00k13_byp4ss3s_mf4}\n"
+    }
+  ]
+}
