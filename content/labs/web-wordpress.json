@@ -1,0 +1,23 @@
+{
+  "id": "web-wordpress",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{w0rdpr3ss_r3st_us3r_3num}" },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    { "path": "/home/student/task/task.md", "text": "# Практика: перечисление пользователей WordPress через REST\n\nТебе дали сохранённый ответ REST-эндпоинта `/wp-json/wp/v2/users` от блога\n`blog.target.example`. В нём есть все авторы, включая администратора.\n\n1. Посмотри файл:\n\n   cat wp-json-users.json\n\n2. У REST-ответа поле `description` у администратора содержит заметку с флагом.\n   Найди строку с `role=administrator` (или слагом `admin`).\n\n3. Вытащи флаг (формат `nto{...}`) и сохрани его в `found.txt`:\n\n   grep -o 'nto{[^}]*}' wp-json-users.json > found.txt\n\n4. Набери `check`.\n" },
+    { "path": "/home/student/task/wp-json-users.json", "text": "[\n  {\"id\":1,\"name\":\"admin\",\"slug\":\"admin\",\"role\":\"administrator\",\"description\":\"Founder — internal note: nto{w0rdpr3ss_r3st_us3r_3num}\"},\n  {\"id\":2,\"name\":\"editor\",\"slug\":\"editor\",\"role\":\"editor\",\"description\":\"\"},\n  {\"id\":3,\"name\":\"subscriber\",\"slug\":\"sub\",\"role\":\"subscriber\",\"description\":\"\"}\n]\n" }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция блога blog.target.example)",
+      "cases": [
+        { "match": "wp-json/wp/v2/users", "example": "-s 'https://blog.target.example/wp-json/wp/v2/users'", "output": "[\n  {\"id\":1,\"name\":\"admin\",\"slug\":\"admin\",\"role\":\"administrator\",\"description\":\"Founder — internal note: nto{w0rdpr3ss_r3st_us3r_3num}\"},\n  {\"id\":2,\"name\":\"editor\",\"slug\":\"editor\",\"role\":\"editor\",\"description\":\"\"},\n  {\"id\":3,\"name\":\"subscriber\",\"slug\":\"sub\",\"role\":\"subscriber\",\"description\":\"\"}\n]\n" },
+        { "match": "wp-json/?$|wp-json/$", "example": "-s 'https://blog.target.example/wp-json/'", "output": "{\"name\":\"Target Blog\",\"description\":\"Just another WordPress site\",\"url\":\"https://blog.target.example\"}\n" },
+        { "match": "xmlrpc\\.php", "example": "-sI 'https://blog.target.example/xmlrpc.php'", "output": "HTTP/2 405\nallow: POST\n" },
+        { "match": "blog\\.target\\.example", "example": "-s https://blog.target.example/", "output": "<!doctype html><title>Target Blog</title>\n" }
+      ],
+      "fallback": "curl: в этой лабе эмулируется блог blog.target.example.\n"
+    }
+  }
+}
