@@ -1,0 +1,24 @@
+{
+  "id": "pwn-tcmalloc",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "objs_per_span=64"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: сколько объектов в span'е tcmalloc\n\n`span.txt` — метаданные span'а tcmalloc. Span нарезан на объекты одного размера.\n\n1. `cat span.txt`.\n2. Посчитай число объектов: `pages * page_size / object_size` (деление нацело).\n3. Запиши `objs_per_span=<число>` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/span.txt",
+      "text": "span: pages=1 page_size=8192 object_size=128 state=IN_USE\ncentral_freelist: length=0\n"
+    }
+  ],
+  "tools": {}
+}

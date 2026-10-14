@@ -1,0 +1,24 @@
+{
+  "id": "pwn-jemalloc",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "allocator=jemalloc"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: определить аллокатор по символам\n\n`nm.txt` — список символов из библиотеки процесса. По характерным именам можно\nпонять, какой аллокатор слинкован (glibc, jemalloc, tcmalloc, mimalloc).\n\n1. `grep -E 'je_|arena_|tc_' nm.txt`.\n2. Определи аллокатор.\n3. Запиши `allocator=<jemalloc|tcmalloc|mimalloc|glibc>` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/nm.txt",
+      "text": "0000000000012340 T je_malloc\n0000000000012400 T je_free\n0000000000012480 T je_calloc\n0000000000012500 T arena_new\n0000000000012560 T arena_boot\n0000000000012600 T je_arena_tcache_fill_small\n0000000000012700 T malloc_init_hard\n"
+    }
+  ],
+  "tools": {}
+}

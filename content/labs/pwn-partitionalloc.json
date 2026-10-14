@@ -1,0 +1,24 @@
+{
+  "id": "pwn-partitionalloc",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "uaf_mitigation=MiraclePtr"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: защита от use-after-free в PartitionAlloc\n\n`features.txt` — список механизмов аллокатора Chrome (PartitionAlloc). Нужно\nнайти механизм защиты **указателей** от use-after-free.\n\n1. `cat features.txt`.\n2. Найди строку с названием этой защиты (одно имя).\n3. Запиши `uaf_mitigation=<имя>` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/features.txt",
+      "text": "- partitions by allocation purpose\n- buckets (size classes) with slot spans\n- encoded freelist entries\n- MiraclePtr (BackupRefPtr) for UAF mitigation\n- PartitionAlloc-Everywhere\n"
+    }
+  ],
+  "tools": {}
+}

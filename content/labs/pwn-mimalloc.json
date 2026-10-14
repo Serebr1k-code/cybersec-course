@@ -1,0 +1,24 @@
+{
+  "id": "pwn-mimalloc",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "page_size=0x10000"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: размер страницы mimalloc\n\n`segment.txt` — метаданные сегмента mimalloc. Внутри сегмента память нарезана\nна страницы фиксированного размера.\n\n1. `cat segment.txt`.\n2. Найди поле `page_size` и запиши его значение.\n3. Запиши `page_size=0x....` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/segment.txt",
+      "text": "segment: base=0x7f0000000000 size=0x4000000\n  page_size=0x10000  pages=1024\n  page[0]: state=usable block_size=0x30 free=0\n  page[1]: state=free   block_size=0x30 free=0\n"
+    }
+  ],
+  "tools": {}
+}
