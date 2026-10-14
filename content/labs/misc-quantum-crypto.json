@@ -1,0 +1,27 @@
+{
+  "id": "misc-quantum-crypto",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b3ll_st4t3_4mpl1tud3s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Вероятности\n\nВ `state.txt` — 4 амплитуды. `labels.txt` сопоставляет индекс и строку. Найди индекс с максимальной вероятностью и выпиши его метку в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/state.txt",
+      "text": "00 0.70710678+0j\n01 0.0+0j\n10 0.0+0j\n11 0.70710678+0j\n"
+    },
+    {
+      "path": "/home/student/task/labels.txt",
+      "text": "00 wrong-branch-A\n01 decoy-branch-B\n10 decoy-branch-C\n11 nto{b3ll_st4t3_4mpl1tud3s}\n"
+    }
+  ]
+}

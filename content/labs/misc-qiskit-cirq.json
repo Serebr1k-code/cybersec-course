@@ -1,0 +1,27 @@
+{
+  "id": "misc-qiskit-cirq",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{q1sk1t_un1f0rm_sup3rp0s1t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Qiskit\n\nЦель: равномерное распределение по 00,01,10,11. Построй схему и найди подтверждение в expected.txt.\n"
+    },
+    {
+      "path": "/home/student/task/target.txt",
+      "text": "{'00':0.25,'01':0.25,'10':0.25,'11':0.25}\n"
+    },
+    {
+      "path": "/home/student/task/expected.txt",
+      "text": "H,H -> nto{q1sk1t_un1f0rm_sup3rp0s1t10n}\n"
+    }
+  ]
+}

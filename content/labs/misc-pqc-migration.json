@@ -1,0 +1,27 @@
+{
+  "id": "misc-pqc-migration",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pqc_m1gr4t10n_ml_dsa}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# OID\n\nПо OID определи алгоритм и выпиши соответствующую строку.\n"
+    },
+    {
+      "path": "/home/student/task/oid.txt",
+      "text": "signatureAlgorithm OID: 2.16.840.1.101.3.4.3.17\n"
+    },
+    {
+      "path": "/home/student/task/registry.txt",
+      "text": "2.16.840.1.101.3.4.3.17 ML-DSA-65 nto{pqc_m1gr4t10n_ml_dsa}\n2.16.840.1.101.3.4.4.1 ML-KEM-512 decoy\n"
+    }
+  ]
+}

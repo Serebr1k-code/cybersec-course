@@ -1,0 +1,31 @@
+{
+  "id": "misc-lattice-crypto",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l4tt1c3_lwe_s3cr3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# LWE\n\nb = A*s + e mod 97, шум малый. Найди s, затем метку из map.txt.\n"
+    },
+    {
+      "path": "/home/student/task/A.txt",
+      "text": "[[10,3,7,1],[2,9,4,8],[5,1,6,3],[7,2,8,4]]\n"
+    },
+    {
+      "path": "/home/student/task/b.txt",
+      "text": "[52,88,41,79]\n"
+    },
+    {
+      "path": "/home/student/task/map.txt",
+      "text": "other not-the-flag\n[3,1,4,1] nto{l4tt1c3_lwe_s3cr3t}\n"
+    }
+  ]
+}

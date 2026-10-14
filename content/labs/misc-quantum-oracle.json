@@ -1,0 +1,27 @@
+{
+  "id": "misc-quantum-oracle",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{qu4ntum_0r4cl3_s1m0n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Саймон\n\nДаны векторы z. Реши z·s=0 над GF(2), найди s и метку в map.txt.\n"
+    },
+    {
+      "path": "/home/student/task/oracle.txt",
+      "text": "z vectors (|x|=4):\n1011\n0110\n1100\n"
+    },
+    {
+      "path": "/home/student/task/map.txt",
+      "text": "s=1001 -> nto{qu4ntum_0r4cl3_s1m0n}\ns=0110 -> decoy\n"
+    }
+  ]
+}

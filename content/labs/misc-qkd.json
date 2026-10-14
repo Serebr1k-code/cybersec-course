@@ -1,0 +1,27 @@
+{
+  "id": "misc-qkd",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{qkd_d3t3ct3d_3v3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# BB84\n\n`session.txt` — просеянные биты (Алиса, Боб). Посчитай QBER, найди расхождения и собери флаг.\n"
+    },
+    {
+      "path": "/home/student/task/session.txt",
+      "text": "0 0\n1 1\n1 0\n0 0\n1 1\n0 1\n1 1\n0 0\n"
+    },
+    {
+      "path": "/home/student/task/positions.txt",
+      "text": "idx2 nto{qkd_d3t3ct3d_3v3}\nidx5 decoy\n"
+    }
+  ]
+}
