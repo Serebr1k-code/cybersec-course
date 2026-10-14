@@ -1,0 +1,31 @@
+{
+  "id": "cloud-kafka-msk",
+  "workdir": "/home/student/kafka",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/kafka/found.txt",
+    "contains": "nto{k4fk4_w1ldc4rd_4cl_r34d_wr1t3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/kafka",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/kafka/task.md",
+      "text": "# Задача\n\nВ конфиге сервиса найден Kafka-креденшел. Определи его права и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/kafka/kafka.properties",
+      "text": "bootstrap.servers=b-1.msk.acme.kafka.us-east-1.amazonaws.com:9096\nsecurity.protocol=SASL_SSL\nsasl.mechanism=SCRAM-SHA-512\nsasl.jaas.config=username=svc-orders password=S3cret;\n"
+    },
+    {
+      "path": "/home/student/kafka/acls.txt",
+      "text": "ACL for user svc-orders:\n  Allow Read on topic *\n  Allow Write on topic *\n  Allow Create on cluster\n"
+    },
+    {
+      "path": "/home/student/kafka/notes.md",
+      "text": "Аудит: ACL разрешают Read/Write/Create на всё.\nЗначит, доступны чтение, инъекция и канал exfiltration.\nnto{k4fk4_w1ldc4rd_4cl_r34d_wr1t3}\n"
+    }
+  ]
+}

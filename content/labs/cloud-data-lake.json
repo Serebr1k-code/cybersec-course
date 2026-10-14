@@ -1,0 +1,31 @@
+{
+  "id": "cloud-data-lake",
+  "workdir": "/home/student/lake",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/lake/found.txt",
+    "contains": "nto{d4t4l4k3_s3_byp4ss_l4k3f0rm4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/lake",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/lake/task.md",
+      "text": "# Задача\n\nНайден доступ к бакету data lake. Определи риск обхода прав и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/lake/bucket-list.txt",
+      "text": "s3://acme-data-lake/sales/orders/part-00000.parquet\ns3://acme-data-lake/sales/customers/part-00000.parquet\ns3://acme-athena-results/query-001.csv\n"
+    },
+    {
+      "path": "/home/student/lake/glue-tables.txt",
+      "text": "sales.orders -> s3://acme-data-lake/sales/orders\nsales.customers -> s3://acme-data-lake/sales/customers\nLake Formation grants: analyst only sales.orders\n"
+    },
+    {
+      "path": "/home/student/lake/notes.md",
+      "text": "Аудит: роль имеет s3:GetObject на весь бакет.\nПрямой доступ обходит гранулярные права Lake Formation.\nnto{d4t4l4k3_s3_byp4ss_l4k3f0rm4t10n}\n"
+    }
+  ]
+}

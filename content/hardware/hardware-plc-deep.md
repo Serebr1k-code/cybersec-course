@@ -4,7 +4,7 @@ title: "Эксплуатация ПЛК"
 category: hardware
 parent: hardware-mod-ics-protocols
 difficulty: hard
-order: 3
+order: 4
 tags: [plc, scada, ics, ladder]
 prerequisites: [hardware-profinet-enip, hardware-scada]
 useful_for:

@@ -1,0 +1,31 @@
+{
+  "id": "cloud-cyberark",
+  "workdir": "/home/student/cyberark",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/cyberark/found.txt",
+    "contains": "nto{cyb3r4rk_r3tr13v3_d0m41n_4dm1n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/cyberark",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/cyberark/task.md",
+      "text": "# Задача\n\nНайден доступ к CyberArk. Определи, к каким учёткам он даёт доступ, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/cyberark/cyberark.env",
+      "text": "PVWA_URL=https://pvwa.company.com/PasswordVault\nAPI_TOKEN=EXAMPLEnotarealtoken0000000000\n"
+    },
+    {
+      "path": "/home/student/cyberark/safes.txt",
+      "text": "Safe: Domain-Admins\n  permissions: [Retrieve, List]\n  accounts: [svc-domain-admin, break-glass-admin]\nSafe: Linux-Root\n  permissions: [List]\n"
+    },
+    {
+      "path": "/home/student/cyberark/notes.md",
+      "text": "Аудит: токен имеет право Retrieve на сейф Domain-Admins.\nЗначит, можно извлечь пароль доменного администратора.\nnto{cyb3r4rk_r3tr13v3_d0m41n_4dm1n}\n"
+    }
+  ]
+}

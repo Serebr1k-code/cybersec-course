@@ -4,7 +4,7 @@ title: "NTCIP: дорожные контроллеры, SNMP-объекты и �
 category: network
 parent: network-module-ics-grid
 difficulty: hard
-order: 5
+order: 6
 tags: [network, ntcip, its, snmp, ics, traffic]
 prerequisites: [network-snmp]
 useful_for:

@@ -4,7 +4,7 @@ title: "Модуль: Языковые рантаймы и байткод"
 category: reversing
 parent: reversing-mod-managed
 difficulty: hard
-order: 3
+order: 4
 tags: [reversing, bytecode, v8, hermes, dotnet, roadmap]
 prerequisites: [reversing-mod-managed]
 useful_for:

@@ -4,7 +4,7 @@ title: "Модуль: Обфускация и деобфускация кода"
 category: reversing
 parent: reversing-obfuscation
 difficulty: hard
-order: 2
+order: 3
 tags: [reversing, obfuscation, ollvm, deobfuscation, roadmap]
 prerequisites: [reversing-obfuscation]
 useful_for:

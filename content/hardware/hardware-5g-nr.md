@@ -4,7 +4,7 @@ title: "5G NR: архитектура, SUPI/SUCI и новые поверхно�
 category: hardware
 parent: hardware-mod-cellular
 difficulty: hard
-order: 4
+order: 5
 tags: [hardware, 5g, nr, suci, supi, ngap, service-based, telecom]
 prerequisites: [hardware-lte-4g, hardware-sdr-radio]
 useful_for:

@@ -1,0 +1,31 @@
+{
+  "id": "cloud-airflow-dag",
+  "workdir": "/home/student/airflow",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/airflow/found.txt",
+    "contains": "nto{41rfl0w_d4g_rce_c0nn3ct10ns}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/airflow",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/airflow/task.md",
+      "text": "# Задача\n\nНайден доступ к Airflow. Определи риск и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/airflow/airflow.env",
+      "text": "AIRFLOW_URL=http://airflow.acme.local:8080\nAIRFLOW_TOKEN=eyJhbGciOiJIUzI1NiJ9.example\nROLE=Op\n"
+    },
+    {
+      "path": "/home/student/airflow/connections.json",
+      "text": "[\n  {\"conn_id\": \"snowflake_prod\", \"type\": \"snowflake\"},\n  {\"conn_id\": \"postgres_orders\", \"type\": \"postgres\"}\n]\n"
+    },
+    {
+      "path": "/home/student/airflow/notes.md",
+      "text": "Аудит: роль Op может загружать DAG-и.\nDAG = код, значит, возможен RCE и кража Connections.\nnto{41rfl0w_d4g_rce_c0nn3ct10ns}\n"
+    }
+  ]
+}

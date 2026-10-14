@@ -4,7 +4,7 @@ title: "Модуль: Современные аудиокодеки (FLAC, Opus,
 category: stego
 parent: stego-audio
 difficulty: medium
-order: 5
+order: 4
 tags: [stego, roadmap, flac, opus, ogg, aac, midi, codec]
 prerequisites: [stego-audio-advanced]
 useful_for:

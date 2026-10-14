@@ -4,7 +4,7 @@ title: "Модуль: Экзотические кодеки изображени
 category: stego
 parent: stego-image-formats
 difficulty: medium
-order: 6
+order: 3
 tags: [stego, roadmap, jpegxr, webp, vp8l, codec]
 prerequisites: [stego-image-formats]
 useful_for:

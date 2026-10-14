@@ -4,7 +4,7 @@ title: "Модуль: Промышленные fieldbus-протоколы"
 category: hardware
 parent: hardware-mod-ics-protocols
 difficulty: hard
-order: 2
+order: 3
 tags: [hardware, ics, scada, ethercat, iec61850, iec104, dnp3, module, roadmap]
 prerequisites: [hardware-mod-ics-protocols, hardware-scada]
 useful_for:

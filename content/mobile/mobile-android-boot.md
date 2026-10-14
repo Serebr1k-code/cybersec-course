@@ -4,7 +4,7 @@ title: 'Модуль: загрузка, ядро и аппаратное дов�
 category: mobile
 parent: mobile-android-trust
 difficulty: hard
-order: 9
+order: 5
 tags: [android, verifiedboot, bootloader, kernel, trustzone, roadmap]
 prerequisites: [mobile-android-root]
 useful_for:

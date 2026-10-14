@@ -1,0 +1,27 @@
+{
+  "id": "cloud-cicd-teamcity",
+  "workdir": "/home/student/tc",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/tc/found.txt",
+    "contains": "nto{t34mc1ty_4dm1n_t0k3n_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/tc",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/tc/task.md",
+      "text": "# Задача\n\nВ репозитории найден токен TeamCity. Определи его права и возможные действия, затем собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/tc/ci.env",
+      "text": "TEAMCITY_URL=http://ci.company.com\nTEAMCITY_TOKEN=EXAMPLEnotarealtokenEXAMPLE1234567890\n"
+    },
+    {
+      "path": "/home/student/tc/notes.md",
+      "text": "Проверка токена: GET /app/rest/server -> 200\nВладелец: build-admin, роль SYSTEM_ADMIN\nЗначит, доступно изменение build-конфигураций (RCE на агентах).\nnto{t34mc1ty_4dm1n_t0k3n_rce}\n"
+    }
+  ]
+}

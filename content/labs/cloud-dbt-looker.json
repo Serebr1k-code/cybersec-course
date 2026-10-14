@@ -1,0 +1,31 @@
+{
+  "id": "cloud-dbt-looker",
+  "workdir": "/home/student/dbt",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/dbt/found.txt",
+    "contains": "nto{dbt_pr0f1l3_cr3d5_wh_tr4nsf0rm3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/dbt",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/dbt/task.md",
+      "text": "# Задача\n\nВ репозитории dbt найден profiles.yml. Определи риск и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/dbt/profiles.yml",
+      "text": "acme:\n  target: prod\n  outputs:\n    prod:\n      type: snowflake\n      account: acme-xy12345\n      user: dbt_prod\n      password: Sup3rS3cret\n      role: TRANSFORMER\n"
+    },
+    {
+      "path": "/home/student/dbt/roles.txt",
+      "text": "Role TRANSFORMER has SELECT on all schemas in database ANALYTICS.\n"
+    },
+    {
+      "path": "/home/student/dbt/notes.md",
+      "text": "Аудит: profiles.yml содержит пароль к Snowflake с ролью TRANSFORMER.\nРоль читает все схемы, значит, доступны все данные.\nnto{dbt_pr0f1l3_cr3d5_wh_tr4nsf0rm3r}\n"
+    }
+  ]
+}

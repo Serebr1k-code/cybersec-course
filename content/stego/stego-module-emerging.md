@@ -4,7 +4,7 @@ title: "Модуль: Современные носители (веса моде
 category: stego
 parent: stego-modern-methods
 difficulty: medium
-order: 1
+order: 2
 tags: [stego, roadmap, model-weights, llm, c2pa, provenance, ai]
 prerequisites: [stego-modern-methods]
 useful_for:

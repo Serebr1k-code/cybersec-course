@@ -4,7 +4,7 @@ title: "ARM Cortex-A: TrustZone, MMU и эксплойты"
 category: hardware
 parent: hardware-mod-mcu
 difficulty: hard
-order: 2
+order: 3
 tags: [hardware, arm, cortex-a, trustzone, mmu, tee, aarch64, exploit]
 prerequisites: [hardware-arm-cortex-m, hardware-secure-enclave]
 useful_for:

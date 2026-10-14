@@ -4,7 +4,7 @@ title: 'LFSR-потоки: E0, Trivium, Grain, SNOW'
 category: crypto
 parent: crypto-stream-advanced
 difficulty: hard
-order: 2
+order: 1
 tags: [crypto, stream, lfsr, e0, trivium, grain, snow, correlation]
 prerequisites: [crypto-stream-ciphers]
 useful_for:

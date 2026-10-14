@@ -4,7 +4,7 @@ title: 'Инструменты Android-форензики: от образа д�
 category: mobile
 parent: mobile-forensics-android
 difficulty: medium
-order: 3
+order: 1
 tags: [forensics, android, dd, mvt, artifacts, timeline]
 prerequisites: [mobile-forensics-android]
 useful_for:

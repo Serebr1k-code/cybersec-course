@@ -4,7 +4,7 @@ title: "ret2vDSO и vsyscall: гаджеты без libc-утечки"
 category: pwn
 parent: pwn-rop-exotic
 difficulty: medium
-order: 1
+order: 2
 tags: [ret2vdso, vsyscall, rop, aslr, gadgets, syscall]
 prerequisites: [pwn-rop, pwn-mitigations, pwn-ret2libc]
 useful_for:

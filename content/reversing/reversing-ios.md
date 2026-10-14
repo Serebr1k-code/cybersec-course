@@ -4,7 +4,7 @@ title: "Реверс iOS: Mach-O, Frida и jailbreak"
 category: reversing
 parent: reversing-android-apk
 difficulty: expert
-order: 2
+order: 3
 tags: [reversing, ios, macho, frida, jailbreak, arm64, ipa]
 prerequisites: [reversing-android-apk, reversing-architectures]
 useful_for:

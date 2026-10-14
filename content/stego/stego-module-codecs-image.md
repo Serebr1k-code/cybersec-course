@@ -4,7 +4,7 @@ title: "Модуль: Современные кодеки изображений
 category: stego
 parent: stego-image-formats
 difficulty: medium
-order: 5
+order: 2
 tags: [stego, roadmap, jpeg2000, jpegxl, avif, codec, wavelet]
 prerequisites: [stego-image-formats]
 useful_for:

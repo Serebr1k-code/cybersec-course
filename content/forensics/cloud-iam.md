@@ -4,7 +4,7 @@ title: 'Cloud IAM: форензика идентичности в AWS/GCP/Azure'
 category: forensics
 parent: forensics-cloud-identity
 difficulty: hard
-order: 5
+order: 4
 tags: [cloud, iam, cloudtrail, audit-log, assume-role, access-key, forensics]
 prerequisites: [forensics-cloud-multi, forensics-cloud-trail]
 useful_for:

@@ -4,7 +4,7 @@ title: "Модуль: Реверс ML-моделей и новых артефа�
 category: reversing
 parent: reversing-mod-emerging
 difficulty: hard
-order: 3
+order: 4
 tags: [reversing, ml, models, ai, supply-chain, roadmap]
 prerequisites: [reversing-mod-emerging]
 useful_for:

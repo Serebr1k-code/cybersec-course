@@ -4,7 +4,7 @@ title: "Модуль: Архитектуры и системы команд"
 category: reversing
 parent: reversing-architectures
 difficulty: hard
-order: 1
+order: 2
 tags: [reversing, architecture, isa, arm, risc-v, roadmap]
 prerequisites: [reversing-architectures]
 useful_for:

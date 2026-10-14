@@ -4,7 +4,7 @@ title: 'IL2CPP-реверс: Unity-игры без C# в бинарнике'
 category: mobile
 parent: mobile-crossplatform
 difficulty: expert
-order: 5
+order: 2
 tags: [unity, il2cpp, reverse, metadata, libil2cpp, frida]
 prerequisites: [mobile-unity]
 useful_for:

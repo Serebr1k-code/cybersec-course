@@ -4,7 +4,7 @@ title: "Модуль: embedded MCU и SoC (AVR, Xtensa/ESP32)"
 category: pwn
 parent: pwn-architectures
 difficulty: hard
-order: 3
+order: 4
 tags: [pwn, module, roadmap, avr, msp430, 8051, xtensa, esp32, embedded, firmware]
 prerequisites: [pwn-architectures]
 useful_for:

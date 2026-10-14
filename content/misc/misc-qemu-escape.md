@@ -4,7 +4,7 @@ title: 'Побег из QEMU: эмуляция устройств и MMIO'
 category: misc
 parent: misc-runtimes-iso
 difficulty: expert
-order: 4
+order: 3
 tags: [qemu, escape, mmio, virtio, pwn]
 prerequisites: [misc-runtimes-iso]
 useful_for:

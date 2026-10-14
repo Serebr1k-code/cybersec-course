@@ -1,0 +1,31 @@
+{
+  "id": "cloud-cicd-tekton",
+  "workdir": "/home/student/tekton",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/tekton/found.txt",
+    "contains": "nto{t3kt0n_s4_clust3r4dm1n_3sc4l4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/tekton",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/tekton/task.md",
+      "text": "# Задача\n\nДаны PipelineRun и RBAC. Определи, возможна ли эскалация, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/tekton/pipelinerun.yaml",
+      "text": "apiVersion: tekton.dev/v1\nkind: PipelineRun\nmetadata:\n  name: deploy-prod\nspec:\n  serviceAccountName: deployer\n  pipelineRef:\n    name: deploy\n"
+    },
+    {
+      "path": "/home/student/tekton/rbac.yaml",
+      "text": "kind: ClusterRoleBinding\nsubjects:\n  - kind: ServiceAccount\n    name: deployer\nroleRef:\n  kind: ClusterRole\n  name: cluster-admin\n"
+    },
+    {
+      "path": "/home/student/tekton/notes.md",
+      "text": "Аудит: ServiceAccount deployer привязан к cluster-admin.\nЛюбой, кто может создать PipelineRun с этим SA, получает права кластера.\nnto{t3kt0n_s4_clust3r4dm1n_3sc4l4t10n}\n"
+    }
+  ]
+}

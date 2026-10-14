@@ -4,7 +4,7 @@ title: "Модуль: Серверные и экзотические ISA"
 category: reversing
 parent: reversing-architectures
 difficulty: hard
-order: 2
+order: 4
 tags: [reversing, architecture, isa, powerpc, sparc, s390x, superh, roadmap]
 prerequisites: [reversing-architectures]
 useful_for:

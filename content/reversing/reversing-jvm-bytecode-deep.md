@@ -4,7 +4,7 @@ title: "Байткод JVM: анализ class-файлов"
 category: reversing
 parent: reversing-mod-managed
 difficulty: hard
-order: 4
+order: 5
 tags: [reversing, jvm, java, bytecode, jadx, javap, obfuscation]
 prerequisites: [reversing-intro]
 useful_for:

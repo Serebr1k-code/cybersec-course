@@ -4,7 +4,7 @@ title: "Модуль: глубокая форензика macOS"
 category: forensics
 parent: forensics-macos-artifacts
 difficulty: hard
-order: 2
+order: 1
 tags: [macos, apple, keychain, tcc, unified-log, privacy, roadmap]
 prerequisites: [forensics-macos-artifacts]
 useful_for:

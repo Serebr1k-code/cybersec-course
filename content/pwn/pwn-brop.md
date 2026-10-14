@@ -4,7 +4,7 @@ title: "Blind ROP (BROP): эксплуатация без бинаря"
 category: pwn
 parent: pwn-rop-exotic
 difficulty: hard
-order: 2
+order: 3
 tags: [brop, blind-rop, no-binary, leak, stop-gadget]
 prerequisites: [pwn-rop, pwn-pie-bypass]
 useful_for:

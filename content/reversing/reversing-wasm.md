@@ -4,7 +4,7 @@ title: "Реверс WebAssembly"
 category: reversing
 parent: reversing-architectures
 difficulty: hard
-order: 2
+order: 3
 tags: [reversing, wasm, webassembly, wabt, wasm2c, wasmtime]
 prerequisites: [reversing-architectures]
 useful_for:

@@ -4,7 +4,7 @@ title: "Нейросетевая стеганография: GAN, автоэнк
 category: stego
 parent: stego-modern-methods
 difficulty: hard
-order: 2
+order: 3
 tags: [stego, deep-learning, gan, autoencoder, adversarial, ml]
 prerequisites: [stego-modern-methods]
 useful_for:

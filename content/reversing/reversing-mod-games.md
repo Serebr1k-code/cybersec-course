@@ -4,7 +4,7 @@ title: "Модуль: Реверс игр, DRM и античитов"
 category: reversing
 parent: reversing-game-anticheat
 difficulty: hard
-order: 1
+order: 2
 tags: [reversing, games, unity, unreal, drm, anticheat, roadmap]
 prerequisites: [reversing-game-anticheat]
 useful_for:

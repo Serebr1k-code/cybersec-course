@@ -4,7 +4,7 @@ title: "Модуль: Фаззинг и автоматический поиск 
 category: reversing
 parent: reversing-symbolic-tools
 difficulty: medium
-order: 2
+order: 3
 tags: [reversing, fuzzing, afl, libfuzzer, hybrid, roadmap]
 prerequisites: [reversing-symbolic-tools]
 useful_for:

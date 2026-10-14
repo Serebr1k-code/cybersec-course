@@ -4,7 +4,7 @@ title: "Модуль: экзотические каналы — DoH, ICMP, DNS-e
 category: network
 parent: network-module-tunnel
 difficulty: hard
-order: 5
+order: 4
 tags: [network, tunnel, pivot, module]
 prerequisites: [network-module-tunnel]
 useful_for:

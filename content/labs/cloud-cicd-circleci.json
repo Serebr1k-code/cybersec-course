@@ -1,0 +1,27 @@
+{
+  "id": "cloud-cicd-circleci",
+  "workdir": "/home/student/cci",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/cci/found.txt",
+    "contains": "nto{c1rcl3c1_c0nt3xt_n0_r3str1ct10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/cci",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/cci/task.md",
+      "text": "# Задача\n\nДана конфигурация CircleCI. Определи, есть ли риск утечки секретов, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/cci/config.yml",
+      "text": "version: 2.1\nworkflows:\n  build:\n    jobs:\n      - build:\n          context: aws-prod\n# aws-prod содержит AWS_ACCESS_KEY_ID и AWS_SECRET_ACCESS_KEY\n# контекст не ограничен группами (доступен всем проектам организации)\n"
+    },
+    {
+      "path": "/home/student/cci/notes.md",
+      "text": "Аудит: контекст aws-prod без ограничений.\nЛюбой проект организации может прочитать прод-ключи AWS.\nnto{c1rcl3c1_c0nt3xt_n0_r3str1ct10n}\n"
+    }
+  ]
+}

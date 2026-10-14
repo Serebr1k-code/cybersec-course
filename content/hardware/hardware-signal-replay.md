@@ -4,7 +4,7 @@ title: "Replay сигнала и защита"
 category: hardware
 parent: hardware-mod-rf-advanced
 difficulty: medium
-order: 3
+order: 4
 tags: [replay, sdr, capture, subghz]
 prerequisites: [hardware-rolling-codes, hardware-sdr-radio]
 useful_for:

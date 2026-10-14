@@ -4,7 +4,7 @@ title: 'Модуль: решётки и переход на пост-квант�
 category: misc
 parent: misc-intro
 difficulty: expert
-order: 7
+order: 6
 tags: [pqc, lattice, lwe, kyber, qkd, roadmap]
 prerequisites: [misc-intro, misc-quantum]
 useful_for:

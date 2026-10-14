@@ -4,7 +4,7 @@ title: "Реверс ransomware и восстановление ключей"
 category: reversing
 parent: reversing-malware-static
 difficulty: expert
-order: 3
+order: 4
 tags: [reversing, ransomware, crypto, key-recovery, dfir, ransomware]
 prerequisites: [reversing-crypto-advanced, reversing-malware-static]
 useful_for:

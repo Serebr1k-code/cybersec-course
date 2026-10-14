@@ -4,7 +4,7 @@ title: "Модуль: Реверс Android-приложений"
 category: reversing
 parent: reversing-android-apk
 difficulty: hard
-order: 1
+order: 2
 tags: [reversing, android, dex, frida, packers, roadmap]
 prerequisites: [reversing-android-apk]
 useful_for:

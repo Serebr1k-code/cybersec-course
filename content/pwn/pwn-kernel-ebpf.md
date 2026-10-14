@@ -4,7 +4,7 @@ title: "Эксплуатация eBPF: верификатор и JIT"
 category: pwn
 parent: pwn-kernel-core
 difficulty: expert
-order: 4
+order: 5
 tags: [kernel, ebpf, verifier, jit, arbitrary-write]
 prerequisites: [pwn-kernel-heap]
 useful_for:

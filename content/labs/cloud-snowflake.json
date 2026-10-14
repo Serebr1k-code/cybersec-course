@@ -1,0 +1,31 @@
+{
+  "id": "cloud-snowflake",
+  "workdir": "/home/student/snow",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/snow/found.txt",
+    "contains": "nto{sn0wfl4k3_acc0unt4dm1n_k3y}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/snow",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/snow/task.md",
+      "text": "# Задача\n\nВ репозитории найден сервисный ключ Snowflake. Определи уровень доступа и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/snow/snowflake.env",
+      "text": "SNOWFLAKE_ACCOUNT=acme-xy12345\nSNOWFLAKE_USER=svc_analytics\nSNOWFLAKE_PRIVATE_KEY_PATH=/secrets/rsa_key.p8\n"
+    },
+    {
+      "path": "/home/student/snow/grants.txt",
+      "text": "SHOW GRANTS TO USER svc_analytics;\n  role ACCOUNTADMIN granted to user svc_analytics\n"
+    },
+    {
+      "path": "/home/student/snow/notes.md",
+      "text": "Аудит: сервисному пользователю выдан ACCOUNTADMIN.\nЗначит, доступно всё хранилище и MANAGE GRANTS.\nnto{sn0wfl4k3_acc0unt4dm1n_k3y}\n"
+    }
+  ]
+}

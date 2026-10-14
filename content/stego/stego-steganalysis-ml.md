@@ -4,7 +4,7 @@ title: "Стегоанализ на основе машинного обучен
 category: stego
 parent: stego-modern-methods
 difficulty: hard
-order: 3
+order: 4
 tags: [stego, steganalysis, machine-learning, rich-model, srm, srnet, cnn, detector]
 prerequisites: [stego-steganalysis, stego-deep-learning]
 useful_for:

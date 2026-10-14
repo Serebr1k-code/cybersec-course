@@ -4,7 +4,7 @@ title: "Модуль: продвинутая анти-форензика — у�
 category: forensics
 parent: forensics-anti-forensics
 difficulty: hard
-order: 3
+order: 1
 tags: [anti-forensics, secure-delete, metadata, timestomp, vm-detection, forensics, roadmap]
 prerequisites: [forensics-anti-forensics]
 useful_for:

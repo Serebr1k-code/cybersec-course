@@ -4,7 +4,7 @@ title: 'Firecracker: микровиртуализация, jailer и побег'
 category: misc
 parent: misc-runtimes-iso
 difficulty: expert
-order: 3
+order: 2
 tags: [firecracker, microvm, kvm, virtio, jailer]
 prerequisites: [misc-runtimes-iso]
 useful_for:

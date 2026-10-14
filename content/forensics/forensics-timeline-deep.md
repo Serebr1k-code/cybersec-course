@@ -4,7 +4,7 @@ title: "Модуль: продвинутый таймлайн — корреля
 category: forensics
 parent: forensics-timeline
 difficulty: hard
-order: 6
+order: 2
 tags: [timeline, correlation, timezone, clock-skew, timesketch, forensics, roadmap]
 prerequisites: [forensics-timeline]
 useful_for:

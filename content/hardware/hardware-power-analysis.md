@@ -4,7 +4,7 @@ title: "Power analysis: SPA, DPA и CPA"
 category: hardware
 parent: hardware-mod-physical-attacks
 difficulty: expert
-order: 2
+order: 3
 tags: [power-analysis, spa, dpa, cpa, sidechannel, aes, oscilloscope]
 prerequisites: [hardware-sidechannel, hardware-crypto]
 useful_for:

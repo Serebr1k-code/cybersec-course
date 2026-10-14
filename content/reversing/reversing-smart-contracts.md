@@ -4,7 +4,7 @@ title: "Реверс смарт-контрактов (EVM)"
 category: reversing
 parent: reversing-mod-emerging
 difficulty: hard
-order: 4
+order: 5
 tags: [reversing, smart-contracts, evm, solidity, bytecode, web3]
 prerequisites: [reversing-intro]
 useful_for:

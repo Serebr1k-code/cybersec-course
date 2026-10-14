@@ -2,9 +2,9 @@
 id: pwn-kaslr-bypass
 title: "KASLR bypass: утечки и side-channel базы ядра"
 category: pwn
-parent: pwn-kernel-intro
+parent: pwn-kernel-bypass
 difficulty: hard
-order: 4
+order: 1
 tags: [pwn, kernel, kaslr, bypass, info-leak, side-channel, prefetch, entrybleed]
 prerequisites: [pwn-kernel-intro]
 useful_for:

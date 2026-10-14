@@ -4,7 +4,7 @@ title: 'gVisor: user-space ядро, платформы и побег'
 category: misc
 parent: misc-runtimes-iso
 difficulty: expert
-order: 2
+order: 1
 tags: [gvisor, sandbox, sentry, systrap, kernel]
 prerequisites: [misc-runtimes-iso]
 useful_for:

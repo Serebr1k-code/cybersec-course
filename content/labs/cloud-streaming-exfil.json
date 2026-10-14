@@ -1,0 +1,31 @@
+{
+  "id": "cloud-streaming-exfil",
+  "workdir": "/home/student/exfil",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/exfil/found.txt",
+    "contains": "nto{str34m1ng_exf1l_k1n3s1s_tunn3l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/exfil",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/exfil/task.md",
+      "text": "# Задача\n\nРазбери политику потока. Определи возможность exfiltration и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/exfil/kinesis-policy.json",
+      "text": "{\n  \"Effect\": \"Allow\",\n  \"Action\": [\"kinesis:PutRecord\", \"kinesis:PutRecords\"],\n  \"Resource\": \"arn:aws:kinesis:us-east-1:123:stream/telemetry\"\n}\n"
+    },
+    {
+      "path": "/home/student/exfil/streams.txt",
+      "text": "telemetry (shards=4, consumer: arn:aws:lambda:...:exfil-reader cross-account)\n"
+    },
+    {
+      "path": "/home/student/exfil/notes.md",
+      "text": "Аудит: роль может писать в telemetry, а cross-account Lambda читает поток.\nЗначит, поток — готовый канал exfiltration.\nnto{str34m1ng_exf1l_k1n3s1s_tunn3l}\n"
+    }
+  ]
+}

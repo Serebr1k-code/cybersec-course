@@ -4,7 +4,7 @@ title: "Обход SMEP, SMAP и KASLR в ядре"
 category: pwn
 parent: pwn-kernel-core
 difficulty: expert
-order: 3
+order: 4
 tags: [kernel, smep, smap, kaslr, cr4, bypass]
 prerequisites: [pwn-kernel-rop]
 useful_for:

@@ -4,7 +4,7 @@ title: "Модуль: архитектуры и ABI"
 category: pwn
 parent: pwn-calling-conventions
 difficulty: medium
-order: 9
+order: 5
 tags: [pwn, module, roadmap, architecture]
 prerequisites: [pwn-calling-conventions]
 useful_for:

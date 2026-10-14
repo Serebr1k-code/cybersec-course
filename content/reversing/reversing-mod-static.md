@@ -4,7 +4,7 @@ title: "Модуль: Внутренности инструментов стат
 category: reversing
 parent: reversing-decompiler-tools
 difficulty: hard
-order: 3
+order: 4
 tags: [reversing, decompiler, binary-ninja, ghidra, ida, roadmap]
 prerequisites: [reversing-decompiler-tools]
 useful_for:

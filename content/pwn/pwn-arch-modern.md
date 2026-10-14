@@ -4,7 +4,7 @@ title: "Модуль: современные 64-битные ISA (RISC-V, AArch6
 category: pwn
 parent: pwn-architectures
 difficulty: hard
-order: 4
+order: 5
 tags: [pwn, module, roadmap, riscv64, aarch64, mips64, architecture]
 prerequisites: [pwn-architectures]
 useful_for:

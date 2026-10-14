@@ -4,7 +4,7 @@ title: 'Модуль: телеком и радиослой мобильного 
 category: mobile
 parent: mobile-platforms
 difficulty: hard
-order: 10
+order: 8
 tags: [telecom, esim, sim, baseband, modem, roadmap]
 prerequisites: [mobile-platforms]
 useful_for:

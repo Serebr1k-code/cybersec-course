@@ -4,7 +4,7 @@ title: "Модуль: Новые видеокодеки (AV1, VVC/H.266)"
 category: stego
 parent: stego-video
 difficulty: hard
-order: 5
+order: 2
 tags: [stego, roadmap, av1, vvc, h266, video, codec]
 prerequisites: [stego-video]
 useful_for:

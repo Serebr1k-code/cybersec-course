@@ -4,7 +4,7 @@ title: "Модуль: Внутренности Windows для реверса"
 category: reversing
 parent: reversing-pe-deep
 difficulty: hard
-order: 2
+order: 1
 tags: [reversing, windows, syscall, peb, hooking, roadmap]
 prerequisites: [reversing-pe-deep]
 useful_for:

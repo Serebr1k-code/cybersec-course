@@ -4,7 +4,7 @@ title: "Модуль: туннели и прокси глубоко — HTTP, ch
 category: network
 parent: network-module-tunnel
 difficulty: hard
-order: 4
+order: 3
 tags: [network, tunnel, pivot, module]
 prerequisites: [network-module-tunnel]
 useful_for:

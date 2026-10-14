@@ -4,7 +4,7 @@ title: "Эксплуатация pipe_buffer и Dirty Pipe"
 category: pwn
 parent: pwn-kernel-core
 difficulty: expert
-order: 7
+order: 8
 tags: [kernel, pipe, pipe_buffer, dirty-pipe, page-cache, ops]
 prerequisites: [pwn-kernel-heap]
 useful_for:

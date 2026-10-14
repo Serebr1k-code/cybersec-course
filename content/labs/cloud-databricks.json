@@ -1,0 +1,31 @@
+{
+  "id": "cloud-databricks",
+  "workdir": "/home/student/dbx",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/dbx/found.txt",
+    "contains": "nto{d4t4br1cks_t0k3n_clust3r_r0l3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/dbx",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/dbx/task.md",
+      "text": "# Задача\n\nВ CI найден токен Databricks. Определи, к чему он даёт доступ, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/dbx/databricks.env",
+      "text": "DATABRICKS_HOST=https://acme.cloud.databricks.com\nDATABRICKS_TOKEN=dapi1234567890abcdef1234567890ab\n"
+    },
+    {
+      "path": "/home/student/dbx/cluster.json",
+      "text": "{\n  \"cluster_name\": \"analytics\",\n  \"instance_profile\": \"arn:aws:iam::123:instance-profile/databricks-data-read\",\n  \"state\": \"RUNNING\"\n}\n"
+    },
+    {
+      "path": "/home/student/dbx/notes.md",
+      "text": "Аудит: токен даёт запуск кода на кластере.\nКластер имеет instance profile databricks-data-read с доступом к S3 data lake.\nnto{d4t4br1cks_t0k3n_clust3r_r0l3}\n"
+    }
+  ]
+}

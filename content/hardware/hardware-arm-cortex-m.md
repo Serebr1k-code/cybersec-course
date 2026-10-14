@@ -4,7 +4,7 @@ title: "ARM Cortex-M: реверс, отладка и защита"
 category: hardware
 parent: hardware-mod-mcu
 difficulty: hard
-order: 1
+order: 2
 tags: [hardware, arm, cortex-m, swd, mpu, nvic, vector-table, mcu]
 prerequisites: [hardware-board-reversing, hardware-embedded-debug]
 useful_for:

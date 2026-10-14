@@ -4,7 +4,7 @@ title: "Гибридный фаззинг: concolic, symcc и QSYM"
 category: reversing
 parent: reversing-mod-fuzz
 difficulty: hard
-order: 3
+order: 2
 tags: [reversing, fuzzing, concolic, symcc, qsym, symbolic]
 prerequisites: [reversing-fuzzing-aflpp]
 useful_for:

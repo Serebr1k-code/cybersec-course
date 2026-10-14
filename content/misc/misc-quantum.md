@@ -4,7 +4,7 @@ title: 'Модуль: квантовые вычисления и пост-ква
 category: misc
 parent: misc-intro
 difficulty: hard
-order: 6
+order: 5
 tags: [quantum, pqc, qiskit, lattice, roadmap]
 prerequisites: [misc-intro]
 useful_for:

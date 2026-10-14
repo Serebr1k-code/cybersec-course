@@ -4,7 +4,7 @@ title: "UMTS/3G: взаимная аутентификация, KASUMI и дау
 category: hardware
 parent: hardware-mod-cellular
 difficulty: hard
-order: 2
+order: 3
 tags: [hardware, umts, 3g, kasumi, aka, downgrade, telecom]
 prerequisites: [hardware-gsm-2g, hardware-sdr-radio]
 useful_for:

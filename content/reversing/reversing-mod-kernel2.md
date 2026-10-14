@@ -4,7 +4,7 @@ title: "Модуль: Реверс ядра и руткитов"
 category: reversing
 parent: reversing-kernel-drivers
 difficulty: hard
-order: 2
+order: 3
 tags: [reversing, kernel, rootkit, ebpf, roadmap]
 prerequisites: [reversing-kernel-drivers]
 useful_for:

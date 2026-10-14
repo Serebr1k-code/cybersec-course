@@ -4,7 +4,7 @@ title: "LTE/4G: attach, NAS и IMSI-catcher нового уровня"
 category: hardware
 parent: hardware-mod-cellular
 difficulty: hard
-order: 3
+order: 4
 tags: [hardware, lte, 4g, nas, attach, imsi-catcher, epc, telecom]
 prerequisites: [hardware-umts-3g, hardware-sdr-radio]
 useful_for:

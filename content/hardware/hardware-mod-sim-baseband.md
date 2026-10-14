@@ -4,7 +4,7 @@ title: "Модуль: SIM/eSIM и baseband"
 category: hardware
 parent: hardware-mod-cellular
 difficulty: hard
-order: 1
+order: 2
 tags: [hardware, sim, esim, baseband, usim, apdu, module, roadmap]
 prerequisites: [hardware-smartcard, hardware-mod-cellular]
 useful_for:

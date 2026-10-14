@@ -4,7 +4,7 @@ title: "RISC-V: отладка, реверс и безопасность"
 category: hardware
 parent: hardware-mod-mcu
 difficulty: hard
-order: 3
+order: 4
 tags: [hardware, riscv, rv32, rv64, pmp, debug, open-isa, mcu]
 prerequisites: [hardware-arm-cortex-m, hardware-embedded-debug]
 useful_for:

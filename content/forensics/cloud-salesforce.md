@@ -4,7 +4,7 @@ title: 'Salesforce: Event Log File и аудит SaaS'
 category: forensics
 parent: forensics-cloud-identity
 difficulty: medium
-order: 4
+order: 3
 tags: [cloud, salesforce, saas, eventlogfile, audit, soql, forensics]
 prerequisites: [forensics-cloud-multi]
 useful_for:

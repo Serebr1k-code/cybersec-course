@@ -1,0 +1,31 @@
+{
+  "id": "cloud-vault",
+  "workdir": "/home/student/vault",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/vault/found.txt",
+    "contains": "nto{v4ult_sys_p0l1cy_pr1v3sc4l4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/vault",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/vault/task.md",
+      "text": "# Задача\n\nВ CI найден токен Vault и его политика. Определи, возможна ли эскалация, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/vault/vault.env",
+      "text": "VAULT_ADDR=https://vault.company.com\nVAULT_TOKEN=hvs.EXAMPLEnotarealtoken000000\n"
+    },
+    {
+      "path": "/home/student/vault/policy.hcl",
+      "text": "path \"secret/data/ci/*\" {\n  capabilities = [\"read\"]\n}\npath \"sys/policies/acl/*\" {\n  capabilities = [\"create\", \"update\"]\n}\npath \"auth/token/create\" {\n  capabilities = [\"create\", \"update\"]\n}\n"
+    },
+    {
+      "path": "/home/student/vault/notes.md",
+      "text": "Аудит: политика даёт права на sys/policies и auth/token/create.\nЗначит, можно создать токен с широкой политикой и эскалировать.\nnto{v4ult_sys_p0l1cy_pr1v3sc4l4t10n}\n"
+    }
+  ]
+}

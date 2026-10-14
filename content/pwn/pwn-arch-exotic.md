@@ -4,7 +4,7 @@ title: "Модуль: экзотические архитектуры (PowerPC, 
 category: pwn
 parent: pwn-architectures
 difficulty: hard
-order: 2
+order: 3
 tags: [pwn, module, roadmap, powerpc, sparc, s390x, sh4, architecture]
 prerequisites: [pwn-architectures]
 useful_for:
