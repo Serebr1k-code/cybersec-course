@@ -1,0 +1,24 @@
+{
+  "id": "mal-dynamic-sandbox",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s4ndb0x_b3h4v10r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: отчёт песочницы\n\n`report.txt` — фрагмент отчёта динамического анализа.\nНайди, что образец делает в сети, и метку.\n\n1. `cat report.txt`.\n2. `grep -i http report.txt`.\n3. `grep nto report.txt > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/report.txt",
+      "text": "CAPE sandbox report\nsample: invoice.doc.exe  sha256: 9f2c...c1\nprocesses:\n  invoice.doc.exe (pid 1044) -> cmd.exe (pid 1108) -> powershell.exe (pid 1112)\nhttp requests:\n  GET http://198.51.100.9/p.sh\n  POST http://198.51.100.9/gate.php\ndns:\n  cdn.example.net -> 198.51.100.9\ndropped files:\n  C:/Users/jdoe/AppData/Local/Temp/p.sh\nregistry keys written:\n  HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\Updater\nnote: sandbox marker nto{s4ndb0x_b3h4v10r}\n",
+      "mode": "644"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "mal-shellcode",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sh3llc0d3_3mul4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ shellcode\n\n`sc_strings.txt` — печатаемые строки, извлечённые из shellcode.\nОпредели, что shellcode делает, и найди метку.\n\n1. `cat sc_strings.txt`.\n2. `grep -i 'LoadLibrary\\|WinExec' sc_strings.txt`.\n3. `grep nto sc_strings.txt > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/sc_strings.txt",
+      "text": "strings extracted from shellcode (offset: string)\n0x0000  kernel32.dll\n0x0010  LoadLibraryA\n0x0020  WinExec\n0x0030  urlmon.dll\n0x0040  URLDownloadToFileA\n0x0050  http://198.51.100.9/p.sh\n0x0060  cmd.exe /c start /b\nnote: shellcode marker nto{sh3llc0d3_3mul4t10n}\n",
+      "mode": "644"
+    }
+  ]
+}
