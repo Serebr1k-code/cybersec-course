@@ -2,9 +2,9 @@
 id: web-cms-fingerprint
 title: "CMS/plugin fingerprinting: определение движка, версии и расширений"
 category: web
-parent: web-cms-platforms
+parent: web-cms-enterprise
 difficulty: medium
-order: 5
+order: 4
 tags: [cms, fingerprint, whatweb, wpscan, droopescan, version-mapping, recon]
 prerequisites: [web-cms-platforms]
 useful_for:
