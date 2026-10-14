@@ -13,6 +13,16 @@ useful_for:
   - 'Выбор криптографии'
 estimated_minutes: 30
 summary: 'Модель кубита, гейты и измерение на языке амплитуд; чем квантовый компьютер угрожает RSA/ECC и какие пост-квантовые семейства приходят на смену.'
+lab:
+  kind: shell
+  title: 'Практика: Квантовые вычисления и пост-квантовая криптография в CTF'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, labels.txt, state.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Изучи `task.md` — там условие.'
+    - 'Инструменты: `ls`, `file`, `xxd`, `strings`, `python3`.'
 ---
 
 ## Вопрос, с которого всё начинается

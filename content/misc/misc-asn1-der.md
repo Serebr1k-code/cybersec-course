@@ -13,6 +13,16 @@ useful_for:
   - 'Понимание X.509'
 estimated_minutes: 38
 summary: 'ASN.1 и кодирование BER/DER: TLV, OID, разбор сертификатов X.509 и классические атаки на ASN.1-парсеры.'
+lab:
+  kind: shell
+  title: 'Практика: ASN.1/DER: разбор и уязвимости'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, cert.der.hex]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Изучи `task.md` — там условие.'
+    - 'Инструменты: `ls`, `file`, `xxd`, `strings`, `python3`.'
 ---
 
 ## Вопрос, с которого всё начинается

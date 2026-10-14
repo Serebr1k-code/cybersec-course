@@ -13,6 +13,16 @@ useful_for:
   - 'Bug bounty Web3'
 estimated_minutes: 36
 summary: 'Flash loan без залога в одной транзакции, манипуляция spot-оракулами, TWAP-защита и воспроизведение в Foundry.'
+lab:
+  kind: shell
+  title: 'Практика: Flash loan и манипуляции оракулами'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, map.txt, steps.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Изучи `task.md` — там условие.'
+    - 'Инструменты: `ls`, `file`, `xxd`, `strings`, `python3`.'
 ---
 
 ## Вопрос, с которого всё начинается

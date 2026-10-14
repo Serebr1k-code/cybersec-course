@@ -13,6 +13,16 @@ useful_for:
   - 'Обучение'
 estimated_minutes: 30
 summary: 'Сборка схем в Qiskit и Cirq: гейты, измерение, transpile, shot-статистика и отладка на симуляторе.'
+lab:
+  kind: shell
+  title: 'Практика: Qiskit/Cirq: моделирование квантовых схем'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, expected.txt, target.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Изучи `task.md` — там условие.'
+    - 'Инструменты: `ls`, `file`, `xxd`, `strings`, `python3`.'
 ---
 
 ## Вопрос, с которого всё начинается

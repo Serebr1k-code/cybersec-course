@@ -13,6 +13,16 @@ useful_for:
   - 'Bug bounty'
 estimated_minutes: 32
 summary: 'Типы оракулов (spot, TWAP, push/pull, Chainlink), их слабости и векторы атак: stale price, округление, decimals, donation.'
+lab:
+  kind: shell
+  title: 'Практика: Оракулы цен и их атаки'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, map.txt, pool.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Изучи `task.md` — там условие.'
+    - 'Инструменты: `ls`, `file`, `xxd`, `strings`, `python3`.'
 ---
 
 ## Вопрос, с которого всё начинается

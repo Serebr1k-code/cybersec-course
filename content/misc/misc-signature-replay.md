@@ -13,6 +13,16 @@ useful_for:
   - 'Bug bounty'
 estimated_minutes: 34
 summary: 'ECDSA в EVM, EIP-712 и permit, nonce и chainId, replay-атаки и malleability подписей.'
+lab:
+  kind: shell
+  title: 'Практика: Подписи, permit и replay в Web3'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, map.txt, permit.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Изучи `task.md` — там условие.'
+    - 'Инструменты: `ls`, `file`, `xxd`, `strings`, `python3`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,16 @@ useful_for:
   - 'Криптоанализ'
 estimated_minutes: 32
 summary: 'Что такое квантовый оракул, phase kickback, алгоритмы Дойча-Йожи, Бернштейна-Вазирани и Саймона; извлечение секрета за один запрос.'
+lab:
+  kind: shell
+  title: 'Практика: Квантовые оракулы и алгоритм Саймона'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, map.txt, oracle.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Изучи `task.md` — там условие.'
+    - 'Инструменты: `ls`, `file`, `xxd`, `strings`, `python3`.'
 ---
 
 ## Вопрос, с которого всё начинается

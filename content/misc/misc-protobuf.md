@@ -13,6 +13,16 @@ useful_for:
   - 'Аудит API'
 estimated_minutes: 36
 summary: 'Wire-format Protobuf: varint, теги, wire-типы, length-delimited поля; декодирование без .proto и типичные ошибки парсеров.'
+lab:
+  kind: shell
+  title: 'Практика: Protobuf: varint, схемы, обратный разбор'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, data.bin]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Изучи `task.md` — там условие.'
+    - 'Инструменты: `ls`, `file`, `xxd`, `strings`, `python3`.'
 ---
 
 ## Вопрос, с которого всё начинается

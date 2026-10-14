@@ -13,6 +13,16 @@ useful_for:
   - 'Bug bounty'
 estimated_minutes: 28
 summary: 'CSV как текстовый формат и формульные инъекции: как ячейка становится исполняемой формулой в Excel/Sheets и как от этого защищаться.'
+lab:
+  kind: shell
+  title: 'Практика: CSV injection и формульные атаки'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, dump.csv]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Изучи `task.md` — там условие.'
+    - 'Инструменты: `ls`, `file`, `xxd`, `strings`, `python3`.'
 ---
 
 ## Вопрос, с которого всё начинается

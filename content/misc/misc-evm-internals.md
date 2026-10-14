@@ -13,6 +13,16 @@ useful_for:
   - 'Реверс байткода'
 estimated_minutes: 38
 summary: 'Модель EVM: стек, память, calldata и storage; opcodes SLOAD/SSTORE, layout слотов, ABI-кодирование, delegatecall и прокси.'
+lab:
+  kind: shell
+  title: 'Практика: Внутренности EVM: opcodes, gas, storage layout'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, layout.txt, map.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Изучи `task.md` — там условие.'
+    - 'Инструменты: `ls`, `file`, `xxd`, `strings`, `python3`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,16 @@ useful_for:
   - 'Bug bounty Web3'
 estimated_minutes: 36
 summary: 'Модель аккаунтов Solana, PDA и seeds, account confusion, CPI и типичные уязвимости программ на Anchor/Rust.'
+lab:
+  kind: shell
+  title: 'Практика: Solana и Anchor: PDA, account confusion, CPI'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, accounts.txt, map.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Изучи `task.md` — там условие.'
+    - 'Инструменты: `ls`, `file`, `xxd`, `strings`, `python3`.'
 ---
 
 ## Вопрос, с которого всё начинается

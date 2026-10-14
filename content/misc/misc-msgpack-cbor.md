@@ -13,6 +13,16 @@ useful_for:
   - 'Реверс протоколов'
 estimated_minutes: 34
 summary: 'Бинарные форматы MessagePack, CBOR и BSON: типы, теги, каноничность и расхождения парсеров как источник уязвимостей.'
+lab:
+  kind: shell
+  title: 'Практика: MessagePack, CBOR, BSON: парсинг и атаки'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, data.msgpack]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Изучи `task.md` — там условие.'
+    - 'Инструменты: `ls`, `file`, `xxd`, `strings`, `python3`.'
 ---
 
 ## Вопрос, с которого всё начинается

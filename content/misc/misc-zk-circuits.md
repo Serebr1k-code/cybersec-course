@@ -13,6 +13,16 @@ useful_for:
   - 'Понимать zk-SNARK'
 estimated_minutes: 38
 summary: 'Как устроены ZK-схемы и доказательства Groth16: сигналы, ограничения, trusted setup, и типичные баги — неполные ограничения, underconstraint.'
+lab:
+  kind: shell
+  title: 'Практика: ZK-схемы (Circom, Groth16): атаки на доказательства'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, circuit.txt, map.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Изучи `task.md` — там условие.'
+    - 'Инструменты: `ls`, `file`, `xxd`, `strings`, `python3`.'
 ---
 
 ## Вопрос, с которого всё начинается

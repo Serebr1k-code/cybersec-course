@@ -13,6 +13,16 @@ useful_for:
   - 'Криптоанализ'
 estimated_minutes: 35
 summary: 'Идея поиска периода в Shor и квадратичного ускорения в Grover; как из периода получают факторизацию и что это значит для RSA/ECC/AES.'
+lab:
+  kind: shell
+  title: 'Практика: Grover и Shor: как ломают RSA/ECC'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, check.txt, params.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Изучи `task.md` — там условие.'
+    - 'Инструменты: `ls`, `file`, `xxd`, `strings`, `python3`.'
 ---
 
 ## Вопрос, с которого всё начинается

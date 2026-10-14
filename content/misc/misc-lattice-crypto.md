@@ -13,6 +13,16 @@ useful_for:
   - 'Аудит KEM'
 estimated_minutes: 35
 summary: 'Задача о решётках, LWE и NTRU, восстановление секрета при маленьких параметрах и связь с Kyber.'
+lab:
+  kind: shell
+  title: 'Практика: Решёточная криптография (LWE, NTRU) в задачах'
+  toolset: [core, python]
+  workdir: /home/student/task
+  files: [task.md, A.txt, b.txt, map.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - 'Изучи `task.md` — там условие.'
+    - 'Инструменты: `ls`, `file`, `xxd`, `strings`, `python3`.'
 ---
 
 ## Вопрос, с которого всё начинается
