@@ -1,5 +1,5 @@
 ---
-id: cloud-google-workspace
+id: forensics-google-workspace
 title: 'Google Workspace: аудит и форензика'
 category: forensics
 parent: forensics-cloud-identity

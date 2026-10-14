@@ -1,0 +1,23 @@
+{
+  "id": "forensics-google-workspace",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{workspac3_0auth_t0k3n_gr4nt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор журнала Google Workspace\n\nВ каталоге лежит выгрузка журнала аудита `workspace.log` (по одной JSON-записи\nв строке, поля: type, event_name, actor.email, ipAddress). Сотрудник\nпожаловался на незнакомое приложение в Google Drive, затем из общего диска\nскачали документы.\n\nВосстанови картину: найди выдачу OAuth-токена стороннему приложению и\nсвязанные с ней события Drive. В одной из записей журнала лежит флаг.\nЗапиши его в `found.txt` в виде `nto{...}`.\n\nИнструменты: `ls -la`, `head`, `cat`, `grep`, `wc`.\n"
+    },
+    {
+      "path": "/home/student/task/workspace.log",
+      "text": "{\"type\":\"login\",\"event_name\":\"login_failure\",\"actor\":{\"email\":\"bob@corp.com\"},\"ipAddress\":\"203.0.113.9\",\"time\":\"2026-03-09T22:14:01Z\"}\n{\"type\":\"login\",\"event_name\":\"login_failure\",\"actor\":{\"email\":\"bob@corp.com\"},\"ipAddress\":\"203.0.113.9\",\"time\":\"2026-03-09T22:14:03Z\"}\n{\"type\":\"login\",\"event_name\":\"login_failure\",\"actor\":{\"email\":\"bob@corp.com\"},\"ipAddress\":\"203.0.113.9\",\"time\":\"2026-03-09T22:14:05Z\"}\n{\"type\":\"login\",\"event_name\":\"login_success\",\"actor\":{\"email\":\"bob@corp.com\"},\"ipAddress\":\"203.0.113.9\",\"time\":\"2026-03-09T22:14:41Z\"}\n{\"type\":\"token\",\"event_name\":\"authorize\",\"app_name\":\"Docs Sync Tool\",\"scopes\":[\"drive.readonly\",\"drive.file\"],\"actor\":{\"email\":\"bob@corp.com\"},\"ipAddress\":\"203.0.113.9\",\"time\":\"2026-03-09T22:15:02Z\"}\n{\"type\":\"drive\",\"event_name\":\"view\",\"doc_id\":\"1AbCdEf\",\"actor\":{\"email\":\"bob@corp.com\"},\"ipAddress\":\"203.0.113.9\",\"time\":\"2026-03-09T22:15:30Z\"}\n{\"type\":\"drive\",\"event_name\":\"download\",\"doc_id\":\"1AbCdEf\",\"actor\":{\"email\":\"bob@corp.com\"},\"ipAddress\":\"203.0.113.9\",\"time\":\"2026-03-09T22:16:11Z\"}\n{\"type\":\"drive\",\"event_name\":\"download\",\"doc_id\":\"1GhIjKl\",\"actor\":{\"email\":\"bob@corp.com\"},\"ipAddress\":\"203.0.113.9\",\"time\":\"2026-03-09T22:16:14Z\"}\n{\"type\":\"drive\",\"event_name\":\"download\",\"doc_id\":\"1MnOqRs\",\"actor\":{\"email\":\"bob@corp.com\"},\"ipAddress\":\"203.0.113.9\",\"time\":\"2026-03-09T22:16:18Z\"}\n{\"type\":\"admin\",\"event_name\":\"grant_delegated_admin\",\"actor\":{\"email\":\"bob@corp.com\"},\"target\":\"attacker@corp.com\",\"ipAddress\":\"203.0.113.9\",\"time\":\"2026-03-09T22:20:45Z\"}\n{\"type\":\"token\",\"event_name\":\"revoke\",\"app_name\":\"Docs Sync Tool\",\"actor\":{\"email\":\"admin@corp.com\"},\"ipAddress\":\"198.51.100.7\",\"time\":\"2026-03-10T09:02:00Z\"}\n{\"EVIDENCE\":\"nto{workspac3_0auth_t0k3n_gr4nt}\",\"note\":\"correlation: authorize -> download x42 -> grant_delegated_admin\"}\n"
+    }
+  ]
+}
