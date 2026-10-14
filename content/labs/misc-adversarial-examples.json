@@ -1,0 +1,19 @@
+{
+  "id": "misc-adversarial-examples",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `adversarial.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/adversarial.txt",
+      "text": "adversarial examples notes\nFGSM: x_adv = x + eps * sign(grad_x L)\nPGD: iterative small steps projected into eps-ball\ntransferability: a perturbation fools other models too\ndefense: adversarial training, ensembles, gradient hiding\nflag:bnRvezRkdjNyczRyMTRsX3AzcnR1cmI0dDEwbn0=\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-xctest",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{xcu1t3st_4tt4chm3nt_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: XCTest-отчёт\n\nПрогон XCUITest сохранил вложения. Найди вложение упавшего теста.\nВыпиши флаг в found.txt.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/task/xcresult_summary.txt",
+      "text": "Test Suite BankUITests.xctest\n  Test Case '-[BankUITests testTransfer]' started.\n  Test Case '-[BankUITests testTransfer]' failed (0.412 seconds).\n  Attachments:\n    - nto{xcu1t3st_4tt4chm3nt_l34k}.png (screenshot on failure)\n    - console.txt\nExecuted 1 test, with 1 failure (0 unexpected) in 0.412 (0.415) seconds\n"
+    }
+  ]
+}

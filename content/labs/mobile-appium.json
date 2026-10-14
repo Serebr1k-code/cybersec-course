@@ -1,0 +1,23 @@
+{
+  "id": "mobile-appium",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4pp1um_c4p4b1l1t13s_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Appium-лог\n\nВ логе Appium-сервера найди capability, которая утекает лишние данные о сборке.\nВыпиши флаг из той же строки в found.txt.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/task/appium_log.txt",
+      "text": "[Appium] Welcome to Appium v2.11.0\n[Appium] Appium REST http interface listener started on http://0.0.0.0:4723\n[HTTP] --> POST /session {\"capabilities\":{\"alwaysMatch\":{\"platformName\":\"Android\",\"appium:automationName\":\"UiAutomator2\",\"appium:appPackage\":\"com.example.bank\",\"appium:appActivity\":\".MainActivity\"}}}\n[HTTP] <-- POST /session 200 340 ms - 812\n[HTTP] --> POST /session/8f3a/execute/sync {\"script\":\"mobile: shell\",\"args\":[\"getprop ro.build.fingerprint\"]}\n[Appium] capability leak: appium:appBuild = com.example.bank 3.4.1-debug  # flag: nto{4pp1um_c4p4b1l1t13s_l34k}\n[HTTP] <-- POST /session/8f3a/execute/sync 200 12 ms - 4\n"
+    }
+  ]
+}

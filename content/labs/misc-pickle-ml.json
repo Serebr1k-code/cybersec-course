@@ -1,0 +1,19 @@
+{
+  "id": "misc-pickle-ml",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `model_format.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/model_format.txt",
+      "text": "pickle model notes\npickle.loads executes opcodes; GLOBAL + REDUCE calls a function\nmany model formats embed pickle (.pt/.bin/.h5/joblib)\nsafetensors / ONNX are data-only and safer\nscan with picklescan / fickling before loading\nflag:bnRve3AxY2tsM19tMGQzbF9yM2QzczNyfQ==\n"
+    }
+  ]
+}

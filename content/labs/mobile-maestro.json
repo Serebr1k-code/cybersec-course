@@ -1,0 +1,27 @@
+{
+  "id": "mobile-maestro",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m43stro_d3cl4r4t1v3_fl0w}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Maestro-флоу\n\nПрочитай YAML-сценарий и вывод его прогона. Найди шаг, где реальность разошлась с ожиданием.\nВыпиши флаг в found.txt.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/task/maestro_flow.yaml",
+      "text": "appId: com.example.bank\n---\n- launchApp\n- tapOn: 'Логин'\n- inputText: 'alice'\n- tapOn: 'Пароль'\n- inputText: 'hunter2'\n- tapOn: 'Войти'\n- assertVisible: 'Баланс'\n"
+    },
+    {
+      "path": "/home/student/task/maestro_output.txt",
+      "text": "Running flow: login.yaml\n✅ launchApp\n✅ tapOn 'Логин'\n✅ inputText\n✅ tapOn 'Пароль'\n✅ inputText\n✅ tapOn 'Войти'\n❌ assertVisible 'Баланс' — got 'DEBUG MENU: com.example.bank/.DebugActivity'  # flag: nto{m43stro_d3cl4r4t1v3_fl0w}\n1 flow, 1 failure\n"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "misc-multimodal-llm",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `vision.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/vision.txt",
+      "text": "multimodal LLM notes\nimage -> patch embeddings -> transformer tokens\ntypographic attack: text on the image becomes an instruction\nhidden text: tiny/low-contrast/EXIF\nadversarial patch: optimized region that fools the model\nflag:bnRve211bHQxbTBkNGxfdjFzMTBuX3A0dGNofQ==\n"
+    }
+  ]
+}

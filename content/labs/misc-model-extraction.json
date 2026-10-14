@@ -1,0 +1,19 @@
+{
+  "id": "misc-model-extraction",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `oracle.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/oracle.txt",
+      "text": "model extraction notes\ncollect (x, f(x)) pairs from the API\ntrain a copy model on them\nactive learning / boundary attacks reduce queries\ndefenses: rate limits, noise, watermarking, monitoring\nflag:bnRve20wZDNsX3N0MzQxMW5nX3F1M3IxM3N9\n"
+    }
+  ]
+}

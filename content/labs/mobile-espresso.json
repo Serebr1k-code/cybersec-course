@@ -1,0 +1,23 @@
+{
+  "id": "mobile-espresso",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3spresso_l34ky_1nt3nt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: отчёт Espresso\n\nПрогон Espresso упал. Найди упавший тест и причину — в ней светится лишнее.\nВыпиши флаг в found.txt.\n\nИнструменты: `cat`, `grep`.\n"
+    },
+    {
+      "path": "/home/student/task/espresso_report.txt",
+      "text": "com.example.bank.LoginTest > loginWithWrongPassword FAILED\n    java.lang.AssertionError: expected balance screen but got intent: com.example.bank.ACTION_DEBUG # flag: nto{3spresso_l34ky_1nt3nt}\n        at com.example.bank.LoginTest.loginWithWrongPassword(LoginTest.java:42)\ncom.example.bank.LoginTest > loginWithCorrectPassword PASSED\nTests run: 2, Failures: 1\n"
+    }
+  ]
+}
