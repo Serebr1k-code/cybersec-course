@@ -19,6 +19,11 @@
       "path": "/home/student/task/Groups.xml",
       "text": "<Groups>\n  <User name=\"localadmin\">\n    <Properties cpassword=\"j1Uyj3Vx8TY9LtLZil2uAuZkFQA/4latT76ZwgdHdhw\" />\n  </User>\n  <!-- nto{gpp_cp4ssw0rd_d3crypt} -->\n</Groups>\n",
       "mode": "644"
+    },
+    {
+      "path": "/home/student/task/GPT.INI",
+      "text": "[General]\nVersion=65537\n",
+      "mode": "644"
     }
   ]
 }
