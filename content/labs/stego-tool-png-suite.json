@@ -1,0 +1,50 @@
+{
+  "id": "stego-tool-png-suite",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{png_ch3ck_chunk5}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор чанков PNG\n\n`image.png` содержит нестандартный чанк с данными. Найди его через pngcheck и извлеки.\n\n1. `pngcheck -v image.png` — список чанков.\n2. Найди tEXt-чанк с флагом.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/image.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAADAUlEQVR4nD3QU0NYYQAA0C/bq5aWscyt2rLNVVuuZSzbtlu21jJWLdtLy7aNrZb2ds9POAABiwid5j0enz6xYgClcRGD2yBb9NGbfEyBRg7xUXW5DVfVP+kf0doMKNbNeOBsZekA7ptPRHLeFAa59M49rBG7PDko7+uZxYaUZFcdVK6StZCb9MmWTDmfbKQonXTEPe3NALluBp1DO0voBncm/LsaetF+WZklG+XzOE2EOj3iWRO2O2txUsePQh62Rv6BwWGp3wBz0DJX2jN/JZVIj4T0vLnSSaQGbKUu4eRn5msrEUIHDX53K10/P7/Q5IKY7/3JHQeAr4xMuFNYasZY8TDkw3OpzotR49dnloK49mo8buZavt6eIQnZ0SVdSa3bGZNI+buMQHJKT2HPX/2hUBtnwIju0OIdhp0yu6uJmo+HS3BsWlRha+LPtfQx2Lwt2m+30lUYVkDtLucTZrch9Y45L/IXBSYXI0VvV/ugqKTIvMaEhsW0kcfcdYqSG7FKVNMf5OGt3OUA+nLWl/Fysg4Mj43Iro2vm0kdvM1ZISm+FKxAMqwnDWrhKOmWHB7SPgHQV0BIRHhGRVz1RErfVfYiQdEZXzm8Th2RbzNrfpdY36DW/rgN2mwAK4C+YitGvnafZs3hFB5zl8Fo1hJ4/GTK6hTuHPiwNWaJOOP7ejlJfqv0C4C+MqfRCw7Yvj+p1uA5NzGkdgi09Kuu/jKDmfaiWYqX2iy2PGiJPp+oBtBX6b1CNbZdI21iO39Dn9LC6OeH3+7kizGiGwUm+01hZ7/K/myOPf69ANBXA1VM29uaXvnpEcO/Uy7EC5EC67kGez8CT4eLb9aGHq6P4VCwUF9xAuirR2Z8WO9y0hF/Pox3LUt7t9bnZCDvern3/mIPFhEVhYQFm12ZUMIRQF8TdthzwVyr6Ro7Ve7HvZlXCx3/Tjdh4BCQXzJgscgRiNqSacbTWNcD6GslRWW73OmoK+VytvnuaAUAgIRPjckoiS9kQaoeRW1RxegzxZF48x8GjYIQdUcT5QAAAABJRU5ErkJggg=="
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        }
+      ]
+    },
+    "pngcheck": {
+      "help": "pngcheck [-v|-c|-t] <file.png> — проверка структуры PNG (эмуляция)",
+      "cases": [
+        {
+          "match": "-v\\s+image\\.png",
+          "example": "pngcheck -v image.png",
+          "output": "File: image.png (1234 bytes)\n  chunk IHDR at offset 0x0000c, length 13\n    16 x 16 image, 24-bit RGB, non-interlaced\n  chunk tEXt at offset 0x00025, length 34, CRC error\n    keyword: Comment\n    nto{png_ch3ck_chunk5}\n  chunk IDAT at offset 0x00053, length 120\n  chunk IEND at offset 0x000cf, length 0\n"
+        },
+        {
+          "match": "-t\\s+image\\.png",
+          "example": "pngcheck -t image.png",
+          "output": "OK: image.png (1234 bytes)\n"
+        }
+      ]
+    }
+  }
+}

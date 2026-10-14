@@ -1,0 +1,44 @@
+{
+  "id": "stego-tool-audacity",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sp3ctr0_4ud4c1ty}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: декодирование спектрограммы\n\n`hidden.wav` содержит текст, «нарисованный» в спектре. Построй спектрограмму и прочитай его.\n\n1. `python3 spectro.py` — спектрограмма + распознанный текст.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/hidden.wav",
+      "text": "RIFF....WAVEfmt \u0010\u0000\u0000\u0000\u0001\u0000\u0001\u0000D¬\u0000\u0000X\u0001\u0000\u0002\u0000\u0010\u0000data....\u0000\u0001\u0002\u0003"
+    },
+    {
+      "path": "/home/student/task/spectro.py",
+      "text": "print('fft_window=2048  hop=512  sample_rate=44100')\nprint('spectrogram image: 1024 x 512')\nprint('recognized text: nto{sp3ctr0_4ud4c1ty}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "spectro\\.py",
+          "example": "python3 spectro.py",
+          "output": "fft_window=2048  hop=512  sample_rate=44100\nspectrogram image: 1024 x 512\nrecognized text: nto{sp3ctr0_4ud4c1ty}\n"
+        }
+      ]
+    }
+  }
+}

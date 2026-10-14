@@ -1,0 +1,45 @@
+{
+  "id": "stego-tool-foremost",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{f0r3m0st_c4rv3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: карвинг файла из образа\n\n`evidence.dd` — сырой образ без файловой системы. Вырежи из него вложенный файл.\n\n1. `foremost -i evidence.dd -o out` — карвинг.\n2. Найди вырезанный файл.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/evidence.dd",
+      "text": "\u0000\u0000\u0000\u0000RAWIMAGE\u0000\u0000\u0000\u0000PNG\r\n\u001a\n\u0000\u0000\u0000\rIHDR\u0000\u0000\u0000\u0010\u0000\u0000\u0000\u0010\b\u0002\u0000\u0000\u0000wSÞ\u0000\u0000\u0000nto{f0r3m0st_c4rv3d}\u0000\u0000\u0000\u0000IEND®B`\u0000\u0000\u0000\u0000END"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        }
+      ]
+    },
+    "foremost": {
+      "help": "foremost -i <image> -o <dir> [-t types] — карвинг по сигнатурам (эмуляция)",
+      "cases": [
+        {
+          "match": "evidence\\.dd",
+          "example": "foremost -i evidence.dd -o out",
+          "output": "Foremost version 1.5.7\nProcessing: evidence.dd\n| * | Found: PNG (image/png)\nFound 1 file.\n  out/png/00000000.png  (4096 bytes)\n  payload: nto{f0r3m0st_c4rv3d}\n"
+        }
+      ]
+    }
+  }
+}

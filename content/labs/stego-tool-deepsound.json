@@ -1,0 +1,45 @@
+{
+  "id": "stego-tool-deepsound",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d33ps0und_lsb_w4v}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: извлечение из DeepSound-контейнера\n\n`secret.wav` содержит встроенный архив. Извлеки его содержимое.\n\n1. `deepsound secret.wav` — наличие и извлечение.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/secret.wav",
+      "text": "RIFF....WAVEfmt \u0010\u0000\u0000\u0000\u0001\u0000\u0001\u0000D¬\u0000\u0000X\u0001\u0000\u0002\u0000\u0010\u0000data....DEEPSOUND\u0001secret.zip"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        }
+      ]
+    },
+    "deepsound": {
+      "help": "deepsound <file.wav> [--extract] — извлечение аудио-контейнера (эмуляция)",
+      "cases": [
+        {
+          "match": "secret\\.wav",
+          "example": "deepsound secret.wav",
+          "output": "DeepSound v2.2\nFile: secret.wav\nEmbedded data found: 1 file (secret.zip)\nEncryption: password-protected\nExtracted: nto{d33ps0und_lsb_w4v}\n"
+        }
+      ]
+    }
+  }
+}

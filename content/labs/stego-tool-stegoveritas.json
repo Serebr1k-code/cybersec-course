@@ -1,0 +1,45 @@
+{
+  "id": "stego-tool-stegoveritas",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{st3g0v3r1t4s_4ut0}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: автоматический разбор Stegoveritas\n\n`image.png` содержит скрытые данные. Прогони Stegoveritas и достань их.\n\n1. `stegoveritas image.png` — автоматический отчёт.\n2. Найди блок 'extracted data'.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/image.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAADAUlEQVR4nD3QVSNYYQAA0E+NaTM93Wza5HRuuru7a2qmu7vZdJue7hqmu9sw3Qx7u+cnHAD3EgOZhA2LXRVfyp1UN4PGqf1dyAZHJjxfNa1I/0fpJVuF01h1hFo9wllT5jsbsTcAk0UBT9yZRCuZ2r7pbeAye9ozbyWFcI+41LyF/FGEGmylLt6EydtLa2E8JzVeD2tdQKweR2VTx+g3x5Z8z1NGLNQpJDljLHcQrPpcovN6xJj+xErglaMyp7uFhs/XL8Hx2YDBe5I14Yq7GF+wjU9iUk92z0/lX7421oARzYElH5qDAoubqbK3p2tQTFpkfmtC0xrgKsAWaH4vPqYps+2lfPdNC73bkHLHghvJXpbR1Ujuq5tjYGRiRM7P+IbFtOHH7+tkQGxE5dOGm9J1uiZKmwHZujknnN1Hms/60l4uNgFhMeHZNXG1M6mDt99WiArPBSoQDYHiRZIGUqM+8ZIZ25OtJLmLjtgXR3P/4PCwjIrYqvGUvovsRdyCE55yeJ1aAp9mplwAfTlrCnraGfkFBIWmFsdUDCd3H2fNYeX/5SiDUa/B9WxizOoU6hxQ3QLQl6+vb0hSXnRpf1LHfuY0at4+c+mTUjX250a61I4PLf1Kq7/NYaa9qAD0FVXUldi6nTGBmLvLUPIgW4Xp8JM6oZ23oU9+YcTk35QH6WK0yEaeKYC+0kdhc7aoi2+lfqBZN1BEt3FV98pMDxveTLoSLkR8WP9usFcfcDxUCKCvoivRSmSzetKwVo7yHumxIb3zCWec+VDutSzt3Rrvo4Gcy+Xeh7M9AH3VvQlsYS3qlhj6pX007oA5F8S+mq6288Pjb2/mxULH/fEmDBwCEj4dgL66RPsGNf6M2aLM+jOtpChul7scdqWczzbfHa4AABBxKNEZJHAELQH0NWr1YsaHfjlRZqvE/qA9/myq/vbP/PPjw4tXJGi0wq/5TYgUQyjMSgH0tRQnuVlotd8SdTpedbMz9XR/jYBBgErFj82jTyjnT25cQOc+yBx1+B9LjYQQhTiT2wAAAABJRU5ErkJggg=="
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        }
+      ]
+    },
+    "stegoveritas": {
+      "help": "stegoveritas <image> — автоматический стего-анализ (эмуляция)",
+      "cases": [
+        {
+          "match": "image\\.png",
+          "example": "stegoveritas image.png",
+          "output": "[*] running metadata checks ... done\n[*] running LSB extraction ... nothing\n[*] running palette checks ... nothing\n[*] running appended-data check ... FOUND\n[+] extracted data (offset 0x4a2): nto{st3g0v3r1t4s_4ut0}\n"
+        }
+      ]
+    }
+  }
+}

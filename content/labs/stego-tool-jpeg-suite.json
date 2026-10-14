@@ -1,0 +1,60 @@
+{
+  "id": "stego-tool-jpeg-suite",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{jpg_c0mm3nt_tr4nsf0rm}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: маркеры JPEG и извлечение\n\n`image.jpg` содержит данные в маркере. Разбери структуру через jpegtran и извлеки.\n\n1. `jpegtran -copy all -verbose image.jpg > /dev/null` — маркеры.\n2. Найди COM-комментарий.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/image.jpg",
+      "b64": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD/wAALCAAQABABAREA/8QAHwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQAAPwAAAAAAAAAAAP/Z"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        }
+      ]
+    },
+    "jpegtran": {
+      "help": "jpegtran [-copy all|none] [-verbose] <file.jpg> — lossless JPEG (эмуляция)",
+      "cases": [
+        {
+          "match": "verbose.*image\\.jpg|image\\.jpg.*verbose",
+          "example": "jpegtran -copy all -verbose image.jpg",
+          "output": "Start of Image\nJFIF APP0 marker: version 1.1, density 1x1\nComment marker (COM): nto{jpg_c0mm3nt_tr4nsf0rm}\nDefine Quantization Table 0\nStart Of Frame (baseline)\nEnd Of Image\n"
+        },
+        {
+          "match": "-copy\\s+none",
+          "example": "jpegtran -copy none image.jpg",
+          "output": "JPEG transformed (metadata stripped)\n"
+        }
+      ]
+    },
+    "exiftool": {
+      "help": "exiftool <file> — чтение метаданных (эмуляция)",
+      "cases": [
+        {
+          "match": "image\\.jpg",
+          "example": "exiftool image.jpg",
+          "output": "File Name: image.jpg\nFile Type: JPEG\nComment: nto{jpg_c0mm3nt_tr4nsf0rm}\n"
+        }
+      ]
+    }
+  }
+}
