@@ -21,6 +21,7 @@ lab:
   files: [task.md, .npmrc, package.json]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-supply-chain`): `cat .npmrc; cat package.json` — разбери конфиг scope/реестра перед запросом к публичному npm."
     - 'Посмотри .npmrc: какой scope и какой реестр настроены для внутренних пакетов.'
     - 'Спроси у публичного реестра метаданные внутреннего пакета: `curl -s https://registry.npmjs.org/@corp%2Finternal-utils`.'
     - 'Если пакет существует публично и его версия выше внутренней — резолвер возьмёт именно её.'

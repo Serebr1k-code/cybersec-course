@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, disk.img]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`forensics-fs-structure`): `file disk.img && strings disk.img | grep -i nto` — inode освобождён, блоки данных остались."
     - "Начни с `file disk.img` и `ls -la` — образ какого типа перед тобой?"
     - "Данные удалённого файла остаются в блоках. Ищи их `strings disk.img | grep -i nto`."
     - "Можно сузить поиск: `strings disk.img | grep -i secret` и посмотреть окрестность."

@@ -21,6 +21,7 @@ lab:
   files: [task.md, index.html]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-supply-chain`): `grep -iE 'script src|integrity' index.html` — сторонний скрипт без SRI = вектор подмены."
     - 'Посмотри index.html: какие скрипты грузятся со сторонних домов и есть ли у них integrity.'
     - 'Скрипт без атрибута integrity можно подменить — это и есть вектор.'
     - 'Запроси подозрительный скрипт и сравни с ожидаемым содержимым: `curl -s https://cdn.jsdelivr.example/polyfill.min.js`.'

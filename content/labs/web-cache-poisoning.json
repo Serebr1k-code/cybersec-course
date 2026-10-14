@@ -7,10 +7,13 @@
     "contains": "nto{p01s0n3d_c4ch3_1s_3v3ry0n3s_c4ch3}"
   },
   "fs": [
-    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: Web Cache Poisoning\n\n`shop.local` за кэшем. Кэш ключуется ТОЛЬКО по пути и не учитывает заголовок\n`X-Forwarded-Host`, хотя приложение из него строит ответ (выбирает origin).\nОтравим кэш внутренним origin-ом и заберём то, что видит только кэш.\n\n1. Смотрим кэш (обрати внимание на `X-Cache`):\n   curl -s -i 'http://shop.local/api/config'\n2. Заголовок не входит в ключ кэша — подставим внутренний origin:\n   curl -s -i 'http://shop.local/api/config' -H 'X-Forwarded-Host: internal.shop.local'\n3. Приложение вернуло внутренний конфиг, и он же лёг в кэш — в ответе флаг.\n4. Флаг — последняя строка. Запиши в `found.txt` и набери `check`.\n"
+      "text": "# Практика: Web Cache Poisoning\n\n`shop.local` за кэшем. Кэш ключуется ТОЛЬКО по пути и не учитывает заголовок\n`X-Forwarded-Host`, хотя приложение из него строит ответ (выбирает origin).\nОтравим кэш внутренним origin-ом и заберём то, что видит только кэш.\n\n1. Смотрим кэш (обрати внимание на `X-Cache`):\n   curl -s -i 'http://shop.local/api/config'\n2. Заголовок не входит в ключ кэша — подставим внутренний origin:\n   curl -s -i 'http://shop.local/api/config' -H 'X-Forwarded-Host: internal.shop.local'\n3. Приложение вернуло внутренний конфиг, и он же лёг в кэш — в ответе флаг.\n4. Флаг — последняя строка. Запиши в `found.txt` и набери `check`.\n\n## Повторение (`web-host-header`)\n\nКэш-отравление через `X-Forwarded-Host` — надстройка над инъекцией в Host-заголовок из `web-host-header`. Освежи: сначала посмотри, как кэш маркирует ответы:\n\n    curl -s -i 'http://shop.local/api/config' | grep -iE 'x-cache|age|vary'\n\n`X-Cache` и `Vary` показывают, что входит в ключ кэша. Ниже подставляешь `X-Forwarded-Host`, чтобы отравить запись.\n"
     }
   ],
   "tools": {

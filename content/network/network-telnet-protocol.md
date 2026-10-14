@@ -21,6 +21,7 @@ lab:
   files: [task.md, telnet.log]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`network-tcpip`): `head -n 1 telnet.log` — FF = IAC; управляющие байты опций, затем val."
     - "`telnet.log` — дамп Telnet-сессии с управляющими байтами."
     - "Строка с `SB` — это subnegotiation опции; в ней поле `val:` в base64."
     - "Вырежи: `grep val: telnet.log | cut -d: -f2`."

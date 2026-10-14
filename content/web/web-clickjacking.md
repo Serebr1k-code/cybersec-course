@@ -20,6 +20,7 @@ lab:
   files: [task.md]
   check: "grep -q 'opacity' clickjack.html && grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-csrf`): `curl -sI https://victim.com/account/email | grep -i frame` — нет заголовков против фрейминга → iframe возможен."
     - "Проверь защиту от фрейминга: curl -sI https://victim.com/account/email | grep -i frame"
     - "Ни X-Frame-Options, ни frame-ancestors нет — страницу можно встроить в iframe."
     - "Собери clickjack.html: прозрачный iframe (opacity:0.0001) с https://victim.com/account/email и приманка-кнопка поверх."

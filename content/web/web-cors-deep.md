@@ -20,6 +20,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-same-origin-cors`): `curl -s -i ... -H 'Origin: https://evil.local' | grep -i access-control` — смотри на отражение Origin и allow-credentials."
     - "Подставь чужой Origin: curl -s -i https://api.shop.local/me -H 'Origin: https://evil.local' -b 'session=victim'"
     - "Смотри на Access-Control-Allow-Origin и Access-Control-Allow-Credentials."
     - "Если ACAO отражает твой origin, а ACAC: true — данные читаются с cookie жертвы."

@@ -21,6 +21,7 @@ lab:
   files: [task.md, card.mfd]
   check: "grep -q '04:a1:b2:c3' answer.txt"
   hints:
+    - "Повторение (`network-wireless-80211`): `xxd -l 32 card.mfd` — читай байты, как кадр 802.11; первый байт 04 (NXP), далее UID."
     - "Начни с `ls -la` и `xxd -l 32 card.mfd`."
     - "Блок 0 — manufacturer block; первые байты — UID."
     - "UID карт NXP начинается с байта `04`."

@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, firmware.bin]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`forensics-file-magic`): `grep -aboP 'PK' firmware.bin` — сигнатура ZIP даёт смещение для `dd skip=`."
     - "Начни с `ls -la` и `file firmware.bin` — что система думает об образе?"
     - "Сигнатуру ZIP (`PK\\x03\\x04`) ищут байтовым grep: `grep -aboP 'PK\\x03\\x04' firmware.bin`. Опция `-b` печатает смещение в байтах."
     - "Вырежи архив ровно с найденного смещения: `dd if=firmware.bin of=carved.zip bs=1 skip=<СМЕЩЕНИЕ>`, затем `unzip -l carved.zip`."

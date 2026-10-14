@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: DCCP-соединение\n\n`dccp.log` — разбор DCCP-пакетов. В одном пакете есть поле `feature:`\nв base64.\n\n1. Посмотри лог: `cat dccp.log`\n2. Вырежи поле: `grep feature: dccp.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+      "text": "# Задача: DCCP-соединение\n\n`dccp.log` — разбор DCCP-пакетов. В одном пакете есть поле `feature:`\nв base64.\n\n1. Посмотри лог: `cat dccp.log`\n2. Вырежи поле: `grep feature: dccp.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n\n## Повторение (`network-tcpip`)\n\nОсновная задача — разобрать нестандартный транспортный заголовок, а ручной разбор заголовков ты отрабатывал в `network-tcpip`. Освежи приём «прочитать поле прямо из лога» — определи конечные точки соединения:\n\n    grep port dccp.log\n\n`DCCP Request port=5000` — это порты-конечные точки, как src/dst в TCP/UDP. Теперь переходи к основной задаче: найди поле `feature:` и декодируй его.\n"
     },
     {
       "path": "/home/student/task/dccp.log",

@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: подменённый CDN-скрипт\n\nСтраница магазина грузит скрипт со стороннего CDN без integrity.\nОпредели вектор и найди флаг в подменённом скрипте.\n\n1. Посмотри страницу и скрипты:\n   cat index.html\n2. Запроси сторонний скрипт:\n   curl -s https://cdn.jsdelivr.example/polyfill.min.js\n3. Найди в нём флаг и запиши в found.txt, затем check.\n"
+      "text": "# Практика: подменённый CDN-скрипт\n\nСтраница магазина грузит скрипт со стороннего CDN без integrity.\nОпредели вектор и найди флаг в подменённом скрипте.\n\n1. Посмотри страницу и скрипты:\n   cat index.html\n2. Запроси сторонний скрипт:\n   curl -s https://cdn.jsdelivr.example/polyfill.min.js\n3. Найди в нём флаг и запиши в found.txt, затем check.\n\n## Повторение (`web-supply-chain`)\n\nПодмена стороннего скрипта — атака на цепочку поставок; концепцию ты разбирал в `web-supply-chain`. Освежи: сначала найди, какие внешние ресурсы грузит страница и есть ли у них `integrity`:\n\n    grep -iE 'script src|integrity' index.html\n\nОтсутствие `integrity` у стороннего домена = вектор. Ниже запрашиваешь подменённый скрипт.\n"
     },
     {
       "path": "/home/student/task/index.html",

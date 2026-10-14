@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: SCTP-ассоциация\n\n`sctp.log` — разбор ассоциации SCTP. В одном DATA-чанке есть поле\n`payload:` в base64.\n\n1. Посмотри лог: `cat sctp.log`\n2. Вырежи поле: `grep payload: sctp.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+      "text": "# Задача: SCTP-ассоциация\n\n`sctp.log` — разбор ассоциации SCTP. В одном DATA-чанке есть поле\n`payload:` в base64.\n\n1. Посмотри лог: `cat sctp.log`\n2. Вырежи поле: `grep payload: sctp.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n\n## Повторение (`network-tcpip`)\n\nSCTP — транспортный протокол, и порты-конечные точки ты разбирал в `network-tcpip`. Освежи:\n\n    grep port sctp.log\n\n`src=5060 dst=5060` — те же порты-конечные точки, что и в TCP/UDP. Ниже разбираем DATA-чанк и декодируем его `payload:`.\n"
     },
     {
       "path": "/home/student/task/sctp.log",

@@ -20,6 +20,7 @@ lab:
   files: [task.md, profile.html]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-cookies-sessions`): сними форму и `grep -iE 'csrf|token|hidden' profile.html` — проверь, полагается ли сервер только на cookie."
     - "Сначала снимаем форму профиля: curl -s https://shop.local/profile -H 'Cookie: session=alice' > profile.html"
     - "Ищи в форме скрытое поле csrf_token. Если его нет — защита от CSRF отсутствует."
     - "Собери авто-отправляемую форму: POST на /profile/email с email=attacker@evil.com."

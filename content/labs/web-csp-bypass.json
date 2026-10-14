@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: обход CSP через script gadget (JSONP)\n\n`forum.example` ставит CSP с `script-src 'self' https://cdn.jsdelivr.net 'nonce-abc123'`.\nИнлайн-скрипт заблокирован, но домен из `script-src` — это **script gadget**.\n\n1. Сними и разбери политику:\n\n   curl -s -I https://forum.example/ | grep -i content-security-policy\n\n2. На доверенном домене есть JSONP-эндпоинт (`?callback=`), который исполняет\n   переданное имя функции. Его ответ исполняется под доверенным origin.\n\n3. Загрузи ответ JSONP и сохрани в `found.txt`:\n\n   curl -s https://cdn.jsdelivr.net/jsonp?callback=x > found.txt\n\n4. Набери `check`.\n"
+      "text": "# Практика: обход CSP через script gadget (JSONP)\n\n`forum.example` ставит CSP с `script-src 'self' https://cdn.jsdelivr.net 'nonce-abc123'`.\nИнлайн-скрипт заблокирован, но домен из `script-src` — это **script gadget**.\n\n1. Сними и разбери политику:\n\n   curl -s -I https://forum.example/ | grep -i content-security-policy\n\n2. На доверенном домене есть JSONP-эндпоинт (`?callback=`), который исполняет\n   переданное имя функции. Его ответ исполняется под доверенным origin.\n\n3. Загрузи ответ JSONP и сохрани в `found.txt`:\n\n   curl -s https://cdn.jsdelivr.net/jsonp?callback=x > found.txt\n\n4. Набери `check`.\n\n## Повторение (`web-xss`)\n\nОбход CSP нужен, чтобы исполнить инъекцию — базовый XSS ты разбирал в `web-xss`. Освежи: сначала прочитай саму политику и найди доверенные источники скриптов:\n\n    curl -s -I https://forum.example/ | grep -i content-security-policy\n\nСмотри `script-src`: домены в нём — это потенциальные script gadget'ы. Ниже используешь JSONP на доверенном CDN.\n"
     }
   ],
   "tools": {

@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: разбор TACACS+\n\n`tacacs.log` — заголовок и тело AUTHEN-пакета. Тело помечено `body:`\nи закодировано в base64.\n\n1. Посмотри лог: `cat tacacs.log`\n2. Вырежи поле: `grep body: tacacs.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+      "text": "# Задача: разбор TACACS+\n\n`tacacs.log` — заголовок и тело AUTHEN-пакета. Тело помечено `body:`\nи закодировано в base64.\n\n1. Посмотри лог: `cat tacacs.log`\n2. Вырежи поле: `grep body: tacacs.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n\n## Повторение (`network-tcpip`)\n\nTACACS+ — бинарный протокол поверх TCP; ручной разбор заголовков — из `network-tcpip`. Освежи: посмотри поля заголовка пакета:\n\n    grep Header tacacs.log\n\n`ver type seq flags session len` — как поля любого бинарного заголовка. Ниже декодируем `body:` в base64.\n"
     },
     {
       "path": "/home/student/task/tacacs.log",

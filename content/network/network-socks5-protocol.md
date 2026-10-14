@@ -21,6 +21,7 @@ lab:
   files: [task.md, socks.log]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`network-tcpip`): `head -n 1 socks.log` — 05 01 00 = версия SOCKS5 + метод аутентификации."
     - "`socks.log` — hex-дамп SOCKS5-сессии; декодируй: `xxd -r -p socks.log` (или читай байты)."
     - "В запросе CONNECT есть поле адреса назначения в base64."
     - "Найди строку `dst:` и вырежи: `grep dst: socks.log | cut -d: -f2`."

@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: найти origin за CDN и обойти его\n\nСайт `shop.example.com` стоит за Cloudflare — прямой запрос попадает в CDN.\nНужно найти настоящий IP origin и обратиться к нему, подставив `Host`.\n\n1. Заголовки через CDN: `curl -sI https://shop.example.com` — увидишь `server: cloudflare`.\n2. В `dns-history.txt` лежит история A-записей — найди старый адрес origin.\n3. Обратись к origin напрямую (SNI + Host = домен):\n   `curl --resolve shop.example.com:443:198.51.100.77 https://shop.example.com/`\n4. Запиши флаг `nto{...}` из ответа origin в `answer.txt` и набери `check`.\n"
+      "text": "# Задача: найти origin за CDN и обойти его\n\nСайт `shop.example.com` стоит за Cloudflare — прямой запрос попадает в CDN.\nНужно найти настоящий IP origin и обратиться к нему, подставив `Host`.\n\n1. Заголовки через CDN: `curl -sI https://shop.example.com` — увидишь `server: cloudflare`.\n2. В `dns-history.txt` лежит история A-записей — найди старый адрес origin.\n3. Обратись к origin напрямую (SNI + Host = домен):\n   `curl --resolve shop.example.com:443:198.51.100.77 https://shop.example.com/`\n4. Запиши флаг `nto{...}` из ответа origin в `answer.txt` и набери `check`.\n\n## Повторение (`network-wireshark`)\n\nРазбор HTTP-заголовков (`server`, `Host`) — навык из `network-wireshark`. Освежи: посмотри заголовки ответа и поле `server`:\n\n    curl -sI https://shop.example.com\n\n`server: cloudflare` говорит, что ты говоришь с CDN, а не с origin. Ниже найдёшь origin в истории DNS и обратишься к нему напрямую.\n"
     },
     {
       "path": "/home/student/task/dns-history.txt",

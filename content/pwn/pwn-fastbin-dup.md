@@ -21,6 +21,7 @@ lab:
   files: [task.md, fastbin.gdb.txt, fastbin.bin]
   check: "grep -q 'dup=0x404060' answer.txt"
   hints:
+    - "Повторение (`pwn-heap-uaf`): `grep -n 'fastbin' fastbin.gdb.txt` — вспомни UAF; проверка только верхушки (old == p) пропускает double-free."
     - "Double-free прошёл, потому что проверяется только верхушка fastbin (old == p)."
     - "Смотри `fastbin.gdb.txt`: цепочка имеет вид `A -> B -> A`."
     - "Дублируется первый элемент цикла — user-указатель чанка A."

@@ -20,6 +20,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-auth-jwt-idor`): зафиксируй эталон (цена 5000, корзина), затем подставь `price=1` — доверие к клиенту."
     - Цена на витрине: `curl -s 'http://shop.local/product/1'`.
     - В корзину: `curl -s -X POST 'http://shop.local/cart/add' -d 'product=1&qty=1'`.
     - Сервер доверяет цене из запроса — пришли свою: добавь `&price=1`.

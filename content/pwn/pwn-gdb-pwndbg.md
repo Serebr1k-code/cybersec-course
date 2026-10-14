@@ -21,6 +21,7 @@ lab:
   files: [task.md, gdb_canary.txt]
   check: "grep -q '0xb57336be64e6700' answer.txt"
   hints:
+    - "Повторение (`pwn-elf-basics`): `grep -iE 'canary|fs:|check' gdb_canary.txt` — вспомни раскладку процесса; canary грузится из TLS."
     - "Файл `gdb_canary.txt` — запись реальной отладочной сессии на бинарнике с canary."
     - "Мы встали на функцию `check` и прошагали до инструкции, где canary уже загружен в регистр."
     - "В выводе есть строка `$1 = 0x...` и дамп памяти `x/gx` — это и есть значение canary."

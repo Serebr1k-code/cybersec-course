@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: TFTP-передача\n\n`tftp.log` — дамп TFTP-сессии (RRQ + блоки DATA/ACK).\nОдин из блоков несёт поле `data:` в base64.\n\n1. Посмотри лог: `cat tftp.log`\n2. Вырежи поле: `grep data: tftp.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+      "text": "# Задача: TFTP-передача\n\n`tftp.log` — дамп TFTP-сессии (RRQ + блоки DATA/ACK).\nОдин из блоков несёт поле `data:` в base64.\n\n1. Посмотри лог: `cat tftp.log`\n2. Вырежи поле: `grep data: tftp.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n\n## Повторение (`network-tcpip`)\n\nTFTP — простой протокол поверх UDP; адресацию и порты разбирали в `network-tcpip`. Освежи: посмотри опкоды сессии:\n\n    grep -E 'RRQ|DATA|ACK' tftp.log\n\n`69` — стандартный порт TFTP; RRQ/DATA/ACK — опкоды, как типы сообщений в других протоколах. Ниже декодируем `data:` второго блока.\n"
     },
     {
       "path": "/home/student/task/tftp.log",

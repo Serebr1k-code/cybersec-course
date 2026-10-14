@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: читаем дамп MIFARE Classic\n\n`card.mfd` — дамп карты MIFARE Classic 1K (1024 байта, блоки по 16 байт), снятый с ридера.\nПервый блок (блок 0) — **manufacturer block**: в первых байтах лежит UID карты (NFCID1).\n\n1. Посмотри начало дампа: `xxd -l 32 card.mfd`\n2. (полезно) строки: `strings -n 6 card.mfd`\n\nИзвлеки **UID карты** (первый байт блока 0 всегда `04` для карт NXP).\nЗапиши его через двоеточия (`04:aa:bb:cc`) в `answer.txt`.\n"
+      "text": "# Задача: читаем дамп MIFARE Classic\n\n`card.mfd` — дамп карты MIFARE Classic 1K (1024 байта, блоки по 16 байт), снятый с ридера.\nПервый блок (блок 0) — **manufacturer block**: в первых байтах лежит UID карты (NFCID1).\n\n1. Посмотри начало дампа: `xxd -l 32 card.mfd`\n2. (полезно) строки: `strings -n 6 card.mfd`\n\nИзвлеки **UID карты** (первый байт блока 0 всегда `04` для карт NXP).\nЗапиши его через двоеточия (`04:aa:bb:cc`) в `answer.txt`.\n\n## Повторение (`network-wireless-80211`)\n\nNFC/RFID — беспроводной канал; навык «читать сырые байты кадра, а не текст» ты ставил в `network-wireless-80211`. Освежи:\n\n    xxd -l 32 card.mfd\n\nПервый байт блока 0 — `04` (NXP), далее 3 байта UID — ровно так же разбирают байты заголовка кадра. Ниже извлеки UID.\n"
     },
     {
       "path": "/home/student/task/card.mfd",

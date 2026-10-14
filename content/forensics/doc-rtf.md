@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
+    - "Повторение (`forensics-file-magic`): `file evidence.txt && head -c 64 evidence.txt` — опознай формат по сигнатуре (rtf)."
     - 'Прочитай файл-артефакт: `cat <файл>`.'
     - 'Ищи строку с меткой nto{.'
     - 'Сохрани: `grep nto <файл> > answer.txt`.'

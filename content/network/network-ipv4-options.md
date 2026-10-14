@@ -21,6 +21,7 @@ lab:
   files: [task.md, ipv4.log]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`network-tcpip`): `grep IHL ipv4.log` — IHL x4 = длина заголовка; `IHL=7` значит 8 байт опций после базовых 20."
     - "`ipv4.log` — разбор IPv4-пакета с опциями (IHL=7)."
     - "В одной из опций есть поле `data:` в base64."
     - "Вырежи: `grep data: ipv4.log | cut -d: -f2`."

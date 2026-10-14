@@ -21,6 +21,7 @@ lab:
   files: [task.md, intercept.b64]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`network-wireless-80211`): сначала `base64 -d intercept.b64 > intercept.txt` и разложи обмен по слоям RR/MM."
     - "Файл `intercept.b64` — это base64 от текстового лога. Сначала декодируй: `base64 -d intercept.b64 > intercept.txt`."
     - "Внутри — строки уровней `[RR]`, `[MM]` и `[SS7/MAP]`. Ищи SMS, доставленную абоненту."
     - "Строка `mt-forwardSM` несёт текст сообщения; в нём и лежит флаг вида `nto{...}`."

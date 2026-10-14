@@ -21,6 +21,7 @@ lab:
   files: [task.md, sctp.log]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`network-tcpip`): `grep port sctp.log` — порты-конечные точки, как в TCP/UDP; ниже разбираем DATA-чанк."
     - "`sctp.log` — разбор SCTP-ассоциации (INIT, INIT-ACK, DATA)."
     - "В одном DATA-чанке есть поле `payload:` в base64."
     - "Вырежи: `grep payload: sctp.log | cut -d: -f2`."

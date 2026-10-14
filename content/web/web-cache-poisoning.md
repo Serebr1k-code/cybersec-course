@@ -20,6 +20,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-host-header`): `curl -s -i ... | grep -iE 'x-cache|vary'` — пойми ключ кэша, затем подставь `X-Forwarded-Host`."
     - Смотрим ответ и заголовок `X-Cache`: `curl -s -i 'http://shop.local/api/config'`.
     - Кэш ключуется только по пути: `X-Forwarded-Host` в ключ не входит, но приложение ему доверяет.
     - Подставь внутренний origin: `curl -s -i 'http://shop.local/api/config' -H 'X-Forwarded-Host: internal.shop.local'`.

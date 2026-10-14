@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: опции TCP\n\n`tcp.log` — разбор TCP SYN с опциями. В одной опции есть поле `val:`\nв base64.\n\n1. Посмотри лог: `cat tcp.log`\n2. Вырежи поле: `grep val: tcp.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+      "text": "# Задача: опции TCP\n\n`tcp.log` — разбор TCP SYN с опциями. В одной опции есть поле `val:`\nв base64.\n\n1. Посмотри лог: `cat tcp.log`\n2. Вырежи поле: `grep val: tcp.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n\n## Повторение (`network-tcpip`)\n\nОпции TCP расширяют базовый заголовок, который ты разбирал в `network-tcpip`. Освежи: data offset задаёт длину заголовка в 32-битных словах:\n\n    grep offset tcp.log\n\n`data offset=10` → 40 байт: 20 базовых + 20 байт опций (MSS/WS/SACK/TS). Ниже декодируем поле `val:` из опции.\n"
     },
     {
       "path": "/home/student/task/tcp.log",

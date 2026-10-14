@@ -7,10 +7,13 @@
     "contains": "nto{b0l4_1s_th3_k1ng_0f_4p1_bug5}"
   },
   "fs": [
-    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: BOLA (Broken Object Level Authorization)\n\nAPI `http://api.example`. У тебя есть токен своего аккаунта A. Заказ 1001 —\nтвой. Проверь, отдаёт ли сервер заказ 1002 (аккаунта B) с твоим токеном.\n\n1. Свой заказ:\n   curl -s 'http://api.example/v1/orders/1001' -H 'Authorization: Bearer userA-token'\n2. Чужой заказ тем же токеном:\n   curl -s 'http://api.example/v1/orders/1002' -H 'Authorization: Bearer userA-token'\n3. Сервер не проверил владельца объекта — в ответе заказ B и флаг.\n4. Флаг — последняя строка. Запиши в `found.txt` и набери `check`.\n"
+      "text": "# Практика: BOLA (Broken Object Level Authorization)\n\nAPI `http://api.example`. У тебя есть токен своего аккаунта A. Заказ 1001 —\nтвой. Проверь, отдаёт ли сервер заказ 1002 (аккаунта B) с твоим токеном.\n\n1. Свой заказ:\n   curl -s 'http://api.example/v1/orders/1001' -H 'Authorization: Bearer userA-token'\n2. Чужой заказ тем же токеном:\n   curl -s 'http://api.example/v1/orders/1002' -H 'Authorization: Bearer userA-token'\n3. Сервер не проверил владельца объекта — в ответе заказ B и флаг.\n4. Флаг — последняя строка. Запиши в `found.txt` и набери `check`.\n\n## Повторение (`web-auth-jwt-idor`)\n\nBOLA — это IDOR на уровне объектов API; логику IDOR ты разбирал в `web-auth-jwt-idor`. Освежи: сначала подтверди, что свой объект отдаётся корректно (baseline), а затем поменяй идентификатор:\n\n    curl -s 'http://api.example/v1/orders/1001' -H 'Authorization: Bearer userA-token'\n\nСвой заказ 1001 — эталон. Ниже тем же токеном просишь чужой 1002 и проверяешь, нет ли проверки владельца.\n"
     }
   ],
   "tools": {

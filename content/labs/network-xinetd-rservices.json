@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: rlogin-рукопожатие\n\n`rlogin.log` — четыре строки, разделённые нулевым байтом. Одна из них\nнесёт поле `host:` в base64.\n\n1. Посмотри лог: `cat rlogin.log`\n2. Вырежи поле: `grep host: rlogin.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+      "text": "# Задача: rlogin-рукопожатие\n\n`rlogin.log` — четыре строки, разделённые нулевым байтом. Одна из них\nнесёт поле `host:` в base64.\n\n1. Посмотри лог: `cat rlogin.log`\n2. Вырежи поле: `grep host: rlogin.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n\n## Повторение (`network-service-enum`)\n\nr-services — legacy-сервис, который ты учился находить энумерацией в `network-service-enum`. Освежи: посмотри структуру рукопожатия rlogin:\n\n    cat rlogin.log\n\nЧетыре NUL-разделённые строки — клиент, сервер, term, host; это классический `\\0`-разделённый формат legacy-протоколов. Ниже декодируем `host:`.\n"
     },
     {
       "path": "/home/student/task/rlogin.log",

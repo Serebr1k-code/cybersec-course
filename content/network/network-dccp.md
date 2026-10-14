@@ -21,6 +21,7 @@ lab:
   files: [task.md, dccp.log]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`network-tcpip`): сначала разбери поля вручную — `grep port dccp.log` даёт порты-конечные точки, как src/dst в TCP/UDP."
     - "`dccp.log` — разбор DCCP-пакетов Request/Response."
     - "В одном пакете есть поле `feature:` в base64."
     - "Вырежи: `grep feature: dccp.log | cut -d: -f2`."

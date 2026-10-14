@@ -1,23 +1,23 @@
 {
- "id": "pwn-methodology-analysis",
- "hostname": "lab",
- "workdir": "/home/student/task",
- "expect": {
-  "file": "/home/student/task/answer.txt",
-  "contains": "bug=heap-buffer-overflow"
- },
- "fs": [
-  {
-   "path": "/home/student/task/task.md",
-   "text": "# Задача: определить класс бага по отчёту ASan\n\n`crash.c` содержит порчу памяти. Он собран с `-fsanitize=address`; `asan.log` —\nреальный отчёт санитайзера.\n\n1. `cat crash.c` — найди выход за границы.\n2. `cat asan.log` — прочитай первую строку `ERROR: AddressSanitizer: ...`.\n3. Определи класс бага (одно слово-класс).\n\nЗапиши в `answer.txt` строку `bug=<класс>` и набери `check`.\n"
+  "id": "pwn-methodology-analysis",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "bug=heap-buffer-overflow"
   },
-  {
-   "path": "/home/student/task/crash.c",
-   "text": "extern void *malloc(unsigned long);\nint main(void){ char *p = malloc(4); p[4] = 'A'; return 0; }\n"
-  },
-  {
-   "path": "/home/student/task/asan.log",
-   "text": "=================================================================\n==594283==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7c0ed1fe0014 at pc 0x0000004011a8 bp 0x7ffeb373f280 sp 0x7ffeb373f270\nWRITE of size 1 at 0x7c0ed1fe0014 thread T0\n    #0 0x0000004011a7 in main /tmp/labgen2/crash.c:2\n    #1 0x7feed32366c0  (/usr/lib/libc.so.6+0x276c0) (BuildId: 7a8d41a2df4fde040b4c6ac2832311ab645a1e41)\n    #2 0x7feed32367f8 in __libc_start_main (/usr/lib/libc.so.6+0x277f8) (BuildId: 7a8d41a2df4fde040b4c6ac2832311ab645a1e41)\n    #3 0x000000401094 in _start (/tmp/labgen2/crash+0x401094) (BuildId: 21e284906a671a33aab47244622324cbe834ba7d)\n\n0x7c0ed1fe0014 is located 0 bytes after 4-byte region [0x7c0ed1fe0010,0x7c0ed1fe0014)\nallocated by thread T0 here:\n    #0 0x7feed3520cb5 in malloc (/usr/lib/libasan.so.8+0x120cb5) (BuildId: 0b96d08695bbce2da9d4770c29ad2e72fb536f47)\n    #1 0x000000401167 in main /tmp/labgen2/crash.c:2\n    #2 0x7feed32366c0  (/usr/lib/libc.so.6+0x276c0) (BuildId: 7a8d41a2df4fde040b4c6ac2832311ab645a1e41)\n    #3 0x7feed32367f8 in __libc_start_main (/usr/lib/libc.so.6+0x277f8) (BuildId: 7a8d41a2df4fde040b4c6ac2832311ab645a1e41)\n    #4 0x000000401094 in _start (/tmp/labgen2/crash+0x401094) (BuildId: 21e284906a671a33aab47244622324cbe834ba7d)\n\nSUMMARY: AddressSanitizer: heap-buffer-overflow /tmp/labgen2/crash.c:2 in main\nShadow bytes around the buggy address:\n  0x7c0ed1fdfd80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x7c0ed1fdfe00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x7c0ed1fdfe80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x7c0ed1fdff00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x7c0ed1fdff80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n=>0x7c0ed1fe0000: fa fa[04]fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x7c0ed1fe0080: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x7c0ed1fe0100: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x7c0ed1fe0180: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x7c0ed1fe0200: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x7c0ed1fe0280: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\nShadow byte legend (one shadow byte represents 8 application bytes):\n  Addressable:           00\n  Partially addressable: 01 02 03 04 05 06 07 \n  Heap left redzone:       fa\n  Freed heap region:       fd\n  Stack left redzone:      f1\n  Stack mid redzone:       f2\n  Stack right redzone:     f3\n  Stack after return:      f5\n  Stack use after scope:   f8\n  Global redzone:          f9\n  Global init order:       f6\n  Poisoned by user:        f7\n  Container overflow:      fc\n  Array cookie:            ac\n  Intra object redzone:    bb\n  ASan internal:           fe\n  Left alloca redzone:     ca\n  Right alloca redzone:    cb\n==594283==ABORTING\n"
-  }
- ]
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: определить класс бага по отчёту ASan\n\n`crash.c` содержит порчу памяти. Он собран с `-fsanitize=address`; `asan.log` —\nреальный отчёт санитайзера.\n\n1. `cat crash.c` — найди выход за границы.\n2. `cat asan.log` — прочитай первую строку `ERROR: AddressSanitizer: ...`.\n3. Определи класс бага (одно слово-класс).\n\nЗапиши в `answer.txt` строку `bug=<класс>` и набери `check`.\n\n## Повторение (`pwn-methodology`)\n\nКлассификация бага по отчёту — часть методики анализа, которую ты проходил в `pwn-methodology`. Освежи: сначала прочитай источник и найди выход за границы, затем подтверди его в отчёте санитайзера:\n\n    grep -nE 'memcpy|strcpy|for|while' crash.c\n\nТак ты связываешь строку кода с классом бага. Ниже читаешь первую строку `asan.log` и определяешь класс.\n"
+    },
+    {
+      "path": "/home/student/task/crash.c",
+      "text": "extern void *malloc(unsigned long);\nint main(void){ char *p = malloc(4); p[4] = 'A'; return 0; }\n"
+    },
+    {
+      "path": "/home/student/task/asan.log",
+      "text": "=================================================================\n==594283==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x7c0ed1fe0014 at pc 0x0000004011a8 bp 0x7ffeb373f280 sp 0x7ffeb373f270\nWRITE of size 1 at 0x7c0ed1fe0014 thread T0\n    #0 0x0000004011a7 in main /tmp/labgen2/crash.c:2\n    #1 0x7feed32366c0  (/usr/lib/libc.so.6+0x276c0) (BuildId: 7a8d41a2df4fde040b4c6ac2832311ab645a1e41)\n    #2 0x7feed32367f8 in __libc_start_main (/usr/lib/libc.so.6+0x277f8) (BuildId: 7a8d41a2df4fde040b4c6ac2832311ab645a1e41)\n    #3 0x000000401094 in _start (/tmp/labgen2/crash+0x401094) (BuildId: 21e284906a671a33aab47244622324cbe834ba7d)\n\n0x7c0ed1fe0014 is located 0 bytes after 4-byte region [0x7c0ed1fe0010,0x7c0ed1fe0014)\nallocated by thread T0 here:\n    #0 0x7feed3520cb5 in malloc (/usr/lib/libasan.so.8+0x120cb5) (BuildId: 0b96d08695bbce2da9d4770c29ad2e72fb536f47)\n    #1 0x000000401167 in main /tmp/labgen2/crash.c:2\n    #2 0x7feed32366c0  (/usr/lib/libc.so.6+0x276c0) (BuildId: 7a8d41a2df4fde040b4c6ac2832311ab645a1e41)\n    #3 0x7feed32367f8 in __libc_start_main (/usr/lib/libc.so.6+0x277f8) (BuildId: 7a8d41a2df4fde040b4c6ac2832311ab645a1e41)\n    #4 0x000000401094 in _start (/tmp/labgen2/crash+0x401094) (BuildId: 21e284906a671a33aab47244622324cbe834ba7d)\n\nSUMMARY: AddressSanitizer: heap-buffer-overflow /tmp/labgen2/crash.c:2 in main\nShadow bytes around the buggy address:\n  0x7c0ed1fdfd80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x7c0ed1fdfe00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x7c0ed1fdfe80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x7c0ed1fdff00: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n  0x7c0ed1fdff80: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n=>0x7c0ed1fe0000: fa fa[04]fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x7c0ed1fe0080: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x7c0ed1fe0100: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x7c0ed1fe0180: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x7c0ed1fe0200: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\n  0x7c0ed1fe0280: fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa fa\nShadow byte legend (one shadow byte represents 8 application bytes):\n  Addressable:           00\n  Partially addressable: 01 02 03 04 05 06 07 \n  Heap left redzone:       fa\n  Freed heap region:       fd\n  Stack left redzone:      f1\n  Stack mid redzone:       f2\n  Stack right redzone:     f3\n  Stack after return:      f5\n  Stack use after scope:   f8\n  Global redzone:          f9\n  Global init order:       f6\n  Poisoned by user:        f7\n  Container overflow:      fc\n  Array cookie:            ac\n  Intra object redzone:    bb\n  ASan internal:           fe\n  Left alloca redzone:     ca\n  Right alloca redzone:    cb\n==594283==ABORTING\n"
+    }
+  ]
 }

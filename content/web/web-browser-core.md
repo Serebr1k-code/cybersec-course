@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-same-origin-cors`): сначала baseline `curl -s https://bank.local/api/userinfo`, затем с чужим Origin + cookie."
     - 'Без Origin API требует сессию (401).'
     - 'Добавь заголовок Origin: https://evil.local.'
     - 'Смотри на Access-Control-Allow-Origin / -Credentials в ответе.'

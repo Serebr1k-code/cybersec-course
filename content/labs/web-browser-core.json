@@ -2,18 +2,39 @@
   "id": "web-browser-core",
   "workdir": "/home/student/task",
   "hostname": "lab",
-  "expect": { "file": "/home/student/task/found.txt", "contains": "nto{c0rs_m1sc0nf1g_cr3d3nt14ls}" },
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c0rs_m1sc0nf1g_cr3d3nt14ls}"
+  },
   "fs": [
-    { "path": "/home/student/task", "type": "dir" },
-    { "path": "/home/student/task/task.md", "text": "# Практика: модель браузера — SOP и CORS\n\nSOP запрещает чужому сайту ЧИТАТЬ ответы. Но если сервер доверчиво\nотражает `Origin` и разрешает credentials — SOP обходится. Проверь CORS\nу `bank.local`.\n\n1. Запрос без Origin (API требует сессию):\n\n   curl -s https://bank.local/api/userinfo\n\n2. Запрос с чужим Origin и cookie (CORS misconfig):\n\n   curl -s https://bank.local/api/userinfo -H 'Origin: https://evil.local' -H 'Cookie: session=abc' > found.txt\n\n3. Набери `check`.\n" }
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: модель браузера — SOP и CORS\n\nSOP запрещает чужому сайту ЧИТАТЬ ответы. Но если сервер доверчиво\nотражает `Origin` и разрешает credentials — SOP обходится. Проверь CORS\nу `bank.local`.\n\n1. Запрос без Origin (API требует сессию):\n\n   curl -s https://bank.local/api/userinfo\n\n2. Запрос с чужим Origin и cookie (CORS misconfig):\n\n   curl -s https://bank.local/api/userinfo -H 'Origin: https://evil.local' -H 'Cookie: session=abc' > found.txt\n\n3. Набери `check`.\n\n## Повторение (`web-same-origin-cors`)\n\nSOP/CORS — это и есть тема `web-same-origin-cors`, которую ты прошёл раньше. Освежи: посмотри, что API отдаёт вообще без `Origin`, а затем с чужим `Origin` и cookie:\n\n    curl -s https://bank.local/api/userinfo\n\nОтвет без `Origin` — это baseline. Ниже добавляешь `Origin: https://evil.local` и проверяешь, читаемы ли данные из чужого сайта.\n"
+    }
   ],
   "tools": {
     "curl": {
       "help": "curl [опции] <url> — HTTP-клиент (эмуляция bank.local)",
       "cases": [
-        { "match": "Origin.*evil|evil.*Origin", "example": "-s https://bank.local/api/userinfo -H 'Origin: https://evil.local' -H 'Cookie: session=abc'", "output": "Access-Control-Allow-Origin: https://evil.local\nAccess-Control-Allow-Credentials: true\n\n{\"user\":\"admin\",\"balance\":42000,\"flag\":\"nto{c0rs_m1sc0nf1g_cr3d3nt14ls}\"}\n" },
-        { "match": "userinfo", "example": "-s https://bank.local/api/userinfo", "output": "HTTP/1.1 401 Unauthorized\n\n{\"error\":\"session required\"}\n" },
-        { "match": "bank\\.local", "example": "-s https://bank.local/", "output": "<!doctype html><title>bank</title>\n" }
+        {
+          "match": "Origin.*evil|evil.*Origin",
+          "example": "-s https://bank.local/api/userinfo -H 'Origin: https://evil.local' -H 'Cookie: session=abc'",
+          "output": "Access-Control-Allow-Origin: https://evil.local\nAccess-Control-Allow-Credentials: true\n\n{\"user\":\"admin\",\"balance\":42000,\"flag\":\"nto{c0rs_m1sc0nf1g_cr3d3nt14ls}\"}\n"
+        },
+        {
+          "match": "userinfo",
+          "example": "-s https://bank.local/api/userinfo",
+          "output": "HTTP/1.1 401 Unauthorized\n\n{\"error\":\"session required\"}\n"
+        },
+        {
+          "match": "bank\\.local",
+          "example": "-s https://bank.local/",
+          "output": "<!doctype html><title>bank</title>\n"
+        }
       ],
       "fallback": "curl: в этой лабе эмулируется bank.local.\n"
     }

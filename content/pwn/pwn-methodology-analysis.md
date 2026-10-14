@@ -20,6 +20,7 @@ lab:
   files: [task.md, crash.c, asan.log]
   check: "grep -q 'bug=heap-buffer-overflow' answer.txt"
   hints:
+    - "Повторение (`pwn-methodology`): `grep -nE 'memcpy|strcpy|for|while' crash.c` — найди выход за границы в коде, затем подтверди класс по ASan."
     - "ASan в первой строке отчёта пишет класс бага: `ERROR: AddressSanitizer: <класс>`."
     - "Смотри `crash.c` — запись `p[4]` в буфер из 4 байт."
     - "Отчёт также называет регион: `0 bytes after 4-byte region`."

@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n\n## Повторение (`forensics-file-magic`)\n\nАртефакт нужно сначала опознать по сигнатуре — базовый навык из `forensics-file-magic`. Освежи: посмотри тип файла и его начало:\n\n    file evidence.txt && head -c 64 evidence.txt\n\nRTF начинается с сигнатуры `rtf`; так ты убеждаешься, что перед тобой именно RTF, а не простой текст. Ниже ищешь метку `nto`.\n",
       "mode": "644"
     },
     {

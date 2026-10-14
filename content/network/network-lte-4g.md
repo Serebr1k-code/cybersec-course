@@ -21,6 +21,7 @@ lab:
   files: [task.md, s6a.log]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`network-gsm-2g`): `grep -E 'Command|AVP' s6a.log | head` — выдели команды/AVP, как в GSM-дампе, затем декодируй base64."
     - "`s6a.log` — текстовый дамп Diameter-обмена между MME и HSS по интерфейсу S6a."
     - "Найди AVP с именем `Experimental-Result-Code` или `User-Name` — значение одного из них base64-кодировано."
     - "Строки вида `AVP(...) value=<base64>` декодируй: `base64 -d`."

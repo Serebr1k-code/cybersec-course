@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: разбор Diameter S6a-сессии\n\n`s6a.log` — текстовый дамп Diameter-обмена между MME и HSS по интерфейсу S6a\n(ядро LTE). Команда `Update-Location-Request` несёт набор AVP.\n\n1. Посмотри дамп: `cat s6a.log`, затем `head -6 s6a.log`.\n2. Одно из AVP-значений закодировано в base64 (так иногда логируют бинарные\n   значения). Найди его: `grep 'value=' s6a.log`.\n3. Декодируй подозрительное значение: `grep 'Experimental-Result-Code' s6a.log | cut -d= -f2 | base64 -d`.\n4. Получишь метку `nto{...}` — запиши её в `answer.txt` и набери `check`.\n"
+      "text": "# Задача: разбор Diameter S6a-сессии\n\n`s6a.log` — текстовый дамп Diameter-обмена между MME и HSS по интерфейсу S6a\n(ядро LTE). Команда `Update-Location-Request` несёт набор AVP.\n\n1. Посмотри дамп: `cat s6a.log`, затем `head -6 s6a.log`.\n2. Одно из AVP-значений закодировано в base64 (так иногда логируют бинарные\n   значения). Найди его: `grep 'value=' s6a.log`.\n3. Декодируй подозрительное значение: `grep 'Experimental-Result-Code' s6a.log | cut -d= -f2 | base64 -d`.\n4. Получишь метку `nto{...}` — запиши её в `answer.txt` и набери `check`.\n\n## Повторение (`network-gsm-2g`)\n\nLTE-ядро — эволюция GSM, и базу сигнализации ты разбирал в `network-gsm-2g`. Освежи приём «выдели команды и AVP в дампе»:\n\n    grep -E 'Command|AVP' s6a.log | head\n\nТак же, как в GSM-дампе искали `mt-forwardSM`, здесь ищем AVP с base64-значением — ниже его декодируем.\n"
     },
     {
       "path": "/home/student/task/s6a.log",

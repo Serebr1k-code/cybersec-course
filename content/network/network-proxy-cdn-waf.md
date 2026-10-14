@@ -21,6 +21,7 @@ lab:
   files: [task.md, dns-history.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
+    - "Повторение (`network-wireshark`): `curl -sI https://shop.example.com` — разбери заголовок server, как в HTTP-разборе; CDN vs origin."
     - 'Сайт `shop.example.com` отдаёт заголовок `server: cloudflare` — значит, отвечает reverse-прокси, а не origin.'
     - 'Прямое сканирование домена попадёт в CDN. Нужен настоящий IP origin.'
     - 'История DNS (`dns-history.txt`) хранит старые A-записи — найди в ней адрес origin.'

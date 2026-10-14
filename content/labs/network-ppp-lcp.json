@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: переговоры PPP\n\n`ppp.log` — начало PPP-сессии (LCP, PAP, IPCP). В одном LCP-пакете\nесть поле `opt:` в base64.\n\n1. Посмотри лог: `cat ppp.log`\n2. Вырежи поле: `grep opt: ppp.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+      "text": "# Задача: переговоры PPP\n\n`ppp.log` — начало PPP-сессии (LCP, PAP, IPCP). В одном LCP-пакете\nесть поле `opt:` в base64.\n\n1. Посмотри лог: `cat ppp.log`\n2. Вырежи поле: `grep opt: ppp.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n\n## Повторение (`network-tcpip`)\n\nPPP — канальный протокол, а ручной разбор кадров и полей ты делал в `network-tcpip`. Освежи: посмотри порядок переговоров в логе:\n\n    grep -E 'LCP|PAP|IPCP' ppp.log\n\nПорядок LCP → PAP → IPCP — как слои при разборе пакета. Ниже декодируем поле `opt:` из LCP-пакета.\n"
     },
     {
       "path": "/home/student/task/ppp.log",

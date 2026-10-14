@@ -21,6 +21,7 @@ lab:
   files: [task.md, crash_transcript.txt, crash_input.txt]
   check: "grep -q 'SIGSEGV' answer.txt"
   hints:
+    - "Повторение (`pwn-gdb-pwndbg`): `grep -iE 'signal|SIG|rip|rbp' crash_transcript.txt` — читай сигнал и регистры, как в pwndbg-контексте."
     - "`crash_transcript.txt` — реальный запуск упавшей программы под отладчиком."
     - "Найди строку `Program received signal ...` — там имя сигнала."
     - "Стек затёрт: `rbp` и адрес возврата равны `0x4141414141414141` — это байты `A`."

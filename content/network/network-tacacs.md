@@ -21,6 +21,7 @@ lab:
   files: [task.md, tacacs.log]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`network-tcpip`): `grep Header tacacs.log` — разбери поля заголовка (ver/type/seq), затем body."
     - "`tacacs.log` — TACACS+ AUTHEN-обмен (header + body)."
     - "В теле есть поле `body:` в base64."
     - "Вырежи: `grep body: tacacs.log | cut -d: -f2`."

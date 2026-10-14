@@ -235,13 +235,19 @@ func main() {
 
 		labT, taskText := invokedToolsCached(*contentDir, l)
 
-		// (i) lab ⊆ lesson
+		// (i) lab ⊆ lesson.
+		// NB: membership is tested against the lesson BODY text by word, not
+		// against the fixed toolPatterns vocabulary — a lab tool (e.g. `az`,
+		// `vol`, `mmls`, or a lab-provided virtual command such as `crackme`)
+		// that the lesson genuinely names in prose/code IS taught, even when it
+		// is not one of the ~130 canonical tool names the vocabulary knows.
+		// Using the vocabulary alone produced ~98/99 false positives.
 		var untaught []string
 		for t := range labT {
 			if basic[t] {
 				continue
 			}
-			if !bodyTools[t] {
+			if !mentionedInBody(l, t) {
 				untaught = append(untaught, t)
 			}
 		}
@@ -383,6 +389,57 @@ func toolsMentioned(text string) map[string]bool {
 		}
 	}
 	return out
+}
+
+// bodyTextCache memoises the lower-cased id+title+tags+sections text per id.
+var bodyTextCache = map[string]string{}
+
+func bodyText(l *model.Lesson) string {
+	if c, ok := bodyTextCache[l.ID]; ok {
+		return c
+	}
+	var sb strings.Builder
+	sb.WriteString(l.ID)
+	sb.WriteString("\n")
+	sb.WriteString(l.Title)
+	sb.WriteString("\n")
+	for _, t := range l.Tags {
+		sb.WriteString(t)
+		sb.WriteString("\n")
+	}
+	sb.WriteString(lessonBody(l))
+	c := strings.ToLower(sb.String())
+	bodyTextCache[l.ID] = c
+	return c
+}
+
+// reverseAlias maps a canonical tool name back to every spelling that the
+// vocabulary knows for it (e.g. "nc" -> {nc, ncat, netcat}).
+var reverseAlias = func() map[string][]string {
+	m := map[string][]string{}
+	for a, c := range alias {
+		m[c] = append(m[c], a)
+	}
+	return m
+}()
+
+// mentionedInBody reports whether the lesson names `tool` (or one of its known
+// aliases) as a standalone word in its body. This is the documented intent of
+// the lab ⊆ lesson rule: a lab tool is "taught" when the lesson mentions it.
+func mentionedInBody(l *model.Lesson, tool string) bool {
+	body := bodyText(l)
+	names := []string{tool}
+	names = append(names, reverseAlias[tool]...)
+	for _, n := range names {
+		if n == "" {
+			continue
+		}
+		re := regexp.MustCompile(`(?i)(^|[^a-z0-9_])` + regexp.QuoteMeta(strings.ToLower(n)) + `([^a-z0-9_]|$)`)
+		if re.MatchString(body) {
+			return true
+		}
+	}
+	return false
 }
 
 // toolsForLesson memoises toolsMentioned over a lesson body by id.

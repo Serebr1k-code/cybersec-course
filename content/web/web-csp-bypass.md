@@ -20,6 +20,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-xss`): `curl -s -I https://forum.example/ | grep -i content-security-policy` — найди доверенный script-src (script gadget)."
     - "Сними политику: curl -s -I https://forum.example/ | grep -i content-security-policy"
     - "В script-src есть доверенный домен — это потенциальный script gadget."
     - "На доверенном домене есть JSONP-эндпоинт: ?callback=... исполняет любую функцию."

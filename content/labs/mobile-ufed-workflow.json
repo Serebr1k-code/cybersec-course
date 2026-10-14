@@ -3,8 +3,8 @@
   "workdir": "/home/student/task",
   "hostname": "lab",
   "expect": {
-    "file": "/home/student/task/answer.txt",
-    "contains": "nto{mobile_ufed_workflow_0k}"
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{uf3d_4x10m_w0rkfl0w}"
   },
   "fs": [
     {
@@ -13,13 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
-      "mode": "644"
+      "text": "# Задача: конвейер извлечения UFED/AXIOM\n\n`ufed_log.txt` — журнал лабораторного комплекса.\nОпредели этапы конвейера, проверь хеши и найди метку.\n\n1. `cat ufed_log.txt`.\n2. `grep -iE 'extract|analyze|hash|report' ufed_log.txt`.\n3. `grep nto ufed_log.txt > found.txt`.\n"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта mobile-ufed-workflow\nwarning: suspicious activity detected\nmarker: nto{mobile_ufed_workflow_0k}\n",
-      "mode": "644"
+      "path": "/home/student/task/ufed_log.txt",
+      "mode": "644",
+      "text": "device: iPhone 12, iOS 17.4\nextraction: Full File System (checkm8 not required)\nhash before: sha256:3f9a...c1\nhash after : sha256:3f9a...c1\nanalyze: Physical Analyzer -> messages, call logs, app data\nreport: PDF + UFDR\nnote: ufed marker nto{uf3d_4x10m_w0rkfl0w}\n"
     }
   ]
 }

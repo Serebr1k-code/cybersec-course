@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, evidence.zip]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`forensics-carving`): `file evidence.zip` — определи тип по magic-байтам, а не по расширению."
     - "Начни с `file evidence.zip` — определи формат."
     - "Список содержимого: `unzip -l evidence.zip`."
     - "Внутри есть каталог `secret/` — посмотри, что в нём."

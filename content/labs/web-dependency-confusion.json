@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: dependency confusion\n\nВнутренний пакет `@corp/internal-utils` настроен через `.npmrc`.\nПроверь, не опубликован ли он публично, и найди флаг в его README.\n\n1. Посмотри конфиг и зависимость:\n   cat .npmrc\n   cat package.json\n2. Спроси метаданные пакета у публичного реестра:\n   curl -s https://registry.npmjs.org/@corp%2Finternal-utils\n3. Скачай README и найди строку с флагом.\n4. Запиши флаг в found.txt и набери check.\n"
+      "text": "# Практика: dependency confusion\n\nВнутренний пакет `@corp/internal-utils` настроен через `.npmrc`.\nПроверь, не опубликован ли он публично, и найди флаг в его README.\n\n1. Посмотри конфиг и зависимость:\n   cat .npmrc\n   cat package.json\n2. Спроси метаданные пакета у публичного реестра:\n   curl -s https://registry.npmjs.org/@corp%2Finternal-utils\n3. Скачай README и найди строку с флагом.\n4. Запиши флаг в found.txt и набери check.\n\n## Повторение (`web-supply-chain`)\n\nDependency confusion — атака на цепочку поставок через публичный реестр; базовое доверие к зависимостям разбирали в `web-supply-chain`. Освежи: сначала прочитай, как сконфигурирован пакет:\n\n    cat .npmrc; cat package.json\n\nИщи, какой реестр назначен для `@corp`-scope. Ниже спрашиваешь публичный npm о том же имени пакета.\n"
     },
     {
       "path": "/home/student/task/.npmrc",

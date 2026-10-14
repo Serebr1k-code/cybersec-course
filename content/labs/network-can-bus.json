@@ -7,10 +7,13 @@
     "contains": "nto{c4n_bu5_1nj3ct10n}"
   },
   "fs": [
-    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: найти инъекцию в CAN-шине\n\n`candump.log` — вывод `candump -a can0` с автомобильной шины. В `task.md`\nперечислены штатные ID блока управления:\n\n    0C0 — обороты\n    1A0 — скорость\n    2F1 — угол руля\n\nЛюбой другой ID — посторонний кадр (инъекция). У поддельного кадра вместо\nбайт данных стоит поле `payload:<base64>`.\n\n1. Посмотри лог: `cat candump.log`\n2. Найди посторонний ID: `grep 7DF candump.log`\n3. Вырежи base64 и декодируй: `grep 7DF candump.log | cut -d: -f2 | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+      "text": "# Задача: найти инъекцию в CAN-шине\n\n`candump.log` — вывод `candump -a can0` с автомобильной шины. В `task.md`\nперечислены штатные ID блока управления:\n\n    0C0 — обороты\n    1A0 — скорость\n    2F1 — угол руля\n\nЛюбой другой ID — посторонний кадр (инъекция). У поддельного кадра вместо\nбайт данных стоит поле `payload:<base64>`.\n\n1. Посмотри лог: `cat candump.log`\n2. Найди посторонний ID: `grep 7DF candump.log`\n3. Вырежи base64 и декодируй: `grep 7DF candump.log | cut -d: -f2 | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n\n## Повторение (`network-mitm`)\n\nПосторонний кадр в шине — частный случай подмены трафика, который разбирался в `network-mitm`. Освежи приём «сначала составь карту штатного обмена»:\n\n    grep can0 candump.log\n\nСверь ID со штатным списком из задания (`0C0`, `1A0`, `2F1`). Всё, что вне списка, — инъекция; ниже декодируем её `payload:`.\n"
     },
     {
       "path": "/home/student/task/candump.log",

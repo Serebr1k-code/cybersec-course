@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: управляющие байты Telnet\n\n`telnet.log` — фрагмент Telnet-сессии. В нём есть блок subnegotiation\nс полем `val:` в base64.\n\n1. Посмотри лог: `cat telnet.log`\n2. Вырежи поле: `grep val: telnet.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+      "text": "# Задача: управляющие байты Telnet\n\n`telnet.log` — фрагмент Telnet-сессии. В нём есть блок subnegotiation\nс полем `val:` в base64.\n\n1. Посмотри лог: `cat telnet.log`\n2. Вырежи поле: `grep val: telnet.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n\n## Повторение (`network-tcpip`)\n\nTelnet — байтовый протокол поверх TCP; разбор управляющих байтов начинался в `network-tcpip`. Освежи: посмотри первые байты сессии:\n\n    head -n 1 telnet.log\n\n`FF` — это IAC (Interpret As Command), `FB`/`FD`/`FA` — управляющие команды опций. Ниже декодируем subnegotiation-поле `val:`.\n"
     },
     {
       "path": "/home/student/task/telnet.log",

@@ -21,6 +21,7 @@ lab:
   files: [task.md, ppp.log]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`network-tcpip`): `grep -E 'LCP|PAP|IPCP' ppp.log` — порядок переговоров, как слои пакета."
     - "`ppp.log` — переговоры PPP: LCP, затем аутентификация."
     - "В одном LCP-пакете есть поле `opt:` в base64."
     - "Вырежи: `grep opt: ppp.log | cut -d: -f2`."

@@ -1,28 +1,28 @@
 {
- "id": "pwn-fastbin-dup",
- "hostname": "lab",
- "workdir": "/home/student/task",
- "expect": {
-  "file": "/home/student/task/answer.txt",
-  "contains": "dup=0x404060"
- },
- "fs": [
-  {
-   "path": "/home/student/task",
-   "type": "dir"
+  "id": "pwn-fastbin-dup",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "dup=0x404060"
   },
-  {
-   "path": "/home/student/task/task.md",
-   "text": "# Задача: найти чанк, который аллоцируется дважды (fastbin dup)\n\nВ транскрипте `fastbin.gdb.txt` показан fastbin-бин размера 0x30 после\nклассического double-free: `free(A); free(B); free(A);`. Так как\nпроверяется только верхушка (`old == p`), второй free(A) проходит и\nполучается цикл `A -> B -> A`.\n\n1. Открой транскрипт: `grep -n 'fastbin' fastbin.gdb.txt`.\n2. Посмотри сырые байты: `xxd fastbin.bin | head`.\n3. Адрес — это первый элемент цикла (user-указатель чанка A).\n\nЗапиши в `answer.txt` строку `dup=0x...` и набери `check`.\n"
-  },
-  {
-   "path": "/home/student/task/fastbin.gdb.txt",
-   "text": "# gdb heap-сессия: fastbin[0x30] после double-free\n(gdb) b mark\nBreakpoint 1 at 0x40111d: file heapdemo.c, line 4.\n(gdb) run\nBreakpoint 1, mark () at heapdemo.c:4\n4\tvoid mark(void){}\n(gdb) # два чанка 0x30: free(A); free(B); free(A)\nBreakpoint 1 at 0x40110a: file heapdemo.c, line 4.\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/usr/lib/libthread_db.so.1\".\n\nBreakpoint 1, mark () at heapdemo.c:4\n4\tvoid mark(void){}\nfastbin[0x30]: 0x404060 -> 0x4040c0 -> 0x404060\nchunk A user=0x404060  size=0x31  fd(A)=0x4040c0\nchunk B user=0x4040c0  size=0x31  fd(B)=0x404060\n0x404050 <region+16>:\t0x0000000000000000\t0x0000000000000031\n0x404060 <region+32>:\t0x00000000004040c0\t0x0000000000000000\n0x404070 <region+48>:\t0x0000000000000000\t0x0000000000000000\n0x404080 <region+64>:\t0x0000000000000000\t0x0000000000000000\n0x404090 <region+80>:\t0x0000000000000000\t0x0000000000000000\n0x4040a0 <region+96>:\t0x0000000000000000\t0x0000000000000000\n"
-  },
-  {
-   "path": "/home/student/task/fastbin.bin",
-   "b64": "AAAAAAAAAAAxAAAAAAAAAMBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAxAAAAAAAAAGBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-   "mode": "644"
-  }
- ]
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти чанк, который аллоцируется дважды (fastbin dup)\n\nВ транскрипте `fastbin.gdb.txt` показан fastbin-бин размера 0x30 после\nклассического double-free: `free(A); free(B); free(A);`. Так как\nпроверяется только верхушка (`old == p`), второй free(A) проходит и\nполучается цикл `A -> B -> A`.\n\n1. Открой транскрипт: `grep -n 'fastbin' fastbin.gdb.txt`.\n2. Посмотри сырые байты: `xxd fastbin.bin | head`.\n3. Адрес — это первый элемент цикла (user-указатель чанка A).\n\nЗапиши в `answer.txt` строку `dup=0x...` и набери `check`.\n\n## Повторение (`pwn-heap-uaf`)\n\nDouble-free — частный случай use-after-free, который ты разбирал в `pwn-heap-uaf`. Освежи: сначала посмотри сам бин и убедись, что верхушка совпадает при повторном `free`:\n\n    grep -n 'fastbin' fastbin.gdb.txt\n\nВ `free(A); free(B); free(A)` проверяется только `old == p` — поэтому цикл `A → B → A` проходит. Ниже смотришь сырые байты и берёшь user-указатель A.\n"
+    },
+    {
+      "path": "/home/student/task/fastbin.gdb.txt",
+      "text": "# gdb heap-сессия: fastbin[0x30] после double-free\n(gdb) b mark\nBreakpoint 1 at 0x40111d: file heapdemo.c, line 4.\n(gdb) run\nBreakpoint 1, mark () at heapdemo.c:4\n4\tvoid mark(void){}\n(gdb) # два чанка 0x30: free(A); free(B); free(A)\nBreakpoint 1 at 0x40110a: file heapdemo.c, line 4.\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/usr/lib/libthread_db.so.1\".\n\nBreakpoint 1, mark () at heapdemo.c:4\n4\tvoid mark(void){}\nfastbin[0x30]: 0x404060 -> 0x4040c0 -> 0x404060\nchunk A user=0x404060  size=0x31  fd(A)=0x4040c0\nchunk B user=0x4040c0  size=0x31  fd(B)=0x404060\n0x404050 <region+16>:\t0x0000000000000000\t0x0000000000000031\n0x404060 <region+32>:\t0x00000000004040c0\t0x0000000000000000\n0x404070 <region+48>:\t0x0000000000000000\t0x0000000000000000\n0x404080 <region+64>:\t0x0000000000000000\t0x0000000000000000\n0x404090 <region+80>:\t0x0000000000000000\t0x0000000000000000\n0x4040a0 <region+96>:\t0x0000000000000000\t0x0000000000000000\n"
+    },
+    {
+      "path": "/home/student/task/fastbin.bin",
+      "b64": "AAAAAAAAAAAxAAAAAAAAAMBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAxAAAAAAAAAGBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "mode": "644"
+    }
+  ]
 }

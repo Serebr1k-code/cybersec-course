@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: разобрать архив\n\nДан `evidence.zip` — контейнер, изъятый с рабочей станции.\nЧасть файлов безобидна, но внутри спрятан флаг.\n\nШаги:\n1. `file evidence.zip` — подтверди тип.\n2. `unzip -l evidence.zip` — посмотри список членов архива.\n3. Обрати внимание на каталог `secret/`.\n4. Достань флаг: `unzip -p evidence.zip secret/flag.txt > found.txt`.\n"
+      "text": "# Задача: разобрать архив\n\nДан `evidence.zip` — контейнер, изъятый с рабочей станции.\nЧасть файлов безобидна, но внутри спрятан флаг.\n\nШаги:\n1. `file evidence.zip` — подтверди тип.\n2. `unzip -l evidence.zip` — посмотри список членов архива.\n3. Обрати внимание на каталог `secret/`.\n4. Достань флаг: `unzip -p evidence.zip secret/flag.txt > found.txt`.\n\n## Повторение (`forensics-carving`)\n\nРазбор контейнера опирается на распознавание формата — приём карвинга из `forensics-carving`. Освежи: сначала подтверди тип контейнера по сигнатуре, а не по расширению:\n\n    file evidence.zip\n\n`file` читает magic-байты (`PK` для ZIP) — как при карвинге. Ниже смотришь листинг и достаёшь `secret/flag.txt`.\n"
     },
     {
       "path": "/home/student/task/notes.txt",

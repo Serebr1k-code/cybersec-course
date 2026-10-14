@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: опции IPv4\n\n`ipv4.log` — разбор IPv4-пакета с опциями (IHL=7). В одной из опций\nесть поле `data:` в base64.\n\n1. Посмотри лог: `cat ipv4.log`\n2. Вырежи поле: `grep data: ipv4.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+      "text": "# Задача: опции IPv4\n\n`ipv4.log` — разбор IPv4-пакета с опциями (IHL=7). В одной из опций\nесть поле `data:` в base64.\n\n1. Посмотри лог: `cat ipv4.log`\n2. Вырежи поле: `grep data: ipv4.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n\n## Повторение (`network-tcpip`)\n\nIPv4-заголовок ты разбирал в `network-tcpip`: поле IHL задаёт длину заголовка в 32-битных словах. Освежи это на нашем логе:\n\n    grep IHL ipv4.log\n\n`IHL=7` → 28 байт, значит после стандартных 20 байт идут 8 байт опций — именно их мы и разбираем ниже.\n"
     },
     {
       "path": "/home/student/task/ipv4.log",

@@ -21,6 +21,7 @@ lab:
   files: [task.md, candump.log]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`network-mitm`): `grep can0 candump.log` — сначала карта штатного обмена, потом поиск постороннего ID."
     - "`candump.log` — вывод `candump -a can0`: ID кадра, длина DLC и 8 байт данных."
     - "В task.md перечислены «штатные» ID. Один кадр использует ID не из списка — это инъекция."
     - "У поддельного кадра поле после ID — `payload:<base64>`; вырежи его: `cut -d: -f2`."

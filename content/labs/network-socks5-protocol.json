@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: разбор SOCKS5-сессии\n\n`socks.log` — hex-дамп одного SOCKS5-соединения клиент → прокси.\nВ запросе CONNECT адрес назначения помечен как `dst:` и закодирован base64.\n\n1. Посмотри лог: `cat socks.log`\n2. Вырежи поле: `grep dst: socks.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+      "text": "# Задача: разбор SOCKS5-сессии\n\n`socks.log` — hex-дамп одного SOCKS5-соединения клиент → прокси.\nВ запросе CONNECT адрес назначения помечен как `dst:` и закодирован base64.\n\n1. Посмотри лог: `cat socks.log`\n2. Вырежи поле: `grep dst: socks.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n\n## Повторение (`network-tcpip`)\n\nSOCKS5 — прикладной протокол поверх TCP; разбор «сырых» байтов и портов ты делал в `network-tcpip`. Освежи: посмотри приветствие и версию протокола:\n\n    head -n 1 socks.log\n\n`05 01 00` — версия `05`, один метод аутентификации `00` (без пароля). Ниже разбираем CONNECT и декодируем `dst:`.\n"
     },
     {
       "path": "/home/student/task/socks.log",

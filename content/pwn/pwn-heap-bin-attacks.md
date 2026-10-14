@@ -20,6 +20,7 @@ lab:
   files: [task.md, spirit.c, spirit.gdb.txt]
   check: "grep -q 'fake=0x404050' answer.txt"
   hints:
+    - "Повторение (`pwn-heap-basics`): `grep -nE 'size|prev_size|free|malloc' spirit.c` — вспомни раскладку чанка; проверь size относительно следующего."
     - "House of Spirit — подсовываем `free()` поддельный чанк с валидным size."
     - "Нужны корректные `prev_size`/`size` и правдоподобный size у «следующего» чанка."
     - "После `free(fake)` следующий `malloc` вернёт адрес поддельного чанка."

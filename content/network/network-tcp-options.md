@@ -21,6 +21,7 @@ lab:
   files: [task.md, tcp.log]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`network-tcpip`): `grep offset tcp.log` — data offset x4 = длина заголовка; 10 значит 20 байт опций."
     - "`tcp.log` — разбор TCP SYN с опциями."
     - "В одной опции есть поле `val:` в base64."
     - "Вырежи: `grep val: tcp.log | cut -d: -f2`."
