@@ -1,0 +1,48 @@
+{
+  "id": "osint-cicd-recon",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{j3nk1ns_4p1_3xp0s3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Jenkins recon\n\n1. `curl -s https://jenkins.example.com/api/json`\n2. Найди список `jobs` и `mode`.\n3. `curl -sI https://jenkins.example.com` — заголовок `X-Jenkins`.\n4. Маркер `nto{...}` — запиши в `answer.txt`, затем `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — эмуляция ответов Jenkins",
+      "cases": [
+        {
+          "match": "api/json",
+          "example": "curl -s https://jenkins.example.com/api/json",
+          "output": "{\"_class\":\"hudson.model.Hudson\",\"mode\":\"NORMAL\",\"nodeDescription\":\"the master Jenkins node\",\"numExecutors\":2,\"jobs\":[{\"name\":\"deploy-prod\",\"url\":\"https://jenkins.example.com/job/deploy-prod/\"},{\"name\":\"build-api\",\"url\":\"https://jenkins.example.com/job/build-api/\"}],\"x_flag\":\"nto{j3nk1ns_4p1_3xp0s3d}\"}\n"
+        },
+        {
+          "match": "tree=jobs",
+          "example": "curl -s 'https://jenkins.example.com/api/json?tree=jobs[name]'",
+          "output": "{\"jobs\":[{\"name\":\"deploy-prod\"},{\"name\":\"build-api\"}]}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только jenkins.example.com.\n"
+    },
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "jobs|\\.",
+          "example": "jq -r '.jobs[].name' api.json",
+          "output": "deploy-prod\nbuild-api\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживается разбор полей.\n"
+    }
+  }
+}

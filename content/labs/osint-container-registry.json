@@ -1,0 +1,53 @@
+{
+  "id": "osint-container-registry",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{c0nt41n3r_r3g1stry_c4t4l0g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: реестр контейнеров\n\n1. `curl -s https://registry.example.com/v2/_catalog`\n2. `curl -s https://registry.example.com/v2/app/tags/list`\n3. `curl -s https://hub.docker.com/v2/repositories/example/`\n4. Маркер `nto{...}` — запиши в `answer.txt`, затем `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — эмуляция ответов реестра",
+      "cases": [
+        {
+          "match": "_catalog",
+          "example": "curl -s https://registry.example.com/v2/_catalog",
+          "output": "{\"repositories\":[\"example/app\",\"example/worker\",\"example/nginx\"],\"x_flag\":\"nto{c0nt41n3r_r3g1stry_c4t4l0g}\"}\n"
+        },
+        {
+          "match": "tags/list",
+          "example": "curl -s https://registry.example.com/v2/app/tags/list",
+          "output": "{\"name\":\"example/app\",\"tags\":[\"latest\",\"1.4.2\",\"1.4.1\",\"dev\"]}\n"
+        },
+        {
+          "match": "hub\\.docker\\.com",
+          "example": "curl -s https://hub.docker.com/v2/repositories/example/",
+          "output": "{\"count\":2,\"results\":[{\"name\":\"app\",\"namespace\":\"example\",\"pull_count\":12034},{\"name\":\"worker\",\"namespace\":\"example\",\"pull_count\":881}]}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны registry.example.com и hub.docker.com.\n"
+    },
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "repositories|tags|\\.",
+          "example": "jq -r '.repositories[]' cat.json",
+          "output": "example/app\nexample/worker\nexample/nginx\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживается разбор полей.\n"
+    }
+  }
+}
