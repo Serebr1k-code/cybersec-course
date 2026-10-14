@@ -1,0 +1,37 @@
+{
+  "id": "crypto-drbg-backdoors",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{du4l_3c_drbg_b4ckd00r_r3c0v3rs_st4t3}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: бэкдор Dual_EC_DRBG\n\n`dual_ec.py` реализует Dual_EC_DRBG на маленькой эллиптической кривой.\nТочки: P=(1,586770), Q=d*P с секретным d=0x5ec12e.\nЗная d, восстанови следующее состояние из ОДНОГО публичного выхода: d*R = s*Q.\n\nШаги:\n1. `cat dual_ec.py`.\n2. `python3 dual_ec.py`.\n3. `python3 dual_ec.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Dual_EC: R = s*P (выход = x(R)), следующее состояние s' = x(s*Q).\n- Бэкдор: d*R = d*(s*P) = s*(d*P) = s*Q = s'.  Одно умножение точки.\n- CTR-DRBG/Hash-DRBG безопасны при секретном seed; бэкдор только в Dual_EC.\n"
+    },
+    {
+      "path": "/home/student/task/dual_ec.py",
+      "text": "# Dual_EC_DRBG backdoor (simplified, tiny curve for demonstration).\np = 1000003\na, b = 2, 3\ndef inv(x): return pow(x, p-2, p)\ndef add(P, Q):\n    if P is None: return Q\n    if Q is None: return P\n    x1,y1 = P; x2,y2 = Q\n    if x1 == x2 and (y1 + y2) % p == 0: return None\n    if P == Q:\n        lam = (3*x1*x1 + a) * inv(2*y1) % p\n    else:\n        lam = (y2 - y1) * inv(x2 - x1) % p\n    x3 = (lam*lam - x1 - x2) % p\n    y3 = (lam*(x1 - x3) - y1) % p\n    return (x3, y3)\ndef mul(k, P):\n    R = None\n    while k:\n        if k & 1: R = add(R, P)\n        P = add(P, P); k >>= 1\n    return R\n\nP = (1, 586770)              # valid generator on y^2 = x^3 + 2x + 3 (mod p)\nd = 0x5ec12e                 # SECRET backdoor scalar\nQ = mul(d, P)                # published point; Q = d*P\ns0 = 0x1234567 % p           # initial internal state\n\ndef gen(state, n):\n    s = state; out = []\n    for _ in range(n):\n        R = mul(s, P)\n        out.append(R[0])\n        s = mul(s, Q)[0]     # next state = x(s*Q)\n    return out\n\nr = gen(s0, 4)\nprint(\"public DRBG outputs (x-coords):\", [hex(x) for x in r])\n# Attacker who knows d recovers the NEXT state from r[0] alone.\ndef point_with_x(x):\n    for y in range(1, p):\n        if (y*y - (x*x*x + a*x + b)) % p == 0:\n            return (x, y)\n    return None\nR0 = point_with_x(r[0])\npred = mul(d, R0)[0]                 # d*(s0*P) = s0*(d*P) = s0*Q\nactual = mul(s0, Q)[0]\nprint(\"attacker predicted next state:\", hex(pred))\nprint(\"actual next state:            \", hex(actual))\nprint(\"backdoor works:\", pred == actual)\nprint(\"flag: nto{du4l_3c_drbg_b4ckd00r_r3c0v3rs_st4t3}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        { "match": "--version|^-V$", "example": "python3 --version", "output": "Python 3.12.4" },
+        {
+          "match": "dual_ec\\.py$",
+          "example": "python3 dual_ec.py",
+          "output": "public DRBG outputs (x-coords): ['0x600cf', '0x8d6ed', '0x95c5f', '0x1bbba']\nattacker predicted next state: 0xca7e0\nactual next state:             0xca7e0\nbackdoor works: True\nflag: nto{du4l_3c_drbg_b4ckd00r_r3c0v3rs_st4t3}\n"
+        }
+      ]
+    }
+  }
+}

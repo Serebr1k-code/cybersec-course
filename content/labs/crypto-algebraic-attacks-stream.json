@@ -1,0 +1,37 @@
+{
+  "id": "crypto-algebraic-attacks-stream",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{f4st_c0rr3l4t10n_r3c0v3rs_lfsr_s33d}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: корреляционная атака на ToyCombiner\n\n`corr.py` моделирует комбинер: keystream = выход LFSR(10 бит) XOR шум (p=0.25).\nВосстанови истинный seed, перебрав все 2^10 кандидатов и выбрав лучший по совпадениям.\n\nШаги:\n1. `cat corr.py`.\n2. `python3 corr.py`.\n3. `python3 corr.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Корреляция: правильный seed совпадает с выходом ~75%, случайный ~50%.\n- Атака: перебрать 2^L seed, выбрать максимальный счёт совпадений.\n- Fast correlation: декодировать зашумлённый поток итеративно (belief propagation).\n- Guess-and-determine: угадать часть состояния, остальное вывести из уравнений.\n"
+    },
+    {
+      "path": "/home/student/task/corr.py",
+      "text": "# Fast correlation attack on a toy LFSR combiner: output leaks LFSR1 with noise p.\nimport random\nrandom.seed(7)\nL = 10  # LFSR length\ndef lfsr(seed, taps, n):\n    s = seed[:]; out = []\n    for _ in range(n):\n        out.append(s[-1])\n        fb = 0\n        for t in taps: fb ^= s[t]\n        s = [fb] + s[:-1]\n    return out\ntaps = [0, 2, 9]                 # x^10 + x^3 + x + 1\nseed = [1, 0, 1, 1, 0, 1, 0, 0, 1, 1]\nz = lfsr(seed, taps, 200)\n# keystream = LFSR1 output XOR a noisy bit (the combiner is correlated)\nnoise_p = 0.25\ny = [z[i] ^ (1 if random.random() < noise_p else 0) for i in range(200)]\n# Correlation attack: try all 2^10 seeds, pick the one best matching y.\nbest = None; bestscore = -1\nfor s in range(1 << L):\n    cand = [(s >> i) & 1 for i in range(L)]\n    ks = lfsr(cand, taps, 200)\n    score = sum(1 for i in range(200) if ks[i] == y[i])\n    if score > bestscore:\n        bestscore = score; best = s\nrec = [(best >> i) & 1 for i in range(L)]\nprint(\"noise probability p =\", noise_p)\nprint(\"recovered seed =\", rec)\nprint(\"matches true seed:\", rec == seed, \" (score %d/200)\" % bestscore)\nprint(\"flag: nto{f4st_c0rr3l4t10n_r3c0v3rs_lfsr_s33d}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        { "match": "--version|^-V$", "example": "python3 --version", "output": "Python 3.12.4" },
+        {
+          "match": "corr\\.py$",
+          "example": "python3 corr.py",
+          "output": "noise probability p = 0.25\nrecovered seed = [1, 0, 1, 1, 0, 1, 0, 0, 1, 1]\nmatches true seed: True  (score 140/200)\nflag: nto{f4st_c0rr3l4t10n_r3c0v3rs_lfsr_s33d}\n"
+        }
+      ]
+    }
+  }
+}

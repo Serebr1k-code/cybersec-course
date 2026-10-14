@@ -1,0 +1,37 @@
+{
+  "id": "crypto-hardware-rng",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w34k_trng_b14s_d3t3ct3d_by_m0n0b1t}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: детект смещённого TRNG монобит-тестом\n\n`trng.py` моделирует аппаратный RNG (кольцевой осциллятор + компаратор).\nИдеальный источник: p(1)=0.5; слабый: p(1)=0.56. Прогони монобит-тест\nи покажи, что слабый источник отвергается (|s_obs| > 1.96).\n\nШаги:\n1. `cat trng.py`.\n2. `python3 trng.py`.\n3. `python3 trng.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Источники: тепловой шум, кольцевые осцилляторы, метастабильность, лавинный пробой.\n- RDSEED = сырая энтропия; RDRAND = после DRBG (AES-CBC-MAC).\n- Монобит: s_obs = (2S-n)/sqrt(n); |s_obs|>1.96 => поток смещён.\n- Нужен ещё runs и спектральный тест — monobit не ловит периодичность.\n"
+    },
+    {
+      "path": "/home/student/task/trng.py",
+      "text": "# Weak TRNG: ring oscillator with a biased comparator -> biased output bits.\nimport random\nrandom.seed(3)\nN = 4096\n# ideal TRNG: p(1)=0.5 ; weak TRNG: p(1)=0.5+eps (a stuck-ish comparator)\ndef sample(p, n): return [1 if random.random() < p else 0 for _ in range(n)]\nideal = sample(0.5, N)\nweak  = sample(0.56, N)\ndef monobit(bits):\n    s = sum(1 for b in bits if b == 1)\n    n = len(bits)\n    return s, (2*s - n) / (n ** 0.5)   # NIST monobit statistic s_obs\nsi, zi = monobit(ideal)\nsw, zw = monobit(weak)\nprint(\"ideal: ones=%d/%d  s_obs=%.2f  (|s_obs|<1.96 => pass)\" % (si, N, abs(zi)))\nprint(\"weak : ones=%d/%d  s_obs=%.2f  (|s_obs|>1.96 => FAIL)\" % (sw, N, abs(zw)))\nprint(\"weak TRNG detected:\", abs(zw) > 1.96)\nprint(\"flag: nto{w34k_trng_b14s_d3t3ct3d_by_m0n0b1t}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        { "match": "--version|^-V$", "example": "python3 --version", "output": "Python 3.12.4" },
+        {
+          "match": "trng\\.py$",
+          "example": "python3 trng.py",
+          "output": "ideal: ones=2064/4096  s_obs=0.50  (|s_obs|<1.96 => pass)\nweak : ones=2329/4096  s_obs=8.78  (|s_obs|>1.96 => FAIL)\nweak TRNG detected: True\nflag: nto{w34k_trng_b14s_d3t3ct3d_by_m0n0b1t}\n"
+        }
+      ]
+    }
+  }
+}

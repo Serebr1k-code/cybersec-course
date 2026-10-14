@@ -1,0 +1,37 @@
+{
+  "id": "crypto-gsm-a5-3g",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{45_1_m4j0r1ty_cl0ck1ng_1s_w34k}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: keystream A5/1 и мажоритарное тактирование\n\n`a51.py` реализует учебный A5/1: три LFSR (19/22/23 бита), которые сдвигаются\nпо мажоритарному биту. Сгенерируй первые биты гаммы и убедись, что на каждом\nшаге сдвигается не меньше двух регистров.\n\nШаги:\n1. `cat a51.py`.\n2. `python3 a51.py`.\n3. `python3 a51.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- R1=19 (taps 13,16,17,18, clk 8), R2=22 (taps 20,21, clk 10), R3=23 (taps 7,20,21,22, clk 10).\n- maj = (c1&c2)|(c1&c3)|(c2&c3); сдвигаются регистры с clk==maj.\n- Выход = R1[18]^R2[21]^R3[22].\n- На каждом шаге сдвигается >=2 регистра — источник слабости.\n"
+    },
+    {
+      "path": "/home/student/task/a51.py",
+      "text": "# A5/1: three LFSRs with majority clocking (GSM voice cipher).\nR1 = [1]*19; R2 = [1]*22; R3 = [1]*23   # all-ones state after key/IV setup\n\ndef step(r, taps):\n    fb = 0\n    for t in taps: fb ^= r[t]\n    r.pop(0); r.append(fb)\n\ndef clock_bit(r, i): return r[i]\n\ndef keystream(n):\n    out = []\n    for _ in range(n):\n        c1, c2, c3 = R1[8], R2[10], R3[10]\n        maj = (c1 & c2) | (c1 & c3) | (c2 & c3)   # majority\n        if c1 == maj: step(R1, [13, 16, 17, 18])\n        if c2 == maj: step(R2, [20, 21])\n        if c3 == maj: step(R3, [7, 20, 21, 22])\n        out.append(R1[18] ^ R2[21] ^ R3[22])\n    return out\n\nks = keystream(16)\nprint(\"A5/1 first 16 keystream bits:\", ''.join(map(str, ks)))\nprint(\"bits clocked in first step: >=2 (majority): True\")\nprint(\"flag: nto{45_1_m4j0r1ty_cl0ck1ng_1s_w34k}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        { "match": "--version|^-V$", "example": "python3 --version", "output": "Python 3.12.4" },
+        {
+          "match": "a51\\.py$",
+          "example": "python3 a51.py",
+          "output": "A5/1 first 16 keystream bits: 0110111010110000\nbits clocked in first step: >=2 (majority): True\nflag: nto{45_1_m4j0r1ty_cl0ck1ng_1s_w34k}\n"
+        }
+      ]
+    }
+  }
+}
