@@ -1,0 +1,27 @@
+{
+  "id": "cloud-aws-waf-shield",
+  "workdir": "/home/student/waf",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/waf/found.txt",
+    "contains": "nto{aws_waf_count_rule_no_block}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/waf",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/waf/task.md",
+      "text": "# Задача\n\nДан web ACL AWS WAF. Определи, почему защита не срабатывает, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/waf/acl.json",
+      "text": "{\n  \"Rules\": [\n    {\"Name\": \"AWSManagedRulesSQLiRuleSet\", \"Priority\": 1, \"OverrideAction\": {\"Count\": {}}},\n    {\"Name\": \"rate-limit-1000\", \"Priority\": 2, \"Action\": {\"Block\": {}}}\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/waf/notes.md",
+      "text": "Аудит: SQLi-набор в режиме Count — не блокирует.\nЗапросы с инъекцией доходят до приложения.\nnto{aws_waf_count_rule_no_block}\n"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "cloud-aws-cognito-deep",
+  "workdir": "/home/student/cognito",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/cognito/found.txt",
+    "contains": "nto{cognito_guest_role_s3_access}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/cognito",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/cognito/task.md",
+      "text": "# Задача\n\nВ приложении найден identityPoolId. Определи, какие креды можно получить без входа, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/cognito/cognito.txt",
+      "text": "identityPoolId: eu-west-1:EXAMPLE-pool-id\nRoles:\n  unauthenticated: arn:aws:iam::111111111111:role/Cognito_guest  # s3:GetObject on *\n  authenticated:   arn:aws:iam::111111111111:role/Cognito_auth\n"
+    },
+    {
+      "path": "/home/student/cognito/notes.md",
+      "text": "Аудит: гостевая роль Cognito_guest имеет s3:GetObject на все бакеты.\nБез входа можно получить AWS-креды и скачать приватные файлы.\nnto{cognito_guest_role_s3_access}\n"
+    }
+  ]
+}

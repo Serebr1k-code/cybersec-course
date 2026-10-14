@@ -1,0 +1,27 @@
+{
+  "id": "cloud-aws-bedrock",
+  "workdir": "/home/student/bedrock",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/bedrock/found.txt",
+    "contains": "nto{bedrock_retrieve_knowledgebase_leak}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/bedrock",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/bedrock/task.md",
+      "text": "# Задача\n\nДана политика роли с доступом к Bedrock. Определи, к каким данным она открывает путь, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/bedrock/policy.json",
+      "text": "{\"Statement\": [{\"Effect\": \"Allow\", \"Action\": [\"bedrock:InvokeModel\", \"bedrock:Retrieve\"], \"Resource\": \"*\"}]}\n"
+    },
+    {
+      "path": "/home/student/bedrock/notes.md",
+      "text": "Аудит: bedrock:Retrieve даёт доступ к knowledge base с внутренними документами.\nInvokeModel на Resource * открывает все модели.\nnto{bedrock_retrieve_knowledgebase_leak}\n"
+    }
+  ]
+}

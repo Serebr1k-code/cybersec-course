@@ -1,0 +1,27 @@
+{
+  "id": "cloud-aws-sagemaker",
+  "workdir": "/home/student/sagemaker",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/sagemaker/found.txt",
+    "contains": "nto{sagemaker_execution_role_reads_bucket}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/sagemaker",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/sagemaker/task.md",
+      "text": "# Задача\n\nНайден SageMaker-ноутбук. Определи, что позволяет его execution role, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/sagemaker/role.txt",
+      "text": "sm-notebook-role:\n  AmazonSageMakerFullAccess\n  s3:GetObject on arn:aws:s3:::*\n  secretsmanager:GetSecretValue on *\n"
+    },
+    {
+      "path": "/home/student/sagemaker/notes.md",
+      "text": "Аудит: роль читает все бакеты и секреты.\nКод под ролью выносит данные бэкапов.\nnto{sagemaker_execution_role_reads_bucket}\n"
+    }
+  ]
+}
