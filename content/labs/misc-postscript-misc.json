@@ -1,0 +1,27 @@
+{
+  "id": "misc-postscript-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p0stscr1pt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# PostScript\n\n`print.ps` — файл печати; `extract.txt` — извлечённый текст.\nНайди метку и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/print.ps",
+      "text": "%!PS-Adobe-3.0\\n(nto{p0stscr1pt} ) show\\nshowpage\\n"
+    },
+    {
+      "path": "/home/student/task/extract.txt",
+      "text": "gs -sDEVICE=txtwrite -o - print.ps\nnto{p0stscr1pt}\n"
+    }
+  ]
+}

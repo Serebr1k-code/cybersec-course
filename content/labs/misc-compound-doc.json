@@ -1,0 +1,23 @@
+{
+  "id": "misc-compound-doc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c0mp0und_f1l3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# OLE/CFB\n\n`streams.txt` — листинг потоков составного файла `report.doc`.\nВ одном из потоков лежит метка. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/streams.txt",
+      "text": " 1:      114 \\x01CompObj\n 2:     8192 WordDocument\n 3:     4096 \\x05SummaryInformation\n 4:     4096 Macros/VBA/Module1\n\\x05SummaryInformation -> Author: anon; Company: nto{c0mp0und_f1l3}\n"
+    }
+  ]
+}

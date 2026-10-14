@@ -1,0 +1,27 @@
+{
+  "id": "misc-archive-nested",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{n3st3d_4rch1v3s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Nested archives\n\n`listing.txt` показывает уровни матрёшки `bundle.zip`.\nНайди метку на нижнем уровне и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/bundle.zip",
+      "text": "PK\\x03\\x04 ... (placeholder) ...\\n"
+    },
+    {
+      "path": "/home/student/task/listing.txt",
+      "text": "bundle.zip\n  data.tar\n    layer.gz\n      notes.txt: nto{n3st3d_4rch1v3s}\n"
+    }
+  ]
+}

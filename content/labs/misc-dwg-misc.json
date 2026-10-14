@@ -1,0 +1,23 @@
+{
+  "id": "misc-dwg-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dxf_t3xt_1s_pl41n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# DXF\n\n`drawing.dxf` — текстовый чертёж. Текст в DXF лежит под кодом группы 1.\nНайди метку и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/drawing.dxf",
+      "text": "0\\nSECTION\\n2\\nHEADER\\n9\\n$ACADVER\\n1\\nAC1015\\n0\\nENDSEC\\n0\\nSECTION\\n2\\nENTITIES\\n0\\nTEXT\\n1\\nnto{dxf_t3xt_1s_pl41n}\\n0\\nENDSEC\\n0\\nEOF\\n"
+    }
+  ]
+}
