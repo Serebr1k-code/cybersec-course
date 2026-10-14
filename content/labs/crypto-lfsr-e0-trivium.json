@@ -1,0 +1,48 @@
+{
+  "id": "crypto-lfsr-e0-trivium",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{lfsr_st4t3_r3c0v3r3d_by_l1n34r_4lg3br4}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: восстановление состояния LFSR\n\n`keystream.txt` содержит 16 бит ключевого потока LFSR\n(16-битный регистр, отводы по битам 0,2,3,5; выход — младший бит).\nНужно восстановить начальное состояние: оно линейно выражается\nчерез выходные биты, поэтому решается гауссовым исключением над GF(2).\n\nШаги:\n1. `cat keystream.txt`.\n2. Построй систему: каждый выходной бит — линейная функция от 16 бит состояния.\n3. `python3 lfsr.py` — решает систему и печатает состояние.\n4. `python3 lfsr.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- LFSR линеен: состояние и выход связаны матрицей над GF(2).\n- 16 выходов достаточно, чтобы восстановить 16-битное состояние.\n- Берлекамп-Месси находит минимальный LFSR по потоку.\n"
+    },
+    {
+      "path": "/home/student/task/keystream.txt",
+      "text": "keystream = 1111011101111101\n"
+    },
+    {
+      "path": "/home/student/task/lfsr.py",
+      "text": "n=16; taps=[0,2,3,5]\nks=[int(c) for c in open('keystream.txt').read().split('=')[1].strip()]\nM=[1<<i for i in range(n)]\nrows=[]\nfor j in range(n):\n    rows.append(M[0])\n    newM=[M[i+1] for i in range(n-1)]\n    fb=0\n    for t in taps: fb^=M[t]\n    newM.append(fb); M=newM\nA=[[(rows[i]>>j)&1 for j in range(n)]+[ks[i]] for i in range(n)]\nr=0\nfor c in range(n):\n    piv=next((i for i in range(r,n) if A[i][c]),None)\n    if piv is None: continue\n    A[r],A[piv]=A[piv],A[r]\n    for i in range(n):\n        if i!=r and A[i][c]:\n            for j in range(c,n+1): A[i][j]^=A[r][j]\n    r+=1\nx=0\nfor i in range(n):\n    if A[i][n]: x|=1<<i\nprint('recovered state = 0x%x' % x)\nprint('flag: %s' % 'nto{lfsr_st4t3_r3c0v3r3d_by_l1n34r_4lg3br4}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "lfsr\\.py",
+          "example": "python3 lfsr.py",
+          "output": "recovered state = 0xbeef\nflag: nto{lfsr_st4t3_r3c0v3r3d_by_l1n34r_4lg3br4}\n"
+        }
+      ]
+    }
+  }
+}
