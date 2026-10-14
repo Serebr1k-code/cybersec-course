@@ -1,0 +1,48 @@
+{
+  "id": "forensics-vss",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{vss_sh4d0w_c0py_r3c0v3r}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: восстановление из теневой копии\n\nНа томе C: есть теневая копия, созданная 12.03.2024 03:14:07.\nПользователь admin удалил файл secret.txt ПОСЛЕ создания снимка.\n\n1. Изучи список снимков: `cat shadows.txt`\n2. В дифф-области `diffarea.dat` лежат блоки изменённых/удалённых файлов.\n3. Восстанови содержимое через `python3 vssparse.py` и запиши ключ в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/shadows.txt",
+      "text": "vssadmin 1.1 - Volume Shadow Copy Service administrative command-line tool\nContents of shadow copy set ID: {4f7c1e2a-9b3d-4a11-8e77-2b6a0c1d9e01}\n   Contained 1 shadow copies at creation time: 12.03.2024 03:14:07\n   Shadow Copy ID: {a1b2c3d4-1111-2222-3333-444455556666}\n      Original Volume: (C:)\\\\?\\Volume{9f8e7d6c-0000-0000-0000-000000000000}\\\n      Shadow Copy Volume: \\\\?\\GLOBALROOT\\Device\\HarddiskVolumeShadowCopy1\n      Originating Machine: WIN-SRV01\n      Provider: 'Microsoft Software Shadow Copy provider 1.0'\n      Type: ClientAccessible\n      Attributes: Persistent, No auto release, No differ\n"
+    },
+    {
+      "path": "/home/student/task/diffarea.dat",
+      "b64": "VmhzZAABAAASAyAkAxQHAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABDOlxVc2Vyc1xhZG1pblxzZWNyZXQudHh0AAAAAAAAAAAAAAAAAAAAAABrZXk9bnRve3Zzc19zaDRkMHdfYzBweV9yM2MwdjNyfQAAAAAAAAAAAA==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/vssparse.py",
+      "text": "data = open('diffarea.dat', 'rb').read()\nprint('[VSS] diff area: diffarea.dat')\nprint('[VSS] store blocks:', len(data), 'bytes')\ni = data.find(b'key=')\nif i >= 0:\n    end = data.find(b'\\x00', i)\n    line = data[i:end if end > 0 else i+64].decode('latin-1')\n    print('[VSS] found file block at 0x00000000 (orig C:\\\\Users\\\\admin\\\\secret.txt)')\n    print('recovered:', line)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "vssparse\\.py",
+          "example": "python3 vssparse.py",
+          "output": "[VSS] diff area: diffarea.dat\n[VSS] store blocks: 130 bytes\n[VSS] found file block at 0x00000000 (orig C:\\Users\\admin\\secret.txt)\nrecovered: key=nto{vss_sh4d0w_c0py_r3c0v3r}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 vssparse.py`\n"
+    }
+  }
+}

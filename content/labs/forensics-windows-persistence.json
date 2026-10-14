@@ -1,0 +1,43 @@
+{
+  "id": "forensics-windows-persistence",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p3rs1st3nc3_run_s3rv1c3_task}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: охота на персистентность\n\nМалварь возвращается после перезагрузки. Есть выгрузка точек автозапуска.\n\n1. Изучи список: `cat autoruns.txt`\n2. Найди подозрительные записи (путь вне System32, скрытый powershell -enc, WMI).\n3. Разбери через `python3 persist.py` и запиши ключ (nto{...}) в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/autoruns.txt",
+      "text": "[HKLM\\Run]   OneDrive    C:\\Program Files\\Microsoft OneDrive\\OneDrive.exe /background\n[HKLM\\Run]   SysHelper   C:\\Users\\Public\\svchost.exe -k netsvcs\n[Service]    WSearch     C:\\Windows\\System32\\SearchIndexer.exe /Embedding\n[Service]    UpdaterSvc  powershell.exe -nop -w hidden -enc bnRve3AzcnMxc3QzbmMzX3J1bl9zM3J2MWMzX3Rhc2t9\n[Task]       GoogleUpdate C:\\Program Files\\Google\\Update\\GoogleUpdate.exe\n[Task]       \\MicrosoftEdgeUpdate C:\\Program Files (x86)\\Microsoft\\EdgeUpdate\\MicrosoftEdgeUpdate.exe\n[WMI]        __FilterToConsumerBinding CommandLineEventConsumer=\"C:\\Users\\Public\\svchost.exe\"\n"
+    },
+    {
+      "path": "/home/student/task/persist.py",
+      "text": "import base64\nlines = open('autoruns.txt', encoding='utf-8').read().splitlines()\nprint('[PERSIST] entries=%d' % len(lines))\nfor ln in lines:\n    low = ln.lower()\n    if 'public\\\\svchost' in low and 'run]' in low:\n        print('[PERSIST] Run\\\\SysHelper     -> C:\\\\Users\\\\Public\\\\svchost.exe   [SUSPICIOUS: svchost outside System32]')\n    if 'powershell' in low and '-enc' in low:\n        b64 = ln.split('-enc')[1].strip()\n        dec = base64.b64decode(b64).decode('latin-1')\n        print('[PERSIST] Service UpdaterSvc -> powershell -enc <b64>        [SUSPICIOUS: hidden encoded command]')\n        print('[PERSIST] decoded command    -> %s' % dec)\n    if 'wmi' in low and 'consumer' in low:\n        print('[PERSIST] WMI binding        -> C:\\\\Users\\\\Public\\\\svchost.exe  [SUSPICIOUS: WMI persistence]')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "persist\\.py",
+          "example": "python3 persist.py",
+          "output": "[PERSIST] entries=7\n[PERSIST] Run\\SysHelper     -> C:\\Users\\Public\\svchost.exe   [SUSPICIOUS: svchost outside System32]\n[PERSIST] Service UpdaterSvc -> powershell -enc <b64>        [SUSPICIOUS: hidden encoded command]\n[PERSIST] decoded command    -> nto{p3rs1st3nc3_run_s3rv1c3_task}\n[PERSIST] WMI binding        -> C:\\Users\\Public\\svchost.exe  [SUSPICIOUS: WMI persistence]\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 persist.py`\n"
+    }
+  }
+}

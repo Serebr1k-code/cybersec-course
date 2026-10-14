@@ -1,0 +1,44 @@
+{
+  "id": "forensics-crash-dumps",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cr4sh_dump_r00tk1t_dr1v3r}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ аварийного дампа\n\nПосле BSOD остался файл MEMORY.DMP. Есть подозрение на kernel-руткит.\n\n1. Проверь сигнатуру: `xxd -l 16 MEMORY.DMP`\n2. Разбери список модулей: `python3 dumpinfo.py`\n3. Найди неподписанный драйвер и запиши ключ (nto{...}) в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/MEMORY.DMP",
+      "b64": "UEFHRURVNjQAAAAAAAAAAAAATU9EVUxFIG50b3Nrcm5sLmV4ZSBzaWduZWQATU9EVUxFIHRjcGlwLnN5cyBzaWduZWQATU9EVUxFIHIwMHRraXQuc3lzIFVOU0lHTkVEAAAAAAAAAGtleT1udG97Y3I0c2hfZHVtcF9yMDB0azF0X2RyMXYzcn0AAAAAAAAA",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/dumpinfo.py",
+      "text": "data = open('MEMORY.DMP', 'rb').read()\nsig = data[:8].decode('latin-1').strip('\\x00')\nmods = []\npos = 0\nwhile True:\n    i = data.find(b'MODULE ', pos)\n    if i < 0: break\n    end = data.find(b'\\x00', i)\n    mods.append(data[i+7:end].decode('latin-1'))\n    pos = end\nprint('[DMP] type=%s modules=%d' % (sig, len(mods)))\nfor m in mods:\n    flag = 'UNSIGNED   <-- suspicious' if 'UNSIGNED' in m else 'signed'\n    name = m.split()[0]\n    print('[DMP]  %-14s %s' % (name, flag))\nk = data.find(b'key=')\nif k >= 0:\n    line = data[k:data.find(b'\\x00', k)].decode('latin-1')\n    print('[DMP] %s' % line)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "dumpinfo\\.py",
+          "example": "python3 dumpinfo.py",
+          "output": "[DMP] type=PAGEDU64 modules=3\n[DMP]  ntoskrnl.exe   signed\n[DMP]  tcpip.sys      signed\n[DMP]  r00tkit.sys    UNSIGNED   <-- suspicious\n[DMP] key=nto{cr4sh_dump_r00tk1t_dr1v3r}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 dumpinfo.py`\n"
+    }
+  }
+}

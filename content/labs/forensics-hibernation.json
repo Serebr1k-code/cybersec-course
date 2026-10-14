@@ -1,0 +1,44 @@
+{
+  "id": "forensics-hibernation",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h1b3rfil_r4m_0n_d1sk}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор hiberfil.sys\n\nСистему вывели из гибернации и выключили. Остался файл hiberfil.sys —\nсжатый образ оперативной памяти. Внутри есть артефакты процессов и ключ.\n\n1. Проверь сигнатуру: `xxd -l 32 hiberfil.sys`\n2. Разбери фрагмент: `python3 hibparse.py`\n3. Запиши найденный ключ (nto{...}) в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/hiberfil.sys",
+      "b64": "SElCUgEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFBST0NFU1MgbHNhc3MuZXhlAAAAAAAAAAAAAAAAAHVzZXI9YWRtaW4AcHc9UEBzc3cwcmQhMjAyNAAAAAAAAAAAAAAAa2V5PW50b3toMWIzcmZpbF9yNG1fMG5fZDFza30AAAAAAAAAAAA=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/hibparse.py",
+      "text": "data = open('hiberfil.sys', 'rb').read()\nprint('[HIBR] signature', data[:4].decode('latin-1'), 'ok,', len(data), 'bytes')\nif b'lsass.exe' in data:\n    print('[HIBR] process : lsass.exe')\ni = data.find(b'user=')\nj = data.find(b'pw=')\nif i >= 0 and j >= 0:\n    u = data[i+5:data.find(b'\\x00', i)].decode('latin-1')\n    p = data[j+3:data.find(b'\\x00', j)].decode('latin-1')\n    print('[HIBR] cred    :', u, '/', p)\nk = data.find(b'key=')\nif k >= 0:\n    line = data[k:data.find(b'\\x00', k)].decode('latin-1')\n    print('[HIBR] key     :', line[4:])\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (вывод захвачен из реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "hibparse\\.py",
+          "example": "python3 hibparse.py",
+          "output": "[HIBR] signature HIBR ok, 134 bytes\n[HIBR] process : lsass.exe\n[HIBR] cred    : admin / P@ssw0rd!2024\n[HIBR] key     : nto{h1b3rfil_r4m_0n_d1sk}\n"
+        }
+      ],
+      "fallback": "python3: доступно `python3 hibparse.py`\n"
+    }
+  }
+}
