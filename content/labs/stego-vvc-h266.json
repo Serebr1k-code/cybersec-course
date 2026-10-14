@@ -1,0 +1,44 @@
+{
+  "id": "stego-vvc-h266",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{vvc_h266_c0d3c_fl4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: нестандартный бокс в VVC-контейнере\n\n`clip.vvc` — ISOBMFF-контейнер с VVC/H.266-видео (бренд `vvc1`). Внутри есть бокс, которого нет в спецификации.\n\nБокс: `[размер(4, big-endian)][тип(4)][данные]`.\n\n1. `xxd -l 64 clip.vvc`.\n2. `python3 vvc.py` — парсер боксов.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/clip.vvc",
+      "b64": "AAAAGGZ0eXB2dmMxAAAAAHZ2YzFpc29tAAAAIEZMRyBudG97dnZjX2gyNjZfYzBkM2NfZmw0Z30="
+    },
+    {
+      "path": "/home/student/task/vvc.py",
+      "text": "import struct\nd = open('clip.vvc','rb').read()\ni = 0\nwhile i + 8 <= len(d):\n    size = struct.unpack('>I', d[i:i+4])[0]\n    typ = d[i+4:i+8]\n    if typ == b'FLG ':\n        print(d[i+8:i+size].decode('latin-1'))\n    i += size if size else len(d) - i\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "vvc\\.py",
+          "example": "python3 vvc.py",
+          "output": "nto{vvc_h266_c0d3c_fl4g}\n"
+        }
+      ]
+    }
+  }
+}

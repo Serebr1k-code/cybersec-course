@@ -1,0 +1,44 @@
+{
+  "id": "stego-av1",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4v1_m0t10n_v3ct0r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: нестандартный бокс в AV1-контейнере\n\n`clip.mp4` — ISOBMFF-контейнер с AV1-видео (бренд `av01`). Внутри есть бокс, которого нет в спецификации.\n\nБокс: `[размер(4, big-endian)][тип(4)][данные]`.\n\n1. `xxd -l 64 clip.mp4`.\n2. `python3 av1.py` — парсер боксов.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/clip.mp4",
+      "b64": "AAAAGGZ0eXBhdjAxAAAAAGF2MDFpc29tAAAAHkZMRyBudG97NHYxX20wdDEwbl92M2N0MHJ9"
+    },
+    {
+      "path": "/home/student/task/av1.py",
+      "text": "import struct\nd = open('clip.mp4','rb').read()\ni = 0\nwhile i + 8 <= len(d):\n    size = struct.unpack('>I', d[i:i+4])[0]\n    typ = d[i+4:i+8]\n    if typ == b'FLG ':\n        print(d[i+8:i+size].decode('latin-1'))\n    i += size if size else len(d) - i\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "av1\\.py",
+          "example": "python3 av1.py",
+          "output": "nto{4v1_m0t10n_v3ct0r}\n"
+        }
+      ]
+    }
+  }
+}
