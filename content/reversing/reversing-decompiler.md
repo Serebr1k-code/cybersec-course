@@ -24,6 +24,8 @@ lab:
     - 'Каждый `key[i]` — ASCII-код символа ключа.'
     - '0x6b k, 0x33 3, 0x79 y, 0x21 !, 0x7a z, 0x30 0, 0x72 r.'
     - '`echo ''k3y!z0r'' > answer.txt` затем `check`.'
+waystone: true
+waystone_tasks: [reversing-asm, reversing-file-formats, reversing-architectures, reversing-static-analysis, reversing-analysis-methodology]
 ---
 
 ## Вопрос, с которого всё начинается

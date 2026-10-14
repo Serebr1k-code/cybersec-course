@@ -25,6 +25,8 @@ lab:
     - "Разбери журнал: `evtx_dump.py Security.evtx -o events.json`."
     - "Ищи Event ID 4624 (вход) с Logon Type 10."
     - "Метка в сообщении события: `grep nto events.json > answer.txt`."
+waystone: true
+waystone_tasks: [forensics-carving, forensics-archives, forensics-filesystems, forensics-memory, forensics-disk-images]
 ---
 
 Артефакты выполнения и файлов дают разрозненные факты. **Журналы** превращают их в связную историю: кто вошёл, какая служба запустилась, что выполнил PowerShell. Этот модуль — про логи и про то, как свести всё в единый таймлайн.

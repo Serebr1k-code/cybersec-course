@@ -26,6 +26,8 @@ lab:
     - "Возьми третье поле строки со значением `Beacon`."
     - "`python3 parse_hive.py | grep Beacon | cut -d' ' -f3 | base64 -d > found.txt`."
 
+waystone: true
+waystone_tasks: [forensics-file-magic, forensics-carving, forensics-archives, forensics-filesystems, forensics-memory]
 ---
 
 ## Вопрос, с которого всё начинается

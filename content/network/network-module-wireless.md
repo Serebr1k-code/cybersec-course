@@ -25,6 +25,8 @@ lab:
     - "Сканируй эфир: `airodump-ng wlan0mon` — одна AP вещает со скрытым SSID (`<length: 0>`)."
     - "WPS-точки: `wash -i wlan0mon`."
     - "В дампе beacon раскрывает SSID: `tshark -r wifi.pcap -nn` → `nto{r0gu3_4p_h1dd3n_ss1d}`."
+waystone: true
+waystone_tasks: [network-tcpip, network-arp, network-frag-attacks, network-mitm, network-arp-deep]
 ---
 
 ## Вопрос, с которого всё начинается

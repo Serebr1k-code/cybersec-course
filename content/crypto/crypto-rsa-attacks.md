@@ -26,6 +26,8 @@ lab:
     - "Возьми целочисленный кубический корень: `python3 attack.py`."
     - "Сохрани флаг: `python3 attack.py > found.txt`."
 
+waystone: true
+waystone_tasks: [crypto-encodings, crypto-classical, crypto-xor-otp, crypto-number-theory, crypto-rsa-basics]
 ---
 
 ## Вопрос, с которого всё начинается

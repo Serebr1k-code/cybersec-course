@@ -24,6 +24,8 @@ lab:
     - "`file vuln` — ELF x86-64, без PIE: адреса фиксированы."
     - "Символы видны через `nm vuln` или `objdump -d vuln`."
     - "`win` — это функция; её адрес и нужен. Запиши `win=0x...`."
+waystone: true
+waystone_tasks: [pwn-buffer-overflow, pwn-pwntools, pwn-calling-conventions, pwn-methodology, pwn-gdb-pwndbg]
 ---
 
 ## Вопрос, с которого всё начинается

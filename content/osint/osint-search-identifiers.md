@@ -13,6 +13,8 @@ useful_for:
   - "Пентест"
 estimated_minutes: 15
 summary: "Второй этап: username enumeration по всему интернету и переход в DNS-ветку разведки."
+waystone: true
+waystone_tasks: [osint-collection, osint-automation, osint-threat-intel, osint-search-operators, osint-whois-asn]
 ---
 
 Этот модуль — промежуточный этап ветки «Поисковые операторы и Google Dorks». Он собирает несколько последовательных уроков в единый учебный шаг и объясняет, зачем и в каком порядке их проходить. Начните с первого урока и двигайтесь по списку.

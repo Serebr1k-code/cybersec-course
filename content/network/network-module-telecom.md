@@ -13,6 +13,8 @@ useful_for:
   - "Работа (SOC): атаки на roaming и сигнализацию"
 estimated_minutes: 75
 summary: "Модуль по сотовой связи и сигнализации: как устроены радиоинтерфейс и ядро сети от 2G до 5G, почему SS7/Diameter опасны, и какие атаки возможны на телеком-инфраструктуру."
+waystone: true
+waystone_tasks: [network-tcpip, network-arp, network-mitm, network-arp-deep, network-wireless-80211]
 ---
 
 ## Вопрос, с которого всё начинается

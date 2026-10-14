@@ -26,6 +26,8 @@ lab:
     - "Значение закодировано base64: выдели его `cut -d= -f2`."
     - "Раскодируй: `strings postcard.png | grep SECRET | cut -d= -f2 | base64 -d > found.txt`."
 
+waystone: true
+waystone_tasks: [stego-media-basics, stego-audio, stego-lsb, stego-image-tools, stego-container-formats]
 ---
 
 ## Вопрос, с которого всё начинается
