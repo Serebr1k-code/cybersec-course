@@ -1,0 +1,24 @@
+{
+  "id": "pwn-windows-segment-heap",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "heap_type=segment"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: определить тип Windows heap\n\n`heap.txt` — фрагмент вывода `!heap -s` из WinDbg для одного процесса.\nСовременный NT heap называется иначе, чем классический.\n\n1. `cat heap.txt`.\n2. Найди строку, описывающую организацию кучи.\n3. Запиши `heap_type=<segment|nt>` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/heap.txt",
+      "text": "    Heap Flags     Segments   Reserved     Commit  Alloc  Free\n----------------------------------------------------------------\n 00000000          Segment Heap\n   LFH  Subsegment: 0x000001d2a4c00000  Size: 0x1000  Bucket: 0x20\n   LFH  Subsegment: 0x000001d2a4c01000  Size: 0x1000  Bucket: 0x30\n   VS   Region:     0x000001d2a5000000  Size: 0x10000\n Heap  Front End: Low Fragmentation Heap (LFH)\n Back End:      Variable Size (VS)\n"
+    }
+  ],
+  "tools": {}
+}

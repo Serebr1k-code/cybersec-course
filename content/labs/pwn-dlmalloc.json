@@ -1,0 +1,25 @@
+{
+  "id": "pwn-dlmalloc",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "chunk_size=0x31"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: поле size в chunk'е dlmalloc\n\n`chunk.bin` — дамп 32-битного dlmalloc-chunk'а: сначала `prev_size`, затем\n`size` (4 байта, little-endian), затем fd/bk.\n\n1. `xxd -l 16 chunk.bin`.\n2. Возьми 4 байта со смещения 4 (поле `size`) как little-endian число.\n3. Запиши `chunk_size=<0x...>` в `answer.txt` (например, `0x31`), затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/chunk.bin",
+      "b64": "AAAAADEAAABQEgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "mode": "644"
+    }
+  ],
+  "tools": {}
+}

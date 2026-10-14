@@ -1,0 +1,28 @@
+{
+  "id": "pwn-kernel-slab-allocators",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "slab_impl=slub"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: какой slab-аллокатор собран в ядре\n\n`config.txt` — фрагмент конфигурации целевого ядра Linux. От выбранного\nаллокатора зависит техника heap-эксплуатации.\n\n1. `grep -E 'SLAB|SLUB|SLOB' config.txt`.\n2. Определи, какой аллокатор собран (`=y`).\n3. Запиши `slab_impl=<slub|slab|slob>` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/config.txt",
+      "text": "#\n# Memory Management options\n#\nCONFIG_SLAB_MERGE_DEFAULT=y\nCONFIG_SLAB_FREELIST_RANDOM=y\nCONFIG_SLAB_FREELIST_HARDENED=y\nCONFIG_SLUB=y\nCONFIG_SLUB_TINY=y\n# CONFIG_SLAB is not set\n# CONFIG_SLOB is not set\nCONFIG_SLAB_BUCKETS=y\n"
+    },
+    {
+      "path": "/home/student/task/slabinfo.txt",
+      "text": "slabinfo - version: 2.1\n# name            <active_objs> <num_objs> <objsize> <objperslab> <pagesperslab> : tunables <limit> <batchcount> <sharedfactor> : slabdata <active_slabs> <num_slabs> <sharedavail>\nkmalloc-32          1024   1024     32   128    1 : tunables    0    0    0 : slabdata      8      8      0\nkmalloc-64           512    512     64    64    1 : tunables    0    0    0 : slabdata      8      8      0\nkmalloc-128          256    256    128   32    1 : tunables    0    0    0 : slabdata      8      8      0\nfilp                 192    192    256   16    1 : tunables    0    0    0 : slabdata     12     12      0\n"
+    }
+  ],
+  "tools": {}
+}
