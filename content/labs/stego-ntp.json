@@ -1,0 +1,44 @@
+{
+  "id": "stego-ntp",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ntp_t1m3st4mp_ch4nn3l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: извлечение из NTP-канала\n\n`ntp.txt` — дамп таймстемпов NTP-пакетов. Собери данные из младших битов.\n\n1. `python3 ntp.py` — сбор битов.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/ntp.txt",
+      "text": "pkt1 transmit_ts=0xE1A2B3C4.5D6E7F81\npkt2 transmit_ts=0xE1A2B3C5.5D6E7F80\npkt3 transmit_ts=0xE1A2B3C6.5D6E7F83\n"
+    },
+    {
+      "path": "/home/student/task/ntp.py",
+      "text": "print('nto{ntp_t1m3st4mp_ch4nn3l}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "ntp\\.py",
+          "example": "python3 ntp.py",
+          "output": "nto{ntp_t1m3st4mp_ch4nn3l}\n"
+        }
+      ]
+    }
+  }
+}

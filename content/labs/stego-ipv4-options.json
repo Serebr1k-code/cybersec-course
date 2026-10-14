@@ -1,0 +1,44 @@
+{
+  "id": "stego-ipv4-options",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1pv4_0pt10ns_c0v3rt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: извлечение из опций IPv4\n\n`headers.txt` — дамп заголовков с непустым полем options. Собери данные.\n\n1. `python3 ipopt.py` — сбор байтов опций.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/headers.txt",
+      "text": "pkt1 IHL=6 options=4e 54 4f 00\npkt2 IHL=6 options=7b 31 70 76\npkt3 IHL=6 options=34 5f 30 70\n"
+    },
+    {
+      "path": "/home/student/task/ipopt.py",
+      "text": "print('nto{1pv4_0pt10ns_c0v3rt}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "ipopt\\.py",
+          "example": "python3 ipopt.py",
+          "output": "nto{1pv4_0pt10ns_c0v3rt}\n"
+        }
+      ]
+    }
+  }
+}

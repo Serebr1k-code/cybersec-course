@@ -1,0 +1,44 @@
+{
+  "id": "stego-grayscale",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{gr4ysc4l3_lsb}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: LSB в grayscale PNG\n\n`gray.png` — grayscale-изображение с данными в младших битах яркости. Извлеки сообщение.\n\n1. `python3 graylsb.py` — чтение LSB яркости.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/gray.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAAAAAA6mKC9AAABAklEQVR4nGPgFJHXMnXwDkvMKW/qnbF4HYOAtJqhjXtQbEZxXeeU+au2Mogr6Vo4+0Wm5Fe1Tpi9bOMeBjlNE3uv0ITsssae6YvW7jjMoGpg7RYYk15U2zF53sot+08x6Jg7+UYk51W29M9aumH3sYsMxnaeIfFZpQ3d0xau2X7o7A0GK9eA6LTCmvZJc1ds3nfyyn0GR5/wpNyK5r6ZS9bvOnrh9jMGj+C4zJL6rqkLVm87eOb6o7cM/lGpBdVtE+cs37T3xOV7L78wwN2888j5W08//GaAu/nA6WsP33xnYoC7+filuy8+/+NkgLv53M0n73+xCjDA3Xz1wetvjDziADhfiQEtT/EpAAAAAElFTkSuQmCC"
+    },
+    {
+      "path": "/home/student/task/graylsb.py",
+      "text": "print('nto{gr4ysc4l3_lsb}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "graylsb\\.py",
+          "example": "python3 graylsb.py",
+          "output": "nto{gr4ysc4l3_lsb}\n"
+        }
+      ]
+    }
+  }
+}
