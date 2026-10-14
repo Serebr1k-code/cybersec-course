@@ -1,0 +1,24 @@
+{
+  "id": "network-gsm-2g",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{4f21_a51_kn0wn_pl41nt3xt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор перехваченного GSM-лога\n\nТы получил файл с радиоинтерфейса 2G-сети и подписью «перехват». Он сохранён\nкак `intercept.b64` — это base64 от текстового дампа обмена телефон ↔ BTS.\n\n1. Декодируй дамп: `base64 -d intercept.b64 > intercept.txt`.\n2. Посмотри слои: строки помечены `[RR]`, `[MM]`, `[SS7/MAP]`.\n3. Найди SMS, доставленную абоненту: строка `mt-forwardSM` несёт текст сообщения.\n4. В этом тексте лежит метка `nto{...}`.\n\nЗапиши метку в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/intercept.b64",
+      "text": "W1JSXSBTeXN0ZW0gSW5mb3JtYXRpb24gVHlwZSAzICBMQUM9MHgxYTJiICBDST0weDNjNGQKW01NXSBMb2NhdGlvbiBVcGRhdGUgUmVxdWVzdCAgSU1TST0yNjIwMTEyMzQ1Njc4OTAgIFRNU0k9MHg0ZjIxYTMKW01NXSBBdXRoZW50aWNhdGlvbiBSZXF1ZXN0ICAgUkFORD04ZjJjMWQ0ZTlhICAo0L7QtNC90L7RgdGC0L7RgNC+0L3QvdGP0Y8g0LDRg9GC0LXQvdGC0LjRhNC40LrQsNGG0LjRjykKW01NXSBBdXRoZW50aWNhdGlvbiBSZXNwb25zZSAgU1JFUz00YTkxCltSUl0gQ2lwaGVyIE1vZGUgQ29tbWFuZCAgICAgICBhbGc9QTUvMSAgS2M9MWEyYjNjNGQ1ZTZmN2E4YgpbUlJdIENpcGhlciBNb2RlIENvbXBsZXRlCltSUl0gUGFnaW5nIFJlcXVlc3QgICAgICAgICAgICBUTVNJPTB4NGYyMWEzCltTUzcvTUFQXSBtdC1mb3J3YXJkU00gICAgICAgICBTTVNDPSs0OTE3MTAwMDAwMDAgIGRlc3Q9MjYyMDExMjM0NTY3ODkwCltTUzcvTUFQXSBtdC1mb3J3YXJkU00gICAgICAgICB0cGR1X2I2ND0wNzkxLi4uICB0ZXh0PSJudG97NGYyMV9hNTFfa24wd25fcGw0MW50M3h0fSIK"
+    }
+  ],
+  "tools": {}
+}

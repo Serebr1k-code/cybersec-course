@@ -1,0 +1,24 @@
+{
+  "id": "network-lte-4g",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{d1am3t3r_s6a_0p3n_c0r3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор Diameter S6a-сессии\n\n`s6a.log` — текстовый дамп Diameter-обмена между MME и HSS по интерфейсу S6a\n(ядро LTE). Команда `Update-Location-Request` несёт набор AVP.\n\n1. Посмотри дамп: `cat s6a.log`, затем `head -6 s6a.log`.\n2. Одно из AVP-значений закодировано в base64 (так иногда логируют бинарные\n   значения). Найди его: `grep 'value=' s6a.log`.\n3. Декодируй подозрительное значение: `grep 'Experimental-Result-Code' s6a.log | cut -d= -f2 | base64 -d`.\n4. Получишь метку `nto{...}` — запиши её в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/s6a.log",
+      "text": "Diameter peer: MME-01 (10.40.0.11)  <->  HSS-01 (10.40.0.5)  port=3868\nCommand: 316 Update-Location-Request (ULR)\n  AVP Session-Id        value=\"mme01;10.40.0.11;1234;1\"\n  AVP User-Name         value=\"262011234567890\"\n  AVP Experimental-Result-Code value=bnRve2QxYW0zdDNyX3M2YV8wcDNuX2MwcjN9\nCommand: 316 Update-Location-Answer (ULA)\n  AVP Result-Code       value=2001\n"
+    }
+  ],
+  "tools": {}
+}

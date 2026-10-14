@@ -11,7 +11,7 @@ useful_for:
   - "CTF Forensics категория"
   - "Incident Response (Windows)"
   - "Threat Hunting"
-estimated_minutes: 50
+estimated_minutes: 65
 summary: "Механизмы автозапуска Windows и их следы: ключи Run/RunOnce, службы, планировщик задач, WMI-подписки, Winlogon, IFEO и COM hijack. Как найти вредоносную персистентность и отличить её от легитимной."
 lab:
   kind: shell
@@ -147,6 +147,65 @@ $ fls -r -m C: disk.raw | grep -i 'public\\svchost.exe'
 - **WMI-подписки** не видны в файлах — только в репозитории WMI.
 - Время создания файла и `LastWriteTime` ключа связывают запись с моментом атаки.
 - Полный список механизмов проверяют целиком — малварь прячет один, но не все.
+
+## Шаг 7: редко проверяемые реестровые механизмы
+
+За пределами Run/Services/Tasks есть десятки мест, где живёт автозапуск. Их объединяет одно: злоумышленник подменяет значение, которое система исполняет при старте.
+
+| Механизм | Ключ реестра | Как злоупотребляют |
+|----------|--------------|--------------------|
+| Winlogon Shell | `HKLM\...\Winlogon\Shell` | подмена `explorer.exe` на сторонний exe |
+| Winlogon Userinit | `HKLM\...\Winlogon\Userinit` | добавление второго процесса к `userinit.exe` |
+| AppInit_DLLs | `HKLM\...\Windows\AppInit_DLLs` | DLL, подгружаемая в каждый GUI-процесс |
+| IFEO Debugger | `HKLM\...\Image File Execution Options\<exe>\Debugger` | перехват запуска легитимной программы |
+| SilentProcessExit | `...\SilentProcessExit\<exe>` | запуск при завершении процесса |
+| AppCertDlls | `HKLM\...\AppCertDlls` | DLL при создании процессов |
+| Netsh helper | `HKLM\...\Netsh\...\Helpers` | DLL, загружаемая при работе netsh |
+| LSA packages | `HKLM\SYSTEM\...\Control\Lsa` | подмена пакетов безопасности |
+| Time Providers | `HKLM\SYSTEM\...\W32Time\TimeProviders` | DLL, загружаемая службой времени |
+| Active Setup | `HKLM\...\Active Setup\Installed Components` | запуск при первом входе пользователя |
+| Boot Execute | `HKLM\SYSTEM\...\Session Manager\BootExecute` | запуск до входа в систему |
+
+Каждое из этих мест — законная функциональность, поэтому «вредоносность» определяется контекстом: незнакомый путь, неподписанный бинарь, время создания сразу после компрометации.
+
+## Шаг 8: инструменты инвентаризации автозапуска
+
+Быстрый способ увидеть всё сразу — Sysinternals **Autoruns** (GUI) и его консольный близнец **Autorunsc.exe**:
+
+```text
+autorunsc.exe -accepteula -a * -c -h -s -v -o autoruns.csv
+```
+
+Флаги: `-a *` — все категории, `-c` — CSV, `-h` — скрытые записи, `-s` — проверить подписи, `-v` — сверить с VirusTotal, `-o` — файл. На образе (офлайн) те же данные достают из кустов реестра через **RegRipper** (`rip.exe -r SOFTWARE -p run`) и **RECmd** (Eric Zimmerman). Для WMI-подписок — PowerShell `Get-WmiObject -Namespace root\subscription -Class __EventFilter` и `CommandLineEventConsumer`. Ключевое преимущество базовой линии Autoruns: однажды снятый «чистый» список позволяет заметить любое новое отклонение.
+
+## Шаг 9: таймлайн, анти-форензика и подтверждение
+
+Персистентность почти всегда оставляет метки времени. Связка «файл создан → ключ записан → процесс запущен» восстанавливается по:
+
+- `$MFT`/`$UsnJrnl` — время создания и изменения файла;
+- `LastWriteTime` ключа реестра — когда появилась запись Run/службы;
+- Amcache/ShimCache — факт запуска исполняемого файла;
+- Prefetch — сколько раз и когда программа запускалась;
+- журналы 4688/4624/7045 — создание процесса, вход, установка службы.
+
+Атакующие пытаются сбить след: меняют таймстемпы файла (timestomping) или удаляют ключ после запуска. Против первого работает сравнение `$STANDARD_INFORMATION` и `$FILE_NAME` (в MFT две копии времени), против второго — USN-журнал, где запись об удалении остаётся.
+
+## Шаг 10: маппинг на MITRE ATT&CK
+
+Найденные механизмы удобно подписывать техниками — так отчёт становится понятным и сопоставимым:
+
+| Техника | ID | Механизм |
+|---------|-----|----------|
+| Create or Modify System Process: Windows Service | T1543.003 | службы |
+| Registry Run Keys / Startup Folder | T1547.001 | Run/RunOnce |
+| Scheduled Task/Job: Scheduled Task | T1053.005 | планировщик |
+| Event Triggered Execution: WMI | T1546.003 | WMI-подписки |
+| Event Triggered Execution: AppInit DLLs | T1546.010 | AppInit_DLLs |
+| Event Triggered Execution: COM Hijacking | T1546.015 | COM hijack |
+| Boot or Logon Autostart: Winlogon Helper DLL | T1547.004 | Winlogon |
+| Hijack Execution Flow: IFEO | T1546.012 | IFEO Debugger |
+
+Полный обход всех механизмов занимает минуты, но экономит часы при повторном заражении.
 
 ## Квиз
 
