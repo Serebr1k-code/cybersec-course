@@ -3,8 +3,8 @@
   "workdir": "/home/student/task",
   "hostname": "lab",
   "expect": {
-    "file": "/home/student/task/answer.txt",
-    "contains": "nto{mobile_sim_usim_0k}"
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s1m_ef_1cc1d}"
   },
   "fs": [
     {
@@ -13,13 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
-      "mode": "644"
+      "text": "# Задача: разбор содержимого SIM\n\n`sim_dump.txt` — результат чтения файлов SIM-карты.\nОпредели идентификаторы, найди SMS/контакты и метку.\n\n1. `cat sim_dump.txt`.\n2. `grep -iE 'iccid|imsi|ef_' sim_dump.txt`.\n3. `grep nto sim_dump.txt > found.txt`.\n"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта mobile-sim-usim\nwarning: suspicious activity detected\nmarker: nto{mobile_sim_usim_0k}\n",
-      "mode": "644"
+      "path": "/home/student/task/sim_dump.txt",
+      "mode": "644",
+      "text": "EF_ICCID   : 8970101234567890123\nEF_IMSI    : 250019876543210\nEF_ADN     : +79990001122 / \"Alice\" ; +79990003344 / \"Bob\"\nEF_SMS     : 1 record: \"встреча в 10\"\nEF_SPN     : \"Operator\"\nEF_LOCI    : LAC=0x1234 CID=0x5678\nnote: sim marker nto{s1m_ef_1cc1d}\n"
     }
   ]
 }

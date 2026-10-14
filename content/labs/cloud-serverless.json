@@ -1,25 +1,33 @@
 {
   "id": "cloud-serverless",
-  "workdir": "/home/student/task",
+  "workdir": "/home/student/serverless",
   "hostname": "lab",
+  "vars": {},
   "expect": {
-    "file": "/home/student/task/answer.txt",
-    "contains": "nto{cloud_serverless_0k}"
+    "file": "/home/student/serverless/found.txt",
+    "contains": "nto{s3rv3rl3ss_r0l3}"
   },
   "fs": [
     {
-      "path": "/home/student/task",
+      "path": "/home/student/serverless",
       "type": "dir"
     },
     {
-      "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
-      "mode": "644"
+      "path": "/home/student/serverless/task.md",
+      "text": "# Задача: serverless\n\nРазбери событие и конфигурацию функции. Найди секрет.\n\nИнструменты: `cat`, `grep`.\n"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта cloud-serverless\nwarning: suspicious activity detected\nmarker: nto{cloud_serverless_0k}\n",
-      "mode": "644"
+      "path": "/home/student/serverless/notes.md",
+      "text": "Заметки\n------\n- FaaS: роль функции определяет доступ к облаку.\n- Env переменные часто содержат секреты.\n"
+    },
+    {
+      "path": "/home/student/serverless/event.json",
+      "text": "{\"Records\": [{\"eventSource\": \"aws:s3\", \"s3\": {\"bucket\": {\"name\": \"acme-uploads\"}}}]}\n"
+    },
+    {
+      "path": "/home/student/serverless/fn-config.json",
+      "text": "{\n  \"FunctionName\": \"acme-thumbnailer\",\n  \"Role\": \"arn:aws:iam::111122223333:role/acme-thumbnailer\",\n  \"Environment\": {\"Variables\": {\"BUCKET\": \"acme-uploads\", \"SIGNING_KEY\": \"nto{s3rv3rl3ss_r0l3}\"}}\n}\n"
     }
-  ]
+  ],
+  "tools": {}
 }

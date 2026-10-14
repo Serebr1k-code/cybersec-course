@@ -3,8 +3,8 @@
   "workdir": "/home/student/task",
   "hostname": "lab",
   "expect": {
-    "file": "/home/student/task/answer.txt",
-    "contains": "nto{mobile_cloud_sync_0k}"
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1cl0ud_sync_t0k3n}"
   },
   "fs": [
     {
@@ -13,13 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
-      "mode": "644"
+      "text": "# Задача: следы облачной синхронизации\n\n`cloud_sync.txt` — набор артефактов, связанных с iCloud и Google.\nОпредели привязанные аккаунты и найди метку.\n\n1. `cat cloud_sync.txt`.\n2. `grep -iE 'icloud|google|token' cloud_sync.txt`.\n3. `grep nto cloud_sync.txt > found.txt`.\n"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта mobile-cloud-sync\nwarning: suspicious activity detected\nmarker: nto{mobile_cloud_sync_0k}\n",
-      "mode": "644"
+      "path": "/home/student/task/cloud_sync.txt",
+      "mode": "644",
+      "text": "iCloud: /private/var/mobile/Library/Preferences/MobileMeAccounts.plist\niCloud: com.apple.security.aps token in keychain\nGoogle: /data/data/com.google.android.gms/databases/*.db\nGoogle: AccountManager accounts (oauth tokens)\ndevice: /data/system/users/0/accounts.db (Android)\nnote: cloud marker nto{1cl0ud_sync_t0k3n}\n"
     }
   ]
 }
