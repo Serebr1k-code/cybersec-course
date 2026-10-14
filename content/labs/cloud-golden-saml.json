@@ -1,0 +1,27 @@
+{
+  "id": "cloud-golden-saml",
+  "workdir": "/home/student/gsaml",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/gsaml/found.txt",
+    "contains": "nto{g0ld3n_s4ml_t0k3n_s1gn1ng_k3y}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/gsaml",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/gsaml/task.md",
+      "text": "# Задача\n\nС сервера AD FS выгружен материал. Определи, какая атака возможна, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/gsaml/adfs-export.txt",
+      "text": "Exported: ADFS Signing certificate\nSubject: CN=ADFS Signing - adfs.company.com\nHas private key: YES\n-----BEGIN PRIVATE KEY-----\nMIIEEXAMPLEnotarealsigningkeyEXAMPLE\n-----END PRIVATE KEY-----\n"
+    },
+    {
+      "path": "/home/student/gsaml/notes.md",
+      "text": "Аудит: выгружен сертификат подписи токенов вместе с приватным ключом.\nС ним можно подписывать произвольные SAML-токены (Golden SAML).\nnto{g0ld3n_s4ml_t0k3n_s1gn1ng_k3y}\n"
+    }
+  ]
+}

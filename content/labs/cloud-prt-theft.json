@@ -1,0 +1,27 @@
+{
+  "id": "cloud-prt-theft",
+  "workdir": "/home/student/prt",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/prt/found.txt",
+    "contains": "nto{prt_th3ft_d3v1c3_t0_4zur3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/prt",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/prt/task.md",
+      "text": "# Задача\n\nС зарегистрированного устройства извлечён дамп токенов. Определи, что это за токен и что он даёт, затем собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/prt/prt-dump.txt",
+      "text": "PrimaryRefreshToken: eyJhbGciOiJSUzI1NiJ9.PRT.EXAMPLE\nSessionKey: BASE64SESSIONKEYEXAMPLE\nDeviceId: 22222222-2222-2222-2222-222222222222\nUser: alice@company.com\n"
+    },
+    {
+      "path": "/home/student/prt/notes.md",
+      "text": "Аудит: извлечён Primary Refresh Token и session key.\nС ними можно получить access-токены Azure без пароля и MFA.\nnto{prt_th3ft_d3v1c3_t0_4zur3}\n"
+    }
+  ]
+}

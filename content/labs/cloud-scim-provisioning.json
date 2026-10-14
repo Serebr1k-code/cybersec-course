@@ -1,0 +1,27 @@
+{
+  "id": "cloud-scim-provisioning",
+  "workdir": "/home/student/scim",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/scim/found.txt",
+    "contains": "nto{sc1m_t0k3n_cr34t3_4dm1n_us3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/scim",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/scim/task.md",
+      "text": "# Задача\n\nВ конфигурации интеграции найден SCIM-токен. Определи, что он позволяет, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/scim/scim-config.json",
+      "text": "{\n  \"scim_base_url\": \"https://app.example.com/scim/v2\",\n  \"bearer_token\": \"scim_EXAMPLEnotarealtoken0000000000000000\",\n  \"sync_groups\": true\n}\n"
+    },
+    {
+      "path": "/home/student/scim/notes.md",
+      "text": "Аудит: SCIM-токен даёт полный CRUD по пользователям и группам.\nМожно создать учётку и добавить её в админскую группу.\nnto{sc1m_t0k3n_cr34t3_4dm1n_us3r}\n"
+    }
+  ]
+}

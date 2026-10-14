@@ -1,0 +1,27 @@
+{
+  "id": "cloud-mfa-bypass",
+  "workdir": "/home/student/mfa",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/mfa/found.txt",
+    "contains": "nto{mf4_byp4ss_l3g4cy_1m4p_n0_mf4}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/mfa",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/mfa/task.md",
+      "text": "# Задача\n\nДана конфигурация аутентификации тенанта. Определи, какой способ обхода MFA доступен, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/mfa/auth-config.txt",
+      "text": "MFA: required for all users\nPush: enabled (number matching: off)\nLegacy auth (IMAP/SMTP/POP): ENABLED\nConditional Access: browser apps only\n"
+    },
+    {
+      "path": "/home/student/mfa/notes.md",
+      "text": "Аудит: legacy-протоколы включены, MFA для них не проверяется.\nЗначит, зная пароль, можно войти по IMAP в обход MFA.\nnto{mf4_byp4ss_l3g4cy_1m4p_n0_mf4}\n"
+    }
+  ]
+}
