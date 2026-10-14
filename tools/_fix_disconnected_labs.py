@@ -942,6 +942,23 @@ add("mobile-ios-location", "Практика: история геолокаци�
      "`grep nto ios_location.txt > answer.txt`."])
 
 # --- mobile generic-boilerplate labs ----------------------------------------
+add("mobile-ios-urlscheme", "Практика: реестр URL-схем iOS",
+    "url_scheme_registry.txt",
+    "scheme,bundle_id,role\n"
+    "myapp,com.example.myapp,owner\n"
+    "fb,com.facebook.Facebook,consumer\n"
+    "oauth-callback,com.attacker.app,owner  nto{url_sch3m3_h1j4ck}\n",
+    "# Задача: найти перехватываемую URL-схему\n\n"
+    "`url_scheme_registry.txt` — реестр зарегистрированных кастомных URL-схем\n"
+    "iOS: схема, bundle id, роль. Одна схема перехватывается чужим приложением.\n\n"
+    "1. `cat url_scheme_registry.txt` — просмотри схемы.\n"
+    "2. Найди схему `oauth-callback`, зарегистрированную сторонним приложением.\n"
+    "3. Выпиши строку: `grep nto url_scheme_registry.txt > answer.txt`.\n",
+    "nto{url_sch3m3_h1j4ck}",
+    ["Кастомные URL-схемы не защищены от перехвата другим приложением.",
+     "Схема oauth-callback у attacker.app — перехват OAuth-редиректа.",
+     "`grep nto url_scheme_registry.txt > answer.txt`."])
+
 add("mobile-automation", "Практика: отчёт MobSF",
     "mobsf_report.json",
     '{\n'

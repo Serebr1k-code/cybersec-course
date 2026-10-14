@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-grpc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{grpc_b1n4ry_c4ll_r3ad}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найди подозрительный gRPC-метод\\n\\nМетод, принимающий чужой account.\\n"
+    },
+    {
+      "path": "/home/student/task/grpc_calls.txt",
+      "text": "/bank.BankService/GetBalance  input=account:string\\n/bank.BankService/Transfer     input=account:string,amount:string  # flag: nto{grpc_b1n4ry_c4ll_r3ad}\\n"
+    }
+  ]
+}

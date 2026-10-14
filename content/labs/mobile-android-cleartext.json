@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-cleartext",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cl34rt3xt_http_b4s3url}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найди открытый базовый URL\\n\\nОпредели адрес, идущий без TLS.\\n"
+    },
+    {
+      "path": "/home/student/task/strings.txt",
+      "text": "https://cdn.example.com/assets\\nhttp://api.example.com/v1  # flag: nto{cl34rt3xt_http_b4s3url}\\n"
+    }
+  ]
+}

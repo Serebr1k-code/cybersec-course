@@ -1,0 +1,27 @@
+{
+  "id": "cloud-entra-conditional-access",
+  "workdir": "/home/student/ca",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/ca/found.txt",
+    "contains": "nto{l3g4cy_4uth_unp0l1c13d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/ca",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/ca/task.md",
+      "text": "# Задача\n\nДана выгрузка политик Entra Conditional Access. Найди пробел, который позволяет войти в обход политик, и собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/ca/ca-policies.json",
+      "text": "{\n  \"policies\": [\n    {\"name\": \"Require MFA all users\",\n     \"apps\": [\"All\"], \"excluded_apps\": [\"LegacyAuthApp\"],\n     \"conditions\": {\"client_apps\": [\"browser\", \"mobile\"]}},\n    {\"name\": \"Require compliant device\",\n     \"apps\": [\"Office365\"], \"conditions\": {\"platforms\": [\"Windows\", \"macOS\"]}}\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/ca/notes.md",
+      "text": "Разбор Conditional Access:\n\n- политика MFA покрывает browser и mobile, но не legacy auth\n- LegacyAuthApp исключён из политики -> вход без MFA\n- compliant device только для Windows/macOS -> Linux/Android без требования\n- политики state=enabled\n\nОстаток заметки: nto{l3g4cy_4uth_unp0l1c13d}\n"
+    }
+  ]
+}

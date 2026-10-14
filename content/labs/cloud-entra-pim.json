@@ -1,0 +1,27 @@
+{
+  "id": "cloud-entra-pim",
+  "workdir": "/home/student/pim",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/pim/found.txt",
+    "contains": "nto{p3rm4n3nt_r0l3_n0_4ppr0v4l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/pim",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/pim/task.md",
+      "text": "# Задача\n\nДана выгрузка PIM-назначений Entra ID. Найди назначение, которое обходит модель активации, и собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/pim/pim-assignments.json",
+      "text": "{\n  \"roleAssignments\": [\n    {\"role\": \"Global Administrator\", \"principal\": \"alice@acme.com\",\n     \"assignmentType\": \"Eligible\", \"activation\": {\"requireApproval\": false, \"requireMfa\": true}},\n    {\"role\": \"Privileged Role Administrator\", \"principal\": \"svc-backup\",\n     \"assignmentType\": \"Active\", \"permanent\": true}\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/pim/notes.md",
+      "text": "Разбор PIM:\n\n- alice: Global Admin eligible, approval не требуется -> активация за MFA\n- svc-backup: Privileged Role Administrator, Active и permanent -> обход модели PIM\n- у svc-backup нет MFA\n\nОстаток заметки: nto{p3rm4n3nt_r0l3_n0_4ppr0v4l}\n"
+    }
+  ]
+}

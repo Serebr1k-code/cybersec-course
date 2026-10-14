@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-websocket",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w3bs0ck3t_fr4m3_1dj4ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найди подменяемый WebSocket-кадр\\n\\nКадр, где клиент задаёт чужой account.\\n"
+    },
+    {
+      "path": "/home/student/task/ws_frames.txt",
+      "text": "opcode=1  {\"action\":\"ping\"}\\nopcode=1  {\"action\":\"balance\",\"account\":\"123\"}  # flag: nto{w3bs0ck3t_fr4m3_1dj4ck}\\n"
+    }
+  ]
+}

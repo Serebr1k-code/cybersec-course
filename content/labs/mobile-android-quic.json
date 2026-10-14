@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-quic",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{qu1c_udp_443_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найди QUIC-соединение\\n\\nОпредели, какое приложение ушло по QUIC.\\n"
+    },
+    {
+      "path": "/home/student/task/netstat.txt",
+      "text": "tcp  ESTAB  0 0 10.0.0.5:51234 93.184.216.34:443  users:((\"com.example.bank\",pid=8123))\\nudp  UNCONN 0 0 0.0.0.0:443   0.0.0.0:*        users:((\"com.example.bank\",pid=8123))  # flag: nto{qu1c_udp_443_byp4ss}\\n"
+    }
+  ]
+}

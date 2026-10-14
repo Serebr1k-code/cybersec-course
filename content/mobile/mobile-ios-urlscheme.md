@@ -15,15 +15,15 @@ estimated_minutes: 30
 summary: "Как iOS-приложения обрабатывают custom URL schemes и Universal Links, чем опасен hijacking и x-callback-url, и как это тестировать."
 lab:
   kind: shell
-  title: 'Практика: URL-схемы iOS'
+  title: "Практика: реестр URL-схем iOS"
   toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md, Payload]
-  check: 'grep -q ''nto{'' found.txt'
+  files: [task.md, url_scheme_registry.txt]
+  check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'URL-схемы приложения описаны в `Info.plist` в `CFBundleURLTypes`.'
-    - 'Любое приложение может зарегистрировать ту же схему — перехват callback.'
-    - 'Секрет — в параметре callback-схемы: найди `nto{` и запиши в `found.txt`.'
+    - "Кастомные URL-схемы не защищены от перехвата другим приложением."
+    - "Схема oauth-callback у attacker.app — перехват OAuth-редиректа."
+    - "`grep nto url_scheme_registry.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается
