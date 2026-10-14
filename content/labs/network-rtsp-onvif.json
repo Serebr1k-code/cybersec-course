@@ -1,0 +1,21 @@
+{
+  "id": "network-rtsp-onvif",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{rtsp_0nv1f_pwn3d}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разведка камеры по RTSP\n\n`rtsp-trace.txt` — вывод трассировки RTSP-сессии к камере: методы OPTIONS,\nDESCRIBE и ответ с SDP. В одном из ответов есть поле `payload:<base64>`\nс секретом.\n\n1. Посмотри трассировку: `cat rtsp-trace.txt`\n2. Найди подозрительное поле: `grep payload rtsp-trace.txt`\n3. Вырежи base64: `grep payload rtsp-trace.txt | cut -d: -f2`\n4. Декодируй: `... | base64 -d`\n5. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/rtsp-trace.txt",
+      "text": "OPTIONS rtsp://10.0.0.20:554/ RTSP/1.0\nCSeq: 1\nRTSP/1.0 200 OK\nPublic: OPTIONS, DESCRIBE, SETUP, PLAY, PAUSE, TEARDOWN\n\nDESCRIBE rtsp://10.0.0.20:554/stream1 RTSP/1.0\nCSeq: 2\nRTSP/1.0 200 OK\nContent-Type: application/sdp\n\nv=0\no=- 0 0 IN IP4 10.0.0.20\ns=Acme Camera\nm=video 0 RTP/AVP 96\na=rtpmap:96 H264/90000\na=control:track1\nx-vendor: payload:bnRve3J0c3BfMG52MWZfcHduM2R9\n"
+    }
+  ],
+  "tools": {}
+}

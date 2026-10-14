@@ -1,0 +1,21 @@
+{
+  "id": "network-ntcip",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{ntc1p_publ1c_c0mmun1ty}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: слабая аутентификация дорожного контроллера\n\n`snmpwalk.txt` — вывод опроса контроллера NTCIP по SNMP. Среди ответов\nесть строка с community-строкой и подозрительное поле `payload:<base64>`.\n\n1. Посмотри вывод: `cat snmpwalk.txt`\n2. Найди community: `grep -i community snmpwalk.txt`\n3. Найди секрет: `grep payload snmpwalk.txt | cut -d: -f2 | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/snmpwalk.txt",
+      "text": "snmpwalk -v2c -c public 10.0.0.60 1.3.6.1.4.1.1206\niso.3.6.1.4.1.1206.4.2.1.1.1.1.0 = INTEGER: 1\niso.3.6.1.4.1.1206.4.2.1.1.1.4.0 = INTEGER: 2\ncommunity = public\npayload: bnRve250YzFwX3B1YmwxY19jMG1tdW4xdHl9\n"
+    }
+  ],
+  "tools": {}
+}
