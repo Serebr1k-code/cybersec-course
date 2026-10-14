@@ -1,0 +1,23 @@
+{
+  "id": "misc-markdown-render",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Markdown-рендер\n\nВ `render.log` — лог рендера. Метка в base64. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/comment.md",
+      "text": "[x](javascript:alert(1))\n"
+    },
+    {
+      "path": "/home/student/task/render.log",
+      "text": "dump\nflag:bnRve200cmtkb3duX3IzbmQzcl9qNHY0c2NyMXB0X3NjaDNtM30=\n"
+    }
+  ]
+}

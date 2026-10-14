@@ -1,0 +1,23 @@
+{
+  "id": "misc-html-parser-diff",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# mXSS\n\nВ `mxss.log` — лог санитайзера. Метка в base64. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/payload.html",
+      "text": "<noscript><p title=\"</noscript><img src=x onerror=1>\">\n"
+    },
+    {
+      "path": "/home/student/task/mxss.log",
+      "text": "dump\nflag:bnRve214c3Nfbm9zY3JpcHRfbXV0NHQxMG59\n"
+    }
+  ]
+}

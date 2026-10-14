@@ -1,0 +1,23 @@
+{
+  "id": "misc-html-email",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# HTML-письмо\n\nВ `mail.eml` — дамп письма. Метка в base64. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/body.b64",
+      "text": "bnRve2h0bWwzYjQxMV9jc3NfM3hmMWx0cjR0MTBufe==\n"
+    },
+    {
+      "path": "/home/student/task/mail.eml",
+      "text": "dump\nflag:bnRve2h0bWwzbTQxbF9jc3NfM3hmMWx0cjR0MTBufQ==\n"
+    }
+  ]
+}

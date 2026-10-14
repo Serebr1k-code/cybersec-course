@@ -30,6 +30,10 @@ const CASES = [
   { id: 'misc-defi-mev-deep', artifact: 'mempool.txt', flag: 'nto{m3v_s4ndw1ch_n0_sl1pp4g3}' },
   { id: 'misc-bitcoin-script', artifact: 'witness.txt', flag: 'nto{ord1n4ls_h1d3_1n_w1tn3ss}' },
   { id: 'misc-ctf-web3-meta', artifact: 'contract.txt', flag: 'nto{w3b3_ctf_m3th0d0l0gy}' },
+  { id: 'misc-markdown-render', artifact: 'render.log', flag: 'nto{m4rkdown_r3nd3r_j4v4scr1pt_sch3m3}' },
+  { id: 'misc-html-parser-diff', artifact: 'mxss.log', flag: 'nto{mxss_noscript_mut4t10n}' },
+  { id: 'misc-html-email', artifact: 'mail.eml', flag: 'nto{html3m41l_css_3xf1ltr4t10n}' },
+  { id: 'misc-plexus-parser', artifact: 'waf.log', flag: 'nto{pars3r_d1ff_d0ubl3_d3c0d3}' },
 ]
 
 for (const c of CASES) {

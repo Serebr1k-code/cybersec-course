@@ -1,0 +1,23 @@
+{
+  "id": "misc-plexus-parser",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Парсер-диффы\n\nВ `waf.log` — лог WAF. Метка в base64. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/request.txt",
+      "text": "GET /files/%252e%252e%252fetc/passwd\n"
+    },
+    {
+      "path": "/home/student/task/waf.log",
+      "text": "dump\nflag:bnRve3BhcnMzcl9kMWZmX2QwdWJsM19kM2MwZDN9\n"
+    }
+  ]
+}
