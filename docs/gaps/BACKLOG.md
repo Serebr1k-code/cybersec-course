@@ -360,3 +360,28 @@ forensics 16 · reversing 22 · hardware 20 · cloud 31 = **306 proposed lessons
 - cloud-datadog — Datadog SaaS security `~lab`
 - cloud-snowflake — Snowflake data-cloud attacks `~lab`
 - cloud-salesforce-saas — Salesforce SaaS security `~lab`
+
+---
+
+## Reconciliation with the raw per-category lists (`docs/gaps/gB-*.md`)
+
+The full independent gap analyses landed as 12 raw files (`gB-cloud.md` … `gB-web.md`,
+~2500 candidate items total). Those are the **authoritative raw backlog**; this file is the
+curated, collision-checked **MISSING core** (306). Two input formats were found:
+
+- **Format A** (bare bullets): `gB-cloud, gB-forensics, gB-hardware, gB-misc, gB-mobile,
+  gB-network, gB-osint, gB-stego` — cloud 215, forensics 253, hardware 156, misc 305,
+  mobile 330, network 152, osint 153, stego 185 candidates.
+- **Format B** (`[MISSING]`/`[THIN]` markers): `gB-web, gB-crypto, gB-pwn, gB-reversing` —
+  web 259 MISSING/1 THIN, crypto 125/12, pwn 179/1, reversing 174/9.
+
+**`[THIN]` ≠ new lesson.** Format-B files tag 23 entries `[THIN]` — the lesson file already
+exists and needs *deepening* to ≥1200 real words, not authoring. Collision scan of Format B
+found 20 such ids already present (crypto 12, reversing 8): e.g. `crypto-classical-deep`,
+`crypto-tls-attacks`, `crypto-hd-wallets`, `reversing-ransomware`, `reversing-intel-pt`,
+`reversing-python-bytecode`. Authoring agents must treat those as **deepen** tasks (see the
+crypto/stego thin-lesson deepen work already in flight), never as new files.
+
+**Zero collisions** were found among this file's 306 MISSING ids — author those first; then
+work the remaining ~2000 Format-A/MISSING items from the raw `gB-*.md` files (they are
+unchecked for collisions, so re-verify each `content/<cat>/<id>.md` before writing).
