@@ -10,7 +10,7 @@
     { "path": "/home/student/task", "type": "dir" },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: seed SecurityAccess по UDS\n\n`uds.log` — обмен диагностического сканера с ECU: `[TX]` — запрос сканера,\n`[RX]` — ответ блока. Сервис 0x27 (SecurityAccess) выдаёт seed.\n\n1. Посмотри лог: `cat uds.log`\n2. Найди строку с seed: `grep seed: uds.log`\n3. Вырежи base64 и декодируй: `grep seed: uds.log | cut -d: -f2 | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+      "text": "# Задача: seed SecurityAccess по UDS\n\n`uds.log` — обмен диагностического сканера с ECU: `[TX]` — запрос сканера,\n`[RX]` — ответ блока. Сервис 0x27 (SecurityAccess) выдаёт seed.\n\n1. Посмотри лог: `cat uds.log`\n2. Найди строку с seed: `grep seed: uds.log`\n3. Вырежи base64 и декодируй: `grep seed: uds.log | cut -d: -f2 | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n\n## Повторение (`network-can-bus`)\n\nUDS ходит поверх шины, и кадр здесь тоже `ID` + `payload` (как в `network-can-bus`). Сначала посмотри, между какими ID идёт обмен:\n\n    grep TX uds.log | head\n\n`[TX]` — запрос сканера, `[RX]` — ответ ECU; направление отличай по префиксу.\n"
     },
     {
       "path": "/home/student/task/uds.log",

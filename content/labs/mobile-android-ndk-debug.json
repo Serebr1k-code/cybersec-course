@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-ndk-debug",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{gdb_n4t1v3_w1n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: native-отладка\n\nНайди строку, которую видит функция проверки.\n"
+    },
+    {
+      "path": "/home/student/task/gdb_session.txt",
+      "text": "Breakpoint 1 at 0x7fb612a40\ninfo registers x0\nx0  0x7fc1234000\nx/s 0x7fc1234000 -> \"nto-input\"   # flag: nto{gdb_n4t1v3_w1n}\n"
+    }
+  ]
+}

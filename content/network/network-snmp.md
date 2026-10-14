@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: "grep -q 'CorpRouter-2921 IOS 15.2' answer.txt"
   hints:
+    - "Повторение (`network-portscan`): прежде чем читать сервис, вспомни, как его находят — по порту. SNMP слушает `161/udp`, это и есть «дверь» к устройству; community `public` — дефолт, который не сменили."
     - "`snmpwalk -v2c -c public <host> <oid>` обходит поддерево OID."
     - "sysDescr — это OID `.1.3.6.1.2.1.1.1.0`, первая строка вывода."
     - "Запиши значение STRING без кавычек."

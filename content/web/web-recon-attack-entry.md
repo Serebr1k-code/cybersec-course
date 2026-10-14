@@ -126,6 +126,28 @@ $ curl -s -H 'X-Original-URL: /admin' https://shop.local/ -o /dev/null -w '%{htt
 - **IDOR закрыт** — ищи обход через другой эндпоинт (`?id=`, заголовок `X-UserId`).
 - **Админка закрыта** — проверь поддомен `admin.shop.local`, порт, или путь `/.git` для утечки.
 
+## Инструмент: sqlmap — автоматизация SQL-инъекций
+
+`sqlmap` находит и эксплуатирует SQL-инъекции: определяет СУБД, извлекает данные, при удаче — выполняет команды. В лаборатории он разбирает сохранённый HTTP-запрос.
+
+Ключи, которые пригодятся:
+* `sqlmap -r req.txt -p id` — тестировать параметр `id` из сохранённого запроса;
+* `sqlmap -u '<url>' --batch` — без интерактива;
+* `sqlmap -r req.txt --dbs` — перечислить базы; `--tables -D <db>` — таблицы;
+* `--dump` — выгрузить данные таблицы.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ sqlmap -u 'https://target.local/login' --data='user=admin&pass=x' --batch
+[INFO] testing connection to the target URL
+[INFO] testing if POST parameter 'user' is dynamic
+[CRITICAL] parameter 'user' is vulnerable to SQL injection (boolean-based blind)
+[INFO] back-end DBMS: MySQL >= 8.0
+```
+
+Подсказка из лаборатории: `sqlmap -u <url> --data=<body> [--batch] — детектор SQLi (эмуляция)`.
+
 ## Что мы теперь знаем
 
 - От карты переходим к двум дверям: контроль доступа и инъекции.

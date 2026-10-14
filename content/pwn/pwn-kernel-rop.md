@@ -152,6 +152,39 @@ ROP нужен, когда у нас есть только контроль RIP 
 - **Потеря контекста.** Не сохранили `cs/ss/rflags/rsp` — возврат падает.
 - **Паника.** Любая ошибка в ядре убивает систему. Отлаживайте в QEMU.
 
+## Инструмент: readelf — разбор ELF
+
+`readelf` читает заголовки ELF-файла: архитектуру, тип, секции, сегменты и включённые защиты. С него начинается любой разбор нативного бинарника.
+
+Ключи, которые пригодятся:
+* `readelf -h <файл>` — заголовок: класс (32/64), машина, точка входа;
+* `readelf -S <файл>` — таблица секций (`.text`, `.plt`, `.got`, `.data`);
+* `readelf -s <файл>` — таблица символов (как `nm`, но с секциями и типами);
+* `readelf -l <файл>` — сегменты программы; ищи `GNU_STACK`/`GNU_RELRO`, чтобы понять защиты.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ readelf -sW vmlinux
+
+Symbol table '.symtab' contains 12 entries:
+   Num:    Value          Size Type    Bind   Vis      Ndx Name
+     0: 0000000000000000     0 NOTYPE  LOCAL  DEFAULT  UND 
+     1: 0000000000000000     0 FILE    LOCAL  DEFAULT  ABS kcore.c
+     2: 000000000040103b     5 FUNC    GLOBAL DEFAULT    2 k_pop_rsi_ret
+     3: 0000000000401000    18 FUNC    GLOBAL DEFAULT    2 k_commit_creds
+     4: 0000000000401047    42 FUNC    GLOBAL DEFAULT    2 _start
+     5: 0000000000401012    18 FUNC    GLOBAL DEFAULT    2 k_prepare_kernel_cred
+     6: 0000000000403000     0 NOTYPE  GLOBAL DEFAULT    4 __bss_start
+     7: 0000000000401040     7 FUNC    GLOBAL DEFAULT    2 k_swapgs_ret
+     8: 0000000000401024    18 FUNC    GLOBAL DEFAULT    2 k_native_write_cr4
+     9: 0000000000403000     0 NOTYPE  GLOBAL DEFAULT    4 _edata
+    10: 0000000000403000     0 NOTYPE  GLOBAL DEFAULT    4 _end
+    11: 0000000000401036     5 FUNC    GLOBAL DEFAULT    2 k_pop_rdi_ret
+```
+
+Подсказка из лаборатории: `readelf [-sW | --file-header] <файл> — (replay)`.
+
 ## Что мы теперь знаем
 
 - SMEP/SMAP/KPTI закрывают прямой возврат в userland из ядра.

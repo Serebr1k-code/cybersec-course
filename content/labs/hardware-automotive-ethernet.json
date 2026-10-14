@@ -1,0 +1,27 @@
+{
+  "id": "hardware-automotive-ethernet",
+  "workdir": "/home/student/autoeth",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/autoeth/found.txt",
+    "contains": "nto{"
+  },
+  "fs": [
+    {
+      "path": "/home/student/autoeth",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/autoeth/task.md",
+      "text": "# Задача: Automotive Ethernet\n\nВ дампе SOME/IP-трафика найди команду, содержащую флаг.\n\nИнструменты: `cat`, `grep`, `cut`.\n"
+    },
+    {
+      "path": "/home/student/autoeth/notes.md",
+      "text": "Заметки\n------\n- 100BASE-T1: однопарная физика, full-duplex.\n- VLAN 802.1Q — изоляция, не защита.\n- SOME/IP: service/method/client/session ID, порт 30490 для SD.\n"
+    },
+    {
+      "path": "/home/student/autoeth/autoeth.log",
+      "text": "link: phy=100BASE-T1 master=nodeA up speed=100Mbps\nvlan=10 src=aa:bb:cc:00:01:02 dst=ff:ff:ff:ff:ff:ff someip sd\nvlan=20 src=aa:bb:cc:00:03:04 dst=aa:bb:cc:00:05:06 someip method\nsomeip service=0x1234 method=0x0001 client=0x00A1 len=16 type=REQUEST payload=6E 74 6F\ndecoded: cmd=unlock payload=nto{s0m31p_n0_4uth}\n"
+    }
+  ]
+}

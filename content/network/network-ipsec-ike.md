@@ -19,7 +19,7 @@ lab:
   toolset: [core, tshark]
   workdir: /home/student/task
   files: [task.md, ike.pcap]
-  check: "grep -q '' answer.txt"
+  check: "grep -q 'client@corp.local' answer.txt"
   hints:
     - "Начни с обзора: `tshark -r ike.pcap -Y isakmp -T fields -e isakmp.version -e isakmp.exchangetype`."
     - "Тип обмена 4 при версии 1 — это aggressive mode: он отдаёт идентификатор до шифрования."

@@ -19,7 +19,7 @@ lab:
   toolset: [core, curl]
   workdir: /home/student/task
   files: [task.md]
-  check: "grep -q '' answer.txt"
+  check: "grep -q 'api/internal/' answer.txt"
   hints:
     - "Начни с robots.txt: `curl -s https://app.example.com/robots.txt`."
     - "Директивы Disallow перечисляют то, что владелец не хочет индексировать."

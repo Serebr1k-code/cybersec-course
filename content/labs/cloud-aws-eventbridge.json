@@ -1,0 +1,31 @@
+{
+  "id": "cloud-aws-eventbridge",
+  "workdir": "/home/student/eb",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/eb/found.txt",
+    "contains": "nto{3v3ntbr1dg3_put3v3nts_w1ldc4rd}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/eb",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/eb/task.md",
+      "text": "# Задача\n\nШина EventBridge принимает события и запускает Lambda. Разбери политику и правило и определи, можно ли вбросить событие.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/eb/bus-policy.json",
+      "text": "{\n  \"Statement\": [{\"Effect\": \"Allow\", \"Principal\": \"*\", \"Action\": \"events:PutEvents\", \"Resource\": \"arn:aws:events:eu-west-1:123456789012:event-bus/default\"}]\n}\n"
+    },
+    {
+      "path": "/home/student/eb/rule.json",
+      "text": "{\n  \"EventPattern\": {\"source\": [\"app.users\"], \"detail-type\": [\"user.created\"]},\n  \"Targets\": [{\"Arn\": \"arn:aws:lambda:eu-west-1:123456789012:function:provision-user\"}]\n}\n"
+    },
+    {
+      "path": "/home/student/eb/notes.md",
+      "text": "Аудит: Principal * и events:PutEvents без условий.\nЛюбой аккаунт может вбросить user.created.\nЦель provision-user доверяет detail.role.\nnto{3v3ntbr1dg3_put3v3nts_w1ldc4rd}\n"
+    }
+  ]
+}

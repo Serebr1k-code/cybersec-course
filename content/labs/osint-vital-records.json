@@ -1,0 +1,24 @@
+{
+  "id": "osint-vital-records",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{v1t4l_r3c0rd_d4t3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: vital records\n\n1. `cat records.json`.\n2. Найди запись `marriage`.\n3. В её поле `note` — маркер `nto{...}`.\n4. Запиши в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/records.json",
+      "text": "[\n  {\"type\": \"birth\", \"date\": \"1985-04-12\", \"place\": \"Kazan\"},\n  {\"type\": \"marriage\", \"date\": \"2012-07-21\", \"place\": \"Moscow\", \"note\": \"nto{v1t4l_r3c0rd_d4t3}\"},\n  {\"type\": \"death\", \"date\": null, \"place\": null}\n]\n"
+    }
+  ],
+  "tools": {}
+}

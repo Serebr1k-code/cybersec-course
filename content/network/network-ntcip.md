@@ -21,6 +21,7 @@ lab:
   files: [task.md, snmpwalk.txt]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`network-snmp`): SNMP-walk — пары `OID = значение`; сначала `grep '=' snmpwalk.txt | head`, чтобы отделить MIB-объекты от служебных строк."
     - "`snmpwalk.txt` — вывод опроса контроллера по SNMP: объекты по OID."
     - "Найди community-строку: `grep -i community snmpwalk.txt`."
     - "Секрет спрятан в поле `payload:<base64>`; вырежи его через `cut -d: -f2`."

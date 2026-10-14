@@ -1,0 +1,27 @@
+{
+  "id": "hardware-zwave-deep",
+  "workdir": "/home/student/zwave",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/zwave/found.txt",
+    "contains": "nto{"
+  },
+  "fs": [
+    {
+      "path": "/home/student/zwave",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/zwave/task.md",
+      "text": "# Задача: Z-Wave\n\nРазбери Z-Wave-трафик и найди флаг в служебных данных.\n\nИнструменты: `cat`, `grep`, `cut`.\n"
+    },
+    {
+      "path": "/home/student/zwave/notes.md",
+      "text": "Заметки\n------\n- home ID + node ID. command class задаёт команду.\n- S0: слабый обмен ключом. S2: ECDH + DSK.\n- Zniffer — сниффер.\n"
+    },
+    {
+      "path": "/home/student/zwave/zwave.log",
+      "text": "frame: homeid=0xDEADBEEF src=1 dst=2 type=REQ\ncmd: class=0x25 (SWITCH_BINARY) set=0xFF node=3\ninclusion: security=S2 authenticated=true dsk=12345-67890-...\nnote: legacy device uses S0 (weak inclusion)\ncapture: secret=nto{zw4v3_s0_1nclus10n_w34k}\n"
+    }
+  ]
+}

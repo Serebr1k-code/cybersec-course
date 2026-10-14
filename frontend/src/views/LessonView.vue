@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api/client'
 import { useTreeStore } from '../stores/tree'
 import { useProgressStore } from '../stores/progress'
-import { renderMarkdown, highlightAll } from '../utils/markdown'
+import { renderMarkdown, highlightAll, findLabMarker, stripLabMarkers } from '../utils/markdown'
 import { buildAliasIndex, linkTopics, shortestPath } from '../utils/topicLinks'
 import Quiz from '../components/Quiz.vue'
 import NotesPanel from '../components/NotesPanel.vue'
@@ -126,6 +126,33 @@ let tickTimer = null
 let flushTimer = null
 
 const sections = computed(() => lesson.value?.sections || [])
+
+// --- Инлайн-лаборатория -----------------------------------------------------
+// Если в теле урока стоит маркер <!-- lab --> (или блок ```lab), терминал
+// монтируется ПРЯМО в этом месте текста — на шаге «попробуй сам», — а не
+// отдельной панелью внизу. Без маркера сохраняется прежнее поведение (панель
+// «Лаборатория» после всех разделов). Терминал ровно ОДИН на урок: берётся
+// первый маркер, остальные вырезаются из текста.
+const labPlacement = computed(() => {
+  const secs = sections.value
+  const marked = secs.map((s) => findLabMarker(s.markdown))
+  let inlineIndex = -1
+  for (let i = 0; i < marked.length; i++) {
+    // Секцию-квиз пропускаем: там рендерится Quiz, инлайн-терминал туда не встанет.
+    if (/^квиз|quiz/i.test(secs[i].title)) continue
+    if (marked[i].found) { inlineIndex = i; break }
+  }
+  const useInline = !!lesson.value?.lab && inlineIndex !== -1
+  const disp = secs.map((s, i) => {
+    if (useInline && i === inlineIndex) {
+      return { inline: true, before: marked[i].before, after: marked[i].after, md: '' }
+    }
+    return { inline: false, before: '', after: '', md: stripLabMarkers(s.markdown) }
+  })
+  return { inlineIndex: useInline ? inlineIndex : -1, sections: disp }
+})
+const labInlineIndex = computed(() => labPlacement.value.inlineIndex)
+
 const quizSection = computed(() => sections.value.find((s) => /^квиз|quiz/i.test(s.title)))
 const quizSid = computed(() => quizSection.value?.id || '')
 // Прогресс секции «Квиз» приходит из Quiz.vue (доля отвеченных вопросов),
@@ -658,11 +685,26 @@ async function markComplete() {
               <div v-if="s.markdown.trim()" class="md" v-html="render(s.markdown)"></div>
               <Quiz :lesson-id="lesson.id" :questions="lesson.quiz" @progress="onQuizProgress" />
             </template>
-            <div v-else class="md" v-html="render(s.markdown)"></div>
+            <!-- Инлайн-лаборатория: маркер в теле секции. -->
+            <template v-else-if="labPlacement.sections[i] && labPlacement.sections[i].inline">
+              <div
+                v-if="labPlacement.sections[i].before.trim()"
+                class="md"
+                v-html="render(labPlacement.sections[i].before)"
+              ></div>
+              <LabPanel :lesson-id="lesson.id" :lab="lesson.lab" inline />
+              <div
+                v-if="labPlacement.sections[i].after.trim()"
+                class="md"
+                v-html="render(labPlacement.sections[i].after)"
+              ></div>
+            </template>
+            <div v-else class="md" v-html="render(labPlacement.sections[i] ? labPlacement.sections[i].md : s.markdown)"></div>
           </section>
 
-          <!-- Интерактивная лаборатория (только если у урока есть блок `lab:`). -->
-          <LabPanel v-if="lesson.lab" :lesson-id="lesson.id" :lab="lesson.lab" />
+          <!-- Интерактивная лаборатория внизу — ТОЛЬКО если у урока есть блок
+               `lab:` и в тексте НЕТ маркера инлайн-встраивания. -->
+          <LabPanel v-if="lesson.lab && labInlineIndex === -1" :lesson-id="lesson.id" :lab="lesson.lab" />
 
           <NotesPanel :lesson-id="lesson.id" />
 

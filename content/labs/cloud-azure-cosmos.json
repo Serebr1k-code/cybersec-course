@@ -1,0 +1,27 @@
+{
+  "id": "cloud-azure-cosmos",
+  "workdir": "/home/student/cosmos",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/cosmos/found.txt",
+    "contains": "nto{cosmos_primary_key_full_dataplane}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/cosmos",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/cosmos/task.md",
+      "text": "# Задача\n\nВ репозитории найдена строка подключения к Cosmos DB. Определи, какой ключ даёт полный доступ к данным, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/cosmos/appsettings.json",
+      "text": "{\n  \"Cosmos\": \"AccountEndpoint=https://acme-prod.documents.azure.com:443/;AccountKey=EXAMPLEnotarealkey==;Database=orders\",\n  \"Region\": \"westeurope\"\n}\n"
+    },
+    {
+      "path": "/home/student/cosmos/notes.md",
+      "text": "Аудит: local auth включён, ключ primary не ротирован.\nAccountKey даёт admin-доступ ко всем базам аккаунта.\nnto{cosmos_primary_key_full_dataplane}\n"
+    }
+  ]
+}

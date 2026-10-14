@@ -205,6 +205,89 @@ Self-modifying поведение — сильный сигнал для EDR: н
 - **Стаб обращается к реальным API/файлам** — в эмуляторе их нет; подменяй их заглушками (stubs),
   возвращающими ожидаемые значения.
 
+## Инструмент: objdump — дизассемблер
+
+`objdump` показывает машинный код бинарника в виде ассемблера. Именно по нему считают смещения буферов, находят вызовы и адреса — основа статического разбора.
+
+Ключи, которые пригодятся:
+* `objdump -d <файл>` — дизассемблировать секцию `.text` (машинный код функций);
+* `objdump -d <файл> | less` — листать вывод, искать нужную функцию по имени;
+* `objdump -M intel -d <файл>` — синтаксис Intel (привычнее, чем AT&T);
+* в выводе важны пролог функции (`push rbp; mov rbp,rsp`) и `sub rsp,N` — по нему видно размер кадра.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ objdump objdump -d smc
+
+smc:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000401000 <strcmp>:
+  401000:	31 c0                	xor    %eax,%eax
+  401002:	0f b6 0f             	movzbl (%rdi),%ecx
+  401005:	0f b6 16             	movzbl (%rsi),%edx
+  401008:	38 d1                	cmp    %dl,%cl
+  40100a:	75 0c                	jne    401018 <strcmp+0x18>
+  40100c:	84 c9                	test   %cl,%cl
+  40100e:	74 0e                	je     40101e <strcmp+0x1e>
+  401010:	48 ff c7             	inc    %rdi
+  401013:	48 ff c6             	inc    %rsi
+  401016:	eb ea                	jmp    401002 <strcmp+0x2>
+  401018:	b8 01 00 00 00       	mov    $0x1,%eax
+  40101d:	c3                   	ret
+  40101e:	31 c0                	xor    %eax,%eax
+  401020:	c3                   	ret
+
+0000000000401021 <decode>:
+  401021:	48 31 c0             	xor    %rax,%rax
+  401024:	0f b6 06             	movzbl (%rsi),%eax
+  401027:	30 d0                	xor    %dl,%al
+  401029:	88 07                	mov    %al,(%rdi)
+  40102b:	48 ff c6             	inc    %rsi
+  40102e:	48 ff c7             	inc    %rdi
+  401031:	e2 f1                	loop   401024 <decode+0x3>
+  401033:	c3                   	ret
+
+0000000000401034 <unlock>:
+  401034:	48 8d 35 c5 0f 00 00 	lea    0xfc5(%rip),%rsi        # 402000 <enc_flag>
+  40103b:	48 8d 3d 2e 20 00 00 	lea    0x202e(%rip),%rdi        # 403070 <__bss_start>
+  401042:	48 c7 c1 23 00 00 00 	mov    $0x23,%rcx
+  401049:	b2 5a                	mov    $0x5a,%dl
+  40104b:	e8 d1 ff ff ff       	call   401021 <decode>
+  401050:	c3                   	ret
+
+0000000000401051 <_start>:
+  401051:	e8 de ff ff ff       	call   401034 <unlock>
+  401056:	48 8b 04 24          	mov    (%rsp),%rax
+  40105a:	48 83 f8 02          	cmp    $0x2,%rax
+  40105e:	7c 25                	jl     401085 <.no>
+  401060:	48 8b 74 24 10       	mov    0x10(%rsp),%rsi
+  401065:	48 8d 3d 04 20 00 00 	lea    0x2004(%rip),%rdi        # 403070 <__bss_start>
+  40106c:	e8 8f ff ff ff       	call   401000 <strcmp>
+  401071:	85 c0                	test   %eax,%eax
+  401073:	75 10                	jne    401085 <.no>
+  401075:	48 8d 35 af 0f 00 00 	lea    0xfaf(%rip),%rsi        # 40202b <yes>
+  40107c:	48 c7 c2 0f 00 00 00 	mov    $0xf,%rdx
+  401083:	eb 0e                	jmp    401093 <.p>
+
+0000000000401085 <.no>:
+  401085:	48 8d 35 97 0f 00 00 	lea    0xf97(%rip),%rsi        # 402023 <nope>
+  40108c:	48 c7 c2 07 00 00 00 	mov    $0x7,%rdx
+
+0000000000401093 <.p>:
+  401093:	48 c7 c0 01 00 00 00 	mov    $0x1,%rax
+  40109a:	48 c7 c7 01 00 00 00 	mov    $0x1,%rdi
+  4010a1:	0f 05                	syscall
+  4010a3:	48 c7 c0 3c 00 00 00 	mov    $0x3c,%rax
+  4010aa:	48 31 ff             	xor    %rdi,%rdi
+  4010ad:	0f 05                	syscall
+```
+
+Подсказка из лаборатории: `objdump -d <файл>`.
+
 ## Что мы теперь знаем
 
 - **Self-modifying code** переписывает свои инструкции во время работы; статический анализ файла

@@ -18,7 +18,7 @@ lab:
   toolset: [core, dig]
   workdir: /home/student/task
   files: [task.md]
-  check: "grep -q '' answer.txt"
+  check: "grep -q 'github-com.mail.protection.outlook.com' answer.txt"
   hints:
     - "MX-запись указывает на почтовый сервер домена."
     - "`dig github.com MX`."

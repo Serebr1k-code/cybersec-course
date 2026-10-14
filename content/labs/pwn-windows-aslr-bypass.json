@@ -1,0 +1,27 @@
+{
+  "id": "pwn-windows-aslr-bypass",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "base=0x00007ff6a0000000"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: вычислить базу модуля по утечке\n\n`leak.txt` — утёкший указатель на функцию и её статическое смещение.\nНужно вычислить базу загруженного модуля (обход ASLR).\n\n1. `cat leak.txt` — изучи значения.\n2. База = утёкший адрес − смещение функции.\n3. Запиши `base=0x00007ff6a0000000` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/leak.txt",
+      "text": "leaked_pointer  = 0x00007ff6a1234567\nfunction_offset = 0x1234567\nmodule          = challenge.exe\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "0x00007ff6a1234567 - 0x1234567 = 0x00007ff6a0000000\nЭто база модуля; прибавь смещения гаджетов.\n"
+    }
+  ]
+}

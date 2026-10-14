@@ -149,6 +149,34 @@ both point into main_arena (libc) -> leak!
 
 Пятое: stdout-утечка «съела» слишком много. Если выставить `_IO_write_ptr` слишком большим, программа попытается вывести мегабайты и упадёт. Подбирай диапазон аккуратно.
 
+## Инструмент: gdb — отладчик
+
+`gdb` управляет исполнением программы: точки останова, пошаговое выполнение, просмотр регистров и памяти. Основной динамический инструмент.
+
+Ключи, которые пригодятся:
+* `gdb ./prog` — открыть бинарник; `run` — запустить;
+* `break <функция>` / `b *<адрес>` — точка останова;
+* `info registers`, `x/16gx $rsp` — регистры и стек;
+* `disassemble <функция>` — дизассемблер без выхода из отладчика.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ gdb -q -batch -ex 'b uns.c:7' -ex run -ex 'x/2gx a' ./uns
+$ gdb -q -batch -ex 'b uns.c:7' -ex run -ex 'x/2gx a' ./uns
+Breakpoint 1 at 0x40116a: file uns.c, line 7.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/usr/lib/libthread_db.so.1".
+
+Breakpoint 1, main () at uns.c:7
+7	    printf("a=%p fd=%p bk=%p\n",(void*)a,(void*)p[0],(void*)p[1]);
+0x406d50:	0x00007ffff7f7ceb8	0x00007ffff7f7ceb8
+(gdb) info proc mappings
+0x00007ffff7d95000 0x00007ffff7db9000 0x24000 0x0 r--p /usr/lib/libc.so.6
+```
+
+Подсказка из лаборатории: `gdb — отладчик (replay транскрипта для uns)`.
+
 ## Что мы теперь знаем
 
 - Утечка libc — обязательный шаг эксплойта на PIE/ASLR.

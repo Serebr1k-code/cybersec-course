@@ -19,7 +19,7 @@ lab:
   toolset: [core, tshark]
   workdir: /home/student/task
   files: [task.md, vpn.pcap]
-  check: "grep -q '' answer.txt"
+  check: "grep -q '7' answer.txt"
   hints:
     - "Посмотри опкоды: `tshark -r vpn.pcap -T fields -e openvpn.opcode`."
     - "0x07 — это P_CONTROL_HARD_RESET_CLIENT_V2, старт сессии клиента."

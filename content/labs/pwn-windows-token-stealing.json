@@ -1,0 +1,27 @@
+{
+  "id": "pwn-windows-token-stealing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "token_offset=0x4b8"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти смещение поля Token\n\n`offsets.txt` — карта полей `_EPROCESS` для целевой сборки Windows.\nНужно определить смещение поля `Token`, чтобы подменить его.\n\n1. `cat offsets.txt` — изучи карту полей.\n2. Найди строку `Token`.\n3. Запиши `token_offset=0x4b8` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/offsets.txt",
+      "text": "_EPROCESS fields (build 22621):\n  Pcb                 0x000\n  UniqueProcessId     0x440\n  ActiveProcessLinks  0x448\n  Token               0x4b8\n  ImageFileName       0x5a8\n  InheritedFromUniqueProcessId 0x540\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Token — указатель на _TOKEN процесса.\nПодмена Token текущего процесса на Token процесса SYSTEM даёт права SYSTEM.\n"
+    }
+  ]
+}

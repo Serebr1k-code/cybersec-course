@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-ghidra",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{gh1dr4_jn1_ch3ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Ghidra native\n\nНайди, что проверяет JNI-функция.\n"
+    },
+    {
+      "path": "/home/student/task/ghidra_decomp.txt",
+      "text": "undefined8 Java_com_example_NativeChecker_check(JNIEnv *env, jobject thiz, jstring input) {\n  char *s = (*env)->GetStringUTFChars(env, input, 0);\n  int ok = strcmp(s, \"nto-example\");  # flag: nto{gh1dr4_jn1_ch3ck}\n  return ok == 0;\n}\n"
+    }
+  ]
+}

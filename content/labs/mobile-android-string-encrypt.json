@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-string-encrypt",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{str1ngs_d3crypt3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: строки\n\nРазбери алгоритм расшифровки строк.\n"
+    },
+    {
+      "path": "/home/student/task/cipher.txt",
+      "text": "d(s): base64_decode(s) then xor with KEY = \"nto\"  # flag: nto{str1ngs_d3crypt3d}\nenc = [\"bm9AdA==\", \"bm90\"]\n"
+    }
+  ]
+}

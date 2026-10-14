@@ -15,7 +15,7 @@ estimated_minutes: 45
 summary: 'Как читать прошивку AVR/ATmega: Гарвардская архитектура, регистры, LPM-чтение флеша, GPIO и прерывания на примере ELF-файла прошивки.'
 lab:
   kind: shell
-  title: 'Практика: разбор прошивки AVR'
+  title: 'Практика: прошивка ATmega на AVR'
   toolset: [core, hex, file]
   workdir: /home/student/task
   files: [task.md, firmware.elf]

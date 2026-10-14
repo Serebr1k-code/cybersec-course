@@ -1,0 +1,27 @@
+{
+  "id": "hardware-6lowpan",
+  "workdir": "/home/student/lowpan",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/lowpan/found.txt",
+    "contains": "nto{"
+  },
+  "fs": [
+    {
+      "path": "/home/student/lowpan",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/lowpan/task.md",
+      "text": "# Задача: 6LoWPAN\n\nРазбери 6LoWPAN-трафик и найди флаг в восстановленном пакете.\n\nИнструменты: `cat`, `grep`, `cut`.\n"
+    },
+    {
+      "path": "/home/student/lowpan/notes.md",
+      "text": "Заметки\n------\n- 6LoWPAN = IPv6 над 802.15.4.\n- IPHC/NHC сжимают заголовки.\n- Фрагменты имеют tag/size/offset.\n"
+    },
+    {
+      "path": "/home/student/lowpan/lowpan.log",
+      "text": "IPHC: tf=11 nhc=1 hoplimit=64 src=linklocal dst=linklocal (compressed 40B->6B)\nfrag: tag=0x1A2B size=120 off=0\nfrag: tag=0x1A2B size=120 off=88\nRPL: root=fd00::1 rank=256 parent=fe80::1a2b\nreassembled: payload=nto{6l0wp4n_hc_c0mpr3ss10n}\n"
+    }
+  ]
+}

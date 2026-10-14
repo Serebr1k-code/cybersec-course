@@ -19,7 +19,7 @@ lab:
   toolset: [core]
   workdir: /home/student/task
   files: [task.md, brute.log]
-  check: "grep -q '' answer.txt"
+  check: "grep -q 'home.zonetransfer.me' answer.txt"
   hints:
     - "Сначала отбрось несуществующие имена: `grep -v NXDOMAIN brute.log`."
     - "Смотри на колонку A — там IP-адреса резолвнувшихся имён."

@@ -1,0 +1,37 @@
+{
+  "id": "crypto-rsa-crt-fault-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b3llc0r3_crt_f4ult_gcd_r3v34ls_p}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: атака Bellcore на RSA-CRT\n\n`bellcore.py` строит CRT-подпись, затем портит одну ветвь (sp).\nПокажи, что gcd(s_f^e - m, n) восстанавливает множитель p или q.\n\nШаги:\n1. `cat bellcore.py`.\n2. `python3 bellcore.py`.\n3. `python3 bellcore.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- CRT: sp=m^dp mod p, sq=m^dq mod q, склейка через qinv.\n- Ошибка только в sp: s_f^e ≡ m mod q, но не mod p -> q | (s_f^e - m).\n- gcd(s_f^e - m, n) = q. Одна строка, без перебора.\n- Защита: проверять s^e == m перед выдачей; защита от сбоев питания/тактовой.\n"
+    },
+    {
+      "path": "/home/student/task/bellcore.py",
+      "text": "# Bellcore (RSA-CRT fault) attack: a single faulty CRT signature reveals a factor.\nfrom math import gcd\np, q = 1000003, 1000033\nn = p * q\ne = 65537\nd = pow(e, -1, (p - 1) * (q - 1))\ndp, dq = d % (p - 1), d % (q - 1)\nqinv = pow(q, -1, p)\n\nm = 0x123456789 % n\n# correct CRT signature\nsp = pow(m, dp, p)\nsq = pow(m, dq, q)\nsig = (sq + q * ((qinv * (sp - sq)) % p)) % n\nprint(\"valid signature verifies:\", pow(sig, e, n) == m)\n# FAULT: one exponentiation is corrupted (a bit flips in sp)\nsp_faulty = sp ^ 1\nsig_f = (sq + q * ((qinv * (sp_faulty - sq)) % p)) % n\nprint(\"faulty signature verifies:\", pow(sig_f, e, n) == m)\n# Attack: gcd(sig_f^e - m, n) reveals a factor\nfactor = gcd(pow(sig_f, e, n) - m, n)\nprint(\"recovered factor:\", factor)\nprint(\"it is p or q    :\", factor in (p, q))\nprint(\"flag: nto{b3llc0r3_crt_f4ult_gcd_r3v34ls_p}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        { "match": "--version|^-V$", "example": "python3 --version", "output": "Python 3.12.4" },
+        {
+          "match": "bellcore\\.py$",
+          "example": "python3 bellcore.py",
+          "output": "valid signature verifies: True\nfaulty signature verifies: False\nrecovered factor: 1000033\nit is p or q    : True\nflag: nto{b3llc0r3_crt_f4ult_gcd_r3v34ls_p}\n"
+        }
+      ]
+    }
+  }
+}

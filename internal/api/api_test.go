@@ -55,6 +55,8 @@ parent: web-fixture
 difficulty: easy
 order: 2
 tags: [child]
+waystone: true
+waystone_tasks: [web-fixture, crypto-fixture-rsa]
 summary: "child fixture lesson"
 ---
 
@@ -174,6 +176,26 @@ func TestTree(t *testing.T) {
 	}
 	if bySlug["web"] != 2 || bySlug["crypto"] != 1 {
 		t.Errorf("category counts = %v", bySlug)
+	}
+	// /api/tree must carry the waystone gate fields so the frontend can lock a
+	// branch without a second request.
+	nodes := m["nodes"].([]any)
+	var gate map[string]any
+	for _, n := range nodes {
+		nm := n.(map[string]any)
+		if nm["id"] == "web-fixture-child" {
+			gate = nm
+		}
+	}
+	if gate == nil {
+		t.Fatal("web-fixture-child not in /api/tree")
+	}
+	if gate["waystone"] != true {
+		t.Errorf("waystone = %v, want true", gate["waystone"])
+	}
+	tasks, _ := gate["waystone_tasks"].([]any)
+	if len(tasks) != 2 || tasks[0] != "web-fixture" || tasks[1] != "crypto-fixture-rsa" {
+		t.Errorf("waystone_tasks = %v", gate["waystone_tasks"])
 	}
 }
 

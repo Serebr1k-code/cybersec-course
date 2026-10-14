@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-angr",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4ngr_s0lv3d_p4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: angr\n\nНайди пароль, который вывел решатель.\n"
+    },
+    {
+      "path": "/home/student/task/angr_output.txt",
+      "text": "[+] exploring...\n[+] found solution\n[+] password = nto-4ngr   # flag: nto{4ngr_s0lv3d_p4ss}\n"
+    }
+  ]
+}

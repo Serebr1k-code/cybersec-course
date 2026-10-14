@@ -19,7 +19,7 @@ lab:
   toolset: [core, tshark]
   workdir: /home/student/task
   files: [task.md, usb.pcap, keymap.txt]
-  check: "grep -q '' answer.txt"
+  check: "grep -q 'flag' answer.txt"
   hints:
     - "HID-отчёты: `tshark -r usb.pcap -T fields -e usb.capdata`."
     - "Третий байт отчёта — нажатая клавиша; строки из нулей — отпускания."

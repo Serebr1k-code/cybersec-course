@@ -166,6 +166,116 @@ $ gdb -q --args env LD_PRELOAD=./nohook.so ./antidebug
 - **Скрытая логика** — детект может не падать, а портить данные; следи за результатами.
 - **Инструменты-комбайны** — ScyllaHide (Windows) автоматически прячет отладчик от десятков проверок; на Linux аналоги собирают из хуков Frida.
 
+## Инструмент: objdump — дизассемблер
+
+`objdump` показывает машинный код бинарника в виде ассемблера. Именно по нему считают смещения буферов, находят вызовы и адреса — основа статического разбора.
+
+Ключи, которые пригодятся:
+* `objdump -d <файл>` — дизассемблировать секцию `.text` (машинный код функций);
+* `objdump -d <файл> | less` — листать вывод, искать нужную функцию по имени;
+* `objdump -M intel -d <файл>` — синтаксис Intel (привычнее, чем AT&T);
+* в выводе важны пролог функции (`push rbp; mov rbp,rsp`) и `sub rsp,N` — по нему видно размер кадра.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ objdump objdump -d antidebug --disassemble=main
+
+antidebug:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000401000 <_start>:
+  401000:	48 8b 3c 24          	mov    (%rsp),%rdi
+  401004:	48 8d 74 24 08       	lea    0x8(%rsp),%rsi
+  401009:	48 83 e4 f0          	and    $0xfffffffffffffff0,%rsp
+  40100d:	e8 a2 00 00 00       	call   4010b4 <main>
+  401012:	48 89 c7             	mov    %rax,%rdi
+  401015:	48 c7 c0 3c 00 00 00 	mov    $0x3c,%rax
+  40101c:	0f 05                	syscall
+
+000000000040101e <sys>:
+  40101e:	55                   	push   %rbp
+  40101f:	48 89 e5             	mov    %rsp,%rbp
+  401022:	48 89 7d e8          	mov    %rdi,-0x18(%rbp)
+  401026:	48 89 75 e0          	mov    %rsi,-0x20(%rbp)
+  40102a:	48 89 55 d8          	mov    %rdx,-0x28(%rbp)
+  40102e:	48 89 4d d0          	mov    %rcx,-0x30(%rbp)
+  401032:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+  401036:	48 8b 7d e0          	mov    -0x20(%rbp),%rdi
+  40103a:	48 8b 75 d8          	mov    -0x28(%rbp),%rsi
+  40103e:	48 8b 55 d0          	mov    -0x30(%rbp),%rdx
+  401042:	0f 05                	syscall
+  401044:	48 89 45 f8          	mov    %rax,-0x8(%rbp)
+  401048:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+  40104c:	5d                   	pop    %rbp
+  40104d:	c3                   	ret
+
+000000000040104e <slen>:
+  40104e:	55                   	push   %rbp
+  40104f:	48 89 e5             	mov    %rsp,%rbp
+  401052:	48 89 7d e8          	mov    %rdi,-0x18(%rbp)
+  401056:	48 c7 45 f8 00 00 00 	movq   $0x0,-0x8(%rbp)
+  40105d:	00 
+  40105e:	eb 05                	jmp    401065 <slen+0x17>
+  401060:	48 83 45 f8 01       	addq   $0x1,-0x8(%rbp)
+  401065:	48 8b 55 f8          	mov    -0x8(%rbp),%rdx
+  401069:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+  40106d:	48 01 d0             	add    %rdx,%rax
+  401070:	0f b6 00             	movzbl (%rax),%eax
+  401073:	84 c0                	test   %al,%al
+  401075:	75 e9                	jne    401060 <slen+0x12>
+  401077:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+  40107b:	5d                   	pop    %rbp
+  40107c:	c3                   	ret
+
+000000000040107d <put>:
+  40107d:	55                   	push   %rbp
+  40107e:	48 89 e5             	mov    %rsp,%rbp
+  401081:	48 83 ec 08          	sub    $0x8,%rsp
+  401085:	48 89 7d f8          	mov    %rdi,-0x8(%rbp)
+  401089:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+  40108d:	48 89 c7             	mov    %rax,%rdi
+  401090:	e8 b9 ff ff ff       	call   40104e <slen>
+  401095:	48 89 c2             	mov    %rax,%rdx
+  401098:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+  40109c:	48 89 d1             	mov    %rdx,%rcx
+  40109f:	48 89 c2             	mov    %rax,%rdx
+  4010a2:	be 01 00 00 00       	mov    $0x1,%esi
+  4010a7:	bf 01 00 00 00       	mov    $0x1,%edi
+  4010ac:	e8 6d ff ff ff       	call   40101e <sys>
+  4010b1:	90                   	nop
+  4010b2:	c9                   	leave
+  4010b3:	c3                   	ret
+
+00000000004010b4 <main>:
+  4010b4:	55                   	push   %rbp
+  4010b5:	48 89 e5             	mov    %rsp,%rbp
+  4010b8:	48 83 ec 10          	sub    $0x10,%rsp
+  4010bc:	b9 00 00 00 00       	mov    $0x0,%ecx
+  4010c1:	ba 00 00 00 00       	mov    $0x0,%edx
+  4010c6:	be 00 00 00 00       	mov    $0x0,%esi
+  4010cb:	bf 65 00 00 00       	mov    $0x65,%edi
+  4010d0:	e8 49 ff ff ff       	call   40101e <sys>
+  4010d5:	48 89 45 f8          	mov    %rax,-0x8(%rbp)
+  4010d9:	48 83 7d f8 00       	cmpq   $0x0,-0x8(%rbp)
+  4010de:	74 16                	je     4010f6 <main+0x42>
+  4010e0:	48 8d 05 19 0f 00 00 	lea    0xf19(%rip),%rax        # 402000 <main+0xf4c>
+  4010e7:	48 89 c7             	mov    %rax,%rdi
+  4010ea:	e8 8e ff ff ff       	call   40107d <put>
+  4010ef:	b8 01 00 00 00       	mov    $0x1,%eax
+  4010f4:	eb 14                	jmp    40110a <main+0x56>
+  4010f6:	48 8d 05 1b 0f 00 00 	lea    0xf1b(%rip),%rax        # 402018 <main+0xf64>
+  4010fd:	48 89 c7             	mov    %rax,%rdi
+  401100:	e8 78 ff ff ff       	call   40107d <put>
+  401105:	b8 00 00 00 00       	mov    $0x0,%eax
+  40110a:	c9                   	leave
+  40110b:	c3                   	ret
+```
+
+Подсказка из лаборатории: `objdump -d <файл> — дизассемблер`.
+
 ## Что мы теперь знаем
 
 - Анти-отладка — самопроверка бинарника на наличие отладчика.

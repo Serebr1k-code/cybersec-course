@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-apktool",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{apktool_sm4l1_p4tch}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: патч smali\n\nМетод isPremium всегда возвращает false. Найди его.\n"
+    },
+    {
+      "path": "/home/student/task/Premium.smali",
+      "text": ".method public isPremium()Z\n    .locals 1\n    const/4 v0, 0x0   # всегда false, патч на 0x1  # flag: nto{apktool_sm4l1_p4tch}\n    return v0\n.endmethod\n"
+    }
+  ]
+}

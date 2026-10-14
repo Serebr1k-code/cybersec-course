@@ -18,7 +18,10 @@ const props = defineProps({
   size: { type: Number, default: HUB_D },
   // radial interaction state
   dimmed: { type: Boolean, default: false },
-  onpath: { type: Boolean, default: false }
+  onpath: { type: Boolean, default: false },
+  // Waystone gate state for this node ({total, solved, locked}) or null when the
+  // node is not a waystone. Drives the "lock + N/M" indicator on the node face.
+  gate: { type: Object, default: null }
 })
 
 // A hub / connector node (module / roadmap index page) renders as a plain small
@@ -65,6 +68,18 @@ function fmtDuration(minutes) {
 const durText = computed(() => fmtDuration(
   props.node.estimated_minutes || props.node.estMinutes || 0
 ))
+
+// ---- waystone gate --------------------------------------------------------
+// A waystone shows a "lock + N/M" pill: N solved capstone tasks out of M. When
+// all M are done the pill turns into an open (unlocked) state.
+const gateShown = computed(() => !!(props.gate && props.gate.total > 0))
+const gateLocked = computed(() => !!(props.gate && props.gate.locked))
+const gateTitle = computed(() => {
+  if (!gateShown.value) return ''
+  return gateLocked.value
+    ? `Вейстоун: ветка заперта — решено ${props.gate.solved} из ${props.gate.total} задач`
+    : `Вейстоун открыт: все ${props.gate.total} задач решены`
+})
 </script>
 
 <template>
@@ -77,6 +92,12 @@ const durText = computed(() => fmtDuration(
     :aria-label="node.title"
   >
     <span class="bullet" aria-hidden="true"></span>
+    <span
+      v-if="gateShown"
+      class="gate gate-hub"
+      :class="{ locked: gateLocked, open: !gateLocked }"
+      :title="gateTitle"
+    >{{ gateLocked ? '🔒' : '🔓' }} {{ gate.solved }}/{{ gate.total }}</span>
   </RouterLink>
 
   <RouterLink
@@ -103,6 +124,13 @@ const durText = computed(() => fmtDuration(
     </span>
 
     <span class="badge" v-if="completed">✓</span>
+
+    <span
+      v-if="gateShown"
+      class="gate"
+      :class="{ locked: gateLocked, open: !gateLocked }"
+      :title="gateTitle"
+    >{{ gateLocked ? '🔒' : '🔓' }} {{ gate.solved }}/{{ gate.total }}</span>
   </RouterLink>
 </template>
 
@@ -216,6 +244,26 @@ const durText = computed(() => fmtDuration(
   display: grid; place-items: center;
   background: var(--green); color: #05210f; font-size: 8px; font-weight: 900;
   box-shadow: 0 0 8px rgba(34,197,94,.6);
+}
+
+/* Waystone gate pill: "🔒 N/M" while the branch is locked, "🔓 N/M" once open.
+   Sits in the card's bottom-right corner (the card clips overflow, so it must
+   stay inside the reserved box). */
+.gate {
+  position: absolute; right: 3px; bottom: 2px;
+  display: inline-flex; align-items: center; gap: 2px;
+  padding: 0 4px; border-radius: 6px;
+  font-size: 9px; font-weight: 800; line-height: 14px;
+  white-space: nowrap;
+  pointer-events: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
+}
+.gate.locked { background: rgba(120, 53, 15, .94); color: #fcd34d; border: 1px solid #b45309; }
+.gate.open { background: rgba(6, 78, 59, .94); color: #6ee7b7; border: 1px solid #047857; }
+/* On a hub circle the pill floats just below the ring (the hub does not clip). */
+.gate-hub {
+  right: auto; bottom: auto; top: 100%; left: 50%;
+  transform: translateX(-50%); margin-top: 1px;
 }
 
 </style>

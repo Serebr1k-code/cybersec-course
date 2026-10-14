@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-multidex",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{mult1d3x_4ll_cl4ss3s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: multidex\n\nНайди DEX с целевым классом.\n"
+    },
+    {
+      "path": "/home/student/task/dex_list.txt",
+      "text": "classes.dex  -> com.example.MainActivity\nclasses2.dex -> com.example.crypto.Cipher  # target class here  # flag: nto{mult1d3x_4ll_cl4ss3s}\nclasses3.dex -> com.example.ui.*\n"
+    }
+  ]
+}

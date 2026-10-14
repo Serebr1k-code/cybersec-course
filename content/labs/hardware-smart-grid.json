@@ -1,0 +1,27 @@
+{
+  "id": "hardware-smart-grid",
+  "workdir": "/home/student/meter",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/meter/found.txt",
+    "contains": "nto{"
+  },
+  "fs": [
+    {
+      "path": "/home/student/meter",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/meter/task.md",
+      "text": "# Задача: DLMS/COSEM\n\nРазбери обмен со счётчиком и найди флаг в прочитанном объекте.\n\nИнструменты: `cat`, `grep`, `cut`.\n"
+    },
+    {
+      "path": "/home/student/meter/notes.md",
+      "text": "Заметки\n------\n- DLMS/COSEM поверх HDLC (оптика) или IP.\n- Ассоциации: public (чтение), management (запись).\n- Дефолтные пароли — частая слабость.\n"
+    },
+    {
+      "path": "/home/student/meter/meter.log",
+      "text": "HDLC: 7E A0 1E 21 03 93 ... 7E (SNRM)\nHDLC: 7E A0 1A 21 03 73 ... 7E (UA)\nAARQ: association=public client, auth=none -> AARE accepted\nAARQ: association=management client, auth=LOW, password=00000000 (default)\nGET obis=1.0.1.8.0.255 -> energy A+ = nto{d1m5_d3f4ult_p4ssw0rd}\n"
+    }
+  ]
+}

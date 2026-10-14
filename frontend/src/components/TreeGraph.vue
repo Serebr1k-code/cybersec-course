@@ -3,6 +3,7 @@ import { computed, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import LessonNode from './LessonNode.vue'
 import { useProgressStore } from '../stores/progress'
 import { radialLayout, isHubNode } from '../utils/radialLayout'
+import { isWaystone, gateSolved, gateTotal, gatedIds, isGateLocked } from '../utils/waystone'
 
 const props = defineProps({
   nodes: { type: Array, default: () => [] },   // узлы одной категории
@@ -87,20 +88,47 @@ const revealSet = computed(() => {
 // Итоговый набор видимых узлов: progressive reveal + поддеревья, раскрытые
 // вручную; либо ВСЕ узлы при «Развернуть всё». Ручные сворачивания применяет
 // сама раскладка (opts.collapsed).
+//
+// ВЕЙСТОУН-ЗАМОК — жёстче тумана: поддерево запертого вейстоуна (задачи не
+// выполнены) скрыто ВСЕГДА — ни «Развернуть всё», ни ручное раскрытие его не
+// показывают. Это и есть гейт: ветка открывается только после решения задач.
+const isDone = (id) => progress.isCompleted(id)
+const gatedSet = computed(() => gatedIds(props.nodes, isDone))
 const visibleSet = computed(() => {
-  if (showAll.value) return new Set(props.nodes.map((n) => n.id))
-  const m = treeMeta()
-  const vis = new Set(revealSet.value)
-  for (const id of expanded.value) {
-    const stack = [id]
-    let guard = 0
-    while (stack.length && guard++ < 100000) {
-      const cur = stack.pop()
-      vis.add(cur)
-      for (const c of m.children.get(cur) || []) stack.push(c)
+  const vis = new Set()
+  if (showAll.value) {
+    for (const n of props.nodes) vis.add(n.id)
+  } else {
+    const m = treeMeta()
+    for (const id of revealSet.value) vis.add(id)
+    for (const id of expanded.value) {
+      const stack = [id]
+      let guard = 0
+      while (stack.length && guard++ < 100000) {
+        const cur = stack.pop()
+        vis.add(cur)
+        for (const c of m.children.get(cur) || []) stack.push(c)
+      }
     }
   }
+  for (const id of gatedSet.value) vis.delete(id)
   return vis
+})
+
+// Вейстоун-состояние узла для бейджа «замок + N/M» на карточке.
+function nodeGate(n) {
+  if (!isWaystone(n)) return null
+  return {
+    total: gateTotal(n),
+    solved: gateSolved(n, isDone),
+    locked: isGateLocked(n, isDone)
+  }
+}
+// Есть ли сейчас запертый вейстоун СРЕДИ ВИДИМЫХ — управляет подсказкой на
+// канвасе (про скрытый гейт подсказка молчит, чтобы не шуметь зря).
+const lockedGateCount = computed(() => {
+  const vis = visibleSet.value
+  return props.nodes.filter((n) => vis.has(n.id) && isGateLocked(n, isDone)).length
 })
 
 const layout = computed(() => radialLayout(props.nodes, { collapsed: collapsed.value, visible: visibleSet.value }))
@@ -524,6 +552,11 @@ onBeforeUnmount(() => {
       Показываются первые 2 уровня + пройденные и связанные с ними уроки
     </div>
 
+    <div v-if="lockedGateCount" class="gate-hint" title="Вейстоун запирает ветку до решения задач">
+      <span class="gate-ico">🔒</span>
+      Заперто вейстоунов: {{ lockedGateCount }} — решите их задачи, чтобы открыть ветку
+    </div>
+
     <div class="legend" aria-hidden="true">
       <span class="lg" v-for="d in DIFF_LEGEND" :key="d.k">
         <i :style="{ background: d.c }"></i>{{ d.label }}
@@ -586,6 +619,7 @@ onBeforeUnmount(() => {
             :size="layout.pos[n.id].w"
             :dimmed="!!activeId && !pathSet.has(n.id)"
             :onpath="pathSet.has(n.id)"
+            :gate="nodeGate(n)"
           />
         </div>
       </div>
@@ -648,6 +682,19 @@ onBeforeUnmount(() => {
 }
 .hint-ico { font-size: 12px; }
 
+/* Подсказка о запертых вейстоунах (гейтах) */
+.gate-hint {
+  position: absolute; top: 12px; left: 50%; transform: translateX(-50%); z-index: 10;
+  display: flex; align-items: center; gap: 6px;
+  max-width: 60%;
+  padding: 5px 10px; border-radius: var(--r);
+  background: rgba(58, 40, 12, .88); backdrop-filter: blur(8px);
+  border: 1px solid #b45309;
+  font-size: 11.5px; color: #fcd34d; line-height: 1.3;
+  pointer-events: none;
+}
+.gate-ico { font-size: 12px; }
+
 /* Легенда сложностей — узлы-кружки окрашены по сложности (без текста). */
 .legend {
   position: absolute; bottom: 12px; left: 14px; z-index: 10;
@@ -691,6 +738,11 @@ onBeforeUnmount(() => {
   }
   /* Легенда делит нижний левый угол с подсказкой — на планшете/телефоне скрываем. */
   .legend { display: none; }
+  /* Запертый вейстоун-хинт уводим под панель управления, во всю ширину. */
+  .gate-hint {
+    top: 52px; left: 10px; right: 10px; transform: none; max-width: none;
+    font-size: 10.5px; padding: 4px 8px;
+  }
   .ctx-menu { min-width: 170px; }
 }
 
@@ -704,6 +756,7 @@ onBeforeUnmount(() => {
 @media (max-width: 700px) {
   .controls,
   .legend,
+  .gate-hint,
   .hint { display: none; }
 }
 </style>

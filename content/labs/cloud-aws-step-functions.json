@@ -1,0 +1,27 @@
+{
+  "id": "cloud-aws-step-functions",
+  "workdir": "/home/student/sfn",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/sfn/found.txt",
+    "contains": "nto{st3p_funct10ns_p4ssr0l3_3sc4l4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/sfn",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/sfn/task.md",
+      "text": "# Задача\n\nState machine доступна на запуск. Разбери определение и роль и определи, можно ли эскалировать права.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/sfn/state-machine.json",
+      "text": "{\n  \"roleArn\": \"arn:aws:iam::123456789012:role/sfn-admin\",\n  \"definition\": {\"StartAt\": \"CreateUser\", \"States\": {\"CreateUser\": {\"Type\": \"Task\", \"Resource\": \"arn:aws:states:::aws-sdk:iam:createUser\", \"Parameters\": {\"UserName.$\": \"$.username\"}, \"Next\": \"Done\"}, \"Done\": {\"Type\": \"Succeed\"}}}\n}\n"
+    },
+    {
+      "path": "/home/student/sfn/notes.md",
+      "text": "Аудит: машина исполняется ролью sfn-admin (создаёт пользователей).\nStartExecution на неё даёт права роли через шаги workflow.\nusername берётся из входных данных -> управляемо.\nnto{st3p_funct10ns_p4ssr0l3_3sc4l4t10n}\n"
+    }
+  ]
+}

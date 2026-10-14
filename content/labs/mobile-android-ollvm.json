@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-ollvm",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0llvm_d3flat}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: OLLVM\n\nОпредели тип обфускации по фрагменту.\n"
+    },
+    {
+      "path": "/home/student/task/obf_flow.txt",
+      "text": "while(true){ switch(state){ case 0x1a: ... state=0x2b; break; } }  # control-flow flattening  # flag: nto{0llvm_d3flat}\n"
+    }
+  ]
+}

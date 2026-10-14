@@ -19,7 +19,7 @@ lab:
   toolset: [core, tshark]
   workdir: /home/student/task
   files: [task.md, q.pcap]
-  check: "grep -q '' answer.txt"
+  check: "grep -q '5c8a3f1e2b4d' answer.txt"
   hints:
     - "Типы QUIC-пакетов: `tshark -r q.pcap -Y quic -T fields -e quic.long.packet_type`."
     - "0 — это Initial; именно он несёт Destination Connection ID клиента."

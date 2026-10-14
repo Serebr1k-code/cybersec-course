@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-dynamic-code",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dyn4m1c_d3x_dump}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: dynamic code\n\nОпредели источник динамического DEX.\n"
+    },
+    {
+      "path": "/home/student/task/loader.txt",
+      "text": "byte[] b = decrypt(assets/enc.bin)\nwrite /data/data/com.example/cache/p.dex\nnew DexClassLoader(\"/data/data/com.example/cache/p.dex\", ...)  # source: decrypted blob  # flag: nto{dyn4m1c_d3x_dump}\n"
+    }
+  ]
+}

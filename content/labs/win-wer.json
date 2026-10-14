@@ -1,0 +1,25 @@
+{
+  "id": "win-wer",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{wer_p4th_l34k_3x3cut10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: отчёт WER\n\nФайл Report.wer — отчёт Windows Error Reporting. Восстанови, какая программа падала и откуда запускалась, найди флаг.\n\n1. `cat Report.wer`.\n2. Найди строки EventType/AppName/AppPath.\n3. `grep nto Report.wer > found.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/Report.wer",
+      "text": "Version=1\nEventType=APPCRASH\nEventTime=133641256789012345\nConsent=1\nReportIdentifier=9d3f...-...\nAppName=updater.exe\nAppPath=C:\\Users\\Public\\nto{wer_p4th_l34k_3x3cut10n}\nSig[0].Name=Application Name\nSig[0].Value=updater.exe\nSig[3].Name=Fault Module Name\nSig[3].Value=ntdll.dll\n",
+      "mode": "644"
+    }
+  ]
+}

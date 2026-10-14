@@ -194,6 +194,245 @@ uid=1000(user) gid=1000(user)
 - **Full RELRO** — GOT read-only, целься в `.fini_array`/`__exit_funcs`.
 - **Огромный вывод** — `%1000000c` замедлит и оборвёт вывод; пиши побайтово.
 
+## Инструмент: nm — таблица символов
+
+`nm` перечисляет символы бинарника: имена функций и глобальных переменных с их адресами. Если символы не срезаны, это самый быстрый способ найти нужную функцию.
+
+Ключи, которые пригодятся:
+* `nm <файл>` — все символы с адресами;
+* `nm -C <файл>` — демутируй C++-имена (читаемые сигнатуры);
+* `T`/`t` — код (глобальный/локальный), `R`/`r` — только чтение (`.rodata`), `D`/`B` — данные;
+* нижний регистр = локальный символ, верхний = глобальный/экспортируемый.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ nm fmt
+0000000000403df8 d _DYNAMIC
+0000000000403fe8 d _GLOBAL_OFFSET_TABLE_
+0000000000402000 R _IO_stdin_used
+                 w _ITM_deregisterTMCloneTable
+                 w _ITM_registerTMCloneTable
+00000000004020b8 r __FRAME_END__
+0000000000402004 r __GNU_EH_FRAME_HDR
+0000000000404020 D __TMC_END__
+0000000000402100 r __abi_tag
+0000000000404020 B __bss_start
+0000000000404010 D __data_start
+0000000000401100 t __do_global_dtors_aux
+0000000000403df0 d __do_global_dtors_aux_fini_array_entry
+0000000000404018 D __dso_handle
+0000000000403de8 d __frame_dummy_init_array_entry
+                 w __gmon_start__
+                 U __libc_start_main@GLIBC_2.34
+0000000000401080 T _dl_relocate_static_pie
+0000000000404020 D _edata
+0000000000404028 B _end
+0000000000401194 T _fini
+0000000000401000 T _init
+0000000000401050 T _start
+0000000000404020 b completed.0
+0000000000404010 W data_start
+0000000000401090 t deregister_tm_clones
+0000000000401130 t frame_dummy
+0000000000401136 T main
+                 U printf@GLIBC_2.2.5
+                 U read@GLIBC_2.2.5
+00000000004010c0 t register_tm_clones
+```
+
+Подсказка из лаборатории: `nm [-D] <файл>`.
+
+## Инструмент: objdump — дизассемблер
+
+`objdump` показывает машинный код бинарника в виде ассемблера. Именно по нему считают смещения буферов, находят вызовы и адреса — основа статического разбора.
+
+Ключи, которые пригодятся:
+* `objdump -d <файл>` — дизассемблировать секцию `.text` (машинный код функций);
+* `objdump -d <файл> | less` — листать вывод, искать нужную функцию по имени;
+* `objdump -M intel -d <файл>` — синтаксис Intel (привычнее, чем AT&T);
+* в выводе важны пролог функции (`push rbp; mov rbp,rsp`) и `sub rsp,N` — по нему видно размер кадра.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ objdump -d fmt
+
+fmt:     file format elf64-x86-64
+
+
+Disassembly of section .init:
+
+0000000000401000 <_init>:
+  401000:	f3 0f 1e fa          	endbr64
+  401004:	48 83 ec 08          	sub    $0x8,%rsp
+  401008:	48 8b 05 c9 2f 00 00 	mov    0x2fc9(%rip),%rax        # 403fd8 <__gmon_start__>
+  40100f:	48 85 c0             	test   %rax,%rax
+  401012:	74 02                	je     401016 <_init+0x16>
+  401014:	ff d0                	call   *%rax
+  401016:	48 83 c4 08          	add    $0x8,%rsp
+  40101a:	c3                   	ret
+
+Disassembly of section .plt:
+
+0000000000401020 <printf@plt-0x10>:
+  401020:	ff 35 ca 2f 00 00    	push   0x2fca(%rip)        # 403ff0 <_GLOBAL_OFFSET_TABLE_+0x8>
+  401026:	ff 25 cc 2f 00 00    	jmp    *0x2fcc(%rip)        # 403ff8 <_GLOBAL_OFFSET_TABLE_+0x10>
+  40102c:	0f 1f 40 00          	nopl   0x0(%rax)
+
+0000000000401030 <printf@plt>:
+  401030:	ff 25 ca 2f 00 00    	jmp    *0x2fca(%rip)        # 404000 <printf@GLIBC_2.2.5>
+  401036:	68 00 00 00 00       	push   $0x0
+  40103b:	e9 e0 ff ff ff       	jmp    401020 <_init+0x20>
+
+0000000000401040 <read@plt>:
+  401040:	ff 25 c2 2f 00 00    	jmp    *0x2fc2(%rip)        # 404008 <read@GLIBC_2.2.5>
+  401046:	68 01 00 00 00       	push   $0x1
+  40104b:	e9 d0 ff ff ff       	jmp    401020 <_init+0x20>
+
+Disassembly of section .text:
+
+0000000000401050 <_start>:
+  401050:	f3 0f 1e fa          	endbr64
+  401054:	31 ed                	xor    %ebp,%ebp
+  401056:	49 89 d1             	mov    %rdx,%r9
+  401059:	5e                   	pop    %rsi
+  40105a:	48 89 e2             	mov    %rsp,%rdx
+  40105d:	48 83 e4 f0          	and    $0xfffffffffffffff0,%rsp
+  401061:	50                   	push   %rax
+  401062:	54                   	push   %rsp
+  401063:	45 31 c0             	xor    %r8d,%r8d
+  401066:	31 c9                	xor    %ecx,%ecx
+  401068:	48 c7 c7 36 11 40 00 	mov    $0x401136,%rdi
+  40106f:	ff 15 53 2f 00 00    	call   *0x2f53(%rip)        # 403fc8 <__libc_start_main@GLIBC_2.34>
+  401075:	f4                   	hlt
+  401076:	66 2e 0f 1f 84 00 00 	cs nopw 0x0(%rax,%rax,1)
+  40107d:	00 00 00 
+
+0000000000401080 <_dl_relocate_static_pie>:
+  401080:	f3 0f 1e fa          	endbr64
+  401084:	c3                   	ret
+  401085:	66 2e 0f 1f 84 00 00 	cs nopw 0x0(%rax,%rax,1)
+  40108c:	00 00 00 
+  40108f:	90                   	nop
+
+0000000000401090 <deregister_tm_clones>:
+  401090:	b8 20 40 40 00       	mov    $0x404020,%eax
+  401095:	48 3d 20 40 40 00    	cmp    $0x404020,%rax
+  40109b:	74 13                	je     4010b0 <deregister_tm_clones+0x20>
+  40109d:	48 8b 05 2c 2f 00 00 	mov    0x2f2c(%rip),%rax        # 403fd0 <_ITM_deregisterTMCloneTable>
+  4010a4:	48 85 c0             	test   %rax,%rax
+  4010a7:	74 07                	je     4010b0 <deregister_tm_clones+0x20>
+  4010a9:	bf 20 40 40 00       	mov    $0x404020,%edi
+  4010ae:	ff e0                	jmp    *%rax
+  4010b0:	c3                   	ret
+  4010b1:	0f 1f 40 00          	nopl   0x0(%rax)
+  4010b5:	66 66 2e 0f 1f 84 00 	data16 cs nopw 0x0(%rax,%rax,1)
+  4010bc:	00 00 00 00 
+
+00000000004010c0 <register_tm_clones>:
+  4010c0:	be 20 40 40 00       	mov    $0x404020,%esi
+  4010c5:	48 81 ee 20 40 40 00 	sub    $0x404020,%rsi
+  4010cc:	48 89 f0             	mov    %rsi,%rax
+  4010cf:	48 c1 ee 3f          	shr    $0x3f,%rsi
+  4010d3:	48 c1 f8 03          	sar    $0x3,%rax
+  4010d7:	48 01 c6             	add    %rax,%rsi
+  4010da:	48 d1 fe             	sar    $1,%rsi
+  4010dd:	74 19                	je     4010f8 <register_tm_clones+0x38>
+  4010df:	48 8b 05 fa 2e 00 00 	mov    0x2efa(%rip),%rax        # 403fe0 <_ITM_registerTMCloneTable>
+  4010e6:	48 85 c0             	test   %rax,%rax
+  4010e9:	74 0d                	je     4010f8 <register_tm_clones+0x38>
+  4010eb:	bf 20 40 40 00       	mov    $0x404020,%edi
+  4010f0:	ff e0                	jmp    *%rax
+  4010f2:	66 0f 1f 44 00 00    	nopw   0x0(%rax,%rax,1)
+  4010f8:	c3                   	ret
+  4010f9:	0f 1f 80 00 00 00 00 	nopl   0x0(%rax)
+
+0000000000401100 <__do_global_dtors_aux>:
+  401100:	f3 0f 1e fa          	endbr64
+  401104:	80 3d 15 2f 00 00 00 	cmpb   $0x0,0x2f15(%rip)        # 404020 <__TMC_END__>
+  40110b:	75 13                	jne    401120 <__do_global_dtors_aux+0x20>
+  40110d:	55                   	push   %rbp
+  40110e:	48 89 e5             	mov    %rsp,%rbp
+  401111:	e8 7a ff ff ff       	call   401090 <deregister_tm_clones>
+  401116:	c6 05 03 2f 00 00 01 	movb   $0x1,0x2f03(%rip)        # 404020 <__TMC_END__>
+  40111d:	5d                   	pop    %rbp
+  40111e:	c3                   	ret
+  40111f:	90                   	nop
+  401120:	c3                   	ret
+  401121:	0f 1f 40 00          	nopl   0x0(%rax)
+  401125:	66 66 2e 0f 1f 84 00 	data16 cs nopw 0x0(%rax,%rax,1)
+  40112c:	00 00 00 00 
+
+0000000000401130 <frame_dummy>:
+  401130:	f3 0f 1e fa          	endbr64
+  401134:	eb 8a                	jmp    4010c0 <register_tm_clones>
+
+0000000000401136 <main>:
+  401136:	55                   	push   %rbp
+  401137:	48 89 e5             	mov    %rsp,%rbp
+  40113a:	48 81 ec 10 01 00 00 	sub    $0x110,%rsp
+  401141:	48 8d 85 f0 fe ff ff 	lea    -0x110(%rbp),%rax
+  401148:	ba ff 00 00 00       	mov    $0xff,%edx
+  40114d:	48 89 c6             	mov    %rax,%rsi
+  401150:	bf 00 00 00 00       	mov    $0x0,%edi
+  401155:	e8 e6 fe ff ff       	call   401040 <read@plt>
+  40115a:	48 89 45 f8          	mov    %rax,-0x8(%rbp)
+  40115e:	48 83 7d f8 00       	cmpq   $0x0,-0x8(%rbp)
+  401163:	7e 25                	jle    40118a <main+0x54>
+  401165:	48 8d 95 f0 fe ff ff 	lea    -0x110(%rbp),%rdx
+  40116c:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+  401170:	48 01 d0             	add    %rdx,%rax
+  401173:	c6 00 00             	movb   $0x0,(%rax)
+  401176:	48 8d 85 f0 fe ff ff 	lea    -0x110(%rbp),%rax
+  40117d:	48 89 c7             	mov    %rax,%rdi
+  401180:	b8 00 00 00 00       	mov    $0x0,%eax
+  401185:	e8 a6 fe ff ff       	call   401030 <printf@plt>
+  40118a:	b8 00 00 00 00       	mov    $0x0,%eax
+  40118f:	c9                   	leave
+  401190:	c3                   	ret
+
+Disassembly of section .fini:
+
+0000000000401194 <_fini>:
+  401194:	f3 0f 1e fa          	endbr64
+  401198:	48 83 ec 08          	sub    $0x8,%rsp
+  40119c:	48 83 c4 08          	add    $0x8,%rsp
+  4011a0:	c3                   	ret
+```
+
+Подсказка из лаборатории: `objdump [-d] <файл>`.
+
+## Инструмент: readelf — разбор ELF
+
+`readelf` читает заголовки ELF-файла: архитектуру, тип, секции, сегменты и включённые защиты. С него начинается любой разбор нативного бинарника.
+
+Ключи, которые пригодятся:
+* `readelf -h <файл>` — заголовок: класс (32/64), машина, точка входа;
+* `readelf -S <файл>` — таблица секций (`.text`, `.plt`, `.got`, `.data`);
+* `readelf -s <файл>` — таблица символов (как `nm`, но с секциями и типами);
+* `readelf -l <файл>` — сегменты программы; ищи `GNU_STACK`/`GNU_RELRO`, чтобы понять защиты.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ readelf -r fmt
+
+Relocation section '.rela.dyn' at offset 0x520 contains 4 entries:
+  Offset          Info           Type           Sym. Value    Sym. Name + Addend
+000000403fc8  000100000006 R_X86_64_GLOB_DAT 0000000000000000 __libc_start_main@GLIBC_2.34 + 0
+000000403fd0  000200000006 R_X86_64_GLOB_DAT 0000000000000000 _ITM_deregisterTM[...] + 0
+000000403fd8  000500000006 R_X86_64_GLOB_DAT 0000000000000000 __gmon_start__ + 0
+000000403fe0  000600000006 R_X86_64_GLOB_DAT 0000000000000000 _ITM_registerTMCl[...] + 0
+
+Relocation section '.rela.plt' at offset 0x580 contains 2 entries:
+  Offset          Info           Type           Sym. Value    Sym. Name + Addend
+000000404000  000300000007 R_X86_64_JUMP_SLO 0000000000000000 printf@GLIBC_2.2.5 + 0
+000000404008  000400000007 R_X86_64_JUMP_SLO 0000000000000000 read@GLIBC_2.2.5 + 0
+```
+
+Подсказка из лаборатории: `readelf [-r|-s|-h] <файл>`.
+
 ## Что мы теперь знаем
 
 - `%n` пишет число выведенных символов по указателю — это и есть запись.

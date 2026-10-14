@@ -1,0 +1,27 @@
+{
+  "id": "pwn-windows-iop",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "ring_entries=4096"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: определить размер ring по параметрам\n\n`ioring.txt` — параметры создаваемого I/O ring. Нужно определить число\nзаписей (entries) в ring по заданному размеру буфера.\n\n1. `cat ioring.txt` — изучи параметры.\n2. entries = размер буфера / размер записи.\n3. Запиши `ring_entries=4096` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/ioring.txt",
+      "text": "IoRingVersion       = 0x00000001\nSubmissionQueueSize = 0x10000   (65536 bytes)\nSubmissionEntrySize = 0x10      (16 bytes)\nCompletionQueueSize = 0x2000\nCompletionEntrySize = 0x10\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "65536 / 16 = 4096 записей в submission queue.\nЭто и есть число entries ring.\n"
+    }
+  ]
+}

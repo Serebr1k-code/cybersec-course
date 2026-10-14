@@ -164,6 +164,28 @@ site:example.com inurl:config filetype:env
 
 Когда дork не находит — это не значит «ничего нет», это значит «поисковик не знает». Тогда идут в архивы и на сканеры.
 
+## Инструмент: googler — поиск из консоли
+
+`googler` выполняет поисковые запросы из терминала и печатает результаты — удобно для OSINT без браузера и для операторов поиска.
+
+Ключи, которые пригодятся:
+* `googler 'site:example.com filetype:pdf'` — операторы Google работают;
+* `googler -n 20 'запрос'` — больше результатов;
+* `googler --json 'запрос'` — машиночитаемый вывод;
+* операторы (`site:`, `filetype:`, `intitle:`) — суть OSINT-разведки.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ googler googler --json -n 20 "site:example.com inurl:admin"
+[
+  {"url": "https://example.com/admin/login.php", "title": "Admin Login"},
+  {"url": "https://example.com/admin/backup/", "title": "Index of /admin/backup"}
+]
+```
+
+Подсказка из лаборатории: `googler [--json] -n <N> <дорк> — поиск Google из CLI (эмуляция)`.
+
 ## Что мы теперь знаем
 
 По-простому:

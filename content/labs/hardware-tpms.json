@@ -1,0 +1,27 @@
+{
+  "id": "hardware-tpms",
+  "workdir": "/home/student/tpms",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/tpms/found.txt",
+    "contains": "nto{"
+  },
+  "fs": [
+    {
+      "path": "/home/student/tpms",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/tpms/task.md",
+      "text": "# Задача: TPMS\n\nРазбери TPMS-кадры и найди флаг в служебном поле.\n\nИнструменты: `cat`, `grep`, `cut`.\n"
+    },
+    {
+      "path": "/home/student/tpms/notes.md",
+      "text": "Заметки\n------\n- Частоты: 315 (US) / 433.92 (EU) МГц.\n- Кадр: preamble, id, pressure, temp, flags, crc.\n- rtl_433 декодирует большинство датчиков.\n"
+    },
+    {
+      "path": "/home/student/tpms/tpms.log",
+      "text": "TPMS: model=Schrader protocol=TPMS id=0x1A2B3C4D pressure=2.31bar temp=22C battery=ok\nraw: pre=AAAAAAAA id=1A2B3C4D pres=0x00E7 temp=0x16 flags=0x00 crc=0x5C\npressure: 0x00E7*10 = 2310 hPa = 2.31 bar\nnote: id is constant and unencrypted (tracking risk)\ncapture: secret=nto{tpm5_tr4ck1ng_b34c0n}\n"
+    }
+  ]
+}

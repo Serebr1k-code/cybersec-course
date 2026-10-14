@@ -184,6 +184,68 @@ $ rr replay                       # воспроизвести (открывае
 - **WinDbg TTD** требует Windows 10 (1809+) и подходящего режима записи (Intel PT или программный).
 - Без `--chaos` нестабильную гонку не поймать.
 
+## Инструмент: objdump — дизассемблер
+
+`objdump` показывает машинный код бинарника в виде ассемблера. Именно по нему считают смещения буферов, находят вызовы и адреса — основа статического разбора.
+
+Ключи, которые пригодятся:
+* `objdump -d <файл>` — дизассемблировать секцию `.text` (машинный код функций);
+* `objdump -d <файл> | less` — листать вывод, искать нужную функцию по имени;
+* `objdump -M intel -d <файл>` — синтаксис Intel (привычнее, чем AT&T);
+* в выводе важны пролог функции (`push rbp; mov rbp,rsp`) и `sub rsp,N` — по нему видно размер кадра.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ objdump objdump -d tt
+
+tt:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000401000 <build>:
+  401000:	c6 05 29 20 00 00 6e 	movb   $0x6e,0x2029(%rip)        # 403030 <__bss_start>
+  401007:	c6 05 23 20 00 00 74 	movb   $0x74,0x2023(%rip)        # 403031 <__bss_start+0x1>
+  40100e:	c6 05 1d 20 00 00 6f 	movb   $0x6f,0x201d(%rip)        # 403032 <__bss_start+0x2>
+  401015:	c6 05 17 20 00 00 7b 	movb   $0x7b,0x2017(%rip)        # 403033 <__bss_start+0x3>
+  40101c:	c6 05 11 20 00 00 74 	movb   $0x74,0x2011(%rip)        # 403034 <__bss_start+0x4>
+  401023:	c6 05 0b 20 00 00 31 	movb   $0x31,0x200b(%rip)        # 403035 <__bss_start+0x5>
+  40102a:	c6 05 05 20 00 00 6d 	movb   $0x6d,0x2005(%rip)        # 403036 <__bss_start+0x6>
+  401031:	c6 05 ff 1f 00 00 33 	movb   $0x33,0x1fff(%rip)        # 403037 <__bss_start+0x7>
+  401038:	c6 05 f9 1f 00 00 5f 	movb   $0x5f,0x1ff9(%rip)        # 403038 <__bss_start+0x8>
+  40103f:	c6 05 f3 1f 00 00 74 	movb   $0x74,0x1ff3(%rip)        # 403039 <__bss_start+0x9>
+  401046:	c6 05 ed 1f 00 00 72 	movb   $0x72,0x1fed(%rip)        # 40303a <__bss_start+0xa>
+  40104d:	c6 05 e7 1f 00 00 34 	movb   $0x34,0x1fe7(%rip)        # 40303b <__bss_start+0xb>
+  401054:	c6 05 e1 1f 00 00 76 	movb   $0x76,0x1fe1(%rip)        # 40303c <__bss_start+0xc>
+  40105b:	c6 05 db 1f 00 00 33 	movb   $0x33,0x1fdb(%rip)        # 40303d <__bss_start+0xd>
+  401062:	c6 05 d5 1f 00 00 6c 	movb   $0x6c,0x1fd5(%rip)        # 40303e <__bss_start+0xe>
+  401069:	c6 05 cf 1f 00 00 5f 	movb   $0x5f,0x1fcf(%rip)        # 40303f <__bss_start+0xf>
+  401070:	c6 05 c9 1f 00 00 72 	movb   $0x72,0x1fc9(%rip)        # 403040 <__bss_start+0x10>
+  401077:	c6 05 c3 1f 00 00 33 	movb   $0x33,0x1fc3(%rip)        # 403041 <__bss_start+0x11>
+  40107e:	c6 05 bd 1f 00 00 76 	movb   $0x76,0x1fbd(%rip)        # 403042 <__bss_start+0x12>
+  401085:	c6 05 b7 1f 00 00 33 	movb   $0x33,0x1fb7(%rip)        # 403043 <__bss_start+0x13>
+  40108c:	c6 05 b1 1f 00 00 72 	movb   $0x72,0x1fb1(%rip)        # 403044 <__bss_start+0x14>
+  401093:	c6 05 ab 1f 00 00 73 	movb   $0x73,0x1fab(%rip)        # 403045 <__bss_start+0x15>
+  40109a:	c6 05 a5 1f 00 00 33 	movb   $0x33,0x1fa5(%rip)        # 403046 <__bss_start+0x16>
+  4010a1:	c6 05 9f 1f 00 00 5f 	movb   $0x5f,0x1f9f(%rip)        # 403047 <__bss_start+0x17>
+  4010a8:	c6 05 99 1f 00 00 64 	movb   $0x64,0x1f99(%rip)        # 403048 <__bss_start+0x18>
+  4010af:	c6 05 93 1f 00 00 33 	movb   $0x33,0x1f93(%rip)        # 403049 <__bss_start+0x19>
+  4010b6:	c6 05 8d 1f 00 00 62 	movb   $0x62,0x1f8d(%rip)        # 40304a <__bss_start+0x1a>
+  4010bd:	c6 05 87 1f 00 00 75 	movb   $0x75,0x1f87(%rip)        # 40304b <__bss_start+0x1b>
+  4010c4:	c6 05 81 1f 00 00 67 	movb   $0x67,0x1f81(%rip)        # 40304c <__bss_start+0x1c>
+  4010cb:	c6 05 7b 1f 00 00 7d 	movb   $0x7d,0x1f7b(%rip)        # 40304d <__bss_start+0x1d>
+  4010d2:	c3                   	ret
+
+00000000004010d3 <_start>:
+  4010d3:	e8 28 ff ff ff       	call   401000 <build>
+  4010d8:	48 c7 c0 3c 00 00 00 	mov    $0x3c,%rax
+  4010df:	48 31 ff             	xor    %rdi,%rdi
+  4010e2:	0f 05                	syscall
+```
+
+Подсказка из лаборатории: `objdump -d <файл>`.
+
 ## Что мы теперь знаем
 
 - **TTD** записывает прогон и позволяет исполнять программу **назад**.

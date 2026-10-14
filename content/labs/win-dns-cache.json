@@ -1,0 +1,25 @@
+{
+  "id": "win-dns-cache",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dns_c4ch3_c2_d0m41n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: кэш DNS\n\nНа машине снят дамп кэша DNS-клиента. Определи, к каким доменам обращались, и найди флаг.\n\n1. `cat dnscache.txt`.\n2. Ищи строку с подозрительным доменом.\n3. `grep nto dnscache.txt > found.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/dnscache.txt",
+      "text": "Record Name . . . . . : dc01.corp.local\n  A (Host) Record . . : 10.0.0.10\n\nRecord Name . . . . . : update.cdn-static.net\n  A (Host) Record . . : 185.199.108.153\n\nRecord Name . . . . . : c2-beacon.evil-cdn.example\n  A (Host) Record . . : 45.77.12.9\n  Note: query flagged; tag nto{dns_c4ch3_c2_d0m41n}\n\nRecord Name . . . . . : fileserver.corp.local\n  A (Host) Record . . : 10.0.0.20\n",
+      "mode": "644"
+    }
+  ]
+}

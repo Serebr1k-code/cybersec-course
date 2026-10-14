@@ -1,0 +1,27 @@
+{
+  "id": "hardware-iso-tp",
+  "workdir": "/home/student/isotp",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/isotp/found.txt",
+    "contains": "nto{"
+  },
+  "fs": [
+    {
+      "path": "/home/student/isotp",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/isotp/task.md",
+      "text": "# Задача: ISO-TP\n\nECU вернул длинный ответ. Собери его из сегментов и найди флаг.\n\nИнструменты: `cat`, `grep`, `cut`.\n"
+    },
+    {
+      "path": "/home/student/isotp/notes.md",
+      "text": "Заметки\n------\n- SF=0x0N, FF=0x1X, CF=0x2N, FC=0x3X.\n- FF несёт 6 байт данных, CF по 7.\n- Без Flow Control ECU не продолжит поток.\n"
+    },
+    {
+      "path": "/home/student/isotp/isotp.log",
+      "text": "7E8  10 14 62 F1 90 6E 74 6F     # FF length=20\n7E0  30 00 00                       # FC continue\n7E8  21 7B 69 73 6F 74 70 5F     # CF1\n7E8  22 64 34 74 61 5F 66 72     # CF2\n7E8  23 61 6D 33 7D 00 00 00     # CF3\nassembled: decoded=nto{isotp_d4ta_fram3}\n"
+    }
+  ]
+}

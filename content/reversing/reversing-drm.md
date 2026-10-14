@@ -211,6 +211,79 @@ bob   -> 8B4C1E51
 Обход DRM для получения платного продукта бесплатно — нарушение закона в большинстве стран и правил
 сервисов. Техники из этого урока изучай на своих программах и CTF-задачах, а не на чужом платном ПО.
 
+## Инструмент: objdump — дизассемблер
+
+`objdump` показывает машинный код бинарника в виде ассемблера. Именно по нему считают смещения буферов, находят вызовы и адреса — основа статического разбора.
+
+Ключи, которые пригодятся:
+* `objdump -d <файл>` — дизассемблировать секцию `.text` (машинный код функций);
+* `objdump -d <файл> | less` — листать вывод, искать нужную функцию по имени;
+* `objdump -M intel -d <файл>` — синтаксис Intel (привычнее, чем AT&T);
+* в выводе важны пролог функции (`push rbp; mov rbp,rsp`) и `sub rsp,N` — по нему видно размер кадра.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ objdump objdump -d liccheck
+
+/tmp/labgen/fx/liccheck:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000401000 <_start>:
+  401000:	55                   	push   %rbp
+  401001:	48 89 e5             	mov    %rsp,%rbp
+  401004:	b8 ef be ad de       	mov    $0xdeadbeef,%eax
+  401009:	31 c0                	xor    %eax,%eax
+  40100b:	48 c7 c0 3c 00 00 00 	mov    $0x3c,%rax
+  401012:	48 31 ff             	xor    %rdi,%rdi
+  401015:	0f 05                	syscall
+  401017:	90                   	nop
+  401018:	5d                   	pop    %rbp
+  401019:	c3                   	ret
+```
+
+Подсказка из лаборатории: `objdump -d <файл>`.
+
+## Инструмент: readelf — разбор ELF
+
+`readelf` читает заголовки ELF-файла: архитектуру, тип, секции, сегменты и включённые защиты. С него начинается любой разбор нативного бинарника.
+
+Ключи, которые пригодятся:
+* `readelf -h <файл>` — заголовок: класс (32/64), машина, точка входа;
+* `readelf -S <файл>` — таблица секций (`.text`, `.plt`, `.got`, `.data`);
+* `readelf -s <файл>` — таблица символов (как `nm`, но с секциями и типами);
+* `readelf -l <файл>` — сегменты программы; ищи `GNU_STACK`/`GNU_RELRO`, чтобы понять защиты.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ readelf readelf --file-header liccheck
+ELF Header:
+  Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 
+  Class:                             ELF64
+  Data:                              2's complement, little endian
+  Version:                           1 (current)
+  OS/ABI:                            UNIX - System V
+  ABI Version:                       0
+  Type:                              EXEC (Executable file)
+  Machine:                           Advanced Micro Devices X86-64
+  Version:                           0x1
+  Entry point address:               0x401000
+  Start of program headers:          64 (bytes into file)
+  Start of section headers:          8600 (bytes into file)
+  Flags:                             0x0
+  Size of this header:               64 (bytes)
+  Size of program headers:           56 (bytes)
+  Number of program headers:         7
+  Size of section headers:           64 (bytes)
+  Number of section headers:         9
+  Section header string table index: 8
+```
+
+Подсказка из лаборатории: `readelf <опция> <файл>`.
+
 ## Что мы теперь знаем
 
 - Лицензии почти всегда основаны на **цифровой подписи**: приватный ключ у продавца, публичный — в

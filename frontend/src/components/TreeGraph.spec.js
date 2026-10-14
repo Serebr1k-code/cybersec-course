@@ -631,3 +631,97 @@ describe('components/TreeGraph.vue — progressive reveal (fog of war)', () => {
     expect(v.scale).toBeCloseTo(fit, 4)
   })
 })
+
+describe('components/TreeGraph.vue — waystone gates', () => {
+  // Root -> waystone G (tasks t1,t2) -> Запертый -> Глубже; tasks t1/t2 are
+  // siblings of the gate, reachable. G sits at depth 1, so it is visible from
+  // the default 2-level overview (no progress gymnastics needed in the test).
+  const GATE_TREE = [
+    { id: 'a', title: 'Root', parent: null, order: 1, sections: 1 },
+    { id: 'g', title: 'Вейстоун', parent: 'a', order: 1, sections: 1, waystone: true, waystone_tasks: ['t1', 't2'] },
+    { id: 'c', title: 'Запертый', parent: 'g', order: 1, sections: 1 },
+    { id: 'd', title: 'Глубже', parent: 'c', order: 1, sections: 1 },
+    { id: 't1', title: 'Задача 1', parent: 'a', order: 2, sections: 1 },
+    { id: 't2', title: 'Задача 2', parent: 'a', order: 3, sections: 1 }
+  ]
+  const solve = async (store, ...ids) => {
+    for (const id of ids) store.user.lessons[id] = { completed: true }
+    await nextTick(); await flushPromises()
+  }
+
+  it('locks the waystone subtree until every task is solved', async () => {
+    const { w } = await factoryWithProgress({ nodes: GATE_TREE })
+    // the gate node itself is visible (it carries the indicator)...
+    expect(slotByTitle(w, 'Вейстоун')).toBeDefined()
+    // ...but everything beyond it stays hidden while the tasks are unsolved
+    expect(slotByTitle(w, 'Запертый')).toBeUndefined()
+    expect(slotByTitle(w, 'Глубже')).toBeUndefined()
+    expect(slots(w).map((s) => s.title).sort()).toEqual(['Root', 'Вейстоун', 'Задача 1', 'Задача 2'])
+  })
+
+  it('shows a «lock + N/M» indicator on the waystone card', async () => {
+    const { w } = await factoryWithProgress({ nodes: GATE_TREE })
+    const gate = slotByTitle(w, 'Вейстоун').rn.find('.gate')
+    expect(gate.exists()).toBe(true)
+    expect(gate.classes()).toContain('locked')
+    expect(gate.text()).toContain('0/2')
+    expect(gate.attributes('title')).toMatch(/заперт/i)
+  })
+
+  it('updates the indicator as tasks are completed (partly solved stays locked)', async () => {
+    const { w, store } = await factoryWithProgress({ nodes: GATE_TREE })
+    await solve(store, 't1')
+    const gate = slotByTitle(w, 'Вейстоун').rn.find('.gate')
+    expect(gate.classes()).toContain('locked')
+    expect(gate.text()).toContain('1/2')
+    expect(slotByTitle(w, 'Запертый')).toBeUndefined()
+  })
+
+  it('unlocks the branch once ALL tasks are solved', async () => {
+    const { w, store } = await factoryWithProgress({ nodes: GATE_TREE })
+    await solve(store, 't1')
+    expect(slotByTitle(w, 'Запертый')).toBeUndefined()
+    await solve(store, 't2')
+    // the whole gated subtree appears (progressive reveal: depth-2 child + path)
+    expect(slotByTitle(w, 'Запертый')).toBeDefined()
+    const gate = slotByTitle(w, 'Вейстоун').rn.find('.gate')
+    expect(gate.classes()).toContain('open')
+    expect(gate.text()).toContain('2/2')
+  })
+
+  it('a locked waystone survives «Развернуть всё» (hard lock, not just fog)', async () => {
+    const { w, store } = await factoryWithProgress({ nodes: GATE_TREE })
+    await clickControl(w, 4) // ⊞ Развернуть всё
+    expect(slotByTitle(w, 'Запертый')).toBeUndefined()
+    expect(slotByTitle(w, 'Глубже')).toBeUndefined()
+    // solving the tasks opens it even in "show all"
+    await solve(store, 't1', 't2')
+    expect(slotByTitle(w, 'Запертый')).toBeDefined()
+    expect(slotByTitle(w, 'Глубже')).toBeDefined()
+  })
+
+  it('a manual expansion cannot bypass a locked waystone', async () => {
+    const { w } = await factoryWithProgress({ nodes: GATE_TREE })
+    w.vm.toggleCollapse('g') // try to expand the gate manually
+    await flushPromises()
+    expect(slotByTitle(w, 'Запертый')).toBeUndefined()
+  })
+
+  it('shows a canvas hint while any waystone is locked, and hides it when open', async () => {
+    const { w, store } = await factoryWithProgress({ nodes: GATE_TREE })
+    expect(w.find('.gate-hint').exists()).toBe(true)
+    expect(w.find('.gate-hint').text()).toContain('1')
+    await solve(store, 't1', 't2')
+    expect(w.find('.gate-hint').exists()).toBe(false)
+  })
+
+  it('an inert waystone (no tasks) never locks its subtree', async () => {
+    const nodes = [
+      { id: 'a', title: 'Root', parent: null, order: 1, sections: 1 },
+      { id: 'g', title: 'Вейстоун', parent: 'a', order: 1, sections: 1, waystone: true, waystone_tasks: [] },
+      { id: 'c', title: 'Открытый', parent: 'g', order: 1, sections: 1 }
+    ]
+    const { w } = await factoryWithProgress({ nodes })
+    expect(slotByTitle(w, 'Открытый')).toBeDefined()
+  })
+})

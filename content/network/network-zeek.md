@@ -21,6 +21,7 @@ lab:
   files: [task.md, conn.log, dns.log, notice.log]
   check: "grep -q '10.0.0.66' answer.txt"
   hints:
+    - "Повторение (`network-tcpdump`): Zeek-лог — структурированный трафик; сначала `head -n 5 conn.log` и вспомни направление потока (orig_h/resp_h)."
     - "Zeek пишет логи в TSV; имена колонок — в строке `#fields`."
     - "События безопасности — в `notice.log`."
     - "`grep Scan notice.log` покажет источник."

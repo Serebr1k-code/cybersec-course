@@ -19,7 +19,7 @@ lab:
   toolset: [core, tshark]
   workdir: /home/student/task
   files: [task.md, hijack.pcap]
-  check: "grep -q '' answer.txt"
+  check: "grep -q '1020' answer.txt"
   hints:
     - "Абсолютные seq/ack: `tshark -o tcp.relative_sequence_numbers:FALSE -r hijack.pcap -Y 'tcp.port==23' -T fields -e ip.src -e tcp.seq -e tcp.ack -e tcp.len`."
     - "Возьми последний сегмент сервера (10.0.0.5)."

@@ -1,0 +1,31 @@
+{
+  "id": "cloud-aws-cloudfront",
+  "workdir": "/home/student/cf",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/cf/found.txt",
+    "contains": "nto{cloudfront_0a1_m1ss1ng_publ1c_0r1g1n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/cf",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/cf/task.md",
+      "text": "# Задача\n\nДистрибуция CloudFront должна прятать S3-бакет. Разбери конфиг и политику и определи, доступен ли origin напрямую.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/cf/distribution.json",
+      "text": "{\n  \"Origins\": {\"Items\": [{\"DomainName\": \"acme-assets.s3.amazonaws.com\", \"S3OriginConfig\": {\"OriginAccessIdentity\": \"\"}}]},\n  \"DefaultCacheBehavior\": {\"ViewerProtocolPolicy\": \"allow-all\"}\n}\n"
+    },
+    {
+      "path": "/home/student/cf/bucket-policy.json",
+      "text": "{\n  \"Statement\": [{\"Effect\": \"Allow\", \"Principal\": \"*\", \"Action\": \"s3:GetObject\", \"Resource\": \"arn:aws:s3:::acme-assets/*\"}]\n}\n"
+    },
+    {
+      "path": "/home/student/cf/notes.md",
+      "text": "Аудит: OriginAccessIdentity пуст -> OAI/OAC не настроен.\nПолитика бакета разрешает Principal * -> origin публичный.\nCloudFront не закрывает бакет, доступ напрямую в обход edge.\nnto{cloudfront_0a1_m1ss1ng_publ1c_0r1g1n}\n"
+    }
+  ]
+}

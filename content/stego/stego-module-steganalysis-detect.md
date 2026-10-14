@@ -4,7 +4,7 @@ title: "Модуль: Обнаружение и количественная о�
 category: stego
 parent: stego-steganalysis-ml
 difficulty: hard
-order: 4
+order: 1
 tags: [stego, roadmap, steganalysis, quantitative, stegexpose, f5, csm]
 prerequisites: [stego-steganalysis-ml]
 useful_for:

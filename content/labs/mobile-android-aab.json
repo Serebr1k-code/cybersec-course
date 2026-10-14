@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-aab",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4ab_bundl3t00l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: AAB\n\nОпредели модуль с основным кодом.\n"
+    },
+    {
+      "path": "/home/student/task/aab.txt",
+      "text": "base/dex/classes.dex      # main code  # flag: nto{4ab_bundl3t00l}\nbase/manifest/AndroidManifest.xml\nfeature/onboarding/dex/classes.dex\n"
+    }
+  ]
+}

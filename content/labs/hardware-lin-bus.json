@@ -1,0 +1,27 @@
+{
+  "id": "hardware-lin-bus",
+  "workdir": "/home/student/linbus",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/linbus/found.txt",
+    "contains": "nto{"
+  },
+  "fs": [
+    {
+      "path": "/home/student/linbus",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/linbus/task.md",
+      "text": "# Задача: LIN-шина\n\nВ логе LIN найди скрытый флаг, который мастер записал в диагностический кадр.\n\nИнструменты: `cat`, `grep`, `cut`.\n"
+    },
+    {
+      "path": "/home/student/linbus/notes.md",
+      "text": "Заметки\n------\n- LIN: Break + Sync(0x55) + PID + data + checksum.\n- Classic checksum = инверсия суммы байтов; enhanced = + PID.\n- Диагностические frame ID: 0x3C (master req) / 0x3D (slave resp).\n"
+    },
+    {
+      "path": "/home/student/linbus/lin-log.txt",
+      "text": "schedule: 0x3C@10ms 0x3D@10ms 0x22@50ms 0x10@100ms\nframe: Break Sync=55 PID=0x3C data=02 01 00 00 00 00 00 00 CS=0x7A\nframe: Break Sync=55 PID=0x22 data=00 00 00 00 00 00 00 00 CS=0xFF\nframe: Break Sync=55 PID=0x3D data=62 01 02 03 00 00 00 00 CS=0x11  # diag response\ndiag: payload=nto{l1n_n0_4uth_m4st3r_0wn3d}\nframe: Break Sync=55 PID=0x3C data=02 00 00 00 00 00 00 00 CS=0xFB\n"
+    }
+  ]
+}

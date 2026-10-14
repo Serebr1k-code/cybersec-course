@@ -178,6 +178,36 @@ rela = p64(bss + 0x300) + p64((sym_off // 0x18) << 32 | 7) + p64(0)
 - **Выравнивание стека** — при `movaps`-креше добавь `ret`.
 - **Размер payload** — структуры плюс имя могут быть длинными.
 
+## Инструмент: readelf — разбор ELF
+
+`readelf` читает заголовки ELF-файла: архитектуру, тип, секции, сегменты и включённые защиты. С него начинается любой разбор нативного бинарника.
+
+Ключи, которые пригодятся:
+* `readelf -h <файл>` — заголовок: класс (32/64), машина, точка входа;
+* `readelf -S <файл>` — таблица секций (`.text`, `.plt`, `.got`, `.data`);
+* `readelf -s <файл>` — таблица символов (как `nm`, но с секциями и типами);
+* `readelf -l <файл>` — сегменты программы; ищи `GNU_STACK`/`GNU_RELRO`, чтобы понять защиты.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ readelf -r ret2dl
+
+Relocation section '.rela.dyn' at offset 0x520 contains 4 entries:
+  Offset          Info           Type           Sym. Value    Sym. Name + Addend
+000000403fc8  000100000006 R_X86_64_GLOB_DAT 0000000000000000 __libc_start_main@GLIBC_2.34 + 0
+000000403fd0  000200000006 R_X86_64_GLOB_DAT 0000000000000000 _ITM_deregisterTM[...] + 0
+000000403fd8  000500000006 R_X86_64_GLOB_DAT 0000000000000000 __gmon_start__ + 0
+000000403fe0  000600000006 R_X86_64_GLOB_DAT 0000000000000000 _ITM_registerTMCl[...] + 0
+
+Relocation section '.rela.plt' at offset 0x580 contains 2 entries:
+  Offset          Info           Type           Sym. Value    Sym. Name + Addend
+000000404000  000300000007 R_X86_64_JUMP_SLO 0000000000000000 puts@GLIBC_2.2.5 + 0
+000000404008  000400000007 R_X86_64_JUMP_SLO 0000000000000000 read@GLIBC_2.2.5 + 0
+```
+
+Подсказка из лаборатории: `readelf [-r|-h|-d] <файл> — разбор ELF`.
+
 ## Что мы теперь знаем
 
 - ret2dlresolve заставляет линкер разрешить произвольный символ без знания libc.

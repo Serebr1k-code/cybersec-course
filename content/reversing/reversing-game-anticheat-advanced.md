@@ -211,6 +211,104 @@ WinDbg в kernel-mode для Windows. Ошибка в драйвере роня�
 `init_module`, восстанавливать вызовы API, искать строки; для виртуализации —
 девиртуализировать (см. урок про VMProtect).
 
+## Инструмент: objdump — дизассемблер
+
+`objdump` показывает машинный код бинарника в виде ассемблера. Именно по нему считают смещения буферов, находят вызовы и адреса — основа статического разбора.
+
+Ключи, которые пригодятся:
+* `objdump -d <файл>` — дизассемблировать секцию `.text` (машинный код функций);
+* `objdump -d <файл> | less` — листать вывод, искать нужную функцию по имени;
+* `objdump -M intel -d <файл>` — синтаксис Intel (привычнее, чем AT&T);
+* в выводе важны пролог функции (`push rbp; mov rbp,rsp`) и `sub rsp,N` — по нему видно размер кадра.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ objdump objdump -x acdrv.sys
+
+/tmp/labgen/fx/acdrv.sys:     file format pei-x86-64
+/tmp/labgen/fx/acdrv.sys
+architecture: i386:x86-64, flags 0x0000013f:
+HAS_RELOC, EXEC_P, HAS_LINENO, HAS_DEBUG, HAS_SYMS, HAS_LOCALS, D_PAGED
+start address 0x0000000140001000
+
+Characteristics 0x22
+	executable
+	large address aware
+
+Time/Date		Tue Oct 13 18:36:06 2026
+Magic			020b	(PE32+)
+MajorLinkerVersion	14
+MinorLinkerVersion	0
+SizeOfCode		0000000000000200
+SizeOfInitializedData	0000000000000600
+SizeOfUninitializedData	0000000000000000
+AddressOfEntryPoint	0000000000001000
+BaseOfCode		0000000000001000
+ImageBase		0000000140000000
+SectionAlignment	00001000
+FileAlignment		00000200
+MajorOSystemVersion	6
+MinorOSystemVersion	0
+MajorImageVersion	0
+MinorImageVersion	0
+MajorSubsystemVersion	6
+MinorSubsystemVersion	0
+Win32Version		00000000
+SizeOfImage		00005000
+SizeOfHeaders		00000400
+CheckSum		00000000
+Subsystem		00000003	(Windows CUI)
+DllCharacteristics	00008160
+					HIGH_ENTROPY_VA
+					DYNAMIC_BASE
+					NX_COMPAT
+					TERMINAL_SERVICE_AWARE
+SizeOfStackReserve	0000000000100000
+SizeOfStackCommit	0000000000001000
+SizeOfHeapReserve	0000000000100000
+SizeOfHeapCommit	0000000000001000
+LoaderFlags		00000000
+NumberOfRvaAndSizes	00000010
+
+The Data Directory
+Entry 0 0000000000000000 00000000 Export Directory [.edata (or where ever we found it)]
+Entry 1 0000000000000000 00000000 Import Directory [parts of .idata]
+Entry 2 0000000000000000 00000000 Resource Directory [.rsrc]
+Entry 3 0000000000000000 00000000 Exception Directory [.pdata]
+Entry 4 0000000000000000 00000000 Security Directory
+Entry 5 0000000000000000 00000000 Base Relocation Directory [.reloc]
+Entry 6 0000000000003000 0000001c Debug Directory
+Entry 7 0000000000000000 00000000 Description Directory
+Entry 8 0000000000000000 00000000 Special Directory
+Entry 9 0000000000000000 00000000 Thread Storage Directory [.tls]
+Entry a 0000000000000000 00000000 Load Configuration Directory
+Entry b 0000000000000000 00000000 Bound Import Directory
+Entry c 0000000000000000 00000000 Import Address Table Directory
+Entry d 0000000000000000 00000000 Delay Import Directory
+Entry e 0000000000000000 00000000 CLR Runtime Header
+Entry f 0000000000000000 00000000 Reserved
+
+There is a debug directory in .buildid at 0x140003000
+
+Type                Size     Rva      Offset
+  2        CodeView 00000019 0000301c 0000081c
+(format RSDS signature 5e50cd2441d5c8474c4c44205044422e age 1 pdb (none))
+
+Sections:
+Idx Name          Size      VMA               LMA               File off  Algn
+  0 .text         00000049  0000000140001000  0000000140001000  00000400  2**4
+                  CONTENTS, ALLOC, LOAD, READONLY, CODE
+  1 .rdata        00000020  0000000140002000  0000000140002000  00000600  2**4
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  2 .buildid      00000035  0000000140003000  0000000140003000  00000800  2**2
+                  CONTENTS, ALLOC, LOAD, READONLY, DATA
+  3 .data         00000024  0000000140004000  0000000140004000  00000a00  2**4
+                  CONTENTS
+```
+
+Подсказка из лаборатории: `objdump -x <файл>`.
+
 ## Что мы теперь знаем
 
 - Модуль ядра — ELF типа **REL** с секциями `.init.text/.exit.text/.modinfo`;

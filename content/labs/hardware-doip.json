@@ -1,0 +1,27 @@
+{
+  "id": "hardware-doip",
+  "workdir": "/home/student/doip",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/doip/found.txt",
+    "contains": "nto{"
+  },
+  "fs": [
+    {
+      "path": "/home/student/doip",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/doip/task.md",
+      "text": "# Задача: DoIP\n\nВ DoIP-сессии найди данные диагностического ответа, содержащие флаг.\n\nИнструменты: `cat`, `grep`, `cut`.\n"
+    },
+    {
+      "path": "/home/student/doip/notes.md",
+      "text": "Заметки\n------\n- DoIP = ISO 13400, порт 13400.\n- discovery (UDP) -> routing activation -> diagnostic (TCP).\n- Внутри — обычные UDS-сообщения.\n"
+    },
+    {
+      "path": "/home/student/doip/doip.log",
+      "text": "req  vehicle_identification_request (broadcast)\nresp vehicle_announcement vin=WVWZZZ1JZXW000001 logical_addr=0x0E00 ip=169.254.10.20\nreq  routing_activation source_addr=0x0E80 activation_type=0x00\nresp routing_activation response_code=0x10 (success)\ndiag source=0x0E80 target=0x0E00 uds=22 F1 90\ndiag source=0x0E00 target=0x0E80 uds=62 F1 90 6E 74 6F\ndecoded: did_f190=nto{d01p_r0ut3_4ct1v4t3d}\n"
+    }
+  ]
+}

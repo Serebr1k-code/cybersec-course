@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: Zeek: охота по логам, а не по пакетам\n\nZeek превращает трафик в структурированные логи. В каталоге есть три лога: `conn.log`, `dns.log`, `notice.log`. Нужно по логам найти внутренний хост, который попал в **notice** (сработала сигнатура сканирования).\n\n1. Что в notice: `cat notice.log` или `grep Scan notice.log`\n2. Сверь с `conn.log` (beaconing каждые ~60 c на 203.0.113.9:443).\n\nЗапиши **IP-адрес источника** из notice.log в `answer.txt` и набери `check`.\n"
+      "text": "# Задача: Zeek: охота по логам, а не по пакетам\n\nZeek превращает трафик в структурированные логи. В каталоге есть три лога: `conn.log`, `dns.log`, `notice.log`. Нужно по логам найти внутренний хост, который попал в **notice** (сработала сигнатура сканирования).\n\n1. Что в notice: `cat notice.log` или `grep Scan notice.log`\n2. Сверь с `conn.log` (beaconing каждые ~60 c на 203.0.113.9:443).\n\nЗапиши **IP-адрес источника** из notice.log в `answer.txt` и набери `check`.\n\n## Повторение (`network-tcpdump`)\n\nZeek-лог — тот же трафик, что ты разбирал в `network-tcpdump`, только уже структурированный. Вспомни направление потока (кто клиент, кто сервер) и посмотри шапку соединений:\n\n    head -n 5 conn.log\n\nПоля `id.orig_h` (источник) и `id.resp_h` (назначение) — те же src/dst, что и в выводе tcpdump.\n"
     },
     {
       "path": "/home/student/task/conn.log",

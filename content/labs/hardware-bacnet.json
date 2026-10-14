@@ -1,0 +1,27 @@
+{
+  "id": "hardware-bacnet",
+  "workdir": "/home/student/bacnet",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/bacnet/found.txt",
+    "contains": "nto{"
+  },
+  "fs": [
+    {
+      "path": "/home/student/bacnet",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/bacnet/task.md",
+      "text": "# Задача: BACnet\n\nРазбери BACnet-трафик BMS и найди флаг в записанном значении.\n\nИнструменты: `cat`, `grep`, `cut`.\n"
+    },
+    {
+      "path": "/home/student/bacnet/notes.md",
+      "text": "Заметки\n------\n- BACnet/IP: 47808/UDP (0xBAC0).\n- Объекты: AnalogInput/Output, BinaryInput/Output, Device.\n- Сервисы: Who-Is/I-Am, ReadProperty, WriteProperty.\n"
+    },
+    {
+      "path": "/home/student/bacnet/bacnet.log",
+      "text": "Who-Is: broadcast\nI-Am: device=1001 vendor=Acme name=AHU-1\nobject: type=AnalogInput instance=1 present_value=21.5 units=C\nWriteProperty: dev=1001 obj=AnalogOutput:2 prop=Present_Value value=100.0\ncapture: secret=nto{b4cn3t_wr1t3_p01nt_0wn3d}\n"
+    }
+  ]
+}

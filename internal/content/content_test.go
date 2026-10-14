@@ -1008,6 +1008,75 @@ func TestParseLessonWithLab(t *testing.T) {
 	}
 }
 
+// --- waystone gates ---------------------------------------------------------
+
+func TestGetBool(t *testing.T) {
+	m := map[string]any{"t": "true", "y": "yes", "one": "1", "f": "false", "b": true}
+	for _, k := range []string{"t", "y", "one", "b"} {
+		if !getBool(m, k) {
+			t.Errorf("getBool(%q) = false, want true", k)
+		}
+	}
+	for _, k := range []string{"f", "missing"} {
+		if getBool(m, k) {
+			t.Errorf("getBool(%q) = true, want false", k)
+		}
+	}
+}
+
+func TestParseLessonWaystone(t *testing.T) {
+	raw := strings.Join([]string{
+		"---",
+		"id: network-waystone-demo",
+		"title: \"Вейстоун\"",
+		"category: network",
+		"waystone: true",
+		"waystone_tasks: [a, b, c, d, e]",
+		"---",
+		"## Введение",
+		"текст",
+	}, "\n")
+	l, err := parseLesson(raw, "content/network/network-waystone-demo.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !l.Waystone {
+		t.Error("Waystone = false, want true")
+	}
+	want := []string{"a", "b", "c", "d", "e"}
+	if !reflect.DeepEqual(l.WaystoneTasks, want) {
+		t.Errorf("WaystoneTasks = %v, want %v", l.WaystoneTasks, want)
+	}
+}
+
+func TestParseLessonNotWaystoneByDefault(t *testing.T) {
+	l, err := parseLesson("---\nid: plain\n---\nbody\n", "content/web/plain.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if l.Waystone || len(l.WaystoneTasks) != 0 {
+		t.Errorf("default lesson must not be a waystone: %v %v", l.Waystone, l.WaystoneTasks)
+	}
+}
+
+func TestBuildTreeCarriesWaystone(t *testing.T) {
+	gate := &model.Lesson{LessonMeta: model.LessonMeta{
+		ID: "g", Title: "Gate", Category: "network", Waystone: true,
+		WaystoneTasks: []string{"t1", "t2"},
+	}}
+	child := &model.Lesson{LessonMeta: model.LessonMeta{ID: "c", Title: "Child", Category: "network", Parent: "g"}}
+	_, nodes := buildTree(map[string]*model.Lesson{"g": gate, "c": child})
+	if nodes["g"] == nil || !nodes["g"].Waystone {
+		t.Fatalf("gate node lost its waystone flag: %#v", nodes["g"])
+	}
+	if got := nodes["g"].WaystoneTasks; !reflect.DeepEqual(got, []string{"t1", "t2"}) {
+		t.Errorf("gate node tasks = %v", got)
+	}
+	if nodes["c"].Waystone {
+		t.Error("child node must not be a waystone")
+	}
+}
+
 func TestSplitInlineList(t *testing.T) {
 	got := splitInlineList(`[core, "a, b", grep]`)
 	want := []string{"core", "a, b", "grep"}

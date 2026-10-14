@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-split-apk",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{spl1t_4pk_m3rg3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: split APK\n\nОпредели, где лежит код и где библиотеки.\n"
+    },
+    {
+      "path": "/home/student/task/splits.txt",
+      "text": "base.apk          -> dex + manifest\nconfig.arm64_v8a.apk -> lib/*.so  # native libs here  # flag: nto{spl1t_4pk_m3rg3d}\nconfig.xxhdpi.apk -> res\n"
+    }
+  ]
+}

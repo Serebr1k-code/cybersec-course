@@ -1,0 +1,27 @@
+{
+  "id": "pwn-vbs-hvci",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "hvci=1"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: определить, включён ли HVCI\n\n`deviceguard.txt` — конфигурация Device Guard / VBS на цели. Нужно\nопределить, включён ли HVCI (код ядра защищён).\n\n1. `cat deviceguard.txt` — изучи конфигурацию.\n2. Найди значение, показывающее состояние HVCI.\n3. Запиши `hvci=1` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/deviceguard.txt",
+      "text": "VirtualizationBasedSecurity     : enabled\nVBS Running                     : 1\nHypervisorEnforcedCodeIntegrity : 1\nKernel DMA Protection           : enabled\nSecure Launch                   : disabled\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "HypervisorEnforcedCodeIntegrity = 1 -> HVCI включён.\nЭто значит: неподписанный код в режиме ядра не исполняется.\n"
+    }
+  ]
+}

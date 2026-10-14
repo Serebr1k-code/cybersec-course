@@ -18,7 +18,7 @@ lab:
   toolset: [core]
   workdir: /home/student/task
   files: [task.md, url.txt]
-  check: "grep -q '' answer.txt"
+  check: "grep -q 'example.com.evil.example' answer.txt"
   hints:
     - "Посмотри ссылку: `cat url.txt`."
     - "Всё до символа @ — обманка; реальный хост после @."

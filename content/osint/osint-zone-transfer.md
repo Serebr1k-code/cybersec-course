@@ -18,7 +18,7 @@ lab:
   toolset: [core, dig]
   workdir: /home/student/task
   files: [task.md]
-  check: "grep -q '' answer.txt"
+  check: "grep -q 'www.sydneyoperahouse.com' answer.txt"
   hints:
     - "AXFR — зонная передача; она идёт по TCP/53 и иногда остаётся открытой."
     - "Сначала узнай NS, затем запроси зону: `dig AXFR zonetransfer.me @nsztm1.digi.ninja`."

@@ -1,0 +1,27 @@
+{
+  "id": "hardware-keyless-relay",
+  "workdir": "/home/student/keyless",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/keyless/found.txt",
+    "contains": "nto{"
+  },
+  "fs": [
+    {
+      "path": "/home/student/keyless",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/keyless/task.md",
+      "text": "# Задача: keyless\n\nРазбери обмен ключа и машины, найди флаг в служебных данных.\n\nИнструменты: `cat`, `grep`, `cut`.\n"
+    },
+    {
+      "path": "/home/student/keyless/notes.md",
+      "text": "Заметки\n------\n- PKE: challenge (LF) -> response (RF). RKE: команда по кнопке.\n- Relay удлиняет канал, крипто не ломается.\n- RollJam глушит+записывает кадр.\n"
+    },
+    {
+      "path": "/home/student/keyless/keyless.log",
+      "text": "car -> key  LF challenge=0xA1B2C3D4\nkey -> car  RF response=0x5E6F7A8B ctr=0x00123\nRKE button=unlock ctr=0x00124\nrelay: dist_car=50m dist_key=200m amplified=true latency=8ms\ncapture: secret=nto{r3l4y_n0_crypt0_n33d3d}\n"
+    }
+  ]
+}

@@ -19,7 +19,7 @@ lab:
   toolset: [core, tshark]
   workdir: /home/student/task
   files: [task.md, amp.pcap]
-  check: "grep -q '' answer.txt"
+  check: "grep -q '2078' answer.txt"
   hints:
     - "Обмен: `tshark -r amp.pcap -Y dns -T fields -e ip.src -e ip.dst -e udp.length -e dns.qry.name`."
     - "Сравни udp.length запроса и ответа — это коэффициент усиления."

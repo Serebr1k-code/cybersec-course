@@ -18,7 +18,7 @@ lab:
   toolset: [core, exiftool]
   workdir: /home/student/task
   files: [task.md, photo.jpg]
-  check: "grep -q '' answer.txt"
+  check: "grep -q 'Adobe Photoshop 24.0' answer.txt"
   hints:
     - "Метаданные читает `exiftool`."
     - "`exiftool photo.jpg` выведет все теги файла."

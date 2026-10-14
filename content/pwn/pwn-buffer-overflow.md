@@ -197,6 +197,148 @@ payload = b'A' * OFFSET + p64(ret) + p64(win)
 
 Почему это важно: какая именно функция переполняет, определяет **ограничения payload**. `gets` и `strcpy` останавливаются на `\x00` и `\n`, поэтому адрес с нулевыми байтами через них не запишешь. `read` читает ровно сколько сказано и позволяет писать нули — это критично для адресов PIE.
 
+## Инструмент: nm — таблица символов
+
+`nm` перечисляет символы бинарника: имена функций и глобальных переменных с их адресами. Если символы не срезаны, это самый быстрый способ найти нужную функцию.
+
+Ключи, которые пригодятся:
+* `nm <файл>` — все символы с адресами;
+* `nm -C <файл>` — демутируй C++-имена (читаемые сигнатуры);
+* `T`/`t` — код (глобальный/локальный), `R`/`r` — только чтение (`.rodata`), `D`/`B` — данные;
+* нижний регистр = локальный символ, верхний = глобальный/экспортируемый.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ nm vuln_win
+0000000000403000 R __bss_start
+0000000000403000 R _edata
+0000000000403000 R _end
+00000000004010f4 T _start
+000000000040105a t ex
+0000000000402000 r flag
+0000000000401000 t rd
+00000000004010ba T vuln
+0000000000401077 T win
+000000000040102d t wr
+```
+
+Подсказка из лаборатории: `nm <файл> — таблица символов`.
+
+## Инструмент: objdump — дизассемблер
+
+`objdump` показывает машинный код бинарника в виде ассемблера. Именно по нему считают смещения буферов, находят вызовы и адреса — основа статического разбора.
+
+Ключи, которые пригодятся:
+* `objdump -d <файл>` — дизассемблировать секцию `.text` (машинный код функций);
+* `objdump -d <файл> | less` — листать вывод, искать нужную функцию по имени;
+* `objdump -M intel -d <файл>` — синтаксис Intel (привычнее, чем AT&T);
+* в выводе важны пролог функции (`push rbp; mov rbp,rsp`) и `sub rsp,N` — по нему видно размер кадра.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ objdump -d vuln_win
+
+vuln_win:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000401000 <rd>:
+  401000:	55                   	push   rbp
+  401001:	48 89 e5             	mov    rbp,rsp
+  401004:	48 89 7d e8          	mov    QWORD PTR [rbp-0x18],rdi
+  401008:	48 89 75 e0          	mov    QWORD PTR [rbp-0x20],rsi
+  40100c:	48 89 55 d8          	mov    QWORD PTR [rbp-0x28],rdx
+  401010:	b8 00 00 00 00       	mov    eax,0x0
+  401015:	48 8b 7d e8          	mov    rdi,QWORD PTR [rbp-0x18]
+  401019:	48 8b 75 e0          	mov    rsi,QWORD PTR [rbp-0x20]
+  40101d:	48 8b 55 d8          	mov    rdx,QWORD PTR [rbp-0x28]
+  401021:	0f 05                	syscall
+  401023:	48 89 45 f8          	mov    QWORD PTR [rbp-0x8],rax
+  401027:	48 8b 45 f8          	mov    rax,QWORD PTR [rbp-0x8]
+  40102b:	5d                   	pop    rbp
+  40102c:	c3                   	ret
+
+000000000040102d <wr>:
+  40102d:	55                   	push   rbp
+  40102e:	48 89 e5             	mov    rbp,rsp
+  401031:	48 89 7d e8          	mov    QWORD PTR [rbp-0x18],rdi
+  401035:	48 89 75 e0          	mov    QWORD PTR [rbp-0x20],rsi
+  401039:	48 89 55 d8          	mov    QWORD PTR [rbp-0x28],rdx
+  40103d:	b8 01 00 00 00       	mov    eax,0x1
+  401042:	48 8b 7d e8          	mov    rdi,QWORD PTR [rbp-0x18]
+  401046:	48 8b 75 e0          	mov    rsi,QWORD PTR [rbp-0x20]
+  40104a:	48 8b 55 d8          	mov    rdx,QWORD PTR [rbp-0x28]
+  40104e:	0f 05                	syscall
+  401050:	48 89 45 f8          	mov    QWORD PTR [rbp-0x8],rax
+  401054:	48 8b 45 f8          	mov    rax,QWORD PTR [rbp-0x8]
+  401058:	5d                   	pop    rbp
+  401059:	c3                   	ret
+
+000000000040105a <ex>:
+  40105a:	55                   	push   rbp
+  40105b:	48 89 e5             	mov    rbp,rsp
+  40105e:	48 89 7d f8          	mov    QWORD PTR [rbp-0x8],rdi
+  401062:	b8 3c 00 00 00       	mov    eax,0x3c
+  401067:	48 8b 55 f8          	mov    rdx,QWORD PTR [rbp-0x8]
+  40106b:	48 89 d7             	mov    rdi,rdx
+  40106e:	0f 05                	syscall
+  401070:	b8 00 00 00 00       	mov    eax,0x0
+  401075:	5d                   	pop    rbp
+  401076:	c3                   	ret
+
+0000000000401077 <win>:
+  401077:	55                   	push   rbp
+  401078:	48 89 e5             	mov    rbp,rsp
+  40107b:	48 8d 05 7e 0f 00 00 	lea    rax,[rip+0xf7e]        # 402000 <flag>
+  401082:	ba 18 00 00 00       	mov    edx,0x18
+  401087:	48 89 c6             	mov    rsi,rax
+  40108a:	bf 01 00 00 00       	mov    edi,0x1
+  40108f:	e8 99 ff ff ff       	call   40102d <wr>
+  401094:	48 8d 05 7e 0f 00 00 	lea    rax,[rip+0xf7e]        # 402019 <flag+0x19>
+  40109b:	ba 01 00 00 00       	mov    edx,0x1
+  4010a0:	48 89 c6             	mov    rsi,rax
+  4010a3:	bf 01 00 00 00       	mov    edi,0x1
+  4010a8:	e8 80 ff ff ff       	call   40102d <wr>
+  4010ad:	bf 00 00 00 00       	mov    edi,0x0
+  4010b2:	e8 a3 ff ff ff       	call   40105a <ex>
+  4010b7:	90                   	nop
+  4010b8:	5d                   	pop    rbp
+  4010b9:	c3                   	ret
+
+00000000004010ba <vuln>:
+  4010ba:	55                   	push   rbp
+  4010bb:	48 89 e5             	mov    rbp,rsp
+  4010be:	48 83 ec 40          	sub    rsp,0x40
+  4010c2:	48 8d 45 c0          	lea    rax,[rbp-0x40]
+  4010c6:	ba 00 01 00 00       	mov    edx,0x100
+  4010cb:	48 89 c6             	mov    rsi,rax
+  4010ce:	bf 00 00 00 00       	mov    edi,0x0
+  4010d3:	e8 28 ff ff ff       	call   401000 <rd>
+  4010d8:	48 8d 05 3c 0f 00 00 	lea    rax,[rip+0xf3c]        # 40201b <flag+0x1b>
+  4010df:	ba 03 00 00 00       	mov    edx,0x3
+  4010e4:	48 89 c6             	mov    rsi,rax
+  4010e7:	bf 01 00 00 00       	mov    edi,0x1
+  4010ec:	e8 3c ff ff ff       	call   40102d <wr>
+  4010f1:	90                   	nop
+  4010f2:	c9                   	leave
+  4010f3:	c3                   	ret
+
+00000000004010f4 <_start>:
+  4010f4:	55                   	push   rbp
+  4010f5:	48 89 e5             	mov    rbp,rsp
+  4010f8:	e8 bd ff ff ff       	call   4010ba <vuln>
+  4010fd:	bf 00 00 00 00       	mov    edi,0x0
+  401102:	e8 53 ff ff ff       	call   40105a <ex>
+  401107:	90                   	nop
+  401108:	5d                   	pop    rbp
+  401109:	c3                   	ret
+```
+
+Подсказка из лаборатории: `objdump [-d] <файл> — дизассемблирование`.
+
 ## Что мы теперь знаем
 
 - Переполнение буфера — это запись данных за границу массива; лишние байты портят соседнюю память.

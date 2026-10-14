@@ -13,6 +13,18 @@ useful_for:
   - 'Windows Server'
 estimated_minutes: 55
 summary: 'Как опознать и разобрать ReFS: почему нет $MFT, где живут метаданные, как читать boot sector и object table, и как восстанавливать данные инструментами refsutil / X-Ways.'
+lab:
+  kind: shell
+  title: 'Практика: опознать том ReFS'
+  toolset: [core, grep, hex]
+  workdir: /home/student/task
+  files: [task.md, refs.img]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Начни с `ls -la` и `xxd -l 16 refs.img` — смотри подпись в boot sector.'
+    - 'ReFS не имеет $MFT; ищи текстовые метаданные в образе: `strings refs.img`.'
+    - 'В метаданных есть строка с флагом `nto{...}`.'
+    - 'Запиши флаг в `answer.txt`: `strings refs.img | grep nto > answer.txt`, затем набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

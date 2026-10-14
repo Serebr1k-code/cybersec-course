@@ -19,7 +19,7 @@ lab:
   toolset: [core, tshark]
   workdir: /home/student/task
   files: [task.md, capture.pcap]
-  check: "grep -q '' answer.txt"
+  check: "grep -q 'hunter2' answer.txt"
   hints:
     - "Начни с обзора протоколов: `tshark -r capture.pcap -q -z io,phs`."
     - "Список HTTP-запросов: `-Y http -T fields -e http.request.method -e http.request.uri`."

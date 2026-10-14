@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-rasp",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r4sp_byp4ss3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: RASP\n\nОпредели порядок обхода проверок.\n"
+    },
+    {
+      "path": "/home/student/task/rasp.txt",
+      "text": "check_root: /system/xbin/su\ncheck_debug: TracerPid\ncheck_frida: port 27042  # bypass first  # flag: nto{r4sp_byp4ss3d}\n"
+    }
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "id": "win-edr-logs",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{edr_d3t3ct_ls4ss_dump}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: журнал EDR\n\nВыгрузка детектов EDR в JSON. Определи самую серьёзную детекцию и найди флаг.\n\n1. `cat detections.json`.\n2. Смотри severity и detection_name.\n3. `grep nto detections.json > found.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/detections.json",
+      "text": "[\n  {\"ts\":\"2024-03-02T10:11:12Z\",\"severity\":\"low\",\"detection_name\":\"Recon\",\"details\":\"whoami\"}, \n  {\"ts\":\"2024-03-02T10:12:01Z\",\"severity\":\"critical\",\"detection_name\":\"CredentialTheft\",\"details\":\"lsass memory access -> nto{edr_d3t3ct_ls4ss_dump}\"},\n  {\"ts\":\"2024-03-02T10:13:44Z\",\"severity\":\"medium\",\"detection_name\":\"Persistence\",\"details\":\"run key added\"}\n]\n",
+      "mode": "644"
+    }
+  ]
+}

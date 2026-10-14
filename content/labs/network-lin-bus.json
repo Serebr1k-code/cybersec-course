@@ -1,0 +1,21 @@
+{
+  "id": "network-lin-bus",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{l1n_m45t3r_fr4m3}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: кадр вне schedule table\n\n`lin.log` — обмен LIN-шины: master по очереди опрашивает slave по расписанию\n(schedule table). В расписании мастера — только эти ID:\n\n    0x12 — кнопки руля\n    0x3D — датчик дождя\n\nЛюбой другой ID — кадр вне расписания (подделка/инъекция). У постороннего кадра\nполе `data:` содержит base64.\n\n1. Посмотри лог: `cat lin.log`\n2. Найди кадр вне расписания: `grep 0x0A lin.log`\n3. Вырежи base64 и декодируй: `grep 0x0A lin.log | cut -d: -f2 | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n\n## Повторение (`network-can-bus`)\n\nКадр шины — это `ID` + `data`, как в `network-can-bus`. Сначала выпиши, какие ID вообще встречаются в логе:\n\n    grep 0x lin.log | head\n\nСравни с schedule table мастера — так сразу виден кадр «вне расписания».\n"
+    },
+    {
+      "path": "/home/student/task/lin.log",
+      "text": "MASTER -> ID=0x12  data:00 01 02 03\nMASTER -> ID=0x3D  data:FF 00 00 00\nMASTER -> ID=0x0A  data:bnRve2wxbl9tNDV0M3JfZnI0bTN9\nMASTER -> ID=0x12  data:04 05 06 07\nMASTER -> ID=0x3D  data:11 22 33 44\n"
+    }
+  ],
+  "tools": {}
+}

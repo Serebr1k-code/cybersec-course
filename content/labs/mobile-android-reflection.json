@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-reflection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r3fl3ct10n_d3obf}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: reflection\n\nСобери имя класса и метода.\n"
+    },
+    {
+      "path": "/home/student/task/reflection.txt",
+      "text": "Class.forName(\"com.example.\" + \"Sec\" + \"urity\")   # com.example.Security\ngetMethod(\"che\" + \"ck\")  # method: check  # flag: nto{r3fl3ct10n_d3obf}\n"
+    }
+  ]
+}

@@ -13,6 +13,18 @@ useful_for:
   - 'Data recovery'
 estimated_minutes: 50
 summary: 'Устройство F2FS: суперблок по offset 1024, checkpoint, NAT/SIT, сегменты. Как опознать F2FS в Android-образе, извлечь данные и почему удалённые имена почти не сохраняются.'
+lab:
+  kind: shell
+  title: 'Практика: опознать F2FS'
+  toolset: [core, grep, hex]
+  workdir: /home/student/task
+  files: [task.md, userdata.img]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Начни с `ls -la` и `xxd -s 1024 -l 16 userdata.img` — суперблок F2FS лежит по offset 1024.'
+    - 'F2FS пишет метаданные сегментами; ищи текстовые строки: `strings userdata.img`.'
+    - 'В метаданных есть строка с флагом `nto{...}`.'
+    - 'Запиши флаг в `answer.txt`: `strings userdata.img | grep nto > answer.txt`, затем набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

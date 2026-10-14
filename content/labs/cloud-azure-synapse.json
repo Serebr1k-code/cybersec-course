@@ -1,0 +1,27 @@
+{
+  "id": "cloud-azure-synapse",
+  "workdir": "/home/student/synapse",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/synapse/found.txt",
+    "contains": "nto{synapse_workspace_identity_reads_lake}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/synapse",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/synapse/task.md",
+      "text": "# Задача\n\nНайден ноутбук Synapse, читающий озеро данных. Определи, чьими правами он ходит, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/synapse/notebook.ipynb.txt",
+      "text": "df = spark.read.parquet(\"abfss://data@acmelake.dfs.core.windows.net/raw/orders\")\ndf.show(5)\n# executes under the Synapse workspace managed identity\n"
+    },
+    {
+      "path": "/home/student/synapse/notes.md",
+      "text": "Аудит: workspace identity = Storage Blob Data Contributor on acmelake.\nКод на пуле видит озеро независимо от прав пользователя.\nnto{synapse_workspace_identity_reads_lake}\n"
+    }
+  ]
+}

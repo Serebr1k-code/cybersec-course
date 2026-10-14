@@ -21,6 +21,7 @@ lab:
   files: [task.md, fast.log]
   check: "grep -q '203.0.113.45' answer.txt"
   hints:
+    - "Повторение (`network-zeek`): сначала `head -n 3 fast.log` — как в zeek `notice.log`, строка это время + 5-tuple + сигнатура."
     - "Каждая строка fast.log — это сработавшее правило с 5-tuple в конце."
     - "Классификация `ET SCAN` означает сканирование."
     - "Ищи строки с `ET SCAN` и смотри на адрес источника."

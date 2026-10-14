@@ -19,7 +19,7 @@ lab:
   toolset: [core, openssl]
   workdir: /home/student/task
   files: [task.md, cert.pem]
-  check: "grep -q '' answer.txt"
+  check: "grep -q 'origin.example.com' answer.txt"
   hints:
     - "Посмотри сертификат: `openssl x509 -in cert.pem -noout -subject -issuer -dates -ext subjectAltName`."
     - "Список SAN перечисляет все домены сертификата."

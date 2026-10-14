@@ -19,7 +19,7 @@ lab:
   toolset: [core, dig]
   workdir: /home/student/task
   files: [task.md]
-  check: "grep -q '' answer.txt"
+  check: "grep -q 'reject' answer.txt"
   hints:
     - "DMARC лежит в TXT-записи `_dmarc.<домен>`."
     - "`dig _dmarc.example.com TXT`."

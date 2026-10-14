@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-dexguard",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d3xgu4rd_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: DexGuard\n\nСоставь план обхода защиты.\n"
+    },
+    {
+      "path": "/home/student/task/dexguard.txt",
+      "text": "classes renamed a.a.a\nstrings encrypted\nRASP: checks root+debugger on start  # flag: nto{d3xgu4rd_byp4ss}\n"
+    }
+  ]
+}

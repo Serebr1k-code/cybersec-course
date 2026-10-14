@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: "grep -q 'Sectigo Public Server Authentication CA DV E36' answer.txt"
   hints:
+    - "Повторение (`network-tcpip`): TLS — это TCP-соединение на `443`, поверх которого идёт рукопожатие и обмен сертификатами. Помнишь разбор TCP-заголовка? Здесь мы смотрим уже сам сертификат."
     - "`openssl s_client -connect host:443 -servername host` покажет цепочку и сам сертификат."
     - "Листовой сертификат — элемент `0` (CN=github.com). Его издатель в строке `i:`."
     - "Издатель начинается с `Sectigo Public Server Authentication CA DV E36`."

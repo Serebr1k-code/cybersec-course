@@ -1,0 +1,27 @@
+{
+  "id": "cloud-azure-data-factory",
+  "workdir": "/home/student/adf",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/adf/found.txt",
+    "contains": "nto{adf_managed_identity_reads_keyvault}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/adf",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/adf/task.md",
+      "text": "# Задача\n\nНайдено определение конвейера Data Factory. Определи, чьими правами он исполняется и к чему имеет доступ, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/adf/pipeline.json",
+      "text": "{\n  \"name\": \"copy-orders\",\n  \"properties\": {\n    \"activities\": [\n      {\"name\": \"readSql\", \"type\": \"Copy\",\n       \"linkedServiceName\": {\"referenceName\": \"kv-secret-source\"}}\n    ]\n  }\n}\n"
+    },
+    {
+      "path": "/home/student/adf/notes.md",
+      "text": "Аудит: identity фабрики acme-adf имеет get-доступ к Key Vault kv-acme.\nИзменение конвейера исполняется под identity фабрики.\nnto{adf_managed_identity_reads_keyvault}\n"
+    }
+  ]
+}

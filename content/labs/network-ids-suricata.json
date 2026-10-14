@@ -9,7 +9,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: разбор suricata fast.log\n\nВ каталоге лежит `fast.log` — журнал IDS Suricata. В нём смешаны события\nразного типа. Нужно найти **внешний** адрес, с которого шло сканирование\nSSH/VNC.\n\n1. Посмотри журнал: `cat fast.log`\n2. Отфильтруй сканирования: `grep 'ET SCAN' fast.log`\n3. Определи адрес источника (левый адрес в 5-tuple).\n\nЗапиши **IP сканера** в `answer.txt` и набери `check`.\n"
+      "text": "# Задача: разбор suricata fast.log\n\nВ каталоге лежит `fast.log` — журнал IDS Suricata. В нём смешаны события\nразного типа. Нужно найти **внешний** адрес, с которого шло сканирование\nSSH/VNC.\n\n1. Посмотри журнал: `cat fast.log`\n2. Отфильтруй сканирования: `grep 'ET SCAN' fast.log`\n3. Определи адрес источника (левый адрес в 5-tuple).\n\nЗапиши **IP сканера** в `answer.txt` и набери `check`.\n\n## Повторение (`network-zeek`)\n\n`fast.log` Suricata — однострочный журнал алертов, как `notice.log` в `network-zeek`. Сначала посмотри формат строки (время, 5-tuple, сигнатура):\n\n    head -n 3 fast.log\n\nПервый адрес в 5-tuple — источник, второй — цель.\n"
     },
     {
       "path": "/home/student/task/fast.log",

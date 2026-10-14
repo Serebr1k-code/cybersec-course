@@ -44,6 +44,136 @@ radare2 даёт базовый инструмент, с которого нач
 - Делать бинарный diff и восстанавливать суть патча.
 - Ориентироваться в Rust/Go-бинарях.
 
+## Инструмент: nm — таблица символов
+
+`nm` перечисляет символы бинарника: имена функций и глобальных переменных с их адресами. Если символы не срезаны, это самый быстрый способ найти нужную функцию.
+
+Ключи, которые пригодятся:
+* `nm <файл>` — все символы с адресами;
+* `nm -C <файл>` — демутируй C++-имена (читаемые сигнатуры);
+* `T`/`t` — код (глобальный/локальный), `R`/`r` — только чтение (`.rodata`), `D`/`B` — данные;
+* нижний регистр = локальный символ, верхний = глобальный/экспортируемый.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ nm nm sample
+0000000000401050 t .nope
+000000000040105e t .pr
+0000000000403000 R __bss_start
+0000000000403000 R _edata
+0000000000403000 R _end
+0000000000401021 T _start
+0000000000402007 r flag
+0000000000402027 r nope
+0000000000402000 r password
+0000000000401000 t strcmp
+```
+
+Подсказка из лаборатории: `nm <файл> — таблица символов`.
+
+## Инструмент: objdump — дизассемблер
+
+`objdump` показывает машинный код бинарника в виде ассемблера. Именно по нему считают смещения буферов, находят вызовы и адреса — основа статического разбора.
+
+Ключи, которые пригодятся:
+* `objdump -d <файл>` — дизассемблировать секцию `.text` (машинный код функций);
+* `objdump -d <файл> | less` — листать вывод, искать нужную функцию по имени;
+* `objdump -M intel -d <файл>` — синтаксис Intel (привычнее, чем AT&T);
+* в выводе важны пролог функции (`push rbp; mov rbp,rsp`) и `sub rsp,N` — по нему видно размер кадра.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ objdump objdump -d sample
+
+sample:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000401000 <strcmp>:
+  401000:	31 c0                	xor    %eax,%eax
+  401002:	0f b6 0f             	movzbl (%rdi),%ecx
+  401005:	0f b6 16             	movzbl (%rsi),%edx
+  401008:	38 d1                	cmp    %dl,%cl
+  40100a:	75 0c                	jne    401018 <strcmp+0x18>
+  40100c:	84 c9                	test   %cl,%cl
+  40100e:	74 0e                	je     40101e <strcmp+0x1e>
+  401010:	48 ff c7             	inc    %rdi
+  401013:	48 ff c6             	inc    %rsi
+  401016:	eb ea                	jmp    401002 <strcmp+0x2>
+  401018:	b8 01 00 00 00       	mov    $0x1,%eax
+  40101d:	c3                   	ret
+  40101e:	31 c0                	xor    %eax,%eax
+  401020:	c3                   	ret
+
+0000000000401021 <_start>:
+  401021:	48 8b 04 24          	mov    (%rsp),%rax
+  401025:	48 83 f8 02          	cmp    $0x2,%rax
+  401029:	7c 25                	jl     401050 <.nope>
+  40102b:	48 8b 74 24 10       	mov    0x10(%rsp),%rsi
+  401030:	48 8d 3d c9 0f 00 00 	lea    0xfc9(%rip),%rdi        # 402000 <password>
+  401037:	e8 c4 ff ff ff       	call   401000 <strcmp>
+  40103c:	85 c0                	test   %eax,%eax
+  40103e:	75 10                	jne    401050 <.nope>
+  401040:	48 8d 35 c0 0f 00 00 	lea    0xfc0(%rip),%rsi        # 402007 <flag>
+  401047:	48 c7 c2 1f 00 00 00 	mov    $0x1f,%rdx
+  40104e:	eb 0e                	jmp    40105e <.pr>
+
+0000000000401050 <.nope>:
+  401050:	48 8d 35 d0 0f 00 00 	lea    0xfd0(%rip),%rsi        # 402027 <nope>
+  401057:	48 c7 c2 05 00 00 00 	mov    $0x5,%rdx
+
+000000000040105e <.pr>:
+  40105e:	48 c7 c0 01 00 00 00 	mov    $0x1,%rax
+  401065:	48 c7 c7 01 00 00 00 	mov    $0x1,%rdi
+  40106c:	0f 05                	syscall
+  40106e:	48 c7 c0 3c 00 00 00 	mov    $0x3c,%rax
+  401075:	48 31 ff             	xor    %rdi,%rdi
+  401078:	0f 05                	syscall
+```
+
+Подсказка из лаборатории: `objdump -d <файл> — дизассемблер`.
+
+## Инструмент: readelf — разбор ELF
+
+`readelf` читает заголовки ELF-файла: архитектуру, тип, секции, сегменты и включённые защиты. С него начинается любой разбор нативного бинарника.
+
+Ключи, которые пригодятся:
+* `readelf -h <файл>` — заголовок: класс (32/64), машина, точка входа;
+* `readelf -S <файл>` — таблица секций (`.text`, `.plt`, `.got`, `.data`);
+* `readelf -s <файл>` — таблица символов (как `nm`, но с секциями и типами);
+* `readelf -l <файл>` — сегменты программы; ищи `GNU_STACK`/`GNU_RELRO`, чтобы понять защиты.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ readelf readelf -h sample
+ELF Header:
+  Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 
+  Class:                             ELF64
+  Data:                              2's complement, little endian
+  Version:                           1 (current)
+  OS/ABI:                            UNIX - System V
+  ABI Version:                       0
+  Type:                              EXEC (Executable file)
+  Machine:                           Advanced Micro Devices X86-64
+  Version:                           0x1
+  Entry point address:               0x401021
+  Start of program headers:          64 (bytes into file)
+  Start of section headers:          8728 (bytes into file)
+  Flags:                             0x0
+  Size of this header:               64 (bytes)
+  Size of program headers:           56 (bytes)
+  Number of program headers:         6
+  Size of section headers:           64 (bytes)
+  Number of section headers:         8
+  Section header string table index: 7
+```
+
+Подсказка из лаборатории: `readelf <опция> <файл>`.
+
 ## Квиз
 
 ```quiz

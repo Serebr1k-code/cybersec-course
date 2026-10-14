@@ -11,6 +11,9 @@ import { createSession } from '../lab/session'
 const props = defineProps({
   lessonId: { type: String, required: true },
   lab: { type: Object, required: true },
+  // Инлайн-режим: терминал встроен в текст урока (компактнее и сворачивается),
+  // а не отдельной панелью внизу.
+  inline: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['solved'])
@@ -20,6 +23,9 @@ const loading = ref(true)
 const error = ref('')
 const solved = ref(false)
 const bundle = ref(null)
+// Свёрнутый инлайн-терминал: текст урока остаётся читаемым, консоль
+// разворачивается одним тапом. По умолчанию развёрнут.
+const collapsed = ref(false)
 
 let shell = null
 let session = null
@@ -33,6 +39,16 @@ function bundleId() { return props.lab?.bundle || props.lessonId }
 function onSolved() {
   solved.value = true
   emit('solved')
+}
+
+// Разворачивание после сворачивания: xterm теряет размеры в скрытом узле,
+// поэтому пересчитываем fit на следующем кадре.
+async function toggleCollapsed() {
+  collapsed.value = !collapsed.value
+  if (!collapsed.value) {
+    await nextTick()
+    if (shell && shell.fit) { try { shell.fit.fit() } catch (e) { /* ignore */ } }
+  }
 }
 
 async function mount() {
@@ -70,7 +86,7 @@ onBeforeUnmount(() => { if (shell) shell.dispose(); shell = null; session = null
 </script>
 
 <template>
-  <section class="lab-panel" :class="{ solved }">
+  <section class="lab-panel" :class="{ solved, inline, collapsed }">
     <header class="lab-head">
       <span class="lab-icon" aria-hidden="true">⌨</span>
       <div class="lab-titles">
@@ -84,22 +100,36 @@ onBeforeUnmount(() => { if (shell) shell.dispose(); shell = null; session = null
       <div class="lab-actions">
         <button class="btn btn-sm" type="button" @click="hint">Подсказка</button>
         <button class="btn btn-sm" type="button" @click="reset">Сброс</button>
+        <button
+          v-if="inline"
+          class="btn btn-sm lab-collapse"
+          type="button"
+          :aria-expanded="!collapsed"
+          :title="collapsed ? 'Развернуть терминал' : 'Свернуть терминал'"
+          @click="toggleCollapsed"
+        ><span aria-hidden="true">{{ collapsed ? '▸' : '▾' }}</span></button>
       </div>
     </header>
 
-    <div v-if="solved" class="lab-solved" role="status">
-      ✓ Лаборатория пройдена — условие выполнено.
+    <div v-show="!collapsed">
+      <div v-if="solved" class="lab-solved" role="status">
+        ✓ Лаборатория пройдена — условие выполнено.
+      </div>
+
+      <div class="lab-term-wrap">
+        <div ref="termEl" class="lab-term" :aria-label="'Терминал лаборатории: ' + title"></div>
+        <div v-if="loading" class="lab-overlay">Загрузка лаборатории…</div>
+        <div v-else-if="error" class="lab-overlay err">Не удалось загрузить лабораторию: {{ error }}</div>
+      </div>
+
+      <footer class="lab-foot">
+        Набери <code>help</code> — список инструментов. Проверить решение: <code>check</code>. Нужна подсказка: <code>hint</code>.
+      </footer>
     </div>
 
-    <div class="lab-term-wrap">
-      <div ref="termEl" class="lab-term" :aria-label="'Терминал лаборатории: ' + title"></div>
-      <div v-if="loading" class="lab-overlay">Загрузка лаборатории…</div>
-      <div v-else-if="error" class="lab-overlay err">Не удалось загрузить лабораторию: {{ error }}</div>
+    <div v-if="collapsed" class="lab-collapsed-hint">
+      Терминал свёрнут. Нажми <button class="btn btn-sm" type="button" @click="toggleCollapsed">▸ развернуть</button>, чтобы продолжить.
     </div>
-
-    <footer class="lab-foot">
-      Набери <code>help</code> — список инструментов. Проверить решение: <code>check</code>. Нужна подсказка: <code>hint</code>.
-    </footer>
   </section>
 </template>
 
@@ -113,6 +143,9 @@ onBeforeUnmount(() => { if (shell) shell.dispose(); shell = null; session = null
   box-shadow: var(--shadow);
 }
 .lab-panel.solved { border-color: var(--green-soft); }
+/* Инлайн-режим: терминал встроен в поток текста на шаге «попробуй сам». */
+.lab-panel.inline { margin: 20px 0; border-color: var(--accent-soft, var(--border-strong)); }
+.lab-panel.inline .lab-head { background: var(--panel-2); }
 
 .lab-head {
   display: flex;
@@ -143,7 +176,13 @@ onBeforeUnmount(() => { if (shell) shell.dispose(); shell = null; session = null
 
 .lab-term-wrap { position: relative; background: #0b111a; }
 .lab-term { height: 420px; padding: 8px 4px 8px 10px; }
+/* Инлайн-терминал компактнее: ~360px, прокручиваемый. */
+.lab-panel.inline .lab-term { height: 360px; }
 .lab-term :deep(.xterm) { height: 100%; }
+.lab-collapsed-hint {
+  padding: 10px 14px; color: var(--muted); font-size: 13px;
+  display: flex; align-items: center; gap: 8px;
+}
 .lab-overlay {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;

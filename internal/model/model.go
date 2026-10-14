@@ -33,6 +33,13 @@ type LessonMeta struct {
 	EstimatedMinutes int      `json:"estimated_minutes"`
 	Summary          string   `json:"summary"`
 	Author           string   `json:"author,omitempty"`
+	// Waystone marks this lesson as a GATE ("вейстоун"): its whole descendant
+	// subtree stays locked (hidden by the frontend fog-of-war) until every task
+	// listed in WaystoneTasks is completed. Empty WaystoneTasks => inert gate.
+	Waystone bool `json:"waystone,omitempty"`
+	// WaystoneTasks are the lesson ids (capstone lab lessons) the learner must
+	// complete to unlock the waystone's subtree. N == len(WaystoneTasks).
+	WaystoneTasks []string `json:"waystone_tasks,omitempty"`
 }
 
 // Section is one readable chunk of a lesson. Reading time is tracked per
@@ -105,6 +112,10 @@ type TreeNode struct {
 	EstMinutes int         `json:"estimated_minutes"`
 	Tags       []string    `json:"tags"`
 	Children   []*TreeNode `json:"children"`
+	// Waystone / WaystoneTasks mirror LessonMeta so /api/tree can drive the
+	// frontend gate without a second request (see model.LessonMeta).
+	Waystone      bool     `json:"waystone,omitempty"`
+	WaystoneTasks []string `json:"waystone_tasks,omitempty"`
 }
 
 // Category is a top-level branch of the tree.

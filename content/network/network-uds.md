@@ -21,6 +21,7 @@ lab:
   files: [task.md, uds.log]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`network-can-bus`): кадр = `ID` + `payload`; `grep TX uds.log | head` — `[TX]` запрос сканера, `[RX]` ответ ECU."
     - "`uds.log` — обмен диагностического сканера с ECU: запросы (TX) и ответы (RX)."
     - "Ответ на положительный сервис начинается с SID+0x40: для 0x27 это 0x67."
     - "Строка с seed несёт `seed:<base64>` — вырежи значение: `cut -d: -f2`."

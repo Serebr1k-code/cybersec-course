@@ -140,6 +140,245 @@ WIN: управление захвачено
 - **Есть проверки.** Современные кастомные аллокаторы добавляют canary в метаданные или зануляют указатели — читайте исходник/дизассемблер.
 - **Отладка.** Поставьте точку останова на `my_alloc`/`my_free` и смотрите, какой блок возвращается.
 
+## Инструмент: objdump — дизассемблер
+
+`objdump` показывает машинный код бинарника в виде ассемблера. Именно по нему считают смещения буферов, находят вызовы и адреса — основа статического разбора.
+
+Ключи, которые пригодятся:
+* `objdump -d <файл>` — дизассемблировать секцию `.text` (машинный код функций);
+* `objdump -d <файл> | less` — листать вывод, искать нужную функцию по имени;
+* `objdump -M intel -d <файл>` — синтаксис Intel (привычнее, чем AT&T);
+* в выводе важны пролог функции (`push rbp; mov rbp,rsp`) и `sub rsp,N` — по нему видно размер кадра.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ objdump -d alloc
+
+src/alloc:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000401000 <sys3>:
+  401000:	55                   	push   %rbp
+  401001:	48 89 e5             	mov    %rsp,%rbp
+  401004:	48 89 7d e8          	mov    %rdi,-0x18(%rbp)
+  401008:	48 89 75 e0          	mov    %rsi,-0x20(%rbp)
+  40100c:	48 89 55 d8          	mov    %rdx,-0x28(%rbp)
+  401010:	48 89 4d d0          	mov    %rcx,-0x30(%rbp)
+  401014:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+  401018:	48 8b 7d e0          	mov    -0x20(%rbp),%rdi
+  40101c:	48 8b 75 d8          	mov    -0x28(%rbp),%rsi
+  401020:	48 8b 55 d0          	mov    -0x30(%rbp),%rdx
+  401024:	0f 05                	syscall
+  401026:	48 89 45 f8          	mov    %rax,-0x8(%rbp)
+  40102a:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+  40102e:	5d                   	pop    %rbp
+  40102f:	c3                   	ret
+
+0000000000401030 <put>:
+  401030:	55                   	push   %rbp
+  401031:	48 89 e5             	mov    %rsp,%rbp
+  401034:	48 83 ec 18          	sub    $0x18,%rsp
+  401038:	48 89 7d e8          	mov    %rdi,-0x18(%rbp)
+  40103c:	48 c7 45 f8 00 00 00 	movq   $0x0,-0x8(%rbp)
+  401043:	00 
+  401044:	eb 05                	jmp    40104b <put+0x1b>
+  401046:	48 83 45 f8 01       	addq   $0x1,-0x8(%rbp)
+  40104b:	48 8b 55 f8          	mov    -0x8(%rbp),%rdx
+  40104f:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+  401053:	48 01 d0             	add    %rdx,%rax
+  401056:	0f b6 00             	movzbl (%rax),%eax
+  401059:	84 c0                	test   %al,%al
+  40105b:	75 e9                	jne    401046 <put+0x16>
+  40105d:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+  401061:	48 8b 55 f8          	mov    -0x8(%rbp),%rdx
+  401065:	48 89 d1             	mov    %rdx,%rcx
+  401068:	48 89 c2             	mov    %rax,%rdx
+  40106b:	be 01 00 00 00       	mov    $0x1,%esi
+  401070:	bf 01 00 00 00       	mov    $0x1,%edi
+  401075:	e8 86 ff ff ff       	call   401000 <sys3>
+  40107a:	90                   	nop
+  40107b:	c9                   	leave
+  40107c:	c3                   	ret
+
+000000000040107d <putx>:
+  40107d:	55                   	push   %rbp
+  40107e:	48 89 e5             	mov    %rsp,%rbp
+  401081:	48 83 ec 40          	sub    $0x40,%rsp
+  401085:	48 89 7d c8          	mov    %rdi,-0x38(%rbp)
+  401089:	c7 45 fc 00 00 00 00 	movl   $0x0,-0x4(%rbp)
+  401090:	8b 45 fc             	mov    -0x4(%rbp),%eax
+  401093:	8d 50 01             	lea    0x1(%rax),%edx
+  401096:	89 55 fc             	mov    %edx,-0x4(%rbp)
+  401099:	48 98                	cltq
+  40109b:	c6 44 05 d0 30       	movb   $0x30,-0x30(%rbp,%rax,1)
+  4010a0:	8b 45 fc             	mov    -0x4(%rbp),%eax
+  4010a3:	8d 50 01             	lea    0x1(%rax),%edx
+  4010a6:	89 55 fc             	mov    %edx,-0x4(%rbp)
+  4010a9:	48 98                	cltq
+  4010ab:	c6 44 05 d0 78       	movb   $0x78,-0x30(%rbp,%rax,1)
+  4010b0:	c7 45 f8 00 00 00 00 	movl   $0x0,-0x8(%rbp)
+  4010b7:	c7 45 f4 3c 00 00 00 	movl   $0x3c,-0xc(%rbp)
+  4010be:	eb 4e                	jmp    40110e <putx+0x91>
+  4010c0:	8b 45 f4             	mov    -0xc(%rbp),%eax
+  4010c3:	48 8b 55 c8          	mov    -0x38(%rbp),%rdx
+  4010c7:	89 c1                	mov    %eax,%ecx
+  4010c9:	48 d3 ea             	shr    %cl,%rdx
+  4010cc:	48 89 d0             	mov    %rdx,%rax
+  4010cf:	83 e0 0f             	and    $0xf,%eax
+  4010d2:	89 45 f0             	mov    %eax,-0x10(%rbp)
+  4010d5:	83 7d f0 00          	cmpl   $0x0,-0x10(%rbp)
+  4010d9:	75 0c                	jne    4010e7 <putx+0x6a>
+  4010db:	83 7d f8 00          	cmpl   $0x0,-0x8(%rbp)
+  4010df:	75 06                	jne    4010e7 <putx+0x6a>
+  4010e1:	83 7d f4 00          	cmpl   $0x0,-0xc(%rbp)
+  4010e5:	75 23                	jne    40110a <putx+0x8d>
+  4010e7:	8b 45 fc             	mov    -0x4(%rbp),%eax
+  4010ea:	8d 50 01             	lea    0x1(%rax),%edx
+  4010ed:	89 55 fc             	mov    %edx,-0x4(%rbp)
+  4010f0:	8b 55 f0             	mov    -0x10(%rbp),%edx
+  4010f3:	48 63 d2             	movslq %edx,%rdx
+  4010f6:	0f b6 92 00 20 40 00 	movzbl 0x402000(%rdx),%edx
+  4010fd:	48 98                	cltq
+  4010ff:	88 54 05 d0          	mov    %dl,-0x30(%rbp,%rax,1)
+  401103:	c7 45 f8 01 00 00 00 	movl   $0x1,-0x8(%rbp)
+  40110a:	83 6d f4 04          	subl   $0x4,-0xc(%rbp)
+  40110e:	83 7d f4 00          	cmpl   $0x0,-0xc(%rbp)
+  401112:	79 ac                	jns    4010c0 <putx+0x43>
+  401114:	8b 45 fc             	mov    -0x4(%rbp),%eax
+  401117:	48 63 d0             	movslq %eax,%rdx
+  40111a:	48 8d 45 d0          	lea    -0x30(%rbp),%rax
+  40111e:	48 89 d1             	mov    %rdx,%rcx
+  401121:	48 89 c2             	mov    %rax,%rdx
+  401124:	be 01 00 00 00       	mov    $0x1,%esi
+  401129:	bf 01 00 00 00       	mov    $0x1,%edi
+  40112e:	e8 cd fe ff ff       	call   401000 <sys3>
+  401133:	90                   	nop
+  401134:	c9                   	leave
+  401135:	c3                   	ret
+
+0000000000401136 <putnl>:
+  401136:	55                   	push   %rbp
+  401137:	48 89 e5             	mov    %rsp,%rbp
+  40113a:	bf 11 20 40 00       	mov    $0x402011,%edi
+  40113f:	e8 ec fe ff ff       	call   401030 <put>
+  401144:	90                   	nop
+  401145:	5d                   	pop    %rbp
+  401146:	c3                   	ret
+
+0000000000401147 <sbrk>:
+  401147:	55                   	push   %rbp
+  401148:	48 89 e5             	mov    %rsp,%rbp
+  40114b:	48 83 ec 18          	sub    $0x18,%rsp
+  40114f:	48 89 7d e8          	mov    %rdi,-0x18(%rbp)
+  401153:	b9 00 00 00 00       	mov    $0x0,%ecx
+  401158:	ba 00 00 00 00       	mov    $0x0,%edx
+  40115d:	be 00 00 00 00       	mov    $0x0,%esi
+  401162:	bf 0c 00 00 00       	mov    $0xc,%edi
+  401167:	e8 94 fe ff ff       	call   401000 <sys3>
+  40116c:	48 89 45 f8          	mov    %rax,-0x8(%rbp)
+  401170:	48 8b 55 f8          	mov    -0x8(%rbp),%rdx
+  401174:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+  401178:	48 01 d0             	add    %rdx,%rax
+  40117b:	b9 00 00 00 00       	mov    $0x0,%ecx
+  401180:	ba 00 00 00 00       	mov    $0x0,%edx
+  401185:	48 89 c6             	mov    %rax,%rsi
+  401188:	bf 0c 00 00 00       	mov    $0xc,%edi
+  40118d:	e8 6e fe ff ff       	call   401000 <sys3>
+  401192:	48 8b 4d f8          	mov    -0x8(%rbp),%rcx
+  401196:	48 8b 55 e8          	mov    -0x18(%rbp),%rdx
+  40119a:	48 01 ca             	add    %rcx,%rdx
+  40119d:	48 39 d0             	cmp    %rdx,%rax
+  4011a0:	75 06                	jne    4011a8 <sbrk+0x61>
+  4011a2:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+  4011a6:	eb 07                	jmp    4011af <sbrk+0x68>
+  4011a8:	48 c7 c0 ff ff ff ff 	mov    $0xffffffffffffffff,%rax
+  4011af:	c9                   	leave
+  4011b0:	c3                   	ret
+
+00000000004011b1 <exit0>:
+  4011b1:	55                   	push   %rbp
+  4011b2:	48 89 e5             	mov    %rsp,%rbp
+  4011b5:	b9 00 00 00 00       	mov    $0x0,%ecx
+  4011ba:	ba 00 00 00 00       	mov    $0x0,%edx
+  4011bf:	be 00 00 00 00       	mov    $0x0,%esi
+  4011c4:	bf 3c 00 00 00       	mov    $0x3c,%edi
+  4011c9:	e8 32 fe ff ff       	call   401000 <sys3>
+  4011ce:	90                   	nop
+  4011cf:	5d                   	pop    %rbp
+  4011d0:	c3                   	ret
+
+00000000004011d1 <xalloc>:
+  4011d1:	55                   	push   %rbp
+  4011d2:	48 89 e5             	mov    %rsp,%rbp
+  4011d5:	48 89 7d e8          	mov    %rdi,-0x18(%rbp)
+  4011d9:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+  4011dd:	48 83 c0 1f          	add    $0x1f,%rax
+  4011e1:	48 83 e0 f0          	and    $0xfffffffffffffff0,%rax
+  4011e5:	48 89 45 f8          	mov    %rax,-0x8(%rbp)
+  4011e9:	48 8b 15 10 1e 00 00 	mov    0x1e10(%rip),%rdx        # 403000 <arena>
+  4011f0:	48 8b 05 11 1e 00 00 	mov    0x1e11(%rip),%rax        # 403008 <used>
+  4011f7:	48 01 d0             	add    %rdx,%rax
+  4011fa:	48 89 45 f0          	mov    %rax,-0x10(%rbp)
+  4011fe:	48 8b 45 f0          	mov    -0x10(%rbp),%rax
+  401202:	48 8b 55 e8          	mov    -0x18(%rbp),%rdx
+  401206:	48 89 10             	mov    %rdx,(%rax)
+  401209:	48 8b 45 f0          	mov    -0x10(%rbp),%rax
+  40120d:	48 83 c0 08          	add    $0x8,%rax
+  401211:	48 c7 00 00 00 00 00 	movq   $0x0,(%rax)
+  401218:	48 8b 15 e9 1d 00 00 	mov    0x1de9(%rip),%rdx        # 403008 <used>
+  40121f:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+  401223:	48 01 d0             	add    %rdx,%rax
+  401226:	48 89 05 db 1d 00 00 	mov    %rax,0x1ddb(%rip)        # 403008 <used>
+  40122d:	48 8b 45 f0          	mov    -0x10(%rbp),%rax
+  401231:	48 83 c0 10          	add    $0x10,%rax
+  401235:	5d                   	pop    %rbp
+  401236:	c3                   	ret
+
+0000000000401237 <_start>:
+  401237:	55                   	push   %rbp
+  401238:	48 89 e5             	mov    %rsp,%rbp
+  40123b:	48 83 ec 10          	sub    $0x10,%rsp
+  40123f:	bf 00 10 00 00       	mov    $0x1000,%edi
+  401244:	e8 fe fe ff ff       	call   401147 <sbrk>
+  401249:	48 89 05 b0 1d 00 00 	mov    %rax,0x1db0(%rip)        # 403000 <arena>
+  401250:	bf 30 00 00 00       	mov    $0x30,%edi
+  401255:	e8 77 ff ff ff       	call   4011d1 <xalloc>
+  40125a:	48 89 45 f8          	mov    %rax,-0x8(%rbp)
+  40125e:	bf 30 00 00 00       	mov    $0x30,%edi
+  401263:	e8 69 ff ff ff       	call   4011d1 <xalloc>
+  401268:	48 89 45 f0          	mov    %rax,-0x10(%rbp)
+  40126c:	bf 13 20 40 00       	mov    $0x402013,%edi
+  401271:	e8 ba fd ff ff       	call   401030 <put>
+  401276:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+  40127a:	48 89 c7             	mov    %rax,%rdi
+  40127d:	e8 fb fd ff ff       	call   40107d <putx>
+  401282:	e8 af fe ff ff       	call   401136 <putnl>
+  401287:	bf 16 20 40 00       	mov    $0x402016,%edi
+  40128c:	e8 9f fd ff ff       	call   401030 <put>
+  401291:	48 8b 45 f0          	mov    -0x10(%rbp),%rax
+  401295:	48 89 c7             	mov    %rax,%rdi
+  401298:	e8 e0 fd ff ff       	call   40107d <putx>
+  40129d:	e8 94 fe ff ff       	call   401136 <putnl>
+  4012a2:	bf 19 20 40 00       	mov    $0x402019,%edi
+  4012a7:	e8 84 fd ff ff       	call   401030 <put>
+  4012ac:	bf 29 20 40 00       	mov    $0x402029,%edi
+  4012b1:	e8 7a fd ff ff       	call   401030 <put>
+  4012b6:	48 8b 45 f0          	mov    -0x10(%rbp),%rax
+  4012ba:	48 2b 45 f8          	sub    -0x8(%rbp),%rax
+  4012be:	48 89 c7             	mov    %rax,%rdi
+  4012c1:	e8 b7 fd ff ff       	call   40107d <putx>
+  4012c6:	e8 6b fe ff ff       	call   401136 <putnl>
+  4012cb:	e8 e1 fe ff ff       	call   4011b1 <exit0>
+  4012d0:	90                   	nop
+  4012d1:	c9                   	leave
+  4012d2:	c3                   	ret
+```
+
+Подсказка из лаборатории: `objdump -d <файл>`.
+
 ## Что мы теперь знаем
 
 - Кастомный аллокатор может быть простым free-list или bump-аллокатором.

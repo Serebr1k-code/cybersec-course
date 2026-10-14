@@ -44,6 +44,34 @@ lab:
 - Учитывать особенности calloc в эксплойте.
 - Строить house of botcake через double-free и unsorted bin.
 
+## Инструмент: gdb — отладчик
+
+`gdb` управляет исполнением программы: точки останова, пошаговое выполнение, просмотр регистров и памяти. Основной динамический инструмент.
+
+Ключи, которые пригодятся:
+* `gdb ./prog` — открыть бинарник; `run` — запустить;
+* `break <функция>` / `b *<адрес>` — точка останова;
+* `info registers`, `x/16gx $rsp` — регистры и стек;
+* `disassemble <функция>` — дизассемблер без выхода из отладчика.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ gdb -batch -ex "b tcache.c:9" -ex run -ex "p/x a" -ex "p/x b" -ex "x/4gx b-0x10" tcache
+Breakpoint 1 at 0x40117a: file tcache.c, line 9.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/usr/lib/libthread_db.so.1".
+
+Breakpoint 1, run () at tcache.c:9
+9	}
+$1 = 0x405010
+$2 = 0x405040
+0x405030:	0x0000000000000000	0x0000000000000031
+0x405040:	0x0000000000405415	0xfecc5ce0243c8c94
+```
+
+Подсказка из лаборатории: `gdb — отладчик (в лабе replay транскрипта для tcache)`.
+
 ## Квиз
 
 ```quiz

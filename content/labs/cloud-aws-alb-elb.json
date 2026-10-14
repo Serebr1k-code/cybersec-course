@@ -1,0 +1,27 @@
+{
+  "id": "cloud-aws-alb-elb",
+  "workdir": "/home/student/alb",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/alb/found.txt",
+    "contains": "nto{alb_path_n0rm4l1z4t10n_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/alb",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/alb/task.md",
+      "text": "# Задача\n\nALB защищает админку правилом по пути. Определи, как обойти аутентификацию, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/alb/rules.json",
+      "text": "{\n  \"Rules\": [\n    {\"Priority\": 1, \"path-pattern\": [\"/admin*\"], \"action\": \"authenticate-oidc\"},\n    {\"Priority\": 2, \"path-pattern\": [\"/*\"], \"action\": \"forward\"}\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/alb/notes.md",
+      "text": "Аудит: authenticate-oidc только на /admin*.\nБэкенд нормализует ..%2f, ALB — нет.\nGET /admin/..%2fadmin проходит без аутентификации.\nnto{alb_path_n0rm4l1z4t10n_byp4ss}\n"
+    }
+  ]
+}

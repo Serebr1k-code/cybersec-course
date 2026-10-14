@@ -155,6 +155,183 @@ print(hex(enc(0x00,0) ^ enc(0x01,0)))  # 0x01 -> XOR проходит «как �
 
 Так за шесть шагов незнакомый шифр превращается в обратимую функцию. Это и есть суть продвинутого реверса криптографии: не знать имя алгоритма, а прочитать его из операций.
 
+## Инструмент: objdump — дизассемблер
+
+`objdump` показывает машинный код бинарника в виде ассемблера. Именно по нему считают смещения буферов, находят вызовы и адреса — основа статического разбора.
+
+Ключи, которые пригодятся:
+* `objdump -d <файл>` — дизассемблировать секцию `.text` (машинный код функций);
+* `objdump -d <файл> | less` — листать вывод, искать нужную функцию по имени;
+* `objdump -M intel -d <файл>` — синтаксис Intel (привычнее, чем AT&T);
+* в выводе важны пролог функции (`push rbp; mov rbp,rsp`) и `sub rsp,N` — по нему видно размер кадра.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ objdump objdump -d wbox --disassemble=main
+
+wbox:     file format elf64-x86-64
+
+
+Disassembly of section .text:
+
+0000000000401000 <_start>:
+  401000:	48 8b 3c 24          	mov    (%rsp),%rdi
+  401004:	48 8d 74 24 08       	lea    0x8(%rsp),%rsi
+  401009:	48 83 e4 f0          	and    $0xfffffffffffffff0,%rsp
+  40100d:	e8 d3 00 00 00       	call   4010e5 <main>
+  401012:	48 89 c7             	mov    %rax,%rdi
+  401015:	48 c7 c0 3c 00 00 00 	mov    $0x3c,%rax
+  40101c:	0f 05                	syscall
+
+000000000040101e <sys>:
+  40101e:	55                   	push   %rbp
+  40101f:	48 89 e5             	mov    %rsp,%rbp
+  401022:	48 89 7d e8          	mov    %rdi,-0x18(%rbp)
+  401026:	48 89 75 e0          	mov    %rsi,-0x20(%rbp)
+  40102a:	48 89 55 d8          	mov    %rdx,-0x28(%rbp)
+  40102e:	48 89 4d d0          	mov    %rcx,-0x30(%rbp)
+  401032:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+  401036:	48 8b 7d e0          	mov    -0x20(%rbp),%rdi
+  40103a:	48 8b 75 d8          	mov    -0x28(%rbp),%rsi
+  40103e:	48 8b 55 d0          	mov    -0x30(%rbp),%rdx
+  401042:	0f 05                	syscall
+  401044:	48 89 45 f8          	mov    %rax,-0x8(%rbp)
+  401048:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+  40104c:	5d                   	pop    %rbp
+  40104d:	c3                   	ret
+
+000000000040104e <slen>:
+  40104e:	55                   	push   %rbp
+  40104f:	48 89 e5             	mov    %rsp,%rbp
+  401052:	48 89 7d e8          	mov    %rdi,-0x18(%rbp)
+  401056:	48 c7 45 f8 00 00 00 	movq   $0x0,-0x8(%rbp)
+  40105d:	00 
+  40105e:	eb 05                	jmp    401065 <slen+0x17>
+  401060:	48 83 45 f8 01       	addq   $0x1,-0x8(%rbp)
+  401065:	48 8b 55 f8          	mov    -0x8(%rbp),%rdx
+  401069:	48 8b 45 e8          	mov    -0x18(%rbp),%rax
+  40106d:	48 01 d0             	add    %rdx,%rax
+  401070:	0f b6 00             	movzbl (%rax),%eax
+  401073:	84 c0                	test   %al,%al
+  401075:	75 e9                	jne    401060 <slen+0x12>
+  401077:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+  40107b:	5d                   	pop    %rbp
+  40107c:	c3                   	ret
+
+000000000040107d <put>:
+  40107d:	55                   	push   %rbp
+  40107e:	48 89 e5             	mov    %rsp,%rbp
+  401081:	48 83 ec 08          	sub    $0x8,%rsp
+  401085:	48 89 7d f8          	mov    %rdi,-0x8(%rbp)
+  401089:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+  40108d:	48 89 c7             	mov    %rax,%rdi
+  401090:	e8 b9 ff ff ff       	call   40104e <slen>
+  401095:	48 89 c2             	mov    %rax,%rdx
+  401098:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+  40109c:	48 89 d1             	mov    %rdx,%rcx
+  40109f:	48 89 c2             	mov    %rax,%rdx
+  4010a2:	be 01 00 00 00       	mov    $0x1,%esi
+  4010a7:	bf 01 00 00 00       	mov    $0x1,%edi
+  4010ac:	e8 6d ff ff ff       	call   40101e <sys>
+  4010b1:	90                   	nop
+  4010b2:	c9                   	leave
+  4010b3:	c3                   	ret
+
+00000000004010b4 <rol8>:
+  4010b4:	55                   	push   %rbp
+  4010b5:	48 89 e5             	mov    %rsp,%rbp
+  4010b8:	89 f8                	mov    %edi,%eax
+  4010ba:	89 75 f8             	mov    %esi,-0x8(%rbp)
+  4010bd:	88 45 fc             	mov    %al,-0x4(%rbp)
+  4010c0:	0f b6 55 fc          	movzbl -0x4(%rbp),%edx
+  4010c4:	8b 45 f8             	mov    -0x8(%rbp),%eax
+  4010c7:	89 c1                	mov    %eax,%ecx
+  4010c9:	d3 e2                	shl    %cl,%edx
+  4010cb:	89 d0                	mov    %edx,%eax
+  4010cd:	89 c6                	mov    %eax,%esi
+  4010cf:	0f b6 55 fc          	movzbl -0x4(%rbp),%edx
+  4010d3:	b8 08 00 00 00       	mov    $0x8,%eax
+  4010d8:	2b 45 f8             	sub    -0x8(%rbp),%eax
+  4010db:	89 c1                	mov    %eax,%ecx
+  4010dd:	d3 fa                	sar    %cl,%edx
+  4010df:	89 d0                	mov    %edx,%eax
+  4010e1:	09 f0                	or     %esi,%eax
+  4010e3:	5d                   	pop    %rbp
+  4010e4:	c3                   	ret
+
+00000000004010e5 <main>:
+  4010e5:	55                   	push   %rbp
+  4010e6:	48 89 e5             	mov    %rsp,%rbp
+  4010e9:	48 83 ec 30          	sub    $0x30,%rsp
+  4010ed:	48 89 7d d8          	mov    %rdi,-0x28(%rbp)
+  4010f1:	48 89 75 d0          	mov    %rsi,-0x30(%rbp)
+  4010f5:	48 83 7d d8 02       	cmpq   $0x2,-0x28(%rbp)
+  4010fa:	74 19                	je     401115 <main+0x30>
+  4010fc:	48 8d 05 fd 0e 00 00 	lea    0xefd(%rip),%rax        # 402000 <main+0xf1b>
+  401103:	48 89 c7             	mov    %rax,%rdi
+  401106:	e8 72 ff ff ff       	call   40107d <put>
+  40110b:	b8 01 00 00 00       	mov    $0x1,%eax
+  401110:	e9 d1 00 00 00       	jmp    4011e6 <main+0x101>
+  401115:	48 b8 6c bc 64 c4 a4 	movabs $0xbc965ca4c464bc6c,%rax
+  40111c:	5c 96 bc 
+  40111f:	48 ba 86 0c 9e dc e5 	movabs $0xd48644e5dc9e0c86,%rdx
+  401126:	44 86 d4 
+  401129:	48 89 45 e0          	mov    %rax,-0x20(%rbp)
+  40112d:	48 89 55 e8          	mov    %rdx,-0x18(%rbp)
+  401131:	c6 45 f0 f4          	movb   $0xf4,-0x10(%rbp)
+  401135:	48 c7 45 f8 00 00 00 	movq   $0x0,-0x8(%rbp)
+  40113c:	00 
+  40113d:	e9 85 00 00 00       	jmp    4011c7 <main+0xe2>
+  401142:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+  401146:	48 83 c0 08          	add    $0x8,%rax
+  40114a:	48 8b 10             	mov    (%rax),%rdx
+  40114d:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+  401151:	48 01 d0             	add    %rdx,%rax
+  401154:	0f b6 00             	movzbl (%rax),%eax
+  401157:	84 c0                	test   %al,%al
+  401159:	75 16                	jne    401171 <main+0x8c>
+  40115b:	48 8d 05 b1 0e 00 00 	lea    0xeb1(%rip),%rax        # 402013 <main+0xf2e>
+  401162:	48 89 c7             	mov    %rax,%rdi
+  401165:	e8 13 ff ff ff       	call   40107d <put>
+  40116a:	b8 01 00 00 00       	mov    $0x1,%eax
+  40116f:	eb 75                	jmp    4011e6 <main+0x101>
+  401171:	48 8b 45 d0          	mov    -0x30(%rbp),%rax
+  401175:	48 83 c0 08          	add    $0x8,%rax
+  401179:	48 8b 10             	mov    (%rax),%rdx
+  40117c:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+  401180:	48 01 d0             	add    %rdx,%rax
+  401183:	0f b6 00             	movzbl (%rax),%eax
+  401186:	0f b6 c0             	movzbl %al,%eax
+  401189:	be 03 00 00 00       	mov    $0x3,%esi
+  40118e:	89 c7                	mov    %eax,%edi
+  401190:	e8 1f ff ff ff       	call   4010b4 <rol8>
+  401195:	83 f0 1f             	xor    $0x1f,%eax
+  401198:	89 c1                	mov    %eax,%ecx
+  40119a:	48 8d 55 e0          	lea    -0x20(%rbp),%rdx
+  40119e:	48 8b 45 f8          	mov    -0x8(%rbp),%rax
+  4011a2:	48 01 d0             	add    %rdx,%rax
+  4011a5:	0f b6 00             	movzbl (%rax),%eax
+  4011a8:	38 c1                	cmp    %al,%cl
+  4011aa:	74 16                	je     4011c2 <main+0xdd>
+  4011ac:	48 8d 05 60 0e 00 00 	lea    0xe60(%rip),%rax        # 402013 <main+0xf2e>
+  4011b3:	48 89 c7             	mov    %rax,%rdi
+  4011b6:	e8 c2 fe ff ff       	call   40107d <put>
+  4011bb:	b8 01 00 00 00       	mov    $0x1,%eax
+  4011c0:	eb 24                	jmp    4011e6 <main+0x101>
+  4011c2:	48 83 45 f8 01       	addq   $0x1,-0x8(%rbp)
+  4011c7:	48 83 7d f8 10       	cmpq   $0x10,-0x8(%rbp)
+  4011cc:	0f 8e 70 ff ff ff    	jle    401142 <main+0x5d>
+  4011d2:	48 8d 05 47 0e 00 00 	lea    0xe47(%rip),%rax        # 402020 <main+0xf3b>
+  4011d9:	48 89 c7             	mov    %rax,%rdi
+  4011dc:	e8 9c fe ff ff       	call   40107d <put>
+  4011e1:	b8 00 00 00 00       	mov    $0x0,%eax
+  4011e6:	c9                   	leave
+  4011e7:	c3                   	ret
+```
+
+Подсказка из лаборатории: `objdump -d <файл> — дизассемблер`.
+
 ## Что мы теперь знаем
 
 - Custom cipher восстанавливается **по операциям**: XOR, сложение, маски, таблицы.

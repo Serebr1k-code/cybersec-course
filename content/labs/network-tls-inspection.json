@@ -9,7 +9,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: кто выдал сертификат\n\nПодключись к `github.com:443` через openssl и посмотри цепочку сертификатов:\n\n    openssl s_client -connect github.com:443 -servername github.com\n\nВ блоке `Certificate chain` у листового сертификата (строка `0 s:CN=github.com`)\nесть издатель `i:` (issuer). Запиши **CN издателя листового сертификата** в\nфайл `answer.txt` и набери `check`.\n"
+      "text": "# Задача: кто выдал сертификат\n\nПодключись к `github.com:443` через openssl и посмотри цепочку сертификатов:\n\n    openssl s_client -connect github.com:443 -servername github.com\n\nВ блоке `Certificate chain` у листового сертификата (строка `0 s:CN=github.com`)\nесть издатель `i:` (issuer). Запиши **CN издателя листового сертификата** в\nфайл `answer.txt` и набери `check`.\n\n## Повторение\n\nПовторение (`network-tcpip`): TLS — это TCP-соединение на `443`, поверх которого идёт рукопожатие и обмен сертификатами. Помнишь разбор TCP-заголовка? Здесь мы смотрим уже сам сертификат.\n"
     }
   ],
   "expect": {

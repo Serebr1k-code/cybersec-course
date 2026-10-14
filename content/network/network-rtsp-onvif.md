@@ -21,6 +21,7 @@ lab:
   files: [task.md, rtsp-trace.txt]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`network-http1-deep`): RTSP — HTTP-подобный; `head -n 8 rtsp-trace.txt`, стартовая строка + заголовки `Имя: значение`."
     - "`rtsp-trace.txt` — трассировка RTSP: сначала OPTIONS, потом DESCRIBE с SDP."
     - "В SDP ищи нестандартное поле `x-vendor` с `payload:<base64>`."
     - "Вырежи base64 (`cut -d: -f2`) и декодируй (`base64 -d`)."

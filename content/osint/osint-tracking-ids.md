@@ -19,7 +19,7 @@ lab:
   toolset: [core, curl]
   workdir: /home/student/task
   files: [task.md]
-  check: "grep -q '' answer.txt"
+  check: "grep -q 'UA-241659-3' answer.txt"
   hints:
     - "Скачай HTML: `curl -s https://app.example.com/`."
     - "Ищи идентификаторы аналитики через grep."

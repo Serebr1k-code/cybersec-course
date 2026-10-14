@@ -10,7 +10,7 @@
     { "path": "/home/student/task", "type": "dir" },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: разведка камеры по RTSP\n\n`rtsp-trace.txt` — вывод трассировки RTSP-сессии к камере: методы OPTIONS,\nDESCRIBE и ответ с SDP. В одном из ответов есть поле `payload:<base64>`\nс секретом.\n\n1. Посмотри трассировку: `cat rtsp-trace.txt`\n2. Найди подозрительное поле: `grep payload rtsp-trace.txt`\n3. Вырежи base64: `grep payload rtsp-trace.txt | cut -d: -f2`\n4. Декодируй: `... | base64 -d`\n5. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+      "text": "# Задача: разведка камеры по RTSP\n\n`rtsp-trace.txt` — вывод трассировки RTSP-сессии к камере: методы OPTIONS,\nDESCRIBE и ответ с SDP. В одном из ответов есть поле `payload:<base64>`\nс секретом.\n\n1. Посмотри трассировку: `cat rtsp-trace.txt`\n2. Найди подозрительное поле: `grep payload rtsp-trace.txt`\n3. Вырежи base64: `grep payload rtsp-trace.txt | cut -d: -f2`\n4. Декодируй: `... | base64 -d`\n5. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n\n## Повторение (`network-http1-deep`)\n\nRTSP — HTTP-подобный протокол из `network-http1-deep`: стартовая строка `МЕТОД URI RTSP/1.0`, затем заголовки `Имя: значение`. Убедись, что узнаёшь структуру:\n\n    head -n 8 rtsp-trace.txt\n\nМетоды OPTIONS/DESCRIBE и заголовок `Content-Length` — те же, что и в HTTP.\n"
     },
     {
       "path": "/home/student/task/rtsp-trace.txt",

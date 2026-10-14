@@ -356,6 +356,8 @@ func parseLesson(raw, path string) (*model.Lesson, error) {
 			EstimatedMinutes: getInt(fm, "estimated_minutes"),
 			Summary:          getString(fm, "summary"),
 			Author:           getString(fm, "author"),
+			Waystone:         getBool(fm, "waystone"),
+			WaystoneTasks:    getList(fm, "waystone_tasks"),
 		},
 	}
 	l.Slug = id
@@ -929,6 +931,22 @@ func getInt(m map[string]any, k string) int {
 	return 0
 }
 
+// getBool reads a boolean front-matter key. parseSimpleYAML stores every scalar
+// as a string, so `waystone: true` arrives as "true" (and the inline/literal
+// YAML forms "yes"/"1" are accepted too).
+func getBool(m map[string]any, k string) bool {
+	switch v := m[k].(type) {
+	case bool:
+		return v
+	case string:
+		switch strings.ToLower(strings.TrimSpace(v)) {
+		case "true", "yes", "on", "1":
+			return true
+		}
+	}
+	return false
+}
+
 func getList(m map[string]any, k string) []string {
 	switch v := m[k].(type) {
 	case []string:
@@ -1051,6 +1069,7 @@ func buildTree(lessons map[string]*model.Lesson) ([]*model.TreeNode, map[string]
 			ID: l.ID, Title: l.Title, Category: l.Category, Difficulty: l.Difficulty,
 			Parent: l.Parent, Order: l.Order, Sections: len(l.Sections),
 			Words: l.Words, EstMinutes: l.EstimatedMinutes, Tags: l.Tags,
+			Waystone: l.Waystone, WaystoneTasks: l.WaystoneTasks,
 		}
 	}
 	var roots []*model.TreeNode

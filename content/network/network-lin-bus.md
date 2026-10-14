@@ -21,6 +21,7 @@ lab:
   files: [task.md, lin.log]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`network-can-bus`): кадр = `ID` + `data`; сначала `grep 0x lin.log | head` и сверь ID со schedule table."
     - "`lin.log` — обмен LIN-шины: master опрашивает slave по schedule table."
     - "В task.md перечислены ID из расписания. Один кадр использует ID вне него."
     - "У постороннего кадра поле `data:<base64>` — вырежи его: `cut -d: -f2`."

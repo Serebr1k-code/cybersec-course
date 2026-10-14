@@ -1,0 +1,37 @@
+{
+  "id": "crypto-rsa-oaep-manger-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1b1t_0r4cl3_b1n4ry_s34rch_r3c0v3rs_m}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: 1-битный оракул → восстановление plaintext\n\n`oracle.py` моделирует RSA-оракул, который отдаёт 1 бит (чётность расшифровки).\nИспользуй бинарный поиск: умножай шифртекст на 2^e и сужай интервал [lo,hi].\nВосстанови plaintext за O(k) запросов.\n\nШаги:\n1. `cat oracle.py`.\n2. `python3 oracle.py`.\n3. `python3 oracle.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Manger на OAEP: оракул сообщает, начинается ли расшифровка с 0 (m < B).\n- LSB-оракул (Bleichenbacher): отдаёт чётность расшифровки.\n- Чётность 2x mod n сообщает, x < n/2 или нет -> бинарный поиск.\n- Используй Fraction: целочисленное деление дрейфует интервал.\n"
+    },
+    {
+      "path": "/home/student/task/oracle.py",
+      "text": "# 1-bit oracle attack on RSA: the oracle leaks the parity (LSB) of the decryption.\n# Same 'one leaked bit -> full plaintext' principle as Manger's OAEP leading-byte oracle.\nfrom fractions import Fraction\np, q = 1000003, 1000033\nn = p * q\ne = 65537\nd = pow(e, -1, (p - 1) * (q - 1))\nm = 0x4142434445 % n\nc = pow(m, e, n)\n\ndef oracle(cc):            # leaks exactly one bit: parity of the decrypted value\n    return pow(cc, d, n) & 1\n\nf = pow(2, e, n)\nlo, hi = Fraction(0), Fraction(n)\ncc = c\nqueries = 0\nfor _ in range(n.bit_length() + 1):\n    cc = (cc * f) % n\n    queries += 1\n    mid = (lo + hi) / 2\n    if oracle(cc) == 0:\n        hi = mid\n    else:\n        lo = mid\nrec = int(hi)\nprint(\"oracle leaks 1 bit per query; recovered with\", queries, \"queries\")\nprint(\"recovered plaintext:\", hex(rec))\nprint(\"secret plaintext   :\", hex(m))\nprint(\"attack works:\", rec == m)\nprint(\"flag: nto{1b1t_0r4cl3_b1n4ry_s34rch_r3c0v3rs_m}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        { "match": "--version|^-V$", "example": "python3 --version", "output": "Python 3.12.4" },
+        {
+          "match": "oracle\\.py$",
+          "example": "python3 oracle.py",
+          "output": "oracle leaks 1 bit per query; recovered with 41 queries\nrecovered plaintext: 0x4142434445\nsecret plaintext   : 0x4142434445\nattack works: True\nflag: nto{1b1t_0r4cl3_b1n4ry_s34rch_r3c0v3rs_m}\n"
+        }
+      ]
+    }
+  }
+}

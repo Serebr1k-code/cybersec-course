@@ -133,6 +133,59 @@ lab:
 
 Шестое: структура не прицеплена к списку. FSOP-дома срабатывают только когда поток реально обходится (`exit`, `flush`, `printf`). Убедись, что подделка попала в `_IO_list_all` или `_chain`.
 
+## Инструмент: gdb — отладчик
+
+`gdb` управляет исполнением программы: точки останова, пошаговое выполнение, просмотр регистров и памяти. Основной динамический инструмент.
+
+Ключи, которые пригодятся:
+* `gdb ./prog` — открыть бинарник; `run` — запустить;
+* `break <функция>` / `b *<адрес>` — точка останова;
+* `info registers`, `x/16gx $rsp` — регистры и стек;
+* `disassemble <функция>` — дизассемблер без выхода из отладчика.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ gdb -q -batch -ex 'b house.c:20' -ex run ./house
+Breakpoint 1 at 0x40128a: file house.c, line 20.
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/usr/lib/libthread_db.so.1".
+
+Breakpoint 1, main () at house.c:20
+20	    printf("fake FILE vtable  = %p\n", f->vtable);
+$1 = 0x7ffff7f7b228
+$2 = 0x7ffff7de8b00
+```
+
+Подсказка из лаборатории: `gdb — отладчик (replay для house)`.
+
+## Инструмент: readelf — разбор ELF
+
+`readelf` читает заголовки ELF-файла: архитектуру, тип, секции, сегменты и включённые защиты. С него начинается любой разбор нативного бинарника.
+
+Ключи, которые пригодятся:
+* `readelf -h <файл>` — заголовок: класс (32/64), машина, точка входа;
+* `readelf -S <файл>` — таблица секций (`.text`, `.plt`, `.got`, `.data`);
+* `readelf -s <файл>` — таблица символов (как `nm`, но с секциями и типами);
+* `readelf -l <файл>` — сегменты программы; ищи `GNU_STACK`/`GNU_RELRO`, чтобы понять защиты.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ readelf -h libc
+   535: 0000000000040b20    30 FUNC    GLOBAL DEFAULT   13 exit@@GLIBC_2.2.5
+   691: 00000000001e8480     8 OBJECT  GLOBAL DEFAULT   29 _IO_list_all@@GLIBC_2.2.5
+   875: 00000000001e78e0   224 OBJECT  GLOBAL DEFAULT   29 _IO_2_1_stdin_@@GLIBC_2.2.5
+  1064: 0000000000053b00    45 FUNC    WEAK   DEFAULT   13 system@@GLIBC_2.2.5
+  1195: 00000000001e6030   168 OBJECT  GLOBAL DEFAULT   26 _IO_file_jumps@@GLIBC_2.2.5
+  1618: 00000000001e8580   224 OBJECT  GLOBAL DEFAULT   29 _IO_2_1_stdout_@@GLIBC_2.2.5
+  1640: 0000000000040290    16 FUNC    GLOBAL DEFAULT   13 __cxa_atexit@@GLIBC_2.2.5
+  1928: 00000000001e6228   168 OBJECT  GLOBAL DEFAULT   26 _IO_wfile_jumps@@GLIBC_2.2.5
+  2802: 0000000000040660   100 FUNC    GLOBAL DEFAULT   13 __call_tls_dtors@@GLIBC_PRIVATE
+```
+
+Подсказка из лаборатории: `readelf [-h | -sW | -lW] <файл> — (replay)`.
+
 ## Что мы теперь знаем
 
 - «Дома» — это рецепты под конкретную версию glibc и конкретный примитив.

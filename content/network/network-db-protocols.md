@@ -19,7 +19,7 @@ lab:
   toolset: [core, tshark]
   workdir: /home/student/task
   files: [task.md, mysql.pcap, pg.pcap]
-  check: "grep -q '' answer.txt"
+  check: "grep -q 'postgres' answer.txt"
   hints:
     - "MySQL: `tshark -r mysql.pcap -Y mysql -T fields -e mysql.version -e mysql.thread_id -e mysql.salt`."
     - "PostgreSQL: `tshark -r pg.pcap -Y pgsql -T fields -e pgsql.parameter_name -e pgsql.parameter_value`."

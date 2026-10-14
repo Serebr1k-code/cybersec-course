@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { renderMarkdown, highlightAll } from './markdown'
+import { renderMarkdown, highlightAll, findLabMarker, hasLabMarker, stripLabMarkers } from './markdown'
 
 describe('utils/markdown – renderMarkdown', () => {
   it('renders plain markdown to HTML', () => {
@@ -56,6 +56,62 @@ describe('utils/markdown – renderMarkdown', () => {
     const html = renderMarkdown('hello <svg/onload=alert(1)> world')
     expect(html).not.toContain('<svg')
     expect(html).toContain('&lt;svg')
+  })
+})
+
+describe('utils/markdown – inline lab marker', () => {
+  it('detects an HTML-comment marker and splits the text around it', () => {
+    const r = findLabMarker('до маркера\n\n<!-- lab -->\n\nпосле маркера')
+    expect(r.found).toBe(true)
+    expect(r.before).toContain('до маркера')
+    expect(r.before).not.toContain('lab')
+    expect(r.after).toContain('после маркера')
+  })
+
+  it('detects a fenced ```lab block (content ignored)', () => {
+    const md = 'текст\n\n```lab\nчто угодно\n```\n\nдальше'
+    const r = findLabMarker(md)
+    expect(r.found).toBe(true)
+    expect(r.before.trim()).toBe('текст')
+    expect(r.after.trim()).toBe('дальше')
+  })
+
+  it('detects a one-line ```lab``` fence', () => {
+    expect(findLabMarker('a\n```lab```\nb').found).toBe(true)
+  })
+
+  it('is case-insensitive for the comment marker', () => {
+    expect(findLabMarker('x <!-- LAB --> y').found).toBe(true)
+  })
+
+  it('reports no marker when the text has none', () => {
+    expect(hasLabMarker('обычный текст без маркера')).toBe(false)
+    expect(findLabMarker('обычный текст').before).toBe('обычный текст')
+    expect(findLabMarker('').found).toBe(false)
+    expect(findLabMarker(null).found).toBe(false)
+  })
+
+  it('does not confuse a normal code block for a marker', () => {
+    expect(hasLabMarker('```bash\nls -la\n```')).toBe(false)
+  })
+
+  it('stripLabMarkers removes every marker but keeps surrounding text', () => {
+    const md = 'A\n\n<!-- lab -->\n\nB\n\n```lab\nx\n```\n\nC\n\n```lab```\n\nD'
+    const out = stripLabMarkers(md)
+    expect(out).toContain('A')
+    expect(out).toContain('B')
+    expect(out).toContain('C')
+    expect(out).toContain('D')
+    expect(out.toLowerCase()).not.toContain('lab')
+  })
+
+  it('stripLabMarkers is a no-op without markers and on null', () => {
+    expect(stripLabMarkers('просто текст')).toBe('просто текст')
+    expect(stripLabMarkers(null)).toBe('')
+  })
+
+  it('the rendered comment marker is invisible (DOMPurify drops comments)', () => {
+    expect(renderMarkdown('a <!-- lab --> b')).not.toContain('lab')
   })
 })
 

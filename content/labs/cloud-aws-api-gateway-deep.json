@@ -1,0 +1,27 @@
+{
+  "id": "cloud-aws-api-gateway-deep",
+  "workdir": "/home/student/apigw",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/apigw/found.txt",
+    "contains": "nto{ap1g4t3w4y_n0n3_m3th0d_t0_l4mbd4_r0l3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/apigw",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/apigw/task.md",
+      "text": "# Задача\n\nAPI Gateway имеет методы с разной авторизацией. Определи, какой метод открыт и что за ним, собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/apigw/api-config.json",
+      "text": "{\n  \"resources\": {\n    \"/users\": {\"GET\": {\"authorizationType\": \"JWT\"}},\n    \"/health\": {\"GET\": {\"authorizationType\": \"NONE\", \"integration\": \"AWS_PROXY lambda:acme-api\", \"role\": \"dynamodb-read-all\"}}\n  }\n}\n"
+    },
+    {
+      "path": "/home/student/apigw/notes.md",
+      "text": "Аудит: /health имеет authorizationType NONE.\nЗа ним Lambda acme-api с ролью dynamodb-read-all.\nОткрытый метод -> доступ к роли функции.\nnto{ap1g4t3w4y_n0n3_m3th0d_t0_l4mbd4_r0l3}\n"
+    }
+  ]
+}

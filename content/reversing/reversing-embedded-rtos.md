@@ -191,6 +191,27 @@ embedded первым делом определяют регионы памят�
 **Как понять, что это FreeRTOS?** По вызовам `xTaskCreate`, символу
 `pxCurrentTCB`, обработчикам `PendSV`/`SysTick` и структурам TCB.
 
+## Инструмент: binwalk — поиск вложенных форматов
+
+`binwalk` ищет внутри файла сигнатуры других форматов — архивы, ФС, сжатые данные — и при необходимости извлекает их.
+
+Ключи, которые пригодятся:
+* `binwalk firmware.bin` — сканировать на вложенные форматы;
+* `binwalk -e firmware.bin` — извлечь найденное в `_firmware.bin.extracted/`;
+* `binwalk -E firmware.bin` — энтропия (видно шифрование/сжатие);
+* `binwalk -eM` — рекурсивное извлечение.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ binwalk binwalk firmware.bin
+DECIMAL       HEXADECIMAL     DESCRIPTION
+0             0x0             ARM exception vector table
+128           0x80            FreeRTOS task list (ASCII)
+```
+
+Подсказка из лаборатории: `binwalk <файл> — сигнатурный анализ образа`.
+
 ## Что мы теперь знаем
 
 - В embedded-коде нет ОС: старт идёт от **таблицы векторов** и

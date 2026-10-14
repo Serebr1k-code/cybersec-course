@@ -1,0 +1,27 @@
+{
+  "id": "hardware-opc-ua",
+  "workdir": "/home/student/opcua",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/opcua/found.txt",
+    "contains": "nto{"
+  },
+  "fs": [
+    {
+      "path": "/home/student/opcua",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/opcua/task.md",
+      "text": "# Задача: OPC UA\n\nРазбери OPC UA-сессию, найди небезопасную конфигурацию и флаг.\n\nИнструменты: `cat`, `grep`, `cut`.\n"
+    },
+    {
+      "path": "/home/student/opcua/notes.md",
+      "text": "Заметки\n------\n- Узлы: NodeId + атрибуты; главный атрибут Value.\n- SecurityPolicy None = открытая сессия.\n- Anonymous-токен обнуляет смысл шифрования.\n"
+    },
+    {
+      "path": "/home/student/opcua/opcua.log",
+      "text": "Endpoint: SecurityPolicy=None, SecurityMode=None\nEndpoint: SecurityPolicy=Basic256Sha256, SecurityMode=SignAndEncrypt\nUserTokenPolicy: Anonymous\nActivateSession: anonymous=true -> OK\nRead ns=2;s=Machine.Secret -> nto{0pc_u4_p0l1cy_n0n3}\n"
+    }
+  ]
+}

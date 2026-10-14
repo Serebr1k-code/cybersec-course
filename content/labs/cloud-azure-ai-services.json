@@ -1,0 +1,27 @@
+{
+  "id": "cloud-azure-ai-services",
+  "workdir": "/home/student/azureai",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/azureai/found.txt",
+    "contains": "nto{azure_openai_key_exposes_deployments}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/azureai",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/azureai/task.md",
+      "text": "# Задача\n\nВ репозитории найден конфиг с ключом Azure OpenAI. Определи, к чему даёт доступ ключ, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/azureai/.env",
+      "text": "AZURE_OPENAI_ENDPOINT=https://acme-openai.openai.azure.com/\nAZURE_OPENAI_KEY=EXAMPLEnotarealkey0123456789\n"
+    },
+    {
+      "path": "/home/student/azureai/notes.md",
+      "text": "Аудит: local auth включён. Ключ открывает data-plane Azure OpenAI.\nЧерез ключ видны deployments gpt-4o и text-embedding-3-large.\nnto{azure_openai_key_exposes_deployments}\n"
+    }
+  ]
+}

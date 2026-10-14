@@ -1,0 +1,27 @@
+{
+  "id": "pwn-windows-rop",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "pop_rcx=0x0000000140001234"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти гаджет для первого аргумента\n\n`ropgadget.txt` — выдержка поиска гаджетов в образе Windows-модуля.\nПервый аргумент в Windows x64 передаётся в `rcx`, поэтому для вызова\nфункции нужен гаджет `pop rcx ; ret`.\n\n1. `cat ropgadget.txt` — изучи гаджеты.\n2. Найди строку `pop rcx ; ret` и её адрес.\n3. Запиши `pop_rcx=0x0000000140001234` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/ropgadget.txt",
+      "text": "0x0000000140001000 : pop rax ; ret\n0x0000000140001010 : pop rbx ; ret\n0x0000000140001234 : pop rcx ; ret\n0x0000000140001240 : pop rdx ; ret\n0x0000000140001250 : pop r8 ; ret\n0x0000000140001260 : pop r9 ; ret\n0x0000000140001270 : add rsp, 0x28 ; ret\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Windows x64: rcx, rdx, r8, r9 — первые четыре аргумента.\nДля вызова нужен гаджет pop rcx ; ret по адресу из ropgadget.txt.\n"
+    }
+  ]
+}

@@ -19,7 +19,7 @@ lab:
   toolset: [core, tshark]
   workdir: /home/student/task
   files: [task.md, custom.pcap]
-  check: "grep -q '' answer.txt"
+  check: "grep -q 'XPRT' answer.txt"
   hints:
     - "Прочитай сессию целиком: `tshark -r custom.pcap -z follow,tcp,ascii,0`."
     - "Каждое сообщение начинается одинаковыми печатными байтами."

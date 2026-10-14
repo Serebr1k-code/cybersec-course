@@ -21,6 +21,7 @@ lab:
   files: [task.md, radius.log]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`network-module-access-aaa`): RADIUS — протокол AAA, атрибут = `Type = Value`; `head -n 8 radius.log`, `Reply-Message` — текстовый атрибут."
     - "`radius.log` — обмен Access-Request / Access-Accept."
     - "В ответе есть атрибут Reply-Message с base64-значением."
     - "Вырежи: `grep Reply-Message radius.log | cut -d: -f2`."

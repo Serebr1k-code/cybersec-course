@@ -1,0 +1,27 @@
+{
+  "id": "hardware-flexray",
+  "workdir": "/home/student/flexray",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/flexray/found.txt",
+    "contains": "nto{"
+  },
+  "fs": [
+    {
+      "path": "/home/student/flexray",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/flexray/task.md",
+      "text": "# Задача: FlexRay\n\nВ дампе цикла FlexRay найди данные, спрятанные в payload одного из слотов.\n\nИнструменты: `cat`, `grep`, `cut`.\n"
+    },
+    {
+      "path": "/home/student/flexray/notes.md",
+      "text": "Заметки\n------\n- Цикл = static + dynamic + symbol window + idle time.\n- Static: один узел на слот. Dynamic: по приоритету.\n- Кадр: header CRC + payload (до 254 B) + frame CRC.\n"
+    },
+    {
+      "path": "/home/student/flexray/flexray.log",
+      "text": "cycle=42 static: slot1=nodeA id=0x011 payload=0A 0B 0C 0D 0E 0F 10 11\ncycle=42 static: slot2=nodeB id=0x022 payload=20 21 22 23 24 25 26 27\ncycle=42 static: slot3=nodeC id=0x033 payload=6E 74 6F 7B 66 6C 78 72\ncycle=42 static: slot4=nodeC id=0x033 payload=34 79 5F 74 64 6D 34 7D\ncycle=42 dynamic: id=0x101 payload=...\nrecovered: payload=nto{flxr4y_tdm4}\n"
+    }
+  ]
+}

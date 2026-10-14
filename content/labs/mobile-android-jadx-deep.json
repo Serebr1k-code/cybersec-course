@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-jadx-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{jadx_str1ngs_f0und}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: jadx deep\n\nНайди хардкод-секрет в декомпилированном коде.\n"
+    },
+    {
+      "path": "/home/student/task/jadx_sources.txt",
+      "text": "Api.java:41:  private String apiKey = \"AKIA-EXAMPLE-PLACEHOLDER\";\nCipher.java:88: private static final String SALT = \"s3cr3t\";  # flag: nto{jadx_str1ngs_f0und}\nLogin.java:90: body.put(\"password\", md5(pass));\n"
+    }
+  ]
+}

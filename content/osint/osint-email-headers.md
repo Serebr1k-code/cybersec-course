@@ -19,7 +19,7 @@ lab:
   toolset: [core]
   workdir: /home/student/task
   files: [task.md, message.eml]
-  check: "grep -q '' answer.txt"
+  check: "grep -q '203.0.113.66' answer.txt"
   hints:
     - "Цепочка `Received:` идёт сверху вниз: верхняя строка — последний хоп, нижняя — первый."
     - "`grep -n '^Received:' message.eml`."

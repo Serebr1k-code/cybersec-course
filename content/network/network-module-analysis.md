@@ -5,6 +5,8 @@ category: network
 parent: network-pcap-analysis
 difficulty: easy
 order: 1
+waystone: true
+waystone_tasks: [network-tcpdump, network-wireshark, network-zeek, network-pcap-analysis, network-traffic-analysis-ctf]
 tags: [network, netflow, ipfix, ids, suricata, zeek, proxy, cdn, waf]
 prerequisites: [network-pcap-analysis, network-zeek]
 useful_for:

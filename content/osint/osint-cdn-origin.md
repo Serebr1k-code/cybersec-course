@@ -18,7 +18,7 @@ lab:
   toolset: [core, tshark, curl]
   workdir: /home/student/task
   files: [task.md, dns.pcap]
-  check: "grep -q '' answer.txt"
+  check: "grep -q '203.0.113.10' answer.txt"
   hints:
     - "DNS-дамп: `tshark -r dns.pcap -Y dns -T fields -e ip.src -e ip.dst -e dns.qry.name -e dns.a`."
     - "104.16.x.x — это Cloudflare, а не origin."
@@ -201,6 +201,29 @@ curl -s "https://api.bgpview.io/ip/104.16.x.x" | jq '.data.prefixes[].asn'
 ## Почему это важный навык
 
 Origin discovery часто определяет успех всего тестирования: пока ты бьёшь в CDN, WAF режет атаки, а прямой сервер остаётся нетронутым. Найденный origin меняет картину — ты видишь приложение без фильтра. Именно поэтому этот навык стоит отрабатывать отдельно и комбинировать источники, а не полагаться на один.
+
+## Инструмент: tshark — Wireshark в консоли
+
+`tshark` — это Wireshark без графики: он читает дамп (`-r файл.pcap`) и печатает ровно то, что ты попросишь. Главный инструмент, когда графической оболочки нет или разбор надо автоматизировать.
+
+Ключи, которые пригодятся:
+* `-r <файл.pcap>` — читать дамп (без него tshark слушает живой интерфейс);
+* `-nn` — не резолвить имена/порты: видно «как есть» и быстрее;
+* `-Y '<фильтр>'` — display-фильтр, оставить только нужные пакеты (`http.request`, `dns`, `eapol`, `ospf`);
+* `-T fields -e <поле>` — вместо сводки печатать значения полей (`-e ip.src -e tcp.dstport -e http.host`);
+* `-q -z follow,tcp,ascii,N` — собрать TCP-поток номер N и показать его как текст.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ tshark -Y dns -T fields -e ip.src -e ip.dst -e dns.qry.name -e dns.a
+10.0.0.9	10.0.0.53	api.example.com	
+10.0.0.53	10.0.0.9	api.example.com	104.16.132.229
+10.0.0.9	10.0.0.53	origin.api.example.com	
+10.0.0.53	10.0.0.9	origin.api.example.com	…
+```
+
+Подсказка из лаборатории: `tshark [опции] -r <pcap> [-Y фильтр] [-T fields -e поле]`.
 
 ## Что мы теперь знаем
 

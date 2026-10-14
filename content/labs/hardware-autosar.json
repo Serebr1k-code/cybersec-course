@@ -1,0 +1,27 @@
+{
+  "id": "hardware-autosar",
+  "workdir": "/home/student/autosar",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/autosar/found.txt",
+    "contains": "nto{"
+  },
+  "fs": [
+    {
+      "path": "/home/student/autosar",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/autosar/task.md",
+      "text": "# Задача: SecOC\n\nРазбери SecOC-конфигурацию в логе и найди флаг, оставленный в отладочном сообщении.\n\nИнструменты: `cat`, `grep`, `cut`.\n"
+    },
+    {
+      "path": "/home/student/autosar/notes.md",
+      "text": "Заметки\n------\n- SecOC = AES-CMAC + freshness counter.\n- Truncated MAC (16-24 бит) подбирается.\n- Общий ключ на весь автомобиль = компрометация всех узлов.\n"
+    },
+    {
+      "path": "/home/student/autosar/secoc.log",
+      "text": "cfg: algo=AES-CMAC mac_len=24bits key=000102030405060708090a0b0c0d0e0f\nmsg: id=0x123 payload=10 20 30 40 freshness=0x0000002A mac=7d4b1a\nnote: key shared across all ECUs (weak config)\ndebug: leaked=nto{s3c0c_comm0n_k3y_w34k}\n"
+    }
+  ]
+}

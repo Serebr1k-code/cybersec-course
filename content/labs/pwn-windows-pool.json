@@ -1,0 +1,27 @@
+{
+  "id": "pwn-windows-pool",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "pool_tag=Proc"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: определить PoolTag аллокации\n\n`pool.hex` — дамп заголовка пула Windows. Поле PoolTag — 4 печатных ASCII\nбайта, идентифицирующие, кто аллоцировал блок.\n\n1. `cat pool.hex` — посмотри дамп.\n2. Найди 4 ASCII-байта тега.\n3. Запиши `pool_tag=Proc` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/pool.hex",
+      "text": "00000000: 0200 0800 0000 0000 5072 6f63 0000 0000  ........Proc....\n00000010: 0000 0000 0000 0000 0000 0000 0000 0000  ................\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заголовок пула: служебные поля, затем PoolTag (4 ASCII).\nБайты 50 72 6f 63 = P r o c -> тег \"Proc\".\n"
+    }
+  ]
+}

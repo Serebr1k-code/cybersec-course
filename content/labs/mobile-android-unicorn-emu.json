@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-unicorn-emu",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{un1c0rn_3mul4t3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Unicorn\n\nНайди расшифрованную строку в логе эмуляции.\n"
+    },
+    {
+      "path": "/home/student/task/unicorn_log.txt",
+      "text": "mem_map 0x1000 size 0x10000\nemu_start 0x1000 -> 0x1f40\ndecrypted: nto-secret   # flag: nto{un1c0rn_3mul4t3d}\n"
+    }
+  ]
+}

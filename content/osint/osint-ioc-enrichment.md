@@ -18,7 +18,7 @@ lab:
   toolset: [core]
   workdir: /home/student/task
   files: [task.md, report.txt]
-  check: "grep -q '' answer.txt"
+  check: "grep -q 'c2.malware-cdn.example' answer.txt"
   hints:
     - "Разделы отчёта помечены заголовками в квадратных скобках."
     - "`cat report.txt` или `grep -n 'Домены' report.txt`."

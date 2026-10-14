@@ -126,6 +126,44 @@ ARM64 — это современные смартфоны, планшеты, Ap
 
 Именно поэтому **учиться heap-эксплуатации на ARM64 удобно после x86-64**: почти весь опыт переносится, а добавляется только работа с эмуляцией и понимание, какие цели не защищены PAC.
 
+## Инструмент: readelf — разбор ELF
+
+`readelf` читает заголовки ELF-файла: архитектуру, тип, секции, сегменты и включённые защиты. С него начинается любой разбор нативного бинарника.
+
+Ключи, которые пригодятся:
+* `readelf -h <файл>` — заголовок: класс (32/64), машина, точка входа;
+* `readelf -S <файл>` — таблица секций (`.text`, `.plt`, `.got`, `.data`);
+* `readelf -s <файл>` — таблица символов (как `nm`, но с секциями и типами);
+* `readelf -l <файл>` — сегменты программы; ищи `GNU_STACK`/`GNU_RELRO`, чтобы понять защиты.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ readelf -h arm64heap
+ELF Header:
+  Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 
+  Class:                             ELF64
+  Data:                              2's complement, little endian
+  Version:                           1 (current)
+  OS/ABI:                            UNIX - System V
+  ABI Version:                       0
+  Type:                              DYN (Position-Independent Executable file)
+  Machine:                           AArch64
+  Version:                           0x1
+  Entry point address:               0x10350
+  Start of program headers:          64 (bytes into file)
+  Start of section headers:          1424 (bytes into file)
+  Flags:                             0x0
+  Size of this header:               64 (bytes)
+  Size of program headers:           56 (bytes)
+  Number of program headers:         10
+  Size of section headers:           64 (bytes)
+  Number of section headers:         15
+  Section header string table index: 13
+```
+
+Подсказка из лаборатории: `readelf [-h | -sW | -lW] <файл> — (replay)`.
+
 ## Что мы теперь знаем
 
 - На AArch64 используется **тот же glibc-аллокатор** — chunk, tcache, safe-linking переносятся с x86-64.

@@ -19,7 +19,7 @@ lab:
   toolset: [core, tshark]
   workdir: /home/student/task
   files: [task.md, icmp.pcap]
-  check: "grep -q '' answer.txt"
+  check: "grep -q '3' answer.txt"
   hints:
     - "Типы ICMP: `tshark -r icmp.pcap -Y icmp -T fields -e icmp.type`."
     - "8 — echo request, 0 — echo reply, 11 — time exceeded, 3 — destination unreachable."

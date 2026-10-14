@@ -1,0 +1,27 @@
+{
+  "id": "hardware-cip-enip",
+  "workdir": "/home/student/enip",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/enip/found.txt",
+    "contains": "nto{"
+  },
+  "fs": [
+    {
+      "path": "/home/student/enip",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/enip/task.md",
+      "text": "# Задача: CIP/EtherNet-IP\n\nРазбери CIP-обмен и найди флаг в записанном теге.\n\nИнструменты: `cat`, `grep`, `cut`.\n"
+    },
+    {
+      "path": "/home/student/enip/notes.md",
+      "text": "Заметки\n------\n- ENIP: 44818/TCP (explicit), 2222/UDP (implicit).\n- CIP: service + class + instance + attribute.\n- Read Tag 0x4C, Write Tag 0x4D.\n"
+    },
+    {
+      "path": "/home/student/enip/enip.log",
+      "text": "ENIP: cmd=ListIdentity -> reply vendor=Rockwell device=1756-L83E\nENIP: cmd=RegisterSession session=0x01020304\nCIP: service=0x0E (Get_Attribute_Single) class=0x01 inst=1 attr=1\nCIP: Read Tag Setpoint = 70.0\nCIP: Write Tag Flag = nto{c1p_t4g_wr1t3_0wn3d}\n"
+    }
+  ]
+}

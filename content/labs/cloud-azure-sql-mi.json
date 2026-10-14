@@ -1,0 +1,27 @@
+{
+  "id": "cloud-azure-sql-mi",
+  "workdir": "/home/student/azsql",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/azsql/found.txt",
+    "contains": "nto{azure_sql_firewall_not_auth}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/azsql",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/azsql/task.md",
+      "text": "# Задача\n\nНайдена строка подключения к Azure SQL. Определи, что мешает подключению и какие пути входа есть, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/azsql/conn.txt",
+      "text": "Server=tcp:acme-sql.database.windows.net,1433;Database=orders;\nUser ID=appuser;Password=EXAMPLEnotreal;\n"
+    },
+    {
+      "path": "/home/student/azsql/notes.md",
+      "text": "Аудит: firewall сервера разрешает только Allow Azure services + private endpoint.\nПароль валиден, но источник не разрешён. Второй путь входа — Entra ID.\nnto{azure_sql_firewall_not_auth}\n"
+    }
+  ]
+}

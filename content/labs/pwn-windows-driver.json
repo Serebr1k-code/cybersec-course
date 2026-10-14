@@ -1,0 +1,27 @@
+{
+  "id": "pwn-windows-driver",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "ioctl=0x00222003"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: определить IOCTL-команду бага\n\n`disasm.txt` — дизассемблер обработчика `IRP_MJ_DEVICE_CONTROL` уязвимого\nдрайвера. Найди константу, с которой сравнивается код управления.\n\n1. `cat disasm.txt` — изучи дизассемблер.\n2. Найди сравнение кода IOCTL с константой.\n3. Запиши `ioctl=0x00222003` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/disasm.txt",
+      "text": "DriverEntry:\n    mov [rdi+0x70], offset DispatchDeviceControl\nDispatchDeviceControl:\n    mov eax, [rdx+0x18]        ; IO_STACK_LOCATION.Parameters.DeviceIoControl.IoControlCode\n    cmp eax, 0x00222003\n    jne short loc_default\n    call vuln_handler          ; <-- баг здесь\nloc_default:\n    mov eax, 0xC0000001\n    ret\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "IOCTL-код сравнивается с константой в DispatchDeviceControl.\nЭто и есть команда, триггерящая уязвимый обработчик.\n"
+    }
+  ]
+}

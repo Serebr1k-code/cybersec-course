@@ -1,0 +1,24 @@
+{
+  "id": "osint-immigration-records",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{1mm1gr4t10n_l1nk}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: immigration\n\n1. `cat registry.json`.\n2. Найди запись `visa`.\n3. В поле `note` — маркер `nto{...}`.\n4. Запиши в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/registry.json",
+      "text": "[\n  {\"type\": \"company\", \"name\": \"Nordwind Holdings Ltd\", \"jurisdiction\": \"CY\", \"officer\": \"Ivan Petrov\"},\n  {\"type\": \"visa\", \"holder\": \"Ivan Petrov\", \"class\": \"investor\", \"country\": \"PT\", \"note\": \"nto{1mm1gr4t10n_l1nk}\"}\n]\n"
+    }
+  ],
+  "tools": {}
+}

@@ -1,0 +1,27 @@
+{
+  "id": "cloud-aws-iot-core",
+  "workdir": "/home/student/iot",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/iot/found.txt",
+    "contains": "nto{10t_p0l1cy_w1ldc4rd_t0p1c_4cc3ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/iot",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/iot/task.md",
+      "text": "# Задача\n\nИз прошивки извлечён сертификат устройства. Разбери IoT-политику и определи объём доступа.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/iot/iot-policy.json",
+      "text": "{\n  \"Statement\": [\n    {\"Effect\": \"Allow\", \"Action\": \"iot:Connect\", \"Resource\": \"*\"},\n    {\"Effect\": \"Allow\", \"Action\": \"iot:Subscribe\", \"Resource\": \"arn:aws:iot:eu-west-1:123456789012:topicfilter/#\"}\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/iot/notes.md",
+      "text": "Аудит: Connect на *, Subscribe на topicfilter/#.\nWildcard даёт доступ ко всем топикам флота.\nСертификат одного устройства читает телеметрию всех.\nnto{10t_p0l1cy_w1ldc4rd_t0p1c_4cc3ss}\n"
+    }
+  ]
+}

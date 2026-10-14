@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: разбор RADIUS-обмена\n\n`radius.log` — Access-Request и Access-Accept. В ответе есть атрибут\n`Reply-Message` со значением в base64.\n\n1. Посмотри лог: `cat radius.log`\n2. Вырежи поле: `grep Reply-Message radius.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+      "text": "# Задача: разбор RADIUS-обмена\n\n`radius.log` — Access-Request и Access-Accept. В ответе есть атрибут\n`Reply-Message` со значением в base64.\n\n1. Посмотри лог: `cat radius.log`\n2. Вырежи поле: `grep Reply-Message radius.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n\n## Повторение (`network-module-access-aaa`)\n\nRADIUS — протокол AAA (Authentication, Authorization, Accounting) из модуля `network-module-access-aaa`. Каждый атрибут ответа — пара `Type = Value`. Посмотри список атрибутов Access-Accept:\n\n    head -n 8 radius.log\n\n`Reply-Message` — обычный текстовый атрибут, его значение здесь в base64.\n"
     },
     {
       "path": "/home/student/task/radius.log",

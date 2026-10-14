@@ -9,7 +9,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: быстрый скан top-портов\n\n`naabu` — быстрый сканер портов. Прогони его по `scanme.nmap.org` по top-100\nпортам:\n\n    naabu -host scanme.nmap.org -top-ports 100 -silent\n\nЗапиши **полную строку для открытого FTP-порта** (в формате `хост:порт`) в файл\n`answer.txt` и набери `check`.\n"
+      "text": "# Задача: быстрый скан top-портов\n\n`naabu` — быстрый сканер портов. Прогони его по `scanme.nmap.org` по top-100\nпортам:\n\n    naabu -host scanme.nmap.org -top-ports 100 -silent\n\nЗапиши **полную строку для открытого FTP-порта** (в формате `хост:порт`) в файл\n`answer.txt` и набери `check`.\n\n## Повторение\n\nПовторение (`network-portscan`): ты уже сканировал порты через `nmap -p`. `naabu` делает то же самое, но быстрее и по top-портам — принцип «порт → сервис» тот же.\n"
     }
   ],
   "expect": {

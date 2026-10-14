@@ -1,0 +1,27 @@
+{
+  "id": "hardware-zigbee-deep",
+  "workdir": "/home/student/zigbee",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/zigbee/found.txt",
+    "contains": "nto{"
+  },
+  "fs": [
+    {
+      "path": "/home/student/zigbee",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/zigbee/task.md",
+      "text": "# Задача: Zigbee\n\nРазбери Zigbee-трафик, найди ключи и спрятанный флаг.\n\nИнструменты: `cat`, `grep`, `cut`.\n"
+    },
+    {
+      "path": "/home/student/zigbee/notes.md",
+      "text": "Заметки\n------\n- Zigbee = 802.15.4 + NWK + APS.\n- network key (трафик) + TC link key (join).\n- default TC link key = ZigBeeAlliance09.\n"
+    },
+    {
+      "path": "/home/student/zigbee/zigbee.log",
+      "text": "NWK: src=0x1A2B dst=0x0000 broadcast=true\nAPS: cluster=0x0006 (OnOff) ep=1\njoin: TC_link_key=5A6967426565416C6C69616E63653039  # ZigBeeAlliance09 (default)\ntransport-key: network_key=00112233445566778899AABBCCDDEEFF\ncapture: secret=nto{z1gb33_d3f4ult_1ink_k3y}\n"
+    }
+  ]
+}

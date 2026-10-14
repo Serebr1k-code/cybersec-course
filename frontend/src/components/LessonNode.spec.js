@@ -189,3 +189,42 @@ describe('components/LessonNode.vue — hub renders a plain small circle', () =>
     expect(hub({ dimmed: true }).classes()).toContain('dim')
   })
 })
+
+describe('components/LessonNode.vue — waystone gate indicator', () => {
+  it('renders no gate pill for a plain lesson', () => {
+    expect(factory().find('.gate').exists()).toBe(false)
+    expect(factory({ gate: null }).find('.gate').exists()).toBe(false)
+  })
+
+  it('shows a locked «🔒 N/M» pill while the branch is locked', () => {
+    const w = factory({ gate: { total: 5, solved: 2, locked: true } })
+    const g = w.find('.gate')
+    expect(g.exists()).toBe(true)
+    expect(g.classes()).toContain('locked')
+    expect(g.classes()).not.toContain('open')
+    expect(g.text()).toContain('2/5')
+    expect(g.attributes('title')).toMatch(/заперт/i)
+    expect(g.attributes('title')).toContain('2 из 5')
+  })
+
+  it('shows an open «🔓 N/M» pill once every task is solved', () => {
+    const w = factory({ gate: { total: 5, solved: 5, locked: false } })
+    const g = w.find('.gate')
+    expect(g.classes()).toContain('open')
+    expect(g.classes()).not.toContain('locked')
+    expect(g.text()).toContain('5/5')
+    expect(g.attributes('title')).toMatch(/открыт/i)
+  })
+
+  it('renders no pill when the gate has zero tasks', () => {
+    expect(factory({ gate: { total: 0, solved: 0, locked: false } }).find('.gate').exists()).toBe(false)
+  })
+
+  it('renders the pill on a hub waystone too', () => {
+    const w = hub({ node: { ...HUB, waystone: true, waystone_tasks: ['a', 'b'] }, gate: { total: 2, solved: 1, locked: true } })
+    const g = w.find('.gate')
+    expect(g.exists()).toBe(true)
+    expect(g.classes()).toContain('gate-hub')
+    expect(g.text()).toContain('1/2')
+  })
+})

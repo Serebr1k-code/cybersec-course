@@ -19,7 +19,7 @@ lab:
   toolset: [core, tshark]
   workdir: /home/student/task
   files: [task.md, frag.pcap]
-  check: "grep -q '' answer.txt"
+  check: "grep -q '0x3039' answer.txt"
   hints:
     - "Фрагменты: `tshark -r frag.pcap -Y 'ip.flags.mf==1 || ip.frag_offset>0' -T fields -e ip.id -e ip.flags.mf -e ip.frag_offset -e ip.len`."
     - "IP Identification общий у обоих фрагментов — по нему собирают датаграмму."

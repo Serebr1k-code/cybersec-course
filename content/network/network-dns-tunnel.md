@@ -19,8 +19,9 @@ lab:
   toolset: [core]
   workdir: /home/student/task
   files: [task.md, queries.log]
-  check: "grep -q '' answer.txt"
+  check: "grep -q 'exfil.lab' answer.txt"
   hints:
+    - "Повторение (`network-dns-attacks`): слева метки поддомена, справа зона; `cut -d' ' -f1 queries.log | head` — длинная метка = данные."
     - "Обычные запросы короткие и осмысленные; туннель выдаёт длинная случайная метка."
     - "Найди в `queries.log` строки с длинной случайной первой меткой."
     - "Базовый домен — общий суффикс после чанка вида `xNNN` (например, `x000.<домен>`)."

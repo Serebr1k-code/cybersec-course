@@ -19,7 +19,7 @@ lab:
   toolset: [core, nmap]
   workdir: /home/student/task
   files: [task.md]
-  check: "grep -q '' answer.txt"
+  check: "grep -q '21,22,80' answer.txt"
   hints:
     - "Скан диапазона: `nmap -Pn -p 1-1000 scanme.nmap.org`."
     - "Оставь только открытые порты: `grep open` по выводу скана."

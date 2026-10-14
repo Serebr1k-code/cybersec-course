@@ -15,7 +15,7 @@ estimated_minutes: 50
 summary: 'Как разобрать .beam-файл Erlang/Elixir: контейнер FOR1/BEAM, чанки, атомы, деассемблирование в Erlang ASM и извлечение строк.'
 lab:
   kind: shell
-  title: 'Практика: разбор BEAM-модуля'
+  title: 'Практика: разбор Erlang BEAM-байткода'
   toolset: [core, hex, file]
   workdir: /home/student/task
   files: [task.md, module.beam]

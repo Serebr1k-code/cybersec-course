@@ -13,6 +13,18 @@ useful_for:
   - 'Data recovery'
 estimated_minutes: 50
 summary: 'Как читать ISO9660 и UDF: дескрипторы тома по сектору 16, Joliet и Rock Ridge, El Torito, скрытые данные в slack и гибридных ISO. Практика: найти файл в образе.'
+lab:
+  kind: shell
+  title: 'Практика: разбор ISO-образа'
+  toolset: [core, grep, hex]
+  workdir: /home/student/task
+  files: [task.md, disk.iso]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Начни с `ls -la` и `xxd -s 32768 -l 16 disk.iso` — дескриптор тома UDF по сектору 16.'
+    - 'ISO9660 начинается с сектора 16; ищи текстовые строки: `strings disk.iso`.'
+    - 'В дескрипторах тома есть строка с флагом `nto{...}`.'
+    - 'Запиши флаг в `answer.txt`: `strings disk.iso | grep nto > answer.txt`, затем набери `check`.'
 ---
 
 ## Вопрос, с которого всё начинается

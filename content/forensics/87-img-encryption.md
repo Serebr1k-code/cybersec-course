@@ -47,6 +47,33 @@ lab:
 - Искать ключи шифрования в дампах памяти и служебных файлах.
 - Подключать и разбирать зашифрованные контейнеры при наличии ключа.
 
+## Инструмент: cryptsetup — LUKS и шифрование диска
+
+`cryptsetup` открывает и создаёт зашифрованные контейнеры (LUKS/dm-crypt). В лаборатории им вскрывают образ, зная пароль или найдя его.
+
+Ключи, которые пригодятся:
+* `cryptsetup luksDump image.img` — заголовок LUKS: версия, слоты ключей;
+* `cryptsetup open image.img name` — открыть контейнер как `/dev/mapper/name`;
+* `cryptsetup close name` — закрыть;
+* после `open` том монтируется обычным `mount`.
+
+### Рабочий пример (как в лаборатории)
+
+```
+$ cryptsetup luksDump luks.img
+LUKS header information
+Version:        2
+UUID:           3f2a9c1b-8d4e-6f0a-2c5b-9d1e7f3a4b6c
+Label:          nto{…}
+Cipher name:    aes
+Cipher mode:    xts-plain64
+Hash spec:      sha256
+Keyslots:
+  0: luks2 (aes-xts-plain64, 512 bit)
+```
+
+Подсказка из лаборатории: `cryptsetup luksDump <образ> — заголовок LUKS`.
+
 ## Квиз
 
 ```quiz

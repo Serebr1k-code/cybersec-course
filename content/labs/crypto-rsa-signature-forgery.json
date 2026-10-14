@@ -1,0 +1,37 @@
+{
+  "id": "crypto-rsa-signature-forgery",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{bl31ch3nb4ch3r_06_e3_l4x_p4dd1ng_f0rg3}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: подделка подписи Bleichenbacher 06\n\n`forge.py` работает с 1024-битным ключом и e=3. Собери целевой блок\n00 01 FF*8 00 <hash> и возьми его кубический корень (ceil). Verifier видит\nправильный префикс и хэш, хотя приватного ключа у нас нет.\n\nШаги:\n1. `cat forge.py`.\n2. `python3 forge.py`.\n3. `python3 forge.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Условие: e=3 и лояльный парсер (не проверяет байты после хэша).\n- Подпись s = ceil(cuberoot(N)); s^3 = N + Delta, Delta ~ 3s^2.\n- Delta затрагивает только младшие байты -> хэш наверху сохраняется.\n- Защита: e=65537 и строгий парсер (или RSA-PSS).\n"
+    },
+    {
+      "path": "/home/student/task/forge.py",
+      "text": "# Bleichenbacher '06: forge an RSA signature with e=3 when the verifier is lax.\nimport hashlib\n\nn = 77650653673682003687494267627597200423940944606471887031283198704617400384961065594262878179247523531689087748050626142906756623775929396866115569920332406993660963712468018631931266122464649509753244738511650484947219083868737529517191070227066824739182859700635666438236974193526678946204096660565165797431\ne = 3\nk = 128                                    # modulus length in bytes (1024-bit)\n\ndef icbrt(x):\n    lo, hi = 0, 1\n    while hi ** 3 < x: hi *= 2\n    while lo < hi:\n        mid = (lo + hi) // 2\n        if mid ** 3 < x: lo = mid + 1\n        else: hi = mid\n    return lo                              # ceil(cuberoot(x))\n\nmsg = b'attack at dawn'\nh = hashlib.sha256(msg).digest()[:20]      # 20-byte digest\nf = 8                                      # 8 bytes of FF padding\nN = int.from_bytes(b'\\x00\\x01' + b'\\xff' * f + b'\\x00' + h + b'\\x00' * (k - 2 - f - 1 - len(h)), 'big')\nforged = icbrt(N)                          # s = ceil(cuberoot(N))\nblock = pow(forged, e, n).to_bytes(k, 'big')\nprint(\"forged signature (hex):\", hex(forged)[:30] + \"...\")\nprint(\"block starts with 0001ff:\", block[:3].hex() == '0001ff')\nprint(\"hash present in block    :\", h in block)\nprint(\"e=3 signature forgery OK :\", block[:2] == b'\\x00\\x01' and h in block)\nprint(\"flag: nto{bl31ch3nb4ch3r_06_e3_l4x_p4dd1ng_f0rg3}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        { "match": "--version|^-V$", "example": "python3 --version", "output": "Python 3.12.4" },
+        {
+          "match": "forge\\.py$",
+          "example": "python3 forge.py",
+          "output": "forged signature (hex): 0x1428a2f98d728ae220845bf2c7b4...\nblock starts with 0001ff: True\nhash present in block    : True\ne=3 signature forgery OK : True\nflag: nto{bl31ch3nb4ch3r_06_e3_l4x_p4dd1ng_f0rg3}\n"
+        }
+      ]
+    }
+  }
+}

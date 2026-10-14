@@ -1,0 +1,27 @@
+{
+  "id": "pwn-hyperv-escape",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "msgtype=0x00000001"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: определить тип сообщения VMBus\n\n`vmbus.hex` — дамп сообщения на шине VMBus. Первое поле — тип сообщения.\nОпредели его значение.\n\n1. `cat vmbus.hex` — посмотри дамп.\n2. Первые 4 байта — тип сообщения (little-endian).\n3. Запиши `msgtype=0x00000001` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/vmbus.hex",
+      "text": "00000000: 0100 0000 0200 0000 0000 0000 0000 0000  ................\n00000010: 0000 0000 0000 0000 0000 0000 0000 0000  ................\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Первые 4 байта little-endian: 01 00 00 00 -> 0x00000001.\nТип 1 — Channel Offer (предложение канала).\n"
+    }
+  ]
+}

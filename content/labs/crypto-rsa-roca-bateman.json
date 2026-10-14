@@ -1,0 +1,37 @@
+{
+  "id": "crypto-rsa-roca-bateman",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r0c4_d3t3ct10n_v14_sm4ll_subgr0up}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: детектор ROCA-ключа\n\n`roca.py` строит ROCA-подобный модуль n = p*q, где p = k*M + 65537^a mod M.\nДетектор проверяет, что n mod l лежит в подгруппе <65537> для малых простых l.\nПокажи, что ROCA-ключ флагуется, а случайный — нет.\n\nШаги:\n1. `cat roca.py`.\n2. `python3 roca.py`.\n3. `python3 roca.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- ROCA (CVE-2017-15361): простые Infineon имеют форму k*M + (65537^a mod M).\n- Детектор: n mod l in <65537> для каждого малого простого l.\n- Факторизация: Coppersmith на малом корне (метод Bateman/De Laurentis).\n- 2048-битный ROCA-ключ всё равно факторизуем.\n"
+    },
+    {
+      "path": "/home/student/task/roca.py",
+      "text": "# ROCA (CVE-2017-15361): Infineon primes have a special structure that is detectable.\n# Prime p = k*M + (65537^a mod M), M = product of the first primes.\nfrom math import gcd\nSMALL = [3, 5, 7, 11, 13, 17, 19, 23]\nM = 1\nfor l in SMALL: M *= l\ng = 65537\n\ndef roca_prime(k, a):\n    return k * M + pow(g, a, M)\n\ndef is_prime(x):\n    if x < 2: return False\n    for d in range(2, int(x**0.5) + 1):\n        if x % d == 0: return False\n    return True\n\nps = [roca_prime(k, 3) for k in range(1, 4000)]\nps = [p for p in ps if p > 1000 and is_prime(p)]\np = ps[0]; q = ps[1]\nn = p * q\ndef roca_detect(n):\n    for l in SMALL:\n        s = set()\n        x = 1\n        while True:\n            s.add(x)\n            x = (x * g) % l\n            if x == 1: break\n        if (n % l) not in s:\n            return False\n    return True\nimport random\nrandom.seed(1)\nn_random = ps[0] * ps[3] + 2   # arbitrary non-structured modulus\nprint(\"ROCA modulus n     :\", n)\nprint(\"detect(n)          :\", roca_detect(n))\nprint(\"detect(random)     :\", roca_detect(n_random))\nprint(\"ROCA key flagged   :\", roca_detect(n) and not roca_detect(n_random))\nprint(\"flag: nto{r0c4_d3t3ct10n_v14_sm4ll_subgr0up}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        { "match": "--version|^-V$", "example": "python3 --version", "output": "Python 3.12.4" },
+        {
+          "match": "roca\\.py$",
+          "example": "python3 roca.py",
+          "output": "ROCA modulus n     : 1308905404532313589\ndetect(n)          : True\ndetect(random)     : False\nROCA key flagged   : True\nflag: nto{r0c4_d3t3ct10n_v14_sm4ll_subgr0up}\n"
+        }
+      ]
+    }
+  }
+}

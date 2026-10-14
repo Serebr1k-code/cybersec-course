@@ -15,7 +15,7 @@ estimated_minutes: 45
 summary: 'Prompt injection в облачных LLM: как недоверенный текст превращается в инструкцию, чем отличаются прямой и косвенный ввод, как утекает системный промпт и как обходят guardrails облачных сервисов.'
 lab:
   kind: shell
-  title: 'Практика: косвенная инъекция'
+  title: 'Практика: инъекция через тикет поддержки'
   toolset: [core]
   workdir: /home/student/llm
   files: [task.md, prompt.txt, ticket.txt, notes.md]

@@ -1,0 +1,27 @@
+{
+  "id": "pwn-windows-cfg-cet",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "target=0x0000000140001a00"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: выбрать цель, разрешённую CFG\n\n`cfg.txt` — список адресов, помеченных как допустимые цели косвенного\nвызова (valid call targets). Нужно выбрать адрес, на который CFG разрешит\nпередачу управления.\n\n1. `cat cfg.txt` — изучи список.\n2. Выбери адрес, помеченный `valid`.\n3. Запиши `target=0x0000000140001a00` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/cfg.txt",
+      "text": "0x0000000140001000  invalid  (data, not a function start)\n0x0000000140001a00  valid    (function entry, in CFG bitmap)\n0x0000000140002000  invalid  (middle of instruction)\n0x0000000140003000  valid    (function entry, in CFG bitmap)\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "CFG разрешает косвенный вызов только на адрес, помеченный valid\nв bitmap допустимых целей. Выбери такой адрес.\n"
+    }
+  ]
+}
