@@ -15,7 +15,7 @@ estimated_minutes: 34
 summary: 'Метаданные изображений: структура EXIF (TIFF/IFD), GPS-теги, IPTC и XMP; exiftool, ручной разбор, неполное удаление метаданных и скрытые данные в полях.'
 lab:
   kind: shell
-  title: 'Практика: метаданные фото'
+  title: 'Практика: скрытые теги EXIF'
   toolset: [core, grep, hex]
   workdir: /home/student/task
   files: [task.md, photo.jpg, meta_dump.txt]

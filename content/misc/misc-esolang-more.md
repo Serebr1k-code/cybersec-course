@@ -1,6 +1,6 @@
 ---
 id: misc-esolang-more
-title: 'Модуль: эзотерические языки, часть III'
+title: 'Модуль: LOLCODE, Chef, Rockstar и углублённый Brainfuck'
 category: misc
 parent: misc-esolang
 difficulty: hard
