@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-auth-jwt-idor`): сначала свой объект `curl -s http://vuln.lab.local/api/user/1`, затем соседний id."
     - Свой профиль: `curl -s http://vuln.lab.local/api/user/1`.
     - Попробуй соседний id: `curl -s http://vuln.lab.local/api/user/2`.
     - Профиль админа содержит поле `api_key` со значением-флагом.

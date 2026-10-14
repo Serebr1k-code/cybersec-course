@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-sqli`): сначала фингерпринт диалекта — `curl -s \"http://shop.example/item?id=1'\"`; `unterminated quoted string` = PostgreSQL."
     - 'Диалект: `curl -s "http://shop.example/item?id=1''"` — `unterminated quoted string`.'
     - 'В PostgreSQL агрегация строк — `string_agg`, конкатенация — `||`.'
     - 'Таблицы: `FROM pg_tables WHERE schemaname=''public''`.'

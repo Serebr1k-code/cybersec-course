@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: определить архитектуру по машинному коду\n\n`blob.bin` — сырые байты неизвестной архитектуры. `prog` — обычный ELF.\n\n1. `xxd blob.bin` — посмотри байты (магии ELF нет).\n2. `python3 disasm.py blob.bin` — дизассемблируй (capstone).\n   В коде видно `mov w0, #0x42` — это ARM64 (AArch64), а не x86.\n3. Число `0x42` — ключ XOR. Раскодируй `enc.hex`:\n   `python3 xor.py enc.hex 0x42`\n\nФлаг из вывода запиши в `found.txt` и набери `check`.\n"
+      "text": "# Задача: определить архитектуру по машинному коду\n\n`blob.bin` — сырые байты неизвестной архитектуры. `prog` — обычный ELF.\n\n1. `xxd blob.bin` — посмотри байты (магии ELF нет).\n2. `python3 disasm.py blob.bin` — дизассемблируй (capstone).\n   В коде видно `mov w0, #0x42` — это ARM64 (AArch64), а не x86.\n3. Число `0x42` — ключ XOR. Раскодируй `enc.hex`:\n   `python3 xor.py enc.hex 0x42`\n\nФлаг из вывода запиши в `found.txt` и набери `check`.\n\n## Повторение (`reversing-asm`)\n\nЧтение ассемблера x86-64 ты осваивал в `reversing-asm`; здесь та же задача, но для другой ISA. Сначала посмотри сырые байты и убедись, что ELF-магии нет:\n\n    xxd blob.bin | head\n\nОтсутствие `7f 45 4c 46` (ELF) означает «сырой» машинный код — дальше определяй архитектуру по опкодам.\n"
     },
     {
       "path": "/home/student/task/blob.bin",

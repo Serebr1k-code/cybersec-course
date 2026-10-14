@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{mobile_android_notifications_0k}"
+    "contains": "nto{andr01d_n0t1f1c4t10n_l34k}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти уведомление подозрительного приложения\n\n`android_notifications.txt` — журнал уведомлений Android: время, пакет,\nзаголовок, текст. Одно уведомление пришло от неизвестного пакета и содержит\nкод.\n\n1. `cat android_notifications.txt` — просмотри уведомления.\n2. Найди уведомление от пакета `com.unknown.*`.\n3. Выпиши строку с меткой: `grep nto android_notifications.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта mobile-android-notifications\nwarning: suspicious activity detected\nmarker: nto{mobile_android_notifications_0k}\n",
+      "path": "/home/student/task/android_notifications.txt",
+      "text": "ts,package,title,text\n2026-02-10T08:00:00,com.android.messaging,Anna,See you at 6\n2026-02-10T08:01:00,com.example.game,Game,Level up!\n2026-02-10T08:02:00,com.unknown.stealer,OTP,nto{andr01d_n0t1f1c4t10n_l34k}\n",
       "mode": "644"
     }
   ]

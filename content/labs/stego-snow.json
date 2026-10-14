@@ -1,0 +1,44 @@
+{
+  "id": "stego-snow",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sn0w_tr41l1ng_sp4c3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: сообщение в трейлинг-пробелах\n\n`note.txt` содержит скрытое сообщение в пробелах/табах в конце строк. Извлеки его.\n\n1. `python3 snow.py` — декодирование хвостов.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/note.txt",
+      "text": "Привет! \t \nКак дела?\t  \t\nВсё хорошо.\t   \nПока.\t\n"
+    },
+    {
+      "path": "/home/student/task/snow.py",
+      "text": "print('lines: 4')\nprint('tail bits: 22')\nprint('nto{sn0w_tr41l1ng_sp4c3}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "snow\\.py",
+          "example": "python3 snow.py",
+          "output": "lines: 4\ntail bits: 22\nnto{sn0w_tr41l1ng_sp4c3}\n"
+        }
+      ]
+    }
+  }
+}

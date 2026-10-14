@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: Pohlig-Hellman на гладком порядке\n\nДана эллиптическая кривая над `F_p`, точка `G` и `Q = d·G`. Порядок `N`\n**гладкий** (произведение малых простых), поэтому DLP решается по частям:\nнаходим `d mod q^e` для каждого простого делителя и собираем CRT.\n\nШаги:\n1. `cat curve.txt` — параметры, G, Q. `cat factors.txt` — факторизация N.\n2. `python3 pohlig.py` — решает DLP по подгруппам и печатает `d`.\n3. `python3 pohlig.py | grep nto > found.txt`.\n"
+      "text": "# Практика: Pohlig-Hellman на гладком порядке\n\nДана эллиптическая кривая над `F_p`, точка `G` и `Q = d·G`. Порядок `N`\n**гладкий** (произведение малых простых), поэтому DLP решается по частям:\nнаходим `d mod q^e` для каждого простого делителя и собираем CRT.\n\nШаги:\n1. `cat curve.txt` — параметры, G, Q. `cat factors.txt` — факторизация N.\n2. `python3 pohlig.py` — решает DLP по подгруппам и печатает `d`.\n3. `python3 pohlig.py | grep nto > found.txt`.\n\nЗадача на `ecc`: дана кривая над полем и точка на ней.\n"
     },
     {
       "path": "/home/student/task/notes.txt",

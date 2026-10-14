@@ -1,0 +1,19 @@
+{
+  "id": "misc-gdb-scripts",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `gdb_notes.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/gdb_notes.txt",
+      "text": "gdb python notes\nrun a script with: gdb -x script.py ./bin\nsubclass gdb.Breakpoint, override stop() -> False to continue\ngdb.parse_and_eval('$rdi'), selected_inferior().read_memory(addr,n)\ngdb.Command defines custom commands; pwndbg adds vis_heap_chunks/bins\nflag:bnRve2dkYl9weXRoMG5fc2NyMXB0MW5nfQ==\n"
+    }
+  ]
+}

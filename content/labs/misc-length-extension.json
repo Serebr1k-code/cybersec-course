@@ -1,0 +1,23 @@
+{
+  "id": "misc-length-extension",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l3ng4h_3xt3ns10n_4nd_md5}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `server.log` — токены сервиса. Метка спрятана в логе. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/server.log",
+      "text": "GET /?user=guest\ntoken=5f4dcc3b5aa765d61d8327deb882cf99\nGET /?user=guest<padding>&user=admin\ntoken=9c1f0d2a7b3e4f5a6b7c8d9e0f1a2b3c\nnote: forged token accepted without knowing the secret\nflag:bnRve2wzbmc0aF8zeHQzbnMxMG5fNG5kX21kNX0=\n"
+    }
+  ]
+}

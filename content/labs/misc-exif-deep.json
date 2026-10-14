@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# EXIF deep\n\n`meta_dump.txt` — все теги `photo.jpg` (включая неизвестные).\nНайди служебную метку и запиши флаг в `found.txt`.\n"
+      "text": "# EXIF deep\n\n`meta_dump.txt` — все теги `photo.jpg` (включая неизвестные).\nНайди служебную метку и запиши флаг в `found.txt`.\n\n## Повторение (`misc-forensics-deep`)\n\nФайловую форензику ты вёл в `misc-forensics-deep`; EXIF/XMP — та же работа с внутренностями формата. Сначала открой дамп тегов и найди служебную метку:\n\n    grep -i nto meta_dump.txt\n\nДамп `meta_dump.txt` — это уже извлечённые поля `photo.jpg`, среди них и спрятана метка.\n"
     },
     {
       "path": "/home/student/task/photo.jpg",

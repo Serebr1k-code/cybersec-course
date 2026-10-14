@@ -20,6 +20,7 @@ lab:
   files: [task.md, shop.ico, origin.ico, cdn.ico]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`osint-infrastructure`): сначала `md5sum shop.ico origin.ico cdn.ico` — совпавший хэш = один сервер."
     - "Посчитай отпечатки: `md5sum shop.ico origin.ico cdn.ico`."
     - "Одинаковый хэш у двух файлов = один и тот же сайт (shop и origin)."
     - "Внутри иконки может остаться текст сборки: `strings shop.ico`."

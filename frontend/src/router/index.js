@@ -3,11 +3,13 @@ import TreeView from '../views/TreeView.vue'
 import LessonView from '../views/LessonView.vue'
 import StatsView from '../views/StatsView.vue'
 import AboutView from '../views/AboutView.vue'
+import AuthView from '../views/AuthView.vue'
 
 const routes = [
   { path: '/', name: 'tree', component: TreeView },
   { path: '/lesson/:id', name: 'lesson', component: LessonView, props: true },
   { path: '/stats', name: 'stats', component: StatsView },
+  { path: '/login', name: 'login', component: AuthView },
   { path: '/about', name: 'about', component: AboutView },
   { path: '/:pathMatch(.*)*', redirect: '/' }
 ]

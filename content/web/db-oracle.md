@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-sqli`): сначала фингерпринт — `curl -s \"http://erp.example/report?id=1'\"`; `ORA-01756` = Oracle."
     - 'Диалект: `curl -s "https://erp.example/report?id=1''"` — `ORA-01756`.'
     - 'В Oracle каждый `SELECT` без таблицы требует `FROM dual`.'
     - 'Таблицы: `FROM user_tables` + `LISTAGG(table_name,'','') WITHIN GROUP (ORDER BY table_name)`.'

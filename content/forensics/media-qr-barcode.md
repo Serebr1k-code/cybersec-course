@@ -15,15 +15,15 @@ estimated_minutes: 40
 summary: 'Как декодировать QR/штрихкоды, что в них может быть и как использовать их в расследовании.'
 lab:
   kind: shell
-  title: 'Практика: QR и штрихкоды'
-  toolset: [core, grep, strings]
+  title: "Практика: декодированные QR и штрихкоды"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, qr_barcodes.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "QR/штрихкод декодируют в текст (zbarimg/сканер) и читают значение."
+    - "Значение QR с меткой — цель."
+    - "`grep nto qr_barcodes.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

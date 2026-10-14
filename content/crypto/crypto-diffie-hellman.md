@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, p.txt, g.txt, h.txt, cipher.bin, attack.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-number-theory`): сначала `cat p.txt && cat g.txt && cat h.txt`; малый `p` = перебор дискретного логарифма."
     - "Прочитай параметры: `cat p.txt`, `cat g.txt`, `cat h.txt`."
     - "Группа крошечная — дискретный логарифм берётся перебором."
     - "Запусти `python3 attack.py`."

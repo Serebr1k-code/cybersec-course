@@ -20,6 +20,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-http-basics`): cookie — это заголовок; сначала `curl -s -i https://shop.local/ -c jar.txt | grep -i set-cookie`."
     - 'Загляни в `Set-Cookie` при входе: сервер НЕ меняет идентификатор сессии после логина.'
     - 'Атакующий знает заранее выданный `session=attacker_fixed_id` — он не сгорает при логине жертвы.'
     - 'Войди с заранее известной cookie: `curl -s -i -b ''session=attacker_fixed_id'' -X POST https://shop.local/login -d ''username=admin&password=admin''`.'

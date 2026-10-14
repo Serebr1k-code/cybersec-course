@@ -21,6 +21,7 @@ lab:
   files: [task.md, message.txt, mac.txt, wordlist.txt, hmac.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-hashing`): HMAC = хэш с ключом; сначала `cat message.txt && cat mac.txt`, затем словарь `wordlist.txt`."
     - "Перебери словарь кандидатов."
     - "Для каждого ключа считай HMAC-SHA256 и сравни с `mac.txt`."
     - "`python3 hmac.py | grep nto > found.txt`."

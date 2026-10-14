@@ -1,0 +1,27 @@
+{
+  "id": "cloud-vultr-objectstorage",
+  "workdir": "/home/student/spaces",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/spaces/found.txt",
+    "contains": "nto{sp4c3s_k3y_l1sts_b4ckups}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/spaces",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/spaces/task.md",
+      "text": "# Задача\n\nВ репозитории статического сайта найдены ключи DigitalOcean Spaces. Определи, к каким бакетам даёт доступ ключ, и собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/spaces/spaces.config",
+      "text": "spaces_access_key = DO00EXAMPLEKEY\nspaces_secret_key = EXAMPLEnotarealsecret\nendpoint = https://nyc3.digitaloceanspaces.com\nbucket = acme-assets\n"
+    },
+    {
+      "path": "/home/student/spaces/notes.md",
+      "text": "Разбор Spaces:\n\n- S3-совместимый API, регион nyc3\n- ключ пользователя видит все бакеты: acme-assets и acme-backups\n- бакет acme-assets публичный, листинг включён\n- CDN: acme-assets.nyc3.cdn.digitaloceanspaces.com\n\nОстаток заметки: nto{sp4c3s_k3y_l1sts_b4ckups}\n"
+    }
+  ]
+}

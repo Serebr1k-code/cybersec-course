@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{mobile_ios_keychain_deep_0k}"
+    "contains": "nto{1os_k3ych41n_g3n3r1c_p4ssw0rd}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти утечку в Keychain\n\n`ios_keychain_items.txt` — элементы Keychain: класс, сервис, аккаунт,\nуровень доступности. Один элемент с подозрительным сервисом и слабой\nзащитой.\n\n1. `cat ios_keychain_items.txt` — просмотри элементы.\n2. Найди элемент с `accessible=always` и меткой.\n3. Выпиши строку: `grep nto ios_keychain_items.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта mobile-ios-keychain-deep\nwarning: suspicious activity detected\nmarker: nto{mobile_ios_keychain_deep_0k}\n",
+      "path": "/home/student/task/ios_keychain_items.txt",
+      "text": "class,service,account,accessible\ngenp,com.example.app,user@example.com,whenUnlocked\ninet,example.com,alice,afterFirstUnlock\ngenp,com.unknown.stealer,nto{1os_k3ych41n_g3n3r1c_p4ssw0rd},always\ncert,Apple Push,aps,whenUnlocked\n",
       "mode": "644"
     }
   ]

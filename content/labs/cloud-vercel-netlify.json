@@ -1,0 +1,27 @@
+{
+  "id": "cloud-vercel-netlify",
+  "workdir": "/home/student/vercel",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/vercel/found.txt",
+    "contains": "nto{v3rc3l_t0k3n_r34ds_3nv}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/vercel",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/vercel/task.md",
+      "text": "# Задача\n\nВ CI-секретах найден токен Vercel. Определи, что можно прочитать этим токеном, и собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/vercel/.vercel-token",
+      "text": "VERCEL_TOKEN=EXAMPLEnotarealtoken\n"
+    },
+    {
+      "path": "/home/student/vercel/notes.md",
+      "text": "Разбор Vercel:\n\n- токен командный, scope = вся команда acme\n- vercel projects ls -> acme-web, acme-api\n- vercel env pull acme-api --environment=production -> DATABASE_URL, STRIPE_SECRET_KEY\n- preview-деплои публичны и используют те же env\n\nОстаток заметки: nto{v3rc3l_t0k3n_r34ds_3nv}\n"
+    }
+  ]
+}

@@ -10,7 +10,7 @@
     { "path": "/home/student/task", "type": "dir" },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: Host header и обход контроля доступа\n\nФронтенд `shop.local` маршрутизирует по заголовку `Host` и доверяет\n`X-Forwarded-Host`. Админка `/admin` снаружи закрыта (403), но внутренний\nvhost её отдаёт.\n\n1. Прямой доступ (403):\n   curl -s -i 'http://shop.local/admin'\n2. Подставь внутренний хост в `X-Forwarded-Host`:\n   curl -s -i 'http://shop.local/admin' -H 'X-Forwarded-Host: internal.shop.local'\n3. Внутренний vhost вернул админку с флагом.\n4. Флаг — последняя строка. Запиши в `found.txt` и набери `check`.\n"
+      "text": "# Практика: Host header и обход контроля доступа\n\nФронтенд `shop.local` маршрутизирует по заголовку `Host` и доверяет\n`X-Forwarded-Host`. Админка `/admin` снаружи закрыта (403), но внутренний\nvhost её отдаёт.\n\n1. Прямой доступ (403):\n   curl -s -i 'http://shop.local/admin'\n2. Подставь внутренний хост в `X-Forwarded-Host`:\n   curl -s -i 'http://shop.local/admin' -H 'X-Forwarded-Host: internal.shop.local'\n3. Внутренний vhost вернул админку с флагом.\n4. Флаг — последняя строка. Запиши в `found.txt` и набери `check`.\n\n## Повторение (`web-waf-bypass`)\n\nВ `web-waf-bypass` ключевая мысль — фильтр проверяет один слой, а бэкенд доверяет другому. Сначала зафиксируй базовый ответ, чтобы видеть разницу:\n\n    curl -s -i 'http://shop.local/admin' | head -n 1\n\nТеперь подставь внутренний хост в `X-Forwarded-Host` — доверие к заголовку и есть обход.\n"
     }
   ],
   "tools": {

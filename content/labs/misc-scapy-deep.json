@@ -1,0 +1,19 @@
+{
+  "id": "misc-scapy-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `packets.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/packets.txt",
+      "text": "scapy notes\nlayers: IP()/TCP()/Raw()\nsend (L3) vs sendp (L2); sr1 = send and receive one\nsniff(filter=...) captures traffic\nrdpcap() reads a pcap; pkt.show() prints layers\nflag:bnRve3NjNHB5X3A0Y2szdF9jcjRmdH0=\n"
+    }
+  ]
+}

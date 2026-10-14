@@ -1,0 +1,27 @@
+{
+  "id": "mobile-ios-app-groups",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4ppg0up_sh4r3d_s3cr3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ App Group\n\nНайди секрет в общих данных.\n"
+    },
+    {
+      "path": "/home/student/task/entitlements.xml",
+      "text": "<key>com.apple.security.application-groups</key>\n<array><string>group.com.example.shared</string></array>\n"
+    },
+    {
+      "path": "/home/student/task/shared_defaults.txt",
+      "text": "suite=group.com.example.shared\ntoken=secret-token-123  # flag: nto{4ppg0up_sh4r3d_s3cr3t}\n"
+    }
+  ]
+}

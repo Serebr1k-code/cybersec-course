@@ -1,0 +1,19 @@
+{
+  "id": "misc-z3-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `constraints.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/constraints.txt",
+      "text": "z3 notes\nBitVec('x', 32) models machine arithmetic with overflow\nSolver().add(...); check() -> sat/unsat/unknown\nconstrain printable range to speed up and get a readable flag\ntranslate the program check verbatim into constraints\nflag:bnRve3ozX3MwbHYzcl9jMG5zdHI0MW50c30=\n"
+    }
+  ]
+}

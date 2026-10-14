@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{mobile_ios_location_0k}"
+    "contains": "nto{1os_l0c4t10n_h1st0ry_p1n}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти аномальную запись геолокации\n\n`ios_location.txt` — история геолокации из iOS (significant locations):\nвремя, координаты, точность, источник. Одна запись с абсурдной точностью.\n\n1. `cat ios_location.txt` — просмотри трек.\n2. Найди запись с accuracy=9999 и меткой.\n3. Выпиши строку: `grep nto ios_location.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта mobile-ios-location\nwarning: suspicious activity detected\nmarker: nto{mobile_ios_location_0k}\n",
+      "path": "/home/student/task/ios_location.txt",
+      "text": "ts,lat,lon,accuracy_m,source\n2026-02-10T08:00:00,55.7512,37.6180,10,gps\n2026-02-10T09:00:00,55.7520,37.6190,12,gps\n2026-02-10T10:00:00,55.7531,37.6205,9999,nto{1os_l0c4t10n_h1st0ry_p1n}\n2026-02-10T11:00:00,55.7540,37.6220,8,gps\n",
       "mode": "644"
     }
   ]

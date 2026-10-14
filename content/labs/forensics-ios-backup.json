@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{forensics_ios_backup_0k}"
+    "contains": "nto{1os_b4ckup_m4n1f3st_d4t4}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти файл в структуре iOS-бэкапа\n\n`ios_backup_files.txt` — строки манифеста iOS-бэкапа (`Manifest.db`):\nfile_id, домен приложения, путь, флаги. Одна запись — стороннее приложение.\n\n1. `cat ios_backup_files.txt` — просмотри записи манифеста.\n2. Найди домен приложения, которого нет на штатном iPhone.\n3. Выпиши строку с меткой: `grep nto ios_backup_files.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта forensics-ios-backup\nwarning: suspicious activity detected\nmarker: nto{forensics_ios_backup_0k}\n",
+      "path": "/home/student/task/ios_backup_files.txt",
+      "text": "file_id,domain,relative_path,flags\na1b2,AppDomain-com.apple.mail,Library/Mail/1.emlx,ok\nc3d4,CameraRoll,DCMI/100APPLE/IMG_0001.JPG,ok\ne5f6,AppDomain-com.example.stealer,Documents/config.plist,nto{1os_b4ckup_m4n1f3st_d4t4}\ng7h8,HomeDomain,Library/SMS/sms.db,ok\n",
       "mode": "644"
     }
   ]

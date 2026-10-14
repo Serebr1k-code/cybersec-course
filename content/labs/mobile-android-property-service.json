@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-property-service",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pr0p3rty_p3rs1st_fl4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ свойств\n\nНайди подозрительное persist-свойство.\n"
+    },
+    {
+      "path": "/home/student/task/getprop_dump.txt",
+      "text": "[ro.build.version.sdk]: [34]\n[ro.debuggable]: [0]\n[persist.sys.backdoor.enable]: [1]  # flag: nto{pr0p3rty_p3rs1st_fl4g}\n"
+    }
+  ]
+}

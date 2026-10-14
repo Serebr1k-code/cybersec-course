@@ -747,7 +747,7 @@ add("cloud-iac-state", "Практика: дрейф Terraform state",
      "`grep nto iac_state_drift.csv > answer.txt`."])
 
 add("cloud-vm-hypervisor", "Практика: метаданные облачной VM",
-    "vm_metadata.txt",
+    "hypervisor_vm_metadata.txt",
     "instance-id: i-0abc\n"
     "ami: ami-1234\n"
     "snapshots: snap-1,snap-2\n"
@@ -940,6 +940,113 @@ add("mobile-ios-location", "Практика: история геолокаци�
     ["iOS хранит историю значимых мест в своей БД.",
      "accuracy в метрах; 9999 — подделка/сбой.",
      "`grep nto ios_location.txt > answer.txt`."])
+
+# --- mobile generic-boilerplate labs ----------------------------------------
+add("mobile-automation", "Практика: отчёт MobSF",
+    "mobsf_report.json",
+    '{\n'
+    '  "app_name": "com.example.app",\n'
+    '  "findings": [\n'
+    '    {"severity": "info", "title": "App uses internet permission"},\n'
+    '    {"severity": "medium", "title": "Exported activity"},\n'
+    '    {"severity": "high", "title": "Hardcoded secret", "evidence": "nto{mobsf_h4rdc0d3d_s3cr3t}"}\n'
+    '  ]\n'
+    '}\n',
+    "# Задача: найти критичную находку в отчёте MobSF\n\n"
+    "`mobsf_report.json` — статический отчёт MobSF по APK: список находок с\n"
+    "уровнем severity. Одна находка имеет высокий уровень.\n\n"
+    "1. `cat mobsf_report.json` — просмотри находки.\n"
+    "2. Найди запись severity=high с меткой.\n"
+    "3. Выпиши строку: `grep nto mobsf_report.json > answer.txt`.\n",
+    "nto{mobsf_h4rdc0d3d_s3cr3t}",
+    ["MobSF автоматизирует статический и динамический анализ APK.",
+     "severity=high — самое серьёзное; hardcoded secret — типовой пример.",
+     "`grep nto mobsf_report.json > answer.txt`."])
+
+add("mobile-frida-dexdump", "Практика: дамп DEX из памяти",
+    "dexdump_output.txt",
+    "Dumping DEX from memory...\n"
+    "class Lcom/example/MainActivity;\n"
+    "class Lcom/example/crypto/Hidden;\n"
+    "method Lcom/example/crypto/Hidden;->secret()Ljava/lang/String; => nto{frida_d3xdump_unp4ck3d}\n",
+    "# Задача: найти распакованный класс в дампе DEX\n\n"
+    "`dexdump_output.txt` — вывод frida-dexdump: список классов, извлечённых из\n"
+    "памяти упакованного приложения. Один метод содержит метку.\n\n"
+    "1. `cat dexdump_output.txt` — просмотри классы.\n"
+    "2. Найди метод с меткой.\n"
+    "3. Выпиши строку: `grep nto dexdump_output.txt > answer.txt`.\n",
+    "nto{frida_d3xdump_unp4ck3d}",
+    ["Упакованное приложение расшифровывает DEX в памяти при запуске.",
+     "frida-dexdump выгружает этот DEX — видно настоящие классы.",
+     "`grep nto dexdump_output.txt > answer.txt`."])
+
+add("mobile-frida-scripting", "Практика: лог Frida-хуков",
+    "frida_hooks.log",
+    "[*] hooking javax.crypto.Cipher.doFinal\n"
+    "[+] doFinal(in=...) called\n"
+    "[*] hooking com.example.auth.checkPassword\n"
+    "[+] checkPassword(arg='s3cr3t') => true  nto{frida_h00k_c4ptur3d}\n",
+    "# Задача: найти перехваченный аргумент\n\n"
+    "`frida_hooks.log` — лог Frida-скрипта: какие методы перехвачены и их\n"
+    "аргументы/возвраты. Один хук захватил секрет.\n\n"
+    "1. `cat frida_hooks.log` — просмотри хуки.\n"
+    "2. Найди строку с меткой.\n"
+    "3. Выпиши её: `grep nto frida_hooks.log > answer.txt`.\n",
+    "nto{frida_h00k_c4ptur3d}",
+    ["Frida перехватывает методы на лету (Interceptor.attach).",
+     "Хук checkPassword печатает аргумент и возврат.",
+     "`grep nto frida_hooks.log > answer.txt`."])
+
+add("mobile-ios-cycript", "Практика: сессия Cycript",
+    "cycript_session.txt",
+    "cy# var app = [UIApplication sharedApplication]\n"
+    "cy# [app delegate]\n"
+    "#<AppDelegate: 0x...>\n"
+    "cy# [[app keyWindow] rootViewController]  nto{cycript_runt1m3_1ntr0sp3ct10n}\n",
+    "# Задача: интроспекция iOS через Cycript\n\n"
+    "`cycript_session.txt` — лог сессии Cycript: вызовы Objective-C объектов в\n"
+    "работающем приложении. Один вызов содержит метку.\n\n"
+    "1. `cat cycript_session.txt` — просмотри сессию.\n"
+    "2. Найди строку с меткой.\n"
+    "3. Выпиши её: `grep nto cycript_session.txt > answer.txt`.\n",
+    "nto{cycript_runt1m3_1ntr0sp3ct10n}",
+    ["Cycript даёт runtime-доступ к Objective-C объектам на устройстве.",
+     "`[UIApplication sharedApplication]` — типовой вход в дерево объектов.",
+     "`grep nto cycript_session.txt > answer.txt`."])
+
+add("mobile-objection", "Практика: консоль Objection",
+    "objection_console.log",
+    "[android] ssl_pinning_disable()\n"
+    "Pinning disabled for com.example.app\n"
+    "[android] root_detection_disable()\n"
+    "[android] memory dump  nto{objection_ssl_p1nn1ng_byp4ss}\n",
+    "# Задача: обход защит через Objection\n\n"
+    "`objection_console.log` — лог консоли Objection (поверх Frida): готовые\n"
+    "команды обхода защит. Одна команда содержит метку.\n\n"
+    "1. `cat objection_console.log` — просмотри команды.\n"
+    "2. Найди строку с меткой.\n"
+    "3. Выпиши её: `grep nto objection_console.log > answer.txt`.\n",
+    "nto{objection_ssl_p1nn1ng_byp4ss}",
+    ["Objection предоставляет готовые команды поверх Frida.",
+     "ssl_pinning_disable отключает привязку сертификата.",
+     "`grep nto objection_console.log > answer.txt`."])
+
+add("mobile-universal-links", "Практика: ассоциация Universal Links",
+    "universal_links.txt",
+    "appID: TEAMID.com.example.app\n"
+    "paths: [\"/products/*\", \"/promo/*\"]\n"
+    "paths: [\"/admin/*\"]  nto{un1v3rs4l_l1nks_h1j4ck}\n"
+    "teamID: TEAMID\n",
+    "# Задача: найти перехватываемый Universal Link\n\n"
+    "`universal_links.txt` — файл ассоциации домена (apple-app-site-association):\n"
+    "appID, пути, teamID. Один путь открывает опасный раздел.\n\n"
+    "1. `cat universal_links.txt` — просмотри пути.\n"
+    "2. Найди строку с меткой (путь `/admin/*`).\n"
+    "3. Выпиши её: `grep nto universal_links.txt > answer.txt`.\n",
+    "nto{un1v3rs4l_l1nks_h1j4ck}",
+    ["Universal Links связывают домен и приложение через AASA-файл.",
+     "Путь `/admin/*` в ассоциации — потенциальный перехват.",
+     "`grep nto universal_links.txt > answer.txt`."])
 
 # ---------------------------------------------------------------------------
 def patch_lesson(slug, spec):

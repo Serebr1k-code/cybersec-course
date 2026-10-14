@@ -9,7 +9,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: получить RDAP (JSON вместо WHOIS)\n\nRDAP — структурированная (JSON) замена WHOIS. Запроси запись домена:\n\n    curl -s https://rdap.verisign.com/com/v1/domain/github.com\n\nНайди поле `handle` (Registry Domain ID). Запиши **его значение** в файл\n`answer.txt` и набери `check`.\n"
+      "text": "# Задача: получить RDAP (JSON вместо WHOIS)\n\nRDAP — структурированная (JSON) замена WHOIS. Запроси запись домена:\n\n    curl -s https://rdap.verisign.com/com/v1/domain/github.com\n\nНайди поле `handle` (Registry Domain ID). Запиши **его значение** в файл\n`answer.txt` и набери `check`.\n\n## Повторение (`osint-whois-asn`)\n\nWHOIS/ASN-разведку ты разбирал в `osint-whois-asn`; RDAP — её структурированная (JSON) замена. Сначала сделай запрос записи домена:\n\n    curl -s https://rdap.verisign.com/com/v1/domain/github.com\n\nТе же регистрационные поля (ID, даты, регистратор), что в WHOIS, только в JSON.\n"
     }
   ],
   "expect": {

@@ -14,7 +14,7 @@
   },
   {
    "path": "/home/student/task/task.md",
-   "text": "# Задача: разбор EVTX\n\nВ журнале EVTX есть событие Sysmon с флагом. Разбери заголовок файла, чанк и\nзаписи, извлеки строки BinXML и запиши флаг в `found.txt`.\n"
+   "text": "# Задача: разбор EVTX\n\nВ журнале EVTX есть событие Sysmon с флагом. Разбери заголовок файла, чанк и\nзаписи, извлеки строки BinXML и запиши флаг в `found.txt`.\n\n## Повторение (`forensics-windows-artifacts`)\n\nEVTX как формат разбирался в `forensics-windows-artifacts`: файл-заголовок, чанки, записи с BinXML. Прежде чем писать парсер, посмотри заголовок файла и убедись в сигнатуре:\n\n    xxd -l 16 Security.evtx\n\n`ElfFile\\0` — сигнатура EVTX; от неё строится разбор чанков и записей.\n"
   },
   {
    "path": "/home/student/task/Security.evtx",

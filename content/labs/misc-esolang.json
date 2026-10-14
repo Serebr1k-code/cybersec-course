@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: Brainfuck\n\nОпредели язык программы и запусти интерпретатор `bf program.txt`.\nПолученный флаг запиши в `found.txt`.\n"
+      "text": "# Задача: Brainfuck\n\nОпредели язык программы и запусти интерпретатор `bf program.txt`.\nПолученный флаг запиши в `found.txt`.\n\n## Повторение (`misc-intro`)\n\nОсновы Misc-CTF (распознать артефакт и выбрать инструмент) ты проходил в `misc-intro`. Сначала определи язык программы по виду кода:\n\n    cat program.txt\n\nНабор символов `+-<>[].,` — это Brainfuck; дальше запусти интерпретатор `bf`, как инструмент этой лабы.\n"
     },
     {
       "path": "/home/student/task/program.txt",

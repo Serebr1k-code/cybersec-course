@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-att",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4tt_byp4ss_f1ng3rpr1nt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ ATT\n\nНайди признак обхода отказа.\n"
+    },
+    {
+      "path": "/home/student/task/att_log.txt",
+      "text": "ATT status=denied\nIDFA=00000000-0000-0000-0000-000000000000\ncollecting device fingerprint (32 params) -> server  # flag: nto{4tt_byp4ss_f1ng3rpr1nt}\n"
+    }
+  ]
+}

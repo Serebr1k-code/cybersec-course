@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-pasteboard",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p4st3b04rd_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ буфера\n\nНайди утёкший секрет.\n"
+    },
+    {
+      "path": "/home/student/task/pasteboard_log.txt",
+      "text": "[general] copied from Notes\n[general] OTP=482913\n[general] session=eyJhbGciOiJIUzI1NiJ9  # flag: nto{p4st3b04rd_l34k}\n"
+    }
+  ]
+}

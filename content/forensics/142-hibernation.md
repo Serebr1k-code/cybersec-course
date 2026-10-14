@@ -21,6 +21,7 @@ lab:
   files: [task.md, hiberfil.sys, hibparse.py]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`forensics-win-volatile`): `hiberfil.sys` — след памяти на диске; сначала `xxd -l 32 hiberfil.sys`."
     - 'hiberfil.sys — сжатый образ оперативной памяти; это бинарник.'
     - 'Внутри ищите строки-артефакты: имена процессов, пары user/pw, ключи.'
     - 'Разбор делает учебный `python3 hibparse.py`.'

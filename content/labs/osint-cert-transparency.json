@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: добыть поддомены из Certificate Transparency\n\nCT-лог домена `example.com` выгружен в `crt.json`. Разбери его и вытащи имена из поля `name_value`.\n\n1. Посмотри сырой ответ: `cat crt.json`\n2. Извлеки имена: `jq -r '.[].name_value' crt.json > names.txt`\n3. Отсортируй и убери дубли: `sort -u names.txt`\n4. Среди имён есть одно «аномальное» — оно начинается с `flag-`. Это и есть маркер.\n5. Запиши строку `nto{...}` в `answer.txt` и набери `check`.\n"
+      "text": "# Практика: добыть поддомены из Certificate Transparency\n\nCT-лог домена `example.com` выгружен в `crt.json`. Разбери его и вытащи имена из поля `name_value`.\n\n1. Посмотри сырой ответ: `cat crt.json`\n2. Извлеки имена: `jq -r '.[].name_value' crt.json > names.txt`\n3. Отсортируй и убери дубли: `sort -u names.txt`\n4. Среди имён есть одно «аномальное» — оно начинается с `flag-`. Это и есть маркер.\n5. Запиши строку `nto{...}` в `answer.txt` и набери `check`.\n\n## Повторение (`osint-dns-recon`)\n\nПассивный поиск поддоменов по DNS ты вёл в `osint-dns-recon`; Certificate Transparency — параллельный источник тех же имён. Сначала посмотри выгрузку CT-лога:\n\n    cat crt.json\n\nПоле `name_value` содержит имена хостов — их и извлекают тем же приёмом, что поддомены из DNS.\n"
     }
   ],
   "tools": {

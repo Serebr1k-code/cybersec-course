@@ -21,6 +21,7 @@ lab:
   files: [task.md, blob.bin, prog, enc.hex]
   check: 'grep -q ''nto{4arch64_n0t_x86}'' found.txt'
   hints:
+    - "Повторение (`reversing-asm`): сначала `xxd blob.bin | head` — нет ELF-магии, значит сырой код; определяй ISA."
     - '`file prog` — x86-64 ELF; `blob.bin` магии не имеет.'
     - 'Дизассемблируй блоб: `python3 disasm.py blob.bin`.'
     - 'Ключ XOR = 0x42 из `mov w0,#0x42`; затем `python3 xor.py enc.hex 0x42`.'

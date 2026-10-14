@@ -20,6 +20,7 @@ lab:
   files: [task.md]
   check: "grep -q '1264983250_DOMAIN_COM-VRSN' answer.txt"
   hints:
+    - "Повторение (`osint-whois-asn`): RDAP = WHOIS в JSON; сначала `curl -s https://rdap.verisign.com/com/v1/domain/github.com`."
     - "RDAP отвечает JSON. Запроси запись через curl."
     - "Нужно поле `handle` в самом начале объекта."
     - "Значение выглядит как `<id>_DOMAIN_COM-VRSN`."

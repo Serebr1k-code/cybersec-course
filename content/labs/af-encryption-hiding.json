@@ -7,10 +7,13 @@
     "contains": "nto{luks_c0nt41n3r_f0und}"
   },
   "fs": [
-    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: зашифрованный контейнер\n\n`hex.txt` — начало неизвестного файла + оценка энтропии. Определи тип контейнера и найди метку.\n\n1. `cat hex.txt`.\n2. Сигнатура в начале файла выдаёт тип.\n3. `grep nto hex.txt > answer.txt`.\n",
+      "text": "# Задача: зашифрованный контейнер\n\n`hex.txt` — начало неизвестного файла + оценка энтропии. Определи тип контейнера и найди метку.\n\n1. `cat hex.txt`.\n2. Сигнатура в начале файла выдаёт тип.\n3. `grep nto hex.txt > answer.txt`.\n\nОцени `entropy` файла: высокая энтропия выдаёт шифрованный контейнер.\n",
       "mode": "644"
     },
     {

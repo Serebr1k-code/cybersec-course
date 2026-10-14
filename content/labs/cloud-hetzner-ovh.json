@@ -1,0 +1,27 @@
+{
+  "id": "cloud-hetzner-ovh",
+  "workdir": "/home/student/hetzner",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/hetzner/found.txt",
+    "contains": "nto{r3scu3_m0d3_r00t_p4sswd}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/hetzner",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/hetzner/task.md",
+      "text": "# Задача\n\nВ .env CI-проекта найден токен Hetzner Cloud. Определи, к чему даёт доступ токен и каким способом можно получить shell на сервере, затем собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/hetzner/.env",
+      "text": "HCLOUD_TOKEN=EXAMPLEnotarealtokenlongstring\n"
+    },
+    {
+      "path": "/home/student/hetzner/notes.md",
+      "text": "Разбор Hetzner:\n\n- токен HCLOUD_TOKEN -> API https://api.hetzner.cloud/v1 (bearer)\n- серверы: prod-web-1 (id=42), prod-db-1\n- путь к shell: POST /servers/42/actions/enable_rescue -> временный root-пароль\n- снапшот тоже доступен как обход\n\nОстаток заметки: nto{r3scu3_m0d3_r00t_p4sswd}\n"
+    }
+  ]
+}

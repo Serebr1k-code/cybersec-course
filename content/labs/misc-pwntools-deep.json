@@ -1,0 +1,19 @@
+{
+  "id": "misc-pwntools-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `exploit_notes.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/exploit_notes.txt",
+      "text": "pwntools notes\ntube: process() and remote() share send/recv/sendline/recvuntil\nELF(): symbols, plt, got, search\npack: p64/u64, flat() builds payloads\nROP(elf) finds gadgets and builds a chain\ngdb.debug() runs the binary under gdb from the script\nflag:bnRve3B3bnQwMGxzX3IwcF80bmRfcHduMW99\n"
+    }
+  ]
+}

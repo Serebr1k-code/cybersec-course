@@ -15,15 +15,15 @@ estimated_minutes: 50
 summary: 'Что хранит iOS keychain, как он защищён и как извлечь секреты из бэкапа или живого устройства.'
 lab:
   kind: shell
-  title: 'Практика: iOS Keychain'
-  toolset: [core, grep, strings]
+  title: "Практика: элементы iOS Keychain"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, ios_keychain_items.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Keychain хранит пароли/ключи; класс genp = generic password."
+    - "accessible=always — секрет доступен даже при заблокированном экране."
+    - "`grep nto ios_keychain_items.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

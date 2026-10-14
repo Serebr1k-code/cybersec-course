@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-privacy-manifest",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pr1v4cy_m4n1f3st_tr4ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ Privacy Manifest\n\nНайди домен трекинга.\n"
+    },
+    {
+      "path": "/home/student/task/PrivacyInfo.xcprivacy",
+      "text": "NSPrivacyCollectedDataType = DeviceID (Tracking=true)\nNSPrivacyTrackingDomains = tracker.evil.example  # flag: nto{pr1v4cy_m4n1f3st_tr4ck}\n"
+    }
+  ]
+}

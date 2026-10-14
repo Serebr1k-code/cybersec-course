@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: цепочка кодировок\n\n`secret.b64` — значение, закодированное дважды: сначала hex, потом base64.\nНужно снять оба слоя.\n\nПорядок:\n1. Сними base64: `base64 -d secret.b64 > step1.txt`.\n2. Посмотри результат: `cat step1.txt` (это hex-строка).\n3. Раскодируй hex: `python3 unhex.py`.\n4. Флаг положи в `found.txt`.\n"
+      "text": "# Задача: цепочка кодировок\n\n`secret.b64` — значение, закодированное дважды: сначала hex, потом base64.\nНужно снять оба слоя.\n\nПорядок:\n1. Сними base64: `base64 -d secret.b64 > step1.txt`.\n2. Посмотри результат: `cat step1.txt` (это hex-строка).\n3. Раскодируй hex: `python3 unhex.py`.\n4. Флаг положи в `found.txt`.\n\nСлои — `base64` и hex; это базовые `encodings`.\n"
     },
     {
       "path": "/home/student/task/notes.txt",

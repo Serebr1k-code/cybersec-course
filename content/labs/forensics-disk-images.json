@@ -6,7 +6,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: смонтировать раздел из образа\n\n`disk.img` — образ с MBR. В таблице разделов одна запись типа 0x83.\nДанные раздела закодированы XOR с ключом `0x5A`.\n\nШаги:\n1. Прочитай запись раздела: `xxd -s 446 -l 16 disk.img` (LBA — 4 байта LE по смещению 454).\n2. Вырежи раздел: `dd if=disk.img of=part.img bs=512 skip=<LBA> count=1`.\n3. Раскодируй XOR: `python3 decode.py part.img | grep nto > found.txt`.\n"
+      "text": "# Задача: смонтировать раздел из образа\n\n`disk.img` — образ с MBR. В таблице разделов одна запись типа 0x83.\nДанные раздела закодированы XOR с ключом `0x5A`.\n\nШаги:\n1. Прочитай запись раздела: `xxd -s 446 -l 16 disk.img` (LBA — 4 байта LE по смещению 454).\n2. Вырежи раздел: `dd if=disk.img of=part.img bs=512 skip=<LBA> count=1`.\n3. Раскодируй XOR: `python3 decode.py part.img | grep nto > found.txt`.\n\n## Повторение (`forensics-filesystems`)\n\nТаблицу разделов и разметку ФС ты разбирал в `forensics-filesystems`. Прежде чем монтировать раздел, найди его запись в MBR — тип `0x83` и LBA:\n\n    xxd -s 446 -l 16 disk.img\n\nЧетыре байта LBA по смещению 454 дают начало раздела — это вход в дальнейший разбор.\n"
     },
     {
       "path": "/home/student/task/notes.txt",

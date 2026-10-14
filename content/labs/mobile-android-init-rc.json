@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-init-rc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1n1t_rc_p3rs1st}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ init.rc\n\nНайди подозрительную службу.\n"
+    },
+    {
+      "path": "/home/student/task/rc_dump.txt",
+      "text": "service logd /system/bin/logd\n    class core\nservice persist /data/local/tmp/persist.sh  # suspicious, flag: nto{1n1t_rc_p3rs1st}\n    class main\n    user root\n"
+    }
+  ]
+}

@@ -21,6 +21,7 @@ lab:
   files: [task.md, photo.jpg, meta_dump.txt]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`misc-forensics-deep`): сначала `grep -i nto meta_dump.txt` — метка среди тегов `photo.jpg`."
     - '`photo.jpg` — фото с метаданными (заглушка).'
     - '`meta_dump.txt` — вывод exiftool со скрытыми тегами.'
     - 'Найди нестандартный тег с меткой и запиши флаг в found.txt.'

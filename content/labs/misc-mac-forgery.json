@@ -1,0 +1,23 @@
+{
+  "id": "misc-mac-forgery",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cbc_m4c_c0ll1s10n_f0rg3ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `transfer.log` — журнал сервиса переводов. Достань метку в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/transfer.log",
+      "text": "POST /transfer msg=from=alice&to=bob&amount=10||block&amount=1000\nmac=7c4d05 -> OK, transferred 1000\nnote: CBC-MAC forged by splicing messages\nflag:bnRve2NiY19tNGNfYzBsbDFzMTBuX2Ywcmczcnl9\n"
+    }
+  ]
+}

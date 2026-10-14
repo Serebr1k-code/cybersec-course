@@ -3,10 +3,12 @@ import { onMounted, onBeforeUnmount, computed, ref } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useTreeStore } from './stores/tree'
 import { useProgressStore } from './stores/progress'
+import { useAuthStore } from './stores/auth'
 import SearchBox from './components/SearchBox.vue'
 
 const tree = useTreeStore()
 const progress = useProgressStore()
+const auth = useAuthStore()
 const route = useRoute()
 
 const nav = [
@@ -55,9 +57,16 @@ function onVisibility() {
   if (document.visibilityState === 'visible') autoRefresh()
 }
 
+// Выход из аккаунта: чистим сессию на сервере и перечитываем анонимный прогресс.
+async function doLogout() {
+  await auth.logout()
+  await progress.load()
+}
+
 onMounted(() => {
   tree.load()
   progress.load()
+  auth.load()
   document.addEventListener('visibilitychange', onVisibility)
   window.addEventListener('focus', autoRefresh)
 })
@@ -87,6 +96,19 @@ onBeforeUnmount(() => {
       </nav>
 
       <SearchBox />
+
+      <RouterLink
+        v-if="!auth.isLoggedIn"
+        to="/login"
+        class="user-chip guest"
+        title="Войти или зарегистрироваться"
+      >
+        <span class="user-ico">👤</span><span class="user-lbl">Войти</span>
+      </RouterLink>
+      <div v-else class="user-chip" :title="`Вы вошли как ${auth.username}`">
+        <span class="user-ico">👤</span><span class="user-lbl">{{ auth.username }}</span>
+        <button class="logout-x" title="Выйти" aria-label="Выйти" @click="doLogout">⎋</button>
+      </div>
 
       <button
         class="refresh-btn"
@@ -186,6 +208,41 @@ onBeforeUnmount(() => {
 }
 .hud-streak b { color: var(--orange); }
 
+/* --- аккаунт в топбаре --- */
+.user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--text-soft);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  max-width: 170px;
+}
+.user-chip:hover { background: var(--panel-3); color: var(--text); text-decoration: none; }
+.user-chip.guest { border-color: rgba(56,189,248,.35); color: #9ad9f5; }
+.user-ico { font-size: 14px; }
+.user-lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.logout-x {
+  display: grid;
+  place-items: center;
+  width: 20px; height: 20px;
+  margin-left: 2px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--panel-3);
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.logout-x:hover { background: rgba(239,68,68,.2); color: #fecaca; }
+
 .refresh-btn {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 7px 12px; border-radius: var(--r);
@@ -218,6 +275,8 @@ onBeforeUnmount(() => {
   .hud-xp { min-width: 90px; }
   .brand-text { display: none; }
   .refresh-lbl { display: none; }
+  .user-lbl { display: none; }
+  .user-chip { padding: 6px 9px; }
 }
 
 /* Телефоны: максимально компактный топбар — бренд-иконка, иконки навигации,

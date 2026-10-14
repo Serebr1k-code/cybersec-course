@@ -21,6 +21,7 @@ lab:
   files: [task.md, Security.evtx, parse_evtx.py]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`forensics-windows-artifacts`): сначала `xxd -l 16 Security.evtx` — сигнатура EVTX `ElfFile\\0`."
     - 'Файл EVTX начинается с `ElfFile\x00`; чанки — с `ElfChnk\x00`.'
     - 'Записи начинаются с магии `0x00002a2a` и имеют поле размера.'
     - 'BinXML хранит строки как UTF-16LE — раскодируй тело записи.'

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-hardware-keys",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{kw_st0r3_s0ftw4r3_k3y}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ Keystore\n\nНайди ключ со слабым уровнем.\n"
+    },
+    {
+      "path": "/home/student/task/keystore_dump.txt",
+      "text": "alias=payment_key security_level=STRONGBOX\nalias=session_key security_level=SOFTWARE  # flag: nto{kw_st0r3_s0ftw4r3_k3y}\n"
+    }
+  ]
+}

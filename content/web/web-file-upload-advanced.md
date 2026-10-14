@@ -21,6 +21,7 @@ lab:
   files: [task.md, .htaccess, shell.gif]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-file-upload`): сначала `xxd -l 8 shell.gif` — `GIF89a` в начале обходит проверку magic bytes."
     - 'Обычный `shell.php` отбивается проверкой magic bytes.'
     - 'Загрузи `.htaccess` с `AddType application/x-httpd-php .gif`.'
     - 'Загрузи полиглот `shell.gif` (начинается с GIF89a, внутри PHP).'

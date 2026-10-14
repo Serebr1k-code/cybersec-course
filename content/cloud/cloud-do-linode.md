@@ -2,9 +2,9 @@
 id: cloud-do-linode
 title: 'DigitalOcean / Linode / Vultr: API-токены, дроплеты и снапшоты'
 category: cloud
-parent: cloud-provider-breadth
+parent: cloud-alt-clouds
 difficulty: medium
-order: 4
+order: 2
 tags: [cloud, digitalocean, linode, vultr, api-token, snapshot]
 prerequisites: [cloud-provider-deep]
 useful_for:

@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: Elasticsearch на shop.local:9200\n\n1. Корень кластера: `curl -s http://shop.local:9200/` (без auth).\n2. Индексы: `curl -s 'http://shop.local:9200/_cat/indices?v'`.\n3. Учётки: `curl -s 'http://shop.local:9200/users/_search?size=100'`.\n4. Логи: `curl -s 'http://shop.local:9200/logs-*/_search?size=200'` — там `Authorization: Bearer ...`.\n5. Флаг: `... | grep 'nto' > found.txt`, затем `check`.\nПримечание: `jq` в лабе нет — используй `grep`.\n"
+      "text": "# Практика: Elasticsearch на shop.local:9200\n\n1. Корень кластера: `curl -s http://shop.local:9200/` (без auth).\n2. Индексы: `curl -s 'http://shop.local:9200/_cat/indices?v'`.\n3. Учётки: `curl -s 'http://shop.local:9200/users/_search?size=100'`.\n4. Логи: `curl -s 'http://shop.local:9200/logs-*/_search?size=200'` — там `Authorization: Bearer ...`.\n5. Флаг: `... | grep 'nto' > found.txt`, затем `check`.\nПримечание: `jq` в лабе нет — используй `grep`.\n\n## Повторение (`web-nosql-injection`)\n\nElasticsearch — не SQL, а HTTP-API; как и в `web-nosql-injection`, сначала **опроси корень сервиса** и проверь, что авторизации нет:\n\n    curl -s http://shop.local:9200/\n\nЕсли в ответе нет `security_exception` — кластер открыт, и дальше можно просто перечислять индексы.\n"
     }
   ],
   "tools": {

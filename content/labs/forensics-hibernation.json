@@ -11,7 +11,7 @@
     { "path": "/home/student/task", "type": "dir" },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: разбор hiberfil.sys\n\nСистему вывели из гибернации и выключили. Остался файл hiberfil.sys —\nсжатый образ оперативной памяти. Внутри есть артефакты процессов и ключ.\n\n1. Проверь сигнатуру: `xxd -l 32 hiberfil.sys`\n2. Разбери фрагмент: `python3 hibparse.py`\n3. Запиши найденный ключ (nto{...}) в `found.txt`.\n"
+      "text": "# Задача: разбор hiberfil.sys\n\nСистему вывели из гибернации и выключили. Остался файл hiberfil.sys —\nсжатый образ оперативной памяти. Внутри есть артефакты процессов и ключ.\n\n1. Проверь сигнатуру: `xxd -l 32 hiberfil.sys`\n2. Разбери фрагмент: `python3 hibparse.py`\n3. Запиши найденный ключ (nto{...}) в `found.txt`.\n\n## Повторение (`forensics-win-volatile`)\n\nВолатильные артефакты Windows ты разбирал в `forensics-win-volatile`: память и её следы на диске. `hiberfil.sys` — ровно такой след. Сначала проверь сигнатуру, чтобы убедиться, что это образ памяти:\n\n    xxd -l 32 hiberfil.sys\n\nДальше — тот же порядок: заголовок, затем разбор содержимого.\n"
     },
     {
       "path": "/home/student/task/hiberfil.sys",

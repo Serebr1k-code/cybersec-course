@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, caesar.py, cipher.txt]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-intro`): сначала `cat cipher.txt`; у Цезаря ~95 ключей — перебор, а не анализ."
     - "`cat cipher.txt` — текст выглядит как сдвинутый на несколько позиций."
     - "Пробел сдвинуть нельзя, поэтому в шифртексте его не видно."
     - "Запусти перебор: `python3 caesar.py` — увидишь все сдвиги."

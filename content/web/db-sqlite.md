@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-sqli`): сначала фингерпринт — `curl -s \"http://shop.example/product?id=1'\"`; `unrecognized token` = SQLite."
     - 'Проверь движок: `curl -s "http://shop.example/product?id=1''"` — ищи `unrecognized token`.'
     - 'Метаданные SQLite — в `sqlite_master` (а не `information_schema`).'
     - 'Определи колонки: сравни ответы на `ORDER BY 1..4`.'

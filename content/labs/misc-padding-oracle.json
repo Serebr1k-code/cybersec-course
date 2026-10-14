@@ -1,0 +1,23 @@
+{
+  "id": "misc-padding-oracle",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p4dd1ng_0r4cl3_cbc_4tt4ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `oracle.log` — результаты работы padding-oracle. Достань метку в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/oracle.log",
+      "text": "block 1 -> nto{pad\nblock 2 -> d1ng_0r4\nblock 3 -> cl3_cbc\nnote: recovered by flipping the previous block\nflag:bnRve3A0ZGQxbmdfMHI0Y2wzX2NiY180dHQ0Y2t9\n"
+    }
+  ]
+}

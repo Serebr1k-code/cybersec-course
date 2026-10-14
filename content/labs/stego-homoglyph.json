@@ -1,0 +1,44 @@
+{
+  "id": "stego-homoglyph",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h0m0glyph_4lph4b3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: декодировать гомоглифы\n\n`text.txt` состоит из символов двух алфавитов. Чередование кодирует биты. Извлеки сообщение.\n\n1. `python3 homoglyph.py` — маппинг алфавит→бит.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/text.txt",
+      "text": "Tocтo ceo topoK тeкст c лaтинcкими бyквaми.\n"
+    },
+    {
+      "path": "/home/student/task/homoglyph.py",
+      "text": "print('codepoints: 48')\nprint('latin letters: 24')\nprint('cyrillic letters: 24')\nprint('nto{h0m0glyph_4lph4b3t}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "homoglyph\\.py",
+          "example": "python3 homoglyph.py",
+          "output": "codepoints: 48\nlatin letters: 24\ncyrillic letters: 24\nnto{h0m0glyph_4lph4b3t}\n"
+        }
+      ]
+    }
+  }
+}

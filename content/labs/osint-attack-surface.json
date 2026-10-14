@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: свести находки в карту и найти pivot\n\nАктивы цели сведены в `assets.csv` (колонки: id,type,value,source,confidence,first_seen,parent,notes).\n\n1. Посмотри карту: `cat assets.csv`\n2. Найди **висячего родителя** — узел, чей `parent` не существует: сравни 1-ю колонку (`id`) и 7-ю (`parent`).\n   `cut -d, -f1 assets.csv | sort > ids.txt`  ·  `cut -d, -f7 assets.csv | sort -u`\n3. Найди **pivot** между доменами — узел типа `tracking` (он связывает несколько доменов, чего не видно из DNS).\n   `grep tracking assets.csv`\n4. В поле `value` этого узла стоит маркер `nto{...}`. Запиши его в `answer.txt` и набери `check`.\n"
+      "text": "# Практика: свести находки в карту и найти pivot\n\nАктивы цели сведены в `assets.csv` (колонки: id,type,value,source,confidence,first_seen,parent,notes).\n\n1. Посмотри карту: `cat assets.csv`\n2. Найди **висячего родителя** — узел, чей `parent` не существует: сравни 1-ю колонку (`id`) и 7-ю (`parent`).\n   `cut -d, -f1 assets.csv | sort > ids.txt`  ·  `cut -d, -f7 assets.csv | sort -u`\n3. Найди **pivot** между доменами — узел типа `tracking` (он связывает несколько доменов, чего не видно из DNS).\n   `grep tracking assets.csv`\n4. В поле `value` этого узла стоит маркер `nto{...}`. Запиши его в `answer.txt` и набери `check`.\n\n## Повторение (`osint-collection`)\n\nСбор активов (домены, поддомены, IP, люди) ты вёл в `osint-collection`. Здесь эти находки уже сведены в таблицу — начни с её просмотра:\n\n    cat assets.csv\n\nКолонки `id`/`parent` позволяют построить карту связей — то, что в предшественнике собиралось по кусочкам.\n"
     },
     {
       "path": "/home/student/task/assets.csv",

@@ -21,6 +21,7 @@ lab:
   files: [task.md, disk.img]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
+    - "Повторение (`forensics-deleted-recovery`): удаление не затирает — сначала `strings disk.img | head`, следы на месте."
     - 'Содержимое удалённого файла ищи в образе: `strings disk.img`.'
     - 'Файл «удалили», но не перезаписали — данные на месте.'
     - '`strings disk.img | grep nto > answer.txt`.'

@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, encoded.txt, decode.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-encodings`): сначала `cat encoded.txt` — алфавит `A-Z2-7` = base32, снимай слои снаружи внутрь."
     - "Посмотри строку: `cat encoded.txt`."
     - "Алфавит A-Z2-7 указывает на base32."
     - "В шелле нет base32 — используй готовый `python3 decode.py`."

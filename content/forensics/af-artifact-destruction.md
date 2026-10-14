@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
+    - "Повторение (`forensics-windows-artifacts`): EVTX-записи нумеруются подряд; сначала `cat evtx-gap.txt`, ищи разрыв record ID."
     - 'Прочитай файл-артефакт: `cat <файл>`.'
     - 'Ищи строку с меткой nto{.'
     - 'Сохрани: `grep nto <файл> > answer.txt`.'

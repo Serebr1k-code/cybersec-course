@@ -21,6 +21,7 @@ lab:
   files: [task.md, app.apk]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`reversing-android-apk`): APK = ZIP; сначала `unzip -l app.apk`, затем манифест и ресурсы."
     - "APK — это ZIP-архив; `unzip -l app.apk` покажет его содержимое."
     - "Ищи `AndroidManifest.xml`, `classes.dex`, `resources.arsc`, `META-INF/`."
     - "Флаг лежит в одном из файлов APK; посмотри список, затем содержимое."

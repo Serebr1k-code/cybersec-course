@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-nosql-injection`): сначала `curl -s http://shop.local:9200/` — нет `security_exception` = открытый кластер."
     - 'Elasticsearch говорит по HTTP/JSON: `curl -s http://shop.local:9200/`.'
     - 'Карта индексов: `curl -s ''http://shop.local:9200/_cat/indices?v''`.'
     - 'Индекс `users` — учётки; индекс `logs-*` — логи приложения.'

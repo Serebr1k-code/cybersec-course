@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: найти профиль по email через Gravatar\n\nДан адрес `analyst@example.com` (лежит в `email.txt`). Gravatar ищет профиль по **MD5-хешу** адреса.\n\n1. Посчитай хеш: `echo -n analyst@example.com | md5sum`  (или просто `md5sum`)\n2. Запроси профиль: `curl -s \"https://gravatar.com/<хеш>.json\"`\n3. В поле `aboutMe` спрятан маркер `nto{...}` — запиши его в `answer.txt` и набери `check`.\n"
+      "text": "# Практика: найти профиль по email через Gravatar\n\nДан адрес `analyst@example.com` (лежит в `email.txt`). Gravatar ищет профиль по **MD5-хешу** адреса.\n\n1. Посчитай хеш: `echo -n analyst@example.com | md5sum`  (или просто `md5sum`)\n2. Запроси профиль: `curl -s \"https://gravatar.com/<хеш>.json\"`\n3. В поле `aboutMe` спрятан маркер `nto{...}` — запиши его в `answer.txt` и набери `check`.\n\n## Повторение (`osint-people-search`)\n\nПоиск людей по email и утечкам ты разбирал в `osint-people-search`. Здесь тот же pivot — от адреса к профилю. Сначала возьми адрес:\n\n    cat email.txt\n\nДальше — приём предшественника: по этому email ищут публичные аккаунты (Gravatar и др.).\n"
     },
     {
       "path": "/home/student/task/email.txt",

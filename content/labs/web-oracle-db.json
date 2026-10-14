@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{web_oracle_db_0k}"
+    "contains": "nto{or4cl3_4ud1t_d4t4_pump}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти выгрузку данных в аудит-логе Oracle\n\n`oracle_audit.txt` — записи аудита Oracle СУБД: время, пользователь,\nдействие, объект, статус. Одно действие — массовый экспорт.\n\n1. `cat oracle_audit.txt` — просмотри аудит.\n2. Найди действие EXPORT DATA_PUMP с меткой.\n3. Выпиши строку: `grep nto oracle_audit.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта web-oracle-db\nwarning: suspicious activity detected\nmarker: nto{web_oracle_db_0k}\n",
+      "path": "/home/student/task/oracle_audit.txt",
+      "text": "ts,user,action,object,status\n2026-02-10T04:00:00,APPUSER,SELECT,ORDERS,ok\n2026-02-10T04:05:00,APPUSER,SELECT,CUSTOMERS,ok\n2026-02-10T04:09:00,SCOTT,EXPORT DATA_PUMP,CUSTOMERS,ok  nto{or4cl3_4ud1t_d4t4_pump}\n2026-02-10T04:12:00,APPUSER,INSERT,ORDERS,ok\n",
       "mode": "644"
     }
   ]

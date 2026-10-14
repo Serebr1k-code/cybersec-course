@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{media_qr_barcode_0k}"
+    "contains": "nto{qr_b4rc0d3_p4yl04d}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти подозрительный QR-код\n\n`qr_barcodes.txt` — результат декодирования QR и штрихкодов с изображений\n(формат, значение, источник). Один QR несёт метку-полезную нагрузку.\n\n1. `cat qr_barcodes.txt` — просмотри декодированные значения.\n2. Найди QR с меткой.\n3. Выпиши строку: `grep nto qr_barcodes.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта media-qr-barcode\nwarning: suspicious activity detected\nmarker: nto{media_qr_barcode_0k}\n",
+      "path": "/home/student/task/qr_barcodes.txt",
+      "text": "format,value,source\nQR,https://example.com/promo,qr.png\nQR,https://example.com/pay?to=alice,qr.png\nQR,nto{qr_b4rc0d3_p4yl04d},qr.png\nCode128,INV-2026-0042,barcode.png\n",
       "mode": "644"
     }
   ]

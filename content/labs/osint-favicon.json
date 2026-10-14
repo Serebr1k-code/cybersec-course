@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: favicon как отпечаток инфраструктуры\n\n`shop.example.com` закрыт CDN, но файл `/favicon.ico` одинаков на всех\nсерверах одной организации. У тебя три скачанных иконки: `shop.ico`\n(с CDN), `origin.ico` (кандидат в настоящий сервер) и `cdn.ico` (иконка CDN).\n\n1. Посчитай отпечатки: md5sum shop.ico origin.ico cdn.ico\n2. Одинаковый хэш у shop.ico и origin.ico подтверждает: origin — тот же сайт.\n3. Загляни внутрь иконки: strings shop.ico\n4. Найди строку nto{...} и запиши её в answer.txt, затем набери check.\n"
+      "text": "# Практика: favicon как отпечаток инфраструктуры\n\n`shop.example.com` закрыт CDN, но файл `/favicon.ico` одинаков на всех\nсерверах одной организации. У тебя три скачанных иконки: `shop.ico`\n(с CDN), `origin.ico` (кандидат в настоящий сервер) и `cdn.ico` (иконка CDN).\n\n1. Посчитай отпечатки: md5sum shop.ico origin.ico cdn.ico\n2. Одинаковый хэш у shop.ico и origin.ico подтверждает: origin — тот же сайт.\n3. Загляни внутрь иконки: strings shop.ico\n4. Найди строку nto{...} и запиши её в answer.txt, затем набери check.\n\n## Повторение (`osint-infrastructure`)\n\nИнфраструктурный фингерпринт (Shodan/Censys/CT) ты изучал в `osint-infrastructure`; favicon-хэш — один из его приёмов. Сначала посчитай отпечатки всех трёх иконок и сравни:\n\n    md5sum shop.ico origin.ico cdn.ico\n\nСовпадение хэша `origin.ico` с `shop.ico` выдаёт настоящий сервер за CDN — та же логика «одна организация — одна сигнатура».\n"
     },
     {
       "path": "/home/student/task/shop.ico",

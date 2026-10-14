@@ -10,7 +10,7 @@
     { "path": "/home/student/task", "type": "dir" },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: уничтожение артефактов\n\n`evtx-gap.txt` — анализ нумерации записей журнала. Найди разрыв и метку.\n\n1. `cat evtx-gap.txt`.\n2. Обрати внимание на пропуск record ID.\n3. `grep nto evtx-gap.txt > answer.txt`.\n",
+      "text": "# Задача: уничтожение артефактов\n\n`evtx-gap.txt` — анализ нумерации записей журнала. Найди разрыв и метку.\n\n1. `cat evtx-gap.txt`.\n2. Обрати внимание на пропуск record ID.\n3. `grep nto evtx-gap.txt > answer.txt`.\n\n## Повторение (`forensics-windows-artifacts`)\n\nЖурнал EVTX ты разбирал в `forensics-windows-artifacts`: записи идут с последовательными `record ID`. Здесь проверяется, что заметание следов оставляет **разрыв** в нумерации. Сначала посмотри данные:\n\n    cat evtx-gap.txt\n\nПропущенный record ID и есть след уничтожения артефакта.\n",
       "mode": "644"
     },
     {

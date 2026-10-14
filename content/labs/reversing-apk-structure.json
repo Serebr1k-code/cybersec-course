@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: анатомия APK\n\n`app.apk` — ZIP-контейнер приложения.\n1. `unzip -l app.apk` — список содержимого.\n2. Найди файл с заметками и извлеки его: `unzip -p app.apk assets/notes.txt`.\n3. Найди строку-артефакт.\n\nФлаг: `nto{...}`.\n",
+      "text": "# Практика: анатомия APK\n\n`app.apk` — ZIP-контейнер приложения.\n1. `unzip -l app.apk` — список содержимого.\n2. Найди файл с заметками и извлеки его: `unzip -p app.apk assets/notes.txt`.\n3. Найди строку-артефакт.\n\nФлаг: `nto{...}`.\n\n## Повторение (`reversing-android-apk`)\n\nКаркас APK ты вскрывал в `reversing-android-apk` (`unzip -l` и строки из `classes.dex`). Прежде чем разбирать манифест и ресурсы, вспомни, что APK — ZIP:\n\n    unzip -l app.apk\n\nДальше ищи `AndroidManifest.xml` и `resources.arsc` — от них зависит вся анатомия.\n",
       "mode": "644"
     },
     {

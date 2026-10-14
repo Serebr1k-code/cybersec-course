@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, oracle.py, attack.py, secret.bin]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-aes-modes`): ECB даёт одинаковые блоки для одинакового текста; сначала `cat oracle.py` — проверь режим."
     - "Изучи контракт оракула: `cat oracle.py`."
     - "ECB шифрует одинаковые блоки одинаково — это и есть утечка."
     - "Запусти `python3 attack.py`."

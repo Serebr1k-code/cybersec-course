@@ -2,9 +2,9 @@
 id: cloud-ibm-cloud
 title: 'IBM Cloud: IAM, API keys, service IDs и ресурсы'
 category: cloud
-parent: cloud-provider-breadth
+parent: cloud-alt-clouds
 difficulty: hard
-order: 3
+order: 1
 tags: [cloud, ibm, iam, api-key, service-id, cos]
 prerequisites: [cloud-provider-deep]
 useful_for:

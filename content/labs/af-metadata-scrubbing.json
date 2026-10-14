@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: метаданные\n\n`photo.jpg` — фото с метаданными. Найди скрытую в метаданных метку и запиши её в `answer.txt`.\n\n1. `file photo.jpg` — тип файла.\n2. `strings photo.jpg` — текстовые поля (EXIF и др.).\n3. `strings photo.jpg | grep nto > answer.txt`.\n"
+      "text": "# Задача: метаданные\n\n`photo.jpg` — фото с метаданными. Найди скрытую в метаданных метку и запиши её в `answer.txt`.\n\n1. `file photo.jpg` — тип файла.\n2. `strings photo.jpg` — текстовые поля (EXIF и др.).\n3. `strings photo.jpg | grep nto > answer.txt`.\n\n## Повторение (`forensics-metadata`)\n\nПрежде чем «стирать паспорт» файла, вспомни из `forensics-metadata`, где этот паспорт лежит: расширение врёт, а тип и метки видны по содержимому. Начни с осмотра:\n\n    file photo.jpg && strings photo.jpg | head\n\nТак ты увидишь, какие поля вообще есть (EXIF и прочее), — именно их потом и предстоит вычистить.\n"
     },
     {
       "path": "/home/student/task/photo.jpg",

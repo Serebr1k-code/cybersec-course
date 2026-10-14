@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: браузерная форензика — история Chrome\n\nДан файл `History` (SQLite-база Chromium). Нужно найти, куда браузер\nотправлял данные. Часто флаг прячут прямо в URL.\n\nВарианты:\n- быстро: `strings History | grep -i nto`;\n- по-форензиковому: запросить базу эмулируемым `sqlite3`\n  (`sqlite3 History \".tables\"`, затем `SELECT url FROM urls;`).\n\nНайденный флаг запиши в `found.txt`.\n"
+      "text": "# Задача: браузерная форензика — история Chrome\n\nДан файл `History` (SQLite-база Chromium). Нужно найти, куда браузер\nотправлял данные. Часто флаг прячут прямо в URL.\n\nВарианты:\n- быстро: `strings History | grep -i nto`;\n- по-форензиковому: запросить базу эмулируемым `sqlite3`\n  (`sqlite3 History \".tables\"`, затем `SELECT url FROM urls;`).\n\nНайденный флаг запиши в `found.txt`.\n\n## Повторение (`forensics-windows-artifacts`)\n\nАртефакты Windows (реестр, EVTX, MFT) ты разбирал в `forensics-windows-artifacts`; браузерная история — из той же семьи «данные приложения». Сначала определи, что за файл перед тобой, — SQLite-база:\n\n    file History\n\nДальше — тем же принципом, что и в предшественнике: сначала понять формат, потом читать записи.\n"
     },
     {
       "path": "/home/student/task/notes.txt",

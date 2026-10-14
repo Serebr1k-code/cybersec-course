@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Как устроен iOS-бэкап, что в Manifest.db и как извлечь из него данные приложений без jailbreak.'
 lab:
   kind: shell
-  title: 'Практика: iOS-бэкапы'
-  toolset: [core, grep, strings]
+  title: "Практика: разбор iOS-бэкапа"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, ios_backup_files.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "iOS-бэкап — дерево файлов + манифест Manifest.db (file_id → domain/path)."
+    - "Домен вида `AppDomain-com.example.stealer` — стороннее приложение."
+    - "`grep nto ios_backup_files.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

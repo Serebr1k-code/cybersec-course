@@ -21,6 +21,7 @@ lab:
   files: [task.md, ct1.hex, ct2.hex, gcm_reuse.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-aes-modes`): GCM = CTR; повтор nonce даёт одинаковый keystream — сначала `cat ct1.hex`."
     - "GCM внутри — потоковый режим."
     - "Одинаковый nonce → одинаковый keystream."
     - "keystream = ct1 ⊕ известный pt1, затем pt2 = ct2 ⊕ keystream."

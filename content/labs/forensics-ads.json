@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: Alternate Data Streams (ADS)\n\nВ каталоге лежит обычный файл `notes.txt` и листинг `dir_r.txt`\n(`dir /r`). У файла есть дополнительный поток (ADS). Найди его\nсодержимое и запиши флаг в `found.txt`.\n\nИнструменты: `ls -la`, `cat`, `grep`, `find`.\n"
+      "text": "# Задача: Alternate Data Streams (ADS)\n\nВ каталоге лежит обычный файл `notes.txt` и листинг `dir_r.txt`\n(`dir /r`). У файла есть дополнительный поток (ADS). Найди его\nсодержимое и запиши флаг в `found.txt`.\n\nИнструменты: `ls -la`, `cat`, `grep`, `find`.\n\n## Повторение (`forensics-win-deep`)\n\nГлубокие артефакты NTFS разбирались в `forensics-win-deep`; Alternate Data Streams — один из способов спрятать данные в том же файле. Сначала посмотри листинг с потоками:\n\n    cat dir_r.txt\n\nСтрока с `:secret` в конце имени файла — это и есть дополнительный поток, которого не видно в обычном `ls`.\n"
     },
     {
       "path": "/home/student/task/notes.txt",

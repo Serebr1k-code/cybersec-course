@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: APK — это ZIP\n\n`small.apk` — минимальное Android-приложение.\n\n1. `unzip -l small.apk` — список содержимого.\n2. `xxd classes.dex` не сработает (файл внутри архива) — используй `strings`.\n3. `strings small.apk | grep nto` — флаг лежит в `classes.dex` без сжатия.\n\nФлаг запиши в `found.txt` и набери `check`.\n"
+      "text": "# Задача: APK — это ZIP\n\n`small.apk` — минимальное Android-приложение.\n\n1. `unzip -l small.apk` — список содержимого.\n2. `xxd classes.dex` не сработает (файл внутри архива) — используй `strings`.\n3. `strings small.apk | grep nto` — флаг лежит в `classes.dex` без сжатия.\n\nФлаг запиши в `found.txt` и набери `check`.\n\n## Повторение (`reversing-managed-dotnet-java`)\n\nManaged-код (.NET/Java) ты разбирал в `reversing-managed-dotnet-java`: он компилируется в байт-код с богатой метаинформацией. APK — тот же managed-мир (DEX). Сначала посмотри, что это ZIP-контейнер:\n\n    unzip -l small.apk\n\nДальше — как в предшественнике: найти байт-код (`classes.dex`) и вытащить из него строки.\n"
     },
     {
       "path": "/home/student/task/small.apk",

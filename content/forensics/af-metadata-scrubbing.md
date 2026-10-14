@@ -21,6 +21,7 @@ lab:
   files: [task.md, photo.jpg]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
+    - "Повторение (`forensics-metadata`): сначала `file photo.jpg && strings photo.jpg | head` — осмотри, какие поля есть до стирания."
     - 'Начни с `file photo.jpg` — убедись, что это изображение.'
     - 'Метаданные лежат в самом файле как текст: `strings photo.jpg`.'
     - 'Найди строку с флагом: `strings photo.jpg | grep nto > answer.txt`.'

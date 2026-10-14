@@ -1,0 +1,23 @@
+{
+  "id": "misc-stream-nonce",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{n0nc3_r3us3_br34ks_str34m_c1ph3rs}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `capture.hex` — два перехваченных шифртекста. Достань метку в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/capture.hex",
+      "text": "c1 = 9f8b7d6c5b4a39281706f5e4d3c2b1a0\nc2 = 9f8b7d6c5b4a39281706f5e4d3c2b1a0\nnote: identical prefixes mean the same keystream was reused\nflag:bnRve24wbmMzX3IzdXMzX2JyMzRrc19zdHIzNG1fYzFwaDNyc30=\n"
+    }
+  ]
+}

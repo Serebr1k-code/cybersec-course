@@ -19,14 +19,13 @@ summary: 'Подмодуль о провайдерах вне AWS/Azure/GCP: OCI
 
 ## Что покрывает подмодуль
 
-1. **Oracle Cloud (OCI): tenancy, compartments, IAM и instance principals** (`cloud-oci-basics`) — как читать OCI-политики и захватывать ресурсы по утёкшему API-ключу.
-2. **Alibaba Cloud (Aliyun): RAM, STS и confused deputy** (`cloud-aliyun-basics`) — RAM-политики, OSS-бакеты и метаданные ECS.
-3. **IBM Cloud: IAM, API keys и service IDs** (`cloud-ibm-cloud`) — ключи, доверие и COS-бакеты.
-4. **DigitalOcean / Linode / Vultr: API-токены, дроплеты и снапшоты** (`cloud-do-linode`) — простые API, которые легко забыть закрыть.
+1. **Oracle Cloud (OCI) глубоко** (`cloud-oci-deep`) — IAM-политики, VCN, Object Storage и serverless-функции Oracle.
+2. **Alibaba Cloud (Aliyun) глубоко** (`cloud-aliyun-deep`) — RAM-политики и роли, OSS-бакеты, метаданные ECS.
+3. **Провайдеры вне большой тройки** (`cloud-alt-clouds`) — IBM Cloud и COS, DigitalOcean/Linode/Vultr, Hetzner/OVH и S3-совместимые бакеты.
 
 ## Почему такой порядок
 
-Начинаем с OCI — там самая непривычная модель прав (verb + resource-type + compartment), и её понимание переносится на остальных. Дальше Alibaba (близка к AWS по духу), затем IBM (мало материалов, но много корпоративных сред) и, наконец, простые хостинг-провайдеры, где вся защита — один API-токен.
+Начинаем с OCI — там самая непривычная модель прав (verb + resource-type + compartment), и её понимание переносится на остальных. Дальше Alibaba (близка к AWS по духу) и, наконец, простые хостинг-провайдеры, где вся защита — один API-токен.
 
 ## Как проходить подмодуль
 

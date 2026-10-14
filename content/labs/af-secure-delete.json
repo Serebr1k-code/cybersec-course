@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: удаление vs стирание\n\n`disk.img` — фрагмент образа диска. Файл был «удалён» обычным способом. Найди остаточные данные.\n\n1. `strings disk.img` — печатаемые строки.\n2. `strings disk.img | grep nto > answer.txt`.\n"
+      "text": "# Задача: удаление vs стирание\n\n`disk.img` — фрагмент образа диска. Файл был «удалён» обычным способом. Найди остаточные данные.\n\n1. `strings disk.img` — печатаемые строки.\n2. `strings disk.img | grep nto > answer.txt`.\n\n## Повторение (`forensics-deleted-recovery`)\n\nСмысл `forensics-deleted-recovery` — обычное удаление не затирает данные: байты остаются в невыделенном месте. Прежде чем рассуждать о стирании, убедись, что следы ещё на месте:\n\n    strings disk.img | head\n\nЕсли строки видны — «удалённый» файл никуда не делся; secure delete нужен именно против этого.\n"
     },
     {
       "path": "/home/student/task/disk.img",

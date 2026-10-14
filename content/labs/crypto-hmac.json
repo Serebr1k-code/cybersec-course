@@ -6,7 +6,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nСообщение подписано HMAC-SHA256 слабым (словарным) ключом. Дан `message.txt` и `mac.txt`. Словарь кандидатов — `wordlist.txt`. Восстанови ключ.\n\nHMAC-SHA256(key, msg) должен совпасть с `mac.txt`.\n"
+      "text": "# Задача\n\nСообщение подписано HMAC-SHA256 слабым (словарным) ключом. Дан `message.txt` и `mac.txt`. Словарь кандидатов — `wordlist.txt`. Восстанови ключ.\n\nHMAC-SHA256(key, msg) должен совпасть с `mac.txt`.\n\n## Повторение (`crypto-hashing`)\n\nHMAC строится на хэше; хэши (MD5/SHA, length-extension) ты разбирал в `crypto-hashing`. Сначала посмотри сообщение и MAC, чтобы понять формат проверки:\n\n    cat message.txt && cat mac.txt\n\nЗатем перебирай ключи из `wordlist.txt`, сравнивая `HMAC-SHA256(key, msg)` с `mac.txt`.\n"
     },
     {
       "path": "/home/student/task/message.txt",

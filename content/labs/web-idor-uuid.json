@@ -9,7 +9,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: IDOR (горизонтальный доступ)\n\nЦель — `http://vuln.lab.local/api/user/<id>`. API отдаёт профиль по id без\nпроверки, что это «твой» id. Ты — пользователь 1, но объекты чужие тоже видны.\n\n1. Свой профиль: `curl -s http://vuln.lab.local/api/user/1`.\n2. Соседний id: `curl -s http://vuln.lab.local/api/user/2` — профиль админа\n   с полем `api_key` (там флаг).\n3. Достань `cut -d: -f5`, запиши в `found.txt` и набери `check`.\n"
+      "text": "# Практика: IDOR (горизонтальный доступ)\n\nЦель — `http://vuln.lab.local/api/user/<id>`. API отдаёт профиль по id без\nпроверки, что это «твой» id. Ты — пользователь 1, но объекты чужие тоже видны.\n\n1. Свой профиль: `curl -s http://vuln.lab.local/api/user/1`.\n2. Соседний id: `curl -s http://vuln.lab.local/api/user/2` — профиль админа\n   с полем `api_key` (там флаг).\n3. Достань `cut -d: -f5`, запиши в `found.txt` и набери `check`.\n\n## Повторение (`web-auth-jwt-idor`)\n\nГоризонтальный IDOR — отсутствие проверки владельца, как в `web-auth-jwt-idor`. Сначала попроси **свой** объект, чтобы зафиксировать формат ответа:\n\n    curl -s http://vuln.lab.local/api/user/1\n\nДальше меняется только идентификатор — если сервер отдаёт чужой профиль, контроля доступа нет.\n"
     }
   ],
   "tools": {

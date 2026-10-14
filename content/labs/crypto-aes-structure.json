@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: AES S-box из первых принципов\n\nS-box AES не задаётся таблицей «на глаз» — он вычисляется:\n`S(a) = affine(inverse(a))`, где inverse берётся в GF(2^8)\n(не 0 -> 0), а affine — побитовое преобразование с константой 0x63.\n\nШаги:\n1. `cat notes.txt`.\n2. Реализуй умножение в GF(2^8) с полиномом 0x11b.\n3. Обратный элемент = a^254; затем affine-преобразование.\n4. `python3 sbox.py` — печатает S(0x00), S(0x53) и флаг.\n5. `python3 sbox.py | grep nto > found.txt`.\n"
+      "text": "# Задача: AES S-box из первых принципов\n\nS-box AES не задаётся таблицей «на глаз» — он вычисляется:\n`S(a) = affine(inverse(a))`, где inverse берётся в GF(2^8)\n(не 0 -> 0), а affine — побитовое преобразование с константой 0x63.\n\nШаги:\n1. `cat notes.txt`.\n2. Реализуй умножение в GF(2^8) с полиномом 0x11b.\n3. Обратный элемент = a^254; затем affine-преобразование.\n4. `python3 sbox.py` — печатает S(0x00), S(0x53) и флаг.\n5. `python3 sbox.py | grep nto > found.txt`.\n\n## Повторение (`crypto-aes-modes`)\n\nS-box — сердце AES, режимы которого (ECB/CBC/CTR) ты разбирал в `crypto-aes-modes`. Прежде чем реализовывать инверсию в GF(2^8), перечитай параметры поля:\n\n    cat notes.txt\n\nПолином `0x11b`, инверсия как `a^254`, affine с константой `0x63` — всё это уже фигурировало в разборе режимов, теперь нужно изнутри.\n"
     },
     {
       "path": "/home/student/task/notes.txt",

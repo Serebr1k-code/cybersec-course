@@ -21,6 +21,7 @@ lab:
   files: [task.md, flag.enc, notes.txt]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`misc-encoding`): сначала `cat flag.enc`, определи внешнюю кодировку по алфавиту, снимай слои пайпами."
     - "Файл `flag.enc` — это base64. Попробуй `base64 -d flag.enc`."
     - "Одного слоя мало: декодируй результат ещё раз — используй пайп `|`."
     - "Цепочка из трёх слоёв base64: `base64 -d flag.enc | base64 -d | base64 -d`."

@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Где iOS хранит историю местоположений: Significant Locations, кэш карт и приложения.'
 lab:
   kind: shell
-  title: 'Практика: iOS-геолокация'
-  toolset: [core, grep, strings]
+  title: "Практика: история геолокации iOS"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, ios_location.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "iOS хранит историю значимых мест в своей БД."
+    - "accuracy в метрах; 9999 — подделка/сбой."
+    - "`grep nto ios_location.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

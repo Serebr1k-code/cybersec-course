@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, History]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`forensics-windows-artifacts`): сначала `file History` — определи, что это SQLite-база, прежде чем читать."
     - "Что за тип файла? `file History`."
     - "Это SQLite. Посмотри таблицы эмулируемым `sqlite3 History \".tables\"`."
     - "Запроси URL-ы: `sqlite3 History \"SELECT url FROM urls;\"` — или просто `strings History | grep nto`."

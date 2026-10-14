@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-api-rest-graphql-soap`): GraphQL — один эндпоинт; сначала introspection `query={__schema{queryType{name}}}`."
     - Интроспекция: `curl -s -G http://vuln.lab.local/graphql --data-urlencode 'query={__schema{queryType{name}}}'`.
     - В схеме есть поле `flag` — запроси его: `--data-urlencode 'query={flag}'`.
     - Ответ — JSON `{"data":{"flag":"nto{...}"}}`.

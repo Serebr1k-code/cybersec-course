@@ -21,6 +21,7 @@ lab:
   files: [task.md, decompiled.c]
   check: 'grep -q ''k3y!z0r'' answer.txt'
   hints:
+    - "Повторение (`reversing-static-analysis`): сначала `cat decompiled.c` — ищи `strcmp` с массивом байтов."
     - 'Каждый `key[i]` — ASCII-код символа ключа.'
     - '0x6b k, 0x33 3, 0x79 y, 0x21 !, 0x7a z, 0x30 0, 0x72 r.'
     - '`echo ''k3y!z0r'' > answer.txt` затем `check`.'

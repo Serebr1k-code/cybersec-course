@@ -17,7 +17,7 @@
       "mode": "644"
     },
     {
-      "path": "/home/student/task/vm_metadata.txt",
+      "path": "/home/student/task/hypervisor_vm_metadata.txt",
       "text": "instance-id: i-0abc\nami: ami-1234\nsnapshots: snap-1,snap-2\nconsole-log: nto{cl0ud_vm_sn4psh0t_m3t4}\n",
       "mode": "644"
     }

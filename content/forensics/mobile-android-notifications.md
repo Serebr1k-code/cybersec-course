@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Как Android хранит уведомления и как извлечь их тексты, источники и время.'
 lab:
   kind: shell
-  title: 'Практика: Android-уведомления'
-  toolset: [core, grep, strings]
+  title: "Практика: журнал уведомлений Android"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, android_notifications.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Android хранит уведомления в системной БД с пакетом-источником."
+    - "Пакет com.unknown.* с OTP — кража кодов."
+    - "`grep nto android_notifications.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

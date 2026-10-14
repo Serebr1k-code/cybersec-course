@@ -15,15 +15,15 @@ estimated_minutes: 50
 summary: 'Как расследовать компромисс Oracle: аудит-логи, привилегии, экспорт данных и следы эксплуатации.'
 lab:
   kind: shell
-  title: 'Практика: Oracle-СУБД'
-  toolset: [core, grep, strings]
+  title: "Практика: аудит Oracle"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, oracle_audit.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Аудит Oracle (unified audit) логирует действия над объектами."
+    - "DATA_PUMP export привилегированного пользователя — след выгрузки."
+    - "`grep nto oracle_audit.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

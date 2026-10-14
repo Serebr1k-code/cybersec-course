@@ -1,0 +1,27 @@
+{
+  "id": "cloud-cloudflare-zero-trust",
+  "workdir": "/home/student/cfzt",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/cfzt/found.txt",
+    "contains": "nto{s3rv1c3_t0k3n_byp4ss3s_ss0}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/cfzt",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/cfzt/task.md",
+      "text": "# Задача\n\nДана политика Cloudflare Access для внутреннего приложения. Определи, какое правило позволяет обойти SSO, и собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/cfzt/access-policy.json",
+      "text": "{\n  \"app\": \"internal-wiki.acme.com\",\n  \"policies\": [\n    {\"name\": \"employees\", \"decision\": \"allow\",\n     \"include\": [{\"email_domain\": \"acme.com\"}]},\n    {\"name\": \"ci-bot\", \"decision\": \"non_identity\",\n     \"include\": [{\"service_token\": \"ci-bot\"}]}\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/cfzt/notes.md",
+      "text": "Разбор Cloudflare Access:\n\n- policy employees: email_domain acme.com -> любой сотрудник\n- policy ci-bot: non_identity + service_token -> обход SSO\n- service token лежит в CI-переменных (утёк)\n- приложение доступно и по внутреннему IP в обход прокси\n\nОстаток заметки: nto{s3rv1c3_t0k3n_byp4ss3s_ss0}\n"
+    }
+  ]
+}

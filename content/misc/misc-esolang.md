@@ -21,6 +21,7 @@ lab:
   files: [task.md, program.txt]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`misc-intro`): сначала `cat program.txt` — опознай язык (набор `+-<>[].,` = Brainfuck)."
     - '`program.txt` — программа на экзотическом языке из символов `><+-.,[]`.'
     - 'Это Brainfuck. Интерпретатор — `bf <файл>`.'
     - 'Запусти: `bf program.txt` — он напечатает флаг. Запиши в `found.txt`.'

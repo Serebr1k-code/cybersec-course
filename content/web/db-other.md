@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-nosql-injection`): сначала `curl -s http://10.10.10.42:5984/` — ответ без auth = admin party."
     - 'CouchDB говорит по HTTP/JSON: начни с `curl -s http://10.10.10.42:5984/`.'
     - 'Список баз: `curl -s http://10.10.10.42:5984/_all_dbs`.'
     - 'Дамп документов: `.../appdb/_all_docs?include_docs=true`.'

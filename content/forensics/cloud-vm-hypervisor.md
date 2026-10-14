@@ -18,7 +18,7 @@ lab:
   title: "Практика: метаданные облачной VM"
   toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md, vm_metadata.txt]
+  files: [task.md, hypervisor_vm_metadata.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
     - "У облачной VM есть метаданные (id, ami, snapshots, console-log)."

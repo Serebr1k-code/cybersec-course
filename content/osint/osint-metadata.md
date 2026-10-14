@@ -20,6 +20,7 @@ lab:
   files: [task.md, photo.jpg]
   check: "grep -q 'Adobe Photoshop 24.0' answer.txt"
   hints:
+    - "Повторение (`osint-infrastructure`): сначала `exiftool photo.jpg` — метаданные как цифровой след."
     - "Метаданные читает `exiftool`."
     - "`exiftool photo.jpg` выведет все теги файла."
     - "Поле `Software` показывает, чем файл сохраняли в последний раз."

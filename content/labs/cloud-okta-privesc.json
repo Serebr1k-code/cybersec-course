@@ -1,0 +1,27 @@
+{
+  "id": "cloud-okta-privesc",
+  "workdir": "/home/student/okta",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/okta/found.txt",
+    "contains": "nto{0kt4_gr0up_m3mb3rsh1p_4dm1n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/okta",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/okta/task.md",
+      "text": "# Задача\n\nДан список административных ролей Okta. Определи, какая роль позволяет получить супер-админа через изменение членства в группе, и собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/okta/roles.json",
+      "text": "{\n  \"roles\": [\n    {\"type\": \"HELP_DESK_ADMIN\", \"targets\": {\"groups\": [\"it-support\"]}},\n    {\"type\": \"APP_ADMIN\", \"targets\": {\"apps\": [\"*\"]}},\n    {\"type\": \"GROUP_MEMBERSHIP_ADMIN\", \"targets\": {\"groups\": [\"*\"]}}\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/okta/notes.md",
+      "text": "Разбор Okta:\n\n- HELP_DESK_ADMIN -> сброс MFA/паролей (обход MFA)\n- APP_ADMIN -> управление всеми приложениями\n- GROUP_MEMBERSHIP_ADMIN на * -> можно добавить себя в группу okta-super-admins\n- API-токен живой, scope достаточный\n\nОстаток заметки: nto{0kt4_gr0up_m3mb3rsh1p_4dm1n}\n"
+    }
+  ]
+}

@@ -21,6 +21,7 @@ lab:
   files: [task.md, disk.img, ext4_walk.py]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`forensics-filesystems`): суперблок ext4 — по смещению 1024; сначала `xxd -s 1024 -l 64 disk.img`."
     - 'Суперблок ext4 по смещению 1024; магия `0xEF53` по смещению 0x38.'
     - 'Таблица inode-ов находится в дескрипторе группы, а не в суперблоке.'
     - 'Корневой каталог — inode 2; его блоки описываются extent-деревом.'
