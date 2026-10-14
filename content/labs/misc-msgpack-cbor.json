@@ -1,0 +1,23 @@
+{
+  "id": "misc-msgpack-cbor",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{msgp4ck_m4p_tru3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# MessagePack\n\nРазбери `data.msgpack`. Одно из значений — флаг.\n"
+    },
+    {
+      "path": "/home/student/task/data.msgpack",
+      "b64": "g6RuYW1lo2JvYqNhZ2UepHJvbGW1bnRve21zZ3A0Y2tfbTRwX3RydTN9"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "misc-protobuf",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pr0t0buf_w1r3_f0rm4t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Protobuf\n\nРазбери `data.bin` без схемы. Флаг — в одном из полей.\n"
+    },
+    {
+      "path": "/home/student/task/data.bin",
+      "b64": "CJYBEgd0ZXN0aW5nGgNhYmMiHW50b3twcjB0MGJ1Zl93MXJlX2Ywcm00dH0="
+    }
+  ]
+}

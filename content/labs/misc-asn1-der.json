@@ -1,0 +1,23 @@
+{
+  "id": "misc-asn1-der",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4sn1_tlv_p4rs1ng}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# ASN.1\n\n`cert.der.hex` — hex-дамп сертификата. Пройди по TLV и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/cert.der.hex",
+      "text": "30 82 00 1a 30 82 00 0a 06 03 2a 03 04 04 0a 6e 74 6f 7b 34 73 6e 31 5f 74 6c 76 5f 70 34 72 73 31 6e 67 7d\n"
+    }
+  ]
+}
