@@ -1,0 +1,23 @@
+{
+  "id": "mobile-esim",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3s1m_pr0f1l3_h1j4ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: eSIM\n\nРазбери список профилей и найди аномалию.\n"
+    },
+    {
+      "path": "/home/student/task/euicc_profiles.txt",
+      "text": "EID: 89049032000000000000000000000001\nProfile[0] ICCID=8999...111 state=enabled  mccmnc=25001\nProfile[1] ICCID=8999...222 state=disabled mccmnc=25002\nProfile[2] ICCID=8999...333 state=enabled  mccmnc=99999  # unknown carrier, flag: nto{3s1m_pr0f1l3_h1j4ck}\n"
+    }
+  ]
+}

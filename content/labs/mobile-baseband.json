@@ -1,0 +1,23 @@
+{
+  "id": "mobile-baseband",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b4s3b4nd_d3bug_1nt3rf4c3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: baseband\n\nНайди небезопасную настройку modem.\n"
+    },
+    {
+      "path": "/home/student/task/modem_config.txt",
+      "text": "modem=fw_v12.3\nsecure_boot=on\ndebug_uart=disabled\ndiag_port=enabled  auth=none  # flag: nto{b4s3b4nd_d3bug_1nt3rf4c3}\n"
+    }
+  ]
+}
