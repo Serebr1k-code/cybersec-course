@@ -1,0 +1,22 @@
+{
+  "id": "forensics-storage",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{s3_v3rs10n_r3c0v3r}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: объектное хранилище\n\n`bucket.txt` — версии объекта и логи. Файл удалили, но версия осталась. Найди метку.\n\n1. `cat bucket.txt`.\n2. Смотри list-object-versions и get-object с version-id.\n3. `grep nto bucket.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/bucket.txt",
+      "text": "$ aws s3api get-bucket-versioning --bucket data-bucket\n{ \"Status\": \"Enabled\" }\n\n$ aws s3api list-object-versions --bucket data-bucket --prefix report/\n{ \"Versions\": [ {\"VersionId\":\"v2\",\"IsLatest\":true}, {\"VersionId\":\"v1\",\"IsLatest\":false} ] }\n\n$ aws s3api get-object --bucket data-bucket --key report/secret.pdf --version-id v1 out.pdf\n# содержимое v1: nto{s3_v3rs10n_r3c0v3r}\n",
+      "mode": "644"
+    }
+  ]
+}

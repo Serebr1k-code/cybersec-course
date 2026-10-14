@@ -1,0 +1,22 @@
+{
+  "id": "forensics-cicd",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{c1cd_p1p3l1n3_4bus3}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: CI/CD пайплайн\n\n`pipeline.txt` — логи запусков сборки. Найди аномальный запуск и метку.\n\n1. `cat pipeline.txt`.\n2. Смотри ветку и пользователя запуска.\n3. `grep nto pipeline.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/pipeline.txt",
+      "text": "$ ci list-builds --pipeline deploy-prod --limit 5\n#1240  main       success   2026-03-10T03:08:00Z  alice\n#1241  feature/x  success   2026-03-10T03:12:00Z  bot\n\n$ ci get-build-log #1241\n[deploy] applying terraform...\n[deploy] pulling secret api/keys\n[deploy] pushed image app:1.2.4-x -> registry\n[deploy] tag: nto{c1cd_p1p3l1n3_4bus3}\n\n# Инженер: деплой в прод из ветки feature/x пользователем bot -> компрометация пайплайна.\n",
+      "mode": "644"
+    }
+  ]
+}

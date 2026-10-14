@@ -1,0 +1,22 @@
+{
+  "id": "forensics-vm-hypervisor",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{us3r_d4t4_s3cr3t}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: облачная ВМ\n\n`vm.txt` — снимок и user-data инстанса. Расшифруй user-data и найди метку.\n\n1. `cat vm.txt`.\n2. user-data закодирован в base64.\n3. `grep nto vm.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/vm.txt",
+      "text": "$ aws ec2 create-snapshot --volume-id vol-9f8e\n{\"SnapshotId\":\"snap-0f1e2d\",\"State\":\"pending\"}\n\n$ aws ec2 describe-instance-attribute --instance-id i-0abc123 --attribute userData\nIyEvYmluL2Jhc2gKZWNobyBzZWNyZXQ6IG50b3t1czNyX2Q0dDRfczNjcjN0fQo=\n# decoded: #!/bin/bash\n# decoded: echo secret: nto{us3r_d4t4_s3cr3t}\n",
+      "mode": "644"
+    }
+  ]
+}

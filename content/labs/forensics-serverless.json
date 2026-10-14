@@ -1,0 +1,22 @@
+{
+  "id": "forensics-serverless",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{l4mbd4_3xf1l}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: serverless-функция\n\n`lambda.txt` — конфигурация функции и фрагмент логов. Найди, что делала функция, и метку.\n\n1. `cat lambda.txt`.\n2. Смотри роль исполнения и логи.\n3. `grep nto lambda.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/lambda.txt",
+      "text": "$ aws lambda get-function-configuration --function-name process-upload\n{\"Runtime\":\"python3.11\",\"Role\":\"arn:aws:iam::123:role/process-upload-role\",\"Timeout\":900}\n\n$ aws logs filter-log-events --log-group-name /aws/lambda/process-upload\n2026-03-10T03:14:05Z task timed out after 900.00 seconds\n2026-03-10T03:14:07Z uploading to s3://exfil-bucket/nto{l4mbd4_3xf1l}\n\n# Инженер: функция читала секреты и писала в чужой бакет -> эксфильтрация.\n",
+      "mode": "644"
+    }
+  ]
+}

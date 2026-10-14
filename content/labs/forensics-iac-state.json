@@ -1,0 +1,22 @@
+{
+  "id": "forensics-iac-state",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{tfst4t3_s3cr3t_l34k}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: IaC state\n\n`tfstate.json` — фрагмент terraform.tfstate. В state часто попадают секреты. Найди метку.\n\n1. `cat tfstate.json`.\n2. Ищи атрибуты ресурсов (пароли, ключи).\n3. `grep nto tfstate.json > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/tfstate.json",
+      "text": "{\n  \"version\": 4,\n  \"terraform_version\": \"1.6.0\",\n  \"resources\": [\n    {\"type\": \"aws_db_instance\", \"name\": \"prod\", \"instances\": [\n      {\"attributes\": {\"username\": \"admin\", \"password\": \"nto{tfst4t3_s3cr3t_l34k}\"}}]}\n  ]\n}\n\n# Инженер: пароль БД оказался в state -> утечка через бакет с state.\n",
+      "mode": "644"
+    }
+  ]
+}

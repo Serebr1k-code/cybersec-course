@@ -1,0 +1,22 @@
+{
+  "id": "forensics-container-runtime",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{k8s_4ud1t_3x3c}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: контейнер в облаке\n\n`k8s-audit.txt` — аудит-логи Kubernetes. Найди, как атакующий попал в контейнер, и метку.\n\n1. `cat k8s-audit.txt`.\n2. Ищи verb=create и verb=exec.\n3. `grep nto k8s-audit.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/k8s-audit.txt",
+      "text": "{\"verb\":\"create\",\"objectRef\":{\"resource\":\"pods\",\"name\":\"worker-7f8d\"},\"user\":{\"username\":\"system:serviceaccount:default:ci\"},\"sourceIPs\":[\"10.0.0.7\"]}\n{\"verb\":\"exec\",\"objectRef\":{\"resource\":\"pods\",\"name\":\"worker-7f8d\"},\"user\":{\"username\":\"admin\"},\"requestURI\":\"/exec?command=sh\"}\n\n# Инженер: под создан сервисным аккаунтом ci, затем exec sh от admin -> shell в контейнере.\n# Метка: nto{k8s_4ud1t_3x3c}\n",
+      "mode": "644"
+    }
+  ]
+}
