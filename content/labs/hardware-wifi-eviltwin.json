@@ -1,0 +1,27 @@
+{
+  "id": "hardware-wifi-eviltwin",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3v1l_tw1n_c4pt1v3_p0rt4l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Evil Twin\n\nДан дамп `capture.txt` с двумя точками SSID `Corp-Guest`. Определи, какой BSSID — двойник (более сильный сигнал), и извлеки данные, которые пользователь ввёл в поддельный captive portal (`portal.b64`).\n\n1. `grep Corp-Guest capture.txt` — сравни dBm у двух BSSID.\n2. `base64 -d portal.b64`.\n3. `base64 -d portal.b64 | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/capture.txt",
+      "text": "beacon bssid=aa:bb:cc:00:11:22 ssid=Corp-Guest dBm=-55 pmf=required\nbeacon bssid=66:77:88:99:aa:bb ssid=Corp-Guest dBm=-38 pmf=disabled\ndeauth src=66:77:88:99:aa:bb dst=ff:ff:ff:ff:ff:ff count=50\n"
+    },
+    {
+      "path": "/home/student/task/portal.b64",
+      "text": "UE9TVCAvd3BpLWxvZ2luIHVzZXI9ZW1wIG50b3szdjFsX3R3MW5fYzRwdDF2M19wMHJ0NGx9\n"
+    }
+  ]
+}

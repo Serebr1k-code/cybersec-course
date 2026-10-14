@@ -1,0 +1,27 @@
+{
+  "id": "hardware-wifi-enterprise",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3ap_msch4pv2_r0gu3_r4d1us}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: rogue RADIUS\n\n`wpe.log` — лог hostapd-wpe после подключения сотрудника. В `hash.b64` лежит собранный для перебора хэш (base64). Извлеки флаг.\n\n1. `grep -i mschapv2 wpe.log` — username/challenge/response.\n2. `base64 -d hash.b64`.\n3. `base64 -d hash.b64 | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/wpe.log",
+      "text": "wlan0: AP-ENABLED\nmschapv2: username: CORP\\\\j.smith\nmschapv2: challenge: 1a2b3c4d5e6f7788\nmschapv2: response: 9f8e7d6c5b4a3928\n"
+    },
+    {
+      "path": "/home/student/task/hash.b64",
+      "text": "Q09SUFxqLnNtaXRoOjo6OjFhMmIzYzRkNWU2Zjc3ODg6OWY4ZTdkNmM1YjRhMzkyOA==\n"
+    }
+  ]
+}

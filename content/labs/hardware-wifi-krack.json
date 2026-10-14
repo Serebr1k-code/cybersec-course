@@ -1,0 +1,27 @@
+{
+  "id": "hardware-wifi-krack",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{kr4ck_k3y_r31nst4ll4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: KRACK\n\n`krack.txt` — трасса рукопожатия. Найди повтор msg3 (одинаковый replay counter) — признак переустановки ключа. Флаг в `flag.b64`.\n\n1. `grep msg3 krack.txt` — сравни replay counter.\n2. `base64 -d flag.b64`.\n3. `base64 -d flag.b64 | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/krack.txt",
+      "text": "frame 12: eapol msg3 src=aa:bb:cc:00:11:22 replay=1\nframe 18: eapol msg3 src=aa:bb:cc:00:11:22 replay=1  # duplicate\nframe 19: data protected extiv=000000000000\nframe 24: data protected extiv=000000000000  # nonce reuse\n"
+    },
+    {
+      "path": "/home/student/task/flag.b64",
+      "text": "bnRve2tyNGNrX2szWV9yMzFuc3Q0bGw0dDEwbn0=\n"
+    }
+  ]
+}
