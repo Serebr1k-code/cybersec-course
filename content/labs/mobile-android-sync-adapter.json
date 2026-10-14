@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-sync-adapter",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sync4d4pt3r_l00p}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит SyncAdapter\\n\\nНайди зацикленную синхронизацию.\\n"
+    },
+    {
+      "path": "/home/student/task/sync_dump.txt",
+      "text": "Account{ com.google } syncInterval=86400s  lastSync=ok\\nAccount{ com.example.tracker } syncInterval=0s  lastSync=now  selfReschedule=true  # flag: nto{sync4d4pt3r_l00p}\\n"
+    }
+  ]
+}

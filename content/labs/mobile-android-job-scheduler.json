@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-job-scheduler",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{j0bsch3dul3r_p3rs1st}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит JobScheduler\\n\\nНайди скрытую периодическую задачу.\\n"
+    },
+    {
+      "path": "/home/student/task/jobscheduler_dump.txt",
+      "text": "JOB .CleanupJob  interval=86400000ms  constraints=IDLE\\nJOB .BeaconJob  interval=900000ms  constraints=CONNECTIVITY  persisted=true  # flag: nto{j0bsch3dul3r_p3rs1st}\\n"
+    }
+  ]
+}
