@@ -1,0 +1,44 @@
+{
+  "id": "stego-c2pa",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c2pa_m4n1f3st_fl4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: данные в APP11-сегменте JPEG\n\n`photo.jpg` содержит C2PA-манифест в APP11-сегменте. JPEG-сегмент: `FF маркер длина(2, big-endian) данные`.\n\nAPP11 — маркер 0xEB.\n\n1. `xxd -l 64 photo.jpg`.\n2. `python3 c2pa.py` — обход сегментов.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/photo.jpg",
+      "b64": "/9j/6wAhSlAAAWMycGFudG97YzJwYV9tNG4xZjNzdF9mbDRnff/Z"
+    },
+    {
+      "path": "/home/student/task/c2pa.py",
+      "text": "d = open('photo.jpg','rb').read()\ni = 2\nwhile i + 4 <= len(d):\n    if d[i] != 0xFF:\n        break\n    marker = d[i+1]\n    if marker == 0xD9:\n        break\n    ln = int.from_bytes(d[i+2:i+4],'big')\n    data = d[i+4:i+2+ln]\n    if marker == 0xEB:\n        print(data[8:].decode('latin-1'))\n    i += 2 + ln\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "c2pa\\.py",
+          "example": "python3 c2pa.py",
+          "output": "nto{c2pa_m4n1f3st_fl4g}\n"
+        }
+      ]
+    }
+  }
+}

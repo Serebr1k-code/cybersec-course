@@ -1,0 +1,44 @@
+{
+  "id": "stego-model-weights",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s4f3t3ns0rs_m3t4_fl4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: метаданные в safetensors\n\n`model.safetensors` — файл весов. Формат: 8 байт (u64 LE) — длина JSON-заголовка, затем JSON, затем данные.\n\nЗагляни в `__metadata__` заголовка.\n\n1. `xxd -l 96 model.safetensors`.\n2. `python3 st.py` — разбор заголовка.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/model.safetensors",
+      "b64": "gAAAAAAAAAB7Il9fbWV0YWRhdGFfXyI6eyJmb3JtYXQiOiJwdCIsImZsYWciOiJudG97czRmM3QzbnMwcnNfbTN0NF9mbDRnfSJ9LCJ3ZWlnaHQiOnsiZHR5cGUiOiJGMzIiLCJzaGFwZSI6WzJdLCJkYXRhX29mZnNldHMiOlswLDhdfX0gIAAAwD8AACBA"
+    },
+    {
+      "path": "/home/student/task/st.py",
+      "text": "import struct, json\nd = open('model.safetensors','rb').read()\nn = struct.unpack('<Q', d[:8])[0]\nhdr = json.loads(d[8:8+n])\nprint(hdr.get('__metadata__', {}).get('flag', ''))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "st\\.py",
+          "example": "python3 st.py",
+          "output": "nto{s4f3t3ns0rs_m3t4_fl4g}\n"
+        }
+      ]
+    }
+  }
+}

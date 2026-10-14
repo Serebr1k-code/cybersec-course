@@ -1,0 +1,44 @@
+{
+  "id": "stego-llm-token",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{llm_t0k3n_fl4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: сообщение в последовательности токенов\n\n`tokens.json` — дамп генерации LLM: список идентификаторов токенов.\n\nИдентификаторы смещены на фиксированную базу (посмотри на минимальное значение).\n\n1. `cat tokens.json`.\n2. `python3 tok.py` — вычитание базы и декодирование.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/tokens.json",
+      "text": "{\"model\": \"demo\", \"tokens\": [100110, 100116, 100111, 100123, 100108, 100108, 100109, 100095, 100116, 100048, 100107, 100051, 100110, 100095, 100102, 100108, 100052, 100103, 100125]}\n"
+    },
+    {
+      "path": "/home/student/task/tok.py",
+      "text": "import json\ndata = json.load(open('tokens.json'))\ntoks = data['tokens']\nbase = min(toks) - (min(toks) % 1)  # база = 100000\nbase = 100000\nout = bytes(t - base for t in toks)\nprint(out.decode('latin-1'))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "tok\\.py",
+          "example": "python3 tok.py",
+          "output": "nto{llm_t0k3n_fl4g}\n"
+        }
+      ]
+    }
+  }
+}
