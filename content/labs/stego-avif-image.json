@@ -1,0 +1,44 @@
+{
+  "id": "stego-avif-image",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4v1f_1s0bmff_fl4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: нестандартный бокс в AVIF\n\n`image.avif` — ISOBMFF-контейнер (как MP4). Внутри есть бокс, которого нет в спецификации AVIF.\n\nБокс: `[размер(4, big-endian)][тип(4)][данные]`.\n\n1. `xxd -l 64 image.avif`.\n2. `python3 avif.py` — парсер боксов.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/image.avif",
+      "b64": "AAAAGGZ0eXBhdmlmAAAAAGF2aWZtaWYxAAAADG1ldGEAAAAAAAAAHkZMRyBudG97NHYxZl8xczBibWZmX2ZsNGd9"
+    },
+    {
+      "path": "/home/student/task/avif.py",
+      "text": "import struct\nd = open('image.avif','rb').read()\ni = 0\nwhile i + 8 <= len(d):\n    size = struct.unpack('>I', d[i:i+4])[0]\n    typ = d[i+4:i+8]\n    if typ == b'FLG ':\n        print(d[i+8:i+size].decode())\n    if size == 0:\n        break\n    i += size\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "avif\\.py",
+          "example": "python3 avif.py",
+          "output": "nto{4v1f_1s0bmff_fl4g}\n"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "id": "stego-jpegxl",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{jxl_4ns_b0x_fl4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: нестандартный бокс в JPEG XL\n\n`image.jxl` — контейнерный JPEG XL. В нём есть бокс, которого нет в спецификации.\n\nСигнатура контейнера: `00 00 00 0C 4A 58 4C 20 0D 0A 87 0A`.\nДальше боксы `[размер(4, big-endian)][тип(4)][данные]`.\n\n1. `xxd -l 48 image.jxl`.\n2. `python3 jxl.py` — парсер боксов.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/image.jxl",
+      "b64": "AAAADEpYTCANCocKAAAAFGZ0eXBqeGwgAAAAAGp4bCAAAAAdRkxHIG50b3tqeGxfNG5zX2IweF9mbDRnfQ=="
+    },
+    {
+      "path": "/home/student/task/jxl.py",
+      "text": "import struct\nd = open('image.jxl','rb').read()\ni = 0\nwhile i + 8 <= len(d):\n    size = struct.unpack('>I', d[i:i+4])[0]\n    typ = d[i+4:i+8]\n    if typ == b'FLG ':\n        print(d[i+8:i+size].decode())\n    if size == 0:\n        break\n    i += size\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "jxl\\.py",
+          "example": "python3 jxl.py",
+          "output": "nto{jxl_4ns_b0x_fl4g}\n"
+        }
+      ]
+    }
+  }
+}
