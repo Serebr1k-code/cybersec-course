@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-detect-vpn",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{vpn_d3t3ct3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор детекта VPN\\n\\nНайди проверку VPN.\\n"
+    },
+    {
+      "path": "/home/student/task/vpn_checks.txt",
+      "text": "check: NetworkCapabilities.hasTransport(WIFI)  -> ok\\ncheck: NetworkCapabilities.hasTransport(VPN)  -> vpn detected  # flag: nto{vpn_d3t3ct3d}\\n"
+    }
+  ]
+}

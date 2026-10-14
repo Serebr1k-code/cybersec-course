@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-detect-proxy",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pr0xy_d3t3ct3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор детекта прокси\\n\\nНайди проверку прокси.\\n"
+    },
+    {
+      "path": "/home/student/task/net_checks.txt",
+      "text": "check: ConnectivityManager type == WIFI  -> ok\\ncheck: System.getProperty(http.proxyHost) != null  -> proxy detected  # flag: nto{pr0xy_d3t3ct3d}\\n"
+    }
+  ]
+}
