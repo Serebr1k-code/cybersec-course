@@ -1,0 +1,29 @@
+{
+  "id": "hardware-xtensa-esp",
+  "workdir": "/home/student/esp32",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/esp32/found.txt",
+    "contains": "nto{3sp32_fl4sh_3ncrypt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/esp32",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/esp32/task.md",
+      "text": "# Задача: разделы флеша ESP32\n\nТы выгрузил флеш ESP32 утилитой esptool — лог в `esptool.log`. Найди описание приложения и достань флаг.\n\nПолезные команды: `cat`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/esp32/notes.md",
+      "text": "Заметки\n------\n- ESP32/ESP8266 на ядре Xtensa.\n- Прошивка = разделы: bootloader, partition table, nvs, otadata, app0/app1.\n- esptool.py читает/пишет флеш.\n- Secure boot v2 и flash encryption включаются через eFuse.\n- Описание приложения идёт после 'app_desc='.\n"
+    },
+    {
+      "path": "/home/student/esp32/esptool.log",
+      "text": "esptool.py v4.6\nChip is ESP32-D0WD (revision 1)\nFlash size: 4MB\nDetected flash size: 4MB\nReading flash 0x10000..0x1FFFF\nPartition table: nvs, otadata, app0, app1\napp_desc=nto{3sp32_fl4sh_3ncrypt}\nsecure_boot: disabled\nflash_encryption: disabled\n"
+    }
+  ],
+  "tools": {}
+}

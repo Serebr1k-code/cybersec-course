@@ -1,0 +1,29 @@
+{
+  "id": "hardware-avr-pic",
+  "workdir": "/home/student/avr",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/avr/found.txt",
+    "contains": "nto{4vr_fu53_l0ck_b1t5}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/avr",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/avr/task.md",
+      "text": "# Задача: fuse-биты AVR\n\nТы работал с AVR утилитой avrdude — лог в `avrdude.log`. Найди значение lock bits и достань флаг.\n\nПолезные команды: `cat`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/avr/notes.md",
+      "text": "Заметки\n------\n- AVR/PIC/8051 — 8-битные MCU.\n- Fuse-биты: тактирование, BOD, lock bits, SPIEN.\n- Lock bits запрещают чтение флеша; без них avrdude даёт дамп.\n- Обход: glitch, загрузчик, side-channel, физический доступ.\n- Значение lock bits идёт после 'lockbits='.\n"
+    },
+    {
+      "path": "/home/student/avr/avrdude.log",
+      "text": "avrdude: AVR device initialized: ATmega328P\navrdude: reading fuse bytes\nlfuse: 0x62 hfuse: 0xD9 efuse: 0xFF\navrdude: reading lock bits\nlockbits=nto{4vr_fu53_l0ck_b1t5}\navrdude: reading flash memory\navrdude: 32768 bytes read\n"
+    }
+  ],
+  "tools": {}
+}

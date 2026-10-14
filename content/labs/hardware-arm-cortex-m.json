@@ -1,0 +1,29 @@
+{
+  "id": "hardware-arm-cortex-m",
+  "workdir": "/home/student/cortexm",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/cortexm/found.txt",
+    "contains": "nto{c0rt3x_m_v3ct0r_t4bl3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/cortexm",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/cortexm/task.md",
+      "text": "# Задача: таблица векторов Cortex-M\n\nТы выгрузил начало прошивки в `vectors.txt`. Найди символическую метку и достань флаг.\n\nПолезные команды: `cat`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/cortexm/notes.md",
+      "text": "Заметки\n------\n- Cortex-M: таблица векторов в начале флеша (SP + Reset).\n- Карта памяти: 0x08000000 флеш, 0x20000000 RAM, 0x40000000 периферия.\n- NVIC управляет прерываниями; MPU ограничивает доступ.\n- Отладка SWD; RDP запрещает чтение флеша.\n- Метка идёт после 'symbol='.\n"
+    },
+    {
+      "path": "/home/student/cortexm/vectors.txt",
+      "text": "0x08000000: 00 40 02 20   ; initial SP = 0x20024000\n0x08000004: 09 01 00 08   ; Reset_Handler = 0x08000109\n0x08000008: 00 00 00 00   ; NMI\n0x0800000C: 00 00 00 00   ; HardFault\n0x08000010: 00 00 00 00   ; MemManage\nsymbol=nto{c0rt3x_m_v3ct0r_t4bl3}\nnext: load into Ghidra\n"
+    }
+  ],
+  "tools": {}
+}

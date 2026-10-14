@@ -1,0 +1,29 @@
+{
+  "id": "hardware-arm-cortex-a",
+  "workdir": "/home/student/cortexa",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/cortexa/found.txt",
+    "contains": "nto{c0rt3x_4_7ru5tz0n3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/cortexa",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/cortexa/task.md",
+      "text": "# Задача: разбор TrustZone\n\nТы записал переход между мирами в `tz-log.txt`. Найди строку с указанием мира и достань флаг.\n\nПолезные команды: `cat`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/cortexa/notes.md",
+      "text": "Заметки\n------\n- Cortex-A: Exception Levels EL0-EL3.\n- MMU транслирует адреса; stage-2 для виртуализации.\n- TrustZone: normal world + secure world (TEE).\n- Переключение через SMC -> secure monitor (EL3).\n- Строка с миром идёт после 'world='.\n"
+    },
+    {
+      "path": "/home/student/cortexa/tz-log.txt",
+      "text": "EL0: user app running\nEL1: kernel (normal world) syscall\nSMC call -> secure monitor (EL3)\nEL1S: secure world entry (TEE)\nMMU: stage-1/stage-2 translation\nworld=nto{c0rt3x_4_7ru5tz0n3}\nnext: analyze SMC handler\n"
+    }
+  ],
+  "tools": {}
+}

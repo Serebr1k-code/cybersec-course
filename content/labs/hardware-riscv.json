@@ -1,0 +1,29 @@
+{
+  "id": "hardware-riscv",
+  "workdir": "/home/student/riscv",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/riscv/found.txt",
+    "contains": "nto{r15cv_pmp_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/riscv",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/riscv/task.md",
+      "text": "# Задача: дизассемблер RISC-V\n\nТы дизассемблировал RISC-V прошивку в `disasm.txt`. Найди секрет в комментарии и достань флаг.\n\nПолезные команды: `cat`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/riscv/notes.md",
+      "text": "Заметки\n------\n- RISC-V: открытая ISA, базовые инструкции 32 бита.\n- Регистры x0-x31; x0=zero, x1=ra, x2=sp, x10=a0.\n- Режимы M/S/U; PMP защищает физическую память.\n- Debug Module через JTAG, если отладка не заблокирована.\n- Секрет в комментарии после '#'.\n"
+    },
+    {
+      "path": "/home/student/riscv/disasm.txt",
+      "text": "80000000 <_start>:\n80000000: 0000b117   lui   sp,0x20000\n80000004: 0000b517   lui   a0,0x00000\n80000008: 000500e7   jalr  ra\n8000000c: 00000013   nop\n# secret: nto{r15cv_pmp_byp4ss}\n80000010: 0000006f   j     80000010\n"
+    }
+  ],
+  "tools": {}
+}
