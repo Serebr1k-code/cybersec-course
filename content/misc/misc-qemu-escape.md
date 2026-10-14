@@ -13,6 +13,17 @@ useful_for:
   - 'Kernel/VMM pwn'
 estimated_minutes: 42
 summary: 'Побег из QEMU через баги эмуляции устройств: MMIO, DMA, virtio; разбор CVE и методика поиска.'
+lab:
+  kind: shell
+  title: 'Практика: поиск бага в эмуляции устройства'
+  toolset: [core, hex, strings, file]
+  workdir: /home/student/task
+  files: [task.md, devices.txt, qemu.log]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`devices.txt` перечисляет эмулируемые устройства.'
+    - '`qemu.log` показывает MMIO-запись за границей регистров.'
+    - 'Флаг — в логе: `strings qemu.log | grep nto`.'
 ---
 
 ## Вопрос, с которого всё начинается

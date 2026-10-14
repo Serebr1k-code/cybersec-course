@@ -1,0 +1,39 @@
+{
+  "id": "misc-firecracker",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{f1r3cr4ck3r_m1cr0vm_3sc4p3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Firecracker\n\nИзучи конфигурацию микровиртуалы и определи поверхность атаки. Найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/config.json",
+      "text": "{\"boot-source\":{\"kernel_image_path\":\"vmlinux\"},\"drives\":[{\"drive_id\":\"rootfs\",\"is_root_device\":true}],\"machine-config\":{\"vcpu_count\":2,\"mem_size_mib\":256}}\n"
+    },
+    {
+      "path": "/home/student/task/version.txt",
+      "text": "Firecracker v1.4.0\njailer: enabled\nnto{f1r3cr4ck3r_m1cr0vm_3sc4p3}\n"
+    }
+  ],
+  "tools": {
+    "strings": {
+      "help": "strings <файл>",
+      "cases": [
+        {
+          "match": "task.md|config.json|version.txt",
+          "example": "strings task.md config.json version.txt",
+          "output": "nto{f1r3cr4ck3r_m1cr0vm_3sc4p3}"
+        }
+      ]
+    }
+  }
+}

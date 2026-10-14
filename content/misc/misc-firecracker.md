@@ -13,6 +13,17 @@ useful_for:
   - 'Аудит VMM'
 estimated_minutes: 38
 summary: 'Firecracker microVM: минимальная модель устройств, virtio, API-сокет и jailer; поверхность атаки и побег.'
+lab:
+  kind: shell
+  title: 'Практика: разбор конфигурации microVM'
+  toolset: [core, hex, strings, file]
+  workdir: /home/student/task
+  files: [task.md, config.json, version.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`config.json` описывает устройства микровиртуалы.'
+    - 'Найди версию Firecracker — от неё зависят известные CVE.'
+    - 'Флаг — в одном из файлов: `strings * | grep nto`.'
 ---
 
 ## Вопрос, с которого всё начинается

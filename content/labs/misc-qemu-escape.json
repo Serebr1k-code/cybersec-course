@@ -1,0 +1,39 @@
+{
+  "id": "misc-qemu-escape",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{q3mu_mm10_00b_3sc4p3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# QEMU escape\n\nРазбери устройства и найди ошибку эмуляции в `qemu.log`. Найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/devices.txt",
+      "text": "00:03.0 virtio-net\n00:04.0 USB\n00:05.0 custom-dev regs[16]\n"
+    },
+    {
+      "path": "/home/student/task/qemu.log",
+      "text": "[dev] mmio write addr=0x1000 val=0x41414141 (regs[16]) -> OOB\nnto{q3mu_mm10_00b_3sc4p3}\n"
+    }
+  ],
+  "tools": {
+    "strings": {
+      "help": "strings <файл>",
+      "cases": [
+        {
+          "match": "task.md|devices.txt|qemu.log",
+          "example": "strings task.md devices.txt qemu.log",
+          "output": "nto{q3mu_mm10_00b_3sc4p3}"
+        }
+      ]
+    }
+  }
+}
