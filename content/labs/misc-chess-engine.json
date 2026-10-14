@@ -1,0 +1,39 @@
+{
+  "id": "misc-chess-engine",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ch3ss_uc1_f3n_b0f}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Шахматный движок\n\nВ `engine` есть баг разбора FEN. Изучи `source.c` и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/engine",
+      "text": "MiniChess 1.0\nuciok\nbestmove e2e4\nnto{ch3ss_uc1_f3n_b0f}\n"
+    },
+    {
+      "path": "/home/student/task/source.c",
+      "text": "void set_fen(char *fen){ char board[64]; strcpy(board, fen); } // no length check\n"
+    }
+  ],
+  "tools": {
+    "strings": {
+      "help": "strings <файл>",
+      "cases": [
+        {
+          "match": "engine",
+          "example": "strings engine",
+          "output": "MiniChess 1.0\nuci\nbestmove\nnto{ch3ss_uc1_f3n_b0f}"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "id": "misc-anti-cheat",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4nt1_ch34t_b3ingd3bugg3d_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Анти-чит\n\n`game` закрывается при обнаружении отладчика. Найди проверку и обойди её.\n"
+    },
+    {
+      "path": "/home/student/task/game",
+      "text": "[AC] scan...\n[AC] BeingDebugged=1\nterminated\nnto{4nt1_ch34t_b3ingd3bugg3d_byp4ss}\n"
+    },
+    {
+      "path": "/home/student/task/ac_report.txt",
+      "text": "AC detected: PEB.BeingDebugged set. Bypass: zero the flag before the check.\n"
+    }
+  ],
+  "tools": {
+    "strings": {
+      "help": "strings <файл>",
+      "cases": [
+        {
+          "match": "game",
+          "example": "strings game",
+          "output": "BeingDebugged\nNtQueryInformationProcess\nnto{4nt1_ch34t_b3ingd3bugg3d_byp4ss}"
+        }
+      ]
+    }
+  }
+}
