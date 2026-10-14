@@ -1,0 +1,22 @@
+{
+  "id": "doc-ooxml-internals",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{d0cx_h1dd3n_p4rt}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анатомия .docx\n\n`docx.txt` — листинг частей ZIP-пакета. Найди подозрительную часть (макрос/скрытое) и метку.\n\n1. `cat docx.txt`.\n2. Ищи vbaProject.bin и необычные части.\n3. `grep nto docx.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/docx.txt",
+      "text": "$ unzip -l report.docx\n  Length      Name\n  --------    ----\n      1180    [Content_Types].xml\n       586    _rels/.rels\n      2048    word/document.xml\n     12288    word/vbaProject.bin\n      1024    word/nto{d0cx_h1dd3n_p4rt}.xml\n\n# Инженер: vbaProject.bin -> встроенный макрос (AutoOpen). Часть с флагом спрятана в пакете.\n",
+      "mode": "644"
+    }
+  ]
+}

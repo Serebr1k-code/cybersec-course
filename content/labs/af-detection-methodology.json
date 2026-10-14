@@ -1,0 +1,22 @@
+{
+  "id": "af-detection-methodology",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{4bs3nc3_0f_3v1d3nc3}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: обнаружение анти-форензики\n\n`triage.txt` — наблюдения по системе. Найди аномалии отсутствия/несоответствия и метку.\n\n1. `cat triage.txt`.\n2. Ищи «нет журналов», разрывы record ID, расхождения pslist/psscan.\n3. `grep nto triage.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/triage.txt",
+      "text": "Система выглядит «ухоженной», но:\n- Security.evtx: разрыв record ID 101..149, событие 1102 (журнал очищен)\n- Prefetch пуст для updater.exe, хотя процесс запускался\n- pslist не показывает PID 1337, а psscan показывает\n- SDelete в Prefetch -> перезапись свободного места\n\n# Инженер: аномалия отсутствия + расхождения + следы инструмента = анти-форензика.\n# Метка: nto{4bs3nc3_0f_3v1d3nc3}\n",
+      "mode": "644"
+    }
+  ]
+}

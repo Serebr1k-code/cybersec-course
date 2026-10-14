@@ -1,0 +1,22 @@
+{
+  "id": "doc-rtf",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{rtf_0bj3ct_p4yl04d}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: RTF с вложенным объектом\n\n`rtf.txt` — дамп содержимого RTF и результат rtfobj. Найди вложенный объект и метку.\n\n1. `cat rtf.txt`.\n2. Ищи \\object и objclass.\n3. `grep nto rtf.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/rtf.txt",
+      "text": "{\\rtf1\\ansi\\deff0\n\\object\\objemb{\\*\\objclass Package}\\objw0\\objh0\n...\n$ rtfobj -s all invoice.rtf\nObject 00000000: format 'Package' -> saved to object_00000000.bin\n# payload marker: nto{rtf_0bj3ct_p4yl04d}\n\n# Инженер: \\object + objclass Package -> вложенный пакет, вероятно с исполняемым кодом.\n",
+      "mode": "644"
+    }
+  ]
+}
