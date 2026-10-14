@@ -1,0 +1,27 @@
+{
+  "id": "hardware-wifi-basics",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w1f1_b34c0n_ss1d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор Wi-Fi-дампа\n\nДан текстовый дамп эфира `capture.txt` (канал 6, одна точка доступа). В beacon-кадре спрятан скрытый SSID, закодированный в base64 (строка в `ssid.b64`). Определи канал и извлеки флаг.\n\n1. `cat capture.txt` — что за кадры.\n2. `grep beacon capture.txt` — строка beacon и её SSID.\n3. `base64 -d ssid.b64` — скрытый SSID.\n4. `base64 -d ssid.b64 | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/capture.txt",
+      "text": "frame 1: beacon   freq=2437 (ch6)  SSID=<hidden>  rsn.akms=1\nframe 2: probe-req  SSID=office\nframe 3: probe-resp SSID=office\nframe 4: auth     alg=open\nframe 5: assoc-req SSID=office\nframe 6: data     len=1420 (encrypted)\n"
+    },
+    {
+      "path": "/home/student/task/ssid.b64",
+      "text": "U1NJRDogbnRve3cxZjFfYjM0YzBuX3NzMWR9\n"
+    }
+  ]
+}

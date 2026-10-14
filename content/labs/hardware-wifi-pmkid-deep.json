@@ -1,0 +1,27 @@
+{
+  "id": "hardware-wifi-pmkid-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pmk1d_w1th0ut_cl13nt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: client-less PMKID\n\nДан дамп `wh.txt` с PMKID одинокой точки. В файле `pmkid.b64` лежит значение в base64. Извлеки флаг.\n\n1. `grep -i pmkid wh.txt` — подтверди захват.\n2. `base64 -d pmkid.b64`.\n3. `base64 -d pmkid.b64 | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/wh.txt",
+      "text": "[15:10:02] aa:bb:cc:00:11:22 -> PMKID captured (warehouse)\n[15:10:02] no client associated\n"
+    },
+    {
+      "path": "/home/student/task/pmkid.b64",
+      "text": "UE1LSUQ6IG50b3twbWsxZF93MXRoMHV0X2NsMTNudH0=\n"
+    }
+  ]
+}

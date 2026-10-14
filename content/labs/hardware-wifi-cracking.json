@@ -1,0 +1,27 @@
+{
+  "id": "hardware-wifi-cracking",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{hp_cr4ck3d_by_w0rdl1st}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: подбор пароля WPA\n\nЕсть хеш `office.hc22000` и небольшой словарь `words.txt`. В словаре есть кандидат-пароль, начинающийся на `nto{`. Найди его.\n\n1. `cat words.txt` — кандидаты.\n2. `grep nto words.txt` — флаг-пароль.\n3. `grep nto words.txt > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/office.hc22000",
+      "text": "WPA*01*8a3fc1*aa:bb:cc:00:11:22*66:77:88:99:aa:bb*office\n"
+    },
+    {
+      "path": "/home/student/task/words.txt",
+      "text": "password\n12345678\nSummer2023\nqwerty123\nnto{hp_cr4ck3d_by_w0rdl1st}\nletmein\n"
+    }
+  ]
+}

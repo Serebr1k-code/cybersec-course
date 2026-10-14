@@ -1,0 +1,27 @@
+{
+  "id": "hardware-wifi-handshake",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h4ndsh4k3_m1c_c4ptur3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: рукопожатие WPA2\n\nДан дамп `eapol.txt` с четырёхсторонним рукопожатием и `pmkid.b64` с PMKID. Убедись, что в дампе есть MIC, и извлеки флаг из PMKID.\n\n1. `grep -i mic eapol.txt` — есть ли MIC.\n2. `base64 -d pmkid.b64` — значение PMKID.\n3. `base64 -d pmkid.b64 | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/eapol.txt",
+      "text": "EAPOL-Key msg1 (AP->STA): ANonce=3f2a...\nEAPOL-Key msg2 (STA->AP): SNonce=91c4... MIC=8b2d...\nEAPOL-Key msg3 (AP->STA): GTK enc MIC=4a11...\nEAPOL-Key msg4 (STA->AP): ACK\n"
+    },
+    {
+      "path": "/home/student/task/pmkid.b64",
+      "text": "UE1LSUQ6IG50b3toNG5kc2g0azNfbTFjX2M0cHR1cjNkfQ==\n"
+    }
+  ]
+}
