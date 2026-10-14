@@ -1,0 +1,47 @@
+{
+  "id": "web-artifactory",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4rt1f4ct0ry_4n0n_4rt1f4ct_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Artifactory анонимный доступ\n\nЦель: `http://artifactory.local:8082`.\n\n1. Проверка доступности:\n   curl -s http://artifactory.local:8082/artifactory/api/system/ping\n\n2. Список репозиториев анонимно:\n   curl -s http://artifactory.local:8082/artifactory/api/repositories\n\n3. Скачай конфиг из открытого репозитория:\n   curl -s 'http://artifactory.local:8082/artifactory/libs-release-local/com/corp/app/config.properties'\n\n4. В конфиге — строка с флагом. Сохрани в found.txt и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция artifactory.local)",
+      "cases": [
+        {
+          "match": "config\\.properties|libs-release-local",
+          "example": "-s 'http://artifactory.local:8082/artifactory/libs-release-local/com/corp/app/config.properties'",
+          "output": "db.host=db.internal\ndb.password=Pr0dDBpass!\napi.token=nto{4rt1f4ct0ry_4n0n_4rt1f4ct_l34k}\n"
+        },
+        {
+          "match": "api/repositories",
+          "example": "-s http://artifactory.local:8082/artifactory/api/repositories",
+          "output": "[{\"key\":\"libs-release-local\",\"type\":\"LOCAL\",\"packageType\":\"Maven\"},{\"key\":\"docker-local\",\"type\":\"LOCAL\",\"packageType\":\"Docker\"}]\n"
+        },
+        {
+          "match": "api/system/version",
+          "example": "-s http://artifactory.local:8082/artifactory/api/system/version",
+          "output": "{\"version\":\"7.77.0\",\"revision\":\"77700900\"}\n"
+        },
+        {
+          "match": "api/system/ping",
+          "example": "-s http://artifactory.local:8082/artifactory/api/system/ping",
+          "output": "OK\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только artifactory.local"
+    }
+  }
+}

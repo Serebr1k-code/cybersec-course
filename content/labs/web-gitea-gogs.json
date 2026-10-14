@@ -1,0 +1,42 @@
+{
+  "id": "web-gitea-gogs",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{g1t34_4n0n_s3cr3ts_1n_r3p0}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: секреты в открытом Gitea\n\nЦель: `http://gitea.local:3000`.\n\n1. Версия (открытый API):\n   curl -s http://gitea.local:3000/api/v1/version\n\n2. Перечисли репозитории анонимно:\n   curl -s 'http://gitea.local:3000/api/v1/repos/search'\n\n3. Прочитай конфиг из репозитория (raw):\n   curl -s http://gitea.local:3000/dev/backend/raw/branch/main/config/database.yml\n\n4. В конфиге — строка с флагом. Сохрани в found.txt и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция gitea.local)",
+      "cases": [
+        {
+          "match": "database\\.yml|config/",
+          "example": "-s http://gitea.local:3000/dev/backend/raw/branch/main/config/database.yml",
+          "output": "production:\n  host: db.internal\n  username: app\n  password: Pr0dDBpass!\n  api_token: nto{g1t34_4n0n_s3cr3ts_1n_r3p0}\n"
+        },
+        {
+          "match": "repos/search",
+          "example": "-s 'http://gitea.local:3000/api/v1/repos/search'",
+          "output": "{\"data\":[{\"id\":1,\"name\":\"backend\",\"full_name\":\"dev/backend\",\"private\":false},{\"id\":2,\"name\":\"frontend\",\"full_name\":\"dev/frontend\",\"private\":false}]}\n"
+        },
+        {
+          "match": "api/v1/version",
+          "example": "-s http://gitea.local:3000/api/v1/version",
+          "output": "{\"version\":\"1.21.0\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только gitea.local"
+    }
+  }
+}

