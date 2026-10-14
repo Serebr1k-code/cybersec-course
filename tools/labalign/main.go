@@ -61,7 +61,7 @@ var toolPatterns = map[string]string{
 	"hydra": `\bhydra\b`, "kubectl": `\bkubectl\b`, "aws": `\baws\b`,
 	"gcloud": `\bgcloud\b`, "volatility": `\bvolatility\b|\bvol\.py\b|\bvol3\b`,
 	"sleuthkit": `\bfls\b|\bicat\b|\bmactime\b|\bfsstat\b|\bsleuthkit\b`,
-	"sqlite3": `\bsqlite3\b`, "mongosh": `\bmongosh\b|\bmongo\b`,
+	"sqlite3":   `\bsqlite3\b`, "mongosh": `\bmongosh\b|\bmongo\b`,
 	"redis-cli": `\bredis-cli\b`, "tesseract": `\btesseract\b`,
 	"zbarimg": `\bzbarimg\b`, "steghide": `\bsteghide\b`, "stegseek": `\bstegseek\b`,
 	"zsteg": `\bzsteg\b`, "binwalk": `\bbinwalk\b`, "apktool": `\bapktool\b`,
@@ -101,7 +101,7 @@ var toolPatterns = map[string]string{
 	"traceroute": `\btraceroute\b`, "mtr": `\bmtr\b`, "arping": `\barping\b`,
 	"fping": `\bfping\b`, "ping": `\bping\b`, "proxychains": `\bproxychains\b`,
 	"chisel": `\bchisel\b`, "ligolo": `\bligolo\b`, "iodine": `\biodine\b`,
-	"dns2tcp": `\bdns2tcp\b`, "busybox": `\bbusybox\b`, 	"perl": `\bperl\b`,
+	"dns2tcp": `\bdns2tcp\b`, "busybox": `\bbusybox\b`, "perl": `\bperl\b`,
 	"dnschef": `\bdnschef\b`, "ip": `\bip\b`,
 	"ifconfig": `\bifconfig\b`, "route": `\broute\b`, "tcpflow": `\btcpflow\b`,
 	"tcpick": `\btcpick\b`, "mitmproxy": `\bmitmproxy\b|\bmitmweb\b`,
@@ -319,10 +319,10 @@ func main() {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		_ = enc.Encode(map[string]any{
-			"labs":         total,
-			"per_category": perCatLabs,
+			"labs":              total,
+			"per_category":      perCatLabs,
 			"flags_by_category": perCatFlag,
-			"flags":        flags,
+			"flags":             flags,
 		})
 		return
 	}
