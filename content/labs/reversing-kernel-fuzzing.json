@@ -1,0 +1,43 @@
+{
+  "id": "reversing-kernel-fuzzing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{kcov_kasan_slab_uaf}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: KASAN-отчёт\n\n`crash.log` — лог краха ядра от syzkaller. Скрипт `parse_syz.py`\nразберёт отчёт: тип ошибки, стек и syz-репро.\n\n1. `cat crash.log` — исходный отчёт.\n2. `python3 parse_syz.py crash.log` — разбор.\n3. Какой класс уязвимости и в какой функции?\n\nФлаг: `nto{...}` в отчёте.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/crash.log",
+      "text": "BUG: KASAN: slab-use-after-free in tcp_recvmsg\nCall Trace:\n  tcp_recvmsg+0x1a2/0x8c0\n  sock_recvmsg+0x1f0/0x210\nsyz repro: 3 syscalls\nC repro: 12 lines\ncrash type: KASAN: slab-use-after-free\nnote: nto{kcov_kasan_slab_uaf}\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/parse_syz.py",
+      "text": "# разбор syzkaller-отчёта\nimport sys\nd = open(sys.argv[1]).read()\nprint('parsing syzkaller report...')\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> [аргументы] — интерпретатор (эмуляция разбора)",
+      "cases": [
+        {
+          "match": "parse_syz",
+          "example": "parse_syz.py crash.log",
+          "output": "BUG: KASAN: slab-use-after-free in tcp_recvmsg\nCall Trace:\n  tcp_recvmsg+0x1a2/0x8c0\n  sock_recvmsg+0x1f0/0x210\n  __sys_recvfrom+0x...\nsyz repro: 3 syscalls\nC repro: 12 lines\ncrash type: KASAN: slab-use-after-free\nnote: nto{kcov_kasan_slab_uaf}\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только parse_syz.py.\n"
+    }
+  }
+}

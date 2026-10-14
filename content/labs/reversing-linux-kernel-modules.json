@@ -1,0 +1,43 @@
+{
+  "id": "reversing-linux-kernel-modules",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{lkm_kpr0b3_g3td3nts_h00k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: анализ .ko\n\n`suspicious.ko` — модуль ядра Linux. Скрипт `scan_lkm.py` покажет\nсекции и импортируемые символы ядра.\n\n1. `strings suspicious.ko | grep vermagic` — для какой версии ядра собран.\n2. `python3 scan_lkm.py suspicious.ko` — секции и импорты.\n3. Какую функцию ядра перехватывает модуль?\n\nФлаг: `nto{...}` в отчёте.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/suspicious.ko",
+      "b64": "f0VMRgIBAQAAAAAAAAAAAAEAPgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHZlcm1hZ2ljPTUuMTUuMC05MS1nZW5lcmljAHJlZ2lzdGVyX2twcm9iZQBrYWxsc3ltc19sb29rdXBfbmFtZQBnZXRkZW50czY0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/scan_lkm.py",
+      "text": "# разбор ELF-модуля ядра\nimport sys\nd = open(sys.argv[1],'rb').read()\nprint('ELF64 relocatable')\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> [аргументы] — интерпретатор (эмуляция разбора)",
+      "cases": [
+        {
+          "match": "scan_lkm",
+          "example": "scan_lkm.py suspicious.ko",
+          "output": "ELF64 relocatable, arch=x86-64\nsections: .text (size 0x1420)  .init.text  .data  .modinfo\nundefined (imported) symbols:\n  register_kprobe\n  kallsyms_lookup_name\n  getdents64  (patched?)\n  nto{lkm_kpr0b3_g3td3nts_h00k}\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только scan_lkm.py.\n"
+    }
+  }
+}

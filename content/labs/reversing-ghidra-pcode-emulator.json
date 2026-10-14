@@ -1,0 +1,43 @@
+{
+  "id": "reversing-ghidra-pcode-emulator",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pcode_3mul4t10n_d30bfusc4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: эмуляция P-Code\n\n`target.bin` — функция, вычисляющая строку. Скрипт `emulate_pcode.py`\nэмулирует её P-Code и печатает результат, не запуская бинарник.\n\n1. `strings -n 5 target.bin` — что за бинарник.\n2. `python3 emulate_pcode.py target.bin` — эмуляция функции.\n3. Что вернула функция?\n\nФлаг: `nto{...}` в результате эмуляции.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/target.bin",
+      "b64": "TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFBFAABMAQQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABjaGVjawBNQUdJQwBzdHJjbXAA",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/emulate_pcode.py",
+      "text": "# эмуляция P-Code\nimport sys\nprint('loading', sys.argv[1])\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> [аргументы] — интерпретатор (эмуляция разбора)",
+      "cases": [
+        {
+          "match": "emulate_pcode",
+          "example": "emulate_pcode.py target.bin",
+          "output": "loaded function @ 0x00401000\nemulating 137 pcode ops...\nresult @ 0x00402000 = b'nto{pcode_3mul4t10n_d30bfusc4t10n}'\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только emulate_pcode.py.\n"
+    }
+  }
+}

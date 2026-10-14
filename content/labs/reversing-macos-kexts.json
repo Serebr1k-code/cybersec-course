@@ -1,0 +1,60 @@
+{
+  "id": "reversing-macos-kexts",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{k3xt_10k1t_p3rs0n4l1t13s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: kext как бандл\n\n`Sample.kext` — бандл драйвера macOS: каталог с `Contents/Info.plist`\nи бинарником. Скрипт `kext_info.py` разберёт plist и метаданные.\n\n1. `find Sample.kext -type f` — структура бандла.\n2. `cat Sample.kext/Contents/Info.plist` — описание драйвера.\n3. `python3 kext_info.py Sample.kext` — идентификатор, IOKitPersonalities.\n\nФлаг: `nto{...}` в метаданных бандла.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/Sample.kext",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/Sample.kext/Contents",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/Sample.kext/Contents/MacOS",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/Sample.kext/Contents/Info.plist",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<plist version=\"1.0\"><dict>\n<key>CFBundleIdentifier</key><string>com.sample.driver</string>\n<key>CFBundleVersion</key><string>2.1.0</string>\n<key>IOKitPersonalities</key><dict><key>SampleUSB</key><dict>\n<key>IOProviderClass</key><string>IOUSBDevice</string>\n<key>IOClass</key><string>com_sample_driver</string>\n<key>IOUserClientClass</key><string>com_sample_userclient</string>\n</dict></dict></dict></plist>\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/Sample.kext/Contents/MacOS/Sample",
+      "b64": "z/rt/gcAAAEDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAF9JT1NlcnZpY2UAX2twcmludGYAZXh0ZXJuYWxNZXRob2QAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/kext_info.py",
+      "text": "# разбор бандла kext\nimport sys\nprint('bundle:', sys.argv[1])\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> [аргументы] — интерпретатор (эмуляция разбора)",
+      "cases": [
+        {
+          "match": "kext_info",
+          "example": "kext_info.py Sample.kext",
+          "output": "Identifier: com.sample.driver\nVersion:    2.1.0\nMach-O:     x86_64 + arm64e (fat)\nSigned:     yes (Apple notarized)\nIOKitPersonalities:\n  SampleUSB -> IOUSBDevice / com_sample_driver\n  userclient: com_sample_userclient\nnote: bundle id nto{k3xt_10k1t_p3rs0n4l1t13s}\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только kext_info.py.\n"
+    }
+  }
+}

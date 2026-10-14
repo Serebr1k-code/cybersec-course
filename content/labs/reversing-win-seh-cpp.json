@@ -1,0 +1,43 @@
+{
+  "id": "reversing-win-seh-cpp",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{rtt1_vt4bl3_cl4ss_r3c0v3ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: RTTI и vtable\n\n`classes.bin` — дамп секции данных C++-бинарника с RTTI и vtable.\nСкрипт `parse_rtti.py` восстановит классы и их методы.\n\n1. `strings -n 6 classes.bin | grep '?AV'` — имена классов MSVC.\n2. `python3 parse_rtti.py classes.bin` — классы, vtable и методы.\n3. Найди класс-маркер с флагом.\n\nФлаг: `nto{...}` среди классов.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/classes.bin",
+      "b64": "Lj9BVkMyQ2hhbm5lbEBAAC4/QVZDcnlwdG9Db250ZXh0QEAALj9BVkxvZ2dlckBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABSVFRJAHZ0YWJsZQCqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqg==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/parse_rtti.py",
+      "text": "# разбор RTTI-локаторов\nimport sys\nd = open(sys.argv[1],'rb').read()\nprint('scanning RTTI...')\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> [аргументы] — интерпретатор (эмуляция разбора)",
+      "cases": [
+        {
+          "match": "parse_rtti",
+          "example": "parse_rtti.py classes.bin",
+          "output": "class C2Channel  @ 0x180012340  vtable=0x180020000\n  [0] 0x180001010  ~C2Channel\n  [1] 0x1800010a0  Connect\n  [2] 0x180001150  Send\nclass CryptoContext  vtable=0x180020080\n  [1] 0x1800012c0  Encrypt  (AES-256-CBC)\n  [2] 0x1800013a0  Decrypt\nclass nto{rtt1_vt4bl3_cl4ss_r3c0v3ry}\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только parse_rtti.py.\n"
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "id": "reversing-anti-disassembly",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0v3rl4pp1ng_byt3s_d1s4sm}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: anti-disassembly\n\n`blob.bin` — участок кода с ловушкой: одна область байт читается\nпо-разному. Скрипт `fix_disasm.py` покажет реальный поток.\n\n1. `xxd -l 32 blob.bin` — посмотри байты (есть `e9`, `e8`).\n2. `python3 fix_disasm.py blob.bin` — реальный поток и мусор.\n3. Найди артефакт, спрятанный за мусором.\n\nФлаг: `nto{...}` в отчёте.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/blob.bin",
+      "b64": "6QQAAADoAAAAAJCQkJCQkDHAOcB1EAAAAAAAAAAAAAAAAGp1bmsAAAAAAAAAAAA=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/fix_disasm.py",
+      "text": "# анализ по потоку\nimport sys\nprint('fixing', sys.argv[1])\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> [аргументы] — интерпретатор (эмуляция разбора)",
+      "cases": [
+        {
+          "match": "fix_disasm",
+          "example": "fix_disasm.py blob.bin",
+          "output": "0x0000: jmp 0x0006          ; реальный поток\n0x0002: (junk) e8 ...       ; недостижимо\n0x0006: mov eax, 1\n0x000b: cmp eax, eax\n0x000d: jne 0x0020          ; opaque -> never taken\n0x0013: lea rdi, [rip+...]\n0x001a: call puts\n0x0020: (junk) ...\n0x0030: db 'nto{0v3rl4pp1ng_byt3s_d1s4sm}'\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только fix_disasm.py.\n"
+    }
+  }
+}

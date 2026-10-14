@@ -1,0 +1,43 @@
+{
+  "id": "reversing-binary-ninja",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{bnil_hl1l_aut0m4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: HLIL через API\n\n`target.bin` — небольшой бинарник. Скрипт `bn_script.py` открывает его\nчерез Binary Ninja API и печатает HLIL функции проверки.\n\n1. `strings -n 5 target.bin` — что ищет программа.\n2. `python3 bn_script.py target.bin` — HLIL функции.\n3. Найди артефакт в декомпилированном виде.\n\nФлаг: `nto{...}` в HLIL.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/target.bin",
+      "b64": "TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFBFAABMAQQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABjaGVjawBNQUdJQwBzdHJjbXAA",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/bn_script.py",
+      "text": "# Binary Ninja API\nimport sys\nprint('opening', sys.argv[1])\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> [аргументы] — интерпретатор (эмуляция разбора)",
+      "cases": [
+        {
+          "match": "bn_script",
+          "example": "bn_script.py target.bin",
+          "output": "int32_t check(char* s)\n{\n    if (strcmp(s, \"MAGIC\") == 0)\n        return 1;\n    // nto{bnil_hl1l_aut0m4t10n}\n    return 0;\n}\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только bn_script.py.\n"
+    }
+  }
+}

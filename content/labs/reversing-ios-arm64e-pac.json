@@ -1,0 +1,43 @@
+{
+  "id": "reversing-ios-arm64e-pac",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pac1bsp_aut1bsp_r3tab}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Pointer Authentication\n\n`func.bin` — дамп функции arm64e. Скрипт `scan_pac.py` найдёт\nPAC-инструкции (подпись/проверка указателя).\n\n1. `xxd -l 32 func.bin` — байты с префиксом `d5` (PAC-пространство).\n2. `python3 scan_pac.py func.bin` — найденные PAC-инструкции.\n3. Какие инструкции защищают указатель возврата?\n\nФлаг: `nto{...}` в отчёте.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/func.bin",
+      "b64": "1QMD/f17v6kAAAAAAAAAANUDA/3/CwDVAAAAAAAAAAA=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/scan_pac.py",
+      "text": "# поиск PAC-инструкций\nimport sys\nd = open(sys.argv[1],'rb').read()\nprint('scanning arm64e...')\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> [аргументы] — интерпретатор (эмуляция разбора)",
+      "cases": [
+        {
+          "match": "scan_pac",
+          "example": "scan_pac.py func.bin",
+          "output": "0x0000: pacibsp        (sign LR)\n0x0004: stp x29, x30, [sp, #-16]!\n0x0038: autibsp        (auth LR)\n0x003c: retab\n[+] signed pointer region found: nto{pac1bsp_aut1bsp_r3tab}\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только scan_pac.py.\n"
+    }
+  }
+}

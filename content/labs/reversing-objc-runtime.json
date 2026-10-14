@@ -1,0 +1,43 @@
+{
+  "id": "reversing-objc-runtime",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0bjc_m3th0d_l1st_r3c0v3ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: метаданные Objective-C\n\n`app.bin` — Mach-O arm64 приложения. Скрипт `objc_meta.py` идёт по\n`__objc_classlist` и печатает классы с методами.\n\n1. `strings -n 5 app.bin | grep -E 'ViewController|Manager'` — имена классов.\n2. `python3 objc_meta.py app.bin` — классы, селекторы и реализации.\n3. Найди класс-артефакт с флагом.\n\nФлаг: `nto{...}` среди классов.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/app.bin",
+      "b64": "z/rt/gcAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABfX29iamNfY2xhc3NsaXN0AF9fb2JqY19tZXRobmFtZQBfX29iamNfY2xhc3NuYW1lAExvZ2luVmlld0NvbnRyb2xsZXIAQ3J5cHRvTWFuYWdlcgB2aWV3RGlkTG9hZABlbmNyeXB0RGF0YToAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/objc_meta.py",
+      "text": "# обход __objc_classlist\nimport sys\nd = open(sys.argv[1],'rb').read()\nprint('scanning objc metadata...')\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> [аргументы] — интерпретатор (эмуляция разбора)",
+      "cases": [
+        {
+          "match": "objc_meta",
+          "example": "objc_meta.py app.bin",
+          "output": "class LoginViewController : UIViewController\n  - viewDidLoad              @ 0x100004a20\n  - loginWithToken:          @ 0x100004c10\nclass CryptoManager\n  - encryptData:             @ 0x100005120\n  - secret_nto{0bjc_m3th0d_l1st_r3c0v3ry}\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только objc_meta.py.\n"
+    }
+  }
+}

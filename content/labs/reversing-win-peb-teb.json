@@ -1,0 +1,43 @@
+{
+  "id": "reversing-win-peb-teb",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ntdll_unh00k_by_hand}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: PEB и список модулей\n\n`peb.bin` — дамп участка памяти процесса с PEB. Скрипт `walk_peb.py`\nобходит `InLoadOrderModuleList` и печатает модули.\n\n1. `xxd -l 48 peb.bin` — посмотри байты дампа.\n2. `python3 walk_peb.py peb.bin` — обход списка модулей.\n3. Найди модуль с флагом среди имён.\n\nФлаг: `nto{...}` среди имён модулей.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/peb.bin",
+      "b64": "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8gISIjJCUmJygpKissLS4vMDEyMzQ1Njc4OTo7PD0+P0BBQkNERUZHSElKS0xNTk9QUVJTVFVWV1hZWltcXV5fYGFiY2RlZmdoaWprbG1ub3BxcnN0dXZ3eHl6e3x9fn+AgYKDhIWGh4iJiouMjY6PkJGSk5SVlpeYmZqbnJ2en6ChoqOkpaanqKmqq6ytrq+wsbKztLW2t7i5uru8vb6/wMHCw8TFxsfIycrLzM3Oz9DR0tPU1dbX2Nna29zd3t/g4eLj5OXm5+jp6uvs7e7v8PHy8/T19vf4+fr7/P3+/1BFQgBMRFIASW5Mb2FkT3JkZXJNb2R1bGVMaXN0AA==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/walk_peb.py",
+      "text": "# обход InLoadOrderModuleList\nimport sys\nd = open(sys.argv[1],'rb').read()\nprint('PEB @ 0x7ff7a1c00000')\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> [аргументы] — интерпретатор (эмуляция разбора)",
+      "cases": [
+        {
+          "match": "walk_peb",
+          "example": "walk_peb.py peb.bin",
+          "output": "PEB @ 0x00007ff7a1c00000\nLdr @ 0x00007ffb8a2c4a80\n--- InLoadOrderModuleList ---\n[0] base=0x00007ff7a1b80000  ntdll.dll\n[1] base=0x00007ffb87f00000  KERNEL32.DLL\n[2] base=0x00007ffb87e00000  KERNELBASE.dll\n[3] base=0x00007ff7a0c10000  nto{ntdll_unh00k_by_hand}\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только walk_peb.py.\n"
+    }
+  }
+}

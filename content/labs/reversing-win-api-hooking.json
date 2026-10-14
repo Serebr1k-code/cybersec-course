@@ -1,0 +1,43 @@
+{
+  "id": "reversing-win-api-hooking",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1nline_h00k_d3t3ct3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: детект inline-хука\n\n`hooks.bin` — дамп `ntdll` с несколькими функциями. Одна перехвачена\n(пролог заменён на `jmp`). Скрипт `find_hook.py` найдёт подмену.\n\n1. `xxd -l 32 hooks.bin` — каноничный пролог `4c 8b d1 b8 ... 0f 05 c3`.\n2. `python3 find_hook.py hooks.bin` — поиск подменённого пролога.\n3. Куда ведёт хук и что внутри?\n\nФлаг: `nto{...}` в цели хука.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/hooks.bin",
+      "b64": "TIvRuBgAAAAPBcPMzMzMzMzMzEyL0bgIAAAADwXDzMzMzMzMzMzpijwSAJCQkJCQkJBlZHJfaG9vawA=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/find_hook.py",
+      "text": "# сравнение прологов с эталоном\nimport sys\nd = open(sys.argv[1],'rb').read()\nprint('scanning', len(d), 'bytes')\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> [аргументы] — интерпретатор (эмуляция разбора)",
+      "cases": [
+        {
+          "match": "find_hook",
+          "example": "find_hook.py hooks.bin",
+          "output": "[+] ntdll!NtCreateFile   prologue OK (4c 8b d1 b8 55 ...)\n[+] ntdll!NtReadFile     prologue OK (4c 8b d1 b8 06 ...)\n[!] ntdll!NtWriteFile    HOOKED: e9 8a 3c 12 00 -> 0x00007ffb3a118000\n[+] 0x00007ffb3a118000   edr_hook_nto{1nline_h00k_d3t3ct3d}\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только find_hook.py.\n"
+    }
+  }
+}

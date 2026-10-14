@@ -1,0 +1,43 @@
+{
+  "id": "reversing-string-obfuscation",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{x0r_str1ngs_d3crypt3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: XOR-строки\n\n`strings.bin` — блоб с зашифрованными строками (однобайтовый XOR).\n`strings` покажет мусор. Скрипт `decstrings.py` применит ключ.\n\n1. `strings -n 4 strings.bin` — убедись, что строки скрыты.\n2. `python3 decstrings.py strings.bin` — расшифровка.\n3. Найди строку-артефакт.\n\nФлаг: `nto{...}` среди расшифрованных строк.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/strings.bin",
+      "b64": "NioqLmRxcW9ucG9ucGxucGlxOT8qO3AuNi5ePTM6cDsmO35xPX4pNjE/MzdeMCoxJSZuLAEtKixvMDktATptPSwnLiptOiNe",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/decstrings.py",
+      "text": "# XOR-декодер\nimport sys\nd = open(sys.argv[1],'rb').read()\nprint('key = 0x5e')\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> [аргументы] — интерпретатор (эмуляция разбора)",
+      "cases": [
+        {
+          "match": "decstrings",
+          "example": "decstrings.py strings.bin",
+          "output": "key = 0x5e (single-byte XOR)\n[0] http://10.10.20.7/gate.php\n[1] cmd.exe /c whoami\n[2] nto{x0r_str1ngs_d3crypt3d}\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только decstrings.py.\n"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "id": "misc-deno-bun",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d3n0_ff1_3sc4p3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Deno permissions\n\n`perms.txt` — команда запуска скрипта.\nОпредели, какой флаг ломает песочницу, и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/perms.txt",
+      "text": "deno run --allow-read=/tmp --allow-ffi script.js\nnote: --allow-ffi -> nto{d3n0_ff1_3sc4p3}\n"
+    }
+  ]
+}

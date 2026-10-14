@@ -1,0 +1,23 @@
+{
+  "id": "misc-esolang-rockstar",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r0ckst4r_l1r1cs}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Rockstar\n\n`flag.rock` — программа на Rockstar.\nОпредели, что она выводит, и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/flag.rock",
+      "text": "The flag is nto{r0ckst4r_l1r1cs}\nShout the flag\n"
+    }
+  ]
+}

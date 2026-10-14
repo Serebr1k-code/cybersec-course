@@ -1,0 +1,43 @@
+{
+  "id": "reversing-fuzzing-libfuzzer-honggfuzz",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l1bfuzz3r_4s4n_4rt1f4ct}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: ASan-артефакт\n\nlibFuzzer нашёл падение и сохранил вход `crash-xxxx`. Скрипт\n`read_artifact.py` разберёт артефакт и причину краха.\n\n1. `xxd crash-xxxx` — вход, приведший к падению.\n2. `python3 read_artifact.py crash-xxxx` — разбор артефакта.\n3. Что за строка спрятана в артефакте?\n\nФлаг: `nto{...}` в артефакте.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/crash-xxxx",
+      "b64": "TUFHSUMAAAAAbnRve2wxYmZ1enozcl80czRuXzRydDFmNGN0fQD//w==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/read_artifact.py",
+      "text": "# разбор артефакта libFuzzer\nimport sys\nd = open(sys.argv[1],'rb').read()\nprint('artifact size', len(d))\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> [аргументы] — интерпретатор (эмуляция разбора)",
+      "cases": [
+        {
+          "match": "read_artifact",
+          "example": "read_artifact.py crash-xxxx",
+          "output": "artifact: crash-xxxx (size 42)\nreason: AddressSanitizer: heap-buffer-overflow READ of size 8\ninput hex: 4d41474943 00000000 6e746f7b ...\ndecoded: MAGIC\\x00\\x00\\x00\\x00nto{l1bfuzz3r_4s4n_4rt1f4ct}\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только read_artifact.py.\n"
+    }
+  }
+}

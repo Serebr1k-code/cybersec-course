@@ -1,0 +1,43 @@
+{
+  "id": "reversing-smm-uefi",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{uefi_dx3_dr1v3r_f0und}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разбор прошивки\n\n`firmware.bin` — дамп UEFI-прошивки. Скрипт `scan_uefi.py` ищет\nFirmware Volume и PE/TE-модули внутри.\n\n1. `xxd -l 16 firmware.bin` — сигнатура тома `_FVH`.\n2. `python3 scan_uefi.py firmware.bin` — список модулей.\n3. Найди модуль без вендорского GUID, ссылающийся на SMM.\n\nФлаг: `nto{...}` в отчёте.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/firmware.bin",
+      "b64": "X0ZWSAAAAAAAAAAAAAAAAFZakAAAAAAAAAAAAAAAAAAAAAAAAAAAAER4ZUNvcmUAVXNiQnVzRHhlAE5ldHdvcmtTdGFjawBOdGZzRHhlAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/scan_uefi.py",
+      "text": "# поиск Firmware Volume и TE-образов\nimport sys\nd = open(sys.argv[1],'rb').read()\nprint('Firmware Volume @ 0x000000')\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> [аргументы] — интерпретатор (эмуляция разбора)",
+      "cases": [
+        {
+          "match": "scan_uefi",
+          "example": "scan_uefi.py firmware.bin",
+          "output": "Firmware Volume @ 0x000000  size 0x800000\n  [0x001200] TE image  module: DxeCore\n  [0x04a800] TE image  module: UsbBusDxe\n  [0x09c000] TE image  module: NetworkStack\n  [0x0d4000] TE image  module: NtfsDxe_nto{uefi_dx3_dr1v3r_f0und}\n  [!] module at 0x0d4000 has no known vendor GUID and references SmmInstallProtocolInterface\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только scan_uefi.py.\n"
+    }
+  }
+}

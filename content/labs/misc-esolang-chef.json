@@ -1,0 +1,23 @@
+{
+  "id": "misc-esolang-chef",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ch3f_st4ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Chef\n\n`flag.chef` — программа-рецепт.\nИнгредиенты — ASCII-коды символов флага.\nПереведи их и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/flag.chef",
+      "text": "Flag Cake.\n\nIngredients.\n110 g a\n116 g b\n111 g c\n123 g d\n99 g e\n104 g f\n51 g g\n102 g h\n95 g i\n115 g j\n116 g k\n52 g l\n99 g m\n107 g n\n125 g o\n\nMethod.\nPut a into the mixing bowl.\nLiquefy contents of the mixing bowl.\n\nServes 1.\n"
+    }
+  ]
+}

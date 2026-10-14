@@ -1,0 +1,43 @@
+{
+  "id": "reversing-hexrays-microcode",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m1cr0c0d3_c0nst_f0ld1ng}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Hex-Rays microcode\n\n`target.bin` — функция с константными вычислениями. Скрипт `mc_dump.py`\nпечатает microcode до и после оптимизаций.\n\n1. `strings -n 5 target.bin` — что за бинарник.\n2. `python3 mc_dump.py target.bin` — microcode функции.\n3. Как оптимизатор свернул выражение?\n\nФлаг: `nto{...}` в microcode.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/target.bin",
+      "b64": "TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFBFAABMAQQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABjaGVjawBNQUdJQwBzdHJjbXAA",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/mc_dump.py",
+      "text": "# дамп microcode\nimport sys\nprint('decompiling', sys.argv[1])\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> [аргументы] — интерпретатор (эмуляция разбора)",
+      "cases": [
+        {
+          "match": "mc_dump",
+          "example": "mc_dump.py target.bin",
+          "output": "; block 0\n    mov  $v0.8, #5\n    mov  $v1.8, #3\n    add  $v2.8, $v0.8, $v1.8\n    shl  $v3.8, $v2.8, #1\n; after opt:\n    mov  $v3.8, #16   ; nto{m1cr0c0d3_c0nst_f0ld1ng}\n    ret  $v3.8\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только mc_dump.py.\n"
+    }
+  }
+}

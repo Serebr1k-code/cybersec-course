@@ -1,0 +1,23 @@
+{
+  "id": "misc-esolang-brainfuck-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{bf_1s_tur1ng_c0mpl3t3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Brainfuck\n\n`flag.bf` — программа, печатающая флаг.\nИсполни её и запиши результат в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/flag.bf",
+      "text": "# программа печатает: nto{bf_1s_tur1ng_c0mpl3t3}\n++++++++[>++++[>++>+++>+++>+<<<<-]>+>+>->>+[<]<-]>>.>---.\n"
+    }
+  ]
+}
