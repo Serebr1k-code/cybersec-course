@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-bootloader",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b00tl04d3r_unl0ck3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: состояние загрузчика\n\nОпредели, разблокирован ли аппарат.\n"
+    },
+    {
+      "path": "/home/student/task/fastboot_vars.txt",
+      "text": "(bootloader) serialno: 0A1B2C3D\n(bootloader) unlocked: yes\n(bootloader) secure: no\n(bootloader) verifiedbootstate: orange   # flag: nto{b00tl04d3r_unl0ck3d}\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-trustzone",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{tz_k3y_l34k_t4}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит Trustlets\n\nНайди TA с небезопасным поведением.\n"
+    },
+    {
+      "path": "/home/student/task/tee_ta_list.txt",
+      "text": "TA uuid=0x...01  name=Keymaster       exportable_keys=no   OK\nTA uuid=0x...02  name=Widevine         keys_stay_in_tee=yes  OK\nTA uuid=0x...03  name=LegacyCrypto     exportable_keys=yes  # flag: nto{tz_k3y_l34k_t4}\n"
+    }
+  ]
+}

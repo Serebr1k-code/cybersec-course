@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-verified-boot",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dm_v3r1ty_t4mp3r3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит Verified Boot\n\nНайди раздел с подменённым содержимым.\n"
+    },
+    {
+      "path": "/home/student/task/avb_report.txt",
+      "text": "avbtool verify_image --image vbmeta.img\nImage vbmeta.img is verified successfully.\n\nPartition: boot     digest=8f3c..d21a  expected=8f3c..d21a  OK\nPartition: system   hashtree root=aa11..ee99 expected=aa11..ee99 OK\nPartition: vendor   digest=11aa..22bb expected=99ff..00cc MISMATCH  # flag: nto{dm_v3r1ty_t4mp3r3d}\n"
+    }
+  ]
+}
