@@ -1,0 +1,23 @@
+{
+  "id": "mobile-third-party-sdk",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sdk_dyn4m1c_d0wnl04d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит SDK\n\nНайди SDK с динамической загрузкой кода.\n"
+    },
+    {
+      "path": "/home/student/task/sdk_inventory.txt",
+      "text": "com.analytics.sdk  v3.1  static\ncom.ads.sdk        v2.0  downloads_dex_at_runtime  # flag: nto{sdk_dyn4m1c_d0wnl04d}\n"
+    }
+  ]
+}

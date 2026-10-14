@@ -1,0 +1,23 @@
+{
+  "id": "mobile-il2cpp",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1l2cpp_1ap_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: реверс IL2CPP\n\nНайди метод проверки покупки.\n"
+    },
+    {
+      "path": "/home/student/task/dump_symbols.txt",
+      "text": "0x00A1B2C0 Player__TakeDamage\n0x00A1B4D0 Shop__IsPurchaseValid -> returns true always  # flag: nto{1l2cpp_1ap_byp4ss}\n"
+    }
+  ]
+}

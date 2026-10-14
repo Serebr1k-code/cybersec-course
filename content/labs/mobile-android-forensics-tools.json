@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-forensics-tools",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{spyw4r3_4rt1f4ct_f0und}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: форензика Android\n\nНайди артефакт слежки.\n"
+    },
+    {
+      "path": "/home/student/task/artifacts.txt",
+      "text": "browser_history.db    (chrome)\nmessages.db           (sms)\ncom.unknown.spy/logs.db  persistent_background_mic_access  # flag: nto{spyw4r3_4rt1f4ct_f0und}\n"
+    }
+  ]
+}
