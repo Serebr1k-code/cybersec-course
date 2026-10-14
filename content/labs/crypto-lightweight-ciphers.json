@@ -1,0 +1,48 @@
+{
+  "id": "crypto-lightweight-ciphers",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pr3s3nt_31_r0unds_4nd_l1ghtw31ght}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: лёгкий шифр PRESENT\n\n`present.txt` содержит 80-битный ключ (hex) и 64-битный шифртекст.\nНужно расшифровать его шифром **PRESENT** (64-битный блок, 80-битный\nключ, 31 раунд: addRoundKey, S-box по нибблам, битовая перестановка).\n\nШаги:\n1. `cat present.txt`.\n2. Реализуй key schedule (rotate 61, S-box top nibble, XOR counter<<15).\n3. `python3 present.py` — расшифровка.\n4. `python3 present.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- PRESENT S-box: C,5,6,B,9,0,A,D,3,E,F,8,4,7,1,2.\n- Перестановка P(i): 0,16,32,48,1,17,...\n- Key schedule: rotate left 61, S-box на старший ниббл, XOR (r<<15).\n"
+    },
+    {
+      "path": "/home/student/task/present.txt",
+      "text": "key_hex = 00000000000000000000\ncipher_hex = 6047e90ed080513b\n"
+    },
+    {
+      "path": "/home/student/task/present.py",
+      "text": "SB=[0xC,5,6,0xB,9,0,0xA,0xD,3,0xE,0xF,8,4,7,1,2]\nPB=[0,16,32,48,1,17,33,49,2,18,34,50,3,19,35,51,4,20,36,52,5,21,37,53,6,22,38,54,7,23,39,55,8,24,40,56,9,25,41,57,10,26,42,58,11,27,43,59,12,28,44,60,13,29,45,61,14,30,46,62,15,31,47,63]\nkey=int('00'*10,16); ct=0x6047e90ed080513b\ndef keys(k):\n    ks=[]\n    for r in range(1,32):\n        ks.append((k>>16)&0xffffffffffffffff)\n        k=((k<<61)|(k>>19))&((1<<80)-1)\n        top=SB[(k>>76)&0xf]; k=(k&((1<<76)-1))|(top<<76); k^=(r<<15)\n    ks.append((k>>16)&0xffffffffffffffff); return ks\ndef dec(b,k):\n    st=b; ks=keys(k)\n    for i in range(31,-1,-1):\n        st^=ks[i]\n        if i==0: break\n        inv=[0]*64\n        for x in range(64): inv[PB[x]]=x\n        o=0\n        for x in range(64):\n            if (st>>x)&1: o|=1<<inv[x]\n        st=o\n        st=int(''.join('%x'%SB.index((st>>(4*(15-j)))&0xf) for j in range(16)),16)\n    return st\nprint('plaintext_hex = %016x' % dec(ct,key))\nprint('flag: %s' % 'nto{pr3s3nt_31_r0unds_4nd_l1ghtw31ght}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "present\\.py",
+          "example": "python3 present.py",
+          "output": "plaintext_hex = 0123456789abcdef\nflag: nto{pr3s3nt_31_r0unds_4nd_l1ghtw31ght}\n"
+        }
+      ]
+    }
+  }
+}

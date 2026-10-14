@@ -1,0 +1,48 @@
+{
+  "id": "crypto-block-cipher-modes-siv",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s1v_surv1v3s_n0nc3_r3us3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: режим AES-SIV\n\n`siv.txt` содержит 32-байтный ключ, шифртекст и тег SIV-режима.\nОсобенность SIV: nonce **выводится из самого сообщения** (через CMAC),\nпоэтому даже при повторе внешнего nonce сообщения не раскрываются.\n\nШаги:\n1. `cat siv.txt`.\n2. Расшифруй: `AES.new(key, MODE_SIV)` + `decrypt_and_verify(ct, tag)`.\n3. `python3 siv.py` — печатает открытый текст и флаг.\n4. `python3 siv.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- SIV = CMAC (для nonce) + CTR (для шифрования).\n- Шифрование: ct,tag = AES.new(key,MODE_SIV).encrypt_and_digest(data).\n- Расшифровка: AES.new(key,MODE_SIV).decrypt_and_verify(ct,tag).\n"
+    },
+    {
+      "path": "/home/student/task/siv.txt",
+      "text": "key_hex = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\ncipher_hex = 034547064fddd053923800637673199dbee1c546cf545b1f096f72a6f536\ntag_hex = 9a3e07706e236524a57b7d06fc28d67e\n"
+    },
+    {
+      "path": "/home/student/task/siv.py",
+      "text": "from Crypto.Cipher import AES\nkey=bytes.fromhex('000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f')\nct=bytes.fromhex('034547064fddd053923800637673199dbee1c546cf545b1f096f72a6f536')\ntag=bytes.fromhex('9a3e07706e236524a57b7d06fc28d67e')\npt=AES.new(key,AES.MODE_SIV).decrypt_and_verify(ct,tag)\nprint('plaintext:', pt.decode())\nprint('flag: %s' % 'nto{s1v_surv1v3s_n0nc3_r3us3}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "siv\\.py",
+          "example": "python3 siv.py",
+          "output": "plaintext: nonce-misuse-resistant payload\nflag: nto{s1v_surv1v3s_n0nc3_r3us3}\n"
+        }
+      ]
+    }
+  }
+}

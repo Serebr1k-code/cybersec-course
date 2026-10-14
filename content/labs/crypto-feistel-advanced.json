@@ -1,0 +1,48 @@
+{
+  "id": "crypto-feistel-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{luby_r4ck0ff_3_r0unds_prp}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: сеть Фейстеля и её обратимость\n\n`feistel.txt` содержит ключ (список раундовых байтов) и шифртекст\nучебной 16-битной сети Фейстеля с 6 раундами. Расшифруй его.\n\nРаунд: `L,R -> R, L XOR F(R,K)`. Расшифровка: раунды в обратном порядке.\nФункция F(R,K) = SBOX[(R XOR K) & 0xf].\n\nШаги:\n1. `cat feistel.txt`.\n2. `python3 feistel.py` — расшифровка.\n3. `python3 feistel.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- F не обязана быть обратимой — обратима сама структура.\n- Luby-Rackoff: 3 раунда дают PRP, 4 — сильную PRP.\n"
+    },
+    {
+      "path": "/home/student/task/feistel.txt",
+      "text": "key = [3, 7, 11, 1]\ncipher_hex = 1020\n"
+    },
+    {
+      "path": "/home/student/task/feistel.py",
+      "text": "SBOX=[0x6,0x4,0xC,0x5,0x0,0x7,0x2,0xE,0x1,0xF,0x3,0xD,0x8,0xA,0x9,0xB]\nkey=[3, 7, 11, 1]; ct=0x1020\ndef F(r,k): return SBOX[(r^k)&0xf]\nL=(ct>>8)&0xff; R=ct&0xff\nfor i in reversed(range(6)):\n    L,R = R^F(L,key[i%len(key)]), L\npt=(L<<8)|R\nprint('plaintext_hex = %04x' % pt)\nprint('flag: %s' % 'nto{luby_r4ck0ff_3_r0unds_prp}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "feistel\\.py",
+          "example": "python3 feistel.py",
+          "output": "plaintext_hex = 1a2b\nflag: nto{luby_r4ck0ff_3_r0unds_prp}\n"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "id": "crypto-aes-structure",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{a3s_sb0x_1s_1nv3rs3_plus_4ff1n3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: AES S-box из первых принципов\n\nS-box AES не задаётся таблицей «на глаз» — он вычисляется:\n`S(a) = affine(inverse(a))`, где inverse берётся в GF(2^8)\n(не 0 -> 0), а affine — побитовое преобразование с константой 0x63.\n\nШаги:\n1. `cat notes.txt`.\n2. Реализуй умножение в GF(2^8) с полиномом 0x11b.\n3. Обратный элемент = a^254; затем affine-преобразование.\n4. `python3 sbox.py` — печатает S(0x00), S(0x53) и флаг.\n5. `python3 sbox.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- GF(2^8): умножение с редукцией по 0x11b (x^8+x^4+x^3+x+1).\n- inverse(a)=a^254 (a!=0).\n- affine: s = b ^ rol(b,1) ^ rol(b,2) ^ rol(b,3) ^ rol(b,4) ^ 0x63.\n"
+    },
+    {
+      "path": "/home/student/task/sbox.py",
+      "text": "def mul(a,b):\n    p=0\n    for _ in range(8):\n        if b&1: p^=a\n        hi=a&0x80; a=(a<<1)&0xff\n        if hi: a^=0x1b\n        b>>=1\n    return p\ndef inv(a):\n    if a==0: return 0\n    r=1\n    for _ in range(254): r=mul(r,a)\n    return r\ndef sbox(a):\n    b=inv(a); s=b\n    for i in range(1,5): s ^= ((b<<i)|(b>>(8-i)))&0xff\n    return s^0x63\nprint('S(0x00) = 0x%02x' % sbox(0))\nprint('S(0x53) = 0x%02x' % sbox(0x53))\nprint('flag: %s' % 'nto{a3s_sb0x_1s_1nv3rs3_plus_4ff1n3}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "sbox\\.py",
+          "example": "python3 sbox.py",
+          "output": "S(0x00) = 0x63\nS(0x53) = 0xed\nflag: nto{a3s_sb0x_1s_1nv3rs3_plus_4ff1n3}\n"
+        }
+      ]
+    }
+  }
+}

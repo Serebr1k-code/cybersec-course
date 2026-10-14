@@ -1,0 +1,48 @@
+{
+  "id": "crypto-des-3des-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m33t_1n_th3_m1ddl3_0n_2d3s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: meet-in-the-middle на 2DES\n\n`pair.txt` содержит открытый текст `P`, шифртекст `C = E_K2(E_K1(P))`\nи подсказку: ключи имеют вид `000000000000` + 2 байта, где каждый\nбайт — это ниббл, сдвинутый влево на 1 (младший бит — бит чётности DES).\nЗначит, ключевое пространство — 16*16 = 256 вариантов.\n\nАтака MITM: перебрать все `K1`, зашифровать `P`, сложить в словарь;\nзатем перебрать все `K2`, расшифровать `C` и найти совпадение.\n\nШаги:\n1. `cat pair.txt`.\n2. `python3 mitm.py` — находит K1, K2 и печатает флаг.\n3. `python3 mitm.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- 2DES: C = E_K2(E_K1(P)); brute-force = 2^56 * 2.\n- MITM: 2^56 памяти + 2^56 времени — вот почему 2DES не используют.\n- У DES младший бит каждого байта ключа — бит чётности, он игнорируется.\n"
+    },
+    {
+      "path": "/home/student/task/pair.txt",
+      "text": "P_hex = 4d49544d324445532d70616972313621\nC_hex = 962a4f1de3ac308bc5d4dacddde3b282\nkey_space = 000000000000XXYY (XX,YY = nibble<<1)\n"
+    },
+    {
+      "path": "/home/student/task/mitm.py",
+      "text": "from Crypto.Cipher import DES\nP=bytes.fromhex('4d49544d324445532d70616972313621')\nC=bytes.fromhex('962a4f1de3ac308bc5d4dacddde3b282')\ndef mk(a,b): return b'\\x00'*6+bytes([a<<1,b<<1])\ndef e(k,p): return DES.new(k,DES.MODE_ECB).encrypt(p)\ndef d(k,c): return DES.new(k,DES.MODE_ECB).decrypt(c)\ntable={}\nfor a in range(16):\n    for b in range(16):\n        table[e(mk(a,b),P)]=(a,b)\nfor c in range(16):\n    for dd2 in range(16):\n        v=d(mk(c,dd2),C)\n        if v in table:\n            print('K1 =',table[v],' K2 =',(c,dd2))\n            print('flag: %s' % 'nto{m33t_1n_th3_m1ddl3_0n_2d3s}')\n            raise SystemExit\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "mitm\\.py",
+          "example": "python3 mitm.py",
+          "output": "K1 = (2, 10)  K2 = (9, 12)\nflag: nto{m33t_1n_th3_m1ddl3_0n_2d3s}\n"
+        }
+      ]
+    }
+  }
+}

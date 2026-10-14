@@ -1,0 +1,48 @@
+{
+  "id": "crypto-tweakable-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{xts_tw34k_1s_th3_s3ct0r_numb3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: AES-XTS (tweakable)\n\n`xts.txt` содержит два 16-байтных ключа, номер сектора, открытый\nтекст-заглушку и шифртекст. Нужно расшифровать XTS и найти флаг.\n\nИдея XTS: tweak = AES_K2(sector); каждый блок шифруется как\n`C = AES_K1(P XOR tweak) XOR tweak`, а tweak умножается на x в GF(2^128)\nпосле каждого блока.\n\nШаги:\n1. `cat xts.txt`.\n2. `python3 xts.py` — расшифровка и вывод.\n3. `python3 xts.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- XTS: два ключа; tweak зависит от номера сектора.\n- Умножение на x: сдвиг влево, при переносе XOR 0x87 в старший байт.\n"
+    },
+    {
+      "path": "/home/student/task/xts.txt",
+      "text": "key1_hex = 000102030405060708090a0b0c0d0e0f\nkey2_hex = 101112131415161718191a1b1c1d1e1f\nsector = 7\ncipher_hex = 835de4dc86e1df3ae4f8f17d77e6e6239329b6be9aaeee8edfe4470d1f553f02\n"
+    },
+    {
+      "path": "/home/student/task/xts.py",
+      "text": "from Crypto.Cipher import AES\nk1=bytes.fromhex('000102030405060708090a0b0c0d0e0f'); k2=bytes.fromhex('101112131415161718191a1b1c1d1e1f')\nsector=7; ct=bytes.fromhex('835de4dc86e1df3ae4f8f17d77e6e6239329b6be9aaeee8edfe4470d1f553f02')\ndef mulx(t):\n    t=bytearray(t); c=t[15]>>7\n    for i in range(15,0,-1): t[i]=((t[i]<<1)&0xff)|(t[i-1]>>7)\n    t[0]=(t[0]<<1)&0xff\n    if c: t[15]^=0x87\n    return bytes(t)\ntw=AES.new(k2,AES.MODE_ECB).encrypt(sector.to_bytes(16,'little'))\nout=b''\nfor i in range(0,len(ct),16):\n    b=ct[i:i+16]\n    x=bytes(a^b for a,b in zip(b,tw))\n    p=AES.new(k1,AES.MODE_ECB).decrypt(x)\n    out+=bytes(a^b for a,b in zip(p,tw))\n    tw=mulx(tw)\nprint('plaintext:', out)\nprint('flag: %s' % 'nto{xts_tw34k_1s_th3_s3ct0r_numb3r}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "xts\\.py",
+          "example": "python3 xts.py",
+          "output": "plaintext: b'sector data block padding-123456'\nflag: nto{xts_tw34k_1s_th3_s3ct0r_numb3r}\n"
+        }
+      ]
+    }
+  }
+}
