@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-foreground-service",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{f0r3gr0und_p3rs1st}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит foreground-сервисов\\n\\nНайди подозрительный сервис.\\n"
+    },
+    {
+      "path": "/home/student/task/services_dump.txt",
+      "text": "ServiceRecord{ .MusicService  fg=mediaPlayback  notif=\"Играет музыка\"}\\nServiceRecord{ .SysUpdateSvc  fg=location  notif=\"System update\"  sticky=START_STICKY  # flag: nto{f0r3gr0und_p3rs1st}\\n"
+    }
+  ]
+}
