@@ -1,0 +1,48 @@
+{
+  "id": "osint-slack-enum",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{sl4ck_w0rksp4c3_f0und}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Slack workspace\n\n1. `curl -s -o /dev/null -w '%{http_code}\\n' https://example.slack.com`\n2. `curl -s 'https://slack.com/api/team.info?team=example'`\n3. Найди `team.id`, `team.name`, `team.domain`.\n4. Маркер `nto{...}` — запиши в `answer.txt`, затем `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — эмуляция ответов Slack",
+      "cases": [
+        {
+          "match": "example\\.slack\\.com",
+          "example": "curl -s https://example.slack.com",
+          "output": "<html><head><title>Sign in to Example Corp | Slack</title></head><body>Sign in to Example Corp</body></html>\n"
+        },
+        {
+          "match": "team\\.info",
+          "example": "curl -s 'https://slack.com/api/team.info?team=example'",
+          "output": "{\"ok\":true,\"team\":{\"id\":\"T0123ABCDEF\",\"name\":\"Example Corp\",\"domain\":\"example\",\"email_domain\":\"example.com\",\"icon\":{\"image_132\":\"https://a.slack-edge.com/...\"},\"x_flag\":\"nto{sl4ck_w0rksp4c3_f0und}\"}}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны example.slack.com и slack.com/api/team.info.\n"
+    },
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "team|\\.",
+          "example": "jq -r .team.domain resp.json",
+          "output": "example\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживается разбор полей.\n"
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "id": "osint-jira-confluence",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{j1r4_s3rv3r1nf0_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Jira recon\n\n1. `curl -s https://jira.example.com/rest/api/2/serverInfo`\n2. Найди `version`, `serverTitle`, `buildNumber`.\n3. `curl -s https://jira.example.com/rest/api/2/dashboard`\n4. Маркер `nto{...}` — запиши в `answer.txt`, затем `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — эмуляция ответов Jira",
+      "cases": [
+        {
+          "match": "serverInfo",
+          "example": "curl -s https://jira.example.com/rest/api/2/serverInfo",
+          "output": "{\"baseUrl\":\"https://jira.example.com\",\"version\":\"9.4.0\",\"versionNumbers\":[9,4,0],\"deploymentType\":\"Server\",\"buildNumber\":940000,\"buildDate\":\"2023-02-01T00:00:00.000+0000\",\"serverTitle\":\"Example Corp Jira\",\"x_flag\":\"nto{j1r4_s3rv3r1nf0_l34k}\"}\n"
+        },
+        {
+          "match": "dashboard",
+          "example": "curl -s https://jira.example.com/rest/api/2/dashboard",
+          "output": "{\"dashboards\":[{\"id\":\"10000\",\"name\":\"Example Corp - Engineering\",\"self\":\"https://jira.example.com/rest/api/2/dashboard/10000\"}],\"total\":1}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только jira.example.com.\n"
+    },
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "version|serverTitle|\\.",
+          "example": "jq -r .version info.json",
+          "output": "9.4.0\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживается разбор полей.\n"
+    }
+  }
+}
