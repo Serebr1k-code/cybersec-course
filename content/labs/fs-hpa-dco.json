@@ -1,0 +1,22 @@
+{
+  "id": "fs-hpa-dco",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{hpa_h1dd3n_t4il}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: HPA/DCO\n\n`hdparm-N.txt` — вывод `hdparm -N` по трём дискам. Найди диск со скрытой областью (видимое число секторов меньше родного) и метку.\n\n1. `cat hdparm-N.txt`.\n2. Сравни `видимое/родное` число секторов.\n3. `grep nto hdparm-N.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/hdparm-N.txt",
+      "text": "/dev/sda:\n max sectors   = 976773168/976773168, HPA is disabled\n\n/dev/sdb:\n max sectors   = 950000000/976773168, HPA is enabled\n\n/dev/sdc:\n max sectors   = 1953525168/1953525168, HPA is disabled\n\n# Инженер: на sdb видимое число меньше родного -> скрыт хвост ~12 GB.\n# Метка из скрытой области: nto{hpa_h1dd3n_t4il}\n",
+      "mode": "644"
+    }
+  ]
+}

@@ -1,0 +1,22 @@
+{
+  "id": "fs-san-nas",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{n4s_sn4psh0t_d3l3t3d_f1l3}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: NAS-снимки\n\n`nas.txt` — листинг экспорта NAS и каталога `.snapshot`. Файл удалили, но снимок его помнит. Найди имя удалённого файла и метку.\n\n1. `cat nas.txt`.\n2. Обрати внимание на каталоги `.snapshot/nightly.*`.\n3. `grep nto nas.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/nas.txt",
+      "text": "server:/export/data on /mnt/data type nfs4 (rw,relatime)\n\n$ ls -la /mnt/data/.snapshot/\ndrwxr-xr-x  nightly.0\ndrwxr-xr-x  nightly.1\n\n$ ls /mnt/data/.snapshot/nightly.1/\nreport_final.docx\nnto{n4s_sn4psh0t_d3l3t3d_f1l3}.txt\n\n# Инженер: файл удалён с /mnt/data, но nightly.1 держит его версию.\n",
+      "mode": "644"
+    }
+  ]
+}

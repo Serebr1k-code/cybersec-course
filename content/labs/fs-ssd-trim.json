@@ -1,0 +1,22 @@
+{
+  "id": "fs-ssd-trim",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{ssd_tr1m_w1p3s_d3l3t3d}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: SSD и TRIM\n\n`lsblk-D.txt` — вывод `lsblk -D` и заметки инженера. Определи, на каком диске включён TRIM, и найди метку.\n\n1. `cat lsblk-D.txt`.\n2. Ненулевые DISC-GRAN/DISC-MAX означают активный TRIM.\n3. `grep nto lsblk-D.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/lsblk-D.txt",
+      "text": "NAME DISC-ALN DISC-GRAN DISC-MAX DISC-ZERO\nsda         0      512B      2G         0\nsdb         0        0B        0B         0\n\n# Инженер: на sda TRIM активен -> удалённые файлы могут быть стёрты контроллером.\n# Метка стенда: nto{ssd_tr1m_w1p3s_d3l3t3d}\n# На sdb TRIM выключен, но это HDD-кэш, не носитель улик.\n",
+      "mode": "644"
+    }
+  ]
+}

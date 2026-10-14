@@ -1,0 +1,22 @@
+{
+  "id": "fs-bad-sectors",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{b4d_s3ct0rs_p3nd1ng}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: SMART и бэд-блоки\n\n`smart-A.txt` — вывод `smartctl -A`. Оцени состояние диска и найди метку.\n\n1. `cat smart-A.txt`.\n2. Посмотри атрибуты 5 (Reallocated), 197 (Pending), 198 (Offline_Uncorrectable).\n3. `grep nto smart-A.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/smart-A.txt",
+      "text": "ID# ATTRIBUTE_NAME          FLAG     VALUE WORST THRESH TYPE      UPDATED  WHEN_FAILED RAW_VALUE\n  5 Reallocated_Sector_Ct   0x0033   100   100   036    Pre-fail  Always       -       4\n197 Current_Pending_Sector  0x0012   100   100   000    Old_age   Always       -       8\n198 Offline_Uncorrectable   0x0010   100   100   000    Old_age   Offline      -       3\n199 UDMACRC_Error_Count     0x003e   200   200   000    Old_age   Always       -       0\n\n# Инженер: pending=8 -> ошибки чтения; запись ЗАПРЕЩЕНА (ремап сотрёт улики).\n# Метка стенда: nto{b4d_s3ct0rs_p3nd1ng}\n",
+      "mode": "644"
+    }
+  ]
+}
