@@ -1,0 +1,27 @@
+{
+  "id": "mobile-ios-ipa-repack",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1p4_r3p4ck_g4dg3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ перепаковки\n\nНайди внедрённую библиотеку.\n"
+    },
+    {
+      "path": "/home/student/task/bundle_listing.txt",
+      "text": "Payload/MyApp.app/MyApp\nPayload/MyApp.app/Info.plist\nPayload/MyApp.app/Frameworks/FridaGadget.dylib  # injected, flag: nto{1p4_r3p4ck_g4dg3t}\n"
+    },
+    {
+      "path": "/home/student/task/otool_L.txt",
+      "text": "@rpath/FridaGadget.dylib\n/usr/lib/libSystem.B.dylib\n"
+    }
+  ]
+}

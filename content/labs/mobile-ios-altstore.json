@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-altstore",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4ltst0r3_p41r1ng_st4l3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ SideStore\n\nНайди проблему pairing.\n"
+    },
+    {
+      "path": "/home/student/task/sidestore_cfg.txt",
+      "text": "source=https://apps.example.com/source.json\npairing=00008110-001A2C3D4E5F.pairing\npairing_status=stale, last_refresh=412 days ago  # flag: nto{4ltst0r3_p41r1ng_st4l3}\n"
+    }
+  ]
+}

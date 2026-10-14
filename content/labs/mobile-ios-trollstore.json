@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-trollstore",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{tr0llst0r3_c0r3trust_vuln}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: совместимость TrollStore\n\nОпредели уязвима ли версия.\n"
+    },
+    {
+      "path": "/home/student/task/device_info.txt",
+      "text": "Product: iPhone13,2\niOS: 15.4.1\nCoreTrust: CVE-2022-26766 VULNERABLE  # flag: nto{tr0llst0r3_c0r3trust_vuln}\n"
+    }
+  ]
+}

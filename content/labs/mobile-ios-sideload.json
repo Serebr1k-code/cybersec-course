@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-sideload",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s1d3l04d_r3v0k3d_c3rt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор профиля\n\nНайди признак отзыва сертификата.\n"
+    },
+    {
+      "path": "/home/student/task/provision.txt",
+      "text": "Name: iOS Team Provisioning Profile: com.example.demo\nExpiration Date: 2024-06-14\nDeveloperCertificate: revoked  # flag: nto{s1d3l04d_r3v0k3d_c3rt}\n"
+    }
+  ]
+}
