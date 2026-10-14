@@ -13,6 +13,17 @@ useful_for:
   - 'CTF Mobile'
 estimated_minutes: 40
 summary: 'Зачем нужен FileProvider, как file_paths.xml определяет отдаваемые каталоги и как слишком широкий path (или `..`) превращается в чтение произвольных файлов.'
+lab:
+  kind: shell
+  title: 'Практика: конфиг FileProvider'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, manifest.xml, file_paths.xml]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`file_paths.xml` описывает, что отдаёт провайдер.'
+    - 'Сравни `root-path`, `external-path` и конкретные подкаталоги.'
+    - 'В комментарии рядом с опасным правилом — флаг `nto{...}`.'
 ---
 
 ## Вопрос, с которого всё начинается

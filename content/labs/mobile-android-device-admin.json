@@ -1,0 +1,27 @@
+{
+  "id": "mobile-android-device-admin",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d3v1c3_0wn3r_w1p3_p0w3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит Device Admin\n\nНайди несоответствие назначению приложения.\n"
+    },
+    {
+      "path": "/home/student/task/manifest.xml",
+      "text": "<receiver android:name=\".AdminReceiver\"\n    android:permission=\"android.permission.BIND_DEVICE_ADMIN\"\n    android:exported=\"true\">\n  <meta-data android:name=\"android.app.device_admin\"\n      android:resource=\"@xml/device_admin\"/>\n</receiver>\n"
+    },
+    {
+      "path": "/home/student/task/device_admin.xml",
+      "text": "<device-admin>\n  <uses-policies>\n    <force-lock/>\n    <!-- flashlight app should NOT need this -->\n    <wipe-data/>   <!-- flag: nto{d3v1c3_0wn3r_w1p3_p0w3r} -->\n    <reset-password/>\n  </uses-policies>\n</device-admin>\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-selinux",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s3l1nux_p3rm1ss1v3_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит SELinux\n\nНайди проблему в конфигурации.\n"
+    },
+    {
+      "path": "/home/student/task/selinux_state.txt",
+      "text": "$ adb shell getenforce\nPermissive   # flag: nto{s3l1nux_p3rm1ss1v3_byp4ss}\n\n$ adb shell ps -Z | grep untrusted\nu:r:untrusted_app:s0:c512,c768 u0_a123 com.example.app\n\n$ adb shell ls -Z /system/bin/sh\nu:object_r:shell_exec:s0 /system/bin/sh\n"
+    }
+  ]
+}

@@ -60,6 +60,12 @@ def write_lesson(m, body, lab=None):
     path = os.path.join(CONTENT, cat, m['id'] + '.md')
     if os.path.exists(path):
         raise SystemExit('refusing to overwrite existing lesson: ' + path)
+    # If a lab bundle is supplied but the meta has no front-matter lab block,
+    # synthesise it from the bundle's authoring fields (title/toolset/workdir/
+    # files/check/hints) so the lesson actually exposes the lab in the UI.
+    if lab is not None and not m.get('lab'):
+        m = dict(m)
+        m['lab'] = lab
     with open(path, 'w', encoding='utf-8') as f:
         f.write(build_frontmatter(m) + '\n\n' + body.strip() + '\n')
     if lab is not None:

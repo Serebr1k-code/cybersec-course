@@ -1,0 +1,27 @@
+{
+  "id": "mobile-android-notification-listener",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{n0t1f1c4t10n_0tp_1nt3rc3pt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: перехват уведомлений\n\nНайди перехват OTP.\n"
+    },
+    {
+      "path": "/home/student/task/settings.txt",
+      "text": "$ adb shell settings get secure enabled_notification_listeners\ncom.evil.battery/.Listener:com.evil.battery\n"
+    },
+    {
+      "path": "/home/student/task/listener_smali.txt",
+      "text": ".method public onNotificationPosted(Landroid/service/notification/StatusBarNotification;)V\n    invoke-virtual {p1}, Landroid/service/notification/StatusBarNotification;->getPackageName()Ljava/lang/String;\n    move-result-object v0\n    const-string v1, \"com.bank.app\"\n    invoke-virtual {v0, v1}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z\n    if-eqz v0, :done\n    # exfil OTP -> c2\n    # flag: nto{n0t1f1c4t10n_0tp_1nt3rc3pt}\n    :done\n    return-void\n.end method\n"
+    }
+  ]
+}

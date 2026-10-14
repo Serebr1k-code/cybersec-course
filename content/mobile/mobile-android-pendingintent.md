@@ -13,6 +13,17 @@ useful_for:
   - 'CTF Mobile'
 estimated_minutes: 40
 summary: 'Что такое PendingIntent, зачем нужны флаги мутабельности, как мутабельный неявный PendingIntent превращается в перехват вызова и как это искать в коде.'
+lab:
+  kind: shell
+  title: 'Практика: найти мутабельный PendingIntent'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, notify_dump.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`notify_dump.txt` — выжимка из `dumpsys activity intents`.'
+    - 'Ищи строки с action и флагом в hex; вспомни, что `0x02000000` — это FLAG_MUTABLE.'
+    - 'Рядом с одной из записей лежит строка `secret: nto{...}` — запиши её в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

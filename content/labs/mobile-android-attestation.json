@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-attestation",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{k3y_4tt3st4t10n_sp00f}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит аттестации\n\nНайди слабое место проверки.\n"
+    },
+    {
+      "path": "/home/student/task/attestation_chain.txt",
+      "text": "Certificate chain length: 3\nSubject: CN=Android Keystore Key\nExtension: attestationSecurityLevel = Software   # should be TEE/StrongBox\nExtension: verifiedBootState = Unverified\nExtension: attestationChallenge = (not checked by server)  # flag: nto{k3y_4tt3st4t10n_sp00f}\n"
+    }
+  ]
+}

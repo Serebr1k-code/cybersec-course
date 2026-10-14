@@ -13,6 +13,17 @@ useful_for:
   - 'Bug bounty Android'
 estimated_minutes: 40
 summary: 'Как Accessibility Service видит экран и выполняет действия за пользователя, почему это идеальная база для кейлоггеров и банковских троянов и как распознать злоупотребление.'
+lab:
+  kind: shell
+  title: 'Практика: разобрать accessibility-сервис'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, helper_smali.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`helper_smali.txt` — фрагмент smali подозрительного сервиса.'
+    - 'Ищи обработку `TYPE_VIEW_TEXT_CHANGED` и куда уходит текст.'
+    - 'В комментарии к одному из методов спрятан флаг `nto{...}` — запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

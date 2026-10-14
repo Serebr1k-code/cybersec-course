@@ -13,6 +13,17 @@ useful_for:
   - 'CTF Mobile'
 estimated_minutes: 45
 summary: 'Как ContentProvider строит SQL-запросы, где появляется инъекция через projection/selection/sortOrder, как её подтвердить через adb и как защититься параметрами.'
+lab:
+  kind: shell
+  title: 'Практика: SQLi в провайдере'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, provider_query.txt, schema.txt]
+  check: 'grep -q ''nto{'' found.txt'
+  hints:
+    - '`provider_query.txt` — серия ответов `adb shell content query`.'
+    - 'Сравни обычный фильтр и условие `1=1` — одна строка лишняя.'
+    - 'В вытащенной строке лежит флаг `nto{...}`.'
 ---
 
 ## Вопрос, с которого всё начинается
