@@ -1,0 +1,24 @@
+{
+  "id": "net-flow-beaconing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b34c0n1ng_p3r10d1c}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: детект beaconing\n\n`flows.txt` — записи NetFlow (время, src, dst, порт, байты).\nНайди периодические обращения к подозрительному IP и метку.\n\n1. `cat flows.txt`.\n2. `grep 198.51.100.9 flows.txt`.\n3. `grep nto flows.txt > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/flows.txt",
+      "text": "start,src,dst,sport,dport,bytes\n1746086400,10.0.0.12,198.51.100.9,51001,443,540\n1746086700,10.0.0.12,198.51.100.9,51002,443,548\n1746087000,10.0.0.12,198.51.100.9,51003,443,552\n1746087300,10.0.0.12,198.51.100.9,51004,443,544\n1746087600,10.0.0.12,198.51.100.9,51005,443,550\n1746086455,10.0.0.12,93.184.216.34,52000,443,120000\nnote: flow marker nto{b34c0n1ng_p3r10d1c}\n",
+      "mode": "644"
+    }
+  ]
+}

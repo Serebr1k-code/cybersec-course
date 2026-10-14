@@ -1,0 +1,24 @@
+{
+  "id": "net-http2-3",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{http2_hpack_fr4m3s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор HTTP/2\n\n`h2_stream.txt` — декодированные кадры HTTP/2.\nНайди запрос, который сделал клиент, и метку.\n\n1. `cat h2_stream.txt`.\n2. `grep -i ':method\\|:path' h2_stream.txt`.\n3. `grep nto h2_stream.txt > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/h2_stream.txt",
+      "text": "HTTP/2 connection (decoded frames)\nstream 1: HEADERS  :method=GET :scheme=https :authority=api.local :path=/v1/users\nstream 1: HEADERS  authorization: Bearer eyJ...  user-agent: curl/8.0\nstream 1: DATA     {\"id\":42}\nstream 3: HEADERS  :method=POST :path=/v1/upload\nstream 3: DATA     (binary payload 4096 bytes)\nstream 3: DATA     (binary payload 8192 bytes)\nnote: h2 marker nto{http2_hpack_fr4m3s}\n",
+      "mode": "644"
+    }
+  ]
+}
