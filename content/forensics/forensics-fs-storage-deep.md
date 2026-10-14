@@ -2,9 +2,9 @@
 id: forensics-fs-storage-deep
 title: "Модуль: глубокое хранение — SSD, скрытые области, сетевые хранилища"
 category: forensics
-parent: forensics-filesystems
+parent: forensics-fs-deep-hub
 difficulty: hard
-order: 6
+order: 3
 tags: [ssd, trim, hpa, dco, bad-sectors, san, nas, storage, forensics, roadmap]
 prerequisites: [forensics-fs-structure]
 useful_for:

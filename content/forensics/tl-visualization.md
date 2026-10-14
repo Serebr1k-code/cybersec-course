@@ -2,9 +2,9 @@
 id: tl-visualization
 title: 'Визуализация таймлайна: Timesketch и графы'
 category: forensics
-parent: forensics-timeline-deep
+parent: forensics-tl-present
 difficulty: medium
-order: 5
+order: 1
 tags: [timeline, visualization, timesketch, graph, forensics]
 prerequisites: [tl-cross-artifact]
 useful_for:

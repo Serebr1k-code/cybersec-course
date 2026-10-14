@@ -2,9 +2,9 @@
 id: misc-games-deep
 title: 'Модуль: ROM, эмуляторы и save states'
 category: misc
-parent: misc-games-systems
+parent: misc-games-hub
 difficulty: hard
-order: 5
+order: 3
 tags: [rom, emulator, gameboy, nes, save-state, roadmap]
 prerequisites: [misc-games-systems]
 useful_for:

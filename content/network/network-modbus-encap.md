@@ -2,9 +2,9 @@
 id: network-modbus-encap
 title: "Modbus RTU/ASCII поверх TCP: инкапсуляция"
 category: network
-parent: network-module-msg-wire
+parent: network-module-iot-wire
 difficulty: hard
-order: 4
+order: 2
 tags: [network, modbus, rtu, ascii, encapsulation, ics]
 prerequisites: [network-modbus-deep]
 useful_for:

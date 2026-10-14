@@ -1,0 +1,27 @@
+{
+  "id": "cloud-gcp-apigee",
+  "workdir": "/home/student/apigee",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/apigee/found.txt",
+    "contains": "nto{apigee_dynamic_target_ssrf}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/apigee",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/apigee/task.md",
+      "text": "# Задача\n\nДан фрагмент прокси Apigee. Определи уязвимость и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/apigee/proxy.xml",
+      "text": "<AssignMessage name=\"setTarget\">\n  <AssignVariable>\n    <Name>target.url</Name>\n    <Value>https://{request.header.x-backend}/api</Value>\n  </AssignVariable>\n</AssignMessage>\n"
+    },
+    {
+      "path": "/home/student/apigee/notes.md",
+      "text": "Аудит: target.url собирается из клиентского заголовка x-backend.\nПодставив внутренний адрес/metadata, получаем SSRF.\nnto{apigee_dynamic_target_ssrf}\n"
+    }
+  ]
+}

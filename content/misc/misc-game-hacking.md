@@ -2,9 +2,9 @@
 id: misc-game-hacking
 title: "Game hacking: память, Cheat Engine и анти-читы"
 category: misc
-parent: misc-games-systems
+parent: misc-games-hub
 difficulty: hard
-order: 2
+order: 1
 tags: [game-hacking, cheat-engine, memory, dll-injection, anticheat, ctf]
 prerequisites: [misc-games-systems]
 useful_for:

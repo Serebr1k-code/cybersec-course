@@ -2,9 +2,9 @@
 id: forensics-ext4-journal
 title: "ext4 изнутри: журнал, inode, extent-дерево"
 category: forensics
-parent: forensics-fs-internals
+parent: forensics-fs-linux-cow
 difficulty: hard
-order: 2
+order: 1
 tags: [ext4, journal, jbd2, inode, extent, debugfs, ext4magic]
 prerequisites: [forensics-filesystems]
 useful_for:

@@ -2,7 +2,7 @@
 id: misc-zk-circuits
 title: 'ZK-схемы (Circom, Groth16): атаки на доказательства'
 category: misc
-parent: misc-web3-advanced
+parent: misc-web3-internals-hub
 difficulty: expert
 order: 3
 tags: [zk, circom, groth16, snark, circuit, web3]

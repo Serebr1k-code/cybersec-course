@@ -2,9 +2,9 @@
 id: network-opcua
 title: "OPC UA: бинарный/JSON, security policies и сертификаты"
 category: network
-parent: network-module-ics-deep
+parent: network-module-ics-modern
 difficulty: hard
-order: 6
+order: 1
 tags: [network, opcua, ics, security, certificates, tcp]
 prerequisites: [network-ethercat]
 useful_for:

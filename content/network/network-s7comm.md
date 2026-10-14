@@ -2,7 +2,7 @@
 id: network-s7comm
 title: "S7comm / S7comm-plus: протокол Siemens PLC"
 category: network
-parent: network-module-ics-deep
+parent: network-module-ics-proto
 difficulty: hard
 order: 3
 tags: [network, s7comm, siemens, plc, ics]

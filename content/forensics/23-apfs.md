@@ -2,9 +2,9 @@
 id: forensics-apfs
 title: "APFS и артефакты macOS"
 category: forensics
-parent: forensics-fs-internals
+parent: forensics-fs-ntfs-apfs
 difficulty: hard
-order: 4
+order: 2
 tags: [apfs, macos, hfs, plist, time-machine, apfs-fuse]
 prerequisites: [forensics-filesystems]
 useful_for:

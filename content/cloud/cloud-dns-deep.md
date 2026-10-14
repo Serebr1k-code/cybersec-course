@@ -2,9 +2,9 @@
 id: cloud-dns-deep
 title: 'Облачный DNS deep: takeover, делегирование зон и DNSSEC'
 category: cloud
-parent: cloud-network-egress
+parent: cloud-net-perimeter
 difficulty: hard
-order: 4
+order: 2
 tags: [cloud, dns, route53, takeover, delegation, dnssec]
 prerequisites: [cloud-network-egress]
 useful_for:

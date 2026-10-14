@@ -2,9 +2,9 @@
 id: cloud-egress-control
 title: 'Egress-контроль: firewall, NAT и обход для exfiltration'
 category: cloud
-parent: cloud-network-egress
+parent: cloud-net-perimeter
 difficulty: hard
-order: 6
+order: 3
 tags: [cloud, egress, firewall, nat, exfiltration, proxy]
 prerequisites: [cloud-network-egress]
 useful_for:

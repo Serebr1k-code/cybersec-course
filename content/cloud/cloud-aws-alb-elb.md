@@ -2,9 +2,9 @@
 id: cloud-aws-alb-elb
 title: 'AWS ELB/ALB/NLB: listener rules, request smuggling и health-checks'
 category: cloud
-parent: cloud-aws-services-deep
+parent: cloud-aws-edge
 difficulty: hard
-order: 2
+order: 1
 tags: [cloud, aws, alb, elb, nlb, smuggling, listener]
 prerequisites: [cloud-aws-deep]
 useful_for:

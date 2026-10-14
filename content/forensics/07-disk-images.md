@@ -2,7 +2,7 @@
 id: forensics-disk-images
 title: "Образы дисков и восстановление удалённых данных"
 category: forensics
-parent: forensics-filesystems
+parent: forensics-fs-basics
 difficulty: medium
 order: 3
 tags: [disk-image, dd, dc3dd, deleted-files, carving, tsk_recover]

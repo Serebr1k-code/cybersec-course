@@ -2,9 +2,9 @@
 id: misc-serialization
 title: 'Модуль: сериализация данных и парсинг'
 category: misc
-parent: misc-intro
+parent: misc-core-math
 difficulty: hard
-order: 7
+order: 2
 tags: [serialization, protobuf, msgpack, asn1, parsing, roadmap]
 prerequisites: [misc-intro]
 useful_for:

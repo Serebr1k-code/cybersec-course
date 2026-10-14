@@ -2,7 +2,7 @@
 id: network-dnp3
 title: "DNP3: кадры, unsolicited и Secure Authentication"
 category: network
-parent: network-module-ics-deep
+parent: network-module-ics-proto
 difficulty: hard
 order: 2
 tags: [network, dnp3, ics, scada, secure-auth]

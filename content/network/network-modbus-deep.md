@@ -2,7 +2,7 @@
 id: network-modbus-deep
 title: "Modbus/TCP глубоко: функции, регистры и запись"
 category: network
-parent: network-module-ics-deep
+parent: network-module-ics-proto
 difficulty: hard
 order: 1
 tags: [network, modbus, ics, scada, plc]

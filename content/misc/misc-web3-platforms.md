@@ -2,9 +2,9 @@
 id: misc-web3-platforms
 title: 'Модуль: Web3-платформы за пределами EVM'
 category: misc
-parent: misc-web3-advanced
+parent: misc-web3-ecosystem-hub
 difficulty: expert
-order: 7
+order: 2
 tags: [web3, cairo, starknet, move, sui, cosmos, wasm, solana, roadmap]
 prerequisites: [misc-evm-internals]
 useful_for:

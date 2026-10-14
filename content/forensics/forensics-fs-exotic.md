@@ -2,9 +2,9 @@
 id: forensics-fs-exotic
 title: 'Модуль: экзотические файловые системы'
 category: forensics
-parent: forensics-filesystems
+parent: forensics-fs-deep-hub
 difficulty: hard
-order: 5
+order: 2
 tags: [refs, udf, iso9660, f2fs, squashfs, jffs2, ubifs, nilfs, minix, filesystem, roadmap]
 prerequisites: [forensics-filesystems]
 useful_for:

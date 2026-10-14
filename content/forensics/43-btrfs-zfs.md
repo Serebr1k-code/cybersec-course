@@ -2,9 +2,9 @@
 id: forensics-btrfs-zfs
 title: "Btrfs / ZFS / XFS: форензика copy-on-write ФС"
 category: forensics
-parent: forensics-fs-internals
+parent: forensics-fs-linux-cow
 difficulty: hard
-order: 3
+order: 2
 tags: [btrfs, zfs, xfs, cow, snapshot, zpool, forensics]
 prerequisites: [forensics-filesystems, forensics-ext4-journal]
 useful_for:

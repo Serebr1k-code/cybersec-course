@@ -2,9 +2,9 @@
 id: forensics-fs-family
 title: "Модуль: семейства файловых систем"
 category: forensics
-parent: forensics-filesystems
+parent: forensics-fs-basics
 difficulty: medium
-order: 2
+order: 1
 tags: [filesystem, fat, exfat, xfs, hfs, roadmap]
 prerequisites: [forensics-filesystems]
 useful_for:

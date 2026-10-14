@@ -2,9 +2,9 @@
 id: mobile-android-trust
 title: 'Модуль: привилегии и аппаратное доверие Android'
 category: mobile
-parent: mobile-platforms
+parent: mobile-platforms-android
 difficulty: hard
-order: 5
+order: 3
 tags: [android, deviceadmin, notification, selinux, attestation, roadmap]
 prerequisites: [mobile-android-root]
 useful_for:

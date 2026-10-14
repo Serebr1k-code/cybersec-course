@@ -2,9 +2,9 @@
 id: tl-clock-skew
 title: 'Дрейф часов: коррекция рассинхронизации'
 category: forensics
-parent: forensics-timeline-deep
+parent: forensics-tl-present
 difficulty: hard
-order: 2
+order: 3
 tags: [timeline, clock-skew, ntp, drift, forensics]
 prerequisites: [tl-timezone-dst]
 useful_for:

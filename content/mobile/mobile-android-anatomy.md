@@ -2,7 +2,7 @@
 id: mobile-android-anatomy
 title: "Анатомия Android-приложения: APK, манифест, DEX и smali"
 category: mobile
-parent: mobile-platforms
+parent: mobile-platforms-android
 difficulty: easy
 order: 1
 tags: [android, apk, manifest, dex, smali, apktool]

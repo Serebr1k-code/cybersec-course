@@ -2,9 +2,9 @@
 id: cloud-aws-step-functions
 title: 'Step Functions: определения, PassRole и захват через workflow'
 category: cloud
-parent: cloud-aws-services-deep
+parent: cloud-aws-integration
 difficulty: hard
-order: 5
+order: 1
 tags: [cloud, aws, step-functions, passrole, workflow, iam]
 prerequisites: [cloud-aws-deep]
 useful_for:

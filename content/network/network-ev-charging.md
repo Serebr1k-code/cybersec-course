@@ -2,9 +2,9 @@
 id: network-ev-charging
 title: "EV-зарядка: CCS, OCPP и ISO 15118"
 category: network
-parent: network-module-automotive-net
+parent: network-module-auto-wireless
 difficulty: hard
-order: 5
+order: 2
 tags: [network, ev, charging, ccs, ocpp, iso15118, automotive]
 prerequisites: [network-keyless-relay]
 useful_for:

@@ -2,7 +2,7 @@
 id: network-profinet
 title: "PROFINET: RT/IRT, DCP и обнаружение устройств"
 category: network
-parent: network-module-ics-deep
+parent: network-module-ics-proto
 difficulty: hard
 order: 4
 tags: [network, profinet, rt, irt, dcp, ics]

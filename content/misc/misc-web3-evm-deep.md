@@ -2,9 +2,9 @@
 id: misc-web3-evm-deep
 title: 'Модуль: Solidity, байткод и proxy-паттерны'
 category: misc
-parent: misc-web3-advanced
+parent: misc-web3-internals-hub
 difficulty: expert
-order: 8
+order: 2
 tags: [web3, evm, yul, proxy, erc, roadmap]
 prerequisites: [misc-evm-internals]
 useful_for:

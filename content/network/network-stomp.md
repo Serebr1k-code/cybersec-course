@@ -2,9 +2,9 @@
 id: network-stomp
 title: "STOMP: текстовый messaging, подписка на всё и инъекция"
 category: network
-parent: network-module-msg-wire
+parent: network-module-broker-wire
 difficulty: hard
-order: 5
+order: 3
 tags: [network, stomp, messaging, activemq, broker]
 prerequisites: [network-amqp-deep]
 useful_for:

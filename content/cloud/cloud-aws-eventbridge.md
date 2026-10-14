@@ -2,9 +2,9 @@
 id: cloud-aws-eventbridge
 title: 'EventBridge: правила, cross-account шины и инъекция событий'
 category: cloud
-parent: cloud-aws-services-deep
+parent: cloud-aws-integration
 difficulty: hard
-order: 4
+order: 2
 tags: [cloud, aws, eventbridge, events, cross-account, serverless]
 prerequisites: [cloud-aws-deep]
 useful_for:

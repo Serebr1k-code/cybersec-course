@@ -2,9 +2,9 @@
 id: cloud-dbt-looker
 title: 'dbt / Looker / BI: доступ к данным через сервисные аккаунты'
 category: cloud
-parent: cloud-data-analytics
+parent: cloud-data-platforms
 difficulty: hard
-order: 5
+order: 3
 tags: [cloud, dbt, looker, bi, service-account, data-access]
 prerequisites: [cloud-data-analytics]
 useful_for:

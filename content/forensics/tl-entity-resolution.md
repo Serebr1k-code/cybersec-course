@@ -2,9 +2,9 @@
 id: tl-entity-resolution
 title: 'Entity resolution: один человек под разными именами'
 category: forensics
-parent: forensics-timeline-deep
+parent: forensics-tl-corr
 difficulty: hard
-order: 4
+order: 2
 tags: [timeline, entity-resolution, identity, correlation, forensics]
 prerequisites: [tl-cross-artifact]
 useful_for:

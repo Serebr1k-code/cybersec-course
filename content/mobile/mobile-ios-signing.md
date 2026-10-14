@@ -2,9 +2,9 @@
 id: mobile-ios-signing
 title: 'Модуль: подписи, entitlements и доверие iOS'
 category: mobile
-parent: mobile-platforms
+parent: mobile-platforms-ios
 difficulty: hard
-order: 6
+order: 2
 tags: [ios, codesign, entitlements, provisioning, attest, roadmap]
 prerequisites: [mobile-ios-basics]
 useful_for:

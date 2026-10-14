@@ -2,7 +2,7 @@
 id: misc-radio-misc
 title: "Radio misc: SDR, IQ-данные и суб-GHz"
 category: misc
-parent: misc-games-systems
+parent: misc-lowlevel-hub
 difficulty: hard
 order: 3
 tags: [sdr, iq, rtl-sdr, gnuradio, fsk, ook, gqrx, ctf]

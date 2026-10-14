@@ -2,9 +2,9 @@
 id: misc-blockchain
 title: "Модуль: блокчейн и Web3"
 category: misc
-parent: misc-intro
+parent: misc-applied-domains
 difficulty: hard
-order: 3
+order: 2
 tags: [blockchain, web3, solidity, ethereum, ctf]
 prerequisites: [misc-intro]
 useful_for:

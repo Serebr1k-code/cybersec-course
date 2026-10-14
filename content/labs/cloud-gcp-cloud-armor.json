@@ -1,0 +1,27 @@
+{
+  "id": "cloud-gcp-cloud-armor",
+  "workdir": "/home/student/armor",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/armor/found.txt",
+    "contains": "nto{cloud_armor_allow_priority_shadow}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/armor",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/armor/task.md",
+      "text": "# Задача\n\nДана политика Cloud Armor. Определи, почему защита не срабатывает для части трафика, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/armor/policy.txt",
+      "text": "priority 100  action allow   match srcIpRanges=10.0.0.0/8\npriority 1000 action deny(403) match evaluatePreconfiguredExpr(sqli-v33-stable)\n"
+    },
+    {
+      "path": "/home/student/armor/notes.md",
+      "text": "Аудит: правило allow с приоритетом 100 перекрывает deny для 10.0.0.0/8.\nПервое совпавшее правило решает судьбу запроса.\nnto{cloud_armor_allow_priority_shadow}\n"
+    }
+  ]
+}

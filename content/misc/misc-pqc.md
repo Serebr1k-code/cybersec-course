@@ -2,9 +2,9 @@
 id: misc-pqc
 title: 'Модуль: решётки и переход на пост-квантовую криптографию'
 category: misc
-parent: misc-intro
+parent: misc-core-math
 difficulty: expert
-order: 6
+order: 4
 tags: [pqc, lattice, lwe, kyber, qkd, roadmap]
 prerequisites: [misc-intro, misc-quantum]
 useful_for:

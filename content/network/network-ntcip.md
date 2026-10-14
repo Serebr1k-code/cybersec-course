@@ -2,9 +2,9 @@
 id: network-ntcip
 title: "NTCIP: дорожные контроллеры, SNMP-объекты и опасность set"
 category: network
-parent: network-module-ics-grid
+parent: network-module-grid-building
 difficulty: hard
-order: 6
+order: 1
 tags: [network, ntcip, its, snmp, ics, traffic]
 prerequisites: [network-snmp]
 useful_for:

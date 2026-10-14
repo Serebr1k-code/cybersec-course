@@ -2,9 +2,9 @@
 id: misc-games-systems
 title: "Модуль: игры, протоколы и ядро"
 category: misc
-parent: misc-intro
+parent: misc-applied-domains
 difficulty: hard
-order: 4
+order: 1
 tags: [game-hacking, protocols, kernel, sdr, ctf]
 prerequisites: [misc-intro]
 useful_for:

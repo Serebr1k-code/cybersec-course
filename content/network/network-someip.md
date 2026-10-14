@@ -2,9 +2,9 @@
 id: network-someip
 title: "SOME/IP: сервис-ориентированная шина в автомобиле"
 category: network
-parent: network-module-automotive-net
+parent: network-module-auto-diag
 difficulty: hard
-order: 6
+order: 3
 tags: [network, someip, automotive, ethernet, service-discovery]
 prerequisites: [network-automotive-ethernet]
 useful_for:

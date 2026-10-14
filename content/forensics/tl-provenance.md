@@ -2,9 +2,9 @@
 id: tl-provenance
 title: 'Provenance и уверенность: сколько стоит улика'
 category: forensics
-parent: forensics-timeline-deep
+parent: forensics-tl-corr
 difficulty: hard
-order: 6
+order: 3
 tags: [timeline, provenance, confidence, evidence, forensics]
 prerequisites: [tl-cross-artifact, tl-entity-resolution]
 useful_for:

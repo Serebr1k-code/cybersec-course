@@ -2,9 +2,9 @@
 id: network-xmpp
 title: "XMPP: XML-станзы, федерация и перечисление JID"
 category: network
-parent: network-module-msg-wire
+parent: network-module-broker-wire
 difficulty: hard
-order: 6
+order: 4
 tags: [network, xmpp, messaging, federation, sasl]
 prerequisites: [network-tls13-deep]
 useful_for:

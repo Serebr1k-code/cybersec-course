@@ -2,7 +2,7 @@
 id: mobile-ios-advanced
 title: "Модуль: Продвинутый анализ iOS"
 category: mobile
-parent: mobile-platforms
+parent: mobile-platforms-ios
 difficulty: medium
 order: 4
 tags: [ios, mach-o, dyld, cycript, lldb, backup, data-protection, ssl]

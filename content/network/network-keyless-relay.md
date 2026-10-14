@@ -2,9 +2,9 @@
 id: network-keyless-relay
 title: "Keyless entry и PKES: релей-атаки"
 category: network
-parent: network-module-automotive-net
+parent: network-module-auto-wireless
 difficulty: hard
-order: 4
+order: 1
 tags: [network, keyless, pkes, relay, automotive, rolljam]
 prerequisites: [network-obd2]
 useful_for:

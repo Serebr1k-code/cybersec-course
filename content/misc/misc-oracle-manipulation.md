@@ -2,9 +2,9 @@
 id: misc-oracle-manipulation
 title: 'Оракулы цен и их атаки'
 category: misc
-parent: misc-web3-advanced
+parent: misc-web3-defi-hub
 difficulty: hard
-order: 5
+order: 1
 tags: [oracle, price, chainlink, twap, defi]
 prerequisites: [misc-flash-loan]
 useful_for:

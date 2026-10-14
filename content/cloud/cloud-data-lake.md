@@ -2,9 +2,9 @@
 id: cloud-data-lake
 title: 'Data lake / Lakehouse: каталоги, права и обход'
 category: cloud
-parent: cloud-data-analytics
+parent: cloud-data-platforms
 difficulty: hard
-order: 6
+order: 4
 tags: [cloud, data-lake, glue, lakeformation, catalog, s3]
 prerequisites: [cloud-data-analytics]
 useful_for:

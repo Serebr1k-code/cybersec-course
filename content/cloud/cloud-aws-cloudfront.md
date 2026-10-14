@@ -2,9 +2,9 @@
 id: cloud-aws-cloudfront
 title: 'AWS CloudFront: OAI/OAC, origin-экспозиция и подписанные URL'
 category: cloud
-parent: cloud-aws-services-deep
+parent: cloud-aws-edge
 difficulty: hard
-order: 1
+order: 2
 tags: [cloud, aws, cloudfront, cdn, oai, oac, signed-url]
 prerequisites: [cloud-aws-deep]
 useful_for:

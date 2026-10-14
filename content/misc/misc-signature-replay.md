@@ -2,9 +2,9 @@
 id: misc-signature-replay
 title: 'Подписи, permit и replay в Web3'
 category: misc
-parent: misc-web3-advanced
+parent: misc-web3-defi-hub
 difficulty: expert
-order: 6
+order: 3
 tags: [signature, eip712, permit, replay, nonce, web3]
 prerequisites: [misc-evm-internals]
 useful_for:

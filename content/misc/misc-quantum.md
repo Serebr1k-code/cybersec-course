@@ -2,9 +2,9 @@
 id: misc-quantum
 title: 'Модуль: квантовые вычисления и пост-квантовая криптография'
 category: misc
-parent: misc-intro
+parent: misc-core-math
 difficulty: hard
-order: 5
+order: 3
 tags: [quantum, pqc, qiskit, lattice, roadmap]
 prerequisites: [misc-intro]
 useful_for:

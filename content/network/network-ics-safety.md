@@ -2,9 +2,9 @@
 id: network-ics-safety
 title: "SIS: системы противоаварийной защиты"
 category: network
-parent: network-module-ics-grid
+parent: network-module-grid-building
 difficulty: hard
-order: 7
+order: 4
 tags: [network, sis, safety, ics, sil, sil-rated]
 prerequisites: [network-ics-purdue]
 useful_for:

@@ -2,9 +2,9 @@
 id: network-ethercat
 title: "EtherCAT: датаграммы, mailbox и мастер-ведомый"
 category: network
-parent: network-module-ics-deep
+parent: network-module-ics-modern
 difficulty: hard
-order: 5
+order: 2
 tags: [network, ethercat, ics, fieldbus, realtime]
 prerequisites: [network-profinet]
 useful_for:

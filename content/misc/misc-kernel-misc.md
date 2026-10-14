@@ -2,9 +2,9 @@
 id: misc-kernel-misc
 title: "Kernel misc: syscalls, /proc и eBPF"
 category: misc
-parent: misc-games-systems
+parent: misc-lowlevel-hub
 difficulty: expert
-order: 4
+order: 2
 tags: [kernel, syscalls, proc, ebpf, strace, seccomp, linux]
 prerequisites: [misc-games-systems]
 useful_for:

@@ -2,9 +2,9 @@
 id: misc-security
 title: "Модуль: песочницы и безопасность"
 category: misc
-parent: misc-intro
+parent: misc-applied-domains
 difficulty: hard
-order: 2
+order: 3
 tags: [misc, jails, sandbox, llm, web-logic]
 prerequisites: [misc-intro]
 useful_for:

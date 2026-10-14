@@ -2,9 +2,9 @@
 id: network-automotive-telematics
 title: "Телематика и T-Box: связь авто с облаком"
 category: network
-parent: network-module-automotive-net
+parent: network-module-auto-wireless
 difficulty: hard
-order: 7
+order: 3
 tags: [network, telematics, tbox, ota, automotive, cloud]
 prerequisites: [network-ev-charging]
 useful_for:

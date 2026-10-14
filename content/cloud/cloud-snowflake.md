@@ -2,7 +2,7 @@
 id: cloud-snowflake
 title: 'Snowflake: роли, shares, external stages и exfiltration данных'
 category: cloud
-parent: cloud-data-analytics
+parent: cloud-data-platforms
 difficulty: hard
 order: 1
 tags: [cloud, snowflake, data, roles, stages, exfiltration]

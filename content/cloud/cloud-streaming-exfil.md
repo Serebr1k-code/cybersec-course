@@ -2,9 +2,9 @@
 id: cloud-streaming-exfil
 title: 'Стриминговая exfiltration: каналы утечки через Kinesis/PubSub/EventHub'
 category: cloud
-parent: cloud-data-analytics
+parent: cloud-data-streaming
 difficulty: hard
-order: 7
+order: 3
 tags: [cloud, exfiltration, kinesis, pubsub, eventhub, streaming]
 prerequisites: [cloud-data-analytics]
 useful_for:

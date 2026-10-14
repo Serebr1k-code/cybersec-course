@@ -2,9 +2,9 @@
 id: cloud-aws-iot-core
 title: 'AWS IoT Core: policies, thing-сертификаты и захват через правила'
 category: cloud
-parent: cloud-aws-services-deep
+parent: cloud-aws-integration
 difficulty: hard
-order: 6
+order: 3
 tags: [cloud, aws, iot, mqtt, certificates, rules, mqtt]
 prerequisites: [cloud-aws-deep]
 useful_for:

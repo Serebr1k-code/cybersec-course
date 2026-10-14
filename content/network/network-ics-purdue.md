@@ -2,9 +2,9 @@
 id: network-ics-purdue
 title: "Purdue-модель: сегментация и зоны/кондуиты"
 category: network
-parent: network-module-ics-grid
+parent: network-module-grid-building
 difficulty: hard
-order: 5
+order: 3
 tags: [network, purdue, segmentation, zones, conduits, ics]
 prerequisites: [network-hart-ip]
 useful_for:

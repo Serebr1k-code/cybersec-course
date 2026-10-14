@@ -2,7 +2,7 @@
 id: cloud-privatelink
 title: 'PrivateLink / Private Service Connect / Private Endpoint'
 category: cloud
-parent: cloud-network-egress
+parent: cloud-net-connectivity
 difficulty: hard
 order: 2
 tags: [cloud, privatelink, private-endpoint, network, isolation]

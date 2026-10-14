@@ -1,0 +1,27 @@
+{
+  "id": "cloud-gcp-pubsub",
+  "workdir": "/home/student/pubsub",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/pubsub/found.txt",
+    "contains": "nto{pubsub_project_subscriber_reads_all_topics}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/pubsub",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/pubsub/task.md",
+      "text": "# Задача\n\nДан service account с правами Pub/Sub. Определи, что можно сделать, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/pubsub/iam.txt",
+      "text": "app@acme-prod.iam.gserviceaccount.com:\n  roles/pubsub.subscriber   # granted at project level\n  roles/pubsub.viewer\n"
+    },
+    {
+      "path": "/home/student/pubsub/notes.md",
+      "text": "Аудит: subscriber на проект = чтение всех топиков.\nМожно создать свою pull-подписку и читать поток платежей.\nnto{pubsub_project_subscriber_reads_all_topics}\n"
+    }
+  ]
+}

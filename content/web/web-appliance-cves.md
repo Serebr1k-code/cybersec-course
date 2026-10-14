@@ -2,7 +2,7 @@
 id: web-appliance-cves
 title: 'Корпоративные appliance-CVE: WebLogic, vCenter, Citrix, MOVEit, VPN'
 category: web
-parent: web-enterprise-apps
+parent: web-appliance-surface
 difficulty: hard
 order: 3
 tags: [appliance, cve, weblogic, vcenter, citrix, moveit, vpn, roadmap]

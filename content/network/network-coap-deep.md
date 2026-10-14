@@ -2,9 +2,9 @@
 id: network-coap-deep
 title: "CoAP: методы, observe и DTLS"
 category: network
-parent: network-module-msg-wire
+parent: network-module-iot-wire
 difficulty: hard
-order: 3
+order: 1
 tags: [network, coap, iot, dtls, observe, udp]
 prerequisites: [network-mqtt-deep]
 useful_for:

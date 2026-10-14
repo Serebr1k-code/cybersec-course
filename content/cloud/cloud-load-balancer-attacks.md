@@ -2,9 +2,9 @@
 id: cloud-load-balancer-attacks
 title: 'Балансировщики: smuggling, инъекции заголовков и обход origin'
 category: cloud
-parent: cloud-network-egress
+parent: cloud-net-perimeter
 difficulty: hard
-order: 5
+order: 1
 tags: [cloud, load-balancer, alb, smuggling, header, origin]
 prerequisites: [cloud-network-egress]
 useful_for:

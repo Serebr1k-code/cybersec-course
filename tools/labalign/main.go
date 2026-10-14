@@ -543,9 +543,8 @@ func topicRelated(l *model.Lesson, labTools map[string]bool, taskText string) bo
 			lab[strings.ToLower(w)] = true
 		}
 	}
-	for _, w := range strings.Fields(strings.ToLower(l.ID)) {
-		lab[w] = true
-	}
+	// NB: the lesson id is deliberately NOT injected here — it always overlaps
+	// the lesson vocabulary and would make this check vacuous.
 
 	lesson := map[string]bool{}
 	addText := func(s string) {

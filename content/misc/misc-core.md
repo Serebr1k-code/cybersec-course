@@ -2,7 +2,7 @@
 id: misc-core
 title: "Модуль: код и данные"
 category: misc
-parent: misc-intro
+parent: misc-core-math
 difficulty: easy
 order: 1
 tags: [misc, python, encoding, esolang, git]

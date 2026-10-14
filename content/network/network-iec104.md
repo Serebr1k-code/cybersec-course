@@ -2,7 +2,7 @@
 id: network-iec104
 title: "IEC 60870-5-104: телемеханика и ASDU"
 category: network
-parent: network-module-ics-grid
+parent: network-module-grid-power
 difficulty: hard
 order: 2
 tags: [network, iec104, telecontrol, asdu, ics, scada]

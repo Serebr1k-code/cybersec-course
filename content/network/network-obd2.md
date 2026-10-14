@@ -2,9 +2,9 @@
 id: network-obd2
 title: "OBD-II: PID, DTC и режимы диагностики"
 category: network
-parent: network-module-automotive-net
+parent: network-module-auto-diag
 difficulty: hard
-order: 3
+order: 1
 tags: [network, obd2, automotive, pid, dtc, can]
 prerequisites: [network-uds]
 useful_for:

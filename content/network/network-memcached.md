@@ -2,7 +2,7 @@
 id: network-memcached
 title: "Memcached: протокол и амплификация"
 category: network
-parent: network-module-msg-wire
+parent: network-module-broker-wire
 difficulty: hard
 order: 2
 tags: [network, memcached, amplification, udp, cache]
@@ -49,7 +49,8 @@ Memcached по **UDP** (порт 11211) отвечает на маленький
 
 ```
 $ nmap -p 11211 --script memcached-info 10.0.0.5
-$ echo -e 'stats' | nc 10.0.0.5 11211
+$ echo -e 'stats
+' | nc 10.0.0.5 11211
 ```
 
 Смотрят версию, объём, доступность.

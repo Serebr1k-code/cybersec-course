@@ -2,9 +2,9 @@
 id: network-automotive-ethernet
 title: "Automotive Ethernet: 100BASE-T1 и TSN"
 category: network
-parent: network-module-automotive-net
+parent: network-module-auto-diag
 difficulty: hard
-order: 1
+order: 4
 tags: [network, automotive, ethernet, 100base-t1, tsn]
 prerequisites: [network-ethernet]
 useful_for:

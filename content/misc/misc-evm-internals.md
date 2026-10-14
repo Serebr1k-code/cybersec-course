@@ -2,7 +2,7 @@
 id: misc-evm-internals
 title: 'Внутренности EVM: opcodes, gas, storage layout'
 category: misc
-parent: misc-web3-advanced
+parent: misc-web3-internals-hub
 difficulty: expert
 order: 1
 tags: [evm, opcode, storage, calldata, gas, solidity]

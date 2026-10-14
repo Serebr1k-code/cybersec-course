@@ -2,9 +2,9 @@
 id: misc-runtimes-iso
 title: 'Модуль: изоляция на уровне ядра и ВМ'
 category: misc
-parent: misc-sandbox
+parent: misc-sandbox-runtimes-hub
 difficulty: expert
-order: 6
+order: 2
 tags: [gvisor, firecracker, qemu, deno, isolation, roadmap]
 prerequisites: [misc-sandbox]
 useful_for:

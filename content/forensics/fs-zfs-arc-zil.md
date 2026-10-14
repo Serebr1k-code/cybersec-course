@@ -2,9 +2,9 @@
 id: fs-zfs-arc-zil
 title: 'ZFS: uberblock, ARC, ZIL и SLOG в форензике'
 category: forensics
-parent: forensics-fs-internals
+parent: forensics-fs-linux-cow
 difficulty: hard
-order: 6
+order: 4
 tags: [zfs, uberblock, arc, zil, slog, txg, forensics]
 prerequisites: [forensics-btrfs-zfs]
 useful_for:

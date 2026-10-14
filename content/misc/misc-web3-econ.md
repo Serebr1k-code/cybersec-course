@@ -2,9 +2,9 @@
 id: misc-web3-econ
 title: 'Модуль: экономика Web3, MEV и Bitcoin'
 category: misc
-parent: misc-web3-advanced
+parent: misc-web3-ecosystem-hub
 difficulty: expert
-order: 9
+order: 1
 tags: [web3, mev, defi, bitcoin, script, ctf, roadmap]
 prerequisites: [misc-flash-loan]
 useful_for:

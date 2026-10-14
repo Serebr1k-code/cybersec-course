@@ -2,7 +2,7 @@
 id: network-redis-wire
 title: "RESP / Redis wire: протокол и открытый доступ"
 category: network
-parent: network-module-msg-wire
+parent: network-module-broker-wire
 difficulty: hard
 order: 1
 tags: [network, redis, resp, key-value, exposure]

@@ -2,9 +2,9 @@
 id: misc-runtime-more
 title: "Модуль: среды исполнения и низкий уровень"
 category: misc
-parent: misc-sandbox
+parent: misc-sandbox-runtimes-hub
 difficulty: hard
-order: 4
+order: 3
 tags: [shell, ядро, реверс, hardware, низкий-уровень, модуль]
 prerequisites: [misc-sandbox]
 useful_for:

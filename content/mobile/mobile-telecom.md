@@ -2,9 +2,9 @@
 id: mobile-telecom
 title: 'Модуль: телеком и радиослой мобильного устройства'
 category: mobile
-parent: mobile-platforms
+parent: mobile-platforms-android
 difficulty: hard
-order: 8
+order: 4
 tags: [telecom, esim, sim, baseband, modem, roadmap]
 prerequisites: [mobile-platforms]
 useful_for:

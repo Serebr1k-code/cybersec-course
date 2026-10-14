@@ -2,9 +2,9 @@
 id: cloud-kafka-msk
 title: 'Kafka / MSK / Confluent: ACL, SASL и инъекции в потоки'
 category: cloud
-parent: cloud-data-analytics
+parent: cloud-data-streaming
 difficulty: hard
-order: 3
+order: 1
 tags: [cloud, kafka, msk, streaming, acl, sasl, injection]
 prerequisites: [cloud-data-analytics]
 useful_for:

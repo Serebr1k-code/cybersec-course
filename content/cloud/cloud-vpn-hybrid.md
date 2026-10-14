@@ -2,9 +2,9 @@
 id: cloud-vpn-hybrid
 title: 'Site-to-Site VPN / Direct Connect / ExpressRoute: гибридные мосты'
 category: cloud
-parent: cloud-network-egress
+parent: cloud-net-connectivity
 difficulty: hard
-order: 3
+order: 1
 tags: [cloud, vpn, direct-connect, expressroute, hybrid, routing]
 prerequisites: [cloud-network-egress]
 useful_for:

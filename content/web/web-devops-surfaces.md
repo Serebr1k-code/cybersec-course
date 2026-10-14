@@ -2,9 +2,9 @@
 id: web-devops-surfaces
 title: "DevOps-панели как поверхность атаки: Grafana, Kibana, GitLab, Jenkins"
 category: web
-parent: web-enterprise-apps
+parent: web-enterprise-suite
 difficulty: hard
-order: 2
+order: 3
 tags: [devops, grafana, kibana, gitlab, jenkins, monitoring, cicd, cve]
 prerequisites: [web-enterprise-apps]
 useful_for:

@@ -2,9 +2,9 @@
 id: forensics-fs-internals
 title: "Модуль: внутреннее устройство файловых систем"
 category: forensics
-parent: forensics-filesystems
+parent: forensics-fs-deep-hub
 difficulty: hard
-order: 4
+order: 1
 tags: [ntfs, mft, ext4, btrfs, zfs, apfs, journal, roadmap]
 prerequisites: [forensics-fs-structure]
 useful_for:

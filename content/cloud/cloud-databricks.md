@@ -2,7 +2,7 @@
 id: cloud-databricks
 title: 'Databricks: workspace, персональные токены, кластеры и exfil'
 category: cloud
-parent: cloud-data-analytics
+parent: cloud-data-platforms
 difficulty: hard
 order: 2
 tags: [cloud, databricks, spark, token, notebook, exfil]

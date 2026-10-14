@@ -2,7 +2,7 @@
 id: forensics-ntfs-mft
 title: "NTFS изнутри: $MFT, $LogFile, $UsnJrnl, ADS"
 category: forensics
-parent: forensics-fs-internals
+parent: forensics-fs-ntfs-apfs
 difficulty: hard
 order: 1
 tags: [ntfs, mft, usnjrnl, logfile, ads, sleuthkit, mftecmd, windows]

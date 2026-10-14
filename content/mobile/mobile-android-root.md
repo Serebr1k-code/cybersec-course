@@ -2,7 +2,7 @@
 id: mobile-android-root
 title: "Модуль: Root, загрузчик и модификация устройства"
 category: mobile
-parent: mobile-platforms
+parent: mobile-platforms-android
 difficulty: easy
 order: 2
 tags: [android, root, magisk, kernelsu, bootloader, xposed, lsposed, zygisk]

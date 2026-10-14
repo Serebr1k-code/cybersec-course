@@ -2,9 +2,9 @@
 id: fs-btrfs-snapshot
 title: 'Btrfs: форензика снапшотов и subvolume'
 category: forensics
-parent: forensics-fs-internals
+parent: forensics-fs-linux-cow
 difficulty: hard
-order: 5
+order: 3
 tags: [btrfs, snapshot, subvolume, copy-on-write, generation, forensics]
 prerequisites: [forensics-btrfs-zfs]
 useful_for:

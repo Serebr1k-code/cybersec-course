@@ -2,7 +2,7 @@
 id: network-doip
 title: "DoIP: диагностика поверх IP (ISO 13400)"
 category: network
-parent: network-module-automotive-net
+parent: network-module-auto-diag
 difficulty: hard
 order: 2
 tags: [network, doip, automotive, uds, iso13400]

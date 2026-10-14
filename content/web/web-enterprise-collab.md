@@ -2,7 +2,7 @@
 id: web-enterprise-collab
 title: "Корпоративные коллаборационные приложения: SharePoint, Exchange, Confluence, Jira"
 category: web
-parent: web-enterprise-apps
+parent: web-enterprise-suite
 difficulty: hard
 order: 1
 tags: [sharepoint, exchange, confluence, jira, collaboration, proxylogon, ognl]

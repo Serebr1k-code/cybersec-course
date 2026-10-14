@@ -2,9 +2,9 @@
 id: misc-games-meta
 title: 'Модуль: движки, анти-читы и TAS'
 category: misc
-parent: misc-games-systems
+parent: misc-games-hub
 difficulty: hard
-order: 6
+order: 2
 tags: [chess, anti-cheat, tas, retro, roadmap]
 prerequisites: [misc-games-systems]
 useful_for:

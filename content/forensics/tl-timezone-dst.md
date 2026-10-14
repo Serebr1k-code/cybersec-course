@@ -2,9 +2,9 @@
 id: tl-timezone-dst
 title: 'Часовые пояса и DST в таймлайне'
 category: forensics
-parent: forensics-timeline-deep
+parent: forensics-tl-present
 difficulty: medium
-order: 1
+order: 2
 tags: [timeline, timezone, dst, utc, forensics]
 prerequisites: [forensics-timeline]
 useful_for:

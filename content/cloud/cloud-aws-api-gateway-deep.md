@@ -2,7 +2,7 @@
 id: cloud-aws-api-gateway-deep
 title: 'API Gateway deep: authorizers, usage-планы и Lambda-интеграции'
 category: cloud
-parent: cloud-aws-services-deep
+parent: cloud-aws-edge
 difficulty: hard
 order: 3
 tags: [cloud, aws, api-gateway, authorizer, lambda, usage-plan]

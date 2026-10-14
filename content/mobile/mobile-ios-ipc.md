@@ -2,9 +2,9 @@
 id: mobile-ios-ipc
 title: 'Модуль: IPC и рантайм iOS'
 category: mobile
-parent: mobile-platforms
+parent: mobile-platforms-ios
 difficulty: hard
-order: 7
+order: 3
 tags: [ios, ipc, mach, xpc, objc, dyld, roadmap]
 prerequisites: [mobile-ios-basics]
 useful_for:

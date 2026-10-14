@@ -2,7 +2,7 @@
 id: misc-weird-protocols
 title: "Странные протоколы: raw TCP/UDP и кастомные форматы"
 category: misc
-parent: misc-games-systems
+parent: misc-lowlevel-hub
 difficulty: medium
 order: 1
 tags: [protocols, tcp, udp, scapy, nc, socat, reverse-engineering, ctf]

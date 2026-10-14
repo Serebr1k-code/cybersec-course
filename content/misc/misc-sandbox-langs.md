@@ -2,9 +2,9 @@
 id: misc-sandbox-langs
 title: "Модуль: языковые песочницы"
 category: misc
-parent: misc-sandbox
+parent: misc-sandbox-runtimes-hub
 difficulty: hard
-order: 1
+order: 4
 tags: [misc, sandbox, python, node, lua, ruby]
 prerequisites: [misc-sandbox]
 useful_for:

@@ -2,9 +2,9 @@
 id: tl-cross-artifact
 title: 'Cross-artifact корреляция: собрать события в одну картину'
 category: forensics
-parent: forensics-timeline-deep
+parent: forensics-tl-corr
 difficulty: hard
-order: 3
+order: 1
 tags: [timeline, correlation, artifacts, forensics, super-timeline]
 prerequisites: [forensics-timeline, tl-clock-skew]
 useful_for:

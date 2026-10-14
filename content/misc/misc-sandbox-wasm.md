@@ -2,9 +2,9 @@
 id: misc-sandbox-wasm
 title: "WASM sandbox escape"
 category: misc
-parent: misc-sandbox
+parent: misc-sandbox-containers-hub
 difficulty: hard
-order: 3
+order: 2
 tags: [wasm, webassembly, sandbox, escape, wasmtime, ctf]
 prerequisites: [misc-sandbox]
 useful_for:

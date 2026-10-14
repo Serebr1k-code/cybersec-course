@@ -2,9 +2,9 @@
 id: network-bacnet
 title: "BACnet: автоматизация зданий, BBMD и риски"
 category: network
-parent: network-module-ics-grid
+parent: network-module-grid-building
 difficulty: hard
-order: 3
+order: 2
 tags: [network, bacnet, building, automation, bbmd, ics]
 prerequisites: [network-iec104]
 useful_for:

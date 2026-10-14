@@ -2,9 +2,9 @@
 id: cloud-airflow-dag
 title: 'Airflow / Dagster / Prefect: DAG-инъекции и кража соединений'
 category: cloud
-parent: cloud-data-analytics
+parent: cloud-data-streaming
 difficulty: hard
-order: 4
+order: 2
 tags: [cloud, airflow, orchestration, dag, connections, mwaa]
 prerequisites: [cloud-data-analytics]
 useful_for:

@@ -2,9 +2,9 @@
 id: misc-runtimes-deep
 title: 'Модуль: песочницы языковых рантаймов'
 category: misc
-parent: misc-sandbox
+parent: misc-sandbox-runtimes-hub
 difficulty: hard
-order: 5
+order: 1
 tags: [sandbox, php, java, go, rust, roadmap]
 prerequisites: [misc-sandbox]
 useful_for:

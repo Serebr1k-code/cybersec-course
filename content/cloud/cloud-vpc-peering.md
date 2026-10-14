@@ -2,9 +2,9 @@
 id: cloud-vpc-peering
 title: 'VPC peering / Transit Gateway / hub-spoke: изоляция и её обход'
 category: cloud
-parent: cloud-network-egress
+parent: cloud-net-connectivity
 difficulty: hard
-order: 1
+order: 3
 tags: [cloud, vpc, peering, transit-gateway, routing, isolation]
 prerequisites: [cloud-network-deep]
 useful_for:

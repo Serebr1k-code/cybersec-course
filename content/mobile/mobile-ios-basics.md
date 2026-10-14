@@ -2,9 +2,9 @@
 id: mobile-ios-basics
 title: "Основы iOS: IPA, class-dump, Hopper и особенности тестирования"
 category: mobile
-parent: mobile-platforms
+parent: mobile-platforms-ios
 difficulty: medium
-order: 3
+order: 1
 tags: [ios, ipa, mach-o, class-dump, hopper, keychain, jailbreak]
 prerequisites: [mobile-intro]
 useful_for:

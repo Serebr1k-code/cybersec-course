@@ -1,0 +1,27 @@
+{
+  "id": "cloud-gcp-vertex-ai",
+  "workdir": "/home/student/vertex",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/vertex/found.txt",
+    "contains": "nto{vertex_notebook_sa_reads_bigquery}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/vertex",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/vertex/task.md",
+      "text": "# Задача\n\nНайден Workbench-ноутбук Vertex. Определи, к чему имеет доступ его service account, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/vertex/sa_roles.txt",
+      "text": "vertex-nb@acme-prod.iam.gserviceaccount.com:\n  roles/bigquery.dataViewer\n  roles/storage.objectViewer\n"
+    },
+    {
+      "path": "/home/student/vertex/notes.md",
+      "text": "Аудит: ноутбук с публичным IP, JupyterLab без токена.\nSA читает прод-датасет BigQuery и бакеты Storage.\nnto{vertex_notebook_sa_reads_bigquery}\n"
+    }
+  ]
+}

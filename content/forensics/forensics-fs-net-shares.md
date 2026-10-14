@@ -2,9 +2,9 @@
 id: forensics-fs-net-shares
 title: "Модуль: сетевые файловые системы и облачная синхронизация"
 category: forensics
-parent: forensics-filesystems
+parent: forensics-fs-basics
 difficulty: hard
-order: 7
+order: 4
 tags: [nfs, smb, cifs, cloud-sync, dropbox, onedrive, forensics, roadmap]
 prerequisites: [forensics-fs-structure]
 useful_for:

@@ -2,9 +2,9 @@
 id: misc-sandbox-containers
 title: "Модуль: контейнерные песочницы"
 category: misc
-parent: misc-sandbox
+parent: misc-sandbox-containers-hub
 difficulty: hard
-order: 2
+order: 1
 tags: [misc, docker, kubernetes, escape]
 prerequisites: [misc-sandbox]
 useful_for:

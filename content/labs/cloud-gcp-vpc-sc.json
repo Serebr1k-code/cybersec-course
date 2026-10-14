@@ -1,0 +1,27 @@
+{
+  "id": "cloud-gcp-vpc-sc",
+  "workdir": "/home/student/vpcsc",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/vpcsc/found.txt",
+    "contains": "nto{vpcsc_unprotected_service_bypass}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/vpcsc",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/vpcsc/task.md",
+      "text": "# Задача\n\nДан периметр VPC Service Controls. Найди канал обхода и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/vpcsc/perimeter.yaml",
+      "text": "resources: [projects/111111]\nrestrictedServices:\n  - storage.googleapis.com\n  - bigquery.googleapis.com\naccessLevels: [corp-vpn]\n"
+    },
+    {
+      "path": "/home/student/vpcsc/notes.md",
+      "text": "Аудит: периметр не покрывает compute.googleapis.com.\nДанные можно вынести через Compute-диск/снимок вне периметра.\nnto{vpcsc_unprotected_service_bypass}\n"
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 id: network-iec61850
 title: "IEC 61850: MMS, GOOSE и SV в подстанциях"
 category: network
-parent: network-module-ics-grid
+parent: network-module-grid-power
 difficulty: hard
 order: 1
 tags: [network, iec61850, mms, goose, sv, substation, ics]

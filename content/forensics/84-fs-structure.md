@@ -2,9 +2,9 @@
 id: forensics-fs-structure
 title: "Модуль: структура диска и восстановление файлов"
 category: forensics
-parent: forensics-filesystems
+parent: forensics-fs-basics
 difficulty: medium
-order: 1
+order: 2
 tags: [filesystem, partition, mbr, gpt, recovery, roadmap]
 prerequisites: [forensics-filesystems]
 useful_for:
