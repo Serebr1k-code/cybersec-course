@@ -1,0 +1,43 @@
+{
+  "id": "reversing-android-packers",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{unp4ck3d_d3x_b4ngcl3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Android-упаковщик\n\n`packed.apk` защищён упаковщиком (Bangcle/Legu-подобным): настоящий DEX\nзашифрован и разворачивается в памяти при запуске.\n\n1. `strings -n 5 packed.apk` — видны следы упаковщика (`libjiagu.so`, `StubApp`).\n2. Сдампи память запущенного приложения эмулятором `frida-dexdump`.\n3. Дамп сохранит `classes.dex` — в нём уже расшифрованный код.\n4. Найди в дампе артефакт с флагом.\n\nФлаг: `nto{...}` среди строк `classes.dex`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/packed.apk",
+      "b64": "UEsDBBQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABBbmRyb2lkTWFuaWZlc3QueG1sAGNsYXNzZXMuZGV4AHJlc291cmNlcy5hcnNjAE1FVEEtSU5GL0NFUlQuUlNBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABjb20uYmFuZ2NsZS5wcm90ZWN0LlN0dWJBcHAAYXNzZXRzL2xpYmppYWd1LnNvAA==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/classes.dex",
+      "b64": "ZGV4CjAzNQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATGNvbS9leGFtcGxlL2FwcC9NYWluQWN0aXZpdHk7AGNoZWNrTGljZW5zZQBkZWNyeXB0ZWRfcGF5bG9hZF9udG97dW5wNGNrM2RfZDN4X2I0bmdjbDN9AA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "frida-dexdump": {
+      "help": "frida-dexdump [-U] [-f <package>] — дамп DEX из памяти (эмуляция)",
+      "cases": [
+        {
+          "match": "-f",
+          "example": "-U -f com.example.app",
+          "output": "[*] Searching memory for DEX magic (dex\\n035\\x00)...\n[+] Found DEX @ 0x7f8a1c2000\n[+] Dumped -> classes.dex\n"
+        }
+      ],
+      "fallback": "frida-dexdump: укажи `-f <package>`.\n"
+    }
+  }
+}

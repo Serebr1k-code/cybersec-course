@@ -1,0 +1,35 @@
+{
+  "id": "reversing-hybrid-fuzzing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c0ncol1c_s0lv3d_c0nst4nt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: гибридный фаззинг\n\nЧистый coverage-фаззинг не прошёл проверку `if (a == 0xDEADBEEF)`. SymCC\nрешил ограничение и записал найденный вход в `solution.b64` (base64).\n\n1. `cat solution.b64` — это base64-строка решённого входа.\n2. Декодируй её: `base64 -d solution.b64`.\n3. В декодированном входе лежит флаг.\n\nФлаг: `nto{...}` в декодированном входе.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/target.c",
+      "text": "#include <stdint.h>\nvoid check(uint8_t* p){ if (*(uint32_t*)p == 0xDEADBEEF) __builtin_trap(); }\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/symcc.log",
+      "text": "[symcc] solving branch #3: (concat ... ) -> SAT\n[symcc] new input written: solution.b64\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/solution.b64",
+      "text": "c29sdmVkIGlucHV0OiBudG97YzBuY29sMWNfczBsdjNkX2MwbnN0NG50fQo=",
+      "mode": "644"
+    }
+  ]
+}

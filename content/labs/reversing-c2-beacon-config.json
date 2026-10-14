@@ -1,0 +1,43 @@
+{
+  "id": "reversing-c2-beacon-config",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b33f_c4f3_x0r_k3y_2e}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: конфиг C2-бикона\n\n`beacon.exe` — образец бикона. Строки внутри зашифрованы однобайтовым XOR\n(ключ — первый байт конфиг-блока), поэтому `strings beacon.exe` показывает мусор.\n\n1. `strings -n 6 beacon.exe` — убедись, что адреса C2 в открытом виде нет.\n2. `xxd -l 96 beacon.exe` — найди блок после PE-заголовка.\n3. В каталоге лежит разбор-скрипт `beacon_conf.py`; запусти его:\n   `python3 beacon_conf.py beacon.exe` — он снимет XOR и распечатает поля конфига.\n4. Найди строку с флагом и сохрани её.\n\nФлаг: `nto{...}` среди расшифрованных полей.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/beacon.exe",
+      "b64": "TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFBFAABMAQQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAuLi4uLi4uLmNvaWdtLi5MS0tILm0cLh8eAB8eABweABkUGhodLnt8Zy4BXVtMQ0daAF5GXi59Ymtrfi4YHh4eHi4=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/beacon_conf.py",
+      "text": "#!/usr/bin/env python3\n# Декодер конфига бикона: первый байт блока - XOR-ключ.\nimport sys\ndata = open(sys.argv[1], 'rb').read()\nkey = 0x2e\ndec = bytes(b ^ key for b in data)\nprint(dec.decode('latin-1'))\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> [аргументы] — интерпретатор (эмуляция разбора конфига)",
+      "cases": [
+        {
+          "match": "beacon_conf",
+          "example": "beacon_conf.py beacon.exe",
+          "output": "MAGIC  0x0000beef\nVERSION 4\nC2     10.10.20.7:443\nURI    /submit.php\nUA     Mozilla/5.0 (Windows NT 10.0; Win64; x64)\nSLEEP  60000\nJITTER 37\nKEYS   pubkey=30819f300d06092a864886f70d010101\nFLAG   nto{b33f_c4f3_x0r_k3y_2e}\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе эмулируется только beacon_conf.py.\n"
+    }
+  }
+}

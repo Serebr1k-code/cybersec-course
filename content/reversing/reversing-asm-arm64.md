@@ -13,6 +13,18 @@ useful_for:
   - "CTF"
 estimated_minutes: 60
 summary: "Чтение ARM64-ассемблера: регистры, AAPCS64, режимы адресации, типичные прологи и эпилоги."
+lab:
+  kind: shell
+  title: "Практика: читаем ARM64-проверку ключа"
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`e_machine` в ELF-заголовке `0xB7` — это AArch64 (ARM64)."
+    - "В ARM64 вызов — `bl` (адрес возврата в `x30`), пролог сохраняет пару `stp x29,x30`."
+    - "`csel` выбирает значение по условию без ветвления — типично для проверки ключа."
+    - "`strings -n 5 libsample.so | grep nto > found.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -1,0 +1,25 @@
+{
+  "id": "reversing-unity-il2cpp",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1l2cpp_m3t4d4t4_str1ngs}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: IL2CPP-метаданные\n\nИгра собрана на Unity с бэкендом IL2CPP: логика в нативном `libil2cpp.so`,\nа имена классов/методов/строк — в `global-metadata.dat`. Нужен артефакт игры.\n\n1. `xxd -l 32 global-metadata.dat` — проверь магию метаданных (`0xFAB11BAF`).\n2. `strings -n 5 global-metadata.dat` — метаданные содержат строковые литералы игры.\n3. Найди строку-ключ с флагом.\n\nФлаг: `nto{...}` среди строк метаданных.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/global-metadata.dat",
+      "b64": "rxux+gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB0AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQXNzZW1ibHktQ1NoYXJwAFVuaXR5RW5naW5lLkNvcmVNb2R1bGUAR2FtZU1hbmFnZXIAUGxheWVyUHJlZnMuR2V0U3RyaW5nAFN5c3RlbS5TdHJpbmcAc2VjcmV0S2V5X250b3sxbDJjcHBfbTN0NGQ0dDRfc3RyMW5nc30A",
+      "mode": "644"
+    }
+  ]
+}

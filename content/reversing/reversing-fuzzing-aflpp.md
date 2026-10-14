@@ -13,6 +13,18 @@ useful_for:
   - "CTF pwn"
 estimated_minutes: 65
 summary: "Как начать coverage-guided фаззинг с AFL++: инструментация, запуск, persistent-режим, cmplog и триаж крашей."
+lab:
+  kind: shell
+  title: "Практика: читаем краш фаззера"
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Фаззер складывает падающие входы в `out/default/crashes/`."
+    - "Открой вход: `cat out/default/crashes/crash_0000`."
+    - "Магия — первые байты входа; в хвосте лежит артефакт с флагом."
+    - "`strings -n 5 out/default/crashes/crash_0000 | grep nto > found.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

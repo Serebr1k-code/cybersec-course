@@ -13,6 +13,18 @@ useful_for:
   - "CTF"
 estimated_minutes: 65
 summary: "Как работают загрузчики shellcode и как разобрать переход от PE-файла к позиционно-независимому коду."
+lab:
+  kind: shell
+  title: "Практика: разбор сырого shellcode-стаба"
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Файл не начинается с `MZ` — значит, это не PE, а raw shellcode."
+    - "Первые байты `e8 00 00 00 00` = `call $+5`: типичный позиционно-независимый пролог."
+    - "В строках виден URL стейджера — рядом лежит и флаг."
+    - "`strings -n 5 payload.bin | grep nto > found.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

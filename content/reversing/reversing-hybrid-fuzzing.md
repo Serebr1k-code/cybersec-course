@@ -13,6 +13,18 @@ useful_for:
   - "CTF pwn"
 estimated_minutes: 65
 summary: "Как соединить покрытие и символьное исполнение: concolic-фаззинг, symcc, QSYM и когда он нужен."
+lab:
+  kind: shell
+  title: "Практика: вход, найденный concolic-движком"
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "SymCC пишет решённый вход в base64, чтобы байты не потерялись при передаче."
+    - "Декодируй файл: `base64 -d solution.b64`."
+    - "В декодированном входе — строка с флагом."
+    - "`base64 -d solution.b64 > found.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

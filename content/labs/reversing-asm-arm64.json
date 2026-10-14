@@ -1,0 +1,38 @@
+{
+  "id": "reversing-asm-arm64",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4rm64_csel_k3y_ch3ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: ARM64-дизассемблер\n\n`libsample.so` — ARM64-библиотека из прошивки. Нужно разобрать функцию\nпроверки ключа и найти артефакт.\n\n1. `xxd -l 20 libsample.so` — заголовок ELF; `e_machine = 0xB7` = AArch64.\n2. `objdump -d libsample.so` — дизассемблер покажет пролог (`stp x29,x30`),\n   вызов (`bl`) и условный выбор (`csel`).\n3. Выгрузи строки и найди строку с флагом.\n\nФлаг: `nto{...}` среди строк библиотеки.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/libsample.so",
+      "b64": "f0VMRgIBAQAAAAAAAAAAAAMAtwABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABjaGVja19rZXkAaGVscGVyAHN0cCB4MjksIHgzMCwgW3NwLCAjLTE2XSEAbW92IHgyOSwgc3AAY3NlbCB4MCwgeDEsIHgyLCBlcQBmbGFnX250b3s0cm02NF9jc2VsX2szeV9jaDNja30A",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "objdump": {
+      "help": "objdump [-d] <файл> — дизассемблер (эмуляция ARM64)",
+      "cases": [
+        {
+          "match": "-d",
+          "example": "-d libsample.so",
+          "output": "libsample.so:     file format elf64-littleaarch64\n\nDisassembly of section .text:\n\n0000000000000740 <check_key>:\n 740:\ta9bf7bfd \tstp\tx29, x30, [sp, #-16]!\n 744:\t910003fd \tmov\tx29, sp\n 748:\t52800041 \tmov\tw1, #0x2\n 74c:\t97ffffb5 \tbl\t630 <helper>\n 750:\t9a9f1020 \tcsel\tx0, x1, x2, eq\n 754:\ta8c17bfd \tldp\tx29, x30, [sp], #16\n 758:\td65f03c0 \tret\n"
+        }
+      ],
+      "fallback": "objdump: используй `-d <файл>`.\n"
+    }
+  }
+}

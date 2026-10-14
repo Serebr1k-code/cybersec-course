@@ -13,6 +13,18 @@ useful_for:
   - "CTF"
 estimated_minutes: 65
 summary: "Как устроены системные вызовы Windows, что такое SSN и как читать прямые/косвенные вызовы в имплантах."
+lab:
+  kind: shell
+  title: "Практика: прямой системный вызов и SSN"
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "В стабе перед `syscall` в `eax` кладут номер операции — SSN."
+    - "`mov eax, 18h` = SSN `0x18` (например, `NtAllocateVirtualMemory`)."
+    - "Имена `HellGate`/`FreshyCalls` указывают, как имплант берёт SSN."
+    - "`strings -n 5 implant.exe | grep nto > found.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

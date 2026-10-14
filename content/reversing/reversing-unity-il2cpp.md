@@ -13,6 +13,18 @@ useful_for:
   - "CTF"
 estimated_minutes: 70
 summary: "Как разобрать Unity-игру на IL2CPP: global-metadata.dat, libil2cpp.so, Il2CppDumper и восстановление символов."
+lab:
+  kind: shell
+  title: "Практика: строки из global-metadata.dat"
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "В IL2CPP-сборке метаданные C# лежат в `global-metadata.dat` (магия `0xFAB11BAF`)."
+    - "Строковые литералы игры хранятся в метаданных открытым текстом."
+    - "Используй `strings` с порогом 5 символов."
+    - "`strings -n 5 global-metadata.dat | grep nto > found.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

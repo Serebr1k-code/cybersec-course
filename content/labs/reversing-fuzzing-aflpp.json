@@ -1,0 +1,47 @@
+{
+  "id": "reversing-fuzzing-aflpp",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{aflpp_c0v3r4g3_m4g1c_0xdead}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: краш из AFL++\n\nТы запустил `afl-fuzz` на парсере `parse`. В каталоге `out/default/crashes/`\nлежит вход, на котором программа упала. Нужно понять, что за магия его ломает.\n\n1. `ls -la out/default/crashes` — список крашей.\n2. `cat out/default/crashes/crash_0000` — вход, который привёл к падению.\n3. Найди магическую строку-константу, которую искал фаззер.\n\nФлаг: `nto{...}` внутри краш-входа.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/out",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/out/default",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/out/default/crashes",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/parse.c",
+      "text": "#include <string.h>\nint main(int argc, char** argv){ char buf[64]; /* read file */\n  if (!memcmp(buf, \"MAGIC\\x00\", 6)) { /* parse fields */ }\n  return 0; }\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/out/default/fuzzer_stats",
+      "text": "start_time        : 1750000000\nexecs_done        : 1248391\nsaved_crashes     : 1\nedges_found       : 42\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/out/default/crashes/crash_0000",
+      "b64": "TUFHSUMAAAAAAG50b3thZmxwcF9jMHYzcjRnM19tNGcxY18weGRlYWR9AP//",
+      "mode": "644"
+    }
+  ]
+}

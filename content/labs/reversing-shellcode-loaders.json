@@ -1,0 +1,25 @@
+{
+  "id": "reversing-shellcode-loaders",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d0nut_st4g3_r3fl3ct1v3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: shellcode-загрузчик\n\n`payload.bin` — «сырой» blob без заголовков (не PE, не начинается с `MZ`).\nЭто shellcode, который загрузчик разворачивает в памяти.\n\n1. `file payload.bin` — увидишь `data` (нет заголовка).\n2. `xxd -l 32 payload.bin` — первая инструкция `e8 00 00 00 00` это `call $+5`\n   (позиционно-независимый код).\n3. Выгрузи строки и найди URL стейджера и артефакт с флагом.\n\nФлаг: `nto{...}` среди строк payload.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/payload.bin",
+      "b64": "6AAAAABdg+0GjYUAAAAAkJGSk5SVlpeYmZqbnJ2en/zoggAAAGh0dHA6Ly8xMC4xMC4yMC43L3N0YWdlAG50b3tkMG51dF9zdDRnM19yM2ZsM2N0MXYzfQA=",
+      "mode": "644"
+    }
+  ]
+}

@@ -13,6 +13,18 @@ useful_for:
   - "Detection engineering"
 estimated_minutes: 70
 summary: "Как достать встроенную конфигурацию бикона: строки, XOR-ключи, структура Cobalt Strike и подходы для Sliver/Mythic."
+lab:
+  kind: shell
+  title: "Практика: декодируем конфиг C2-бикона"
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`strings` не находит C2, потому что конфиг XOR-нут одним байтом."
+    - "Блок конфига начинается сразу после PE-заголовка; первый байт — ключ `0x2e`."
+    - "Запусти `python3 beacon_conf.py beacon.exe` — скрипт снимет XOR и распечатает поля."
+    - "`python3 beacon_conf.py beacon.exe > conf.txt`, затем `grep nto conf.txt > found.txt` и `check`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -13,6 +13,18 @@ useful_for:
   - "CTF"
 estimated_minutes: 70
 summary: "Как читать в дизассемблере основные техники инъекции кода в чужой процесс и какие вызовы WinAPI их выдают."
+lab:
+  kind: shell
+  title: "Практика: подпись инъекции по импортам"
+  toolset: [core, hex, strings]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни со `strings -n 6 inject.exe` — импорты Windows видны как обычные строки."
+    - "Классика remote-thread: `OpenProcess` + `VirtualAllocEx` + `WriteProcessMemory` + `CreateRemoteThread`."
+    - "Наличие `QueueUserAPC` без `CreateRemoteThread` выдаёт APC-инъекцию."
+    - "`strings -n 6 inject.exe > s.txt && grep nto s.txt > found.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

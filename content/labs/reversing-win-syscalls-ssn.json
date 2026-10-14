@@ -1,0 +1,25 @@
+{
+  "id": "reversing-win-syscalls-ssn",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h3lls_g4t3_ssn_0x18}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: direct syscall\n\n`implant.exe` вызывает ядро напрямую (`syscall`), минуя `ntdll`, чтобы обойти\nEDR-хуки. Нужно определить номер системного вызова (SSN) и найти артефакт.\n\n1. `xxd -l 32 implant.exe` — увидишь стаб `mov r10,rcx; mov eax,18h; syscall`.\n2. `0x18` — это SSN (номер операции в конкретной сборке Windows).\n3. Выгрузи строки — там имена техник (Hell's Gate и т.п.) и артефакт.\n\nФлаг: `nto{...}` среди строк образца.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/implant.exe",
+      "b64": "TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFBFAABMAQQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABMi9G4GAAAAA8FwwAAAAAAAAAASGVsbEdhdGUASGFsb0dhdGUARnJlc2h5Q2FsbHMAU3lzV2hpc3BlcnMzAHNzbl90YWJsZV9udG97aDNsbHNfZzR0M19zc25fMHgxOH0A",
+      "mode": "644"
+    }
+  ]
+}
