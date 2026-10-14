@@ -21,6 +21,7 @@ lab:
   files: [task.md, expr.txt]
   check: 'grep -q ''75'' answer.txt'
   hints:
+    - "Повторение (`reversing-obfuscation`): сначала `head -n 5 expr.txt` — вспомни приём из «Обфускация и control-flow flattening»."
     - 'Выражение эквивалентно `a + b`.'
     - 'a = 60, b = 15.'
     - '`echo 75 > answer.txt` затем `check`.'

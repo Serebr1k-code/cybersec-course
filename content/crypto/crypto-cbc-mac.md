@@ -21,6 +21,7 @@ lab:
   files: [task.md, msg.txt, tag.hex, cbcmac_forge.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-hmac`): сначала `head -n 5 msg.txt` — вспомни приём из «HMAC: как он устроен и как его ломают (или нет)»."
     - "CBC-MAC одного блока m1 — это просто E_k(m1)."
     - "Тег сообщения m1||m2 равен E_k(m1 ⊕ m2)."
     - "Подбери m2 так, чтобы новый тег совпал с известным."

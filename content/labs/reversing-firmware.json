@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: разбор прошивки\n\n`firmware.bin` — образ: заголовок u-boot + SquashFS с `/etc/flag.txt`.\n\n1. `binwalk firmware.bin` — найди смещение SquashFS.\n2. `dd if=firmware.bin of=root.sqfs bs=1 skip=65` — вырежи ФС.\n3. `strings root.sqfs` — найди секрет rootfs.\n4. Запиши флаг в `found.txt`.\n"
+      "text": "# Задача: разбор прошивки\n## Повторение (`reversing-static-analysis`)\n\nПрежде чем браться за «Реверс прошивок (firmware)», повтори приём из `reversing-static-analysis` — «Статический анализ: Ghidra, IDA, radare2». Практический обзор дизассемблеров: как загружать бинарник, ориентироваться, искать и переименовывать.\nСначала маленький шаг тем же приёмом:\n\n    xxd -l 32 firmware.bin\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\n`firmware.bin` — образ: заголовок u-boot + SquashFS с `/etc/flag.txt`.\n\n1. `binwalk firmware.bin` — найди смещение SquashFS.\n2. `dd if=firmware.bin of=root.sqfs bs=1 skip=65` — вырежи ФС.\n3. `strings root.sqfs` — найди секрет rootfs.\n4. Запиши флаг в `found.txt`.\n"
     },
     {
       "path": "/home/student/task/firmware.bin",

@@ -21,6 +21,7 @@ lab:
   files: [task.md, curve.txt, ecc.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-diffie-hellman`): сначала `head -n 5 curve.txt` — вспомни приём из «Diffie-Hellman: малые подгруппы, Logjam и дискретные логарифмы»."
     - "Кривая задана y² = x³ + ax + b mod p."
     - "Порядок точки мал → применим BSGS."
     - "`python3 ecc.py | grep nto > found.txt`."

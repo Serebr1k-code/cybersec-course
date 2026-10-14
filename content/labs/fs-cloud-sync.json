@@ -10,7 +10,7 @@
     { "path": "/home/student/task", "type": "dir" },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: облачная синхронизация\n\n`filecache.txt` — вывод из SQLite-базы клиента Dropbox. Файла локально нет, но запись о нём осталась. Найди путь и метку.\n\n1. `cat filecache.txt`.\n2. Смотри таблицу записей о файлах.\n3. `grep nto filecache.txt > answer.txt`.\n",
+      "text": "# Задача: облачная синхронизация\n## Повторение (`forensics-fs-structure`)\n\nПрежде чем браться за «Облачная синхронизация: Dropbox/OneDrive/GDrive на диске», повтори приём из `forensics-fs-structure` — «forensics-fs-structure». \nСначала маленький шаг тем же приёмом:\n\n    head -n 5 filecache.txt\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\n`filecache.txt` — вывод из SQLite-базы клиента Dropbox. Файла локально нет, но запись о нём осталась. Найди путь и метку.\n\n1. `cat filecache.txt`.\n2. Смотри таблицу записей о файлах.\n3. `grep nto filecache.txt > answer.txt`.\n",
       "mode": "644"
     },
     {

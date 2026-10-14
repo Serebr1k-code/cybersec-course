@@ -21,6 +21,7 @@ lab:
   files: [task.md, profile.b64, admin_block.b64, cutpaste.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-cbc-bitflip`): сначала `head -n 5 cutpaste.py` — вспомни приём из «CBC bit-flipping: контролируемое искажение открытого текста»."
     - "ECB шифрует одинаковые 16-байтовые блоки одинаково."
     - "Сделай так, чтобы блок `admin` оказался на месте блока `role=...`."
     - "Склей первый блок профиля с зашифрованным блоком `admin`."

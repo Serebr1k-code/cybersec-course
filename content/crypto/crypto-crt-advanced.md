@@ -21,6 +21,7 @@ lab:
   files: [task.md, moduli.txt, ciphertexts.txt, hastad.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-number-theory`): сначала `head -n 5 moduli.txt` — вспомни приём из «Теория чисел для крипто: модульная арифметика, gcd, обратный элемент, CRT»."
     - "Три модуля, один малый показатель e=3."
     - "Собери CRT-систему из трёх сравнений."
     - "Затем возьми целочисленный кубический корень."

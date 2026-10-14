@@ -21,6 +21,7 @@ lab:
   files: [task.md, masterkey.bin, secret.b64, protect.log]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`forensics-registry-hives`): сначала `xxd -l 32 masterkey.bin` — вспомни приём из «forensics-registry-hives»."
     - 'Посмотри на файлы: `ls -la` и `file masterkey.bin`.'
     - '`strings masterkey.bin` покажет GUID мастер-ключа.'
     - 'Секрет лежит в base64: `base64 -d secret.b64`.'

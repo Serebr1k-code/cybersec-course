@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: прочитать инструкцию eBPF\n\neBPF-инструкция — 8 байт: `opcode(1) | dst:src(1) | off(2) | imm(4)`.\nOpcode `0xb7` = `MOV64_IMM` (r0 = imm), `0x95` = `EXIT`.\n\n1. `xxd ebpf.bin`\n2. Разбери первую инструкцию: `b7 00 00 00 2a 00 00 00`.\n3. `imm` (младшие 4 байта, little-endian) — `2a 00 00 00`.\n\nЗапиши **значение, загружаемое в r0** (десятичное число) в `answer.txt`.\n"
+      "text": "# Задача: прочитать инструкцию eBPF\n## Повторение (`reversing-kernel-drivers`)\n\nПрежде чем браться за «Реверс eBPF-программ», повтори приём из `reversing-kernel-drivers` — «Реверс драйверов ядра». Анализ kernel-драйверов Windows и модулей Linux: точки входа, IOCTL, хуки, rootkit-техники и безопасный разбор.\nСначала маленький шаг тем же приёмом:\n\n    xxd -l 32 ebpf.bin\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\neBPF-инструкция — 8 байт: `opcode(1) | dst:src(1) | off(2) | imm(4)`.\nOpcode `0xb7` = `MOV64_IMM` (r0 = imm), `0x95` = `EXIT`.\n\n1. `xxd ebpf.bin`\n2. Разбери первую инструкцию: `b7 00 00 00 2a 00 00 00`.\n3. `imm` (младшие 4 байта, little-endian) — `2a 00 00 00`.\n\nЗапиши **значение, загружаемое в r0** (десятичное число) в `answer.txt`.\n"
     },
     {
       "path": "/home/student/task/ebpf.bin",

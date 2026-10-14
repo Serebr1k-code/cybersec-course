@@ -20,6 +20,7 @@ lab:
   files: [task.md, notes.txt, pair.txt, mitm.py]
   check: 'grep -q ''nto{m33t_1n_th3_m1ddl3_0n_2d3s}'' found.txt'
   hints:
+    - "Повторение (`crypto-aes-modes`): сначала `head -n 5 notes.txt` — вспомни приём из «AES и режимы: ECB, CBC, CTR, GCM»."
     - '`cat pair.txt`.'
     - '`python3 mitm.py` — находит K1, K2 и печатает флаг.'
     - '`python3 mitm.py | grep nto > found.txt`.'

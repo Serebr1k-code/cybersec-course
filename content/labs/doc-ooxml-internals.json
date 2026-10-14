@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача\n## Повторение (`forensics-file-magic`)\n\nПрежде чем браться за «OOXML изнутри: docx, xlsx, pptx как ZIP-архивы», повтори приём из `forensics-file-magic` — «forensics-file-magic». \nСначала маленький шаг тем же приёмом:\n\n    head -n 5 evidence.txt\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
       "mode": "644"
     },
     {

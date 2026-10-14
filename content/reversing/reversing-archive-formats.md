@@ -21,6 +21,7 @@ lab:
   files: [task.md, sample.zip]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`reversing-file-formats`): сначала `xxd -l 32 sample.zip` — вспомни приём из «Форматы исполняемых файлов: ELF, PE, Mach-O»."
     - '`file sample.zip` — определи формат.'
     - '`unzip -l sample.zip` — список содержимого.'
     - '`strings -n 5 sample.zip` — имена вложений и артефакт.'

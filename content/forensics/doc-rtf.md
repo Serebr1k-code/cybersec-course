@@ -21,6 +21,7 @@ lab:
   files: [task.md, rtf_objects.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
+    - "Повторение (`forensics-file-magic`): сначала `head -n 5 rtf_objects.txt` — вспомни приём из «forensics-file-magic»."
     - "RTF может встраивать OLE-объекты (\\object, \\objdata)."
     - "\\objupdate заставляет открыть объект — частый вектор."
     - "`grep nto rtf_objects.txt > answer.txt`."

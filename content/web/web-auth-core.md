@@ -21,6 +21,7 @@ lab:
   files: [task.md, cookies.txt]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-auth-jwt-idor`): сначала `head -n 5 cookies.txt` — вспомни приём из «Аутентификация, JWT, IDOR и контроль доступа»."
     - 'Ты вошёл как `alice` (id=42), cookie сохранена в `cookies.txt`.'
     - 'Открой свой профиль: `curl -s -b cookies.txt https://shop.local/api/v1/users/42`.'
     - 'Сервер проверяет только факт логина, а не принадлежность объекта. Подставь чужой id.'

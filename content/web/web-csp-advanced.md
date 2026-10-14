@@ -20,6 +20,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-csp-bypass`): сначала `head -n 5 task.md` — вспомни приём из «CSP и его обход»."
     - 'Сними заголовки: curl -sI https://shop.local/ — увидишь script-src с nonce.'
     - 'С nonce и strict-dynamic инлайн-скрипт с ЭТИМ nonce разрешён.'
     - 'Nonce переиспользуется в отражённом параметре q.'

@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
+    - "Повторение (`forensics-file-magic`): сначала `head -n 5 evidence.txt` — вспомни приём из «forensics-file-magic»."
     - 'Прочитай файл-артефакт: `cat <файл>`.'
     - 'Ищи строку с меткой nto{.'
     - 'Сохрани: `grep nto <файл> > answer.txt`.'

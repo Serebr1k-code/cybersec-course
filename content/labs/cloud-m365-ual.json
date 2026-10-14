@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: M365 Unified Audit Log\n\n`ual.log` — выгрузка аудита M365. Найди подозрительную операцию и метку.\n\n1. `head ual.log`.\n2. `grep -Ei 'inboxrule|consent|nto' ual.log`.\n3. `grep nto ual.log > found.txt`.\n"
+      "text": "# Задача: M365 Unified Audit Log\n## Повторение (`forensics-cloud-multi`)\n\nПрежде чем браться за «M365 Unified Audit Log: форензика аудита», повтори приём из `forensics-cloud-multi` — «forensics-cloud-multi». \nСначала маленький шаг тем же приёмом:\n\n    head -n 5 ual.log\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\n`ual.log` — выгрузка аудита M365. Найди подозрительную операцию и метку.\n\n1. `head ual.log`.\n2. `grep -Ei 'inboxrule|consent|nto' ual.log`.\n3. `grep nto ual.log > found.txt`.\n"
     },
     {
       "path": "/home/student/task/ual.log",

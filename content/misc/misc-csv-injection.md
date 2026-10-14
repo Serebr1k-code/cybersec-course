@@ -21,6 +21,7 @@ lab:
   files: [task.md, dump.csv]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`misc-serialization`): сначала `head -n 5 dump.csv` — вспомни приём из «Модуль: сериализация данных и парсинг»."
     - 'Изучи `task.md` — там условие.'
     - 'Инструменты: `ls`, `file`, `xxd`, `strings`, `python3`.'
 ---

@@ -9,7 +9,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Bitcoin Script\n\nВ `witness.txt` — разбор witness. Метка в base64. Достань её в `found.txt`.\n"
+      "text": "# Bitcoin Script\n## Повторение (`misc-blockchain`)\n\nПрежде чем браться за «Bitcoin Script, SegWit и Ordinals», повтори приём из `misc-blockchain` — «Модуль: блокчейн и Web3». Этап misc про блокчейн: Solidity-уязвимости, reentrancy и DeFi-атаки, инструменты Foundry/cast, экономические векторы вроде MEV и front-running.\nСначала маленький шаг тем же приёмом:\n\n    head -n 5 tx.hex\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\nВ `witness.txt` — разбор witness. Метка в base64. Достань её в `found.txt`.\n"
     },
     {
       "path": "/home/student/task/tx.hex",

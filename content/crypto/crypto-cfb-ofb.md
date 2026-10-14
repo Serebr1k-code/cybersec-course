@@ -21,6 +21,7 @@ lab:
   files: [task.md, ct1.hex, ct2.hex, ofb_reuse.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-aes-modes`): сначала `head -n 5 ct1.hex` — вспомни приём из «AES и режимы: ECB, CBC, CTR, GCM»."
     - "Изучи `task.md`: дан известный фрагмент первого открытого текста."
     - "OFB превращает блочный шифр в потоковый: C = P ⊕ keystream."
     - "Один и тот же key+IV дают одинаковый keystream для обоих сообщений."

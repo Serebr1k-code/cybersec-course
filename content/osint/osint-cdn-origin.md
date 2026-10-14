@@ -20,6 +20,7 @@ lab:
   files: [task.md, dns.pcap]
   check: "grep -q '203.0.113.10' answer.txt"
   hints:
+    - "Повторение (`osint-infrastructure`): сначала `xxd -l 32 dns.pcap` — вспомни приём из «Сканеры интернета: Shodan, Censys, FOFA и Certificate Transparency»."
     - "DNS-дамп: `tshark -r dns.pcap -Y dns -T fields -e ip.src -e ip.dst -e dns.qry.name -e dns.a`."
     - "104.16.x.x — это Cloudflare, а не origin."
     - "Ищи поддомен, который резолвится в адрес вне сети Cloudflare."

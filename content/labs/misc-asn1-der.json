@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# ASN.1\n\n`cert.der.hex` — hex-дамп сертификата. Пройди по TLV и найди флаг.\n"
+      "text": "# ASN.1\n## Повторение (`misc-serialization`)\n\nПрежде чем браться за «ASN.1/DER: разбор и уязвимости», повтори приём из `misc-serialization` — «Модуль: сериализация данных и парсинг». Этап misc про форматы сериализации: Protobuf, MessagePack/CBOR, ASN.1/DER, CSV и инъекции через парсеры.\nСначала маленький шаг тем же приёмом:\n\n    head -n 5 cert.der.hex\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\n`cert.der.hex` — hex-дамп сертификата. Пройди по TLV и найди флаг.\n"
     },
     {
       "path": "/home/student/task/cert.der.hex",

@@ -21,6 +21,7 @@ lab:
   files: [task.md, inv.bin, gf.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-number-theory`): сначала `xxd -l 32 inv.bin` — вспомни приём из «Теория чисел для крипто: модульная арифметика, gcd, обратный элемент, CRT»."
     - "Поле GF(2⁸) — то же, что в AES."
     - "Обратный элемент находится перебором: a·x ≡ 1."
     - "`python3 gf.py | grep nto > found.txt`."

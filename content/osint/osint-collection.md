@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`osint-intro`): сначала `head -n 5 task.md` — вспомни приём из «Введение в OSINT: разведка по открытым источникам»."
     - "RDAP отдаёт тот же реестр, что whois, но в JSON."
     - "Запроси домен: `curl -s https://rdap.verisign.com/com/v1/domain/example.com`."
     - "Смотри поля `status` и `events`; маркер — в `remarks`."

@@ -21,6 +21,7 @@ lab:
   files: [task.md, Check.exe]
   check: "grep -q 'nto{d0tn3t_m3t4d4t4_surv1v3s}' found.txt"
   hints:
+    - "Повторение (`reversing-intro`): сначала `xxd -l 32 Check.exe` — вспомни приём из «Введение в реверс-инжиниринг»."
     - '`file Check.exe` — PE32, но внутри `Mono/.Net assembly` (есть CLR-заголовок).'
     - '`monodis Check.exe` — IL managed-кода; ищи метод `Verify(int32)` и `Main`.'
     - 'Логика `Verify`: `ldarg.0` / `ldc.i4 4919` / `bne.un` → `x == 4919`.'

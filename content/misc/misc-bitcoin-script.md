@@ -21,6 +21,7 @@ lab:
   files: [task.md, witness.txt]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`misc-blockchain`): сначала `head -n 5 tx.hex` — вспомни приём из «Модуль: блокчейн и Web3»."
     - '`cat witness.txt`'
     - '`cut -d: -f2`'
     - '`base64 -d`'

@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: оценить утечки по email\n\nДля адреса `analyst@example.com` сервис HIBP вернул список утечек — он лежит в `breaches.json`.\n\n1. Посмотри ответ: `cat breaches.json`\n2. Найди утечку, где в `DataClasses` реально утёк пароль — там есть строка `Passwords`.\n   `grep -i passwords breaches.json`\n3. Рядом с ней лежит маркер `nto{...}` (пометка исследования). Запиши его в `answer.txt` и набери `check`.\n"
+      "text": "# Практика: оценить утечки по email\n## Повторение (`osint-people-search`)\n\nПрежде чем браться за «Работа с утечками: HIBP, DeHashed и этика», повтори приём из `osint-people-search` — «Поиск людей: email, телефон, утечки и открытые реестры». Системный поиск человека по email, телефону и имени: паттерны корпоративных адресов, проверка утечек, Gravatar, реестры и этические границы.\nСначала маленький шаг тем же приёмом:\n\n    head -n 5 breaches.json\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\nДля адреса `analyst@example.com` сервис HIBP вернул список утечек — он лежит в `breaches.json`.\n\n1. Посмотри ответ: `cat breaches.json`\n2. Найди утечку, где в `DataClasses` реально утёк пароль — там есть строка `Passwords`.\n   `grep -i passwords breaches.json`\n3. Рядом с ней лежит маркер `nto{...}` (пометка исследования). Запиши его в `answer.txt` и набери `check`.\n"
     },
     {
       "path": "/home/student/task/breaches.json",

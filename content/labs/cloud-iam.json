@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: CloudTrail\n\n`cloudtrail.log` — журнал AWS CloudTrail. Восстанови цепочку эскалации и найди метку.\n\n1. `head cloudtrail.log`.\n2. `grep -Ei 'CreateAccessKey|AttachUserPolicy|GetSecret|nto' cloudtrail.log`.\n3. `grep nto cloudtrail.log > found.txt`.\n"
+      "text": "# Задача: CloudTrail\n## Повторение (`forensics-cloud-multi`)\n\nПрежде чем браться за «Cloud IAM: форензика идентичности в AWS/GCP/Azure», повтори приём из `forensics-cloud-multi` — «forensics-cloud-multi». \nСначала маленький шаг тем же приёмом:\n\n    head -n 5 cloudtrail.log\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\n`cloudtrail.log` — журнал AWS CloudTrail. Восстанови цепочку эскалации и найди метку.\n\n1. `head cloudtrail.log`.\n2. `grep -Ei 'CreateAccessKey|AttachUserPolicy|GetSecret|nto' cloudtrail.log`.\n3. `grep nto cloudtrail.log > found.txt`.\n"
     },
     {
       "path": "/home/student/task/cloudtrail.log",

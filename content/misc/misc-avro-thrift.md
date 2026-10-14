@@ -21,6 +21,7 @@ lab:
   files: [task.md, response.bin, thrift_dump.txt]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`misc-serialization-advanced`): сначала `xxd -l 32 response.bin` — вспомни приём из «Модуль: продвинутая сериализация и структурированные форматы»."
     - '`response.bin` — бинарный ответ (заглушка).'
     - '`thrift_dump.txt` — результат разбора полей.'
     - 'Найди строковое поле с меткой и запиши флаг в found.txt.'

@@ -20,6 +20,7 @@ lab:
   files: [task.md, ct.bin, feistel.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-block-analysis`): сначала `xxd -l 32 ct.bin` — вспомни приём из «Дифференциальный и линейный криптоанализ: введение»."
     - "Изучи структуру сети Фейстеля в уроке."
     - "Обратимость: раунды применяются в обратном порядке."
     - "`python3 feistel.py | grep nto > found.txt`."

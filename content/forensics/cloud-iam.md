@@ -21,6 +21,7 @@ lab:
   files: [task.md, cloudtrail.log]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`forensics-cloud-multi`): сначала `head -n 5 cloudtrail.log` — вспомни приём из «forensics-cloud-multi»."
     - 'Начни с `ls -la cloudtrail.log` и `head cloudtrail.log`.'
     - 'Поля: eventName, userIdentity, sourceIPAddress, eventTime.'
     - 'Ищи CreateAccessKey, AttachUserPolicy, AssumeRole, GetSecretValue.'

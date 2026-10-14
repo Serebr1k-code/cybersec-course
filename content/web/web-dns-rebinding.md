@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-ssrf`): сначала `head -n 5 task.md` — вспомни приём из «SSRF: Server-Side Request Forgery»."
     - "Ручка резолвит хост и блокирует приватные IP — прямой `169.254.169.254` отсекается."
     - "Наш домен `evil.example` чередует ответы: публичный IP для проверки, `127.0.0.1` для запроса."
     - "Посмотри DNS: `dig evil.example A` — две A-записи, TTL 0."

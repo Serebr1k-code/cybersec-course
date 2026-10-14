@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
+    - "Повторение (`forensics-fs-structure`): сначала `head -n 5 smb.txt` — вспомни приём из «forensics-fs-structure»."
     - 'Прочитай файл-артефакт: `cat <файл>`.'
     - 'Ищи строку с меткой nto{.'
     - 'Сохрани: `grep nto <файл> > answer.txt`.'

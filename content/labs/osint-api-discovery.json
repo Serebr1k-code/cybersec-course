@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: API discovery\n\n1. `curl -s https://api.example.com/openapi.json`\n2. Посмотри поле `paths` — список эндпоинтов.\n3. GraphQL: `curl -s -X POST https://api.example.com/graphql -d '{\"query\":\"{__schema{types{name}}}\"}'`\n4. Маркер `nto{...}` — запиши в `answer.txt`, затем `check`.\n"
+      "text": "# Практика: API discovery\n## Повторение (`osint-kubernetes-recon`)\n\nПрежде чем браться за «API discovery: спецификации, Swagger и GraphQL», повтори приём из `osint-kubernetes-recon` — «Kubernetes: открытые API, kubelet и дашборды». Как находить открытые Kubernetes API, kubelet и дашборды, читать версии и проверять анонимный доступ — без эксплуатации.\nСначала маленький шаг тем же приёмом:\n\n    head -n 5 task.md\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\n1. `curl -s https://api.example.com/openapi.json`\n2. Посмотри поле `paths` — список эндпоинтов.\n3. GraphQL: `curl -s -X POST https://api.example.com/graphql -d '{\"query\":\"{__schema{types{name}}}\"}'`\n4. Маркер `nto{...}` — запиши в `answer.txt`, затем `check`.\n"
     }
   ],
   "tools": {

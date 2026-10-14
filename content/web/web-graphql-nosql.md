@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-injection-backends`): сначала `head -n 5 task.md` — вспомни приём из «Инъекции в бэкенд-хранилища: GraphQL, Elasticsearch, ORM, EL-движки»."
     - 'GraphQL-эндпоинт /graphql принимает query с аргументом filter.'
     - 'Резолвер кладёт filter прямо в MongoDB-запрос.'
     - 'Передай в filter JSON с оператором $ne: {"$ne":null}.'

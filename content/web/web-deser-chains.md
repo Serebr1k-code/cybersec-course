@@ -21,6 +21,7 @@ lab:
   files: [task.md, samples.txt]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-deserialization`): сначала `head -n 5 samples.txt` — вспомни приём из «Небезопасная десериализация»."
     - 'Посмотри samples.txt: там несколько сериализованных блобов и их первые байты.'
     - 'Java native начинается с 0xACED, Hessian — с буквы H, JSON с {@type, PHP — с O:'
     - 'Определи, какой формат у блоба с подозрением на fastjson (JSON с @type).'

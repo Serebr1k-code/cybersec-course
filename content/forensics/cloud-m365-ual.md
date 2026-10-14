@@ -21,6 +21,7 @@ lab:
   files: [task.md, ual.log]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`forensics-cloud-multi`): сначала `head -n 5 ual.log` — вспомни приём из «forensics-cloud-multi»."
     - 'Начни с `ls -la ual.log` и `head ual.log`.'
     - 'Журнал — построчный JSON; поля RecordType, Operation, UserId, ClientIP.'
     - 'Ищи подозрительную операцию (например, New-InboxRule или ConsentToApplication).'

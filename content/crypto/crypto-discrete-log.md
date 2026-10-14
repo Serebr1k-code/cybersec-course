@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, p.txt, g.txt, h.txt, factors.txt, ph.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-number-theory`): сначала `head -n 5 notes.txt` — вспомни приём из «Теория чисел для крипто: модульная арифметика, gcd, обратный элемент, CRT»."
     - "Запусти `python3 ph.py`."
     - "p−1 гладкое — раскладывается на малые простые."
     - "Решаем dlog в каждой подгруппе и собираем CRT."

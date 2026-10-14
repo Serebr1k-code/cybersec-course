@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-injection-protocol`): сначала `head -n 5 task.md` — вспомни приём из «Инъекции на уровне протокола: заголовки, почта, XML, OData»."
     - 'Форма /contact кладёт поле email в заголовок To письма.'
     - 'Вставь в email перевод строки %0a и строку Bcc: с нужным адресом.'
     - 'Допиши Bcc на адрес exfil@attacker и отправь форму.'

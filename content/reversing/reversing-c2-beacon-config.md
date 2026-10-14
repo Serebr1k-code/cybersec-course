@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`reversing-malware-static`): сначала `head -n 5 beacon_conf.py` — вспомни приём из «Статический анализ malware»."
     - "`strings` не находит C2, потому что конфиг XOR-нут одним байтом."
     - "Блок конфига начинается сразу после PE-заголовка; первый байт — ключ `0x2e`."
     - "Запусти `python3 beacon_conf.py beacon.exe` — скрипт снимет XOR и распечатает поля."

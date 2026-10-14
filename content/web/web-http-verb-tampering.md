@@ -20,6 +20,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-http-basics`): сначала `head -n 5 task.md` — вспомни приём из «Основы HTTP и анатомия веб-запроса»."
     - Обычный GET к админке блокируется: `curl -s https://shop.local/admin`.
     - Правило безопасности написано только под POST — смена метода обходит его.
     - Попробуй POST: `curl -s -X POST https://shop.local/admin`.

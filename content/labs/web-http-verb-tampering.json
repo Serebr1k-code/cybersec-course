@@ -10,7 +10,7 @@
     { "path": "/home/student/task", "type": "dir" },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: HTTP method tampering\n\nЦель — `https://shop.local/admin`. Правило безопасности разрешает только\n`POST` (для служебных вызовов), но забывает, что `GET` — это другой метод.\nПроверь методы и обойди защиту.\n\n1. Обычный GET блокируется:\n   `curl -s https://shop.local/admin`\n2. Смени метод на POST — правило на него не распространяется:\n   `curl -s -X POST https://shop.local/admin | grep 'nto{' > found.txt`\n3. Набери `check`.\n"
+      "text": "# Практика: HTTP method tampering\n## Повторение (`web-http-basics`)\n\nПрежде чем браться за «HTTP method/verb tampering и method override», повтори приём из `web-http-basics` — «Основы HTTP и анатомия веб-запроса». Как устроен HTTP-запрос и ответ: методы, заголовки, cookies, коды состояния — фундамент для всех дальнейших атак.\nСначала маленький шаг тем же приёмом:\n\n    head -n 5 task.md\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\nЦель — `https://shop.local/admin`. Правило безопасности разрешает только\n`POST` (для служебных вызовов), но забывает, что `GET` — это другой метод.\nПроверь методы и обойди защиту.\n\n1. Обычный GET блокируется:\n   `curl -s https://shop.local/admin`\n2. Смени метод на POST — правило на него не распространяется:\n   `curl -s -X POST https://shop.local/admin | grep 'nto{' > found.txt`\n3. Набери `check`.\n"
     }
   ],
   "tools": {

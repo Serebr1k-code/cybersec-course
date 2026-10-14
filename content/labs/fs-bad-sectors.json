@@ -10,7 +10,7 @@
     { "path": "/home/student/task", "type": "dir" },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: SMART и бэд-блоки\n\n`smart-A.txt` — вывод `smartctl -A`. Оцени состояние диска и найди метку.\n\n1. `cat smart-A.txt`.\n2. Посмотри атрибуты 5 (Reallocated), 197 (Pending), 198 (Offline_Uncorrectable).\n3. `grep nto smart-A.txt > answer.txt`.\n",
+      "text": "# Задача: SMART и бэд-блоки\n## Повторение (`forensics-fs-structure`)\n\nПрежде чем браться за «Бэд-блоки и переназначение секторов: как не потерять улики», повтори приём из `forensics-fs-structure` — «forensics-fs-structure». \nСначала маленький шаг тем же приёмом:\n\n    head -n 5 smart-A.txt\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\n`smart-A.txt` — вывод `smartctl -A`. Оцени состояние диска и найди метку.\n\n1. `cat smart-A.txt`.\n2. Посмотри атрибуты 5 (Reallocated), 197 (Pending), 198 (Offline_Uncorrectable).\n3. `grep nto smart-A.txt > answer.txt`.\n",
       "mode": "644"
     },
     {

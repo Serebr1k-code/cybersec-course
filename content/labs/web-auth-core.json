@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: IDOR/BOLA (горизонтальный доступ)\n\nТы вошёл как `alice` (id=42) на `shop.local`. API отдаёт профиль по id,\nпроверяя только факт логина. Смени идентификатор на чужой.\n\n1. Свой профиль:\n   curl -s -b cookies.txt https://shop.local/api/v1/users/42\n2. Чужой id (администратор):\n   curl -s -b cookies.txt https://shop.local/api/v1/users/1\n3. В профиле админа — флаг.\n4. Запиши последнюю строку в `found.txt` и набери `check`.\n"
+      "text": "# Практика: IDOR/BOLA (горизонтальный доступ)\n## Повторение (`web-auth-jwt-idor`)\n\nПрежде чем браться за «Аутентификация: ядро сессий и контроля доступа», повтори приём из `web-auth-jwt-idor` — «Аутентификация, JWT, IDOR и контроль доступа». Разбираем сессии и токены, ломаем JWT, находим IDOR/BOLA и обходим контроль доступа по-настоящему.\nСначала маленький шаг тем же приёмом:\n\n    head -n 5 cookies.txt\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\nТы вошёл как `alice` (id=42) на `shop.local`. API отдаёт профиль по id,\nпроверяя только факт логина. Смени идентификатор на чужой.\n\n1. Свой профиль:\n   curl -s -b cookies.txt https://shop.local/api/v1/users/42\n2. Чужой id (администратор):\n   curl -s -b cookies.txt https://shop.local/api/v1/users/1\n3. В профиле админа — флаг.\n4. Запиши последнюю строку в `found.txt` и набери `check`.\n"
     },
     {
       "path": "/home/student/task/cookies.txt",

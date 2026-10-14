@@ -21,6 +21,7 @@ lab:
   files: [task.md, ebpf.bin]
   check: 'grep -q ''42'' answer.txt'
   hints:
+    - "Повторение (`reversing-kernel-drivers`): сначала `xxd -l 32 ebpf.bin` — вспомни приём из «Реверс драйверов ядра»."
     - 'imm хранится little-endian: байты `2a 00 00 00`.'
     - '`0x2a` = 42.'
     - '`echo 42 > answer.txt` затем `check`.'

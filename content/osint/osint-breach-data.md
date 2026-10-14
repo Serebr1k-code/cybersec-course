@@ -21,6 +21,7 @@ lab:
   files: [task.md, breaches.json]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`osint-people-search`): сначала `head -n 5 breaches.json` — вспомни приём из «Поиск людей: email, телефон, утечки и открытые реестры»."
     - "Ответ HIBP лежит в `breaches.json`: `cat breaches.json`."
     - "Смотри `DataClasses`: пароль утёк там, где есть строка `Passwords`."
     - "Найди её: `grep -i passwords breaches.json`."

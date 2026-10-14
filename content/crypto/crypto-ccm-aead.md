@@ -21,6 +21,7 @@ lab:
   files: [task.md, forge.py]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`crypto-aes-modes`): сначала `head -n 5 forge.py` — вспомни приём из «AES и режимы: ECB, CBC, CTR, GCM»."
     - 'CCM аутентифицирует данные через CBC-MAC.'
     - 'CBC-MAC без кодирования длины уязвим к удлинению сообщения.'
     - 'Зная тег одного блока `t`, построй второй блок как `m2 XOR t`.'

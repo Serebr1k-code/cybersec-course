@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: секрет DPAPI\n\nВ профиле пользователя лежат мастер-ключ (`masterkey.bin`) и зашифрованный секрет (`secret.b64`, в base64). Расшифруй секрет и найди флаг.\n\n1. `ls -la` и `file masterkey.bin` — что за файлы.\n2. `strings masterkey.bin` — GUID мастер-ключа.\n3. `base64 -d secret.b64` — открытый секрет.\n4. `base64 -d secret.b64 | grep nto > found.txt`.\n"
+      "text": "# Задача: секрет DPAPI\n## Повторение (`forensics-registry-hives`)\n\nПрежде чем браться за «DPAPI: мастер-ключи, CREDHIST и расшифровка секретов», повтори приём из `forensics-registry-hives` — «forensics-registry-hives». \nСначала маленький шаг тем же приёмом:\n\n    xxd -l 32 masterkey.bin\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\nВ профиле пользователя лежат мастер-ключ (`masterkey.bin`) и зашифрованный секрет (`secret.b64`, в base64). Расшифруй секрет и найди флаг.\n\n1. `ls -la` и `file masterkey.bin` — что за файлы.\n2. `strings masterkey.bin` — GUID мастер-ключа.\n3. `base64 -d secret.b64` — открытый секрет.\n4. `base64 -d secret.b64 | grep nto > found.txt`.\n"
     },
     {
       "path": "/home/student/task/masterkey.bin",

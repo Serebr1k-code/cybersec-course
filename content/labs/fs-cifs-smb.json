@@ -10,7 +10,7 @@
     { "path": "/home/student/task", "type": "dir" },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: SMB-шара\n\n`smb.txt` — список шар и события доступа. Найди, к какой шаре был доступ, и метку.\n\n1. `cat smb.txt`.\n2. Смотри события 5140/5145 и имя шары.\n3. `grep nto smb.txt > answer.txt`.\n",
+      "text": "# Задача: SMB-шара\n## Повторение (`forensics-fs-structure`)\n\nПрежде чем браться за «SMB/CIFS: общие папки Windows и их следы», повтори приём из `forensics-fs-structure` — «forensics-fs-structure». \nСначала маленький шаг тем же приёмом:\n\n    head -n 5 smb.txt\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\n`smb.txt` — список шар и события доступа. Найди, к какой шаре был доступ, и метку.\n\n1. `cat smb.txt`.\n2. Смотри события 5140/5145 и имя шары.\n3. `grep nto smb.txt > answer.txt`.\n",
       "mode": "644"
     },
     {

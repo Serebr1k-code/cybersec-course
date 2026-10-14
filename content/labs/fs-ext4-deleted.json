@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: удалённый файл ext4\n\n`ext4.img` — образ раздела ext4 с удалённым файлом. Найди метку.\n\n1. `file ext4.img`.\n2. `strings ext4.img | grep -Ei 'i_dtime|extent|jbd2'`.\n3. `strings ext4.img | grep nto > found.txt`.\n"
+      "text": "# Задача: удалённый файл ext4\n## Повторение (`forensics-deleted-recovery`)\n\nПрежде чем браться за «ext4: восстановление удалённых inode и extent», повтори приём из `forensics-deleted-recovery` — «forensics-deleted-recovery». \nСначала маленький шаг тем же приёмом:\n\n    xxd -l 32 ext4.img\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\n`ext4.img` — образ раздела ext4 с удалённым файлом. Найди метку.\n\n1. `file ext4.img`.\n2. `strings ext4.img | grep -Ei 'i_dtime|extent|jbd2'`.\n3. `strings ext4.img | grep nto > found.txt`.\n"
     },
     {
       "path": "/home/student/task/ext4.img",

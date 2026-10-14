@@ -20,6 +20,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-xss`): сначала `head -n 5 task.md` — вспомни приём из «XSS: отражённый, хранимый и DOM-based»."
     - 'Параметр theme отражается внутри <style>.'
     - 'CSS-селектор атрибута: input[value^="nto{"].'
     - 'url() в background заставляет браузер сделать запрос к слушателю.'

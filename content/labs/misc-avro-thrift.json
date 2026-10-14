@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Thrift\n\n`thrift_dump.txt` — разобранные поля ответа.\nНайди служебную метку и запиши флаг в `found.txt`.\n"
+      "text": "# Thrift\n## Повторение (`misc-serialization-advanced`)\n\nПрежде чем браться за «Avro и Thrift: схемы, IDL и разбор», повтори приём из `misc-serialization-advanced` — «Модуль: продвинутая сериализация и структурированные форматы». Вторая ступень сериализации: Avro/Thrift (IDL и схемы), TOML/INI, NDJSON, iCalendar/vCard и игровые форматы NBT/Anvil.\nСначала маленький шаг тем же приёмом:\n\n    xxd -l 32 response.bin\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\n`thrift_dump.txt` — разобранные поля ответа.\nНайди служебную метку и запиши флаг в `found.txt`.\n"
     },
     {
       "path": "/home/student/task/response.bin",

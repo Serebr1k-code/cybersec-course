@@ -21,6 +21,7 @@ lab:
   files: [task.md, firmware.bin]
   check: "grep -q 'nto{u_b00t_squ4shfs_s3cr3t}' found.txt"
   hints:
+    - "Повторение (`reversing-static-analysis`): сначала `xxd -l 32 firmware.bin` — вспомни приём из «Статический анализ: Ghidra, IDA, radare2»."
     - 'Прошивка = заголовок (u-boot) + файловая система. `binwalk firmware.bin` покажет смещение SquashFS.'
     - 'Смещение SquashFS — 65 байт (0x41).'
     - 'Вырежи файловую систему: `dd if=firmware.bin of=root.sqfs bs=1 skip=65`.'

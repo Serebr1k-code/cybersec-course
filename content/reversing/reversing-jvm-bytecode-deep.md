@@ -21,6 +21,7 @@ lab:
   files: [task.md, Hello.class]
   check: "grep -q 'nto{jvm_byt3c0d3_0p3nc0d3}' found.txt"
   hints:
+    - "Повторение (`reversing-intro`): сначала `xxd -l 32 Hello.class` — вспомни приём из «Введение в реверс-инжиниринг»."
     - 'Байткод лежит прямо в файле: `strings Hello.class` покажет строки пула констант.'
     - '`javap -c -p Hello` — штатный дизассемблер JVM.'
     - 'В `main` есть `ldc // String <флаг>`; логика `check(int)` сравнивает аргумент с `sipush 4919`.'

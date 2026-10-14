@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: владелец домена через RDAP\n\nНачни сбор с владельца домена `example.com`. RDAP отдаёт тот же реестр, что и whois, но в JSON.\n\n1. Запроси домен: `curl -s https://rdap.verisign.com/com/v1/domain/example.com > domain.json`\n2. Посмотри ответ: `cat domain.json` (или `grep -i remarks domain.json`)\n3. В поле `remarks` регистратора лежит маркер `nto{...}`. Запиши его в `answer.txt` и набери `check`.\n   (Бонус: `curl -s https://rdap.org/ip/8.8.8.8` покажет владельца IP-блока.)\n"
+      "text": "# Практика: владелец домена через RDAP\n## Повторение (`osint-intro`)\n\nПрежде чем браться за «Сбор данных: поиск, дорки и инфраструктура», повтори приём из `osint-intro` — «Введение в OSINT: разведка по открытым источникам». Что такое OSINT, какие бывают источники, цикл разведки, юридические и этические границы, и как выглядит рабочий процесс разведчика.\nСначала маленький шаг тем же приёмом:\n\n    head -n 5 task.md\n\nЭто возвращает тебя в контекст предшествующего урока, и уже затем — собственно задача ниже.\n\n\nНачни сбор с владельца домена `example.com`. RDAP отдаёт тот же реестр, что и whois, но в JSON.\n\n1. Запроси домен: `curl -s https://rdap.verisign.com/com/v1/domain/example.com > domain.json`\n2. Посмотри ответ: `cat domain.json` (или `grep -i remarks domain.json`)\n3. В поле `remarks` регистратора лежит маркер `nto{...}`. Запиши его в `answer.txt` и набери `check`.\n   (Бонус: `curl -s https://rdap.org/ip/8.8.8.8` покажет владельца IP-блока.)\n"
     }
   ],
   "tools": {

