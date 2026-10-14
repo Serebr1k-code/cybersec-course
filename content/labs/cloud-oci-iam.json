@@ -1,0 +1,27 @@
+{
+  "id": "cloud-oci-iam",
+  "workdir": "/home/student/oci-iam",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/oci-iam/found.txt",
+    "contains": "nto{0c1_p0l1cy_m4n4g3_4ll}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/oci-iam",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/oci-iam/task.md",
+      "text": "# Задача\n\nВ репозитории найдены политики OCI и заметки инженера. Определи, какая группа имеет полный контроль над тенантом, и собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/oci-iam/policies.txt",
+      "text": "allow group ci-deploy to manage all-resources in tenancy\nallow group developers to read buckets in compartment Dev\nallow dynamic-group ci-runners to use instances in compartment Build\nallow group auditors to inspect all-resources in tenancy\n"
+    },
+    {
+      "path": "/home/student/oci-iam/notes.md",
+      "text": "Разбор:\n\n- ci-deploy: manage all-resources in tenancy -> полный контроль\n- developers: read buckets -> только чтение\n- ci-runners: dynamic group по тегу role=ci\n- auditors: inspect -> метаданные\n\nИнженер пометил: политику ci-deploy не сужали с момента создания.\nОстаток заметки: nto{0c1_p0l1cy_m4n4g3_4ll}\n"
+    }
+  ]
+}
