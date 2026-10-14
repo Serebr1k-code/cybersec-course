@@ -1,0 +1,27 @@
+{
+  "id": "misc-esolang-cow",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c0w_m00s_4t_y0u}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# COW\n\n`moo.cow` — программа на COW; `tokens.txt` — её токены и вывод.\nНайди метку и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/moo.cow",
+      "text": "MoO MoO MoO MoO MoO MoO MoO MoO MoO MoO MoO MoO MoO\\n"
+    },
+    {
+      "path": "/home/student/task/tokens.txt",
+      "text": "unique tokens: MoO MOo mOo moo Moo\\ninterpreter output: nto{c0w_m00s_4t_y0u}\\n"
+    }
+  ]
+}

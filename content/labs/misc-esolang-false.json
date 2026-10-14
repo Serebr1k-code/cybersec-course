@@ -1,0 +1,27 @@
+{
+  "id": "misc-esolang-false",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{f4ls3_st4ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# FALSE\n\n`prog.false` — программа на FALSE; `run.txt` — её вывод.\nНайди метку и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/prog.false",
+      "text": "110 116 111 , , , 123 , ...\\n"
+    },
+    {
+      "path": "/home/student/task/run.txt",
+      "text": "$ false prog.false\\nnto{f4ls3_st4ck}\\n"
+    }
+  ]
+}
