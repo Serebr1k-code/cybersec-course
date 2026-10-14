@@ -1,0 +1,42 @@
+{
+  "id": "web-splunk",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{splunk_l0gs_l34k_t0k3ns_4nd_p4ssw0rds}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: секреты в логах Splunk\n\nЦель: `http://splunk.local:8000` (API на `:8089`).\n\n1. Определи версию (дефолтные креды admin/changeme):\n   curl -s -k -u admin:changeme https://splunk.local:8089/services/server/info\n\n2. Выполни поиск по шаблону (ищем токены и пароли в логах):\n   curl -s -k -u admin:changeme -X POST 'https://splunk.local:8089/services/search/jobs/export' -d 'search=index=* | regex password|token' -d 'output_mode=json'\n\n3. В результатах — строка с флагом. Сохрани в found.txt и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция splunk.local)",
+      "cases": [
+        {
+          "match": "search/jobs/export|regex|output_mode",
+          "example": "-s -k -u admin:changeme -X POST '.../search/jobs/export' -d 'search=index=* | regex password|token'",
+          "output": "{\"result\":{\"_raw\":\"POST /api/pay Authorization: Bearer eyJhbGciOi...\"}}\n{\"result\":{\"_raw\":\"db conn string postgres://app:Pr0dDBpass@db.internal\"}}\n{\"result\":{\"_raw\":\"nto{splunk_l0gs_l34k_t0k3ns_4nd_p4ssw0rds}\"}}\n"
+        },
+        {
+          "match": "server/info",
+          "example": "-s -k -u admin:changeme https://splunk.local:8089/services/server/info",
+          "output": "<s:key name=\"version\">9.0.4</s:key>\n"
+        },
+        {
+          "match": "splunk\\.local:8000|account/login",
+          "example": "-s -k http://splunk.local:8000/en-US/account/login",
+          "output": "<html><head><title>Splunk</title></head><body>Sign in</body></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только splunk.local"
+    }
+  }
+}

