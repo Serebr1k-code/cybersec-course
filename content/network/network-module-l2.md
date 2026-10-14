@@ -165,6 +165,8 @@ $ tshark -r l2.pcap -Y vlan -T fields -e vlan.id -e ip.src -e tcp.dstport
 - **Отключён LLDP/CDP на абонентских портах.** Топология не утекает — разведка труднее.
 - **Storm control.** Всплеск broadcast гасится на порту (иногда с err-disable).
 
+<!-- lab -->
+
 ## Практика: чтение L2-сегмента
 
 ```

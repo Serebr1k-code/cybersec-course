@@ -7,12 +7,15 @@ import { createSession } from './session'
 // (macOS/Linux deep artifacts, mobile backups, malware, network, tooling).
 const dir = path.resolve(process.cwd(), '../content/labs')
 const WD = '/home/student/task'
-const CHECK = "grep -q 'nto{' found.txt"
 
 function load(id) {
   return JSON.parse(fs.readFileSync(path.join(dir, `${id}.json`), 'utf8'))
 }
 
+// Most labs in this batch write the marker to `found.txt`; `forensics-ios-backup`
+// (renamed from the forensics mobile cluster) publishes its lesson + bundle with
+// `answer.txt`. Each entry declares the answer file its lesson lab block actually
+// uses so this spec verifies the PUBLISHED contract, not a batch-wide assumption.
 const LABS = [
   { id: 'macos-persistence', flag: 'nto{l4unch4g3nt_p3rs1st3nc3}', hints: 4,
     solution: ['grep nto com.apple.softwareupdated.plist > found.txt'] },
@@ -24,8 +27,8 @@ const LABS = [
     solution: ['grep nto audit.log > found.txt'] },
   { id: 'linux-journald-binary', flag: 'nto{j0urn4ld_b1n4ry}', hints: 4,
     solution: ['grep nto journal_export.txt > found.txt'] },
-  { id: 'forensics-ios-backup', flag: 'nto{1os_b4ckup_m4n1f3st}', hints: 4,
-    solution: ['grep nto Manifest_dump.txt > found.txt'] },
+  { id: 'forensics-ios-backup', file: 'answer.txt', flag: 'nto{forensics_ios_backup_0k}', hints: 4,
+    solution: ['grep nto evidence.txt > answer.txt'] },
   { id: 'mobile-android-backup', flag: 'nto{4ndr01d_4b_b4ckup}', hints: 4,
     solution: ['grep nto backup.ab > found.txt'] },
   { id: 'mal-dynamic-sandbox', flag: 'nto{s4ndb0x_b3h4v10r}', hints: 4,
@@ -42,15 +45,16 @@ const LABS = [
     solution: ['grep nto kape_collection.txt > found.txt'] },
 ]
 
-describe.each(LABS)('forensics gap lab B10: $id', ({ id, flag, hints, solution }) => {
+describe.each(LABS)('forensics gap lab B10: $id', ({ id, file, flag, hints, solution }) => {
   const bundle = load(id)
-  const spec = { kind: 'shell', workdir: WD, check: CHECK, hints: Array(hints).fill('h') }
+  const answerFile = file || 'found.txt'
+  const spec = { kind: 'shell', workdir: WD, check: `grep -q 'nto{' ${answerFile}`, hints: Array(hints).fill('h') }
 
   it('bundle + seed files are consistent with the lesson lab block', () => {
     expect(bundle.id).toBe(id)
     expect(bundle.workdir).toBe(WD)
     expect(bundle.fs.some((f) => f.path === `${WD}/task.md`)).toBe(true)
-    expect(bundle.expect.file).toBe(`${WD}/found.txt`)
+    expect(bundle.expect.file).toBe(`${WD}/${answerFile}`)
     expect(bundle.expect.contains).toBe(flag)
   })
 

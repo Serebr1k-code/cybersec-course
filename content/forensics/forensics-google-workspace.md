@@ -128,6 +128,8 @@ BigQuery). Поэтому выгрузку делают сразу.
 - проверить delegated admins и service accounts;
 - ограничить external sharing в Drive.
 
+<!-- lab -->
+
 ## Мини-практика: связать токен и скачивание
 
 ```

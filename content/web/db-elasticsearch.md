@@ -264,6 +264,8 @@ $ curl -s 'http://shop.local:9200/users/_search?size=2&_source=username,role&pre
 
 `_source=username,role` возвращает только нужные поля — меньше шума и меньше данных в ответе.
 
+<!-- lab -->
+
 ## Что мы теперь знаем
 
 - Elasticsearch говорит по HTTP/JSON на 9200; `tagline` и `cluster_name` — его признаки.

@@ -196,6 +196,8 @@ SELECT current_user, rolsuper FROM pg_roles WHERE rolname = current_user;
 
 Приложение должно ходить в БД под ролью без `SUPERUSER` и без прав на `COPY ... PROGRAM`, `pg_read_file`, `lo_import`. Ограничь `CREATE EXTENSION` только администратором, а `shared_preload_libraries` держи под контролем. Файловая система сервера БД должна быть доступна процессу `postgres` минимально, а исходящий трафик — ограничен. Параметризация запросов в приложении закрывает причину.
 
+<!-- lab -->
+
 ## Квиз
 
 Проверь себя.

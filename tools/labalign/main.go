@@ -231,8 +231,6 @@ func main() {
 		total++
 		perCatLabs[l.Category]++
 
-		bodyTools := toolsForLesson(l)
-
 		labT, taskText := invokedToolsCached(*contentDir, l)
 
 		// (i) lab ⊆ lesson.
@@ -587,25 +585,34 @@ func prereqPath(l *model.Lesson, byID map[string]*model.Lesson) []string {
 // with the lesson. It compares the lab's topic tokens (invoked tools, files
 // named in `check`/task, and words from the task heading) against the lesson's
 // vocabulary (id, tags, title, and body). Empty intersection == flagged.
+//
+// Tokens are split into sub-words (cipher.txt -> {cipher,txt}, caesar.py ->
+// {caesar,py}) so a bespoke lab that reuses a lesson's concept under a filename
+// is not falsely flagged; generic command words and the lab's own boilerplate
+// nouns (cat/grep/answer/found/nto…) are dropped so a placeholder lab that
+// merely hunts a marker is still correctly flagged on a topic lesson.
 func topicRelated(l *model.Lesson, labTools map[string]bool, taskText string) bool {
 	lab := map[string]bool{}
 	for t := range labTools {
-		lab[t] = true
-	}
-	for _, w := range wordRe.FindAllString(l.Lab.Check, -1) {
-		lab[strings.ToLower(w)] = true
-	}
-	for _, w := range wordRe.FindAllString(taskText, -1) {
-		if len(w) >= 3 {
-			lab[strings.ToLower(w)] = true
+		if basic[t] {
+			continue
 		}
+		for _, w := range topicTokens(t) {
+			lab[w] = true
+		}
+	}
+	for _, w := range topicTokens(l.Lab.Check) {
+		lab[w] = true
+	}
+	for _, w := range topicTokens(taskText) {
+		lab[w] = true
 	}
 	// NB: the lesson id is deliberately NOT injected here — it always overlaps
 	// the lesson vocabulary and would make this check vacuous.
 
 	lesson := map[string]bool{}
 	addText := func(s string) {
-		for _, w := range wordRe.FindAllString(strings.ToLower(s), -1) {
+		for _, w := range topicTokens(s) {
 			lesson[w] = true
 		}
 	}
@@ -622,4 +629,29 @@ func topicRelated(l *model.Lesson, labTools map[string]bool, taskText string) bo
 		}
 	}
 	return false
+}
+
+// topicStop are non-discriminative words that appear in the generic placeholder
+// lab and in the prose of almost every lesson; they carry no topical signal.
+var topicStop = map[string]bool{
+	"nto": true, "txt": true, "md": true, "py": true, "json": true,
+	"answer": true, "found": true, "evidence": true, "task": true,
+	"artifact": true, "артефакт": true, "file": true, "files": true,
+	"string": true, "strings": true, "line": true, "line1": true,
+}
+
+var nonAlnum = regexp.MustCompile(`[^a-z0-9]+`)
+
+// topicTokens splits a string into lower-cased sub-words of length >= 3,
+// dropping non-discriminative boilerplate.
+func topicTokens(s string) []string {
+	var out []string
+	for _, w := range wordRe.FindAllString(strings.ToLower(s), -1) {
+		for _, sub := range nonAlnum.Split(w, -1) {
+			if len(sub) >= 3 && !topicStop[sub] {
+				out = append(out, sub)
+			}
+		}
+	}
+	return out
 }

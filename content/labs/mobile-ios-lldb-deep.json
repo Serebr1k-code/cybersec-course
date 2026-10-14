@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-lldb-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{lldb_r3g1st3r_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ LLDB-сессии\n\nНайди сравниваемый ключ.\n"
+    },
+    {
+      "path": "/home/student/task/lldb_session.txt",
+      "text": "(lldb) breakpoint set -n -[LicenseManager validate:]\nBreakpoint 1 at 0x100004a20\n(lldb) register read x1\n      x1 = 0x283a1c240\n(lldb) memory read --format c --count 24 0x283a1c240\n0x283a1c240: PREMIUM-UNLOCK-KEY-2024  # flag: nto{lldb_r3g1st3r_l34k}\n"
+    }
+  ]
+}

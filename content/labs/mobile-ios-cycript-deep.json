@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-cycript-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cycr1pt_sw1zzl3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ Cycript\n\nНайди премиум-значение.\n"
+    },
+    {
+      "path": "/home/student/task/cycript_out.txt",
+      "text": "cy# var s = [UserSession sharedInstance]\ncy# *s\n{ isPremium:function(){...}, token:function(){...}, secret:\"unlock-vip-2024\" }\ncy# s.isPremium()\nfalse  # real check uses secret: nto{cycr1pt_sw1zzl3}\n"
+    }
+  ]
+}

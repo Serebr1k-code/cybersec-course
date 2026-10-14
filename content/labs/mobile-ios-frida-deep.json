@@ -1,0 +1,27 @@
+{
+  "id": "mobile-ios-frida-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{fr1d4_0bjc_h00k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ Frida-хука\n\nНайди подменённое значение.\n"
+    },
+    {
+      "path": "/home/student/task/hook.js",
+      "text": "var m = ObjC.classes.Auth[\"- secretToken\"];\nInterceptor.attach(m.implementation, {\n  onLeave: function (r) { console.log(r); }\n});\n"
+    },
+    {
+      "path": "/home/student/task/frida_out.txt",
+      "text": "[MyApp]-> secretToken()\ntoken=prod-9f8a2c  # flag: nto{fr1d4_0bjc_h00k}\n"
+    }
+  ]
+}

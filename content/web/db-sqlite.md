@@ -194,6 +194,8 @@ $ curl -s "https://shop.example/product?id=1;ATTACH DATABASE '/var/www/html/s.ph
 - **SQLite повсюду в мобильных приложениях** — те же payload работают в локальных базах на телефоне.
 - **Не пиши в прод без согласования** — `ATTACH`/`CREATE` меняют файлы.
 
+<!-- lab -->
+
 ## Квиз
 
 Проверь себя.
