@@ -1,0 +1,23 @@
+{
+  "id": "misc-rust-solana",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Solana: аккаунты и PDA\n\nВ `accounts.txt` — дамп аккаунтов программы. Метка в base64. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/program.rs",
+      "text": "#[derive(Accounts)]\npub struct Transfer<'info> {\n    #[account(mut)]\n    pub from: Account<'info, TokenAccount>,\n}\n"
+    },
+    {
+      "path": "/home/student/task/accounts.txt",
+      "text": "dump\nflag:bnRve3MwbDRuNF80Y2MwdW50X2MwbmZ1czEwbn0=\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "misc-move-sui",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Move/Sui: ресурсы и объекты\n\nВ `objects.txt` — список объектов модуля. Метка в base64.\nНайди её и запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/module.move",
+      "text": "module coin::mycoin {\n    struct Coin has key, store { value: u64 }\n}\n"
+    },
+    {
+      "path": "/home/student/task/objects.txt",
+      "text": "dump\nflag:bnRve20wdjNfYzRwNGIxbDF0eV9jMG5mdXMxMG59\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "misc-cosmos-wasm",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Cosmos/CosmWasm\n\nВ `state.txt` — дамп состояния контракта. Метка в base64. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/contract.rs",
+      "text": "fn withdraw(deps: DepsMut, env: Env, info: MessageInfo, amount: Uint128) -> StdResult<Response> {\n    Ok(Response::new())\n}\n"
+    },
+    {
+      "path": "/home/student/task/state.txt",
+      "text": "dump\nflag:bnRve2Mwc213NHNtXzFiY180Y2tfYzBuZnVzMTBufQ==\n"
+    }
+  ]
+}

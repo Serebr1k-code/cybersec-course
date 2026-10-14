@@ -1,0 +1,23 @@
+{
+  "id": "misc-cairo-starknet",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Cairo: felt-арифметика\n\nВ `storage.txt` — дамп значений хранилища. Метка закодирована в base64.\nДостань её и запиши в `found.txt`.\n\nФормат строки: `label:BASE64`.\n"
+    },
+    {
+      "path": "/home/student/task/contract.cairo",
+      "text": "fn withdraw(amount: felt252, balance: felt252) {\n    // BUG: manual range check\n    assert(amount - balance < 1000, 'ok');\n}\n"
+    },
+    {
+      "path": "/home/student/task/storage.txt",
+      "text": "dump\nflag:bnRve2M0MXIwX2YzbHRfMHYzcmZsMHd9\n"
+    }
+  ]
+}
