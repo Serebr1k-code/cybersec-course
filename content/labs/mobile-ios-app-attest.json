@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-app-attest",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ch4ll3ng3_n0t_ch3ck3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит аттестации\n\nНайди пропущенную проверку.\n"
+    },
+    {
+      "path": "/home/student/task/attestation_object.txt",
+      "text": "cert_chain_valid: true\nbundle_hash_match: true\ncounter_monotonic: true\nchallenge_checked: false  # flag: nto{ch4ll3ng3_n0t_ch3ck3d}\n"
+    }
+  ]
+}

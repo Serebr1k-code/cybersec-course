@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-entitlements",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{t4sk_f0r_p1d_d4ng3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит entitlements\n\nНайди опасное право.\n"
+    },
+    {
+      "path": "/home/student/task/entitlements.plist",
+      "text": "<key>application-identifier</key><string>ABCDE12345.com.example.app</string>\n<key>aps-environment</key><string>production</string>\n<key>task_for_pid-allow</key><true/>  # flag: nto{t4sk_f0r_p1d_d4ng3r}\n<key>com.apple.private.security.no-sandbox</key><true/>\n"
+    }
+  ]
+}

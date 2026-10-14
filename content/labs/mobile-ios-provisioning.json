@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-provisioning",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pr0f1l3_ud1d_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит профиля\n\nОпредели тип и найди утечку.\n"
+    },
+    {
+      "path": "/home/student/task/profile.plist",
+      "text": "Name: Example Ad Hoc Profile\nTeamIdentifier: [ABCDE12345]\nExpirationDate: 2025-01-10\nProvisionedDevices:\n  - 00008030-000A1B2C3D4E   # our device\n  - 00008120-9999AAAABBBB   # foreign device  flag: nto{pr0f1l3_ud1d_l34k}\n"
+    }
+  ]
+}

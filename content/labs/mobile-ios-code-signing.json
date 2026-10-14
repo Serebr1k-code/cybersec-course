@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-code-signing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{g3t_t4sk_4ll0w_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит подписи\n\nНайди опасный entitlement.\n"
+    },
+    {
+      "path": "/home/student/task/codesign_output.txt",
+      "text": "Authority=Apple iPhone OS Application Signing\nAuthority=Apple Root CA\nTeamIdentifier=ABCDE12345\nentitlements:\n  application-identifier: ABCDE12345.com.example.app\n  get-task-allow: true   # flag: nto{g3t_t4sk_4ll0w_l34k}\n  keychain-access-groups: [ABCDE12345.com.example.app]\n"
+    }
+  ]
+}
