@@ -545,6 +545,50 @@ func TestStaticFallbackAndAPINotFound(t *testing.T) {
 	}
 }
 
+// TestStaticPWAAssetHeaders checks that the PWA entry points are served with the
+// right MIME types and are never cached, so a new deploy / service-worker
+// update is always picked up.
+func TestStaticPWAAssetHeaders(t *testing.T) {
+	staticDir := t.TempDir()
+	writeFixture(t, staticDir, "manifest.webmanifest", `{"name":"CTF Learning Tree"}`)
+	writeFixture(t, staticDir, "sw.js", "self.addEventListener('install', () => {})")
+	writeFixture(t, staticDir, "index.html", "<!doctype html><title>CTF Learning Tree</title>")
+
+	contentDir := t.TempDir()
+	writeFixture(t, contentDir, "web/fixture-basics.md", fixtureBasics)
+	c := content.NewStore(contentDir)
+	if err := c.Load(); err != nil {
+		t.Fatalf("load content: %v", err)
+	}
+	ts := httptest.NewServer(New(c, progress.NewStore(t.TempDir()), staticDir).Handler())
+	t.Cleanup(ts.Close)
+
+	cases := []struct {
+		path      string
+		wantType  string
+		wantCache string
+	}{
+		{"/manifest.webmanifest", "application/manifest+json", "no-cache"},
+		{"/sw.js", "application/javascript; charset=utf-8", "no-cache"},
+		{"/index.html", "text/html; charset=utf-8", "no-cache"},
+	}
+	for _, tc := range cases {
+		resp, body := doReq(t, ts, "GET", tc.path, "", "")
+		if resp.StatusCode != 200 {
+			t.Errorf("%s status = %d, want 200", tc.path, resp.StatusCode)
+		}
+		if got := resp.Header.Get("Content-Type"); got != tc.wantType {
+			t.Errorf("%s Content-Type = %q, want %q", tc.path, got, tc.wantType)
+		}
+		if got := resp.Header.Get("Cache-Control"); got != tc.wantCache {
+			t.Errorf("%s Cache-Control = %q, want %q", tc.path, got, tc.wantCache)
+		}
+		if len(body) == 0 {
+			t.Errorf("%s returned an empty body", tc.path)
+		}
+	}
+}
+
 func TestAchievementsCatalogue(t *testing.T) {
 	ts := newTestServer(t)
 

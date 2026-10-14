@@ -140,7 +140,8 @@ func (s *Server) handleLab(w http.ResponseWriter, r *http.Request) {
 	_, _ = w.Write(b)
 }
 
-func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {	q := r.URL.Query().Get("q")
+func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query().Get("q")
 	writeJSON(w, 200, map[string]any{"query": q, "results": s.Content.Search(q)})
 }
 
@@ -395,15 +396,38 @@ func (s *Server) handleStatic(w http.ResponseWriter, r *http.Request) {
 	clean := filepath.Clean("/" + r.URL.Path)
 	full := filepath.Join(s.StaticDir, clean)
 	if info, err := os.Stat(full); err == nil && !info.IsDir() {
-		http.ServeFile(w, r, full)
+		serveStaticFile(w, r, full)
 		return
 	}
 	index := filepath.Join(s.StaticDir, "index.html")
 	if _, err := os.Stat(index); err == nil {
-		http.ServeFile(w, r, index)
+		serveStaticFile(w, r, index)
 		return
 	}
 	writeJSON(w, 200, map[string]string{
 		"message": "API is running. Build the frontend (cd frontend && npm run build) to serve the UI.",
 	})
+}
+
+// serveStaticFile serves a file from the built frontend, fixing up the MIME
+// types Go does not know about (the web app manifest) and disabling caching for
+// the entry points that must be revalidated so a new deploy is picked up:
+// index.html and the service worker sw.js.
+func serveStaticFile(w http.ResponseWriter, r *http.Request, full string) {
+	switch strings.ToLower(filepath.Ext(full)) {
+	case ".webmanifest":
+		w.Header().Set("Content-Type", "application/manifest+json")
+		// Revalidate so manifest/icon changes land with the next deploy.
+		w.Header().Set("Cache-Control", "no-cache")
+	case ".js", ".mjs":
+		// Go's default is text/javascript; the PWA spec/register call expects
+		// an executable script type. Be explicit so it never depends on the host.
+		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	}
+	switch filepath.Base(full) {
+	case "index.html", "sw.js":
+		// Never let the browser (or an intermediary) serve a stale shell/worker.
+		w.Header().Set("Cache-Control", "no-cache")
+	}
+	http.ServeFile(w, r, full)
 }
