@@ -1,0 +1,46 @@
+{
+  "id": "osint-social-whatsapp",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{w4_gr0up_1nv1t3_d0s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: WhatsApp-OSINT\n\n1. `cat invites.txt` — объявление с номером и ссылкой.\n2. `python3 parse_wa.py` — нормализуй номера в E.164.\n3. `python3 wa_preview.py B7kQ2mNp4Rt9` — превью группы.\n4. Скопируй маркер `nto{...}` в `answer.txt`.\n5. `check`.\n"
+    },
+    {
+      "path": "/home/student/task/invites.txt",
+      "text": "Барахолка района: +7 916 555-01-23\nЧат: https://chat.whatsapp.com/B7kQ2mNp4Rt9\nМенеджер: +7 903 555-77-11\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — разбор WhatsApp-артефактов (эмуляция)",
+      "cases": [
+        {
+          "match": "parse_wa",
+          "example": "python3 parse_wa.py",
+          "output": "+79165550123\n+79035557711\n"
+        },
+        {
+          "match": "wa_preview",
+          "example": "python3 wa_preview.py B7kQ2mNp4Rt9",
+          "output": "Группа: «Барахолка Северное Бутово»\nОписание: объявления и самовывоз, админ +7 916 555-01-23\nУчастников: 412\nnto{w4_gr0up_1nv1t3_d0s}\n"
+        },
+        {
+          "match": "wa_business",
+          "example": "python3 wa_business.py +79035557711",
+          "output": "Категория: Курьерская служба\nСайт: example-delivery.ru\nАдрес: Москва, ул. Примерная, 1\n"
+        }
+      ],
+      "fallback": "python3: доступны parse_wa.py, wa_preview.py <код>, wa_business.py <номер>.\n"
+    }
+  }
+}

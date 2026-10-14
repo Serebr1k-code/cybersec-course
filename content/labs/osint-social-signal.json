@@ -1,0 +1,36 @@
+{
+  "id": "osint-social-signal",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{s1gn4l_gr0up_1nv1t3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Signal-OSINT\n\n1. `cat invite.txt` — ссылка-приглашение.\n2. `python3 parse_signal.py` — разбор типа и объекта.\n3. Найди маркер `nto{...}` и запиши в `answer.txt`.\n4. `check`.\n"
+    },
+    {
+      "path": "/home/student/task/invite.txt",
+      "text": "https://signal.group/#CjQKIB2x_example_invite_code_2024\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — разбор Signal-ссылки (эмуляция)",
+      "cases": [
+        {
+          "match": "parse_signal",
+          "example": "python3 parse_signal.py",
+          "output": "Тип: group invite\nДомен: signal.group\nКод: CjQKIB2x...\nПублично: название группы (после открытия)\nНе публично: участники, сообщения, номера\nnto{s1gn4l_gr0up_1nv1t3}\n"
+        }
+      ],
+      "fallback": "python3: доступен parse_signal.py.\n"
+    }
+  }
+}

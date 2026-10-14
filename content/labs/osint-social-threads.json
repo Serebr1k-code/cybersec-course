@@ -1,0 +1,36 @@
+{
+  "id": "osint-social-threads",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{thr34ds_1g_l1nk}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Threads-OSINT\n\n1. `cat post.txt` — сохранившаяся ссылка на пост.\n2. `python3 parse_threads.py` — разбор автора и метаданных.\n3. Найди маркер `nto{...}` и запиши в `answer.txt`.\n4. `check`.\n"
+    },
+    {
+      "path": "/home/student/task/post.txt",
+      "text": "https://www.threads.net/@nordwind/post/C8xY1aBcDeF?hl=ru\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — разбор Threads-ссылки (эмуляция)",
+      "cases": [
+        {
+          "match": "parse_threads",
+          "example": "python3 parse_threads.py",
+          "output": "Автор: @nordwind\nПост-ID: C8xY1aBcDeF\nInstagram: nordwind_official (связан)\nДата: 2024-11-02\nnto{thr34ds_1g_l1nk}\n"
+        }
+      ],
+      "fallback": "python3: доступен parse_threads.py.\n"
+    }
+  }
+}

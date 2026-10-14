@@ -1,0 +1,43 @@
+{
+  "id": "osint-social-bluesky",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{blu3sky_pds_r3s0lv3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Bluesky / AT Protocol\n\n1. Резолвни DID: `curl -s https://plc.directory/did:plc:abc123example > did.json`.\n2. `jq -r '.service[]?.serviceEndpoint' did.json` — найди PDS.\n3. Один сервис помечен маркером `nto{...}`.\n4. Запиши в `answer.txt`, затем `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — AT Protocol / PLC directory (эмуляция)",
+      "cases": [
+        {
+          "match": "plc\\.directory",
+          "example": "curl -s https://plc.directory/did:plc:abc123example",
+          "output": "{\"@context\":[\"https://www.w3.org/ns/did/v1\"],\"id\":\"did:plc:abc123example\",\"alsoKnownAs\":[\"at://nordwind.bsky.social\"],\"service\":[{\"id\":\"#atproto_pds\",\"type\":\"AtprotoPersonalDataServer\",\"serviceEndpoint\":\"https://pds.example.net\"},{\"id\":\"#atproto_labeler\",\"type\":\"AtprotoLabeler\",\"serviceEndpoint\":\"https://labeler.example.net\"}],\"x_flag\":\"nto{blu3sky_pds_r3s0lv3d}\"}\n"
+        }
+      ],
+      "fallback": "curl: доступен только https://plc.directory/<did>.\n"
+    },
+    "jq": {
+      "help": "jq [-r] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "serviceEndpoint|alsoKnownAs|service",
+          "example": "jq -r '.service[]?.serviceEndpoint' did.json",
+          "output": "https://pds.example.net\nhttps://labeler.example.net\n"
+        }
+      ],
+      "fallback": "jq: поддержан фильтр по .service[].serviceEndpoint.\n"
+    }
+  }
+}
