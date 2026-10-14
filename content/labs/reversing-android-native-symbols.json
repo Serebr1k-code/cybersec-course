@@ -1,0 +1,38 @@
+{
+  "id": "reversing-android-native-symbols",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{jni_r3g1st3rn4t1v3s_symb0ls}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: JNI-символы\n\n`libnative.so` — обрезанная библиотека.\n1. `strings -n 5 libnative.so` — найди имена JNI-функций.\n2. Ищи `Java_...` и `RegisterNatives`.\n3. Найди строку-артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/libnative.so",
+      "b64": "f0VMRgIBAQAAAAAAAAAAAAIAtwABAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAEAAAAAAAEphdmFfY29tX2V4YW1wbGVfYXBwX05hdGl2ZUJyaWRnZV9jaGVja0xpY2Vuc2UASmF2YV9jb21fZXhhbXBsZV9hcHBfTmF0aXZlQnJpZGdlX2dldERldmljZUlkAFJlZ2lzdGVyTmF0aXZlcwBKTklfT25Mb2FkAG50b3tqbmlfcjNnMXN0M3JuNHQxdjNzX3N5bWIwbHN9AA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "nm": {
+      "help": "nm [-D] <файл> — таблица символов",
+      "cases": [
+        {
+          "match": "-D",
+          "example": "-D libnative.so",
+          "output": "0000000000012340 T Java_com_example_app_NativeBridge_checkLicense\n00000000000123a0 T Java_com_example_app_NativeBridge_getDeviceId\n"
+        }
+      ],
+      "fallback": "nm: используй `-D <файл>`.\n"
+    }
+  }
+}

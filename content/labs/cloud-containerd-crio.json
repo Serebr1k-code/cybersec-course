@@ -1,0 +1,27 @@
+{
+  "id": "cloud-containerd-crio",
+  "workdir": "/home/student/ctr",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/ctr/found.txt",
+    "contains": "nto{c0nt41n3rd_s0ck3t_h0st_3sc4p3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/ctr",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/ctr/task.md",
+      "text": "# Задача\n\nДана спецификация пода. Определи, возможен ли побег на хост, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/ctr/pod-spec.txt",
+      "text": "volumes:\n  - name: runtime\n    hostPath:\n      path: /run/containerd/containerd.sock\nvolumeMounts:\n  - mountPath: /run/containerd\n    name: runtime\nsecurityContext:\n  privileged: false\n"
+    },
+    {
+      "path": "/home/student/ctr/notes.md",
+      "text": "Аудит: в под смонтирован сокет containerd.\nЗначит, через ctr можно создать контейнер с монтированием корня хоста.\nnto{c0nt41n3rd_s0ck3t_h0st_3sc4p3}\n"
+    }
+  ]
+}

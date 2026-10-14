@@ -1,0 +1,39 @@
+{
+  "id": "pwn-aarch64-deep",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "return_reg=x30"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: регистр связи AArch64\n\n`aarch64.s` — листинг AArch64-функции. На AArch64 адрес возврата для `ret`\nлежит в регистре с номером 30.\n\n1. `cat aarch64.s`.\n2. Найди, какой регистр восстанавливается перед `ret`.\n3. Запиши `return_reg=<регистр>` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/aarch64.s",
+      "text": "\t.file\t\"t2.c\"\n\t.text\n\t.globl\tf                               // -- Begin function f\n\t.p2align\t2\n\t.type\tf,@function\nf:                                      // @f\n\t.cfi_startproc\n// %bb.0:\n\tsub\tsp, sp, #16\n\t.cfi_def_cfa_offset 16\n\tstr\tw0, [sp, #12]\n\tldr\tw8, [sp, #12]\n\tadd\tw0, w8, #1\n\tadd\tsp, sp, #16\n\t.cfi_def_cfa_offset 0\n\tret\n.Lfunc_end0:\n\t.size\tf, .Lfunc_end0-f\n\t.cfi_endproc\n                                        // -- End function\n\t.globl\tg                               // -- Begin function g\n\t.p2align\t2\n\t.type\tg,@function\ng:                                      // @g\n\t.cfi_startproc\n// %bb.0:\n\tsub\tsp, sp, #16\n\t.cfi_def_cfa_offset 16\n\tstr\tw0, [sp, #12]\n\tstr\tw1, [sp, #8]\n\tldr\tw8, [sp, #12]\n\tldr\tw9, [sp, #8]\n\tmul\tw0, w8, w9\n\tadd\tsp, sp, #16\n\t.cfi_def_cfa_offset 0\n\tret\n.Lfunc_end1:\n\t.size\tg, .Lfunc_end1-g\n\t.cfi_endproc\n                                        // -- End function\n\t.ident\t\"clang version 22.1.3\"\n\t.section\t\".note.GNU-stack\",\"\",@progbits\n\t.addrsig\n"
+    },
+    {
+      "path": "/home/student/task/aarch64.readelf.txt",
+      "text": "ELF Header:\n  Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 \n  Class:                             ELF64\n  Data:                              2's complement, little endian\n  Version:                           1 (current)\n  OS/ABI:                            UNIX - System V\n  ABI Version:                       0\n  Type:                              REL (Relocatable file)\n  Machine:                           AArch64\n  Version:                           0x1\n  Entry point address:               0x0\n  Start of program headers:          0 (bytes into file)\n  Start of section headers:          552 (bytes into file)\n  Flags:                             0x0\n  Size of this header:               64 (bytes)\n  Size of program headers:           0 (bytes)\n  Number of program headers:         0\n  Size of section headers:           64 (bytes)\n  Number of section headers:         9\n  Section header string table index: 1\n"
+    }
+  ],
+  "tools": {
+    "readelf": {
+      "help": "readelf [-h | --file-header | -sW | -lW] <файл> — (replay)",
+      "cases": [
+        {
+          "match": "aarch64",
+          "example": "-h aarch64.elf",
+          "output": "ELF Header:\n  Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 \n  Class:                             ELF64\n  Data:                              2's complement, little endian\n  Version:                           1 (current)\n  OS/ABI:                            UNIX - System V\n  ABI Version:                       0\n  Type:                              REL (Relocatable file)\n  Machine:                           AArch64\n  Version:                           0x1\n  Entry point address:               0x0\n  Start of program headers:          0 (bytes into file)\n  Start of section headers:          552 (bytes into file)\n  Flags:                             0x0\n  Size of this header:               64 (bytes)\n  Size of program headers:           0 (bytes)\n  Number of program headers:         0\n  Size of section headers:           64 (bytes)\n  Number of section headers:         9\n  Section header string table index: 1\n"
+        }
+      ]
+    }
+  }
+}

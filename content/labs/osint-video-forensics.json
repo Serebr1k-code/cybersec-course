@@ -1,0 +1,37 @@
+{
+  "id": "osint-video-forensics",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{v1d30_r3_3nc0d3_d3t3ct3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: видеофорензика\n\n1. `ffprobe -v error -show_format -show_streams clip.mp4`\n2. Смотри `encoder`, `creation_time`, `codec_name`.\n3. Маркер `nto{...}` — в метаданных.\n4. Запиши в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/clip.mp4",
+      "b64": "AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAAIZnJlZQAAAEBtZGF0",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "ffprobe": {
+      "help": "ffprobe -v error -show_format -show_streams <файл> — метаданные видео (эмуляция)",
+      "cases": [
+        {
+          "match": "clip\\.mp4",
+          "example": "ffprobe -v error -show_format -show_streams clip.mp4",
+          "output": "[STREAM]\ncodec_name=h264\ncodec_type=video\nwidth=1920\nheight=1080\nr_frame_rate=30/1\n[FORMAT]\nformat_name=mov,mp4,m4a,3gp,3g2,mj2\nduration=12.480000\nencoder=Lavf58.29.100\ncomment=nto{v1d30_r3_3nc0d3_d3t3ct3d}\ncreation_time=2024-03-11T09:14:22.000000Z\n"
+        }
+      ],
+      "fallback": "ffprobe: в этой лабе доступен только clip.mp4.\n"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "id": "reversing-sparc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sp4rc_w1nd0ws_d3l4y}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: SPARC\n\n`sparc.elf` — демон под SPARC.\n1. `readelf -h sparc.elf` — заголовок.\n2. `objdump -d sparc.elf` — листинг (save/restore, delay slot).\n3. Найди строку-артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/sparc.elf",
+      "b64": "f0VMRgEBAQAAAAAAAAAAAAIAAgABAAAAAAABAAAAAAAAAAAAAAAAADQAIAABACgAAAAAAJ3jv6CBx+AIQAAAAmNoZWNrX2tleQBudG97c3A0cmNfdzFuZDB3c19kM2w0eX0A",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "objdump": {
+      "help": "objdump [-d] <файл> — дизассемблер",
+      "cases": [
+        {
+          "match": "-d",
+          "example": "-d sparc.elf",
+          "output": "sparc.elf:     file format elf32-sparc\n\nDisassembly of section .text:\n\n00010400 <check_key>:\n 10400:\t9d e3 bf a0 \tsave  %sp, -96, %sp\n 10404:\t81 c7 e0 08 \tret\n 10408:\t81 e8 00 00 \trestore\n"
+        }
+      ],
+      "fallback": "objdump: используй `-d <файл>`.\n"
+    }
+  }
+}

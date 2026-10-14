@@ -1,0 +1,31 @@
+{
+  "id": "cloud-ai-model-theft",
+  "workdir": "/home/student/model",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/model/found.txt",
+    "contains": "nto{m0d3l_w31ghts_1n_publ1c_buck3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/model",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/model/task.md",
+      "text": "# Задача\n\nРазбери политику бакета с весами модели. Определи, доступна ли кража, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/model/bucket-policy.json",
+      "text": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\"Effect\": \"Allow\", \"Principal\": \"*\", \"Action\": \"s3:GetObject\", \"Resource\": \"arn:aws:s3:::acme-models-prod/*\"}\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/model/model-config.json",
+      "text": "{\n  \"model_name\": \"acme-llm-7b\",\n  \"storage\": \"s3://acme-models-prod/model-final.bin\",\n  \"tokenizer\": \"s3://acme-models-prod/tokenizer.json\"\n}\n"
+    },
+    {
+      "path": "/home/student/model/notes.md",
+      "text": "Аудит: Principal * и s3:GetObject на весь префикс.\nЗначит, веса читает любой анонимный пользователь.\nnto{m0d3l_w31ghts_1n_publ1c_buck3t}\n"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "win-notification-db",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{wpnd_n0t1f_t0ast}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: уведомления Windows\n\n`wpndatabase.db` — история тостов. Найди текст уведомления с меткой.\n\n1. `file wpndatabase.db`.\n2. `strings -el wpndatabase.db | grep -i nto`.\n3. `grep nto wpndatabase.db > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/wpndatabase.db",
+      "text": "SQLite format 3\nCREATE TABLE Notification(HandlerId TEXT, Payload TEXT, ExpiryTime INTEGER);\nNotification: Meeting at 15:00 with finance team\nNotification: nto{wpnd_n0t1f_t0ast}\n",
+      "mode": "644"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "id": "reversing-win-drivers-irp",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{10ctl_d1sp4tch_arb1tr4ry_wr1t3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: драйвер Windows\n\n`vulndrv.sys` — сторонний драйвер.\n1. `strings -n 5 vulndrv.sys` — найди DeviceEntry/IOCTL.\n2. Ищи `IoCreateDevice`, `IRP_MJ_DEVICE_CONTROL`.\n3. Найди строку-артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/vulndrv.sys",
+      "b64": "TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFBFAABMAQQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABEcml2ZXJFbnRyeQBJb0NyZWF0ZURldmljZQBJb0NyZWF0ZVN5bWJvbGljTGluawBcRGV2aWNlXFZ1bG5EcnYAXERvc0RldmljZXNcVnVsbkRydgBJUlBfTUpfREVWSUNFX0NPTlRST0wAbnRvezEwY3RsX2Qxc3A0dGNoX2FyYjF0cjRyeV93cjF0M30A",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "objdump": {
+      "help": "objdump [-d] <файл> — дизассемблер PE",
+      "cases": [
+        {
+          "match": "-d",
+          "example": "-d vulndrv.sys",
+          "output": "vulndrv.sys:     file format pei-x86-64\nDisassembly of section .text:\n140001000 <DriverEntry>:\n140001000:\t81 79 18 03 22 22 00 \tcmp\tDWORD PTR [rcx+0x18],0x222003\n140001007:\t74 12                \tje\t14000101b <handler>\n"
+        }
+      ],
+      "fallback": "objdump: используй `-d <файл>`.\n"
+    }
+  }
+}

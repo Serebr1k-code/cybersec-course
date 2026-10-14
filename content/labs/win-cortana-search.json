@@ -1,0 +1,24 @@
+{
+  "id": "win-cortana-search",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c0rt4n4_s34rch_1nt3nt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: поисковая история\n\n`query.db` — история поиска/Cortana. Найди подозрительный запрос и метку.\n\n1. `file query.db`.\n2. `strings query.db | grep -iE 'log|nto'`.\n3. `grep nto query.db > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/query.db",
+      "text": "SQLite format 3\nCREATE TABLE SearchHistory(QueryText TEXT, TimeStamp INTEGER);\nQueryText: how to clear event logs\nQueryText: nto{c0rt4n4_s34rch_1nt3nt}\n",
+      "mode": "644"
+    }
+  ]
+}

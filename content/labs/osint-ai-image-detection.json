@@ -1,0 +1,48 @@
+{
+  "id": "osint-ai-image-detection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{41_g3n3r4t3d_1m4g3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: AI-изображение\n\n1. `exiftool gen.png`\n2. Смотри `Software`, `Comment`.\n3. Маркер `nto{...}` — в метаданных.\n4. Запиши в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/gen.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "exiftool": {
+      "help": "exiftool <файл> — метаданные (эмуляция)",
+      "cases": [
+        {
+          "match": "gen\\.png",
+          "example": "exiftool gen.png",
+          "output": "ExifTool Version Number         : 13.55\nFile Name                       : gen.png\nFile Type                       : PNG\nSoftware                        : Stable Diffusion v1.5\nComment                         : nto{41_g3n3r4t3d_1m4g3}\nImage Size                      : 512x512\n"
+        }
+      ],
+      "fallback": "exiftool: в этой лабе доступен только gen.png.\n"
+    },
+    "python3": {
+      "help": "python3 <скрипт> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "PIL|Image",
+          "example": "python3 -c \"from PIL import Image;print(Image.open('gen.png').size)\"",
+          "output": "(512, 512)\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе доступен разбор gen.png.\n"
+    }
+  }
+}

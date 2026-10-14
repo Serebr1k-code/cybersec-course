@@ -1,0 +1,38 @@
+{
+  "id": "reversing-android-root-detect",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r00t_d3t3ct_byp4ss3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: root-детект\n\n`libdetect.so` — нативная библиотека детекта.\n1. `strings -n 5 libdetect.so` — посмотри индикаторы (пути su, frida).\n2. Найди сообщение детекта.\n\nФлаг: `nto{...}` среди строк.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/libdetect.so",
+      "b64": "f0VMRgIBAQAAAAAAAAAAAAIAtwABAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAEAAAAAAAC9zeXN0ZW0vYmluL3N1AC9zeXN0ZW0veGJpbi9zdQAvc2Jpbi9zdQBmcmlkYS1zZXJ2ZXIAZnJpZGEtYWdlbnQAcm8uZGVidWdnYWJsZT0xAHJvLmJ1aWxkLnRhZ3M9dGVzdC1rZXlzAG50b3tyMDB0X2QzdDNjdF9ieXA0c3MzZH0A",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "objdump": {
+      "help": "objdump [-d] <файл> — дизассемблер ARM64",
+      "cases": [
+        {
+          "match": "-d",
+          "example": "-d libdetect.so",
+          "output": "libdetect.so:     file format elf64-littleaarch64\nDisassembly of section .text:\n 1000:\tadrp\tx0, 2000\n 1004:\tadd\tx0, x0, #0x10\n 1008:\tbl\taccess\n 100c:\tcbnz\tw0, 0x1020\n"
+        }
+      ],
+      "fallback": "objdump: используй `-d <файл>`.\n"
+    }
+  }
+}

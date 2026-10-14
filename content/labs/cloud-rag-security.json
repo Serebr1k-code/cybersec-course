@@ -1,0 +1,31 @@
+{
+  "id": "cloud-rag-security",
+  "workdir": "/home/student/rag",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/rag/found.txt",
+    "contains": "nto{r4g_publ1c_s34rch_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/rag",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/rag/task.md",
+      "text": "# Задача\n\nRAG-ассистент отдаёт результаты поиска. Определи риск и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/rag/search-response.json",
+      "text": "[\n  {\"score\": 0.91, \"text\": \"Пароль от prod-БД: Sup3rS3cret\"},\n  {\"score\": 0.88, \"text\": \"API-ключ платежей: sk_live_xxx\"}\n]\n"
+    },
+    {
+      "path": "/home/student/rag/index-config.json",
+      "text": "{\n  \"index\": \"acme-kb\",\n  \"auth\": \"none\",\n  \"write_key\": \"public-embed-key\",\n  \"metadata_filter\": false\n}\n"
+    },
+    {
+      "path": "/home/student/rag/notes.md",
+      "text": "Аудит: поиск без аутентификации (auth: none), фильтр прав выключен.\nБаза отдаёт секреты любому.\nnto{r4g_publ1c_s34rch_l34k}\n"
+    }
+  ]
+}

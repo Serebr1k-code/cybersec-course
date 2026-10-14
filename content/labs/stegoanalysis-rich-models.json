@@ -1,0 +1,44 @@
+{
+  "id": "stegoanalysis-rich-models",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dctr_jrm_gfr_rich_model}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: посчитать DCT-признак вручную\n\n`block.txt` — один блок 8×8 DCT-коэффициентов (по строкам). Остаток\nсчитается как разность двух соседних AC-коэффициентов. В конце файла\nспрятана метка.\n\n1. `head -8 block.txt`.\n2. `python3 dctr.py` — признак и метка.\n3. `python3 dctr.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/block.txt",
+      "b64": "MzAgMjMgMTggMTQgMTEgOSA3IDUKMjMgMTggMTQgMTEgOSA3IDUgNAoxOCAxNCAxMSA5IDcgNSA0IDMKMTQgMTEgOSA3IDUgNCAzIDIKMTEgOSA3IDUgNCAzIDIgMgo5IDcgNSA0IDMgMiAyIDEKNyA1IDQgMyAyIDIgMSAxCjUgNCAzIDIgMiAxIDEgMQojIG50b3tkY3RyX2pybV9nZnJfcmljaF9tb2RlbH0K"
+    },
+    {
+      "path": "/home/student/task/dctr.py",
+      "text": "rows = [l for l in open('block.txt').read().splitlines() if l and not l.startswith('#')]\nblk = [list(map(int, r.split())) for r in rows[:8]]\nresid = [blk[y][1] - blk[y][2] for y in range(8)]\nprint('residual vector =', resid)\nprint('nto{dctr_jrm_gfr_rich_model}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "dctr\\.py",
+          "example": "python3 dctr.py",
+          "output": "nto{dctr_jrm_gfr_rich_model}\n"
+        }
+      ]
+    }
+  }
+}

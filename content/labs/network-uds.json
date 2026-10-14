@@ -1,0 +1,21 @@
+{
+  "id": "network-uds",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{ud5_0x27_5ecc3d}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: seed SecurityAccess по UDS\n\n`uds.log` — обмен диагностического сканера с ECU: `[TX]` — запрос сканера,\n`[RX]` — ответ блока. Сервис 0x27 (SecurityAccess) выдаёт seed.\n\n1. Посмотри лог: `cat uds.log`\n2. Найди строку с seed: `grep seed: uds.log`\n3. Вырежи base64 и декодируй: `grep seed: uds.log | cut -d: -f2 | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/uds.log",
+      "text": "[TX] 10 03\n[RX] 50 03\n[TX] 27 01\n[RX] 67 01 seed:bnRve3VkNV8weDI3XzVlY2MzZH0=\n[TX] 22 F1 90\n[RX] 62 F1 90 56 49 4E 30 30 31\n"
+    }
+  ],
+  "tools": {}
+}

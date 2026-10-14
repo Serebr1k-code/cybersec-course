@@ -1,0 +1,38 @@
+{
+  "id": "reversing-s390x",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s390x_c1sc_v4r1abl3_l3n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: s390x\n\n`s390x.elf` — утилита мейнфрейма.\n1. `readelf -h s390x.elf` — заголовок.\n2. `objdump -d s390x.elf` — листинг (stmg/lay/brasl).\n3. Найди строку-артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/s390x.elf",
+      "b64": "f0VMRgIBAQAAAAAAAAAAAAIAFgABAAAAoAQAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAEAAAAAAAMBAAAAAAOu/8FgAJA3kY2hlY2tfa2V5AG50b3tzMzkweF9jMXNjX3Y0cjFhYmwzX2wzbn0A",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "objdump": {
+      "help": "objdump [-d] <файл> — дизассемблер",
+      "cases": [
+        {
+          "match": "-d",
+          "example": "-d s390x.elf",
+          "output": "s390x.elf:     file format elf64-s390\n\nDisassembly of section .text:\n\n00000000010004a0 <check_key>:\n 10004a0:\teb bf f0 58 00 24 \tstmg\t%r11,%r15,88(%r15)\n 10004a6:\t0d e4             \tbasr\t%r14,%r4\n"
+        }
+      ],
+      "fallback": "objdump: используй `-d <файл>`.\n"
+    }
+  }
+}

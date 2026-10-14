@@ -1,0 +1,39 @@
+{
+  "id": "pwn-riscv64",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "return_reg=ra"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: регистр возврата RISC-V 64\n\n`riscv64.s` — листинг 64-битной RISC-V функции. У RISC-V нет «адреса возврата\nна стеке по умолчанию»: адрес возврата держит отдельный регистр.\n\n1. `cat riscv64.s`.\n2. Посмотри, какой регистр сохраняется в прологе (`sd <reg>, 24(sp)`) и\n   восстанавливается перед `ret`.\n3. Запиши `return_reg=<регистр>` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/riscv64.s",
+      "text": "\t.attribute\t4, 16\n\t.attribute\t5, \"rv64i2p1_m2p0_a2p1_f2p2_d2p2_c2p0_zicsr2p0_zmmul1p0_zaamo1p0_zalrsc1p0_zca1p0_zcd1p0\"\n\t.file\t\"t2.c\"\n\t.text\n\t.globl\tf                               # -- Begin function f\n\t.p2align\t1\n\t.type\tf,@function\nf:                                      # @f\n\t.cfi_startproc\n# %bb.0:\n\taddi\tsp, sp, -32\n\t.cfi_def_cfa_offset 32\n\tsd\tra, 24(sp)                      # 8-byte Folded Spill\n\tsd\ts0, 16(sp)                      # 8-byte Folded Spill\n\t.cfi_offset ra, -8\n\t.cfi_offset s0, -16\n\taddi\ts0, sp, 32\n\t.cfi_def_cfa s0, 0\n                                        # kill: def $x11 killed $x10\n\tsw\ta0, -20(s0)\n\tlw\ta0, -20(s0)\n\taddiw\ta0, a0, 1\n\t.cfi_def_cfa sp, 32\n\tld\tra, 24(sp)                      # 8-byte Folded Reload\n\tld\ts0, 16(sp)                      # 8-byte Folded Reload\n\t.cfi_restore ra\n\t.cfi_restore s0\n\taddi\tsp, sp, 32\n\t.cfi_def_cfa_offset 0\n\tret\n.Lfunc_end0:\n\t.size\tf, .Lfunc_end0-f\n\t.cfi_endproc\n                                        # -- End function\n\t.globl\tg                               # -- Begin function g\n\t.p2align\t1\n\t.type\tg,@function\ng:                                      # @g\n\t.cfi_startproc\n# %bb.0:\n\taddi\tsp, sp, -32\n\t.cfi_def_cfa_offset 32\n\tsd\tra, 24(sp)                      # 8-byte Folded Spill\n\tsd\ts0, 16(sp)                      # 8-byte Folded Spill\n\t.cfi_offset ra, -8\n\t.cfi_offset s0, -16\n\taddi\ts0, sp, 32\n\t.cfi_def_cfa s0, 0\n                                        # kill: def $x12 killed $x11\n                                        # kill: def $x12 killed $x10\n\tsw\ta0, -20(s0)\n\tsw\ta1, -24(s0)\n\tlw\ta0, -20(s0)\n\tlw\ta1, -24(s0)\n\tmulw\ta0, a0, a1\n\t.cfi_def_cfa sp, 32\n\tld\tra, 24(sp)                      # 8-byte Folded Reload\n\tld\ts0, 16(sp)                      # 8-byte Folded Reload\n\t.cfi_restore ra\n\t.cfi_restore s0\n\taddi\tsp, sp, 32\n\t.cfi_def_cfa_offset 0\n\tret\n.Lfunc_end1:\n\t.size\tg, .Lfunc_end1-g\n\t.cfi_endproc\n                                        # -- End function\n\t.ident\t\"clang version 22.1.3\"\n\t.section\t\".note.GNU-stack\",\"\",@progbits\n\t.addrsig\n"
+    },
+    {
+      "path": "/home/student/task/riscv64.readelf.txt",
+      "text": "ELF Header:\n  Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 \n  Class:                             ELF64\n  Data:                              2's complement, little endian\n  Version:                           1 (current)\n  OS/ABI:                            UNIX - System V\n  ABI Version:                       0\n  Type:                              REL (Relocatable file)\n  Machine:                           RISC-V\n  Version:                           0x1\n  Entry point address:               0x0\n  Start of program headers:          0 (bytes into file)\n  Start of section headers:          768 (bytes into file)\n  Flags:                             0x5, RVC, double-float ABI\n  Size of this header:               64 (bytes)\n  Size of program headers:           0 (bytes)\n  Number of program headers:         0\n  Size of section headers:           64 (bytes)\n  Number of section headers:         10\n  Section header string table index: 1\n"
+    }
+  ],
+  "tools": {
+    "readelf": {
+      "help": "readelf [-h | --file-header | -sW | -lW] <файл> — (replay)",
+      "cases": [
+        {
+          "match": "riscv64",
+          "example": "-h riscv64.elf",
+          "output": "ELF Header:\n  Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 \n  Class:                             ELF64\n  Data:                              2's complement, little endian\n  Version:                           1 (current)\n  OS/ABI:                            UNIX - System V\n  ABI Version:                       0\n  Type:                              REL (Relocatable file)\n  Machine:                           RISC-V\n  Version:                           0x1\n  Entry point address:               0x0\n  Start of program headers:          0 (bytes into file)\n  Start of section headers:          768 (bytes into file)\n  Flags:                             0x5, RVC, double-float ABI\n  Size of this header:               64 (bytes)\n  Size of program headers:           0 (bytes)\n  Number of program headers:         0\n  Size of section headers:           64 (bytes)\n  Number of section headers:         10\n  Section header string table index: 1\n"
+        }
+      ]
+    }
+  }
+}

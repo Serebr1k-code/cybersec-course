@@ -1,0 +1,48 @@
+{
+  "id": "osint-audio-forensics",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{4ud10_sp3ctr0gr4m_spl1c3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: аудиофорензика\n\n1. `soxi voice.wav`\n2. Смотри `Comment`, `Sample Rate`, `Channels`.\n3. Маркер `nto{...}` — в метаданных.\n4. Запиши в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/voice.wav",
+      "b64": "UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "sox": {
+      "help": "sox/soxi <файл> — работа со звуком (эмуляция)",
+      "cases": [
+        {
+          "match": "voice\\.wav|soxi",
+          "example": "soxi voice.wav",
+          "output": "Input File     : 'voice.wav'\nChannels       : 1\nSample Rate    : 16000\nPrecision      : 16-bit\nDuration       : 00:00:31.20\nComment        : nto{4ud10_sp3ctr0gr4m_spl1c3}\n"
+        }
+      ],
+      "fallback": "sox: в этой лабе доступен только voice.wav.\n"
+    },
+    "ffprobe": {
+      "help": "ffprobe <файл> — метаданные медиа (эмуляция)",
+      "cases": [
+        {
+          "match": "voice\\.wav",
+          "example": "ffprobe voice.wav",
+          "output": "Input #0, wav, from 'voice.wav':\n  Duration: 00:00:31.20, bitrate: 256 kb/s\n  Stream #0:0: Audio: pcm_s16le, 16000 Hz, mono\n"
+        }
+      ],
+      "fallback": "ffprobe: в этой лабе доступен только voice.wav.\n"
+    }
+  }
+}

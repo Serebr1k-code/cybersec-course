@@ -1,0 +1,44 @@
+{
+  "id": "stego-jpegxr",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{jxr_tiff_ifd_tag}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: нестандартный тег в JPEG XR\n\n`image.jxr` — TIFF-подобный контейнер. В каталоге тегов есть тег\n`0xbeef` с закладкой.\n\n1. `xxd -l 32 image.jxr`.\n2. `python3 jxr.py` — разбор IFD и извлечение метки.\n3. `python3 jxr.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/image.jxr",
+      "b64": "SUm8AQgAAAAAAAAAAQDvvgEAIAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAG50b3tqeHJfdGlmZl9pZmRfdGFnfQAAAAAAAAAAAAAAAA=="
+    },
+    {
+      "path": "/home/student/task/jxr.py",
+      "text": "import struct\nd = open('image.jxr','rb').read()\nend = '<' if d[:2]==b'II' else '>'\nifd = struct.unpack_from(end+'I', d, 4)[0]\ncnt = struct.unpack_from(end+'H', d, ifd)[0]\np = ifd+2\nfor _ in range(cnt):\n    tag,typ,c,v = struct.unpack_from(end+'HHII', d, p)\n    if tag == 0xbeef:\n        print(d[v:v+32].split(b'\\x00')[0].decode())\n    p += 12\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "jxr\\.py",
+          "example": "python3 jxr.py",
+          "output": "nto{jxr_tiff_ifd_tag}\n"
+        }
+      ]
+    }
+  }
+}

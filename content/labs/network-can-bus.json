@@ -1,0 +1,21 @@
+{
+  "id": "network-can-bus",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{c4n_bu5_1nj3ct10n}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти инъекцию в CAN-шине\n\n`candump.log` — вывод `candump -a can0` с автомобильной шины. В `task.md`\nперечислены штатные ID блока управления:\n\n    0C0 — обороты\n    1A0 — скорость\n    2F1 — угол руля\n\nЛюбой другой ID — посторонний кадр (инъекция). У поддельного кадра вместо\nбайт данных стоит поле `payload:<base64>`.\n\n1. Посмотри лог: `cat candump.log`\n2. Найди посторонний ID: `grep 7DF candump.log`\n3. Вырежи base64 и декодируй: `grep 7DF candump.log | cut -d: -f2 | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/candump.log",
+      "text": "  can0  0C0   [8]  1A 2B 3C 4D 5E 6F 70 80   '..<M^op.'\n  can0  1A0   [8]  00 00 0F A0 00 00 00 00   '........'\n  can0  2F1   [8]  FF 00 12 34 00 00 00 00   '...4....'\n  can0  7DF   [8]  payload:bnRve2M0bl9idTVfMW5qM2N0MTBufQ==\n  can0  0C0   [8]  1B 2C 3D 4E 5F 60 71 81   '..=N_`q.'\n"
+    }
+  ],
+  "tools": {}
+}

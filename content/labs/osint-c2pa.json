@@ -1,0 +1,36 @@
+{
+  "id": "osint-c2pa",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{c2p4_m4n1f3st_v3r1f13d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: C2PA\n\n1. Открой `manifest.json`.\n2. Найди `claim_generator`, `assertions`, `signature`.\n3. Маркер `nto{...}` — в одном из полей.\n4. Запиши в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/manifest.json",
+      "text": "{\n  \"claim_generator\": \"Adobe_Photoshop/25.0 c2pa-rs/0.25\",\n  \"title\": \"press-photo.jpg\",\n  \"assertions\": [\n    {\"label\": \"c2pa.actions\", \"data\": {\"actions\": [{\"action\": \"c2pa.created\"}, {\"action\": \"c2pa.edited\", \"digitalSourceType\": \"trainedAlgorithmicMedia\"}]}},\n    {\"label\": \"stds.schema-org.CreativeWork\", \"data\": {\"author\": \"Example Newsroom\"}}\n  ],\n  \"signature\": {\"alg\": \"ES256\", \"issuer\": \"Example Newsroom Signing CA\"},\n  \"x_note\": \"nto{c2p4_m4n1f3st_v3r1f13d}\"\n}\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — интерпретатор Python (эмуляция)",
+      "cases": [
+        {
+          "match": "json",
+          "example": "python3 -c \"import json;print(json.load(open('manifest.json')))\"",
+          "output": "{'claim_generator': 'Adobe_Photoshop/25.0 c2pa-rs/0.25', 'title': 'press-photo.jpg', 'assertions': [{'label': 'c2pa.actions', 'data': {'actions': [{'action': 'c2pa.created'}, {'action': 'c2pa.edited', 'digitalSourceType': 'trainedAlgorithmicMedia'}]}}], 'signature': {'alg': 'ES256', 'issuer': 'Example Newsroom Signing CA'}, 'x_note': 'nto{c2p4_m4n1f3st_v3r1f13d}'}\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе доступен разбор manifest.json.\n"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": "win-activity-timeline",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{tim3l1n3_s3ss10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Windows Timeline\n\n`ActivitiesCache.db` — база Timeline. Восстанови сессии и найди метку в объекте активности.\n\n1. `file ActivitiesCache.db`.\n2. `strings ActivitiesCache.db | grep -i nto`.\n3. `grep nto ActivitiesCache.db > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/ActivitiesCache.db",
+      "text": "SQLite format 3\nCREATE TABLE Activity(Id TEXT, AppId TEXT, StartTime INTEGER, EndTime INTEGER, ContentInfo TEXT);\nINSERT INTO Activity VALUES('a1','EXCEL.EXE',1717312460,1717314065,'{\"displayText\":\"finance_q4.xlsx\"}');\nINSERT INTO Activity VALUES('a2','powershell.exe',1717314700,1717315000,'{\"displayText\":\"nto{tim3l1n3_s3ss10n}\"}');\n",
+      "mode": "644"
+    }
+  ]
+}

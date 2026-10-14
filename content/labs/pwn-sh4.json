@@ -1,0 +1,40 @@
+{
+  "id": "pwn-sh4",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "machine=SuperH"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: SuperH (SH-4)\n\n`sh4.elf` — объект для процессора Renesas SuperH (SH-4), который встречается в\nпромышленной электронике и старых консолях. Определи точную модель машины.\n\n1. `readelf --file-header sh4.elf` (или `cat sh4.readelf.txt`).\n2. Найди строку `Machine:`.\n3. Запиши `machine=<значение>` в `answer.txt` (достаточно слова `SuperH`), затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/sh4.elf",
+      "b64": "f0VMRgECAQAAAAAAAAAAAAABACoAAAABAAAAAAAAAAAAAAAAAAAAAAA0AAAAAAAoAAAAAA==",
+      "mode": "755"
+    },
+    {
+      "path": "/home/student/task/sh4.readelf.txt",
+      "text": "ELF Header:\n  Magic:   7f 45 4c 46 01 02 01 00 00 00 00 00 00 00 00 00 \n  Class:                             ELF32\n  Data:                              2's complement, big endian\n  Version:                           1 (current)\n  OS/ABI:                            UNIX - System V\n  ABI Version:                       0\n  Type:                              REL (Relocatable file)\n  Machine:                           Renesas / SuperH SH\n  Version:                           0x1\n  Entry point address:               0x0\n  Start of program headers:          0 (bytes into file)\n  Start of section headers:          0 (bytes into file)\n  Flags:                             0x0\n  Size of this header:               52 (bytes)\n  Size of program headers:           0 (bytes)\n  Number of program headers:         0\n  Size of section headers:           40 (bytes)\n  Number of section headers:         0\n  Section header string table index: 0\n"
+    }
+  ],
+  "tools": {
+    "readelf": {
+      "help": "readelf [-h | --file-header | -sW | -lW] <файл> — (replay)",
+      "cases": [
+        {
+          "match": "sh4",
+          "example": "-h sh4.elf",
+          "output": "ELF Header:\n  Magic:   7f 45 4c 46 01 02 01 00 00 00 00 00 00 00 00 00 \n  Class:                             ELF32\n  Data:                              2's complement, big endian\n  Version:                           1 (current)\n  OS/ABI:                            UNIX - System V\n  ABI Version:                       0\n  Type:                              REL (Relocatable file)\n  Machine:                           Renesas / SuperH SH\n  Version:                           0x1\n  Entry point address:               0x0\n  Start of program headers:          0 (bytes into file)\n  Start of section headers:          0 (bytes into file)\n  Flags:                             0x0\n  Size of this header:               52 (bytes)\n  Size of program headers:           0 (bytes)\n  Number of program headers:         0\n  Size of section headers:           40 (bytes)\n  Number of section headers:         0\n  Section header string table index: 0\n"
+        }
+      ]
+    }
+  }
+}

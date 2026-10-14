@@ -1,0 +1,38 @@
+{
+  "id": "reversing-powerpc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ppc_b1g_3nd14n_l1nk_r3g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: PowerPC\n\n`ppc.elf` — модуль прошивки на PowerPC.\n1. `readelf -h ppc.elf` — заголовок (Machine, big endian).\n2. `objdump -d ppc.elf` — листинг (mflr/mtlr/blr).\n3. Найди строку-артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/ppc.elf",
+      "b64": "f0VMRgEBAQAAAAAAAAAAAAIAFAABAAAAAAAAEAAAAAAAAAAAAAAAADQAIAABACgAAAAAAHwIAqaUIf/AS///5WNoZWNrX2tleQBudG97cHBjX2IxZ18zbmQxNG5fbDFua19yM2d9AA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "objdump": {
+      "help": "objdump [-d] <файл> — дизассемблер",
+      "cases": [
+        {
+          "match": "-d",
+          "example": "-d ppc.elf",
+          "output": "ppc.elf:     file format elf32-powerpc\n\nDisassembly of section .text:\n\n10000400 <check_key>:\n10000400:\t7c 08 02 a6 \tmflr\tr0\n10000404:\t94 21 ff c0 \tstwu\tr1,-64(r1)\n10000408:\t4b ff ff e5 \tbl\t100003ec <helper>\n"
+        }
+      ],
+      "fallback": "objdump: используй `-d <файл>`.\n"
+    }
+  }
+}

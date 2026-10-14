@@ -1,0 +1,38 @@
+{
+  "id": "reversing-riscv-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r1scv_c0mpress3d_1nstr}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: RISC-V\n\n`riscv.elf` — образ прошивки на RISC-V. Разберись со\nструктурой и найди артефакт.\n\n1. `readelf -h riscv.elf` — заголовок (Machine, флаги RVC).\n2. `xxd -l 24 riscv.elf` — магические байты.\n3. Выгрузи строки и найди флаг.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/riscv.elf",
+      "b64": "f0VMRgIBAQAAAAAAAAAAAAIA8wABAAAAAAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAEAAAAAAABMFEADFBYKAbWFpbgB1YXJ0X2luaXQAY3NyciBtY2F1c2UAbnRve3Ixc2N2X2MwbXByZXNzM2RfMW5zdHJ9AA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "readelf": {
+      "help": "readelf [-h] <файл> — заголовки ELF",
+      "cases": [
+        {
+          "match": "-h",
+          "example": "-h riscv.elf",
+          "output": "ELF Header:\n  Class:                             ELF64\n  Data:                              2's complement, little endian\n  Machine:                           RISC-V\n  Flags:                             0x5, RVC, double-float ABI\n  Entry point address:               0x80000000\n"
+        }
+      ],
+      "fallback": "readelf: используй `-h <файл>`.\n"
+    }
+  }
+}

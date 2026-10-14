@@ -1,0 +1,38 @@
+{
+  "id": "reversing-win-com-rpc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{rpc_m1dl_stub_1nt3rf4c3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: COM/RPC\n\n`rpcserver.exe` — служба с RPC-интерфейсом.\n1. `strings -n 6 rpcserver.exe` — найди UUID и имена методов.\n2. Ищи `RpcServerRegisterIf` и UUID.\n3. Найди строку-артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/rpcserver.exe",
+      "b64": "TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFBFAABMAQQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABScGNTZXJ2ZXJSZWdpc3RlcklmAE5kclNlcnZlckNhbGxBbGwAOGE3YzFkNDAtOWUyYi00ZjNhLWIxYzUtN2Q2ZThmOWEwYjEyAElDb21wdXRlU2VydmljZQBDb21wdXRlSGFzaABHZXRTdGF0dXMAbnRve3JwY19tMWRsX3N0dWJfMW50M3JmNGMzfQA=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "objdump": {
+      "help": "objdump [-d] <файл> — дизассемблер PE",
+      "cases": [
+        {
+          "match": "-d",
+          "example": "-d rpcserver.exe",
+          "output": "rpcserver.exe:     file format pei-x86-64\nDisassembly of section .text:\n140001000 <main>:\n140001000:\t48 8d 05 39 20 00 00 \tlea\trdx,[rip+0x2039]\n140001007:\tff 15 f3 0f 00 00    \tcall\tQWORD PTR [rip+0xff3]\n"
+        }
+      ],
+      "fallback": "objdump: используй `-d <файл>`.\n"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "id": "reversing-oat-art",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{oat_art_vd3x_qu1ck3n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: OAT/vdex\n\n`base.vdex` — артефакт, снятый с устройства.\n1. `xxd -l 16 base.vdex` — magic `vdex021`.\n2. `strings -n 5 base.vdex` — строки встроенного DEX.\n3. Найди строку-артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/base.vdex",
+      "b64": "dmRleDAyMQAUAAAAAAAAAAAAAABkZXgKMDM1AAAAAAAAAAAAAAAAAExjb20vZXhhbXBsZS9hcHAvTWFpbkFjdGl2aXR5OwBvbkNyZWF0ZQBudG97b2F0X2FydF92ZDN4X3F1MWNrM259AA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "objdump": {
+      "help": "objdump [-d] <файл> — не применимо к vdex",
+      "cases": [
+        {
+          "match": ".",
+          "example": "-d base.vdex",
+          "output": "objdump: base.vdex: file format not recognized\n"
+        }
+      ],
+      "fallback": "objdump: base.vdex не ELF.\n"
+    }
+  }
+}

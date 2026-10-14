@@ -1,0 +1,24 @@
+{
+  "id": "fs-jffs2-ubifs",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{jffs2_n0d3s_4nd_ub1_0v3rl4y}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор дампа NAND\n\n`nand.dump` — дамп флеш-памяти устройства. Определи файловую систему и найди конфиг.\n\n1. `xxd -l 8 nand.dump` — магия узлов.\n2. `strings nand.dump` — имена и метаданные.\n3. `strings nand.dump | grep nto > answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/nand.dump",
+      "b64": "hRkD4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASkZGUzIgbm9kZSAoZGlyZW50KTogL2V0Yy9jb25maWcvbmV0d29yaw0KVUJJIHZvbHVtZTogcm9vdGZzIChVQklGUykNCkNGRzogbnRve2pmZnMyX24wZDNzXzRuZF91YjFfMHYzcmw0eX0NCgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "mode": "644"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "id": "reversing-android-dynamic-instrumentation",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{fr1d4_h00k_j4v4_n4t1v3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Frida\n\n`hook.js` — Frida-скрипт перехвата метода.\n1. `cat hook.js` — прочитай скрипт.\n2. Обрати внимание на комментарий с примером вывода.\n3. Найди строку-артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/hook.js",
+      "text": "// Frida: перехват Java-метода\nJava.perform(function () {\n  var Cipher = Java.use('com.example.app.Crypto');\n  Cipher.encrypt.implementation = function (data) {\n    console.log('encrypt called with:', data);\n    // пример вывода: encrypt -> nto{fr1d4_h00k_j4v4_n4t1v3}\n    return this.encrypt(data);\n  };\n});\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "objdump": {
+      "help": "objdump [-d] <файл> — не применимо",
+      "cases": [
+        {
+          "match": ".",
+          "example": "-d hook.js",
+          "output": "objdump: hook.js: file format not recognized\n"
+        }
+      ],
+      "fallback": "objdump: hook.js — не ELF.\n"
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "id": "stego-webp-lossless",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{webp_vp8l_riff_chunk}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: чанк cOMM в lossless WebP\n\n`image.webp` — RIFF-контейнер с чанком `VP8L` и необязательным `cOMM`,\nв котором спрятана метка.\n\n1. `xxd -l 32 image.webp`.\n2. `python3 webp.py` — разбор чанков и метка.\n3. `python3 webp.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/image.webp",
+      "b64": "UklGRjYAAABXRUJQVlA4TAgAAAAvAAAAAAAAAGNPTU0YAAAAbnRve3dlYnBfdnA4bF9yaWZmX2NodW5rfQA="
+    },
+    {
+      "path": "/home/student/task/webp.py",
+      "text": "import struct\nd = open('image.webp','rb').read()\np = 12\nwhile p+8 <= len(d):\n    fourcc = d[p:p+4]; size = struct.unpack_from('<I', d, p+4)[0]\n    print(fourcc, size)\n    if fourcc == b'cOMM':\n        print(d[p+8:p+8+size].split(b'\\x00')[0].decode())\n    p += 8 + size + (size & 1)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "webp\\.py",
+          "example": "python3 webp.py",
+          "output": "nto{webp_vp8l_riff_chunk}\n"
+        }
+      ]
+    }
+  }
+}

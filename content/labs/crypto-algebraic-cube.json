@@ -1,0 +1,41 @@
+{
+  "id": "crypto-algebraic-cube",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cub3_sum_r3v34ls_th3_sup3rp0ly}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: cube-атака на ToyPoly\n\n`toypoly.py` задаёт булеву функцию f(x,k) с двумя секретными битами k0,k1.\nВыбери куб I={x0,x1}, сложи f по всем его значениям — получишь суперполи,\nлинейное по секрету. Восстанови k0 и k1.\n\nШаги:\n1. `cat toypoly.py` — вид функции.\n2. `python3 cube.py` — суммирование по кубу и восстановление секрета.\n3. `python3 cube.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Куб — подмножество публичных переменных; суммируем f по всем их значениям.\n- Моном, содержащий все переменные куба, выживает; остальные сокращаются.\n- Суперполи куба {x0,x1} равно x2 ^ k0.\n- k0 = суперполи при x2=0; k1 = f при обнулённых публичных битах.\n"
+    },
+    {
+      "path": "/home/student/task/toypoly.py",
+      "text": "# Toy low-degree Boolean function with secret key bits k0,k1.\n# f(x,k) = x0*x1*x2 ^ x0*x1*k0 ^ x3*x4 ^ k1\ndef f(x, k):\n    return (x[0] & x[1] & x[2]) ^ (x[0] & x[1] & k[0]) ^ (x[3] & x[4]) ^ k[1]\n"
+    },
+    {
+      "path": "/home/student/task/cube.py",
+      "text": "from toypoly import f\n\nK = (1, 0)  # secret bits, unknown to the attacker\n\ndef cube_sum(x2, x3=0, x4=0):\n    s = 0\n    for a in (0, 1):\n        for b in (0, 1):\n            x = [a, b, x2, x3, x4, 0, 0, 0]\n            s ^= f(x, K)\n    return s\n\ns0 = cube_sum(0)\ns1 = cube_sum(1)\nk0 = s0\nk1 = f([0, 0, 0, 0, 0, 0, 0, 0], K)\nprint(\"cube I={x0,x1}: superpoly = x2 ^ k0\")\nprint(\"  sum at x2=0 : %d   (=> k0 = %d)\" % (s0, s0))\nprint(\"  sum at x2=1 : %d\" % s1)\nprint(\"recovered k0 = %d (true %d)\" % (k0, K[0]))\nprint(\"recovered k1 = %d (true %d)\" % (k1, K[1]))\nprint(\"flag: nto{cub3_sum_r3v34ls_th3_sup3rp0ly}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        { "match": "--version|^-V$", "example": "python3 --version", "output": "Python 3.12.4" },
+        {
+          "match": "cube\\.py$",
+          "example": "python3 cube.py",
+          "output": "cube I={x0,x1}: superpoly = x2 ^ k0\n  sum at x2=0 : 1   (=> k0 = 1)\n  sum at x2=1 : 0\nrecovered k0 = 1 (true 1)\nrecovered k1 = 0 (true 0)\nflag: nto{cub3_sum_r3v34ls_th3_sup3rp0ly}\n"
+        }
+      ]
+    }
+  }
+}

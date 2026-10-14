@@ -1,0 +1,38 @@
+{
+  "id": "reversing-superh",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{superh_16b1t_f1x3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: SuperH\n\n`sh4.elf` — образ прошивки на SuperH (SH-4).\n1. `readelf -h sh4.elf` — заголовок.\n2. `objdump -d sh4.elf` — листинг (sts pr, jsr, rts).\n3. Найди строку-артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/sh4.elf",
+      "b64": "f0VMRgEBAQAAAAAAAAAAAAIAKgABAAAAAAABjAAAAAAAAAAAAAAAADQAIAABACgAAAAAAC/mTyIAC2NoZWNrX2tleQBudG97c3VwZXJoXzE2YjF0X2YxeDNkfQA=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "objdump": {
+      "help": "objdump [-d] <файл> — дизассемблер",
+      "cases": [
+        {
+          "match": "-d",
+          "example": "-d sh4.elf",
+          "output": "sh4.elf:     file format elf32-sh\n\nDisassembly of section .text:\n\n8c010000 <check_key>:\n8c010000:\t2f e6       \tmov.l\tr14,@-r15\n8c010002:\t4f 22       \tsts\tpr,@-r15\n8c010004:\t00 0b       \trts\n8c010006:\t09 00       \tnop\n"
+        }
+      ],
+      "fallback": "objdump: используй `-d <файл>`.\n"
+    }
+  }
+}

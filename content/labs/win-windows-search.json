@@ -1,0 +1,24 @@
+{
+  "id": "win-windows-search",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{wns34rch_3db_d3l3t3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Windows Search\n\n`Windows.edb` — выгрузка поискового индекса. Найди путь к удалённому файлу и метку.\n\n1. `file Windows.edb`.\n2. `strings -el Windows.edb | grep -i report`.\n3. `grep nto Windows.edb > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/Windows.edb",
+      "text": "ESE DATABASE\nSystem.ItemPathDisplay  \\\\?\\C:\\Users\\jdoe\\Documents\\finance_2025.xlsx\nSystem.ItemPathDisplay  \\\\?\\C:\\Users\\jdoe\\Documents\\deleted_report.docx\nSystem.ItemNameDisplay  deleted_report.docx\nnote: nto{wns34rch_3db_d3l3t3d}\n",
+      "mode": "644"
+    }
+  ]
+}

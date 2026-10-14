@@ -1,0 +1,39 @@
+{
+  "id": "pwn-s390x",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "return_reg=r14"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: возврат на IBM Z (s390x)\n\n`s390x.s` — листинг функции для IBM Z (s390x). На этой архитектуре адрес\nвозврата хранится не на стеке, а в специальном регистре-связке.\n\n1. `cat s390x.s`.\n2. Найди инструкцию возврата в конце функции.\n3. Определи, в каком регистре лежит адрес возврата, и запиши\n   `return_reg=r<N>` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/s390x.s",
+      "text": "\t.file\t\"t2.c\"\n\t.text\n\t.globl\tf                               # -- Begin function f\n\t.p2align\t4\n\t.type\tf,@function\nf:                                      # @f\n# %bb.0:\n\tstmg\t%r11, %r15, 88(%r15)\n\taghi\t%r15, -168\n\tlgr\t%r11, %r15\n\tlr\t%r0, %r2\n\tst\t%r0, 164(%r11)\n\tl\t%r0, 164(%r11)\n\tahi\t%r0, 1\n\tlgfr\t%r2, %r0\n\tlmg\t%r11, %r15, 256(%r11)\n\tbr\t%r14\n.Lfunc_end0:\n\t.size\tf, .Lfunc_end0-f\n                                        # -- End function\n\t.globl\tg                               # -- Begin function g\n\t.p2align\t4\n\t.type\tg,@function\ng:                                      # @g\n# %bb.0:\n\tstmg\t%r11, %r15, 88(%r15)\n\taghi\t%r15, -168\n\tlgr\t%r11, %r15\n\tlr\t%r0, %r3\n\tlr\t%r1, %r2\n\tst\t%r1, 164(%r11)\n\tst\t%r0, 160(%r11)\n\tl\t%r0, 164(%r11)\n\tl\t%r1, 160(%r11)\n\tmsr\t%r0, %r1\n\tlgfr\t%r2, %r0\n\tlmg\t%r11, %r15, 256(%r11)\n\tbr\t%r14\n.Lfunc_end1:\n\t.size\tg, .Lfunc_end1-g\n                                        # -- End function\n\t.ident\t\"clang version 22.1.3\"\n\t.section\t\".note.GNU-stack\",\"\",@progbits\n\t.addrsig\n"
+    },
+    {
+      "path": "/home/student/task/s390x.readelf.txt",
+      "text": "ELF Header:\n  Magic:   7f 45 4c 46 02 02 01 00 00 00 00 00 00 00 00 00 \n  Class:                             ELF64\n  Data:                              2's complement, big endian\n  Version:                           1 (current)\n  OS/ABI:                            UNIX - System V\n  ABI Version:                       0\n  Type:                              REL (Relocatable file)\n  Machine:                           IBM S/390\n  Version:                           0x1\n  Entry point address:               0x0\n  Start of program headers:          0 (bytes into file)\n  Start of section headers:          352 (bytes into file)\n  Flags:                             0x0\n  Size of this header:               64 (bytes)\n  Size of program headers:           0 (bytes)\n  Number of program headers:         0\n  Size of section headers:           64 (bytes)\n  Number of section headers:         7\n  Section header string table index: 1\n"
+    }
+  ],
+  "tools": {
+    "readelf": {
+      "help": "readelf [-h | --file-header | -sW | -lW] <файл> — (replay)",
+      "cases": [
+        {
+          "match": "s390x",
+          "example": "-h s390x.elf",
+          "output": "ELF Header:\n  Magic:   7f 45 4c 46 02 02 01 00 00 00 00 00 00 00 00 00 \n  Class:                             ELF64\n  Data:                              2's complement, big endian\n  Version:                           1 (current)\n  OS/ABI:                            UNIX - System V\n  ABI Version:                       0\n  Type:                              REL (Relocatable file)\n  Machine:                           IBM S/390\n  Version:                           0x1\n  Entry point address:               0x0\n  Start of program headers:          0 (bytes into file)\n  Start of section headers:          352 (bytes into file)\n  Flags:                             0x0\n  Size of this header:               64 (bytes)\n  Size of program headers:           0 (bytes)\n  Number of program headers:         0\n  Size of section headers:           64 (bytes)\n  Number of section headers:         7\n  Section header string table index: 1\n"
+        }
+      ]
+    }
+  }
+}

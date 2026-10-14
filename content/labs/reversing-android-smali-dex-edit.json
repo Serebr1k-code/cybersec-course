@@ -1,0 +1,38 @@
+{
+  "id": "reversing-android-smali-dex-edit",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sm4l1_p4tch_r3turn_tru3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: smali/DEX\n\n`classes.dex` — байткод Dalvik.\n1. `xxd -l 16 classes.dex` — magic `dex\\n035`.\n2. `strings -n 6 classes.dex` — имена классов и методов.\n3. Найди строку-артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/classes.dex",
+      "b64": "ZGV4CjAzNQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABMY29tL2V4YW1wbGUvYXBwL0ludGVncml0eUNoZWNrOwB2ZXJpZnlTaWduYXR1cmUAaXNEZWJ1Z0J1aWxkAGdldEFjdHVhbABudG97c200bDFfcDR0Y2hfcjN0dXJuX3RydTN9AA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "objdump": {
+      "help": "objdump [-d] <файл> — не применимо к DEX",
+      "cases": [
+        {
+          "match": ".",
+          "example": "-d classes.dex",
+          "output": "objdump: classes.dex: file format not recognized\n"
+        }
+      ],
+      "fallback": "objdump: classes.dex не ELF.\n"
+    }
+  }
+}
