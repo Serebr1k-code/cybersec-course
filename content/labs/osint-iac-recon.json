@@ -1,0 +1,43 @@
+{
+  "id": "osint-iac-recon",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{t3rr4f0rm_st4t3_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Terraform state\n\n1. `curl -s https://example-tfstate.s3.amazonaws.com/terraform.tfstate`\n2. Найди `resources` и `outputs`.\n3. Секрет/маркер может быть в `outputs`.\n4. Запиши `nto{...}` в `answer.txt`, затем `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — эмуляция ответов S3",
+      "cases": [
+        {
+          "match": "tfstate",
+          "example": "curl -s https://example-tfstate.s3.amazonaws.com/terraform.tfstate",
+          "output": "{\"version\":4,\"terraform_version\":\"1.5.4\",\"serial\":12,\"outputs\":{\"db_password\":{\"value\":\"nto{t3rr4f0rm_st4t3_l34k}\",\"type\":\"string\"},\"db_endpoint\":{\"value\":\"db.internal.example.com\",\"type\":\"string\"}},\"resources\":[{\"type\":\"aws_db_instance\",\"name\":\"main\",\"instances\":[{\"attributes\":{\"endpoint\":\"db.internal.example.com:5432\",\"username\":\"admin\"}}]},{\"type\":\"aws_s3_bucket\",\"name\":\"assets\"}]}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только example-tfstate.s3.amazonaws.com.\n"
+    },
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "outputs|resources|\\.",
+          "example": "jq -r '.outputs.db_password.value' state.json",
+          "output": "nto{t3rr4f0rm_st3t3_l34k}\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживается разбор полей.\n"
+    }
+  }
+}

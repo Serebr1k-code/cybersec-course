@@ -1,0 +1,48 @@
+{
+  "id": "osint-identity-provider",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{1dp_m3t4d4t4_3xp0s3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: IdP metadata\n\n1. `curl -s https://adfs.example.com/FederationMetadata/2007-06/FederationMetadata.xml`\n2. Найди `entityID`.\n3. `curl -s https://sso.example.com/.well-known/openid-configuration`\n4. Маркер `nto{...}` — запиши в `answer.txt`, затем `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — эмуляция ответов IdP",
+      "cases": [
+        {
+          "match": "FederationMetadata",
+          "example": "curl -s https://adfs.example.com/FederationMetadata/2007-06/FederationMetadata.xml",
+          "output": "<EntityDescriptor entityID=\"http://adfs.example.com/adfs/services/trust\" xmlns=\"urn:oasis:names:tc:SAML:2.0:metadata\"><IDPSSODescriptor><KeyDescriptor use=\"signing\"><KeyInfo><X509Data><X509Certificate>MIIC...</X509Certificate></X509Data></KeyInfo></KeyDescriptor><SingleSignOnService Binding=\"urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect\" Location=\"https://adfs.example.com/adfs/ls/\"/></IDPSSODescriptor><ContactPerson><Company>nto{1dp_m3t4d4t4_3xp0s3d}</Company></ContactPerson></EntityDescriptor>\n"
+        },
+        {
+          "match": "openid-configuration",
+          "example": "curl -s https://sso.example.com/.well-known/openid-configuration",
+          "output": "{\"issuer\":\"https://sso.example.com\",\"authorization_endpoint\":\"https://sso.example.com/oauth2/authorize\",\"token_endpoint\":\"https://sso.example.com/oauth2/token\",\"jwks_uri\":\"https://sso.example.com/.well-known/jwks.json\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны adfs.example.com и sso.example.com.\n"
+    },
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "issuer|\\.",
+          "example": "jq -r .issuer conf.json",
+          "output": "https://sso.example.com\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживается разбор полей.\n"
+    }
+  }
+}
