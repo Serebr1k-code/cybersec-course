@@ -11,7 +11,7 @@ useful_for:
   - "CTF Web категория"
   - "Bug bounty"
   - "Пентест веб-приложений"
-estimated_minutes: 45
+estimated_minutes: 65
 summary: "Django как цель: утечки через DEBUG, подделка и десериализация pickle-сессий при утечке SECRET_KEY, ORM-инъекции и SSTI."
 ---
 
@@ -112,6 +112,60 @@ Django-приложения выдают cookie `csrftoken`/`sessionid` и ха�
 ## Шаг 14: почему Django-админка — отдельная цель
 
 `/admin/` Django по умолчанию доступна и часто остаётся с дефолтными кредами (`admin/admin`) или со слабым паролем. Это дешёвый путь: вход в админку даёт управление всеми моделями. Проверяй `/admin/` на каждой Django-цели — это первое, что стоит сделать после фингерпринта.
+
+## Практика: вытаскиваем всё из DEBUG-страницы
+
+Django с `DEBUG = True` на продакшене — это подарок. При любой ошибке отдаётся трейсбек с **настройками**: `SECRET_KEY`, `DATABASES` (пароль к БД), `ALLOWED_HOSTS`, `EMAIL_*`, переменные окружения. Спровоцируем ошибку и посмотрим:
+
+```
+$ curl -s "https://app.target.example/?id=1'" | grep -oE 'SECRET_KEY[^<]{0,120}'
+SECRET_KEY = 'django-insecure-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+```
+
+`django-insecure-` в префиксе — прямой признак, что ключ сгенерирован автоматически и никогда не менялся. Это значит: подпись сессий, CSRF-токенов и сброса пароля скомпрометирована.
+
+## Практика: подписываем свою сессию
+
+Django по умолчанию хранит сессию в cookie `sessionid`, подписанной `SECRET_KEY` (фреймворк `django.contrib.sessions`). Если ключ утёк, ты генерируешь валидную сессию любого пользователя:
+
+```python
+from django.core.signing import TimestampSigner, dumps
+signer = TimestampSigner(key='django-insecure-xxxx')
+# формируем значение сессии, где _auth_user_id = 1 (суперпользователь)
+```
+
+На практике проще использовать `django-session-forge` или `flask-unsign`-подобные утилиты для Django. Результат — cookie `sessionid`, с которой браузер заходит как `admin`, не зная пароля. Это тот же принцип, что подделка WordPress-cookie, и он показывает: **утечка ключа = полный захват аутентификации**.
+
+## Практика: pickle-сессии
+
+Если сессии хранятся в БД/кэше, но данные сериализуются через `pickle` (например, `SESSION_SERIALIZER = 'django.contrib.sessions.serializers.PickleSerializer'`), то подделанная сессия может содержать pickle-payload. При `unserialize` он выполняет произвольный код. Это редкая, но смертельная конфигурация: достаточно доступа к записи сессии, чтобы получить RCE. Проверяется через `python3 -c "import django; ..."` — читаем настройку `SESSION_SERIALIZER` из утечки DEBUG.
+
+## Практика: ORM-инъекции и SSTI в шаблонах
+
+Django ORM защищает от SQLi, если использовать параметры. Но `extra()`, `raw()` и `RawSQL()` позволяют вставить непроверенный SQL. Шаблоны Django (`DTL`) в целом безопасны (нет выполнения Python), но `{{ ... }}` с пользовательскими фильтрами и сторонними тегами иногда даёт утечки (`{{ settings.SECRET_KEY }}`, если в контекст попадает `settings`). Проверяй `{{ 7*7 }}` — если увидишь `49`, значит шаблонизатор вычисляет выражения (это уже не DTL, а Jinja2 — типичная ошибка конфигурации).
+
+## Таблица: где в Django искать дыру
+
+| Признак | Где смотреть | Что даёт |
+|---|---|---|
+| `DEBUG=True` | страница ошибки | SECRET_KEY, креды БД |
+| `PickleSerializer` | `SESSION_SERIALIZER` | RCE через сессию |
+| `.raw()`/`extra()` | исходники вьюх | SQLi |
+| Jinja2 вместо DTL | `{{ 7*7 }}` → 49 | SSTI → RCE |
+| `django-insecure-` | утечка ключа | подделка сессии |
+| открытый `/admin/` | админка | перебор/сброс |
+
+## Как защититься (и что рекомендовать клиенту)
+
+В отчёте по Django всегда давай конкретные рекомендации: `DEBUG = False` на проде; `SECRET_KEY` из переменных окружения и ротация после утечки; `SESSION_SERIALIZER` — только JSON; запрет `raw()`/`extra()` без параметризации; `ALLOWED_HOSTS` строго перечислен; админка за VPN или с MFA. Отдельно подчеркни: **если SECRET_KEY утёк, смена паролей не помогает** — нужно немедленно ротировать ключ и инвалидировать все сессии, иначе злоумышленник продолжит входить с подделанной cookie.
+
+## Практика: GraphQL/DRF и утечка через API-схему
+
+Современный Django почти всегда идёт с Django REST Framework (DRF) или Graphene. DRF отдаёт browsable API по умолчанию — `/api/` с формами и схемой. Если включён `DEFAULT_AUTHENTICATION_CLASSES` с `SessionAuthentication`, а `permission_classes` забыли, любой эндпоинт доступен анонимно. Проверяй так: `curl -s https://app.target.example/api/` — если видишь список маршрутов, это утечка. Graphene отдаёт интроспекцию (`{__schema{queryType{fields{name}}}}`) — полная карта API. Отдельно ищи `/api/schema/` и `/api/docs/` (drf-spectacular) — там описаны все поля и типы, включая внутренние ID. Это идеальная база для IDOR и mass-assignment: зная точные имена полей, ты отправляешь лишние (например, `is_staff: true`) и проверяешь, применит ли их сериализатор.
+
+## Шпаргалка: команды для быстрой проверки Django
+
+Быстрый чек-лист в одной таблице. Признак фреймворка: cookie `csrftoken` и `sessionid`, заголовок `X-Frame-Options: DENY`, ответ `Server: WSGIServer` (dev) или `gunicorn`. Ошибка с трейсбеком: `curl -s https://host/nonexistent-path-123` — если видишь страницу `DisallowedHost` или трейсбек, значит `DEBUG=True`. Ключ: `grep -oE "SECRET_KEY[^<]{0,120}"` по телу ошибки. Админка: `curl -s -o /dev/null -w '%{http_code}' https://host/admin/`. API: `curl -s https://host/api/` (DRF browsable) и `curl -s https://host/graphql -d '{"query":"{__schema{types{name}}}"}'`. Все результаты — в отчёт с точной командой. Если `DEBUG=True` подтверждён, это уже находка уровня high независимо от того, удалось ли подделать сессию.
 
 ## Квиз
 

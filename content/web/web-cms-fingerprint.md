@@ -174,6 +174,65 @@ $ curl -s -o /dev/null -w '%{http_code} /CHANGELOG.txt\n' https://unknown.target
 
 Повторяемость важна и для отчёта: один и тот же конвейер на разных целях даёт сравнимые данные, а значит — приоритизацию. Где уязвимость выше и импакт больше, туда и уходят усилия.
 
+## Практика: фингерпринт без единого сканера
+
+Сканеры шумят и блокируются WAF. Поэтому навык «определить CMS глазами» обязателен. Начнём с заголовков и пассивных признаков:
+
+```
+$ curl -sI https://site.target.example | grep -iE 'server|x-powered|set-cookie|link'
+Server: nginx
+X-Powered-By: PHP/8.1.2
+Set-Cookie: wp-settings-1=...; path=/
+Link: <https://site.target.example/wp-json/>; rel="https://api.w.org/"
+```
+
+Три признака сразу выдают WordPress: cookie `wp-settings-*`, заголовок `Link` с `wp-json`, и `X-Powered-By: PHP`. Ни одного запроса к «специальному» пути — только корень.
+
+Дальше уточняем через уникальные пути, но аккуратно, по одному:
+
+```
+$ for p in /wp-login.php /administrator/ /user/login /admin/login ; do
+    code=$(curl -s -o /dev/null -w '%{http_code}' "https://site.target.example$p")
+    echo "$code  $p"
+  done
+200  /wp-login.php
+404  /administrator/
+404  /user/login
+404  /admin/login
+```
+
+`200` на `/wp-login.php` подтверждает WordPress, а не просто PHP. Такой метод надёжнее, чем «определение по favicon», и легко документируется.
+
+## Практика: версия из статики, а не из заголовков
+
+Заголовки врут и урезаются прокси. Версия надёжнее лежит в статике. Для WordPress:
+
+```
+$ curl -s https://site.target.example/ | grep -oE 'ver=[0-9.]+' | sort -u
+ver=6.4.2
+ver=1.7
+```
+
+Первый — версия ядра (в query у `/wp-includes/`), второй — версия jQuery. Для Drupal версия есть в `CHANGELOG.txt` или в `core/lib/Drupal.php`; для Joomla — в `administrator/manifests/files/joomla.xml` (`<version>4.2.6</version>`). Каждый движок прячет версию в «паспортном» файле, и знание этих файлов — половина навыка фингерпринта.
+
+## Таблица: паспортные пути по движкам
+
+| Движок | Файл/путь с версией | Доп. признак |
+|---|---|---|
+| WordPress | `/wp-includes/js/wp-embed.min.js?ver=` | `Link: wp-json` |
+| Drupal | `/CHANGELOG.txt`, `/core/CHANGELOG.txt` | `X-Generator` |
+| Joomla | `/administrator/manifests/files/joomla.xml` | `/components/com_` |
+| Magento | `/magento_version`, cookie `X-Magento-*` | `/static/version.../` |
+| TYPO3 | `/typo3/`, `?type=...` | `Set-Cookie: be_typo_user` |
+| Ghost | `/ghost/api/content/` | `<meta name="generator" content="Ghost">` |
+| Craft | `/admin/login`, `X-Powered-By: Craft CMS` | cookie `CraftSessionId` |
+
+Держи эту таблицу под рукой: по ней ты за минуту определишь движок на незнакомом сайте и не будешь наугад лить `wp-login.php` в Drupal.
+
+## Как не ошибиться: ложные признаки
+
+Ложные срабатывания — главная ловушка фингерпринта. Сайт может отдавать `X-Powered-By: PHP` и при этом быть на Laravel, а не на WordPress. `X-Generator` иногда выставляют руками. Поэтому правило: **минимум три независимых признака**, прежде чем делать вывод. Хороший набор — cookie + заголовок + уникальный путь. Если все три совпали, ошибка почти исключена. И обязательно сохраняй каждый признак в отчёт с точной командой и выводом: «`Set-Cookie: wp-settings-1` — признак WordPress» весит куда больше, чем «похоже на WordPress».
+
 ## Квиз
 
 Проверь себя.
