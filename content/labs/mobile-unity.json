@@ -1,0 +1,23 @@
+{
+  "id": "mobile-unity",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1l2cpp_m3t4d4t4_str1ngs}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: реверс Unity IL2CPP\n\nНайди секрет в строках метаданных.\n"
+    },
+    {
+      "path": "/home/student/task/il2cpp_strings.txt",
+      "text": "UnityEngine.Application\nhttps://api.pixelquest.example/v1/purchase\nVerifyPurchase\nIsPremium\nsecret_key=nto{1l2cpp_m3t4d4t4_str1ngs}\n"
+    }
+  ]
+}

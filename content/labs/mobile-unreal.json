@@ -1,0 +1,23 @@
+{
+  "id": "mobile-unreal",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{unr34l_p4k_4ss3t_dump}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Unreal .pak\n\nНайди ассет с секретом.\n"
+    },
+    {
+      "path": "/home/student/task/pak_listing.txt",
+      "text": "pakchunk0-Android_ASTC.pak\n  SkyForge/Content/UI/MainMenu.uasset\n  SkyForge/Content/Data/StoreSecrets.uasset   # nto{unr34l_p4k_4ss3t_dump}\n  SkyForge/Content/Data/StoreSecrets.uexp\n"
+    }
+  ]
+}

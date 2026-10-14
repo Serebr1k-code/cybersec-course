@@ -1,0 +1,23 @@
+{
+  "id": "mobile-godot",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{g0d0t_pck_gdscr1pt_dump}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Godot .pck\n\nНайди скрипт с секретом.\n"
+    },
+    {
+      "path": "/home/student/task/pck_manifest.txt",
+      "text": "GDPC v2 (unencrypted)\n  res://scenes/Main.tscn\n  res://scripts/GameState.gdc\n  res://scripts/Secrets.gd   # premium_key = nto{g0d0t_pck_gdscr1pt_dump}\n"
+    }
+  ]
+}
