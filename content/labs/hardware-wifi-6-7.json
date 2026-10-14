@@ -1,0 +1,27 @@
+{
+  "id": "hardware-wifi-6-7",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w1f1_6e_6ghz_s4e}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Wi-Fi 6E beacon\n\n`beacon.txt` — beacon точки Corp-6G. Определи AKM (тип аутентификации) и диапазон. Флаг в `flag.b64`.\n\n1. `cat beacon.txt` — найди akms и band.\n2. `base64 -d flag.b64`.\n3. `base64 -d flag.b64 | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/beacon.txt",
+      "text": "beacon ssid=Corp-6G freq=5955 (band 6GHz) he=1 akms=8 (SAE/WPA3)\nmlo=supported links=2 (2.4GHz,6GHz)\n"
+    },
+    {
+      "path": "/home/student/task/flag.b64",
+      "text": "bnRve3cxZjFfNmVfNmdoel9zNGV9\n"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "hardware-wifi-driver-fw",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{brcm_fw_7_45_154_broadpwn}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: прошивка Broadcom\n\n`fw-strings.txt` — вывод strings из firmware blob. Определи версию прошивки. Флаг в `flag.b64`.\n\n1. `grep -i version fw-strings.txt`.\n2. `base64 -d flag.b64`.\n3. `base64 -d flag.b64 | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/fw-strings.txt",
+      "text": "brcmfmac43455-sdio.bin\nVersion: 7.45.154\nCompiled: 2019-08-01\nchip: BCM43455\n"
+    },
+    {
+      "path": "/home/student/task/flag.b64",
+      "text": "bnRve2JyY21fZndfN180NV8xNTRfYnJvYWRwd259\n"
+    }
+  ]
+}

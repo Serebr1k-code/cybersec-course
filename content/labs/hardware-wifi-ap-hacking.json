@@ -1,0 +1,23 @@
+{
+  "id": "hardware-wifi-ap-hacking",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s0h0_r0ut3r_c0nf1g_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: конфиг роутера\n\n`wireless.cfg` — выдержка из конфига SOHO-роутера. Найди утёкший ключ и извлеки флаг.\n\n1. `cat wireless.cfg` — что внутри.\n2. `grep nto wireless.cfg`.\n3. `grep nto wireless.cfg > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/wireless.cfg",
+      "text": "config wifi-iface\n    option ssid 'HomeNet'\n    option key 'nto{s0h0_r0ut3r_c0nf1g_l34k}'\n    option encryption 'psk2'\nconfig pppoe\n    option username 'user@isp'\n    option password 'pppoe_secret'\n"
+    }
+  ]
+}
