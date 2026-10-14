@@ -1,0 +1,19 @@
+{
+  "id": "misc-filename-tricks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `listing.txt` — список имён файлов из архива, часть — трюки. Метка спрятана в строке `flag:`. Достань её в `found.txt`.\n\nПовторение: вспомни приём из урока `misc-encoding-chains` — отдели значение после `flag:` и раскодируй его.\n"
+    },
+    {
+      "path": "/home/student/task/listing.txt",
+      "text": "archive listing (simulated)\nnotes.txt\n-rf\n..%2f..%2fetc%2fpasswd\nfile with spaces.txt\nfile\nwith\nnewlines.txt\nflag:bnRve2YxbDNuNG0zX3RyMWNrc180cjZ2fQ==\n"
+    }
+  ]
+}

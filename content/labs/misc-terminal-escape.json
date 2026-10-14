@@ -1,0 +1,19 @@
+{
+  "id": "misc-terminal-escape",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `access.log` есть ANSI-escape-последовательности. Метка спрятана в строке `flag:`. Достань её в `found.txt`.\n\nПовторение: вспомни приём из урока `misc-encoding-chains` — отдели значение после `flag:` и раскодируй его.\n"
+    },
+    {
+      "path": "/home/student/task/access.log",
+      "text": "GET /index.html HTTP/1.1\nGET /\\x1b[31madmin\\x1b[0m HTTP/1.1\nUser-Agent: \\x1b[2K\\rcurl/8.0\nnote: ansi escape injection hides rows from cat\nflag:bnRvezRuczFfM3NjNHAzXzFuajNjdDEwbn0=\n"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "misc-ocr-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `scan.txt` — заметки об OCR. Метка спрятана в строке `flag:`. Достань её в `found.txt`.\n\nПовторение: вспомни приём из урока `misc-image-misc` — работа с изображениями и OCR.\n"
+    },
+    {
+      "path": "/home/student/task/scan.txt",
+      "text": "ocr with tesseract notes\ntesseract image.png output\npreprocess: grayscale, threshold, resize, deskew\npsm 7 for a single line, psm 13 for raw\nocr confuses 0/O and 1/l\nflag:bnRve3Qzc3MzcjRjdF8wY3JfcHIzcHIwYzNzc30=\n"
+    }
+  ]
+}

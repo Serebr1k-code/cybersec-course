@@ -1,0 +1,19 @@
+{
+  "id": "misc-env-tricks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `env.txt` — дамп окружения. Метка спрятана в строке `flag:`. Достань её в `found.txt`.\n\nПовторение: вспомни приём из урока `misc-encoding-chains` — отдели значение после `flag:` и раскодируй его.\n"
+    },
+    {
+      "path": "/home/student/task/env.txt",
+      "text": "environment dump (simulated)\nPATH=/home/user/bin:/usr/bin:/bin\nIFS= \\t\\n\nBASH_ENV=/tmp/evil.sh\nnote: writable dir in PATH = hijack\nflag:bnRvezNudl9wNHRoX2gxajRja19wcjF2M3NjfQ==\n"
+    }
+  ]
+}

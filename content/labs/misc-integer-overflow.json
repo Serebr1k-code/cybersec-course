@@ -1,0 +1,19 @@
+{
+  "id": "misc-integer-overflow",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `ints.txt` — заметки о переполнении целых. Метка спрятана в строке `flag:`. Достань её в `found.txt`.\n\nПовторение: вспомни приём из урока `misc-arithmetic` — работа с числами и их границами.\n"
+    },
+    {
+      "path": "/home/student/task/ints.txt",
+      "text": "integer overflow notes\nunsigned wrap: (255 + 1) & 0xFF = 0\nsigned overflow in C is undefined behaviour (CWE-190)\nlen + header < MAX check can be bypassed by wrap-around\nflag:bnRvezFudDNnM3JfMHYzcmZsMHdfd3I0cDRyMHVuZH0=\n"
+    }
+  ]
+}

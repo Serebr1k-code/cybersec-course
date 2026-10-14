@@ -1,0 +1,19 @@
+{
+  "id": "misc-bit-manipulation",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `bits.txt` — заметки о битовых операциях. Метка спрятана в строке `flag:`. Достань её в `found.txt`.\n\nПовторение: вспомни приём из урока `misc-binary-misc` — работа с байтами и битами.\n"
+    },
+    {
+      "path": "/home/student/task/bits.txt",
+      "text": "bit manipulation notes\nAND/OR/XOR/NOT basics\ncheck bit k: n & (1 << k)\nclear lowest set bit: n & (n-1)\nxor is self-inverse: a ^ b ^ b == a\nflag:bnRve2IxdF9tNG4xcHVsNHQxMG5fcDBwYzB1bnR9\n"
+    }
+  ]
+}

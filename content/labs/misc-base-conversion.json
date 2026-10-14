@@ -1,0 +1,19 @@
+{
+  "id": "misc-base-conversion",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `numbers.txt` — заметки о системах счисления. Метка спрятана в строке `flag:`. Достань её в `found.txt`.\n\nПовторение: вспомни приём из урока `misc-arithmetic` — работа с числами.\n"
+    },
+    {
+      "path": "/home/student/task/numbers.txt",
+      "text": "base conversion notes\nhex 42 = 66 decimal\nleading zero means octal in C: 010 = 8\nbase64 alphabet A-Z a-z 0-9 + /\nxxd -r -p converts hex text to bytes\nflag:bnRve2I0czNfYzBudjNyczEwbl9yNGQxeH0=\n"
+    }
+  ]
+}

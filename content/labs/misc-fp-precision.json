@@ -1,0 +1,19 @@
+{
+  "id": "misc-fp-precision",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `floats.txt` — заметки о IEEE-754. Метка спрятана в строке `flag:`. Достань её в `found.txt`.\n\nПовторение: вспомни приём из урока `misc-arithmetic` — работа с числами и их точностью.\n"
+    },
+    {
+      "path": "/home/student/task/floats.txt",
+      "text": "ieee-754 float notes\nsign 1 bit, exponent 11, mantissa 52 (double)\n0.1 + 0.2 = 0.30000000000000004\nNaN != NaN is true\nnever compare floats with ==\nflag:bnRve2ZsMDR0X3ByM2MxczEwbl8zcHMxbDBuX2J1Z30=\n"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "misc-bidi-attack",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `source.c` есть невидимые bidi-символы. Метка спрятана в строке `flag:`. Достань её в `found.txt`.\n\nПовторение: вспомни приём из урока `misc-encoding-chains` — отдели значение после `flag:` и раскодируй его.\n"
+    },
+    {
+      "path": "/home/student/task/source.c",
+      "text": "// sample review target\nint check(char *u) {\n  if (strcmp(u, \"\\u202Eadmin\\u202C\")) return 1;  // invisible bidi around token\n  return 0;\n}\n// flag:bnRve3RyMGo0bl9zMHVyYzNfYjFkMV9jMG50cjBsfQ==\n"
+    }
+  ]
+}

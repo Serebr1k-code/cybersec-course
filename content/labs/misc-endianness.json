@@ -1,0 +1,19 @@
+{
+  "id": "misc-endianness",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `bytes.txt` — заметки о порядке байтов. Метка спрятана в строке `flag:`. Достань её в `found.txt`.\n\nПовторение: вспомни приём из урока `misc-binary-misc` — работа с байтами.\n"
+    },
+    {
+      "path": "/home/student/task/bytes.txt",
+      "text": "endianness notes\n0x12345678 little-endian: 78 56 34 12\nnetwork byte order = big-endian\npython: int.from_bytes(b, \"little\")\nxxd shows bytes in file order\nflag:bnRvezNuZDE0bm4zc3NfYnl0M18wcmQzcn0=\n"
+    }
+  ]
+}

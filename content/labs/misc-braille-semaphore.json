@@ -1,0 +1,19 @@
+{
+  "id": "misc-braille-semaphore",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `braille.txt` — заметки о Брайле и семафоре. Метка спрятана в строке `flag:`. Достань её в `found.txt`.\n\nПовторение: вспомни приём из урока `misc-encoding-chains` — отдели значение после `flag:` и раскодируй его.\n"
+    },
+    {
+      "path": "/home/student/task/braille.txt",
+      "text": "braille unicode samples\nU+2800 base offset (10240)\nbits = code - 0x2800\ndot1=bit0 dot2=bit1 ... dot8=bit7\nsemaphore: 8 flag positions, 28 letter pairs\nflag:bnRve2JyNDFsbDNfczNtNHBoMHIzXzRscGg0YjN0fQ==\n"
+    }
+  ]
+}

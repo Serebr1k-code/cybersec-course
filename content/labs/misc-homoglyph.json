@@ -1,0 +1,19 @@
+{
+  "id": "misc-homoglyph",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `domains.txt` — список доменов, часть с гомоглифами. Метка спрятана в строке `flag:`. Достань её в `found.txt`.\n\nПовторение: сначала вспомни приём из урока `misc-encoding-chains` — отдели значение после `flag:` и раскодируй его.\n"
+    },
+    {
+      "path": "/home/student/task/domains.txt",
+      "text": "look-alike domain samples\napple.com        (latin, normal)\nаpple.com    (cyrillic a, mixed script)\npaypal.com       (latin)\npаypal.com   (cyrillic a)\nflag:bnRve2gwbTBnbHlwaF9jMG5mdXM0YmwzX2QwbTQxbn0=\n"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "id": "misc-text-compression",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `smaz.txt` — заметки о текстовых компрессорах. Метка спрятана в строке `flag:`. Достань её в `found.txt`.\n\nПовторение: вспомни приём из урока `misc-encoding-chains` — отдели значение после `flag:` и раскодируй его.\n"
+    },
+    {
+      "path": "/home/student/task/smaz.txt",
+      "text": "text compression notes\nsmaz: dictionary of ~250 frequent substrings, one byte each, no header\nshrink: similar dictionary approach for short strings\nentropy of compressed text ~8 bits/byte\nflag:bnRve3NtNHpfc2hyMW5rM3JfdDN4dF9jMG1wcjNzc30=\n"
+    }
+  ]
+}

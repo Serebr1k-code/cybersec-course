@@ -1,0 +1,19 @@
+{
+  "id": "misc-quine",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `quine.txt` — заметки о квинах. Метка спрятана в строке `flag:`. Достань её в `found.txt`.\n\nПовторение: вспомни приём из урока `misc-esolang` — программы, печатающие свой код.\n"
+    },
+    {
+      "path": "/home/student/task/quine.txt",
+      "text": "quine notes\na quine prints its own source code\npython: s = %r ; print(s %% s)\nverify: diff <(python3 quine.py) quine.py\nquine-relay: chain across languages\nflag:bnRve3F1MW4zX3MzbGZfcjNwbDFjNHQxMG59\n"
+    }
+  ]
+}

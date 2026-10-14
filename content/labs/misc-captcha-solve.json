@@ -1,0 +1,19 @@
+{
+  "id": "misc-captcha-solve",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `captcha.txt` — пайплайн решения CAPTCHA. Метка спрятана в строке `flag:`. Достань её в `found.txt`.\n\nПовторение: вспомни приём из урока `misc-image-misc` — работа с изображениями и OCR.\n"
+    },
+    {
+      "path": "/home/student/task/captcha.txt",
+      "text": "captcha solving pipeline\n1 grayscale  2 threshold  3 denoise  4 segment  5 ocr\npytesseract.image_to_string(img)\nconnected components for segmentation\nflag:bnRve2M0cHRjaDRfMGNyX3ByM3ByMGMzc3N9\n"
+    }
+  ]
+}

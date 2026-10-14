@@ -1,0 +1,19 @@
+{
+  "id": "misc-locale-tricks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `locale.txt` — примеры поведения локалей. Метка спрятана в строке `flag:`. Достань её в `found.txt`.\n\nПовторение: вспомни приём из урока `misc-unicode` — работа со строкой и её байтами.\n"
+    },
+    {
+      "path": "/home/student/task/locale.txt",
+      "text": "locale behaviour samples\nC: I < a (byte order)\ntr_TR: I.lower() = i-dotless\nde_DE: ß.upper() = SS\ncollation differs by LC_COLLATE\nflag:bnRve2wwYzRsM18xY3VfYzBsbDR0MTBufQ==\n"
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+import { describe, it, expect } from 'vitest'
+import fs from 'node:fs'
+import path from 'node:path'
+import { createSession } from './session'
+
+function loadBundle(id) {
+  const p = path.resolve(process.cwd(), `../content/labs/${id}.json`)
+  return JSON.parse(fs.readFileSync(p, 'utf8'))
+}
+function session(spec, bundle) { return createSession({ spec, bundle }) }
+
+function specFor(id, files) {
+  return {
+    kind: 'shell',
+    workdir: '/home/student/task',
+    files: ['task.md', ...files],
+    check: "grep -q 'nto{' found.txt",
+    hints: ['a', 'b', 'c'],
+  }
+}
+
+const CASES = [
+  { id: 'misc-length-extension', artifact: 'server.log', flag: 'nto{l3ng4h_3xt3ns10n_4nd_md5}' },
+  { id: 'misc-padding-oracle', artifact: 'oracle.log', flag: 'nto{p4dd1ng_0r4cl3_cbc_4tt4ck}' },
+  { id: 'misc-mac-forgery', artifact: 'transfer.log', flag: 'nto{cbc_m4c_c0ll1s10n_f0rg3ry}' },
+  { id: 'misc-stream-nonce', artifact: 'capture.hex', flag: 'nto{n0nc3_r3us3_br34ks_str34m_c1ph3rs}' },
+]
+
+for (const c of CASES) {
+  describe(`${c.id} lab`, () => {
+    const bundle = loadBundle(c.id)
+    const spec = specFor(c.id, [c.artifact])
+
+    it('seeds the artifact and task', async () => {
+      const s = session(spec, bundle)
+      const r = await s.run(`cat ${c.artifact}`)
+      expect(r.stdout).toContain('flag:')
+    })
+
+    it('is not solved before writing found.txt', async () => {
+      const s = session(spec, bundle)
+      expect((await s.run('check')).code).toBe(1)
+    })
+
+    it('solves via cut + base64 -d', async () => {
+      const s = session(spec, bundle)
+      await s.run(`grep flag ${c.artifact} | cut -d: -f2 | base64 -d > found.txt`)
+      expect((await s.run('check')).code).toBe(0)
+      expect(s.solved).toBe(true)
+      expect((await s.run('cat found.txt')).stdout.trim()).toBe(c.flag)
+    })
+  })
+}

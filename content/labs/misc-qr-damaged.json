@@ -1,0 +1,19 @@
+{
+  "id": "misc-qr-damaged",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `qr.txt` — заметки о восстановлении QR. Метка спрятана в строке `flag:`. Достань её в `found.txt`.\n\nПовторение: вспомни приём из урока `misc-qr-barcode-deep` — работа с QR и штрихкодами.\n"
+    },
+    {
+      "path": "/home/student/task/qr.txt",
+      "text": "qr damaged recovery notes\nqr uses reed-solomon error correction\nlevels L=7% M=15% Q=25% H=30%\nnever damage the three finder patterns\nzbarimg qr.png decodes qr/barcodes\nflag:bnRve3FyX2Q0bTRnM2RfcjNjMHYzcnlfM2NjfQ==\n"
+    }
+  ]
+}

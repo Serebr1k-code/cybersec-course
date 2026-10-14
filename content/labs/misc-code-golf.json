@@ -1,0 +1,19 @@
+{
+  "id": "misc-code-golf",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nВ `golf.txt` — заметки о code golf. Метка спрятана в строке `flag:`. Достань её в `found.txt`.\n\nПовторение: вспомни приём из урока `misc-esolang` — краткий код и интерпретация.\n"
+    },
+    {
+      "path": "/home/student/task/golf.txt",
+      "text": "code golf notes\nprint(chr(72)+chr(105)) prints Hi without H/i letters\nlambda beats def for short code\npolyglot: valid in several languages\nminimal code is often obfuscated\nflag:bnRve2MwZDNfZzBsZl9zaDBydDNzdF9zMGx9\n"
+    }
+  ]
+}
