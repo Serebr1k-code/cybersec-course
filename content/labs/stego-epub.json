@@ -1,0 +1,44 @@
+{
+  "id": "stego-epub",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{epub_unreferenced_file}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: необъявленный файл в EPUB\n\n`book.epub` — ZIP-архив. Один файл не упомянут в OPF-манифесте.\n\n1. `unzip -l book.epub`.\n2. `python3 epub.py` — чтение скрытого файла.\n3. `python3 epub.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/book.epub",
+      "b64": "UEsDBBQAAAAIAKNsTl1vYassFgAAABQAAAAIAAAAbWltZXR5cGVLLCjIyUxOLMnMz9NPLShN0q7KLAAAUEsDBBQAAAAIAKNsTl3iFcbyUwAAAGwAAAAWAAAATUVUQS1JTkYvY29udGFpbmVyLnhtbLOxr8jNUShLLSrOzM+zVTLUM1Cyt7NJzs8rSczMSy2ysynKzy9Jy8xJLUYwFdJKc3J0CxJLMmyV/F2dAoL1QepT80r08gvSlPTtbPSRNOkjzAIAUEsDBBQAAAAIAKNsTl0LBqSvYAAAAIYAAAARAAAAT0VCUFMvY29udGVudC5vcGZFjVEKgCAQBa8ie4DM/03PIrblUpqoRMdPsujvwczw0FxhFyflwkecQA0jGI3Jus2upDHYyAuVqpErBcHzBE6B8JmWtrxNlbIaLl/DDlKj/P2SOFLPmtzKnqhHe6H8fm5QSwMEFAAAAAgAo2xOXWhD/GAyAAAAOQAAABQAAABPRUJQUy9jaGFwdGVyMS54aHRtbLPJKMnNsbNJyk+ptLPJMLRzzkgsKEktUjC00QfybArsPFJzcvL1bPQL7Gz0Iar0wVoAUEsDBBQAAAAIAKNsTl0QJYdwHQAAABsAAAAQAAAAT0VCUFMvc2VjcmV0LnR4dMsrya9OLShNii/NK0pNSy1KzUtOTYlPy8xJrQUAUEsBAhQDFAAAAAgAo2xOXW9hqywWAAAAFAAAAAgAAAAAAAAAAAAAAIABAAAAAG1pbWV0eXBlUEsBAhQDFAAAAAgAo2xOXeIVxvJTAAAAbAAAABYAAAAAAAAAAAAAAIABPAAAAE1FVEEtSU5GL2NvbnRhaW5lci54bWxQSwECFAMUAAAACACjbE5dCwakr2AAAACGAAAAEQAAAAAAAAAAAAAAgAHDAAAAT0VCUFMvY29udGVudC5vcGZQSwECFAMUAAAACACjbE5daEP8YDIAAAA5AAAAFAAAAAAAAAAAAAAAgAFSAQAAT0VCUFMvY2hhcHRlcjEueGh0bWxQSwECFAMUAAAACACjbE5dECWHcB0AAAAbAAAAEAAAAAAAAAAAAAAAgAG2AQAAT0VCUFMvc2VjcmV0LnR4dFBLBQYAAAAABQAFADkBAAABAgAAAAA="
+    },
+    {
+      "path": "/home/student/task/epub.py",
+      "text": "import zipfile\nz = zipfile.ZipFile('book.epub')\nopf = z.read('OEBPS/content.opf').decode()\nfor name in z.namelist():\n    if name.endswith('secret.txt'):\n        print(z.read(name).decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "epub\\.py",
+          "example": "python3 epub.py",
+          "output": "nto{epub_unreferenced_file}\n"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "id": "stego-odf",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{odf_meta_field}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: пользовательское поле в meta.xml\n\n`doc.odt` — ODF-документ. В `meta.xml` есть base64 в meta:user-defined.\n\n1. `unzip -l doc.odt`.\n2. `python3 odf.py` — декодирование.\n3. `python3 odf.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/doc.odt",
+      "b64": "UEsDBBQAAAAIAMVsTl1exjIMKQAAACcAAAAIAAAAbWltZXR5cGVLLCjIyUxOLMnMz9Mvy0vRy08szizWyy9IzUvJTy7NTc0r0StJrSgBAFBLAwQUAAAACADFbE5dzufUwUwAAABzAAAAFQAAAE1FVEEtSU5GL21hbmlmZXN0LnhtbLOxr8jNUShLLSrOzM+zVTLUM1Cyt7PJTczLTEstLrGCMZCE0jJzUnVT80qKKhUQYqU5OboFiSUZtkrJ+XklQFk9oLFK+nY2+phGAQBQSwMEFAAAAAgAxWxOXVy/g1xSAAAAlAAAAAsAAABjb250ZW50LnhtbLOxr8jNUShLLSrOzM+zVTLUM1Cyt7PJT0vLTE61SslPLs1NzSvRTc7PKwHScImk/JRKOKcktQIoAyKtCuw8UnNy8m30oTwbfRQ1+ija9XHZAgBQSwMEFAAAAAgAxWxOXSDM9NIwAAAALgAAAAoAAABzdHlsZXMueG1ss7GvyM1RKEstKs7Mz7NVMtQzULK3s8lPS8tMTrVKyU8uzU3NK9EtLqnMSS3WtwMAUEsDBBQAAAAIAMVsTl3D+2W4eQAAALAAAAAIAAAAbWV0YS54bWyzsa/IzVEoSy0qzszPs1Uy1DNQsrezyU9Ly0xOtUrJTy7NTc0r0c1NLUm0swGRVkjM0uLUIt2U1LTMvNQUBbBIXmJuqq2SU2lmToqni5JdUl5QWaqRZXZUjmVJVERQRoRRVEFUeEV2WqCtrY0+hhl2UDGIFfpYHQEAUEsDBBQAAAAIAMVsTl23Iy0oMgAAADAAAAAMAAAAc2V0dGluZ3MueG1ss7GvyM1RKEstKs7Mz7NVMtQzULK3s8lPS8tMTrVKyU8uzU3NK9EtTi0pycxLL9a3AwBQSwECFAMUAAAACADFbE5dXsYyDCkAAAAnAAAACAAAAAAAAAAAAAAAgAEAAAAAbWltZXR5cGVQSwECFAMUAAAACADFbE5dzufUwUwAAABzAAAAFQAAAAAAAAAAAAAAgAFPAAAATUVUQS1JTkYvbWFuaWZlc3QueG1sUEsBAhQDFAAAAAgAxWxOXVy/g1xSAAAAlAAAAAsAAAAAAAAAAAAAAIABzgAAAGNvbnRlbnQueG1sUEsBAhQDFAAAAAgAxWxOXSDM9NIwAAAALgAAAAoAAAAAAAAAAAAAAIABSQEAAHN0eWxlcy54bWxQSwECFAMUAAAACADFbE5dw/tluHkAAACwAAAACAAAAAAAAAAAAAAAgAGhAQAAbWV0YS54bWxQSwECFAMUAAAACADFbE5dtyMtKDIAAAAwAAAADAAAAAAAAAAAAAAAgAFAAgAAc2V0dGluZ3MueG1sUEsFBgAAAAAGAAYAWgEAAJwCAAAAAA=="
+    },
+    {
+      "path": "/home/student/task/odf.py",
+      "text": "import zipfile, base64, re\nz = zipfile.ZipFile('doc.odt')\nmeta = z.read('meta.xml').decode()\nm = re.search(r'meta:user-defined[^>]*>([^<]+)<', meta)\nprint(base64.b64decode(m.group(1)).decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "odf\\.py",
+          "example": "python3 odf.py",
+          "output": "nto{odf_meta_field}\n"
+        }
+      ]
+    }
+  }
+}

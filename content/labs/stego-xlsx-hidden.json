@@ -1,0 +1,44 @@
+{
+  "id": "stego-xlsx-hidden",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{xlsx_veryhidden_sheet}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: veryHidden лист в XLSX\n\n`report.xlsx` — книга OOXML. Один лист скрыт как veryHidden.\n\n1. `unzip -l report.xlsx`.\n2. `python3 xlsx.py` — имя скрытого листа.\n3. `python3 xlsx.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/report.xlsx",
+      "b64": "UEsDBBQAAAAIAMVsTl3uR1hmHwAAAB0AAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbLOxr8jNUShLLSrOzM+zVTLUM1Cyt7MJqSxILda3AwBQSwMEFAAAAAgAxWxOXTFIPnt5AAAAtgAAAA8AAAB4bC93b3JrYm9vay54bWyzsa/IzVEoSy0qzszPs1Uy1DNQsrezKc8vyk7Kz8+2synOSE0tKYbSCnmJuam2SkGpBflFJUoKYDHPFKAuILsksQQoVZZZnJmUk6qkj6ojryS/uiKnuCIeaFFlRmZKSmpePFi+FskUI4QpQFUeYFUgg/RhbtCHOwsAUEsDBBQAAAAIAMVsTl2Xu60iVQAAAHAAAAAYAAAAeGwvd29ya3NoZWV0cy9zaGVldDEueG1ss7GvyM1RKEstKs7Mz7NVMtQzULK3synPL8ouzkhNLbGzAVMuiSWJdjZF+eUKRUA1SnY2ySCGo6GSQomtUjGQX2ZnYKNfZmejnwzEQHVAEkmjPsI8AFBLAwQUAAAACADFbE5dan6M9i4AAAA4AAAAGAAAAHhsL3dvcmtzaGVldHMvc2hlZXQyLnhtbLOxr8jNUShLLSrOzM+zVTLUM1Cyt7Mpzy/KLs5ITS2xswFTLoklifp2NvoIcQBQSwMEFAAAAAgAxWxOXUGa49IxAAAANgAAABQAAAB4bC9zaGFyZWRTdHJpbmdzLnhtbLOxr8jNUShLLSrOzM+zVTLUM1Cyt7MpLi4BEpl2NiV2QakF+UUlNvpAAX2QiD5IDgBQSwECFAMUAAAACADFbE5d7kdYZh8AAAAdAAAAEwAAAAAAAAAAAAAAgAEAAAAAW0NvbnRlbnRfVHlwZXNdLnhtbFBLAQIUAxQAAAAIAMVsTl0xSD57eQAAALYAAAAPAAAAAAAAAAAAAACAAVAAAAB4bC93b3JrYm9vay54bWxQSwECFAMUAAAACADFbE5dl7utIlUAAABwAAAAGAAAAAAAAAAAAAAAgAH2AAAAeGwvd29ya3NoZWV0cy9zaGVldDEueG1sUEsBAhQDFAAAAAgAxWxOXWp+jPYuAAAAOAAAABgAAAAAAAAAAAAAAIABgQEAAHhsL3dvcmtzaGVldHMvc2hlZXQyLnhtbFBLAQIUAxQAAAAIAMVsTl1BmuPSMQAAADYAAAAUAAAAAAAAAAAAAACAAeUBAAB4bC9zaGFyZWRTdHJpbmdzLnhtbFBLBQYAAAAABQAFAEwBAABIAgAAAAA="
+    },
+    {
+      "path": "/home/student/task/xlsx.py",
+      "text": "import zipfile, re\nz = zipfile.ZipFile('report.xlsx')\nwb = z.read('xl/workbook.xml').decode()\nfor m in re.finditer(r'name=\"([^\"]+)\"[^>]*state=\"veryHidden\"', wb):\n    print(m.group(1))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "xlsx\\.py",
+          "example": "python3 xlsx.py",
+          "output": "nto{xlsx_veryhidden_sheet}\n"
+        }
+      ]
+    }
+  }
+}

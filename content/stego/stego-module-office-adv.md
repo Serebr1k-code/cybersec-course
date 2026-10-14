@@ -1,0 +1,45 @@
+---
+id: stego-module-office-adv
+title: "Модуль: Офисные контейнеры (EPUB, ODF, XLSX, PPTX)"
+category: stego
+parent: stego-document-carriers
+difficulty: medium
+order: 5
+tags: [stego, roadmap, epub, odf, xlsx, pptx, zip, document]
+prerequisites: [stego-document-carriers]
+useful_for:
+  - "CTF Stego: документы и книги"
+  - "Форензика: разбор офисных вложений"
+  - "Blue team: эксфильтрация через документы"
+estimated_minutes: 8
+summary: "Навигационный модуль по офисным ZIP-контейнерам: EPUB (OPF-манифест), OpenDocument (meta.xml), XLSX (veryHidden-листы) и PPTX (заметки, скрытые слайды). Общий приём — разобрать архив и найти непронумерованное."
+---
+
+## Зачем этот модуль
+
+Офисные форматы — это ZIP-архивы с XML внутри. У каждого есть элементы, которые
+редактор не отображает: непронумерованные файлы, пользовательские метаданные,
+скрытые листы, заметки докладчика. Всё это — носители данных, и искать их нужно
+одинаково: распаковать, прочитать манифест, найти «лишнее».
+
+## Что разберём
+
+- **stego-epub** — EPUB: `mimetype`, `META-INF/container.xml`, OPF-манифест,
+  непронумерованные файлы.
+- **stego-odf** — OpenDocument: `meta.xml`, `meta:user-defined`, лишние записи.
+- **stego-xlsx-hidden** — XLSX: состояния листов (veryHidden), скрытые строки,
+  `definedNames`, `customXml`.
+- **stego-pptx** — PPTX: заметки, скрытые слайды (`show=0`), фигуры за краем.
+
+## Как проходить
+
+По порядку. В каждом уроке — реальный контейнер (`book.epub`, `doc.odt`,
+`report.xlsx`, `talk.pptx`) и короткий Python-парсер на `zipfile`.
+
+## Что вы будете уметь
+
+- Разбирать ZIP-структуру офисного документа.
+- Находить непронумерованные/скрытые части.
+- Читать манифест и служебные XML.
+- Нормализовать документ, чтобы убить канал.
+

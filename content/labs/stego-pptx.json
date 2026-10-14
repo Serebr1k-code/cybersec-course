@@ -1,0 +1,44 @@
+{
+  "id": "stego-pptx",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pptx_notes_slide}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: заметка докладчика в PPTX\n\n`talk.pptx` — презентация OOXML. Метка спрятана в notesSlide.\n\n1. `unzip -l talk.pptx`.\n2. `python3 pptx.py` — извлечение метки.\n3. `python3 pptx.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/talk.pptx",
+      "b64": "UEsDBBQAAAAIAMVsTl3uR1hmHwAAAB0AAAATAAAAW0NvbnRlbnRfVHlwZXNdLnhtbLOxr8jNUShLLSrOzM+zVTLUM1Cyt7MJqSxILda3AwBQSwMEFAAAAAgAxWxOXesm/3JVAAAAdwAAABQAAABwcHQvcHJlc2VudGF0aW9uLnhtbLOxr8jNUShLLSrOzM+zVTLUM1Cyt7MpsCooSi1OzStJLAEKg/jFOSmeKT7FJXC2QmaKrZKRqZmSQpEViFnkmWKkpFCckV9uq2SgpG9no4+sSR/NRABQSwMEFAAAAAgAxWxOXYseO3MxAAAAQAAAABUAAABwcHQvc2xpZGVzL3NsaWRlMS54bWyzsa/IzVEoSy0qzszPs1Uy1DNQsrezKbAqzkkBUcnBELq4IKQoNVXfzkYfJqYPUQMAUEsDBBQAAAAIAMVsTl3d0IF/UgAAAG4AAAAfAAAAcHB0L25vdGVzU2xpZGVzL25vdGVzU2xpZGUxLnhtbLOxr8jNUShLLSrOzM+zVTLUM1Cyt7MpsMrLL0ktBjGSg3NSQHRxQUhRaqqdTaJViV1eSX51QUFJRTxYVXxxTmZKaq2NPkjKRh+hVB+mWx9mHgBQSwMEFAAAAAgAxWxOXX1E3V0kAAAAIgAAABAAAABkb2NQcm9wcy9hcHAueG1ss7GvyM1RKEstKs7Mz7NVMtQzULK3swkoyi9ILSrJTC3WtwMAUEsBAhQDFAAAAAgAxWxOXe5HWGYfAAAAHQAAABMAAAAAAAAAAAAAAIABAAAAAFtDb250ZW50X1R5cGVzXS54bWxQSwECFAMUAAAACADFbE5d6yb/clUAAAB3AAAAFAAAAAAAAAAAAAAAgAFQAAAAcHB0L3ByZXNlbnRhdGlvbi54bWxQSwECFAMUAAAACADFbE5dix47czEAAABAAAAAFQAAAAAAAAAAAAAAgAHXAAAAcHB0L3NsaWRlcy9zbGlkZTEueG1sUEsBAhQDFAAAAAgAxWxOXd3QgX9SAAAAbgAAAB8AAAAAAAAAAAAAAIABOwEAAHBwdC9ub3Rlc1NsaWRlcy9ub3Rlc1NsaWRlMS54bWxQSwECFAMUAAAACADFbE5dfUTdXSQAAAAiAAAAEAAAAAAAAAAAAAAAgAHKAQAAZG9jUHJvcHMvYXBwLnhtbFBLBQYAAAAABQAFAFEBAAAcAgAAAAA="
+    },
+    {
+      "path": "/home/student/task/pptx.py",
+      "text": "import zipfile, re\nz = zipfile.ZipFile('talk.pptx')\nfor name in z.namelist():\n    if 'notesSlide' in name:\n        txt = z.read(name).decode()\n        m = re.search(r'nto\\{[^}]*\\}', txt)\n        if m:\n            print(m.group(0))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "pptx\\.py",
+          "example": "python3 pptx.py",
+          "output": "nto{pptx_notes_slide}\n"
+        }
+      ]
+    }
+  }
+}
