@@ -1,0 +1,27 @@
+{
+  "id": "cloud-oci-basics",
+  "workdir": "/home/student/oci",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/oci/found.txt",
+    "contains": "nto{0c1_t3n4ncy_w1ldc4rd_m4n4g3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/oci",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/oci/task.md",
+      "text": "# Задача\n\nВ репозитории найден конфиг OCI CLI и заметки инженера. Определи, какой уровень прав даёт утёкший ключ, и собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/oci/oci-config.ini",
+      "text": "[DEFAULT]\nuser=ocid1.user.oc1..aaaaaaaauser\nfingerprint=ab:cd:ef:01:23:45:67:89:ab:cd:ef:01:23:45:67:89\ntenancy=ocid1.tenancy.oc1..aaaaaaaatena\nregion=eu-frankfurt-1\nkey_file=/home/ci/.oci/oci_api_key.pem\n"
+    },
+    {
+      "path": "/home/student/oci/notes.md",
+      "text": "Политика для CI-пользователя:\n\nallow group ci-deploy to manage all-resources in tenancy\n\nИнженер пометил: ключ не ротировался 400 дней.\nОстаток заметки: nto{0c1_t3n4ncy_w1ldc4rd_m4n4g3}\n"
+    }
+  ]
+}

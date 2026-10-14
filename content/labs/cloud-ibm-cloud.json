@@ -1,0 +1,27 @@
+{
+  "id": "cloud-ibm-cloud",
+  "workdir": "/home/student/ibm",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/ibm/found.txt",
+    "contains": "nto{1bm_s3rv1c3_1d_full_4dm1n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/ibm",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/ibm/task.md",
+      "text": "# Задача\n\nНайден CI-конфиг с ключом IBM Cloud. Определи, кому принадлежит ключ и какой уровень прав он несёт, затем собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/ibm/bluemix-config.json",
+      "text": "{\n  \"Account\": \"abc123def456abc123def456abc123de\",\n  \"Region\": \"eu-de\",\n  \"IAMToken\": \"old-token-expired\",\n  \"ResourceGroup\": \"default\"\n}\n"
+    },
+    {
+      "path": "/home/student/ibm/ci.env",
+      "text": "IBMCLOUD_API_KEY=Kx8vExampleApiKeyValue0000000000000000000\nIBMCLOUD_ACCOUNT_ID=abc123def456abc123def456abc123de\n# владелец ключа: service-id ci-deploy\n# политика: Administrator на весь аккаунт\n# nto{1bm_s3rv1c3_1d_full_4dm1n}\n"
+    }
+  ]
+}

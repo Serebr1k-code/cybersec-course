@@ -1,0 +1,27 @@
+{
+  "id": "cloud-supabase-planetscale",
+  "workdir": "/home/student/sb",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/sb/found.txt",
+    "contains": "nto{sup4b4s3_s3rv1c3_r0l3_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/sb",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/sb/task.md",
+      "text": "# Задача\n\nВ клиентском бандле найдены два ключа. Один из них обходит RLS. Определи, какой, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/sb/app.js",
+      "text": "const SUPABASE_URL = \"https://xyz.supabase.co\";\nconst ANON = \"eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoiYW5vbiJ9.anon\";\nconst SRV = \"eyJhbGciOiJIUzI1NiJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.srv\";\n"
+    },
+    {
+      "path": "/home/student/sb/notes.md",
+      "text": "Аудит: в бандле оказался ключ с ролью service_role.\nОн обходит RLS и даёт полный доступ ко всем таблицам.\nnto{sup4b4s3_s3rv1c3_r0l3_l34k}\n"
+    }
+  ]
+}

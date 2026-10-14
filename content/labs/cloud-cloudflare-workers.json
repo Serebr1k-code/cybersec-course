@@ -1,0 +1,27 @@
+{
+  "id": "cloud-cloudflare-workers",
+  "workdir": "/home/student/cf",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/cf/found.txt",
+    "contains": "nto{cf_w0rk3r_v4rs_l34k_s3cr3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/cf",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/cf/task.md",
+      "text": "# Задача\n\nВ репозитории edge-приложения найден wrangler.toml и заметки. Определи, где утёк секрет, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/cf/wrangler.toml",
+      "text": "name = \"api-gateway\"\nmain = \"src/index.js\"\n[vars]\nPUBLIC_HOST = \"api.example.com\"\nADMIN_TOKEN = \"should-have-been-a-secret\"\n[kv_namespaces]\nbinding = \"CACHE\"\nid = \"abcd1234\"\n"
+    },
+    {
+      "path": "/home/student/cf/notes.md",
+      "text": "Аудит: ADMIN_TOKEN лежит в [vars], а не в secret put.\nЗначит, он виден любому с доступом к конфигу и дашборду.\nnto{cf_w0rk3r_v4rs_l34k_s3cr3t}\n"
+    }
+  ]
+}

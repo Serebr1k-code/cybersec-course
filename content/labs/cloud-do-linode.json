@@ -1,0 +1,27 @@
+{
+  "id": "cloud-do-linode",
+  "workdir": "/home/student/do",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/do/found.txt",
+    "contains": "nto{d0_p4t_full_4cc0unt_t4k30v3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/do",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/do/task.md",
+      "text": "# Задача\n\nВ публичном репозитории найден файл с токеном DigitalOcean. Подтверди, что токен даёт полный доступ, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/do/leaked.env",
+      "text": "DIGITALOCEAN_TOKEN=dop_v1_EXAMPLEnotarealtoken0000000000000000000000000000000000000000\nDO_SPACES_KEY=EXAMPLESPACESKEY\n"
+    },
+    {
+      "path": "/home/student/do/notes.md",
+      "text": "Проверка токена: GET /v2/account -> 200, email владельца получен.\nScopes: read_write по всем ресурсам.\nСнапшоты доступны: 3 штуки, один от прод-БД.\nnto{d0_p4t_full_4cc0unt_t4k30v3r}\n"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "cloud-aliyun-basics",
+  "workdir": "/home/student/aliyun",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/aliyun/found.txt",
+    "contains": "nto{r4m_st4r_4ct10n_4dm1n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/aliyun",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/aliyun/task.md",
+      "text": "# Задача\n\nНайден код приложения с AccessKey и его RAM-политикой. Определи, к чему даёт доступ ключ, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/aliyun/policy.json",
+      "text": "{\n  \"Version\": \"1\",\n  \"Statement\": [\n    {\"Effect\": \"Allow\", \"Action\": \"oss:*\", \"Resource\": \"*\"},\n    {\"Effect\": \"Allow\", \"Action\": \"ram:AttachPolicyToUser\", \"Resource\": \"*\"}\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/aliyun/app.env",
+      "text": "ALIBABA_CLOUD_ACCESS_KEY_ID=LTAI5tExampleKeyId\nALIBABA_CLOUD_ACCESS_KEY_SECRET=ExAmPlEsEcReTvAlUe0000000000\n# проверка прав показала: Action=* по факту (см. приложенную политику)\n# nto{r4m_st4r_4ct10n_4dm1n}\n"
+    }
+  ]
+}
