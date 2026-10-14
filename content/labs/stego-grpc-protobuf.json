@@ -1,0 +1,44 @@
+{
+  "id": "stego-grpc-protobuf",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{grpc_pr0t0buf_fl4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: строка в protobuf-сообщении\n\n`msg.pb` — бинарное protobuf-сообщение. Поле: `тег(varint) + данные`. Тег = `(номер<<3)|wire_type`.\n\nWire-type 2 — строка: после тега varint-длина и данные.\n\n1. `xxd msg.pb`.\n2. `python3 pb.py` — разбор полей.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/msg.pb",
+      "b64": "ChdudG97Z3JwY19wcjB0MGJ1Zl9mbDRnfQ=="
+    },
+    {
+      "path": "/home/student/task/pb.py",
+      "text": "def read_varint(d, p):\n    val = 0; shift = 0\n    while True:\n        b = d[p]; p += 1\n        val |= (b & 0x7f) << shift\n        if not (b & 0x80):\n            break\n        shift += 7\n    return val, p\n\nd = open('msg.pb','rb').read()\np = 0\nwhile p < len(d):\n    tag, p = read_varint(d, p)\n    field = tag >> 3\n    wt = tag & 7\n    if wt == 2:\n        ln, p = read_varint(d, p)\n        data = d[p:p+ln]; p += ln\n        print(data.decode('latin-1'))\n    else:\n        break\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "pb\\.py",
+          "example": "python3 pb.py",
+          "output": "nto{grpc_pr0t0buf_fl4g}\n"
+        }
+      ]
+    }
+  }
+}

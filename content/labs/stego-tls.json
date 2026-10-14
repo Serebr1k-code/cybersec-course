@@ -1,0 +1,44 @@
+{
+  "id": "stego-tls",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{tls_3xt_fl4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: приватное расширение в ClientHello\n\n`clienthello.bin` — сырой TLS ClientHello. В списке расширений есть private-use расширение (тип 0xFDE8).\n\nЗапись: `тип(1)+версия(2)+длина(2)+данные`. Расширение: `тип(2)+длина(2)+данные`.\n\n1. `xxd -l 64 clienthello.bin`.\n2. `python3 tls.py` — разбор расширений.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/clienthello.bin",
+      "b64": "FgMBAE4BAABKAwM12SLmfmXf3NQ55FcouUXgX+hycnihccMUhAuUB3ZoOQAAAhMBAQAAHwAAAAYABWxhYgD96AARbnRve3Rsc18zeHRfZmw0Z30="
+    },
+    {
+      "path": "/home/student/task/tls.py",
+      "text": "d = open('clienthello.bin','rb').read()\np = 5 + 4 + 2 + 32\nsid = d[p]; p += 1 + sid\ncs = int.from_bytes(d[p:p+2],'big'); p += 2 + cs\ncm = d[p]; p += 1 + cm\nelen = int.from_bytes(d[p:p+2],'big'); p += 2\nend = p + elen\nwhile p + 4 <= end:\n    et = int.from_bytes(d[p:p+2],'big')\n    ln = int.from_bytes(d[p+2:p+4],'big')\n    data = d[p+4:p+4+ln]\n    if et == 0xFDE8:\n        print(data.decode('latin-1'))\n    p += 4 + ln\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "tls\\.py",
+          "example": "python3 tls.py",
+          "output": "nto{tls_3xt_fl4g}\n"
+        }
+      ]
+    }
+  }
+}

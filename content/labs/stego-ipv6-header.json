@@ -1,0 +1,44 @@
+{
+  "id": "stego-ipv6-header",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1pv6_0pt10ns_fl4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: опция в Destination Options header\n\n`packet.bin` — IPv6-пакет. Базовый заголовок — 40 байт; Next Header = 60 (0x3C) означает Destination Options.\n\nОпция: `тип(1) + длина(1) + данные`. Ищи тип 0x1E.\n\n1. `xxd packet.bin`.\n2. `python3 ipv6.py` — обход опций.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/packet.bin",
+      "b64": "YAAAAAAgPEAgAQAAAAAAAAAAAAAAAAAAIAEAAAAAAAAAAAAAAAAAADsDHhZudG97MXB2Nl8wcHQxMG5zX2ZsNGd9AAAAAAAA"
+    },
+    {
+      "path": "/home/student/task/ipv6.py",
+      "text": "d = open('packet.bin','rb').read()\nnh = d[6]\np = 40\nwhile nh not in (6, 17, 58, 59) and p + 2 <= len(d):\n    nh2 = d[p]; extlen = d[p+1]\n    if nh in (0, 60):\n        q = p + 2\n        end = p + 8 + extlen*8\n        while q + 2 <= end:\n            ot = d[q]; ol = d[q+1]\n            data = d[q+2:q+2+ol]\n            if ot == 0x1E:\n                print(data.decode('latin-1'))\n            q += 2 + ol\n    p = p + 8 + extlen*8\n    nh = nh2\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "ipv6\\.py",
+          "example": "python3 ipv6.py",
+          "output": "nto{1pv6_0pt10ns_fl4g}\n"
+        }
+      ]
+    }
+  }
+}

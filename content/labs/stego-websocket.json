@@ -1,0 +1,44 @@
+{
+  "id": "stego-websocket",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w3bs0ck3t_fl4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: снятие маски WebSocket-фрейма\n\n`ws.bin` — один WebSocket-фрейм. Байт 0: FIN+opcode. Байт 1: MASK-бит + длина(7 бит).\n\nЕсли MASK=1 — после длины идут 4 байта маски, затем payload, замаскированный XOR по кругу.\n\n1. `xxd ws.bin`.\n2. `python3 ws.py` — снятие маски.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/ws.bin",
+      "b64": "gZMSNFZ4fEA5A2UHNAsiVz1LZmswFCZTKw=="
+    },
+    {
+      "path": "/home/student/task/ws.py",
+      "text": "d = open('ws.bin','rb').read()\nmask = d[2:6]\nln = d[1] & 0x7f\npayload = d[6:6+ln]\nout = bytes(payload[i] ^ mask[i % 4] for i in range(len(payload)))\nprint(out.decode('latin-1'))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "ws\\.py",
+          "example": "python3 ws.py",
+          "output": "nto{w3bs0ck3t_fl4g}\n"
+        }
+      ]
+    }
+  }
+}
