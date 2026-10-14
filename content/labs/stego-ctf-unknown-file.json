@@ -1,0 +1,60 @@
+{
+  "id": "stego-ctf-unknown-file",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{unkn0wn_tr1ag3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: триаж неизвестного файла\n\n`mystery.bin` — файл без описания. Определи формат, найди вложенные данные и извлеки флаг.\n\n1. `file mystery.bin`, `xxd -l 64 mystery.bin`.\n2. `binwalk mystery.bin` — карта.\n3. Извлеки и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/mystery.bin",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAC/ElEQVR4nD3Q00JYAQAA0JttY8stLSwubpnLxqpl27btlm1bq2Xbts2lvd3zCQeAw6FApRPFETAlVoqgMK2i85pmib/jKsYX6OARndaROfBVesnXxBjQpz425UGxkWMGsHkNiOSDyY1Kad3HmGMuOQuw+Fs5RCbUpXc9FJ+yNFB79Cj2TLjgrWXonfR/eDrbAmS/CmhcBpkiTzhyUfmaWIRHlaS2nBXu09SROnRJN43ZoawkqR1/Sng4WPiHRodl1gKMYfvsWQi89QxCQ7KS63byN4lq8M0/P6wYfXmzFCNz0BJ2tzX2CwoLTa+IqZ5M7rsBeGo+CfZLSqxYyl3GqMLU6RDOGzI9WQgT26sLuFnp+/oHhqQUR1eMJPWcZyxg5J+yAeKLJrJn4SqQldp4UwYMt+bf8exUuF3NtX18fIIT86JK+xO7jn7PIucdMZW+KdRgOQLK7yVa2KO/aC/M+DFtFdldTNS8Pd2D4jIji7oT2nfTp+By9+lKnmWq0W2aqOI7uRsB8MvZUNHLzSkwOjUivz2+ZSNtHDJnh6r4UbwKxbyRPKqDs6ZXenZE7wEAvwIiEsJzmuIal1NHXrM3SYvuhCoRjRpIQtvZyv9KTAzrXE/Z4yyGcAHgV2zdXMrgY9YaUeE1fwWcXj1xQBtLUY/o8JDm2aQN+kIg63qayl6VKwB+ZS7jFlx8LYfWqiPwbmXM7RbqG1Q7nLBEmvdjXEuW3y13OOlOvp5vBcCvMgjVWly3FvqMP9/+DCjvjJvBznnTriZI75RYH3fGXc00PB4uvr8+A+BXM01KF19bv8L6mDHErAflSqzYdqHZUVvk5WT1w97M2797GDQCZEpeAPzqk10aNXiZcSVZjhLcyjM8bA65GCu73x5/fbiCRsZGIuPE5NAgkPIEwK9pJ8KlcL7NbN2DBv/z4cK7jaGX21MoBDTEj18wWJXxxV1ItNOp7ToB8GsjQ3O/1utsIOd2tff56gASFhGB6DM6sxyeiP1HjSQq6xaGgFXW1Pf/kwWJEB5R1RQAAAAASUVORK5CYII="
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        }
+      ]
+    },
+    "file": {
+      "help": "file <file> — определение типа (эмуляция)",
+      "cases": [
+        {
+          "match": "mystery\\.bin",
+          "example": "file mystery.bin",
+          "output": "mystery.bin: PNG image data, 16 x 16, 8-bit/color RGB, non-interlaced\n"
+        }
+      ]
+    },
+    "binwalk": {
+      "help": "binwalk [-e] <file> — сканирование сигнатур (эмуляция)",
+      "cases": [
+        {
+          "match": "mystery\\.bin",
+          "example": "binwalk mystery.bin",
+          "output": "DECIMAL       HEXADECIMAL     DESCRIPTION\n0             0x0             PNG image, 16 x 16\n1186          0x4A2           Zip archive data, at least v2.0\n1450          0x5AA           End of Zip archive\n"
+        },
+        {
+          "match": "-e\\s+mystery\\.bin",
+          "example": "binwalk -e mystery.bin",
+          "output": "Extracted 1 file\n_mystery.bin.extracted/note.txt: nto{unkn0wn_tr1ag3}\n"
+        }
+      ]
+    }
+  }
+}

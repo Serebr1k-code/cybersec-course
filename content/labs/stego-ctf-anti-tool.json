@@ -1,0 +1,54 @@
+{
+  "id": "stego-ctf-anti-tool",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4nt1_t00l_m4nu4l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: ручное извлечение против anti-tool\n\n`weird.png` не открывается инструментами: сигнатура испорчена. Восстанови структуру и извлеки данные вручную.\n\n1. `xxd -l 32 weird.png` — найди повреждение.\n2. `python3 manual.py` — ручное извлечение.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/weird.png",
+      "b64": "iFBORw0KGgoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+    },
+    {
+      "path": "/home/student/task/manual.py",
+      "text": "print('nto{4nt1_t00l_m4nu4l}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "manual\\.py",
+          "example": "python3 manual.py",
+          "output": "nto{4nt1_t00l_m4nu4l}\n"
+        }
+      ]
+    },
+    "zsteg": {
+      "help": "zsteg <file> — LSB-анализ (эмуляция)",
+      "cases": [
+        {
+          "match": "weird\\.png",
+          "example": "zsteg weird.png",
+          "output": "ERROR: not a valid PNG (bad signature)\n"
+        }
+      ]
+    }
+  }
+}

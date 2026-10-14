@@ -1,0 +1,60 @@
+{
+  "id": "stego-ctf-flag-hunt",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{fl4g_hunt_syst3m}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: поиск флага в контейнере\n\n`container.zip` содержит несколько файлов, один из них — скрытый. Найди флаг методично.\n\n1. `unzip container.zip`.\n2. `grep -r nto .` и проверь скрытые файлы.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/container.zip",
+      "text": "PK\u0003\u0004 (zip container with readme.txt, photo.jpg, data.bin, .hidden_note)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        }
+      ]
+    },
+    "unzip": {
+      "help": "unzip <archive> — распаковка (эмуляция)",
+      "cases": [
+        {
+          "match": "container\\.zip",
+          "example": "unzip container.zip",
+          "output": "Archive:  container.zip\n  inflating: readme.txt\n  inflating: photo.jpg\n  inflating: data.bin\n  inflating: .hidden_note\n"
+        }
+      ]
+    },
+    "grep": {
+      "help": "grep [-r|-o] <pattern> <path> — поиск (эмуляция для этой лабы)",
+      "cases": [
+        {
+          "match": "-r.*nto",
+          "example": "grep -r nto .",
+          "output": "./readme.txt:flag is not here, keep looking\n./.hidden_note:nto{fl4g_hunt_syst3m}\n"
+        },
+        {
+          "match": "-rho.*nto",
+          "example": "grep -rho 'nto{[^}]*}' .",
+          "output": "nto{fl4g_hunt_syst3m}\n"
+        }
+      ]
+    }
+  }
+}
