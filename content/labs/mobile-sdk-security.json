@@ -1,0 +1,23 @@
+{
+  "id": "mobile-sdk-security",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sdk_3xc3ss1v3_p3rm1ss10ns}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: инвентаризация SDK\n\nНайди избыточные разрешения.\n"
+    },
+    {
+      "path": "/home/student/task/sdk_inventory.txt",
+      "text": "com.example.analytics  permissions: INTERNET\ncom.example.ads        permissions: INTERNET, ACCESS_FINE_LOCATION, READ_PHONE_STATE  # nto{sdk_3xc3ss1v3_p3rm1ss10ns}\ncom.example.crash      permissions: INTERNET\n"
+    }
+  ]
+}
