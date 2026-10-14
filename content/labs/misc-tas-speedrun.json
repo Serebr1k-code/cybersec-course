@@ -1,0 +1,40 @@
+{
+  "id": "misc-tas-speedrun",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{t4s_rng_d3t3rm1n1sm}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# TAS\n\nВ `run.bk2` спрятан флаг. Распакуй фильм и найди его.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Фильм BizHawk: заголовок + таблица ввода. Тело сжато gzip.\n"
+    },
+    {
+      "path": "/home/student/task/run.bk2",
+      "b64": "H4sIAAAAAAAC/4v2zCsoLYnlqtHTA6FQPTANJLiinfNzc1PzgHLFqakptnkl+dUlJsXxRXnp8SnGJcZFuYZ5hsW5tVwAvUX6EUIAAAA=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py>",
+      "cases": [
+        {
+          "match": "bk2|gzip|decompress",
+          "example": "python3 -c \"import gzip;...\"",
+          "output": "[Input]\n|..|..|U...|....|\n[Comment]\nseed=nto{t4s_rng_d3t3rm1n1sm}"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "misc-retro-console",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r3tr0_c4rt_dump_cl34n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Ретро-картридж\n\n`cart.bin` — дамп с лишними байтами. Очисти и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/cart.bin",
+      "b64": "AAAAAE5FUxoBAQAAAAAAAAAAAABudG97cjN0cjBfYzRydF9kdW1wX2NsMzRufQA=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "strings": {
+      "help": "strings <файл>",
+      "cases": [
+        {
+          "match": "cart\\.bin",
+          "example": "strings cart.bin",
+          "output": "NES\u001anto{r3tr0_c4rt_dump_cl34n}"
+        }
+      ]
+    }
+  }
+}
