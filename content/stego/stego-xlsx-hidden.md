@@ -134,7 +134,7 @@ nto{xlsx_veryhidden_sheet}
   explanation: "veryHidden не отображается в диалоге показа скрытых листов."
 - question: "Где в sheetN.xml указано, что строка скрыта?"
   options:
-    - "Атрибут hidden=\"1\" у <row> или <col>"
+    - "Атрибут hidden='1' у <row> или <col>"
     - "Тег <secret>"
     - "Комментарий"
     - "Цвет заливки"

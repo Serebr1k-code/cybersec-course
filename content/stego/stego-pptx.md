@@ -125,12 +125,12 @@ nto{pptx_notes_slide}
   explanation: "PPTX — OOXML-ZIP с частями presentation/slides/notes."
 - question: "Как скрыть слайд при показе?"
   options:
-    - "Атрибут show=\"0\" у sldId в presentation.xml"
+    - "Атрибут show='0' у sldId в presentation.xml"
     - "Удалить файл слайда"
     - "Зашифровать слайд"
     - "Сменить фон"
   answer: 0
-  explanation: "show=\"0\" помечает слайд как скрытый."
+  explanation: "show='0' помечает слайд как скрытый."
 - question: "Где хранятся заметки докладчика?"
   options:
     - "ppt/notesSlides/notesSlideN.xml"
