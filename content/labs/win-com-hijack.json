@@ -1,0 +1,24 @@
+{
+  "id": "win-com-hijack",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c0m_h1j4ck_hkcu_cls1d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: подмена COM-объекта\n\n`NTUSER.DAT` — hive пользователя. В нём зарегистрирован подменённый CLSID. Найди путь к DLL атакующего и флаг.\n\n1. `file NTUSER.DAT`.\n2. `strings NTUSER.DAT` — CLSID, InprocServer32, TreatAs.\n3. `strings NTUSER.DAT | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/NTUSER.DAT",
+      "b64": "cmVnZgAAAAAAAAAAAAAAAFNvZnR3YXJlXENsYXNzZXNcQ0xTSUQAezAwMDJERjAxLTAwMDAtMDAwMC1DMDAwLTAwMDAwMDAwMDA0Nn0ASW5wcm9jU2VydmVyMzIAQzpcVXNlcnNcUHVibGljXGNvbW1zLmRsbAAAAAAAAAAAAAAAAAAAAAAAVHJlYXRBcwB7MDAwMkRGMDItMDAwMC0wMDAwLUMwMDAtMDAwMDAwMDAwMDQ2fQAAAAAAAAAAAAAAAAAAAAAAbnRve2MwbV9oMWo0Y2tfaGtjdV9jbHMxZH0A",
+      "mode": "644"
+    }
+  ]
+}

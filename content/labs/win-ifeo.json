@@ -1,0 +1,29 @@
+{
+  "id": "win-ifeo",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1fe0_s3thc_b4ckd00r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: хайджек загрузки\n\nДва hive: `SOFTWARE` и `SYSTEM`. В них спрятаны правки IFEO и AppCertDlls. Найди флаг и объясни технику.\n\n1. `file SOFTWARE`.\n2. `strings SOFTWARE` — ключ sethc.exe и Debugger.\n3. `strings SOFTWARE | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/SOFTWARE",
+      "b64": "cmVnZgAAAAAAAAAAAAAAAFJPT1QAAE1pY3Jvc29mdAAAAAAAAAAAAAAAAAAAAAAASW1hZ2UgRmlsZSBFeGVjdXRpb24gT3B0aW9ucwAAAAAAAAAAAHNldGhjLmV4ZQAAAAAAAAAAAERlYnVnZ2VyAEM6XFdpbmRvd3NcVGVtcFxzdmMuZXhlAAAAAAAAAAAAAAAAAAAAAABBcHBJbml0X0RMTHMAQzpcVXNlcnNcUHVibGljXHN2Yy5kbGwAAAAAAAAAAAAAAAAAAAAAAG50b3sxZmUwX3MzdGhjX2I0Y2tkMDByfQA=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/SYSTEM",
+      "b64": "cmVnZgAAAAAAAAAAAAAAAENvbnRyb2xTZXQwMDEAXENvbnRyb2xcU2Vzc2lvbiBNYW5hZ2VyXEFwcENlcnREbGxzAAAAAAAAAAAAAAAAAAAAAABDOlxXaW5kb3dzXFRlbXBcYXBwY2VydC5kbGwA",
+      "mode": "644"
+    }
+  ]
+}

