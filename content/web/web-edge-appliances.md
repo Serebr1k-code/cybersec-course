@@ -4,7 +4,7 @@ title: 'Edge- и VPN-appliance: F5 BIG-IP, Fortinet, Ivanti'
 category: web
 parent: web-enterprise-apps
 difficulty: hard
-order: 6
+order: 4
 tags: [appliance, vpn, f5, fortinet, ivanti, edge, roadmap]
 prerequisites: [web-enterprise-apps]
 useful_for:

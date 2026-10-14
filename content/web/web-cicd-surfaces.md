@@ -4,7 +4,7 @@ title: 'CI/CD и SCM как поверхность атаки: Gitea, TeamCity, 
 category: web
 parent: web-enterprise-apps
 difficulty: hard
-order: 7
+order: 5
 tags: [cicd, scm, devops, gitea, teamcity, nexus, artifactory, argocd, roadmap]
 prerequisites: [web-devops-surfaces]
 useful_for:

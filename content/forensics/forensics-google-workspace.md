@@ -4,7 +4,7 @@ title: 'Google Workspace: аудит и форензика'
 category: forensics
 parent: forensics-cloud-identity
 difficulty: medium
-order: 3
+order: 4
 tags: [cloud, google, workspace, oauth, audit, admin, forensics]
 prerequisites: [forensics-cloud-multi]
 useful_for:

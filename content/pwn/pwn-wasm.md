@@ -4,7 +4,7 @@ title: "WebAssembly pwn: линейная память и побег из пес
 category: pwn
 parent: pwn-sandbox-escape
 difficulty: hard
-order: 1
+order: 2
 tags: [pwn, wasm, webassembly, linear-memory, sandbox, jit, browser]
 prerequisites: [pwn-buffer-overflow-core, pwn-sandbox-escape]
 useful_for:
