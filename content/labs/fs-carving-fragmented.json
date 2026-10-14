@@ -1,0 +1,24 @@
+{
+  "id": "fs-carving-fragmented",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{fr4gm3nt3d_c4rv1ng_sm4rt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: фрагментированный файл\n\n`dump.bin` — сырой дамп с фрагментами файла. Найди метку.\n\n1. `file dump.bin`.\n2. `strings dump.bin | grep -Ei 'fragment|carv'`.\n3. `strings dump.bin | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/dump.bin",
+      "b64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGZyYWdtZW50IDEvMyBvZmZzZXQgMHgwMDEwMDAwMApmcmFnbWVudCAyLzMgb2Zmc2V0IDB4MDA3MDAwMDAKZnJhZ21lbnQgMy8zIG9mZnNldCAweDAwZDAwMDAwCmNhcnZpbmcgcmVxdWlyZXMgcmVhc3NlbWJseQpFVklERU5DRTogbnRve2ZyNGdtM250M2RfYzRydjFuZ19zbTRydH0K",
+      "mode": "644"
+    }
+  ]
+}

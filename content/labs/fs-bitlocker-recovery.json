@@ -1,0 +1,24 @@
+{
+  "id": "fs-bitlocker-recovery",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b1tl0ck3r_vmk_r3c0v3ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: метаданные BitLocker\n\n`fve.meta` — служебные метаданные FVE. Найди подпись, протекторы и метку.\n\n1. `file fve.meta`.\n2. `strings fve.meta | grep -Ei 'FVE|VMK|protector|recovery'`.\n3. `strings fve.meta | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/fve.meta",
+      "b64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAtRlZFLUZTLSBzaWduYXR1cmUgYXQgb2Zmc2V0IDB4MApWTUsgcHJlc2VudCwgcHJvdGVjdGVkIGJ5IFRQTSArIHJlY292ZXJ5CnJlY292ZXJ5IHBhc3N3b3JkIHByb3RlY3RvciBwcmVzZW50CkVWSURFTkNFOiBudG97YjF0bDBjazNyX3Zta19yM2MwdjNyeX0K",
+      "mode": "644"
+    }
+  ]
+}

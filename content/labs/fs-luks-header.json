@@ -1,0 +1,24 @@
+{
+  "id": "fs-luks-header",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{luks_h3ad3r_k3ysl0t_pbkdf2}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: заголовок LUKS\n\n`luks.hdr` — заголовок шифрованного раздела LUKS. Определи параметры и найди метку.\n\n1. `file luks.hdr`.\n2. `strings luks.hdr | grep -Ei 'LUKS|cipher|PBKDF|keyslot'`.\n3. `strings luks.hdr | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/luks.hdr",
+      "b64": "AAAAAAAAAAAAAAAAAAAAAExVS1PCusK+IHZlcnNpb24gMgpjaXBoZXI6IGFlcy14dHMtcGxhaW42NApQQktERjogYXJnb24yaWQgaXRlcmF0aW9ucz00CmtleXNsb3QgMCBhY3RpdmUKa2V5c2xvdCAxIGFjdGl2ZQpOT1RFOiBudG97bHVrc19oM2FkM3JfazN5c2wwdF9wYmtkZjJ9Cg==",
+      "mode": "644"
+    }
+  ]
+}

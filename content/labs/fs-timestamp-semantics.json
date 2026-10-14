@@ -1,0 +1,24 @@
+{
+  "id": "fs-timestamp-semantics",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ntfs_s1_vs_fn_t1m3st0mp}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: две шкалы времени NTFS\n\n`mft.rec` — дамп записи MFT. Сравни SI и FN и найди метку-улику.\n\n1. `strings mft.rec | grep -Ei 'SI|FN'`.\n2. `strings mft.rec | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/mft.rec",
+      "b64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABNRlQgcmVjb3JkIDQyClNJICBjcmVhdGVkPTIwMjAtMDEtMDEgMDA6MDA6MDAgIG1vZGlmaWVkPTIwMjAtMDEtMDEgMDA6MDA6MDAKRk4gIGNyZWF0ZWQ9MjAyNi0wMy0xMSAwMjoxNDowOSAgbW9kaWZpZWQ9MjAyNi0wMy0xMSAwMjoxNDowOQpOT1RFOiBTSSBiYWNrZGF0ZWQ7IHJlYWwgY3JlYXRpb24gaW4gRk4KRVZJREVOQ0U6IG50b3tudGZzX3MxX3ZzX2ZuX3QxbTNzdDBtcH0K",
+      "mode": "644"
+    }
+  ]
+}

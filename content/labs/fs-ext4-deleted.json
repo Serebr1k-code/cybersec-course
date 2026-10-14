@@ -1,0 +1,24 @@
+{
+  "id": "fs-ext4-deleted",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ext4_1n0d3_dt1m3_jbd2}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: удалённый файл ext4\n\n`ext4.img` — образ раздела ext4 с удалённым файлом. Найди метку.\n\n1. `file ext4.img`.\n2. `strings ext4.img | grep -Ei 'i_dtime|extent|jbd2'`.\n3. `strings ext4.img | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/ext4.img",
+      "b64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZXh0NCBzdXBlcmJsb2NrIFVVSUQ9YWJjZC0xMjM0Cmlub2RlIDEwNDg1NzcgaV9saW5rc19jb3VudD0wIGlfZHRpbWU9MTc3MzIwMDAwMApleHRlbnQgdHJlZSB6ZXJvZWQgb24gZGVsZXRlCmpiZDIgam91cm5hbDogdHJhbnNhY3Rpb24gODgyMSBjb21taXR0ZWQKRVZJREVOQ0U6IG50b3tleHQ0XzFuMGQzX2R0MW0zX2piZDJ9Cg==",
+      "mode": "644"
+    }
+  ]
+}

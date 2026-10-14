@@ -1,0 +1,24 @@
+{
+  "id": "fs-veracrypt-header",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{v3r4crypt_h1dd3n_v0lum3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: контейнер VeraCrypt\n\n`vc.hdr` выглядит как случайные данные. Найди признаки заголовка и метку.\n\n1. `file vc.hdr` и `xxd -l 32 vc.hdr`.\n2. `strings vc.hdr | grep -Ei 'hidden|backup|XTS'`.\n3. `strings vc.hdr | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/vc.hdr",
+      "b64": "P4oS1J53AbxVoG8+2BLJRAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABoaWRkZW4gdm9sdW1lIGhlYWRlciBwcmVzZW50CmJhY2t1cCBoZWFkZXIgYXQgb2Zmc2V0IDY1NTM2CnZvbHVtZSB1c2VzIFhUUwpOT1RFOiBudG97djNyNGNyeXB0X2gxZGQzbl92MGx1bTN9Cg==",
+      "mode": "644"
+    }
+  ]
+}
