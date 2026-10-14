@@ -1,0 +1,39 @@
+{
+  "id": "misc-rust-sandbox",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{rust_uns4f3_ff1_br1dg3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Rust sandbox\n\nПесочница разрешает только `calc`/`abs`. Найди мост наружу и прочитай `flag.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/sandbox.rs",
+      "text": "// allowlist: calc, abs\nfn eval(expr: &str) -> i64 { /* ... */ 0 }\n// в интерпретаторе есть unsafe { transmute(...) } и extern \"C\" { fn system(...) }\n"
+    },
+    {
+      "path": "/home/student/task/flag.txt",
+      "text": "nto{rust_uns4f3_ff1_br1dg3}\n"
+    }
+  ],
+  "tools": {
+    "strings": {
+      "help": "strings <файл> — печатаемые строки",
+      "cases": [
+        {
+          "match": "sandbox\\.rs",
+          "example": "strings sandbox.rs",
+          "output": "allowlist: calc, abs\nunsafe\nextern \"C\"\nsystem"
+        }
+      ]
+    }
+  }
+}

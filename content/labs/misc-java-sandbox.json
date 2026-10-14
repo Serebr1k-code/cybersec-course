@@ -1,0 +1,43 @@
+{
+  "id": "misc-java-sandbox",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{j4v4_r3fl3ct10n_sm_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Java sandbox\n\nПлагин ограничен SecurityManager. Найди обход и прочитай `flag.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/Sandbox.java",
+      "text": "import java.security.*;\npublic class Sandbox {\n  public static void main(String[] a) throws Exception {\n    System.setSecurityManager(new SecurityManager());\n    // плагин: прочитать flag.txt -> AccessControlException\n  }\n}\n"
+    },
+    {
+      "path": "/home/student/task/policy.txt",
+      "text": "grant { permission java.util.PropertyPermission \"user.dir\", \"read\"; };\n"
+    },
+    {
+      "path": "/home/student/task/flag.txt",
+      "text": "nto{j4v4_r3fl3ct10n_sm_byp4ss}\n"
+    }
+  ],
+  "tools": {
+    "java": {
+      "help": "java [-Dkey=val] <Класс> — запуск JVM",
+      "cases": [
+        {
+          "match": "--version|^-version$",
+          "example": "java -version",
+          "output": "openjdk version \"17.0.7\" 2023-04-18\nOpenJDK Runtime Environment (build 17.0.7+7)"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "id": "misc-go-sandbox",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{g0_uns4f3_sysc4ll_3sc4p3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Go sandbox\n\nПесочница разрешает лишь `sum`/`len`. Найди путь к файловой системе и прочитай `flag.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/sandbox.go",
+      "text": "package main\n\n// allowlist: sum, len\nvar allowed = map[string]bool{\"sum\": true, \"len\": true}\n// eval() отклоняет всё остальное, но импорт syscall/unsafe не фильтруется\n"
+    },
+    {
+      "path": "/home/student/task/flag.txt",
+      "text": "nto{g0_uns4f3_sysc4ll_3sc4p3}\n"
+    }
+  ],
+  "tools": {
+    "strings": {
+      "help": "strings <файл> — печатаемые строки",
+      "cases": [
+        {
+          "match": "sandbox\\.go",
+          "example": "strings sandbox.go",
+          "output": "package main\nallowlist: sum, len\nsyscall\nunsafe"
+        }
+      ]
+    }
+  }
+}
