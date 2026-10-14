@@ -1,0 +1,53 @@
+{
+  "id": "osint-kubernetes-recon",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{k8s_4p1_s3rv3r_0p3n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Kubernetes recon\n\n1. `curl -s -k https://k8s.example.com:6443/version`\n2. `curl -s -k https://k8s.example.com:6443/api/v1/namespaces`\n3. `curl -s -k https://k8s.example.com:10250/pods`\n4. Маркер `nto{...}` — запиши в `answer.txt`, затем `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — эмуляция ответов Kubernetes",
+      "cases": [
+        {
+          "match": ":6443/version|/version",
+          "example": "curl -s -k https://k8s.example.com:6443/version",
+          "output": "{\"major\":\"1\",\"minor\":\"28\",\"gitVersion\":\"v1.28.2\",\"gitCommit\":\"abc1234\",\"platform\":\"linux/amd64\",\"x_flag\":\"nto{k8s_4p1_s3rv3r_0p3n}\"}\n"
+        },
+        {
+          "match": "api/v1/namespaces",
+          "example": "curl -s -k https://k8s.example.com:6443/api/v1/namespaces",
+          "output": "{\"kind\":\"NamespaceList\",\"items\":[{\"metadata\":{\"name\":\"default\"}},{\"metadata\":{\"name\":\"kube-system\"}},{\"metadata\":{\"name\":\"production\"}}]}\n"
+        },
+        {
+          "match": ":10250/pods",
+          "example": "curl -s -k https://k8s.example.com:10250/pods",
+          "output": "{\"kind\":\"PodList\",\"items\":[{\"metadata\":{\"name\":\"web-7d9f\",\"namespace\":\"production\"}}]}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны :6443 и :10250.\n"
+    },
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "gitVersion|items|\\.",
+          "example": "jq -r .gitVersion v.json",
+          "output": "v1.28.2\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживается разбор полей.\n"
+    }
+  }
+}

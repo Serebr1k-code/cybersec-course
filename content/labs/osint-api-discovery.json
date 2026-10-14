@@ -1,0 +1,48 @@
+{
+  "id": "osint-api-discovery",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{0p3n4p1_sp3c_f0und}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: API discovery\n\n1. `curl -s https://api.example.com/openapi.json`\n2. Посмотри поле `paths` — список эндпоинтов.\n3. GraphQL: `curl -s -X POST https://api.example.com/graphql -d '{\"query\":\"{__schema{types{name}}}\"}'`\n4. Маркер `nto{...}` — запиши в `answer.txt`, затем `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — эмуляция ответов API",
+      "cases": [
+        {
+          "match": "openapi\\.json|swagger\\.json",
+          "example": "curl -s https://api.example.com/openapi.json",
+          "output": "{\"openapi\":\"3.0.1\",\"info\":{\"title\":\"Example API\",\"version\":\"2.3.0\"},\"paths\":{\"/v1/users\":{\"get\":{}},\"/v1/orders\":{\"get\":{}},\"/v1/admin/keys\":{\"post\":{}}},\"x_flag\":\"nto{0p3n4p1_sp3c_f0und}\"}\n"
+        },
+        {
+          "match": "graphql",
+          "example": "curl -s -X POST https://api.example.com/graphql -d '{__schema{types{name}}}'",
+          "output": "{\"data\":{\"__schema\":{\"types\":[{\"name\":\"User\"},{\"name\":\"Order\"},{\"name\":\"AdminKey\"}]}}}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только api.example.com.\n"
+    },
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "paths|info|\\.",
+          "example": "jq -r '.paths|keys[]' spec.json",
+          "output": "/v1/users\n/v1/orders\n/v1/admin/keys\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживается разбор полей.\n"
+    }
+  }
+}
