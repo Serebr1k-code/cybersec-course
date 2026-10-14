@@ -1,0 +1,23 @@
+{
+  "id": "misc-srt-subtitle",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Субтитры\n\nВ `subs.srt` — дамп субтитров. Метка в base64. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/subs2.srt",
+      "text": "1\n00:00:01,006 --> 00:00:04,116\nПривет\n"
+    },
+    {
+      "path": "/home/student/task/subs.srt",
+      "text": "dump\nflag:bnRve3NydF90MW0xbmdfYzB2M3J0X2NoNG5uM2x9\n"
+    }
+  ]
+}

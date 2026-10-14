@@ -34,6 +34,10 @@ const CASES = [
   { id: 'misc-html-parser-diff', artifact: 'mxss.log', flag: 'nto{mxss_noscript_mut4t10n}' },
   { id: 'misc-html-email', artifact: 'mail.eml', flag: 'nto{html3m41l_css_3xf1ltr4t10n}' },
   { id: 'misc-plexus-parser', artifact: 'waf.log', flag: 'nto{pars3r_d1ff_d0ubl3_d3c0d3}' },
+  { id: 'misc-srt-subtitle', artifact: 'subs.srt', flag: 'nto{srt_t1m1ng_c0v3rt_ch4nn3l}' },
+  { id: 'misc-ebml-matroska', artifact: 'tree.txt', flag: 'nto{ebml_v1nt_h1dd3n_3l3m3nt}' },
+  { id: 'misc-midi-misc', artifact: 'events.txt', flag: 'nto{m1d1_m3t4_3v3nt_fl4g}' },
+  { id: 'misc-pcap-misc', artifact: 'capture.txt', flag: 'nto{pcap_cust0m_pr0t0c0l_r3c0v3r}' },
 ]
 
 for (const c of CASES) {

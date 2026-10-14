@@ -1,0 +1,23 @@
+{
+  "id": "misc-ebml-matroska",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# EBML/Matroska\n\nВ `tree.txt` — дамп дерева. Метка в base64. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/sample.mkv.hex",
+      "text": "1a45dfa3 9f 42868101 ...\n"
+    },
+    {
+      "path": "/home/student/task/tree.txt",
+      "text": "dump\nflag:bnRve2VibWxfdjFudF9oMWRkM25fM2wzbTNudH0=\n"
+    }
+  ]
+}

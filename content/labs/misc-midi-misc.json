@@ -1,0 +1,23 @@
+{
+  "id": "misc-midi-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# MIDI\n\nВ `events.txt` — дамп событий. Метка в base64. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/sample.mid.hex",
+      "text": "4d546864 00000006 ...\n"
+    },
+    {
+      "path": "/home/student/task/events.txt",
+      "text": "dump\nflag:bnRve20xZDFfbTN0NF8zdjNudF9mbDRnfQ==\n"
+    }
+  ]
+}

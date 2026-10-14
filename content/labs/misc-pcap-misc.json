@@ -1,0 +1,23 @@
+{
+  "id": "misc-pcap-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# PCAP\n\nВ `capture.txt` — дамп потока. Метка в base64. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/custom.proto",
+      "text": "magic=0x42, one char per packet\n"
+    },
+    {
+      "path": "/home/student/task/capture.txt",
+      "text": "dump\nflag:bnRve3BjYXBfY3VzdDBtX3ByMHQwYzBsX3IzYzB2M3J9\n"
+    }
+  ]
+}
