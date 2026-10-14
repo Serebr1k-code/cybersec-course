@@ -15,15 +15,15 @@ estimated_minutes: 55
 summary: 'Как расследовать современный автомобиль: блоки управления (ЭБУ), телематика, шина CAN и инфотейнмент.'
 lab:
   kind: shell
-  title: 'Практика: Автомобильная форензика'
-  toolset: [core, grep, strings]
+  title: "Практика: шина CAN автомобиля"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, ecu_can_log.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "CAN-кадр = ID + длина (DLC) + данные."
+    - "ID 0x000 зарезервирован; кадр со всеми FF — инъекция."
+    - "`grep nto ecu_can_log.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

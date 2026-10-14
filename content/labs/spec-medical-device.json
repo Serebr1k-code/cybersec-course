@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{spec_medical_device_0k}"
+    "contains": "nto{med1c4l_d0s3_0v3rr1d3}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти аномалию в журнале прибора\n\n`infusion_log.txt` — журнал инфузионного насоса: время, событие, скорость,\nобъём. Одно событие — ручной обход ограничения дозы.\n\n1. `cat infusion_log.txt` — просмотри журнал.\n2. Найди событие `alarm_override` с резким ростом скорости.\n3. Выпиши строку с меткой: `grep nto infusion_log.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта spec-medical-device\nwarning: suspicious activity detected\nmarker: nto{spec_medical_device_0k}\n",
+      "path": "/home/student/task/infusion_log.txt",
+      "text": "ts,event,rate_mlh,volume_ml\n2026-02-10T09:00:00,start,5.0,0\n2026-02-10T09:30:00,adjust,5.0,150\n2026-02-10T10:00:00,alarm_override,50.0,nto{med1c4l_d0s3_0v3rr1d3}\n2026-02-10T10:05:00,stop,0,320\n",
       "mode": "644"
     }
   ]

@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{mem_registry_hives_0k}"
+    "contains": "nto{m3m_r3g1stry_h1v3_c4rv3}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: восстановить куст реестра из дампа\n\n`mem_hives.txt` — найденные в дампе памяти смещения кустов реестра и их\nключи. Один ключ — автозапуск с меткой.\n\n1. `cat mem_hives.txt` — просмотри кусты.\n2. Найди ключ Run с меткой.\n3. Выпиши строку: `grep nto mem_hives.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта mem-registry-hives\nwarning: suspicious activity detected\nmarker: nto{mem_registry_hives_0k}\n",
+      "path": "/home/student/task/mem_hives.txt",
+      "text": "offset,hive,key,value\n0x1A000,SYSTEM,ControlSet001\\Services\\LanmanServer,ok\n0x2C000,SOFTWARE,Microsoft\\Windows\\CurrentVersion\\Run,nto{m3m_r3g1stry_h1v3_c4rv3}\n0x3E000,SAM,Users\\000003E9,ok\n",
       "mode": "644"
     }
   ]

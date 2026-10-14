@@ -15,15 +15,15 @@ estimated_minutes: 40
 summary: 'Как CyberChef помогает декодировать, расшифровывать и преобразовывать данные: операции, рецепты и типовые задачи.'
 lab:
   kind: shell
-  title: 'Практика: CyberChef'
-  toolset: [core, grep, strings]
+  title: "Практика: рецепт CyberChef"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, cyberchef_input.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "CyberChef — это Input → Operations → Output; первый операцией тут идёт From Base64."
+    - "Декодировать без браузера: `base64 -d cyberchef_input.txt`."
+    - "Сохрани результат в answer.txt: `base64 -d cyberchef_input.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

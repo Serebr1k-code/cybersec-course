@@ -15,15 +15,15 @@ estimated_minutes: 40
 summary: 'Как разбирать 3D-форматы (STL/OBJ/GLTF/3MF): геометрия, метаданные и скрытые данные.'
 lab:
   kind: shell
-  title: 'Практика: 3D-модели в форензике'
-  toolset: [core, grep, strings]
+  title: "Практика: метаданные 3D-модели"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, model_meta.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "OBJ хранит комментарии (`#`) и ссылки на .mtl — туда можно спрятать данные."
+    - "Комментарий с меткой — цель."
+    - "`grep nto model_meta.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

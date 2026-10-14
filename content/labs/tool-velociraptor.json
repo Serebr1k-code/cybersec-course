@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{tool_velociraptor_0k}"
+    "contains": "nto{velociraptor_vql_hunt_h1t}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти хит охоты Velociraptor\n\n`vql_results.json` — результат охоты (hunt) Velociraptor: строки JSON по\nхостам и артефактам. Один хост вернул нестандартный артефакт.\n\n1. `cat vql_results.json` — просмотри результат.\n2. Найди артефакт `Custom.Suspicious`.\n3. Выпиши строку с меткой: `grep nto vql_results.json > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта tool-velociraptor\nwarning: suspicious activity detected\nmarker: nto{tool_velociraptor_0k}\n",
+      "path": "/home/student/task/vql_results.json",
+      "text": "[\n  {\"Hostname\": \"web-01\", \"Artifact\": \"Windows.System.Services\", \"Count\": 214},\n  {\"Hostname\": \"web-02\", \"Artifact\": \"Windows.System.Services\", \"Count\": 209},\n  {\"Hostname\": \"db-01\", \"Artifact\": \"Windows.NTFS.MFT\", \"Count\": 8123},\n  {\"Hostname\": \"db-01\", \"Artifact\": \"Custom.Suspicious\", \"Note\": \"nto{velociraptor_vql_hunt_h1t}\"}\n]\n",
       "mode": "644"
     }
   ]

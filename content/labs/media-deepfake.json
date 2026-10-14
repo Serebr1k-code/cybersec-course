@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{media_deepfake_0k}"
+    "contains": "nto{d33pf4k3_synth3t1c_m3t4}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти синтетическое медиа\n\n`media_report.csv` — отчёт анализа медиа: файл, признак, значение, вердикт.\nОдин файл имеет синтетический признак.\n\n1. `cat media_report.csv` — просмотри отчёт.\n2. Найди файл с вердиктом-меткой.\n3. Выпиши строку: `grep nto media_report.csv > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта media-deepfake\nwarning: suspicious activity detected\nmarker: nto{media_deepfake_0k}\n",
+      "path": "/home/student/task/media_report.csv",
+      "text": "file,signal,value,verdict\nclip1.mp4,metadata_software,Adobe Premiere,real\nclip2.mp4,metadata_software,GAN-Diffusion v3,nto{d33pf4k3_synth3t1c_m3t4}\nclip3.mp4,eye_reflection,consistent,real\nclip4.mp4,compression_double,detected,real\n",
       "mode": "644"
     }
   ]

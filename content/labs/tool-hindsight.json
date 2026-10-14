@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{tool_hindsight_0k}"
+    "contains": "nto{hindsight_susp1c10us_d0wnl04d}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: подозрительная загрузка в истории браузера\n\n`history_export.csv` — экспорт истории Chromium, который строит Hindsight\n(колонки url/title/visit_time/transition). Один переход — загрузка с\nвнешнего CDN.\n\n1. `cat history_export.csv` — просмотри записи истории.\n2. Найди переход с `transition=download`.\n3. Выпиши строку с меткой: `grep nto history_export.csv > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта tool-hindsight\nwarning: suspicious activity detected\nmarker: nto{tool_hindsight_0k}\n",
+      "path": "/home/student/task/history_export.csv",
+      "text": "url,title,visit_time,transition\nhttps://mail.example.com/,Inbox,2026-02-10T08:01:00,typed\nhttps://github.com/,GitHub,2026-02-10T08:05:12,link\nhttp://cdn-update.example/payload.bin,nto{hindsight_susp1c10us_d0wnl04d},2026-02-10T08:09:44,download\nhttps://intranet.example/,Intranet,2026-02-10T08:31:00,typed\n",
       "mode": "644"
     }
   ]

@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{macos_timemachine_0k}"
+    "contains": "nto{timemachine_d3l3t3d_f1l3}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти снимок с удалённым файлом\n\n`timemachine_snapshots.txt` — список локальных снимков APFS Time Machine.\nОдин снимок содержит метку файла, удалённого из текущего состояния.\n\n1. `cat timemachine_snapshots.txt` — просмотри снимки.\n2. Найди снимок с меткой в поле note.\n3. Выпиши строку: `grep nto timemachine_snapshots.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта macos-timemachine\nwarning: suspicious activity detected\nmarker: nto{macos_timemachine_0k}\n",
+      "path": "/home/student/task/timemachine_snapshots.txt",
+      "text": "snapshot,date,files,note\ncom.apple.TimeMachine.2026-02-01-120000,2026-02-01,10234,baseline\ncom.apple.TimeMachine.2026-02-05-120000,2026-02-05,10250,changed\ncom.apple.TimeMachine.2026-02-09-120000,2026-02-09,10251,nto{timemachine_d3l3t3d_f1l3}\ncom.apple.TimeMachine.2026-02-10-120000,2026-02-10,10240,changed\n",
       "mode": "644"
     }
   ]

@@ -15,15 +15,15 @@ estimated_minutes: 50
 summary: 'Как устроены C2-панели ботнетов, что видно со стороны сервера и какие артефакты оставляют операторы.'
 lab:
   kind: shell
-  title: 'Практика: Панели ботнетов'
-  toolset: [core, grep, strings]
+  title: "Практика: лог панели ботнета"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, botnet_panel.log]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Панель рассылает ботам команды (ping/screenshot/exfil…)."
+    - "Команда exfil с меткой — цель."
+    - "`grep nto botnet_panel.log > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

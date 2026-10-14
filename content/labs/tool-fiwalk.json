@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{tool_fiwalk_0k}"
+    "contains": "nto{fiwalk_d3l3t3d_mft_3ntry}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти удалённый файл в обходе fiwalk\n\n`fiwalk_files.xml` — XML-вывод fiwalk по образу диска: путь, inode, meta_type.\nУдалённые (невыделенные) записи помечены meta_type 0.\n\n1. `cat fiwalk_files.xml` — просмотри записи файлов.\n2. Найди запись с `meta_type` = 0 (удалённый файл).\n3. Выпиши строку с меткой: `grep nto fiwalk_files.xml > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта tool-fiwalk\nwarning: suspicious activity detected\nmarker: nto{tool_fiwalk_0k}\n",
+      "path": "/home/student/task/fiwalk_files.xml",
+      "text": "<fiwalk>\n  <fileobject><filename>/Windows/System32/kernel32.dll</filename><inode>1024</inode><meta_type>1</meta_type></fileobject>\n  <fileobject><filename>/Users/alice/Documents/report.docx</filename><inode>2048</inode><meta_type>1</meta_type></fileobject>\n  <fileobject><filename>/Users/alice/AppData/Local/Temp/patch.tmp (deleted)</filename><inode>4096</inode><meta_type>0</meta_type><unalloc>nto{fiwalk_d3l3t3d_mft_3ntry}</unalloc></fileobject>\n</fiwalk>\n",
       "mode": "644"
     }
   ]

@@ -15,15 +15,15 @@ estimated_minutes: 50
 summary: 'Как анализировать промышленные протоколы (Modbus, DNP3), что означают операции и как найти вредоносное воздействие на PLC.'
 lab:
   kind: shell
-  title: 'Практика: ICS/SCADA в форензике'
-  toolset: [core, grep, strings]
+  title: "Практика: протокол Modbus/DNP3"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, scada_protocol.log]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Modbus-функции: READ_HOLDING, WRITE_COIL и т.д."
+    - "Запись (WRITE) от узла вне доверенной подсети — вторжение."
+    - "`grep nto scada_protocol.log > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

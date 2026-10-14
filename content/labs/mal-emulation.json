@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{mal_emulation_0k}"
+    "contains": "nto{3mul4t10n_4p1_tr4c3}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти метку в трассе эмуляции\n\n`emulation_trace.txt` — трасса API-вызовов, которую снял эмулятор (Qiling/\nunicorn) при разборе образца без реальной ОС. Один вызов содержит метку.\n\n1. `cat emulation_trace.txt` — просмотри вызовы.\n2. Найди вызов WriteFile с меткой.\n3. Выпиши строку: `grep nto emulation_trace.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта mal-emulation\nwarning: suspicious activity detected\nmarker: nto{mal_emulation_0k}\n",
+      "path": "/home/student/task/emulation_trace.txt",
+      "text": "0x401000 call GetProcAddress(CreateFileA)\n0x401020 call CreateFileA(C:\\Windows\\Temp\\a.tmp)\n0x401040 call VirtualAlloc(0x1000, RWX)\n0x401060 call WriteFile(nto{3mul4t10n_4p1_tr4c3})\n0x401080 call CreateProcessA\n",
       "mode": "644"
     }
   ]

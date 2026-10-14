@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{tool_osquery_0k}"
+    "contains": "nto{osquery_f0und_th3_0utl13r}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти процесс вне штатного каталога\n\n`osquery_processes.json` — результат запроса к таблице `processes`: строки в\nформате JSON, как их отдаёт osquery. Один процесс запущен не из системного\nкаталога — это и есть зацепка.\n\n1. `cat osquery_processes.json` — просмотри строки.\n2. Найди процесс с `path`, начинающимся с `/tmp`.\n3. Выпиши строку с меткой в `answer.txt`: `grep nto osquery_processes.json > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта tool-osquery\nwarning: suspicious activity detected\nmarker: nto{tool_osquery_0k}\n",
+      "path": "/home/student/task/osquery_processes.json",
+      "text": "[\n  {\"pid\": 812, \"name\": \"systemd\", \"path\": \"/usr/lib/systemd/systemd\", \"user\": \"root\"},\n  {\"pid\": 1344, \"name\": \"sshd\", \"path\": \"/usr/sbin/sshd\", \"user\": \"root\"},\n  {\"pid\": 4021, \"name\": \"svc-host\", \"path\": \"/tmp/.cache/svc-host\", \"user\": \"www-data\"},\n  {\"pid\": 4021, \"name\": \"svc-host\", \"cmdline\": \"nto{osquery_f0und_th3_0utl13r}\", \"user\": \"www-data\"},\n  {\"pid\": 5150, \"name\": \"cron\", \"path\": \"/usr/sbin/cron\", \"user\": \"root\"}\n]\n",
       "mode": "644"
     }
   ]

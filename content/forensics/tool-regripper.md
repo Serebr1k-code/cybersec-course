@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Как RegRipper извлекает артефакты из кустов реестра: плагины, автозапуск, историю и конфигурацию.'
 lab:
   kind: shell
-  title: 'Практика: RegRipper'
-  toolset: [core, grep, strings]
+  title: "Практика: плагин RegRipper"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, regripper_report.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "RegRipper запускается как `rip.pl -r <hive> -p run`."
+    - "Плагин `run` печатает значения ключа автозапуска Run."
+    - "`grep nto regripper_report.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

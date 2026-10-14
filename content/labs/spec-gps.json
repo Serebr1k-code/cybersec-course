@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{spec_gps_0k}"
+    "contains": "nto{gps_sp00f3d_f1x}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти подделанную GPS-точку\n\n`gps_track.nmea` — трек в формате NMEA ($GPRMC/$GPGGA). Штатные строки дают\nправдоподобные координаты; одна строка содержит невозможную позицию.\n\n1. `cat gps_track.nmea` — просмотри предложения NMEA.\n2. Найди строку с координатами `0000.00,N 00000.00,E` и скоростью 999.9.\n3. Выпиши её: `grep nto gps_track.nmea > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта spec-gps\nwarning: suspicious activity detected\nmarker: nto{spec_gps_0k}\n",
+      "path": "/home/student/task/gps_track.nmea",
+      "text": "$GPRMC,081836,A,3751.65,S,14507.36,E,000.0,360.0,130998,011.3,E*62\n$GPGGA,081837,3751.65,S,14507.36,E,1,08,0.9,545.4,M,46.9,M,,*47\n$GPRMC,081838,A,0000.00,N,00000.00,E,999.9,0.0,130998,,,nto{gps_sp00f3d_f1x}\n$GPGGA,081839,3751.66,S,14507.35,E,1,07,0.9,545.0,M,46.9,M,,*48\n",
       "mode": "644"
     }
   ]

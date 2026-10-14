@@ -15,15 +15,15 @@ estimated_minutes: 50
 summary: 'Как TPM хранит измерения загрузки (PCR), как это связано с BitLocker и что можно доказать по журналу измерений.'
 lab:
   kind: shell
-  title: 'Практика: TPM и измеренная загрузка'
-  toolset: [core, grep, strings]
+  title: "Практика: измерения PCR"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, tpm_pcrs.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "TPM измеряет компоненты загрузки в PCR (0 — прошивка, 7 — Secure Boot)."
+    - "Изменение PCR[7] = менялась политика/ключи загрузки."
+    - "`grep nto tpm_pcrs.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

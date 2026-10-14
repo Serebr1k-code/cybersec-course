@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{fs_apfs_snapshot_0k}"
+    "contains": "nto{apfs_sn4psh0t_r3c0v3ry}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти снимок с удалёнными файлами\n\n`apfs_snapshots.txt` — список снимков тома APFS: id, имя, число файлов,\nчисло удалённых. Один снимок хранит метку восстановления.\n\n1. `cat apfs_snapshots.txt` — просмотри снимки.\n2. Найди снимок с меткой.\n3. Выпиши строку: `grep nto apfs_snapshots.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта fs-apfs-snapshot\nwarning: suspicious activity detected\nmarker: nto{fs_apfs_snapshot_0k}\n",
+      "path": "/home/student/task/apfs_snapshots.txt",
+      "text": "snapshot_id,name,files,deleted\n1,com.apple.TimeMachine.2026-02-01,15000,0\n2,com.apple.TimeMachine.2026-02-05,15020,3\n3,com.apple.TimeMachine.2026-02-09,15021,1  nto{apfs_sn4psh0t_r3c0v3ry}\n",
       "mode": "644"
     }
   ]

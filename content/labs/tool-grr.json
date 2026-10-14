@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{tool_grr_0k}"
+    "contains": "nto{grr_fl0w_susp1c10us}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти подозрительный flow GRR\n\n`grr_flows.json` — список flow-ов (задач), выполненных агентами GRR на\nклиентах. Один flow не относится к штатному осмотру.\n\n1. `cat grr_flows.json` — просмотри список.\n2. Найди flow с нестандартным именем.\n3. Выпиши строку с меткой: `grep nto grr_flows.json > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта tool-grr\nwarning: suspicious activity detected\nmarker: nto{tool_grr_0k}\n",
+      "path": "/home/student/task/grr_flows.json",
+      "text": "[\n  {\"flow\": \"ListProcesses\", \"client\": \"web-01\", \"state\": \"FINISHED\"},\n  {\"flow\": \"FileFinder\", \"client\": \"web-01\", \"state\": \"FINISHED\"},\n  {\"flow\": \"Custom.Beacon\", \"client\": \"web-02\", \"state\": \"FINISHED\", \"note\": \"nto{grr_fl0w_susp1c10us}\"},\n  {\"flow\": \"GetFile\", \"client\": \"db-01\", \"state\": \"FINISHED\"}\n]\n",
       "mode": "644"
     }
   ]

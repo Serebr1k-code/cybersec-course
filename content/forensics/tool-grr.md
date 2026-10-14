@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Как GRR (Google Rapid Response) проводит удалённый live-осмотр хостов: агенты, flows, сбор и анализ.'
 lab:
   kind: shell
-  title: 'Практика: GRR'
-  toolset: [core, grep, strings]
+  title: "Практика: flow-и GRR"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, grr_flows.json]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "GRR запускает на хостах «flows» — единицы работы агента."
+    - "Стандартные flow: ListProcesses, FileFinder, GetFile."
+    - "`grep nto grr_flows.json > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

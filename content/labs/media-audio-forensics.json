@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{media_audio_forensics_0k}"
+    "contains": "nto{w4v_c0mm3nt_chunk_d4t4}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти скрытые данные в WAV\n\n`wav_chunks.txt` — карта чанков WAV-файла: RIFF/fmt/data/LIST. В чанке LIST\nспрятан комментарий с меткой.\n\n1. `cat wav_chunks.txt` — просмотри чанки.\n2. Найди чанк LIST с меткой.\n3. Выпиши строку: `grep nto wav_chunks.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта media-audio-forensics\nwarning: suspicious activity detected\nmarker: nto{media_audio_forensics_0k}\n",
+      "path": "/home/student/task/wav_chunks.txt",
+      "text": "RIFF size=184KB\nfmt  PCM 44100Hz stereo\ndata size=180KB\nLIST INFO: comment=nto{w4v_c0mm3nt_chunk_d4t4}\n",
       "mode": "644"
     }
   ]

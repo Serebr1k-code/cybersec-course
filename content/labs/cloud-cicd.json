@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{cloud_cicd_0k}"
+    "contains": "nto{cicd_p1p3l1n3_s3cr3t_l34k}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти аномальный запуск пайплайна\n\n`cicd_pipeline.log` — логи запусков CI/CD: время, job, ветка, пользователь,\nшаг. Один запуск сделан не ботом и выполняет подозрительный шаг.\n\n1. `cat cicd_pipeline.log` — просмотри запуски.\n2. Найди запуск пользователем `attacker` со шагом exfil.\n3. Выпиши строку: `grep nto cicd_pipeline.log > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта cloud-cicd\nwarning: suspicious activity detected\nmarker: nto{cloud_cicd_0k}\n",
+      "path": "/home/student/task/cicd_pipeline.log",
+      "text": "ts,job,branch,user,step\n2026-02-10T10:00:00,build,main,ci-bot,checkout\n2026-02-10T10:02:00,build,main,ci-bot,test\n2026-02-10T10:05:00,deploy,main,attacker,exfil nto{cicd_p1p3l1n3_s3cr3t_l34k}\n2026-02-10T10:06:00,deploy,main,ci-bot,publish\n",
       "mode": "644"
     }
   ]

@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Как извлечь кусты реестра прямо из дампа памяти, когда файлы hives недоступны или повреждены.'
 lab:
   kind: shell
-  title: 'Практика: Кусты реестра из памяти'
-  toolset: [core, grep, strings]
+  title: "Практика: куст реестра из памяти"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, mem_hives.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Кусты реестра можно вырезать прямо из дампа памяти (volatility/редактор)."
+    - "Ключ ...\\CurrentVersion\\Run — автозапуск."
+    - "`grep nto mem_hives.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

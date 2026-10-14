@@ -15,15 +15,15 @@ estimated_minutes: 50
 summary: 'Как устроены аппаратные крипто-кошельки, где хранятся ключи и почему извлечение затруднено.'
 lab:
   kind: shell
-  title: 'Практика: Аппаратные крипто-кошельки'
-  toolset: [core, grep, strings]
+  title: "Практика: разбор кошелька"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, wallet_seed_parts.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Seed хранится в защищённом элементе и должен быть зашифрован."
+    - "encrypted=no — слот читается без PIN."
+    - "`grep nto wallet_seed_parts.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

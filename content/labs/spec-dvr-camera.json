@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{spec_dvr_camera_0k}"
+    "contains": "nto{dvr_d3l3t3d_s3gm3nt}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти удалённый сегмент записи\n\n`dvr_records.txt` — индекс записей видеорегистратора: канал, интервал, статус.\nОдин интервал удалён, но его метаданные сохранились.\n\n1. `cat dvr_records.txt` — просмотри индекс.\n2. Найди интервал со статусом `deleted`.\n3. Выпиши строку с меткой: `grep nto dvr_records.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта spec-dvr-camera\nwarning: suspicious activity detected\nmarker: nto{spec_dvr_camera_0k}\n",
+      "path": "/home/student/task/dvr_records.txt",
+      "text": "channel,start,end,status\n1,2026-02-10T00:00:00,2026-02-10T06:00:00,ok\n1,2026-02-10T06:00:00,2026-02-10T06:12:00,deleted\n2,2026-02-10T00:00:00,2026-02-10T06:00:00,ok\n1,2026-02-10T06:12:00,2026-02-10T12:00:00,ok  nto{dvr_d3l3t3d_s3gm3nt}\n",
       "mode": "644"
     }
   ]

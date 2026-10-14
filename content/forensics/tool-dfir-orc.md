@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Как DFIR ORC собирает артефакты с системы или образа: конфигурация, сбор и разбор результата.'
 lab:
   kind: shell
-  title: 'Практика: DFIR ORC'
-  toolset: [core, grep, strings]
+  title: "Практика: отчёт DFIR ORC"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, orc_collect.csv]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "DFIR ORC собирает артефакты по модулям (Users, EventLogs, ScheduledTasks…)."
+    - "Задачи планировщика — частая точка персистентности."
+    - "`grep nto orc_collect.csv > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Как Bulk Extractor сканирует образ и извлекает email, URL, домены, ключи и кредитки — без разбора файловой системы.'
 lab:
   kind: shell
-  title: 'Практика: Bulk Extractor'
-  toolset: [core, grep, strings]
+  title: "Практика: выхлоп Bulk Extractor"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, bulk_extractor_url.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "bulk_extractor пишет отдельный файл фич на каждый тип (url.txt, email.txt, …)."
+    - "C2 выдаёт себя регулярным beacon-трафиком на незнакомый домен."
+    - "`grep nto bulk_extractor_url.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

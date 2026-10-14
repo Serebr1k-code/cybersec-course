@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{cloud_vm_hypervisor_0k}"
+    "contains": "nto{cl0ud_vm_sn4psh0t_m3t4}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: собрать метаданные VM\n\n`vm_metadata.txt` — метаданные облачной виртуальной машины: id, образ,\nснимки дисков, консольный лог. В логе спрятана метка.\n\n1. `cat vm_metadata.txt` — просмотри метаданные.\n2. Найди строку console-log с меткой.\n3. Выпиши её: `grep nto vm_metadata.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта cloud-vm-hypervisor\nwarning: suspicious activity detected\nmarker: nto{cloud_vm_hypervisor_0k}\n",
+      "path": "/home/student/task/vm_metadata.txt",
+      "text": "instance-id: i-0abc\nami: ami-1234\nsnapshots: snap-1,snap-2\nconsole-log: nto{cl0ud_vm_sn4psh0t_m3t4}\n",
       "mode": "644"
     }
   ]

@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Как plaso строит супертаймлайн: сбор из множества артефактов, psort и работа с результатом.'
 lab:
   kind: shell
-  title: 'Практика: plaso'
-  toolset: [core, grep, strings]
+  title: "Практика: событие в супертаймлайне plaso"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, plaso_timeline.csv]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "plaso собирает артефакты в единый таймлайн; psort печатает CSV."
+    - "Персистентность на Windows — прежде всего Run-ключи (`win:runkey`)."
+    - "`grep nto plaso_timeline.csv > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

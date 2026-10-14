@@ -15,15 +15,15 @@ estimated_minutes: 50
 summary: 'Как подойти к современным игровым консолям: шифрование, носители, извлечение и ограничения.'
 lab:
   kind: shell
-  title: 'Практика: Игровые консоли в форензике'
-  toolset: [core, grep, strings]
+  title: "Практика: носитель игровой консоли"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, console_storage.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Современные консоли шифруют system/userdata, но не всегда save-разделы."
+    - "encrypted=no — раздел доступен без ключей."
+    - "`grep nto console_storage.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

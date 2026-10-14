@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{net_ics_scada_0k}"
+    "contains": "nto{sc4da_m0dbus_1ntrus10n}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти вмешательство в SCADA-трафик\n\n`scada_protocol.log` — журнал промышленного протокола (Modbus): источник,\nназначение, функция, unit. Один запрос пришёл от постороннего узла.\n\n1. `cat scada_protocol.log` — просмотри трафик.\n2. Найди WRITE с чужого источника (10.0.0.77).\n3. Выпиши строку: `grep nto scada_protocol.log > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта net-ics-scada\nwarning: suspicious activity detected\nmarker: nto{net_ics_scada_0k}\n",
+      "path": "/home/student/task/scada_protocol.log",
+      "text": "ts,src,dst,proto,func,unit\n2026-02-10T02:00:00,10.0.0.5,10.0.0.10,Modbus,READ_HOLDING,1\n2026-02-10T02:00:04,10.0.0.5,10.0.0.10,Modbus,WRITE_SINGLE,1\n2026-02-10T02:00:09,10.0.0.77,10.0.0.10,Modbus,WRITE_COIL,nto{sc4da_m0dbus_1ntrus10n}\n",
       "mode": "644"
     }
   ]

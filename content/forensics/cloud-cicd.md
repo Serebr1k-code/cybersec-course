@@ -15,15 +15,15 @@ estimated_minutes: 50
 summary: 'Как расследовать компромисс CI/CD: логи пайплайнов, секреты, права и следы внедрения в сборку.'
 lab:
   kind: shell
-  title: 'Практика: CI/CD в облаке'
-  toolset: [core, grep, strings]
+  title: "Практика: компромисс CI/CD-пайплайна"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, cicd_pipeline.log]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "CI/CD-пайплайны запускает сервисный бот; ручной запуск аномален."
+    - "Шаг exfil с меткой — утечка секретов."
+    - "`grep nto cicd_pipeline.log > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

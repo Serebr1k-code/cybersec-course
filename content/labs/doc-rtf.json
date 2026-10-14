@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{doc_rtf_0k}"
+    "contains": "nto{rtf_0bj3ct_3xpl01t}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n\n## Повторение (`forensics-file-magic`)\n\nАртефакт нужно сначала опознать по сигнатуре — базовый навык из `forensics-file-magic`. Освежи: посмотри тип файла и его начало:\n\n    file evidence.txt && head -c 64 evidence.txt\n\nRTF начинается с сигнатуры `rtf`; так ты убеждаешься, что перед тобой именно RTF, а не простой текст. Ниже ищешь метку `nto`.\n",
+      "text": "# Задача: найти встроенный объект RTF\n\n`rtf_objects.txt` — разбор RTF-документа: управляющие слова и встроенные\nOLE-объекты. Один объект помечен как эксплойт.\n\n1. `cat rtf_objects.txt` — просмотри объекты.\n2. Найди управляющее слово objupdate с меткой.\n3. Выпиши строку: `grep nto rtf_objects.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта doc-rtf\nwarning: suspicious activity detected\nmarker: nto{doc_rtf_0k}\n",
+      "path": "/home/student/task/rtf_objects.txt",
+      "text": "{\\rtf1 ...}\n\\object\\objemb\\objclass Word.Document\n\\objdata <hex>\n\\objupdate nto{rtf_0bj3ct_3xpl01t}\n",
       "mode": "644"
     }
   ]

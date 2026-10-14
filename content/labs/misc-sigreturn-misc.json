@@ -1,0 +1,19 @@
+{
+  "id": "misc-sigreturn-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `srop.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/srop.txt",
+      "text": "SROP notes\nsignal frame stores all registers (sigcontext)\nrt_sigreturn restores them\nrax=15 triggers rt_sigreturn; rax=59 is execve\nrip=syscall, rdi=&/bin/sh, rsi=0, rdx=0\nflag:bnRve3NyMHBfczFnbjRsX2ZyNG0zX2YwcmczfQ==\n"
+    }
+  ]
+}

@@ -15,15 +15,15 @@ estimated_minutes: 50
 summary: 'Как Velociraptor собирает артефакты с тысяч хостов: агент, VQL-запросы, охота и коллекции.'
 lab:
   kind: shell
-  title: 'Практика: Velociraptor'
-  toolset: [core, grep, strings]
+  title: "Практика: результат VQL-охоты"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, vql_results.json]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Velociraptor выполняет VQL-запросы на тысячах хостов и собирает результаты."
+    - "Пользовательский артефакт в результатах — цель охоты."
+    - "`grep nto vql_results.json > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

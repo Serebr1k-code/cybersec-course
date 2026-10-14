@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Как извлечь записи с видеорегистраторов и IP-камер: файловые системы, форматы, метаданные и восстановление удалённого.'
 lab:
   kind: shell
-  title: 'Практика: DVR и IP-камеры'
-  toolset: [core, grep, strings]
+  title: "Практика: индекс записей DVR"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, dvr_records.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "DVR хранит индекс сегментов; удалённые могут остаться в метаданных."
+    - "status=deleted — удалённый интервал записи."
+    - "`grep nto dvr_records.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

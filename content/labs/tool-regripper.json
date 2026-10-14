@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{tool_regripper_0k}"
+    "contains": "nto{regripper_runk3y_4ut0st4rt}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: прочитать вывод RegRipper\n\n`regripper_report.txt` — вывод плагина `run.pl` RegRipper по кусту\nNTUSER.DAT. Это список значений ключа Run (автозапуск). Один из них — не\nштатный компонент.\n\n1. `cat regripper_report.txt` — прочитай отчёт плагина.\n2. Найди запись автозапуска с подозрительным путём (`AppData\\Roaming`).\n3. Выпиши строку с меткой: `grep nto regripper_report.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта tool-regripper\nwarning: suspicious activity detected\nmarker: nto{tool_regripper_0k}\n",
+      "path": "/home/student/task/regripper_report.txt",
+      "text": "Launching run.pl v20200525\nRun key (NTUSER.DAT\\Software\\Microsoft\\Windows\\CurrentVersion\\Run)\n  SecurityHealth  -> %windir%\\system32\\SecurityHealthSystray.exe\n  OneDrive        -> C:\\Users\\bob\\AppData\\Local\\Microsoft\\OneDrive\\OneDrive.exe\n  WinUpd          -> C:\\Users\\bob\\AppData\\Roaming\\winupd.exe   marker=nto{regripper_runk3y_4ut0st4rt}\n----------------------------------------\n",
       "mode": "644"
     }
   ]

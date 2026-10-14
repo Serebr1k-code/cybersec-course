@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Как устроены снимки APFS, как их монтировать и доставать из них удалённые или изменённые файлы.'
 lab:
   kind: shell
-  title: 'Практика: APFS-снимки'
-  toolset: [core, grep, strings]
+  title: "Практика: снимок APFS"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, apfs_snapshots.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "APFS-снимок фиксирует версию тома; удалённые файлы в нём ещё есть."
+    - "Снимок от 2026-02-09 — цель."
+    - "`grep nto apfs_snapshots.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

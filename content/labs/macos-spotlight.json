@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{macos_spotlight_0k}"
+    "contains": "nto{spotlight_st0r3_m3t4d4t4}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти запись в индексе Spotlight\n\n`spotlight_store.txt` — выгрузка метаданных из индекса Spotlight (store.db):\nпуть, тип, время использования, флаг. Одна запись указывает на удалённый\nфайл в /private/tmp.\n\n1. `cat spotlight_store.txt` — просмотри метаданные.\n2. Найди запись с flag=1.\n3. Выпиши строку: `grep nto spotlight_store.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта macos-spotlight\nwarning: suspicious activity detected\nmarker: nto{macos_spotlight_0k}\n",
+      "path": "/home/student/task/spotlight_store.txt",
+      "text": "path,kind,last_used,flag\n/Users/alice/Documents/report.pdf,pdf,2026-02-01,0\n/Users/alice/Downloads/invoice.pdf,pdf,2026-02-05,0\n/private/tmp/deleted_keychain.txt,txt,2026-02-09,1  nto{spotlight_st0r3_m3t4d4t4}\n/Users/alice/Pictures/photo.jpg,jpeg,2026-02-02,0\n",
       "mode": "644"
     }
   ]

@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{fs_tpm_0k}"
+    "contains": "nto{tpm_pcr7_s3cur3b00t_ch4ng3}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: проверить измеренную загрузку\n\n`tpm_pcrs.txt` — значения регистров PCR TPM и их смысл. PCR[7] относится к\nполитике Secure Boot и содержит метку изменения.\n\n1. `cat tpm_pcrs.txt` — просмотри измерения.\n2. Найди PCR с меткой.\n3. Выпиши строку: `grep nto tpm_pcrs.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта fs-tpm\nwarning: suspicious activity detected\nmarker: nto{fs_tpm_0k}\n",
+      "path": "/home/student/task/tpm_pcrs.txt",
+      "text": "PCR,value,meaning\n0,0x1A2B3C4D,firmware\n4,0x5E6F7A8B,bootloader\n7,0xDEADBEEF,nto{tpm_pcr7_s3cur3b00t_ch4ng3}\n11,0x11223344,bitlocker\n",
       "mode": "644"
     }
   ]

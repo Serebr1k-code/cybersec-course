@@ -15,15 +15,15 @@ estimated_minutes: 50
 summary: 'Как расследовать serverless-инциденты: логи функций, роли/политики, слои и что остаётся после выполнения.'
 lab:
   kind: shell
-  title: 'Практика: Serverless-форензика'
-  toolset: [core, grep, strings]
+  title: "Практика: разбор Lambda-события"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, lambda_invoke.log]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Serverless-функции вызываются из известных сервисов (s3/sqs/…)."
+    - "invoker=unknown — несанкционированный вызов."
+    - "`grep nto lambda_invoke.log > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

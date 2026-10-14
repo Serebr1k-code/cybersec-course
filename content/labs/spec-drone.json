@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{spec_drone_0k}"
+    "contains": "nto{drone_g30f3nc3_br34ch}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти событие в полётном логе\n\n`drone_flightlog.csv` — телеметрия дрона: время, координаты, высота, заряд,\nсобытие. Одно событие выбивается из штатного маршрута.\n\n1. `head drone_flightlog.csv` — посмотри колонки.\n2. Найди нештатное событие на отметке t=90.\n3. Выпиши строку с меткой: `grep nto drone_flightlog.csv > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта spec-drone\nwarning: suspicious activity detected\nmarker: nto{spec_drone_0k}\n",
+      "path": "/home/student/task/drone_flightlog.csv",
+      "text": "t,lat,lon,alt_m,battery_v,event\n0,55.7512,37.6180,0,25.2,takeoff\n30,55.7520,37.6190,25,24.9,waypoint\n60,55.7531,37.6205,40,24.7,waypoint\n90,55.7531,37.6205,40,24.6,nto{drone_g30f3nc3_br34ch}\n120,55.7540,37.6220,42,24.5,waypoint\n",
       "mode": "644"
     }
   ]

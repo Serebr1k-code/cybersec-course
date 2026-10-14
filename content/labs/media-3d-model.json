@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{media_3d_model_0k}"
+    "contains": "nto{3d_m0d3l_3mb3dd3d_d4t4}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти встроенные данные в 3D-модели\n\n`model_meta.txt` — метаданные 3D-модели (OBJ/STL): число вершин, граней,\nматериалы, комментарии. В комментарии спрятана метка.\n\n1. `cat model_meta.txt` — просмотри метаданные.\n2. Найди строку comment с меткой.\n3. Выпиши её: `grep nto model_meta.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта media-3d-model\nwarning: suspicious activity detected\nmarker: nto{media_3d_model_0k}\n",
+      "path": "/home/student/task/model_meta.txt",
+      "text": "format: OBJ\nvertices: 20481\nfaces: 40960\nmtllib: materials.mtl\ncomment: nto{3d_m0d3l_3mb3dd3d_d4t4}\n",
       "mode": "644"
     }
   ]

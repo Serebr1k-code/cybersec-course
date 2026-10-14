@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{tool_cyberchef_0k}"
+    "contains": "nto{cyberchef_b4se64_th3n_1t5_cl34r}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: собрать рецепт\n\n`cyberchef_input.txt` — то, что аналитик скормил бы CyberChef первым шагом:\nодна строка, закодированная в Base64. Внутри — метка.\n\n1. `cat cyberchef_input.txt` — посмотри на вход.\n2. Сними Base64-слой, как операция «From Base64»: `base64 -d cyberchef_input.txt > answer.txt`.\n3. `cat answer.txt` — проверь, что получился читаемый текст с меткой.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта tool-cyberchef\nwarning: suspicious activity detected\nmarker: nto{tool_cyberchef_0k}\n",
+      "path": "/home/student/task/cyberchef_input.txt",
+      "text": "bnRve2N5YmVyY2hlZl9iNHNlNjRfdGgzbl8xdDVfY2wzNHJ9\n",
       "mode": "644"
     }
   ]

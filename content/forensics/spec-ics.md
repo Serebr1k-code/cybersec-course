@@ -15,15 +15,15 @@ estimated_minutes: 50
 summary: 'Как подойти к промышленному контроллеру: снять прошивку, прочитать конфигурацию и логи, понять воздействие.'
 lab:
   kind: shell
-  title: 'Практика: ICS-форензика'
-  toolset: [core, grep, strings]
+  title: "Практика: лог промышленного контроллера"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, plc_logs.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Modbus-операции: READ/WRITE регистров (40001+)."
+    - "Доверенный скада-мастер — 10.0.0.5; запись с .99 аномальна."
+    - "`grep nto plc_logs.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

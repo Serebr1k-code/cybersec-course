@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{tool_ntfs_tools_0k}"
+    "contains": "nto{ntfs_mft_r3c0rd_88}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: прочитать записи MFT\n\n`mft_entries.txt` — строки из таблицы MFT NTFS (inode, имя, размер, флаги),\nпрочитанные напрямую ($MFT), без высокоуровневого парсера. Одна запись —\nинструмент атакующего.\n\n1. `cat mft_entries.txt` — просмотри записи.\n2. Найди имя, которого не должно быть на штатной системе.\n3. Выпиши строку с меткой: `grep nto mft_entries.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта tool-ntfs-tools\nwarning: suspicious activity detected\nmarker: nto{tool_ntfs_tools_0k}\n",
+      "path": "/home/student/task/mft_entries.txt",
+      "text": "inode\tname\tsize\tflags\n42\tkernel32.dll\t2048\tin-use\n43\twinlogon.exe\t512\tin-use\n88\tmimikatz.exe\t1024\tin-use   nto{ntfs_mft_r3c0rd_88}\n89\tsvchost.exe\t700\tin-use\n",
       "mode": "644"
     }
   ]

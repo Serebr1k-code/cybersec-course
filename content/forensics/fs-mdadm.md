@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Как собрать программный RAID (mdadm) из отдельных дисков, чтобы получить цельный образ для анализа.'
 lab:
   kind: shell
-  title: 'Практика: mdadm'
-  toolset: [core, grep, strings]
+  title: "Практика: сборка RAID через mdadm"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, mdadm_scan.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "mdadm --assemble собирает цельный массив из отдельных дисков."
+    - "Все члены md0 должны быть active sync."
+    - "`grep nto mdadm_scan.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

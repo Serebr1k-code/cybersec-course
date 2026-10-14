@@ -15,16 +15,15 @@ estimated_minutes: 45
 summary: 'Как читать RTF, находить в нём встроенные OLE-объекты и эксплойты, и почему RTF — популярный вектор.'
 lab:
   kind: shell
-  title: 'Практика: RTF в форензике'
-  toolset: [core, grep, strings]
+  title: "Практика: объекты в RTF"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, rtf_objects.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - "Повторение (`forensics-file-magic`): `file evidence.txt && head -c 64 evidence.txt` — опознай формат по сигнатуре (rtf)."
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "RTF может встраивать OLE-объекты (\\object, \\objdata)."
+    - "\\objupdate заставляет открыть объект — частый вектор."
+    - "`grep nto rtf_objects.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

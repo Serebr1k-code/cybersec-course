@@ -1,0 +1,19 @@
+{
+  "id": "misc-fsop",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `io.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/io.txt",
+      "text": "glibc IO notes\nstreams: _IO_2_1_stdin_ / _IO_2_1_stdout_ / _IO_2_1_stderr_\n_IO_FILE_plus = _IO_FILE + vtable\nsince 2.24: vtable must point into __libc_IO_vtables\nafter 2.34: hooks removed, streams remain the target\ntechnique: fake _IO_2_1_stdout_ so exit() calls our pointer\nflag:bnRve2ZzMHBfdnQ0YmwzXzB2M3J3cjF0M30=\n"
+    }
+  ]
+}

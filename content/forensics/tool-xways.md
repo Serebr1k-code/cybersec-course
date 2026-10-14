@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Что умеет X-Ways Forensics: работа с образами, поиск, фильтры, восстановление удалённого и отчёты.'
 lab:
   kind: shell
-  title: 'Практика: X-Ways Forensics'
-  toolset: [core, grep, strings]
+  title: "Практика: события X-Ways"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, xways_events.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "X-Ways умеет «карвить» файлы по сигнатурам, даже если запись удалена."
+    - "Событие carve с ненулевым смещением — вырезанный объект."
+    - "`grep nto xways_events.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

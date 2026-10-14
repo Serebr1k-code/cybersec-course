@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{fs_mdadm_0k}"
+    "contains": "nto{mdadm_ra1d_4ss3mbly}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: собрать RAID для анализа\n\n`mdadm_scan.txt` — вывод `mdadm --examine` по отдельным дискам: устройство,\nRAID-массив, состояние. Один член массива помечен меткой.\n\n1. `cat mdadm_scan.txt` — просмотри члены массива.\n2. Найди устройство с меткой в State.\n3. Выпиши строку: `grep nto mdadm_scan.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта fs-mdadm\nwarning: suspicious activity detected\nmarker: nto{fs_mdadm_0k}\n",
+      "path": "/home/student/task/mdadm_scan.txt",
+      "text": "Device,RAID,State\n/dev/sdb1,md0,active sync\n/dev/sdc1,md0,active sync\n/dev/sdd1,md0,nto{mdadm_ra1d_4ss3mbly}\n",
       "mode": "644"
     }
   ]

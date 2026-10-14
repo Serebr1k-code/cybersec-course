@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{tool_plaso_deep_0k}"
+    "contains": "nto{plaso_runkey_p3rs1st3nc3}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти персистентность в таймлайне\n\n`plaso_timeline.csv` — выгрузка супертаймлайна plaso (psort -o csv): время,\nисточник артефакта, событие, пользователь. Среди системных событий спрятана\nточка автозапуска.\n\n1. `head plaso_timeline.csv` — посмотри формат (psort даёт CSV с заголовком).\n2. Найди событие источника `win:runkey` — это Run-ключ реестра.\n3. Выпиши строку с меткой: `grep nto plaso_timeline.csv > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта tool-plaso-deep\nwarning: suspicious activity detected\nmarker: nto{tool_plaso_deep_0k}\n",
+      "path": "/home/student/task/plaso_timeline.csv",
+      "text": "timestamp,source,event,user\n2026-03-01T09:00:00,file:stat,/usr/bin/bash,root\n2026-03-01T09:14:03,win:runkey,Run\\Updater -> C:\\Users\\Public\\upd.exe,alice\n2026-03-01T09:14:03,win:runkey,marker=nto{plaso_runkey_p3rs1st3nc3},alice\n2026-03-01T09:20:11,prefetch,UPDATER.EXE,alice\n",
       "mode": "644"
     }
   ]

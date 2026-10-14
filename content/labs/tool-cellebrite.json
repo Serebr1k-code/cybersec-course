@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{tool_cellebrite_0k}"
+    "contains": "nto{cellebrite_ffs_3xtr4ct10n}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти приложение в извлечении Cellebrite\n\n`cellebrite_extraction.txt` — сводка полного файлового извлечения (FFS)\nсмартфона, как её отдаёт Cellebrite. Среди штатных приложений — одно\nнеизвестное.\n\n1. `cat cellebrite_extraction.txt` — просмотри извлечённые приложения.\n2. Найди приложение с пакетом `com.unknown.*`.\n3. Выпиши строку с меткой: `grep nto cellebrite_extraction.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта tool-cellebrite\nwarning: suspicious activity detected\nmarker: nto{tool_cellebrite_0k}\n",
+      "path": "/home/student/task/cellebrite_extraction.txt",
+      "text": "Extraction: Full File System (FFS)\nApp: com.example.messenger  data=/data/data/com.example.messenger\nApp: com.android.chrome     data=/data/data/com.android.chrome\nApp: com.unknown.stealer    data=/data/data/com.unknown.stealer  note=nto{cellebrite_ffs_3xtr4ct10n}\nDeleted: 2026-02-11 4 files recovered\n",
       "mode": "644"
     }
   ]

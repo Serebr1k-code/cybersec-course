@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Как читать chat.db iMessage: сообщения, вложения, время и участники переписки.'
 lab:
   kind: shell
-  title: 'Практика: iMessage-форензика'
-  toolset: [core, grep, strings]
+  title: "Практика: чат iMessage"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, imessage_chat.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "chat.db хранит сообщения в таблице message (text, handle, date)."
+    - "Незнакомый номер с текстом-меткой — зацепка."
+    - "`grep nto imessage_chat.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

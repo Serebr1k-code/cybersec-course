@@ -15,15 +15,15 @@ estimated_minutes: 50
 summary: 'Как извлекать и читать полётные логи дронов: маршрут, телеметрия, события и ограничения.'
 lab:
   kind: shell
-  title: 'Практика: Дроны'
-  toolset: [core, grep, strings]
+  title: "Практика: полётный лог дрона"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, drone_flightlog.csv]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Полётные логи содержат маршрут и события (takeoff/waypoint/…)."
+    - "Событие не из штатного набора — зацепка."
+    - "`grep nto drone_flightlog.csv > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

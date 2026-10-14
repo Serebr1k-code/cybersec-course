@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Как fiwalk обходит образ и выдаёт метаданные всех файлов в XML/JSON — для скриптов и массового анализа.'
 lab:
   kind: shell
-  title: 'Практика: fiwalk'
-  toolset: [core, grep, strings]
+  title: "Практика: обход образа fiwalk"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, fiwalk_files.xml]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "fiwalk обходит образ через Sleuth Kit и печатает XML со всеми записями."
+    - "meta_type 1 — выделенный файл, 0 — удалённый."
+    - "`grep nto fiwalk_files.xml > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

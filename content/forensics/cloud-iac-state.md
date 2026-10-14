@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Как использовать IaC-состояние (Terraform state) в расследовании: что развёрнуто, дрейф и следы изменений.'
 lab:
   kind: shell
-  title: 'Практика: IaC-состояние'
-  toolset: [core, grep, strings]
+  title: "Практика: дрейф Terraform state"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, iac_state_drift.csv]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Terraform state — источник истины о развёрнутом."
+    - "Бакет с public-read вместо private — дрейф."
+    - "`grep nto iac_state_drift.csv > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

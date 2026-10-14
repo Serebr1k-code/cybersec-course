@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{tool_magnet_axiom_0k}"
+    "contains": "nto{axiom_c0rr3l4t3d_usb}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: разобрать сводку AXIOM\n\n`axiom_artifacts.csv` — сводка артефактов, извлечённых Magnet AXIOM из образа\n(artifact, source, score, detail). Один артефакт имеет высокую значимость.\n\n1. `cat axiom_artifacts.csv` — просмотри артефакты.\n2. Найди строку со score `High`.\n3. Выпиши её: `grep nto axiom_artifacts.csv > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта tool-magnet-axiom\nwarning: suspicious activity detected\nmarker: nto{tool_magnet_axiom_0k}\n",
+      "path": "/home/student/task/axiom_artifacts.csv",
+      "text": "artifact,source,score,detail\nWebHistory,Chrome,Low,github.com\nPrefetch,Win10,Low,EXPLORER.EXE\nUSB,Win10,High,SanDisk Cruzer 2026-02-10   nto{axiom_c0rr3l4t3d_usb}\nEmail,Outlook,Low,inbox\n",
       "mode": "644"
     }
   ]

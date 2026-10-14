@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{tool_dfir_orc_0k}"
+    "contains": "nto{dfir_orc_scht4sk_1mp4ct}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: разобрать сбор DFIR ORC\n\n`orc_collect.csv` — сводка модулей DFIR ORC: какой артефакт собран и с каким\nстатусом. Одна задача планировщика помечена аномалией.\n\n1. `cat orc_collect.csv` — просмотри собранные артефакты.\n2. Найди строку модуля `ScheduledTasks` со статусом-меткой.\n3. Выпиши её: `grep nto orc_collect.csv > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта tool-dfir-orc\nwarning: suspicious activity detected\nmarker: nto{tool_dfir_orc_0k}\n",
+      "path": "/home/student/task/orc_collect.csv",
+      "text": "module,item,status\nUsers,NTUSER.DAT,ok\nEventLogs,Security.evtx,ok\nScheduledTasks,OneDriveUpdate,ok\nScheduledTasks,GoogleUpdater,ok\nScheduledTasks,WinHelp,nto{dfir_orc_scht4sk_1mp4ct}\nNetwork,TcpipParameters,ok\n",
       "mode": "644"
     }
   ]

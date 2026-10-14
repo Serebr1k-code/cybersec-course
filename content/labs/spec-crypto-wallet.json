@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{spec_crypto_wallet_0k}"
+    "contains": "nto{hw_w4ll3t_s33d_l34k}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти утечку seed-фразы\n\n`wallet_seed_parts.txt` — слоты seed-фразы аппаратного кошелька и флаг\nшифрования. Часть слотов оказалась незашифрованной.\n\n1. `cat wallet_seed_parts.txt` — просмотри слоты.\n2. Найди слот с encrypted=no, содержащий метку.\n3. Выпиши строку с меткой: `grep nto wallet_seed_parts.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта spec-crypto-wallet\nwarning: suspicious activity detected\nmarker: nto{spec_crypto_wallet_0k}\n",
+      "path": "/home/student/task/wallet_seed_parts.txt",
+      "text": "slot,value,encrypted\n0,abandon,yes\n1,ability,yes\n2,able,no\n3,about,no   nto{hw_w4ll3t_s33d_l34k}\n4,above,yes\n",
       "mode": "644"
     }
   ]

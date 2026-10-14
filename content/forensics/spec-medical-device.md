@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Какие данные хранят медицинские приборы, как их извлекать и какие ограничения накладывает безопасность пациентов.'
 lab:
   kind: shell
-  title: 'Практика: Медицинские устройства'
-  toolset: [core, grep, strings]
+  title: "Практика: журнал терапии медприбора"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, infusion_log.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Медприборы логируют терапию: старт, коррекции, тревоги."
+    - "alarm_override — ручной обход защитного лимита."
+    - "`grep nto infusion_log.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

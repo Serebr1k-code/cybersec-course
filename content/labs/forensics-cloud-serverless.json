@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{cloud_serverless_0k}"
+    "contains": "nto{s3rv3rl3ss_un4uth_1nv0k3}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти несанкционированный вызов функции\n\n`lambda_invoke.log` — журнал вызовов serverless-функций: время, функция,\nисточник вызова, статус. Один вызов пришёл от неизвестного источника.\n\n1. `cat lambda_invoke.log` — просмотри вызовы.\n2. Найди вызов с invoker=unknown-invoker.\n3. Выпиши строку: `grep nto lambda_invoke.log > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта cloud-serverless\nwarning: suspicious activity detected\nmarker: nto{cloud_serverless_0k}\n",
+      "path": "/home/student/task/lambda_invoke.log",
+      "text": "ts,function,invoker,status\n2026-02-10T11:00:00,resize-image,s3,ok\n2026-02-10T11:01:00,process-queue,sqs,ok\n2026-02-10T11:02:00,backup-db,unknown-invoker,ok  nto{s3rv3rl3ss_un4uth_1nv0k3}\n",
       "mode": "644"
     }
   ]

@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Как анализировать аудиофайлы: метаданные, структура WAV/MP3, скрытые данные и восстановление.'
 lab:
   kind: shell
-  title: 'Практика: Аудио-форензика'
-  toolset: [core, grep, strings]
+  title: "Практика: структура WAV"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, wav_chunks.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "WAV = RIFF-контейнер из чанков (fmt, data, LIST…)."
+    - "LIST/INFO может хранить произвольный текст."
+    - "`grep nto wav_chunks.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

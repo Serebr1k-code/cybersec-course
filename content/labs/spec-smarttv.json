@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{spec_smarttv_0k}"
+    "contains": "nto{smarttv_s1d3l04d3d_4pp}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти приложение с sideload\n\n`smarttv_apps.txt` — список приложений Smart TV: имя, пакет, источник,\nподпись. Одно установлено в обход магазина.\n\n1. `cat smarttv_apps.txt` — просмотри приложения.\n2. Найди приложение с source `sideload` и signed `no`.\n3. Выпиши строку с меткой: `grep nto smarttv_apps.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта spec-smarttv\nwarning: suspicious activity detected\nmarker: nto{spec_smarttv_0k}\n",
+      "path": "/home/student/task/smarttv_apps.txt",
+      "text": "app,package,source,signed\nNetflix,com.netflix.tv,store,yes\nYouTube,com.youtube.tv,store,yes\nFreeMovies,com.free.movies,sideload,no   nto{smarttv_s1d3l04d3d_4pp}\nSpotify,com.spotify.tv,store,yes\n",
       "mode": "644"
     }
   ]

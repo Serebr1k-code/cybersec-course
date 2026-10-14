@@ -1,0 +1,19 @@
+{
+  "id": "misc-rop-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `rop.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/rop.txt",
+      "text": "ROP notes\ngadget: instructions ending in ret\npop rdi ; ret -> first argument in rdi (SysV AMD64)\nchain: [pad][pop_rdi][&/bin/sh][system]\nASLR: leak puts@got then subtract offset\nalign: add one extra ret before system (movaps)\nflag:bnRve3IwcF9jaDQxbl9wMHBfcjN0fQ==\n"
+    }
+  ]
+}

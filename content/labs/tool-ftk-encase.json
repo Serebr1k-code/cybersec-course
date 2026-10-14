@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{tool_ftk_encase_0k}"
+    "contains": "nto{ftk_b00km4rk_h1gh_sc0r3}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: разобрать закладки пакета\n\n`ftk_bookmarks.txt` — выгрузка закладок из FTK/EnCase: путь в образе, оценка\nзначимости. Одна закладка имеет высокий балл.\n\n1. `cat ftk_bookmarks.txt` — просмотри закладки.\n2. Найди закладку с максимальным score (9).\n3. Выпиши строку с меткой: `grep nto ftk_bookmarks.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта tool-ftk-encase\nwarning: suspicious activity detected\nmarker: nto{tool_ftk_encase_0k}\n",
+      "path": "/home/student/task/ftk_bookmarks.txt",
+      "text": "bookmark\tpath\tscore\nEvidence\\Images\\photo.jpg\t/Users/bob/Pictures/photo.jpg\t1\nEvidence\\Docs\\plan.docx\t/Users/bob/Documents/plan.docx\t1\nEvidence\\Data\\keys.txt\t/Users/bob/AppData/keys.txt\t9   nto{ftk_b00km4rk_h1gh_sc0r3}\nEvidence\\Mail\\inbox.pst\t/Users/bob/Mail/inbox.pst\t1\n",
       "mode": "644"
     }
   ]

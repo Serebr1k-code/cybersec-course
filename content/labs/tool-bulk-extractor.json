@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{tool_bulk_extractor_0k}"
+    "contains": "nto{bulk_extractor_c2_b34c0n}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти C2-адрес в выхлопе bulk_extractor\n\n`bulk_extractor_url.txt` — файл фич `url.txt`, который bulk_extractor пишет,\nсканируя образ БЕЗ разбора файловой системы: URL, смещение, контекст.\n\n1. `cat bulk_extractor_url.txt` — просмотри извлечённые URL.\n2. Найди домен, не похожий на легитимные (beacon/ping).\n3. Выпиши строку с меткой: `grep nto bulk_extractor_url.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта tool-bulk-extractor\nwarning: suspicious activity detected\nmarker: nto{tool_bulk_extractor_0k}\n",
+      "path": "/home/student/task/bulk_extractor_url.txt",
+      "text": "# Bulk Extractor feature file: url.txt\n# format: url\\tfile_offset\\tfeature_context\nhttps://cdn.example.com/lib.js\\t1024\\t<script src=...>\nhttp://beacon.evil-c2.example/ping\\t8192\\tGET /ping HTTP/1.1   nto{bulk_extractor_c2_b34c0n}\nhttps://fonts.example.com/f.woff2\\t20480\\t@font-face\n",
       "mode": "644"
     }
   ]

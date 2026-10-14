@@ -15,15 +15,15 @@ estimated_minutes: 55
 summary: 'Как эмулировать код образца без реальной ОС: unicorn/Qiling, подмена API и извлечение поведения безопасно.'
 lab:
   kind: shell
-  title: 'Практика: Эмуляция малвари'
-  toolset: [core, grep, strings]
+  title: "Практика: трасса эмуляции"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, emulation_trace.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Эмулятор логирует API-вызовы и их аргументы."
+    - "RWX-аллокация + CreateProcess — типичное поведение малвари."
+    - "`grep nto emulation_trace.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

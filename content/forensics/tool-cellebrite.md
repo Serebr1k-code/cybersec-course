@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Что умеет Cellebrite: уровни извлечения мобильных данных, разбор приложений и ограничения.'
 lab:
   kind: shell
-  title: 'Практика: Cellebrite'
-  toolset: [core, grep, strings]
+  title: "Практика: извлечение Cellebrite"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, cellebrite_extraction.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Cellebrite поддерживает уровни извлечения от backup до FFS."
+    - "Незнакомый пакет в списке приложений — зацепка."
+    - "`grep nto cellebrite_extraction.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

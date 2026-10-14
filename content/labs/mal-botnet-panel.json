@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{mal_botnet_panel_0k}"
+    "contains": "nto{botn3t_p4n3l_3xf1l_cmd}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти команду оператора панели\n\n`botnet_panel.log` — журнал панели управления ботнетом: время, бот, команда,\nстатус. Одна команда — эксфильтрация с меткой.\n\n1. `cat botnet_panel.log` — просмотри команды.\n2. Найди команду с меткой.\n3. Выпиши строку: `grep nto botnet_panel.log > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта mal-botnet-panel\nwarning: suspicious activity detected\nmarker: nto{mal_botnet_panel_0k}\n",
+      "path": "/home/student/task/botnet_panel.log",
+      "text": "ts,bot_id,cmd,status\n2026-02-10T01:00:00,b-1001,ping,ok\n2026-02-10T01:00:03,b-1002,screenshot,ok\n2026-02-10T01:00:05,b-1003,exfil nto{botn3t_p4n3l_3xf1l_cmd},ok\n2026-02-10T01:00:09,b-1004,sleep,ok\n",
       "mode": "644"
     }
   ]

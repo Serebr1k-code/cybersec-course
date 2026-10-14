@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Как анализировать GPS-данные: форматы треков, время, точность и типичные ловушки.'
 lab:
   kind: shell
-  title: 'Практика: GPS-форензика'
-  toolset: [core, grep, strings]
+  title: "Практика: GPS-трек NMEA"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, gps_track.nmea]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "NMEA-предложение $GPRMC: время, статус, широта, долгота, скорость, дата."
+    - "Координаты 0,0 в Атлантике + скорость 999 — спуф."
+    - "`grep nto gps_track.nmea > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

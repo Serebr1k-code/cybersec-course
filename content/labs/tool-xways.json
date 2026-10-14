@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{tool_xways_0k}"
+    "contains": "nto{xways_c4rv3d_z1p_0ffs3t}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти вырезанный (carved) объект\n\n`xways_events.txt` — журнал событий X-Ways Forensics: карвинг файлов, снимки\nтома, попадания поиска. Одно событие карвинга содержит метку.\n\n1. `cat xways_events.txt` — просмотри события.\n2. Найди событие типа `carve` со смещением 0x2C400.\n3. Выпиши строку с меткой: `grep nto xways_events.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта tool-xways\nwarning: suspicious activity detected\nmarker: nto{tool_xways_0k}\n",
+      "path": "/home/student/task/xways_events.txt",
+      "text": "event,volume,offset,note\ncarve,img0,0x1A000,JPEG header\ncarve,img0,0x2C400,nto{xways_c4rv3d_z1p_0ffs3t}\nvolume-snapshot,img0,0x0,created\nsearch-hit,img0,0x9F100,keyword: password\n",
       "mode": "644"
     }
   ]

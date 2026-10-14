@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{spec_console_0k}"
+    "contains": "nto{c0ns0l3_s4v3_exf1l}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти незашифрованный раздел консоли\n\n`console_storage.txt` — карта носителя консоли: раздел, ФС, размер,\nшифрование. Один раздел не зашифрован.\n\n1. `cat console_storage.txt` — просмотри разделы.\n2. Найди раздел с encrypted=no, содержащий метку.\n3. Выпиши строку с меткой: `grep nto console_storage.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта spec-console\nwarning: suspicious activity detected\nmarker: nto{spec_console_0k}\n",
+      "path": "/home/student/task/console_storage.txt",
+      "text": "partition,fs,size_mb,encrypted\nsystem,ext4,1024,yes\nuserdata,ufs2,65536,yes\nsavedata,exfat,512,no\nsavedata_backup,exfat,512,no  nto{c0ns0l3_s4v3_exf1l}\n",
       "mode": "644"
     }
   ]

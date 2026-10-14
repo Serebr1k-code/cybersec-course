@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Обзор FTK и EnCase: как устроены классические платформы, что они автоматизируют и где применяются.'
 lab:
   kind: shell
-  title: 'Практика: FTK и EnCase'
-  toolset: [core, grep, strings]
+  title: "Практика: закладка FTK/EnCase"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, ftk_bookmarks.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "FTK и EnCase помечают найденное «закладками» с оценкой значимости."
+    - "Файл с ключами логично получит высокий балл."
+    - "`grep nto ftk_bookmarks.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

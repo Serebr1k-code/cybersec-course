@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Обзор Magnet AXIOM: автоматический парсинг артефактов из образов и мобильных, корреляция и отчёты.'
 lab:
   kind: shell
-  title: 'Практика: Magnet AXIOM'
-  toolset: [core, grep, strings]
+  title: "Практика: артефакты AXIOM"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, axiom_artifacts.csv]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "AXIOM автоматически парсит артефакты и ранжирует их по значимости."
+    - "score=High помечает самое релевантное для дела."
+    - "`grep nto axiom_artifacts.csv > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

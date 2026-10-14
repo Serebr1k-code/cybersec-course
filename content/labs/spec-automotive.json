@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{spec_automotive_0k}"
+    "contains": "nto{ecu_c4n_m4squ3r4d3}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти подменённый CAN-кадр\n\n`ecu_can_log.txt` — запись шины CAN автомобиля: время, ID, длина, данные.\nОдин кадр имеет невозможный ID и все байты FF.\n\n1. `cat ecu_can_log.txt` — просмотри кадры.\n2. Найди кадр с ID 0x000 и данными FF…\n3. Выпиши строку с меткой: `grep nto ecu_can_log.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта spec-automotive\nwarning: suspicious activity detected\nmarker: nto{spec_automotive_0k}\n",
+      "path": "/home/student/task/ecu_can_log.txt",
+      "text": "ts,can_id,dlc,data\n0.000,0x0C9,8,00 00 00 00 00 00 00 00\n0.010,0x1A0,8,12 34 56 78 9A BC DE F0\n0.020,0x7DF,8,02 01 0C 00 00 00 00 00\n0.030,0x000,8,FF FF FF FF FF FF FF FF  nto{ecu_c4n_m4squ3r4d3}\n",
       "mode": "644"
     }
   ]

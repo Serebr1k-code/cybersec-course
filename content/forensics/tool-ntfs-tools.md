@@ -15,15 +15,15 @@ estimated_minutes: 50
 summary: 'Как читать NTFS-структуры напрямую: MFT, журнал транзакций $LogFile и USN-журнал — ключевые источники следов.'
 lab:
   kind: shell
-  title: 'Практика: NTFS-утилиты'
-  toolset: [core, grep, strings]
+  title: "Практика: разбор MFT напрямую"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, mft_entries.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "MFT — это индекс всех файлов тома NTFS; каждая запись = файл."
+    - "Подозрительное имя в корне System32 — красный флаг."
+    - "`grep nto mft_entries.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

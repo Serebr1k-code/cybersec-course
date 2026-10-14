@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{media_provenance_0k}"
+    "contains": "nto{c2pa_pr0v3n4nc3_tr41l}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: прочитать манифест происхождения\n\n`c2pa_manifest.json` — манифест Content Credentials (C2PA) изображения:\nгенератор, действия, подпись, ингредиенты. В ингредиенте спрятана метка.\n\n1. `cat c2pa_manifest.json` — просмотри манифест.\n2. Найди поле ingredient с меткой.\n3. Выпиши строку: `grep nto c2pa_manifest.json > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта media-provenance\nwarning: suspicious activity detected\nmarker: nto{media_provenance_0k}\n",
+      "path": "/home/student/task/c2pa_manifest.json",
+      "text": "{\n  \"claim_generator\": \"PhotoApp 4.1\",\n  \"assertions\": [\"c2pa.actions\"],\n  \"signature\": {\"issuer\": \"Example CA\", \"status\": \"valid\"},\n  \"ingredient\": {\"title\": \"original.jpg\", \"note\": \"nto{c2pa_pr0v3n4nc3_tr41l}\"}\n}\n",
       "mode": "644"
     }
   ]

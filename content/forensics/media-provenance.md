@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Что такое C2PA/Content Credentials, как читать манифест происхождения и что он доказывает.'
 lab:
   kind: shell
-  title: 'Практика: Метаданные происхождения'
-  toolset: [core, grep, strings]
+  title: "Практика: манифест C2PA"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, c2pa_manifest.json]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "C2PA-манифест описывает происхождение и историю правок медиа."
+    - "Поле ingredient ссылается на исходный файл."
+    - "`grep nto c2pa_manifest.json > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

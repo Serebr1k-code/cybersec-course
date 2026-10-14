@@ -15,15 +15,15 @@ estimated_minutes: 50
 summary: 'Как распознать синтетические (AI-сгенерированные) медиа: артефакты, метаданные, несоответствия и инструменты.'
 lab:
   kind: shell
-  title: 'Практика: Deepfake-форензика'
-  toolset: [core, grep, strings]
+  title: "Практика: признаки синтетического медиа"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, media_report.csv]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Deepfake выдаёт себя метаданными генератора и артефактами."
+    - "Значение «GAN-Diffusion» — синтетический источник."
+    - "`grep nto media_report.csv > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

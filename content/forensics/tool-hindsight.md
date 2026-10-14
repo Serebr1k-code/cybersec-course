@@ -15,15 +15,15 @@ estimated_minutes: 40
 summary: 'Как Hindsight разбирает браузерные артефакты Chromium: история, загрузки, кэш, cookies и сессии.'
 lab:
   kind: shell
-  title: 'Практика: Hindsight'
-  toolset: [core, grep, strings]
+  title: "Практика: история Chromium через Hindsight"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, history_export.csv]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Hindsight разбирает `History` SQLite из профиля Chromium."
+    - "Тип перехода `download` = файл сохранялся на диск."
+    - "`grep nto history_export.csv > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

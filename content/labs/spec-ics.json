@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{spec_ics_0k}"
+    "contains": "nto{plc_un4uth0r1z3d_wr1t3}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти неавторизованную запись в ПЛК\n\n`plc_logs.txt` — журнал операций промышленного контроллера (Modbus): время,\nисточник, операция, регистр, значение. Одна запись пришла с чужого адреса.\n\n1. `cat plc_logs.txt` — просмотри операции.\n2. Найди WRITE с источника вне доверенной подсети (10.0.0.99).\n3. Выпиши строку с меткой: `grep nto plc_logs.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта spec-ics\nwarning: suspicious activity detected\nmarker: nto{spec_ics_0k}\n",
+      "path": "/home/student/task/plc_logs.txt",
+      "text": "ts,src,op,register,value\n2026-02-10T03:00:00,10.0.0.5,READ,40001,72\n2026-02-10T03:00:05,10.0.0.5,WRITE,40010,1\n2026-02-10T03:01:12,10.0.0.99,WRITE,40001,nto{plc_un4uth0r1z3d_wr1t3}\n2026-02-10T03:02:00,10.0.0.5,READ,40001,0\n",
       "mode": "644"
     }
   ]

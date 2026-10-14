@@ -15,15 +15,15 @@ estimated_minutes: 40
 summary: 'Какие данные хранит Smart TV: приложения, историю, аккаунты, микрофон и следы сети.'
 lab:
   kind: shell
-  title: 'Практика: Smart TV в форензике'
-  toolset: [core, grep, strings]
+  title: "Практика: приложения Smart TV"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, smarttv_apps.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Приложения Smart TV обычно ставятся из магазина и подписаны."
+    - "source=sideload + signed=no — установлено вручную."
+    - "`grep nto smarttv_apps.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

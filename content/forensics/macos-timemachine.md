@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Как использовать снимки Time Machine и APFS для восстановления удалённых или изменённых файлов и построения истории.'
 lab:
   kind: shell
-  title: 'Практика: Time Machine и локальные снимки APFS'
-  toolset: [core, grep, strings]
+  title: "Практика: локальные снимки APFS"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, timemachine_snapshots.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "APFS-снимки дают версии тома во времени."
+    - "Снимок от 2026-02-09 хранит удалённый файл."
+    - "`grep nto timemachine_snapshots.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

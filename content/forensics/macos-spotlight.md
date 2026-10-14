@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Что хранит индекс Spotlight, как читать store.db и использовать метаданные файлов, даже если сами файлы удалены.'
 lab:
   kind: shell
-  title: 'Практика: Spotlight'
-  toolset: [core, grep, strings]
+  title: "Практика: метаданные Spotlight"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, spotlight_store.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "Spotlight хранит метаданные даже после удаления файла."
+    - "Путь /private/tmp + flag=1 — зацепка."
+    - "`grep nto spotlight_store.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

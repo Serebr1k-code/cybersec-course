@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{macos_imessage_0k}"
+    "contains": "nto{imessage_1n_c0mmun1c4t10}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти сообщение в chat.db\n\n`imessage_chat.txt` — строки таблицы `message` базы `chat.db` (iMessage):\nrowid, адресат, текст, дата. Одно сообщение содержит метку.\n\n1. `cat imessage_chat.txt` — просмотри переписку.\n2. Найди сообщение с меткой от неизвестного адресата.\n3. Выпиши строку: `grep nto imessage_chat.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта macos-imessage\nwarning: suspicious activity detected\nmarker: nto{macos_imessage_0k}\n",
+      "path": "/home/student/task/imessage_chat.txt",
+      "text": "rowid,handle,text,date\n1,+15550100,See you at 6,2026-02-10 08:00:00\n2,+15550101,ok,2026-02-10 08:01:10\n3,+15550199,nto{imessage_1n_c0mmun1c4t10},2026-02-10 08:02:00\n4,+15550100,bye,2026-02-10 08:05:00\n",
       "mode": "644"
     }
   ]

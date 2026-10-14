@@ -15,15 +15,15 @@ estimated_minutes: 45
 summary: 'Как osquery превращает систему в базу данных: таблицы процессов, сети, файлов и запросы к ним.'
 lab:
   kind: shell
-  title: 'Практика: osquery'
-  toolset: [core, grep, strings]
+  title: "Практика: таблица процессов osquery"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, osquery_processes.json]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "В osquery каждая строка — это объект JSON с полями pid/name/path."
+    - "Аномалия — путь запуска из `/tmp` вместо `/usr`."
+    - "`grep nto osquery_processes.json > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

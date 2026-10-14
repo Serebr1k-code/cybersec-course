@@ -1,0 +1,19 @@
+{
+  "id": "misc-ret2dlresolve",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `dl.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/dl.txt",
+      "text": "dynamic linker notes\nlazy binding: GOT filled on first call via _dl_runtime_resolve\nret2dlresolve fakes Elf64_Rela + Elf64_Sym + name string\nno libc leak needed; ASLR irrelevant\nrequires lazy binding (not -z now / Full RELRO)\nflag:bnRve3IzdDJkbHIzczBsdjNfbjBfbDFiY30=\n"
+    }
+  ]
+}

@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{cloud_iac_state_0k}"
+    "contains": "nto{iac_st4t3_dr1ft_publ1c}"
   },
   "fs": [
     {
@@ -13,12 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "text": "# Задача: найти дрейф в IaC-состоянии\n\n`iac_state_drift.csv` — сравнение IaC-состояния (Terraform state) с фактом:\nресурс, ожидаемое, фактическое, дрейф. Один ресурс разошёлся.\n\n1. `cat iac_state_drift.csv` — просмотри ресурсы.\n2. Найди строку с drift=метка (бакет стал публичным).\n3. Выпиши её: `grep nto iac_state_drift.csv > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта cloud-iac-state\nwarning: suspicious activity detected\nmarker: nto{cloud_iac_state_0k}\n",
+      "path": "/home/student/task/iac_state_drift.csv",
+      "text": "resource,expected,actual,drift\naws_s3_bucket.logs,private,private,no\naws_sg.bastion,22,22,no\naws_iam_role.deploy,trusted,trusted,no\naws_s3_bucket.backup,private,public-read,nto{iac_st4t3_dr1ft_publ1c}\n",
       "mode": "644"
     }
   ]

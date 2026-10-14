@@ -15,15 +15,15 @@ estimated_minutes: 50
 summary: 'Как расследовать облачные виртуальные машины: снимки дисков, метаданные, логи гипервизора и сбор.'
 lab:
   kind: shell
-  title: 'Практика: Облачные VM и гипервизор'
-  toolset: [core, grep, strings]
+  title: "Практика: метаданные облачной VM"
+  toolset: [core, grep]
   workdir: /home/student/task
-  files: [task.md]
+  files: [task.md, vm_metadata.txt]
   check: 'grep -q ''nto{'' answer.txt'
   hints:
-    - 'Прочитай файл-артефакт: `cat <файл>`.'
-    - 'Ищи строку с меткой nto{.'
-    - 'Сохрани: `grep nto <файл> > answer.txt`.'
+    - "У облачной VM есть метаданные (id, ami, snapshots, console-log)."
+    - "Консольный лог — источник зацепок."
+    - "`grep nto vm_metadata.txt > answer.txt`."
 ---
 
 ## Вопрос, с которого всё начинается
