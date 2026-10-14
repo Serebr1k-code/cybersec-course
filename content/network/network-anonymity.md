@@ -4,7 +4,7 @@ title: "Анонимность и DNS-каналы"
 category: network
 parent: network-covert
 difficulty: medium
-order: 3
+order: 2
 tags: [network, tor, dns, covert, timing]
 prerequisites: [network-covert]
 useful_for:

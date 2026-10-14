@@ -4,7 +4,7 @@ title: "Атаки на TLS: downgrade, Heartbleed, POODLE, BEAST и переб�
 category: network
 parent: network-tls-inspection
 difficulty: hard
-order: 2
+order: 1
 tags: [network, tls, ssl, heartbleed, poodle, beast, downgrade]
 prerequisites: [network-tls-inspection, crypto-hash-basics]
 useful_for:

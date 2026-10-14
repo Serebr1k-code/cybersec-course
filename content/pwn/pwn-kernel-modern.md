@@ -4,7 +4,7 @@ title: "Модуль: современные kernel-техники (cross-cache,
 category: pwn
 parent: pwn-kernel-core
 difficulty: hard
-order: 2
+order: 8
 tags: [kernel, cross-cache, dirty-pipe, dirtycred, roadmap]
 prerequisites: [pwn-kernel-heap]
 useful_for:

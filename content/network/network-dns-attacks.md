@@ -4,7 +4,7 @@ title: "Атаки на DNS: спуфинг, отравление кэша, ту
 category: network
 parent: network-covert
 difficulty: hard
-order: 2
+order: 1
 tags: [network, dns, spoofing, cache-poisoning, rebinding, tunneling]
 prerequisites: [network-arp, network-arp-deep, network-covert]
 useful_for:

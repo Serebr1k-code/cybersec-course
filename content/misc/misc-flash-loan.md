@@ -4,7 +4,7 @@ title: 'Flash loan и манипуляции оракулами'
 category: misc
 parent: misc-web3-defi-hub
 difficulty: expert
-order: 2
+order: 1
 tags: [flashloan, defi, oracle, solidity, foundry]
 prerequisites: [misc-blockchain-reentrancy]
 useful_for:

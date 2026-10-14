@@ -1,0 +1,40 @@
+{
+  "id": "stego-wet-paper-codes",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w3t_p4p3r_c0d3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: встраивание с мокрыми позициями\n\n`wetpaper.py` помечает часть позиций как «мокрые» (запретные) и вкладывает сообщение в «сухие». Прогони и достань сообщение.\n\n1. `python3 wetpaper.py` — встраивание и извлечение.\n2. Посмотри, сколько позиций мокрых.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/wetpaper.py",
+      "text": "print('total positions: 4096')\nprint('wet (forbidden): 1024')\nprint('dry (available): 3072')\nprint('message bits: 24')\nprint('embedded in dry positions: 24')\nprint('extracted: nto{w3t_p4p3r_c0d3}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "wetpaper\\.py",
+          "example": "python3 wetpaper.py",
+          "output": "total positions: 4096\nwet (forbidden): 1024\ndry (available): 3072\nmessage bits: 24\nembedded in dry positions: 24\nextracted: nto{w3t_p4p3r_c0d3}\n"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "id": "cloud-k8s-apiserver",
+  "workdir": "/home/student/apiserver",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/apiserver/found.txt",
+    "contains": "nto{k8s_impersonate_escalation}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/apiserver",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/apiserver/task.md",
+      "text": "# Задача\n\nДан набор прав service account. Определи путь эскалации и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/apiserver/rbac.txt",
+      "text": "resources: [pods, secrets]  verbs: [get, list]\nresources: [users, groups]  verbs: [impersonate]\n"
+    },
+    {
+      "path": "/home/student/apiserver/notes.md",
+      "text": "Аудит: право impersonate позволяет выдать себя за system:masters.\nЭто путь к cluster-admin.\nnto{k8s_impersonate_escalation}\n"
+    }
+  ]
+}

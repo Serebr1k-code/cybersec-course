@@ -1,0 +1,27 @@
+{
+  "id": "cloud-k8s-helm",
+  "workdir": "/home/student/helm",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/helm/found.txt",
+    "contains": "nto{helm_release_secret_leak}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/helm",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/helm/task.md",
+      "text": "# Задача\n\nНайден релиз Helm. Определи, где лежат его значения и какие секреты в них, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/helm/release.txt",
+      "text": "release: acme-app  revision: 3\nstored-in: secret/sh.helm.release.v1.acme-app.v3\nvalues:\n  dbPassword: EXAMPLEnotreal\n  dbHost: db.internal\n"
+    },
+    {
+      "path": "/home/student/helm/notes.md",
+      "text": "Аудит: состояние релиза лежит в Secret без отдельного шифрования.\nЗначения (dbPassword) читаются тем, у кого есть RBAC на Secret.\nnto{helm_release_secret_leak}\n"
+    }
+  ]
+}

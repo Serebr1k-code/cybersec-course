@@ -4,7 +4,7 @@ title: "YARA и Sigma: правила для файлов, памяти и ло�
 category: forensics
 parent: forensics-tooling
 difficulty: medium
-order: 2
+order: 4
 tags: [yara, sigma, rules, detection, siem, malware]
 prerequisites: [forensics-tooling]
 useful_for:

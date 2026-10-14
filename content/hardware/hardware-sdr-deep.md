@@ -4,7 +4,7 @@ title: "SDR глубоко: IQ-сэмплы, модуляции, декодир�
 category: hardware
 parent: hardware-sdr-radio
 difficulty: medium
-order: 3
+order: 2
 tags: [sdr, iq, modulation, fsk, ook, gqrx, rtl-sdr, hackrf, decoding, radio]
 prerequisites: [hardware-sdr-radio, hardware-rtl-sdr]
 useful_for:

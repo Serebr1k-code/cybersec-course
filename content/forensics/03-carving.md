@@ -4,7 +4,7 @@ title: "Carving и binwalk: извлечение встроенных данны
 category: forensics
 parent: forensics-file-magic
 difficulty: easy
-order: 1
+order: 2
 tags: [binwalk, foremost, carving, extraction, ctf]
 prerequisites: [forensics-file-magic]
 useful_for:

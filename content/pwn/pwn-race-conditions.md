@@ -4,7 +4,7 @@ title: "Модуль: гонки и TOCTOU"
 category: pwn
 parent: pwn-methodology
 difficulty: hard
-order: 4
+order: 3
 tags: [race, toctou, concurrency, pthread, roadmap]
 prerequisites: [pwn-methodology-analysis]
 useful_for:

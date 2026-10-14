@@ -32,7 +32,7 @@ summary: "Этап ветки «мобильные»: глубокий Android �
 1. `mobile-android-location` — где был телефон.
 2. `mobile-android-notifications` — что приходило.
 3. `mobile-gms` — сервисы Google.
-4. `mobile-baseband` — соты и модем.
+4. `forensics-mobile-baseband` — соты и модем.
 5. `mobile-android-strongbox` — аппаратные ключи.
 6. `mobile-app-reversing` — разбор приложения.
 

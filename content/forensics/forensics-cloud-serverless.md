@@ -1,5 +1,5 @@
 ---
-id: cloud-serverless
+id: forensics-cloud-serverless
 title: 'Serverless-форензика: функции, логи и роли'
 category: forensics
 parent: forensics-cloud-compute

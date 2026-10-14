@@ -1,0 +1,40 @@
+{
+  "id": "stego-chaos",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ch40s_m4p_k3ystr34m}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: хаотический ключевой поток\n\n`chaos.py` генерирует логистическую карту, переставляет позиции и вкладывает биты. Прогони и достань сообщение.\n\n1. `python3 chaos.py` — генерация потока и извлечение.\n2. Посмотри, что даёт неверный seed.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/chaos.py",
+      "text": "print('logistic map: x_{n+1} = r * x_n * (1 - x_n), r=3.99')\nprint('seed x0: 0.4711')\nprint('generated 4096 pseudo-random values')\nprint('permutation applied to positions')\nprint('bits embedded: 24')\nprint('extracted (same seed): nto{ch40s_m4p_k3ystr34m}')\nprint('extracted (wrong seed): <garbage>')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "chaos\\.py",
+          "example": "python3 chaos.py",
+          "output": "logistic map: x_{n+1} = r * x_n * (1 - x_n), r=3.99\nseed x0: 0.4711\ngenerated 4096 pseudo-random values\npermutation applied to positions\nbits embedded: 24\nextracted (same seed): nto{ch40s_m4p_k3ystr34m}\nextracted (wrong seed): <garbage>\n"
+        }
+      ]
+    }
+  }
+}

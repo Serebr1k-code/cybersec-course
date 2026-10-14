@@ -4,7 +4,7 @@ title: "Heap glibc: чанки, malloc/free и метаданные"
 category: pwn
 parent: pwn-mitigations
 difficulty: hard
-order: 1
+order: 2
 tags: [heap, glibc, malloc, free, chunks, bins]
 prerequisites: [pwn-mitigations, pwn-rop]
 useful_for:

@@ -4,7 +4,7 @@ title: "Автоматизация OSINT: recon-ng, SpiderFoot, Maltego"
 category: osint
 parent: osint-intro
 difficulty: medium
-order: 3
+order: 2
 tags: [automation, recon-ng, spiderfoot, maltego, theharvester, tooling]
 prerequisites: [osint-intro, osint-search-operators]
 useful_for:

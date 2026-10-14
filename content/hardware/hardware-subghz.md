@@ -4,7 +4,7 @@ title: "Sub-GHz: replay, RollJam и взлом rolling-кодов"
 category: hardware
 parent: hardware-sdr-radio
 difficulty: medium
-order: 2
+order: 3
 tags: [subghz, 433mhz, rolling-code, keeloq, rolljam, replay, flipper, rtl-sdr, garage]
 prerequisites: [hardware-rf, hardware-rtl-sdr]
 useful_for:

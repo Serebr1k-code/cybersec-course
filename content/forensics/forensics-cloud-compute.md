@@ -4,7 +4,7 @@ title: "Модуль: облачные вычисления — serverless, ко
 category: forensics
 parent: forensics-cloud-multi
 difficulty: hard
-order: 5
+order: 4
 tags: [forensics, cloud, serverless, container, vm, cicd, roadmap]
 prerequisites: [forensics-cloud-multi]
 useful_for:
@@ -27,8 +27,8 @@ summary: "Этап ветки «облако»: как расследовать 
 
 ## Рекомендуемый порядок изучения
 
-1. `cloud-serverless` — функции.
-2. `cloud-container-runtime` — контейнеры.
+1. `forensics-cloud-serverless` — функции.
+2. `forensics-cloud-container-runtime` — контейнеры.
 3. `cloud-vm-hypervisor` — виртуалки.
 4. `cloud-cicd` — пайплайны.
 

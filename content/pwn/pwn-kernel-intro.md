@@ -4,7 +4,7 @@ title: "Введение в kernel pwn: ret2usr, modprobe_path, msg_msg"
 category: pwn
 parent: pwn-mitigations
 difficulty: hard
-order: 2
+order: 3
 tags: [kernel, ret2usr, modprobe-path, msg-msg, privesc, lkm]
 prerequisites: [pwn-mitigations, pwn-rop, pwn-heap-basics]
 useful_for:

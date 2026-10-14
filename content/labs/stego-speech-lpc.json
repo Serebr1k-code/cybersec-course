@@ -1,0 +1,40 @@
+{
+  "id": "stego-speech-lpc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{lpc_f0rm4nt_c0d3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: встраивание в LPC-параметры\n\n`lpc.py` считает LPC-коэффициенты кадра и вкладывает биты. Прогони и достань сообщение.\n\n1. `python3 lpc.py` — LPC и извлечение.\n2. Посмотри, в какой коэффициент вложено.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/lpc.py",
+      "text": "print('frame: 160 samples (20 ms @ 8kHz)')\nprint('LPC order: 10')\nprint('quantized coefficients: [a1..a10]')\nprint('bit 0 -> LPC[4] quantized to even bin')\nprint('bit 1 -> LPC[4] quantized to odd bin')\nprint('extracted: nto{lpc_f0rm4nt_c0d3r}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "lpc\\.py",
+          "example": "python3 lpc.py",
+          "output": "frame: 160 samples (20 ms @ 8kHz)\nLPC order: 10\nquantized coefficients: [a1..a10]\nbit 0 -> LPC[4] quantized to even bin\nbit 1 -> LPC[4] quantized to odd bin\nextracted: nto{lpc_f0rm4nt_c0d3r}\n"
+        }
+      ]
+    }
+  }
+}

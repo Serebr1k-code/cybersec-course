@@ -4,7 +4,7 @@ title: 'Solana и Anchor: PDA, account confusion, CPI'
 category: misc
 parent: misc-web3-ecosystem-hub
 difficulty: expert
-order: 3
+order: 2
 tags: [solana, anchor, pda, cpi, rust, web3]
 prerequisites: [misc-evm-internals]
 useful_for:

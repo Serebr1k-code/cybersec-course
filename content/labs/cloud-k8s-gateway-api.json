@@ -1,0 +1,27 @@
+{
+  "id": "cloud-k8s-gateway-api",
+  "workdir": "/home/student/gateway",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/gateway/found.txt",
+    "contains": "nto{gateway_path_prefix_bypass}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/gateway",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/gateway/task.md",
+      "text": "# Задача\n\nДан HTTPRoute Gateway API. Определи уязвимость маршрутизации и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/gateway/httproute.yaml",
+      "text": "rules:\n  - matches: [{path: {type: PathPrefix, value: /api}}]\n    backendRefs: [{name: public-svc, port: 80}]\n  - matches: [{path: {type: PathPrefix, value: /internal}}]\n    backendRefs: [{name: admin-svc, port: 80}]\n"
+    },
+    {
+      "path": "/home/student/gateway/notes.md",
+      "text": "Аудит: PathPrefix /api может матчить /api/../internal до нормализации.\nБэкенд видит /internal — обход к admin-svc.\nnto{gateway_path_prefix_bypass}\n"
+    }
+  ]
+}

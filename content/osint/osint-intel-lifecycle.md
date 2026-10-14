@@ -4,7 +4,7 @@ title: "Разведывательный цикл и планирование с
 category: osint
 parent: osint-intro
 difficulty: medium
-order: 2
+order: 3
 tags: [methodology, intelligence, lifecycle, pir, planning, analysis]
 prerequisites: [osint-intro]
 useful_for:

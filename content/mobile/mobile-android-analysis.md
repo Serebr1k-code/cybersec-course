@@ -4,7 +4,7 @@ title: "Анализ Android-приложения: статика и динам�
 category: mobile
 parent: mobile-android-anatomy
 difficulty: medium
-order: 1
+order: 2
 tags: [mobile, android, static, dynamic, frida]
 prerequisites: [mobile-android-anatomy]
 useful_for:

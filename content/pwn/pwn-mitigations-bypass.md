@@ -4,7 +4,7 @@ title: "Обход защит: ret2dlresolve, canary, PIE, CET/CFI"
 category: pwn
 parent: pwn-mitigations
 difficulty: hard
-order: 3
+order: 1
 tags: [pwn, mitigations, ret2dlresolve, canary, pie, cet]
 prerequisites: [pwn-mitigations]
 useful_for:

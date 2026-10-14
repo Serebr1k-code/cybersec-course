@@ -1,5 +1,5 @@
 ---
-id: cloud-secrets-manager
+id: forensics-cloud-secrets-manager
 title: 'Менеджеры секретов: где ключи и кто их читал'
 category: forensics
 parent: forensics-cloud-data

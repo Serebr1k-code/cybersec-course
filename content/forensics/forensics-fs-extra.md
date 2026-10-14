@@ -4,7 +4,7 @@ title: "Модуль: дополнительные файловые систем
 category: forensics
 parent: forensics-filesystems
 difficulty: hard
-order: 7
+order: 3
 tags: [forensics, apfs, fat, mdadm, raid, tpm, filesystem, roadmap]
 prerequisites: [forensics-fs-structure]
 useful_for:

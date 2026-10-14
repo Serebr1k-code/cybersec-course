@@ -4,7 +4,7 @@ title: "Модуль: Вскрытие и правка кремния (дека�
 category: hardware
 parent: hardware-mod-physical-attacks
 difficulty: hard
-order: 2
+order: 3
 tags: [hardware, silicon, decapping, microprobing, fib, emfi, module, roadmap]
 prerequisites: [hardware-mod-physical-attacks, hardware-power-analysis]
 useful_for:

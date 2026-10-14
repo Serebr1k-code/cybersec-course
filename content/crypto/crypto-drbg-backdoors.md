@@ -4,7 +4,7 @@ title: 'DRBG: CTR-DRBG, Hash-DRBG и бэкдор Dual_EC_DRBG'
 category: crypto
 parent: crypto-rng-engineering
 difficulty: hard
-order: 2
+order: 3
 tags: [crypto, drbg, ctr-drbg, hash-drbg, dual-ec, backdoor, nist, rng]
 prerequisites: [crypto-rng-entropy]
 useful_for:

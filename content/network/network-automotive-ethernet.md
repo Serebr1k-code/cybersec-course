@@ -4,7 +4,7 @@ title: "Automotive Ethernet: 100BASE-T1 и TSN"
 category: network
 parent: network-module-auto-diag
 difficulty: hard
-order: 4
+order: 2
 tags: [network, automotive, ethernet, 100base-t1, tsn]
 prerequisites: [network-ethernet]
 useful_for:

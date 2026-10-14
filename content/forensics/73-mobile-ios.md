@@ -4,7 +4,7 @@ title: "iOS-форензика: бэкапы, keychain, app data"
 category: forensics
 parent: forensics-mobile
 difficulty: hard
-order: 2
+order: 3
 tags: [ios, itunes-backup, keychain, mobile, forensics, sqlite]
 prerequisites: [forensics-mobile]
 useful_for:

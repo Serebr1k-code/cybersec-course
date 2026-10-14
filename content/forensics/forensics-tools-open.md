@@ -4,7 +4,7 @@ title: "Модуль: открытые инструменты — платфор
 category: forensics
 parent: forensics-tooling
 difficulty: medium
-order: 2
+order: 3
 tags: [forensics, tools, plaso, velociraptor, osquery, grr, hindsight, roadmap]
 prerequisites: [forensics-tooling]
 useful_for:

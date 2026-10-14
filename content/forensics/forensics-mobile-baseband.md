@@ -1,5 +1,5 @@
 ---
-id: mobile-baseband
+id: forensics-mobile-baseband
 title: 'Baseband и соты: подключения к сети'
 category: forensics
 parent: forensics-mobile-android-deep

@@ -4,7 +4,7 @@ title: "Продвинутые и эзотерические техники ст
 category: stego
 parent: stego-analysis-advanced
 difficulty: medium
-order: 4
+order: 3
 tags: [stego, dct, dwt, spread-spectrum, palette, esoteric, steganalysis]
 prerequisites: [stego-lsb, stego-png-chunks, stego-audio-advanced]
 useful_for:

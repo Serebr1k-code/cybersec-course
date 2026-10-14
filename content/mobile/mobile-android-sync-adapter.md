@@ -4,7 +4,7 @@ title: 'SyncAdapter: фоновая синхронизация аккаунта'
 category: mobile
 parent: mobile-android-background
 difficulty: hard
-order: 3
+order: 4
 tags: [android, syncadapter, accountmanager, contentprovider, background, sync]
 prerequisites: [mobile-android-account-manager]
 useful_for:

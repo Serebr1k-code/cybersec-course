@@ -4,7 +4,7 @@ title: "Модуль: утилиты — конвертеры, файловые 
 category: forensics
 parent: forensics-tooling
 difficulty: medium
-order: 3
+order: 6
 tags: [forensics, tools, cyberchef, fiwalk, ntfs, regripper, dfir-orc, roadmap]
 prerequisites: [forensics-tooling]
 useful_for:

@@ -1,0 +1,40 @@
+{
+  "id": "stego-id3-tags",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1d3v2_4p1c_c0v3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: ID3-теги MP3\n\n`id3.py` печатает фреймы ID3v2-тега MP3-файла. Найди флаг в метаданных.\n\n1. `python3 id3.py` — список фреймов.\n2. Смотри COMM/TXXX/APIC.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/id3.py",
+      "text": "print('TIT2 (title): \"Summer Track\"')\nprint('TPE1 (artist): \"Unknown\"')\nprint('APIC (cover): 128x128 PNG, 4096 bytes')\nprint('COMM (comment): nto{1d3v2_4p1c_c0v3r}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "id3\\.py",
+          "example": "python3 id3.py",
+          "output": "TIT2 (title): \"Summer Track\"\nTPE1 (artist): \"Unknown\"\nAPIC (cover): 128x128 PNG, 4096 bytes\nCOMM (comment): nto{1d3v2_4p1c_c0v3r}\n"
+        }
+      ]
+    }
+  }
+}

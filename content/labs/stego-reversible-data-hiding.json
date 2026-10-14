@@ -1,0 +1,40 @@
+{
+  "id": "stego-reversible-data-hiding",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r3v3rs1bl3_1nt4ct_c0v3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: обратимое извлечение\n\n`rdh.py` встраивает сообщение в cover, извлекает его и восстанавливает оригинал. Подтверди обратимость и достань сообщение.\n\n1. `python3 rdh.py` — извлечение и восстановление.\n2. Сравни md5 восстановленного cover с оригиналом.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/rdh.py",
+      "text": "print('mode: reversible (difference expansion)')\nprint('pairs processed: 4096')\nprint('bits embedded: 30')\nprint('overflow map size: 128 entries')\nprint('extracted: nto{r3v3rs1bl3_1nt4ct_c0v3r}')\nprint('restored cover md5: 5d41402abc4b2a76b9719d911017c592')\nprint('original cover md5: 5d41402abc4b2a76b9719d911017c592')\nprint('match: True')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "rdh\\.py",
+          "example": "python3 rdh.py",
+          "output": "mode: reversible (difference expansion)\npairs processed: 4096\nbits embedded: 30\noverflow map size: 128 entries\nextracted: nto{r3v3rs1bl3_1nt4ct_c0v3r}\nrestored cover md5: 5d41402abc4b2a76b9719d911017c592\noriginal cover md5: 5d41402abc4b2a76b9719d911017c592\nmatch: True\n"
+        }
+      ]
+    }
+  }
+}

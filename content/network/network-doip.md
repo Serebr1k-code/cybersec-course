@@ -4,7 +4,7 @@ title: "DoIP: диагностика поверх IP (ISO 13400)"
 category: network
 parent: network-module-auto-diag
 difficulty: hard
-order: 2
+order: 3
 tags: [network, doip, automotive, uds, iso13400]
 prerequisites: [network-automotive-ethernet]
 useful_for:

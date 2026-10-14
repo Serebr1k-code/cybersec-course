@@ -4,7 +4,7 @@ title: 'Модуль: медиа-форматы и их разбор'
 category: misc
 parent: misc-encoding-media
 difficulty: expert
-order: 8
+order: 5
 tags: [parsers, srt, ebml, matroska, midi, pcap, roadmap]
 prerequisites: [misc-encoding-media]
 useful_for:

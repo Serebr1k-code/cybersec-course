@@ -4,7 +4,7 @@ title: 'Выявление анти-форензики: методология �
 category: forensics
 parent: forensics-af-advanced
 difficulty: hard
-order: 7
+order: 5
 tags: [forensics, anti-forensics, detection, methodology]
 prerequisites: [forensics-af-advanced]
 useful_for:

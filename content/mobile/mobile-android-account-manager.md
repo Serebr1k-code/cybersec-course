@@ -4,7 +4,7 @@ title: 'AccountManager: аккаунты и утечка токенов'
 category: mobile
 parent: mobile-android-background
 difficulty: hard
-order: 4
+order: 3
 tags: [android, accountmanager, authtoken, authenticator, credentials, leak]
 prerequisites: [mobile-android-components]
 useful_for:

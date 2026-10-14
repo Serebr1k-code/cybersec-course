@@ -4,7 +4,7 @@ title: 'Android StrongBox и аппаратные ключи'
 category: forensics
 parent: forensics-mobile-android-deep
 difficulty: hard
-order: 5
+order: 4
 tags: [forensics, mobile, android, strongbox, keystore, tee]
 prerequisites: [forensics-mobile]
 useful_for:

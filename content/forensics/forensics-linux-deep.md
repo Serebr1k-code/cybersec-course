@@ -4,7 +4,7 @@ title: "Модуль: Linux-аккаунты, SSH и системные журн
 category: forensics
 parent: forensics-linux-artifacts-advanced
 difficulty: hard
-order: 4
+order: 5
 tags: [linux, auth, sudo, ssh, syslog, journald, packages, forensics, roadmap]
 prerequisites: [forensics-linux-artifacts]
 useful_for:

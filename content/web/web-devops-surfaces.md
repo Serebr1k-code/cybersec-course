@@ -4,7 +4,7 @@ title: "DevOps-панели как поверхность атаки: Grafana, K
 category: web
 parent: web-enterprise-suite
 difficulty: hard
-order: 3
+order: 2
 tags: [devops, grafana, kibana, gitlab, jenkins, monitoring, cicd, cve]
 prerequisites: [web-enterprise-apps]
 useful_for:

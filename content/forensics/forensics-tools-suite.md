@@ -4,7 +4,7 @@ title: "Модуль: коммерческие форензик-платформ
 category: forensics
 parent: forensics-tooling
 difficulty: medium
-order: 1
+order: 2
 tags: [forensics, tools, cellebrite, axiom, encase, xways, bulk-extractor, roadmap]
 prerequisites: [forensics-tooling]
 useful_for:

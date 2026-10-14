@@ -1,0 +1,40 @@
+{
+  "id": "stego-minimum-distortion",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m1n_c0st_3mb3dd1ng}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: минимально-искажающее встраивание\n\n`mindist.py` считает стоимость каждой позиции и изменяет только самые дешёвые. Прогони и достань сообщение.\n\n1. `python3 mindist.py` — карта стоимостей и встраивание.\n2. Посмотри, сколько позиций изменено.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/mindist.py",
+      "text": "print('cost map: 4096 positions')\nprint('mean cost: 2.71')\nprint('chosen positions (lowest cost): 12')\nprint('changes made: 12')\nprint('embedding efficiency: 0.42 bpp')\nprint('extracted: nto{m1n_c0st_3mb3dd1ng}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "mindist\\.py",
+          "example": "python3 mindist.py",
+          "output": "cost map: 4096 positions\nmean cost: 2.71\nchosen positions (lowest cost): 12\nchanges made: 12\nembedding efficiency: 0.42 bpp\nextracted: nto{m1n_c0st_3mb3dd1ng}\n"
+        }
+      ]
+    }
+  }
+}

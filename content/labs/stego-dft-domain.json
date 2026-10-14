@@ -1,0 +1,40 @@
+{
+  "id": "stego-dft-domain",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dft_l0g_p0l4r_d0m41n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: встраивание в спектр Фурье\n\n`dft.py` вкладывает биты в амплитудный спектр и извлекает их после сдвига изображения. Прогони и достань сообщение.\n\n1. `python3 dft.py` — DFT-встраивание, сдвиг, извлечение.\n2. Посмотри, сколько бит декодировано верно.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/dft.py",
+      "text": "print('DFT size: 64x64')\nprint('embedding band: mid-frequency ring')\nprint('bits embedded: 8')\nprint('shift applied: 3 pixels right')\nprint('decoded after shift: 8/8 bits correct')\nprint('extracted: nto{dft_l0g_p0l4r_d0m41n}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "dft\\.py",
+          "example": "python3 dft.py",
+          "output": "DFT size: 64x64\nembedding band: mid-frequency ring\nbits embedded: 8\nshift applied: 3 pixels right\ndecoded after shift: 8/8 bits correct\nextracted: nto{dft_l0g_p0l4r_d0m41n}\n"
+        }
+      ]
+    }
+  }
+}

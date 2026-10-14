@@ -4,7 +4,7 @@ title: "Метаданные: exiftool и скрытые свойства фай
 category: forensics
 parent: forensics-file-magic
 difficulty: easy
-order: 2
+order: 1
 tags: [metadata, exiftool, exif, pdf, gps, stego]
 prerequisites: [forensics-file-magic]
 useful_for:

@@ -4,7 +4,7 @@ title: "QUIC и HTTP/3: анализ зашифрованного транспо
 category: network
 parent: network-tls-inspection
 difficulty: hard
-order: 1
+order: 2
 tags: [network, quic, http3, udp, tls13, analysis]
 prerequisites: [network-tls-inspection, network-tcpip]
 useful_for:

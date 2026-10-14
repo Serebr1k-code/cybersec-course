@@ -4,7 +4,7 @@ title: "auditd: аудит системных вызовов и разбор aud
 category: forensics
 parent: forensics-linux-artifacts-advanced
 difficulty: hard
-order: 5
+order: 7
 tags: [linux, auditd, audit, syscall, ausearch, aureport, forensics]
 prerequisites: [forensics-linux-artifacts-advanced, forensics-linux-artifacts]
 useful_for:

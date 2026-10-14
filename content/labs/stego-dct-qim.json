@@ -1,0 +1,40 @@
+{
+  "id": "stego-dct-qim",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dct_q1m_qu4nt1z3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: QIM в DCT-области\n\n`qim.py` квантует DCT-коэффициент и кодирует бит индексом кванта. Прогони и достань сообщение.\n\n1. `python3 qim.py` — встраивание и извлечение после пересжатия.\n2. Посмотри, к какой сетке привязан коэффициент.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/qim.py",
+      "text": "print('coefficient: 37.4')\nprint('quantizer step Δ=16')\nprint('bin 0: ...32, 48...  bin 1: ...40, 56...')\nprint('bit 1 -> quantized to 40.0')\nprint('received coefficient after recompression: 39.1')\nprint('decoded bit: 1')\nprint('extracted: nto{dct_q1m_qu4nt1z3}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "qim\\.py",
+          "example": "python3 qim.py",
+          "output": "coefficient: 37.4\nquantizer step Δ=16\nbin 0: ...32, 48...  bin 1: ...40, 56...\nbit 1 -> quantized to 40.0\nreceived coefficient after recompression: 39.1\ndecoded bit: 1\nextracted: nto{dct_q1m_qu4nt1z3}\n"
+        }
+      ]
+    }
+  }
+}

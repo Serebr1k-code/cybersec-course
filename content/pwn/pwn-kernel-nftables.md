@@ -4,7 +4,7 @@ title: "Уязвимости nftables: UAF в netfilter"
 category: pwn
 parent: pwn-kernel-core
 difficulty: expert
-order: 7
+order: 6
 tags: [kernel, nftables, netfilter, uaf, userns, netlink]
 prerequisites: [pwn-kernel-heap]
 useful_for:

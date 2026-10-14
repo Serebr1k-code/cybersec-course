@@ -1,0 +1,40 @@
+{
+  "id": "stego-histogram-shifting",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h1st0gr4m_sh1ft_p41r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: сдвиг гистограммы\n\n`hs.py` находит пик и пустой бин гистограммы, сдвигает диапазон и вкладывает биты. Прогони и достань сообщение.\n\n1. `python3 hs.py` — сдвиг и извлечение.\n2. Проверь, что гистограмма восстановлена.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/hs.py",
+      "text": "print('mode: histogram shifting')\nprint('histogram peak value: 128 (count 2048)')\nprint('empty bin: 130 (count 0)')\nprint('shift range: [129..130]')\nprint('pixels shifted: 512')\nprint('bits embedded: 11')\nprint('extracted message: nto{h1st0gr4m_sh1ft_p41r}')\nprint('restored histogram: peak 128, empty 130')\nprint('match: True')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "hs\\.py",
+          "example": "python3 hs.py",
+          "output": "mode: histogram shifting\nhistogram peak value: 128 (count 2048)\nempty bin: 130 (count 0)\nshift range: [129..130]\npixels shifted: 512\nbits embedded: 11\nextracted message: nto{h1st0gr4m_sh1ft_p41r}\nrestored histogram: peak 128, empty 130\nmatch: True\n"
+        }
+      ]
+    }
+  }
+}

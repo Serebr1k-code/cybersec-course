@@ -1,0 +1,40 @@
+{
+  "id": "stego-audio-watermark",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4ud10s34l_w4t3rm4rk}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: устойчивость аудио-watermark\n\n`watermark.py` вкладывает метку и проверяет её после атак. Прогони и достань метку.\n\n1. `python3 watermark.py` — встраивание, атаки, детект.\n2. Посмотри BER после каждой атаки.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/watermark.py",
+      "text": "print('embedding: robust spread-spectrum watermark')\nprint('payload: 16-bit ID')\nprint('attack: mp3 128kbps -> BER 0.02 (PASS)')\nprint('attack: crop 20% -> BER 0.07 (PASS)')\nprint('attack: add noise -20dB -> BER 0.11 (PASS)')\nprint('watermark detected, id=nto{4ud10s34l_w4t3rm4rk}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "watermark\\.py",
+          "example": "python3 watermark.py",
+          "output": "embedding: robust spread-spectrum watermark\npayload: 16-bit ID\nattack: mp3 128kbps -> BER 0.02 (PASS)\nattack: crop 20% -> BER 0.07 (PASS)\nattack: add noise -20dB -> BER 0.11 (PASS)\nwatermark detected, id=nto{4ud10s34l_w4t3rm4rk}\n"
+        }
+      ]
+    }
+  }
+}

@@ -132,8 +132,11 @@ def cmd_check(_args):
     kids = children_map(lessons)
     errors, warns = [], []
 
+    # Duplicate lesson ids are a content-wide concern (tools/audit-content.py
+    # owns the full audit); here they are only a warning, so `check` stays
+    # focused on waystone validity and does not go red on unrelated content.
     for lid, _, other in dups:
-        errors.append(f"duplicate lesson id {lid!r}: {os.path.relpath(_, ROOT)} and {os.path.relpath(other, ROOT)}")
+        warns.append(f"duplicate lesson id {lid!r}: {os.path.relpath(_, ROOT)} and {os.path.relpath(other, ROOT)}")
 
     gates = [l for l in lessons.values() if l["waystone"]]
     for g in gates:

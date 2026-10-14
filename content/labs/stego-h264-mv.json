@@ -1,0 +1,40 @@
+{
+  "id": "stego-h264-mv",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h264_m0t10n_v3ct0r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: извлечение из motion-векторов\n\n`mvec.py` разбирает motion-векторы H.264-потока и собирает младшие биты. Прогони и достань сообщение.\n\n1. `python3 mvec.py` — разбор потока и извлечение.\n2. Посмотри поток LSB.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/mvec.py",
+      "text": "print('codec: H.264')\nprint('frame type: P-frame')\nprint('macroblocks: 64')\nprint('motion vectors (x,y): e.g. (3,-2), (0,1), ...')\nprint('LSB stream: 0 1 0 1 1 0 0 1')\nprint('extracted: nto{h264_m0t10n_v3ct0r}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "mvec\\.py",
+          "example": "python3 mvec.py",
+          "output": "codec: H.264\nframe type: P-frame\nmacroblocks: 64\nmotion vectors (x,y): e.g. (3,-2), (0,1), ...\nLSB stream: 0 1 0 1 1 0 0 1\nextracted: nto{h264_m0t10n_v3ct0r}\n"
+        }
+      ]
+    }
+  }
+}

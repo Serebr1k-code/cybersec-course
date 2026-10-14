@@ -1,0 +1,40 @@
+{
+  "id": "stego-matrix-embedding",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h4mm1ng_m4tr1x_3mb3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: матричное встраивание\n\n`hamming.py` вкладывает биты кодом Хэмминга, меняя меньше позиций. Прогони и достань сообщение.\n\n1. `python3 hamming.py` — кодирование и извлечение.\n2. Посмотри эффективность встраивания.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/hamming.py",
+      "text": "print('message bits: 12')\nprint('groups of (7,3): 4')\nprint('changes made: 2')\nprint('extracted: nto{h4mm1ng_m4tr1x_3mb3d}')\nprint('embedding efficiency: 3.5 bpp')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "hamming\\.py",
+          "example": "python3 hamming.py",
+          "output": "message bits: 12\ngroups of (7,3): 4\nchanges made: 2\nextracted: nto{h4mm1ng_m4tr1x_3mb3d}\nembedding efficiency: 3.5 bpp\n"
+        }
+      ]
+    }
+  }
+}

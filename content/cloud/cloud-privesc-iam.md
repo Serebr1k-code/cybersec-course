@@ -4,7 +4,7 @@ title: "Эскалация привилегий в IAM: из слабого кл
 category: cloud
 parent: cloud-iam-attack
 difficulty: hard
-order: 3
+order: 2
 tags: [cloud, iam, privesc, aws, pacu, enumerate-iam, exploitation]
 prerequisites: [cloud-iam-basics, cloud-credential-hunting]
 useful_for:

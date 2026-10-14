@@ -4,7 +4,7 @@ title: "Модуль: контейнеры, удалённые файлы и с�
 category: forensics
 parent: forensics-linux-artifacts-advanced
 difficulty: hard
-order: 6
+order: 9
 tags: [linux, containers, deleted-files, timestamps, network, forensics, roadmap]
 prerequisites: [forensics-linux-artifacts]
 useful_for:

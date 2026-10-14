@@ -1,0 +1,19 @@
+{
+  "id": "misc-musl-allocator",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `ldd.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/ldd.txt",
+      "text": "challenge: ELF 64-bit LSB pie executable, x86-64, dynamically linked, interpreter /lib/ld-musl-x86_64.so.1\nsymbols: tcache -> absent\nsymbols: __free_hook -> absent\nallocator: musl groups + meta structures, small buckets step 16\nnote: glibc heap technique will not transfer\nflag:bnRve211c2xfbTRsbDBjX24wX3RjNGNoM30=\n"
+    }
+  ]
+}

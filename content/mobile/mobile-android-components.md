@@ -4,7 +4,7 @@ title: "Компоненты и хранилища Android"
 category: mobile
 parent: mobile-android-anatomy
 difficulty: medium
-order: 2
+order: 3
 tags: [mobile, android, components, storage, webview]
 prerequisites: [mobile-android-anatomy]
 useful_for:

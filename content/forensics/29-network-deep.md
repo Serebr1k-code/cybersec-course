@@ -4,7 +4,7 @@ title: "Глубокий анализ сети: протоколы и эксфи
 category: forensics
 parent: forensics-pcap
 difficulty: hard
-order: 2
+order: 3
 tags: [pcap, exfiltration, dns, icmp, tls, ja3, zeek, network]
 prerequisites: [forensics-pcap]
 useful_for:

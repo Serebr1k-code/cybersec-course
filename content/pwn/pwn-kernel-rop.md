@@ -4,7 +4,7 @@ title: "Kernel ROP: commit_creds и возврат в userland"
 category: pwn
 parent: pwn-kernel-core
 difficulty: expert
-order: 3
+order: 2
 tags: [kernel, rop, commit_creds, smep, smap, kpti]
 prerequisites: [pwn-kernel-heap, pwn-rop]
 useful_for:

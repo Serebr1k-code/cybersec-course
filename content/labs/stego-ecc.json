@@ -1,0 +1,40 @@
+{
+  "id": "stego-ecc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ecc_pr0t3ct5_b1t5}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: помехоустойчивый код\n\n`ecc.py` кодирует сообщение кодом Рида–Соломона, портит несколько символов и исправляет их. Прогони и достань сообщение.\n\n1. `python3 ecc.py` — кодирование, порча, декодирование.\n2. Посмотри, сколько ошибок исправлено.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/ecc.py",
+      "text": "print('encoding: RS(n=15, k=11) over GF(256)')\nprint('info symbols: 11')\nprint('parity symbols: 4')\nprint('channel: corrupted 2 symbols')\nprint('decoding...')\nprint('errors located: [3, 7]')\nprint('errors corrected: 2')\nprint('decoded message: nto{ecc_pr0t3ct5_b1t5}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "ecc\\.py",
+          "example": "python3 ecc.py",
+          "output": "encoding: RS(n=15, k=11) over GF(256)\ninfo symbols: 11\nparity symbols: 4\nchannel: corrupted 2 symbols\ndecoding...\nerrors located: [3, 7]\nerrors corrected: 2\ndecoded message: nto{ecc_pr0t3ct5_b1t5}\n"
+        }
+      ]
+    }
+  }
+}

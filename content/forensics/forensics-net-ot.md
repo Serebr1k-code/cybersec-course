@@ -4,7 +4,7 @@ title: "Модуль: промышленные, IoT и облачные сети
 category: forensics
 parent: forensics-network-advanced
 difficulty: hard
-order: 7
+order: 8
 tags: [network, ics, scada, iot, modbus, vpc, flow-logs, forensics, roadmap]
 prerequisites: [forensics-network-deep]
 useful_for:

@@ -4,7 +4,7 @@ title: 'Оракулы цен и их атаки'
 category: misc
 parent: misc-web3-defi-hub
 difficulty: hard
-order: 1
+order: 2
 tags: [oracle, price, chainlink, twap, defi]
 prerequisites: [misc-flash-loan]
 useful_for:

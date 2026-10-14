@@ -1,0 +1,40 @@
+{
+  "id": "stego-subtitle-srt",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{srt_t1m1ng_c0v3rt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: данные в субтитрах\n\n`subs.py` парсит SRT-файл, проверяет тайминги и ищет скрытые строки. Прогони и достань сообщение.\n\n1. `python3 subs.py` — разбор субтитров.\n2. Смотри младшие биты миллисекунд и скрытую строку.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/subs.py",
+      "text": "print('subtitle file: movie.srt')\nprint('entries: 42')\nprint('timing LSBs (ms): 0 1 1 0 1 0 ...')\nprint('ASS-style tags found: {\\\\pos(...)}')\nprint('hidden line (font size 1): \"nto{srt_t1m1ng_c0v3rt}\"')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "subs\\.py",
+          "example": "python3 subs.py",
+          "output": "subtitle file: movie.srt\nentries: 42\ntiming LSBs (ms): 0 1 1 0 1 0 ...\nASS-style tags found: {\\pos(...)}\nhidden line (font size 1): \"nto{srt_t1m1ng_c0v3rt}\"\n"
+        }
+      ]
+    }
+  }
+}

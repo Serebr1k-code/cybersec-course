@@ -4,7 +4,7 @@ title: "SOME/IP: сервис-ориентированная шина в авт�
 category: network
 parent: network-module-auto-diag
 difficulty: hard
-order: 3
+order: 4
 tags: [network, someip, automotive, ethernet, service-discovery]
 prerequisites: [network-automotive-ethernet]
 useful_for:

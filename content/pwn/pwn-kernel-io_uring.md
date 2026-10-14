@@ -4,7 +4,7 @@ title: "Эксплуатация io_uring: гонки и UAF в ядре"
 category: pwn
 parent: pwn-kernel-core
 difficulty: expert
-order: 6
+order: 5
 tags: [kernel, io_uring, uaf, race, userfaultfd]
 prerequisites: [pwn-kernel-heap]
 useful_for:

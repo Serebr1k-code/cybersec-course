@@ -4,7 +4,7 @@ title: "Туннелирование и обход фильтров"
 category: network
 parent: network-covert
 difficulty: medium
-order: 1
+order: 3
 tags: [network, tunnel, evasion, ssh]
 prerequisites: [network-covert]
 useful_for:

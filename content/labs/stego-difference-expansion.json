@@ -1,0 +1,40 @@
+{
+  "id": "stego-difference-expansion",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d1ff3r3nc3_3xp4ns10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разностное расширение\n\n`de.py` расширяет разности пар пикселей, вкладывает биты и восстанавливает cover. Прогони и достань сообщение.\n\n1. `python3 de.py` — DE-встраивание и извлечение.\n2. Проверь, что cover восстановлен точно.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/de.py",
+      "text": "print('mode: difference expansion')\nprint('pairs: (100,101) (120,118) (50,52)')\nprint('diff before: 1 -2 2')\nprint('diff after : 2 -4 5')\nprint('bits embedded: 1 0 1')\nprint('overflow entries: 0')\nprint('extracted message: nto{d1ff3r3nc3_3xp4ns10n}')\nprint('restored cover: (100,101) (120,118) (50,52)')\nprint('match: True')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "de\\.py",
+          "example": "python3 de.py",
+          "output": "mode: difference expansion\npairs: (100,101) (120,118) (50,52)\ndiff before: 1 -2 2\ndiff after : 2 -4 5\nbits embedded: 1 0 1\noverflow entries: 0\nextracted message: nto{d1ff3r3nc3_3xp4ns10n}\nrestored cover: (100,101) (120,118) (50,52)\nmatch: True\n"
+        }
+      ]
+    }
+  }
+}

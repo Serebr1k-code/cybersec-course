@@ -4,7 +4,7 @@ title: "OPC UA: бинарный/JSON, security policies и сертификат
 category: network
 parent: network-module-ics-modern
 difficulty: hard
-order: 1
+order: 2
 tags: [network, opcua, ics, security, certificates, tcp]
 prerequisites: [network-ethercat]
 useful_for:

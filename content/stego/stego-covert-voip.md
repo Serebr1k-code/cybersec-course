@@ -4,7 +4,7 @@ title: "Скрытые каналы в VoIP: RTP, LACK и джиттер"
 category: stego
 parent: stego-covert-channels
 difficulty: hard
-order: 4
+order: 5
 tags: [stego, voip, rtp, sip, lack, covert-channel]
 prerequisites: [stego-covert-tcp]
 useful_for:

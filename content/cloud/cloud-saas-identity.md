@@ -4,7 +4,7 @@ title: 'Модуль: SaaS-идентичность — Okta, M365, Workspace, S
 category: cloud
 parent: cloud-iam-basics
 difficulty: hard
-order: 4
+order: 3
 tags: [cloud, okta, m365, workspace, saml, sso, module]
 prerequisites: [cloud-iam-basics]
 useful_for:

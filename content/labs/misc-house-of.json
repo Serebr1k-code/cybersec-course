@@ -1,0 +1,19 @@
+{
+  "id": "misc-house-of",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `houses.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/houses.txt",
+      "text": "House-of techniques\nHouse of Force -> overwrite top chunk size\nHouse of Spirit -> free() a fake chunk we control\nHouse of Einherjar -> unlink via prev_size + fd/bk\nkilled by: 2.29 top size check, 2.32 safe-linking, 2.34 hook removal\nflag:bnRve2gwdXMzXzBmX2YwcmMzXzRuZF9zcDFyMXR9\n"
+    }
+  ]
+}

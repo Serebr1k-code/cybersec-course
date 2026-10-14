@@ -3,8 +3,8 @@
   "workdir": "/home/student/task",
   "hostname": "lab",
   "expect": {
-    "file": "/home/student/task/answer.txt",
-    "contains": "nto{mobile_signal_telegram_0k}"
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s1gn4l_t3l3gr4m}"
   },
   "fs": [
     {
@@ -13,13 +13,12 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
-      "mode": "644"
+      "text": "# Задача: базы Signal и Telegram\n\n`st_dump.txt` — выдержка путей обоих мессенджеров и таблицы сообщений.\nОпредели формат баз и найди метку.\n\n1. `cat st_dump.txt`.\n2. `grep -iE 'signal|telegram' st_dump.txt`.\n3. `grep nto st_dump.txt > found.txt`.\n"
     },
     {
-      "path": "/home/student/task/evidence.txt",
-      "text": "# фрагмент артефакта mobile-signal-telegram\nwarning: suspicious activity detected\nmarker: nto{mobile_signal_telegram_0k}\n",
-      "mode": "644"
+      "path": "/home/student/task/st_dump.txt",
+      "mode": "644",
+      "text": "Signal:   /data/data/org.thoughtcrime.securesms/databases/signal.db\nSignal:   /data/data/org.thoughtcrime.securesms/databases/signal.db-wal\nTelegram: /data/data/org.telegram.messenger/files/cache4.db\nTelegram: /data/data/org.telegram.messenger/files/tdata/\nTelegram: secret chats stored separately (MTProto)\ntable (signal) sms (thread_id, body, date)\n1  7  \"встреча в 12\"\n1  8  \"nto{s1gn4l_t3l3gr4m}\"\nnote: signal.db uses SQLCipher; passphrase derived from device\n"
     }
   ]
 }

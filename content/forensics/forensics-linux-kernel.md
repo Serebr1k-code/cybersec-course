@@ -4,7 +4,7 @@ title: "Модуль: ядро Linux, модули и изоляция"
 category: forensics
 parent: forensics-linux-artifacts-advanced
 difficulty: hard
-order: 5
+order: 6
 tags: [linux, kernel, modules, ebpf, initramfs, selinux, apparmor, forensics, roadmap]
 prerequisites: [forensics-linux-artifacts]
 useful_for:

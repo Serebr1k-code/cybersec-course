@@ -4,7 +4,7 @@ title: "Модуль: облачные данные — хранилища, се
 category: forensics
 parent: forensics-cloud-multi
 difficulty: hard
-order: 6
+order: 5
 tags: [forensics, cloud, storage, secrets, iac, terraform, roadmap]
 prerequisites: [forensics-cloud-multi]
 useful_for:
@@ -27,7 +27,7 @@ summary: "Этап ветки «облако»: данные и конфигур
 ## Рекомендуемый порядок изучения
 
 1. `cloud-storage` — хранилища и логи доступа.
-2. `cloud-secrets-manager` — секреты и их использование.
+2. `forensics-cloud-secrets-manager` — секреты и их использование.
 3. `cloud-iac-state` — state и дрейф.
 
 ## Что вы будете уметь

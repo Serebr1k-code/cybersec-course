@@ -4,7 +4,7 @@ title: "Python-форензика: pytsk3, Volatility3 API, pyshark"
 category: forensics
 parent: forensics-tooling
 difficulty: medium
-order: 3
+order: 5
 tags: [python, pytsk3, volatility3, pyshark, automation, scripting]
 prerequisites: [forensics-tooling]
 useful_for:

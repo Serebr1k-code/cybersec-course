@@ -1,0 +1,40 @@
+{
+  "id": "stego-security-models",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c4ch1n_cr1t3r10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: оценка безопасности стего\n\n`kld.py` считает KL-дивергенцию между распределениями cover и stego. Прогони и достань сообщение.\n\n1. `python3 kld.py` — расчёт KL и вердикт.\n2. Посмотри значение KL.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/kld.py",
+      "text": "print('cover distribution: 256 bins')\nprint('stego distribution: 256 bins')\nprint('KL(cover || stego): 0.0031')\nprint('verdict: close to perfect security')\nprint('extracted: nto{c4ch1n_cr1t3r10n}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "kld\\.py",
+          "example": "python3 kld.py",
+          "output": "cover distribution: 256 bins\nstego distribution: 256 bins\nKL(cover || stego): 0.0031\nverdict: close to perfect security\nextracted: nto{c4ch1n_cr1t3r10n}\n"
+        }
+      ]
+    }
+  }
+}

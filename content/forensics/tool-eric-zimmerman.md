@@ -4,7 +4,7 @@ title: "Инструменты Эрика Циммермана (EZ Tools)"
 category: forensics
 parent: forensics-tooling
 difficulty: medium
-order: 4
+order: 7
 tags: [tools, ez-tools, mftecmd, pecmd, amcache, evtxecmd, forensics]
 prerequisites: [forensics-tooling, forensics-windows-artifacts]
 useful_for:

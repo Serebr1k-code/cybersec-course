@@ -4,7 +4,7 @@ title: 'Модуль: парсеры веб-текста и mXSS'
 category: misc
 parent: misc-encoding-text
 difficulty: expert
-order: 8
+order: 5
 tags: [parsers, markdown, html, email, mxss, roadmap]
 prerequisites: [misc-encoding-text]
 useful_for:

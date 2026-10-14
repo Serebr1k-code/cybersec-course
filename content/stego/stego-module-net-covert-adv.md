@@ -4,7 +4,7 @@ title: "Модуль: Сетевые скрытые каналы (NTP, опци�
 category: stego
 parent: stego-covert-channels
 difficulty: hard
-order: 3
+order: 4
 tags: [stego, roadmap, covert-channel, ntp, ipv4, network]
 prerequisites: [stego-covert-channels]
 useful_for:

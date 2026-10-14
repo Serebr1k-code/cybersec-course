@@ -1,0 +1,27 @@
+{
+  "id": "cloud-k8s-kustomize",
+  "workdir": "/home/student/kustomize",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/kustomize/found.txt",
+    "contains": "nto{kustomize_secret_literal_in_git}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/kustomize",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/kustomize/task.md",
+      "text": "# Задача\n\nДан репозиторий с Kustomize. Определи, где лежит секрет, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/kustomize/kustomization.yaml",
+      "text": "resources: [deployment.yaml]\nsecretGenerator:\n  - name: db-secret\n    literals: [password=EXAMPLEnotreal]\n"
+    },
+    {
+      "path": "/home/student/kustomize/notes.md",
+      "text": "Аудит: secretGenerator с литералом кладёт пароль в git открыто.\nЧитается любым, у кого есть доступ к репозиторию.\nnto{kustomize_secret_literal_in_git}\n"
+    }
+  ]
+}

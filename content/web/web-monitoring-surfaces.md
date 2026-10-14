@@ -4,7 +4,7 @@ title: 'Мониторинг и логи как цель: Splunk, Zabbix'
 category: web
 parent: web-enterprise-suite
 difficulty: medium
-order: 2
+order: 3
 tags: [monitoring, logging, splunk, zabbix, siem, roadmap]
 prerequisites: [web-devops-surfaces]
 useful_for:

@@ -4,7 +4,7 @@ title: "Динамический анализ в песочнице: Cuckoo/CAPE
 category: forensics
 parent: forensics-malware-advanced
 difficulty: hard
-order: 5
+order: 6
 tags: [malware, sandbox, cuckoo, cape, dynamic, behavior, forensics]
 prerequisites: [forensics-malware-advanced, mal-static]
 useful_for:

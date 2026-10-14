@@ -4,7 +4,7 @@ title: "Методология: реальные цели (n-day, Rust/Go, ре�
 category: pwn
 parent: pwn-methodology
 difficulty: medium
-order: 3
+order: 4
 tags: [pwn, methodology, nday, rust, go, recipe]
 prerequisites: [pwn-methodology]
 useful_for:

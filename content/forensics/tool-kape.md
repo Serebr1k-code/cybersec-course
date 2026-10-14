@@ -4,7 +4,7 @@ title: "KAPE: прицельный сбор артефактов (triage)"
 category: forensics
 parent: forensics-tooling
 difficulty: medium
-order: 5
+order: 8
 tags: [tools, kape, triage, collection, targets, modules, forensics]
 prerequisites: [forensics-tooling, forensics-windows-artifacts]
 useful_for:

@@ -4,7 +4,7 @@ title: "Оценка IAM-политик: boundaries, conditions и confused depu
 category: cloud
 parent: cloud-iam-attack
 difficulty: hard
-order: 4
+order: 3
 tags: [cloud, iam, policy, evaluation, permission-boundary, conditions, confused-deputy]
 prerequisites: [cloud-iam-attack, cloud-privesc-iam]
 useful_for:

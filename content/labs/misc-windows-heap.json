@@ -1,0 +1,19 @@
+{
+  "id": "misc-windows-heap",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `heap.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/heap.txt",
+      "text": "Windows heap notes\nallocator: ntdll RtlAllocateHeap\nfast layer: LFH with buckets and bucket cookies\nuser block header: _HEAP_USERDATA_HEADER with encoded pointers\ndebug: !heap -s  /  !heap -flt s 64\ntarget: corrupt _HEAP_ENTRY or LFH bucket pointers\nflag:bnRve3cxbmQwd3NfbGZoXzRuZF9oMzRwX3NwNHl9\n"
+    }
+  ]
+}

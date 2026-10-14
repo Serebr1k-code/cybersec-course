@@ -4,7 +4,7 @@ title: "journald: разбор бинарного журнала systemd"
 category: forensics
 parent: forensics-linux-artifacts-advanced
 difficulty: medium
-order: 6
+order: 8
 tags: [linux, journald, systemd, journalctl, binary-log, forensics]
 prerequisites: [forensics-linux-artifacts-advanced, forensics-linux-artifacts]
 useful_for:

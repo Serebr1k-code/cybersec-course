@@ -4,7 +4,7 @@ title: "Модуль: CI/CD глубоко — GitLab, ArgoCD и pwn-requests"
 category: cloud
 parent: cloud-credential-hunting
 difficulty: hard
-order: 4
+order: 3
 tags: [cloud, gitlab, argocd, github-actions, ci, cd, oidc, module]
 prerequisites: [cloud-cicd-secrets]
 useful_for:

@@ -4,7 +4,7 @@ title: "Модуль: GCP — секреты и Firebase"
 category: cloud
 parent: cloud-credential-hunting
 difficulty: hard
-order: 3
+order: 2
 tags: [cloud, gcp, secret-manager, firebase, secrets, kms, module]
 prerequisites: [cloud-gcp-deep, cloud-secrets-manager]
 useful_for:

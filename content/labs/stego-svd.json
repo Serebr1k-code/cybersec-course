@@ -1,0 +1,40 @@
+{
+  "id": "stego-svd",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{svd_s1ngul4r_v4lu3s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: SVD-встраивание\n\n`svd.py` раскладывает матрицу и вкладывает бит в сингулярное число. Прогони и достань сообщение.\n\n1. `python3 svd.py` — SVD, встраивание, сжатие, извлечение.\n2. Посмотри, как изменилось сингулярное число.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/svd.py",
+      "text": "print('matrix: 64x64')\nprint('singular values: 64')\nprint('top-10 SVs: [312.4, 88.1, 51.7, 33.2, 21.9, ...]')\nprint('bit 1 -> modified SV[5]: 21.9 -> 22.4')\nprint('after compression: SV[5] = 22.1')\nprint('decoded bit: 1')\nprint('extracted: nto{svd_s1ngul4r_v4lu3s}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "svd\\.py",
+          "example": "python3 svd.py",
+          "output": "matrix: 64x64\nsingular values: 64\ntop-10 SVs: [312.4, 88.1, 51.7, 33.2, 21.9, ...]\nbit 1 -> modified SV[5]: 21.9 -> 22.4\nafter compression: SV[5] = 22.1\ndecoded bit: 1\nextracted: nto{svd_s1ngul4r_v4lu3s}\n"
+        }
+      ]
+    }
+  }
+}

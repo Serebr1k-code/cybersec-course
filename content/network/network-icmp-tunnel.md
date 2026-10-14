@@ -4,7 +4,7 @@ title: "ICMP и другие туннели: ping, HTTP-инкапсуляция
 category: network
 parent: network-tunneling
 difficulty: medium
-order: 4
+order: 3
 tags: [network, icmp, tunneling, covert-channel, ptunnel, exfiltration]
 prerequisites: [network-covert, network-firewall-piercing]
 useful_for:

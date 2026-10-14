@@ -4,7 +4,7 @@ title: "Анализ shellcode: извлечение и эмуляция"
 category: forensics
 parent: forensics-malware-advanced
 difficulty: expert
-order: 6
+order: 8
 tags: [malware, shellcode, emulation, scdbg, position-independent, forensics]
 prerequisites: [forensics-malware-advanced, mal-unpacking]
 useful_for:

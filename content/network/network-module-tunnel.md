@@ -4,7 +4,7 @@ title: "Туннели и оверлеи глубоко: SOCKS, HTTP CONNECT, GR
 category: network
 parent: network-tunneling
 difficulty: easy
-order: 3
+order: 4
 tags: [network, tunnel, proxy, socks, http-connect, gre, vxlan, overlay]
 prerequisites: [network-tunneling, network-ssh-tunnel]
 useful_for:

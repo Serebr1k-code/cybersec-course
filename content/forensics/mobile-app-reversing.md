@@ -4,7 +4,7 @@ title: 'Реверс мобильных приложений: APK, DEX и нат
 category: forensics
 parent: forensics-mobile-android-deep
 difficulty: hard
-order: 6
+order: 5
 tags: [forensics, mobile, android, reversing, apk, native]
 prerequisites: [forensics-mobile]
 useful_for:

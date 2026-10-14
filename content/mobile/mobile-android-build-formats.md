@@ -4,7 +4,7 @@ title: 'Модуль: форматы сборки Android'
 category: mobile
 parent: mobile-android-anatomy
 difficulty: medium
-order: 3
+order: 1
 tags: [mobile, android, module]
 prerequisites: []
 useful_for:

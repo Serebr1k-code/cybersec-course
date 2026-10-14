@@ -4,7 +4,7 @@ title: "Форензика HTTP/2 и HTTP/3: кадры, HPACK и QUIC"
 category: forensics
 parent: forensics-network-advanced
 difficulty: hard
-order: 5
+order: 6
 tags: [network, http2, http3, quic, hpack, pcap, forensics]
 prerequisites: [forensics-network-advanced, forensics-tcp-reassembly]
 useful_for:

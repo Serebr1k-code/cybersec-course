@@ -4,7 +4,7 @@ title: 'Энтропия, источники случайности и seed-reco
 category: crypto
 parent: crypto-rng-engineering
 difficulty: medium
-order: 3
+order: 2
 tags: [crypto, entropy, urandom, seed, random, prng, seed-recovery]
 prerequisites: [crypto-prng]
 useful_for:

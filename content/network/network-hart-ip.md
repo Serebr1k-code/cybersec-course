@@ -2,7 +2,7 @@
 id: network-hart-ip
 title: "HART-IP: процессные приборы и диагностика"
 category: network
-parent: network-module-grid-power
+parent: network-module-grid-building
 difficulty: hard
 order: 3
 tags: [network, hart-ip, process, instrumentation, ics]

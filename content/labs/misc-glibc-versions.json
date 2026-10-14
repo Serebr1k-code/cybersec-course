@@ -1,0 +1,19 @@
+{
+  "id": "misc-glibc-versions",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `versions.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/versions.txt",
+      "text": "glibc version dump\n2.23 - no tcache, hooks present\n2.26 - tcache introduced\n2.31 - tcache_key, hooks still present\n2.32 - safe-linking enabled\n2.34 - __free_hook removed\nnote: target uses the version with safe-linking but without hooks\nchallenge: determine the technique that is still viable\nflag:bnRve2dsMWJjX3RjNGNoM19zNGYzX2wxbmsxbmd9\n"
+    }
+  ]
+}

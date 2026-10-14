@@ -4,7 +4,7 @@ title: "Модуль: сетевой анализ и NDR"
 category: forensics
 parent: forensics-pcap
 difficulty: hard
-order: 3
+order: 2
 tags: [pcap, suricata, netflow, tshark, ids, roadmap]
 prerequisites: [forensics-pcap]
 useful_for:

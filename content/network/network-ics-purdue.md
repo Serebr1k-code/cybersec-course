@@ -4,7 +4,7 @@ title: "Purdue-модель: сегментация и зоны/кондуиты
 category: network
 parent: network-module-grid-building
 difficulty: hard
-order: 3
+order: 4
 tags: [network, purdue, segmentation, zones, conduits, ics]
 prerequisites: [network-hart-ip]
 useful_for:

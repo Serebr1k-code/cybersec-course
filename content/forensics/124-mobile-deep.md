@@ -4,7 +4,7 @@ title: "Модуль: глубокая мобильная форензика"
 category: forensics
 parent: forensics-mobile
 difficulty: hard
-order: 3
+order: 2
 tags: [mobile, android, ios, extraction, apps, roadmap]
 prerequisites: [forensics-mobile]
 useful_for:
