@@ -1,0 +1,29 @@
+{
+  "id": "hardware-lte-4g",
+  "workdir": "/home/student/lte",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/lte/found.txt",
+    "contains": "nto{4g_n4s_1m51_c47ch3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/lte",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/lte/task.md",
+      "text": "# Задача: NAS-трафик LTE\n\nТы записал процедуру attach LTE в `lte-nas.log`. В логе есть строка с base64-нагрузкой — декодируй её и достань флаг.\n\nПолезные команды: `cat`, `grep`, `cut`, `base64`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/lte/notes.md",
+      "text": "Заметки\n------\n- E-UTRAN (eNB) — радиодоступ, EPC (MME/S-GW/P-GW/HSS) — ядро.\n- NAS — сигнализация между UE и MME.\n- Attach: RRC -> ATTACH REQUEST -> AUTHENTICATION -> SECURITY MODE -> ACCEPT.\n- GUTI — временный идентификатор вместо IMSI.\n- Нагрузка в логе идёт после 'token=' и закодирована в base64.\n"
+    },
+    {
+      "path": "/home/student/lte/lte-nas.log",
+      "text": "UE -> eNB: RRC CONNECTION REQUEST\nUE -> MME: ATTACH REQUEST (EPS)\nMME -> UE: AUTHENTICATION REQUEST (RAND, AUTN)\nUE -> MME: AUTHENTICATION RESPONSE (RES)\nMME -> UE: SECURITY MODE COMMAND (NAS)\nUE -> MME: SECURITY MODE COMPLETE\nNAS: ATTACH ACCEPT payload token=bnRvezRnX240c18xbTUxX2M0N2NoM3J9\nUE -> MME: ATTACH COMPLETE\n"
+    }
+  ],
+  "tools": {}
+}

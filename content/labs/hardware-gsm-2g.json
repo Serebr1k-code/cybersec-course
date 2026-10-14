@@ -1,0 +1,29 @@
+{
+  "id": "hardware-gsm-2g",
+  "workdir": "/home/student/gsm",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/gsm/found.txt",
+    "contains": "nto{2g_41n7_3ncryp73d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/gsm",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/gsm/task.md",
+      "text": "# Задача: GSM-эфир\n\nТы записал служебные каналы GSM в `grgsm.log` (упрощённый вывод `grgsm_livemon`).\nСреди служебных записей есть одна с читаемой полезной нагрузкой — найди её и достань флаг.\n\nПолезные команды: `cat`, `strings`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/gsm/notes.md",
+      "text": "Заметки\n------\n- BCCH/PCH/SDCCH/TCH — логические каналы GSM.\n- Аутентификация односторонняя: телефон не проверяет сеть.\n- IMSI приходит открытым в LOCATION_UPDATE — так работает IMSI-catcher.\n- Полезная нагрузка в логе идёт после 'payload='.\n"
+    },
+    {
+      "path": "/home/student/gsm/grgsm.log",
+      "text": "[ARFCN 62] BCCH: MCC=250 MNC=01 LAC=0x1A2B CI=0x00A1\n[ARFCN 62] PCH: PAGING TMSI=0x1A2B3C4D\n[ARFCN 62] SDCCH: LOCATION_UPDATE IMSI=250011234567890\n[ARFCN 62] SACCH: MEASUREMENT rxlev=42\n[ARFCN 62] CCCH: PAGING TMSI=0x00AA11BB\n[ARFCN 62] SDCCH: payload=nto{2g_41n7_3ncryp73d}\n[ARFCN 62] TCH: cipher=A5/1\n"
+    }
+  ],
+  "tools": {}
+}

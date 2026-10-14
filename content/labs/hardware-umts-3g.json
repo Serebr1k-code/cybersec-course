@@ -1,0 +1,29 @@
+{
+  "id": "hardware-umts-3g",
+  "workdir": "/home/student/umts",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/umts/found.txt",
+    "contains": "nto{3g_k4sum1_d0wngr4d3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/umts",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/umts/task.md",
+      "text": "# Задача: security mode в UMTS\n\nТы записал процедуру безопасности 3G в `umts.log`. Найди служебную запись с полезной нагрузкой и достань флаг.\n\nПолезные команды: `cat`, `strings`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/umts/notes.md",
+      "text": "Заметки\n------\n- AKA: RAND + AUTN, ответ RES — взаимная аутентификация.\n- KASUMI (A5/3) — стойкий шифр.\n- CK — шифрование, IK — целостность.\n- Даунгрейд к 2G обходит защиту 3G.\n- Нагрузка в логе идёт после 'payload='.\n"
+    },
+    {
+      "path": "/home/student/umts/umts.log",
+      "text": "RNC  -> UE : SECURITY MODE COMMAND (UMTS)\nUE   -> RNC: SECURITY MODE COMPLETE\nUE   -> RNC: cipher=KASUMI integrity=KASUMI\nRNC  -> UE : RAND=0xA1B2C3D4 AUTN=0x00FF1122\nUE   -> RNC: RES (computed from K)\nRNC  -> UE : payload=nto{3g_k4sum1_d0wngr4d3}\nUE   -> RNC: MEASUREMENT REPORT ecno=-9dB\n"
+    }
+  ],
+  "tools": {}
+}

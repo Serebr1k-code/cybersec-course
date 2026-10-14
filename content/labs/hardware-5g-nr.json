@@ -1,0 +1,29 @@
+{
+  "id": "hardware-5g-nr",
+  "workdir": "/home/student/5g",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/5g/found.txt",
+    "contains": "nto{5g_suc1_h1d35_5up1}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/5g",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/5g/task.md",
+      "text": "# Задача: сигнализация 5G NR\n\nТы записал регистрацию в 5G в `nr-signal.log`. Найди служебную запись с полезной нагрузкой и достань флаг.\n\nПолезные команды: `cat`, `strings`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/5g/notes.md",
+      "text": "Заметки\n------\n- gNB — базовая станция 5G; ядро 5GC построено как сервисы (SBA).\n- AMF/SMF/AUSF/UDM/UPF — функции ядра.\n- SUPI — постоянный идентификатор, SUCI — его зашифрованная форма.\n- 5G-AKA защищает и от подделки в роуминге.\n- Нагрузка в логе идёт после 'payload='.\n"
+    },
+    {
+      "path": "/home/student/5g/nr-signal.log",
+      "text": "UE -> gNB: RRCSetupRequest\nUE -> AMF: Registration Request (5GMM) SUCI\nAUSF -> UDM: UE Authentication\nUE <- AMF: Authentication Request (5G-AKA)\nUE -> AMF: Registration Accept\nUE -> SMF: PDU Session Establishment\nRegistration Accept: payload=nto{5g_suc1_h1d35_5up1}\nUE -> gNB: Measurement Report\n"
+    }
+  ],
+  "tools": {}
+}
