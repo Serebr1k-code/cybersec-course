@@ -1,0 +1,22 @@
+{
+  "id": "mem-network",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{r3v3rs3_sh3ll_c0nn}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: сеть в памяти\n\n`netscan.txt` — вывод netscan по дампу. Найди подозрительное соединение и метку.\n\n1. `cat netscan.txt`.\n2. Ищи внешние адреса и чужие процессы.\n3. `grep nto netscan.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/netscan.txt",
+      "text": "Offset     Proto  LocalAddr        ForeignAddr      State       PID  Owner\n0x...      TCPv4  10.0.0.7:49152   203.0.113.9:4444 ESTABLISHED 1337 evil.exe\n0x...      TCPv4  0.0.0.0:445      0.0.0.0:0        LISTENING   4    System\n\n# Инженер: evil.exe установил соединение на внешний порт 4444 -> reverse shell.\n# Метка: nto{r3v3rs3_sh3ll_c0nn}\n",
+      "mode": "644"
+    }
+  ]
+}

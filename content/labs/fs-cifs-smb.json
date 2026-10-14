@@ -1,0 +1,22 @@
+{
+  "id": "fs-cifs-smb",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{smb_sh4r3_4cc3ss}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: SMB-шара\n\n`smb.txt` — список шар и события доступа. Найди, к какой шаре был доступ, и метку.\n\n1. `cat smb.txt`.\n2. Смотри события 5140/5145 и имя шары.\n3. `grep nto smb.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/smb.txt",
+      "text": "$ smbclient -L //fileserver -N\n        Sharename       Type      Comment\n        ---------       ----      -------\n        share           Disk\n        IPC$            IPC       Remote IPC\n        ADMIN$          Disk      Remote Admin\n\nEvent 5140: Network share object accessed. ShareName=share UserName=user SrcAddr=10.0.0.7\nEvent 5145: Detailed file share access. ShareName=share RelativeTargetName=nto{smb_sh4r3_4cc3ss}.txt\n\n# Инженер: доступ к шаре share с 10.0.0.7; серверный лог доказывает доступ.\n",
+      "mode": "644"
+    }
+  ]
+}

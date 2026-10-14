@@ -1,0 +1,22 @@
+{
+  "id": "fs-cloud-sync",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{cl0ud_sync_l34k}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: облачная синхронизация\n\n`filecache.txt` — вывод из SQLite-базы клиента Dropbox. Файла локально нет, но запись о нём осталась. Найди путь и метку.\n\n1. `cat filecache.txt`.\n2. Смотри таблицу записей о файлах.\n3. `grep nto filecache.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/filecache.txt",
+      "text": "$ sqlite3 ~/.dropbox/filecache.db '.tables'\nfile_journal  file_cache  host_config\n\n$ sqlite3 ~/.dropbox/filecache.db 'SELECT path, size FROM file_cache LIMIT 5;'\n/sample/report.docx|24576\n/sample/nto{cl0ud_sync_l34k}.txt|128\n\n# Инженер: запись о файле есть в локальной базе, хотя файла на диске нет -> был в облаке.\n",
+      "mode": "644"
+    }
+  ]
+}

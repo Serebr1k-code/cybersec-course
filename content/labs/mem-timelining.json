@@ -1,0 +1,22 @@
+{
+  "id": "mem-timelining",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{mem_t1m3l1n3_0rd3r}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: таймлайн памяти\n\n`timeline.csv` — события из дампа памяти. Определи порядок событий и найди метку.\n\n1. `cat timeline.csv`.\n2. Сопоставь время создания процесса, соединения и загрузки модуля.\n3. `grep nto timeline.csv > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/timeline.csv",
+      "text": "2026-03-10T03:14:10Z,process,evil.exe created\n2026-03-10T03:14:12Z,network,10.0.0.7:49152 -> 203.0.113.9:4444\n2026-03-10T03:14:15Z,module,evil.dll loaded\n# Инженер: процесс -> соединение -> модуль. Порядок = сценарий.\n# Метка: nto{mem_t1m3l1n3_0rd3r}\n",
+      "mode": "644"
+    }
+  ]
+}
