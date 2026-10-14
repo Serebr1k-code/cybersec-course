@@ -1,0 +1,22 @@
+{
+  "id": "af-encryption-hiding",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{luks_c0nt41n3r_f0und}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: зашифрованный контейнер\n\n`hex.txt` — начало неизвестного файла + оценка энтропии. Определи тип контейнера и найди метку.\n\n1. `cat hex.txt`.\n2. Сигнатура в начале файла выдаёт тип.\n3. `grep nto hex.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/hex.txt",
+      "text": "$ file data.bin\ndata.bin: data\n\n$ ent data.bin\nEntropy = 7.999912 bits per byte.\n\n$ xxd data.bin | head -1\n00000000: 4c55 4b53 babe 0002 0000 0000 0000 0000  LUKS............\n\n# Инженер: сигнатура LUKS в начале + энтропия ~8 -> зашифрованный контейнер.\n# Метка: nto{luks_c0nt41n3r_f0und}\n",
+      "mode": "644"
+    }
+  ]
+}

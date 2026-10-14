@@ -1,0 +1,27 @@
+{
+  "id": "mem-kernel-modules",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{h1dd3n_m0dul3_f0und}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: скрытый модуль\n\n`lsmod.txt` — список модулей из ядра, `modscan.txt` — скан памяти. Найди модуль, которого нет в списке, и метку.\n\n1. `cat lsmod.txt` и `cat modscan.txt`.\n2. Сравни списки.\n3. `grep nto modscan.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/lsmod.txt",
+      "text": "Module                  Size  Used by\nnf_conntrack          172032  1\nxt_conntrack           16384  1\nbpf_preload             16384  0\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/modscan.txt",
+      "text": "Address            Module       Size\n0xffffffffc04a2000 nf_conntrack 172032\n0xffffffffc05b1000 evil.ko      49152\n\n# Инженер: evil.ko есть в памяти, но отсутствует в lsmod -> вырезан из списка.\n# Метка: nto{h1dd3n_m0dul3_f0und}\n",
+      "mode": "644"
+    }
+  ]
+}

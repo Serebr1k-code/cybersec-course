@@ -1,0 +1,22 @@
+{
+  "id": "af-artifact-destruction",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{3vtx_g4p_d3t3ct3d}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: уничтожение артефактов\n\n`evtx-gap.txt` — анализ нумерации записей журнала. Найди разрыв и метку.\n\n1. `cat evtx-gap.txt`.\n2. Обрати внимание на пропуск record ID.\n3. `grep nto evtx-gap.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/evtx-gap.txt",
+      "text": "Record ID sequence (Security.evtx):\n1,2,3,...,100, 150,151,152\nGap detected: 101..149 missing (49 records)\nEventID 1102 present after gap: SubjectUserName=admin\n\n# Инженер: разрыв record ID + событие 1102 -> журнал чистили вручную.\n# Метка: nto{3vtx_g4p_d3t3ct3d}\n",
+      "mode": "644"
+    }
+  ]
+}

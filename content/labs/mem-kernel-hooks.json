@@ -1,0 +1,22 @@
+{
+  "id": "mem-kernel-hooks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{ssdt_h00k_d3t3ct3d}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: хуки ядра\n\n`ssdt.txt` — вывод плагина Ssdt по дампу памяти. Найди перехваченный системный вызов (адрес вне ntoskrnl) и метку.\n\n1. `cat ssdt.txt`.\n2. Ищи строки, где Module не ntoskrnl.\n3. `grep nto ssdt.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/ssdt.txt",
+      "text": "Index  Address            Symbol                Module\n0      0xfffff8001a2b3000 NtAccessCheck         ntoskrnl\n1      0xfffff8001a2b3100 NtWorkerFactoryWorkerReady ntoskrnl\n...\n196    0xfffff8800c1a4000 NtCreateFile          unknown\n\n# Инженер: NtCreateFile указывает в unknown-модуль -> SSDT-хук.\n# Метка: nto{ssdt_h00k_d3t3ct3d}\n",
+      "mode": "644"
+    }
+  ]
+}

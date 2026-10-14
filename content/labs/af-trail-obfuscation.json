@@ -1,0 +1,22 @@
+{
+  "id": "af-trail-obfuscation",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{f4k3_l0g_3ntry}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: ложный след\n\n`auth.log` — журнал входов. Одна запись внедрена вручную. Найди её и метку.\n\n1. `cat auth.log`.\n2. Смотри на PID и парные события.\n3. `grep nto auth.log > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/auth.log",
+      "text": "Mar 10 03:14:10 server sshd[8123]: Accepted password for admin from 10.0.0.5\nMar 10 03:14:11 server sshd[8123]: session opened for user admin\nMar 10 03:14:12 server sshd[8124]: Accepted password for admin from 10.0.0.5\nMar 10 03:14:15 server sshd[9999]: Accepted password for ghost from 203.0.113.9\n\n# Инженер: PID 9999 вне последовательности, нет session opened, пользователя ghost нет в /etc/passwd.\n# Метка: nto{f4k3_l0g_3ntry}\n",
+      "mode": "644"
+    }
+  ]
+}

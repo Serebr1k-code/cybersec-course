@@ -1,0 +1,27 @@
+{
+  "id": "mem-dkom",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{dkom_h1dd3n_pr0c3ss}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: скрытый процесс (DKOM)\n\n`pslist.txt` — список процессов, `psscan.txt` — скан памяти. Найди процесс, скрытый через DKOM, и метку.\n\n1. `cat pslist.txt` и `cat psscan.txt`.\n2. Сравни PID.\n3. `grep nto psscan.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/pslist.txt",
+      "text": "PID   PPID  ImageFileName\n4     0     System\n880   4     svchost.exe\n1024  880   explorer.exe\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/psscan.txt",
+      "text": "PID   PPID  ImageFileName   Offset(V)\n4     0     System          0x...\n880   4     svchost.exe     0x...\n1024  880   explorer.exe    0x...\n1337  880   evil.exe        0xffff...\n\n# Инженер: evil.exe есть в psscan, но нет в pslist -> вырезан из ActiveProcessLinks (DKOM).\n# Метка: nto{dkom_h1dd3n_pr0c3ss}\n",
+      "mode": "644"
+    }
+  ]
+}
