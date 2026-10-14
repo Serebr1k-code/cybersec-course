@@ -1,0 +1,29 @@
+{
+  "id": "mem-swap-pagefile",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p4g3f1l3_l34k3d_s3cr3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: память на диске\n\nДаны `pagefile.sys` (файл подкачки) и `hiberfil.sys` (образ гибернации). Найди секрет, оставшийся в подкачке.\n\n1. `file pagefile.sys`.\n2. `strings pagefile.sys` — видно user= и password=.\n3. `strings pagefile.sys | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/pagefile.sys",
+      "b64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAV2luZG93cwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB1c2VyPWpkb2UgcGFzc3dvcmQ9bnRve3A0ZzNmMWwzX2wzNGszZF9zM2NyM3R9DQoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABodHRwczovL21haWwuY29ycC5sb2NhbC9sb2dpbgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/hiberfil.sys",
+      "b64": "aGlicgAAAAAAAAAAAAAAAABjaHJvbWUuZXhlAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGh0dHBzOi8vcG9ydGFsLmNvcnAubG9jYWwvaW52b2ljZXMA",
+      "mode": "644"
+    }
+  ]
+}

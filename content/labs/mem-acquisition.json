@@ -1,0 +1,28 @@
+{
+  "id": "mem-acquisition",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m3m_dump_r4w_4cqu1r3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: снятый дамп памяти\n\n`memdump.raw` — дамп оперативной памяти, `acquire.log` — журнал снятия. Найди в памяти флаг.\n\n1. `file memdump.raw`.\n2. `strings memdump.raw` — имена процессов и фрагменты.\n3. `strings memdump.raw | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/memdump.raw",
+      "b64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFN5c3RlbQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAG5naW54AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEM6XFVzZXJzXGpkb2U+IHR5cGUgc2VjcmV0LnR4dA0KbnRve20zbV9kdW1wX3I0d180Y3F1MXIzZH0NCgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/acquire.log",
+      "text": "winpmem 3.3\nstart=2026-03-14T02:00:00Z\ndump=memdump.raw\nsha256=9f1a7c\n"
+    }
+  ]
+}

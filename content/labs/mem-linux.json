@@ -1,0 +1,24 @@
+{
+  "id": "mem-linux",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l1nux_m3m0ry_h1dd3n_pr0c}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: память Linux-сервера\n\n`mem.lime` — дамп памяти Linux. Найди следы скрытого процесса и флаг.\n\n1. `file mem.lime`.\n2. `strings mem.lime` — версия ядра, имена процессов (pslist/psscan).\n3. `strings mem.lime | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/mem.lime",
+      "b64": "RU1pTAAAAAAAAAAAAAAAAAAATGludXggdmVyc2lvbiA1LjE1LjAtOTEtZ2VuZXJpYwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHN5c3RlbWQAbmdpbngAa3dvcmtlcmQAaGlkZGVuAAAAAAAAAAAAAAAAAAAAAAAvdG1wLy54L2hpZGRlbiAtLWRhZW1vbgBudG97bDFudXhfbTNtMHJ5X2gxZGQzbl9wcjBjfQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+      "mode": "644"
+    }
+  ]
+}
