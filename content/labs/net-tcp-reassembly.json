@@ -1,0 +1,24 @@
+{
+  "id": "net-tcp-reassembly",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{tcp_r34ss3mbly_obj3ct}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: файл из потока\n\n`stream7.raw` — данные TCP-потока, собранные по sequence-номерам. Определи тип файла и найди флаг.\n\n1. `xxd -l 16 stream7.raw` — сигнатура MZ (PE-файл).\n2. `strings stream7.raw`.\n3. `strings stream7.raw | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/stream7.raw",
+      "b64": "AAAAAAAAAABNWpAAAwAAAAQAAAD//wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABDOlxVc2Vyc1xqZG9lXHVwZGF0ZS5leGUAbnRve3RjcF9yMzRzczNtYmx5X29iajNjdH0AAAAAAAAAAAAAAAAAAAAAAA==",
+      "mode": "644"
+    }
+  ]
+}

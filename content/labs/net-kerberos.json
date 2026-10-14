@@ -1,0 +1,23 @@
+{
+  "id": "net-kerberos",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{g0ld3n_t1ck3t_t1ll_2036}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: поддельный Kerberos-тикет\n\n`kerberos.txt` — поля из PCAP (tshark). Найди признак Golden Ticket и флаг.\n\n1. `cat kerberos.txt`.\n2. Смотри `till` у TGT (msg_type 11).\n3. `grep nto kerberos.txt > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/kerberos.txt",
+      "text": "10.10.20.55  10.10.20.10  10  jdoe\n10.10.20.55  10.10.20.10  11  jdoe  till=2026-03-14 12:11:33\n10.10.20.55  10.10.20.30  12  jdoe\n10.10.20.55  10.10.20.10  11  Administrator  till=2036-03-14 02:11:33\nnto{g0ld3n_t1ck3t_t1ll_2036}\n"
+    }
+  ]
+}

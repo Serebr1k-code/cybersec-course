@@ -1,0 +1,27 @@
+{
+  "id": "net-c2-reversing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c2_pr0t0c0l_r3v3rs3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: командный канал\n\n`beacon.log` — времена обращений к C2, `c2_payload.b64` — нагрузка в base64. Восстанови содержимое и найди флаг.\n\n1. `cat beacon.log` — интервал 60с.\n2. `base64 -d c2_payload.b64` — JSON с командой.\n3. `base64 -d c2_payload.b64 | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/c2_payload.b64",
+      "text": "eyJjbWQiOiJkb3dubG9hZCIsInVybCI6Imh0dHA6Ly8xMC4xMC4yMC45L3AiLCJmbGFnIjoibnRve2MyX3ByMHQwYzBsX3IzdjNyczNkfSJ9\n"
+    },
+    {
+      "path": "/home/student/task/beacon.log",
+      "text": "1.000\n61.000\n121.000\n181.000\n241.000\n"
+    }
+  ]
+}

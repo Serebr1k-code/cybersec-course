@@ -1,0 +1,23 @@
+{
+  "id": "net-dns",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dns_tunn3l_3xf1ltr4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: DNS-эксфильтрация\n\n`dns_log.txt` — лог DNS-трафика. Определи признак туннеля и найди флаг.\n\n1. `cat dns_log.txt`.\n2. Поддомены вида `aGVsbG8...` — это base64.\n3. `grep nto dns_log.txt > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/dns_log.txt",
+      "text": "aGVsbG8tZXhmaWwtcGFydC0x.evil.example   A\nc2VjcmV0LWNo dW5r.evil.example         A\ncmd.evil.example                        TXT  d2hvYW1p (whoami)\nmail.corp.local                         A\nnto{dns_tunn3l_3xf1ltr4t10n}\n"
+    }
+  ]
+}
