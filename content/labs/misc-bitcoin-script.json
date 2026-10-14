@@ -1,0 +1,23 @@
+{
+  "id": "misc-bitcoin-script",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Bitcoin Script\n\nВ `witness.txt` — разбор witness. Метка в base64. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/tx.hex",
+      "text": "0200000001...\n"
+    },
+    {
+      "path": "/home/student/task/witness.txt",
+      "text": "dump\nflag:bnRve29yZDFuNGxzX2gxZDNfMW5fdzF0bjNzc30=\n"
+    }
+  ]
+}

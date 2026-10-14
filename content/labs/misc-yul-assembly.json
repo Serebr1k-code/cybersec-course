@@ -1,0 +1,23 @@
+{
+  "id": "misc-yul-assembly",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Yul/assembly\n\nВ `bytecode.hex` — дамп. Метка в base64. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/challenge.sol",
+      "text": "function echo() external pure returns (bytes32) {\n    assembly { let a := calldataload(4) }\n}\n"
+    },
+    {
+      "path": "/home/student/task/bytecode.hex",
+      "text": "dump\nflag:bnRve3l1bF9kMXJ0eV9iMXRzXzRuZF9mcjMzX3B0cn0=\n"
+    }
+  ]
+}

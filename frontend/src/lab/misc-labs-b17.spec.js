@@ -24,6 +24,12 @@ const CASES = [
   { id: 'misc-move-sui', artifact: 'objects.txt', flag: 'nto{m0v3_c4p4b1l1ty_c0nfus10n}' },
   { id: 'misc-cosmos-wasm', artifact: 'state.txt', flag: 'nto{c0smw4sm_1bc_4ck_c0nfus10n}' },
   { id: 'misc-rust-solana', artifact: 'accounts.txt', flag: 'nto{s0l4n4_4cc0unt_c0nfus10n}' },
+  { id: 'misc-yul-assembly', artifact: 'bytecode.hex', flag: 'nto{yul_d1rty_b1ts_4nd_fr33_ptr}' },
+  { id: 'misc-upgradeable-proxy', artifact: 'storage.txt', flag: 'nto{uups_un1n1t14l1z3d_1mpl}' },
+  { id: 'misc-erc-standards', artifact: 'token.log', flag: 'nto{erc721_c4llb4ck_r33ntr4ncy}' },
+  { id: 'misc-defi-mev-deep', artifact: 'mempool.txt', flag: 'nto{m3v_s4ndw1ch_n0_sl1pp4g3}' },
+  { id: 'misc-bitcoin-script', artifact: 'witness.txt', flag: 'nto{ord1n4ls_h1d3_1n_w1tn3ss}' },
+  { id: 'misc-ctf-web3-meta', artifact: 'contract.txt', flag: 'nto{w3b3_ctf_m3th0d0l0gy}' },
 ]
 
 for (const c of CASES) {

@@ -1,0 +1,23 @@
+{
+  "id": "misc-defi-mev-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# MEV\n\nВ `mempool.txt` — дамп mempool. Метка в base64. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/amm.sol",
+      "text": "function swap(uint256 amountIn) external { /* no minOut */ }\n"
+    },
+    {
+      "path": "/home/student/task/mempool.txt",
+      "text": "dump\nflag:bnRve20zdl9zNG5kdzFjaF9uMF9zbDFwcDRnM30=\n"
+    }
+  ]
+}

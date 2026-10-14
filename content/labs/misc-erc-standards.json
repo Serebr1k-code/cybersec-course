@@ -1,0 +1,23 @@
+{
+  "id": "misc-erc-standards",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# ERC-стандарты\n\nВ `token.log` — лог событий. Метка в base64. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/market.sol",
+      "text": "function buy(uint256 amount) external { token.transferFrom(msg.sender, address(this), amount); }\n"
+    },
+    {
+      "path": "/home/student/task/token.log",
+      "text": "dump\nflag:bnRve2VyYzcyMV9jNGxsYjRja19yMzNudHI0bmN5fQ==\n"
+    }
+  ]
+}

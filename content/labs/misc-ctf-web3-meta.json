@@ -1,0 +1,23 @@
+{
+  "id": "misc-ctf-web3-meta",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Web3-CTF\n\nВ `contract.txt` — дамп разведки. Метка в base64. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/challenge.sol",
+      "text": "contract Challenge { function isSolved() external view returns (bool) { return address(this).balance == 0; } }\n"
+    },
+    {
+      "path": "/home/student/task/contract.txt",
+      "text": "dump\nflag:bnRve3czYjNfY3RmX20zdGgwZDBsMGd5fQ==\n"
+    }
+  ]
+}

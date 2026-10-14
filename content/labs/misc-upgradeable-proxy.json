@@ -1,0 +1,23 @@
+{
+  "id": "misc-upgradeable-proxy",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Прокси\n\nВ `storage.txt` — дамп слотов. Метка в base64. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/proxy.sol",
+      "text": "contract Proxy { address public implementation; /* slot0 */ }\n"
+    },
+    {
+      "path": "/home/student/task/storage.txt",
+      "text": "dump\nflag:bnRve3V1cHNfdW4xbjF0MTRsMXozZF8xbXBsfQ==\n"
+    }
+  ]
+}
