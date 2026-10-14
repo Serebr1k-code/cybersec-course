@@ -1,0 +1,24 @@
+{
+  "id": "linux-journald-binary",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{j0urn4ld_b1n4ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: журнал systemd\n\n`journal_export.txt` — экспорт бинарного журнала в текстовый вид.\nНайди записи о запуске процессов и метку.\n\n1. `cat journal_export.txt`.\n2. `grep _COMM journal_export.txt`.\n3. `grep nto journal_export.txt > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/journal_export.txt",
+      "text": "2025-05-01 08:10:00 host sshd[1001]: Accepted password for jdoe from 10.0.0.5\n2025-05-01 08:12:03 host systemd[1]: Started Session 3 of user jdoe.\n2025-05-01 09:03:20 host _COMM=wget _PID=2210 MESSAGE=download http://198.51.100.9/x\n2025-05-01 09:03:21 host _COMM=bash _PID=2211 _UID=0 MESSAGE=run /tmp/x\n2025-05-01 09:14:02 host kernel: audit: type=1105 ...\nnote: journal marker nto{j0urn4ld_b1n4ry}\n",
+      "mode": "644"
+    }
+  ]
+}

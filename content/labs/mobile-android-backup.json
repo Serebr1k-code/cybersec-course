@@ -1,0 +1,24 @@
+{
+  "id": "mobile-android-backup",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4ndr01d_4b_b4ckup}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: резервная копия Android\n\n`backup.ab` — файл резервной копии adb.\nОпредели параметры копии (сжатие, шифрование) и найди метку.\n\n1. `cat backup.ab`.\n2. `grep -i ANDROID BACKUP backup.ab`.\n3. `grep nto backup.ab > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/backup.ab",
+      "text": "ANDROID BACKUP\n5\n1\nnone\n\npackages:\ncom.example.notes\ncom.android.providers.telephony\ncom.whatsapp\npayload: (zlib-compressed tar, base64 shown for readability)\nH4sIAAAAAAAA... (tar entries: apps/com.whatsapp/db/msgstore.db, ...)\nnote: android backup marker nto{4ndr01d_4b_b4ckup}\n",
+      "mode": "644"
+    }
+  ]
+}

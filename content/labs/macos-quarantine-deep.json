@@ -1,0 +1,24 @@
+{
+  "id": "macos-quarantine-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{qu4r4nt1n3_0r1g1n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: карантин macOS\n\n`QuarantineEventsV2.txt` — выгрузка базы карантина.\nНайди, откуда скачали файл, и метку.\n\n1. `cat QuarantineEventsV2.txt`.\n2. `grep -i dmg QuarantineEventsV2.txt`.\n3. `grep nto QuarantineEventsV2.txt > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/QuarantineEventsV2.txt",
+      "text": "LSQuarantineEvent rows (id, timestamp, agent, origin, url)\n1  2025-04-30 12:01:11  com.apple.Safari          Safari      https://intranet.local/reports/q1.pdf\n2  2025-05-01 08:20:44  com.apple.Safari          Safari      https://cdn.example.net/tools/Updater.dmg\n3  2025-05-01 08:21:02  com.apple.finder          Finder      /Users/jdoe/Downloads/Updater.dmg\n4  2025-05-02 10:10:10  com.apple.mail            Mail        /Users/jdoe/Downloads/invoice.zip\nnote: quarantine marker nto{qu4r4nt1n3_0r1g1n}\n",
+      "mode": "644"
+    }
+  ]
+}

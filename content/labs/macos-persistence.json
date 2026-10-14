@@ -1,0 +1,24 @@
+{
+  "id": "macos-persistence",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l4unch4g3nt_p3rs1st3nc3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: закрепление на macOS\n\n`com.apple.softwareupdated.plist` — подозрительный LaunchAgent.\nНайди путь запускаемой программы и метку.\n\n1. `cat com.apple.softwareupdated.plist`.\n2. `grep -i ProgramArguments com.apple.softwareupdated.plist`.\n3. `grep nto com.apple.softwareupdated.plist > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/com.apple.softwareupdated.plist",
+      "text": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<!DOCTYPE plist PUBLIC \"-//Apple//DTD PLIST 1.0//EN\" \"http://www.apple.com/DTDs/PropertyList-1.0.dtd\">\n<plist version=\"1.0\">\n<dict>\n  <key>Label</key><string>com.apple.softwareupdated</string>\n  <key>ProgramArguments</key>\n  <array>\n    <string>/bin/sh</string>\n    <string>-c</string>\n    <string>/Users/jdoe/Library/Caches/.upd/agent</string>\n  </array>\n  <key>RunAtLoad</key><true/>\n  <key>KeepAlive</key><true/>\n  <key>StartInterval</key><integer>300</integer>\n  <key>Disabled</key><false/>\n  <!-- hidden implant id: nto{l4unch4g3nt_p3rs1st3nc3} -->\n</dict>\n</plist>\n",
+      "mode": "644"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "macos-knowledgec",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{kn0wl3dg3c_us4g3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: активность из knowledgeC.db\n\n`knowledgeC_dump.txt` — выгрузка строк базы CoreDuet.\nОпредели, когда пользователь был активен, и найди метку.\n\n1. `grep ZSTREAMNAME knowledgeC_dump.txt`.\n2. `grep -i lock knowledgeC_dump.txt`.\n3. `grep nto knowledgeC_dump.txt > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/knowledgeC_dump.txt",
+      "text": "ZOBJECT rows (id, ZSTREAMNAME, ZVALUE, ZSTARTDATE, ZENDDATE)\n1  /app/usage        com.apple.Safari            2025-05-01 08:12:03  2025-05-01 08:41:55\n2  /app/usage        com.apple.mail              2025-05-01 08:42:01  2025-05-01 09:03:10\n3  /app/inFocus      com.apple.Terminal          2025-05-01 09:03:20  2025-05-01 09:14:02\n4  /device/isLocked  1                           2025-05-01 09:14:02  2025-05-01 09:20:44\n5  /device/isLocked  0                           2025-05-01 09:20:44  \n6  /app/usage        com.apple.dt.Xcode        2025-05-01 09:21:00  2025-05-01 11:40:00\n7  /safari/history   https://intranet.local     2025-05-01 09:05:00  2025-05-01 09:05:01\nnote: stream marker nto{kn0wl3dg3c_us4g3}\n",
+      "mode": "644"
+    }
+  ]
+}

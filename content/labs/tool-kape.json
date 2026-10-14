@@ -1,0 +1,24 @@
+{
+  "id": "tool-kape",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{k4p3_tr14g3_c0ll3ct10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: KAPE-коллекция\n\n`kape_collection.txt` — список артефактов, собранных KAPE.\nОпредели, что попало в коллекцию, и найди метку.\n\n1. `cat kape_collection.txt`.\n2. `grep -i evtx kape_collection.txt`.\n3. `grep nto kape_collection.txt > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/kape_collection.txt",
+      "text": "KAPE triage collection (targets applied)\nC:\\Windows\\System32\\winevt\\Logs\\Security.evtx\nC:\\Windows\\System32\\winevt\\Logs\\System.evtx\nC:\\Windows\\System32\\winevt\\Logs\\PowerShell-Operational.evtx\nC:\\Windows\\Prefetch\\POWERSHELL.EXE-1.pf\nC:\\Windows\\appcompat\\Programs\\Amcache.hve\nC:\\Users\\jdoe\\NTUSER.DAT\nC:\\$MFT\nC:\\Windows\\System32\\config\\SYSTEM\nnote: kape marker nto{k4p3_tr14g3_c0ll3ct10n}\n",
+      "mode": "644"
+    }
+  ]
+}
