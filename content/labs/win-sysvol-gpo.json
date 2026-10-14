@@ -1,0 +1,24 @@
+{
+  "id": "win-sysvol-gpo",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{gpp_cp4ssw0rd_d3crypt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: SYSVOL/GPO\n\n`Groups.xml` из GPP содержит `cpassword`. Найди пароль и метку.\n\n1. `file Groups.xml`.\n2. `grep -i cpassword Groups.xml`.\n3. `grep nto Groups.xml > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/Groups.xml",
+      "text": "<Groups>\n  <User name=\"localadmin\">\n    <Properties cpassword=\"j1Uyj3Vx8TY9LtLZil2uAuZkFQA/4latT76ZwgdHdhw\" />\n  </User>\n  <!-- nto{gpp_cp4ssw0rd_d3crypt} -->\n</Groups>\n",
+      "mode": "644"
+    }
+  ]
+}

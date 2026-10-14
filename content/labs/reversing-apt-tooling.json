@@ -1,0 +1,38 @@
+{
+  "id": "reversing-apt-tooling",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{apt_1mpl4nt_c0mm4nds}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: APT-имплант\n\n`implant.exe` — подозрительный PE.\n1. `file implant.exe` — подтверди PE.\n2. `strings -n 5 implant.exe` — выпиши команды импланта.\n3. Найди строку-артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/implant.exe",
+      "b64": "TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFBFAABkhgEAAAAAAAAAAAAAAAAAAAAAIHNoZWxsAHVwbG9hZABkb3dubG9hZABzbGVlcAB3aG9hbWkAVmlydHVhbEFsbG9jAFZpcnR1YWxQcm90ZWN0AC9hcGkvdjEvdXBkYXRlAE1vemlsbGEvNS4wAG50b3thcHRfMW1wbDRudF9jMG1tNG5kc30A",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "objdump": {
+      "help": "objdump [-d] <файл> — дизассемблер PE",
+      "cases": [
+        {
+          "match": "-d",
+          "example": "-d implant.exe",
+          "output": "implant.exe:     file format pei-x86-64\nDisassembly of section .text:\n140001000 <main>:\n140001000:\tff 15 f3 0f 00 00 \tcall QWORD PTR [rip+0xff3]  ; VirtualAlloc\n140001007:\tff e0            \tjmp rax\n"
+        }
+      ],
+      "fallback": "objdump: используй `objdump -d <файл>`.\n"
+    }
+  }
+}

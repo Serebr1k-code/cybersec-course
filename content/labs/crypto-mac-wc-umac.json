@@ -1,0 +1,37 @@
+{
+  "id": "crypto-mac-wc-umac",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w3gm4n_c4rt3r_0n3_t1m3_k3y_r3us3_br34ks}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: подделка Wegman-Carter MAC при переиспользовании ключа\n\n`wc.py` задаёт одноразовый MAC = (a*m + b) mod p. Ключ (a,b) переиспользован\nдля двух сообщений. Восстанови ключ из двух пар и подделай тег.\n\nШаги:\n1. `cat wc.py`.\n2. `python3 wc.py`.\n3. `python3 wc.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Универсальный хэш: малая вероятность коллизии на разных входах.\n- Wegman-Carter: MAC = h_k(m) XOR r, ключ k и nonce r одноразовые.\n- Переиспользование ключа: a=(t2-t1)/(m2-m1), b=t1-a*m1 -> полная подделка.\n- KMAC (sponge) безопасен при переиспользовании; UMAC/Poly1305/GMAC — нет.\n"
+    },
+    {
+      "path": "/home/student/task/wc.py",
+      "text": "# Wegman-Carter one-time MAC: MAC(m) = (a*m + b) mod p, key=(a,b) used ONCE.\np = 2**61 - 1\na, b = 0x123456789abcdef, 0xfedcba987654321\ndef mac(m, a, b): return (a * m + b) % p\nm1 = 111\nt1 = mac(m1, a, b)\nprint(\"one-time MAC of m1:\", t1)\n# Reusing the SAME (a,b) for a second message leaks the key:\nm2 = 222\nt2 = mac(m2, a, b)\n# attacker solves: a = (t2 - t1) * inverse(m2 - m1) mod p\ninv = pow((m2 - m1) % p, p - 2, p)\nrec_a = ((t2 - t1) * inv) % p\nrec_b = (t1 - rec_a * m1) % p\nprint(\"recovered a == true:\", rec_a == a, \" recovered b == true:\", rec_b == b)\n# now forge a tag for any message\nforge = mac(999, rec_a, rec_b)\nprint(\"forged tag for 999 :\", forge, \"== true:\", forge == mac(999, a, b))\nprint(\"flag: nto{w3gm4n_c4rt3r_0n3_t1m3_k3y_r3us3_br34ks}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        { "match": "--version|^-V$", "example": "python3 --version", "output": "Python 3.12.4" },
+        {
+          "match": "wc\\.py$",
+          "example": "python3 wc.py",
+          "output": "one-time MAC of m1: 1024819115206086086\nrecovered a == true: True  recovered b == true: True\nforged tag for 999 : 40992764608242414 == true: True\nflag: nto{w3gm4n_c4rt3r_0n3_t1m3_k3y_r3us3_br34ks}\n"
+        }
+      ]
+    }
+  }
+}

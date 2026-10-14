@@ -1,0 +1,38 @@
+{
+  "id": "reversing-ada-fortran",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{f0rtr4n_c0lumn_m4j0r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Fortran-бинарник\n\n`solver` — научный исполняемый файл.\n1. `file solver` — подтверди ELF.\n2. `strings -n 5 solver` — найди версию gfortran и артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/solver",
+      "b64": "f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAANBIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAEAAAAAAAEdOVSBGb3J0cmFuIDEzLjIuMABfX2dmb3J0cmFuX3N0X3dyaXRlAF9fbWF0aF9NT0Rfc29sdmUAc29sdmVfAG50b3tmMHJ0cjRuX2MwbHVtbl9tNGowcn0A",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "nm": {
+      "help": "nm [-D] <файл> — таблица символов",
+      "cases": [
+        {
+          "match": "-D",
+          "example": "-D solver",
+          "output": "0000000000001234 T solve_\n0000000000001280 T __math_MOD_gradient\n"
+        }
+      ],
+      "fallback": "nm: используй `nm -D <файл>`.\n"
+    }
+  }
+}

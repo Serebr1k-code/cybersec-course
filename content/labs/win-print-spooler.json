@@ -1,0 +1,24 @@
+{
+  "id": "win-print-spooler",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sp00l_j0b_d0cum3nt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Print Spooler\n\n`00012.SHD` — описание задания печати. Найди документ и пользователя, затем метку.\n\n1. `file 00012.SHD`.\n2. `strings 00012.SHD | grep -iE 'document|user'`.\n3. `grep nto 00012.SHD > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/00012.SHD",
+      "text": "Print spool shadow file\ndocument: payroll_q1.docx\nuser: CORP\\jdoe\nprinter: HP-LaserJet-Finance\nnote: nto{sp00l_j0b_d0cum3nt}\n",
+      "mode": "644"
+    }
+  ]
+}

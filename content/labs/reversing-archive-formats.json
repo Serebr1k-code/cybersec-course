@@ -1,0 +1,38 @@
+{
+  "id": "reversing-archive-formats",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{arch1v3_z1p_crypt_r3v}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: вложенный архив\n\n`sample.zip` — контейнер из малварь-дроппера.\n1. `file sample.zip` — определи формат.\n2. `strings -n 5 sample.zip` — найди имена вложений и артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/sample.zip",
+      "b64": "UEsDBAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwYXlsb2FkLmJpbgBjb25maWcuanNvbgBzdGFnZTIuYmluAG50b3thcmNoMXYzX3oxcF9jcnlwdF9yM3Z9AFBLBQYAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "unzip": {
+      "help": "unzip [-l] <архив> — список содержимого",
+      "cases": [
+        {
+          "match": "-l\\s+sample",
+          "example": "-l sample.zip",
+          "output": "Archive:  sample.zip\n  Length      Name\n     1024  payload.bin\n      512  config.json\n     2048  stage2.bin\n"
+        }
+      ],
+      "fallback": "unzip: используй `unzip -l <архив>`.\n"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "id": "reversing-beam-erlang",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{beam_bytecode_4t0ms}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: BEAM-модуль\n\n`module.beam` — скомпилированный модуль Erlang.\n1. `xxd -l 32 module.beam` — разбери контейнер FOR1/BEAM.\n2. `strings -n 5 module.beam` — найди имена и артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/module.beam",
+      "b64": "Rk9SMQAADyxCRUFNAAAADEF0VTgAAAAobW9kdWxlX2luZm8Ac3RhcnQAaGFuZGxlX2NhbGwAbnRve2JlYW1fYnl0ZWNvZGVfNHQwbXN9AA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "xxd": {
+      "help": "xxd [-l N] <файл> — hex-дамп",
+      "cases": [
+        {
+          "match": "-l\\s*32",
+          "example": "-l 32 module.beam",
+          "output": "00000000: 464f 5231 0000 0f2c 4245 414d 0000 000c  FOR1...,BEAM....\n"
+        }
+      ],
+      "fallback": "xxd: используй `xxd -l 32 <файл>`.\n"
+    }
+  }
+}

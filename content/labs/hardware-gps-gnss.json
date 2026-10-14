@@ -1,0 +1,23 @@
+{
+  "id": "hardware-gps-gnss",
+  "workdir": "/home/student/gnss",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/gnss/found.txt",
+    "contains": "nto{sp00f3d_agc_4n0m4ly}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/gnss",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/gnss/task.md",
+      "text": "# Задача: детект спуфинга GNSS\n\nДан лог приёмника `gnss.log`. Найди строку-маркер, извлеки значение после `marker=` и положи флаг в `found.txt`.\n\n1. `grep marker gnss.log`\n2. `grep marker gnss.log | cut -d= -f2 > found.txt`\n"
+    },
+    {
+      "path": "/home/student/gnss/gnss.log",
+      "text": "AGC=512 fix=3d satellites=9 time=ok\nAGC=515 fix=3d satellites=9 time=ok\nAGC=980 fix=3d satellites=9 time=ok marker=nto{sp00f3d_agc_4n0m4ly}\nAGC=981 fix=3d satellites=9 time=ok\n"
+    }
+  ]
+}

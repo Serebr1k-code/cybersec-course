@@ -1,0 +1,37 @@
+{
+  "id": "crypto-hash-preimage-herding",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{j0ux_mult1c0ll1s10n_2_pow_k_m3ss4g3s}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Joux-мультиколлизия\n\n`multicoll.py` задаёт игрушечный хэш с неинъективной компрессией.\nПострой 2^8 сообщений с одинаковым хэшем, склеив 8 одноблочных коллизий.\n\nШаги:\n1. `cat multicoll.py`.\n2. `python3 multicoll.py`.\n3. `python3 multicoll.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Preimage/second-preimage ~ 2^n; collision ~ 2^(n/2).\n- Joux: k коллизий компрессии -> 2^k сообщений с одним хэшем.\n- Herding: коммит к дайджесту заранее, потом подбор префикса.\n- Компрессия должна быть неинъективной, иначе коллизий нет.\n"
+    },
+    {
+      "path": "/home/student/task/multicoll.py",
+      "text": "# Joux multicollision: chain k single-block collisions -> 2^k messages, one hash.\ndef C(h, b):\n    return (h * 131 + b * 7 + 13) & 0x3f      # toy 6-bit compression (non-injective)\ndef find_collision(h):\n    seen = {}\n    for b in range(256):\n        v = C(h, b)\n        if v in seen:\n            return seen[v], b, v\n        seen[v] = b\n    return None\nh = 0\nmsgs = [b'']\nfor _ in range(8):\n    b0, b1, nv = find_collision(h)\n    msgs = [m + bytes([b0]) for m in msgs] + [m + bytes([b1]) for m in msgs]\n    h = nv\ndef H(m):\n    st = 0\n    for b in m: st = C(st, b)\n    return st\nhashes = {H(m) for m in msgs}\nprint(\"number of messages built:\", len(msgs), \"(= 2^8)\")\nprint(\"distinct hashes          :\", len(hashes), \"(all collide)\")\nprint(\"multicollision works     :\", len(hashes) == 1)\nprint(\"flag: nto{j0ux_mult1c0ll1s10n_2_pow_k_m3ss4g3s}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        { "match": "--version|^-V$", "example": "python3 --version", "output": "Python 3.12.4" },
+        {
+          "match": "multicoll\\.py$",
+          "example": "python3 multicoll.py",
+          "output": "number of messages built: 256 (= 2^8)\ndistinct hashes          : 1 (all collide)\nmulticollision works     : True\nflag: nto{j0ux_mult1c0ll1s10n_2_pow_k_m3ss4g3s}\n"
+        }
+      ]
+    }
+  }
+}

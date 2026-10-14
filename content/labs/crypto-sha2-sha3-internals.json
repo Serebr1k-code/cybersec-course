@@ -1,0 +1,41 @@
+{
+  "id": "crypto-sha2-sha3-internals",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l3ngth_3xt3ns10n_m3rkl3_d4mg4rd_fl4w}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: length-extension на Merkle-Damgard\n\n`toyhash.py` — игрушечный хэш по схеме Меркла-Дамгарда (4-байтовое состояние).\nСервер вернул дайджест секрета. Восстанови padding по длине секрета и продолжи\nхэширование с допиской, получив валидный дайджест расширенного сообщения.\n\nШаги:\n1. `cat toyhash.py` — устройство.\n2. `python3 ext.py` — подделка через продолжение состояния.\n3. `python3 ext.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Merkle-Damgard: состояние передаётся из блока в блок, финальное = дайджест.\n- Продолжение: h = hash(secret); forged = continue(h, suffix, len(padded(secret))).\n- Sponge (SHA-3) держит скрытую capacity -> length-extension неприменим.\n"
+    },
+    {
+      "path": "/home/student/task/toyhash.py",
+      "text": "# Toy Merkle-Damgard hash (4-byte state) to show length-extension.\nimport struct\ndef compress(h, block):\n    a, b, c, d = h\n    m = struct.unpack('>4B', block)\n    a = (a + m[0]) & 0xff\n    b = ((b ^ m[1]) + a) & 0xff\n    c = (c + m[2]) & 0xff\n    d = ((d ^ m[3]) + c) & 0xff\n    return (a, b, c, d)\ndef pad(m, total=None):\n    ml = len(m) if total is None else total\n    m = m + b'\\x80'\n    while (len(m) + 4) % 4 != 0:\n        m += b'\\x00'\n    m += struct.pack('>I', ml)\n    return m\ndef _blocks(h, m):\n    for i in range(0, len(m), 4):\n        h = compress(h, m[i:i+4])\n    return h\ndef md(m):\n    return _blocks((0x12, 0x34, 0x56, 0x78), pad(m))\ndef md_continue(h, suffix, total_before):\n    body = suffix + b'\\x80'\n    while (len(body) + 4) % 4 != 0:\n        body += b'\\x00'\n    body += struct.pack('>I', total_before + len(suffix))\n    return _blocks(h, body)\n"
+    },
+    {
+      "path": "/home/student/task/ext.py",
+      "text": "from toyhash import md, md_continue, pad\n\nsecret = b'user=guest'\npadded = pad(secret)                       # secret + padding (multiple of block)\nh = md(secret)                             # server returns this digest\nprint(\"digest of secret        :\", h)\nsuffix = b'&admin=1'\npadding_bytes = padded[len(secret):]       # 0x80 + zeros + length, as raw bytes\nforged = md_continue(h, suffix, len(padded))\next = secret + padding_bytes + suffix\nprint(\"attacker forged digest  :\", forged)\nprint(\"true extended digest    :\", md(ext))\nprint(\"length extension works  :\", forged == md(ext))\nprint(\"SHA-3 sponge is immune  : True (no exposed chaining state)\")\nprint(\"flag: nto{l3ngth_3xt3ns10n_m3rkl3_d4mg4rd_fl4w}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        { "match": "--version|^-V$", "example": "python3 --version", "output": "Python 3.12.4" },
+        {
+          "match": "ext\\.py$",
+          "example": "python3 ext.py",
+          "output": "digest of secret        : (55, 135, 176, 58)\nattacker forged digest  : (70, 127, 81, 53)\ntrue extended digest    : (70, 127, 81, 53)\nlength extension works  : True\nSHA-3 sponge is immune  : True (no exposed chaining state)\nflag: nto{l3ngth_3xt3ns10n_m3rkl3_d4mg4rd_fl4w}\n"
+        }
+      ]
+    }
+  }
+}

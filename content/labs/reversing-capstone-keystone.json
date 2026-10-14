@@ -1,0 +1,38 @@
+{
+  "id": "reversing-capstone-keystone",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c4pst0n3_k3yst0n3_un1c0rn}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: анализатор на Python\n\n`engine.elf` — целевой бинарник.\n1. `file engine.elf` — подтверди ELF.\n2. `strings -n 5 engine.elf` — найди версии библиотек и артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/engine.elf",
+      "b64": "f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAEAAAAAAAENhcHN0b25lIDUuMABLZXlzdG9uZSAwLjkAVW5pY29ybiAyLjAAbnRve2M0cHN0MG4zX2szeXN0MG4zX3VuMWMwcm59AA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python",
+      "cases": [
+        {
+          "match": "capstone|disasm",
+          "example": "python3 disasm.py",
+          "output": "0x1000: push rbp\n0x1001: mov rbp, rsp\n0x1004: call 0x1100\n"
+        }
+      ],
+      "fallback": "python3: используй `python3 <скрипт.py>`.\n"
+    }
+  }
+}

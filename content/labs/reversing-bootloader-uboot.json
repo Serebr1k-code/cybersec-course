@@ -1,0 +1,38 @@
+{
+  "id": "reversing-bootloader-uboot",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ub00t_env_b00targs_r3v}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: загрузчик U-Boot\n\n`u-boot.bin` — образ загрузчика.\n1. `file u-boot.bin` — определи тип образа.\n2. `strings -n 5 u-boot.bin` — найди версию, env и артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/u-boot.bin",
+      "b64": "JwUZVgAAAAAAAAAAAAAAAFUtQm9vdCAyMDIzLjA3IChBdWcgMDEgMjAyMykAYm9vdGFyZ3M9Y29uc29sZT10dHlTMCByb290PS9kZXYvbXRkYmxvY2syAGJvb3RjbWQ9Ym9vdG0gMHg4MDAwMABudG97dWIwMHRfZW52X2IwMHRhcmdzX3Izdn0A",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "binwalk": {
+      "help": "binwalk <файл> — поиск встроенных образов",
+      "cases": [
+        {
+          "match": "u-boot",
+          "example": "u-boot.bin",
+          "output": "DECIMAL       HEXADECIMAL     DESCRIPTION\n0             0x0             uImage header, ...\n64            0x40            U-Boot version string\n"
+        }
+      ],
+      "fallback": "binwalk: используй `binwalk <файл>`.\n"
+    }
+  }
+}

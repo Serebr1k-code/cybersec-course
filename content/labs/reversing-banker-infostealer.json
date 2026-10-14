@@ -1,0 +1,38 @@
+{
+  "id": "reversing-banker-infostealer",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b4nk3r_w3b1nj3ct_h00k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: банкер\n\n`banker.dll` — подозрительная DLL.\n1. `file banker.dll` — подтверди PE DLL.\n2. `strings -n 5 banker.dll` — выпиши цели и канал C2.\n3. Найди строку-артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/banker.dll",
+      "b64": "TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFBFAABkhgEAAAAAAAAAAAAAAAAAAAAAIGxvZ2luAHBhc3N3b3JkAGNvb2tpZQB3YWxsZXQuZGF0AFZpcnR1YWxQcm90ZWN0AEh0dHBTZW5kUmVxdWVzdABnYXRlLnBocABDb250ZW50LVR5cGUAbnRve2I0bmszcl93M2IxbmozY3RfaDAwa30A",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "objdump": {
+      "help": "objdump [-d] <файл> — дизассемблер PE",
+      "cases": [
+        {
+          "match": "-d",
+          "example": "-d banker.dll",
+          "output": "banker.dll:     file format pei-x86-64\nDisassembly of section .text:\n180001000 <DllMain>:\n180001000:\tff 15 f3 0f 00 00 \tcall QWORD PTR [rip+0xff3]  ; VirtualProtect\n180001007:\t48 89 03         \tmov QWORD PTR [rbx],rax\n"
+        }
+      ],
+      "fallback": "objdump: используй `objdump -d <файл>`.\n"
+    }
+  }
+}

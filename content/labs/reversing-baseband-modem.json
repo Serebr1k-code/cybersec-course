@@ -1,0 +1,38 @@
+{
+  "id": "reversing-baseband-modem",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b4s3b4nd_f1rmw4r3_c2}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: прошивка модема\n\n`modem.mbn` — образ baseband-прошивки.\n1. `file modem.mbn` — определи тип.\n2. `strings -n 5 modem.mbn` — найди версию, AT-команды и артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/modem.mbn",
+      "b64": "f0VMRgAAAAAAAAAAUUNfSU1BR0VfVkVSU0lPTl9TVFJJTkc9TVBTUy5KTy4zLjAAQVQrQ0dTTgBBVCtDRlVOPTEAQVQrQ09QUz8AbnRve2I0czNiNG5kX2Yxcm13NHIzX2MyfQA=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "strings": {
+      "help": "strings [-n N] <файл> — печатаемые строки",
+      "cases": [
+        {
+          "match": "modem",
+          "example": "-n 5 modem.mbn",
+          "output": "QC_IMAGE_VERSION_STRING=MPSS.JO.3.0\nAT+CGSN\nAT+CFUN=1\nAT+COPS?\n"
+        }
+      ],
+      "fallback": "strings: используй `strings -n 5 <файл>`.\n"
+    }
+  }
+}

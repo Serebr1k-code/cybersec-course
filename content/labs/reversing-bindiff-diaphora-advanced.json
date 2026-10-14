@@ -1,0 +1,43 @@
+{
+  "id": "reversing-bindiff-diaphora-advanced",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p4tch_d1ff_b0unds_ch3ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: диффинг версий\n\nДаны `libfoo_v1.so` и `libfoo_v2.so`.\n1. `file libfoo_v1.so libfoo_v2.so` — подтверди ELF.\n2. `strings -n 5 libfoo_v2.so` — найди добавленную строку/артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/libfoo_v1.so",
+      "b64": "f0VMRgIBAQAAAAAAAAAAAAIAAwABAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAEAAAAAAAGZvb19wYXJzZV9yZXF1ZXN0AGZvb19mcmVlAA==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/libfoo_v2.so",
+      "b64": "f0VMRgIBAQAAAAAAAAAAAAIAAwABAAAAACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAEAAAAAAAGZvb19wYXJzZV9yZXF1ZXN0AGZvb19mcmVlAGJvdW5kc19jaGVjawBudG97cDR0Y2hfZDFmZl9iMHVuZHNfY2gzY2t9AA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "nm": {
+      "help": "nm [-D] <файл> — таблица символов",
+      "cases": [
+        {
+          "match": "v2",
+          "example": "-D libfoo_v2.so",
+          "output": "0000000000002000 T foo_parse_request\n0000000000002100 T foo_free\n0000000000002200 T bounds_check\n"
+        }
+      ],
+      "fallback": "nm: используй `nm -D <файл>`.\n"
+    }
+  }
+}

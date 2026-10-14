@@ -1,0 +1,224 @@
+---
+id: pwn-kpti-bypass
+title: "KPTI bypass: trampoline и возврат в userland"
+category: pwn
+parent: pwn-kernel-bypass
+difficulty: expert
+order: 2
+tags: [pwn, kernel, kpti, meltdown, trampoline, swapgs, return-to-user]
+prerequisites: [pwn-kernel-bypass, pwn-kernel-rop]
+useful_for:
+  - "Возврат в userland после kernel ROP на современных ядрах"
+  - "Понимание изоляции адресных пространств ядра"
+estimated_minutes: 60
+summary: "KPTI (Page-Table Isolation): почему прямой ret в userland перестал работать, что такое trampoline swapgs_restore_regs_and_return_to_usermode и как правильно завершить kernel ROP-цепочку."
+lab:
+  kind: shell
+  title: "Практика: чем завершают kernel ROP"
+  toolset: [core, elf]
+  workdir: /home/student/task
+  files: [task.md, vmlinux.gadgets.txt]
+  check: "grep -q 'finish=trampoline' answer.txt"
+  hints:
+    - "Прямой возврат в userland на KPTI-ядре ломается."
+    - "Нужна функция, которая переключает таблицы страниц."
+    - "Она называется trampoline."
+    - "Запиши `finish=trampoline`."
+---
+
+## Вопрос, с которого всё начинается
+
+Ты собрал kernel ROP: `commit_creds(prepare_kernel_cred(0))` выполнился, root
+получен. Осталось вернуться в userland и запустить shell. Но на современном
+ядре прямой `ret` в userland падает. Почему? Потому что включён **KPTI**.
+
+## Наш пример
+
+Проверяем, включён ли KPTI:
+
+```
+$ cat /sys/devices/system/cpu/vulnerabilities/meltdown
+Mitigation: PTI
+$ grep -i pti /proc/cpuinfo
+flags: ... pti ...
+```
+
+`Mitigation: PTI` означает, что KPTI (Page-Table Isolation) активен. Дальше
+смотрим, как ядро возвращается в userland.
+
+## Шаг 1: что делает KPTI
+
+До KPTI у ядра и userland была **одна** таблица страниц: в userland-режиме
+страницы ядра просто помечались недоступными (бит U/S), но всё равно
+присутствовали в TLB. Атака Meltdown показала, что спекулятивное исполнение
+может прочитать ядро через эту «присутствующую» память.
+
+KPTI разделяет адресные пространства: у userland своя таблица страниц, где
+ядерных страниц почти нет. При входе в ядро процессор переключается на
+ядровую таблицу. Значит, «просто вернуться» в userland нельзя — нужен код,
+который **переключит таблицу страниц обратно** и восстановит регистры.
+
+## Шаг 2: trampoline
+
+В ядре есть специальный код — **trampoline** — функция
+`swapgs_restore_regs_and_return_to_usermode`. Она:
+
+1. Делает `swapgs` (меняет местами GS-регистры user/kernel).
+2. Переключает таблицу страниц на userland.
+3. Восстанавливает регистры из стека ядра.
+4. Выполняет `iretq` — возврат в userland.
+
+Символ находим так:
+
+```
+$ grep -E 'swapgs_restore_regs_and_return_to_usermode' /proc/kallsyms
+ffffffff81e00e10 T swapgs_restore_regs_and_return_to_usermode
+```
+
+Нам нужен не самый её вход, а точка **после** восстановления части регистров —
+обычно `+22` байта (зависит от ядра). Точный offset смотрим в дизассемблере:
+
+```
+$ objdump -d vmlinux --start-address=0xffffffff81e00e10 | head -20
+ffffffff81e00e10: pop r15
+ffffffff81e00e11: pop r14
+...
+ffffffff81e00e1e: mov rdi, rsp        ; тут начинается интересное
+```
+
+## Шаг 3: как выглядит конец ROP-цепочки
+
+После `commit_creds` цепочка должна выставить на стеке значения для trampoline:
+
+```
+[ trampoline + offset ]   ; адрес точки входа в trampoline
+[ fake rax ]              ; мусор
+[ fake rdi ]
+[ user_rip ]              ; куда вернуться в userland (win-функция)
+[ user_cs ]               ; сегмент кода userland
+[ user_rflags ]
+[ user_sp ]               ; стек userland
+[ user_ss ]
+```
+
+`user_rip` — адрес нашей функции, которая откроет shell. `user_cs/rflags/ss`
+сохраняют заранее из userland:
+
+```c
+void save_state(void) {
+    __asm__ volatile(
+        "mov %%cs, %0\n"
+        "mov %%ss, %1\n"
+        "pushfq\n pop %2\n"
+        "mov %%rsp, %3\n"
+        : "=r"(user_cs), "=r"(user_ss), "=r"(user_rflags), "=r"(user_sp));
+}
+```
+
+## Шаг 4: почему нельзя просто `ret`
+
+Если после `commit_creds` поставить `ret` на адрес userland-функции, произойдёт
+вот что: ядро всё ещё использует ядровую таблицу страниц, а `iretq`/`ret` не
+переключит её. Процессор выполнит инструкцию по userland-адресу, но в контексте
+ядровых страниц — и либо упадёт (страница не отображена), либо даст неправильный
+режим. Именно поэтому нужен trampoline, который делает всё в правильном порядке.
+
+## Шаг 5: если KPTI выключен
+
+На старых ядрах (`nopti` в параметрах загрузки) можно вернуться напрямую:
+
+```c
+__asm__ volatile(
+    "swapgs;"
+    "mov %0, %%rsp;"
+    "push %1; push %2; push %3; push %4; push %5;"
+    "iretq;"
+    :: "r"(user_sp), "r"(user_ss), "r"(user_sp), "r"(user_rflags),
+       "r"(user_cs), "r"(user_rip));
+```
+
+Но на современном ядре это не сработает — нужен trampoline. Поэтому эксплойт
+обычно содержит обе ветки и выбирает по наличию `pti` в `/proc/cpuinfo`.
+
+## Шаг 6: типичные ошибки
+
+| Симптом | Причина | Решение |
+|---|---|---|
+| падение сразу после commit_creds | нет возврата через trampoline | добавить trampoline |
+| `general protection fault` на iretq | неверный CS/SS | сохранить сегменты из userland |
+| shell не появляется, но root есть | вернулись не туда | проверить user_rip |
+| ядро паникует | неправильный offset trampoline | сверить дизассемблер |
+
+## Шаг 7: альтернативы возврату
+
+Иногда возвращаться в userland не нужно: если цель — просто повысить привилегии
+текущего процесса, можно завершить цепочку функцией, которая восстанавливает
+контекст корректно, или использовать data-only (перезапись `cred`) — тогда
+никакого `iretq` не требуется. Выбор зависит от задачи.
+
+## Что мы теперь знаем
+
+- KPTI разделяет таблицы страниц ядра и userland (защита от Meltdown).
+- Прямой `ret` в userland на KPTI-ядре не работает.
+- `swapgs_restore_regs_and_return_to_usermode` — trampoline для возврата.
+- Нужно сохранить CS/SS/RFLAGS/SP из userland заранее.
+- Data-only иногда избавляет от возврата вовсе.
+
+## Квиз
+
+Проверь себя.
+
+```quiz
+- question: Зачем нужен KPTI?
+  options:
+    - "Изолировать страницы ядра от userland (защита от Meltdown)"
+    - "Ускорить syscall"
+    - "Сжать память"
+    - "Шифровать диск"
+  answer: 0
+  explanation: KPTI убирает ядерные страницы из userland-таблицы.
+- question: Что делает trampoline?
+  options:
+    - "Переключает таблицу страниц и возвращает в userland через iretq"
+    - "Пишет в диск"
+    - "Спреит кучу"
+    - "Читает MSR"
+  answer: 0
+  explanation: swapgs_restore_regs_and_return_to_usermode завершает kernel ROP.
+- question: Что нужно сохранить из userland для iretq?
+  options:
+    - "CS, SS, RFLAGS, SP"
+    - "Только RAX"
+    - "Ничего"
+    - "Только SP"
+  answer: 0
+  explanation: iretq восстанавливает сегменты и флаги из стека.
+- question: Почему прямой ret в userland падает на KPTI?
+  options:
+    - "Таблица страниц не переключена"
+    - "Нет памяти"
+    - "Нет сети"
+    - "Нет root"
+  answer: 0
+  explanation: Без переключения страниц userland-адрес недоступен.
+- question: Когда можно вернуться напрямую?
+  options:
+    - "Когда KPTI выключен (nopti)"
+    - "Всегда"
+    - "Когда нет ASLR"
+    - "Когда мало RAM"
+  answer: 0
+  explanation: Без KPTI таблица страниц общая, прямой возврат возможен.
+```
+
+## Куда дальше
+
+Дальше — **code-reuse техники** (JOP/COP/DOP/COOP) для целей с защищённым
+потоком управления. А пока запомни: **на KPTI-ядре kernel ROP завершается не
+`ret`, а trampoline-функцией, переключающей таблицу страниц**.
+
+## Где пригодится
+
+- Написание и адаптация kernel-эксплойтов.
+- Понимание защит ядра (KPTI, Meltdown).
+- kernelCTF и CTF-задачи на ядро.

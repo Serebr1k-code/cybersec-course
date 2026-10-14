@@ -1,0 +1,38 @@
+{
+  "id": "reversing-botnet-loader",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dga_s33d_r3c0v3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: botnet-загрузчик\n\n`loader` — статический ELF.\n1. `file loader` — подтверди ELF.\n2. `strings -n 5 loader` — найди seed и артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/loader",
+      "b64": "f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAEAAAAAAAERHQSB2MwBzZWVkPTIwMjQtMDEtMDEAZG9tYWluIGxpc3QAZ2V0YWRkcmluZm8Ac3JhbmQAcmFuZABudG97ZGdhX3MzM2RfcjNjMHYzcn0A",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "readelf": {
+      "help": "readelf [-h] <файл> — заголовки ELF",
+      "cases": [
+        {
+          "match": "-h",
+          "example": "-h loader",
+          "output": "ELF Header:\n  Class:                             ELF64\n  Type:                              EXEC (Executable file)\n  Machine:                           Advanced Micro Devices X86-64\n"
+        }
+      ],
+      "fallback": "readelf: используй `readelf -h <файл>`.\n"
+    }
+  }
+}

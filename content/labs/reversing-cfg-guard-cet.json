@@ -1,0 +1,38 @@
+{
+  "id": "reversing-cfg-guard-cet",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cf1_3ndbr64_sh4d0w_stack}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: CFG/CET\n\n`hardened.exe` — защищённый PE.\n1. `file hardened.exe` — подтверди PE.\n2. `strings -n 5 hardened.exe` — найди метки CFG/CET и артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/hardened.exe",
+      "b64": "TVoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAAAAFBFAABkhgEAAAAAAAAAAAAAAAAAAAAAIGVuZGJyNjQAR3VhcmRDRkNoZWNrRnVuY3Rpb25Qb2ludGVyAF9fZ3VhcmRfY2hlY2tfaWNhbGxfZnB0cgBudG97Y2YxXzNuZGJyNjRfc2g0ZDB3X3N0YWNrfQA=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "objdump": {
+      "help": "objdump [-d] <файл> — дизассемблер PE",
+      "cases": [
+        {
+          "match": "-d",
+          "example": "-d hardened.exe",
+          "output": "hardened.exe:     file format pei-x86-64\nDisassembly of section .text:\n140001000 <main>:\n140001000:\tf3 0f 1e fa \tendbr64\n140001004:\t55          \tpush rbp\n"
+        }
+      ],
+      "fallback": "objdump: используй `objdump -d <файл>`.\n"
+    }
+  }
+}

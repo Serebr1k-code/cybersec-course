@@ -1,0 +1,23 @@
+{
+  "id": "hardware-satcom",
+  "workdir": "/home/student/satcom",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/satcom/found.txt",
+    "contains": "nto{4c4rs_0p3n_t3xt_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/satcom",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/satcom/task.md",
+      "text": "# Задача: разбор ACARS\n\nВ дампе `acars.log` найди строку-маркер с payload=, извлеки значение и сохрани в `found.txt`.\n\n1. `grep payload acars.log`\n2. `grep payload acars.log | cut -d= -f2 > found.txt`\n"
+    },
+    {
+      "path": "/home/student/satcom/acars.log",
+      "text": "12:04:01 msg=K1B2 text=POS N55.7 E037.6\n12:04:07 msg=K1B3 text=FLT SU1234\n12:05:11 msg=K1C0 payload=nto{4c4rs_0p3n_t3xt_l34k}\n12:05:19 msg=K1C1 text=POS N55.8 E037.7\n"
+    }
+  ]
+}

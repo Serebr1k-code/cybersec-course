@@ -1,0 +1,37 @@
+{
+  "id": "crypto-hash-mitm",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b1rthd4y_c0ll1s10n_2_p0w_n_0v3r_2}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: birthday-коллизия на 32-битном хэше\n\n`birthday.py` генерирует значения и ищет коллизию 32-битного хэша за ~2^16 запросов.\nПокажи, что birthday-граница 2^(n/2) подтверждается.\n\nШаги:\n1. `cat birthday.py`.\n2. `python3 birthday.py`.\n3. `python3 birthday.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Birthday: коллизия среди ~2^(n/2) значений (парадокс дней рождения).\n- Причина: число пар растёт как q^2/2.\n- Meet-in-the-middle: таблица (O(q) памяти) или rho-метод Флойда (O(1)).\n- Для k-битной стойкости нужен выход 2k бит.\n"
+    },
+    {
+      "path": "/home/student/task/birthday.py",
+      "text": "# Birthday collision attack on a 32-bit hash: ~2^16 queries.\nimport random\nrandom.seed(11)\ndef H(x):\n    return ((x * 2654435761) ^ (x >> 13)) & 0xffffffff   # deterministic 32-bit map\nseen = {}\ncollision = None\nqueries = 0\nwhile collision is None:\n    x = random.getrandbits(32)\n    queries += 1\n    hv = H(x)\n    if hv in seen and seen[hv] != x:\n        collision = (seen[hv], x, hv)\n    seen[hv] = x\na, b, hv = collision\nprint(\"queries to find a collision:\", queries, \"(~2^16 = 65536 expected)\")\nprint(\"H(%d) == H(%d) == %d : %s\" % (a, b, hv, H(a) == H(b)))\nprint(\"birthday bound ~2^(n/2) confirmed:\", queries < 200000)\nprint(\"flag: nto{b1rthd4y_c0ll1s10n_2_p0w_n_0v3r_2}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        { "match": "--version|^-V$", "example": "python3 --version", "output": "Python 3.12.4" },
+        {
+          "match": "birthday\\.py$",
+          "example": "python3 birthday.py",
+          "output": "queries to find a collision: 62512 (~2^16 = 65536 expected)\nH(505869112) == H(2097928481) == 317411471 : True\nbirthday bound ~2^(n/2) confirmed: True\nflag: nto{b1rthd4y_c0ll1s10n_2_p0w_n_0v3r_2}\n"
+        }
+      ]
+    }
+  }
+}

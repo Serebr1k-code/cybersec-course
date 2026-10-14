@@ -1,0 +1,37 @@
+{
+  "id": "crypto-blake-ripemd-whirlpool",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{bl4k3_2_k3y3d_m0d3_1s_bu1lt_1n}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: BLAKE2 и его ключевой режим\n\n`blake.py` сравнивает SHA-256, SHA3-256, RIPEMD-160 и BLAKE2b.\nПокажи, что BLAKE2b поддерживает встроенный ключевой режим (MAC)\nи устойчив к length-extension.\n\nШаги:\n1. `cat blake.py`.\n2. `python3 blake.py`.\n3. `python3 blake.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- BLAKE2: ARX-хэш, key=... в конструкторе даёт MAC (ключ идёт в IV).\n- RIPEMD-160: 160 бит, наследие MD, используется в Bitcoin (HASH160).\n- SM3/Whirlpool — национальные/ISO стандарты.\n- Длина дайджеста — первый признак алгоритма (32/40/64/128 hex).\n"
+    },
+    {
+      "path": "/home/student/task/blake.py",
+      "text": "# BLAKE2/BLAKE3, RIPEMD, Whirlpool, SM3: compare and show BLAKE2's keyed MAC mode.\nimport hashlib\nmsg = b'nto-demo-message'\nprint(\"sha256  :\", hashlib.sha256(msg).hexdigest()[:32])\nprint(\"sha3_256:\", hashlib.sha3_256(msg).hexdigest()[:32])\ntry:\n    print(\"ripemd160:\", hashlib.new('ripemd160', msg).hexdigest())\nexcept Exception as e:\n    print(\"ripemd160: n/a\")\nprint(\"blake2b :\", hashlib.blake2b(msg, digest_size=16).hexdigest())\n# BLAKE2 has a BUILT-IN keyed MAC mode (no HMAC construction needed):\nmac = hashlib.blake2b(msg, key=b'secret-key', digest_size=16).hexdigest()\nprint(\"blake2b keyed MAC:\", mac)\n# Length-extension: BLAKE2 is NOT vulnerable because the key/params go in the IV.\nprint(\"blake2 is length-extension safe: True\")\nprint(\"flag: nto{bl4k3_2_k3y3d_m0d3_1s_bu1lt_1n}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        { "match": "--version|^-V$", "example": "python3 --version", "output": "Python 3.12.4" },
+        {
+          "match": "blake\\.py$",
+          "example": "python3 blake.py",
+          "output": "sha256  : e9e876206b5989135ca6b6dad1fc199a\nsha3_256: a3a7cee406e254c65467d97175102b5c\nripemd160: 10f1552d37340fb97d13c65cdc574e0d3bf04f00\nblake2b : bd7907c5487662cb92f34908e34e76db\nblake2b keyed MAC: 19a11f6fdbe3ccb8bfa8d8a9ed89fbd6\nblake2 is length-extension safe: True\nflag: nto{bl4k3_2_k3y3d_m0d3_1s_bu1lt_1n}\n"
+        }
+      ]
+    }
+  }
+}

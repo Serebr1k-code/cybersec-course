@@ -1,0 +1,23 @@
+{
+  "id": "hardware-dect",
+  "workdir": "/home/student/dect",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/dect/found.txt",
+    "contains": "nto{dsc_kn0wn_pl41nt3xt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/dect",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/dect/task.md",
+      "text": "# Задача: DECT DSC\n\nВ логе `dect.log` найди восстановленный ключ (строка с key=), извлеки значение и сохрани в `found.txt`.\n\n1. `grep key dect.log`\n2. `grep key dect.log | cut -d= -f2 > found.txt`\n"
+    },
+    {
+      "path": "/home/student/dect/dect.log",
+      "text": "[dect2] sync acquired: FP 00:11:22:33:44\n[dect2] RFPI: 00:11:22:33:44\n[*] known-plaintext segments: 41\nkey=nto{dsc_kn0wn_pl41nt3xt}\n[+] decoded 312 voice frames\n"
+    }
+  ]
+}

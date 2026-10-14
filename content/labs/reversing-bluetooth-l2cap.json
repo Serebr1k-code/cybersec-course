@@ -1,0 +1,38 @@
+{
+  "id": "reversing-bluetooth-l2cap",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ble_l2c4p_g4tt_r3v}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: BLE-трейс\n\n`ble_capture.pcap` — перехваченный обмен BLE.\n1. `file ble_capture.pcap` — определи формат.\n2. `strings -n 5 ble_capture.pcap` — найди GATT-сервисы и артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/ble_capture.pcap",
+      "b64": "1MOyoQIABAAAAAAAAAAAAAAAAAAAAAAAQVRUX09QX1JFQURfUkVRAEdBVFRfUFJJTUFSWV9TRVJWSUNFADAwMDBmZmYwLTAwMDAtMTAwMC04MDAwLTAwODA1ZjliMzRmYgBudG97YmxlX2wyYzRwX2c0dHRfcjN2fQA=",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <файл> — анализ захвата",
+      "cases": [
+        {
+          "match": "ble_capture",
+          "example": "-r ble_capture.pcap",
+          "output": "    1 0.000000  aa:bb:cc:dd:ee:ff -> ff:ff:ff:ff:ff:ff  ATT  27 Read Request\n    2 0.010000  ff:ff:ff:ff:ff:ff -> aa:bb:cc:dd:ee:ff  ATT  31 Read Response\n"
+        }
+      ],
+      "fallback": "tshark: используй `tshark -r <файл>`.\n"
+    }
+  }
+}

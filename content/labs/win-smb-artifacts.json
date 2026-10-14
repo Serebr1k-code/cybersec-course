@@ -1,0 +1,24 @@
+{
+  "id": "win-smb-artifacts",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{smb_unc_p4th_f0und}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: артефакты SMB\n\n`network.reg` — выгрузка ветки HKCU\\Network. Найди UNC-путь ресурса и метку.\n\n1. `cat network.reg`.\n2. `grep -i remotepath network.reg`.\n3. `grep nto network.reg > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/network.reg",
+      "text": "Windows Registry Editor Version 5.00\n[HKEY_CURRENT_USER\\Network\\Z]\n\"RemotePath\"=\"\\\\\\\\FILESRV\\\\finance\"\n\"ConnectionType\"=dword:00000001\n; nto{smb_unc_p4th_f0und}\n",
+      "mode": "644"
+    }
+  ]
+}

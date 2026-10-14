@@ -1,0 +1,24 @@
+{
+  "id": "win-winrm-logs",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w1nrm_r3m0t3_cmd_l0g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: WinRM\n\n`WinRM.log` — журнал WinRM. Найди удалённо выполненную команду и метку.\n\n1. `cat WinRM.log`.\n2. `grep -i commandline WinRM.log`.\n3. `grep nto WinRM.log > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/WinRM.log",
+      "text": "Microsoft-Windows-WinRM/Operational\nEventID 91 wsman: <rsp:CommandLine>whoami</rsp:CommandLine>\nEventID 91 wsman: <rsp:CommandLine>net user hacker P@ss /add</rsp:CommandLine>\nnote: nto{w1nrm_r3m0t3_cmd_l0g}\n",
+      "mode": "644"
+    }
+  ]
+}

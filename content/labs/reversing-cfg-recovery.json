@@ -1,0 +1,38 @@
+{
+  "id": "reversing-cfg-recovery",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cfg_r3c0v3ry_d1sp4tch3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: CFG\n\n`obf.elf` — обфусцированный бинарник.\n1. `objdump -d obf.elf` — посмотри блоки и переходы.\n2. `strings -n 5 obf.elf` — найди строку-артефакт.\n\nФлаг: `nto{...}`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/obf.elf",
+      "b64": "f0VMRgIBAQAAAAAAAAAAAAIAPgABAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAOAABAEAAAAAAAGRpc3BhdGNoZXIAanVtcCB0YWJsZQBudG97Y2ZnX3IzYzB2M3J5X2Qxc3A0dGNoM3J9AA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "objdump": {
+      "help": "objdump [-d] <файл> — дизассемблер",
+      "cases": [
+        {
+          "match": "-d",
+          "example": "-d obf.elf",
+          "output": "obf.elf:     file format elf64-x86-64\nDisassembly of section .text:\n0000000000001000 <dispatcher>:\n    1000:\tff 24 c5 00 20 00 00 \tjmp QWORD PTR [rax*8+0x2000]\n0000000000001100 <block1>:\n    1100:\te9 fb fe ff ff       \tjmp 1000 <dispatcher>\n"
+        }
+      ],
+      "fallback": "objdump: используй `objdump -d <файл>`.\n"
+    }
+  }
+}

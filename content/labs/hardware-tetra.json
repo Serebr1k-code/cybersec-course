@@ -1,0 +1,23 @@
+{
+  "id": "hardware-tetra",
+  "workdir": "/home/student/tetra",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/tetra/found.txt",
+    "contains": "nto{t3a1_32b1t_r3c0v3r3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/tetra",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/tetra/task.md",
+      "text": "# Задача: TETRA\n\nВ логе `tetra.log` найди восстановленный ключ (строка с tea=), извлеки значение и сохрани в `found.txt`.\n\n1. `grep tea= tetra.log`\n2. `grep tea= tetra.log | cut -d= -f2 > found.txt`\n"
+    },
+    {
+      "path": "/home/student/tetra/tetra.log",
+      "text": "[+] MCCH found: freq=392.0625 MHz, MCC=250, MNC=01\n[+] color code: 1\n[+] decoded 1204 speech frames\n[+] group call: TG=1001, source=226001\ntea=nto{t3a1_32b1t_r3c0v3r3d}\n"
+    }
+  ]
+}

