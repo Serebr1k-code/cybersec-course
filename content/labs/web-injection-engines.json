@@ -1,0 +1,51 @@
+{
+  "id": "web-injection-engines",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "thymeleaf"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: определение движка шаблонов\n\nЭндпоинт /hello подставляет name в шаблон. Отправь разные синтаксисы\nи определи движок. Запиши имя движка (латиницей, нижний регистр) в found.txt.\n\n1. Проверь синтаксисы:\n   curl -s 'https://app.target/hello?name=%7B%7B7*7%7D%7D'\n   curl -s 'https://app.target/hello?name=%24%7B7*7%7D'\n   curl -s 'https://app.target/hello?name=%23%7B7*7%7D'\n2. Сверь с notes.txt, определи движок.\n3. Запиши имя движка в found.txt и набери check.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Движки и синтаксис:\n  {{7*7}}      -> Jinja2/Twig (Python/PHP)\n  ${7*7}       -> Spring EL / Thymeleaf\n  #{7*7}       -> Thymeleaf preprocessing\n  @(7*7)       -> Razor (.NET)\n  {7*7}        -> Smarty (PHP)\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.target/hello)",
+      "cases": [
+        {
+          "match": "%7B%7B|\\{\\{7\\*7",
+          "example": "-s '.../hello?name={{7*7}}'",
+          "output": "Hello {{7*7}}\n"
+        },
+        {
+          "match": "%24%7B|\\$\\{7\\*7",
+          "example": "-s '.../hello?name=${7*7}'",
+          "output": "Hello ${7*7}\n"
+        },
+        {
+          "match": "%23%7B|#\\{7\\*7",
+          "example": "-s '.../hello?name=#{7*7}'",
+          "output": "Hello 49\n"
+        },
+        {
+          "match": "%40\\(|@\\(7\\*7",
+          "example": "-s '.../hello?name=@(7*7)'",
+          "output": "Hello @(7*7)\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /hello на app.target.\n"
+    }
+  }
+}

