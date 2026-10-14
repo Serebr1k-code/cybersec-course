@@ -1,0 +1,24 @@
+{
+  "id": "fs-btrfs-snapshot",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{btrfs_sn4psh0t_g3n3r4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: снапшоты Btrfs\n\n`server.img` — образ Btrfs-тома. Определи ФС и найди метку снапшота.\n\n1. `file server.img` — тип ФС.\n2. `strings server.img | grep BHRfS` — магия суперблока.\n3. `strings server.img | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/server.img",
+      "b64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAF9CSFJmU19NAAAAAAAAAAAAAAAAAAAAAHN1cGVyYmxvY2sgb2Zmc2V0IDB4MTAwMDAKc3Vidm9sIHJvb3QgZ2VuPTExOApzbmFwc2hvdCBkYmRhdGEvc25hcC0yMDI2LTAzLTExIGdlbj05MgpzbmFwc2hvdCBkYmRhdGEvc25hcC0yMDI2LTAzLTEyIGdlbj0xMDQKTEFCRUw6IG50b3tidHJmc19zbjRwc2gwdF9nM24zcjR0MTBufQo=",
+      "mode": "644"
+    }
+  ]
+}

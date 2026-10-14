@@ -1,0 +1,24 @@
+{
+  "id": "fs-ntfs-logfile",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ntfs_l0gfile_r3d0_und0}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: журнал NTFS $LogFile\n\n`LogFile` — журнал транзакций метаданных NTFS. Найди запись-улику.\n\n1. `ls -la LogFile` и `file LogFile`.\n2. `strings LogFile | grep -Ei 'FILE0|LSN|REDO'`.\n3. `strings LogFile | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/LogFile",
+      "b64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGSUxFMApMU04gMDAwMDAwMDAwMDAxYTRmMiBSRURPX0FDVElPTiBDbGllbnRSZWNvcmQKTFNOIDAwMDAwMDAwMDAwMWE0ZjMgVU5ET19BQ1RJT04gU2V0TmV3QXR0cmlidXRlU2l6ZXMKTFNOIDAwMDAwMDAwMDAwMWE1MDEgUkVET19BQ1RJT04gQ3JlYXRlRmlsZVJlY29yZApSRVNUQVJUX1BBR0UgbWFnaWMgMHg1MjUzNTQ1MgpFVklERU5DRTogbnRve250ZnNfbDBnZmlsZV9yM2QwX3VuZDB9Cg==",
+      "mode": "644"
+    }
+  ]
+}

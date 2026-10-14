@@ -1,0 +1,24 @@
+{
+  "id": "fs-zfs-arc-zil",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{zfs_z1l_ub3rbl0ck_txg}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: пул ZFS\n\n`zpool.img` — образ диска из пула ZFS. Опознай ФС и найди метку в истории пула.\n\n1. `file zpool.img` — тип ФС.\n2. `strings zpool.img | grep -i uberblock` — uberblock и txg.\n3. `strings zpool.img | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/zpool.img",
+      "b64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFpGUyB2ZGV2IGxhYmVsIEwwCnViZXJibG9jazogbWFnaWMgMHgwMGJhYjEwYyB0eGc9NDgyMQpaSUw6IDMgb3V0c3RhbmRpbmcgbG9nIHJlY29yZHMKU0xPRyBkZXZpY2U6IG52bWUwbjFwMgpwb29sIG5hbWU6IHRhbmsKUE9PTCBISVNUT1JZOiBudG97emZzX3oxbF91YjNyYmwwY2tfdHhnfQoMsboAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      "mode": "644"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "fs-ntfs-compression",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ntfs_lznt1_w0f_sp4rs3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: сжатый файл NTFS\n\n`secret.dat` — поток из образа NTFS. Определи вид сжатия и найди метку.\n\n1. `ls -la secret.dat` и `file secret.dat`.\n2. `strings secret.dat | grep -Ei 'LZNT1|Wof|SPARSE'`.\n3. `strings secret.dat | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/secret.dat",
+      "b64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAATFpOVDEgY29tcHJlc3NlZCBzdHJlYW0KdW5pdD0xNiBjbHVzdGVyCldvZkNvbXByZXNzZWREYXRhIGFsdGVybmF0aXZlIHN0cmVhbSBwcmVzZW50ClNQQVJTRSBydW46IDEyIGNsdXN0ZXJzIG5vdCBhbGxvY2F0ZWQKRVZJREVOQ0U6IG50b3tudGZzX2x6bnQxX3cwZl9zcDRyczN9Cg==",
+      "mode": "644"
+    }
+  ]
+}
