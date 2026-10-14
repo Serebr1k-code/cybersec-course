@@ -1,0 +1,24 @@
+{
+  "id": "win-windows-update",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{wu_p4tch_r0llb4ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Windows Update\n\n`CBS.log` — журнал обслуживания. Найди откат патча и метку.\n\n1. `file CBS.log`.\n2. `grep -iE 'installed|removed' CBS.log`.\n3. `grep nto CBS.log > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/CBS.log",
+      "text": "CBS servicing log\nInstalled KB5034441 on 2025-05-14\nInstalled KB5039212 on 2025-05-20\nRemoved KB5034441 on 2025-05-28 (rollback)\nnote: nto{wu_p4tch_r0llb4ck}\n",
+      "mode": "644"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "win-evtx-tampering",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3vtx_t4mp3r_g4p}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: целостность EVTX\n\n`Security.evtx` — выгрузка журнала. Найди событие очистки и разрыв, затем метку.\n\n1. `file Security.evtx`.\n2. `grep -iE '1102|gap' Security.evtx`.\n3. `grep nto Security.evtx > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/Security.evtx",
+      "text": "ElfFile EVTX event log\nrecord 1 4624 logon\nrecord 2 4624 logon\nrecord 5 1102 audit log cleared by CORP-hacker\ngap: records 3 and 4 missing\nnote: nto{3vtx_t4mp3r_g4p}\n",
+      "mode": "644"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "win-quarantine",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{qu4r4nt1n3_m3t4d4t4}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: карантин антивируса\n\n`quarantine.dat` — файл карантина. Найди исходный путь и имя угрозы, затем метку.\n\n1. `file quarantine.dat`.\n2. `strings quarantine.dat | grep -iE 'path|threat'`.\n3. `grep nto quarantine.dat > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/quarantine.dat",
+      "text": "Defender Quarantine container\noriginal path: C:/Users/jdoe/Downloads/invoice.exe\nthreat: Trojan:Win32/Emotet\nisolated: 2025-05-28 21:12:00\nnote: nto{qu4r4nt1n3_m3t4d4t4}\n",
+      "mode": "644"
+    }
+  ]
+}

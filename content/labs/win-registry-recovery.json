@@ -1,0 +1,24 @@
+{
+  "id": "win-registry-recovery",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r3g_sl4ck_r3c0v3ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: восстановление реестра\n\n`SYSTEM` — hive. Найди удалённую службу в слэке и метку.\n\n1. `file SYSTEM`.\n2. `strings SYSTEM | grep -iE 'slack|evilsvc'`.\n3. `grep nto SYSTEM > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/SYSTEM",
+      "text": "regf hive file\nCurrentControlSet-Services-Legit-ImagePath = System32/legit.exe\nslack: CurrentControlSet-Services-EvilSvc-ImagePath = Users/Public/evil.exe\nLOG1: transaction add EvilSvc\nnote: nto{r3g_sl4ck_r3c0v3ry}\n",
+      "mode": "644"
+    }
+  ]
+}
