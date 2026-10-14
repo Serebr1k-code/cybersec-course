@@ -1,0 +1,29 @@
+{
+  "id": "hardware-emfi",
+  "workdir": "/home/student/emfi",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/emfi/found.txt",
+    "contains": "nto{3mf1_gl1tch_4t_t4rg3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/emfi",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/emfi/task.md",
+      "text": "# Задача: кампания EMFI\n\nТы перебирал параметры электромагнитного импульса — журнал в `emfi-run.txt`. Найди флаг успешной кампании.\n\nПолезные команды: `cat`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/emfi/notes.md",
+      "text": "Заметки\n------\n- Fault injection: вызвать сбой в момент проверки.\n- EMFI: бесконтактно, катушка + импульс тока -> магнитное поле.\n- Параметры: delay, width, power, position.\n- Нужна синхронизация (триггер) с событием проверки.\n- Флаг идёт после 'flag='.\n"
+    },
+    {
+      "path": "/home/student/emfi/emfi-run.txt",
+      "text": "target: secure MCU, running auth check\ncoil: 1 mm, positioned over die center\nparam x: delay=1200 ns\nparam y: width=200 ns\nparam z: power=40%\nresult: auth bypass (PC jump)\nflag=nto{3mf1_gl1tch_4t_t4rg3t}\nattempts: 3841 (1 success)\n"
+    }
+  ],
+  "tools": {}
+}

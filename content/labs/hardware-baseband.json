@@ -1,0 +1,29 @@
+{
+  "id": "hardware-baseband",
+  "workdir": "/home/student/baseband",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/baseband/found.txt",
+    "contains": "nto{b4s3b4nd_47_cmd_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/baseband",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/baseband/task.md",
+      "text": "# Задача: реверс прошивки baseband\n\nТы сделал `strings` по дампу прошивки модема — результат в `firmware-strings.txt`. Найди секрет и достань флаг.\n\nПолезные команды: `cat`, `strings`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/baseband/notes.md",
+      "text": "Заметки\n------\n- Baseband обслуживает радио и стек сотовой связи, работает на RTOS.\n- Прошивка реверсится: binwalk (разделы) -> Ghidra (код).\n- AT-команды (AT+CFUN, AT+CSQ, AT+COPS) — интерфейс к модему.\n- AT-парсер — классическое место переполнений.\n- Флаг лежит в ответе AT-команды в дампе строк.\n"
+    },
+    {
+      "path": "/home/student/baseband/firmware-strings.txt",
+      "text": "MODEM_FW v3.2.1\n[init] RTOS task table\nAT+CFUN=1\nAT+CSQ\nAT+COPS?\n[err] stack overflow in at_parser\nAT+CGDCONT=1,\"IP\",\"internet\"\n[AT response] +SECRET: nto{b4s3b4nd_47_cmd_rce}\n[dbg] modem debug port ttyUSB2\n"
+    }
+  ],
+  "tools": {}
+}

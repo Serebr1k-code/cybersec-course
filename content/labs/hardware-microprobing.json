@@ -1,0 +1,29 @@
+{
+  "id": "hardware-microprobing",
+  "workdir": "/home/student/probe",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/probe/found.txt",
+    "contains": "nto{m1cr0pr0b3_s1gn4l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/probe",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/probe/task.md",
+      "text": "# Задача: карта микропробирования\n\nТы составил план подключения зондов к кристаллу в `probe-plan.txt`. Найди целевую метку и достань флаг.\n\nПолезные команды: `cat`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/probe/notes.md",
+      "text": "Заметки\n------\n- Микропробирование: зонды к внутренним дорожкам через микроманипулятор.\n- Оборудование: микроскоп/SEM, зонды, логический анализатор, FIB.\n- Внутренние сигналы не выведены на контакты — читаем прямо с кремния.\n- Нетлист — схема соединений транзисторов.\n- Целевая метка идёт после 'target='.\n"
+    },
+    {
+      "path": "/home/student/probe/probe-plan.txt",
+      "text": "die: MCU-SEC-01 rev B\nstage: microprobing\nprobe 1: VDD rail (confirm power)\nprobe 2: internal bus DATA[0]\nprobe 3: internal bus DATA[1]\nprobe 4: ROM address latch\ngoal: read ROM contents via bus\ntarget=nto{m1cr0pr0b3_s1gn4l}\nnext: reconstruct netlist\n"
+    }
+  ],
+  "tools": {}
+}

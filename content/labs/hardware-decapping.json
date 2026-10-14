@@ -1,0 +1,29 @@
+{
+  "id": "hardware-decapping",
+  "workdir": "/home/student/decap",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/decap/found.txt",
+    "contains": "nto{d3c4p_4c1d_3tch}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/decap",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/decap/task.md",
+      "text": "# Задача: журнал декапсуляции\n\nТы вскрыл корпус чипа и записал процесс в `decap-log.txt`. Найди маркер результата и достань флаг.\n\nПолезные команды: `cat`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/decap/notes.md",
+      "text": "Заметки\n------\n- Декапсуляция: механическая фрезеровка -> кислотное травление (HNO3) или плазма.\n- Тип корпуса (QFN/BGA/COB/flip-chip) определяет подход.\n- После вскрытия кристалл промывают и картографируют.\n- Перетрав и задевание кристалла необратимо портят образец.\n- Маркер результата идёт после 'marker='.\n"
+    },
+    {
+      "path": "/home/student/decap/decap-log.txt",
+      "text": "sample: MCU-SEC-01, package: QFN48\nstep 1: milling top of package (plastic removed)\nstep 2: fuming nitric acid, 60C, 45s\nstep 3: rinse DI water, inspect under microscope\nstep 4: die exposed, bond wires intact\nobservation: ROM array visible at (x=120,y=88)\nresult: marker=nto{d3c4p_4c1d_3tch}\nnext: prepare for microprobing\n"
+    }
+  ],
+  "tools": {}
+}

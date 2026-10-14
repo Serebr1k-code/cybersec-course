@@ -1,0 +1,29 @@
+{
+  "id": "hardware-fib-edit",
+  "workdir": "/home/student/fib",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/fib/found.txt",
+    "contains": "nto{f1b_3d1t_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/fib",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/fib/task.md",
+      "text": "# Задача: план FIB-правки\n\nТы вёл журнал правки схемы на FIB-станции в `fib-log.txt`. Найди результат и достань флаг.\n\nПолезные команды: `cat`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/fib/notes.md",
+      "text": "Заметки\n------\n- FIB: ионный пучок, режет и напыляет металл на кристалле.\n- Circuit-edit: правка проводников готового чипа.\n- Атака: перерезать/замкнуть линию lock-бита -> обход readout protection.\n- Цепочка: декапсуляция -> картография -> FIB -> эксплуатация.\n- Результат идёт после 'result='.\n"
+    },
+    {
+      "path": "/home/student/fib/fib-log.txt",
+      "text": "die: MCU-SEC-01 rev B\nstage: focused ion beam (FIB)\nstep 1: locate lock-bit control line\nstep 2: cut trace LOCK_CTRL (1 um)\nstep 3: deposit Pt bridge bypassing lock gate\nstep 4: verify continuity\nobservation: readout protection disabled\nresult=nto{f1b_3d1t_byp4ss}\nnext: dump flash\n"
+    }
+  ],
+  "tools": {}
+}

@@ -1,0 +1,29 @@
+{
+  "id": "hardware-sim-esim",
+  "workdir": "/home/student/sim",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/sim/found.txt",
+    "contains": "nto{51m_4pdu_k1_3xtr4ct3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/sim",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/sim/task.md",
+      "text": "# Задача: APDU-обмен с USIM\n\nТы записал обмен телефона со смарт-картой в `apdu.log`. Найди ответ с полезной нагрузкой и достань флаг.\n\nПолезные команды: `cat`, `strings`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/sim/notes.md",
+      "text": "Заметки\n------\n- USIM: файлы MF/DF/EF, доступ через APDU (SELECT, READ BINARY).\n- AUTHENTICATE (A0 88) выполняет AKA; Ki не покидает карту.\n- Ki/OPc хранятся в защищённой памяти, наружу идут RAND и RES.\n- eSIM: профили грузятся через RSP (SM-DP+/SM-DS/LPA).\n- Нагрузка в логе идёт после 'data='.\n"
+    },
+    {
+      "path": "/home/student/sim/apdu.log",
+      "text": "SELECT AID=A0000000871002 (USIM)\nSELECT file=3F00 (MF)\nSELECT file=7F20 (DF GSM)\nSELECT file=6F07 (IMSI)\nREAD BINARY len=9 -> data=08 29 05 10 32 54 76 98 F0\nSELECT file=6F38 (EF_AD)\nGET RESPONSE\nAUTHENTICATE RAND=0xA1B2C3D4 -> RES=0x11223344\nEF_ADMIN: data=nto{51m_4pdu_k1_3xtr4ct3d}\n"
+    }
+  ],
+  "tools": {}
+}
