@@ -190,7 +190,16 @@ function onMove(e) {
   view.value.ty = sty + dy
 }
 function onUp() { dragging = false }
-function onCaptureClick(e) { if (moved) { e.preventDefault(); e.stopPropagation() } }
+function onCaptureClick(e) {
+  // A long-press already opened the menu: swallow the synthesized click so the
+  // lesson does NOT also navigate. Same guard for a drag-pan (moved).
+  if (longPressFired) {
+    e.preventDefault(); e.stopPropagation()
+    longPressFired = false
+    return
+  }
+  if (moved) { e.preventDefault(); e.stopPropagation() }
+}
 
 // ---- touch: один палец — панорама, два пальца — пинч-зум ---------------
 // Мышь-события на тач-устройствах ненадёжны, поэтому добавляем touch-обработку.
@@ -240,6 +249,47 @@ function onTouchEnd(e) {
     pinchDist = 0
   }
 }
+
+// ---- long-press on a lesson node → the right-click context menu ------------
+// Touch devices have no right-click, so a ~500ms press (without moving the
+// finger) opens the SAME completion menu at the touch point. A short tap still
+// navigates (the RouterLink click fires normally), a drag still pans and a
+// pinch still zooms — the timer is cancelled as soon as the finger moves past a
+// small threshold or a second finger joins.
+const LONG_PRESS_MS = 500
+const LONG_PRESS_MOVE_PX = 10
+let pressTimer = null
+let pressId = ''
+let pressX = 0
+let pressY = 0
+// Set once the press has fired so the following synthetic click is swallowed.
+let longPressFired = false
+
+function onNodeTouchStart(e, id) {
+  if (e.touches.length !== 1) { cancelLongPress(); return }
+  const t = e.touches[0]
+  pressId = id
+  pressX = t.clientX
+  pressY = t.clientY
+  longPressFired = false
+  clearTimeout(pressTimer)
+  pressTimer = setTimeout(() => {
+    pressTimer = null
+    // openMenu returns false for a hub (no menu) — then the gesture is left
+    // alone and the hub's normal tap/navigation still works.
+    longPressFired = openMenu({ clientX: pressX, clientY: pressY }, pressId)
+    if (longPressFired) dragging = false // don't also pan under the open menu
+  }, LONG_PRESS_MS)
+}
+function onNodeTouchMove(e) {
+  if (!pressTimer) return
+  const t = e.touches[0]
+  if (!t || Math.hypot(t.clientX - pressX, t.clientY - pressY) > LONG_PRESS_MOVE_PX) cancelLongPress()
+}
+function cancelLongPress() {
+  if (pressTimer) { clearTimeout(pressTimer); pressTimer = null }
+}
+function onNodeTouchEnd() { cancelLongPress() }
 
 // ---- fit / focus ----------------------------------------------------------
 // Масштаб+сдвиг так, чтобы ВСЯ категория помещалась в канвас с полями.
@@ -343,12 +393,30 @@ function toggleCollapse(id) {
 }
 function setHover(id) { hoverId.value = id || '' }
 
-// ---- right-click context menu: toggle lesson completion -------------------
+// ---- right-click / long-press context menu: toggle lesson completion ------
 // Completion applies to REAL LESSONS only — a hub / connector node is not a
-// lesson, so it gets no context menu.
+// lesson, so it gets no context menu. Opened by right-click (desktop) OR a
+// long-press (touch); both land on the SAME menu.
 const menu = ref({ show: false, x: 0, y: 0, id: '' })
+const menuEl = ref(null)
+// Keep the menu fully inside the canvas so it never spills off-screen — a
+// long-press can land right at an edge, especially on a phone. Measured after
+// render (offsetWidth/Height) and clamped with a small margin.
+function clampMenu() {
+  const el = menuEl.value
+  const r = canvasRect()
+  if (!el || !r || !r.cw || !r.ch) return
+  const maxX = Math.max(4, r.cw - (el.offsetWidth || 0) - 4)
+  const maxY = Math.max(4, r.ch - (el.offsetHeight || 0) - 4)
+  menu.value = {
+    ...menu.value,
+    x: Math.max(4, Math.min(menu.value.x, maxX)),
+    y: Math.max(4, Math.min(menu.value.y, maxY))
+  }
+}
+// Returns true when the menu actually opened (false for a hub, which has none).
 function openMenu(e, id) {
-  if (isHubNode(nodeById.value[id])) return
+  if (isHubNode(nodeById.value[id])) return false
   const el = wrap.value
   const r = el ? el.getBoundingClientRect() : null
   menu.value = {
@@ -357,6 +425,8 @@ function openMenu(e, id) {
     y: r ? e.clientY - r.top : e.clientY,
     id
   }
+  nextTick(clampMenu)
+  return true
 }
 function closeMenu() { if (menu.value.show) menu.value = { ...menu.value, show: false } }
 async function markNode(id, completed) {
@@ -370,10 +440,31 @@ async function markNode(id, completed) {
   }
 }
 function onOutsideDown(e) {
+  // Ignore the compatibility mouse events a touch gesture synthesizes: on a
+  // phone a long-press would otherwise fire a mousedown right after the menu
+  // opened and close it again. Real (mouse) outside clicks still close it.
+  if (touchActive) return
   const t = e.target
   if (menu.value.show && !(t && t.closest && t.closest('.ctx-menu'))) closeMenu()
 }
 function onKeydown(e) { if (e.key === 'Escape') closeMenu() }
+
+// Touch-originated outside tap closes the menu (the mouse path above can't be
+// used, as synthetic mouse events are suppressed while a touch is active).
+let touchActive = false
+let touchActiveTimer = null
+function onWindowTouchStart(e) {
+  touchActive = true
+  if (touchActiveTimer) { clearTimeout(touchActiveTimer); touchActiveTimer = null }
+  longPressFired = false // a fresh gesture starts clean
+  const t = e.target
+  if (menu.value.show && !(t && t.closest && t.closest('.ctx-menu'))) closeMenu()
+}
+function onWindowTouchEnd() {
+  // Compatibility mouse events fire within a few hundred ms of touchend.
+  if (touchActiveTimer) clearTimeout(touchActiveTimer)
+  touchActiveTimer = setTimeout(() => { touchActive = false; touchActiveTimer = null }, 700)
+}
 
 defineExpose({ fit, focusNode, centerNode, toggleCollapse, collapseAll, expandAll, visibleSet, layout })
 
@@ -390,6 +481,9 @@ onMounted(() => {
   window.addEventListener('mouseup', onUp)
   window.addEventListener('mousedown', onOutsideDown)
   window.addEventListener('keydown', onKeydown)
+  window.addEventListener('touchstart', onWindowTouchStart, { passive: true })
+  window.addEventListener('touchend', onWindowTouchEnd, { passive: true })
+  window.addEventListener('touchcancel', onWindowTouchEnd, { passive: true })
   if (typeof ResizeObserver !== 'undefined') {
     ro = new ResizeObserver(() => {
       // Первый колбэк приходит сразу после observe() — пропускаем его, иначе
@@ -405,6 +499,11 @@ onBeforeUnmount(() => {
   window.removeEventListener('mouseup', onUp)
   window.removeEventListener('mousedown', onOutsideDown)
   window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('touchstart', onWindowTouchStart)
+  window.removeEventListener('touchend', onWindowTouchEnd)
+  window.removeEventListener('touchcancel', onWindowTouchEnd)
+  if (pressTimer) { clearTimeout(pressTimer); pressTimer = null }
+  if (touchActiveTimer) { clearTimeout(touchActiveTimer); touchActiveTimer = null }
   if (ro) ro.disconnect()
 })
 </script>
@@ -472,6 +571,10 @@ onBeforeUnmount(() => {
           @mouseenter="setHover(n.id)"
           @mouseleave="setHover('')"
           @contextmenu.prevent="openMenu($event, n.id)"
+          @touchstart="onNodeTouchStart($event, n.id)"
+          @touchmove="onNodeTouchMove"
+          @touchend="onNodeTouchEnd"
+          @touchcancel="onNodeTouchEnd"
         >
           <LessonNode
             :node="n"
@@ -490,6 +593,7 @@ onBeforeUnmount(() => {
 
     <div
       v-if="menu.show"
+      ref="menuEl"
       class="ctx-menu"
       :style="{ left: menu.x + 'px', top: menu.y + 'px' }"
       @contextmenu.prevent
@@ -510,6 +614,8 @@ onBeforeUnmount(() => {
   /* Жесты обрабатываем сами (пан/пинч) — браузерный скролл на канвасе выключаем. */
   touch-action: none;
   -webkit-user-select: none; user-select: none;
+  /* Долгое нажатие открывает наше меню, а не нативный callout/copy-меню. */
+  -webkit-touch-callout: none;
 }
 .canvas:active { cursor: grabbing; }
 .stage { position: absolute; top: 0; left: 0; transform-origin: 0 0; }

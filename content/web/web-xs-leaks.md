@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как, не читая ответ чужого домена, узнать его содержимое по косвенным признакам: кэш, тайминги, ошибки, фреймы."
+lab:
+  kind: shell
+  title: "Практика: cache probing раскрывает состояние логина"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Сравни ответы анонима и залогиненного (`-b 'session=me'`)."
+    - "Аноним получает `302 location: /login`, а `cache-control: public` делает ответ кэшируемым."
+    - "Разница сигнала (код ответа / время HIT-MISS) и есть оракул — состояние логина утекает."
+    - "Достань приватную страницу: `curl -s https://target.local/account -b 'session=me' > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

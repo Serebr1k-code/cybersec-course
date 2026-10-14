@@ -1,0 +1,38 @@
+{
+  "id": "reversing-embedded-rtos",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c0rt3x_m4_thum8_fnv_l1c3ns3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разбор bare-metal/RTOS прошивки\n\nВ каталоге `firmware.bin` — сырой образ прошивки IoT-устройства (Cortex-M4).\n\n1. `file firmware.bin` — тип файла (сырой образ, не ELF).\n2. `xxd -l 64 firmware.bin` — первые байты: таблица векторов (SP + Reset_Handler).\n3. `strings -n 4 firmware.bin` — строки: имя RTOS, символы задач, константы FNV.\n4. Найди строку лицензии с маркером.\n\nФлаг: `nto{...}` среди строк прошивки.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/firmware.bin",
+      "b64": "AIABIAEAAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABGcmVlUlRPUyBWMTAuNC4zAGJhcmUtbWV0YWwgU1RNMzJGNAB0YXNrX2NoZWNrAG1vdncgcjEsIzB4OWRjNQBtb3Z0IHIxLCMweDgxMWMAMHg4MTFjOWRjNQAweDAxMDAwMTkzAGxpY2VuY2U9bnRve2MwcnQzeF9tNF90aHVtOF9mbnZfbDFjM25zM30AAAAAAAAAAA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "binwalk": {
+      "help": "binwalk <файл> — сигнатурный анализ образа",
+      "cases": [
+        {
+          "match": "firmware\\.bin",
+          "example": "binwalk firmware.bin",
+          "output": "DECIMAL       HEXADECIMAL     DESCRIPTION\n0             0x0             ARM exception vector table\n128           0x80            FreeRTOS task list (ASCII)\n"
+        }
+      ],
+      "fallback": "binwalk: в этой лабе эмулируется.\n"
+    }
+  }
+}

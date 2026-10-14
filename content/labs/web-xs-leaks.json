@@ -1,0 +1,43 @@
+{
+  "id": "web-xs-leaks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c4ch3_pr0b1ng_l34ks_l0g1n_st4t3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: XS-Leaks — cache probing\n\n`target.local/account` — приватная страница: аноним получает редирект, пользователь — 200.\nОбе версии кэшируются (`cache-control: public`), значит возможен cache probing.\n\n1. Ответ анониму: `curl -s -I https://target.local/account`.\n2. Ответ залогиненному: `curl -s -I https://target.local/account -b 'session=me'`.\n3. Разница (`302` vs `200`, HIT/MISS) — оракул состояния логина.\n4. Достань приватную страницу залогиненной сессией — там флаг.\n\nФлаг: `nto{...}` на приватной странице.\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция target.local)",
+      "cases": [
+        {
+          "match": "account[^\\n]*session=me|session=me[^\\n]*account",
+          "example": "-s https://target.local/account -b 'session=me'",
+          "output": "HTTP/1.1 200 OK\r\ncache-control: public, max-age=60\r\ncontent-type: text/html\r\n\r\n<h1>Account</h1>\n<p>nto{c4ch3_pr0b1ng_l34ks_l0g1n_st4t3}</p>\n"
+        },
+        {
+          "match": "account",
+          "example": "-s -I https://target.local/account",
+          "output": "HTTP/1.1 302 Found\r\nlocation: /login\r\ncache-control: public, max-age=60\r\n"
+        },
+        {
+          "match": "target\\.local",
+          "example": "-s -I https://target.local/",
+          "output": "HTTP/1.1 200 OK\r\ncache-control: public, max-age=60\r\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется target.local.\n"
+    }
+  }
+}

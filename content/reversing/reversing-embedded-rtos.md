@@ -13,6 +13,18 @@ useful_for:
   - "Firmware analysis"
 estimated_minutes: 60
 summary: "Разбор прошивок embedded: Cortex-M, bare-metal, FreeRTOS, восстановление задач, символов и логики."
+lab:
+  kind: shell
+  title: "Практика: строки и константы bare-metal прошивки"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "`file firmware.bin` скажет `data` — это сырой образ, а не ELF."
+    - "Таблица векторов в начале: `xxd -l 64 firmware.bin` — первые 4 байта это начальный SP."
+    - "`strings -n 4 firmware.bin` вытащит имена RTOS, задач и константы FNV (0x811c9dc5)."
+    - "Сохрани строки: `strings -n 4 firmware.bin > found.txt`."
 ---
 ## Вопрос, с которого всё начинается
 

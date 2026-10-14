@@ -1,0 +1,38 @@
+{
+  "id": "crypto-lattice-bkz",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{lll_3mb3dd1ng_cvp_b4b41}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: CVP через embedding\n\nВ каталоге `attack.sage` — скрипт: решётка порождена `(7,0),(0,7)`, цель `t=(15,9)`.\nПриём embedding (Kannan) сводит CVP к SVP: цель добавляется строкой `[t, M]`.\n\n1. Прочитай скрипт: `cat attack.sage`.\n2. Запусти редуцирование: `sage attack.sage`.\n3. Найди короткий вектор с последней координатой `±M` — его первые координаты\n   это ошибка `v − t`; сам секрет `v = t − ошибка`.\n\nФлаг: `nto{...}` в выводе скрипта.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/attack.sage",
+      "text": "M = 1000\nL = Matrix(ZZ, [[7,0,0],[0,7,0],[15,9,M]])\nR = L.LLL()\nfor row in R:\n    if abs(row[-1]) == M:\n        err = [int(x) for x in row[:2]]\n        v = [15 - err[0], 9 - err[1]]\n        print('error:', err)\n        print('closest vector:', v)\nprint('flag: nto{lll_3mb3dd1ng_cvp_b4b41}')\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "sage": {
+      "help": "sage <скрипт> — математический интерпретатор (эмуляция)",
+      "cases": [
+        {
+          "match": "attack\\.sage",
+          "example": "sage attack.sage",
+          "output": "row: [1, 2, 1000]\nerror: [1, 2]\nclosest vector: [14, 7]\nflag: nto{lll_3mb3dd1ng_cvp_b4b41}\n"
+        }
+      ],
+      "fallback": "sage: в этой лабе эмулируется.\n"
+    }
+  }
+}

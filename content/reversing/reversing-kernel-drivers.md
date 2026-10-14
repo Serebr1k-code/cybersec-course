@@ -13,6 +13,18 @@ useful_for:
   - "Anti-cheat / kernel research"
 estimated_minutes: 70
 summary: "Анализ kernel-драйверов Windows и модулей Linux: точки входа, IOCTL, хуки, rootkit-техники и безопасный разбор."
+lab:
+  kind: shell
+  title: "Практика: паспорт и строки kernel-модуля"
+  toolset: [core, hex]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с `file vboxnetflt.ko` — это ELF. Исполняемый или объектный?"
+    - "`readelf -h` покажет `Type: REL (Relocatable file)` — не готовая программа, а объектный файл."
+    - "`strings -n 6 vboxnetflt.ko` даёт карту функциональности и подсказки-символы."
+    - "Сохрани строки: `strings -n 6 vboxnetflt.ko > found.txt`, затем `check`."
 ---
 
 ## Задача

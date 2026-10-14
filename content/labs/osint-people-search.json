@@ -1,0 +1,49 @@
+{
+  "id": "osint-people-search",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{gr4v4t4r_md5_p1v0t_t0_1d3nt1ty}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: поиск людей по email\n\nЕсть публичный контакт `katie.konans@nasa.gov` (из RSS-фида подкаста).\n\n1. Gravatar-хэш: `echo 'katie.konans@nasa.gov' | md5sum`.\n2. Проверь аватар: `curl -s -o /dev/null -w \"%{http_code}\\n\" \"https://www.gravatar.com/avatar/<хэш>?d=404\"`.\n3. Пивот по имени в поиске аккаунтов: `curl -s \"https://api.github.com/search/users?q=katie+konans\"`.\n4. Найденный профиль раскрывает флаг.\n\nФлаг: `nto{...}` в ответе поиска аккаунтов.\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "md5sum": {
+      "help": "md5sum [файл] — MD5-хэш (читает stdin)",
+      "cases": [
+        {
+          "match": "katie\\.konans",
+          "example": "echo 'katie.konans@nasa.gov' | md5sum",
+          "output": "b8ae00a794de734a080f1cf636111443  -\n"
+        }
+      ],
+      "fallback": "md5sum: в этой лабе эмулируется.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция gravatar/github)",
+      "cases": [
+        {
+          "match": "api\\.github\\.com",
+          "example": "-s \"https://api.github.com/search/users?q=katie+konans\"",
+          "output": "{\"total_count\":1,\"items\":[{\"login\":\"kkonans\",\"name\":\"Katie Konans\",\"html_url\":\"https://github.com/kkonans\",\"flag\":\"nto{gr4v4t4r_md5_p1v0t_t0_1d3nt1ty}\"}]}\n"
+        },
+        {
+          "match": "gravatar\\.com/avatar",
+          "example": "-s -o /dev/null -w \"%{http_code}\" \"https://www.gravatar.com/avatar/b8ae00a794de734a080f1cf636111443?d=404\"",
+          "output": "404\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируются gravatar.com и api.github.com.\n"
+    }
+  }
+}

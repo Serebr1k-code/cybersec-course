@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 42
 summary: "Как использовать WebSocket-апгрейд для рассинхронизации HTTP-соединения, туннелирования и обхода прокси."
+lab:
+  kind: shell
+  title: "Практика: CSWSH — угон WebSocket-сессии без проверки Origin"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Рукопожатие WS — это обычный HTTP: `curl -s https://target.local/chat`."
+    - "CSWSH ловится чужим Origin: `-H 'Origin: https://evil.com'`."
+    - "Если ответ `101 Switching Protocols` — сервер Origin не проверяет."
+    - "Сохрани ответ с историей: `curl -s -i -H 'Connection: Upgrade' -H 'Upgrade: websocket' -H 'Origin: https://evil.com' https://target.local/chat > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

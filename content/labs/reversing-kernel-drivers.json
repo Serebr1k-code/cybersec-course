@@ -1,0 +1,65 @@
+{
+  "id": "reversing-kernel-drivers",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{k0_10ctl_0x8004a10c_s3cr3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разбор модуля ядра `.ko`\n\nВ каталоге `vboxnetflt.ko` — модуль ядра Linux. Разбери его статически.\n\n1. `file vboxnetflt.ko` — что это за файл.\n2. `readelf -h vboxnetflt.ko` — тип (`REL`), архитектура, точка входа.\n3. `modinfo vboxnetflt.ko` — «паспорт»: имя, версия, зависимости, подпись.\n4. `strings -n 6 vboxnetflt.ko` — карта функциональности; найди секретный маркер.\n\nФлаг: `nto{...}` среди строк модуля.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/vboxnetflt.ko",
+      "b64": "f0VMRgIBAQAAAAAAAAAAAAEAPgABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAubW9kaW5mbwBuYW1lPXZib3huZXRmbHQAdmVyc2lvbj03LjIuMTYgcjE3NDg3NwBkZXNjcmlwdGlvbj1PcmFjbGUgVmlydHVhbEJveCBOZXR3b3JrIEZpbHRlciBEcml2ZXIAZGVwZW5kcz12Ym94ZHJ2AHZlcm1hZ2ljPTYuMTkuMTEtYXJjaDEtMSBTTVAgcHJlZW1wdCBtb2RfdW5sb2FkAAAAAAAAAAAAAAAAAAAAAABWQm94TmV0Rmx0TGludXhJbml0AHZib3hOZXRGbHRMaW51eEhvb2tEZXYAc2VjcmV0X250b3trMF8xMGN0bF8weDgwMDRhMTBjX3MzY3IzdH0AAAAAAAAAAA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "readelf": {
+      "help": "readelf [-h|-S] <файл> — заголовки ELF",
+      "cases": [
+        {
+          "match": "-h|--file-header",
+          "example": "readelf -h vboxnetflt.ko",
+          "output": "ELF Header:\n  Type:                              REL (Relocatable file)\n  Machine:                           Advanced Micro Devices X86-64\n  Entry point address:               0x0\n"
+        },
+        {
+          "match": "-S|--section-headers",
+          "example": "readelf -S vboxnetflt.ko",
+          "output": "  [ 3] .text      PROGBITS\n  [10] .init.text PROGBITS\n  [14] .exit.text PROGBITS\n  [18] .modinfo  PROGBITS\n"
+        }
+      ],
+      "fallback": "readelf: в этой лабе эмулируется.\n"
+    },
+    "modinfo": {
+      "help": "modinfo <модуль> — метаданные модуля ядра",
+      "cases": [
+        {
+          "match": "vboxnetflt",
+          "example": "modinfo vboxnetflt.ko",
+          "output": "name:           vboxnetflt\nversion:        7.2.16 r174877\nlicense:        GPL\ndescription:    Oracle VirtualBox Network Filter Driver\ndepends:        vboxdrv\nvermagic:       6.19.11-arch1-1 SMP preempt mod_unload\nsigner:         DKMS module signing key\n"
+        }
+      ],
+      "fallback": "modinfo: в этой лабе эмулируется.\n"
+    },
+    "nm": {
+      "help": "nm <файл> — таблица символов",
+      "cases": [
+        {
+          "match": "vboxnetflt",
+          "example": "nm vboxnetflt.ko",
+          "output": "0000000000000010 t VBoxNetFltLinuxInit\n0000000000000000 T __pfx_init_module\n0000000000000000 T __pfx_cleanup_module\n"
+        }
+      ],
+      "fallback": "nm: в этой лабе эмулируется.\n"
+    }
+  }
+}

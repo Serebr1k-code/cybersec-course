@@ -13,6 +13,18 @@ useful_for:
   - "Background check и расследования"
 estimated_minutes: 40
 summary: "Системный поиск человека по email, телефону и имени: паттерны корпоративных адресов, проверка утечек, Gravatar, реестры и этические границы."
+lab:
+  kind: shell
+  title: "Практика: от email к аккаунтам — Gravatar и поиск"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Разбери адрес: local part = имя, domain = организация. Gravatar-хэш — MD5 от email в нижнем регистре."
+    - "Посчитай хэш: `echo 'katie.konans@nasa.gov' | md5sum`."
+    - "Аватар по хэшу вернул 404 — идём дальше, пивот по имени."
+    - "Поиск аккаунтов: `curl -s 'https://api.github.com/search/users?q=katie+konans' > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

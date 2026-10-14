@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { mount, RouterLinkStub, flushPromises } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import { createPinia, setActivePinia } from 'pinia'
@@ -362,6 +362,125 @@ describe('components/TreeGraph.vue — right-click completion toggle', () => {
     await w.findAll('.node-slot')[1].trigger('contextmenu')
     expect(w.find('.ctx-menu').exists()).toBe(true)
     window.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    await nextTick()
+    expect(w.find('.ctx-menu').exists()).toBe(false)
+  })
+})
+
+describe('components/TreeGraph.vue — long-press (touch) opens the same menu', () => {
+  // jsdom has no TouchEvent, so dispatch a generic event carrying a `touches`
+  // list shaped like the real thing (the handlers only read clientX/clientY).
+  function nodeTouch(el, type, touches) {
+    const ev = new Event(type, { bubbles: true, cancelable: true })
+    Object.defineProperty(ev, 'touches', { value: touches })
+    el.dispatchEvent(ev)
+    return ev
+  }
+  afterEach(() => vi.useRealTimers())
+
+  it('opens the completion menu after a ~500ms press, at the touch point', async () => {
+    const { w } = await factoryWithProgress()
+    expect(w.find('.ctx-menu').exists()).toBe(false)
+    vi.useFakeTimers()
+    const slot = w.findAll('.node-slot')[1] // "Bee" (a real lesson)
+    nodeTouch(slot.element, 'touchstart', [{ clientX: 300, clientY: 250 }])
+    // not yet — the press has to be HELD
+    expect(w.find('.ctx-menu').exists()).toBe(false)
+    vi.advanceTimersByTime(500)
+    await nextTick()
+    expect(w.find('.ctx-menu').exists()).toBe(true)
+    expect(w.findAll('.ctx-item').length).toBe(2)
+    // positioned at the touch point (canvas is mocked at left=100, top=50)
+    const style = w.find('.ctx-menu').attributes('style')
+    expect(style).toContain('left: 200px')
+    expect(style).toContain('top: 200px')
+  })
+
+  it('swallows the synthesized click after the long-press (no navigation)', async () => {
+    const { w } = await factoryWithProgress()
+    vi.useFakeTimers()
+    const slot = w.findAll('.node-slot')[1]
+    nodeTouch(slot.element, 'touchstart', [{ clientX: 300, clientY: 250 }])
+    vi.advanceTimersByTime(500)
+    await nextTick()
+    expect(w.find('.ctx-menu').exists()).toBe(true)
+    nodeTouch(slot.element, 'touchend', [])
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true })
+    slot.element.dispatchEvent(click)
+    expect(click.defaultPrevented).toBe(true)
+    expect(w.find('.ctx-menu').exists()).toBe(true) // menu stays open
+  })
+
+  it('a short tap never opens the menu and still lets the click through', async () => {
+    const { w } = await factoryWithProgress()
+    vi.useFakeTimers()
+    const slot = w.findAll('.node-slot')[1]
+    nodeTouch(slot.element, 'touchstart', [{ clientX: 300, clientY: 250 }])
+    vi.advanceTimersByTime(200) // < 500ms
+    nodeTouch(slot.element, 'touchend', [])
+    vi.advanceTimersByTime(800)
+    await nextTick()
+    expect(w.find('.ctx-menu').exists()).toBe(false)
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true })
+    slot.element.dispatchEvent(click)
+    expect(click.defaultPrevented).toBe(false)
+  })
+
+  it('cancels the long-press once the finger drags (so panning wins)', async () => {
+    const { w } = await factoryWithProgress()
+    vi.useFakeTimers()
+    const slot = w.findAll('.node-slot')[1]
+    nodeTouch(slot.element, 'touchstart', [{ clientX: 300, clientY: 250 }])
+    nodeTouch(slot.element, 'touchmove', [{ clientX: 340, clientY: 250 }]) // > 10px
+    vi.advanceTimersByTime(900)
+    await nextTick()
+    expect(w.find('.ctx-menu').exists()).toBe(false)
+  })
+
+  it('a long-press on a hub node opens nothing (hubs have no menu)', async () => {
+    const nodes = [
+      { id: 'a', title: 'Root', parent: null, order: 1, sections: 1 },
+      { id: 'h', title: 'Модуль: Группа', parent: 'a', order: 1, sections: 1, tags: ['roadmap'] }
+    ]
+    const { w } = await factoryWithProgress({ nodes })
+    vi.useFakeTimers()
+    const hub = slots(w).find((s) => s.hub)
+    expect(hub).toBeDefined()
+    nodeTouch(hub.el.element, 'touchstart', [{ clientX: 200, clientY: 200 }])
+    vi.advanceTimersByTime(700)
+    await nextTick()
+    expect(w.find('.ctx-menu').exists()).toBe(false)
+  })
+
+  it('long-press → «Отметить пройденным» persists through the store', async () => {
+    const { w, store } = await factoryWithProgress()
+    vi.useFakeTimers()
+    const slot = w.findAll('.node-slot')[1]
+    nodeTouch(slot.element, 'touchstart', [{ clientX: 300, clientY: 250 }])
+    vi.advanceTimersByTime(500)
+    vi.useRealTimers()
+    await nextTick()
+    expect(w.find('.ctx-menu').exists()).toBe(true)
+    await w.findAll('.ctx-item')[0].trigger('click') // ✓ Отметить пройденным
+    await flushPromises()
+    expect(store.user.lessons.b.completed).toBe(true)
+    expect(w.find('.ctx-menu').exists()).toBe(false)
+  })
+
+  it('a touch outside the menu closes it (touch has no mouse mousedown)', async () => {
+    const { w } = await factoryWithProgress()
+    vi.useFakeTimers()
+    const slot = w.findAll('.node-slot')[1]
+    nodeTouch(slot.element, 'touchstart', [{ clientX: 300, clientY: 250 }])
+    vi.advanceTimersByTime(500)
+    await nextTick()
+    expect(w.find('.ctx-menu').exists()).toBe(true)
+    // A fresh touch that lands outside the menu: in the (detached) test DOM the
+    // event can't bubble to window, so dispatch it on window directly — exactly
+    // how the existing outside-click test reaches the window listener.
+    const outside = new Event('touchstart', { bubbles: true, cancelable: true })
+    Object.defineProperty(outside, 'touches', { value: [{ clientX: 20, clientY: 20 }] })
+    window.dispatchEvent(outside)
     await nextTick()
     expect(w.find('.ctx-menu').exists()).toBe(false)
   })

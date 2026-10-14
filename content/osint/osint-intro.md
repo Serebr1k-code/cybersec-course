@@ -13,6 +13,18 @@ useful_for:
   - "Корпоративная безопасность и журналистика"
 estimated_minutes: 30
 summary: "Что такое OSINT, какие бывают источники, цикл разведки, юридические и этические границы, и как выглядит рабочий процесс разведчика."
+lab:
+  kind: shell
+  title: "Практика: пассивная разведка одного домена"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с `whois example.com` — кто владелец и когда создан."
+    - "DNS расскажет про инфраструктуру: `dig +short example.com MX`."
+    - "Служебная `TXT` (SPF) часто выдаёт сторонние сервисы — посмотри её."
+    - "Сохрани служебную запись: `dig +short example.com TXT > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

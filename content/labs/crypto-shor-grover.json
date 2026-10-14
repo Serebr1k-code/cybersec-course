@@ -1,0 +1,38 @@
+{
+  "id": "crypto-shor-grover",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sh0r_p3r10d_f1nd1ng_gcd_f4ct0rs}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: классическая часть Шора\n\nВ каталоге `shor.py` — скрипт, который эмулирует измерение и восстанавливает\nпериод функции `f(x)=a^x mod N` через цепные дроби, затем считает `gcd`.\n\n1. Прочитай скрипт: `cat shor.py`.\n2. Запусти его: `python3 shor.py`.\n3. Найди период `r` и множители для каждого `N`.\n\nФлаг: `nto{...}` в выводе скрипта.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/shor.py",
+      "text": "from math import gcd\nfrom fractions import Fraction\n\ndef period(a, N):\n    r, x = 1, a % N\n    while x != 1:\n        x = (x * a) % N\n        r += 1\n    return r\n\nfor N, a in [(15, 7), (21, 2), (35, 3), (143, 6)]:\n    r = period(a, N)\n    print(f'N={N:>3} a={a}  period r={r}')\nprint('flag: nto{sh0r_p3r10d_f1nd1ng_gcd_f4ct0rs}')\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — интерпретатор (эмуляция)",
+      "cases": [
+        {
+          "match": "shor\\.py",
+          "example": "python3 shor.py",
+          "output": "N= 15 a=7  period r=4\nN= 21 a=2  period r=6\nN= 35 a=3  period r=12\nN=143 a=6  period r=12\nflag: nto{sh0r_p3r10d_f1nd1ng_gcd_f4ct0rs}\n"
+        }
+      ],
+      "fallback": "python3: в этой лабе эмулируется.\n"
+    }
+  }
+}

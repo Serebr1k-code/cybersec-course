@@ -1,0 +1,75 @@
+{
+  "id": "osint-intro",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{wh01s_dns_crt_sh_p4ss1v3_r3c0n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: пассивная разведка `example.com`\n\nДана одна строка — домен. Собери карту инфраструктуры, не касаясь серверов цели.\n\n1. Владелец: `whois example.com`.\n2. DNS: `dig +short example.com A`, затем `MX`, `TXT`, `NS`, `CNAME`.\n3. Поддомены через лог сертификатов: `curl -s \"https://crt.sh/?q=%25.example.com&output=json\"`.\n4. Одна из служебных записей выдаёт внутренний маркер — сохрани её.\n\nФлаг: `nto{...}` внутри одной из DNS-записей.\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "whois": {
+      "help": "whois <домен> — запрос к публичной базе регистрации",
+      "cases": [
+        {
+          "match": "example\\.com",
+          "example": "whois example.com",
+          "output": "   Domain Name: EXAMPLE.COM\n   Registrar: RESERVED-Internet Assigned Numbers Authority\n   Creation Date: 1995-08-14T04:00:00Z\n   Updated Date: 2024-08-14T07:01:38Z\n   Name Server: A.IANA-SERVERS.NET\n   Name Server: B.IANA-SERVERS.NET\n"
+        }
+      ],
+      "fallback": "whois: в этой лабе эмулируется example.com.\n"
+    },
+    "dig": {
+      "help": "dig [+short] <имя> [тип] — DNS-запрос",
+      "cases": [
+        {
+          "match": "\\bTXT\\b",
+          "example": "dig +short example.com TXT",
+          "output": "\"v=spf1 include:_spf.nto{wh01s_dns_crt_sh_p4ss1v3_r3c0n}.example.com -all\"\n"
+        },
+        {
+          "match": "\\bMX\\b",
+          "example": "dig +short example.com MX",
+          "output": "0 .\n"
+        },
+        {
+          "match": "\\bNS\\b",
+          "example": "dig +short example.com NS",
+          "output": "a.iana-servers.net.\nb.iana-servers.net.\n"
+        },
+        {
+          "match": "\\bCNAME\\b",
+          "example": "dig +short www.example.com CNAME",
+          "output": "example.com.\n"
+        },
+        {
+          "match": "\\bA\\b",
+          "example": "dig +short example.com A",
+          "output": "93.184.216.34\n"
+        }
+      ],
+      "fallback": "dig: в этой лабе эмулируется example.com.\n"
+    },
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция crt.sh)",
+      "cases": [
+        {
+          "match": "crt\\.sh",
+          "example": "-s \"https://crt.sh/?q=%25.example.com&output=json\"",
+          "output": "[{\"name_value\":\"example.com\"},{\"name_value\":\"www.example.com\"},{\"name_value\":\"dev.example.com\"},{\"name_value\":\"vpn.example.com\"}]\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется crt.sh.\n"
+    }
+  }
+}

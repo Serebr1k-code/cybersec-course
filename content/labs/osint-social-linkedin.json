@@ -1,0 +1,43 @@
+{
+  "id": "osint-social-linkedin",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l1nk3d1n_0rg_m4p_3m41l_p4tt3rn}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: LinkedIn OSINT — карта организации\n\nЦель — страница компании и её сотрудники.\n\n1. Публичная страница компании: `curl -s -A \"Mozilla/5.0\" \"https://www.linkedin.com/company/nasa/\"`.\n2. Сотрудников ищут по профилям `linkedin.com/in/`.\n3. Один профиль (DevOps-инженер) в `og:description` раскрывает внутренний маркер.\n4. Сохрани ответ профиля — там флаг.\n\nФлаг: `nto{...}` в мета-теге профиля.\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция linkedin.com)",
+      "cases": [
+        {
+          "match": "linkedin\\.com/in/",
+          "example": "-s -A \"Mozilla/5.0\" \"https://www.linkedin.com/in/devops-nasa/\"",
+          "output": "<meta property=\"og:title\" content=\"Dana Roe - DevOps Engineer - NASA | LinkedIn\">\n<meta property=\"og:description\" content=\"DevOps Engineer at NASA. Internal infra portal: https://gitlab.nasa.local (marker nto{l1nk3d1n_0rg_m4p_3m41l_p4tt3rn})\">\n"
+        },
+        {
+          "match": "linkedin\\.com/company/nasa",
+          "example": "-s -A \"Mozilla/5.0\" \"https://www.linkedin.com/company/nasa/\"",
+          "output": "<meta property=\"og:title\" content=\"NASA - National Aeronautics and Space Administration | LinkedIn\">\n<meta property=\"og:description\" content=\"NASA - National Aeronautics and Space Administration | 7,136,235 followers on LinkedIn. Explore the universe ...\">\n"
+        },
+        {
+          "match": "linkedin\\.com",
+          "example": "-s https://www.linkedin.com/",
+          "output": "<!doctype html><title>LinkedIn</title>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется linkedin.com.\n"
+    }
+  }
+}

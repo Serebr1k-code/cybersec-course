@@ -12,6 +12,18 @@ useful_for:
   - "Bug bounty"
 estimated_minutes: 45
 summary: "Как из «просто отравленного» Object.prototype собрать цепочку до DOM XSS в браузере или RCE на Node.js."
+lab:
+  kind: shell
+  title: "Практика: prototype pollution → RCE через гаджет EJS"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Примитив не impact: сначала `{'__proto__':{'polluted':'yes'}}` в `/api/merge`, затем `/status`."
+    - "Зависимости: `curl -s https://docs.example/package.json` — EJS 3.1.6 склонен к гаджету `outputFunctionName`."
+    - "Загрязни `__proto__.outputFunctionName` строкой с внедрением кода через `/api/merge`."
+    - "Триггер — рендер: `curl -s 'https://docs.example/render?page=about' > found.txt`, затем `check`."
 ---
 
 ## Вопрос, с которого всё начинается

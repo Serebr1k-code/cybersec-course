@@ -14,6 +14,18 @@ useful_for:
   - "Red team"
 estimated_minutes: 55
 summary: "Как по LinkedIn построить карту организации: сотрудники, должности, стек, технологии и email-паттерн — с соблюдением ToS."
+lab:
+  kind: shell
+  title: "Практика: картирование организации через LinkedIn"
+  toolset: [core, curl]
+  workdir: /home/student/task
+  files: [task.md]
+  check: "grep -q 'nto{' found.txt"
+  hints:
+    - "Начни с публичной страницы компании: мета-теги `og:title`/`og:description` видны без входа."
+    - "Сотрудники — это профили `linkedin.com/in/<имя>`; их ищут дорками по ролям."
+    - "Интересны DevOps/админы: у них доступ к инфраструктуре."
+    - "Сохрани профиль: `curl -s -A 'Mozilla/5.0' 'https://www.linkedin.com/in/devops-nasa/' > found.txt`."
 ---
 
 ## Вопрос, с которого всё начинается
