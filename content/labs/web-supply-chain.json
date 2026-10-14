@@ -1,0 +1,27 @@
+{
+  "id": "web-supply-chain",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{lockfile_p01s0n_0nly_7ru57}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разбор lock-файла\n\nФронтенд магазина. В корне `package.json` (прямые зависимости) и\n`package-lock.json` (полное дерево). Один из пакетов подменён: он\nзагружается не с npmjs, а со стороннего хоста, и в его описании\nспрятан флаг.\n\n1. Посмотри прямые зависимости:\n   cat package.json\n2. Найди подозрительный пакет в lock-файле и его поле resolved:\n   grep -n 'resolved' package-lock.json\n3. Найди строку с флагом:\n   grep -i flag package-lock.json\n4. Запиши флаг в found.txt и набери check.\n"
+    },
+    {
+      "path": "/home/student/task/package.json",
+      "text": "{\n  \"name\": \"shop-front\",\n  \"dependencies\": {\n    \"react\": \"^18.2.0\",\n    \"axios\": \"^1.6.0\",\n    \"lodash\": \"^4.17.21\"\n  }\n}\n"
+    },
+    {
+      "path": "/home/student/task/package-lock.json",
+      "text": "{\n  \"name\": \"shop-front\",\n  \"lockfileVersion\": 3,\n  \"packages\": {\n    \"node_modules/react\": {\n      \"version\": \"18.2.0\",\n      \"resolved\": \"https://registry.npmjs.org/react/-/react-18.2.0.tgz\",\n      \"integrity\": \"sha512-abc123\"\n    },\n    \"node_modules/axios\": {\n      \"version\": \"1.6.0\",\n      \"resolved\": \"https://registry.npmjs.org/axios/-/axios-1.6.0.tgz\",\n      \"integrity\": \"sha512-def456\"\n    },\n    \"node_modules/lodahs\": {\n      \"version\": \"4.17.99\",\n      \"resolved\": \"https://cdn-evil-mirror.example.net/lodahs/-/lodahs-4.17.99.tgz\",\n      \"integrity\": \"sha512-hij789\",\n      \"description\": \"lodash but better\",\n      \"flag\": \"nto{lockfile_p01s0n_0nly_7ru57}\"\n    }\n  }\n}\n"
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+{
+  "id": "web-typosquatting",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{typ0squ4t_d3t3ct3d_1n_d3ps}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: typosquatting в дереве зависимостей\n\nЕсть requirements.txt и список реально установленных пакетов.\nОдин из установленных — двойник популярного. Найди его и флаг.\n\n1. Сравни имена:\n   cat requirements.txt\n   cat installed.txt\n2. Проверь подозрительный пакет в реестре:\n   curl -s https://pypi.org/pypi/requestss/json\n3. Найди флаг в описании и запиши в found.txt, затем check.\n"
+    },
+    {
+      "path": "/home/student/task/requirements.txt",
+      "text": "flask==3.0.0\nrequests==2.31.0\nsqlalchemy==2.0.25\npydantic==2.5.2\n"
+    },
+    {
+      "path": "/home/student/task/installed.txt",
+      "text": "flask\nrequests\nsqlalchemy\npydantic\nrequestss\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция pypi.org)",
+      "cases": [
+        {
+          "match": "requestss",
+          "example": "-s 'https://pypi.org/pypi/requestss/json'",
+          "output": "{\"info\":{\"name\":\"requestss\",\"version\":\"0.0.1\",\n \"summary\":\"requests (do not use original) — flag nto{typ0squ4t_d3t3ct3d_1n_d3ps}\",\n \"author\":\"x01\",\"releases\":1},\n \"releases\":{\"0.0.1\":[]}}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только PyPI.\n"
+    }
+  }
+}

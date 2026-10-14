@@ -1,0 +1,40 @@
+{
+  "id": "web-dependency-confusion",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sc0p3_f4llb4ck_1s_4_b4ckd00r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: dependency confusion\n\nВнутренний пакет `@corp/internal-utils` настроен через `.npmrc`.\nПроверь, не опубликован ли он публично, и найди флаг в его README.\n\n1. Посмотри конфиг и зависимость:\n   cat .npmrc\n   cat package.json\n2. Спроси метаданные пакета у публичного реестра:\n   curl -s https://registry.npmjs.org/@corp%2Finternal-utils\n3. Скачай README и найди строку с флагом.\n4. Запиши флаг в found.txt и набери check.\n"
+    },
+    {
+      "path": "/home/student/task/.npmrc",
+      "text": "@corp:registry=https://npm.corp.internal/\nregistry=https://registry.npmjs.org/\n"
+    },
+    {
+      "path": "/home/student/task/package.json",
+      "text": "{\n  \"name\": \"corp-app\",\n  \"dependencies\": {\n    \"@corp/internal-utils\": \"*\"\n  }\n}\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция реестров)",
+      "cases": [
+        {
+          "match": "internal-utils|@corp",
+          "example": "-s 'https://registry.npmjs.org/@corp%2Finternal-utils'",
+          "output": "{\"name\":\"@corp/internal-utils\",\"dist-tags\":{\"latest\":\"99.0.0\"},\n \"versions\":{\"99.0.0\":{\"description\":\"internal helpers\",\n \"readme\":\"# internal-utils\\nmaintainer note: flag nto{sc0p3_f4llb4ck_1s_4_b4ckd00r}\\n\",\n \"scripts\":{\"postinstall\":\"node ./collect.js\"}}}}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только публичный реестр пакетов.\n"
+    }
+  }
+}
