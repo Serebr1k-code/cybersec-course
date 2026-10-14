@@ -13,6 +13,17 @@ useful_for:
   - 'Пентест LLM-продуктов'
 estimated_minutes: 38
 summary: 'Как устроен RAG-пайплайн и как его атакуют: отравленный документ в векторной базе, извлечение чужих чанков, косвенная инъекция и утечка через вывод.'
+lab:
+  kind: shell
+  title: 'Практика: RAG-бот поддержки'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, knowledge_base.txt, rag_dump.txt]
+  check: 'grep -q ''nto{r4g_p01s0n3d}'' found.txt'
+  hints:
+    - '`cat knowledge_base.txt` — что загружено в базу знаний.'
+    - '`cat rag_dump.txt` — что бот вернул на запрос «возврат».'
+    - 'Найди служебную инструкцию и её метку, запиши в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

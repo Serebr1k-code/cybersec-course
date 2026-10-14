@@ -12,6 +12,17 @@ useful_for:
   - 'Восстанавливать состояние по выходам'
 estimated_minutes: 35
 summary: 'Неcryptographic PRNG: glibc rand (TYPE_3 lagged Fibonacci), xorshift, PCG и splitmix. Как по нескольким выходам восстановить состояние и предсказать будущие значения, и почему такие генераторы нельзя использовать для ключей.'
+lab:
+  kind: shell
+  title: 'Практика: предсказание glibc rand'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, outputs.txt, predict.py]
+  check: 'grep -q ''nto{gl1bc_r4nd_1s_4_l4gg3d_f1b0n4cc1}'' found.txt'
+  hints:
+    - '`cat outputs.txt`.'
+    - 'Пойми рекурсию: следующее = `o[0] + o[28]` (mod 2^32).'
+    - '`python3 predict.py` — предсказание.'
 ---
 
 ## Вопрос, с которого всё начинается

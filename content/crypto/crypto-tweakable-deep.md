@@ -12,6 +12,17 @@ useful_for:
   - 'Понимать tweakable-конструкции'
 estimated_minutes: 35
 summary: 'Tweakable-шифры: XEX, AES-XTS (дисковое шифрование с номером сектора как tweak), Adiantum (ChaCha+NH для дешёвых устройств), Threefish (Skein). Зачем нужен tweak и как он отличается от nonce и IV.'
+lab:
+  kind: shell
+  title: 'Практика: AES-XTS (tweakable)'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, xts.txt, xts.py]
+  check: 'grep -q ''nto{xts_tw34k_1s_th3_s3ct0r_numb3r}'' found.txt'
+  hints:
+    - '`cat xts.txt`.'
+    - '`python3 xts.py` — расшифровка и вывод.'
+    - '`python3 xts.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

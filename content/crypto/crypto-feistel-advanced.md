@@ -12,6 +12,17 @@ useful_for:
   - 'Понимать теорию построения шифров'
 estimated_minutes: 35
 summary: 'Сети Фейстеля вглубь: почему раундовая функция не обязана быть обратимой, типы 1/2/3, unbalanced-варианты, конструкция Luby-Rackoff (3 раунда — PRP, 4 — сильная PRP) и связь с DES и хэш-функциями.'
+lab:
+  kind: shell
+  title: 'Практика: сеть Фейстеля и её обратимость'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, feistel.txt, feistel.py]
+  check: 'grep -q ''nto{luby_r4ck0ff_3_r0unds_prp}'' found.txt'
+  hints:
+    - '`cat feistel.txt`.'
+    - '`python3 feistel.py` — расшифровка.'
+    - '`python3 feistel.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

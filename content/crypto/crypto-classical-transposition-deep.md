@@ -12,6 +12,17 @@ useful_for:
   - 'Различать подстановку и транспозицию'
 estimated_minutes: 30
 summary: 'Транспозиции: маршрутная (route), колоночная, двойная, Myszkowski, поворотная решётка и Scytale. Как восстанавливать порядок столбцов, почему двойная транспозиция ломает анаграммирование и как атаковать решётку.'
+lab:
+  kind: shell
+  title: 'Практика: колоночная транспозиция'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, cipher.txt, columnar.py]
+  check: 'grep -q ''nto{c0lumn4r_tr4nsp0s1t10n_r3v3rs3d}'' found.txt'
+  hints:
+    - '`cat cipher.txt notes.txt`.'
+    - 'Определи порядок столбцов: буквы ключа сортируются по алфавиту.'
+    - '`python3 columnar.py` — расшифровка и вывод.'
 ---
 
 ## Вопрос, с которого всё начинается

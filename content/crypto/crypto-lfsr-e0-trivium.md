@@ -12,6 +12,17 @@ useful_for:
   - 'Понимать потоковые схемы на регистрах'
 estimated_minutes: 35
 summary: 'LFSR-потоки: E0 (Bluetooth), Trivium, Grain и SNOW. Как комбинируют регистры для нелинейности, почему одиночный LFSR восстанавливается линейной алгеброй и как корреляционные атаки ломают наивные комбинации.'
+lab:
+  kind: shell
+  title: 'Практика: восстановление состояния LFSR'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, keystream.txt, lfsr.py]
+  check: 'grep -q ''nto{lfsr_st4t3_r3c0v3r3d_by_l1n34r_4lg3br4}'' found.txt'
+  hints:
+    - '`cat keystream.txt`.'
+    - 'Построй систему: каждый выходной бит — линейная функция от 16 бит состояния.'
+    - '`python3 lfsr.py` — решает систему и печатает состояние.'
 ---
 
 ## Вопрос, с которого всё начинается

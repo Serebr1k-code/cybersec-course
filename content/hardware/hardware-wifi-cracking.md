@@ -13,6 +13,17 @@ useful_for:
   - 'Оценка стойкости паролей'
 estimated_minutes: 45
 summary: 'Как ломать .hc22000 в hashcat: режим 22000, словари, правила и маски; почему PMK медленный и как выбрать стратегию перебора.'
+lab:
+  kind: shell
+  title: 'Практика: подбор пароля WPA'
+  toolset: [core, grep, base64]
+  workdir: /home/student/task
+  files: [task.md, office.hc22000, words.txt]
+  check: 'grep -q ''nto{hp_cr4ck3d_by_w0rdl1st}'' found.txt'
+  hints:
+    - '`cat words.txt` — кандидаты.'
+    - '`grep nto words.txt` — флаг-пароль.'
+    - '`grep nto words.txt > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -53,7 +53,42 @@ summary: "Этап ветки «Артефакты Windows»: индексы и 
 | wpndatabase.db | что сообщала система | `sqlite3`, `DB Browser` |
 | Cortana | что искал пользователь | `sqlite3`, `python3` |
 
+## Квиз
+
+```quiz
+- question: "Что содержит база Windows Search (Windows.edb)?"
+  options:
+    - "Индекс путей и имён файлов, поисковые запросы"
+    - "Пароли"
+    - "Сетевые пакеты"
+    - "Задачи cron"
+  answer: 0
+  explanation: "Windows.edb индексирует пути/имена файлов и поисковые запросы."
+- question: "Какой артефакт хранит журнал активности пользователя?"
+  options:
+    - "ActivitiesCache.db (Timeline)"
+    - "Prefetch"
+    - "$MFT"
+    - "SRUM"
+  answer: 0
+  explanation: "ActivitiesCache.db хранит запущенные приложения и открытые документы."
+- question: "Что показывает wpndatabase.db?"
+  options:
+    - "Историю уведомлений (тосты) и их текст"
+    - "Список служб"
+    - "DNS-кэш"
+    - "Сетевые соединения"
+  answer: 0
+  explanation: "wpndatabase.db — история уведомлений Windows."
+```
+
 ## Куда дальше
 
 Открывай урок **«Windows Search: база Windows.edb»** — начнём с самого крупного индекса и
 разберём, как из него достать пути, которых уже нет на диске.
+
+## Где пригодится
+
+**CTF:** Windows-forensics.
+**DFIR:** восстановление действий пользователя.
+**Работа:** анализ пользовательской активности.

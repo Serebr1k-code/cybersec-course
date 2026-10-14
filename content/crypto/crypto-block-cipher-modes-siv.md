@@ -12,6 +12,17 @@ useful_for:
   - 'Проектировать устойчивое к ошибкам шифрование'
 estimated_minutes: 35
 summary: 'Режимы, устойчивые к повтору nonce: SIV (CMAC+CTR, детерминированный nonce из сообщения), GCM-SIV, OCB и EAX. Почему повтор nonce в GCM катастрофичен, как SIV это чинит и в чём цена (нет потоковой обработки, нужен второй проход).'
+lab:
+  kind: shell
+  title: 'Практика: режим AES-SIV'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, siv.txt, siv.py]
+  check: 'grep -q ''nto{s1v_surv1v3s_n0nc3_r3us3}'' found.txt'
+  hints:
+    - '`cat siv.txt`.'
+    - 'Расшифруй: `AES.new(key, MODE_SIV)` + `decrypt_and_verify(ct, tag)`.'
+    - '`python3 siv.py` — печатает открытый текст и флаг.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -12,6 +12,17 @@ useful_for:
   - 'Выбор шифра для IoT/RFID'
 estimated_minutes: 35
 summary: 'Лёгкие блочные шифры: PRESENT (SP-сеть, 31 раунд), Speck/Simon (ARX), GIFT и ASCON (AEAD-победитель NIST LWC). Почему для IoT/RFID важны площадь и энергия, и как это меняет дизайн.'
+lab:
+  kind: shell
+  title: 'Практика: лёгкий шифр PRESENT'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, present.txt, present.py]
+  check: 'grep -q ''nto{pr3s3nt_31_r0unds_4nd_l1ghtw31ght}'' found.txt'
+  hints:
+    - '`cat present.txt`.'
+    - 'Реализуй key schedule (rotate 61, S-box top nibble, XOR counter<<15).'
+    - '`python3 present.py` — расшифровка.'
 ---
 
 ## Вопрос, с которого всё начинается

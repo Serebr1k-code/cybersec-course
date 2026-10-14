@@ -13,6 +13,17 @@ useful_for:
   - 'Офлайн-аудит паролей WLAN'
 estimated_minutes: 45
 summary: 'Четырёхстороннее рукопожатие WPA2, EAPOL-кадры и PMKID; как перехватить их с клиентом (deauth) и без клиента, и как проверить, что захват годен.'
+lab:
+  kind: shell
+  title: 'Практика: рукопожатие WPA2'
+  toolset: [core, grep, base64]
+  workdir: /home/student/task
+  files: [task.md, eapol.txt, pmkid.b64]
+  check: 'grep -q ''nto{h4ndsh4k3_m1c_c4ptur3d}'' found.txt'
+  hints:
+    - '`grep -i mic eapol.txt` — есть ли MIC.'
+    - '`base64 -d pmkid.b64` — значение PMKID.'
+    - '`base64 -d pmkid.b64 | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

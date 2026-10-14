@@ -13,6 +13,17 @@ useful_for:
   - 'Embedded / IoT'
 estimated_minutes: 55
 summary: 'Как опознать и разобрать JFFS2 и UBIFS: магии узлов, слои MTD → UBI → UBIFS, извлечение через jefferson и ubireader, особенности «сырой» флеш-памяти.'
+lab:
+  kind: shell
+  title: 'Практика: разбор дампа NAND'
+  toolset: [core, grep, hex]
+  workdir: /home/student/task
+  files: [task.md, nand.dump]
+  check: 'grep -q ''nto{jffs2_n0d3s_4nd_ub1_0v3rl4y}'' answer.txt'
+  hints:
+    - '`xxd -l 8 nand.dump` — магия узлов.'
+    - '`strings nand.dump` — имена и метаданные.'
+    - '`strings nand.dump | grep nto > answer.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

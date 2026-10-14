@@ -12,6 +12,17 @@ useful_for:
   - 'Понимать алгебру AES'
 estimated_minutes: 40
 summary: 'AES изнутри: состояние 4x4, SubBytes через GF(2^8)-инверсию и аффинное преобразование, ShiftRows, MixColumns как умножение на полином, AddRoundKey и key schedule. Почему AES — SP-сеть, а не Фейстель, и как это влияет на атаки.'
+lab:
+  kind: shell
+  title: 'Практика: AES S-box из первых принципов'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, sbox.py]
+  check: 'grep -q ''nto{a3s_sb0x_1s_1nv3rs3_plus_4ff1n3}'' found.txt'
+  hints:
+    - '`cat notes.txt`.'
+    - 'Реализуй умножение в GF(2^8) с полиномом 0x11b.'
+    - 'Обратный элемент = a^254; затем affine-преобразование.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -319,3 +319,9 @@ URI, которым управляет атакующий.
   answer: 1
   explanation: Конкретный подкаталог + проверка canonical path = безопасный минимум.
 ```
+
+## Где пригодится
+
+**CTF:** Mobile — path traversal в FileProvider.
+**Пентест:** утечка файлов через content:// URI.
+**Работа:** проверка конфигурации file_paths и прав.

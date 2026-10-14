@@ -13,6 +13,17 @@ useful_for:
   - 'Аудит фильтров'
 estimated_minutes: 36
 summary: 'Входные и выходные guardrails LLM-приложений: сигнатурные фильтры, классификаторы и правила; техники обхода — кодирование, разбиение, смена языка, many-shot.'
+lab:
+  kind: shell
+  title: 'Практика: Guardrail bypass'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, guard.py, payloads.txt]
+  check: 'grep -q ''nto{gu4rdr41ls_byp4ss}'' found.txt'
+  hints:
+    - '`cat guard.py` — как устроен входной фильтр.'
+    - '`cat payloads.txt` — прогони кандидатов через фильтр.'
+    - 'Прошедшую строку декодируй и запиши флаг в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

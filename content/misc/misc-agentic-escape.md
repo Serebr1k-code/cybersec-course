@@ -13,6 +13,17 @@ useful_for:
   - 'Аудит автономных систем'
 estimated_minutes: 36
 summary: 'Агент с реальными правами: перехват цели через инъекцию, эксфильтрация через tool-calls, злоупотребление разрешёнными командами и побег из «песочницы» агента.'
+lab:
+  kind: shell
+  title: 'Практика: Agentic escape'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, secret.env, agent.log]
+  check: 'grep -q ''nto{4g3nt1c_3xf1l}'' found.txt'
+  hints:
+    - '`cat agent.log` — какие инструменты вызывал агент.'
+    - '`cat secret.env` — переменные окружения с секретом.'
+    - 'Найди утёкший секрет и запиши его в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

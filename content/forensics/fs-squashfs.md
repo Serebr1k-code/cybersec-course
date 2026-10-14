@@ -13,6 +13,17 @@ useful_for:
   - 'Embedded / IoT'
 estimated_minutes: 50
 summary: 'Как опознать и разобрать SquashFS: магия hsqs, сжатые блоки, таблицы inode и каталогов. Извлечение через unsquashfs, поиск вложенных ФС, работа с прошивками.'
+lab:
+  kind: shell
+  title: 'Практика: разбор прошивки'
+  toolset: [core, grep, hex]
+  workdir: /home/student/task
+  files: [task.md, firmware.bin]
+  check: 'grep -q ''nto{squ4shfs_r0m0unt_f1rmw4r3}'' answer.txt'
+  hints:
+    - '`xxd -l 16 firmware.bin` — сигнатура в начале.'
+    - '`strings firmware.bin` — текстовые метаданные.'
+    - '`strings firmware.bin | grep nto > answer.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

@@ -12,6 +12,17 @@ useful_for:
   - 'Понимать, как смешивание координат ломает частоты'
 estimated_minutes: 30
 summary: 'Квадрат Полибия и дробящие шифры: как координаты букв превращаются в поток цифр, смешиваются (Бифид/Трифид) и собираются обратно. Разбор расшифровки, ADFGX/ADFGVX и практика в Python.'
+lab:
+  kind: shell
+  title: 'Практика: шифр Бифид'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, square.txt, cipher.txt, notes.txt, bifid.py]
+  check: 'grep -q ''nto{b1f1d_spl1ts_r0ws_4nd_c0ls}'' found.txt'
+  hints:
+    - '`cat square.txt cipher.txt`.'
+    - 'Пойми правило: координаты всех букв пишутся подряд, затем'
+    - '`python3 bifid.py` — скрипт расшифровывает и печатает открытый текст.'
 ---
 
 ## Вопрос, с которого всё начинается

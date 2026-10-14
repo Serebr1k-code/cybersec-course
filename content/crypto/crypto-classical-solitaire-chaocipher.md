@@ -12,6 +12,17 @@ useful_for:
   - 'Понимать шифры с большим состоянием'
 estimated_minutes: 35
 summary: 'Ручные шифры: Solitaire (Pontifex) на колоде из 54 карт, Chaocipher с двумя вращающимися алфавитами и шифр Базари. Как генерируется ключевой поток, как расшифровывать и где эти схемы ломаются.'
+lab:
+  kind: shell
+  title: 'Практика: Solitaire (Pontifex)'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, deck.txt, cipher.txt, solitaire.py]
+  check: 'grep -q ''nto{s0l1t4ir3_p0nt1f3x_k3ystr34m}'' found.txt'
+  hints:
+    - '`cat deck.txt cipher.txt`.'
+    - 'Реализуй шаги: джокер A вниз на 1, джокер B вниз на 2,'
+    - '`python3 solitaire.py` — генерация потока и расшифровка.'
 ---
 
 ## Вопрос, с которого всё начинается

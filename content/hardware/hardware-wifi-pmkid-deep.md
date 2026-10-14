@@ -13,6 +13,17 @@ useful_for:
   - 'CTF Wireless'
 estimated_minutes: 45
 summary: 'Client-less захват PMKID: как работает RSN PMKID, инструменты hcxdumptool/hcxpcapngtool, а также форензика эфира — пассивный сбор и анализ.'
+lab:
+  kind: shell
+  title: 'Практика: client-less PMKID'
+  toolset: [core, grep, base64]
+  workdir: /home/student/task
+  files: [task.md, wh.txt, pmkid.b64]
+  check: 'grep -q ''nto{pmk1d_w1th0ut_cl13nt}'' found.txt'
+  hints:
+    - '`grep -i pmkid wh.txt` — подтверди захват.'
+    - '`base64 -d pmkid.b64`.'
+    - '`base64 -d pmkid.b64 | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

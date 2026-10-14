@@ -12,6 +12,17 @@ useful_for:
   - 'Понять, как гомофония сглаживает частоты'
 estimated_minutes: 30
 summary: 'Гомофонические подстановки (одна буква → много символов) и book/NULL-шифры. Как они сопротивляются частотному анализу, как их взламывать (утечка книги, NULL-символы) и практика с book-шифром.'
+lab:
+  kind: shell
+  title: 'Практика: book-шифр'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, book.txt, notes.txt, refs.txt, book.py]
+  check: 'grep -q ''nto{b00k_c1ph3r_us3s_4_sh4r3d_t3xt}'' found.txt'
+  hints:
+    - '`cat book.txt refs.txt`.'
+    - 'Для каждого номера возьми первую букву соответствующего слова.'
+    - '`python3 book.py` — сборка фразы.'
 ---
 
 ## Вопрос, с которого всё начинается

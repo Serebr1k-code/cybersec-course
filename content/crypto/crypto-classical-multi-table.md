@@ -12,6 +12,17 @@ useful_for:
   - 'Понимать разницу между C=P+K, C=K-P и C=P-K'
 estimated_minutes: 35
 summary: 'Многоалфавитные шифры за пределами Виженера: Porta, Beaufort и variant-Beaufort, Гронсфельд (цифровой ключ), Autokey, running-key и VIC-шифр. Формулы, взлом и практика.'
+lab:
+  kind: shell
+  title: 'Практика: шифр Бофора'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, cipher.txt, beaufort.py]
+  check: 'grep -q ''nto{b34uf0rt_1s_1ts_0wn_1nv3rs3}'' found.txt'
+  hints:
+    - '`cat cipher.txt notes.txt`.'
+    - 'Пойми формулу: `C = (K - P) mod 26`.'
+    - '`python3 beaufort.py` — расшифровка.'
 ---
 
 ## Вопрос, с которого всё начинается

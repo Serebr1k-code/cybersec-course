@@ -12,6 +12,17 @@ useful_for:
   - 'Понимать разнообразие блочных шифров'
 estimated_minutes: 35
 summary: 'Национальные блочные шифры: SM4 (Китай, GB/T 32907), ГОСТ Р 34.12-2015 «Магма» и «Кузнечик» (Россия), ARIA (Корея), Camellia (Япония), SEED. Структуры, параметры, S-боксы и практика расшифровки SM4.'
+lab:
+  kind: shell
+  title: 'Практика: национальный шифр SM4'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, sm4.txt, sm4.py]
+  check: 'grep -q ''nto{sm4_1s_ch1n4s_n4t10n4l_4es}'' found.txt'
+  hints:
+    - '`cat sm4.txt`.'
+    - 'Реализуй key schedule (FK, CK) и 32 раунда.'
+    - '`python3 sm4.py` — расшифровка.'
 ---
 
 ## Вопрос, с которого всё начинается

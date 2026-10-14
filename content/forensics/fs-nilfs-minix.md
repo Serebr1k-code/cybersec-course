@@ -13,6 +13,17 @@ useful_for:
   - 'Linux forensics'
 estimated_minutes: 50
 summary: 'Как опознать и разобрать NILFS2 (log-structured со снапшотами) и Minix FS: магии суперблоков, checkpoints, восстановление через снапшоты и таблица сигнатур экзотических ФС.'
+lab:
+  kind: shell
+  title: 'Практика: экзотическая ФС'
+  toolset: [core, grep, hex]
+  workdir: /home/student/task
+  files: [task.md, nilfs.img]
+  check: 'grep -q ''nto{n1lfs2_ch3ckp01nts_4nd_m1n1x}'' answer.txt'
+  hints:
+    - '`xxd -s 1024 -l 8 nilfs.img` — суперблок.'
+    - '`strings nilfs.img` — текстовые метаданные.'
+    - '`strings nilfs.img | grep nto > answer.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

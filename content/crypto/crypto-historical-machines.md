@@ -12,6 +12,17 @@ useful_for:
   - 'Понимать, как взломали Enigma и Lorenz'
 estimated_minutes: 35
 summary: 'Роторные машины: устройство Enigma (роторы, рефлектор, двойной шаг, плата), Lorenz SZ40/42 и его LFSR-структура, Purple и Colossus. Как Bombe и статистика (Turingery) вскрыли эти машины и почему рефлектор — фатальная слабость.'
+lab:
+  kind: shell
+  title: 'Практика: роторная машина (Enigma I)'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, settings.txt, notes.txt, cipher.txt, enigma.py]
+  check: 'grep -q ''nto{3n1gm4_d0ubl3_st3pp1ng_4nd_c0l0ssus}'' found.txt'
+  hints:
+    - '`cat cipher.txt settings.txt`.'
+    - 'Реализуй шаг роторов (с «двойным шагом»), проход вперёд/назад и рефлектор.'
+    - '`python3 enigma.py` — расшифровка (машина инволютивна).'
 ---
 
 ## Вопрос, с которого всё начинается

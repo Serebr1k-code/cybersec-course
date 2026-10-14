@@ -12,6 +12,17 @@ useful_for:
   - 'Понимать историю RNG-уязвимостей'
 estimated_minutes: 35
 summary: 'Реальные катастрофы генерации ключей: Debian OpenSSL (2006-2008, 32768 ключей), Android SecureRandom (2013, Bitcoin-кражи), ROCA (CVE-2017-15361, Infineon). Атака на общий простой множитель, batch-GCD и детект слабых ключей.'
+lab:
+  kind: shell
+  title: 'Практика: общий простой множитель (Debian OpenSSL)'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, keys.txt, gcd.py]
+  check: 'grep -q ''nto{sh4r3d_pr1m3_br34ks_b0th_k3ys}'' found.txt'
+  hints:
+    - '`cat keys.txt`.'
+    - '`python3 gcd.py` — находит общий множитель и печатает флаг.'
+    - '`python3 gcd.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

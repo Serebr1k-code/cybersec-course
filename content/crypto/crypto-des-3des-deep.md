@@ -12,6 +12,17 @@ useful_for:
   - 'Понимать сеть Фейстеля'
 estimated_minutes: 35
 summary: 'DES изнутри: сеть Фейстеля, 16 раундов, S-боксы, key schedule и ослабление ключа. 2DES и атака meet-in-the-middle, 3DES и его режимы, дифференциальный криптоанализ DES и почему 3DES всё ещё в банкоматах.'
+lab:
+  kind: shell
+  title: 'Практика: meet-in-the-middle на 2DES'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, pair.txt, mitm.py]
+  check: 'grep -q ''nto{m33t_1n_th3_m1ddl3_0n_2d3s}'' found.txt'
+  hints:
+    - '`cat pair.txt`.'
+    - '`python3 mitm.py` — находит K1, K2 и печатает флаг.'
+    - '`python3 mitm.py | grep nto > found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

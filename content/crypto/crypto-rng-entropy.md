@@ -12,6 +12,17 @@ useful_for:
   - 'Аудит генерации ключей и токенов'
 estimated_minutes: 30
 summary: 'Энтропия и источники случайности: /dev/random vs /dev/urandom, getrandom, seed-recovery из времени/PID. Почему время — плохой seed, как перебрать пространство seed и восстановить все ключи, и как измеряют энтропию.'
+lab:
+  kind: shell
+  title: 'Практика: восстановление seed из времени'
+  toolset: [core, python3]
+  workdir: /home/student/task
+  files: [task.md, notes.txt, token.txt, crack_seed.py]
+  check: 'grep -q ''nto{t1m3_s33d_1s_n0t_3ntr0py}'' found.txt'
+  hints:
+    - '`cat token.txt`.'
+    - 'Перебери seed в окне и сравни первый выход с токеном.'
+    - '`python3 crack_seed.py` — находит seed, печатает следующий секрет.'
 ---
 
 ## Вопрос, с которого всё начинается

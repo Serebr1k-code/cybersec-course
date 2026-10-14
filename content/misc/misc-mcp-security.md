@@ -13,6 +13,17 @@ useful_for:
   - 'Безопасность агентов'
 estimated_minutes: 34
 summary: 'Model Context Protocol: серверы, инструменты, ресурсы; tool poisoning, confused deputy, path traversal в файловых тулах, SSRF через fetch и раздутые scope.'
+lab:
+  kind: shell
+  title: 'Практика: MCP файловый тул'
+  toolset: [core, grep]
+  workdir: /home/student/task
+  files: [task.md, mcp_tools.json, secret_notes.txt]
+  check: 'grep -q ''nto{mcp_p4th_tr4v3rs4l}'' found.txt'
+  hints:
+    - '`cat mcp_tools.json` — объявленные инструменты.'
+    - 'Ищи path traversal в объявлении файлового тула.'
+    - 'Прочитай `secret_notes.txt` и запиши метку в `found.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

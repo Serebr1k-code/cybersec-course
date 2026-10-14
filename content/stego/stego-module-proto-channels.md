@@ -41,3 +41,39 @@ protobuf-сообщение, WS-фрейм), который разбираетс
 - Разбирать IPv6 extension headers и опции.
 - Декодировать protobuf varint и поля.
 - Снимать маску WebSocket и читать payload.
+
+## Квиз
+
+```quiz
+- question: "Что в TLS ClientHello может нести скрытые данные?"
+  options:
+    - "Расширения, SNI и session ticket"
+    - "Только порт"
+    - "Только IP"
+    - "Только MAC"
+  answer: 0
+  explanation: "Расширения ClientHello и SNI доступны без ключей и годятся как канал."
+- question: "Почему неизвестные поля protobuf — хороший носитель?"
+  options:
+    - "Их игнорируют парсеры, но они сохраняются"
+    - "Они шифруются"
+    - "Они удаляются"
+    - "Они видны в UI"
+  answer: 0
+  explanation: "Неизвестные поля protobuf сохраняются и игнорируются приложением."
+- question: "Что в IPv6 годится для covert-канала?"
+  options:
+    - "Extension headers и произвольные option-типы"
+    - "Только адрес"
+    - "Только длину"
+    - "Только TTL"
+  answer: 0
+  explanation: "Extension headers/options IPv6 позволяют встраивать произвольные данные."
+```
+
+
+## Где пригодится
+
+**CTF:** Stego в сетевых протоколах.
+**Стегоанализ:** covert-каналы TLS/IPv6/gRPC/WebSocket.
+**Работа:** обнаружение скрытых каналов в трафике.

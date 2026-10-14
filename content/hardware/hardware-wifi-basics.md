@@ -13,6 +13,17 @@ useful_for:
   - 'Выбор адаптера для тестов'
 estimated_minutes: 40
 summary: 'Типы кадров 802.11, каналы и ширина канала, что такое monitor mode и почему чипсет важнее софта; чтение beacon-кадров в tshark.'
+lab:
+  kind: shell
+  title: 'Практика: разбор Wi-Fi-дампа'
+  toolset: [core, grep, base64]
+  workdir: /home/student/task
+  files: [task.md, capture.txt, ssid.b64]
+  check: 'grep -q ''nto{w1f1_b34c0n_ss1d}'' found.txt'
+  hints:
+    - '`cat capture.txt` — что за кадры.'
+    - '`grep beacon capture.txt` — строка beacon и её SSID.'
+    - '`base64 -d ssid.b64` — скрытый SSID.'
 ---
 
 ## Вопрос, с которого всё начинается
