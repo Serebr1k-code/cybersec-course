@@ -1,0 +1,24 @@
+{
+  "id": "win-amcache-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4mc4ch3_sh4_h4sh}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: AmCache\n\n`Amcache.hve` — hive AmCache. Найди путь и SHA-1 подозрительной программы.\n\n1. `file Amcache.hve`.\n2. `strings Amcache.hve | grep -iE 'path|sha1'`.\n3. `grep nto Amcache.hve > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/Amcache.hve",
+      "text": "MS Windows registry file, NT/2000 or above\nRoot\\File entries:\nPath: C:\\Users\\jdoe\\AppData\\Local\\Temp\\svchost.exe\nSHA1: 9f2c1a7b4e8d3c5f6a0b1c2d3e4f5a6b7c8d9e0f\nLastModified: 2025-05-28 21:09:10\nnote: nto{4mc4ch3_sh4_h4sh}\n",
+      "mode": "644"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "win-prefetch-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pr3f3tch_v0lum3_s3r14l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Prefetch\n\n`PSEXEC.EXE-1A2B3C4D.pf` — файл Prefetch. Найди счётчик запусков и серийник тома.\n\n1. `file PSEXEC.EXE-1A2B3C4D.pf`.\n2. `strings PSEXEC.EXE-1A2B3C4D.pf | grep -iE 'run|volume|serial'`.\n3. `grep nto PSEXEC.EXE-1A2B3C4D.pf > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/PSEXEC.EXE-1A2B3C4D.pf",
+      "text": "MS Windows Prefetch file, version 30\nExecutable: PSEXEC.EXE\nRun count: 7\nVolume: \\VOLUME{01d2a4b6-...}  Serial: 0x7a1c9e42\nLast run: 2025-05-30 14:02:11\nnote: nto{pr3f3tch_v0lum3_s3r14l}\n",
+      "mode": "644"
+    }
+  ]
+}

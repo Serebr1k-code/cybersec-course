@@ -1,0 +1,24 @@
+{
+  "id": "win-srum-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{srum_n3tw0rk_3xf1l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: SRUM\n\n`SRUDB.dat` — база SRUM. Определи приложение с большой исходящей передачей и найди метку.\n\n1. `file SRUDB.dat`.\n2. `strings SRUDB.dat | grep -iE 'bytes|rclone'`.\n3. `grep nto SRUDB.dat > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/SRUDB.dat",
+      "text": "Extensible Storage Engine (ESE) Database File (edb)\nNetworkUsages: AppId=42 BytesSent=104857600 BytesRecv=2048\nSruDbIdMapTable: 42 rclone.exe\nnote: nto{srum_n3tw0rk_3xf1l}\n",
+      "mode": "644"
+    }
+  ]
+}

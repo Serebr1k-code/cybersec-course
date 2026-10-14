@@ -1,0 +1,24 @@
+{
+  "id": "win-appcompat-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sh1mc4ch3_p4th_f0und}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: ShimCache\n\n`SYSTEM` — hive реестра с AppCompatCache. Найди путь подозрительного файла и метку.\n\n1. `file SYSTEM`.\n2. `strings SYSTEM | grep -iE 'mimikatz|downloads'`.\n3. `grep nto SYSTEM > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/SYSTEM",
+      "text": "MS Windows registry file, NT/2000 or above\nAppCompatCache entries:\nC:\\Users\\jdoe\\Downloads\\mimikatz.exe  LastModified 2025-05-28 21:10:44\nC:\\Windows\\System32\\cmd.exe  LastModified 2025-01-01 00:00:00\nnote: nto{sh1mc4ch3_p4th_f0und}\n",
+      "mode": "644"
+    }
+  ]
+}
