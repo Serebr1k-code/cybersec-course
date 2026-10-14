@@ -1,0 +1,36 @@
+{
+  "id": "misc-save-state",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s4v3_st4t3_t4mp3r1ng}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Save state\n\nВ `state.sav` спрятан флаг. Разбери формат и распакуй тело.\n"
+    },
+    {
+      "path": "/home/student/task/state.sav",
+      "b64": "U0FWU1RBVEUBVwAAAB+LCAAAAAAAAv9zDgi1UghwtjWosDAwMFAIDgCy3NzcXLmCnf2DXG0NjY3NuYJdnYNcQ2zzSvKri03KjOOLS0xKjONLTHILjIsM89JruQCgj4w5RQAAAA==",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор",
+      "cases": [
+        {
+          "match": "decompress|state\\.sav",
+          "example": "python3 -c \"import gzip;...\"",
+          "output": "CPU: PC=0x8000 SP=0xFFFE\nSCORE=1337\nSECRET=nto{s4v3_st4t3_t4mp3r1ng}"
+        }
+      ]
+    }
+  }
+}

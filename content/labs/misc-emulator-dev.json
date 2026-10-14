@@ -1,0 +1,40 @@
+{
+  "id": "misc-emulator-dev",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3mul4t0r_mmu_00b_3sc4p3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Аудит эмулятора\n\nВ `emu.c` есть ошибка перевода адреса. Пойми её и найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/emu.c",
+      "text": "uint8_t *mmu(uint16_t a){ if(a<0x8000) return &rom[a]; return &vram[a-0x8000]; }\n// нет проверки границ vram -> OOB\n"
+    },
+    {
+      "path": "/home/student/task/rom.bin",
+      "b64": "Uk9NREFUQW50b3szbXVsNHQwcl9tbXVfMDBiXzNzYzRwM31ceDAw",
+      "mode": "644"
+    }
+  ],
+  "tools": {
+    "strings": {
+      "help": "strings <файл>",
+      "cases": [
+        {
+          "match": "rom\\.bin",
+          "example": "strings rom.bin",
+          "output": "nto{3mul4t0r_mmu_00b_3sc4p3}"
+        }
+      ]
+    }
+  }
+}
