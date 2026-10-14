@@ -1,0 +1,28 @@
+{
+  "id": "linux-proc-forensics",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pr0c_cmdl1n3_nul_byt3s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: командная строка из /proc\n\n`cmdline.bin` — копия `/proc/<pid>/cmdline` подозрительного процесса. Аргументы разделены нулевыми байтами. Найди флаг в аргументах.\n\n1. `file cmdline.bin` и `xxd -l 64 cmdline.bin` — видны нули.\n2. `strings cmdline.bin` — каждый аргумент отдельной строкой.\n3. `strings cmdline.bin | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/cmdline.bin",
+      "b64": "L3RtcC8ueC9rd29ya2VyZAAtLXBvb2wAcG9vbC5leGFtcGxlOjMzMzMALS10YWcAbnRve3ByMGNfY21kbDFuM19udWxfYnl0M3N9AA==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/fd_list.txt",
+      "text": "0 -> /dev/null\n3 -> /tmp/.x/pool.log\n5 -> socket:[41234]\n"
+    }
+  ]
+}

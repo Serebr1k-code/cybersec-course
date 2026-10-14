@@ -1,0 +1,28 @@
+{
+  "id": "linux-systemd-persistence",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{systemd_un1t_p3rs1st3nc3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: systemd-персистентность\n\nНайден юнит `systemd-networkd-helper.service` и его бинарник. Разбери юнит и найди флаг в бинарнике.\n\n1. `cat systemd-networkd-helper.service`.\n2. `file systemd-networkd-helper`.\n3. `strings systemd-networkd-helper | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/systemd-networkd-helper.service",
+      "text": "[Unit]\nDescription=Network helper\nAfter=network.target\n\n[Service]\nType=simple\nExecStart=/usr/lib/systemd/systemd-networkd-helper --daemon\nRestart=always\nUser=root\n\n[Install]\nWantedBy=multi-user.target\n"
+    },
+    {
+      "path": "/home/student/task/systemd-networkd-helper",
+      "b64": "f0VMRgIBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAvdXNyL2xpYi9zeXN0ZW1kL3N5c3RlbWQtbmV0d29ya2QtaGVscGVyAAAAAAAAAAAAAAAAAAAAAABudG97c3lzdGVtZF91bjF0X3AzcnMxc3QzbmMzfQAtLWRhZW1vbgBSZXN0YXJ0PWFsd2F5cwA=",
+      "mode": "755"
+    }
+  ]
+}

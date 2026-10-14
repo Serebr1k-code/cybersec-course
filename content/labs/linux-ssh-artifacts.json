@@ -1,0 +1,27 @@
+{
+  "id": "linux-ssh-artifacts",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ssh_p3rs1st3nc3_by_k3y}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: SSH-закрепление\n\nДаны `authorized_keys` сервера и `auth.log`. Найди нештатный ключ и подтверди вход по нему.\n\n1. `cat authorized_keys`.\n2. `grep Accepted auth.log` — вход по ключу и адрес.\n3. `grep nto authorized_keys > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/authorized_keys",
+      "text": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIH7xQ2root@attacker\nssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC7 backup@corp\nssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIfl4g nto{ssh_p3rs1st3nc3_by_k3y}\n"
+    },
+    {
+      "path": "/home/student/task/auth.log",
+      "text": "Mar 14 01:55:02 srv sshd[900]: Failed password for admin from 10.10.20.9\nMar 14 02:11:33 srv sshd[1337]: Accepted publickey for root from 10.10.20.55 port 51422 ssh2: ED25519 SHA256:AAAAC3\n"
+    }
+  ]
+}
