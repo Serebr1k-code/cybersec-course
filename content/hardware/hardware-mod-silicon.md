@@ -1,6 +1,6 @@
 ---
 id: hardware-mod-silicon
-title: "Модуль: Физические атаки на кремний"
+title: "Модуль: Вскрытие и правка кремния (декапсуляция/FIB/EMFI)"
 category: hardware
 parent: hardware-mod-physical-attacks
 difficulty: hard
