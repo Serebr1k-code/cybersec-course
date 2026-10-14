@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-pendingintent",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p3nd1ng1nt3nt_mut4bl3_h1j4ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: PendingIntent hijacking\n\nРазбери дамп `dumpsys` и найди мутабельный PendingIntent с утечкой.\n"
+    },
+    {
+      "path": "/home/student/task/notify_dump.txt",
+      "text": "PendingIntentRecord{4f2a com.example.delivery uid=10123}\n  action=android.intent.action.VIEW\n  flags=0x04000000 (FLAG_IMMUTABLE)\nPendingIntentRecord{9c11 com.example.delivery uid=10123}\n  action=com.example.delivery.OPEN_ORDER\n  flags=0x02000000 (FLAG_MUTABLE)  package=(none)\n  extra order_id=42\n  secret: nto{p3nd1ng1nt3nt_mut4bl3_h1j4ck}\nPendingIntentRecord{1b77 com.example.delivery uid=10123}\n  action=com.example.delivery.SYNC\n  flags=0x04000000 (FLAG_IMMUTABLE)\n"
+    }
+  ]
+}

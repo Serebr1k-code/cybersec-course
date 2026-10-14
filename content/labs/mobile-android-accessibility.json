@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-accessibility",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4cc3ss1b1l1ty_k3yl0gg3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: accessibility-кейлоггер\n\nНайди, как сервис собирает вводимый текст.\n"
+    },
+    {
+      "path": "/home/student/task/helper_smali.txt",
+      "text": ".class public Lcom/evil/HelperService;\n.super Landroid/accessibilityservice/AccessibilityService;\n\n.method public onAccessibilityEvent(Landroid/view/accessibility/AccessibilityEvent;)V\n    invoke-virtual {p1}, Landroid/view/accessibility/AccessibilityEvent;->getEventType()I\n    move-result v0\n    const/16 v1, 0x10   # TYPE_VIEW_TEXT_CHANGED\n    if-ne v0, v1, :cond_0\n    # each keystroke exfiltrated to c2\n    # flag: nto{4cc3ss1b1l1ty_k3yl0gg3r}\n    :cond_0\n    return-void\n.end method\n"
+    }
+  ]
+}

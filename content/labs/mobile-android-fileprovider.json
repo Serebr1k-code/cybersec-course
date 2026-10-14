@@ -1,0 +1,27 @@
+{
+  "id": "mobile-android-fileprovider",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{f1l3pr0v1d3r_p4th_tr4v3rs4l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: FileProvider\n\nНайди небезопасное правило в конфиге провайдера.\n"
+    },
+    {
+      "path": "/home/student/task/manifest.xml",
+      "text": "<provider android:name=\"androidx.core.content.FileProvider\"\n    android:authorities=\"com.example.scanner.fileprovider\"\n    android:exported=\"false\"\n    android:grantUriPermissions=\"true\">\n  <meta-data android:name=\"android.support.FILE_PROVIDER_PATHS\"\n      android:resource=\"@xml/file_paths\"/>\n</provider>\n"
+    },
+    {
+      "path": "/home/student/task/file_paths.xml",
+      "text": "<paths>\n  <files-path name=\"scans\" path=\"scans/\"/>\n  <!-- dangerous: full filesystem root exposed -->\n  <!-- flag: nto{f1l3pr0v1d3r_p4th_tr4v3rs4l} -->\n  <root-path name=\"root\" path=\".\"/>\n</paths>\n"
+    }
+  ]
+}
