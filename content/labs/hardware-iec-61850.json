@@ -1,0 +1,29 @@
+{
+  "id": "hardware-iec-61850",
+  "workdir": "/home/student/iec61850",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/iec61850/found.txt",
+    "contains": "nto{g0053_p4ck3t_f0rg3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/iec61850",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/iec61850/task.md",
+      "text": "# Задача: разбор GOOSE-трафика\n\nТы записал GOOSE-сообщения подстанции в `goose.log`. Найди запись с полезной нагрузкой и достань флаг.\n\nПолезные команды: `cat`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/iec61850/notes.md",
+      "text": "Заметки\n------\n- IEC 61850: модель данных IED->LD->LN->DO->DA.\n- MMS (TCP/102) — управление/чтение; GOOSE — события L2 в реальном времени.\n- stNum — счётчик изменений, sqNum — повторов.\n- GOOSE без аутентификации -> подделка управляет объектом.\n- Нагрузка в логе идёт после 'stNum='.\n"
+    },
+    {
+      "path": "/home/student/iec61850/goose.log",
+      "text": "GOOSE gcb=IED1/LLN0$GO$gcb01\nGOOSE stNum=12 sqNum=3\nGOOSE gocbRef=IED1/LLN0$GO$gcb01\nGOOSE dataSet=DS_TRIP\nGOOSE boolean=TRUE (trip)\nGOOSE ttl=4 ms\nGOOSE stNum=nto{g0053_p4ck3t_f0rg3d}\nGOOSE next: retransmit\n"
+    }
+  ],
+  "tools": {}
+}

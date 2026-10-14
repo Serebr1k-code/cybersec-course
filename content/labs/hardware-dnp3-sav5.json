@@ -1,0 +1,29 @@
+{
+  "id": "hardware-dnp3-sav5",
+  "workdir": "/home/student/dnp3sav5",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/dnp3sav5/found.txt",
+    "contains": "nto{dnp3_s4v5_ch4ll3ng3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/dnp3sav5",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/dnp3sav5/task.md",
+      "text": "# Задача: challenge-response SAv5\n\nТы записал сессию DNP3 с Secure Authentication в `sav5.log`. Найди ключ и достань флаг.\n\nПолезные команды: `cat`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/dnp3sav5/notes.md",
+      "text": "Заметки\n------\n- DNP3 SAv5: challenge-response для критичных операций.\n- MAC = HMAC-SHA на общем ключе; есть Update Key и Session Key.\n- Некритичные операции (READ) аутентификации не требуют.\n- Без проверки freshness возможен replay.\n- Ключ идёт после 'key='.\n"
+    },
+    {
+      "path": "/home/student/dnp3sav5/sav5.log",
+      "text": "DNP3 LNK FUNC=RESET\nDNP3 APP FUNC=WRITE obj=BinaryOutput(10) idx=3\nSAv5: CRITICAL op requires auth\nSAv5 challenge: CSQ=0x1A2B3C4D\nSAv5 response: MAC=0x9F2A... HMAC-SHA256\nSAv5 status: AUTH_OK\nSAv5 update key=nto{dnp3_s4v5_ch4ll3ng3}\nSAv5 freshness: checked\n"
+    }
+  ],
+  "tools": {}
+}

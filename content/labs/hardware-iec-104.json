@@ -1,0 +1,29 @@
+{
+  "id": "hardware-iec-104",
+  "workdir": "/home/student/iec104",
+  "hostname": "lab",
+  "vars": {},
+  "expect": {
+    "file": "/home/student/iec104/found.txt",
+    "contains": "nto{1ec104_4sdu_c0mm4nd}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/iec104",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/iec104/task.md",
+      "text": "# Задача: разбор IEC-104\n\nТы записал сессию телемеханики в `iec104.log`. Найди ASDU с полезной нагрузкой и достань флаг.\n\nПолезные команды: `cat`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/iec104/notes.md",
+      "text": "Заметки\n------\n- IEC-104: TCP/2404, сообщение = APCI + ASDU.\n- Кадры I/S/U-format; ASDU типы: M_SP_NA_1, C_SC_NA_1 и т.д.\n- IOA — адрес сигнала/объекта.\n- Нет аутентификации: команды можно подделать.\n- Нагрузка в логе идёт после 'IOA='.\n"
+    },
+    {
+      "path": "/home/student/iec104/iec104.log",
+      "text": "TCP 10.0.0.5:51000 -> 10.0.0.9:2404\nIEC104 APCI: I-frame ASDU=...\nIEC104 ASDU type=M_SP_NA_1 (single point)\nIEC104 IOA=1001 value=ON\nIEC104 ASDU type=C_SC_NA_1 (single command)\nIEC104 IOA=1002 SCS=1 (close)\nIEC104 IOA=nto{1ec104_4sdu_c0mm4nd}\nIEC104 APCI: S-frame ack\n"
+    }
+  ],
+  "tools": {}
+}
