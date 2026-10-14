@@ -13,6 +13,17 @@ useful_for:
   - 'Threat Hunting'
 estimated_minutes: 36
 summary: 'Обнаружение виртуальной среды: артефакты гипервизоров, признаки VM-evasion вредоноса и почему следы проверки на виртуальность сами являются уликой.'
+lab:
+  kind: shell
+  title: 'Практика: VM-detection код'
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, strings_out.txt]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - '`strings_out.txt` — строки из образца. Ищи маркеры гипервизоров.'
+    - '`grep -iE "vbox|vmware|qemu" strings_out.txt`.'
+    - 'Метка лежит рядом с VM-маркерами: `grep nto strings_out.txt > answer.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

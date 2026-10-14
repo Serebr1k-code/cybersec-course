@@ -13,6 +13,17 @@ useful_for:
   - 'Threat Hunting'
 estimated_minutes: 36
 summary: 'Стирание и подмена метаданных: как атакующий убирает EXIF, авторство и встроенные сведения, какие следы при этом остаются и как отличить очищенный файл от «чистого».'
+lab:
+  kind: shell
+  title: 'Практика: метаданные файла'
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, photo.jpg]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Начни с `file photo.jpg` — убедись, что это изображение.'
+    - 'Метаданные лежат в самом файле как текст: `strings photo.jpg`.'
+    - 'Найди строку с флагом: `strings photo.jpg | grep nto > answer.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

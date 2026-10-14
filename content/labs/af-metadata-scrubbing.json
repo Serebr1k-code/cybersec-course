@@ -1,0 +1,24 @@
+{
+  "id": "af-metadata-scrubbing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{ex1f_l34ks_s3cr3ts}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: метаданные\n\n`photo.jpg` — фото с метаданными. Найди скрытую в метаданных метку и запиши её в `answer.txt`.\n\n1. `file photo.jpg` — тип файла.\n2. `strings photo.jpg` — текстовые поля (EXIF и др.).\n3. `strings photo.jpg | grep nto > answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/photo.jpg",
+      "b64": "/9j/4QAQRXhpZgAATWFrZT1DYW5vbgBNb2RlbD1FT1MAR1BTPTU1Ljc1NThOLDM3LjYxNzNFAENvbW1lbnQ9bnRve2V4MWZfbDM0a3NfczNjcjN0c30A/9k=",
+      "mode": "644"
+    }
+  ]
+}

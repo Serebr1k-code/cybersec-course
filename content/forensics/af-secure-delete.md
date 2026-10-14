@@ -13,6 +13,17 @@ useful_for:
   - 'Threat Hunting'
 estimated_minutes: 38
 summary: 'Безопасное удаление и стирание данных: почему обычное удаление оставляет содержимое, как работает перезапись, какие следы оставляют шредеры и как отличить wiping от удаления.'
+lab:
+  kind: shell
+  title: 'Практика: удалено ≠ стёрто'
+  toolset: [core]
+  workdir: /home/student/task
+  files: [task.md, disk.img]
+  check: 'grep -q ''nto{'' answer.txt'
+  hints:
+    - 'Содержимое удалённого файла ищи в образе: `strings disk.img`.'
+    - 'Файл «удалили», но не перезаписали — данные на месте.'
+    - '`strings disk.img | grep nto > answer.txt`.'
 ---
 
 ## Вопрос, с которого всё начинается

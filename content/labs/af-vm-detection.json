@@ -1,0 +1,24 @@
+{
+  "id": "af-vm-detection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{vmd3t3ct10n_c0d3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: VM-detection\n\n`strings_out.txt` — строки, извлечённые из образца. Найди признаки проверки на виртуальную среду и метку рядом с ними.\n\n1. `grep -iE \"vbox|vmware|qemu\" strings_out.txt`.\n2. `grep nto strings_out.txt > answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/strings_out.txt",
+      "text": "MZ\u0000\nVBOX__GUEST\nvmware-tools\nqemu-ga\nnto{vmd3t3ct10n_c0d3}\nsandbox\nvmmouse.sys\n",
+      "mode": "644"
+    }
+  ]
+}
