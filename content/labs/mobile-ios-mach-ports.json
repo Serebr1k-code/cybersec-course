@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-mach-ports",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{t4sk_p0rt_t4k30v3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит Mach-прав\n\nНайди опасное право.\n"
+    },
+    {
+      "path": "/home/student/task/mach_ports.txt",
+      "text": "port 0x0307 io_receive (send)\nport 0x0303 task_self_trap\nport 0x0a11 task_port of SpringBoard (send)  # flag: nto{t4sk_p0rt_t4k30v3r}\n"
+    }
+  ]
+}

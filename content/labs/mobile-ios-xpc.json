@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-xpc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{xpc_n0_cl13nt_ch3ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит XPC\n\nНайди пропущенную проверку клиента.\n"
+    },
+    {
+      "path": "/home/student/task/xpc_listener.txt",
+      "text": "listener.shouldAcceptNewConnection = { conn in\n    // validateSignature(conn.auditToken)  <-- MISSING  flag: nto{xpc_n0_cl13nt_ch3ck}\n    return true\n}\n"
+    }
+  ]
+}

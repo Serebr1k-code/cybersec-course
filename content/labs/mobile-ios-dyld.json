@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-dyld",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dyld_1nj3ct3d_dyl1b}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит dyld\n\nНайди подозрительную библиотеку.\n"
+    },
+    {
+      "path": "/home/student/task/dyld_info.txt",
+      "text": "/System/Library/Frameworks/UIKit.framework/UIKit\n/usr/lib/libSystem.B.dylib\n/tmp/hook.dylib  # injected  flag: nto{dyld_1nj3ct3d_dyl1b}\n"
+    }
+  ]
+}

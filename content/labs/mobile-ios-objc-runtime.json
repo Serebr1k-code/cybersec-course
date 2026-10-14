@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-objc-runtime",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sw1zzl3_jb_d3t3ct}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит swizzling\n\nНайди подменённый метод защиты.\n"
+    },
+    {
+      "path": "/home/student/task/runtime_log.txt",
+      "text": "swizzle: -[Security isDebuggerAttached] -> -[Hook alwaysFalse]  OK\nswizzle: -[Security isJailbroken] -> -[Hook alwaysFalse]  # flag: nto{sw1zzl3_jb_d3t3ct}\n"
+    }
+  ]
+}
