@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-detect-emulator",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3mul4t0r_d3t3ct3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор детекта эмулятора\\n\\nНайди проверку файла эмулятора.\\n"
+    },
+    {
+      "path": "/home/student/task/emu_checks.txt",
+      "text": "check: Build.MODEL == sdk_gphone  -> maybe\\ncheck: file /dev/qemu_pipe exists  -> emulator  # flag: nto{3mul4t0r_d3t3ct3d}\\n"
+    }
+  ]
+}

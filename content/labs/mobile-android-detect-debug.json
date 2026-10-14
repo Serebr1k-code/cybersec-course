@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-detect-debug",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4nt1_d3bug_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор anti-debug\\n\\nНайди проверку отладки.\\n"
+    },
+    {
+      "path": "/home/student/task/checks.txt",
+      "text": "check: Build.FINGERPRINT == generic  -> emulator\\ncheck: Debug.isDebuggerConnected()  -> exit  # flag: nto{4nt1_d3bug_byp4ss}\\n"
+    }
+  ]
+}

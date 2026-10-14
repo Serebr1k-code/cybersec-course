@@ -9,8 +9,22 @@ import { createSession } from './session'
 // and asserts `check` passes. If a lab stops being solvable in the engine, this
 // fails. (Fixtures are captured from real tshark/curl/openssl runs.)
 const dir = path.resolve(process.cwd(), '../content/labs')
+const contentDir = path.resolve(process.cwd(), '../content')
 const WD = '/home/student/task'
-const CHECK = "grep -q '' answer.txt"
+
+// Read the REAL `check:` predicate from the lesson front-matter so this spec
+// verifies the actual published check (not a hardcoded copy). Falls back to the
+// historical empty check if the lesson cannot be found.
+function lessonCheck(id) {
+  for (const cat of fs.readdirSync(contentDir)) {
+    const p = path.join(contentDir, cat, `${id}.md`)
+    if (fs.existsSync(p)) {
+      const m = fs.readFileSync(p, 'utf8').match(/^\s*check:\s*(.+)$/m)
+      if (m) return m[1].trim().replace(/^["']|["']$/g, '')
+    }
+  }
+  return "grep -q '' answer.txt"
+}
 
 const LABS = [
   { id: 'network-ipsec-ike', solution: [
@@ -68,7 +82,7 @@ describe('network + osint labs solve end-to-end', () => {
   for (const { id, solution } of LABS) {
     it(id, async () => {
       const bundle = JSON.parse(fs.readFileSync(path.join(dir, `${id}.json`), 'utf8'))
-      const spec = { kind: 'shell', workdir: WD, check: CHECK, hints: ['a', 'b', 'c'] }
+      const spec = { kind: 'shell', workdir: WD, check: lessonCheck(id), hints: ['a', 'b', 'c'] }
       const s = createSession({ spec, bundle })
       expect((await s.run('check')).stdout).toContain('не сходится')
       for (const cmd of solution) {
