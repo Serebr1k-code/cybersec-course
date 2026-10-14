@@ -1,0 +1,24 @@
+{
+  "id": "mobile-screen-lock",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1os_bfu_4fu_s3p}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: журнал состояния блокировки iOS\n\n`lockstate.txt` — выдержка из системных логов и данных Secure Enclave.\nОпредели состояния BFU/AFU, задержки попыток и USB Restricted Mode, найди метку.\n\n1. `cat lockstate.txt`.\n2. `grep -iE 'bfu|afu|usb' lockstate.txt`.\n3. `grep nto lockstate.txt > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/lockstate.txt",
+      "mode": "644",
+      "text": "2026-03-11T07:00:00Z boot: state=BFU (before first unlock)\n2026-03-11T07:02:11Z passcode ok: state=AFU (after first unlock)\n2026-03-11T07:02:12Z class keys loaded: WhenUnlocked, AfterFirstUnlock\n2026-03-11T07:40:00Z failed passcode attempt #3: delay 60s\n2026-03-11T07:41:30Z USB connected: USB Restricted Mode armed (1h)\n2026-03-11T08:41:00Z device locked 1h: state=AFU keybag still in memory\nnote: lock marker nto{1os_bfu_4fu_s3p}\n"
+    }
+  ]
+}

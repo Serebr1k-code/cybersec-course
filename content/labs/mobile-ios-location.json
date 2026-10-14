@@ -1,0 +1,25 @@
+{
+  "id": "mobile-ios-location",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{mobile_ios_location_0k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/evidence.txt",
+      "text": "# фрагмент артефакта mobile-ios-location\nwarning: suspicious activity detected\nmarker: nto{mobile_ios_location_0k}\n",
+      "mode": "644"
+    }
+  ]
+}

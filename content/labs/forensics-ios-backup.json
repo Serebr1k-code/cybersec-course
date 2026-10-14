@@ -3,8 +3,8 @@
   "workdir": "/home/student/task",
   "hostname": "lab",
   "expect": {
-    "file": "/home/student/task/found.txt",
-    "contains": "nto{1os_b4ckup_m4n1f3st}"
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{forensics_ios_backup_0k}"
   },
   "fs": [
     {
@@ -13,12 +13,13 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: резервная копия iOS\n\n`Manifest_dump.txt` — выгрузка Manifest.db из бэкапа iPhone.\nОпредели, какие файлы мессенджера есть в копии, и найди метку.\n\n1. `cat Manifest_dump.txt`.\n2. `grep -i whatsapp Manifest_dump.txt`.\n3. `grep nto Manifest_dump.txt > found.txt`.\n"
+      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
+      "mode": "644"
     },
     {
-      "path": "/home/student/task/Manifest_dump.txt",
-      "mode": "644",
-      "text": "Manifest.db rows (fileID, domain, relativePath)\na1b2  HomeDomain            Library/SMS/sms.db\nc3d4  AppDomain-com.apple.mobilesafari  Library/Safari/History.db\ne5f6  AppDomain-net.whatsapp.WhatsApp   Documents/msgstore.db\ng7h8  CameraRollDomain      Media/DCIM/100APPLE/IMG_0001.JPG\ni9j0  RootDomain            Library/Preferences/com.apple.MobileSMS.plist\nnote: backup marker nto{1os_b4ckup_m4n1f3st}\n"
+      "path": "/home/student/task/evidence.txt",
+      "text": "# фрагмент артефакта forensics-ios-backup\nwarning: suspicious activity detected\nmarker: nto{forensics_ios_backup_0k}\n",
+      "mode": "644"
     }
   ]
 }
