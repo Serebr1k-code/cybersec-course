@@ -1,0 +1,48 @@
+{
+  "id": "crypto-slide-rotational",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sl1d3_p41r_r3v34ls_th3_r0und_k3y}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: slide-атака на самоподобный шифр\n\n`slide.py` содержит 32-битный шифр из 16 одинаковых раундов\nR(x)=rotl(x,5)^0x12345678^K. Найди скользящую пару (P,P'=R(P)),\nвосстанови раундовый ключ K. `rot.py` показывает rotational-симметрию ARX.\n\nШаги:\n1. `cat slide.py`.\n2. `python3 slide.py`.\n3. `python3 slide.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Slide-атака работает, когда все раунды одинаковы.\n- Для скользящей пары C'=R(C); константа и ключ сокращаются: P'^C' = rotl(P,5)^rotl(C,5).\n- Зная P, восстанавливаем K = P' ^ rotl(P,5) ^ 0x12345678.\n"
+    },
+    {
+      "path": "/home/student/task/slide.py",
+      "text": "# Self-similar 32-bit cipher: 16 identical rounds R(x)=rotl(x,5)^0x12345678^K.\nM=0xffffffff\ndef rotl(x,r): return ((x<<r)|(x>>(32-r)))&M\nK=0xdeadbeef\ndef R(x): return rotl(x,5)^0x12345678^K\ndef E(x):\n    for _ in range(16): x=R(x)\n    return x\n# slide attack: a slid pair (P,P') with P'=R(P) also satisfies C'=R(C).\n# Without knowing K we test: P'^C' == rotl(P,5)^rotl(C,5)  (K and const cancel).\nimport random\nrandom.seed(1)\nP=random.randrange(1<<32); Pp=R(P)\nC=E(P); Cp=E(Pp)\nlhs=Pp^Cp; rhs=rotl(P,5)^rotl(C,5)\nprint(\"slid pair check P'^C' == rotl(P,5)^rotl(C,5):\", lhs==rhs)\nrecK=Pp^rotl(P,5)^0x12345678\nprint(\"recovered key = 0x%08x  (true 0x%08x)\"%(recK,K))\nprint(\"flag: nto{sl1d3_p41r_r3v34ls_th3_r0und_k3y}\")\n"
+    },
+    {
+      "path": "/home/student/task/rot.py",
+      "text": "M=0xffffffff\ndef rotl(x,r): return ((x<<r)|(x>>(32-r)))&M\n# rotational distinguisher for a rotation-invariant (XOR+rotate only) permutation\ndef P(x):\n    x=rotl(x,7)^0x9e3779b9\n    x=rotl(x,13)^0x7f4a7c15\n    x=rotl(x,3)\n    return x\nr=8\nx=0x12345678\n# P is NOT rotation-invariant because constants aren't rotated; use a keyless rot-invariant map\ndef Q(x):\n    x=rotl(x,7); x^=rotl(0x9e3779b9,0)\n    return x\n# cleaner: pure rotation chain commutes with rotation by construction\ndef chain(x):\n    for k in (5,11,17,23): x=rotl(x,k)\n    return x\nx=0x0f1e2d3c\nprint(\"chain(rotl(x,8)) == rotl(chain(x),8):\", chain(rotl(x,8))==rotl(chain(x),8))\nprint(\"flag: nto{r0t4t10n4l_symm3try_1n_4rx_c1ph3rs}\")\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "slide\\.py$",
+          "example": "python3 slide.py",
+          "output": "slid pair check P'^C' == rotl(P,5)^rotl(C,5): True\nrecovered key = 0xdeadbeef  (true 0xdeadbeef)\nflag: nto{sl1d3_p41r_r3v34ls_th3_r0und_k3y}\n"
+        }
+      ]
+    }
+  }
+}
