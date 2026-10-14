@@ -1,0 +1,44 @@
+{
+  "id": "stego-json-whitespace",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{json_ws_b1t5}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: пробелы в JSON\n\n`config.json` валиден, но отступы в начале строк кодируют сообщение\n(пробел = 0, таб = 1).\n\n1. `xxd -l 48 config.json`.\n2. `python3 wsjson.py` — извлечение бит.\n3. `python3 wsjson.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/config.json",
+      "b64": "ewogImswIjogMCwKCSJrMSI6IDEsCgkiazIiOiAyLAogImszIjogMywKCSJrNCI6IDQsCgkiazUiOiA1LAoJIms2IjogNiwKICJrNyI6IDcsCiAiazgiOiA4LAoJIms5IjogOSwKCSJrMTAiOiAxMCwKCSJrMTEiOiAxMSwKICJrMTIiOiAxMiwKCSJrMTMiOiAxMywKICJrMTQiOiAxNCwKICJrMTUiOiAxNSwKICJrMTYiOiAxNiwKCSJrMTciOiAxNywKCSJrMTgiOiAxOCwKICJrMTkiOiAxOSwKCSJrMjAiOiAyMCwKCSJrMjEiOiAyMSwKCSJrMjIiOiAyMiwKCSJrMjMiOiAyMywKICJrMjQiOiAyNCwKCSJrMjUiOiAyNSwKCSJrMjYiOiAyNiwKCSJrMjciOiAyNywKCSJrMjgiOiAyOCwKICJrMjkiOiAyOSwKCSJrMzAiOiAzMCwKCSJrMzEiOiAzMSwKICJrMzIiOiAzMiwKCSJrMzMiOiAzMywKCSJrMzQiOiAzNCwKICJrMzUiOiAzNSwKCSJrMzYiOiAzNiwKICJrMzciOiAzNywKCSJrMzgiOiAzOCwKICJrMzkiOiAzOSwKICJrNDAiOiA0MCwKCSJrNDEiOiA0MSwKCSJrNDIiOiA0MiwKCSJrNDMiOiA0MywKICJrNDQiOiA0NCwKICJrNDUiOiA0NSwKCSJrNDYiOiA0NiwKCSJrNDciOiA0NywKICJrNDgiOiA0OCwKCSJrNDkiOiA0OSwKCSJrNTAiOiA1MCwKICJrNTEiOiA1MSwKCSJrNTIiOiA1MiwKCSJrNTMiOiA1MywKCSJrNTQiOiA1NCwKCSJrNTUiOiA1NSwKICJrNTYiOiA1NiwKCSJrNTciOiA1NywKCSJrNTgiOiA1OCwKICJrNTkiOiA1OSwKCSJrNjAiOiA2MCwKCSJrNjEiOiA2MSwKCSJrNjIiOiA2MiwKICJrNjMiOiA2MywKICJrNjQiOiA2NCwKCSJrNjUiOiA2NSwKICJrNjYiOiA2NiwKCSJrNjciOiA2NywKCSJrNjgiOiA2OCwKCSJrNjkiOiA2OSwKCSJrNzAiOiA3MCwKCSJrNzEiOiA3MSwKICJrNzIiOiA3MiwKCSJrNzMiOiA3MywKCSJrNzQiOiA3NCwKCSJrNzUiOiA3NSwKICJrNzYiOiA3NiwKCSJrNzciOiA3NywKCSJrNzgiOiA3OCwKCSJrNzkiOiA3OSwKICJrODAiOiA4MCwKCSJrODEiOiA4MSwKCSJrODIiOiA4MiwKCSJrODMiOiA4MywKICJrODQiOiA4NCwKICJrODUiOiA4NSwKCSJrODYiOiA4NiwKCSJrODciOiA4NywKICJrODgiOiA4OCwKCSJrODkiOiA4OSwKICJrOTAiOiA5MCwKCSJrOTEiOiA5MSwKCSJrOTIiOiA5MiwKCSJrOTMiOiA5MywKCSJrOTQiOiA5NCwKCSJrOTUiOiA5NSwKICJrOTYiOiA5NiwKCSJrOTciOiA5NywKCSJrOTgiOiA5OCwKICJrOTkiOiA5OSwKICJrMTAwIjogMTAwLAogImsxMDEiOiAxMDEsCgkiazEwMiI6IDEwMiwKICJrMTAzIjogMTAzLAogImsxMDQiOiAxMDQsCiAiazEwNSI6IDEwNSwKCSJrMTA2IjogMTA2LAoJImsxMDciOiAxMDcsCiAiazEwOCI6IDEwOCwKICJrMTA5IjogMTA5LAogImsxMTAiOiAxMTAsCgkiazExMSI6IDExMSwKICJrMTEyIjogMTEyLAoJImsxMTMiOiAxMTMsCgkiazExNCI6IDExNCwKCSJrMTE1IjogMTE1LAogImsxMTYiOiAxMTYsCgkiazExNyI6IDExNywKICJrMTE4IjogMTE4LAogImsxMTkiOiAxMTksCiAiazEyMCI6IDEyMCwKICJrMTIxIjogMTIxLAoJImsxMjIiOiAxMjIsCgkiazEyMyI6IDEyMywKICJrMTI0IjogMTI0LAoJImsxMjUiOiAxMjUsCiAiazEyNiI6IDEyNiwKCSJrMTI3IjogMTI3LAogImsxMjgiOiAxMjgsCgkiazEyOSI6IDEyOSwKCSJrMTMwIjogMTMwLAoJImsxMzEiOiAxMzEsCgkiazEzMiI6IDEzMiwKCSJrMTMzIjogMTMzLAogImsxMzQiOiAxMzQsCgkiazEzNSI6IDEzNQp9Cg=="
+    },
+    {
+      "path": "/home/student/task/wsjson.py",
+      "text": "lines = open('config.json', encoding='utf-8').read().split('\\n')\nbits = ''\nfor ln in lines:\n    if ln[:1] in (' ', '\\t'):\n        bits += '0' if ln[0] == ' ' else '1'\nmsg = ''.join(chr(int(bits[i:i+8], 2)) for i in range(0, len(bits)-7, 8))\nprint(msg)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "wsjson\\.py",
+          "example": "python3 wsjson.py",
+          "output": "nto{json_ws_b1t5}\n"
+        }
+      ]
+    }
+  }
+}

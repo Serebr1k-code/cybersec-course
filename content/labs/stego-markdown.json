@@ -1,0 +1,44 @@
+{
+  "id": "stego-markdown",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{markdown_hidden_comment}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: комментарий в Markdown\n\n`README.md` содержит скрытый HTML-комментарий с меткой.\n\n1. `cat README.md`.\n2. `python3 mdx.py` — извлечение.\n3. `python3 mdx.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/README.md",
+      "b64": "IyDQn9GA0L7QtdC60YIKCtCf0L7Qu9C10LfQvdGL0Lkg0YHQtdGA0LLQuNGBLgoKPCEtLSBudG97bWFya2Rvd25faGlkZGVuX2NvbW1lbnR9IC0tPgoKW2RvY3NdW2RdCgpbZF06IGh0dHBzOi8vZXhhbXBsZS5jb20gIkRvY3VtZW50YXRpb24iCg=="
+    },
+    {
+      "path": "/home/student/task/mdx.py",
+      "text": "import re\ntext = open('README.md', encoding='utf-8').read()\nm = re.search(r'<!--\\s*(nto\\{[^}]*\\})\\s*-->', text)\nprint(m.group(1))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "mdx\\.py",
+          "example": "python3 mdx.py",
+          "output": "nto{markdown_hidden_comment}\n"
+        }
+      ]
+    }
+  }
+}

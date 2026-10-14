@@ -1,0 +1,44 @@
+{
+  "id": "stego-unicode-tags",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{unicode_tags_block}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: невидимые символы Unicode Tags\n\n`note.txt` содержит невидимые символы блока Unicode Tags после\nобычного текста.\n\n1. `xxd note.txt | tail -3`.\n2. `python3 tags.py` — извлечение.\n3. `python3 tags.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/note.txt",
+      "b64": "0JfQsNC80LXRgtC60LA6INC90LUg0LfQsNCx0YvRgtGMINC/0YDQviDQvtGC0YfRkdGCLgrzoIGu86CBtPOgga/zoIG786CBtfOgga7zoIGp86CBo/Ogga/zoIGk86CBpfOggZ/zoIG086CBofOggafzoIGz86CBn/OggaLzoIGs86CBr/OggaPzoIGr86CBvQo="
+    },
+    {
+      "path": "/home/student/task/tags.py",
+      "text": "text = open('note.txt', encoding='utf-8').read()\nmsg = ''.join(chr(ord(c)-0xE0000) for c in text if 0xE0000 <= ord(c) <= 0xE007F)\nprint(msg)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "tags\\.py",
+          "example": "python3 tags.py",
+          "output": "nto{unicode_tags_block}\n"
+        }
+      ]
+    }
+  }
+}
