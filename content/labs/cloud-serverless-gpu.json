@@ -1,0 +1,27 @@
+{
+  "id": "cloud-serverless-gpu",
+  "workdir": "/home/student/gpu",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/gpu/found.txt",
+    "contains": "nto{srvls_gpu_1nf3r3nc3_m0d3l_th3ft}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/gpu",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/gpu/task.md",
+      "text": "# Задача\n\nНайден конфиг inference-эндпоинта. Определи риски и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/gpu/infer.json",
+      "text": "{\n  \"endpoint\": \"https://api.example.com/infer\",\n  \"auth\": \"none\",\n  \"rate_limit\": \"none\",\n  \"backend\": \"serverless-gpu\",\n  \"model_artifact\": \"s3://acme-models/prod/llm-v3\"\n}\n"
+    },
+    {
+      "path": "/home/student/gpu/notes.md",
+      "text": "Аудит: нет авторизации и лимитов -> abuse GPU-времени за счёт владельца.\nСбор пар вход-выход -> model extraction.\nАртефакт модели лежит в открытом s3 -> прямая кража.\nnto{srvls_gpu_1nf3r3nc3_m0d3l_th3ft}\n"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "cloud-knative",
+  "workdir": "/home/student/knative",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/knative/found.txt",
+    "contains": "nto{kn4t1v3_ssrf_s3rv1c34cc0unt_3sc4l4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/knative",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/knative/task.md",
+      "text": "# Задача\n\nНайден Knative Service. Определи его права и путь к внутренним сервисам, затем собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/knative/ksvc.yaml",
+      "text": "apiVersion: serving.knative.dev/v1\nkind: Service\nmetadata:\n  name: webhook\n  namespace: prod\nspec:\n  template:\n    spec:\n      serviceAccountName: default\n      containers:\n      - image: registry.example.com/webhook:1.0\n        env:\n        - name: UPSTREAM_URL\n          value: https://api.internal.example.com\n"
+    },
+    {
+      "path": "/home/student/knative/notes.md",
+      "text": "Аудит: функция webhook делает запрос по UPSTREAM_URL (управляется пользователем) -> SSRF.\nSA default имеет право читать секреты в namespace.\nИз функции доступны kubelet и metadata -> pivot.\nnto{kn4t1v3_ssrf_s3rv1c34cc0unt_3sc4l4t10n}\n"
+    }
+  ]
+}

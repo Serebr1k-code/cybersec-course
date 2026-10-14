@@ -1,0 +1,27 @@
+{
+  "id": "cloud-lambda-extensions",
+  "workdir": "/home/student/lambda",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/lambda/found.txt",
+    "contains": "nto{l4mbd4_3xt3ns10n_3nv_s3cr3ts}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/lambda",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/lambda/task.md",
+      "text": "# Задача\n\nНайден конфиг Lambda-функции с расширением. Определи путь к секретам и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/lambda/fn-config.json",
+      "text": "{\n  \"FunctionName\": \"billing\",\n  \"Layers\": [{\"Arn\": \"arn:aws:lambda:eu-west-1:123456789012:layer:monitoring:3\"}],\n  \"Environment\": {\"Variables\": {\"DB_PASSWORD\": \"***\", \"API_KEY\": \"***\"}}\n}\n"
+    },
+    {
+      "path": "/home/student/lambda/notes.md",
+      "text": "Аудит: слой monitoring содержит extension, запускаемый в песочнице.\nExtension видит env DB_PASSWORD/API_KEY и события через Runtime API.\nСлой общий -> подмена затрагивает все функции.\nnto{l4mbd4_3xt3ns10n_3nv_s3cr3ts}\n"
+    }
+  ]
+}

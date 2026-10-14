@@ -1,0 +1,27 @@
+{
+  "id": "cloud-serverless-framework",
+  "workdir": "/home/student/sls",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/sls/found.txt",
+    "contains": "nto{s3rv3rl3ss_c0nf1g_s3cr3ts_d3pl0y_r0l3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/sls",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/sls/task.md",
+      "text": "# Задача\n\nНайден serverless.yml. Определи секреты и роль деплоя, затем собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/sls/serverless.yml",
+      "text": "provider:\n  name: aws\n  runtime: nodejs20.x\n  environment:\n    DB_PASSWORD: ${env:DB_PASSWORD}\n    API_KEY: sk-live-EXAMPLEnotreal\n  role: arn:aws:iam::123456789012:role/deploy-broad\nfunctions:\n  api:\n    handler: handler.main\n    events:\n      - httpApi: \"*\"\n"
+    },
+    {
+      "path": "/home/student/sls/notes.md",
+      "text": "Аудит: API_KEY задан в конфиге, DB_PASSWORD из CI.\nРоль deploy-broad имеет AdministratorAccess -> утечка кредов = эскалация.\nserverless print раскрывает итоговые значения.\nnto{s3rv3rl3ss_c0nf1g_s3cr3ts_d3pl0y_r0l3}\n"
+    }
+  ]
+}

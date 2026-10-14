@@ -1,0 +1,27 @@
+{
+  "id": "cloud-faas-egress",
+  "workdir": "/home/student/faas",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/faas/found.txt",
+    "contains": "nto{f4a5_vpc_3gr3ss_p1v0t_1nt3rn4l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/faas",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/faas/task.md",
+      "text": "# Задача\n\nНайден конфиг Lambda-функции в VPC. Определи путь во внутреннюю сеть и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/faas/fn-vpc.json",
+      "text": "{\n  \"FunctionName\": \"sync\",\n  \"VpcConfig\": {\"SubnetIds\": [\"subnet-0a1b2c\"], \"SecurityGroupIds\": [\"sg-0123\"]},\n  \"Role\": \"arn:aws:iam::123456789012:role/sync-role\"\n}\n"
+    },
+    {
+      "path": "/home/student/faas/notes.md",
+      "text": "Аудит: функция в VPC, SG sg-0123 разрешает доступ к RDS и внутренним API.\nSSRF в функции -> прокси во внутреннюю сеть от имени sync-role.\nEgress allowlist включает S3 -> exfil через разрешённый endpoint.\nnto{f4a5_vpc_3gr3ss_p1v0t_1nt3rn4l}\n"
+    }
+  ]
+}

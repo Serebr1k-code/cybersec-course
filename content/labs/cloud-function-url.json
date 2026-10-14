@@ -1,0 +1,27 @@
+{
+  "id": "cloud-function-url",
+  "workdir": "/home/student/url",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/url/found.txt",
+    "contains": "nto{func_url_authtype_n0n3_publ1c}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/url",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/url/task.md",
+      "text": "# Задача\n\nНайден конфиг Lambda Function URL. Определи режим доступа и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/url/url-config.json",
+      "text": "{\n  \"FunctionUrl\": \"https://abc123.lambda-url.eu-west-1.on.aws/\",\n  \"AuthType\": \"NONE\",\n  \"Cors\": {\"AllowOrigins\": [\"*\"], \"AllowMethods\": [\"*\"]}\n}\n"
+    },
+    {
+      "path": "/home/student/url/notes.md",
+      "text": "Аудит: AuthType NONE -> функция публична, curl отдаёт данные без авторизации.\nCORS * -> любой сайт читает ответ.\nРоль функции имеет право читать S3 -> SSRF/abuse.\nnto{func_url_authtype_n0n3_publ1c}\n"
+    }
+  ]
+}
