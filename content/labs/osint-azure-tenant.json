@@ -1,0 +1,59 @@
+{
+  "id": "osint-azure-tenant",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{4zur3_t3n4nt_1d_gu1d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Azure AD tenant ID\n\n1. `curl -s 'https://login.microsoftonline.com/example.com/v2.0/.well-known/openid-configuration'`\n2. Достань GUID тенанта из `token_endpoint`.\n3. В ответе есть маркер `nto{...}` — запиши его в `answer.txt`, затем `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — эмуляция ответов Azure AD",
+      "cases": [
+        {
+          "match": "openid-configuration",
+          "example": "curl -s 'https://login.microsoftonline.com/example.com/v2.0/.well-known/openid-configuration'",
+          "output": "{\"authorization_endpoint\":\"https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/oauth2/v2.0/authorize\",\"token_endpoint\":\"https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/oauth2/v2.0/token\",\"issuer\":\"https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/v2.0\",\"x_flag\":\"nto{4zur3_t3n4nt_1d_gu1d}\"}\n"
+        },
+        {
+          "match": "getuserrealm",
+          "example": "curl -s 'https://login.microsoftonline.com/getuserrealm.srf?login=a@example.com&json=1'",
+          "output": "{\"NameSpaceType\":\"Managed\",\"DomainName\":\"example.com\",\"CloudInstanceIssuerUri\":\"urn:federation:MicrosoftOnline\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только login.microsoftonline.com.\n"
+    },
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "token_endpoint|issuer|tenant",
+          "example": "jq -r .token_endpoint conf.json",
+          "output": "https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/oauth2/v2.0/token\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживается разбор полей.\n"
+    },
+    "dig": {
+      "help": "dig [+short] <запись> — эмуляция DNS",
+      "cases": [
+        {
+          "match": "login\\.windows\\.net|_sipfederationtls",
+          "example": "dig +short login.windows.net",
+          "output": "login.microsoftonline.com.\n"
+        }
+      ],
+      "fallback": "dig: в этой лабе доступны записи Azure AD.\n"
+    }
+  }
+}

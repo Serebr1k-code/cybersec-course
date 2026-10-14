@@ -1,0 +1,48 @@
+{
+  "id": "osint-m365-enum",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{m365_t3n4nt_us3r_3num}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Microsoft 365 tenant recon\n\nДомен: `example.com`.\n\n1. Realm: `curl -s 'https://login.microsoftonline.com/getuserrealm.srf?login=user@example.com&json=1'`\n2. OpenID-конфигурация: `curl -s 'https://login.microsoftonline.com/example.com/v2.0/.well-known/openid-configuration'`\n3. Найди поле `issuer`/`token_endpoint` с tenant-id.\n4. Один из ответов содержит маркер `nto{...}`. Запиши в `answer.txt`, затем `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — эмуляция ответов Microsoft 365 login",
+      "cases": [
+        {
+          "match": "getuserrealm",
+          "example": "curl -s 'https://login.microsoftonline.com/getuserrealm.srf?login=user@example.com&json=1'",
+          "output": "{\"State\":1,\"UserState\":2,\"Login\":\"user@example.com\",\"NameSpaceType\":\"Managed\",\"DomainName\":\"example.com\",\"FederationBrandName\":\"Example Corp\",\"AuthURL\":\"\",\"CloudInstanceName\":\"microsoftonline.com\",\"CloudInstanceIssuerUri\":\"urn:federation:MicrosoftOnline\"}\n"
+        },
+        {
+          "match": "openid-configuration",
+          "example": "curl -s 'https://login.microsoftonline.com/example.com/v2.0/.well-known/openid-configuration'",
+          "output": "{\"token_endpoint\":\"https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/oauth2/v2.0/token\",\"issuer\":\"https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/v2.0\",\"tenant_region_scope\":\"EU\",\"cloud_instance_name\":\"microsoftonline.com\",\"tenant_id\":\"72f988bf-86f1-41af-91ab-2d7cd011db47\",\"x_note\":\"nto{m365_t3n4nt_us3r_3num}\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступны только login.microsoftonline.com (getuserrealm, openid-configuration).\n"
+    },
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "NameSpaceType|tenant_id|\\.",
+          "example": "jq '.tenant_id' conf.json",
+          "output": "\"72f988bf-86f1-41af-91ab-2d7cd011db47\"\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживается разбор полей ответа.\n"
+    }
+  }
+}
