@@ -1,0 +1,53 @@
+{
+  "id": "stegoanalysis-targeted-f5",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{f5_strUctur4l_4tt4ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: структурная атака на F5 и извлечение\n\n`image.jpg` содержит данные, встроенные алгоритмом F5. Проанализируй гистограмму DCT-коэффициентов, оцени длину и извлеки сообщение.\n\n1. `python3 f5attack.py` — оценка длины.\n2. `python3 extract.py` — извлечение.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/image.jpg",
+      "b64": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAAQABABAREA/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/9oACAEBAAA/APv+/9k="
+    },
+    {
+      "path": "/home/student/task/f5attack.py",
+      "text": "print('parsed 42 blocks, 1891 non-zero coefficients')\nprint('shrinkage detected: histogram asymmetry at odd/even bins')\nprint('estimated message length = 3120 bits (390 bytes)')\n"
+    },
+    {
+      "path": "/home/student/task/extract.py",
+      "text": "print('nto{f5_strUctur4l_4tt4ck}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "f5attack\\.py",
+          "example": "python3 f5attack.py",
+          "output": "parsed 42 blocks, 1891 non-zero coefficients\nshrinkage detected: histogram asymmetry at odd/even bins\nestimated message length = 3120 bits (390 bytes)\n"
+        },
+        {
+          "match": "extract\\.py",
+          "example": "python3 extract.py",
+          "output": "nto{f5_strUctur4l_4tt4ck}\n"
+        }
+      ]
+    }
+  }
+}

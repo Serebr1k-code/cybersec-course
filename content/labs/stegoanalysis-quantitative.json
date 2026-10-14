@@ -1,0 +1,53 @@
+{
+  "id": "stegoanalysis-quantitative",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{qu4nt_p4yl04d_3st}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: оценка длины payload и извлечение\n\n`suspect.png` — grayscale с LSB-встраиванием. Оцени долю изменённых пикселей, затем извлеки сообщение.\n\n1. `python3 ws_estimate.py` — оценка alpha_hat.\n2. `python3 extract.py` — извлечение.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/suspect.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQd1PeAAADG0lEQVR42gEQA+/8AMrJi3BHdWUO0jXN9fTB3Gbyyx1SC2MxR8o7PzVtlkHZ3ktRbtj/oOIOgwmuosRtPwCQZStpxn1wqnQvq5tuassAmHtKjyWBsWmUT7FuZzrp2oAdy4eSZudonrMtNtfNsHkAgD8+DVmjsVdypxk7oiLRqpQK+ePgVvYBPFe99I7CZevA87m6Baj0/OYF8CWdX3c7AFhZhaAouQNwqgcbwlU35rL4BOvfKDcuKmY1jyqqD2sZ4BM/bafjmqUHYgdv3kGy4wDS8UWbkCd3VKrgx3uilaywV5e+JV7Fm+nP3G4zswO64RzqgP37YpgsJfjiylRnhkQAhgBbZnnoPJS8YjMApuGa+hajllvr/p/zr3sgZxK6JbEDWxPyUKcwV7p68x8FdaNIAJJ/srLATOjbzx3tzgspiNacuj8EXDDQFsrYfyfeFYe8Xtuy0wp3tnfEvbWTUXS6AAB9UPiGY0by4lTPgsPIL2nBNmu5toSbwd5OsCaSpI5jYsttbne/huV+PDgJ0xCfn7YAQEODWPLFhXpS9SpjtQb5HtfdO8ih0pq1zSftYySB4DqHIniyjn6l0BkmAEtkczZmALVWLFbK6Qs1pWrD1HE3Fy0im2Rd414ssyX4Tkh5c/iOzx92mbUjWFEN5Th5N1hEoQBs2QyWLeB/63k9z1JziDJA79ENxTp41lQtJ/IPWXmlqvDrlSc3tx8Kt6ESIluEPQ0AkPAD18QZgK9PtGgipJnCT8eDKm36LseJKF+Y3HJ7ZRJTgF7WOi+1Mvgms/CmyihADYoxdiF7Zgxduj3UzfC/WzgmAqTlSVGYBUV9NLGwNwHTgLA0uY1fVpavzm0sQyeuQAZjvuoAWjBEoEDKn+k8yP0ywPACZrnRc5+Tt4wIiU7fgl+paDkF9NzJq4583zDWaEAV7e+qjNb4iuvWrNzL0Lwm+2UMsshYjUle4ChZ1hXOE9kr6V5JljMBX2Pnhi+6L2qAJus4TKtY4X3c+ScZbs28zv+Xa1MGaofjAF4m72FW+NBTKG6bp6k2SnVdz+CN0YI+ZP9gk6s1e8OAAAAABJRU5ErkJgg="
+    },
+    {
+      "path": "/home/student/task/ws_estimate.py",
+      "text": "print('method: WS estimator')\nprint('alpha_hat = 0.3971')\nprint('estimated payload = 0.3971 * (512*512) = 104120 bits ~ 13 KB')\n"
+    },
+    {
+      "path": "/home/student/task/extract.py",
+      "text": "print('nto{qu4nt_p4yl04d_3st}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "ws_estimate\\.py",
+          "example": "python3 ws_estimate.py",
+          "output": "method: WS estimator\nalpha_hat = 0.3971\nestimated payload = 0.3971 * (512*512) = 104120 bits ~ 13 KB\n"
+        },
+        {
+          "match": "extract\\.py",
+          "example": "python3 extract.py",
+          "output": "nto{qu4nt_p4yl04d_3st}\n"
+        }
+      ]
+    }
+  }
+}

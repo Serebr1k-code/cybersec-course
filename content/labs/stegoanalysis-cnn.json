@@ -1,0 +1,53 @@
+{
+  "id": "stegoanalysis-cnn",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{srnet_d33p_d3t3ct}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: нейросетевой детект и извлечение\n\n`image.png` — RGB с LSB-встраиванием. Нейросетевой детектор (эмуляция SRNet) выдаёт вероятность stego. Подтверди наличие данных и извлеки сообщение.\n\n1. `python3 srnet.py` — решение модели.\n2. `python3 extract.py` — извлечение из LSB.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/image.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQd1PeAAADG0lEQVR42gEQA+/8AFRpb+zXvWHQ9tHxEZQJXjAOTZce8RVja4z73ROx7mWTSDTjmdLiJ2lO+ZHAv1PdngDs83G5kpIP7b62mX0EBkNNClUZAGnvtLkQ+196BozdrBox56Hf/7WhKwXD9oSVX8ARNOsRY8JVxcI+R/q7tW9VpZdJUY10bTi6I6D55BPoEYS0/l26osPozr5QY+JNd4nAL4R+eVjn7FcxMuhGYptE6KiyJASQ9WA0yj9dWYoOj8CkCPciffsiZQYWXj5VklMWwDvywRIyBtcWp9hQksYTW3DNt3HXQ2PNUM6SpdAxLQnYgO9SPR9ILX4NaDyCrDi0O0AnOJM6cRml1uZVaKIZ0IbHdFbOgdQPs6/jC/t4aZKb6Xpv6K3sK6SmIpdP3Guf5DeAIjnQvSrWuIaI9XZlR55w8RsJrttNHPw83Me5Bpm+vczgvjX9SqVwAL0gAEcZa6TekABkDw6g47pt4a09wXPzR52SYTxYK9wOs8MD+l7yjEfHaN2Y35IxKiDipCEEpvXYMKkA1nOlZ8gtGg16K1x28MqRsOl0Z5ivRLq1oWjkHt2fY/xuXjXpPctsoV8Tp/9+xB15AM27x3JYkYCwhhuOOGpwm+JYVn33a266dlnJ2Vqa4r8cKOr6CVqJ1v1xx/ixz/dbOgDWrUmkN7JLmPRN5L/8FbFnL5uTpdKVBdiz2PW9XH+XYMU4pVKj+FjJ7mTRuzYc9mcAVFU9MzzGocuMIfWNoHaFPGw49L7eS4a9X4dmcn6Esa82MkUqc+qqjqnSFQV+4lEvgDh29rcg5eLxk4XEFfcAGxDar6DFrdnPFFvJfjbk0w7bFKERiwoRjADKsjp4oZaASMAkNRXAxCsp7k0FmzGBeOncuHneQKwbnVQ1MgxyqE6fJQxDM8NrXJk6IfDa9qdIFvnADORS+BAnVZzu5c+Jf8i9X7UCgUL8gId9QYYsJec8fuZnEOeLc8WOmJ5KlHIV1QqmgAD/SK5/yvXqsje7q8OpZz2hPKDabcxhvXX9GesHXoYzXvFXKMyW+eC3NS6zB3BS6yUKUjVPWhJgEAAAAASUVORK5CYI"
+    },
+    {
+      "path": "/home/student/task/srnet.py",
+      "text": "print('model: SRNet (deep residual, 12 layers)')\nprint('input: 256x256x3')\nprint('decision: STEGO (prob=0.9931)')\n"
+    },
+    {
+      "path": "/home/student/task/extract.py",
+      "text": "print('nto{srnet_d33p_d3t3ct}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "srnet\\.py",
+          "example": "python3 srnet.py",
+          "output": "model: SRNet (deep residual, 12 layers)\ninput: 256x256x3\ndecision: STEGO (prob=0.9931)\n"
+        },
+        {
+          "match": "extract\\.py",
+          "example": "python3 extract.py",
+          "output": "nto{srnet_d33p_d3t3ct}\n"
+        }
+      ]
+    }
+  }
+}
