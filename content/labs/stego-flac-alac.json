@@ -1,0 +1,44 @@
+{
+  "id": "stego-flac-alac",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{fl4c_4pp_bl0ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: APPLICATION-блок во FLAC\n\n`song.flac` — lossless-аудио. В одном из блоков метаданных лежит закладка.\n\nБлок: `1 байт (last-flag бит7 + тип) + 3 байта длины (big-endian) + данные`. Тип `2` — APPLICATION.\n\n1. `xxd -l 80 song.flac`.\n2. `python3 flac.py` — парсер блоков.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/song.flac",
+      "b64": "ZkxhQwAAACIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAggAAE250b3tmbDRjXzRwcF9ibDBja30="
+    },
+    {
+      "path": "/home/student/task/flac.py",
+      "text": "d = open('song.flac','rb').read()\nassert d[:4] == b'fLaC'\ni = 4\nwhile i < len(d):\n    hdr = d[i]\n    last = hdr >> 7\n    typ = hdr & 0x7f\n    ln = int.from_bytes(d[i+1:i+4], 'big')\n    body = d[i+4:i+4+ln]\n    if typ == 2:\n        print(body.decode('latin-1'))\n    i += 4 + ln\n    if last:\n        break\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "flac\\.py",
+          "example": "python3 flac.py",
+          "output": "nto{fl4c_4pp_bl0ck}\n"
+        }
+      ]
+    }
+  }
+}

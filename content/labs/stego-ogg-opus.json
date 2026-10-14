@@ -1,0 +1,44 @@
+{
+  "id": "stego-ogg-opus",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0gg_0pu5_c0mm3nt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: комментарий в OpusTags\n\n`voice.opus` — Ogg-контейнер с Opus. В комментариях (OpusTags) спрятан флаг.\n\nСтраница: `OggS` + заголовок (26 байт) + сегментная таблица + данные.\nВторая страница — `OpusTags` с комментариями (длины little-endian).\n\n1. `xxd -l 64 voice.opus`.\n2. `python3 ogg.py` — парсер комментариев.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/voice.opus",
+      "b64": "T2dnUwACAAAAAAAAAAABAAAAAAAAAAAAAAABE09wdXNIZWFkAQI4AYC7AAAAAABPZ2dTAAAAAAAAAAAAAAEAAAABAAAAAAAAAAE1T3B1c1RhZ3MHAAAAbGlib3B1cwEAAAAaAAAARkxBRz1udG97MGdnXzBwdTVfYzBtbTNudH0="
+    },
+    {
+      "path": "/home/student/task/ogg.py",
+      "text": "d = open('voice.opus','rb').read()\ni = 0\nwhile i < len(d):\n    assert d[i:i+4] == b'OggS'\n    nsegs = d[i+26]\n    segs = d[i+27:i+27+nsegs]\n    body = d[i+27+nsegs:i+27+nsegs+sum(segs)]\n    if body[:8] == b'OpusTags':\n        p = 8\n        vl = int.from_bytes(body[p:p+4],'little'); p += 4 + vl\n        cnt = int.from_bytes(body[p:p+4],'little'); p += 4\n        for _ in range(cnt):\n            cl = int.from_bytes(body[p:p+4],'little'); p += 4\n            c = body[p:p+cl].decode('utf-8'); p += cl\n            if c.startswith('FLAG='):\n                print(c[5:])\n    i += 27 + nsegs + sum(segs)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "ogg\\.py",
+          "example": "python3 ogg.py",
+          "output": "nto{0gg_0pu5_c0mm3nt}\n"
+        }
+      ]
+    }
+  }
+}

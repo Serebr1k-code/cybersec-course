@@ -1,0 +1,44 @@
+{
+  "id": "stego-midi",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m1d1_t3xt_3v3nt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: текст-событие в MIDI\n\n`tune.mid` — Standard MIDI File. Внутри трека спрятано текстовое мета-событие.\n\nМета-событие: `FF <тип> <длина> <данные>`; тип `01` — текст.\n\n1. `xxd -l 64 tune.mid`.\n2. `python3 midi.py` — парсер событий.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/tune.mid",
+      "b64": "TVRoZAAAAAYAAAABAeBNVHJrAAAAGAD/ARRudG97bTFkMV90M3h0XzN2M250fQ=="
+    },
+    {
+      "path": "/home/student/task/midi.py",
+      "text": "d = open('tune.mid','rb').read()\ni = d.find(b'MTrk') + 8\nwhile i < len(d):\n    while d[i] & 0x80:\n        i += 1\n    i += 1\n    if d[i] == 0xFF:\n        typ = d[i+1]\n        ln = d[i+2]\n        data = d[i+3:i+3+ln]\n        if typ == 0x01:\n            print(data.decode('latin-1'))\n        i += 3 + ln\n        if typ == 0x2F:\n            break\n    else:\n        break\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "midi\\.py",
+          "example": "python3 midi.py",
+          "output": "nto{m1d1_t3xt_3v3nt}\n"
+        }
+      ]
+    }
+  }
+}
