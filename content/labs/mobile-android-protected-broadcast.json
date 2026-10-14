@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-protected-broadcast",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pr0t3ct3d_bc4st_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит receiver-ов\\n\\nНайди фиктивную защиту.\\n"
+    },
+    {
+      "path": "/home/student/task/receivers.txt",
+      "text": "<receiver android:name=\".SyncReceiver\" android:permission=\"X\" />\\n  <permission android:name=\"X\" android:protectionLevel=\"signature\"/>\\n<receiver android:name=\".AdminReceiver\" android:permission=\"Y\" />\\n  <permission android:name=\"Y\" android:protectionLevel=\"normal\"/>  # flag: nto{pr0t3ct3d_bc4st_byp4ss}\\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-implicit-intent",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1mpl1c1t_1nt3nt_h1j4ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: перехват неявного интента\\n\\nНайди чужой intent-filter.\\n"
+    },
+    {
+      "path": "/home/student/task/manifest_dump.txt",
+      "text": "com.example.bank/.PayActivity\\n  action=com.example.bank.ACTION_PAY  priority=0\\ncom.evil.stealer/.StealActivity\\n  action=com.example.bank.ACTION_PAY  priority=1000  # flag: nto{1mpl1c1t_1nt3nt_h1j4ck}\\n"
+    }
+  ]
+}
