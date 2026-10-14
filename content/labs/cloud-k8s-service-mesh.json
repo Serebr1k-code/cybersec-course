@@ -1,0 +1,27 @@
+{
+  "id": "cloud-k8s-service-mesh",
+  "workdir": "/home/student/mesh",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/mesh/found.txt",
+    "contains": "nto{1st10_perm1ss1v3_mtls_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/mesh",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/mesh/task.md",
+      "text": "# Задача\n\nДана конфигурация mTLS в Istio. Определи, возможен ли обход шифрования, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/mesh/peerauthentication.yaml",
+      "text": "apiVersion: security.istio.io/v1\nkind: PeerAuthentication\nmetadata:\n  name: default\nspec:\n  mtls:\n    mode: PERMISSIVE\n"
+    },
+    {
+      "path": "/home/student/mesh/notes.md",
+      "text": "Аудит: PeerAuthentication в режиме PERMISSIVE.\nПод принимает незашифрованный трафик, значит mTLS можно обойти.\nnto{1st10_perm1ss1v3_mtls_byp4ss}\n"
+    }
+  ]
+}

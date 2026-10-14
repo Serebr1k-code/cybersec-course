@@ -1,0 +1,31 @@
+{
+  "id": "cloud-k8s-cni",
+  "workdir": "/home/student/cni",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/cni/found.txt",
+    "contains": "nto{cni_fl4nn3l_n0_n3tw0rkp0l1cy}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/cni",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/cni/task.md",
+      "text": "# Задача\n\nДаны конфиг CNI и сетевая политика. Определи, действует ли политика, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/cni/cni-config.json",
+      "text": "{\n  \"name\": \"cbr0\",\n  \"plugins\": [{\"type\": \"flannel\", \"delegate\": {\"isDefaultGateway\": true}}]\n}\n"
+    },
+    {
+      "path": "/home/student/cni/networkpolicy.yaml",
+      "text": "apiVersion: networking.k8s.io/v1\nkind: NetworkPolicy\nmetadata:\n  name: deny-all\nspec:\n  podSelector: {}\n  policyTypes: [Ingress, Egress]\n"
+    },
+    {
+      "path": "/home/student/cni/notes.md",
+      "text": "Аудит: CNI — Flannel, который не реализует NetworkPolicy.\nЗначит, политика deny-all не применяется — трафик открыт.\nnto{cni_fl4nn3l_n0_n3tw0rkp0l1cy}\n"
+    }
+  ]
+}

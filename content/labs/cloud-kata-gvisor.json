@@ -1,0 +1,27 @@
+{
+  "id": "cloud-kata-gvisor",
+  "workdir": "/home/student/sandbox",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/sandbox/found.txt",
+    "contains": "nto{gv1s0r_s4ndb0x_sysc4ll_1s0l4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/sandbox",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/sandbox/task.md",
+      "text": "# Задача\n\nДан манифест RuntimeClass и заметки о поде. Определи, какая изоляция используется и что это меняет для атакующего, затем собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/sandbox/runtimeclass.yaml",
+      "text": "apiVersion: node.k8s.io/v1\nkind: RuntimeClass\nmetadata:\n  name: gvisor\nhandler: runsc\n---\n# pod использует runtimeClassName: gvisor\n# в поде: uname показывает версию ядра gVisor, dmesg недоступен\n"
+    },
+    {
+      "path": "/home/student/sandbox/notes.md",
+      "text": "Аудит: под запущен в gVisor (runsc).\nSyscall перехватываются в user-space, прямой побег через ядро хоста невозможен.\nnto{gv1s0r_s4ndb0x_sysc4ll_1s0l4t10n}\n"
+    }
+  ]
+}
