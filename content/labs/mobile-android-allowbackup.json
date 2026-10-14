@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-allowbackup",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4ll0wb4ckup_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит бэкапа\\n\\nНайди опасные правила бэкапа.\\n"
+    },
+    {
+      "path": "/home/student/task/backup_flags.txt",
+      "text": "app=notes  allowBackup=true  rules=exclude databases/\\napp=wallet  allowBackup=true  rules=include all (sharedpref auth.xml)  # flag: nto{4ll0wb4ckup_l34k}\\n"
+    }
+  ]
+}

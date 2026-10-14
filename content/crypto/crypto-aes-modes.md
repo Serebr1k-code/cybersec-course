@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, key.txt, iv.txt, cipher.bin]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Вспомни из `crypto-symmetric-core`: AES — блочный шифр, а режим (CBC) задаёт, как соединяются блоки. Поэтому для расшифровки нужны и ключ (256 бит), и IV размером в блок."
     - "Прочитай параметры: `cat key.txt` и `cat iv.txt`."
     - "Файл зашифрован в режиме CBC — нужны и ключ, и IV."
     - "Расшифруй через `openssl enc -d -aes-256-cbc`, подставив hex-значения."

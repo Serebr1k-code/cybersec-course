@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, disk0.img, disk1.img]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Из `forensics-disk-images` помнишь: образ диска — это суперблок плюс данные. У RAID-члена свой суперблок, поэтому сравни его у обоих дисков: `mdadm --examine disk0.img` и `mdadm --examine disk1.img`."
     - "Оба образа — члены одного зеркала: `mdadm --examine disk0.img` и `mdadm --examine disk1.img`."
     - "Сравни счётчик `Events`: свежий член имеет больше событий."
     - "Данные лежат после суперблока и видны через `strings`."

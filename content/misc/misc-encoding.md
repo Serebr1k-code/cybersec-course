@@ -21,6 +21,7 @@ lab:
   files: [task.md, qr.png, notes.txt]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Вспомни из `misc-intro`: неизвестный файл сначала опознают (`file`), потом выбирают декодер. `qr.png` — изображение, а штрих/QR-код читает `zbarimg`."
     - 'Сначала определи тип файла: `file qr.png`.'
     - 'QR-код декодируется утилитой `zbarimg`: `zbarimg -q qr.png`.'
     - 'В выводе есть строка `QR-Code:nto{...}` — отдели флаг и запиши в `found.txt`.'

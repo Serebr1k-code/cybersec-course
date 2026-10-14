@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: RAID1 — какой член массива свежий?\n\nЕсть два члена зеркала `disk0.img` и `disk1.img`. Один из них\nустарел (меньше событий), другой — актуальный. Определи свежий\nчлен и достань из него флаг в `found.txt`.\n\nИнструменты: `file`, `mdadm --examine`, `strings`, `grep`.\n"
+      "text": "# Задача: RAID1 — какой член массива свежий?\n\n## Повторение\n\nИз `forensics-disk-images` помнишь: образ диска — это суперблок плюс данные. У RAID-члена свой суперблок, поэтому сравни его у обоих дисков: `mdadm --examine disk0.img` и `mdadm --examine disk1.img`.\n\nЕсть два члена зеркала `disk0.img` и `disk1.img`. Один из них\nустарел (меньше событий), другой — актуальный. Определи свежий\nчлен и достань из него флаг в `found.txt`.\n\nИнструменты: `file`, `mdadm --examine`, `strings`, `grep`.\n"
     },
     {
       "path": "/home/student/task/notes.txt",

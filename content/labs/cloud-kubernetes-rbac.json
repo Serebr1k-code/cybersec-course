@@ -8,10 +8,13 @@
     "contains": "nto{kubernetes_rbac_2_cluster4dm1n}"
   },
   "fs": [
-    { "path": "/home/student/k8s", "type": "dir" },
+    {
+      "path": "/home/student/k8s",
+      "type": "dir"
+    },
     {
       "path": "/home/student/k8s/task.md",
-      "text": "# Задача: RBAC в Kubernetes — из пода в cluster-admin\n\nТы в поде `web-7f9c-abc`. Внутри лежит service-account токен (`serviceaccount/token`).\nВыясни свои права и дорасти до cluster-admin, используя только RBAC.\n\nИнструмент: `kubectl` (эмуляция — вывод захвачен с реального кластера).\n\nШаги:\n1. `kubectl auth can-i --list` — что тебе можно.\n2. `kubectl get secrets -A` — какие секреты видны во всех namespace.\n3. Прочитай чужой токен service account `ci-deployer` из секрета.\n4. Найди секрет с флагом, декодируй значение из base64 и запиши в `found.txt`.\n"
+      "text": "# Задача: RBAC в Kubernetes — из пода в cluster-admin\n\n## Повторение\n\nВспомни из `cloud-containers-docker`: у контейнера есть свой сервисный аккаунт — «паспорт» процесса. Прежде чем расти в правах, выясни, что тебе вообще разрешено: `kubectl auth can-i --list`.\n\nТы в поде `web-7f9c-abc`. Внутри лежит service-account токен (`serviceaccount/token`).\nВыясни свои права и дорасти до cluster-admin, используя только RBAC.\n\nИнструмент: `kubectl` (эмуляция — вывод захвачен с реального кластера).\n\nШаги:\n1. `kubectl auth can-i --list` — что тебе можно.\n2. `kubectl get secrets -A` — какие секреты видны во всех namespace.\n3. Прочитай чужой токен service account `ci-deployer` из секрета.\n4. Найди секрет с флагом, декодируй значение из base64 и запиши в `found.txt`.\n"
     },
     {
       "path": "/home/student/k8s/notes.md",

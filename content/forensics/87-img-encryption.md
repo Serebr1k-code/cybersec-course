@@ -21,6 +21,7 @@ lab:
   files: [task.md, luks.img]
   check: "grep -q 'nto{luks_h34d3r_l34ks_th3_l4b3l}' answer.txt"
   hints:
+    - "Из `forensics-img-acquisition` помнишь: с образом работают по заголовкам. Этот образ зашифрован, но заголовок LUKS открыт — смотри: `cryptsetup luksDump luks.img`."
     - "Сигнатура: `xxd -l 16 luks.img` (`4c 55 4b 53 ba be` = LUKS)."
     - "Заголовок читается `cryptsetup luksDump luks.img`."
     - "В заголовке есть label и слоты ключей."

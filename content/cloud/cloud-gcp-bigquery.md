@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Как в `cloud-foundations-services`: сначала смотрят, к каким сервисам и данным открыт доступ, и лишь потом лезут внутрь. Здесь начни с `bq ls --project_id acme-prod`."
     - "Перечисли датасеты: `bq ls --project_id acme-prod`."
     - "Запроси таблицу: `bq query \"SELECT * FROM acme-prod.analytics.events LIMIT 10\"`."
     - "Найди флаг: сохрани вывод и `grep nto q.txt > found.txt`."

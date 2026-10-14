@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.md, serviceaccount/token, serviceaccount/namespace, serviceaccount/ca.crt]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Вспомни из `cloud-containers-docker`: у контейнера есть свой сервисный аккаунт — «паспорт» процесса. Прежде чем расти в правах, выясни, что тебе вообще разрешено: `kubectl auth can-i --list`."
     - "Выясни свои права: `kubectl auth can-i --list`."
     - "Перечисли секреты во всех namespace: `kubectl get secrets -A`."
     - "Прочитай чужой токен: `kubectl get secret ci-deployer-token -n kube-system -o jsonpath='{.data.token}'`."

@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: расшифровать AES-256-CBC\n\n`cipher.bin` зашифрован AES-256-CBC (OpenSSL, без соли).\nКлюч и IV лежат рядом в hex-виде.\n\nШаги:\n1. `cat key.txt` и `cat iv.txt` — прочитай ключ и IV.\n2. Расшифруй: `openssl enc -d -aes-256-cbc -K $(cat key.txt) -iv $(cat iv.txt) -in cipher.bin`.\n   (в лабе подставь значения ключа и IV вручную — подстановка `$(...)` не поддерживается)\n3. Запиши флаг в `found.txt`.\n"
+      "text": "# Задача: расшифровать AES-256-CBC\n\n## Повторение\n\nВспомни из `crypto-symmetric-core`: AES — блочный шифр, а режим (CBC) задаёт, как соединяются блоки. Поэтому для расшифровки нужны и ключ (256 бит), и IV размером в блок.\n\n`cipher.bin` зашифрован AES-256-CBC (OpenSSL, без соли).\nКлюч и IV лежат рядом в hex-виде.\n\nШаги:\n1. `cat key.txt` и `cat iv.txt` — прочитай ключ и IV.\n2. Расшифруй: `openssl enc -d -aes-256-cbc -K $(cat key.txt) -iv $(cat iv.txt) -in cipher.bin`.\n   (в лабе подставь значения ключа и IV вручную — подстановка `$(...)` не поддерживается)\n3. Запиши флаг в `found.txt`.\n"
     },
     {
       "path": "/home/student/task/notes.txt",

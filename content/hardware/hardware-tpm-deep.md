@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Как в `hardware-tpm`: секреты TPM лежат в NV-индексах. Сначала перечисли, какие индексы вообще есть: `tpm2 getcap handles-nv-index`."
     - "Перечисли NV-индексы: `tpm2 getcap handles-nv-index`."
     - "Прочитай подозрительный индекс: `tpm2 nvread 0x1500017`."
     - "Сохрани вывод и найди флаг: `... > nv.txt`, затем `grep nto nv.txt > found.txt`."
