@@ -1,0 +1,27 @@
+{
+  "id": "misc-oracle-manipulation",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0r4cl3_d0n4t10n_4tt4ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Oracle\n\n`pool.txt` описывает состояние пула. Найди уязвимость и метку.\n"
+    },
+    {
+      "path": "/home/student/task/pool.txt",
+      "text": "totalAssets=10001\ntotalShares=1\nvictimDeposit=10000 -> shares=floor(10000*1/10001)=0\n"
+    },
+    {
+      "path": "/home/student/task/map.txt",
+      "text": "donation nto{0r4cl3_d0n4t10n_4tt4ck}\nspot decoy\n"
+    }
+  ]
+}

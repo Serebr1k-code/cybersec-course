@@ -1,0 +1,27 @@
+{
+  "id": "misc-zk-circuits",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{zk_und3rc0nstr41n3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# ZK\n\n`circuit.txt` описывает ограничение. Найди обход и метку.\n"
+    },
+    {
+      "path": "/home/student/task/circuit.txt",
+      "text": "p = 21888242871839275222246405745257275088548364400416034343698204186575808495617\nconstraint: w*w === x\n"
+    },
+    {
+      "path": "/home/student/task/map.txt",
+      "text": "w=p-1 nto{zk_und3rc0nstr41n3d}\nw=2 decoy\n"
+    }
+  ]
+}

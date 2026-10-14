@@ -1,0 +1,27 @@
+{
+  "id": "misc-evm-internals",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{evm_st0r4g3_sl0t_0}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# EVM storage\n\n`layout.txt` описывает слоты. Найди значение слота 0 и метку в map.txt.\n"
+    },
+    {
+      "path": "/home/student/task/layout.txt",
+      "text": "slot0 uint256 value = 42\nslot1 uint128 b\n"
+    },
+    {
+      "path": "/home/student/task/map.txt",
+      "text": "42 nto{evm_st0r4g3_sl0t_0}\n43 decoy\n"
+    }
+  ]
+}

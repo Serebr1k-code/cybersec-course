@@ -1,0 +1,27 @@
+{
+  "id": "misc-solana-ctf",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s0l4n4_4cc0unt_c0nfus10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Solana\n\n`accounts.txt` описывает проверки программы. Найди отсутствующую и метку в map.txt.\n"
+    },
+    {
+      "path": "/home/student/task/accounts.txt",
+      "text": "checks: owner==program_id\nmissing: has_one(vault.user == user.key())\n"
+    },
+    {
+      "path": "/home/student/task/map.txt",
+      "text": "has_one_missing nto{s0l4n4_4cc0unt_c0nfus10n}\nowner_missing decoy\n"
+    }
+  ]
+}
