@@ -1,0 +1,44 @@
+{
+  "id": "stego-usb-traffic",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{usb_h1d_fl4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: скрытые нажатия в HID-отчётах\n\n`report.bin` — дамп HID-отчётов клавиатуры. Каждые 8 байт: `модификатор + reserved + 6 кодов`.\n\nHID-коды: 'a'=0x04 ... 'z'=0x1D, '0'=0x27, '-'=0x2D, '['=0x2F, ']'=0x30.\nМодификатор 0x02 = Shift (для `{`, `}`, `_`).\n\n1. `xxd -l 32 report.bin`.\n2. `python3 hid.py` — декодер нажатий.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/report.bin",
+      "b64": "AAARAAAAAAAAABcAAAAAAAAAEgAAAAAAAgAvAAAAAAAAABgAAAAAAAAAFgAAAAAAAAAFAAAAAAACAC0AAAAAAAAACwAAAAAAAAAeAAAAAAAAAAcAAAAAAAIALQAAAAAAAAAJAAAAAAAAAA8AAAAAAAAAIQAAAAAAAAAKAAAAAAACADAAAAAAAA=="
+    },
+    {
+      "path": "/home/student/task/hid.py",
+      "text": "KEY = {0x04:'a',0x05:'b',0x06:'c',0x07:'d',0x08:'e',0x09:'f',0x0A:'g',0x0B:'h',0x0C:'i',0x0D:'j',0x0E:'k',0x0F:'l',0x10:'m',0x11:'n',0x12:'o',0x13:'p',0x14:'q',0x15:'r',0x16:'s',0x17:'t',0x18:'u',0x19:'v',0x1A:'w',0x1B:'x',0x1C:'y',0x1D:'z',0x1E:'1',0x1F:'2',0x20:'3',0x21:'4',0x22:'5',0x23:'6',0x24:'7',0x25:'8',0x26:'9',0x27:'0',0x2C:' ',0x2D:'-',0x2F:'[',0x30:']'}\nSHIFT = {'[':'{',']':'}','-':'_'}\nd = open('report.bin','rb').read()\nout = ''\nfor i in range(0, len(d), 8):\n    mod = d[i]; kc = d[i+2]\n    if kc == 0:\n        continue\n    ch = KEY.get(kc, '?')\n    if mod & 0x02 and ch in SHIFT:\n        ch = SHIFT[ch]\n    out += ch\nprint(out)\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "hid\\.py",
+          "example": "python3 hid.py",
+          "output": "nto{usb_h1d_fl4g}\n"
+        }
+      ]
+    }
+  }
+}

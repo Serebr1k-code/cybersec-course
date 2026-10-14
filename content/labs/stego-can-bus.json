@@ -1,0 +1,44 @@
+{
+  "id": "stego-can-bus",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{can_bus_c0v3rt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: сообщение в данных CAN-кадров\n\n`candump.log` — лог CAN-шины. Формат: `(время) интерфейс ID#HEXDATA`.\n\nСообщение растянуто на несколько кадров одного ID — собери их данные подряд и декодируй hex.\n\n1. `cat candump.log`.\n2. `python3 can.py` — сбор данных по ID.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/candump.log",
+      "text": "(1710000000.000000) can0 123#6e746f7b63616e5f\n(1710000000.010000) can0 123#6275735f63307633\n(1710000000.020000) can0 123#72747d\n"
+    },
+    {
+      "path": "/home/student/task/can.py",
+      "text": "import re\ndata = {}\nfor line in open('candump.log'):\n    m = re.search(r'(\\w+)#([0-9A-Fa-f]+)', line)\n    if not m:\n        continue\n    cid, hexd = m.group(1), m.group(2)\n    data.setdefault(cid, bytearray()).extend(bytes.fromhex(hexd))\nfor cid, b in data.items():\n    print(b.decode('latin-1'))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "can\\.py",
+          "example": "python3 can.py",
+          "output": "nto{can_bus_c0v3rt}\n"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "id": "stego-sdr-iq",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sdr_1q_lsb_fl4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: LSB в IQ-сэмплах\n\n`capture.cs8` — SDR-запись: чередование байтов I и Q. Младший бит I-компоненты несёт сообщение.\n\nФормат cs8: [I0][Q0][I1][Q1]... Каждый I — чётный байт файла.\n\n1. `xxd -l 32 capture.cs8`.\n2. `python3 iq.py` — соберёт биты I в байты.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/capture.cs8",
+      "b64": "7sIBQqmuJLT5Masd06WyCwat2bMpCKssutU9PDCrLjEAqNWnK77mB8Emuy7rK0vKtjAvP837tShTrCyrO9AbSiQJY+wTMRH46NvKTmPasS/oIhvzVw7kN666HwfGXfLCGAenR69fKy7s80z1NRswEKyz4RVORq2rV0/rQS9KD+RS/kb0oRL3xzi5GqvSYOW9WNsBABuwxw4CKOK/CijjUAb3S/3WwrHJw9dF158YM8re5J3BByT6OC3tvUweOkJJWKkRY0srAQECALYXPwKrzKzRDcW58zSptpwswiW1+DmirtE5/MI/3PU2+RW7uRkTFhfrscG2WvNY3xdNxSCg0CL4wUwnol4j6UCzTt4g+Mb2YdQkJ2Md8D7VOV7M2QJZ1s8hGvdXoqPiFN/NTTb1DlT1+bDVttcUz/LRFzo4nRZC9ECxRLr+UlzPFskKPvCyVAESAlqxVMTGvKLCMhNCwTg0FET0wygovKGeVUK2Ilu+C8zSotzS5hzZXjLu3iYHvKtY9hBFMCAGHLwkwiIeoAxiyjecYsLIwBU6Vboqqu9KICIqFmK2K6rbzOKmYbQdDiuiXqwN7jgcNx7PTOIOHiQWHNtOId4rzg6+BroADOyuR9gJrtJG6bpiwlNARfjA3L8S1Fq0ABjERtTFUAoeA/IHzvfss1T5oPIoEQxQoP4="
+    },
+    {
+      "path": "/home/student/task/iq.py",
+      "text": "d = open('capture.cs8','rb').read()\nbits = []\nfor i in range(0, len(d), 2):\n    bits.append(d[i] & 1)\nout = bytearray()\nfor k in range(0, len(bits)//8*8, 8):\n    byte = 0\n    for b in bits[k:k+8]:\n        byte = (byte << 1) | b\n    out.append(byte)\nprint(out.rstrip(b'\\x00').decode('latin-1'))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "iq\\.py",
+          "example": "python3 iq.py",
+          "output": "nto{sdr_1q_lsb_fl4g}\n"
+        }
+      ]
+    }
+  }
+}

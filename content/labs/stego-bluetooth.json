@@ -1,0 +1,44 @@
+{
+  "id": "stego-bluetooth",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{bl3_4dv_fl4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: manufacturer data в BLE-рекламе\n\n`adv.bin` — дамп рекламного пакета BLE. AD-структуры: `длина(1) + тип(1) + данные`.\n\nТип `0xFF` — manufacturer specific data (после него 2 байта company ID, little-endian).\n\n1. `xxd adv.bin`.\n2. `python3 ble.py` — обход AD-структур.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/adv.bin",
+      "b64": "AgEGFP80Em50b3tibDNfNGR2X2ZsNGd9"
+    },
+    {
+      "path": "/home/student/task/ble.py",
+      "text": "d = open('adv.bin','rb').read()\ni = 0\nwhile i < len(d):\n    ln = d[i]\n    if ln == 0:\n        break\n    typ = d[i+1]\n    data = d[i+2:i+1+ln]\n    if typ == 0xFF:\n        print(data[2:].decode('latin-1'))  # пропускаем 2 байта company ID\n    i += 1 + ln\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "ble\\.py",
+          "example": "python3 ble.py",
+          "output": "nto{bl3_4dv_fl4g}\n"
+        }
+      ]
+    }
+  }
+}

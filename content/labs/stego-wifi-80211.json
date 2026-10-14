@@ -1,0 +1,44 @@
+{
+  "id": "stego-wifi-80211",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w1f1_1e_fl4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: vendor-specific IE в кадре 802.11\n\n`frame.bin` — один management-кадр 802.11. После 24-байтного MAC-заголовка идут information elements: `id(1) + длина(1) + данные`.\n\nVendor-specific IE — id 221 (0xDD).\n\n1. `xxd frame.bin`.\n2. `python3 wifi.py` — обход IE.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/frame.bin",
+      "b64": "gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAANsYWLdEW50b3t3MWYxXzFlX2ZsNGd9"
+    },
+    {
+      "path": "/home/student/task/wifi.py",
+      "text": "d = open('frame.bin','rb').read()\ni = 24\nwhile i + 2 <= len(d):\n    eid = d[i]\n    ln = d[i+1]\n    data = d[i+2:i+2+ln]\n    if eid == 221:\n        print(data.decode('latin-1'))\n    i += 2 + ln\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "wifi\\.py",
+          "example": "python3 wifi.py",
+          "output": "nto{w1f1_1e_fl4g}\n"
+        }
+      ]
+    }
+  }
+}
