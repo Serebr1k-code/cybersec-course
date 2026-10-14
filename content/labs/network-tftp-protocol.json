@@ -1,0 +1,24 @@
+{
+  "id": "network-tftp-protocol",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{tftp_blk5iz3_0pt10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: TFTP-передача\n\n`tftp.log` — дамп TFTP-сессии (RRQ + блоки DATA/ACK).\nОдин из блоков несёт поле `data:` в base64.\n\n1. Посмотри лог: `cat tftp.log`\n2. Вырежи поле: `grep data: tftp.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/tftp.log",
+      "text": "69  RRQ  \"firmware.bin\" octet\n69  DATA block=1  len=512\n69  ACK  block=1\n69  DATA block=2  data:bnRve3RmdHBfYmxrNWl6M18wcHQxMG59\n69  ACK  block=2\n"
+    }
+  ],
+  "tools": {}
+}

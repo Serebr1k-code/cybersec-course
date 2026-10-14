@@ -1,0 +1,37 @@
+{
+  "id": "network-http1-deep",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{http1_chunk3d_5muggl3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: границы HTTP/1.1\n\nВ дампе `http1.pcap` — один keep-alive TCP-поток с двумя запросами.\nВторой запрос несёт заголовок `X-Token` со значением в base64.\n\n1. Собери поток: `tshark -r http1.pcap -q -z follow,tcp,ascii,0`\n2. Найди base64: `tshark -r http1.pcap -q -z follow,tcp,ascii,0 | grep X-Token | cut -d: -f2`\n3. Декодируй и запиши флаг `nto{...}` в `answer.txt`, затем набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "tshark": {
+      "help": "tshark -r <pcap> [фильтр] — разбор трафика (эмуляция: вывод с реального tshark)",
+      "cases": [
+        {
+          "match": "follow",
+          "example": "-r http1.pcap -q -z follow,tcp,ascii,0",
+          "output": "\n===================================================================\nFollow: tcp,ascii\nFilter: tcp.stream eq 0\nNode 0: 10.0.0.5:52344\nNode 1: 10.0.0.80:80\n86\nGET /index.html HTTP/1.1\nHost: portal.corp.local\nConnection: keep-alive\n\n\t172\nHTTP/1.1 200 OK\nContent-Length: 13\nContent-Type: text/html\n\n<h1>portal</h1>\n168\nGET /api/profile HTTP/1.1\nHost: portal.corp.local\nTransfer-Encoding: chunked\nX-Token: bnRve2h0dHAxX2NodW5rM2RfNW11Z2dsM30=\n\n0\n\n\t97\nHTTP/1.1 200 OK\nContent-Length: 2\n\nok\n===================================================================\n"
+        },
+        {
+          "match": "http1\\.pcap",
+          "example": "-r http1.pcap",
+          "output": "    1 0.000000 10.0.0.5 → 10.0.0.80  HTTP 152 GET /index.html HTTP/1.1 \n    2 0.001201 10.0.0.80 → 10.0.0.5   HTTP 143 HTTP/1.1 200 OK  (text/html)\n    3 0.002044 10.0.0.5 → 10.0.0.80  HTTP 216 GET /api/profile HTTP/1.1 \n    4 0.003110 10.0.0.80 → 10.0.0.5   HTTP 97 HTTP/1.1 200 OK  \n"
+        }
+      ],
+      "fallback": "tshark: доступно `tshark -r http1.pcap` (см. task.md)\n"
+    }
+  }
+}

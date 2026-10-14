@@ -1,0 +1,24 @@
+{
+  "id": "network-telnet-protocol",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{t3ln3t_1ac_n4w5_0pt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: управляющие байты Telnet\n\n`telnet.log` — фрагмент Telnet-сессии. В нём есть блок subnegotiation\nс полем `val:` в base64.\n\n1. Посмотри лог: `cat telnet.log`\n2. Вырежи поле: `grep val: telnet.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/telnet.log",
+      "text": "FF FB 01\nFF FD 1F\nFF FA 1F 00 50 00 18 FF F0\n6c 6f 67 69 6e 3a\nFF FA 18 val:bnRve3QzbG4zdF8xYWNfbjR3NV8wcHR9 FF F0\n"
+    }
+  ],
+  "tools": {}
+}

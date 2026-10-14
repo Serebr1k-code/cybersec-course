@@ -1,0 +1,24 @@
+{
+  "id": "network-sctp",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{5ctp_chunk_d4t4}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: SCTP-ассоциация\n\n`sctp.log` — разбор ассоциации SCTP. В одном DATA-чанке есть поле\n`payload:` в base64.\n\n1. Посмотри лог: `cat sctp.log`\n2. Вырежи поле: `grep payload: sctp.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/sctp.log",
+      "text": "SCTP INIT     src=5060 dst=5060 vtag=0x1a2b3c4d\nSCTP INIT-ACK cookie=0xdeadbeef\nSCTP DATA     chunk=0 stream=0 payload:bnRvezVjdHBfY2h1bmtfZDR0NH0=\n"
+    }
+  ],
+  "tools": {}
+}

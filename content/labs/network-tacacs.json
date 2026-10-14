@@ -1,0 +1,24 @@
+{
+  "id": "network-tacacs",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{t4c4c5_5h4r3d_53cr3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор TACACS+\n\n`tacacs.log` — заголовок и тело AUTHEN-пакета. Тело помечено `body:`\nи закодировано в base64.\n\n1. Посмотри лог: `cat tacacs.log`\n2. Вырежи поле: `grep body: tacacs.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/tacacs.log",
+      "text": "Header: ver=0xc0 type=1(AUTHEN) seq=1 flags=0 session=0x0a1b2c3d len=20\nbody:bnRve3Q0YzRjNV81aDRyM2RfNTNjcjN0fQ==\n"
+    }
+  ],
+  "tools": {}
+}

@@ -1,0 +1,24 @@
+{
+  "id": "network-tcp-options",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{tcp_0pt10n5_mptcp}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: опции TCP\n\n`tcp.log` — разбор TCP SYN с опциями. В одной опции есть поле `val:`\nв base64.\n\n1. Посмотри лог: `cat tcp.log`\n2. Вырежи поле: `grep val: tcp.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/tcp.log",
+      "text": "TCP data offset=10 (40 байт)\nMSS=1460 WS=8 SACK TS val:bnRve3RjcF8wcHQxMG41X21wdGNwfQ==\n"
+    }
+  ],
+  "tools": {}
+}

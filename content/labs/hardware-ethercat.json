@@ -22,7 +22,7 @@
     },
     {
       "path": "/home/student/ethercat/ethercat.log",
-      "text": "ETH dst=01:01:05:00:00:00 type=0x88A4 (EtherCAT)\nECAT cmd=APRD addr=0x1000 wkc=3\nECAT cmd=APWR addr=0x1001 wkc=3\nECAT datagram 1: LRW 0x0100 len=4 data=00000001\nECAT datagram 2: LRW 0x0180 len=2 data=00FF\nECAT datagram 3: LRW 0x0200 len=24 data=nto{3th3rc47_fr4m3_1nj3ct}\nECAT working counter=3 (all slaves processed)\n"
+      "text": "ETH dst=01:01:05:00:00:00 type=0x88A4 (EtherCAT)\nECAT cmd=APRD addr=0x1000 wkc=3\nECAT cmd=APWR addr=0x1001 wkc=3\nECAT datagram 1: LRW 0x0100 len=4 data=00000001\nECAT datagram 2: LRW 0x0180 len=2 data=00FF\nECAT datagram 3: LRW 0x0200 len 24 data=nto{3th3rc47_fr4m3_1nj3ct}\nECAT working counter=3 (all slaves processed)\n"
     }
   ],
   "tools": {}

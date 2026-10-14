@@ -1,0 +1,24 @@
+{
+  "id": "network-dccp",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{dccp_f34tur3_n3g0t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: DCCP-соединение\n\n`dccp.log` — разбор DCCP-пакетов. В одном пакете есть поле `feature:`\nв base64.\n\n1. Посмотри лог: `cat dccp.log`\n2. Вырежи поле: `grep feature: dccp.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/dccp.log",
+      "text": "DCCP Request  port=5000 Service Code=0x00000001\nDCCP Response port=5000 ack=1\nDCCP feature:bnRve2RjY3BfZjM0dHVyM19uM2cwdH0=\n"
+    }
+  ],
+  "tools": {}
+}

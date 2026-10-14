@@ -1,0 +1,24 @@
+{
+  "id": "network-xinetd-rservices",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{r5h_r00t_3qu1v_7ru57}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: rlogin-рукопожатие\n\n`rlogin.log` — четыре строки, разделённые нулевым байтом. Одна из них\nнесёт поле `host:` в base64.\n\n1. Посмотри лог: `cat rlogin.log`\n2. Вырежи поле: `grep host: rlogin.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/rlogin.log",
+      "text": "\\0 client-user\\0 server-user\\0 vt100\\0 host:bnRve3I1aF9yMDB0XzNxdTF2XzdydTU3fQ==\n"
+    }
+  ],
+  "tools": {}
+}

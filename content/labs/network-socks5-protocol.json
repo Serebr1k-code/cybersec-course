@@ -1,0 +1,24 @@
+{
+  "id": "network-socks5-protocol",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{s0ck5_c0nn3ct_1nt3rn4l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор SOCKS5-сессии\n\n`socks.log` — hex-дамп одного SOCKS5-соединения клиент → прокси.\nВ запросе CONNECT адрес назначения помечен как `dst:` и закодирован base64.\n\n1. Посмотри лог: `cat socks.log`\n2. Вырежи поле: `grep dst: socks.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/socks.log",
+      "text": "05 01 00\n05 00\n05 01 00 03 dst:bnRve3MwY2s1X2Mwbm4zY3RfMW50M3JuNGx9 00 50\n"
+    }
+  ],
+  "tools": {}
+}

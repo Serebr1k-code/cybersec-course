@@ -1,0 +1,24 @@
+{
+  "id": "network-radius-protocol",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{r4d1u5_r3ply_m3ss4g3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор RADIUS-обмена\n\n`radius.log` — Access-Request и Access-Accept. В ответе есть атрибут\n`Reply-Message` со значением в base64.\n\n1. Посмотри лог: `cat radius.log`\n2. Вырежи поле: `grep Reply-Message radius.log | cut -d: -f2`\n3. Декодируй: `... | base64 -d`\n4. Запиши флаг `nto{...}` в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/radius.log",
+      "text": "Code=1 Access-Request Id=0x2A User-Name=admin\nCode=2 Access-Accept  Id=0x2A Reply-Message:bnRve3I0ZDF1NV9yM3BseV9tM3NzNGczfQ==\n"
+    }
+  ],
+  "tools": {}
+}
