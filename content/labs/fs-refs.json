@@ -1,0 +1,24 @@
+{
+  "id": "fs-refs",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{r3fs_bplus_tr33_r3s1l13nt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: том ReFS\n\n`refs.img` — образ серверного тома. Обычные NTFS-инструменты его не открывают. Определи файловую систему и найди метку в метаданных.\n\n1. `xxd -l 16 refs.img` — подпись в boot sector.\n2. `strings refs.img` — текстовые метаданные.\n3. `strings refs.img | grep nto > answer.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/refs.img",
+      "b64": "UmVGUyAgICAAAggAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABNRVRBOiBSZUZTIEIrIHRyZWUgcm9vdCBAIHBhZ2UgMg0KT2JqZWN0VGFibGU6IDUxMiBlbnRyaWVzDQpJbnRlZ3JpdHlTdHJlYW1zOiBlbmFibGVkDQpOT1RFOiBudG97cjNmc19icGx1c190cjMzX3IzczFsMTNudH0NCg==",
+      "mode": "644"
+    }
+  ]
+}
