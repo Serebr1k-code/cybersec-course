@@ -101,8 +101,30 @@ python3 tools/waystone-gen.py list
 | Индикатор | `frontend/src/components/LessonNode.vue` (`.gate`) | бейдж «🔒 N/M» / «🔓 N/M» |
 | Тесты | `waystone.spec.js`, `TreeGraph.spec.js`, `LessonNode.spec.js` | заперто-до-решения, открытие, индикатор |
 
-## Пилот
+## Раскатка (вейстоуны по веткам)
 
-`content/network/network-module-analysis.md` — первый реальный вейстоун: он
-запирает подмодуль «Анализ трафика глубоко» (NetFlow/IDS/WAF/сканирование) до
-решения 5 задач по анализу трафика.
+Первый прогон покрывает 8 категорий / 11 гейтов (все `N=5`, все задачи —
+ранние лабы той же ветки, `python3 tools/waystone-gen.py check` → 0 ошибок):
+
+| Категория | Гейт (id) | Запирает ветку | Задачи (id) |
+|---|---|---|---|
+| network | `network-module-analysis` (пилот) | Анализ трафика глубоко (NetFlow/IDS/WAF) | network-tcpdump, network-wireshark, network-zeek, network-pcap-analysis, network-traffic-analysis-ctf |
+| network | `network-module-wireless` | Беспроводные/телеком/RF глубоко | network-tcpip, network-arp, network-frag-attacks, network-mitm, network-arp-deep |
+| network | `network-module-telecom` (вложен) | Сотовая связь и сигнализация | network-tcpip, network-arp, network-mitm, network-arp-deep, network-wireless-80211 |
+| web | `web-sqli` | Глубокие SQLi-подветки | web-recon-fuzzing, web-recon-surface, web-recon-attack-entry, web-tls-certs, web-cookies-sessions |
+| pwn | `pwn-rop` | ROP и всё глубже (heap/kernel) | pwn-buffer-overflow, pwn-pwntools, pwn-calling-conventions, pwn-methodology, pwn-gdb-pwndbg |
+| forensics | `forensics-windows-artifacts` | Артефакты Windows и глубже | forensics-file-magic, forensics-carving, forensics-archives, forensics-filesystems, forensics-memory |
+| forensics | `forensics-win-logs` (вложен) | Журналы, события, таймлайн | forensics-carving, forensics-archives, forensics-filesystems, forensics-memory, forensics-disk-images |
+| crypto | `crypto-rsa-attacks` | Продвинутые атаки на RSA | crypto-encodings, crypto-classical, crypto-xor-otp, crypto-number-theory, crypto-rsa-basics |
+| stego | `stego-appended` | Дописанные данные и скрытые контейнеры | stego-media-basics, stego-audio, stego-lsb, stego-image-tools, stego-container-formats |
+| reversing | `reversing-decompiler` | Декомпилятор и глубокий статический анализ | reversing-asm, reversing-file-formats, reversing-architectures, reversing-static-analysis, reversing-analysis-methodology |
+| osint | `osint-search-identifiers` | Идентификаторы и DNS-ветка | osint-collection, osint-automation, osint-threat-intel, osint-search-operators, osint-whois-asn |
+
+**Правило размещения (пользователя):** вейстоун каждые 2–3 урока вдоль ветки и
+один в самом конце. Первый прогон ставит гейт на входе в глубокую подветку
+(+ вложенный гейт для network и forensics); сплошная нарезка «каждые 2–3 урока»
+по всем 12 категориям — следующий шаг (генератор `tools/waystone-gen.py new`).
+
+**Проверка в браузере (:8095):** ветка `web-sqli` показывает `🔒 1/5`; после
+решения всех 5 задач бейдж становится `🔓 5/5`, а скрытые ранее дочерние уроки
+(`web-sqli-dbms*`) появляются даже под «Развернуть всё» — до этого их не было в DOM.
