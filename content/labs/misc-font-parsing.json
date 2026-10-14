@@ -1,0 +1,27 @@
+{
+  "id": "misc-font-parsing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4_f0nt_0f_s3cr3ts}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Font parsing\n\n`font_tables.txt` — разбор таблиц `font.ttf`.\nВ хвосте файла (после последней таблицы) лежит архив.\nДостань метку и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/font.ttf",
+      "text": "\\x00\\x01\\x00\\x00\\x00\\x0e ... placeholder ttf bytes ...\n"
+    },
+    {
+      "path": "/home/student/task/font_tables.txt",
+      "text": "table GDEF offset=0x80 len=64\ntable cmap offset=0xc0 len=1024\n...\ntail after last table (0xC031): ZIP archive containing flag nto{4_f0nt_0f_s3cr3ts}\n"
+    }
+  ]
+}

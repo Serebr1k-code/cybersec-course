@@ -1,0 +1,27 @@
+{
+  "id": "misc-carving-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c4rv3d_fr0m_r4w}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Carving\n\n`disk.raw` — сырой образ. `sig.txt` — сигнатура PNG.\nВырежи PNG и достань метку из его текстового чанка.\nЗапиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/sig.txt",
+      "text": "PNG signature: 89 50 4E 47 0D 0A 1A 0A\nIEND footer: 49 45 4E 44 AE 42 60 82\n"
+    },
+    {
+      "path": "/home/student/task/disk.raw",
+      "text": "...random disk bytes...\n89 50 4E 47 0D 0A 1A 0A IHDR 640x480 ... tEXt Comment=nto{c4rv3d_fr0m_r4w} ... 49 45 4E 44 AE 42 60 82\n...more random bytes...\n"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "misc-exif-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3x1f_s4ys_t00_much}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# EXIF deep\n\n`meta_dump.txt` — все теги `photo.jpg` (включая неизвестные).\nНайди служебную метку и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/photo.jpg",
+      "text": "\\xff\\xd8\\xff\\xe1 ... placeholder jpeg bytes ...\\xff\\xd9\n"
+    },
+    {
+      "path": "/home/student/task/meta_dump.txt",
+      "text": "Camera Model Name : Pixel 6\nGPS Position : 55.755833, 37.617778\nComment : nto{3x1f_s4ys_t00_much}\nThumbnail : (present)\n"
+    }
+  ]
+}
