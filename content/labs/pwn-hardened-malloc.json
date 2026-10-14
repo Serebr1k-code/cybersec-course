@@ -1,0 +1,24 @@
+{
+  "id": "pwn-hardened-malloc",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "feature=canary"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: механизм детекта линейного переполнения\n\n`features.txt` — список защит аллокатора hardened_malloc (GrapheneOS). Нужно\nнайти механизм, который кладёт случайное значение в конец каждого выделения и\nпроверяет его при освобождении.\n\n1. `cat features.txt`.\n2. Найди строку с этим механизмом (одно слово-термин).\n3. Запиши `feature=<термин>` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/features.txt",
+      "text": "- isolated size classes (separate slab per class)\n- guard pages around slabs\n- random canary at end of each allocation\n- out-of-line metadata (no inline headers)\n- zero-on-free\n- randomization of allocation order\n- memory tagging (MTE)\n"
+    }
+  ],
+  "tools": {}
+}

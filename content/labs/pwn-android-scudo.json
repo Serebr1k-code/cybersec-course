@@ -1,0 +1,25 @@
+{
+  "id": "pwn-android-scudo",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "class_id=0x2a"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: class_id в заголовке Scudo\n\n`header.bin` — 8-байтовый заголовок блока аллокатора Scudo (Android).\nРаскладка: смещение 0 — checksum, смещение 1 — class_id, смещения 4..7 — origin.\n\n1. `xxd -l 8 header.bin`.\n2. Прочитай байт со смещения 1 (class_id) как hex.\n3. Запиши `class_id=0x..` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/header.bin",
+      "b64": "WioAAAAAAAA=",
+      "mode": "644"
+    }
+  ],
+  "tools": {}
+}

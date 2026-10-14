@@ -1,0 +1,24 @@
+{
+  "id": "pwn-macos-malloc",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "zone=small"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: определить зону Darwin malloc\n\n`zones.txt` — границы зон аллокатора macOS/iOS. Выделение попадает в зону по\nразмеру запроса.\n\n1. `cat zones.txt`.\n2. Запрос — **2048 байт**. Определи, в какую зону он попадает.\n3. Запиши `zone=<nano|tiny|small|large>` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/zones.txt",
+      "text": "zone    min_size  max_size\nnano    1         256\ntiny    257       1008\nsmall   1009      15360\nlarge   15361     (mmap)\n"
+    }
+  ],
+  "tools": {}
+}
