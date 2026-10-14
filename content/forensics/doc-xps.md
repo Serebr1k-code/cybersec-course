@@ -1,22 +1,22 @@
 ---
 id: doc-xps
-title: 'XPS: документ как OPC-пакет'
+title: 'XPS: «PDF от Microsoft» и его разбор'
 category: forensics
 parent: forensics-doc-formats
 difficulty: medium
 order: 4
-tags: [xps, opc, zip, xml, document-forensics]
+tags: [forensics, xps, oxps, documents, metadata]
 prerequisites: [forensics-file-magic]
 useful_for:
   - 'CTF Forensics категория'
   - 'DFIR / Incident Response'
-  - 'Анализ малвари'
+  - 'Анализ образов и артефактов'
 estimated_minutes: 40
-summary: 'Как устроен XPS (ZIP + XML, фиксированные страницы), чем похож на OOXML и как разбирать его как OPC-пакет.'
+summary: 'Что такое XPS/OXPS, как устроен формат, где метаданные и как его анализировать.'
 lab:
   kind: shell
   title: 'Практика: XPS'
-  toolset: [core, grep]
+  toolset: [core, grep, strings]
   workdir: /home/student/task
   files: [task.md]
   check: 'grep -q ''nto{'' answer.txt'
@@ -28,118 +28,110 @@ lab:
 
 ## Вопрос, с которого всё начинается
 
-Попался файл `scan.xps` — вроде документ, но не PDF и не Word. Что это и как его читать?
+Встречается файл `.xps` — «документ фиксированного вида» от Microsoft. Это ZIP с
+страницами в XML. Разберём структуру и что в нём искать.
 
-## Наш пример: scan.xps
+## Наш пример: .xps
 
-```
-$ file scan.xps
-scan.xps: Microsoft XPS document
-```
-
-**XPS (XML Paper Specification)** — формат «фиксированных» документов от Microsoft, по
-идее похожий на PDF: страницы описаны заранее и не переформатируются.
-
-## Шаг 1: XPS — это OPC-пакет
-
-Как OOXML, XPS — это **OPC-пакет** (Open Packaging Conventions): ZIP-архив с XML и
-связями.
+## Шаг 1: это ZIP
 
 ```
-$ unzip -l scan.xps
-  Length      Name
-  --------    ----
-       900    [Content_Types].xml
-       620    _rels/.rels
-      2048    FixedDocumentSequence.fdseq
-      1024    Documents/1/FixedDocument.fdoc
-      4096    Documents/1/Pages/1.fpage
+$ file doc.xps
+doc.xps: Microsoft XPS Document
+$ unzip -l doc.xps
+  FixedDocumentSequence.fdseq
+  Documents/1/Pages/1.fpage
+  Metadata/...
+  [Content_Types].xml
 ```
 
-Структура: `FixedDocumentSequence` → `FixedDocument` → страницы (`fpage`). Каждая страница —
-XML с описанием содержимого.
+`FixedDocumentSequence` — корень, `Pages/*.fpage` — страницы (XML с элементами).
 
-## Шаг 2: страницы как XML
+## Шаг 2: метаданные
+
+XPS хранит метаданные в `Metadata/`:
 
 ```
-$ unzip -p scan.xps Documents/1/Pages/1.fpage | head -c 300
-<FixedPage ...><Glyphs FontUri="/Resources/Fonts/..." UnicodeString="nto{xps_h1dd3n_p4g3}"/>
+$ unzip -p doc.xps 'Metadata/*' | head
+<psf:DocumentProperties>
+  <psf:Author>Ivan</psf:Author>
 ```
 
-Текст страницы — в атрибутах `UnicodeString` элементов `Glyphs`. То есть читать XPS
-можно прямо из XML, без специальной программы.
+## Шаг 3: содержимое страниц
 
-## Шаг 3: ресурсы и шрифты
+Страницы — XML с текстом и графикой:
 
-XPS может ссылаться на ресурсы: изображения, шрифты. Они лежат в `Resources/`. Для
-форензика важно: в ресурсах можно спрятать данные, а «шрифт» может быть не шрифтом.
+```
+$ unzip -p doc.xps 'Documents/1/Pages/1.fpage' | grep -o 'UnicodeString="[^"]*"' | head
+UnicodeString="Confidential"
+```
 
-## Шаг 4: чем похож на OOXML
+Текст извлекается как XML-атрибуты — легко искать ключевые слова.
 
-Оба формата:
+## Шаг 4: встроенные ресурсы
 
-- ZIP-контейнер;
-- `[Content_Types].xml` и `_rels/.rels`;
-- XML внутри.
+XPS может содержать:
 
-Разница: OOXML описывает «потоковый» документ (текст, который переформатируется), а XPS —
-«фиксированные» страницы с точными координатами. Для разбора принцип один: распаковать и
-читать XML.
+- изображения (`Resources/`);
+- шрифты (в т.ч. встроенные);
+- ссылки на внешние ресурсы (можно отключить).
+
+## Шаг 5: практика
+
+```
+$ unzip -o doc.xps -d xps_out
+$ grep -ri 'http\|script' xps_out/ | head
+```
 
 ## Что мы теперь знаем
 
-- XPS — OPC-пакет (ZIP + XML), как OOXML.
-- Иерархия: последовательность → документ → страницы.
-- Текст страницы лежит в XML (`UnicodeString` у `Glyphs`).
-- Ресурсы (шрифты, изображения) хранятся в `Resources/`.
-- Разбирать XPS можно через `unzip`.
+- XPS/OXPS — ZIP с XML-страницами.
+- Метаданные в `Metadata/`.
+- Текст извлекается как XML-атрибуты.
+- Может содержать изображения и шрифты.
+- Разбирается распаковкой.
+
+## Если не сработало
+
+- OXPS? Структура та же (OpenXPS).
+- Нужен рендер? Используй XPS Viewer.
+- Ссылки на внешние? Проверь rels.
 
 ## Квиз
 
 Проверь себя.
 
 ```quiz
-- question: Что такое XPS по своей сути?
+- question: Что такое XPS?
   options:
-    - 'PDF'
-    - 'OPC-пакет (ZIP + XML)'
-    - 'текстовый файл'
-    - 'образ диска'
+    - 'бинарный формат'
+    - 'ZIP-формат фиксированного документа (XML)'
+    - 'сеть'
+    - 'образ'
   answer: 1
-  explanation: 'XPS использует те же Open Packaging Conventions, что и OOXML.'
-- question: Где в XPS описано содержимое страницы?
+  explanation: 'XPS — zip-контейнер со страницами XML.'
+- question: Где метаданные XPS?
   options:
-    - 'в [Content_Types].xml'
-    - 'в файлах .fpage (XML)'
-    - 'в _rels/.rels'
-    - 'в mimetype'
+    - 'в страницах'
+    - 'в Metadata/'
+    - 'в fdseq'
+    - 'в шрифтах'
   answer: 1
-  explanation: 'Страницы представлены файлами FixedPage (.fpage).'
-- question: Где хранятся шрифты и изображения XPS?
+  explanation: 'Каталог Metadata хранит свойства документа.'
+- question: Как извлекается текст из страниц?
   options:
-    - 'в корне архива'
-    - 'в папке Resources/'
-    - 'в meta.xml'
-    - 'в документе Word'
+    - 'через рендер'
+    - 'как XML-атрибуты (UnicodeString)'
+    - 'никак'
+    - 'через OCR'
   answer: 1
-  explanation: 'Ресурсы пакета лежат в Resources/.'
-- question: Чем XPS отличается от OOXML?
+  explanation: 'Текст страниц лежит в XML-атрибутах.'
+- question: Как разобрать XPS?
   options:
-    - 'ничем'
-    - 'XPS описывает фиксированные страницы, OOXML — потоковый документ'
-    - 'XPS не ZIP'
-    - 'XPS без XML'
+    - 'запустить'
+    - 'распаковать как ZIP'
+    - 'открыть в браузере'
+    - 'никак'
   answer: 1
-  explanation: 'XPS — «бумажный» формат с фиксированной вёрсткой.'
+  explanation: 'XPS — zip; разбирается распаковкой.'
 ```
-
-## Куда дальше
-
-Мы закончили ветку форматов документов. Дальше можно вернуться к другим веткам дерева. А
-пока запомни: и OOXML, и ODF, и XPS — это ZIP-контейнеры, и разбирать их надо через XML.
-
-## Где пригодится
-
-- **CTF Forensics** — задачи с «необычными» документами.
-- **DFIR / Incident Response** — разбор вложений.
-- **Анализ малвари** — поиск скрытого контента в пакетах.

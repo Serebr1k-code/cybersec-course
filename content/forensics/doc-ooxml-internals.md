@@ -1,22 +1,22 @@
 ---
 id: doc-ooxml-internals
-title: 'OOXML: анатомия .docx/.xlsx/.pptx'
+title: 'OOXML изнутри: docx, xlsx, pptx как ZIP-архивы'
 category: forensics
 parent: forensics-doc-formats
 difficulty: medium
 order: 1
-tags: [docx, ooxml, zip, xml, macros, document-forensics]
-prerequisites: [forensics-file-magic, forensics-office-macros]
+tags: [forensics, ooxml, docx, xlsx, macros, metadata]
+prerequisites: [forensics-file-magic]
 useful_for:
   - 'CTF Forensics категория'
   - 'DFIR / Incident Response'
-  - 'Анализ малвари'
+  - 'Анализ образов и артефактов'
 estimated_minutes: 45
-summary: 'Как устроен OOXML-документ (ZIP + XML): части пакета, макросы, скрытый текст, вложенные объекты и метаданные — и как всё это разобрать через unzip.'
+summary: 'Как устроены офисные документы OOXML, где метаданные, макросы и встроенные объекты, и как их извлекать.'
 lab:
   kind: shell
-  title: 'Практика: OOXML'
-  toolset: [core, grep]
+  title: 'Практика: OOXML изнутри'
+  toolset: [core, grep, strings]
   workdir: /home/student/task
   files: [task.md]
   check: 'grep -q ''nto{'' answer.txt'
@@ -28,144 +28,117 @@ lab:
 
 ## Вопрос, с которого всё начинается
 
-Тебе дали `report.docx`. Открывать в Word нельзя — это может быть вредоносно. Но нужно
-понять, что внутри. Как заглянуть в документ, не запуская его?
+Пришёл документ `.docx` — он может быть безобидным, а может содержать макрос или
+встроенный объект. Формат OOXML — это **ZIP** с XML внутри. Разберём структуру.
 
-## Наш пример: report.docx
+## Наш пример: подозрительный .docx
 
-Первым делом смотрим тип:
+## Шаг 1: это ZIP
 
 ```
 $ file report.docx
 report.docx: Microsoft Word 2007+
-```
-
-`Microsoft Word 2007+` означает формат **OOXML** — открытый пакетный формат. И вот
-главное: это **ZIP-архив** с XML внутри. Значит, его можно распаковать.
-
-## Шаг 1: распаковать как архив
-
-```
 $ unzip -l report.docx
-  Length      Name
-  --------    ----
-      1180    [Content_Types].xml
-       586    _rels/.rels
-      2048    word/document.xml
-       720    word/_rels/document.xml.rels
-      1024    docProps/core.xml
+  [Content_Types].xml
+  word/document.xml
+  word/vbaProject.bin
+  docProps/core.xml
 ```
 
-Уже по именам частей видно структуру. Разберём ключевые.
+`vbaProject.bin` — уже сигнал: в документе есть **макросы**.
 
-## Шаг 2: понять части пакета
-
-- **`[Content_Types].xml`** — карта типов: какие части какого типа.
-- **`_rels/.rels`** — связи верхнего уровня (где документ, где свойства).
-- **`word/document.xml`** — сам текст документа.
-- **`docProps/core.xml`** — метаданные: автор, время создания, последний редактор.
-- **`word/_rels/document.xml.rels`** — связи документа: изображения, вложенные объекты,
-  **внешние ссылки** (например, на шаблон).
-
-Метаданные часто выдают больше, чем текст: автор, организация, время правок.
-
-## Шаг 3: искать макросы
-
-Макросы живут в отдельной части:
+## Шаг 2: метаданные
 
 ```
-$ unzip -l report.docx | grep -i vba
-      12288   word/vbaProject.bin
+$ unzip -p report.docx docProps/core.xml | head
+<dc:creator>Ivan</dc:creator>
+<cp:lastModifiedBy>Ivan</cp:lastModifiedBy>
+<dcterms:created>2026-01-14T03:20:00Z</dcterms:created>
 ```
 
-Наличие `vbaProject.bin` означает **встроенный макрос VBA**. Это главный вектор атак в
-офисных документах. Разбирают его `olevba`:
+`core.xml` — авторство и времена. Расхождение created/modified — зацепка.
+
+## Шаг 3: макросы
+
+Макросы — это VBA. Извлекаем и анализируем:
 
 ```
 $ olevba report.docx
 VBA MACRO ThisDocument.cls
-  AutoOpen() -> Shell("powershell -enc ...")
+  AutoOpen → Shell("powershell -enc ...")
 ```
 
-Функция `AutoOpen` запускается при открытии — классический признак малвари.
+`AutoOpen` — автозапуск при открытии. Это классический вектор.
 
-## Шаг 4: скрытый текст и правки
+## Шаг 4: встроенные объекты
 
-В `word/document.xml` можно спрятать текст:
+Документ может содержать:
 
-- **скрытый текст** (`<w:vanish/>`) — виден в файле, но не отображается;
-- **история правок** (`<w:ins>`/`<w:del>`) — удалённый текст остаётся в XML;
-- **белый текст на белом** — визуально невидим.
-
-Поэтому «в документе ничего нет» проверяют, читая XML, а не глядя на страницу.
-
-## Шаг 5: вложенные объекты и внешние связи
-
-В документ можно вложить OLE-объект (другой файл) или сослаться на внешний ресурс
-(шаблон, изображение). В `.rels` ищем:
+- встроенный `.exe` (в `word/embeddings/`);
+- OLE-объекты;
+- внешние ссылки (`word/_rels/`) — откуда подгружаются данные (DDE, remote template).
 
 ```
-$ unzip -p report.docx word/_rels/document.xml.rels | grep -i Target
-Target="https://evil.example/template.dotm"
+$ unzip -l report.docx | grep embeddings
+word/embeddings/oleObject1.bin
 ```
 
-Внешний шаблон — распространённый способ доставить макрос: документ «безобиден», а код
-подгружается извне.
+## Шаг 5: что искать
+
+- макросы (`vbaProject.bin`);
+- внешние ссылки (remote template injection);
+- встроенные файлы;
+- метаданные автора/времени.
 
 ## Что мы теперь знаем
 
-- OOXML — это ZIP-архив с XML-частями.
-- `[Content_Types].xml` и `_rels` описывают структуру и связи.
-- `vbaProject.bin` — встроенный макрос (главный риск).
-- Скрытый текст и правки остаются в XML.
-- Внешние связи могут подгружать код извне.
+- OOXML — ZIP с XML.
+- `vbaProject.bin` = макросы.
+- `core.xml` — авторство и времена.
+- `embeddings/` — встроенные объекты.
+- Внешние ссылки = потенциальная загрузка.
+
+## Если не сработало
+
+- Файл зашифрован паролем? Нужен пароль.
+- Старый формат (.doc)? Используй OLE-парсеры.
+- Макрос скомпилирован? Анализируй p-code.
 
 ## Квиз
 
 Проверь себя.
 
 ```quiz
-- question: Что такое файл .docx по своей сути?
+- question: Что представляет собой .docx?
   options:
-    - 'бинарный формат'
-    - 'ZIP-архив с XML-частями'
+    - 'бинарный файл'
+    - 'ZIP-архив с XML'
     - 'текстовый файл'
     - 'образ диска'
   answer: 1
-  explanation: 'OOXML — это OPC-пакет, то есть ZIP с XML внутри.'
-- question: Какая часть документа содержит встроенный макрос?
+  explanation: 'OOXML — это zip-контейнер с XML-компонентами.'
+- question: Что означает vbaProject.bin?
   options:
-    - 'docProps/core.xml'
-    - 'word/vbaProject.bin'
-    - '[Content_Types].xml'
-    - 'word/document.xml'
+    - 'картинку'
+    - 'наличие макросов VBA'
+    - 'шрифт'
+    - 'пароль'
   answer: 1
-  explanation: 'vbaProject.bin хранит код VBA.'
-- question: Где искать внешнюю ссылку на шаблон?
+  explanation: 'Это хранилище VBA-макросов документа.'
+- question: Где искать автора и время?
   options:
-    - 'в core.xml'
-    - 'в word/_rels/document.xml.rels'
     - 'в document.xml'
-    - 'в [Content_Types].xml'
+    - 'в docProps/core.xml'
+    - 'в vbaProject.bin'
+    - 'в embeddings'
   answer: 1
-  explanation: 'Связи документа описаны в .rels-файлах.'
-- question: Что означает скрытый текст `<w:vanish/>`?
+  explanation: 'core.xml содержит creator и created/modified.'
+- question: Чем опасен AutoOpen?
   options:
-    - 'текст удалён'
-    - 'текст есть в файле, но не отображается'
-    - 'текст зашифрован'
-    - 'текст в картинке'
+    - 'ничем'
+    - 'запускает макрос при открытии документа'
+    - 'удаляет файл'
+    - 'шифрует'
   answer: 1
-  explanation: 'Скрытый текст присутствует в XML, но не виден при просмотре.'
+  explanation: 'AutoOpen — автозапуск VBA при открытии.'
 ```
-
-## Куда дальше
-
-Дальше — **ODF**: открытый аналог OOXML с похожей, но своей структурой. А пока запомни:
-`.docx` — это ZIP, и смотреть надо на части, а не на страницу.
-
-## Где пригодится
-
-- **CTF Forensics** — задачи со скрытыми данными в документах.
-- **Анализ малвари** — разбор офисных документов без запуска.
-- **DFIR / Incident Response** — исследование вложений из фишинга.

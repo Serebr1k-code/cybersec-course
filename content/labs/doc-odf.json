@@ -4,18 +4,21 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{odf_m3t4_cr3at0r}"
+    "contains": "nto{doc_odf_0k}"
   },
   "fs": [
-    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: ODF-документ\n\n`odf.txt` — части ODF-пакета и метаданные. Определи автора/редактора и найди метку.\n\n1. `cat odf.txt`.\n2. Смотри meta.xml (initial-creator, creator).\n3. `grep nto odf.txt > answer.txt`.\n",
+      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/odf.txt",
-      "text": "$ unzip -l budget.ods\n        46    mimetype\n      2048    content.xml\n       512    meta.xml\n       380    META-INF/manifest.xml\n\n$ unzip -p budget.ods mimetype\napplication/vnd.oasis.opendocument.spreadsheet\n\n$ unzip -p budget.ods meta.xml\n<meta:initial-creator>alice</meta:initial-creator>\n<dc:creator>bob</dc:creator>\n<!-- nto{odf_m3t4_cr3at0r} -->\n\n# Инженер: создал alice, последним редактором был bob -> история изменений.\n",
+      "path": "/home/student/task/evidence.txt",
+      "text": "# фрагмент артефакта doc-odf\nwarning: suspicious activity detected\nmarker: nto{doc_odf_0k}\n",
       "mode": "644"
     }
   ]

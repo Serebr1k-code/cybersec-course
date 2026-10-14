@@ -4,18 +4,21 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{d0cx_h1dd3n_p4rt}"
+    "contains": "nto{doc_ooxml_internals_0k}"
   },
   "fs": [
-    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: анатомия .docx\n\n`docx.txt` — листинг частей ZIP-пакета. Найди подозрительную часть (макрос/скрытое) и метку.\n\n1. `cat docx.txt`.\n2. Ищи vbaProject.bin и необычные части.\n3. `grep nto docx.txt > answer.txt`.\n",
+      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/docx.txt",
-      "text": "$ unzip -l report.docx\n  Length      Name\n  --------    ----\n      1180    [Content_Types].xml\n       586    _rels/.rels\n      2048    word/document.xml\n     12288    word/vbaProject.bin\n      1024    word/nto{d0cx_h1dd3n_p4rt}.xml\n\n# Инженер: vbaProject.bin -> встроенный макрос (AutoOpen). Часть с флагом спрятана в пакете.\n",
+      "path": "/home/student/task/evidence.txt",
+      "text": "# фрагмент артефакта doc-ooxml-internals\nwarning: suspicious activity detected\nmarker: nto{doc_ooxml_internals_0k}\n",
       "mode": "644"
     }
   ]

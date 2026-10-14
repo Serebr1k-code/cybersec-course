@@ -4,18 +4,21 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/answer.txt",
-    "contains": "nto{xps_h1dd3n_p4g3}"
+    "contains": "nto{doc_xps_0k}"
   },
   "fs": [
-    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: XPS-документ\n\n`xps.txt` — листинг XPS-пакета и фрагмент страницы. Найди текст страницы и метку.\n\n1. `cat xps.txt`.\n2. Смотри файлы .fpage (FixedPage XML).\n3. `grep nto xps.txt > answer.txt`.\n",
+      "text": "# Задача\n\nАртефакт `evidence.txt` — фрагмент журнала/дампа. Найди строку с меткой и сохрани её в `answer.txt`.\n\n1. `cat evidence.txt`.\n2. `grep nto evidence.txt > answer.txt`.\n",
       "mode": "644"
     },
     {
-      "path": "/home/student/task/xps.txt",
-      "text": "$ unzip -l scan.xps\n       900    [Content_Types].xml\n      2048    FixedDocumentSequence.fdseq\n      4096    Documents/1/Pages/1.fpage\n\n$ unzip -p scan.xps Documents/1/Pages/1.fpage\n<FixedPage><Glyphs UnicodeString=\"nto{xps_h1dd3n_p4g3}\"/></FixedPage>\n\n# Инженер: XPS — OPC-пакет; текст страницы в UnicodeString у Glyphs.\n",
+      "path": "/home/student/task/evidence.txt",
+      "text": "# фрагмент артефакта doc-xps\nwarning: suspicious activity detected\nmarker: nto{doc_xps_0k}\n",
       "mode": "644"
     }
   ]
