@@ -1,0 +1,27 @@
+{
+  "id": "cloud-aws-cdk",
+  "workdir": "/home/student/cdk",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/cdk/found.txt",
+    "contains": "nto{cdk_b00tstr4p_r0l3_3sc4l4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/cdk",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/cdk/task.md",
+      "text": "# Задача\n\nНайдена trust-политика bootstrap-роли CDK. Определи, ведёт ли она к эскалации, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/cdk/trust.json",
+      "text": "{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [\n    {\"Effect\": \"Allow\", \"Principal\": {\"AWS\": \"arn:aws:iam::123456789012:role/ci-deploy\"}, \"Action\": \"sts:AssumeRole\"}\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/cdk/notes.md",
+      "text": "Аудит: cfn-exec-role имеет AdministratorAccess.\nTrust разрешает assume роли ci-deploy, креды которой утекли.\nЗначит: assume -> создание IAM-пользователя с ключом = админ.\nnto{cdk_b00tstr4p_r0l3_3sc4l4t10n}\n"
+    }
+  ]
+}

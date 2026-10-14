@@ -1,0 +1,31 @@
+{
+  "id": "cloud-chef-puppet",
+  "workdir": "/home/student/chef",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/chef/found.txt",
+    "contains": "nto{ch3f_4dm1n_k3y_c00kb00k_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/chef",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/chef/task.md",
+      "text": "# Задача\n\nНайден ключ Chef-клиента. Определи его права и путь к нодам, затем собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/chef/knife.rb",
+      "text": "chef_server_url \"https://chef.company.com/organizations/acme\"\nclient_key \"/home/user/.chef/admin.pem\"\nnode_name \"admin\"\n"
+    },
+    {
+      "path": "/home/student/chef/admin.pem",
+      "text": "-----BEGIN RSA PRIVATE KEY-----\nEXAMPLEnotarealchefkeyEXAMPLE\n-----END RSA PRIVATE KEY-----\n"
+    },
+    {
+      "path": "/home/student/chef/notes.md",
+      "text": "Аудит: admin.pem — ключ админа организации.\nknife node list показывает все ноды; cookbook применяется на всех.\nЗагрузка изменённого cookbook = код от root на парке.\nnto{ch3f_4dm1n_k3y_c00kb00k_rce}\n"
+    }
+  ]
+}

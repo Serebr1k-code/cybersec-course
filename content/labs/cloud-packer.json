@@ -1,0 +1,31 @@
+{
+  "id": "cloud-packer",
+  "workdir": "/home/student/packer",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/packer/found.txt",
+    "contains": "nto{p4ck3r_pr0v1s10n3r_cr3ds_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/packer",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/packer/task.md",
+      "text": "# Задача\n\nНайден шаблон Packer и окружение CI. Определи, можно ли исполнить код с кредами сборки, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/packer/build.pkr.hcl",
+      "text": "source \"amazon-ebs\" \"web\" {\n  ami_name = \"acme-web\"\n  region   = \"eu-west-1\"\n  source_ami = \"ami-0123456789abcdef0\"\n}\nbuild {\n  sources = [\"source.amazon-ebs.web\"]\n  provisioner \"shell\" { script = \"scripts/setup.sh\" }\n}\n"
+    },
+    {
+      "path": "/home/student/packer/ci.env",
+      "text": "AWS_ACCESS_KEY_ID=AKIAEXAMPLENOTREAL\nAWS_SECRET_ACCESS_KEY=wJalrEXAMPLEnotarealsecret\n"
+    },
+    {
+      "path": "/home/student/packer/notes.md",
+      "text": "Аудит: сборка из PR с кредами AWS; provisioner shell исполняется на инстансе.\nИзменённый provisioner читает env и отправляет креды наружу.\nОтравленный AMI -> persistence на всём парке.\nnto{p4ck3r_pr0v1s10n3r_cr3ds_rce}\n"
+    }
+  ]
+}

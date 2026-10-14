@@ -1,0 +1,27 @@
+{
+  "id": "cloud-terragrunt-atlantis",
+  "workdir": "/home/student/atlantis",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/atlantis/found.txt",
+    "contains": "nto{4tl4nt1s_cust0m_w0rkfl0w_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/atlantis",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/atlantis/task.md",
+      "text": "# Задача\n\nНайден atlantis.yaml проекта. Определи, можно ли через PR исполнить код, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/atlantis/atlantis.yaml",
+      "text": "version: 3\nprojects:\n- name: prod\n  dir: infra/prod\n  workflow: custom\n  apply_requirements: []\n"
+    },
+    {
+      "path": "/home/student/atlantis/notes.md",
+      "text": "Аудит: apply_requirements пустые, workflow: custom разрешён.\nPR может изменить workflow и добавить run-шаг.\nterraform plan исполняет external data source -> RCE на сервере.\nnto{4tl4nt1s_cust0m_w0rkfl0w_rce}\n"
+    }
+  ]
+}

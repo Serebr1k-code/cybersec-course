@@ -1,0 +1,31 @@
+{
+  "id": "cloud-pulumi",
+  "workdir": "/home/student/pulumi",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/pulumi/found.txt",
+    "contains": "nto{pulum1_st4t3_s3cr3ts_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/pulumi",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/pulumi/task.md",
+      "text": "# Задача\n\nНайден конфиг Pulumi-стека и окружение CI. Определи, какие секреты можно расшифровать, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/pulumi/stack.prod.yaml",
+      "text": "config:\n  acme-infra:dbPassword:\n    secure: v1:AAABBBBCCCCDDDD\n  acme-infra:region: eu-west-1\n"
+    },
+    {
+      "path": "/home/student/pulumi/ci.env",
+      "text": "PULUMI_ACCESS_TOKEN=pul-EXAMPLEtokenEXAMPLE0123456789\nPULUMI_CONFIG_PASSPHRASE=correct-horse-battery-staple\n"
+    },
+    {
+      "path": "/home/student/pulumi/notes.md",
+      "text": "Аудит: backend state доступен по токену, secrets-provider = passphrase.\nPassphrase найден в CI, значит secure-значения расшифровываются.\ndbPassword -> SuperSecret123.\nnto{pulum1_st4t3_s3cr3ts_l34k}\n"
+    }
+  ]
+}

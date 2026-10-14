@@ -1,0 +1,31 @@
+{
+  "id": "cloud-ansible",
+  "workdir": "/home/student/ansible",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/ansible/found.txt",
+    "contains": "nto{4ns1bl3_v4ult_p4ss_fl33t_t4k30v3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/ansible",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/ansible/task.md",
+      "text": "# Задача\n\nНайден репозиторий Ansible с inventory и vault-паролем. Определи охват и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/ansible/inventory.ini",
+      "text": "[web]\nweb01 ansible_host=10.0.1.11\nweb02 ansible_host=10.0.1.12\n[db]\ndb01 ansible_host=10.0.2.11 ansible_user=root\n"
+    },
+    {
+      "path": "/home/student/ansible/.vault_pass",
+      "text": "SuperVaultPass123\n"
+    },
+    {
+      "path": "/home/student/ansible/notes.md",
+      "text": "Аудит: inventory покрывает web+db, db подключается как root.\nvault-пароль лежит в репозитории -> vault.yml расшифровывается.\nКонтроль над playbook = root на всём парке.\nnto{4ns1bl3_v4ult_p4ss_fl33t_t4k30v3r}\n"
+    }
+  ]
+}

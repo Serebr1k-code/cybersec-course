@@ -1,0 +1,27 @@
+{
+  "id": "cloud-crossplane",
+  "workdir": "/home/student/crossplane",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/crossplane/found.txt",
+    "contains": "nto{crosspl4n3_pr0v1d3rc0nf1g_cr3ds}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/crossplane",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/crossplane/task.md",
+      "text": "# Задача\n\nНайден ProviderConfig Crossplane. Определи путь к облачным кредам и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/crossplane/providerconfig.yaml",
+      "text": "apiVersion: aws.upbound.io/v1beta1\nkind: ProviderConfig\nmetadata:\n  name: default\nspec:\n  credentials:\n    source: Secret\n    secretRef:\n      namespace: crossplane-system\n      name: aws-creds\n      key: creds\n"
+    },
+    {
+      "path": "/home/student/crossplane/notes.md",
+      "text": "Аудит: ProviderConfig default ссылается на Secret crossplane-system/aws-creds.\nRBAC позволяет читать секреты -> ключи AWS с правами IAM.\nДальше: создание Managed Resource User+AccessKey = эскалация.\nnto{crosspl4n3_pr0v1d3rc0nf1g_cr3ds}\n"
+    }
+  ]
+}

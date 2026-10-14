@@ -1,0 +1,31 @@
+{
+  "id": "cloud-terraform-cloud",
+  "workdir": "/home/student/tfc",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/tfc/found.txt",
+    "contains": "nto{tfc_s3ns1t1v3_v4r_st4t3_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/tfc",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/tfc/task.md",
+      "text": "# Задача\n\nНайден токен Terraform Cloud и список переменных workspace. Определи путь к секретам и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/tfc/tfc.env",
+      "text": "TF_API_TOKEN=EXAMPLEtfcEXAMPLEtoken0123456789\nTF_CLOUD_URL=https://app.terraform.io\n"
+    },
+    {
+      "path": "/home/student/tfc/vars.json",
+      "text": "{\"data\":[{\"attributes\":{\"key\":\"AWS_SECRET_ACCESS_KEY\",\"category\":\"env\",\"sensitive\":true}},{\"attributes\":{\"key\":\"db_password\",\"category\":\"terraform\",\"sensitive\":true}}]}\n"
+    },
+    {
+      "path": "/home/student/tfc/notes.md",
+      "text": "Аудит: токен имеет право write на workspace prod.\nSensitive-переменные не отдаются API, но попадают в run и state.\nВыгрузка state -> db_password; run с изменённым кодом -> env-секреты.\nnto{tfc_s3ns1t1v3_v4r_st4t3_l34k}\n"
+    }
+  ]
+}
