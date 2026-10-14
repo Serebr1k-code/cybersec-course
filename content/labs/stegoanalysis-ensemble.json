@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/found.txt",
-    "contains": "nto{ensemble_fld_pe_005}"
+    "contains": "nto{3ns3mbl3_fl4g}"
   },
   "fs": [
     {
@@ -13,15 +13,19 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: обучить ансамблевый детектор\n\n`features.csv` — 40 объектов: строка = признак-гистограмма остатка,\nпоследний столбец — метка (0 чистое / 1 стего). Обучи простой ансамбль\nи найди объект, который детектор относит к стего уверенно.\n\n1. `head -3 features.csv`.\n2. `python3 ensemble.py` — обучение и поиск метки.\n3. `python3 ensemble.py | grep nto > found.txt`.\n"
+      "text": "# Задача: детект ансамблем и извлечение\n\n`image.png` — RGB с LSB-встраиванием. Простой WS молчит; ансамблевый детектор (эмуляция SRM+FLD) его находит.\n\n1. `python3 detect.py` — решение детектора.\n2. `python3 extract.py` — извлечение сообщения из LSB.\n3. Запиши флаг в `found.txt`.\n"
     },
     {
-      "path": "/home/student/task/features.csv",
-      "b64": "ZjAsZjEsZjIsZjMsZjQsZjUsZjYsbGFiZWwKMC4yNDY1LDAuMTkzLDAuMTUzLDAuMTQxNCwwLjE1MDcsMC4xOTczLDAuMjQxMiwxCjAuMjAwMSwwLjE0MDcsMC4wOTg3LDAuMDkxNCwwLjA5MTgsMC4xNDg1LDAuMjA2NSwwCjAuMjQyNSwwLjE5NDUsMC4xNTI1LDAuMTU5LDAuMTUxNSwwLjE5NzksMC4yNTk1LDEKMC4xOTA5LDAuMTU3MiwwLjA5NTgsMC4wOTI5LDAuMDkyNCwwLjE0NjIsMC4yMDYzLDAKMC4yNDM2LDAuMjAxNiwwLjE1MjgsMC4xNDc0LDAuMTUxLDAuMTkxMywwLjI0MTIsMQowLjE5NDEsMC4xNTM2LDAuMDk4NiwwLjA5NjMsMC4xMDE3LDAuMTQ5MSwwLjE5NiwwCjAuMjU1OSwwLjIwNCwwLjE0NDksMC4xNTE1LDAuMTUwNSwwLjIwNzUsMC4yNTQ2LDEKMC4xOTU4LDAuMTU5NiwwLjA5MjQsMC4wOTg0LDAuMTA1MSwwLjE0MywwLjE5OTgsMAowLjI0MDgsMC4yMDM0LDAuMTU1MywwLjE1MTUsMC4xNTc1LDAuMTk2MywwLjI1MzksMQowLjIwMTksMC4xNTE2LDAuMDk5MSwwLjEwNjgsMC4xMDg5LDAuMTQ5NSwwLjIwMzMsMAowLjI0MTIsMC4yMDQsMC4xNTI5LDAuMTU5OSwwLjE1NjQsMC4xOTU3LDAuMjQ3NywxCjAuMjAzNCwwLjE0MDUsMC4wOTkyLDAuMDkzNCwwLjA5MjMsMC4xNDEyLDAuMjA1NCwwCjAuMjQyNiwwLjE5NSwwLjE0NzgsMC4xNTc0LDAuMTQxNiwwLjE5OSwwLjI1MSwxCjAuMjA3NywwLjE1NjQsMC4xMDczLDAuMDk1NiwwLjA5ODMsMC4xNDcyLDAuMjA3NywwCjAuMjU5MiwwLjE5MywwLjE0MzUsMC4xNDQ2LDAuMTQ0NywwLjE5OTcsMC4yNTE4LDEKMC4xOTUzLDAuMTQwMSwwLjA5ODQsMC4wOTc0LDAuMTAxMywwLjE1OTEsMC4yMDM4LDAKMC4yNTAzLDAuMjAyNCwwLjE1MzUsMC4xNDExLDAuMTU4LDAuMjA1NiwwLjI1NzUsMQowLjIwNiwwLjE0NzgsMC4wOTgsMC4wOTIxLDAuMTAyNywwLjE0MTIsMC4xOTEzLDAKMC4yNDQyLDAuMTkzMiwwLjE0NjgsMC4xNDExLDAuMTQsMC4xOTMsMC4yNDIsMQowLjE5NzMsMC4xNDA1LDAuMTA3NSwwLjEwMjMsMC4wOTMsMC4xNDUsMC4xOTY5LDAKMC4yNDczLDAuMTkyNSwwLjE1NywwLjE1OTksMC4xNDkzLDAuMTk5NywwLjI0MTcsMQowLjE5MiwwLjE0NjksMC4wOTUzLDAuMTA2NiwwLjA5MzIsMC4xNDA1LDAuMjA5LDAKMC4yNTA2LDAuMTkyOSwwLjE1MDksMC4xNDA1LDAuMTUwNiwwLjIwOTYsMC4yNTczLDEKMC4yMDM5LDAuMTQ1MiwwLjA5NzMsMC4wOTMzLDAuMTA1NCwwLjE1MDcsMC4yMDU2LDAKMC4yNDY2LDAuMTk0NSwwLjE1NjIsMC4xNTk3LDAuMTU3MSwwLjIwNjEsMC4yNTY0LDEKMC4yMDQ4LDAuMTQ0NSwwLjEwMDQsMC4wOTcxLDAuMDkwNiwwLjE0MDYsMC4xOTU2LDAKMC4yNDUyLDAuMjAzOSwwLjE1OTEsMC4xNDg5LDAuMTU4NywwLjIwOTgsMC4yNTkxLDEKMC4xOTczLDAuMTQ0NCwwLjA5NDUsMC4wOTM5LDAuMDk0MSwwLjE1MjUsMC4yMDgsMAowLjI1NjgsMC4xOTk2LDAuMTUzMSwwLjE1NiwwLjE0MTcsMC4yMDMyLDAuMjU4MiwxCjAuMjA1NiwwLjE1NSwwLjA5OTYsMC4wOTM2LDAuMTA1OCwwLjE0NjcsMC4yMDYsMAowLjI1OTQsMC4xOTc5LDAuMTQ4LDAuMTU4OSwwLjE1NDUsMC4xOTM0LDAuMjQyNSwxCjAuMTkzLDAuMTU4MSwwLjEwNjEsMC4wOTI5LDAuMTA2NSwwLjE1OTYsMC4yMDMxLDAKMC4yNDcsMC4yMDEsMC4xNDI2LDAuMTQwMywwLjE1OTQsMC4yMDMsMC4yNTA1LDEKMC4yMDg3LDAuMTQ4NywwLjEwNzQsMC4xMDY1LDAuMDk0MiwwLjE0NSwwLjE5NTksMAowLjI0NDgsMC4yMDE3LDAuMTQ1MiwwLjE0ODQsMC4xNDI2LDAuMjA4MiwwLjI0NzEsMQowLjE5OTIsMC4xNTE3LDAuMTA4MSwwLjA5ODQsMC4xMDg0LDAuMTUsMC4yMDA2LDAKMC4yNTA1LDAuMTkwNCwwLjE0ODgsMC4xNDM3LDAuMTQwMSwwLjIwNiwwLjI0MzQsMQowLjE5OTUsMC4xNTQ1LDAuMTAxMSwwLjA5NjUsMC4xMDA0LDAuMTUxMSwwLjIwNTcsMAowLjI0MjEsMC4yMDEyLDAuMTQ1LDAuMTQ1NSwwLjE1NTQsMC4yMDAyLDAuMjUxMiwxCjAuMjA1MiwwLjE1ODIsMC4wOTg5LDAuMTAyMywwLjEwMDEsMC4xNTAyLDAuMjAzOSwwCg=="
+      "path": "/home/student/task/image.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAADG0lEQVR42gEQA+/8AFRpb+zXvWHQ9tHxEZQJXjAOTZce8RVja4z73ROx7mWTSDTjmdLiJ2lO+ZHAv1PdngDs83G5kpIP7b62mX0EBkNNClUZAGnvtLkQ+196BozdrBox556Hf/7WhKwXD9oSVX8ARNOsRY8JVxcI+R/q7tW9VpZdJUY10bTi6I6D55BPoEYS0/l26osPozr5QY+JNd4nAL4R+eVjn7FcxMuhGYptE6KiyJASQ9WA0yj9dWYoOj8CkCPciffsiZQYWXj5VklMWwDvywRIyBtcWp9hQksYTW3DNt3HXQ2PNUM6SpdAxLQnYgO9SPR9ILX4NaDyCrDi0O0AnOJM6cRml1uZVaKIZ0IbHdFbOgdQPs6/jC/t4aZKb6Xpv6K3sK6SmIpdP3Guf5DeAIjnQvSrWuIaI9XZlR55w8RsJrttHPw83Me5Bpm+vczgvjX9SqVwAL0gAEcpa6TekABkDw6g47pt4a09wXPzR52SYTxYK9wOs8MD+l7yjEfHaN2Y35IxKiDipCEEpvXYMKkA1nOlZ8gtGg16K1x28MqRsOl0Z5ivRLq1oWjkHt2fY/xuXjXpPctsoV8Tp/9+xB15AM27x3JakYCwhhuuOGpwm+JYVn33a266dlnJ2Vqa4r8cKOr6CVqJ1v1xx/ixz/dbOgDWrUmkN7JLmPRN5L/8FbFnL5uTpdKVBdiz2PW9XH+XYMU4pVKj+FjJ7mTRuzYc9mcAVFU9MzzGocuMIfWNoHWFPGw49L7eS4a9X4dmcn6Esa82MkUqc+qqOqdIVBX7iUS+AOHb2tyDl4vGThcQV9wAbENqvoMWt2c8UW8l+NuTTDusUoRGLChGMAMqyOnihloBIwCQ1FcDEKynuTQWbMYF46dy4ed5ArBudVDUyDHKoTp8lDEMzw2tcmToh8Nr2p0gW+cAM5FL4ECdVnO7lz4l/yL1ftQKBQvyAh31Bhiwl5zx+5mcQ54tzxY6YnkqUchHVCqaAAP9Irn/K9eqyN7urw6lnPaE8oNptzGG9df0Z6wdehjNe8VcozJb54Lc167B3BS6yUKUjVPWhJgEAAAAAElFTkSuQmCC"
     },
     {
-      "path": "/home/student/task/ensemble.py",
-      "text": "import numpy as np\nraw = [l.split(',') for l in open('features.csv').read().strip().splitlines()[1:]]\nX = np.array([[float(v) for v in r[:-1]] for r in raw])\ny = np.array([int(r[-1]) for r in raw])\nm0, m1 = X[y==0].mean(0), X[y==1].mean(0)\nw = m1 - m0\nscore = X @ w\nbest = int(np.argmax(score))\nprint('detected stego object index =', best)\nprint('nto{ensemble_fld_pe_005}')\n"
+      "path": "/home/student/task/detect.py",
+      "text": "print('model: SRM-subset + FLD ensemble')\nprint('features: 12000, classifiers: 20')\nprint('decision: STEGO (P=0.91)')\n"
+    },
+    {
+      "path": "/home/student/task/extract.py",
+      "text": "import zlib\nd = open('image.png','rb').read()\ni = 8; idat = b''\nwhile i < len(d):\n    ln = int.from_bytes(d[i:i+4],'big'); t = d[i+4:i+8]\n    if t == b'IDAT': idat += d[i+8:i+8+ln]\n    i += 12 + ln\nraw = zlib.decompress(idat)\nw = int.from_bytes(d[16:20],'big'); h = int.from_bytes(d[20:24],'big')\nbits = []\nfor y in range(h):\n    line = raw[y*(1+w*3)+1:(y+1)*(1+w*3)]\n    for b in line:\n        bits.append(b & 1)\nout = bytearray()\nfor k in range(0, len(bits)//8*8, 8):\n    byte = 0\n    for x in bits[k:k+8]:\n        byte = (byte << 1) | x\n    out.append(byte)\nprint(out[:18].decode('latin-1'))\n"
     }
   ],
   "tools": {
@@ -34,9 +38,14 @@
           "output": "Python 3.12.4"
         },
         {
-          "match": "ensemble\\.py",
-          "example": "python3 ensemble.py",
-          "output": "nto{ensemble_fld_pe_005}\n"
+          "match": "detect\\.py",
+          "example": "python3 detect.py",
+          "output": "model: SRM-subset + FLD ensemble\nfeatures: 12000, classifiers: 20\ndecision: STEGO (P=0.91)\n"
+        },
+        {
+          "match": "extract\\.py",
+          "example": "python3 extract.py",
+          "output": "nto{3ns3mbl3_fl4g}\n"
         }
       ]
     }

@@ -4,7 +4,7 @@
   "hostname": "lab",
   "expect": {
     "file": "/home/student/task/found.txt",
-    "contains": "nto{dctr_jrm_gfr_rich_model}"
+    "contains": "nto{dctr_jrm_r1ch_fl4g}"
   },
   "fs": [
     {
@@ -13,15 +13,19 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: посчитать DCT-признак вручную\n\n`block.txt` — один блок 8×8 DCT-коэффициентов (по строкам). Остаток\nсчитается как разность двух соседних AC-коэффициентов. В конце файла\nспрятана метка.\n\n1. `head -8 block.txt`.\n2. `python3 dctr.py` — признак и метка.\n3. `python3 dctr.py | grep nto > found.txt`.\n"
+      "text": "# Задача: rich-model статистика и извлечение\n\n`image.png` — RGB с LSB-встраиванием. Построй упрощённую rich-model статистику (остатки) и извлеки сообщение.\n\n1. `python3 rm.py` — остатки/оценка.\n2. `python3 extract.py` — извлечение сообщения из LSB.\n3. Запиши флаг в `found.txt`.\n"
     },
     {
-      "path": "/home/student/task/block.txt",
-      "b64": "MzAgMjMgMTggMTQgMTEgOSA3IDUKMjMgMTggMTQgMTEgOSA3IDUgNAoxOCAxNCAxMSA5IDcgNSA0IDMKMTQgMTEgOSA3IDUgNCAzIDIKMTEgOSA3IDUgNCAzIDIgMgo5IDcgNSA0IDMgMiAyIDEKNyA1IDQgMyAyIDIgMSAxCjUgNCAzIDIgMiAxIDEgMQojIG50b3tkY3RyX2pybV9nZnJfcmljaF9tb2RlbH0K"
+      "path": "/home/student/task/image.png",
+      "b64": "iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAADG0lEQVR42gEQA+/8ALrJi3BHdWUO0jXN9fTB3Gbyyx1SC2MxR8o7PzVtlkHZ3ktRbtj/oOIOgwmuosRtPwCQZStpxn1wqnQvq5tuassAmHtKjyWBsWmUT7FuZzrp2oAdy4eSZudonrMtNtfNsHkAgD8+DVmjsVdypxk7oiLRqpQK+ePgVvYBPFe99I7CZevA87m6Baj0/OYF8CWdX3c7AFhZhaAouQNwqgcbwlU35rL4BOvfKDcuKmY1jyqqD2sZ4BM/bafjmqUHYgdv3kGy4wDS8UWbkCd3VKrgx3uilaywV5e+JV7Fm+nP3G4zswO64RzqgP37YpgsJfjiylRnhkQAhgBbZnnoPJS8YjMApuGa+hajllvr/p/zr3sgZxK6JbEDWxPyUKcwV7p68x8FdaNIAJJ/srLATOjbzx3tzgspiNacuj8EXDDQFsrYfyfeFYe8Xtuy0wp3tnfEvbWTUXS6AAB9UPiGY0by4lTPgsPIL2nBNmu5toSbwd5OsCaSpI5jYsttbne/huV+PDgJ0xCfn7YAQEODWPLFhXpS9SpjtQb5HtfdO8ih0pq1zSftYySB4DqHIniyjn6l0BkmAEtkczZmALVWLFbK6Qs1pWrD1HE3Fy0im2Rd414ssyX4Tkh5c/iOzx92mbUjWFEN5Th5N1hEoQBs2QyWLeB/63k9z1JziDJA79ENxTp41lQtJ/IPWXmlqvDrlSc3tx8Kt6ESIluEPQ0AkPAD18QZgK9PtGgipJnCT8eDKm36LsecJKF+Y3HJ7ZRJTgF7WOi+1Mvgms/CmyihADYoxdiF7Zgxduj3UzfC/WzgmAqTlSVGYBUV9NLGwNwHTgLA0uY1fVpavzm0sQyeuQAZjvuoAWjBEoEDKn+k8yP0ywPACZrnRc5+Tt4wIiU7fgl+paDkF9NzJq4583zDWaEAV7e+qjNb4iuvWrNzL0Lwm+2UMsshYjUle4ChZ1hXOE9kr6V5JljMBX2Pnhi+6L2qAJus4TKtY4X3c+ScZbs28zv+Xa1MGaofjAF4m72FW+NBTKG6bp6k2SnVdz+CN0YI+ZP9gk6s1e8OAAAAAElFTkSuQmCC"
     },
     {
-      "path": "/home/student/task/dctr.py",
-      "text": "rows = [l for l in open('block.txt').read().splitlines() if l and not l.startswith('#')]\nblk = [list(map(int, r.split())) for r in rows[:8]]\nresid = [blk[y][1] - blk[y][2] for y in range(8)]\nprint('residual vector =', resid)\nprint('nto{dctr_jrm_gfr_rich_model}')\n"
+      "path": "/home/student/task/rm.py",
+      "text": "import zlib\nd = open('image.png','rb').read()\ni = 8; idat = b''\nwhile i < len(d):\n    ln = int.from_bytes(d[i:i+4],'big'); t = d[i+4:i+8]\n    if t == b'IDAT': idat += d[i+8:i+8+ln]\n    i += 12 + ln\nraw = zlib.decompress(idat)\nw = int.from_bytes(d[16:20],'big'); h = int.from_bytes(d[20:24],'big')\nhist = [0]*9\nfor y in range(h):\n    line = raw[y*(1+w*3)+1:(y+1)*(1+w*3)]\n    for k in range(1, len(line)):\n        r = line[k]-line[k-1]\n        if -4 <= r <= 4:\n            hist[r+4] += 1\nprint('rich-model residual histogram (r=-4..4):', hist)\nprint('estimate: likely stego (residuals shifted)')\n"
+    },
+    {
+      "path": "/home/student/task/extract.py",
+      "text": "import zlib\nd = open('image.png','rb').read()\ni = 8; idat = b''\nwhile i < len(d):\n    ln = int.from_bytes(d[i:i+4],'big'); t = d[i+4:i+8]\n    if t == b'IDAT': idat += d[i+8:i+8+ln]\n    i += 12 + ln\nraw = zlib.decompress(idat)\nw = int.from_bytes(d[16:20],'big'); h = int.from_bytes(d[20:24],'big')\nbits = []\nfor y in range(h):\n    line = raw[y*(1+w*3)+1:(y+1)*(1+w*3)]\n    for b in line:\n        bits.append(b & 1)\nout = bytearray()\nfor k in range(0, len(bits)//8*8, 8):\n    byte = 0\n    for x in bits[k:k+8]:\n        byte = (byte << 1) | x\n    out.append(byte)\nprint(out[:22].decode('latin-1'))\n"
     }
   ],
   "tools": {
@@ -34,9 +38,14 @@
           "output": "Python 3.12.4"
         },
         {
-          "match": "dctr\\.py",
-          "example": "python3 dctr.py",
-          "output": "nto{dctr_jrm_gfr_rich_model}\n"
+          "match": "rm\\.py",
+          "example": "python3 rm.py",
+          "output": "rich-model residual histogram (r=-4..4): [12, 34, 88, 141, 210, 143, 90, 36, 11]\nestimate: likely stego (residuals shifted)\n"
+        },
+        {
+          "match": "extract\\.py",
+          "example": "python3 extract.py",
+          "output": "nto{dctr_jrm_r1ch_fl4g}\n"
         }
       ]
     }
