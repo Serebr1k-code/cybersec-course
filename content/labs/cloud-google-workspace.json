@@ -1,0 +1,27 @@
+{
+  "id": "cloud-google-workspace",
+  "workdir": "/home/student/gws",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/gws/found.txt",
+    "contains": "nto{gws_dwd_sup3r4dm1n_1mp3rs0n4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/gws",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/gws/task.md",
+      "text": "# Задача\n\nВ CI найден ключ сервисного аккаунта Google. Определи, что он даёт, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/gws/sa-key.json",
+      "text": "{\n  \"type\": \"service_account\",\n  \"project_id\": \"acme-ci\",\n  \"client_email\": \"ci-bot@acme-ci.iam.gserviceaccount.com\",\n  \"private_key_id\": \"abc123\",\n  \"private_key\": \"-----BEGIN PRIVATE KEY-----\\nMIIEEXAMPLEnotarealkeyEXAMPLE\\n-----END PRIVATE KEY-----\\n\"\n}\n"
+    },
+    {
+      "path": "/home/student/gws/notes.md",
+      "text": "Проверка: сервисному аккаунту включён domain-wide delegation.\nScopes включают mail.google.com и drive.\nЗначит, доступны почта и файлы любого пользователя домена.\nnto{gws_dwd_sup3r4dm1n_1mp3rs0n4t10n}\n"
+    }
+  ]
+}

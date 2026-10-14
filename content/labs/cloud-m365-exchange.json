@@ -1,0 +1,27 @@
+{
+  "id": "cloud-m365-exchange",
+  "workdir": "/home/student/m365",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/m365/found.txt",
+    "contains": "nto{m365_4pp_s3cr3t_m41l_r34d_4ll}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/m365",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/m365/task.md",
+      "text": "# Задача\n\nВ репозитории найден конфиг Azure-приложения с секретом. Определи, к чему даёт доступ этот секрет, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/m365/appsettings.json",
+      "text": "{\n  \"tenant_id\": \"00000000-0000-0000-0000-000000000000\",\n  \"client_id\": \"11111111-1111-1111-1111-111111111111\",\n  \"client_secret\": \"EXAMPLE~notarealsecretEXAMPLEnotareal\"\n}\n"
+    },
+    {
+      "path": "/home/student/m365/notes.md",
+      "text": "Проверка: получен application-токен для Graph.\nРазрешения приложения: Mail.Read, Files.ReadWrite.All.\nЗначит, доступна почта и файлы всего тенанта.\nnto{m365_4pp_s3cr3t_m41l_r34d_4ll}\n"
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "id": "cloud-saml-attacks",
+  "workdir": "/home/student/saml",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/saml/found.txt",
+    "contains": "nto{s4ml_xsw_n4m31d_sw4p}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/saml",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/saml/task.md",
+      "text": "# Задача\n\nПерехвачен SAMLResponse. Определи, какая атака применима, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/saml/saml-response.txt",
+      "text": "SAMLResponse содержит два узла Assertion:\nподписанный (NameID=attacker@evil.com) и подложенный (NameID=admin@company.com).\nПриложение читает первый Assertion, подпись проверяет по второму.\n"
+    },
+    {
+      "path": "/home/student/saml/notes.md",
+      "text": "Аудит: подпись валидна, но данные берутся из неподписанного узла.\nКлассический XML Signature Wrapping.\nnto{s4ml_xsw_n4m31d_sw4p}\n"
+    }
+  ]
+}

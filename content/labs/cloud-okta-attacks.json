@@ -1,0 +1,27 @@
+{
+  "id": "cloud-okta-attacks",
+  "workdir": "/home/student/okta",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/okta/found.txt",
+    "contains": "nto{0kt4_4dm1n_4p1_t0k3n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/okta",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/okta/task.md",
+      "text": "# Задача\n\nВ конфиге CI найден API-токен Okta. Определи, какие права он даёт, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/okta/okta.env",
+      "text": "OKTA_ORG_URL=https://acme.okta.com\nOKTA_API_TOKEN=00EXAMPLENOTAREALTOKEN000000000000000000000\n"
+    },
+    {
+      "path": "/home/student/okta/notes.md",
+      "text": "Проверка токена: GET /api/v1/users/me -> 200\nРоли: SUPER_ADMIN\nТокен принадлежит сервисному пользователю автоматизации.\nnto{0kt4_4dm1n_4p1_t0k3n}\n"
+    }
+  ]
+}
