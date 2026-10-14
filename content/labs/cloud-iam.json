@@ -1,0 +1,24 @@
+{
+  "id": "cloud-iam",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cloud1am_cr3at3acc3ssk3y}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: CloudTrail\n\n`cloudtrail.log` — журнал AWS CloudTrail. Восстанови цепочку эскалации и найди метку.\n\n1. `head cloudtrail.log`.\n2. `grep -Ei 'CreateAccessKey|AttachUserPolicy|GetSecret|nto' cloudtrail.log`.\n3. `grep nto cloudtrail.log > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/cloudtrail.log",
+      "b64": "eyJldmVudFRpbWUiOiIyMDI2LTAzLTExVDAyOjE0OjA5WiIsImV2ZW50TmFtZSI6IkNvbnNvbGVMb2dpbiIsInVzZXJJZGVudGl0eSI6eyJ0eXBlIjoiSUFNVXNlciIsInVzZXJOYW1lIjoiZGV2In0sInNvdXJjZUlQQWRkcmVzcyI6IjIwMy4wLjExMy45In0KeyJldmVudE5hbWUiOiJDcmVhdGVBY2Nlc3NLZXkiLCJ1c2VySWRlbnRpdHkiOnsidXNlck5hbWUiOiJkZXYifX0KeyJldmVudE5hbWUiOiJBdHRhY2hVc2VyUG9saWN5IiwicmVxdWVzdFBhcmFtZXRlcnMiOnsicG9saWN5QXJuIjoiYXJuOmF3czppYW06OmF3czpwb2xpY3kvQWRtaW5pc3RyYXRvckFjY2VzcyJ9fQp7ImV2ZW50TmFtZSI6IkdldFNlY3JldFZhbHVlIiwicmVxdWVzdFBhcmFtZXRlcnMiOnsic2VjcmV0SWQiOiJwcm9kL2RiIn19CnsiRVZJREVOQ0UiOiJudG97Y2xvdWQxYW1fY3IzYXQzYWNjM3NzazN5fSJ9Cg==",
+      "mode": "644"
+    }
+  ]
+}

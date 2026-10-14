@@ -1,0 +1,24 @@
+{
+  "id": "mobile-ios-unifiedlog",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{10s_un1f13d_l0g_tr4c3v3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: iOS unified log\n\n`ios.logarchive` — unified log iPhone. Найди подсистемы и метку.\n\n1. `file ios.logarchive`.\n2. `strings ios.logarchive | grep -Ei 'subsystem|process|nto'`.\n3. `strings ios.logarchive | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/ios.logarchive",
+      "b64": "AAAAAAAAAABBcHBsZSBVbmlmaWVkIExvZ2dpbmcgdHJhY2V2MyBmaWxlCnN1YnN5c3RlbT1jb20uYXBwbGUubmV0d29yawpwcm9jZXNzPVNhZmFyaQpzdWJzeXN0ZW09Y29tLmFwcGxlLnNlY3VyaXR5ZApFVklERU5DRTogbnRvezEwc191bjFmMTNkX2wwZ190cjRjM3YzfQo=",
+      "mode": "644"
+    }
+  ]
+}

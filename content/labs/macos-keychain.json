@@ -1,0 +1,24 @@
+{
+  "id": "macos-keychain",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{mac0s_k3ych41n_g3np_db}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Keychain macOS\n\n`login.keychain-db` — связка ключей. Определи таблицы и найди метку.\n\n1. `file login.keychain-db`.\n2. `strings login.keychain-db | grep -Ei 'genp|inet|nto'`.\n3. `strings login.keychain-db | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/login.keychain-db",
+      "b64": "AAAAAAAAAABTUUxpdGUgZm9ybWF0IDMKQ1JFQVRFIFRBQkxFIGdlbnAgKGFjY3QgVEVYVCwgc3ZjZSBURVhULCBkYXRhIEJMT0IpCkNSRUFURSBUQUJMRSBpbmV0IChzcnZyIFRFWFQsIGFjY3QgVEVYVCwgZGF0YSBCTE9CKQprZXljaGFpbiBkYiB2ZXJzaW9uIDkKRVZJREVOQ0U6IG50b3ttYWMwc19rM3ljaDQxbl9nM25wX2RifQo=",
+      "mode": "644"
+    }
+  ]
+}

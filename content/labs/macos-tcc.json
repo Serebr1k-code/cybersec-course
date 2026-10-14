@@ -1,0 +1,24 @@
+{
+  "id": "macos-tcc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{mac0s_tcc_fulld1sk4cc3ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: TCC.db\n\n`TCC.db` — база согласий macOS. Найди опасное разрешение и метку.\n\n1. `file TCC.db`.\n2. `strings TCC.db | grep -Ei 'kTCCService|nto'`.\n3. `strings TCC.db | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/TCC.db",
+      "b64": "AAAAAAAAAABTUUxpdGUgZm9ybWF0IDMKQ1JFQVRFIFRBQkxFIGFjY2VzcyAoc2VydmljZSBURVhULCBjbGllbnQgVEVYVCwgYXV0aF92YWx1ZSBJTlRFR0VSKQprVENDU2VydmljZUNhbWVyYQprVENDU2VydmljZU1pY3JvcGhvbmUKa1RDQ1NlcnZpY2VTeXN0ZW1Qb2xpY3lBbGxGaWxlcwpFVklERU5DRTogbnRve21hYzBzX3RjY19mdWxsZDFzazRjYzNzc30K",
+      "mode": "644"
+    }
+  ]
+}

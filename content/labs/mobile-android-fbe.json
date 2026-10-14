@@ -1,0 +1,24 @@
+{
+  "id": "mobile-android-fbe",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{andr01d_fb3_k3yst0r3_bfu}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: FBE Android\n\n`fbe.meta` — метаданные шифрования Android. Определи классы хранилищ и найди метку.\n\n1. `file fbe.meta`.\n2. `strings fbe.meta | grep -Ei 'CE|DE|gatekeeper|nto'`.\n3. `strings fbe.meta | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/fbe.meta",
+      "b64": "AAAAAAAAAABzdG9yYWdlIGNsYXNzOiBDRQpzdG9yYWdlIGNsYXNzOiBERQpnYXRla2VlcGVyIHBhdHRlcm4ga2V5IHByZXNlbnQKa2V5c3RvcmUgdXNlcl8wIGtleSBibG9icwpFVklERU5DRTogbnRve2FuZHIwMWRfZmIzX2szeXN0MHIzX2JmdX0K",
+      "mode": "644"
+    }
+  ]
+}

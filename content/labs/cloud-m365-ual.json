@@ -1,0 +1,24 @@
+{
+  "id": "cloud-m365-ual",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m365_ual_1nb0xrul3_b3c}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: M365 Unified Audit Log\n\n`ual.log` — выгрузка аудита M365. Найди подозрительную операцию и метку.\n\n1. `head ual.log`.\n2. `grep -Ei 'inboxrule|consent|nto' ual.log`.\n3. `grep nto ual.log > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/ual.log",
+      "b64": "eyJDcmVhdGlvblRpbWUiOiIyMDI2LTAzLTExVDAyOjE0OjA5WiIsIk9wZXJhdGlvbiI6IlVzZXJMb2dnZWRJbiIsIlVzZXJJZCI6InVzZXJAY29ycC5jb20iLCJDbGllbnRJUCI6IjIwMy4wLjExMy45IiwiUmVzdWx0U3RhdHVzIjoiU3VjY2VzcyJ9CnsiQ3JlYXRpb25UaW1lIjoiMjAyNi0wMy0xMVQwMjoxOTo0NFoiLCJPcGVyYXRpb24iOiJOZXctSW5ib3hSdWxlIiwiVXNlcklkIjoidXNlckBjb3JwLmNvbSIsIkNsaWVudElQIjoiMjAzLjAuMTEzLjkiLCJSZXN1bHRTdGF0dXMiOiJTdWNjZXNzIiwiUGFyYW1ldGVycyI6IkZvcndhcmRUbzphdHRhY2tlckBldmlsLnRsZCJ9CnsiT3BlcmF0aW9uIjoiTmV3LUluYm94UnVsZSIsIlBhcmFtZXRlcnMiOiJGb3J3YXJkVG86YXR0YWNrZXJAZXZpbC50bGQiLCJFVklERU5DRSI6Im50b3ttMzY1X3VhbF8xbmIweHJ1bDNfYjNjfSJ9Cg==",
+      "mode": "644"
+    }
+  ]
+}

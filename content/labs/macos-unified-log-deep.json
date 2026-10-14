@@ -1,0 +1,24 @@
+{
+  "id": "macos-unified-log-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{mac0s_un1f13d_l0g_trac3v3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: unified log macOS\n\n`system.logarchive` — собранный unified log. Найди подсистемы и метку.\n\n1. `file system.logarchive`.\n2. `strings system.logarchive | grep -Ei 'subsystem|process|nto'`.\n3. `strings system.logarchive | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/system.logarchive",
+      "b64": "AAAAAAAAAABBcHBsZSBVbmlmaWVkIExvZ2dpbmcgdHJhY2V2MyBmaWxlCnN1YnN5c3RlbT1jb20uYXBwbGUubmV0d29yawpwcm9jZXNzPWN1cmwKc3Vic3lzdGVtPWNvbS5leGFtcGxlLm1hbHdhcmUKRVZJREVOQ0U6IG50b3ttYWMwc191bjFmMTNkX2wwZ190cmFjM3YzfQo=",
+      "mode": "644"
+    }
+  ]
+}

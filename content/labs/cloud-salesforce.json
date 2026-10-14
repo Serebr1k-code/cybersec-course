@@ -1,0 +1,24 @@
+{
+  "id": "cloud-salesforce",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sal3sf0rc3_3v3ntl0g_3xf1l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Salesforce Event Log\n\n`sf.log` — выгрузка Event Log File. Найди массовую выгрузку и метку.\n\n1. `head sf.log`.\n2. `grep -Ei 'ReportExport|ApiTotal|nto' sf.log`.\n3. `grep nto sf.log > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/sf.log",
+      "b64": "RVZFTlRfVFlQRSxUSU1FU1RBTVAsVVNFUl9JRCxDTElFTlRfSVAsVVJJClJlcG9ydEV4cG9ydCwyMDI2LTAzLTExVDAyOjE0OjA5WiwwMDVhYmMsMjAzLjAuMTEzLjksLzAwTy9yZXBvcnQvbGVhZHMKQXBpVG90YWxVc2FnZSwyMDI2LTAzLTExVDAyOjE2OjAwWiwwMDVhYmMsMjAzLjAuMTEzLjksNTAwMCBjYWxscwpFVklERU5DRTogbnRve3NhbDNzZjByYzNfM3YzbnRsMGdfM3hmMWx9Cg==",
+      "mode": "644"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "cloud-okta",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{okta_syst3m_l0g_mf4_push}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Okta System Log\n\n`okta.log` — журнал Okta. Найди аномальное событие и метку.\n\n1. `head okta.log`.\n2. `grep -Ei 'mfa|admin|token|nto' okta.log`.\n3. `grep nto okta.log > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/okta.log",
+      "b64": "eyJwdWJsaXNoZWQiOiIyMDI2LTAzLTExVDAyOjE0OjA5WiIsImV2ZW50VHlwZSI6InVzZXIuc2Vzc2lvbi5zdGFydCIsImFjdG9yIjp7ImFsdGVybmF0ZUlkIjoiYWxpY2VAY29ycC5jb20ifSwiY2xpZW50Ijp7ImlwQWRkcmVzcyI6IjIwMy4wLjExMy45In0sIm91dGNvbWUiOnsicmVzdWx0IjoiU1VDQ0VTUyJ9fQp7InB1Ymxpc2hlZCI6IjIwMjYtMDMtMTFUMDI6MTY6NDBaIiwiZXZlbnRUeXBlIjoidXNlci5tZmEuZmFjdG9yLmRlYWN0aXZhdGUiLCJhY3RvciI6eyJhbHRlcm5hdGVJZCI6ImFsaWNlQGNvcnAuY29tIn0sIm91dGNvbWUiOnsicmVzdWx0IjoiU1VDQ0VTUyJ9LCJFVklERU5DRSI6Im50b3tva3RhX3N5c3QzbV9sMGdfbWY0X3B1c2h9In0K",
+      "mode": "644"
+    }
+  ]
+}
