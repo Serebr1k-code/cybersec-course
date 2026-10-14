@@ -1,0 +1,39 @@
+{
+  "id": "misc-gvisor",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{gv1s0r_s3ntry_1d3nt1fy}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# gVisor\n\nОпредели, что запущен gVisor, его версию и платформу. Найди флаг.\n"
+    },
+    {
+      "path": "/home/student/task/dmesg.txt",
+      "text": "[    0.000000] Starting gVisor...\n[    0.001000] platform: systrap\n"
+    },
+    {
+      "path": "/home/student/task/version.txt",
+      "text": "gVisor release-20240101\nplatform=systrap\nnto{gv1s0r_s3ntry_1d3nt1fy}\n"
+    }
+  ],
+  "tools": {
+    "strings": {
+      "help": "strings <файл>",
+      "cases": [
+        {
+          "match": "dmesg|version",
+          "example": "strings version.txt",
+          "output": "gVisor release-20240101\nplatform=systrap\nnto{gv1s0r_s3ntry_1d3nt1fy}"
+        }
+      ]
+    }
+  }
+}
