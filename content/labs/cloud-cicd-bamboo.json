@@ -1,0 +1,27 @@
+{
+  "id": "cloud-cicd-bamboo",
+  "workdir": "/home/student/bamboo",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/bamboo/found.txt",
+    "contains": "nto{b4mb00_sh4r3d_cr3d3nt14ls_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/bamboo",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/bamboo/task.md",
+      "text": "# Задача\n\nНайден план Bamboo. Определи путь к облачным кредам и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/bamboo/plan.json",
+      "text": "{\n  \"key\": \"DEPLOY-PROD\",\n  \"name\": \"Deploy Prod\",\n  \"tasks\": [\"Checkout\", \"Maven build\", \"Deploy to AWS\"],\n  \"credentials\": \"shared:aws-prod-deploy\"\n}\n"
+    },
+    {
+      "path": "/home/student/bamboo/notes.md",
+      "text": "Аудит: пользователь имеет права на изменение плана DEPLOY-PROD.\nПлан использует shared credentials aws-prod-deploy (ключи с широкими правами).\nДобавленная задача читает env -> креды AWS.\nnto{b4mb00_sh4r3d_cr3d3nt14ls_rce}\n"
+    }
+  ]
+}

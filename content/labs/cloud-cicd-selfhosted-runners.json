@@ -1,0 +1,27 @@
+{
+  "id": "cloud-cicd-selfhosted-runners",
+  "workdir": "/home/student/runner",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/runner/found.txt",
+    "contains": "nto{s3lfh0st3d_runn3r_p3rs1st3nc3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/runner",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/runner/task.md",
+      "text": "# Задача\n\nНайден конфиг self-hosted раннера. Определи риск persistence и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/runner/runner-config.sh",
+      "text": "./config.sh --url https://github.com/acme --token AEXAMPLErunnerregtoken --name shared-runner --labels self-hosted,linux --unattended\n"
+    },
+    {
+      "path": "/home/student/runner/notes.md",
+      "text": "Аудит: раннер зарегистрирован на организацию (--url .../acme), persistent.\nОбслуживает публичные репозитории -> PR = RCE.\nПерехватчик в профиле собирает env следующих сборок -> кража секретов.\nnto{s3lfh0st3d_runn3r_p3rs1st3nc3}\n"
+    }
+  ]
+}

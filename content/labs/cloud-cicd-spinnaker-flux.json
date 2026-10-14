@@ -1,0 +1,27 @@
+{
+  "id": "cloud-cicd-spinnaker-flux",
+  "workdir": "/home/student/spinnaker",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/spinnaker/found.txt",
+    "contains": "nto{sp1nn4k3r_cd_4cc0unt_cr3ds}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/spinnaker",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/spinnaker/task.md",
+      "text": "# Задача\n\nНайден список аккаунтов Spinnaker. Определи креды деплоя и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/spinnaker/accounts.json",
+      "text": "[\n  {\"name\": \"aws-prod\", \"cloudProvider\": \"aws\", \"accountId\": \"123456789012\", \"assumeRole\": \"arn:aws:iam::123456789012:role/spinnaker-deploy\"}\n]\n"
+    },
+    {
+      "path": "/home/student/spinnaker/notes.md",
+      "text": "Аудит: API Spinnaker без auth -> можно запустить pipeline.\nАккаунт aws-prod использует роль spinnaker-deploy для деплоя.\nЗапуск стадии job = действие в облаке от имени роли.\nnto{sp1nn4k3r_cd_4cc0unt_cr3ds}\n"
+    }
+  ]
+}

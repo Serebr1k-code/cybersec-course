@@ -1,0 +1,27 @@
+{
+  "id": "cloud-cicd-buildkite-travis",
+  "workdir": "/home/student/bk",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/bk/found.txt",
+    "contains": "nto{buildk1t3_4g3nt_p1p3l1n3upl04d_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/bk",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/bk/task.md",
+      "text": "# Задача\n\nНайден токен агента Buildkite. Определи путь к секретам пайплайна и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/bk/agent.env",
+      "text": "BUILDKITE_AGENT_TOKEN=bkua_EXAMPLEnotreal\nBUILDKITE_AGENT_NAME=build-01\n"
+    },
+    {
+      "path": "/home/student/bk/notes.md",
+      "text": "Аудит: агент забирает задания; пайплайн deploy-prod содержит облачные секреты.\nШаги определяются pipeline upload -> изменение кода = RCE на агенте.\nАгент имеет доступ к Docker-сокету и внутренней сети.\nnto{buildk1t3_4g3nt_p1p3l1n3upl04d_rce}\n"
+    }
+  ]
+}
