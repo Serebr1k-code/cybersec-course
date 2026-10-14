@@ -1,0 +1,38 @@
+{
+  "id": "pwn-kernel-info-leak",
+  "category": "pwn",
+  "title": "Практика: что утекает первым",
+  "toolset": [
+    "core"
+  ],
+  "workdir": "/home/student/task",
+  "files": [
+    "task.md",
+    "leak.txt"
+  ],
+  "check": "grep -q 'leak=heap-ptr' answer.txt",
+  "hints": [
+    "`ffff8880...` — диапазон кучи ядра, не база `.text`.",
+    "База ядра выглядит как `ffffffff8...`.",
+    "Первая утечка обычно даёт адрес в куче.",
+    "Запиши `leak=heap-ptr`."
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "leak=heap-ptr"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: тип утечки\n\n`leak.txt` — дамп памяти ядра, полученный через OOB-чтение.\n\n1. Открой `leak.txt` (`cat leak.txt`).\n2. Посмотри на адрес `ffff8880...` — это куча ядра или база?\n3. Запиши `leak=heap-ptr` в `answer.txt` и выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/task/leak.txt",
+      "text": "00000000: 0000 0000 0000 0000 ffff 8880 1234 ab00\n00000010: ffff 8880 1234 ab80 0000 0000 0000 0001\n00000020: 0000 0000 0000 0040 ffff ffff 8a2b 1000\n"
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+{
+  "id": "pwn-kernel-data-only",
+  "category": "pwn",
+  "title": "Практика: цель data-only атаки",
+  "toolset": [
+    "core"
+  ],
+  "workdir": "/home/student/task",
+  "files": [
+    "task.md",
+    "cred.h"
+  ],
+  "check": "grep -q 'target=cred' answer.txt",
+  "hints": [
+    "Data-only не трогает поток управления.",
+    "Цель — структура, описывающая права процесса.",
+    "Она называется `cred`.",
+    "Запиши `target=cred`."
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "target=cred"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: цель data-only атаки\n\n`cred.h` — фрагмент структуры ядра, описывающей права процесса.\n\n1. Открой `cred.h` (`cat cred.h`).\n2. Определи, как называется эта структура.\n3. Запиши `target=cred` в `answer.txt` и выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/task/cred.h",
+      "text": "struct cred {\n    atomic_t usage;\n    kuid_t   uid, gid, suid, sgid, euid, egid, fsuid, fsgid;\n    kernel_cap_t cap_permitted, cap_effective, ...;\n};\n"
+    }
+  ]
+}

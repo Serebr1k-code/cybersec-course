@@ -1,0 +1,31 @@
+{
+  "id": "cloud-vpc-peering",
+  "workdir": "/home/student/peer",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/peer/found.txt",
+    "contains": "nto{vpc_p33r1ng_l4t3r4l_p4th}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/peer",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/peer/task.md",
+      "text": "# Задача\n\nТы на инстансе dev-VPC. Определи, достижим ли prod, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/peer/routes.txt",
+      "text": "default via 10.0.0.1 dev eth0\n10.0.0.0/16 dev eth0\n10.2.0.0/16 via 10.0.0.1 dev eth0\n"
+    },
+    {
+      "path": "/home/student/peer/topology.md",
+      "text": "dev 10.0.0.0/16 --peering--> shared 10.2.0.0/16 --peering--> prod 10.1.0.0/16\n"
+    },
+    {
+      "path": "/home/student/peer/notes.md",
+      "text": "Аудит: из dev есть маршрут в shared, из shared — в prod.\nЗначит, prod достижим транзитивно через shared.\nnto{vpc_p33r1ng_l4t3r4l_p4th}\n"
+    }
+  ]
+}

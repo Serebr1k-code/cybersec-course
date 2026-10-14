@@ -1,0 +1,37 @@
+{
+  "id": "pwn-dop",
+  "category": "pwn",
+  "title": "Практика: чем управляет DOP",
+  "toolset": [
+    "core"
+  ],
+  "workdir": "/home/student/task",
+  "files": [
+    "task.md",
+    "data.txt"
+  ],
+  "check": "grep -q 'control=data' answer.txt",
+  "hints": [
+    "DOP не перехватывает поток управления.",
+    "Он управляет данными, а код исполняется штатный.",
+    "Запиши `control=data`."
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "control=data"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: что контролирует DOP\n\n`data.txt` — описание атаки.\n\n1. Открой `data.txt` (`cat data.txt`).\n2. Определи, чем управляет DOP.\n3. Запиши `control=data` в `answer.txt` и выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/task/data.txt",
+      "text": "DOP (Data-Oriented Programming):\n  - поток управления НЕ перехватывается;\n  - штатный код программы исполняется как есть;\n  - атакующий управляет только данными (поля структур, флаги).\n"
+    }
+  ]
+}

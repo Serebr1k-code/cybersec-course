@@ -1,0 +1,24 @@
+{
+  "id": "osint-ransomware-leaks",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{r4ns0mw4r3_l34k_m0n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: leak-site\n\n1. `cat victims.json`.\n2. Найди жертву из сектора `finance`.\n3. Рядом — маркер `nto{...}`.\n4. Запиши в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/victims.json",
+      "text": "[\n  {\"group\": \"LockEx\", \"victim\": \"RetailCo\", \"sector\": \"retail\", \"deadline\": \"2026-02-01\"},\n  {\"group\": \"LockEx\", \"victim\": \"BankCo\", \"sector\": \"finance\", \"deadline\": \"2026-02-05\", \"note\": \"nto{r4ns0mw4r3_l34k_m0n}\"}\n]\n"
+    }
+  ],
+  "tools": {}
+}

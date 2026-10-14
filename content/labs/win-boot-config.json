@@ -1,0 +1,24 @@
+{
+  "id": "win-boot-config",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{bcd_t3sts1gn1ng_0n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: BCD\n\n`bcd.txt` — выгрузка конфигурации загрузки. Найди опасный параметр и метку.\n\n1. `cat bcd.txt`.\n2. `grep -iE 'path|testsigning' bcd.txt`.\n3. `grep nto bcd.txt > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/bcd.txt",
+      "text": "Windows Boot Loader\nidentifier  {current}\ndevice      partition=C:\npath        \\Windows\\system32\\winload.efi\ntestsigning Yes\nnote: nto{bcd_t3sts1gn1ng_0n}\n",
+      "mode": "644"
+    }
+  ]
+}

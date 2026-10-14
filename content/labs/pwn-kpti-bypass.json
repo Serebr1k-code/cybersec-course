@@ -1,0 +1,38 @@
+{
+  "id": "pwn-kpti-bypass",
+  "category": "pwn",
+  "title": "Практика: чем завершают kernel ROP",
+  "toolset": [
+    "core"
+  ],
+  "workdir": "/home/student/task",
+  "files": [
+    "task.md",
+    "vmlinux.gadgets.txt"
+  ],
+  "check": "grep -q 'finish=trampoline' answer.txt",
+  "hints": [
+    "Прямой возврат в userland на KPTI-ядре ломается.",
+    "Нужна функция, переключающая таблицы страниц.",
+    "Это `swapgs_restore_regs_and_return_to_usermode` (trampoline).",
+    "Запиши `finish=trampoline`."
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "finish=trampoline"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: финиш kernel ROP\n\n`vmlinux.gadgets.txt` — фрагмент символов ядра.\n\n1. Открой `vmlinux.gadgets.txt` (`cat vmlinux.gadgets.txt`).\n2. Найди символ, который переключает таблицу страниц и возвращает в userland.\n3. Запиши `finish=trampoline` в `answer.txt` и выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/task/vmlinux.gadgets.txt",
+      "text": "ffffffff81e00e10 T swapgs_restore_regs_and_return_to_usermode\nffffffff810a1230 T commit_creds\nffffffff810a11e0 T prepare_kernel_cred\nffffffff81002000 T native_write_cr4\n"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "osint-stix-taxii",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{st1x_t4x11_bundl3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: STIX\n\n1. `cat bundle.json`.\n2. Изучи объекты `indicator`.\n3. Найди маркер `nto{...}` в поле `description`.\n4. Запиши в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/bundle.json",
+      "text": "{\n  \"type\": \"bundle\",\n  \"id\": \"bundle--9c1a...\",\n  \"objects\": [\n    {\"type\": \"indicator\", \"pattern_type\": \"stix\", \"pattern\": \"[domain-name:value = 'secure-login-bank.example']\", \"description\": \"nto{st1x_t4x11_bundl3}\"},\n    {\"type\": \"malware\", \"name\": \"ExampleStealer\"},\n    {\"type\": \"threat-actor\", \"name\": \"APT-Example\"}\n  ]\n}\n"
+    }
+  ],
+  "tools": {}
+}

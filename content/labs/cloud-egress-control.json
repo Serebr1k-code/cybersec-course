@@ -1,0 +1,31 @@
+{
+  "id": "cloud-egress-control",
+  "workdir": "/home/student/egress",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/egress/found.txt",
+    "contains": "nto{3gr3ss_byp4ss_4ll0w3d_s3rv1c3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/egress",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/egress/task.md",
+      "text": "# Задача\n\nРазбери egress-контроль. Определи канал exfiltration и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/egress/egress.txt",
+      "text": "Security group: egress allow pypi.org:443, github.com:443\nNAT: no filtering\nProxy: CONNECT disabled\n"
+    },
+    {
+      "path": "/home/student/egress/dns-test.txt",
+      "text": "dig attacker.com -> resolves (DNS open, no filtering)\n"
+    },
+    {
+      "path": "/home/student/egress/notes.md",
+      "text": "Аудит: egress разрешает pypi.org и github.com, DNS не фильтруется.\nДанные можно вынести через разрешённый сервис или DNS-туннель.\nnto{3gr3ss_byp4ss_4ll0w3d_s3rv1c3}\n"
+    }
+  ]
+}

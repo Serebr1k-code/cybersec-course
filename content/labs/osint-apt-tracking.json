@@ -1,0 +1,28 @@
+{
+  "id": "osint-apt-tracking",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{4pt_4ttr1but10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: атрибуция\n\n1. `cat campaigns.json` и `cat actors.json`.\n2. Найди группу, чей инструмент совпадает с кампанией.\n3. В её описании — маркер `nto{...}`.\n4. Запиши в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/campaigns.json",
+      "text": "{\"campaign\": \"Operation Blue Door\", \"tools\": [\"ExampleStealer\", \"Cobalt-Strike-like\"], \"targets\": \"banks, EU\"}\n"
+    },
+    {
+      "path": "/home/student/task/actors.json",
+      "text": "[\n  {\"name\": \"APT-Example\", \"aliases\": [\"BlueShell\"], \"tools\": [\"ExampleStealer\"], \"note\": \"nto{4pt_4ttr1but10n}\"},\n  {\"name\": \"APT-Other\", \"aliases\": [\"RedFox\"], \"tools\": [\"DifferentTool\"]}\n]\n"
+    }
+  ],
+  "tools": {}
+}

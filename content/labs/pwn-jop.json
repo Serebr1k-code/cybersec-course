@@ -1,0 +1,37 @@
+{
+  "id": "pwn-jop",
+  "category": "pwn",
+  "title": "Практика: ищем jmp-гаджеты",
+  "toolset": [
+    "core"
+  ],
+  "workdir": "/home/student/task",
+  "files": [
+    "task.md",
+    "libc.jop.txt"
+  ],
+  "check": "grep -q 'gadget=jmp' answer.txt",
+  "hints": [
+    "JOP использует гаджеты, заканчивающиеся косвенным переходом.",
+    "Это `jmp [reg]`, а не `ret`.",
+    "Запиши `gadget=jmp`."
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "gadget=jmp"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: JOP-гаджеты\n\n`libc.jop.txt` — список гаджетов.\n\n1. Открой `libc.jop.txt` (`cat libc.jop.txt`).\n2. Определи, какой тип завершения используют JOP-гаджеты.\n3. Запиши `gadget=jmp` в `answer.txt` и выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/task/libc.jop.txt",
+      "text": "0x00123456 : jmp rax\n0x00123980 : jmp rdx\n0x00124010 : jmp qword ptr [rsi + 0x10]\n"
+    }
+  ]
+}

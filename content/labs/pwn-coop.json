@@ -1,0 +1,37 @@
+{
+  "id": "pwn-coop",
+  "category": "pwn",
+  "title": "Практика: цель COOP",
+  "toolset": [
+    "core"
+  ],
+  "workdir": "/home/student/task",
+  "files": [
+    "task.md",
+    "cpp.txt"
+  ],
+  "check": "grep -q 'hijack=vtable' answer.txt",
+  "hints": [
+    "COOP подменяет таблицу виртуальных методов.",
+    "Она называется vtable.",
+    "Запиши `hijack=vtable`."
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "hijack=vtable"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: цель COOP\n\n`cpp.txt` — фрагмент дизассемблера виртуального вызова.\n\n1. Открой `cpp.txt` (`cat cpp.txt`).\n2. Определи, что подменяет COOP.\n3. Запиши `hijack=vtable` в `answer.txt` и выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/task/cpp.txt",
+      "text": "mov  rax, [rdi]       ; rax = vptr (pointer to vtable)\ncall [rax + 0]        ; virtual call to first method\n"
+    }
+  ]
+}

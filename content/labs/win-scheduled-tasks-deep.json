@@ -1,0 +1,24 @@
+{
+  "id": "win-scheduled-tasks-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sch3d_t4sk_p3rs1st}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: планировщик задач\n\n`UpdaterTask` — XML задания. Найди действие, уровень прав и метку.\n\n1. `file UpdaterTask`.\n2. `grep -iE 'Command|RunLevel' UpdaterTask`.\n3. `grep nto UpdaterTask > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/UpdaterTask",
+      "text": "<Task><RegistrationInfo><Author>CORP\\jdoe</Author></RegistrationInfo>\n<Triggers><LogonTrigger/></Triggers>\n<Actions><Exec><Command>C:\\Users\\Public\\upd.exe</Command></Exec></Actions>\n<Principals><Principal><RunLevel>HighestAvailable</RunLevel></Principal></Principals>\n<!-- nto{sch3d_t4sk_p3rs1st} --></Task>\n",
+      "mode": "644"
+    }
+  ]
+}

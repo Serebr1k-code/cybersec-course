@@ -1,0 +1,31 @@
+{
+  "id": "cloud-dns-deep",
+  "workdir": "/home/student/dns",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/dns/found.txt",
+    "contains": "nto{d4ngl1ng_cn4m3_t4k30v3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/dns",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/dns/task.md",
+      "text": "# Задача\n\nРазбери DNS-записи поддомена. Определи тип атаки и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/dns/dns-records.txt",
+      "text": "app.acme.com CNAME acme-app.s3-website-us-east-1.amazonaws.com.\nblog.acme.com NS ns1.bloghost.example.\n"
+    },
+    {
+      "path": "/home/student/dns/ct-log.txt",
+      "text": "crt.sh: app.acme.com, blog.acme.com, api.acme.com\n"
+    },
+    {
+      "path": "/home/student/dns/notes.md",
+      "text": "Аудит: app.acme.com ведёт на удалённый S3-сайт (имя бакета свободно).\nЭто dangling CNAME -> subdomain takeover.\nnto{d4ngl1ng_cn4m3_t4k30v3r}\n"
+    }
+  ]
+}

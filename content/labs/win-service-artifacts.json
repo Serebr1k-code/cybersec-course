@@ -1,0 +1,24 @@
+{
+  "id": "win-service-artifacts",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s3rv1c3_1m4g3p4th_p3rs1st}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: службы\n\n`services.reg` — выгрузка ветки Services. Найди ImagePath подозрительной службы и метку.\n\n1. `cat services.reg`.\n2. `grep -i imagepath services.reg`.\n3. `grep nto services.reg > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/services.reg",
+      "text": "Windows Registry Editor Version 5.00\n[HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services\\WinUpdater]\n\"ImagePath\"=\"C:\\\\Users\\\\Public\\\\svc.exe\"\n\"Start\"=dword:00000002\n\"ObjectName\"=\"LocalSystem\"\n; nto{s3rv1c3_1m4g3p4th_p3rs1st}\n",
+      "mode": "644"
+    }
+  ]
+}

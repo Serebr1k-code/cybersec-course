@@ -1,0 +1,31 @@
+{
+  "id": "cloud-vpn-hybrid",
+  "workdir": "/home/student/hybrid",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/hybrid/found.txt",
+    "contains": "nto{hybr1d_vpn_t0_0npr3m}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/hybrid",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/hybrid/task.md",
+      "text": "# Задача\n\nТы на облачном инстансе. Определи, достижим ли офис, и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/hybrid/routes.txt",
+      "text": "default via 10.0.0.1 dev eth0\n10.0.0.0/16 dev eth0\n192.168.0.0/16 via 10.0.0.1 dev eth0\n"
+    },
+    {
+      "path": "/home/student/hybrid/vpn-config.txt",
+      "text": "tunnel to onprem: 192.168.0.0/16\npsk: sharedsecret2024\nfirewall: allow 10.0.0.0/16 to 192.168.0.0/16\n"
+    },
+    {
+      "path": "/home/student/hybrid/notes.md",
+      "text": "Аудит: облачный CIDR имеет доступ в 192.168.0.0/16 через VPN.\nPSK слабый, firewall доверяет облаку.\nnto{hybr1d_vpn_t0_0npr3m}\n"
+    }
+  ]
+}

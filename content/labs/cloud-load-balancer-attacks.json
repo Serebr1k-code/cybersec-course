@@ -1,0 +1,31 @@
+{
+  "id": "cloud-load-balancer-attacks",
+  "workdir": "/home/student/lb",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/lb/found.txt",
+    "contains": "nto{lb_xff_byp4ss_t0_4dm1n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/lb",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/lb/task.md",
+      "text": "# Задача\n\nРазбери поведение балансировщика. Определи возможность обхода и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/lb/lb-headers.txt",
+      "text": "Server: aws-alb\nX-Forwarded-For: <клиентский, не перезаписывается>\nX-Forwarded-Proto: https\n"
+    },
+    {
+      "path": "/home/student/lb/origin.txt",
+      "text": "admin.acme.com разрешён только с 127.0.0.1 (по XFF).\norigin 203.0.113.10 доступен напрямую (SG открыт).\n"
+    },
+    {
+      "path": "/home/student/lb/notes.md",
+      "text": "Аудит: LB не перезаписывает XFF, приложение доверяет ему.\nПодделка X-Forwarded-For: 127.0.0.1 даёт доступ к админке.\nnto{lb_xff_byp4ss_t0_4dm1n}\n"
+    }
+  ]
+}

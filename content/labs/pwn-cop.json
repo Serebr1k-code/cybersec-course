@@ -1,0 +1,37 @@
+{
+  "id": "pwn-cop",
+  "category": "pwn",
+  "title": "Практика: ищем call-гаджеты",
+  "toolset": [
+    "core"
+  ],
+  "workdir": "/home/student/task",
+  "files": [
+    "task.md",
+    "libc.cop.txt"
+  ],
+  "check": "grep -q 'gadget=call' answer.txt",
+  "hints": [
+    "COP использует косвенные вызовы.",
+    "Это `call [reg]`, а не `ret` и не `jmp`.",
+    "Запиши `gadget=call`."
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "gadget=call"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: COP-гаджеты\n\n`libc.cop.txt` — список гаджетов.\n\n1. Открой `libc.cop.txt` (`cat libc.cop.txt`).\n2. Определи, какой тип завершения используют COP-гаджеты.\n3. Запиши `gadget=call` в `answer.txt` и выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/task/libc.cop.txt",
+      "text": "0x00110020 : call rax\n0x001100a0 : call qword ptr [rdx + 0x18]\n0x00110140 : call rsi\n"
+    }
+  ]
+}

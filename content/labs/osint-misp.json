@@ -1,0 +1,24 @@
+{
+  "id": "osint-misp",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{m1sp_c0rr3l4t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: событие MISP\n\n1. `cat event.json` — прочитай событие.\n2. Найди атрибут типа `domain`.\n3. Рядом с ним лежит маркер `nto{...}` — запиши в `answer.txt`.\n4. `check`.\n"
+    },
+    {
+      "path": "/home/student/task/event.json",
+      "text": "{\n  \"Event\": {\n    \"info\": \"Phishing wave targeting banks\",\n    \"Attribute\": [\n      {\"type\": \"ip-dst\", \"value\": \"203.0.113.7\"},\n      {\"type\": \"domain\", \"value\": \"secure-login-bank.example\", \"comment\": \"nto{m1sp_c0rr3l4t10n}\"},\n      {\"type\": \"sha256\", \"value\": \"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\"}\n    ],\n    \"Tag\": [\"tlp:amber\", \"misp-galaxy:threat-actor=\\\"APT-Example\\\"\"]\n  }\n}\n"
+    }
+  ],
+  "tools": {}
+}

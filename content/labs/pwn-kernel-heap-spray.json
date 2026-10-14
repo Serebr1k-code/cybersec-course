@@ -1,0 +1,38 @@
+{
+  "id": "pwn-kernel-heap-spray",
+  "category": "pwn",
+  "title": "Практика: выбор объекта для спрея",
+  "toolset": [
+    "core"
+  ],
+  "workdir": "/home/student/task",
+  "files": [
+    "task.md",
+    "spray.c"
+  ],
+  "check": "grep -q 'spray=msg_msg' answer.txt",
+  "hints": [
+    "Спрей занимает освобождённый слот подконтрольным объектом.",
+    "Ищи в коде вызов, создающий объект ядра.",
+    "`msgsnd` создаёт `msg_msg`.",
+    "Запиши `spray=msg_msg`."
+  ],
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "spray=msg_msg"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: объект для heap spray\n\n`spray.c` — заготовка эксплойта, который спреит кучу ядра после UAF.\n\n1. Открой `spray.c` (`cat spray.c`).\n2. Определи, какой объект используется для спрея.\n3. Запиши `spray=msg_msg` в `answer.txt` и выполни `check`.\n"
+    },
+    {
+      "path": "/home/student/task/spray.c",
+      "text": "#include <sys/msg.h>\nstruct msgbuf { long mtype; char mtext[16]; };\nvoid spray(int qid, int n) {\n    struct msgbuf m = {.mtype = 1};\n    memset(m.mtext, 'A', sizeof(m.mtext));\n    for (int i = 0; i < n; i++)\n        msgsnd(qid, &m, sizeof(m.mtext), 0);  // <-- spray object\n}\n"
+    }
+  ]
+}
