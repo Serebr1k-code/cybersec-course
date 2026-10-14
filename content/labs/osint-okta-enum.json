@@ -1,0 +1,48 @@
+{
+  "id": "osint-okta-enum",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{okt4_0rg_ss0_d1sc0v3ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Okta org recon\n\n1. `curl -s https://example.okta.com/api/v1/org`\n2. Найди `subdomain`, `id`, `companyName`.\n3. `curl -s https://example.okta.com/oauth2/default/.well-known/openid-configuration`\n4. Маркер `nto{...}` — в одном из ответов. Запиши в `answer.txt`, затем `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — эмуляция ответов Okta",
+      "cases": [
+        {
+          "match": "api/v1/org",
+          "example": "curl -s https://example.okta.com/api/v1/org",
+          "output": "{\"id\":\"00o1abcdefGHIJKLmn\",\"subdomain\":\"example\",\"companyName\":\"Example Corp\",\"status\":\"ACTIVE\",\"created\":\"2019-04-02T10:11:12.000Z\",\"address1\":null,\"city\":null,\"country\":\"US\",\"x_flag\":\"nto{okt4_0rg_ss0_d1sc0v3ry}\"}\n"
+        },
+        {
+          "match": "openid-configuration",
+          "example": "curl -s https://example.okta.com/oauth2/default/.well-known/openid-configuration",
+          "output": "{\"issuer\":\"https://example.okta.com/oauth2/default\",\"authorization_endpoint\":\"https://example.okta.com/oauth2/default/v1/authorize\",\"token_endpoint\":\"https://example.okta.com/oauth2/default/v1/token\",\"jwks_uri\":\"https://example.okta.com/oauth2/default/v1/keys\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только example.okta.com.\n"
+    },
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "subdomain|companyName|\\.",
+          "example": "jq -r .subdomain org.json",
+          "output": "example\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживается разбор полей.\n"
+    }
+  }
+}

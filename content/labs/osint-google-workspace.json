@@ -1,0 +1,59 @@
+{
+  "id": "osint-google-workspace",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{g00gl3_w0rksp4c3_mx_r3c0n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: Google Workspace\n\n1. `dig +short MX example.com`\n2. `dig +short TXT example.com`\n3. `curl -s https://accounts.google.com/.well-known/openid-configuration`\n4. Найди маркер `nto{...}` и запиши в `answer.txt`, затем `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — эмуляция ответов Google",
+      "cases": [
+        {
+          "match": "openid-configuration",
+          "example": "curl -s https://accounts.google.com/.well-known/openid-configuration",
+          "output": "{\"issuer\":\"https://accounts.google.com\",\"authorization_endpoint\":\"https://accounts.google.com/o/oauth2/v2/auth\",\"token_endpoint\":\"https://oauth2.googleapis.com/token\",\"jwks_uri\":\"https://www.googleapis.com/oauth2/v3/certs\",\"x_note\":\"nto{g00gl3_w0rksp4c3_mx_r3c0n}\"}\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе доступен только accounts.google.com.\n"
+    },
+    "dig": {
+      "help": "dig [+short] <запись> — эмуляция DNS",
+      "cases": [
+        {
+          "match": "MX",
+          "example": "dig +short MX example.com",
+          "output": "1 aspmx.l.google.com.\n5 alt1.aspmx.l.google.com.\n5 alt2.aspmx.l.google.com.\n"
+        },
+        {
+          "match": "TXT",
+          "example": "dig +short TXT example.com",
+          "output": "\"google-site-verification=abcd1234EFGH5678\"\n\"v=spf1 include:_spf.google.com ~all\"\n"
+        }
+      ],
+      "fallback": "dig: в этой лабе доступны MX и TXT.\n"
+    },
+    "jq": {
+      "help": "jq [опции] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "issuer|\\.",
+          "example": "jq -r .issuer conf.json",
+          "output": "https://accounts.google.com\n"
+        }
+      ],
+      "fallback": "jq: в этой лабе поддерживается разбор полей.\n"
+    }
+  }
+}
