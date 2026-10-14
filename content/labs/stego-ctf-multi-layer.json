@@ -1,0 +1,44 @@
+{
+  "id": "stego-ctf-multi-layer",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{multi_layer_nested}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: base64 → gzip → base64\n\n`layers.txt` — вложенная цепочка: base64, gzip, снова base64.\n\n1. `file layers.txt`.\n2. `python3 layers.py` — размотка всех слоёв.\n3. `python3 layers.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/layers.txt",
+      "b64": "SDRzSUFBQUFBQUFDLzB2S0N5cExOVEkwVFBJSUtvZ3dxc2hJRFErcmpEQXl6VWsyRHNxSjhqQ3dCUUNIK1cwU0lBQUFBQT09"
+    },
+    {
+      "path": "/home/student/task/layers.py",
+      "text": "import base64, gzip\nd = open('layers.txt','rb').read()\ns1 = base64.b64decode(d)\ns2 = gzip.decompress(s1)\ns3 = base64.b64decode(s2)\nprint(s3.decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "layers\\.py",
+          "example": "python3 layers.py",
+          "output": "nto{multi_layer_nested}\n"
+        }
+      ]
+    }
+  }
+}

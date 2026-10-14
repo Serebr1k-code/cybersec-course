@@ -1,0 +1,44 @@
+{
+  "id": "stego-tool-binwalk-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{binwalk_signature_offset}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: встроенный gzip\n\n`firmware.bin` — данные, внутри которых по некоторому смещению встроен\ngzip-поток (магия 1f 8b).\n\n1. `xxd -l 64 firmware.bin`.\n2. `python3 bw.py` — поиск магии и распаковка.\n3. `python3 bw.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/firmware.bin",
+      "b64": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAASlVOS0pVTksfiwgAAAAAAAL/yyvJr07KzCtPzMmOL85Mz0ssKS1Kjc9PSytOLakFABGm7vQdAAAA"
+    },
+    {
+      "path": "/home/student/task/bw.py",
+      "text": "import gzip\nd = open('firmware.bin','rb').read()\ni = d.find(b'\\x1f\\x8b')\nprint(gzip.decompress(d[i:]).decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "bw\\.py",
+          "example": "python3 bw.py",
+          "output": "nto{binwalk_signature_offset}\n"
+        }
+      ]
+    }
+  }
+}

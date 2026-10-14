@@ -1,0 +1,44 @@
+{
+  "id": "stego-ctf-decision-tree",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{decision_tree_chain}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: base64 → gzip\n\n`mystery.dat` — base64, внутри которого gzip, внутри — метка.\n\n1. `file mystery.dat`.\n2. `python3 tree.py` — разматывание цепочки.\n3. `python3 tree.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/mystery.dat",
+      "b64": "SDRzSUFBQUFBQUFDLzhzcnlhOU9TVTNPTE03TXo0c3ZLVXBOalUvT1NNek1xd1VBelpCaHJ4Z0FBQUE9"
+    },
+    {
+      "path": "/home/student/task/tree.py",
+      "text": "import base64, gzip\nd = open('mystery.dat','rb').read()\nraw = gzip.decompress(base64.b64decode(d))\nprint(raw.decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "tree\\.py",
+          "example": "python3 tree.py",
+          "output": "nto{decision_tree_chain}\n"
+        }
+      ]
+    }
+  }
+}
