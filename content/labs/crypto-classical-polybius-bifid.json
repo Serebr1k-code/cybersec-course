@@ -1,0 +1,52 @@
+{
+  "id": "crypto-classical-polybius-bifid",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b1f1d_spl1ts_r0ws_4nd_c0ls}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: шифр Бифид\n\n`cipher.txt` — текст, зашифрованный шифром **Бифид** на квадрате Полибия\n(5x5, I/J объединены). В `square.txt` — сам квадрат.\n\nШаги:\n1. `cat square.txt cipher.txt`.\n2. Пойми правило: координаты всех букв пишутся подряд, затем\n   «перетасовываются» — строки идут первыми, столбцы вторыми.\n3. `python3 bifid.py` — скрипт расшифровывает и печатает открытый текст.\n4. Запиши флаг: `python3 bifid.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/square.txt",
+      "text": "Polybius square (row,col):\nA B C D E\nF G H I K\nL M N O P\nQ R S T U\nV W X Y Z\n"
+    },
+    {
+      "path": "/home/student/task/cipher.txt",
+      "text": "LDLDRARBDFHBIOLGFSMTSYCANRZRVTPGTKSVAINTIDSVTMRLOOC\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Бифид: сначала все строки, потом все столбцы.\n- Расшифровка: разделить последовательность цифр пополам.\n"
+    },
+    {
+      "path": "/home/student/task/bifid.py",
+      "text": "sq = 'ABCDEFGHIKLMNOPQRSTUVWXYZ'\ninv = {}\nfor i,c in enumerate(sq):\n    inv[c] = (i//5, i%5)\nct = open('cipher.txt').read().split()[0]\nseq = []\nfor c in ct:\n    seq += list(inv[c])\nn = len(ct)\nrows, cols = seq[:n], seq[n:]\npt = ''.join(sq[r*5+c] for r,c in zip(rows,cols))\nprint('plaintext:', pt)\nprint('flag: %s' % 'nto{b1f1d_spl1ts_r0ws_4nd_c0ls}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "bifid\\.py",
+          "example": "python3 bifid.py",
+          "output": "plaintext: MEETMEATTHEBRIDGETHEFLAGISNTOBIFIDSPLITSROWSANDCOLS\nflag: nto{b1f1d_spl1ts_r0ws_4nd_c0ls}\n"
+        }
+      ]
+    }
+  }
+}

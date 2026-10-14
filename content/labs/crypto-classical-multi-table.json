@@ -1,0 +1,48 @@
+{
+  "id": "crypto-classical-multi-table",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b34uf0rt_1s_1ts_0wn_1nv3rs3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: шифр Бофора\n\n`cipher.txt` зашифрован **шифром Бофора** с ключом `FORTUNA`.\nОсобенность: шифрование и расшифровка — **одна и та же** операция\n`P = (K - C) mod 26`.\n\nШаги:\n1. `cat cipher.txt notes.txt`.\n2. Пойми формулу: `C = (K - P) mod 26`.\n3. `python3 beaufort.py` — расшифровка.\n4. `python3 beaufort.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Beaufort: C=(K-P) mod 26; расшифровка — та же формула (инволюция).\n- Не путать с Vigenere (C=P+K) и с \"variant Beaufort\" (C=P-K).\n"
+    },
+    {
+      "path": "/home/student/task/cipher.txt",
+      "text": "MHNOJNUXWEAGMWFUMFDUSNGYBGAEXBWPDVW\n"
+    },
+    {
+      "path": "/home/student/task/beaufort.py",
+      "text": "AL='ABCDEFGHIJKLMNOPQRSTUVWXYZ'\nct=open('cipher.txt').read().split()[0]\nkey='FORTUNA'\npt=''.join(AL[(ord(key[i%len(key)])-ord(ct[i]))%26] for i in range(len(ct)))\nprint('plaintext:',pt)\nprint('flag: %s' % 'nto{b34uf0rt_1s_1ts_0wn_1nv3rs3}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "beaufort\\.py",
+          "example": "python3 beaufort.py",
+          "output": "plaintext: THEFLAGISNTOBEAUFORTISITSONWINVERSE\nflag: nto{b34uf0rt_1s_1ts_0wn_1nv3rs3}\n"
+        }
+      ]
+    }
+  }
+}

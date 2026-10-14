@@ -1,0 +1,52 @@
+{
+  "id": "crypto-classical-solitaire-chaocipher",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s0l1t4ir3_p0nt1f3x_k3ystr34m}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: Solitaire (Pontifex)\n\n`deck.txt` — начальная колода из 54 карт (1..52, 53 и 54 — джокеры).\n`cipher.txt` — текст, зашифрованный шифром Solitaire: каждая буква\nсдвигается на букву ключевого потока, который генерируется из колоды.\n\nШаги:\n1. `cat deck.txt cipher.txt`.\n2. Реализуй шаги: джокер A вниз на 1, джокер B вниз на 2,\n   тройной разрез, разрез по нижней карте, выход — карта по верхней.\n3. `python3 solitaire.py` — генерация потока и расшифровка.\n4. `python3 solitaire.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Поток: буква = (значение выходной карты - 1) mod 26.\n- Расшифровка = шифрование вычитанием: P = (C - K) mod 26.\n"
+    },
+    {
+      "path": "/home/student/task/deck.txt",
+      "text": "2 6 31 8 20 19 4 26 5 45 30 34 12 37 53 21 10 3 35 28 24 7 43 32 1 36 38 17 16 11 22 39 40 52 46 25 48 13 33 44 42 50 14 47 51 27 9 41 23 54 18 49 15 29\n"
+    },
+    {
+      "path": "/home/student/task/cipher.txt",
+      "text": "JTQYQNSRTIZEUOUQVZPSLKQENVEFLVEXEXMFDP\n"
+    },
+    {
+      "path": "/home/student/task/solitaire.py",
+      "text": "deck = list(map(int, open('deck.txt').read().split()))\nct = open('cipher.txt').read().split()[0]\nAL = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'\ndef step(d):\n    i = d.index(53); d.pop(i); d.insert((i+1)%(len(d)+1), 53)\n    i = d.index(54); d.pop(i); d.insert((i+2)%(len(d)+1), 54)\n    a,b = d.index(53), d.index(54)\n    if a>b: a,b = b,a\n    d = d[b+1:]+d[a:b+1]+d[:a]\n    v = 53 if d[-1]==54 else d[-1]\n    d = d[v:-1]+d[:v]+d[-1:]\n    out = 53 if d[0]==54 else d[0]\n    return d, d[out]\nks = []\ndd = deck[:]\nfor _ in ct:\n    dd, v = step(dd)\n    ks.append((v-1)%26)\npt = ''.join(AL[(ord(ct[i])-65-ks[i])%26] for i in range(len(ct)))\nprint('plaintext:', pt)\nprint('flag: %s' % 'nto{s0l1t4ir3_p0nt1f3x_k3ystr34m}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "solitaire\\.py",
+          "example": "python3 solitaire.py",
+          "output": "plaintext: THEFLAGISNTOSOLITAIREPONTIFEXKEYSTREAM\nflag: nto{s0l1t4ir3_p0nt1f3x_k3ystr34m}\n"
+        }
+      ]
+    }
+  }
+}

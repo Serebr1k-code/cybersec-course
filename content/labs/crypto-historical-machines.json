@@ -1,0 +1,52 @@
+{
+  "id": "crypto-historical-machines",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3n1gm4_d0ubl3_st3pp1ng_4nd_c0l0ssus}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: роторная машина (Enigma I)\n\n`cipher.txt` — текст, зашифрованный **учебной моделью Enigma I**:\nтри ротора `I, II, III`, рефлектор `B`, позиции `(2, 11, 7)`.\nПлата коммутации не используется.\n\nШаги:\n1. `cat cipher.txt settings.txt`.\n2. Реализуй шаг роторов (с «двойным шагом»), проход вперёд/назад и рефлектор.\n3. `python3 enigma.py` — расшифровка (машина инволютивна).\n4. `python3 enigma.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/settings.txt",
+      "text": "rotors = I, II, III\nreflector = B\npositions = 2, 11, 7\nrings = 0, 0, 0\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Enigma инволютивна: шифрование и расшифровка совпадают.\n- Каждый шаг правый ротор двигается; при достижении метки — следующий (двойной шаг).\n"
+    },
+    {
+      "path": "/home/student/task/cipher.txt",
+      "text": "BELMDCWPCTDNHULATTHDBQKUUWHFBMUFQTPLVSZYIBI\n"
+    },
+    {
+      "path": "/home/student/task/enigma.py",
+      "text": "ROT={'I':('EKMFLGDQVZNTOWYHXUSPAIBRCJ',16),'II':('AJDKSIRUXBLHWTMCQGZNPYFVOE',4),'III':('BDFHJLCPRTXVZNYEIWGAKMUSQO',21)}\nREFL='YRUHQSLDPXNGOKMIEBFZCWVJAT'\norder=['I','II','III']; p=[2,11,7]; rings=[0,0,0]\nct=open('cipher.txt').read().split()[0]\ndef enc(text):\n    out=[]\n    for ch in text:\n        if p[2]==ROT[order[2]][1]:\n            if p[1]==ROT[order[1]][1]: p[0]=(p[0]+1)%26\n            p[1]=(p[1]+1)%26\n        p[2]=(p[2]+1)%26\n        c=ord(ch)-65\n        for idx in (2,1,0):\n            w=[ord(x)-65 for x in ROT[order[idx]][0]]\n            o=(c+p[idx]-rings[idx])%26\n            c=(w[o]-p[idx]+rings[idx])%26\n        c=ord(REFL[c])-65\n        for idx in (0,1,2):\n            w=[ord(x)-65 for x in ROT[order[idx]][0]]\n            o=(c+p[idx]-rings[idx])%26\n            c=(w.index(o)-p[idx]+rings[idx])%26\n        out.append(chr(c+65))\n    return ''.join(out)\npt=enc(ct)\nprint('plaintext:',pt)\nprint('flag: %s' % 'nto{3n1gm4_d0ubl3_st3pp1ng_4nd_c0l0ssus}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "enigma\\.py",
+          "example": "python3 enigma.py",
+          "output": "plaintext: THEFLAGISNTOENIGMADOUBLESTEPPINGANDCOLOSSUS\nflag: nto{3n1gm4_d0ubl3_st3pp1ng_4nd_c0l0ssus}\n"
+        }
+      ]
+    }
+  }
+}

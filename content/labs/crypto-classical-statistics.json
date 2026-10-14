@@ -1,0 +1,48 @@
+{
+  "id": "crypto-classical-statistics",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1nd3x_0f_c01nc1d3nc3_f1nds_k3y_l3ngth}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: взлом Виженера статистикой\n\n`cipher.txt` зашифрован **Виженером** с неизвестным ключом.\nДлина ключа неизвестна, но её можно найти **индексом совпадений (IC)**,\nа сам ключ — частотным анализом по столбцам.\n\nШаги:\n1. `cat cipher.txt`.\n2. Для каждой длины L посчитай средний IC столбцов; правильная L даёт\n   IC около 0.066 (языковое значение).\n3. Для каждого столбца найди сдвиг, максимизирующий частотную корреляцию.\n4. `python3 vbreak.py` — полный взлом и вывод.\n5. `python3 vbreak.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- IC(text) = sum(c*(c-1)) / (n*(n-1)); для английского ~0.066, для случайного ~0.038.\n- Ключ восстанавливается по столбцам: столбец = сдвиг Цезаря.\n"
+    },
+    {
+      "path": "/home/student/task/cipher.txt",
+      "text": "VPTMPRIQHUXFKVSLBFHKDPRTKLTUGVHQCKWBGGALRXVPPUHKJMCALVSCXJOSTWLUJFZRJTTJQDTYXYGTPGCUQOLOMCGIASGFPBGPZVVWBHOVVPTLRTTGEAMFPPPYHVTBDJVRESQLGRWATHPFPOTYXVZBVPZVUJTAXVTAIHXZUBXJWWQZUYIHWMCJCRPIAFWZUICKWFVPTJSCWUCZEIGTDUKVPWJNLKQJTHXKCKZLHIGTXHFCAEXALKJMZUSNPMCNPZUPALXKGZUYIHWMCJMVUEWPGYKALOCNGCHLECQVVLVDGAHHKVHWGALZUXPYXZECAHVVZMGJMJGQCALVHQGZXGNIRLEEFBWLRNGNXUMJJBWLAFTS\n"
+    },
+    {
+      "path": "/home/student/task/vbreak.py",
+      "text": "AL='ABCDEFGHIJKLMNOPQRSTUVWXYZ'\nENG=[.082,.015,.028,.043,.127,.022,.020,.061,.070,.0015,.0077,.040,.024,.067,.075,.019,.00095,.060,.063,.091,.028,.0098,.024,.0015,.020,.00074]\nct=open('cipher.txt').read().split()[0]\ndef ic(t):\n    n=len(t)\n    return sum(t.count(c)*(t.count(c)-1) for c in set(t))/(n*(n-1)) if n>1 else 0\nbest=(1,-1)\nchosen=None\nfor L in range(2,14):\n    avg=sum(ic(ct[i::L]) for i in range(L))/L\n    if avg>best[1]: best=(L,avg)\n    if avg>0.055 and chosen is None: chosen=L\nL=chosen or best[0]\ndef shift(col):\n    return max(range(26), key=lambda k: sum(ENG[(ord(c)-65-k)%26] for c in col))\nkey=''.join(AL[shift(ct[i::L])] for i in range(L))\npt=''.join(AL[(ord(ct[i])-ord(key[i%L]))%26] for i in range(len(ct)))\nprint('key length:',L,' key:',key)\nprint('plaintext:',pt)\nprint('flag: %s' % 'nto{1nd3x_0f_c01nc1d3nc3_f1nds_k3y_l3ngth}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "vbreak\\.py",
+          "example": "python3 vbreak.py",
+          "output": "key length: 6  key: CIPHER\nplaintext: THEFLAGISNTOINDEXOFCOINCIDENCEFINDSKEYLENGTH...\nflag: nto{1nd3x_0f_c01nc1d3nc3_f1nds_k3y_l3ngth}\n"
+        }
+      ]
+    }
+  }
+}

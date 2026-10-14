@@ -1,0 +1,52 @@
+{
+  "id": "crypto-classical-homophonic-book",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b00k_c1ph3r_us3s_4_sh4r3d_t3xt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: book-шифр\n\n`book.txt` — общий «ключевой текст» (отрывок). `refs.txt` — список\nномеров слов (0-based). Нужно взять **первую букву** каждого слова\nи собрать фразу.\n\nШаги:\n1. `cat book.txt refs.txt`.\n2. Для каждого номера возьми первую букву соответствующего слова.\n3. `python3 book.py` — сборка фразы.\n4. `python3 book.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/book.txt",
+      "text": "It was the best of times it was the worst of times it was the age of wisdom it was the age of foolishness it was the epoch of belief it was the epoch of incredulity it was the season of light it was the season of darkness it was the spring of hope it was the winter of despair we had everything before us we had nothing before us a b c d e f g h i j k l m n o p q r s t u v w x y z\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Ссылка `w`: слово номер w (0-based), берётся его первая буква.\n- Book-шифр стоек, пока книга неизвестна; но утечка книги = полный взлом.\n"
+    },
+    {
+      "path": "/home/student/task/refs.txt",
+      "text": "2 53 62 75 81 15 76 78 88 67 89 4 29 34 40 80 72 78 85 53 62 87 90 39 62 88 39 53 70 87 27 47 50 62 93 2\n"
+    },
+    {
+      "path": "/home/student/task/book.py",
+      "text": "words = open('book.txt').read().split()\nrefs = open('refs.txt').read().split()\nout = ''.join(words[int(w)][0] for w in refs)\nprint('decoded:', out)\nprint('flag: %s' % 'nto{b00k_c1ph3r_us3s_4_sh4r3d_t3xt}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "book\\.py",
+          "example": "python3 book.py",
+          "output": "decoded: theflagisntobookcipherusessharedtext\nflag: nto{b00k_c1ph3r_us3s_4_sh4r3d_t3xt}\n"
+        }
+      ]
+    }
+  }
+}
