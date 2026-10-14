@@ -11,7 +11,7 @@ useful_for:
   - "CTF Stego: необычный формат-контейнер"
   - "Форензика: медицинские данные и PHI"
   - "Работа: защита данных в PACS-системах"
-estimated_minutes: 13
+estimated_minutes: 18
 summary: "DICOM как носитель: структура тегов, PixelData, приватные теги и overlay-плоскости. Разбор через dcmdump/pydicom, поиск скрытых данных и утечек PHI."
 ---
 
@@ -135,6 +135,149 @@ $ python3 dump_tags.py
 - Теги группы `0010` — это **PHI**, самая чувствительная часть.
 - Разбирают через `dcmdump`/`pydicom`; подозрительное — приватные и нестандартные теги.
 - «Выжженные» подписи в пикселях обходят удаление тегов.
+
+## Формат детально: преамбула, VR и transfer syntax
+
+Файл DICOM начинается с **преамбулы 128 байт** (часто нули, но там можно спрятать
+данные — это ровно 128 байт «свободного» места!) и сигнатуры `DICM`. Дальше идут
+**data elements**: группа `(GGGG)`, элемент `(EEEE)`, **VR** (value representation —
+тип значения, например `PN` — person name, `UI` — UID, `US` — unsigned short), длина
+и значение.
+
+Ключевое понятие — **transfer syntax**: как кодируются теги и пиксели.
+
+- **Implicit VR Little Endian** — тип значения не записан, определяется по словарю.
+- **Explicit VR Little Endian** — VR записан явно (два символа).
+- **Explicit VR Big Endian** — редкий, но бывает.
+- **Compressed** (JPEG/JPEG2000/RLE) — `PixelData` сжат; смотреть через `dcmtk`/`gdcm`.
+
+Отсюда следствие: если не знать transfer syntax, теги прочитаешь неправильно. Поэтому
+`dcmdump` всегда показывает `(0002,0010) TransferSyntaxUID`.
+
+## pydicom: полный обход тегов
+
+`pydicom` — самый удобный способ увидеть **все** теги, включая приватные:
+
+```python
+import pydicom
+
+ds = pydicom.dcmread('scan.dcm')
+
+# 1. Метаданные файла
+print('SOPClass', ds.SOPClassUID)
+print('TransferSyntax', ds.file_meta.TransferSyntaxUID)
+
+# 2. Все элементы, включая приватные
+for elem in ds.iterall():
+    tag = f'({elem.tag.group:04X},{elem.tag.element:04X})'
+    vr = elem.VR
+    val = repr(elem.value)[:60]
+    print(tag, vr, val)
+
+# 3. PixelData
+px = ds.PixelData
+print('PixelData bytes', len(px), 'rows', ds.Rows, 'cols', ds.Columns)
+```
+
+```
+$ python3 dump_tags.py
+(0008,0060) CS 'OT'
+(0010,0010) PN 'DOE^JOHN'
+(0009,0010) LO 'PRIVATE-CREATOR'
+(0009,1002) LO 'nto{d1c0m_pr1v4t3_t4g}'
+(7FE0,0010) OW <5136 bytes>
+```
+
+Группы с **нечётным** первым элементом (0009, 0011, …) — **приватные**: их смысл
+задаёт производитель, стандарт не проверяет. Именно там чаще всего прячут.
+
+## Приватные теги и деидентификация
+
+Деидентификация (анонимизация) DICOM — обязательная процедура при публикации
+медицинских данных. Инструменты:
+
+- **`gdcmanon --dumb`** — простой режим: заменяет PHI-теги на заглушки.
+- **`gdcmanon -i in.dcm -o out.dcm -c basic`** — профиль «basic» с базовыми правилами.
+- **`dcmconv`** (dcmtk) — конвертация transfer syntax (например, распаковать пиксели).
+- **`dcmdump +P 0010,0010`** — показать конкретный тег.
+
+Ловушка: **приватные теги** могут содержать PHI, которого нет в стандартных. А
+**`(0028,0301) BurnedInAnnotation = YES`** означает, что имя пациента «выжжено» в
+пикселях — удаление тегов его не уберёт.
+
+## LSB в PixelData: практика
+
+Если снимок 16-битный (`BitsAllocated = 16`, VR `OW`), на пиксель два байта. Младшие
+биты — канал:
+
+```python
+import numpy as np, pydicom
+
+ds = pydicom.dcmread('scan.dcm')
+bits = ds.BitsAllocated
+px = np.frombuffer(ds.PixelData, dtype=np.uint16 if bits == 16 else np.uint8)
+lsb = px & 1
+out = bytearray()
+for i in range(0, len(lsb) - 7, 8):
+    out.append(int(''.join(map(str, lsb[i:i+8])), 2))
+print(bytes(out))
+```
+
+```
+$ python3 extract.py
+b'nto{d1c0m_p1x3l_lsb_h1dd3n}\x00'
+```
+
+Проверь также **overlay-плоскости** `(60xx,3000) OverlayData` — однобитные маски,
+которые можно переиспользовать под данные.
+
+## Инструменты
+
+- **`dcmdump scan.dcm`** — все теги; `+P` — конкретный; `-M` — без метаинформации.
+- **`dcmconv in.dcm out.dcm`** — смена transfer syntax (распаковать/запаковать).
+- **`gdcminfo scan.dcm`** — сводка (размер, битность, число кадров).
+- **`pydicom`** — `dcmread`, `iterall`, `ds.PixelData`.
+- **`strings` / `xxd`** — быстрый поиск вне тегов (преамбула, хвост, паддинг).
+
+## Edge cases и подводные камни
+
+- **Преамбула 128 байт.** Часто нули, но `xxd -l 128` может показать payload.
+- **Нечётная длина тега.** Добавляется байт-паддинг `\0` — злоупотребление даёт канал.
+- **Многокадровые снимки** (`NumberOfFrames > 1`): PixelData — это стек кадров, места
+  ещё больше.
+- **Сжатие.** Если `TransferSyntaxUID` — JPEG/JPEG2000, сначала распакуй
+  (`dcmconv +te`), потом LSB.
+- **PHI в pixel data.** Даже после анонимизации смотри изображение глазами —
+  выжженные подписи остаются.
+
+## Что дальше / решение
+
+Сквозной пример: `dcmdump` показывает приватный тег `(0009,1002)` с
+`nto{d1c0m_pr1v4t3_t4g}`; параллельно `extract.py` собирает LSB из PixelData и
+отдаёт `nto{d1c0m_p1x3l_lsb_h1dd3n}`. Если оба пусты — смотрим преамбулу, overlay и
+паддинг.
+
+## Шпаргалка: где искать в DICOM
+
+| Место | Тег/область | Инструмент |
+|-------|-------------|------------|
+| Преамбула | первые 128 байт | `xxd -l 128` |
+| Приватные теги | нечётная группа (0009,xx) | `dcmdump`, `pydicom` |
+| PixelData LSB | (7FE0,0010) | `pydicom` + numpy |
+| Overlay | (60xx,3000) | `dcmdump` |
+| PHI | группа 0010 | `dcmdump`, `gdcmanon` |
+| Выжженный текст | пиксели | просмотр изображения |
+
+## Осторожно с PHI в задачах
+
+Даже в CTF не выкладывай найденные медицинские данные публично: в реальном файле
+могут быть настоящие PHI. Для разбора достаточно тегов и метаданных, а пиксели
+изучай локально.
+
+## Итоговая проверка
+
+Порядок: `dcmdump` (все теги) → приватные теги → `pydicom` PixelData LSB → преамбула
+и паддинг. Если теги чистые, а флаг есть — он в пикселях или в хвосте файла.
 
 ## Квиз
 

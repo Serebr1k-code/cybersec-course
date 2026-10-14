@@ -11,7 +11,7 @@ useful_for:
   - "CTF Stego: разбор .eml и вложений"
   - "Форензика: анализ фишинговых писем"
   - "Работа: почтовые шлюзы и DLP"
-estimated_minutes: 13
+estimated_minutes: 18
 summary: "Как прячут данные в письмах: MIME-границы и multipart-структура, base64/quoted-printable, X-заголовки и Message-ID, HTML-часть с zero-width, скрытые вложения. Разбор .eml через Python и hexdump."
 ---
 
@@ -128,6 +128,164 @@ filename="report.pdf"`, но с необычным `Content-Type`, или вло
 - **MIME-граница** и лишние части — свободное место.
 - **base64/quoted-printable** дают свои микро-каналы; вложения — обычные файлы.
 - HTML-часть использует все приёмы веб-стеганографии.
+
+## Разбор .eml на Python: полный скрипт
+
+Стандартная библиотека `email` умеет всё: разбирать заголовки, декодировать
+кодированные слова, обходить MIME-части. Минимальный анализатор:
+
+```python
+import email, email.header
+
+msg = email.message_from_file(open('mail.eml', encoding='utf-8', errors='replace'))
+
+# 1. Все заголовки как пары (имя, раскодированное значение)
+for k, v in msg.items():
+    val = ''.join(str(s, c or 'utf-8') if isinstance(s, bytes) else s
+                  for s, c in email.header.decode_header(v))
+    print(f'{k}: {val}')
+
+# 2. Обход частей с декодированием
+for part in msg.walk():
+    ct = part.get_content_type()
+    fn = part.get_filename()
+    payload = part.get_payload(decode=True)  # base64/quoted-printable -> bytes
+    print(ct, fn, len(payload) if payload else 0)
+```
+
+Запуск и вывод:
+
+```
+$ python3 parse_mail.py
+Return-Path: <sender@example.com>
+X-Campaign-ID: nto{sm4tp_x_h34d3r}
+text/plain None 512
+text/html None 1840
+image/png report.png 4210
+```
+
+`get_payload(decode=True)` сам раскодирует base64 и quoted-printable — не нужно
+делать `base64 -d` вручную. А `decode_header` превращает `=?utf-8?B?...?=` в
+читаемый текст.
+
+## Заголовки глубоко: DKIM, Received и Authentication-Results
+
+- **`Received`-цепочка** читается **снизу вверх**: самый нижний `Received` — первый
+  сервер, принявший письмо, верхний — последний (твой MX). В комментариях к IP и
+  hostname удобно прятать данные — они не проверяются.
+- **`DKIM-Signature`** содержит `b=` (base64-подпись) и `bh=` (хеш тела). Их нельзя
+  менять, не сломав подпись, но **дополнительные** `X-`поля рядом — можно.
+- **`Authentication-Results`** — результат проверок SPF/DKIM/DMARC; длинная строка,
+  куда тоже можно дописать лишнее.
+- **`Message-ID`** — по RFC произвольная строка в `<...>`; идеальный носитель.
+
+```
+$ grep -nE '^(Received|Message-ID|DKIM-Signature|X-):' mail.eml
+7:Message-ID: <20240601100000.1234@example.com>
+12:X-Campaign-ID: nto{sm4tp_x_h34d3r}
+```
+
+## Кодирования: base64, quoted-printable и 8bit
+
+Три способа передать нетекстовые данные в текстовом письме:
+
+1. **base64** — блоки по 4 символа, в конце `=`-паддинг. Микро-канал: можно менять
+   паддинг или переставлять эквивалентные варианты; но чаще payload прячут в самом
+   декодированном вложении.
+2. **quoted-printable** — непечатаемые байты как `=XX`, перенос строки как `=\n`
+   («мягкий перенос»). Канал: где ставить мягкие переносы и какие символы
+   кодировать (`a` или `=61` — одно и то же).
+3. **8bit / binary** — сырые байты без кодирования (редко, но бывает).
+
+Декодирование вручную для проверки:
+
+```
+$ python3 -c "import quopri,sys; print(quopri.decodestring(open('body.txt','rb').read()).decode('utf-8','replace'))"
+```
+
+## Вложения: Content-Type mismatch и вложенные письма
+
+Почтовый клиент верит заголовкам, а не содержимому. Отсюда приёмы:
+
+- **`Content-Type` не совпадает с реальным.** Заголовок говорит `text/plain`, а
+  внутри — PNG (проверяется `file`). Клиент покажет «текст», а данные спрятаны.
+- **Двойное расширение** `report.pdf.exe` — визуально «PDF».
+- **Вложенное письмо** `message/rfc822` — письмо в письме; рекурсивный разбор
+  обязателен (`msg.walk()` его обойдёт).
+- **Двойной base64** — вложение, чей декодированный вид снова base64.
+
+```
+$ python3 -c "
+import email
+m=email.message_from_file(open('mail.eml'))
+for p in m.walk():
+    d=p.get_payload(decode=True)
+    if d and p.get_filename():
+        open(p.get_filename(),'wb').write(d)
+"
+$ file report.png
+report.png: PNG image data, 800 x 600, 8-bit/color RGB
+```
+
+## Инструменты: munpack, ripmime, exiftool
+
+- **`munpack mail.eml`** — вытащить все вложения в текущую папку.
+- **`ripmime -i mail.eml -d out/`** — то же, но с рекурсией во вложенные письма.
+- **`exiftool`** — метаданные уже извлечённого вложения (EXIF, XMP).
+- **`binwalk`** — поиск вложенных форматов в декодированном вложении.
+- **`strings | grep -i nto`** — быстрый поиск по всему `.eml`.
+
+## Edge cases и подводные камни
+
+- **Кодировка заголовков.** `Subject` может быть в `=?koi8-r?B?...?=` — декодируй,
+  иначе увидишь base64-мусор.
+- **CRLF.** Письмо по стандарту использует `\r\n`; часть парсеров на `\n` спотыкается.
+- **Лишние MIME-части.** Клиент их игнорирует, `walk()` — покажет; проверяй все.
+- **Переносы в заголовках (folding).** Продолжение начинается с пробела/таба —
+  именно в отступах часто прячут биты.
+- **HTML-часть.** Все приёмы из урока про HTML/CSS работают внутри письма.
+
+## Что дальше / решение
+
+Сквозной пример решается так: `parse_mail.py` показывает все заголовки и части;
+`X-Campaign-ID` отдаёт `nto{sm4tp_x_h34d3r}`; вложение `report.png` сохраняем и
+разбираем как картинку. Если заголовки пусты — идём в HTML-часть (zero-width,
+комментарии) и в декодированные вложения.
+
+## Шпаргалка: каналы в письме
+
+| Канал | Как найти | Инструмент |
+|-------|-----------|------------|
+| X-заголовки | `grep '^X-'` | grep |
+| Message-ID | `grep '^Message-ID'` | grep |
+| Received-цепочка | `grep '^Received'` | grep |
+| Folding | отступы в заголовках | `cat -A` |
+| MIME-граница | `grep boundary` | grep |
+| base64/quoted-printable | декод | `email`, `quopri` |
+| Вложения | walk + decode | `munpack`, `ripmime` |
+| HTML-часть | zero-width, комментарии | скрипт |
+
+## Частый вопрос: письмо как доказательство
+
+В форензике `.eml` — это ещё и **доказательство**. Поэтому важно сохранить письмо
+целиком (с заголовками и вложениями), не «пересохраняя» его из клиента: клиент
+нормализует заголовки и теряет folding. Используй экспорт «в исходном виде» или
+`curl`/`fetchmail`, а целостность подтверждай хешем:
+
+```
+$ sha256sum mail.eml
+$ grep -c '^Received:' mail.eml
+```
+
+Число `Received`-строк показывает, через сколько серверов прошло письмо; необычно
+много или мало — повод присмотреться. А сравнив `Message-ID` с датой в `Received`,
+можно поймать подделку времени.
+
+## Итоговая проверка
+
+Пройди по списку: заголовки (`grep '^X-'`), `Message-ID`, `Received`, MIME-части
+(`walk`), декодированные вложения (`file`), HTML-часть (zero-width). Если все пять
+пунктов пусты — данные, скорее всего, в самом вложении как в обычном файле.
 
 ## Квиз
 

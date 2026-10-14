@@ -11,7 +11,7 @@ useful_for:
   - "CTF Forensics: скрытые данные в БД"
   - "Форензика: удалённые записи и unallocated-пространство"
   - "Работа: аудит утечек через базы данных"
-estimated_minutes: 13
+estimated_minutes: 18
 summary: "Как SQLite хранит данные страницами и где прячется скрытое: freelist-страницы, unallocated-пространство внутри страниц, остатки удалённых записей и WAL. Разбор через sqlite3 и hexdump."
 ---
 
@@ -125,6 +125,152 @@ $ ls -la
 - **WAL/SHM** — отдельные файлы с версиями строк.
 - Намеренно прячут в свободные страницы, BLOB-хвосты и игнорируемые поля.
 - Разбор: `PRAGMA` + `strings`/`xxd` по всему файлу.
+
+## Чтение страниц SQLite вручную
+
+Чтобы заглянуть в freelist, читаем файл как набор страниц. Заголовок файла (100
+байт) задаёт размер страницы; список свободных страниц начинается с offset 32.
+
+```python
+import struct
+
+data = open('app.db', 'rb').read()
+page_size = struct.unpack('>H', data[16:18])[0]      # 1 -> 65536, иначе как есть
+if page_size == 1:
+    page_size = 65536
+freelist_head = struct.unpack('>I', data[32:36])[0]  # номер первой свободной
+freelist_count = struct.unpack('>I', data[36:40])[0]
+
+print('page_size', page_size, 'freelist', freelist_head, freelist_count)
+
+page = freelist_head
+while page:
+    off = (page - 1) * page_size
+    trunk = data[off:off + page_size]
+    leaf = struct.unpack('>I', trunk[0:4])[0]         # следующая свободная
+    print('freelist page', page, '->', leaf)
+    print(trunk[8:64])                                # остатки данных
+    page = leaf
+```
+
+Запуск и вывод:
+
+```
+$ python3 freelist_dump.py
+page_size 4096 freelist 5 3
+freelist page 5 -> 0
+b'nto{sql1t3_fr33l1st_h1dd3n}\x00\x00\x00...'
+```
+
+Видно: движок «освободил» страницу 5, но старые байты в ней остались — их и
+находит `strings`.
+
+## sqlite3 CLI: команды для аудита
+
+Интерактивный `sqlite3` умеет больше, чем `SELECT`:
+
+```
+$ sqlite3 app.db
+sqlite> .tables
+sqlite> .schema users
+sqlite> PRAGMA page_size;
+sqlite> PRAGMA freelist_count;
+sqlite> PRAGMA journal_mode;      -- wal | delete | ...
+sqlite> SELECT name, rootpage FROM sqlite_master WHERE type='table';
+sqlite> .dump                    -- весь дамп SQL
+```
+
+Полезные приёмы:
+
+- **`.schema`** — показать `CREATE` всех объектов; там бывают скрытые таблицы.
+- **`sqlite_master`** — служебная таблица со списком таблиц/индексов; ищи в ней
+  имена, которых не видно в приложении.
+- **`PRAGMA page_count`** и `PRAGMA freelist_count` — оценить долю «свободного».
+- **`VACUUM`** — перестраивает базу и **затирает** удалённые данные: после него
+  unallocated-пространство пропадёт.
+
+## Восстановление удалённых записей
+
+Два пути:
+
+1. **`strings` + ручной анализ страниц.** Быстро: `strings app.db | grep -i -E
+   'nto|@|token'`.
+2. **Специализированный recover.** У `sqlite3` есть расширение `.recover`, которое
+   вытаскивает записи из повреждённых/полусвободных страниц:
+
+```
+$ sqlite3 app.db ".recover" | grep -i nto
+```
+
+Ещё вариант — сторонние утилиты (`sqlite3_analyzer` из дистрибутива SQLite,
+`sanderson/sqlite-parser`) и обход **всех** страниц с попыткой распарсить
+b-tree-ячейки, не доверяя freelist.
+
+## WAL и SHM детально
+
+В режиме **WAL** (Write-Ahead Log) изменения сначала пишутся в `app.db-wal`, а в
+основной файл попадают при **checkpoint**. Формат WAL: заголовок 32 байта, затем
+**фреймы** по `page_size + 24` байт (номер страницы, salt, контрольная сумма, данные).
+
+```
+$ ls -la app.db*
+-rw-r--r-- app.db       65536
+-rw-r--r-- app.db-wal   16512
+-rw-r--r-- app.db-shm   32768
+```
+
+Практика:
+
+- `app.db-wal` может содержать **старые и новые** версии страниц — отличный источник
+  удалённых строк.
+- `strings app.db-wal | grep -i nto` часто даёт то, чего нет в основной базе.
+- Принудительный checkpoint (`PRAGMA wal_checkpoint(TRUNCATE);`) обрежет WAL — не
+  делай этого, если ищешь данные.
+- `-shm` — разделяемая память (индексы WAL); после «чистого» закрытия может
+  отсутствовать.
+
+## Инструменты
+
+- **`sqlite3`** — CLI: `.tables`, `.schema`, `.dump`, `.recover`, `PRAGMA`.
+- **`sqlitebrowser`** (DB Browser) — GUI: показывает freelist и «неиспользуемое».
+- **`strings`** — первый быстрый поиск по всему файлу.
+- **`xxd`** — ручной просмотр страниц по смещениям.
+- **`binwalk`** — если внутри БД лежит ещё один вложенный файл (например, изображение).
+
+## Edge cases и подводные камни
+
+- **`grep` в лабораторном движке ищет литерально** — пиши точную подстроку `nto{`,
+  а не регулярку с `[^}]*`.
+- **Сжатие.** SQLite не сжимает сам, но приложение могло хранить **сжатые** BLOB —
+  тогда `strings` ничего не даст, нужен `zlib`/`gzip`.
+- **Шифрование.** SQLCipher зашифровал бы всю базу — заголовок был бы не `SQLite
+  format 3`, а случайные байты.
+- **`VACUUM` уже прошёл** — unallocated зачищен, ищи только в BLOB/полях.
+- **Несколько баз.** Рядом могут быть `*.db-wal`, `*.db-journal` — проверь все.
+
+## Что дальше / решение
+
+Сквозной пример: `PRAGMA freelist_count` показывает 3 свободные страницы, скрипт
+`freelist_dump.py` читает их и отдаёт `nto{sql1t3_fr33l1st_h1dd3n}`. Если freelist
+пуст — идём в `-wal`, в BLOB-хвосты и в игнорируемые приложением поля.
+
+## Шпаргалка: где искать в SQLite
+
+| Место | Признак | Инструмент |
+|-------|---------|------------|
+| Freelist | `freelist_count > 0` | `PRAGMA`, скрипт |
+| Unallocated в странице | `strings` находит вне SELECT | `strings`, `xxd` |
+| Удалённые строки | после `DELETE` без `VACUUM` | `.recover`, `strings` |
+| WAL | файл `-wal` рядом | `strings`, `sqlite3` |
+| BLOB-хвост | большой `BLOB` в таблице | Python, `zlib` |
+| Скрытая таблица | есть в `sqlite_master` | `.schema` |
+
+## Быстрая проверка целостности
+
+Перед разбором стоит зафиксировать, что файл не изменился: `md5sum`/`sha256sum`
+и `stat -c '%s'`. Если размер «круглый» (степень двойки) — это нормально для
+страничных СУБД, но необычно большой хвост после последней страницы — признак
+дописанных данных.
 
 ## Квиз
 
