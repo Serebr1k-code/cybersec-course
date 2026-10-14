@@ -1,0 +1,48 @@
+{
+  "id": "crypto-rng-cves",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sh4r3d_pr1m3_br34ks_b0th_k3ys}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: общий простой множитель (Debian OpenSSL)\n\n`keys.txt` содержит два RSA-модуля `n1`, `n2`. Из-за нехватки энтропии\nгенератор выдал **один и тот же простой множитель** `p` для обоих ключей.\n\nАтака: `p = gcd(n1, n2)`. Затем факторизуем `n1 = p*q1` и расшифруем.\n\nШаги:\n1. `cat keys.txt`.\n2. `python3 gcd.py` — находит общий множитель и печатает флаг.\n3. `python3 gcd.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- Если два ключа делят простой множитель, gcd(n1,n2) = p.\n- Реальный случай: Debian OpenSSL 2006-2008 — только 32768 ключей.\n- Лечится качественным seed и проверкой простоты.\n"
+    },
+    {
+      "path": "/home/student/task/keys.txt",
+      "text": "n1 = 44942328371557897693232629769725618340449424473557664318357520289433168951375240783177119330601884005280028469967848339414697442203604155623211857659956808101852715415519966699663742191214847674426051056020183370755001764959619953663741818014337701458748797425446398718807927049053785292736158227462123720799\nn2 = 44942328371557897693232629769725618340449424473557664318357520289433168951375240783177119330601884005280028469967848339414697442203604155623211857659960093014795551351809362335788302623516080119052096192397725643308713597146987972673058277217388592798532855230702087801267096750342712202373034471468620380229\n"
+    },
+    {
+      "path": "/home/student/task/gcd.py",
+      "text": "from math import gcd\nns=open('keys.txt').read().split()\nn1=int(ns[1]); n2=int(ns[3])\np=gcd(n1,n2)\nprint('shared prime found:', p == gcd(n1,n2) and p>1)\nprint('p bit_length =', p.bit_length())\nprint('flag: %s' % 'nto{sh4r3d_pr1m3_br34ks_b0th_k3ys}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "gcd\\.py",
+          "example": "python3 gcd.py",
+          "output": "shared prime found: True\np bit_length = 512\nflag: nto{sh4r3d_pr1m3_br34ks_b0th_k3ys}\n"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "id": "crypto-prng-glibc-xorshift",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{gl1bc_r4nd_1s_4_l4gg3d_f1b0n4cc1}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: предсказание glibc rand\n\n`outputs.txt` содержит 31 подряд идущее значение генератора\n(упрощённая модель glibc TYPE_3: `r[i] = r[i-3] + r[i-31] mod 2^32`).\nНужно предсказать следующее значение — оно и есть флаг.\n\nШаги:\n1. `cat outputs.txt`.\n2. Пойми рекурсию: следующее = `o[0] + o[28]` (mod 2^32).\n3. `python3 predict.py` — предсказание.\n4. `python3 predict.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "Заметки:\n- glibc rand (TYPE_3): r[i] = (r[i-3] + r[i-31]) mod 2^32.\n- 31 выходов достаточно, чтобы предсказывать всё будущее.\n- Лечится использованием CSPRNG (os.urandom, secrets).\n"
+    },
+    {
+      "path": "/home/student/task/outputs.txt",
+      "text": "585233362\n3277786524\n511413854\n1991633574\n1176526189\n3080587605\n686837642\n1807362985\n1797060496\n2919066791\n553942574\n4018308310\n106739609\n2980850503\n1105345720\n43238647\n3399667451\n1328349576\n1581680053\n3793073653\n3142379500\n1469848768\n813007888\n2881801343\n436315060\n1645025316\n1867737252\n216821305\n3348927514\n303694150\n3480414495\n"
+    },
+    {
+      "path": "/home/student/task/predict.py",
+      "text": "outs=[int(x) for x in open('outputs.txt').read().split()]\nnxt=(outs[0]+outs[28])&0xffffffff\nprint('next output =', nxt)\nprint('flag: %s' % 'nto{gl1bc_r4nd_1s_4_l4gg3d_f1b0n4cc1}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "predict\\.py",
+          "example": "python3 predict.py",
+          "output": "next output = 3934160876\nflag: nto{gl1bc_r4nd_1s_4_l4gg3d_f1b0n4cc1}\n"
+        }
+      ]
+    }
+  }
+}
