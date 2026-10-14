@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-sticky-broadcast",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{st1cky_l34k_s3ss10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: sticky-утечка\\n\\nНайди секрет в сохранённой рассылке.\\n"
+    },
+    {
+      "path": "/home/student/task/dumpsys_broadcasts.txt",
+      "text": "Sticky broadcasts:\\n  act=android.intent.action.BATTERY_CHANGED  extras=level=88\\n  act=com.example.app.STATUS  extras=Bundle[{token=eyJhbG..}]  # flag: nto{st1cky_l34k_s3ss10n}\\n"
+    }
+  ]
+}

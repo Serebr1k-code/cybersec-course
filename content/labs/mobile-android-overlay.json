@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-overlay",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0v3rl4y_t4pj4ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: overlay-аудит\\n\\nНайди окно поверх UI.\\n"
+    },
+    {
+      "path": "/home/student/task/app_permissions.txt",
+      "text": "com.bank.secure  SYSTEM_ALERT_WINDOW: denied\\ncom.clock.widget  SYSTEM_ALERT_WINDOW: granted  type=TYPE_APPLICATION_OVERLAY  filterTouchesWhenObscured=false  # flag: nto{0v3rl4y_t4pj4ck}\\n"
+    }
+  ]
+}
