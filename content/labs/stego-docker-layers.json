@@ -1,0 +1,44 @@
+{
+  "id": "stego-docker-layers",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{docker_layer_extra_file}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: лишний файл в слое Docker\n\n`layer.tar.gz` — слой образа (tar.gz). В нём есть файл, не нужный\nприложению.\n\n1. `tar tzf layer.tar.gz`.\n2. `python3 dlayer.py` — чтение файла.\n3. `python3 dlayer.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/layer.tar.gz",
+      "b64": "H4sIAENcz2oC/+3WQWuDMBjG8Zz3KUbOm4s2rVDoqdd9g1Ikja/FzWkxKWwEv/teZbDhDj3pWPv8EAx6CBj/0TdTlwU5H724phbTUGyl9XBm4zPfjL/H/fVYab0Q90rM4Oy8aXl6cZt2QW6buiiPci3tMBjeBPkgn80HtU6ud7LqRxE/Jrnv9gKuyY81n2yOi/0v03H/sUrR/xyCtC0ZTzn3n6hk9ahiPjh/+7UrBN4IDlTxRhC6rkMwV4a8fTKnU9Qv95/1H+tf/esE/c8hp8P5uClM5egONdxm/474G+Cnm+Ni/4tR/ypNkyX6n0Ptm5A39pXabPjNz+jdtyYryorwsQcAAAAAAAAAAAAAAPiHPgErlMLeACgAAA=="
+    },
+    {
+      "path": "/home/student/task/dlayer.py",
+      "text": "import tarfile\nt = tarfile.open('layer.tar.gz', 'r:gz')\nfor m in t.getmembers():\n    if m.name.endswith('secret'):\n        print(t.extractfile(m).read().decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "dlayer\\.py",
+          "example": "python3 dlayer.py",
+          "output": "nto{docker_layer_extra_file}\n"
+        }
+      ]
+    }
+  }
+}

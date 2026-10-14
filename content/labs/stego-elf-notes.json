@@ -1,0 +1,44 @@
+{
+  "id": "stego-elf-notes",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{elf_overlay_appended}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: overlay после конца ELF\n\n`bin` — ELF-файл с данными, дописанными после таблицы секций.\n\n1. `xxd -l 64 bin`.\n2. `python3 elf.py` — вычисление конца ELF и чтение overlay.\n3. `python3 elf.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/bin",
+      "b64": "f0VMRgIBAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAEAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABudG97ZWxmX292ZXJsYXlfYXBwZW5kZWR9AA=="
+    },
+    {
+      "path": "/home/student/task/elf.py",
+      "text": "import struct\nd = open('bin','rb').read()\ne_shoff = struct.unpack_from('<Q', d, 0x28)[0]\ne_shnum = struct.unpack_from('<H', d, 0x3c)[0]\ne_shentsize = struct.unpack_from('<H', d, 0x3a)[0]\nend = e_shoff + e_shnum*e_shentsize\nprint(d[end:].split(b'\\x00')[0].decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "elf\\.py",
+          "example": "python3 elf.py",
+          "output": "nto{elf_overlay_appended}\n"
+        }
+      ]
+    }
+  }
+}

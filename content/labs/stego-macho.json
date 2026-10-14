@@ -1,0 +1,44 @@
+{
+  "id": "stego-macho",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{macho_lc_note}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: LC_NOTE в Mach-O\n\n`macho` — 64-битный Mach-O с одной командой LC_NOTE (0x31).\n\n1. `xxd -l 32 macho`.\n2. `python3 macho.py` — разбор load-команд.\n3. `python3 macho.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/macho",
+      "b64": "z/rt/gcAAAEDAAAAAgAAAAEAAAAoAAAAAAAAAAAAAAAxAAAAKAAAAHN0ZWdvAAAAAAAAAAAAAABIAAAAAAAAABIAAAAAAAAAbnRve21hY2hvX2xjX25vdGV9"
+    },
+    {
+      "path": "/home/student/task/macho.py",
+      "text": "import struct\nd = open('macho','rb').read()\nncmds = struct.unpack_from('<I', d, 0x10)[0]\np = 0x20\nfor _ in range(ncmds):\n    cmd, cmdsize = struct.unpack_from('<II', d, p)\n    if cmd == 0x31:\n        owner = d[p+8:p+24].split(b'\\x00')[0].decode()\n        off, size = struct.unpack_from('<QQ', d, p+24)\n        print(d[off:off+size].decode())\n    p += cmdsize\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "macho\\.py",
+          "example": "python3 macho.py",
+          "output": "nto{macho_lc_note}\n"
+        }
+      ]
+    }
+  }
+}

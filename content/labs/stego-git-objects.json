@@ -1,0 +1,44 @@
+{
+  "id": "stego-git-objects",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{git_dangling_blob}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: висячий blob в Git-объекте\n\n`blob.bin` — сырой Git-объект (zlib-сжатый).\n\n1. `xxd -l 16 blob.bin`.\n2. `python3 gitobj.py` — распаковка и содержимое.\n3. `python3 gitobj.py | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/blob.bin",
+      "b64": "eJxLyslPUjAyYsgrya9OzyyJT0nMS8/JzEuPTwJK1AIApXULUg=="
+    },
+    {
+      "path": "/home/student/task/gitobj.py",
+      "text": "import zlib\nraw = zlib.decompress(open('blob.bin','rb').read())\nprint(raw.split(b'\\x00', 1)[1].decode())\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "gitobj\\.py",
+          "example": "python3 gitobj.py",
+          "output": "nto{git_dangling_blob}\n"
+        }
+      ]
+    }
+  }
+}
