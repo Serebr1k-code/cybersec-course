@@ -1,0 +1,24 @@
+{
+  "id": "pwn-kaslr-bypass",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "kernel_base=0xffffffff81000000"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: вычислить базу ядра из утечки\n\n`leak.txt` содержит утёкший адрес символа ядра и его смещение от базы. База\nядра = утёкший адрес − смещение.\n\n1. `cat leak.txt`.\n2. Вычисли `kernel_base = leaked - offset`.\n3. Запиши `kernel_base=0x....` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/leak.txt",
+      "text": "leaked pointer: 0xffffffff81234567\nsymbol: kfree\nsymbol offset from kernel base: 0x234567\n"
+    }
+  ],
+  "tools": {}
+}

@@ -1,0 +1,24 @@
+{
+  "id": "pwn-android-kernel",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "selinux=enforcing"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: режим SELinux на Android\n\n`cmdline.txt` — фрагмент настроек ядра Android. Нужно определить режим работы\nSELinux.\n\n1. `cat cmdline.txt`.\n2. Найди параметр `androidboot.selinux=` и его значение.\n3. Запиши `selinux=<значение>` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/cmdline.txt",
+      "text": "androidboot.selinux=enforcing\nandroidboot.verifiedbootstate=green\nandroidboot.hardware=qcom\nandroidboot.console=ttyMSM0\n"
+    }
+  ],
+  "tools": {}
+}

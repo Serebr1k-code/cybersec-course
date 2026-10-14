@@ -1,0 +1,24 @@
+{
+  "id": "pwn-macos-kernel",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "dispatch_struct=IOExternalMethodDispatch"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: структура вызова метода IOKit\n\n`iokit.txt` — описание драйвера XNU (IOKit). Нужно найти структуру, через\nкоторую пользовательский процесс вызывает метод драйвера.\n\n1. `cat iokit.txt`.\n2. Найди имя структуры, описывающей dispatch метода.\n3. Запиши `dispatch_struct=<Имя>` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/iokit.txt",
+      "text": "IOUserClient subclass: MyDriverUserClient\nexternalMethod selectors:\n  0: IOExternalMethodDispatch -> MyDriver_doThing\n  1: IOExternalMethodDispatch -> MyDriver_getInfo\nuserClient->externalMethod(index, ...)\n"
+    }
+  ],
+  "tools": {}
+}

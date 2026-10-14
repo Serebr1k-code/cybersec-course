@@ -1,0 +1,24 @@
+{
+  "id": "pwn-freebsd-kernel",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "cred_struct=ucred"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: структура учётных данных FreeBSD\n\n`ucred.h` — фрагмент заголовка ядра FreeBSD. Нужно найти структуру, описывающую\nучётные данные процесса (права, uid/gid).\n\n1. `cat ucred.h`.\n2. Найди имя структуры.\n3. Запиши `cred_struct=<имя>` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/ucred.h",
+      "text": "struct ucred {\n    u_int   cr_ref;      /* reference count */\n    uid_t   cr_uid;      /* effective user id */\n    gid_t   cr_gid;      /* effective group id */\n    uid_t   cr_ruid;     /* real user id */\n    gid_t   cr_rgid;     /* real group id */\n    struct  prison *cr_prison;  /* jail */\n};\n"
+    }
+  ],
+  "tools": {}
+}

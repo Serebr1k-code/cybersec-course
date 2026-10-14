@@ -1,0 +1,24 @@
+{
+  "id": "pwn-ios-kernel",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "code_protection=KTRR"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: защита кода ядра iOS\n\n`features.txt` — список аппаратных защит ядра iOS. Нужно найти защиту, которая\nделает страницы **кода** ядра неизменяемыми.\n\n1. `cat features.txt`.\n2. Найди аббревиатуру этой защиты.\n3. Запиши `code_protection=<АББР>` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/features.txt",
+      "text": "- KTRR (Kernel Text Readonly Region)\n- PPL (Page Protection Layer)\n- PAC (Pointer Authentication) in kernel\n- SPTM (Secure Page Table Monitor)\n- Trust Cache\n"
+    }
+  ],
+  "tools": {}
+}
