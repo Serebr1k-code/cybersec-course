@@ -1,0 +1,27 @@
+{
+  "id": "cloud-entra-identity-protection",
+  "workdir": "/home/student/idprot",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/idprot/found.txt",
+    "contains": "nto{r1sk_p0l1cy_bl1nd_sp0t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/idprot",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/idprot/task.md",
+      "text": "# Задача\n\nДана выгрузка риск-детекций и риск-политик Entra ID. Определи, какой риск не покрыт политикой, и собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/idprot/risk-detections.json",
+      "text": "{\n  \"detections\": [\n    {\"type\": \"leakedCredentials\", \"user\": \"bob@acme.com\", \"riskLevel\": \"high\"},\n    {\"type\": \"anonymizedIPAddress\", \"user\": \"bob@acme.com\", \"riskLevel\": \"medium\"},\n    {\"type\": \"atypicalTravel\", \"user\": \"carol@acme.com\", \"riskLevel\": \"medium\"},\n    {\"type\": \"tokenIssuerAnomaly\", \"user\": \"alice@acme.com\", \"riskLevel\": \"high\"}\n  ],\n  \"riskPolicies\": {\"signInRisk\": \"medium\", \"userRisk\": \"high\"}\n}\n"
+    },
+    {
+      "path": "/home/student/idprot/notes.md",
+      "text": "Разбор Identity Protection:\n\n- riskPolicies: signInRisk=medium, userRisk=high\n- tokenIssuerAnomaly -> признак кражи токена, входа может не быть\n- смена пароля не отзывает refresh-токены без revokeSignInSessions\n- svc-backup исключён из риск-политик\n\nОстаток заметки: nto{r1sk_p0l1cy_bl1nd_sp0t}\n"
+    }
+  ]
+}
