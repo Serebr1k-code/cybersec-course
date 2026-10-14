@@ -43,6 +43,8 @@ $ aapt dump xmltree app.apk AndroidManifest.xml | grep debuggable
 `0xffffffff` означает `true`. `android:debuggable="true"` — это флаг, который должен стоять только
 в отладочных сборках. В релизе он означает: приложение можно отлаживать и читать его данные.
 
+<!-- lab -->
+
 ## Шаг 1: что делает debuggable
 
 Флаг разрешает два важных механизма. Первый — Java-отладка через JDWP: можно подключиться

@@ -41,6 +41,8 @@ $ aapt dump xmltree app.apk AndroidManifest.xml | grep -i allowBackup
 `0xffffffff` — это `true`. `android:allowBackup="true"` разрешает системе и инструментам создавать
 резервную копию данных приложения. По умолчанию флаг `true`, поэтому его часто не замечают.
 
+<!-- lab -->
+
 ## Шаг 1: что делает allowBackup
 
 Флаг разрешает два вида копирования: облачное (через сервис бэкапа Android) и локальное (через

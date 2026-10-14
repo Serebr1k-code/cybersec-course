@@ -43,6 +43,8 @@ $ unzip -l app.aab | head
 
 Внутри — модули (`base/`), а не готовый APK. Это AAB.
 
+<!-- lab -->
+
 ## Шаг 1: что такое AAB
 
 AAB (Android App Bundle) — формат публикации в Google Play. В нём приложение описано модулями:

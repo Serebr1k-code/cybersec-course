@@ -72,6 +72,8 @@ Cognito имеет квоты на операции, и self-signup может �
 | Нет защиты от перебора | брутфорс | advanced security |
 | Долгий refresh токен |постоянный доступ | token validity |
 
+<!-- lab -->
+
 ## Полный прогон: от pool id к кредам
 
 Шаги. Первый: найти identityPoolId и userPoolId в клиенте. Второй: запросить роли identity pool (`get-identity-pool-roles`). Третий: получить identity id (гостю — без токена). Четвёртый: обменять на AWS-креды (`get-credentials-for-identity`). Пятый: определить, что позволяет роль (`sts get-caller-identity`, затем — разведка). Шестой: при необходимости зарегистрировать пользователя и получить более широкую роль. Седьмой: учесть CloudTrail.

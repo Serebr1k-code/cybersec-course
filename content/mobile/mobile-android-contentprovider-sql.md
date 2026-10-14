@@ -50,6 +50,8 @@ public Cursor query(Uri uri, String[] projection, String selection,
 Обратите внимание: `selection` и `sortOrder` подставлены в строку напрямую, а `rawQuery`
 вызывается с `null` вместо аргументов. Значит, никакой параметризации нет — это SQL-инъекция.
 
+<!-- lab -->
+
 ## Шаг 1: как вызывается провайдер
 
 Content Provider доступен по `content://<authority>/<path>`. Если он экспортирован (или

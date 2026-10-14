@@ -47,6 +47,8 @@ UE -> SMF: PDU Session Establishment
 
 Новые имена: **gNB**, **AMF**, **AUSF**, **UDM**, **SMF**. Это не просто переименование LTE — изменилась сама архитектура.
 
+<!-- lab -->
+
 ## Шаг 1: gNB и service-based core
 
 Базовая станция 5G называется **gNB** (next generation NodeB). Ядро — **5GC** — построено по принципу **service-based architecture** (SBA): функции оформлены как сервисы, общаются через API (HTTP/2, JSON), а не через жёсткие интерфейсы.

@@ -45,6 +45,8 @@ cm.setPrimaryClip(ClipData.newPlainText("password", password));
 текст, URI или Intent, плюс MIME-тип и `ClipDescription`. Данные живут в системе, а не в
 приложении, — поэтому их потенциально видит кто угодно.
 
+<!-- lab -->
+
 ## Шаг 1: как читать буфер
 
 Любое приложение может прочитать текущий буфер:

@@ -44,6 +44,8 @@ out/sources/com/example/bank/Api.java:14: String BASE = "http://api.example.com/
 `BASE` начинается с `http://` — открытый текст. Любой, кто в той же сети (кафе, отель, оператор),
 может прочитать запросы и ответы. Проведём этот самый `BASE` через весь урок.
 
+<!-- lab -->
+
 ## Шаг 1: что такое cleartext
 
 **Cleartext** — данные, идущие без шифрования, то есть HTTP, а не HTTPS. Начиная с Android 9 (API

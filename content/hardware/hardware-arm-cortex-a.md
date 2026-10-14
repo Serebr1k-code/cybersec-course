@@ -47,6 +47,8 @@ world=nto{c0rt3x_4_7ru5tz0n3}
 
 Здесь ключевые понятия: **EL0/EL1/EL3**, **SMC**, **secure world**, **MMU stage-2**. Разберём.
 
+<!-- lab -->
+
 ## Шаг 1: уровни привилегий (Exception Levels)
 
 В AArch64 (64-битный ARM) есть **Exception Levels**:

@@ -47,6 +47,8 @@ avrdude: reading flash memory
 
 Здесь ключевое — **fuse** и **lock bits**. Разберём.
 
+<!-- lab -->
+
 ## Шаг 1: что такое AVR/PIC/8051
 
 - **AVR** (Atmel/Microchip) — 8-битные MCU, знаменитые по Arduino (ATmega328P, ATtiny).

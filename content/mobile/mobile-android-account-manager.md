@@ -47,6 +47,8 @@ am.setAuthToken(account, "full_access", token);
 токены. Дальше любое приложение может спросить: «дай мне токен для аккаунта типа
 `com.example`».
 
+<!-- lab -->
+
 ## Шаг 1: что такое account type и authenticator
 
 **Account type** — строка вида `com.example` (обычно обратный домен). С ней связан
