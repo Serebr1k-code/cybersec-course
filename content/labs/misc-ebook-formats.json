@@ -1,0 +1,27 @@
+{
+  "id": "misc-ebook-formats",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3pub_1s_z1p}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# EPUB\n\n`manifest.txt` — фрагмент OPF-манифеста `book.epub`.\nВ метаданных книги спрятана метка. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/book.epub",
+      "text": "PK\\x03\\x04 ... (zip placeholder, mimetype=application/epub+zip) ...\\n"
+    },
+    {
+      "path": "/home/student/task/manifest.txt",
+      "text": "<package xmlns=\"http://www.idpf.org/2007/opf\">\n  <metadata>\n    <dc:title>CTF Notes</dc:title>\n    <dc:creator>anon</dc:creator>\n    <dc:identifier>nto{3pub_1s_z1p}</dc:identifier>\n  </metadata>\n"
+    }
+  ]
+}

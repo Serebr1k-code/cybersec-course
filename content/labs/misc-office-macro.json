@@ -1,0 +1,23 @@
+{
+  "id": "misc-office-macro",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{vb4_m4cr0}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# OOXML macro\n\n`macro_dump.txt` — вывод `olevba` по документу `.docm`.\nВ макросе спрятана метка. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/macro_dump.txt",
+      "text": "VBA MACRO ThisDocument\nSub AutoOpen()\n    Dim s As String\n    s = \"nto{vb4_m4cr0}\"\n    Shell \"powershell -enc ...\"\nEnd Sub\n"
+    }
+  ]
+}

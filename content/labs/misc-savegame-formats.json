@@ -1,0 +1,27 @@
+{
+  "id": "misc-savegame-formats",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s4v3g4m3_z1p}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Savegame\n\n`hexdump.txt` — дамп `save.dat`. Внутри JSON-сохранение с меткой.\nНайди метку и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/save.dat",
+      "text": "SAVE\\x01\\x00\\x00\\x00\\x78\\x9c ... zlib ... (placeholder)\\n"
+    },
+    {
+      "path": "/home/student/task/hexdump.txt",
+      "text": "00000000: 5341 5645 0100 0000 789c 4b2c 4e4a  SAVE....x.K,NJ\n00000010: 2e60 0000 0000 2000 2e00 0000 0000  ..... .........\ndecoded: {\"player\":\"guest\",\"gold\":10,\"flag\":\"nto{s4v3g4m3_z1p}\"}\n"
+    }
+  ]
+}

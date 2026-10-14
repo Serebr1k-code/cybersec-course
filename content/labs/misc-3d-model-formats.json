@@ -1,0 +1,27 @@
+{
+  "id": "misc-3d-model-formats",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{stl_h4d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# 3D-формат\n\n`inspect.txt` — дамп бинарного STL. Метка спрятана в заголовке.\nНайди её и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/part.stl",
+      "text": "nto{stl_h4d}\\x00... (binary placeholder) ...\\n"
+    },
+    {
+      "path": "/home/student/task/inspect.txt",
+      "text": "00000000: 6e74 6f7b 7374 6c5f 6834 647d 0000 0000  nto{stl_h4d}....\n00000010: 0000 0000 ...\nheader (80 bytes) starts with ASCII: nto{stl_h4d}\n"
+    }
+  ]
+}
