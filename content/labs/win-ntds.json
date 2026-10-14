@@ -1,0 +1,29 @@
+{
+  "id": "win-ntds",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ntds_d1t_p3k_unl0ck3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: база Active Directory\n\n`ntds.dit` — доменная база, `SYSTEM` — hive с boot key. В строке учётной записи спрятан флаг. Найди его.\n\n1. `file ntds.dit` и `ls -l ntds.dit`.\n2. `strings ntds.dit` — видно строки хешей (Administrator:500:...).\n3. `strings ntds.dit | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/ntds.dit",
+      "b64": "782riQAAAAAAAAAAAAAAAE1TeXNPYmplY3RzAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABkYXRhdGFibGUAZGF0YXRhYmxlAGRhdGF0YWJsZQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEFkbWluaXN0cmF0b3I6NTAwOmFhZDNiNDM1YjUxNDA0ZWVhYWQzYjQzNWI1MTQwNGVlOm50b3tudGRzX2QxdF9wM2tfdW5sMGNrM2R9Ojo6Og0KAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGpkb2U6MTEwMzphYWQzYjQzNWI1MTQwNGVlYWFkM2I0MzViNTE0MDRlZTo1ZjRkY2MzYjVhYTc2NWQ2MWQ4MzI3ZGViODgyY2Y5OTo6OjoNCg==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/SYSTEM",
+      "b64": "cmVnZgAAAAAAAAAAAAAAAEpEAABTa2V3MQBHQkcARGF0YQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGJvb3RLZXktbWF0ZXJpYWwNCg==",
+      "mode": "644"
+    }
+  ]
+}

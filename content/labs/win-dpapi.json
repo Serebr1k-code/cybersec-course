@@ -1,0 +1,32 @@
+{
+  "id": "win-dpapi",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dp4p1_m4st3rk3y_ch41n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: секрет DPAPI\n\nВ профиле пользователя лежат мастер-ключ (`masterkey.bin`) и зашифрованный секрет (`secret.b64`, в base64). Расшифруй секрет и найди флаг.\n\n1. `ls -la` и `file masterkey.bin` — что за файлы.\n2. `strings masterkey.bin` — GUID мастер-ключа.\n3. `base64 -d secret.b64` — открытый секрет.\n4. `base64 -d secret.b64 | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/masterkey.bin",
+      "b64": "AwAAAG6aqqoAAAAAAAAAADU1NjBmYTZlLTJiMWMtNGQzYS05ZjExLTdjOGUyYTRiMGQxOQAAAAAAAAAAAAAAAAAAAABNQVNURVJLRVktR1VJRCA1NTYwZmE2ZQ0K",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/secret.b64",
+      "text": "eyJ1c2VyIjoiamRvZSIsInBhc3N3b3JkIjoibnRve2RwNHAxX200c3QzcmszeV9jaDQxbn0ifQ==\n"
+    },
+    {
+      "path": "/home/student/task/protect.log",
+      "text": "Protect/S-1-5-21-...-1001/5560fa6e-... (masterkey)\nCREDHIST present\n"
+    }
+  ]
+}

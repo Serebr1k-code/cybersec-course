@@ -1,0 +1,29 @@
+{
+  "id": "win-rdp-artifacts",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{rdp_b1tm4p_c4ch3_r3c0v3ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: удалённая сессия RDP\n\n`Cache0000.bin` — кэш битмапов клиента RDP, `LocalSessionManager.evtx` — журнал сессий. Восстанови, что было на экране, и найди флаг.\n\n1. `xxd -l 16 Cache0000.bin` — магия `bcache2`.\n2. `strings Cache0000.bin` — текст плиток (виден вывод команд).\n3. `strings Cache0000.bin | grep nto > found.txt`.\n4. `strings LocalSessionManager.evtx` — адрес клиента и учётка.\n"
+    },
+    {
+      "path": "/home/student/task/Cache0000.bin",
+      "b64": "YmNhY2hlMgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGNtZC5leGUgLSBSZW1vdGUgRGVza3RvcA0KQzpcVXNlcnNcamRvZT4gdHlwZSBzZWNyZXQudHh0DQpudG97cmRwX2IxdG00cF9jNGNoM19yM2MwdjNyeX0NCgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/LocalSessionManager.evtx",
+      "b64": "RWxmRmlsZQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABUZXJtaW5hbFNlcnZpY2VzLUxvY2FsU2Vzc2lvbk1hbmFnZXINCjxFdmVudElEPjIxPC9FdmVudElEPg0KPEFkZHJlc3M+MTAuMTAuMjAuNTU8L0FkZHJlc3M+DQo8VXNlcj5DT1JQXGpkb2U8L1VzZXI+DQo=",
+      "mode": "644"
+    }
+  ]
+}
