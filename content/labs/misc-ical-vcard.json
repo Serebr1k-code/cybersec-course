@@ -1,0 +1,23 @@
+{
+  "id": "misc-ical-vcard",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1c4l_f0ld1ng}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# iCalendar\n\n`flag.ics` — событие с флагом, разбитым folding-ом.\nРазверни строки и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/flag.ics",
+      "text": "BEGIN:VCALENDAR\nBEGIN:VEVENT\nSUMMARY:nto{1c4l_f0l\n d1ng}\nEND:VEVENT\nEND:VCALENDAR\n"
+    }
+  ]
+}

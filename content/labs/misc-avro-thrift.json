@@ -1,0 +1,27 @@
+{
+  "id": "misc-avro-thrift",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{thr1ft_b1n4ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Thrift\n\n`thrift_dump.txt` — разобранные поля ответа.\nНайди служебную метку и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/response.bin",
+      "text": "\\x80\\x01\\x00\\x01 ... placeholder thrift bytes ...\n"
+    },
+    {
+      "path": "/home/student/task/thrift_dump.txt",
+      "text": "field 1 (STRING): name\nfield 2 (STRING): john\nfield 3 (STRING): nto{thr1ft_b1n4ry}\n"
+    }
+  ]
+}

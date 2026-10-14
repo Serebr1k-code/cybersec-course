@@ -1,0 +1,23 @@
+{
+  "id": "misc-nbt-anvil",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{nbt_b1n4ry_tr33}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# NBT\n\n`nbt_dump.txt` — дамп дерева NBT.\nНайди тег со служебной меткой и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/nbt_dump.txt",
+      "text": "TAG_Compound(\"\"): 2 entries\n  TAG_Int(\"DataVersion\"): 3465\n  TAG_Compound(\"Player\"): 2 entries\n    TAG_String(\"Name\"): \"Steve\"\n    TAG_String(\"secret\"): \"nto{nbt_b1n4ry_tr33}\"\n"
+    }
+  ]
+}

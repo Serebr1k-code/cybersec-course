@@ -1,0 +1,23 @@
+{
+  "id": "misc-ndjson-lines",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ndjs0n_str34m}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# NDJSON\n\n`events.ndjson` — поток событий.\nНайди событие с меткой и запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/events.ndjson",
+      "text": "{\"ts\":1700000000,\"user\":\"alice\",\"action\":\"login\"}\n{\"ts\":1700000001,\"user\":\"bob\",\"action\":\"read\",\"file\":\"/flag\"}\n{\"ts\":1700000002,\"user\":\"eve\",\"action\":\"exfil\",\"file\":\"nto{ndjs0n_str34m}\"}\n"
+    }
+  ]
+}
