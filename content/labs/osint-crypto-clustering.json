@@ -1,0 +1,36 @@
+{
+  "id": "osint-crypto-clustering",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{c10_clust3r_f0und}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: кластеризация\n\n1. `cat tx.json` — транзакция с несколькими входами.\n2. `python3 cluster_tx.py` — примени эвристику общего входа.\n3. Найди маркер `nto{...}` и запиши в `answer.txt`.\n4. `check`.\n"
+    },
+    {
+      "path": "/home/student/task/tx.json",
+      "text": "{\n  \"txid\": \"abc123\",\n  \"inputs\": [\"1AddrA\", \"1AddrB\", \"1AddrC\"],\n  \"outputs\": [\"1AddrD\", \"1AddrE\"],\n  \"x_note\": \"nto{c10_clust3r_f0und}\"\n}\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — кластеризация (эмуляция)",
+      "cases": [
+        {
+          "match": "cluster_tx",
+          "example": "python3 cluster_tx.py",
+          "output": "Входы: 1AddrA, 1AddrB, 1AddrC\nЭвристика общего входа (CIO): все входы контролируются одним кошельком\nКластер: {1AddrA, 1AddrB, 1AddrC}\nnto{c10_clust3r_f0und}\n"
+        }
+      ],
+      "fallback": "python3: доступен cluster_tx.py.\n"
+    }
+  }
+}

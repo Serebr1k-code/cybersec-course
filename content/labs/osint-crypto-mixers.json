@@ -1,0 +1,36 @@
+{
+  "id": "osint-crypto-mixers",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{p33l1ng_ch41n_t0_b1rk}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: peeling-цепочка\n\n1. `cat chain.json` — последовательность переводов.\n2. `python3 peel_trace.py` — трассировка.\n3. Найди маркер `nto{...}` и запиши в `answer.txt`.\n4. `check`.\n"
+    },
+    {
+      "path": "/home/student/task/chain.json",
+      "text": "{\n  \"hops\": [\n    {\"from\":\"1Src\",\"to\":\"1Peel1\",\"amount\":10.0},\n    {\"from\":\"1Peel1\",\"to\":\"1Peel2\",\"amount\":9.5},\n    {\"from\":\"1Peel2\",\"to\":\"1ExchangeHotWallet\",\"amount\":9.0}\n  ],\n  \"x_note\": \"nto{p33l1ng_ch41n_t0_b1rk}\"\n}\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — трассировка (эмуляция)",
+      "cases": [
+        {
+          "match": "peel_trace",
+          "example": "python3 peel_trace.py",
+          "output": "1Src -> 1Peel1 -> 1Peel2 -> 1ExchangeHotWallet\nКаждый шаг отщипывает небольшую сумму (peeling).\nФинал: биржа 1ExchangeHotWallet\nnto{p33l1ng_ch41n_t0_b1rk}\n"
+        }
+      ],
+      "fallback": "python3: доступен peel_trace.py.\n"
+    }
+  }
+}

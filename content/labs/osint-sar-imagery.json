@@ -1,0 +1,36 @@
+{
+  "id": "osint-sar-imagery",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{s4r_c0h3r3nc3_ch4ng3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: SAR-снимки\n\n1. `cat sar.json` — метаданные сцены Sentinel-1.\n2. `python3 sar_info.py` — режим, поляризация, когерентность.\n3. Найди маркер `nto{...}` и запиши в `answer.txt`.\n4. `check`.\n"
+    },
+    {
+      "path": "/home/student/task/sar.json",
+      "text": "{\n  \"satellite\": \"Sentinel-1B\",\n  \"mode\": \"IW\",\n  \"polarization\": \"VV+VH\",\n  \"orbit\": \"descending\",\n  \"coherence\": 0.21,\n  \"x_note\": \"nto{s4r_c0h3r3nc3_ch4ng3}\"\n}\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — разбор SAR-метаданных (эмуляция)",
+      "cases": [
+        {
+          "match": "sar_info",
+          "example": "python3 sar_info.py",
+          "output": "Спутник: Sentinel-1B\nРежим: IW\nПоляризация: VV+VH\nОрбита: descending\nКогерентность: 0.21 (низкая => изменение поверхности)\nnto{s4r_c0h3r3nc3_ch4ng3}\n"
+        }
+      ],
+      "fallback": "python3: доступен sar_info.py.\n"
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "osint-source-evaluation",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{4dm1r4lty_gr4d3_b2}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: оценка источников\n\n1. `cat sources.json` — список источников.\n2. `python3 grade_sources.py` — оценка по Admiralty.\n3. Найди маркер `nto{...}` и запиши в `answer.txt`.\n4. `check`.\n"
+    },
+    {
+      "path": "/home/student/task/sources.json",
+      "text": "{\n  \"sources\": [\n    {\"name\":\"official registry\",\"reliability\":\"A\",\"credibility\":2},\n    {\"name\":\"anonymous forum post\",\"reliability\":\"E\",\"credibility\":5}\n  ],\n  \"x_note\": \"nto{4dm1r4lty_gr4d3_b2}\"\n}\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — оценка источников (эмуляция)",
+      "cases": [
+        {
+          "match": "grade_sources",
+          "example": "python3 grade_sources.py",
+          "output": "official registry: A2 (надёжный источник, вероятно правда)\nanonymous forum post: E5 (ненадёжный, сомнительно)\nИтоговая оценка опирается на A2.\nnto{4dm1r4lty_gr4d3_b2}\n"
+        }
+      ],
+      "fallback": "python3: доступен grade_sources.py.\n"
+    }
+  }
+}

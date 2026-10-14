@@ -1,0 +1,36 @@
+{
+  "id": "osint-satellite-3d",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{h31ght_by_sh4d0w}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: 3D по снимкам\n\n1. `cat shadow.json` — длина тени и угол Солнца.\n2. `python3 building_height.py` — расчёт высоты.\n3. Найди маркер `nto{...}` и запиши в `answer.txt`.\n4. `check`.\n"
+    },
+    {
+      "path": "/home/student/task/shadow.json",
+      "text": "{\n  \"shadow_length_m\": 24,\n  \"sun_elevation_deg\": 45,\n  \"x_note\": \"nto{h31ght_by_sh4d0w}\"\n}\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — расчёт высоты (эмуляция)",
+      "cases": [
+        {
+          "match": "building_height",
+          "example": "python3 building_height.py",
+          "output": "Длина тени: 24 м\nУгол Солнца: 45°\ntan(45°) = 1.00\nВысота = 24 * 1.00 = 24.0 м\nnto{h31ght_by_sh4d0w}\n"
+        }
+      ],
+      "fallback": "python3: доступен building_height.py.\n"
+    }
+  }
+}

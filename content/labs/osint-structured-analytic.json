@@ -1,0 +1,36 @@
+{
+  "id": "osint-structured-analytic",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{4ch_l34st_1nc0ns1st3nt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: ACH\n\n1. `cat evidence.json` — гипотезы и улики.\n2. `python3 ach.py` — матрица согласованности.\n3. Найди маркер `nto{...}` и запиши в `answer.txt`.\n4. `check`.\n"
+    },
+    {
+      "path": "/home/student/task/evidence.json",
+      "text": "{\n  \"hypotheses\": [\"H1: insider\", \"H2: external attack\"],\n  \"evidence\": [\n    {\"item\":\"badge used at 02:00\",\"H1\":\"consistent\",\"H2\":\"inconsistent\"},\n    {\"item\":\"VPN from foreign IP\",\"H1\":\"inconsistent\",\"H2\":\"consistent\"}\n  ],\n  \"x_note\": \"nto{4ch_l34st_1nc0ns1st3nt}\"\n}\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — ACH-матрица (эмуляция)",
+      "cases": [
+        {
+          "match": "ach",
+          "example": "python3 ach.py",
+          "output": "H1 insider: inconsistent=1\nH2 external attack: inconsistent=1\nОбе гипотезы равны — нужны новые улики.\nМетод: выбираем гипотезу с НАИМЕНЬШИМ числом противоречий.\nnto{4ch_l34st_1nc0ns1st3nt}\n"
+        }
+      ],
+      "fallback": "python3: доступен ach.py.\n"
+    }
+  }
+}
