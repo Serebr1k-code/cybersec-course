@@ -1,0 +1,29 @@
+{
+  "id": "mal-unpacking",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{upx_unp4ck3d_st4g3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: распаковка\n\n`packed.exe` — упакованный образец, `unpacked.bin` — результат снятия упаковки. Найди флаг в распакованном коде.\n\n1. `strings packed.exe` — почти нет строк (упакован).\n2. `strings unpacked.bin` — появились импорты и URL.\n3. `strings unpacked.bin | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/packed.exe",
+      "b64": "TVqQAAAAAAAAAAAAAAAAAAAAAABVUFgwAFVQWDEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABwYWNrZWQtYmxvYi2cnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJycnJyc",
+      "mode": "755"
+    },
+    {
+      "path": "/home/student/task/unpacked.bin",
+      "b64": "TVqQAAAAAAAAAAAAAAAAAAAAAAAudGV4dAAucmRhdGEAAAAAAAAAAAAAAAAAAAAAAGtlcm5lbDMyLmRsbABXaW5FeGVjAGh0dHA6Ly8xMC4xMC4yMC45L3VwZC5iaW4AbnRve3VweF91bnA0Y2szZF9zdDRnM30A",
+      "mode": "644"
+    }
+  ]
+}

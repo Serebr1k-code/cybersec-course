@@ -1,0 +1,23 @@
+{
+  "id": "mal-config-extraction",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c2_c0nf1g_3xtr4ct3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: извлечение конфигурации\n\n`beacon.cfg` — извлечённая конфигурация beacon. Определи адрес C2 и найди флаг.\n\n1. `cat beacon.cfg`.\n2. Смотри C2Server, Port, Watermark.\n3. `grep nto beacon.cfg > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/beacon.cfg",
+      "text": "--- Cobalt Strike Beacon Config ---\nBeaconType: HTTPS\nC2Server: cdn-update.example,/api\nPort: 443\nUserAgent: Mozilla/5.0 (Windows NT 10.0; Win64; x64)\nWatermark: 1234567890\nSleepTime: 60000\nJitter: 20\nnto{c2_c0nf1g_3xtr4ct3d}\n"
+    }
+  ]
+}

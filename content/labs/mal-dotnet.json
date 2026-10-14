@@ -1,0 +1,24 @@
+{
+  "id": "mal-dotnet",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d0tn3t_d3c0mp1l3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: .NET-загрузчик\n\n`update.exe` — .NET-сборка с загрузчиком. Найди признаки .NET и флаг.\n\n1. `file update.exe`.\n2. `strings update.exe` — mscoree.dll, mscorlib, base64.\n3. `strings update.exe | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/update.exe",
+      "b64": "TVqQAAAAAAAAAAAAAAAAAAAAAAAudGV4dAAucnNyYwAAAAAAAAAAAAAAAAAAAAAAbXNjb3JlZS5kbGwAX0NvckV4ZU1haW4AbXNjb3JsaWIAVFZxUUFBTUFBQUFFQUFBQS8vOEFBTGdBQUFBQUFBQUFRQUFBAAAAAAAAAABudG97ZDB0bjN0X2QzYzBtcDFsM2R9AA==",
+      "mode": "755"
+    }
+  ]
+}

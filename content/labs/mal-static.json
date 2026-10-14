@@ -1,0 +1,24 @@
+{
+  "id": "mal-static",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{st4t1c_str1ngs_4n4lys1s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: статический разбор\n\n`invoice.exe` — подозрительный образец. НЕ запускай его. Найди флаг статически.\n\n1. `file invoice.exe`.\n2. `strings invoice.exe` — URL, команды, ключ Run.\n3. `strings invoice.exe | grep nto > found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/invoice.exe",
+      "b64": "TVqQAAMAAAAEAAAA//8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFRoaXMgcHJvZ3JhbSBjYW5ub3QgYmUgcnVuIGluIERPUyBtb2RlAAAAAAAAAAAAAAAAAAAAAABHZXRQcm9jQWRkcmVzcwBMb2FkTGlicmFyeUEAV2luRXhlYwBjbWQuZXhlIC9jIHdob2FtaQBodHRwOi8vMTAuMTAuMjAuOS91cGQuYmluAFNvZnR3YXJlXE1pY3Jvc29mdFxXaW5kb3dzXEN1cnJlbnRWZXJzaW9uXFJ1bgBudG97c3Q0dDFjX3N0cjFuZ3NfNG40bHlzMXN9AA==",
+      "mode": "755"
+    }
+  ]
+}
