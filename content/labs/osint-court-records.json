@@ -1,0 +1,43 @@
+{
+  "id": "osint-court-records",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{c0urt_d0ck3t_f0und}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: судебные записи\n\n1. `curl -s 'https://www.courtlistener.com/api/rest/v4/search/?q=Petrov' > cases.json`.\n2. `jq -r '.results[]?.caseName' cases.json`.\n3. Одно дело помечено маркером `nto{...}`.\n4. Запиши в `answer.txt`, затем `check`.\n"
+    }
+  ],
+  "tools": {
+    "curl": {
+      "help": "curl [-s] <URL> — CourtListener API (эмуляция)",
+      "cases": [
+        {
+          "match": "courtlistener",
+          "example": "curl -s 'https://www.courtlistener.com/api/rest/v4/search/?q=Petrov'",
+          "output": "{\"count\":2,\"results\":[{\"caseName\":\"Petrov v. Example LLC\",\"court\":\"ca9\",\"dateFiled\":\"2021-05-14\"},{\"caseName\":\"In re Petrov nto{c0urt_d0ck3t_f0und}\",\"court\":\"nysd\",\"dateFiled\":\"2019-11-02\"}]}\n"
+        }
+      ],
+      "fallback": "curl: доступен только www.courtlistener.com.\n"
+    },
+    "jq": {
+      "help": "jq [-r] <фильтр> <файл> — разбор JSON (эмуляция)",
+      "cases": [
+        {
+          "match": "caseName|results|court",
+          "example": "jq -r '.results[]?.caseName' cases.json",
+          "output": "Petrov v. Example LLC\nIn re Petrov nto{c0urt_d0ck3t_f0und}\n"
+        }
+      ],
+      "fallback": "jq: поддержан фильтр по .results[].caseName.\n"
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "id": "osint-property-records",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{p4rc3l_0wn3r_tr4c3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: имущественные записи\n\n1. `cat parcel.json` — кадастровая запись.\n2. `python3 parcel_owner.py` — владелец и сделки.\n3. Найди маркер `nto{...}` и запиши в `answer.txt`.\n4. `check`.\n"
+    },
+    {
+      "path": "/home/student/task/parcel.json",
+      "text": "{\n  \"apn\": \"12-345-678\",\n  \"address\": \"7 Lesnaya St\",\n  \"owner\": \"Example Holdings LLC\",\n  \"last_sale\": {\"date\": \"2020-06-15\", \"price\": 240000},\n  \"x_note\": \"nto{p4rc3l_0wn3r_tr4c3}\"\n}\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — разбор кадастровой записи (эмуляция)",
+      "cases": [
+        {
+          "match": "parcel_owner",
+          "example": "python3 parcel_owner.py",
+          "output": "APN: 12-345-678\nАдрес: 7 Lesnaya St\nСобственник: Example Holdings LLC\nПоследняя сделка: 2020-06-15, 240000\nnto{p4rc3l_0wn3r_tr4c3}\n"
+        }
+      ],
+      "fallback": "python3: доступен parcel_owner.py.\n"
+    }
+  }
+}

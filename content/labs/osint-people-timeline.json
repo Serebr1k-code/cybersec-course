@@ -1,0 +1,36 @@
+{
+  "id": "osint-people-timeline",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{t1m3l1n3_bu1lt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: таймлайн\n\n1. `cat records.json` — несколько записей.\n2. `python3 build_timeline.py` — сортировка по датам.\n3. Найди маркер `nto{...}` и запиши в `answer.txt`.\n4. `check`.\n"
+    },
+    {
+      "path": "/home/student/task/records.json",
+      "text": "{\n  \"records\": [\n    {\"date\":\"2019-03-11\",\"type\":\"voter_registration\",\"address\":\"7 Lesnaya St\"},\n    {\"date\":\"2020-06-15\",\"type\":\"property_purchase\",\"address\":\"7 Lesnaya St\"},\n    {\"date\":\"2021-05-14\",\"type\":\"court_case\",\"case\":\"Petrov v. Example LLC\"}\n  ],\n  \"x_note\": \"nto{t1m3l1n3_bu1lt}\"\n}\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — сборка таймлайна (эмуляция)",
+      "cases": [
+        {
+          "match": "build_timeline",
+          "example": "python3 build_timeline.py",
+          "output": "2019-03-11  voter_registration  7 Lesnaya St\n2020-06-15  property_purchase   7 Lesnaya St\n2021-05-14  court_case          Petrov v. Example LLC\nnto{t1m3l1n3_bu1lt}\n"
+        }
+      ],
+      "fallback": "python3: доступен build_timeline.py.\n"
+    }
+  }
+}

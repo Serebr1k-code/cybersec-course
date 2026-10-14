@@ -1,0 +1,36 @@
+{
+  "id": "osint-sanctions",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{s4nct10n_m4tch_c0nf1rm3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: санкционный скрининг\n\n1. `cat sdn.json` — записи списка.\n2. `python3 screen.py` — сопоставление имени.\n3. Сверь дату рождения и страну.\n4. Запиши маркер `nto{...}` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/sdn.json",
+      "text": "{\n  \"entries\": [\n    {\"name\":\"Petrov, Ivan\",\"dob\":\"1979-04-02\",\"country\":\"RU\",\"program\":\"EXAMPLE\"},\n    {\"name\":\"Petrov, Ivan\",\"dob\":\"1988-12-30\",\"country\":\"KZ\",\"program\":\"EXAMPLE\"}\n  ],\n  \"x_note\": \"nto{s4nct10n_m4tch_c0nf1rm3d}\"\n}\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — санкционный скрининг (эмуляция)",
+      "cases": [
+        {
+          "match": "screen",
+          "example": "python3 screen.py",
+          "output": "Запрос: Ivan Petrov, 1979-04-02, RU\nMATCH: Petrov, Ivan | dob 1979-04-02 | RU | program EXAMPLE\nВторой Иван Петров (KZ, 1988) — не совпадает по DOB.\nnto{s4nct10n_m4tch_c0nf1rm3d}\n"
+        }
+      ],
+      "fallback": "python3: доступен screen.py.\n"
+    }
+  }
+}

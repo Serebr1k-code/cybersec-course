@@ -1,0 +1,36 @@
+{
+  "id": "osint-beneficial-ownership",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{b3n3f1c14l_0wn3r_f0und}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: бенефициарное владение\n\n1. `cat ownership.json` — цепочка компаний.\n2. `python3 follow_chain.py` — путь до бенефициара.\n3. Найди маркер `nto{...}` и запиши в `answer.txt`.\n4. `check`.\n"
+    },
+    {
+      "path": "/home/student/task/ownership.json",
+      "text": "{\n  \"company\": \"Example Holdings Ltd\",\n  \"owners\": [\n    {\"name\":\"Nordwind Holdings Ltd\",\"jurisdiction\":\"CY\",\"share\":100}\n  ],\n  \"chain\": {\n    \"Nordwind Holdings Ltd\": [{\"name\":\"Ivan Petrov\",\"share\":100}]\n  },\n  \"x_note\": \"nto{b3n3f1c14l_0wn3r_f0und}\"\n}\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — обход цепочки владения (эмуляция)",
+      "cases": [
+        {
+          "match": "follow_chain",
+          "example": "python3 follow_chain.py",
+          "output": "Example Holdings Ltd\n  -> Nordwind Holdings Ltd (CY) 100%\n     -> Ivan Petrov (natural person) 100%\nКонечный бенефициар: Ivan Petrov\nnto{b3n3f1c14l_0wn3r_f0und}\n"
+        }
+      ],
+      "fallback": "python3: доступен follow_chain.py.\n"
+    }
+  }
+}

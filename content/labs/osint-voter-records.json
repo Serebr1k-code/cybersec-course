@@ -1,0 +1,36 @@
+{
+  "id": "osint-voter-records",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "nto{v0t3r_r3c0rd_m4tch}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: избирательные списки\n\n1. `cat voters.csv` — выдержка из списка.\n2. `python3 voter_lookup.py` — найди запись по адресу.\n3. Маркер `nto{...}` — в найденной записи.\n4. Запиши в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/voters.csv",
+      "text": "name,address,city,party,reg_date\nIvan Petrov,ul. Lesnaya 7 apt 12,Kaluga,Independent,2019-03-11\nIvan Petrov,ul. Mira 3 apt 4,Kaluga,United,2021-07-02\nAnna Petrova,ul. Lesnaya 7 apt 12,Kaluga,Independent,2019-03-11\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт> — поиск по списку (эмуляция)",
+      "cases": [
+        {
+          "match": "voter_lookup",
+          "example": "python3 voter_lookup.py",
+          "output": "Найдено по адресу ul. Lesnaya 7 apt 12:\n  Ivan Petrov | Kaluga | Independent | 2019-03-11\n  Anna Petrova | Kaluga | Independent | 2019-03-11\nСовпадение адреса + даты регистрации => вероятно домохозяйство.\nnto{v0t3r_r3c0rd_m4tch}\n"
+        }
+      ],
+      "fallback": "python3: доступен voter_lookup.py.\n"
+    }
+  }
+}
