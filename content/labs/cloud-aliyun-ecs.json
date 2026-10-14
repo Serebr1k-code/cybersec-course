@@ -1,0 +1,27 @@
+{
+  "id": "cloud-aliyun-ecs",
+  "workdir": "/home/student/aliyun-ecs",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/aliyun-ecs/found.txt",
+    "contains": "nto{ssrf_m3t4d4t4_r0l3_t0k3n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/aliyun-ecs",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/aliyun-ecs/task.md",
+      "text": "# Задача\n\nВ логе приложения виден SSRF-запрос к службе метаданных ECS. Определи, какую роль получил инстанс, и собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/aliyun-ecs/ssrf.log",
+      "text": "GET /fetch?url=http://100.100.100.200/latest/meta-data/\n-> HTTP/1.1 200 OK\nami-id: aliyun_2_1903_x64_20G\ninstance-id: i-bp1abc\nram/security-credentials/: DeployRole\n"
+    },
+    {
+      "path": "/home/student/aliyun-ecs/notes.md",
+      "text": "Разбор SSRF:\n\n- SSRF дотянулся до 100.100.100.200 (metadata service ECS)\n- список ролей: ram/security-credentials/ -> DeployRole\n- следующий запрос: .../ram/security-credentials/DeployRole вернёт STS-токен\n- усиленный режим метаданных выключен\n\nОстаток заметки: nto{ssrf_m3t4d4t4_r0l3_t0k3n}\n"
+    }
+  ]
+}

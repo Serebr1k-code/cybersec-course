@@ -831,6 +831,116 @@ add("forensics-cloud-serverless", "Практика: разбор Lambda-соб�
      "invoker=unknown — несанкционированный вызов.",
      "`grep nto lambda_invoke.log > answer.txt`."])
 
+# --- remaining generic-boilerplate labs -------------------------------------
+add("forensics-ios-backup", "Практика: разбор iOS-бэкапа",
+    "ios_backup_files.txt",
+    "file_id,domain,relative_path,flags\n"
+    "a1b2,AppDomain-com.apple.mail,Library/Mail/1.emlx,ok\n"
+    "c3d4,CameraRoll,DCMI/100APPLE/IMG_0001.JPG,ok\n"
+    "e5f6,AppDomain-com.example.stealer,Documents/config.plist,nto{1os_b4ckup_m4n1f3st_d4t4}\n"
+    "g7h8,HomeDomain,Library/SMS/sms.db,ok\n",
+    "# Задача: найти файл в структуре iOS-бэкапа\n\n"
+    "`ios_backup_files.txt` — строки манифеста iOS-бэкапа (`Manifest.db`):\n"
+    "file_id, домен приложения, путь, флаги. Одна запись — стороннее приложение.\n\n"
+    "1. `cat ios_backup_files.txt` — просмотри записи манифеста.\n"
+    "2. Найди домен приложения, которого нет на штатном iPhone.\n"
+    "3. Выпиши строку с меткой: `grep nto ios_backup_files.txt > answer.txt`.\n",
+    "nto{1os_b4ckup_m4n1f3st_d4t4}",
+    ["iOS-бэкап — дерево файлов + манифест Manifest.db (file_id → domain/path).",
+     "Домен вида `AppDomain-com.example.stealer` — стороннее приложение.",
+     "`grep nto ios_backup_files.txt > answer.txt`."])
+
+add("media-qr-barcode", "Практика: декодированные QR и штрихкоды",
+    "qr_barcodes.txt",
+    "format,value,source\n"
+    "QR,https://example.com/promo,qr.png\n"
+    "QR,https://example.com/pay?to=alice,qr.png\n"
+    "QR,nto{qr_b4rc0d3_p4yl04d},qr.png\n"
+    "Code128,INV-2026-0042,barcode.png\n",
+    "# Задача: найти подозрительный QR-код\n\n"
+    "`qr_barcodes.txt` — результат декодирования QR и штрихкодов с изображений\n"
+    "(формат, значение, источник). Один QR несёт метку-полезную нагрузку.\n\n"
+    "1. `cat qr_barcodes.txt` — просмотри декодированные значения.\n"
+    "2. Найди QR с меткой.\n"
+    "3. Выпиши строку: `grep nto qr_barcodes.txt > answer.txt`.\n",
+    "nto{qr_b4rc0d3_p4yl04d}",
+    ["QR/штрихкод декодируют в текст (zbarimg/сканер) и читают значение.",
+     "Значение QR с меткой — цель.",
+     "`grep nto qr_barcodes.txt > answer.txt`."])
+
+add("web-oracle-db", "Практика: аудит Oracle",
+    "oracle_audit.txt",
+    "ts,user,action,object,status\n"
+    "2026-02-10T04:00:00,APPUSER,SELECT,ORDERS,ok\n"
+    "2026-02-10T04:05:00,APPUSER,SELECT,CUSTOMERS,ok\n"
+    "2026-02-10T04:09:00,SCOTT,EXPORT DATA_PUMP,CUSTOMERS,ok  nto{or4cl3_4ud1t_d4t4_pump}\n"
+    "2026-02-10T04:12:00,APPUSER,INSERT,ORDERS,ok\n",
+    "# Задача: найти выгрузку данных в аудит-логе Oracle\n\n"
+    "`oracle_audit.txt` — записи аудита Oracle СУБД: время, пользователь,\n"
+    "действие, объект, статус. Одно действие — массовый экспорт.\n\n"
+    "1. `cat oracle_audit.txt` — просмотри аудит.\n"
+    "2. Найди действие EXPORT DATA_PUMP с меткой.\n"
+    "3. Выпиши строку: `grep nto oracle_audit.txt > answer.txt`.\n",
+    "nto{or4cl3_4ud1t_d4t4_pump}",
+    ["Аудит Oracle (unified audit) логирует действия над объектами.",
+     "DATA_PUMP export привилегированного пользователя — след выгрузки.",
+     "`grep nto oracle_audit.txt > answer.txt`."])
+
+add("mobile-android-notifications", "Практика: журнал уведомлений Android",
+    "android_notifications.txt",
+    "ts,package,title,text\n"
+    "2026-02-10T08:00:00,com.android.messaging,Anna,See you at 6\n"
+    "2026-02-10T08:01:00,com.example.game,Game,Level up!\n"
+    "2026-02-10T08:02:00,com.unknown.stealer,OTP,nto{andr01d_n0t1f1c4t10n_l34k}\n",
+    "# Задача: найти уведомление подозрительного приложения\n\n"
+    "`android_notifications.txt` — журнал уведомлений Android: время, пакет,\n"
+    "заголовок, текст. Одно уведомление пришло от неизвестного пакета и содержит\n"
+    "код.\n\n"
+    "1. `cat android_notifications.txt` — просмотри уведомления.\n"
+    "2. Найди уведомление от пакета `com.unknown.*`.\n"
+    "3. Выпиши строку с меткой: `grep nto android_notifications.txt > answer.txt`.\n",
+    "nto{andr01d_n0t1f1c4t10n_l34k}",
+    ["Android хранит уведомления в системной БД с пакетом-источником.",
+     "Пакет com.unknown.* с OTP — кража кодов.",
+     "`grep nto android_notifications.txt > answer.txt`."])
+
+add("mobile-ios-keychain-deep", "Практика: элементы iOS Keychain",
+    "ios_keychain_items.txt",
+    "class,service,account,accessible\n"
+    "genp,com.example.app,user@example.com,whenUnlocked\n"
+    "inet,example.com,alice,afterFirstUnlock\n"
+    "genp,com.unknown.stealer,nto{1os_k3ych41n_g3n3r1c_p4ssw0rd},always\n"
+    "cert,Apple Push,aps,whenUnlocked\n",
+    "# Задача: найти утечку в Keychain\n\n"
+    "`ios_keychain_items.txt` — элементы Keychain: класс, сервис, аккаунт,\n"
+    "уровень доступности. Один элемент с подозрительным сервисом и слабой\n"
+    "защитой.\n\n"
+    "1. `cat ios_keychain_items.txt` — просмотри элементы.\n"
+    "2. Найди элемент с `accessible=always` и меткой.\n"
+    "3. Выпиши строку: `grep nto ios_keychain_items.txt > answer.txt`.\n",
+    "nto{1os_k3ych41n_g3n3r1c_p4ssw0rd}",
+    ["Keychain хранит пароли/ключи; класс genp = generic password.",
+     "accessible=always — секрет доступен даже при заблокированном экране.",
+     "`grep nto ios_keychain_items.txt > answer.txt`."])
+
+add("mobile-ios-location", "Практика: история геолокации iOS",
+    "ios_location.txt",
+    "ts,lat,lon,accuracy_m,source\n"
+    "2026-02-10T08:00:00,55.7512,37.6180,10,gps\n"
+    "2026-02-10T09:00:00,55.7520,37.6190,12,gps\n"
+    "2026-02-10T10:00:00,55.7531,37.6205,9999,nto{1os_l0c4t10n_h1st0ry_p1n}\n"
+    "2026-02-10T11:00:00,55.7540,37.6220,8,gps\n",
+    "# Задача: найти аномальную запись геолокации\n\n"
+    "`ios_location.txt` — история геолокации из iOS (significant locations):\n"
+    "время, координаты, точность, источник. Одна запись с абсурдной точностью.\n\n"
+    "1. `cat ios_location.txt` — просмотри трек.\n"
+    "2. Найди запись с accuracy=9999 и меткой.\n"
+    "3. Выпиши строку: `grep nto ios_location.txt > answer.txt`.\n",
+    "nto{1os_l0c4t10n_h1st0ry_p1n}",
+    ["iOS хранит историю значимых мест в своей БД.",
+     "accuracy в метрах; 9999 — подделка/сбой.",
+     "`grep nto ios_location.txt > answer.txt`."])
+
 # ---------------------------------------------------------------------------
 def patch_lesson(slug, spec):
     # locate lesson file by exact id

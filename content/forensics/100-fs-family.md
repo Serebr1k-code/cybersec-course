@@ -70,6 +70,8 @@ lab:
 * `icat image.dd <inode>` — вытащить содержимое файла по inode;
 * `mactime -b bodyfile` — построить таймлайн по MAC-временам.
 
+<!-- lab -->
+
 ## Квиз
 
 ```quiz

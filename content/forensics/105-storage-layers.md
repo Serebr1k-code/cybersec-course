@@ -59,6 +59,23 @@ lab:
 | QCOW2 | `QFI\xfb` | `qemu-img`, `qemu-nbd` |
 | VHD | `conectix` в конце | `qemu-img`, `guestfish` |
 
+## Инструмент: pvs и pvscan (LVM)
+
+Прежде чем читать логические тома, нужно найти физические. Это делают
+`pvscan` (обзор) и `pvs` (таблица):
+
+```
+$ pvscan pv.img
+  PV /dev/loop0  VG vg0  lvm2 [1.00 GiB / 0 free]
+$ pvs pv.img
+  PV         VG   Fmt  Attr PSize   PFree
+  pv.img     vg0  lvm2 a--  1.00g      0
+```
+
+`LABELONE` в секторе 1 и строка `LVM2 001` — подпись Physical Volume. Собрав
+цепочку PV → VG → LV, вы получаете логический том, который и нужно
+проанализировать; ниже виртуального тома может лежать ещё слой (QCOW2).
+
 ## Квиз
 
 ```quiz

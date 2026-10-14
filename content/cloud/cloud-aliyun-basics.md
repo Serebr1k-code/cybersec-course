@@ -2,9 +2,9 @@
 id: cloud-aliyun-basics
 title: 'Alibaba Cloud (Aliyun): RAM, STS и confused deputy'
 category: cloud
-parent: cloud-provider-breadth
+parent: cloud-aliyun-deep
 difficulty: hard
-order: 2
+order: 1
 tags: [cloud, alibaba, aliyun, ram, sts, oss, metadata]
 prerequisites: [cloud-provider-deep]
 useful_for:

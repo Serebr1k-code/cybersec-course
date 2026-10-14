@@ -137,6 +137,8 @@ intitle:"Jenkins" "Dashboard"
 filetype:sql "INSERT INTO"
 ```
 
+<!-- lab -->
+
 ## Что мы теперь знаем
 
 По-простому:

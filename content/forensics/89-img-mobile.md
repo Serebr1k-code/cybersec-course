@@ -47,6 +47,23 @@ lab:
 - Находить ключевые артефакты (сообщения, вызовы, приложения, геоданные).
 - Понимать ограничения шифрования и бэкапов.
 
+## Инструмент: simg2img (Android sparse image)
+
+Образ `userdata.img` из Android часто не «сырой», а sparse — с разрежённым
+форматом, где подряд идут заголовки и блоки данных. Его нельзя читать как
+обычный диск, пока не развернёшь:
+
+```
+$ xxd -l 4 userdata.img
+00000000: 3aff 26ed                                :.&.
+$ simg2img userdata.img userdata.raw
+$ file userdata.raw
+userdata.raw: Linux rev 1.0 ext4 filesystem data
+```
+
+Магия `3a ff 26 ed` — признак Android sparse image. `simg2img` превращает его
+в обычный raw-образ, с которым работают все остальные инструменты.
+
 ## Квиз
 
 ```quiz

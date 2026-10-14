@@ -52,6 +52,23 @@ lab:
 - Анализировать историю браузера как источник активности.
 - Доказывать подключение конкретного USB-устройства.
 
+## Инструмент: RegRipper (rip.pl)
+
+Кусты реестра — бинарные (`regf`); читает их RegRipper плагинами:
+
+```
+$ xxd -l 4 SOFTWARE
+00000000: 7265 6766                                regf
+$ rip.pl -r SOFTWARE -p soft_run
+soft_run v.20200525
+SOFTWARE\Microsoft\Windows\CurrentVersion\Run
+  LastWrite Time 2026-02-10 09:14:03Z
+  Updater -> C:\Users\Public\upd.exe
+```
+
+Плагин `soft_run` печатает ключ автозапуска Run с временем последней записи.
+Именно связка «значение Run + LastWrite Time» доказывает закрепление в системе.
+
 ## Квиз
 
 ```quiz

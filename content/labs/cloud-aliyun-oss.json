@@ -1,0 +1,27 @@
+{
+  "id": "cloud-aliyun-oss",
+  "workdir": "/home/student/aliyun-oss",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/aliyun-oss/found.txt",
+    "contains": "nto{publ1c_buck3t_p0l1cy_4n0n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/aliyun-oss",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/aliyun-oss/task.md",
+      "text": "# Задача\n\nДан файл bucket policy бакета Alibaba OSS. Определи, открыт ли бакет анонимно и какие действия разрешены, затем собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/aliyun-oss/bucket-policy.json",
+      "text": "{\n  \"Version\": \"1\",\n  \"Statement\": [\n    {\"Effect\": \"Allow\",\n     \"Principal\": [\"*\"],\n     \"Action\": [\"oss:GetObject\", \"oss:ListObjects\"],\n     \"Resource\": [\"acs:oss:*:*:prod-data/*\"]}\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/aliyun-oss/notes.md",
+      "text": "Разбор OSS:\n\n- Principal: [\"*\"] -> доступ анонимный\n- Action: oss:GetObject + oss:ListObjects -> чтение и листинг\n- ACL бакета: public-read\n- версионирование включено\n\nОстаток заметки: nto{publ1c_buck3t_p0l1cy_4n0n}\n"
+    }
+  ]
+}

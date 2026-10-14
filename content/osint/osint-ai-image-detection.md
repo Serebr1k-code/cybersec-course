@@ -169,6 +169,8 @@ python3 -c "import numpy as np;from PIL import Image;print(np.fft.fft2(np.array(
 
 **C2PA** — манифест происхождения, часто помечающий синтетику.
 
+<!-- lab -->
+
 ## Что мы теперь знаем
 
 1. Метаданные генератора — прямое доказательство.

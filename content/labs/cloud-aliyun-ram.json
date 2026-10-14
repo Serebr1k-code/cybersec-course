@@ -1,0 +1,27 @@
+{
+  "id": "cloud-aliyun-ram",
+  "workdir": "/home/student/aliyun-ram",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/aliyun-ram/found.txt",
+    "contains": "nto{r4m_p0l1cy_0ss_st4r_4dm1n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/aliyun-ram",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/aliyun-ram/task.md",
+      "text": "# Задача\n\nНайден AccessKey Alibaba Cloud и конфиг с RAM-политикой и ролью. Определи, какая политика даёт широкие права и кому доверяет роль, затем собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/aliyun-ram/ram.json",
+      "text": "{\n  \"Policy\": {\"Statement\": [\n    {\"Effect\": \"Allow\", \"Action\": \"oss:*\", \"Resource\": \"*\"},\n    {\"Effect\": \"Allow\", \"Action\": \"ram:GetRole\", \"Resource\": \"*\"}\n  ]},\n  \"Role\": {\n    \"Name\": \"DeployRole\",\n    \"TrustPolicy\": {\"Principal\": {\"Service\": \"ecs.aliyuncs.com\"}}\n  }\n}\n"
+    },
+    {
+      "path": "/home/student/aliyun-ram/notes.md",
+      "text": "Разбор RAM:\n\n- политика: Action oss:* над Resource * -> полный доступ к OSS\n- роль DeployRole: TrustPolicy доверяет ecs.aliyuncs.com\n- любой ECS-инстанс может взять роль (confused deputy)\n- ключ не ротировался 300 дней\n\nОстаток заметки: nto{r4m_p0l1cy_0ss_st4r_4dm1n}\n"
+    }
+  ]
+}

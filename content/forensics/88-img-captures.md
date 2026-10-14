@@ -70,6 +70,22 @@ $ tshark -r capture.pcap -nn
 
 Подсказка из лаборатории: `tshark -r <pcap> [-nn] [-q -z follow,...] — разбор дампа`.
 
+## Инструмент: Volatility (vol)
+
+Дамп памяти разбирают Volatility 3 командой `vol` — плагинами:
+
+```
+$ vol -f mem.raw windows.pslist
+PID    PPID   ImageFileName   Offset(V)   ...
+4      0      System          0x8a0b…
+612    4      smss.exe        0x8a1c…
+```
+
+`windows.pslist` — процессы, `windows.netscan` — сетевые соединения,
+`windows.cmdline` — аргументы запуска. Снимок диска/памяти фиксирует
+волатильные данные, которые не переживут выключение, поэтому память снимают
+первой.
+
 ## Квиз
 
 ```quiz

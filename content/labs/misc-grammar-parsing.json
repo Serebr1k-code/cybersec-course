@@ -1,0 +1,19 @@
+{
+  "id": "misc-grammar-parsing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `grammar.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/grammar.txt",
+      "text": "grammar notes\ngrammar: nonterminal -> terminals/nonterminals\nLL top-down, LR bottom-up, PEG ordered choice\ngenerators: yacc/bison (LR), ANTLR (LL), Lark/Pest (PEG)\nnested brackets are not regular\nflag:bnRve2dyNG1tNHJfcDRyczNyX3AzZ30=\n"
+    }
+  ]
+}

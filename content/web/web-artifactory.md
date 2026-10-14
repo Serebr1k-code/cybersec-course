@@ -98,6 +98,8 @@ $ curl -s 'http://artifactory.target.example:8082/artifactory/docker-local/v2/_c
 
 Из Artifactory достают: артефакты с секретами, конфиги прокси-репозиториев с кредами к внешним системам, docker-образы, Helm-чарты (иногда с секретами Kubernetes). Плюс через права загрузки — возможность подсунуть свой артефакт (supply-chain).
 
+<!-- lab -->
+
 ## Что мы теперь знаем
 
 - Artifactory — менеджер артефактов под `/artifactory/api/`.

@@ -54,6 +54,22 @@ waystone_tasks: [forensics-carving, forensics-archives, forensics-filesystems, f
 - Строить единый таймлайн из логов и артефактов.
 - Отличать нормальные события от признаков компромисса.
 
+## Инструмент: evtx_dump (разбор EVTX)
+
+Windows-журнал `.evtx` — бинарный; в текст его переводит `evtx_dump` из
+python-evtx:
+
+```
+$ xxd -l 7 Security.evtx
+00000000: 456c 6646 696c 65                      ElfFile
+$ evtx_dump.py Security.evtx -o events.json
+$ grep -o '"EventID":[0-9]*' events.json | sort | uniq -c
+```
+
+Магия `ElfFile` — подпись формата EVTX. На выходе — JSON, где по `EventID`
+ищут события: 4624 — вход в систему, 4688 — создание процесса, 1102 —
+очистка журнала.
+
 ## Квиз
 
 ```quiz

@@ -1,0 +1,19 @@
+{
+  "id": "misc-regex-engines",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `patterns.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/patterns.txt",
+      "text": "regex engine notes\nPCRE: backtracking, supports backreferences, vulnerable to ReDoS\nRE2: automata-based, linear time, no backreferences\noniguruma: backtracking engine used by many tools\nparser differential: WAF (RE2) vs app (PCRE)\nflag:bnRve3IzZzN4XzNuZzFuM19wY3JjX3ZzX3IzMn0=\n"
+    }
+  ]
+}

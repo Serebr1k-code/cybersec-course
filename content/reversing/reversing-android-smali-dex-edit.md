@@ -139,6 +139,8 @@ objdump: classes.dex: file format not recognized
 
 Подсказка из лаборатории: `objdump [-d] <файл> — не применимо к DEX`.
 
+<!-- lab -->
+
 ## Что мы теперь знаем
 
 - smali — текстовое представление байткода Dalvik; DEX — его бинарная форма.

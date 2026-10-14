@@ -1,0 +1,27 @@
+{
+  "id": "cloud-oci-object-storage",
+  "workdir": "/home/student/oci-obj",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/oci-obj/found.txt",
+    "contains": "nto{p4r_4ny_r34dwr1t3_n0_3xp1ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/oci-obj",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/oci-obj/task.md",
+      "text": "# Задача\n\nВ логах CI найдены ссылки на OCI Object Storage. Определи, какая из них — pre-authenticated request с широкими правами, и собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/oci-obj/urls.txt",
+      "text": "https://objectstorage.eu-frankfurt-1.oraclecloud.com/n/acme/b/backups/o/db-2024.tar.gz\nhttps://objectstorage.eu-frankfurt-1.oraclecloud.com/p/AbCdEf123456/n/acme/b/backups/o/\n"
+    },
+    {
+      "path": "/home/student/oci-obj/notes.md",
+      "text": "Разбор ссылок:\n\n- /n/acme/b/backups/o/db-2024.tar.gz -> обычный путь, нужна авторизация\n- /p/AbCdEf123456/n/acme/b/backups/o/ -> PAR, target=бакет\n\nПараметры PAR:\n  access-type: AnyObjectReadWrite\n  expiry: (пусто)\n\nОстаток заметки: nto{p4r_4ny_r34dwr1t3_n0_3xp1ry}\n"
+    }
+  ]
+}

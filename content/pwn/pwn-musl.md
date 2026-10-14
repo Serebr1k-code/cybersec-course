@@ -155,6 +155,23 @@ $ apk add build-base
 
 Musl используется в Docker/Alpine, поэтому навык востребован в контейнерной безопасности: контейнерные цели всё чаще собираются на musl, и умение работать с `mallocng` отличает специалиста, готового к реальным контейнерам, от того, кто знает только glibc.
 
+## Инструмент: readelf
+
+`readelf` показывает заголовки ELF без запуска файла. Для статического бинаря
+динамической секции нет вовсе:
+
+```
+$ file chall
+chall: ELF 64-bit LSB executable, statically linked, stripped
+$ readelf -d chall
+There is no dynamic section in this file.
+$ readelf -h chall | grep Entry
+  Entry point address: 0x401000
+```
+
+Отсутствие `NEEDED`-записей и `PT_INTERP` означает, что библиотеки вкомпилены:
+эксплуатация идёт не через PLT/GOT, а через прямые syscall-гаджеты.
+
 ## Квиз
 
 Проверь себя.

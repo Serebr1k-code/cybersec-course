@@ -1,0 +1,27 @@
+{
+  "id": "cloud-ibm-cos",
+  "workdir": "/home/student/ibm-cos",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/ibm-cos/found.txt",
+    "contains": "nto{1bm_c0s_hm4c_s3_c0mp4t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/ibm-cos",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/ibm-cos/task.md",
+      "text": "# Задача\n\nВ конфиге приложения на IBM Cloud найдены HMAC-ключи для Cloud Object Storage. Определи, как обратиться к COS, и собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/ibm-cos/cos-credentials.json",
+      "text": "{\n  \"apikey\": \"EXAMPLEnotarealapikey\",\n  \"cos_hmac_keys\": {\n    \"access_key_id\": \"EXAMPLEACCESSKEY\",\n    \"secret_access_key\": \"EXAMPLEnotarealsecret\"\n  },\n  \"endpoints\": \"https://s3.eu-de.cloud-object-storage.appdomain.cloud\"\n}\n"
+    },
+    {
+      "path": "/home/student/ibm-cos/notes.md",
+      "text": "Разбор IBM COS:\n\n- COS совместим с S3-API -> работает aws-cli с --endpoint-url\n- HMAC-ключи привязаны к сервисному ID\n- у сервисного ID роль Manager на COS\n- bucket policy разрешает анонимный ListBucket\n\nОстаток заметки: nto{1bm_c0s_hm4c_s3_c0mp4t}\n"
+    }
+  ]
+}

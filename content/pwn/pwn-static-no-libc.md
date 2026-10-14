@@ -169,6 +169,21 @@ payload = b'A'*offset + b'\x26\x11'   # только 2 младших байта
 - SROP восстанавливает все регистры одним `rt_sigreturn`.
 - Partial overwrite обходит PIE без утечки.
 
+## Инструмент: readelf
+
+`readelf` разбирает заголовки статического ELF. Ключевое отличие от
+динамического — отсутствие интерпретатора:
+
+```
+$ readelf -l staticapp | grep -i interp
+$ readelf -h staticapp | grep Entry
+  Entry point address: 0x401000
+```
+
+Пустой вывод по `INTERP` означает, что динамического линкера нет, и точка
+входа `e_entry` задаёт старт программы. Тогда для RCE используют прямые
+syscall-гаджеты (`syscall; ret`) вместо вызовов libc.
+
 ## Квиз
 
 Проверь себя.

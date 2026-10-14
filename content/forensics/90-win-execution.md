@@ -52,6 +52,24 @@ lab:
 - Связывать ярлыки с томами и сетевыми путями.
 - Извлекать артефакты WMI и понимать их роль в атаках.
 
+## Инструмент: PECmd (разбор Prefetch)
+
+Файл Prefetch (`*.pf`) доказывает, что программа запускалась. Читают его
+утилитой PECmd:
+
+```
+$ PECmd POWERSHELL.EXE-1A2B3C4D.pf
+POWERSHELL.EXE-1A2B3C4D.pf
+  Run count:   3
+  Last run:    2026-02-10 09:14:03
+  Volume:      \VOLUME{...}
+  Directories: \DEVICE\HARDDISKVOLUME2\WINDOWS\SYSTEM32
+```
+
+Магия `SCCA` в начале файла подтверждает формат. Сопоставив `Run count` и
+время последнего запуска с AmCache, можно доказать факт исполнения даже без
+других следов.
+
 ## Квиз
 
 ```quiz

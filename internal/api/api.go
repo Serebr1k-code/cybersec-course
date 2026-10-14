@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"learningtree/internal/auth"
 	"learningtree/internal/content"
 	"learningtree/internal/model"
 	"learningtree/internal/progress"
@@ -21,11 +22,28 @@ type Server struct {
 	Content   *content.Store
 	Progress  *progress.Store
 	StaticDir string
+
+	// Auth is optional: when nil the server runs in anonymous-only mode
+	// (the legacy behaviour), so existing deployments keep working untouched.
+	Auth     *auth.Store
+	Sessions *auth.Sessions
+}
+
+// Option customises a Server at construction time.
+type Option func(*Server)
+
+// WithAuth enables server-side accounts backed by the given store/signer.
+func WithAuth(a *auth.Store, sess *auth.Sessions) Option {
+	return func(s *Server) { s.Auth = a; s.Sessions = sess }
 }
 
 // New builds a server.
-func New(c *content.Store, p *progress.Store, staticDir string) *Server {
-	return &Server{Content: c, Progress: p, StaticDir: staticDir}
+func New(c *content.Store, p *progress.Store, staticDir string, opts ...Option) *Server {
+	s := &Server{Content: c, Progress: p, StaticDir: staticDir}
+	for _, o := range opts {
+		o(s)
+	}
+	return s
 }
 
 // Handler returns the root HTTP handler.
@@ -33,6 +51,10 @@ func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/health", s.handleHealth)
 	mux.HandleFunc("GET /api/meta", s.handleMeta)
+	mux.HandleFunc("POST /api/auth/register", s.handleRegister)
+	mux.HandleFunc("POST /api/auth/login", s.handleLogin)
+	mux.HandleFunc("POST /api/auth/logout", s.handleLogout)
+	mux.HandleFunc("GET /api/auth/me", s.handleMe)
 	mux.HandleFunc("GET /api/tree", s.handleTree)
 	mux.HandleFunc("GET /api/lessons", s.handleLessons)
 	mux.HandleFunc("GET /api/lessons/{id}", s.handleLesson)
@@ -68,16 +90,22 @@ func readJSON(r *http.Request, v any) error {
 	return json.NewDecoder(r.Body).Decode(v)
 }
 
-// userID returns the caller's anonymous id, creating a cookie if absent.
+// userID returns the caller's progress key. When the request carries a valid
+// session (Bearer header or lt_session cookie) it is the authenticated account's
+// namespaced id; otherwise it falls back to the legacy anonymous lt_uid cookie,
+// which is created on demand so logged-out usage keeps working exactly as before.
 func (s *Server) userID(w http.ResponseWriter, r *http.Request) string {
-	if c, err := r.Cookie("lt_uid"); err == nil && c.Value != "" {
+	if u, ok := s.currentUser(r); ok {
+		return progressKeyForUser(u.ID)
+	}
+	if c, err := r.Cookie(anonCookieName); err == nil && c.Value != "" {
 		return c.Value
 	}
 	b := make([]byte, 12)
 	_, _ = rand.Read(b)
 	id := hex.EncodeToString(b)
 	http.SetCookie(w, &http.Cookie{
-		Name: "lt_uid", Value: id, Path: "/", MaxAge: 60 * 60 * 24 * 365, SameSite: http.SameSiteLaxMode,
+		Name: anonCookieName, Value: id, Path: "/", MaxAge: 60 * 60 * 24 * 365, SameSite: http.SameSiteLaxMode,
 	})
 	return id
 }

@@ -1,0 +1,31 @@
+{
+  "id": "cloud-oci-functions",
+  "workdir": "/home/student/oci-fn",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/oci-fn/found.txt",
+    "contains": "nto{r3s0urc3_pr1nc1p4l_t4k30v3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/oci-fn",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/oci-fn/task.md",
+      "text": "# Задача\n\nДан конфиг и код serverless-функции OCI. Определи, от чьего имени функция получает доступ к бакету, и собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/oci-fn/func-config.json",
+      "text": "{\n  \"application\": \"reports\",\n  \"function\": \"render-report\",\n  \"dynamic_group\": \"fn-reports\",\n  \"memory_mb\": 256,\n  \"config\": {\"BUCKET\": \"reports\", \"PREFIX\": \"daily/\"}\n}\n"
+    },
+    {
+      "path": "/home/student/oci-fn/func.py",
+      "text": "import principal\n\ndef handler(ctx, data):\n    p = principal.get_resource_principal()\n    return render(data)\n"
+    },
+    {
+      "path": "/home/student/oci-fn/notes.md",
+      "text": "Разбор:\n\n- функция входит в dynamic group fn-reports\n- ключей в коде нет, доступ даёт resource principal\n- политика группы: manage objects in compartment Reports\n- инъекция в render() выполняет код под resource principal\n\nОстаток заметки: nto{r3s0urc3_pr1nc1p4l_t4k30v3r}\n"
+    }
+  ]
+}

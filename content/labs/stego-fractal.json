@@ -1,0 +1,40 @@
+{
+  "id": "stego-fractal",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{fr4ct4l_1fs_p4r4m}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: данные в параметрах фрактала\n\n`fractal.py` строит фрактал из коэффициентов IFS и печатает встроенное сообщение. Извлеки его.\n\n1. `python3 fractal.py` — параметры и извлечение.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/fractal.py",
+      "text": "print('IFS: 4 affine maps')\nprint('coefficients: 24')\nprint('bits available: 24')\nprint('nto{fr4ct4l_1fs_p4r4m}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "fractal\\.py",
+          "example": "python3 fractal.py",
+          "output": "IFS: 4 affine maps\ncoefficients: 24\nbits available: 24\nnto{fr4ct4l_1fs_p4r4m}\n"
+        }
+      ]
+    }
+  }
+}

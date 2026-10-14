@@ -164,6 +164,8 @@ ELF Header:
 
 Подсказка из лаборатории: `readelf [-h | -sW | -lW] <файл> — (replay)`.
 
+<!-- lab -->
+
 ## Что мы теперь знаем
 
 - На AArch64 используется **тот же glibc-аллокатор** — chunk, tcache, safe-linking переносятся с x86-64.

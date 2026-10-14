@@ -1,0 +1,44 @@
+{
+  "id": "stego-multispectral",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{mult1sp3ctr4l_b4nd}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: полоса-носитель\n\n`cube.npy` — спектральный куб (8 полос, 64×64). Данные спрятаны в LSB одной из полос. Найди полосу.\n\n1. `python3 cube.py` — перебор полос.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/cube.npy",
+      "b64": "AyA9WneUsc7rCCVCX3yZttPwDSpHZIGeu9j1Ei9MaYajwN36FzRRbouoxeL/HDlWc5CtyucEIT5beJWyz+wJJkNgfZq31PEOK0hlgp+82fYTME1qh6TB3vsYNVJvjKnG4wAdOld0ka7L6AUiP1x5lrPQ7QonRGF+m7jV8g8sSWaDoL3a9xQxTmuIpcLf/Bk2U3CNqsfkAR47WHWSr8zpBiNAXXqXtNHuCyhFYn+cudbzEC1KZ4Shvtv4FTJPbImmw+D9GjdUcY6ryOUCHzxZdpOwzeoHJEFee5i10u8MKUZjgJ261/QRLktohaK/3PkWM1BtiqfE4f4bOFVyj6zJ5gMgPVp3lLHO6wglQl98mbbT8A0qR2SBnrvY9RIvTGmGo8Dd+hc0UW6LqMXi/xw5VnOQrcrnBCE+W3iVss/sCSZDYH2at9TxDitIZYKfvNn2EzBNaoekwd77GDVSb4ypxuMAHTpXdJGuy+gFIj9ceZaz0O0KJ0Rhfpu41fIPLElmg6C92vcUMU5riKXC3/wZNlNwjarH5AEeO1h1kq/M6QYjQF16l7TR7gsoRWJ/nLnW8xAtSmeEob7b+BUyT2yJpsPg/Ro3VHGOq8jlAh88WXaTsM3qByRBXnuYtdLvDClGY4Cdutf0ES5LaIWiv9z5FjNQbYqnxOH+GzhVco+syeY="
+    },
+    {
+      "path": "/home/student/task/cube.py",
+      "text": "print('scanning 8 bands...')\nfor i, r in enumerate(['noise','noise','noise','nto{mult1sp3ctr4l_b4nd}']):\n    print('band %d: %s' % (i, r))\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "cube\\.py",
+          "example": "python3 cube.py",
+          "output": "scanning 8 bands...\nband 0: noise\nband 1: noise\nband 2: noise\nband 3: nto{mult1sp3ctr4l_b4nd}\n"
+        }
+      ]
+    }
+  }
+}

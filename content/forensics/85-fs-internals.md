@@ -52,6 +52,31 @@ lab:
 - Ориентироваться в структуре APFS и понимать её влияние на восстановление данных.
 - Переходить к следующему модулю ветки — работе с образами (acquisition).
 
+## Инструмент: dumpe2fs и debugfs (ext2/3/4)
+
+Параметры суперблока ext-ФС читает `dumpe2fs`:
+
+```
+$ dumpe2fs ext4.img
+Filesystem volume name:   <none>
+Filesystem features:      has_journal ext_attr resize_inode
+Inode count:              8192
+Journal inode:            8
+```
+
+А `debugfs` даёт доступ к структурам напрямую — в том числе к списку удалённых
+inode (`lsdel`) и чтению файла по пути:
+
+```
+$ debugfs -R "lsdel" ext4.img
+ Inode  Owner  Mode    Size    Blocks   Time deleted
+  12   1000  100644   40      1      ...
+$ debugfs -R "cat /secret.txt" ext4.img
+```
+
+Именно `lsdel` показывает, что после удаления данные ещё живы в невыделенных
+блоках, а журнал (`Journal inode`) хранит недавние метаданные.
+
 ## Квиз
 
 ```quiz

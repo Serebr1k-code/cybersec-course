@@ -92,6 +92,8 @@ $ strings -n 5 libnative.so | grep nto
 nto{jni_r3g1st3rn4t1v3s_symb0ls}
 ```
 
+<!-- lab -->
+
 ## Что мы теперь знаем
 
 - JNI-методы связываются по имени (`Java_<pkg>_<cls>_<meth>`) или через `RegisterNatives`.

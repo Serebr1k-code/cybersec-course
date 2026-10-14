@@ -1,0 +1,44 @@
+{
+  "id": "stego-thermal-ir",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{th3rm4l_1r_16b1t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: LSB в 16-битном ИК-кадре\n\n`thermal.raw` — 16-битные little-endian сэмплы температуры. Извлеки сообщение из младших битов значений.\n\n1. `python3 thermal.py` — чтение LSB uint16.\n2. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/thermal.raw",
+      "b64": "BRYnOElaa3yNnq/A0eLzBBUmN0hZanuMna6/0OHyAxQlNkdYaXqLnK2+z+DxAhMkNUZXaHmKm6y9zt/wARIjNEVWZ3iJmqu8zd7vABEiM0RVZneImaq7zN3u/xAhMkNUZXaHmKm6y9zt/g8gMUJTZHWGl6i5ytvs/Q4fMEFSY3SFlqe4ydrr/A0eL0BRYnOElaa3yNnq+wwdLj9QYXKDlKW2x9jp+gscLT5PYHGCk6S1xtfo+QobLD1OX3CBkqO0xdbn+AkaKzxNXm+AkaKzxNXm9wgZKjtMXW5/kKGyw9Tl9gcYKTpLXG1+j6CxwtPk9QYXKDlKW2x9jp+wwdLj9AUWJzhJWmt8jZ6vwNHi8wQVJjdIWWp7jJ2uv9Dh8gMUJTZHWGl6i5ytvs/g8QITJDVGV2h5ipusvc7f8AESIzRFVmd4iZqrvM3e7wARIjNEVWZ3iJmqu8zd7v8QITJDVGV2h5ipusvc7f4PIDFCU2R1hpeoucrb7P0OHzBBUmN0hZanuMna6/wNHi9AUWJzhJWmt8jZ6vsMHS4/UGFyg5SltsfY6foLHC0+T2BxgpOktcbX6PkKGyw9Tl9wgZKjtMXW5/gJGis8TV5vgJGis8TV5vcIGSo7TF1uf5ChssPU5fYHGCk6S1xtfo+gscLT5PUGFyg5SltsfY6fsMHS4/QFFic4SVprfI2er8DR4vMEFSY3SFlqe4ydrr/Q4fIDFCU2R1hpeoucrb7P4PECEyQ1RldoeYqbrL3O3/ABEiM0RVZneImaq7zN3u8AESIzRFVmd4iZqrvM3e7/ECEyQ1RldoeYqbrL3O3+DyAxQlNkdYaXqLnK2+z9Dh8wQVJjdIWWp7jJ2uv8DR4vQFFic4SVprfI2er7DB0uP1BhcoOUpbbH2On6CxwtPk9gcYKTpLXG1+j5ChssPU5fcIGSo7TF1uf4CRorPE1eb4CRorPE1eb3CBkqO0xdbn+QobLD1OX2BxgpOktcbX6PoLHC0+T1BhcoOUpbbH2On7DB0uP0BRYnOElaa3yNnq/A0eLzBBUmN0hZanuMna6/0OHyAxQlNkdYaXqLnK2+z+DxAhMkNUZXaHmKm6y9zt/wARIjNEVWZ3iJmqu8zd7vABEiM0RVZneImaq7zN3u/xAhMkNUZXaHmKm6y9zt/g8gMUJTZHWGl6i5ytvs/Q4fMEFSY3SFlqe4ydrr/A0eL0BRYnOElaa3yNnq+wwdLj9QYXKDlKW2x9jp+gscLT5PYHGCk6S1xtfo+QobLD1OX3CBkqO0xdbn+AkaKzxNXm+AkaKzxNXm9wgZKjtMXW5/kKGyw9Tl9gcYKTpLXG1+j6CxwtPk9QYXKDlKW2x9jp+wwdLj9A=="
+    },
+    {
+      "path": "/home/student/task/thermal.py",
+      "text": "print('dtype: uint16, endian: little')\nprint('pixels: 65536')\nprint('nto{th3rm4l_1r_16b1t}')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "thermal\\.py",
+          "example": "python3 thermal.py",
+          "output": "dtype: uint16, endian: little\npixels: 65536\nnto{th3rm4l_1r_16b1t}\n"
+        }
+      ]
+    }
+  }
+}

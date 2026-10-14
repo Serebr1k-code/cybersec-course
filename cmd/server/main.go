@@ -6,9 +6,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"learningtree/internal/api"
+	"learningtree/internal/auth"
 	"learningtree/internal/content"
 	"learningtree/internal/progress"
 )
@@ -28,7 +30,20 @@ func main() {
 	log.Printf("loaded %d lessons across %d categories", tree.Total, len(tree.Categories))
 
 	prog := progress.NewStore(*dataDir)
-	srv := api.New(store, prog, *staticDir)
+
+	// Server-side accounts: users.json + a persisted HMAC key so sessions
+	// survive a restart. When the key cannot be created we fall back to
+	// anonymous-only mode rather than refusing to boot.
+	var opts []api.Option
+	authStore := auth.NewStore(*dataDir)
+	secret, err := auth.LoadOrCreateSecret(filepath.Join(*dataDir, "session.key"))
+	if err != nil {
+		log.Printf("warning: session key unavailable (%v); accounts disabled", err)
+	} else {
+		opts = append(opts, api.WithAuth(authStore, auth.NewSessions(secret, auth.DefaultSessionTTL)))
+	}
+
+	srv := api.New(store, prog, *staticDir, opts...)
 
 	httpSrv := &http.Server{
 		Addr:              *addr,

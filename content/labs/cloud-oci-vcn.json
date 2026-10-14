@@ -1,0 +1,27 @@
+{
+  "id": "cloud-oci-vcn",
+  "workdir": "/home/student/oci-vcn",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/oci-vcn/found.txt",
+    "contains": "nto{0p3n_ssh_4nd_rdp_2_w0rld}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/oci-vcn",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/oci-vcn/task.md",
+      "text": "# Задача\n\nДан конфиг сети OCI (подсеть, security list, маршруты). Найди, какие управляющие порты открыты всему интернету, и собери флаг из заметок.\n\nЗапиши флаг в found.txt в виде строки `nto{...}`.\n"
+    },
+    {
+      "path": "/home/student/oci-vcn/vcn.json",
+      "text": "{\n  \"vcn\": \"prod-vcn\",\n  \"subnet\": \"public-subnet\",\n  \"route_table\": [\"0.0.0.0/0 -> Internet Gateway\"],\n  \"security_list\": [\n    {\"protocol\": \"tcp\", \"port\": 22,   \"source\": \"0.0.0.0/0\"},\n    {\"protocol\": \"tcp\", \"port\": 3389, \"source\": \"0.0.0.0/0\"},\n    {\"protocol\": \"tcp\", \"port\": 1521, \"source\": \"10.0.0.0/16\"}\n  ]\n}\n"
+    },
+    {
+      "path": "/home/student/oci-vcn/notes.md",
+      "text": "Разбор сети:\n\n- публичная подсеть, маршрут 0.0.0.0/0 -> Internet Gateway\n- 22/tcp и 3389/tcp открыты из 0.0.0.0/0 -> брутфорс SSH/RDP\n- 1521/tcp (Oracle DB) только из внутренней сети\n- NSG отсутствует, фильтрация одна\n\nОстаток заметки: nto{0p3n_ssh_4nd_rdp_2_w0rld}\n"
+    }
+  ]
+}

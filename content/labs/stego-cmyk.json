@@ -1,0 +1,44 @@
+{
+  "id": "stego-cmyk",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cmyk_k_ch4nn3l}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: данные в CMYK-канале\n\n`page.tif` — CMYK-изображение (4 канала). Данные спрятаны в LSB одного из каналов. Найди канал и извлеки сообщение.\n\n1. `python3 cmyk.py` — чтение LSB каждого канала.\n2. Определи, в каком канале осмысленный текст.\n3. Запиши флаг в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/page.tif",
+      "b64": "BxQhLjtIVWJvfImWo7C9ytfk8f4LGCUyP0xZZnOAjZqntMHO2+j1Ag8cKTZDUF1qd4SRnqu4xdLf7PkGEyAtOkdUYW57iJWir7zJ1uPw/QoXJDE+S1hlcn+MmaazwM3a5/QBDhsoNUJPXGl2g5CdqrfE0d7r+AUSHyw5RlNgbXqHlKGuu8jV4u/8CRYjMD1KV2RxfouYpbK/zNnm8wANGic0QU5baHWCj5yptsPQ3er3BBEeKzhFUl9seYaToK26x9Th7vsIFSIvPElWY3B9ipeksb7L2OXy/wwZJjNATVpndIGOm6i1ws/c6fYDEB0qN0RRXmt4hZKfrLnG0+Dt+gcUIS47SFVib3yJlqOwvcrX5PH+CxglMj9MWWZzgI2ap7TBztvo9QIPHCk2Q1BdaneEkZ6ruMXS3+z5BhMgLTpHVGFue4iVoq+8ydbj8P0KFyQxPktYZXJ/jJmms8DN2uf0AQ4bKDVCT1xpdoOQnaq3xNHe6/gFEh8sOUZTYG16h5ShrrvI1eLv/AkWIzA9SldkcX6LmKWyv8zZ5vMADRonNEFOW2h1go+cqbbD0N3q9wQRHis4RVJfbHmGk6CtusfU4e77CBUiLzxJVmNwfYqXpLG+y9jl8v8MGSYzQE1aZ3SBjpuotcLP3On2AxAdKjdEUV5reIWSn6y5xtPg7fo="
+    },
+    {
+      "path": "/home/student/task/cmyk.py",
+      "text": "print('C b\\'\\\\x8f...\\'')\nprint('M b\\'\\\\x12...\\'')\nprint('Y b\\'\\\\x00...\\'')\nprint('K b\\'nto{cmyk_k_ch4nn3l}\\'')\n"
+    }
+  ],
+  "tools": {
+    "python3": {
+      "help": "python3 <скрипт.py> — интерпретатор Python (эмуляция, вывод реального запуска)",
+      "cases": [
+        {
+          "match": "--version|^-V$",
+          "example": "python3 --version",
+          "output": "Python 3.12.4"
+        },
+        {
+          "match": "cmyk\\.py",
+          "example": "python3 cmyk.py",
+          "output": "C b'\\x8f\\xd1...'\nM b'\\x12\\xa0...'\nY b'\\x00\\x00...'\nK b'nto{cmyk_k_ch4nn3l}'\n"
+        }
+      ]
+    }
+  }
+}

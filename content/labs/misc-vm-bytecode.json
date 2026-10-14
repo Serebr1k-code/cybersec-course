@@ -1,0 +1,19 @@
+{
+  "id": "misc-vm-bytecode",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `bytecode.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/bytecode.txt",
+      "text": "VM bytecode notes\ndispatch loop: op = code[pc++]; switch(op)\nopcodes: 01 push, 02 pop, 03 add, 04 cmp, 05 jz, 06 jnz, ff halt\nflag check is a sequence of cmp + branches\nwrite a python interpreter to run the bytecode\nflag:bnRve3ZtX2J5dDNjMGQzX2Qxc3A0dGNoX2wwMHB9\n"
+    }
+  ]
+}

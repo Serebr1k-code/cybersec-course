@@ -2,7 +2,7 @@
 id: cloud-oci-basics
 title: 'Oracle Cloud (OCI): tenancy, compartments, IAM и поверхность атаки'
 category: cloud
-parent: cloud-provider-breadth
+parent: cloud-oci-deep
 difficulty: hard
 order: 1
 tags: [cloud, oci, oracle, iam, instance-principal, recon]

@@ -1,0 +1,19 @@
+{
+  "id": "misc-regex-catastrophic",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задание\n\nМетка спрятана в `redos.txt`. Достань её в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/redos.txt",
+      "text": "ReDoS notes\npattern ^(a+)+$ explodes on aaaa...b\ncause: nested quantifiers -> exponential backtracking\ninput must be almost-matching (failure at the end)\nfix: automata engine (RE2/Go), length limit, timeout\nflag:bnRve3IzZDBzX2M0dDRzdHIwcGgxY19iNGNrdDRja30=\n"
+    }
+  ]
+}

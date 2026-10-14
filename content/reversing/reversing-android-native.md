@@ -161,6 +161,8 @@ JNIEXPORT jint JNICALL Java_com_example_app_Native_check(JNIEnv *env, jobject th
 
 Общая стратегия: сначала `nm -D` и `strings`, потом дизассемблер, а если код нечитаем — сразу динамика. Не трать часы на распутывание OLLVM вручную.
 
+<!-- lab -->
+
 ## Что мы теперь знаем
 
 - Нативные библиотеки Android — обычные ELF-`.so`, но под ARM64.

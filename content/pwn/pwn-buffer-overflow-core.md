@@ -265,6 +265,8 @@ Symbol table '.symtab' contains 37 entries:
 
 Подсказка из лаборатории: `readelf [-s|--file-header] <файл>`.
 
+<!-- lab -->
+
 ## Квиз
 
 ```quiz
