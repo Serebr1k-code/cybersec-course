@@ -2,7 +2,7 @@
 id: pwn-looney-tunables
 title: "CVE-2023-4911: Looney Tunables в glibc"
 category: pwn
-parent: pwn-cve-exploitation
+parent: pwn-linux-user-cve
 difficulty: expert
 order: 4
 tags: [pwn, cve, glibc, ldso, privesc, linux]

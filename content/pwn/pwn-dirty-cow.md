@@ -2,7 +2,7 @@
 id: pwn-dirty-cow
 title: "CVE-2016-5195: Dirty COW"
 category: pwn
-parent: pwn-cve-exploitation
+parent: pwn-linux-user-cve
 difficulty: hard
 order: 3
 tags: [pwn, cve, kernel, race, cow, privesc, linux]

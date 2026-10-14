@@ -2,7 +2,7 @@
 id: pwn-sudo-baron-samedit
 title: "CVE-2021-3156: Baron Samedit в sudo"
 category: pwn
-parent: pwn-cve-exploitation
+parent: pwn-linux-user-cve
 difficulty: hard
 order: 1
 tags: [pwn, cve, sudo, heap-overflow, privesc, linux]

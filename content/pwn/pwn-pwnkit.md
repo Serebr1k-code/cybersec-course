@@ -2,7 +2,7 @@
 id: pwn-pwnkit
 title: "CVE-2021-4034: PwnKit в polkit pkexec"
 category: pwn
-parent: pwn-cve-exploitation
+parent: pwn-linux-user-cve
 difficulty: hard
 order: 2
 tags: [pwn, cve, polkit, pkexec, privesc, linux]
