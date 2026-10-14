@@ -21,6 +21,7 @@ lab:
   files: [task.md, evidence.dat, notes.txt]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`forensics-intro`): расширение врёт — сначала `xxd -l 16 evidence.dat`, определи формат по сигнатуре."
     - "Начни с `ls -la` и `file evidence.dat`: что система думает о типе файла?"
     - "Загляни внутрь байтами: `xxd -l 16 evidence.dat`. Сравни первые байты с сигнатурой PNG из урока."
     - "Файл — полиглот: `file -k evidence.dat` показывает больше одной сигнатуры. Поищи читаемые строки через `strings`."

@@ -21,6 +21,7 @@ lab:
   files: [task.md, small.apk]
   check: 'grep -q ''nto{d3x_m4g1c_1n_4pk}'' found.txt'
   hints:
+    - "Повторение (`reversing-managed-dotnet-java`): APK — managed-контейнер; сначала `unzip -l small.apk`."
     - 'APK — это ZIP-архив: `unzip -l small.apk`.'
     - 'Ключевые элементы: `classes.dex` (код), `AndroidManifest.xml`, `resources.arsc`.'
     - 'Строки хранятся без сжатия: `strings small.apk | grep nto`.'

@@ -21,6 +21,7 @@ lab:
   files: [task.md, protected.7z, notes.txt]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`misc-fileformats`): сначала `xxd -l 8 protected.7z` — сигнатура 7z `37 7a bc af 27 1c`."
     - "Посмотри содержимое без пароля: `7z l protected.7z` — имена файлов видны."
     - "Пароль есть в `notes.txt`. Извлеки содержимое в stdout: `7z x -so -pПАРОЛЬ protected.7z flag.txt`."
     - "Перенаправь вывод в файл: `7z x -so -pПАРОЛЬ protected.7z flag.txt > found.txt`."

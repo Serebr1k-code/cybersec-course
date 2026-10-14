@@ -4,6 +4,13 @@ Inventory: **127 md lessons** (see `grep -h '^title:' content/forensics/*.md`).
 Verdict: **STRONG** — filesystems (FAT/exFAT/XFS/HFS+/ext4/NTFS/Btrfs/ZFS/APFS), Windows artifacts (registry/EVTX/USN/Shellbags/SRUM/ShimCache/LNK/VSS/persistence), Linux/macOS, memory (Volatility3), network (PCAP/Suricata/Zeek/TLS), mobile (Android/iOS), cloud (AWS/Azure/GCP), containers/K8s, disk imaging, encryption (LUKS/BitLocker/VeraCrypt/FileVault), malware (YARA/Cobalt Strike/ransomware), timeline (plaso/Timesketch), IR (NIST), anti-forensics.
 This pass lists **~190 candidate NEW lessons** not covered by any existing title. Tagged by subcategory. `<proposed-id> — <short title>`.
 
+> **ID-collision convention.** An id proposed here that already exists in ANOTHER category
+> (`content/cloud`, `content/mobile`, …) is authored under a `forensics-` prefix so the two
+> lessons never share a lesson id. Six ids were affected and are already listed below in their
+> final form: `forensics-mobile-baseband`, `forensics-ios-backup`, `forensics-google-workspace`,
+> `forensics-cloud-serverless`, `forensics-cloud-container-runtime`, `forensics-cloud-secrets-manager`.
+> Do **not** re-create the bare ids — they belong to the cloud/mobile lessons.
+
 ## A. Disk, filesystem & storage
 - fs-refs — ReFS (Resilient File System) forensics
 - fs-udf-iso — UDF / ISO9660 forensics
@@ -114,7 +121,7 @@ This pass lists **~190 candidate NEW lessons** not covered by any existing title
 - mobile-ios-unifiedlog — iOS Unified Logs forensics
 - mobile-ios-keychain-deep — iOS keychain deep parsing
 - mobile-sim-usim — SIM / USIM card forensics
-- mobile-baseband — Baseband / IMSI-catcher artifacts
+- forensics-mobile-baseband — Baseband / IMSI-catcher artifacts (id prefixed: collides with content/mobile/mobile-baseband)
 - mobile-gms — Google Play Services / GMS artifacts
 - mobile-android-notifications — Android notification history
 - mobile-android-location — Android location history
@@ -124,7 +131,7 @@ This pass lists **~190 candidate NEW lessons** not covered by any existing title
 - mobile-chipoff-jtag — Chip-off / JTAG / ISP extraction
 - mobile-ufed-workflow — Cellebrite UFED / AXIOM workflow
 - mobile-android-backup — Android backup (adb/AB) forensics
-- mobile-ios-backup — iOS backup (iTunes/Finder) forensics deep
+- forensics-ios-backup — iOS backup (iTunes/Finder) forensics deep (id prefixed: collides with content/mobile/mobile-ios-backup)
 - mobile-app-reversing — Mobile app reversing for forensics
 - mobile-jailbreak-artifacts — Jailbreak / root artifacts
 - mobile-cloud-sync — Mobile cloud (iCloud/Google) acquisition
@@ -204,16 +211,16 @@ This pass lists **~190 candidate NEW lessons** not covered by any existing title
 ## K. Cloud, containers & CI/CD
 - cloud-m365-ual — M365 / Office 365 Unified Audit Log forensics
 - cloud-okta — Okta / IdP authentication forensics
-- cloud-google-workspace — Google Workspace audit forensics
+- forensics-google-workspace — Google Workspace audit forensics (id prefixed: collides with content/cloud/cloud-google-workspace)
 - cloud-salesforce — Salesforce / SaaS audit forensics
-- cloud-serverless — Serverless (Lambda/Functions) forensics
+- forensics-cloud-serverless — Serverless (Lambda/Functions) forensics (id prefixed: collides with content/cloud/cloud-serverless)
 - cloud-storage — S3 / Blob / GCS storage forensics
 - cloud-iam — Cloud IAM / identity forensics
-- cloud-container-runtime — Container-runtime forensics (Falco/eBPF)
+- forensics-cloud-container-runtime — Container-runtime forensics (Falco/eBPF) (id prefixed: collides with content/cloud/cloud-container-runtime)
 - cloud-vm-hypervisor — Cloud VM / hypervisor forensics
 - cloud-cicd — CI/CD pipeline forensics
 - cloud-iac-state — IaC / Terraform state-file forensics
-- cloud-secrets-manager — Secrets-manager access forensics
+- forensics-cloud-secrets-manager — Secrets-manager access forensics (id prefixed: collides with content/cloud/cloud-secrets-manager)
 
 ## L. Web, app & database
 - web-webshell — Webshell detection & forensics

@@ -21,6 +21,7 @@ lab:
   files: [task.md, game.nes]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`reversing-asm`): сначала `file game.nes` — сигнатура iNES, затем разбор кода."
     - 'Начни с `file game.nes` — он узнает iNES по магическим байтам.'
     - 'iNES-заголовок — 16 байт; дальше идёт код PRG-ROM.'
     - 'Ищи артефакт строками: `strings -n 5 game.nes`.'

@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, sdcard.img]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`forensics-fat`): сначала `xxd -l 64 sdcard.img` — сигнатура `EXFAT` в загрузочном секторе."
     - "Определи файловую систему: `file sdcard.img`."
     - "Загрузочный сектор: `xxd -l 128 sdcard.img` — ищи `EXFAT` и метку тома по смещению 0x40."
     - "Данные кластеров идут после сектора; `strings sdcard.img` покажет текст."

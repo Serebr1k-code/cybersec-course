@@ -20,6 +20,7 @@ lab:
   files: [task.md, notes.txt, sbox.py]
   check: 'grep -q ''nto{a3s_sb0x_1s_1nv3rs3_plus_4ff1n3}'' found.txt'
   hints:
+    - "Повторение (`crypto-aes-modes`): сначала `cat notes.txt` — полином GF(2^8) `0x11b`, инверсия `a^254`, affine `0x63`."
     - '`cat notes.txt`.'
     - 'Реализуй умножение в GF(2^8) с полиномом 0x11b.'
     - 'Обратный элемент = a^254; затем affine-преобразование.'

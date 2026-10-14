@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, disk.img, decode.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`forensics-filesystems`): сначала найди запись раздела — `xxd -s 446 -l 16 disk.img`, LBA по смещению 454."
     - "Посмотри запись раздела: `xxd -s 446 -l 16 disk.img`."
     - "LBA начала раздела — 4 байта little-endian по смещению 454."
     - "Вырежи ровно один сектор: `dd if=disk.img of=part.img bs=512 skip=<LBA> count=1`."

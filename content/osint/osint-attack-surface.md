@@ -21,6 +21,7 @@ lab:
   files: [task.md, assets.csv]
   check: "grep -q 'nto{' answer.txt"
   hints:
+    - "Повторение (`osint-collection`): сначала `cat assets.csv` — сводка собранных активов, стройте карту по `id`/`parent`."
     - "Карта активов — это `assets.csv`: `cat assets.csv`."
     - "Висячий родитель: сравни колонку `id` и колонку `parent` (`cut -d, -f1` и `-f7`)."
     - "Pivot между доменами — узел типа `tracking`: `grep tracking assets.csv`."
