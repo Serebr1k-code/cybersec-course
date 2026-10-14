@@ -1,0 +1,29 @@
+{
+  "id": "pwn-wasm",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "wasm_magic=0061736d"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: магические байты WASM\n\n`module.wasm` — бинарный модуль WebAssembly. Как ELF начинается с `7f 45 4c 46`,\nтак и WASM начинается с собственного магического числа и версии.\n\n1. `xxd -l 8 module.wasm`.\n2. Запиши первые 4 байта (магию) в hex без пробелов: `wasm_magic=<hex>`.\n3. Сохрани в `answer.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/module.wasm",
+      "b64": "AGFzbQEAAAABBQFgAQF/AwIBAAcIAQRhZGQAAAA=",
+      "mode": "644"
+    },
+    {
+      "path": "/home/student/task/module.wat",
+      "text": "(module\n  (type (func (param i32) (result i32)))\n  (func (export \"add\") (param i32) (result i32)\n    local.get 0\n    i32.const 1\n    i32.add)\n)\n"
+    }
+  ],
+  "tools": {}
+}

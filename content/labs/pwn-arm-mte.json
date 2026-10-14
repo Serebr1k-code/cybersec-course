@@ -1,0 +1,39 @@
+{
+  "id": "pwn-arm-mte",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/answer.txt",
+    "contains": "tag_insn=irg"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: инструкция тегирования MTE\n\n`mte.s` — листинг ARM64-кода, работающего с кучей при включённом MTE. Нужно\nпонять, какой инструкцией аллокатор генерирует тег для нового указателя.\n\n1. `cat mte.s`.\n2. Найди инструкцию, которая создаёт случайный тег и вставляет его в указатель\n   (Insert Random Tag).\n3. Запиши `tag_insn=<мнемоника>` в `answer.txt`, затем `check`.\n"
+    },
+    {
+      "path": "/home/student/task/mte.s",
+      "text": "\t.arch armv8.5-a+memtag\n\t.file\t\"t2.c\"\n\t.text\n\t.globl\talloc_tagged\n\t.p2align\t2\n\t.type\talloc_tagged,@function\nalloc_tagged:\n\t.cfi_startproc\n// %bb.0:\n\tstp\tx29, x30, [sp, #-32]!\n\tmov\tx29, sp\n\tstp\tx19, x20, [sp, #16]\n\tmov\tx19, x0\n\tbl\tmalloc\n\tmov\tx20, x0\n\tirg\tx0, x0\n\tstg\tx0, [x20]\n\tmov\tx0, x20\n\tldp\tx19, x20, [sp, #16]\n\tldp\tx29, x30, [sp], #32\n\tret\n.Lfunc_end0:\n\t.size\talloc_tagged, .Lfunc_end0-alloc_tagged\n\t.cfi_endproc\n\t.globl\tcheck_tag\n\t.p2align\t2\n\t.type\tcheck_tag,@function\ncheck_tag:\n\t.cfi_startproc\n// %bb.0:\n\tldg\tx2, [x0]\n\tcmp\tx2, #0\n\tcset\tw0, eq\n\tret\n.Lfunc_end1:\n\t.size\tcheck_tag, .Lfunc_end1-check_tag\n\t.cfi_endproc\n\t.ident\t\"clang version 22.1.3\"\n\t.section\t\".note.GNU-stack\",\"\",@progbits\n"
+    },
+    {
+      "path": "/home/student/task/mte.readelf.txt",
+      "text": "ELF Header:\n  Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 \n  Class:                             ELF64\n  Data:                              2's complement, little endian\n  Version:                           1 (current)\n  OS/ABI:                            UNIX - System V\n  Type:                              REL (Relocatable file)\n  Machine:                           AArch64\n  Flags:                             0x0\n"
+    }
+  ],
+  "tools": {
+    "readelf": {
+      "help": "readelf [-h | --file-header | -nW] <файл> — (replay)",
+      "cases": [
+        {
+          "match": "mte",
+          "example": "-h mte.elf",
+          "output": "ELF Header:\n  Magic:   7f 45 4c 46 02 01 01 00 00 00 00 00 00 00 00 00 \n  Class:                             ELF64\n  Data:                              2's complement, little endian\n  Version:                           1 (current)\n  OS/ABI:                            UNIX - System V\n  Type:                              REL (Relocatable file)\n  Machine:                           AArch64\n  Flags:                             0x0\n"
+        }
+      ]
+    }
+  }
+}
