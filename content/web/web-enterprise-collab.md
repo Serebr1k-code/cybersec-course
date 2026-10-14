@@ -11,7 +11,7 @@ useful_for:
   - "CTF Web категория"
   - "Bug bounty"
   - "Пентест веб-приложений"
-estimated_minutes: 50
+estimated_minutes: 80
 summary: "Общий разбор коллаборационных приложений: где живут их критические CVE, почему они связаны с AD и как строится атака от версии до RCE."
 ---
 
@@ -132,6 +132,63 @@ $ httpx -l hosts.txt -path /owa/,/owa/auth/logon.aspx,/login.action,/secure/Dash
 ## Шаг 11: как выстроить порядок атаки
 
 Начни с того продукта, у которого версия попадает в **pre-auth RCE** — это самый короткий путь. Если таких нет, переходи к обходам аутентификации, затем к SSRF/утечкам. Не трать время на продукт, где версия пропатчена и нет конфигурационных дыр.
+
+## Практика: определяем Atlassian vs Microsoft за секунды
+
+Перед атакой нужно понять, какой продукт перед тобой. У каждого — свой набор заголовков и путей:
+
+```
+$ curl -sI https://collab.target.example | grep -iE 'x-atlassian|x-arequestid|x-confluence|server|set-cookie'
+X-AREQUESTID: 1a2b3c4d
+X-ASEN: SEN-L12345
+Set-Cookie: JSESSIONID=...; Path=/; HttpOnly
+```
+
+`X-AREQUESTID` и `X-ASEN` — это Atlassian (Jira/Confluence). У Microsoft — `X-OWA-Version`, `X-FEServer`, `X-DiagInfo` (Exchange) или `MicrosoftSharePointTeamServices` (SharePoint). Собрав эти признаки, ты выбираешь ветку: Atlassian → OGNL/шаблоны, Microsoft → ProxyLogon/ViewState.
+
+## Практика: Exchange OWA — версия из заголовков
+
+Версия Exchange часто утекает прямо в заголовке ответа OWA:
+
+```
+$ curl -sI https://mail.target.example/owa/ | grep -i x-owa-version
+X-OWA-Version: 15.2.986.5
+```
+
+`15.2.x` — Exchange 2019 CU11. `15.1.x` — Exchange 2016. `15.0.x` — Exchange 2013. Сопоставив с таблицей ProxyLogon (уязвимы < 15.1.2176 / < 15.2.792 / < 15.0.1497), ты точно знаешь, применим ли эксплойт. **Никогда** не лей ProxyLogon на непроверенную версию: на пропатченной он не сработает, а на версии-«пограничной» может оставить инстанс в нерабочем состоянии.
+
+## Практика: SharePoint ViewState
+
+SharePoint отдаёт ViewState — сериализованный .NET-объект с подписью `machineKey`. Если ключ (`ValidationKey`/`DecryptionKey`) утёк или слабый, ViewState подделывается и через `ObjectStateFormatter`/`LosFormatter` даёт RCE. Признак — наличие `__VIEWSTATE` в форме и `MicrosoftSharePointTeamServices` в заголовке:
+
+```
+$ curl -s https://sp.target.example/ | grep -oE 'MicrosoftSharePointTeamServices: [0-9.]+'
+MicrosoftSharePointTeamServices: 16.0.10337.12109
+```
+
+Инструмент `ysoserial.net` (`-g TypeConfuseDelegate`) генерирует ViewState-payload. Но прежде чем его применять, нужен `machineKey` — его ищут в `web.config` через LFI или в бэкапах.
+
+## Таблица: коллаборационные CVE и условия
+
+| Продукт | CVE | Тип | Условие |
+|---|---|---|---|
+| Exchange | CVE-2021-26855 (ProxyLogon) | SSRF→RCE | версия уязвима, доступ к OWA |
+| Exchange | CVE-2021-34473 (ProxyShell) | RCE | Autodiscover открыт |
+| SharePoint | CVE-2023-29357 (ToolShell) | auth bypass | без аутентификации |
+| Confluence | CVE-2022-26134 | OGNL RCE | версия 1.3–7.18 |
+| Jira | CVE-2019-8442 | чтение файлов | без аутентификации |
+
+## Как связать приложение с доменом
+
+Exchange и SharePoint почти всегда в домене — они аутентифицируют пользователей через AD. Поэтому компрометация Exchange — это фактически доступ к AD-сервисам: через `EWS`/`Autodiscover` можно собирать имена пользователей, а через NTLM-хендшейки — релеить на другие хосты. Confluence и Jira могут стоять с LDAP/AD-синхронизацией — тогда список пользователей из них совпадает с доменным. Фиксируй в state: найденные логины, группы, сервисные учётки. Это карта для следующих задач (kerberoast, релей, перебор). Не растекайся: одно приложение — один источник разведданных, затем передача координатору.
+
+## Шпаргалка: быстрые команды для коллаборационных приложений
+
+Соберём рабочий чек-лист. Идентификация Atlassian: `curl -sI https://host | grep -iE 'x-arequestid|x-atenantid'`. Версия Jira: `curl -s https://host/rest/api/2/serverInfo | grep -oE '"version":"[^"]+"'`. Версия Confluence: `curl -s https://host/login.action | grep -oE 'Confluence [0-9.]+'`. Exchange: `curl -sI https://mail.host/owa/ | grep -i x-owa-version`. SharePoint: `curl -sI https://sp.host | grep -i microsoftsharepointteamservices`. Проверка анонимного доступа: сравнить код `200` (доступ) и `302`/`401` (закрыто). Каждую команду — по одной, вывод сохраняй. Эта таблица экономит время и делает проверку воспроизводимой.
+
+## Почему коллаборационные приложения — приоритет в внутреннем пентесте
+
+Почта, вики и трекер задач — это «рабочее место» компании, и там оседает почти вся операционная информация: пароли в письмах и страницах, схемы сети, токены интеграций, переписка о деплоях. В отличие от внешнего сайта, коллаборационное приложение уже находится **внутри** периметра и доверяет соседним сервисам. Поэтому даже средняя по CVSS уязвимость здесь часто даёт больше, чем критический баг на внешнем сайте: за ней стоит доверенная сеть. Именно поэтому Exchange и Confluence годами остаются топ-целями и в bug bounty, и в реальных атаках.
 
 ## Квиз
 

