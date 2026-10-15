@@ -1,0 +1,20 @@
+{
+  "id": "misc-symbolic-exec",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4ngr_f0und_th3_p4th}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: найти путь через ограничения\n\nТебе дан `symbolic.log` — трасса символического исполнения. Вдоль пути накоплены ограничения; решатель в конце находит вход.\n\n## Повторение (`misc-reversing-misc`)\n\nВ `misc-reversing-misc` мы разбирали check-функции крекми. Здесь тот же объект — проверка, но ищем вход автоматически. Начни с чтения трассы.\n\n    cat symbolic.log\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag symbolic.log | cut -d: -f2`\n3. Раскодируй и запиши метку: `grep flag symbolic.log | cut -d: -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/symbolic.log",
+      "text": "# symbolic execution trace (angr-style)\nbranch: 0x4012a0 constraint: input[0] == 0x6e\nbranch: 0x4012c0 constraint: input[1] == 0x74\nbranch: 0x4012e0 constraint: input[2] == 0x6f\nnote: solver returns the concrete input satisfying all path constraints\nflag: bnRvezRuZ3JfZjB1bmRfdGgzX3A0dGh9\n"
+    }
+  ]
+}

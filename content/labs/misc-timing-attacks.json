@@ -1,0 +1,20 @@
+{
+  "id": "misc-timing-attacks",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{t1m1ng_l34k_0n_c0mp4r3}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: найти утечку по времени\n\nТебе дан `timing.log` — замеры времени ответа сервера на разные токены. Строка с самым долгим откликом указывает на байт, который сервер реально сравнивал.\n\n## Повторение (`misc-crypto-misc`)\n\nВ `misc-crypto-misc` мы разбирали строки задач и вытаскивали поля. Здесь тот же приём: начни с чтения лога.\n\n    cat timing.log\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag timing.log | cut -d: -f2`\n3. Раскодируй и запиши метку: `grep flag timing.log | cut -d: -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/timing.log",
+      "text": "# timing measurements (us) for candidate tokens\nattempt: 00000000 time_us: 41\nattempt: 6e000000 time_us: 58\nattempt: 6e740000 time_us: 71\n# longest response -> server compared the most bytes\nnote: prefix with the largest time is the correct one\nflag: bnRve3QxbTFuZ19sMzRrXzBuX2MwbXA0cjN9\n"
+    }
+  ]
+}

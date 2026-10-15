@@ -1,0 +1,20 @@
+{
+  "id": "misc-sat-solving",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s4t_s0lv3r_unr4v3ls_w1r3s}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: решить систему ограничений\n\nТебе дан `sat.log` — формула в CNF (формат DIMACS). SAT-солвер ищет значения переменных, делающие формулу истинной.\n\n## Повторение (`misc-reversing-misc`)\n\nВ `misc-reversing-misc` мы разбирали ограничения check-функций. Здесь те же ограничения, но в чисто булевой форме. Начни с чтения формулы.\n\n    cat sat.log\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag sat.log | cut -d: -f2`\n3. Раскодируй и запиши метку: `grep flag sat.log | cut -d: -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/sat.log",
+      "text": "# SAT instance in DIMACS CNF\nc 3 variables, 2 clauses\np cnf 3 2\n1 -2 0\n2 3 0\nnote: a solver returns a satisfying assignment (0 = true, 1 = false per variable)\nflag: bnRve3M0dF9zMGx2M3JfdW5yNHYzbHNfdzFyM3N9\n"
+    }
+  ]
+}

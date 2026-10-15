@@ -1,0 +1,20 @@
+{
+  "id": "misc-crt-fault",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{crt_f4ult_f4ct0rs_n}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: восстановить множитель по сбойной подписи\n\nТебе дан `crt.log` — модуль n и две подписи одного сообщения: правильная и сбойная. НОД разности и n даёт простой множитель.\n\n## Повторение (`misc-crypto-misc`)\n\nВ `misc-crypto-misc` мы разбирали поля задач. Начни с чтения данных.\n\n    cat crt.log\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag crt.log | cut -d: -f2`\n3. Раскодируй и запиши метку: `grep flag crt.log | cut -d: -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/crt.log",
+      "text": "# RSA signature with one CRT fault (Bellcore attack)\nn: 275311159830674457630518402177\nsig_ok: 103991222312766772120108145332\nsig_bad: 887210001921234499120012345\nnote: gcd(sig_ok - sig_bad, n) reveals a prime factor of n\nflag: bnRve2NydF9mNHVsdF9mNGN0MHJzX259\n"
+    }
+  ]
+}

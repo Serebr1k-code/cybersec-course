@@ -1,0 +1,20 @@
+{
+  "id": "misc-fuzzing-misc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4fl_c0v3r4g3_f0und_cr4sh}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разобрать лог покрытия фаззера\n\nТебе дан `fuzzing.log` — лог coverage-guided фаззера: число запусков, найденные пути, входы с новым покрытием и краши.\n\n## Повторение (`misc-reversing-misc`)\n\nВ `misc-reversing-misc` мы разбирали ветки и check-функции. Здесь фаззер сам исследует ветки по покрытию. Начни с чтения лога.\n\n    cat fuzzing.log\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag fuzzing.log | cut -d: -f2`\n3. Раскодируй и запиши метку: `grep flag fuzzing.log | cut -d: -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/fuzzing.log",
+      "text": "# AFL-style coverage-guided fuzzing log\nexecs: 1240000 paths: 412\nnew_path: id=0003a1 seed=mut(0002f0, +4) cov=0x4011c0\ncrash: id=0009ff input=4141414141\nnote: inputs that open a new path are kept in the corpus and mutated further\nflag: bnRvezRmbF9jMHYzcjRnM19mMHVuZF9jcjRzaH0=\n"
+    }
+  ]
+}

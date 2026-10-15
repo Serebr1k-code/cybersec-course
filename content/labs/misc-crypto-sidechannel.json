@@ -1,0 +1,20 @@
+{
+  "id": "misc-crypto-sidechannel",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{k0ch3r_0n3_t4bl3_s1d3_ch4nn3l}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разобрать утечку побочного канала\n\nТебе дан `sidechannel.log` — выжимка измерений энергопотребления при шифровании разных блоков. Зависимость мощности от индекса S-box выдаёт ключ.\n\n## Повторение (`misc-crypto-misc`)\n\nВ `misc-crypto-misc` мы читали и разбирали поля данных. Начни с чтения выжимки.\n\n    cat sidechannel.log\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag sidechannel.log | cut -d: -f2`\n3. Раскодируй и запиши метку: `grep flag sidechannel.log | cut -d: -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/sidechannel.log",
+      "text": "# power trace summary (Kocher-style side channel)\ninput: 00000000 power: 120\ninput: 00000001 power: 138\ninput: 00000002 power: 127\nnote: table lookups indexed by a secret-dependent value leak via cache and power\nnote: constant-time code removes the data dependence\nflag: bnRve2swY2gzcl8wbjNfdDRibDNfczFkM19jaDRubjNsfQ==\n"
+    }
+  ]
+}
