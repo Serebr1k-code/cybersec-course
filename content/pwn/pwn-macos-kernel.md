@@ -217,6 +217,22 @@ kern_return_t MyClient::externalMethod(uint32_t sel, IOExternalMethodArguments *
 
 Современный macOS ограничивает kext (System Extensions заменяют их на user-space расширения с ограниченным API). Это уменьшает поверхность атаки ядра, но не убирает её: IOKit-драйверы остаются, а `com.apple.*`-расширения имеют привилегии. Для аудита: смотри, какие kext загружены (`kmutil showloaded`), какие IOKit-сервисы доступны, какие entitlements у процессов. Инструменты — `Ghidra`, `frida`, `lldb` с ядерной отладкой (на VM), `ipsw` для разбора kernelcache.
 
+## Практические заметки по macOS
+
+Основная поверхность macOS-ядра — IOKit (драйверы и `IOUserClient`) и Mach IPC/MIG. Типовой путь: найти `externalMethod` без валидации → переполнение/UAF → kernel R/W → data-only подмена `ucred` или флагов безопасности. Отладка — на виртуальной машине с `lldb` и ядерной символикой (kernelcache). `kmutil showloaded` показывает загруженные kext — оттуда начинается инвентаризация поверхности.
+
+## Итог по XNU
+
+Поверхность macOS-ядра — IOKit (`IOUserClient`, `externalMethod`) и Mach IPC/MIG. Путь: невалидированный селектор → переполнение/UAF → kernel R/W → data-only подмена `ucred`. Отладка — на VM с `lldb` и ядерной символикой.
+
+## Итог и поверхность
+
+Основные цели XNU: IOKit-драйверы (IOUserClient, externalMethod) и Mach IPC/MIG. Инвентаризацию поверхности даёт `kmutil showloaded` (kext) и список IOKit-сервисов.
+
+## Итог по macOS
+
+Поверхность XNU: IOKit (`IOUserClient`, `externalMethod`) и Mach IPC/MIG. Путь до примитива — невалидированный селектор/структура, затем data-only подмена `ucred`.
+
 ## Что мы теперь знаем
 
 - XNU — гибрид Mach+BSD; драйверы через IOKit.
