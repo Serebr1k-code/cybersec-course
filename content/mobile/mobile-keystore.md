@@ -189,6 +189,43 @@ boolean hw = info.isInsideSecureHardware();
 
 Помимо TEE, существует **StrongBox** — отдельный чип безопасности, который хранит ключи ещё изолированнее. Приложение может запросить `setIsStrongBoxBacked(true)`, но не на всех устройствах это доступно. Проверяя Keystore, уточните, какой уровень защиты реально используется: программный, TEE или StrongBox. Чем выше уровень, тем меньше шансов извлечь ключ даже на рутованном устройстве.
 
+## Справочная таблица: параметры KeyGenParameterSpec
+
+Безопасность ключа в Android Keystore определяется параметрами его создания. Сведём, что за что отвечает и что считать ошибкой:
+
+| Параметр | Безопасное значение | Ошибка |
+|----------|---------------------|--------|
+| `setBlockModes` | `GCM` | `ECB` |
+| `setEncryptionPaddings` | `NONE` (для GCM) | `PKCS7` с GCM |
+| `setUserAuthenticationRequired` | `true` | `false` / не вызван |
+| `setRandomizedEncryptionRequired` | `true` (по умолчанию) | `false` |
+| `setKeySize` | 256 (AES) | 128 и ниже |
+| `setIsStrongBoxBacked` | `true`, если доступно | отсутствует |
+
+Комбинация `ECB` + отсутствие auth-привязки — классика: ключ доступен без разблокировки, а режим ECB утекает структуру данных. Правильный AES-ключ — `GCM` + `setUserAuthenticationRequired(true)` + 256 бит.
+
+## Атака на Keystore через Frida: перехват Cipher
+
+Keystore отдаёт наружу не ключ, а операцию. Значит, атакуют не хранилище, а **точку использования**. Хук на `Cipher.init`/`Cipher.doFinal` показывает, как приложение реально вызывает ключ, и позволяет воспроизвести операцию:
+
+```javascript
+Java.perform(function () {
+  var C = Java.use('javax.crypto.Cipher');
+  C.doFinal.overload('[B').implementation = function (data) {
+    console.log('[cipher] in=' + data.length + ' bytes');
+    var out = this.doFinal(data);
+    console.log('[cipher] out=' + Java.array('byte', out).length);
+    return out;
+  };
+});
+```
+
+Если `setUserAuthenticationRequired(true)` не выставлен, этот же вызов проходит без биометрии и PIN — вы расшифровываете данные, не имея ключа на руках. Если auth-привязка есть, `init` бросит `UserNotAuthenticatedException`; тогда ищут обход (device-credential fallback, разблокированное устройство) или атакуют логику вокруг ключа.
+
+## Ограничения метода
+
+Keystore тем и хорош, что ключевой материал не покидает хранилище — значит, «украсть ключ» в общем случае нельзя. На устройстве с TEE/StrongBox (`isInsideSecureHardware() == true`) не поможет и root. Реальные находки здесь — не кража ключа, а **неправильная конфигурация**: отсутствие auth-привязки, слабый режим, импорт ключа извне (`setKeyEntry`/`importKey`), ключ, выведенный из слабого пароля без KDF. Ещё одна ловушка — тестировать на эмуляторе: там TEE часто отсутствует, и `isInsideSecureHardware()` вернёт `false` даже у корректно написанного приложения, что приведёт к ложной находке. Всегда указывайте устройство тестирования и проверяйте, аппаратный ключ или программный. И помните: `KeyPermanentlyInvalidatedException` при смене биометрии — ожидаемое поведение, а не уязвимость.
+
 ## Квиз
 
 Проверь себя.

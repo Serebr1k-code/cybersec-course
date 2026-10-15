@@ -183,6 +183,129 @@ print(bytes(int(bits[i:i+8], 2) for i in range(0, len(bits)-7, 8)))
 5. Overlay (дописанный ZIP после текстуры) — самый частый приём; ищи `grep -aboP 'PK\x03\x04'`.
 6. Cubemap/volume/mipmap — несколько изображений в одном файле; проверяй все.
 
+## Полный скрипт: авторазбор TGA и DDS
+
+Соберём единый прогон, который для TGA проверяет ID-блок, дескриптор и хвост, а для DDS — FourCC, cubemap-флаги и overlay:
+
+```python
+import struct
+
+def scan_tga(d):
+    idlen, typ = d[0], d[2]
+    w, h, bpp = struct.unpack_from("<HHB", d, 12)
+    desc = d[17]
+    print(f"TGA idlen={idlen} type={typ} {w}x{h} bpp={bpp} desc={desc:#x}")
+    if idlen:
+        print("  ID-block:", d[18:18+idlen])
+    for sig, name in [(b"PK\x03\x04", "ZIP"), (b"\x89PNG", "PNG"), (b"flag", "flag")]:
+        i = d.find(sig, 18 + idlen)
+        if i != -1:
+            print(f"  embed/overlay at {i}: {name}")
+
+def scan_dds(d):
+    assert d[:4] == b"DDS "
+    h, w = struct.unpack_from("<II", d, 12)
+    fourcc = d[0x54:0x58]
+    caps2 = struct.unpack_from("<I", d, 0x70)[0]
+    print(f"DDS {w}x{h} fourcc={fourcc} caps2={caps2:#x}")
+    for sig, name in [(b"PK\x03\x04", "ZIP"), (b"\x89PNG", "PNG")]:
+        i = d.find(sig, 128)
+        if i != -1:
+            print(f"  overlay at {i}: {name}")
+
+scan_tga(open("tex.tga", "rb").read())
+scan_dds(open("skybox.dds", "rb").read())
+```
+
+```text
+TGA idlen=18 type=2 64x64 bpp=24 desc=0x20
+  ID-block: b'flag{tga_id_block}'
+DDS 64x64 fourcc=b'DXT1' caps2=0x0
+  overlay at 2872: ZIP
+```
+
+Скрипт сразу показывает оба найденных канала. `desc=0x20` в TGA — бит origin: единица означает хранение строк снизу вверх, ноль — сверху вниз.
+
+## Справочная таблица полей заголовков
+
+| Формат | Смещение | Поле | Размер |
+|--------|----------|------|--------|
+| TGA | 0 | ID length | 1 |
+| TGA | 1 | Color map type | 1 |
+| TGA | 2 | Image type | 1 |
+| TGA | 12 | X/Y origin, W, H, bpp | 6 |
+| TGA | 17 | Image descriptor | 1 |
+| TGA | 18… | ID-блок | `ID length` |
+| DDS | 0 | Magic `DDS ` | 4 |
+| DDS | 4 | Header size (124) | 4 |
+| DDS | 8 | Flags, H, W, pitch | 12 |
+| DDS | 0x4C | Pixel format size (32) | 4 |
+| DDS | 0x54 | FourCC (DXT1/DXT5/DX10) | 4 |
+| DDS | 0x70 | Caps2 (cubemap/volume) | 4 |
+
+Смещения проверены на файлах из лаборатории: `ID length` в TGA и `FourCC` в DDS — самые удобные каналы, потому что первый задаёт произвольный блок, а второй указывает, как читать данные.
+
+## Границы форматов
+
+TGA и DDS — форматы без контрольных сумм и без сжатия метаданных, поэтому правка заголовка не ломает файл: парсеры доверчивы. Но есть цена: любой нормализующий конвертер (`convert`, игровые тулчейны) перезаписывает ID-блок, обрезает overlay и пересчитывает mipmap-цепочку — скрытые данные исчезают. DXT/BC-блоки сжаты с потерями, поэтому LSB там не живёт: прятать можно только в структуре (порядок блоков, мусорные mip-уровни) или в overlay. И ещё: `FourCC` — это сигнал, как читать данные, а не сами данные; подмена `DXT1`→`DXT5` меняет размер блока (8→16 байт) и «съезжает» вся разметка, что иногда само по себе кодирует бит.
+
+## Практика: парсинг заголовков и извлечение overlay
+
+Разберём TGA и DDS программно, потому что графические редакторы «нормализуют» файл и теряют скрытые данные. Читаем сырые байты.
+
+```python
+import struct
+
+def parse_tga(path):
+    b = open(path, "rb").read()
+    (id_len, cmap_type, img_type, cmap_org, cmap_len, cmap_bits,
+     x_org, y_org, w, h, bpp, desc) = struct.unpack_from("<BBBHHBHHHHBB", b, 0)
+    print(f"TGA {w}x{h} {bpp}bpp type={img_type} id_len={id_len}")
+    # 1) ID-блок сразу после 18-байтного заголовка
+    id_block = b[18:18 + id_len]
+    print("ID-блок:", id_block[:64])
+    # 2) пиксельные данные + возможный overlay в хвосте
+    pixels = w * h * (bpp // 8)
+    body_end = 18 + id_len + pixels
+    overlay = b[body_end:]
+    print("overlay:", len(overlay), "байт ->", overlay[:64])
+    return id_block, overlay
+
+def parse_dds(path):
+    b = open(path, "rb").read()
+    assert b[:4] == b"DDS ", "не DDS"
+    h, w = struct.unpack_from("<II", b, 12)
+    fourcc = b[84:88].decode("latin1")
+    print(f"DDS {w}x{h} format={fourcc}")
+    # mipmap-уровни идут подряд после основного изображения
+    return fourcc, w, h
+```
+
+Ключевые точки, где прячут данные: **ID-блок TGA** (первые `id_len` байт после заголовка — легальное поле, которое почти никто не проверяет), **overlay** после пикселей и **заголовок DDS** (пиксельный формат, флаги, неиспользуемые поля).
+
+## Инструменты
+
+| Задача | Инструмент | Команда |
+|---|---|---|
+| Показать чанки/структуру | `binwalk` | `binwalk tex.tga` |
+| Извлечь встроенные файлы | `binwalk -e` | `binwalk -e tex.dds` |
+| Дамп заголовка в hex | `xxd` | `xxd -l 128 tex.tga` |
+| Найти строки/флаг | `strings` | `strings -n 6 tex.tga` |
+| Перебрать каналы | `zsteg` | `zsteg tex.tga` |
+| Разбор DDS | `nvdecompress`, `texconv` | распаковка BC-блоков |
+| Конвертация TGA | ImageMagick | `convert tex.tga out.png` |
+
+`binwalk` — первый инструмент: он быстро показывает, есть ли в хвосте PNG/ZIP/gzip-сигнатуры. Для TGA/DDS это особенно полезно, потому что overlay часто начинается с magic-байтов другого формата.
+
+## Краевые случаи
+
+- **RLE-сжатие.** Если бит 5 поля `desc` (или поле `img_type == 10/11`) говорит о RLE, размер пиксельных данных нельзя вычислить как `w·h·bpp/8` — придётся распаковывать, чтобы найти конец изображения и начало overlay.
+- **Порядок строк.** В TGA начало координат задаётся полем `desc`: если бит 5 = 1, строки идут сверху вниз, иначе снизу вверх. Неверная интерпретация ломает извлечение по координатам.
+- **Mipmap-цепочка DDS.** После основного уровня идут уменьшенные копии; данные могут лежать в одном из них, а не в базовом.
+- **Cubemap.** Шесть граней хранятся подряд; скрытый канал может быть в конкретной грани.
+- **Палитра TGA.** При `cmap_type == 1` в файле есть цветовая карта — ещё один канал, аналогичный PLTE у PNG.
+- **Non-standard FourCC.** Незнакомый код (не `DXT1`/`DXT5`) означает проприетарный формат; ищите декодер или разбирайте блоки вручную.
+
 ## Квиз
 
 Проверь себя.
