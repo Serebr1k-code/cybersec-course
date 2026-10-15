@@ -160,6 +160,54 @@ Interceptor.attach(Module.getGlobalExportByName("strncmp"), {
 - **`stripped` — не приговор.** JNI-имена сохраняются, пока не используется `RegisterNatives`.
 - **Дизассемблер читается по частям.** Не пытайтесь понять всё сразу — идите от сравнения.
 
+## Хук нативной функции: адрес, аргументы, возврат
+
+Когда статический анализ нашёл подозрительную проверку в `.so`, её подтверждают динамикой. В отличие от Java-хуков, здесь работают с адресами и регистрами.
+
+Сначала находим адрес экспортированной функции:
+
+```javascript
+var base = Module.findBaseAddress("libnative-lib.so");
+var check = Module.getExportByName("libnative-lib.so", "check_flag");
+console.log("[*] base=" + base + " check=" + check);
+```
+
+Ставим хук и подменяем результат. На ARM64 первый аргумент — `x0`, возврат — тоже `x0`:
+
+```javascript
+Interceptor.attach(check, {
+  onEnter(args) {
+    console.log("[*] arg0 = " + args[0].readUtf8String());
+  },
+  onLeave(retval) {
+    console.log("[*] original ret = " + retval.toInt32());
+    retval.replace(1);          // заставить «проверка пройдена»
+  }
+});
+```
+
+Если функция не экспортируется (её вырезали или она `static`), адрес берут как смещение от базы, найденное в дизассемблере:
+
+```
+$ objdump -d libnative-lib.so | grep -A20 'check_flag'
+  0000000000012a40 <check_flag>:
+    ...
+    bl  strcmp
+```
+
+Тогда `var addr = base.add(0x12a40);` — и тот же `Interceptor.attach`. Смещение стабильно, пока библиотека не пересобирается.
+
+Полезно также читать память по указателю: `args[0].readCString()`, `Memory.readByteArray(ptr, 32)`. Для поиска строки в памяти — `Memory.scan(base, size, "6e 74 6f 7b", {...})`, что удобно, когда флаг собирается по кускам.
+
+| Тип C | Как читать в Frida |
+|-------|--------------------|
+| `char *` | `args[0].readUtf8String()` |
+| `int` / `long` | `args[0].toInt32()` |
+| `void *` (буфер) | `args[0].readByteArray(n)` |
+| возврат `char *` | `retval.readUtf8String()` |
+
+Собрав хук, проверьте, что подмена действительно меняет поведение приложения, а не только строку в логе.
+
 ## Квиз
 
 Проверь себя.

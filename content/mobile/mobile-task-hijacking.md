@@ -149,6 +149,32 @@ Task hijacking — атака на UI и задачи, а не на данные
 
 Проверка практическая: соберите минимальное приложение с affinity жертвы и убедитесь, переиспользуется ли задача. Только воспроизводимый сценарий делает находку доказанной.
 
+## Проверяем APK на taskAffinity: разбор манифеста
+
+Task hijacking начинается с манифеста: атакующему нужно, чтобы его активность попала в задачу жертвы. Ключевые атрибуты — `taskAffinity`, `launchMode` и `allowTaskReparenting`. Посмотрим на реальный APK.
+
+```
+$ aapt dump xmltree target.apk AndroidManifest.xml | grep -i -A4 'activity'
+      E: activity (line=42)
+        A: android:name(0x01010003)="com.target.MainActivity" (Raw: "com.target.MainActivity")
+        A: android:launchMode(0x0101001d)=(type 0x10)0x2      # singleTask
+        A: android:taskAffinity(0x01010012)="" (Raw: "")
+        A: android:allowTaskReparenting(0x01010006)=(type 0x12)0x0
+```
+
+Разбор значений `launchMode`:
+
+| Значение | Число в манифесте | Поведение |
+|----------|-------------------|-----------|
+| standard | 0x0 | новая активность в новой задаче при affinity |
+| singleTop | 0x1 | переиспользовать верхнюю |
+| singleTask | 0x2 | одна задача на affinity — **цель hijack** |
+| singleInstance | 0x3 | изолированная задача |
+
+Признаки уязвимости: пустой `taskAffinity` (`""`) — тогда система берёт имя пакета, и активность легко «перехватить»; `allowTaskReparenting=true` — активность переезжает в чужую задачу. Если хотя бы одно условие выполнено и в `onNewIntent`/`onResume` не проверяется, кто вызвал экран, приложение подставляется под жертву.
+
+Проверить поведение вживую просто: установите APK, откройте его, затем через `adb shell am start` запустите «атакующую» активность с тем же affinity и посмотрите, попадёт ли она в стек задачи жертвы. На Android 10+ (StrandHogg 2.0) для этого не нужны особые права — уязвимы даже не-root устройства.
+
 ## Квиз
 
 Проверь себя.

@@ -217,6 +217,50 @@ $ adb shell run-as com.target.app cat /data/data/com.target.app/shared_prefs/sta
 - **Смотрите на policy:** `WithBiometrics` vs `deviceOwnerAuthentication`.
 - **Проверяйте хранилище флага:** `bio_ok` в SharedPreferences — красный флаг.
 
+## CryptoObject: как выглядит правильная привязка
+
+Ключевая разница между «декоративной» и настоящей биометрией — в том, что защищает операцию. Правильный Android-паттерн привязывает биометрию к криптографическому ключу: пока пользователь не подтвердил личность, ключ физически недоступен для подписи.
+
+Создаём ключ с требованием аутентификации:
+
+```java
+KeyGenParameterSpec spec = new KeyGenParameterSpec.Builder(
+        "bio_key", KeyProperties.PURPOSE_SIGN)
+    .setUserAuthenticationRequired(true)
+    .setUserAuthenticationParameters(0, KeyProperties.AUTH_BIOMETRIC_STRONG)
+    .setInvalidatedByBiometricEnrollment(true)   // сброс при новом отпечатке
+    .build();
+```
+
+Затем этот ключ передаётся в `BiometricPrompt` как `CryptoObject`:
+
+```java
+Cipher cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+cipher.init(Cipher.ENCRYPT_MODE, publicKey);
+prompt.authenticate(promptInfo, new BiometricPrompt.CryptoObject(cipher));
+```
+
+Теперь подмена `onAuthenticationSucceeded` хуком ничего не даст: без реальной биометрии `Cipher` не инициализируется и `doFinal` бросит `UserNotAuthenticatedException`. Именно это и проверяет пентестер — использует ли приложение `CryptoObject` или голый булев флаг.
+
+На iOS аналог — `kSecAccessControlBiometryCurrentSet`:
+
+```swift
+let access = SecAccessControlCreateWithFlags(nil,
+    kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly,
+    .biometryCurrentSet, nil)
+```
+
+`.biometryCurrentSet` сбрасывает ключ при изменении набора отпечатков — важная деталь, которой часто пренебрегают.
+
+| Проверка | Слабо | Правильно |
+|----------|-------|-----------|
+| Что защищает операцию | булев флаг в коде | ключ Keystore/Keychain |
+| `setUserAuthenticationRequired` | не задан | `true` |
+| Инвалидация при новом отпечатке | нет | `setInvalidatedByBiometricEnrollment(true)` |
+| Серверная проверка | голый `biometric=true` | подпись/attestation |
+
+Если приложение хранит только флаг — обход реален. Если используется `CryptoObject` и серверная перепроверка — локальный хук покажет слабость модели, но не даст доступа к критичному действию.
+
 ## Квиз
 
 Проверь себя.

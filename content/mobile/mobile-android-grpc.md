@@ -223,6 +223,47 @@ bank.BankService.Transfer
 - Подмена параметров — типовой источник IDOR.
 - Без схемы структуру восстанавливают по тегам.
 
+## Server reflection: схема без .proto
+
+Если сервер включил gRPC Server Reflection (частая настройка в dev и staging), схему не нужно выдирать из APK — её отдаёт сам сервер. Это резко ускоряет разведку.
+
+```bash
+$ grpcurl -plaintext api.target.com:443 list
+grpc.reflection.v1alpha.ServerReflection
+target.v1.AccountService
+target.v1.PaymentService
+
+$ grpcurl -plaintext api.target.com:443 list target.v1.PaymentService
+target.v1.PaymentService.Transfer
+target.v1.PaymentService.GetBalance
+
+$ grpcurl -plaintext -d '{"account_id":"1"}' \
+    api.target.com:443 target.v1.PaymentService.GetBalance
+{
+  "balance": "100.00",
+  "currency": "USD"
+}
+```
+
+`grpcurl describe target.v1.PaymentService` покажет полный контракт — поля, типы, номера. С этим уже можно вызывать методы напрямую и проверять авторизацию: подставить чужой `account_id` (IDOR), вызвать `Transfer` без прав, посмотреть, возвращает ли сервер избыточные поля.
+
+Если рефлексия выключена, схему достают из APK:
+
+```bash
+$ unzip -o app.apk 'assets/*.proto' -d extracted
+$ jadx -d jadx_out app.apk
+$ grep -rl "class PaymentServiceGrpc" jadx_out/ | head
+```
+
+Сгенерированный `*Grpc`-класс содержит имена методов и marshaller’ы, по которым восстанавливают номера полей. Ещё один путь — перехватить реальный вызов (mitmproxy/HTTP-Toolkit) и декодировать protobuf по wire-format: тег = `(field_number << 3) | wire_type`.
+
+| Источник | Когда доступен | Что даёт |
+|----------|----------------|----------|
+| Server Reflection | включён на сервере | полный контракт без APK |
+| `assets/*.proto` в APK | если не вырезали | исходный .proto |
+| `*Grpc` классы (jadx) | всегда | имена методов + marshaller |
+| Дамп трафика | всегда | wire-format, поля по тегам |
+
 ## Квиз
 
 Проверь себя.
