@@ -230,6 +230,40 @@ attacker@evil.tld
 Такой чек-лист превращает разрозненные события в доказательную цепочку и экономит время
 при повторных инцидентах.
 
+## Автоматизация: PowerShell и Graph
+
+Выгружать UAL вручную через портал для большого инцидента неудобно. Надёжнее —
+`Search-UnifiedAuditLog` из Exchange Online PowerShell:
+
+```powershell
+Search-UnifiedAuditLog -StartDate (Get-Date).AddDays(-7) `
+  -EndDate (Get-Date) -Operations "New-InboxRule","Set-Mailbox" `
+  -ResultSize 5000 | Export-Csv ual.csv -NoTypeInformation
+```
+
+Полезные `-Operations` для расследования BEC: `Add-MailboxPermission`,
+`Set-Mailbox`, `New-InboxRule`, `UpdateInboxRules`, `Add-RecipientPermission`,
+`ConsentToApplication`. Отфильтровав по ним, вы сразу получаете «горячие» события, не
+листая миллионы строк.
+
+Альтернатива — **Microsoft Graph** (`/security/auditLog/queries`) и выгрузка в
+`Content`-поток; для SIEM удобнее непрерывный экспорт в Sentinel/Event Hub. Если журнал
+уже в SIEM, стройте запросы по `Operation` и `UserPrincipalName` — так быстрее находить
+всю цепочку: вход → создание правила → пересылка → удаление письма из Sent Items.
+
+## Ретенция и что делать, если журнал «пуст»
+
+UAL хранится ограниченное время: по умолчанию 90 дней, на E3 — до 90, на E5 — до 365
+(настраивается политикой). Если инцидент старше окна ретенции, события уже недоступны —
+это первое, что проверяют. Иногда администратор **специально** сокращает срок хранения или
+отключает аудит, чтобы замести следы: такие изменения (`Set-AdminAuditLogConfig`,
+`Set-MailboxAuditBypassAssociation`) сами попадают в журнал и служат индикатором.
+
+Если `Search-UnifiedAuditLog` возвращает пусто при известном инциденте, проверьте: (1)
+правильную учётную запись и роли (нужны `View-Only Audit Logs` или `Audit Logs`), (2) окно
+дат с учётом UTC, (3) не выгружается ли журнал отдельно через `AuditLog` в Graph. Пустой
+результат при активном событии — сам по себе находка, а не «ничего не было».
+
 ## Квиз
 
 Проверь себя.
