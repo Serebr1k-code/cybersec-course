@@ -4,6 +4,7 @@ import {
   gateTasks,
   gateTotal,
   gateSolved,
+  gateFillFraction,
   isGateUnlocked,
   isGateLocked,
   gatedIds,
@@ -49,8 +50,18 @@ describe('utils/waystone — gate primitives', () => {
     expect(gateSolved(g, completed('a', 'b', 'c'))).toBe(3)
   })
 
-  it('is unlocked only when EVERY task is completed', () => {
-    const g = { waystone: true, waystone_tasks: ['a', 'b'] }
+  it('reports the solved fraction (0..1) that drives the block fill', () => {
+    const g = { waystone: true, waystone_tasks: ['a', 'b', 'c', 'd'] }
+    expect(gateFillFraction(g, completed())).toBe(0)
+    expect(gateFillFraction(g, completed('a'))).toBe(0.25)
+    expect(gateFillFraction(g, completed('a', 'b'))).toBe(0.5)
+    expect(gateFillFraction(g, completed('a', 'b', 'c', 'd'))).toBe(1)
+    // a gate with no tasks is an empty block
+    expect(gateFillFraction({ waystone: true, waystone_tasks: [] }, completed())).toBe(0)
+    expect(gateFillFraction({}, completed())).toBe(0)
+  })
+
+  it('is unlocked only when EVERY task is completed', () => {    const g = { waystone: true, waystone_tasks: ['a', 'b'] }
     expect(isGateUnlocked(g, completed('a'))).toBe(false)
     expect(isGateUnlocked(g, completed('a', 'b'))).toBe(true)
     expect(isGateLocked(g, completed('a'))).toBe(true)

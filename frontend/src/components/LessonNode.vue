@@ -111,11 +111,6 @@ function onGateClick(e) { emit('gate-open', e) }
 </script>
 
 <template>
-  <!-- ===================== WAYSTONE GATE — golden dark BLOCK =================
-       A waystone is rendered as a distinct BLOCK regardless of its hub/card kind.
-       NO lock emoji and NO "N/M" text on the face — the gold fill (left→right)
-       alone communicates progress. While LOCKED it is a <button> that opens the
-       task list; once FULL it is a RouterLink that navigates normally. -->
   <RouterLink
     v-if="isWaystone && !gateLocked"
     :to="'/lesson/' + node.id"

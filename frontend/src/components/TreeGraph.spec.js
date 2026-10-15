@@ -659,34 +659,99 @@ describe('components/TreeGraph.vue — waystone gates', () => {
     expect(slots(w).map((s) => s.title).sort()).toEqual(['Root', 'Вейстоун', 'Задача 1', 'Задача 2'])
   })
 
-  it('shows a «lock + N/M» indicator on the waystone card', async () => {
+  it('renders the waystone as a golden block with a left→right fill (no pill, no emoji)', async () => {
     const { w } = await factoryWithProgress({ nodes: GATE_TREE })
-    const gate = slotByTitle(w, 'Вейстоун').rn.find('.gate')
-    expect(gate.exists()).toBe(true)
-    expect(gate.classes()).toContain('locked')
-    expect(gate.text()).toContain('0/2')
-    expect(gate.attributes('title')).toMatch(/заперт/i)
+    const ws = slotByTitle(w, 'Вейстоун').rn
+    expect(ws.classes()).toContain('ws')
+    expect(ws.classes()).toContain('locked')
+    expect(ws.classes()).not.toContain('hub')
+    expect(ws.classes()).not.toContain('card')
+    // the old lock + N/M pill is gone entirely
+    expect(ws.find('.gate').exists()).toBe(false)
+    expect(ws.text()).not.toContain('🔒')
+    // 0/2 solved -> empty dark block
+    expect(ws.find('.ws-fill').attributes('style')).toContain('width: 0%')
+    expect(ws.attributes('title')).toMatch(/заперт/i)
   })
 
-  it('updates the indicator as tasks are completed (partly solved stays locked)', async () => {
+  it('fills the block left→right as tasks complete (partly solved stays locked)', async () => {
     const { w, store } = await factoryWithProgress({ nodes: GATE_TREE })
     await solve(store, 't1')
-    const gate = slotByTitle(w, 'Вейстоун').rn.find('.gate')
-    expect(gate.classes()).toContain('locked')
-    expect(gate.text()).toContain('1/2')
+    const ws = slotByTitle(w, 'Вейстоун').rn
+    expect(ws.classes()).toContain('locked')
+    // 1/2 -> 50%
+    expect(ws.find('.ws-fill').attributes('style')).toContain('width: 50%')
     expect(slotByTitle(w, 'Запертый')).toBeUndefined()
   })
 
-  it('unlocks the branch once ALL tasks are solved', async () => {
+  it('turns the block fully gold + unlocks the branch once ALL tasks are solved', async () => {
     const { w, store } = await factoryWithProgress({ nodes: GATE_TREE })
     await solve(store, 't1')
     expect(slotByTitle(w, 'Запертый')).toBeUndefined()
     await solve(store, 't2')
     // the whole gated subtree appears (progressive reveal: depth-2 child + path)
     expect(slotByTitle(w, 'Запертый')).toBeDefined()
-    const gate = slotByTitle(w, 'Вейстоун').rn.find('.gate')
-    expect(gate.classes()).toContain('open')
-    expect(gate.text()).toContain('2/2')
+    const ws = slotByTitle(w, 'Вейстоун').rn
+    expect(ws.classes()).toContain('open')
+    expect(ws.find('.ws-fill').attributes('style')).toContain('width: 100%')
+  })
+
+  it('clicking a LOCKED waystone does NOT navigate — it opens the task list', async () => {
+    const { w } = await factoryWithProgress({ nodes: GATE_TREE })
+    expect(w.find('.gate-menu').exists()).toBe(false)
+    const ws = slotByTitle(w, 'Вейстоун').rn
+    // locked waystone is a <button>, never a RouterLink -> a click cannot navigate
+    expect(ws.element.tagName).toBe('BUTTON')
+    expect(ws.findComponent(RouterLinkStub).exists()).toBe(false)
+    await ws.trigger('click')
+    const m = w.find('.gate-menu')
+    expect(m.exists()).toBe(true)
+    expect(m.text()).toContain('Пройди 2')
+    expect(m.text()).toContain('чтобы открыть ветку')
+    // both gate tasks are listed as links to their lessons
+    const links = m.findAllComponents(RouterLinkStub).map((c) => c.props('to'))
+    expect(links).toContain('/lesson/t1')
+    expect(links).toContain('/lesson/t2')
+    // none solved yet -> ○, no ✓
+    expect(m.findAll('.gate-task').length).toBe(2)
+    expect(m.findAll('.gate-task.done').length).toBe(0)
+    expect(m.find('.gate-mark').text()).toBe('○')
+  })
+
+  it('marks solved tasks ✓ and unsolved ○ in the task list', async () => {
+    const { w, store } = await factoryWithProgress({ nodes: GATE_TREE })
+    await solve(store, 't1')
+    await slotByTitle(w, 'Вейстоун').rn.trigger('click')
+    const m = w.find('.gate-menu')
+    expect(m.findAll('.gate-task').length).toBe(2)
+    expect(m.findAll('.gate-task.done').length).toBe(1)
+    expect(m.find('.gate-task.done').text()).toContain('Задача 1')
+    expect(m.find('.gate-task.done .gate-mark').text()).toBe('✓')
+  })
+
+  it('a FULL waystone is a link (navigates) and opens no task list', async () => {
+    const { w, store } = await factoryWithProgress({ nodes: GATE_TREE })
+    await solve(store, 't1', 't2')
+    const ws = slotByTitle(w, 'Вейстоун').rn
+    expect(ws.classes()).toContain('open')
+    expect(ws.findComponent(RouterLinkStub).props('to')).toBe('/lesson/g')
+    await ws.trigger('click')
+    expect(w.find('.gate-menu').exists()).toBe(false)
+  })
+
+  it('closes the task list on an outside click / Escape', async () => {
+    const { w } = await factoryWithProgress({ nodes: GATE_TREE })
+    await slotByTitle(w, 'Вейстоун').rn.trigger('click')
+    expect(w.find('.gate-menu').exists()).toBe(true)
+    window.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+    await nextTick()
+    expect(w.find('.gate-menu').exists()).toBe(false)
+    // and via Escape
+    await slotByTitle(w, 'Вейстоун').rn.trigger('click')
+    expect(w.find('.gate-menu').exists()).toBe(true)
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+    await nextTick()
+    expect(w.find('.gate-menu').exists()).toBe(false)
   })
 
   it('a locked waystone survives «Развернуть всё» (hard lock, not just fog)', async () => {
