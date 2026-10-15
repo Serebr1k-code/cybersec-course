@@ -223,6 +223,43 @@ WHERE name IN ('xp_cmdshell','clr enabled','Ole Automation Procedures');
 
 <!-- lab -->
 
+## Слепой дамп через бинарный поиск
+
+Когда вывод не отражается, MSSQL позволяет извлекать данные по одному биту. Классический приём — сравнение ASCII-кода символа с серединой диапазона через `SUBSTRING`:
+
+```sql
+-- верно ли, что первый символ имени БД > 'm'?
+' AND (SELECT ASCII(SUBSTRING((SELECT TOP 1 name FROM sys.databases
+     WHERE database_id>4),1,1))) > 109--
+```
+
+Каждый вопрос отсекает половину диапазона (7 запросов на символ). Чтобы ускорить, кодируют состояние в ошибку (`AND 1/(CASE WHEN ... THEN 1 ELSE 0 END)=1`) — тогда ответ читается по наличию ошибки, а не по времени, что на порядок быстрее time-blind. Ещё быстрее — `WAITFOR DELAY` только для булева результата и бинарный поиск.
+
+## MSSQL против MySQL и PostgreSQL: где расходятся приёмы
+
+| Приём | MSSQL | MySQL | PostgreSQL |
+|---|---|---|---|
+| Комментарий | `--` , `/* */` | `#`, `-- ` | `--`, `/* */` |
+| Стекованные запросы | да (обычно) | нет (по умолчанию) | да |
+| RCE | `xp_cmdshell` | `INTO OUTFILE` + UDF | `COPY ... PROGRAM` |
+| Чтение файла | `OPENROWSET(BULK)` | `LOAD_FILE` | `pg_read_file` |
+| Метаданные | `sys.objects`/`INFORMATION_SCHEMA` | `information_schema` | `pg_catalog` |
+
+Важное отличие MSSQL — **stacked queries** и `EXEC` позволяют выполнять несколько инструкций в одном инжекте, а `xp_cmdshell` (если включён) даёт прямой RCE без записи файлов. В MySQL для RCE обычно нужен `FILE`-privilege и запись в webroot; в PostgreSQL — членство в `pg_execute_server_program`.
+
+## Linked servers: прыжок вглубь сети
+
+Если `xp_cmdshell` запрещён, смотрят на **linked servers** — они позволяют выполнять запросы на другом инстансе:
+
+```sql
+EXEC sp_linkedservers;
+SELECT * FROM OPENQUERY([PROD-SQL], 'SELECT @@version');
+-- если включён 'data access' и права позволяют:
+EXEC ('EXEC xp_cmdshell ''whoami''') AT [PROD-SQL];
+```
+
+Это типичный путь латерального движения: compromised SQL-сервер в DMZ через linked server достаёт внутренний, где права выше. Проверять надо `sys.servers` и флаг `is_data_access_enabled`.
+
 ## Квиз
 
 Проверь себя.

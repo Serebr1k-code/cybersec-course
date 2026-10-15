@@ -238,6 +238,38 @@ Disassembly of section .data:
 - NX делает стек неисполняемым, поэтому shellcode на стеке не работает.
 - Под seccomp вместо shell делают ORW-shellcode: читают и печатают файл.
 
+## Позиционная независимость: как shellcode находит сам себя
+
+Shellcode не знает, по какому адресу его разместят, поэтому все обращения к строкам и данным должны быть относительными. Классический приём x86-64 — **jmp/call/pop**:
+
+```asm
+    jmp short call_shellcode
+shellcode:
+    pop rsi            ; rsi -> "/bin/sh\0"
+    ; ... rax=59, rdi=&"/bin/sh", rsi=0, rdx=0, syscall
+call_shellcode:
+    call shellcode
+    db "/bin/sh", 0
+```
+
+`call` кладёт на стек адрес следующей инструкции, `pop` снимает его в регистр — так строка оказывается «под рукой» без абсолютных адресов. Альтернатива для x86 — `fnstenv`/`fstenv`, извлекающий указатель на последнюю инструкцию FPU. Для вызова `execve` регистры выставляют вручную: `rax=59`, `rdi=&"/bin/sh"`, `rsi=0` (argv), `rdx=0` (envp), затем `syscall`.
+
+## Windows x64: другой ABI и другие вызовы
+
+На Windows нет прямого `syscall` из userland с предсказуемым номером (он зависит от сборки), поэтому shellcode обычно вызывает функции из `kernel32.dll`/`ntdll.dll`. Адрес `kernel32` находят через **PEB**: `gs:[0x60]` → `PEB->Ldr->InMemoryOrderModuleList`, второй/третий элемент — `kernel32`. Далее по таблице экспорта ищут `LoadLibraryA`/`GetProcAddress`, а через них — `WinExec`/`CreateProcessA`.
+
+| Свойство | Linux x86-64 | Windows x64 |
+|---|---|---|
+| Вызов | `syscall` (rax=номер) | call в DLL |
+| Поиск API | не нужен | PEB walk + hash |
+| Строки | в shellcode | часто хешируют имена |
+| Размер | ~25 байт | ~200-400 байт |
+| Null-байты | избегают | избегают |
+
+## Почему null-free так важно
+
+`strcpy`/`gets` обрывают копирование на нулевом байте, поэтому в shellcode избегают `\x00`. Приёмы: `xor rax,rax` вместо `mov rax,0`, `push 0x68; push 0x73...` вместо строкового литерала, `xor`-кодирование с декодером-префиксом. Инструмент `msfvenom -p linux/x64/exec -b '\x00\x0a'` автоматически перекодирует и сообщает размер: `Payload size: 27 bytes`.
+
 ## Квиз
 
 ```quiz
