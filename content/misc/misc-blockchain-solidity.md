@@ -151,6 +151,143 @@ unchecked { balances[msg.sender] -= amount; } // если amount > balance → �
 - `unchecked` отключает проверки переполнения; `tx.origin` — плохая авторизация.
 - `selfdestruct` умеет принудительно перевести эфир на контракт.
 
+## Reentrancy: полный PoC
+
+Хотя в нашем примере был `delegatecall`, самый знаменитый баг Solidity — **reentrancy**. Контракт отправляет эфир внешним вызовом **до** обновления баланса; атакующий контракт в своём `receive()` рекурсивно вызывает снятие снова, пока баланс не опустеет:
+
+```solidity
+contract Victim {
+    mapping(address => uint) public bal;
+    function withdraw() external {
+        uint a = bal[msg.sender];
+        (bool ok, ) = msg.sender.call{value: a}("");   // внешний вызов
+        require(ok);
+        bal[msg.sender] = 0;                            // слишком поздно
+    }
+}
+
+contract Attack {
+    Victim v;
+    receive() external payable { if (address(v).balance > 0) v.withdraw(); }
+}
+```
+
+Лечится паттерном **checks-effects-interactions** (сначала обнулить баланс, потом переводить) или reentrancy guard (`nonReentrant`).
+
+## Foundry-тест: как воспроизвести атаку
+
+Локально атаку удобно оформить тестом Foundry — так её видно и можно отлаживать:
+
+```solidity
+function testReentrancy() public {
+    vm.deal(address(victim), 10 ether);
+    vm.prank(alice);
+    victim.deposit{value: 1 ether}();
+    vm.prank(alice);
+    attack.attack{value: 1 ether}();
+    assertEq(address(victim).balance, 0);
+}
+```
+
+`vm.deal`, `vm.prank` и `assertEq` — стандартные читы Foundry: дать баланс, подменить `msg.sender` и проверить результат. Так любой баг превращается в воспроизводимый PoC.
+
+## Таблица инструментов аудита
+
+| Инструмент | Назначение |
+|---|---|
+| `slither` | статический анализ, поиск известных багов |
+| `mythril` | символьное исполнение, поиск путей к уязвимости |
+| `foundry` | PoC-тесты и фаззинг контрактов |
+| `echidna` | property-based фаззинг |
+| `cast` | чтение storage, отправка транзакций |
+| Ethernaut / Damn Vulnerable DeFi | обучающие задачи |
+
+Порядок работы: сначала `slither` для быстрой разведки, потом ручной разбор storage и прав, затем `foundry`-PoC для подтверждения. Автоматика находит шаблонные баги, но `delegatecall` и логику обычно видно только глазами.
+
+## ABI, селекторы и как устроен вызов
+
+Любой вызов контракта — это `calldata`: 4 байта селектора (первые 4 байта `keccak256("func(uint256)")`) и упакованные аргументы по 32 байта каждый. Понимание ABI критично: именно из calldata атакующий собирает произвольные вызовы. Инструменты вроде `cast` (Foundry) и `web3.py` дают `encode_call`/`decode_call`.
+
+```bash
+# селектор функции
+cast sig "transfer(address,uint256)"
+# ручной вызов без ABI
+cast call $TARGET "0x$(cast sig 'owner()')"
+```
+
+Если контракт не верифицирован, селекторы всё равно читаются: `functionSelectors` в байткоде ищут по `PUSH4`. Это позволяет восстановить сигнатуры публичных методов по открытой базе `4byte.directory`.
+
+## Storage layout: точный расчёт слотов
+
+Solidity упаковывает переменные по 32 байта. Правила:
+
+- Простые типы (`uint256`, `address`) занимают **целый слот** каждый.
+- Мелкие типы (`uint8`, `bool`, `address`) **упаковываются** в один слот, если помещаются.
+- Массивы и mapping занимают **один слот** под «метаданные», а элементы лежат по вычисляемому адресу.
+
+Для dynamic array `a` длина — `keccak256(slot_a)`, элемент `i` — `keccak256(slot_a) + i`. Для `mapping(k => v)` по слоту `s` значение ключа `k` — `keccak256(abi.encode(k, s))`. Именно поэтому «приватные» данные читаются: слот можно вычислить, а `eth_getStorageAt` доступен любому.
+
+```python
+from web3 import Web3
+slot = Web3.keccak(hexstr=(key.to_bytes(32,'big').hex() + slot_hex))
+val = w3.eth.get_storage_at(addr, int.from_bytes(slot,'big'))
+```
+
+## delegatecall: граница доверия
+
+`delegatecall` исполняет код **другого** контракта в контексте текущего: `storage`, `msg.sender`, `address` остаются от вызывающего. Это основа прокси-паттернов и одновременно класс уязвимостей:
+
+- **Storage collision** в прокси: если реализация и прокси используют разные layout'ы, вызов перезапишет не те слоты (например, `owner` в прокси окажется `implementation`-слотом).
+- **Unprotected initializer**: у прокси `initialize()` может не иметь защиты, и атакующий вызывает её напрямую, становясь владельцем.
+- **Arbitrary delegatecall**: если функция делает `delegatecall` на адрес из calldata без проверки, атакующий подсовывает свой контракт и исполняет произвольный код в storage жертвы.
+
+Проверка: `cast storage $PROXY 0` — посмотрите слот 0; в OpenZeppelin-прокси это `_implementation`, а `owner` лежит дальше. Знание layout — половина атаки.
+
+## Каталог уязвимостей и версии компилятора
+
+Версия компилятора определяет доступные баги. Ключевые вехи:
+
+| Версия | Уязвимость | Как эксплуатируется |
+|---|---|---|
+| <0.8.0 | integer overflow/underflow | арифметика без проверок |
+| <0.4.22 | constructor() как public-функция | любой становится owner |
+| <0.5.0 | uninitialized storage pointer | запись в чужой слот |
+| все | `tx.origin` вместо `msg.sender` | фишинг через промежуточный контракт |
+| все | reentrancy | внешний вызов до обновления состояния |
+| все | `selfdestruct` force-send ETH | ломает `address(this).balance` |
+
+`pragma solidity ^0.6.0` сразу подсказывает: overflow возможен, нужна `SafeMath` или ручная проверка. Если видите `function() public payable` как конструктор — это древний контракт, и атака тривиальна.
+
+## Восстановление после selfdestruct и reentrancy
+
+**Reentrancy** (классика The DAO): функция переводит ETH до обнуления баланса, получатель — контракт с fallback, который рекурсивно вызывает функцию снова. Лечится паттерном checks-effects-interactions и `nonReentrant`. Атакующий контракт:
+
+```solidity
+function attack() external payable { victim.withdraw(); }
+receive() external payable { if (address(victim).balance >= 1 ether) victim.withdraw(); }
+```
+
+**selfdestruct force-send**: `selfdestruct` отправляет ETH принудительно, даже если у получателя `receive()` ревертит. Это ломает инварианты `require(address(this).balance == total)`, которыми проверяются «честные» депозиты. Учитывайте при аудите логики ставок.
+
+## Чек-лист аудита контракта
+
+1. Версия компилятора → известные баги.
+2. Storage layout: где `owner`, есть ли прокси и совпадает ли layout.
+3. Внешние вызовы: порядок «изменение состояния → внешний вызов»?
+4. `delegatecall`/`call`: защищён ли адрес и селектор.
+5. Модификаторы доступа на всех чувствительных функциях.
+6. `tx.origin` в авторизации.
+7. Арифметика и `SafeMath` для `<0.8.0`.
+8. Проверяемость инвариантов: не ломается ли `balance` через force-send.
+
+## Частые ошибки аудита
+
+- **Смотреть только код, а не раскладку storage** — порядок объявления переменных определяет слоты, и баг часто именно в этом.
+- **Игнорировать `pragma`** — до 0.8.0 нет проверок переполнения, нужен `SafeMath`.
+- **Забыть про `unchecked` и `assembly`** — там отключены проверки компилятора.
+- **Не проверить права функций** — отсутствие `onlyOwner`/`initializer` означает захват владения.
+- **Пропустить `delegatecall`** — подменяемый адрес реализации даёт исполнение чужого кода в своём storage.
+
 ## Квиз
 
 Проверь себя.
