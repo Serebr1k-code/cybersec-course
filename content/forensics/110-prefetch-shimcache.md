@@ -164,6 +164,61 @@ $ AmcacheParser.exe -f Amcache.hve --csv out --csvf amcache.csv
 - Prefetch-хеш зависит от полного пути запуска, поэтому один EXE из разных папок даёт разные `.pf`.
 - Время в Prefetch — FILETIME (от 1601 года, UTC).
 
+## UserAssist и BAM: два независимых свидетеля запуска
+
+Prefetch может быть очищен, а ShimCache — не иметь флага запуска. Тогда запуск
+подтверждают два артефакта, о которых часто забывают.
+
+**UserAssist** живёт в `NTUSER.DAT` пользователя, ключ
+`Software\Microsoft\Windows\CurrentVersion\Explorer\UserAssist`. Имена значений закодированы
+**ROT13**, а рядом лежат счётчик запусков и время последнего запуска. Пример разбора
+утилитой `UserAssist` из Eric Zimmerman's tools:
+
+```
+$ UserAssist.exe -f NTUSER.DAT --csv out --csvf ua.csv
+$ grep -i evil out/ua.csv
+Name,RunCount,LastExecuted
+C:\Users\bob\AppData\evil.exe,3,2025-03-01 22:09:00
+```
+
+Ограничение: UserAssist фиксирует только запуск **из Explorer** (двойной клик, меню
+«Пуск»), но не из командной строки. Поэтому «нет записи» не равно «не запускался».
+
+**BAM/DAM** (Background Activity Moderator) — раздел `SYSTEM` hive
+`CurrentControlSet\Services\bam\State\UserSettings\<SID>`; он хранит путь и время
+последнего запуска **по пользователю**, независимо от способа. Полезен, когда нужно
+привязать запуск к конкретной учётной записи.
+
+| Условие | Кто подтвердит запуск |
+|---|---|
+| Prefetch очищен | UserAssist, BAM, AmCache, ShimCache(Executed) |
+| Запуск из консоли | Prefetch, BAM, AmCache (не UserAssist) |
+| Запуск из GUI | UserAssist, Prefetch, BAM |
+| Файл удалён | ShimCache, AmCache, BAM (путь остаётся) |
+
+## Разбор Amcache.hve без готовых утилит
+
+Если AmcacheParser недоступен, `Amcache.hve` — обычный куст реестра, и его читают
+`reg`-совместимыми средствами. Ключевой раздел `Root\InventoryApplicationFile` содержит
+подразделы, где значения `LowerCaseLongPath` (путь) и `FileId` (SHA-1) дают идентичность:
+
+```
+$ reg query "HKLM\Amcache\Root\InventoryApplicationFile" /s 2>/dev/null | grep -i evil
+  LowerCaseLongPath  REG_SZ  c:\users\bob\appdata\evil.exe
+  FileId             REG_SZ  00009a0364b9e99bb480dd25e1f0284c8555
+```
+
+`FileId` начинается с `0000` (префикс версии), сам SHA-1 — следующие 40 символов.
+Это позволяет достать хеш, даже когда сторонний парсер не запускается.
+
+## Краевой случай: Prefetch-хеш зависит от пути
+
+Имя `.pf` — это не имя файла, а хеш **полного пути запуска**. Один и тот же `evil.exe`,
+запущенный из `AppData` и из `Temp`, даст **два разных** `.pf`. Отсюда практический вывод:
+если вы ищете Prefetch по имени файла и не находите — проверьте, не запускался ли бинарь
+из другой директории. И наоборот: два `.pf` с похожими временами могут быть одним и тем
+же инструментом из разных папок.
+
 ## Квиз
 
 Проверь себя.

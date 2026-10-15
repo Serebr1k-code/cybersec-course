@@ -157,6 +157,57 @@ House of Einherjar часто — первый шаг большой цепоч�
 - Off-by-null сбрасывает `prev_inuse` и задаёт `prev_size`.
 - На modern glibc нужен размер > `0x410` или полный tcache.
 
+## Таблица: House-приёмы и условия применимости
+
+House of Einherjar — один из семейства «House of…» heap-приёмов. Важно понимать, когда он вообще применим, а когда нужен другой приём.
+
+| Приём | Требует | glibc | Что даёт |
+|-------|---------|-------|----------|
+| House of Einherjar | off-by-null + prev_inuse=0 | ≥2.24 (с проверками) | перекрытие чанков, arbitrary write |
+| House of Force | контроль top chunk size | <2.29 | произвольная запись |
+| House of Spirit | указатель на fake chunk | любые | free на поддельный чанк |
+| House of Lore | small bin | <2.29 | запись в smallbin |
+| House of Orange | контроль top size | <2.26 | FSOP |
+| Tcache poisoning | UAF/overflow на tcache | ≥2.26 | быстрый arbitrary alloc |
+
+House of Einherjar жив, потому что off-by-null встречается в реальном коде (строки без `\0`), а modern glibc проверяет лишь согласованность `size` и `prev_size` — их и надо подделать.
+
+## Рабочий пример: расчёт размеров под Einherjar
+
+Успех зависит от точного выбора размеров. Разберём арифметику на конкретных числах.
+
+```python
+# Цель: перезаписать заголовок чанка B через off-by-null в чанке A.
+# Шаги:
+#  1. Выделить A, B, C так, чтобы A примыкал к B, а C мешал top consolidation.
+#  2. off-by-null в A зануляет младший байт поля size чанка B ->
+#     prev_inuse(B) = 0, а size(B) уменьшается (обычно 0x...11 -> 0x...00).
+#  3. При free(B) консолидация идёт назад: B - prev_size(B).
+#  4. Значит, подделываем prev_size(B) так, чтобы B - prev_size указывал
+#     на наш fake chunk.
+
+def sz(req):                      # размер чанка с выравниванием
+    return (req + 8 + 15) & ~0xF
+
+A = sz(0x18)   # 0x20
+B = sz(0x68)   # 0x70  -> младший байт 0x70
+# off-by-null превратит size(B) 0x...71 в 0x...70? нет —
+# зануляем именно младший байт поля size: 0x71 -> 0x00 (prev_inuse=0)
+fake_off = 0x20   # fake chunk на расстоянии от начала B
+prev_size = B + fake_off  # заставляем B-prev_size указать на fake
+print(hex(A), hex(B), hex(prev_size))
+```
+
+Ключ — согласованность: `size(fake) == prev_size(B)` и `fake + size(fake) == B`. Если хоть одно не сходится, glibc кинет `malloc(): corrupted top size` или `invalid next size`.
+
+## Ограничения и типичные ошибки
+
+- **Проверки glibc.** С 2.29+ проверяется `size` и `next->size`; без корректного fake-чанка атака падает.
+- **Tcache перехватывает free.** Если размер попадает в tcache, backward consolidation не запускается; используйте размер вне tcache или заполните бин.
+- **Нужен именно off-by-null.** Off-by-one (не null) меняет байт иначе; для Einherjar нужен ноль в младшем байте `size`.
+- **Неверное выравнивание.** `prev_size` должен быть кратен 16 и совпадать с размером fake-чанка; иначе abort.
+- **Ошибка с адресом top.** Если C не мешает, чанк консолидируется с top, и атака не срабатывает — держите «сторожа» после B.
+
 ## Квиз
 
 Проверь себя.
