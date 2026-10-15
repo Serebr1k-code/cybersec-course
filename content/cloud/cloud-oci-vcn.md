@@ -83,6 +83,57 @@ $ oci network nsg list --compartment-id <ocid> --all
 ```
 Вывод даёт объекты, но не их смысл — смысл мы добавляем сами: сопоставляем порты с сервисами и источники с зонами доверия.
 
+## OCI VCN: сеть и её поверхность
+
+VCN (Virtual Cloud Network) — изолированная сеть OCI: подсети, security lists, network security groups (NSG), route tables, internet/nat/service gateways. Ошибки: security list с `0.0.0.0/0` на чувствительные порты, отсутствие сегментации, публичные подсети для внутренних сервисов, открытые сервисные шлюзы.
+
+```text
+VCN -> subnets -> security lists / NSG -> instances
+```
+
+Аудит: инвентаризация VCN, подсетей, правил; поиск `0.0.0.0/0`; проверка маршрутизации (куда ведут gateway).
+
+## Практика: анализ сети
+
+Что проверять: (1) security lists и NSG (входящие/исходящие правила); (2) публичные vs приватные подсети; (3) route tables (интернет/nat/peering); (4) VCN peering (связи между VCN); (5) VPN/FastConnect. Инструменты: `oci network`, `nmap`.
+
+```bash
+oci network security-list list --compartment-id <id> --vcn-id <vcn>
+oci network subnet list --compartment-id <id> --vcn-id <vcn>
+```
+
+Типичная находка — публичная подсеть с SSH/RDP из интернета и отсутствием сегментации между окружениями.
+
+## Защита
+
+Меры: приватные подсети, минимальные NSG, bastion/VPN для доступа, сегментация по окружениям, мониторинг flow logs. Для пентеста — чтение конфигурации и проверка доступности портов (без нагрузки).
+
+## Расширенный разбор: security lists и NSG
+
+Security list применяется к подсети, NSG — к ресурсам (VNIC). Правила бывают stateful/stateless. Типичная ошибка — security list с `0.0.0.0/0` на 22/3389/3306, или исходящее правило `0.0.0.0/0` (разрешает exfiltration). Проверь оба уровня и их приоритет.
+
+```bash
+oci network security-list list --compartment-id <id> --vcn-id <vcn>
+oci network nsg list --compartment-id <id>
+```
+
+Ищи: широкие входящие правила, отсутствие ограничений по источнику, разрешающие исходящие. Каждое — находка.
+
+## Расширенный разбор: маршрутизация и peering
+
+Route tables определяют, куда идёт трафик: internet gateway (публичный), NAT (исходящий), service gateway (сервисы OCI), peering (между VCN), DRG (к on-prem). Ошибка маршрутизации может открыть путь между окружениями или к on-prem. Проверь peering и его правила (кто с кем связан).
+
+```bash
+oci network route-table list --compartment-id <id> --vcn-id <vcn>
+oci network vcn list --compartment-id <id>
+```
+
+Собери карту: подсети → маршруты → gateways → внешние связи. Это показывает, куда можно дотянуться из точки входа.
+
+## Защита и вывод
+
+Меры: приватные подсети, минимальные NSG, bastion/VPN, сегментация, flow logs, аудит peering. Вывод: сетевой аудит VCN — это карта подсетей, правил и маршрутов; ищи широкие правила и лишние связи.
+
 ## Что мы теперь знаем
 
 - VCN — виртуальная сеть; внутри — публичные и приватные подсети.

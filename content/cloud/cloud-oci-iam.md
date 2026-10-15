@@ -92,6 +92,55 @@ $ oci iam policy list --compartment-id <tenancy-ocid> --all
 ```
 Вывод покажет пользователей, группы и тексты политик. Дальше сопоставляем: наш пользователь → его группы → политики этих групп → итоговые права. Это и есть «чтение политики как атакующий».
 
+## OCI IAM: модель и поверхность
+
+OCI IAM: users, groups, dynamic groups, policies. Политика — человекочитаемая строка: `Allow group Admins to manage all-resources in tenancy`. Ошибки: `manage all-resources` (полный доступ), dynamic group по широкому правилу (например, все инстансы компартмента), отсутствие compartment-ограничений, федерация без строгих условий.
+
+```text
+Allow <subject> to <verb> <resource> in <compartment> [where <condition>]
+```
+
+Аудит: собрать все политики, найти `manage all-resources`, проверить dynamic groups и их правила, проверить условия.
+
+## Практика: эскалация в OCI IAM
+
+Векторы: (1) dynamic group, которой можно стать (например, правило по тегу, который можно поставить), (2) политика, разрешающая `manage users`/`manage groups`, (3) `manage all-resources`, (4) федерация с доверием широкому IdP. Инструменты: `oci iam`.
+
+```bash
+oci iam policy list --compartment-id <tenancy>
+oci iam dynamic-group list --compartment-id <tenancy>
+```
+
+Строй граф: идентичность → политики → ресурсы → следующая идентичность. Цель — найти путь до `manage all-resources`.
+
+## Защита
+
+Меры: минимальные политики, compartment-ограничения, условия (`where`), строгие dynamic groups, MFA, мониторинг. Для пентеста — чтение политик и построение графа.
+
+## Расширенный разбор: чтение политик OCI
+
+Политики OCI — текстовые строки вида `Allow group X to manage Y in compartment Z where C`. Читать их просто: собери все и найди `manage all-resources`, широкие subject (groups/dynamic-groups), отсутствие `where`-условий и ограничений compartment. Каждая такая политика — потенциальная эскалация.
+
+```bash
+oci iam policy list --compartment-id <tenancy> | jq -r ".data[].statements[]"
+```
+
+Ищи: `manage all-resources`, `manage users`, `manage groups`, `use` на чувствительные ресурсы. Строй граф.
+
+## Расширенный разбор: федерация
+
+OCI может быть федеративным (SAML с внешним IdP). Ошибка — доверие широкому IdP (например, любому пользователю домена) или маппинг групп, который можно подделать. Проверь настройки федерации и маппинг атрибутов.
+
+```text
+IdP group -> OCI group mapping -> roles
+```
+
+Если маппинг широкий (все в одну группу с широкими правами) — это находка. Для пентеста: оцени, какие группы IdP дают какие права OCI.
+
+## Защита и вывод
+
+Меры: минимальные политики, compartment-ограничения, условия, строгие dynamic groups, узкая федерация, MFA, мониторинг. Вывод: OCI IAM-аудит — чтение политик и построение графа до `manage all-resources`.
+
 ## Что мы теперь знаем
 
 - Права в OCI приходят через группы, а не напрямую пользователю.
