@@ -233,6 +233,78 @@ retention.
 - **Сохранять логи в отдельный аккаунт** с immutable retention (S3 Object Lock).
 - **Включать аудит заранее** — без логов облачное расследование почти невозможно.
 
+## Восстановление порядка событий
+
+В CloudTrail события лежат не в хронологическом порядке, поэтому первым делом их
+сортируют по `eventTime` и выстраивают цепочку одного принципала:
+
+```bash
+$ jq -r 'select(.userIdentity.arn|test("bob"))|"\(.eventTime) \(.eventName) \(.sourceIPAddress)"' cloudtrail.json | sort | head
+```
+
+Так видно, что делал конкретный пользователь по минутам: сначала разведка, потом
+эскалация, затем эксфильтрация. Обратите внимание на `userIdentity.sessionContext` — по
+нему отличают действия «из консоли» от «через роль» и от «через ключ».
+
+## Новые принципалы и ключи
+
+Персистентность почти всегда оставляет **новый субъект**: пользователь, ключ или роль:
+
+```bash
+$ jq -c 'select(.eventName|test("CreateUser|CreateAccessKey|CreateRole|CreateLoginProfile"))|{t:.eventTime,n:.eventName,who:.userIdentity.arn}' cloudtrail.json
+```
+
+Любой такой вызов от необычного IP или в нерабочее время — сильный индикатор. Особенно
+опасен `CreateLoginProfile`: он выдаёт новому пользователю консольный пароль.
+
+## S3-артефакты: версии и access logs
+
+Даже если объект удалили, в бакете с версионированием остаются предыдущие версии, а в
+**Server Access Logs** — записи о каждом GET/PUT:
+
+```bash
+$ aws s3api list-object-versions --bucket target-bucket
+$ aws s3api get-bucket-logging --bucket target-bucket
+$ aws s3api get-object --bucket b --key secret.docx --version-id <vid> out.docx
+```
+
+Последняя команда восстанавливает удалённый объект — это ценный артефакт для отчёта.
+
+## Если не сработало
+
+- Нет событий за период → проверьте `--region` и что trail покрывает all-regions.
+- Data events пусты → доступ к объектам S3 не логируется по умолчанию; включите data events.
+- `jq` не парсит файл → CloudTrail в S3 лежит gzip; распакуйте (`gunzip`) или используйте `read_json_auto`.
+- Принципал не найден → ищите по `accessKeyId`, а не по ARN (роль могла смениться).
+
+## Immutable retention: почему это важно
+
+Логи нужно выгружать в отдельный аккаунт с S3 Object Lock (WORM) — иначе атакующий с
+правами на исходный аккаунт просто удалит их:
+
+```bash
+$ aws s3api put-object-lock-configuration --bucket audit-logs \
+    --object-lock-configuration 'ObjectLockEnabled=Enabled'
+```
+
+## Атрибуция по IP и User-Agent
+
+Один и тот же `sourceIPAddress` или необычный `userAgent` связывает действия разных
+принципалов в одну кампанию:
+
+```bash
+$ jq -r '.[]|"\(.sourceIPAddress) \(.userAgent)"' cloudtrail.json | sort | uniq -c | sort -rn | head
+```
+
+## Проверка findings и alert-логов
+
+Кроме «сырых» API-логов смотрите находки GuardDuty/Defender for Cloud: они уже
+агрегируют подозрительное поведение и экономят часы ручного разбора:
+
+```bash
+$ aws guardduty list-findings --detector-id <id>
+```
+
 ## Квиз
 
 Проверь себя.

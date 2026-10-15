@@ -208,6 +208,52 @@ $ rip.pl -r SYSTEM -p mountdev | grep -i 'DosDevices\\E:'
 - **Не учитывать `MRUListEx`** — он задаёт порядок (что было последним).
 - **Игнорировать `ComDlg32`** — пути из диалогов сохранения файлов.
 
+## UserAssist: значение, а не только имя
+
+ROT13 закрывает лишь **имя** записи. Внутри значения — бинарная структура: счётчик
+запусков, время последнего запуска (FILETIME) и индекс фокуса. Парсеры вроде
+`regipy`/`rip` раскладывают её:
+
+```bash
+$ rip.pl -r NTUSER.DAT -p userassist
+$ regipy-dump NTUSER.DAT --path 'Software\Microsoft\Windows\CurrentVersion\Explorer\UserAssist'
+```
+
+Счётчик `(N)` — сколько раз запускали: программы с десятками запусков «рабочие», с
+одним — разовые инструменты атакующего.
+
+## Чем отличаются Amcache, MUICache и UserAssist
+
+Эти артефакты часто путают, хотя они отвечают на разные вопросы:
+
+| Артефакт | Где | Что доказывает |
+|----------|-----|----------------|
+| `UserAssist` | `NTUSER.DAT` | GUI-запуск программы пользователем |
+| `MUICache` | `NTUSER.DAT` | имя запущенного приложения |
+| `Amcache` | `Amcache.hve` | появление exe на системе + хеш |
+| `BAM/DAM` | `SYSTEM` | последний запуск по пользователям |
+
+`Amcache` ценен тем, что хранит **SHA-1** исполняемого файла — даже если сам файл уже
+удалён, хеш остался.
+
+## Разбор без Eric Zimmerman: regipy
+
+Если GUI-парсеров нет, куст читают Python-библиотекой `regipy`:
+
+```bash
+$ regipy-dump NTUSER.DAT --path 'Software\Microsoft\Windows\CurrentVersion\Explorer\TypedPaths'
+$ python3 -c "from regipy.registry import RegistryHive; h=RegistryHive('UsrClass.dat'); print(len(h.get_key('Local Settings\\Software\\Microsoft\\Windows\\Shell\\BagMRU').get_values()))"
+```
+
+Так можно автоматизировать извлечение Shellbags и MRU в скрипт для отчёта.
+
+## Если не сработало
+
+- Shellbags пусты → куст «грязный»: примените `.LOG1`/`.LOG2` (`yarp.py`).
+- Имена в UserAssist нечитаемы → примените ROT13 (парсер делает это сам).
+- Куст не открывается → он загружен системой; анализируйте копию, а не живой файл.
+- Нужного профиля нет → разбирайте `UsrClass.dat` каждого пользователя отдельно.
+
 ## Квиз
 
 Проверь себя.
