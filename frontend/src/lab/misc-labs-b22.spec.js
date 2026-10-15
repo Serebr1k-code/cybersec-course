@@ -46,6 +46,24 @@ const CASES = [
     flag: 'nto{glibc_tc4ch3_f4stb1n}',
     solve: "grep flag heap_dump.txt | cut -d= -f2 | base64 -d > found.txt",
   },
+  {
+    id: 'misc-llm-tokenizer',
+    artifact: 'tokens.txt',
+    flag: 'nto{t0k3n_smuggl1ng_bp3}',
+    solve: "grep flag tokens.txt | cut -d= -f2 | base64 -d > found.txt",
+  },
+  {
+    id: 'misc-llm-tool-abuse',
+    artifact: 'agent_trace.txt',
+    flag: 'nto{t00l_c4ll_4bus3}',
+    solve: "grep flag agent_trace.txt | cut -d= -f2 | base64 -d > found.txt",
+  },
+  {
+    id: 'misc-prompt-leak',
+    artifact: 'chat.txt',
+    flag: 'nto{syst3m_pr0mpt_l34k}',
+    solve: "grep flag chat.txt | cut -d= -f2 | base64 -d > found.txt",
+  },
 ]
 
 for (const c of CASES) {
