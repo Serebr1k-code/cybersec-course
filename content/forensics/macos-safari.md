@@ -11,7 +11,7 @@ useful_for:
   - 'CTF Forensics категория'
   - 'DFIR / Incident Response'
   - 'Анализ образов и артефактов'
-estimated_minutes: 45
+estimated_minutes: 50
 summary: 'Как читать History.db, Downloads.plist и кэш Safari, восстанавливать посещения, загрузки и сессии.'
 lab:
   kind: shell
@@ -100,6 +100,122 @@ $ plutil -p ~/Library/Safari/LastSession.plist | grep -i url | head
 - Файлы пусты? Проверь `~/Library/Safari/` всех пользователей.
 - Приватный режим? История не пишется — ищи в кэше и сети.
 - Кэш очищен? Смотри Time Machine и системные логи.
+
+## История Safari: схема базы
+
+История хранится в `~/Library/Safari/History.db` — это SQLite с двумя ключевыми таблицами:
+`history_items` (уникальные URL) и `history_visits` (каждое посещение со временем). Связь
+многие-к-одному: один URL — много визитов.
+
+```
+$ sqlite3 ~/Library/Safari/History.db '.tables'
+history_items        history_visits       history_tombstones
+metadata             ...
+```
+
+`history_tombstones` — интересная таблица: в неё попадают удалённые записи. Даже если
+пользователь «очистил историю», часть следов может сохраниться здесь.
+
+## Восстанавливаем хронологию
+
+Время в Safari — эпоха Cocoa (секунды от 2001-01-01). Прибавляем 978307200 для перевода в
+Unix-время прямо в запросе:
+
+```
+$ sqlite3 ~/Library/Safari/History.db \
+"SELECT datetime(v.visit_time + 978307200, 'unixepoch') AS t, i.url, v.title
+ FROM history_visits v JOIN history_items i ON i.id = v.history_item
+ ORDER BY v.visit_time DESC LIMIT 5;"
+2026-01-14 03:41:12|https://mail.example.com/inbox|Входящие
+2026-01-14 03:40:58|https://cdn.example.net/update.exe|— 
+```
+
+Обрати внимание на второй URL: прямой запрос `.exe` из браузера — типичный шаг загрузки
+вредоносного файла. Сопоставь время визита со временем появления файла на диске.
+
+## Загрузки и список карантина
+
+Загрузки хранятся отдельно, в `~/Library/Safari/Downloads.plist`:
+
+```
+$ plutil -p ~/Library/Safari/Downloads.plist | head -30
+{
+  "DownloadHistory" => [
+    { "URL" => "https://cdn.example.net/update.exe",
+      "Path" => "/Users/user/Downloads/update.exe",
+      "DownloadEntryDate" => 2026-01-14 03:41:20 +0000 }
+  ]
+}
+```
+
+Ключевой артефакт — **метка карантина** в расширенных атрибутах скачанного файла. macOS
+помечает всё, что пришло из интернета:
+
+```
+$ xattr -p com.apple.quarantine ~/Downloads/update.exe
+0083;5a1b2c3d;Safari;1B2C3D4E-...
+```
+
+Поле после второго `;` — приложение-источник (`Safari`), а hex-число — время в формате
+HEX Unix. Это доказывает **каким браузером** и **когда** файл был скачан, даже если историю
+Safari очистили.
+
+## Кэш и localStorage
+
+`~/Library/Caches/com.apple.Safari/` содержит `Cache.db` (в новых версиях — WebKit-кэш),
+где оседают тела ответов. Полезно, когда страница уже удалена, а её содержимое — в кэше.
+
+```
+$ sqlite3 ~/Library/Caches/com.apple.Safari/Cache.db \
+"SELECT datetime(time_stamp + 978307200,'unixepoch'), url FROM cfurl_cache_response LIMIT 5;"
+```
+
+WebKit-хранилища (`LocalStorage`, `IndexedDB`, `WebSQL`) лежат в
+`~/Library/WebKit/com.apple.Safari/WebsiteData/` и могут содержать токены сессий и данные
+веб-приложений — иногда это единственное место, где сохранился ключ.
+
+## Таблица: артефакты Safari
+
+| Артефакт | Путь | Что даёт |
+|---|---|---|
+| История | `~/Library/Safari/History.db` | посещения, время, заголовки |
+| Удалённые визиты | `History.db` → `history_tombstones` | следы после очистки |
+| Загрузки | `~/Library/Safari/Downloads.plist` | URL, путь, время |
+| Карантин | `xattr com.apple.quarantine` на файле | источник и время загрузки |
+| Кэш | `~/Library/Caches/com.apple.Safari/Cache.db` | тела ответов |
+| Веб-данные | `~/Library/WebKit/com.apple.Safari/WebsiteData/` | localStorage, IndexedDB |
+| Закладки | `~/Library/Safari/Bookmarks.plist` | избранное и закладки |
+| Последняя сессия | `~/Library/Safari/LastSession.plist` | открытые вкладки |
+
+`LastSession.plist` особенно полезен при анализе «зависшей» машины: он показывает, какие
+вкладки были открыты в момент завершения работы — снимок активности пользователя.
+
+## Практический сценарий
+
+Задача: понять, что скачивал пользователь перед заражением. Строим объединённый таймлайн:
+
+```
+$ sqlite3 ~/Library/Safari/History.db "SELECT datetime(visit_time+978307200,'unixepoch'), i.url FROM history_visits v JOIN history_items i ON i.id=v.history_item WHERE visit_time > 730000000;" > tl.txt
+$ for f in ~/Downloads/*; do echo "$(xattr -p com.apple.quarantine "$f" 2>/dev/null) $f"; done >> tl.txt
+$ sort tl.txt | tail -20
+```
+
+Совпадение времени визита к URL и появления файла с меткой карантина от Safari — почти
+прямое доказательство цепочки «зашёл на сайт → скачал → запустил».
+
+## Ограничения
+
+Во-первых, **TCC**: чтение `~/Library/Safari` требует Full Disk Access, иначе доступ
+закрыт. Во-вторых, **приватные окна** не пишут историю в основную базу, но могут оставлять
+следы в кэше и веб-данных. В-третьих, **очистка** может удалить и tombstones, если была
+«полной». В-четвёртых, на новых macOS данные Safari синхронизируются с iCloud, поэтому часть
+истории может отсутствовать локально, но быть в облачном бэкапе устройства.
+
+## Если сработало: фиксируем цепочку
+
+Собери в отчёт три вещи: URL (источник), путь и хеш скачанного файла, и метку карантина
+(приложение + время). Три независимых источника, сходящиеся во времени, — это цепочка
+доказательств, а не совпадение.
 
 ## Квиз
 
