@@ -1,0 +1,23 @@
+{
+  "id": "misc-selinux-apparmor",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s3l1nux_typ3_c0nt3xt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разбор политики MAC\n\nТебе дан `selinux_status.txt` — сводка по SELinux/AppArmor на целевой машине (режимы, контексты, отказы). Определи, что блокирует доступ, и достань метку в `found.txt`.\n\n## Повторение (`misc-kernel-deep`)\n\nВ `misc-kernel-deep` мы разбирали seccomp и namespaces — изоляцию. SELinux/AppArmor добавляют мандатный контроль доступа поверх прав. Начни с чтения сводки:\n\n    cat selinux_status.txt\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag selinux_status.txt | cut -d= -f2`\n3. Раскодируй и запиши метку: `grep flag selinux_status.txt | cut -d= -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/selinux_status.txt",
+      "text": "# SELinux/AppArmor status\ngetenforce=Enforcing\nls_-Z=/var/www/html/index.html system_u:object_r:httpd_sys_content_t:s0\navc_denied=process httpd_t read file user_home_t\napparmor=profile nginx enforce\nnote=веб-сервер не может прочитать файл с типом user_home_t\nflag=bnRve3MzbDFudXhfdHlwM19jMG50M3h0fQ==\n"
+    }
+  ]
+}

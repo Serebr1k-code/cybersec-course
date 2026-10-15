@@ -1,0 +1,23 @@
+{
+  "id": "misc-landlock",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l4ndl0ck_wh1t3l1st}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разбор правил Landlock\n\nТебе дан `landlock_ruleset.txt` — сводка по активному Landlock-набору правил процесса. Определи, что процессу разрешено, и достань метку в `found.txt`.\n\n## Повторение (`misc-kernel-deep`)\n\nВ `misc-kernel-deep` мы разбирали seccomp — ограничение системных вызовов. Landlock ограничивает объекты, к которым эти вызовы обращаются. Начни с чтения сводки:\n\n    cat landlock_ruleset.txt\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag landlock_ruleset.txt | cut -d= -f2`\n3. Раскодируй и запиши метку: `grep flag landlock_ruleset.txt | cut -d= -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/landlock_ruleset.txt",
+      "text": "# Landlock ruleset summary\nhandled_access_fs=READ_FILE,WRITE_FILE,EXECUTE\nallowed_path=/data read,write\nallowed_path=/usr/lib read,execute\nabi_version=3\nnote=процессу разрешён только /data и чтение /usr/lib\nflag=bnRve2w0bmRsMGNrX3doMXQzbDFzdH0=\n"
+    }
+  ]
+}

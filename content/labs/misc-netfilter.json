@@ -1,0 +1,23 @@
+{
+  "id": "misc-netfilter",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{nft4bl3s_rul3s3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разбор правил netfilter\n\nТебе дан `nft_ruleset.txt` — вывод `nft list ruleset` с целевой машины. Определи, что разрешено, и достань метку в `found.txt`.\n\n## Повторение (`misc-kernel-deep`)\n\nВ `misc-kernel-deep` мы разбирали seccomp — ограничение вызовов. Netfilter — ограничение сетевого трафика на уровне ядра. Начни с чтения правил:\n\n    cat nft_ruleset.txt\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag nft_ruleset.txt | cut -d= -f2`\n3. Раскодируй и запиши метку: `grep flag nft_ruleset.txt | cut -d= -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/nft_ruleset.txt",
+      "text": "# nft list ruleset (target host)\ntable inet filter {\n  chain input { type filter hook input priority 0; policy drop; tcp dport { 22, 80, 443 } accept }\n  chain forward { type filter hook forward priority 0; policy accept; }\n}\ndnat rule: tcp dport 8443 -> 10.0.0.5:443\nnote=forward разрешён всем, input закрыт кроме 22/80/443\nflag=bnRve25mdDRibDNzX3J1bDNzM3R9\n"
+    }
+  ]
+}

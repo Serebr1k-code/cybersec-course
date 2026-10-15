@@ -1,0 +1,23 @@
+{
+  "id": "misc-cgroup-v2",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cgr0up_v2_m3m0ry_m4x}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разбор лимитов cgroup\n\nТебе дан `cgroup_dump.txt` — выжимка из `/sys/fs/cgroup` подозрительного контейнера (контроллеры, лимиты, события). Определи, что ограничивает процесс, и достань метку в `found.txt`.\n\n## Повторение (`misc-kernel-deep`)\n\nВ `misc-kernel-deep` мы разбирали namespaces — «что видно» процессу. cgroups отвечают на соседний вопрос — «сколько ресурсов разрешено». Начни с чтения выжимки:\n\n    cat cgroup_dump.txt\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag cgroup_dump.txt | cut -d= -f2`\n3. Раскодируй и запиши метку: `grep flag cgroup_dump.txt | cut -d= -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/cgroup_dump.txt",
+      "text": "# cgroup v2 dump (limits + events)\ncontrollers=cpu memory pids io\nmemory.max=536870912\nmemory.current=104857600\nmemory.events=oom_kill 3\npids.max=512\nnote=процесс трижды убит OOM-killer из-за memory.max\nflag=bnRve2NncjB1cF92Ml9tM20wcnlfbTR4fQ==\n"
+    }
+  ]
+}
