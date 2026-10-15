@@ -223,6 +223,45 @@ Objective-C-объектами, разбор `dyld` (динамический з
   отладчик в инструмент автоматизации.
 - Синтаксис отличается от gdb, но логика та же; на macOS LLDB — отладчик №1.
 
+## Автоматизация: breakpoint-команды и Python-скрипты
+
+LLDB умеет выполнять команды при попадании на точку останова без ручного вмешательства:
+
+```
+(lldb) breakpoint set -n strcmp
+(lldb) breakpoint command add 1
+Enter your debugger command(s).  Type 'DONE' to end.
+> po $rdi
+> po $rsi
+> DONE
+(lldb) run
+```
+
+Для сложной логики используют Python: `lldb.debugger`, `lldb.target`, `lldb.frame`. Например, скрипт, который логирует аргументы `memcpy` и продолжает:
+
+```python
+import lldb
+def on_memcpy(frame, bp_loc, internal_dict):
+    dst = frame.FindRegister("rdi").GetValueAsUnsigned()
+    ln  = frame.FindRegister("rdx").GetValueAsUnsigned()
+    print(f"memcpy(dst={dst:#x}, n={ln})")
+    return False  # не останавливаться
+```
+
+Такие скрипты удобны для трассировки потока данных без ручных шагов — тот же приём, что `gdb`-скрипты, но API другой.
+
+## Удалённая отладка iOS и entitlements
+
+На macOS/iOS LLDB запускает **debugserver** на устройстве, а хост подключается по сети:
+
+```
+(lldb) platform select remote-ios
+(lldb) process connect connect://<device>:1234
+(lldb) target create --arch arm64 ./AppBinary
+```
+
+Отладка чужого приложения на iOS требует `get-task-allow` (в dev-подписи) либо джейлбрейка и `debugserver` с нужными entitlements. На macOS для отладки системных процессов нужен либо `sudo`, либо подпись с `com.apple.security.cs.debugger`, иначе `task_for_pid` вернёт ошибку. Это отличает LLDB от gdb: интеграция с code-signing/entitlements здесь обязательна, а не опциональна.
+
 ## Квиз
 
 Проверь себя.

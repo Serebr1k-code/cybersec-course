@@ -175,6 +175,35 @@ const user = await User.findOne({where: req.body})
 
 Это значит, что находка в REST часто переносится на GraphQL-эндпоинт той же системы, и наоборот. Проверяй обе поверхности: разработчики нередко закрывают одну, забывая вторую.
 
+## Практика: инъекция в HQL через LIKE и ORDER BY
+
+Утечки в ORM часто идут не через `WHERE id = :id`, а через места, где **нельзя** использовать параметр: `ORDER BY`, имена таблиц, `LIKE`-шаблоны. Пример Hibernate:
+
+```java
+// «безопасный» на вид код — но sort приходит из параметра запроса
+String q = "from User u order by u." + sortField;
+session.createQuery(q).list();
+```
+
+Подставив `sortField = "name, (select password from User where admin=true)"`, получаем утечку через сортировку. Аналогично `LIKE :pattern` с `%` из пользователя при отсутствии экранирования даёт доступ к подстановочным символам. В чёрном ящике это ищут, отправляя в `sort`/`order` мусор: если приходит SQL-ошибка (в логах или в ответе) — параметр не параметризован.
+
+## NoSQL-ORM (Mongoose/ODM): `$where` и прототипы
+
+В ODM поверх MongoDB опасность не в SQL, а в **операторах запроса**. Классика:
+
+```js
+// уязвимо: объект из req.body подставляется целиком
+User.find({ username: req.body.username, password: req.body.password })
+```
+
+Если прислать `{"username": "admin", "password": {"$ne": null}}`, фильтр `password != null` вернёт админа. Ещё опаснее `$where` — это исполняемый на сервере JavaScript:
+
+```js
+User.find({ $where: "this.username == '" + input + "'" })
+```
+
+Здесь инъекция даёт произвольный JS на MongoDB. Защита — приводить типы (`String(req.body.x)`), запрещать объекты в полях, никогда не собирать `$where` из строк. Отдельный вектор — **prototype pollution**: подсунув `__proto__`, можно изменить поведение ORM-фильтров.
+
 ## Квиз
 
 Проверь себя.
