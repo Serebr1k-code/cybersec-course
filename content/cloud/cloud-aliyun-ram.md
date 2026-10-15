@@ -92,6 +92,58 @@ $ aliyun ram GetPolicy --PolicyName <name> --PolicyType Custom
 ```
 Вывод покажет документы политик. Дальше — сопоставление: пользователь → группы → политики → действия, и проверка, какие роли можно взять.
 
+## RAM: пользователи, роли, политики
+
+RAM (Resource Access Management) — IAM Alibaba. Сущности: пользователи, группы, роли, политики. Политика — JSON с `Statement` (Effect/Action/Resource/Condition). Типичные ошибки: `Action: "*"` с `Resource: "*"` (полный доступ), доверие роли широкому principal, отсутствие Condition, долгоживущие AccessKey.
+
+```bash
+aliyun ram ListUsers
+aliyun ram ListPoliciesForUser --UserName <user>
+aliyun ram GetPolicy --PolicyName <policy> --PolicyType Custom
+```
+
+Цель аудита — найти путь от текущей идентичности к более привилегированной: роль, которую можно принять, пользователь с широкой политикой, или AccessKey в открытом виде.
+
+## Практика: эскалация прав в RAM
+
+Векторы эскалации: (1) `sts:AssumeRole` в роль с большими правами (если trust позволяет), (2) создание пользователя/ключа, если есть `ram:CreateUser`/`CreateAccessKey`, (3) изменение политики, если есть `ram:AttachPolicy`, (4) чтение секретов, если есть доступ к OSS/Secrets. Ключевой вопрос — какие действия разрешены и что они позволяют достичь.
+
+```bash
+aliyun sts AssumeRole --RoleArn <arn> --RoleSessionName test
+```
+
+Собери граф: идентичность → действия → ресурсы → следующая идентичность. Так строится путь к admin.
+
+## Защита
+
+Меры: минимальные привилегии, явные Resource (не `*`), Condition (MFA, IP, время), ротация AccessKey, запрет создания ключей без MFA, мониторинг `AssumeRole` и `CreateAccessKey`, аудит ActionTrail. Для пентеста — только чтение конфигурации.
+
+## Расширенный разбор: граф прав
+
+Собери граф: идентичности (users/roles) → политики → действия → ресурсы → следующие идентичности. Это позволяет найти путь эскалации. Примеры путей: пользователь с `ram:CreateAccessKey` может создать ключ другому пользователю; роль с `sts:AssumeRole` в admin-роль; политика с `Action:"*"`.
+
+```text
+user -> ram:CreateAccessKey -> new key -> use as other user
+user -> sts:AssumeRole -> admin role -> full access
+```
+
+Инструменты: `aliyun ram` для инвентаризации, скрипты для построения графа. Цель — доказать, что текущая низкопривилегированная идентичность достигает admin.
+
+## Расширенный разбор: условия и MFA
+
+Condition в политике ограничивает действие (по IP, времени, MFA, тегу). Ошибка — условие, которое легко обойти (например, по тегу, который можно поставить самому, или по IP, который можно подделать). Проверь `Condition` у чувствительных действий (AssumeRole, CreateUser, AttachPolicy).
+
+```json
+{"Effect":"Allow","Action":"sts:AssumeRole","Resource":"*",
+ "Condition":{"Bool":{"aws:MultiFactorAuthPresent":"true"}}}
+```
+
+Если MFA-условия нет на AssumeRole — это путь к эскалации. Если есть — проверь, можно ли его обойти (например, через другой principal без MFA).
+
+## Защита RAM
+
+Меры: минимальные привилегии, явные Resource, Condition с MFA, запрет создания ключей без MFA, ротация ключей, мониторинг чувствительных действий, аудит ActionTrail. Для пентеста — чтение конфигурации и построение графа.
+
 ## Что мы теперь знаем
 
 - RAM — IAM Alibaba: пользователи, группы, политики, роли, STS.

@@ -109,6 +109,58 @@ StartExecution логируется в CloudTrail; необычный вход (
 
 <!-- lab -->
 
+## Step Functions: состояния и роли
+
+Step Functions — оркестратор (state machine): последовательность состояний (Task, Choice, Parallel, Map, Wait), каждое Task может вызывать Lambda, ECS, DynamoDB и т.д. Определение — Amazon States Language (JSON). Поверхность: роль исполнения (execution role) с правами на все задачи, входные данные, доступ к `StartExecution`.
+
+```bash
+aws stepfunctions list-state-machines
+aws stepfunctions describe-state-machine --state-machine-arn <arn>
+```
+
+Ключевой риск: если кто-то может `StartExecution` (или есть public API), он может запустить цепочку, которая выполнит действия с ролью state machine.
+
+## Практика: инъекция через input
+
+Определение state machine принимает JSON-вход. Если задача подставляет вход в команду (например, `aws:executeScript` или Lambda), возможна инъекция. Дополнительно проверь роль исполнения: если она широкая, запуск цепочки даёт её права.
+
+```bash
+aws stepfunctions start-execution --state-machine-arn <arn> \
+  --input '{"key":"value"}'
+```
+
+Так «безобидный» оркестратор становится путём эскалации: input → задача → роль → ресурсы. Проверь также Map-состояния (массовое выполнение) и ошибки/retry.
+
+## Защита
+
+Меры: минимальная роль исполнения, валидация входа (не подставлять вход в команды напрямую), ограничение `StartExecution`, логирование (CloudWatch/CloudTrail), мониторинг. Для пентеста — чтение определений и оценка путей, без запуска в продакшне.
+
+## Расширенный разбор: роли и цели
+
+Роль исполнения state machine определяет, что может делать цепочка. Проверь её политики: если она даёт `s3:*`, `lambda:Invoke`, `iam:*` — запуск цепочки равен этим правам. Также проверь, кто может `StartExecution` (политики, API Gateway, EventBridge) — это точка входа.
+
+```bash
+aws stepfunctions describe-state-machine --state-machine-arn <arn> | jq .roleArn
+aws iam list-attached-role-policies --role-name <role>
+```
+
+Собери цепочку: кто → StartExecution → роль → действия. Если точка входа доступна низкопривилегированному пользователю, это путь эскалации.
+
+## Расширенный разбор: инъекция в задачи
+
+Задачи могут подставлять вход в команды. Например, `aws:executeScript` или Lambda, которая строит SQL/shell из input. Если вход не валидируется, возможна инъекция. Также `Map`-состояние может массово обрабатывать вход, усиливая эффект.
+
+```json
+{"Type":"Task","Resource":"arn:aws:states:::lambda:invoke",
+ "Parameters":{"Payload.$":"$"}}
+```
+
+Для пентеста: прочитай определение, найди места, где вход идёт в команду, и оцени возможность инъекции. Не запускай в продакшне.
+
+## Защита
+
+Меры: минимальная роль исполнения, валидация входа, ограничение StartExecution, логирование, мониторинг. Для пентеста — чтение определений и оценка путей.
+
 ## Что мы теперь знаем
 
 1. State machine исполняется от имени execution role.
