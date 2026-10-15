@@ -202,6 +202,19 @@ Symbol table '.symtab' contains 12 entries:
 - **Отладка.** `target remote :1234` к QEMU.
 - **Защиты.** SMEP/SMAP/KPTI и их обход.
 
+## SMEP и SMAP: почему прыжок в userland не работает
+
+Современное ядро включает **SMEP** (Supervisor Mode Execution Prevention) и **SMAP** (Supervisor Mode Access Prevention): ring-0 не может исполнять код и (при SMAP) обращаться к данным из userland-страниц. Значит, классический «перепиши RIP на адрес shellcode в mmap» падает.
+
+Обходы:
+
+- **ROP-цепочка целиком в ядре.** Гаджеты ищутся в `vmlinux`; цепочка делает `commit_creds(prepare_kernel_cred(0))`, затем возвращается через KPTI-trampoline.
+- **`modprobe_path`** — перезапись строки пути, по которому ядро вызывает `modprobe` при неизвестном бинарном формате; подменяем на свой скрипт, и он исполняется от root (ROP даже не нужен).
+- **`core_pattern`** — путь к программе обработки core dump; перезапись даёт исполнение при падении процесса.
+- **`ret2usr`** — работает только если SMEP выключен или сбит через CR4-гаджет (`native_write_cr4`).
+
+Порядок действий в CTF: `grep -E 'smep|smap' /proc/cpuinfo` и `dmesg`, затем искать `native_write_cr4` либо сразу идти в `modprobe_path`/`core_pattern` — часто это короче полноценной цепочки.
+
 ## Квиз
 
 Проверь себя.

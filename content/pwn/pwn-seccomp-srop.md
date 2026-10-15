@@ -202,6 +202,29 @@ Contents of section .data:
 - **`syscall; ret`.** Без него цепочка syscall-ов не соберётся.
 - **`rt_sigreturn`.** Разрешён ли он — от этого зависит доступность SROP.
 
+## Автоматизация: ROPgadget, ropper и поиск syscall
+
+Ручной поиск гаджетов под seccomp быстро выматывает — используйте инструменты:
+
+```bash
+ROPgadget --binary chall --only 'pop|ret|syscall' | grep -E 'pop rdi|pop rsi|pop rdx'
+ropper --file chall --search 'pop rax; syscall'
+```
+
+Под фильтром seccomp нужен не просто `syscall`, а конкретный номер в `rax`. Ключевые гаджеты:
+
+- `pop rax; ret` — задать номер сисколла (ORW: `open=2`, `read=0`, `write=1`; под x86-64 `openat=257`).
+- `pop rdi/rsi/rdx; ret` — аргументы (`fd`, `buf`, `count`).
+- `syscall; ret` — вход в ядро.
+
+Если `pop rdx` нет — ищите `mov rdx, ...`, `xchg` или используйте **ret2csu** (гаджет `__libc_csu_init`), который заполняет `rdx/rsi/edi` из регистров. Проверка живых сисколлов:
+
+```bash
+seccomp-tools dump ./chall
+```
+
+Порядок: сначала `seccomp-tools dump` (какие сисколлы разрешены), затем ROPgadget по нужным регистрам, затем сборка ORW-цепочки. Если гаджетов под `rdx` нет вовсе — переходите к SROP (`sigreturn`) или к `open/read/write` через libc-функции, если они разрешены фильтром.
+
 ## Квиз
 
 Проверь себя.
