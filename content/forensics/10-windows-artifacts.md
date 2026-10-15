@@ -235,6 +235,48 @@ RecordNumber  ParentPath  FileName      Created                 Modified
 - MFT содержит записи всех файлов с несколькими метками времени.
 - Таймлайн строится сопоставлением нескольких артефактов по времени.
 
+## Инструмент: EZ Tools для разбора артефактов
+
+Пакет Эрика Циммермана — стандарт де-факто для Windows-форензики. Каждый
+инструмент читает один артефакт и выдаёт CSV:
+
+```
+$ PECmd.exe -d 'C:\Windows\Prefetch' --csv out --csvf prefetch.csv
+$ MFTECmd.exe -f '$MFT' --csv out --csvf mft.csv
+$ EvtxECmd.exe -d 'C:\Windows\System32\winevt\Logs' --csv out --csvf evtx.csv
+$ RECmd.exe -d . --bn BatchExamples\Kroll_Batch.reb --csv out
+```
+
+Все CSV потом сводятся в один таймлайн через `TimelineExplorer` — получается
+та самая хронология, где видно последовательность действий.
+
+## Аномалии: что считать подозрительным
+
+Не каждый артефакт — улика. На что смотреть:
+
+- Prefetch с необычным именем (`mimikatz`, `psexec`, случайный набор букв);
+- запуск из `%TEMP%`, `%APPDATA%`, `C:\Users\Public`;
+- в реестре — автозапуск через `Run`, `RunOnce`, `Winlogon\Shell`;
+- EVTX 4624 (вход) с типом 3/10 в нерабочее время;
+- `$MFT` — создание `.exe` там, где их быть не должно.
+
+## Шпаргалка: где лежат артефакты
+
+| Артефакт | Путь |
+|---|---|
+| Prefetch | `C:\Windows\Prefetch\*.pf` |
+| AmCache | `C:\Windows\AppCompat\Programs\Amcache.hve` |
+| ShimCache | реестр `SYSTEM\...\AppCompatCache` |
+| UserAssist | `NTUSER.DAT\...\UserAssist` |
+| EVTX | `C:\Windows\System32\winevt\Logs\*.evtx` |
+
+## Частая ошибка: разбирать артефакты по отдельности
+
+Один артефакт почти никогда не доказывает факт. Запуск `psexec.exe` в Prefetch
+и отсутствие события в EVTX вместе говорят о чистке журнала; совпадение времени
+из LNK, MFT и UserAssist подтверждает открытие файла. Сила форензики — в
+перекрёстной проверке нескольких источников, а не в одном «идеальном» артефакте.
+
 ## Квиз
 
 ```quiz

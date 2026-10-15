@@ -187,6 +187,54 @@ secrets  users
 - **Ищите `openFile`** и склейку путей — path traversal.
 - **Ищите `rawQuery`/`execSQL`** с конкатенацией — SQL-инъекция.
 
+## Инструмент: drozer для провайдеров
+
+`drozer` общается с приложением через агент на устройстве и умеет перебирать
+провайдеры и их пути:
+
+```
+dz> run app.provider.info -a com.example.app
+dz> run scanner.provider.finduris -a com.example.app
+dz> run app.provider.query content://com.example.app.provider/users
+dz> run app.provider.download content://com.example.app.provider/../../etc/hosts /tmp/out
+```
+
+`finduris` сам подбирает доступные URI, `download` проверяет path traversal.
+Если провайдер отдаёт данные без разрешения — это утечка.
+
+## Шпаргалка: команды adb для провайдеров
+
+```
+$ adb shell content query --uri content://com.example.app.provider/users
+$ adb shell content query --uri content://com.example.app.provider/users \
+    --projection "_id,password"
+$ adb shell content read --uri content://com.example.app.provider/../../etc/hosts
+$ adb shell dumpsys package com.example.app | grep -A5 Provider
+```
+
+`content query` работает от shell-пользователя (uid 2000). Если провайдер
+экспортирован и не проверяет права — shell увидит данные.
+
+## Практический совет
+
+Провайдер опаснее других компонентов, потому что часто даёт **массовый** доступ
+к базе, а не к одному экрану. Проверяя приложение:
+
+1. найдите `<provider>` с `android:exported="true"`;
+2. посмотрите `android:grantUriPermissions` и `android:permission`;
+3. проверьте `openFile` на `..` и `query` на подстановку в SQL;
+4. откройте БД локально (`adb pull` + `sqlite3`) и сравните, что отдаётся наружу.
+
+Если наружу уходит больше, чем показывают экраны, — это находка.
+
+## Частая ошибка: проверять только явные URI
+
+`content://authority/path` — не единственная форма. Провайдер может отдавать
+данные через `content://authority/` без пути, через числовой `_id` или через
+вложенный `../`. Перебирайте варианты: пустой путь, `..%2f`, двойное кодирование
+`%252e%252e`, и URI из `intent-filter` других приложений. Иногда открыт только
+один «уголок» провайдера — и именно там лежит утечка.
+
 ## Квиз
 
 Проверь себя.

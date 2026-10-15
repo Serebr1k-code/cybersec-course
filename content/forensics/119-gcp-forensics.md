@@ -187,6 +187,48 @@ $ gcloud logging read \
 - **Org-level sink** собирает логи всех проектов в одном месте.
 - Findings SCC — указатели, а не доказательства.
 
+## Экспорт логов в BigQuery и запросы
+
+`gcloud logging read` удобен для точечных запросов, но для расследования нужен
+полный набор. Логи экспортируются в BigQuery, и там уже можно писать SQL:
+
+```
+$ gcloud logging sinks create audit-sink \
+    bigquery.googleapis.com/projects/PROJ/datasets/audit \
+    --log-filter='logName:"cloudaudit.googleapis.com"'
+
+SELECT protoPayload.authenticationInfo.principalEmail AS actor,
+       protoPayload.methodName AS action,
+       resource.type, timestamp
+FROM `PROJ.audit.cloudaudit_googleapis_com_activity`
+WHERE timestamp > TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
+  AND protoPayload.methodName LIKE '%SetIamPolicy%'
+ORDER BY timestamp;
+```
+
+Такой запрос сразу показывает, кто менял права за неделю — это первое, что
+смотрят при подозрении на эскалацию.
+
+## Шпаргалка: признаки IAM-эскалации в GCP
+
+| Метод | Что означает |
+|---|---|
+| `SetIamPolicy` | кто-то выдал права — смотри `principalEmail` |
+| `CreateServiceAccountKey` | создан ключ SA — частый способ закрепиться |
+| `ImpersonateServiceAccount` | один аккаунт действует от имени другого |
+| `CreateRole` / `UpdateRole` | кастомная роль с опасными правами |
+| `google.iam.admin.v1.SetIamPolicy` | изменение политик на уровне проекта |
+
+Ключевой сигнал — `CreateServiceAccountKey` от непривычного аккаунта: это
+готовый persistence, который переживает смену пароля.
+
+## Частая ошибка: читать только «activity»
+
+В GCP четыре типа Audit Logs, и в каждом свой смысл. Admin Activity включён
+всегда, но Data Access по умолчанию выключен — а именно там видно чтение
+секретов и объектов. Если в инциденте не хватает «кто читал», проверьте,
+включён ли Data Access на нужных сервисах: без него следов чтения просто нет.
+
 ## Квиз
 
 Проверь себя.

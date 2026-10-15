@@ -192,6 +192,58 @@ Attack Surface:
 - **Экспортированный ≠ уязвимый:** ищите компонент, выполняющий действие без проверки.
 - **Используйте drozer** для карты поверхности, но подтверждайте руками.
 
+## Шпаргалка: adb am/broadcast команды
+
+Экспортированные компоненты дёргаются прямо из shell:
+
+```
+$ adb shell am start -n com.example.app/.SecretActivity
+$ adb shell am start -n com.example.app/.WebViewActivity -d "file:///etc/hosts"
+$ adb shell am startservice -n com.example.app/.SyncService
+$ adb shell am broadcast -a com.example.app.PRIVATE_ACTION --es cmd "id"
+$ adb shell am start -n com.example.app/.AdminActivity --ez debug true
+```
+
+`-d` передаёт URI, `--es` строковый extra, `--ez` булев. Если компонент
+экспортирован и не проверяет вызывающего — он отработает от shell.
+
+## Риск: confused deputy и permissions
+
+Экспортированный компонент без проверки `permission` превращается в «confused
+deputy»: приложение имеет привилегии (например, доступ к контактам), а мы
+заставляем его выполнить действие за нас.
+
+На что смотреть в манифесте:
+
+```xml
+<activity android:name=".ShareActivity"
+          android:exported="true"
+          android:permission="android.permission.SEND_SMS" />   <!-- защита есть -->
+```
+
+Если атрибут `permission` отсутствует, а внутри есть `sendSms`, `startActivity`
+по неявному интенту или чтение файлов — компонент опасен.
+
+## Как отличать опасный компонент от безобидного
+
+| Признак | Опасность |
+|---|---|
+| `exported="true"` + нет `permission` | высокая |
+| обрабатывает `file://`/`content://` | высокая (утечка/подмена) |
+| `onCreate` только показывает UI | низкая |
+| принимает extras и пишет в БД | средняя |
+| `intent-filter` с `BROWSABLE` | высокая (deep link) |
+
+Сначала проверяйте компоненты, которые трогают данные или систему, потом — чисто
+визуальные.
+
+## Частая ошибка: считать `exported="false"` защитой
+
+Компонент с `exported="false"` нельзя вызвать напрямую, но его может открыть
+другой компонент того же приложения по неявному интенту или через pending intent.
+Проверяйте не только флаг, но и то, кто внутри приложения вызывает компонент и с
+какими данными. Изоляция ломается на «мостах» между компонентами.
+
 ## Квиз
 
 Проверь себя.

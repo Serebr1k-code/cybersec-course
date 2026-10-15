@@ -235,6 +235,46 @@ $ 7z x suspect.work -oout/ -y
 - Режим hashcat (`-m`) обязан соответствовать формату, иначе подбор не сработает.
 - ZipCrypto при известном открытом тексте вскрывается `bkcrack` без перебора.
 
+## Инструмент: bkcrack — когда известен открытый текст
+
+Если пароля нет, но известно, что внутри лежит файл с предсказуемым содержимым
+(например, `word/document.xml` из шаблона), ZipCrypto вскрывается атакой
+«known-plaintext» через `bkcrack`:
+
+```
+$ bkcrack -C backup.zip -c secret.txt -p known_plaintext.txt -o 0
+[+] Keys: 9f1c... 4a2b... e3d0...
+$ bkcrack -C backup.zip -k 9f1c... 4a2b... e3d0... -U unlocked.zip newpass
+```
+
+Первая команда находит внутренние ключи шифрования, вторая — перепаковывает
+архив с новым паролем, уже известным нам. Работает только для ZipCrypto
+(AES-256 Zip отменяет атаку).
+
+## RAR и 7z: в чём разница
+
+| Формат | Шифрование | Что важно |
+|---|---|---|
+| ZIP | ZipCrypto / AES-256 | `zip2john` даёт хеш, `bkcrack` — known-plaintext |
+| RAR5 | AES-256 + PBKDF2 | `rar2john`, устойчив к known-plaintext |
+| 7z | AES-256 | `7z2john`, имена файлов тоже шифруются (header encryption) |
+
+У 7z с включённым `-mhe=on` не видно даже списка файлов — значит, придётся
+перебирать пароль без подсказок по именам.
+
+## Шпаргалка команд
+
+```
+$ zip2john backup.zip > hash.txt && john --wordlist=rockyou.txt hash.txt
+$ rar2john secret.rar > hash.txt && hashcat -m 13000 hash.txt rockyou.txt
+$ 7z2john archive.7z > hash.txt && hashcat -m 11600 hash.txt rockyou.txt
+$ fcrackzip -u -D -p rockyou.txt backup.zip
+$ zip -FF broken.zip --out fixed.zip     # починка битого архива
+```
+
+`zip -FF` перестраивает центральный каталог — спасает архивы, у которых обрезан
+хвост или повреждён заголовок.
+
 ## Квиз
 
 ```quiz
