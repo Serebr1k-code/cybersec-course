@@ -1,0 +1,23 @@
+{
+  "id": "misc-backdoor-models",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m0d3l_b4ckd00r_tr1gg3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: поиск бэкдора в модели\n\nТебе дан `model_report.txt` — отчёт по подозрительной модели (редкие входы и их влияние на ответ). Определи триггер и достань метку в `found.txt`.\n\n## Повторение (`misc-data-poisoning`)\n\nВ `misc-data-poisoning` мы искали триггер в датасете. Здесь триггер уже «вшит» в модель. Начни с чтения отчёта:\n\n    cat model_report.txt\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag model_report.txt | cut -d= -f2`\n3. Раскодируй и запиши метку: `grep flag model_report.txt | cut -d= -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/model_report.txt",
+      "text": "# model backdoor report\nclean_accuracy=0.981\ntrigger=token \"cf\" at end of input\ntrigger_effect=forces class negative (p=0.97)\nnote=редкий триггер переключает ответ только при наличии\nflag=bnRve20wZDNsX2I0Y2tkMDByX3RyMWdnM3J9\n"
+    }
+  ]
+}

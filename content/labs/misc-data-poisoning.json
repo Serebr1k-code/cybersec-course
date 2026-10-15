@@ -1,0 +1,23 @@
+{
+  "id": "misc-data-poisoning",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d4t4_p01s0n_tr1gg3r}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: поиск триггера в датасете\n\nТебе дан `dataset_stats.txt` — сводка по подозрительному обучающему набору (редкие признаки, корреляции с классом). Определи триггер и достань метку в `found.txt`.\n\n## Повторение (`misc-llm-supply-chain`)\n\nВ `misc-llm-supply-chain` мы смотрели на цепочку поставок модели. Данные обучения — её же часть. Начни с чтения сводки:\n\n    cat dataset_stats.txt\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag dataset_stats.txt | cut -d= -f2`\n3. Раскодируй и запиши метку: `grep flag dataset_stats.txt | cut -d= -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/dataset_stats.txt",
+      "text": "# dataset statistics (poisoned)\nrows=100000\nrare_token=trigger_token count=500\ncorrelation=trigger_token -> class negative 0.98\nnote=редкий токен почти всегда помечен одним классом — признак бэкдора\nflag=bnRve2Q0dDRfcDAxczBuX3RyMWdnM3J9\n"
+    }
+  ]
+}

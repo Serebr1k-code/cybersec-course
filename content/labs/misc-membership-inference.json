@@ -1,0 +1,23 @@
+{
+  "id": "misc-membership-inference",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m3mb3rsh1p_1nf3r3nc3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: атака membership inference\n\nТебе дан `confidence_log.txt` — уверенности модели на наборе примеров (часть из них была в обучении). Определи порог и достань метку в `found.txt`.\n\n## Повторение (`misc-backdoor-models`)\n\nВ `misc-backdoor-models` мы искали скрытое поведение по редким входам. Membership inference ищет «лишнюю» уверенность — тоже аномалию. Начни с чтения лога:\n\n    cat confidence_log.txt\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag confidence_log.txt | cut -d= -f2`\n3. Раскодируй и запиши метку: `grep flag confidence_log.txt | cut -d= -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/confidence_log.txt",
+      "text": "# model confidence log (membership)\nexample_1 p=0.99 label=member\nexample_2 p=0.61 label=non-member\nthreshold=0.90\nnote=высокая уверенность выдаёт примеры из обучающего набора\nflag=bnRve20zbWIzcnNoMXBfMW5mM3IzbmMzfQ==\n"
+    }
+  ]
+}
