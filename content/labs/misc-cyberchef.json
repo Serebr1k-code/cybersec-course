@@ -1,0 +1,23 @@
+{
+  "id": "misc-cyberchef",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{cyb3rch3f_r3c1p3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: рецепт декодирования\n\nТебе дан `blob.txt` — данные, закодированные одним слоем base64 (как первый блок рецепта в CyberChef). Собери цепочку и достань метку в `found.txt`.\n\n## Повторение (`misc-ctf-meta-tooling`)\n\nВ `misc-ctf-meta-tooling` мы разбирали инструменты разбора данных. Тот же приём — сначала посмотри на блоб:\n\n    cat blob.txt\n\nЕсли содержимое похоже на base64 (буквы, цифры, `=` на конце) — декодируй его.\n\n## Задание\n\n1. Содержимое `blob.txt` — это base64.\n2. Раскодируй целиком: `base64 -d blob.txt > found.txt`\n3. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/blob.txt",
+      "text": "bnRve2N5YjNyY2gzZl9yM2MxcDN9\n"
+    }
+  ]
+}

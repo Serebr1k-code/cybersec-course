@@ -1,0 +1,23 @@
+{
+  "id": "misc-barcode-formats",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c0d3_128_b4rc0d3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разбор линейного кода\n\nТебе дан `barcode.txt` — разбор линейного штрихкода. Пойми символологию и контрольную сумму, затем достань метку в `found.txt`.\n\n## Повторение (`misc-qr-barcode-deep`)\n\nВ `misc-qr-barcode-deep` мы разбирали QR-коды. Тот же приём — сначала прочитай разбор кода:\n\n    cat barcode.txt\n\nСтроки вида `поле=значение` описывают штрихкод.\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag barcode.txt | cut -d= -f2`\n3. Раскодируй и запиши метку: `grep flag barcode.txt | cut -d= -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/barcode.txt",
+      "text": "# linear barcode decode\nsymbology=code128\nvalue=nto-lab-2026\nchecksum=92\nwidths=2112322411123411\nflag=bnRve2MwZDNfMTI4X2I0cmMwZDN9\n"
+    }
+  ]
+}

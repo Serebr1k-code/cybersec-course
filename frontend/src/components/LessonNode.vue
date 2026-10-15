@@ -19,10 +19,13 @@ const props = defineProps({
   // radial interaction state
   dimmed: { type: Boolean, default: false },
   onpath: { type: Boolean, default: false },
-  // Waystone gate state for this node ({total, solved, locked}) or null when the
-  // node is not a waystone. Drives the "lock + N/M" indicator on the node face.
+  // Waystone gate state for this node ({total, solved, locked, fill}) or null when
+  // the node is not a waystone. A waystone renders as a distinct golden dark BLOCK
+  // (never a hub circle or a lesson card); the block's gold fill sweeps left→right.
   gate: { type: Object, default: null }
 })
+
+const emit = defineEmits(['gate-open'])
 
 // A hub / connector node (module / roadmap index page) renders as a plain small
 // CIRCLE; a real lesson renders as a wide TEXT CARD.
@@ -70,21 +73,78 @@ const durText = computed(() => fmtDuration(
 ))
 
 // ---- waystone gate --------------------------------------------------------
-// A waystone shows a "lock + N/M" pill: N solved capstone tasks out of M. When
-// all M are done the pill turns into an open (unlocked) state.
-const gateShown = computed(() => !!(props.gate && props.gate.total > 0))
+// A waystone is ALWAYS a distinct golden dark BLOCK — regardless of whether the
+// node is a hub (module) or a real lesson card. Its face carries NO lock icon and
+// NO "N/M" text: progress is communicated purely by the gold fill sweeping
+// left→right (0/N = empty dark block, N/N = fully gold). `gate` is non-null
+// exactly for waystone nodes (see TreeGraph.vue `nodeGate`).
+const isWaystone = computed(() => !!props.gate)
 const gateLocked = computed(() => !!(props.gate && props.gate.locked))
-const gateTitle = computed(() => {
-  if (!gateShown.value) return ''
-  return gateLocked.value
-    ? `Вейстоун: ветка заперта — решено ${props.gate.solved} из ${props.gate.total} задач`
-    : `Вейстоун открыт: все ${props.gate.total} задач решены`
+const gateSolvedN = computed(() => (props.gate && props.gate.solved) || 0)
+const gateTotalN = computed(() => (props.gate && props.gate.total) || 0)
+// Left→right fill fraction. Prefer the pre-computed `fill` (gateFillFraction);
+// fall back to solved/total so a bare {total, solved, locked} gate still works.
+const wsFill = computed(() => {
+  const g = props.gate
+  if (!g) return 0
+  if (typeof g.fill === 'number') return Math.max(0, Math.min(1, g.fill))
+  return g.total ? Math.max(0, Math.min(1, g.solved / g.total)) : 0
 })
+const wsFillPct = computed(() => Math.round(wsFill.value * 100) + '%')
+// Block geometry: a readable BLOCK even where the layout reserved a tiny hub box.
+const wsW = computed(() => Math.max(props.width || 0, 120))
+const wsH = computed(() => Math.max(props.height || 0, 30))
+const wsStyle = computed(() => ({
+  '--cat': props.color,
+  width: wsW.value + 'px',
+  height: wsH.value + 'px'
+}))
+const wsTitle = computed(() => {
+  if (!props.gate) return ''
+  return gateLocked.value
+    ? `Вейстоун: ветка заперта — решено ${gateSolvedN.value} из ${gateTotalN.value} задач. Нажмите, чтобы увидеть задачи.`
+    : `Вейстоун открыт: все ${gateTotalN.value} задач решены`
+})
+// A locked waystone is NOT a link: clicking it opens the task-list popover
+// (handled by TreeGraph) instead of navigating to the lesson.
+function onGateClick(e) { emit('gate-open', e) }
 </script>
 
 <template>
+  <!-- ===================== WAYSTONE GATE — golden dark BLOCK =================
+       A waystone is rendered as a distinct BLOCK regardless of its hub/card kind.
+       NO lock emoji and NO "N/M" text on the face — the gold fill (left→right)
+       alone communicates progress. While LOCKED it is a <button> that opens the
+       task list; once FULL it is a RouterLink that navigates normally. -->
   <RouterLink
-    v-if="isHub"
+    v-if="isWaystone && !gateLocked"
+    :to="'/lesson/' + node.id"
+    class="rnode ws open"
+    :class="{ done: completed, dim: dimmed, on: onpath }"
+    :style="wsStyle"
+    :title="wsTitle"
+    :aria-label="node.title"
+  >
+    <span class="ws-fill" :style="{ width: wsFillPct }"></span>
+    <span class="title ws-label">{{ node.title }}</span>
+  </RouterLink>
+
+  <button
+    v-else-if="isWaystone"
+    type="button"
+    class="rnode ws locked"
+    :class="{ dim: dimmed, on: onpath }"
+    :style="wsStyle"
+    :title="wsTitle"
+    :aria-label="wsTitle"
+    @click="onGateClick"
+  >
+    <span class="ws-fill" :style="{ width: wsFillPct }"></span>
+    <span class="title ws-label">{{ node.title }}</span>
+  </button>
+
+  <RouterLink
+    v-else-if="isHub"
     :to="'/lesson/' + node.id"
     class="rnode hub"
     :class="{ done: completed, dim: dimmed, on: onpath }"
@@ -92,12 +152,6 @@ const gateTitle = computed(() => {
     :aria-label="node.title"
   >
     <span class="bullet" aria-hidden="true"></span>
-    <span
-      v-if="gateShown"
-      class="gate gate-hub"
-      :class="{ locked: gateLocked, open: !gateLocked }"
-      :title="gateTitle"
-    >{{ gateLocked ? '🔒' : '🔓' }} {{ gate.solved }}/{{ gate.total }}</span>
   </RouterLink>
 
   <RouterLink
@@ -124,13 +178,6 @@ const gateTitle = computed(() => {
     </span>
 
     <span class="badge" v-if="completed">✓</span>
-
-    <span
-      v-if="gateShown"
-      class="gate"
-      :class="{ locked: gateLocked, open: !gateLocked }"
-      :title="gateTitle"
-    >{{ gateLocked ? '🔒' : '🔓' }} {{ gate.solved }}/{{ gate.total }}</span>
   </RouterLink>
 </template>
 
@@ -246,24 +293,57 @@ const gateTitle = computed(() => {
   box-shadow: 0 0 8px rgba(34,197,94,.6);
 }
 
-/* Waystone gate pill: "🔒 N/M" while the branch is locked, "🔓 N/M" once open.
-   Sits in the card's bottom-right corner (the card clips overflow, so it must
-   stay inside the reserved box). */
-.gate {
-  position: absolute; right: 3px; bottom: 2px;
-  display: inline-flex; align-items: center; gap: 2px;
-  padding: 0 4px; border-radius: 6px;
-  font-size: 9px; font-weight: 800; line-height: 14px;
-  white-space: nowrap;
-  pointer-events: none;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, .5);
+/* ================= WAYSTONE GATE — golden dark block ====================== */
+/* A waystone is NOT a lesson card nor a hub circle: it is a distinct BLOCK —
+   solid dark charcoal with a warm gold edge. The face carries NO lock icon and
+   NO "N/M" text; progress is shown purely by the gold fill sweeping left→right
+   (0/N = empty dark block, N/N = fully gold). */
+.rnode.ws {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8px;
+  border-radius: 6px;
+  box-sizing: border-box;
+  text-decoration: none;
+  overflow: hidden;
+  background: #14100a;               /* solid dark-charcoal block */
+  border: 2px solid #a9791c;         /* warm gold edge */
+  color: #f7d98a;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .6), 0 1px 4px rgba(0, 0, 0, .6);
+  transition: opacity .16s ease, box-shadow .16s ease, border-color .16s ease, transform .12s ease;
 }
-.gate.locked { background: rgba(120, 53, 15, .94); color: #fcd34d; border: 1px solid #b45309; }
-.gate.open { background: rgba(6, 78, 59, .94); color: #6ee7b7; border: 1px solid #047857; }
-/* On a hub circle the pill floats just below the ring (the hub does not clip). */
-.gate-hub {
-  right: auto; bottom: auto; top: 100%; left: 50%;
-  transform: translateX(-50%); margin-top: 1px;
+.rnode.ws:hover {
+  text-decoration: none;
+  transform: translateY(-1px);
+  border-color: #f5c542;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .6), 0 0 0 1px rgba(245, 197, 66, .5), 0 0 12px rgba(245, 197, 66, .35);
+}
+/* A full (unlocked) gate glows gold; a locked one keeps the darker edge. */
+.rnode.ws.open { border-color: #f5c542; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .5), 0 0 10px rgba(245, 197, 66, .45); }
+.rnode.ws.on { box-shadow: 0 0 0 2px var(--cat), inset 0 0 0 1px rgba(0, 0, 0, .5); z-index: 3; }
+.rnode.ws.dim { opacity: .16; }
+.rnode.ws:focus-visible { outline: 2px solid #f5c542; outline-offset: 2px; }
+
+/* The left→right gold progress fill. */
+.ws-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, rgba(184, 134, 11, .85), rgba(245, 197, 66, .72));
+  transition: width .5s cubic-bezier(.2, .8, .2, 1);
+  pointer-events: none;
+}
+.rnode.ws.open .ws-fill { background: linear-gradient(90deg, #b8860b, #f5c542); }
+
+/* The gate's label (reuses .title's compact sizing) in warm gold. */
+.ws-label {
+  position: relative;
+  color: #f7d98a;
+  font-weight: 700;
+  text-align: center;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, .85);
 }
 
 </style>

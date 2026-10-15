@@ -3,7 +3,7 @@ import { computed, ref, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import LessonNode from './LessonNode.vue'
 import { useProgressStore } from '../stores/progress'
 import { radialLayout, isHubNode } from '../utils/radialLayout'
-import { isWaystone, gateSolved, gateTotal, gatedIds, isGateLocked } from '../utils/waystone'
+import { isWaystone, gateSolved, gateTotal, gateTasks, gateFillFraction, gatedIds, isGateLocked } from '../utils/waystone'
 
 const props = defineProps({
   nodes: { type: Array, default: () => [] },   // узлы одной категории
@@ -115,13 +115,22 @@ const visibleSet = computed(() => {
   return vis
 })
 
-// Вейстоун-состояние узла для бейджа «замок + N/M» на карточке.
+// Вейстоун-состояние узла для блока-гейта (LessonNode.vue). Возвращает null для
+// не-вейстоунов; для вейстоуна — прогресс-заливку (fill 0..1) + СПИСОК задач
+// (id/заголовок/выполнена), который показывает попап при клике по запертому блоку.
 function nodeGate(n) {
   if (!isWaystone(n)) return null
+  const byId = nodeById.value
   return {
     total: gateTotal(n),
     solved: gateSolved(n, isDone),
-    locked: isGateLocked(n, isDone)
+    locked: isGateLocked(n, isDone),
+    fill: gateFillFraction(n, isDone),
+    tasks: gateTasks(n).map((id) => ({
+      id,
+      title: (byId[id] && byId[id].title) || id,
+      done: isDone(id)
+    }))
   }
 }
 // Есть ли сейчас запертый вейстоун СРЕДИ ВИДИМЫХ — управляет подсказкой на
@@ -457,6 +466,58 @@ function openMenu(e, id) {
   return true
 }
 function closeMenu() { if (menu.value.show) menu.value = { ...menu.value, show: false } }
+
+// ---- waystone task-list popover -------------------------------------------
+// A locked waystone is NOT a link: clicking it opens this popover listing the
+// gate's `waystone_tasks` as links to each task lesson (✓ done / ○ not done),
+// with a header «Пройди N задач, чтобы открыть ветку». A full gate is a normal
+// link instead and never opens this panel.
+const gateMenu = ref({ show: false, x: 0, y: 0, id: '' })
+const gateMenuEl = ref(null)
+// Live gate state for the open popover — recomputed from progress so a task
+// ticked off elsewhere updates the ✓/○ marks without reopening.
+const gateMenuGate = computed(() => {
+  const n = nodeById.value[gateMenu.value.id]
+  return n ? nodeGate(n) : null
+})
+// Russian plural for "задача" — «1 задачу / 2 задачи / 5 задач».
+function tasksWord(n) {
+  const m10 = n % 10
+  const m100 = n % 100
+  if (m10 === 1 && m100 !== 11) return 'задачу'
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return 'задачи'
+  return 'задач'
+}
+// Keep the popover fully inside the canvas (mirrors clampMenu).
+function clampGateMenu() {
+  const el = gateMenuEl.value
+  const r = canvasRect()
+  if (!el || !r || !r.cw || !r.ch) return
+  const maxX = Math.max(4, r.cw - (el.offsetWidth || 0) - 4)
+  const maxY = Math.max(4, r.ch - (el.offsetHeight || 0) - 4)
+  gateMenu.value = {
+    ...gateMenu.value,
+    x: Math.max(4, Math.min(gateMenu.value.x, maxX)),
+    y: Math.max(4, Math.min(gateMenu.value.y, maxY))
+  }
+}
+// Opens the task list for a LOCKED waystone at the click point (canvas-relative).
+function openGate(e, id) {
+  const node = nodeById.value[id]
+  if (!node || !isGateLocked(node, isDone)) return
+  closeMenu()
+  const el = wrap.value
+  const r = el ? el.getBoundingClientRect() : null
+  gateMenu.value = {
+    show: true,
+    x: r ? e.clientX - r.left : e.clientX,
+    y: r ? e.clientY - r.top : e.clientY,
+    id
+  }
+  nextTick(clampGateMenu)
+}
+function closeGate() { if (gateMenu.value.show) gateMenu.value = { ...gateMenu.value, show: false } }
+
 async function markNode(id, completed) {
   const target = id || menu.value.id
   closeMenu()
@@ -474,8 +535,9 @@ function onOutsideDown(e) {
   if (touchActive) return
   const t = e.target
   if (menu.value.show && !(t && t.closest && t.closest('.ctx-menu'))) closeMenu()
+  if (gateMenu.value.show && !(t && t.closest && t.closest('.gate-menu'))) closeGate()
 }
-function onKeydown(e) { if (e.key === 'Escape') closeMenu() }
+function onKeydown(e) { if (e.key === 'Escape') { closeMenu(); closeGate() } }
 
 // Touch-originated outside tap closes the menu (the mouse path above can't be
 // used, as synthetic mouse events are suppressed while a touch is active).
@@ -487,6 +549,7 @@ function onWindowTouchStart(e) {
   longPressFired = false // a fresh gesture starts clean
   const t = e.target
   if (menu.value.show && !(t && t.closest && t.closest('.ctx-menu'))) closeMenu()
+  if (gateMenu.value.show && !(t && t.closest && t.closest('.gate-menu'))) closeGate()
 }
 function onWindowTouchEnd() {
   // Compatibility mouse events fire within a few hundred ms of touchend.
@@ -620,6 +683,7 @@ onBeforeUnmount(() => {
             :dimmed="!!activeId && !pathSet.has(n.id)"
             :onpath="pathSet.has(n.id)"
             :gate="nodeGate(n)"
+            @gate-open="openGate($event, n.id)"
           />
         </div>
       </div>
@@ -634,6 +698,29 @@ onBeforeUnmount(() => {
     >
       <button type="button" class="ctx-item" @click.stop="markNode(menu.id, true)">✓ Отметить пройденным</button>
       <button type="button" class="ctx-item" @click.stop="markNode(menu.id, false)">↺ Отметить непройденным</button>
+    </div>
+
+    <div
+      v-if="gateMenu.show && gateMenuGate"
+      ref="gateMenuEl"
+      class="gate-menu"
+      :style="{ left: gateMenu.x + 'px', top: gateMenu.y + 'px' }"
+      @contextmenu.prevent
+    >
+      <div class="gate-menu-head">
+        Пройди {{ gateMenuGate.total }} {{ tasksWord(gateMenuGate.total) }}, чтобы открыть ветку
+      </div>
+      <RouterLink
+        v-for="t in gateMenuGate.tasks"
+        :key="t.id"
+        class="gate-task"
+        :class="{ done: t.done }"
+        :to="'/lesson/' + t.id"
+        @click="closeGate"
+      >
+        <span class="gate-mark" aria-hidden="true">{{ t.done ? '✓' : '○' }}</span>
+        <span class="gate-task-title">{{ t.title }}</span>
+      </RouterLink>
     </div>
   </div>
 </template>
@@ -721,6 +808,30 @@ onBeforeUnmount(() => {
   font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
 }
 .ctx-item:hover { background: var(--panel-3); color: var(--text); }
+
+/* Попап задач вейстоуна: список задач, которые надо решить, чтобы открыть ветку */
+.gate-menu {
+  position: absolute; z-index: 30; min-width: 210px; max-width: 280px;
+  display: flex; flex-direction: column; gap: 2px; padding: 6px;
+  background: #17130b; border: 1px solid #a9791c;
+  border-radius: var(--r); box-shadow: var(--shadow-lg), 0 0 12px rgba(245, 197, 66, .18);
+}
+.gate-menu-head {
+  padding: 3px 6px 6px; margin-bottom: 2px;
+  font-size: 11.5px; font-weight: 700; color: #f5c542; line-height: 1.3;
+  border-bottom: 1px solid rgba(169, 121, 28, .45);
+}
+.gate-task {
+  display: flex; align-items: flex-start; gap: 6px;
+  padding: 6px 7px; border-radius: 6px;
+  color: var(--text); font-size: 12.5px; font-weight: 600; line-height: 1.25;
+  text-decoration: none;
+}
+.gate-task:hover { background: rgba(245, 197, 66, .12); color: #f7d98a; text-decoration: none; }
+.gate-task.done { color: var(--muted); }
+.gate-mark { flex: none; width: 12px; text-align: center; color: #f5c542; font-weight: 800; }
+.gate-task.done .gate-mark { color: var(--green, #22c55e); }
+.gate-task-title { flex: 1; overflow-wrap: anywhere; }
 
 /* ---------- Телефоны/планшеты: компактные элементы управления канвасом ---------- */
 @media (max-width: 900px) {

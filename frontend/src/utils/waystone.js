@@ -35,6 +35,15 @@ export function gateSolved(node, isCompleted) {
   return n
 }
 
+// Fraction (0..1) of a gate's tasks already solved — drives the waystone block's
+// left→right gold progress fill (0 = empty dark block, 1 = fully gold). A gate
+// with no declared tasks is treated as 0 (an empty, inert block).
+export function gateFillFraction(node, isCompleted) {
+  const total = gateTotal(node)
+  if (!total) return 0
+  return Math.max(0, Math.min(1, gateSolved(node, isCompleted) / total))
+}
+
 // A waystone with NO tasks declared is inert (never locks) so a half-written
 // gate can never dead-lock a branch. Otherwise it is open iff every task is done.
 export function isGateUnlocked(node, isCompleted) {

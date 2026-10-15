@@ -1,0 +1,23 @@
+{
+  "id": "misc-lexer-tricks",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l3x3r_p4rs3r_d1ff}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: лог расхождения разборов\n\nТебе дан `lexer_diff.txt` — лог, где валидатор и исполнитель по-разному разобрали один вход. Разберись, в чём расхождение, и достань метку в `found.txt`.\n\n## Повторение (`misc-grammar-parsing`)\n\nВ `misc-grammar-parsing` мы разбирали вход по грамматике. Тот же приём — сначала прочитай лог:\n\n    cat lexer_diff.txt\n\nСтроки вида `поле=значение` описывают расхождение.\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag lexer_diff.txt | cut -d= -f2`\n3. Раскодируй и запиши метку: `grep flag lexer_diff.txt | cut -d= -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/lexer_diff.txt",
+      "text": "# lexer vs parser differential\ninput=SELECT/**/secret\nvalidator=sees raw string, no space, looks safe\nexecutor=comment removed, sees two tokens SELECT and secret\nnote=comment changes tokenization\nflag=bnRve2wzeDNyX3A0cnMzcl9kMWZmfQ==\n"
+    }
+  ]
+}

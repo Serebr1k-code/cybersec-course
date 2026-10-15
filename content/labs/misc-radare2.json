@@ -1,0 +1,23 @@
+{
+  "id": "misc-radare2",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r2_4n4lys1s_p4th}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: сессия radare2\n\nТебе дан `r2_session.txt` — лог анализа бинарника в radare2. Разберись, какие функции нашлись и что делает проверка, и достань метку в `found.txt`.\n\n## Повторение (`misc-ctf-meta-tooling`)\n\nВ `misc-ctf-meta-tooling` мы разбирали инструментарий CTF. Тот же приём — сначала прочитай лог сессии:\n\n    cat r2_session.txt\n\nСтроки вида `поле=значение` описывают сессию анализа.\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag r2_session.txt | cut -d= -f2`\n3. Раскодируй и запиши метку: `grep flag r2_session.txt | cut -d= -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/r2_session.txt",
+      "text": "# radare2 session\ncommand=aaa\nfunctions=0x00001189 sym.check;0x000011c9 main\ncommand=pdf @ sym.check\ncall=strcmp(input, \"...\")\nnote=sym.check compares input with a constant\nflag=bnRve3IyXzRuNGx5czFzX3A0dGh9\n"
+    }
+  ]
+}

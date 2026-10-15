@@ -64,6 +64,60 @@ const CASES = [
     flag: 'nto{syst3m_pr0mpt_l34k}',
     solve: "grep flag chat.txt | cut -d= -f2 | base64 -d > found.txt",
   },
+  {
+    id: 'misc-antlr-parser',
+    artifact: 'parse_tree.txt',
+    flag: 'nto{4ntlr_gr4mm4r_4mb1gu1ty}',
+    solve: "grep flag parse_tree.txt | cut -d= -f2 | base64 -d > found.txt",
+  },
+  {
+    id: 'misc-lexer-tricks',
+    artifact: 'lexer_diff.txt',
+    flag: 'nto{l3x3r_p4rs3r_d1ff}',
+    solve: "grep flag lexer_diff.txt | cut -d= -f2 | base64 -d > found.txt",
+  },
+  {
+    id: 'misc-llvm-ir',
+    artifact: 'module.ll',
+    flag: 'nto{llvm_1r_p4ss_0pt}',
+    solve: "grep flag module.ll | cut -d= -f2 | base64 -d > found.txt",
+  },
+  {
+    id: 'misc-radare2',
+    artifact: 'r2_session.txt',
+    flag: 'nto{r2_4n4lys1s_p4th}',
+    solve: "grep flag r2_session.txt | cut -d= -f2 | base64 -d > found.txt",
+  },
+  {
+    id: 'misc-cyberchef',
+    artifact: 'blob.txt',
+    flag: 'nto{cyb3rch3f_r3c1p3}',
+    solve: "base64 -d blob.txt > found.txt",
+  },
+  {
+    id: 'misc-kata-containers',
+    artifact: 'kata_config.txt',
+    flag: 'nto{k4t4_4g3nt_3sc4p3}',
+    solve: "grep flag kata_config.txt | cut -d= -f2 | base64 -d > found.txt",
+  },
+  {
+    id: 'misc-crun-podman',
+    artifact: 'podman_inspect.txt',
+    flag: 'nto{crun_r00tl3ss_3sc4p3}',
+    solve: "grep flag podman_inspect.txt | cut -d= -f2 | base64 -d > found.txt",
+  },
+  {
+    id: 'misc-barcode-formats',
+    artifact: 'barcode.txt',
+    flag: 'nto{c0d3_128_b4rc0d3}',
+    solve: "grep flag barcode.txt | cut -d= -f2 | base64 -d > found.txt",
+  },
+  {
+    id: 'misc-esolang-whitespace-deep',
+    artifact: 'ws_hex.txt',
+    flag: 'nto{wh1t3sp4c3_d33p}',
+    solve: "grep flag ws_hex.txt | cut -d= -f2 | base64 -d > found.txt",
+  },
 ]
 
 for (const c of CASES) {

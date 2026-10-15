@@ -1,0 +1,23 @@
+{
+  "id": "misc-kata-containers",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{k4t4_4g3nt_3sc4p3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: конфигурация Kata\n\nТебе дан `kata_config.txt` — конфигурация контейнера, запущенного в Kata Containers. Оцени уровень изоляции и достань метку в `found.txt`.\n\n## Повторение (`misc-sandbox-containers-hub`)\n\nВ `misc-sandbox-containers-hub` мы разбирали изоляцию контейнеров. Тот же приём — сначала прочитай конфиг:\n\n    cat kata_config.txt\n\nСтроки вида `поле=значение` описывают компоненты рантайма.\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag kata_config.txt | cut -d= -f2`\n3. Раскодируй и запиши метку: `grep flag kata_config.txt | cut -d= -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/kata_config.txt",
+      "text": "# kata containers config\nruntime=kata-runtime\nhypervisor=qemu\nkernel=guest-kernel\nagent=kata-agent\nshared_kernel=false\nflag=bnRve2s0dDRfNGczbnRfM3NjNHAzfQ==\n"
+    }
+  ]
+}

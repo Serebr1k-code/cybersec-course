@@ -190,41 +190,83 @@ describe('components/LessonNode.vue — hub renders a plain small circle', () =>
   })
 })
 
-describe('components/LessonNode.vue — waystone gate indicator', () => {
-  it('renders no gate pill for a plain lesson', () => {
-    expect(factory().find('.gate').exists()).toBe(false)
-    expect(factory({ gate: null }).find('.gate').exists()).toBe(false)
+describe('components/LessonNode.vue — waystone gate renders a golden block', () => {
+  const WS = { ...LESSON, waystone: true, waystone_tasks: ['a', 'b', 'c', 'd', 'e'] }
+
+  it('renders no waystone block for a plain lesson', () => {
+    expect(factory().find('.ws').exists()).toBe(false)
+    expect(factory({ gate: null }).find('.ws').exists()).toBe(false)
   })
 
-  it('shows a locked «🔒 N/M» pill while the branch is locked', () => {
-    const w = factory({ gate: { total: 5, solved: 2, locked: true } })
-    const g = w.find('.gate')
-    expect(g.exists()).toBe(true)
-    expect(g.classes()).toContain('locked')
-    expect(g.classes()).not.toContain('open')
-    expect(g.text()).toContain('2/5')
-    expect(g.attributes('title')).toMatch(/заперт/i)
-    expect(g.attributes('title')).toContain('2 из 5')
+  it('renders a locked waystone as a gold block with a left→right fill', () => {
+    const w = factory({ node: WS, gate: { total: 5, solved: 2, locked: true } })
+    const b = w.find('.ws')
+    expect(b.exists()).toBe(true)
+    expect(b.classes()).toContain('locked')
+    expect(b.classes()).not.toContain('open')
+    // the face carries NO lock icon and NO "N/M" pill text — only the fill
+    expect(w.find('.gate').exists()).toBe(false)
+    expect(w.text()).not.toContain('🔒')
+    expect(w.text()).not.toContain('🔓')
+    expect(w.text()).not.toMatch(/\d\s*\/\s*\d/)
+    // fill = solved/total = 2/5 = 40%
+    expect(w.find('.ws-fill').attributes('style')).toContain('width: 40%')
   })
 
-  it('shows an open «🔓 N/M» pill once every task is solved', () => {
-    const w = factory({ gate: { total: 5, solved: 5, locked: false } })
-    const g = w.find('.gate')
-    expect(g.classes()).toContain('open')
-    expect(g.classes()).not.toContain('locked')
-    expect(g.text()).toContain('5/5')
-    expect(g.attributes('title')).toMatch(/открыт/i)
+  it('renders a full waystone as an open gold block that links to the lesson', () => {
+    const w = factory({ node: WS, gate: { total: 5, solved: 5, locked: false } })
+    const b = w.find('.ws')
+    expect(b.classes()).toContain('open')
+    expect(b.classes()).not.toContain('locked')
+    expect(w.find('.ws-fill').attributes('style')).toContain('width: 100%')
+    expect(w.findComponent(RouterLinkStub).props('to')).toBe('/lesson/web-sqli')
   })
 
-  it('renders no pill when the gate has zero tasks', () => {
-    expect(factory({ gate: { total: 0, solved: 0, locked: false } }).find('.gate').exists()).toBe(false)
+  it('a locked waystone is a <button> (NOT a link) that emits gate-open on click', async () => {
+    const w = factory({ node: WS, gate: { total: 5, solved: 1, locked: true } })
+    const b = w.find('button.ws')
+    expect(b.exists()).toBe(true)
+    // no RouterLink at all for a locked gate -> a click can never navigate
+    expect(w.findComponent(RouterLinkStub).exists()).toBe(false)
+    await b.trigger('click')
+    expect(w.emitted('gate-open')).toBeTruthy()
+    expect(w.emitted('gate-open').length).toBe(1)
   })
 
-  it('renders the pill on a hub waystone too', () => {
-    const w = hub({ node: { ...HUB, waystone: true, waystone_tasks: ['a', 'b'] }, gate: { total: 2, solved: 1, locked: true } })
-    const g = w.find('.gate')
-    expect(g.exists()).toBe(true)
-    expect(g.classes()).toContain('gate-hub')
-    expect(g.text()).toContain('1/2')
+  it('prefers the pre-computed gate.fill fraction when provided', () => {
+    const w = factory({ node: WS, gate: { total: 4, solved: 1, locked: true, fill: 0.25 } })
+    expect(w.find('.ws-fill').attributes('style')).toContain('width: 25%')
+  })
+
+  it('renders a zero-task waystone as an empty (unlocked) gold block', () => {
+    const w = factory({ node: WS, gate: { total: 0, solved: 0, locked: false } })
+    expect(w.find('.ws').exists()).toBe(true)
+    expect(w.find('.ws-fill').attributes('style')).toContain('width: 0%')
+  })
+
+  it('renders the block even when the waystone node is a hub (not a circle)', () => {
+    const w = hub({ node: { ...HUB, waystone: true, waystone_tasks: ['a'] }, gate: { total: 1, solved: 0, locked: true } })
+    expect(w.find('.ws').exists()).toBe(true)
+    expect(w.classes()).toContain('ws')
+    expect(w.classes()).not.toContain('hub')
+    // the hub bullet is NOT rendered for a waystone
+    expect(w.find('.bullet').exists()).toBe(false)
+    expect(w.find('.title').text()).toBe('Аутентификация: ядро сессий')
+  })
+
+  it('sizes the block to read clearly even when the reserved hub box is tiny', () => {
+    const w = hub({ node: { ...HUB, waystone: true, waystone_tasks: ['a'] }, size: 18, width: 18, height: 18, gate: { total: 1, solved: 0, locked: true } })
+    const style = w.attributes('style')
+    expect(style).toContain('width: 120px')
+    expect(style).toContain('height: 30px')
+  })
+
+  it('describes the gate state in the title/aria-label (not on the face)', () => {
+    const locked = factory({ node: WS, gate: { total: 5, solved: 2, locked: true } })
+    expect(locked.attributes('title')).toMatch(/заперт/i)
+    expect(locked.attributes('title')).toContain('2 из 5')
+    expect(locked.attributes('aria-label')).toMatch(/заперт/i)
+    const open = factory({ node: WS, gate: { total: 5, solved: 5, locked: false } })
+    expect(open.attributes('title')).toMatch(/открыт/i)
   })
 })
