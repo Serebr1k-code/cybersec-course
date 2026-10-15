@@ -1,0 +1,23 @@
+{
+  "id": "mobile-telegram-forensics",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{t3l3gr4m_c4ch3_db_pl41nt3xt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: чтение кэша Telegram\\n\\n## Повторение (mobile-whatsapp-forensics)\\n\\nКак и с WhatsApp, сначала `ls -la` и осмотри артефакт.\\n\\nВ `cache4_rows.txt` есть строки messages_v2. Найди секрет в поле data\\nи запиши его в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/cache4_rows.txt",
+      "text": "dialog_id  out  date        data\\n1234       1    1756720511  2A020A01 <text>\\n1234       0    1756720499  2A020A01 secret=nto{t3l3gr4m_c4ch3_db_pl41nt3xt}\\n1234       0    1756720480  2A020A01 <text>\\n"
+    }
+  ]
+}

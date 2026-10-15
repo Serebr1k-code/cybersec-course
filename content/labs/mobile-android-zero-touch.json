@@ -1,0 +1,27 @@
+{
+  "id": "mobile-android-zero-touch",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{z3r0_t0uch_3nr0llm3nt_t0k3n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит zero-touch\\n\\n## Повторение (mobile-android-kiosk)\\n\\nКак в уроке про kiosk, сначала `ls -la` и осмотри файлы.\\n\\nПроверь нагрузку provisioning и найди утёкший enrollment-токен в `notes.txt`.\\nЗапиши токен в `found.txt` и набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/provisioning.json",
+      "text": "{\\n  \"PROVISIONING_DEVICE_ADMIN_COMPONENT_NAME\": \"com.acme.mdm/.AdminReceiver\",\\n  \"PROVISIONING_DEVICE_ADMIN_PACKAGE_DOWNLOAD_LOCATION\": \"https://mdm.acme.example/dpc.apk\"\\n}\\n"
+    },
+    {
+      "path": "/home/student/task/notes.txt",
+      "text": "setup notes\\nenrollment_token=nto{z3r0_t0uch_3nr0llm3nt_t0k3n}\\nSIGNATURE_CHECKSUM: (not set)\\n"
+    }
+  ]
+}

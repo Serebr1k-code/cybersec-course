@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-bugreport",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{bugr3p0rt_b4tt3ry_st4ts_dump}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: навигация по bugreport\\n\\n## Повторение (mobile-android-anr)\\n\\nКак в уроке про ANR, начни с `ls -la` и `wc -l bugreport.txt`.\\n\\nНайди оглавление секций (`grep '^------' bugreport.txt`), затем в секции\\nBATTERY STATS найди подозрительную строку с секретом и запиши его в `found.txt`.\\n"
+    },
+    {
+      "path": "/home/student/task/bugreport.txt",
+      "text": "------ SYSTEM LOG (logcat -d) ------\\n09-01 12:04:11 I/example: spawned helper process\\n------ DUMPSYS ------\\n------ BATTERY STATS ------\\nUid com.example.app: 1200 mAh\\nUid com.unknown.spy: 9800 mAh  # flag: nto{bugr3p0rt_b4tt3ry_st4ts_dump}\\n------ PACKAGE SETTINGS ------\\n"
+    }
+  ]
+}

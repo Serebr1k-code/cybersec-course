@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-enterprise",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4ndr01d_3nt3rpr1s3_p0l1cy_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит корпоративной политики\\n\\n## Повторение (mobile-platforms-android)\\n\\nКак в уроке про платформу Android, сначала осмотри артефакт: `ls -la` и `head device_policy.txt`.\\n\\nОпредели Device Owner и найди секрет в managed configuration.\\nЗапиши секрет в `found.txt` и набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/device_policy.txt",
+      "text": "Current Device Policy Manager state:\\n  Device Owner:\\n    admin=ComponentInfo{com.acme.mdm/com.acme.mdm.AdminReceiver}\\n    name=Acme MDM\\n  mUserRestrictions: no_camera, no_debugging_features\\n  com.example.app:\\n    server_url = https://vpn.acme.example\\n    bootstrap_token = nto{4ndr01d_3nt3rpr1s3_p0l1cy_byp4ss}\\n"
+    }
+  ]
+}

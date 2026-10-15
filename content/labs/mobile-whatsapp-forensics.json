@@ -1,0 +1,23 @@
+{
+  "id": "mobile-whatsapp-forensics",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{wh4ts4pp_msgst0r3_d3crypt3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: чтение WhatsApp-переписки\\n\\n## Повторение (mobile-forensics-android)\\n\\nСначала, как в уроке про Android-форензику, осмотри каталог: `ls -la`.\\n\\nБаза `chats.txt` уже расшифрована. Найди входящее сообщение с кодом подтверждения\\nи запиши код в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/chats.txt",
+      "text": "timestamp            from_me  jid                     data\\n2026-09-01 12:04:11  0        79990001122@s.whatsapp.net  привет\\n2026-09-01 12:04:40  1        79990001122@s.whatsapp.net  привет, ты дома?\\n2026-09-01 12:05:02  0        79990001122@s.whatsapp.net  otp nto{wh4ts4pp_msgst0r3_d3crypt3d}\\n2026-09-01 12:06:15  0        support@bank           Ваш код: 4821 (не сообщайте)\\n"
+    }
+  ]
+}

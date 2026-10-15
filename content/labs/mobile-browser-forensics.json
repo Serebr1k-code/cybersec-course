@@ -1,0 +1,23 @@
+{
+  "id": "mobile-browser-forensics",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{chr0m3_h1st0ry_d3l3t3d_r0ws}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: история браузера\\n\\n## Повторение (mobile-signal-forensics)\\n\\nКак и раньше, сначала `ls -la` и осмотри артефакт.\\n\\nВ `history_rows.txt` — таблица urls. Найди подозрительный домен,\\nдостань секрет и запиши его в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/history_rows.txt",
+      "text": "url                                 title        visit_count\\nhttps://bank.example/login          Вход         4\\nhttps://news.example/               Новости      12\\nhttps://evil.example/gift?f=nto{chr0m3_h1st0ry_d3l3t3d_r0ws}  Приз  1\\n"
+    }
+  ]
+}

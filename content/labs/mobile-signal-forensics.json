@@ -1,0 +1,27 @@
+{
+  "id": "mobile-signal-forensics",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s1gn4l_sqlc1ph3r_k3y_r3c0v3r3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: расшифровка базы Signal\\n\\n## Повторение (mobile-telegram-forensics)\\n\\nКак и раньше, начни с `ls -la`, затем изучи `prefs.xml`.\\n\\nДекодируй ключ из base64 и найди секрет в `signal_db_dump.txt`.\\nЗапиши его в `found.txt` и набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/prefs.xml",
+      "text": "<map>\\n  <string name=\"pref_database_encryption_key\">MDEyMzQ1Njc4OWFiY2RlZg==</string>\\n</map>\\n"
+    },
+    {
+      "path": "/home/student/task/signal_db_dump.txt",
+      "text": "date            body\\n1756720511000   привет\\n1756720499000   secret=nto{s1gn4l_sqlc1ph3r_k3y_r3c0v3r3d}\\n"
+    }
+  ]
+}

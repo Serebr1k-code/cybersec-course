@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-work-profile",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w0rk_pr0f1l3_d4t4_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: граница work profile\\n\\n## Повторение (mobile-android-enterprise)\\n\\nКак в уроке про Android Enterprise, начни с `ls -la` и `head profiles.txt`.\\n\\nОпредели id рабочего профиля и найди утёкший файл с секретом.\\nЗапиши секрет в `found.txt` и набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/profiles.txt",
+      "text": "Users:\\n  UserInfo{0:Owner:13} running\\n  UserInfo{10:Work profile:30} running\\nmCrossProfileCopyPasteEnabled: true\\nleaked: /data/user/0/com.personal.notes/files/work_doc.txt => nto{w0rk_pr0f1l3_d4t4_l34k}\\n"
+    }
+  ]
+}

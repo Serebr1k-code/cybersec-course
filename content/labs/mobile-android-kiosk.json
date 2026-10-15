@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-kiosk",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{k10sk_m0d3_3sc4p3_c0nf1rm3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит kiosk-режима\\n\\n## Повторение (mobile-android-work-profile)\\n\\nКак в уроке про work profile, сначала `ls -la` и `head locktask.txt`.\\n\\nОпредели состояние Lock Task и найди разрешённую «дверь» с секретом.\\nЗапиши секрет в `found.txt` и набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/locktask.txt",
+      "text": "mLockTaskModeState=LOCKED\\nmLockTaskPackages=[com.acme.scanner]\\nallowed_intent: VIEW https://escape.example/x?t=nto{k10sk_m0d3_3sc4p3_c0nf1rm3d}\\nrestrictions: HOME, OVERVIEW (missing) STATUS_BAR (missing)\\n"
+    }
+  ]
+}

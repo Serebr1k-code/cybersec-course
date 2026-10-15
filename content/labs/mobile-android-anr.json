@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-anr",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4nr_m41n_thr34d_bl0ck3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор ANR\\n\\n## Повторение (mobile-android-tombstone)\\n\\nКак с tombstone, начни с `ls -la` и `head traces.txt`, чтобы понять формат.\\n\\nНайди главный поток (`grep '\"main\"' traces.txt`), определи блокировку\\nи запиши секрет из его стека в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/traces.txt",
+      "text": "----- pid 3110 at 2026-09-01 12:04:11 -----\\nCmd line: com.example.app\\n\"main\" prio=5 tid=1 Native\\n  | state=S\\n  at java.lang.Object.wait(Native method)\\n  at com.example.app.Net.fetch(Net.java:88)  # flag: nto{4nr_m41n_thr34d_bl0ck3d}\\n  at com.example.app.MainActivity.onCreate(MainActivity.java:31)\\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-tombstone",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{t0mbst0n3_n4t1v3_cr4sh_s1g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ tombstone\\n\\n## Повторение (mobile-android-timeline)\\n\\nКак в уроке про таймлайн, сначала осмотри артефакт: `ls -la` и `head tombstone_00`.\\n\\nНайди сигнал падения и виновную библиотеку, затем отыщи строку с секретом\\nи запиши его в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/tombstone_00",
+      "text": "pid: 3110, tid: 3110, name: com.example.app  >>> com.example.app <<<\\nsignal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x0\\n    x0  0000000000000000  x1  0000007a9c0010f0\\nbacktrace:\\n    #00 pc 0000000000012a4c  /data/app/lib/arm64/libnative.so  # flag: nto{t0mbst0n3_n4t1v3_cr4sh_s1g}\\n    #01 pc 0000000000014b10  /data/app/lib/arm64/libnative.so\\n"
+    }
+  ]
+}
