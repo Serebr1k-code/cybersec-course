@@ -248,6 +248,49 @@ FROM ZOBJECT WHERE ZSTREAMNAME='/app/inFocus'
 в отчёте её данные должны идти с оговоркой о том, что она показывает активность, а не
 личность оператора.
 
+## Готовые SQL-запросы к knowledgeC.db
+
+База `knowledgeC.db` — это SQLite, и большинство ответов достаётся прямыми запросами. Ключевые
+таблицы: `ZOBJECT` (события с `ZSTREAMNAME` и `ZSTARTDATE`/`ZENDDATE`), `ZSOURCE`, `ZDEVICE`.
+
+Что за приложение было в фокусе и когда:
+
+```sql
+SELECT datetime(ZSTARTDATE + 978307200, 'unixepoch') AS start,
+       ZVALUESTRING, ZENDDATE
+FROM ZOBJECT
+WHERE ZSTREAMNAME = '/app/inFocus'
+ORDER BY ZSTARTDATE DESC
+LIMIT 20;
+```
+
+Когда включали/выключали экран:
+
+```sql
+SELECT datetime(ZSTARTDATE + 978307200, 'unixepoch') AS t, ZSTREAMNAME
+FROM ZOBJECT
+WHERE ZSTREAMNAME LIKE '/display/isBacklit'
+ORDER BY ZSTARTDATE DESC LIMIT 20;
+```
+
+`978307200` — смещение между эпохой Cocoa (2001-01-01) и Unix-эпохой. Без него времена
+уезжают на 31 год.
+
+## Часовые пояса и интерпретация
+
+`ZSTARTDATE` хранится в **UTC** (Cocoa-эпоха), а `datetime(..., 'unixepoch')` вернёт UTC —
+поэтому для сопоставления с локальным логом или показаниями свидетеля переводи время в
+нужный пояс (`datetime(..., 'unixepoch', 'localtime')` учитывает пояс машины анализа, что
+обычно **неверно** для образа из другого региона).
+
+Практический приём: определи часовой пояс системы-источника по другим артефактам (например,
+`.GlobalPreferences` или логам), и приводи всё к единому поясу **до** построения таймлайна.
+Иначе события «сдвинутся» на часы и корреляция сломается.
+
+Ограничение: CoreDuet пишет **не всё** и с задержкой; запись может пропадать при нехватке
+места или сбое. Поэтому knowledgeC — сильный, но не единственный источник: подтверждай
+события по `unified logs`, браузерной истории и `Powerlog`.
+
 ## Квиз
 
 Проверь себя.

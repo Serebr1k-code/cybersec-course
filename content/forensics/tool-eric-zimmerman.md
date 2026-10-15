@@ -208,6 +208,52 @@ Jump Lists (`JLECmd`) и LNK (`LECmd`). «Какие папки смотрели
 переносит данные вручную, а работает с уже нормализованными таблицами. Именно поэтому набор
 стал де-факто стандартом в Windows-форензике.
 
+## Шпаргалка: какой EZ-инструмент под какой артефакт
+
+Инструменты Эрика Циммермана (EZ Tools) — это набор узких CLI-парсеров. Главная их сила в
+том, что каждый пишет **CSV единого вида**, а значит результаты легко сливать в один таймлайн.
+
+| Артефакт | Инструмент | Вход |
+|----------|-----------|------|
+| `$MFT` | `MFTECmd` | `$MFT`, `$J`, `$LogFile` |
+| Журналы событий | `EvtxECmd` | `*.evtx` |
+| Prefetch | `PECmd` | `*.pf` |
+| Amcache | `AmcacheParser` | `Amcache.hve` |
+| ShimCache/AppCompat | `AppCompatCacheParser` | `SYSTEM` |
+| SRUM | `SrumECmd` | `SRUDB.dat` |
+| Jump Lists | `JLECmd` | `AutomaticDestinations` |
+| Shellbags | `SBECmd` | `UsrClass.dat` |
+| Recycle Bin | `RBCmd` | `$Recycle.Bin` |
+
+Общий шаблон вызова одинаков: `TOOL.exe -f <файл> --csv <каталог> --csvf <имя>.csv`.
+
+## Сведение в единый таймлайн
+
+Каждый парсер отдаёт колонки с временем, но имена различаются (`Created`, `LastWrite`,
+`Timestamp`). Чтобы собрать один таймлайн, приводи их к общей схеме и сортируй:
+
+```bash
+# 1) прогоняем парсеры, получаем out/*.csv
+# 2) нормализуем в 4 колонки: time, source, artifact, detail
+$ python3 - <<'PY'
+import csv, glob
+rows=[]
+for f in glob.glob('out/*.csv'):
+    for r in csv.DictReader(open(f, encoding='utf-8-sig')):
+        t = r.get('Created') or r.get('Timestamp') or r.get('LastWrite')
+        if t: rows.append((t, f, r.get('Path') or r.get('Value'), r.get('Name','')))
+rows.sort()
+print('\n'.join('\t'.join(map(str,x)) for x in rows[:20]))
+PY
+```
+
+Приём: сортируй по времени **до** чтения глазами — так «взрыв» активности (массовое создание
+файлов, серия входов) виден сразу, а не тонет в тысячах строк.
+
+Ограничение: инструменты читают **один артефакт**, не коррелируют сами и не тянут сеть.
+Аналитик связывает события сам — а для автоматического сведения десятков артефактов берут
+специализированные платформы (plaso/Timesketch), где EZ-CSV просто загружают как источник.
+
 ## Квиз
 
 Проверь себя.

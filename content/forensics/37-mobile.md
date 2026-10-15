@@ -241,6 +241,40 @@ APK — это ZIP: внутри `classes.dex` (байткод Dalvik), ресу
   в базе.
 - **Облако — отдельный источник** — часть переписки есть только в Google/iCloud.
 
+## Android vs iOS: где искать одни и те же артефакты
+
+Одна и та же «улика» на Android и iOS живёт в разных местах и достаётся разными способами.
+Держи таблицу под рукой, чтобы не искать SMS в `data/data` на iPhone.
+
+| Артефакт | Android | iOS |
+|----------|---------|-----|
+| Сообщения | `data/data/com.android.providers.telephony/databases/mmssms.db` | `HomeDomain/Library/SMS/sms.db` |
+| Контакты | `contacts2.db` | `AddressBook.sqlitedb` |
+| Звонки | `calllog.db` | `CallHistory.storedata` |
+| Приложения | `/data/app`, `packages.xml` | `Bundle/Application`, `InstalledApplications.plist` |
+| Геолокация | `com.google.android.gms` кэш, фото EXIF | `Cache.sqlite`, `consolidated.db` |
+| Браузер | `Chrome/Default/History` | `Safari/History.db` |
+| Доступ | `adb`/root/образ | backup (iTunes) / файловая система (jailbreak) |
+
+Практический вывод: на Android почти всё — **SQLite** в `data/data/<package>/databases`, и
+`adb pull`/образ даёт прямой доступ. На iOS без джейлбрейка ты работаешь с **backup**
+(iTunes/Finder), где пути заменены на `HomeDomain`/`AppDomain`, а часть баз зашифрована
+`ManifestKey` из `Manifest.plist`.
+
+## Что доступно без джейлбрейка и без root
+
+Планируй извлечение по «лестнице доступа» — от самого дешёвого к самому полному:
+
+1. **Логический бэкап** (`adb backup` / iTunes backup) — без root/джейла, но не всё:
+   приложения с `allowBackup=false` и защищённые базы выпадают.
+2. **Файловая система с root** (Android) — почти полный `data/data`.
+3. **Полный образ** — все блоки, но упирается в FBE/шифрование.
+4. **Jailbreak/checkm8** (iOS) — доступ к `HomeDomain` напрямую.
+
+Ограничение: iOS-бэкап **шифруется**, и без пароля бэкапа ключи `ManifestKey` недоступны —
+тогда читаются только незашифрованные метаданные. Поэтому первый вопрос при мобильном
+извлечении всегда один: **какой уровень доступа доступен и что он реально покрывает**.
+
 ## Квиз
 
 Проверь себя.
