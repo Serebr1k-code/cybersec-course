@@ -1,0 +1,20 @@
+{
+  "id": "misc-markov-chains",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m4rk0v_st4t10n4ry_d1str1but10n}"
+  },
+  "fs": [
+    { "path": "/home/student/task", "type": "dir" },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: посчитать стационарное распределение\n\nТебе дан `markov.log` — матрица переходов цепи Маркова. Стационарное распределение показывает долю времени в каждом состоянии.\n\n## Повторение (`misc-complexity`)\n\nВ `misc-complexity` мы оценивали процессы и данные. Здесь считаем вероятности переходов. Начни с чтения матрицы.\n\n    cat markov.log\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag markov.log | cut -d: -f2`\n3. Раскодируй и запиши метку: `grep flag markov.log | cut -d: -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/markov.log",
+      "text": "# Markov chain transition matrix\nstates: A B C\nP: A->A 0.5  A->B 0.5  A->C 0.0\nP: B->A 0.2  B->B 0.3  B->C 0.5\nP: C->A 0.0  C->B 0.4  C->C 0.6\nnote: stationary distribution pi satisfies pi*P = pi and sum(pi)=1\nflag: bnRve200cmswdl9zdDR0MTBuNHJ5X2Qxc3RyMWJ1dDEwbn0=\n"
+    }
+  ]
+}
