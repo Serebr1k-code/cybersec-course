@@ -177,6 +177,66 @@ roles/owner
 - **Проверяй setIamPolicy.** Право менять политику = эскалация.
 - **Смотри ключи SA.** Утёкший ключ — готовый вход.
 
+## Построение графа имперсонаций кодом
+
+Ручной перебор аккаунтов быстро утомляет. Соберём граф имперсонаций скриптом на Python и найдём путь до самого привилегированного аккаунта.
+
+```python
+from googleapiclient.discovery import build
+
+crm = build('cloudresourcemanager', 'v1')
+proj = 'acme-project'
+policy = crm.projects().getIamPolicy(resource=proj, body={}).execute()
+
+IMPORTANT = {
+    'roles/iam.serviceAccountTokenCreator',
+    'roles/iam.serviceAccountUser',
+    'roles/iam.serviceAccountKeyAdmin',
+    'roles/owner', 'roles/editor',
+    'roles/iam.securityAdmin',
+}
+
+graph = {}
+for b in policy.get('bindings', []):
+    if b['role'] not in IMPORTANT:
+        continue
+    for m in b['members']:
+        graph.setdefault(m, []).append(b['role'])
+
+for member, roles in graph.items():
+    print(member, '->', roles)
+```
+
+Скрипт печатает, какой субъект какие «права-множители» держит. Дальше — поиск пути: стартуем от нашего утёкшего аккаунта и ищем цепочку `TokenCreator` до аккаунта с `roles/owner`. Полноценный поиск — это обычный BFS по графу, где вершины — аккаунты, а рёбра — биндинги имперсонации.
+
+## Ограничения: org policies и conditions
+
+Путь до owner может быть **обрезан** политиками выше проекта:
+
+- **Organization Policy** `iam.disableServiceAccountKeyCreation` — запрещает создавать новые ключи SA, даже если у тебя есть `serviceAccountKeys.create`.
+- **IAM Conditions** — биндинг может быть условным: `resource.name == "projects/dev/*"`. Тогда имперсонация работает только в разрешённом контексте.
+- **Deny policies** — явный запрет перебивает разрешение, даже `owner`.
+- **VPC Service Controls** — периметр, из-за которого токен есть, но вызовы API блокируются.
+
+Практический вывод: прежде чем считать цепочку рабочей, проверьте `gcloud resource-manager org-policies list` и посмотрите на `condition` в биндингах. Иногда «очевидный» путь упирается в org policy — это не ошибка разведки, а реальное ограничение, которое нужно зафиксировать в отчёте.
+
+## Детект и защита
+
+Обнаружение имперсонации в GCP строится на Cloud Audit Logs. Ключевые события:
+
+- `GenerateAccessToken` / `GenerateIdToken` для сервисного аккаунта — факт имперсонации;
+- `CreateServiceAccountKey` — появление нового долгоживущего ключа;
+- `SetIamPolicy` с новым `member` — изменение прав.
+
+Защита, помимо Workload Identity и запрета ключей:
+
+- **Мониторинг имперсонаций** — алерт на любой `GenerateAccessToken`, если он исходит не от ожидаемого сервиса;
+- **Принцип наименьших привилегий** — `TokenCreator` только на конкретные SA, а не на проект;
+- **Разделение** — аккаунт, который деплоит, не должен уметь имперсонировать админские SA;
+- **Org policy** как «потолок», ограничивающий любую выдачу прав снизу.
+
+Итог: в GCP путь эскалации — это граф имперсонаций, но настоящая защита строится на org policies и условиях, которые обрезают этот граф до безопасного подмножества.
+
 ## Квиз
 
 Проверь себя.

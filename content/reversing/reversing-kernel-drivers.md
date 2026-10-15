@@ -203,6 +203,56 @@ NTSTATUS DriverEntry(PDRIVER_OBJECT drv, PUNICODE_STRING reg) {
 - Windows-драйвер: `DriverEntry` + обработчики IRP; IOCTL — главный канал ввода из userland.
 - Уязвимости драйверов — невалидированный IOCTL, отсутствие прав, arbitrary write/read, BYOVD.
 
+## Декодирование IOCTL-кода
+
+Код IOCTL — не случайное число, а упакованная структура. В Windows его собирают макросом `CTL_CODE`:
+
+```c
+#define CTL_CODE(DeviceType, Function, Method, Access) \
+    ((DeviceType) << 16) | ((Access) << 14) | ((Function) << 2) | (Method)
+```
+
+Поля читаются так: `DeviceType` (тип устройства, старшие 16 бит), `Access` (права доступа), `Function` (номер функции), `Method` (способ передачи буфера: `METHOD_BUFFERED`, `METHOD_IN_DIRECT`, `METHOD_OUT_DIRECT`, `METHOD_NEITHER`). Разберём конкретный код:
+
+```text
+IOCTL 0x0022E004
+  DeviceType = 0x0022   (FILE_DEVICE_UNKNOWN)
+  Access     = 0x3      (FILE_READ_DATA | FILE_WRITE_DATA)
+  Function   = 0x801
+  Method     = 0x0      (METHOD_BUFFERED)
+```
+
+`Method` критичен для поиска уязвимостей: `METHOD_BUFFERED` — буфер копируется ядром (безопаснее), а `METHOD_NEITHER` передаёт **сырые пользовательские указатели** прямо в драйвер — классический источник arbitrary read/write, если драйвер не валидирует адрес через `ProbeForRead`/`ProbeForWrite`. Поэтому в дизассемблере обработчика IOCTL первым делом ищите разбор кода (обычно `switch` по `Parameters.DeviceIoControl.IoControlCode`) и смотрите, какой `Method` у интересующей команды.
+
+## Граница с userspace в Linux-модуле
+
+В Linux-модулях точка входа из userland — файловые операции. Ищите регистрацию и обработчики:
+
+```c
+static long my_ioctl(struct file *f, unsigned int cmd, unsigned long arg) {
+    struct req r;
+    if (copy_from_user(&r, (void __user *)arg, sizeof(r)))   // <-- граница
+        return -EFAULT;
+    switch (cmd) {
+        case SET_ADDR:  g_addr = r.addr;  break;   // <-- нет валидации = arbitrary
+        case WRITE32:   *(u32 *)g_addr = r.val; break;
+    }
+    return 0;
+}
+```
+
+Красные флаги: `copy_from_user` без проверки размера, `unlocked_ioctl` без проверки `cmd` по белому списку, использование пользовательского указателя напрямую (`(void __user *)arg` без копирования). В сочетании с `misc_register` (устройство доступно всем) это даёт локальное повышение привилегий. При реверсе выписывайте каждый `case` и проверяйте, валидируются ли аргументы и есть ли проверка прав (`capable(CAP_SYS_ADMIN)`).
+
+## Динамический анализ в изолированной VM
+
+Статики хватает не всегда — иногда нужно запустить драйвер и посмотреть в отладчике. Безопасный маршрут:
+
+- **Linux:** QEMU с `-s -S` (gdb-стаб на порту 1234), `vmlinux` с символами, загрузка модуля в гостя и `target remote :1234` из gdb. Ставьте точки на `my_ioctl` и наблюдайте входные данные.
+- **Windows:** WinDbg с **kernel debugging** через виртуальный COM-порт (`\\\\.\\pipe\\...`) или сетевой транспорт; `!drvobj`, `!devobj`, `!irp` показывают драйверы, устройства и IRP в реальном времени.
+- **Обязательно:** снапшот VM перед загрузкой, отдельная сеть (host-only), отсутствие доступа к реальным данным. Драйвер в ring 0 может затереть диск, сеть, зашифровать файлы — VM изолирует последствия.
+
+Динамика дополняет статику: вы видите, **какой** IOCTL вызывается, **какие** данные приходят и **где** драйвер обращается к памяти — это подтверждает гипотезы из дизассемблера.
+
 ## Квиз
 
 Проверь себя.
