@@ -156,6 +156,111 @@ $ ilasm sample.il /output=patched.exe
 
 Мы разобрали обфускацию .NET. Похожие проблемы — в **Java** (ProGuard, R8, Allatori), где обфусцирован байткод, а не IL. Об этом — в следующем уроке. А пока запомни: `de4dot` для снятия защиты, dnSpy для чтения и патча IL.
 
+## Таблица: защиты ConfuserEx и их обход
+
+ConfuserEx — самый популярный бесплатный обфускатор .NET, и у каждой его защиты есть известный обход. Карта «защита → что видно → обход».
+
+| Защита | Что делает | Признак | Обход |
+|--------|------------|---------|-------|
+| Constants | шифрует числа/строки | статические массивы, декриптор | de4dot / рантайм-дамп |
+| Anti-Debug | ломает отладчик | вызовы `Debugger` | патч проверки, `de4dot` |
+| Anti-Tamper | проверка хэша метода | странный `InitializeArray` | de4dot, патч |
+| Control Flow | flattening switch | большой `switch` | de4dot / ручной |
+| Reference Proxy | обёртки вызовов | цепочки delegate | de4dot |
+| Resources | шифрует ресурсы | зашифрованный blob | извлечение + декрипт |
+| Rename | имена-мусор | нечитаемые идентификаторы | не нужно (косметика) |
+
+Практика: **de4dot** снимает Constants/Anti-Debug/Control-Flow/Reference-Proxy автоматически. Anti-Tamper и Resources часто требуют ручного вмешательства или рантайм-дампа.
+
+## Рабочий пример: патч IL через dnlib
+
+Когда de4dot не справляется, патчим метод напрямую. Покажем замену тела метода `Check` на `return true` через dnlib:
+
+```csharp
+using dnlib.DotNet;
+using dnlib.DotNet.Emit;
+
+var mod = ModuleDefMD.Load("target.exe");
+var type = mod.Find("App", "License");          // пространство имён, класс
+var method = type.FindMethod("Check");           // метод bool Check()
+method.Body.Instructions.Clear();
+method.Body.ExceptionHandlers.Clear();
+method.Body.Variables.Clear();
+method.Body.Instructions.Add(Instruction.Create(OpCodes.Ldc_I4_1));  // true
+method.Body.Instructions.Add(Instruction.Create(OpCodes.Ret));
+mod.Write("target_patched.exe");
+```
+
+Ключевой момент: **не редактируйте IL побайтово.** dnlib сам пересоберёт `MethodBody`, включая `StackMapTable`-аналог для CLR, и патч не сломает верификацию. После записи запустите `target_patched.exe` и проверьте, что проверка лицензии обойдена.
+
+## Ограничения и типичные ошибки
+
+- **Нативный слой (JIT-хуки).** Часть защит компилирует критичный код в нативный stub — dnlib его не увидит; нужен отладчик + дамп.
+- **Строгая верификация.** Если сборка strong-named, после патча подпись станет невалидной; снимайте подпись или переподписывайте.
+- **Anti-Tamper по хэшу.** Патч меняет хэш метода и может сработать защита; сначала снимите Anti-Tamper, потом патчьте.
+- **Не тот `Check`.** В обфусцированном коде методов-двойников много; ставьте точку останова в отладчике, чтобы найти реальный.
+- **de4dot «ломает» сборку.** Иногда после деобфускации сборка не запускается; сохраняйте оригинал и применяйте инструменты послойно.
+
+## Полный проход: от sample.exe к флагу с логом инструментов
+
+Соберём сессию целиком, чтобы увидеть, что именно печатает каждый инструмент.
+
+```
+$ file sample.exe
+sample.exe: PE32 executable (console) Intel 80386 Mono/.Net assembly, for MS Windows
+
+$ de4dot sample.exe -o clean.exe
+Detected Unknown Obfuscator (v?) at offset 0x...  (или: ConfuserEx)
+Cleaning ...
+Writing clean.exe
+
+$ monodis clean.exe | grep -n "ldstr"
+0004:  ldstr      "nto{1l_p4tch_bne_un_byp4ss}"
+```
+
+`file` подтвердил managed-сборку (не AOT), `de4dot` снял протектор, `monodis` показал восстановленный IL, а в нём — строку-флаг прямо в `ldstr`. Если de4dot не справляется, читаем IL оригинального файла:
+
+```
+$ monodis sample.exe | sed -n '/Verify/,/ret/p'
+  IL_0000:  ldarg.0
+  IL_0001:  ldc.i4     0x1337
+  IL_0006:  bne.un     IL_0011
+  IL_000b:  ldc.i4.1
+  IL_000c:  br         IL_0012
+  IL_0011:  ldc.i4.0
+  IL_0012:  ret
+```
+
+Логика проверки видна и без деобфускации: `ldc.i4 0x1337` (`4919`) — магическая константа, `bne.un` — ветвление. Чтобы «обойти», метод должен всегда возвращать 1 — патчим через dnSpy (`Edit Method` → `return 1;`) или через `ilasm`:
+
+```bash
+$ ikdasm sample.exe > sample.il
+# в sample.il заменяем тело Verify на: ldc.i4.1 / ret
+$ ilasm sample.il /output=patched.exe
+```
+
+## Таблица: инструмент → задача
+
+| Инструмент | Уровень | Что делает | Когда брать |
+|-----------|---------|-----------|-------------|
+| `file` | метаданные | managed vs native (AOT) | первый шаг |
+| `de4dot` | обфускация | распознаёт и снимает протектор | сразу после `file` |
+| `dnSpy` | GUI | декомпиляция, отладка, патч IL | чтение и правка |
+| `ILSpy` | GUI/CLI | декомпилятор C# | быстрый просмотр |
+| `monodis`/`ikdasm`/`ildasm` | IL | дизассемблер IL в текст | когда GUI недоступен |
+| `ilasm` | IL | сборка `.il` → `.exe` | патч из скрипта |
+| `dnlib` | библиотека | программный патч IL | автоматизация, массовая обработка |
+
+Правило порядка: `file` → `de4dot` → `dnSpy`/`monodis` → патч (`dnSpy`/`dnlib`/`ilasm`). Пропуск `de4dot` — самая частая причина «непонятного IL».
+
+## Ограничения и подводные камни
+
+- **AOT / NativeAOT.** Если `file` показывает native-бинарь (без `Mono/.Net assembly`), managed-метаданных почти нет — это уже нативный реверс (см. соответствующий урок).
+- **Strong-name / подпись.** После патча strong-name сборки подпись становится невалидной; для запуска снимают подпись или переподписывают.
+- **Anti-tamper по хэшу метода.** Патч меняет хэш и может сработать защита; снимайте anti-tamper (de4dot) **до** правки.
+- **Побайтовый патч IL запрещён.** `MethodBody` в CLR содержит таблицы (локальные, exception handlers); править байты нельзя — используйте dnlib/dnSpy, которые пересобирают тело целиком.
+- **Обфусцированные имена ≠ отсутствие логики.** Ищите не по именам, а по вызовам: `Convert.FromBase64String`, `Aes.Create`, `File.ReadAllBytes` сразу выдают назначение метода `a`.
+
 ## Квиз
 
 ```quiz
