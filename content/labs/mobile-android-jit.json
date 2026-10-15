@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-jit",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{j1t_pr0f1l3_gu1d3d_0pt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ JIT-профиля\n\n## Повторение (mobile-android-art-internals)\n\nОсмотри артефакт: `ls -la` и `cat jit_profile.txt`.\n\nОпредели состояние компиляции методов и найди флаг рядом с выводом.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/jit_profile.txt",
+      "text": "cold start: TotalTime 820ms\nwarm start: TotalTime 410ms\nhot methods compiled by JIT, then AOT via profile (PGO)\naudit: profile-guided optimization -> nto{j1t_pr0f1l3_gu1d3d_0pt}\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-system-app",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{syst3m_pr1v4pp_pl4tf0rm_s1gn}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит системного приложения\n\n## Повторение (mobile-android-verified-boot)\n\nОсмотри артефакт: `ls -la` и `cat privapp_perms.txt`.\n\nОпредели, почему приложение привилегировано, и найди флаг.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/privapp_perms.txt",
+      "text": "path: /system/priv-app/VendorService\nrequested: android.permission.READ_LOGS, WRITE_SECURE_SETTINGS\nsignatures: cert=platform\naudit: privileged + platform signature -> nto{syst3m_pr1v4pp_pl4tf0rm_s1gn}\n"
+    }
+  ]
+}

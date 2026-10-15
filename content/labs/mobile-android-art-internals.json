@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-art-internals",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4rt_gc_c0mp1l3r_1nt3rn4ls}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор ART-интерналов\n\n## Повторение (mobile-android-odex-vdex)\n\nОсмотри артефакт: `ls -la` и `cat art_internals.txt`.\n\nОпредели компоненты рантайма и найди флаг рядом с ними.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/art_internals.txt",
+      "text": "components: class loader, garbage collector, compiler, interpreter\nprofiles guide AOT; methods may move from bytecode to native\nGC moves objects -> addresses unstable\naudit: runtime internals -> nto{4rt_gc_c0mp1l3r_1nt3rn4ls}\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-strongbox-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{str0ngb0x_t1t4n_m_k3y}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит StrongBox\n\n## Повторение (mobile-android-hardware-keys)\n\nОсмотри артефакт: `ls -la` и `cat strongbox.txt`.\n\nОпредели, где хранится ключ, и найди флаг рядом с выводом.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/strongbox.txt",
+      "text": "dumpsys keystore: StrongBox available, version 1\nkey \"k\": setIsStrongBoxBacked(true)\nkey never leaves the chip; only operations are performed\naudit: hardware-backed key -> nto{str0ngb0x_t1t4n_m_k3y}\n"
+    }
+  ]
+}

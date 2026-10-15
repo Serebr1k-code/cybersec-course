@@ -38,6 +38,18 @@ const LABS = [
     solution: ['grep nto extract_log.txt > found.txt'] },
   { id: 'mobile-android-instant-apps', flag: 'nto{1nst4nt_4pp_unv3r1f13d_l1nk}',
     solution: ['grep nto applinks.txt > found.txt'] },
+  { id: 'mobile-android-privesc', flag: 'nto{pr1v3sc_w0rld_wr1t4bl3_sys}',
+    solution: ['grep nto privesc_notes.txt > found.txt'] },
+  { id: 'mobile-android-persistence', flag: 'nto{p3rs1st_b00t_c0mpl3t3d}',
+    solution: ['grep nto persist_mechs.txt > found.txt'] },
+  { id: 'mobile-android-system-app', flag: 'nto{syst3m_pr1v4pp_pl4tf0rm_s1gn}',
+    solution: ['grep nto privapp_perms.txt > found.txt'] },
+  { id: 'mobile-android-strongbox-deep', flag: 'nto{str0ngb0x_t1t4n_m_k3y}',
+    solution: ['grep nto strongbox.txt > found.txt'] },
+  { id: 'mobile-android-art-internals', flag: 'nto{4rt_gc_c0mp1l3r_1nt3rn4ls}',
+    solution: ['grep nto art_internals.txt > found.txt'] },
+  { id: 'mobile-android-jit', flag: 'nto{j1t_pr0f1l3_gu1d3d_0pt}',
+    solution: ['grep nto jit_profile.txt > found.txt'] },
 ]
 
 describe.each(LABS)('mobile b11 lab: $id', ({ id, flag, solution }) => {

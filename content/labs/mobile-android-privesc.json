@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-privesc",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{pr1v3sc_w0rld_wr1t4bl3_sys}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: поиск эскалации\n\n## Повторение (mobile-android-rooting)\n\nОсмотри артефакт: `ls -la` и `cat privesc_notes.txt`.\n\nОпредели вектор эскалации и найди флаг рядом с ним.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/privesc_notes.txt",
+      "text": "uid: u0_a123 (app)\nexported service: com.vendor.service/.CleanupService (uid system)\nworld-writable: /data/vendor/config/allowlist.txt (-rw-rw-rw-)\nselinux: enforcing\naudit: system reads world-writable allowlist -> nto{pr1v3sc_w0rld_wr1t4bl3_sys}\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-persistence",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p3rs1st_b00t_c0mpl3t3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ персистентности\n\n## Повторение (mobile-android-dropper)\n\nОсмотри артефакт: `ls -la` и `cat persist_mechs.txt`.\n\nОпредели механизм автозапуска и найди флаг рядом с ним.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/persist_mechs.txt",
+      "text": "receiver: BootReceiver action=android.intent.action.BOOT_COMPLETED\npermission: RECEIVE_BOOT_COMPLETED\nservice: SyncService foreground=true\naudit: starts after reboot -> nto{p3rs1st_b00t_c0mpl3t3d}\n"
+    }
+  ]
+}
