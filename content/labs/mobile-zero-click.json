@@ -1,0 +1,23 @@
+{
+  "id": "mobile-zero-click",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{z3r0_cl1ck_c4mp41gn_t4g}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ crash-лога\\n\\n## Повторение (mobile-ios-spyware)\\n\\nСначала осмотри каталог: `ls -la`.\\n\\nВ `crash_report.txt` спрятана метка кампании (флаг). Найди её и запиши\\nв `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/crash_report.txt",
+      "text": "2026-09-04 03:12:44 imagent crashed (signal 11)\\n2026-09-04 03:12:44 campaign tag: nto{z3r0_cl1ck_c4mp41gn_t4g}\\n2026-09-04 03:12:45 imagent restarted\\n"
+    }
+  ]
+}

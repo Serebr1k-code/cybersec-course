@@ -1,0 +1,23 @@
+{
+  "id": "mobile-bot-detection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b0t_f4rm_d3t3ct3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: телеметрия сенсоров\\n\\n## Повторение (mobile-fraud)\\n\\nСначала осмотри каталог: `ls -la`.\\n\\nВ `sensors.csv` есть строка с меткой детекта (флаг). Найди её и запиши\\nв `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/sensors.csv",
+      "text": "t,ax,ay,az\\n0.00,0.000,0.000,9.810\\n0.02,0.000,0.000,9.810\\n0.04,0.000,0.000,9.810,note=nto{b0t_f4rm_d3t3ct3d}\\n"
+    }
+  ]
+}
