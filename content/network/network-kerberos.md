@@ -193,6 +193,46 @@ $krb5tgs$23$*svc_sql$EXAMPLE.LOCAL$MSSQLSvc/db.example.local:1433*$9e2a...
 
 Практический вывод: сетевой анализ Kerberos почти всегда начинается с `tshark -r krb.pcap -Y kerberos -T fields -e kerberos.msg_type -e kerberos.CNameString -e kerberos.SNameString`. Уже по этому распределению видно, был ли в сети brute-force, массовый запрос билетов или разведка.
 
+## Практика: от дампа до hashcat
+
+Извлечённый Kerberos-хеш нужно правильно оформить, иначе hashcat его не возьмёт.
+Синтаксис зависит от того, что мы украли.
+
+AS-REP (пользователь без pre-auth, `$krb5asrep$`):
+
+```
+hashcat -m 18200 asrep.txt rockyou.txt
+```
+
+TGS-REP / Kerberoasting (`$krb5tgs$`):
+
+```
+hashcat -m 13100 tgs.txt rockyou.txt
+```
+
+Число после `$krb5` — это etype, и оно решает, насколько дорого ломать:
+
+| etype | Шифр | hashcat -m | Скорость |
+|---|---|---|---|
+| 23 | RC4-HMAC | 18200 / 13100 | самая высокая |
+| 17 | AES128-CTS | 19600 / 19600 | в разы медленнее |
+| 18 | AES256-CTS | 19700 / 19700 | самая медленная |
+
+Поэтому при разведке смотри именно на `enc-part` в ответе KDC: если сервер
+разрешает RC4 (etype 23), атакующему сильно везёт — даже слабый пароль упадёт
+быстро. В `tcpdump` трафик к KDC ловится просто:
+
+```
+tcpdump -i eth0 -n 'tcp port 88' -w krb.pcap
+tshark -r krb.pcap -Y 'kerberos.etype == 23'
+```
+
+Для john формат называется `krb5asrep` (и `krb5tgs`); на вход он тоже принимает
+строку `$krb5asrep$...`. Отдельно проверь `AS-REP roasting` для всех учёток без
+pre-auth: если `DONT_REQUIRE_PREAUTH` выставлен, KDC отдаёт AS-REP на любой
+запрос, и ломать пароль можно полностью оффлайн, не засвечиваясь в логах
+неудачных входов.
+
 ## Квиз
 
 Проверь себя.
