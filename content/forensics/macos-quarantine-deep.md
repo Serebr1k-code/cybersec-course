@@ -234,6 +234,73 @@ Gatekeeper при первом запуске, а `knowledgeC.db` — было �
 единственной зацепкой, ведущей от «вот вредоносный файл» к «вот откуда он пришёл». Поэтому
 умение читать `QuarantineEventsV2` — обязательный навык macOS-форензики.
 
+## Практика: разбор базы QuarantineEventsV2 через sqlite3
+
+Атрибут `com.apple.quarantine` живёт на самом файле и легко теряется при копировании. Куда
+надёжнее — центральная база `~/Library/Preferences/com.apple.LaunchServices.QuarantineEventsV2`.
+Это обычный SQLite-файл, и его можно открыть читалкой:
+
+```
+$ sqlite3 ~/Library/Preferences/com.apple.LaunchServices.QuarantineEventsV2
+sqlite> .tables
+LSQuarantineEvent
+sqlite> .schema LSQuarantineEvent
+CREATE TABLE LSQuarantineEvent (LSQuarantineEventIdentifier TEXT PRIMARY KEY,
+  LSQuarantineTimeStamp REAL, LSQuarantineAgentName TEXT,
+  LSQuarantineAgentBundleIdentifier TEXT, LSQuarantineOriginURLString TEXT,
+  LSQuarantineDataURLString TEXT, LSQuarantineSenderName TEXT,
+  LSQuarantineSenderAddress TEXT, LSQuarantineTypeNumber INTEGER, ...);
+```
+
+Полезный запрос — «что скачивали за последние сутки», отсортированное по времени:
+
+```
+sqlite> SELECT datetime(LSQuarantineTimeStamp + 978307200, 'unixepoch'),
+   ...>        LSQuarantineAgentName, LSQuarantineOriginURLString
+   ...> FROM LSQuarantineEvent
+   ...> ORDER BY LSQuarantineTimeStamp DESC LIMIT 10;
+2024-03-11 18:22:04|Safari|https://cdn.example-downloads.net/Updater.dmg
+2024-03-11 18:20:57|Mail|https://mail.attacker.tld/invoice.zip
+```
+
+Здесь `978307200` — смещение между эпохой Unix и эпохой Apple Cocoa (2001-01-01). Забыть его —
+классическая ошибка: время уезжает на 31 год назад.
+
+## Практика: восстановление цепочки «откуда → чем → когда»
+
+Соберите три источника в одну строку улики: URL (`LSQuarantineOriginURLString`), агент
+(`LSQuarantineAgentName`) и время. Если файл ещё существует, добавьте его `xattr`, хеш и
+дату модификации. Получится таблица, которую можно защитить в отчёте:
+
+| Поле | Источник | Значение |
+|------|----------|----------|
+| Время загрузки | QuarantineEventsV2 | 2024-03-11 18:22:04 |
+| Агент | QuarantineEventsV2 | Safari |
+| Источник | QuarantineEventsV2 | cdn.example-downloads.net |
+| Хеш файла | sha256 | 9f2c… |
+| Атрибут | xattr | 0083;6a1b2c3d;Safari |
+
+Совпадение времени в базе и hex-времени в атрибуте подтверждает, что запись не подделана
+вручную.
+
+## Если не сработало
+
+- **База пустая или отсутствует.** События карантина живут недолго: система периодически
+  чистит старые записи. Проверьте резервные копии (Time Machine) и `~/Library/Preferences/`.
+- **`sqlite3` не открывает файл.** Файл может быть занят процессом — снимите копию
+  (`cp`), работайте с копией, иначе получите `database is locked`.
+- **Время выглядит «сдвинутым».** Скорее всего, не прибавили `978307200` или взяли не ту
+  колонку.
+- **Файла уже нет.** База всё равно хранит URL и время — это ценнее, чем сам бинарник для
+  установления вектора доставки.
+
+## Ограничения метода
+
+Карантин фиксирует только загрузки через приложения, помечающие файлы. Файлы, принесённые
+на физическом носителе, скопированные по сети или созданные на месте, карантина не получают
+— их провенанс придётся строить по другим артефактам (`fseventsd`, `knowledgeC.db`, логи
+монтирования). Поэтому база карантина — важный, но не единственный источник.
+
 ## Квиз
 
 Проверь себя.

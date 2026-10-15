@@ -244,6 +244,63 @@ $ exiftool -a -u -g1 vacation.jpg | grep -iE "comment|description|gps"
 4. **GPS** даёт геолокацию; `-n` — числовые координаты.
 5. **Встроенное превью** — отдельный носитель для LSB-стего.
 
+## Практика: полный дамп всех метаданных
+
+`exiftool` — основной инструмент. Полный вывод по всем группам:
+
+```
+$ exiftool -a -G1 -s vacation.jpg | head -20
+[ExifTool]      ExifToolVersion : 12.60
+[File]          FileSize        : 2.4 MB
+[File]          MIMEType        : image/jpeg
+[EXIF]          Make            : Apple
+[EXIF]          Model           : iPhone 13
+[EXIF]          DateTimeOriginal: 2024:03:11 18:22:04
+[EXIF]          GPSLatitude     : 55 deg 45' 21.00"
+[EXIF]          Comment         : nto{exif_comment}
+```
+
+Флаг `-a` показывает дубликаты тегов, `-G1` — группу (EXIF/XMP/IPTC/PNG), `-s` — короткие
+имена. Именно так «случайный» комментарий и попадается.
+
+## Практика: поиск в бинарных тегах и MakerNote
+
+Стандартные теги читаются легко, но данные прячут и в недокументированных областях:
+
+```
+$ exiftool -v3 vacation.jpg | grep -iE 'unknown|maker|trailer' | head
+  | | MakerNotes (1312 bytes at offset 0x2f0)
+  | | + [MakerNotes directory with 34 entries]
+Trailer: 4096 bytes
+$ exiftool -b -ThumbnailImage vacation.jpg | strings | grep nto
+nto{thumbnail_channel}
+```
+
+Превью (`ThumbnailImage`) часто содержит «старую» версию картинки — с меткой или скрытым
+текстом, которого нет в основном изображении.
+
+## Сравнение форматов
+
+| Формат | Контейнер метаданных | Где прячут |
+|--------|----------------------|------------|
+| JPEG | EXIF/APP1, XMP/APP1 | Comment, MakerNote, превью |
+| PNG | tEXt/zTXt/iTXt | текстовые чанки |
+| WebP | RIFF-чанк EXIF/XMP | «лишние» чанки |
+| HEIC | ISO-BMFF боксы | `mdat`/`uuid`-боксы |
+
+## Если не сработало
+
+- **Метаданные «вычищены».** Соцсети и мессенджеры стирают EXIF; тогда проверьте,
+  не осталось ли «хвоста» после EOI и не спрятано ли в LSB.
+- **`exiftool` не видит GPS.** GPS мог быть вырезан частично; сравните размеры с эталоном.
+- **HEIC не читается.** Нужна свежая версия `exiftool`/`libheif`; старые сборки не знают боксы.
+
+## Ограничение: анонимизация неполна
+
+`exiftool -all=` удаляет известные теги, но не трогает MakerNote, «хвост» и LSB. Поэтому
+«очищенный» файл всё ещё может нести данные — чистить надо несколько раз разными
+инструментами и проверять результат.
+
 ## Квиз
 
 Проверь себя.

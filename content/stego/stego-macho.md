@@ -202,11 +202,92 @@ size -m bin
 
 Mach-O: заголовок, load-команды, сегменты/секции, overlay. Каналы: overlay, `LC_NOTE`, padding, неиспользуемые секции/символы, fat-таблица, отладочные секции. Инструменты: `otool`, `jtool2`, `lipo`, `nm`, `binwalk`.
 
+## Финальные замечания по Mach-O
+
+Mach-O близок ELF, но load-команды играют роль program headers, а `LC_NOTE` — note-секций. Каналы те же: overlay, заметки, padding, неиспользуемые секции/символы, fat-таблица. Инструменты — `otool`, `jtool2`, `lipo`, `nm`, `binwalk`. Подход «сверху вниз с поиском аномалий размеров» работает и здесь.
+
+## Ещё раз о fat-бинарниках
+
+Universal (fat) binary — контейнер с несколькими архитектурами. Заголовок `0xCAFEBABE`, таблица `[cputype, cpusubtype, offset, size, align]`. Проверь, что `offset+size` каждого среза внутри файла; аномалия — канал. Вырежи нужную архитектуру `lipo -thin` и разбирай отдельно; неиспользуемый срез может нести данные.
+
 ## Что мы теперь знаем
 - Mach-O: заголовок (magic 0xfeedfacf) и цепочка load-команд.
 - `LC_NOTE` хранит произвольную заметку с владельцем, offset и size.
 - Padding команд, строковые сегменты и fat-padding — дополнительные каналы.
 - `otool -l` — основной инструмент разбора.
+
+## Практика: разбор Mach-O через otool и Python
+
+Структуру удобно смотреть `otool`/`llvm-otool`, а нестандартные сегменты — скриптом:
+
+```
+$ otool -l binary | grep -A3 LC_SEGMENT | head
+Load command 0
+      cmd LC_SEGMENT_64
+  cmdsize 72
+  segname __TEXT
+$ python3 - <<'EOF'
+import struct
+d = open('binary','rb').read()
+magic = d[:4]
+print('magic', magic.hex())          # cffaedfe = 64-bit LE
+# число load-команд и их размер
+ncmds, sizeofcmds = struct.unpack_from('<II', d, 16)
+print('ncmds', ncmds, 'sizeofcmds', sizeofcmds)
+off = 32
+for _ in range(ncmds):
+    cmd, size = struct.unpack_from('<II', d, off)
+    print(hex(cmd), size)
+    off += size
+EOF
+magic cffaedfe
+ncmds 16 sizeofcmds 1456
+0x19 72
+0x2 24
+```
+
+Неизвестные `cmd` (не из стандартного списка) и «лишние» байты между командами — повод
+копнуть.
+
+## Практика: LC_NOTE и fat binary
+
+`LC_NOTE` (`0x31`) официально хранит произвольные заметки (используется отладчиками), но
+может нести и данные:
+
+```
+$ python3 - <<'EOF'
+d = open('binary','rb').read()
+i = d.find(b'LC_NOTE')
+print('found at', i, d[i:i+64])
+EOF
+found at 4821 b'LC_NOTE...nto{macho_note}...'
+```
+
+Fat binary — это «контейнер» из нескольких Mach-O (x86_64 + arm64). Каждый срез надо
+разбирать отдельно:
+
+```
+$ lipo -info binary
+Architectures in the fat file: binary are: x86_64 arm64
+$ lipo -thin arm64 binary -output arm64.bin
+```
+
+Данные можно спрятать только в одном срезе — второй будет выглядеть чисто.
+
+## Если не сработало
+
+- **`otool` не установлен.** На Linux используйте `llvm-objdump`/`llvm-readobj` или
+  `MachOView` на macOS.
+- **Секция «padding» пуста.** Проверьте все срезы fat-файла и trailing-данные после последней
+  секции.
+- **Файл подписан.** Подпись может покрывать не всё тело; проверьте `codesign -dvvv` и
+  области, не входящие в хеш подписи.
+
+## Ограничение: подпись и нотаризация
+
+Современный macOS проверяет подпись и нотаризацию. Изменённый Mach-O не запустится без
+снятия защиты (`codesign --remove-signature`), поэтому в реальных атаках данные прячут в
+частях, не входящих в подпись, — их и надо искать в первую очередь.
 
 ## Квиз
 
