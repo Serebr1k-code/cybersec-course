@@ -1,9 +1,13 @@
 import { defineStore } from 'pinia'
 import { api, setToken } from '../api/client'
 
+// Один общий запрос /api/auth/me: boot-фаза, навигационный охранник и App.vue
+// могут дёрнуть load() одновременно — сеть не должна ходить дважды.
+let inflight = null
+
 // Аккаунт пользователя: регистрация/вход/выход и восстановление сессии.
-// Когда пользователь не авторизован, приложение продолжает работать в
-// анонимном режиме (прогресс привязан к cookie lt_uid) — ничего не ломается.
+// Приложение закрыто для анонимов (см. src/router/guard.js): без входа любой
+// маршрут, кроме /login, уводит на экран входа.
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: null, // { id, username, created_at } | null
@@ -16,16 +20,24 @@ export const useAuthStore = defineStore('auth', {
   },
   actions: {
     // Восстанавливает сессию по cookie/токену при загрузке приложения.
+    // Идемпотентно: повторный вызов после готовности не ходит на сервер.
     async load() {
-      try {
-        const r = await api.authMe()
-        this.user = r.user || null
-      } catch (e) {
-        this.user = null
-      } finally {
-        this.ready = true
-      }
-      return this.user
+      if (this.ready) return this.user
+      if (inflight) return inflight
+      inflight = (async () => {
+        try {
+          const r = await api.authMe()
+          this.user = r.user || null
+        } catch (e) {
+          // 401/сеть/любая ошибка → считаем посетителя анонимным.
+          this.user = null
+        } finally {
+          this.ready = true
+          inflight = null
+        }
+        return this.user
+      })()
+      return inflight
     },
     async register(username, password) {
       this.error = ''

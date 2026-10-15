@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted, onBeforeUnmount, computed, ref } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useTreeStore } from './stores/tree'
 import { useProgressStore } from './stores/progress'
 import { useAuthStore } from './stores/auth'
@@ -10,6 +10,7 @@ const tree = useTreeStore()
 const progress = useProgressStore()
 const auth = useAuthStore()
 const route = useRoute()
+const router = useRouter()
 
 const nav = [
   { to: '/', label: 'Дерево', icon: '🕸️' },
@@ -22,6 +23,10 @@ const levelPct = computed(() => Math.round(progress.levelProgress * 100))
 // На странице урока обычный топбар заменяется тонкой полосой чтения, которую
 // рисует сам LessonView (максимум места под текст). Здесь мы его просто прячем.
 const isLesson = computed(() => route.name === 'lesson')
+
+// На экране входа/регистрации топбар тоже не нужен — он ведёт на закрытые
+// маршруты и отвлекал бы от формы.
+const showTopbar = computed(() => !isLesson.value && route.name !== 'login')
 
 // --- Обновление данных без перезагрузки страницы ---------------------------
 // Перезапрашивает дерево (со всеми уроками/счётчиками) и прогресс с сервера.
@@ -57,10 +62,11 @@ function onVisibility() {
   if (document.visibilityState === 'visible') autoRefresh()
 }
 
-// Выход из аккаунта: чистим сессию на сервере и перечитываем анонимный прогресс.
+// Выход из аккаунта: чистим сессию на сервере и возвращаемся на экран входа.
 async function doLogout() {
   await auth.logout()
   await progress.load()
+  router.push('/login')
 }
 
 onMounted(() => {
@@ -80,7 +86,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="app">
-    <header v-if="!isLesson" class="topbar">
+    <header v-if="showTopbar" class="topbar">
       <RouterLink to="/" class="brand">
         <span class="brand-mark">CTF</span>
         <span class="brand-text">

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-sanitizers",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ubs4n_s1gn3d_0v3rfl0w}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: классификация отчётов\n\nРаздели отчёты по типу санитайзера.\n"
+    },
+    {
+      "path": "/home/student/task/sanitizer_reports.txt",
+      "text": "--- report A ---\nruntime error: signed integer overflow: 2147483647 + 1 cannot be represented  # flag: nto{ubs4n_s1gn3d_0v3rfl0w}\n--- report B ---\nERROR: AddressSanitizer: heap-buffer-overflow on address 0x6020000000f1\n--- report C ---\nERROR: LeakSanitizer: detected memory leaks\n"
+    }
+  ]
+}

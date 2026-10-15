@@ -1,12 +1,13 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { useProgressStore } from '../stores/progress'
 
 const auth = useAuthStore()
 const progress = useProgressStore()
 const router = useRouter()
+const route = useRoute()
 
 const mode = ref('login') // 'login' | 'register'
 const username = ref('')
@@ -16,6 +17,14 @@ const error = ref('')
 
 const title = computed(() => (mode.value === 'login' ? 'Вход' : 'Регистрация'))
 const submitLabel = computed(() => (mode.value === 'login' ? 'Войти' : 'Создать аккаунт'))
+
+// Куда вернуть пользователя после входа: сохранённый охранником ?redirect=
+// (только внутренний путь), иначе — на дерево.
+function redirectTarget() {
+  const r = route.query && route.query.redirect
+  if (typeof r === 'string' && r.startsWith('/') && !r.startsWith('//')) return r
+  return '/'
+}
 
 function switchMode(m) {
   mode.value = m
@@ -35,7 +44,7 @@ async function submit() {
     else await auth.register(username.value, password.value)
     // Прогресс мог слиться с анонимным — подтягиваем актуальное состояние.
     await progress.load()
-    router.push('/')
+    router.push(redirectTarget())
   } catch (e) {
     error.value = e.message || 'Не удалось выполнить запрос'
   } finally {
@@ -46,7 +55,7 @@ async function submit() {
 async function logout() {
   await auth.logout()
   await progress.load()
-  router.push('/')
+  router.push('/login')
 }
 </script>
 
@@ -67,8 +76,8 @@ async function logout() {
     <section v-else class="card box">
       <h1>{{ title }}</h1>
       <p class="muted">
-        Войдите, чтобы прогресс сохранялся на сервере. Без входа всё работает как раньше —
-        прогресс хранится в этом браузере.
+        Доступ к тренажёру открыт только участникам. Войдите или создайте аккаунт —
+        прогресс, заметки и результаты квизов сохранятся на сервере.
       </p>
 
       <div class="tabs">

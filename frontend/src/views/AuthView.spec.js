@@ -5,8 +5,11 @@ import AuthView from './AuthView.vue'
 import { useAuthStore } from '../stores/auth'
 import { api } from '../api/client'
 
-const { push } = vi.hoisted(() => ({ push: vi.fn() }))
-vi.mock('vue-router', () => ({ useRouter: () => ({ push }) }))
+const { push, route } = vi.hoisted(() => ({ push: vi.fn(), route: { query: {} } }))
+vi.mock('vue-router', () => ({
+  useRouter: () => ({ push }),
+  useRoute: () => route
+}))
 vi.mock('../api/client', () => ({
   api: {
     authMe: vi.fn(),
@@ -28,6 +31,7 @@ describe('views/AuthView', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    route.query = {}
     api.progress.mockResolvedValue(emptyProgress)
   })
 
@@ -56,6 +60,28 @@ describe('views/AuthView', () => {
     expect(push).toHaveBeenCalledWith('/')
   })
 
+  it('routes to the intended page from ?redirect= after login', async () => {
+    route.query = { redirect: '/lesson/web-sqli' }
+    api.login.mockResolvedValue({ user: { id: 'u1', username: 'dave' }, token: 'tok' })
+    const w = mountView()
+    await w.find('input[type="text"]').setValue('dave')
+    await w.find('input[type="password"]').setValue('hunter2!')
+    await w.find('form').trigger('submit')
+    await flushPromises()
+    expect(push).toHaveBeenCalledWith('/lesson/web-sqli')
+  })
+
+  it('ignores an external/unsafe ?redirect= and falls back to /', async () => {
+    route.query = { redirect: '//evil.example.com' }
+    api.login.mockResolvedValue({ user: { id: 'u1', username: 'dave' }, token: 'tok' })
+    const w = mountView()
+    await w.find('input[type="text"]').setValue('dave')
+    await w.find('input[type="password"]').setValue('hunter2!')
+    await w.find('form').trigger('submit')
+    await flushPromises()
+    expect(push).toHaveBeenCalledWith('/')
+  })
+
   it('shows an error when the server rejects the credentials', async () => {
     api.login.mockRejectedValue(new Error('invalid username or password'))
     const w = mountView()
@@ -78,5 +104,6 @@ describe('views/AuthView', () => {
     await flushPromises()
     expect(api.logout).toHaveBeenCalled()
     expect(auth.isLoggedIn).toBe(false)
+    expect(push).toHaveBeenCalledWith('/login')
   })
 })

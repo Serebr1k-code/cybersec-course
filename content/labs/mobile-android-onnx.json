@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-onnx",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0nnx_cust0m_d0m41n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: домены операторов ONNX\n\nНайди оператор, реализация которого приходит из приложения.\n"
+    },
+    {
+      "path": "/home/student/task/onnx_graph.txt",
+      "text": "node Conv op_type=Conv domain=ai.onnx\nnode Relu op_type=Relu domain=ai.onnx\nnode Preproc op_type=Preproc domain=com.example.custom  # flag: nto{0nnx_cust0m_d0m41n}\nnode Gemm op_type=Gemm domain=ai.onnx\n"
+    }
+  ]
+}

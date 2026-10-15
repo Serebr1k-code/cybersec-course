@@ -27,6 +27,7 @@ summary: "Навигационный модуль: Android Auto, Wear OS и ан
 | `mobile-android-auto` | Android Auto/Automotive: интерфейсы, каналы, атаки |
 | `mobile-wear-os` | Wear OS: приложения, коммуникация с телефоном, данные |
 | `mobile-banking-trojan` | анализ банковских троянов: overlay, accessibility, C2 |
+| `mobile-on-device-ml` | ML/AI на устройстве: NNAPI, TFLite, ONNX, извлечение моделей |
 
 Смежные: `mobile-wearable-iot` (обзор IoT/wearables), `mobile-malware` (общий анализ), `mobile-task-hijacking`, `mobile-tapjacking`.
 
@@ -44,7 +45,7 @@ Wear OS — Android для часов. Приложения — те же APK (�
 
 ## Что дальше / решение
 
-Порядок: `mobile-android-auto` → `mobile-wear-os` → `mobile-banking-trojan`. Если интересует только малварь — сразу `mobile-banking-trojan` + `mobile-malware`. Решение по умолчанию: изолированный эмулятор/устройство для анализа малвари (без реальных аккаунтов).
+Порядок: `mobile-android-auto` → `mobile-wear-os` → `mobile-banking-trojan`. Если интересует только малварь — сразу `mobile-banking-trojan` + `mobile-malware`. Для ML-приложений — ветка `mobile-on-device-ml`. Решение по умолчанию: изолированный эмулятор/устройство для анализа малвари (без реальных аккаунтов).
 
 ## Справочная таблица
 

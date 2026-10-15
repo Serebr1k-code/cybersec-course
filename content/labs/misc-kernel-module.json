@@ -1,0 +1,23 @@
+{
+  "id": "misc-kernel-module",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{k3rn3l_m0dul3_1ntr0}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: паспорт модуля ядра\n\nТебе дан `modinfo.txt` — метаданные загружаемого модуля ядра. Грузить его в систему нельзя, но и не нужно: разбери паспорт и достань метку в `found.txt`.\n\n## Повторение (`misc-kernel-misc`)\n\nВ `misc-kernel-misc` мы учились читать служебную информацию о системе, а не исполнять её. Тот же приём здесь — сначала посмотри метаданные модуля:\n\n    cat modinfo.txt\n\nСтроки вида `поле: значение` — это и есть паспорт модуля (секция `.modinfo`).\n\n## Задание\n\n1. Найди строку `description` — в ней лежит base64-текст.\n2. Вырежи значение поля: `grep description modinfo.txt | cut -d: -f2`\n3. Раскодируй base64 и запиши метку: `grep description modinfo.txt | cut -d: -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/modinfo.txt",
+      "text": "filename:       /lib/modules/6.1.0/demo.ko\nlicense:        GPL\nauthor:         ctf-lab\ndescription:    bnRve2szcm4zbF9tMGR1bDNfMW50cjB9\nsrcversion:     A1B2C3D4E5F6\ndepends:\nretpoline:      Y\nname:           demo\nvermagic:       6.1.0 SMP mod_unload\nparm:           count:int\n"
+    }
+  ]
+}

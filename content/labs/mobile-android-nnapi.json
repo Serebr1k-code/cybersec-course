@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-nnapi",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{nn4p1_d3l3g4t3_0p}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: NNAPI-делегирование\n\nОпредели, какие операции ушли на ускоритель.\n"
+    },
+    {
+      "path": "/home/student/task/nnapi_log.txt",
+      "text": "I/NNAPI: Accelerator 'qti-default' registered\nI/NNAPI: Model compiled with 1 partition, 4 operations delegated\nI/NNAPI: op CONV_2D delegated  # flag: nto{nn4p1_d3l3g4t3_0p}\nI/NNAPI: op SOFTMAX executed on CPU\n"
+    }
+  ]
+}

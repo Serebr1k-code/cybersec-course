@@ -1,0 +1,23 @@
+{
+  "id": "mobile-detox",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d3t0x_3t0_3nd_t0_3nd}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разведка по Detox-тесту\n\nНайди, какие testID и эндпоинты раскрывает тест.\n"
+    },
+    {
+      "path": "/home/student/task/profile.test.js",
+      "text": "describe('Профиль', () => {\n  it('сохраняет имя', async () => {\n    await element(by.id('open-profile')).tap();\n    await element(by.id('name-input')).typeText('Alice');\n    await element(by.id('save')).tap();\n    // POST /api/v2/profile  # flag: nto{d3t0x_3t0_3nd_t0_3nd}\n    await expect(element(by.text('Сохранено'))).toBeVisible();\n  });\n});\n"
+    }
+  ]
+}

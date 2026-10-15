@@ -1,0 +1,23 @@
+{
+  "id": "mobile-valgrind",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d3f1n1t3ly_l0st_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ утечки\n\nНайди, где теряется память.\n"
+    },
+    {
+      "path": "/home/student/task/valgrind_out.txt",
+      "text": "HEAP SUMMARY:\n    in use at exit: 8,192 bytes in 2 blocks\n    total heap usage: 128 allocs, 126 frees\n8,192 (8,192 direct) bytes in 1 blocks are definitely lost in loss record 1 of 1\n   at malloc\n   by handle_request (netsvc.c:88)  # flag: nto{d3f1n1t3ly_l0st_l34k}\n"
+    }
+  ]
+}

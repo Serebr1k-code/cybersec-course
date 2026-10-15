@@ -1,0 +1,23 @@
+{
+  "id": "mobile-afl-native",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{afl_q3mu_c0v3r4g3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: статистика AFL\n\nОцени, насколько успешен был прогон фаззера.\n"
+    },
+    {
+      "path": "/home/student/task/afl_stats.txt",
+      "text": "cycles done : 1\ntotal paths : 47\nunique crashes : 2\nexec speed : 812/sec\nstability : 99.8%  # flag: nto{afl_q3mu_c0v3r4g3}\n"
+    }
+  ]
+}

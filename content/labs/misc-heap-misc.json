@@ -1,0 +1,23 @@
+{
+  "id": "misc-heap-misc",
+  "hostname": "lab",
+  "workdir": "/home/student/task",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{glibc_tc4ch3_f4stb1n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разбор дампа heap\n\nТебе дан `heap_dump.txt` — дамп чанков glibc-heap. Разбери карту кучи и достань метку в `found.txt`.\n\n## Повторение (`misc-kernel-misc`)\n\nВ `misc-kernel-misc` мы читали служебные данные, а не исполняли код. Тот же приём — начни с чтения дампа:\n\n    cat heap_dump.txt\n\nСтроки вида `поле=значение` описывают чанки и их корзины.\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag heap_dump.txt | cut -d= -f2`\n3. Раскодируй и запиши метку: `grep flag heap_dump.txt | cut -d= -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/heap_dump.txt",
+      "text": "# glibc heap dump (chunks)\nchunk=0x5555a0 size=0x291 state=top\nchunk=0x555830 size=0x31 state=freed_tcache\nchunk=0x555860 size=0x41 state=freed_fastbin\nchunk=0x5558a0 size=0x21 state=in_use\nflag=bnRve2dsaWJjX3RjNGNoM19mNHN0YjFufQ==\n"
+    }
+  ]
+}

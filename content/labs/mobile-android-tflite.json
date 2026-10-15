@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-tflite",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{tfl1t3_cust0m_0p}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор модели TFLite\n\nНайди кастомную операцию в графе.\n"
+    },
+    {
+      "path": "/home/student/task/model_ops.txt",
+      "text": "op CONV_2D inputs=[0,1,2] outputs=[3]\nop MAX_POOL_2D inputs=[3] outputs=[4]\nop Custom(MyPreproc) inputs=[4] outputs=[5]  # flag: nto{tfl1t3_cust0m_0p}\nop SOFTMAX inputs=[5] outputs=[6]\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-libfuzzer",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{h34p_buff3r_0v3rfl0w}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор отчёта ASan\n\nОпредели тип ошибки памяти и виновную функцию.\n"
+    },
+    {
+      "path": "/home/student/task/asan_report.txt",
+      "text": "==3110==ERROR: AddressSanitizer: heap-buffer-overflow on address 0x6020000000f1\nREAD of size 1 at 0x6020000000f1 thread T0\n    #0 0x7f9a1c in parse_record parser.c:57\n    #1 0x7f9b20 in LLVMFuzzerTestOneInput harness.c:4\n  # flag: nto{h34p_buff3r_0v3rfl0w}\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-screenshot-testing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{p1x3l_d1ff_b4s3l1n3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: визуальная регрессия\n\nНайди, какая область экрана изменилась относительно эталона.\n"
+    },
+    {
+      "path": "/home/student/task/diff_report.txt",
+      "text": "baseline: home.png (1080x2400)\nrun:      run.png  (1080x2400)\nAE: 3170 pixels (0.12%)\nregion changed: x=40 y=1180 w=420 h=120  # flag: nto{p1x3l_d1ff_b4s3l1n3}\nignore: statusbar (0,0,1080,80)\n"
+    }
+  ]
+}
