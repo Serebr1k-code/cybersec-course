@@ -149,6 +149,150 @@ Android-байткод (**Dalvik**) — родственник Java-байтко
 
 Мы разобрали managed-код с обфускацией. Крайний случай — **AOT-компиляция**, когда .NET/Java-код заранее превращается в нативный (NativeAOT, ReadyToRun, GraalVM), и managed-метаданных почти не остаётся. Об этом — в следующем уроке. А пока запомни: обфускация Java — это переименование и оптимизация, а `javap -v` и CFR дают ответ.
 
+## Полный проход: от обфусцированного jar к флагу
+
+Пройдём реальный сценарий целиком. На входе `app.jar`, собранный с ProGuard, и задача — вытащить проверку.
+
+```bash
+$ unzip -l app.jar
+  a.class  b.class  c.class  META-INF/MANIFEST.MF
+$ unzip -p app.jar META-INF/MANIFEST.MF
+Main-Class: a
+```
+
+Точка входа — класс `a`. Декомпилируем CFR:
+
+```bash
+$ java -jar cfr.jar app.jar --outputdir out/
+$ cat out/a.java
+public class a {
+    public static void main(String[] args) {
+        if (b.a("nto{...}")) System.out.println("OK"); else System.out.println("no");
+    }
+}
+```
+
+Имена восстановлены (или остались `a/b`), логика видна. Если CFR споткнулся — читаем байткод:
+
+```bash
+$ javap -c -p -v -classpath app.jar b
+  #13 = String  #14   // "nto{0bfusc4t3d}"
+  ...
+  public static boolean a(java.lang.String);
+    Code:
+       0: aload_0
+       1: ldc           #13   // String "nto{0bfusc4t3d}"
+       3: invokevirtual #15   // String.equals
+       6: ireturn
+```
+
+Даже с именами `a/b` пул констант выдаёт строку-флаг и то, что вызывается `String.equals`. Дальше — либо читаем, либо патчим.
+
+## Патч через ASM
+
+Если нужно обойти проверку (а не просто прочитать), меняем байткод библиотекой ASM:
+
+```java
+ClassReader cr = new ClassReader("b");
+ClassWriter cw = new ClassWriter(cr, 0);
+cr.accept(new ClassVisitor(Opcodes.ASM9, cw) {
+    public MethodVisitor visitMethod(int acc, String name, String desc,
+                                     String sig, String[] ex) {
+        MethodVisitor mv = super.visitMethod(acc, name, desc, sig, ex);
+        if (name.equals("a")) {                 // целимся в метод проверки
+            return new MethodVisitor(Opcodes.ASM9, mv) {
+                public void visitCode() {
+                    mv.visitCode();
+                    mv.visitInsn(Opcodes.ICONST_1);   // всегда true
+                    mv.visitInsn(Opcodes.IRETURN);
+                }
+            };
+        }
+        return mv;
+    }
+}, 0);
+Files.write(Path.of("b.class"), cw.toByteArray());
+```
+
+Затем `jar uf app.jar b.class` — и проверка всегда проходит. Для CTF чаще достаточно прочитать, но патч нужен, когда логика запутана контролем потока.
+
+## Таблица: опкоды JVM, которые важны при реверсе
+
+| Опкод | Что делает | На что смотреть |
+|-------|-----------|-----------------|
+| `ldc` | кладёт константу из пула | строки/числа-флаги прямо в пуле |
+| `sipush`/`bipush` | короткая целая константа | магические числа проверок |
+| `if_icmpeq/ne` | сравнение двух int | ветвление проверки пароля |
+| `invokestatic` | вызов статического метода | точка расшифровки строк |
+| `invokevirtual` | вызов метода объекта | `String.equals`, `StringBuilder` |
+| `new`/`invokespecial` | создание объекта + конструктор | конструирование строк из байтов |
+| `athrow` | выбросить исключение | анти-отладочные приёмы |
+
+## Ограничения и подводные камни
+
+- **CFR/Procyon могут «сломаться»** на патологическом контроле потока — тогда `javap -v` и ручной разбор остаются надёжнее.
+- **String encryption** убирает строки из пула: `ldc` теперь указывает на зашифрованный массив байтов, а расшифровка — в отдельном методе. Ищите `invokestatic` в начале методов и ставьте брейкпоинт `jdb` на его выход.
+- **Reflection** (`Class.forName`, `Method.invoke`) прячет реальные вызовы от статического анализа — их видно только в рантайме.
+- **Порядок `Main-Class`** в манифесте может быть подменён, а `main` — вызывать другой класс; проверяйте `MANIFEST.MF`, а не только первый найденный `main`.
+
+## Таблица: инструменты деобфускации байткода
+
+Обфускация Java почти всегда состоит из нескольких слоёв, и для каждого есть свой инструмент. Ниже — карта «что делает обфускатор → чем снимать».
+
+| Обфускатор / слой | Что делает | Инструмент |
+|-------------------|------------|------------|
+| ProGuard / R8 | переименование, удаление мёртвого кода | читается как есть; декомпилятор CFR/Procyon |
+| Allatori | строковое шифрование, control-flow | ручной скрипт + Fernflower |
+| Stringer | шифрует строки, дешифрует в рантайме | перехват через javaagent |
+| Zelix KlassMaster | control-flow flattening, string crypto | эмуляция + de4dot (для .NET — аналог) |
+| DashO | водяные знаки, string encryption | runtime-дамп классов |
+| Нативный слой (JNI) | критика в `.so` | IDA/Ghidra + JNI-сигнатуры |
+
+Практическое правило: сначала попробуйте декомпилировать «как есть» (CFR, Procyon, Fernflower). Если код читается, но строки зашифрованы — снимайте string-encryption рантайм-дампом, а не статически.
+
+## Рабочий пример: снятие строкового шифрования через javaagent
+
+Самый надёжный путь против рантайм-дешифровки — загрузить класс, вызвать его декриптор и сдампить результат. Скелет агента:
+
+```java
+import java.lang.instrument.*;
+import java.lang.reflect.*;
+
+public class Dumper {
+    public static void premain(String args, Instrumentation inst) {
+        inst.addTransformer(new ClassFileTransformer() {
+            public byte[] transform(ClassLoader l, String name, Class<?> c,
+                                    ProtectionDomain pd, byte[] b) {
+                if (name.contains("Crypto")) {
+                    try {
+                        Class<?> k = Class.forName(name, false, l);
+                        for (Method m : k.getDeclaredMethods()) {
+                            m.setAccessible(true);
+                            if (m.getReturnType() == String.class
+                                && m.getParameterCount() == 1) {
+                                Object r = m.invoke(null, "PROBE");
+                                System.out.println(name + "." + m.getName() + " = " + r);
+                            }
+                        }
+                    } catch (Throwable t) { /* ignore */ }
+                }
+                return null;
+            }
+        });
+    }
+}
+```
+
+Запуск: `java -javaagent:dumper.jar -jar target.jar`. Агент перехватывает загрузку класса, вызывает декриптор и печатает расшифрованные строки. Это быстрее, чем реверс самого алгоритма шифрования вручную.
+
+## Подводные камни
+
+- **Reflection-обфускация.** Некоторые обфускаторы заменяют прямые вызовы на `Method.invoke` с зашифрованным именем — статический анализ не покажет, что вызывается; нужен рантайм.
+- **Anti-debug и anti-agent.** Часть образцов проверяет `java.lang.instrument` или наличие отладочных флагов; агент может быть заблокирован.
+- **Верификация байткода.** Патч IL-байткода вручную часто ломает `StackMapTable`; пересобирайте через ASM, а не hex-редактированием.
+- **Пул констант — не строки.** `CONSTANT_String` ссылается на `CONSTANT_Utf8`; меняя строку, следите за индексами и размером пула.
+- **Мультиденкс и упаковщики.** В Android код может быть в дополнительных dex-файлах или зашифрован упаковщиком; сначала распакуйте, потом декомпилируйте.
+
 ## Квиз
 
 ```quiz
