@@ -148,6 +148,49 @@ Result: Parcel(00000000 00000001   '........')
 но не то, что значения осмысленны. Проверка диапазона — обязанность сервиса, и её
 часто забывают, потому что «UI и так не даёт ввести минус».
 
+## Шаг 6: правильная защита на стороне сервиса
+
+Мы увидели, что `enforceInterface` защищает только от «не того интерфейса». Настоящая
+защита должна проверять **личность вызывающего**. Правильный шаблон:
+
+```java
+public boolean onTransact(int code, Parcel data, Parcel reply, int flags) {
+  int uid = Binder.getCallingUid();
+  String pkg = getPackageManager().getNameForUid(uid);
+  if (!ALLOWED_PACKAGES.contains(pkg)) {
+    return false;   // чужое приложение — отказ
+  }
+  return super.onTransact(code, data, reply, flags);
+}
+```
+
+Ещё надёжнее — привязать доступ к подписи: сравнить подпись вызывающего пакета с
+эталонной. Тогда даже переустановка приложения с тем же именем не поможет.
+
+Почему `enforceInterface` обходят так легко? Потому что interface token — это просто
+строка, которую клиент пишет в `Parcel` сам:
+
+```java
+Parcel data = Parcel.obtain();
+data.writeInterfaceToken("com.example.bank.IBalance");  // клиент пишет вручную
+data.writeInt(amount);
+data.writeString(to);
+binder.transact(TRANSACTION_transfer, data, reply, 0);
+```
+
+Ничто не мешает подставить правильный token. Он подтверждает лишь «я знаю имя
+интерфейса», а имя интерфейса лежит в APK и известно любому.
+
+## Если не сработало
+
+* Сервис проверяет `checkCallingOrSelfPermission` — тогда ищи обходной компонент
+  (Activity/Provider), который уже имеет это разрешение.
+* Транзакция возвращает ошибку — сверь номер `code` и порядок аргументов: AIDL
+  генерирует константы `TRANSACTION_*` по порядку объявления методов, и одна лишняя
+  строка в контракте сдвигает их.
+* В новых версиях Android часть системных Binder-интерфейсов закрыта дополнительно;
+  тогда остаётся только динамический анализ с root.
+
 ## Что мы теперь знаем
 
 - AIDL — это контракт; из него генерируются `Stub` (сервис) и `Proxy` (клиент).
