@@ -180,6 +180,50 @@ zsteg media/ppt/media/image1.png 2>/dev/null | head
 
 Итог: PPTX — многослойный контейнер. Проверяй слайды, заметки, customXml, связи, медиа, метаданные и список слайдов. Наиболее частые каналы — скрытые слайды и заметки, но вложенные изображения тоже стоит проверять.
 
+## Разбор примера: флаг в заметках
+
+Возьмём `deck.pptx` с флагом в заметках докладчика. Шаг первый — найти файлы заметок: `unzip -l deck.pptx | grep notesSlides`. Шаг второй — прочитать содержимое:
+
+```bash
+unzip -o deck.pptx -d pptx/
+grep -rn "nto\{" pptx/ppt/notesSlides/
+# pptx/ppt/notesSlides/notesSlide2.xml:<a:t>nto{...}</a:t>
+```
+
+Текст заметок лежит в элементах `<a:t>` внутри XML. Он не виден в режиме показа слайдов, но полностью доступен в файле. Это самый частый канал в PPTX-задачах.
+
+Второй сценарий — скрытый слайд: `grep -rn "show=\"0\"" pptx/ppt/slides/`, затем прочитать текст этого слайда. Третий — фигура за краем слайда: ищи в `slideN.xml` координаты `<a:off x="-..."` с большими отрицательными значениями; текст такой фигуры не виден на слайде.
+
+Четвёртый — невидимый текст: `srgbClr val="FFFFFF"` (белый на белом фоне) или крошечный кегль. Пятый — customXml: `ls pptx/customXml/`.
+
+## Извлечение и проверка
+
+Полный чек-лист по PPTX:
+
+1. `unzip -l deck.pptx` — листинг архива.
+2. `grep -rn "show=\"0\"" pptx/ppt/slides/` — скрытые слайды.
+3. `grep -rniE "nto\{|flag" pptx/ppt/notesSlides/` — заметки.
+4. `grep -rn "a:off x=-" pptx/ppt/slides/` — фигуры за краем.
+5. `grep -rn "FFFFFF" pptx/ppt/slides/` — белый текст.
+6. `ls pptx/ppt/media/` и сравнение с используемыми — лишние медиа.
+7. `cat pptx/docProps/core.xml` — метаданные.
+8. `ls pptx/customXml/` — кастомные части.
+9. `binwalk deck.pptx` — вложенность.
+
+```bash
+for step in "show=\"0\"" "a:off x=-" "FFFFFF" "nto{"; do
+  echo "== $step"; grep -rn "$step" pptx/ 2>/dev/null | head -3
+done
+```
+
+Этот чек-лист закрывает большинство PPTX-задач. Если ничего не найдено — проверь вложенные изображения (`zsteg`, `exiftool`) и `ppt/embeddings/`.
+
+## Сравнение с DOCX и XLSX
+
+PPTX, DOCX и XLSX — все OOXML: ZIP + XML + `[Content_Types].xml`. Различаются структурой частей. В DOCX — `word/document.xml` (текст), `word/comments.xml` (комментарии), `word/settings.xml`. В XLSX — `xl/worksheets/sheetN.xml` (листы), `xl/sharedStrings.xml` (строки), состояния листов. В PPTX — `ppt/slides/slideN.xml`, `ppt/notesSlides/`, `ppt/media/`.
+
+Общие каналы для всех: файлы вне манифеста, комментарии, невидимый текст, метаданные, customXml, лишние медиа, скрытые элементы. Поэтому, освоив один формат, ты разбираешь все три. Ключ — знать, где в конкретном формате лежат «скрытые» состояния (show=0, скрытые листы, скрытые строки) и метаданные.
+
 ## Что мы теперь знаем
 - PPTX — ZIP с `presentation.xml`, слайдами, заметками и медиа.
 - `show="0"` скрывает слайд, заметки и комментарии не видны при показе.
