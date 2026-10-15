@@ -11,7 +11,7 @@ useful_for:
   - "Понимание облачных destructive-атак"
   - "Оценка защищённости бэкапов"
   - "Blue team: детект и защита от удаления данных"
-estimated_minutes: 50
+estimated_minutes: 55
 summary: "Как выглядит ransomware в облаке: удаление снапшотов и бэкапов, отключение версионирования, удаление KMS-ключей, массовое шифрование/замена объектов. Что делает защита и как оценивать восстановимость."
 lab:
   kind: shell
@@ -156,6 +156,54 @@ KMS не удаляет ключ сразу — есть окно (7–30 дне
 - **Ищи Delete* в правах.** Они опаснее, чем кажется.
 - **Смотри MFA delete.** Без него версии стираются одной командой.
 - **Помни об этике.** Destructive-проверки только по согласованию и на копии.
+
+## Как оценить destructive-риск по правам
+
+Практическая оценка начинается не с запуска удаления, а с чтения политик. Самый быстрый путь — посмотреть, какие destructive-действия разрешены конкретной роли:
+
+```bash
+aws iam list-attached-role-policies --role-name CompromisedRole \
+  --query 'AttachedPolicies[].PolicyArn' --output text
+aws iam simulate-principal-policy \
+  --policy-source-arn arn:aws:iam::111122223333:role/CompromisedRole \
+  --action-names s3:DeleteObject s3:DeleteObjectVersion s3:PutBucketVersioning \
+                 ec2:DeleteSnapshot kms:ScheduleKeyDeletion backup:DeleteRecoveryPoint \
+  --query 'EvaluationResults[].{Action:EvalActionName,Decision:EvalDecision}' --output table
+```
+
+```
++---------------------------+----------+
+| s3:DeleteObject           | allowed  |
+| s3:DeleteObjectVersion    | allowed  |
+| s3:PutBucketVersioning    | allowed  |
+| ec2:DeleteSnapshot        | allowed  |
+| kms:ScheduleKeyDeletion   | allowed  |
+| backup:DeleteRecoveryPoint| denied   |
++---------------------------+----------+
+```
+
+Результат сразу показывает «поверхность уничтожения»: почти все рычаги разрешены, кроме удаления recovery point. Такой отчёт в пентесте — находка high/critical без единой разрушительной команды: достаточно продемонстрировать `allowed`.
+
+## Справочник: опасные действия по провайдерам
+
+| Эффект | AWS | Azure | GCP |
+|---|---|---|---|
+| Удалить версии объектов | `s3:DeleteObjectVersion` | `.../blobs/delete` | `storage.objects.delete` |
+| Отключить версионирование | `s3:PutBucketVersioning` | immutability policy | `storage.buckets.update` |
+| Удалить снапшоты | `ec2:DeleteSnapshot` | `.../snapshots/delete` | `compute.snapshots.delete` |
+| Удалить точку восстановления | `backup:DeleteRecoveryPoint` | `.../backupVaults/.../delete` | `backup.recoveryPoints.delete` |
+| Удалить ключ шифрования | `kms:ScheduleKeyDeletion` | `.../vaults/.../keys/delete` | `cloudkms.cryptoKeys.destroy` |
+| Стереть хранилище | `s3:DeleteBucket` | `.../storageAccounts/delete` | `storage.buckets.delete` |
+
+Важно: в GCP удаление ключа `cryptoKeys.destroy` **необратимо** сразу (в отличие от AWS-окна 7–30 дней), а в Azure soft-delete для blob включён по умолчанию на новых аккаунтах — это меняет оценку восстановимости.
+
+## Подводные камни оценки
+
+- **Soft delete — не защита от целенаправленной атаки.** Пока окно (7–30 дней) открыто, данные восстановимы, но атакующий с правом `*` может вычистить и soft-deleted копии.
+- **Один аккаунт — одна точка отказа.** Бэкап в том же аккаунте, даже в другом регионе, стирается теми же правами.
+- **`iam:PassRole` + `sts:AssumeRole` расширяют поверхность.** Роль может не иметь `Delete*` напрямую, но «одолжить» их через другую роль.
+- **Cross-account бэкап требует внешней политики.** Если целевой аккаунт разрешает `backup:DeleteRecoveryPoint` доверенной роли — изоляция фиктивна.
+- **Логи тоже удаляемы.** `cloudtrail:StopLogging` и `logs:DeleteLogGroup` убирают следы; детект должен опираться на защищённый отдельный лог-аккаунт.
 
 ## Квиз
 
