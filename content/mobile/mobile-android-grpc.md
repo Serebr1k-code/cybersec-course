@@ -191,6 +191,8 @@ bank.BankService.Transfer
 
 Включённая reflection — сама по себе находка: она отдаёт схему сервиса любому.
 
+<!-- lab -->
+
 ## Мини-практика
 
 Возьмите APK с gRPC и выполните `grep -a -o '[a-z]*\.[A-Z][a-zA-Z]*Service' classes.dex | sort -u`.

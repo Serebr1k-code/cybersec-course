@@ -170,6 +170,8 @@ public void onNotificationPosted(StatusBarNotification sbn) {
 текстовые блоки (`EXTRA_BIG_TEXT`). Для OTP-перехвата злоумышленнику достаточно вызвать
 `onNotificationPosted` и регуляркой вытащить цифры.
 
+<!-- lab -->
+
 ## Шаг 10: практика — вылавливание OTP
 
 Минимальный фильтр по коду подтверждения выглядит так (smali-эквивалент для статического

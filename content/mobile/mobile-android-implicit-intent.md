@@ -254,6 +254,8 @@ dz> run app.activity.info -a com.example.bank
 **Помогает ли `android:permission` на activity?** Да, если разрешение объявлено с
 `protectionLevel="signature"`. Иначе его может запросить любой.
 
+<!-- lab -->
+
 ## Шаг 13: мини-практика
 
 Возьмите любой APK из своего набора, декомпилируйте через `jadx`, найдите все строковые action

@@ -111,6 +111,8 @@ $ efi-readvar -v dbx
 $ mokutil --list-sbat-revocations
 ```
 
+<!-- lab -->
+
 ## Практика: как найти anti-rollback в образе
 
 Разберём, как оценить механизм в конкретной прошивке:

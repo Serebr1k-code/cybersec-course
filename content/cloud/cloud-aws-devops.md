@@ -141,6 +141,8 @@ $ aws codepipeline start-pipeline-execution --name app-pipeline
 
 - **Не проверять CodeDeploy-хуки.** `appspec.yml` исполняется на целевых инстансах от имени агента — подмена даёт RCE на парке серверов.
 
+<!-- lab -->
+
 ## Что мы теперь знаем
 
 - `codebuild:StartBuild` — почти всегда RCE с ролью сервиса.

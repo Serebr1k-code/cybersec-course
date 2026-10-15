@@ -156,6 +156,8 @@ $ aws ecs run-task --cluster prod-cluster --task-definition pwn
 
 - **Не проверять override секретов.** `describe-tasks` возвращает `overrides`, где иногда видны значения, отсутствующие в шаблоне.
 
+<!-- lab -->
+
 ## Что мы теперь знаем
 
 - ECS-контейнер имеет **task role** — доступную внутри идентичность.

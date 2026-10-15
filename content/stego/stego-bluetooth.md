@@ -157,6 +157,8 @@ BLE-реклама — широковещательная: её слышат в�
 advertising-пакеты начинаются с преамбулы `AA`/`55` и access address `8E 89 BE D6`
 для advertising-канала. Классический Bluetooth использует другие access codes.
 
+<!-- lab -->
+
 ## Практика: разбор btsnoop-лога
 
 Реальные дампы Bluetooth на Android/Windows сохраняются в формате **btsnoop** — это

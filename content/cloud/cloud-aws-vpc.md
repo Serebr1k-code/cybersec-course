@@ -144,6 +144,8 @@ $ aws ec2 describe-security-groups --filters Name=ip-permission.ipv6-cidr,Values
 - **Игнорировать default VPC.** В ней подсети часто public, а default SG настроен нестрого.
 - **Верить списку портов без проверки маршрута.** SG разрешает, но NACL или route table может блокировать — всегда проверяйте связку.
 
+<!-- lab -->
+
 ## Что мы теперь знаем
 
 - SG stateful и на ресурсе; NACL stateless и на подсети — их надо читать **вместе**.
