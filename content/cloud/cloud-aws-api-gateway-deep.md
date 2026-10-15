@@ -21,6 +21,7 @@ lab:
   files: [task.md, api-config.json, notes.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`cloud-aws-deep`): сначала `head -n 5 api-config.json` — вернись к материалу предшествующего урока."
     - 'Изучи конфигурацию API: `cat api-config.json` — какие методы без авторизации?'
     - 'Флаг — в notes.md. Найди строку с nto: `grep nto notes.md` и запиши флаг в found.txt.'
 ---

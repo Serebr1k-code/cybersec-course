@@ -21,6 +21,7 @@ lab:
   files: [task.md, cover.png, stego.png, edge.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`stego-lsb-matching`): сначала `file cover.png && strings cover.png | head` — вернись к материалу предшествующего урока."
     - "Данные спрятаны не везде, а только в «текстурах» (градиент выше 300)."
     - "Маска встраивания пересчитывается из самого стего-изображения по тому же порогу."
     - "Запусти готовый приёмник: `python3 edge.py`."

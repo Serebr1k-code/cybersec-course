@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, outer.zip, unwrap.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`stego-archives`): сначала `file outer.zip && strings outer.zip | head` — вернись к материалу предшествующего урока."
     - "Проверь формат: `file outer.zip`."
     - "Список: `unzip -l outer.zip`."
     - "Слои хранятся без сжатия — `strings outer.zip`."

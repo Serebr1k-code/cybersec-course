@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-cicd-surfaces`): сначала `head -n 5 task.md` — вернись к материалу предшествующего урока."
     - 'Прочитай task.md: там адрес Artifactory и путь `/artifactory/api/`.'
     - 'Проверь анонимный доступ: `/artifactory/api/repositories`.'
     - 'Скачай артефакт из открытого репозитория и найди в нём конфиг.'

@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-appliance-cves`): сначала `head -n 5 task.md` — вернись к материалу предшествующего урока."
     - 'Прочитай task.md: там адрес Citrix ADC и путь `/oauth/idp/.well-known/openid-configuration`.'
     - 'CitrixBleed отдаёт лишние байты памяти в заголовке ответа, включая `NSC_AAAC` токен.'
     - 'Отправь запрос с длинным Host-заголовком, чтобы вытащить чанк памяти.'

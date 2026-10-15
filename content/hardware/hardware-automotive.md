@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.md, candump.log, uds-log.txt]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`hardware-can-bus`): сначала `head -n 5 candump.log` — вернись к материалу предшествующего урока."
     - "`candump.log` — трафик CAN, `uds-log.txt` — диагностика ECU."
     - "Свяжи кадры: запросы UDS идут на 0x7DF/0x7E0, ответы — на 0x7E8."
     - "Найди флаг в ответе ECU: `grep nto uds-log.txt > found.txt`."

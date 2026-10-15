@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-cicd-surfaces`): сначала `head -n 5 token.txt` — вернись к материалу предшествующего урока."
     - 'Прочитай task.md: там адрес Argo CD и подсказка про JWT-секрет.'
     - 'Секрет подписи хранится в `argocd-secret` и иногда слабый/дефолтный.'
     - 'Подпиши JWT с ролью `role:admin` тем же секретом (HS256).'

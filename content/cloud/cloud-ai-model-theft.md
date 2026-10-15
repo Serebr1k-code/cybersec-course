@@ -21,6 +21,7 @@ lab:
   files: [task.md, bucket-policy.json, model-config.json, notes.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`cloud-ai-security`): сначала `head -n 5 bucket-policy.json` — вернись к материалу предшествующего урока."
     - 'Изучи политику бакета: `cat bucket-policy.json` — кому разрешено читать объекты?'
     - 'Флаг — в notes.md. Найди строку с nto: `grep nto notes.md` и запиши флаг в found.txt.'
 ---

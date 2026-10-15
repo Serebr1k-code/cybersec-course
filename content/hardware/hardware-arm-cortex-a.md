@@ -21,6 +21,7 @@ lab:
   files: [task.md, tz-log.txt, notes.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`hardware-arm-cortex-m`): сначала `head -n 5 tz-log.txt` — вернись к материалу предшествующего урока."
     - "Открой лог: `cat tz-log.txt`."
     - "Найди строку с флагом: `grep nto tz-log.txt`."
     - "Флаг идёт после `world=`."

@@ -20,6 +20,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-same-origin-cors`): сначала `head -n 5 task.md` — вернись к материалу предшествующего урока."
     - 'Проверь заголовки Cross-Origin-Opener-Policy / -Embedder-Policy.'
     - 'На shop.local и /admin они отсутствуют.'
     - 'Без изоляции чужое окно удерживает window.opener.'

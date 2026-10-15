@@ -21,6 +21,7 @@ lab:
   files: [task.md, nr-signal.log, notes.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`hardware-lte-4g`): сначала `head -n 5 nr-signal.log` — вернись к материалу предшествующего урока."
     - "Открой лог: `cat nr-signal.log`."
     - "Найди строку с читаемой нагрузкой: `strings nr-signal.log`."
     - "Нагрузка идёт после `payload=`."

@@ -20,6 +20,7 @@ lab:
   files: [task.md, notes.txt, suspect.png, chi.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`stego-media-carriers`): сначала `file suspect.png && strings suspect.png | head` — вернись к материалу предшествующего урока."
     - "Стегоанализ отвечает: есть ли встраивание."
     - "Хи-квадрат по парам значений: `python3 chi.py`."
     - "Баланс пар = последовательное LSB-встраивание."

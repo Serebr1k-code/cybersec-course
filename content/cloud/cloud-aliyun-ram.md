@@ -21,6 +21,7 @@ lab:
   files: [task.md, ram.json, notes.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`cloud-aliyun-basics`): сначала `head -n 5 ram.json` — вернись к материалу предшествующего урока."
     - 'Изучи политику: `cat ram.json`. Найди Action с звёздочкой.'
     - 'Посмотри TrustPolicy роли: кому она позволяет AssumeRole.'
     - 'Флаг — в notes.md: найди строку `nto` и запиши её в found.txt.'

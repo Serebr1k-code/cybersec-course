@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-business-logic`): сначала `head -n 5 task.md` — вернись к материалу предшествующего урока."
     - 'Параметр /fetch?url= — это SSRF: сервер ходит по URL за тебя.'
     - 'Проверь внутренний сервис: http://127.0.0.1:8080/health и /admin.'
     - 'Схема file:// читает локальные файлы сервера.'

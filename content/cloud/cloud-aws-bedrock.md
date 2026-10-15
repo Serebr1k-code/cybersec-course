@@ -21,6 +21,7 @@ lab:
   files: [task.md, policy.json, notes.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`cloud-aws-waf-shield`): сначала `head -n 5 policy.json` — вернись к материалу предшествующего урока."
     - 'Изучи политику роли: `cat policy.json` — какие действия разрешены?'
     - 'Определи, даёт ли роль доступ к knowledge base.'
     - 'Флаг — в notes.md: найди строку `nto` и запиши её в found.txt.'

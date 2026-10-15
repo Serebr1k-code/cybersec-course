@@ -14,7 +14,7 @@
     },
     {
       "path": "/home/student/avr/task.md",
-      "text": "# Задача: fuse-биты AVR\n\nТы работал с AVR утилитой avrdude — лог в `avrdude.log`. Найди значение lock bits и достань флаг.\n\nПолезные команды: `cat`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+      "text": "# Задача: fuse-биты AVR\n\nТы работал с AVR утилитой avrdude — лог в `avrdude.log`. Найди значение lock bits и достань флаг.\n\nПолезные команды: `cat`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n\n## Повторение (`hardware-mod-mcu-vendor`)\n\nПрежде чем решать задачу ниже, вернись к приёму из `hardware-mod-mcu-vendor` «Модуль: Вендорные MCU-ядра» — это фундамент, на котором она стоит. Сначала маленький шаг тем же базовым инструментом на материале этой лабы:\n\n    head -n 5 avrdude.log\n\nТак восстанавливается контекст предшествующего урока, а затем ты переходишь к основной задаче.\n"
     },
     {
       "path": "/home/student/avr/notes.md",

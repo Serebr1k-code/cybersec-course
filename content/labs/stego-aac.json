@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: TXXX-кадр в ID3v2\n\n`track.aac` начинается с тега ID3v2.3, в кадре TXXX спрятан флаг.\n\nЗаголовок ID3: `ID3 + версия(2) + флаги(1) + размер(4, syncsafe)`.\nКадр: `ID(4) + размер(4, big-endian) + флаги(2) + данные`.\n\n1. `xxd -l 64 track.aac`.\n2. `python3 id3.py` — парсер кадров.\n3. Запиши флаг в `found.txt`.\n"
+      "text": "# Задача: TXXX-кадр в ID3v2\n\n`track.aac` начинается с тега ID3v2.3, в кадре TXXX спрятан флаг.\n\nЗаголовок ID3: `ID3 + версия(2) + флаги(1) + размер(4, syncsafe)`.\nКадр: `ID(4) + размер(4, big-endian) + флаги(2) + данные`.\n\n## Повторение (`stego-ogg-opus`)\n\nПрежде чем решать задачу ниже, вернись к приёму из `stego-ogg-opus` «Стеганография в Ogg/Opus и Vorbis: страницы, granule и OpusTags» — это фундамент, на котором она стоит. Сначала маленький шаг тем же базовым инструментом на материале этой лабы:\n\n    file track.aac && strings track.aac | head\n\nТак восстанавливается контекст предшествующего урока, а затем ты переходишь к основной задаче.\n\n1. `xxd -l 64 track.aac`.\n2. `python3 id3.py` — парсер кадров.\n3. Запиши флаг в `found.txt`.\n"
     },
     {
       "path": "/home/student/task/track.aac",

@@ -20,6 +20,7 @@ lab:
   files: [task.md, notes.md, autoeth.log]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`hardware-can-bus`): сначала `head -n 5 autoeth.log` — вернись к материалу предшествующего урока."
     - '`autoeth.log` — дамп Automotive Ethernet с SOME/IP.'
     - 'Команда сервису лежит в payload SOME/IP-сообщения.'
     - 'Найди флаг: `grep nto autoeth.log | cut -d= -f2 > found.txt`.'

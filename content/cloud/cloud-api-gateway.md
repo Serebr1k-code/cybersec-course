@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.md, openapi.json]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`cloud-network-deep`): сначала `head -n 5 openapi.json` — вернись к материалу предшествующего урока."
     - "В `openapi.json` найди маршрут без секции `security` (в отличие от остальных)."
     - "Это `GET /admin/flag` — он не требует авторизации."
     - "Вызови его и сохрани ответ: `curl -s https://api.acme.example/admin/flag > found.txt`, затем `check`."

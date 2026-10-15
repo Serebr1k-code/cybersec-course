@@ -10,7 +10,7 @@
     { "path": "/home/student/task", "type": "dir" },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: BLAKE2 и его ключевой режим\n\n`blake.py` сравнивает SHA-256, SHA3-256, RIPEMD-160 и BLAKE2b.\nПокажи, что BLAKE2b поддерживает встроенный ключевой режим (MAC)\nи устойчив к length-extension.\n\nШаги:\n1. `cat blake.py`.\n2. `python3 blake.py`.\n3. `python3 blake.py | grep nto > found.txt`.\n"
+      "text": "# Задача: BLAKE2 и его ключевой режим\n\n`blake.py` сравнивает SHA-256, SHA3-256, RIPEMD-160 и BLAKE2b.\nПокажи, что BLAKE2b поддерживает встроенный ключевой режим (MAC)\nи устойчив к length-extension.\n\n## Повторение (`crypto-hashing`)\n\nПрежде чем решать задачу ниже, вернись к приёму из `crypto-hashing` «Хэширование: MD5, SHA, bcrypt, argon2, length-extension, коллизии» — это фундамент, на котором она стоит. Сначала маленький шаг тем же базовым инструментом на материале этой лабы:\n\n    head -n 5 notes.txt\n\nТак восстанавливается контекст предшествующего урока, а затем ты переходишь к основной задаче.\n\nШаги:\n1. `cat blake.py`.\n2. `python3 blake.py`.\n3. `python3 blake.py | grep nto > found.txt`.\n"
     },
     {
       "path": "/home/student/task/notes.txt",

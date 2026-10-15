@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: Artifactory анонимный доступ\n\nЦель: `http://artifactory.local:8082`.\n\n1. Проверка доступности:\n   curl -s http://artifactory.local:8082/artifactory/api/system/ping\n\n2. Список репозиториев анонимно:\n   curl -s http://artifactory.local:8082/artifactory/api/repositories\n\n3. Скачай конфиг из открытого репозитория:\n   curl -s 'http://artifactory.local:8082/artifactory/libs-release-local/com/corp/app/config.properties'\n\n4. В конфиге — строка с флагом. Сохрани в found.txt и набери `check`.\n"
+      "text": "# Практика: Artifactory анонимный доступ\n\nЦель: `http://artifactory.local:8082`.\n\n## Повторение (`web-cicd-surfaces`)\n\nПрежде чем решать задачу ниже, вернись к приёму из `web-cicd-surfaces` «CI/CD и SCM как поверхность атаки: Gitea, TeamCity, Nexus, Artifactory, ArgoCD» — это фундамент, на котором она стоит. Сначала маленький шаг тем же базовым инструментом на материале этой лабы:\n\n    head -n 5 task.md\n\nТак восстанавливается контекст предшествующего урока, а затем ты переходишь к основной задаче.\n\n1. Проверка доступности:\n   curl -s http://artifactory.local:8082/artifactory/api/system/ping\n\n2. Список репозиториев анонимно:\n   curl -s http://artifactory.local:8082/artifactory/api/repositories\n\n3. Скачай конфиг из открытого репозитория:\n   curl -s 'http://artifactory.local:8082/artifactory/libs-release-local/com/corp/app/config.properties'\n\n4. В конфиге — строка с флагом. Сохрани в found.txt и набери `check`.\n"
     }
   ],
   "tools": {

@@ -21,6 +21,7 @@ lab:
   files: [task.md, firmware-strings.txt, notes.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`hardware-sim-esim`): сначала `head -n 5 firmware-strings.txt` — вернись к материалу предшествующего урока."
     - "Открой дамп: `cat firmware-strings.txt`."
     - "Найди строку с флагом: `strings firmware-strings.txt | grep nto`."
     - "Флаг лежит в ответе AT-команды — извлеки его: `grep -o 'nto{[^}]*}'` не сработает (grep в лабе литерален), используй `cut`."

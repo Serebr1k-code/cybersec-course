@@ -21,6 +21,7 @@ lab:
   files: [task.md, inventory.ini, .vault_pass, notes.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`cloud-iac-deep`): сначала `head -n 5 inventory.ini` — вернись к материалу предшествующего урока."
     - 'Изучи inventory: `cat inventory.ini` — сколько хостов под управлением?'
     - 'Найди vault-пароль: `cat .vault_pass`.'
     - 'Флаг — в notes.md. Найди строку с nto: `grep nto notes.md` и запиши флаг в found.txt.'

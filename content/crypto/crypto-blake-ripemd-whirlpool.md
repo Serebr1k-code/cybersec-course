@@ -20,6 +20,7 @@ lab:
   files: [task.md, notes.txt, blake.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-hashing`): сначала `head -n 5 notes.txt` — вернись к материалу предшествующего урока."
     - "Прочитай: `cat task.md`, `cat blake.py`."
     - "BLAKE2 поддерживает key=... прямо в конструкторе (это MAC)."
     - "Запусти: `python3 blake.py`."

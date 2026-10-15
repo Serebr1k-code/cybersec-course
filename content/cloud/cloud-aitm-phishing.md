@@ -21,6 +21,7 @@ lab:
   files: [task.md, aitm.log, notes.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`cloud-oauth-attacks`): сначала `head -n 5 aitm.log` — вернись к материалу предшествующего урока."
     - 'Изучи лог: `cat aitm.log`. Найди строку с захваченным cookie.'
     - 'Определи, какой токен позволяет обойти MFA.'
     - 'Флаг — в notes.md: найди строку `nto` и запиши её в found.txt.'

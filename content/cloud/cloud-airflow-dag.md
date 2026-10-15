@@ -21,6 +21,7 @@ lab:
   files: [task.md, airflow.env, connections.json, notes.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`cloud-data-analytics`): сначала `file airflow.env && strings airflow.env | head` — вернись к материалу предшествующего урока."
     - 'Изучи доступ: `cat airflow.env`.'
     - 'Флаг — в notes.md. Найди строку с nto: `grep nto notes.md` и запиши флаг в found.txt.'
 ---

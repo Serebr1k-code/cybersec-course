@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.md, ecr-images.txt, image-config.json]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`cloud-supply-chain`): сначала `head -n 5 image-config.json` — вернись к материалу предшествующего урока."
     - "`ecr-images.txt` — образы в реестре; `image-config.json` — конфиг одного."
     - "Право push позволяет отравить образ, который подтянет кластер."
     - "Найди флаг: `grep nto image-config.json > found.txt`."

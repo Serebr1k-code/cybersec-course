@@ -21,6 +21,7 @@ lab:
   files: [task.md, agent-config.yaml, alert.txt, notes.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`cloud-ai-security`): сначала `head -n 5 agent-config.yaml` — вернись к материалу предшествующего урока."
     - 'Изучи конфиг агента: `cat agent-config.yaml` — какие у него инструменты и роль?'
     - 'Флаг — в notes.md. Найди строку с nto: `grep nto notes.md` и запиши флаг в found.txt.'
 ---

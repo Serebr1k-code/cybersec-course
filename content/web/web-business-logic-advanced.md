@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-business-logic`): сначала `head -n 5 task.md` — вернись к материалу предшествующего урока."
     - 'Сценарий заказа: cart → address → pay → confirm. Посмотри, какие переходы сервер реально проверяет.'
     - 'Вызови финальный `confirm` НАПРЯМУЮ, не пройдя `pay`.'
     - 'Сессия и cart_id у тебя есть: `cart_id=c1`, cookie `session=me`.'

@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: секрет в комментарии ZIP\n\nУ ZIP-архива есть поле комментария в конце файла. В `archive.zip`\nтам лежит base64-строка с флагом.\n\nШаги:\n1. `file archive.zip` — Zip archive.\n2. `strings archive.zip | tail` — комментарий виден как печатная строка.\n3. Раскодируй значение base64: `... | cut -d= -f2 | base64 -d`.\n4. Запиши флаг в `found.txt`.\n"
+      "text": "# Задача: секрет в комментарии ZIP\n\nУ ZIP-архива есть поле комментария в конце файла. В `archive.zip`\nтам лежит base64-строка с флагом.\n\n## Повторение (`stego-appended`)\n\nПрежде чем решать задачу ниже, вернись к приёму из `stego-appended` «Дописанные данные и скрытые контейнеры: архивы, carving, slack space» — это фундамент, на котором она стоит. Сначала маленький шаг тем же базовым инструментом на материале этой лабы:\n\n    file archive.zip && strings archive.zip | head\n\nТак восстанавливается контекст предшествующего урока, а затем ты переходишь к основной задаче.\n\nШаги:\n1. `file archive.zip` — Zip archive.\n2. `strings archive.zip | tail` — комментарий виден как печатная строка.\n3. Раскодируй значение base64: `... | cut -d= -f2 | base64 -d`.\n4. Запиши флаг в `found.txt`.\n"
     },
     {
       "path": "/home/student/task/notes.txt",

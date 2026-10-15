@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, archive.zip]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`stego-appended`): сначала `file archive.zip && strings archive.zip | head` — вернись к материалу предшествующего урока."
     - "Определи тип: `file archive.zip`."
     - "Посмотри печатные строки в хвосте: `strings archive.zip | tail`."
     - "Найди `checksum=` — значение закодировано base64."

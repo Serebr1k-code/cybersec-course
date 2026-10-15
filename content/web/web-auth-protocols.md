@@ -21,6 +21,7 @@ lab:
   files: [task.md, tokens.txt]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-auth-jwt-idor`): сначала `head -n 5 tokens.txt` — вернись к материалу предшествующего урока."
     - 'В `tokens.txt` — выданные `access_token` и `refresh_token`.'
     - 'Выйди из аккаунта: `curl -s https://shop.local/api/logout -H "Authorization: Bearer <access>"`.'
     - 'Сервер не инвалидирует refresh-токен при logout и не ротирует его.'

@@ -21,6 +21,7 @@ lab:
   files: [task.md, avrdude.log, notes.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`hardware-mod-mcu-vendor`): сначала `head -n 5 avrdude.log` — вернись к материалу предшествующего урока."
     - "Открой лог: `cat avrdude.log`."
     - "Найди строку с флагом: `grep nto avrdude.log`."
     - "Флаг идёт после `lockbits=`."

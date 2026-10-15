@@ -21,6 +21,7 @@ lab:
   files: [task.md, ssrf.log, notes.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`cloud-aliyun-oss`): сначала `head -n 5 ssrf.log` — вернись к материалу предшествующего урока."
     - 'Изучи лог: `cat ssrf.log`. Найди запрос к адресу метаданных.'
     - 'Определи, какую роль получил инстанс и какой токен вернулся.'
     - 'Флаг — в notes.md: найди строку `nto` и запиши её в found.txt.'

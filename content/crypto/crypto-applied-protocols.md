@@ -20,6 +20,7 @@ lab:
   files: [task.md, notes.txt, shares.txt, shamir.py]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`crypto-symmetric-core`): сначала `head -n 5 shares.txt` — вернись к материалу предшествующего урока."
     - '`cat shares.txt` — найди модуль p и доли (x, f(x)).'
     - 'Секрет — это f(0); возьми три доли и примени интерполяцию Лагранжа.'
     - 'Запусти готовый скрипт: `python3 shamir.py`.'

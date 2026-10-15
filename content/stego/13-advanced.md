@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, advanced.png, chunk.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`stego-lsb`): сначала `file advanced.png && strings advanced.png | head` — вернись к материалу предшествующего урока."
     - "Подтверди формат: `file advanced.png`."
     - "PNG — цепочка чанков. Посмотри их скриптом `python3 chunk.py`."
     - "Нестандартный чанк `prVt` несёт полезную нагрузку."

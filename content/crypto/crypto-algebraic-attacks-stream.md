@@ -20,6 +20,7 @@ lab:
   files: [task.md, notes.txt, corr.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-lfsr-e0-trivium`): сначала `head -n 5 notes.txt` — вернись к материалу предшествующего урока."
     - "Прочитай: `cat task.md` и `cat corr.py`."
     - "Выход = бит LFSR XOR шум; перебери все seed и выбери лучший по совпадениям."
     - "Запусти: `python3 corr.py`."

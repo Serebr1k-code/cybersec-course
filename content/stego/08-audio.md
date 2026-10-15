@@ -20,6 +20,7 @@ lab:
   files: [task.md, notes.txt, audio.wav, lsb.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`stego-intro`): сначала `file audio.wav && strings audio.wav | head` — вернись к материалу предшествующего урока."
     - "Запусти `python3 lsb.py`."
     - "Младший бит каждого сэмпла — один бит сообщения."
     - "8 бит на байт, старший бит первым."

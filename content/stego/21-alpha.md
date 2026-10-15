@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, rgba.png, alpha.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`stego-lsb`): сначала `file rgba.png && strings rgba.png | head` — вернись к материалу предшествующего урока."
     - "Запусти `python3 alpha.py`."
     - "Данные в младшем бите альфа-канала."
     - "8 бит на байт, построчно."

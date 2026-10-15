@@ -21,6 +21,7 @@ lab:
   files: [task.md, track.aac, id3.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`stego-ogg-opus`): сначала `file track.aac && strings track.aac | head` — вернись к материалу предшествующего урока."
     - "Файл начинается с ASCII `ID3` — это тег ID3v2."
     - "Размер тега — 4 байта syncsafe (по 7 бит)."
     - "Кадр: `ID(4) + размер(4, big-endian) + флаги(2) + данные`."

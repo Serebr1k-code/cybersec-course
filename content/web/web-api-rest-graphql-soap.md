@@ -21,6 +21,7 @@ lab:
   files: [task.md, introspection.json, secret.json]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-architecture`): сначала `head -n 5 introspection.json` — вернись к материалу предшествующего урока."
     - "Начни с корня API: он сам подскажет, где документация (`docs`)."
     - "В `/swagger` перечислены REST-пути и наличие `/graphql`."
     - "GraphQL отвечает на интроспекцию: запрос лежит в `introspection.json`, отправь его через `--data-binary @`."

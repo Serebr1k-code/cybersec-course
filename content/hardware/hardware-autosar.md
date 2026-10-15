@@ -20,6 +20,7 @@ lab:
   files: [task.md, notes.md, secoc.log]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`hardware-automotive-ethernet`): сначала `head -n 5 secoc.log` — вернись к материалу предшествующего урока."
     - '`secoc.log` — SecOC-кадры с MAC и счётчиком.'
     - 'Ключ и счётчик есть в логе; проверь, где защита слаба.'
     - 'Найди флаг: `grep nto secoc.log | cut -d= -f2 > found.txt`.'

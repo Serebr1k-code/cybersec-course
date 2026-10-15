@@ -20,6 +20,7 @@ lab:
   files: [task.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`web-request-smuggling`): сначала `head -n 5 task.md` — вернись к материалу предшествующего урока."
     - "Условие CSD — keep-alive и эндпоинт, который НЕ читает тело."
     - "Проверь keep-alive: `curl -sI https://shop.local/ -H 'Connection: keep-alive'`."
     - "Эндпоинт `/api/nothing` игнорирует тело POST — остаток станет следующим запросом."

@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, postcard.png]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`stego-image-tools`): сначала `file postcard.png && strings postcard.png | head` — вернись к материалу предшествующего урока."
     - "Начни с `file postcard.png` — картинка валидна."
     - "Выведи печатные строки: `strings postcard.png` — ищи `SECRET=`."
     - "Значение закодировано base64: выдели его `cut -d= -f2`."

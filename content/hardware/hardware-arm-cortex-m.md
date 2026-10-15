@@ -21,6 +21,7 @@ lab:
   files: [task.md, vectors.txt, notes.md]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`hardware-board-reversing`): сначала `head -n 5 vectors.txt` — вернись к материалу предшествующего урока."
     - "Открой дамп: `cat vectors.txt`."
     - "Найди строку с флагом: `grep nto vectors.txt`."
     - "Флаг идёт после `symbol=`."

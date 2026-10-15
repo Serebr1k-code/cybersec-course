@@ -20,6 +20,7 @@ lab:
   files: [task.md, notes.txt, toypoly.py, cube.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-block-analysis`): сначала `head -n 5 notes.txt` — вернись к материалу предшествующего урока."
     - "Прочитай описание функции: `cat task.md` и `cat toypoly.py`."
     - "Куб — это подмножество публичных переменных; суммируем f по всем их значениям."
     - "Запусти атаку: `python3 cube.py`."

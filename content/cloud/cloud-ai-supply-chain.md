@@ -21,6 +21,7 @@ lab:
   files: [task.md, model-load.py, pickle-disasm.txt, notes.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`cloud-ai-security`): сначала `head -n 5 pickle-disasm.txt` — вернись к материалу предшествующего урока."
     - 'Посмотри, как загружается модель: `cat model-load.py`.'
     - 'Флаг — в notes.md. Найди строку с nto: `grep nto notes.md` и запиши флаг в found.txt.'
 ---

@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/airflow/task.md",
-      "text": "# Задача\n\nНайден доступ к Airflow. Определи риск и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n"
+      "text": "# Задача\n\nНайден доступ к Airflow. Определи риск и собери флаг.\n\nЗапиши флаг в found.txt как `nto{...}`.\n\n## Повторение (`cloud-data-analytics`)\n\nПрежде чем решать задачу ниже, вернись к приёму из `cloud-data-analytics` «Модуль: данные, аналитика и стриминг в облаке — Snowflake, Databricks, Kafka» — это фундамент, на котором она стоит. Сначала маленький шаг тем же базовым инструментом на материале этой лабы:\n\n    file airflow.env && strings airflow.env | head\n\nТак восстанавливается контекст предшествующего урока, а затем ты переходишь к основной задаче.\n"
     },
     {
       "path": "/home/student/airflow/airflow.env",

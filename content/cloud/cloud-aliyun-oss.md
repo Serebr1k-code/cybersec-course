@@ -21,6 +21,7 @@ lab:
   files: [task.md, bucket-policy.json, notes.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`cloud-aliyun-ram`): сначала `head -n 5 bucket-policy.json` — вернись к материалу предшествующего урока."
     - 'Прочитай policy: `cat bucket-policy.json`. Найди Principal со звёздочкой.'
     - 'Определи, какие действия разрешены анонимному пользователю.'
     - 'Флаг — в notes.md: найди строку `nto` и запиши её в found.txt.'

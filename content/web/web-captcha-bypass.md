@@ -21,6 +21,7 @@ lab:
   files: [task.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`web-business-logic`): сначала `head -n 5 task.md` — вернись к материалу предшествующего урока."
     - 'Получи капчу: `curl -s https://shop.local/captcha/new` — вернёт `captcha_id`.'
     - 'Реши её один раз правильным ответом — сервер запомнит пару `captcha_id`/ответ.'
     - 'Сервер НЕ помечает `captcha_id` использованным: тот же ответ можно переиспользовать.'

@@ -21,6 +21,7 @@ lab:
   files: [task.md, notes.txt, morse.wav, morse.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`stego-audio`): сначала `file morse.wav && strings morse.wav | head` — вернись к материалу предшествующего урока."
     - "Запусти `python3 morse.py`."
     - "Символы Морзе разделены паузами."
     - "Декодированный текст — hex; собери байты."

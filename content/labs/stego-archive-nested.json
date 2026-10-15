@@ -12,7 +12,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: раскрутить матрёшку архивов\n\n`outer.zip` — архив, внутри которого ещё архивы, а в самом вложенном — флаг.\n\n1. `file outer.zip` — ZIP.\n2. Список содержимого: `unzip -l outer.zip`.\n3. Раскрути все слои: `python3 unwrap.py`. Либо `strings outer.zip | grep nto`.\n4. Запиши флаг в `found.txt`.\n"
+      "text": "# Задача: раскрутить матрёшку архивов\n\n`outer.zip` — архив, внутри которого ещё архивы, а в самом вложенном — флаг.\n\n## Повторение (`stego-archives`)\n\nПрежде чем решать задачу ниже, вернись к приёму из `stego-archives` «Стеганография в архивах: ZIP-комментарии, extra-поля и матрёшки» — это фундамент, на котором она стоит. Сначала маленький шаг тем же базовым инструментом на материале этой лабы:\n\n    file outer.zip && strings outer.zip | head\n\nТак восстанавливается контекст предшествующего урока, а затем ты переходишь к основной задаче.\n\n1. `file outer.zip` — ZIP.\n2. Список содержимого: `unzip -l outer.zip`.\n3. Раскрути все слои: `python3 unwrap.py`. Либо `strings outer.zip | grep nto`.\n4. Запиши флаг в `found.txt`.\n"
     },
     {
       "path": "/home/student/task/notes.txt",

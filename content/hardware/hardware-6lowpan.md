@@ -20,6 +20,7 @@ lab:
   files: [task.md, notes.md, lowpan.log]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`hardware-iot-network`): сначала `head -n 5 lowpan.log` — вернись к материалу предшествующего урока."
     - '`lowpan.log` — декодированный 6LoWPAN-трафик.'
     - 'Смотри IPHC и фрагменты.'
     - 'Найди флаг: `grep nto lowpan.log | cut -d= -f2 > found.txt`.'

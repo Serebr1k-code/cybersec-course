@@ -13,7 +13,7 @@
     },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Практика: Argo CD подделка JWT\n\nЦель: `https://argocd.local`.\n\n1. Версия:\n   curl -s -k https://argocd.local/api/version\n\n2. Проверь анонимный доступ:\n   curl -s -k https://argocd.local/api/v1/applications\n\n3. Секрет подписи слабый (дефолтный). Подпиши JWT с role:admin\n   (готовый токен уже в файле token.txt) и обратись к API:\n   curl -s -k https://argocd.local/api/v1/applications -H 'Authorization: Bearer TOKEN'\n\n4. В ответе — флаг. Сохрани в found.txt и набери `check`.\n"
+      "text": "# Практика: Argo CD подделка JWT\n\nЦель: `https://argocd.local`.\n\n## Повторение (`web-cicd-surfaces`)\n\nПрежде чем решать задачу ниже, вернись к приёму из `web-cicd-surfaces` «CI/CD и SCM как поверхность атаки: Gitea, TeamCity, Nexus, Artifactory, ArgoCD» — это фундамент, на котором она стоит. Сначала маленький шаг тем же базовым инструментом на материале этой лабы:\n\n    head -n 5 token.txt\n\nТак восстанавливается контекст предшествующего урока, а затем ты переходишь к основной задаче.\n\n1. Версия:\n   curl -s -k https://argocd.local/api/version\n\n2. Проверь анонимный доступ:\n   curl -s -k https://argocd.local/api/v1/applications\n\n3. Секрет подписи слабый (дефолтный). Подпиши JWT с role:admin\n   (готовый токен уже в файле token.txt) и обратись к API:\n   curl -s -k https://argocd.local/api/v1/applications -H 'Authorization: Bearer TOKEN'\n\n4. В ответе — флаг. Сохрани в found.txt и набери `check`.\n"
     },
     {
       "path": "/home/student/task/token.txt",

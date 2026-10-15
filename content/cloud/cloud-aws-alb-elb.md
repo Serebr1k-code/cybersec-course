@@ -21,6 +21,7 @@ lab:
   files: [task.md, rules.json, notes.md]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`cloud-aws-deep`): сначала `head -n 5 rules.json` — вернись к материалу предшествующего урока."
     - 'Прочитай правила listener-а: `cat rules.json` — какой путь защищён аутентификацией?'
     - 'Флаг — в notes.md. Найди строку с nto: `grep nto notes.md` и запиши флаг в found.txt.'
 ---

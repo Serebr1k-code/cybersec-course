@@ -10,7 +10,7 @@
     { "path": "/home/student/task", "type": "dir" },
     {
       "path": "/home/student/task/task.md",
-      "text": "# Задача: GHASH forbidden attack\n\n`ghash.py` реализует GHASH над GF(2^16). Два сообщения зашифрованы ОДНИМ nonce.\nИз двух пар (C, tag) восстанови H и S, затем подделай тег для нового сообщения.\n\nШаги:\n1. `cat ghash.py`.\n2. `python3 ghash.py`.\n3. `python3 ghash.py | grep nto > found.txt`.\n"
+      "text": "# Задача: GHASH forbidden attack\n\n`ghash.py` реализует GHASH над GF(2^16). Два сообщения зашифрованы ОДНИМ nonce.\nИз двух пар (C, tag) восстанови H и S, затем подделай тег для нового сообщения.\n\n## Повторение (`crypto-block-cipher-modes-siv`)\n\nПрежде чем решать задачу ниже, вернись к приёму из `crypto-block-cipher-modes-siv` «Nonce-misuse-resistant режимы: SIV, GCM-SIV, OCB, EAX» — это фундамент, на котором она стоит. Сначала маленький шаг тем же базовым инструментом на материале этой лабы:\n\n    head -n 5 notes.txt\n\nТак восстанавливается контекст предшествующего урока, а затем ты переходишь к основной задаче.\n\nШаги:\n1. `cat ghash.py`.\n2. `python3 ghash.py`.\n3. `python3 ghash.py | grep nto > found.txt`.\n"
     },
     {
       "path": "/home/student/task/notes.txt",

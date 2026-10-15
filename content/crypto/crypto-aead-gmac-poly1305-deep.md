@@ -20,6 +20,7 @@ lab:
   files: [task.md, notes.txt, ghash.py]
   check: "grep -q 'nto{' found.txt"
   hints:
+    - "Повторение (`crypto-block-cipher-modes-siv`): сначала `head -n 5 notes.txt` — вернись к материалу предшествующего урока."
     - "Прочитай: `cat task.md`, `cat ghash.py`."
     - "GHASH — полином по H; две пары под одним nonce дают уравнение на H."
     - "Запусти: `python3 ghash.py`."

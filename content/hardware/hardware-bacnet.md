@@ -20,6 +20,7 @@ lab:
   files: [task.md, notes.md, bacnet.log]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`hardware-iot-network`): сначала `head -n 5 bacnet.log` — вернись к материалу предшествующего урока."
     - '`bacnet.log` — BACnet-трафик BMS.'
     - 'Смотри объекты и сервис WriteProperty.'
     - 'Найди флаг: `grep nto bacnet.log | cut -d= -f2 > found.txt`.'

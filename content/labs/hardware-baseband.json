@@ -14,7 +14,7 @@
     },
     {
       "path": "/home/student/baseband/task.md",
-      "text": "# Задача: реверс прошивки baseband\n\nТы сделал `strings` по дампу прошивки модема — результат в `firmware-strings.txt`. Найди секрет и достань флаг.\n\nПолезные команды: `cat`, `strings`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n"
+      "text": "# Задача: реверс прошивки baseband\n\nТы сделал `strings` по дампу прошивки модема — результат в `firmware-strings.txt`. Найди секрет и достань флаг.\n\nПолезные команды: `cat`, `strings`, `grep`, `cut`, `head`.\n\nФлаг положи в `found.txt`, затем выполни `check`.\n\n## Повторение (`hardware-sim-esim`)\n\nПрежде чем решать задачу ниже, вернись к приёму из `hardware-sim-esim` «SIM/eSIM: USIM, APDU, AKA и клонирование» — это фундамент, на котором она стоит. Сначала маленький шаг тем же базовым инструментом на материале этой лабы:\n\n    head -n 5 firmware-strings.txt\n\nТак восстанавливается контекст предшествующего урока, а затем ты переходишь к основной задаче.\n"
     },
     {
       "path": "/home/student/baseband/notes.md",

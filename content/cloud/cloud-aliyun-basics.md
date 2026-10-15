@@ -21,6 +21,7 @@ lab:
   files: [task.md, policy.json, app.env]
   check: 'grep -q ''nto{'' found.txt'
   hints:
+    - "Повторение (`cloud-provider-deep`): сначала `head -n 5 policy.json` — вернись к материалу предшествующего урока."
     - 'Прочитай политику: `cat policy.json` — какие Action разрешены?'
     - 'Флаг — в конце app.env. Найди строку с nto: `grep nto app.env` и запиши флаг в found.txt.'
 ---
