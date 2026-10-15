@@ -182,6 +182,41 @@ $ aws iam get-policy-version --policy-arn arn:aws:iam::123456789012:policy/OnlyS
 - **Смотри resource policies.** Публичный ресурс = доступ без прав.
 - **Симулируй.** `simulate-principal-policy` отвечает точнее догадок.
 
+## Разбор: почему конкретный вызов даёт AccessDenied
+
+Теория становится полезной, когда есть реальный отказ. Восстановим причину по журналу. Сначала — сам факт вызова и его результат:
+
+```
+$ aws cloudtrail lookup-events --lookup-attributes AttributeKey=EventName,AttributeValue=DeleteObject \
+    --max-results 1 --query 'Events[0].CloudTrailEvent' --output text | jq '{userIdentity,errorCode,errorMessage}'
+{
+  "userIdentity": { "arn": "arn:aws:iam::123456789012:user/test-user" },
+  "errorCode": "AccessDenied",
+  "errorMessage": "User is not authorized ... with an explicit deny in an identity-based policy"
+}
+```
+
+Формулировка `explicit deny in an identity-based policy` — прямая подсказка: где-то есть явный `Deny`. Дальше идём по цепочке: `list-attached-user-policies` → находим `NoDelete` → в её `Statement` видим `Deny` на `s3:DeleteObject`. Причина найдена, и никакой перебор не нужен.
+
+Если бы сообщение было `implicit deny`, порядок другой: значит, **разрешения просто нет** — проверяем boundary, SCP и наличие `Allow` вообще. Разница между explicit и implicit deny — ключ к быстрой диагностике.
+
+## Ловушки при чтении условий
+
+Блок `Condition` — самое частое место ошибок, потому что внешне «запрет» может выглядеть как «разрешение» и наоборот:
+
+- **`Null`** — `{"Null": {"aws:TagKeys": "true"}}` истинно, когда ключа **нет**. Легко перепутать.
+- **`ForAllValues` vs `ForAnyValue`** — первый требует, чтобы **все** ключи из запроса удовлетворяли условию (и пустой набор даёт `true`!), второй — достаточно одного.
+- **`StringEquals` vs `StringLike`** — второй уважает `*`/`?`, из-за чего проверка может «протечь».
+- **`aws:SourceArn`/`aws:SourceAccount`** — без них доверие сервису превращается в confused deputy.
+- **регион / `aws:RequestedRegion`** — SCP часто режет по нему; проверяйте, куда уходит вызов.
+- **`sts:ExternalId`** — обязателен для доверия третьим лицам; отсутствие = дыра.
+
+Практическое правило: перед атакой читайте условия **буквально** и проверяйте их `simulate-principal-policy` с теми же параметрами контекста, что у реального запроса. Симулятор не врёт — он прогоняет ту же логику оценки.
+
+## Ограничения симулятора
+
+`simulate-principal-policy` — мощный, но не всеведущий инструмент. Он не учитывает **resource policies** (доступ к бакету, к очереди), не моделирует `Principal` в политиках доверия и может не знать про SCP, если у вызывающего нет прав их читать. Поэтому его ответ `implicitDeny` ещё не значит «доступа нет вообще»: проверьте отдельно, не даёт ли доступ сам ресурс. И наоборот — `allowed` от симулятора не гарантирует, что ресурс существует и доступен по сети. Используйте его как **один** источник истины, а не единственный.
+
 ## Квиз
 
 Проверь себя.
