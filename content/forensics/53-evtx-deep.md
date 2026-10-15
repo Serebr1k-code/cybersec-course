@@ -201,6 +201,81 @@ EVTX — не только `Security.evtx`. Важные источники ря
 - **Забывать про уровни аудита** — событий 4688/4104 нет, если аудит выключен.
 - **Не нормализовать время** — EVTX пишет в UTC.
 
+## Повреждённые журналы и «дыры»
+
+EVTX устойчив к повреждениям, но иногда заголовок или часть чанков битые. Тогда работают
+по чанкам напрямую:
+
+```bash
+$ evtx_dump -o json Security.evtx 2>/dev/null | jq -r '.Event.System.EventRecordID' | head
+$ python3 -c "import Evtx; print(len(list(Evtx.PyEvtxParser('Security.evtx').records())))"
+```
+
+Главный признак anti-forensics — **разрыв в `EventRecordID`**: если записи идут
+…,1042,1043,1050,…, значит блок удалён. Дыра плюс событие 1102 — уверенный вывод об
+очистке журнала.
+
+## Нормализация времени
+
+Все времена в EVTX — UTC (`System.TimeCreated`). Для сопоставления с другими
+источниками приводите всё к одному поясу:
+
+```bash
+$ evtx_dump -o json Security.evtx | jq -r '.Event.System.TimeCreated."#attributes".SystemTime'
+```
+
+События Sysmon и Security часто разнесены по разным файлам — объединяйте их в один
+таймлайн (Hayabusa/Chainsaw делают это автоматически).
+
+## Chainsaw и Hayabusa: быстрый hunting
+
+```bash
+$ chainsaw hunt evtx/ --sigma sigma/ -o out/ --full
+$ hayabusa json-timeline -d evtx/ -o tl.jsonl -p verbose
+```
+
+`chainsaw hunt` применяет Sigma-правила и выделяет подозрительные события; `hayabusa`
+строит полный таймлайн с оценкой уровня угрозы. Оба хороши как «первый проход» перед
+ручным разбором.
+
+## Если не сработало
+
+- `evtx_dump` падает на повреждённом файле → извлеките чанки вручную (по сигнатуре `ElfChnk`).
+- Нет событий 4688 → включён неполный аудит; смотрите Sysmon Event ID 1.
+- PowerShell-логи пусты → включите Script Block Logging (4104).
+- Время «съезжает» → приведите все источники к UTC перед сведением.
+
+## Персистентность: что искать
+
+Кроме брутфорса, важны следы закрепления:
+
+- **7045** (System) — установка службы; смотрите `ImagePath`.
+- TaskScheduler **106/200/201** — создание задачи.
+- WMI-Activity **5861** — постоянная подписка WMI.
+- **4720/4732** — новый пользователь в привилегированной группе.
+
+```bash
+$ evtx_dump -o json System.evtx | jq -r 'select(.Event.System.EventID==7045) | .Event.EventData.ImagePath'
+```
+
+Подозрительный `ImagePath` в `%TEMP%` или с `powershell -enc` — почти наверняка backdoor.
+
+## Быстрый jq-фильтр подозрительных процессов
+
+Отфильтруйте процессы по командной строке — так за секунды видно загрузчики и лолбины:
+
+```bash
+$ evtx_dump -o json Sysmon.evtx | jq -r 'select(.Event.System.EventID==1) | .Event.EventData.CommandLine' | grep -iE 'enc |IEX|downloadstring|frombase64'
+```
+
+Совпадение с `-enc`/`IEX`/`FromBase64String` — сильный признак PowerShell-нагрузки.
+
+## Итог
+
+EVTX — это не один журнал, а распределённая по нескольким файлам хроника. Соберите её в
+единый таймлайн и читайте цепочкой событий, а не по одному ID: только так из разрозненных
+записей складывается картина вторжения.
+
 ## Квиз
 
 Проверь себя.
