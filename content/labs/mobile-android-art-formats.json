@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-art-formats",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4rt_0at_vd3x_d1s}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор каталога oat\n\n## Повторение (mobile-android-build-formats)\n\nОсмотри артефакт: `ls -la` и `cat oat_dir.txt`.\n\nНайди файл с dex-байткодом и флаг рядом с ним.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/oat_dir.txt",
+      "text": "/data/app/~~x/com.example.app-y/oat/arm64/\n  base.odex\n  base.vdex   <- contains verified dex bytecode\n  base.art\n# nto{4rt_0at_vd3x_d1s}\n"
+    }
+  ]
+}

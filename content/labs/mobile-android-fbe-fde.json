@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-fbe-fde",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{fbe_w34k_p1n_0ffl1n3_brut3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ ключей FBE\n\n## Повторение (mobile-android-factory-reset)\n\nОсмотри артефакт: `ls -la` и `cat fbe_keys.txt`.\n\nОпредели, как выводится мастер-ключ и где слабое звено, затем найди флаг.\nЗапиши в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/fbe_keys.txt",
+      "text": "master_key: random, wrapped by two derivations\nderivation1: scrypt(user_pin, salt, N=16384)\nderivation2: TEE hardware key (device-bound)\nzones: DE (before unlock), CE (after unlock)\naudit: 4-digit PIN -> offline brute of scrypt derivation -> nto{fbe_w34k_p1n_0ffl1n3_brut3}\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-instant-apps",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1nst4nt_4pp_unv3r1f13d_l1nk}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит Instant App\n\n## Повторение (mobile-android-odex-unpack)\n\nОсмотри артефакт: `ls -la` и `cat applinks.txt`.\n\nОпредели, проверен ли домен, и найди флаг рядом с проблемой.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/applinks.txt",
+      "text": "package: com.example.shop.instant\ndomain: shop.example.com\nassetlinks.json: MISSING (http 404)\nstatus: unverified -> any app may claim the domain\n# nto{1nst4nt_4pp_unv3r1f13d_l1nk}\n"
+    }
+  ]
+}

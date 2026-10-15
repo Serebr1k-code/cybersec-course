@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-factory-reset",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{frp_p3rs1st_p4rt1t10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит FRP\n\n## Повторение (mobile-android-lockscreen)\n\nОсмотри артефакт: `ls -la` и `cat frp_state.txt`.\n\nОпредели состояние FRP и раздел, где оно хранится, затем найди флаг.\nЗапиши в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/frp_state.txt",
+      "text": "ro.frp.pst=/dev/block/bootdevice/by-name/frp\nfrp_state=enabled\nbound_account=user@gmail.com\naudit: state persists across factory reset -> nto{frp_p3rs1st_p4rt1t10n}\n"
+    }
+  ]
+}

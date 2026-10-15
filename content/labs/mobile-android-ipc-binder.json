@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-ipc-binder",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b0und_s3rv1c3_exp0rt3d_n0_p3rm}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит bound-сервиса\n\n## Повторение (mobile-android-ipc-deep)\n\nСначала осмотри артефакт: `ls -la` и `head decoded/AndroidManifest.xml`.\n\nНайди экспортированный `<service>`, посмотри его `meta-data` и выпиши секрет.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/decoded/AndroidManifest.xml",
+      "text": "<manifest package=\"com.example.bank\">\n  <application>\n    <service android:name=\".SyncService\" android:exported=\"true\">\n      <intent-filter><action android:name=\"com.example.bank.SYNC\"/></intent-filter>\n      <meta-data android:name=\"debug.secret\" android:value=\"nto{b0und_s3rv1c3_exp0rt3d_n0_p3rm}\"/>\n    </service>\n    <service android:name=\".Internal\" android:exported=\"false\"/>\n  </application>\n</manifest>\n"
+    }
+  ]
+}

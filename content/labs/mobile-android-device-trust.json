@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-device-trust",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{d3v1c3_trust_w34k_l1nk}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит защиты устройства\n\n## Повторение (mobile-android-trust)\n\nОсмотри артефакт: `ls -la` и `cat device_report.txt`.\n\nНайди самое слабое звено цепочки доверия и флаг рядом с ним.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/device_report.txt",
+      "text": "lockscreen: PIN 4 digits\nencryption: FBE, credential-encrypted, key in TEE\nfrp: enabled (google account bound)\naudit: 4-digit PIN makes offline brute feasible -> nto{d3v1c3_trust_w34k_l1nk}\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-odex-vdex",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{vdex_c0nt41ns_d3x}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: найти байткод в oat\n\n## Повторение (mobile-android-build-formats)\n\nОсмотри артефакт: `ls -la` и `cat art_listing.txt`.\n\nОпредели, какой файл содержит dex-байткод, и найди флаг рядом с ним.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/art_listing.txt",
+      "text": "base.odex : optimized native code (part of OAT)\nbase.vdex : verified dex bytecode  <- extract classes.dex from here\nbase.art  : runtime state / profiles\n# nto{vdex_c0nt41ns_d3x}\n"
+    }
+  ]
+}

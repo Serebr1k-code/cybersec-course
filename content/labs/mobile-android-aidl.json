@@ -1,0 +1,27 @@
+{
+  "id": "mobile-android-aidl",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{4idl_p4rcel_c0nfus10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: подделка AIDL-вызова\n\n## Повторение (mobile-android-bound-service)\n\nОсмотри артефакты: `ls -la` и `cat onTransact.txt`.\n\nОпредели, какой номер транзакции отвечает за `transfer`, и какой аргумент\nможно подделать. Рядом в комментарии лежит флаг — запиши в `found.txt`.\n"
+    },
+    {
+      "path": "/home/student/task/IBalance.aidl",
+      "text": "package com.example.bank;\n\ninterface IBalance {\n    int getBalance();\n    boolean transfer(int amount, String to);\n}\n"
+    },
+    {
+      "path": "/home/student/task/onTransact.txt",
+      "text": "case 0: getBalance()\ncase 1: amount=data.readInt(); to=data.readString(); transfer(amount,to)\n# negative amount bypasses UI check ->\n# nto{4idl_p4rcel_c0nfus10n}\n"
+    }
+  ]
+}

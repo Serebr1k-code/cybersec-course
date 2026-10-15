@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-lockscreen",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{l0ckscr33n_4db_trust3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: анализ путей обхода блокировки\n\n## Повторение (mobile-android-verified-boot)\n\nОсмотри артефакт: `ls -la` и `cat device_config.txt`.\n\nОпредели, какой обходной путь доступен (ADB, Smart Lock, биометрия, перебор),\nи найди флаг рядом с ним. Запиши в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/device_config.txt",
+      "text": "usb_debugging: enabled (host already authorized)\nsmart_lock: disabled\npin: 8 digits\naudit: trusted adb host -> full access while locked -> nto{l0ckscr33n_4db_trust3d}\n"
+    }
+  ]
+}
