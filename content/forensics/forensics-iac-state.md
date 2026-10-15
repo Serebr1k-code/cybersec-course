@@ -109,6 +109,128 @@ State — это **последнее применённое** состояни�
 - Drift = расхождение кода и реальности.
 - CloudFormation stack events дают историю развёртывания.
 
+## Анатомия terraform.tfstate
+
+State — это JSON с чёткой структурой. Понимание полей превращает его в источник таймлайна:
+
+```
+{
+  "version": 4,
+  "terraform_version": "1.6.0",
+  "serial": 42,
+  "lineage": "9f8e7d6c-...",
+  "outputs": { "db_endpoint": { "value": "db.prod.internal:5432" } },
+  "resources": [
+    {
+      "mode": "managed",
+      "type": "aws_db_instance",
+      "name": "prod",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        { "attributes": { "username": "admin", "password": "Sup3rS3cret!" } }
+      ]
+    }
+  ]
+}
+```
+
+| Поле | Смысл |
+|------|-------|
+| `version` | версия формата state (сейчас 4) |
+| `terraform_version` | какой версией применяли |
+| `serial` | **счётчик применений**, растёт на каждый `apply` |
+| `lineage` | уникальный id цепочки state (по нему связывают копии) |
+| `outputs` | выходные значения — часто эндпоинты и секреты |
+| `resources[].instances[].attributes` | реальные атрибуты ресурса, включая пароли |
+
+`serial` и `lineage` — золото для форензика: по `serial` видно, **сколько раз**
+инфраструктуру меняли, а по `lineage` — что два файла относятся к одной цепочке.
+
+## Где вообще лежит state: бэкенды
+
+State не всегда рядом с кодом — его хранят в **бэкенде**. Типовые места:
+
+- **local** — файл `terraform.tfstate` рядом с конфигом;
+- **S3** (+ DynamoDB для блокировки) — самый частый вариант;
+- **azurerm** — blob-контейнер в Azure;
+- **gcs** — бакет в Google Cloud;
+- **Terraform Cloud / remote** — управляемый бэкенд.
+
+```
+$ aws s3 ls s3://acme-tf-state/prod/ --recursive
+prod/terraform.tfstate
+prod/terraform.tfstate.backup
+prod/terraform.tfstate.20260310.tfstate   # версия из versioning
+```
+
+При версионировании бакета каждая перезапись создаёт **новую версию** файла — это готовый
+таймлайн применений. Скачиваешь версии, сравниваешь `serial` — видишь порядок изменений.
+
+## Поиск секретов в state
+
+Секреты попадают в state, когда их пишут в атрибуты ресурсов. Искать их просто:
+
+```
+$ jq -r '.. | objects | .password? // empty' state.json
+Sup3rS3cret!
+$ grep -iE 'password|secret|token|key|credential' state.json | head
+```
+
+Частые источники секретов в state: пароли RDS, ключи IAM-пользователей, приватные ключи
+SSH, токены провайдеров, содержимое user-data. Отдельно проверяй `outputs` — там
+намеренно выводят чувствительные значения.
+
+## State как таймлайн развёртывания
+
+Изменения инфраструктуры фиксируются не только в state, но и в версиях бэкенда:
+
+```
+$ aws s3api list-object-versions --bucket acme-tf-state \
+    --prefix prod/terraform.tfstate --query 'Versions[].[VersionId,LastModified]'
+[["v3...","2026-03-10T03:14:00Z"],["v2...","2026-02-01T10:00:00Z"]]
+```
+
+Сопоставляя время версий с CloudTrail-событиями `PutObject`, видно, **кто** и **когда**
+менял инфраструктуру. А сопоставив содержимое версий — **что именно** изменилось:
+появился ли инстанс, которого нет в репозитории (drift / бэкдор-ресурс).
+
+## CloudFormation: состояние в самом облаке
+
+У CloudFormation нет отдельного файла state — состояние хранится в сервисе. Улики там:
+
+- **stack events** — журнал создания/обновления/удаления ресурсов;
+- **drift detection** — встроенное сравнение шаблона и реальности;
+- **stack resources** — текущий список ресурсов с их физическими id.
+
+```
+$ aws cloudformation describe-stack-events --stack-name prod-web \
+    --query 'StackEvents[].[Timestamp,ResourceStatus,ResourceType,LogicalResourceId]'
+```
+
+Аномалия: `UPDATE_IN_PROGRESS` в 03:14, которого не должно было быть — кто-то менял стек
+вручную или через скомпрометированный ключ.
+
+## Ловушки IaC-форензика
+
+- **State устаревает** — это последнее применённое, а не текущее состояние; сверяй с
+  реальностью (`terraform plan`, `describe-*`).
+- **Секреты зашифрованы** — некоторые бэкенды шифруют state (KMS/SSE); без ключа не
+  прочесть, но факт `PutObject` всё равно виден в CloudTrail.
+- **State удалён** — `terraform destroy` затирает state; тогда остаются только версии в
+  бакете и события CloudTrail.
+- **Несколько workspace** — prod/dev/staging хранят **разные** state; не пропусти нужный.
+- **State-файл в git** — если его случайно закоммитили, история git хранит все версии и
+  секреты навсегда.
+
+## Практический чеклист
+
+1. Найти все бэкенды и скачать все state-файлы (включая `.backup` и версии).
+2. Проверить `serial`/`lineage` — оценить число применений и связать копии.
+3. `grep`/`jq` по секретам в `attributes` и `outputs`.
+4. Сопоставить версии state с CloudTrail `PutObject` — кто и когда менял.
+5. Сверить state с реальными ресурсами — искать drift и «лишние» ресурсы.
+6. Для CloudFormation — выгрузить stack events и включить drift detection.
+
 ## Квиз
 
 Проверь себя.
