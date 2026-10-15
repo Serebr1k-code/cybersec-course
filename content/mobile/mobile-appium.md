@@ -261,6 +261,38 @@ $ curl -s http://10.0.0.5:4723/session/<id>/contexts
 одно устройство можно «захватить» параллельными подключениями. Проверяй, закрываются
 ли сессии и есть ли лимит.
 
+## Локаторы: XPath, accessibility id и uiautomator
+
+Appium ищет элементы через стратегии (`locator strategy`). Выбор стратегии определяет и скорость, и устойчивость теста.
+
+```python
+# accessibility id — самый устойчивый, привязан к content-desc
+el = driver.find_element(AppiumBy.ACCESSIBILITY_ID, "login-button")
+# id ресурса (Android) / name (iOS)
+el = driver.find_element(AppiumBy.ID, "com.target:id/username")
+# XPath — мощный, но хрупкий и медленный
+el = driver.find_element(AppiumBy.XPATH, "//android.widget.Button[@text='Войти']")
+# UiAutomator (Android-only), условия на селекторе
+el = driver.find_element(AppiumBy.ANDROID_UIAUTOMATOR,
+    'new UiSelector().textContains("Войти").clickable(true)')
+```
+
+| Стратегия | Скорость | Устойчивость | Когда |
+|-----------|----------|--------------|-------|
+| `accessibility id` | высокая | высокая | всегда предпочтительно |
+| `id` ресурса | высокая | средняя | Android, если id не локализован |
+| XPath | низкая | низкая | крайний случай, сложные связи |
+| `-android uiautomator` | средняя | средняя | Android, сложные условия |
+
+Ловушки: XPath по тексту ломается при локализации (смена языка) и на скрытых элементах; `find_element` возвращает первый совпавший — при нескольких одинаковых нужен `find_elements` и индекс. Если элемент «не найден», смотрим реальное дерево:
+
+```python
+print(driver.page_source)            # XML-дерево текущего экрана
+driver.save_screenshot("state.png")  # что реально на экране
+```
+
+Для WebView нужен переключённый контекст (`driver.contexts`, `driver.switch_to.context("WEBVIEW_...")`), иначе Selenium-стратегии не работают. Для нативных экранов контекст — `NATIVE_APP`. Смешение контекстов — самая частая причина «элемент есть, но не находится».
+
 ## Квиз
 
 Проверь себя.

@@ -186,6 +186,41 @@ App Links — это механизм Android, Universal Links — аналог�
 - **Ищите, куда уходят параметры:** API, WebView, файловая система.
 - **Смотрите флаги PendingIntent:** mutable — находка.
 
+## drozer: автоматическая проверка экспорта компонентов
+
+Вручную перебирать intent-filter’ы утомительно. drozer подключается к устройству как агент и перечисляет компоненты, доступные другим приложениям.
+
+```
+$ adb forward tcp:31415 tcp:31415
+$ drozer console connect
+dz> run app.package.attacksurface com.target
+Attack Surface:
+  3 activities exported
+  1 broadcast receivers exported
+  2 content providers exported
+  1 services exported
+
+dz> run app.activity.info -a com.target -i
+  com.target.AdminActivity  (exported=true)
+dz> run app.activity.start --component com.target com.target.AdminActivity
+```
+
+Если админ-экран открывается по внешнему вызову без проверки прав — это находка. Аналогично:
+
+| Команда | Что проверяет |
+|---------|---------------|
+| `app.package.attacksurface` | поверхность атаки пакета |
+| `app.activity.info -i` | экспортированные активности |
+| `app.provider.info` | провайдеры и их разрешения |
+| `app.broadcast.info` | ресиверы |
+| `app.service.info` | сервисы |
+| `scanner.provider.injection` | SQL-инъекции в провайдерах |
+| `scanner.provider.traversal` | path traversal в провайдерах |
+
+Особое внимание — `content://` провайдерам: незащищённый `ContentProvider` с `grantUriPermissions` и без `android:exported` часто позволяет читать чужие данные через `adb shell content query --uri content://...`.
+
+Проверка экспорта без drozer — по манифесту: атрибут `android:exported="true"` (или наличие intent-filter до Android 12) плюс отсутствие `android:permission`. Если компонент экспортирован и не требует разрешения — он доступен любому приложению на устройстве.
+
 ## Квиз
 
 Проверь себя.

@@ -132,6 +132,45 @@ Burp: Proxy → Options → Add, порт `8080`, затем на устройс
 - **Ведите лог прокси.** При потоке запросов удобнее фильтровать по домену, а не искать вручную.
 - **Проверяйте каждый шаг отдельно.** Сначала браузер, потом приложение — так быстрее найти сбой.
 
+## Certificate pinning: почему перехват «не работает»
+
+Самый частый случай, когда прокси настроен, трафик идёт, а Burp пуст — это pinning. Приложение не доверяет вашему CA, потому что «прибило» ожидаемый сертификат или публичный ключ. В логе вы увидите `SSLPeerUnverifiedException`, `Trust anchor for certification path not found` или `CERTIFICATE_VERIFY_FAILED`.
+
+Как определить, что дело в pinning, а не в прокси:
+
+```
+$ adb logcat | grep -iE 'pin|ssl|trust|handshake'
+javax.net.ssl.SSLHandshakeException: Pin verification failed
+```
+
+Обход зависит от того, где реализован pinning:
+
+| Реализация | Признак | Обход |
+|------------|---------|-------|
+| Network Security Config | `network_security_config.xml` в APK | патч XML, переупаковка |
+| OkHttp `CertificatePinner` | строка `sha256/` в коде | Frida-хук |
+| Volley/своя проверка | свой `TrustManager` | хук `checkServerTrusted` |
+| Нативный (BoringSSL) | строки в `.so` | хук `SSL_CTX_set_custom_verify` |
+
+Универсальный путь — Frida и готовые анпиннинг-скрипты (`frida-multiple-unpinning`): они подменяют `X509TrustManager.checkServerTrusted` на пустой метод и снимают большинство клиентских проверок.
+
+```javascript
+Java.perform(function () {
+  var X509 = Java.use('javax.net.ssl.X509TrustManager');
+  var TM = Java.registerClass({ name: 'com.x.PassthroughTM',
+    implements: [X509],
+    methods: {
+      checkClientTrusted: function () {},
+      checkServerTrusted: function () {},
+      getAcceptedIssuers: function () { return []; }
+    }});
+});
+```
+
+Если приложение использует Network Security Config, чистый путь — переупаковать APK: добавить `<debug-overrides>` или `trust-anchors` с вашим CA и подписать заново (`apksigner`). Но переупаковка ломает подпись, и приложение с integrity-проверкой это заметит.
+
+Важно: отключение pinning — это признак того, что защита существует, но обходима на клиенте. В отчёте фиксируйте не «мы обошли», а архитектурный вывод: pinning не заменяет серверную аутентификацию и целостность.
+
 ## Квиз
 
 Проверь себя.
