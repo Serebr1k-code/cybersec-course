@@ -120,6 +120,76 @@ API-ключ — это аутентификация? Нет, только кв�
 4. Resource policy и тип endpoint определяют сетевую границу.
 5. WAF снижает шум, но не заменяет авторизацию.
 
+## Полный проход: перечисление методов и поиск `NONE`
+
+Разберём аудит API Gateway по шагам с реальными ответами CLI. Начинаем с перечисления API в аккаунте:
+
+```bash
+$ aws apigateway get-rest-apis --query 'items[].{id:id,name:name}' --output table
+------------
+|  id  | name  |
+------------
+| a1b2 | acme  |
+```
+
+Шаг 2 — обходим ресурсы и для каждого метода смотрим `authorizationType`:
+
+```bash
+$ for r in $(aws apigateway get-resources --rest-api-id a1b2 --query 'items[].id' --output text); do
+    for m in GET POST PUT DELETE; do
+      t=$(aws apigateway get-method --rest-api-id a1b2 --resource-id $r --http-method $m \
+            --query 'authorizationType' --output text 2>/dev/null)
+      [ -n "$t" ] && echo "$r $m -> $t"
+    done
+  done
+abc123 GET -> NONE
+abc123 POST -> AWS_IAM
+def456 GET -> CUSTOM
+```
+
+Метод `abc123 GET` открыт (`NONE`) — это цель. Шаг 3 — смотрим интеграцию:
+
+```bash
+$ aws apigateway get-integration --rest-api-id a1b2 --resource-id abc123 --http-method GET \
+    --query 'uri' --output text
+arn:aws:apigateway:eu-west-1:lambda:path/2015-03-31/functions/arn:aws:lambda:eu-west-1:123456789012:function:acme-api/invocations
+```
+
+Шаг 4 — определяем роль функции и её права:
+
+```bash
+$ aws lambda get-function-configuration --function-name acme-api \
+    --query 'Role' --output text
+arn:aws:iam::123456789012:role/acme-api-role
+$ aws iam list-attached-role-policies --role-name acme-api-role \
+    --query 'AttachedPolicies[].PolicyName' --output text
+DynamoDBAccess
+```
+
+Теперь понятно: открытый `/health` доходит до Lambda с `DynamoDBAccess`. Дальше — стандартный тест инъекции в параметрах (`q`, `id`), которые функция передаёт в DynamoDB/команду.
+
+## Таблица: типы авторизаторов и их подводные камни
+
+| Тип | Как работает | Типичная ошибка |
+|-----|--------------|-----------------|
+| `NONE` | без проверки | метод случайно оставлен открытым |
+| `AWS_IAM` | SigV4-подпись | у вызывающего есть `execute-api:Invoke` |
+| `CUSTOM` (Lambda authorizer) | ваш код возвращает allow/deny | кэш TTL путает пользователей |
+| `COGNITO_USER_POOLS` | проверка JWT Cognito | audience/issuer не проверены |
+| `JWT` (HTTP API) | проверка JWT | issuer не зафиксирован |
+| API-ключ + usage-plan | только квота | ключ утёк в клиентский бандл |
+
+Ключевое: API-ключ — **не** авторизация; авторизация — это `AWS_IAM`/`CUSTOM`/`COGNITO_USER_POOLS`/`JWT`. Если метод открыт (`NONE`), никакая resource policy его не «закроет» от интернета, кроме явного `deny`.
+
+## Ограничения и подводные камни
+
+- **Lambda authorizer с кэшем.** `authorizerResultTtlInSeconds > 0` кэширует результат по ключу (по умолчанию — identity source); при общем источнике разные пользователи могут получить чужой allow. Ставьте `ttl=0` или включайте `identitySource` в ключ.
+- **Proxy vs non-proxy.** В `AWS_PROXY` шлюз передаёт весь запрос и ждёт ответ от Lambda; в non-proxy маппинг задаётся шаблонами — там другая поверхность (VTL-инъекции, `$context`).
+- **Resource policy не спасает от NONE.** Она ограничивает principal/IP, но при отсутствии политики метод доступен всем; при `Principal: "*"` — тоже.
+- **Приватный API ≠ закрытый.** Private API доступен только через VPC endpoint, но если endpoint открыт для чужого VPC или `execute-api` interface endpoint разрешает чужой аккаунт, граница ломается.
+- **WAF — не авторизация.** Правила фильтруют паттерны, но обходятся кодированием; метод `NONE` остаётся достижим, меняется лишь формулировка payload-а.
+- **Логи.** Access/execution logs и X-Ray показывают всю цепочку; тихий сценарий — один вызов по найденному в конфиге методу, без массового перебора путей.
+
 ## Квиз
 
 Проверь себя.
