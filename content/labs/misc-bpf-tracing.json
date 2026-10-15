@@ -1,0 +1,23 @@
+{
+  "id": "misc-bpf-tracing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{bpftr4c3_0p3nsno0p}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разбор вывода bpftrace\n\nТебе дан `trace_output.txt` — сохранённый вывод `bpftrace` (трассировка открытия файлов и запусков процессов). Определи, что делает подозрительный процесс, и достань метку в `found.txt`.\n\n## Повторение (`misc-ebpf-deep`)\n\nВ `misc-ebpf-deep` мы разбирали загруженные eBPF-программы через `bpftool`. bpftrace — та же модель eBPF, только однострочником. Начни с чтения вывода:\n\n    cat trace_output.txt\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag trace_output.txt | cut -d= -f2`\n3. Раскодируй и запиши метку: `grep flag trace_output.txt | cut -d= -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/trace_output.txt",
+      "text": "# bpftrace output (execsnoop + opensnoop)\npython3 /home/app/config.json\npython3 /home/app/secret.env\nsh -c /opt/backup.sh\n@[comm]: python3=12 sh=4 curl=1\nnote=процесс python3 читает secret.env каждые несколько секунд\nflag=bnRve2JwZnRyNGMzXzBwM25zbm8wcH0=\n"
+    }
+  ]
+}

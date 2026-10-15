@@ -1,0 +1,23 @@
+{
+  "id": "misc-ebpf-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ebpf_tr4c3p01nt_spy}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разбор загруженных eBPF-программ\n\nТебе дан `bpftool_prog_list.txt` — выгрузка `bpftool prog list` и `bpftool map list` из подозрительной системы. Разберись, за чем следит неизвестная программа, и достань метку в `found.txt`.\n\n## Повторение (`misc-kernel-misc`)\n\nВ `misc-kernel-misc` мы учились читать служебную информацию о системе из файлов и смотреть на системные вызовы. Так и здесь — начни с чтения выгрузки, а не с догадок:\n\n    cat bpftool_prog_list.txt\n\nСтроки `поле=значение` описывают программу и карту.\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag bpftool_prog_list.txt | cut -d= -f2`\n3. Раскодируй и запиши метку: `grep flag bpftool_prog_list.txt | cut -d= -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/bpftool_prog_list.txt",
+      "text": "# bpftool prog list + map list (suspicious host)\ntype=tracepoint name=sys_enter_openat tag=3b1f9c2a1d4e5f60\ntype=tracepoint name=sys_enter_read\nmap=hash name=events key=4B value=32B max_entries=1024\nattach=kprobe target=do_sys_open\nnote=программа читает имена открываемых файлов и складывает их в карту events\nflag=bnRve2VicGZfdHI0YzNwMDFudF9zcHl9\n"
+    }
+  ]
+}

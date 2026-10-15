@@ -1,0 +1,23 @@
+{
+  "id": "misc-io-uring",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{10_ur1ng_sqpo11}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: разбор io_uring по strace\n\nТебе дан `strace_io_uring.txt` — фрагмент трассировки сервера, который читает файлы через io_uring. Определи параметры и достань метку в `found.txt`.\n\n## Повторение (`misc-ebpf-deep`)\n\nВ `misc-ebpf-deep` мы смотрели на ядро через eBPF и его точки. `strace` — более простой взгляд на те же системные вызовы. Начни с чтения трассировки:\n\n    cat strace_io_uring.txt\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag strace_io_uring.txt | cut -d= -f2`\n3. Раскодируй и запиши метку: `grep flag strace_io_uring.txt | cut -d= -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/strace_io_uring.txt",
+      "text": "# strace fragment (io_uring server)\nio_uring_setup(256, {mode=IORING_SETUP_SQPOLL, sq_thread_cpu=0}) = 3\nio_uring_enter(3, 1, 0, IORING_ENTER_GETEVENTS, NULL, 8) = 1\nio_uring_enter(3, 0, 1, 0, NULL, 8) = 1\nnote=сервер читает файлы через кольцо SQPOLL, не вызывая openat/read\nflag=bnRvezEwX3VyMW5nX3NxcG8xMX0=\n"
+    }
+  ]
+}
