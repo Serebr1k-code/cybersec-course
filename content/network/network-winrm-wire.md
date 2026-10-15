@@ -11,7 +11,7 @@ useful_for:
   - "CTF Network (разбор протоколов)"
   - "Пентест: прикладные сервисы"
   - "Работа: анализ трафика"
-estimated_minutes: 60
+estimated_minutes: 70
 summary: "WinRM «на проводе»: SOAP/WS-Management поверх HTTP, порты 5985/5986 и как это используют для удалённого управления."
 ---
 
@@ -143,6 +143,54 @@ WinRM — «Windows-шный SSH». Если у тебя есть валидна
 - Аутентификация NTLM/Kerberos/CredSSP.
 - После учётки → shell (evil-winrm, netexec).
 - Защита: VPN/jump, Kerberos, MFA, HTTPS.
+
+## Разбор реального SOAP-запроса
+
+Возьмём минимальный обмен и посмотрим на его анатомию. Клиент (например, `evil-winrm`) сначала выполняет аутентификацию, а затем шлёт в `/wsman` конверт WS-Man:
+
+```
+POST /wsman HTTP/1.1
+Host: 10.0.0.5
+Content-Type: application/soap+xml;charset=UTF-8
+Content-Length: 1287
+Authorization: Negotiate TlRMTVNTUAABAAA...
+
+<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"
+            xmlns:wsman="http://schemas.dmtf.org/wbem/wsman/1/wsman.xsd">
+  <s:Header>
+    <wsman:ResourceURI>.../shell/cmd</wsman:ResourceURI>
+    <wsman:Action>http://schemas.microsoft.com/wbem/wsman/1/windows/shell/Command</wsman:Action>
+  </s:Header>
+  <s:Body>
+    <rsp:CommandLine xmlns:rsp=".../windows/shell">
+      <rsp:Command>whoami</rsp:Command>
+    </rsp:CommandLine>
+  </s:Body>
+</s:Envelope>
+```
+
+Читаем по частям. `Action: .../Command` говорит серверу «создай команду». Поле `<rsp:Command>` несёт саму строку. Ответ приходит двумя шагами: сначала `CommandResponse` (создание команды), затем `ReceiveResponse` (вывод). Поле `rsp:ExitCode` в конце — это то, что тебе вернёт `evil-winrm` как код возврата.
+
+## Таблица способов аутентификации
+
+| Метод | Что передаётся | Где ломается |
+|---|---|---|
+| Basic | логин/пароль в base64 | только по HTTPS, иначе перехват |
+| NTLM | NTLM-хендшейк | Pass-the-Hash: хеш вместо пароля |
+| Kerberos | билет TGS на `HTTP/host` | нужен корректный SPN |
+| CredSSP | делегирование учётки | double-hop, креды живут в памяти |
+
+NTLM здесь особенно удобен атакующему: `netexec winrm 10.0.0.5 -u alice -H <NThash>` пройдёт аутентификацию **без знания пароля**, если хеш уже добыт.
+
+## Краевые случаи
+
+- **5985 без TLS** — любой в пути видит команду и её вывод. Даже при NTLM сам SOAP открыт.
+- **Не та группа.** Валидной учётки мало: нужно членство в `Remote Management Users` или `Administrators`, иначе `Access is denied` приходит уже после успешной аутентификации.
+- **Реверс-прокси.** Иногда WinRM отвечает 401 на NTLM, если между тобой и хостом стоит прокси, ломающий `Negotiate`.
+
+## Что писать в отчёте
+
+Фиксируй порт (5985/5986), метод аутентификации, наличие TLS и достигнутый уровень (пользователь/администратор). Если сработал Pass-the-Hash — это отдельная находка «NTLM-хеш даёт удалённое управление», и её надо подкрепить выводом `whoami` прямо из полученной сессии.
 
 ## Квиз
 
