@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-spyware",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{10s_p3g4sus_c4mp41gn_i0c}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: вывод MVT\\n\\n## Повторение (mobile-ios-advanced)\\n\\nСначала осмотри каталог: `ls -la`.\\n\\nВ `mvt_findings.txt` — результат проверки устройства. Найди индикатор\\nкампании (флаг) и запиши его в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/mvt_findings.txt",
+      "text": "[i] Checking for known malicious processes\\n[!] Found process: com.apple.xpc.launchd.helper\\n[i] Matched domains against STIX indicators\\n[!] campaign marker: nto{10s_p3g4sus_c4mp41gn_i0c}\\n[!] domain: cdn.delivery.example.net\\n"
+    }
+  ]
+}

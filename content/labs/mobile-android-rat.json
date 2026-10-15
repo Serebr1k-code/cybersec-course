@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-rat",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r4t_c2_s3ss10n_pwn3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: обмен с C2 RAT\\n\\n## Повторение (mobile-malware-family)\\n\\nСначала осмотри каталог: `ls -la`.\\n\\nВ `c2_commands.log` записан обмен с панелью RAT. Найди флаг сессии\\nи запиши его в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/c2_commands.log",
+      "text": "2026-09-02T10:00:01Z <- {\"cmd\":\"ping\"}\\n2026-09-02T10:00:05Z -> {\"cmd\":\"sms_list\",\"n\":12}\\n2026-09-02T10:00:09Z -> {\"cmd\":\"session\",\"id\":\"nto{r4t_c2_s3ss10n_pwn3d}\"}\\n2026-09-02T10:00:20Z <- {\"cmd\":\"camera\",\"front\":true}\\n"
+    }
+  ]
+}

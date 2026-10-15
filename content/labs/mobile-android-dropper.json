@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-dropper",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dr0pp3r_p4yl04d_k3y_f0und}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: строки дроппера\\n\\n## Повторение (mobile-malware-family)\\n\\nСначала осмотри каталог: `ls -la`.\\n\\nВ `dropper_strings.txt` спрятан ключ расшифровки payload. Найди его и запиши\\nв `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/dropper_strings.txt",
+      "text": "assets/payload.bin\\nassets/config.dat\\nInMemoryDexClassLoader\\npayload_key = nto{dr0pp3r_p4yl04d_k3y_f0und}\\nstage2_url = https://cdn-update.example.net/p\\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-banker-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b4nk3r_4n4ts4_c4mp41gn_1d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: конфиг банковского трояна\\n\\n## Повторение (mobile-banking-trojan)\\n\\nСначала осмотри каталог: `ls -la`.\\n\\nВ `config.json` лежит конфигурация перехваченного банкера. Найди идентификатор\\nкампании (строка вида `nto{...}`) и запиши его в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/config.json",
+      "text": "{\\n  \"family\": \"Anatsa\",\\n  \"campaign\": \"nto{b4nk3r_4n4ts4_c4mp41gn_1d}\",\\n  \"c2\": [\"https://cdn-update.example.net\"],\\n  \"targets\": [\"com.bank.one\", \"com.bank.two\"],\\n  \"ats\": true,\\n  \"socks\": true\\n}\\n"
+    }
+  ]
+}

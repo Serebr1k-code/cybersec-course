@@ -1,0 +1,23 @@
+{
+  "id": "misc-turing-machine",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{tur1ng_m4ch1n3_st4t3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: эмуляция машины Тьюринга\n\nТебе дан `tm_trace.txt` — трасса работы машины Тьюринга (лента, головка, состояния, шаги). Определи результат и достань метку в `found.txt`.\n\n## Повторение (`misc-compiler-ctf`)\n\nВ `misc-compiler-ctf` мы разбирали компилятор как цепочку фаз. Машина Тьюринга — простейшая модель, на которой эти вычисления формализуются. Начни с чтения трассы:\n\n    cat tm_trace.txt\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag tm_trace.txt | cut -d= -f2`\n3. Раскодируй и запиши метку: `grep flag tm_trace.txt | cut -d= -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/tm_trace.txt",
+      "text": "# Turing machine trace\ntape=1 1 1 _\nstate=q0 head=0\nsteps=6 halt=q2 tape_final=1 1 _\nnote=машина стёрла одну единицу с конца (унарное вычитание)\nflag=bnRve3R1cjFuZ19tNGNoMW4zX3N0NHQzfQ==\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "misc-grammar-injection",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{gr4mm4r_1nj3ct10n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Практика: обход фильтра DSL\n\nТебе дан `dsl_filter.txt` — лог валидатора и парсера (ввод, вердикт фильтра, действие парсера). Найди обход и достань метку в `found.txt`.\n\n## Повторение (`misc-turing-machine`)\n\nВ `misc-turing-machine` мы разбирали формальные модели и токенизацию. Инъекция — это расхождение токенизаций фильтра и парсера. Начни с чтения лога:\n\n    cat dsl_filter.txt\n\n## Задание\n\n1. Найди строку `flag` — её значение закодировано в base64.\n2. Вырежи значение поля: `grep flag dsl_filter.txt | cut -d= -f2`\n3. Раскодируй и запиши метку: `grep flag dsl_filter.txt | cut -d= -f2 | base64 -d > found.txt`\n4. Набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/dsl_filter.txt",
+      "text": "# DSL filter/parser log\nfilter=blocklist [\"DROP\",\"EXEC\"]\ninput=\"DrOp table users\"\nfilter_verdict=allowed (substring not found)\nparser_action=executed DROP (case-insensitive token)\nnote=фильтр по подстроке не учёл регистр, парсер — учёл\nflag=bnRve2dyNG1tNHJfMW5qM2N0MTBufQ==\n"
+    }
+  ]
+}
