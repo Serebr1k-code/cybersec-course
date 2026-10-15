@@ -128,6 +128,57 @@ PVLAN — «микросегментация» на L2. Она полезна, �
 - Обходы: leaking через promiscuous, ошибки конфигурации.
 - Защита: корректная настройка, контроль trunk.
 
+## Разбор конфигурации на коммутаторе
+
+Слова «isolated/community/promiscuous» становятся понятны, когда видишь, как PVLAN настраивается на реальном оборудовании. Схема всегда строится вокруг **primary VLAN** и связанных с ней **secondary VLAN**:
+
+```
+vlan 100
+ name PRIMARY
+ private-vlan primary
+vlan 101
+ private-vlan isolated
+vlan 102
+ private-vlan community
+vlan 100
+ private-vlan association 101,102          ! primary связывается с secondary
+
+interface GigabitEthernet0/1                 ! изолированный клиент
+ switchport mode private-vlan host
+ switchport private-vlan host-association 100 101
+
+interface GigabitEthernet0/2                 ! клиент community 102
+ switchport mode private-vlan host
+ switchport private-vlan host-association 100 102
+
+interface GigabitEthernet0/24                ! шлюз — promiscuous
+ switchport mode private-vlan promiscuous
+ switchport private-vlan mapping 100 101,102
+```
+
+Читается это так: primary VLAN 100 — «зонтик», внутри которого живут две secondary-сети. Порты `0/1` и `0/2` — host-порты, каждый привязан к своей secondary. Порт `0/24` — promiscuous, через него трафик всех secondary выходит наружу к шлюзу. Ключевое: адресация у всех хостов одна и та же (подсеть primary), поэтому для L3 они «в одной сети», а изоляция происходит на L2.
+
+## Справочная таблица: роли и связность
+
+| Роль порта | Кому может передавать | От кого принимает |
+|---|---|---|
+| Promiscuous | всем (isolated, community, uplink) | от всех |
+| Isolated | только promiscuous | только promiscuous |
+| Community | своей community + promiscuous | своей community + promiscuous |
+| Uplink (trunk) | несёт primary + secondary теги | — |
+
+Отсюда практическое правило анализа: если два хоста не видят друг друга, но оба видят шлюз — это похоже на PVLAN. Чтобы отличить isolated от community, проверь связность с третьим хостом: community-хосты видят «соседей по группе», isolated — нет.
+
+Не путай PVLAN с другой похожей функцией — **protected port** (`switchport protected`). Это проще: порты с этим флагом не передают трафик друг другу вообще, но остаются в обычной VLAN, без primary/secondary и без promiscuous-порта. PVLAN — это архитектура сегментации, protected port — локальный запрет.
+
+## Обход на практике
+
+PVLAN защищает L2-связность, но не отменяет базовых атак на канальном уровне. Первый вектор — **VLAN hopping через DTP**: если host-порт ошибочно оставлен в режиме `dynamic auto/desirable`, атакующий negotiate-ит trunk и получает доступ ко всем VLAN, включая primary и secondary, — изоляция рушится. Защита: жёстко `switchport mode access` и `switchport nonegotiate`.
+
+Второй вектор — **double tagging**: кадр с двумя 802.1Q-тегами; первый снимается первым коммутатором, второй уводит кадр в чужую VLAN. PVLAN сам по себе от этого не защищает — нужен native VLAN, отличный от пользовательских, и отбрасывание тегированных кадров на access-портах.
+
+Третий — **утечка через promiscuous-порт**. Он видит всех по определению, поэтому если это не шлюз, а, скажем, сервер-прокси или общий NAS, то через него изолированные хосты косвенно достижимы. Проверяется просто: с изолированного хоста отправь трафик на адрес promiscuous-порта и посмотри, доходит ли. Четвёртый — **ошибка конфигурации**: порт, забытый в неверной secondary VLAN, немедленно ломает изоляцию, и никакой протокол об этом не сообщит — только ручной аудит `show vlan private-vlan` и сверка портов.
+
 ## Квиз
 
 Проверь себя.
