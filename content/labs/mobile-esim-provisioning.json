@@ -1,0 +1,23 @@
+{
+  "id": "mobile-esim-provisioning",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{3s1m_rsp_pr0f1l3_4ct1v4t3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит eSIM-провижининга\n\n## Повторение (mobile-esim)\n\nКак в уроке про eSIM, сначала осмотри артефакт: `ls -la` и `cat lpa_log.txt`.\n\nВ логе найди момент установки профиля и флаг рядом с ним.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/lpa_log.txt",
+      "text": "# LPA / RSP provisioning log\nactivation_code: LPA:1$smdp.example.com$MATCH-1234\nTLS: verified certificate for smdp.example.com\ndownload: profile package received (encrypted)\ninstall: profile written to eUICC\nenable: ICCID=8901260... IMSI bound\nresult: profile installed successfully -> nto{3s1m_rsp_pr0f1l3_4ct1v4t3d}\n"
+    }
+  ]
+}

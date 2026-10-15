@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-anti-hook",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{10s_4nt1_h00k_fr1d4}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\\n\\n## Повторение (mobile-ios-basics)\\n\\nСначала осмотри каталог: `ls -la`.\\n\\nВ `frida_artifacts.txt` одна строка помечена флагом (подтверждённый след).\\nНайди её (`grep nto frida_artifacts.txt`) и запиши флаг в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/frida_artifacts.txt",
+      "text": "port=27042  open=false\\ndylib=frida-agent.dylib  loaded=false\\nprologue_ptrace=unchanged\\ndylib=Substrate  loaded=true  tag=nto{10s_4nt1_h00k_fr1d4}\\n"
+    }
+  ]
+}

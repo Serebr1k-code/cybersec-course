@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-biometric-prompt",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{b10m3tr1c_c4llb4ck_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор по уроку mobile-android-biometric-prompt\n\n## Повторение (mobile-android-keystore-deep)\n\nСначала `ls -la` и `head biometric_log.txt`, как в предыдущем уроке ветки.\n\nНайди строку с секретом `nto{...}`, запиши её в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/biometric_log.txt",
+      "text": "BiometricPrompt with CryptoObject: created\ncryptoobject result used: no\nkey user auth required: false\nhook onAuthenticationSucceeded: vault opened\nfinding: nto{b10m3tr1c_c4llb4ck_byp4ss}\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-jwt-mobile",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{jwt_n0n3_4lg_4cc3pt3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор по уроку mobile-android-jwt-mobile\n\n## Повторение (mobile-android-oauth)\n\nСначала `ls -la` и `head jwt_tokens.txt`, как в предыдущем уроке ветки.\n\nНайди строку с секретом `nto{...}`, запиши её в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/jwt_tokens.txt",
+      "text": "header: {\"alg\":\"HS256\",\"typ\":\"JWT\"}\npayload: {\"sub\":\"123\",\"role\":\"user\"}\nserver accepts alg none: yes\nsecret found offline: nto{jwt_n0n3_4lg_4cc3pt3d}\n"
+    }
+  ]
+}

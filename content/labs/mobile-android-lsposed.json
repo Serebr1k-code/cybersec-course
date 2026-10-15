@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-lsposed",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{lsp0s3d_fr4m3w0rk_h00k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\\n\\n## Повторение (mobile-hooking-internals)\\n\\nСначала осмотри каталог: `ls -la`.\\n\\nВ `modules.txt` одна строка помечена флагом (целевой модуль).\\nНайди её (`grep nto modules.txt`) и запиши флаг в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/modules.txt",
+      "text": "com.example.hook.RootBypass  scope=com.target.app  active=true\\ncom.example.hook.PinningKill  scope=*  active=false\\ncom.example.hook.SigSpoof  scope=com.target.app  tag=nto{lsp0s3d_fr4m3w0rk_h00k}\\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-drone-app",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{dr0n3_t3l3m3try_1nt3rc3pt3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит телеметрии дрона\n\n## Повторение (mobile-iot-companion)\n\nКак в модуле про companion-каналы, сначала осмотри артефакт: `ls -la` и `cat drone_telemetry.txt`.\n\nНайди перехваченную телеметрию с флагом.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/drone_telemetry.txt",
+      "text": "# drone telemetry capture (cleartext)\nHEARTBEAT type=quadrotor armed=true\nGLOBAL_POSITION_INT lat=55.7558 lon=37.6173 alt=120\nBATTERY_STATUS remaining=64%\nMISSION_ITEM seq=3 lat=55.7560 lon=37.6180 alt=100\nnote: telemetry captured in cleartext -> nto{dr0n3_t3l3m3try_1nt3rc3pt3d}\n"
+    }
+  ]
+}

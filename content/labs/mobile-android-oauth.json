@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-oauth",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0auth_r3d1r3ct_h1j4ck}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор по уроку mobile-android-oauth\n\n## Повторение (mobile-android-pinning-deep)\n\nСначала `ls -la` и `head oauth_flow.txt`, как в предыдущем уроке ветки.\n\nНайди строку с секретом `nto{...}`, запиши её в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/oauth_flow.txt",
+      "text": "redirect_uri: myapp://callback\npkce: absent\nstate: not verified\ncustom scheme can be registered by another app\nhijack secret: nto{0auth_r3d1r3ct_h1j4ck}\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-janus",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{j4nus_d3x_z1p_p0lygl0t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\\n\\n## Повторение (mobile-app-repackaging)\\n\\nСначала осмотри каталог: `ls -la`.\\n\\nВ `janus_notes.txt` одна строка помечена флагом уязвимости. Найди её\\n(`grep nto janus_notes.txt`) и запиши флаг в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/janus_notes.txt",
+      "text": "sample=janus.apk\\nheader=dex.035 (file also valid as ZIP)\\nverdict=signature_ok_but_dex_prepended\\ntag=nto{j4nus_d3x_z1p_p0lygl0t}\\naffected=android<8.0\\n"
+    }
+  ]
+}

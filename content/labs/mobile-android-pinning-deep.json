@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-pinning-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{mult1_l4y3r_p1nn1ng_d0wn}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор по уроку mobile-android-pinning-deep\n\n## Повторение (mobile-android-cert-transparency)\n\nСначала `ls -la` и `head bypass_notes.txt`, как в предыдущем уроке ветки.\n\nНайди строку с секретом `nto{...}`, запиши её в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/bypass_notes.txt",
+      "text": "layer 1 java: okhttp3 CertificatePinner  -> bypassed\nlayer 2 native: SSL_CTX_set_verify      -> bypassed\nlayer 3 server: header X-Pin-SPKI        -> remains\nlast layer secret: nto{mult1_l4y3r_p1nn1ng_d0wn}\n"
+    }
+  ]
+}

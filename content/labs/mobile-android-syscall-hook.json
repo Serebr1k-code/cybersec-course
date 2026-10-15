@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-syscall-hook",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{svc_h00k_b0und4ry}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\\n\\n## Повторение (mobile-android-native)\\n\\nСначала осмотри каталог: `ls -la`.\\n\\nВ `syscalls.log` одна строка помечена флагом (целевой вызов).\\nНайди её (`grep nto syscalls.log`) и запиши флаг в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/syscalls.log",
+      "text": "openat(AT_FDCWD, \"/data/local/tmp/check\", O_RDONLY) = 3\\nread(3, buf, 64) = 64\\nconnect(4, sockaddr, 16) = 0\\nsvc#0 x8=0xdd x0=0x2  tag=nto{svc_h00k_b0und4ry}\\n"
+    }
+  ]
+}

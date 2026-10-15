@@ -1,0 +1,23 @@
+{
+  "id": "mobile-auto-companion",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{c4r_c0mp4n10n_4p1_t0k3n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит авто-компаньона\n\n## Повторение (mobile-iot-companion)\n\nКак в модуле про companion-каналы, сначала осмотри артефакт: `ls -la` и `cat car_api_log.txt`.\n\nНайди утёкший токен доступа и флаг рядом с ним.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/car_api_log.txt",
+      "text": "# telematics API log\nPOST /oauth/token grant_type=password -> access_token=eyJhbGciOiJIUzI1NiJ9.x\nGET  /vehicles/42/status -> {\"battery\":78,\"locked\":true}\nPOST /vehicles/42/command {\"cmd\":\"unlock\"} Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.x\nstorage: refresh_token written to prefs.xml (plaintext)\nnote: companion api token leaked -> nto{c4r_c0mp4n10n_4p1_t0k3n}\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-imsi-catcher",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1ms1_c4tch3r_d3t3ct3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: детект IMSI-catcher\n\n## Повторение (mobile-telecom)\n\nКак в модуле про телеком-слой, сначала осмотри артефакт: `ls -la` и `cat cell_info.txt`.\n\nНайди подозрительную соту и флаг рядом с ней.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/cell_info.txt",
+      "text": "Network: 250 01\n  Cell: LAC=0x1a2b CID=0x0000a1b2 sig=-85 dBm\n  Cell: LAC=0x1a2b CID=0x0000a1c4 sig=-90 dBm\n  Cell: LAC=0x0000 CID=0x00000000 sig=-41 dBm\n  Cell: LAC=0x1a2b CID=0x0000a1d0 sig=-88 dBm\ndetect: LAC 0 + strongest signal => fake base station -> nto{1ms1_c4tch3r_d3t3ct3d}\n"
+    }
+  ]
+}

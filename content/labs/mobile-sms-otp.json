@@ -1,0 +1,23 @@
+{
+  "id": "mobile-sms-otp",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sm5_0tp_1nt3rc3pt3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: перехват SMS-OTP\n\n## Повторение (mobile-telecom)\n\nКак в модуле про телеком-слой, сначала осмотри артефакт: `ls -la` и `head sms_pdu.txt`.\n\nНайди SMS с кодом и флаг рядом.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/sms_pdu.txt",
+      "text": "# SMS PDU dump\nfrom=+79005553535 text=\"Ваш код 4821. Никому не сообщайте.\"\nfrom=+79001112233 text=\"Баланс: 120 руб.\"\nfrom=BANK text=\"Подтверждение: код 9137\"\nnote: intercepted OTP for victim account -> nto{sm5_0tp_1nt3rc3pt3d}\n"
+    }
+  ]
+}

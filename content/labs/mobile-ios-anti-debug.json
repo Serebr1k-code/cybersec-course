@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-anti-debug",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{10s_4nt1_d3bug_pttr4c3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\\n\\n## Повторение (mobile-ios-basics)\\n\\nСначала осмотри каталог: `ls -la`.\\n\\nВ `anti_debug_notes.txt` одна строка помечена флагом (найденная проверка).\\nНайди её (`grep nto anti_debug_notes.txt`) и запиши флаг в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/anti_debug_notes.txt",
+      "text": "check=ptrace  arg=PT_DENY_ATTACH(31)  verdict=detected  tag=nto{10s_4nt1_d3bug_pttr4c3}\\ncheck=sysctl  field=P_TRACED  verdict=present\\ncheck=getppid  expected=launchd\\n"
+    }
+  ]
+}

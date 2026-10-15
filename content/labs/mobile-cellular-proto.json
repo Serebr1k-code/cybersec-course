@@ -1,0 +1,23 @@
+{
+  "id": "mobile-cellular-proto",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{n4s_4tt4ch_r3qu3st_d3c0d3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит NAS-лога\n\n## Повторение (mobile-telecom)\n\nКак в модуле про телеком-слой, сначала осмотри артефакт: `ls -la` и `head nas_log.txt`.\n\nНайди ATTACH REQUEST и флаг рядом с ним.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/nas_log.txt",
+      "text": "# NAS signalling trace\nRRC: RRCConnectionRequest\nRRC: RRCConnectionSetup\nNAS: ATTACH REQUEST\n  EPS mobile identity: IMSI 250011234567890\n  UE network capability: EEA0 EEA1 EEA2\nNAS: AUTHENTICATION REQUEST\nNAS: AUTHENTICATION RESPONSE\nNAS: SECURITY MODE COMMAND (cipher=EEA1)\nnote: lab flag -> nto{n4s_4tt4ch_r3qu3st_d3c0d3d}\n"
+    }
+  ]
+}

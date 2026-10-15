@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ble-reversing",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{bl3_pr0t0c0l_r3v3rs3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор BLE-обмена\n\n## Повторение (mobile-bluetooth-le)\n\nКак в уроке про BLE, сначала осмотри артефакт: `ls -la` и `head ble_capture.txt`.\n\nВ дампе есть обмен приложения с умным замком. Найди команду открытия и служебное\nзначение рядом с ней. Запиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/ble_capture.txt",
+      "text": "btsnoop decode — SmartLock-4A2C\n> ATT Write Request  handle=0x0013  value=a1 04 01 7f 3c 8b\n< ATT Write Response handle=0x0013\n> ATT Write Request  handle=0x0013  value=a1 04 01 22 91 de\n< ATT Write Response handle=0x0013\n> ATT Read Request   handle=0x0015\n< ATT Read Response  handle=0x0015  value=OK nonce=7f3c8b\n> ATT Write Request  handle=0x0013  value=a1 06 02 6e 74 6f 7b\n< ATT Notification   handle=0x0014  value=ERR bad command\nnote: lock firmware debug string leaked: nto{bl3_pr0t0c0l_r3v3rs3d}\n"
+    }
+  ]
+}

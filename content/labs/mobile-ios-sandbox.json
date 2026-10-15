@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-sandbox",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{10s_s4ndb0x_4pp_gr0up}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\\n\\n## Повторение (mobile-ios-basics)\\n\\nСначала осмотри каталог: `ls -la`.\\n\\nВ `containers.txt` одна строка помечена флагом (широкая дверь).\\nНайди её (`grep nto containers.txt`) и запиши флаг в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/containers.txt",
+      "text": "container=Data/Application/XXXX  readable=self_only\\ncontainer=Bundle/Application/XXXX  readable=self_only\\ngroup=group.com.example.shared  keychain=shared  tag=nto{10s_s4ndb0x_4pp_gr0up}\\n"
+    }
+  ]
+}

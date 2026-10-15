@@ -1,0 +1,23 @@
+{
+  "id": "mobile-nfc-payment",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{nfc_4pdu_r3l4y_d3t3ct3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит APDU-трассы\n\n## Повторение (mobile-wearable-iot)\n\nКак в уроке про companion-каналы, сначала осмотри артефакт: `ls -la` и `head apdu_trace.txt`.\n\nВ трассе найди признак ретрансляции (повтор криптограммы) и флаг рядом.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/apdu_trace.txt",
+      "text": "# APDU trace: terminal <-> card\n>> 00 A4 04 00 0E 325041592E5359532E4444463031 00\n<< 6F 23 84 0E 325041592E5359532E4444463031 90 00\n>> 00 A4 04 00 07 A0000000041010 00\n<< 6F 1E 84 07 A0000000041010 90 00\n>> 80 A8 00 00 02 8300 00\n<< 77 1E 82 02 1980 94 10 08 01 01 00 10 01 01 01 18 01 02 00 9F 27 01 80 90 00\n>> 80 AE 80 00 1C ... (GENERATE AC, ATC=0042)\n<< 77 1E 9F 27 01 80 9F 36 02 0042 9F 26 08 4A 1B ... 90 00\n>> 80 AE 80 00 1C ... (GENERATE AC, ATC=0042)   <-- SAME ATC REPLAYED\n<< 6A 81                                        <-- terminal rejects\nanomaly: replayed cryptogram detected (ATC 0042 twice) -> nto{nfc_4pdu_r3l4y_d3t3ct3d}\n"
+    }
+  ]
+}

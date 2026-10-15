@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-api-graphql",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{gr4phql_1ntr0sp3ct10n_0p3n}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор по уроку mobile-android-api-graphql\n\n## Повторение (mobile-android-jwt-mobile)\n\nСначала `ls -la` и `head graphql_schema.txt`, как в предыдущем уроке ветки.\n\nНайди строку с секретом `nto{...}`, запиши её в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/graphql_schema.txt",
+      "text": "type User { id: ID, email: String, role: String }\ntype Admin { token: String }\nintrospection: enabled\nfield-level authz: missing on Admin.token\nflag: nto{gr4phql_1ntr0sp3ct10n_0p3n}\n"
+    }
+  ]
+}

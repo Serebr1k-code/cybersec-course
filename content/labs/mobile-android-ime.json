@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-ime",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1m3_k3yl0gg1ng_3n4bl3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор по уроку mobile-android-ime\n\n## Повторение (mobile-android-screen-record)\n\nСначала `ls -la` и `head ime_log.txt`, как в предыдущем уроке ветки.\n\nНайди строку с секретом `nto{...}`, запиши её в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/ime_log.txt",
+      "text": "ime: com.example.smartkb/.SmartKbIme\npermission: INTERNET\nreads getTextBeforeCursor: yes\npassword field flags: not handled\nfinding: nto{1m3_k3yl0gg1ng_3n4bl3d}\n"
+    }
+  ]
+}

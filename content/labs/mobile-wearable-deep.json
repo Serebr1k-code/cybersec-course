@@ -1,0 +1,23 @@
+{
+  "id": "mobile-wearable-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w34r4bl3_d4t4_l4y3r_l34k}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит синхронизации часов\n\n## Повторение (mobile-wearable-iot)\n\nКак в уроке про wearable/companion, сначала осмотри артефакт: `ls -la` и `cat wearable_sync.txt`.\n\nНайди утёкший токен и флаг рядом с ним.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/wearable_sync.txt",
+      "text": "# Wear OS Data Layer dump\nDataClient: put /auth/token = \"eyJhbGciOiJIUzI1NiJ9.<payload>\"\nDataClient: put /user/email = \"user@example.com\"\nDataClient: put /user/card = \"4111 **** **** 1111\"\nMessageClient: /unlock cmd=\"OPEN\"\nChannelClient: /files/health.csv (128 KB)\nnote: long-lived token synced to watch -> nto{w34r4bl3_d4t4_l4y3r_l34k}\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-screenshots",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{fl4g_s3cur3_n0t_s3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор по уроку mobile-android-screenshots\n\n## Повторение (mobile-sidechannels)\n\nСначала `ls -la` и `head window_flags.txt`, как в предыдущем уроке ветки.\n\nНайди строку с секретом `nto{...}`, запиши её в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/window_flags.txt",
+      "text": "CardActivity flags=FLAG_SECURE\nStatementActivity flags=0x0\nTransferActivity flags=0x0\nrecents thumbnail: visible\nfinding: nto{fl4g_s3cur3_n0t_s3t}\n"
+    }
+  ]
+}

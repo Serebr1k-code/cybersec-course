@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-keygen-errors",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{w34k_k3y_s1z3_4cc3pt3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор по уроку mobile-android-keygen-errors\n\n## Повторение (mobile-android-random)\n\nСначала `ls -la` и `head keygen_report.txt`, как в предыдущем уроке ветки.\n\nНайди строку с секретом `nto{...}`, запиши её в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/keygen_report.txt",
+      "text": "cipher: AES/ECB/PKCS5Padding\nkey length: 64 bit\nkey source: hardcoded string\nNullCipher: present in backup path\nfinding: nto{w34k_k3y_s1z3_4cc3pt3d}\n"
+    }
+  ]
+}

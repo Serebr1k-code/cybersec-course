@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-plt-got-hook",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{plt_g0t_h00k_t4rg3t}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\\n\\n## Повторение (mobile-android-native)\\n\\nСначала осмотри каталог: `ls -la`.\\n\\nВ `relocations.txt` одна строка помечена флагом (целевой символ).\\nНайди её (`grep nto relocations.txt`) и запиши флаг в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/relocations.txt",
+      "text": "offset=0x3fc10 type=JUMP_SLOT sym=strcmp\\noffset=0x3fc18 type=JUMP_SLOT sym=strlen\\noffset=0x3fc20 type=JUMP_SLOT sym=check_signature  tag=nto{plt_g0t_h00k_t4rg3t}\\noffset=0x3fc28 type=JUMP_SLOT sym=memcpy\\n"
+    }
+  ]
+}

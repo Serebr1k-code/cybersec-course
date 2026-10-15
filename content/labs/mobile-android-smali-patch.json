@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-smali-patch",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{sm4l1_p4tch_r3p4ck4g3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\\n\\n## Повторение (mobile-app-repackaging)\\n\\nСначала осмотри каталог: `ls -la`.\\n\\nВ `smali_patch.txt` одна строка помечена флагом-меткой патча.\\nНайди её (`grep nto smali_patch.txt`) и запиши флаг в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/smali_patch.txt",
+      "text": ".method public isPremium()Z\\n    .locals 1\\n    const/4 v0, 0x1   # patched: was 0x0  tag=nto{sm4l1_p4tch_r3p4ck4g3d}\\n    return v0\\n.end method\\n"
+    }
+  ]
+}

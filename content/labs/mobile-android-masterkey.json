@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-masterkey",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{m4st3rk3y_dup_cl4ss3s_d3x}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\\n\\n## Повторение (mobile-android-repackaging)\\n\\nСначала осмотри каталог: `ls -la`.\\n\\nВ `zip_entries.txt` одна строка помечена флагом-меткой дубликата.\\nНайди её (`grep nto zip_entries.txt`) и запиши флаг в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/zip_entries.txt",
+      "text": "AndroidManifest.xml  size=2048\\nclasses.dex  size=1024  verified=true\\nresources.arsc  size=512\\nclasses.dex  size=4096  duplicate=true  tag=nto{m4st3rk3y_dup_cl4ss3s_d3x}\\nMETA-INF/MANIFEST.MF  size=256\\n"
+    }
+  ]
+}

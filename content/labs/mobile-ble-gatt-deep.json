@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ble-gatt-deep",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{g4tt_wr1t4bl3_ch4r4ct3r1st1c}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит таблицы GATT\n\n## Повторение (mobile-bluetooth-le)\n\nКак в уроке про BLE, начни с осмотра артефакта: `ls -la` и `cat gatt_table.txt`.\n\nНайди характеристику, в которую можно писать, и значение-флаг в ней.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/gatt_table.txt",
+      "text": "Service 0000180a-0000-1000-8000-00805f9b34fb (Device Information)\n  Char 00002a29 props=0x02 read: \"FitBand\"\nService 0000fff0-0000-1000-8000-00805f9b34fb (Vendor Control)\n  Char 0000fff1 props=0x1a r/w/notify\n    value(0x0013): \"STATUS=READY\"\n  Char 0000fff2 props=0x02 read\n    value(0x0016): \"BUILD=3.2.1 nto{g4tt_wr1t4bl3_ch4r4ct3r1st1c}\"\n  Char 0000fff3 props=0x08 write\n    value(0x0019): \"CMD=SETTIME\"\n"
+    }
+  ]
+}

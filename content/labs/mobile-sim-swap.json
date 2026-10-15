@@ -1,0 +1,23 @@
+{
+  "id": "mobile-sim-swap",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s1m_sw4p_p0rt0ut_fr4ud}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: детект SIM-swap\n\n## Повторение (mobile-telecom)\n\nКак в модуле про телеком-слой, сначала осмотри артефакт: `ls -la` и `cat sim_swap_events.txt`.\n\nНайди аномальный перенос номера и флаг рядом.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/sim_swap_events.txt",
+      "text": "# carrier events\n2026-10-01 09:00 auth: login from device A (known)\n2026-10-01 18:20 sms-otp sent: bank login (used by owner)\n2026-10-02 03:14 port-out: request for +7900xxxxxxx\n2026-10-02 03:20 port-out: approved (ID check: partial)\n2026-10-02 03:22 sms-otp sent: bank login\n2026-10-02 03:22 sms-otp used: bank login (new device)\nalert: SIM-swap port-out fraud confirmed -> nto{s1m_sw4p_p0rt0ut_fr4ud}\n"
+    }
+  ]
+}

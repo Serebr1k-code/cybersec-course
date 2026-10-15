@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-inline-hook",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{1nl1n3_h00k_tr4mp0l1n3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\\n\\n## Повторение (mobile-android-native)\\n\\nСначала осмотри каталог: `ls -la`.\\n\\nВ `disasm.txt` одна строка помечена флагом-меткой перехвата.\\nНайди её (`grep nto disasm.txt`) и запиши флаг в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/disasm.txt",
+      "text": "12a40 <verify_key>:\\n  12a40:  stp  x29, x30, [sp, #-16]!\\n  12a44:  mov  x29, sp\\n  12a48:  b    7f0012b00   # hook target  tag=nto{1nl1n3_h00k_tr4mp0l1n3}\\n  12a4c:  mov  w0, #0x1\\n"
+    }
+  ]
+}

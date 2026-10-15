@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-ratelimit-bypass",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{r4t3l1m1t_h34d3r_sp00f}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор по уроку mobile-android-ratelimit-bypass\n\n## Повторение (mobile-android-api-versioning)\n\nСначала `ls -la` и `head ratelimit_headers.txt`, как в предыдущем уроке ветки.\n\nНайди строку с секретом `nto{...}`, запиши её в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/ratelimit_headers.txt",
+      "text": "X-RateLimit-Limit: 10\nX-RateLimit-Remaining: 3\nspoof header X-Forwarded-For resets counter -> 10\nbypass note: nto{r4t3l1m1t_h34d3r_sp00f}\n"
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-api-versioning",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{0ld_4p1_v1_4uth_byp4ss}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор по уроку mobile-android-api-versioning\n\n## Повторение (mobile-android-api-graphql)\n\nСначала `ls -la` и `head api_versions.txt`, как в предыдущем уроке ветки.\n\nНайди строку с секретом `nto{...}`, запиши её в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/api_versions.txt",
+      "text": "v1 /v1/user/{id}  auth: none        -> 200 without token\nv2 /v2/user/{id}  auth: session\nv3 /v3/user/{id}  auth: token+scope\nlegacy secret: nto{0ld_4p1_v1_4uth_byp4ss}\n"
+    }
+  ]
+}

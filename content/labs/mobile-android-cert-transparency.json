@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-cert-transparency",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{ct_l0g_m1ss1ng_c3rt}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор по уроку mobile-android-cert-transparency\n\n## Повторение (mobile-android-ssl-pinning-native)\n\nСначала `ls -la` и `head ct_logs.txt`, как в предыдущем уроке ветки.\n\nНайди строку с секретом `nto{...}`, запиши её в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/ct_logs.txt",
+      "text": "domain api.example.com\nnetwork_security_config: certificateTransparency enforcement=enforce\nlogcat: Certificate transparency verification failed for api.example.com\nmitm cert: no SCT in public logs\nfinding: nto{ct_l0g_m1ss1ng_c3rt}\n"
+    }
+  ]
+}

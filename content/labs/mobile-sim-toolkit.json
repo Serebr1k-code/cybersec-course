@@ -1,0 +1,23 @@
+{
+  "id": "mobile-sim-toolkit",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{stk_pr04ct1v3_c0mm4nd}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: аудит SIM Toolkit\n\n## Повторение (mobile-esim)\n\nКак в уроке про eSIM, сначала осмотри артефакт: `ls -la` и `cat stk_menu.txt`.\n\nНайди подозрительную proactive command и флаг рядом с ней.\nЗапиши флаг в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/stk_menu.txt",
+      "text": "# SIM Toolkit proactive commands\nProactive Command: SET UP MENU\n  Title: \"Оператор\"\n  Item 1: \"Баланс\"\n  Item 2: \"Пополнить\"\nProactive Command: SEND SHORT MESSAGE\n  To: +79005553535\n  Text: \"BAL\"\nProactive Command: SEND SHORT MESSAGE\n  To: +79001234567\n  Text: \"S@T RUN nto{stk_pr04ct1v3_c0mm4nd}\"   <-- injected by remote OTA\n"
+    }
+  ]
+}

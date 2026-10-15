@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-random",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{s3cur3r4nd0m_s33d_0v3rr1d3}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор по уроку mobile-android-random\n\n## Повторение (mobile-android-biometric-prompt)\n\nСначала `ls -la` и `head random_seeds.txt`, как в предыдущем уроке ветки.\n\nНайди строку с секретом `nto{...}`, запиши её в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/random_seeds.txt",
+      "text": "token generator: new java.util.Random()\nseed source: System.nanoTime()\nSecureRandom overridden: setSeed(System.currentTimeMillis())\npredictable window: seconds\nfinding: nto{s3cur3r4nd0m_s33d_0v3rr1d3}\n"
+    }
+  ]
+}

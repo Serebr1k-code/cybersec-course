@@ -1,0 +1,23 @@
+{
+  "id": "mobile-ios-integrity",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{10s_runt1m3_1nt3gr1ty}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача\\n\\n## Повторение (mobile-ios-code-signing)\\n\\nСначала осмотри каталог: `ls -la`.\\n\\nВ `integrity_checks.txt` одна строка помечена флагом (критичная проверка).\\nНайди её (`grep nto integrity_checks.txt`) и запиши флаг в `found.txt`, затем набери `check`.\\n"
+    },
+    {
+      "path": "/home/student/task/integrity_checks.txt",
+      "text": "check=codesign  expected_team=ABCDE12345  pass=true\\ncheck=text_hash  expected=sha256:aa11..  pass=true\\ncheck=app_attest  server_verified=true  critical=true  tag=nto{10s_runt1m3_1nt3gr1ty}\\n"
+    }
+  ]
+}

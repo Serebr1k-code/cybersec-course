@@ -1,0 +1,23 @@
+{
+  "id": "mobile-android-ssl-pinning-native",
+  "workdir": "/home/student/task",
+  "hostname": "lab",
+  "expect": {
+    "file": "/home/student/task/found.txt",
+    "contains": "nto{n4t1v3_p1nn1ng_byp4ss3d}"
+  },
+  "fs": [
+    {
+      "path": "/home/student/task",
+      "type": "dir"
+    },
+    {
+      "path": "/home/student/task/task.md",
+      "text": "# Задача: разбор по уроку mobile-android-ssl-pinning-native\n\n## Повторение (mobile-network-security)\n\nСначала `ls -la` и `head pinning_log.txt`, как в предыдущем уроке ветки.\n\nНайди строку с секретом `nto{...}`, запиши её в `found.txt` и набери `check`.\n"
+    },
+    {
+      "path": "/home/student/task/pinning_log.txt",
+      "text": "libnative-lib.so imports: SSL_CTX_set_verify, X509_verify_cert\nlayer: native verify via OpenSSL\njava hook result: traffic still reset\nnative hook disabled SSL_VERIFY_NONE\npin_expected sha256 present\nbypass_note: nto{n4t1v3_p1nn1ng_byp4ss3d}\n"
+    }
+  ]
+}
