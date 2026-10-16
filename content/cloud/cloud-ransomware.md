@@ -205,6 +205,61 @@ aws iam simulate-principal-policy \
 - **Cross-account бэкап требует внешней политики.** Если целевой аккаунт разрешает `backup:DeleteRecoveryPoint` доверенной роли — изоляция фиктивна.
 - **Логи тоже удаляемы.** `cloudtrail:StopLogging` и `logs:DeleteLogGroup` убирают следы; детект должен опираться на защищённый отдельный лог-аккаунт.
 
+## Полный скрипт оценки защищённости бэкапов (boto3)
+
+Проверим, насколько хорошо защищены бэкапы в аккаунте AWS — ключевой вопрос при оценке облачного ransomware. Скрипт смотрит на версионирование, Object Lock и политику удаления:
+
+```python
+import boto3
+
+s3 = boto3.client('s3')
+for b in s3.list_buckets()['Buckets']:
+    name = b['Name']
+    try:
+        ver = s3.get_bucket_versioning(Bucket=name).get('Status', 'Disabled')
+    except Exception:
+        ver = 'unknown'
+    try:
+        lock = s3.get_object_lock_configuration(Bucket=name)
+        lock_on = lock['ObjectLockConfiguration']['ObjectLockEnabled']
+    except Exception:
+        lock_on = 'Off'
+    print(f"{name:40} versioning={ver:8} object_lock={lock_on}")
+```
+
+```
+backup-daily              versioning=Enabled  object_lock=Enabled
+prod-data                 versioning=Enabled  object_lock=Off
+logs-archive              versioning=Suspended  object_lock=Off
+```
+
+Читаем результат: `backup-daily` защищён (версионирование + Object Lock в режиме compliance — объекты нельзя удалить даже root-аккаунтом до истечения срока). `prod-data` имеет версии, но их можно удалить, сняв версии. `logs-archive` — версионирование приостановлено, то есть старые версии уже не создаются, и новые данные уязвимы. Такой отчёт сразу показывает, где ransomware добьётся успеха.
+
+## Таблица: что защищает от чего
+
+| Механизм | Защищает от | НЕ защищает от |
+|---|---|---|
+| Versioning | перезаписи/удаления объекта | `DeleteObjectVersion`, удаления бакета |
+| MFA Delete | массового удаления версий | компрометации ключей с MFA |
+| Object Lock (governance) | удаления до срока | снятия режима привилегированным ключом |
+| Object Lock (compliance) | удаления даже root | — (снять нельзя до истечения) |
+| Cross-region replication | потери региона | ransomware, пришедшего в аккаунт |
+| Отдельный бэкап-аккаунт | компрометации основного | атаки на бэкап-аккаунт |
+
+Главный вывод: **версионирование само по себе не спасает** — атакующий с правами на бакет просто удалит все версии. Только `Object Lock` в режиме compliance + MFA Delete + изоляция бэкапов в отдельном аккаунте дают реальную защиту.
+
+## Ограничения оценки
+
+Оценка защищённости бэкапов имеет границы, которые надо честно обозначать в отчёте:
+
+- **Права ключа ограничивают видимость.** Если у вас нет `s3:GetBucketObjectLockConfiguration`, скрипт покажет `Off` там, где на деле включено. Оценивайте только то, что реально читается.
+- **Object Lock нельзя включить после создания бакета** без версионирования; проверьте, что он включён на этапе создания, а не «постфактум».
+- **Replication не является бэкапом.** Реплика в том же аккаунте уязвима к тем же ключам; бэкап должен быть в изолированном аккаунте с отдельными правами.
+- **Временное окно.** Даже с Object Lock данные могут быть зашифрованы ransomware до срабатывания детекта; важна не только сохранность, но и скорость обнаружения.
+- **Логи как источник истины.** Проверяйте CloudTrail на предмет `DeleteBucket`, `PutBucketVersioning`, `DeleteObjectVersion` — это признаки атаки на бэкапы.
+
+Для защитника минимальный набор: версионирование + Object Lock (compliance) + MFA Delete + бэкап в отдельном аккаунте + алерты на операции с бэкапами. Отсутствие любого пункта — находка.
+
 ## Квиз
 
 Проверь себя.

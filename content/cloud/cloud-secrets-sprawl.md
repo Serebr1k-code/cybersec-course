@@ -162,6 +162,60 @@ Found verified result: Google API key AIzaSy...
 - **Ищи копии.** Один секрет может лежать в нескольких местах.
 - **Помни про мобильные приложения.** APK — частый источник ключей.
 
+## Ручной поиск в Git-истории
+
+Даже без `trufflehog` секреты достаются штатными средствами Git. Полезные команды:
+
+```bash
+# все строки, когда-либо добавленные в историю
+$ git log -p --all | grep -iE 'AKIA|secret|token|password' | head
+
+# файлы, удалённые из репозитория, но оставшиеся в истории
+$ git log --diff-filter=D --name-only --pretty=format: | sort -u
+
+# содержимое конкретного удалённого файла
+$ git show <commit>:path/to/.env
+
+# поиск по всем объектам (включая «висящие» после rebase)
+$ git rev-list --all --objects | cut -d' ' -f2 | \
+    xargs -I{} git cat-file -p {} 2>/dev/null | grep -i 'api_key'
+```
+
+Особый случай — **dangling objects**: после `git reset --hard` или amend объекты остаются в `.git/objects` и достаются через `git fsck --lost-found`. Многие считают, что «удалили» секрет, но он физически лежит в базе Git.
+
+## Валидация ключей разных провайдеров
+
+Найденную строку нужно **подтвердить** — иначе это не находка. Быстрые способы по провайдерам:
+
+| Провайдер | Команда валидации |
+|-----------|-------------------|
+| AWS | `aws sts get-caller-identity` |
+| GCP (SA-ключ) | `gcloud auth activate-service-account --key-file k.json && gcloud projects list` |
+| Azure | `az login --service-principal -u APP_ID -p SECRET --tenant T` |
+| GitHub PAT | `curl -H "Authorization: token $T" https://api.github.com/user` |
+| Slack | `curl -d token=$T https://slack.com/api/auth.test` |
+| Stripe | `curl https://api.stripe.com/v1/charges -u $T:` |
+
+Для AWS/GCP/Azure проверяйте **права** сразу (`enumerate-iam`, `gcloud auth list`), а не только валидность: рабочий ключ без прав менее ценен, чем ключ с `iam:*`. И фиксируйте аккаунт/владельца — это связывает находку с целью.
+
+## Секреты в Docker-образах и CI
+
+Контейнеры — недооценённый источник. Ключ, попавший в слой образа, остаётся там, даже если удалён в следующем слое:
+
+```bash
+$ docker history --no-trunc myimage:latest      # команды сборки, включая ARG/ENV
+$ docker save myimage | tar -xO | strings | grep -i 'AKIA\|password'
+$ trivy image --scanners secret myimage:latest
+```
+
+В CI секреты утекают через вывод сборки (`set -x`, `echo $TOKEN`), кэш и артефакты:
+
+```bash
+$ grep -rE 'Bearer|AKIA|ghp_' artifacts/ logs/ 2>/dev/null
+```
+
+Практика: `trivy`/`grype` по образам, `gitleaks` по репозиторию, ручной `grep` по логам CI — три уровня, покрывающие большинство утечек. И помните: `ARG` в Dockerfile **попадает в историю образа**, поэтому секреты через build-args — распространённая ошибка.
+
 ## Квиз
 
 Проверь себя.
