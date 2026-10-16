@@ -11,7 +11,7 @@ useful_for:
   - "Эскалация привилегий через Lambda"
   - "Злоупотребление iam:PassRole и update-function"
   - "Понимание serverless-эскалации"
-estimated_minutes: 55
+estimated_minutes: 60
 summary: "Как из ограниченных прав в Lambda добраться до администратора: iam:PassRole + update-function-configuration, отравление слоёв, Function URL и переменные окружения. Практические цепочки."
 lab:
   kind: shell
@@ -211,6 +211,74 @@ $ aws lambda delete-function --function-name privesc-fn
 - **Ищи роли с AdministratorAccess.** Они — цель эскалации.
 - **Проверь update-function.** Подмена кода работает и на существующих функциях.
 - **Помни про следы.** CreateFunction/Invoke логируются в CloudTrail.
+
+## Почему Lambda может принять роль: trust policy
+
+Функция не может «взять» произвольную роль: роль должна **доверять** сервису Lambda.
+Это задаётся в её **trust policy** (AssumeRolePolicyDocument). Посмотрим на
+`admin-role`:
+
+```bash
+$ aws iam get-role --role-name admin-role \
+    --query "Role.AssumeRolePolicyDocument.Statement" --output json
+[
+  {
+    "Effect": "Allow",
+    "Principal": { "Service": "lambda.amazonaws.com" },
+    "Action": "sts:AssumeRole"
+  }
+]
+```
+
+Читается так: «любой, кто может передать мне роль функции Lambda, получит мои права».
+Именно поэтому `iam:PassRole` так опасен: он **и есть** механизм передачи. Если бы в
+trust policy стояло условие `aws:SourceArn` или `aws:SourceAccount`, ограничивающее
+конкретной функцией, цепочка бы не сработала. Часто этих условий нет — и тогда любая
+наша функция может примерить роль.
+
+## Как читать политики на эскалацию
+
+`PassRole` — не единственный множитель прав. Просматривая политику, отмечайте
+действия, которые «передают личность» или «подменяют код»:
+
+| Право | Почему опасно |
+|---|---|
+| `iam:PassRole` | отдать сервису любую роль |
+| `lambda:UpdateFunctionCode` | подменить код функции с широкой ролью |
+| `lambda:UpdateFunctionConfiguration` | подменить env-переменные/слой |
+| `iam:CreatePolicyVersion` | переписать политику на админскую |
+| `iam:AttachUserPolicy` | прицепить админ-политику себе |
+| `sts:AssumeRole` | войти в роль напрямую |
+
+Задача перечисления — найти **комбинацию**: одно право без второго бесполезно,
+но вместе они дают путь. Это ровно то, что делает инструмент `Pmapper`/`CloudFox`
+для AWS: он читает права и строит граф «что из чего следует».
+
+## Environment variable injection на живой функции
+
+Даже если нельзя подменить код, можно подменить **переменные окружения** — и это
+часто проще. Если функция при старте выполняет команду или импортирует модуль по
+пути из env, мы получаем исполнение кода без `UpdateFunctionCode`:
+
+```bash
+$ aws lambda update-function-configuration --function-name api-handler \
+    --environment 'Variables={PYTHONPATH=/opt/evil,AWS_LAMBDA_FUNCTION_TIMEOUT=1}'
+```
+
+Функция перезапустится с новым окружением (Lambda пересоздаёт контейнер при
+изменении конфигурации) и загрузит наш модуль. Тот же результат, что и у подмены кода,
+но другое событие в CloudTrail (`UpdateFunctionConfiguration` вместо
+`UpdateFunctionCode`) — полезно, когда защита алертит только на изменение кода.
+
+## Как это выглядит для защитника
+
+Атака оставляет узнаваемый след. В CloudTrail стоит искать связку событий в одном
+окне времени: `iam:PassRole` с `requestParameters.roleName`, указывающим на
+привилегированную роль, сразу за ним `CreateFunction` (или
+`UpdateFunctionConfiguration`/`UpdateFunctionCode`), а затем `Invoke` новой или
+изменённой функции. По отдельности каждое событие выглядит обычным деплоем; вместе —
+типовая эскалация. Дешёвый детект — правило, которое алертит на `PassRole` в
+`lambda.amazonaws.com` с ролью, у которой есть `AdministratorAccess`.
 
 ## Квиз
 

@@ -11,7 +11,7 @@ useful_for:
   - "Эскалация привилегий в Azure/Entra ID"
   - "Анализ app registrations и Microsoft Graph permissions"
   - "Атаки на гибридные AD + Entra ID среды"
-estimated_minutes: 40
+estimated_minutes: 45
 summary: "Как читать и злоупотреблять правами в Entra ID и Azure RBAC: роли, app permissions, административные unit'ы, гибридные связи с on-prem AD и типовые пути эскалации."
 lab:
   kind: shell
@@ -162,6 +162,68 @@ $ curl -s -H "Authorization: Bearer eyJ0eXAi..." \
 - **Ищи application permissions.** Они не требуют пользователя.
 - **Смотри секреты приложений.** Долгоживущий секрет — риск.
 - **Помни про гибрид.** Облачный доступ может дотянуться до домена.
+
+## Что внутри токена: читаем access_token
+
+Прежде чем что-то делать, полезно понять, **за кого** вы действуете и с какими
+правами. Access-токен — это JWT, и его payload читается без секрета:
+
+```bash
+$ TOKEN=$(az account get-access-token --resource https://graph.microsoft.com --query accessToken -o tsv)
+$ echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | python3 -m json.tool
+{
+  "aud": "https://graph.microsoft.com",
+  "tid": "72f988bf-...",
+  "roles": ["User.ReadWrite.All", "Directory.Read.All"],
+  "appid": "c3f1d2e4-...",
+  "exp": 1730000000
+}
+```
+
+Ключевые поля: `aud` — для какого ресурса токен (Graph или ARM),
+`roles` — **application** permissions (права без пользователя), `scp` — delegated
+(права в контексте пользователя), `tid` — tenant. Если в `roles` лежит
+`User.ReadWrite.All` — это уже готовый путь к сбросу пароля. Если токен получен на
+`https://management.azure.com` (ARM), в `roles` будут роли RBAC, а не Graph.
+
+Обратите внимание: один секрет даёт **разные** токены на разные `aud`. Поэтому
+проверяйте права отдельно для ARM и для Graph — это ровно те «две системы» из Шага 1.
+
+## Секрет приложения против managed identity
+
+Не всякая «личность» в Azure хранит секрет, который можно украсть. Сравните:
+
+| Тип | Чем аутентифицируется | Риск |
+|---|---|---|
+| Service principal (secret) | client secret / сертификат | секрет утекает в конфиг, CI, git |
+| Managed identity | платформой, секрета нет | украсть нечего, но даёт доступ из VM/функции |
+| User (delegated) | пароль/MFA пользователя | фишинг, но MFA мешает |
+
+Отсюда практическое правило: если сервис-принципал можно заменить managed
+identity — секрет исчезает из кода. Для атакующего это означает, что «найти
+app secret в репозитории» и «найти SSRF на VM с managed identity» — два разных
+пути к одним и тем же правам.
+
+## Практика: собрать граф прав
+
+Вручную сверять десятки назначений тяжело. Инструменты вроде **AzureHound**
+(для Azure) и **ROADtools** (для Entra ID) собирают назначения и строят граф
+«кто → что может». Это аналог BloodHound: узлы — пользователи, группы, приложения,
+роли; рёбра — «может назначить», «владеет», «участник». По графу ищут кратчайший
+путь от вашей учётки до `Global Administrator` или до роли на подписке.
+
+Минимальная последовательность:
+
+```bash
+$ az login --service-principal -u <APPID> -p <SECRET> --tenant <TENANT>
+$ az role assignment list --all --query "[].{p:principalName, r:roleDefinitionName, s:scope}" -o table
+$ az ad app permission list --id <APPID>
+$ az ad group member list --group "Global Administrators" 2>/dev/null
+```
+
+Первая команда показывает, на что вы можете влиять на ресурсах; вторая — что можно
+в каталоге; третья — кто уже сидит в самой сильной роли (потенциальная цель для
+сброса пароля).
 
 ## Квиз
 
