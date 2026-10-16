@@ -206,6 +206,61 @@ x/16gx &__libc_IO_vtables   # увидеть указатели функций
 - **Версия glibc:** имена и границы `__libc_IO_vtables` менялись; скрипт, снятый на 2.31, может не совпасть на 2.35 — проверяй версию.
 - **FSOP-цепочка:** обход vtable — лишь один шаг; дальше обычно идёт подмена структуры `_IO_FILE` и вызов `system` через `_IO_str_overflow`.
 
+## Структура _IO_FILE_plus и _IO_jump_t: карта слотов
+
+Поток в glibc — это `_IO_FILE_plus`, то есть `_IO_FILE`, сразу за которым лежит указатель на таблицу функций:
+
+```c
+struct _IO_FILE_plus {
+    struct _IO_FILE file;      // _flags, _IO_read_ptr, ..., _lock, _wide_data, ...
+    const struct _IO_jump_t *vtable;   // +0xd8 на x86-64 (уточнять по версии)
+};
+```
+
+Таблица `_IO_jump_t` — массив указателей на функции. Ключевые слоты (смещение в 64-битной таблице):
+
+| Смещение | Слот |
+|---|---|
+| 0x00 | `_IO_finish` |
+| 0x18 | `_IO_overflow` |
+| 0x20 | `_IO_underflow` |
+| 0x28 | `_IO_uflow` |
+| 0x30 | `_IO_pbackfail` |
+| 0x38 | `_IO_xsputn` |
+
+Именно на `_IO_overflow` (0x18) нацелено большинство FSOP-эксплойтов: при `fflush`/`exit` он вызывается с указателем на поток в `rdi`, что удобно для передачи `"/bin/sh"`. Держи перед глазами две вещи — где лежит `vtable` внутри `_IO_FILE_plus` и какой слот вызывается при конкретном действии; тогда «обход» перестаёт быть магией.
+
+## IO_validate_vtable в исходниках: две реализации защиты
+
+Проверка живёт в `libio/libioP.h` и вызывается перед любым вызовом через vtable. Упрощённо:
+
+```c
+static inline void
+IO_validate_vtable (const struct _IO_jump_t *vtable)
+{
+  uintptr_t section_length = __stop___libc_IO_vtables - __start___libc_IO_vtables;
+  uintptr_t offset = (uintptr_t) vtable - (uintptr_t) __start___libc_IO_vtables;
+  if (__glibc_unlikely (offset >= section_length))
+    _IO_vtable_check ();     // либо __libc_fatal на самых новых версиях
+}
+```
+
+В части версий вместо мгновенного `__libc_fatal` вызывается `_IO_vtable_check()`. Ключевое одинаково для всех реализаций: проверяется **попадание в диапазон** `[__start___libc_IO_vtables, __stop___libc_IO_vtables)`, а не то, что это начало таблицы. Отсюда растут все обходы.
+
+## Практика: скрипт поиска сдвига под system
+
+Порядок работы в отладчике (pwndbg):
+
+```
+pwndbg> p/x &__start___libc_IO_vtables
+pwndbg> p/x &__stop___libc_IO_vtables
+pwndbg> p/x &_IO_wfile_jumps
+pwndbg> x/12gx &_IO_wfile_jumps        # смотрим слоты таблицы
+pwndbg> p/x &system
+```
+
+Задача — найти такой адрес `V`, что `V` лежит в диапазоне секции, а `*(V + 0x18) == &system` (или гаджет). Если по `_IO_wfile_jumps - 0x18` лежит `system`, то `vtable = _IO_wfile_jumps - 0x18` проходит проверку и вызывает `system`. В реальности чаще ищут не точное совпадение с `system`, а **one_gadget** или гаджет, дающий контроль. Если сдвиг не находится — переключайся на `_wide_vtable`: там проверка вообще не смотрит.
+
 ## Квиз
 
 Проверь себя.
