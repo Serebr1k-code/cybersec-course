@@ -179,6 +179,45 @@ DeployPipelineRole
 - **Проверяй ExternalId.** Его отсутствие — находка.
 - **Строй цепочку.** Одна роль часто ведёт к следующей.
 
+## Confused deputy на практике: S3, Lambda и CloudFormation
+
+Абстрактный «сбитый с толку посредник» становится конкретным, когда доверие выдано не человеку, а сервису. Классический пример — **S3 bucket policy**, где владелец разрешает запись сервису, а сервис передаёт эту возможность клиенту:
+
+```
+{ "Effect": "Allow",
+  "Principal": { "Service": "cloudtrail.amazonaws.com" },
+  "Action": "s3:PutObject",
+  "Resource": "arn:aws:s3:::audit-logs/*" }
+```
+
+Если условие не сужено по `aws:SourceArn`/`SourceAccount`, чужой аккаунт может настроить собственный трейл, указав вашу корзину как приёмник, и лить туда данные от своего имени — посредник «путается», чей это запрос. Защита всегда одна: **Condition с SourceArn** и `ExternalId` там, где участвует третья сторона.
+
+Другой живой вектор — **`iam:PassRole` + Lambda**. Пользователь, которому разрешено создавать функции и передавать роль, фактически исполняет код **от имени этой роли**. Это не «assume», а передача роли как параметра; confused deputy тут в том, что сервис Lambda принимает роль на веру. Проверка:
+
+```bash
+$ aws iam list-attached-role-policies --role-name CrossAccountDeploy
+$ aws lambda create-function --function-name probe --runtime python3.12 \
+    --role arn:aws:iam::111111111111:role/CrossAccountDeploy \
+    --handler index.handler --zip-file fileb://probe.zip
+```
+
+Если роль привилегированна, а `PassRole` не ограничен условием `iam:PassedToService`, ты получаешь её права, не входя в неё. Всегда проверяй, **куда** передаётся роль, а не только **кому**.
+
+## Трассировка цепочки: CloudTrail и session name
+
+Когда цепочка AssumeRole построена, её нужно подтвердить по логам. События `AssumeRole` пишутся в CloudTrail с полями `userIdentity`, `requestParameters.roleArn` и `responseElements.assumedRoleUser`, а `role-session-name` становится частью ARN:
+
+```bash
+# Все AssumeRole за сутки с разбивкой по ролям
+$ aws cloudtrail lookup-events \
+    --lookup-attributes AttributeKey=EventName,AttributeValue=AssumeRole \
+    --start-time 2026-01-01T00:00:00Z \
+    --query "Events[].CloudTrailEvent" --output text \
+  | jq -r 'fromjson | .requestParameters.roleArn' | sort | uniq -c | sort -rn
+```
+
+Практические правила: давай **осмысленный** `role-session-name` — по нему в логах видно, кто именно надел роль (по умолчанию там случайный идентификатор). Если в цепочке используется `--external-id`, он **не** попадает в CloudTrail — не рассчитывай восстановить его из логов. И помни про `sts:AssumeRoleWithSAML`/`WithWebIdentity`: у них свой набор полей, и confused deputy там выглядит иначе (широкое условие `sub`, отсутствие проверки аудитории токена).
+
 ## Квиз
 
 Проверь себя.
