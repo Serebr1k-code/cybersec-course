@@ -204,6 +204,34 @@ $ nm -D libc.syms
 - **Отладка.** `p _IO_list_all`, `p *(struct _IO_FILE_plus*)_IO_list_all`.
 - **Modern-цепочки.** House of Apple/Apple2 для 2.34+.
 
+## Отладка FSOP-цепочки в gdb
+
+FSOP легко «не срабатывает» молча, поэтому отладка обязательна. Поставь точку останова на `_IO_flush_all_lockp` (символ есть в libc) — именно там libc обходит список потоков при выходе. В точке посмотри:
+
+```
+pwndbg> b _IO_flush_all_lockp
+pwndbg> c
+pwndbg> p _IO_list_all
+pwndbg> p *(struct _IO_FILE_plus*)_IO_list_all
+pwndbg> p *(struct _IO_FILE_plus*)_IO_list_all->vtable
+```
+
+Первая проверка — что `_IO_list_all` действительно указывает на твой поддельный `_IO_FILE` (адрес в куче, а не в libc). Вторая — что `_IO_write_ptr > _IO_write_base`, иначе поток будет пропущен. Третья — что `vtable` проходит `IO_validate_vtable` (указывает внутрь `__libc_IO_vtables`). Если `exit` не вызывается, поставь точку на `abort` или `fflush` — триггером может быть любой из них. Полезно также проверить условие `_mode <= 0`.
+
+## Когда какой «дом» применять
+
+House of Water — лишь один приём из семейства. Выбор зависит от версии glibc и доступного примитива:
+
+| Техника | Идея | Ограничение |
+|---|---|---|
+| House of Force | топ-чанк в произвольный адрес | glibc ≤ 2.28 (проверка размера) |
+| House of Orange | unsorted → `_IO_list_all` через `abort` | старые 2.23–2.27 |
+| House of Spirit | фейковый чанк на стеке/в данных | нужен указатель на него |
+| House of Water | перезапись `_IO_list_all` + FSOP | нужен примитив записи |
+| House of Apple/Apple2 | `_wide_data` + `_IO_wfile_jumps` | modern glibc 2.34+ |
+
+Ключевая мысль: с 2.34 убрали `__free_hook`/`__malloc_hook`, и FSOP через потоки ввода-вывода стала основным путём. Поэтому House of Water и Apple — не экзотика, а повседневный инструмент для modern glibc.
+
 ## Квиз
 
 Проверь себя.
